@@ -1,0 +1,642 @@
+/-!
+# Canonical labelling of finite graphs (a compact "mini-nauty")
+
+This file is deliberately *programming* Lean rather than *proving* Lean: it implements an
+individualisation–refinement (IR) canonical labelling algorithm in the style of McKay's `nauty`,
+with no `Prop`-level content at all.  Correctness proofs live elsewhere; the only thing this file
+promises syntactically is termination.
+
+## The algorithm
+
+Fix a graph `G` on the vertex set `{0, …, n-1}`.
+
+* An **ordered partition** of the vertices is stored `nauty`-style: an array `lab` listing the
+  vertices in partition order, its inverse `pos`, and for every *position* `i` the start `cst[i]`
+  and end `cen[i]` of the cell containing position `i`.  Cells are contiguous blocks of `lab`.
+
+* **Refinement** (`refine`) computes the coarsest equitable ordered partition refining a given
+  one, by the usual Hopcroft-style worklist: pop a cell `S` (the *splitter*), and split every
+  other cell `C` according to `|N(v) ∩ S|`, ordering the fragments by increasing count.  This is
+  1-dimensional Weisfeiler–Leman; on a random graph it already produces a discrete partition.
+
+* A discrete ordered partition *is* a labelling, so it yields a **certificate**: the adjacency
+  matrix read off in that order, stored one `Nat` bitmask per row.  Certificates are totally
+  ordered lexicographically.
+
+* When refinement does not discretise, we **individualise**: pick the first non-singleton cell
+  (an isomorphism-invariant choice), split off one of its vertices, re-refine, and recurse.  This
+  produces a search tree whose leaves are labellings.
+
+* The canonical labelling is the leaf that is largest for the order
+  `(invariant path, certificate)`, lexicographically.  The **invariant path** records, for each
+  node on the root-to-leaf path, a hash of the *trace* of the refinement that produced it (which
+  cells split, into what sizes, at which counts) together with the shape of the resulting
+  partition.  Everything hashed is a function of positions and multiplicities only — never of
+  vertex names — so the invariant path is an isomorphism invariant.
+
+Two prunings make this fast:
+
+* **Invariant pruning.**  At a node of depth `d`, compare its length-`d` invariant path with that
+  of the best leaf so far.  Smaller ⇒ every leaf below is smaller ⇒ prune.  Larger ⇒ every leaf
+  below beats the incumbent ⇒ discard the incumbent.
+
+* **Automorphism pruning.**  Two leaves with equal certificates differ by an automorphism `γ`,
+  which we record.  At a node with individualisation path `p`, any recorded `γ` fixing `p`
+  pointwise maps the subtree below `p ++ [v]` isomorphically onto the one below `p ++ [γ v]`, so
+  only one vertex per orbit needs to be explored.
+
+Note that hash collisions can only *weaken* pruning: an invariant path is used solely as the first
+component of a total order on leaves, and any isomorphism-invariant function works there.
+-/
+
+namespace IsoGraph
+namespace Canon
+
+/-! ## Graphs -/
+
+/-- A finite graph on the vertex set `{0, …, n-1}`, stored both as a dense adjacency matrix (for
+`O(1)` adjacency queries) and as neighbour lists (for the refinement inner loop).
+
+The algorithm below never inspects `adj`/`nbr` beyond index `n`, and assumes they agree and are
+symmetric; `Graph.ofOracle` builds a well-formed value. -/
+structure Graph where
+  /-- Number of vertices. -/
+  n : Nat
+  /-- `adj[v]![w]!` is `true` iff `v` and `w` are adjacent. -/
+  adj : Array (Array Bool)
+  /-- `nbr[v]!` lists the neighbours of `v` in increasing order. -/
+  nbr : Array (Array Nat)
+  deriving Inhabited
+
+/-- Build a `Graph` from an adjacency oracle on `{0, …, n-1}`. -/
+def Graph.ofOracle (n : Nat) (f : Nat → Nat → Bool) : Graph := Id.run do
+  let mut adj : Array (Array Bool) := Array.replicate n #[]
+  let mut nbr : Array (Array Nat) := Array.replicate n #[]
+  for v in [0:n] do
+    let mut row : Array Bool := Array.replicate n false
+    let mut ns : Array Nat := #[]
+    for w in [0:n] do
+      if f v w then
+        row := row.set! w true
+        ns := ns.push w
+    adj := adj.set! v row
+    nbr := nbr.set! v ns
+  return { n, adj, nbr }
+
+/-- Number of edges (counting each unordered pair once); handy for sanity checks. -/
+def Graph.edgeCount (G : Graph) : Nat := Id.run do
+  let mut m := 0
+  for v in [0:G.n] do
+    m := m + G.nbr[v]!.size
+  return m / 2
+
+/-! ## Hashing
+
+A 64-bit FNV-style mixer.  Only used to compress isomorphism-invariant integer sequences into a
+comparable summary; collisions cost pruning power, never correctness. -/
+
+/-- The FNV-1a offset basis, used as the seed of every invariant hash. -/
+def hashSeed : UInt64 := 1469598103934665603
+
+/-- Fold one number into a running hash. -/
+@[inline] def mix (h : UInt64) (x : UInt64) : UInt64 :=
+  (h ^^^ x) * 1099511628211
+
+/-- Fold one `Nat` into a running hash. -/
+@[inline] def mixN (h : UInt64) (x : Nat) : UInt64 :=
+  mix h (UInt64.ofNat x)
+
+/-! ## Ordered partitions -/
+
+/-- An ordered partition of `{0, …, n-1}` into contiguous cells of `lab`.
+
+* `lab[i]!` — the vertex at position `i`;
+* `pos[v]!` — the position of vertex `v` (inverse of `lab`);
+* `cst[i]!` — first position of the cell containing position `i`;
+* `cen[i]!` — one past the last position of that cell.
+
+A cell is therefore identified by its start position, and cell starts are exactly the `i` with
+`cst[i]! = i`. -/
+structure Part where
+  /-- Position `↦` vertex. -/
+  lab : Array Nat
+  /-- Vertex `↦` position. -/
+  pos : Array Nat
+  /-- Position `↦` start of its cell. -/
+  cst : Array Nat
+  /-- Position `↦` end (exclusive) of its cell. -/
+  cen : Array Nat
+  deriving Inhabited
+
+/-- The one-cell (unit) partition of `{0, …, n-1}`. -/
+def Part.unit (n : Nat) : Part :=
+  { lab := Array.range n
+    pos := Array.range n
+    cst := Array.replicate n 0
+    cen := Array.replicate n n }
+
+/-- Hash of the sequence of cell sizes.  Isomorphism-invariant. -/
+def Part.shapeHash (p : Part) (n : Nat) : UInt64 := Id.run do
+  let mut h := hashSeed
+  let mut i := 0
+  for _ in [0:n] do
+    if i ≥ n then break
+    let e := p.cen[i]!
+    h := mixN h (e - i)
+    i := e
+  return h
+
+/-- Start position of the first non-singleton cell, if any.  This is the target cell for
+individualisation; picking the *first* one is an isomorphism-invariant rule. -/
+def Part.targetCell (p : Part) (n : Nat) : Option Nat := Id.run do
+  let mut i := 0
+  for _ in [0:n] do
+    if i ≥ n then break
+    let e := p.cen[i]!
+    if e - i > 1 then return some i
+    i := e
+  return none
+
+/-! ## Refinement -/
+
+/-- Scratch space reused across refinement steps.
+
+Allocating these three arrays afresh in every step would make a step cost `Ω(n)` even when the
+splitter is tiny, which on sparse graphs dominates everything else.  Instead they are threaded
+through the worklist loop and each step *restores* them, so the invariant
+
+* `cnt` is all `0`,
+* `hit` is all `false`,
+* `bc` is all `0`
+
+holds on entry to and on exit from every step, and clearing costs only what was dirtied. -/
+structure Scratch where
+  /-- Vertex `↦` number of neighbours in the current splitter cell. -/
+  cnt : Array Nat
+  /-- Cell start `↦` has this cell already been collected? -/
+  hit : Array Bool
+  /-- Neighbour count `↦` bucket size, then bucket offset, during the counting sort. -/
+  bc : Array Nat
+  deriving Inhabited
+
+/-- Cleared scratch space for a graph on `n` vertices.  Counts never exceed `n`, so `bc` needs
+`n + 1` entries. -/
+def Scratch.empty (n : Nat) : Scratch :=
+  { cnt := Array.replicate n 0, hit := Array.replicate n false, bc := Array.replicate (n + 1) 0 }
+
+/-- Perform one refinement step: use the cell starting at position `s` as a splitter, splitting
+every cell that meets its neighbourhood.
+
+Returns the new partition, the updated worklist (`inW`, indexed by cell start position), the
+updated trace hash, and the scratch space, restored to its cleared state.  Cells created by a
+split are pushed onto the worklist following Hopcroft's rule: all fragments if the parent was
+queued, otherwise all but a largest fragment. -/
+def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64) (sc : Scratch) :
+    Part × Array Bool × UInt64 × Scratch := Id.run do
+  let e := p.cen[s]!
+  let mut lab := p.lab
+  let mut pos := p.pos
+  let mut cst := p.cst
+  let mut cen := p.cen
+  let mut inW := inW
+  let mut tr := mixN tr s
+  let mut cnt := sc.cnt
+  let mut hit := sc.hit
+  let mut bc := sc.bc
+  -- (1) count neighbours inside the splitter cell `lab[s:e]`.
+  let mut touched : Array Nat := #[]
+  for k in [s:e] do
+    for v in G.nbr[lab[k]!]! do
+      let c := cnt[v]!
+      if c == 0 then touched := touched.push v
+      cnt := cnt.set! v (c + 1)
+  if touched.isEmpty then
+    return (p, inW, tr, sc)
+  -- (2) collect the cells met by the splitter and process them left to right, so that the order
+  -- in which they are processed depends only on positions.  Only *met* cells are visited, which
+  -- is what keeps a refinement step proportional to the splitter's degree sum rather than to the
+  -- number of cells.
+  let mut cells : Array Nat := #[]
+  for v in touched do
+    let c := cst[pos[v]!]!
+    if !hit[c]! then
+      hit := hit.set! c true
+      cells := cells.push c
+  cells := cells.qsort (· < ·)
+  for c in cells do
+    -- Read the cell's extent *before* splitting it; splits stay inside `[c, ec)`, so the cells
+    -- collected above keep their starts.
+    let ec := cen[c]!
+    if ec - c == 1 then
+      -- A singleton cell cannot split, but its count is still invariant information.
+      tr := mixN (mixN tr c) cnt[lab[c]!]!
+      continue
+    -- (3) counting sort of the cell by neighbour count.  Only the counts that actually occur in
+    -- the cell are visited, so the cost is `O(|cell|)` rather than `O(|splitter|)`; `bc` doubles
+    -- as the bucket-size table and then as the offset table, and is left all-zero again.
+    let mut ks : Array Nat := #[]
+    for k in [c:ec] do
+      let t := cnt[lab[k]!]!
+      if bc[t]! == 0 then ks := ks.push t
+      bc := bc.set! t (bc[t]! + 1)
+    if ks.size == 1 then
+      -- No split; record the common count and reset the scratch counter.
+      tr := mixN (mixN tr c) ks[0]!
+      bc := bc.set! ks[0]! 0
+      continue
+    ks := ks.qsort (· < ·)
+    let mut sizes : Array Nat := Array.replicate ks.size 0
+    let mut acc := 0
+    for j in [0:ks.size] do
+      let t := ks[j]!
+      sizes := sizes.set! j bc[t]!
+      acc := acc + bc[t]!
+      bc := bc.set! t (acc - bc[t]!)
+    let mut block : Array Nat := Array.replicate (ec - c) 0
+    for k in [c:ec] do
+      let v := lab[k]!
+      let t := cnt[v]!
+      block := block.set! bc[t]! v
+      bc := bc.set! t (bc[t]! + 1)
+    for t in ks do
+      bc := bc.set! t 0
+    for k in [0:block.size] do
+      let v := block[k]!
+      lab := lab.set! (c + k) v
+      pos := pos.set! v (c + k)
+    -- (4) install the fragment boundaries and collect them.
+    tr := mixN tr c
+    let mut starts : Array Nat := #[]
+    let mut st := c
+    for j in [0:ks.size] do
+      let sz := sizes[j]!
+      let en := st + sz
+      for i' in [st:en] do
+        cst := cst.set! i' st
+        cen := cen.set! i' en
+      starts := starts.push st
+      tr := mixN (mixN tr sz) ks[j]!
+      st := en
+    -- (5) worklist maintenance (Hopcroft).
+    if inW[c]! then
+      for t in starts do
+        inW := inW.set! t true
+    else
+      let mut bi := 0
+      for k in [0:sizes.size] do
+        if sizes[k]! > sizes[bi]! then bi := k
+      for k in [0:starts.size] do
+        if k != bi then inW := inW.set! starts[k]! true
+  -- (6) restore the scratch space, touching only the entries that were dirtied.  `bc` is already
+  -- back to all-zero: every bucket counter is reset as soon as its cell is done.
+  for v in touched do
+    cnt := cnt.set! v 0
+  for c in cells do
+    hit := hit.set! c false
+  return ({ lab, pos, cst, cen }, inW, tr, { cnt, hit, bc })
+
+/-- Index of the first `true` entry of `a`. -/
+def firstSet (a : Array Bool) : Option Nat := Id.run do
+  for j in [0:a.size] do
+    if a[j]! then return some j
+  return none
+
+/-- The refinement worklist loop.  `fuel` bounds the number of splitter pops. -/
+def refineLoop (G : Graph) : Nat → Part → Array Bool → UInt64 → Scratch → Part × UInt64
+  | 0, p, _, tr, _ => (p, tr)
+  | fuel + 1, p, inW, tr, sc =>
+    match firstSet inW with
+    | none => (p, tr)
+    | some s =>
+      let (p, inW, tr, sc) := refineStep G p (inW.set! s false) s tr sc
+      refineLoop G fuel p inW tr sc
+
+/-- Refine `p` to the coarsest equitable partition refining it, using the cells whose start
+positions are flagged in `inW` as initial splitters.  Returns the refined partition together with
+the trace hash of the refinement.
+
+The fuel `n² + n + 1` is a genuine bound: a cell start enters the worklist once initially and once
+per fragment of each split, there are at most `n - 1` splits, and each split creates at most `n`
+fragments. -/
+def refine (G : Graph) (p : Part) (inW : Array Bool) (tr : UInt64) : Part × UInt64 :=
+  refineLoop G (G.n * G.n + G.n + 1) p inW tr (Scratch.empty G.n)
+
+/-- Refine from the unit partition: equivalently, the coarsest equitable partition of `G`. -/
+def initialRefine (G : Graph) : Part × UInt64 :=
+  let p := Part.unit G.n
+  let inW := if G.n == 0 then #[] else (Array.replicate G.n false).set! 0 true
+  refine G p inW hashSeed
+
+/-- Split the vertex `v` off from its cell, placing it first.  Returns the new partition and the
+position of the new singleton cell `{v}` (which is the only splitter needed to re-refine, since
+the input partition is assumed equitable). -/
+def individualize (p : Part) (v : Nat) : Part × Nat := Id.run do
+  let i := p.pos[v]!
+  let c := p.cst[i]!
+  let ec := p.cen[i]!
+  let u := p.lab[c]!
+  let lab := (p.lab.set! c v).set! i u
+  let pos := (p.pos.set! v c).set! u i
+  let mut cst := p.cst
+  let mut cen := p.cen
+  cen := cen.set! c (c + 1)
+  for j in [c + 1:ec] do
+    cst := cst.set! j (c + 1)
+  return ({ lab, pos, cst, cen }, c)
+
+/-! ## Certificates -/
+
+/-- Number of 64-bit words used for one row of a certificate. -/
+def rowWords (n : Nat) : Nat := (n + 63) / 64
+
+/-- The adjacency matrix of `G` read off in the order `lab`, packed into 64-bit words: row `i`
+occupies words `[i * rowWords n, (i+1) * rowWords n)`, and column `j` of a row is bit
+`63 - j % 64` of word `j / 64`.  Unused trailing bits are zero.
+
+Packing bits most-significant-first means that comparing the word arrays lexicographically, as
+unsigned integers, compares the bit strings lexicographically.  Two labellings give the same
+certificate exactly when they differ by an automorphism. -/
+def certOf (G : Graph) (lab : Array Nat) : Array UInt64 := Id.run do
+  let n := G.n
+  let w := rowWords n
+  let mut out : Array UInt64 := Array.replicate (n * w) 0
+  for i in [0:n] do
+    let row := G.adj[lab[i]!]!
+    let base := i * w
+    let mut acc : UInt64 := 0
+    let mut k := base
+    for j in [0:n] do
+      acc := acc <<< 1 ||| (if row[lab[j]!]! then 1 else 0)
+      if (j + 1) % 64 == 0 then
+        out := out.set! k acc
+        acc := 0
+        k := k + 1
+    if n % 64 != 0 then
+      out := out.set! k (acc <<< UInt64.ofNat (64 - n % 64))
+  return out
+
+/-- Lexicographic comparison of `UInt64` arrays (shorter is smaller on a common prefix). -/
+def lexCmpU64 (a b : Array UInt64) : Ordering := Id.run do
+  let m := min a.size b.size
+  for i in [0:m] do
+    let c := compare a[i]! b[i]!
+    if c != .eq then return c
+  return compare a.size b.size
+
+/-! ## Automorphisms -/
+
+/-- Given two labellings `σ τ : position → vertex` with equal certificates, the permutation
+`γ = τ ∘ σ⁻¹`, which is an automorphism of the graph. -/
+def autoOf (n : Nat) (σ τ : Array Nat) : Array Nat := Id.run do
+  let mut g : Array Nat := Array.replicate n 0
+  for i in [0:n] do
+    g := g.set! σ[i]! τ[i]!
+  return g
+
+/-- Whether a permutation moves some point. -/
+def moves (g : Array Nat) : Bool := Id.run do
+  for i in [0:g.size] do
+    if g[i]! != i then return true
+  return false
+
+/-- One step of orbit closure: mark the images of `v` under all generators. -/
+def closureStep (gens : Array (Array Nat)) (mark : Array Bool) (stack : Array Nat)
+    (v : Nat) : Array Bool × Array Nat := Id.run do
+  let mut mark := mark
+  let mut stack := stack
+  for g in gens do
+    let w := g[v]!
+    if !mark[w]! then
+      mark := mark.set! w true
+      stack := stack.push w
+  return (mark, stack)
+
+/-- Close `mark` under the generators, using `stack` as the frontier.  `fuel` bounds the number of
+pops, which is at most the number of marked points. -/
+def closureLoop (gens : Array (Array Nat)) : Nat → Array Bool → Array Nat → Array Bool
+  | 0, mark, _ => mark
+  | fuel + 1, mark, stack =>
+    if stack.isEmpty then mark
+    else
+      let v := stack[stack.size - 1]!
+      let (mark, stack) := closureStep gens mark stack.pop v
+      closureLoop gens fuel mark stack
+
+/-- The union of the `gens`-orbits of the vertices in `seed`, as a membership array of size `n`. -/
+def orbitClosure (n : Nat) (gens : Array (Array Nat)) (seed : Array Nat) : Array Bool := Id.run do
+  let mut mark : Array Bool := Array.replicate n false
+  for v in seed do
+    mark := mark.set! v true
+  return closureLoop gens (n + 1) mark seed
+/-! ## The search -/
+
+/-- Length of the longest common prefix of two paths. -/
+def commonPrefix (a b : Array Nat) : Nat := Id.run do
+  let m := min a.size b.size
+  for i in [0:m] do
+    if a[i]! != b[i]! then return i
+  return m
+
+/-- A leaf of the search tree: a discrete ordered partition together with the data used to compare
+it against other leaves. -/
+structure Leaf where
+  /-- The vertices individualised to reach this leaf. -/
+  path : Array Nat
+  /-- Node invariants along the root-to-leaf path. -/
+  invPath : Array UInt64
+  /-- The certificate of `lab`. -/
+  cert : Array UInt64
+  /-- The labelling itself: position `↦` vertex. -/
+  lab : Array Nat
+  deriving Inhabited
+
+/-- Mutable state threaded through the depth-first search. -/
+structure St where
+  /-- The best leaf seen so far, for the order `(invPath, cert)`. -/
+  best : Option Leaf
+  /-- The very first leaf reached, kept only to detect automorphisms. -/
+  first : Option Leaf
+  /-- Automorphisms discovered so far, as image arrays `γ[v]!`. -/
+  autos : Array (Array Nat)
+  /-- Number of search-tree nodes visited. -/
+  nodes : Nat
+  /-- When `some k`: abandon the search below depth `k`.  See `leafUpdate`. -/
+  abortTo : Option Nat
+  deriving Inhabited
+
+/-- Cap on the number of stored automorphism generators.  Dropping generators only weakens orbit
+pruning, so this is a pure performance guard. -/
+def maxGens : Nat := 256
+
+/-- Record a newly found automorphism, ignoring the identity and duplicates. -/
+def St.addAuto (st : St) (g : Array Nat) : St :=
+  if !moves g then st
+  else if st.autos.size ≥ maxGens then st
+  else if st.autos.any (fun h => h == g) then st
+  else { st with autos := st.autos.push g }
+
+/-- Invariant pruning at a node.  Returns `none` if the whole subtree is dominated by the current
+best leaf, and otherwise the state to continue with (with the incumbent discarded if the subtree
+is guaranteed to beat it). -/
+def pruneNode (invPath : Array UInt64) (st : St) : Option St :=
+  match st.best with
+  | none => some st
+  | some b =>
+    match lexCmpU64 invPath (b.invPath.extract 0 invPath.size) with
+    | .lt => none
+    | .gt => some { st with best := none }
+    | .eq => some st
+
+/-- Process a leaf: update the incumbent, harvest any automorphism, and decide how far to
+backjump.
+
+If the new leaf `ν` has the same certificate as a previously completed leaf `ζ`, then
+`γ = ζ ∘ ν⁻¹` is an automorphism.  Writing `k` for the depth of the greatest common ancestor of
+the two leaves, `γ` fixes the first `k` individualised vertices and maps `ν`'s branch at depth `k`
+onto `ζ`'s.  Since depth-first search had already *finished* `ζ`'s branch before entering `ν`'s,
+every leaf still unexplored below `ν`'s branch is a `γ`-image of one already seen, and carries the
+same certificate.  So the whole remainder of that branch can be abandoned: we request a backjump
+to depth `k`. -/
+def leafUpdate (G : Graph) (path : Array Nat) (invPath : Array UInt64) (lab : Array Nat)
+    (st : St) : St := Id.run do
+  let cert := certOf G lab
+  let leaf : Leaf := { path, invPath, cert, lab }
+  let mut st := st
+  let mut jump : Option Nat := none
+  match st.first with
+  | none => st := { st with first := some leaf }
+  | some f =>
+    if lexCmpU64 cert f.cert == .eq then
+      st := st.addAuto (autoOf G.n lab f.lab)
+      jump := some (commonPrefix path f.path)
+  match st.best with
+  | none => st := { st with best := some leaf }
+  | some b =>
+    match lexCmpU64 invPath b.invPath with
+    | .gt => st := { st with best := some leaf }
+    | .lt => pure ()
+    | .eq =>
+      match lexCmpU64 cert b.cert with
+      | .gt => st := { st with best := some leaf }
+      | .lt => pure ()
+      | .eq =>
+        st := st.addAuto (autoOf G.n lab b.lab)
+        let k := commonPrefix path b.path
+        jump := some (match jump with | none => k | some j => min j k)
+  return { st with abortTo := jump }
+
+/-- The automorphisms found so far that fix every vertex of `path`.  Only these may be used to
+prune the children of the node reached by `path`. -/
+def usableAutos (autos : Array (Array Nat)) (path : Array Nat) : Array (Array Nat) :=
+  if autos.isEmpty then autos else autos.filter fun g => path.all fun x => g[x]! == x
+
+/-- Cached orbit information for the children of one search-tree node: the orbit of the already
+processed children, under those automorphisms that fix the node's individualisation path. -/
+structure Orbits where
+  /-- Size of `St.autos` when this was computed; used to detect staleness. -/
+  nGens : Nat
+  /-- The automorphisms fixing the node's path pointwise. -/
+  gens : Array (Array Nat)
+  /-- Membership array for the orbit of the processed children. -/
+  mark : Array Bool
+  deriving Inhabited
+
+mutual
+
+/-- Visit one node of the search tree.  `p` is the (already refined) ordered partition, `path`
+the vertices individualised to reach it, and `invPath` the node invariants along that path. -/
+def dfsNode (G : Graph) (fuel : Nat) (path : Array Nat) (invPath : Array UInt64) (p : Part)
+    (st : St) : St :=
+  match fuel with
+  | 0 => st
+  | fuel + 1 =>
+    if st.abortTo.isSome then st else
+    match pruneNode invPath st with
+    | none => st
+    | some st =>
+      let st := { st with nodes := st.nodes + 1 }
+      match p.targetCell G.n with
+      | none => leafUpdate G path invPath p.lab st
+      | some c =>
+        let verts := (p.lab.extract c (p.cen[c]!)).toList
+        let orb : Orbits :=
+          { nGens := st.autos.size, gens := usableAutos st.autos path,
+            mark := Array.replicate G.n false }
+        dfsChildren G fuel path invPath p verts #[] orb st
+  termination_by (fuel, 0)
+
+/-- Visit the remaining children `verts` of a node, skipping those in the orbit of an already
+visited child, and honouring any backjump request coming back from below. -/
+def dfsChildren (G : Graph) (fuel : Nat) (path : Array Nat) (invPath : Array UInt64) (p : Part)
+    (verts : List Nat) (processed : Array Nat) (orb : Orbits) (st : St) : St :=
+  match verts with
+  | [] => st
+  | v :: vs =>
+    if st.abortTo.isSome then st else
+    -- Refresh the orbit cache if new automorphisms have turned up since it was built.
+    let orb : Orbits :=
+      if orb.nGens == st.autos.size then orb
+      else
+        let gens := usableAutos st.autos path
+        { nGens := st.autos.size, gens, mark := orbitClosure G.n gens processed }
+    if orb.mark[v]! then
+      dfsChildren G fuel path invPath p vs processed orb st
+    else
+      let (p', s) := individualize p v
+      let inW := (Array.replicate G.n false).set! s true
+      let (p'', tr) := refine G p' inW hashSeed
+      let childInv := invPath.push (mix tr (p''.shapeHash G.n))
+      let st := dfsNode G fuel (path.push v) childInv p'' st
+      -- A backjump to depth `path.size` stops here; a shallower one keeps unwinding.
+      let st : St :=
+        match st.abortTo with
+        | some k => if k ≥ path.size then { st with abortTo := none } else st
+        | none => st
+      if st.abortTo.isSome then st
+      else
+        let orb : Orbits :=
+          { orb with mark := closureLoop orb.gens (G.n + 1) (orb.mark.set! v true) #[v] }
+        dfsChildren G fuel path invPath p vs (processed.push v) orb st
+  termination_by (fuel, verts.length + 1)
+
+end
+
+/-! ## Entry points -/
+
+/-- The result of canonicalisation. -/
+structure Result where
+  /-- The canonical labelling: `lab[i]!` is the vertex placed at canonical position `i`. -/
+  lab : Array Nat
+  /-- The canonical form: `certOf G lab`, one row bitmask per canonical position. -/
+  cert : Array UInt64
+  /-- Generators of (a subgroup of) the automorphism group found along the way. -/
+  autos : Array (Array Nat)
+  /-- Number of search-tree nodes visited, for diagnostics. -/
+  nodes : Nat
+  deriving Inhabited
+
+/-- Compute a canonical labelling of `G`.
+
+`Result.lab` is a permutation of `{0, …, n-1}` such that `Result.cert` depends only on the
+isomorphism class of `G`. -/
+def canonical (G : Graph) : Result :=
+  let (p, tr) := initialRefine G
+  let inv0 : Array UInt64 := #[mix tr (p.shapeHash G.n)]
+  let st := dfsNode G (G.n + 1) #[] inv0 p
+    { best := none, first := none, autos := #[], nodes := 0, abortTo := none }
+  match st.best with
+  | none =>
+    { lab := Array.range G.n, cert := certOf G (Array.range G.n), autos := #[], nodes := st.nodes }
+  | some b => { lab := b.lab, cert := b.cert, autos := st.autos, nodes := st.nodes }
+
+/-- The canonical form of `G`: an isomorphism invariant that is complete (equal iff isomorphic,
+for graphs on the same number of vertices). -/
+def canonicalForm (G : Graph) : Array UInt64 :=
+  (canonical G).cert
+
+/-- Canonical labelling from an adjacency oracle. -/
+def canonicalLabellingOfOracle (n : Nat) (f : Nat → Nat → Bool) : Array Nat :=
+  (canonical (Graph.ofOracle n f)).lab
+
+end Canon
+end IsoGraph
