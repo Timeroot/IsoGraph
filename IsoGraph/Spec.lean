@@ -1,5 +1,7 @@
+import Mathlib.Data.Fintype.EquivFin
 import Mathlib.Logic.Equiv.Defs
 import IsoGraph.Canonical
+import IsoGraph.Equivariance
 
 /-!
 # From the canonical labelling algorithm to permutations, and its specification
@@ -229,16 +231,156 @@ theorem exists_relabel_of_canonAdj_eq {adjG adjH : Fin n → Fin n → Bool}
   have hxy := congrFun (congrFun h ((canonPerm n adjH).symm x)) ((canonPerm n adjH).symm y)
   simpa [Equiv.trans_apply] using hxy
 
-/-! ## Invariance: the remaining obligation -/
+/-! ## Invariance: the remaining obligation
+
+Renaming the vertices of a graph does not change its canonical form.  This is the one deep fact
+about the algorithm, and everything else — that `IsoGraph` may be `Quotient.lift`ed through the
+canonical form, and hence that graph invariants computed from it are well defined — reduces to
+it.
+
+It is `canonAdj_relabel` below, and it is *derived* here from two statements about the raw array
+algorithm, `LabellingIsPerm` and `LabellingInvariant`.  That reduction is the point of this
+section: it discharges the whole `Fin`/`Equiv.Perm` wrapper — the `permOfArrays` run-time check,
+the `invArray` inverse, the translation between `Equiv.Perm (Fin n)` and a renaming of
+`{0, …, n-1}` — so that what is left to prove mentions nothing but `Array Nat` and
+`canonicalLabellingOfOracle`.  See `IsoGraph/Equivariance.lean` for the groundwork on that side.
+-/
+
+/-- The labelling the search returns for the oracle `f` on `m` vertices: canonical position `i`
+holds the vertex `labelling m f`. -/
+abbrev labelling (m : Nat) (f : Nat → Nat → Bool) : Array Nat := canonicalLabellingOfOracle m f
+
+/-- **Obligation A: the search returns a permutation of the vertices.**
+
+This is not needed for soundness — `permOfArrays` checks it at run time and falls back to the
+identity — but it *is* needed for invariance, since a run that fell back and a run that did not
+would compare different things. -/
+def LabellingIsPerm : Prop :=
+  ∀ (m : Nat) (f : Nat → Nat → Bool),
+    (labelling m f).size = m ∧ Canon.IsPerm m (fun v => (labelling m f)[v]!)
+
+/-- **Obligation B: the labelling the search settles on is equivariant.**
+
+Renaming the vertices along `s` and canonicalising gives the same adjacency matrix as
+canonicalising and not renaming.  Note this is weaker than "the labelling itself transforms along
+`s`", which is false: the winner is only determined up to an automorphism, and which of several
+equally-good leaves the search happens to reach does depend on vertex names.  What must not
+depend on them is the *matrix read off at the winner*, which is what this says. -/
+def LabellingInvariant : Prop :=
+  ∀ (m : Nat) (f : Nat → Nat → Bool) (s : Nat → Nat), Canon.IsPerm m s →
+    ∀ i, i < m → ∀ j, j < m →
+      f (s ((labelling m fun v w => f (s v) (s w))[i]!))
+          (s ((labelling m fun v w => f (s v) (s w))[j]!))
+        = f ((labelling m f)[i]!) ((labelling m f)[j]!)
+
+theorem labellingIsPerm : LabellingIsPerm := by
+  sorry
+
+/-- The deep half.  Its docstring in `IsoGraph/Equivariance.lean` records how it decomposes; the
+prose version is the numbered list below. -/
+theorem labellingInvariant : LabellingInvariant := by
+  sorry
+
+/-! ### `invArray` and `permOfArrays` on a genuine permutation -/
+
+theorem invArray_size (m : Nat) (a : Array Nat) : (invArray m a).size = m := by
+  sorry
+
+/-- On a permutation array, `invArray` really is the inverse. -/
+theorem invArray_apply {m : Nat} {a : Array Nat} (ha : a.size = m)
+    (h : Canon.IsPerm m fun v => a[v]!) (i : Nat) (hi : i < m) :
+    (invArray m a)[a[i]!]! = i := by
+  sorry
+
+/-- So the run-time check inside `permOfArrays` succeeds, and the permutation it returns is the
+array read literally. -/
+theorem permOfArrays_val {m : Nat} {a : Array Nat} (h : Canon.IsPerm m fun v => a[v]!)
+    (hinv : ∀ i, i < m → (invArray m a)[a[i]!]! = i) (i : Fin m) :
+    (permOfArrays m a (invArray m a) i).1 = a[i.1]! := by
+  have hmaps : ∀ k : Fin m, a[k.1]! < m := fun k => h.maps _ k.2
+  have hfa : ∀ k : Fin m, finFn m a k = ⟨a[k.1]!, hmaps k⟩ := fun k => dif_pos (hmaps k)
+  have hb : ∀ k : Fin m, finFn m (invArray m a) ⟨a[k.1]!, hmaps k⟩ = k := by
+    intro k
+    have hv : (invArray m a)[a[k.1]!]! = k.1 := hinv k.1 k.2
+    have hlt : (invArray m a)[(⟨a[k.1]!, hmaps k⟩ : Fin m).1]! < m := by rw [hv]; exact k.2
+    exact Fin.ext (by rw [finFn, dif_pos hlt]; exact hv)
+  have hleft : ∀ k, finFn m (invArray m a) (finFn m a k) = k := fun k => by rw [hfa k]; exact hb k
+  have hinj : Function.Injective fun k : Fin m => (⟨a[k.1]!, hmaps k⟩ : Fin m) := by
+    intro x y hxy
+    exact Fin.ext (h.inj _ x.2 _ y.2 (congrArg Fin.val hxy))
+  have hright : ∀ k, finFn m a (finFn m (invArray m a) k) = k := by
+    intro k
+    obtain ⟨l, rfl⟩ := Finite.surjective_of_injective hinj k
+    rw [hb l, hfa l]
+  simp only [permOfArrays, dif_pos (And.intro hleft hright)]
+  exact congrArg Fin.val (hfa i)
+
+/-! ### The renaming of `{0, …, n-1}` induced by a permutation of `Fin n` -/
+
+/-- `σ` as a renaming of plain naturals, fixing everything outside the vertex set. -/
+def natOfPerm (m : Nat) (σ : Equiv.Perm (Fin m)) (v : Nat) : Nat :=
+  if h : v < m then (σ ⟨v, h⟩).1 else v
+
+theorem natOfPerm_lt {m : Nat} (σ : Equiv.Perm (Fin m)) {v : Nat} (hv : v < m) :
+    natOfPerm m σ v = (σ ⟨v, hv⟩).1 := dif_pos hv
+
+theorem natOfPerm_isPerm (m : Nat) (σ : Equiv.Perm (Fin m)) : Canon.IsPerm m (natOfPerm m σ) where
+  maps v hv := by rw [natOfPerm_lt σ hv]; exact (σ ⟨v, hv⟩).2
+  inj v hv w hw hvw := by
+    rw [natOfPerm_lt σ hv, natOfPerm_lt σ hw] at hvw
+    exact congrArg Fin.val (σ.injective (Fin.ext hvw))
+
+/-- Relabelling a graph on `Fin n` is renaming its oracle. -/
+theorem oracleOfFin_relabel (m : Nat) (σ : Equiv.Perm (Fin m)) (adj : Fin m → Fin m → Bool) :
+    oracleOfFin m (relabel σ adj) = fun v w => oracleOfFin m adj (natOfPerm m σ v)
+      (natOfPerm m σ w) := by
+  funext v w
+  by_cases hv : v < m
+  · by_cases hw : w < m
+    · rw [oracleOfFin_apply _ hv hw, natOfPerm_lt σ hv, natOfPerm_lt σ hw,
+        oracleOfFin_apply _ (σ ⟨v, hv⟩).2 (σ ⟨w, hw⟩).2, relabel_apply]
+    · simp [oracleOfFin, natOfPerm, hv, hw]
+  · simp [oracleOfFin, natOfPerm, hv]
+
+/-! ### The reduction -/
+
+/-- Under obligation A, `canonPerm` is the labelling array read literally. -/
+theorem canonPerm_val (hA : LabellingIsPerm) (adj : Fin n → Fin n → Bool) (i : Fin n) :
+    (canonPerm n adj i).1 = (labelling n (oracleOfFin n adj))[i.1]! :=
+  have h := hA n (oracleOfFin n adj)
+  permOfArrays_val h.2 (fun k hk => invArray_apply h.1 h.2 k hk) i
+
+/-- The canonical form, evaluated: it is the oracle read at the labelling. -/
+theorem canonAdj_eq_oracle (hA : LabellingIsPerm) (adj : Fin n → Fin n → Bool) (i j : Fin n) :
+    canonAdj n adj i j
+      = oracleOfFin n adj ((labelling n (oracleOfFin n adj))[i.1]!)
+          ((labelling n (oracleOfFin n adj))[j.1]!) := by
+  have h := hA n (oracleOfFin n adj)
+  have hi : canonPerm n adj i = ⟨(labelling n (oracleOfFin n adj))[i.1]!, h.2.maps _ i.2⟩ :=
+    Fin.ext (canonPerm_val hA adj i)
+  have hj : canonPerm n adj j = ⟨(labelling n (oracleOfFin n adj))[j.1]!, h.2.maps _ j.2⟩ :=
+    Fin.ext (canonPerm_val hA adj j)
+  rw [canonAdj_apply, hi, hj, oracleOfFin_apply adj (h.2.maps _ i.2) (h.2.maps _ j.2)]
+
+/-- **The reduction.**  Invariance of the canonical form follows from the two array-level
+obligations, with nothing else about the algorithm needed. -/
+theorem canonAdj_relabel_of (hA : LabellingIsPerm) (hB : LabellingInvariant)
+    (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
+    canonAdj n (relabel σ adj) = canonAdj n adj := by
+  funext i j
+  rw [canonAdj_eq_oracle hA (relabel σ adj) i j, canonAdj_eq_oracle hA adj i j,
+    oracleOfFin_relabel n σ adj]
+  exact hB n (oracleOfFin n adj) (natOfPerm n σ) (natOfPerm_isPerm n σ) i.1 i.2 j.1 j.2
 
 /-- **Invariance of the canonical form.**  Renaming the vertices of a graph does not change its
 canonical form.
 
-This is the one deep fact about the algorithm, and everything else — that `IsoGraph` may be
-`Quotient.lift`ed through the canonical form, and hence that graph invariants computed from it
-are well defined — reduces to it.
+Everything else in the development — that `IsoGraph` may be `Quotient.lift`ed through the
+canonical form, and hence that graph invariants computed from it are well defined — reduces to
+this.  It in turn reduces, by `canonAdj_relabel_of`, to `LabellingIsPerm` and
+`LabellingInvariant`; the latter is the deep one, and decomposes as follows.
 
-It decomposes as follows.  Fix `σ` and write `q ≈ p` for "the ordered partitions `q` and `p` have
+Fix `σ` and write `q ≈ p` for "the ordered partitions `q` and `p` have
 the same cell boundaries, and the `i`-th cell of `q` is the `σ`-image of the `i`-th cell of `p`
 *as a set*".  (Only as a set: refinement's counting sort is stable, so the order *within* a cell
 is inherited from the parent cell and so depends on vertex names, which are not invariant.  What
@@ -265,8 +407,8 @@ is invariant is the sequence of cells.)  Then:
    `leafUpdate` discards only the remainder of a branch all of whose leaves are automorphic
    images of leaves already visited. -/
 theorem canonAdj_relabel (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
-    canonAdj n (relabel σ adj) = canonAdj n adj := by
-  sorry
+    canonAdj n (relabel σ adj) = canonAdj n adj :=
+  canonAdj_relabel_of labellingIsPerm labellingInvariant σ adj
 
 /-- Two adjacency functions related by a permutation have the same canonical form. -/
 theorem canonAdj_eq_of_equiv {A B : Fin n → Fin n → Bool} (σ : Equiv.Perm (Fin n))
