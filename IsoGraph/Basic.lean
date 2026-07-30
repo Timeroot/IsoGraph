@@ -2,6 +2,8 @@ import Mathlib.Combinatorics.SimpleGraph.Clique
 import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Fintype.EquivFin
 import Mathlib.Data.Finset.Sort
+import Mathlib.Data.List.NodupEquivFin
+import Mathlib.Logic.Equiv.Fin.Basic
 import IsoGraph.Spec
 
 /-!
@@ -144,99 +146,292 @@ def IsoGraph.V (G : IsoGraph) : ℕ :=
 
 /-! ## The canonical labelling
 
-The algorithm of `IsoGraph.Canonical` works on `{0, …, n-1}`; `IsoGraph.Spec` packages it as a
-permutation of `Fin n`, and here we transport that along an arbitrary enumeration of an abstract
-vertex type. -/
+The algorithm of `IsoGraph.Canonical` works on `{0, …, n-1}`, so running it on a `CGraph` needs a
+listing of the vertices.  A `Fintype` instance is exactly that: underneath, it is a `Multiset`,
+i.e. a `List` up to permutation.  So the canonical form is computed from a `List G.V` and then
+lifted through `Quot`; the side condition of the lift is that a different listing of the same
+vertices gives the same answer, which is precisely invariance of the algorithm under renaming.
+
+Nothing here chooses an equivalence `G.V ≃ Fin n` by choice, so `CGraph.canonicalize` is
+**computable**. -/
+
+/-- Extend a bijection of index sets to lists with one more element in front. -/
+def List.consFinEquiv {m n : ℕ} (σ : Fin m ≃ Fin n) : Fin (m + 1) ≃ Fin (n + 1) where
+  toFun := Fin.cases 0 fun i ↦ (σ i).succ
+  invFun := Fin.cases 0 fun j ↦ (σ.symm j).succ
+  left_inv i := by induction i using Fin.cases <;> simp
+  right_inv j := by induction j using Fin.cases <;> simp
+
+/-- Two lists that are permutations of one another admit a bijection of index sets matching their
+entries.  There is no `Nodup` hypothesis: the bijection is read off the derivation of the
+permutation, not off the elements. -/
+theorem List.Perm.exists_finEquiv {α : Type*} {l₁ l₂ : List α} (h : List.Perm l₁ l₂) :
+    ∃ σ : Fin l₁.length ≃ Fin l₂.length, ∀ i, l₂.get (σ i) = l₁.get i := by
+  induction h with
+  | nil => exact ⟨Equiv.refl _, fun i ↦ i.elim0⟩
+  | cons x _ ih =>
+      obtain ⟨σ, hσ⟩ := ih
+      refine ⟨List.consFinEquiv σ, fun i ↦ ?_⟩
+      induction i using Fin.cases with
+      | zero => rfl
+      | succ i => simpa [List.consFinEquiv] using hσ i
+  | swap x y l =>
+      refine ⟨Equiv.swap 0 1, fun i ↦ ?_⟩
+      induction i using Fin.cases with
+      | zero => simp
+      | succ i =>
+          induction i using Fin.cases with
+          | zero => simp
+          | succ i =>
+              have h : (Equiv.swap (0 : Fin (l.length + 1 + 1)) 1) i.succ.succ = i.succ.succ := by
+                apply Equiv.swap_apply_of_ne_of_ne <;> simp [Fin.ext_iff]
+              exact congrArg (List.get (x :: y :: l)) h
+  | trans _ _ ih₁ ih₂ =>
+      obtain ⟨σ₁, h₁⟩ := ih₁
+      obtain ⟨σ₂, h₂⟩ := ih₂
+      exact ⟨σ₁.trans σ₂, fun i ↦ by rw [Equiv.trans_apply, h₂, h₁]⟩
 
 namespace CGraph
 
-/-- An arbitrary enumeration of the vertices.  Which one is chosen does not matter — that is the
-content of `CGraph.Iso.canonicalLabelling_eq`. -/
-noncomputable def enum (G : CGraph) : G.V ≃ Fin (Fintype.card G.V) :=
-  Fintype.equivFin G.V
+/-- The adjacency of `G` read along an *array* of its vertices.
 
-/-- The adjacency of `G` transported to `Fin (Fintype.card G.V)` along `G.enum`. -/
-noncomputable def adjFin (G : CGraph) :
-    Fin (Fintype.card G.V) → Fin (Fintype.card G.V) → Bool :=
-  fun a b ↦ G.Adj (G.enum.symm a) (G.enum.symm b)
+The array is a parameter rather than something this definition builds, because the compiler
+η-expands every function-typed definition: a `let a := l.toArray` in the body of a
+`… → Fin _ → Fin _ → Bool` would be re-run on every single adjacency query. -/
+def adjOfArray (G : CGraph) (a : Array G.V) (i j : Fin a.size) : Bool :=
+  G.Adj a[i] a[j]
 
-/-- Efficient canonical labelling of a `CGraph`.
+/-- The adjacency of `G` read along a listing `l` of its vertices.  This is the specification;
+what actually runs is `adjOfArray` on `l.toArray`, and the two are definitionally equal. -/
+def adjOfList (G : CGraph) (l : List G.V) (i j : Fin l.length) : Bool :=
+  G.Adj (l.get i) (l.get j)
 
-Computable in the vertex type `Fin n` (see `IsoGraph.Canon.canonPerm`); for an abstract vertex
-type it is noncomputable only because choosing an enumeration `G.V ≃ Fin (card G.V)` is. -/
-noncomputable def canonicalLabelling (G : CGraph) : Fin (Fintype.card G.V) ≃ G.V :=
-  (IsoGraph.Canon.canonPerm _ G.adjFin).trans G.enum.symm
+@[simp] theorem adjOfList_apply (G : CGraph) (l : List G.V) (i j : Fin l.length) :
+    G.adjOfList l i j = G.Adj (l.get i) (l.get j) := rfl
 
-/-- Reading `G`'s adjacency through its canonical labelling gives exactly the canonical form
-computed by the algorithm. -/
-theorem adj_canonicalLabelling (G : CGraph) (x y : Fin (Fintype.card G.V)) :
-    G.Adj (G.canonicalLabelling x) (G.canonicalLabelling y) =
-      IsoGraph.Canon.canonAdj _ G.adjFin x y := rfl
+/-- The canonical form of `G` computed along an array of its vertices. -/
+def canonOfArray (G : CGraph) (a : Array G.V) : IsoGraph.Canon.Oracle :=
+  IsoGraph.Canon.canonOracleOf a.size (G.adjOfArray a)
 
-/-- The bijection of index sets induced by an isomorphism. -/
-noncomputable def Iso.finEquiv {G H : CGraph} (i : G ≃cg H) :
-    Fin (Fintype.card G.V) ≃ Fin (Fintype.card H.V) :=
-  G.enum.symm.trans (i.toEquiv.trans H.enum)
+/-- **The canonical form of `G` relative to the listing `l`**: the canonical adjacency matrix, as
+an oracle on `{0, …, l.length - 1}`.
 
-theorem Iso.adjFin_finEquiv {G H : CGraph} (i : G ≃cg H) (a b : Fin (Fintype.card G.V)) :
-    H.adjFin ((CGraph.Iso.finEquiv i) a) ((CGraph.Iso.finEquiv i) b) = G.adjFin a b := by
-  simp only [adjFin, Iso.finEquiv, Equiv.trans_apply, Equiv.symm_apply_apply,
-    RelIso.coe_fn_toEquiv]
+Indexing by `ℕ` rather than by `Fin l.length` is what allows this to be lifted along `Quot`: the
+type of the result must not mention `l`. -/
+def canonOfList (G : CGraph) (l : List G.V) : IsoGraph.Canon.Oracle :=
+  G.canonOfArray l.toArray
+
+theorem canonOfList_eq (G : CGraph) (l : List G.V) :
+    G.canonOfList l = IsoGraph.Canon.canonOracleOf l.length (G.adjOfList l) := rfl
+
+@[simp] theorem canonOfList_size (G : CGraph) (l : List G.V) :
+    (G.canonOfList l).size = l.length := rfl
+
+/-- The canonical labelling of `G` relative to the listing `l`: canonical position `i` is occupied
+by the vertex `G.labellingOfList l i`.
+
+Specification only — being function-typed, every query re-runs the search. -/
+def labellingOfList (G : CGraph) (l : List G.V) (i : Fin l.length) : G.V :=
+  l.get (IsoGraph.Canon.canonPerm l.length (G.adjOfList l) i)
+
+theorem canonOfList_adj_apply (G : CGraph) (l : List G.V) {a b : ℕ} (ha : a < l.length)
+    (hb : b < l.length) :
+    (G.canonOfList l).adj a b =
+      G.Adj (G.labellingOfList l ⟨a, ha⟩) (G.labellingOfList l ⟨b, hb⟩) :=
+  IsoGraph.Canon.oracleOfFin_apply
+    (IsoGraph.Canon.canonAdj l.length (G.adjOfList l)) ha hb
+
+/-- **The listing does not matter.**  This is the side condition of the quotient lift below, and
+the only place where invariance of the algorithm under renaming is used. -/
+theorem canonOfList_perm (G : CGraph) {l₁ l₂ : List G.V} (h : List.Perm l₁ l₂) :
+    G.canonOfList l₁ = G.canonOfList l₂ := by
+  obtain ⟨σ, hσ⟩ := h.exists_finEquiv
+  rw [canonOfList_eq, canonOfList_eq]
+  refine IsoGraph.Canon.canonOracleOf_congr h.length_eq σ fun a b ↦ ?_
+  rw [adjOfList_apply, adjOfList_apply, hσ, hσ]
+
+/-- The canonical form of `G` relative to a listing given as a multiset. -/
+def canonOfMultiset (G : CGraph) (s : Multiset G.V) : IsoGraph.Canon.Oracle :=
+  Quot.liftOn s G.canonOfList fun _ _ h ↦ G.canonOfList_perm h
+
+@[simp] theorem canonOfMultiset_coe (G : CGraph) (l : List G.V) :
+    G.canonOfMultiset (l : Multiset G.V) = G.canonOfList l := rfl
+
+/-- **The canonical form of `G`**: `G.canon.adj a b` is the entry at canonical positions `a`, `b`
+of the canonical adjacency matrix.
+
+The listing of the vertices is taken straight from the `Fintype` instance — no choice is involved,
+so this computes.  Forcing it runs the search once; each `adj` query afterwards is `O(1)`. -/
+def canon (G : CGraph) : IsoGraph.Canon.Oracle :=
+  G.canonOfMultiset (Finset.univ : Finset G.V).val
+
+theorem canon_eq_ofList (G : CGraph) {l : List G.V}
+    (hl : (l : Multiset G.V) = (Finset.univ : Finset G.V).val) : G.canon = G.canonOfList l := by
+  show G.canonOfMultiset (Finset.univ : Finset G.V).val = _
+  rw [← hl]
+  rfl
+
+/-- The listing of `G.V` that comes out of the `Fintype` instance. -/
+theorem coe_univ_toList (G : CGraph) :
+    (((Finset.univ : Finset G.V).val.toList : List G.V) : Multiset G.V) =
+      (Finset.univ : Finset G.V).val :=
+  Multiset.coe_toList _
+
+@[simp] theorem canon_size (G : CGraph) : G.canon.size = Fintype.card G.V := by
+  rw [G.canon_eq_ofList G.coe_univ_toList, canonOfList_size, Multiset.length_toList]
+  rfl
+
+theorem canonOfList_adj_symm (G : CGraph) (l : List G.V) (a b : ℕ) :
+    (G.canonOfList l).adj a b = (G.canonOfList l).adj b a :=
+  IsoGraph.Canon.oracleOfFin_comm (f := IsoGraph.Canon.canonAdj l.length (G.adjOfList l))
+    (fun i j ↦ IsoGraph.Canon.canonAdj_comm (adj := G.adjOfList l) (fun _ _ ↦ G.symm _ _) i j) a b
+
+theorem canonOfList_adj_self (G : CGraph) (l : List G.V) (a : ℕ) :
+    (G.canonOfList l).adj a a = false :=
+  IsoGraph.Canon.oracleOfFin_irrefl (f := IsoGraph.Canon.canonAdj l.length (G.adjOfList l))
+    (fun i ↦ by
+      simpa using
+        IsoGraph.Canon.canonAdj_irrefl (adj := G.adjOfList l) (fun k ↦ G.loopless (l.get k)) i) a
+
+theorem canonOfMultiset_adj_symm (G : CGraph) (s : Multiset G.V) (a b : ℕ) :
+    (G.canonOfMultiset s).adj a b = (G.canonOfMultiset s).adj b a := by
+  refine Quot.inductionOn s fun l ↦ ?_
+  exact G.canonOfList_adj_symm l a b
+
+theorem canonOfMultiset_adj_self (G : CGraph) (s : Multiset G.V) (a : ℕ) :
+    (G.canonOfMultiset s).adj a a = false := by
+  refine Quot.inductionOn s fun l ↦ ?_
+  exact G.canonOfList_adj_self l a
+
+theorem canon_adj_symm (G : CGraph) (a b : ℕ) : G.canon.adj a b = G.canon.adj b a :=
+  G.canonOfMultiset_adj_symm _ a b
+
+@[simp] theorem canon_adj_self (G : CGraph) (a : ℕ) : G.canon.adj a a = false :=
+  G.canonOfMultiset_adj_self _ a
+
+theorem canon_loopless (G : CGraph) (a : ℕ) : ¬G.canon.adj a a := by
+  simp
+
+/-! ### Invariance under isomorphism -/
+
+/-- A listing of *all* the vertices, without repeats, is an enumeration of the vertex type. -/
+noncomputable def equivOfList (G : CGraph) {l : List G.V} (hn : l.Nodup) (hc : ∀ v, v ∈ l) :
+    Fin l.length ≃ G.V :=
+  Equiv.ofBijective _ (List.Nodup.getBijectionOfForallMemList l hn hc).2
+
+@[simp] theorem equivOfList_apply (G : CGraph) {l : List G.V} (hn : l.Nodup) (hc : ∀ v, v ∈ l)
+    (i : Fin l.length) : G.equivOfList hn hc i = l.get i := rfl
+
+/-- Isomorphic graphs, listed however you like, have the same canonical form. -/
+theorem canonOfList_eq_of_iso {G H : CGraph} (i : G ≃cg H) {l : List G.V} {m : List H.V}
+    (hnl : l.Nodup) (hcl : ∀ v, v ∈ l) (hnm : m.Nodup) (hcm : ∀ w, w ∈ m) :
+    G.canonOfList l = H.canonOfList m := by
+  set σ : Fin l.length ≃ Fin m.length :=
+    (G.equivOfList hnl hcl).trans (i.toEquiv.trans (H.equivOfList hnm hcm).symm) with hσdef
+  have hlen : l.length = m.length := by simpa using Fintype.card_congr σ
+  have key : ∀ a : Fin l.length, m.get (σ a) = i (l.get a) := fun a ↦
+    (H.equivOfList hnm hcm).apply_symm_apply _
+  rw [canonOfList_eq, canonOfList_eq]
+  refine IsoGraph.Canon.canonOracleOf_congr hlen σ fun a b ↦ ?_
+  rw [adjOfList_apply, adjOfList_apply, key, key]
   exact CGraph.Iso.adj_eq i _ _
+
+/-- The nodup / completeness facts about the listing coming from the `Fintype` instance. -/
+theorem univ_toList_nodup (G : CGraph) : ((Finset.univ : Finset G.V).val.toList).Nodup := by
+  rw [← Multiset.coe_nodup, Multiset.coe_toList]
+  exact Finset.univ.nodup
+
+theorem mem_univ_toList (G : CGraph) (v : G.V) : v ∈ (Finset.univ : Finset G.V).val.toList := by
+  rw [Multiset.mem_toList]
+  exact Finset.mem_univ v
+
+/-- **Isomorphism invariance of the canonical form.**  This is the statement that makes the
+quotient work. -/
+theorem canon_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.canon = H.canon := by
+  rw [G.canon_eq_ofList G.coe_univ_toList, H.canon_eq_ofList H.coe_univ_toList]
+  exact canonOfList_eq_of_iso i G.univ_toList_nodup G.mem_univ_toList H.univ_toList_nodup
+    H.mem_univ_toList
+
+/-- The canonical labelling is appropriately invariant under isomorphism: reading either graph
+through its own canonical labelling gives the *same* adjacency matrix. -/
+theorem Iso.canonicalLabelling_eq {G H : CGraph} (i : G ≃cg H) : G.canon = H.canon :=
+  canon_eq_of_iso i
 
 end CGraph
 
 /-- `HEq` of two adjacency functions on `Fin m` and `Fin n`, from `m = n` and pointwise
 agreement. -/
 theorem IsoGraph.Canon.heq_adj {m n : ℕ} (h : m = n) {f : Fin m → Fin m → Bool}
-    {g : Fin n → Fin n → Bool} (hfg : ∀ x y, f x y = g (h ▸ x) (h ▸ y)) : HEq f g := by
+    {g : Fin n → Fin n → Bool} (hfg : ∀ x y, f x y = g (finEq h x) (finEq h y)) : HEq f g := by
   subst h
   exact heq_of_eq (funext fun x ↦ funext fun y ↦ hfg x y)
-
-/-- The canonical labelling is appropriately invariant under isomorphism: reading either graph
-through its own canonical labelling gives the *same* adjacency matrix. -/
-theorem CGraph.Iso.canonicalLabelling_eq {G H : CGraph} (i : G ≃cg H)
-    (x y : Fin (Fintype.card G.V)) :
-    G.Adj (G.canonicalLabelling x) (G.canonicalLabelling y) =
-    H.Adj (H.canonicalLabelling (CGraph.Iso.card_eq G H i ▸ x))
-      (H.canonicalLabelling (CGraph.Iso.card_eq G H i ▸ y)) := by
-  rw [CGraph.adj_canonicalLabelling, CGraph.adj_canonicalLabelling]
-  exact IsoGraph.Canon.canonAdj_congr (CGraph.Iso.card_eq G H i) (CGraph.Iso.finEquiv i)
-    (CGraph.Iso.adjFin_finEquiv i) x y
 
 /-! ## A canonical representative, and the quotient -/
 
 namespace CGraph
 
+/-- The graph on `Fin n` given by an oracle.
+
+`c` is a parameter, so it is evaluated once by the caller and then captured in the closure; this
+is what keeps `canonicalize` from re-running the search on every adjacency query. -/
+def ofOracle (n : ℕ) (c : IsoGraph.Canon.Oracle) (hsymm : ∀ a b, c.adj a b = c.adj b a)
+    (hloop : ∀ a, ¬c.adj a a) : CGraph where
+  V := Fin n
+  Adj i j := c.adj i.1 j.1
+  symm i j := hsymm i.1 j.1
+  loopless i := hloop i.1
+
 /-- The canonical representative of the isomorphism class of `G`: the same graph, relabelled onto
-`Fin (Fintype.card G.V)` so that its adjacency matrix is the canonical one. -/
-noncomputable def canonicalize (G : CGraph) : CGraph where
-  V := Fin (Fintype.card G.V)
-  Adj := IsoGraph.Canon.canonAdj _ G.adjFin
-  symm x y := IsoGraph.Canon.canonAdj_comm (fun _ _ ↦ G.symm _ _) x y
-  loopless x := IsoGraph.Canon.canonAdj_irrefl (fun _ ↦ G.loopless _) x
+`Fin (Fintype.card G.V)` so that its adjacency matrix is the canonical one.
+
+Computable, and the search runs exactly once per `canonicalize`. -/
+def canonicalize (G : CGraph) : CGraph :=
+  ofOracle (Fintype.card G.V) G.canon G.canon_adj_symm G.canon_loopless
+
+@[simp] theorem canonicalize_V (G : CGraph) : G.canonicalize.V = Fin (Fintype.card G.V) := rfl
+
+@[simp] theorem canonicalize_adj (G : CGraph) (i j : Fin (Fintype.card G.V)) :
+    G.canonicalize.Adj i j = G.canon.adj i.1 j.1 := rfl
 
 /-- Isomorphic graphs have *equal* canonical representatives.  This is what makes `IsoGraph`
 usable: it turns the isomorphism relation into equality. -/
 theorem canonicalize_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.canonicalize = H.canonicalize := by
-  refine CGraph.ext' (show Fin (Fintype.card G.V) = Fin (Fintype.card H.V) by
-    rw [CGraph.Iso.card_eq G H i]) ?_
-  refine IsoGraph.Canon.heq_adj (CGraph.Iso.card_eq G H i) ?_
-  exact IsoGraph.Canon.canonAdj_congr (CGraph.Iso.card_eq G H i) (CGraph.Iso.finEquiv i) (CGraph.Iso.adjFin_finEquiv i)
+  have hc : Fintype.card G.V = Fintype.card H.V := CGraph.Iso.card_eq G H i
+  refine CGraph.ext' (show Fin (Fintype.card G.V) = Fin (Fintype.card H.V) by rw [hc]) ?_
+  refine IsoGraph.Canon.heq_adj hc fun x y ↦ ?_
+  show G.canon.adj x.1 y.1 = H.canon.adj (IsoGraph.Canon.finEq hc x).1
+    (IsoGraph.Canon.finEq hc y).1
+  rw [canon_eq_of_iso i]
+  rfl
 
 /-- The canonical representative really is isomorphic to the original graph. -/
-noncomputable def isoCanonicalize (G : CGraph) : G ≃cg G.canonicalize where
-  toEquiv := G.canonicalLabelling.symm
-  map_rel_iff' := by
-    intro a b
-    show (G.Adj (G.canonicalLabelling (G.canonicalLabelling.symm a))
-        (G.canonicalLabelling (G.canonicalLabelling.symm b)) = true) ↔ (G.Adj a b = true)
-    rw [Equiv.apply_symm_apply, Equiv.apply_symm_apply]
+theorem nonempty_iso_canonicalize (G : CGraph) : Nonempty (G ≃cg G.canonicalize) := by
+  set l : List G.V := (Finset.univ : Finset G.V).val.toList with hldef
+  have hlen : l.length = Fintype.card G.V := by
+    rw [hldef, Multiset.length_toList]
+    rfl
+  let σ := IsoGraph.Canon.canonPerm l.length (G.adjOfList l)
+  let φ : Fin (Fintype.card G.V) ≃ G.V :=
+    (IsoGraph.Canon.finEq hlen.symm).trans
+      (σ.trans (G.equivOfList G.univ_toList_nodup G.mem_univ_toList))
+  have key : ∀ x y : Fin (Fintype.card G.V), G.canonicalize.Adj x y = G.Adj (φ x) (φ y) := by
+    intro x y
+    rw [canonicalize_adj, G.canon_eq_ofList G.coe_univ_toList,
+      G.canonOfList_adj_apply l (by omega) (by omega)]
+    rfl
+  refine ⟨⟨φ.symm, fun {a b} ↦ ?_⟩⟩
+  show (G.canonicalize.Adj (φ.symm a) (φ.symm b) = true) ↔ (G.Adj a b = true)
+  rw [key, Equiv.apply_symm_apply, Equiv.apply_symm_apply]
+
+/-- A choice of isomorphism onto the canonical representative.  Only the *graph* has to be
+computable; picking one of the (possibly many) isomorphisms onto it does not. -/
+noncomputable def isoCanonicalize (G : CGraph) : G ≃cg G.canonicalize :=
+  Classical.choice G.nonempty_iso_canonicalize
 
 end CGraph
 
 /-- A canonical path out of the quotient type. -/
-noncomputable def IsoGraph.toCGraph (G : IsoGraph) : CGraph :=
+def IsoGraph.toCGraph (G : IsoGraph) : CGraph :=
   Quotient.lift (s := CGraph.isoSetoid) CGraph.canonicalize (fun _ _ ⟨i⟩ ↦ CGraph.canonicalize_eq_of_iso i) G
 
 @[simp] theorem IsoGraph.toCGraph_mk (G : CGraph) :

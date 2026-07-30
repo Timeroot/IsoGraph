@@ -13,6 +13,7 @@ canonical representative that is actually computable at useful sizes.
 | `IsoGraph/Canonical.lean` | the canonical labelling algorithm — a mini-nauty | no |
 | `IsoGraph/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; states what must be proved | yes |
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, lifted invariants | yes |
+| `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 
 `Canonical.lean` deliberately imports nothing: it is plain functional Lean over `Array`, so it
@@ -56,6 +57,10 @@ G(500, 1/2)   114 ms         random tree 500  872 ms      Paley 101   26 ms
 The bar in the original request was "a random graph on 50 vertices, much better than trying all
 50! permutations"; 50! ≈ 3·10^64, and this takes under a millisecond.
 
+Those are compiled. Driven through the quotient (`CGraph.canon`, in Lean's *interpreter*, at
+elaboration time) the same code is ~60× slower but scales the same way: G(50) 52 ms, G(100) 242 ms,
+G(200) 832 ms, and `G.canonicalize` costs one extra search rather than one per query.
+
 Highly symmetric graphs (`K_n`, unions of small cliques) are the weak spot: the automorphisms the
 search harvests there are transposition-like, so it needs `Θ(n²)` nodes. Real nauty has the same
 shape of problem and beats it with better generator management.
@@ -72,6 +77,34 @@ shape of problem and beats it with better generator management.
   A000088 for `n = 0..7` (`--deep` does `n = 7`, all 2^21 graphs, giving exactly 1044). This pins
   down invariance and completeness simultaneously at those sizes;
 * the cospectral non-isomorphic pair rook(4,4) / Shrikhande gets different certificates.
+
+## Computability
+
+A `CGraph` has an abstract vertex type with a `Fintype` instance and no order on it, so getting the
+graph into the algorithm means choosing a listing of the vertices — and choosing it *computably*.
+`Fintype.elems` is a `Multiset`, which is a quotient of `List`, so the listing is there for the
+taking:
+
+```lean
+def canonOfList     (G : CGraph) (l : List G.V)     : Canon.Oracle          -- run the search along l
+theorem canonOfList_perm (h : l₁ ~ l₂) : G.canonOfList l₁ = G.canonOfList l₂ -- the listing doesn't matter
+def canonOfMultiset (G : CGraph) (s : Multiset G.V) : Canon.Oracle := Quot.liftOn s _ canonOfList_perm
+def canon           (G : CGraph)                    : Canon.Oracle := G.canonOfMultiset univ.val
+```
+
+The result is indexed by `ℕ` rather than by `Fin l.length`, so that its *type* does not mention the
+listing and the lift typechecks. `canonOfList_perm` is where invariance of the algorithm under
+renaming is used, and it is the only place. No `Classical.choice` occurs anywhere on this path:
+`canonicalize` is a plain `def` and `Compute.lean` runs it, including on a graph whose vertex type
+is `Bool × Bool`. (Choice reappears only in `isoCanonicalize`, which picks one of the isomorphisms
+onto the canonical representative — a proof-side object.)
+
+One trap worth recording: **the Lean compiler η-expands every definition whose type is a function
+type**, which destroys sharing. A `def f (G : CGraph) : ℕ → ℕ → Bool := let c := search G; fun a b ↦ …`
+re-runs `search` on *every query*, turning one canonicalisation into `n²` of them. Returning a
+structure blocks the η-expansion, which is what `Canon.Oracle` (a `size` and an `adj`) is for, and
+why the adjacency the algorithm reads takes its vertex array as a parameter rather than building it
+in a function-typed body.
 
 ## Proof status
 
@@ -97,6 +130,11 @@ to the identity if not, so `canonAdj n adj` is by construction `adj` read throug
 permutation. So a canonical-form comparison can never conflate non-isomorphic graphs; only the
 converse — that it never separates isomorphic ones — rests on the open obligation.
 
-`Basic.lean` reduces the rest of the development to that single obligation: `canonicalize`,
-`IsoGraph.toCGraph`, and the lifted invariants `V`, `indepNum`, `cliqueNum`, `E`, `degSequence`
-are all derived from it, with no further `sorry`.
+`Basic.lean` reduces the rest of the development to that single obligation: `canon`,
+`canonicalize`, `IsoGraph.toCGraph`, and the lifted invariants `V`, `indepNum`, `cliqueNum`, `E`,
+`degSequence` are all derived from it, with no further `sorry`.
+
+The obligation is used only through `canonAdj_eq_of_equiv`, i.e. only in proofs — compiled code
+never inspects it. That is why `Compute.lean` says `#eval!` rather than `#eval`: the evaluator
+refuses terms that mention `sorry`, even inside an erased proof field of a `Quot.lift`. It becomes
+a plain `#eval` the moment the obligation is discharged.

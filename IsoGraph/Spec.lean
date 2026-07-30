@@ -67,9 +67,75 @@ def canonPerm (n : Nat) (adj : Fin n → Fin n → Bool) : Equiv.Perm (Fin n) :=
   permOfArrays n lab (invArray n lab)
 
 /-- The canonical form of a graph on `Fin n`: the graph relabelled so that its adjacency matrix
-is the canonical one. -/
+is the canonical one.
+
+**This is the specification, not the way to compute.**  Lean η-expands every function-typed
+definition, so each query `canonAdj n adj i j` re-runs the whole search.  To compute, use
+`canonOracleOf`, whose result is a structure and therefore shares the search across queries. -/
 def canonAdj (n : Nat) (adj : Fin n → Fin n → Bool) : Fin n → Fin n → Bool :=
-  fun i j ↦ adj (canonPerm n adj i) (canonPerm n adj j)
+  let σ := canonPerm n adj
+  fun i j ↦ adj (σ i) (σ j)
+
+/-- A graph on `{0, …, size-1}` given by an adjacency oracle.
+
+The reason this is a structure and not a bare `Nat → Nat → Bool`: the Lean compiler η-expands
+every definition whose type is a function type, so a `def f (x) : Nat → Nat → Bool := <search>;
+fun a b ↦ …` re-runs `<search>` on every single query.  Returning a structure blocks the
+η-expansion, and the search is run once and captured in the closure. -/
+structure Oracle where
+  /-- The number of vertices. -/
+  size : Nat
+  /-- Adjacency; `false` outside `{0, …, size-1}`. -/
+  adj : Nat → Nat → Bool
+
+theorem Oracle.ext' {o₁ o₂ : Oracle} (hs : o₁.size = o₂.size) (ha : o₁.adj = o₂.adj) : o₁ = o₂ := by
+  cases o₁; cases o₂; cases hs; cases ha; rfl
+
+/-- The graph `adj` read through the permutation `σ`, as an `Oracle`. -/
+def oracleOfPerm (n : Nat) (adj : Fin n → Fin n → Bool) (σ : Equiv.Perm (Fin n)) : Oracle where
+  size := n
+  adj := oracleOfFin n fun i j ↦ adj (σ i) (σ j)
+
+/-- **The canonical form of a graph on `Fin n`, computed.**  The search runs once, when this is
+forced; each query of the resulting `Oracle.adj` is then `O(1)`. -/
+def canonOracleOf (n : Nat) (adj : Fin n → Fin n → Bool) : Oracle :=
+  oracleOfPerm n adj (canonPerm n adj)
+
+@[simp] theorem canonOracleOf_size (n : Nat) (adj : Fin n → Fin n → Bool) :
+    (canonOracleOf n adj).size = n := rfl
+
+@[simp] theorem canonOracleOf_adj (n : Nat) (adj : Fin n → Fin n → Bool) :
+    (canonOracleOf n adj).adj = oracleOfFin n (canonAdj n adj) := rfl
+
+/-- `Fin m ≃ Fin n` from `m = n`.  Unlike `Equiv.cast` this has a definitional `val`. -/
+def finEq {m n : Nat} (h : m = n) : Fin m ≃ Fin n where
+  toFun i := ⟨i.1, h ▸ i.2⟩
+  invFun j := ⟨j.1, h ▸ j.2⟩
+  left_inv _ := rfl
+  right_inv _ := rfl
+
+@[simp] theorem finEq_val {m n : Nat} (h : m = n) (i : Fin m) : (finEq h i).1 = i.1 := rfl
+
+@[simp] theorem finEq_symm_val {m n : Nat} (h : m = n) (j : Fin n) :
+    ((finEq h).symm j).1 = j.1 := rfl
+
+theorem oracleOfFin_apply {n : Nat} (f : Fin n → Fin n → Bool) {a b : Nat} (ha : a < n)
+    (hb : b < n) : oracleOfFin n f a b = f ⟨a, ha⟩ ⟨b, hb⟩ := by
+  simp [oracleOfFin, ha, hb]
+
+theorem oracleOfFin_comm {n : Nat} {f : Fin n → Fin n → Bool} (hf : ∀ i j, f i j = f j i)
+    (a b : Nat) : oracleOfFin n f a b = oracleOfFin n f b a := by
+  by_cases ha : a < n
+  · by_cases hb : b < n
+    · rw [oracleOfFin_apply f ha hb, oracleOfFin_apply f hb ha]; exact hf _ _
+    · simp [oracleOfFin, ha, hb]
+  · simp [oracleOfFin, ha]
+
+theorem oracleOfFin_irrefl {n : Nat} {f : Fin n → Fin n → Bool} (hf : ∀ i, f i i = false)
+    (a : Nat) : oracleOfFin n f a a = false := by
+  by_cases ha : a < n
+  · rw [oracleOfFin_apply f ha ha]; exact hf _
+  · simp [oracleOfFin, ha]
 
 /-! ## Relabelling -/
 
@@ -157,6 +223,29 @@ is invariant is the sequence of cells.)  Then:
 theorem canonAdj_relabel (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
     canonAdj n (relabel σ adj) = canonAdj n adj := by
   sorry
+
+/-- Two adjacency functions related by a permutation have the same canonical form. -/
+theorem canonAdj_eq_of_equiv {A B : Fin n → Fin n → Bool} (σ : Equiv.Perm (Fin n))
+    (hσ : ∀ a b, B (σ a) (σ b) = A a b) : canonAdj n A = canonAdj n B := by
+  have h : A = relabel σ B := by funext a b; exact (hσ a b).symm
+  subst h
+  exact canonAdj_relabel σ B
+
+/-- The `ℕ`-indexed form of `canonAdj_eq_of_equiv`: two adjacency functions, on index sets of the
+same size, related by a bijection, have the same canonical adjacency oracle.  This is the shape
+needed to lift the canonical form through a quotient. -/
+theorem oracleOfFin_canonAdj_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → Bool}
+    {B : Fin k → Fin k → Bool} (σ : Fin m ≃ Fin k) (hσ : ∀ a b, B (σ a) (σ b) = A a b) :
+    oracleOfFin m (canonAdj m A) = oracleOfFin k (canonAdj k B) := by
+  subst h
+  rw [canonAdj_eq_of_equiv σ hσ]
+
+/-- The `Oracle`-level form of `oracleOfFin_canonAdj_congr`: this is what gets lifted through the
+quotient in `IsoGraph.Basic`. -/
+theorem canonOracleOf_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → Bool}
+    {B : Fin k → Fin k → Bool} (σ : Fin m ≃ Fin k) (hσ : ∀ a b, B (σ a) (σ b) = A a b) :
+    canonOracleOf m A = canonOracleOf k B :=
+  Oracle.ext' h (oracleOfFin_canonAdj_congr h σ hσ)
 
 /-- Two graphs on `Fin n` have the same canonical form exactly when they are isomorphic. -/
 theorem canonAdj_eq_iff {adjG adjH : Fin n → Fin n → Bool} :
