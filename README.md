@@ -12,7 +12,9 @@ canonical representative that is actually computable at useful sizes.
 | --- | --- | --- |
 | `IsoGraph/Canonical.lean` | the canonical labelling algorithm — a mini-nauty | no |
 | `IsoGraph/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; states what must be proved | yes |
-| `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, lifted invariants | yes |
+| `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
+| `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
+| `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 
@@ -125,9 +127,38 @@ structure is unboxed at runtime, so it costs nothing. For the same reason the ad
 algorithm reads takes its vertex array as a parameter rather than building it inside a
 function-typed body, and `canonMatrix` takes the permutation as an argument.
 
+## Invariants and constructions
+
+`Invariants.lean` gives each invariant twice: once on `CGraph`, as a thin wrapper around the
+Mathlib notion for `G.toSimple` (that is the form concrete statements get proved in), and once on
+`IsoGraph`, as a `Quotient.lift` whose side condition is precisely isomorphism-invariance. Present
+so far: `indepNum`, `cliqueNum`, `E`, `degSequence`, `IsConnected`, `IsAcyclic`, `IsTree`,
+`diameter`. Mathlib had no invariance lemma for distance, so `SimpleGraph.Iso.edist_eq`,
+`ediam_eq` and `diam_eq` are proved there.
+
+`Constructions.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
+relation, delete the diagonal), `empty`, `disjUnion` — plus `compl`:
+
+```
+complete n    = compl (empty n)                       star n  = bipartite 1 n
+join G H      = compl (disjUnion (compl G) (compl H)) wheel n = join (complete 1) (cycle n)
+bipartite m n = compl (disjUnion (complete m) (complete n))
+```
+
+with `path`, `cycle`, `thetaGraph`, `completeMultipartite`, the four products on `G.V × H.V`,
+`hypercube`, `kneser`, `lineGraph` and `mycielskian` on top. `ofRel` is the only place the graph
+axioms are discharged, so everything downstream of it is proof-obligation-free.
+
+A `CGraph` carries a `Fintype` but no `DecidableEq`, and the second does not follow from the
+first. Constructions that must ask "same vertex?" take `[DecidableEq G.V]` as an instance argument
+and export the instance for their own vertex type; instance resolution only unfolds at reducible
+transparency, so each *named* construction needs its own. Putting `DecidableEq` into the `CGraph`
+structure would remove the boilerplate but stop the type being a bare `Fintype`-bundled graph
+(and break `simpleEquiv`) — the instance arguments looked like the smaller price.
+
 ## Proof status
 
-One `sorry`, in `IsoGraph/Spec.lean`:
+One `sorry` on the critical path, in `IsoGraph/Spec.lean`:
 
 ```lean
 theorem canonAdj_relabel (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
@@ -149,9 +180,16 @@ to the identity if not, so `canonAdj n adj` is by construction `adj` read throug
 permutation. So a canonical-form comparison can never conflate non-isomorphic graphs; only the
 converse — that it never separates isomorphic ones — rests on the open obligation.
 
-`Basic.lean` reduces the rest of the development to that single obligation: `canon`,
-`canonicalize`, `IsoGraph.toCGraph`, and the lifted invariants `V`, `indepNum`, `cliqueNum`, `E`,
-`degSequence` are all derived from it, with no further `sorry`.
+`Basic.lean` and `Invariants.lean` reduce the rest of the development to that single obligation:
+`canon`, `canonicalize`, `IsoGraph.toCGraph`, and every lifted invariant are derived from it, with
+no further `sorry`.
+
+`Constructions.lean` is the one place with deliberate gaps. Its second half states what the
+invariants of each construction should be; anything needing more than a few lines is a `sorry`
+for now (41 of them), the statements being the point. Proved outright are the `Fintype.card` of
+every construction, `compl_compl`, `empty_toSimple = ⊥`, `complete_toSimple = ⊤`,
+`path_toSimple = pathGraph`, `E_empty`, `E_complete = n.choose 2`, and connectivity of `complete`
+and `path`.
 
 The obligation is used only through `canonAdj_eq_of_equiv`, i.e. only in proofs — compiled code
 never inspects it. That is why `Compute.lean` says `#eval!` rather than `#eval`: the evaluator
