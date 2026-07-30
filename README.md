@@ -17,6 +17,10 @@ canonical representative that is actually computable at useful sizes.
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
+| `atp/` | tooling to hand the file's `sorry`s to the Harmonic prover and splice results back | — |
+
+Toolchain is `leanprover/lean4:v4.28.0` with Mathlib pinned at `v4.28.0` — the rev the prover
+service's base image ships, so the project can be submitted to it without a Mathlib rebuild.
 
 `Canonical.lean` deliberately imports nothing: it is plain functional Lean over `Array`, so it
 compiles in seconds and its equation lemmas are available for the eventual correctness proof.
@@ -49,11 +53,11 @@ McKay-style individualisation–refinement.
 `lake exe isobench` on a (contended) 4-core cloud VM, best of 3, canonicalisation only:
 
 ```
-G(50, 1/2)      0.79 ms      G(1000, 1/2)     458 ms      K_100        477 ms
-G(100, 1/2)     3.0 ms       G(1000, 1/100)    80 ms      K_150       2415 ms
-G(200, 1/2)    12.8 ms       C_1000           303 ms      Q_8         54 ms
-G(500, 1/2)   114 ms         random tree 500  872 ms      Paley 101   26 ms
-3-reg 100      73 ms         3-reg 500       2738 ms      rook 10x10  37 ms
+G(50, 1/2)      0.55 ms      G(1000, 1/2)     216 ms      K_100        243 ms
+G(100, 1/2)     2.0 ms       G(1000, 1/100)    40 ms      K_150        928 ms
+G(200, 1/2)     8.8 ms       C_1000           131 ms      Q_8           32 ms
+G(500, 1/2)    52 ms         random tree 500  377 ms      Paley 101    8.1 ms
+3-reg 100      28 ms         3-reg 500       1168 ms      rook 10x10    11 ms
 ```
 
 The bar in the original request was "a random graph on 50 vertices, much better than trying all
@@ -184,12 +188,14 @@ converse — that it never separates isomorphic ones — rests on the open oblig
 `canon`, `canonicalize`, `IsoGraph.toCGraph`, and every lifted invariant are derived from it, with
 no further `sorry`.
 
-`Constructions.lean` is the one place with deliberate gaps. Its second half states what the
-invariants of each construction should be; anything needing more than a few lines is a `sorry`
-for now (41 of them), the statements being the point. Proved outright are the `Fintype.card` of
-every construction, `compl_compl`, `empty_toSimple = ⊥`, `complete_toSimple = ⊤`,
-`path_toSimple = pathGraph`, `E_empty`, `E_complete = n.choose 2`, and connectivity of `complete`
-and `path`.
+`Constructions.lean` is fully proved as well. Its second half — 41 statements pinning down the
+invariants of every construction, from `indepNum_empty` up to `E_mycielskian` and the four
+products — was closed by the Harmonic sorry-closing prover rather than by hand; `atp/` holds the
+tooling that submitted them and spliced the results back. `#print axioms` reports only
+`propext`, `Classical.choice`, `Quot.sound` for all 41, so none of them leans on the open
+obligation below.
+
+Those proofs are machine-written: long, explicit, and un-golfed. They are checked, not pretty.
 
 The obligation is used only through `canonAdj_eq_of_equiv`, i.e. only in proofs — compiled code
 never inspects it. That is why `Compute.lean` says `#eval!` rather than `#eval`: the evaluator

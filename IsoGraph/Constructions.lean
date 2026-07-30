@@ -1,4 +1,6 @@
 import IsoGraph.Invariants
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.Ring
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Combinatorics.SimpleGraph.Hasse
 
@@ -37,8 +39,11 @@ instance arguments seemed the smaller price.
 ## Layout
 
 The definitions come first; the section after them, `## Invariants of the constructions`, records
-what the invariants of `IsoGraph/Invariants.lean` evaluate to.  Proofs that run longer than a few
-lines are left as `sorry` for now — the statements are the point.
+what the invariants of `IsoGraph/Invariants.lean` evaluate to.
+
+Most of those proofs were produced by an automated prover rather than written by hand, which is
+why they are longer and more explicit than a human would write — they have been checked but not
+golfed.
 -/
 
 open Fintype
@@ -353,13 +358,137 @@ variable (G H : CGraph)
 theorem isAcyclic_empty (n : ℕ) : (empty n).IsAcyclic := by
   simp [IsAcyclic]
 
-theorem indepNum_empty (n : ℕ) : (empty n).indepNum = n := sorry
+theorem indepNum_empty (n : ℕ) : (empty n).indepNum = n := by
+  rw [indepNum, empty_toSimple]
+  simp [SimpleGraph.indepNum]
+  let hIndep : ∀ (s : Finset (Fin n)), (⊥ : SimpleGraph (Fin n)).IsIndepSet s := by
+    intro s u _ v _ huv hadj
+    exact hadj
+  have hset : {n_1 | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) n_1 s} = Set.Iic n := by
+    ext m
+    rw [Set.mem_setOf_eq, Set.mem_Iic]
+    change (∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) m s) ↔ m ≤ n
+    constructor
+    · rintro ⟨s, hs_indep, hs_card⟩
+      exact hs_card ▸ (Finset.card_le_univ s).trans (by simp [Fintype.card_fin])
+    · intro hm
+      if h : m < n then
+        exact ⟨Finset.image (fun i : Fin m => ⟨i, by omega⟩ : Fin m → Fin n) Finset.univ, hIndep _, by
+          rw [Finset.card_image_of_injective _ (fun a b h => Fin.ext (by simpa using congr_arg Fin.val h)), Finset.card_fin]⟩
+      else
+        push_neg at h
+        have heq : m = n := le_antisymm hm h
+        subst heq
+        exact ⟨Finset.univ, hIndep _, by simp [Fintype.card_fin]⟩
+  have mem_0 : 0 ∈ {n_1 | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) n_1 s} := by
+    exact ⟨∅, hIndep ∅, by simp⟩
+  have mem_n : n ∈ {n_1 | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) n_1 s} := by
+    exact ⟨Finset.univ, hIndep Finset.univ, by simp [Fintype.card_fin]⟩
+  have bound : ∀ x, x ∈ {n_1 | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) n_1 s} → x ≤ n := by
+    intro x hx; rw [hset] at hx; exact hx
+  have h_bdd : BddAbove {n_1 | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) n_1 s} :=
+    ⟨n, bound⟩
+  change sSup {n_1 | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) n_1 s} = n
+  exact le_antisymm (csSup_le ⟨0, mem_0⟩ fun x hx => bound x hx)
+    (le_csSup h_bdd mem_n)
 
-theorem cliqueNum_empty (n : ℕ) : (empty n).cliqueNum = min n 1 := sorry
+theorem cliqueNum_empty (n : ℕ) : (empty n).cliqueNum = min n 1 := by
+  simp [cliqueNum, empty_toSimple]
+  unfold SimpleGraph.cliqueNum
+  apply le_antisymm
+  · -- Every clique has size ≤ min n 1
+    apply csSup_le'
+    rintro k ⟨s, hs⟩
+    have hk := hs.1
+    have hpadj := hs.2
+    have hkn : s.card ≤ n := by
+      calc s.card ≤ Fintype.card (empty n).V := s.card_le_univ
+        _ = n := card_empty n
+    have hk1 : s.card ≤ 1 := by
+      rw [Finset.card_le_one]
+      exact fun x hx y hy => Classical.not_not.1 fun hne => by
+        have := hk hx hy hne
+        simp [empty_adj] at this
+    omega
+  · -- min n 1 ≤ sSup
+    apply le_csSup
+    · -- bounded above
+      exact ⟨n, fun k ⟨s, hs⟩ => by
+        have := hs.2
+        rw [← this]
+        calc s.card ≤ Fintype.card (empty n).V := s.card_le_univ
+          _ = n := card_empty n⟩
+    · -- min n 1 is in the set
+      rcases n.eq_zero_or_pos with rfl | hn
+      · simp
+      · push_cast [min_eq_right (Nat.succ_le_of_lt hn)]
+        exact ⟨{⟨0, hn⟩}, by simp [SimpleGraph.IsNClique, Finset.card_singleton]⟩
 
-theorem degSequence_empty (n : ℕ) : (empty n).degSequence = List.replicate n 0 := sorry
+theorem degSequence_empty (n : ℕ) : (empty n).degSequence = List.replicate n 0 := by
+  unfold CGraph.degSequence
+  have hdeg : ∀ x : Fin n, (empty n).toSimple.degree x = 0 := by
+    intro x
+    rw [SimpleGraph.degree]
+    simp [SimpleGraph.neighborFinset, empty_adj]
+  have : ∀ v : Fin n, (empty n).toSimple.degree v = 0 := hdeg
+  simp only [this]
+  -- Step 1: The multiset Finset.univ.val has card n
+  have hcard : (Finset.univ : Finset (Fin n)).card = n := by simp
+  -- Step 2: map of constant 0 on Finset.univ.val is replicate n 0
+  have hms : Multiset.map (fun x : Fin n => (0 : ℕ)) (Finset.univ : Finset (Fin n)).val = Multiset.replicate n 0 := by
+    have : ∀ (m : Multiset (Fin n)), Multiset.map (fun _ => (0 : ℕ)) m = Multiset.replicate m.card 0 := by
+      intro m; induction m using Multiset.induction with
+      | empty => simp
+      | cons a s ih => simp [ih, Multiset.card_cons]
+    rw [this]
+    show Multiset.replicate ((Finset.univ : Finset (Fin n)).val.card) 0 = Multiset.replicate n 0
+    rw [show (Finset.univ : Finset (Fin n)).val.card = (Finset.univ : Finset (Fin n)).card from rfl]
+    rw [hcard]
+  have hgoal : ((Multiset.map (fun x : Fin n => (0 : ℕ)) Finset.univ.val).sort
+      (fun x1 x2 => x1 ≤ x2)) = ((Multiset.replicate n 0).sort (fun x1 x2 => x1 ≤ x2)) := by
+    rw [hms]
+  have goal : ∀ (a : ℕ) (n : ℕ), (Multiset.replicate n a).sort (fun x1 x2 => x1 ≤ x2) = List.replicate n a := by
+    intro a n
+    set s := (Multiset.replicate n a).sort (fun x1 x2 => x1 ≤ x2)
+    have hsort_eq : s = (List.replicate n a).mergeSort (fun x1 x2 => decide (x1 ≤ x2)) := by
+      rfl
+    have hperm : s.Perm (List.replicate n a) := by
+      rw [hsort_eq]
+      exact List.mergeSort_perm _ _
+    have hlength : s.length = n := by
+      simpa [List.length_replicate] using hperm.length_eq
+    have hall : ∀ x ∈ s, x = a := by
+      intro x hx
+      have hmem := hperm.subset hx
+      exact Multiset.eq_of_mem_replicate hmem
+    have hsorted_aux : ∀ (l : List ℕ), (∀ x ∈ l, x = a) → List.Pairwise (· ≤ ·) l := by
+      intro l hall; induction l with
+      | nil => trivial
+      | cons hd tl ih =>
+        simp [List.pairwise_cons]
+        refine ⟨fun x hx => ?_, ih (fun x hx => hall x (List.mem_cons_of_mem _ hx))⟩
+        rw [hall x (List.mem_cons_of_mem _ hx), hall hd List.mem_cons_self]
+    have hsorted_s := hsorted_aux s hall
+    have huv : ∀ (l : List ℕ), (∀ x ∈ l, x = a) → List.Pairwise (· ≤ ·) l →
+        l = List.replicate l.length a := by
+      intro l hall hsort
+      induction l with
+      | nil => simp
+      | cons hd tl ihl =>
+        have hdal := hall hd List.mem_cons_self
+        have htllen : ∀ x ∈ tl, x = a := fun x hxtl => hall x (List.mem_cons_of_mem _ hxtl)
+        have hsort_tl : List.Pairwise (· ≤ ·) tl := hsort.tail
+        have h1 : a :: List.replicate tl.length a = List.replicate (tl.length + 1) a := by
+          rw [List.replicate_succ]
+        rw [ihl htllen hsort_tl, hdal, h1]
+        simp [List.length_replicate]
+    rw [huv s hall hsorted_s, hlength]
+  exact hgoal.trans (goal 0 n)
 
-theorem isConnected_empty_one : (empty 1).IsConnected := sorry
+theorem isConnected_empty_one : (empty 1).IsConnected := by
+  simp only [IsConnected]
+  change SimpleGraph.Connected (empty 1).toSimple
+  decide
 
 /-! ### The complement -/
 
@@ -373,12 +502,54 @@ theorem compl_compl [DecidableEq G.V] : compl (compl G) = G := by
   · simp [compl, G.loopless x]
   · simp [compl, h, Ne.symm h, G.symm x y]
 
-theorem indepNum_compl [DecidableEq G.V] : (compl G).indepNum = G.cliqueNum := sorry
+theorem indepNum_compl [DecidableEq G.V] : (compl G).indepNum = G.cliqueNum := by
+  simp [indepNum, cliqueNum, compl_toSimple, SimpleGraph.indepNum_compl]
 
-theorem cliqueNum_compl [DecidableEq G.V] : (compl G).cliqueNum = G.indepNum := sorry
+theorem cliqueNum_compl [DecidableEq G.V] : (compl G).cliqueNum = G.indepNum := by
+  rw [← indepNum_compl (compl G), compl_compl]
 
 theorem E_compl [DecidableEq G.V] :
-    (compl G).E + G.E = (Fintype.card G.V).choose 2 := sorry
+    (compl G).E + G.E = (Fintype.card G.V).choose 2 := by
+  simp only [CGraph.E]
+  have h1 : G.compl.toSimple.edgeFinset = (G.toSimpleᶜ).edgeFinset := by
+    simp [compl_toSimple]
+  rw [h1]
+  have h_disj : Disjoint G.toSimple.edgeFinset (G.toSimpleᶜ).edgeFinset := by
+    rw [Finset.disjoint_left]
+    intro x hx hxc
+    rw [SimpleGraph.mem_edgeFinset] at hx hxc
+    induction x using Sym2.ind with
+    | h v w =>
+      rw [SimpleGraph.mem_edgeSet] at hx hxc
+      rw [SimpleGraph.compl_adj] at hxc
+      exact absurd hx hxc.2
+  have h_union : G.toSimple.edgeFinset ∪ (G.toSimpleᶜ).edgeFinset = (⊤ : SimpleGraph G.V).edgeFinset := by
+    ext e
+    simp only [Finset.mem_union, SimpleGraph.mem_edgeFinset]
+    show (e ∈ G.toSimple.edgeSet ∨ e ∈ G.toSimpleᶜ.edgeSet) ↔ e ∈ (⊤ : SimpleGraph G.V).edgeSet
+    constructor
+    · rintro (h | h)
+      · exact SimpleGraph.edgeSet_mono le_top h
+      · exact SimpleGraph.edgeSet_mono le_top h
+    · intro h
+      by_cases he : e ∈ G.toSimple.edgeSet
+      · exact Or.inl he
+      · exact Or.inr (by
+          show e ∈ G.toSimpleᶜ.edgeSet
+          induction e using Sym2.ind with
+          | h v w =>
+            simp only [SimpleGraph.mem_edgeSet, SimpleGraph.compl_adj] at he ⊢
+            have hvne : v ≠ w := by
+              by_contra h'
+              rw [h'] at h
+              simp at h
+            exact ⟨hvne, he⟩)
+  have h_card : (G.toSimpleᶜ).edgeFinset.card + G.toSimple.edgeFinset.card =
+    (⊤ : SimpleGraph G.V).edgeFinset.card := by
+    have := Finset.card_union_of_disjoint (h_disj.symm)
+    rw [Finset.union_comm] at this
+    rw [← this, h_union]
+  rw [h_card, SimpleGraph.card_edgeFinset_top_eq_card_choose_two]
 
 /-! ### The complete graph -/
 
@@ -391,18 +562,158 @@ theorem E_compl [DecidableEq G.V] :
   rw [h, ← SimpleGraph.edgeFinset_card,
     SimpleGraph.card_edgeFinset_top_eq_card_choose_two, Fintype.card_fin]
 
-theorem cliqueNum_complete (n : ℕ) : (complete n).cliqueNum = n := sorry
+theorem cliqueNum_complete (n : ℕ) : (complete n).cliqueNum = n := by
+  simp [cliqueNum, complete_toSimple]
+  rw [SimpleGraph.cliqueNum]
+  have hmem : n ∈ {m | ∃ s : Finset (Fin n), (⊤ : SimpleGraph (Fin n)).IsNClique m s} := by
+    refine ⟨Finset.univ, ?_⟩
+    show SimpleGraph.IsNClique (⊤ : SimpleGraph (Fin n)) n Finset.univ
+    letI : DecidableEq (Fin n) := inferInstance
+    have hc : (Finset.univ : Finset (Fin n)).card = n := by simp
+    have hcl : (⊤ : SimpleGraph (Fin n)).IsClique (↑(Finset.univ : Finset (Fin n)) : Set (Fin n)) := by
+      simp [SimpleGraph.IsClique, Set.Pairwise]
+    exact ⟨hcl, hc⟩
+  have hle : ∀ m ∈ {m | ∃ s : Finset (Fin n), (⊤ : SimpleGraph (Fin n)).IsNClique m s}, m ≤ n := by
+    rintro m ⟨s, hs⟩
+    show m ≤ n
+    obtain ⟨hcl, hcard⟩ := hs
+    rw [← hcard]
+    exact le_trans (Finset.card_le_univ s) (le_of_eq (Fintype.card_fin n))
+  exact csSup_eq_of_forall_le_of_forall_lt_exists_gt (by exact ⟨n, hmem⟩) hle fun m hm => ⟨n, hmem, hm⟩
 
-theorem indepNum_complete (n : ℕ) : (complete n).indepNum = min n 1 := sorry
+theorem indepNum_complete (n : ℕ) : (complete n).indepNum = min n 1 := by
+  simp [complete_toSimple, CGraph.indepNum]
+  unfold SimpleGraph.indepNum
+  -- ⊤ : SimpleGraph (Fin n), indepNum = sSup {k | ∃ s, ⊤.IsNIndepSet k s}
+  -- Key: in ⊤, IsNIndepSet k s ↔ s.card = k ∧ s.card ≤ 1
+  have h_adj_top : ∀ (x y : Fin n), (⊤ : SimpleGraph (Fin n)).Adj x y ↔ x ≠ y := by
+    intro x y; simp [SimpleGraph.top_adj]
+  have h_isIndep_top : ∀ (s : Finset (Fin n)), (⊤ : SimpleGraph (Fin n)).IsIndepSet s ↔ s.card ≤ 1 := by
+    intro s
+    constructor
+    · -- IsIndepSet ⊤ s → s.card ≤ 1
+      intro h
+      by_contra hlt
+      push_neg at hlt
+      obtain ⟨x, hx, y, hy, hxy⟩ := Finset.one_lt_card.mp hlt
+      have hna := h hx hy hxy
+      exact hna (h_adj_top x y |>.mpr hxy)
+    · -- s.card ≤ 1 → IsIndepSet ⊤ s
+      intro h x hx y hy hne
+      exfalso
+      have : ∀ z ∈ s, z = x := by
+        intro z hz
+        by_contra hne'
+        have : s.card ≥ 2 := by
+          have h1 : ({x, z} : Finset (Fin n)).card = 2 := by
+            rw [Finset.card_pair (fun hzx => hne' hzx.symm)]
+          exact h1 ▸ Finset.card_le_card (by exact Finset.insert_subset hx (Finset.singleton_subset_iff.mpr hz))
+        omega
+      exact hne (this y hy).symm
+  have h_indep : ∀ (s : Finset (Fin n)) (k : ℕ), SimpleGraph.IsNIndepSet (G := (⊤ : SimpleGraph (Fin n))) k s ↔ s.card = k ∧ s.card ≤ 1 := by
+    intro s k
+    constructor
+    · intro h
+      cases h with
+      | mk hi hc => exact ⟨hc, h_isIndep_top s |>.mp hi⟩
+    · intro ⟨hcard, hiset⟩
+      exact SimpleGraph.IsNIndepSet.mk (h_isIndep_top s |>.mpr hiset) hcard
+  -- sSup = min n 1
+  apply le_antisymm
+  · -- sSup ≤ min n 1
+    apply csSup_le'
+    rintro k ⟨s, hs⟩
+    have hinfo := h_indep s k |>.mp hs
+    have hk1 : k ≤ 1 := hinfo.1 ▸ hinfo.2
+    have hkn : k ≤ n := hinfo.1 ▸ (show s.card ≤ n from by
+      calc s.card ≤ Fintype.card (Fin n) := Finset.card_le_univ s
+        _ = n := Fintype.card_fin n)
+    exact le_min hkn hk1
+  · -- min n 1 ≤ sSup
+    have hbdd : BddAbove {n_1 : ℕ | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊤ : SimpleGraph (Fin n))) n_1 s} := by
+      exact ⟨n, fun k ⟨s, hs⟩ => by
+        have := h_indep s k |>.mp hs
+        have h1 := this.1
+        have h2 : s.card ≤ n := by
+          calc s.card ≤ Fintype.card (Fin n) := Finset.card_le_univ s
+            _ = n := Fintype.card_fin n
+        rw [h1] at h2
+        exact h2⟩
+    -- Show min n 1 is in the set
+    have hmem : min n 1 ∈ {n_1 : ℕ | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊤ : SimpleGraph (Fin n))) n_1 s} := by
+      by_cases hn : n = 0
+      · subst hn
+        simp
+        exact ⟨∅, SimpleGraph.IsNIndepSet.mk (by trivial) rfl⟩
+      · -- n ≥ 1, so min n 1 = 1
+        have hn1 : 1 ≤ n := Nat.one_le_iff_ne_zero.mpr hn
+        have hmin : min n 1 = 1 := min_eq_right hn1
+        rw [hmin]
+        exact ⟨{⟨0, hn1⟩}, SimpleGraph.IsNIndepSet.mk (by simp [h_isIndep_top, SimpleGraph.IsIndepSet]) (by simp)⟩
+    exact le_csSup hbdd hmem
 
 theorem isConnected_complete (n : ℕ) : (complete (n + 1)).IsConnected := by
   have : Nonempty (complete (n + 1)).V := ⟨(0 : Fin (n + 1))⟩
   simp [IsConnected]
 
-theorem diameter_complete (n : ℕ) : (complete (n + 2)).diameter = 1 := sorry
+theorem diameter_complete (n : ℕ) : (complete (n + 2)).diameter = 1 := by
+  simp [CGraph.diameter]
+  have : Nontrivial (Fin (n + 2)) := inferInstance
+  exact SimpleGraph.diam_top (α := Fin (n + 2))
 
 theorem degSequence_complete (n : ℕ) :
-    (complete n).degSequence = List.replicate n (n - 1) := sorry
+    (complete n).degSequence = List.replicate n (n - 1) := by
+  have htosimple : (complete n).toSimple = SimpleGraph.completeGraph (Fin n) := by
+    ext x y
+    simp [CGraph.toSimple, complete, compl, ofRel_adj, empty_adj, decide_eq_true_eq]
+  show (complete n).degSequence = _
+  have hdeg : ∀ v : (complete n).V, (complete n).toSimple.degree v = n - 1 := by
+    intro v
+    simp [htosimple, SimpleGraph.degree, SimpleGraph.neighborFinset]
+    have : (Finset.univ.filter (fun x : Fin n => x ≠ v)).card = n - 1 := by
+      simp [Finset.filter_ne', Fintype.card_fin]
+    convert this using 1
+    congr 1; ext x; simp [ne_eq, eq_comm]
+  unfold CGraph.degSequence
+  rw [show (fun v : (complete n).V => (complete n).toSimple.degree v) = fun _ => n - 1 from funext hdeg]
+  have hcard : Multiset.card (Finset.univ : Finset (complete n).V).val = n := by
+    have h1 : (Finset.univ : Finset (complete n).V).card = Fintype.card (complete n).V := Finset.card_univ
+    rw [Finset.card_val, h1, card_complete]
+  have h1 : Multiset.map (fun x : (complete n).V => n - 1) (Finset.univ : Finset (complete n).V).val = Multiset.replicate n (n - 1) := by
+    have hmap : ∀ (s : Multiset (complete n).V) (a : ℕ),
+        Multiset.map (fun _ : (complete n).V => a) s = Multiset.replicate (Multiset.card s) a := by
+      intro s a; induction s using Multiset.induction with
+      | empty => simp
+      | cons b s ih => simp [ih, Multiset.replicate_succ]
+    rw [hmap, hcard]
+  rw [h1]
+  let L := (Multiset.replicate n (n - 1)).sort (fun x1 x2 => x1 ≤ x2)
+  have hofL : Multiset.ofList L = Multiset.replicate n (n - 1) := Multiset.sort_eq _ _
+  have hsorted : ∀ {l : List ℕ} {m a : ℕ}, List.Pairwise (· ≤ ·) l → (∀ x ∈ l, x = a) → l.length = m → l = List.replicate m a := by
+    intro l m a hpair hine hlen
+    induction l generalizing m a with
+    | nil =>
+      rw [List.length_nil] at hlen; subst hlen; rfl
+    | cons b l ih =>
+      simp [List.mem_cons, List.length] at hine hlen
+      have hb : b = a := hine.1
+      have pile : List.Pairwise (fun x1 x2 => x1 ≤ x2) l := hpair.tail
+      have hinel : ∀ x ∈ l, x = a := hine.2
+      have hllen : l.length = m - 1 := by omega
+      rw [hb, ih pile hinel hllen]
+      rcases m with _ | m <;> simp [List.replicate] at hlen ⊢
+  have hpair : List.Pairwise (fun x1 x2 => x1 ≤ x2) L := by
+    exact Multiset.pairwise_sort (Multiset.replicate n (n - 1)) (fun x1 x2 => x1 ≤ x2)
+  have hine : ∀ x ∈ L, x = n - 1 := by
+    intro x hx
+    have hmem : x ∈ (Multiset.replicate n (n - 1) : Multiset ℕ) := by
+      rwa [← hofL, Multiset.mem_coe]
+    rw [Multiset.mem_replicate] at hmem; exact hmem.2
+  have hlen : L.length = n := by
+    have h1 := congr_arg Multiset.card hofL
+    simp [Multiset.card_replicate] at h1
+    rwa [show L.length = Multiset.card (L : Multiset ℕ) from by rfl] at h1 ⊢
+  exact hsorted hpair hine hlen
 
 /-! ### Paths and cycles -/
 
@@ -415,67 +726,1832 @@ theorem degSequence_complete (n : ℕ) :
 theorem isConnected_path (n : ℕ) : (path (n + 1)).IsConnected := by
   simpa [IsConnected] using SimpleGraph.pathGraph_connected n
 
-theorem isAcyclic_path (n : ℕ) : (path n).IsAcyclic := sorry
+theorem isAcyclic_path (n : ℕ) : (path n).IsAcyclic := by
+  simp [IsAcyclic, path_toSimple]
+  intro v c hc
+  have hne : c ≠ SimpleGraph.Walk.nil := hc.isCircuit.ne_nil
+  have htrail := hc.isCircuit.isTrail
+  -- No edges in pathGraph n when n ≤ 1
+  by_cases hn : n ≤ 1
+  · -- pathGraph n has no edges
+    have no_edges : ∀ (a b : Fin n), ¬(SimpleGraph.pathGraph n).Adj a b := by
+      intro a b hab
+      rw [SimpleGraph.pathGraph_adj] at hab
+      omega
+    -- In a graph with no edges, every walk is nil. Contradiction with hne.
+    have all_walks_nil : ∀ ⦃x y : Fin n⦄ (w : (SimpleGraph.pathGraph n).Walk x y), w.length = 0 := by
+      intro x y w
+      induction w with
+      | nil => simp
+      | cons hab w' ih =>
+        exact absurd hab (no_edges _ _)
+    exact hne (by
+      have h0 : c.length = 0 := all_walks_nil c
+      rw [SimpleGraph.Walk.length_eq_zero_iff] at h0
+      exact h0)
+  · -- n ≥ 2: use cut lemma
+    -- Helper: In pathGraph n, adjacent vertices have indices differing by exactly 1.
+    have adj_idx : ∀ (a b : Fin n), (SimpleGraph.pathGraph n).Adj a b → (a.val = b.val + 1 ∨ b.val = a.val + 1) := by
+      intro a b hab
+      rw [SimpleGraph.pathGraph_adj] at hab
+      omega
+    -- Helper: The only edge between {0..k} and {k+1..n-1} is {⟨k,...⟩, ⟨k+1,...⟩}.
+    -- Specifically, if Adj x y, x.val ≤ k, and y.val ≥ k+1, then {x,y} = {⟨k,...⟩, ⟨k+1,...⟩}.
+    have crossing_edge_unique : ∀ (k : ℕ) (hk : k + 1 < n) (x y : Fin n)
+      (hadj : (SimpleGraph.pathGraph n).Adj x y) (hx : x.val ≤ k) (hy : k + 1 ≤ y.val),
+      Sym2.mk (x, y) = Sym2.mk (Prod.mk (⟨k, by omega⟩ : Fin n) (⟨k + 1, by omega⟩ : Fin n)) := by
+      intro k hk x y hadj hx hy
+      have hadj' := adj_idx x y hadj
+      obtain hx1 | hy1 := hadj'
+      · -- x.val = y.val + 1, but x ≤ k < y, impossible
+        omega
+      · -- y.val = x.val + 1, and x ≤ k < y, so x = k, y = k+1
+        have hxval : x.val = k := by omega
+        have hyval : y.val = k + 1 := by omega
+        have hxFin : x = ⟨k, by omega⟩ := Fin.ext hxval
+        have hyFin' : y = ⟨k + 1, hk⟩ := Fin.ext hyval
+        exact congr_arg Sym2.mk (Prod.ext hxFin hyFin')
+    -- Cut lemma: any walk from index ≥ k+1 to index ≤ k uses the crossing edge.
+    have cut_lemma : ∀ (k : ℕ) (hk : k + 1 < n) (x y : Fin n) (hx : k + 1 ≤ x.val) (hy : y.val ≤ k)
+      (w : (SimpleGraph.pathGraph n).Walk x y),
+      Sym2.mk (Prod.mk (⟨k, by omega⟩ : Fin n) (⟨k + 1, by omega⟩ : Fin n)) ∈ w.edges := by
+      intro k hk x y hx hy w
+      induction w with
+      | nil =>
+        simp at hx hy
+        omega
+      | @cons u v w huv rest ih =>
+        -- huv : Adj u v, rest : Walk v w, ih : for walk v → w
+        -- hx : k+1 ≤ u.val, hy : w.val ≤ k
+        by_cases hv : v.val ≤ k
+        · -- Edge huv crosses: u.val ≥ k+1, v.val ≤ k. Use crossing_edge_unique with (v, u).
+          have hcross : Sym2.mk (v, u) = Sym2.mk (Prod.mk (⟨k, by omega⟩ : Fin n) (⟨k + 1, by omega⟩ : Fin n)) :=
+            crossing_edge_unique k hk v u (huv.symm) (by omega) (by omega)
+          have : Sym2.mk (v, u) = Sym2.mk (u, v) := by
+            symm
+            show Sym2.mk (u, v) = Sym2.mk (v, u)
+            dsimp only [Sym2.mk]
+            exact Quot.sound (Sym2.Rel.swap u v)
+          rw [SimpleGraph.Walk.edges_cons, ← hcross, this]
+          exact List.Mem.head _
+        · -- v.val ≥ k+1, recurse on rest
+          push_neg at hv
+          have := ih hv hy
+          rw [SimpleGraph.Walk.edges_cons]
+          exact List.mem_cons_of_mem _ this
+    -- Sym2 symmetry helper
+    have symm_edge : ∀ (a b : (path n).V), Sym2.mk (b, a) = Sym2.mk (a, b) := by
+      intro a b
+      dsimp only [Sym2.mk]
+      exact Quot.sound (Sym2.Rel.swap b a)
+    -- Now handle c. Decompose.
+    cases c
+    · exact absurd rfl hne
+    · rename_i v_star huv rest
+      have edge_in_cons : Sym2.mk (v, v_star) ∈ (SimpleGraph.Walk.cons huv rest).edges := by
+        simp [SimpleGraph.Walk.edges_cons]
+      obtain hvw | hvw := adj_idx v v_star huv
+      · -- v.val = v_star.val + 1, so v_star < v. rest goes low→high.
+        set k := v_star.val
+        have hk : k + 1 < n := by omega
+        have hvk : (v : (path n).V).val = k + 1 := hvw
+        let vki : (path n).V := ⟨k, by omega⟩
+        let VKI : (path n).V := ⟨k + 1, by omega⟩
+        have hv_eq : v = VKI := Fin.ext hvk
+        let crossing : Sym2 ((path n).V) := Sym2.mk (vki, VKI)
+        have hedge_eq : Sym2.mk (v, v_star) = crossing := by
+          subst hv_eq; exact symm_edge vki VKI
+        -- reverse rest : Walk v v_star, high→low
+        have hmem_rev : crossing ∈ (SimpleGraph.Walk.reverse rest).edges := by
+          have h1 : k + 1 ≤ (v : Fin n).val := hvk.ge
+          have h2 : (v_star : Fin n).val ≤ k := le_rfl
+          convert cut_lemma k hk v v_star h1 h2 (SimpleGraph.Walk.reverse rest) using 1
+        rw [SimpleGraph.Walk.edges_reverse] at hmem_rev
+        have hmem : crossing ∈ rest.edges := by
+          rw [List.mem_reverse] at hmem_rev; exact hmem_rev
+        have hnodu := htrail.edges_nodup
+        rw [SimpleGraph.Walk.edges_cons] at hnodu edge_in_cons
+        rw [hedge_eq] at edge_in_cons
+        have hnotin : crossing ∉ rest.edges := by
+          intro h
+          rw [hedge_eq.symm] at h
+          exact (List.nodup_cons.mp hnodu).1 h
+        exact hnotin hmem
+      · -- v_star.val = v.val + 1, so v_star > v. rest goes high→low.
+        set k := (v : (path n).V).val
+        have hk : k + 1 < n := by omega
+        let vki : (path n).V := ⟨k, by omega⟩
+        let VKI : (path n).V := ⟨k + 1, by omega⟩
+        have hvstar_eq : v_star = VKI := Fin.ext hvw
+        let crossing : Sym2 ((path n).V) := Sym2.mk (vki, VKI)
+        have hedge_eq : Sym2.mk (v, v_star) = crossing := by
+          subst hvstar_eq; rfl
+        have hmem : crossing ∈ rest.edges :=
+          cut_lemma k hk v_star v (by omega) (by omega) rest
+        have hnodu := htrail.edges_nodup
+        rw [SimpleGraph.Walk.edges_cons] at hnodu edge_in_cons
+        rw [hedge_eq] at edge_in_cons
+        have hnotin : crossing ∉ rest.edges := by
+          intro h
+          rw [hedge_eq.symm] at h
+          exact (List.nodup_cons.mp hnodu).1 h
+        exact hnotin hmem
 
 theorem isTree_path (n : ℕ) : (path (n + 1)).IsTree :=
   ⟨isConnected_path n, isAcyclic_path (n + 1)⟩
 
-theorem E_path (n : ℕ) : (path (n + 1)).E = n := sorry
+theorem E_path (n : ℕ) : (path (n + 1)).E = n := by
+  unfold CGraph.E
+  have h1 : (path (n + 1)).toSimple.edgeFinset.card = ((path (n + 1)).toSimple.edgeSet).ncard := by
+    rw [Set.ncard_eq_toFinset_card', SimpleGraph.edgeFinset]
+  rw [h1, path_toSimple]
+  -- Goal: (pathGraph (n+1)).edgeSet.ncard = n
+  -- Use: edgeSet.ncard = edgeFinset.card, and compute edgeFinset.card for pathGraph
+  haveI : DecidableRel (SimpleGraph.pathGraph (n + 1)).Adj :=
+    fun i j => decidable_of_iff _ (SimpleGraph.pathGraph_adj).symm
+  have h2 : (SimpleGraph.pathGraph (n + 1)).edgeSet.ncard =
+    (SimpleGraph.pathGraph (n + 1)).edgeFinset.card := by
+    rw [Set.ncard_eq_toFinset_card', SimpleGraph.edgeFinset]
+  have htree : (SimpleGraph.pathGraph (n + 1)).IsTree := by
+    exact {
+      isConnected := SimpleGraph.pathGraph_connected n
+      IsAcyclic := by
+        have := isAcyclic_path (n + 1)
+        simpa [CGraph.IsAcyclic, path_toSimple] using this
+    }
+  have h3 := SimpleGraph.IsTree.card_edgeFinset htree
+  have h4 : (SimpleGraph.pathGraph (n + 1)).edgeFinset.card = n := by
+    simp [Fintype.card_fin] at h3; omega
+  exact h2.trans h4
 
-theorem diameter_path (n : ℕ) : (path (n + 1)).diameter = n := sorry
+theorem diameter_path (n : ℕ) : (path (n + 1)).diameter = n := by
+  simp [diameter, path_toSimple]
+  rw [SimpleGraph.diam]
+  -- Build walks from 0 to i of length i for all i : Fin (n+1)
+  have walk0to : ∀ i : Fin (n + 1), ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk 0 i, p.length = i.val := by
+    intro i
+    induction i using Fin.induction with
+    | zero =>
+      let p : (SimpleGraph.pathGraph (n + 1)).Walk 0 0 := .nil
+      exact ⟨p, rfl⟩
+    | succ i ih =>
+      obtain ⟨p, hp⟩ := ih
+      have hadj : (SimpleGraph.pathGraph (n + 1)).Adj (i.castSucc) (i.succ) := by
+        simp [SimpleGraph.pathGraph_adj]
+      let single : (SimpleGraph.pathGraph (n + 1)).Walk i.castSucc i.succ :=
+        SimpleGraph.Walk.cons hadj (SimpleGraph.Walk.nil : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.succ)
+      have hsingle : single.length = 1 := by simp [single]
+      exact ⟨p.append single, by simp [hp, hsingle]⟩
+  -- From this, edist 0 i ≤ ↑i.val
+  have edist0_le : ∀ i : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).edist 0 i ≤ ↑(i.val : ℕ) := by
+    intro i
+    obtain ⟨p, hp⟩ := walk0to i
+    rw [SimpleGraph.edist]
+    exact le_trans (iInf_le (f := fun w : (SimpleGraph.pathGraph (n + 1)).Walk 0 i => (w.length : ℕ∞)) p) (by simp [hp])
+  -- upWalk i : walk from castSucc i to succ i of length 1, for i : Fin n
+  have upWalk : ∀ i : Fin n, ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i.castSucc i.succ, p.length = 1 := by
+    intro i
+    exact ⟨SimpleGraph.Walk.cons (by simp [SimpleGraph.pathGraph_adj])
+      (SimpleGraph.Walk.nil : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.succ), by simp⟩
+  -- downWalk i : walk from succ i to castSucc i, by reversing upWalk
+  have downWalk : ∀ i : Fin n, ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.castSucc, p.length = 1 := by
+    intro i
+    obtain ⟨q, hq⟩ := upWalk i
+    exact ⟨q.reverse, by simp [hq]⟩
+  -- Monotone up walk: for u v with u.val ≤ v.val, walk from u to v of length v - u
+  -- By induction on the difference. This is complex; let me use a simpler approach.
+  -- For any i : Fin (n+1) and k : ℕ with i.val + k ≤ n, walk from i to ⟨i+k, ...⟩ of length k.
+  -- Adjacency between any i and i+1 in pathGraph (n+1)
+  have adj_succ : ∀ i : Fin n, (SimpleGraph.pathGraph (n + 1)).Adj i.castSucc i.succ := by
+    intro i; simp [SimpleGraph.pathGraph_adj]
+  -- Walk from i to i.succ of length 1
+  have walk_succ : ∀ i : Fin n, ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i.castSucc i.succ, p.length = 1 := by
+    intro i
+    exact ⟨SimpleGraph.Walk.cons (adj_succ i)
+      (SimpleGraph.Walk.nil : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.succ), by simp⟩
+  -- Build walk from i to j (where j = i + k) by iterating walk_succ k times
+  -- Target vertex: i + k in Fin (n+1), when i.val + k < n + 1
+  let addK (i : Fin (n + 1)) (k : ℕ) (hk : (i : ℕ) + k < n + 1) : Fin (n + 1) := ⟨i.val + k, hk⟩
+  have upWalkAny : ∀ (i : Fin (n + 1)) (k : ℕ) (hk : (i : ℕ) + k < n + 1),
+      ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i (addK i k hk), p.length = k := by
+    intro i k hk
+    induction k with
+    | zero =>
+      exact ⟨.nil, rfl⟩
+    | succ m ih =>
+      obtain ⟨p, hp⟩ := ih (by omega)
+      have hm : (i : ℕ) + m < n := by omega
+      obtain ⟨q, hq⟩ := walk_succ ⟨i.val + m, hm⟩
+      exact ⟨p.append q, by simp [hp, hq]⟩
+  -- hupper: edist u v ≤ ↑n for all u, v
+  have hinner : ∀ {u v : Fin (n + 1)}, (u : ℕ) ≤ v → (SimpleGraph.pathGraph (n + 1)).edist u v ≤ ↑n := by
+    intro u v huv
+    have hvk : (u : ℕ) + (v - u) < n + 1 := by omega
+    have hkep : addK u (v - u) hvk = v := by
+      ext; simp [addK, Nat.add_sub_of_le huv]
+    obtain ⟨p, hp⟩ := upWalkAny u (v - u) hvk
+    have hedist_le : (SimpleGraph.pathGraph (n + 1)).edist u (addK u (v - u) hvk) ≤ ↑(v - u : ℕ) := by
+      exact SimpleGraph.edist_le p |>.trans (by rw [hp])
+    rw [hkep] at hedist_le
+    exact hedist_le.trans (Nat.cast_le.mpr (by omega))
+  have hupper : ∀ u v : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).edist u v ≤ ↑n := by
+    intro u v
+    by_cases huv : (u : ℕ) ≤ v
+    · exact hinner huv
+    · rw [SimpleGraph.edist_comm]
+      exact hinner (le_of_lt (not_le.mp huv))
+  -- hexist_upper
+  have hexist_upper : (SimpleGraph.pathGraph (n + 1)).edist 0 ⟨n, Nat.lt_succ_self n⟩ ≤ ↑n := hupper 0 ⟨n, Nat.lt_succ_self n⟩
+  -- Key: for any walk, b.val ≤ a.val + walk.length
+  have walk_pot : ∀ {a b : Fin (n + 1)} (p : (SimpleGraph.pathGraph (n + 1)).Walk a b),
+      (b : ℕ) ≤ (a : ℕ) + p.length := by
+    intro a b p
+    induction p with
+    | nil => simp
+    | @cons u v w hadj p ih =>
+      have hadj' : (SimpleGraph.pathGraph (n + 1)).Adj u v := hadj
+      rw [SimpleGraph.pathGraph_adj] at hadj'
+      have : (v : ℕ) ≤ (u : ℕ) + 1 := by
+        rcases hadj' with h | h <;> omega
+      simp [SimpleGraph.Walk.length_cons]
+      omega
+  -- hexist_lower: edist 0 last ≥ ↑n
+  have hexist_lower : ↑(n : ℕ∞) ≤ (SimpleGraph.pathGraph (n + 1)).edist 0 ⟨n, Nat.lt_succ_self n⟩ := by
+    rw [SimpleGraph.edist]
+    by_cases hne : Nonempty ((SimpleGraph.pathGraph (n + 1)).Walk 0 ⟨n, Nat.lt_succ_self n⟩)
+    · apply le_ciInf
+      intro p
+      have := walk_pot p
+      simp at this ⊢
+      exact_mod_cast this
+    · push_neg at hne
+      simp [hne]
+  -- hexist
+  have hexist : (SimpleGraph.pathGraph (n + 1)).edist 0 ⟨n, Nat.lt_succ_self n⟩ = ↑n :=
+    le_antisymm hexist_upper hexist_lower
+  -- iSup bounds
+  have hiSup_ge : ↑(n : ℕ∞) ≤ ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 := by
+    rw [← hexist]
+    exact le_iSup (f := fun p : (Fin (n + 1)) × (Fin (n + 1)) => (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2) ⟨0, ⟨n, Nat.lt_succ_self n⟩⟩
+  have hiSup_le : ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 ≤ ↑(n : ℕ∞) :=
+    ciSup_le fun p => hupper p.1 p.2
+  have hisup : ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 = ↑(n : ℕ∞) :=
+    le_antisymm hiSup_le hiSup_ge
+  have : ⨆ u : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).eccent u = ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 := by
+    simp only [SimpleGraph.eccent]
+    have : ∀ {f : Fin (n + 1) → Fin (n + 1) → ℕ∞}, (⨆ u, ⨆ v, f u v) = ⨆ p : Fin (n + 1) × Fin (n + 1), f p.1 p.2 := by
+      intro f
+      exact iSup_prod' f
+    exact this
+  have hediam : (SimpleGraph.pathGraph (n + 1)).ediam = ⨆ u : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).eccent u := by
+    simp [SimpleGraph.ediam]
+  rw [hediam, this, hisup]
+  simp
 
-theorem isConnected_cycle (n : ℕ) : (cycle (n + 1)).IsConnected := sorry
+theorem isConnected_cycle (n : ℕ) : (cycle (n + 1)).IsConnected := by
+  rcases n with _ | n
+  · -- n = 0: cycle 1, single vertex, trivially connected
+    show (cycle 1).toSimple.Connected
+    let _ : Nonempty (cycle 1).V := ⟨⟨0, by omega⟩⟩
+    have huv : ∀ (u v : (cycle 1).V), u = v := by
+      intro u v
+      have hu : u.val = 0 := Nat.eq_zero_of_le_zero (Nat.le_of_lt_succ u.is_lt)
+      have hv : v.val = 0 := Nat.eq_zero_of_le_zero (Nat.le_of_lt_succ v.is_lt)
+      exact Fin.ext (hu.trans hv.symm)
+    exact { preconnected := fun u v => by rw [huv u v] }
+  · -- n ≥ 1: m ≥ 2
+    set m := n + 1 + 1
+    -- step_adj: from i can go to (i+1)%m
+    have step_adj : ∀ i : Fin m, (cycle m).toSimple.Adj i ⟨(i.val + 1) % m, Nat.mod_lt _ (by omega)⟩ := by
+      intro i
+      simp only [cycle, toSimple_adj, ofRel_adj]
+      have hi_lt : (i : ℕ) < m := i.is_lt
+      have hne : (i : ℕ) ≠ (i.val + 1) % m := by
+        intro h
+        have him1 : (i : ℕ) + 1 ≤ m := by omega
+        by_cases hlt : (i : ℕ) + 1 < m
+        · have hmod : ((i : ℕ) + 1) % m = (i : ℕ) + 1 := Nat.mod_eq_of_lt hlt
+          rw [hmod] at h; omega
+        · have hneq : (i : ℕ) + 1 = m := by omega
+          have hmod2 : ((i : ℕ) + 1) % m = 0 := by rw [hneq]; simp
+          rw [hmod2] at h; omega
+      set j : Fin m := ⟨(i.val + 1) % m, Nat.mod_lt _ (by omega)⟩
+      have hne' : i ≠ j := by
+        intro h; have := congr_arg Fin.val h; simp [j] at this; exact hne this
+      simp [hne', j]
+    -- Walk step: reachability from i to (i+k)%m for any k
+    have walk_step : ∀ (i : Fin m) (k : ℕ), (cycle m).toSimple.Reachable i ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ := by
+      intro i k
+      induction k with
+      | zero =>
+        show (cycle m).toSimple.Reachable i ⟨(i.val + 0) % m, Nat.mod_lt _ (by omega)⟩
+        simp [Nat.mod_eq_of_lt (by omega : (i : ℕ) < m)]
+      | succ k ih =>
+        show (cycle m).toSimple.Reachable i ⟨(i.val + (k + 1)) % m, Nat.mod_lt _ (by omega)⟩
+        have hstep : (cycle m).toSimple.Adj ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ ⟨((i.val + k) + 1) % m, Nat.mod_lt _ (by omega)⟩ := by
+          convert step_adj ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ using 2
+          simp [Fin.val_mk]
+        obtain ⟨w⟩ := ih
+        exact ⟨w.concat hstep⟩
+    -- Reachability between any two vertices
+    have reach_all : ∀ (i j : Fin m), (cycle m).toSimple.Reachable i j := by
+      intro i j
+      let k := j.val + m - i.val
+      have hk : (i.val + k) % m = j.val := by
+        simp [k]
+        have : (i.val + (j.val + m - i.val)) = j.val + m := by omega
+        have h1 : (↑i + (↑j + m - ↑i)) = ↑j + m := ‹_›
+        rw [h1]
+        have h2 : ((↑j + m) % m : ℕ) = ↑j := by
+          simp [Nat.add_mod, Nat.mod_eq_of_lt (by omega : (j : ℕ) < m)]
+        exact h2
+      have h_eq : j = ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ := by
+        exact Fin.ext hk.symm
+      rw [h_eq]
+      exact walk_step i k
+    exact { preconnected := reach_all, nonempty := ⟨⟨0, by omega⟩⟩ }
 
-theorem E_cycle (n : ℕ) : (cycle (n + 3)).E = n + 3 := sorry
+theorem E_cycle (n : ℕ) : (cycle (n + 3)).E = n + 3 := by
+  rw [show (cycle (n + 3)).E = (cycle (n + 3)).toSimple.edgeFinset.card from rfl]
+  have hadj : ∀ v u : Fin (n + 3), (cycle (n + 3)).toSimple.Adj v u ↔
+      u = (v + 1) % (n + 3) ∨ u = (v + (n + 2)) % (n + 3) := by
+    intro v u
+    simp only [cycle, ofRel, CGraph.toSimple_adj]
+    -- Key: relate Nat.mod stuff to Fin equality via Fin.ext_iff
+    have hv1 : ∀ (x : Fin (n + 3)), (x + 1 : Fin (n + 3)).val = (x.val + 1) % (n + 3) := by
+      simp [Fin.val_add]
+    have hv2 : ∀ (x : Fin (n + 3)), (x + Fin.mk (n + 2) (by omega) : Fin (n + 3)).val = (x.val + (n + 2)) % (n + 3) := by
+      simp [Fin.val_add]
+    -- u = v+1 (Fin) ↔ (v+1).val = u.val ↔ (v.val+1)%(n+3) = u.val
+    -- (u+1 = v) ↔ (u+1).val = v.val ↔ (u.val+1)%(n+3) = v.val
+    -- Inverse direction for key2: u+1 = v ↔ ...
+    have key_uv1 : (v + 1 = u) ↔ (v.val + 1) % (n + 3) = u.val := by
+      rw [← hv1, Fin.ext_iff]
+    have key_u1v : (u + 1 = v) ↔ (u.val + 1) % (n + 3) = v.val := by
+      rw [← hv1, Fin.ext_iff]
+    have key_uv1_rev : (u = v + 1) ↔ u.val = (v.val + 1) % (n + 3) := by
+      rw [← hv1]; exact Fin.ext_iff
+    have key_venv : (u = v + Fin.mk (n + 2) (by omega)) ↔
+        u.val = (v.val + (n + 2)) % (n + 3) := by
+      rw [← hv2]; exact Fin.ext_iff
+    -- Now: adj ↔ (¬v=u ∧ ((v+1)%m = u ∨ (u+1)%m = v)) ↔ u = v+1 ∨ u = v+(n+2) (in Fin, expressed as Nat mod)
+    -- The RHS of the theorem goal is about Nat mod, not Fin eq. But it's equivalent to Fin eq.
+    -- LHS: ¬v = u ∧ ((v.val+1)%(n+3) == u.val ∨ (u.val+1)%(n+3) == v.val) = true
+    -- After simp with Bool.eq... let me just use the keys.
+    simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq]
+    rw [key_uv1.symm, key_u1v.symm]
+    -- Now: v ≠ u ∧ (v + 1 = u ∨ u + 1 = v) ↔ u = v + 1 ∨ u = v + ⟨n+2,...⟩
+    have h_add_one_mk : (1 : Fin (n + 3)) + Fin.mk (n + 2) (by omega) = 0 := by
+      ext; simp [Fin.val_add]
+      rw [Nat.add_mod, Nat.mod_eq_of_lt (by omega : 1 < n + 3), Nat.mod_eq_of_lt (by omega : n + 2 < n + 3)]
+      rw [show 1 + (n + 2) = n + 3 by omega]
+      exact Nat.mod_self _
+    have h_mk_one_add : Fin.mk (n + 2) (by omega) + (1 : Fin (n + 3)) = 0 := by
+      show (⟨n + 2, by omega⟩ : Fin (n + 3)) + 1 = 0
+      ext; simp [Fin.val_add]
+    have hadd_cancel : ∀ x : Fin (n + 3), ∀ v : Fin (n + 3), v + x = v → x = 0 := by
+      intro x v h
+      have h1 : (v.val + x.val) % (n + 3) = v.val := by
+        have := congr_arg Fin.val h; simp [Fin.val_add] at this; exact this
+      have hvb := v.2
+      have hxvb := x.2
+      have hdiv := Nat.mod_add_div (v.val + x.val) (n + 3)
+      rw [h1] at hdiv
+      have hdiv2 : x.val = (n + 3) * ((v.val + x.val) / (n + 3)) := by omega
+      have : x.val = 0 := by
+        by_contra hx_ne
+        have : (n + 3) ≤ x.val := Nat.le_of_dvd (Nat.pos_of_ne_zero hx_ne) ⟨(v.val + x.val) / (n + 3), by linarith⟩
+        omega
+      exact Fin.ext this
+    have hne_from_left : v + 1 ≠ v := by
+      intro h; exact absurd (hadd_cancel 1 v h) (by simp)
+    have hne_from_right : v + Fin.mk (n + 2) (by omega) ≠ v := by
+      intro h
+      have : (Fin.mk (n + 2) (by omega) : Fin (n + 3)) = 0 → False := by
+        intro heq; exact absurd (congr_arg Fin.val heq) (by simp)
+      exact this (hadd_cancel _ _ h)
+    have hinv : ∀ x y : Fin (n + 3), x + 1 = y ↔ x = y + Fin.mk (n + 2) (by omega) := by
+      intro x y
+      constructor
+      · intro h
+        have : y + Fin.mk (n + 2) (by omega) = x + 1 + Fin.mk (n + 2) (by omega) := by rw [h]
+        rw [this, add_assoc, h_add_one_mk, add_zero]
+      · intro h; rw [h, add_assoc, h_mk_one_add, add_zero]
+    have hinv_right : (u + 1 = v) ↔ (u = v + Fin.mk (n + 2) (by omega)) := hinv u v
+    rw [hinv_right]
+    constructor
+    · rintro ⟨hne, h | h⟩
+      · left; exact (key_uv1.mp h).symm
+      · right; exact key_venv.mp h
+    · rintro (h | h)
+      · exact ⟨fun heq => hne_from_left (heq ▸ key_uv1.mpr h.symm), Or.inl (key_uv1.mpr h.symm)⟩
+      · exact ⟨fun heq => hne_from_right (heq.symm ▸ (key_venv.mpr h).symm), Or.inr (key_venv.mpr h)⟩
+  have hne_one_mk : (1 : Fin (n + 3)) ≠ Fin.mk (n + 2) (by omega) := by
+    intro h; have := congr_arg Fin.val h; simp at this
+  have hdeg : ∀ v : (cycle (n + 3)).V, (cycle (n + 3)).toSimple.degree v = 2 := by
+    intro v
+    change Fin (n + 3) at v
+    have hne2 : v + 1 ≠ v + Fin.mk (n + 2) (by omega) := by
+      intro h; exact hne_one_mk (add_left_cancel h)
+    rw [SimpleGraph.degree]
+    have hneighborFinset : (cycle (n + 3)).toSimple.neighborFinset v =
+      {v + 1, v + Fin.mk (n + 2) (by omega)} := by
+      ext u
+      change Fin (n + 3) at u
+      simp only [SimpleGraph.mem_neighborFinset]
+      have hu := hadj v u
+      have hv1' : ∀ (x : Fin (n + 3)), (x + 1 : Fin (n + 3)).val = (x.val + 1) % (n + 3) := by
+        intro x; simp [Fin.val_add]
+      have hv2' : ∀ (x : Fin (n + 3)), (x + Fin.mk (n + 2) (by omega) : Fin (n + 3)).val = (x.val + (n + 2)) % (n + 3) := by
+        intro x; simp [Fin.val_add]
+      have key1 : u = v + 1 ↔ u.val = (v.val + 1) % (n + 3) := by
+        rw [← hv1']; exact Fin.ext_iff
+      have key2 : u = v + Fin.mk (n + 2) (by omega) ↔ u.val = (v.val + (n + 2)) % (n + 3) := by
+        rw [← hv2']; exact Fin.ext_iff
+      rw [hu, Finset.mem_insert, Finset.mem_singleton]
+      rw [key1, key2]
+    rw [hneighborFinset]
+    rw [Finset.card_eq_two]
+    exact ⟨v + 1, v + Fin.mk (n + 2) (by omega), hne2, rfl⟩
+  have hsum : ∑ v : (cycle (n + 3)).V, (cycle (n + 3)).toSimple.degree v = 2 * (n + 3) := by
+    simp [hdeg]
+    omega
+  have h2 := SimpleGraph.sum_degrees_eq_twice_card_edges (cycle (n + 3)).toSimple
+  linarith
 
-theorem not_isAcyclic_cycle (n : ℕ) : ¬(cycle (n + 3)).IsAcyclic := sorry
+theorem not_isAcyclic_cycle (n : ℕ) : ¬(cycle (n + 3)).IsAcyclic := by
+  by_contra h_ac
+  simp only [IsAcyclic, CGraph.IsAcyclic] at h_ac
+  have hconn : (cycle (n + 3)).IsConnected := isConnected_cycle (n + 2)
+  have hE : (cycle (n + 3)).E = n + 3 := E_cycle n
+  have htree_simple : (cycle (n + 3)).toSimple.IsTree := ⟨hconn, h_ac⟩
+  -- Need: for a tree, edgeFinset.card = card V - 1
+  have h1 : (cycle (n + 3)).toSimple.IsTree := htree_simple
+  -- A tree on V vertices has |V|-1 edges. We know |V| = n+3 and |E| = n+3, contradiction.
+  have hV : Fintype.card (cycle (n + 3)).V = n + 3 := card_cycle (n + 3)
+  -- A tree is a minimal connected graph: removing any edge disconnects it.
+  -- Also, a tree on V vertices has |V|-1 edges. Let me find/search for this.
+  -- Alternative: use that G.toSimple is a tree, so it has a unique path between any two vertices,
+  -- and use rank of graphic matroid... too complex.
+  -- Let me try to prove |E| = |V|-1 for a tree by using SimpleGraph's tree lemmas.
+  have h_edges := SimpleGraph.IsTree.card_edgeFinset h1
+  rw [hV] at h_edges
+  -- h_edges : edgeFinset.card + 1 = n + 3
+  -- hE : edgeFinset.card = n + 3 (via CGraph.E)
+  have : (cycle (n + 3)).toSimple.edgeFinset.card = (cycle (n + 3)).E := by
+    simp [CGraph.E]
+  rw [hE] at this
+  omega
 
-theorem diameter_cycle (n : ℕ) : (cycle (n + 1)).diameter = (n + 1) / 2 := sorry
+theorem diameter_cycle (n : ℕ) : (cycle (n + 1)).diameter = (n + 1) / 2 := by
+  show (cycle (n + 1)).toSimple.diam = (n + 1) / 2
+  simp only [SimpleGraph.diam]
+  set m : ℕ := (n + 1) / 2
+  show ((cycle (n + 1)).toSimple.ediam).toNat = m
+  by_cases hn : n = 0
+  · subst hn
+    simp [m]
+    exact Or.inl (by show Subsingleton (Fin 1); exact inferInstance)
+  have h_edge : ∀ i : Fin (n + 1), (cycle (n + 1)).toSimple.Adj i (i + 1) := by
+    intro i
+    simp [cycle, ofRel_adj, toSimple_adj]
+    exact ⟨hn, Or.inl (by rw [Fin.val_add]; simp [Fin.val_add])⟩
+  -- Clockwise walk of length t from u to (u + t)
+  let finAdd : ℕ → Fin (n + 1) := fun t => ⟨t % (n + 1), Nat.mod_lt t (Nat.succ_pos n)⟩
+  have h_edist_walk : ∀ (u : Fin (n + 1)) (t : ℕ), t ≤ n → (cycle (n + 1)).toSimple.edist u (u + finAdd t) ≤ (t : ℕ∞) := by
+    intro u t
+    induction t with
+    | zero =>
+      intro ht
+      simp [finAdd, SimpleGraph.edist_self]
+    | succ t ih =>
+      intro ht
+      have hstep : (u + finAdd t) + 1 = u + finAdd (t + 1) := by
+        simp [finAdd, Fin.add_def, Nat.add_assoc]
+      have hedge : (cycle (n + 1)).toSimple.Adj (u + finAdd t) (u + finAdd (t + 1)) := by
+        rw [← hstep]
+        exact h_edge (u + finAdd t)
+      have h_edist_succ : (cycle (n + 1)).toSimple.edist (u + finAdd t) (u + finAdd (t + 1)) ≤ 1 := by
+        have : (cycle (n + 1)).toSimple.edist (u + finAdd t) (u + finAdd (t + 1)) ≤ ↑(SimpleGraph.Walk.nil.cons hedge).length := SimpleGraph.Walk.edist_le (SimpleGraph.Walk.nil.cons hedge)
+        simp at this
+        exact this
+      calc (cycle (n + 1)).toSimple.edist u (u + finAdd (t + 1))
+          ≤ (cycle (n + 1)).toSimple.edist u (u + finAdd t) +
+              (cycle (n + 1)).toSimple.edist (u + finAdd t) (u + finAdd (t + 1)) :=
+            SimpleGraph.edist_triangle
+        _ ≤ ↑t + 1 := by
+            exact add_le_add (ih (by omega)) h_edist_succ
+        _ = ↑(t + 1) := by push_cast; rfl
+  have h_edist_le : ∀ u v : Fin (n + 1), (cycle (n + 1)).toSimple.edist u v ≤ (m : ℕ∞) := by
+    intro u v
+    let t : ℕ := (v.val + (n + 1) - u.val) % (n + 1)  -- clockwise distance, 0 ≤ t ≤ n
+    -- min(t, (n+1)-t) ≤ m
+    have hmin : t ≤ m ∨ (n + 1 - t) ≤ m := by
+      have ht : t < n + 1 := Nat.mod_lt _ (Nat.succ_pos n)
+      have ht_le : t ≤ n := Nat.le_of_lt_succ ht
+      have : t + (n + 1 - t) = n + 1 := by omega
+      by_contra h
+      push_neg at h
+      omega
+    -- Helper: u + (v - u) = v in Fin (n+1)
+    have hfin_add_sub : ∀ (u v : Fin (n + 1)), u + (v - u) = v := by
+      intro u v
+      ext
+      simp [Fin.val_add, Fin.val_sub]
+    -- Helper: Fin.val of subtraction
+    have ht_def : t = (v - u).val := by
+      simp [t, Fin.sub_def]
+      have : (v : ℕ) + (n + 1) - u = (n + 1 - u + v : ℕ) := by omega
+      rw [this]
+    let t' : ℕ := (u.val + (n + 1) - v.val) % (n + 1)
+    have ht'_def : t' = (u - v).val := by
+      simp [t', Fin.sub_def]
+      have : (u : ℕ) + (n + 1) - v = (n + 1 - v + u : ℕ) := by omega
+      rw [this]
+    rcases hmin with htle | hbtle
+    · -- clockwise walk from u to v has edist ≤ t ≤ m
+      have huv : v = u + finAdd t := by
+        have : finAdd t = (v - u : Fin (n + 1)) := by
+          ext; simp [finAdd, ht_def]
+          omega
+        rw [this]
+        exact (hfin_add_sub u v).symm
+      rw [huv]
+      exact (h_edist_walk u t (by omega)).trans (WithBot.coe_le_coe.mpr htle)
+    · -- counterclockwise: use symmetry and walk from v to u clockwise
+      rw [SimpleGraph.edist_comm]
+      -- clockwise distance from v to u
+      have ht'_le_n : t' ≤ n := Nat.le_of_lt_succ (Nat.mod_lt _ (Nat.succ_pos n))
+      -- t' ≤ m (since t' = (n+1-t) % (n+1) and hbtle says n+1-t ≤ m)
+      have ht'_le_m : t' ≤ m := by
+        by_cases ht0 : t = 0
+        · simp [ht0, t']
+          omega
+        · -- t > 0 case: t' + t = n + 1
+          have ht_pos : 0 < t := Nat.pos_of_ne_zero ht0
+          have ht_lt : t < n + 1 := Nat.mod_lt _ (Nat.succ_pos n)
+          have ht'_lt : t' < n + 1 := Nat.mod_lt _ (Nat.succ_pos n)
+          have htsum : t' + t = n + 1 := by
+            have hsum_zero : (u - v : Fin (n + 1)) + (v - u) = 0 := by
+              ext; simp [Fin.val_add, Fin.val_sub, Fin.val_zero]
+            have hval : ((u - v).val + (v - u).val) % (n + 1) = 0 := by
+              have h1 : ((u - v : Fin (n + 1)) + (v - u)).val = (0 : Fin (n + 1)).val := by rw [hsum_zero]
+              rw [Fin.val_add] at h1
+              simp at h1
+              exact h1
+            have hvu_val : (v - u).val = t := ht_def.symm
+            have hu_val : (u - v).val = t' := ht'_def.symm
+            have hpos : 0 < (v - u).val := hvu_val ▸ ht_pos
+            have hlt : (v - u).val < n + 1 := (v - u).isLt
+            have hlt' : (u - v).val < n + 1 := (u - v).isLt
+            have hdvd : (n + 1 : ℕ) ∣ ((u - v).val + (v - u).val) := Nat.dvd_of_mod_eq_zero hval
+            obtain ⟨k, hk⟩ := hdvd
+            rcases k with (_ | _ | k) <;> simp at hk
+            · exfalso
+              have h1 : (v - u : Fin (n + 1)) = 0 := hk.2
+              have h2 : (v - u).val = 0 := by simpa using h1
+              omega
+            · rw [← hvu_val, ← hu_val]; exact hk
+            · exfalso
+              have hge : (n + 1) * (k + 1 + 1) ≥ 2 * (n + 1) := by nlinarith
+              omega
+          omega
+      have huv' : u = v + finAdd t' := by
+        have : finAdd t' = (u - v : Fin (n + 1)) := by
+          ext; simp [finAdd, ht'_def]
+          omega
+        rw [this]
+        exact (hfin_add_sub v u).symm
+      rw [huv']
+      exact (h_edist_walk v t' ht'_le_n).trans (WithBot.coe_le_coe.mpr ht'_le_m)
+  have h_ediam_le : (cycle (n + 1)).toSimple.ediam ≤ (m : ℕ∞) :=
+    SimpleGraph.ediam_le_of_edist_le h_edist_le
+  -- Potential function for lower bounds
+  let f : Fin (n + 1) → ℤ := fun i => min ((i : ℤ)) ((n + 1) - (i : ℤ))
+  have hf_adj : ∀ {i j : Fin (n + 1)}, (cycle (n + 1)).toSimple.Adj i j → |(f j : ℤ) - (f i : ℤ)| ≤ 1 := by
+    intro i j hij
+    -- Characterize edges: Adj i j ↔ j = i + 1 ∨ i = j + 1 in Fin (n+1)
+    simp [cycle, ofRel_adj, toSimple_adj] at hij
+    rcases hij with ⟨hne, hj|hi⟩
+    · -- j = i + 1
+      have hij1 : j = i + 1 := by
+        ext; simp [Fin.ext_iff, Fin.val_add] at hj ⊢; omega
+      rw [hij1]
+      simp only [f]
+      rw [abs_sub_le_iff]
+      by_cases hmax : (i : ℕ) = n
+      · -- i is the last element, i+1 wraps to 0
+        have : (i + 1 : Fin (n + 1)) = 0 := by
+          ext; simp [Fin.val_add, hmax]
+        rw [this]
+        simp only [f, Fin.val_zero]
+        simp
+        constructor <;> omega
+      · -- i.val < n, so (i+1).val = i.val + 1
+        have hi_lt_n : (i : ℕ) < n := Nat.lt_of_le_of_ne (Nat.lt_succ_iff.mp i.isLt) hmax
+        have hmod : ((i : ℕ) + 1) % (n + 1) = (i : ℕ) + 1 := Nat.mod_eq_of_lt (by omega)
+        have hval_i1 : ((i + 1 : Fin (n + 1)) : ℤ) = (i : ℤ) + 1 := by
+          simp [Fin.val_add, hmod]
+        rw [hval_i1]
+        set a := (i : ℤ) with ha_def
+        simp only [Int.min_def]
+        split <;> split <;> omega
+    · -- i = j + 1
+      have hij2 : i = j + 1 := by
+        ext; simp [Fin.val_add] at hi ⊢; omega
+      rw [hij2]
+      simp only [f]
+      rw [abs_sub_le_iff]
+      by_cases hmax : (j : ℕ) = n
+      · have : (j + 1 : Fin (n + 1)) = 0 := by
+          ext; simp [Fin.val_add, hmax]
+        rw [this]
+        simp only [f, Fin.val_zero]
+        simp
+        constructor <;> omega
+      · have hj_lt_n : (j : ℕ) < n := Nat.lt_of_le_of_ne (Nat.lt_succ_iff.mp j.isLt) hmax
+        have hmod : ((j : ℕ) + 1) % (n + 1) = (j : ℕ) + 1 := Nat.mod_eq_of_lt (by omega)
+        have hval_j1 : ((j + 1 : Fin (n + 1)) : ℤ) = (j : ℤ) + 1 := by
+          simp [Fin.val_add, hmod]
+        rw [hval_j1]
+        set a := (j : ℤ) with ha_def
+        simp only [Int.min_def]
+        split <;> split <;> omega
+  have hf_walk : ∀ {u v : Fin (n + 1)} (w : (cycle (n + 1)).toSimple.Walk u v),
+      |(f v : ℤ) - (f u : ℤ)| ≤ (w.length : ℤ) := by
+    intro u v w
+    induction w with
+    | nil => simp [SimpleGraph.Walk.length]
+    | @cons u' w' hstep ih pw ihw =>
+      calc |(f hstep : ℤ) - (f u' : ℤ)|
+          = |((f hstep : ℤ) - (f w' : ℤ)) + ((f w' : ℤ) - (f u' : ℤ))| := by
+            congr 1; ring
+        _ ≤ |(f hstep : ℤ) - (f w' : ℤ)| + |(f w' : ℤ) - (f u' : ℤ)| := abs_add_le _ _
+        _ ≤ (pw.length : ℤ) + 1 := by
+            exact add_le_add ihw (hf_adj ih)
+        _ = (SimpleGraph.Walk.cons ih pw).length := by simp [SimpleGraph.Walk.length]
+  have hf0 : f (0 : Fin (n + 1)) = 0 := by
+    show min ((0 : ℤ)) ((n : ℤ) + 1 - (0 : ℤ)) = 0
+    simp; omega
+  have hfm : f ⟨m, by omega⟩ = (m : ℤ) := by
+    show min ((m : ℤ)) ((n : ℤ) + 1 - (m : ℤ)) = (m : ℤ)
+    exact min_eq_left (by omega)
+  have h_lb : ∀ {w : (cycle (n + 1)).toSimple.Walk (0 : Fin (n + 1)) ⟨m, by omega⟩}, (m : ℤ) ≤ (w.length : ℤ) := by
+    intro w
+    have := hf_walk w
+    rw [hfm, hf0] at this
+    simpa using this
+  have h_edist_ge : ∃ u v : Fin (n + 1), (m : ℕ∞) ≤ (cycle (n + 1)).toSimple.edist u v := by
+    refine ⟨(0 : Fin (n + 1)), (⟨m, by omega⟩ : Fin (n + 1)), ?_⟩
+    let base : Fin (n + 1) := ⟨0, by omega⟩
+    have hfinAdd : base + finAdd m = ⟨m, by omega⟩ := by
+      ext; simp [finAdd, base]; omega
+    have hreach : (cycle (n + 1)).toSimple.Reachable base ⟨m, by omega⟩ := by
+      rw [← hfinAdd]
+      have hne : (cycle (n + 1)).toSimple.edist base (base + finAdd m) ≠ ⊤ := by
+        have : (m : ℕ∞) ≠ ⊤ := by simp [WithTop.ne_top_iff_exists]
+        exact ne_top_of_le_ne_top this (h_edist_walk base m (by omega))
+      exact (SimpleGraph.edist_ne_top_iff_reachable).mp hne
+    -- Reachable: use le_csInf
+    rw [SimpleGraph.edist]
+    apply le_csInf
+    · exact ⟨_, ⟨hreach.some, rfl⟩⟩
+    · rintro _ ⟨w, rfl⟩
+      show (m : ℕ∞) ≤ ↑w.length
+      exact_mod_cast @h_lb w
+  obtain ⟨u, v, huv⟩ := h_edist_ge
+  have h_m_le_ediam : (m : ℕ∞) ≤ (cycle (n + 1)).toSimple.ediam :=
+    huv.trans (SimpleGraph.edist_le_ediam)
+  have h_ediam_eq : (cycle (n + 1)).toSimple.ediam = (m : ℕ∞) := le_antisymm h_ediam_le h_m_le_ediam
+  rw [h_ediam_eq]
+  simp
 
-theorem indepNum_cycle (n : ℕ) : (cycle (n + 3)).indepNum = (n + 3) / 2 := sorry
+theorem indepNum_cycle (n : ℕ) : (cycle (n + 3)).indepNum = (n + 3) / 2 := by
+  unfold CGraph.indepNum SimpleGraph.indepNum
+  set m := n + 3
+  -- Adjacency in cycle m: toSimple.Adj i j ↔ i ≠ j ∧ ((i+1)%m == j ∨ (j+1)%m == i)
+  have habj : ∀ (i j : Fin m), (cycle m).toSimple.Adj i j ↔ i ≠ j ∧ (((i.val + 1) % m == j.val) ∨ ((j.val + 1) % m == i.val)) := by
+    intro i j
+    simp [cycle, ofRel_adj, CGraph.toSimple_adj]
+  -- The shift map i ↦ (i+1) % m is a bijection on Fin m
+  let shift : Fin m → Fin m := fun i => ⟨(i.val + 1) % m, Nat.mod_lt _ (by omega)⟩
+  have hshift_eq : ∀ i : Fin m, shift i = i + 1 := by
+    intro i; exact Fin.ext (by simp [shift, Fin.val_add])
+  have hshift_bijective : Function.Bijective shift := by
+    refine ⟨?_, ?_⟩
+    · -- injective
+      intro i j hij
+      rw [hshift_eq] at hij
+      exact add_right_cancel hij
+    · -- surjective
+      intro j
+      refine ⟨j + ⟨m - 1, by omega⟩, ?_⟩
+      rw [hshift_eq]
+      have hlast : (⟨m - 1, by omega⟩ : Fin m) + 1 = 0 := by
+        ext; simp [Fin.val_add]
+        have : m - 1 + 1 = m := Nat.sub_add_cancel (by omega)
+        simp [this, Nat.mod_eq_of_lt (show 0 < m from by omega)]
+      rw [add_assoc, hlast, add_zero]
+  have hshift_inj := hshift_bijective.1
+  have hshift_surj := hshift_bijective.2
+  -- For any i : Fin m, i ≠ shift i (since m ≥ 3)
+  have hne_shift : ∀ i : Fin m, i ≠ shift i := by
+    intro i hi
+    have hshift_eq_i : shift i = i + 1 := hshift_eq i
+    rw [hshift_eq_i] at hi
+    have h1 : (i + 1 : Fin m) = i := hi.symm
+    have h2 : (1 : Fin m) = 0 := by
+      have := congr_arg (· + (-i : Fin m)) h1
+      simp [add_assoc] at this
+    exact absurd (Fin.ext_iff.mp h2) (by simp; omega)
+  -- For any i : Fin m, Adj i (shift i)
+  have hadj_shift : ∀ i : Fin m, (cycle m).toSimple.Adj i (shift i) := by
+    intro i
+    rw [habj]
+    exact ⟨hne_shift i, Or.inl (by simp [shift])⟩
+  -- For any independent set s, shift(s) is disjoint from s
+  have hdisjoint : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
+      Disjoint s (s.map ⟨shift, hshift_inj⟩) := by
+    intro s hs
+    rw [Finset.disjoint_left]
+    intro z hz hzm
+    obtain ⟨y, hy, hyz⟩ := Finset.mem_map.mp hzm
+    have hyz' : shift y = z := hyz
+    have hadyz : (cycle m).toSimple.Adj y z := by
+      subst hyz'
+      exact hadj_shift y
+    have hyz_ne : y ≠ z := by
+      intro heq; rw [heq.symm] at hyz'; exact hne_shift y hyz'.symm
+    exact hs hy hz hyz_ne hadyz
+  -- So |s| + |shift(s)| ≤ m, i.e., 2|s| ≤ m
+  have hupper : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
+      2 * s.card ≤ m := by
+    intro s hs
+    have hd := hdisjoint s hs
+    have hcard_map : (s.map ⟨shift, hshift_inj⟩).card = s.card := by
+      exact Finset.card_map (⟨shift, hshift_inj⟩ : Fin m ↪ Fin m)
+    have hcard_union : (s ∪ s.map ⟨shift, hshift_inj⟩).card = 2 * s.card := by
+      rw [Finset.card_union_of_disjoint hd, hcard_map, two_mul]
+    exact hcard_union ▸ le_trans (Finset.card_le_univ _) (by simp [card_cycle])
+  have hupper' : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
+      s.card ≤ m / 2 := by
+    intro s hindep
+    rw [Nat.le_div_iff_mul_le zero_lt_two]
+    linarith [hupper s hindep]
+  -- Flower: there exists an independent set of size m/2
+  have flower : ∃ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) ∧ s.card = m / 2 := by
+    -- Use the set of odd-valued vertices
+    let s := Finset.image (fun (a : Fin (m / 2)) => ⟨2 * a.val + 1, by omega⟩ : Fin (m / 2) → Fin m) Finset.univ
+    refine ⟨s, ?_, ?_⟩
+    · -- s is independent
+      intro x hx y hy hxy hadj
+      rw [Finset.mem_coe, Finset.mem_image] at hx
+      rw [Finset.mem_coe, Finset.mem_image] at hy
+      obtain ⟨a, _, rfl⟩ := hx
+      obtain ⟨b, _, rfl⟩ := hy
+      rw [habj] at hadj
+      obtain ⟨hne, hcase⟩ := hadj
+      have ha_lt : a.val < m / 2 := a.isLt
+      have hb_lt : b.val < m / 2 := b.isLt
+      have h2a1_lt_m : 2 * a.val + 1 < m := by omega
+      have h2b1_lt_m : 2 * b.val + 1 < m := by omega
+      -- Fin.val of our constructed elements
+      have hval_a : ((⟨2 * a.val + 1, by omega⟩ : Fin m).val) = 2 * a.val + 1 := by
+        simp [Fin.val_mk, Nat.mod_eq_of_lt h2a1_lt_m]
+      have hval_b : ((⟨2 * b.val + 1, by omega⟩ : Fin m).val) = 2 * b.val + 1 := by
+        simp [Fin.val_mk, Nat.mod_eq_of_lt h2b1_lt_m]
+      -- (v+1) as Fin m: (2*k+1)+1 = 2*k+2. Two cases: 2*k+2 < m or 2*k+2 = m.
+      -- In either case ((v+1).val) is even.
+      have h2a2_le_m : 2 * a.val + 2 ≤ m := by omega
+      have h2b2_le_m : 2 * b.val + 2 ≤ m := by omega
+      -- (v1+1).val = (2*a+2) % m, which is even
+      have hv1p1_val : ((⟨2 * a.val + 1, by omega⟩ : Fin m) + 1).val = (2 * a.val + 2) % m := by
+        simp [Fin.val_add]
+      have hv2p1_val : ((⟨2 * b.val + 1, by omega⟩ : Fin m) + 1).val = (2 * b.val + 2) % m := by
+        simp [Fin.val_add]
+      -- (2*k+2) % m is even since 2*k+2 ≤ m
+      have heven_mod : ∀ k : ℕ, 2 * k + 2 ≤ m → ((2 * k + 2) % m) % 2 = 0 := by
+        intro k hk
+        by_cases hlt : 2 * k + 2 < m
+        · rw [Nat.mod_eq_of_lt hlt]
+          omega
+        · have heq : 2 * k + 2 = m := by omega
+          rw [heq, Nat.mod_self]
+      have heven_v1 : ((⟨2 * a.val + 1, by omega⟩ : Fin m) + 1).val % 2 = 0 := by rw [hv1p1_val]; exact heven_mod a h2a2_le_m
+      have heven_v2 : ((⟨2 * b.val + 1, by omega⟩ : Fin m) + 1).val % 2 = 0 := by rw [hv2p1_val]; exact heven_mod b h2b2_le_m
+      -- adjacency requires even == odd, impossible
+      rcases hcase with h | h
+      · simp at h
+        have h1 := heven_mod a h2a2_le_m
+        rw [h] at h1
+        omega
+      · simp at h
+        have h1 := heven_mod b h2b2_le_m
+        rw [h] at h1
+        omega
+    · -- s has size m/2
+      rw [Finset.card_image_of_injective _ (fun i j hij => by
+        have := Fin.ext_iff.mp hij
+        simp [Fin.val_mk] at this
+        omega), Finset.card_fin]
+  -- Now combine to get sSup = m/2
+  have hindep_empty : (cycle m).toSimple.IsIndepSet (∅ : Set (Fin m)) := by
+    simp [SimpleGraph.IsIndepSet]
+  have hmem : m / 2 ∈ {n | ∃ s : Finset (Fin m), (cycle m).toSimple.IsNIndepSet n s} := by
+    obtain ⟨s, hind, hcard⟩ := flower
+    exact ⟨s, SimpleGraph.IsNIndepSet.mk hind hcard⟩
+  have hbdd : BddAbove {n | ∃ s : Finset (Fin m), (cycle m).toSimple.IsNIndepSet n s} := by
+    exact ⟨m, fun k ⟨s, hs⟩ => by
+      rcases hs with ⟨hs_indep, hs_card⟩
+      rw [hs_card.symm]
+      show s.card ≤ m
+      exact le_trans (Finset.card_le_univ s) (card_cycle m |> le_of_eq)⟩
+  have hnonempty : ({n | ∃ s : Finset (Fin m), (cycle m).toSimple.IsNIndepSet n s}).Nonempty := by
+    exact ⟨0, (∅ : Finset (Fin m)), SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) rfl⟩
+  apply le_antisymm
+  · apply csSup_le hnonempty
+    intro b hb
+    obtain ⟨s, hs⟩ := hb
+    rcases hs with ⟨hs_indep, hs_card⟩
+    rw [← hs_card]
+    exact hupper' s hs_indep
+  · apply le_csSup hbdd hmem
 
 /-! ### Disjoint unions and joins -/
 
-theorem E_disjUnion : (disjUnion G H).E = G.E + H.E := sorry
+theorem E_disjUnion : (disjUnion G H).E = G.E + H.E := by
+  simp [CGraph.E]
+  haveI : DecidableEq (G.V ⊕ H.V) := Classical.decEq _
+  rw [SimpleGraph.edgeFinset_card, SimpleGraph.edgeFinset_card, SimpleGraph.edgeFinset_card]
+  -- Goal: Fintype.card ↑edgeSet ...
+  -- Build injection from G.edgeSet to (G.disjUnion H).edgeSet via Sym2.map Sum.inl
+  -- Build injection from H.edgeSet similarly. Show images disjoint and covering.
+  -- Then use Fintype.card_congr.
+  -- Step 1: Sym2.map Sum.inl and Sum.inr are injective
+  have hinj_l : Function.Injective (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) := by
+    intro a b hab
+    obtain ⟨x, y, rfl⟩ := Sym2.mk_surjective a
+    obtain ⟨u, v, rfl⟩ := Sym2.mk_surjective b
+    simp [Sym2.map, Quot.map] at hab
+    apply Quot.sound
+    rw [Sym2.rel_iff]
+    rcases hab with h | h
+    · exact Or.inl ⟨Sum.inl_injective (congr_arg Prod.fst h), Sum.inl_injective (congr_arg Prod.snd h)⟩
+    · exact Or.inr ⟨Sum.inl_injective (congr_arg Prod.fst h), Sum.inl_injective (congr_arg Prod.snd h)⟩
+  have hinj_r : Function.Injective (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) := by
+    intro a b hab
+    obtain ⟨x, y, rfl⟩ := Sym2.mk_surjective a
+    obtain ⟨u, v, rfl⟩ := Sym2.mk_surjective b
+    simp [Sym2.map, Quot.map] at hab
+    apply Quot.sound
+    rw [Sym2.rel_iff]
+    rcases hab with h | h
+    · exact Or.inl ⟨Sum.inr_injective (congr_arg Prod.fst h), Sum.inr_injective (congr_arg Prod.snd h)⟩
+    · exact Or.inr ⟨Sum.inr_injective (congr_arg Prod.fst h), Sum.inr_injective (congr_arg Prod.snd h)⟩
+  -- Show forward direction: every edge of disjUnion is inl-image of G-edge or inr-image of H-edge
+  -- Membership: inl-image of G-edges are disjUnion-edges
+  have hmem_inl : ∀ e ∈ G.toSimple.edgeSet, Sym2.map Sum.inl e ∈ (G.disjUnion H).toSimple.edgeSet := by
+    intro e he
+    obtain ⟨a, b, hab, rfl⟩ := Sym2.mk_surjective e
+    simp [Sym2.map, Quot.map]
+    show Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) (Sym2.mk a) ∈ (G.disjUnion H).toSimple.edgeSet
+    simp only [Sym2.map, Quot.map]
+    show Sym2.mk (Sum.inl a.1, Sum.inl a.2) ∈ (G.disjUnion H).toSimple.edgeSet
+    rw [SimpleGraph.mem_edgeSet] at he ⊢
+    rw [CGraph.toSimple_adj] at he
+    simp [CGraph.toSimple_adj, disjUnion_adj_inl_inl, he]
+  -- hmem_inr: inr-image of H-edges are disjUnion-edges
+  have hmem_inr : ∀ e ∈ H.toSimple.edgeSet, Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e ∈ (G.disjUnion H).toSimple.edgeSet := by
+    intro e he
+    obtain ⟨a, b, hab, rfl⟩ := Sym2.mk_surjective e
+    show Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) (Sym2.mk a) ∈ (G.disjUnion H).toSimple.edgeSet
+    simp only [Sym2.map, Quot.map]
+    show Sym2.mk (Sum.inr a.1, Sum.inr a.2) ∈ (G.disjUnion H).toSimple.edgeSet
+    rw [SimpleGraph.mem_edgeSet] at he ⊢
+    rw [CGraph.toSimple_adj] at he
+    simp [CGraph.toSimple_adj, disjUnion_adj_inr_inr, he]
+  -- Cover: every disjUnion edge is inl-image of G-edge or inr-image of H-edge
+  have hcover : ∀ s ∈ (G.disjUnion H).toSimple.edgeSet,
+      (∃ e ∈ G.toSimple.edgeSet, Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) e = s) ∨
+      (∃ e ∈ H.toSimple.edgeSet, Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e = s) := by
+    intro s hs
+    obtain ⟨p, rfl⟩ := Quot.exists_rep s
+    rw [SimpleGraph.mem_edgeSet] at hs
+    rcases p with ⟨a | b, c | d⟩ <;> simp at hs
+    · -- inl/inl
+      left
+      refine ⟨Sym2.mk (a, c), hs, ?_⟩
+      simp [Sym2.map, Quot.map]
+      rfl
+    · -- inr/inr
+      right
+      refine ⟨Sym2.mk (b, d), hs, ?_⟩
+      simp [Sym2.map, Quot.map]
+      rfl
+  -- inl-image and inr-image edges are disjoint
+  have hnd : ∀ e ∈ G.toSimple.edgeSet, ∀ e' ∈ H.toSimple.edgeSet,
+      Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) e ≠ Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e' := by
+    intro e he e' he' h_eq
+    obtain ⟨⟨a, b⟩, rfl⟩ := Sym2.mk_surjective e
+    obtain ⟨⟨c, d⟩, rfl⟩ := Sym2.mk_surjective e'
+    simp [Sym2.map, Quot.map] at h_eq
+  -- The edge set is exactly the disjoint union of the two images
+  have himage_in : Set.image (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) ↑G.toSimple.edgeSet ⊆ ↑(G.disjUnion H).toSimple.edgeSet := by
+    rintro _ ⟨e, he, rfl⟩; exact hmem_inl e he
+  have himage_in' : Set.image (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) ↑H.toSimple.edgeSet ⊆ ↑(G.disjUnion H).toSimple.edgeSet := by
+    rintro _ ⟨e, he, rfl⟩; exact hmem_inr e he
+  have himage_union : ↑(G.disjUnion H).toSimple.edgeSet ⊆
+      Set.image (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) ↑G.toSimple.edgeSet ∪
+      Set.image (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) ↑H.toSimple.edgeSet := by
+    intro s hs; exact hcover s hs
+  have heqv_set : ↑(G.disjUnion H).toSimple.edgeSet =
+      Set.image (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) ↑G.toSimple.edgeSet ∪
+      Set.image (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) ↑H.toSimple.edgeSet := by
+    exact Set.Subset.antisymm himage_union (Set.union_subset himage_in himage_in')
+  -- Build the equiv between edge sets
+  let f : ↑G.toSimple.edgeSet ⊕ ↑H.toSimple.edgeSet → ↑(G.disjUnion H).toSimple.edgeSet :=
+    Sum.elim (fun ⟨e, he⟩ => ⟨Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) e, hmem_inl e he⟩)
+             (fun ⟨e, he⟩ => ⟨Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e, hmem_inr e he⟩)
+  -- f is injective
+  have hf_inj : Function.Injective f := by
+    intro x y hxy
+    rcases x with (⟨e₁, he₁⟩ | ⟨e₁, he₁⟩) <;> rcases y with (⟨e₂, he₂⟩ | ⟨e₂, he₂⟩)
+    · simp [f] at hxy
+      cases hinj_l hxy with rfl
+    · simp [f] at hxy; exact False.elim (hnd e₁ he₁ e₂ he₂ hxy)
+    · simp [f] at hxy; exact False.elim (hnd e₂ he₂ e₁ he₁ hxy.symm)
+    · simp [f] at hxy
+      cases hinj_r hxy with rfl
+  -- f is surjective
+  have hf_surj : Function.Surjective f := by
+    intro ⟨s, hs⟩
+    rcases hcover s hs with ⟨e, he, rfl⟩ | ⟨e, he, rfl⟩
+    · exact ⟨Sum.inl ⟨e, he⟩, rfl⟩
+    · exact ⟨Sum.inr ⟨e, he⟩, rfl⟩
+  let hequiv := Equiv.ofBijective f ⟨hf_inj, hf_surj⟩
+  rw [Fintype.card_congr hequiv.symm]
+  exact Fintype.card_sum
 
-theorem indepNum_disjUnion : (disjUnion G H).indepNum = G.indepNum + H.indepNum := sorry
+theorem indepNum_disjUnion : (disjUnion G H).indepNum = G.indepNum + H.indepNum := by
+  simp only [CGraph.indepNum]
+  -- The LHS graph is isomorphic to G.toSimple.sum H.toSimple
+  have heq : (G.disjUnion H).toSimple = G.toSimple.sum H.toSimple := by
+    ext x y
+    simp [SimpleGraph.sum_adj, CGraph.toSimple_adj]
+    cases x <;> cases y <;> simp [disjUnion_adj_inl_inl, disjUnion_adj_inr_inr, disjUnion_adj_inl_inr, disjUnion_adj_inr_inl]
+  rw [heq]
+  unfold SimpleGraph.indepNum
+  set G' := G.toSimple
+  set H' := H.toSimple
+  classical
+  set SG := {n : ℕ | ∃ s : Finset G.V, G'.IsNIndepSet n s} with SG_def
+  set SH := {n : ℕ | ∃ s : Finset H.V, H'.IsNIndepSet n s} with SH_def
+  set SL := {n : ℕ | ∃ s : Finset (G.V ⊕ H.V), (G' ⊕g H').IsNIndepSet n s} with SL_def
+  --SG, SH bounded above
+  have hSG_bdd : BddAbove SG := ⟨Fintype.card G.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ s.card_le_univ⟩
+  have hSH_bdd : BddAbove SH := ⟨Fintype.card H.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ s.card_le_univ⟩
+  have hSL_bdd : BddAbove SL := ⟨Fintype.card G.V + Fintype.card H.V, fun n ⟨s, hs⟩ => by
+    rw [← hs.card_eq]
+    exact s.card_le_univ.trans (by simp [Fintype.card_sum])⟩
+  -- Step: SG + SH ⊆ SL (construct indep set in sum from indep sets in each side)
+  have h_add_mem : ∀ a ∈ SG, ∀ b ∈ SH, a + b ∈ SL := by
+    rintro a ha b hb
+    obtain ⟨sG, hsG⟩ := ha
+    obtain ⟨sH, hsH⟩ := hb
+    let embL : G.V ↪ G.V ⊕ H.V := ⟨Sum.inl, Sum.inl_injective⟩
+    let embR : H.V ↪ G.V ⊕ H.V := ⟨Sum.inr, Sum.inr_injective⟩
+    have hdisjoint : Disjoint (Finset.map embL sG) (Finset.map embR sH) := by
+      rw [Finset.disjoint_left]
+      intro x hxL hxR
+      simp [Finset.mem_map] at hxL hxR
+      obtain ⟨a, ha, rfl⟩ := hxL
+      obtain ⟨b, hb, hb'⟩ := hxR
+      cases hb'
+    have hasmp : (Finset.map embL sG ⊔ Finset.map embR sH) = Finset.map embL sG ∪ Finset.map embR sH := rfl
+    have hc : (Finset.map embL sG ⊔ Finset.map embR sH).card = a + b := by
+      rw [hasmp, Finset.card_union_of_disjoint hdisjoint]
+      simp [Finset.card_map, embL, embR, hsG.card_eq, hsH.card_eq]
+    refine ⟨sG.map embL ⊔ sH.map embR, ?_, hc⟩
+    show (G' ⊕g H').IsIndepSet (↑(sG.map embL ⊔ sH.map embR))
+    unfold SimpleGraph.IsIndepSet
+    simp
+    intro v hv w hw hvw
+    simp only [Set.mem_union, Finset.coe_map, Set.mem_image] at hv hw
+    rcases hv with ⟨x, hx, rfl⟩ | ⟨x, hx, rfl⟩ <;> rcases hw with ⟨y, hy, rfl⟩ | ⟨y, hy, rfl⟩ <;>
+      simp [SimpleGraph.sum_adj] at hvw ⊢
+    · intro hadj; exact hsG.1 hx hy hvw (by simpa using hadj)
+    · intro hadj; exact hsH.1 hx hy hvw (by simpa using hadj)
+  -- 0 ∈ SG and 0 ∈ SH (empty independent set)
+  have h0_SG : 0 ∈ SG := ⟨∅, by simp [SimpleGraph.IsNIndepSet.mk, SimpleGraph.IsIndepSet]⟩
+  have h0_SH : 0 ∈ SH := ⟨∅, by simp [SimpleGraph.IsNIndepSet.mk, SimpleGraph.IsIndepSet]⟩
+  -- Every element of SL is ≤ sSup SG + sSup SH
+  have h_le_each : ∀ n ∈ SL, n ≤ sSup SG + sSup SH := by
+    intro n hn
+    obtain ⟨s, hs⟩ := hn
+    -- Define sL and sR as finsets of vertices in G.V and H.V whose inl/inr is in s
+    let sL := Finset.filter (fun a => (Sum.inl a : G.V ⊕ H.V) ∈ s) Finset.univ
+    let sR := Finset.filter (fun b => (Sum.inr b : G.V ⊕ H.V) ∈ s) Finset.univ
+    -- sL is indep in G', sR is indep in H'
+    have hsL_ind : G'.IsIndepSet (sL : Set G.V) := by
+      unfold SimpleGraph.IsIndepSet
+      intro a ha c hc hac
+      simp [sL] at ha hc
+      have hsum_adj : ¬(G' ⊕g H').Adj (Sum.inl a) (Sum.inl c) := by
+        have := hs.1 ha hc (Sum.inl_injective.ne hac)
+        simpa [SimpleGraph.sum_adj] using this
+      simpa [SimpleGraph.sum_adj] using hsum_adj
+    have hsR_ind : H'.IsIndepSet (sR : Set H.V) := by
+      unfold SimpleGraph.IsIndepSet
+      intro b hb d hd hbd
+      simp [sR] at hb hd
+      have hsum_adj : ¬(G' ⊕g H').Adj (Sum.inr b) (Sum.inr d) := by
+        have := hs.1 hb hd (Sum.inr_injective.ne hbd)
+        simpa [SimpleGraph.sum_adj] using this
+      simpa [SimpleGraph.sum_adj] using hsum_adj
+    -- card s = card sL + card sR
+    have hcard : s.card = sL.card + sR.card := by
+      let embL : G.V ↪ G.V ⊕ H.V := ⟨Sum.inl, Sum.inl_injective⟩
+      let embR : H.V ↪ G.V ⊕ H.V := ⟨Sum.inr, Sum.inr_injective⟩
+      have hsum_eq : s = sL.map embL ∪ sR.map embR := by
+        ext v
+        simp [sL, sR, embL, embR, Finset.mem_map, Finset.mem_union, Finset.mem_filter, Finset.mem_univ]
+        cases v <;> simp
+      have hdisjoint : Disjoint (sL.map embL) (sR.map embR) := by
+        rw [Finset.disjoint_left]
+        intro x hxL hxR
+        simp [embL, embR, Finset.mem_map] at hxL hxR
+        obtain ⟨a, ha, rfl⟩ := hxL
+        obtain ⟨b, hb, hb'⟩ := hxR
+        cases hb'
+      rw [hsum_eq, Finset.card_union_of_disjoint hdisjoint,
+          Finset.card_map embL,
+          Finset.card_map embR]
+    -- sL.card ≤ sSup SG, sR.card ≤ sSup SH
+    have hcard_L : sL.card ≤ sSup SG := by
+      apply le_csSup hSG_bdd
+      exact ⟨sL, ⟨hsL_ind, rfl⟩⟩
+    have hcard_R : sR.card ≤ sSup SH := by
+      apply le_csSup hSH_bdd
+      exact ⟨sR, ⟨hsR_ind, rfl⟩⟩
+    rw [← hs.card_eq, hcard]
+    exact add_le_add hcard_L hcard_R
+  -- RHS ≤ LHS: sSup SG + sSup SH ≤ sSup SL
+  have h_sum_subset : {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} ⊆ SL := by
+    rintro n ⟨a, ha, b, hb, rfl⟩; exact h_add_mem a ha b hb
+  have h_nonempty_sum : (∃ n, n ∈ {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n}) := ⟨0 + 0, 0, h0_SG, 0, h0_SH, rfl⟩
+  have h_bdd_sum : BddAbove {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} := by
+    exact ⟨sSup SG + sSup SH, fun n ⟨a, ha, b, hb, hn⟩ => hn ▸ add_le_add (le_csSup hSG_bdd ha) (le_csSup hSH_bdd hb)⟩
+  have h_sSup_sum_le : sSup {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} ≤ sSup SL :=
+    csSup_le h_nonempty_sum (fun n hn => le_csSup hSL_bdd (h_sum_subset hn))
+  have h_sSup_mem (S : Set ℕ) (hSne : S.Nonempty) (hSbb : BddAbove S) : sSup S ∈ S := by
+    have hfin : S.Finite := Set.Finite.subset (Set.finite_Iic hSbb.choose) (fun x hx => hSbb.choose_spec hx)
+    have hmem_aux : hfin.toFinset.max' (hSne.imp (fun x hx => hfin.mem_toFinset.mpr hx)) ∈ S := by
+      have := Finset.max'_mem (hfin.toFinset) (hSne.imp (fun x hx => hfin.mem_toFinset.mpr hx))
+      exact hfin.mem_toFinset.mp this
+    have hsSup_eq_max' : sSup S = hfin.toFinset.max' (hSne.imp (fun x hx => hfin.mem_toFinset.mpr hx)) := by
+      apply le_antisymm
+      · exact csSup_le hSne (fun x hx => Finset.le_max' _ _ (hfin.mem_toFinset.mpr hx))
+      · apply le_csSup hSbb hmem_aux
+    rw [hsSup_eq_max']
+    exact hmem_aux
+  have h_sSup_add : sSup SG + sSup SH ≤ sSup {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} := by
+    exact le_csSup h_bdd_sum ⟨sSup SG, h_sSup_mem SG ⟨0, h0_SG⟩ hSG_bdd, sSup SH, h_sSup_mem SH ⟨0, h0_SH⟩ hSH_bdd, rfl⟩
+  have h_rtl : sSup SG + sSup SH ≤ sSup SL := le_trans h_sSup_add h_sSup_sum_le
+  -- LHS ≤ RHS: sSup SL ≤ sSup SG + sSup SH
+  have h_ltr : sSup SL ≤ sSup SG + sSup SH := by
+    apply csSup_le'
+    intro n hn
+    exact h_le_each n hn
+  exact le_antisymm h_ltr h_rtl
 
 theorem cliqueNum_disjUnion :
-    (disjUnion G H).cliqueNum = max G.cliqueNum H.cliqueNum := sorry
+    (disjUnion G H).cliqueNum = max G.cliqueNum H.cliqueNum := by
+  simp only [CGraph.cliqueNum]
+  letI := Classical.decEq G.V
+  letI := Classical.decEq H.V
+  let SG := G.toSimple
+  let SH := H.toSimple
+  let SD := (G.disjUnion H).toSimple
+  show SD.cliqueNum = max SG.cliqueNum SH.cliqueNum
+  unfold SimpleGraph.cliqueNum
+  -- Define the sets of achievable clique sizes
+  set SC := {n : ℕ | ∃ s : Finset (G.V ⊕ H.V), SD.IsNClique n s}
+  set SSG := {n : ℕ | ∃ s : Finset G.V, SG.IsNClique n s}
+  set SSH := {n : ℕ | ∃ s : Finset H.V, SH.IsNClique n s}
+  -- Helper: Fintype.card of G.V ⊕ H.V bounds all clique sizes in SD
+  have hbound : ∀ n ∈ SC, n ≤ Fintype.card (G.V ⊕ H.V) := by
+    rintro n ⟨s, hs⟩
+    have hcard := hs.card_eq
+    rw [← hcard]
+    exact s.card_le_univ
+  -- SC is bounded above
+  have hSC_bdd : BddAbove SC := ⟨Fintype.card (G.V ⊕ H.V), hbound⟩
+  -- Lower bounds: embedding cliques from G and H into disjUnion
+  have hSSG : ∀ n ∈ SSG, n ≤ sSup SC := by
+    rintro n ⟨s, hs⟩
+    apply le_csSup hSC_bdd
+    use s.map (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ G.V ⊕ H.V)
+    constructor
+    · -- IsClique / pairwise adj
+      intro a ha b hb hab
+      simp [Finset.mem_map, Set.mem_image] at ha hb
+      obtain ⟨x, hx, rfl⟩ := ha
+      obtain ⟨y, hy, rfl⟩ := hb
+      have hxy : x ≠ y := fun heq => hab (by rw [heq])
+      show SD.Adj (Sum.inl x) (Sum.inl y)
+      simp only [SD, CGraph.toSimple]
+      rw [disjUnion_adj_inl_inl]
+      rcases hs with ⟨hadj, hcard⟩
+      exact hadj hx hy hxy
+    · -- card
+      rw [Finset.card_map]; exact hs.card_eq
+  have hSSH : ∀ n ∈ SSH, n ≤ sSup SC := by
+    rintro n ⟨s, hs⟩
+    apply le_csSup hSC_bdd
+    use s.map (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ G.V ⊕ H.V)
+    constructor
+    · -- IsClique / pairwise adj
+      intro a ha b hb hab
+      simp [Finset.mem_map, Set.mem_image] at ha hb
+      obtain ⟨x, hx, rfl⟩ := ha
+      obtain ⟨y, hy, rfl⟩ := hb
+      have hxy : x ≠ y := fun heq => hab (by rw [heq])
+      show SD.Adj (Sum.inr x) (Sum.inr y)
+      simp only [SD, CGraph.toSimple]
+      rw [disjUnion_adj_inr_inr]
+      rcases hs with ⟨hadj, hcard⟩
+      exact hadj hx hy hxy
+    · rw [Finset.card_map]
+      exact hs.card_eq
+  -- SSG is bounded above
+  have hSSG_bdd : BddAbove SSG := ⟨Fintype.card G.V, fun n ⟨s, hs⟩ => by
+    rw [← hs.card_eq]; exact s.card_le_univ⟩
+  -- SSH is bounded above
+  have hSSH_bdd : BddAbove SSH := ⟨Fintype.card H.V, fun n ⟨s, hs⟩ => by
+    rw [← hs.card_eq]; exact s.card_le_univ⟩
+  -- Lower bound from G: SG.cliqueNum ≤ SD.cliqueNum
+  have hle_G : sSup SSG ≤ sSup SC := by
+    apply csSup_le _ hSSG
+    exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+  -- Lower bound from H
+  have hle_H : sSup SSH ≤ sSup SC := by
+    apply csSup_le _ hSSH
+    exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+  -- Lower bound: max ≤ SD
+  have hlower : max (sSup SSG) (sSup SSH) ≤ sSup SC := max_le hle_G hle_H
+  -- Upper bound: SD ≤ max
+  -- Key: every SD-clique comes from G or H
+  -- If s is a clique in SD containing an inl vertex, then all vertices of s are inl.
+  have hclique_inl : ∀ (s : Finset (G.V ⊕ H.V)) (n : ℕ) (x₀ : G.V),
+      Sum.inl x₀ ∈ s → SD.IsNClique n s →
+      ∃ t : Finset G.V, SG.IsNClique n t ∧ s = t.map (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ G.V ⊕ H.V) := by
+    intro s n x₀ hinx₀ hnc
+    have hall_inl : ∀ y ∈ s, ∃ a : G.V, y = Sum.inl a := by
+      intro y hy
+      cases y with
+      | inl a => exact ⟨a, rfl⟩
+      | inr b =>
+        exfalso
+        rcases hnc with ⟨hclique, _⟩
+        have hineq : (Sum.inl x₀ : G.V ⊕ H.V) ≠ Sum.inr b := by intro h; cases h
+        have hadj : SD.Adj (Sum.inl x₀) (Sum.inr b) := hclique hinx₀ hy hineq
+        simp [SD, CGraph.toSimple, disjUnion_adj_inl_inr] at hadj
+    let decoder : G.V ⊕ H.V → G.V := Sum.elim id (fun _ => x₀)
+    have hinl_decoder : ∀ y ∈ s, Sum.inl (decoder y) = y := by
+      intro y hy; obtain ⟨a, rfl⟩ := hall_inl y hy; simp [decoder]
+    let t := s.image decoder
+    have ht_card : t.card = s.card := by
+      rw [Finset.card_image_of_injOn]
+      intro y hy z hz h_eq
+      have hy' := hinl_decoder y hy
+      have hz' := hinl_decoder z hz
+      exact hy'.symm.trans (congr_arg Sum.inl h_eq ▸ hz')
+    have hs_card : s.card = n := hnc.card_eq
+    refine ⟨t, ?_, ?_⟩
+    · have ht_n : t.card = n := ht_card.symm ▸ hs_card
+      exact ⟨fun a ha b hb hab => by
+        rw [Finset.mem_coe, Finset.mem_image] at ha hb
+        obtain ⟨y, hy, rfl⟩ := ha
+        obtain ⟨z, hz, rfl⟩ := hb
+        show SG.Adj (decoder y) (decoder z)
+        rcases hnc with ⟨hclique, _⟩
+        have hadj := hclique hy hz (by intro heq; apply hab; rw [heq])
+        show SG.Adj (decoder y) (decoder z)
+        rw [CGraph.toSimple_adj]
+        show G.Adj (decoder y) (decoder z) = true
+        rw [← disjUnion_adj_inl_inl G H (decoder y) (decoder z)]
+        rw [hinl_decoder y hy, hinl_decoder z hz]
+        rw [CGraph.toSimple_adj] at hadj
+        exact hadj, ht_n⟩
+    · show s = t.map (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ G.V ⊕ H.V)
+      ext y
+      simp [Finset.mem_map, Finset.mem_image]
+      exact ⟨fun hy => ⟨decoder y, Finset.mem_image.mpr ⟨y, hy, rfl⟩, hinl_decoder y hy⟩,
+             fun ⟨a, ha, hxy⟩ => by
+               obtain ⟨z, hz, hza⟩ := Finset.mem_image.mp ha
+               have heq : Sum.inl a = z := Eq.trans (congr_arg Sum.inl hza.symm) (hinl_decoder z hz)
+               exact hxy.symm ▸ heq ▸ hz⟩
+  -- Similarly for inr.
+  have hclique_inr : ∀ (s : Finset (G.V ⊕ H.V)) (x₀ : H.V),
+      Sum.inr x₀ ∈ s → SD.IsNClique s.card s →
+      ∃ t : Finset H.V, SH.IsNClique t.card t ∧ s = t.map (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ G.V ⊕ H.V) := by
+    intro s x₀ hinx₀ hnc
+    have hall_inr : ∀ y ∈ s, ∃ b : H.V, y = Sum.inr b := by
+      intro y hy
+      cases y with
+      | inl a =>
+        exfalso
+        rcases hnc with ⟨hclique, _⟩
+        have hineq : (Sum.inr x₀ : G.V ⊕ H.V) ≠ Sum.inl a := by intro h; cases h
+        have hadj : SD.Adj (Sum.inr x₀) (Sum.inl a) := hclique hinx₀ hy hineq
+        simp [SD, CGraph.toSimple, disjUnion_adj_inr_inl] at hadj
+      | inr b => exact ⟨b, rfl⟩
+    let encoder : G.V ⊕ H.V → H.V := Sum.elim (fun _ => x₀) id
+    have hinr_encoder : ∀ y ∈ s, Sum.inr (encoder y) = y := by
+      intro y hy; obtain ⟨b, rfl⟩ := hall_inr y hy; simp [encoder]
+    let t := s.image encoder
+    have ht_card : t.card = s.card := by
+      rw [Finset.card_image_of_injOn]
+      intro y hy z hz h_eq
+      have hy' := hinr_encoder y hy
+      have hz' := hinr_encoder z hz
+      exact hy'.symm.trans (congr_arg Sum.inr h_eq ▸ hz')
+    refine ⟨t, ?_, ?_⟩
+    · exact ⟨fun a ha b hb hab => by
+        rw [Finset.mem_coe, Finset.mem_image] at ha hb
+        obtain ⟨y, hy, rfl⟩ := ha
+        obtain ⟨z, hz, rfl⟩ := hb
+        show SH.Adj (encoder y) (encoder z)
+        rcases hnc with ⟨hclique, _⟩
+        have hadj := hclique hy hz (by intro heq; apply hab; exact (congr_arg encoder heq))
+        show SH.Adj (encoder y) (encoder z)
+        rw [CGraph.toSimple_adj]
+        show H.Adj (encoder y) (encoder z) = true
+        rw [← disjUnion_adj_inr_inr G H (encoder y) (encoder z)]
+        rw [hinr_encoder y hy, hinr_encoder z hz]
+        rw [CGraph.toSimple_adj] at hadj
+        exact hadj, rfl⟩
+    · show s = t.map (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ G.V ⊕ H.V)
+      ext y
+      simp [Finset.mem_map, Finset.mem_image]
+      exact ⟨fun hy => ⟨encoder y, Finset.mem_image.mpr ⟨y, hy, rfl⟩, hinr_encoder y hy⟩,
+             fun ⟨a, ha, hxy⟩ => by
+               obtain ⟨z, hz, hza⟩ := Finset.mem_image.mp ha
+               have heq : Sum.inr a = z := Eq.trans (congr_arg Sum.inr hza.symm) (hinr_encoder z hz)
+               exact hxy.symm ▸ heq ▸ hz⟩
+  have hmem : ∀ n ∈ SC, n ∈ SSG ∨ n ∈ SSH := by
+    rintro n ⟨s, hs⟩
+    by_cases hempty : s = ∅
+    · subst hempty
+      have hn0 : n = 0 := hs.card_eq.symm
+      subst hn0
+      left; exact ⟨∅, by simp [SimpleGraph.IsNClique]⟩
+    · obtain ⟨v, hv⟩ := Finset.nonempty_of_ne_empty hempty
+      cases v with
+      | inl x =>
+        left
+        obtain ⟨t, ht1, ht2⟩ := hclique_inl s n x hv hs
+        exact ⟨t, ht1⟩
+      | inr x =>
+        right
+        have hs_card_eq : s.card = n := hs.card_eq
+        have hs' : SD.IsNClique s.card s := ⟨by rcases hs with ⟨hc, _⟩; exact hc, rfl⟩
+        obtain ⟨t, ht1, ht2⟩ := hclique_inr s x hv hs'
+        have : t.card = n := by
+          have := congr_arg Finset.card ht2
+          simp [Finset.card_map] at this
+          exact this.symm ▸ hs_card_eq
+        exact ⟨t, this ▸ ht1⟩
+  have hupper : sSup SC ≤ max (sSup SSG) (sSup SSH) := by
+    apply csSup_le
+    · exact ⟨0, ⟨∅, by simp [SimpleGraph.IsNClique]⟩⟩
+    · intro n hn
+      rcases hmem n hn with h | h
+      · exact le_max_of_le_left (le_csSup hSSG_bdd h)
+      · exact le_max_of_le_right (le_csSup hSSH_bdd h)
+  exact le_antisymm hupper hlower
 
 /-- The disjoint union is commutative up to isomorphism — which is exactly what equality in
 `IsoGraph` means. -/
-theorem disjUnion_comm : Nonempty (disjUnion G H ≃cg disjUnion H G) := sorry
+theorem disjUnion_comm : Nonempty (disjUnion G H ≃cg disjUnion H G) :=
+  let e : (G.disjUnion H).V ≃ (H.disjUnion G).V := Equiv.sumComm G.V H.V
+  have he1 : ∀ a : G.V, e (Sum.inl a) = Sum.inr a := fun a => Equiv.sumComm_apply (α := G.V) (β := H.V) ▸ rfl
+  have he2 : ∀ b : H.V, e (Sum.inr b) = Sum.inl b := fun b => Equiv.sumComm_apply (α := G.V) (β := H.V) ▸ rfl
+  ⟨RelIso.mk e (by
+        intro x y
+        rcases x with _ | _ <;> rcases y with _ | _ <;>
+          simp [he1, he2, disjUnion_adj_inl_inl, disjUnion_adj_inl_inr, disjUnion_adj_inr_inl, disjUnion_adj_inr_inr] )⟩
 
 theorem disjUnion_assoc (K : CGraph) :
-    Nonempty (disjUnion (disjUnion G H) K ≃cg disjUnion G (disjUnion H K)) := sorry
+    Nonempty (disjUnion (disjUnion G H) K ≃cg disjUnion G (disjUnion H K)) :=
+  by exact ⟨RelIso.mk (Equiv.sumAssoc G.V H.V K.V) (by
+  intro a b
+  simp only [disjUnion]
+  dsimp [Equiv.sumAssoc]
+  cases a with
+  | inl x =>
+    cases x with
+    | inl a =>
+      cases b with
+      | inl y =>
+        cases y with
+        | inl c => simp
+        | inr d => simp
+      | inr y => simp
+    | inr hb =>
+      cases b with
+      | inl y => cases y with | inl c => simp | inr d => simp
+      | inr y => simp
+  | inr hc =>
+    cases b with
+    | inl y => cases y with | inl c => simp | inr d => simp
+    | inr y => simp)⟩
 
 theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) :
-    ¬(disjUnion G H).IsConnected := sorry
+    ¬(disjUnion G H).IsConnected := by
+  simp only [IsoGraph.IsConnected, IsoGraph.isConnected_mk, CGraph.IsConnected]
+  intro h
+  have hGne : Nonempty G.V := Fintype.card_pos_iff.mp hG
+  have hHne : Nonempty H.V := Fintype.card_pos_iff.mp hH
+  let a := hGne.some
+  let b := hHne.some
+  have hr : (disjUnion G H).toSimple.Reachable (.inl a) (.inr b) := h (Sum.inl a) (.inr b)
+  -- Key lemma: adjacency preserves "side" (inl vs inr)
+  let side : (G.V ⊕ H.V) → Bool := fun | Sum.inl _ => true | Sum.inr _ => false
+  have side_eq_of_adj : ∀ (x y : G.V ⊕ H.V), (disjUnion G H).Adj x y → side x = side y := by
+    intro x y h_adj
+    cases x with
+    | inl a =>
+      cases y with
+      | inl c => simp [side]
+      | inr d => simp [side, disjUnion_adj_inl_inr] at h_adj
+    | inr b =>
+      cases y with
+      | inl c => simp [side, disjUnion_adj_inr_inl] at h_adj
+      | inr d => simp [side]
+  -- Adjacency preserves side, so Reachability preserves side
+  have keep_side : ∀ {u v : G.V ⊕ H.V}, (disjUnion G H).toSimple.Reachable u v → side u = side v := by
+    intro u v huv
+    show side u = side v
+    induction huv
+    rename_i w
+    induction w with
+    | nil => rfl
+    | @cons w' x y hp e ih => rw [side_eq_of_adj _ _ hp, ih]
+  -- inl a and inr b have different sides, contradiction
+  have hside : side (.inl a) = true := rfl
+  have hside2 : side (.inr b) = false := rfl
+  have := keep_side hr
+  simp [hside, hside2] at this
 
 theorem E_join [DecidableEq G.V] [DecidableEq H.V] :
-    (join G H).E = G.E + H.E + Fintype.card G.V * Fintype.card H.V := sorry
+    (join G H).E = G.E + H.E + Fintype.card G.V * Fintype.card H.V := by
+  have h1 : (join G H).E + (disjUnion (compl G) (compl H)).E = (Fintype.card (join G H).V).choose 2 := by
+    rw [join]
+    exact E_compl _
+  have h2 : (disjUnion (compl G) (compl H)).E = (compl G).E + (compl H).E := E_disjUnion _ _
+  have h3 : (compl G).E + G.E = (Fintype.card G.V).choose 2 := E_compl G
+  have h4 : (compl H).E + H.E = (Fintype.card H.V).choose 2 := E_compl H
+  have h5 : Fintype.card (join G H).V = Fintype.card G.V + Fintype.card H.V := card_join G H
+  rw [h5] at h1
+  rw [h2] at h1
+  have h_choose : ∀ (m n : ℕ), (m + n).choose 2 = m.choose 2 + n.choose 2 + m * n := by
+    intro m n
+    induction n with
+    | zero => simp
+    | succ n ih =>
+      rw [show m + (n + 1) = (m + n) + 1 from by omega]
+      rw [Nat.choose_succ_succ]
+      have hchoose1 : (m + n).choose 1 = m + n := by simp
+      rw [hchoose1]
+      rw [Nat.choose_succ_succ]
+      rw [Nat.choose_one_right]
+      linarith
+  rw [h_choose] at h1
+  linarith [h3, h4]
 
 theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
-    (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) : (join G H).IsConnected := sorry
+    (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) : (join G H).IsConnected := by
+  simp only [IsConnected, join, compl, CGraph.toSimple]
+  have hcross : ∀ (a : G.V) (b : H.V),
+      ((join G H).toSimple.Adj (Sum.inl a) (Sum.inr b) = true) := by
+    simp [join, compl, CGraph.toSimple, ofRel_adj, disjUnion_adj_inl_inr]
+  have hcross' : ∀ (a : G.V) (b : H.V),
+      ((join G H).toSimple.Adj (Sum.inr b) (Sum.inl a) = true) := by
+    simp [join, compl, CGraph.toSimple, ofRel_adj, disjUnion_adj_inr_inl]
+  set J := (join G H).toSimple
+  obtain ⟨a0⟩ := Fintype.card_pos_iff.mp hG
+  obtain ⟨b0⟩ := Fintype.card_pos_iff.mp hH
+  let walk_inl_inr (a : G.V) (b : H.V) : J.Walk (Sum.inl a) (Sum.inr b) :=
+    SimpleGraph.Walk.cons (by rw [hcross a b]) SimpleGraph.Walk.nil
+  let walk_inr_inl (b : H.V) (a : G.V) : J.Walk (Sum.inr b) (Sum.inl a) :=
+    SimpleGraph.Walk.cons (by rw [hcross' a b]) SimpleGraph.Walk.nil
+  have hreach : ∀ v : (join G H).V, J.Reachable (Sum.inl a0) v := by
+    intro v
+    match v with
+    | Sum.inl a => exact ⟨(walk_inl_inr a0 b0).append (walk_inr_inl b0 a)⟩
+    | Sum.inr b => exact ⟨walk_inl_inr a0 b⟩
+  show J.Connected
+  have hne : Nonempty (G.join H).V := ⟨Sum.inl a0⟩
+  exact ⟨fun u v => ⟨(SimpleGraph.Reachable.symm (hreach u)).some.append ((hreach v).some)⟩⟩
 
 theorem cliqueNum_join [DecidableEq G.V] [DecidableEq H.V] :
-    (join G H).cliqueNum = G.cliqueNum + H.cliqueNum := sorry
+    (join G H).cliqueNum = G.cliqueNum + H.cliqueNum := by
+  simp only [join, cliqueNum_compl, indepNum_disjUnion, indepNum_compl]
 
 theorem indepNum_join [DecidableEq G.V] [DecidableEq H.V] :
-    (join G H).indepNum = max G.indepNum H.indepNum := sorry
+    (join G H).indepNum = max G.indepNum H.indepNum := by
+  -- The goal: (join G H).toSimple.indepNum = max G.toSimple.indepNum H.toSimple.indepNum
+  -- Join has all cross edges, so indep sets don't span both sides.
+  -- I'll prove it by showing both ≤ and ≥.
+  rw [join, indepNum_compl]
+  -- Helper: cliqueNum monotone under embedding
+  have cliqueNum_le_of_emb {X Y : Type} [Fintype X] [Fintype Y] [DecidableEq X] [DecidableEq Y]
+      {G : SimpleGraph X} {H : SimpleGraph Y} (f : G ↪g H) : G.cliqueNum ≤ H.cliqueNum := by
+    unfold SimpleGraph.cliqueNum
+    apply csSup_le_csSup
+    · exact ⟨Fintype.card Y, fun n ⟨t, ht⟩ => ht.card_eq ▸ Finset.card_le_univ t⟩
+    · exact ⟨0, ⟨∅, by simp [SimpleGraph.isNClique_empty]⟩⟩
+    · rintro n ⟨s, hs⟩
+      have hcard : (s.map f.toEmbedding).card = n := by simp [hs.card_eq]
+      have hclique : H.IsClique ((fun a => f a) '' ↑s) := by
+        intro a ha b hb hab
+        simp at ha hb hab
+        obtain ⟨xa, hxa, rfl⟩ := ha
+        obtain ⟨xb, hxb, rfl⟩ := hb
+        have hne : xa ≠ xb := by
+          intro heq; exact hab (by rw [heq])
+        exact f.map_rel_iff.mpr (hs.isClique hxa hxb hne)
+      have heq : ((fun a => f a) '' (s : Set X)) = ↑(s.map f.toEmbedding) := by
+        ext y; simp
+      rw [heq] at hclique
+      exact ⟨_, SimpleGraph.IsNClique.mk hclique hcard⟩
+  -- Embed compl G and compl H into disjUnion (compl G) (compl H)
+  have hge_left : cliqueNum (compl G) ≤ cliqueNum (disjUnion (compl G) (compl H)) := by
+    apply cliqueNum_le_of_emb
+    exact { toFun := Sum.inl, inj' := Sum.inl_injective,
+            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+  have hge_right : cliqueNum (compl H) ≤ cliqueNum (disjUnion (compl G) (compl H)) := by
+    apply cliqueNum_le_of_emb
+    exact { toFun := Sum.inr, inj' := Sum.inr_injective,
+            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+  have hge : max (cliqueNum (compl G)) (cliqueNum (compl H)) ≤ cliqueNum (disjUnion (compl G) (compl H)) :=
+    max_le hge_left hge_right
+  -- Cross pairs are not adjacent in disjUnion
+  have hno_cross : ∀ (a : G.compl.V) (b : H.compl.V),
+      ¬(disjUnion G.compl H.compl).toSimple.Adj (Sum.inl a) (Sum.inr b) := by
+    simp [CGraph.toSimple, disjUnion, compl, ofRel]
+  -- Any clique in disjUnion is in one side
+  have clique_one_side : ∀ (C : Finset (G.compl.V ⊕ H.compl.V))
+      (hC : (disjUnion G.compl H.compl).toSimple.IsNClique C.card C),
+      (∀ x ∈ C, x.isLeft = true) ∨ (∀ x ∈ C, x.isRight = true) := by
+    intro C hC
+    by_contra h
+    push_neg at h
+    obtain ⟨hx, hy⟩ := h
+    obtain ⟨px, hpx, hx'⟩ := hx
+    obtain ⟨py, hpy, hy'⟩ := hy
+    obtain ⟨b, rfl⟩ : ∃ b, px = Sum.inr b := by
+      match px with
+      | Sum.inl a => simp at hx'
+      | Sum.inr b => exact ⟨b, rfl⟩
+    obtain ⟨c, rfl⟩ : ∃ c, py = Sum.inl c := by
+      match py with
+      | Sum.inl c => exact ⟨c, rfl⟩
+      | Sum.inr d => simp at hy'
+    exact hno_cross c b (hC.isClique hpx hpy (by intro h; cases h))
+  have hle : cliqueNum (disjUnion (compl G) (compl H)) ≤
+      max (cliqueNum (compl G)) (cliqueNum (compl H)) := by
+    let embL : (compl G).toSimple ↪g (disjUnion (compl G) (compl H)).toSimple :=
+      { toFun := Sum.inl, inj' := Sum.inl_injective,
+        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+    let embR : (compl H).toSimple ↪g (disjUnion (compl G) (compl H)).toSimple :=
+      { toFun := Sum.inr, inj' := Sum.inr_injective,
+        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+    simp only [CGraph.cliqueNum, SimpleGraph.cliqueNum]
+    apply csSup_le
+    · exact ⟨0, ⟨∅, by simp [SimpleGraph.isNClique_empty]⟩⟩
+    · intro n hn
+      obtain ⟨C, hC⟩ := hn
+      have hside : (∀ x ∈ C, ∃ a : G.compl.V, x = Sum.inl a) ∨ (∀ x ∈ C, ∃ b : H.compl.V, x = Sum.inr b) := by
+        by_contra h
+        push_neg at h
+        obtain ⟨hx, hy⟩ := h
+        obtain ⟨px, hpx, hx'⟩ := hx
+        obtain ⟨py, hpy, hy'⟩ := hy
+        obtain ⟨b, rfl⟩ : ∃ b, px = Sum.inr b := by
+          match px with
+          | Sum.inl a => exfalso; exact hx' a rfl
+          | Sum.inr b => exact ⟨b, rfl⟩
+        obtain ⟨c, rfl⟩ : ∃ c, py = Sum.inl c := by
+          match py with
+          | Sum.inl c => exact ⟨c, rfl⟩
+          | Sum.inr d => exfalso; exact hy' d rfl
+        exact hno_cross c b (hC.isClique hpx hpy (by intro h; cases h))
+      rcases hside with hleft | hright
+      · -- All inl: Dav = {a | inl a ∈ C} is an n-clique in compl G
+        let Dav : Finset (compl G).V := Finset.univ.filter (fun a => Sum.inl a ∈ C)
+        have hinl_mem : ∀ x ∈ C, ∃ a, x = Sum.inl a := hleft
+        have hDav_eq : Dav.map ⟨Sum.inl, Sum.inl_injective⟩ = C := by
+          ext x; simp [Dav, Finset.mem_map]
+          refine ⟨fun ⟨a, ha, hx⟩ => hx ▸ ha, fun hx => ?_⟩
+          obtain ⟨a, ha'⟩ := hinl_mem x hx
+          have ha_Dav : a ∈ Dav := Finset.mem_filter.mpr ⟨Finset.mem_univ a, ha'.symm ▸ hx⟩
+          exact ⟨a, ha'.symm ▸ hx, ha'.symm⟩
+        have hdav_card : Dav.card = n := by
+          have h1 := congr_arg Finset.card hDav_eq
+          simp [Finset.card_map] at h1
+          exact h1.trans hC.card_eq
+        have hdav_clique : (compl G).toSimple.IsClique (Dav : Set (compl G).V) := by
+          intro a1 ha1 a2 ha2 ha12
+          have ha1C : Sum.inl a1 ∈ C := Finset.mem_filter.mp ha1 |>.2
+          have ha2C : Sum.inl a2 ∈ C := Finset.mem_filter.mp ha2 |>.2
+          have hadj' : (disjUnion G.compl H.compl).toSimple.Adj (Sum.inl a1) (Sum.inl a2) :=
+            hC.isClique (by exact ha1C) (by exact ha2C) (by intro h; exact ha12 (embL.injective h))
+          exact embL.map_adj_iff.mp hadj'
+        have hbddG : BddAbove {m | ∃ s : Finset (compl G).V, (compl G).toSimple.IsNClique m s} :=
+          ⟨Fintype.card (compl G).V, fun m ⟨s, hs⟩ => hs.card_eq ▸ Finset.card_le_univ s⟩
+        have hnG : n ∈ {m | ∃ s : Finset (compl G).V, (compl G).toSimple.IsNClique m s} :=
+          ⟨Dav, SimpleGraph.IsNClique.mk hdav_clique hdav_card⟩
+        exact le_max_of_le_left (le_csSup hbddG hnG)
+      · let Dav : Finset (compl H).V := Finset.univ.filter (fun b => Sum.inr b ∈ C)
+        have hinr_mem : ∀ x ∈ C, ∃ b, x = Sum.inr b := hright
+        have hDav_eq : Dav.map ⟨Sum.inr, Sum.inr_injective⟩ = C := by
+          ext x; simp [Dav, Finset.mem_map]
+          refine ⟨fun ⟨b, hb, hx⟩ => hx ▸ hb, fun hx => ?_⟩
+          obtain ⟨b, hb'⟩ := hinr_mem x hx
+          have hb_Dav : b ∈ Dav := Finset.mem_filter.mpr ⟨Finset.mem_univ b, hb'.symm ▸ hx⟩
+          exact ⟨b, hb'.symm ▸ hx, hb'.symm⟩
+        have hdav_card : Dav.card = n := by
+          have h1 := congr_arg Finset.card hDav_eq
+          simp [Finset.card_map] at h1
+          exact h1.trans hC.card_eq
+        have hdav_clique : (compl H).toSimple.IsClique (Dav : Set (compl H).V) := by
+          intro b1 hb1 b2 hb2 hb12
+          have h1 : Sum.inr b1 ∈ C := Finset.mem_filter.mp hb1 |>.2
+          have h2 : Sum.inr b2 ∈ C := Finset.mem_filter.mp hb2 |>.2
+          have hadj' : (disjUnion G.compl H.compl).toSimple.Adj (Sum.inr b1) (Sum.inr b2) :=
+            hC.isClique h1 h2 (by intro h; exact hb12 (embR.injective h))
+          exact embR.map_adj_iff.mp hadj'
+        have hbddH : BddAbove {m | ∃ s : Finset (compl H).V, (compl H).toSimple.IsNClique m s} :=
+          ⟨Fintype.card (compl H).V, fun m ⟨s, hs⟩ => hs.card_eq ▸ Finset.card_le_univ s⟩
+        have hnH : n ∈ {m | ∃ s : Finset (compl H).V, (compl H).toSimple.IsNClique m s} :=
+          ⟨Dav, SimpleGraph.IsNClique.mk hdav_clique hdav_card⟩
+        exact le_max_of_le_right (le_csSup hbddH hnH)
+  have hle' : (G.compl.disjUnion H.compl).cliqueNum ≤ max G.indepNum H.indepNum := by
+    rw [cliqueNum_compl, cliqueNum_compl] at hle; exact hle
+  have hge' : max G.indepNum H.indepNum ≤ (G.compl.disjUnion H.compl).cliqueNum := by
+    rw [cliqueNum_compl, cliqueNum_compl] at hge; exact hge
+  exact le_antisymm hle' hge'
 
 /-! ### Bipartite and multipartite graphs -/
 
-theorem E_bipartite (m n : ℕ) : (bipartite m n).E = m * n := sorry
+theorem E_bipartite (m n : ℕ) : (bipartite m n).E = m * n := by
+  let G := disjUnion (complete m) (complete n)
+  have h1 := E_compl (G := G)
+  have h2 := E_disjUnion (G := complete m) (H := complete n)
+  have h3 := E_complete m
+  have h4 := E_complete n
+  rw [h3, h4] at h2
+  rw [h2] at h1
+  rw [card_disjUnion, card_complete, card_complete] at h1
+  -- bipartite m n = compl G
+  have hbip : bipartite m n = compl G := rfl
+  rw [hbip]
+  have hdiv (k : ℕ) : 2 ∣ k * (k - 1) := by
+    rcases k with _ | _ | k <;> simp [Nat.mul_succ, parity_simps]
+    exact even_iff_two_dvd.mp (by simp [mul_add, parity_simps])
+  have h2' : 2 * (Nat.choose (m + n) 2) = (m + n) * (m + n - 1) := by
+    rw [Nat.choose_two_right, Nat.mul_div_cancel' (hdiv _)]
+  have h3' : 2 * (Nat.choose m 2) = m * (m - 1) := by
+    rw [Nat.choose_two_right, Nat.mul_div_cancel' (hdiv _)]
+  have h4' : 2 * (Nat.choose n 2) = n * (n - 1) := by
+    rw [Nat.choose_two_right, Nat.mul_div_cancel' (hdiv _)]
+  have h1' : 2 * G.compl.E + 2 * m.choose 2 + 2 * n.choose 2 = 2 * (m + n).choose 2 := by
+    linarith
+  rw [h2', h3', h4'] at h1'
+  generalize G.compl.E = e at h1'
+  clear h1 h2 h3 h4 h2' h3' h4' hbip hdiv G
+  have hgoal : e = m * n := by
+    rcases m with _ | m <;> rcases n with _ | n
+    · simp at h1'; omega
+    · simp at h1'; omega
+    · simp at h1'; omega
+    · simp [Nat.succ_mul] at h1'
+      have h1'' : e + e + (m * m + m) + (n * n + n) = (m + 1 + (n + 1)) * (m + 1 + n) := h1'
+      have : 2 * e = 2 * ((m + 1) * (n + 1)) := by
+        ring_nf at h1''
+        clear h1'
+        have he : e = m * n + m + n + 1 := by omega
+        rw [he]; ring
+      omega
+  exact hgoal
 
-theorem indepNum_bipartite (m n : ℕ) : (bipartite m n).indepNum = max m n := sorry
+theorem indepNum_bipartite (m n : ℕ) : (bipartite m n).indepNum = max m n := by
+  simp only [bipartite]
+  rw [indepNum_compl, cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_complete]
 
-theorem cliqueNum_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).cliqueNum = 2 := sorry
+theorem cliqueNum_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).cliqueNum = 2 := by
+  simp only [bipartite, cliqueNum_compl, indepNum_disjUnion, indepNum_complete, min_eq_left_of_lt]
+  omega
 
-theorem isConnected_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).IsConnected := sorry
+theorem isConnected_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).IsConnected := by
+  simp only [bipartite, CGraph.IsConnected, compl_toSimple]
+  show SimpleGraph.Connected ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ
+  haveI : Nonempty ((complete (m + 1)).disjUnion (complete (n + 1))).V := ⟨Sum.inl ⟨0, Nat.zero_lt_succ _⟩⟩
+  apply SimpleGraph.Connected.mk
+  intro u v
+  -- Pick a "hub" vertex on the right side
+  let w : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inr ⟨0, Nat.zero_lt_succ n⟩
+  -- In the complement, every vertex is adjacent to w (since w is in right, and for any x,
+  -- if x is in left, they're across partitions so adjacent in complement;
+  -- if x is in right and x ≠ w, wait, they're in the same partition... hmm)
+  -- Actually in the complement, inl-* is NOT adjacent to inr-* ... wait yes it is.
+  -- complement of disjUnion: adj iff NOT (same side and adj in that side).
+  -- For inl a and inr b: same side? No. So NOT false = true. Adjacent! ✓
+  -- For inl a and inl c (a ≠ c): same side yes, adj in complete yes, so NOT true = false. Not adjacent.
+  -- For inr b and inr d (b ≠ d): same道理.
+  -- For inr b and w = inr ⟨0,...⟩ when b = 0 (and b ≠ w is impossible since w is inr 0):
+  --   They're the same vertex when b = ⟨0,...⟩, or same-side adjacent in G so not adjacent in complement.
+  -- So NOT every vertex is adjacent to w. Only vertices on the left side are adjacent to w in the complement.
+  -- Vertices on the right side (different from w) are NOT adjacent to w in the complement.
+  -- But they ARE adjacent to vertices on the left side.
+  -- So for reachability u → v:
+  --   Case u=inl, v=inl: u → w → v (via left vertices adjacent to w)
+  --   Case u=inl, v=inr: u → v directly (adjacent)
+  --   Case u=inr, v=inl: u → v directly
+  --   Case u=inr, v=inr: u → (some inl) → v
+  -- We need a "hub" on the LEFT side for right-side vertices to use. Let's pick hub on left.
+  let w' : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inl ⟨0, Nat.zero_lt_succ m⟩
+  -- In the complement, every RIGHT vertex is adjacent to w' (across partition).
+  -- Left vertices ≠ w' are NOT adjacent to w' (same side, complete).
+  -- Strategy: route EVERYTHING through both hubs. u → (if u on right, go to w'; if u on left, already on left)
+  -- Actually, simplest: u → w' (if u on right, adj directly; if u on left and u ≠ w', not adj directly...)
+  --Hmm. Let me think of a 2-hop strategy for everything.
+  -- u=(inl a), v=(inl c): use any right vertex r. u→r (across, adj) and r→v (across, adj). So u→r→v.
+  -- u=(inr b), v=(inr d): use any left vertex l. u→l→v.
+  -- u=(inl a), v=(inr d): u→v directly.
+  -- u=(inr b), v=(inl c): u→v directly.
+  -- So I need: for any left vertex l0 and right vertex r0, use them as intermediaries.
+  let r0 : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inr ⟨0, Nat.zero_lt_succ n⟩
+  -- Key adjacency facts in the complement:
+  -- Cross-partition edges exist (complete bipartite structure)
+  -- In the complement, cross-partition edges exist.
+  have h_cross_adj : ∀ (a : Fin (m + 1)) (b : Fin (n + 1)),
+      ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ.Adj (Sum.inl a) (Sum.inr b) := by
+    intro a b
+    simp [SimpleGraph.compl_adj, CGraph.toSimple_adj, disjUnion_adj_inl_inr]
+  have h_cross_adj2 : ∀ (a : Fin (m + 1)) (b : Fin (n + 1)),
+      ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ.Adj (Sum.inr b) (Sum.inl a) := by
+    intro a b
+    simp [SimpleGraph.compl_adj, CGraph.toSimple_adj, disjUnion_adj_inr_inl]
+  -- Strategy for Reachable u v:
+  -- • inl → inr: direct edge
+  -- • inr → inl: direct edge  
+  -- • inl → inl: go via any inr (2 hops)
+  -- • inr → inr: go via any inl (2 hops)
+  rcases u with ⟨a, ha⟩ | ⟨b, hb⟩ <;> rcases v with ⟨c, hc⟩ | ⟨d, hd⟩
+  · -- inl → inl: via r0
+    exact (h_cross_adj ⟨a, ha⟩ ⟨0, Nat.zero_lt_succ n⟩).reachable.trans
+      (h_cross_adj2 ⟨c, hc⟩ ⟨0, Nat.zero_lt_succ n⟩).reachable
+  · -- inl → inr: direct
+    exact (h_cross_adj ⟨a, ha⟩ ⟨d, hd⟩).reachable
+  · -- inr → inl: direct
+    exact (h_cross_adj2 ⟨c, hc⟩ ⟨b, hb⟩).reachable
+  · -- inr → inr: via w' (inl ⟨0,...⟩)
+    exact (h_cross_adj2 ⟨0, Nat.zero_lt_succ m⟩ ⟨b, hb⟩).reachable.trans
+      (h_cross_adj ⟨0, Nat.zero_lt_succ m⟩ ⟨d, hd⟩).reachable
 
-theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 := sorry
+theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 := by
+  set V₁ := Fin (m + 2)
+  set V₂ := Fin (n + 2)
+  set G : SimpleGraph (V₁ ⊕ V₂) := (bipartite (m + 2) (n + 2)).toSimple
+  -- All pairs in different parts are adjacent
+  have h_adj_cross : ∀ a : V₁, ∀ d : V₂, G.Adj (.inl a) (.inr d) := by
+    intro a d
+    simp only [G, bipartite, CGraph.toSimple_adj, compl, ofRel_adj]
+    rw [disjUnion_adj_inl_inr]
+    simp
+  have h_adj_cross' : ∀ b : V₂, ∀ c : V₁, G.Adj (.inr b) (.inl c) := by
+    intro b c; exact (h_adj_cross c b).symm
+  -- No edges within part 1 (inl-inl), handled by... we don't need this explicitly
+  -- All pairs in different parts have dist 1
+  -- Pairs in the same part have dist 2 (via any vertex in the other part)
+  -- No edges within each part
+  have h_no_edge_inl_inl : ∀ a c : V₁, ¬G.Adj (.inl a) (.inl c) := by
+    intro a c
+    simp only [G, bipartite, CGraph.toSimple_adj, compl, ofRel_adj]
+    rw [disjUnion_adj_inl_inl, disjUnion_adj_inl_inl (complete (m+2)) (complete (n+2)) c a]
+    simp [complete, compl, empty_adj]
+    tauto
+  have h_no_edge_inr_inr : ∀ b d : V₂, ¬G.Adj (.inr b) (.inr d) := by
+    intro b d
+    simp only [G, bipartite, CGraph.toSimple_adj, compl, ofRel_adj]
+    rw [disjUnion_adj_inr_inr, disjUnion_adj_inr_inr (complete (m+2)) (complete (n+2)) d b]
+    simp [complete, compl, empty_adj]
+    tauto
+  -- The graph is connected
+  have h_connected : G.Connected := by
+    show SimpleGraph.Connected G
+    exact ⟨fun u v => by
+      cases u with
+      | inl a =>
+        cases v with
+        | inl c =>
+          exact ⟨SimpleGraph.Walk.append
+            (SimpleGraph.Walk.cons (h_adj_cross a ⟨0, by omega⟩) (SimpleGraph.Walk.nil : G.Walk _ _))
+            (SimpleGraph.Walk.cons (h_adj_cross' ⟨0, by omega⟩ c) (SimpleGraph.Walk.nil : G.Walk _ _))⟩
+        | inr d =>
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a d) (SimpleGraph.Walk.nil : G.Walk _ _)⟩
+      | inr b =>
+        cases v with
+        | inl c =>
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b c) (SimpleGraph.Walk.nil : G.Walk _ _)⟩
+        | inr d =>
+          exact ⟨SimpleGraph.Walk.append
+            (SimpleGraph.Walk.cons (h_adj_cross' b ⟨0, by omega⟩) (SimpleGraph.Walk.nil : G.Walk _ _))
+            (SimpleGraph.Walk.cons (h_adj_cross ⟨0, by omega⟩ d) (SimpleGraph.Walk.nil : G.Walk _ _))⟩⟩
+  -- Distance ≤ 2 for all pairs
+  have h_edist_le_two : ∀ u v : V₁ ⊕ V₂, G.edist u v ≤ 2 := by
+    intro u v
+    cases u with
+    | inl a =>
+      cases v with
+      | inl c =>
+        -- Walk inl a → inr ⟨0,...⟩ → inl c, length 2
+        have hw : ∃ w : G.Walk (.inl a) (.inl c), w.length = 2 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a ⟨0, by omega⟩)
+            (SimpleGraph.Walk.cons (h_adj_cross' ⟨0, by omega⟩ c)
+              (SimpleGraph.Walk.nil : G.Walk _ _)), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+      | inr d =>
+        -- Adj, so edist ≤ 1
+        have hw : ∃ w : G.Walk (.inl a) (.inr d), w.length = 1 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a d) (SimpleGraph.Walk.nil : G.Walk _ _), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+    | inr b =>
+      cases v with
+      | inl c =>
+        have hw : ∃ w : G.Walk (.inr b) (.inl c), w.length = 1 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b c) (SimpleGraph.Walk.nil : G.Walk _ _), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+      | inr d =>
+        have hw : ∃ w : G.Walk (.inr b) (.inr d), w.length = 2 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b ⟨0, by omega⟩)
+            (SimpleGraph.Walk.cons (h_adj_cross ⟨0, by omega⟩ d)
+              (SimpleGraph.Walk.nil : G.Walk _ _)), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+  -- There exist u, v with distance ≥ 2 (in fact = 2): pick two distinct vertices in V₁
+  have h_exists_dist_ge_two : ∃ u v : V₁ ⊕ V₂, 2 ≤ G.edist u v := by
+    -- Pick two distinct vertices in V₁, say ⟨0,by omega⟩ and ⟨1,by omega⟩
+    refine ⟨.inl ⟨0, by omega⟩, .inl ⟨1, by omega⟩, ?_⟩
+    -- They're not adjacent, so edist is not 1. Since they're reachable and distinct, edist ≥ 2.
+    have hreach : G.Reachable (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) :=
+       h_connected _ _
+    have hne : (.inl ⟨0, by omega⟩ : V₁ ⊕ V₂) ≠ .inl ⟨1, by omega⟩ := by simp
+    have hnotadj := h_no_edge_inl_inl ⟨0, by omega⟩ ⟨1, by omega⟩
+    -- Any walk from inl ⟨0⟩ to inl ⟨1⟩ has length ≥ 2 (since not adjacent, can't be length 1; and ne, can't be 0)
+    -- So edist ≥ 2.
+    have h_ge : 2 ≤ G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) := by
+      by_contra hlt
+      push_neg at hlt
+      have h_ne0 : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ 0 := by
+        intro heq
+        rw [SimpleGraph.edist_eq_zero_iff] at heq
+        exact hne heq
+      have h_ne_top : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ ⊤ := by
+        intro h
+        obtain ⟨w⟩ := hreach
+        have := SimpleGraph.edist_le w
+        rw [h] at this
+        exact absurd this (by simp)
+      have h_ne1 : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ 1 := by
+        intro heq; exact hnotadj (SimpleGraph.edist_eq_one_iff_adj.mp heq)
+      -- In ENat, < 2, ≠ ⊤, ≠ 0, ≠ 1 is impossible
+      have : ∀ (x : ℕ∞), x < 2 → x ≠ ⊤ → x ≠ 0 → x ≠ 1 → False := by
+        intro x hx hx_top hx0 hx1
+        cases x with
+        | top => exact hx_top rfl
+        | coe n =>
+          simp at hx hx0 hx1
+          omega
+      exact absurd (this _ hlt h_ne_top h_ne0 h_ne1) (by trivial)
+    exact h_ge
+  -- Conclude diam = 2 from edist bounds
+  -- G.ediam = 2 (as ℕ∞) since all edist ≤ 2 and some edist ≥ 2
+  have h_ediam_le : G.ediam ≤ 2 := SimpleGraph.ediam_le_of_edist_le h_edist_le_two
+  obtain ⟨u, v, huv⟩ := h_exists_dist_ge_two
+  have h_ediam_ge : 2 ≤ G.ediam := by
+    exact le_trans huv (SimpleGraph.edist_le_ediam)
+  have h_ediam_eq : G.ediam = 2 := le_antisymm h_ediam_le h_ediam_ge
+  simp only [CGraph.diameter]
+  change G.diam = 2
+  rw [SimpleGraph.diam, h_ediam_eq]
+  rfl
 
 theorem card_completeMultipartite (ds : List ℕ) :
     Fintype.card (completeMultipartite ds).V = ds.sum := by
@@ -483,7 +2559,167 @@ theorem card_completeMultipartite (ds : List ℕ) :
   rw [← Fin.sum_ofFn, List.ofFn_get]
 
 theorem indepNum_completeMultipartite (ds : List ℕ) :
-    (completeMultipartite ds).indepNum = (ds.max?).getD 0 := sorry
+    (completeMultipartite ds).indepNum = (ds.max?).getD 0 := by
+  simp only [completeMultipartite, indepNum_compl]
+  -- Need: (sigmaUnion (fun i : Fin ds.length => complete (ds.get i))).cliqueNum = (ds.max?).getD 0
+  induction ds with
+  | nil =>
+    simp [List.max?]
+    -- vertex type of sigmaUnion over Fin 0 is empty
+    have : IsEmpty (sigmaUnion (fun i : Fin 0 => complete [][↑i])).V := by
+      exact ⟨fun x => Fin.elim0 x.1⟩
+    simp only [CGraph.cliqueNum, CGraph.toSimple]
+    unfold SimpleGraph.cliqueNum
+    have : {n : ℕ | ∃ s : Finset (sigmaUnion (fun i : Fin 0 => complete [][↑i])).V,
+        (sigmaUnion (fun i : Fin 0 => complete [][↑i])).toSimple.IsNClique n s} ⊆ {0} := by
+      rintro n ⟨s, hs⟩
+      have : s = ∅ := by
+        by_contra hns
+        obtain ⟨x, hx⟩ := Finset.nonempty_of_ne_empty hns
+        exact this.elim (Fin.elim0 (by exact x.1))
+      rw [this] at hs
+      have : n = 0 := by
+        have := SimpleGraph.IsNClique.card_eq hs
+        simp [‹s = ∅›] at this
+        exact this.symm
+      exact this
+    rw [csSup_eq_of_forall_le_of_forall_lt_exists_gt]
+    · exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+    · intro n hn; have := this hn; simp at this; exact this.le
+    · intro w hw; exact ⟨0, by simp [SimpleGraph.IsNClique], hw⟩
+  | cons h tl ih =>
+    let Fi : Fin (tl.length + 1) → CGraph := fun i => complete ((h :: tl).get i)
+    have hcliqueNum_Fi : ∀ i, (Fi i).cliqueNum = (h :: tl).get i := fun i => cliqueNum_complete _
+    -- Helper: adjacent in sigmaUnion implies same fiber
+    have hsame_fiber : ∀ x y : (sigmaUnion Fi).V, (sigmaUnion Fi).Adj x y → x.1 = y.1 := by
+      intro x y hadj
+      simp only [sigmaUnion, ofRel_adj] at hadj
+      by_cases heq : x.1 = y.1
+      · exact heq
+      · split_ifs at hadj with h
+        · exact absurd (h.symm) heq
+        · simp at hadj
+    -- Helper: embedding from Fi i into sigmaUnion Fi
+    let embed : ∀ i, (Fi i).V ↪ (sigmaUnion Fi).V := fun i =>
+      ⟨fun v => ⟨i, v⟩, fun a b h => by
+        exact heq_iff_eq.mp (Sigma.mk.inj_iff.mp h |>.2)⟩
+    have hembed_inj : ∀ i, Function.Injective (embed i) := fun i => (embed i).injective
+    -- Adjacency within a fiber (all pairs adjacent in Fi = complete)
+    have hcomplete_adj : ∀ i (a b : (Fi i).V), a ≠ b → (Fi i).Adj a b := by
+      intro i a b hab
+      show (complete ((h :: tl).get i)).Adj a b
+      show (complete ((h :: tl).get i)).Adj a b
+      show (complete ((h :: tl).get i)).Adj a b
+      show (CGraph.compl (empty ((h :: tl).get i))).Adj a b
+      dsimp [CGraph.compl]
+      simp [empty]
+      exact hab
+    have hfiber_adj : ∀ i (a b : (Fi i).V), a ≠ b → (sigmaUnion Fi).Adj (embed i a) (embed i b) := by
+      intro i a b hab
+      show (sigmaUnion Fi).Adj (embed i a) (embed i b) = true
+      simp [sigmaUnion, ofRel_adj, embed, Fi]
+      exact ⟨hab, Or.inl (hcomplete_adj i a b hab)⟩
+    -- Fiber cardinality via equiv
+    let fiberEquiv : ∀ i, (Fi i).V ≃ {v : (sigmaUnion Fi).V // v.1 = i} := fun i =>
+      ⟨fun v => ⟨⟨i, v⟩, rfl⟩,
+       fun p => (show (Fi p.val.1).V = (Fi i).V from by rw [p.property]) ▸ p.val.2,
+       fun _ => rfl,
+       fun ⟨⟨j, v⟩, hj⟩ => by subst hj; rfl⟩
+    have hfiber_card_equiv : ∀ i, Fintype.card {v : (sigmaUnion Fi).V // v.1 = i} = Fintype.card (Fi i).V :=
+      fun i => Fintype.card_congr (fiberEquiv i).symm
+    -- Step 1: cliqueNum (sigmaUnion Fi) = Finset.sup Finset.univ (fun i => (Fi i).cliqueNum)
+    have hsigma : (sigmaUnion Fi).cliqueNum = Finset.sup Finset.univ (fun i => (Fi i).cliqueNum) := by
+      apply le_antisymm
+      · -- Upper bound
+        unfold CGraph.cliqueNum SimpleGraph.cliqueNum
+        apply csSup_le
+        · exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+        · intro n ⟨s, hs⟩
+          by_cases hs0 : s = ∅
+          · rw [hs0] at hs; have hcard := SimpleGraph.IsNClique.card_eq hs; simp at hcard; rw [← hcard]; exact Nat.zero_le _
+          · obtain ⟨x, hx⟩ := Finset.nonempty_of_ne_empty hs0
+            set i := x.1
+            have hall : ∀ y ∈ s, y.1 = i := by
+              intro y hy
+              by_cases hyx : y = x
+              · rw [hyx]
+              · have hadj : (sigmaUnion Fi).toSimple.Adj y x := SimpleGraph.IsNClique.isClique hs hy hx hyx
+                exact hsame_fiber y x hadj
+            have hcard_eq_n : s.card = n := SimpleGraph.IsNClique.card_eq hs
+            have hsub : s ⊆ Finset.univ.filter (fun v : (sigmaUnion Fi).V => v.1 = i) := by
+              intro v hv; simp [hall v hv]
+            have hfilter_card : (Finset.univ.filter (fun v : (sigmaUnion Fi).V => v.1 = i)).card = Fintype.card (Fi i).V := by
+              rw [← Fintype.card_subtype, hfiber_card_equiv]
+            have hcard_eq_clique : Fintype.card (Fi i).V = (Fi i).cliqueNum := by
+              rw [card_complete, hcliqueNum_Fi i]
+            rw [hcard_eq_clique] at hfilter_card
+            have hcard_le : n ≤ (Fi i).cliqueNum := by
+              rw [← hcard_eq_n, ← hfilter_card]
+              exact Finset.card_le_card hsub
+            exact hcard_le.trans (Finset.le_sup (f := fun i => sSup {n | ∃ s, (Fi i).toSimple.IsNClique n s}) (Finset.mem_univ i))
+      · -- Lower bound
+        apply Finset.sup_le
+        intro i _
+        apply le_csSup
+        · exact ⟨Fintype.card (sigmaUnion Fi).V, fun m ⟨t, ht⟩ => by
+            rw [← ht.card_eq]
+            exact Finset.card_le_univ t⟩
+        · let s_i := Finset.univ.image (embed i)
+          have hc : (Fi i).cliqueNum = Fintype.card (Fi i).V := by
+            rw [hcliqueNum_Fi i, card_complete]
+          have hs_i_clique : (sigmaUnion Fi).toSimple.IsNClique (Fi i).cliqueNum s_i := by
+            rw [hc] at *
+            constructor
+            · intro a' ha' b' hb' hab'
+              simp only [s_i, Finset.coe_image, Set.mem_image] at ha' hb'
+              obtain ⟨a, _, rfl⟩ := ha'
+              obtain ⟨b, _, rfl⟩ := hb'
+              exact hfiber_adj i a b (hembed_inj i |>.ne_iff.mp hab')
+            · rw [Finset.card_image_of_injective _ (hembed_inj i)]
+              simp
+          exact ⟨s_i, hs_i_clique⟩
+    -- Step 2: hsup lemma
+    have hsup : ∀ (l : List ℕ), Finset.sup Finset.univ (fun i : Fin l.length => l.get i) = l.max?.getD 0 := by
+      intro l
+      induction l with
+      | nil => simp [List.max?]
+      | cons a tl ih =>
+        simp only [List.length_cons]
+        -- Step 1: sup over Fin (n+2) splits as max of f(0) and sup over the rest
+        have hsplit : ∀ (f : Fin (tl.length + 1) → ℕ),
+            Finset.sup Finset.univ f = max (f 0) (Finset.sup Finset.univ (fun i : Fin tl.length => f i.succ)) := by
+          intro f
+          have : (Finset.univ : Finset (Fin (tl.length + 1))) =
+              {(0 : Fin (tl.length + 1))} ∪ Finset.image Fin.succ (Finset.univ : Finset (Fin tl.length)) := by
+            ext i; simp [Finset.mem_union, Finset.mem_image, Finset.mem_univ, Finset.mem_singleton]
+          rw [this, Finset.sup_union, Finset.sup_singleton]
+          rw [Finset.sup_image]
+          rfl
+        -- Step 2: Apply split to (a :: tl).get
+        have hget : ∀ (i : Fin tl.length), (a :: tl).get i.succ = tl.get i := by
+          intro i; simp [List.get]
+        have hget0 : (a :: tl).get 0 = a := by simp [List.get]
+        rw [hsplit, hget0]
+        rw [Finset.sup_congr rfl (fun i _ => hget i)]
+        rw [ih]
+        -- Step 3: max a (tl.max?.getD 0) = (a :: tl).max?.getD 0
+        have foldl_max : ∀ (x : ℕ) (l : List ℕ), ∀ y, max x (List.foldl max y l) = List.foldl max (max x y) l := by
+          intro x l
+          induction l with
+          | nil => simp
+          | cons hd tl ih' =>
+            intro y
+            simp only [List.foldl]
+            rw [ih' (max y hd)]
+            rw [(max_assoc x y hd).symm]
+        simp [List.max?]
+        cases tl with
+        | nil => simp
+        | cons b tl => simp [List.foldl, foldl_max]
+    have hsup' := hsup (h :: tl)
+    show (sigmaUnion (fun i : Fin (tl.length + 1) => complete ((h :: tl).get i))).cliqueNum = (h :: tl).max?.getD 0
+    dsimp only [Fi] at hsigma ⊢
+    rw [hsigma, Finset.sup_congr rfl (fun i _ => hcliqueNum_Fi i), hsup']
 
 theorem card_star (n : ℕ) : Fintype.card (star n).V = 1 + n := by
   simp [star]
@@ -494,16 +2730,474 @@ theorem E_star (n : ℕ) : (star n).E = n := by
 /-! ### Products -/
 
 theorem E_cartesianProduct [DecidableEq G.V] [DecidableEq H.V] :
-    (cartesianProduct G H).E = Fintype.card G.V * H.E + Fintype.card H.V * G.E := sorry
+    (cartesianProduct G H).E = Fintype.card G.V * H.E + Fintype.card H.V * G.E := by
+  dsimp only [CGraph.E]
+  -- Step 1: Show that toSimple of cartesianProduct equals SimpleGraph.prodCartesian
+  have huv : ∀ p q : G.V × H.V, (cartesianProduct G H).toSimple.Adj p q ↔
+      (p.1 = q.1 ∧ H.toSimple.Adj p.2 q.2) ∨ (G.toSimple.Adj p.1 q.1 ∧ p.2 = q.2) := by
+    intro p q
+    simp only [cartesianProduct, ofRel, CGraph.toSimple_adj]
+    simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
+    have hsymH : ∀ x y : H.V, H.Adj x y = H.Adj y x := fun x y => by rw [CGraph.symm]
+    have hsymG : ∀ x y : G.V, G.Adj x y = G.Adj y x := fun x y => by rw [CGraph.symm]
+    have hloopH : ∀ x : H.V, ¬ H.Adj x x = true := fun x => CGraph.loopless H x
+    have hloopG : ∀ x : G.V, ¬ G.Adj x x = true := fun x => CGraph.loopless G x
+    constructor
+    · rintro ⟨hne, h⟩
+      -- h : (p.1 = q.1 ∧ H.Adj p.2 q.2 = true ∨ G.Adj p.1 q.1 = true ∧ p.2 = q.2) ∨
+      --      q.1 = p.1 ∧ H.Adj q.2 p.2 = true ∨ G.Adj q.1 p.1 = true ∧ q.2 = p.2
+      cases h with
+      | inl h =>
+        cases h with
+        | inl h => exact Or.inl ⟨h.1, h.2⟩
+        | inr h => exact Or.inr ⟨h.1, h.2⟩
+      | inr h =>
+        cases h with
+        | inl h => exact Or.inl ⟨h.1.symm, by rw [← hsymH]; exact h.2⟩
+        | inr h => exact Or.inr ⟨by rw [← hsymG]; exact h.1, h.2.symm⟩
+    · rintro h
+      have hne : p ≠ q := by
+        rcases h with ⟨heq1, hadj2⟩ | ⟨hadj1, heq2⟩
+        · intro h'; have := congr_arg Prod.snd h'; rw [this] at hadj2; exact hloopH _ hadj2
+        · intro h'; have := congr_arg Prod.fst h'; rw [this] at hadj1; exact hloopG _ hadj1
+      exact ⟨hne, Or.inl h⟩
+  -- Handshaking lemma for cartesianProduct
+  have hhand_CP : ∑ v : G.V × H.V, (cartesianProduct G H).toSimple.degree v =
+      Fintype.card H.V * ∑ g : G.V, G.toSimple.degree g + Fintype.card G.V * ∑ h : H.V, H.toSimple.degree h := by
+    have hdeg : ∀ g : G.V, ∀ h : H.V,
+        (cartesianProduct G H).toSimple.degree (g, h) = G.toSimple.degree g + H.toSimple.degree h := by
+      intro g h
+      have hns_finset : (cartesianProduct G H).toSimple.neighborFinset (g, h) =
+          Finset.image (fun h' => (g, h')) (H.toSimple.neighborFinset h) ∪
+          Finset.image (fun g' => (g', h)) (G.toSimple.neighborFinset g) := by
+        ext ⟨g', h'⟩
+        simp only [SimpleGraph.mem_neighborFinset, Finset.mem_union, Finset.mem_image]
+        rw [huv]
+        constructor
+        · rintro (⟨heq, hadj⟩ | ⟨hadj, heq⟩)
+          · exact Or.inl ⟨h', hadj, Prod.ext heq rfl⟩
+          · exact Or.inr ⟨g', hadj, Prod.ext rfl heq⟩
+        · rintro (h | h)
+          · obtain ⟨a, hadj, heq⟩ := h
+            have h1 : g = g' := congr_arg Prod.fst heq
+            have h2 : a = h' := congr_arg Prod.snd heq
+            subst h1; subst h2; exact Or.inl ⟨rfl, hadj⟩
+          · obtain ⟨a, hadj, heq⟩ := h
+            have h1 : a = g' := congr_arg Prod.fst heq
+            have h2 : h = h' := congr_arg Prod.snd heq
+            subst h1; subst h2; exact Or.inr ⟨hadj, rfl⟩
+      rw [SimpleGraph.degree, hns_finset, SimpleGraph.degree, SimpleGraph.degree]
+      rw [Finset.card_union_of_disjoint]
+      · rw [Finset.card_image_of_injective, Finset.card_image_of_injective]
+        · ring
+        · exact fun a b h => by injection h
+        · exact fun a b h => by injection h
+      · rw [Finset.disjoint_left]
+        intro x hx hy
+        rcases Finset.mem_image.mp hx with ⟨a, ha, rfl⟩
+        rcases Finset.mem_image.mp hy with ⟨b, hb, hb'⟩
+        have heq' : (b, h) = (g, a) := hb'
+        have hb_eq_g : b = g := congr_arg Prod.fst heq'
+        have hh_eq_a : h = a := congr_arg Prod.snd heq'
+        subst hb_eq_g; subst hh_eq_a
+        simp [SimpleGraph.mem_neighborFinset] at ha
+    simp only [hdeg, Fintype.sum_prod_type]
+    simp [Finset.sum_add_distrib, Finset.mul_sum, Finset.sum_mul]
+  -- Use handshaking lemma
+  have hhand : 2 * (cartesianProduct G H).toSimple.edgeFinset.card =
+      ∑ v : G.V × H.V, (cartesianProduct G H).toSimple.degree v :=
+    (SimpleGraph.sum_degrees_eq_twice_card_edges (G := (cartesianProduct G H).toSimple)).symm
+  have hhand_G : ∑ g : G.V, G.toSimple.degree g = 2 * G.toSimple.edgeFinset.card :=
+    SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
+  have hhand_H : ∑ h : H.V, H.toSimple.degree h = 2 * H.toSimple.edgeFinset.card :=
+    SimpleGraph.sum_degrees_eq_twice_card_edges H.toSimple
+  rw [hhand_CP] at hhand
+  rw [hhand_G, hhand_H] at hhand
+  linarith
 
 theorem E_tensorProduct [DecidableEq G.V] [DecidableEq H.V] :
-    (tensorProduct G H).E = 2 * G.E * H.E := sorry
+    (tensorProduct G H).E = 2 * G.E * H.E := by
+  simp only [CGraph.E]
+  have hadj : ∀ (p q : G.V × H.V), (G.tensorProduct H).toSimple.Adj p q ↔ G.Adj p.1 q.1 = true ∧ H.Adj p.2 q.2 = true := by
+    intro ⟨v1, v2⟩ ⟨w1, w2⟩
+    simp [tensorProduct, ofRel_adj, CGraph.toSimple_adj]
+    apply Iff.intro
+    · rintro ⟨hne, h | h⟩
+      · exact ⟨h.1, h.2⟩
+      · exact ⟨by rw [G.symm] at h; exact h.1, by rw [H.symm] at h; exact h.2⟩
+    · intro ⟨hg, hh⟩
+      refine ⟨?_, Or.inl ⟨hg, hh⟩⟩
+      by_contra heq
+      push_neg at heq
+      rw [heq.1] at hg
+      exact absurd hg (G.loopless w1)
+  have hdeg : ∀ (g : G.V) (h : H.V),
+      (G.tensorProduct H).toSimple.degree (g, h) = G.toSimple.degree g * H.toSimple.degree h := by
+    intro g h
+    simp only [SimpleGraph.degree]
+    set NGfinset := G.toSimple.neighborFinset g
+    set NHfinset := H.toSimple.neighborFinset h
+    have hfinset : (G.tensorProduct H).toSimple.neighborFinset (g, h) = NGfinset ×ˢ NHfinset := by
+      ext ⟨g', h'⟩
+      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_product]
+      rw [hadj, Finset.mem_product]
+      simp [NGfinset, NHfinset, SimpleGraph.mem_neighborFinset]
+    rw [hfinset, Finset.card_product]
+  -- The vertex type of tensorProduct is G.V × H.V (definitionally)
+  -- Sum of degrees in tensor product (over its vertex type)
+  have hsum_tensor : ∑ p : (tensorProduct G H).V, (tensorProduct G H).toSimple.degree p = 2 * (tensorProduct G H).toSimple.edgeFinset.card :=
+    SimpleGraph.sum_degrees_eq_twice_card_edges _
+  -- Rewrite sum over tensorProduct vertices as sum over G.V × H.V
+  have hsum_reindex : ∑ p : (tensorProduct G H).V, (tensorProduct G H).toSimple.degree p =
+    ∑ p : G.V × H.V, G.toSimple.degree p.1 * H.toSimple.degree p.2 := by
+    have : ∀ p : (tensorProduct G H).V, (tensorProduct G H).toSimple.degree p =
+      G.toSimple.degree p.1 * H.toSimple.degree p.2 := by
+      rintro ⟨g, h⟩
+      exact hdeg g h
+    rw [Finset.sum_congr rfl (fun p _ => this p)]
+    rfl
+  -- Factor the double sum using Finset.sum_product'
+  have hfactor : ∑ p : G.V × H.V, G.toSimple.degree p.1 * H.toSimple.degree p.2 =
+    (∑ g : G.V, G.toSimple.degree g) * (∑ h : H.V, H.toSimple.degree h) := by
+    calc ∑ p : G.V × H.V, G.toSimple.degree p.1 * H.toSimple.degree p.2
+        = ∑ g : G.V, ∑ h : H.V, G.toSimple.degree g * H.toSimple.degree h := by
+          rw [show (Finset.univ : Finset (G.V × H.V)) = Finset.univ ×ˢ Finset.univ from rfl]
+          rw [Finset.sum_product]
+      _ = (∑ g : G.V, G.toSimple.degree g) * (∑ h : H.V, H.toSimple.degree h) := by
+          rw [Finset.sum_mul]
+          exact Finset.sum_congr rfl (fun g _ => Finset.mul_sum _ _ _ |>.symm)
+  -- Handshaking for G and H
+  rw [SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple] at hfactor
+  rw [SimpleGraph.sum_degrees_eq_twice_card_edges H.toSimple] at hfactor
+  -- Now: 2 * |E(tensor)| = 2 * |E(G)| * (2 * |E(H)|), so |E(tensor)| = 2 * |E(G)| * |E(H)|
+  linarith
 
 theorem indepNum_lexProduct [DecidableEq G.V] [DecidableEq H.V] :
-    (lexProduct G H).indepNum = G.indepNum * H.indepNum := sorry
+    (lexProduct G H).indepNum = G.indepNum * H.indepNum := by
+  simp only [CGraph.indepNum]
+  unfold SimpleGraph.indepNum
+  have hlex : ∀ (p q : G.V × H.V),
+      (lexProduct G H).toSimple.Adj p q ↔
+        (G.toSimple.Adj p.1 q.1 ∧ p.1 ≠ q.1) ∨ (p.1 = q.1 ∧ H.toSimple.Adj p.2 q.2 ∧ p.2 ≠ q.2) := by
+    intro p q
+    obtain ⟨a, b⟩ := p; obtain ⟨c, d⟩ := q
+    simp only [CGraph.toSimple_adj, lexProduct, ofRel_adj]
+    simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
+    have hGsym : ∀ x y : G.V, G.Adj x y = G.Adj y x := fun x y => G.symm x y
+    have hHsym : ∀ x y : H.V, H.Adj x y = H.Adj y x := fun x y => H.symm x y
+    have hGloop : ∀ x : G.V, G.Adj x x = false := fun x => by
+      have := G.loopless x; cases h : G.Adj x x <;> simp [h] at this ⊢
+    have hHloop : ∀ x : H.V, H.Adj x x = false := fun x => by
+      have := H.loopless x; cases h : H.Adj x x <;> simp [h] at this ⊢
+    by_cases h1 : a = c
+    · -- h1 : a = c
+      simp only [h1, hHsym]
+      simp [hGloop]
+      exact and_comm
+    · -- h1 : ¬a = c
+      simp only [hGsym, hHsym]
+      have hne : (a, b) ≠ (c, d) := by intro heq; exact h1 (congr_arg Prod.fst heq)
+      simp [hne, h1]
+      intro h hac; exact absurd h.symm h1
+  -- Key lemma: independence number of lex product
+  -- α(G[H]) = α(G) * α(H)
+  -- We prove by showing both ≤ and ≥ directions for sSup
+  unfold SimpleGraph.indepNum at *
+  -- Let's obtain witnesses for αG and αH
+  -- indepNum is sSup of {n | ∃ s, IsNIndepSet n s}
+  -- We need:
+  -- (1) ∀ S indep in lexProduct, #S ≤ αG * αH  (so sSup ≤ αG * αH)
+  -- (2) ∃ S indep in lexProduct with #S = αG * αH (so αG * αH ≤ sSup)
+  -- All sets of indep-set sizes are nonempty and bounded above
+  set SG := {n : ℕ | ∃ s : Finset G.V, G.toSimple.IsNIndepSet n s}
+  set SH := {n : ℕ | ∃ s : Finset H.V, H.toSimple.IsNIndepSet n s}
+  set SGH := {n : ℕ | ∃ s : Finset (G.V × H.V), (lexProduct G H).toSimple.IsNIndepSet n s}
+  have hSG_ne : SG.Nonempty := ⟨0, ⟨∅, by intro x; simp, rfl⟩⟩
+  have hSH_ne : SH.Nonempty := ⟨0, ⟨∅, by intro x; simp, rfl⟩⟩
+  have hSGH_ne : SGH.Nonempty := ⟨0, ⟨∅, by intro x; simp, rfl⟩⟩
+  have hSG_bdd : BddAbove SG := ⟨Fintype.card G.V, fun n ⟨s, hs⟩ ↦ hs.card_eq.symm ▸ s.card_le_univ⟩
+  have hSH_bdd : BddAbove SH := ⟨Fintype.card H.V, fun n ⟨s, hs⟩ ↦ hs.card_eq.symm ▸ s.card_le_univ⟩
+  have hSGH_bdd : BddAbove SGH :=
+    ⟨Fintype.card G.V * Fintype.card H.V, fun n ⟨s, hs⟩ ↦
+      hs.card_eq.symm ▸ le_trans s.card_le_univ (by simp [Fintype.card_prod])⟩
+  -- Key: indepNum is attained. Use that {n | ...} is a set of naturals that is nonempty and
+  -- bounded above, and for ℕ, sSup is attained when the set is "compact" (finite). 
+  -- We use `Nat.exists_max_image` on the finite type `Finset G.V`.
+  -- indepNum G = sSup {n | ∃ s, IsNIndepSet n s} = max {|s| : s is indep in G}
+  -- So there exists an indep set of size indepNum G.
+  -- SG is finite (image of a subset of Finset G.V under card)
+  have hSG_finite : SG.Finite := by
+    exact Set.Finite.subset (Set.toFinite (Finset.image (fun s : Finset G.V => s.card) (Finset.univ : Finset (Finset G.V))))
+      (fun n hn => by rcases hn with ⟨s, hs⟩; exact Finset.mem_coe.mpr (Finset.mem_image.mpr ⟨s, Finset.mem_univ _, hs.card_eq⟩))
+  have hSH_finite : SH.Finite := by
+    exact Set.Finite.subset (Set.toFinite (Finset.image (fun s : Finset H.V => s.card) (Finset.univ : Finset (Finset H.V))))
+      (fun n hn => by rcases hn with ⟨s, hs⟩; exact Finset.mem_coe.mpr (Finset.mem_image.mpr ⟨s, Finset.mem_univ _, hs.card_eq⟩))
+  have hSGH_finite : SGH.Finite := by
+    exact Set.Finite.subset (Set.toFinite (Finset.image (fun s : Finset (G.V × H.V) => s.card) (Finset.univ : Finset (Finset (G.V × H.V)))))
+      (fun n hn => by rcases hn with ⟨s, hs⟩; exact Finset.mem_coe.mpr (Finset.mem_image.mpr ⟨s, Finset.mem_univ _, hs.card_eq⟩))
+  -- For finite nonempty sets of ℕ, sSup is attained
+  have attained_G : ∃ s : Finset G.V, G.toSimple.IsIndepSet (s : Set G.V) ∧ s.card = G.toSimple.indepNum := by
+    have hmem : G.toSimple.indepNum ∈ SG := by
+      exact Nat.sSup_mem hSG_ne hSG_bdd
+    rcases hmem with ⟨s, hs⟩
+    exact ⟨s, hs.isIndepSet, hs.card_eq⟩
+  have attained_H : ∃ s : Finset H.V, H.toSimple.IsIndepSet (s : Set H.V) ∧ s.card = H.toSimple.indepNum := by
+    have hmem : H.toSimple.indepNum ∈ SH := by
+      exact Nat.sSup_mem hSH_ne hSH_bdd
+    rcases hmem with ⟨s, hs⟩
+    exact ⟨s, hs.isIndepSet, hs.card_eq⟩
+  -- Lower bound: product of max indep sets is indep in lexProduct
+  obtain ⟨sG, hsG_ind, hsG_card⟩ := attained_G
+  obtain ⟨sH, hsH_ind, hsH_card⟩ := attained_H
+  let sGH := sG ×ˢ sH
+  have hprod_indep : (lexProduct G H).toSimple.IsIndepSet (sGH : Set (G.V × H.V)) := by
+    intro p hp q hq hadj
+    change p ∈ (sG ×ˢ sH : Finset (G.V × H.V)) at hp
+    change q ∈ (sG ×ˢ sH : Finset (G.V × H.V)) at hq
+    rw [Finset.mem_product] at hp hq
+    rcases hp with ⟨hap, hbp⟩; rcases hq with ⟨haq, hbq⟩
+    rw [hlex]
+    intro h
+    rcases h with ⟨hadj1, hne1⟩ | ⟨heq, hadj2, hne2⟩
+    · exact absurd hadj1 (hsG_ind hap haq hne1)
+    · exact absurd hadj2 (hsH_ind hbp hbq hne2)
+  have hprod_card : sGH.card = G.toSimple.indepNum * H.toSimple.indepNum := by
+    rw [Finset.card_product, hsG_card, hsH_card]
+  have hmem_GH : G.toSimple.indepNum * H.toSimple.indepNum ∈ SGH :=
+    ⟨sGH, hprod_indep, hprod_card⟩
+  -- sSup ≤ ... : upper bound
+  have hupper : ∀ n ∈ SGH, n ≤ G.toSimple.indepNum * H.toSimple.indepNum := by
+    intro n ⟨s, hs_ind, hs_card⟩
+    rw [← hs_card]
+    -- projG is indep in G
+    let projG := s.image Prod.fst
+    have hprojG_ind : G.toSimple.IsIndepSet (projG : Set G.V) := by
+      intro a ha a' ha' hadj haa'
+      rcases Finset.mem_image.mp ha with ⟨p, hp, rfl⟩
+      rcases Finset.mem_image.mp ha' with ⟨q, hq, rfl⟩
+      have hpq : p ≠ q := by intro heq; exact hadj (congr_arg Prod.fst heq)
+      exfalso; apply hs_ind hp hq hpq; exact (hlex p q).mpr (Or.inl ⟨haa', hadj⟩)
+    --projG.card ≤ indepNum G
+    have hproj_card_le : projG.card ≤ G.toSimple.indepNum := by
+      apply le_csSup hSG_bdd
+      exact ⟨projG, ⟨hprojG_ind, rfl⟩⟩
+    -- Each fiber has size ≤ indepNum H
+    let fiber (a : G.V) : Finset (G.V × H.V) := s.filter (fun x => x.1 = a)
+    have hfiber_card : ∀ a, (fiber a).card ≤ H.toSimple.indepNum := by
+      intro a
+      -- fiber a is in bijection with a subset of H.V that's indep
+      let fibersnd : Finset H.V := (fiber a).image Prod.snd
+      have hfib_ind : H.toSimple.IsIndepSet (fibersnd : Set H.V) := by
+        intro b hb b' hb' hab hadj
+        rcases Finset.mem_image.mp hb with ⟨p, hp, rfl⟩
+        rcases Finset.mem_image.mp hb' with ⟨q, hq, rfl⟩
+        simp [fiber, Finset.mem_filter] at hp hq
+        have hpq : p ≠ q := by intro heq; exact hab (Prod.ext_iff.mp heq |>.2)
+        exact absurd ((hlex p q).mpr (Or.inr ⟨hp.2.trans hq.2.symm, hadj, hab⟩)) (hs_ind hp.1 hq.1 hpq)
+      have hfib_card : (fiber a).card = fibersnd.card := by
+        rw [Finset.card_image_of_injOn (f := Prod.snd) (fun p hp q hq h => by
+          simp [fiber] at hp hq
+          exact Prod.ext (hp.2.trans hq.2.symm) h)]
+      have hfib_le : fibersnd.card ≤ H.toSimple.indepNum := by
+        apply le_csSup hSH_bdd; exact ⟨fibersnd, hfib_ind, rfl⟩
+      exact hfib_card.symm ▸ hfib_le
+    have hcard_fiberwise : s.card = ∑ a ∈ projG, (fiber a).card := by
+      have h_union : s = projG.biUnion fiber := by
+        ext ⟨x1, x2⟩
+        simp [projG, fiber]
+        exact fun h => ⟨x2, h⟩
+      rw [h_union, Finset.card_biUnion]
+      intro a ha b hb hab
+      exact Finset.disjoint_left.mpr (fun x hx hx' => hab (by simp [fiber] at hx hx'; exact hx.2.symm.trans hx'.2))
+    calc s.card = ∑ a ∈ projG, (fiber a).card := hcard_fiberwise
+      _ ≤ ∑ _ ∈ projG, H.toSimple.indepNum := Finset.sum_le_sum fun a ha => hfiber_card a
+      _ = projG.card * H.toSimple.indepNum := by simp
+      _ ≤ G.toSimple.indepNum * H.toSimple.indepNum := Nat.mul_le_mul_right _ hproj_card_le
+  have hlower : G.toSimple.indepNum * H.toSimple.indepNum ≤ sSup SGH := by
+    apply le_csSup hSGH_bdd hmem_GH
+  exact le_antisymm (csSup_le hSGH_ne hupper) hlower
 
 theorem cliqueNum_strongProduct [DecidableEq G.V] [DecidableEq H.V] :
-    (strongProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum := sorry
+    (strongProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum := by
+  unfold CGraph.cliqueNum
+  -- cliqueNum G = G.toSimple.cliqueNum = sSup {n | ∃ s, G.toSimple.IsNClique n s}
+  set sG := G.toSimple
+  set sH := H.toSimple
+  set sGH := (G.strongProduct H).toSimple
+  -- The adjacency in sGH: for p q : G.V × H.V,
+  -- sGH.Adj p q ↔ p ≠ q ∧ ((p.1 = q.1 ∨ sG.Adj p.1 q.1) ∧ (p.2 = q.2 ∨ sH.Adj p.2 q.2))
+  have hasAdj : ∀ p q : G.V × H.V,
+    sGH.Adj p q ↔ p ≠ q ∧ ((p.1 = q.1 ∨ sG.Adj p.1 q.1) ∧ (p.2 = q.2 ∨ sH.Adj p.2 q.2)) := by
+    intro p q
+    simp [sGH, strongProduct, CGraph.toSimple, CGraph.ofRel_adj]
+    simp [sG, sH]
+    intro hne h1 h2
+    have symG : ∀ a b, G.Adj a b = G.Adj b a := fun a b => G.symm a b
+    have symH : ∀ a b, H.Adj a b = H.Adj b a := fun a b => H.symm a b
+    rcases h1 with h1 | h1 <;> rcases h2 with h2 | h2 <;> try exact absurd (Prod.ext h1.symm h2.symm) hne
+    · exact ⟨Or.inl h1.symm, Or.inr (symH _ _ ▸ h2)⟩
+    · exact ⟨Or.inr (symG _ _ ▸ h1), Or.inl h2.symm⟩
+    · exact ⟨Or.inr (symG _ _ ▸ h1), Or.inr (symH _ _ ▸ h2)⟩
+  -- cliqueNum unfolds to sSup of clique sizes
+  -- We prove both directions.
+  -- Get witnesses of max cliques in G and H
+  have h0G : ∃ s : Finset G.V, sG.IsNClique 0 s := ⟨∅, by simp [SimpleGraph.IsNClique]⟩
+  have h0H : ∃ s : Finset H.V, sH.IsNClique 0 s := ⟨∅, by simp [SimpleGraph.IsNClique]⟩
+  have hωG_nonempty : {n | ∃ s : Finset G.V, sG.IsNClique n s}.Nonempty := ⟨0, h0G⟩
+  have hωG_bdd : BddAbove {n | ∃ s : Finset G.V, sG.IsNClique n s} := by
+    exact ⟨Fintype.card G.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact Finset.card_le_univ s⟩
+  have hωH_nonempty : {n | ∃ s : Finset H.V, sH.IsNClique n s}.Nonempty := ⟨0, h0H⟩
+  have hωH_bdd : BddAbove {n | ∃ s : Finset H.V, sH.IsNClique n s} := by
+    exact ⟨Fintype.card H.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact Finset.card_le_univ s⟩
+  -- cliqueNum = sSup of clique sizes (already unfolded)
+  -- Helper: clique sizes are ≤ cliqueNum
+  have card_le_cliqueNum {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
+      {n : ℕ} {s : Finset V} (hs : G.IsNClique n s) : n ≤ G.cliqueNum := by
+    rw [SimpleGraph.cliqueNum]
+    exact le_csSup
+      ⟨Fintype.card V, fun m ⟨t, ht⟩ ↦ ht.2 ▸ Finset.card_le_univ t⟩
+      ⟨s, hs⟩
+  -- Upper bound on clique size in strong product
+  have upper : ∀ u : Finset (G.V × H.V), sGH.IsNClique u.card u → u.card ≤ sG.cliqueNum * sH.cliqueNum := by
+    intro u hu
+    -- Let πG be the image of u under first projection
+    let projG := Finset.image (fun p : G.V × H.V => p.1) u
+    -- For each g, fiber size
+    let fiber := fun g => Finset.filter (fun p => p.1 = g) u
+    -- Project to H for a fixed g
+    let projHfiber := fun g => Finset.image (fun p : G.V × H.V => p.2) (fiber g)
+    -- Step 1: projG is a clique in sG
+    have projG_clique : sG.IsClique projG := by
+      intro g1 hg1 g2 hg2 hne
+      obtain ⟨p1, hp1, rfl⟩ := Finset.mem_image.mp hg1
+      obtain ⟨p2, hp2, rfl⟩ := Finset.mem_image.mp hg2
+      have hne2 : p1 ≠ p2 := by intro h; exact hne (by simp [h])
+      have hadj := hu.1 hp1 hp2 hne2
+      rw [hasAdj] at hadj
+      exact hadj.2.1.resolve_left (fun h => hne (h ▸ rfl))
+    -- Step 2: Each fiber's image in H is a clique
+    have fiber_clique : ∀ g ∈ projG, sH.IsClique (projHfiber g) := by
+      intro g hg
+      intro h1 hh1 h2 hh2 hne
+      obtain ⟨p1, hp1, rfl⟩ := Finset.mem_image.mp hh1
+      obtain ⟨p2, hp2, rfl⟩ := Finset.mem_image.mp hh2
+      have hne2 : p1 ≠ p2 := fun h => hne (by simp [h])
+      have hp1uv : p1 ∈ u ∧ p1.1 = g := by simpa [fiber] using hp1
+      have hp2uv : p2 ∈ u ∧ p2.1 = g := by simpa [fiber] using hp2
+      have hadj := hu.1 hp1uv.1 hp2uv.1 hne2
+      rw [hasAdj] at hadj
+      have hp1p2 : p1.1 = p2.1 := hp1uv.2 ▸ hp2uv.2.symm
+      rw [hp1p2] at hadj
+      exact hadj.2.2.resolve_left hne
+    -- Step 3: Each fiber has size ≤ sH.cliqueNum
+    have fiber_size_bound : ∀ g ∈ projG, (fiber g).card ≤ sH.cliqueNum := by
+      intro g hg
+      have hclique_H := fiber_clique g hg
+      have hcard_eq : (fiber g).card = (projHfiber g).card := by
+        dsimp only [projHfiber, fiber]
+        exact (Finset.card_image_of_injOn (fun p1 hp1 p2 hp2 h => by
+          have h1 : p1.1 = g := (Finset.mem_filter.mp hp1).2
+          have h2 : p2.1 = g := (Finset.mem_filter.mp hp2).2
+          exact Prod.ext (h1 ▸ h2.symm) h)).symm
+      rw [hcard_eq]
+      exact card_le_cliqueNum sH ⟨hclique_H, rfl⟩
+    -- Step 4: u.card ≤ projG.card * sH.cliqueNum
+    have u_card_bound : u.card ≤ projG.card * sH.cliqueNum := by
+      have hsum : u.card = ∑ g ∈ projG, (fiber g).card := by
+        have h_decomp : ∀ p, p ∈ u ↔ ∃ g ∈ projG, p ∈ fiber g := by
+          intro p
+          constructor
+          · intro hp
+            exact ⟨p.1, Finset.mem_image_of_mem _ hp, Finset.mem_filter.mpr ⟨hp, rfl⟩⟩
+          · rintro ⟨g, hg, hp⟩
+            exact (Finset.mem_filter.mp hp).1
+        have h_union : u = projG.biUnion fiber := by ext p; simp [h_decomp, Finset.mem_biUnion]
+        rw [h_union]
+        apply Finset.card_biUnion
+        intro g hg g' hg' hne
+        show Disjoint (fiber g) (fiber g')
+        rw [Finset.disjoint_left]
+        intro p hp1 hp2
+        exact hne ((Finset.mem_filter.mp hp1).2 ▸ (Finset.mem_filter.mp hp2).2)
+      exact hsum ▸ Finset.sum_le_card_nsmul _ _ _ fiber_size_bound
+    -- Step 5: projG.card ≤ sG.cliqueNum
+    have projG_card_bound : projG.card ≤ sG.cliqueNum := by
+      exact card_le_cliqueNum sG ⟨projG_clique, rfl⟩
+    exact le_trans u_card_bound (Nat.mul_le_mul_right _ projG_card_bound)
+  -- So cliqueNumGH ≤ cliqueNumG * cliqueNumH
+  have upper_sSup : sGH.cliqueNum ≤ sG.cliqueNum * sH.cliqueNum := by
+    rw [SimpleGraph.cliqueNum]
+    have hωGH_nonempty : {n | ∃ s : Finset (G.V × H.V), sGH.IsNClique n s}.Nonempty := ⟨0, ⟨∅, by simp⟩⟩
+    apply csSup_le hωGH_nonempty
+    rintro n ⟨s, hs⟩
+    obtain ⟨hclique, hcard⟩ := hs
+    have hncard : sGH.IsNClique s.card s := ⟨hclique, rfl⟩
+    have := upper s hncard
+    exact hcard ▸ this
+  -- Lower bound: ωG * ωH ≤ ωGH
+  -- Build sizes_G and sizes_H finsets of clique sizes
+  let cliques_G := Finset.univ.powerset.filter (fun (s : Finset G.V) => sG.IsClique s)
+  let sizes_G := cliques_G.image (fun s => s.card)
+  have hsizes_G_ne : sizes_G.Nonempty := ⟨0, Finset.mem_image.mpr ⟨∅, Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr (Finset.empty_subset _), by simp [SimpleGraph.IsClique]⟩, rfl⟩⟩
+  let cliques_H := Finset.univ.powerset.filter (fun (s : Finset H.V) => sH.IsClique s)
+  let sizes_H := cliques_H.image (fun s => s.card)
+  have hsizes_H_ne : sizes_H.Nonempty := ⟨0, Finset.mem_image.mpr ⟨∅, Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr (Finset.empty_subset _), by simp [SimpleGraph.IsClique]⟩, rfl⟩⟩
+  -- cliqueNum = sup' of the sizes finset
+  have hset_eq_G : {n | ∃ s : Finset G.V, sG.IsNClique n s} = (sizes_G : Set ℕ) := by
+    ext n
+    simp [sizes_G, cliques_G, SimpleGraph.IsNClique]
+    exact ⟨fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩, fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩⟩
+  have hset_eq_H : {n | ∃ s : Finset H.V, sH.IsNClique n s} = (sizes_H : Set ℕ) := by
+    ext n
+    simp [sizes_H, cliques_H, SimpleGraph.IsNClique]
+    exact ⟨fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩, fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩⟩
+  have hcliqueNum_eq_G : sG.cliqueNum = sizes_G.max' hsizes_G_ne := by
+    rw [SimpleGraph.cliqueNum, hset_eq_G]
+    have hωG_ne' : ((sizes_G : Set ℕ)).Nonempty := by rw [← hset_eq_G]; exact hωG_nonempty
+    have hωG_bd' : BddAbove (sizes_G : Set ℕ) := by rw [← hset_eq_G]; exact hωG_bdd
+    have hmem : (sizes_G.max' hsizes_G_ne : ℕ) ∈ (sizes_G : Set ℕ) := Finset.max'_mem sizes_G hsizes_G_ne
+    exact le_antisymm
+      (csSup_le hωG_ne' (fun n hn => Finset.le_max' _ _ hn))
+      (le_csSup hωG_bd' hmem)
+  have hcliqueNum_eq_H : sH.cliqueNum = sizes_H.max' hsizes_H_ne := by
+    rw [SimpleGraph.cliqueNum, hset_eq_H]
+    have hωH_ne' : ((sizes_H : Set ℕ)).Nonempty := by rw [← hset_eq_H]; exact hωH_nonempty
+    have hωH_bd' : BddAbove (sizes_H : Set ℕ) := by rw [← hset_eq_H]; exact hωH_bdd
+    have hmem : (sizes_H.max' hsizes_H_ne : ℕ) ∈ (sizes_H : Set ℕ) := Finset.max'_mem sizes_H hsizes_H_ne
+    exact le_antisymm
+      (csSup_le hωH_ne' (fun n hn => Finset.le_max' _ _ hn))
+      (le_csSup hωH_bd' hmem)
+  -- Get attained max cliques in G and H
+  have hsGmax_mem : sizes_G.max' hsizes_G_ne ∈ sizes_G := Finset.max'_mem sizes_G hsizes_G_ne
+  have hsHmax_mem : sizes_H.max' hsizes_H_ne ∈ sizes_H := Finset.max'_mem sizes_H hsizes_H_ne
+  obtain ⟨sGmax, hsGmax_mem', hsGmax_card⟩ := Finset.mem_image.mp hsGmax_mem
+  obtain ⟨sHmax, hsHmax_mem', hsHmax_card⟩ := Finset.mem_image.mp hsHmax_mem
+  have hsGmax_clique : sG.IsClique sGmax := (Finset.mem_filter.mp hsGmax_mem').2
+  have hsHmax_clique : sH.IsClique sHmax := (Finset.mem_filter.mp hsHmax_mem').2
+  -- sGmax is a clique in G, sHmax is a clique in H
+  -- Their product is a clique in sGH
+  let u := sGmax.product sHmax
+  have hu_clique_carrier : sGH.IsClique (↑(sGmax.product sHmax) : Set (G.V × H.V)) := by
+    intro p hp q hq hpq
+    simp [Finset.mem_product] at hp hq
+    obtain ⟨hpG, hpH⟩ := hp
+    obtain ⟨hqG, hqH⟩ := hq
+    rw [hasAdj]
+    refine ⟨hpq, ?_, ?_⟩
+    · by_cases h1 : p.1 = q.1
+      · exact Or.inl h1
+      · exact Or.inr (hsGmax_clique hpG hqG h1)
+    · by_cases h2 : p.2 = q.2
+      · exact Or.inl h2
+      · exact Or.inr (hsHmax_clique hpH hqH h2)
+  have hu_clique : sGH.IsNClique (sGmax.card * sHmax.card) (sGmax.product sHmax) := by
+    exact ⟨hu_clique_carrier, Finset.card_product sGmax sHmax⟩
+  have hu_clique' : sGH.IsNClique (sizes_G.max' hsizes_G_ne * sizes_H.max' hsizes_H_ne) (sGmax.product sHmax) := by
+    rwa [hsGmax_card, hsHmax_card] at hu_clique
+  have hlower : sG.cliqueNum * sH.cliqueNum ≤ sGH.cliqueNum := by
+    rw [hcliqueNum_eq_G, hcliqueNum_eq_H]
+    exact card_le_cliqueNum sGH hu_clique'
+  exact le_antisymm upper_sSup hlower
 
 theorem card_hypercube (n : ℕ) : Fintype.card (hypercube n).V = 2 ^ n := by
   simp [hypercube]
@@ -518,14 +3212,289 @@ theorem card_lineGraph [DecidableEq G.V] : Fintype.card (lineGraph G).V = G.E :=
   exact Fintype.card_congr' rfl
 
 theorem E_lineGraph [DecidableEq G.V] :
-    (lineGraph G).E = (∑ v : G.V, (G.toSimple.degree v).choose 2) := sorry
+    (lineGraph G).E = (∑ v : G.V, (G.toSimple.degree v).choose 2) := by
+  set S := G.toSimple
+  show (lineGraph G).toSimple.edgeFinset.card = ∑ v, (S.degree v).choose 2
+  -- Key fact: (lineGraph G).toSimple.Adj x y ↔ x ≠ y ∧ ∃ v, v ∈ ↑x ∧ v ∈ ↑y
+  have hhadj : ∀ x y : (lineGraph G).V,
+      (lineGraph G).toSimple.Adj x y ↔ x ≠ y ∧ ∃ v : G.V, Sym2.Mem v (Subtype.val x) ∧ Sym2.Mem v (Subtype.val y) := by
+    intro x y
+    simp only [CGraph.toSimple, lineGraph, ofRel_adj]
+    simp [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
+    intro hne x_1 hx_1y hx_1x
+    exact ⟨x_1, hx_1x, hx_1y⟩
+  -- Handshaking
+  have hhand : 2 * (lineGraph G).toSimple.edgeFinset.card =
+      ∑ e : (lineGraph G).V, (lineGraph G).toSimple.degree e :=
+    (SimpleGraph.sum_degrees_eq_twice_card_edges (lineGraph G).toSimple).symm
+  -- Build equivalence between (lineGraph G).V and S.edgeFinset
+  have heqmem : ∀ e : Sym2 G.V, e ∈ S.edgeSet ↔ e ∈ S.edgeFinset := by
+    intro e; simp [SimpleGraph.mem_edgeSet, SimpleGraph.mem_edgeFinset]
+  let vequiv : (lineGraph G).V ≃ S.edgeFinset :=
+    { toFun := fun x => ⟨x.1, (heqmem x.1).mp x.2⟩
+      invFun := fun e => ⟨e.1, (heqmem e.1).mpr e.2⟩
+      left_inv := fun x => Subtype.ext rfl
+      right_inv := fun e => Subtype.ext rfl }
+  -- For each edge e of G (vertex of lineGraph G), its degree in LG
+  have hdeg : ∀ e : (lineGraph G).V,
+      (lineGraph G).toSimple.degree e = ∑ v ∈ e.1.toFinset, (S.degree v - 1) := by
+    intro e
+    rw [SimpleGraph.degree]
+    set ee := e.1
+    have hee_mem : ee ∈ S.edgeFinset := (heqmem ee).mp e.2
+    have hneighbor_val :
+      Finset.image (fun f : (lineGraph G).V => f.1) (G.lineGraph.toSimple.neighborFinset e) =
+      Finset.filter (fun f => f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset) S.edgeFinset := by
+      ext f
+      simp [SimpleGraph.mem_neighborFinset, Finset.mem_image]
+      constructor
+      · rintro ⟨a, hadj, ha⟩
+        subst ha
+        have hadj' : e ≠ a ∧ ∃ v, v ∈ ee ∧ v ∈ a.1 := (hhadj e a).mp (by simpa using hadj)
+        exact ⟨a.2, fun h => hadj'.1 (Subtype.ext (h.symm)), hadj'.2⟩
+      · rintro ⟨hf1, hf2, v, hv1, hv2⟩
+        have hf1' : f ∈ S.edgeFinset := (heqmem f).mp hf1
+        let fe : (lineGraph G).V := ⟨f, (heqmem f).mpr hf1'⟩
+        have hne : e ≠ fe := fun h => hf2 ((congr_arg Subtype.val h).symm)
+        have hadj_cgraph : G.lineGraph.Adj e fe = true := by
+          simp only [lineGraph, ofRel_adj]
+          classical
+          have hmem : ∃ v : G.V, v ∈ e.1 ∧ v ∈ fe.1 := ⟨v, hv1, hv2⟩
+          have hdec_ne : decide (e ≠ fe) = true := decide_eq_true_eq.mpr hne
+          have hdec1 : decide (∃ v : G.V, v ∈ e.1 ∧ v ∈ fe.1) = true :=
+            decide_eq_true_eq.mpr hmem
+          have hdec2 : decide (∃ v : G.V, v ∈ fe.1 ∧ v ∈ e.1) = true :=
+            decide_eq_true_eq.mpr ⟨v, hv2, hv1⟩
+          simp [hdec_ne, hdec1, hdec2]
+        exact ⟨fe, hadj_cgraph, rfl⟩
+    have hcard_eq : (G.lineGraph.toSimple.neighborFinset e).card =
+        ({f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset}).card := by
+      rw [← hneighbor_val]
+      have : (Finset.image (fun f : (lineGraph G).V => f.1) (G.lineGraph.toSimple.neighborFinset e)).card =
+          (G.lineGraph.toSimple.neighborFinset e).card := by
+        apply Finset.card_image_of_injective _ Subtype.coe_injective
+      rw [this]
+    rw [hcard_eq]
+    have hdecomp : {f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset} =
+        Finset.biUnion ee.toFinset (fun v => S.incidenceFinset v \ {ee}) := by
+      ext f
+      simp [Finset.mem_biUnion, Finset.mem_sdiff, Finset.mem_singleton, Finset.mem_filter,
+            SimpleGraph.mem_incidenceFinset]
+      constructor
+      · rintro ⟨hf1, hf2, a, ha, havf⟩
+        exact ⟨a, ha, ⟨hf1, havf⟩, hf2⟩
+      · rintro ⟨a, ha, hfa, hf2⟩
+        exact ⟨hfa.1, hf2, a, ha, hfa.2⟩
+    rw [hdecomp]
+    have hEE_inc_sym2 : ∀ v ∈ ee.toFinset, v ∈ ee := by
+      intro v hv
+      exact Sym2.mem_toFinset.mp hv
+    have hEE_inc : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceFinset v := by
+      intro v hv
+      rw [S.mem_incidenceFinset]
+      exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
+    have hEE_inc_set : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceSet v := by
+      intro v hv
+      show ee ∈ {e ∈ S.edgeSet | v ∈ e}
+      exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
+    have hpiece : ∀ v ∈ ee.toFinset, (S.incidenceFinset v \ {ee}).card = S.degree v - 1 := by
+      intro v hv
+      have hsubset : {ee} ⊆ S.incidenceFinset v := Finset.singleton_subset_iff.mpr (hEE_inc v hv)
+      have hcard_v : (S.incidenceFinset v).card = S.degree v := by
+        rw [SimpleGraph.degree, SimpleGraph.incidenceFinset]; simp
+      rw [Finset.card_sdiff_of_subset hsubset, Finset.card_singleton, hcard_v]
+    rw [Finset.card_biUnion]
+    · exact Finset.sum_congr rfl hpiece
+    · intro v hv w hw hvw
+      rw [Function.onFun, Finset.disjoint_left]
+      intro f hfv hfw
+      simp [Finset.mem_sdiff, Finset.mem_singleton] at hfv hfw
+      obtain ⟨hfv_inc, hfv_ne⟩ := hfv
+      obtain ⟨hfw_inc, hfw_ne⟩ := hfw
+      have hfv_inc' : f ∈ S.incidenceFinset v := by
+        rw [S.mem_incidenceFinset]; exact ⟨hfv_inc.1, hfv_inc.2⟩
+      have hfw_inc' : f ∈ S.incidenceFinset w := by
+        rw [S.mem_incidenceFinset]; exact ⟨hfw_inc.1, hfw_inc.2⟩
+      simp [SimpleGraph.mem_incidenceFinset] at hfv_inc' hfw_inc'
+      have hf_edge' : f ∈ S.edgeSet := hfv_inc.1
+      have hee_edge' : ee ∈ S.edgeSet := (heqmem ee).mpr hee_mem
+      have hvf_mem : Sym2.Mem v f := hfv_inc.2
+      have hwf_mem : Sym2.Mem w f := hfw_inc.2
+      have hvf : v ∈ f.toFinset := Sym2.mem_toFinset.mpr hvf_mem
+      have hwf : w ∈ f.toFinset := Sym2.mem_toFinset.mpr hwf_mem
+      -- Both f and ee have v, w as members (distinct). Since Sym2 elements have exactly 2 members,
+      -- every member of f is v or w, and same for ee. Hence f = ee by Sym2 extensionality.
+      -- f and ee both contain v and w (v ≠ w) as members. Since they're Sym2 (unordered pairs),
+      -- each must equal Sym2.mk (v, w), so they're equal.
+      -- We prove this by showing both are equal via Sym2.mk (v, w).
+      -- First, we show membership in Sym2.mk (v, w) characterizes when x ∈ f.
+      -- Key lemma: for any Sym2 e with v, w ∈ e and v ≠ w, e = Sym2.mk (v, w).
+      have hsyeq : ∀ (e : Sym2 G.V), Sym2.Mem v e → Sym2.Mem w e → v ≠ w → e = Sym2.mk (v, w) := by
+        intro e hve hwe hvw
+        obtain ⟨a, ha⟩ := Sym2.mk_surjective e
+        subst ha
+        -- For any x, x ∈ Sym2.mk a → x = a.1 ∨ x = a.2 (from cases on Sym2.Mem)
+        have hx_mem : ∀ x, Sym2.Mem x (Sym2.mk a) → x = a.1 ∨ x = a.2 := by
+          intro x hx'
+          show x = a.1 ∨ x = a.2
+          simp [Sym2.Mem, Sym2.Rel] at hx'
+          rcases hx' with ⟨y, rfl | rfl⟩ <;> simp
+        obtain rfl | rfl := hx_mem v hve
+        · obtain rfl | rfl := hx_mem w hwe
+          · exact absurd rfl hvw
+          · rfl
+        · obtain rfl | rfl := hx_mem w hwe
+          · exact Quot.sound (Sym2.Rel.swap (a.1) (a.2))
+          · exact absurd rfl hvw
+      exact hfv_ne (hsyeq f hvf_mem hwf_mem hvw ▸ hsyeq ee (Sym2.mem_toFinset.mp hv) (Sym2.mem_toFinset.mp hw) hvw ▸ rfl)
+  -- Sum of degrees in LG = ∑ e ∈ E(G), ∑ v ∈ e, (deg(v) - 1)
+  have hsum_deg : ∑ e : (lineGraph G).V, (lineGraph G).toSimple.degree e =
+      ∑ e ∈ S.edgeFinset, ∑ v ∈ e.toFinset, (S.degree v - 1) := by
+    rw [Finset.sum_congr rfl fun e _ => hdeg e]
+    rw [← Finset.sum_coe_sort S.edgeFinset]
+    rw [← Equiv.sum_comp vequiv]
+    simp [vequiv]
+  -- Double counting
+  have hdouble : ∑ e ∈ S.edgeFinset, ∑ v ∈ e.toFinset, (S.degree v - 1) =
+      ∑ v : G.V, ∑ e ∈ S.incidenceFinset v, (S.degree v - 1) := by
+    have hfilter : ∀ v : G.V, Finset.filter (fun e => v ∈ e.toFinset) S.edgeFinset = S.incidenceFinset v := by
+      intro v
+      ext e
+      simp [SimpleGraph.mem_incidenceFinset, SimpleGraph.incidenceSet]
+    have step1 : ∀ e ∈ S.edgeFinset, ∑ v ∈ e.toFinset, (S.degree v - 1) =
+        ∑ v : G.V, if v ∈ e.toFinset then (S.degree v - 1) else 0 := by
+      intro e he
+      simp [Finset.sum_ite]
+      rw [show (∑ v with v ∈ e, (S.degree v - 1)) = ∑ v ∈ (Finset.univ.filter (fun v => v ∈ e)), (S.degree v - 1) from rfl]
+      rw [show Finset.univ.filter (fun v => v ∈ e) = e.toFinset from by ext v; simp [Sym2.mem_toFinset]]
+    rw [Finset.sum_congr rfl step1, Finset.sum_comm]
+    rw [Finset.sum_congr rfl]
+    intro v _
+    rw [← hfilter v, Finset.sum_filter]
+  -- Inner sum
+  have hinner : ∀ v, ∑ e ∈ S.incidenceFinset v, (S.degree v - 1) = S.degree v * (S.degree v - 1) := by
+    intro v
+    rw [Finset.sum_const, smul_eq_mul]
+    have hcard : (S.incidenceFinset v).card = S.degree v := by
+      rw [SimpleGraph.degree, SimpleGraph.incidenceFinset]
+      simp
+    rw [hcard]
+  have Halle : ∑ v : G.V, S.degree v * (S.degree v - 1) =
+      2 * ∑ v : G.V, (S.degree v).choose 2 := by
+    rw [Finset.mul_sum]
+    apply Finset.sum_congr rfl
+    intro v _
+    rw [Nat.choose_two_right]
+    have h2 : 2 ∣ S.degree v * (S.degree v - 1) := by
+      rcases Nat.even_or_odd (S.degree v) with h | h
+      · exact h.two_dvd.mul_right _
+      · obtain ⟨k, hk⟩ := h
+        rw [hk]
+        exact dvd_mul_of_dvd_right (by omega) _
+    omega
+  have hchain : 2 * (lineGraph G).toSimple.edgeFinset.card =
+      2 * ∑ v, (S.degree v).choose 2 := by
+    rw [hhand, hsum_deg, hdouble, Finset.sum_congr rfl fun v _ => hinner v, Halle]
+  exact mul_left_cancel₀ two_ne_zero hchain
 
 @[simp] theorem card_mycielskian [DecidableEq G.V] :
     Fintype.card (mycielskian G).V = 2 * Fintype.card G.V + 1 := by
   simp [mycielskian, Fintype.card_option, Fintype.card_sum, two_mul]
 
 theorem E_mycielskian [DecidableEq G.V] :
-    (mycielskian G).E = 3 * G.E + Fintype.card G.V := sorry
+    (mycielskian G).E = 3 * G.E + Fintype.card G.V := by
+  unfold CGraph.E
+  let H := (mycielskian G).toSimple
+  have hhand_myc := H.sum_degrees_eq_twice_card_edges
+  have hhand_G := G.toSimple.sum_degrees_eq_twice_card_edges
+  -- Goal: H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + Fintype.card G.V
+  -- From handshaking: 2 * H.edgeFinset.card = ∑ v, H.degree v
+  -- and 2 * G.toSimple.edgeFinset.card = ∑ v, G.toSimple.degree v
+  -- So it suffices to show ∑ v, H.degree v = 3 * ∑ v, G.toSimple.degree v + 2 * Fintype.card G.V
+  -- Helper: describe neighbors of each vertex type in H
+  have h_neighborFinset_inl : ∀ a : G.V,
+      H.neighborFinset (some (Sum.inl a)) =
+        (Finset.image (fun b : G.V => some (Sum.inl b)) (G.toSimple.neighborFinset a) ∪
+          Finset.image (fun b : G.V => some (Sum.inr b)) (G.toSimple.neighborFinset a)) := by
+    intro a
+    ext y
+    simp [H, mycielskian, CGraph.toSimple, ofRel, SimpleGraph.mem_neighborFinset]
+    rcases y with _ | y | y <;> simp
+    · constructor
+      · rintro ⟨hay, hadj_or_hadb⟩
+        cases hadj_or_hadb with
+        | inl h => exact h
+        | inr h => exact (G.symm a y).symm ▸ h
+      · intro h
+        exact ⟨fun con => G.loopless a (con.symm ▸ h), Or.inl h⟩
+    · exact fun h => (G.symm y a).symm ▸ h
+  have h_neighborFinset_inr : ∀ a : G.V,
+      H.neighborFinset (some (Sum.inr a)) =
+        Finset.image (fun b : G.V => some (Sum.inl b)) (G.toSimple.neighborFinset a) ∪ {none} := by
+    intro a
+    ext y
+    simp [H, mycielskian, CGraph.toSimple, ofRel, SimpleGraph.mem_neighborFinset]
+    rcases y with _ | y | y <;> simp
+    · exact fun h => (G.symm y a).symm ▸ h
+  have h_neighborFinset_none :
+      H.neighborFinset none = Finset.image (fun b : G.V => some (Sum.inr b)) Finset.univ := by
+    ext y
+    simp [H, mycielskian, CGraph.toSimple, ofRel, SimpleGraph.mem_neighborFinset]
+    rcases y with _ | y | y <;> simp
+  have target : ∑ v : Option (G.V ⊕ G.V), H.degree v = 3 * ∑ v : G.V, G.toSimple.degree v + 2 * Fintype.card G.V := by
+    have hinjl : Function.Injective (fun b : G.V => some (Sum.inl b) : G.V → Option (G.V ⊕ G.V)) :=
+      fun x y h => Sum.inl_injective (Option.some_injective (G.V ⊕ G.V) h)
+    have hinjr : Function.Injective (fun b : G.V => some (Sum.inr b) : G.V → Option (G.V ⊕ G.V)) :=
+      fun x y h => Sum.inr_injective (Option.some_injective (G.V ⊕ G.V) h)
+    -- Compute degrees from neighborFinset lemmas
+    have hdeg_inl : ∀ a : G.V, H.degree (some (Sum.inl a)) = 2 * G.toSimple.degree a := by
+      intro a
+      rw [SimpleGraph.degree, h_neighborFinset_inl, Finset.card_union_of_disjoint]
+      · rw [Finset.card_image_of_injective _ hinjl, Finset.card_image_of_injective _ hinjr]
+        rw [SimpleGraph.degree]
+        ring
+      · rw [Finset.disjoint_left]; simp [Finset.mem_image]
+    have hdeg_inr : ∀ a : G.V, H.degree (some (Sum.inr a)) = G.toSimple.degree a + 1 := by
+      intro a
+      rw [SimpleGraph.degree, h_neighborFinset_inr, Finset.card_union_of_disjoint]
+      · rw [Finset.card_image_of_injective _ hinjl]
+        · rfl
+      · simp [Finset.disjoint_singleton_right]
+    have hdeg_none : H.degree none = Fintype.card G.V := by
+      rw [SimpleGraph.degree, h_neighborFinset_none]
+      rw [Finset.card_image_of_injective _ hinjr]
+      simp
+    -- Split the sum over Option
+    have hsum_split : ∑ v : Option (G.V ⊕ G.V), H.degree v =
+        H.degree none + ∑ x : G.V ⊕ G.V, H.degree (some x) := by
+      rw [Fintype.sum_option]
+    rw [hsum_split, hdeg_none]
+    -- Split the sum over Sum
+    have hsum_split2 : ∑ x : G.V ⊕ G.V, H.degree (some x) =
+        ∑ a : G.V, H.degree (some (Sum.inl a)) + ∑ a : G.V, H.degree (some (Sum.inr a)) := by
+      have h_disj : Disjoint (Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩ : Finset (G.V ⊕ G.V))
+          (Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ : Finset (G.V ⊕ G.V)) := by
+        rw [Finset.disjoint_left]
+        simp
+      have h_univ : (Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩ : Finset (G.V ⊕ G.V)) ∪
+          Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ = Finset.univ := by
+        ext x; cases x <;> simp
+      rw [← h_univ, Finset.sum_union h_disj, Finset.sum_map, Finset.sum_map]
+      simp
+    rw [hsum_split2]
+    simp only [hdeg_inl, hdeg_inr]
+    have h1 : ∑ x : G.V, 2 * G.toSimple.degree x = 2 * ∑ x : G.V, G.toSimple.degree x := by
+      rw [Finset.mul_sum]
+    have h2 : ∑ x : G.V, (G.toSimple.degree x + 1) = ∑ x : G.V, G.toSimple.degree x + Fintype.card G.V := by
+      rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ]
+      simp
+    rw [h1, h2]
+    ring
+  rw [show (∑ v : Option (G.V ⊕ G.V), H.degree v) = 2 * H.edgeFinset.card from hhand_myc] at target
+  rw [show (∑ v : G.V, G.toSimple.degree v) = 2 * G.toSimple.edgeFinset.card from hhand_G] at target
+  have h2 : 2 * H.edgeFinset.card = 6 * G.toSimple.edgeFinset.card + 2 * Fintype.card G.V := by linarith
+  have h3 : H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + Fintype.card G.V := by omega
+  exact h3
 
 /-- The Petersen graph, as `K(5,2)`. -/
 theorem card_petersen : Fintype.card (kneser 5 2).V = 10 := by
