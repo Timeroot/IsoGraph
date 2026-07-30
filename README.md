@@ -86,25 +86,44 @@ graph into the algorithm means choosing a listing of the vertices — and choosi
 taking:
 
 ```lean
-def canonOfList     (G : CGraph) (l : List G.V)     : Canon.Oracle          -- run the search along l
+-- writing n for Fintype.card G.V
+def canonOfList     (G : CGraph) (l : List G.V)     : Canon.AdjMatrix n     -- run the search along l
 theorem canonOfList_perm (h : l₁ ~ l₂) : G.canonOfList l₁ = G.canonOfList l₂ -- the listing doesn't matter
-def canonOfMultiset (G : CGraph) (s : Multiset G.V) : Canon.Oracle := Quot.liftOn s _ canonOfList_perm
-def canon           (G : CGraph)                    : Canon.Oracle := G.canonOfMultiset univ.val
+def canonOfMultiset (G : CGraph) (s : Multiset G.V) : Canon.AdjMatrix n := Quot.liftOn s _ canonOfList_perm
+def canon           (G : CGraph)                    : Canon.AdjMatrix n := G.canonOfMultiset univ.val
 ```
 
-The result is indexed by `ℕ` rather than by `Fin l.length`, so that its *type* does not mention the
-listing and the lift typechecks. `canonOfList_perm` is where invariance of the algorithm under
-renaming is used, and it is the only place. No `Classical.choice` occurs anywhere on this path:
-`canonicalize` is a plain `def` and `Compute.lean` runs it, including on a graph whose vertex type
-is `Bool × Bool`. (Choice reappears only in `isoCanonicalize`, which picks one of the isomorphisms
-onto the canonical representative — a proof-side object.)
+The index set is `Fin (Fintype.card G.V)` and *not* `Fin l.length`: the type of the result must not
+mention the listing, or the lift would not typecheck. An arbitrary `l : List G.V` need not have
+length `Fintype.card G.V` — the lift is over all lists, not just enumerations — so the search runs
+on `Fin l.length` and is then moved across by `AdjMatrix.reindex`, which reads `false` outside the
+common range. For a listing that really does enumerate `G.V` that padding is vacuous, and it is
+the only place where a wrong-sized index set is tolerated.
+
+`canonOfList_perm` is where invariance of the algorithm under renaming is used, and it is the only
+place. No `Classical.choice` occurs anywhere on this path: `canonicalize` is a plain `def` and
+`Compute.lean` runs it, including on a graph whose vertex type is `Bool × Bool`. (Choice reappears
+only in `isoCanonicalize`, which picks one of the isomorphisms onto the canonical representative —
+a proof-side object.)
+
+Isomorphism invariance has to be stated entrywise,
+
+```lean
+theorem canon_adj_eq_of_iso (i : G ≃cg H) (x y : Fin (Fintype.card G.V)) :
+    G.canon.adj x y = H.canon.adj (finEq (Iso.card_eq G H i) x) (finEq (Iso.card_eq G H i) y)
+```
+
+since the two matrices live over index sets whose sizes are equal only propositionally;
+`canon_heq_of_iso` packages it as a `HEq`, and `canonicalize_eq_of_iso` — the form the quotient
+actually needs — as an honest equation between `CGraph`s.
 
 One trap worth recording: **the Lean compiler η-expands every definition whose type is a function
-type**, which destroys sharing. A `def f (G : CGraph) : ℕ → ℕ → Bool := let c := search G; fun a b ↦ …`
-re-runs `search` on *every query*, turning one canonicalisation into `n²` of them. Returning a
-structure blocks the η-expansion, which is what `Canon.Oracle` (a `size` and an `adj`) is for, and
-why the adjacency the algorithm reads takes its vertex array as a parameter rather than building it
-in a function-typed body.
+type**, which destroys sharing. A `def f (G : CGraph) : Fin n → Fin n → Bool := let c := search G; fun i j ↦ …`
+re-runs `search` on *every query*, turning one canonicalisation into `n²` of them. Wrapping the
+function in a structure blocks the η-expansion — that is all `Canon.AdjMatrix` is, and a one-field
+structure is unboxed at runtime, so it costs nothing. For the same reason the adjacency the
+algorithm reads takes its vertex array as a parameter rather than building it inside a
+function-typed body, and `canonMatrix` takes the permutation as an argument.
 
 ## Proof status
 

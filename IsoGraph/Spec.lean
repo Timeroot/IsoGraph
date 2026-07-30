@@ -71,41 +71,10 @@ is the canonical one.
 
 **This is the specification, not the way to compute.**  Lean η-expands every function-typed
 definition, so each query `canonAdj n adj i j` re-runs the whole search.  To compute, use
-`canonOracleOf`, whose result is a structure and therefore shares the search across queries. -/
+`canonMatrix`, whose result is a structure and therefore shares the search across queries. -/
 def canonAdj (n : Nat) (adj : Fin n → Fin n → Bool) : Fin n → Fin n → Bool :=
   let σ := canonPerm n adj
   fun i j ↦ adj (σ i) (σ j)
-
-/-- A graph on `{0, …, size-1}` given by an adjacency oracle.
-
-The reason this is a structure and not a bare `Nat → Nat → Bool`: the Lean compiler η-expands
-every definition whose type is a function type, so a `def f (x) : Nat → Nat → Bool := <search>;
-fun a b ↦ …` re-runs `<search>` on every single query.  Returning a structure blocks the
-η-expansion, and the search is run once and captured in the closure. -/
-structure Oracle where
-  /-- The number of vertices. -/
-  size : Nat
-  /-- Adjacency; `false` outside `{0, …, size-1}`. -/
-  adj : Nat → Nat → Bool
-
-theorem Oracle.ext' {o₁ o₂ : Oracle} (hs : o₁.size = o₂.size) (ha : o₁.adj = o₂.adj) : o₁ = o₂ := by
-  cases o₁; cases o₂; cases hs; cases ha; rfl
-
-/-- The graph `adj` read through the permutation `σ`, as an `Oracle`. -/
-def oracleOfPerm (n : Nat) (adj : Fin n → Fin n → Bool) (σ : Equiv.Perm (Fin n)) : Oracle where
-  size := n
-  adj := oracleOfFin n fun i j ↦ adj (σ i) (σ j)
-
-/-- **The canonical form of a graph on `Fin n`, computed.**  The search runs once, when this is
-forced; each query of the resulting `Oracle.adj` is then `O(1)`. -/
-def canonOracleOf (n : Nat) (adj : Fin n → Fin n → Bool) : Oracle :=
-  oracleOfPerm n adj (canonPerm n adj)
-
-@[simp] theorem canonOracleOf_size (n : Nat) (adj : Fin n → Fin n → Bool) :
-    (canonOracleOf n adj).size = n := rfl
-
-@[simp] theorem canonOracleOf_adj (n : Nat) (adj : Fin n → Fin n → Bool) :
-    (canonOracleOf n adj).adj = oracleOfFin n (canonAdj n adj) := rfl
 
 /-- `Fin m ≃ Fin n` from `m = n`.  Unlike `Equiv.cast` this has a definitional `val`. -/
 def finEq {m n : Nat} (h : m = n) : Fin m ≃ Fin n where
@@ -136,6 +105,81 @@ theorem oracleOfFin_irrefl {n : Nat} {f : Fin n → Fin n → Bool} (hf : ∀ i,
   by_cases ha : a < n
   · rw [oracleOfFin_apply f ha ha]; exact hf _
   · simp [oracleOfFin, ha]
+
+/-! ## Adjacency matrices
+
+The type the canonical form is actually delivered in.  Two things are going on:
+
+* it is a **structure**, not a bare `Fin n → Fin n → Bool`, because the compiler η-expands every
+  definition whose type is a function type — a `def f (x) : Fin n → Fin n → Bool := <search>;
+  fun i j ↦ …` re-runs `<search>` on every single query.  One field is enough to block that, and
+  a one-field structure is unboxed at runtime, so the wrapper is free;
+* it is indexed by its size, so that "the canonical form of a graph on `V`" can live in
+  `AdjMatrix (Fintype.card V)` — a type that does not mention the listing of `V` used to compute
+  it, which is what makes the quotient lift in `IsoGraph.Basic` typecheck.
+-/
+
+/-- The adjacency matrix of a graph on `Fin n`. -/
+structure AdjMatrix (n : Nat) where
+  /-- The adjacency function. -/
+  adj : Fin n → Fin n → Bool
+
+namespace AdjMatrix
+
+theorem ext' {n : Nat} {M N : AdjMatrix n} (h : M.adj = N.adj) : M = N := by
+  cases M; cases N; cases h; rfl
+
+/-- Query a matrix at plain naturals; `false` out of range. -/
+def get {n : Nat} (M : AdjMatrix n) (a b : Nat) : Bool := oracleOfFin n M.adj a b
+
+theorem get_eq {n : Nat} (M : AdjMatrix n) {a b : Nat} (ha : a < n) (hb : b < n) :
+    M.get a b = M.adj ⟨a, ha⟩ ⟨b, hb⟩ := oracleOfFin_apply _ ha hb
+
+/-- Move a matrix onto the index set `Fin m`, reading `false` outside the common range.
+
+This is the one place where an index set of the "wrong" size is tolerated, and it is what lets
+the canonical form of a graph be stated on `Fin (Fintype.card V)` while being computed from a
+listing whose length is only *provably* that. -/
+def reindex {n : Nat} (M : AdjMatrix n) (m : Nat) : AdjMatrix m :=
+  ⟨fun i j ↦ M.get i.1 j.1⟩
+
+@[simp] theorem reindex_adj {n m : Nat} (M : AdjMatrix n) (i j : Fin m) :
+    (M.reindex m).adj i j = M.get i.1 j.1 := rfl
+
+theorem reindex_congr {n k m : Nat} {M : AdjMatrix n} {N : AdjMatrix k}
+    (h : ∀ a b, M.get a b = N.get a b) : M.reindex m = N.reindex m :=
+  ext' (funext fun i ↦ funext fun j ↦ h i.1 j.1)
+
+theorem get_comm {n : Nat} {M : AdjMatrix n} (h : ∀ i j, M.adj i j = M.adj j i) (a b : Nat) :
+    M.get a b = M.get b a := oracleOfFin_comm h a b
+
+theorem get_irrefl {n : Nat} {M : AdjMatrix n} (h : ∀ i, M.adj i i = false) (a : Nat) :
+    M.get a a = false := oracleOfFin_irrefl h a
+
+/-- Matrices of the same size, agreeing pointwise up to the identification of the index sets, are
+heterogeneously equal. -/
+theorem heq_of_adj {m n : Nat} (h : m = n) {M : AdjMatrix m} {N : AdjMatrix n}
+    (hMN : ∀ x y, M.adj x y = N.adj (finEq h x) (finEq h y)) : HEq M N := by
+  subst h
+  exact heq_of_eq (ext' (funext fun x ↦ funext fun y ↦ hMN x y))
+
+end AdjMatrix
+
+/-- The graph `adj` read through the permutation `σ`, as a matrix. -/
+def matrixOfPerm (n : Nat) (adj : Fin n → Fin n → Bool) (σ : Equiv.Perm (Fin n)) : AdjMatrix n :=
+  ⟨fun i j ↦ adj (σ i) (σ j)⟩
+
+/-- **The canonical form of a graph on `Fin n`, computed.**  The search runs once, when this is
+forced — `σ` is an argument of `matrixOfPerm`, so it is evaluated before the closure is built —
+and each query of the resulting `adj` is then `O(1)`. -/
+def canonMatrix (n : Nat) (adj : Fin n → Fin n → Bool) : AdjMatrix n :=
+  matrixOfPerm n adj (canonPerm n adj)
+
+@[simp] theorem canonMatrix_adj (n : Nat) (adj : Fin n → Fin n → Bool) :
+    (canonMatrix n adj).adj = canonAdj n adj := rfl
+
+theorem canonMatrix_get (n : Nat) (adj : Fin n → Fin n → Bool) (a b : Nat) :
+    (canonMatrix n adj).get a b = oracleOfFin n (canonAdj n adj) a b := rfl
 
 /-! ## Relabelling -/
 
@@ -240,12 +284,19 @@ theorem oracleOfFin_canonAdj_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m 
   subst h
   rw [canonAdj_eq_of_equiv σ hσ]
 
-/-- The `Oracle`-level form of `oracleOfFin_canonAdj_congr`: this is what gets lifted through the
-quotient in `IsoGraph.Basic`. -/
-theorem canonOracleOf_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → Bool}
-    {B : Fin k → Fin k → Bool} (σ : Fin m ≃ Fin k) (hσ : ∀ a b, B (σ a) (σ b) = A a b) :
-    canonOracleOf m A = canonOracleOf k B :=
-  Oracle.ext' h (oracleOfFin_canonAdj_congr h σ hσ)
+/-- Canonical forms of isomorphic graphs agree entrywise, at the level of plain naturals. -/
+theorem canonMatrix_get_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → Bool}
+    {B : Fin k → Fin k → Bool} (σ : Fin m ≃ Fin k) (hσ : ∀ a b, B (σ a) (σ b) = A a b) (a b : Nat) :
+    (canonMatrix m A).get a b = (canonMatrix k B).get a b :=
+  congrFun (congrFun (oracleOfFin_canonAdj_congr h σ hσ) a) b
+
+/-- **The congruence that gets lifted through the quotient in `IsoGraph.Basic`.**  Canonical forms
+of isomorphic graphs, moved onto a common index set, are equal — and `N` is arbitrary, so it can
+be `Fintype.card V`, which is what makes the lift's motive independent of the listing. -/
+theorem canonMatrix_reindex_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → Bool}
+    {B : Fin k → Fin k → Bool} (σ : Fin m ≃ Fin k) (hσ : ∀ a b, B (σ a) (σ b) = A a b) (N : Nat) :
+    (canonMatrix m A).reindex N = (canonMatrix k B).reindex N :=
+  AdjMatrix.reindex_congr (canonMatrix_get_congr h σ hσ)
 
 /-- Two graphs on `Fin n` have the same canonical form exactly when they are isomorphic. -/
 theorem canonAdj_eq_iff {adjG adjH : Fin n → Fin n → Bool} :

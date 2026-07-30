@@ -30,7 +30,8 @@ The `let c := G.canon` is what makes this one search rather than `n²` of them: 
 a `List`, not a function type, so the compiler keeps the sharing. -/
 def canonMatrix (G : CGraph) : List (List Bool) :=
   let c := G.canon
-  (List.range c.size).map fun a ↦ (List.range c.size).map fun b ↦ c.adj a b
+  let idx := List.finRange (Fintype.card G.V)
+  idx.map fun a ↦ idx.map fun b ↦ c.adj a b
 
 /-- Number of ordered adjacent pairs in the canonical representative.  Unlike `canonMatrix` this
 goes through `CGraph.canonicalize` itself, so it exercises the bundled graph. -/
