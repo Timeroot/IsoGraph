@@ -574,17 +574,13 @@ def moves (g : Array Nat) : Bool := Id.run do
     if g[i]! != i then return true
   return false
 
-/-- One step of orbit closure: mark the images of `v` under all generators. -/
+/-- One step of orbit closure: mark the images of `v` under all generators.  A `foldl` rather
+than a `for` loop so that `IsoGraph.Orbits` can induct on the generator list. -/
 def closureStep (gens : Array (Array Nat)) (mark : Array Bool) (stack : Array Nat)
-    (v : Nat) : Array Bool × Array Nat := Id.run do
-  let mut mark := mark
-  let mut stack := stack
-  for g in gens do
+    (v : Nat) : Array Bool × Array Nat :=
+  gens.foldl (init := (mark, stack)) fun ms g =>
     let w := g[v]!
-    if !mark[w]! then
-      mark := mark.set! w true
-      stack := stack.push w
-  return (mark, stack)
+    if !ms.1[w]! then (ms.1.set! w true, ms.2.push w) else ms
 
 /-- Close `mark` under the generators, using `stack` as the frontier.  `fuel` bounds the number of
 pops, which is at most the number of marked points. -/
@@ -598,11 +594,9 @@ def closureLoop (gens : Array (Array Nat)) : Nat → Array Bool → Array Nat �
       closureLoop gens fuel mark stack
 
 /-- The union of the `gens`-orbits of the vertices in `seed`, as a membership array of size `n`. -/
-def orbitClosure (n : Nat) (gens : Array (Array Nat)) (seed : Array Nat) : Array Bool := Id.run do
-  let mut mark : Array Bool := Array.replicate n false
-  for v in seed do
-    mark := mark.set! v true
-  return closureLoop gens (n + 1) mark seed
+def orbitClosure (n : Nat) (gens : Array (Array Nat)) (seed : Array Nat) : Array Bool :=
+  closureLoop gens (n + 1) (seed.foldl (init := Array.replicate n false)
+    fun mark v => mark.set! v true) seed
 /-! ## The search -/
 
 /-- Length of the longest common prefix of two paths. -/

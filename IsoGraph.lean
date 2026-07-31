@@ -3,6 +3,7 @@ import IsoGraph.Spec
 import IsoGraph.Equivariance
 import IsoGraph.Search
 import IsoGraph.Autos
+import IsoGraph.Node
 import IsoGraph.Basic
 import IsoGraph.Invariants
 import IsoGraph.Constructions
