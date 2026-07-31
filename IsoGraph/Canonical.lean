@@ -186,6 +186,36 @@ structure Scratch where
 def Scratch.empty (n : Nat) : Scratch :=
   { cnt := Array.replicate n 0, hit := Array.replicate n false, bc := Array.replicate (n + 1) 0 }
 
+/-- Bump `cnt[v]` for every `v` in `nbrs[j:]`, pushing each newly-touched vertex onto `touched`.
+
+Like `cenHashFrom` above this is a structural recursion on an explicit fuel (only ever
+`nbrs.size - j`) rather than a `for` loop, so that the equivariance proof can read off the
+resulting count at each index; the `j < nbrs.size` that a `for` loop hides is exactly what the
+proof needs. -/
+def bumpFrom (nbrs : Array Nat) : Nat → Nat → Array Nat → Array Nat → Array Nat × Array Nat
+  | 0, _, cnt, touched => (cnt, touched)
+  | fuel + 1, j, cnt, touched =>
+    if j ≥ nbrs.size then (cnt, touched)
+    else
+      let v := nbrs[j]!
+      let c := cnt[v]!
+      bumpFrom nbrs fuel (j + 1) (cnt.set! v (c + 1)) (if c == 0 then touched.push v else touched)
+
+/-- Accumulate into `cnt` the number of neighbours each vertex has among `lab[k:e]`, recording in
+`touched` the vertices whose count became nonzero.  This is phase (1) of `refineStep`, and is the
+hot loop of the whole algorithm: it costs the splitter cell's degree sum. -/
+def countFrom (G : Graph) (lab : Array Nat) (e : Nat) :
+    Nat → Nat → Array Nat → Array Nat → Array Nat × Array Nat
+  | 0, _, cnt, touched => (cnt, touched)
+  | fuel + 1, k, cnt, touched =>
+    if k ≥ e then (cnt, touched)
+    else
+      let nbrs := G.nbr[lab[k]!]!
+      -- Destructured, not projected: `.1`/`.2` would keep the pair alive and so leave `cnt`
+      -- shared, turning every `set!` of the next round into a full copy of the array.
+      match bumpFrom nbrs nbrs.size 0 cnt touched with
+      | (cnt, touched) => countFrom G lab e fuel (k + 1) cnt touched
+
 /-- Perform one refinement step: use the cell starting at position `s` as a splitter, splitting
 every cell that meets its neighbourhood.
 
@@ -206,12 +236,8 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
   let mut hit := sc.hit
   let mut bc := sc.bc
   -- (1) count neighbours inside the splitter cell `lab[s:e]`.
-  let mut touched : Array Nat := #[]
-  for k in [s:e] do
-    for v in G.nbr[lab[k]!]! do
-      let c := cnt[v]!
-      if c == 0 then touched := touched.push v
-      cnt := cnt.set! v (c + 1)
+  let (cnt', touched) := countFrom G lab e (e - s) s cnt #[]
+  cnt := cnt'
   if touched.isEmpty then
     return (p, inW, tr, sc)
   -- (2) collect the cells met by the splitter and process them left to right, so that the order
