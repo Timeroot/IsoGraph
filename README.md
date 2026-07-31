@@ -274,9 +274,18 @@ Steps 1, 5 and 6 — equivariance of `refineStep`, the correspondence of the two
 the argument that the maximum over the leaves is independent of the order children are enumerated
 in, which is where the three prunings have to be justified — are what is left. Step 1 is the
 large one: `refineStep` is a hundred lines of counting sort, worklist maintenance and scratch
-reuse, and its equivariance rests on a cardinality argument (the neighbour count of `σ v` in
-`p`'s splitter cell equals that of `v` in `q`'s, because `σ` is a bijection between the cells)
-rather than on anything positionwise.
+reuse, and its equivariance rests on a cardinality argument rather than on anything positionwise.
+That cardinality argument *is* proved:
+
+```lean
+theorem cellCount_equiv (hσ : IsPerm n σ) (h : PartEquiv n σ p q) (s : Nat) (P : Nat → Bool) :
+    cellCount n p s P = cellCount n q s (fun w => P (σ w))
+```
+
+where `cellCount n p s P` counts the vertices of the cell starting at position `s` that satisfy
+`P`. Every number `refineStep` computes has that shape — a neighbour count is `P w := adj w v`, a
+counting-sort bucket size is `P w := cnt w == t`, a cell size is `P w := true` — so what is left
+of step 1 is showing the imperative loops compute `cellCount`, not that `cellCount` is invariant.
 
 `certOf_relabel` is worth a footnote: an earlier version of it, missing the `lab.size = n`
 hypothesis, was *refuted* by the prover, which returned a counterexample (`n = 2`,

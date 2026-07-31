@@ -1,4 +1,5 @@
 import IsoGraph.Canonical
+import Mathlib.Data.Finset.Card
 import Mathlib.Tactic.Push
 import Mathlib.Tactic.Linarith
 
@@ -16,22 +17,25 @@ prose into Lean.  It works at the level of `IsoGraph.Canonical`, i.e. with raw `
 permutations of `{0, …, n-1}` represented as `Nat → Nat`, since that is where the algorithm
 lives; the translation to `Equiv.Perm (Fin n)` happens back in `Spec.lean`.
 
-What is here is the bottom layer and the two steps that rest directly on it:
+What is here is the bottom layer and the steps that rest directly on it:
 
 * how `Graph.ofOracle` responds to renaming, and the fact that the labelling really is a
   permutation (which `canonicalLabellingOfOracle` checks at run time);
-* **step 2** — the two readers of a partition, `shapeHash` and `targetCell`, see only cell
-  boundaries, so they agree on partitions related by any renaming;
 * `Part.WF` and `PartEquiv`, the vocabulary — "well-formed ordered partition" and "the same
   partition up to renaming" — that the whole decomposition is phrased in;
+* the arithmetic half of **step 1** — `cellCount_equiv`, that corresponding cells agree on every
+  count, which is the reason `refineStep` is equivariant;
+* **step 2** — the two readers of a partition, `shapeHash` and `targetCell`, see only cell
+  boundaries, so they agree on partitions related by any renaming;
 * **step 3** — individualising corresponding vertices of related partitions gives related
   partitions, at the same position (`individualize_partEquiv`), and preserves well-formedness;
 * **step 4** — two runs that reach related *discrete* partitions read off the same certificate
-  (`certOf_of_partEquiv`, via `certOf_relabel`).
+  (`certOf_of_partEquiv`, via `certOf_relabel`), with `discrete_of_targetCell_none` supplying
+  the discreteness at the leaves.
 
-Steps 1, 5 and 6 — equivariance of `refineStep`, the correspondence of the two search trees, and
-the argument that the maximum over the leaves does not depend on the order children are
-enumerated in — are not here yet.
+What is *not* here: that `refineStep`'s imperative loops actually compute those counts (the rest
+of step 1), the correspondence of the two search trees (step 5), and the argument that the
+maximum over the leaves does not depend on the order children are enumerated in (step 6).
 -/
 
 namespace IsoGraph
@@ -806,6 +810,80 @@ theorem individualize_partEquiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ :
     by_cases hwv : w = v
     · rw [if_pos hwv, if_pos (by rw [hwv])]
     · rw [if_neg hwv, if_neg (fun hh => hwv (hσ.inj w hw v hv hh))]
+
+/-! ## Towards step 1: what `refineStep` counts
+
+`refineStep` is the one piece of the algorithm whose equivariance is *not* positionwise.  Every
+other loop walks positions, and corresponding positions hold corresponding data; but the counting
+phase walks a cell in `lab` order, and corresponding cells are related only as sets.  So the
+quantity it computes has to be described set-theoretically before it can be shown invariant, and
+that description is `cellCount`: the number of vertices of a given cell satisfying a predicate.
+
+What is proved here is that half — the arithmetic that makes step 1 true.  What is not yet proved
+is that the imperative loops of `refineStep` compute it: that they leave `cnt` holding
+`cellCount`, that the counting sort orders the fragments by count, and that Hopcroft's rule then
+picks out the same fragments.  Those need the same fuel-recursion treatment the rest of the file
+already applies, applied to a much bigger function. -/
+
+/-- A permutation of a finite initial segment is onto it.  Not part of `IsPerm` because nothing
+before this section needed it — injectivity was always enough. -/
+theorem IsPerm.surj {n : Nat} {σ : Nat → Nat} (hσ : IsPerm n σ) {w : Nat} (hw : w < n) :
+    ∃ v, v < n ∧ σ v = w := by
+  have hsub : (Finset.range n).image σ ⊆ Finset.range n := by
+    intro x hx
+    simp only [Finset.mem_image, Finset.mem_range] at hx ⊢
+    obtain ⟨a, ha, rfl⟩ := hx
+    exact hσ.maps a ha
+  have hcard : ((Finset.range n).image σ).card = n := by
+    rw [Finset.card_image_of_injOn, Finset.card_range]
+    intro a ha b hb hab
+    exact hσ.inj a (Finset.mem_range.1 ha) b (Finset.mem_range.1 hb) hab
+  have heq : (Finset.range n).image σ = Finset.range n :=
+    Finset.eq_of_subset_of_card_le hsub (by rw [hcard, Finset.card_range])
+  have hmem : w ∈ (Finset.range n).image σ := by rw [heq]; exact Finset.mem_range.2 hw
+  simp only [Finset.mem_image, Finset.mem_range] at hmem
+  obtain ⟨a, ha, hax⟩ := hmem
+  exact ⟨a, ha, hax⟩
+
+/-- How many vertices of the cell starting at position `s` satisfy `P`.  Every number
+`refineStep` computes is of this form: the neighbour count of `v` is `P w := adj w v`, a bucket
+size in the counting sort is `P w := cnt w == t`, and a cell size is `P w := true`. -/
+def cellCount (n : Nat) (p : Part) (s : Nat) (P : Nat → Bool) : Nat :=
+  ((Finset.range n).filter fun w => p.cst[p.pos[w]!]! = s ∧ P w = true).card
+
+/-- **The arithmetic behind step 1.**  Corresponding cells have the same size, and more generally
+agree on any count, because `σ` restricts to a bijection between them.  Note this is a genuine
+cardinality argument — there is no order-preserving correspondence to appeal to. -/
+theorem cellCount_equiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ : IsPerm n σ)
+    (h : PartEquiv n σ p q) (s : Nat) (P : Nat → Bool) :
+    cellCount n p s P = cellCount n q s (fun w => P (σ w)) := by
+  refine (Finset.card_bij (fun w _ => σ w) ?_ ?_ ?_).symm
+  · intro w hw
+    simp only [Finset.mem_filter, Finset.mem_range] at hw ⊢
+    exact ⟨hσ.maps w hw.1, (h.cell w hw.1).trans hw.2.1, hw.2.2⟩
+  · intro a ha b hb hab
+    simp only [Finset.mem_filter, Finset.mem_range] at ha hb
+    exact hσ.inj a ha.1 b hb.1 hab
+  · intro w' hw'
+    simp only [Finset.mem_filter, Finset.mem_range] at hw'
+    obtain ⟨w, hw, rfl⟩ := hσ.surj hw'.1
+    refine ⟨w, ?_, rfl⟩
+    simp only [Finset.mem_filter, Finset.mem_range]
+    exact ⟨hw, (h.cell w hw).symm.trans hw'.2.1, hw'.2.2⟩
+
+/-- Corresponding cells have the same size. -/
+theorem cellSize_equiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ : IsPerm n σ)
+    (h : PartEquiv n σ p q) (s : Nat) :
+    cellCount n p s (fun _ => true) = cellCount n q s (fun _ => true) :=
+  cellCount_equiv hσ h s _
+
+/-- The neighbour counts that drive refinement are equivariant: `σ v` sees as many neighbours in
+`p`'s cell at `s` as `v` does in `q`'s. -/
+theorem cellNbrCount_equiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ : IsPerm n σ)
+    (h : PartEquiv n σ p q) (f : Nat → Nat → Bool) (s v : Nat) :
+    cellCount n p s (fun w => f w (σ v))
+      = cellCount n q s (fun w => (fun a b => f (σ a) (σ b)) w v) :=
+  cellCount_equiv hσ h s _
 
 end Canon
 end IsoGraph
