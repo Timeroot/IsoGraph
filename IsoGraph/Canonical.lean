@@ -561,12 +561,12 @@ def lexCmpU64 (a b : Array UInt64) : Ordering := lexCmpFrom a b (min a.size b.si
 /-! ## Automorphisms -/
 
 /-- Given two labellings `σ τ : position → vertex` with equal certificates, the permutation
-`γ = τ ∘ σ⁻¹`, which is an automorphism of the graph. -/
-def autoOf (n : Nat) (σ τ : Array Nat) : Array Nat := Id.run do
-  let mut g : Array Nat := Array.replicate n 0
-  for i in [0:n] do
-    g := g.set! σ[i]! τ[i]!
-  return g
+`γ = τ ∘ σ⁻¹`, which is an automorphism of the graph.
+
+Written as a `foldl` over `List.range n` rather than as a `for` loop so that
+`IsoGraph.Autos.autoOf_get` can read off each entry; the work is the same. -/
+def autoOf (n : Nat) (σ τ : Array Nat) : Array Nat :=
+  (List.range n).foldl (init := Array.replicate n 0) fun g i => g.set! σ[i]! τ[i]!
 
 /-- Whether a permutation moves some point. -/
 def moves (g : Array Nat) : Bool := Id.run do

@@ -450,5 +450,69 @@ theorem canonical_cert_leafkey (n : Nat) (f : Nat → Nat → Bool) (b : Leaf)
     (canonical (Graph.ofOracle n f)).cert = b.cert ∧ Leafkey n f (leafKey b.invPath b.cert) :=
   ⟨by rw [canonical_eq, hb], canonSt_leafkey n f b hb⟩
 
+/-! ### Leaves extend the invariant path of the node they hang below -/
+
+theorem reach_extends {n : Nat} {f : Nat → Nat → Bool} {invPath : Array UInt64} {p : Part}
+    {k : List (List UInt64)} (h : Reach n f invPath p k) :
+    ∃ tail c, k = [invPath.toList ++ tail, c] := by
+  induction h with
+  | @leaf invPath p h =>
+    exact ⟨[], (certOf (Graph.ofOracle n f) p.lab).toList, by simp [leafKey]⟩
+  | @step invPath p c v k hc hv hcell h ih =>
+    obtain ⟨tail, cert, hk⟩ := ih
+    refine ⟨mix (child (Graph.ofOracle n f) p v).2
+      ((child (Graph.ofOracle n f) p v).1.shapeHash n) :: tail, cert, ?_⟩
+    rw [hk, childInv]
+    simp
+
+/-- If a node's invariant path is already worse than the incumbent's, so is every leaf below it. -/
+theorem compare_append_lt {ip b : List UInt64} (tail : List UInt64)
+    (h : compare ip (b.take ip.length) = .lt) : compare (ip ++ tail) b = .lt := by
+  induction ip generalizing b with
+  | nil => exact absurd h (by simp)
+  | cons a ip ih =>
+    cases b with
+    | nil => exact absurd h (by simp [List.compare_cons_nil])
+    | cons x b =>
+      rw [List.length_cons, List.take_succ_cons, List.compare_cons_cons] at h
+      rw [List.cons_append, List.compare_cons_cons]
+      cases hax : compare a x with
+      | lt => rfl
+      | gt => rw [hax] at h; simp at h
+      | eq => rw [hax] at h; simpa using ih (by simpa using h)
+
+theorem compare_leafKey_lt {ip b tail c c' : List UInt64}
+    (h : compare ip (b.take ip.length) = .lt) : compare [ip ++ tail, c] [b, c'] = .lt := by
+  rw [List.compare_cons_cons, compare_append_lt tail h]; rfl
+
+/-! ### Invariant pruning is sound -/
+
+/-- `k` is beaten by the leaf the state currently holds. -/
+def Beaten (st : St) (k : List (List UInt64)) : Prop :=
+  ∃ l, st.best = some l ∧ compare k (leafKey l.invPath l.cert) = .lt
+
+theorem lexCmpU64_extract {a b : Array UInt64} :
+    lexCmpU64 a (b.extract 0 a.size) = compare a.toList (b.toList.take a.size) := by
+  rw [lexCmpU64_eq_compare]
+  congr 1
+  simp
+
+/-- When `pruneNode` discards the subtree, every leaf below the node is beaten. -/
+theorem pruneNode_none {n : Nat} {f : Nat → Nat → Bool} {invPath : Array UInt64} {p : Part}
+    {st : St} (h : pruneNode invPath st = none) {k : List (List UInt64)}
+    (hk : Reach n f invPath p k) : Beaten st k := by
+  rw [pruneNode] at h
+  split at h
+  · exact absurd h (by simp)
+  · rename_i b hb
+    refine ⟨b, hb, ?_⟩
+    obtain ⟨tail, c, rfl⟩ := reach_extends hk
+    split at h
+    · rename_i hlt
+      rw [lexCmpU64_extract] at hlt
+      exact compare_leafKey_lt (by simpa using hlt)
+    · exact absurd h (by simp)
+    · exact absurd h (by simp)
+
 end Canon
 end IsoGraph
