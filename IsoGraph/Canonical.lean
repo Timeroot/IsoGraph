@@ -329,22 +329,27 @@ def initialRefine (G : Graph) : Part × UInt64 :=
   let inW := if G.n == 0 then #[] else (Array.replicate G.n false).set! 0 true
   refine G p inW hashSeed
 
+/-- Write `c + 1` into `cst[j]` for every `j ∈ [j₀, ec)`, where `j₀` is the second argument.  A
+structural recursion rather than a `for` loop so that `Equivariance.setCstFrom_getElem!` can read
+off each entry; `fuel` is only ever `ec - j₀`, so the work is the same. -/
+def setCstFrom (c ec : Nat) : Nat → Nat → Array Nat → Array Nat
+  | 0, _, cst => cst
+  | fuel + 1, j, cst =>
+    if j ≥ ec then cst else setCstFrom c ec fuel (j + 1) (cst.set! j (c + 1))
+
 /-- Split the vertex `v` off from its cell, placing it first.  Returns the new partition and the
 position of the new singleton cell `{v}` (which is the only splitter needed to re-refine, since
 the input partition is assumed equitable). -/
-def individualize (p : Part) (v : Nat) : Part × Nat := Id.run do
+def individualize (p : Part) (v : Nat) : Part × Nat :=
   let i := p.pos[v]!
   let c := p.cst[i]!
   let ec := p.cen[i]!
   let u := p.lab[c]!
   let lab := (p.lab.set! c v).set! i u
   let pos := (p.pos.set! v c).set! u i
-  let mut cst := p.cst
-  let mut cen := p.cen
-  cen := cen.set! c (c + 1)
-  for j in [c + 1:ec] do
-    cst := cst.set! j (c + 1)
-  return ({ lab, pos, cst, cen }, c)
+  let cst := setCstFrom c ec (ec - (c + 1)) (c + 1) p.cst
+  let cen := p.cen.set! c (c + 1)
+  ({ lab, pos, cst, cen }, c)
 
 /-! ## Certificates -/
 

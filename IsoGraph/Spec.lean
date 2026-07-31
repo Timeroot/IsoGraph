@@ -572,8 +572,8 @@ canonical form.
 Everything else in the development — that `IsoGraph` may be `Quotient.lift`ed through the
 canonical form, and hence that graph invariants computed from it are well defined — reduces to
 this.  It in turn reduces, by `canonAdj_relabel_of`, to `LabellingIsPerm` — proved, by a run-time
-check — and `LabellingInvariant`, which is the deep one and decomposes as follows.  Steps 2 and 4
-are done, in `IsoGraph/Equivariance.lean`; 1, 3, 5 and 6 are not.
+check — and `LabellingInvariant`, which is the deep one and decomposes as follows.  Steps 2, 3 and
+4 are done, in `IsoGraph/Equivariance.lean`; 1, 5 and 6 are not.
 
 Fix `σ` and write `q ≈ p` for "the ordered partitions `q` and `p` have
 the same cell boundaries, and the `i`-th cell of `q` is the `σ`-image of the `i`-th cell of `p`
@@ -589,7 +589,8 @@ is invariant is the sequence of cells.)  Then:
 2. `Part.shapeHash` and `Part.targetCell` read only cell boundaries, so they agree on `≈`-related
    partitions.  *(Done: `Canon.shapeHash_congr`, `Canon.targetCell_congr`.)*
 3. `individualize p v` and `individualize q (σ v)` produce `≈`-related partitions and the same
-   splitter position.
+   splitter position.  *(Done: `Canon.individualize_partEquiv`, with `Canon.individualize_wf` for
+   the well-formedness the next step needs.)*
 4. On *discrete* partitions `≈` forces `q.lab = σ ∘ p.lab`, and then `certOf` agrees, since it
    reads the adjacency matrix in exactly that order.  *(Done: `Canon.certOf_relabel`.)*
 5. Therefore the two search trees have the same shape and the same node invariants, and their
