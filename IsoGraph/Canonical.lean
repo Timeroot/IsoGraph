@@ -543,13 +543,20 @@ certificate exactly when they differ by an automorphism. -/
 def certOf (G : Graph) (lab : Array Nat) : Array UInt64 :=
   certBits G.n fun i => let row := G.adj[lab[i]!]!; fun j => row[lab[j]!]!
 
+/-- Lexicographic comparison of `a` and `b` from index `i` on, with `fuel` bounding the number of
+positions still to look at.  Written as a structural recursion rather than a `for` loop so that
+the order lemmas in `IsoGraph.Search` can be proved by induction on `fuel`. -/
+def lexCmpFrom (a b : Array UInt64) : Nat → Nat → Ordering
+  | 0, _ => compare a.size b.size
+  | fuel + 1, i =>
+    if i < min a.size b.size then
+      match compare a[i]! b[i]! with
+      | .eq => lexCmpFrom a b fuel (i + 1)
+      | c => c
+    else compare a.size b.size
+
 /-- Lexicographic comparison of `UInt64` arrays (shorter is smaller on a common prefix). -/
-def lexCmpU64 (a b : Array UInt64) : Ordering := Id.run do
-  let m := min a.size b.size
-  for i in [0:m] do
-    let c := compare a[i]! b[i]!
-    if c != .eq then return c
-  return compare a.size b.size
+def lexCmpU64 (a b : Array UInt64) : Ordering := lexCmpFrom a b (min a.size b.size) 0
 
 /-! ## Automorphisms -/
 
