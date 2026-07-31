@@ -26,7 +26,8 @@ What is here is the bottom layer and the steps that rest directly on it:
   partition up to renaming" — that the whole decomposition is phrased in;
 * the first loop of **step 1** — `cellCount_equiv`, that corresponding cells agree on every count,
   together with `countFrom_cellCount`, that `refineStep`'s counting phase computes exactly such a
-  count; `countFrom_equiv` combines them;
+  count (`countFrom_equiv` combines them), and `countFrom_mem_touched`, that the set of vertices
+  the phase records is invariant too;
 * **step 2** — the two readers of a partition, `shapeHash` and `targetCell`, see only cell
   boundaries, so they agree on partitions related by any renaming;
 * **step 3** — individualising corresponding vertices of related partitions gives related
@@ -129,6 +130,20 @@ theorem ofOracle_nbr_lt (n : Nat) (f : Nat → Nat → Bool) (v w : Nat) (hv : v
     (hw : w ∈ (Graph.ofOracle n f).nbr[v]!) : w < n := by
   rw [ofOracle_nbr n f v hv, Array.mem_filter, Array.mem_range] at hw
   exact hw.1
+
+/-- The number of neighbour lists is the number of vertices. -/
+@[simp] theorem ofOracle_nbr_size (n : Nat) (f : Nat → Nat → Bool) :
+    (Graph.ofOracle n f).nbr.size = n := by simp [Graph.ofOracle]
+
+/-- Neighbour lists stay inside the vertex set, with no hypothesis on the vertex: out of range
+`nbr[u]!` is the empty array, which has no members either. -/
+theorem ofOracle_nbr_lt' (n : Nat) (f : Nat → Nat → Bool) (u x : Nat)
+    (hx : x ∈ (Graph.ofOracle n f).nbr[u]!) : x < n := by
+  by_cases hu : u < n
+  · exact ofOracle_nbr_lt n f u x hu hx
+  · rw [getElem!_neg _ _ (by simp; omega),
+      show (default : Array Nat) = #[] from rfl] at hx
+    simp at hx
 
 /-! ## Readers of a partition that see only the cell boundaries
 
@@ -1070,6 +1085,122 @@ theorem countFrom_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} 
   rw [countFrom_cellCount f hp hs (by rw [h.cst s hs, hcst]) (hσ.maps w hw),
     countFrom_cellCount _ hq hs hcst hw]
   exact cellNbrCount_equiv hσ h f s w
+
+/-- The invariant the counting phase maintains on its scratch space: `touched` lists exactly the
+vertices whose count is nonzero, each once.
+
+`refineStep` needs both halves.  Completeness is what makes the collected cells the right ones —
+a cell met by the splitter has a member with a nonzero count, so it is represented.  Soundness
+and no-repetition are what make the restore loop at the end of the step put the scratch back
+*exactly*, in time proportional to what was dirtied rather than to `n`. -/
+structure Touched (cnt touched : Array Nat) : Prop where
+  /-- No vertex is recorded twice. -/
+  nodup : touched.toList.Nodup
+  /-- Only vertices are recorded. -/
+  lt : ∀ w ∈ touched, w < cnt.size
+  /-- Recorded is the same as counted. -/
+  mem : ∀ w, w < cnt.size → (w ∈ touched ↔ cnt[w]! ≠ 0)
+
+/-- Cleared scratch satisfies the invariant. -/
+theorem touched_empty (cnt : Array Nat) (h : ∀ w, w < cnt.size → cnt[w]! = 0) :
+    Touched cnt #[] :=
+  ⟨by simp, by simp, fun w hw => by simp [h w hw]⟩
+
+/-- An in-bounds `getElem!` is a member. -/
+theorem getElem!_mem {a : Array Nat} {j : Nat} (h : j < a.size) : a[j]! ∈ a := by
+  rw [getElem!_pos a j h]
+  exact Array.getElem_mem h
+
+/-- The inner loop maintains the scratch invariant: it pushes a vertex exactly when it is raising
+that vertex's count off zero.  The hypothesis on `nbrs` is needed — a neighbour outside `cnt`
+would leave the count at the `getElem!` default of `0` and so be pushed on every visit. -/
+theorem bumpFrom_touched (nbrs : Array Nat) : ∀ (fuel j : Nat) (cnt touched : Array Nat),
+    (∀ x ∈ nbrs, x < cnt.size) → Touched cnt touched →
+      Touched (bumpFrom nbrs fuel j cnt touched).1 (bumpFrom nbrs fuel j cnt touched).2
+  | 0, _, _, _, _, ht => ht
+  | fuel + 1, j, cnt, touched, hnb, ht => by
+    rw [bumpFrom]
+    split
+    · exact ht
+    · rename_i hj
+      have hjs : j < nbrs.size := by omega
+      have hv : nbrs[j]! < cnt.size := hnb _ (getElem!_mem hjs)
+      have hsz : (cnt.set! nbrs[j]! (cnt[nbrs[j]!]! + 1)).size = cnt.size := by simp
+      refine bumpFrom_touched nbrs fuel (j + 1) _ _ (by simpa [hsz] using hnb) ⟨?_, ?_, ?_⟩
+      · split
+        · rename_i hc
+          have hnot : nbrs[j]! ∉ touched := fun hmem =>
+            ((ht.mem _ hv).1 hmem) (by simpa using hc)
+          rw [Array.toList_push]
+          refine List.nodup_append.2 ⟨ht.nodup, by simp, ?_⟩
+          intro a ha b hb hab
+          rw [List.mem_singleton] at hb
+          subst hab
+          subst hb
+          exact hnot (by simpa using ha)
+        · exact ht.nodup
+      · intro w hw
+        rw [hsz]
+        split at hw
+        · rcases Array.mem_push.1 hw with h | h
+          · exact ht.lt w h
+          · exact h ▸ hv
+        · exact ht.lt w hw
+      · intro w hw
+        rw [hsz] at hw
+        by_cases hwv : w = nbrs[j]!
+        · subst hwv
+          rw [getElem!_set! hv _, if_pos rfl]
+          simp only [ne_eq, Nat.succ_ne_zero, not_false_eq_true, iff_true]
+          split
+          · exact Array.mem_push.2 (Or.inr rfl)
+          · rename_i hc
+            exact (ht.mem _ hw).2 (by simpa using hc)
+        · rw [getElem!_set!_ne hwv]
+          split
+          · rw [Array.mem_push]
+            simp only [hwv, or_false]
+            exact ht.mem w hw
+          · exact ht.mem w hw
+
+/-- The outer loop maintains the scratch invariant. -/
+theorem countFrom_touched (G : Graph) (lab : Array Nat) (e : Nat) :
+    ∀ (fuel k : Nat) (cnt touched : Array Nat),
+      (∀ (u x : Nat), x ∈ G.nbr[u]! → x < cnt.size) → Touched cnt touched →
+        Touched (countFrom G lab e fuel k cnt touched).1
+          (countFrom G lab e fuel k cnt touched).2
+  | 0, _, _, _, _, ht => ht
+  | fuel + 1, k, cnt, touched, hG, ht => by
+    rw [countFrom_succ]
+    split
+    · exact ht
+    · refine countFrom_touched G lab e fuel (k + 1) _ _ ?_
+        (bumpFrom_touched _ _ _ _ _ (fun x hx => hG lab[k]! x hx) ht)
+      intro u x hx
+      rw [bumpFrom_size]
+      exact hG u x hx
+
+/-- The counting phase as `refineStep` actually calls it, from cleared scratch. -/
+theorem countFrom_touched_spec {n : Nat} (f : Nat → Nat → Bool) (lab : Array Nat) (e s : Nat) :
+    Touched (countFrom (Graph.ofOracle n f) lab e (e - s) s (Array.replicate n 0) #[]).1
+      (countFrom (Graph.ofOracle n f) lab e (e - s) s (Array.replicate n 0) #[]).2 :=
+  countFrom_touched _ _ _ _ _ _ _
+    (fun u x hx => by simpa using ofOracle_nbr_lt' n f u x hx)
+    (touched_empty _ fun w hw => by rw [getElem!_pos (Array.replicate n 0) w hw]; simp)
+
+/-- **The vertices the counting phase records form an invariant set.**  `touched` is exactly the
+set of vertices that the splitter cell reaches, and membership is stated in terms of `cellCount`,
+which `cellCount_equiv` shows corresponding runs agree on.
+
+The *order* of `touched` is not invariant — it is first-touch order, which depends on vertex
+names.  That is why `refineStep` maps it to cell starts and sorts before using it. -/
+theorem countFrom_mem_touched {n : Nat} (f : Nat → Nat → Bool) {p : Part} (hp : Part.WF n p)
+    {s : Nat} (hs : s < n) (hcst : p.cst[s]! = s) {w : Nat} (hw : w < n) :
+    w ∈ (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+        (Array.replicate n 0) #[]).2 ↔ cellCount n p s (fun u => f u w) ≠ 0 := by
+  rw [(countFrom_touched_spec f p.lab p.cen[s]! s).mem w
+      (by rw [countFrom_size]; simpa using hw),
+    countFrom_cellCount f hp hs hcst hw]
 
 end Canon
 end IsoGraph

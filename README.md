@@ -303,7 +303,14 @@ says the loop computes the quantity; `countFrom_equiv` combines it with `cellCou
 equivariance statement itself. The bridge is `List.count`: the loop bumps `cnt[w]` once per
 occurrence of `w` in a neighbour list, `Graph.ofOracle`'s neighbour lists are filtered ranges and
 so duplicate-free, and a bijection between the cell's *positions* and its *vertices* turns the
-resulting sum into a `Finset.card`. What remains of step 1 is the counting sort and Hopcroft's
+resulting sum into a `Finset.card`.
+
+The phase's other output is the list of vertices it touched, which the step uses both to find the
+cells to split and to restore the scratch space afterwards. `Touched cnt touched` — "`touched`
+lists exactly the vertices with a nonzero count, each once" — is maintained by the loop, and
+`countFrom_mem_touched` states membership in terms of `cellCount`, so that set is invariant as
+well. Its *order* is not: it is first-touch order, which is why `refineStep` maps it to cell
+starts and sorts before using it. What remains of step 1 is the counting sort and Hopcroft's
 worklist rule that follow.
 
 One thing worth recording from that rewrite: writing the inner loop's result back with `.1`/`.2`
