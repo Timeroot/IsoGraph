@@ -3143,5 +3143,540 @@ theorem splitCell_spec {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
       rw [key v hv hvc, key w hw hwc]
     · exact splitOk_general hp hc hcst hbc hcb hb h1 h2
 
+theorem sortNats_size (a : Array Nat) : (sortNats a).size = a.size :=
+  (sortNats_perm a).length_eq
+
+/-- The fragments of a split cell occupy disjoint ranges of positions: the fragment of `t` ends
+before the fragment of any larger count starts. -/
+theorem fragStart_disjoint {n : Nat} {p : Part} {cnt : Array Nat} {c t t' : Nat} (h : t < t') :
+    fragStart n p cnt c t + cellCount n p c (fun u => cnt[u]! == t)
+      ≤ fragStart n p cnt c t' := by
+  rw [fragStart, fragStart]
+  have hsub : ∑ u ∈ Finset.range t', cellCount n p c (fun w => cnt[w]! == u)
+      = ∑ u ∈ Finset.Ico 0 (t + 1), cellCount n p c (fun w => cnt[w]! == u)
+        + ∑ u ∈ Finset.Ico (t + 1) t', cellCount n p c (fun w => cnt[w]! == u) := by
+    rw [Finset.range_eq_Ico, Finset.sum_Ico_consecutive _ (by omega) (by omega)]
+  rw [← Finset.range_eq_Ico, Finset.sum_range_succ] at hsub
+  omega
+
+/-- **The split is equivariant.**  Two corresponding cells are split into corresponding
+fragments: the fragment of a vertex is determined by its count, and corresponding vertices have
+corresponding counts, so the two runs lay their cells out identically. -/
+theorem splitOk_partEquiv {n : Nat} {σ : Nat → Nat} {p q p' q' : Part} {cnt cnt' : Array Nat}
+    {c : Nat} (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q) (he : PartEquiv n σ p q)
+    (hc : c < n) (hcst : q.cst[c]! = c) (hcnt : ∀ v, v < n → cnt[σ v]! = cnt'[v]!)
+    (h1 : SplitOk n p cnt c p') (h2 : SplitOk n q cnt' c q') :
+    PartEquiv n σ p' q' := by
+  have hcstp : p.cst[c]! = c := by rw [he.cst c hc, hcst]
+  have hcen : p.cen[c]! = q.cen[c]! := he.cen c hc
+  have hcE : c < p.cen[c]! := hp.ltCen c hc
+  have hEn : p.cen[c]! ≤ n := hp.cenLe c hc
+  -- the two runs count the same number of cell vertices of each count
+  have hcc : ∀ t, cellCount n p c (fun u => cnt[u]! == t)
+      = cellCount n q c (fun u => cnt'[u]! == t) := by
+    intro t
+    rw [cellCount_equiv hσ he c (fun u => cnt[u]! == t)]
+    refine cellCount_congr fun w hw _ => ?_
+    rw [hcnt w hw]
+  have hfs : ∀ t, fragStart n p cnt c t = fragStart n q cnt' c t := by
+    intro t
+    rw [fragStart, fragStart]
+    exact congrArg _ (Finset.sum_congr rfl fun t' _ => hcc t')
+  -- a vertex that ends up in the cell was in it to begin with
+  have hback : ∀ {r r' : Part} {d : Array Nat}, SplitOk n r d c r' → r.cen[c]! = p.cen[c]! →
+      ∀ v, v < n → c ≤ r'.pos[v]! → r'.pos[v]! < p.cen[c]! →
+        c ≤ r.pos[v]! ∧ r.pos[v]! < p.cen[c]! := by
+    intro r r' d h hcr v hv ha hb
+    by_contra hcon
+    have hout : r.pos[v]! < c ∨ r.cen[c]! ≤ r.pos[v]! := by omega
+    have := h.pos_ne v hv hout
+    omega
+  -- the fragment boundaries agree at every position of the cell
+  have hkey : ∀ i, c ≤ i → i < p.cen[c]! → p'.cst[i]! = q'.cst[i]! ∧ p'.cen[i]! = q'.cen[i]! := by
+    intro i ha hb
+    have hi : i < n := by omega
+    set v := p'.lab[i]! with hv
+    set w := q'.lab[i]! with hw
+    have hvn : v < n := h1.wf.labLt i hi
+    have hwn : w < n := h2.wf.labLt i hi
+    have hpv : p'.pos[v]! = i := h1.wf.posLab i hi
+    have hqw : q'.pos[w]! = i := h2.wf.posLab i hi
+    obtain ⟨hv1, hv2⟩ := hback h1 rfl v hvn (by rw [hpv]; omega) (by rw [hpv]; omega)
+    obtain ⟨hw1, hw2⟩ := hback h2 hcen.symm w hwn (by rw [hqw]; omega) (by rw [hqw]; omega)
+    have hpcst : p'.cst[i]! = fragStart n p cnt c cnt[v]! := by
+      rw [← hpv]; exact h1.cell v hvn hv1 hv2
+    have hpcen : p'.cen[i]! = fragStart n p cnt c cnt[v]!
+        + cellCount n p c (fun u => cnt[u]! == cnt[v]!) := by
+      rw [← hpv]; exact h1.cen_cell v hvn hv1 hv2
+    have hqcst : q'.cst[i]! = fragStart n q cnt' c cnt'[w]! := by
+      rw [← hqw]; exact h2.cell w hwn hw1 (by omega)
+    have hqcen : q'.cen[i]! = fragStart n q cnt' c cnt'[w]!
+        + cellCount n q c (fun u => cnt'[u]! == cnt'[w]!) := by
+      rw [← hqw]; exact h2.cen_cell w hwn hw1 (by omega)
+    -- both counts name a fragment containing `i`, and fragments are disjoint
+    have hlo1 : p'.cst[i]! ≤ i := h1.wf.cstLe i hi
+    have hhi1 : i < p'.cen[i]! := h1.wf.ltCen i hi
+    have hlo2 : q'.cst[i]! ≤ i := h2.wf.cstLe i hi
+    have hhi2 : i < q'.cen[i]! := h2.wf.ltCen i hi
+    rw [← hfs] at hqcst
+    rw [← hfs, ← hcc] at hqcen
+    have hteq : cnt[v]! = cnt'[w]! := by
+      rcases Nat.lt_trichotomy cnt[v]! cnt'[w]! with hlt | heq | hgt
+      · have := fragStart_disjoint (n := n) (p := p) (cnt := cnt) (c := c) hlt
+        omega
+      · exact heq
+      · have := fragStart_disjoint (n := n) (p := p) (cnt := cnt) (c := c) hgt
+        omega
+    rw [hpcst, hpcen, hqcst, hqcen, hteq]
+    exact ⟨rfl, rfl⟩
+  refine ⟨?_, ?_, ?_⟩
+  · intro i hi
+    by_cases hcell : c ≤ i ∧ i < p.cen[c]!
+    · exact (hkey i hcell.1 hcell.2).1
+    · rw [h1.cst_ne i hi (by omega), h2.cst_ne i hi (by omega), he.cst i hi]
+  · intro i hi
+    by_cases hcell : c ≤ i ∧ i < p.cen[c]!
+    · exact (hkey i hcell.1 hcell.2).2
+    · rw [h1.cen_ne i hi (by omega), h2.cen_ne i hi (by omega), he.cen i hi]
+  · intro v hv
+    have hσv : σ v < n := hσ.maps v hv
+    have hpv : p.pos[σ v]! < n := hp.posLt _ hσv
+    have hqv : q.pos[v]! < n := hq.posLt v hv
+    by_cases hcell : q.cst[q.pos[v]!]! = c
+    · have hpc : p.cst[p.pos[σ v]!]! = c := by rw [he.cell v hv, hcell]
+      have hp1 : c ≤ p.pos[σ v]! ∧ p.pos[σ v]! < p.cen[c]! := by
+        have := (hp.cst_eq_iff hc hpv).1 (by rw [hpc, hcstp])
+        rw [hcstp] at this
+        exact this
+      have hq1 : c ≤ q.pos[v]! ∧ q.pos[v]! < q.cen[c]! := by
+        have := (hq.cst_eq_iff hc hqv).1 (by rw [hcell, hcst])
+        rw [hcst] at this
+        exact this
+      rw [h1.cell (σ v) hσv hp1.1 hp1.2, h2.cell v hv hq1.1 hq1.2, hfs, hcnt v hv]
+    · have hpc : p.cst[p.pos[σ v]!]! ≠ c := by rw [he.cell v hv]; exact hcell
+      have hq1 : q.pos[v]! < c ∨ q.cen[c]! ≤ q.pos[v]! := by
+        by_contra hcon
+        exact hcell ((hq.cellCst c hc _ (by omega) (by omega)).trans hcst)
+      have hp1 : p.pos[σ v]! < c ∨ p.cen[c]! ≤ p.pos[σ v]! := by
+        by_contra hcon
+        exact hpc ((hp.cellCst c hc _ (by omega) (by omega)).trans hcstp)
+      rw [h1.pos_ne (σ v) hσv hp1, h2.pos_ne v hv hq1,
+        h1.cst_ne _ hpv hp1, h2.cst_ne _ hqv hq1, he.cell v hv]
+
+/-! ### Reading off the scratch fields of one `splitCell` step
+
+The same branch equations again, now for the fields the partition proofs ignore: the trace, the
+worklist, and the bucket scratch. -/
+
+theorem splitCell_tr_singleton {cnt : Array Nat} {c : Nat} {st : SplitState}
+    (h : (st.cen[c]! - c == 1) = true) :
+    (splitCell cnt c st).tr = mixN (mixN st.tr c) cnt[st.lab[c]!]! := by
+  rw [splitCell_eq_singleton h]
+
+theorem splitCell_inW_singleton {cnt : Array Nat} {c : Nat} {st : SplitState}
+    (h : (st.cen[c]! - c == 1) = true) : (splitCell cnt c st).inW = st.inW := by
+  rw [splitCell_eq_singleton h]
+
+theorem splitCell_bc_singleton {cnt : Array Nat} {c : Nat} {st : SplitState}
+    (h : (st.cen[c]! - c == 1) = true) : (splitCell cnt c st).bc = st.bc := by
+  rw [splitCell_eq_singleton h]
+
+theorem splitCell_tr_one {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
+    (hb : bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0))
+    (h1 : ¬(st.cen[c]! - c == 1) = true) (h2 : (ks0.size == 1) = true) :
+    (splitCell cnt c st).tr = mixN (mixN st.tr c) ks0[0]! := by
+  rw [splitCell_eq_one hb h1 h2]
+
+theorem splitCell_inW_one {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
+    (hb : bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0))
+    (h1 : ¬(st.cen[c]! - c == 1) = true) (h2 : (ks0.size == 1) = true) :
+    (splitCell cnt c st).inW = st.inW := by
+  rw [splitCell_eq_one hb h1 h2]
+
+theorem splitCell_bc_one {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
+    (hb : bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0))
+    (h1 : ¬(st.cen[c]! - c == 1) = true) (h2 : (ks0.size == 1) = true) :
+    (splitCell cnt c st).bc = bc0.set! ks0[0]! 0 := by
+  rw [splitCell_eq_one hb h1 h2]
+
+theorem splitCell_tr_general {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
+    (hb : bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0))
+    (h1 : ¬(st.cen[c]! - c == 1) = true) (h2 : ¬(ks0.size == 1) = true)
+    {sizes bc1 : Array Nat} (ho : offsetFrom (sortNats ks0) (sortNats ks0).size 0
+      (Array.replicate (sortNats ks0).size 0) bc0 0 = (sizes, bc1))
+    {block bc2 : Array Nat} (hsc : scatterFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c
+      (Array.replicate (st.cen[c]! - c) 0) bc1 = (block, bc2))
+    {lab pos : Array Nat} (hw : writeFrom block c block.size 0 st.lab st.pos = (lab, pos))
+    {cst cen starts : Array Nat} {tr : UInt64} (hbd : boundsFrom (sortNats ks0) sizes
+      (sortNats ks0).size 0 st.cst st.cen #[] c (mixN st.tr c) = (cst, cen, starts, tr)) :
+    (splitCell cnt c st).tr = tr := by
+  rw [splitCell_eq_general hb h1 h2 ho hsc hw hbd]
+
+theorem splitCell_inW_general {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
+    (hb : bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0))
+    (h1 : ¬(st.cen[c]! - c == 1) = true) (h2 : ¬(ks0.size == 1) = true)
+    {sizes bc1 : Array Nat} (ho : offsetFrom (sortNats ks0) (sortNats ks0).size 0
+      (Array.replicate (sortNats ks0).size 0) bc0 0 = (sizes, bc1))
+    {block bc2 : Array Nat} (hsc : scatterFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c
+      (Array.replicate (st.cen[c]! - c) 0) bc1 = (block, bc2))
+    {lab pos : Array Nat} (hw : writeFrom block c block.size 0 st.lab st.pos = (lab, pos))
+    {cst cen starts : Array Nat} {tr : UInt64} (hbd : boundsFrom (sortNats ks0) sizes
+      (sortNats ks0).size 0 st.cst st.cen #[] c (mixN st.tr c) = (cst, cen, starts, tr)) :
+    (splitCell cnt c st).inW =
+      if st.inW[c]! then markAllFrom starts starts.size 0 st.inW
+      else markExceptFrom starts (maxIdxFrom sizes sizes.size 0 0) starts.size 0 st.inW := by
+  rw [splitCell_eq_general hb h1 h2 ho hsc hw hbd]
+
+theorem splitCell_bc_general {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
+    (hb : bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0))
+    (h1 : ¬(st.cen[c]! - c == 1) = true) (h2 : ¬(ks0.size == 1) = true)
+    {sizes bc1 : Array Nat} (ho : offsetFrom (sortNats ks0) (sortNats ks0).size 0
+      (Array.replicate (sortNats ks0).size 0) bc0 0 = (sizes, bc1))
+    {block bc2 : Array Nat} (hsc : scatterFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c
+      (Array.replicate (st.cen[c]! - c) 0) bc1 = (block, bc2))
+    {lab pos : Array Nat} (hw : writeFrom block c block.size 0 st.lab st.pos = (lab, pos))
+    {cst cen starts : Array Nat} {tr : UInt64} (hbd : boundsFrom (sortNats ks0) sizes
+      (sortNats ks0).size 0 st.cst st.cen #[] c (mixN st.tr c) = (cst, cen, starts, tr)) :
+    (splitCell cnt c st).bc = clearBcFrom (sortNats ks0) (sortNats ks0).size 0 bc2 := by
+  rw [splitCell_eq_general hb h1 h2 ho hsc hw hbd]
+
+/-- **The bucket scratch array is restored.**  Whatever branch it takes, `splitCell` hands back a
+`bc` of the same size and again all zero, so the next split can run on it. -/
+theorem splitCell_bc {cnt : Array Nat} {c : Nat} {st : SplitState}
+    (hbc : ∀ t, t < st.bc.size → st.bc[t]! = 0) (hcb : ∀ (v : Nat), cnt[v]! < st.bc.size) :
+    (splitCell cnt c st).bc.size = st.bc.size ∧
+      ∀ t, t < st.bc.size → (splitCell cnt c st).bc[t]! = 0 := by
+  obtain ⟨bc0, ks0, hb⟩ : ∃ bc0 ks0,
+      bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0) := ⟨_, _, rfl⟩
+  by_cases h1 : (st.cen[c]! - c == 1) = true
+  · rw [splitCell_bc_singleton h1]
+    exact ⟨rfl, hbc⟩
+  · have e1 : bc0 = (bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[]).1 := by rw [hb]
+    have e2 : ks0 = (bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[]).2 := by rw [hb]
+    have hbc0size : bc0.size = st.bc.size := by rw [e1, bucketFrom_size]
+    have hbc0 : ∀ t, t < st.bc.size → bc0[t]! = bucketSize st.lab cnt c st.cen[c]! t := by
+      intro t ht
+      rw [e1,
+        bucketFrom_getElem! st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] (by omega) t ht,
+        hbc t ht, Nat.zero_add]
+    have hks0mem : ∀ t, t ∈ ks0 ↔ t < st.bc.size ∧ bucketSize st.lab cnt c st.cen[c]! t ≠ 0 := by
+      intro t
+      rw [e2]
+      exact bucket_mem hcb hbc t
+    by_cases h2 : (ks0.size == 1) = true
+    · rw [splitCell_bc_one hb h1 h2]
+      have hks1 : ks0.size = 1 := by simpa using h2
+      have h0lt : ks0[0]! < bc0.size := by
+        rw [hbc0size]; exact ((hks0mem _).1 (getElem!_mem (by omega))).1
+      refine ⟨by simp [hbc0size], fun t ht => ?_⟩
+      by_cases hteq : t = ks0[0]!
+      · rw [getElem!_set! h0lt t, if_pos hteq]
+      · rw [getElem!_set!_ne hteq, hbc0 t ht]
+        by_contra hz
+        obtain ⟨i, hi, hiv⟩ := mem_iff_getElem!.1 ((hks0mem t).2 ⟨ht, hz⟩)
+        exact hteq (by rw [← hiv, show i = 0 by omega])
+    · obtain ⟨sizes, bc1, ho⟩ : ∃ sizes bc1, offsetFrom (sortNats ks0) (sortNats ks0).size 0
+          (Array.replicate (sortNats ks0).size 0) bc0 0 = (sizes, bc1) := ⟨_, _, rfl⟩
+      obtain ⟨block, bc2, hsc⟩ : ∃ block bc2, scatterFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c
+          (Array.replicate (st.cen[c]! - c) 0) bc1 = (block, bc2) := ⟨_, _, rfl⟩
+      obtain ⟨lab, pos, hw⟩ : ∃ lab pos,
+          writeFrom block c block.size 0 st.lab st.pos = (lab, pos) := ⟨_, _, rfl⟩
+      obtain ⟨cst, cen, starts, tr, hbd⟩ : ∃ cst cen starts tr, boundsFrom (sortNats ks0) sizes
+          (sortNats ks0).size 0 st.cst st.cen #[] c (mixN st.tr c) = (cst, cen, starts, tr) :=
+        ⟨_, _, _, _, rfl⟩
+      rw [splitCell_bc_general hb h1 h2 ho hsc hw hbd]
+      have e3 : bc1 = (offsetFrom (sortNats ks0) (sortNats ks0).size 0
+        (Array.replicate (sortNats ks0).size 0) bc0 0).2 := by rw [ho]
+      have e4 : bc2 = (scatterFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c
+        (Array.replicate (st.cen[c]! - c) 0) bc1).2 := by rw [hsc]
+      have hbc2size : bc2.size = st.bc.size := by
+        rw [e4, scatterFrom_size2, e3, offsetFrom_size2, hbc0size]
+      refine ⟨by rw [clearBcFrom_size, hbc2size], fun t ht => ?_⟩
+      by_cases hmem : ∃ j, j < (sortNats ks0).size ∧ (sortNats ks0)[j]! = t
+      · obtain ⟨j, hj, hjt⟩ := hmem
+        rw [← hjt]
+        exact clearBcFrom_mem (sortNats ks0) (sortNats ks0).size 0 bc2 (by omega) j (by omega) hj
+          (by rw [hjt, hbc2size]; exact ht)
+      · push_neg at hmem
+        have hnot0 : t ∉ ks0 := by
+          intro h
+          obtain ⟨j, hj, hjt⟩ := mem_iff_getElem!.1 (sortNats_mem.2 h)
+          exact hmem j hj hjt
+        have hzero : bucketSize st.lab cnt c st.cen[c]! t = 0 := by
+          by_contra hz
+          exact hnot0 ((hks0mem t).2 ⟨ht, hz⟩)
+        have hne : ∀ i, c ≤ i → i < st.cen[c]! → cnt[st.lab[i]!]! ≠ t := by
+          intro i hi1 hi2 he
+          have hp1 : 0 < bucketSize st.lab cnt i st.cen[c]! t := bucketSize_pos st.lab cnt hi2 he
+          have hp2 := bucketSize_mono st.lab cnt hi1 (Nat.le_of_lt hi2) (t := t)
+          omega
+        have c1 : (clearBcFrom (sortNats ks0) (sortNats ks0).size 0 bc2)[t]! = bc2[t]! :=
+          clearBcFrom_ne (sortNats ks0) (sortNats ks0).size 0 bc2 t
+            (fun j' _ hj2 he => hmem j' hj2 he)
+        have c2 : bc2[t]! = bc1[t]! := by
+          rw [e4]
+          exact scatterFrom_bc_ne st.lab cnt st.cen[c]! (st.cen[c]! - c) c _ bc1 t hne
+        have c3 : bc1[t]! = bc0[t]! := by
+          rw [e3]
+          exact offsetFrom_ne (sortNats ks0) (sortNats ks0).size 0 _ bc0 0 t
+            (fun i _ hi2 he => hmem i hi2 he.symm)
+        rw [c1, c2, c3, hbc0 t ht, hzero]
+
+/-- What the bucketing and offset passes leave behind, in a form that mentions neither the size of
+the scratch array nor the order the counts were met in: the counts are listed once each, they are
+exactly the counts occurring in the cell, and the fragment sizes are their bucket sizes. -/
+theorem bucketFrom_facts {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
+    (hbc : ∀ t, t < st.bc.size → st.bc[t]! = 0) (hcb : ∀ (v : Nat), cnt[v]! < st.bc.size)
+    (hb : bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] = (bc0, ks0)) :
+    ks0.toList.Nodup ∧ (∀ t, t ∈ ks0 ↔ bucketSize st.lab cnt c st.cen[c]! t ≠ 0) ∧
+      ∀ (sizes bc1 : Array Nat), offsetFrom (sortNats ks0) (sortNats ks0).size 0
+          (Array.replicate (sortNats ks0).size 0) bc0 0 = (sizes, bc1) →
+        sizes.size = (sortNats ks0).size ∧ ∀ j, j < (sortNats ks0).size →
+          sizes[j]! = bucketSize st.lab cnt c st.cen[c]! (sortNats ks0)[j]! := by
+  have e1 : bc0 = (bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[]).1 := by rw [hb]
+  have e2 : ks0 = (bucketFrom st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[]).2 := by rw [hb]
+  have hbc0size : bc0.size = st.bc.size := by rw [e1, bucketFrom_size]
+  have hbc0 : ∀ t, t < st.bc.size → bc0[t]! = bucketSize st.lab cnt c st.cen[c]! t := by
+    intro t ht
+    rw [e1, bucketFrom_getElem! st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] (by omega) t ht,
+      hbc t ht, Nat.zero_add]
+  have hks0nd : ks0.toList.Nodup := by
+    have h := bucketFrom_touched st.lab cnt st.cen[c]! (st.cen[c]! - c) c st.bc #[] hcb
+      (touched_empty st.bc fun w hw => hbc w hw)
+    rw [← e2] at h
+    exact h.nodup
+  have hndks : (sortNats ks0).toList.Nodup := (sortNats_perm ks0).nodup_iff.2 hks0nd
+  have hksmem : ∀ t, t ∈ ks0 ↔ bucketSize st.lab cnt c st.cen[c]! t ≠ 0 := by
+    intro t
+    rw [e2]
+    refine (bucket_mem hcb hbc t).trans ⟨fun h => h.2, fun h => ⟨?_, h⟩⟩
+    obtain ⟨i, _, _, hi3⟩ := exists_of_bucketSize h
+    exact hi3 ▸ hcb st.lab[i]!
+  have hkslt : ∀ j, j < (sortNats ks0).size → (sortNats ks0)[j]! < st.bc.size := by
+    intro j hj
+    obtain ⟨i, _, _, hi3⟩ := exists_of_bucketSize ((hksmem _).1 (sortNats_mem.1 (getElem!_mem hj)))
+    exact hi3 ▸ hcb st.lab[i]!
+  refine ⟨hks0nd, hksmem, fun sizes bc1 ho => ⟨?_, fun j hj => ?_⟩⟩
+  · have h := offsetFrom_size1 (sortNats ks0) (sortNats ks0).size 0
+      (Array.replicate (sortNats ks0).size 0) bc0 0
+    rw [ho] at h
+    rw [h]
+    simp
+  · have h := offsetFrom_sizes (sortNats ks0) hndks (sortNats ks0).size 0
+      (Array.replicate (sortNats ks0).size 0) bc0 0 (by omega) (by simp) j hj
+    rw [ho] at h
+    rw [h, if_neg (by omega), hbc0 _ (hkslt j hj)]
+
+/-- **The scratch fields move in lockstep too.**  Corresponding cells hash to the same trace and
+queue the same fragments: the branch taken, the fragment sizes and the fragment starts are all
+determined by data the two runs share. -/
+theorem splitCell_scratch_equiv {n : Nat} {σ : Nat → Nat} {cnt cnt' : Array Nat} {c : Nat}
+    {stp stq : SplitState} (hσ : IsPerm n σ) (hp : Part.WF n stp.part) (hq : Part.WF n stq.part)
+    (he : PartEquiv n σ stp.part stq.part) (hc : c < n) (hcst : stq.cst[c]! = c)
+    (hcnt : ∀ v, v < n → cnt[σ v]! = cnt'[v]!)
+    (hbcp : ∀ t, t < stp.bc.size → stp.bc[t]! = 0) (hcbp : ∀ (v : Nat), cnt[v]! < stp.bc.size)
+    (hbcq : ∀ t, t < stq.bc.size → stq.bc[t]! = 0) (hcbq : ∀ (v : Nat), cnt'[v]! < stq.bc.size)
+    (htr : stp.tr = stq.tr) (hinW : stp.inW = stq.inW) :
+    (splitCell cnt c stp).tr = (splitCell cnt' c stq).tr ∧
+      (splitCell cnt c stp).inW = (splitCell cnt' c stq).inW := by
+  -- the two partitions have literally the same cell boundaries
+  have hcpn : stp.cst.size = n := hp.cstSize
+  have hcqn : stq.cst.size = n := hq.cstSize
+  have hepn : stp.cen.size = n := hp.cenSize
+  have heqn : stq.cen.size = n := hq.cenSize
+  have hcstEq : stp.cst = stq.cst :=
+    array_ext! (by rw [hcpn, hcqn]) (fun i hi => he.cst i (by rw [← hcpn]; exact hi))
+  have hcenEq : stp.cen = stq.cen :=
+    array_ext! (by rw [hepn, heqn]) (fun i hi => he.cen i (by rw [← hepn]; exact hi))
+  have hcenc : stp.cen[c]! = stq.cen[c]! := by rw [hcenEq]
+  have hcstp : stp.cst[c]! = c := by rw [hcstEq]; exact hcst
+  have hcE : c < stp.cen[c]! := hp.ltCen c hc
+  -- and count the same number of cell vertices of each count
+  have hbs : ∀ t, bucketSize stp.lab cnt c stp.cen[c]! t
+      = bucketSize stq.lab cnt' c stq.cen[c]! t := by
+    intro t
+    have e1 : bucketSize stp.lab cnt c stp.cen[c]! t
+        = cellCount n stp.part c (fun u => cnt[u]! == t) := bucketSize_cellCount hp hc hcstp cnt t
+    have e2 : bucketSize stq.lab cnt' c stq.cen[c]! t
+        = cellCount n stq.part c (fun u => cnt'[u]! == t) := bucketSize_cellCount hq hc hcst cnt' t
+    rw [e1, e2, cellCount_equiv hσ he c (fun u => cnt[u]! == t)]
+    exact cellCount_congr fun w hw _ => by rw [hcnt w hw]
+  obtain ⟨bc0p, ks0p, hbp⟩ : ∃ a b,
+      bucketFrom stp.lab cnt stp.cen[c]! (stp.cen[c]! - c) c stp.bc #[] = (a, b) := ⟨_, _, rfl⟩
+  obtain ⟨bc0q, ks0q, hbq⟩ : ∃ a b,
+      bucketFrom stq.lab cnt' stq.cen[c]! (stq.cen[c]! - c) c stq.bc #[] = (a, b) := ⟨_, _, rfl⟩
+  obtain ⟨hndp, hmemp, hszp⟩ := bucketFrom_facts hbcp hcbp hbp
+  obtain ⟨hndq, hmemq, hszq⟩ := bucketFrom_facts hbcq hcbq hbq
+  -- so they meet the same set of counts, in the same order once sorted
+  have hksEq : sortNats ks0p = sortNats ks0q :=
+    sortNats_ext hndp hndq fun t => by rw [hmemp t, hmemq t, hbs t]
+  have hsizeEq : ks0p.size = ks0q.size := by
+    rw [← sortNats_size ks0p, ← sortNats_size ks0q, hksEq]
+  by_cases h1 : (stp.cen[c]! - c == 1) = true
+  · -- a singleton cell: the only vertex has the same count on both sides
+    have h1' : (stq.cen[c]! - c == 1) = true := by rw [← hcenc]; exact h1
+    rw [splitCell_tr_singleton h1, splitCell_inW_singleton h1,
+      splitCell_tr_singleton h1', splitCell_inW_singleton h1']
+    refine ⟨?_, hinW⟩
+    have hsing : stp.cen[c]! - c = 1 := by simpa using h1
+    have hpos : bucketSize stq.lab cnt' c stq.cen[c]! cnt[stp.lab[c]!]! ≠ 0 := by
+      have := bucketSize_pos stp.lab cnt hcE (rfl : cnt[stp.lab[c]!]! = cnt[stp.lab[c]!]!)
+      rw [← hbs]
+      omega
+    obtain ⟨i, hi1, hi2, hi3⟩ := exists_of_bucketSize hpos
+    have hic : i = c := by rw [← hcenc] at hi2; omega
+    rw [htr, ← hi3, hic]
+  · have h1' : ¬(stq.cen[c]! - c == 1) = true := by rw [← hcenc]; exact h1
+    by_cases h2 : (ks0p.size == 1) = true
+    · -- one bucket: the single count is the same on both sides
+      have h2' : (ks0q.size == 1) = true := by rw [← hsizeEq]; exact h2
+      rw [splitCell_tr_one hbp h1 h2, splitCell_inW_one hbp h1 h2,
+        splitCell_tr_one hbq h1' h2', splitCell_inW_one hbq h1' h2']
+      refine ⟨?_, hinW⟩
+      have hp1 : ks0p.size = 1 := by simpa using h2
+      have hq1 : ks0q.size = 1 := by simpa using h2'
+      have hmem : ks0p[0]! ∈ ks0q :=
+        (hmemq _).2 (by rw [← hbs]; exact (hmemp _).1 (getElem!_mem (by omega)))
+      obtain ⟨j, hj, hjv⟩ := mem_iff_getElem!.1 hmem
+      rw [htr, ← hjv, show j = 0 by omega]
+    · have h2' : ¬(ks0q.size == 1) = true := by rw [← hsizeEq]; exact h2
+      obtain ⟨sizesp, bc1p, hop⟩ : ∃ a b, offsetFrom (sortNats ks0p) (sortNats ks0p).size 0
+          (Array.replicate (sortNats ks0p).size 0) bc0p 0 = (a, b) := ⟨_, _, rfl⟩
+      obtain ⟨sizesq, bc1q, hoq⟩ : ∃ a b, offsetFrom (sortNats ks0q) (sortNats ks0q).size 0
+          (Array.replicate (sortNats ks0q).size 0) bc0q 0 = (a, b) := ⟨_, _, rfl⟩
+      obtain ⟨blockp, bc2p, hscp⟩ : ∃ a b, scatterFrom stp.lab cnt stp.cen[c]! (stp.cen[c]! - c) c
+          (Array.replicate (stp.cen[c]! - c) 0) bc1p = (a, b) := ⟨_, _, rfl⟩
+      obtain ⟨blockq, bc2q, hscq⟩ : ∃ a b, scatterFrom stq.lab cnt' stq.cen[c]! (stq.cen[c]! - c) c
+          (Array.replicate (stq.cen[c]! - c) 0) bc1q = (a, b) := ⟨_, _, rfl⟩
+      obtain ⟨labp, posp, hwp⟩ : ∃ a b,
+          writeFrom blockp c blockp.size 0 stp.lab stp.pos = (a, b) := ⟨_, _, rfl⟩
+      obtain ⟨labq, posq, hwq⟩ : ∃ a b,
+          writeFrom blockq c blockq.size 0 stq.lab stq.pos = (a, b) := ⟨_, _, rfl⟩
+      obtain ⟨cstp, cenp, startsp, trp, hbdp⟩ : ∃ a b d e, boundsFrom (sortNats ks0p) sizesp
+          (sortNats ks0p).size 0 stp.cst stp.cen #[] c (mixN stp.tr c) = (a, b, d, e) :=
+        ⟨_, _, _, _, rfl⟩
+      obtain ⟨cstq, cenq, startsq, trq, hbdq⟩ : ∃ a b d e, boundsFrom (sortNats ks0q) sizesq
+          (sortNats ks0q).size 0 stq.cst stq.cen #[] c (mixN stq.tr c) = (a, b, d, e) :=
+        ⟨_, _, _, _, rfl⟩
+      obtain ⟨hsp1, hsp2⟩ := hszp sizesp bc1p hop
+      obtain ⟨hsq1, hsq2⟩ := hszq sizesq bc1q hoq
+      -- the fragment sizes agree, hence so do the fragment starts and the trace
+      have hsizesEq : sizesp = sizesq := by
+        refine array_ext! (by rw [hsp1, hsq1, hksEq]) fun j hj => ?_
+        rw [hsp1] at hj
+        rw [hsp2 j hj, hsq2 j (by rw [← hksEq]; exact hj), hbs, hksEq]
+      have hbdEq : (cstp, cenp, startsp, trp) = (cstq, cenq, startsq, trq) := by
+        rw [← hbdp, ← hbdq, hksEq, hsizesEq, hcstEq, hcenEq, htr]
+      rw [splitCell_tr_general hbp h1 h2 hop hscp hwp hbdp,
+        splitCell_inW_general hbp h1 h2 hop hscp hwp hbdp,
+        splitCell_tr_general hbq h1' h2' hoq hscq hwq hbdq,
+        splitCell_inW_general hbq h1' h2' hoq hscq hwq hbdq]
+      simp only [Prod.mk.injEq] at hbdEq
+      exact ⟨hbdEq.2.2.2, by rw [hinW, hbdEq.2.2.1, hsizesEq]⟩
+
+/-! ### One refinement step
+
+Everything above is about a single cell.  `splitCellsFrom` walks a list of cells, so the facts have
+to be packaged into an invariant that survives the walk. -/
+
+/-- What a split step needs of its state: a well-formed partition, a cleared bucket array, and
+counts that index into it. -/
+structure SplitInv (n : Nat) (cnt : Array Nat) (st : SplitState) : Prop where
+  /-- The partition is well-formed. -/
+  wf : Part.WF n st.part
+  /-- The bucket scratch is cleared. -/
+  bcZero : ∀ t, t < st.bc.size → st.bc[t]! = 0
+  /-- Every count indexes the bucket scratch. -/
+  cntLt : ∀ (v : Nat), cnt[v]! < st.bc.size
+
+/-- What two split states run in parallel share: corresponding partitions, and *identical* trace
+and worklist. -/
+structure SplitRel (n : Nat) (σ : Nat → Nat) (stp stq : SplitState) : Prop where
+  /-- The partitions correspond under `σ`. -/
+  part : PartEquiv n σ stp.part stq.part
+  /-- The traces agree. -/
+  tr : stp.tr = stq.tr
+  /-- The worklists agree. -/
+  inW : stp.inW = stq.inW
+
+/-- A split step preserves the invariant. -/
+theorem splitCell_inv {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
+    (hinv : SplitInv n cnt st) (hc : c < n) (hcst : st.cst[c]! = c) :
+    SplitInv n cnt (splitCell cnt c st) := by
+  obtain ⟨hsize, hzero⟩ := splitCell_bc (cnt := cnt) (c := c) (st := st) hinv.bcZero hinv.cntLt
+  exact ⟨(splitCell_spec hinv.wf hc hcst hinv.bcZero hinv.cntLt).wf,
+    fun t ht => hzero t (by omega), fun v => by rw [hsize]; exact hinv.cntLt v⟩
+
+/-- Splitting one cell leaves the other cell starts alone. -/
+theorem splitCell_start {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
+    (hinv : SplitInv n cnt st) (hc : c < n) (hcst : st.cst[c]! = c) {c' : Nat} (hc' : c' < n)
+    (hne : c' ≠ c) (hcst' : st.cst[c']! = c') : (splitCell cnt c st).cst[c']! = c' := by
+  have hout : c' < c ∨ st.cen[c]! ≤ c' := by
+    by_contra hcon
+    push_neg at hcon
+    have hcon2 : c' < st.part.cen[c]! := hcon.2
+    have h := hinv.wf.cellCst c hc c' (by rw [show st.part.cst[c]! = c from hcst]; omega)
+      (by omega)
+    rw [show st.part.cst[c]! = c from hcst, show st.part.cst[c']! = c' from hcst'] at h
+    exact hne h
+  have h := (splitCell_spec hinv.wf hc hcst hinv.bcZero hinv.cntLt).cst_ne c' hc' hout
+  rw [show (splitCell cnt c st).part.cst[c']! = (splitCell cnt c st).cst[c']! from rfl,
+    show st.part.cst[c']! = st.cst[c']! from rfl] at h
+  rw [h, hcst']
+
+/-- A split step preserves the relation: this is step 1 for a single cell. -/
+theorem splitCell_rel {n : Nat} {σ : Nat → Nat} {cnt cnt' : Array Nat} {c : Nat}
+    {stp stq : SplitState} (hσ : IsPerm n σ) (hip : SplitInv n cnt stp) (hiq : SplitInv n cnt' stq)
+    (hr : SplitRel n σ stp stq) (hc : c < n) (hcst : stq.cst[c]! = c)
+    (hcnt : ∀ v, v < n → cnt[σ v]! = cnt'[v]!) :
+    SplitRel n σ (splitCell cnt c stp) (splitCell cnt' c stq) := by
+  have hcstp : stp.cst[c]! = c := (hr.part.cst c hc).trans hcst
+  obtain ⟨htr, hinW⟩ := splitCell_scratch_equiv hσ hip.wf hiq.wf hr.part hc hcst hcnt
+    hip.bcZero hip.cntLt hiq.bcZero hiq.cntLt hr.tr hr.inW
+  exact ⟨splitOk_partEquiv hσ hip.wf hiq.wf hr.part hc hcst hcnt
+    (splitCell_spec hip.wf hc hcstp hip.bcZero hip.cntLt)
+    (splitCell_spec hiq.wf hc hcst hiq.bcZero hiq.cntLt), htr, hinW⟩
+
+/-- Splitting a list of distinct cells preserves the invariant. -/
+theorem splitCellsFrom_inv {n : Nat} {cnt cells : Array Nat} (hnd : cells.toList.Nodup) :
+    ∀ (fuel j : Nat) (st : SplitState), SplitInv n cnt st →
+      (∀ j', j ≤ j' → j' < cells.size → cells[j']! < n ∧ st.cst[cells[j']!]! = cells[j']!) →
+      SplitInv n cnt (splitCellsFrom cnt cells fuel j st)
+  | 0, _, st, hinv, _ => hinv
+  | fuel + 1, j, st, hinv, hst => by
+    rw [splitCellsFrom]
+    split
+    · exact hinv
+    · rename_i hj
+      have hjs : j < cells.size := by omega
+      refine splitCellsFrom_inv hnd fuel (j + 1) _
+        (splitCell_inv hinv (hst j (by omega) hjs).1 (hst j (by omega) hjs).2) fun j' h1 h2 => ?_
+      exact ⟨(hst j' (by omega) h2).1, splitCell_start hinv (hst j (by omega) hjs).1
+        (hst j (by omega) hjs).2 (hst j' (by omega) h2).1
+        (nodup_getElem!_ne hnd h2 hjs (by omega)) (hst j' (by omega) h2).2⟩
+
+/-- **Step 1 for a refinement pass.**  Two runs that split the same list of cells with
+corresponding counts stay in correspondence. -/
+theorem splitCellsFrom_rel {n : Nat} {σ : Nat → Nat} {cnt cnt' cells : Array Nat}
+    (hσ : IsPerm n σ) (hnd : cells.toList.Nodup) (hcnt : ∀ v, v < n → cnt[σ v]! = cnt'[v]!) :
+    ∀ (fuel j : Nat) (stp stq : SplitState), SplitInv n cnt stp → SplitInv n cnt' stq →
+      SplitRel n σ stp stq →
+      (∀ j', j ≤ j' → j' < cells.size → cells[j']! < n ∧ stq.cst[cells[j']!]! = cells[j']!) →
+      SplitRel n σ (splitCellsFrom cnt cells fuel j stp) (splitCellsFrom cnt' cells fuel j stq)
+  | 0, _, _, _, _, _, hr, _ => hr
+  | fuel + 1, j, stp, stq, hip, hiq, hr, hst => by
+    rw [splitCellsFrom, splitCellsFrom]
+    split
+    · exact hr
+    · rename_i hj
+      have hjs : j < cells.size := by omega
+      have hcj : cells[j]! < n := (hst j (by omega) hjs).1
+      have hqj : stq.cst[cells[j]!]! = cells[j]! := (hst j (by omega) hjs).2
+      have hpj : stp.cst[cells[j]!]! = cells[j]! := (hr.part.cst _ hcj).trans hqj
+      refine splitCellsFrom_rel hσ hnd hcnt fuel (j + 1) _ _ (splitCell_inv hip hcj hpj)
+        (splitCell_inv hiq hcj hqj) (splitCell_rel hσ hip hiq hr hcj hqj hcnt) fun j' h1 h2 => ?_
+      exact ⟨(hst j' (by omega) h2).1, splitCell_start hiq hcj hqj (hst j' (by omega) h2).1
+        (nodup_getElem!_ne hnd h2 hjs (by omega)) (hst j' (by omega) h2).2⟩
+
 end Canon
 end IsoGraph
