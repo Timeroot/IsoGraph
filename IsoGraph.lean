@@ -11,6 +11,7 @@ import IsoGraph.Paths
 import IsoGraph.Pinned
 import IsoGraph.Jump
 import IsoGraph.Leaves
+import IsoGraph.Dominate
 import IsoGraph.Basic
 import IsoGraph.Invariants
 import IsoGraph.Constructions
