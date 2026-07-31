@@ -24,10 +24,11 @@ What is here is the bottom layer and the steps that rest directly on it:
   permutation (which `canonicalLabellingOfOracle` checks at run time);
 * `Part.WF` and `PartEquiv`, the vocabulary — "well-formed ordered partition" and "the same
   partition up to renaming" — that the whole decomposition is phrased in;
-* the first loop of **step 1** — `cellCount_equiv`, that corresponding cells agree on every count,
-  together with `countFrom_cellCount`, that `refineStep`'s counting phase computes exactly such a
-  count (`countFrom_equiv` combines them), and `countFrom_mem_touched`, that the set of vertices
-  the phase records is invariant too;
+* the first two phases of **step 1** — `cellCount_equiv`, that corresponding cells agree on every
+  count, together with `countFrom_cellCount`, that `refineStep`'s counting phase computes exactly
+  such a count (`countFrom_equiv` combines them), and `countFrom_mem_touched`, that the set of
+  vertices the phase records is invariant too; then `collect_equiv`, that the two runs go on to
+  split the very same list of cells, in the very same order;
 * **step 2** — the two readers of a partition, `shapeHash` and `targetCell`, see only cell
   boundaries, so they agree on partitions related by any renaming;
 * **step 3** — individualising corresponding vertices of related partitions gives related
@@ -36,10 +37,10 @@ What is here is the bottom layer and the steps that rest directly on it:
   (`certOf_of_partEquiv`, via `certOf_relabel`), with `discrete_of_targetCell_none` supplying
   the discreteness at the leaves.
 
-What is *not* here: the rest of `refineStep` after the counting phase — the counting sort, the
-fragment boundaries and Hopcroft's worklist rule (the rest of step 1) — the correspondence of the
-two search trees (step 5), and the argument that the maximum over the leaves does not depend on
-the order children are enumerated in (step 6).
+What is *not* here: the rest of `refineStep` after the collection phase — the counting sort of
+each cell, the fragment boundaries and Hopcroft's worklist rule (the rest of step 1) — the
+correspondence of the two search trees (step 5), and the argument that the maximum over the leaves
+does not depend on the order children are enumerated in (step 6).
 -/
 
 namespace IsoGraph
@@ -471,7 +472,8 @@ records: the cell boundaries move the same way, and a vertex other than the indi
 lands in the second fragment of the old cell precisely when it was in that cell to begin with. -/
 
 /-- Reading one entry of `Array.set!`, the only fact about it these proofs need. -/
-theorem getElem!_set! {a : Array Nat} {i x : Nat} (hi : i < a.size) (k : Nat) :
+theorem getElem!_set! {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {x : α}
+    (hi : i < a.size) (k : Nat) :
     (a.set! i x)[k]! = if k = i then x else a[k]! := by
   by_cases hk : k < a.size
   · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
@@ -915,7 +917,8 @@ duplicate-free, so each cell member contributes at most one. -/
 
 /-- Companion to `getElem!_set!` for the off-diagonal case, where no bound on `i` is needed:
 writing at `i` never disturbs another index, in bounds or not. -/
-theorem getElem!_set!_ne {a : Array Nat} {i x k : Nat} (h : k ≠ i) :
+theorem getElem!_set!_ne {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {x : α} {k : Nat}
+    (h : k ≠ i) :
     (a.set! i x)[k]! = a[k]! := by
   by_cases hk : k < a.size
   · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
@@ -1201,6 +1204,238 @@ theorem countFrom_mem_touched {n : Nat} (f : Nat → Nat → Bool) {p : Part} (h
   rw [(countFrom_touched_spec f p.lab p.cen[s]! s).mem w
       (by rw [countFrom_size]; simpa using hw),
     countFrom_cellCount f hp hs hcst hw]
+
+/-! ### Collecting the cells met by the splitter
+
+Phase (2) of `refineStep` turns the touched vertices into the list of cells that have to be split.
+Its output has to be canonical in a stronger sense than phase (1)'s: not just the same *set* of
+cells in both runs, but the same *array*, since the step then processes them in order.  That is
+what the sort is for, and why `sortNats` goes through `List.mergeSort` rather than `Array.qsort` —
+`qsort` has no specification in this toolchain, and an unspecified order is exactly what cannot be
+tolerated here.  `sortNats_ext` is the punchline of the sorting half ("duplicate-free arrays with
+the same elements sort alike"), `collect_equiv` of the whole phase.
+-/
+
+/-- Sorting a `List` and sorting the `Array` of the same elements agree. -/
+@[simp] theorem sortNats_toList (a : Array Nat) :
+    (sortNats a).toList = a.toList.mergeSort (fun x y => x ≤ y) := by
+  simp [sortNats]
+
+theorem sortNats_perm (a : Array Nat) : (sortNats a).toList.Perm a.toList := by
+  rw [sortNats_toList]
+  exact List.mergeSort_perm _ _
+
+theorem sortNats_pairwise (a : Array Nat) : (sortNats a).toList.Pairwise (· ≤ ·) := by
+  rw [sortNats_toList]
+  have := List.pairwise_mergeSort (le := fun x y : Nat => x ≤ y)
+    (fun a b c hab hbc => by simpa using le_trans (by simpa using hab) (by simpa using hbc))
+    (fun a b => by simpa using le_total a b) a.toList
+  simpa using this
+
+theorem sortNats_mem {a : Array Nat} {c : Nat} : c ∈ sortNats a ↔ c ∈ a := by
+  rw [← Array.mem_toList_iff, ← Array.mem_toList_iff]
+  exact (sortNats_perm a).mem_iff
+
+/-- **Sorting normalises.**  Two duplicate-free arrays with the same elements sort to the same
+array; this is what makes the list of cells met by a splitter canonical. -/
+theorem sortNats_ext {a b : Array Nat} (ha : a.toList.Nodup) (hb : b.toList.Nodup)
+    (h : ∀ c, c ∈ a ↔ c ∈ b) : sortNats a = sortNats b := by
+  have hperm : (sortNats a).toList.Perm (sortNats b).toList :=
+    ((sortNats_perm a).trans
+      (List.perm_of_nodup_nodup_toFinset_eq ha hb (by
+        ext c
+        simpa using h c))).trans (sortNats_perm b).symm
+  refine Array.ext' (List.Perm.eq_of_pairwise ?_ (sortNats_pairwise a) (sortNats_pairwise b) hperm)
+  intro x y _ _ hxy hyx
+  exact le_antisymm hxy hyx
+
+
+/-- The scratch invariant of the collection phase: `cells` lists exactly the cell starts marked
+in `hit`, each once.  The analogue of `Touched` for phase (2). -/
+structure Collected (hit : Array Bool) (cells : Array Nat) : Prop where
+  /-- No cell is collected twice — this is what `hit` is for. -/
+  nodup : cells.toList.Nodup
+  /-- Collected cells are in range. -/
+  lt : ∀ c ∈ cells, c < hit.size
+  /-- `hit` marks exactly the collected cells. -/
+  mem : ∀ c, c < hit.size → (c ∈ cells ↔ hit[c]! = true)
+
+theorem collected_empty (hit : Array Bool) (h : ∀ c, c < hit.size → hit[c]! = false) :
+    Collected hit #[] :=
+  ⟨by simp, by simp, fun c hc => by simp [h c hc]⟩
+
+/-- Marking and pushing an unmarked cell preserves the invariant. -/
+theorem Collected.push {hit : Array Bool} {cells : Array Nat} (h : Collected hit cells) {c : Nat}
+    (hc : c < hit.size) (hf : hit[c]! = false) : Collected (hit.set! c true) (cells.push c) := by
+  have hsz : (hit.set! c true).size = hit.size := by simp
+  have hnot : c ∉ cells := fun hmem => by rw [(h.mem c hc).1 hmem] at hf; exact Bool.noConfusion hf
+  refine ⟨?_, ?_, ?_⟩
+  · rw [Array.toList_push]
+    refine List.nodup_append.2 ⟨h.nodup, by simp, ?_⟩
+    intro a ha b hb hab
+    rw [List.mem_singleton] at hb
+    subst hab
+    subst hb
+    exact hnot (by simpa using ha)
+  · intro w hw
+    rw [hsz]
+    rcases Array.mem_push.1 hw with hw | hw
+    · exact h.lt w hw
+    · exact hw ▸ hc
+  · intro w hw
+    rw [hsz] at hw
+    by_cases hwc : w = c
+    · subst hwc
+      rw [getElem!_set! hc _, if_pos rfl, Array.mem_push]
+      simp
+    · rw [getElem!_set!_ne hwc, Array.mem_push]
+      simp only [hwc, or_false]
+      exact h.mem w hw
+
+theorem collectFrom_collected (pos cst touched : Array Nat) :
+    ∀ (fuel j : Nat) (hit : Array Bool) (cells : Array Nat),
+      (∀ v ∈ touched, cst[pos[v]!]! < hit.size) → Collected hit cells →
+        Collected (collectFrom pos cst touched fuel j hit cells).1
+          (collectFrom pos cst touched fuel j hit cells).2
+  | 0, _, _, _, _, hc => hc
+  | fuel + 1, j, hit, cells, hb, hc => by
+    rw [collectFrom]
+    split
+    · exact hc
+    · rename_i hj
+      have hjs : j < touched.size := by omega
+      have hlt : cst[pos[touched[j]!]!]! < hit.size := hb _ (getElem!_mem hjs)
+      dsimp only
+      split
+      · exact collectFrom_collected pos cst touched fuel (j + 1) hit cells hb hc
+      · rename_i hf
+        refine collectFrom_collected pos cst touched fuel (j + 1) _ _ (by simpa using hb)
+          (hc.push hlt (by simpa using hf))
+
+/-- **What the collection phase collects**: exactly the cell starts of the vertices it is given,
+each once (the `Nodup` half is `collectFrom_collected`). -/
+theorem collectFrom_mem (pos cst touched : Array Nat) :
+    ∀ (fuel j : Nat) (hit : Array Bool) (cells : Array Nat), touched.size ≤ j + fuel →
+      (∀ v ∈ touched, cst[pos[v]!]! < hit.size) → Collected hit cells → ∀ c,
+        (c ∈ (collectFrom pos cst touched fuel j hit cells).2 ↔
+          c ∈ cells ∨ ∃ v ∈ touched.toList.drop j, cst[pos[v]!]! = c)
+  | 0, j, hit, cells, hf, _, _, c => by
+    rw [collectFrom, List.drop_eq_nil_of_le (by simp; omega)]
+    simp
+  | fuel + 1, j, hit, cells, hf, hb, hc, c => by
+    rw [collectFrom]
+    split
+    · rw [List.drop_eq_nil_of_le (by simp; omega)]
+      simp
+    · rename_i hj
+      have hjs : j < touched.size := by omega
+      have hlt : cst[pos[touched[j]!]!]! < hit.size := hb _ (getElem!_mem hjs)
+      have hdrop : touched.toList.drop j = touched[j]! :: touched.toList.drop (j + 1) := by
+        rw [List.drop_eq_getElem_cons (by simpa using hjs), getElem!_pos touched j hjs,
+          Array.getElem_toList]
+      dsimp only
+      split
+      · rename_i hhit
+        rw [collectFrom_mem pos cst touched fuel (j + 1) hit cells (by omega) hb hc c, hdrop]
+        constructor
+        · rintro (h | h)
+          · exact Or.inl h
+          · exact Or.inr (by simpa using Or.inr h)
+        · rintro (h | h)
+          · exact Or.inl h
+          · rcases (by simpa using h) with h | h
+            · exact Or.inl (h ▸ (hc.mem _ hlt).2 hhit)
+            · exact Or.inr h
+      · rename_i hhit
+        rw [collectFrom_mem pos cst touched fuel (j + 1) _ _ (by omega) (by simpa using hb)
+          (hc.push hlt (by simpa using hhit)) c, hdrop, Array.mem_push]
+        constructor
+        · rintro ((h | h) | h)
+          · exact Or.inl h
+          · exact Or.inr (by simp [h])
+          · exact Or.inr (by simpa using Or.inr h)
+        · rintro (h | h)
+          · exact Or.inl (Or.inl h)
+          · rcases (by simpa using h) with h | h
+            · exact Or.inl (Or.inr h.symm)
+            · exact Or.inr h
+
+/-- The collection phase as `refineStep` runs it: from an all-clear `hit`, it collects exactly the
+cells that the touched vertices lie in. -/
+theorem collect_mem {n : Nat} {p : Part} (hp : Part.WF n p) {touched : Array Nat}
+    (htn : ∀ v ∈ touched, v < n) {hit : Array Bool} (hsz : hit.size = n)
+    (hf0 : ∀ c, c < n → hit[c]! = false) (c : Nat) :
+    c ∈ (collectFrom p.pos p.cst touched touched.size 0 hit #[]).2 ↔
+      ∃ v ∈ touched, p.cst[p.pos[v]!]! = c := by
+  have hbd : ∀ v ∈ touched, p.cst[p.pos[v]!]! < hit.size := by
+    intro v hv
+    have h1 : p.pos[v]! < n := hp.posLt v (htn v hv)
+    have h2 : p.cst[p.pos[v]!]! ≤ p.pos[v]! := hp.cstLe _ h1
+    omega
+  rw [collectFrom_mem p.pos p.cst touched touched.size 0 hit #[] (by omega) hbd
+    (collected_empty hit fun c hc => hf0 c (by omega)) c]
+  simp
+
+theorem collect_nodup {n : Nat} {p : Part} (hp : Part.WF n p) {touched : Array Nat}
+    (htn : ∀ v ∈ touched, v < n) {hit : Array Bool} (hsz : hit.size = n)
+    (hf0 : ∀ c, c < n → hit[c]! = false) :
+    (collectFrom p.pos p.cst touched touched.size 0 hit #[]).2.toList.Nodup := by
+  refine (collectFrom_collected p.pos p.cst touched touched.size 0 hit #[] ?_
+    (collected_empty hit fun c hc => hf0 c (by omega))).nodup
+  intro v hv
+  have h1 : p.pos[v]! < n := hp.posLt v (htn v hv)
+  have h2 : p.cst[p.pos[v]!]! ≤ p.pos[v]! := hp.cstLe _ h1
+  omega
+
+/-- Every vertex the counting phase touches is a vertex. -/
+theorem countFrom_touched_lt {n : Nat} (f : Nat → Nat → Bool) (lab : Array Nat) (e s : Nat)
+    {v : Nat} (hv : v ∈ (countFrom (Graph.ofOracle n f) lab e (e - s) s
+      (Array.replicate n 0) #[]).2) : v < n := by
+  have := (countFrom_touched_spec f lab e s).lt v hv
+  rwa [countFrom_size, Array.size_replicate] at this
+
+/-- **Phase (2) of `refineStep` is equivariant.**  The two runs meet the same cells, in the same
+order: the cells are the same *positions* because `PartEquiv` matches cell boundaries, and the
+sort makes the order depend on nothing but the set. -/
+theorem collect_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} {p q : Part}
+    (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q) (h : PartEquiv n σ p q)
+    {s : Nat} (hs : s < n) (hcst : q.cst[s]! = s)
+    {hit : Array Bool} (hsz : hit.size = n) (hf0 : ∀ c, c < n → hit[c]! = false)
+    {tp tq : Array Nat}
+    (htp : tp = (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[]).2)
+    (htq : tq = (countFrom (Graph.ofOracle n fun a b => f (σ a) (σ b)) q.lab q.cen[s]!
+      (q.cen[s]! - s) s (Array.replicate n 0) #[]).2) :
+    sortNats (collectFrom p.pos p.cst tp tp.size 0 hit #[]).2
+      = sortNats (collectFrom q.pos q.cst tq tq.size 0 hit #[]).2 := by
+  have hcstp : p.cst[s]! = s := by rw [h.cst s hs, hcst]
+  have htpn : ∀ v ∈ tp, v < n := fun v hv => countFrom_touched_lt f p.lab _ s (htp ▸ hv)
+  have htqn : ∀ v ∈ tq, v < n := fun v hv => countFrom_touched_lt _ q.lab _ s (htq ▸ hv)
+  -- Membership of the two touched sets corresponds along `σ`.
+  have hmemp : ∀ v, v < n → (v ∈ tp ↔ cellCount n p s (fun u => f u v) ≠ 0) := by
+    intro v hv
+    rw [htp]
+    exact countFrom_mem_touched f hp hs hcstp hv
+  have hmemq : ∀ w, w < n → (w ∈ tq ↔ cellCount n q s (fun u => f (σ u) (σ w)) ≠ 0) := by
+    intro w hw
+    rw [htq]
+    exact countFrom_mem_touched _ hq hs hcst hw
+  refine sortNats_ext (collect_nodup hp htpn hsz hf0) (collect_nodup hq htqn hsz hf0) ?_
+  intro c
+  rw [collect_mem hp htpn hsz hf0, collect_mem hq htqn hsz hf0]
+  constructor
+  · rintro ⟨v, hv, hc⟩
+    obtain ⟨w, hw, rfl⟩ := hσ.surj (htpn v hv)
+    refine ⟨w, (hmemq w hw).2 ?_, ?_⟩
+    · rw [← cellNbrCount_equiv hσ h f s w]
+      exact (hmemp _ (hσ.maps w hw)).1 hv
+    · rw [← h.cell w hw, hc]
+  · rintro ⟨w, hw, hc⟩
+    have hwn : w < n := htqn w hw
+    refine ⟨σ w, (hmemp _ (hσ.maps w hwn)).2 ?_, ?_⟩
+    · rw [cellNbrCount_equiv hσ h f s w]
+      exact (hmemq w hwn).1 hw
+    · rw [h.cell w hwn, hc]
 
 end Canon
 end IsoGraph

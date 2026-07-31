@@ -310,8 +310,25 @@ cells to split and to restore the scratch space afterwards. `Touched cnt touched
 lists exactly the vertices with a nonzero count, each once" — is maintained by the loop, and
 `countFrom_mem_touched` states membership in terms of `cellCount`, so that set is invariant as
 well. Its *order* is not: it is first-touch order, which is why `refineStep` maps it to cell
-starts and sorts before using it. What remains of step 1 is the counting sort and Hopcroft's
-worklist rule that follow.
+starts and sorts before using it.
+
+That sort is the second phase, and it is done too. It has to produce not merely the same *set* of
+cells in the two runs but the same *array*, since the step then walks it in order, so the sorting
+is part of the invariant rather than an implementation detail — which is a problem, because
+`Array.qsort` has no specification in this toolchain at all: no permutation lemma, no sortedness
+lemma. The fix is `sortNats`, a detour through `List.mergeSort`, which has both, and then
+
+```lean
+theorem sortNats_ext (ha : a.toList.Nodup) (hb : b.toList.Nodup) (h : ∀ c, c ∈ a ↔ c ∈ b) :
+    sortNats a = sortNats b
+```
+
+reduces "the same array" to "the same elements". Duplicate freeness comes from `Collected`, the
+phase's scratch invariant ("`cells` lists exactly the cells marked in `hit`, each once") in the
+same style as `Touched`, and the elements themselves are compared across the two runs by
+`collect_equiv`: `σ` matches the touched vertices, and `PartEquiv` matches their cells, which are
+*positions* and so literally equal. What remains of step 1 is the counting sort of each cell and
+Hopcroft's worklist rule that follow.
 
 One thing worth recording from that rewrite: it is free. The worry was reference counts — a
 `for` loop over a `let mut` array updates it linearly, whereas a recursion that returns a pair of
