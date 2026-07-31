@@ -3584,6 +3584,8 @@ counts that index into it. -/
 structure SplitInv (n : Nat) (cnt : Array Nat) (st : SplitState) : Prop where
   /-- The partition is well-formed. -/
   wf : Part.WF n st.part
+  /-- The bucket scratch has one slot per possible count. -/
+  bcSize : st.bc.size = n + 1
   /-- The bucket scratch is cleared. -/
   bcZero : ∀ t, t < st.bc.size → st.bc[t]! = 0
   /-- Every count indexes the bucket scratch. -/
@@ -3604,7 +3606,7 @@ theorem splitCell_inv {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
     (hinv : SplitInv n cnt st) (hc : c < n) (hcst : st.cst[c]! = c) :
     SplitInv n cnt (splitCell cnt c st) := by
   obtain ⟨hsize, hzero⟩ := splitCell_bc (cnt := cnt) (c := c) (st := st) hinv.bcZero hinv.cntLt
-  exact ⟨(splitCell_spec hinv.wf hc hcst hinv.bcZero hinv.cntLt).wf,
+  exact ⟨(splitCell_spec hinv.wf hc hcst hinv.bcZero hinv.cntLt).wf, by rw [hsize]; exact hinv.bcSize,
     fun t ht => hzero t (by omega), fun v => by rw [hsize]; exact hinv.cntLt v⟩
 
 /-- Splitting one cell leaves the other cell starts alone. -/
@@ -3677,6 +3679,351 @@ theorem splitCellsFrom_rel {n : Nat} {σ : Nat → Nat} {cnt cnt' cells : Array 
         (splitCell_inv hiq hcj hqj) (splitCell_rel hσ hip hiq hr hcj hqj hcnt) fun j' h1 h2 => ?_
       exact ⟨(hst j' (by omega) h2).1, splitCell_start hiq hcj hqj (hst j' (by omega) h2).1
         (nodup_getElem!_ne hnd h2 hjs (by omega)) (hst j' (by omega) h2).2⟩
+
+/-! ### Reading off one refinement step -/
+
+theorem refineStep_eq_empty {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
+    {sc : Scratch} {cnt touched : Array Nat}
+    (hc : countFrom G p.lab p.cen[s]! (p.cen[s]! - s) s sc.cnt #[] = (cnt, touched))
+    (h : touched.isEmpty = true) :
+    refineStep G p inW s tr sc = (p, inW, mixN tr s, sc) := by
+  rw [refineStep]
+  dsimp only
+  rw [hc]
+  dsimp only
+  exact if_pos h
+
+theorem refineStep_eq {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
+    {sc : Scratch} {cnt touched : Array Nat}
+    (hc : countFrom G p.lab p.cen[s]! (p.cen[s]! - s) s sc.cnt #[] = (cnt, touched))
+    (h : ¬touched.isEmpty = true) {hit : Array Bool} {collected : Array Nat}
+    (hcl : collectFrom p.pos p.cst touched touched.size 0 sc.hit #[] = (hit, collected))
+    {st : SplitState}
+    (hst : splitCellsFrom cnt (sortNats collected) (sortNats collected).size 0
+      { lab := p.lab, pos := p.pos, cst := p.cst, cen := p.cen, inW := inW,
+        tr := mixN tr s, bc := sc.bc } = st) :
+    refineStep G p inW s tr sc =
+      (st.part, st.inW, st.tr,
+        { cnt := clearCntFrom touched touched.size 0 cnt,
+          hit := clearHitFrom (sortNats collected) (sortNats collected).size 0 hit,
+          bc := st.bc }) := by
+  rw [refineStep]
+  dsimp only
+  rw [hc]
+  dsimp only
+  rw [if_neg h, hcl]
+  dsimp only
+  rw [hst]
+  rfl
+
+/-! ### The scratch space is restored, and the partition stays well-formed -/
+
+theorem collectFrom_size (pos cst touched : Array Nat) :
+    ∀ (fuel j : Nat) (hit : Array Bool) (cells : Array Nat),
+      (collectFrom pos cst touched fuel j hit cells).1.size = hit.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, j, hit, cells => by
+    rw [collectFrom]
+    split
+    · rfl
+    · dsimp only
+      split
+      · exact collectFrom_size pos cst touched fuel (j + 1) hit cells
+      · rw [collectFrom_size pos cst touched fuel (j + 1) _ _]
+        simp
+
+theorem clearHitFrom_size (cells : Array Nat) : ∀ (fuel j : Nat) (hit : Array Bool),
+    (clearHitFrom cells fuel j hit).size = hit.size
+  | 0, _, _ => rfl
+  | fuel + 1, j, hit => by
+    rw [clearHitFrom]
+    split
+    · rfl
+    · rw [clearHitFrom_size cells fuel (j + 1) _]
+      simp
+
+/-- Sorting the collected cells changes neither the invariant nor the marks. -/
+theorem Collected.sortNats {hit : Array Bool} {cells : Array Nat} (h : Collected hit cells) :
+    Collected hit (sortNats cells) :=
+  ⟨(sortNats_perm cells).nodup_iff.2 h.nodup, fun c hc => h.lt c (sortNats_mem.1 hc),
+    fun c hc => sortNats_mem.trans (h.mem c hc)⟩
+
+/-- A cell has at most `n` members, so counts fit in the bucket array. -/
+theorem cellCount_le (n : Nat) (p : Part) (s : Nat) (P : Nat → Bool) : cellCount n p s P ≤ n := by
+  have h := Finset.card_le_card
+    (Finset.filter_subset (fun w => p.cst[p.pos[w]!]! = s ∧ P w = true) (Finset.range n))
+  rw [Finset.card_range] at h
+  exact h
+
+theorem countFrom_lt {n : Nat} (f : Nat → Nat → Bool) {p : Part} (hp : Part.WF n p) {s : Nat}
+    (hs : s < n) (hcst : p.cst[s]! = s) (v : Nat) :
+    (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[]).1[v]! < n + 1 := by
+  by_cases hv : v < n
+  · rw [countFrom_cellCount f hp hs hcst hv]
+    have := cellCount_le n p s (fun u => f u v)
+    omega
+  · rw [getElem!_neg _ v (by rw [countFrom_size]; simpa using hv)]
+    exact Nat.succ_pos n
+
+/-- Every vertex the counting phase touches is a vertex — packaged for a named result. -/
+theorem countFrom_touched_lt' {n : Nat} (f : Nat → Nat → Bool) (p : Part) (s : Nat)
+    {cnt touched : Array Nat}
+    (hc : countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[] = (cnt, touched)) : ∀ v ∈ touched, v < n := by
+  intro v hv
+  have ht2 : (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[]).2 = touched := by rw [hc]
+  rw [← ht2] at hv
+  exact countFrom_touched_lt f p.lab _ s hv
+
+/-- The cells the collection phase gathers are distinct cell starts. -/
+theorem collect_start {n : Nat} {p : Part} (hp : Part.WF n p) {touched : Array Nat}
+    (htn : ∀ v ∈ touched, v < n) {hit : Array Bool} {collected : Array Nat}
+    (hcl : collectFrom p.pos p.cst touched touched.size 0 (Array.replicate n false) #[]
+      = (hit, collected)) :
+    collected.toList.Nodup ∧ ∀ c ∈ collected, c < n ∧ p.cst[c]! = c := by
+  have hhitsz : (Array.replicate n false : Array Bool).size = n := by simp
+  have hhit0 : ∀ c, c < n → (Array.replicate n false : Array Bool)[c]! = false := by
+    intro c hc0
+    rw [getElem!_pos _ c (by simpa using hc0)]
+    simp
+  have hcl2 : (collectFrom p.pos p.cst touched touched.size 0
+      (Array.replicate n false) #[]).2 = collected := by rw [hcl]
+  refine ⟨?_, ?_⟩
+  · have h := collect_nodup hp htn hhitsz hhit0
+    rw [hcl2] at h
+    exact h
+  · intro c hcmem
+    have h := collect_mem hp htn hhitsz hhit0 c
+    rw [hcl2] at h
+    obtain ⟨v, hv, rfl⟩ := h.1 hcmem
+    have h1 : p.pos[v]! < n := hp.posLt v (htn v hv)
+    have h2 : p.cst[p.pos[v]!]! ≤ p.pos[v]! := hp.cstLe _ h1
+    refine ⟨by omega, hp.cellCst p.pos[v]! h1 p.cst[p.pos[v]!]! (le_refl _) ?_⟩
+    have := hp.ltCen p.pos[v]! h1
+    omega
+
+/-- The state the cell loop starts from satisfies its invariant. -/
+theorem splitInv_init {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp : Part.WF n p) {s : Nat}
+    (hs : s < n) (hcst : p.cst[s]! = s) {cnt touched : Array Nat}
+    (hc : countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[] = (cnt, touched)) (inW : Array Bool) (tr' : UInt64) :
+    SplitInv n cnt
+      { lab := p.lab, pos := p.pos, cst := p.cst, cen := p.cen,
+        inW := inW, tr := tr', bc := (Scratch.empty n).bc } := by
+  refine ⟨hp, by simp [Scratch.empty], fun t ht => ?_, fun v => ?_⟩
+  · have ht' : t < (Array.replicate (n + 1) 0 : Array Nat).size := ht
+    rw [show ((Scratch.empty n).bc)[t]! = (Array.replicate (n + 1) 0 : Array Nat)[t]! from rfl,
+      getElem!_pos _ t ht']
+    simp
+  · show cnt[v]! < ((Scratch.empty n).bc).size
+    have h := countFrom_lt f hp hs hcst v
+    rw [hc] at h
+    have h' : cnt[v]! < n + 1 := h
+    have hsz : ((Scratch.empty n).bc).size = n + 1 := by simp [Scratch.empty]
+    omega
+
+/-- **What one refinement step leaves behind.**  The partition is still well-formed, the cells it
+split are cells of the old partition, and the scratch space is back to its cleared state — the
+last point is what lets the worklist loop keep reusing it. -/
+theorem refineStep_wf {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp : Part.WF n p) {s : Nat}
+    (hs : s < n) (hcst : p.cst[s]! = s) (inW : Array Bool) (tr : UInt64) :
+    Part.WF n (refineStep (Graph.ofOracle n f) p inW s tr (Scratch.empty n)).1 ∧
+      (refineStep (Graph.ofOracle n f) p inW s tr (Scratch.empty n)).2.2.2 = Scratch.empty n := by
+  obtain ⟨cnt, touched, hc⟩ : ∃ cnt touched, countFrom (Graph.ofOracle n f) p.lab p.cen[s]!
+      (p.cen[s]! - s) s (Scratch.empty n).cnt #[] = (cnt, touched) := ⟨_, _, rfl⟩
+  have hc' : countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[] = (cnt, touched) := hc
+  by_cases hemp : touched.isEmpty = true
+  · rw [refineStep_eq_empty hc hemp]
+    exact ⟨hp, rfl⟩
+  · obtain ⟨hit, collected, hcl⟩ : ∃ hit collected,
+        collectFrom p.pos p.cst touched touched.size 0 (Scratch.empty n).hit #[]
+          = (hit, collected) := ⟨_, _, rfl⟩
+    have hcl' : collectFrom p.pos p.cst touched touched.size 0 (Array.replicate n false) #[]
+        = (hit, collected) := hcl
+    obtain ⟨st, hst⟩ : ∃ st, splitCellsFrom cnt (sortNats collected) (sortNats collected).size 0
+        { lab := p.lab, pos := p.pos, cst := p.cst, cen := p.cen, inW := inW,
+          tr := mixN tr s, bc := (Scratch.empty n).bc } = st := ⟨_, rfl⟩
+    -- the touched vertices and the collected cells
+    have hhitsz : (Array.replicate n false : Array Bool).size = n := by simp
+    have hhit0 : ∀ c, c < n → (Array.replicate n false : Array Bool)[c]! = false := by
+      intro c hc0
+      rw [getElem!_pos _ c (by simpa using hc0)]
+      simp
+    have htn : ∀ v ∈ touched, v < n := countFrom_touched_lt' f p s hc'
+    obtain ⟨hcolnd, hcolstart⟩ := collect_start hp htn hcl'
+    -- the cell loop
+    have hinv0 : SplitInv n cnt
+        { lab := p.lab, pos := p.pos, cst := p.cst, cen := p.cen,
+          inW := inW, tr := mixN tr s, bc := (Scratch.empty n).bc } :=
+      splitInv_init hp hs hcst hc' inW (mixN tr s)
+    have hnd : (sortNats collected).toList.Nodup := (sortNats_perm collected).nodup_iff.2 hcolnd
+    have hinv : SplitInv n cnt st := by
+      rw [← hst]
+      refine splitCellsFrom_inv hnd (sortNats collected).size 0 _ hinv0 fun j' _ h2 => ?_
+      exact hcolstart _ (sortNats_mem.1 (getElem!_mem h2))
+    rw [refineStep_eq hc hemp hcl hst]
+    refine ⟨hinv.wf, ?_⟩
+    -- the scratch space is back to cleared
+    have hcntsz : cnt.size = n := by
+      have := countFrom_size (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+        (Array.replicate n 0) #[]
+      rw [hc'] at this
+      rw [this]
+      simp
+    have htsp : Touched cnt touched := by
+      have h := countFrom_touched_spec (n := n) f p.lab p.cen[s]! s
+      rw [hc'] at h
+      exact h
+    have h1 : clearCntFrom touched touched.size 0 cnt = Array.replicate n 0 := by
+      refine array_ext! (by rw [clearCntFrom_size, hcntsz]; simp) fun v hv => ?_
+      rw [clearCntFrom_size, hcntsz] at hv
+      rw [clearCntFrom_zero htsp v (by omega), getElem!_pos _ v (by simpa using hv)]
+      simp
+    have hcol : Collected hit collected := by
+      have hbd : ∀ v ∈ touched, p.cst[p.pos[v]!]! < (Array.replicate n false : Array Bool).size := by
+        intro v hv
+        have h1' : p.pos[v]! < n := hp.posLt v (htn v hv)
+        have h2' : p.cst[p.pos[v]!]! ≤ p.pos[v]! := hp.cstLe _ h1'
+        rw [hhitsz]
+        omega
+      have h := collectFrom_collected p.pos p.cst touched touched.size 0
+        (Array.replicate n false) #[] hbd
+        (collected_empty _ fun c hc0 => hhit0 c (by simpa using hc0))
+      rw [hcl'] at h
+      exact h
+    have hhitsz' : hit.size = n := by
+      have := collectFrom_size p.pos p.cst touched touched.size 0 (Array.replicate n false) #[]
+      rw [hcl'] at this
+      rw [this]
+      simp
+    have h2 : clearHitFrom (sortNats collected) (sortNats collected).size 0 hit
+        = Array.replicate n false := by
+      refine array_ext! (by rw [clearHitFrom_size, hhitsz']; simp) fun v hv => ?_
+      rw [clearHitFrom_size, hhitsz'] at hv
+      rw [clearHitFrom_zero hcol.sortNats v (by omega), getElem!_pos _ v (by simpa using hv)]
+      simp
+    have hbcsz : st.bc.size = n + 1 := hinv.bcSize
+    have h3 : st.bc = Array.replicate (n + 1) 0 := by
+      refine array_ext! (by rw [hbcsz]; simp) fun t ht => ?_
+      rw [hinv.bcZero t ht, getElem!_pos _ t (by simp; omega)]
+      simp
+    simp only [Scratch.empty, Scratch.mk.injEq]
+    exact ⟨h1, h2, h3⟩
+
+
+/-! ### One refinement step is equivariant -/
+
+theorem arr_isEmpty_iff (a : Array Nat) : a.isEmpty = true ↔ ∀ x, x ∉ a := by
+  rw [Array.isEmpty_iff]
+  constructor
+  · intro h x hx
+    rw [h] at hx
+    simp at hx
+  · intro h
+    exact Array.ext' (List.eq_nil_iff_forall_not_mem.2 fun x hx => h x (by simpa using hx))
+
+/-- **Step 1.**  One refinement pass commutes with relabelling: run on corresponding partitions
+with corresponding adjacency oracles it produces corresponding partitions, the same worklist and
+the same trace. -/
+theorem refineStep_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} {p q : Part}
+    (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q) (he : PartEquiv n σ p q)
+    {s : Nat} (hs : s < n) (hcst : q.cst[s]! = s) (inW : Array Bool) (tr : UInt64) :
+    PartEquiv n σ (refineStep (Graph.ofOracle n f) p inW s tr (Scratch.empty n)).1
+        (refineStep (Graph.ofOracle n fun a b => f (σ a) (σ b)) q inW s tr (Scratch.empty n)).1 ∧
+      (refineStep (Graph.ofOracle n f) p inW s tr (Scratch.empty n)).2.1
+        = (refineStep (Graph.ofOracle n fun a b => f (σ a) (σ b)) q inW s tr
+            (Scratch.empty n)).2.1 ∧
+      (refineStep (Graph.ofOracle n f) p inW s tr (Scratch.empty n)).2.2.1
+        = (refineStep (Graph.ofOracle n fun a b => f (σ a) (σ b)) q inW s tr
+            (Scratch.empty n)).2.2.1 := by
+  have hcstp : p.cst[s]! = s := (he.cst s hs).trans hcst
+  obtain ⟨cntp, tp, hcp⟩ : ∃ cnt touched, countFrom (Graph.ofOracle n f) p.lab p.cen[s]!
+      (p.cen[s]! - s) s (Scratch.empty n).cnt #[] = (cnt, touched) := ⟨_, _, rfl⟩
+  obtain ⟨cntq, tq, hcq⟩ : ∃ cnt touched, countFrom (Graph.ofOracle n fun a b => f (σ a) (σ b))
+      q.lab q.cen[s]! (q.cen[s]! - s) s (Scratch.empty n).cnt #[] = (cnt, touched) := ⟨_, _, rfl⟩
+  have hcp' : countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[] = (cntp, tp) := hcp
+  have hcq' : countFrom (Graph.ofOracle n fun a b => f (σ a) (σ b)) q.lab q.cen[s]!
+      (q.cen[s]! - s) s (Array.replicate n 0) #[] = (cntq, tq) := hcq
+  -- corresponding counts
+  have hcnt : ∀ v, v < n → cntp[σ v]! = cntq[v]! := by
+    intro v hv
+    have h := countFrom_equiv (f := f) hσ hp hq he hs hcst hv
+    rw [hcp', hcq'] at h
+    exact h
+  have htnp : ∀ v ∈ tp, v < n := countFrom_touched_lt' f p s hcp'
+  have htnq : ∀ v ∈ tq, v < n := countFrom_touched_lt' (fun a b => f (σ a) (σ b)) q s hcq'
+  have htsp : Touched cntp tp := by
+    have h := countFrom_touched_spec (n := n) f p.lab p.cen[s]! s
+    rw [hcp'] at h
+    exact h
+  have htsq : Touched cntq tq := by
+    have h := countFrom_touched_spec (n := n) (fun a b => f (σ a) (σ b)) q.lab q.cen[s]! s
+    rw [hcq'] at h
+    exact h
+  have hszp : cntp.size = n := by
+    have h := countFrom_size (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+      (Array.replicate n 0) #[]
+    rw [hcp'] at h
+    simpa using h
+  have hszq : cntq.size = n := by
+    have h := countFrom_size (Graph.ofOracle n fun a b => f (σ a) (σ b)) q.lab q.cen[s]!
+      (q.cen[s]! - s) s (Array.replicate n 0) #[]
+    rw [hcq'] at h
+    simpa using h
+  -- one side touches something exactly when the other does
+  have hiff : tp.isEmpty = true ↔ tq.isEmpty = true := by
+    rw [arr_isEmpty_iff, arr_isEmpty_iff]
+    constructor
+    · intro h v hv
+      have hvn : v < n := htnq v hv
+      have hmaps : σ v < n := hσ.maps v hvn
+      have hne : cntq[v]! ≠ 0 := (htsq.mem v (by omega)).1 hv
+      exact h (σ v) ((htsp.mem (σ v) (by omega)).2 (by rw [hcnt v hvn]; exact hne))
+    · intro h v hv
+      have hvn : v < n := htnp v hv
+      obtain ⟨w, hw, hwv⟩ := hσ.surj hvn
+      have hne : cntp[v]! ≠ 0 := (htsp.mem v (by omega)).1 hv
+      refine h w ((htsq.mem w (by omega)).2 ?_)
+      rw [← hcnt w hw, hwv]
+      exact hne
+  by_cases hep : tp.isEmpty = true
+  · rw [refineStep_eq_empty hcp hep, refineStep_eq_empty hcq (hiff.1 hep)]
+    exact ⟨he, rfl, rfl⟩
+  · have heq : ¬tq.isEmpty = true := fun h => hep (hiff.2 h)
+    obtain ⟨hitp, colp, hclp⟩ : ∃ hit col, collectFrom p.pos p.cst tp tp.size 0
+        (Scratch.empty n).hit #[] = (hit, col) := ⟨_, _, rfl⟩
+    obtain ⟨hitq, colq, hclq⟩ : ∃ hit col, collectFrom q.pos q.cst tq tq.size 0
+        (Scratch.empty n).hit #[] = (hit, col) := ⟨_, _, rfl⟩
+    have hclp' : collectFrom p.pos p.cst tp tp.size 0 (Array.replicate n false) #[]
+        = (hitp, colp) := hclp
+    have hclq' : collectFrom q.pos q.cst tq tq.size 0 (Array.replicate n false) #[]
+        = (hitq, colq) := hclq
+    have hcolEq : sortNats colp = sortNats colq := by
+      have h := collect_equiv (f := f) hσ hp hq he hs hcst (hit := Array.replicate n false)
+        (by simp) (fun c hc0 => by rw [getElem!_pos _ c (by simpa using hc0)]; simp)
+        (tp := tp) (tq := tq) (by rw [hcp']) (by rw [hcq'])
+      rw [hclp', hclq'] at h
+      exact h
+    obtain ⟨_, hstartq⟩ := collect_start hq htnq hclq'
+    obtain ⟨hndq, _⟩ := collect_start hq htnq hclq'
+    obtain ⟨stp, hstp⟩ : ∃ st, splitCellsFrom cntp (sortNats colp) (sortNats colp).size 0
+        { lab := p.lab, pos := p.pos, cst := p.cst, cen := p.cen, inW := inW,
+          tr := mixN tr s, bc := (Scratch.empty n).bc } = st := ⟨_, rfl⟩
+    obtain ⟨stq, hstq⟩ : ∃ st, splitCellsFrom cntq (sortNats colq) (sortNats colq).size 0
+        { lab := q.lab, pos := q.pos, cst := q.cst, cen := q.cen, inW := inW,
+          tr := mixN tr s, bc := (Scratch.empty n).bc } = st := ⟨_, rfl⟩
+    have hrel : SplitRel n σ stp stq := by
+      rw [← hstp, ← hstq, hcolEq]
+      refine splitCellsFrom_rel hσ ((sortNats_perm colq).nodup_iff.2 hndq) hcnt _ 0 _ _
+        (splitInv_init hp hs hcstp hcp' inW (mixN tr s))
+        (splitInv_init hq hs hcst hcq' inW (mixN tr s)) ⟨he, rfl, rfl⟩ fun j' _ h2 => ?_
+      exact hstartq _ (sortNats_mem.1 (getElem!_mem h2))
+    rw [refineStep_eq hcp hep hclp hstp, refineStep_eq hcq heq hclq hstq]
+    exact ⟨hrel.part, hrel.inW, hrel.tr⟩
 
 end Canon
 end IsoGraph
