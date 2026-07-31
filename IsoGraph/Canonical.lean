@@ -211,10 +211,30 @@ def countFrom (G : Graph) (lab : Array Nat) (e : Nat) :
     if k ≥ e then (cnt, touched)
     else
       let nbrs := G.nbr[lab[k]!]!
-      -- Destructured, not projected: `.1`/`.2` would keep the pair alive and so leave `cnt`
-      -- shared, turning every `set!` of the next round into a full copy of the array.
       match bumpFrom nbrs nbrs.size 0 cnt touched with
       | (cnt, touched) => countFrom G lab e fuel (k + 1) cnt touched
+
+/-- Sort an array of naturals increasingly.
+
+`Array.qsort` would do the same job, but it has no verified specification in this toolchain, and
+the sorted order of the cells and of the counts *is* part of what makes the trace canonical.  So
+this goes through `List.mergeSort`, which does.  The round trip through `List` costs nothing
+measurable on the benchmarks: both call sites sort at most one entry per cell of the partition,
+against a refinement step that already costs the splitter's degree sum. -/
+def sortNats (a : Array Nat) : Array Nat := (a.toList.mergeSort (fun x y => x ≤ y)).toArray
+
+/-- Collect the distinct cell starts of the vertices in `touched[j:]`, using `hit` to deduplicate.
+Phase (2) of `refineStep`, as a structural recursion on fuel; `fuel` is only ever
+`touched.size - j`. -/
+def collectFrom (pos cst touched : Array Nat) :
+    Nat → Nat → Array Bool → Array Nat → Array Bool × Array Nat
+  | 0, _, hit, cells => (hit, cells)
+  | fuel + 1, j, hit, cells =>
+    if j ≥ touched.size then (hit, cells)
+    else
+      let c := cst[pos[touched[j]!]!]!
+      if hit[c]! then collectFrom pos cst touched fuel (j + 1) hit cells
+      else collectFrom pos cst touched fuel (j + 1) (hit.set! c true) (cells.push c)
 
 /-- Perform one refinement step: use the cell starting at position `s` as a splitter, splitting
 every cell that meets its neighbourhood.
@@ -244,13 +264,9 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
   -- in which they are processed depends only on positions.  Only *met* cells are visited, which
   -- is what keeps a refinement step proportional to the splitter's degree sum rather than to the
   -- number of cells.
-  let mut cells : Array Nat := #[]
-  for v in touched do
-    let c := cst[pos[v]!]!
-    if !hit[c]! then
-      hit := hit.set! c true
-      cells := cells.push c
-  cells := cells.qsort (· < ·)
+  let (hit', collected) := collectFrom pos cst touched touched.size 0 hit #[]
+  hit := hit'
+  let cells := sortNats collected
   for c in cells do
     -- Read the cell's extent *before* splitting it; splits stay inside `[c, ec)`, so the cells
     -- collected above keep their starts.
@@ -272,7 +288,7 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
       tr := mixN (mixN tr c) ks[0]!
       bc := bc.set! ks[0]! 0
       continue
-    ks := ks.qsort (· < ·)
+    ks := sortNats ks
     let mut sizes : Array Nat := Array.replicate ks.size 0
     let mut acc := 0
     for j in [0:ks.size] do

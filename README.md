@@ -313,11 +313,14 @@ well. Its *order* is not: it is first-touch order, which is why `refineStep` map
 starts and sorts before using it. What remains of step 1 is the counting sort and Hopcroft's
 worklist rule that follow.
 
-One thing worth recording from that rewrite: writing the inner loop's result back with `.1`/`.2`
-instead of destructuring it keeps the pair alive, so the count array has refcount 2 and every
-subsequent `set!` copies it — G(1000, 1/2) went from 213 ms to 318 ms. Proof-driven rewrites of
-imperative code are not free, and the cost shows up in reference counts rather than in the
-algorithm.
+One thing worth recording from that rewrite: it is free. The worry was reference counts — a
+`for` loop over a `let mut` array updates it linearly, whereas a recursion that returns a pair of
+arrays might leave them shared and turn every subsequent `set!` into a copy. The generated IR
+says otherwise (the parameters stay owned, `Array.set!` stays in place, and the recursive calls
+are tail calls), and a benchmark confirms it: minimum-of-six total CPU time is 14.6 s either way,
+as it is for the `List.mergeSort` detour. Measure on a quiet machine, though — this one is shared,
+and single wall-clock runs of the benchmark vary by a factor of four under load, which is enough
+to invent a regression that is not there.
 
 `certOf_relabel` is worth a footnote: an earlier version of it, missing the `lab.size = n`
 hypothesis, was *refuted* by the prover, which returned a counterexample (`n = 2`,
