@@ -5,6 +5,7 @@ import IsoGraph.Search
 import IsoGraph.Autos
 import IsoGraph.Node
 import IsoGraph.Orbits
+import IsoGraph.Progress
 import IsoGraph.Basic
 import IsoGraph.Invariants
 import IsoGraph.Constructions
