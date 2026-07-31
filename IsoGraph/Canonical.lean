@@ -444,15 +444,22 @@ def firstSet (a : Array Bool) : Option Nat := Id.run do
     if a[j]! then return some j
   return none
 
-/-- The refinement worklist loop.  `fuel` bounds the number of splitter pops. -/
+/-- The refinement worklist loop.  `fuel` bounds the number of splitter pops.
+
+The guard `s < G.n && p.cst[s]! == s` is never false in a real run — only cell starts are ever
+queued, and a cell start stays one when its cell is split — but checking it costs one array read
+per pop and saves `Equivariance.refineLoop_equiv` from having to carry the worklist invariant.
+Popping a position that is not a cell start simply drops it. -/
 def refineLoop (G : Graph) : Nat → Part → Array Bool → UInt64 → Scratch → Part × UInt64
   | 0, p, _, tr, _ => (p, tr)
   | fuel + 1, p, inW, tr, sc =>
     match firstSet inW with
     | none => (p, tr)
     | some s =>
-      let (p, inW, tr, sc) := refineStep G p (inW.set! s false) s tr sc
-      refineLoop G fuel p inW tr sc
+      if s < G.n && p.cst[s]! == s then
+        let (p, inW, tr, sc) := refineStep G p (inW.set! s false) s tr sc
+        refineLoop G fuel p inW tr sc
+      else refineLoop G fuel p (inW.set! s false) tr sc
 
 /-- Refine `p` to the coarsest equitable partition refining it, using the cells whose start
 positions are flagged in `inW` as initial splitters.  Returns the refined partition together with
