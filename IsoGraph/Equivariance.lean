@@ -4336,5 +4336,439 @@ theorem certOf_get {G : Graph} {lab : Array Nat} {i j : Nat} (hi : i < G.n) (hj 
     certGet G.n (certOf G lab) i j = (G.adj[lab[i]!]!)[lab[j]!]! :=
   certBits_get _ _ hi hj
 
+theorem addAuto_best (st : St) (g : Array Nat) : (st.addAuto g).best = st.best := by
+  rw [St.addAuto]; split; rfl; split; rfl; split; rfl; rfl
+
+theorem addAuto_first (st : St) (g : Array Nat) : (st.addAuto g).first = st.first := by
+  rw [St.addAuto]; split; rfl; split; rfl; split; rfl; rfl
+
+/-- `leafUpdate` either keeps the incumbent or replaces it with the new leaf. -/
+theorem leafUpdate_best (G : Graph) (path : Array Nat) (invPath : Array UInt64)
+    (lab : Array Nat) (st : St) :
+    (leafUpdate G path invPath lab st).best = st.best
+      ∨ (leafUpdate G path invPath lab st).best
+          = some { path, invPath, cert := certOf G lab, lab } := by
+  rw [leafUpdate]
+  simp only [Id.run]
+  repeat' split
+  all_goals (try exact Or.inr rfl)
+  all_goals (try exact Or.inl rfl)
+  all_goals (try exact Or.inl (addAuto_best _ _))
+  all_goals (try exact Or.inl ((addAuto_best _ _).trans (addAuto_best _ _)))
+
+/-- Same for the first leaf, which is only ever set once. -/
+theorem leafUpdate_first (G : Graph) (path : Array Nat) (invPath : Array UInt64)
+    (lab : Array Nat) (st : St) :
+    (leafUpdate G path invPath lab st).first = st.first
+      ∨ (leafUpdate G path invPath lab st).first
+          = some { path, invPath, cert := certOf G lab, lab } := by
+  rw [leafUpdate]
+  simp only [Id.run]
+  repeat' split
+  all_goals (try exact Or.inr rfl)
+  all_goals (try exact Or.inl rfl)
+  all_goals (try exact Or.inl (addAuto_first _ _))
+  all_goals (try exact Or.inl ((addAuto_first _ _).trans (addAuto_first _ _)))
+  all_goals (try exact Or.inr (addAuto_first _ _))
+
+/-! ## The search only ever stores honest leaves
+
+Two facts about every leaf the search records: its labelling is a permutation of the vertices,
+and its certificate is the certificate *of that labelling*.  Together they say that the winner
+returned by `canonical` passes the `isPermArray` check of `canonicalLabellingOfOracle` and that
+`Result.cert` and `Result.lab` belong together, which is what turns an equality of certificates
+into `Spec.LabellingInvariant`. -/
+structure LeafOk (G : Graph) (l : Leaf) : Prop where
+  /-- The labelling has one entry per vertex. -/
+  size : l.lab.size = G.n
+  /-- Its entries are vertices. -/
+  lt : ∀ i, i < G.n → l.lab[i]! < G.n
+  /-- Distinct positions hold distinct vertices. -/
+  inj : ∀ i, i < G.n → ∀ j, j < G.n → l.lab[i]! = l.lab[j]! → i = j
+  /-- The stored certificate is the one the labelling determines. -/
+  cert : l.cert = certOf G l.lab
+
+/-- Every leaf a state remembers is honest. -/
+def StOk (G : Graph) (st : St) : Prop :=
+  (∀ l, st.best = some l → LeafOk G l) ∧ (∀ l, st.first = some l → LeafOk G l)
+
+theorem leafOk_of_wf {n : Nat} {G : Graph} (hn : G.n = n) {p : Part} (hp : Part.WF n p)
+    (path : Array Nat) (invPath : Array UInt64) :
+    LeafOk G { path, invPath, cert := certOf G p.lab, lab := p.lab } := by
+  subst hn
+  exact ⟨hp.labSize, fun i hi => hp.labLt i hi, fun i hi j hj h => by
+    have h1 := hp.posLab i hi
+    have h2 := hp.posLab j hj
+    have h' : p.lab[i]! = p.lab[j]! := h
+    rw [h'] at h1
+    omega, rfl⟩
+
+theorem leafUpdate_ok {G : Graph} {path : Array Nat} {invPath : Array UInt64} {lab : Array Nat}
+    {st : St} (hl : LeafOk G { path, invPath, cert := certOf G lab, lab }) (hst : StOk G st) :
+    StOk G (leafUpdate G path invPath lab st) := by
+  refine ⟨fun l hb => ?_, fun l hf => ?_⟩
+  · rcases leafUpdate_best G path invPath lab st with h | h
+    · exact hst.1 l (h ▸ hb)
+    · rw [h] at hb; cases hb; exact hl
+  · rcases leafUpdate_first G path invPath lab st with h | h
+    · exact hst.2 l (h ▸ hf)
+    · rw [h] at hf; cases hf; exact hl
+
+theorem StOk.addAuto {G : Graph} {st : St} (h : StOk G st) (g : Array Nat) :
+    StOk G (st.addAuto g) :=
+  ⟨fun l hb => h.1 l ((addAuto_best st g) ▸ hb), fun l hf => h.2 l ((addAuto_first st g) ▸ hf)⟩
+
+theorem individualize_wf' {n : Nat} {p : Part} (hp : Part.WF n p) {v : Nat} (hv : v < n) :
+    Part.WF n (individualize p v).1 :=
+  individualize_wf hp ⟨hv, rfl, rfl, rfl, rfl⟩
+
+theorem pruneNode_ok {G : Graph} {invPath : Array UInt64} {st st' : St}
+    (h : pruneNode invPath st = some st') (hst : StOk G st) : StOk G st' := by
+  rw [pruneNode] at h
+  split at h
+  · cases h; exact hst
+  · split at h
+    · exact absurd h (by simp)
+    · cases h; exact ⟨by simp, hst.2⟩
+    · cases h; exact hst
+
+theorem mem_extract_lt {n : Nat} {p : Part} (hp : Part.WF n p) {a b v : Nat}
+    (h : v ∈ (p.lab.extract a b).toList) : v < n := by
+  rw [← Array.mem_def, Array.mem_iff_getElem] at h
+  obtain ⟨i, hi, hv⟩ := h
+  rw [Array.getElem_extract] at hv
+  have hlt : a + i < p.lab.size := by
+    simp only [Array.size_extract] at hi
+    omega
+  rw [← hv, ← getElem!_pos p.lab (a + i) hlt]
+  exact hp.labLt _ (by rw [hp.labSize] at hlt; exact hlt)
+
+/-! ### Branch equations for the search
+
+`dfsNode` and `dfsChildren` are written as one `match`/`if` cascade each, with `let`s naming the
+intermediate states.  Rewriting inside those `let`s is painful, so each branch gets an equation
+here, stated with the intermediates named by `orbRefresh` and `unwind`.  Proofs elsewhere only
+ever use these, never the definitions. -/
+
+/-- The orbit cache of `dfsChildren`, refreshed if new generators have turned up. -/
+def orbRefresh (G : Graph) (path : Array Nat) (processed : Array Nat) (orb : Orbits) (st : St) :
+    Orbits :=
+  if orb.nGens == st.autos.size then orb
+  else
+    let gens := usableAutos st.autos path
+    { nGens := st.autos.size, gens, mark := orbitClosure G.n gens processed }
+
+/-- Absorb a backjump request aimed at this depth. -/
+def unwind (path : Array Nat) (st : St) : St :=
+  match st.abortTo with
+  | some k => if k ≥ path.size then { st with abortTo := none } else st
+  | none => st
+
+theorem dfsNode_zero (G : Graph) (path : Array Nat) (invPath : Array UInt64) (p : Part) (st : St) :
+    dfsNode G 0 path invPath p st = st := by rw [dfsNode]
+
+theorem dfsNode_abort {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {st : St} (h : st.abortTo.isSome = true) :
+    dfsNode G (fuel + 1) path invPath p st = st := by
+  rw [dfsNode, if_pos h]
+
+theorem dfsNode_pruned {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {st : St} (h : st.abortTo.isSome = false) (hp : pruneNode invPath st = none) :
+    dfsNode G (fuel + 1) path invPath p st = st := by
+  rw [dfsNode, if_neg (by simp [h]), hp]
+
+theorem dfsNode_leaf {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {st st' : St} (h : st.abortTo.isSome = false)
+    (hp : pruneNode invPath st = some st') (hc : p.targetCell G.n = none) :
+    dfsNode G (fuel + 1) path invPath p st
+      = leafUpdate G path invPath p.lab { st' with nodes := st'.nodes + 1 } := by
+  rw [dfsNode, if_neg (by simp [h]), hp]
+  simp only []
+  rw [hc]
+
+theorem dfsNode_branch {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {st st' : St} {c : Nat} (h : st.abortTo.isSome = false)
+    (hp : pruneNode invPath st = some st') (hc : p.targetCell G.n = some c) :
+    dfsNode G (fuel + 1) path invPath p st
+      = dfsChildren G fuel path invPath p ((p.lab.extract c p.cen[c]!).toList) #[]
+          { nGens := st'.autos.size, gens := usableAutos st'.autos path,
+            mark := Array.replicate G.n false }
+          { st' with nodes := st'.nodes + 1 } := by
+  rw [dfsNode, if_neg (by simp [h]), hp]
+  simp only []
+  rw [hc]
+
+theorem dfsChildren_nil (G : Graph) (fuel : Nat) (path : Array Nat) (invPath : Array UInt64)
+    (p : Part) (processed : Array Nat) (orb : Orbits) (st : St) :
+    dfsChildren G fuel path invPath p [] processed orb st = st := by rw [dfsChildren]
+
+theorem dfsChildren_abort {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
+    (h : st.abortTo.isSome = true) :
+    dfsChildren G fuel path invPath p (v :: vs) processed orb st = st := by
+  rw [dfsChildren]
+  simp only []
+  rw [if_pos h]
+
+theorem dfsChildren_marked {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
+    (h : st.abortTo.isSome = false) (hm : (orbRefresh G path processed orb st).mark[v]! = true) :
+    dfsChildren G fuel path invPath p (v :: vs) processed orb st
+      = dfsChildren G fuel path invPath p vs processed (orbRefresh G path processed orb st) st := by
+  have hor : orbRefresh G path processed orb st
+      = if orb.nGens == st.autos.size then orb
+        else { nGens := st.autos.size, gens := usableAutos st.autos path,
+               mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
+  rw [dfsChildren]
+  simp only []
+  rw [if_neg (by simp [h]), ← hor, if_pos hm]
+
+theorem dfsChildren_step {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
+    {p' p'' : Part} {s : Nat} {tr : UInt64}
+    (h : st.abortTo.isSome = false) (hm : (orbRefresh G path processed orb st).mark[v]! = false)
+    (hi : individualize p v = (p', s))
+    (hr : refine G p' ((Array.replicate G.n false).set! s true) hashSeed = (p'', tr)) :
+    dfsChildren G fuel path invPath p (v :: vs) processed orb st
+      = (let st1 := unwind path
+            (dfsNode G fuel (path.push v) (invPath.push (mix tr (p''.shapeHash G.n))) p'' st)
+         if st1.abortTo.isSome then st1
+         else
+           dfsChildren G fuel path invPath p vs (processed.push v)
+             { orbRefresh G path processed orb st with
+               mark := closureLoop (orbRefresh G path processed orb st).gens (G.n + 1)
+                 ((orbRefresh G path processed orb st).mark.set! v true) #[v] } st1) := by
+  have hor : orbRefresh G path processed orb st
+      = if orb.nGens == st.autos.size then orb
+        else { nGens := st.autos.size, gens := usableAutos st.autos path,
+               mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
+  rw [dfsChildren]
+  simp only []
+  rw [if_neg (by simp [h]), ← hor, if_neg (by simp [hm]), hi]
+  simp only []
+  rw [hr]
+  rfl
+
+theorem dfsChildren_step_stop {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
+    {p' p'' : Part} {s : Nat} {tr : UInt64}
+    (h : st.abortTo.isSome = false) (hm : (orbRefresh G path processed orb st).mark[v]! = false)
+    (hi : individualize p v = (p', s))
+    (hr : refine G p' ((Array.replicate G.n false).set! s true) hashSeed = (p'', tr))
+    (hs : (unwind path (dfsNode G fuel (path.push v)
+        (invPath.push (mix tr (p''.shapeHash G.n))) p'' st)).abortTo.isSome = true) :
+    dfsChildren G fuel path invPath p (v :: vs) processed orb st
+      = unwind path
+          (dfsNode G fuel (path.push v) (invPath.push (mix tr (p''.shapeHash G.n))) p'' st) := by
+  rw [dfsChildren_step h hm hi hr]
+  simp only []
+  rw [if_pos hs]
+
+theorem dfsChildren_step_go {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
+    {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
+    {p' p'' : Part} {s : Nat} {tr : UInt64}
+    (h : st.abortTo.isSome = false) (hm : (orbRefresh G path processed orb st).mark[v]! = false)
+    (hi : individualize p v = (p', s))
+    (hr : refine G p' ((Array.replicate G.n false).set! s true) hashSeed = (p'', tr))
+    (hs : (unwind path (dfsNode G fuel (path.push v)
+        (invPath.push (mix tr (p''.shapeHash G.n))) p'' st)).abortTo.isSome = false) :
+    dfsChildren G fuel path invPath p (v :: vs) processed orb st
+      = dfsChildren G fuel path invPath p vs (processed.push v)
+          { orbRefresh G path processed orb st with
+            mark := closureLoop (orbRefresh G path processed orb st).gens (G.n + 1)
+              ((orbRefresh G path processed orb st).mark.set! v true) #[v] }
+          (unwind path
+            (dfsNode G fuel (path.push v) (invPath.push (mix tr (p''.shapeHash G.n))) p'' st)) := by
+  rw [dfsChildren_step h hm hi hr]
+  simp only []
+  rw [if_neg (by simp [hs])]
+
+/-- `unwind` only clears a backjump request; it never touches the recorded leaves. -/
+theorem unwind_best (path : Array Nat) (st : St) : (unwind path st).best = st.best := by
+  rw [unwind]; split; split; rfl; rfl; rfl
+
+theorem unwind_first (path : Array Nat) (st : St) : (unwind path st).first = st.first := by
+  rw [unwind]; split; split; rfl; rfl; rfl
+
+theorem StOk.unwind {G : Graph} {st : St} (h : StOk G st) (path : Array Nat) :
+    StOk G (Canon.unwind path st) :=
+  ⟨fun l hb => h.1 l ((unwind_best path st) ▸ hb), fun l hf => h.2 l ((unwind_first path st) ▸ hf)⟩
+
+/-- **Every leaf the search stores is honest.**  By functional induction over the two mutually
+recursive halves of the search: the only place a leaf is created is `leafUpdate`, and there it is
+built from the `lab` of the current partition, which the refinement keeps well-formed. -/
+theorem dfsNode_ok (n : Nat) (f : Nat → Nat → Bool) :
+    ∀ (fuel : Nat) (path : Array Nat) (invPath : Array UInt64) (p : Part) (st : St),
+      Part.WF n p → StOk (Graph.ofOracle n f) st →
+        StOk (Graph.ofOracle n f) (dfsNode (Graph.ofOracle n f) fuel path invPath p st) := by
+  refine dfsNode.induct (Graph.ofOracle n f)
+    (motive1 := fun fuel path invPath p st =>
+      Part.WF n p → StOk (Graph.ofOracle n f) st →
+        StOk (Graph.ofOracle n f) (dfsNode (Graph.ofOracle n f) fuel path invPath p st))
+    (motive2 := fun fuel path invPath p verts processed orb st =>
+      Part.WF n p → (∀ v ∈ verts, v < n) → StOk (Graph.ofOracle n f) st →
+        StOk (Graph.ofOracle n f)
+          (dfsChildren (Graph.ofOracle n f) fuel path invPath p verts processed orb st))
+    ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
+  case refine_1 => intro path invPath p st hp hst; rw [dfsNode]; exact hst
+  case refine_2 =>
+    intro path invPath p st fuel habort hp hst
+    rw [dfsNode, if_pos habort]; exact hst
+  case refine_3 =>
+    intro path invPath p st fuel habort hprune hp hst
+    rw [dfsNode, if_neg habort, hprune]; exact hst
+  case refine_4 =>
+    intro path invPath p st fuel habort st1 hprune htc hp hst
+    have hst1 : StOk (Graph.ofOracle n f) st1 := pruneNode_ok hprune hst
+    rw [dfsNode_leaf (by simpa using habort) hprune htc]
+    exact leafUpdate_ok (leafOk_of_wf (ofOracle_n n f) hp path invPath) hst1
+  case refine_5 =>
+    intro path invPath p st fuel habort st1 hprune st2 s htc verts orb ih hp hst
+    have hst1 : StOk (Graph.ofOracle n f) st1 := pruneNode_ok hprune hst
+    rw [dfsNode_branch (by simpa using habort) hprune htc]
+    exact ih hp (fun v hv => mem_extract_lt hp hv) hst1
+  case refine_6 =>
+    intro fuel path invPath p processed orb st hp hverts hst
+    rw [dfsChildren_nil]; exact hst
+  case refine_7 =>
+    intro fuel path invPath p processed orb st v vs habort hp hverts hst
+    rw [dfsChildren_abort habort]; exact hst
+  case refine_8 =>
+    intro fuel path invPath p processed orb st v vs habort orb1 hmark ih hp hverts hst
+    rw [dfsChildren_marked (by simpa using habort) hmark]
+    exact ih hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw)) hst
+  case refine_9 =>
+    intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
+    intro childInv st1 st2 habort2 ih1 hp hverts hst
+    have hv : v < n := hverts v (by simp)
+    have hwf'' : Part.WF n p'' := by
+      have h2 : p'' = (refine (Graph.ofOracle n f) p' inW hashSeed).1 := by rw [href]
+      have h1 : p' = (individualize p v).1 := by rw [hind]
+      rw [h2, h1]
+      exact refine_wf (individualize_wf' hp hv) _ _
+    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    exact (ih1 hwf'' hst).unwind path
+  case refine_10 =>
+    intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
+    intro childInv st1 st2 habort2 orb2 ih1 _ih1' ih2 hp hverts hst
+    have hv : v < n := hverts v (by simp)
+    have hwf'' : Part.WF n p'' := by
+      have h2 : p'' = (refine (Graph.ofOracle n f) p' inW hashSeed).1 := by rw [href]
+      have h1 : p' = (individualize p v).1 := by rw [hind]
+      rw [h2, h1]
+      exact refine_wf (individualize_wf' hp hv) _ _
+    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
+      (by simpa using habort2)]
+    exact ih2 hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw)) ((ih1 hwf'' hst).unwind path)
+
+/-! ### `isPermArray` is complete
+
+`isPermArray_spec` says an accept is honest.  Here is the converse: an honest array is accepted.
+That is what turns `canonicalLabellingOfOracle`'s `if` into a no-op, so that the labelling really
+is the search's output and not the identity fallback. -/
+
+/-- Positions not written by any step of the `invLab` fold keep their old value. -/
+theorem invLab_foldl_unchanged (n : Nat) (a : Array Nat) (l : List Nat) (b : Array Nat) (x : Nat)
+    (h : ∀ i ∈ l, a[i]! ≠ x) :
+    (l.foldl (fun b i => if a[i]! < n then b.set! a[i]! i else b) b)[x]! = b[x]! := by
+  induction l generalizing b with
+  | nil => rfl
+  | cons c t ih =>
+    simp only [List.foldl_cons]
+    rw [ih _ (fun j hj => h j (List.mem_cons_of_mem _ hj))]
+    split
+    · exact getElem!_set!_ne (Ne.symm (h c (by simp)))
+    · rfl
+
+theorem invLab_foldl_size (n : Nat) (a : Array Nat) (l : List Nat) (b : Array Nat) :
+    (l.foldl (fun b i => if a[i]! < n then b.set! a[i]! i else b) b).size = b.size := by
+  induction l generalizing b with
+  | nil => rfl
+  | cons c t ih => simp only [List.foldl_cons]; rw [ih]; split <;> simp
+
+theorem invLab_foldl_get (n : Nat) (a : Array Nat) (l : List Nat) (hnd : l.Nodup)
+    (hinj : ∀ i ∈ l, ∀ j ∈ l, a[i]! = a[j]! → i = j) (b : Array Nat) (hb : b.size = n)
+    (i : Nat) (hi : i ∈ l) (hai : a[i]! < n) :
+    (l.foldl (fun b i => if a[i]! < n then b.set! a[i]! i else b) b)[a[i]!]! = i := by
+  induction l generalizing b with
+  | nil => cases hi
+  | cons c t ih =>
+    simp only [List.foldl_cons]
+    rcases List.mem_cons.1 hi with rfl | hit
+    · have hne : ∀ j ∈ t, a[j]! ≠ a[i]! := by
+        intro j hj heq
+        exact absurd (hinj j (List.mem_cons_of_mem _ hj) i (by simp) heq ▸ hj)
+          (List.nodup_cons.1 hnd).1
+      rw [invLab_foldl_unchanged n a t _ _ hne, if_pos hai,
+        getElem!_set! (show a[i]! < b.size by rw [hb]; exact hai) a[i]!, if_pos rfl]
+    · refine ih (List.nodup_cons.1 hnd).2
+        (fun x hx y hy => hinj x (List.mem_cons_of_mem _ hx) y (List.mem_cons_of_mem _ hy)) _
+        ?_ hit
+      split <;> simp [hb]
+
+theorem invLab_get {n : Nat} {a : Array Nat}
+    (hinj : ∀ i, i < n → ∀ j, j < n → a[i]! = a[j]! → i = j) {i : Nat} (hi : i < n)
+    (hai : a[i]! < n) : (invLab n a)[a[i]!]! = i := by
+  rw [invLab]
+  exact invLab_foldl_get n a (List.range n) List.nodup_range
+    (fun x hx y hy => hinj x (by simpa using hx) y (by simpa using hy)) _ (by simp) i
+    (by simpa using hi) hai
+
+/-- **`isPermArray` is complete.**  Anything of the right size whose entries are in range and
+pairwise distinct is accepted. -/
+theorem isPermArray_of {n : Nat} {a : Array Nat} (hsize : a.size = n)
+    (hlt : ∀ i, i < n → a[i]! < n)
+    (hinj : ∀ i, i < n → ∀ j, j < n → a[i]! = a[j]! → i = j) : isPermArray n a = true := by
+  simp only [isPermArray, Bool.and_eq_true, beq_iff_eq, List.all_eq_true, List.mem_range,
+    decide_eq_true_eq]
+  refine ⟨hsize, fun i hi => ?_⟩
+  have hi' : i < n := by simpa using hi
+  simp [hlt i hi', invLab_get hinj hi' (hlt i hi')]
+
+/-! ### The search's output is an honest leaf -/
+
+/-- The `Leaf` view of a `Result`, so that `LeafOk` can be reused for it. -/
+def resultLeaf (r : Result) : Leaf :=
+  { path := #[], invPath := #[], cert := r.cert, lab := r.lab }
+
+/-- **The canonical labelling is a permutation and its certificate is the graph read at it.** -/
+theorem canonical_ok (n : Nat) (f : Nat → Nat → Bool) :
+    LeafOk (Graph.ofOracle n f) (resultLeaf (canonical (Graph.ofOracle n f))) := by
+  have key : ∀ st : St, StOk (Graph.ofOracle n f) st →
+      LeafOk (Graph.ofOracle n f) (resultLeaf (match st.best with
+        | none => { lab := Array.range n,
+                    cert := certOf (Graph.ofOracle n f) (Array.range n),
+                    autos := #[], nodes := st.nodes }
+        | some b => { lab := b.lab, cert := b.cert, autos := st.autos, nodes := st.nodes })) := by
+    intro st hst
+    cases hb : st.best with
+    | none =>
+      simp only [resultLeaf]
+      refine ⟨by simp, fun i hi => ?_, fun i hi j hj h => ?_, rfl⟩
+      · rw [getElem!_pos _ _ (by simpa using hi)]; simpa using hi
+      · have h' : (Array.range n)[i]! = (Array.range n)[j]! := h
+        rw [getElem!_pos _ _ (by simpa using hi), getElem!_pos _ _ (by simpa using hj)] at h'
+        simpa using h'
+    | some b =>
+      have hbo := hst.1 b hb
+      exact ⟨hbo.size, hbo.lt, hbo.inj, hbo.cert⟩
+  exact key _ (dfsNode_ok n f _ _ _ _ _ (initialRefine_wf f) ⟨by simp, by simp⟩)
+
+theorem canonical_cert (n : Nat) (f : Nat → Nat → Bool) :
+    (canonical (Graph.ofOracle n f)).cert
+      = certOf (Graph.ofOracle n f) (canonical (Graph.ofOracle n f)).lab :=
+  (canonical_ok n f).cert
+
+theorem canonical_isPerm (n : Nat) (f : Nat → Nat → Bool) :
+    isPermArray n (canonical (Graph.ofOracle n f)).lab = true :=
+  isPermArray_of (canonical_ok n f).size (canonical_ok n f).lt (canonical_ok n f).inj
+
+/-- With the check now known to pass, the labelling *is* the search's output. -/
+theorem canonicalLabellingOfOracle_eq (n : Nat) (f : Nat → Nat → Bool) :
+    canonicalLabellingOfOracle n f = (canonical (Graph.ofOracle n f)).lab := by
+  rw [canonicalLabellingOfOracle]
+  simp only [canonical_isPerm n f, if_pos]
+
+
 end Canon
 end IsoGraph
