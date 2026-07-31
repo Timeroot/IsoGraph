@@ -8,6 +8,7 @@ import IsoGraph.Orbits
 import IsoGraph.Progress
 import IsoGraph.Monotone
 import IsoGraph.Paths
+import IsoGraph.Pinned
 import IsoGraph.Basic
 import IsoGraph.Invariants
 import IsoGraph.Constructions
