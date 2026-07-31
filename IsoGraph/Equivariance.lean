@@ -304,6 +304,49 @@ theorem Part.WF.cst_eq_iff {n : Nat} {p : Part} (hp : Part.WF n p) {i : Nat} (hi
 /-- `p` is discrete: every cell is a singleton, so each position is its own cell start. -/
 def Part.Discrete (n : Nat) (p : Part) : Prop := ∀ i, i < n → p.cst[i]! = i
 
+/-- The position after a singleton cell starts the next one. -/
+theorem cst_succ {n : Nat} {p : Part} (hp : Part.WF n p) {i : Nat}
+    (hcen : p.cen[i]! = i + 1) (h : i + 1 < n) : p.cst[i + 1]! = i + 1 := by
+  have h1 : p.cst[i + 1]! ≤ i + 1 := hp.cstLe _ h
+  by_contra hne
+  have h3 : i + 1 < p.cen[i + 1]! := hp.ltCen _ h
+  -- if `i + 1` were inside an earlier cell, that cell would contain `i` too, and so would end
+  -- where `i`'s cell ends — at `i + 1`
+  have h5 : p.cen[i]! = p.cen[i + 1]! := hp.cellCen (i + 1) h i (by omega) (by omega)
+  omega
+
+/-- The cell walk reaches `n` only by stepping through singletons. -/
+theorem cenTargetFrom_none {n : Nat} {p : Part} (hp : Part.WF n p) :
+    ∀ (fuel i : Nat), n ≤ i + fuel → (i < n → p.cst[i]! = i) →
+      cenTargetFrom p.cen n fuel i = none → ∀ k, i ≤ k → k < n → p.cst[k]! = k
+  | 0, _, _, _, _, _, _, _ => by omega
+  | fuel + 1, i, hf, hst, h, k, hk1, hk2 => by
+    rw [cenTargetFrom] at h
+    by_cases hi : i ≥ n
+    · omega
+    rw [if_neg hi] at h
+    have hcst := hst (by omega)
+    have hlt := hp.ltCen i (by omega)
+    by_cases hd : p.cen[i]! - i > 1
+    · rw [if_pos hd] at h; simp at h
+    rw [if_neg hd] at h
+    have hcen : p.cen[i]! = i + 1 := by omega
+    rw [hcen] at h
+    by_cases hki : k = i
+    · rw [hki]; exact hcst
+    · exact cenTargetFrom_none hp fuel (i + 1) (by omega)
+        (fun hn => cst_succ hp hcen hn) h k (by omega) hk2
+
+/-- **A partition the walk finds no target in is discrete.**  This is what discharges the
+`Discrete` hypotheses of step 4 at the leaves of the search: the algorithm stops individualising
+exactly when `targetCell` returns `none`, and that is the same condition. -/
+theorem discrete_of_targetCell_none {n : Nat} {p : Part} (hp : Part.WF n p)
+    (h : p.targetCell n = none) : p.Discrete n := by
+  intro k hk
+  refine cenTargetFrom_none hp n 0 (by omega) (fun h0 => ?_) h k (Nat.zero_le k) hk
+  have := hp.cstLe 0 h0
+  omega
+
 /-- `p` and `q` are the same ordered partition up to the renaming `σ`: the cells occupy the same
 ranges of positions, and vertex `v` of `q`'s graph lies in the cell where `σ v` lies in `p`.
 

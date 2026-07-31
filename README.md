@@ -251,10 +251,32 @@ theorem certOf_relabel (n : Nat) (f : Nat → Nat → Bool) (σ : Nat → Nat) (
       = certOf (Graph.ofOracle n f) (lab.map σ)
 ```
 
-That covers steps 2 and 4 of the six-step decomposition in `canonAdj_relabel`'s docstring. Steps
-1, 3, 5 and 6 — equivariance of `refineStep`, of `individualize`, and the argument that the
-maximum over the leaves is independent of the order children are enumerated in, which is where
-the three prunings have to be justified — are what is left.
+It also holds the vocabulary the rest of the decomposition is phrased in — `Part.WF`, a
+well-formed ordered partition, and `PartEquiv`, "the same partition up to a renaming" — together
+with step 3:
+
+```lean
+theorem individualize_partEquiv (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q)
+    (h : PartEquiv n σ p q) (hv : v < n) :
+    PartEquiv n σ (individualize p (σ v)).1 (individualize q v).1
+      ∧ (individualize p (σ v)).2 = (individualize q v).2
+```
+
+`PartEquiv` is deliberately weaker than a positionwise equation: the two runs displace *different*
+vertices from the front of the split cell — `p.lab[c]` need not be `σ (q.lab[c])`, since
+refinement's counting sort is stable and so inherits vertex-name order from the parent — so all
+that survives is which *cell* each vertex lands in. `lab_eq_of_discrete` shows that this sharpens
+back to an array equation exactly at discrete partitions, which is what step 4 consumes, and
+`discrete_of_targetCell_none` supplies the discreteness at the leaves.
+
+That covers steps 2, 3 and 4 of the six-step decomposition in `canonAdj_relabel`'s docstring.
+Steps 1, 5 and 6 — equivariance of `refineStep`, the correspondence of the two search trees, and
+the argument that the maximum over the leaves is independent of the order children are enumerated
+in, which is where the three prunings have to be justified — are what is left. Step 1 is the
+large one: `refineStep` is a hundred lines of counting sort, worklist maintenance and scratch
+reuse, and its equivariance rests on a cardinality argument (the neighbour count of `σ v` in
+`p`'s splitter cell equals that of `v` in `q`'s, because `σ` is a bijection between the cells)
+rather than on anything positionwise.
 
 `certOf_relabel` is worth a footnote: an earlier version of it, missing the `lab.size = n`
 hypothesis, was *refuted* by the prover, which returned a counterexample (`n = 2`,
