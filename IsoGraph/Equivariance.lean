@@ -139,11 +139,43 @@ order given by `lab`; so renaming the vertices along `σ` and reading in the ord
 same bits as leaving the graph alone and reading in the order `σ ∘ lab`.  This is the point at
 which "the search found corresponding leaves" turns into "the two runs return the same array". -/
 
+/-- One packed row only reads columns `j < n`.  The fuel invariant `j + fuel = n` is what makes
+that available: it says the loop is at position `j` with `fuel` columns left, so `fuel ≥ 1`
+forces `j < n`. -/
+theorem certRow_congr {n : Nat} {b b' : Nat → Bool} (h : ∀ j, j < n → b j = b' j) :
+    ∀ (fuel j : Nat) (acc : UInt64) (k : Nat) (out : Array UInt64), j + fuel = n →
+      certRow n b fuel j acc k out = certRow n b' fuel j acc k out
+  | 0, _, _, _, _, _ => rfl
+  | fuel + 1, j, acc, k, out, hj => by
+    simp only [certRow, h j (by omega)]
+    split <;> exact certRow_congr h fuel (j + 1) _ _ _ (by omega)
+
+/-- The same for the rows: row `i` is packed only for `i < n`. -/
+theorem certRowsFrom_congr {n : Nat} {b b' : Nat → Nat → Bool} (w : Nat)
+    (h : ∀ i, i < n → ∀ j, j < n → b i j = b' i j) :
+    ∀ (fuel i : Nat) (out : Array UInt64), i + fuel = n →
+      certRowsFrom n b w fuel i out = certRowsFrom n b' w fuel i out
+  | 0, _, _, _ => rfl
+  | fuel + 1, i, out, hi => by
+    rw [certRowsFrom, certRowsFrom,
+      certRow_congr (h i (by omega)) n 0 0 (i * w) out (Nat.zero_add n)]
+    exact certRowsFrom_congr w h fuel (i + 1) _ (by omega)
+
+/-- `certBits` reads the matrix only inside `{0, …, n-1}²`. -/
+theorem certBits_congr (n : Nat) (b b' : Nat → Nat → Bool)
+    (h : ∀ i, i < n → ∀ j, j < n → b i j = b' i j) : certBits n b = certBits n b' :=
+  certRowsFrom_congr _ h n 0 _ (Nat.zero_add n)
+
+theorem certOf_eq (G : Graph) (lab : Array Nat) :
+    certOf G lab = certBits G.n fun i j => (G.adj[lab[i]!]!)[lab[j]!]! := rfl
+
 /-- `certOf` reads the adjacency matrix only at the pairs named by `lab`. -/
 theorem certOf_congr (G H : Graph) (lab lab' : Array Nat) (hn : G.n = H.n)
-    (hlab : ∀ i, i < G.n → ∀ j, j < G.n → (G.adj[lab[i]!]!)[lab[j]!]! = (H.adj[lab'[i]!]!)[lab'[j]!]!) :
+    (hlab : ∀ i, i < G.n → ∀ j, j < G.n →
+      (G.adj[lab[i]!]!)[lab[j]!]! = (H.adj[lab'[i]!]!)[lab'[j]!]!) :
     certOf G lab = certOf H lab' := by
-  sorry
+  rw [certOf_eq, certOf_eq, ← hn]
+  exact certBits_congr _ _ _ hlab
 
 /-- **Certificates are equivariant.**  Reading the renamed graph along `lab` is reading the
 original along `σ ∘ lab`. -/
@@ -151,7 +183,14 @@ theorem certOf_relabel (n : Nat) (f : Nat → Nat → Bool) (σ : Nat → Nat) (
     (lab : Array Nat) (hsz : lab.size = n) (hlab : ∀ i, i < n → lab[i]! < n) :
     certOf (Graph.ofOracle n (fun v w => f (σ v) (σ w))) lab
       = certOf (Graph.ofOracle n f) (lab.map σ) := by
-  sorry
+  have hmap : ∀ i, i < n → (lab.map σ)[i]! = σ lab[i]! := by
+    intro i hi
+    rw [getElem!_pos _ _ (by simpa [hsz] using hi), getElem!_pos _ _ (by omega)]
+    simp
+  refine certOf_congr _ _ _ _ rfl fun i hi j hj => ?_
+  rw [ofOracle_n] at hi hj
+  rw [ofOracle_adj n _ _ _ (hlab i hi) (hlab j hj), hmap i hi, hmap j hj,
+    ofOracle_adj n f _ _ (hσ.maps _ (hlab i hi)) (hσ.maps _ (hlab j hj))]
 
 end Canon
 end IsoGraph

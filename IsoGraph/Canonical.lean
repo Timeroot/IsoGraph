@@ -351,31 +351,44 @@ def individualize (p : Part) (v : Nat) : Part × Nat := Id.run do
 /-- Number of 64-bit words used for one row of a certificate. -/
 def rowWords (n : Nat) : Nat := (n + 63) / 64
 
-/-- The adjacency matrix of `G` read off in the order `lab`, packed into 64-bit words: row `i`
-occupies words `[i * rowWords n, (i+1) * rowWords n)`, and column `j` of a row is bit
-`63 - j % 64` of word `j / 64`.  Unused trailing bits are zero.
+/-- An `n × n` bit matrix packed into 64-bit words: row `i` occupies words
+`[i * rowWords n, (i+1) * rowWords n)`, and column `j` of a row is bit `63 - j % 64` of word
+`j / 64`.  Unused trailing bits are zero.
+
+The matrix is given as a curried function so that a caller can do its per-row work — for
+`certOf` below, one array index — in the outer lambda, where this loop applies it once per row
+rather than once per bit.
+
+Like the partition walks above, the two loops are structural recursions on fuel rather than
+`for` loops, so that induction applies to them: `fuel` counts the entries still to do and `j`
+(resp. `i`) the position reached, and `j + fuel = n` is the invariant that gives `j < n` inside
+the body — which is exactly what a proof about the loop needs and what a `for` loop hides. -/
+def certRow (n : Nat) (b : Nat → Bool) :
+    Nat → Nat → UInt64 → Nat → Array UInt64 → Array UInt64
+  | 0, _, acc, k, out =>
+    if n % 64 != 0 then out.set! k (acc <<< UInt64.ofNat (64 - n % 64)) else out
+  | fuel + 1, j, acc, k, out =>
+    let acc := acc <<< 1 ||| (if b j then 1 else 0)
+    if (j + 1) % 64 == 0 then certRow n b fuel (j + 1) 0 (k + 1) (out.set! k acc)
+    else certRow n b fuel (j + 1) acc k out
+
+/-- Pack rows `i, i+1, …` of the matrix, `fuel` of them, into `out`. -/
+def certRowsFrom (n : Nat) (bit : Nat → Nat → Bool) (w : Nat) :
+    Nat → Nat → Array UInt64 → Array UInt64
+  | 0, _, out => out
+  | fuel + 1, i, out => certRowsFrom n bit w fuel (i + 1) (certRow n (bit i) n 0 0 (i * w) out)
+
+@[inherit_doc certRow]
+def certBits (n : Nat) (bit : Nat → Nat → Bool) : Array UInt64 :=
+  certRowsFrom n bit (rowWords n) n 0 (Array.replicate (n * rowWords n) 0)
+
+/-- The adjacency matrix of `G` read off in the order `lab`, packed by `certBits`.
 
 Packing bits most-significant-first means that comparing the word arrays lexicographically, as
 unsigned integers, compares the bit strings lexicographically.  Two labellings give the same
 certificate exactly when they differ by an automorphism. -/
-def certOf (G : Graph) (lab : Array Nat) : Array UInt64 := Id.run do
-  let n := G.n
-  let w := rowWords n
-  let mut out : Array UInt64 := Array.replicate (n * w) 0
-  for i in [0:n] do
-    let row := G.adj[lab[i]!]!
-    let base := i * w
-    let mut acc : UInt64 := 0
-    let mut k := base
-    for j in [0:n] do
-      acc := acc <<< 1 ||| (if row[lab[j]!]! then 1 else 0)
-      if (j + 1) % 64 == 0 then
-        out := out.set! k acc
-        acc := 0
-        k := k + 1
-    if n % 64 != 0 then
-      out := out.set! k (acc <<< UInt64.ofNat (64 - n % 64))
-  return out
+def certOf (G : Graph) (lab : Array Nat) : Array UInt64 :=
+  certBits G.n fun i => let row := G.adj[lab[i]!]!; fun j => row[lab[j]!]!
 
 /-- Lexicographic comparison of `UInt64` arrays (shorter is smaller on a common prefix). -/
 def lexCmpU64 (a b : Array UInt64) : Ordering := Id.run do
