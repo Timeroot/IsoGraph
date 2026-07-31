@@ -4160,5 +4160,181 @@ theorem initialRefine_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bo
   rw [initialRefine, initialRefine]
   exact refine_equiv hσ (unit_wf n) (unit_wf n) (partEquiv_unit n σ) _ _
 
+/-! ## Certificate readback
+
+The search compares packed certificates; `certOf_get` below turns an equality of certificates
+back into an equality of adjacency entries, which is what `Spec.LabellingInvariant` asks for. -/
+
+theorem shl_bit (acc : UInt64) (c : Bool) (t : Nat) (ht : t < 64) :
+    (acc <<< 1 ||| (if c then 1 else 0)).toBitVec.getLsbD t
+      = if t = 0 then c else acc.toBitVec.getLsbD (t - 1) := by
+  have h : (acc <<< 1).toBitVec = acc.toBitVec <<< (1:Nat) := rfl
+  simp only [UInt64.toBitVec_or, h, BitVec.getLsbD_or, BitVec.getLsbD_shiftLeft]
+  rcases Nat.eq_zero_or_pos t with rfl | hpos
+  · cases c <;> simp
+  · cases c <;> simp [ht, Nat.not_lt.2 hpos, Nat.ne_of_gt hpos]
+
+theorem shl_natshift (acc : UInt64) (m : Nat) (hm : m < 64) :
+    (acc <<< UInt64.ofNat m).toBitVec = acc.toBitVec <<< m := by
+  show acc.toBitVec <<< (((UInt64.ofNat m).toBitVec % 64).toNat) = acc.toBitVec <<< m
+  congr 1
+  rw [BitVec.toNat_umod]
+  simp [BitVec.toNat_ofNat, Nat.mod_eq_of_lt hm,
+    Nat.mod_eq_of_lt (show m < 18446744073709551616 by omega)]
+
+/-- Bit `j` of row `i` of a certificate packed by `certBits`. -/
+def certGet (n : Nat) (c : Array UInt64) (i j : Nat) : Bool :=
+  (c[i * rowWords n + j / 64]!).toBitVec.getLsbD (63 - j % 64)
+
+/-- The accumulator invariant of `certRow`: `acc` holds the bits of columns
+`64 * (j / 64) … j - 1`, right-aligned, with column `j - 1` at bit 0. -/
+def AccOk (b : Nat → Bool) (j : Nat) (acc : UInt64) : Prop :=
+  ∀ t, t < 64 → acc.toBitVec.getLsbD t = (decide (t + 64 * (j / 64) < j) && b (j - 1 - t))
+
+theorem certRow_spec (n : Nat) (b : Nat → Bool) (base : Nat) :
+    ∀ (fuel j : Nat) (acc : UInt64) (out res : Array UInt64), j + fuel = n →
+      base + rowWords n ≤ out.size → AccOk b j acc →
+      certRow n b fuel j acc (base + j / 64) out = res →
+      res.size = out.size
+      ∧ (∀ x, (x < base + j / 64 ∨ base + rowWords n ≤ x) → res[x]! = out[x]!)
+      ∧ (∀ j', j' < n → 64 * (j / 64) ≤ j' →
+          (res[base + j' / 64]!).toBitVec.getLsbD (63 - j' % 64) = b j') := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro j acc out res hj hsz hacc hres
+    have hj' : n = j := by omega
+    subst hj'
+    have hrwn : rowWords n = (n + 63) / 64 := rfl
+    rw [certRow] at hres
+    by_cases hm : n % 64 = 0
+    · rw [if_neg (by simp [hm])] at hres
+      subst hres
+      refine ⟨rfl, fun x _ => rfl, ?_⟩
+      intro j' hj' hge
+      omega
+    · rw [if_pos (by simp [hm])] at hres
+      have hk : base + n / 64 < out.size := by omega
+      subst hres
+      refine ⟨by simp, ?_, ?_⟩
+      · intro x hx
+        exact getElem!_set!_ne (by omega)
+      · intro j' hj' hge
+        have hq : j' / 64 = n / 64 := by omega
+        rw [hq, getElem!_set! hk _, if_pos rfl,
+          shl_natshift _ _ (by omega), BitVec.getLsbD_shiftLeft]
+        have hr : j' % 64 < n % 64 := by omega
+        rw [decide_eq_true (show 63 - j' % 64 < 64 by omega),
+          decide_eq_false (show ¬ (63 - j' % 64 < 64 - n % 64) by omega)]
+        simp only [Bool.true_and, Bool.not_false]
+        rw [hacc (63 - j' % 64 - (64 - n % 64)) (by omega),
+          decide_eq_true (show 63 - j' % 64 - (64 - n % 64) + 64 * (n / 64) < n by omega)]
+        simp only [Bool.true_and]
+        congr 1
+        omega
+  | succ fuel ih =>
+    intro j acc out res hj hsz hacc hres
+    have hjn : j < n := by omega
+    have hrwn : rowWords n = (n + 63) / 64 := rfl
+    rw [certRow] at hres
+    set acc' := acc <<< 1 ||| (if b j then 1 else 0) with hacc'def
+    have hacc'ok : ∀ t, t < 64 → acc'.toBitVec.getLsbD t
+        = (decide (t + 64 * (j / 64) < j + 1) && b (j - t)) := by
+      intro t ht
+      rw [hacc'def, shl_bit _ _ _ ht]
+      rcases Nat.eq_zero_or_pos t with rfl | hpos
+      · rw [if_pos rfl, decide_eq_true (show 0 + 64 * (j / 64) < j + 1 by omega)]
+        simp
+      · rw [if_neg (by omega), hacc (t - 1) (by omega)]
+        have h1 : decide (t - 1 + 64 * (j / 64) < j) = decide (t + 64 * (j / 64) < j + 1) := by
+          simp only [decide_eq_decide]; omega
+        have h2 : j - 1 - (t - 1) = j - t := by omega
+        rw [h1, h2]
+    have hrw : j / 64 < rowWords n := by
+      rw [rowWords]; omega
+    by_cases h64 : (j + 1) % 64 = 0
+    · rw [if_pos (by simp [h64])] at hres
+      have hq : base + j / 64 + 1 = base + (j + 1) / 64 := by omega
+      rw [hq] at hres
+      have hk : base + j / 64 < out.size := by omega
+      have hsz' : base + rowWords n ≤ (out.set! (base + j / 64) acc').size := by simp; omega
+      have hzero : AccOk b (j + 1) 0 := by
+        intro t ht
+        rw [decide_eq_false (show ¬ (t + 64 * ((j + 1) / 64) < j + 1) by omega)]
+        simp
+      obtain ⟨hsize, hunch, hbits⟩ := ih (j + 1) 0 _ res (by omega) hsz' hzero hres
+      refine ⟨by rw [hsize]; simp, ?_, ?_⟩
+      · intro x hx
+        rw [hunch x (by omega), getElem!_set!_ne (by omega)]
+      · intro j' hj' hge
+        by_cases hlt : 64 * ((j + 1) / 64) ≤ j'
+        · exact hbits j' hj' hlt
+        · have hq' : j' / 64 = j / 64 := by omega
+          rw [hq', hunch _ (by omega), getElem!_set! hk _, if_pos rfl,
+            hacc'ok (63 - j' % 64) (by omega),
+            decide_eq_true (show 63 - j' % 64 + 64 * (j / 64) < j + 1 by omega)]
+          simp only [Bool.true_and]
+          congr 1
+          omega
+    · rw [if_neg (by simp [h64])] at hres
+      have hq : (j + 1) / 64 = j / 64 := by omega
+      have hacc'ok' : AccOk b (j + 1) acc' := by
+        intro t ht
+        rw [hacc'ok t ht, hq]
+        congr 2
+      obtain ⟨hsize, hunch, hbits⟩ :=
+        ih (j + 1) acc' out res (by omega) hsz hacc'ok' (by rw [hq]; exact hres)
+      exact ⟨hsize, fun x hx => hunch x (by omega), fun j' hj' hge => hbits j' hj' (by omega)⟩
+
+theorem certRowsFrom_spec (n : Nat) (bit : Nat → Nat → Bool) :
+    ∀ (fuel i : Nat) (out res : Array UInt64), i + fuel = n → n * rowWords n ≤ out.size →
+      certRowsFrom n bit (rowWords n) fuel i out = res →
+      res.size = out.size
+      ∧ (∀ x, x < i * rowWords n → res[x]! = out[x]!)
+      ∧ (∀ i' j', i ≤ i' → i' < n → j' < n → certGet n res i' j' = bit i' j') := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro i out res hi hsz hres
+    rw [certRowsFrom] at hres
+    subst hres
+    exact ⟨rfl, fun _ _ => rfl, fun i' j' h1 h2 _ => absurd h2 (by omega)⟩
+  | succ fuel ih =>
+    intro i out res hi hsz hres
+    rw [certRowsFrom] at hres
+    have hrwn : rowWords n = (n + 63) / 64 := rfl
+    have hmul2 : i * rowWords n + rowWords n = (i + 1) * rowWords n := (Nat.succ_mul _ _).symm
+    have hmul : i * rowWords n + rowWords n ≤ n * rowWords n := by
+      rw [← Nat.succ_mul]
+      exact Nat.mul_le_mul_right _ (by omega)
+    have hcr := certRow_spec n (bit i) (i * rowWords n) n 0 0 out _ (by omega)
+      (by omega) (fun t ht => by simp) rfl
+    simp only [Nat.zero_div, Nat.add_zero] at hcr
+    obtain ⟨hsz1, hunch1, hbits1⟩ := hcr
+    obtain ⟨hsize, hunch, hbits⟩ := ih (i + 1) _ res (by omega) (by omega) hres
+    refine ⟨by omega, ?_, ?_⟩
+    · intro x hx
+      rw [hunch x (by omega), hunch1 x (Or.inl hx)]
+    · intro i' j' h1 h2 h3
+      rcases Nat.lt_or_ge i i' with h | h
+      · exact hbits i' j' (by omega) h2 h3
+      · have hii : i' = i := by omega
+        subst hii
+        have hjw : j' / 64 < rowWords n := by omega
+        rw [certGet, hunch _ (by rw [Nat.succ_mul]; omega)]
+        exact hbits1 j' h3 (by omega)
+
+theorem certBits_get (n : Nat) (bit : Nat → Nat → Bool) {i j : Nat} (hi : i < n) (hj : j < n) :
+    certGet n (certBits n bit) i j = bit i j := by
+  have h := certRowsFrom_spec n bit n 0 (Array.replicate (n * rowWords n) 0) _ (by omega)
+    (by simp) rfl
+  exact h.2.2 i j (Nat.zero_le _) hi hj
+
+/-- Reading the packed certificate back: bit `(i, j)` of `certOf G lab` is the adjacency of the
+`i`-th and `j`-th vertices in the order `lab`. -/
+theorem certOf_get {G : Graph} {lab : Array Nat} {i j : Nat} (hi : i < G.n) (hj : j < G.n) :
+    certGet G.n (certOf G lab) i j = (G.adj[lab[i]!]!)[lab[j]!]! :=
+  certBits_get _ _ hi hj
+
 end Canon
 end IsoGraph
