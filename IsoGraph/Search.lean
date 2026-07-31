@@ -20,6 +20,7 @@ winner really is the largest key, i.e. that none of the three pruning rules ever
 -/
 
 set_option autoImplicit false
+set_option maxRecDepth 4000
 
 namespace IsoGraph
 namespace Canon
@@ -255,6 +256,199 @@ theorem bestKey_transfer {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool}
   exact and_congr_right fun _ =>
     ⟨fun h k' hk' => h k' ((leafkey_transfer hσ k').2 hk'),
      fun h k' hk' => h k' ((leafkey_transfer hσ k').1 hk')⟩
+
+/-! ### The target cell really is a cell -/
+
+theorem cenTargetFrom_cst {n : Nat} {p : Part} (hp : Part.WF n p) :
+    ∀ (fuel i : Nat), (i < n → p.cst[i]! = i) → ∀ c, cenTargetFrom p.cen n fuel i = some c →
+      p.cst[c]! = c
+  | 0, i, _, c, h => by rw [cenTargetFrom] at h; exact absurd h (by simp)
+  | fuel + 1, i, hi, c, h => by
+    rw [cenTargetFrom] at h
+    split at h
+    · exact absurd h (by simp)
+    · rename_i hin
+      split at h
+      · cases h; exact hi (by omega)
+      · rename_i hsize
+        have hin' : i < n := by omega
+        have hlt : i < p.cen[i]! := hp.ltCen i hin'
+        have hcen : p.cen[i]! = i + 1 := by omega
+        refine cenTargetFrom_cst hp fuel p.cen[i]! (fun hlt' => ?_) c h
+        rw [hcen] at hlt' ⊢
+        exact cst_succ hp hcen hlt'
+
+/-- The target cell is a cell start. -/
+theorem targetCell_cst {n : Nat} {p : Part} (hp : Part.WF n p) {c : Nat}
+    (h : p.targetCell n = some c) : p.cst[c]! = c :=
+  cenTargetFrom_cst hp n 0 (fun h0 => by
+    have h1 := hp.cstLe 0 h0
+    omega) c h
+
+/-- The children `dfsChildren` enumerates are exactly the vertices of the target cell. -/
+theorem mem_extract_cell {n : Nat} {p : Part} (hp : Part.WF n p) {c v : Nat} (hc : c < n)
+    (hcst : p.cst[c]! = c) (h : v ∈ (p.lab.extract c p.cen[c]!).toList) :
+    p.cst[p.pos[v]!]! = c := by
+  rw [← Array.mem_def, Array.mem_iff_getElem] at h
+  obtain ⟨i, hi, hv⟩ := h
+  rw [Array.getElem_extract] at hv
+  simp only [Array.size_extract] at hi
+  have hlt : c + i < p.lab.size := by omega
+  have hlt' : c + i < n := by rw [hp.labSize] at hlt; exact hlt
+  have hvv : p.lab[c + i]! = v := by rw [getElem!_pos p.lab (c + i) hlt]; exact hv
+  have hpos : p.pos[v]! = c + i := by rw [← hvv]; exact hp.posLab (c + i) hlt'
+  rw [hpos]
+  refine (hp.cellCst c hc (c + i) (by omega) ?_).trans hcst
+  rw [hp.labSize] at hi
+  omega
+
+/-! ### The winner is a leaf of the tree
+
+The induction is parametric in a predicate `P` on keys: if everything reachable below the current
+node satisfies `P`, and everything the state already holds satisfies `P`, then so does everything
+the state holds afterwards.  Taking `P` to be "is a leaf key of the whole tree" at the root gives
+`canonical_leafkey`. -/
+
+/-- Every leaf the state holds satisfies `P`. -/
+def StP (P : List (List UInt64) → Prop) (st : St) : Prop :=
+  ∀ l, st.best = some l → P (leafKey l.invPath l.cert)
+
+theorem pruneNode_P {P : List (List UInt64) → Prop} {invPath : Array UInt64} {st st' : St}
+    (h : pruneNode invPath st = some st') (hst : StP P st) : StP P st' := by
+  rw [pruneNode] at h
+  split at h
+  · cases h; exact hst
+  · split at h
+    · exact absurd h (by simp)
+    · cases h; intro l hl; exact absurd hl (by simp)
+    · cases h; exact hst
+
+theorem StP.addAuto {P : List (List UInt64) → Prop} {st : St} (h : StP P st) (g : Array Nat) :
+    StP P (st.addAuto g) :=
+  fun l hl => h l ((addAuto_best st g) ▸ hl)
+
+theorem StP.unwind {P : List (List UInt64) → Prop} {st : St} (h : StP P st) (path : Array Nat) :
+    StP P (unwind path st) :=
+  fun l hl => h l ((unwind_best path st) ▸ hl)
+
+theorem leafUpdate_P {P : List (List UInt64) → Prop} {G : Graph} {path : Array Nat}
+    {invPath : Array UInt64} {lab : Array Nat} {st : St}
+    (hl : P (leafKey invPath (certOf G lab))) (hst : StP P st) :
+    StP P (leafUpdate G path invPath lab st) := by
+  intro l hb
+  rcases leafUpdate_best G path invPath lab st with h | h
+  · exact hst l (h ▸ hb)
+  · rw [h] at hb; cases hb; exact hl
+
+/-- **The search only ever holds leaves of the tree below the current node.** -/
+theorem dfsNode_reach (n : Nat) (f : Nat → Nat → Bool) (P : List (List UInt64) → Prop) :
+    ∀ (fuel : Nat) (path : Array Nat) (invPath : Array UInt64) (p : Part) (st : St),
+      Part.WF n p → (∀ k, Reach n f invPath p k → P k) → StP P st →
+        StP P (dfsNode (Graph.ofOracle n f) fuel path invPath p st) := by
+  refine dfsNode.induct (Graph.ofOracle n f)
+    (motive1 := fun fuel path invPath p st =>
+      Part.WF n p → (∀ k, Reach n f invPath p k → P k) → StP P st →
+        StP P (dfsNode (Graph.ofOracle n f) fuel path invPath p st))
+    (motive2 := fun fuel path invPath p verts processed orb st =>
+      Part.WF n p → (∀ v ∈ verts, v < n) →
+        (∀ v ∈ verts, ∀ k, Reach n f (childInv (Graph.ofOracle n f) invPath p v)
+          (child (Graph.ofOracle n f) p v).1 k → P k) → StP P st →
+        StP P (dfsChildren (Graph.ofOracle n f) fuel path invPath p verts processed orb st))
+    ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
+  case refine_1 => intro path invPath p st _ _ hst; rw [dfsNode]; exact hst
+  case refine_2 =>
+    intro path invPath p st fuel habort _ _ hst
+    rw [dfsNode_abort habort]; exact hst
+  case refine_3 =>
+    intro path invPath p st fuel habort hprune _ _ hst
+    rw [dfsNode_pruned (by simpa using habort) hprune]; exact hst
+  case refine_4 =>
+    intro path invPath p st fuel habort st1 hprune htc _ hreach hst
+    have hst1 : StP P st1 := pruneNode_P hprune hst
+    rw [dfsNode_leaf (by simpa using habort) hprune htc]
+    exact leafUpdate_P (hreach _ (Reach.leaf htc)) hst1
+  case refine_5 =>
+    intro path invPath p st fuel habort st1 hprune st2 s htc verts orb ih hp hreach hst
+    have hst1 : StP P st1 := pruneNode_P hprune hst
+    rw [dfsNode_branch (by simpa using habort) hprune htc]
+    refine ih hp (fun v hv => mem_extract_lt hp hv) (fun v hv k hk => hreach k ?_) hst1
+    exact Reach.step htc (mem_extract_lt hp hv)
+      (mem_extract_cell hp (targetCell_lt n p s htc) (targetCell_cst hp htc) hv) hk
+  case refine_6 =>
+    intro fuel path invPath p processed orb st _ _ _ hst
+    rw [dfsChildren_nil]; exact hst
+  case refine_7 =>
+    intro fuel path invPath p processed orb st v vs habort _ _ _ hst
+    rw [dfsChildren_abort habort]; exact hst
+  case refine_8 =>
+    intro fuel path invPath p processed orb st v vs habort orb1 hmark ih hp hverts hreach hst
+    rw [dfsChildren_marked (by simpa using habort) hmark]
+    exact ih hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw))
+      (fun w hw => hreach w (List.mem_cons_of_mem _ hw)) hst
+  case refine_9 =>
+    intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
+    intro childInv' st1 st2 habort2 ih1 hp hverts hreach hst
+    have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href
+    have hcinv : childInv (Graph.ofOracle n f) invPath p v = childInv' := by
+      rw [childInv, hchild]
+    have hwf'' : Part.WF n p'' := by
+      have h2 : p'' = (child (Graph.ofOracle n f) p v).1 := by rw [hchild]
+      rw [h2, child]
+      exact refine_wf (individualize_wf' hp (hverts v (by simp))) _ _
+    have hr : ∀ k, Reach n f childInv' p'' k → P k := by
+      intro k hk
+      refine hreach v (by simp) k ?_
+      rw [hcinv, hchild]
+      exact hk
+    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    exact (ih1 hwf'' hr hst).unwind path
+  case refine_10 =>
+    intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
+    intro childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 hp hverts hreach hst
+    have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href
+    have hcinv : childInv (Graph.ofOracle n f) invPath p v = childInv' := by
+      rw [childInv, hchild]
+    have hwf'' : Part.WF n p'' := by
+      have h2 : p'' = (child (Graph.ofOracle n f) p v).1 := by rw [hchild]
+      rw [h2, child]
+      exact refine_wf (individualize_wf' hp (hverts v (by simp))) _ _
+    have hr : ∀ k, Reach n f childInv' p'' k → P k := by
+      intro k hk
+      refine hreach v (by simp) k ?_
+      rw [hcinv, hchild]
+      exact hk
+    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
+      (by simpa using habort2)]
+    exact ih2 hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw))
+      (fun w hw => hreach w (List.mem_cons_of_mem _ hw))
+      ((ih1 hwf'' hr hst).unwind path)
+
+/-! ### The winner is a leaf of the whole tree -/
+
+/-- The final state of the search on `Graph.ofOracle n f`. -/
+def canonSt (n : Nat) (f : Nat → Nat → Bool) : St :=
+  dfsNode (Graph.ofOracle n f) (n + 1) #[] (rootInv n f) (rootPart n f)
+    { best := none, first := none, autos := #[], nodes := 0, abortTo := none }
+
+theorem canonical_eq (n : Nat) (f : Nat → Nat → Bool) :
+    canonical (Graph.ofOracle n f) =
+      match (canonSt n f).best with
+      | none => { lab := Array.range n, cert := certOf (Graph.ofOracle n f) (Array.range n),
+                  autos := #[], nodes := (canonSt n f).nodes }
+      | some b => { lab := b.lab, cert := b.cert, autos := (canonSt n f).autos,
+                    nodes := (canonSt n f).nodes } := rfl
+
+/-- **Soundness of the search.**  Whatever leaf the search ends up holding really is a leaf of
+the (unpruned) tree. -/
+theorem canonSt_leafkey (n : Nat) (f : Nat → Nat → Bool) :
+    StP (Leafkey n f) (canonSt n f) :=
+  dfsNode_reach n f (Leafkey n f) (n + 1) #[] (rootInv n f) (rootPart n f) _
+    (initialRefine_wf f) (fun _ hk => hk) (by intro l hl; exact absurd hl (by simp))
+
+theorem canonical_cert_leafkey (n : Nat) (f : Nat → Nat → Bool) (b : Leaf)
+    (hb : (canonSt n f).best = some b) :
+    (canonical (Graph.ofOracle n f)).cert = b.cert ∧ Leafkey n f (leafKey b.invPath b.cert) :=
+  ⟨by rw [canonical_eq, hb], canonSt_leafkey n f b hb⟩
 
 end Canon
 end IsoGraph
