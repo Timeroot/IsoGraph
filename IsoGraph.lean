@@ -14,6 +14,7 @@ import IsoGraph.Leaves
 import IsoGraph.Dominate
 import IsoGraph.Branch
 import IsoGraph.Optimal
+import IsoGraph.Correct
 import IsoGraph.Basic
 import IsoGraph.Invariants
 import IsoGraph.Constructions

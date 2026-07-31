@@ -13,9 +13,10 @@ This file follows `isograph_draft.txt`: a bundled, computable graph type `CGraph
 isomorphisms, and the quotient `IsoGraph` of graphs up to isomorphism.
 
 Everything that has to be lifted through the quotient — in particular the canonical
-representative `IsoGraph.toCGraph` — is reduced here to the single obligation
+representative `IsoGraph.toCGraph` — is reduced here to the single fact
 `IsoGraph.Canon.canonAdj_relabel` of `IsoGraph.Spec`, namely that the canonical labelling
-algorithm is invariant under renaming vertices.  No other `sorry` remains in this file.
+algorithm is invariant under renaming vertices.  That fact is proved, so this file, and the
+quotient it builds, is unconditional.
 -/
 
 open Fintype

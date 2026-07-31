@@ -78,14 +78,8 @@ private def c4 : CGraph := ofFn 4 (cycAdj 4)
 
 /-! ### The checks
 
-Run through `#eval!`, so they go through the *compiler*: if any of these definitions were secretly
-noncomputable, this file would not elaborate.
-
-`#eval!` rather than `#eval` because `CGraph.canon` is a `Quot.lift`, and the proof it is
-lifted along is `CGraph.canonOfList_perm`, which currently rests on the `sorry` in
-`IsoGraph.Spec`.  Compiled code never looks at that proof — but `#eval` refuses to run anything
-whose *term* mentions `sorry`, so it has to be told to.  Once the obligation is discharged this
-becomes a plain `#eval`. -/
+Run through `#eval`, so they go through the *compiler*: if any of these definitions were secretly
+noncomputable, this file would not elaborate. -/
 
 /-- Every check, as one `Bool`. -/
 def allChecks : Bool :=
@@ -108,6 +102,6 @@ def allChecks : Bool :=
 
 /-- info: true -/
 #guard_msgs in
-#eval! allChecks
+#eval allChecks
 
 end IsoGraph.Compute

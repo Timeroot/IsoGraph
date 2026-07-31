@@ -2,6 +2,7 @@ import Mathlib.Data.Fintype.EquivFin
 import Mathlib.Logic.Equiv.Defs
 import IsoGraph.Canonical
 import IsoGraph.Equivariance
+import IsoGraph.Correct
 
 /-!
 # From the canonical labelling algorithm to permutations, and its specification
@@ -17,19 +18,20 @@ to the identity if not.  That keeps `canonPerm` total and proof-free, and it is 
 `exists_relabel_of_canonAdj_eq` below unconditional: **whatever** the algorithm returns,
 `canonAdj n adj` is the graph `adj` read through *some* permutation, hence isomorphic to it.
 
-## What is proved, and what is not
+## What is proved
 
-Write `relabel σ adj` for `adj` with its vertices renamed along `σ`.  Two statements matter:
+Write `relabel σ adj` for `adj` with its vertices renamed along `σ`.  Two statements matter, and
+both are proved.
 
 * **Soundness** — `canonAdj n adjG = canonAdj n adjH → adjG ≅ adjH`.  Proved outright
   (`exists_relabel_of_canonAdj_eq`); the run-time check above is exactly what buys it.  This is
   the direction that guarantees a canonical-form comparison never conflates non-isomorphic
   graphs.
 
-* **Invariance** — `canonAdj n (relabel σ adj) = canonAdj n adj`.  This is
-  `canonAdj_relabel`, and it is the one genuinely deep obligation of the whole development: it
-  is what licenses `Quotient.lift`ing anything defined through the canonical form.  It is
-  currently a `sorry`; see the docstring there for how it decomposes.
+* **Invariance** — `canonAdj n (relabel σ adj) = canonAdj n adj`.  This is `canonAdj_relabel`,
+  the deep half: it is what licenses `Quotient.lift`ing anything defined through the canonical
+  form.  It is reduced below to `LabellingInvariant`, a statement about raw arrays, which is
+  discharged in `IsoGraph/Correct.lean` from the soundness and optimality of the search.
 -/
 
 namespace IsoGraph.Canon
@@ -231,7 +233,7 @@ theorem exists_relabel_of_canonAdj_eq {adjG adjH : Fin n → Fin n → Bool}
   have hxy := congrFun (congrFun h ((canonPerm n adjH).symm x)) ((canonPerm n adjH).symm y)
   simpa [Equiv.trans_apply] using hxy
 
-/-! ## Invariance: the remaining obligation
+/-! ## Invariance
 
 Renaming the vertices of a graph does not change its canonical form.  This is the one deep fact
 about the algorithm, and everything else — that `IsoGraph` may be `Quotient.lift`ed through the
@@ -245,8 +247,9 @@ the `invArray` inverse, the translation between `Equiv.Perm (Fin n)` and a renam
 `{0, …, n-1}` — so that what is left to prove mentions nothing but `Array Nat` and
 `canonicalLabellingOfOracle`.  See `IsoGraph/Equivariance.lean` for the groundwork on that side.
 
-Of the two, `LabellingIsPerm` is proved: `canonicalLabellingOfOracle` verifies it at run time in
-`O(n)`.  `LabellingInvariant` is the single open `sorry` of the development. -/
+Of the two, `LabellingIsPerm` is cheap: `canonicalLabellingOfOracle` verifies it at run time in
+`O(n)`.  `LabellingInvariant` is where all the work is; it follows from `canonical_cert_relabel`
+of `IsoGraph/Correct.lean`. -/
 
 /-- The labelling the search returns for the oracle `f` on `m` vertices: canonical position `i`
 holds the vertex `labelling m f`. -/
@@ -276,10 +279,19 @@ def LabellingInvariant : Prop :=
 theorem labellingIsPerm : LabellingIsPerm :=
   Canon.canonicalLabellingOfOracle_isPerm
 
-/-- The deep half.  Its docstring in `IsoGraph/Equivariance.lean` records how it decomposes; the
-prose version is the numbered list below. -/
+/-- The deep half.  The search's answer satisfies the specification `BestKey`
+(`canonSt_bestKey`), which is manifestly an isomorphism invariant, so the certificate it returns
+does not depend on the vertex names (`canonical_cert_relabel`); `certOf_get` reads the adjacency
+matrix back out of that certificate. -/
 theorem labellingInvariant : LabellingInvariant := by
-  sorry
+  intro m f s hs i hi j hj
+  have h1 : certGet m (canonical (Graph.ofOracle m fun v w => f (s v) (s w))).cert i j
+      = f (s (canonical (Graph.ofOracle m fun v w => f (s v) (s w))).lab[i]!)
+          (s (canonical (Graph.ofOracle m fun v w => f (s v) (s w))).lab[j]!) :=
+    canonical_get m (fun v w => f (s v) (s w)) hi hj
+  have h2 := canonical_get m f hi hj
+  simp only [labelling, canonicalLabellingOfOracle_eq]
+  rw [← h1, ← h2, canonical_cert_relabel m f hs]
 
 /-! ### `invArray` and `permOfArrays` on a genuine permutation -/
 
