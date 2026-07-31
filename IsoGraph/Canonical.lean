@@ -236,6 +236,60 @@ def collectFrom (pos cst touched : Array Nat) :
       if hit[c]! then collectFrom pos cst touched fuel (j + 1) hit cells
       else collectFrom pos cst touched fuel (j + 1) (hit.set! c true) (cells.push c)
 
+/-- Bucket the cell `lab[k:ec]` by neighbour count: `bc[t]` counts the members whose count is `t`,
+and `ks` lists the counts that occur, in first-occurrence order.  Phase (3a) of `refineStep`, and
+another fuel recursion in place of a `for` loop; `fuel` is only ever `ec - k`. -/
+def bucketFrom (lab cnt : Array Nat) (ec : Nat) :
+    Nat → Nat → Array Nat → Array Nat → Array Nat × Array Nat
+  | 0, _, bc, ks => (bc, ks)
+  | fuel + 1, k, bc, ks =>
+    if k ≥ ec then (bc, ks)
+    else
+      let t := cnt[lab[k]!]!
+      let b := bc[t]!
+      bucketFrom lab cnt ec fuel (k + 1) (bc.set! t (b + 1)) (if b == 0 then ks.push t else ks)
+
+/-- Turn the bucket sizes into the fragment sizes `sizes[j]` and the bucket *offsets* `bc[ks[j]]`
+(relative to the start of the cell).  `acc` is the running offset.  Phase (3b). -/
+def offsetFrom (ks : Array Nat) :
+    Nat → Nat → Array Nat → Array Nat → Nat → Array Nat × Array Nat
+  | 0, _, sizes, bc, _ => (sizes, bc)
+  | fuel + 1, j, sizes, bc, acc =>
+    if j ≥ ks.size then (sizes, bc)
+    else
+      let t := ks[j]!
+      let b := bc[t]!
+      offsetFrom ks fuel (j + 1) (sizes.set! j b) (bc.set! t acc) (acc + b)
+
+/-- Scatter the cell's vertices into `block` in count order, each bucket keeping the order it had
+in the cell.  Phase (3c). -/
+def scatterFrom (lab cnt : Array Nat) (ec : Nat) :
+    Nat → Nat → Array Nat → Array Nat → Array Nat × Array Nat
+  | 0, _, block, bc => (block, bc)
+  | fuel + 1, k, block, bc =>
+    if k ≥ ec then (block, bc)
+    else
+      let v := lab[k]!
+      let t := cnt[v]!
+      let o := bc[t]!
+      scatterFrom lab cnt ec fuel (k + 1) (block.set! o v) (bc.set! t (o + 1))
+
+/-- Zero the buckets the cell used, leaving `bc` clear for the next cell.  Phase (3d). -/
+def clearBcFrom (ks : Array Nat) : Nat → Nat → Array Nat → Array Nat
+  | 0, _, bc => bc
+  | fuel + 1, j, bc =>
+    if j ≥ ks.size then bc else clearBcFrom ks fuel (j + 1) (bc.set! ks[j]! 0)
+
+/-- Copy the sorted block back into `lab[c:]`, keeping `pos` its inverse.  Phase (3e). -/
+def writeFrom (block : Array Nat) (c : Nat) :
+    Nat → Nat → Array Nat → Array Nat → Array Nat × Array Nat
+  | 0, _, lab, pos => (lab, pos)
+  | fuel + 1, k, lab, pos =>
+    if k ≥ block.size then (lab, pos)
+    else
+      let v := block[k]!
+      writeFrom block c fuel (k + 1) (lab.set! (c + k) v) (pos.set! v (c + k))
+
 /-- Perform one refinement step: use the cell starting at position `s` as a splitter, splitting
 every cell that meets its neighbourhood.
 
@@ -278,36 +332,22 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
     -- (3) counting sort of the cell by neighbour count.  Only the counts that actually occur in
     -- the cell are visited, so the cost is `O(|cell|)` rather than `O(|splitter|)`; `bc` doubles
     -- as the bucket-size table and then as the offset table, and is left all-zero again.
-    let mut ks : Array Nat := #[]
-    for k in [c:ec] do
-      let t := cnt[lab[k]!]!
-      if bc[t]! == 0 then ks := ks.push t
-      bc := bc.set! t (bc[t]! + 1)
+    let (bc0, ks) := bucketFrom lab cnt ec (ec - c) c bc #[]
+    bc := bc0
     if ks.size == 1 then
       -- No split; record the common count and reset the scratch counter.
       tr := mixN (mixN tr c) ks[0]!
       bc := bc.set! ks[0]! 0
       continue
-    ks := sortNats ks
-    let mut sizes : Array Nat := Array.replicate ks.size 0
-    let mut acc := 0
-    for j in [0:ks.size] do
-      let t := ks[j]!
-      sizes := sizes.set! j bc[t]!
-      acc := acc + bc[t]!
-      bc := bc.set! t (acc - bc[t]!)
-    let mut block : Array Nat := Array.replicate (ec - c) 0
-    for k in [c:ec] do
-      let v := lab[k]!
-      let t := cnt[v]!
-      block := block.set! bc[t]! v
-      bc := bc.set! t (bc[t]! + 1)
-    for t in ks do
-      bc := bc.set! t 0
-    for k in [0:block.size] do
-      let v := block[k]!
-      lab := lab.set! (c + k) v
-      pos := pos.set! v (c + k)
+    let ks := sortNats ks
+    let (sizes, bc1) := offsetFrom ks ks.size 0 (Array.replicate ks.size 0) bc 0
+    bc := bc1
+    let (block, bc2) := scatterFrom lab cnt ec (ec - c) c (Array.replicate (ec - c) 0) bc
+    bc := bc2
+    bc := clearBcFrom ks ks.size 0 bc
+    let (lab', pos') := writeFrom block c block.size 0 lab pos
+    lab := lab'
+    pos := pos'
     -- (4) install the fragment boundaries and collect them.
     tr := mixN tr c
     let mut starts : Array Nat := #[]
