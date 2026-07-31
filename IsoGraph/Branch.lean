@@ -13,8 +13,9 @@ the bookkeeping for the third and hardest one, backjumping.
   path, related to `Reach` at the node itself and to `SubR` at one of its children.
 * `mem_usableAutos` — the generators the search is willing to prune with really do fix the path.
 * `Rec` / `Pth` / `Jmp` / `JmpC` — the invariants themselves.  `Jmp` says every branch a recorded
-  leaf went down and the current path has already left behind is completely dominated; `JmpC` is
-  the variant that holds while a node works through its own children.
+  leaf went down and the current path has already left behind consists of keys the caller has
+  already accounted for; `JmpC` is the variant that holds while a node works through its own
+  children.
 * `leaf_abort_dom` — the payoff: the backjump a leaf update requests never skips a leaf that is
   not already dominated.  This is `jump_sound` fed by `Jmp`.
 -/
@@ -92,22 +93,26 @@ def Rec (st : St) (l : Leaf) : Prop := st.best = some l ∨ st.first = some l
 /-- No recorded leaf lies below the current node. -/
 def Pth (st : St) (path : Array Nat) : Prop := ∀ l, Rec st l → ¬ PathPre path l.path
 
-/-- **The backjump invariant.**  Every branch a recorded leaf went down and that the current path
-has already left behind is completely dominated. -/
-def Jmp (n : Nat) (f : Nat → Nat → Bool) (st : St) (path : Array Nat) : Prop :=
+/-- **The backjump invariant**, relative to a target predicate `P` on leaf keys.  Every branch a
+recorded leaf went down and that the current path has already left behind consists entirely of
+keys satisfying `P`.  At the use site `P` is "dominated by the incumbent, or already accounted
+for by the caller". -/
+def Jmp (n : Nat) (f : Nat → Nat → Bool) (P : List (List UInt64) → Prop) (path : Array Nat)
+    (st : St) : Prop :=
   ∀ l, Rec st l → ∀ j, j < path.size → j < l.path.size →
     path.toList.take j = l.path.toList.take j → path[j]! ≠ l.path[j]! →
-      ∀ k, ancReach n f l.path (j + 1) k → Dom st k
+      ∀ k, ancReach n f l.path (j + 1) k → P k
 
 /-- The same, also covering the branches leaving the current node itself: what holds while a node
 is working through its children. -/
-def JmpC (n : Nat) (f : Nat → Nat → Bool) (st : St) (path : Array Nat) : Prop :=
+def JmpC (n : Nat) (f : Nat → Nat → Bool) (P : List (List UInt64) → Prop) (path : Array Nat)
+    (st : St) : Prop :=
   ∀ l, Rec st l → ∀ j, j ≤ path.size → j < l.path.size →
     path.toList.take j = l.path.toList.take j → (j < path.size → path[j]! ≠ l.path[j]!) →
-      ∀ k, ancReach n f l.path (j + 1) k → Dom st k
+      ∀ k, ancReach n f l.path (j + 1) k → P k
 
-theorem JmpC.child {n : Nat} {f : Nat → Nat → Bool} {st : St} {path : Array Nat}
-    (h : JmpC n f st path) (v : Nat) : Jmp n f st (path.push v) := by
+theorem JmpC.child {n : Nat} {f : Nat → Nat → Bool} {P : List (List UInt64) → Prop} {st : St}
+    {path : Array Nat} (h : JmpC n f P path st) (v : Nat) : Jmp n f P (path.push v) st := by
   intro l hl j hj hjl htake hne k hk
   rw [Array.size_push] at hj
   have hjp : j ≤ path.size := by omega
@@ -116,8 +121,8 @@ theorem JmpC.child {n : Nat} {f : Nat → Nat → Bool} {st : St} {path : Array 
     exact htake
   · rwa [push_getElem!_lt path v (by assumption)] at hne
 
-theorem JmpC.of_jmp {n : Nat} {f : Nat → Nat → Bool} {st : St} {path : Array Nat}
-    (h : Jmp n f st path) (hp : Pth st path) : JmpC n f st path := by
+theorem JmpC.of_jmp {n : Nat} {f : Nat → Nat → Bool} {P : List (List UInt64) → Prop} {st : St}
+    {path : Array Nat} (h : Jmp n f P path st) (hp : Pth st path) : JmpC n f P path st := by
   intro l hl j hjle hjl htake hne k hk
   rcases Nat.lt_or_ge j path.size with hlt | hge
   · exact h l hl j hlt hjl htake (hne hlt) k hk
@@ -141,10 +146,10 @@ theorem Node.ancestor' {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {
 /-- **The backjump a leaf update requests is covered by the jump invariant.** -/
 theorem leaf_abort_dom {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat}
     {invPath : Array UInt64} {p : Part} (hnode : Node n f path invPath p) {st : St}
-    (hgood : StGood n f st) (hpth : Pth st path) (hjmp : Jmp n f st path) {j : Nat}
+    {P : List (List UInt64) → Prop}
+    (hgood : StGood n f st) (hpth : Pth st path) (hjmp : Jmp n f P path st) {j : Nat}
     (hab : (leafUpdate (Graph.ofOracle n f) path invPath p.lab st).abortTo = some j) :
-    j < path.size ∧ ∀ k, ancReach n f path (j + 1) k →
-      Dom (leafUpdate (Graph.ofOracle n f) path invPath p.lab st) k := by
+    j < path.size ∧ ∀ k, ancReach n f path (j + 1) k → P k := by
   obtain ⟨z, hrec, hcert, hjeq⟩ := leafUpdate_abort hab
   have hrec' : Rec st z := hrec.symm
   obtain ⟨q2, hq2, htc2, _, hcert2⟩ : LeafNode n f z := hrec.elim (hgood.2.1 z) (hgood.1 z)
@@ -184,9 +189,8 @@ theorem leaf_abort_dom {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat}
       (by rw [hjeq]) hjlt hjlt2
       (by rw [ancReach, nodePath_take_succ n f path hjlt] at hk; exact hk)
     exact this
-  exact (hjmp z hrec' j hjlt hjlt2 htake
-    (by rw [hjeq]; exact commonPrefix_ne (by omega)) k hk').mono
-    (leafUpdate_mono _ _ _ _ _)
+  exact hjmp z hrec' j hjlt hjlt2 htake
+    (by rw [hjeq]; exact commonPrefix_ne (by omega)) k hk'
 
 end Canon
 end IsoGraph
