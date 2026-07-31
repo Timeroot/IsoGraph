@@ -599,12 +599,20 @@ def orbitClosure (n : Nat) (gens : Array (Array Nat)) (seed : Array Nat) : Array
     fun mark v => mark.set! v true) seed
 /-! ## The search -/
 
+/-- Scan for the first disagreement at or after `i`, stopping at `m`.  A structural recursion on
+fuel rather than a `for` loop with a `break`, for the same reason as the partition walks above:
+`IsoGraph.Jump` needs to induct on it. -/
+def commonPrefixFrom (a b : Array Nat) (m : Nat) : Nat → Nat → Nat
+  | 0, i => i
+  | fuel + 1, i =>
+    if i ≥ m then m
+    else if a[i]! == b[i]! then commonPrefixFrom a b m fuel (i + 1)
+    else i
+
 /-- Length of the longest common prefix of two paths. -/
-def commonPrefix (a b : Array Nat) : Nat := Id.run do
+def commonPrefix (a b : Array Nat) : Nat :=
   let m := min a.size b.size
-  for i in [0:m] do
-    if a[i]! != b[i]! then return i
-  return m
+  commonPrefixFrom a b m m 0
 
 /-- A leaf of the search tree: a discrete ordered partition together with the data used to compare
 it against other leaves. -/
