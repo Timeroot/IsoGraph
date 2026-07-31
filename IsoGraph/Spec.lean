@@ -573,7 +573,7 @@ Everything else in the development — that `IsoGraph` may be `Quotient.lift`ed 
 canonical form, and hence that graph invariants computed from it are well defined — reduces to
 this.  It in turn reduces, by `canonAdj_relabel_of`, to `LabellingIsPerm` — proved, by a run-time
 check — and `LabellingInvariant`, which is the deep one and decomposes as follows.  Steps 2, 3 and
-4 are done, in `IsoGraph/Equivariance.lean`, as is the arithmetic step 1 rests on; 5 and 6 are
+4 are done, in `IsoGraph/Equivariance.lean`, as is the first of step 1's loops; 5 and 6 are
 not.
 
 Fix `σ` and write `q ≈ p` for "the ordered partitions `q` and `p` have
@@ -586,8 +586,10 @@ is invariant is the sequence of cells.)  Then:
    same trace hash, because every quantity it hashes (`s`, cell starts, fragment sizes, neighbour
    counts) is determined by positions and multiplicities.  Hence so are `refineLoop`, `refine`
    and `initialRefine` — note `Part.unit n ≈ Part.unit n` for every `σ`, the point being that a
-   one-cell partition carries no order information.  *(Half done: `Canon.cellCount_equiv` is the
-   "determined by multiplicities" part; that the loops compute those multiplicities is not.)*
+   one-cell partition carries no order information.  *(Partly done: `Canon.cellCount_equiv` is the
+   "determined by multiplicities" part and `Canon.countFrom_cellCount` says the counting phase
+   computes such a multiplicity, `Canon.countFrom_equiv` combining the two; the counting sort and
+   the worklist rule that follow it are not done.)*
 2. `Part.shapeHash` and `Part.targetCell` read only cell boundaries, so they agree on `≈`-related
    partitions.  *(Done: `Canon.shapeHash_congr`, `Canon.targetCell_congr`.)*
 3. `individualize p v` and `individualize q (σ v)` produce `≈`-related partitions and the same

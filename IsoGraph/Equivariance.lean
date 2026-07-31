@@ -1,5 +1,6 @@
 import IsoGraph.Canonical
 import Mathlib.Data.Finset.Card
+import Mathlib.Algebra.BigOperators.Intervals
 import Mathlib.Tactic.Push
 import Mathlib.Tactic.Linarith
 
@@ -23,8 +24,9 @@ What is here is the bottom layer and the steps that rest directly on it:
   permutation (which `canonicalLabellingOfOracle` checks at run time);
 * `Part.WF` and `PartEquiv`, the vocabulary — "well-formed ordered partition" and "the same
   partition up to renaming" — that the whole decomposition is phrased in;
-* the arithmetic half of **step 1** — `cellCount_equiv`, that corresponding cells agree on every
-  count, which is the reason `refineStep` is equivariant;
+* the first loop of **step 1** — `cellCount_equiv`, that corresponding cells agree on every count,
+  together with `countFrom_cellCount`, that `refineStep`'s counting phase computes exactly such a
+  count; `countFrom_equiv` combines them;
 * **step 2** — the two readers of a partition, `shapeHash` and `targetCell`, see only cell
   boundaries, so they agree on partitions related by any renaming;
 * **step 3** — individualising corresponding vertices of related partitions gives related
@@ -33,9 +35,10 @@ What is here is the bottom layer and the steps that rest directly on it:
   (`certOf_of_partEquiv`, via `certOf_relabel`), with `discrete_of_targetCell_none` supplying
   the discreteness at the leaves.
 
-What is *not* here: that `refineStep`'s imperative loops actually compute those counts (the rest
-of step 1), the correspondence of the two search trees (step 5), and the argument that the
-maximum over the leaves does not depend on the order children are enumerated in (step 6).
+What is *not* here: the rest of `refineStep` after the counting phase — the counting sort, the
+fragment boundaries and Hopcroft's worklist rule (the rest of step 1) — the correspondence of the
+two search trees (step 5), and the argument that the maximum over the leaves does not depend on
+the order children are enumerated in (step 6).
 -/
 
 namespace IsoGraph
@@ -819,11 +822,10 @@ phase walks a cell in `lab` order, and corresponding cells are related only as s
 quantity it computes has to be described set-theoretically before it can be shown invariant, and
 that description is `cellCount`: the number of vertices of a given cell satisfying a predicate.
 
-What is proved here is that half — the arithmetic that makes step 1 true.  What is not yet proved
-is that the imperative loops of `refineStep` compute it: that they leave `cnt` holding
-`cellCount`, that the counting sort orders the fragments by count, and that Hopcroft's rule then
-picks out the same fragments.  Those need the same fuel-recursion treatment the rest of the file
-already applies, applied to a much bigger function. -/
+The arithmetic comes first (`cellCount_equiv`: the quantity is invariant), then the first of
+`refineStep`'s loops (`countFrom_cellCount`: the loop computes the quantity).  What is not yet
+proved is the rest of the step — that the counting sort orders the fragments by count, and that
+Hopcroft's rule then picks out the same fragments. -/
 
 /-- A permutation of a finite initial segment is onto it.  Not part of `IsPerm` because nothing
 before this section needed it — injectivity was always enough. -/
@@ -884,6 +886,190 @@ theorem cellNbrCount_equiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ : IsPe
     cellCount n p s (fun w => f w (σ v))
       = cellCount n q s (fun w => (fun a b => f (σ a) (σ b)) w v) :=
   cellCount_equiv hσ h s _
+
+/-! ### The counting loop
+
+`countFrom` is phase (1) of `refineStep`: it walks the splitter cell `lab[s:e]` and, for every
+vertex `w`, accumulates in `cnt[w]` the number of cell members adjacent to `w`.  Written as a
+`for` loop this would be out of reach — see the note on `cenHashFrom` — so `Canonical.lean` gives
+it as a structural recursion on fuel, and the three lemmas below read the result off.
+
+The bridge to `cellCount` is `List.count`: the inner loop bumps `cnt[w]` once per occurrence of
+`w` in a neighbour list, and `Graph.ofOracle`'s neighbour lists are filtered ranges, hence
+duplicate-free, so each cell member contributes at most one. -/
+
+/-- Companion to `getElem!_set!` for the off-diagonal case, where no bound on `i` is needed:
+writing at `i` never disturbs another index, in bounds or not. -/
+theorem getElem!_set!_ne {a : Array Nat} {i x k : Nat} (h : k ≠ i) :
+    (a.set! i x)[k]! = a[k]! := by
+  by_cases hk : k < a.size
+  · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
+    simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk,
+      if_neg (Ne.symm h)]
+  · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk]
+
+/-- The inner loop only writes, never resizes. -/
+theorem bumpFrom_size (nbrs : Array Nat) : ∀ (fuel j : Nat) (cnt touched : Array Nat),
+    (bumpFrom nbrs fuel j cnt touched).1.size = cnt.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, j, cnt, touched => by
+    rw [bumpFrom]
+    split
+    · rfl
+    · rw [bumpFrom_size nbrs fuel (j + 1) _ _]
+      simp
+
+/-- The inner loop adds to `cnt[w]` the multiplicity of `w` in the part of the neighbour list it
+scans.  Entries of `nbrs` outside `cnt` write nothing, but they are not `w` either, so the
+statement needs no hypothesis on them. -/
+theorem bumpFrom_getElem! (nbrs : Array Nat) : ∀ (fuel j : Nat) (cnt touched : Array Nat),
+    nbrs.size ≤ j + fuel → ∀ w, w < cnt.size →
+      (bumpFrom nbrs fuel j cnt touched).1[w]! = cnt[w]! + (nbrs.toList.drop j).count w
+  | 0, j, cnt, touched, hf, w, hw => by
+    rw [bumpFrom, List.drop_eq_nil_of_le (by simp; omega), List.count_nil]
+    simp
+  | fuel + 1, j, cnt, touched, hf, w, hw => by
+    rw [bumpFrom]
+    split
+    · rw [List.drop_eq_nil_of_le (by simp; omega), List.count_nil]
+      simp
+    · rename_i hj
+      have hjs : j < nbrs.size := by omega
+      have hdrop : nbrs.toList.drop j = nbrs[j]! :: nbrs.toList.drop (j + 1) := by
+        rw [List.drop_eq_getElem_cons (by simpa using hjs), getElem!_pos nbrs j hjs,
+          Array.getElem_toList]
+      rw [bumpFrom_getElem! nbrs fuel (j + 1) _ _ (by omega) w
+        (by simpa using hw), hdrop, List.count_cons]
+      by_cases hwj : w = nbrs[j]!
+      · rw [getElem!_set! (by omega : nbrs[j]! < cnt.size) w, if_pos hwj, if_pos (by simp [hwj]),
+          hwj]
+        omega
+      · rw [getElem!_set!_ne hwj, if_neg (by simpa using fun h => hwj h.symm)]
+        omega
+
+/-- Unfolding lemma for the outer loop.  The definition destructures the inner loop's result
+rather than projecting it (that is what keeps `cnt` unshared, see `Canonical.lean`), and
+definitional eta for structures makes the two forms interchangeable. -/
+theorem countFrom_succ (G : Graph) (lab : Array Nat) (e fuel k : Nat) (cnt touched : Array Nat) :
+    countFrom G lab e (fuel + 1) k cnt touched =
+      if k ≥ e then (cnt, touched)
+      else
+        countFrom G lab e fuel (k + 1)
+          (bumpFrom (G.nbr[lab[k]!]!) (G.nbr[lab[k]!]!).size 0 cnt touched).1
+          (bumpFrom (G.nbr[lab[k]!]!) (G.nbr[lab[k]!]!).size 0 cnt touched).2 := by
+  rw [countFrom]
+
+/-- The counting phase only writes, never resizes. -/
+theorem countFrom_size (G : Graph) (lab : Array Nat) (e : Nat) :
+    ∀ (fuel k : Nat) (cnt touched : Array Nat),
+      (countFrom G lab e fuel k cnt touched).1.size = cnt.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, k, cnt, touched => by
+    rw [countFrom_succ]
+    split
+    · rfl
+    · rw [countFrom_size G lab e fuel (k + 1) _ _, bumpFrom_size]
+
+/-- The counting phase adds to `cnt[w]` one for every occurrence of `w` in a neighbour list of a
+vertex sitting at a position in `[k, e)`. -/
+theorem countFrom_getElem! (G : Graph) (lab : Array Nat) (e : Nat) :
+    ∀ (fuel k : Nat) (cnt touched : Array Nat), e ≤ k + fuel → ∀ w, w < cnt.size →
+      (countFrom G lab e fuel k cnt touched).1[w]!
+        = cnt[w]! + ∑ i ∈ Finset.Ico k e, (G.nbr[lab[i]!]!).toList.count w
+  | 0, k, cnt, touched, hf, w, hw => by
+    rw [countFrom, Finset.Ico_eq_empty (by omega), Finset.sum_empty]
+    simp
+  | fuel + 1, k, cnt, touched, hf, w, hw => by
+    rw [countFrom_succ]
+    split
+    · rw [Finset.Ico_eq_empty (by omega), Finset.sum_empty]
+      simp
+    · rename_i hk
+      have hsplit : ∑ i ∈ Finset.Ico k e, (G.nbr[lab[i]!]!).toList.count w
+          = (G.nbr[lab[k]!]!).toList.count w
+            + ∑ i ∈ Finset.Ico (k + 1) e, (G.nbr[lab[i]!]!).toList.count w :=
+        Finset.sum_eq_sum_Ico_succ_bot (by omega) _
+      rw [countFrom_getElem! G lab e fuel (k + 1) _ _ (by omega) w
+          (by rw [bumpFrom_size]; exact hw),
+        bumpFrom_getElem! (G.nbr[lab[k]!]!) (G.nbr[lab[k]!]!).size 0 cnt touched (by omega) w hw,
+        List.drop_zero, hsplit]
+      omega
+
+/-- Neighbour lists of `Graph.ofOracle` are duplicate-free, so a vertex occurs in one at most
+once.  This is what turns the multiplicities counted above into a `0`/`1` adjacency test. -/
+theorem ofOracle_nbr_count (n : Nat) (f : Nat → Nat → Bool) (u v : Nat) (hu : u < n) (hv : v < n) :
+    (Graph.ofOracle n f).nbr[u]!.toList.count v = if f u v then 1 else 0 := by
+  rw [ofOracle_nbr n f u hu,
+    show ((Array.range n).filter (f u)).toList = (List.range n).filter (f u) by simp]
+  by_cases h : f u v
+  · rw [if_pos h, List.count_filter h, List.count_range, if_pos hv]
+  · rw [if_neg h, List.count_eq_zero_of_not_mem]
+    simp [h]
+
+/-- **What the counting phase computes.**  Run from cleared scratch over the cell starting at
+position `s`, `countFrom` leaves `cnt[w]` holding the number of vertices of that cell adjacent to
+`w` — that is, exactly `cellCount n p s (· is adjacent to w)`.
+
+This is the missing half of step 1's first loop: `cellCount_equiv` says the quantity is invariant,
+and this says the loop computes the quantity. -/
+theorem countFrom_cellCount {n : Nat} (f : Nat → Nat → Bool) {p : Part} (hp : Part.WF n p)
+    {s : Nat} (hs : s < n) (hcst : p.cst[s]! = s) {w : Nat} (hw : w < n) :
+    (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+        (Array.replicate n 0) #[]).1[w]!
+      = cellCount n p s (fun u => f u w) := by
+  set e := p.cen[s]! with he
+  have hsE : s < e := he ▸ hp.ltCen s hs
+  have hEn : e ≤ n := he ▸ hp.cenLe s hs
+  have hsz : (Array.replicate n 0 : Array Nat).size = n := by simp
+  rw [countFrom_getElem! _ _ _ _ _ _ _ (by omega) w (by rw [hsz]; exact hw),
+    show (Array.replicate n 0 : Array Nat)[w]! = 0 by
+      rw [getElem!_pos _ _ (by simpa using hw)]; simp,
+    Nat.zero_add]
+  have hterm : ∀ i ∈ Finset.Ico s e,
+      ((Graph.ofOracle n f).nbr[p.lab[i]!]!).toList.count w = if f p.lab[i]! w then 1 else 0 := by
+    intro i hi
+    rw [Finset.mem_Ico] at hi
+    exact ofOracle_nbr_count n f _ w (hp.labLt i (by omega)) hw
+  rw [Finset.sum_congr rfl hterm, ← Finset.sum_filter, ← Finset.card_eq_sum_ones]
+  -- What is left is a bijection: positions of the cell ↔ vertices of the cell.
+  refine Finset.card_bij (fun i _ => p.lab[i]!) ?_ ?_ ?_
+  · intro i hi
+    simp only [Finset.mem_filter, Finset.mem_Ico] at hi
+    simp only [Finset.mem_filter, Finset.mem_range]
+    refine ⟨hp.labLt i (by omega), ?_, hi.2⟩
+    rw [hp.posLab i (by omega)]
+    have := hp.cellCst s hs i (by rw [hcst]; omega) (by omega)
+    rw [this, hcst]
+  · intro a ha b hb hab
+    simp only [Finset.mem_filter, Finset.mem_Ico] at ha hb
+    have hab' : p.lab[a]! = p.lab[b]! := hab
+    have h1 := hp.posLab a (by omega)
+    have h2 := hp.posLab b (by omega)
+    rw [hab', h2] at h1
+    omega
+  · intro u hu
+    simp only [Finset.mem_filter, Finset.mem_range] at hu
+    refine ⟨p.pos[u]!, ?_, hp.labPos u hu.1⟩
+    have hpu : p.pos[u]! < n := hp.posLt u hu.1
+    have hmem := (hp.cst_eq_iff hs hpu).1 (by rw [hu.2.1, hcst])
+    simp only [Finset.mem_filter, Finset.mem_Ico]
+    rw [hcst] at hmem
+    exact ⟨⟨hmem.1, hmem.2⟩, by rw [hp.labPos u hu.1]; exact hu.2.2⟩
+
+/-- **The counting phase of `refineStep` is equivariant.**  Putting the two halves together: in
+two runs whose partitions correspond under `σ`, the count the `f`-run records at `σ w` is the one
+the `f ∘ σ`-run records at `w`.  Note the cells need only correspond as sets — the two runs walk
+them in different orders, and the proof goes through `cellCount` precisely to avoid caring. -/
+theorem countFrom_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} {p q : Part}
+    (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q) (h : PartEquiv n σ p q)
+    {s : Nat} (hs : s < n) (hcst : q.cst[s]! = s) {w : Nat} (hw : w < n) :
+    (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+        (Array.replicate n 0) #[]).1[σ w]!
+      = (countFrom (Graph.ofOracle n fun a b => f (σ a) (σ b)) q.lab q.cen[s]! (q.cen[s]! - s) s
+        (Array.replicate n 0) #[]).1[w]! := by
+  rw [countFrom_cellCount f hp hs (by rw [h.cst s hs, hcst]) (hσ.maps w hw),
+    countFrom_cellCount _ hq hs hcst hw]
+  exact cellNbrCount_equiv hσ h f s w
 
 end Canon
 end IsoGraph

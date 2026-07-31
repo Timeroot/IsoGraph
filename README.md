@@ -287,6 +287,31 @@ where `cellCount n p s P` counts the vertices of the cell starting at position `
 counting-sort bucket size is `P w := cnt w == t`, a cell size is `P w := true` — so what is left
 of step 1 is showing the imperative loops compute `cellCount`, not that `cellCount` is invariant.
 
+The first of those loops is done. `refineStep`'s counting phase, which walks the splitter cell and
+accumulates `|N(w) ∩ S|` into scratch, was rewritten as a fuel recursion `countFrom` (the same
+treatment `cenHashFrom`, `certRowsFrom` and `setCstFrom` already had), and
+
+```lean
+theorem countFrom_cellCount (f : Nat → Nat → Bool) (hp : Part.WF n p)
+    (hs : s < n) (hcst : p.cst[s]! = s) (hw : w < n) :
+    (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
+        (Array.replicate n 0) #[]).1[w]!
+      = cellCount n p s (fun u => f u w)
+```
+
+says the loop computes the quantity; `countFrom_equiv` combines it with `cellCount_equiv` into the
+equivariance statement itself. The bridge is `List.count`: the loop bumps `cnt[w]` once per
+occurrence of `w` in a neighbour list, `Graph.ofOracle`'s neighbour lists are filtered ranges and
+so duplicate-free, and a bijection between the cell's *positions* and its *vertices* turns the
+resulting sum into a `Finset.card`. What remains of step 1 is the counting sort and Hopcroft's
+worklist rule that follow.
+
+One thing worth recording from that rewrite: writing the inner loop's result back with `.1`/`.2`
+instead of destructuring it keeps the pair alive, so the count array has refcount 2 and every
+subsequent `set!` copies it — G(1000, 1/2) went from 213 ms to 318 ms. Proof-driven rewrites of
+imperative code are not free, and the cost shows up in reference counts rather than in the
+algorithm.
+
 `certOf_relabel` is worth a footnote: an earlier version of it, missing the `lab.size = n`
 hypothesis, was *refuted* by the prover, which returned a counterexample (`n = 2`,
 `f v w := v = 0 ∧ w = 0`, `σ` the transposition, `lab = #[]`) rather than a proof. Out of range
