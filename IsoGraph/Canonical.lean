@@ -290,6 +290,121 @@ def writeFrom (block : Array Nat) (c : Nat) :
       let v := block[k]!
       writeFrom block c fuel (k + 1) (lab.set! (c + k) v) (pos.set! v (c + k))
 
+/-- Write the boundaries of the fragment `[st, en)` into `cst`/`cen`.  Phase (4a). -/
+def fillBoundsFrom (st en : Nat) : Nat → Nat → Array Nat → Array Nat → Array Nat × Array Nat
+  | 0, _, cst, cen => (cst, cen)
+  | fuel + 1, i, cst, cen =>
+    if i ≥ en then (cst, cen)
+    else fillBoundsFrom st en fuel (i + 1) (cst.set! i st) (cen.set! i en)
+
+/-- Install the boundaries of every fragment of a split cell, collecting the fragment starts and
+hashing each fragment's size and count into the trace.  Phase (4). -/
+def boundsFrom (ks sizes : Array Nat) :
+    Nat → Nat → Array Nat → Array Nat → Array Nat → Nat → UInt64 →
+      Array Nat × Array Nat × Array Nat × UInt64
+  | 0, _, cst, cen, starts, _, tr => (cst, cen, starts, tr)
+  | fuel + 1, j, cst, cen, starts, st, tr =>
+    if j ≥ ks.size then (cst, cen, starts, tr)
+    else
+      let sz := sizes[j]!
+      let en := st + sz
+      match fillBoundsFrom st en sz st cst cen with
+      | (cst, cen) =>
+        boundsFrom ks sizes fuel (j + 1) cst cen (starts.push st) en (mixN (mixN tr sz) ks[j]!)
+
+/-- Queue every fragment of a split cell.  Phase (5), the case where the parent was queued. -/
+def markAllFrom (starts : Array Nat) : Nat → Nat → Array Bool → Array Bool
+  | 0, _, inW => inW
+  | fuel + 1, j, inW =>
+    if j ≥ starts.size then inW else markAllFrom starts fuel (j + 1) (inW.set! starts[j]! true)
+
+/-- Index of a largest fragment, scanning left to right. -/
+def maxIdxFrom (sizes : Array Nat) : Nat → Nat → Nat → Nat
+  | 0, _, bi => bi
+  | fuel + 1, k, bi =>
+    if k ≥ sizes.size then bi
+    else maxIdxFrom sizes fuel (k + 1) (if sizes[k]! > sizes[bi]! then k else bi)
+
+/-- Queue every fragment but `starts[bi]`.  Phase (5), Hopcroft's case: skipping one largest
+fragment is what keeps refinement near-linear. -/
+def markExceptFrom (starts : Array Nat) (bi : Nat) : Nat → Nat → Array Bool → Array Bool
+  | 0, _, inW => inW
+  | fuel + 1, k, inW =>
+    if k ≥ starts.size then inW
+    else markExceptFrom starts bi fuel (k + 1) (if k != bi then inW.set! starts[k]! true else inW)
+
+/-- Zero the counts of the touched vertices.  Phase (6). -/
+def clearCntFrom (touched : Array Nat) : Nat → Nat → Array Nat → Array Nat
+  | 0, _, cnt => cnt
+  | fuel + 1, j, cnt =>
+    if j ≥ touched.size then cnt else clearCntFrom touched fuel (j + 1) (cnt.set! touched[j]! 0)
+
+/-- Unmark the cells that were collected.  Phase (6). -/
+def clearHitFrom (cells : Array Nat) : Nat → Nat → Array Bool → Array Bool
+  | 0, _, hit => hit
+  | fuel + 1, j, hit =>
+    if j ≥ cells.size then hit else clearHitFrom cells fuel (j + 1) (hit.set! cells[j]! false)
+
+/-- The state `refineStep`'s cell loop carries: the partition being rewritten, the worklist, the
+trace, and the bucket scratch.  (`cnt` is read-only during the loop, so it stays outside.) -/
+structure SplitState where
+  /-- Position to vertex. -/
+  lab : Array Nat
+  /-- Vertex to position. -/
+  pos : Array Nat
+  /-- Position to the start of its cell. -/
+  cst : Array Nat
+  /-- Position to the end of its cell. -/
+  cen : Array Nat
+  /-- Which cells are queued as splitters. -/
+  inW : Array Bool
+  /-- The trace hash so far. -/
+  tr : UInt64
+  /-- The bucket scratch, all-zero between cells. -/
+  bc : Array Nat
+
+/-- Split the cell starting at position `c` by neighbour count, phases (3) to (5).  Written as a
+chain of `match`es rather than a `do` block for the same reason as the loops above. -/
+def splitCell (cnt : Array Nat) (c : Nat) (st : SplitState) : SplitState :=
+  -- Read the cell's extent *before* splitting it; splits stay inside `[c, ec)`, so the cells
+  -- collected by phase (2) keep their starts.
+  let ec := st.cen[c]!
+  if ec - c == 1 then
+    -- A singleton cell cannot split, but its count is still invariant information.
+    { st with tr := mixN (mixN st.tr c) cnt[st.lab[c]!]! }
+  else
+    -- (3) counting sort of the cell by neighbour count.  Only the counts that actually occur in
+    -- the cell are visited, so the cost is `O(|cell|)` rather than `O(|splitter|)`; `bc` doubles
+    -- as the bucket-size table and then as the offset table, and is left all-zero again.
+    match bucketFrom st.lab cnt ec (ec - c) c st.bc #[] with
+    | (bc, ks) =>
+      if ks.size == 1 then
+        -- No split; record the common count and reset the scratch counter.
+        { st with tr := mixN (mixN st.tr c) ks[0]!, bc := bc.set! ks[0]! 0 }
+      else
+        let ks := sortNats ks
+        match offsetFrom ks ks.size 0 (Array.replicate ks.size 0) bc 0 with
+        | (sizes, bc) =>
+          match scatterFrom st.lab cnt ec (ec - c) c (Array.replicate (ec - c) 0) bc with
+          | (block, bc) =>
+            match writeFrom block c block.size 0 st.lab st.pos with
+            | (lab, pos) =>
+              -- (4) install the fragment boundaries and collect them.
+              match boundsFrom ks sizes ks.size 0 st.cst st.cen #[] c (mixN st.tr c) with
+              | (cst, cen, starts, tr) =>
+                -- (5) worklist maintenance (Hopcroft).
+                let inW :=
+                  if st.inW[c]! then markAllFrom starts starts.size 0 st.inW
+                  else markExceptFrom starts (maxIdxFrom sizes sizes.size 0 0) starts.size 0 st.inW
+                { lab, pos, cst, cen, inW, tr, bc := clearBcFrom ks ks.size 0 bc }
+
+/-- Split every cell in `cells[j:]`, left to right. -/
+def splitCellsFrom (cnt cells : Array Nat) : Nat → Nat → SplitState → SplitState
+  | 0, _, st => st
+  | fuel + 1, j, st =>
+    if j ≥ cells.size then st
+    else splitCellsFrom cnt cells fuel (j + 1) (splitCell cnt cells[j]! st)
+
 /-- Perform one refinement step: use the cell starting at position `s` as a splitter, splitting
 every cell that meets its neighbourhood.
 
@@ -298,86 +413,30 @@ updated trace hash, and the scratch space, restored to its cleared state.  Cells
 split are pushed onto the worklist following Hopcroft's rule: all fragments if the parent was
 queued, otherwise all but a largest fragment. -/
 def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64) (sc : Scratch) :
-    Part × Array Bool × UInt64 × Scratch := Id.run do
+    Part × Array Bool × UInt64 × Scratch :=
   let e := p.cen[s]!
-  let mut lab := p.lab
-  let mut pos := p.pos
-  let mut cst := p.cst
-  let mut cen := p.cen
-  let mut inW := inW
-  let mut tr := mixN tr s
-  let mut cnt := sc.cnt
-  let mut hit := sc.hit
-  let mut bc := sc.bc
+  let tr := mixN tr s
   -- (1) count neighbours inside the splitter cell `lab[s:e]`.
-  let (cnt', touched) := countFrom G lab e (e - s) s cnt #[]
-  cnt := cnt'
-  if touched.isEmpty then
-    return (p, inW, tr, sc)
-  -- (2) collect the cells met by the splitter and process them left to right, so that the order
-  -- in which they are processed depends only on positions.  Only *met* cells are visited, which
-  -- is what keeps a refinement step proportional to the splitter's degree sum rather than to the
-  -- number of cells.
-  let (hit', collected) := collectFrom pos cst touched touched.size 0 hit #[]
-  hit := hit'
-  let cells := sortNats collected
-  for c in cells do
-    -- Read the cell's extent *before* splitting it; splits stay inside `[c, ec)`, so the cells
-    -- collected above keep their starts.
-    let ec := cen[c]!
-    if ec - c == 1 then
-      -- A singleton cell cannot split, but its count is still invariant information.
-      tr := mixN (mixN tr c) cnt[lab[c]!]!
-      continue
-    -- (3) counting sort of the cell by neighbour count.  Only the counts that actually occur in
-    -- the cell are visited, so the cost is `O(|cell|)` rather than `O(|splitter|)`; `bc` doubles
-    -- as the bucket-size table and then as the offset table, and is left all-zero again.
-    let (bc0, ks) := bucketFrom lab cnt ec (ec - c) c bc #[]
-    bc := bc0
-    if ks.size == 1 then
-      -- No split; record the common count and reset the scratch counter.
-      tr := mixN (mixN tr c) ks[0]!
-      bc := bc.set! ks[0]! 0
-      continue
-    let ks := sortNats ks
-    let (sizes, bc1) := offsetFrom ks ks.size 0 (Array.replicate ks.size 0) bc 0
-    bc := bc1
-    let (block, bc2) := scatterFrom lab cnt ec (ec - c) c (Array.replicate (ec - c) 0) bc
-    bc := bc2
-    bc := clearBcFrom ks ks.size 0 bc
-    let (lab', pos') := writeFrom block c block.size 0 lab pos
-    lab := lab'
-    pos := pos'
-    -- (4) install the fragment boundaries and collect them.
-    tr := mixN tr c
-    let mut starts : Array Nat := #[]
-    let mut st := c
-    for j in [0:ks.size] do
-      let sz := sizes[j]!
-      let en := st + sz
-      for i' in [st:en] do
-        cst := cst.set! i' st
-        cen := cen.set! i' en
-      starts := starts.push st
-      tr := mixN (mixN tr sz) ks[j]!
-      st := en
-    -- (5) worklist maintenance (Hopcroft).
-    if inW[c]! then
-      for t in starts do
-        inW := inW.set! t true
+  match countFrom G p.lab e (e - s) s sc.cnt #[] with
+  | (cnt, touched) =>
+    if touched.isEmpty then (p, inW, tr, sc)
     else
-      let mut bi := 0
-      for k in [0:sizes.size] do
-        if sizes[k]! > sizes[bi]! then bi := k
-      for k in [0:starts.size] do
-        if k != bi then inW := inW.set! starts[k]! true
-  -- (6) restore the scratch space, touching only the entries that were dirtied.  `bc` is already
-  -- back to all-zero: every bucket counter is reset as soon as its cell is done.
-  for v in touched do
-    cnt := cnt.set! v 0
-  for c in cells do
-    hit := hit.set! c false
-  return ({ lab, pos, cst, cen }, inW, tr, { cnt, hit, bc })
+      -- (2) collect the cells met by the splitter and process them left to right, so that the
+      -- order in which they are processed depends only on positions.  Only *met* cells are
+      -- visited, which is what keeps a refinement step proportional to the splitter's degree sum
+      -- rather than to the number of cells.
+      match collectFrom p.pos p.cst touched touched.size 0 sc.hit #[] with
+      | (hit, collected) =>
+        let cells := sortNats collected
+        match splitCellsFrom cnt cells cells.size 0
+            { lab := p.lab, pos := p.pos, cst := p.cst, cen := p.cen, inW, tr, bc := sc.bc } with
+        | st =>
+          -- (6) restore the scratch space, touching only the entries that were dirtied.  `bc` is
+          -- already back to all-zero: every bucket counter is reset as soon as its cell is done.
+          ({ lab := st.lab, pos := st.pos, cst := st.cst, cen := st.cen }, st.inW, st.tr,
+            { cnt := clearCntFrom touched touched.size 0 cnt,
+              hit := clearHitFrom cells cells.size 0 hit,
+              bc := st.bc })
 
 /-- Index of the first `true` entry of `a`. -/
 def firstSet (a : Array Bool) : Option Nat := Id.run do
