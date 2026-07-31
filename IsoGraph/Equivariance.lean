@@ -53,19 +53,26 @@ these three lemmas. -/
   rfl
 
 /-- The dense matrix of `Graph.ofOracle` is the oracle, on the intended range. -/
-theorem ofOracle_adj (n : Nat) (f : Nat → Nat → Bool) (v w : Nat) (hv : v < n) (hw : w < n) :
-    ((Graph.ofOracle n f).adj[v]!)[w]! = f v w := by
-  sorry
+@[simp] theorem ofOracle_adj (n : Nat) (f : Nat → Nat → Bool) (v w : Nat) (hv : v < n)
+    (hw : w < n) : ((Graph.ofOracle n f).adj[v]!)[w]! = f v w := by
+  simp [Graph.ofOracle, getElem!_pos, hv, hw]
+
+/-- A neighbour list of `Graph.ofOracle` is the row of the oracle, as a filtered range. -/
+theorem ofOracle_nbr (n : Nat) (f : Nat → Nat → Bool) (v : Nat) (hv : v < n) :
+    (Graph.ofOracle n f).nbr[v]! = (Array.range n).filter (f v) := by
+  simp [Graph.ofOracle, getElem!_pos, hv]
 
 /-- The neighbour lists of `Graph.ofOracle` are the rows of the oracle. -/
 theorem ofOracle_mem_nbr (n : Nat) (f : Nat → Nat → Bool) (v w : Nat) (hv : v < n) (hw : w < n) :
     w ∈ (Graph.ofOracle n f).nbr[v]! ↔ f v w = true := by
-  sorry
+  rw [ofOracle_nbr n f v hv, Array.mem_filter, Array.mem_range]
+  simp [hw]
 
 /-- Neighbour lists stay inside the vertex set. -/
 theorem ofOracle_nbr_lt (n : Nat) (f : Nat → Nat → Bool) (v w : Nat) (hv : v < n)
     (hw : w ∈ (Graph.ofOracle n f).nbr[v]!) : w < n := by
-  sorry
+  rw [ofOracle_nbr n f v hv, Array.mem_filter, Array.mem_range] at hw
+  exact hw.1
 
 /-! ## Readers of a partition that see only the cell boundaries
 
@@ -74,73 +81,56 @@ Step 2 of the decomposition: `shapeHash` and `targetCell` walk the partition cel
 — in particular on partitions related by a renaming of the vertices, whatever that renaming does
 inside the cells. -/
 
+/-- The cell walk only ever reads `cen` at indices `< n`, so two `cen`s that agree there send it
+along the same path.  Both congruence lemmas below are this observation at `fuel = n`, `i = 0`. -/
+theorem cenHashFrom_congr {n : Nat} {c d : Array Nat} (h : ∀ i, i < n → c[i]! = d[i]!) :
+    ∀ (fuel i : Nat) (x : UInt64), cenHashFrom c n fuel i x = cenHashFrom d n fuel i x
+  | 0, _, _ => rfl
+  | fuel + 1, i, x => by
+    rw [cenHashFrom, cenHashFrom]
+    by_cases hi : i ≥ n
+    · simp [hi]
+    · rw [h i (Nat.lt_of_not_le hi)]
+      simpa [hi] using cenHashFrom_congr h fuel d[i]! (mixN x (d[i]! - i))
+
+theorem cenTargetFrom_congr {n : Nat} {c d : Array Nat} (h : ∀ i, i < n → c[i]! = d[i]!) :
+    ∀ (fuel i : Nat), cenTargetFrom c n fuel i = cenTargetFrom d n fuel i
+  | 0, _ => rfl
+  | fuel + 1, i => by
+    rw [cenTargetFrom, cenTargetFrom]
+    by_cases hi : i ≥ n
+    · simp [hi]
+    · rw [h i (Nat.lt_of_not_le hi)]
+      simp only [if_neg hi]
+      by_cases hd : d[i]! - i > 1
+      · simp [hd]
+      · simp [hd, cenTargetFrom_congr h fuel d[i]!]
+
 theorem shapeHash_congr (n : Nat) (p q : Part) (h : ∀ i, i < n → p.cen[i]! = q.cen[i]!) :
-    p.shapeHash n = q.shapeHash n := by
-  sorry
+    p.shapeHash n = q.shapeHash n :=
+  cenHashFrom_congr h n 0 hashSeed
 
 theorem targetCell_congr (n : Nat) (p q : Part) (h : ∀ i, i < n → p.cen[i]! = q.cen[i]!) :
-    p.targetCell n = q.targetCell n := by
-  -- The loop body depends only on cen[cur]! at indices cur < n.
-  -- We prove a general statement about the `forIn` loop with state.
-  -- Key lemma: for any cur₁ cur₂, if cur₁ = cur₂ and ∀ i < n, p.cen[i]! = q.cen[i]!,
-  -- then running the loop from cur₁ with p.cen gives same result as from cur₂ with q.cen.
-  -- Since cur always stays < n (or ≥ n causing early exit), cur₁ = cur₂ is maintained.
-  -- Unfold `[0:n]` into a recursive form. We induct on `n`.
-  have loop_equiv : ∀ (cur : Nat) (m : Nat),
-      ∀ (cen1 cen2 : Array Nat), (∀ i < n, cen1[i]! = cen2[i]!) →
-      (Id.run do
-        let mut cur' := cur
-        for _ in [0:m] do
-          if cur' ≥ n then break
-          let e := cen1[cur']!
-          if e - cur' > 1 then return some cur'
-          cur' := e
-        return none) =
-      (Id.run do
-        let mut cur' := cur
-        for _ in [0:m] do
-          if cur' ≥ n then break
-          let e := cen2[cur']!
-          if e - cur' > 1 then return some cur'
-          cur' := e
-        return none) := by
-    intro cur m cen1 cen2 hcen
-    -- All reads of cen happen at indices < n (since we only read when cur' < n)
-    -- so cen1[cur']! = cen2[cur']! at every read. Hence the loops are identical.
-    -- The body functions are equal pointwise because cen1[r.snd]! = cen2[r.snd]! whenever r.snd < n,
-    -- and when r.snd ≥ n the body doesn't read cen.
-    let mkBody (cen : Array Nat) : Nat → Option (Option Nat) × Nat → Id (ForInStep (Option (Option Nat) × Nat)) :=
-      fun x r =>
-        if r.snd ≥ n then pure (ForInStep.done ⟨none, r.snd⟩)
-        else do
-          pure PUnit.unit
-          if cen[r.snd]! - r.snd > 1 then pure (ForInStep.done ⟨some (some r.snd), r.snd⟩)
-          else do
-            pure PUnit.unit
-            pure PUnit.unit
-            pure (ForInStep.yield ⟨none, cen[r.snd]!⟩)
-    have hbody_eq : mkBody cen1 = mkBody cen2 := by
-      funext x r
-      dsimp only [mkBody]
-      by_cases hsnd : r.snd ≥ n
-      · simp [hsnd]
-      · push_neg at hsnd
-        rw [hcen r.snd hsnd]
-    show Id.run _ = Id.run _
-    simp only [Id.run]
-    congr 2
-    funext x r
-    by_cases hsnd : r.snd ≥ n
-    · simp [hsnd]
-    · push_neg at hsnd
-      simp [hcen r.snd hsnd]
-  show p.targetCell n = q.targetCell n
-  exact loop_equiv 0 n p.cen q.cen h
+    p.targetCell n = q.targetCell n :=
+  cenTargetFrom_congr h n 0
+
+/-- The walk only reports a cell start it has already checked is `< n`. -/
+theorem cenTargetFrom_lt {n : Nat} {c : Array Nat} :
+    ∀ (fuel i j : Nat), cenTargetFrom c n fuel i = some j → j < n
+  | 0, _, _, h => by simp [cenTargetFrom] at h
+  | fuel + 1, i, j, h => by
+    rw [cenTargetFrom] at h
+    split at h
+    · exact absurd h (by simp)
+    · rename_i hi
+      split at h
+      · cases h; exact Nat.lt_of_not_le hi
+      · exact cenTargetFrom_lt fuel c[i]! j h
 
 /-- The target cell, when there is one, is a cell start inside the vertex set that is not a
 singleton.  (Used to know that individualising is legitimate.) -/
-theorem targetCell_lt (n : Nat) (p : Part) (i : Nat) (h : p.targetCell n = some i) : i < n := by
-  sorry
+theorem targetCell_lt (n : Nat) (p : Part) (i : Nat) (h : p.targetCell n = some i) : i < n :=
+  cenTargetFrom_lt n 0 i h
 
 /-! ## Certificates
 

@@ -68,20 +68,17 @@ structure Graph where
   nbr : Array (Array Nat)
   deriving Inhabited
 
-/-- Build a `Graph` from an adjacency oracle on `{0, …, n-1}`. -/
-def Graph.ofOracle (n : Nat) (f : Nat → Nat → Bool) : Graph := Id.run do
-  let mut adj : Array (Array Bool) := Array.replicate n #[]
-  let mut nbr : Array (Array Nat) := Array.replicate n #[]
-  for v in [0:n] do
-    let mut row : Array Bool := Array.replicate n false
-    let mut ns : Array Nat := #[]
-    for w in [0:n] do
-      if f v w then
-        row := row.set! w true
-        ns := ns.push w
-    adj := adj.set! v row
-    nbr := nbr.set! v ns
-  return { n, adj, nbr }
+/-- Build a `Graph` from an adjacency oracle on `{0, …, n-1}`.
+
+Written with `Array.ofFn`/`Array.filter` rather than as an imperative fill: the arrays are the
+same, but every entry is then definitionally the oracle, which is what makes the lemmas in
+`IsoGraph/Equivariance.lean` about this function short.  `vs` is shared across the rows so the
+`nbr` pass allocates only the neighbour lists themselves. -/
+def Graph.ofOracle (n : Nat) (f : Nat → Nat → Bool) : Graph :=
+  let vs := Array.range n
+  { n := n
+    adj := Array.ofFn (n := n) fun v => Array.ofFn (n := n) fun w => f v.1 w.1
+    nbr := Array.ofFn (n := n) fun v => vs.filter (f v.1) }
 
 /-- Number of edges (counting each unordered pair once); handy for sanity checks. -/
 def Graph.edgeCount (G : Graph) : Nat := Id.run do
@@ -135,27 +132,32 @@ def Part.unit (n : Nat) : Part :=
     cst := Array.replicate n 0
     cen := Array.replicate n n }
 
+/-! Both readers of a partition below walk it cell by cell: from a cell start `i`, `cen[i]!` is
+the start of the next cell, so the walk `i ↦ cen[i]!` visits every cell once and reaches `n`.
+They are written as structural recursions on an explicit fuel rather than as `for` loops with a
+`break`, because that is the form induction works on — see `IsoGraph/Equivariance.lean`, where
+everything about them is proved.  `n` is always enough fuel: there are at most `n` cells. -/
+
+/-- Fold the cell sizes from cell start `i` into the hash `h`. -/
+def cenHashFrom (cen : Array Nat) (n : Nat) : Nat → Nat → UInt64 → UInt64
+  | 0, _, h => h
+  | fuel + 1, i, h =>
+    if i ≥ n then h else cenHashFrom cen n fuel cen[i]! (mixN h (cen[i]! - i))
+
+/-- Start of the first non-singleton cell at or after cell start `i`, if any. -/
+def cenTargetFrom (cen : Array Nat) (n : Nat) : Nat → Nat → Option Nat
+  | 0, _ => none
+  | fuel + 1, i =>
+    if i ≥ n then none
+    else if cen[i]! - i > 1 then some i
+    else cenTargetFrom cen n fuel cen[i]!
+
 /-- Hash of the sequence of cell sizes.  Isomorphism-invariant. -/
-def Part.shapeHash (p : Part) (n : Nat) : UInt64 := Id.run do
-  let mut h := hashSeed
-  let mut i := 0
-  for _ in [0:n] do
-    if i ≥ n then break
-    let e := p.cen[i]!
-    h := mixN h (e - i)
-    i := e
-  return h
+def Part.shapeHash (p : Part) (n : Nat) : UInt64 := cenHashFrom p.cen n n 0 hashSeed
 
 /-- Start position of the first non-singleton cell, if any.  This is the target cell for
 individualisation; picking the *first* one is an isomorphism-invariant rule. -/
-def Part.targetCell (p : Part) (n : Nat) : Option Nat := Id.run do
-  let mut i := 0
-  for _ in [0:n] do
-    if i ≥ n then break
-    let e := p.cen[i]!
-    if e - i > 1 then return some i
-    i := e
-  return none
+def Part.targetCell (p : Part) (n : Nat) : Option Nat := cenTargetFrom p.cen n n 0
 
 /-! ## Refinement -/
 
