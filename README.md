@@ -12,13 +12,27 @@ canonical representative that is actually computable at useful sizes.
 | --- | --- | --- |
 | `IsoGraph/Canonical.lean` | the canonical labelling algorithm — a mini-nauty | no |
 | `IsoGraph/Equivariance.lean` | how the pieces of the algorithm respond to renaming vertices | yes |
-| `IsoGraph/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; states what must be proved | yes |
+| `IsoGraph/Search.lean` | the search tree, and the specification `BestKey` it must meet | yes |
+| `IsoGraph/Autos.lean` | the harvested permutations are automorphisms, and how they act on the tree | yes |
+| `IsoGraph/Node.lean` | `Node` — the ghost invariant tying `path`, `invPath` and `p` together | yes |
+| `IsoGraph/Orbits.lean` | the orbit-closure bitmap propagates a predicate along the generators | yes |
+| `IsoGraph/Progress.lean` | refinement splits cells, so the fuel suffices and a leaf comes back | yes |
+| `IsoGraph/Monotone.lean` | the incumbent never gets worse | yes |
+| `IsoGraph/Paths.lean` | the leaves a node records lie below it | yes |
+| `IsoGraph/Pinned.lean` | individualised vertices never move again | yes |
+| `IsoGraph/Jump.lean` | backjumping is sound: the abandoned subtree has the keys already recorded | yes |
+| `IsoGraph/Leaves.lean` | `StGood` — every leaf and generator a state holds is genuine | yes |
+| `IsoGraph/Dominate.lean` | domination bookkeeping: `stopDepth`, moving a subtree along an automorphism | yes |
+| `IsoGraph/Branch.lean` | the backjump invariants `Jmp` / `JmpC` of the optimality induction | yes |
+| `IsoGraph/Optimal.lean` | `dfsNode_dom` — no pruning rule ever discards the best leaf | yes |
+| `IsoGraph/Correct.lean` | soundness and optimality meet: the search satisfies `BestKey` | yes |
+| `IsoGraph/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; proves `canonAdj_relabel` | yes |
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
-| `atp/` | tooling to hand the file's `sorry`s to the Harmonic prover and splice results back | — |
+| `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
 
 Toolchain is `leanprover/lean4:v4.28.0` with Mathlib pinned at `v4.28.0` — the rev the prover
 service's base image ships, so the project can be submitted to it without a Mathlib rebuild.
@@ -211,7 +225,39 @@ invisible against an `Ω(n²)` search.
 
 ## Proof status
 
-One `sorry` in the whole development, in `IsoGraph/Spec.lean`:
+**Complete.** There is no `sorry` in the development, and `#print axioms` reports only
+`propext`, `Classical.choice`, `Quot.sound` for every user-facing statement — including
+`labellingInvariant`, `canonAdj_relabel` and `exists_relabel_of_canonAdj_eq`.
+
+The user-facing statement is
+
+```lean
+theorem canonAdj_relabel (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
+    canonAdj n (relabel σ adj) = canonAdj n adj
+```
+
+— renaming the vertices does not change the canonical form. It is what licenses `Quotient.lift`
+through the canonical form, so `canon`, `canonicalize`, `IsoGraph.toCGraph` and every lifted
+invariant in `Basic.lean` / `Invariants.lean` are unconditional.
+
+Its converse, **soundness**,
+
+```lean
+canonAdj n adjG = canonAdj n adjH → ∃ σ, relabel σ adjG = adjH
+```
+
+is easier and holds *whatever* the search returns: `permOfArrays` checks at run time (in `O(n)`)
+that the algorithm's output and its inverse really are mutually inverse and falls back to the
+identity if not, so `canonAdj n adj` is by construction `adj` read through some permutation.
+
+### How it decomposes
+
+`canonAdj_relabel` is derived from two statements about the raw array algorithm,
+`LabellingIsPerm` and `LabellingInvariant`, by `canonAdj_relabel_of`. That reduction discharges
+the entire `Fin` / `Equiv.Perm` wrapper — the `permOfArrays` run-time check, the `invArray`
+inverse, the translation between `Equiv.Perm (Fin n)` and a renaming of `{0, …, n-1}` — so what
+is left mentions nothing but `Array Nat`. `LabellingIsPerm` is the run-time check described
+above. `LabellingInvariant` is where the work is:
 
 ```lean
 def LabellingInvariant : Prop :=
@@ -222,122 +268,92 @@ def LabellingInvariant : Prop :=
         = f ((labelling m f)[i]!) ((labelling m f)[j]!)
 ```
 
-— renaming the vertices and canonicalising reads off the same matrix as canonicalising and not
-renaming. Note this is weaker than "the labelling transforms along `s`", which is false: the
-winning leaf is determined only up to an automorphism, and *which* of several equally good
-leaves the search reaches does depend on vertex names.
+Note this is weaker than "the labelling transforms along `s`", which is false: the winning leaf
+is determined only up to an automorphism, and *which* of several equally good leaves the search
+reaches does depend on vertex names. What may not depend on them is the matrix read off at the
+winner.
 
-The user-facing statement is `canonAdj_relabel`, and it is now *derived* rather than assumed:
+The proof is in three parts.
 
-```lean
-theorem canonAdj_relabel (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
-    canonAdj n (relabel σ adj) = canonAdj n adj :=
-  canonAdj_relabel_of labellingIsPerm labellingInvariant σ adj
-```
-
-`canonAdj_relabel_of` discharges the entire `Fin` / `Equiv.Perm` wrapper — the `permOfArrays`
-run-time check, the `invArray` inverse, the translation between `Equiv.Perm (Fin n)` and a
-renaming of `{0, …, n-1}` — so what remains open mentions nothing but `Array Nat`. Its
-companion `labellingIsPerm` is proved outright, by the run-time check described above.
-
-`Equivariance.lean` holds the groundwork on the array side and is `sorry`-free: `ofOracle_adj`,
-`ofOracle_mem_nbr`, `ofOracle_nbr_lt`, `shapeHash_congr`, `targetCell_congr`, `targetCell_lt`,
-`certBits_congr`, `certOf_congr`, and
+**1. A specification the algorithm is not mentioned in.** `Reach n f invPath p k` (in
+`Search.lean`) describes the leaves of the *unpruned* tree, and `leafKey` the quantity the search
+maximises: the pair (node-invariant path, certificate), packed as a `List (List UInt64)` so that
+lexicographic `compare` on it is exactly the comparison `leafUpdate` performs. Then
 
 ```lean
-theorem certOf_relabel (n : Nat) (f : Nat → Nat → Bool) (σ : Nat → Nat) (hσ : IsPerm n σ)
-    (lab : Array Nat) (hsz : lab.size = n) (hlab : ∀ i, i < n → lab[i]! < n) :
-    certOf (Graph.ofOracle n (fun v w => f (σ v) (σ w))) lab
-      = certOf (Graph.ofOracle n f) (lab.map σ)
+def BestKey (n : Nat) (f : Nat → Nat → Bool) (k : List (List UInt64)) : Prop :=
+  Leafkey n f k ∧ ∀ k', Leafkey n f k' → compare k' k ≠ .gt
 ```
 
-It also holds the vocabulary the rest of the decomposition is phrased in — `Part.WF`, a
-well-formed ordered partition, and `PartEquiv`, "the same partition up to a renaming" — together
-with step 3:
+`bestKey_unique` says it pins `k` down, and `bestKey_transfer` says it is an isomorphism
+invariant. Neither mentions pruning, fuel or state — the specification is manifestly the right
+one, and everything after this is about the algorithm meeting it.
+
+`bestKey_transfer` rests on `reach_transfer`, which transports a leaf along a renaming, which
+rests in turn on the whole of `Equivariance.lean`: `refineStep_equiv`, `refine_equiv`,
+`individualize_partEquiv`, `childInv_equiv`, `child_equiv`, `certOf_relabel`. The vocabulary
+there is `PartEquiv`, "the same ordered partition up to a renaming", deliberately weaker than a
+positionwise equation — the two runs displace *different* vertices from the front of a split
+cell, since the counting sort is stable and inherits vertex-name order from the parent, so all
+that survives is which *cell* each vertex lands in. `lab_eq_of_discrete` sharpens it back to an
+array equation exactly at discrete partitions, which is where the certificate is read.
+
+**2. Soundness: the search returns a leaf, and a real one.** `dfsNode_reach` (`Search.lean`)
+gives `canonSt_leafkey`: whatever the search ends up holding is a leaf of the unpruned tree.
+`Progress.lean` rules out the empty-handed case — refinement never merges cells, individualising
+splits one, so `numCells` strictly increases down the tree, the depth is at most `n`, and the
+fuel `n + 1` suffices (`dfsNode_best`).
+
+**3. Optimality: none of the three prunings ever discards the winner.** This is the bulk of the
+development and the reason for the file count. `dfsNode_dom` (`Optimal.lean`) is one induction
+over `dfsNode.induct` carrying an invariant for each pruning rule:
+
+* *invariant pruning* — a node whose invariant path already loses is skipped. `pruneNode_none`
+  (`Search.lean`) says every leaf below such a node is strictly beaten, via
+  `compare_append_gt`: the invariant path is a prefix of every leaf key below it.
+* *orbit pruning* — a child in the orbit of an already-processed child is skipped. `Autos.lean`
+  proves the harvested permutations really are automorphisms (`autoOf_isAuto`) and that one
+  fixing the node carries the subtree below `γ w` onto the subtree below `w` with the same keys
+  (`reach_child_auto`, `subR_inv`); `Orbits.lean` propagates that along the closure
+  (`orbitClosure_P`); `Node.auto_partEquiv` supplies the hypothesis, and `usableAutos` filters
+  for exactly it.
+* *backjumping* — on a certificate tie, every branch between the two leaves is abandoned.
+  `Pinned.lean` shows an individualised vertex never moves again, so two leaves agreeing to
+  depth `j` park their depth-`j` choices at the same *position*; `Jump.lean` reads the
+  correspondence off the harvested automorphism (`auto_path`) and concludes `jump_sound` — the
+  abandoned subtree and the recorded one have the same set of leaf keys. `Branch.lean` turns
+  that into the running invariants `Jmp` / `JmpC` and the lemma `leaf_abort_dom`.
+
+The structural obstacle in `dfsNode_dom` is that `pruneNode` may *clear* the incumbent, so
+"dominated by the incumbent" is not preserved into a recursive call and cannot be the invariant.
+Everything is therefore stated relative to an extra predicate `D`, "already accounted for by
+whoever called us", with `DomD D st k := Dom st k ∨ D k`. `D` is quantified *inside* the
+induction motive, so each recursive call may be made at the shifted predicate `DomD D st`, and
+the `BestMono st0 st` component of `Guar` — the returning call kept the incumbent it was given —
+is exactly what collapses the shift on the way back out (`DomD.shift`).
+
+`Correct.lean` instantiates `dfsNode_dom` at the root and joins it to soundness:
 
 ```lean
-theorem individualize_partEquiv (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q)
-    (h : PartEquiv n σ p q) (hv : v < n) :
-    PartEquiv n σ (individualize p (σ v)).1 (individualize q v).1
-      ∧ (individualize p (σ v)).2 = (individualize q v).2
+theorem canonSt_bestKey (n : Nat) (f : Nat → Nat → Bool) (b : Leaf)
+    (hb : (canonSt n f).best = some b) : BestKey n f (leafKey b.invPath b.cert)
 ```
 
-`PartEquiv` is deliberately weaker than a positionwise equation: the two runs displace *different*
-vertices from the front of the split cell — `p.lab[c]` need not be `σ (q.lab[c])`, since
-refinement's counting sort is stable and so inherits vertex-name order from the parent — so all
-that survives is which *cell* each vertex lands in. `lab_eq_of_discrete` shows that this sharpens
-back to an array equation exactly at discrete partitions, which is what step 4 consumes, and
-`discrete_of_targetCell_none` supplies the discreteness at the leaves.
+With `bestKey_transfer` and `bestKey_unique` this gives `canonical_cert_relabel` — the winner's
+certificate does not depend on the vertex names — and `certOf_get` reads the adjacency matrix
+back out of the packed certificate, which is `LabellingInvariant`.
 
-That covers steps 2, 3 and 4 of the six-step decomposition in `canonAdj_relabel`'s docstring.
-Steps 1, 5 and 6 — equivariance of `refineStep`, the correspondence of the two search trees, and
-the argument that the maximum over the leaves is independent of the order children are enumerated
-in, which is where the three prunings have to be justified — are what is left. Step 1 is the
-large one: `refineStep` is a hundred lines of counting sort, worklist maintenance and scratch
-reuse, and its equivariance rests on a cardinality argument rather than on anything positionwise.
-That cardinality argument *is* proved:
+### Notes
 
-```lean
-theorem cellCount_equiv (hσ : IsPerm n σ) (h : PartEquiv n σ p q) (s : Nat) (P : Nat → Bool) :
-    cellCount n p s P = cellCount n q s (fun w => P (σ w))
-```
+`Constructions.lean`'s second half — 41 statements pinning down the invariants of every
+construction, from `indepNum_empty` up to `E_mycielskian` and the four products — was closed by
+the Harmonic `sorry`-closing prover rather than by hand; `atp/` holds the tooling that submitted
+them and spliced the results back. Those proofs are machine-written: long, explicit, and
+un-golfed. They are checked, not pretty.
 
-where `cellCount n p s P` counts the vertices of the cell starting at position `s` that satisfy
-`P`. Every number `refineStep` computes has that shape — a neighbour count is `P w := adj w v`, a
-counting-sort bucket size is `P w := cnt w == t`, a cell size is `P w := true` — so what is left
-of step 1 is showing the imperative loops compute `cellCount`, not that `cellCount` is invariant.
-
-The first of those loops is done. `refineStep`'s counting phase, which walks the splitter cell and
-accumulates `|N(w) ∩ S|` into scratch, was rewritten as a fuel recursion `countFrom` (the same
-treatment `cenHashFrom`, `certRowsFrom` and `setCstFrom` already had), and
-
-```lean
-theorem countFrom_cellCount (f : Nat → Nat → Bool) (hp : Part.WF n p)
-    (hs : s < n) (hcst : p.cst[s]! = s) (hw : w < n) :
-    (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
-        (Array.replicate n 0) #[]).1[w]!
-      = cellCount n p s (fun u => f u w)
-```
-
-says the loop computes the quantity; `countFrom_equiv` combines it with `cellCount_equiv` into the
-equivariance statement itself. The bridge is `List.count`: the loop bumps `cnt[w]` once per
-occurrence of `w` in a neighbour list, `Graph.ofOracle`'s neighbour lists are filtered ranges and
-so duplicate-free, and a bijection between the cell's *positions* and its *vertices* turns the
-resulting sum into a `Finset.card`.
-
-The phase's other output is the list of vertices it touched, which the step uses both to find the
-cells to split and to restore the scratch space afterwards. `Touched cnt touched` — "`touched`
-lists exactly the vertices with a nonzero count, each once" — is maintained by the loop, and
-`countFrom_mem_touched` states membership in terms of `cellCount`, so that set is invariant as
-well. Its *order* is not: it is first-touch order, which is why `refineStep` maps it to cell
-starts and sorts before using it.
-
-That sort is the second phase, and it is done too. It has to produce not merely the same *set* of
-cells in the two runs but the same *array*, since the step then walks it in order, so the sorting
-is part of the invariant rather than an implementation detail — which is a problem, because
-`Array.qsort` has no specification in this toolchain at all: no permutation lemma, no sortedness
-lemma. The fix is `sortNats`, a detour through `List.mergeSort`, which has both, and then
-
-```lean
-theorem sortNats_ext (ha : a.toList.Nodup) (hb : b.toList.Nodup) (h : ∀ c, c ∈ a ↔ c ∈ b) :
-    sortNats a = sortNats b
-```
-
-reduces "the same array" to "the same elements". Duplicate freeness comes from `Collected`, the
-phase's scratch invariant ("`cells` lists exactly the cells marked in `hit`, each once") in the
-same style as `Touched`, and the elements themselves are compared across the two runs by
-`collect_equiv`: `σ` matches the touched vertices, and `PartEquiv` matches their cells, which are
-*positions* and so literally equal. What remains of step 1 is the counting sort of each cell and
-Hopcroft's worklist rule that follow.
-
-One thing worth recording from that rewrite: it is free. The worry was reference counts — a
-`for` loop over a `let mut` array updates it linearly, whereas a recursion that returns a pair of
-arrays might leave them shared and turn every subsequent `set!` into a copy. The generated IR
-says otherwise (the parameters stay owned, `Array.set!` stays in place, and the recursive calls
-are tail calls), and a benchmark confirms it: minimum-of-six total CPU time is 14.6 s either way,
-as it is for the `List.mergeSort` detour. Measure on a quiet machine, though — this one is shared,
-and single wall-clock runs of the benchmark vary by a factor of four under load, which is enough
-to invent a regression that is not there.
+The same prover was tried on the search obligations and returned nothing usable — sixteen
+samples, zero proofs — which is what prompted the rewrite described under "Writing it so it can
+be proved" and, ultimately, the by-hand development above.
 
 `certOf_relabel` is worth a footnote: an earlier version of it, missing the `lab.size = n`
 hypothesis, was *refuted* by the prover, which returned a counterexample (`n = 2`,
@@ -345,32 +361,11 @@ hypothesis, was *refuted* by the prover, which returned a counterexample (`n = 2
 `lab[i]!` is `0` on the left but `(lab.map σ)[i]!` is also `0` on the right, so the two sides read
 `f (σ 0) (σ 0)` and `f 0 0`. The counterexample is kept in `atp/rejected/`.
 
-The **soundness** direction,
-
-```lean
-canonAdj n adjG = canonAdj n adjH → ∃ σ, relabel σ adjG = adjH
-```
-
-is unconditional, and holds *whatever* the search returns: `permOfArrays` checks at run time
-(in `O(n)`) that the algorithm's output and its inverse really are mutually inverse and falls back
-to the identity if not, so `canonAdj n adj` is by construction `adj` read through some
-permutation. So a canonical-form comparison can never conflate non-isomorphic graphs; only the
-converse — that it never separates isomorphic ones — rests on the open obligation.
-
-`Basic.lean` and `Invariants.lean` reduce the rest of the development to that single obligation:
-`canon`, `canonicalize`, `IsoGraph.toCGraph`, and every lifted invariant are derived from it, with
-no further `sorry`.
-
-`Constructions.lean` is fully proved as well. Its second half — 41 statements pinning down the
-invariants of every construction, from `indepNum_empty` up to `E_mycielskian` and the four
-products — was closed by the Harmonic sorry-closing prover rather than by hand; `atp/` holds the
-tooling that submitted them and spliced the results back. `#print axioms` reports only
-`propext`, `Classical.choice`, `Quot.sound` for all 41, so none of them leans on the open
-obligation below.
-
-Those proofs are machine-written: long, explicit, and un-golfed. They are checked, not pretty.
-
-The obligation is used only through `canonAdj_eq_of_equiv`, i.e. only in proofs — compiled code
-never inspects it. That is why `Compute.lean` says `#eval!` rather than `#eval`: the evaluator
-refuses terms that mention `sorry`, even inside an erased proof field of a `Quot.lift`. It becomes
-a plain `#eval` the moment the obligation is discharged.
+One thing worth recording from the fuel rewrite: it is free. The worry was reference counts — a
+`for` loop over a `let mut` array updates it linearly, whereas a recursion that returns a pair of
+arrays might leave them shared and turn every subsequent `set!` into a copy. The generated IR
+says otherwise (the parameters stay owned, `Array.set!` stays in place, and the recursive calls
+are tail calls), and a benchmark confirms it: minimum-of-six total CPU time is 14.6 s either way,
+as it is for the `List.mergeSort` detour that replaced the unspecified `Array.qsort`. Measure on
+a quiet machine, though — this one is shared, and single wall-clock runs of the benchmark vary by
+a factor of four under load, which is enough to invent a regression that is not there.

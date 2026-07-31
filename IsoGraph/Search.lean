@@ -15,8 +15,9 @@ an honest one.  This file is about the search *tree*:
 * `reach_transfer` transports leaves along a renaming, and `bestKey_transfer` concludes that the
   *specification* — "the largest key of any leaf" — is an isomorphism invariant.
 
-What is still missing is the bridge from the algorithm to the specification: that the search's
-winner really is the largest key, i.e. that none of the three pruning rules ever discards it.
+The bridge from the algorithm to the specification — that the search's winner really is the
+largest key, i.e. that none of the three pruning rules ever discards it — is `dfsNode_dom` of
+`IsoGraph/Optimal.lean`; the two are joined in `IsoGraph/Correct.lean`.
 -/
 
 set_option autoImplicit false
