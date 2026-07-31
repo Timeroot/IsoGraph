@@ -16,10 +16,20 @@ prose into Lean.  It works at the level of `IsoGraph.Canonical`, i.e. with raw `
 permutations of `{0, …, n-1}` represented as `Nat → Nat`, since that is where the algorithm
 lives; the translation to `Equiv.Perm (Fin n)` happens back in `Spec.lean`.
 
-What is here so far is the *bottom* layer: how `Graph.ofOracle` responds to renaming, and the two
-readers of a partition (`shapeHash`, `targetCell`) that see only cell boundaries.  These are the
-facts every later step is phrased in terms of.  The steps about `refineStep` and about the search
-tree are not here yet.
+What is here is the bottom layer and the two steps that rest directly on it:
+
+* how `Graph.ofOracle` responds to renaming, and the fact that the labelling really is a
+  permutation (which `canonicalLabellingOfOracle` checks at run time);
+* **step 2** — the two readers of a partition, `shapeHash` and `targetCell`, see only cell
+  boundaries, so they agree on partitions related by any renaming;
+* `PartEquiv`, the relation "same partition up to renaming" that the whole decomposition is
+  phrased in;
+* **step 4** — two runs that reach related *discrete* partitions read off the same certificate
+  (`certOf_of_partEquiv`, via `certOf_relabel`).
+
+Steps 1, 3, 5 and 6 — equivariance of `refineStep` and of `individualize`, and the argument that
+the maximum over the leaves does not depend on the order children are enumerated in — are not
+here yet.
 -/
 
 namespace IsoGraph
@@ -228,6 +238,100 @@ theorem certOf_relabel (n : Nat) (f : Nat → Nat → Bool) (σ : Nat → Nat) (
   rw [ofOracle_n] at hi hj
   rw [ofOracle_adj n _ _ _ (hlab i hi) (hlab j hj), hmap i hi, hmap j hj,
     ofOracle_adj n f _ _ (hσ.maps _ (hlab i hi)) (hσ.maps _ (hlab j hj))]
+
+/-! ## Partitions related by a renaming
+
+The vocabulary the rest of the decomposition is phrased in.  Fix a renaming `σ` and think of two
+runs of the algorithm: one on `f`, one on the graph `fun v w => f (σ v) (σ w)` whose vertex `v`
+"is" vertex `σ v` of the first.  The two runs do *not* produce partitions that agree positionwise
+under `σ` — they both start from `Part.unit n`, whose `lab` is `Array.range n` in either run, and
+refinement's counting sort is stable, so the order *within* a cell is inherited from the parent
+and depends on vertex names.  What they do produce is partitions whose cells sit at the same
+positions and correspond as *sets*, which is what `PartEquiv` says. -/
+
+/-- `p` is a well-formed ordered partition of `{0, …, n-1}`: `lab` and `pos` are mutually inverse
+bijections of the segment. -/
+structure Part.WF (n : Nat) (p : Part) : Prop where
+  /-- Positions hold vertices of the segment. -/
+  labLt : ∀ i, i < n → p.lab[i]! < n
+  /-- Vertices sit at positions in the segment. -/
+  posLt : ∀ v, v < n → p.pos[v]! < n
+  /-- `pos` is a left inverse of `lab`. -/
+  posLab : ∀ i, i < n → p.pos[p.lab[i]!]! = i
+  /-- `lab` is a left inverse of `pos`. -/
+  labPos : ∀ v, v < n → p.lab[p.pos[v]!]! = v
+
+/-- `p` is discrete: every cell is a singleton, so each position is its own cell start. -/
+def Part.Discrete (n : Nat) (p : Part) : Prop := ∀ i, i < n → p.cst[i]! = i
+
+/-- `p` and `q` are the same ordered partition up to the renaming `σ`: the cells occupy the same
+ranges of positions, and vertex `v` of `q`'s graph lies in the cell where `σ v` lies in `p`.
+
+The third clause is how "the cells correspond as sets" is said pointwise: a cell is named by its
+start position, so it asserts that `σ` maps the cell of `v` in `q` onto the cell at the same
+place in `p`. -/
+structure PartEquiv (n : Nat) (σ : Nat → Nat) (p q : Part) : Prop where
+  /-- Cells start at the same positions. -/
+  cst : ∀ i, i < n → p.cst[i]! = q.cst[i]!
+  /-- Cells end at the same positions. -/
+  cen : ∀ i, i < n → p.cen[i]! = q.cen[i]!
+  /-- `σ` carries the cell of `v` in `q` to the cell at the same position in `p`. -/
+  cell : ∀ v, v < n → p.cst[p.pos[σ v]!]! = q.cst[q.pos[v]!]!
+
+/-- Related partitions have the same cell-size hash. -/
+theorem PartEquiv.shapeHash {n σ p q} (h : PartEquiv n σ p q) : p.shapeHash n = q.shapeHash n :=
+  shapeHash_congr n p q h.cen
+
+/-- Related partitions individualise at the same position. -/
+theorem PartEquiv.targetCell {n σ p q} (h : PartEquiv n σ p q) :
+    p.targetCell n = q.targetCell n :=
+  targetCell_congr n p q h.cen
+
+/-- The unit partition is related to itself under every renaming: one cell carries no order
+information. -/
+theorem partEquiv_unit (n : Nat) (σ : Nat → Nat) :
+    PartEquiv n σ (Part.unit n) (Part.unit n) := by
+  have hcst : ∀ i : Nat, (Part.unit n).cst[i]! = 0 := by
+    intro i
+    show (Array.replicate n 0)[i]! = 0
+    by_cases h : i < n
+    · rw [getElem!_pos (Array.replicate n 0) i (by simpa using h)]; simp
+    · rw [getElem!_neg (Array.replicate n 0) i (by simpa using h)]; rfl
+  exact ⟨fun _ _ => rfl, fun _ _ => rfl, fun _ _ => (hcst _).trans (hcst _).symm⟩
+
+/-- **Once the partitions are discrete, `σ` relates the labellings positionwise.**  This is where
+"cells correspond as sets" turns into an equation between arrays: a singleton cell has only one
+member, so there is nothing left for the stable sort to have permuted. -/
+theorem lab_eq_of_discrete {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ : IsPerm n σ)
+    (hp : Part.WF n p) (hq : Part.WF n q) (hpd : p.Discrete n) (hqd : q.Discrete n)
+    (h : PartEquiv n σ p q) (i : Nat) (hi : i < n) : p.lab[i]! = σ q.lab[i]! := by
+  have hv : q.lab[i]! < n := hq.labLt i hi
+  have hσv : σ q.lab[i]! < n := hσ.maps _ hv
+  have hc := h.cell q.lab[i]! hv
+  rw [hq.posLab i hi, hqd i hi, hpd _ (hp.posLt _ hσv)] at hc
+  calc p.lab[i]! = p.lab[p.pos[σ q.lab[i]!]!]! := by rw [hc]
+    _ = σ q.lab[i]! := hp.labPos _ hσv
+
+/-- **Step 4 of the decomposition.**  Two runs that reach related discrete partitions read off
+the same certificate — the renamed graph along `q.lab` is the original along `p.lab`.  This is
+the point at which "the search found corresponding leaves" becomes "the two runs return the same
+array". -/
+theorem certOf_of_partEquiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ : IsPerm n σ)
+    (hp : Part.WF n p) (hq : Part.WF n q) (hpd : p.Discrete n) (hqd : q.Discrete n)
+    (hqsz : q.lab.size = n) (h : PartEquiv n σ p q) (f : Nat → Nat → Bool) :
+    certOf (Graph.ofOracle n fun v w => f (σ v) (σ w)) q.lab
+      = certOf (Graph.ofOracle n f) p.lab := by
+  rw [certOf_relabel n f σ hσ q.lab hqsz fun i hi => hq.labLt i hi]
+  refine certOf_congr _ _ _ _ rfl fun i hi j hj => ?_
+  rw [ofOracle_n] at hi hj
+  have hmap : ∀ k, k < n → (q.lab.map σ)[k]! = p.lab[k]! := by
+    intro k hk
+    have h1 : (q.lab.map σ)[k]! = σ q.lab[k]! := by
+      rw [getElem!_pos (q.lab.map σ) k (by simpa [hqsz] using hk),
+        getElem!_pos q.lab k (by omega)]
+      simp
+    rw [h1, ← lab_eq_of_discrete hσ hp hq hpd hqd h k hk]
+  rw [hmap i hi, hmap j hj]
 
 end Canon
 end IsoGraph
