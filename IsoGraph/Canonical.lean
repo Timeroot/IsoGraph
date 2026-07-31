@@ -649,9 +649,30 @@ for graphs on the same number of vertices). -/
 def canonicalForm (G : Graph) : Array UInt64 :=
   (canonical G).cert
 
-/-- Canonical labelling from an adjacency oracle. -/
+/-- Positional inverse of `a`: if `a` is a permutation of `{0, …, n-1}` then this is the array
+with `invLab n a` at position `a[i]!` equal to `i`.  Used only to *check* that, so nothing is
+claimed about it when `a` is not a permutation. -/
+def invLab (n : Nat) (a : Array Nat) : Array Nat :=
+  (List.range n).foldl (init := Array.replicate n 0) fun b i =>
+    if a[i]! < n then b.set! a[i]! i else b
+
+/-- Is `a` a permutation of `{0, …, n-1}`?  `O(n)`: build the positional inverse and check that
+it really inverts, which gives injectivity for free (if `a[v]! = a[w]!` then
+`v = b[a[v]!]! = b[a[w]!]! = w`). -/
+def isPermArray (n : Nat) (a : Array Nat) : Bool :=
+  a.size == n &&
+    (let b := invLab n a
+     (List.range n).all fun i => a[i]! < n && b[a[i]!]! == i)
+
+/-- Canonical labelling from an adjacency oracle.
+
+The search's output is checked to be a permutation of `{0, …, n-1}` before being returned, and
+the identity is substituted if it is not.  The check costs `O(n)` against an `Ω(n²)` search, and
+it means the "is a permutation" half of the correctness statement is a theorem
+(`Spec.labellingIsPerm`) rather than an assumption. -/
 def canonicalLabellingOfOracle (n : Nat) (f : Nat → Nat → Bool) : Array Nat :=
-  (canonical (Graph.ofOracle n f)).lab
+  let a := (canonical (Graph.ofOracle n f)).lab
+  if isPermArray n a then a else Array.range n
 
 end Canon
 end IsoGraph

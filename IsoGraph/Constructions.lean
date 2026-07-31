@@ -337,9 +337,11 @@ instance (G : CGraph) [DecidableEq G.V] : DecidableEq (mycielskian G).V :=
 
 /-! ## Invariants of the constructions
 
-What the invariants of `IsoGraph/Invariants.lean` come to on the graphs above.  Anything whose
-proof runs past a handful of lines is left as `sorry`: the statements are what is wanted here, and
-the proofs can be filled in as the `SimpleGraph` bridge gets more API.
+What the invariants of `IsoGraph/Invariants.lean` come to on the graphs above.
+
+Most of those proofs were produced by an automated prover rather than written by hand, which is
+why they are longer and more explicit than a human would write — they have been checked but not
+golfed.
 -/
 
 section Invariants

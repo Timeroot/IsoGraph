@@ -43,6 +43,43 @@ theorem IsPerm.comp {n : Nat} {σ τ : Nat → Nat} (hσ : IsPerm n σ) (hτ : I
   ⟨fun v hv => hσ.maps _ (hτ.maps v hv),
    fun v hv w hw h => hτ.inj v hv w hw (hσ.inj _ (hτ.maps v hv) _ (hτ.maps w hw) h)⟩
 
+/-- The identity labelling is a permutation — the fallback branch of
+`canonicalLabellingOfOracle`. -/
+theorem range_isPerm (n : Nat) :
+    (Array.range n).size = n ∧ IsPerm n (fun v => (Array.range n)[v]!) := by
+  refine ⟨by simp, ⟨fun v hv => ?_, fun v hv w hw h => ?_⟩⟩
+  · rw [getElem!_pos _ _ (by simpa using hv)]; simpa using hv
+  · rw [getElem!_pos _ _ (by simpa using hv), getElem!_pos _ _ (by simpa using hw)] at h
+    simpa using h
+
+/-- `isPermArray` is sound: what it accepts really is a permutation of `{0, …, n-1}`.  (It is
+also complete, but nothing below needs that — an unsound accept would be the problem.) -/
+theorem isPermArray_spec {n : Nat} {a : Array Nat} (h : isPermArray n a = true) :
+    a.size = n ∧ IsPerm n (fun v => a[v]!) := by
+  simp only [isPermArray, Bool.and_eq_true, beq_iff_eq, List.all_eq_true, List.mem_range,
+    decide_eq_true_eq] at h
+  obtain ⟨hsz, hall⟩ := h
+  refine ⟨hsz, ⟨fun v hv => (hall v hv).1, fun v hv w hw hvw => ?_⟩⟩
+  have hv2 := (hall v hv).2
+  rw [hvw, (hall w hw).2] at hv2
+  exact hv2.symm
+
+/-- **The labelling really is a labelling.**  Not because the search is known to produce one —
+that is still open — but because `canonicalLabellingOfOracle` checks, and falls back to the
+identity if the check fails. -/
+theorem canonicalLabellingOfOracle_isPerm (n : Nat) (f : Nat → Nat → Bool) :
+    (canonicalLabellingOfOracle n f).size = n ∧
+      IsPerm n (fun v => (canonicalLabellingOfOracle n f)[v]!) := by
+  -- stated for an arbitrary `a` so that `split` sees the `if`, then applied to the search output
+  have h : ∀ a : Array Nat,
+      (if isPermArray n a then a else Array.range n).size = n ∧
+        IsPerm n (fun v => (if isPermArray n a then a else Array.range n)[v]!) := by
+    intro a
+    split
+    · exact isPermArray_spec (by assumption)
+    · exact range_isPerm n
+  exact h _
+
 /-! ## `Graph.ofOracle`
 
 The algorithm never reads an oracle directly: it reads the `adj` matrix and the `nbr` lists that

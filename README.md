@@ -11,6 +11,7 @@ canonical representative that is actually computable at useful sizes.
 | file | what it is | Mathlib? |
 | --- | --- | --- |
 | `IsoGraph/Canonical.lean` | the canonical labelling algorithm — a mini-nauty | no |
+| `IsoGraph/Equivariance.lean` | how the pieces of the algorithm respond to renaming vertices | yes |
 | `IsoGraph/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; states what must be proved | yes |
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
@@ -25,6 +26,10 @@ service's base image ships, so the project can be submitted to it without a Math
 `Canonical.lean` deliberately imports nothing: it is plain functional Lean over `Array`, so it
 compiles in seconds and its equation lemmas are available for the eventual correctness proof.
 Nothing in it is `partial` — every loop is structural on an explicit fuel argument.
+
+A related discipline, learned the hard way (see "Writing it so it can be proved" below): anything
+a proof has to look inside is written as a structural recursion rather than as `Id.run do` with a
+`for` loop.
 
 ## The algorithm
 
@@ -53,11 +58,11 @@ McKay-style individualisation–refinement.
 `lake exe isobench` on a (contended) 4-core cloud VM, best of 3, canonicalisation only:
 
 ```
-G(50, 1/2)      0.55 ms      G(1000, 1/2)     216 ms      K_100        243 ms
-G(100, 1/2)     2.0 ms       G(1000, 1/100)    40 ms      K_150        928 ms
-G(200, 1/2)     8.8 ms       C_1000           131 ms      Q_8           32 ms
-G(500, 1/2)    52 ms         random tree 500  377 ms      Paley 101    8.1 ms
-3-reg 100      28 ms         3-reg 500       1168 ms      rook 10x10    11 ms
+G(50, 1/2)      0.47 ms      G(1000, 1/2)     213 ms      K_100        227 ms
+G(100, 1/2)     1.9 ms       G(1000, 1/100)    38 ms      K_150        870 ms
+G(200, 1/2)     7.5 ms       C_1000           128 ms      Q_8           25 ms
+G(500, 1/2)    49 ms         random tree 500  363 ms      Paley 101    7.9 ms
+3-reg 100      28 ms         3-reg 500       1152 ms      rook 10x10   9.6 ms
 ```
 
 The bar in the original request was "a random graph on 50 vertices, much better than trying all
@@ -160,19 +165,104 @@ transparency, so each *named* construction needs its own. Putting `DecidableEq` 
 structure would remove the boilerplate but stop the type being a bare `Fintype`-bundled graph
 (and break `simpleEquiv`) — the instance arguments looked like the smaller price.
 
+## Writing it so it can be proved
+
+The algorithm was written first and proved about second, and the single biggest obstacle turned
+out to be a style question rather than a mathematical one. A loop written as
+
+```lean
+def f (n : Nat) : α := Id.run do
+  let mut acc := init
+  for i in [0:n] do
+    if i ≥ n then break
+    acc := step acc i
+  return acc
+```
+
+produces goals that are very hard to work with. To prove two such loops equal you must show
+their body functions are equal *pointwise at every index*, including indices the loop never
+visits — the `i < n` that makes the statement true is exactly what `for` hides. `congr` on the
+resulting `Id.bind (forIn …)` term either diverges or overflows the stack. Sixteen samples from
+an automatic prover produced zero proofs on goals of that shape.
+
+The same functions written as structural recursions on an explicit fuel are easy:
+
+```lean
+def f (n : Nat) : Nat → Nat → α
+  | 0, _ => acc
+  | fuel + 1, i => f n fuel (i + 1) (step acc i)
+```
+
+because `i + fuel = n` can be carried through the induction, and that invariant *supplies* the
+`i < n` the body needs. Every lemma that had resisted went through by hand in a handful of lines
+after the corresponding definition was rewritten this way: `Part.shapeHash` and
+`Part.targetCell` became `cenHashFrom` / `cenTargetFrom`, and `certOf` became `certBits`, which
+is `certRow` and `certRowsFrom`. `Graph.ofOracle` got the same treatment in the simplest form —
+`Array.ofFn` and `Array.filter`, so that each entry is definitionally the oracle.
+
+None of this changed what the code computes or what it costs; `lake exe isobench` reports the
+same timings and passes the same checks. The bit-packing loop is the only one on the hot path,
+and it is unchanged in shape — still a tail recursion over `n²` bits with a destructive `set!`.
+
+The one place a check was *added* is `canonicalLabellingOfOracle`, which now verifies in `O(n)`
+that the search returned a permutation of the vertices and substitutes the identity if not. That
+turns "the search returns a permutation" from an assumption into a theorem, at a cost that is
+invisible against an `Ω(n²)` search.
+
 ## Proof status
 
-One `sorry` on the critical path, in `IsoGraph/Spec.lean`:
+One `sorry` in the whole development, in `IsoGraph/Spec.lean`:
+
+```lean
+def LabellingInvariant : Prop :=
+  ∀ (m : Nat) (f : Nat → Nat → Bool) (s : Nat → Nat), Canon.IsPerm m s →
+    ∀ i, i < m → ∀ j, j < m →
+      f (s ((labelling m fun v w => f (s v) (s w))[i]!))
+          (s ((labelling m fun v w => f (s v) (s w))[j]!))
+        = f ((labelling m f)[i]!) ((labelling m f)[j]!)
+```
+
+— renaming the vertices and canonicalising reads off the same matrix as canonicalising and not
+renaming. Note this is weaker than "the labelling transforms along `s`", which is false: the
+winning leaf is determined only up to an automorphism, and *which* of several equally good
+leaves the search reaches does depend on vertex names.
+
+The user-facing statement is `canonAdj_relabel`, and it is now *derived* rather than assumed:
 
 ```lean
 theorem canonAdj_relabel (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
-    canonAdj n (relabel σ adj) = canonAdj n adj
+    canonAdj n (relabel σ adj) = canonAdj n adj :=
+  canonAdj_relabel_of labellingIsPerm labellingInvariant σ adj
 ```
 
-— renaming vertices does not change the canonical form. Its docstring records the six-step
-decomposition it needs.
+`canonAdj_relabel_of` discharges the entire `Fin` / `Equiv.Perm` wrapper — the `permOfArrays`
+run-time check, the `invArray` inverse, the translation between `Equiv.Perm (Fin n)` and a
+renaming of `{0, …, n-1}` — so what remains open mentions nothing but `Array Nat`. Its
+companion `labellingIsPerm` is proved outright, by the run-time check described above.
 
-Everything else is proved. In particular the **soundness** direction,
+`Equivariance.lean` holds the groundwork on the array side and is `sorry`-free: `ofOracle_adj`,
+`ofOracle_mem_nbr`, `ofOracle_nbr_lt`, `shapeHash_congr`, `targetCell_congr`, `targetCell_lt`,
+`certBits_congr`, `certOf_congr`, and
+
+```lean
+theorem certOf_relabel (n : Nat) (f : Nat → Nat → Bool) (σ : Nat → Nat) (hσ : IsPerm n σ)
+    (lab : Array Nat) (hsz : lab.size = n) (hlab : ∀ i, i < n → lab[i]! < n) :
+    certOf (Graph.ofOracle n (fun v w => f (σ v) (σ w))) lab
+      = certOf (Graph.ofOracle n f) (lab.map σ)
+```
+
+That covers steps 2 and 4 of the six-step decomposition in `canonAdj_relabel`'s docstring. Steps
+1, 3, 5 and 6 — equivariance of `refineStep`, of `individualize`, and the argument that the
+maximum over the leaves is independent of the order children are enumerated in, which is where
+the three prunings have to be justified — are what is left.
+
+`certOf_relabel` is worth a footnote: an earlier version of it, missing the `lab.size = n`
+hypothesis, was *refuted* by the prover, which returned a counterexample (`n = 2`,
+`f v w := v = 0 ∧ w = 0`, `σ` the transposition, `lab = #[]`) rather than a proof. Out of range
+`lab[i]!` is `0` on the left but `(lab.map σ)[i]!` is also `0` on the right, so the two sides read
+`f (σ 0) (σ 0)` and `f 0 0`. The counterexample is kept in `atp/rejected/`.
+
+The **soundness** direction,
 
 ```lean
 canonAdj n adjG = canonAdj n adjH → ∃ σ, relabel σ adjG = adjH

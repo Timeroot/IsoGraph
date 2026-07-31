@@ -244,22 +244,22 @@ section: it discharges the whole `Fin`/`Equiv.Perm` wrapper — the `permOfArray
 the `invArray` inverse, the translation between `Equiv.Perm (Fin n)` and a renaming of
 `{0, …, n-1}` — so that what is left to prove mentions nothing but `Array Nat` and
 `canonicalLabellingOfOracle`.  See `IsoGraph/Equivariance.lean` for the groundwork on that side.
--/
+
+Of the two, `LabellingIsPerm` is proved: `canonicalLabellingOfOracle` verifies it at run time in
+`O(n)`.  `LabellingInvariant` is the single open `sorry` of the development. -/
 
 /-- The labelling the search returns for the oracle `f` on `m` vertices: canonical position `i`
 holds the vertex `labelling m f`. -/
 abbrev labelling (m : Nat) (f : Nat → Nat → Bool) : Array Nat := canonicalLabellingOfOracle m f
 
-/-- **Obligation A: the search returns a permutation of the vertices.**
-
-This is not needed for soundness — `permOfArrays` checks it at run time and falls back to the
-identity — but it *is* needed for invariance, since a run that fell back and a run that did not
-would compare different things. -/
+/-- **The labelling is a permutation of the vertices.**  Proved: `canonicalLabellingOfOracle`
+checks this in `O(n)` and returns the identity if the check fails, so it holds regardless of what
+the search does.  See `labellingIsPerm`. -/
 def LabellingIsPerm : Prop :=
   ∀ (m : Nat) (f : Nat → Nat → Bool),
     (labelling m f).size = m ∧ Canon.IsPerm m (fun v => (labelling m f)[v]!)
 
-/-- **Obligation B: the labelling the search settles on is equivariant.**
+/-- **The remaining obligation: the labelling the search settles on is equivariant.**
 
 Renaming the vertices along `s` and canonicalising gives the same adjacency matrix as
 canonicalising and not renaming.  Note this is weaker than "the labelling itself transforms along
@@ -273,8 +273,8 @@ def LabellingInvariant : Prop :=
           (s ((labelling m fun v w => f (s v) (s w))[j]!))
         = f ((labelling m f)[i]!) ((labelling m f)[j]!)
 
-theorem labellingIsPerm : LabellingIsPerm := by
-  sorry
+theorem labellingIsPerm : LabellingIsPerm :=
+  Canon.canonicalLabellingOfOracle_isPerm
 
 /-- The deep half.  Its docstring in `IsoGraph/Equivariance.lean` records how it decomposes; the
 prose version is the numbered list below. -/
@@ -571,8 +571,9 @@ canonical form.
 
 Everything else in the development — that `IsoGraph` may be `Quotient.lift`ed through the
 canonical form, and hence that graph invariants computed from it are well defined — reduces to
-this.  It in turn reduces, by `canonAdj_relabel_of`, to `LabellingIsPerm` and
-`LabellingInvariant`; the latter is the deep one, and decomposes as follows.
+this.  It in turn reduces, by `canonAdj_relabel_of`, to `LabellingIsPerm` — proved, by a run-time
+check — and `LabellingInvariant`, which is the deep one and decomposes as follows.  Steps 2 and 4
+are done, in `IsoGraph/Equivariance.lean`; 1, 3, 5 and 6 are not.
 
 Fix `σ` and write `q ≈ p` for "the ordered partitions `q` and `p` have
 the same cell boundaries, and the `i`-th cell of `q` is the `σ`-image of the `i`-th cell of `p`
@@ -586,11 +587,11 @@ is invariant is the sequence of cells.)  Then:
    and `initialRefine` — note `Part.unit n ≈ Part.unit n` for every `σ`, the point being that a
    one-cell partition carries no order information.
 2. `Part.shapeHash` and `Part.targetCell` read only cell boundaries, so they agree on `≈`-related
-   partitions.
+   partitions.  *(Done: `Canon.shapeHash_congr`, `Canon.targetCell_congr`.)*
 3. `individualize p v` and `individualize q (σ v)` produce `≈`-related partitions and the same
    splitter position.
 4. On *discrete* partitions `≈` forces `q.lab = σ ∘ p.lab`, and then `certOf` agrees, since it
-   reads the adjacency matrix in exactly that order.
+   reads the adjacency matrix in exactly that order.  *(Done: `Canon.certOf_relabel`.)*
 5. Therefore the two search trees have the same shape and the same node invariants, and their
    leaves correspond — except that the children of a node are enumerated in a different order,
    since the target cell is listed in `lab` order.
