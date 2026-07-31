@@ -1437,5 +1437,827 @@ theorem collect_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} {p
       exact (hmemq w hwn).1 hw
     · rw [h.cell w hwn, hc]
 
+/-! ### The counting sort
+
+The heart of `refineStep`: each cell that the splitter met is sorted by neighbour count.  The
+sort is a counting sort in five passes — count the buckets (`bucketFrom`), turn the counts into
+offsets (`offsetFrom`), scatter the vertices into a block (`scatterFrom`), write the block back
+(`writeFrom`), install the new fragment boundaries (`boundsFrom`) — and each pass gets its own
+`getElem!` characterisation here.  The one substantial argument is `scatterFrom_block`: the
+scatter writes each vertex to a distinct slot, which needs the buckets' offset ranges to be
+disjoint (`Sep`) and is what makes the whole thing a permutation of the cell.
+-/
+
+/-- How many of the positions `[k, ec)` hold a vertex of neighbour count `t`. -/
+def bucketSize (lab cnt : Array Nat) (k ec t : Nat) : Nat :=
+  ∑ i ∈ Finset.Ico k ec, if cnt[lab[i]!]! = t then 1 else 0
+
+theorem bucketSize_zero (lab cnt : Array Nat) {k ec t : Nat} (h : ec ≤ k) :
+    bucketSize lab cnt k ec t = 0 := by
+  rw [bucketSize, Finset.Ico_eq_empty (by omega), Finset.sum_empty]
+
+theorem bucketSize_succ (lab cnt : Array Nat) {k ec t : Nat} (h : k < ec) :
+    bucketSize lab cnt k ec t
+      = (if cnt[lab[k]!]! = t then 1 else 0) + bucketSize lab cnt (k + 1) ec t :=
+  Finset.sum_eq_sum_Ico_succ_bot h _
+
+theorem bucketFrom_size (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (bc ks : Array Nat), (bucketFrom lab cnt ec fuel k bc ks).1.size = bc.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, k, bc, ks => by
+    rw [bucketFrom]
+    split
+    · rfl
+    · rw [bucketFrom_size lab cnt ec fuel (k + 1) _ _]
+      simp
+
+theorem bucketFrom_getElem! (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (bc ks : Array Nat), ec ≤ k + fuel → ∀ t, t < bc.size →
+      (bucketFrom lab cnt ec fuel k bc ks).1[t]! = bc[t]! + bucketSize lab cnt k ec t
+  | 0, k, bc, ks, hf, t, ht => by
+    rw [bucketFrom, bucketSize_zero lab cnt (by omega)]
+    simp
+  | fuel + 1, k, bc, ks, hf, t, ht => by
+    rw [bucketFrom]
+    split
+    · rw [bucketSize_zero lab cnt (by omega)]
+      simp
+    · rename_i hk
+      have hlt : k < ec := by omega
+      rw [bucketSize_succ lab cnt hlt]
+      dsimp only
+      rw [bucketFrom_getElem! lab cnt ec fuel (k + 1) _ _ (by omega) t (by simpa using ht)]
+      by_cases hteq : t = cnt[lab[k]!]!
+      · rw [getElem!_set! (by omega : cnt[lab[k]!]! < bc.size) t, if_pos hteq,
+          if_pos (by simp [hteq]), hteq]
+        omega
+      · rw [getElem!_set!_ne hteq, if_neg (by simpa using fun h => hteq h.symm)]
+        omega
+
+/-- The bucket table and the list of occurring counts satisfy the same invariant as the count
+array and its touched list: `ks` lists exactly the counts with a nonzero bucket, each once. -/
+theorem bucketFrom_touched (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (bc ks : Array Nat), (∀ (v : Nat), cnt[v]! < bc.size) → Touched bc ks →
+      Touched (bucketFrom lab cnt ec fuel k bc ks).1 (bucketFrom lab cnt ec fuel k bc ks).2
+  | 0, _, _, _, _, ht => ht
+  | fuel + 1, k, bc, ks, hcb, ht => by
+    rw [bucketFrom]
+    split
+    · exact ht
+    · have hv : cnt[lab[k]!]! < bc.size := hcb _
+      have hsz : (bc.set! cnt[lab[k]!]! (bc[cnt[lab[k]!]!]! + 1)).size = bc.size := by simp
+      dsimp only
+      refine bucketFrom_touched lab cnt ec fuel (k + 1) _ _ (by simpa [hsz] using hcb) ⟨?_, ?_, ?_⟩
+      · split
+        · rename_i hc
+          have hnot : cnt[lab[k]!]! ∉ ks := fun hmem => ((ht.mem _ hv).1 hmem) (by simpa using hc)
+          rw [Array.toList_push]
+          refine List.nodup_append.2 ⟨ht.nodup, by simp, ?_⟩
+          intro a ha b hb hab
+          rw [List.mem_singleton] at hb
+          subst hab
+          subst hb
+          exact hnot (by simpa using ha)
+        · exact ht.nodup
+      · intro w hw
+        rw [hsz]
+        split at hw
+        · rcases Array.mem_push.1 hw with h | h
+          · exact ht.lt w h
+          · exact h ▸ hv
+        · exact ht.lt w hw
+      · intro w hw
+        rw [hsz] at hw
+        by_cases hwv : w = cnt[lab[k]!]!
+        · subst hwv
+          rw [getElem!_set! hv _, if_pos rfl]
+          simp only [ne_eq, Nat.succ_ne_zero, not_false_eq_true, iff_true]
+          split
+          · exact Array.mem_push.2 (Or.inr rfl)
+          · rename_i hc
+            exact (ht.mem _ hw).2 (by simpa using hc)
+        · rw [getElem!_set!_ne hwv]
+          split
+          · rw [Array.mem_push]
+            simp only [hwv, or_false]
+            exact ht.mem w hw
+          · exact ht.mem w hw
+
+/-- **What the bucketing phase collects**: exactly the counts that occur in the cell. -/
+theorem bucket_mem {lab cnt bc : Array Nat} {c ec : Nat} (hcb : ∀ (v : Nat), cnt[v]! < bc.size)
+    (hbc0 : ∀ t, t < bc.size → bc[t]! = 0) (t : Nat) :
+    t ∈ (bucketFrom lab cnt ec (ec - c) c bc #[]).2 ↔
+      t < bc.size ∧ bucketSize lab cnt c ec t ≠ 0 := by
+  have hT : Touched (bucketFrom lab cnt ec (ec - c) c bc #[]).1
+      (bucketFrom lab cnt ec (ec - c) c bc #[]).2 :=
+    bucketFrom_touched lab cnt ec (ec - c) c bc #[] hcb
+      (touched_empty bc fun w hw => hbc0 w hw)
+  constructor
+  · intro hmem
+    have hlt : t < bc.size := by
+      have := hT.lt t hmem
+      rwa [bucketFrom_size] at this
+    refine ⟨hlt, ?_⟩
+    have := (hT.mem t (by rw [bucketFrom_size]; exact hlt)).1 hmem
+    rwa [bucketFrom_getElem! lab cnt ec (ec - c) c bc #[] (by omega) t hlt, hbc0 t hlt,
+      Nat.zero_add] at this
+  · rintro ⟨hlt, hne⟩
+    refine (hT.mem t (by rw [bucketFrom_size]; exact hlt)).2 ?_
+    rw [bucketFrom_getElem! lab cnt ec (ec - c) c bc #[] (by omega) t hlt, hbc0 t hlt, Nat.zero_add]
+    exact hne
+
+/-- The bucket sizes are cell counts, so the vocabulary of step 1 applies to them: the same
+position-to-vertex bijection as in `countFrom_cellCount`. -/
+theorem bucketSize_cellCount {n : Nat} {p : Part} (hp : Part.WF n p) {c : Nat} (hc : c < n)
+    (hcst : p.cst[c]! = c) (cnt : Array Nat) (t : Nat) :
+    bucketSize p.lab cnt c p.cen[c]! t = cellCount n p c (fun u => cnt[u]! == t) := by
+  have hcE : c < p.cen[c]! := hp.ltCen c hc
+  have hEn : p.cen[c]! ≤ n := hp.cenLe c hc
+  rw [bucketSize, ← Finset.sum_filter, ← Finset.card_eq_sum_ones, cellCount]
+  refine Finset.card_bij (fun i _ => p.lab[i]!) ?_ ?_ ?_
+  · intro i hi
+    simp only [Finset.mem_filter, Finset.mem_Ico] at hi
+    simp only [Finset.mem_filter, Finset.mem_range]
+    refine ⟨hp.labLt i (by omega), ?_, by simpa using hi.2⟩
+    rw [hp.posLab i (by omega)]
+    have := hp.cellCst c hc i (by rw [hcst]; omega) (by omega)
+    rw [this, hcst]
+  · intro a ha b hb hab
+    simp only [Finset.mem_filter, Finset.mem_Ico] at ha hb
+    have hab' : p.lab[a]! = p.lab[b]! := hab
+    have h1 := hp.posLab a (by omega)
+    have h2 := hp.posLab b (by omega)
+    rw [hab', h2] at h1
+    omega
+  · intro u hu
+    simp only [Finset.mem_filter, Finset.mem_range] at hu
+    refine ⟨p.pos[u]!, ?_, hp.labPos u hu.1⟩
+    have hpu : p.pos[u]! < n := hp.posLt u hu.1
+    have hmem := (hp.cst_eq_iff hc hpu).1 (by rw [hu.2.1, hcst])
+    simp only [Finset.mem_filter, Finset.mem_Ico]
+    rw [hcst] at hmem
+    exact ⟨⟨hmem.1, hmem.2⟩, by rw [hp.labPos u hu.1]; simpa using hu.2.2⟩
+
+/-- Distinct positions of a duplicate-free array hold distinct values. -/
+theorem nodup_getElem!_ne {a : Array Nat} (h : a.toList.Nodup) {i j : Nat} (hi : i < a.size)
+    (hj : j < a.size) (hij : i ≠ j) : a[i]! ≠ a[j]! := by
+  rw [getElem!_pos a i hi, getElem!_pos a j hj]
+  intro he
+  exact hij ((List.Nodup.getElem_inj_iff h).mp (by simpa using he))
+
+theorem offsetFrom_size1 (ks : Array Nat) :
+    ∀ (fuel j : Nat) (sizes bc : Array Nat) (acc : Nat),
+      (offsetFrom ks fuel j sizes bc acc).1.size = sizes.size
+  | 0, _, _, _, _ => rfl
+  | fuel + 1, j, sizes, bc, acc => by
+    rw [offsetFrom]
+    split
+    · rfl
+    · rw [offsetFrom_size1 ks fuel (j + 1) _ _ _]
+      simp
+
+theorem offsetFrom_size2 (ks : Array Nat) :
+    ∀ (fuel j : Nat) (sizes bc : Array Nat) (acc : Nat),
+      (offsetFrom ks fuel j sizes bc acc).2.size = bc.size
+  | 0, _, _, _, _ => rfl
+  | fuel + 1, j, sizes, bc, acc => by
+    rw [offsetFrom]
+    split
+    · rfl
+    · rw [offsetFrom_size2 ks fuel (j + 1) _ _ _]
+      simp
+
+/-- The pass writes only at the indices named in `ks[j:]`. -/
+theorem offsetFrom_ne (ks : Array Nat) :
+    ∀ (fuel j : Nat) (sizes bc : Array Nat) (acc x : Nat),
+      (∀ i, j ≤ i → i < ks.size → x ≠ ks[i]!) → (offsetFrom ks fuel j sizes bc acc).2[x]! = bc[x]!
+  | 0, _, _, _, _, _, _ => rfl
+  | fuel + 1, j, sizes, bc, acc, x, hx => by
+    rw [offsetFrom]
+    split
+    · rfl
+    · rename_i hj
+      rw [offsetFrom_ne ks fuel (j + 1) _ _ _ x (fun i h1 h2 => hx i (by omega) h2),
+        getElem!_set!_ne (hx j (by omega) (by omega))]
+
+/-- **The fragment sizes**: `sizes[j]` is the size of the bucket of the `j`-th count. -/
+theorem offsetFrom_sizes (ks : Array Nat) (hnd : ks.toList.Nodup) :
+    ∀ (fuel j : Nat) (sizes bc : Array Nat) (acc : Nat), ks.size ≤ j + fuel →
+      sizes.size = ks.size → ∀ i, i < ks.size →
+        (offsetFrom ks fuel j sizes bc acc).1[i]! = if i < j then sizes[i]! else bc[ks[i]!]!
+  | 0, j, sizes, bc, acc, hf, hsz, i, hi => by
+    rw [offsetFrom, if_pos (by omega)]
+  | fuel + 1, j, sizes, bc, acc, hf, hsz, i, hi => by
+    rw [offsetFrom]
+    split
+    · rw [if_pos (by omega)]
+    · rename_i hj
+      rw [offsetFrom_sizes ks hnd fuel (j + 1) _ _ _ (by omega) (by simpa using hsz) i hi]
+      rcases Nat.lt_trichotomy i j with h | h | h
+      · rw [if_pos (by omega), if_pos h, getElem!_set!_ne (by omega : i ≠ j)]
+      · subst h
+        rw [if_pos (by omega), if_neg (by omega), getElem!_set! (by omega : i < sizes.size) i,
+          if_pos rfl]
+      · rw [if_neg (by omega), if_neg (by omega),
+          getElem!_set!_ne (nodup_getElem!_ne hnd hi (by omega) (by omega))]
+
+/-- **The fragment offsets**: after the pass, the bucket of the `i`-th count starts at the sum of
+the sizes of the buckets before it. -/
+theorem offsetFrom_bc (ks : Array Nat) (hnd : ks.toList.Nodup) :
+    ∀ (fuel j : Nat) (sizes bc : Array Nat) (acc : Nat), ks.size ≤ j + fuel →
+      (∀ i, i < ks.size → ks[i]! < bc.size) → ∀ i, j ≤ i → i < ks.size →
+        (offsetFrom ks fuel j sizes bc acc).2[ks[i]!]!
+          = acc + ∑ i' ∈ Finset.Ico j i, bc[ks[i']!]!
+  | 0, j, sizes, bc, acc, hf, hks, i, hji, hi => by omega
+  | fuel + 1, j, sizes, bc, acc, hf, hks, i, hji, hi => by
+    rw [offsetFrom]
+    split
+    · omega
+    · rename_i hj
+      rcases Nat.eq_or_lt_of_le hji with h | h
+      · subst h
+        rw [Finset.Ico_self, Finset.sum_empty, Nat.add_zero,
+          offsetFrom_ne ks fuel (j + 1) _ _ _ _
+            (fun i' h1 h2 => nodup_getElem!_ne hnd hi h2 (by omega)),
+          getElem!_set! (hks j hi) _, if_pos rfl]
+        omega
+      · have hsplit : ∑ i' ∈ Finset.Ico j i, bc[ks[i']!]!
+            = bc[ks[j]!]! + ∑ i' ∈ Finset.Ico (j + 1) i, bc[ks[i']!]! :=
+          Finset.sum_eq_sum_Ico_succ_bot h _
+        have hterm : ∀ i' ∈ Finset.Ico (j + 1) i,
+            (bc.set! ks[j]! acc)[ks[i']!]! = bc[ks[i']!]! := by
+          intro i' hi'
+          rw [Finset.mem_Ico] at hi'
+          exact getElem!_set!_ne (nodup_getElem!_ne hnd (by omega) (by omega) (by omega))
+        rw [offsetFrom_bc ks hnd fuel (j + 1) _ _ _ (by omega) (by simpa using hks) i (by omega) hi,
+          Finset.sum_congr rfl hterm, hsplit]
+        omega
+
+theorem bucketSize_split (lab cnt : Array Nat) {k i ec t : Nat} (h1 : k ≤ i) (h2 : i ≤ ec) :
+    bucketSize lab cnt k ec t = bucketSize lab cnt k i t + bucketSize lab cnt i ec t := by
+  rw [bucketSize, bucketSize, bucketSize, Finset.sum_Ico_consecutive _ h1 h2]
+
+theorem bucketSize_mono (lab cnt : Array Nat) {k i ec t : Nat} (h1 : k ≤ i) (h2 : i ≤ ec) :
+    bucketSize lab cnt i ec t ≤ bucketSize lab cnt k ec t := by
+  rw [bucketSize_split lab cnt h1 h2]
+  omega
+
+theorem bucketSize_pos (lab cnt : Array Nat) {k ec t : Nat} (h : k < ec)
+    (ht : cnt[lab[k]!]! = t) : 0 < bucketSize lab cnt k ec t := by
+  rw [bucketSize_succ lab cnt h, if_pos ht]
+  omega
+
+theorem scatterFrom_size1 (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (block bc : Array Nat),
+      (scatterFrom lab cnt ec fuel k block bc).1.size = block.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, k, block, bc => by
+    rw [scatterFrom]
+    split
+    · rfl
+    · rw [scatterFrom_size1 lab cnt ec fuel (k + 1) _ _]
+      simp
+
+theorem scatterFrom_size2 (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (block bc : Array Nat),
+      (scatterFrom lab cnt ec fuel k block bc).2.size = bc.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, k, block, bc => by
+    rw [scatterFrom]
+    split
+    · rfl
+    · rw [scatterFrom_size2 lab cnt ec fuel (k + 1) _ _]
+      simp
+
+/-- The offset the scatter writes the vertex at position `i` to, as seen from position `k`: the
+bucket's current offset plus the number of items of the same count already scattered. -/
+def scatterAt (lab cnt bc : Array Nat) (k i : Nat) : Nat :=
+  bc[cnt[lab[i]!]!]! + bucketSize lab cnt k i (cnt[lab[i]!]!)
+
+/-- Taking one step leaves every later item's target offset where it was: the bucket that just
+grew also advanced by one. -/
+theorem scatterAt_step (lab cnt bc : Array Nat) {k i : Nat} (hk : k < i)
+    (hb : cnt[lab[k]!]! < bc.size) :
+    scatterAt lab cnt (bc.set! cnt[lab[k]!]! (bc[cnt[lab[k]!]!]! + 1)) (k + 1) i
+      = scatterAt lab cnt bc k i := by
+  rw [scatterAt, scatterAt, bucketSize_succ lab cnt hk]
+  by_cases h : cnt[lab[i]!]! = cnt[lab[k]!]!
+  · rw [h, getElem!_set! hb _, if_pos rfl, if_pos rfl]
+    omega
+  · rw [getElem!_set!_ne h, if_neg (by simpa using fun h' => h h'.symm)]
+    omega
+
+/-- The scatter writes only at the offsets its remaining items name. -/
+theorem scatterFrom_ne (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (block bc : Array Nat) (o : Nat), (∀ (v : Nat), cnt[v]! < bc.size) →
+      (∀ i, k ≤ i → i < ec → scatterAt lab cnt bc k i ≠ o) →
+        (scatterFrom lab cnt ec fuel k block bc).1[o]! = block[o]!
+  | 0, _, _, _, _, _, _ => rfl
+  | fuel + 1, k, block, bc, o, hcb, ho => by
+    rw [scatterFrom]
+    split
+    · rfl
+    · rename_i hk
+      have hne : bc[cnt[lab[k]!]!]! ≠ o := by
+        have := ho k (by omega) (by omega)
+        rwa [scatterAt, bucketSize_zero lab cnt (by omega), Nat.add_zero] at this
+      rw [scatterFrom_ne lab cnt ec fuel (k + 1) _ _ o (by simpa using hcb) ?_,
+        getElem!_set!_ne (by simpa using fun h => hne h.symm)]
+      intro i h1 h2
+      rw [scatterAt_step lab cnt bc (by omega) (hcb _)]
+      exact ho i (by omega) h2
+
+/-- The buckets do not overlap: distinct counts have disjoint offset ranges, each as wide as the
+number of items still to be scattered into it. -/
+def Sep (lab cnt : Array Nat) (k ec : Nat) (bc : Array Nat) : Prop :=
+  ∀ t t' : Nat, t ≠ t' → ∀ a b : Nat, a < bucketSize lab cnt k ec t →
+    b < bucketSize lab cnt k ec t' → bc[t]! + a ≠ bc[t']! + b
+
+theorem Sep.step {lab cnt bc : Array Nat} {k ec : Nat} (h : Sep lab cnt k ec bc) (hk : k < ec)
+    (hb : cnt[lab[k]!]! < bc.size) :
+    Sep lab cnt (k + 1) ec (bc.set! cnt[lab[k]!]! (bc[cnt[lab[k]!]!]! + 1)) := by
+  intro t t' htt a b ha hb'
+  have hmono : ∀ u : Nat, bucketSize lab cnt (k + 1) ec u ≤ bucketSize lab cnt k ec u :=
+    fun u => bucketSize_mono lab cnt (by omega) (by omega)
+  have hstep : ∀ u : Nat, bucketSize lab cnt k ec u
+      = (if cnt[lab[k]!]! = u then 1 else 0) + bucketSize lab cnt (k + 1) ec u :=
+    fun u => bucketSize_succ lab cnt hk
+  by_cases ht0 : t = cnt[lab[k]!]!
+  · have ht0' : t' ≠ cnt[lab[k]!]! := fun h' => htt (ht0.trans h'.symm)
+    rw [getElem!_set! hb t, if_pos ht0, getElem!_set!_ne ht0', ← ht0]
+    have h1 : a + 1 < bucketSize lab cnt k ec t := by
+      have := hstep t
+      rw [if_pos ht0.symm] at this
+      omega
+    have := h t t' htt (a + 1) b h1 (by have := hmono t'; omega)
+    omega
+  · by_cases ht0' : t' = cnt[lab[k]!]!
+    · rw [getElem!_set!_ne ht0, getElem!_set! hb t', if_pos ht0', ← ht0']
+      have h1 : b + 1 < bucketSize lab cnt k ec t' := by
+        have := hstep t'
+        rw [if_pos ht0'.symm] at this
+        omega
+      have := h t t' htt a (b + 1) (by have := hmono t; omega) h1
+      omega
+    · rw [getElem!_set!_ne ht0, getElem!_set!_ne ht0']
+      exact h t t' htt a b (by have := hmono t; omega) (by have := hmono t'; omega)
+
+/-- **Where the scatter puts each vertex.**  The vertex at position `i` of the cell lands at its
+bucket's offset plus the number of same-count vertices before it — a stable counting sort. -/
+theorem scatterFrom_block (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (block bc : Array Nat), ec ≤ k + fuel → (∀ (v : Nat), cnt[v]! < bc.size) →
+      Sep lab cnt k ec bc → (∀ i, k ≤ i → i < ec → scatterAt lab cnt bc k i < block.size) →
+        ∀ i, k ≤ i → i < ec →
+          (scatterFrom lab cnt ec fuel k block bc).1[scatterAt lab cnt bc k i]! = lab[i]!
+  | 0, k, block, bc, hf, _, _, _, i, h1, h2 => by omega
+  | fuel + 1, k, block, bc, hf, hcb, hsep, hrange, i, h1, h2 => by
+    rw [scatterFrom]
+    split
+    · omega
+    · rename_i hk
+      have hbk : cnt[lab[k]!]! < bc.size := hcb _
+      rcases Nat.eq_or_lt_of_le h1 with h | h
+      · -- the vertex written now: no later write lands on the offset it just took
+        subst h
+        have hbsz : bc[cnt[lab[k]!]!]! < block.size := by
+          have := hrange k (le_refl k) (by omega)
+          rwa [scatterAt, bucketSize_zero lab cnt (le_refl k), Nat.add_zero] at this
+        rw [scatterAt, bucketSize_zero lab cnt (le_refl k), Nat.add_zero,
+          scatterFrom_ne lab cnt ec fuel (k + 1) _ _ _ (by simpa using hcb) ?_,
+          getElem!_set! hbsz _, if_pos (Nat.add_zero _)]
+        intro i' h1' h2'
+        rw [scatterAt_step lab cnt bc (by omega) hbk, scatterAt]
+        by_cases ht : cnt[lab[i']!]! = cnt[lab[k]!]!
+        · rw [ht]
+          have : 0 < bucketSize lab cnt k i' cnt[lab[k]!]! :=
+            bucketSize_pos lab cnt (by omega) rfl
+          omega
+        · have hb1 : bucketSize lab cnt k i' cnt[lab[i']!]!
+              < bucketSize lab cnt k ec cnt[lab[i']!]! := by
+            rw [bucketSize_split lab cnt (show k ≤ i' by omega) (show i' ≤ ec by omega)]
+            have := bucketSize_pos lab cnt (k := i') (ec := ec) (t := cnt[lab[i']!]!)
+              (by omega) rfl
+            omega
+          have hb2 : 0 < bucketSize lab cnt k ec cnt[lab[k]!]! :=
+            bucketSize_pos lab cnt (by omega) rfl
+          exact hsep _ _ ht _ 0 hb1 hb2
+      · rw [← scatterAt_step lab cnt bc h hbk]
+        refine scatterFrom_block lab cnt ec fuel (k + 1) _ _ (by omega) (by simpa using hcb)
+          (hsep.step (by omega) hbk) ?_ i (by omega) h2
+        intro i' h1' h2'
+        rw [scatterAt_step lab cnt bc (by omega) hbk]
+        simpa using hrange i' (by omega) h2'
+
+/-! ### Writing the sorted block back -/
+
+theorem writeFrom_size1 (block : Array Nat) (c : Nat) :
+    ∀ (fuel k : Nat) (lab pos : Array Nat), (writeFrom block c fuel k lab pos).1.size = lab.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, k, lab, pos => by
+    rw [writeFrom]
+    split
+    · rfl
+    · rw [writeFrom_size1 block c fuel (k + 1) _ _]
+      simp
+
+theorem writeFrom_size2 (block : Array Nat) (c : Nat) :
+    ∀ (fuel k : Nat) (lab pos : Array Nat), (writeFrom block c fuel k lab pos).2.size = pos.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, k, lab, pos => by
+    rw [writeFrom]
+    split
+    · rfl
+    · rw [writeFrom_size2 block c fuel (k + 1) _ _]
+      simp
+
+/-- Positions outside the cell keep their label. -/
+theorem writeFrom_lab_ne (block : Array Nat) (c : Nat) :
+    ∀ (fuel k : Nat) (lab pos : Array Nat) (x : Nat), (x < c + k ∨ c + block.size ≤ x) →
+      (writeFrom block c fuel k lab pos).1[x]! = lab[x]!
+  | 0, _, _, _, _, _ => rfl
+  | fuel + 1, k, lab, pos, x, hx => by
+    rw [writeFrom]
+    split
+    · rfl
+    · rw [writeFrom_lab_ne block c fuel (k + 1) _ _ x (by omega),
+        getElem!_set!_ne (by omega : x ≠ c + k)]
+
+/-- The block is laid down at positions `c, c+1, …`. -/
+theorem writeFrom_lab (block : Array Nat) (c : Nat) :
+    ∀ (fuel k : Nat) (lab pos : Array Nat), block.size ≤ k + fuel → c + block.size ≤ lab.size →
+      ∀ m, k ≤ m → m < block.size → (writeFrom block c fuel k lab pos).1[c + m]! = block[m]!
+  | 0, k, lab, pos, hf, _, m, h1, h2 => by omega
+  | fuel + 1, k, lab, pos, hf, hlab, m, h1, h2 => by
+    rw [writeFrom]
+    split
+    · omega
+    · rcases Nat.eq_or_lt_of_le h1 with h | h
+      · subst h
+        rw [writeFrom_lab_ne block c fuel (k + 1) _ _ _ (by omega),
+          getElem!_set! (by omega) _, if_pos rfl]
+      · exact writeFrom_lab block c fuel (k + 1) _ _ (by omega) (by simpa using hlab) m
+          (by omega) h2
+
+/-- Vertices the block does not mention keep their position. -/
+theorem writeFrom_pos_ne (block : Array Nat) (c : Nat) :
+    ∀ (fuel k : Nat) (lab pos : Array Nat) (v : Nat),
+      (∀ m, k ≤ m → m < block.size → block[m]! ≠ v) →
+        (writeFrom block c fuel k lab pos).2[v]! = pos[v]!
+  | 0, _, _, _, _, _ => rfl
+  | fuel + 1, k, lab, pos, v, hv => by
+    rw [writeFrom]
+    split
+    · rfl
+    · rename_i hk
+      rw [writeFrom_pos_ne block c fuel (k + 1) _ _ v (fun m h1 h2 => hv m (by omega) h2),
+        getElem!_set!_ne (Ne.symm (hv k (by omega) (by omega)))]
+
+/-- **Where each vertex of the block ends up.**  The block has no repeats, so the write that
+places a vertex is the only one that touches its position. -/
+theorem writeFrom_pos (block : Array Nat) (c : Nat) (hnd : block.toList.Nodup) :
+    ∀ (fuel k : Nat) (lab pos : Array Nat), block.size ≤ k + fuel →
+      (∀ m, m < block.size → block[m]! < pos.size) →
+        ∀ m, k ≤ m → m < block.size → (writeFrom block c fuel k lab pos).2[block[m]!]! = c + m
+  | 0, k, lab, pos, hf, _, m, h1, h2 => by omega
+  | fuel + 1, k, lab, pos, hf, hp, m, h1, h2 => by
+    rw [writeFrom]
+    split
+    · omega
+    · rcases Nat.eq_or_lt_of_le h1 with h | h
+      · subst h
+        rw [writeFrom_pos_ne block c fuel (k + 1) _ _ _
+            (fun m' h1' h2' => nodup_getElem!_ne hnd h2' h2 (by omega)),
+          getElem!_set! (hp k h2) _, if_pos rfl]
+      · exact writeFrom_pos block c hnd fuel (k + 1) _ _ (by omega) (by simpa using hp) m
+          (by omega) h2
+
+/-! ### The fragment boundaries -/
+
+theorem fillBoundsFrom_size1 (st en : Nat) : ∀ (fuel i : Nat) (cst cen : Array Nat),
+    (fillBoundsFrom st en fuel i cst cen).1.size = cst.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, i, cst, cen => by
+    rw [fillBoundsFrom]
+    split
+    · rfl
+    · rw [fillBoundsFrom_size1 st en fuel (i + 1) _ _]
+      simp
+
+theorem fillBoundsFrom_size2 (st en : Nat) : ∀ (fuel i : Nat) (cst cen : Array Nat),
+    (fillBoundsFrom st en fuel i cst cen).2.size = cen.size
+  | 0, _, _, _ => rfl
+  | fuel + 1, i, cst, cen => by
+    rw [fillBoundsFrom]
+    split
+    · rfl
+    · rw [fillBoundsFrom_size2 st en fuel (i + 1) _ _]
+      simp
+
+theorem fillBoundsFrom_ne (st en : Nat) : ∀ (fuel i : Nat) (cst cen : Array Nat) (x : Nat),
+    (x < i ∨ en ≤ x) → (fillBoundsFrom st en fuel i cst cen).1[x]! = cst[x]!
+      ∧ (fillBoundsFrom st en fuel i cst cen).2[x]! = cen[x]!
+  | 0, _, _, _, _, _ => ⟨rfl, rfl⟩
+  | fuel + 1, i, cst, cen, x, hx => by
+    rw [fillBoundsFrom]
+    split
+    · exact ⟨rfl, rfl⟩
+    · rename_i hi
+      obtain ⟨h1, h2⟩ := fillBoundsFrom_ne st en fuel (i + 1) (cst.set! i st) (cen.set! i en) x
+        (by omega)
+      exact ⟨by rw [h1, getElem!_set!_ne (by omega : x ≠ i)],
+        by rw [h2, getElem!_set!_ne (by omega : x ≠ i)]⟩
+
+theorem fillBoundsFrom_getElem! (st en : Nat) : ∀ (fuel i : Nat) (cst cen : Array Nat),
+    en ≤ i + fuel → en ≤ cst.size → en ≤ cen.size → ∀ x, i ≤ x → x < en →
+      (fillBoundsFrom st en fuel i cst cen).1[x]! = st
+        ∧ (fillBoundsFrom st en fuel i cst cen).2[x]! = en
+  | 0, i, cst, cen, hf, _, _, x, h1, h2 => by omega
+  | fuel + 1, i, cst, cen, hf, hc1, hc2, x, h1, h2 => by
+    rw [fillBoundsFrom]
+    split
+    · omega
+    · rcases Nat.eq_or_lt_of_le h1 with h | h
+      · subst h
+        obtain ⟨e1, e2⟩ := fillBoundsFrom_ne st en fuel (i + 1) (cst.set! i st) (cen.set! i en) i
+          (by omega)
+        exact ⟨by rw [e1, getElem!_set! (by omega) _, if_pos rfl],
+          by rw [e2, getElem!_set! (by omega) _, if_pos rfl]⟩
+      · exact fillBoundsFrom_getElem! st en fuel (i + 1) _ _ (by omega) (by simpa using hc1)
+          (by simpa using hc2) x (by omega) h2
+
+/-- The total size of the fragments `[a, b)`. -/
+def sizesSum (sizes : Array Nat) (a b : Nat) : Nat := ∑ j ∈ Finset.Ico a b, sizes[j]!
+
+theorem sizesSum_self (sizes : Array Nat) (a : Nat) : sizesSum sizes a a = 0 := by
+  simp [sizesSum]
+
+theorem sizesSum_succ (sizes : Array Nat) {a b : Nat} (h : a < b) :
+    sizesSum sizes a b = sizes[a]! + sizesSum sizes (a + 1) b := by
+  rw [sizesSum, sizesSum, Finset.sum_eq_sum_Ico_succ_bot h]
+
+theorem sizesSum_le (sizes : Array Nat) {a b c : Nat} (h1 : a ≤ b) (h2 : b ≤ c) :
+    sizesSum sizes a b ≤ sizesSum sizes a c := by
+  rw [sizesSum, sizesSum, ← Finset.sum_Ico_consecutive _ h1 h2]
+  omega
+
+theorem sizesSum_split (sizes : Array Nat) {a b c : Nat} (h1 : a ≤ b) (h2 : b ≤ c) :
+    sizesSum sizes a c = sizesSum sizes a b + sizesSum sizes b c := by
+  rw [sizesSum, sizesSum, sizesSum, Finset.sum_Ico_consecutive _ h1 h2]
+
+/-- Positions outside the split cell keep their boundaries. -/
+theorem boundsFrom_ne (ks sizes : Array Nat) :
+    ∀ (fuel j : Nat) (cst cen starts : Array Nat) (st : Nat) (tr : UInt64) (x : Nat),
+      (x < st ∨ st + sizesSum sizes j ks.size ≤ x) →
+        (boundsFrom ks sizes fuel j cst cen starts st tr).1[x]! = cst[x]!
+          ∧ (boundsFrom ks sizes fuel j cst cen starts st tr).2.1[x]! = cen[x]!
+  | 0, _, _, _, _, _, _, _, _ => ⟨rfl, rfl⟩
+  | fuel + 1, j, cst, cen, starts, st, tr, x, hx => by
+    rw [boundsFrom]
+    split
+    · exact ⟨rfl, rfl⟩
+    · rename_i hj
+      have hsz : sizes[j]! ≤ sizesSum sizes j ks.size := by
+        rw [sizesSum_succ sizes (show j < ks.size by omega)]
+        omega
+      have hsub : sizesSum sizes (j + 1) ks.size + sizes[j]! = sizesSum sizes j ks.size := by
+        rw [sizesSum_succ sizes (show j < ks.size by omega)]
+        omega
+      obtain ⟨h1, h2⟩ := boundsFrom_ne ks sizes fuel (j + 1)
+        (fillBoundsFrom st (st + sizes[j]!) sizes[j]! st cst cen).1
+        (fillBoundsFrom st (st + sizes[j]!) sizes[j]! st cst cen).2
+        (starts.push st) (st + sizes[j]!) (mixN (mixN tr sizes[j]!) ks[j]!) x (by omega)
+      obtain ⟨e1, e2⟩ := fillBoundsFrom_ne st (st + sizes[j]!) sizes[j]! st cst cen x (by omega)
+      exact ⟨by rw [h1, e1], by rw [h2, e2]⟩
+
+/-- **The boundaries the split installs.**  Every position of fragment `j'` reports that
+fragment's range. -/
+theorem boundsFrom_getElem! (ks sizes : Array Nat) :
+    ∀ (fuel j : Nat) (cst cen starts : Array Nat) (st : Nat) (tr : UInt64), ks.size ≤ j + fuel →
+      st + sizesSum sizes j ks.size ≤ cst.size → st + sizesSum sizes j ks.size ≤ cen.size →
+        ∀ j', j ≤ j' → j' < ks.size → ∀ x, st + sizesSum sizes j j' ≤ x →
+          x < st + sizesSum sizes j (j' + 1) →
+            (boundsFrom ks sizes fuel j cst cen starts st tr).1[x]!
+                = st + sizesSum sizes j j'
+              ∧ (boundsFrom ks sizes fuel j cst cen starts st tr).2.1[x]!
+                = st + sizesSum sizes j (j' + 1)
+  | 0, j, cst, cen, starts, st, tr, hf, _, _, j', h1, h2, x, _, _ => by omega
+  | fuel + 1, j, cst, cen, starts, st, tr, hf, hc1, hc2, j', h1, h2, x, hx1, hx2 => by
+    rw [boundsFrom]
+    split
+    · omega
+    · rename_i hj
+      have hsub : ∀ m, j + 1 ≤ m → sizesSum sizes j m = sizes[j]! + sizesSum sizes (j + 1) m :=
+        fun m hm => sizesSum_succ sizes (by omega)
+      have hcell : st + sizes[j]! + sizesSum sizes (j + 1) ks.size
+          = st + sizesSum sizes j ks.size := by rw [hsub ks.size (by omega)]; omega
+      rcases Nat.eq_or_lt_of_le h1 with h | h
+      · -- the fragment being written now
+        subst h
+        rw [sizesSum_self, Nat.add_zero] at hx1 ⊢
+        rw [hsub (j + 1) (by omega), sizesSum_self, Nat.add_zero] at hx2 ⊢
+        obtain ⟨e1, e2⟩ := boundsFrom_ne ks sizes fuel (j + 1)
+          (fillBoundsFrom st (st + sizes[j]!) sizes[j]! st cst cen).1
+          (fillBoundsFrom st (st + sizes[j]!) sizes[j]! st cst cen).2
+          (starts.push st) (st + sizes[j]!) (mixN (mixN tr sizes[j]!) ks[j]!) x (by omega)
+        obtain ⟨f1, f2⟩ := fillBoundsFrom_getElem! st (st + sizes[j]!) sizes[j]! st cst cen
+          (by omega) (by omega) (by omega) x (by omega) (by omega)
+        exact ⟨by rw [e1, f1]; omega, by rw [e2, f2]; omega⟩
+      · have := boundsFrom_getElem! ks sizes fuel (j + 1)
+          (fillBoundsFrom st (st + sizes[j]!) sizes[j]! st cst cen).1
+          (fillBoundsFrom st (st + sizes[j]!) sizes[j]! st cst cen).2
+          (starts.push st) (st + sizes[j]!) (mixN (mixN tr sizes[j]!) ks[j]!) (by omega)
+          (by rw [fillBoundsFrom_size1]; omega) (by rw [fillBoundsFrom_size2]; omega)
+          j' (by omega) h2 x (by rw [hsub j' (by omega)] at hx1; omega)
+          (by rw [hsub (j' + 1) (by omega)] at hx2; omega)
+        rw [hsub j' (by omega), hsub (j' + 1) (by omega)]
+        constructor
+        · rw [this.1]; omega
+        · rw [this.2]; omega
+
+/-! ### Odds and ends: array extensionality, the leftover bucket counters, clearing scratch -/
+
+theorem array_ext! {α : Type _} [Inhabited α] {a b : Array α} (hs : a.size = b.size)
+    (h : ∀ i, i < a.size → a[i]! = b[i]!) : a = b := by
+  refine Array.ext hs fun i hi hi' => ?_
+  have := h i hi
+  rwa [getElem!_pos a i hi, getElem!_pos b i hi'] at this
+
+theorem mem_iff_getElem! {a : Array Nat} {v : Nat} : v ∈ a ↔ ∃ i, i < a.size ∧ a[i]! = v := by
+  constructor
+  · intro h
+    obtain ⟨i, hi, rfl⟩ := Array.mem_iff_getElem.1 h
+    exact ⟨i, hi, by rw [getElem!_pos a i hi]⟩
+  · rintro ⟨i, hi, rfl⟩
+    rw [getElem!_pos a i hi]
+    exact Array.getElem_mem hi
+
+/-- Counters the scatter never advances keep their value. -/
+theorem scatterFrom_bc_ne (lab cnt : Array Nat) (ec : Nat) :
+    ∀ (fuel k : Nat) (block bc : Array Nat) (t : Nat),
+      (∀ i, k ≤ i → i < ec → cnt[lab[i]!]! ≠ t) →
+        (scatterFrom lab cnt ec fuel k block bc).2[t]! = bc[t]!
+  | 0, _, _, _, _, _ => rfl
+  | fuel + 1, k, block, bc, t, ht => by
+    rw [scatterFrom]
+    split
+    · rfl
+    · rename_i hk
+      rw [scatterFrom_bc_ne lab cnt ec fuel (k + 1) _ _ t (fun i h1 h2 => ht i (by omega) h2),
+        getElem!_set!_ne (Ne.symm (ht k (by omega) (by omega)))]
+
+/-- The fragment starts and the trace do not depend on the boundary arrays being written. -/
+theorem boundsFrom_congr (ks sizes : Array Nat) :
+    ∀ (fuel j : Nat) (cst cen cst' cen' starts : Array Nat) (st : Nat) (tr : UInt64),
+      (boundsFrom ks sizes fuel j cst cen starts st tr).2.2
+        = (boundsFrom ks sizes fuel j cst' cen' starts st tr).2.2
+  | 0, _, _, _, _, _, _, _, _ => rfl
+  | fuel + 1, j, cst, cen, cst', cen', starts, st, tr => by
+    rw [boundsFrom, boundsFrom]
+    split
+    · rfl
+    · exact boundsFrom_congr ks sizes fuel (j + 1) _ _ _ _ _ _ _
+
+theorem clearCntFrom_size (touched : Array Nat) : ∀ (fuel j : Nat) (cnt : Array Nat),
+    (clearCntFrom touched fuel j cnt).size = cnt.size
+  | 0, _, _ => rfl
+  | fuel + 1, j, cnt => by
+    rw [clearCntFrom]
+    split
+    · rfl
+    · rw [clearCntFrom_size touched fuel (j + 1) _]
+      simp
+
+theorem clearCntFrom_ne (touched : Array Nat) : ∀ (fuel j : Nat) (cnt : Array Nat) (v : Nat),
+    (∀ j', j ≤ j' → j' < touched.size → touched[j']! ≠ v) →
+      (clearCntFrom touched fuel j cnt)[v]! = cnt[v]!
+  | 0, _, _, _, _ => rfl
+  | fuel + 1, j, cnt, v, hv => by
+    rw [clearCntFrom]
+    split
+    · rfl
+    · rename_i hj
+      rw [clearCntFrom_ne touched fuel (j + 1) _ v (fun j' h1 h2 => hv j' (by omega) h2),
+        getElem!_set!_ne (Ne.symm (hv j (by omega) (by omega)))]
+
+theorem clearCntFrom_mem (touched : Array Nat) : ∀ (fuel j : Nat) (cnt : Array Nat),
+    touched.size ≤ j + fuel → ∀ j', j ≤ j' → j' < touched.size → touched[j']! < cnt.size →
+      (clearCntFrom touched fuel j cnt)[touched[j']!]! = 0
+  | 0, j, cnt, hf, j', h1, h2, _ => by omega
+  | fuel + 1, j, cnt, hf, j', h1, h2, hlt => by
+    rw [clearCntFrom]
+    split
+    · omega
+    · rcases Nat.eq_or_lt_of_le h1 with h | h
+      · subst h
+        by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < touched.size → touched[j'']! ≠ touched[j]!
+        · rw [clearCntFrom_ne touched fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
+        · push_neg at hmem
+          obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
+          rw [← hj3]
+          exact clearCntFrom_mem touched fuel (j + 1) _ (by omega) j'' hj1 hj2
+            (by rw [hj3]; simpa using hlt)
+      · exact clearCntFrom_mem touched fuel (j + 1) _ (by omega) j' (by omega) h2
+          (by simpa using hlt)
+
+/-- **Clearing the counts.**  Every vertex the counting loop touched is reset, so the scratch is
+back to all zeros. -/
+theorem clearCntFrom_zero {cnt touched : Array Nat} (h : Touched cnt touched) (v : Nat)
+    (hv : v < cnt.size) : (clearCntFrom touched touched.size 0 cnt)[v]! = 0 := by
+  by_cases hmem : v ∈ touched
+  · obtain ⟨j, hj1, hj2⟩ := mem_iff_getElem!.1 hmem
+    have := clearCntFrom_mem touched touched.size 0 cnt (by omega) j (by omega) hj1
+      (by rw [hj2]; exact hv)
+    rwa [hj2] at this
+  · rw [clearCntFrom_ne touched touched.size 0 cnt v
+      (fun j' _ h2 => fun he => hmem (he ▸ getElem!_mem h2))]
+    by_contra hne
+    exact hmem ((h.mem v hv).2 hne)
+
+theorem clearHitFrom_ne (cells : Array Nat) : ∀ (fuel j : Nat) (hit : Array Bool) (v : Nat),
+    (∀ j', j ≤ j' → j' < cells.size → cells[j']! ≠ v) →
+      (clearHitFrom cells fuel j hit)[v]! = hit[v]!
+  | 0, _, _, _, _ => rfl
+  | fuel + 1, j, hit, v, hv => by
+    rw [clearHitFrom]
+    split
+    · rfl
+    · rename_i hj
+      rw [clearHitFrom_ne cells fuel (j + 1) _ v (fun j' h1 h2 => hv j' (by omega) h2),
+        getElem!_set!_ne (Ne.symm (hv j (by omega) (by omega)))]
+
+theorem clearHitFrom_mem (cells : Array Nat) : ∀ (fuel j : Nat) (hit : Array Bool),
+    cells.size ≤ j + fuel → ∀ j', j ≤ j' → j' < cells.size → cells[j']! < hit.size →
+      (clearHitFrom cells fuel j hit)[cells[j']!]! = false
+  | 0, j, hit, hf, j', h1, h2, _ => by omega
+  | fuel + 1, j, hit, hf, j', h1, h2, hlt => by
+    rw [clearHitFrom]
+    split
+    · omega
+    · rcases Nat.eq_or_lt_of_le h1 with h | h
+      · subst h
+        by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < cells.size → cells[j'']! ≠ cells[j]!
+        · rw [clearHitFrom_ne cells fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
+        · push_neg at hmem
+          obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
+          rw [← hj3]
+          exact clearHitFrom_mem cells fuel (j + 1) _ (by omega) j'' hj1 hj2
+            (by rw [hj3]; simpa using hlt)
+      · exact clearHitFrom_mem cells fuel (j + 1) _ (by omega) j' (by omega) h2
+          (by simpa using hlt)
+
+/-- **Clearing the cell marks.**  Every collected cell is unmarked, so the scratch is back to all
+`false`. -/
+theorem clearHitFrom_zero {hit : Array Bool} {cells : Array Nat} (h : Collected hit cells)
+    (v : Nat) (hv : v < hit.size) : (clearHitFrom cells cells.size 0 hit)[v]! = false := by
+  by_cases hmem : v ∈ cells
+  · obtain ⟨j, hj1, hj2⟩ := mem_iff_getElem!.1 hmem
+    have := clearHitFrom_mem cells cells.size 0 hit (by omega) j (by omega) hj1
+      (by rw [hj2]; exact hv)
+    rwa [hj2] at this
+  · rw [clearHitFrom_ne cells cells.size 0 hit v
+      (fun j' _ h2 => fun he => hmem (he ▸ getElem!_mem h2))]
+    by_contra hne
+    exact hmem ((h.mem v hv).2 (by simpa using hne))
+
+theorem clearBcFrom_size (ks : Array Nat) : ∀ (fuel j : Nat) (bc : Array Nat),
+    (clearBcFrom ks fuel j bc).size = bc.size
+  | 0, _, _ => rfl
+  | fuel + 1, j, bc => by
+    rw [clearBcFrom]
+    split
+    · rfl
+    · rw [clearBcFrom_size ks fuel (j + 1) _]
+      simp
+
+theorem clearBcFrom_ne (ks : Array Nat) : ∀ (fuel j : Nat) (bc : Array Nat) (v : Nat),
+    (∀ j', j ≤ j' → j' < ks.size → ks[j']! ≠ v) → (clearBcFrom ks fuel j bc)[v]! = bc[v]!
+  | 0, _, _, _, _ => rfl
+  | fuel + 1, j, bc, v, hv => by
+    rw [clearBcFrom]
+    split
+    · rfl
+    · rename_i hj
+      rw [clearBcFrom_ne ks fuel (j + 1) _ v (fun j' h1 h2 => hv j' (by omega) h2),
+        getElem!_set!_ne (Ne.symm (hv j (by omega) (by omega)))]
+
+theorem clearBcFrom_mem (ks : Array Nat) : ∀ (fuel j : Nat) (bc : Array Nat),
+    ks.size ≤ j + fuel → ∀ j', j ≤ j' → j' < ks.size → ks[j']! < bc.size →
+      (clearBcFrom ks fuel j bc)[ks[j']!]! = 0
+  | 0, j, bc, hf, j', h1, h2, _ => by omega
+  | fuel + 1, j, bc, hf, j', h1, h2, hlt => by
+    rw [clearBcFrom]
+    split
+    · omega
+    · rcases Nat.eq_or_lt_of_le h1 with h | h
+      · subst h
+        by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < ks.size → ks[j'']! ≠ ks[j]!
+        · rw [clearBcFrom_ne ks fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
+        · push_neg at hmem
+          obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
+          rw [← hj3]
+          exact clearBcFrom_mem ks fuel (j + 1) _ (by omega) j'' hj1 hj2
+            (by rw [hj3]; simpa using hlt)
+      · exact clearBcFrom_mem ks fuel (j + 1) _ (by omega) j' (by omega) h2 (by simpa using hlt)
+
 end Canon
 end IsoGraph
