@@ -444,6 +444,18 @@ computable; picking one of the (possibly many) isomorphisms onto it does not. -/
 noncomputable def isoCanonicalize (G : CGraph) : G ≃cg G.canonicalize :=
   Classical.choice G.nonempty_iso_canonicalize
 
+/-- **Equal canonical representatives, and isomorphism, are the same thing.**  One direction is
+`canonicalize_eq_of_iso`; the other is immediate from the fact that a graph is isomorphic to its
+representative.  This is what lets isomorphism be tested by comparing canonical forms. -/
+theorem canonicalize_eq_iff {G H : CGraph} :
+    G.canonicalize = H.canonicalize ↔ Nonempty (G ≃cg H) := by
+  refine ⟨fun h ↦ ?_, fun ⟨i⟩ ↦ canonicalize_eq_of_iso i⟩
+  obtain ⟨iG⟩ := G.nonempty_iso_canonicalize
+  obtain ⟨iH⟩ := H.nonempty_iso_canonicalize
+  refine ⟨iG.trans ?_⟩
+  rw [h]
+  exact iH.symm
+
 end CGraph
 
 /-- A canonical path out of the quotient type. -/

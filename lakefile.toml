@@ -18,3 +18,8 @@ roots = ["IsoGraph"]
 [[lean_exe]]
 name = "isobench"
 root = "Bench"
+
+# Benchmark driver for the graph enumerator.
+[[lean_exe]]
+name = "enumbench"
+root = "EnumBench"
