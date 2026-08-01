@@ -31,7 +31,10 @@ canonical representative that is actually computable at useful sizes.
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
+| `IsoGraph/Enumerate.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
+| `IsoGraph/EnumerateConn.lean` | the same for *connected* graphs | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
+| `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
 
 Toolchain is `leanprover/lean4:v4.28.0` with Mathlib pinned at `v4.28.0` — the rev the prover
@@ -178,6 +181,92 @@ and export the instance for their own vertex type; instance resolution only unfo
 transparency, so each *named* construction needs its own. Putting `DecidableEq` into the `CGraph`
 structure would remove the boilerplate but stop the type being a bare `Fintype`-bundled graph
 (and break `simpleEquiv`) — the instance arguments looked like the smaller price.
+
+## Enumeration
+
+The first real application. `Enumerate.lean` produces, for each `n`, a list holding **exactly one**
+graph from every isomorphism class on `n` vertices; `EnumerateConn.lean` does the same for the
+connected ones.
+
+```lean
+def enumerate      (n : ℕ) : List CGraph     -- brute force, the specification
+def enumerateFast  (n : ℕ) : List CGraph     -- the one to use
+def enumerateConn  (n : ℕ) : List CGraph     -- connected only
+def enumerateIso, enumerateConnIso (n : ℕ) : List IsoGraph   -- the same, in the quotient
+```
+
+Each comes with completeness (`exists_mem_enumerate…`: every graph of that size is isomorphic to
+one in the list), soundness (`enumerate…_pairwise_not_iso`), and, in the quotient, `Nodup` plus
+membership of every class of that size — so the list *is* the set of classes.
+
+A graph on `Fin n` is `n.choose 2` bits, the strict upper triangle, packed into one `Nat` — the
+*code*. What makes the whole thing cheap is that `canonAdj` is invariant under relabelling and so
+**idempotent**: the canonical codes are exactly the fixed points of `canonCode`, so deduplication
+is a `List.filter`, with no sort, no hash set and constant memory. `enumerate` is literally
+
+```lean
+(List.range (2 ^ n.choose 2)).filter fun c ↦ canonCode n (graphOfCode n c).Adj == c
+```
+
+which is correct by inspection and hopeless past `n = 7` (2^21 canonicalisations for 1044 answers).
+
+The fast enumerator extends one vertex at a time: take each graph on `n` vertices, add a last
+vertex with neighbourhood `s`, canonicalise, deduplicate. The pruning is in which `s` to offer.
+
+* `symMasks` keeps one mask per orbit of the automorphism group of the graph being extended (the
+  group is already lying around — the canonical labelling harvests it).
+* `redMasks` additionally insists the new vertex have *least degree*, which is legitimate because
+  one may always choose to have deleted a least-degree vertex.
+* `connMasks` (connected case) insists on a nonempty mask and least degree **among the non-cut
+  vertices** — deleting a cut vertex would disconnect what remains, and `exists_nonCut` says a
+  non-cut vertex always exists.
+
+| candidates canonicalised, cumulative to `n = 8` | `allMasks` | `symMasks` | `redMasks` | `connMasks` |
+| :-- | --: | --: | --: | --: |
+| | 133632 | 79454 | 18329 | 17007 |
+| for this many graphs | 12346 | 12346 | 12346 | 11117 (connected) |
+
+The connectivity and non-cut tests are bitmask BFS over `rowsOfCode` — `Array ℕ`, one word per
+row — and are proved to agree with `Conn` / `NonCut` on `Relation.ReflTransGen`
+(`connTest_iff`, `nonCutTest_iff`). The non-cut test also has to commute with the orbit reduction
+(`nonCutTest_permMask`), or the two prunings could not be combined. The payoff statement is
+
+```lean
+theorem enumConnCodes_eq (n : ℕ) : enumConnCodes n = (enumCodes n).filter (connTest n)
+```
+
+— not merely the same *set*: both sides are strictly increasing lists of codes, so the connected
+enumerator computes the connected part of the full enumeration without ever looking at a
+disconnected graph.
+
+`lake exe enumbench`, compiled, on the same contended VM (counts checked against OEIS A000088 and
+A001349):
+
+```
+n            5      6       7        8         9
+all       5 ms   20 ms   184 ms   2.4 s     219 s      (1, 1, 2, 4, 11, 34, 156, 1044, 12346, 274668)
+connected 3 ms   19 ms   170 ms   2.5 s                (0, 1, 1, 2, 6, 21, 112, 853, 11117)
+```
+
+Two refinements were built, measured and thrown away; both are worth recording because in both
+cases the *pruning worked* and was still a loss.
+
+* **All graphs from the connected ones.** Every graph is a disjoint union of connected graphs, so
+  the all-graphs list can be assembled from `enumerateConn` by joining and canonicalising. It runs
+  (it reproduces A000088 to `n = 8`) and it is slower: min-of-3 CPU at `n = 8` was 2.39 s for
+  `enumCodesFast` against 2.80 s for the join-based version. The connected enumerator is not
+  actually cheaper *per graph produced* — 1.53 canonicalisations per output against 1.48 — and the
+  joins add ~1300 canonicalisations on top. Deleted.
+* **Neighbourhood-invariant tie-break.** Among vertices tying on least degree, require the new one
+  to also minimise the sorted multiset of its neighbours' degrees. Provably complete, compatible
+  with the orbit reduction, and it cuts candidates by 29% (18329 → 13094; 17007 → 11859 connected,
+  against an unreachable ideal of 11117). But a canonicalisation at `n = 8` costs ≈ 57 µs, so the
+  0.30 s of saved work was outweighed by the 0.52 s of testing; tabulating the degrees through a
+  `@[csimp]` fast path narrowed that to a 6% net loss but did not close it. Reverted, in both
+  files.
+
+The lesson both times: at these sizes canonicalisation is cheap enough that a pruning test has to
+be *very* cheap to pay for itself, and "fewer candidates" is not the same as "faster".
 
 ## Writing it so it can be proved
 

@@ -558,12 +558,47 @@ is then a self-contained obligation (`MasksComplete`), and every theorem below i
 for all.
 -/
 
+theorem canonCode_lt (n : ℕ) (adj : Fin n → Fin n → Bool) :
+    canonCode n adj < 2 ^ n.choose 2 := by
+  rw [canonCode_eq]; exact codeOf_lt _ _
+
+theorem canonCode_zero (adj : Fin 0 → Fin 0 → Bool) : canonCode 0 adj = 0 := rfl
+
+/-- **One level of the recursion**: extend every code in `l` by a new last vertex in each offered
+way, canonicalise, and deduplicate. -/
+def extendLevel (masks : ℕ → ℕ → List ℕ) (n : ℕ) (l : List ℕ) : List ℕ :=
+  dedupNat ((l.flatMap fun c ↦ (masks n c).map (extendCode n c)).map
+    fun C ↦ canonCode (n + 1) (graphOfCode (n + 1) C).Adj)
+
+theorem mem_extendLevel {masks : ℕ → ℕ → List ℕ} {n : ℕ} {l : List ℕ} {d : ℕ} :
+    d ∈ extendLevel masks n l ↔ ∃ c ∈ l, ∃ s ∈ masks n c,
+      canonCode (n + 1) (graphOfCode (n + 1) (extendCode n c s)).Adj = d := by
+  rw [extendLevel, mem_dedupNat, List.mem_map]
+  constructor
+  · rintro ⟨C, hC, rfl⟩
+    obtain ⟨c, hc, hC'⟩ := List.mem_flatMap.1 hC
+    obtain ⟨s, hs, rfl⟩ := List.mem_map.1 hC'
+    exact ⟨c, hc, s, hs, rfl⟩
+  · rintro ⟨c, hc, s, hs, rfl⟩
+    exact ⟨extendCode n c s, List.mem_flatMap.2 ⟨c, hc, List.mem_map.2 ⟨s, hs, rfl⟩⟩, rfl⟩
+
+/-- Every entry of a level is a canonical code, and in range — whatever the masks were. -/
+theorem isCanon_of_mem_extendLevel {masks : ℕ → ℕ → List ℕ} {n : ℕ} {l : List ℕ} {d : ℕ}
+    (h : d ∈ extendLevel masks n l) :
+    canonCode (n + 1) (graphOfCode (n + 1) d).Adj = d ∧ d < 2 ^ (n + 1).choose 2 := by
+  obtain ⟨c, -, s, -, rfl⟩ := mem_extendLevel.1 h
+  set C := extendCode n c s
+  exact ⟨canonCode_graphOfCode_canonCode (fun i j ↦ (graphOfCode (n + 1) C).symm i j)
+      (fun i ↦ Bool.eq_false_iff.2 ((graphOfCode (n + 1) C).loopless i)),
+    canonCode_lt _ _⟩
+
+theorem pairwise_lt_extendLevel (masks : ℕ → ℕ → List ℕ) (n : ℕ) (l : List ℕ) :
+    (extendLevel masks n l).Pairwise (· < ·) := pairwise_lt_dedupNat _
+
 /-- The recursion, over an arbitrary mask selector. -/
 def enumCodesOf (masks : ℕ → ℕ → List ℕ) : ℕ → List ℕ
   | 0 => [0]
-  | n + 1 =>
-      dedupNat (((enumCodesOf masks n).flatMap fun c ↦ (masks n c).map (extendCode n c)).map
-        fun C ↦ canonCode (n + 1) (graphOfCode (n + 1) C).Adj)
+  | n + 1 => extendLevel masks n (enumCodesOf masks n)
 
 /-- **What a mask selector must satisfy**: every graph on `n + 1` vertices must be obtainable, up
 to isomorphism, by extending *some* graph on `n` vertices by one of the offered masks.
@@ -578,12 +613,6 @@ def MasksComplete (masks : ℕ → ℕ → List ℕ) : Prop :=
         canonCode (n + 1) (graphOfCode (n + 1) (extendCode n (canonCode n adj') s)).Adj
           = canonCode (n + 1) adj
 
-theorem canonCode_lt (n : ℕ) (adj : Fin n → Fin n → Bool) :
-    canonCode n adj < 2 ^ n.choose 2 := by
-  rw [canonCode_eq]; exact codeOf_lt _ _
-
-theorem canonCode_zero (adj : Fin 0 → Fin 0 → Bool) : canonCode 0 adj = 0 := rfl
-
 /-- Every entry of `enumCodesOf masks n` is a canonical code, and in range. -/
 theorem isCanon_of_mem {masks : ℕ → ℕ → List ℕ} {n c : ℕ} (h : c ∈ enumCodesOf masks n) :
     canonCode n (graphOfCode n c).Adj = c ∧ c < 2 ^ n.choose 2 := by
@@ -592,12 +621,7 @@ theorem isCanon_of_mem {masks : ℕ → ℕ → List ℕ} {n c : ℕ} (h : c ∈
       rw [enumCodesOf, List.mem_singleton] at h
       subst h
       exact ⟨canonCode_zero _, by norm_num⟩
-  | succ n =>
-      rw [enumCodesOf, mem_dedupNat, List.mem_map] at h
-      obtain ⟨C, -, rfl⟩ := h
-      exact ⟨canonCode_graphOfCode_canonCode (fun i j ↦ (graphOfCode (n + 1) C).symm i j)
-          (fun i ↦ Bool.eq_false_iff.2 ((graphOfCode (n + 1) C).loopless i)),
-        canonCode_lt _ _⟩
+  | succ n => exact isCanon_of_mem_extendLevel h
 
 /-! ### Deleting the last vertex
 
@@ -622,13 +646,14 @@ theorem testBit_lastMask {n : ℕ} {adj : Fin (n + 1) → Fin (n + 1) → Bool} 
       = adj ((canonPerm n (restrict adj)) ⟨k, hk⟩).castSucc (Fin.last n) := by
   rw [lastMask, testBit_rowMask _ hk, dif_pos hk]
 
-/-- **The key step.**  Canonicalise the graph on the first `n` vertices, put the last vertex's
-neighbourhood back on top, and the result is isomorphic to the graph we started with. -/
-theorem canonCode_extend {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool)
-    (hs : ∀ i j, adj i j = adj j i) (hl : ∀ i, adj i i = false) :
-    canonCode (n + 1)
-        (graphOfCode (n + 1) (extendCode n (canonCode n (restrict adj)) (lastMask n adj))).Adj
-      = canonCode (n + 1) adj := by
+/-- **The key step**, as an explicit isomorphism: relabelling by `permLast (canonPerm …)` carries
+`adj` to the graph built by canonicalising the first `n` vertices and putting the last vertex's
+neighbourhood back on top. -/
+theorem adj_extendCode_lastMask {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool)
+    (hs : ∀ i j, adj i j = adj j i) (hl : ∀ i, adj i i = false) (a b : Fin (n + 1)) :
+    adj (permLast (canonPerm n (restrict adj)) a) (permLast (canonPerm n (restrict adj)) b)
+      = (graphOfCode (n + 1)
+          (extendCode n (canonCode n (restrict adj)) (lastMask n adj))).Adj a b := by
   have hs' : ∀ i j, restrict adj i j = restrict adj j i := fun i j ↦ hs _ _
   have hl' : ∀ i, restrict adj i i = false := fun i ↦ hl _
   set σ : Equiv.Perm (Fin n) := canonPerm n (restrict adj) with hσ
@@ -642,25 +667,32 @@ theorem canonCode_extend {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool)
     rw [adj_extendCode_last hclt (by simp), hsdef, testBit_lastMask (show (x.castSucc).1 < n by
       simp)]
     rfl
-  have key : ∀ a b : Fin (n + 1),
-      adj (permLast σ a) (permLast σ b)
-        = (graphOfCode (n + 1) (extendCode n c s)).Adj a b := by
+  revert a b
+  refine Fin.lastCases ?_ ?_
+  · refine Fin.lastCases ?_ ?_
+    · simp [hl]
+    · intro y
+      rw [permLast_last, permLast_castSucc, hs,
+        (graphOfCode (n + 1) (extendCode n c s)).symm, hlast y]
+  · intro x
     refine Fin.lastCases ?_ ?_
-    · refine Fin.lastCases ?_ ?_
-      · simp [hl]
-      · intro y
-        rw [permLast_last, permLast_castSucc, hs,
-          (graphOfCode (n + 1) (extendCode n c s)).symm, hlast y]
-    · intro x
-      refine Fin.lastCases ?_ ?_
-      · rw [permLast_last, permLast_castSucc, hlast x]
-      · intro y
-        rw [permLast_castSucc, permLast_castSucc,
-          adj_extendCode_lt (show (x.castSucc).1 < n by simp)
-            (show (y.castSucc).1 < n by simp)]
-        show adj _ _ = (graphOfCode n c).Adj x y
-        rw [hc, adj_graphOfCode_canonCode hs' hl', canonAdj_apply]
-  rw [canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (permLast σ) key]
+    · rw [permLast_last, permLast_castSucc, hlast x]
+    · intro y
+      rw [permLast_castSucc, permLast_castSucc,
+        adj_extendCode_lt (show (x.castSucc).1 < n by simp)
+          (show (y.castSucc).1 < n by simp)]
+      show adj _ _ = (graphOfCode n c).Adj x y
+      rw [hc, adj_graphOfCode_canonCode hs' hl', canonAdj_apply]
+
+/-- **The key step.**  Canonicalise the graph on the first `n` vertices, put the last vertex's
+neighbourhood back on top, and the result is isomorphic to the graph we started with. -/
+theorem canonCode_extend {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool)
+    (hs : ∀ i j, adj i j = adj j i) (hl : ∀ i, adj i i = false) :
+    canonCode (n + 1)
+        (graphOfCode (n + 1) (extendCode n (canonCode n (restrict adj)) (lastMask n adj))).Adj
+      = canonCode (n + 1) adj := by
+  exact congrArg (codeOf (n + 1)) (canonAdj_eq_of_equiv (permLast (canonPerm n (restrict adj)))
+    (adj_extendCode_lastMask adj hs hl))
 
 /-! ### Completeness and soundness, for any complete mask selector -/
 
@@ -674,9 +706,7 @@ theorem mem_enumCodesOf {masks : ℕ → ℕ → List ℕ} (hm : MasksComplete m
   | succ n ih =>
       intro adj hs hl
       obtain ⟨adj', hs', hl', t, ht, heq⟩ := hm n adj hs hl
-      rw [enumCodesOf, mem_dedupNat, List.mem_map]
-      exact ⟨extendCode n (canonCode n adj') t,
-        List.mem_flatMap.2 ⟨_, ih adj' hs' hl', List.mem_map.2 ⟨t, ht, rfl⟩⟩, heq⟩
+      exact mem_extendLevel.2 ⟨_, ih adj' hs' hl', t, ht, heq⟩
 
 /-- **The pruned enumerator agrees with the brute-force sweep**, as sets of codes. -/
 theorem mem_enumCodesOf_iff {masks : ℕ → ℕ → List ℕ} (hm : MasksComplete masks) {n c : ℕ} :
@@ -695,7 +725,7 @@ theorem pairwise_lt_enumCodesOf (masks : ℕ → ℕ → List ℕ) (n : ℕ) :
     (enumCodesOf masks n).Pairwise (· < ·) := by
   cases n with
   | zero => simp [enumCodesOf]
-  | succ n => exact pairwise_lt_dedupNat _
+  | succ n => exact pairwise_lt_extendLevel _ _ _
 
 theorem nodup_enumCodesOf (masks : ℕ → ℕ → List ℕ) (n : ℕ) : (enumCodesOf masks n).Nodup :=
   (pairwise_lt_enumCodesOf masks n).imp Nat.ne_of_lt
@@ -779,41 +809,47 @@ theorem mul_mem_autGroup {n : ℕ} {adj : Fin n → Fin n → Bool} {σ τ : Equ
   mem_autGroup.2 fun i j ↦ by
     rw [Equiv.Perm.mul_apply, Equiv.Perm.mul_apply, mem_autGroup.1 hσ, mem_autGroup.1 hτ]
 
+/-- Permuting the mask by an automorphism `σ` of the parent is the same as relabelling the
+extension by `permLast σ`. -/
+theorem adj_extendCode_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2)
+    (σ : Equiv.Perm (Fin n)) (hσ : σ ∈ autGroup n (graphOfCode n c).Adj) :
+    ∀ a b : Fin (n + 1),
+      (graphOfCode (n + 1) (extendCode n c s)).Adj (permLast σ a) (permLast σ b)
+        = (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj a b := by
+  have hσ' := mem_autGroup.1 hσ
+  have hlast : ∀ x : Fin n,
+      (graphOfCode (n + 1) (extendCode n c s)).Adj (σ x).castSucc (Fin.last n)
+        = (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj x.castSucc
+            (Fin.last n) := by
+    intro x
+    rw [adj_extendCode_last hc (by simp), adj_extendCode_last hc (by simp),
+      testBit_permMask _ _ (show (x.castSucc).1 < n by simp)]
+    rfl
+  refine Fin.lastCases ?_ ?_
+  · refine Fin.lastCases ?_ ?_
+    · simp [permLast_last]
+    · intro y
+      rw [permLast_last, permLast_castSucc, (graphOfCode (n + 1) _).symm,
+        (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).symm]
+      exact hlast y
+  · intro x
+    refine Fin.lastCases ?_ ?_
+    · rw [permLast_last, permLast_castSucc]; exact hlast x
+    · intro y
+      rw [permLast_castSucc, permLast_castSucc,
+        adj_extendCode_lt (show ((σ x).castSucc).1 < n by simp)
+          (show ((σ y).castSucc).1 < n by simp),
+        adj_extendCode_lt (show (x.castSucc).1 < n by simp)
+          (show (y.castSucc).1 < n by simp)]
+      exact hσ' x y
+
 /-- Masks in the same orbit of `Aut` give isomorphic extensions, hence the same canonical code. -/
 theorem canonCode_extendCode_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2)
     (σ : Equiv.Perm (Fin n)) (hσ : σ ∈ autGroup n (graphOfCode n c).Adj) :
     canonCode (n + 1) (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj
       = canonCode (n + 1) (graphOfCode (n + 1) (extendCode n c s)).Adj := by
-  have hσ' := mem_autGroup.1 hσ
-  have key : ∀ a b : Fin (n + 1),
-      (graphOfCode (n + 1) (extendCode n c s)).Adj (permLast σ a) (permLast σ b)
-        = (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj a b := by
-    have hlast : ∀ x : Fin n,
-        (graphOfCode (n + 1) (extendCode n c s)).Adj (σ x).castSucc (Fin.last n)
-          = (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj x.castSucc
-              (Fin.last n) := by
-      intro x
-      rw [adj_extendCode_last hc (by simp), adj_extendCode_last hc (by simp),
-        testBit_permMask _ _ (show (x.castSucc).1 < n by simp)]
-      rfl
-    refine Fin.lastCases ?_ ?_
-    · refine Fin.lastCases ?_ ?_
-      · simp [permLast_last]
-      · intro y
-        rw [permLast_last, permLast_castSucc, (graphOfCode (n + 1) _).symm,
-          (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).symm]
-        exact hlast y
-    · intro x
-      refine Fin.lastCases ?_ ?_
-      · rw [permLast_last, permLast_castSucc]; exact hlast x
-      · intro y
-        rw [permLast_castSucc, permLast_castSucc,
-          adj_extendCode_lt (show ((σ x).castSucc).1 < n by simp)
-            (show ((σ y).castSucc).1 < n by simp),
-          adj_extendCode_lt (show (x.castSucc).1 < n by simp)
-            (show (y.castSucc).1 < n by simp)]
-        exact hσ' x y
-  rw [canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (permLast σ) key]
+  exact congrArg (codeOf (n + 1))
+    (canonAdj_eq_of_equiv (permLast σ) (adj_extendCode_permMask hc σ hσ))
 
 /-! ## Harvesting automorphisms -/
 
