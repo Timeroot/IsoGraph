@@ -5,7 +5,7 @@ Benchmark driver for the graph enumerators.
 
     lake exe enumbench          -- `enumCodesFast` up to n = 8
     lake exe enumbench --all    -- also the two weaker prunings, and the brute-force sweep
-    lake exe enumbench 9        -- `enumCodesFast` up to n = 9 (minutes, and ~1 GB)
+    lake exe enumbench 9        -- `enumCodesFast` up to n = 9 (274668 graphs, ~4 minutes)
 
 All of them must reproduce OEIS A000088, the number of graphs on `n` unlabelled vertices.
 -/

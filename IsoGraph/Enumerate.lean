@@ -54,6 +54,11 @@ Measured with `lake exe enumbench --all` (counts all matching OEIS A000088):
 |-----|------------:|---------------:|---------------:|----------------:|
 | 7   |    108389ms |          502ms |          308ms |           161ms |
 | 8   |           — |         7509ms |         4879ms |          2196ms |
+| 9   |           — |              — |              — |        219158ms |
+
+At `n = 9` the pruning leaves little on the table: 18329 candidates were canonicalised to produce
+the 12346 graphs on 8 vertices, so all but a factor of 1.5 of the work is one canonical labelling
+per graph, and further symmetry reduction cannot buy much.
 
 The final section uses the same encoding to give every graph a numeric `key` that classifies it up
 to isomorphism, hence a `Decidable` instance for `Nonempty (G ≃cg H)`.
