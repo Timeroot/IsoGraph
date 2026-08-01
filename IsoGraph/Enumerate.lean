@@ -1,5 +1,6 @@
 import IsoGraph.Constructions
 import Mathlib.Data.List.Sort
+import Mathlib.Data.Fintype.Perm
 
 /-!
 # Enumerating graphs up to isomorphism
@@ -24,14 +25,35 @@ The main results are
 * `exists_mem_enumerate` — **completeness**: every `n`-vertex graph is isomorphic to a member;
 * `enumerate_pairwise_not_iso` — **soundness**: the members are pairwise non-isomorphic.
 
+## Faster enumerators
+
 Sweeping all `2 ^ n.choose 2` codes is quadratic in the exponent, so it runs out of steam at
-`n = 7`.  `enumerateFast` cuts the search space down by one vertex at a time: extend each of the
-graphs already found on `n-1` vertices by a new last vertex in each of the `2 ^ (n-1)` possible
-ways, canonicalise, and deduplicate.  Because the new vertex is *last*, its incidences occupy the
-top `n-1` bits of the code and the extension is a plain shift-and-or (`extendCode`).  That visits
-`#graphs(n-1) · 2 ^ (n-1)` candidates instead of `2 ^ (n.choose 2)` — 9984 rather than 2097152 at
-`n = 7`, and the gap widens rapidly.  `mem_enumCodesFast_iff` shows the two enumerators produce
-exactly the same set of codes, so `enumerateFast` inherits completeness and soundness.
+`n = 7`.  The rest of the file builds graphs one vertex at a time instead: extend each of the
+graphs already found on `n` vertices by a new *last* vertex, canonicalise, and deduplicate.
+Because the new vertex is last, its incidences occupy the top `n` bits of the code and the
+extension is a plain shift-and-or (`extendCode`).
+
+Which of the `2 ^ n` neighbourhoods to try is left as a parameter: `enumCodesOf masks` is the
+enumerator built from a mask selector `masks : ℕ → ℕ → List ℕ`, and the *only* obligation on
+`masks` is `MasksComplete` — every `(n+1)`-vertex graph must arise from *some* `n`-vertex graph
+and *some* offered mask.  No soundness side is needed: whatever `masks` produces, the output of
+`enumCodesOf` consists of `canonCode` values, hence of canonical codes, so `enumCodesOf_eq` gives
+`enumCodesOf masks n = enumCodes n` on the nose and every enumerator below inherits completeness
+and soundness from `enumerate`.  Three selectors are provided, each pruning more:
+
+* `allMasks` — all `2 ^ n` neighbourhoods (`enumCodesExt`);
+* `symMasks` — keep only orbit minima under the automorphism group of the parent (`enumCodesSym`).
+  The generators come out of the canonical-labelling search, but are re-checked at runtime with
+  `decide` (`autoPerms`), so no proof depends on the search being correct;
+* `redMasks` — additionally require the new vertex to have least degree (`enumCodesFast`), which
+  is legitimate because every graph has such a vertex and the test is `Aut`-invariant.
+
+Measured with `lake exe enumbench --all` (counts all matching OEIS A000088):
+
+| `n` | `enumCodes` | `enumCodesExt` | `enumCodesSym` | `enumCodesFast` |
+|-----|------------:|---------------:|---------------:|----------------:|
+| 7   |    108389ms |          502ms |          308ms |           161ms |
+| 8   |           — |         7509ms |         4879ms |          2196ms |
 
 The final section uses the same encoding to give every graph a numeric `key` that classifies it up
 to isomorphism, hence a `Decidable` instance for `Nonempty (G ≃cg H)`.
@@ -391,6 +413,25 @@ def dedupSorted : List ℕ → List ℕ
   | [a] => [a]
   | a :: b :: t => if a = b then dedupSorted (b :: t) else a :: dedupSorted (b :: t)
 
+/-- Tail-recursive implementation of `dedupSorted`.  The naive equation compiler output recurses
+once per element, which blows the stack on the hundreds of thousands of candidates that appear from
+`n = 9` on; this version is installed as the compiled code by the `@[csimp]` lemma below, so nothing
+downstream has to mention it. -/
+def dedupSortedFast (l : List ℕ) : List ℕ := go l []
+where
+  go : List ℕ → List ℕ → List ℕ
+    | [], acc => acc.reverse
+    | [a], acc => (a :: acc).reverse
+    | a :: b :: t, acc => if a = b then go (b :: t) acc else go (b :: t) (a :: acc)
+
+theorem dedupSortedFast.go_eq (l acc : List ℕ) :
+    dedupSortedFast.go l acc = acc.reverse ++ dedupSorted l := by
+  fun_induction dedupSortedFast.go l acc <;> simp_all [dedupSorted]
+
+@[csimp] theorem dedupSorted_eq_dedupSortedFast : @dedupSorted = @dedupSortedFast := by
+  funext l
+  simpa using (dedupSortedFast.go_eq l []).symm
+
 /-- Deduplicate a list of naturals in `O(k log k)`: sort, then drop adjacent duplicates. -/
 def dedupNat (l : List ℕ) : List ℕ := dedupSorted (l.mergeSort (· ≤ ·))
 
@@ -503,18 +544,34 @@ def permLast {n : ℕ} (σ : Equiv.Perm (Fin n)) : Equiv.Perm (Fin (n + 1)) :=
     permLast σ (Fin.last n) = Fin.last n := by
   simp [permLast]
 
-/-! ## The fast enumerator -/
+/-! ## The fast enumerator
 
-/-- All ways of adding a new last vertex to the graph with code `c`. -/
-def extensions (n c : ℕ) : List ℕ := (List.range (2 ^ n)).map (extendCode n c)
+The recursion is parameterised by a **mask selector** `masks n c`, the list of neighbourhoods to
+try for the new vertex when extending the graph with code `c`.  Offering every mask
+(`allMasks`) is complete for trivial reasons; the point of the parameter is that pruning the list
+is then a self-contained obligation (`MasksComplete`), and every theorem below is proved once and
+for all.
+-/
 
-/-- **The canonical codes of all graphs on `n` vertices**, built one vertex at a time: extend each
-graph on `n-1` vertices in all `2 ^ (n-1)` ways, canonicalise, and remove duplicates. -/
-def enumCodesFast : ℕ → List ℕ
+/-- The recursion, over an arbitrary mask selector. -/
+def enumCodesOf (masks : ℕ → ℕ → List ℕ) : ℕ → List ℕ
   | 0 => [0]
   | n + 1 =>
-      dedupNat (((enumCodesFast n).flatMap (extensions n)).map fun C ↦
-        canonCode (n + 1) (graphOfCode (n + 1) C).Adj)
+      dedupNat (((enumCodesOf masks n).flatMap fun c ↦ (masks n c).map (extendCode n c)).map
+        fun C ↦ canonCode (n + 1) (graphOfCode (n + 1) C).Adj)
+
+/-- **What a mask selector must satisfy**: every graph on `n + 1` vertices must be obtainable, up
+to isomorphism, by extending *some* graph on `n` vertices by one of the offered masks.
+
+Nothing is required for soundness — whatever masks are offered, the entries of `enumCodesOf` are
+canonical codes of graphs on `n` vertices, because they are outputs of `canonCode`. -/
+def MasksComplete (masks : ℕ → ℕ → List ℕ) : Prop :=
+  ∀ (n : ℕ) (adj : Fin (n + 1) → Fin (n + 1) → Bool), (∀ i j, adj i j = adj j i) →
+    (∀ i, adj i i = false) →
+    ∃ adj' : Fin n → Fin n → Bool, (∀ i j, adj' i j = adj' j i) ∧ (∀ i, adj' i i = false) ∧
+      ∃ s ∈ masks n (canonCode n adj'),
+        canonCode (n + 1) (graphOfCode (n + 1) (extendCode n (canonCode n adj') s)).Adj
+          = canonCode (n + 1) adj
 
 theorem canonCode_lt (n : ℕ) (adj : Fin n → Fin n → Bool) :
     canonCode n adj < 2 ^ n.choose 2 := by
@@ -522,45 +579,63 @@ theorem canonCode_lt (n : ℕ) (adj : Fin n → Fin n → Bool) :
 
 theorem canonCode_zero (adj : Fin 0 → Fin 0 → Bool) : canonCode 0 adj = 0 := rfl
 
-/-- Every entry of `enumCodesFast n` is a canonical code, and in range. -/
-theorem isCanon_of_mem_fast {n c : ℕ} (h : c ∈ enumCodesFast n) :
+/-- Every entry of `enumCodesOf masks n` is a canonical code, and in range. -/
+theorem isCanon_of_mem {masks : ℕ → ℕ → List ℕ} {n c : ℕ} (h : c ∈ enumCodesOf masks n) :
     canonCode n (graphOfCode n c).Adj = c ∧ c < 2 ^ n.choose 2 := by
   cases n with
   | zero =>
-      rw [enumCodesFast, List.mem_singleton] at h
+      rw [enumCodesOf, List.mem_singleton] at h
       subst h
       exact ⟨canonCode_zero _, by norm_num⟩
   | succ n =>
-      rw [enumCodesFast, mem_dedupNat, List.mem_map] at h
+      rw [enumCodesOf, mem_dedupNat, List.mem_map] at h
       obtain ⟨C, -, rfl⟩ := h
       exact ⟨canonCode_graphOfCode_canonCode (fun i j ↦ (graphOfCode (n + 1) C).symm i j)
           (fun i ↦ Bool.eq_false_iff.2 ((graphOfCode (n + 1) C).loopless i)),
         canonCode_lt _ _⟩
 
-/-- **The key step.**  Canonicalise the graph on the first `n` vertices, put the new vertex's
-neighbourhood on top, and the result is isomorphic to the graph we started with. -/
+/-! ### Deleting the last vertex
+
+`lastMask n adj` is the neighbourhood the last vertex acquires once the *other* `n` vertices have
+been canonically relabelled: reattaching it to the canonical form of `adj` restricted to the first
+`n` vertices rebuilds `adj` up to isomorphism (`canonCode_extend`). -/
+
+/-- `adj` with its last vertex deleted. -/
+abbrev restrict {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool) : Fin n → Fin n → Bool :=
+  fun i j ↦ adj i.castSucc j.castSucc
+
+/-- The neighbourhood of the last vertex, read through the canonical labelling of the rest. -/
+def lastMask (n : ℕ) (adj : Fin (n + 1) → Fin (n + 1) → Bool) : ℕ :=
+  rowMask n fun k ↦
+    if h : k < n then adj ((canonPerm n (restrict adj)) ⟨k, h⟩).castSucc (Fin.last n) else false
+
+theorem lastMask_lt (n : ℕ) (adj : Fin (n + 1) → Fin (n + 1) → Bool) : lastMask n adj < 2 ^ n :=
+  rowMask_lt _ _
+
+theorem testBit_lastMask {n : ℕ} {adj : Fin (n + 1) → Fin (n + 1) → Bool} {k : ℕ} (hk : k < n) :
+    (lastMask n adj).testBit k
+      = adj ((canonPerm n (restrict adj)) ⟨k, hk⟩).castSucc (Fin.last n) := by
+  rw [lastMask, testBit_rowMask _ hk, dif_pos hk]
+
+/-- **The key step.**  Canonicalise the graph on the first `n` vertices, put the last vertex's
+neighbourhood back on top, and the result is isomorphic to the graph we started with. -/
 theorem canonCode_extend {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool)
     (hs : ∀ i j, adj i j = adj j i) (hl : ∀ i, adj i i = false) :
-    ∃ s < 2 ^ n,
-      canonCode (n + 1)
-          (graphOfCode (n + 1)
-            (extendCode n (canonCode n fun i j ↦ adj i.castSucc j.castSucc) s)).Adj
-        = canonCode (n + 1) adj := by
-  set adj' : Fin n → Fin n → Bool := fun i j ↦ adj i.castSucc j.castSucc with hadj'
-  have hs' : ∀ i j, adj' i j = adj' j i := fun i j ↦ hs _ _
-  have hl' : ∀ i, adj' i i = false := fun i ↦ hl _
-  set σ : Equiv.Perm (Fin n) := canonPerm n adj' with hσ
-  set c : ℕ := canonCode n adj' with hc
+    canonCode (n + 1)
+        (graphOfCode (n + 1) (extendCode n (canonCode n (restrict adj)) (lastMask n adj))).Adj
+      = canonCode (n + 1) adj := by
+  have hs' : ∀ i j, restrict adj i j = restrict adj j i := fun i j ↦ hs _ _
+  have hl' : ∀ i, restrict adj i i = false := fun i ↦ hl _
+  set σ : Equiv.Perm (Fin n) := canonPerm n (restrict adj) with hσ
+  set c : ℕ := canonCode n (restrict adj) with hc
   have hclt : c < 2 ^ n.choose 2 := canonCode_lt _ _
-  set s : ℕ := rowMask n fun i ↦ if h : i < n then adj (σ ⟨i, h⟩).castSucc (Fin.last n) else false
-    with hsdef
-  refine ⟨s, rowMask_lt _ _, ?_⟩
+  set s : ℕ := lastMask n adj with hsdef
   have hlast : ∀ x : Fin n,
       (graphOfCode (n + 1) (extendCode n c s)).Adj x.castSucc (Fin.last n)
         = adj (σ x).castSucc (Fin.last n) := by
     intro x
-    rw [adj_extendCode_last hclt (by simp), hsdef, testBit_rowMask _ (by simp),
-      dif_pos (show (x.castSucc).1 < n by simp)]
+    rw [adj_extendCode_last hclt (by simp), hsdef, testBit_lastMask (show (x.castSucc).1 < n by
+      simp)]
     rfl
   have key : ∀ a b : Fin (n + 1),
       adj (permLast σ a) (permLast σ b)
@@ -582,48 +657,322 @@ theorem canonCode_extend {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool)
         rw [hc, adj_graphOfCode_canonCode hs' hl', canonAdj_apply]
   rw [canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (permLast σ) key]
 
-/-- **Completeness of the fast enumerator.** -/
-theorem mem_enumCodesFast : ∀ (n : ℕ) (adj : Fin n → Fin n → Bool),
-    (∀ i j, adj i j = adj j i) → (∀ i, adj i i = false) → canonCode n adj ∈ enumCodesFast n := by
+/-! ### Completeness and soundness, for any complete mask selector -/
+
+/-- **Completeness.** -/
+theorem mem_enumCodesOf {masks : ℕ → ℕ → List ℕ} (hm : MasksComplete masks) :
+    ∀ (n : ℕ) (adj : Fin n → Fin n → Bool), (∀ i j, adj i j = adj j i) → (∀ i, adj i i = false) →
+      canonCode n adj ∈ enumCodesOf masks n := by
   intro n
   induction n with
-  | zero => intro adj _ _; rw [canonCode_zero, enumCodesFast]; simp
+  | zero => intro adj _ _; rw [canonCode_zero, enumCodesOf]; simp
   | succ n ih =>
       intro adj hs hl
-      obtain ⟨t, ht, heq⟩ := canonCode_extend adj hs hl
-      rw [enumCodesFast, mem_dedupNat, List.mem_map]
-      refine ⟨extendCode n (canonCode n fun i j ↦ adj i.castSucc j.castSucc) t, ?_, heq⟩
-      rw [List.mem_flatMap]
-      exact ⟨_, ih _ (fun i j ↦ hs _ _) (fun i ↦ hl _),
-        List.mem_map.2 ⟨t, List.mem_range.2 ht, rfl⟩⟩
+      obtain ⟨adj', hs', hl', t, ht, heq⟩ := hm n adj hs hl
+      rw [enumCodesOf, mem_dedupNat, List.mem_map]
+      exact ⟨extendCode n (canonCode n adj') t,
+        List.mem_flatMap.2 ⟨_, ih adj' hs' hl', List.mem_map.2 ⟨t, ht, rfl⟩⟩, heq⟩
 
-/-- **The two enumerators agree**, as sets of codes. -/
-theorem mem_enumCodesFast_iff {n c : ℕ} : c ∈ enumCodesFast n ↔ c ∈ enumCodes n := by
+/-- **The pruned enumerator agrees with the brute-force sweep**, as sets of codes. -/
+theorem mem_enumCodesOf_iff {masks : ℕ → ℕ → List ℕ} (hm : MasksComplete masks) {n c : ℕ} :
+    c ∈ enumCodesOf masks n ↔ c ∈ enumCodes n := by
   constructor
   · intro h
-    obtain ⟨hcan, hlt⟩ := isCanon_of_mem_fast h
+    obtain ⟨hcan, hlt⟩ := isCanon_of_mem h
     rw [enumCodes, List.mem_filter]
     exact ⟨List.mem_range.2 hlt, by simp [hcan]⟩
   · intro h
-    have := mem_enumCodesFast n (graphOfCode n c).Adj (fun i j ↦ (graphOfCode n c).symm i j)
+    have := mem_enumCodesOf hm n (graphOfCode n c).Adj (fun i j ↦ (graphOfCode n c).symm i j)
       (fun i ↦ Bool.eq_false_iff.2 ((graphOfCode n c).loopless i))
     rwa [canonCode_of_mem h] at this
 
-theorem pairwise_lt_enumCodesFast (n : ℕ) : (enumCodesFast n).Pairwise (· < ·) := by
+theorem pairwise_lt_enumCodesOf (masks : ℕ → ℕ → List ℕ) (n : ℕ) :
+    (enumCodesOf masks n).Pairwise (· < ·) := by
   cases n with
-  | zero => simp [enumCodesFast]
+  | zero => simp [enumCodesOf]
   | succ n => exact pairwise_lt_dedupNat _
 
-theorem nodup_enumCodesFast (n : ℕ) : (enumCodesFast n).Nodup :=
-  (pairwise_lt_enumCodesFast n).imp Nat.ne_of_lt
+theorem nodup_enumCodesOf (masks : ℕ → ℕ → List ℕ) (n : ℕ) : (enumCodesOf masks n).Nodup :=
+  (pairwise_lt_enumCodesOf masks n).imp Nat.ne_of_lt
+
+/-- **The pruned enumerator computes the same list as the brute-force sweep** — not merely the
+same set: both are strictly increasing lists of codes with the same members. -/
+theorem enumCodesOf_eq {masks : ℕ → ℕ → List ℕ} (hm : MasksComplete masks) (n : ℕ) :
+    enumCodesOf masks n = enumCodes n :=
+  List.Perm.eq_of_pairwise (le := (· ≤ ·)) (fun _ _ _ _ h₁ h₂ ↦ le_antisymm h₁ h₂)
+    ((pairwise_lt_enumCodesOf masks n).imp le_of_lt) ((enumCodes_pairwise_lt n).imp le_of_lt)
+    ((List.perm_ext_iff_of_nodup (nodup_enumCodesOf masks n) (List.nodup_range.filter _)).2
+      fun _ ↦ mem_enumCodesOf_iff hm)
+
+/-! ### Offering every mask -/
+
+/-- Every neighbourhood for the new vertex. -/
+def allMasks (n : ℕ) (_c : ℕ) : List ℕ := List.range (2 ^ n)
+
+theorem allMasks_complete : MasksComplete allMasks := fun n adj hs hl ↦
+  ⟨restrict adj, fun _ _ ↦ hs _ _, fun _ ↦ hl _, lastMask n adj,
+    List.mem_range.2 (lastMask_lt n adj), canonCode_extend adj hs hl⟩
+
+/-- **The canonical codes of all graphs on `n` vertices**, built one vertex at a time: extend each
+graph on `n-1` vertices in all `2 ^ (n-1)` ways, canonicalise, and remove duplicates. -/
+def enumCodesExt : ℕ → List ℕ := enumCodesOf allMasks
+
+theorem enumCodesExt_eq (n : ℕ) : enumCodesExt n = enumCodes n :=
+  enumCodesOf_eq allMasks_complete n
+
+/-! ## Masks are determined by their low bits -/
+
+theorem eq_of_testBit_lt {n a b : ℕ} (ha : a < 2 ^ n) (hb : b < 2 ^ n)
+    (h : ∀ k, k < n → a.testBit k = b.testBit k) : a = b := by
+  refine Nat.eq_of_testBit_eq fun k ↦ ?_
+  by_cases hk : k < n
+  · exact h k hk
+  · rw [Nat.testBit_lt_two_pow (lt_of_lt_of_le ha (Nat.pow_le_pow_right (by norm_num)
+      (not_lt.1 hk))), Nat.testBit_lt_two_pow (lt_of_lt_of_le hb (Nat.pow_le_pow_right
+      (by norm_num) (not_lt.1 hk)))]
+
+theorem rowMask_testBit {n s : ℕ} (hs : s < 2 ^ n) : rowMask n s.testBit = s :=
+  eq_of_testBit_lt (rowMask_lt _ _) hs fun _ hk ↦ testBit_rowMask _ hk
+
+/-! ## Permuting a neighbourhood mask -/
+
+/-- The mask `s` read through `σ`: bit `k` of `permMask n σ s` is bit `σ k` of `s`. -/
+def permMask (n : ℕ) (σ : Equiv.Perm (Fin n)) (s : ℕ) : ℕ :=
+  rowMask n fun k ↦ if h : k < n then s.testBit (σ ⟨k, h⟩).1 else false
+
+theorem permMask_lt (n : ℕ) (σ : Equiv.Perm (Fin n)) (s : ℕ) : permMask n σ s < 2 ^ n :=
+  rowMask_lt _ _
+
+theorem testBit_permMask {n : ℕ} (σ : Equiv.Perm (Fin n)) (s : ℕ) {k : ℕ} (hk : k < n) :
+    (permMask n σ s).testBit k = s.testBit (σ ⟨k, hk⟩).1 := by
+  rw [permMask, testBit_rowMask _ hk, dif_pos hk]
+
+theorem permMask_one {n s : ℕ} (hs : s < 2 ^ n) : permMask n 1 s = s :=
+  eq_of_testBit_lt (permMask_lt _ _ _) hs fun _ hk ↦ by rw [testBit_permMask _ _ hk]; rfl
+
+theorem permMask_mul {n : ℕ} (σ τ : Equiv.Perm (Fin n)) (s : ℕ) :
+    permMask n σ (permMask n τ s) = permMask n (τ * σ) s :=
+  eq_of_testBit_lt (permMask_lt _ _ _) (permMask_lt _ _ _) fun k hk ↦ by
+    rw [testBit_permMask _ _ hk, testBit_permMask _ _ (σ ⟨k, hk⟩).2, testBit_permMask _ _ hk]
+    rfl
+
+/-! ## The automorphism group -/
+
+/-- The automorphisms of a graph on `Fin n`, as a `Finset`. -/
+def autGroup (n : ℕ) (adj : Fin n → Fin n → Bool) : Finset (Equiv.Perm (Fin n)) :=
+  {σ | ∀ i j, adj (σ i) (σ j) = adj i j}
+
+theorem mem_autGroup {n : ℕ} {adj : Fin n → Fin n → Bool} {σ : Equiv.Perm (Fin n)} :
+    σ ∈ autGroup n adj ↔ ∀ i j, adj (σ i) (σ j) = adj i j := by
+  simp [autGroup]
+
+theorem one_mem_autGroup {n : ℕ} (adj : Fin n → Fin n → Bool) :
+    (1 : Equiv.Perm (Fin n)) ∈ autGroup n adj := mem_autGroup.2 fun _ _ ↦ rfl
+
+theorem mul_mem_autGroup {n : ℕ} {adj : Fin n → Fin n → Bool} {σ τ : Equiv.Perm (Fin n)}
+    (hσ : σ ∈ autGroup n adj) (hτ : τ ∈ autGroup n adj) : σ * τ ∈ autGroup n adj :=
+  mem_autGroup.2 fun i j ↦ by
+    rw [Equiv.Perm.mul_apply, Equiv.Perm.mul_apply, mem_autGroup.1 hσ, mem_autGroup.1 hτ]
+
+/-- Masks in the same orbit of `Aut` give isomorphic extensions, hence the same canonical code. -/
+theorem canonCode_extendCode_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2)
+    (σ : Equiv.Perm (Fin n)) (hσ : σ ∈ autGroup n (graphOfCode n c).Adj) :
+    canonCode (n + 1) (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj
+      = canonCode (n + 1) (graphOfCode (n + 1) (extendCode n c s)).Adj := by
+  have hσ' := mem_autGroup.1 hσ
+  have key : ∀ a b : Fin (n + 1),
+      (graphOfCode (n + 1) (extendCode n c s)).Adj (permLast σ a) (permLast σ b)
+        = (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj a b := by
+    have hlast : ∀ x : Fin n,
+        (graphOfCode (n + 1) (extendCode n c s)).Adj (σ x).castSucc (Fin.last n)
+          = (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj x.castSucc
+              (Fin.last n) := by
+      intro x
+      rw [adj_extendCode_last hc (by simp), adj_extendCode_last hc (by simp),
+        testBit_permMask _ _ (show (x.castSucc).1 < n by simp)]
+      rfl
+    refine Fin.lastCases ?_ ?_
+    · refine Fin.lastCases ?_ ?_
+      · simp [permLast_last]
+      · intro y
+        rw [permLast_last, permLast_castSucc, (graphOfCode (n + 1) _).symm,
+          (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).symm]
+        exact hlast y
+    · intro x
+      refine Fin.lastCases ?_ ?_
+      · rw [permLast_last, permLast_castSucc]; exact hlast x
+      · intro y
+        rw [permLast_castSucc, permLast_castSucc,
+          adj_extendCode_lt (show ((σ x).castSucc).1 < n by simp)
+            (show ((σ y).castSucc).1 < n by simp),
+          adj_extendCode_lt (show (x.castSucc).1 < n by simp)
+            (show (y.castSucc).1 < n by simp)]
+        exact hσ' x y
+  rw [canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (permLast σ) key]
+
+/-! ## Harvesting automorphisms -/
+
+/-- Candidate automorphisms, as found by the canonical-labelling search, together with their
+inverses — and each one *checked*, so nothing here depends on the search being right. -/
+def autoPerms (n : ℕ) (adj : Fin n → Fin n → Bool) : List (Equiv.Perm (Fin n)) :=
+  let gens := ((canonical (Graph.ofOracle n (oracleOfFin n adj))).autos.toList.map
+    fun a ↦ permOfArrays n a (invArray n a))
+  (gens ++ gens.map (·⁻¹)).filter fun σ ↦ decide (∀ i j, adj (σ i) (σ j) = adj i j)
+
+theorem autoPerms_mem {n : ℕ} {adj : Fin n → Fin n → Bool} {σ : Equiv.Perm (Fin n)}
+    (h : σ ∈ autoPerms n adj) : σ ∈ autGroup n adj := by
+  simp only [autoPerms, List.mem_filter, decide_eq_true_eq] at h
+  exact mem_autGroup.2 h.2
+
+/-! ## Orbit-reduced masks -/
+
+/-- The neighbourhoods to try for the new vertex: those that no discovered automorphism makes
+smaller.  Every orbit's least element passes, so nothing is lost. -/
+def symMasks (n c : ℕ) : List ℕ :=
+  let ps := autoPerms n (graphOfCode n c).Adj
+  (List.range (2 ^ n)).filter fun s ↦ ps.all fun σ ↦ decide (s ≤ permMask n σ s)
+
+/-- **Nothing is lost by orbit reduction**: every mask has an automorphic image in the list. -/
+theorem exists_mem_symMasks {n c s : ℕ} (hs : s < 2 ^ n) :
+    ∃ σ ∈ autGroup n (graphOfCode n c).Adj, permMask n σ s ∈ symMasks n c := by
+  classical
+  set A := autGroup n (graphOfCode n c).Adj with hA
+  set O : Finset ℕ := A.image fun σ ↦ permMask n σ s with hO
+  have hOmem : ∀ x : ℕ, x ∈ O ↔ ∃ σ ∈ A, permMask n σ s = x := fun _ ↦ Finset.mem_image
+  have hne : O.Nonempty := ⟨s, (hOmem s).2 ⟨1, one_mem_autGroup _, permMask_one hs⟩⟩
+  obtain ⟨σ₀, hσ₀, ht⟩ := (hOmem _).1 (O.min'_mem hne)
+  refine ⟨σ₀, hσ₀, ?_⟩
+  rw [symMasks, List.mem_filter, ht]
+  refine ⟨List.mem_range.2 (ht ▸ permMask_lt _ _ _), ?_⟩
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  intro σ hσ
+  refine O.min'_le _ ((hOmem _).2 ⟨σ₀ * σ, mul_mem_autGroup hσ₀ (autoPerms_mem hσ), ?_⟩)
+  rw [← permMask_mul, ht]
+
+/-! ## Degrees -/
+
+/-- The degree of `i`. -/
+def deg {n : ℕ} (adj : Fin n → Fin n → Bool) (i : Fin n) : ℕ := ∑ j, if adj i j then 1 else 0
+
+/-- The number of set bits of `s` below `n`. -/
+def maskCard (n s : ℕ) : ℕ := ∑ i : Fin n, if s.testBit i.1 then 1 else 0
+
+theorem deg_perm {n : ℕ} (adj : Fin n → Fin n → Bool) (σ : Equiv.Perm (Fin n)) (i : Fin n) :
+    deg (fun a b ↦ adj (σ a) (σ b)) i = deg adj (σ i) :=
+  Fintype.sum_equiv σ _ _ fun _ ↦ rfl
+
+theorem deg_of_mem_autGroup {n : ℕ} {adj : Fin n → Fin n → Bool} {σ : Equiv.Perm (Fin n)}
+    (hσ : σ ∈ autGroup n adj) (i : Fin n) : deg adj (σ i) = deg adj i := by
+  have h : (fun a b ↦ adj (σ a) (σ b)) = adj := funext fun a ↦ funext fun b ↦ mem_autGroup.1 hσ a b
+  rw [← deg_perm adj σ i, h]
+
+theorem deg_castSucc_split {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool) (i : Fin (n + 1)) :
+    deg adj i = (∑ j : Fin n, if adj i j.castSucc then 1 else 0)
+      + (if adj i (Fin.last n) then 1 else 0) := Fin.sum_univ_castSucc _
+
+theorem maskCard_permMask {n : ℕ} (σ : Equiv.Perm (Fin n)) (s : ℕ) :
+    maskCard n (permMask n σ s) = maskCard n s :=
+  Fintype.sum_equiv σ _ _ fun i ↦ by rw [testBit_permMask _ _ i.2]
+
+/-! ## Only adding a vertex of least degree -/
+
+/-- Would the new vertex have least degree in the extension?  Every graph has a vertex of least
+degree, so insisting on this loses nothing — and it throws away most of the masks. -/
+def minDegOk (n c s : ℕ) : Bool :=
+  decide (∀ i : Fin n,
+    maskCard n s ≤ deg (graphOfCode n c).Adj i + (if s.testBit i.1 then 1 else 0))
+
+theorem minDegOk_permMask {n c s : ℕ} {σ : Equiv.Perm (Fin n)}
+    (hσ : σ ∈ autGroup n (graphOfCode n c).Adj) (h : minDegOk n c s = true) :
+    minDegOk n c (permMask n σ s) = true := by
+  simp only [minDegOk, decide_eq_true_eq] at h ⊢
+  intro i
+  rw [maskCard_permMask, testBit_permMask _ _ i.2, ← deg_of_mem_autGroup hσ i]
+  exact h (σ i)
+
+/-- The masks actually tried: orbit representatives that keep the new vertex of least degree. -/
+def redMasks (n c : ℕ) : List ℕ := (symMasks n c).filter (minDegOk n c)
+
+/-- **Nothing is lost by insisting on least degree either.**  Delete a vertex of least degree
+from a graph on `n+1` vertices: what is left is a graph on `n` vertices, and the mask that puts
+the deleted vertex back passes both tests. -/
+theorem redMasks_complete : MasksComplete redMasks := by
+  intro n adj hs hl
+  obtain ⟨v, -, hv⟩ :=
+    Finset.exists_min_image (Finset.univ : Finset (Fin (n + 1))) (deg adj) ⟨0, Finset.mem_univ _⟩
+  set π : Equiv.Perm (Fin (n + 1)) := Equiv.swap v (Fin.last n) with hπ
+  set adjπ : Fin (n + 1) → Fin (n + 1) → Bool := fun a b ↦ adj (π a) (π b) with hadjπ
+  have hsπ : ∀ i j, adjπ i j = adjπ j i := fun i j ↦ hs _ _
+  have hlπ : ∀ i, adjπ i i = false := fun i ↦ hl _
+  set adj' : Fin n → Fin n → Bool := restrict adjπ with hadj'
+  have hs' : ∀ i j, adj' i j = adj' j i := fun i j ↦ hsπ _ _
+  have hl' : ∀ i, adj' i i = false := fun i ↦ hlπ _
+  set c : ℕ := canonCode n adj' with hc
+  set σ : Equiv.Perm (Fin n) := canonPerm n adj' with hσdef
+  set s : ℕ := lastMask n adjπ with hsdef
+  -- the bits of the mask, and the degrees they contribute to
+  have hbit : ∀ u : Fin n, s.testBit u.1 = adjπ (σ u).castSucc (Fin.last n) :=
+    fun u ↦ testBit_lastMask u.2
+  have hdegπ : ∀ i : Fin (n + 1), deg adjπ i = deg adj (π i) := deg_perm adj π
+  -- the new vertex's degree is the degree of `v`
+  have hcard : maskCard n s = deg adj v := by
+    rw [← Equiv.swap_apply_right v (Fin.last n), ← hπ, ← hdegπ, deg_castSucc_split,
+      if_neg (by simp [hlπ]), Nat.add_zero, maskCard]
+    refine (Fintype.sum_equiv σ _ _ fun i ↦ ?_).trans rfl
+    rw [hbit i, hsπ]
+  -- and the old vertices keep theirs
+  have hdeg : ∀ u : Fin n,
+      deg (graphOfCode n c).Adj u + (if s.testBit u.1 then 1 else 0) = deg adj (π (σ u).castSucc) := by
+    intro u
+    have hgc : (graphOfCode n c).Adj = fun a b ↦ adj' (σ a) (σ b) :=
+      funext fun i ↦ funext fun j ↦ by
+        rw [hc, adj_graphOfCode_canonCode hs' hl' i j, canonAdj_apply]
+    rw [hgc, deg_perm, hbit u, ← hdegπ, deg_castSucc_split]
+    rfl
+  have hmin : minDegOk n c s = true := by
+    simp only [minDegOk, decide_eq_true_eq]
+    intro u
+    rw [hcard, hdeg u]
+    exact hv _ (Finset.mem_univ _)
+  -- reduce the mask to its orbit representative
+  obtain ⟨τ, hτ, hmem⟩ := exists_mem_symMasks (c := c) (lastMask_lt n adjπ)
+  refine ⟨adj', hs', hl', permMask n τ s, ?_, ?_⟩
+  · rw [redMasks, List.mem_filter]
+    exact ⟨hmem, minDegOk_permMask hτ hmin⟩
+  · rw [canonCode_extendCode_permMask (canonCode_lt n adj') τ hτ, canonCode_extend adjπ hsπ hlπ,
+      canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (A := adjπ) (B := adj) π fun _ _ ↦ rfl]
+
+theorem symMasks_complete : MasksComplete symMasks := fun n adj hs hl ↦ by
+  obtain ⟨τ, hτ, hmem⟩ := exists_mem_symMasks (c := canonCode n (restrict adj)) (lastMask_lt n adj)
+  exact ⟨restrict adj, fun _ _ ↦ hs _ _, fun _ ↦ hl _, permMask n τ (lastMask n adj), hmem, by
+    rw [canonCode_extendCode_permMask (canonCode_lt _ _) τ hτ, canonCode_extend adj hs hl]⟩
+
+/-! ## The fast enumerator
+
+`allMasks` offers every neighbourhood; `symMasks` keeps one per orbit of the automorphism group of
+the graph being extended; `redMasks` additionally insists that the new vertex be one of least
+degree.  All three enumerate the same list — they differ only in how many candidates they
+canonicalise, which is where all the time goes:
+
+| candidates at `n = 8` | `allMasks` | `symMasks` | `redMasks` |
+| :-- | --: | --: | --: |
+| | 133632 | 79454 | 18329 |
+-/
+
+/-- All graphs on `n` vertices, one vertex at a time, with orbit reduction. -/
+def enumCodesSym : ℕ → List ℕ := enumCodesOf symMasks
+
+theorem enumCodesSym_eq (n : ℕ) : enumCodesSym n = enumCodes n :=
+  enumCodesOf_eq symMasks_complete n
+
+/-- **The canonical codes of all graphs on `n` vertices** — the recommended enumerator: extend one
+vertex at a time, offering only the least-degree orbit representatives. -/
+def enumCodesFast : ℕ → List ℕ := enumCodesOf redMasks
 
 /-- **The fast enumerator computes the same list as the brute-force sweep** — not merely the same
 set: both are strictly increasing lists of codes with the same members. -/
 theorem enumCodesFast_eq (n : ℕ) : enumCodesFast n = enumCodes n :=
-  List.Perm.eq_of_pairwise (le := (· ≤ ·)) (fun _ _ _ _ h₁ h₂ ↦ le_antisymm h₁ h₂)
-    ((pairwise_lt_enumCodesFast n).imp le_of_lt) ((enumCodes_pairwise_lt n).imp le_of_lt)
-    ((List.perm_ext_iff_of_nodup (nodup_enumCodesFast n) (List.nodup_range.filter _)).2
-      fun _ ↦ mem_enumCodesFast_iff)
+  enumCodesOf_eq redMasks_complete n
 
 /-- **All graphs on `n` vertices, one per isomorphism class** — the fast version.
 
@@ -648,6 +997,7 @@ checked by `lake exe enumbench`, which reaches `n = 7`: 1044 classes out of `2 ^
 -/
 
 #guard ((List.range 5).map fun n ↦ (enumCodes n).length) == [1, 1, 2, 4, 11]
-#guard ((List.range 7).map fun n ↦ (enumCodesFast n).length) == [1, 1, 2, 4, 11, 34, 156]
+#guard ((List.range 7).map fun n ↦ (enumCodesExt n).length) == [1, 1, 2, 4, 11, 34, 156]
+#guard ((List.range 8).map fun n ↦ (enumCodesFast n).length) == [1, 1, 2, 4, 11, 34, 156, 1044]
 
 end CGraph.Enum

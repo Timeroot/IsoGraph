@@ -3,10 +3,11 @@ import IsoGraph.Enumerate
 /-!
 Benchmark driver for the graph enumerators.
 
-    lake exe enumbench          -- `enumerateFast` up to n = 8
-    lake exe enumbench --naive  -- also the brute-force sweep, up to n = 7
+    lake exe enumbench          -- `enumCodesFast` up to n = 8
+    lake exe enumbench --all    -- also the two weaker prunings, and the brute-force sweep
+    lake exe enumbench 9        -- `enumCodesFast` up to n = 9 (minutes, and ~1 GB)
 
-Both must reproduce OEIS A000088, the number of graphs on `n` unlabelled vertices.
+All of them must reproduce OEIS A000088, the number of graphs on `n` unlabelled vertices.
 -/
 
 open CGraph.Enum
@@ -22,18 +23,26 @@ def timeIt (label : String) (expect : Nat) (act : Unit → Nat) : IO Bool := do
   let t1 ← IO.monoMsNow
   let ok := v == expect
   IO.println s!"  {label}  {v} classes  ({t1 - t0} ms){if ok then "" else s!"  *** expected {expect}"}"
+  (← IO.getStdout).flush
+  return ok
+
+def run (name : String) (upTo : Nat) (f : Nat → Nat) : IO Bool := do
+  IO.println name
+  let mut ok := true
+  for n in List.range (upTo + 1) do
+    ok := (← timeIt s!"n={n}" a000088[n]! fun _ => f n) && ok
   return ok
 
 def main (args : List String) : IO UInt32 := do
-  let naive := args.contains "--naive"
-  let mut ok := true
-  IO.println "enumerateFast (extend one vertex at a time):"
-  for n in [0,1,2,3,4,5,6,7,8] do
-    ok := (← timeIt s!"n={n}" a000088[n]! fun _ => (enumCodesFast n).length) && ok
-  if naive then
-    IO.println "enumCodes (brute-force sweep of all 2^(n choose 2) codes):"
-    for n in [0,1,2,3,4,5,6,7] do
-      ok := (← timeIt s!"n={n} (2^{Nat.choose n 2} codes)" a000088[n]!
-        fun _ => (enumCodes n).length) && ok
+  let upTo := (args.filterMap String.toNat?).head?.getD 8
+  let all := args.contains "--all"
+  let mut ok ← run "enumCodesFast (extension + orbit reduction + least degree):" upTo
+    fun n => (enumCodesFast n).length
+  if all then
+    ok := (← run "enumCodesSym (extension + orbit reduction):" 8
+      fun n => (enumCodesSym n).length) && ok
+    ok := (← run "enumCodesExt (extension only):" 8 fun n => (enumCodesExt n).length) && ok
+    ok := (← run "enumCodes (brute-force sweep of all 2^(n choose 2) codes):" 7
+      fun n => (enumCodes n).length) && ok
   IO.println (if ok then "ALL COUNTS MATCH A000088" else "*** SOME COUNTS WRONG ***")
   return (if ok then 0 else 1)
