@@ -294,6 +294,8 @@ instance (ds : List ℕ) : DecidableEq (completeMultipartite ds).V :=
 /-- The star with `n` leaves. -/
 def star (n : ℕ) : CGraph := bipartite 1 n
 
+instance (n : ℕ) : DecidableEq (star n).V := inferInstanceAs (DecidableEq (bipartite 1 n).V)
+
 /-! ## Paths, cycles and theta graphs -/
 
 /-- The path on `n` vertices. -/
@@ -313,6 +315,9 @@ instance (n : ℕ) : DecidableEq (cycle n).V := inferInstanceAs (DecidableEq (Fi
 
 /-- The wheel: a cycle plus a hub joined to all of it. -/
 def wheel (n : ℕ) : CGraph := join (complete 1) (cycle n)
+
+instance (n : ℕ) : DecidableEq (wheel n).V :=
+  inferInstanceAs (DecidableEq (join (complete 1) (cycle n)).V)
 
 /-- The edges of the theta graph: vertex `0` and vertex `1` are the poles, and the `i`-th path
 uses `xs[i]` fresh internal vertices starting at `off`. -/
@@ -334,6 +339,88 @@ instance (xs : List ℕ) : DecidableEq (thetaGraph xs).V :=
 
 @[simp] theorem card_thetaGraph (xs : List ℕ) :
     Fintype.card (thetaGraph xs).V = 2 + xs.sum := Fintype.card_fin _
+
+/-! ## Trees, tadpoles and other decorated cycles
+
+Everything here is an `ofEdges` over `Fin n`: these graphs are small and are meant to be *named*
+and then evaluated, so the vertex type is kept flat rather than assembled out of `disjUnion`s. -/
+
+/-- The edges of the path that visits the given vertices in order. -/
+def pathEdges : List ℕ → List (ℕ × ℕ)
+  | a :: b :: rest => (a, b) :: pathEdges (b :: rest)
+  | _ => []
+
+/-- The edges of the cycle `0, 1, …, m-1`. -/
+def cycleEdges (m : ℕ) : List (ℕ × ℕ) := pathEdges (List.range m ++ [0])
+
+/-- The edges of the complete graph on `0, 1, …, m-1`. -/
+def cliqueEdges (m : ℕ) : List (ℕ × ℕ) :=
+  (List.range m).flatMap fun i ↦ ((List.range m).filter (i < ·)).map (i, ·)
+
+/-- The edges of a path of `k` fresh vertices `off, off+1, …` hanging off vertex `v`. -/
+def legEdges (v off k : ℕ) : List (ℕ × ℕ) := pathEdges (v :: (List.range k).map (· + off))
+
+/-- The tadpole (or pan) graph `T(m,k)`: the cycle on `m` vertices with a path of `k` further
+vertices attached to it.  `tadpole m 0` is `cycle m` and `tadpole 4 1` is the banner. -/
+def tadpole (m k : ℕ) : CGraph := ofEdges (m + k) (cycleEdges m ++ legEdges 0 m k)
+
+instance (m k : ℕ) : DecidableEq (tadpole m k).V := inferInstanceAs (DecidableEq (Fin (m + k)))
+
+@[simp] theorem card_tadpole (m k : ℕ) : Fintype.card (tadpole m k).V = m + k := Fintype.card_fin _
+
+/-- The lollipop graph `L(m,k)`: `Kₘ` with a path of `k` further vertices attached to it. -/
+def lollipop (m k : ℕ) : CGraph := ofEdges (m + k) (cliqueEdges m ++ legEdges 0 m k)
+
+instance (m k : ℕ) : DecidableEq (lollipop m k).V := inferInstanceAs (DecidableEq (Fin (m + k)))
+
+@[simp] theorem card_lollipop (m k : ℕ) :
+    Fintype.card (lollipop m k).V = m + k := Fintype.card_fin _
+
+/-- The legs of a spider: paths of the given lengths, all hanging off vertex `0`, using fresh
+vertices from `off` on. -/
+private def spiderEdges : ℕ → List ℕ → List (ℕ × ℕ)
+  | _, [] => []
+  | off, k :: rest => legEdges 0 off k ++ spiderEdges (off + k) rest
+
+/-- The spider (or generalised star) `S(legs)`: a centre with paths of the given lengths hanging
+off it.  `spider [1, 1, …, 1]` is a star and `spider [a, b]` is a path. -/
+def spider (legs : List ℕ) : CGraph := ofEdges (1 + legs.sum) (spiderEdges 1 legs)
+
+instance (legs : List ℕ) : DecidableEq (spider legs).V :=
+  inferInstanceAs (DecidableEq (Fin (1 + legs.sum)))
+
+@[simp] theorem card_spider (legs : List ℕ) :
+    Fintype.card (spider legs).V = 1 + legs.sum := Fintype.card_fin _
+
+/-- The double star `S(m,n)`: an edge with `m` pendant vertices on one end and `n` on the
+other. -/
+def doubleStar (m n : ℕ) : CGraph :=
+  ofEdges (2 + m + n) ((0, 1) :: (((List.range m).map fun i ↦ (0, 2 + i)) ++
+    ((List.range n).map fun i ↦ (1, 2 + m + i))))
+
+instance (m n : ℕ) : DecidableEq (doubleStar m n).V :=
+  inferInstanceAs (DecidableEq (Fin (2 + m + n)))
+
+@[simp] theorem card_doubleStar (m n : ℕ) :
+    Fintype.card (doubleStar m n).V = 2 + m + n := Fintype.card_fin _
+
+/-- Pendant vertices: `ks[i]` fresh vertices attached to vertex `v + i`, taken from `off` on. -/
+private def pendantEdges : ℕ → ℕ → List ℕ → List (ℕ × ℕ)
+  | _, _, [] => []
+  | v, off, k :: rest =>
+      ((List.range k).map fun i ↦ (v, off + i)) ++ pendantEdges (v + 1) (off + k) rest
+
+/-- The cycle on `m` vertices with `ks[i]` pendant vertices attached to vertex `i`.  The paw is
+`cyclePendant 3 [1]`, the bull is `cyclePendant 3 [1, 1]` and the net is
+`cyclePendant 3 [1, 1, 1]`. -/
+def cyclePendant (m : ℕ) (ks : List ℕ) : CGraph :=
+  ofEdges (m + ks.sum) (cycleEdges m ++ pendantEdges 0 m ks)
+
+instance (m : ℕ) (ks : List ℕ) : DecidableEq (cyclePendant m ks).V :=
+  inferInstanceAs (DecidableEq (Fin (m + ks.sum)))
+
+@[simp] theorem card_cyclePendant (m : ℕ) (ks : List ℕ) :
+    Fintype.card (cyclePendant m ks).V = m + ks.sum := Fintype.card_fin _
 
 /-! ## Products
 
@@ -614,6 +701,23 @@ theorem mycielskian_eq_ofRel (G : CGraph) [DecidableEq G.V] :
       first
         | rfl
         | rw [G.symm b a, Bool.or_self]
+
+/-! ## A few named families
+
+One call to one constructor each, so they are `abbrev`s: instance search and `decide` see straight
+through them. -/
+
+/-- The book `Bₙ = K_{1,1,n}`: `n` triangles glued along a common edge. -/
+abbrev book (n : ℕ) : CGraph := completeMultipartite [1, 1, n]
+
+/-- The fan `Fₙ`: a path on `n` vertices plus a hub joined to all of it. -/
+abbrev fan (n : ℕ) : CGraph := join (complete 1) (path n)
+
+/-- The ladder `Lₙ = Pₙ □ K₂`: two paths joined rung by rung. -/
+abbrev ladder (n : ℕ) : CGraph := cartesianProduct (path n) (complete 2)
+
+/-- The prism `Yₙ = Cₙ □ K₂`, also called the circular ladder. -/
+abbrev prism (n : ℕ) : CGraph := cartesianProduct (cycle n) (complete 2)
 
 /-! ## Invariants of the constructions
 

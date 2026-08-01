@@ -21,3 +21,4 @@ import IsoGraph.Constructions
 import IsoGraph.Compute
 import IsoGraph.Enumerate
 import IsoGraph.EnumerateConn
+import IsoGraph.NamedSmallGraphs

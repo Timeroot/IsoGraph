@@ -410,6 +410,31 @@ labelling each, rather than a search over bijections. -/
 instance decidableNonemptyIso (G H : CGraph) : Decidable (Nonempty (G ≃cg H)) :=
   decidable_of_iff (key G = key H) key_eq_iff
 
+/-- The key of an isomorphism class: `key` is an isomorphism invariant, so it descends to the
+quotient. -/
+def _root_.IsoGraph.key : IsoGraph → ℕ × ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.Enum.key fun _ _ ⟨i⟩ ↦ CGraph.Enum.key_eq_of_iso i
+
+@[simp] theorem _root_.IsoGraph.key_mk (G : CGraph) :
+    IsoGraph.key (Quotient.mk _ G) = CGraph.Enum.key G := rfl
+
+/-- **The key determines the isomorphism class.** -/
+theorem _root_.IsoGraph.key_injective : Function.Injective IsoGraph.key := by
+  intro G H h
+  induction G using Quotient.inductionOn with
+  | h G =>
+      induction H using Quotient.inductionOn with
+      | h H => exact Quotient.sound (CGraph.Enum.key_eq_iff.1 h)
+
+@[simp] theorem _root_.IsoGraph.key_eq_key_iff {G H : IsoGraph} :
+    IsoGraph.key G = IsoGraph.key H ↔ G = H :=
+  ⟨fun h ↦ IsoGraph.key_injective h, fun h ↦ h ▸ rfl⟩
+
+/-- **Equality of isomorphism classes is decidable**, by comparing keys: one canonical labelling
+each. -/
+instance _root_.IsoGraph.instDecidableEq : DecidableEq IsoGraph := fun _ _ ↦
+  decidable_of_iff _ IsoGraph.key_eq_key_iff
+
 /-! ## Sorted deduplication -/
 
 /-- Remove adjacent duplicates.  On a sorted list this removes *all* duplicates. -/

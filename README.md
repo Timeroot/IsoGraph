@@ -33,6 +33,7 @@ canonical representative that is actually computable at useful sizes.
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `IsoGraph/Enumerate.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
 | `IsoGraph/EnumerateConn.lean` | the same for *connected* graphs | yes |
+| `IsoGraph/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
@@ -267,6 +268,42 @@ cases the *pruning worked* and was still a loss.
 
 The lesson both times: at these sizes canonicalisation is cheap enough that a pruning test has to
 be *very* cheap to pay for itself, and "fewer candidates" is not the same as "faster".
+
+## Names for the small graphs
+
+`NamedSmallGraphs.lean` gives every connected graph on at most six vertices a name — 1, 1, 2, 6,
+21 and 112 of them, 143 in all. Customary names where they exist (`claw`, `paw`, `bull`,
+`cricket`, `net`, `house`, `gem`, `dart`, `kite`, `domino`, `fish`, `prism3`, `octahedron`,
+`sun3`, …), and constructive ones otherwise, along two conventions: `coX` is the complement of `X`
+(used when `X` is connected), and `K6MinusX` is `K₆` minus the edges of `X` (used when the graph
+has a universal vertex). Each definition is one expression in the constructors of
+`Constructions.lean`, and is an `abbrev` when it is a single constructor call:
+
+```lean
+abbrev C4        : CGraph := cycle 4
+abbrev cross     : CGraph := spider [1, 1, 1, 2]
+abbrev domino    : CGraph := ladder 3
+def    diamond   : CGraph := compl (disjUnion K2 (empty 2))
+def    sun3      : CGraph := compl net
+def    K6MinusGem : CGraph := compl (disjUnion gem (empty 1))
+```
+
+Naming 112 six-vertex graphs by hand needs a way to tell which ones are still missing, which is
+what the enumerator is for: the file ends with
+
+```lean
+theorem enumerateConnIso_six : enumerateConnIso 6 = conn6.map (Quotient.mk CGraph.isoSetoid)
+```
+
+and its five smaller siblings — the named list *is* the enumeration, in canonical-code order, so
+nothing is missing and nothing is named twice. `connOfCard_complete` and `connOfCard_pairwise`
+unpack that into "every connected graph on `n ≤ 6` vertices is isomorphic to one of these" and
+"no two of these are isomorphic".
+
+The checks are `native_decide`: comparing two `List IsoGraph`s canonicalises both sides, and the
+canonical labelling is defined by well-founded recursion and lifted through a `Quotient`, neither
+of which the kernel reduces — so `decide` is stuck even at `n = 1`. The whole file, 143
+definitions and all six checks, builds in about four seconds.
 
 ## Writing it so it can be proved
 
