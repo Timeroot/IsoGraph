@@ -1,4 +1,5 @@
 import IsoGraph.Constructions
+import Mathlib.Data.List.Sort
 
 /-!
 # Enumerating graphs up to isomorphism
@@ -22,6 +23,15 @@ The main results are
 * `enumerate n : List CGraph`, all of whose members have `n` vertices;
 * `exists_mem_enumerate` — **completeness**: every `n`-vertex graph is isomorphic to a member;
 * `enumerate_pairwise_not_iso` — **soundness**: the members are pairwise non-isomorphic.
+
+Sweeping all `2 ^ n.choose 2` codes is quadratic in the exponent, so it runs out of steam at
+`n = 7`.  `enumerateFast` cuts the search space down by one vertex at a time: extend each of the
+graphs already found on `n-1` vertices by a new last vertex in each of the `2 ^ (n-1)` possible
+ways, canonicalise, and deduplicate.  Because the new vertex is *last*, its incidences occupy the
+top `n-1` bits of the code and the extension is a plain shift-and-or (`extendCode`).  That visits
+`#graphs(n-1) · 2 ^ (n-1)` candidates instead of `2 ^ (n.choose 2)` — 9984 rather than 2097152 at
+`n = 7`, and the gap widens rapidly.  `mem_enumCodesFast_iff` shows the two enumerators produce
+exactly the same set of codes, so `enumerateFast` inherits completeness and soundness.
 
 The final section uses the same encoding to give every graph a numeric `key` that classifies it up
 to isomorphism, hence a `Decidable` instance for `Nonempty (G ≃cg H)`.
@@ -373,6 +383,264 @@ labelling each, rather than a search over bijections. -/
 instance decidableNonemptyIso (G H : CGraph) : Decidable (Nonempty (G ≃cg H)) :=
   decidable_of_iff (key G = key H) key_eq_iff
 
+/-! ## Sorted deduplication -/
+
+/-- Remove adjacent duplicates.  On a sorted list this removes *all* duplicates. -/
+def dedupSorted : List ℕ → List ℕ
+  | [] => []
+  | [a] => [a]
+  | a :: b :: t => if a = b then dedupSorted (b :: t) else a :: dedupSorted (b :: t)
+
+/-- Deduplicate a list of naturals in `O(k log k)`: sort, then drop adjacent duplicates. -/
+def dedupNat (l : List ℕ) : List ℕ := dedupSorted (l.mergeSort (· ≤ ·))
+
+@[simp] theorem mem_dedupSorted {a : ℕ} {l : List ℕ} : a ∈ dedupSorted l ↔ a ∈ l := by
+  fun_induction dedupSorted l with
+  | case1 => simp
+  | case2 b => simp
+  | case3 x t ih => simp only [List.mem_cons, ih, or_self_left]
+  | case4 x y t h ih => simp only [List.mem_cons, ih]
+
+theorem pairwise_lt_dedupSorted : ∀ {l : List ℕ}, l.Pairwise (· ≤ ·) →
+    (dedupSorted l).Pairwise (· < ·) := by
+  intro l
+  fun_induction dedupSorted l with
+  | case1 => simp
+  | case2 b => simp
+  | case3 x t ih => exact fun h ↦ ih h.tail
+  | case4 x y t hxy ih =>
+      intro h
+      have hcons := List.pairwise_cons.1 h
+      have hxy' : x < y := lt_of_le_of_ne (hcons.1 y (by simp)) hxy
+      refine List.pairwise_cons.2 ⟨?_, ih hcons.2⟩
+      intro z hz
+      rcases List.mem_cons.1 (mem_dedupSorted.1 hz) with rfl | hz'
+      · exact hxy'
+      · exact lt_of_lt_of_le hxy' ((List.pairwise_cons.1 hcons.2).1 z hz')
+
+@[simp] theorem mem_dedupNat {a : ℕ} {l : List ℕ} : a ∈ dedupNat l ↔ a ∈ l := by
+  rw [dedupNat, mem_dedupSorted]
+  exact (List.mergeSort_perm l _).mem_iff
+
+theorem pairwise_lt_dedupNat (l : List ℕ) : (dedupNat l).Pairwise (· < ·) :=
+  pairwise_lt_dedupSorted
+    ((List.pairwise_mergeSort (fun a b c ↦ by simp; omega) (fun a b ↦ by simp; omega) l).imp
+      (fun {a b} h ↦ by simpa using h))
+
+theorem nodup_dedupNat (l : List ℕ) : (dedupNat l).Nodup :=
+  (pairwise_lt_dedupNat l).imp Nat.ne_of_lt
+
+/-! ## Adding a vertex -/
+
+/-- The bit mask of a row: bit `i` is set exactly when `f i`, for `i < n`. -/
+def rowMask (n : ℕ) (f : ℕ → Bool) : ℕ :=
+  (List.range n).foldl (fun m i ↦ if f i then m ||| 2 ^ i else m) 0
+
+theorem rowMask_lt (n : ℕ) (f : ℕ → Bool) : rowMask n f < 2 ^ n :=
+  foldl_or_lt (fun a ↦ a) f n _ (fun _ ha ↦ List.mem_range.1 ha) 0 (Nat.two_pow_pos _)
+
+theorem testBit_rowMask {n : ℕ} (f : ℕ → Bool) {k : ℕ} (hk : k < n) :
+    (rowMask n f).testBit k = f k := by
+  rw [rowMask, testBit_foldl_or (fun a ↦ a)]
+  simp only [Nat.zero_testBit, Bool.false_or]
+  refine Bool.eq_iff_iff.2 ⟨?_, ?_⟩
+  · rw [List.any_eq_true]
+    rintro ⟨a, -, ha⟩
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at ha
+    obtain ⟨h1, rfl⟩ := ha
+    exact h1
+  · intro h
+    rw [List.any_eq_true]
+    exact ⟨k, List.mem_range.2 hk, by simp [h]⟩
+
+/-- Extend the code `c` of an `n`-vertex graph by a new last vertex whose neighbourhood is the
+bit mask `s`.  The pair indices `pairIdx i n` for `i < n` are exactly the positions
+`n.choose 2, …, (n+1).choose 2 - 1`, so this is a plain shift-and-or. -/
+def extendCode (n c s : ℕ) : ℕ := c ||| (s <<< n.choose 2)
+
+theorem testBit_extendCode_low {n c s k : ℕ} (hk : k < n.choose 2) :
+    (extendCode n c s).testBit k = c.testBit k := by
+  rw [extendCode, Nat.testBit_or, Nat.testBit_shiftLeft]
+  simp [Nat.not_le.2 hk]
+
+theorem testBit_extendCode_high {n c s i : ℕ} (hc : c < 2 ^ n.choose 2) :
+    (extendCode n c s).testBit (n.choose 2 + i) = s.testBit i := by
+  have h0 : c.testBit (n.choose 2 + i) = false :=
+    Nat.testBit_lt_two_pow
+      (lt_of_lt_of_le hc (Nat.pow_le_pow_right (by norm_num) (by omega)))
+  rw [extendCode, Nat.testBit_or, Nat.testBit_shiftLeft, h0]
+  simp
+
+theorem adj_extendCode_lt {n c s : ℕ} {i j : Fin (n + 1)} (hi : i.1 < n) (hj : j.1 < n) :
+    (graphOfCode (n + 1) (extendCode n c s)).Adj i j
+      = (graphOfCode n c).Adj ⟨i.1, hi⟩ ⟨j.1, hj⟩ := by
+  rw [graphOfCode_adj, graphOfCode_adj]
+  by_cases h : i.1 = j.1
+  · simp [Fin.ext_iff, h]
+  · rw [testBit_extendCode_low (pairIdx_lt hi hj h)]
+    simp [Fin.ext_iff, h]
+
+theorem adj_extendCode_last {n c s : ℕ} (hc : c < 2 ^ n.choose 2) {i : Fin (n + 1)}
+    (hi : i.1 < n) :
+    (graphOfCode (n + 1) (extendCode n c s)).Adj i (Fin.last n) = s.testBit i.1 := by
+  rw [graphOfCode_adj]
+  have hne : i ≠ Fin.last n := fun h ↦ by rw [h] at hi; simp at hi
+  have hp : pairIdx i.1 (Fin.last n).1 = n.choose 2 + i.1 := by
+    rw [Fin.val_last, pairIdx, if_pos hi]
+  rw [decide_eq_true hne, Bool.true_and, hp, testBit_extendCode_high hc]
+
+/-! ## Extending a permutation by a fixed last vertex -/
+
+/-- A permutation of `Fin n`, extended to `Fin (n+1)` by fixing the last element. -/
+def permLast {n : ℕ} (σ : Equiv.Perm (Fin n)) : Equiv.Perm (Fin (n + 1)) :=
+  (finSuccEquivLast.trans σ.optionCongr).trans finSuccEquivLast.symm
+
+@[simp] theorem permLast_castSucc {n : ℕ} (σ : Equiv.Perm (Fin n)) (i : Fin n) :
+    permLast σ i.castSucc = (σ i).castSucc := by
+  simp [permLast]
+
+@[simp] theorem permLast_last {n : ℕ} (σ : Equiv.Perm (Fin n)) :
+    permLast σ (Fin.last n) = Fin.last n := by
+  simp [permLast]
+
+/-! ## The fast enumerator -/
+
+/-- All ways of adding a new last vertex to the graph with code `c`. -/
+def extensions (n c : ℕ) : List ℕ := (List.range (2 ^ n)).map (extendCode n c)
+
+/-- **The canonical codes of all graphs on `n` vertices**, built one vertex at a time: extend each
+graph on `n-1` vertices in all `2 ^ (n-1)` ways, canonicalise, and remove duplicates. -/
+def enumCodesFast : ℕ → List ℕ
+  | 0 => [0]
+  | n + 1 =>
+      dedupNat (((enumCodesFast n).flatMap (extensions n)).map fun C ↦
+        canonCode (n + 1) (graphOfCode (n + 1) C).Adj)
+
+theorem canonCode_lt (n : ℕ) (adj : Fin n → Fin n → Bool) :
+    canonCode n adj < 2 ^ n.choose 2 := by
+  rw [canonCode_eq]; exact codeOf_lt _ _
+
+theorem canonCode_zero (adj : Fin 0 → Fin 0 → Bool) : canonCode 0 adj = 0 := rfl
+
+/-- Every entry of `enumCodesFast n` is a canonical code, and in range. -/
+theorem isCanon_of_mem_fast {n c : ℕ} (h : c ∈ enumCodesFast n) :
+    canonCode n (graphOfCode n c).Adj = c ∧ c < 2 ^ n.choose 2 := by
+  cases n with
+  | zero =>
+      rw [enumCodesFast, List.mem_singleton] at h
+      subst h
+      exact ⟨canonCode_zero _, by norm_num⟩
+  | succ n =>
+      rw [enumCodesFast, mem_dedupNat, List.mem_map] at h
+      obtain ⟨C, -, rfl⟩ := h
+      exact ⟨canonCode_graphOfCode_canonCode (fun i j ↦ (graphOfCode (n + 1) C).symm i j)
+          (fun i ↦ Bool.eq_false_iff.2 ((graphOfCode (n + 1) C).loopless i)),
+        canonCode_lt _ _⟩
+
+/-- **The key step.**  Canonicalise the graph on the first `n` vertices, put the new vertex's
+neighbourhood on top, and the result is isomorphic to the graph we started with. -/
+theorem canonCode_extend {n : ℕ} (adj : Fin (n + 1) → Fin (n + 1) → Bool)
+    (hs : ∀ i j, adj i j = adj j i) (hl : ∀ i, adj i i = false) :
+    ∃ s < 2 ^ n,
+      canonCode (n + 1)
+          (graphOfCode (n + 1)
+            (extendCode n (canonCode n fun i j ↦ adj i.castSucc j.castSucc) s)).Adj
+        = canonCode (n + 1) adj := by
+  set adj' : Fin n → Fin n → Bool := fun i j ↦ adj i.castSucc j.castSucc with hadj'
+  have hs' : ∀ i j, adj' i j = adj' j i := fun i j ↦ hs _ _
+  have hl' : ∀ i, adj' i i = false := fun i ↦ hl _
+  set σ : Equiv.Perm (Fin n) := canonPerm n adj' with hσ
+  set c : ℕ := canonCode n adj' with hc
+  have hclt : c < 2 ^ n.choose 2 := canonCode_lt _ _
+  set s : ℕ := rowMask n fun i ↦ if h : i < n then adj (σ ⟨i, h⟩).castSucc (Fin.last n) else false
+    with hsdef
+  refine ⟨s, rowMask_lt _ _, ?_⟩
+  have hlast : ∀ x : Fin n,
+      (graphOfCode (n + 1) (extendCode n c s)).Adj x.castSucc (Fin.last n)
+        = adj (σ x).castSucc (Fin.last n) := by
+    intro x
+    rw [adj_extendCode_last hclt (by simp), hsdef, testBit_rowMask _ (by simp),
+      dif_pos (show (x.castSucc).1 < n by simp)]
+    rfl
+  have key : ∀ a b : Fin (n + 1),
+      adj (permLast σ a) (permLast σ b)
+        = (graphOfCode (n + 1) (extendCode n c s)).Adj a b := by
+    refine Fin.lastCases ?_ ?_
+    · refine Fin.lastCases ?_ ?_
+      · simp [hl]
+      · intro y
+        rw [permLast_last, permLast_castSucc, hs,
+          (graphOfCode (n + 1) (extendCode n c s)).symm, hlast y]
+    · intro x
+      refine Fin.lastCases ?_ ?_
+      · rw [permLast_last, permLast_castSucc, hlast x]
+      · intro y
+        rw [permLast_castSucc, permLast_castSucc,
+          adj_extendCode_lt (show (x.castSucc).1 < n by simp)
+            (show (y.castSucc).1 < n by simp)]
+        show adj _ _ = (graphOfCode n c).Adj x y
+        rw [hc, adj_graphOfCode_canonCode hs' hl', canonAdj_apply]
+  rw [canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (permLast σ) key]
+
+/-- **Completeness of the fast enumerator.** -/
+theorem mem_enumCodesFast : ∀ (n : ℕ) (adj : Fin n → Fin n → Bool),
+    (∀ i j, adj i j = adj j i) → (∀ i, adj i i = false) → canonCode n adj ∈ enumCodesFast n := by
+  intro n
+  induction n with
+  | zero => intro adj _ _; rw [canonCode_zero, enumCodesFast]; simp
+  | succ n ih =>
+      intro adj hs hl
+      obtain ⟨t, ht, heq⟩ := canonCode_extend adj hs hl
+      rw [enumCodesFast, mem_dedupNat, List.mem_map]
+      refine ⟨extendCode n (canonCode n fun i j ↦ adj i.castSucc j.castSucc) t, ?_, heq⟩
+      rw [List.mem_flatMap]
+      exact ⟨_, ih _ (fun i j ↦ hs _ _) (fun i ↦ hl _),
+        List.mem_map.2 ⟨t, List.mem_range.2 ht, rfl⟩⟩
+
+/-- **The two enumerators agree**, as sets of codes. -/
+theorem mem_enumCodesFast_iff {n c : ℕ} : c ∈ enumCodesFast n ↔ c ∈ enumCodes n := by
+  constructor
+  · intro h
+    obtain ⟨hcan, hlt⟩ := isCanon_of_mem_fast h
+    rw [enumCodes, List.mem_filter]
+    exact ⟨List.mem_range.2 hlt, by simp [hcan]⟩
+  · intro h
+    have := mem_enumCodesFast n (graphOfCode n c).Adj (fun i j ↦ (graphOfCode n c).symm i j)
+      (fun i ↦ Bool.eq_false_iff.2 ((graphOfCode n c).loopless i))
+    rwa [canonCode_of_mem h] at this
+
+theorem pairwise_lt_enumCodesFast (n : ℕ) : (enumCodesFast n).Pairwise (· < ·) := by
+  cases n with
+  | zero => simp [enumCodesFast]
+  | succ n => exact pairwise_lt_dedupNat _
+
+theorem nodup_enumCodesFast (n : ℕ) : (enumCodesFast n).Nodup :=
+  (pairwise_lt_enumCodesFast n).imp Nat.ne_of_lt
+
+/-- **The fast enumerator computes the same list as the brute-force sweep** — not merely the same
+set: both are strictly increasing lists of codes with the same members. -/
+theorem enumCodesFast_eq (n : ℕ) : enumCodesFast n = enumCodes n :=
+  List.Perm.eq_of_pairwise (le := (· ≤ ·)) (fun _ _ _ _ h₁ h₂ ↦ le_antisymm h₁ h₂)
+    ((pairwise_lt_enumCodesFast n).imp le_of_lt) ((enumCodes_pairwise_lt n).imp le_of_lt)
+    ((List.perm_ext_iff_of_nodup (nodup_enumCodesFast n) (List.nodup_range.filter _)).2
+      fun _ ↦ mem_enumCodesFast_iff)
+
+/-- **All graphs on `n` vertices, one per isomorphism class** — the fast version.
+
+Everything proved about `enumerate` holds of it verbatim, by `enumerateFast_eq`. -/
+def enumerateFast (n : ℕ) : List CGraph := (enumCodesFast n).map (graphOfCode n)
+
+theorem enumerateFast_eq (n : ℕ) : enumerateFast n = enumerate n := by
+  rw [enumerateFast, enumerate, enumCodesFast_eq]
+
+theorem exists_mem_enumerateFast (G : CGraph) {n : ℕ} (hn : Fintype.card G.V = n) :
+    ∃ H ∈ enumerateFast n, Nonempty (G ≃cg H) := by
+  rw [enumerateFast_eq]; exact exists_mem_enumerate G hn
+
+theorem enumerateFast_pairwise_not_iso (n : ℕ) :
+    (enumerateFast n).Pairwise fun G H ↦ ¬Nonempty (G ≃cg H) := by
+  rw [enumerateFast_eq]; exact enumerate_pairwise_not_iso n
+
 /-! ## Sanity check
 
 The counts are OEIS A000088, the number of graphs on `n` unlabelled vertices.  Larger `n` is
@@ -380,5 +648,6 @@ checked by `lake exe enumbench`, which reaches `n = 7`: 1044 classes out of `2 ^
 -/
 
 #guard ((List.range 5).map fun n ↦ (enumCodes n).length) == [1, 1, 2, 4, 11]
+#guard ((List.range 7).map fun n ↦ (enumCodesFast n).length) == [1, 1, 2, 4, 11, 34, 156]
 
 end CGraph.Enum
