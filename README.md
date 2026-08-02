@@ -32,9 +32,11 @@ index modules that import their directory.
 | `IsoGraph/Canon/Optimal.lean` | `dfsNode_dom` — no pruning rule ever discards the best leaf | yes |
 | `IsoGraph/Canon/Correct.lean` | soundness and optimality meet: the search satisfies `BestKey` | yes |
 | `IsoGraph/Canon/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; proves `canonAdj_relabel` | yes |
+| `IsoGraph/Canon/Group.lean` | the automorphism group: generators harvested by the same search | yes |
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
+| `IsoGraph/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, tested | yes |
 | `IsoGraph/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
@@ -376,8 +378,9 @@ classes, because a `Fintype` is a `Multiset` and no *computable* "first vertex" 
 of one — are a convenience rather than part of the definition.
 
 Both predicates are decidable, by enumerating the `n!` permutations of the vertex type. That is
-fine for a sanity check at four vertices and useless past seven, so the families are settled
-structurally instead, in `Constructions.lean`: `isVertexTransitive_complete`,
+fine for a sanity check at four vertices and useless past seven. Two things replace it: for
+individual graphs, the automorphism-group search of the next section; for the families, a
+structural proof in `Constructions.lean`: `isVertexTransitive_complete`,
 `isArcTransitive_complete`, `isVertexTransitive_cayleyAdd` (right translation),
 `isVertexTransitive_hypercube` and `isVertexTransitive_foldedCube` (add a fixed bit-string), and
 for cycles both `isVertexTransitive_cycle` and `isArcTransitive_cycle` — rotations `x ↦ x + d`
@@ -396,6 +399,68 @@ abbrev fish    : CGraph := oneCliqueSum K3 C4    abbrev domino  : CGraph := twoC
 each with a theorem — `paw_iso_vertexSum`, `house_iso_edgeSum`, … — saying it is what you get
 from *any* choice of gluing site. The enumeration identities check the definitions themselves:
 if any of these were the wrong graph, `enumerateConnIso_six` would stop being true.
+
+## The automorphism group
+
+The search already finds automorphisms. Whenever it reaches a leaf whose certificate ties the
+incumbent's, the two labellings differ by an automorphism, and it records that permutation and
+uses it to prune the rest of the tree — that is where most of the algorithm's speed comes from.
+`canonPerm` then throws them away. `Canon/Group.lean` keeps them:
+
+```lean
+def canonPermAndGens (n : Nat) (adj : Fin n → Fin n → Bool) :
+    Equiv.Perm (Fin n) × Array (autGroup n adj)
+```
+
+One search, both halves — `canonPerm n adj` and `autGens n adj` are its two projections
+*definitionally*, so asking for the pair costs nothing over asking for the labelling alone, and
+asking for the two separately costs twice. `autGroup n adj` is the honest automorphism group as a
+`Subgroup (Equiv.Perm (Fin n))`, and the generators come with their membership proofs already
+attached: `Canon/Leaves.lean`'s `StGood` invariant, which the correctness proof needed anyway,
+says exactly that everything the search puts in `St.autos` is an automorphism. So there is no
+run-time check here and nothing new to prove — the generators arrive verified.
+
+What is *not* proved is that they generate the whole group. Nothing depends on it, and it is why
+the transitivity tests hand back a
+
+```lean
+inductive Cert (P : Prop) : Type | yes (h : P) : Cert P | no : Cert P
+```
+
+— a proof of `P`, or nothing — rather than a `Decidable P`. `Cert P` is data, so the search runs
+in compiled code and the proof comes back out:
+
+```lean
+example : petersen.IsVertexTransitive :=
+  (petersen.vertexTransitiveCertOfEquiv (ofFnEquiv 10 _)).out (by native_decide)
+```
+
+Inside, `vertexTransitiveCert` breadth-first searches the orbit of vertex `0` under the
+generators and returns, for each vertex reached, a *word* in the generators taking `0` to it.
+Words rather than permutations: a product of generators is in the subgroup by `mul_mem`, so
+membership is free, and the only thing left to check is that the word lands where it claims to —
+one `Fin n` equality per vertex, decided by `decide`. `arcTransitiveCert` is the same search on
+the `n²` ordered pairs. A bug in the breadth-first search can therefore only cost a `Cert.no`; it
+can never produce a wrong proof. (`Cert.no` is not a disproof either. In practice the harvested
+generators do generate the full group, so it means "not transitive", but that direction is not
+proved.)
+
+`Symmetry.lean` lifts all of this to `CGraph`, whose vertex type is arbitrary. Everything there
+needs a computable indexing `e : G.V ≃ Fin n`, which cannot be manufactured — `Fintype.equivFin`
+is noncomputable and the computable `Fintype.truncEquivFin` lands in `Trunc`, out of which no
+data may be extracted — so each entry point comes in two flavours: `…OfEquiv e` taking the
+indexing, and a plain version that runs on `G.canonicalize`, whose vertex type *is*
+`Fin (Fintype.card G.V)`, and transports the answer back. The second is always available and
+costs a second run of the search. For the same reason there is no `IsoGraph`-level generator set:
+generators live on the vertex set, and a set of them is not invariant under renaming. Transitivity
+is invariant, and `IsoGraph.vertexTransitiveCert` tests it on the canonical representative.
+
+`autGroupOrder?` is a diagnostic and unverified: it enumerates the group generated by the
+harvested permutations outright, capped at a `limit`, which is exponentially worse than the
+Schreier–Sims algorithm one would normally use but is obviously correct. `Compute.lean` checks it
+against the graphs it already has — 10 for `C5`, 12 for the prism, 72 for two disjoint triangles,
+120 for Petersen — along with the transitivity of each and the fact that the prism is
+vertex-transitive but not arc-transitive.
 
 ## Writing it so it can be proved
 

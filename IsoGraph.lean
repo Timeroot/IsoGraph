@@ -1,6 +1,7 @@
 import IsoGraph.Canon
 import IsoGraph.Basic
 import IsoGraph.Invariants
+import IsoGraph.Symmetry
 import IsoGraph.Constructions
 import IsoGraph.Compute
 import IsoGraph.Enum
