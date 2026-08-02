@@ -39,6 +39,7 @@ index modules that import their directory.
 | `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
 | `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
 | `IsoGraph/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
+| `IsoGraph/SRG.lean` | a table of strongly regular graphs, parameters checked | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
@@ -165,8 +166,9 @@ function-typed body, and `canonMatrix` takes the permutation as an argument.
 Mathlib notion for `G.toSimple` (that is the form concrete statements get proved in), and once on
 `IsoGraph`, as a `Quotient.lift` whose side condition is precisely isomorphism-invariance. Present
 so far: `indepNum`, `cliqueNum`, `E`, `degSequence`, `IsConnected`, `IsAcyclic`, `IsTree`,
-`diameter`. Mathlib had no invariance lemma for distance, so `SimpleGraph.Iso.edist_eq`,
-`ediam_eq` and `diam_eq` are proved there.
+`diameter`, `IsSRGWith`. Mathlib had no invariance lemma for distance or for strong regularity,
+so `SimpleGraph.Iso.edist_eq`, `ediam_eq`, `diam_eq`, `card_commonNeighbors_eq` and
+`isSRGWith_of_iso` are proved there.
 
 `Constructions.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
 relation, delete the diagonal), `empty`, `disjUnion` — plus `compl`:
@@ -178,7 +180,8 @@ bipartite m n = compl (disjUnion (complete m) (complete n))
 ```
 
 with `path`, `cycle`, `thetaGraph`, `completeMultipartite`, the four products on `G.V × H.V`,
-`hypercube`, `kneser`, `lineGraph` and `mycielskian` on top. `ofRel` is the only place the graph
+`hypercube`, `kneser`, `johnson`, `foldedCube`, `lineGraph`, `mycielskian`, the Cayley graphs
+`cayleyAdd`/`circulant`/`paley`, and `seidelSwitch` on top. `ofRel` is the only place the graph
 axioms are discharged, so everything downstream of it is proof-obligation-free.
 
 A `CGraph` carries a `Fintype` but no `DecidableEq`, and the second does not follow from the
@@ -310,6 +313,45 @@ canonical labelling is defined by well-founded recursion and lifted through a `Q
 of which the kernel reduces — so `decide` is stuck even at `n = 1`. The whole file, 143
 definitions and all six checks, builds in about four seconds.
 
+## Strongly regular graphs
+
+`SRG.lean` is a table of 24 strongly regular graphs — `(n, k, ℓ, μ)` meaning `n` vertices,
+`k`-regular, `ℓ` common neighbours across an edge and `μ` across a non-edge. Families first
+(`cycle 5`, `bipartite 3 3`, `cocktailParty 4`, `rook m n`, `triangular n`, `kneser 6 2`,
+`foldedCube`, `paley q` up to `Paley(101)`), then the sporadic ones defined in that file:
+Shrikhande, the 27 lines on a cubic surface and its complement the Schläfli graph, the three
+Chang graphs, and Hoffman–Singleton.
+
+Each row's parameters are a theorem, and each is proved by `native_decide`: the predicate is
+decidable in `O(n³)` adjacency queries, which the compiler is happy to run and the kernel is not.
+The whole file — 24 parameter checks up to 101 vertices, plus six canonical-key comparisons —
+builds in about fifteen seconds. That budget is what "efficiently evaluable" buys: `paley q`
+reads a precomputed `Array Bool` of quadratic residues (hoisted into a `let` so the compiled
+closure captures the table rather than rebuilding it per query), Hoffman–Singleton is Robertson's
+pentagon/pentagram model in `Nat` arithmetic — four divisions and a multiply mod 5 — and
+Shrikhande is a six-element lookup in a Cayley graph on `ℤ/4 × ℤ/4`. An edge list would have made
+every query an `O(|E|)` scan and every check `O(n³·|E|)`.
+
+The table is data, not just a docstring: `Entry` bundles a name, the graph, the four parameters
+and the proof, so `table : List Entry` can be mapped over — `#guard` checks its length and the
+vertex counts, and `param_eq` reads the feasibility identity `k(k - ℓ - 1) = (n - k - 1)μ` off
+any row.
+
+Strongly regular graphs are exactly the inputs that defeat cheap invariants — every vertex has
+the same degree and the same number of triangles through it — so the interesting statements are
+the negative ones, and those go through the canonical key:
+
+```lean
+theorem shrikhande_not_iso_rook : ¬Nonempty (shrikhande ≃cg rook 4 4)
+theorem changs_pairwise_not_iso :
+    ([triangular 8, chang₁, chang₂, chang₃] : List CGraph).Pairwise fun G H ↦ ¬Nonempty (G ≃cg H)
+```
+
+Both lists are complete classifications — the only `(16, 6, 2, 2)` graphs and the only
+`(28, 12, 6, 4)` graphs respectively — so what is checked here is that the library agrees with
+the classification. Missing, for want of the Steiner system `S(3, 6, 22)`: Higman–Sims, Gewirtz,
+and the `M₂₂` graph.
+
 ## Writing it so it can be proved
 
 The algorithm was written first and proved about second, and the single biggest obstacle turned
@@ -359,6 +401,12 @@ invisible against an `Ω(n²)` search.
 **Complete.** There is no `sorry` in the development, and `#print axioms` reports only
 `propext`, `Classical.choice`, `Quot.sound` for every user-facing statement — including
 `labellingInvariant`, `canonAdj_relabel` and `exists_relabel_of_canonAdj_eq`.
+
+The exceptions are the computational checks, which are deliberate: everything proved by
+`native_decide` — `Compute.lean`, the enumeration identities of `NamedSmallGraphs.lean`, the
+parameter and non-isomorphism theorems of `SRG.lean` — additionally uses `Lean.ofReduceBool` and
+`Lean.trustCompiler`, i.e. trusts the compiler. It has to: `canonAdj` is well-founded recursion over
+`Array`, which the kernel will not reduce.
 
 The user-facing statement is
 

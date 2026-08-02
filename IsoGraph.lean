@@ -5,3 +5,4 @@ import IsoGraph.Constructions
 import IsoGraph.Compute
 import IsoGraph.Enum
 import IsoGraph.NamedSmallGraphs
+import IsoGraph.SRG

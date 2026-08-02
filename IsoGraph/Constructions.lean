@@ -422,6 +422,57 @@ instance (m : ℕ) (ks : List ℕ) : DecidableEq (cyclePendant m ks).V :=
 @[simp] theorem card_cyclePendant (m : ℕ) (ks : List ℕ) :
     Fintype.card (cyclePendant m ks).V = m + ks.sum := Fintype.card_fin _
 
+/-! ## Cayley graphs
+
+A group and a connection set.  `ofRel` symmetrises, so the connection set does *not* have to be
+closed under negation — passing `S` and passing `S ∪ -S` give the same graph — and a `0 ∈ S` does
+no harm either, since `ofRel` deletes the diagonal. -/
+
+/-- The Cayley graph of a finite additive group `A` with connection set `S`: `x ~ y` when
+`y - x ∈ S`.  Left translation is an automorphism, so this is always vertex-transitive. -/
+def cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) : CGraph :=
+  ofRel A fun x y ↦ S (y - x)
+
+instance (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) :
+    DecidableEq (cayleyAdd A S).V := inferInstanceAs (DecidableEq A)
+
+@[simp] theorem cayleyAdd_adj (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool)
+    (x y : A) : (cayleyAdd A S).Adj x y = (decide (x ≠ y) && (S (y - x) || S (x - y))) := rfl
+
+@[simp] theorem card_cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) :
+    Fintype.card (cayleyAdd A S).V = Fintype.card A := rfl
+
+/-- The circulant on `Fin n` with connection set `S`, taken mod `n`: the Cayley graph of `ℤ/n`,
+written on `Fin n` so that no `NeZero` instance is needed.  `cycle n = circulant n [1]`. -/
+def circulant (n : ℕ) (S : List ℕ) : CGraph :=
+  ofRel (Fin n) fun x y ↦ S.contains ((y.1 + n - x.1) % n)
+
+instance (n : ℕ) (S : List ℕ) : DecidableEq (circulant n S).V :=
+  inferInstanceAs (DecidableEq (Fin n))
+
+@[simp] theorem card_circulant (n : ℕ) (S : List ℕ) :
+    Fintype.card (circulant n S).V = n := Fintype.card_fin n
+
+/-- The nonzero quadratic residues mod `q`, as a lookup table — computed once, so that the Paley
+graph answers an adjacency query with one array read. -/
+private def qrTable (q : ℕ) : Array Bool :=
+  (List.range q).foldl (fun a i ↦ if i == 0 then a else a.set! (i * i % q) true)
+    (Array.replicate q false)
+
+/-- The Paley graph of order `q`: `x ~ y` when `y - x` is a nonzero square mod `q`.
+
+This is the intended graph only for a *prime* `q ≡ 1 mod 4` — for a prime power one would need the
+field `GF(q)`, and for `q ≡ 3 mod 4` the residues are not closed under negation, so `ofRel`
+symmetrises the Paley *tournament* into the complete graph.  For a prime `q ≡ 1 mod 4` it is
+strongly regular with parameters `(q, (q-1)/2, (q-5)/4, (q-1)/4)`; see `IsoGraph/SRG.lean`. -/
+def paley (q : ℕ) : CGraph :=
+  let t := qrTable q
+  ofRel (Fin q) fun x y ↦ t[(y.1 + q - x.1) % q]!
+
+instance (q : ℕ) : DecidableEq (paley q).V := inferInstanceAs (DecidableEq (Fin q))
+
+@[simp] theorem card_paley (q : ℕ) : Fintype.card (paley q).V = q := Fintype.card_fin q
+
 /-! ## Products
 
 All four products live on `G.V × H.V` and differ only in the adjacency.  Three of the four
@@ -702,6 +753,86 @@ theorem mycielskian_eq_ofRel (G : CGraph) [DecidableEq G.V] :
         | rfl
         | rw [G.symm b a, Bool.or_self]
 
+/-- The Johnson graph `J(n, k)`: the `k`-element subsets of `Fin n`, adjacent when they meet in
+`k - 1` points.  `johnson n 2` is the triangular graph `T(n)`, i.e. the line graph of `Kₙ`, and
+the complement of `kneser n 2`.
+
+Every set meets itself in `k` points, so for `k ≥ 1` the diagonal is already excluded; it is
+deleted explicitly anyway, since at `k = 0` the condition `|s ∩ t| = k - 1` degenerates to `0 = 0`
+and would put a loop at the one vertex. -/
+def johnson (n k : ℕ) : CGraph where
+  V := {s : Finset (Fin n) // s.card = k}
+  Adj s t := decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)
+  symm s t := by rw [decide_ne_comm s t, Finset.inter_comm]
+  loopless s := by simp
+
+instance (n k : ℕ) : DecidableEq (johnson n k).V :=
+  inferInstanceAs (DecidableEq {s : Finset (Fin n) // s.card = k})
+
+@[simp] theorem johnson_adj (n k : ℕ) (s t : {s : Finset (Fin n) // s.card = k}) :
+    (johnson n k).Adj s t = (decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)) := rfl
+
+theorem johnson_eq_ofRel (n k : ℕ) :
+    johnson n k = ofRel {s : Finset (Fin n) // s.card = k} fun s t ↦ (s.1 ∩ t.1).card == k - 1 :=
+  eq_ofRel _ _ fun s t hst => by
+    rw [johnson_adj, decide_eq_true (by simpa using hst : s ≠ t), Bool.true_and,
+      Finset.inter_comm t.1 s.1, Bool.or_self]
+
+@[simp] theorem card_johnson (n k : ℕ) : Fintype.card (johnson n k).V = n.choose k := by
+  simp [johnson, Fintype.card_finset_len]
+
+/-- The folded cube: `Qₙ` with each pair of antipodal vertices joined, i.e. bit-strings of length
+`n` adjacent when they differ in exactly one place *or* in all `n` of them.  Identifying antipodes
+instead would halve the vertex count; this is the double cover of that, and is the folded
+`(n+1)`-cube.  `foldedCube 4` is the Clebsch graph. -/
+def foldedCube (n : ℕ) : CGraph where
+  V := Fin n → Bool
+  Adj x y := decide (x ≠ y) && (((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) ||
+    ((Finset.univ.filter fun i ↦ x i ≠ y i).card == n))
+  symm x y := by
+    have h : (Finset.univ.filter fun i ↦ x i ≠ y i) = (Finset.univ.filter fun i ↦ y i ≠ x i) :=
+      Finset.filter_congr fun i _ => by exact ne_comm
+    rw [decide_ne_comm x y, h]
+  loopless x := by simp
+
+instance (n : ℕ) : DecidableEq (foldedCube n).V := inferInstanceAs (DecidableEq (Fin n → Bool))
+
+@[simp] theorem foldedCube_adj (n : ℕ) (x y : Fin n → Bool) :
+    (foldedCube n).Adj x y = (decide (x ≠ y) &&
+      (((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) ||
+        ((Finset.univ.filter fun i ↦ x i ≠ y i).card == n))) := rfl
+
+@[simp] theorem card_foldedCube (n : ℕ) : Fintype.card (foldedCube n).V = 2 ^ n := by
+  simp [foldedCube]
+
+/-- **Seidel switching** with respect to a set `S` of vertices: complement every edge between `S`
+and its complement, leaving the edges inside `S` and inside its complement alone.
+
+Switching does not change the vertex type, and it preserves neither the degree sequence nor the
+isomorphism class in general — but it does act on *Seidel switching classes*, and applying it to
+the triangular graph `T(8)` produces the three Chang graphs. -/
+def seidelSwitch (G : CGraph) (S : G.V → Bool) : CGraph where
+  V := G.V
+  Adj x y := G.Adj x y ^^ (S x ^^ S y)
+  symm x y := by rw [G.symm x y, Bool.xor_comm (S x) (S y)]
+  loopless x := by simp [G.loopless x]
+
+instance (G : CGraph) [DecidableEq G.V] (S : G.V → Bool) : DecidableEq (seidelSwitch G S).V :=
+  inferInstanceAs (DecidableEq G.V)
+
+@[simp] theorem seidelSwitch_adj (G : CGraph) (S : G.V → Bool) (x y : G.V) :
+    (seidelSwitch G S).Adj x y = (G.Adj x y ^^ (S x ^^ S y)) := rfl
+
+@[simp] theorem card_seidelSwitch (G : CGraph) (S : G.V → Bool) :
+    Fintype.card (seidelSwitch G S).V = Fintype.card G.V := rfl
+
+/-- Switching twice with the same set is the identity. -/
+@[simp] theorem seidelSwitch_seidelSwitch (G : CGraph) (S : G.V → Bool) :
+    seidelSwitch (seidelSwitch G S) S = G := by
+  refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
+  show ((G.Adj x y ^^ (S x ^^ S y)) ^^ (S x ^^ S y)) = G.Adj x y
+  cases G.Adj x y <;> cases S x <;> cases S y <;> rfl
+
 /-! ## A few named families
 
 One call to one constructor each, so they are `abbrev`s: instance search and `decide` see straight
@@ -718,6 +849,17 @@ abbrev ladder (n : ℕ) : CGraph := cartesianProduct (path n) (complete 2)
 
 /-- The prism `Yₙ = Cₙ □ K₂`, also called the circular ladder. -/
 abbrev prism (n : ℕ) : CGraph := cartesianProduct (cycle n) (complete 2)
+
+/-- The triangular graph `T(n) = J(n, 2) = L(Kₙ)`: the pairs from an `n`-set, adjacent when they
+overlap. -/
+abbrev triangular (n : ℕ) : CGraph := johnson n 2
+
+/-- The rook's graph `Kₘ □ Kₙ`: the squares of an `m × n` board, adjacent along rows and
+columns. -/
+abbrev rook (m n : ℕ) : CGraph := cartesianProduct (complete m) (complete n)
+
+/-- The cocktail party graph `K_{n×2}`: `K_{2n}` minus a perfect matching. -/
+abbrev cocktailParty (n : ℕ) : CGraph := completeMultipartite (List.replicate n 2)
 
 /-! ## Invariants of the constructions
 
@@ -893,6 +1035,13 @@ variable (G H : CGraph)
 
 @[simp] theorem cliqueNum_compl [DecidableEq G.V] : (compl G).cliqueNum = G.indepNum := by
   rw [← indepNum_compl (compl G), compl_compl]
+
+/-- The complement of a strongly regular graph is strongly regular, with the parameters Mathlib
+computes for `SimpleGraph`s. -/
+theorem isSRGWith_compl [DecidableEq G.V] {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    (compl G).IsSRGWith n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) :=
+  SimpleGraph.Iso.isSRGWith_of_iso (G := G.toSimpleᶜ) (G' := (compl G).toSimple)
+    ⟨Equiv.refl G.V, by simp; intro a b _; rfl⟩ (SimpleGraph.IsSRGWith.compl h)
 
 theorem E_compl [DecidableEq G.V] :
     (compl G).E + G.E = (Fintype.card G.V).choose 2 := by
