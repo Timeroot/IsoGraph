@@ -284,6 +284,22 @@ instance (m n : ℕ) : DecidableEq (bipartite m n).V :=
 @[simp] theorem card_bipartite (m n : ℕ) : Fintype.card (bipartite m n).V = m + n := by
   simp [bipartite]
 
+@[simp] theorem bipartite_adj_inl_inl (m n : ℕ) (a c : Fin m) :
+    (bipartite m n).Adj (.inl a) (.inl c) = false := by
+  by_cases h : a = c <;> simp [bipartite, complete, compl, h]
+
+@[simp] theorem bipartite_adj_inr_inr (m n : ℕ) (b d : Fin n) :
+    (bipartite m n).Adj (.inr b) (.inr d) = false := by
+  by_cases h : b = d <;> simp [bipartite, complete, compl, h]
+
+@[simp] theorem bipartite_adj_inl_inr (m n : ℕ) (a : Fin m) (d : Fin n) :
+    (bipartite m n).Adj (.inl a) (.inr d) = true := by
+  simp [bipartite, compl]
+
+@[simp] theorem bipartite_adj_inr_inl (m n : ℕ) (b : Fin n) (c : Fin m) :
+    (bipartite m n).Adj (.inr b) (.inl c) = true := by
+  simp [bipartite, compl]
+
 /-- The complete multipartite graph with parts of sizes `ds`. -/
 def completeMultipartite (ds : List ℕ) : CGraph :=
   compl (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))
@@ -4004,6 +4020,17 @@ theorem isArcTransitive_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → 
   rw [hσ x y]
   simp
 
+/-- Arc-transitivity is the stronger property: it implies vertex-transitivity as soon as there
+are no isolated vertices.  (The hypothesis is needed: `empty n` is arc-transitive for want of any
+arcs at all, but not vertex-transitive for `n ≥ 2`.) -/
+theorem isVertexTransitive_of_isArcTransitive
+    (hne : ∀ u : G.V, ∃ v, G.Adj u v) (h : G.IsArcTransitive) : G.IsVertexTransitive := by
+  intro u v
+  obtain ⟨u', hu⟩ := hne u
+  obtain ⟨v', hv⟩ := hne v
+  obtain ⟨σ, h₁, -⟩ := h u u' v v' hu hv
+  exact ⟨σ, h₁⟩
+
 /-- The complement has the same automorphisms, so it is vertex-transitive whenever `G` is. -/
 theorem isVertexTransitive_compl [DecidableEq G.V] (h : G.IsVertexTransitive) :
     (compl G).IsVertexTransitive := by
@@ -4037,6 +4064,11 @@ theorem complete_eq_ofRel (n : ℕ) : complete n = ofRel (Fin n) fun _ _ ↦ tru
 theorem isVertexTransitive_empty (n : ℕ) : (empty n).IsVertexTransitive := by
   rw [empty_eq_ofRel]
   exact isVertexTransitive_ofRel _ _ fun u v ↦ ⟨Equiv.swap u v, fun _ _ ↦ rfl, by simp⟩
+
+/-- Vacuously: `empty n` has no arcs to move around. -/
+theorem isArcTransitive_empty (n : ℕ) : (empty n).IsArcTransitive := by
+  intro u v u' v' huv _
+  simp at huv
 
 theorem isVertexTransitive_complete (n : ℕ) : (complete n).IsVertexTransitive := by
   rw [complete_eq_ofRel]
@@ -4158,6 +4190,59 @@ theorem isVertexTransitive_hypercube (n : ℕ) : (hypercube n).IsVertexTransitiv
     show (u i ^^ (u i ^^ v i)) = v i
     simp [← Bool.xor_assoc]
 
+private theorem xor_eq_decide_of_filter_eq {n : ℕ} {x y : Fin n → Bool} {i₀ : Fin n}
+    (h : (Finset.univ.filter fun i ↦ x i ≠ y i) = {i₀}) (k : Fin n) :
+    (x k ^^ y k) = decide (k = i₀) := by
+  have hiff : (x k ≠ y k) ↔ k = i₀ := by
+    constructor
+    · intro hk
+      have : k ∈ ({i₀} : Finset (Fin n)) := h ▸ Finset.mem_filter.2 ⟨Finset.mem_univ _, hk⟩
+      simpa using this
+    · rintro rfl
+      have : k ∈ (Finset.univ.filter fun i ↦ x i ≠ y i) := h ▸ Finset.mem_singleton_self k
+      exact (Finset.mem_filter.1 this).2
+  have hxor : (x k ^^ y k) = decide (x k ≠ y k) := by cases x k <;> cases y k <;> simp
+  rw [hxor, decide_eq_decide.2 hiff]
+
+/-- Adding a fixed bit-string is an automorphism of the hypercube. -/
+def cubeXor (n : ℕ) (d : Fin n → Bool) : hypercube n ≃cg hypercube n :=
+  autoOfPerm (G := hypercube n) ((xorPerm_involutive n d).toPerm _) fun x y ↦ by
+    show ((Finset.univ.filter fun i ↦ (x i ^^ d i) ≠ (y i ^^ d i)).card == 1) = _
+    rw [filter_xor_eq]
+    rfl
+
+/-- Permuting the coordinates is an automorphism of the hypercube: it does not change *how many*
+coordinates two strings differ in. -/
+def cubeCoord (n : ℕ) (τ : Equiv.Perm (Fin n)) : hypercube n ≃cg hypercube n :=
+  autoOfPerm (G := hypercube n) (Equiv.arrowCongr τ (Equiv.refl Bool)) fun x y ↦ by
+    show ((Finset.univ.filter fun i ↦ x (τ.symm i) ≠ y (τ.symm i)).card == 1) = _
+    congr 1
+    exact Finset.card_equiv τ.symm (by simp)
+
+/-- The hypercube is arc-transitive: translate the first endpoint to the origin, swap the
+coordinate in which the arc moves for the one the target arc moves in, then translate to the
+second endpoint. -/
+theorem isArcTransitive_hypercube (n : ℕ) : (hypercube n).IsArcTransitive := by
+  intro u v u' v' huv hu'v'
+  rw [hypercube_adj, beq_iff_eq] at huv hu'v'
+  obtain ⟨i₀, hi₀⟩ := Finset.card_eq_one.1 huv
+  obtain ⟨j₀, hj₀⟩ := Finset.card_eq_one.1 hu'v'
+  have hswap : ∀ i : Fin n, decide (Equiv.swap i₀ j₀ i = i₀) = decide (i = j₀) := fun i ↦ by
+    rw [decide_eq_decide, Equiv.apply_eq_iff_eq_symm_apply, Equiv.symm_swap, Equiv.swap_apply_left]
+  refine ⟨((cubeXor n u).trans (cubeCoord n (Equiv.swap i₀ j₀))).trans (cubeXor n u'), ?_, ?_⟩
+  · funext i
+    show ((u (Equiv.swap i₀ j₀ i) ^^ u (Equiv.swap i₀ j₀ i)) ^^ u' i) = u' i
+    simp
+  · funext i
+    show ((v (Equiv.swap i₀ j₀ i) ^^ u (Equiv.swap i₀ j₀ i)) ^^ u' i) = v' i
+    have h1 : (u (Equiv.swap i₀ j₀ i) ^^ v (Equiv.swap i₀ j₀ i))
+        = decide (Equiv.swap i₀ j₀ i = i₀) := xor_eq_decide_of_filter_eq hi₀ _
+    have h2 : (u' i ^^ v' i) = decide (i = j₀) := xor_eq_decide_of_filter_eq hj₀ i
+    have h3 : (v (Equiv.swap i₀ j₀ i) ^^ u (Equiv.swap i₀ j₀ i)) = (u' i ^^ v' i) := by
+      rw [Bool.xor_comm (v _) (u _), h1, hswap, ← h2]
+    rw [h3]
+    cases u' i <;> cases v' i <;> simp
+
 theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransitive := by
   intro u v
   refine ⟨autoOfPerm (G := foldedCube n)
@@ -4172,6 +4257,288 @@ theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransit
     show (u i ^^ (u i ^^ v i)) = v i
     simp [← Bool.xor_assoc]
 
+/-! ### Products
+
+An automorphism of each factor gives an automorphism of any of the four products, acting
+coordinatewise. -/
+
+theorem isVertexTransitive_cartesianProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
+    (cartesianProduct G H).IsVertexTransitive := by
+  rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
+  obtain ⟨σ, hσ⟩ := hG u₁ v₁
+  obtain ⟨τ, hτ⟩ := hH u₂ v₂
+  refine ⟨autoOfPerm (G := cartesianProduct G H) (Equiv.prodCongr σ.toEquiv τ.toEquiv)
+    fun x y ↦ ?_, by show (σ u₁, τ u₂) = (v₁, v₂); rw [hσ, hτ]⟩
+  show (cartesianProduct G H).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
+  simp only [cartesianProduct_adj, σ.adj_eq, τ.adj_eq, (RelIso.injective σ).eq_iff,
+    (RelIso.injective τ).eq_iff]
+
+theorem isVertexTransitive_tensorProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
+    (tensorProduct G H).IsVertexTransitive := by
+  rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
+  obtain ⟨σ, hσ⟩ := hG u₁ v₁
+  obtain ⟨τ, hτ⟩ := hH u₂ v₂
+  refine ⟨autoOfPerm (G := tensorProduct G H) (Equiv.prodCongr σ.toEquiv τ.toEquiv)
+    fun x y ↦ ?_, by show (σ u₁, τ u₂) = (v₁, v₂); rw [hσ, hτ]⟩
+  show (tensorProduct G H).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
+  simp only [tensorProduct_adj, σ.adj_eq, τ.adj_eq]
+
+theorem isVertexTransitive_strongProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
+    (strongProduct G H).IsVertexTransitive := by
+  rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
+  obtain ⟨σ, hσ⟩ := hG u₁ v₁
+  obtain ⟨τ, hτ⟩ := hH u₂ v₂
+  refine ⟨autoOfPerm (G := strongProduct G H) (Equiv.prodCongr σ.toEquiv τ.toEquiv)
+    fun x y ↦ ?_, by show (σ u₁, τ u₂) = (v₁, v₂); rw [hσ, hτ]⟩
+  show (strongProduct G H).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
+  simp only [strongProduct_adj, σ.adj_eq, τ.adj_eq, (RelIso.injective σ).eq_iff,
+    (RelIso.injective τ).eq_iff, ne_eq, Prod.ext_iff]
+
+theorem isVertexTransitive_lexProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
+    (lexProduct G H).IsVertexTransitive := by
+  rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
+  obtain ⟨σ, hσ⟩ := hG u₁ v₁
+  obtain ⟨τ, hτ⟩ := hH u₂ v₂
+  refine ⟨autoOfPerm (G := lexProduct G H) (Equiv.prodCongr σ.toEquiv τ.toEquiv)
+    fun x y ↦ ?_, by show (σ u₁, τ u₂) = (v₁, v₂); rw [hσ, hτ]⟩
+  show (lexProduct G H).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
+  simp only [lexProduct_adj, σ.adj_eq, τ.adj_eq, (RelIso.injective σ).eq_iff]
+
+/-! ### Complete bipartite graphs
+
+`K_{m,n}` has the permutations of each side as automorphisms; when the two sides have the same
+size it may also swap them, and that is exactly what arc-transitivity needs. -/
+
+/-- Permuting the two sides of `K_{n,n}` separately. -/
+def bipartiteCongr (n : ℕ) (σ τ : Equiv.Perm (Fin n)) : bipartite n n ≃cg bipartite n n :=
+  autoOfPerm (G := bipartite n n) (Equiv.sumCongr σ τ) fun x y ↦ by
+    show (bipartite n n).Adj (Sum.map σ τ x) (Sum.map σ τ y) = _
+    rcases x with a | b <;> rcases y with c | d <;> simp
+
+/-- Swapping the two sides of `K_{n,n}`. -/
+def bipartiteSwap (n : ℕ) : bipartite n n ≃cg bipartite n n :=
+  autoOfPerm (G := bipartite n n) (Equiv.sumComm (Fin n) (Fin n)) fun x y ↦ by
+    show (bipartite n n).Adj (Sum.swap x) (Sum.swap y) = _
+    rcases x with a | b <;> rcases y with c | d <;> simp
+
+@[simp] theorem bipartiteCongr_inl (n : ℕ) (σ τ : Equiv.Perm (Fin n)) (a : Fin n) :
+    bipartiteCongr n σ τ (.inl a) = .inl (σ a) := rfl
+
+@[simp] theorem bipartiteCongr_inr (n : ℕ) (σ τ : Equiv.Perm (Fin n)) (b : Fin n) :
+    bipartiteCongr n σ τ (.inr b) = .inr (τ b) := rfl
+
+@[simp] theorem bipartiteSwap_inl (n : ℕ) (a : Fin n) : bipartiteSwap n (.inl a) = .inr a := rfl
+
+@[simp] theorem bipartiteSwap_inr (n : ℕ) (b : Fin n) : bipartiteSwap n (.inr b) = .inl b := rfl
+
+/-- Every arc of `K_{m,n}` crosses between the two sides. -/
+theorem bipartite_arc (m n : ℕ) (x y : (bipartite m n).V) (h : (bipartite m n).Adj x y) :
+    (∃ a b, x = .inl a ∧ y = .inr b) ∨ (∃ a b, x = .inr b ∧ y = .inl a) := by
+  rcases x with a | b <;> rcases y with c | d
+  · simp at h
+  · exact Or.inl ⟨a, d, rfl, rfl⟩
+  · exact Or.inr ⟨c, b, rfl, rfl⟩
+  · simp at h
+
+theorem isArcTransitive_bipartite_self (n : ℕ) : (bipartite n n).IsArcTransitive := by
+  rintro u v u' v' huv hu'v'
+  rcases bipartite_arc n n u v huv with ⟨a, b, rfl, rfl⟩ | ⟨a, b, rfl, rfl⟩ <;>
+    rcases bipartite_arc n n u' v' hu'v' with ⟨a', b', rfl, rfl⟩ | ⟨a', b', rfl, rfl⟩
+  · exact ⟨bipartiteCongr n (Equiv.swap a a') (Equiv.swap b b'), by simp, by simp⟩
+  · exact ⟨(bipartiteCongr n (Equiv.swap a b') (Equiv.swap b a')).trans (bipartiteSwap n),
+      by simp, by simp⟩
+  · exact ⟨(bipartiteSwap n).trans (bipartiteCongr n (Equiv.swap b a') (Equiv.swap a b')),
+      by simp, by simp⟩
+  · exact ⟨bipartiteCongr n (Equiv.swap a a') (Equiv.swap b b'), by simp, by simp⟩
+
+theorem isVertexTransitive_bipartite_self (n : ℕ) : (bipartite n n).IsVertexTransitive := by
+  rcases Nat.eq_zero_or_pos n with rfl | hn
+  · rintro (u | u) <;> exact (u : Fin 0).elim0
+  · refine isVertexTransitive_of_isArcTransitive _ (fun u ↦ ?_) (isArcTransitive_bipartite_self n)
+    rcases u with a | b
+    · exact ⟨.inr ⟨0, hn⟩, by simp⟩
+    · exact ⟨.inl ⟨0, hn⟩, by simp⟩
+
+/-! ### Line graphs
+
+Vertices of `lineGraph G` are edges of `G`, so an automorphism of `G` acts on them, and an
+automorphism carrying one arc to another carries one edge to the other. -/
+
+section LineGraph
+
+variable [DecidableEq G.V]
+
+/-- An automorphism of `G` maps edges to edges, bijectively. -/
+def edgePerm (σ : G ≃cg G) : Equiv.Perm {e : Sym2 G.V // e ∈ G.toSimple.edgeSet} where
+  toFun e := ⟨Sym2.map σ e.1, σ.toSimpleIso.toHom.map_mem_edgeSet e.2⟩
+  invFun e := ⟨Sym2.map σ.symm e.1, (Iso.toSimpleIso σ.symm).toHom.map_mem_edgeSet e.2⟩
+  left_inv e := by ext : 1; simp [Sym2.map_map]
+  right_inv e := by ext : 1; simp [Sym2.map_map]
+
+omit [DecidableEq G.V] in
+@[simp] theorem edgePerm_coe (σ : G ≃cg G) (x : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) :
+    ((G.edgePerm σ x : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) : Sym2 G.V)
+      = Sym2.map σ (x : Sym2 G.V) := rfl
+
+/-- An automorphism of `G` permutes its edges, hence acts on its line graph. -/
+def lineGraphAuto (σ : G ≃cg G) : lineGraph G ≃cg lineGraph G :=
+  autoOfPerm (G := lineGraph G) (G.edgePerm σ) fun e f ↦ by
+    obtain ⟨e, he⟩ := e
+    obtain ⟨f, hf⟩ := f
+    show (lineGraph G).Adj (G.edgePerm σ ⟨e, he⟩) (G.edgePerm σ ⟨f, hf⟩) = _
+    simp only [lineGraph_adj, ne_eq, Subtype.ext_iff, edgePerm_coe, Sym2.mem_map,
+      (Sym2.map.injective (RelIso.injective σ)).eq_iff]
+    congr 1
+    refine decide_eq_decide.2 ⟨?_, ?_⟩
+    · rintro ⟨v, ⟨a, ha, rfl⟩, b, hb, hσ⟩
+      exact ⟨a, ha, by rwa [RelIso.injective σ hσ] at hb⟩
+    · rintro ⟨v, hv, hv'⟩
+      exact ⟨σ v, ⟨v, hv, rfl⟩, v, hv', rfl⟩
+
+/-- An arc-transitive graph has a vertex-transitive line graph. -/
+theorem isVertexTransitive_lineGraph (h : G.IsArcTransitive) :
+    (lineGraph G).IsVertexTransitive := by
+  have key : ∀ (u v u' v' : G.V) (huv : s(u, v) ∈ G.toSimple.edgeSet)
+      (hu'v' : s(u', v') ∈ G.toSimple.edgeSet),
+      ∃ σ : lineGraph G ≃cg lineGraph G,
+        σ (⟨s(u, v), huv⟩ : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) = ⟨s(u', v'), hu'v'⟩ := by
+    intro u v u' v' huv hu'v'
+    obtain ⟨σ, h₁, h₂⟩ := h u v u' v' (by simpa using huv) (by simpa using hu'v')
+    refine ⟨G.lineGraphAuto σ, ?_⟩
+    show G.edgePerm σ ⟨s(u, v), huv⟩ = _
+    exact Subtype.ext (by simp [edgePerm_coe, h₁, h₂])
+  rintro ⟨e, he⟩ ⟨f, hf⟩
+  induction e using Sym2.ind with
+  | _ u v =>
+    induction f using Sym2.ind with
+    | _ u' v' => exact key u v u' v' he hf
+
+end LineGraph
+
+/-! ### Kneser graphs
+
+Permutations of the ground set act on the `k`-subsets, and any two *disjoint pairs* of `k`-subsets
+are matched by one of them — which is precisely arc-transitivity, an arc of `kneser n k` being a
+pair of disjoint `k`-sets. -/
+
+/-- Two disjoint pairs of finsets of matching sizes are related by a permutation of the whole
+(finite) type: match up the two parts, and the two complements with each other. -/
+theorem exists_perm_image₂ {α : Type} [Fintype α] [DecidableEq α] {A B A' B' : Finset α}
+    (hAB : Disjoint A B) (hA'B' : Disjoint A' B') (hA : A.card = A'.card)
+    (hB : B.card = B'.card) : ∃ π : Equiv.Perm α, A.image π = A' ∧ B.image π = B' := by
+  classical
+  set C : Finset α := (A ∪ B)ᶜ with hC
+  set C' : Finset α := (A' ∪ B')ᶜ with hC'
+  have hCcard : C.card = C'.card := by
+    rw [hC, hC', Finset.card_compl, Finset.card_compl, Finset.card_union_of_disjoint hAB,
+      Finset.card_union_of_disjoint hA'B', hA, hB]
+  let eA := Finset.equivOfCardEq hA
+  let eB := Finset.equivOfCardEq hB
+  let eC := Finset.equivOfCardEq hCcard
+  set f : α → α := fun x ↦
+      if h : x ∈ A then (eA ⟨x, h⟩ : α)
+      else if h' : x ∈ B then (eB ⟨x, h'⟩ : α)
+      else (eC ⟨x, by simp [hC, h, h']⟩ : α) with hf
+  have hfA : ∀ x (h : x ∈ A), f x = eA ⟨x, h⟩ := fun x h ↦ by simp [hf, h]
+  have hfB : ∀ x (h : x ∉ A) (h' : x ∈ B), f x = eB ⟨x, h'⟩ := fun x h h' ↦ by simp [hf, h, h']
+  have hfC : ∀ x (h : x ∉ A) (h' : x ∉ B), f x ∈ C' := fun x h h' ↦ by
+    rw [hf]; simp only [h, h', dite_false]
+    exact (eC ⟨x, by simp [hC, h, h']⟩).2
+  have hmemA : ∀ x, x ∈ A → f x ∈ A' := fun x h ↦ by rw [hfA x h]; exact (eA ⟨x, h⟩).2
+  have hmemB : ∀ x, x ∈ B → f x ∈ B' := fun x h ↦ by
+    have hxA : x ∉ A := Finset.disjoint_right.1 hAB h
+    rw [hfB x hxA h]; exact (eB ⟨x, h⟩).2
+  have hC'mem : ∀ x, x ∈ C' → x ∉ A' ∧ x ∉ B' := by
+    intro x hx
+    rw [hC', Finset.mem_compl, Finset.mem_union] at hx
+    exact ⟨fun h ↦ hx (Or.inl h), fun h ↦ hx (Or.inr h)⟩
+  have hinj : Function.Injective f := by
+    intro x y hxy
+    by_cases hxA : x ∈ A <;> by_cases hyA : y ∈ A
+    · have : (eA ⟨x, hxA⟩ : α) = eA ⟨y, hyA⟩ := by rw [← hfA x hxA, ← hfA y hyA, hxy]
+      simpa using congrArg Subtype.val (eA.injective (Subtype.ext this))
+    · by_cases hyB : y ∈ B
+      · have h1 : f y ∈ A' := by rw [← hxy]; exact hmemA x hxA
+        exact absurd (hmemB y hyB) (Finset.disjoint_left.1 hA'B' h1)
+      · have h1 : f y ∈ A' := by rw [← hxy]; exact hmemA x hxA
+        exact absurd h1 (hC'mem _ (hfC y hyA hyB)).1
+    · by_cases hxB : x ∈ B
+      · have h1 : f x ∈ A' := by rw [hxy]; exact hmemA y hyA
+        exact absurd (hmemB x hxB) (Finset.disjoint_left.1 hA'B' h1)
+      · have h1 : f x ∈ A' := by rw [hxy]; exact hmemA y hyA
+        exact absurd h1 (hC'mem _ (hfC x hxA hxB)).1
+    · by_cases hxB : x ∈ B <;> by_cases hyB : y ∈ B
+      · have : (eB ⟨x, hxB⟩ : α) = eB ⟨y, hyB⟩ := by
+          rw [← hfB x hxA hxB, ← hfB y hyA hyB, hxy]
+        simpa using congrArg Subtype.val (eB.injective (Subtype.ext this))
+      · have h1 : f y ∈ B' := by rw [← hxy]; exact hmemB x hxB
+        exact absurd h1 (hC'mem _ (hfC y hyA hyB)).2
+      · have h1 : f x ∈ B' := by rw [hxy]; exact hmemB y hyB
+        exact absurd h1 (hC'mem _ (hfC x hxA hxB)).2
+      · have hx : f x = eC ⟨x, by simp [hC, hxA, hxB]⟩ := by
+          rw [hf]; simp only [hxA, hxB, dite_false]
+        have hy : f y = eC ⟨y, by simp [hC, hyA, hyB]⟩ := by
+          rw [hf]; simp only [hyA, hyB, dite_false]
+        have : (eC ⟨x, by simp [hC, hxA, hxB]⟩ : α) = eC ⟨y, by simp [hC, hyA, hyB]⟩ := by
+          rw [← hx, ← hy, hxy]
+        simpa using congrArg Subtype.val (eC.injective (Subtype.ext this))
+  refine ⟨Equiv.ofBijective f (Finite.injective_iff_bijective.1 hinj), ?_, ?_⟩
+  · show A.image f = A'
+    refine Finset.eq_of_subset_of_card_le (fun y hy ↦ ?_) ?_
+    · obtain ⟨x, hx, rfl⟩ := Finset.mem_image.1 hy
+      exact hmemA x hx
+    · rw [Finset.card_image_of_injective _ hinj, hA]
+  · show B.image f = B'
+    refine Finset.eq_of_subset_of_card_le (fun y hy ↦ ?_) ?_
+    · obtain ⟨x, hx, rfl⟩ := Finset.mem_image.1 hy
+      exact hmemB x hx
+    · rw [Finset.card_image_of_injective _ hinj, hB]
+
+/-- A permutation of `Fin n` permutes the `k`-subsets. -/
+def kneserPerm (n k : ℕ) (π : Equiv.Perm (Fin n)) :
+    Equiv.Perm {s : Finset (Fin n) // s.card = k} where
+  toFun s := ⟨s.1.image π, by rw [Finset.card_image_of_injective _ π.injective]; exact s.2⟩
+  invFun s := ⟨s.1.image π.symm, by
+    rw [Finset.card_image_of_injective _ π.symm.injective]; exact s.2⟩
+  left_inv s := by ext : 1; simp [Finset.image_image]
+  right_inv s := by ext : 1; simp [Finset.image_image]
+
+@[simp] theorem kneserPerm_coe (n k : ℕ) (π : Equiv.Perm (Fin n))
+    (s : {s : Finset (Fin n) // s.card = k}) :
+    ((kneserPerm n k π s : {s : Finset (Fin n) // s.card = k}) : Finset (Fin n))
+      = (s : Finset (Fin n)).image π := rfl
+
+/-- A permutation of the ground set is an automorphism of the Kneser graph. -/
+def kneserAuto (n k : ℕ) (π : Equiv.Perm (Fin n)) : kneser n k ≃cg kneser n k :=
+  autoOfPerm (G := kneser n k) (kneserPerm n k π) fun s t ↦ by
+    obtain ⟨s, hs⟩ := s
+    obtain ⟨t, ht⟩ := t
+    show (kneser n k).Adj (kneserPerm n k π ⟨s, hs⟩) (kneserPerm n k π ⟨t, ht⟩) = _
+    simp only [kneser_adj, ne_eq, Subtype.ext_iff, kneserPerm_coe,
+      (Finset.image_injective π.injective).eq_iff, ← Finset.image_inter _ _ π.injective,
+      Finset.image_eq_empty]
+
+theorem isArcTransitive_kneser (n k : ℕ) : (kneser n k).IsArcTransitive := by
+  rintro ⟨A, hA⟩ ⟨B, hB⟩ ⟨A', hA'⟩ ⟨B', hB'⟩ h h'
+  simp only [kneser_adj, Bool.and_eq_true, decide_eq_true_eq, ne_eq] at h h'
+  obtain ⟨π, hπA, hπB⟩ := exists_perm_image₂
+    (Finset.disjoint_iff_inter_eq_empty.2 h.2) (Finset.disjoint_iff_inter_eq_empty.2 h'.2)
+    (hA.trans hA'.symm) (hB.trans hB'.symm)
+  exact ⟨kneserAuto n k π, Subtype.ext hπA, Subtype.ext hπB⟩
+
+/-- Kneser graphs are vertex-transitive.  This does not go through
+`isVertexTransitive_of_isArcTransitive`, which would need `kneser n k` to have an arc at all:
+`exists_perm_image₂` with both second components empty does it directly. -/
+theorem isVertexTransitive_kneser (n k : ℕ) : (kneser n k).IsVertexTransitive := by
+  rintro ⟨A, hA⟩ ⟨A', hA'⟩
+  obtain ⟨π, hπ, -⟩ := exists_perm_image₂ (Finset.disjoint_empty_right A)
+    (Finset.disjoint_empty_right A') (hA.trans hA'.symm) rfl
+  exact ⟨kneserAuto n k π, Subtype.ext hπ⟩
+
 /-! ### Sanity checks
 
 The decision procedure agrees with the structural lemmas on small cases, and does see asymmetry
@@ -4182,6 +4549,20 @@ example : (cycle 4).IsArcTransitive := by decide
 example : (complete 3).IsArcTransitive := by decide
 example : ¬(path 4).IsVertexTransitive := by decide
 example : ¬(star 3).IsVertexTransitive := by decide
+example : (bipartite 2 2).IsArcTransitive := by decide
+example : (hypercube 2).IsArcTransitive := by decide
+example : (kneser 4 2).IsArcTransitive := by
+  set_option maxRecDepth 4000 in decide
+
+/-- The structural lemmas give the same answers. -/
+example : (bipartite 2 2).IsVertexTransitive := isVertexTransitive_bipartite_self 2
+example : (lineGraph (cycle 4)).IsVertexTransitive :=
+  isVertexTransitive_lineGraph _ (isArcTransitive_cycle 4)
+example : (cartesianProduct (cycle 4) (complete 2)).IsVertexTransitive :=
+  isVertexTransitive_cartesianProduct _ _ (isVertexTransitive_cycle 4)
+    (isVertexTransitive_complete 2)
+example : (compl (kneser 4 2)).IsVertexTransitive :=
+  isVertexTransitive_compl _ (isVertexTransitive_kneser 4 2)
 
 end Transitivity
 

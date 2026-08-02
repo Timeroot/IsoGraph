@@ -388,6 +388,27 @@ match up two arcs running the same way round the cycle, reflections `x ↦ c - x
 oppositely. The reflections are automorphisms only because `ofRel` symmetrises, which is why the
 `ofRel` transitivity lemmas ask for a permutation preserving `r x y || r y x` rather than `r`.
 
+Arc-transitivity is the stronger of the two, and `isVertexTransitive_of_isArcTransitive` derives
+one from the other — but only for a graph with no isolated vertex, since `empty n` is arc-
+transitive (vacuously) and not vertex-transitive. So the direct proofs above are kept, and
+arc-transitivity is proved separately where it holds: `isArcTransitive_hypercube` (translate by
+`u`, swap the two differing coordinates with `cubeCoord`, translate by `u'`),
+`isArcTransitive_bipartite_self` for `K_{n,n}` (permute the two sides with `bipartiteCongr`, and
+swap them with `bipartiteSwap` when the two arcs run opposite ways), and
+`isArcTransitive_kneser`. The Kneser case rests on `exists_perm_image₂`: two disjoint pairs of
+finsets with matching cardinalities are related by a permutation of the ground set, built by
+matching `A ↔ A'`, `B ↔ B'` and the two complements with `Finset.equivOfCardEq`. Taking
+`B = B' = ∅` gives `isVertexTransitive_kneser` as well, which avoids needing `kneser n k` to have
+an arc at all.
+
+The transitivity of a graph transfers to graphs built from it. `isVertexTransitive_compl`
+transports an automorphism unchanged. The four products each get
+`isVertexTransitive_{cartesian,tensor,strong,lex}Product`, acting coordinatewise via
+`Equiv.prodCongr` — only vertex-transitivity, as none of the four is arc-transitive in general.
+And `isVertexTransitive_lineGraph` turns arc-transitivity of `G` into vertex-transitivity of
+`lineGraph G`: an automorphism of `G` permutes its edges (`edgePerm`, hence `lineGraphAuto`), and
+an arc `(u, v) ↦ (u', v')` carries the edge `s(u, v)` to `s(u', v')`.
+
 The payoff is in `NamedSmallGraphs.lean`, where six graphs get their natural definitions:
 
 ```lean
