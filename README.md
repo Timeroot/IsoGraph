@@ -35,6 +35,7 @@ index modules that import their directory.
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
+| `IsoGraph/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
 | `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
@@ -166,9 +167,9 @@ function-typed body, and `canonMatrix` takes the permutation as an argument.
 Mathlib notion for `G.toSimple` (that is the form concrete statements get proved in), and once on
 `IsoGraph`, as a `Quotient.lift` whose side condition is precisely isomorphism-invariance. Present
 so far: `indepNum`, `cliqueNum`, `E`, `degSequence`, `IsConnected`, `IsAcyclic`, `IsTree`,
-`diameter`, `IsSRGWith`. Mathlib had no invariance lemma for distance or for strong regularity,
-so `SimpleGraph.Iso.edist_eq`, `ediam_eq`, `diam_eq`, `card_commonNeighbors_eq` and
-`isSRGWith_of_iso` are proved there.
+`diameter`, `IsSRGWith`, `IsVertexTransitive`, `IsArcTransitive`. Mathlib had no invariance lemma
+for distance or for strong regularity, so `SimpleGraph.Iso.edist_eq`, `ediam_eq`, `diam_eq`,
+`card_commonNeighbors_eq` and `isSRGWith_of_iso` are proved there.
 
 `Constructions.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
 relation, delete the diagonal), `empty`, `disjUnion` — plus `compl`:
@@ -181,8 +182,9 @@ bipartite m n = compl (disjUnion (complete m) (complete n))
 
 with `path`, `cycle`, `thetaGraph`, `completeMultipartite`, the four products on `G.V × H.V`,
 `hypercube`, `kneser`, `johnson`, `foldedCube`, `lineGraph`, `mycielskian`, the Cayley graphs
-`cayleyAdd`/`circulant`/`paley`, and `seidelSwitch` on top. `ofRel` is the only place the graph
-axioms are discharged, so everything downstream of it is proof-obligation-free.
+`cayleyAdd`/`circulant`/`paley`, `seidelSwitch`, and the clique sums of `CliqueSum.lean` on top.
+`ofRel` is the only place the graph axioms are discharged, so everything downstream of it is
+proof-obligation-free.
 
 A `CGraph` carries a `Fintype` but no `DecidableEq`, and the second does not follow from the
 first. Constructions that must ask "same vertex?" take `[DecidableEq G.V]` as an instance argument
@@ -290,8 +292,8 @@ has a universal vertex). Each definition is one expression in the constructors o
 ```lean
 abbrev C4        : CGraph := cycle 4
 abbrev cross     : CGraph := spider [1, 1, 1, 2]
-abbrev domino    : CGraph := ladder 3
-def    diamond   : CGraph := compl (disjUnion K2 (empty 2))
+abbrev diamond   : CGraph := twoCliqueSum K3 K3
+abbrev domino    : CGraph := twoCliqueSum C4 C4
 def    sun3      : CGraph := compl net
 def    K6MinusGem : CGraph := compl (disjUnion gem (empty 1))
 ```
@@ -351,6 +353,49 @@ Both lists are complete classifications — the only `(16, 6, 2, 2)` graphs and 
 `(28, 12, 6, 4)` graphs respectively — so what is checked here is that the library agrees with
 the classification. Missing, for want of the Steiner system `S(3, 6, 22)`: Higman–Sims, Gewirtz,
 and the `M₂₂` graph.
+
+## Transitivity and clique sums
+
+`CliqueSum.lean` glues two graphs along a shared clique — a vertex (`oneCliqueSum`) or an edge
+(`twoCliqueSum`) — without quotienting anything: the vertex type is `G.V ⊕ {v : H.V // v ≠ w}`,
+so the copy of `H` simply drops the vertices `G` already supplies and their neighbours are
+re-attached to the corresponding vertices of `G`.
+
+Writing `oneCliqueSum G H` with no mention of *where* is only honest if the answer does not
+depend on it, which is what the two transitivity predicates in `Invariants.lean` are for:
+
+```lean
+def IsVertexTransitive : Prop := ∀ u v : G.V, ∃ σ : G ≃cg G, σ u = v
+def IsArcTransitive : Prop :=
+  ∀ u v u' v' : G.V, G.Adj u v → G.Adj u' v' → ∃ σ : G ≃cg G, σ u = u' ∧ σ v = v'
+```
+
+`vertexSum_iso` and `edgeSum_iso` then say that any two choices of gluing site give isomorphic
+graphs, so the distinguished vertex and edge — supplied by the `Pointed` and `EdgePointed`
+classes, because a `Fintype` is a `Multiset` and no *computable* "first vertex" can be pulled out
+of one — are a convenience rather than part of the definition.
+
+Both predicates are decidable, by enumerating the `n!` permutations of the vertex type. That is
+fine for a sanity check at four vertices and useless past seven, so the families are settled
+structurally instead, in `Constructions.lean`: `isVertexTransitive_complete`,
+`isArcTransitive_complete`, `isVertexTransitive_cayleyAdd` (right translation),
+`isVertexTransitive_hypercube` and `isVertexTransitive_foldedCube` (add a fixed bit-string), and
+for cycles both `isVertexTransitive_cycle` and `isArcTransitive_cycle` — rotations `x ↦ x + d`
+match up two arcs running the same way round the cycle, reflections `x ↦ c - x` two running
+oppositely. The reflections are automorphisms only because `ofRel` symmetrises, which is why the
+`ofRel` transitivity lemmas ask for a permutation preserving `r x y || r y x` rather than `r`.
+
+The payoff is in `NamedSmallGraphs.lean`, where six graphs get their natural definitions:
+
+```lean
+abbrev paw     : CGraph := oneCliqueSum K3 K2    abbrev diamond : CGraph := twoCliqueSum K3 K3
+abbrev butterfly : CGraph := oneCliqueSum K3 K3  abbrev house   : CGraph := twoCliqueSum K3 C4
+abbrev fish    : CGraph := oneCliqueSum K3 C4    abbrev domino  : CGraph := twoCliqueSum C4 C4
+```
+
+each with a theorem — `paw_iso_vertexSum`, `house_iso_edgeSum`, … — saying it is what you get
+from *any* choice of gluing site. The enumeration identities check the definitions themselves:
+if any of these were the wrong graph, `enumerateConnIso_six` would stop being true.
 
 ## Writing it so it can be proved
 

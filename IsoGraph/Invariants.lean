@@ -3,6 +3,7 @@ import Mathlib.Combinatorics.SimpleGraph.Acyclic
 import Mathlib.Combinatorics.SimpleGraph.Diam
 import Mathlib.Combinatorics.SimpleGraph.Connectivity.WalkCounting
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
+import Mathlib.Data.Fintype.Perm
 
 /-!
 # Invariants
@@ -171,6 +172,70 @@ vertices have `μ`.  Unlike the invariants above this one takes the parameters a
 a property, not a number, and `IsoGraph/SRG.lean` is a table of graphs satisfying it. -/
 def IsSRGWith (n k ℓ μ : ℕ) : Prop := G.toSimple.IsSRGWith n k ℓ μ
 
+/-! ### Transitivity
+
+Two symmetry properties, stated directly in terms of `CGraph.Iso` automorphisms rather than in
+terms of a group action.  They are what makes the clique sums of `IsoGraph/CliqueSum.lean`
+well defined: gluing at a vertex is unambiguous exactly when the automorphism group can move any
+vertex to any other, and gluing along an edge when it can move any *arc* to any other. -/
+
+/-- The automorphism group acts transitively on vertices. -/
+def IsVertexTransitive : Prop := ∀ u v : G.V, ∃ σ : G ≃cg G, σ u = v
+
+/-- The automorphism group acts transitively on arcs, i.e. on *ordered* pairs of adjacent
+vertices.  This is strictly stronger than edge-transitivity, which only asks for the unordered
+pairs. -/
+def IsArcTransitive : Prop :=
+  ∀ u v u' v' : G.V, G.Adj u v → G.Adj u' v' → ∃ σ : G ≃cg G, σ u = u' ∧ σ v = v'
+
+/-- A permutation of the vertices that preserves adjacency is an automorphism. -/
+def autoOfPerm {G : CGraph} (σ : Equiv.Perm G.V) (h : ∀ x y, G.Adj (σ x) (σ y) = G.Adj x y) :
+    G ≃cg G :=
+  ⟨σ, by intro x y; simp [h x y]⟩
+
+@[simp] theorem autoOfPerm_apply {G : CGraph} (σ : Equiv.Perm G.V)
+    (h : ∀ x y, G.Adj (σ x) (σ y) = G.Adj x y) (x : G.V) : autoOfPerm σ h x = σ x := rfl
+
+theorem isVertexTransitive_iff [DecidableEq G.V] :
+    G.IsVertexTransitive ↔
+      ∀ u v : G.V, ∃ σ : Equiv.Perm G.V, (∀ x y, G.Adj (σ x) (σ y) = G.Adj x y) ∧ σ u = v := by
+  constructor
+  · intro h u v
+    obtain ⟨σ, hσ⟩ := h u v
+    exact ⟨σ.toEquiv, fun x y ↦ σ.adj_eq x y, hσ⟩
+  · intro h u v
+    obtain ⟨σ, hσ, huv⟩ := h u v
+    exact ⟨autoOfPerm σ hσ, huv⟩
+
+theorem isArcTransitive_iff [DecidableEq G.V] :
+    G.IsArcTransitive ↔
+      ∀ u v u' v' : G.V, G.Adj u v → G.Adj u' v' →
+        ∃ σ : Equiv.Perm G.V, (∀ x y, G.Adj (σ x) (σ y) = G.Adj x y) ∧ σ u = u' ∧ σ v = v' := by
+  constructor
+  · intro h u v u' v' huv hu'v'
+    obtain ⟨σ, hσ⟩ := h u v u' v' huv hu'v'
+    exact ⟨σ.toEquiv, fun x y ↦ σ.adj_eq x y, hσ⟩
+  · intro h u v u' v' huv hu'v'
+    obtain ⟨σ, hσ, h₁, h₂⟩ := h u v u' v' huv hu'v'
+    exact ⟨autoOfPerm σ hσ, h₁, h₂⟩
+
+/-- Transitivity transfers along an isomorphism. -/
+theorem isVertexTransitive_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsVertexTransitive) :
+    H.IsVertexTransitive := by
+  intro u v
+  obtain ⟨σ, hσ⟩ := h (i.symm u) (i.symm v)
+  exact ⟨(i.symm.trans σ).trans i, by simp [hσ]⟩
+
+theorem isArcTransitive_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsArcTransitive) :
+    H.IsArcTransitive := by
+  intro u v u' v' huv hu'v'
+  have h₁ : G.Adj (i.symm u) (i.symm v) := by
+    rw [← i.adj_eq, i.apply_symm_apply, i.apply_symm_apply]; exact huv
+  have h₂ : G.Adj (i.symm u') (i.symm v') := by
+    rw [← i.adj_eq, i.apply_symm_apply, i.apply_symm_apply]; exact hu'v'
+  obtain ⟨σ, hσ₁, hσ₂⟩ := h _ _ _ _ h₁ h₂
+  exact ⟨(i.symm.trans σ).trans i, by simp [hσ₁], by simp [hσ₂]⟩
+
 /-! Both `IsConnected` and `IsAcyclic` are decidable — but only once the vertex type has a
 `DecidableEq`, which a `Fintype` alone does not give.  Constructions that produce a concrete
 vertex type supply it; see `IsoGraph/Constructions.lean`. -/
@@ -198,6 +263,16 @@ instance [DecidableEq G.V] (n k ℓ μ : ℕ) : Decidable (G.IsSRGWith n k ℓ �
       (∀ v w, v ≠ w → ¬G.toSimple.Adj v w → Fintype.card (G.toSimple.commonNeighbors v w) = μ))
     ⟨fun ⟨h₁, h₂, h₃, h₄⟩ ↦ ⟨h₁, h₂, h₃, fun _ _ hne ↦ h₄ _ _ hne⟩,
       fun h ↦ ⟨h.card, h.regular, h.of_adj, fun _ _ hne ↦ h.of_not_adj hne⟩⟩
+
+/-- Vertex-transitivity is decidable by enumerating the `n!` permutations of the vertex type — so
+this is for tiny graphs only, and the structural lemmas of `IsoGraph/Constructions.lean` are the
+way to settle anything larger.  Even `native_decide` starts to labour at eight vertices. -/
+instance [DecidableEq G.V] : Decidable G.IsVertexTransitive :=
+  decidable_of_iff _ (isVertexTransitive_iff G).symm
+
+/-- Arc-transitivity is decidable, with the same `n!` caveat as `IsVertexTransitive`. -/
+instance [DecidableEq G.V] : Decidable G.IsArcTransitive :=
+  decidable_of_iff _ (isArcTransitive_iff G).symm
 
 end CGraph
 
@@ -277,5 +352,23 @@ noncomputable def diameter (G : IsoGraph) : ℕ :=
     (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.diam_eq (CGraph.Iso.toSimpleIso i)) G
 
 @[simp] theorem diameter_mk (G : CGraph) : diameter (Quotient.mk _ G) = G.diameter := rfl
+
+/-- Vertex-transitivity. -/
+def IsVertexTransitive (G : IsoGraph) : Prop :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsVertexTransitive
+    (fun _ _ ⟨i⟩ ↦ propext ⟨CGraph.isVertexTransitive_of_iso i,
+      CGraph.isVertexTransitive_of_iso i.symm⟩) G
+
+@[simp] theorem isVertexTransitive_mk (G : CGraph) :
+    IsVertexTransitive (Quotient.mk _ G) = G.IsVertexTransitive := rfl
+
+/-- Arc-transitivity. -/
+def IsArcTransitive (G : IsoGraph) : Prop :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsArcTransitive
+    (fun _ _ ⟨i⟩ ↦ propext ⟨CGraph.isArcTransitive_of_iso i,
+      CGraph.isArcTransitive_of_iso i.symm⟩) G
+
+@[simp] theorem isArcTransitive_mk (G : CGraph) :
+    IsArcTransitive (Quotient.mk _ G) = G.IsArcTransitive := rfl
 
 end IsoGraph

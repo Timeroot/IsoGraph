@@ -1,4 +1,5 @@
 import IsoGraph.Enum.Conn
+import IsoGraph.CliqueSum
 
 /-!
 # Named small graphs
@@ -80,16 +81,12 @@ abbrev K1_3 : CGraph := star 3
 /-- The claw, another name for `K₁,₃`. -/
 abbrev claw : CGraph := K1_3
 
-/-- The paw: a triangle with a pendant vertex. -/
-def paw : CGraph := compl (disjUnion P3 K1)
-
-instance : DecidableEq paw.V := inferInstanceAs (DecidableEq (compl (disjUnion P3 K1)).V)
+/-- The paw: a triangle with a pendant vertex, i.e. a triangle and an edge glued at a vertex. -/
+abbrev paw : CGraph := oneCliqueSum K3 K2
 
 /-- The diamond `K₄ - e`: two triangles glued along an edge.  Its two degree-3 vertices are
 called the *hubs* and its two degree-2 vertices the *tips*. -/
-def diamond : CGraph := compl (disjUnion K2 (empty 2))
-
-instance : DecidableEq diamond.V := inferInstanceAs (DecidableEq (compl (disjUnion K2 (empty 2))).V)
+abbrev diamond : CGraph := twoCliqueSum K3 K3
 
 /-- The complete graph on four vertices. -/
 abbrev K4 : CGraph := complete 4
@@ -122,9 +119,7 @@ abbrev bull : CGraph := cyclePendant 3 [1, 1]
 
 /-- The house: a triangle sitting on top of a square, i.e. `C₅` with one chord.  Its three vertex
 orbits are the apex, the two roof corners of degree 3 and the two base corners. -/
-def house : CGraph := compl P5
-
-instance : DecidableEq house.V := inferInstanceAs (DecidableEq (compl P5).V)
+abbrev house : CGraph := twoCliqueSum K3 C4
 
 /-- The kite: the diamond with a pendant vertex at a tip. -/
 abbrev kite : CGraph := ofEdges 5 ((2, 4) :: diamondEdges)
@@ -136,9 +131,7 @@ abbrev tadpole32 : CGraph := tadpole 3 2
 abbrev K1_4 : CGraph := star 4
 
 /-- The butterfly, also called the bowtie: two triangles sharing a vertex. -/
-def butterfly : CGraph := join K1 (disjUnion K2 K2)
-
-instance : DecidableEq butterfly.V := inferInstanceAs (DecidableEq (join K1 (disjUnion K2 K2)).V)
+abbrev butterfly : CGraph := oneCliqueSum K3 K3
 
 /-- The wheel `W₄`: a four-cycle plus a hub. -/
 abbrev W4 : CGraph := wheel 4
@@ -244,14 +237,15 @@ abbrev theta223 : CGraph := thetaGraph [1, 1, 2]
 /-- The theta graph `Θ(1,2,4)`: a triangle and a pentagon sharing an edge. -/
 abbrev theta124 : CGraph := thetaGraph [0, 1, 3]
 
-/-- The domino: the 2×3 grid `P₃ □ K₂`, also the theta graph `Θ(1,3,3)`. -/
-abbrev domino : CGraph := ladder 3
+/-- The domino: the 2×3 grid `P₃ □ K₂`, also the theta graph `Θ(1,3,3)`, and two squares glued
+along an edge. -/
+abbrev domino : CGraph := twoCliqueSum C4 C4
 
 /-- The barbell: two triangles joined by an edge. -/
 abbrev barbell : CGraph := ofEdges 6 ((0, 3) :: (3, 4) :: (4, 5) :: (5, 3) :: triangleEdges)
 
 /-- The fish: a triangle and a four-cycle sharing a vertex. -/
-abbrev fish : CGraph := ofEdges 6 ((0, 3) :: (3, 4) :: (4, 5) :: (5, 0) :: triangleEdges)
+abbrev fish : CGraph := oneCliqueSum K3 C4
 
 /-- The house with a pendant vertex at its apex. -/
 abbrev housePendantApex : CGraph := ofEdges 6 ((0, 5) :: houseEdges)
@@ -524,6 +518,36 @@ def coP3P3 : CGraph := compl (disjUnion P3 P3)
 
 /-- The complement of a path of three and a disjoint triangle. -/
 def coP3K3 : CGraph := compl (disjUnion P3 K3)
+
+/-! ## The clique sums are unambiguous
+
+Six of the graphs above are defined by gluing two graphs at a vertex or along an edge.  Complete
+graphs and cycles are vertex- and arc-transitive, so it makes no difference *where* the gluing
+happens: each of these graphs is what you get from any choice of vertices, resp. edges. -/
+
+theorem paw_iso_vertexSum (u : K3.V) (w : K2.V) :
+    Nonempty (paw ≃cg vertexSum K3 u K2 w) :=
+  oneCliqueSum_iso _ _ (isVertexTransitive_complete 3) (isVertexTransitive_complete 2) u w
+
+theorem butterfly_iso_vertexSum (u w : K3.V) :
+    Nonempty (butterfly ≃cg vertexSum K3 u K3 w) :=
+  oneCliqueSum_iso _ _ (isVertexTransitive_complete 3) (isVertexTransitive_complete 3) u w
+
+theorem fish_iso_vertexSum (u : K3.V) (w : C4.V) :
+    Nonempty (fish ≃cg vertexSum K3 u C4 w) :=
+  oneCliqueSum_iso _ _ (isVertexTransitive_complete 3) (isVertexTransitive_cycle 4) u w
+
+theorem diamond_iso_edgeSum {u₁ u₂ w₁ w₂ : K3.V} (hu : K3.Adj u₁ u₂) (hw : K3.Adj w₁ w₂) :
+    Nonempty (diamond ≃cg edgeSum K3 u₁ u₂ K3 w₁ w₂) :=
+  twoCliqueSum_iso _ _ (isArcTransitive_complete 3) (isArcTransitive_complete 3) hu hw
+
+theorem house_iso_edgeSum {u₁ u₂ : K3.V} {w₁ w₂ : C4.V} (hu : K3.Adj u₁ u₂) (hw : C4.Adj w₁ w₂) :
+    Nonempty (house ≃cg edgeSum K3 u₁ u₂ C4 w₁ w₂) :=
+  twoCliqueSum_iso _ _ (isArcTransitive_complete 3) (isArcTransitive_cycle 4) hu hw
+
+theorem domino_iso_edgeSum {u₁ u₂ w₁ w₂ : C4.V} (hu : C4.Adj u₁ u₂) (hw : C4.Adj w₁ w₂) :
+    Nonempty (domino ≃cg edgeSum C4 u₁ u₂ C4 w₁ w₂) :=
+  twoCliqueSum_iso _ _ (isArcTransitive_cycle 4) (isArcTransitive_cycle 4) hu hw
 
 /-! ## Completeness
 

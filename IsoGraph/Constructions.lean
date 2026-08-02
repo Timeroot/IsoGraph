@@ -3959,4 +3959,230 @@ theorem card_petersen : Fintype.card (kneser 5 2).V = 10 := by
 
 end Invariants
 
+/-! ## Transitivity of the constructions
+
+`CGraph.IsVertexTransitive` and `CGraph.IsArcTransitive` are decidable, but only by enumerating
+the `n!` permutations of the vertex type, which is hopeless past a handful of vertices.  The
+lemmas here settle whole families at once by exhibiting the automorphisms directly.
+
+Everything factors through `ofRel`: an automorphism of `ofRel V r` is a permutation of `V`
+preserving the *symmetrised* relation `r x y || r y x`, which is a weaker — and so easier to
+supply — obligation than preserving `r` itself.  That weakening is what lets the reflections of a
+cycle count as automorphisms even though they reverse the successor relation. -/
+
+section Transitivity
+
+variable (G : CGraph)
+
+/-- To see that `ofRel V r` is vertex-transitive it is enough to move `u` to `v` by a permutation
+preserving the symmetrisation of `r`. -/
+theorem isVertexTransitive_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool)
+    (h : ∀ u v : V, ∃ σ : Equiv.Perm V,
+      (∀ x y, (r (σ x) (σ y) || r (σ y) (σ x)) = (r x y || r y x)) ∧ σ u = v) :
+    (ofRel V r).IsVertexTransitive := by
+  intro u v
+  obtain ⟨σ, hσ, huv⟩ := h u v
+  refine ⟨autoOfPerm (G := ofRel V r) σ fun x y ↦ ?_, huv⟩
+  show (decide (σ x ≠ σ y) && (r (σ x) (σ y) || r (σ y) (σ x))) =
+    (decide (x ≠ y) && (r x y || r y x))
+  rw [hσ x y]
+  simp
+
+/-- To see that `ofRel V r` is arc-transitive it is enough to match up any two pairs of distinct,
+symmetrically-related points. -/
+theorem isArcTransitive_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool)
+    (h : ∀ u v u' v' : V, u ≠ v → u' ≠ v' → (r u v || r v u) → (r u' v' || r v' u') →
+      ∃ σ : Equiv.Perm V, (∀ x y, (r (σ x) (σ y) || r (σ y) (σ x)) = (r x y || r y x)) ∧
+        σ u = u' ∧ σ v = v') :
+    (ofRel V r).IsArcTransitive := by
+  intro u v u' v' huv hu'v'
+  simp only [ofRel_adj, Bool.and_eq_true, decide_eq_true_eq] at huv hu'v'
+  obtain ⟨σ, hσ, h₁, h₂⟩ := h u v u' v' huv.1 hu'v'.1 huv.2 hu'v'.2
+  refine ⟨autoOfPerm (G := ofRel V r) σ fun x y ↦ ?_, h₁, h₂⟩
+  show (decide (σ x ≠ σ y) && (r (σ x) (σ y) || r (σ y) (σ x))) =
+    (decide (x ≠ y) && (r x y || r y x))
+  rw [hσ x y]
+  simp
+
+/-- The complement has the same automorphisms, so it is vertex-transitive whenever `G` is. -/
+theorem isVertexTransitive_compl [DecidableEq G.V] (h : G.IsVertexTransitive) :
+    (compl G).IsVertexTransitive := by
+  intro u v
+  obtain ⟨σ, hσ⟩ := h u v
+  refine ⟨autoOfPerm (G := compl G) σ.toEquiv fun x y ↦ ?_, hσ⟩
+  show (decide (σ x ≠ σ y) && !G.Adj (σ x) (σ y)) = (decide (x ≠ y) && !G.Adj x y)
+  rw [σ.adj_eq]
+  simp [(RelIso.injective σ).eq_iff]
+
+/-- Any two ordered pairs of distinct points are matched by some permutation: swap `u` with `u'`,
+then swap the image of `v` with `v'`.  (On a *complete* graph every such permutation is an
+automorphism, which is why this gives arc-transitivity there.) -/
+theorem exists_perm_apply_apply {α : Type} [DecidableEq α] {u v u' v' : α} (h : u ≠ v)
+    (h' : u' ≠ v') : ∃ σ : Equiv.Perm α, σ u = u' ∧ σ v = v' := by
+  have key : Equiv.swap u u' v ≠ u' := by
+    intro e
+    exact h ((Equiv.swap u u').injective (by rw [e, Equiv.swap_apply_left])).symm
+  refine ⟨(Equiv.swap u u').trans (Equiv.swap (Equiv.swap u u' v) v'), ?_, ?_⟩
+  · simp only [Equiv.trans_apply, Equiv.swap_apply_left]
+    exact Equiv.swap_apply_of_ne_of_ne (Ne.symm key) h'
+  · simp
+
+theorem empty_eq_ofRel (n : ℕ) : empty n = ofRel (Fin n) fun _ _ ↦ false :=
+  eq_ofRel _ _ fun _ _ _ ↦ rfl
+
+theorem complete_eq_ofRel (n : ℕ) : complete n = ofRel (Fin n) fun _ _ ↦ true := by
+  rw [complete, compl_eq_ofRel]
+  rfl
+
+theorem isVertexTransitive_empty (n : ℕ) : (empty n).IsVertexTransitive := by
+  rw [empty_eq_ofRel]
+  exact isVertexTransitive_ofRel _ _ fun u v ↦ ⟨Equiv.swap u v, fun _ _ ↦ rfl, by simp⟩
+
+theorem isVertexTransitive_complete (n : ℕ) : (complete n).IsVertexTransitive := by
+  rw [complete_eq_ofRel]
+  exact isVertexTransitive_ofRel _ _ fun u v ↦ ⟨Equiv.swap u v, fun _ _ ↦ rfl, by simp⟩
+
+theorem isArcTransitive_complete (n : ℕ) : (complete n).IsArcTransitive := by
+  rw [complete_eq_ofRel]
+  refine isArcTransitive_ofRel _ _ fun u v u' v' huv hu'v' _ _ ↦ ?_
+  obtain ⟨σ, h₁, h₂⟩ := exists_perm_apply_apply huv hu'v'
+  exact ⟨σ, fun _ _ ↦ rfl, h₁, h₂⟩
+
+/-- Right translation is an automorphism of a Cayley graph. -/
+theorem isVertexTransitive_cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [AddGroup A]
+    (S : A → Bool) : (cayleyAdd A S).IsVertexTransitive :=
+  isVertexTransitive_ofRel A _ fun u v ↦
+    ⟨Equiv.addRight (-u + v), fun x y ↦ by simp [add_sub_add_right_eq_sub], by simp⟩
+
+/-! ### Cycles
+
+The successor relation `(i + 1) % n = j` defining `cycle n` is the group-theoretic successor on
+`Fin n`, so the rotations `x ↦ x + d` preserve it and the reflections `x ↦ c - x` reverse it —
+and reversing it is enough, since `ofRel` symmetrises.  Together they act transitively on arcs:
+rotations match up two arcs that run the same way round, reflections two that run oppositely. -/
+
+private theorem cycle_rel (n : ℕ) [NeZero n] (x y : Fin n) :
+    ((x.1 + 1) % n == y.1) = decide (x + 1 = y) := by
+  rw [show ((x + 1 : Fin n)) = ⟨(x.1 + 1) % n, Nat.mod_lt _ (Nat.pos_of_neZero n)⟩ from ?_]
+  · simp [Fin.ext_iff]
+    rfl
+  · apply Fin.ext
+    simp [Fin.add_def, Nat.add_mod_mod]
+
+private theorem cycle_trans_iff {n : ℕ} [NeZero n] (d x y : Fin n) :
+    (x + d + 1 = y + d) ↔ (x + 1 = y) := by
+  rw [add_right_comm, add_left_inj]
+
+private theorem cycle_refl_iff {n : ℕ} [NeZero n] (c a b : Fin n) :
+    (c - a + 1 = c - b) ↔ (b + 1 = a) := by
+  constructor
+  · intro h
+    have h2 : c - a = c - (b + 1) := by rw [sub_add_eq_sub_sub, ← h]; simp
+    exact (sub_right_injective h2).symm
+  · rintro rfl
+    rw [sub_add_eq_sub_sub, sub_add_cancel]
+
+theorem isVertexTransitive_cycle (n : ℕ) : (cycle n).IsVertexTransitive := by
+  match n with
+  | 0 => intro u _; exact (u : Fin 0).elim0
+  | (m + 1) =>
+    rw [cycle]
+    refine isVertexTransitive_ofRel _ _ fun u v ↦
+      ⟨Equiv.addRight (v - u), fun x y ↦ ?_, by simp⟩
+    simp only [Equiv.coe_addRight, cycle_rel, cycle_trans_iff]
+
+theorem isArcTransitive_cycle (n : ℕ) : (cycle n).IsArcTransitive := by
+  match n with
+  | 0 => intro u _ _ _ _ _; exact (u : Fin 0).elim0
+  | (m + 1) =>
+    rw [cycle]
+    refine isArcTransitive_ofRel _ _ fun u v u' v' _ _ h h' ↦ ?_
+    have htrans (d : Fin (m + 1)) (x y : Fin (m + 1)) :
+        ((((x + d).1 + 1) % (m + 1) == (y + d).1) || (((y + d).1 + 1) % (m + 1) == (x + d).1)) =
+          ((((x.1 + 1) % (m + 1)) == y.1) || (((y.1 + 1) % (m + 1)) == x.1)) := by
+      simp only [cycle_rel, cycle_trans_iff]
+    have hrefl (c : Fin (m + 1)) (x y : Fin (m + 1)) :
+        ((((c - x).1 + 1) % (m + 1) == (c - y).1) || (((c - y).1 + 1) % (m + 1) == (c - x).1)) =
+          ((((x.1 + 1) % (m + 1)) == y.1) || (((y.1 + 1) % (m + 1)) == x.1)) := by
+      simp only [cycle_rel, cycle_refl_iff, Bool.or_comm]
+    simp only [cycle_rel, Bool.or_eq_true, decide_eq_true_eq] at h h'
+    rcases h with h | h <;> rcases h' with h' | h'
+    · refine ⟨Equiv.addRight (u' - u), fun x y ↦ by
+        simpa only [Equiv.coe_addRight] using htrans (u' - u) x y, by simp, ?_⟩
+      simp only [Equiv.coe_addRight, ← h]
+      rw [add_right_comm, add_comm u (u' - u), sub_add_cancel]
+      exact h'
+    · refine ⟨Equiv.subLeft (u' + u), fun x y ↦ by
+        simpa only [Equiv.subLeft_apply] using hrefl (u' + u) x y, ?_, ?_⟩
+      · rw [Equiv.subLeft_apply, add_sub_cancel_right]
+      · rw [Equiv.subLeft_apply, ← h, sub_add_eq_sub_sub, add_sub_cancel_right, ← h',
+          add_sub_cancel_right]
+    · refine ⟨Equiv.subLeft (u' + u), fun x y ↦ by
+        simpa only [Equiv.subLeft_apply] using hrefl (u' + u) x y, ?_, ?_⟩
+      · rw [Equiv.subLeft_apply, add_sub_cancel_right]
+      · rw [Equiv.subLeft_apply, ← h, add_comm v 1, ← add_assoc, add_sub_cancel_right, h']
+    · refine ⟨Equiv.addRight (u' - u), fun x y ↦ by
+        simpa only [Equiv.coe_addRight] using htrans (u' - u) x y, by simp, ?_⟩
+      subst h
+      subst h'
+      rw [Equiv.coe_addRight, add_sub_add_right_eq_sub]
+      simp
+
+/-! ### Hypercubes
+
+Adding a fixed bit-string is an automorphism of both the hypercube and the folded cube: it does
+not change *which* coordinates two strings differ in. -/
+
+private theorem xorPerm_involutive (n : ℕ) (d : Fin n → Bool) :
+    Function.Involutive (fun x : Fin n → Bool ↦ fun i ↦ x i ^^ d i) := fun x ↦ by
+  funext i
+  simp [Bool.xor_assoc]
+
+private theorem filter_xor_eq (n : ℕ) (d x y : Fin n → Bool) :
+    (Finset.univ.filter fun i ↦ (x i ^^ d i) ≠ (y i ^^ d i)) =
+      (Finset.univ.filter fun i ↦ x i ≠ y i) :=
+  Finset.filter_congr fun i _ ↦ by
+    simp only [ne_eq]
+    constructor
+    · intro h he; exact h (by rw [he])
+    · intro h he; exact h (Bool.xor_left_inj.1 he)
+
+theorem isVertexTransitive_hypercube (n : ℕ) : (hypercube n).IsVertexTransitive := by
+  rw [hypercube_eq_ofRel]
+  refine isVertexTransitive_ofRel _ _ fun u v ↦
+    ⟨(xorPerm_involutive n fun i ↦ u i ^^ v i).toPerm _, fun x y ↦ ?_, ?_⟩
+  · show ((Finset.univ.filter fun i ↦ (x i ^^ _) ≠ (y i ^^ _)).card == 1 ||
+      (Finset.univ.filter fun i ↦ (y i ^^ _) ≠ (x i ^^ _)).card == 1) = _
+    rw [filter_xor_eq, filter_xor_eq]
+  · funext i
+    show (u i ^^ (u i ^^ v i)) = v i
+    simp [← Bool.xor_assoc]
+
+theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransitive := by
+  intro u v
+  refine ⟨autoOfPerm (G := foldedCube n)
+    ((xorPerm_involutive n fun i ↦ u i ^^ v i).toPerm _) fun x y ↦ ?_, ?_⟩
+  · show (decide ((fun i ↦ x i ^^ _) ≠ (fun i ↦ y i ^^ _)) &&
+      (((Finset.univ.filter fun i ↦ (x i ^^ _) ≠ (y i ^^ _)).card == 1) ||
+        ((Finset.univ.filter fun i ↦ (x i ^^ _) ≠ (y i ^^ _)).card == n))) = _
+    rw [filter_xor_eq]
+    congr 1
+    exact decide_eq_decide.2 ((xorPerm_involutive n fun i ↦ u i ^^ v i).toPerm _).injective.ne_iff
+  · funext i
+    show (u i ^^ (u i ^^ v i)) = v i
+    simp [← Bool.xor_assoc]
+
+/-! ### Sanity checks
+
+The decision procedure agrees with the structural lemmas on small cases, and does see asymmetry
+where there is some. -/
+
+example : (cycle 4).IsVertexTransitive := by decide
+example : (cycle 4).IsArcTransitive := by decide
+example : (complete 3).IsArcTransitive := by decide
+example : ¬(path 4).IsVertexTransitive := by decide
+example : ¬(star 3).IsVertexTransitive := by decide
+
+end Transitivity
+
 end CGraph
