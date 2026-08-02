@@ -1,9 +1,9 @@
-import IsoGraph.Equivariance
+import IsoGraph.Canon.Equivariance
 
 /-!
 # The search tree, and what the search is looking for
 
-`IsoGraph.Equivariance` proves that the *ingredients* of the search — refinement,
+`IsoGraph.Canon.Equivariance` proves that the *ingredients* of the search — refinement,
 individualisation, the certificate — are equivariant, and that every leaf the search records is
 an honest one.  This file is about the search *tree*:
 
@@ -17,7 +17,7 @@ an honest one.  This file is about the search *tree*:
 
 The bridge from the algorithm to the specification — that the search's winner really is the
 largest key, i.e. that none of the three pruning rules ever discards it — is `dfsNode_dom` of
-`IsoGraph/Optimal.lean`; the two are joined in `IsoGraph/Correct.lean`.
+`IsoGraph/Canon/Optimal.lean`; the two are joined in `IsoGraph/Canon/Correct.lean`.
 -/
 
 set_option autoImplicit false

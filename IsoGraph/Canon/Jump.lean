@@ -1,4 +1,4 @@
-import IsoGraph.Pinned
+import IsoGraph.Canon.Pinned
 
 /-!
 # Backjumping is sound

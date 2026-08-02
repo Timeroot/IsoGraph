@@ -1,4 +1,4 @@
-import IsoGraph.Jump
+import IsoGraph.Canon.Jump
 
 /-!
 # The leaves and generators a state holds

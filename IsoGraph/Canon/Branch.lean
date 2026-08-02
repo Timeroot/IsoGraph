@@ -1,4 +1,4 @@
-import IsoGraph.Dominate
+import IsoGraph.Canon.Dominate
 
 /-!
 # The running invariants of the optimality induction

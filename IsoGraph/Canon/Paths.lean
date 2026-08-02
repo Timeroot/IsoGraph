@@ -1,4 +1,4 @@
-import IsoGraph.Monotone
+import IsoGraph.Canon.Monotone
 
 /-!
 # Where the search records its leaves

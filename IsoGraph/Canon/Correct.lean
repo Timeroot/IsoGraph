@@ -1,18 +1,18 @@
-import IsoGraph.Optimal
+import IsoGraph.Canon.Optimal
 
 /-!
 # The search meets its specification
 
 The two halves of the correctness proof meet here.
 
-* `dfsNode_reach` (soundness, `IsoGraph/Search.lean`) says the leaf the search settles on really
+* `dfsNode_reach` (soundness, `IsoGraph/Canon/Search.lean`) says the leaf the search settles on really
   is a leaf of the whole tree.
-* `dfsNode_dom` (optimality, `IsoGraph/Optimal.lean`) says every leaf of the whole tree is
+* `dfsNode_dom` (optimality, `IsoGraph/Canon/Optimal.lean`) says every leaf of the whole tree is
   dominated by it.
 
 Instantiating the second at the root gives `canonSt_dom`, and together they give
 `canonSt_bestKey` — the search's answer satisfies `BestKey`, the specification stated back in
-`IsoGraph/Search.lean`.  Since `BestKey` is manifestly an isomorphism invariant
+`IsoGraph/Canon/Search.lean`.  Since `BestKey` is manifestly an isomorphism invariant
 (`bestKey_transfer`) and determines its key uniquely (`bestKey_unique`), the certificate the
 search returns does not depend on how the vertices were named: `canonical_cert_relabel`.
 

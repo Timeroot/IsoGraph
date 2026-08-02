@@ -1,5 +1,5 @@
-import IsoGraph.Branch
-import IsoGraph.Orbits
+import IsoGraph.Canon.Branch
+import IsoGraph.Canon.Orbits
 
 /-!
 # The search misses nothing

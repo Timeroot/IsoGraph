@@ -1,4 +1,4 @@
-import IsoGraph.Canonical
+import IsoGraph.Canon.Algorithm
 import Mathlib.Data.Finset.Card
 import Mathlib.Algebra.BigOperators.Intervals
 import Mathlib.Tactic.Push
@@ -7,14 +7,14 @@ import Mathlib.Tactic.Linarith
 /-!
 # Towards invariance: equivariance of the pieces
 
-`IsoGraph/Spec.lean` states the one deep obligation of the development,
+`IsoGraph/Canon/Spec.lean` states the one deep obligation of the development,
 
 ```lean
 canonAdj n (relabel σ adj) = canonAdj n adj
 ```
 
 and its docstring records the six-step decomposition it needs.  This file starts turning that
-prose into Lean.  It works at the level of `IsoGraph.Canonical`, i.e. with raw `Array Nat`s and
+prose into Lean.  It works at the level of `IsoGraph.Canon.Algorithm`, i.e. with raw `Array Nat`s and
 permutations of `{0, …, n-1}` represented as `Nat → Nat`, since that is where the algorithm
 lives; the translation to `Equiv.Perm (Fin n)` happens back in `Spec.lean`.
 
@@ -908,7 +908,7 @@ theorem cellNbrCount_equiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ : IsPe
 
 `countFrom` is phase (1) of `refineStep`: it walks the splitter cell `lab[s:e]` and, for every
 vertex `w`, accumulates in `cnt[w]` the number of cell members adjacent to `w`.  Written as a
-`for` loop this would be out of reach — see the note on `cenHashFrom` — so `Canonical.lean` gives
+`for` loop this would be out of reach — see the note on `cenHashFrom` — so `Algorithm.lean` gives
 it as a structural recursion on fuel, and the three lemmas below read the result off.
 
 The bridge to `cellCount` is `List.count`: the inner loop bumps `cnt[w]` once per occurrence of
@@ -966,7 +966,7 @@ theorem bumpFrom_getElem! (nbrs : Array Nat) : ∀ (fuel j : Nat) (cnt touched :
         omega
 
 /-- Unfolding lemma for the outer loop.  The definition destructures the inner loop's result
-rather than projecting it (that is what keeps `cnt` unshared, see `Canonical.lean`), and
+rather than projecting it (that is what keeps `cnt` unshared, see `Algorithm.lean`), and
 definitional eta for structures makes the two forms interchangeable. -/
 theorem countFrom_succ (G : Graph) (lab : Array Nat) (e fuel k : Nat) (cnt touched : Array Nat) :
     countFrom G lab e (fuel + 1) k cnt touched =

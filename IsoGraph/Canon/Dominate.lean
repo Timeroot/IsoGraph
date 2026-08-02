@@ -1,4 +1,4 @@
-import IsoGraph.Leaves
+import IsoGraph.Canon.Leaves
 
 /-!
 # Domination bookkeeping for the optimality proof

@@ -1,4 +1,4 @@
-import IsoGraph.Enumerate
+import IsoGraph.Enum.All
 
 /-!
 # Enumerating connected graphs up to isomorphism

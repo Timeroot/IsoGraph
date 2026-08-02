@@ -1,4 +1,4 @@
-import IsoGraph.Progress
+import IsoGraph.Canon.Progress
 
 /-!
 # The incumbent never gets worse

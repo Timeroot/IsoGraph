@@ -1,13 +1,13 @@
 import Mathlib.Data.Fintype.EquivFin
 import Mathlib.Logic.Equiv.Defs
-import IsoGraph.Canonical
-import IsoGraph.Equivariance
-import IsoGraph.Correct
+import IsoGraph.Canon.Algorithm
+import IsoGraph.Canon.Equivariance
+import IsoGraph.Canon.Correct
 
 /-!
 # From the canonical labelling algorithm to permutations, and its specification
 
-`IsoGraph.Canonical` computes with raw `Array Nat`s.  This file wraps that up as an honest
+`IsoGraph.Canon.Algorithm` computes with raw `Array Nat`s.  This file wraps that up as an honest
 `Equiv.Perm (Fin n)` and states exactly what remains to be proved about it.
 
 ## The wrapper
@@ -31,7 +31,7 @@ both are proved.
 * **Invariance** — `canonAdj n (relabel σ adj) = canonAdj n adj`.  This is `canonAdj_relabel`,
   the deep half: it is what licenses `Quotient.lift`ing anything defined through the canonical
   form.  It is reduced below to `LabellingInvariant`, a statement about raw arrays, which is
-  discharged in `IsoGraph/Correct.lean` from the soundness and optimality of the search.
+  discharged in `IsoGraph/Canon/Correct.lean` from the soundness and optimality of the search.
 -/
 
 namespace IsoGraph.Canon
@@ -245,11 +245,11 @@ algorithm, `LabellingIsPerm` and `LabellingInvariant`.  That reduction is the po
 section: it discharges the whole `Fin`/`Equiv.Perm` wrapper — the `permOfArrays` run-time check,
 the `invArray` inverse, the translation between `Equiv.Perm (Fin n)` and a renaming of
 `{0, …, n-1}` — so that what is left to prove mentions nothing but `Array Nat` and
-`canonicalLabellingOfOracle`.  See `IsoGraph/Equivariance.lean` for the groundwork on that side.
+`canonicalLabellingOfOracle`.  See `IsoGraph/Canon/Equivariance.lean` for the groundwork on that side.
 
 Of the two, `LabellingIsPerm` is cheap: `canonicalLabellingOfOracle` verifies it at run time in
 `O(n)`.  `LabellingInvariant` is where all the work is; it follows from `canonical_cert_relabel`
-of `IsoGraph/Correct.lean`. -/
+of `IsoGraph/Canon/Correct.lean`. -/
 
 /-- The labelling the search returns for the oracle `f` on `m` vertices: canonical position `i`
 holds the vertex `labelling m f`. -/
@@ -585,7 +585,7 @@ Everything else in the development — that `IsoGraph` may be `Quotient.lift`ed 
 canonical form, and hence that graph invariants computed from it are well defined — reduces to
 this.  It in turn reduces, by `canonAdj_relabel_of`, to `LabellingIsPerm` — proved, by a run-time
 check — and `LabellingInvariant`, which is the deep one and decomposes as follows.  Steps 2, 3 and
-4 are done, in `IsoGraph/Equivariance.lean`, as are the first two of step 1's phases; 5 and 6 are
+4 are done, in `IsoGraph/Canon/Equivariance.lean`, as are the first two of step 1's phases; 5 and 6 are
 not.
 
 Fix `σ` and write `q ≈ p` for "the ordered partitions `q` and `p` have

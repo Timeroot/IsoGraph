@@ -1,4 +1,4 @@
-import IsoGraph.Paths
+import IsoGraph.Canon.Paths
 
 /-!
 # Individualised vertices stay where they were put

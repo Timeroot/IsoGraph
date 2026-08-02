@@ -8,31 +8,36 @@ canonical representative that is actually computable at useful sizes.
 
 ## Layout
 
+Two engines, each in its own directory — `IsoGraph/Canon/` is the canonical labelling algorithm
+and its correctness proof, `IsoGraph/Enum/` is the enumerator built on top of it — and the graph
+theory proper at the root of `IsoGraph/`. `IsoGraph/Canon.lean` and `IsoGraph/Enum.lean` are
+index modules that import their directory.
+
 | file | what it is | Mathlib? |
 | --- | --- | --- |
-| `IsoGraph/Canonical.lean` | the canonical labelling algorithm — a mini-nauty | no |
-| `IsoGraph/Equivariance.lean` | how the pieces of the algorithm respond to renaming vertices | yes |
-| `IsoGraph/Search.lean` | the search tree, and the specification `BestKey` it must meet | yes |
-| `IsoGraph/Autos.lean` | the harvested permutations are automorphisms, and how they act on the tree | yes |
-| `IsoGraph/Node.lean` | `Node` — the ghost invariant tying `path`, `invPath` and `p` together | yes |
-| `IsoGraph/Orbits.lean` | the orbit-closure bitmap propagates a predicate along the generators | yes |
-| `IsoGraph/Progress.lean` | refinement splits cells, so the fuel suffices and a leaf comes back | yes |
-| `IsoGraph/Monotone.lean` | the incumbent never gets worse | yes |
-| `IsoGraph/Paths.lean` | the leaves a node records lie below it | yes |
-| `IsoGraph/Pinned.lean` | individualised vertices never move again | yes |
-| `IsoGraph/Jump.lean` | backjumping is sound: the abandoned subtree has the keys already recorded | yes |
-| `IsoGraph/Leaves.lean` | `StGood` — every leaf and generator a state holds is genuine | yes |
-| `IsoGraph/Dominate.lean` | domination bookkeeping: `stopDepth`, moving a subtree along an automorphism | yes |
-| `IsoGraph/Branch.lean` | the backjump invariants `Jmp` / `JmpC` of the optimality induction | yes |
-| `IsoGraph/Optimal.lean` | `dfsNode_dom` — no pruning rule ever discards the best leaf | yes |
-| `IsoGraph/Correct.lean` | soundness and optimality meet: the search satisfies `BestKey` | yes |
-| `IsoGraph/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; proves `canonAdj_relabel` | yes |
+| `IsoGraph/Canon/Algorithm.lean` | the canonical labelling algorithm — a mini-nauty | no |
+| `IsoGraph/Canon/Equivariance.lean` | how the pieces of the algorithm respond to renaming vertices | yes |
+| `IsoGraph/Canon/Search.lean` | the search tree, and the specification `BestKey` it must meet | yes |
+| `IsoGraph/Canon/Autos.lean` | the harvested permutations are automorphisms, and how they act on the tree | yes |
+| `IsoGraph/Canon/Node.lean` | `Node` — the ghost invariant tying `path`, `invPath` and `p` together | yes |
+| `IsoGraph/Canon/Orbits.lean` | the orbit-closure bitmap propagates a predicate along the generators | yes |
+| `IsoGraph/Canon/Progress.lean` | refinement splits cells, so the fuel suffices and a leaf comes back | yes |
+| `IsoGraph/Canon/Monotone.lean` | the incumbent never gets worse | yes |
+| `IsoGraph/Canon/Paths.lean` | the leaves a node records lie below it | yes |
+| `IsoGraph/Canon/Pinned.lean` | individualised vertices never move again | yes |
+| `IsoGraph/Canon/Jump.lean` | backjumping is sound: the abandoned subtree has the keys already recorded | yes |
+| `IsoGraph/Canon/Leaves.lean` | `StGood` — every leaf and generator a state holds is genuine | yes |
+| `IsoGraph/Canon/Dominate.lean` | domination bookkeeping: `stopDepth`, moving a subtree along an automorphism | yes |
+| `IsoGraph/Canon/Branch.lean` | the backjump invariants `Jmp` / `JmpC` of the optimality induction | yes |
+| `IsoGraph/Canon/Optimal.lean` | `dfsNode_dom` — no pruning rule ever discards the best leaf | yes |
+| `IsoGraph/Canon/Correct.lean` | soundness and optimality meet: the search satisfies `BestKey` | yes |
+| `IsoGraph/Canon/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; proves `canonAdj_relabel` | yes |
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
-| `IsoGraph/Enumerate.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
-| `IsoGraph/EnumerateConn.lean` | the same for *connected* graphs | yes |
+| `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
+| `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
 | `IsoGraph/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
@@ -41,7 +46,7 @@ canonical representative that is actually computable at useful sizes.
 Toolchain is `leanprover/lean4:v4.28.0` with Mathlib pinned at `v4.28.0` — the rev the prover
 service's base image ships, so the project can be submitted to it without a Mathlib rebuild.
 
-`Canonical.lean` deliberately imports nothing: it is plain functional Lean over `Array`, so it
+`Algorithm.lean` deliberately imports nothing: it is plain functional Lean over `Array`, so it
 compiles in seconds and its equation lemmas are available for the eventual correctness proof.
 Nothing in it is `partial` — every loop is structural on an explicit fuel argument.
 
@@ -185,8 +190,8 @@ structure would remove the boilerplate but stop the type being a bare `Fintype`-
 
 ## Enumeration
 
-The first real application. `Enumerate.lean` produces, for each `n`, a list holding **exactly one**
-graph from every isomorphism class on `n` vertices; `EnumerateConn.lean` does the same for the
+The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
+graph from every isomorphism class on `n` vertices; `Enum/Conn.lean` does the same for the
 connected ones.
 
 ```lean

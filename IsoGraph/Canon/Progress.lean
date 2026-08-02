@@ -1,4 +1,4 @@
-import IsoGraph.Node
+import IsoGraph.Canon.Node
 
 /-!
 # Refinement splits cells, so the search terminates with a leaf in hand

@@ -1,4 +1,4 @@
-import IsoGraph.Node
+import IsoGraph.Canon.Node
 
 /-!
 # Orbit closure

@@ -1,4 +1,4 @@
-import IsoGraph.Autos
+import IsoGraph.Canon.Autos
 
 /-!
 # Nodes of the search tree

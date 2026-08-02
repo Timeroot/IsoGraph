@@ -1,4 +1,4 @@
-import IsoGraph.Search
+import IsoGraph.Canon.Search
 
 /-!
 # Harvested automorphisms, and how they act on the search tree
@@ -16,7 +16,7 @@ This file proves the two facts that pruning rests on:
 
 The bridge between the two is `ofOracle_congr`: an automorphism `γ` of `G` satisfies
 `Graph.ofOracle n (f ∘ γ) = Graph.ofOracle n f`, which turns every equivariance lemma of
-`IsoGraph.Equivariance` into a statement about the action of `Aut G` on the tree.
+`IsoGraph.Canon.Equivariance` into a statement about the action of `Aut G` on the tree.
 -/
 
 set_option autoImplicit false

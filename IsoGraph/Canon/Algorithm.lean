@@ -72,7 +72,7 @@ structure Graph where
 
 Written with `Array.ofFn`/`Array.filter` rather than as an imperative fill: the arrays are the
 same, but every entry is then definitionally the oracle, which is what makes the lemmas in
-`IsoGraph/Equivariance.lean` about this function short.  `vs` is shared across the rows so the
+`IsoGraph/Canon/Equivariance.lean` about this function short.  `vs` is shared across the rows so the
 `nbr` pass allocates only the neighbour lists themselves. -/
 def Graph.ofOracle (n : Nat) (f : Nat → Nat → Bool) : Graph :=
   let vs := Array.range n
@@ -135,7 +135,7 @@ def Part.unit (n : Nat) : Part :=
 /-! Both readers of a partition below walk it cell by cell: from a cell start `i`, `cen[i]!` is
 the start of the next cell, so the walk `i ↦ cen[i]!` visits every cell once and reaches `n`.
 They are written as structural recursions on an explicit fuel rather than as `for` loops with a
-`break`, because that is the form induction works on — see `IsoGraph/Equivariance.lean`, where
+`break`, because that is the form induction works on — see `IsoGraph/Canon/Equivariance.lean`, where
 everything about them is proved.  `n` is always enough fuel: there are at most `n` cells. -/
 
 /-- Fold the cell sizes from cell start `i` into the hash `h`. -/
@@ -545,7 +545,7 @@ def certOf (G : Graph) (lab : Array Nat) : Array UInt64 :=
 
 /-- Lexicographic comparison of `a` and `b` from index `i` on, with `fuel` bounding the number of
 positions still to look at.  Written as a structural recursion rather than a `for` loop so that
-the order lemmas in `IsoGraph.Search` can be proved by induction on `fuel`. -/
+the order lemmas in `IsoGraph.Canon.Search` can be proved by induction on `fuel`. -/
 def lexCmpFrom (a b : Array UInt64) : Nat → Nat → Ordering
   | 0, _ => compare a.size b.size
   | fuel + 1, i =>
@@ -564,7 +564,7 @@ def lexCmpU64 (a b : Array UInt64) : Ordering := lexCmpFrom a b (min a.size b.si
 `γ = τ ∘ σ⁻¹`, which is an automorphism of the graph.
 
 Written as a `foldl` over `List.range n` rather than as a `for` loop so that
-`IsoGraph.Autos.autoOf_get` can read off each entry; the work is the same. -/
+`IsoGraph.Canon.Autos.autoOf_get` can read off each entry; the work is the same. -/
 def autoOf (n : Nat) (σ τ : Array Nat) : Array Nat :=
   (List.range n).foldl (init := Array.replicate n 0) fun g i => g.set! σ[i]! τ[i]!
 
@@ -575,7 +575,7 @@ def moves (g : Array Nat) : Bool := Id.run do
   return false
 
 /-- One step of orbit closure: mark the images of `v` under all generators.  A `foldl` rather
-than a `for` loop so that `IsoGraph.Orbits` can induct on the generator list. -/
+than a `for` loop so that `IsoGraph.Canon.Orbits` can induct on the generator list. -/
 def closureStep (gens : Array (Array Nat)) (mark : Array Bool) (stack : Array Nat)
     (v : Nat) : Array Bool × Array Nat :=
   gens.foldl (init := (mark, stack)) fun ms g =>
@@ -601,7 +601,7 @@ def orbitClosure (n : Nat) (gens : Array (Array Nat)) (seed : Array Nat) : Array
 
 /-- Scan for the first disagreement at or after `i`, stopping at `m`.  A structural recursion on
 fuel rather than a `for` loop with a `break`, for the same reason as the partition walks above:
-`IsoGraph.Jump` needs to induct on it. -/
+`IsoGraph.Canon.Jump` needs to induct on it. -/
 def commonPrefixFrom (a b : Array Nat) (m : Nat) : Nat → Nat → Nat
   | 0, i => i
   | fuel + 1, i =>

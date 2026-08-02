@@ -1,4 +1,4 @@
-import IsoGraph.Canonical
+import IsoGraph.Canon.Algorithm
 import Std.Data.HashSet
 
 /-!

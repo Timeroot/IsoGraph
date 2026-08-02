@@ -1,4 +1,4 @@
-import IsoGraph.EnumerateConn
+import IsoGraph.Enum.Conn
 
 /-!
 Benchmark driver for the graph enumerators.

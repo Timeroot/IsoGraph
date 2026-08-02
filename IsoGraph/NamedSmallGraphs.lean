@@ -1,4 +1,4 @@
-import IsoGraph.EnumerateConn
+import IsoGraph.Enum.Conn
 
 /-!
 # Named small graphs
@@ -18,7 +18,7 @@ and `decide` see through it; anything compound is a `def`.
 
 The point of the file is the completeness statement at the end: for each `n ≤ 6`,
 `enumerateConnIso n` — the list of *all* connected isomorphism classes on `n` vertices, as produced
-and verified in `IsoGraph/EnumerateConn.lean` — is exactly the list of names given here.  So the
+and verified in `IsoGraph/Enum/Conn.lean` — is exactly the list of names given here.  So the
 names are known to cover every graph, and (because the enumeration has no repeats) to be pairwise
 non-isomorphic.  `connOfCard_complete` and `connOfCard_pairwise` package that up.
 -/
@@ -528,7 +528,7 @@ def coP3K3 : CGraph := compl (disjUnion P3 K3)
 /-! ## Completeness
 
 For each `n ≤ 6` the list of names above is *exactly* `enumerateConnIso n`, the enumeration of all
-connected isomorphism classes on `n` vertices verified in `IsoGraph/EnumerateConn.lean`.  Both
+connected isomorphism classes on `n` vertices verified in `IsoGraph/Enum/Conn.lean`.  Both
 sides are compared as lists of `IsoGraph`s, i.e. by canonical labelling, in the canonical-code
 order of the enumerator.  The checks are `native_decide` throughout: the canonical labelling is
 defined by well-founded recursion and lifted through a `Quotient`, so the kernel does not reduce

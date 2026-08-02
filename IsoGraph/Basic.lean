@@ -4,7 +4,7 @@ import Mathlib.Data.Fintype.EquivFin
 import Mathlib.Data.Finset.Sort
 import Mathlib.Data.List.NodupEquivFin
 import Mathlib.Logic.Equiv.Fin.Basic
-import IsoGraph.Spec
+import IsoGraph.Canon.Spec
 
 /-!
 # Graphs up to isomorphism
@@ -14,7 +14,7 @@ isomorphisms, and the quotient `IsoGraph` of graphs up to isomorphism.
 
 Everything that has to be lifted through the quotient — in particular the canonical
 representative `IsoGraph.toCGraph` — is reduced here to the single fact
-`IsoGraph.Canon.canonAdj_relabel` of `IsoGraph.Spec`, namely that the canonical labelling
+`IsoGraph.Canon.canonAdj_relabel` of `IsoGraph.Canon.Spec`, namely that the canonical labelling
 algorithm is invariant under renaming vertices.  That fact is proved, so this file, and the
 quotient it builds, is unconditional.
 -/
@@ -147,7 +147,7 @@ def IsoGraph.V (G : IsoGraph) : ℕ :=
 
 /-! ## The canonical labelling
 
-The algorithm of `IsoGraph.Canonical` works on `{0, …, n-1}`, so running it on a `CGraph` needs a
+The algorithm of `IsoGraph.Canon.Algorithm` works on `{0, …, n-1}`, so running it on a `CGraph` needs a
 listing of the vertices.  A `Fintype` instance is exactly that: underneath, it is a `Multiset`,
 i.e. a `List` up to permutation.  So the canonical form is computed from a `List G.V` and then
 lifted through `Quot`; the side condition of the lift is that a different listing of the same
