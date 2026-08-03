@@ -906,6 +906,10 @@ theorem bipartite_two_two : bipartite 2 2 = cycle 4 := by
       (Fin 2 ⊕ Fin 2) ≃ Fin 4)
     (by decide)⟩
 
+/-- The complement of the square is a perfect matching. -/
+@[simp] theorem compl_cycle_four : compl (cycle 4) = disjUnion (complete 2) (complete 2) := by
+  rw [← bipartite_two_two, compl_bipartite]
+
 @[simp] theorem wheel_zero : wheel 0 = empty 1 := by
   rw [wheel_eq_join, cycle_zero, join_empty_zero, complete_one]
 
@@ -1501,6 +1505,20 @@ theorem rook_two_two : rook 2 2 = cycle 4 := by
     (⟨fun p ↦ if p.1 = 0 then (if p.2 = 0 then 0 else 1) else (if p.2 = 0 then 3 else 2),
       ![(0, 0), (0, 1), (1, 1), (1, 0)], by decide, by decide⟩ : (Fin 2 × Fin 2) ≃ Fin 4)
     (by decide)⟩
+
+/-- The complement of the rook's graph is the tensor product of the two complete graphs — the
+`CGraph`-level `CGraph.compl_rook`, transported to the quotient. -/
+theorem compl_rook (m n : ℕ) :
+    compl (rook m n) = tensorProduct (complete m) (complete n) := by
+  have hrook : (rook m n : IsoGraph) = ⟦CGraph.rook m n⟧ := by
+    rw [show (rook m n : IsoGraph) = cartesianProduct (complete m) (complete n) from rfl,
+      complete_def, complete_def, cartesianProduct_mk]
+  rw [hrook, compl_mk, CGraph.compl_rook, complete_def, complete_def, tensorProduct_mk]
+
+/-- `K₂ × K₂` is a perfect matching: the tensor product keeps only the two "diagonal" moves. -/
+theorem tensorProduct_complete_two_two :
+    tensorProduct (complete 2) (complete 2) = disjUnion (complete 2) (complete 2) := by
+  rw [← compl_rook, rook_two_two, compl_cycle_four]
 
 @[simp] theorem rook_zero_left (n : ℕ) : rook 0 n = empty 0 := by
   show cartesianProduct (complete 0) (complete n) = empty 0

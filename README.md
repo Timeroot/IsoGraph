@@ -229,8 +229,10 @@ kneser n 1 = complete n      kneser n n = empty 1          johnson n 1 = complet
 hypercube (n + 1) = cartesianProduct (hypercube n) (complete 2)
 hypercube 3 = prism 4        foldedCube 3 = bipartite 4 4  paley 5 = cycle 5
 rook m 0 = empty 0           rook 2 2 = cycle 4            bipartite 2 2 = cycle 4
+compl (cycle 4) = disjUnion (complete 2) (complete 2)
 strongProduct (complete m) (complete n) = complete (m * n)
 tensorProduct G (empty n) = empty (G.V * n)
+compl (rook m n) = tensorProduct (complete m) (complete n)
 completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds)
 completeMultipartite [a, b] = bipartite a b               cocktailParty 2 = cycle 4
 completeMultipartite (List.replicate n 1) = complete n    triangular 4 = cocktailParty 3
@@ -304,6 +306,12 @@ proves, by `native_decide` on the canonical keys. The version in `Identities.lea
 kernel-checkable: `T(4)` is `compl (kneser 4 2)`, `kneser 4 2` is three disjoint edges (a six-point
 `decide` on an explicit `Equiv.ofBijective`), and three uses of the cons rule turn
 `compl (cocktailParty 3)` into the same disjoint union.
+
+`compl (rook m n) = tensorProduct (complete m) (complete n)` also holds at the level of `CGraph`:
+both sides are on `Fin m × Fin n`, so `CGraph.ext'` plus a four-way case split on whether the two
+squares agree in each coordinate is the whole proof. Two squares are non-adjacent in the rook's
+graph exactly when they agree in neither coordinate, which is the tensor product. Specialising to
+`m = n = 2` gives `K₂ × K₂ = 2K₂` out of `rook_two_two` and `compl_cycle_four`.
 
 `circulant n [1] = cycle n` is the one identity that holds already at the level of `CGraph` —
 both sides are `ofRel` on `Fin n`, so it is an equality of graphs, not of isomorphism classes, and

@@ -1154,6 +1154,16 @@ theorem E_compl [DecidableEq G.V] :
 @[simp] theorem complete_adj (n : ℕ) (i j : Fin n) : (complete n).Adj i j = decide (i ≠ j) := by
   simp [complete, compl]
 
+/-- **The complement of the rook's graph is the tensor product of complete graphs**: two squares
+of the board are non-adjacent in `Kₘ □ Kₙ` exactly when they agree in neither coordinate.  Both
+sides are literally on `Fin m × Fin n`, so this is an equality of `CGraph`s. -/
+theorem compl_rook (m n : ℕ) :
+    compl (rook m n) = tensorProduct (complete m) (complete n) := by
+  refine CGraph.ext' rfl (heq_of_eq (funext fun p ↦ funext fun q ↦ ?_))
+  rw [compl_adj, cartesianProduct_adj, tensorProduct_adj, complete_adj, complete_adj]
+  have hpq : (p = q) ↔ (p.1 = q.1 ∧ p.2 = q.2) := Prod.ext_iff
+  by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;> simp [h1, h2, hpq]
+
 @[simp] theorem complete_toSimple (n : ℕ) : (complete n).toSimple = ⊤ := by
   simp [complete]
 
