@@ -237,6 +237,8 @@ completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds)
 completeMultipartite [a, b] = bipartite a b               cocktailParty 2 = cycle 4
 completeMultipartite (List.replicate n 1) = complete n    triangular 4 = cocktailParty 3
 circulant n [] = empty n     circulant n [1] = cycle n
+cartesianProduct G (disjUnion H K) = disjUnion (cartesianProduct G H) (cartesianProduct G K)
+lexProduct (disjUnion G H) K = disjUnion (lexProduct G K) (lexProduct H K)
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -270,6 +272,15 @@ is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation 
 Boolean tautology: rewrite with the `*_adj` equations and `decide_prod_eq`
 (`decide (p = q) = (decide (p.1 = q.1) && decide (p.2 = q.2))`) until every equality test is
 between vertices of a single factor, `generalize` the six atoms, and `decide`.
+
+Distributivity over `disjUnion` is structural in the same way, but the equivalence is
+`Equiv.prodSumDistrib` (`Equiv.sumProdDistrib` for the lexicographic product, which distributes in
+its first factor only — `K₂[K₁ + K₁]` is `K₄`, not `K₂ + K₂`). Here the four `rintro` cases are the
+four ways of pairing `inl`/`inr`, and each needs an explicit `show` before `simp`: the equivalence
+is applied to a pair whose second component is only definitionally a `Sum`. The same reducibility
+gap is why `Sum.inl.injEq` does not fire on `(disjUnion G H).V`, so the file states it again as
+`CGraph.disjUnion_inl_eq_inl` with the `Eq` pinned to that type. All six quotient-level lemmas are
+`@[simp]`, pushing `disjUnion` outwards.
 
 A recurring nuisance in all of this: a type like `(CGraph.complete 2).V` is definitionally `Fin 2`
 but not *reducibly* so, and numerals, `simp` lemmas and instances all match at reducible

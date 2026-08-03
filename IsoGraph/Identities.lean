@@ -76,6 +76,19 @@ theorem decide_prod_eq {α β : Type} [DecidableEq α] [DecidableEq β] (p q : �
     decide (p = q) = (decide (p.1 = q.1) && decide (p.2 = q.2)) :=
   (decide_eq_decide.2 Prod.ext_iff).trans (Bool.decide_and _ _)
 
+/-- Injectivity of `Sum.inl`, stated at the vertex type of a `disjUnion` rather than at a bare
+`⊕`.  The two are definitionally equal but not *reducibly* so, and `simp` matches up to reducible
+unfolding only — so `Sum.inl.injEq` does not fire on a goal about `(disjUnion G H).V`.  The
+distributivity proofs below need exactly this. -/
+theorem disjUnion_inl_eq_inl (G H : CGraph) (a b : G.V) :
+    (@Eq (disjUnion G H).V (Sum.inl a) (Sum.inl b)) = (a = b) :=
+  propext ⟨fun h ↦ Sum.inl_injective h, fun h ↦ h ▸ rfl⟩
+
+/-- Injectivity of `Sum.inr` at the vertex type of a `disjUnion`; see `disjUnion_inl_eq_inl`. -/
+theorem disjUnion_inr_eq_inr (G H : CGraph) (a b : H.V) :
+    (@Eq (disjUnion G H).V (Sum.inr a) (Sum.inr b)) = (a = b) :=
+  propext ⟨fun h ↦ Sum.inr_injective h, fun h ↦ h ▸ rfl⟩
+
 /-- Peel the first fibre off a dependent sigma type indexed by `Fin (n + 1)`.  Mathlib has no
 such equivalence, and it is what lets `sigmaUnion` over `Fin (n + 1)` be recognised as a
 disjoint union. -/
@@ -296,6 +309,103 @@ def strongProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Dec
       generalize decide (x.2 = y.2) = c
       revert p q r a b c
       decide
+
+/-! ### Distributivity over disjoint unions
+
+All four products distribute over a disjoint union — the cartesian, tensor and strong products in
+either factor (they are commutative), the lexicographic product only in its first.  On vertices
+this is `Equiv.prodSumDistrib` (resp. `Equiv.sumProdDistrib`); the four `rintro` cases then reduce
+to the four ways of pairing `inl`/`inr`.  Each case needs an explicit `show` first: the equivalence
+is applied to a pair whose second component is *definitionally* but not reducibly a `Sum`, so
+`simp` cannot see through it on its own. -/
+
+/-- The cartesian product distributes over disjoint unions. -/
+def cartesianProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [DecidableEq K.V] :
+    CGraph.cartesianProduct G (_root_.CGraph.disjUnion H K) ≃cg
+      _root_.CGraph.disjUnion (CGraph.cartesianProduct G H) (CGraph.cartesianProduct G K) :=
+  isoOfAdj (G := CGraph.cartesianProduct G (_root_.CGraph.disjUnion H K))
+    (H := _root_.CGraph.disjUnion (CGraph.cartesianProduct G H) (CGraph.cartesianProduct G K))
+    (Equiv.prodSumDistrib G.V H.V K.V) (by
+      rintro ⟨a, (b | b)⟩ ⟨c, (d | d)⟩
+      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
+          (CGraph.cartesianProduct G K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+        simp [disjUnion_inl_eq_inl]
+      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
+          (CGraph.cartesianProduct G K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
+          (CGraph.cartesianProduct G K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
+          (CGraph.cartesianProduct G K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+        simp [disjUnion_inr_eq_inr])
+
+/-- The tensor product distributes over disjoint unions. -/
+def tensorProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [DecidableEq K.V] :
+    CGraph.tensorProduct G (_root_.CGraph.disjUnion H K) ≃cg
+      _root_.CGraph.disjUnion (CGraph.tensorProduct G H) (CGraph.tensorProduct G K) :=
+  isoOfAdj (G := CGraph.tensorProduct G (_root_.CGraph.disjUnion H K))
+    (H := _root_.CGraph.disjUnion (CGraph.tensorProduct G H) (CGraph.tensorProduct G K))
+    (Equiv.prodSumDistrib G.V H.V K.V) (by
+      rintro ⟨a, (b | b)⟩ ⟨c, (d | d)⟩
+      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
+          (CGraph.tensorProduct G K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
+          (CGraph.tensorProduct G K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
+          (CGraph.tensorProduct G K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
+          (CGraph.tensorProduct G K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+        simp)
+
+/-- The strong product distributes over disjoint unions. -/
+def strongProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [DecidableEq K.V] :
+    CGraph.strongProduct G (_root_.CGraph.disjUnion H K) ≃cg
+      _root_.CGraph.disjUnion (CGraph.strongProduct G H) (CGraph.strongProduct G K) :=
+  isoOfAdj (G := CGraph.strongProduct G (_root_.CGraph.disjUnion H K))
+    (H := _root_.CGraph.disjUnion (CGraph.strongProduct G H) (CGraph.strongProduct G K))
+    (Equiv.prodSumDistrib G.V H.V K.V) (by
+      rintro ⟨a, (b | b)⟩ ⟨c, (d | d)⟩
+      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
+          (CGraph.strongProduct G K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+        simp [disjUnion_inl_eq_inl, Prod.ext_iff]
+      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
+          (CGraph.strongProduct G K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
+          (CGraph.strongProduct G K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
+          (CGraph.strongProduct G K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+        simp [disjUnion_inr_eq_inr, Prod.ext_iff])
+
+/-- The lexicographic product distributes over disjoint unions in its *first* factor.  It does not
+distribute in the second: `K₂[K₁ + K₁]` is `K₄`, not `K₂[K₁] + K₂[K₁] = K₂ + K₂`. -/
+def lexProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [DecidableEq K.V] :
+    CGraph.lexProduct (_root_.CGraph.disjUnion G H) K ≃cg
+      _root_.CGraph.disjUnion (CGraph.lexProduct G K) (CGraph.lexProduct H K) :=
+  isoOfAdj (G := CGraph.lexProduct (_root_.CGraph.disjUnion G H) K)
+    (H := _root_.CGraph.disjUnion (CGraph.lexProduct G K) (CGraph.lexProduct H K))
+    (Equiv.sumProdDistrib G.V H.V K.V) (by
+      rintro ⟨(a | a), b⟩ ⟨(c | c), d⟩
+      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
+          (CGraph.lexProduct H K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+        simp [disjUnion_inl_eq_inl]
+      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
+          (CGraph.lexProduct H K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
+          (CGraph.lexProduct H K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+        simp
+      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
+          (CGraph.lexProduct H K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+        simp [disjUnion_inr_eq_inr])
 
 /-! ### Line graphs and Mycielskians
 
@@ -1482,6 +1592,77 @@ theorem lexProduct_assoc (G H K : IsoGraph) :
         rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
           lexProduct_mk, lexProduct_mk, lexProduct_mk, lexProduct_mk]
         exact Quotient.sound ⟨CGraph.Iso.lexProductAssoc _ _ _⟩
+
+/-! ### Distributivity over disjoint unions
+
+Every product distributes over `disjUnion`: on the left and the right for the three commutative
+products, and on the left only for the lexicographic one.  These are good `simp` lemmas — they push
+`disjUnion` outwards, so a product of unions normalises to a union of products. -/
+
+@[simp] theorem cartesianProduct_disjUnion (G H K : IsoGraph) :
+    cartesianProduct G (disjUnion H K)
+      = disjUnion (cartesianProduct G H) (cartesianProduct G K) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      induction K using Quotient.inductionOn with
+      | h k =>
+        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
+          disjUnion_mk, cartesianProduct_mk, cartesianProduct_mk, cartesianProduct_mk,
+          disjUnion_mk]
+        exact Quotient.sound ⟨CGraph.Iso.cartesianProductDisjUnion _ _ _⟩
+
+@[simp] theorem disjUnion_cartesianProduct (G H K : IsoGraph) :
+    cartesianProduct (disjUnion G H) K
+      = disjUnion (cartesianProduct G K) (cartesianProduct H K) := by
+  rw [cartesianProduct_comm, cartesianProduct_disjUnion, cartesianProduct_comm,
+    cartesianProduct_comm K H]
+
+@[simp] theorem tensorProduct_disjUnion (G H K : IsoGraph) :
+    tensorProduct G (disjUnion H K) = disjUnion (tensorProduct G H) (tensorProduct G K) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      induction K using Quotient.inductionOn with
+      | h k =>
+        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
+          disjUnion_mk, tensorProduct_mk, tensorProduct_mk, tensorProduct_mk, disjUnion_mk]
+        exact Quotient.sound ⟨CGraph.Iso.tensorProductDisjUnion _ _ _⟩
+
+@[simp] theorem disjUnion_tensorProduct (G H K : IsoGraph) :
+    tensorProduct (disjUnion G H) K = disjUnion (tensorProduct G K) (tensorProduct H K) := by
+  rw [tensorProduct_comm, tensorProduct_disjUnion, tensorProduct_comm, tensorProduct_comm K H]
+
+@[simp] theorem strongProduct_disjUnion (G H K : IsoGraph) :
+    strongProduct G (disjUnion H K) = disjUnion (strongProduct G H) (strongProduct G K) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      induction K using Quotient.inductionOn with
+      | h k =>
+        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
+          disjUnion_mk, strongProduct_mk, strongProduct_mk, strongProduct_mk, disjUnion_mk]
+        exact Quotient.sound ⟨CGraph.Iso.strongProductDisjUnion _ _ _⟩
+
+@[simp] theorem disjUnion_strongProduct (G H K : IsoGraph) :
+    strongProduct (disjUnion G H) K = disjUnion (strongProduct G K) (strongProduct H K) := by
+  rw [strongProduct_comm, strongProduct_disjUnion, strongProduct_comm, strongProduct_comm K H]
+
+/-- The lexicographic product distributes over `disjUnion` in its first factor only. -/
+@[simp] theorem disjUnion_lexProduct (G H K : IsoGraph) :
+    lexProduct (disjUnion G H) K = disjUnion (lexProduct G K) (lexProduct H K) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      induction K using Quotient.inductionOn with
+      | h k =>
+        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
+          disjUnion_mk, lexProduct_mk, lexProduct_mk, lexProduct_mk, disjUnion_mk]
+        exact Quotient.sound ⟨CGraph.Iso.lexProductDisjUnion _ _ _⟩
 
 /-! ### Rooks and ladders -/
 
