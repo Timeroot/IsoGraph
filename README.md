@@ -285,6 +285,9 @@ doubleStar m 0 = star (m + 1)                             doubleStar 0 n = star 
 thetaGraph [] = empty 2                                   thetaGraph (List.replicate (j + 1) 0) = complete 2
 thetaGraph [a, b] = cycle (2 + a + b)                     thetaGraph [a, b] = thetaGraph [b, a]
 doubleStar m n = doubleStar n m                           cyclePendant m [1] = tadpole m 1
+spider (0 :: ks) = spider ks                              thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks)
+lollipop 2 k = tadpole 2 k                                lollipop 3 k = tadpole 3 k
+tadpole 2 k = path (2 + k)                                lollipop 2 k = path (2 + k)
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -372,6 +375,20 @@ built the cheap way — a plain `ℕ → ℕ` function with a bound lemma and a 
 `unfold …; split_ifs <;> omega`, and `Fin.ext` to assemble the `Equiv` — which avoids the long
 `show` blocks that `foldAt` and `rotTail` needed. `cyclePendant m [1] = tadpole m 1`, by contrast,
 is on the nose: a single pendant vertex *is* a leg of length one.
+
+A few identities are on the nose for a softer reason: the two edge lists are different lists that
+meet the same *unordered* pairs. `ofEdges` symmetrises, so `ofEdges_congr` — same symmetrised
+membership, same graph — closes all of them, and `ofEdges_append_congr` specialises it to the
+shape the decorated families actually have, a cycle or clique part followed by the legs. That is
+all `lollipop 2 k = tadpole 2 k` and `lollipop 3 k = tadpole 3 k` need, since `K₂ = C₂` and
+`K₃ = C₃` as edge lists up to orientation: `simp only [mem_cliqueEdges, mem_cycleEdges]; omega`.
+Numerals are the catch — `mem_cycleEdges_succ` is stated for `cycleEdges (k + 1)` and does not fire
+on `cycleEdges 2`, so `mem_cycleEdges` restates membership for an arbitrary length. `simp` normal
+form then continues past the tadpole: `tadpole 2 k = path (2 + k)`, one more `swapZeroOne`, so that
+the tail leaves from the far end of the single edge. In the same vein a spider drops its empty legs
+(`spider (0 :: ks) = spider ks`) and a theta graph drops a duplicated direct pole-to-pole edge
+(`thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks)`) — for the latter the two edge lists differ by
+one repeated `(0, 1)`, which `tauto` handles once `thetaEdges` is unfolded one step.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a

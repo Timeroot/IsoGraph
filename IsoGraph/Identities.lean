@@ -1153,6 +1153,14 @@ theorem cycleEdges_succ (k : ℕ) :
     · exact Or.inl ⟨a, ha, rfl, rfl⟩
     · exact Or.inr ⟨rfl, rfl⟩
 
+/-- Membership in `cycleEdges` without splitting the length into a successor.  This is the form to
+use when the length is a numeral, where `mem_cycleEdges_succ` does not fire. -/
+theorem mem_cycleEdges (m a b : ℕ) :
+    ((a, b) ∈ cycleEdges m) ↔ ((b = a + 1 ∧ a + 1 < m) ∨ (a + 1 = m ∧ b = 0)) := by
+  cases m with
+  | zero => simp only [cycleEdges_zero, List.not_mem_nil, false_iff]; omega
+  | succ k => rw [mem_cycleEdges_succ]; omega
+
 @[simp] theorem cliqueEdges_zero : cliqueEdges 0 = [] := rfl
 @[simp] theorem cliqueEdges_one : cliqueEdges 1 = [] := rfl
 
@@ -1198,6 +1206,39 @@ clique or a path. -/
 theorem ofEdges_nil (n : ℕ) : ofEdges n [] = empty n := by
   rw [empty_eq_ofRel]
   rfl
+
+/-- Two edge lists that meet the same unordered pairs describe the same graph.  `ofEdges` ignores
+the orientation of each pair, so only the symmetrised membership matters. -/
+theorem ofEdges_congr (n : ℕ) (es fs : List (ℕ × ℕ))
+    (h : ∀ p q : ℕ, ((p, q) ∈ es ∨ (q, p) ∈ es) ↔ ((p, q) ∈ fs ∨ (q, p) ∈ fs)) :
+    ofEdges n es = ofEdges n fs := by
+  refine eq_ofRel (ofEdges n es) (fun i j ↦ fs.contains (i.1, j.1)) ?_
+  intro x y hxy
+  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+    List.contains_eq_mem]
+  rw [Bool.eq_iff_iff]
+  simp only [Bool.or_eq_true, decide_eq_true_eq]
+  exact h x.1 y.1
+
+/-- Replacing a prefix of the edge list by an equivalent one does not change the graph.  This is
+the shape the decorated families come in: a cycle or clique part, followed by the legs. -/
+theorem ofEdges_append_congr (n : ℕ) (es fs gs : List (ℕ × ℕ))
+    (h : ∀ p q : ℕ, ((p, q) ∈ es ∨ (q, p) ∈ es) ↔ ((p, q) ∈ fs ∨ (q, p) ∈ fs)) :
+    ofEdges n (es ++ gs) = ofEdges n (fs ++ gs) := by
+  refine ofEdges_congr _ _ _ fun p q ↦ ?_
+  simp only [List.mem_append]
+  obtain ⟨h1, h2⟩ := h p q
+  constructor
+  · rintro ((he | hg) | (he | hg))
+    · exact (h1 (Or.inl he)).imp Or.inl Or.inl
+    · exact Or.inl (Or.inr hg)
+    · exact (h1 (Or.inr he)).imp Or.inl Or.inl
+    · exact Or.inr (Or.inr hg)
+  · rintro ((he | hg) | (he | hg))
+    · exact (h2 (Or.inl he)).imp Or.inl Or.inl
+    · exact Or.inl (Or.inr hg)
+    · exact (h2 (Or.inr he)).imp Or.inl Or.inl
+    · exact Or.inr (Or.inr hg)
 
 theorem ofEdges_cycleEdges (m : ℕ) : ofEdges m (cycleEdges m) = cycle m := by
   refine eq_ofRel (ofEdges m (cycleEdges m)) (fun i j ↦ (i.1 + 1) % m == j.1) ?_
@@ -1271,6 +1312,26 @@ theorem ofEdges_legEdges_zero (k : ℕ) : ofEdges k (legEdges 0 0 k) = path k :=
 @[simp] theorem lollipop_one (k : ℕ) : lollipop 1 k = path (1 + k) := by
   rw [lollipop, cliqueEdges_one, List.nil_append, ofEdges_legEdges_one]
 
+/-- `K₂` and `C₂` have the same edges, so a lollipop on two vertices is a tadpole. -/
+theorem lollipop_two (k : ℕ) : lollipop 2 k = tadpole 2 k := by
+  rw [lollipop, tadpole]
+  refine ofEdges_append_congr _ _ _ _ fun p q ↦ ?_
+  simp only [mem_cliqueEdges, mem_cycleEdges]
+  omega
+
+/-- `K₃` and `C₃` have the same edges, so a lollipop on three vertices is a tadpole. -/
+theorem lollipop_three (k : ℕ) : lollipop 3 k = tadpole 3 k := by
+  rw [lollipop, tadpole]
+  refine ofEdges_append_congr _ _ _ _ fun p q ↦ ?_
+  simp only [mem_cliqueEdges, mem_cycleEdges]
+  omega
+
+/-- A spider with an empty leg is the spider without it. -/
+theorem spider_zero_cons (ks : List ℕ) : spider (0 :: ks) = spider ks := by
+  rw [spider, spider, List.sum_cons, Nat.zero_add,
+    show spiderEdges 1 (0 :: ks) = spiderEdges 1 ks from by
+      rw [spiderEdges, legEdges_zero, List.nil_append, Nat.add_zero]]
+
 /-- A spider with a single leg is a path. -/
 @[simp] theorem spider_singleton (k : ℕ) : spider [k] = path (1 + k) := by
   rw [spider, show spiderEdges 1 [k] = legEdges 0 1 k from by simp [spiderEdges],
@@ -1303,6 +1364,16 @@ theorem pendantEdges_replicate_zero : ∀ (v off j : ℕ), pendantEdges v off (L
 
 @[simp] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
   cyclePendant_replicate_zero m 0
+
+/-- Two paths of length one between the poles of a theta graph are the same single edge, so one of
+them can be dropped. -/
+theorem thetaGraph_zero_zero_cons (ks : List ℕ) :
+    thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks) := by
+  rw [thetaGraph, thetaGraph]
+  simp only [List.sum_cons, Nat.zero_add]
+  refine ofEdges_congr _ _ _ fun p q ↦ ?_
+  simp only [thetaEdges, List.mem_cons]
+  tauto
 
 /-! ## Relabellings for the `ofEdges` families
 
@@ -2846,8 +2917,19 @@ move the identity across the quotient. -/
 @[simp] theorem lollipop_one (k : ℕ) : lollipop 1 k = path (1 + k) := by
   rw [lollipop_def, path_def, CGraph.lollipop_one]
 
+/-- On two or three vertices a clique is a cycle, so the lollipop and the tadpole coincide.  Which
+side is the normal form is a matter of taste, so neither of these is a `simp` lemma. -/
+theorem lollipop_two_eq_tadpole (k : ℕ) : lollipop 2 k = tadpole 2 k := by
+  rw [lollipop_def, tadpole_def, CGraph.lollipop_two]
+
+theorem lollipop_three_eq_tadpole (k : ℕ) : lollipop 3 k = tadpole 3 k := by
+  rw [lollipop_def, tadpole_def, CGraph.lollipop_three]
+
 @[simp] theorem spider_singleton (k : ℕ) : spider [k] = path (1 + k) := by
   rw [spider_def, path_def, CGraph.spider_singleton]
+
+@[simp] theorem spider_zero_cons (ks : List ℕ) : spider (0 :: ks) = spider ks := by
+  rw [spider_def, spider_def, CGraph.spider_zero_cons]
 
 @[simp] theorem spider_replicate_zero (j : ℕ) : spider (List.replicate j 0) = empty 1 := by
   rw [spider_def, empty_def, CGraph.spider_replicate_zero]
@@ -2860,6 +2942,10 @@ move the identity across the quotient. -/
 
 @[simp] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
   cyclePendant_replicate_zero m 0
+
+@[simp] theorem thetaGraph_zero_zero_cons (ks : List ℕ) :
+    thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks) := by
+  rw [thetaGraph_def, thetaGraph_def, CGraph.thetaGraph_zero_zero_cons]
 
 /-! ## Decorated cycles and trees, up to isomorphism
 
@@ -3119,6 +3205,29 @@ theorem doubleStar_comm (m n : ℕ) : doubleStar m n = doubleStar n m := by
 /-- Swapping the two paths of a two-path theta graph. -/
 theorem thetaGraph_pair_comm (a b : ℕ) : thetaGraph [a, b] = thetaGraph [b, a] := by
   rw [thetaGraph_pair, thetaGraph_pair, show 2 + b + a = 2 + a + b from by omega]
+
+/-- A tadpole whose cycle is `C₂` — a single edge — is a path.  The relabelling swaps the two
+vertices of the cycle, so that the tail leaves from the far end. -/
+@[simp] theorem tadpole_two (k : ℕ) : tadpole 2 k = path (2 + k) := by
+  rw [tadpole_def, path_def]
+  set E : (CGraph.tadpole 2 k).V ≃ (CGraph.path (2 + k)).V :=
+    CGraph.swapZeroOne (2 + k) (by omega) with hE
+  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  intro x y
+  have hx : x.1 < 2 + k := x.isLt
+  have hy : y.1 < 2 + k := y.isLt
+  have hval : ∀ p : (CGraph.tadpole 2 k).V,
+      (E p).1 = if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1 := fun _ ↦ rfl
+  rw [Bool.eq_iff_iff, CGraph.path_adj_val, hval x, hval y]
+  simp only [CGraph.tadpole]
+  rw [CGraph.ofEdges_adj_val]
+  simp only [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges]
+  split_ifs <;>
+    (try simp only [false_or, and_true, or_false, or_true, or_self]) <;> omega
+
+/-- A lollipop whose clique is `K₂` is a path. -/
+@[simp] theorem lollipop_two (k : ℕ) : lollipop 2 k = path (2 + k) := by
+  rw [lollipop_two_eq_tadpole, tadpole_two]
 
 /-! ## Products
 
@@ -4392,5 +4501,10 @@ example : thetaGraph [0, 1] = complete 3 := by rw [thetaGraph_pair, show 2 + 0 +
   cycle_three]
 example (m : ℕ) : cyclePendant m [1] = tadpole m 1 := by simp
 example : doubleStar 2 3 = doubleStar 3 2 := by rw [doubleStar_comm]
+example : spider [0, 2, 0, 3] = spider [2, 0, 3] := by simp
+example : tadpole 2 4 = path 6 := by simp
+example : lollipop 2 4 = path 6 := by simp
+example (k : ℕ) : lollipop 3 k = tadpole 3 k := by rw [lollipop_three_eq_tadpole]
+example (ks : List ℕ) : thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks) := by simp
 
 end IsoGraph
