@@ -76,6 +76,19 @@ theorem decide_prod_eq {α β : Type} [DecidableEq α] [DecidableEq β] (p q : �
     decide (p = q) = (decide (p.1 = q.1) && decide (p.2 = q.2)) :=
   (decide_eq_decide.2 Prod.ext_iff).trans (Bool.decide_and _ _)
 
+/-- Peel the first fibre off a dependent sigma type indexed by `Fin (n + 1)`.  Mathlib has no
+such equivalence, and it is what lets `sigmaUnion` over `Fin (n + 1)` be recognised as a
+disjoint union. -/
+def sigmaFinSuccEquiv {n : ℕ} (α : Fin (n + 1) → Type) :
+    (Σ i, α i) ≃ α 0 ⊕ Σ i : Fin n, α i.succ where
+  toFun p := Fin.cases (motive := fun i ↦ α i → (α 0 ⊕ Σ i : Fin n, α i.succ))
+    Sum.inl (fun j x ↦ Sum.inr ⟨j, x⟩) p.1 p.2
+  invFun := Sum.elim (fun x ↦ ⟨0, x⟩) (fun p ↦ ⟨p.1.succ, p.2⟩)
+  left_inv := by
+    rintro ⟨i, x⟩
+    induction i using Fin.cases <;> rfl
+  right_inv := by rintro (x | ⟨j, x⟩) <;> rfl
+
 namespace Iso
 
 variable {G G' H H' : CGraph}
@@ -325,6 +338,33 @@ def lineGraph [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
           rwa [hba] at hb
         · rintro ⟨v, hv1, hv2⟩
           exact ⟨i v, Sym2.mem_map.2 ⟨v, hv1, rfl⟩, Sym2.mem_map.2 ⟨v, hv2, rfl⟩⟩
+
+/-! ### Disjoint unions of families -/
+
+/-- A `sigmaUnion` over `Fin (n + 1)` is the disjoint union of its first fibre with the
+`sigmaUnion` of the rest. -/
+def sigmaUnionSucc {n : ℕ} (F : Fin (n + 1) → CGraph) [∀ i, DecidableEq (F i).V] :
+    sigmaUnion F ≃cg _root_.CGraph.disjUnion (F 0) (sigmaUnion fun i : Fin n ↦ F i.succ) :=
+  isoOfAdj (G := sigmaUnion F)
+    (H := _root_.CGraph.disjUnion (F 0) (sigmaUnion fun i : Fin n ↦ F i.succ))
+    (sigmaFinSuccEquiv fun i ↦ (F i).V) (by
+      rintro ⟨i, a⟩ ⟨j, b⟩
+      induction i using Fin.cases with
+      | zero =>
+        induction j using Fin.cases with
+        | zero => exact (sigmaUnion_adj_mk F 0 a b).symm
+        | succ j => exact (sigmaUnion_adj_ne F _ _ a b (Fin.succ_ne_zero j).symm).symm
+      | succ i =>
+        induction j using Fin.cases with
+        | zero => exact (sigmaUnion_adj_ne F _ _ a b (Fin.succ_ne_zero i)).symm
+        | succ j =>
+          by_cases h : i = j
+          · subst h
+            show (sigmaUnion fun i : Fin n ↦ F i.succ).Adj ⟨i, a⟩ ⟨i, b⟩ = _
+            rw [sigmaUnion_adj_mk, sigmaUnion_adj_mk]
+          · show (sigmaUnion fun i : Fin n ↦ F i.succ).Adj ⟨i, a⟩ ⟨j, b⟩ = _
+            rw [sigmaUnion_adj_ne _ _ _ _ _ h,
+              sigmaUnion_adj_ne F _ _ a b (fun hh ↦ h (Fin.succ_injective n hh))])
 
 end Iso
 
@@ -881,7 +921,12 @@ theorem wheel_three : wheel 3 = complete 4 := by
 /-! ## Complete multipartite graphs
 
 A single part is an independent set, and `cocktailParty 1` is that case; two singleton parts and
-one part of size `n` is the book `B_n`, whose first two members are complete. -/
+one part of size `n` is the book `B_n`, whose first two members are complete.
+
+The workhorse is `completeMultipartite_cons`: peeling the first part off turns the dependent
+`Σ i : Fin ds.length, _` vertex type into a `Sum`, so the whole family becomes reachable by
+`join`-level rewriting.  Everything after it — the append rule, `[a, b] = bipartite a b`,
+`cocktailParty 2 = cycle 4`, the vertex count — is a consequence. -/
 
 @[simp] theorem completeMultipartite_nil : completeMultipartite [] = empty 0 := by
   rw [completeMultipartite_def,
@@ -916,6 +961,67 @@ theorem book_one : book 1 = complete 3 := by
   rw [completeMultipartite_def,
     mk_eq_complete (G := CGraph.completeMultipartite [1, 1, 1]) (by decide)]
   simp
+
+/-- Peeling off the first part: the rest of the multipartite graph, joined to an independent
+set of the first part's size. -/
+theorem completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
+    completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds) := by
+  have h : (⟦CGraph.sigmaUnion fun i : Fin (d :: ds).length ↦ CGraph.complete ((d :: ds).get i)⟧ :
+      IsoGraph)
+      = disjUnion ⟦CGraph.complete d⟧
+        ⟦CGraph.sigmaUnion fun i : Fin ds.length ↦ CGraph.complete (ds.get i)⟧ := by
+    rw [disjUnion_mk]
+    exact Quotient.sound
+      ⟨CGraph.Iso.sigmaUnionSucc fun i : Fin (d :: ds).length ↦ CGraph.complete ((d :: ds).get i)⟩
+  show (⟦CGraph.compl (CGraph.sigmaUnion
+      fun i : Fin (d :: ds).length ↦ CGraph.complete ((d :: ds).get i))⟧ : IsoGraph) = _
+  rw [← compl_mk, h, compl_disjUnion, ← complete_def, compl_complete, compl_mk]
+  rfl
+
+@[simp] theorem completeMultipartite_zero_cons (ds : List ℕ) :
+    completeMultipartite (0 :: ds) = completeMultipartite ds := by
+  rw [completeMultipartite_cons, empty_zero_join]
+
+theorem completeMultipartite_append (ds es : List ℕ) :
+    completeMultipartite (ds ++ es)
+      = join (completeMultipartite ds) (completeMultipartite es) := by
+  induction ds with
+  | nil => rw [List.nil_append, completeMultipartite_nil, empty_zero_join]
+  | cons d ds ih =>
+    rw [List.cons_append, completeMultipartite_cons, ih, completeMultipartite_cons, join_assoc]
+
+theorem compl_completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
+    compl (completeMultipartite (d :: ds))
+      = disjUnion (complete d) (compl (completeMultipartite ds)) := by
+  rw [completeMultipartite_cons, compl_join, compl_empty]
+
+theorem completeMultipartite_pair (a b : ℕ) : completeMultipartite [a, b] = bipartite a b := by
+  rw [completeMultipartite_cons, completeMultipartite_singleton, bipartite_eq_join]
+
+theorem star_eq_completeMultipartite (n : ℕ) : star n = completeMultipartite [1, n] := by
+  rw [completeMultipartite_pair, star_eq_bipartite]
+
+theorem completeMultipartite_replicate_one (n : ℕ) :
+    completeMultipartite (List.replicate n 1) = complete n := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    rw [List.replicate_succ, completeMultipartite_cons, ih, ← complete_one, join_complete,
+      Nat.add_comm]
+
+@[simp] theorem V_completeMultipartite (ds : List ℕ) : (completeMultipartite ds).V = ds.sum := by
+  induction ds with
+  | nil => simp
+  | cons d ds ih => rw [completeMultipartite_cons, V_join, V_empty, ih, List.sum_cons]
+
+@[simp] theorem cocktailParty_two : cocktailParty 2 = cycle 4 := by
+  show completeMultipartite [2, 2] = cycle 4
+  rw [completeMultipartite_pair, bipartite_two_two]
+
+theorem book_eq_join (n : ℕ) : book n = join (complete 2) (empty n) := by
+  show completeMultipartite [1, 1, n] = _
+  rw [completeMultipartite_cons, completeMultipartite_pair, bipartite_eq_join, ← join_assoc,
+    ← bipartite_eq_join, bipartite_one_one]
 
 /-! ## Paley graphs -/
 
@@ -1014,6 +1120,34 @@ theorem triangular_three : triangular 3 = complete 3 := by
   show johnson 3 2 = complete 3
   rw [johnson_def, mk_eq_complete (G := CGraph.johnson 3 2) (by decide)]
   simp
+
+/-- The three ways to split `{0, 1, 2, 3}` into two pairs. -/
+private def kneserFourTwoMap : Fin 2 ⊕ Fin 2 ⊕ Fin 2 → (CGraph.kneser 4 2).V
+  | .inl 0 => ⟨{0, 1}, by decide⟩
+  | .inl 1 => ⟨{2, 3}, by decide⟩
+  | .inr (.inl 0) => ⟨{0, 2}, by decide⟩
+  | .inr (.inl 1) => ⟨{1, 3}, by decide⟩
+  | .inr (.inr 0) => ⟨{0, 3}, by decide⟩
+  | .inr (.inr 1) => ⟨{1, 2}, by decide⟩
+
+theorem kneser_four_two :
+    kneser 4 2 = disjUnion (complete 2) (disjUnion (complete 2) (complete 2)) := by
+  rw [kneser_def, complete_def, disjUnion_mk, disjUnion_mk]
+  symm
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.disjUnion (CGraph.complete 2)
+      (CGraph.disjUnion (CGraph.complete 2) (CGraph.complete 2)))
+    (H := CGraph.kneser 4 2)
+    (Equiv.ofBijective kneserFourTwoMap (by decide)) (by decide)⟩
+
+theorem triangular_four : triangular 4 = cocktailParty 3 := by
+  have h : compl (cocktailParty 3)
+      = disjUnion (complete 2) (disjUnion (complete 2) (complete 2)) := by
+    show compl (completeMultipartite [2, 2, 2]) = _
+    rw [compl_completeMultipartite_cons, compl_completeMultipartite_cons,
+      compl_completeMultipartite_cons, completeMultipartite_nil, compl_empty, complete_zero,
+      disjUnion_empty_zero]
+  rw [triangular_eq_compl_kneser, kneser_four_two, ← h, compl_compl]
 
 /-! ## Hypercubes -/
 
@@ -1516,6 +1650,10 @@ theorem lineGraph_complete_eq_triangular (n : ℕ) : lineGraph (complete n) = tr
 theorem lineGraph_complete_three : lineGraph (complete 3) = complete 3 := by
   rw [lineGraph_complete_eq_triangular, triangular_three]
 
+/-- `L(K₄) = T(4)` is the octahedron. -/
+theorem lineGraph_complete_four : lineGraph (complete 4) = cocktailParty 3 := by
+  rw [lineGraph_complete_eq_triangular, triangular_four]
+
 /-- `L(C₃) = C₃`, the triangle being its own line graph. -/
 theorem lineGraph_cycle_three : lineGraph (cycle 3) = cycle 3 := by
   rw [cycle_three, lineGraph_complete_three]
@@ -1527,6 +1665,55 @@ theorem lineGraph_cycle_three : lineGraph (cycle 3) = cycle 3 := by
     rintro (_ | (a | a)) (_ | (b | b)) <;> first | rfl | exact isEmptyElim a | exact isEmptyElim b
   rw [empty_def, mycielskian_mk, mk_eq_empty h]
   simp
+
+/-- Relabelling for `mycielskian_empty`: the apex becomes the centre of the star, the shadow
+vertices become its leaves, and the original vertices are the isolated part. -/
+private def mycielskianEmptyEquiv (n : ℕ) :
+    (Fin 1 ⊕ Fin n) ⊕ Fin n ≃ Option (Fin n ⊕ Fin n) where
+  toFun x := match x with
+    | .inl (.inl _) => none
+    | .inl (.inr i) => some (.inr i)
+    | .inr i => some (.inl i)
+  invFun x := match x with
+    | none => .inl (.inl 0)
+    | some (.inr i) => .inl (.inr i)
+    | some (.inl i) => .inr i
+  left_inv := by
+    rintro ((j | i) | i)
+    · rw [Subsingleton.elim (0 : Fin 1) j]
+    · rfl
+    · rfl
+  right_inv := by rintro (_ | (i | i)) <;> rfl
+
+/-- The Mycielskian of an edgeless graph: the apex together with the `n` shadow vertices forms a
+star, and the `n` original vertices stay isolated. -/
+theorem mycielskian_empty (n : ℕ) :
+    mycielskian (empty n) = disjUnion (star n) (empty n) := by
+  rw [empty_def, mycielskian_mk, star_def, disjUnion_mk]
+  refine Quotient.sound ⟨(CGraph.isoOfAdj
+    (G := CGraph.disjUnion (CGraph.star n) (CGraph.empty n))
+    (H := CGraph.mycielskian (CGraph.empty n))
+    (mycielskianEmptyEquiv n)
+    (by
+      rintro ((j | i) | i) ((k | i') | i')
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj none none = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj none (some (.inr i')) = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj none (some (.inl i')) = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inr i)) none = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inr i)) (some (.inr i')) = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inr i)) (some (.inl i')) = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inl i)) none = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inl i)) (some (.inr i')) = _
+        simp [CGraph.star]
+      · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inl i)) (some (.inl i')) = _
+        simp [CGraph.star])).symm⟩
 
 /-- **The Mycielskian of `K₂` is the 5-cycle**: two vertices, their two shadows and the apex,
 strung together as `u₀ — u₁ — w₀ — z — w₁ — u₀`. -/

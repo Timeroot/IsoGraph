@@ -231,6 +231,9 @@ hypercube 3 = prism 4        foldedCube 3 = bipartite 4 4  paley 5 = cycle 5
 rook m 0 = empty 0           rook 2 2 = cycle 4            bipartite 2 2 = cycle 4
 strongProduct (complete m) (complete n) = complete (m * n)
 tensorProduct G (empty n) = empty (G.V * n)
+completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds)
+completeMultipartite [a, b] = bipartite a b               cocktailParty 2 = cycle 4
+completeMultipartite (List.replicate n 1) = complete n    triangular 4 = cocktailParty 3
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -249,6 +252,15 @@ Three moves prove almost all of it:
    `foldedCube 3 = bipartite 4 4` and `paley 5 = cycle 5` go this way.
 3. Rewriting at the `IsoGraph` level, once enough of the above is in place: `wheel 2 = complete 3`
    is `wheel_eq_join`, `cycle_two`, `join_complete`.
+
+`completeMultipartite` needed a fourth. Its vertex type is the dependent
+`Σ i : Fin ds.length, Fin (ds.get i)`, which no amount of `decide` will touch, so the file builds
+`sigmaFinSuccEquiv : (Σ i : Fin (n + 1), α i) ≃ α 0 ⊕ Σ i : Fin n, α i.succ` (Mathlib has no such
+equivalence) and turns it into `CGraph.Iso.sigmaUnionSucc`. That gives the cons rule
+`completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds)`, after which the whole
+family is reachable by `join`-level rewriting: the append rule, `[a, b] = bipartite a b`,
+`star n = completeMultipartite [1, n]`, `book n = join (complete 2) (empty n)`,
+`(completeMultipartite ds).V = ds.sum`, `cocktailParty 2 = cycle 4`.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a
@@ -271,17 +283,27 @@ by `E` rather than `V` —
 ```
 lineGraph (empty n) = empty 0        lineGraph (star n) = complete n
 lineGraph (complete n) = johnson n 2 = triangular n
+lineGraph (complete 4) = cocktailParty 3
 mycielskian (empty 0) = empty 1      mycielskian (complete 2) = cycle 5
+mycielskian (empty n) = disjUnion (star n) (empty n)
 ```
 
-— the middle one being the only proof in the file that builds its bijection with
+— `lineGraph (complete n)` being the proof in the file that builds its bijection with
 `Equiv.ofBijective` rather than writing it down: an edge of `Kₙ` is sent to its
 `Sym2.toFinset`, a two-element subset of `Fin n`, and two *distinct* two-element subsets meet
-exactly when they meet in one point, which is the adjacency of `J(n, 2)`.
+exactly when they meet in one point, which is the adjacency of `J(n, 2)`. The last line is the
+Mycielskian of an edgeless graph, where the apex and the `n` shadow vertices form a star and the
+originals stay isolated.
+
+`triangular 4 = cocktailParty 3` — the octahedron — is the one identity here that `SRG.lean` also
+proves, by `native_decide` on the canonical keys. The version in `Identities.lean` is
+kernel-checkable: `T(4)` is `compl (kneser 4 2)`, `kneser 4 2` is three disjoint edges (a six-point
+`decide` on an explicit `Equiv.ofBijective`), and three uses of the cons rule turn
+`compl (cocktailParty 3)` into the same disjoint union.
 
 Not (yet) here: `cycle n = circulant n [1]` needs modular arithmetic at a variable modulus, and
-`completeMultipartite [a, b] = bipartite a b` founders on the dependent `Σ i : Fin ds.length, _`
-vertex type.
+`lineGraph (cycle n) = cycle n` needs a bijection out of the `Sym2` edge subtype at a variable
+`n`.
 
 ## Enumeration
 
