@@ -149,6 +149,35 @@ theorem mod_of_lt_two_mul {d x : ℕ} (hx : x < 2 * d) :
   · refine Or.inr ⟨h, ?_⟩
     rw [Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]
 
+/-- The difference `y - x` around a cycle of length `d`, again as a disjunction: `(y + d - x) % d`
+is `y - x` going forwards and `d - (x - y)` going backwards.  This is the third member of the
+`succ_mod_eq_iff` / `mod_of_lt_two_mul` family of "`omega` cannot divide" workarounds, and it is
+what makes circulant differences tractable. -/
+theorem sub_mod_cases {d x y : ℕ} (hx : x < d) (hy : y < d) :
+    (x ≤ y ∧ (y + d - x) % d = y - x) ∨ (y < x ∧ (y + d - x) % d = d - (x - y)) := by
+  rcases Nat.lt_or_ge y x with h | h
+  · refine Or.inr ⟨h, ?_⟩
+    rw [show y + d - x = d - (x - y) by omega, Nat.mod_eq_of_lt (by omega)]
+  · refine Or.inl ⟨h, ?_⟩
+    rw [show y + d - x = (y - x) + d by omega, Nat.add_mod_right, Nat.mod_eq_of_lt (by omega)]
+
+/-- A `0` in the connection set of a circulant contributes nothing: `x` and `y` differ by `0`
+only when they are equal, and a circulant has no loops. -/
+theorem circulant_zero_cons (n : ℕ) (S : List ℕ) :
+    circulant n (0 :: S) = circulant n S := by
+  refine (eq_ofRel (circulant n (0 :: S)) (fun x y ↦ S.contains ((y.1 + n - x.1) % n))
+    fun x y hxy ↦ ?_).trans rfl
+  have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
+  have key : ∀ a b : Fin n, a.1 ≠ b.1 →
+      ((0 :: S).contains ((b.1 + n - a.1) % n)) = (S.contains ((b.1 + n - a.1) % n)) := by
+    intro a b hab
+    have h : (b.1 + n - a.1) % n ≠ 0 := by
+      rcases sub_mod_cases a.isLt b.isLt with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> omega
+    simp [h]
+  show (decide (x ≠ y) && ((0 :: S).contains ((y.1 + n - x.1) % n) ||
+    (0 :: S).contains ((x.1 + n - y.1) % n))) = _
+  rw [decide_eq_true hxy, Bool.true_and, key x y hne, key y x (Ne.symm hne)]
+
 /-- Peel the first fibre off a dependent sigma type indexed by `Fin (n + 1)`.  Mathlib has no
 such equivalence, and it is what lets `sigmaUnion` over `Fin (n + 1)` be recognised as a
 disjoint union. -/
@@ -816,6 +845,61 @@ noncomputable def cycleTensorTwo (m : ℕ) :
       rw [e1, e2, e3, e4]
       omega)
 
+/-! ### Matchings as circulants -/
+
+/-- Splitting `Fin (2m)` into `Fin m × Fin 2` by `k ↦ (k % m, k / m)`, written in the direction
+`(i, a) ↦ i + m * a` so that the adjacency computation never has to divide. -/
+noncomputable def finTwoMul (m : ℕ) : (Fin (m + 1) × Fin 2) ≃ Fin (2 * (m + 1)) :=
+  Equiv.ofBijective
+    (fun p ↦ ⟨p.1.1 + (m + 1) * p.2.1, by
+      have hp := p.1.isLt
+      have h2 : p.2.1 = 0 ∨ p.2.1 = 1 := by omega
+      rcases h2 with h | h <;> rw [h] <;> omega⟩)
+    ((Fintype.bijective_iff_injective_and_card _).2 ⟨by
+      rintro ⟨i, a⟩ ⟨j, b⟩ hij
+      have hi := i.isLt
+      have hj := j.isLt
+      have hij' : i.1 + (m + 1) * a.1 = j.1 + (m + 1) * b.1 := congrArg Fin.val hij
+      have ha2 : a.1 = 0 ∨ a.1 = 1 := by omega
+      have hb2 : b.1 = 0 ∨ b.1 = 1 := by omega
+      have hab : i = j ∧ a = b := by
+        rcases ha2 with ha | ha <;> rcases hb2 with hb | hb <;> rw [ha, hb] at hij' <;>
+          exact ⟨Fin.ext (by omega), Fin.ext (by omega)⟩
+      rw [hab.1, hab.2], by simp [Nat.mul_comm]⟩)
+
+/-- **A perfect matching, as a circulant.**  `circulant (2m) {m}` joins `i` to `i + m`, so it is
+`m` disjoint edges. -/
+noncomputable def circulantMatching (m : ℕ) :
+    CGraph.cartesianProduct (CGraph.empty (m + 1)) (CGraph.complete 2) ≃cg
+      CGraph.circulant (2 * (m + 1)) [m + 1] :=
+  isoOfAdj (G := CGraph.cartesianProduct (CGraph.empty (m + 1)) (CGraph.complete 2))
+    (H := CGraph.circulant (2 * (m + 1)) [m + 1]) (finTwoMul m) (by
+      rintro ⟨i, a⟩ ⟨j, b⟩
+      have hi := i.isLt
+      have hj := j.isLt
+      have ha2 : a.1 = 0 ∨ a.1 = 1 := by omega
+      have hb2 : b.1 = 0 ∨ b.1 = 1 := by omega
+      have hx : i.1 + (m + 1) * a.1 < 2 * (m + 1) := by
+        rcases ha2 with h | h <;> rw [h] <;> omega
+      have hy : j.1 + (m + 1) * b.1 < 2 * (m + 1) := by
+        rcases hb2 with h | h <;> rw [h] <;> omega
+      have hIJ : (i = j) ↔ (i.1 = j.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
+      show (CGraph.circulant (2 * (m + 1)) [m + 1]).Adj
+          (⟨i.1 + (m + 1) * a.1, hx⟩ : Fin (2 * (m + 1)))
+          (⟨j.1 + (m + 1) * b.1, hy⟩ : Fin (2 * (m + 1)))
+        = (CGraph.cartesianProduct (CGraph.empty (m + 1)) (CGraph.complete 2)).Adj (i, a) (j, b)
+      rw [CGraph.cartesianProduct_adj]
+      simp only [CGraph.circulant, CGraph.ofRel_adj, CGraph.empty_adj, CGraph.complete_adj,
+        Bool.false_and, Bool.or_false, List.contains_cons, List.contains_nil]
+      refine Bool.eq_iff_iff.2 ?_
+      rcases ha2 with ha | ha <;> rcases hb2 with hb | hb <;>
+        · have h1 := sub_mod_cases hx hy
+          have h2 := sub_mod_cases hy hx
+          simp only [Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq,
+            Fin.ext_iff, hIJ]
+          rw [ha, hb] at h1 h2 ⊢
+          omega)
+
 end Iso
 
 /-! ## Two small facts about one-vertex graphs -/
@@ -1039,6 +1123,9 @@ abbrev rook (m n : ℕ) : IsoGraph := cartesianProduct (complete m) (complete n)
 
 /-- The cocktail party graph on `n` pairs. -/
 abbrev cocktailParty (n : ℕ) : IsoGraph := completeMultipartite (List.replicate n 2)
+
+/-- The Petersen graph, as the Kneser graph on the 2-subsets of a 5-set. -/
+abbrev petersen : IsoGraph := kneser 5 2
 
 /-! ## Bridging to `CGraph`
 
@@ -1503,6 +1590,23 @@ theorem compl_book (n : ℕ) : compl (book n) = disjUnion (empty 2) (complete n)
 
 @[simp] theorem circulant_one (n : ℕ) : circulant n [1] = cycle n := by
   rw [circulant_def, CGraph.circulant_one_eq_cycle, cycle_def]
+
+/-- A `0` in the connection set is inert. -/
+@[simp] theorem circulant_zero_cons (n : ℕ) (S : List ℕ) :
+    circulant n (0 :: S) = circulant n S := by
+  rw [circulant_def, circulant_def, CGraph.circulant_zero_cons]
+
+/-- **A perfect matching, as a circulant.**  `circulant (2m) {m}` joins `i` to `i + m` and to
+nothing else, so it is `m` disjoint edges — the Cartesian product of an edgeless graph with `K₂`.
+-/
+theorem circulant_matching (m : ℕ) :
+    circulant (2 * (m + 1)) [m + 1] = cartesianProduct (empty (m + 1)) (complete 2) := by
+  rw [circulant_def, empty_def, complete_def, cartesianProduct_mk]
+  exact Quotient.sound ⟨(CGraph.Iso.circulantMatching m).symm⟩
+
+/-- The `m = 0` case of both readings: one edge. -/
+theorem circulant_two_one : circulant 2 [1] = complete 2 := by
+  rw [circulant_one, cycle_two]
 
 /-! ## Paley graphs -/
 
@@ -2470,6 +2574,22 @@ two-element subset of `Fin n`, and two distinct such subsets meet exactly when t
 /-- The same statement under the other name for `J(n, 2)`. -/
 theorem lineGraph_complete_eq_triangular (n : ℕ) : lineGraph (complete n) = triangular n :=
   lineGraph_complete n
+
+/-! ### The Petersen graph -/
+
+@[simp] theorem V_petersen : petersen.V = 10 := by
+  rw [V_kneser]
+  rfl
+
+/-- The complement of the Petersen graph is the triangular graph `T(5)`, the Johnson graph
+`J(5, 2)`. -/
+theorem compl_petersen : compl petersen = triangular 5 := by
+  rw [triangular_eq_compl_kneser]
+
+/-- **The Petersen graph is the complement of the line graph of `K₅`** — Kneser's original
+description of it. -/
+theorem petersen_eq_compl_lineGraph : petersen = compl (lineGraph (complete 5)) := by
+  rw [lineGraph_complete_eq_triangular, ← compl_petersen, compl_compl]
 
 /-- `L(K₃) = K₃`. -/
 theorem lineGraph_complete_three : lineGraph (complete 3) = complete 3 := by

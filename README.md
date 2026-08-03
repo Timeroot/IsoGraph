@@ -207,7 +207,7 @@ Lifted names: `empty`, `complete`, `path`, `cycle`, `bipartite`, `completeMultip
 `wheel`, `kneser`, `johnson`, `hypercube`, `foldedCube`, `circulant`, `paley`, `thetaGraph`,
 `tadpole`, `lollipop`, `spider`, `doubleStar`, `cyclePendant`, the operations `compl`,
 `disjUnion`, `join`, `lineGraph`, `mycielskian` and the four products, and the abbreviations
-`book`, `fan`, `ladder`, `prism`, `triangular`, `rook`, `cocktailParty`.
+`book`, `fan`, `ladder`, `prism`, `triangular`, `rook`, `cocktailParty`, `petersen`.
 
 The lifting has one wrinkle. `compl` and the four products need `[DecidableEq G.V]`, which a
 `CGraph` does not carry, so they cannot be `Quotient.lift`ed as they stand. They are lifted as
@@ -259,6 +259,9 @@ bipartite (a * d) (b * d) = lexProduct (bipartite a b) (empty d)
 tensorProduct (complete 2) (path n) = disjUnion (path n) (path n)
 tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m))
 tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3))
+circulant n (0 :: S) = circulant n S
+circulant (2 * m) [m] = cartesianProduct (empty m) (complete 2)
+compl petersen = triangular 5                             petersen = compl (lineGraph (complete 5))
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -332,7 +335,10 @@ elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a 
 argument. `omega` cannot see through a `%` whose modulus is a variable, so both proofs first turn
 every wrap-around into a disjunction — `succ_mod_eq_iff` for a step around a cycle,
 `mod_of_lt_two_mul` for a reduction below `2n` — after which one `omega` closes the whole
-adjacency equivalence.
+adjacency equivalence.  A third member of that family, `sub_mod_cases`, splits the circulant
+difference `(y + n - x) % n` into the forwards and backwards cases; it is what proves that a `0`
+in a connection set is inert, and that `circulant (2m) {m}` is a perfect matching (its `1`-nonzero
+connection set makes `i ↦ i + m` an involution, so the graph is `empty m □ K₂`).
 
 Johnson duality, `J(n, k) ≅ J(n, n - k)`, is the one identity here whose bijection is interesting:
 `CGraph.complSubsets` sends `s` to `sᶜ`, and `|sᶜ ∩ tᶜ| = n - |s ∪ t| = n - 2k + |s ∩ t|` turns an
