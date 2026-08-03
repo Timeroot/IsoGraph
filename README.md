@@ -326,10 +326,35 @@ definitions and all six checks, builds in about four seconds.
 Shrikhande, the 27 lines on a cubic surface and its complement the Schläfli graph, the three
 Chang graphs, and Hoffman–Singleton.
 
-Each row's parameters are a theorem, and each is proved by `native_decide`: the predicate is
-decidable in `O(n³)` adjacency queries, which the compiler is happy to run and the kernel is not.
+Each row's parameters are a theorem, and whatever can be proved rather than computed, is.
+Three infinite families are settled once and for all in `Constructions.lean`, from
+`isSRGWith_of` — a restatement of strong regularity in terms of `nbrs`, a vertex's neighbours as
+a `Finset`, with no `SimpleGraph` and no `Fintype.card` of a subtype in sight:
+
+```lean
+theorem isSRGWith_rook (k : ℕ) : (rook k k).IsSRGWith (k * k) (2 * (k - 1)) (k - 2) 2
+theorem isSRGWith_kneser_two (n : ℕ) :
+    (kneser n 2).IsSRGWith (n.choose 2) ((n - 2).choose 2) ((n - 4).choose 2) ((n - 3).choose 2)
+theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
+    (triangular n).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4
+```
+
+Only the *square* rook's graphs are strongly regular: in `rook m n` two squares sharing a row
+have `n - 2` common neighbours and two sharing a column have `m - 2`. Only the Kneser graphs on
+*pairs* are, likewise — two non-adjacent `k`-sets meeting in `i` points have `(n - 2k + i).choose
+k` common neighbours, and `i` is not determined by `k` once `k > 2` — though the degree
+`(n - k).choose k` and the edge count `(n - 2k).choose k` are proved for every `k`
+(`card_nbrs_kneser`, `card_nbrs_inter_kneser`). The triangular graphs come for free: `johnsonTwoIso`
+identifies `johnson n 2` with `compl (kneser n 2)`, and `isSRGWith_compl` does the rest.
+
+That accounts for six rows. `isSRGWith_compl` alone accounts for three more — `compl clebsch`,
+`schlafli = compl linesOnCubic`, `compl hoffmanSingleton` — leaving fifteen. Of those, everything
+up to seventeen vertices is checked by kernel `decide`, and only the eight large sporadic and
+Paley entries still need `native_decide`: the predicate is decidable in `O(n³)` adjacency
+queries, and past thirty vertices that is a job for the compiler rather than the kernel.
+
 The whole file — 24 parameter checks up to 101 vertices, plus six canonical-key comparisons —
-builds in about fifteen seconds. That budget is what "efficiently evaluable" buys: `paley q`
+builds in about twenty-five seconds. That budget is what "efficiently evaluable" buys: `paley q`
 reads a precomputed `Array Bool` of quadratic residues (hoisted into a `let` so the compiled
 closure captures the table rather than rebuilding it per query), Hoffman–Singleton is Robertson's
 pentagon/pentagram model in `Nat` arithmetic — four divisions and a multiply mod 5 — and
@@ -535,7 +560,7 @@ invisible against an `Ω(n²)` search.
 
 The exceptions are the computational checks, which are deliberate: everything proved by
 `native_decide` — `Compute.lean`, the enumeration identities of `NamedSmallGraphs.lean`, the
-parameter and non-isomorphism theorems of `SRG.lean` — additionally uses `Lean.ofReduceBool` and
+large parameter checks and the non-isomorphism theorems of `SRG.lean` — additionally uses `Lean.ofReduceBool` and
 `Lean.trustCompiler`, i.e. trusts the compiler. It has to: `canonAdj` is well-founded recursion over
 `Array`, which the kernel will not reduce.
 

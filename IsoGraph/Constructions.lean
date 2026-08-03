@@ -1104,6 +1104,9 @@ theorem E_compl [DecidableEq G.V] :
 
 /-! ### The complete graph -/
 
+@[simp] theorem complete_adj (n : ℕ) (i j : Fin n) : (complete n).Adj i j = decide (i ≠ j) := by
+  simp [complete, compl]
+
 @[simp] theorem complete_toSimple (n : ℕ) : (complete n).toSimple = ⊤ := by
   simp [complete]
 
@@ -3974,6 +3977,275 @@ theorem card_petersen : Fintype.card (kneser 5 2).V = 10 := by
   rw [card_kneser]; rfl
 
 end Invariants
+
+/-! ## Strongly regular families
+
+`isSRGWith_compl` above already turns one strongly regular graph into another.  Here are three
+infinite families proved from scratch, via `isSRGWith_of`: the square rook's graphs, the Kneser
+graphs on pairs (`kneser 5 2` is the Petersen graph) and — as the complement of the latter — the
+triangular graphs.  `IsoGraph/SRG.lean` reads the concrete entries of its table off these. -/
+
+section SRGFamilies
+
+variable {m n : ℕ}
+
+/-! ### Rook's graphs -/
+
+theorem rook_adj (p q : (rook m n).V) :
+    (rook m n).Adj p q
+      = ((decide (p.1 = q.1) && decide (p.2 ≠ q.2)) ||
+          (decide (p.1 ≠ q.1) && decide (p.2 = q.2))) := by
+  simp [rook, cartesianProduct_adj]
+
+theorem mem_nbrs_rook (p q : (rook m n).V) :
+    q ∈ (rook m n).nbrs p ↔ (p.1 = q.1 ∧ p.2 ≠ q.2) ∨ (p.1 ≠ q.1 ∧ p.2 = q.2) := by
+  rw [mem_nbrs, rook_adj]
+  simp
+
+/-- The neighbours of a square are the rest of its row together with the rest of its column. -/
+theorem nbrs_rook (p : (rook m n).V) :
+    (rook m n).nbrs p
+      = (({p.1} : Finset (complete m).V) ×ˢ ({p.2} : Finset (complete n).V)ᶜ) ∪
+          (({p.1} : Finset (complete m).V)ᶜ ×ˢ ({p.2} : Finset (complete n).V)) := by
+  refine Finset.ext (α := (complete m).V × (complete n).V) fun q ↦ ?_
+  obtain ⟨x, y⟩ := q
+  rw [mem_nbrs_rook p (x, y)]
+  simp only [Finset.mem_union, Finset.mem_product, Finset.mem_compl, Finset.mem_singleton]
+  tauto
+
+theorem card_nbrs_rook (p : (rook m n).V) :
+    ((rook m n).nbrs p).card = (n - 1) + (m - 1) := by
+  rw [nbrs_rook, Finset.card_union_of_disjoint, Finset.card_product, Finset.card_product]
+  · simp [Finset.card_compl]
+  · rw [Finset.disjoint_left]
+    rintro ⟨x, y⟩ h1 h2
+    simp only [Finset.mem_product, Finset.mem_compl, Finset.mem_singleton] at h1 h2
+    exact h2.1 h1.1
+
+/-- Neighbours common to two squares in the same row: the rest of that row. -/
+theorem nbrs_inter_rook_row (a : (complete m).V) (b d : (complete n).V) (h : b ≠ d) :
+    (rook m n).nbrs (a, b) ∩ (rook m n).nbrs (a, d)
+      = ({a} : Finset (complete m).V) ×ˢ ({b, d} : Finset (complete n).V)ᶜ := by
+  refine Finset.ext (α := (complete m).V × (complete n).V) fun r ↦ ?_
+  obtain ⟨x, y⟩ := r
+  rw [Finset.mem_inter, mem_nbrs_rook (a, b) (x, y), mem_nbrs_rook (a, d) (x, y)]
+  simp only [Finset.mem_product, Finset.mem_compl, Finset.mem_singleton, Finset.mem_insert,
+    not_or]
+  grind
+
+/-- Neighbours common to two squares in the same column: the rest of that column. -/
+theorem nbrs_inter_rook_col (a c : (complete m).V) (b : (complete n).V) (h : a ≠ c) :
+    (rook m n).nbrs (a, b) ∩ (rook m n).nbrs (c, b)
+      = ({a, c} : Finset (complete m).V)ᶜ ×ˢ ({b} : Finset (complete n).V) := by
+  refine Finset.ext (α := (complete m).V × (complete n).V) fun r ↦ ?_
+  obtain ⟨x, y⟩ := r
+  rw [Finset.mem_inter, mem_nbrs_rook (a, b) (x, y), mem_nbrs_rook (c, b) (x, y)]
+  simp only [Finset.mem_product, Finset.mem_compl, Finset.mem_singleton, Finset.mem_insert,
+    not_or]
+  grind
+
+/-- Neighbours common to two squares in different rows *and* different columns: the two remaining
+corners of the rectangle they span. -/
+theorem nbrs_inter_rook_diag (a c : (complete m).V) (b d : (complete n).V) (h1 : a ≠ c)
+    (h2 : b ≠ d) :
+    (rook m n).nbrs (a, b) ∩ (rook m n).nbrs (c, d)
+      = ({(a, d), (c, b)} : Finset ((complete m).V × (complete n).V)) := by
+  refine Finset.ext (α := (complete m).V × (complete n).V) fun r ↦ ?_
+  obtain ⟨x, y⟩ := r
+  rw [Finset.mem_inter, mem_nbrs_rook (a, b) (x, y), mem_nbrs_rook (c, d) (x, y)]
+  simp only [Finset.mem_insert, Finset.mem_singleton, Prod.mk.injEq]
+  grind
+
+theorem card_nbrs_inter_rook_row (a : (complete m).V) (b d : (complete n).V) (h : b ≠ d) :
+    ((rook m n).nbrs (a, b) ∩ (rook m n).nbrs (a, d)).card = n - 2 := by
+  rw [nbrs_inter_rook_row a b d h, Finset.card_product, Finset.card_compl,
+    Finset.card_singleton, Finset.card_pair h, card_complete, one_mul]
+
+theorem card_nbrs_inter_rook_col (a c : (complete m).V) (b : (complete n).V) (h : a ≠ c) :
+    ((rook m n).nbrs (a, b) ∩ (rook m n).nbrs (c, b)).card = m - 2 := by
+  rw [nbrs_inter_rook_col a c b h, Finset.card_product, Finset.card_compl,
+    Finset.card_singleton, Finset.card_pair h, card_complete, mul_one]
+
+theorem card_nbrs_inter_rook_diag (a c : (complete m).V) (b d : (complete n).V) (h1 : a ≠ c)
+    (h2 : b ≠ d) : ((rook m n).nbrs (a, b) ∩ (rook m n).nbrs (c, d)).card = 2 := by
+  rw [nbrs_inter_rook_diag a c b d h1 h2, Finset.card_pair fun hc ↦ h1 (congrArg Prod.fst hc)]
+
+/-- **The `k × k` rook's graph is strongly regular**, with parameters `(k², 2(k-1), k-2, 2)`.
+
+Only the *square* rook's graphs qualify: in `rook m n` two squares in a row have `n - 2` common
+neighbours and two in a column have `m - 2`, so `ℓ` is well defined exactly when `m = n`. -/
+theorem isSRGWith_rook (k : ℕ) : (rook k k).IsSRGWith (k * k) (2 * (k - 1)) (k - 2) 2 := by
+  refine isSRGWith_of _ ?_ ?_ ?_ ?_
+  · show Fintype.card ((complete k).V × (complete k).V) = k * k
+    rw [Fintype.card_prod, card_complete]
+  · rintro ⟨a, b⟩
+    rw [card_nbrs_rook]
+    omega
+  · rintro ⟨a, b⟩ ⟨c, d⟩ hadj
+    rw [rook_adj] at hadj
+    simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hadj
+    obtain ⟨rfl, h⟩ | ⟨h, rfl⟩ := hadj
+    · exact card_nbrs_inter_rook_row a b d h
+    · exact card_nbrs_inter_rook_col a c b h
+  · rintro ⟨a, b⟩ ⟨c, d⟩ hne hadj
+    rw [rook_adj] at hadj
+    simp only [Bool.or_eq_false_iff, Bool.and_eq_false_iff, decide_eq_false_iff_not,
+      not_not] at hadj
+    refine card_nbrs_inter_rook_diag a c b d ?_ ?_ <;> grind [Prod.ext_iff]
+
+/-! ### Kneser graphs
+
+`kneser n k` is strongly regular only for `k ≤ 2` (or in the degenerate case `n = 2k`): two
+non-adjacent `k`-sets meeting in `i` points have `(n - 2k + i).choose k` common neighbours, and
+`i` ranges over `1, …, k-1`.  The degree and the adjacent-pair count, on the other hand, are
+uniform for every `k`; those are `card_nbrs_kneser` and `card_nbrs_inter_kneser`. -/
+
+/-- The `k`-subsets of `Fin n` avoiding a set `S` are exactly the `k`-subsets of `Sᶜ`, so there
+are `(n - |S|).choose k` of them. -/
+theorem card_filter_kneser_disjoint {k : ℕ} (S : Finset (Fin n)) :
+    (Finset.univ.filter fun u : {u : Finset (Fin n) // u.card = k} ↦ u.1 ∩ S = ∅).card
+      = (n - S.card).choose k := by
+  have hc : Sᶜ.card = n - S.card := by rw [Finset.card_compl, Fintype.card_fin]
+  rw [← hc, ← Finset.card_powersetCard k Sᶜ]
+  refine Finset.card_bij (fun u _ ↦ u.1) ?_ ?_ ?_
+  · intro u hu
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hu
+    refine Finset.mem_powersetCard.2 ⟨fun x hx ↦ Finset.mem_compl.2 fun hxS ↦ ?_, u.2⟩
+    have : x ∈ u.1 ∩ S := Finset.mem_inter.2 ⟨hx, hxS⟩
+    rw [hu] at this
+    exact absurd this (Finset.notMem_empty x)
+  · exact fun a _ b _ hab ↦ Subtype.ext hab
+  · intro T hT
+    obtain ⟨hTsub, hTcard⟩ := Finset.mem_powersetCard.1 hT
+    refine ⟨⟨T, hTcard⟩, ?_, rfl⟩
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    refine Finset.eq_empty_iff_forall_notMem.2 fun x hx ↦ ?_
+    exact Finset.mem_compl.1 (hTsub (Finset.mem_inter.1 hx).1) (Finset.mem_inter.1 hx).2
+
+/-- For `k ≥ 1` the neighbours of `s` in `kneser n k` are exactly the vertices disjoint from `s`:
+the `s ≠ t` conjunct in the definition is redundant, since a nonempty set meets itself. -/
+theorem nbrs_kneser {k : ℕ} (hk : 1 ≤ k) (s : (kneser n k).V) :
+    (kneser n k).nbrs s
+      = Finset.univ.filter fun u : {u : Finset (Fin n) // u.card = k} ↦ u.1 ∩ s.1 = ∅ := by
+  refine Finset.ext (α := {u : Finset (Fin n) // u.card = k}) fun u ↦ ?_
+  rw [mem_nbrs]
+  simp only [kneser_adj, Bool.and_eq_true, decide_eq_true_eq, ne_eq, Finset.mem_filter,
+    Finset.mem_univ, true_and]
+  rw [Finset.inter_comm]
+  refine ⟨fun h ↦ h.2, fun h ↦ ⟨fun hst ↦ ?_, h⟩⟩
+  rw [← hst, Finset.inter_self] at h
+  have hs := s.2
+  rw [h, Finset.card_empty] at hs
+  omega
+
+/-- **Kneser graphs are regular of degree `(n - k).choose k`.** -/
+theorem card_nbrs_kneser {k : ℕ} (hk : 1 ≤ k) (s : (kneser n k).V) :
+    ((kneser n k).nbrs s).card = (n - k).choose k := by
+  rw [nbrs_kneser hk, card_filter_kneser_disjoint, s.2]
+
+theorem nbrs_inter_kneser {k : ℕ} (hk : 1 ≤ k) (s t : (kneser n k).V) :
+    (kneser n k).nbrs s ∩ (kneser n k).nbrs t
+      = Finset.univ.filter fun u : {u : Finset (Fin n) // u.card = k} ↦
+          u.1 ∩ (s.1 ∪ t.1) = ∅ := by
+  rw [nbrs_kneser hk, nbrs_kneser hk]
+  refine Finset.ext (α := {u : Finset (Fin n) // u.card = k}) fun u ↦ ?_
+  simp only [Finset.mem_inter, Finset.mem_filter, Finset.mem_univ, true_and,
+    Finset.inter_union_distrib_left, Finset.union_eq_empty]
+
+/-- Two `k`-sets meeting in `i` points have `(n - (2k - i)).choose k` common neighbours: the
+`k`-sets avoiding their union.  In particular adjacent — i.e. disjoint — vertices have
+`(n - 2k).choose k`. -/
+theorem card_nbrs_inter_kneser {k : ℕ} (hk : 1 ≤ k) (s t : (kneser n k).V) :
+    ((kneser n k).nbrs s ∩ (kneser n k).nbrs t).card
+      = (n - (2 * k - (s.1 ∩ t.1).card)).choose k := by
+  rw [nbrs_inter_kneser hk, card_filter_kneser_disjoint]
+  congr 2
+  have := Finset.card_union_add_card_inter s.1 t.1
+  rw [s.2, t.2] at this
+  omega
+
+/-- Two distinct `2`-subsets that are not disjoint meet in exactly one point. -/
+theorem card_inter_eq_one_of_ne (s t : (kneser n 2).V) (hne : s ≠ t) (hd : s.1 ∩ t.1 ≠ ∅) :
+    (s.1 ∩ t.1).card = 1 := by
+  have hle : (s.1 ∩ t.1).card ≤ 2 := by
+    have := Finset.card_le_card (Finset.inter_subset_left (s₁ := s.1) (s₂ := t.1))
+    rwa [s.2] at this
+  have hpos : 0 < (s.1 ∩ t.1).card := Finset.card_pos.2 (Finset.nonempty_iff_ne_empty.2 hd)
+  rcases Nat.lt_or_ge (s.1 ∩ t.1).card 2 with h | h
+  · omega
+  · refine absurd (Subtype.ext ?_) hne
+    have h1 : s.1 ∩ t.1 = s.1 :=
+      Finset.eq_of_subset_of_card_le Finset.inter_subset_left (by rw [s.2]; exact h)
+    have h2 : s.1 ∩ t.1 = t.1 :=
+      Finset.eq_of_subset_of_card_le Finset.inter_subset_right (by rw [t.2]; exact h)
+    rw [← h1, h2]
+
+/-- **Kneser graphs on pairs are strongly regular**, with parameters
+`(C(n,2), C(n-2,2), C(n-4,2), C(n-3,2))`.  For `n = 5` this is the Petersen graph, `(10,3,0,1)`.
+-/
+theorem isSRGWith_kneser_two (n : ℕ) :
+    (kneser n 2).IsSRGWith (n.choose 2) ((n - 2).choose 2) ((n - 4).choose 2)
+      ((n - 3).choose 2) := by
+  refine isSRGWith_of _ (card_kneser n 2) (fun s ↦ card_nbrs_kneser one_le_two s) ?_ ?_
+  · intro s t hadj
+    simp only [kneser_adj, Bool.and_eq_true, decide_eq_true_eq] at hadj
+    rw [card_nbrs_inter_kneser one_le_two, hadj.2, Finset.card_empty]
+    norm_num
+  · intro s t hne hadj
+    simp only [kneser_adj, Bool.and_eq_false_iff, decide_eq_false_iff_not, not_not] at hadj
+    rw [card_nbrs_inter_kneser one_le_two,
+      card_inter_eq_one_of_ne s t hne (hadj.resolve_left (by simpa using hne))]
+    norm_num
+
+/-! ### Triangular graphs -/
+
+/-- `johnson n 2` — the triangular graph `T(n)` — is the complement of `kneser n 2`: two distinct
+pairs either meet in a point or are disjoint, and never both. -/
+def johnsonTwoIso (n : ℕ) : johnson n 2 ≃cg compl (kneser n 2) :=
+  ⟨Equiv.refl {s : Finset (Fin n) // s.card = 2}, by
+    intro s t
+    show (compl (kneser n 2)).Adj s t = true ↔ (johnson n 2).Adj s t = true
+    simp only [compl_adj, kneser_adj, johnson_adj, Bool.and_eq_true, Bool.not_eq_true',
+      Bool.and_eq_false_iff, decide_eq_true_eq, decide_eq_false_iff_not, not_not, beq_iff_eq,
+      ne_eq]
+    constructor
+    · rintro ⟨hne, hd⟩
+      exact ⟨hne, card_inter_eq_one_of_ne s t hne (hd.resolve_left (by simpa using hne))⟩
+    · rintro ⟨hne, hc⟩
+      refine ⟨hne, Or.inr fun he ↦ ?_⟩
+      rw [he, Finset.card_empty] at hc
+      exact absurd hc (by norm_num)⟩
+
+theorem choose_two_succ (j : ℕ) : (j + 1).choose 2 = j.choose 2 + j := by
+  rw [Nat.choose_succ_succ, Nat.choose_one_right, Nat.add_comm]
+
+/-- **Triangular graphs are strongly regular**: `T(n) = J(n, 2)` has parameters
+`(C(n,2), 2(n-2), n-2, 4)`.
+
+The bound `4 ≤ n` is only needed for `μ`, which is vacuous below it: `T(3) = K₃` and
+`T(n)` is empty for `n < 3`, so those graphs have no non-adjacent pair to constrain. -/
+theorem isSRGWith_johnson_two (n : ℕ) (hn : 4 ≤ n) :
+    (johnson n 2).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4 := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
+  rw [show m + 4 - 2 = m + 2 from rfl]
+  have h := isSRGWith_compl _ (isSRGWith_kneser_two (m + 4))
+  rw [show m + 4 - 2 = m + 2 from rfl, show m + 4 - 3 = m + 1 from rfl,
+    show m + 4 - 4 = m from rfl] at h
+  have h1 : (m + 1).choose 2 = m.choose 2 + m := choose_two_succ m
+  have h2 : (m + 2).choose 2 = (m + 1).choose 2 + (m + 1) := choose_two_succ (m + 1)
+  have h3 : (m + 3).choose 2 = (m + 2).choose 2 + (m + 2) := choose_two_succ (m + 2)
+  have h4 : (m + 4).choose 2 = (m + 3).choose 2 + (m + 3) := choose_two_succ (m + 3)
+  rw [show (m + 4).choose 2 - (m + 2).choose 2 - 1 = 2 * (m + 2) from by omega,
+    show (m + 4).choose 2 - (2 * (m + 2).choose 2 - (m + 1).choose 2) - 2 = m + 2 from by omega,
+    show (m + 4).choose 2 - (2 * (m + 2).choose 2 - m.choose 2) = 4 from by omega] at h
+  exact SimpleGraph.Iso.isSRGWith_of_iso (CGraph.Iso.toSimpleIso (johnsonTwoIso (m + 4)).symm) h
+
+@[inherit_doc isSRGWith_johnson_two]
+theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
+    (triangular n).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
+  isSRGWith_johnson_two n hn
+
+end SRGFamilies
 
 /-! ## Transitivity of the constructions
 

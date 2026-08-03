@@ -172,6 +172,38 @@ vertices have `μ`.  Unlike the invariants above this one takes the parameters a
 a property, not a number, and `IsoGraph/SRG.lean` is a table of graphs satisfying it. -/
 def IsSRGWith (n k ℓ μ : ℕ) : Prop := G.toSimple.IsSRGWith n k ℓ μ
 
+/-- The neighbours of `v`, as a `Finset`.  Same thing as `G.toSimple.neighborFinset v`
+(`neighborFinset_eq_nbrs`), but phrased with `CGraph.Adj` so that it can be computed with and
+rewritten by the `…_adj` simp lemmas of `IsoGraph/Constructions.lean`. -/
+def nbrs (v : G.V) : Finset G.V := Finset.univ.filter fun w ↦ G.Adj v w = true
+
+@[simp] theorem mem_nbrs (v w : G.V) : w ∈ G.nbrs v ↔ G.Adj v w = true := by simp [nbrs]
+
+theorem neighborFinset_eq_nbrs (v : G.V) : G.toSimple.neighborFinset v = G.nbrs v := by
+  ext w; simp
+
+theorem card_commonNeighbors [DecidableEq G.V] (v w : G.V) :
+    Fintype.card (G.toSimple.commonNeighbors v w) = (G.nbrs v ∩ G.nbrs w).card := by
+  rw [← Set.toFinset_card]
+  congr 1
+  ext x
+  simp [SimpleGraph.mem_commonNeighbors]
+
+/-- **Strong regularity, spelled out in `Finset` terms.**  No `SimpleGraph`, no `Fintype.card` of
+a subtype and no `Sym2`: just the neighbour sets of `nbrs` and their intersections, which is the
+form in which the families of `IsoGraph/SRG.lean` are proved. -/
+theorem isSRGWith_of [DecidableEq G.V] {n k ℓ μ : ℕ} (hn : Fintype.card G.V = n)
+    (hk : ∀ v, (G.nbrs v).card = k)
+    (hℓ : ∀ v w, G.Adj v w = true → (G.nbrs v ∩ G.nbrs w).card = ℓ)
+    (hμ : ∀ v w, v ≠ w → G.Adj v w = false → (G.nbrs v ∩ G.nbrs w).card = μ) :
+    G.IsSRGWith n k ℓ μ where
+  card := hn
+  regular v := by rw [SimpleGraph.degree, neighborFinset_eq_nbrs, hk]
+  of_adj v w h := by rw [card_commonNeighbors]; exact hℓ v w h
+  of_not_adj v w hne h := by
+    rw [card_commonNeighbors]
+    exact hμ v w hne (by simpa using h)
+
 /-! ### Transitivity
 
 Two symmetry properties, stated directly in terms of `CGraph.Iso` automorphisms rather than in

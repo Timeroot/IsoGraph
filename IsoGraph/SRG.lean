@@ -7,8 +7,14 @@ import IsoGraph.Enum
 A graph is *strongly regular with parameters `(n, k, ℓ, μ)`* when it has `n` vertices, is regular
 of degree `k`, every adjacent pair has `ℓ` common neighbours, and every non-adjacent pair has `μ`.
 The predicate is `CGraph.IsSRGWith` in `IsoGraph/Invariants.lean`, a thin wrapper around Mathlib's
-`SimpleGraph.IsSRGWith`; it is decidable in `O(n³)` adjacency queries, which is why every entry
-below is settled by `native_decide` rather than `decide`.
+`SimpleGraph.IsSRGWith`.
+
+Nine of the rows below are theorems rather than computations: the rook, Kneser and triangular
+entries come from the infinite families `isSRGWith_rook`, `isSRGWith_kneser_two` and
+`isSRGWith_triangular` of `IsoGraph/Constructions.lean`, and `compl clebsch`, `schlafli` and
+`compl hoffmanSingleton` from `isSRGWith_compl`.  Of the rest, everything up to seventeen
+vertices is checked by kernel `decide`; only the eight largest still need `native_decide`, the
+predicate being decidable in `O(n³)` adjacency queries.
 
 Strongly regular graphs are the standard hard case for isomorphism testing — every vertex looks
 exactly like every other one to any degree- or triangle-counting invariant — so they are also the
@@ -172,41 +178,52 @@ instance : DecidableEq chang₃.V := inferInstanceAs (DecidableEq (triangular 8)
 
 /-! ## The parameters
 
-Each of these is `O(n³)` adjacency queries, run by the compiler rather than the kernel. -/
+Whatever can be, is proved: the rook, Kneser and triangular entries come from the infinite
+families of `IsoGraph/Constructions.lean`, and three of the complements from `isSRGWith_compl`.
+What is left — the sporadic graphs and the Paley graphs — is `O(n³)` adjacency queries, run by the
+compiler rather than the kernel. -/
 
-theorem cycle_five_srg : (cycle 5).IsSRGWith 5 2 0 1 := by native_decide
+set_option maxRecDepth 4000 in
+theorem cycle_five_srg : (cycle 5).IsSRGWith 5 2 0 1 := by decide
 
-theorem bipartite_srg : (bipartite 3 3).IsSRGWith 6 3 0 3 := by native_decide
+set_option maxRecDepth 8000 in
+theorem bipartite_srg : (bipartite 3 3).IsSRGWith 6 3 0 3 := by decide
 
-theorem cocktailParty_srg : (cocktailParty 4).IsSRGWith 8 6 4 6 := by native_decide
+set_option maxRecDepth 20000 in
+theorem cocktailParty_srg : (cocktailParty 4).IsSRGWith 8 6 4 6 := by decide
 
-theorem rook_three_srg : (rook 3 3).IsSRGWith 9 4 1 2 := by native_decide
+theorem rook_three_srg : (rook 3 3).IsSRGWith 9 4 1 2 := isSRGWith_rook 3
 
-theorem petersen_srg : petersen.IsSRGWith 10 3 0 1 := by native_decide
+theorem petersen_srg : petersen.IsSRGWith 10 3 0 1 := isSRGWith_kneser_two 5
 
-theorem triangular_five_srg : (triangular 5).IsSRGWith 10 6 3 4 := by native_decide
+theorem triangular_five_srg : (triangular 5).IsSRGWith 10 6 3 4 :=
+  isSRGWith_triangular 5 (by norm_num)
 
 theorem paley_thirteen_srg : (paley 13).IsSRGWith 13 6 2 3 := by native_decide
 
-theorem kneser_six_srg : (kneser 6 2).IsSRGWith 15 6 1 3 := by native_decide
+theorem kneser_six_srg : (kneser 6 2).IsSRGWith 15 6 1 3 := isSRGWith_kneser_two 6
 
-theorem triangular_six_srg : (triangular 6).IsSRGWith 15 8 4 4 := by native_decide
+theorem triangular_six_srg : (triangular 6).IsSRGWith 15 8 4 4 :=
+  isSRGWith_triangular 6 (by norm_num)
 
-theorem clebsch_srg : clebsch.IsSRGWith 16 5 0 2 := by native_decide
+set_option maxRecDepth 100000 in
+theorem clebsch_srg : clebsch.IsSRGWith 16 5 0 2 := by decide
 
-theorem rook_four_srg : (rook 4 4).IsSRGWith 16 6 2 2 := by native_decide
+theorem rook_four_srg : (rook 4 4).IsSRGWith 16 6 2 2 := isSRGWith_rook 4
 
-theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by native_decide
+set_option maxRecDepth 100000 in
+theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by decide
 
-theorem compl_clebsch_srg : (compl clebsch).IsSRGWith 16 10 6 6 := by native_decide
+theorem compl_clebsch_srg : (compl clebsch).IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
 
 theorem paley_seventeen_srg : (paley 17).IsSRGWith 17 8 3 4 := by native_decide
 
 theorem linesOnCubic_srg : linesOnCubic.IsSRGWith 27 10 1 5 := by native_decide
 
-theorem schlafli_srg : schlafli.IsSRGWith 27 16 10 8 := by native_decide
+theorem schlafli_srg : schlafli.IsSRGWith 27 16 10 8 := isSRGWith_compl _ linesOnCubic_srg
 
-theorem triangular_eight_srg : (triangular 8).IsSRGWith 28 12 6 4 := by native_decide
+theorem triangular_eight_srg : (triangular 8).IsSRGWith 28 12 6 4 :=
+  isSRGWith_triangular 8 (by norm_num)
 
 theorem chang₁_srg : chang₁.IsSRGWith 28 12 6 4 := by native_decide
 
@@ -218,14 +235,10 @@ theorem paley_twentynine_srg : (paley 29).IsSRGWith 29 14 6 7 := by native_decid
 
 theorem hoffmanSingleton_srg : hoffmanSingleton.IsSRGWith 50 7 0 1 := by native_decide
 
-theorem compl_hoffmanSingleton_srg : (compl hoffmanSingleton).IsSRGWith 50 42 35 36 := by
-  native_decide
+theorem compl_hoffmanSingleton_srg : (compl hoffmanSingleton).IsSRGWith 50 42 35 36 :=
+  isSRGWith_compl _ hoffmanSingleton_srg
 
 theorem paley_hundredone_srg : (paley 101).IsSRGWith 101 50 24 25 := by native_decide
-
-/-- The complement of the Clebsch graph, without recomputing anything: strong regularity of a
-complement is a theorem, not a calculation. -/
-example : (compl clebsch).IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
 
 /-- Strong regularity descends to `IsoGraph`, being an isomorphism invariant. -/
 theorem petersen_srg_iso : IsoGraph.IsSRGWith (Quotient.mk _ petersen) 10 3 0 1 := petersen_srg
