@@ -1848,6 +1848,70 @@ no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
 theorem lineGraph_path_three : lineGraph (path 3) = complete 2 := by
   rw [show (3 : ℕ) = 2 + 1 from rfl, lineGraph_path, path_two]
 
+private theorem bipartiteEdge_adj (m n : ℕ) (p : Fin m × Fin n) :
+    s(Sum.inl p.1, Sum.inr p.2) ∈ (CGraph.bipartite m n).toSimple.edgeSet := by
+  rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
+  exact CGraph.bipartite_adj_inl_inr m n p.1 p.2
+
+/-- The edge of `K_{m,n}` joining the `i`-th left vertex to the `j`-th right vertex — that is,
+the square `(i, j)` of the board. -/
+private def bipartiteEdge (m n : ℕ) (p : Fin m × Fin n) :
+    (CGraph.lineGraph (CGraph.bipartite m n)).V :=
+  ⟨s(Sum.inl p.1, Sum.inr p.2), bipartiteEdge_adj m n p⟩
+
+private theorem mem_bipartiteEdge (m n : ℕ) (v : Fin m ⊕ Fin n) (p : Fin m × Fin n) :
+    v ∈ ((bipartiteEdge m n p).1 : Sym2 (Fin m ⊕ Fin n))
+      ↔ v = Sum.inl p.1 ∨ v = Sum.inr p.2 := Sym2.mem_iff
+
+private theorem bipartiteEdge_inj (m n : ℕ) : Function.Injective (bipartiteEdge m n) := by
+  intro p q h
+  have h1 : s(Sum.inl p.1, Sum.inr p.2) = s(Sum.inl q.1, Sum.inr q.2) := congrArg Subtype.val h
+  rcases Sym2.eq_iff.1 h1 with ⟨h2, h3⟩ | ⟨h2, _⟩
+  · exact Prod.ext_iff.2 ⟨by simpa using h2, by simpa using h3⟩
+  · exact absurd h2 (by simp)
+
+/-- **The line graph of a complete bipartite graph is the rook's graph**: `L(K_{m,n}) = Kₘ □ Kₙ`.
+An edge of `K_{m,n}` *is* a square `(i, j)` of the `m × n` board, and two squares share a vertex
+exactly when they share a row or a column. -/
+@[simp] theorem lineGraph_bipartite (m n : ℕ) : lineGraph (bipartite m n) = rook m n := by
+  have hcard : Fintype.card (Fin m × Fin n)
+      = Fintype.card (CGraph.lineGraph (CGraph.bipartite m n)).V := by
+    rw [CGraph.card_lineGraph, CGraph.E_bipartite, Fintype.card_prod, Fintype.card_fin,
+      Fintype.card_fin]
+  have hbij : Function.Bijective (bipartiteEdge m n) :=
+    Fintype.bijective_iff_injective_and_card _ |>.2 ⟨bipartiteEdge_inj m n, hcard⟩
+  have hadj : ∀ p q : Fin m × Fin n,
+      (CGraph.lineGraph (CGraph.bipartite m n)).Adj (bipartiteEdge m n p) (bipartiteEdge m n q)
+        = (CGraph.rook m n).Adj p q := by
+    intro p q
+    rw [CGraph.lineGraph_adj, CGraph.rook_adj]
+    by_cases hpq : p = q
+    · subst hpq; simp
+    · have hne : ¬(p.1 = q.1 ∧ p.2 = q.2) := fun h ↦ hpq (Prod.ext_iff.2 h)
+      rw [decide_eq_true (show bipartiteEdge m n p ≠ bipartiteEdge m n q from
+          fun h ↦ hpq (bipartiteEdge_inj m n h)),
+        Bool.true_and, ← Bool.decide_and, ← Bool.decide_and, ← Bool.decide_or]
+      refine decide_eq_decide.2 ⟨?_, ?_⟩
+      · rintro ⟨v, hv1, hv2⟩
+        rw [mem_bipartiteEdge] at hv1 hv2
+        rcases hv1 with h1 | h1 <;> rcases hv2 with h2 | h2
+        · have : p.1 = q.1 := by simpa using h1.symm.trans h2
+          exact Or.inl ⟨this, fun hd ↦ hne ⟨this, hd⟩⟩
+        · exact absurd (h1.symm.trans h2) (by simp)
+        · exact absurd (h1.symm.trans h2) (by simp)
+        · have : p.2 = q.2 := by simpa using h1.symm.trans h2
+          exact Or.inr ⟨fun hc ↦ hne ⟨hc, this⟩, this⟩
+      · rintro (⟨h, -⟩ | ⟨-, h⟩)
+        · exact ⟨Sum.inl p.1, (mem_bipartiteEdge m n _ p).2 (Or.inl rfl),
+            (mem_bipartiteEdge m n _ q).2 (Or.inl (by rw [h]))⟩
+        · exact ⟨Sum.inr p.2, (mem_bipartiteEdge m n _ p).2 (Or.inr rfl),
+            (mem_bipartiteEdge m n _ q).2 (Or.inr (by rw [h]))⟩
+  have hrook : (rook m n : IsoGraph) = ⟦CGraph.rook m n⟧ := by
+    rw [show (rook m n : IsoGraph) = cartesianProduct (complete m) (complete n) from rfl,
+      complete_def, complete_def, cartesianProduct_mk]
+  rw [bipartite_def, lineGraph_mk, hrook]
+  exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (bipartiteEdge m n) hbij) hadj).symm⟩
+
 @[simp] theorem mycielskian_empty_zero : mycielskian (empty 0) = empty 1 := by
   have h : ∀ x y : (CGraph.mycielskian (CGraph.empty 0)).V,
       (CGraph.mycielskian (CGraph.empty 0)).Adj x y = false := by

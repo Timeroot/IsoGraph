@@ -287,6 +287,7 @@ lineGraph (complete n) = johnson n 2 = triangular n
 lineGraph (complete 4) = cocktailParty 3
 lineGraph (cycle (n+3)) = cycle (n+3)
 lineGraph (path (n+1)) = path n
+lineGraph (bipartite m n) = rook m n
 mycielskian (empty 0) = empty 1      mycielskian (complete 2) = cycle 5
 mycielskian (empty n) = disjUnion (star n) (empty n)
 ```
@@ -319,6 +320,12 @@ bijection and no surjectivity argument is needed. Two edges then meet exactly wh
 are consecutive, which is the adjacency of the smaller graph. The cycle version is where `n ≥ 3`
 is needed, and it enters in exactly one place: injectivity fails at `n = 2`, where `s(0, 1)` and
 `s(1, 0)` are the same edge — the content is `cyc (cyc j) ≠ j`, two steps never return.
+
+`lineGraph (bipartite m n) = rook m n` runs the same way and is the cleanest of the three: an edge
+of `K_{m,n}` *is* a square `(i, j)` of the board, `E_bipartite` says there are `m * n` of them, and
+two squares share a vertex exactly when they share a row or a column, which is
+`cartesianProduct (complete m) (complete n)`. `lineGraph_star` is the `m = 1` case, but it is left
+with its own proof so that the star does not depend on the general bijection.
 
 ## Enumeration
 
