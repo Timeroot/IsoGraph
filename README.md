@@ -376,7 +376,7 @@ entries — `linesOnCubic`, the three Chang graphs and Hoffman–Singleton — s
 vertices that is a twenty-five-second kernel reduction apiece, which buys no extra confidence
 over the compiler for definitions this explicit.
 
-The whole file — 24 parameter checks up to 101 vertices, plus six canonical-key comparisons —
+The whole file — 24 parameter checks up to 101 vertices, plus four canonical-key comparisons —
 builds in about twenty-five seconds. That budget is what "efficiently evaluable" buys: `paley q`
 reads a precomputed `Array Bool` of quadratic residues (hoisted into a `let` so the compiled
 closure captures the table rather than rebuilding it per query), Hoffman–Singleton is Robertson's

@@ -259,16 +259,20 @@ theorem petersen_srg_iso : IsoGraph.IsSRGWith (Quotient.mk _ petersen) 10 3 0 1 
 
 /-! ## Identifications and separations
 
-Same parameters need not mean isomorphic, and different descriptions often do.  Both directions
-are decided by the canonical key. -/
+Same parameters need not mean isomorphic, and different descriptions often do.  Where the two
+graphs are already the same construction in disguise the isomorphism is written down; otherwise
+the question is decided by the canonical key. -/
 
-/-- `Paley(5)` is the 5-cycle. -/
-theorem paley_five_eq_cycle : Nonempty (paley 5 ≃cg cycle 5) := by
-  rw [← key_eq_iff]; native_decide
+/-- `Paley(5)` is the 5-cycle.  Both are circulants on `Fin 5` — the nonzero squares mod `5` are
+`{1, 4}`, which is `{±1}` — so the identity is already an isomorphism and the twenty-five
+adjacency comparisons fit inside kernel `decide`. -/
+theorem paley_five_eq_cycle : Nonempty (paley 5 ≃cg cycle 5) :=
+  ⟨⟨Equiv.refl (Fin 5), fun {a b} ↦ by revert a b; decide⟩⟩
 
-/-- `T(5)` is the complement of the Petersen graph. -/
-theorem triangular_five_eq_compl_petersen : Nonempty (triangular 5 ≃cg compl petersen) := by
-  rw [← key_eq_iff]; native_decide
+/-- `T(5)` is the complement of the Petersen graph — a special case of `johnsonTwoIso`, which
+identifies `johnson n 2` with `compl (kneser n 2)` for every `n`. -/
+theorem triangular_five_eq_compl_petersen : Nonempty (triangular 5 ≃cg compl petersen) :=
+  ⟨johnsonTwoIso 5⟩
 
 /-- `T(4)` is the octahedron `K_{2,2,2}`. -/
 theorem triangular_four_eq_octahedron : Nonempty (triangular 4 ≃cg cocktailParty 3) := by
