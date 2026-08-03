@@ -109,6 +109,46 @@ def complSubsets (n k : ℕ) (hk : k ≤ n) :
     ((complSubsets n k hk s : {s : Finset (Fin n) // s.card = n - k}) : Finset (Fin n)) = s.1ᶜ :=
   rfl
 
+/-- Flipping the first coordinate of `Fin 2 × Fin n` by the parity of the second.  This is the
+twist that turns a bipartite double cover into two disjoint copies. -/
+def parityTwist (n : ℕ) : (Fin 2 × Fin n) ≃ (Fin 2 × Fin n) where
+  toFun p := (⟨(p.1.1 + p.2.1) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
+  invFun p := (⟨(p.1.1 + p.2.1) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
+  left_inv p := by
+    have h := p.1.isLt
+    refine Prod.ext (Fin.ext ?_) rfl
+    simp only
+    omega
+  right_inv p := by
+    have h := p.1.isLt
+    refine Prod.ext (Fin.ext ?_) rfl
+    simp only
+    omega
+
+/-- The successor relation of a cycle, with the wrap-around split off.  `omega` cannot see through
+a `%` whose modulus is a variable, so every step around a `cycle n` is turned into this
+disjunction before the arithmetic starts. -/
+theorem succ_mod_eq_iff {d x y : ℕ} (hx : x < d) :
+    (x + 1) % d = y ↔ (x + 1 = d ∧ y = 0) ∨ (x + 1 < d ∧ y = x + 1) := by
+  rcases Nat.lt_or_ge (x + 1) d with h | h
+  · rw [Nat.mod_eq_of_lt h]
+    constructor
+    · rintro rfl; exact Or.inr ⟨h, rfl⟩
+    · rintro (⟨h1, h2⟩ | ⟨-, h2⟩) <;> omega
+  · have hd : x + 1 = d := by omega
+    rw [hd, Nat.mod_self]
+    constructor
+    · rintro rfl; exact Or.inl ⟨rfl, rfl⟩
+    · rintro (⟨-, h2⟩ | ⟨h1, -⟩) <;> omega
+
+/-- Reduction mod `d` below `2 * d`, again as a disjunction `omega` can use. -/
+theorem mod_of_lt_two_mul {d x : ℕ} (hx : x < 2 * d) :
+    (x < d ∧ x % d = x) ∨ (d ≤ x ∧ x % d = x - d) := by
+  rcases Nat.lt_or_ge x d with h | h
+  · exact Or.inl ⟨h, Nat.mod_eq_of_lt h⟩
+  · refine Or.inr ⟨h, ?_⟩
+    rw [Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]
+
 /-- Peel the first fibre off a dependent sigma type indexed by `Fin (n + 1)`.  Mathlib has no
 such equivalence, and it is what lets `sigmaUnion` over `Fin (n + 1)` be recognised as a
 disjoint union. -/
@@ -693,6 +733,88 @@ def johnsonCompl (n k : ℕ) (hk : k ≤ n) :
       exact ⟨hst, (key hst).1 h2⟩
     · rintro ⟨hst, h2⟩
       exact ⟨fun h ↦ hst ((complSubsets n k hk).injective h), (key hst).2 h2⟩)
+
+/-! ### Bipartite double covers
+
+`K₂ × G` is the bipartite double cover of `G`.  It splits into two copies of `G` exactly when `G`
+is bipartite, and for an odd cycle it is the cycle of twice the length. -/
+
+/-- **A double cover that splits.**  If every edge of `r` joins an even-indexed vertex to an
+odd-indexed one — i.e. the parity of the index is a proper 2-colouring — then `K₂ × G` is `G`
+twice over: twisting the `K₂` coordinate by the parity of the `G` coordinate carries the tensor
+product onto the Cartesian one. -/
+def tensorTwoOfRel (n : ℕ) (r : Fin n → Fin n → Bool)
+    (h : ∀ i j : Fin n, (r i j || r j i) = true → (i.1 + j.1) % 2 = 1) :
+    CGraph.tensorProduct (CGraph.complete 2) (ofRel (Fin n) r) ≃cg
+      CGraph.cartesianProduct (CGraph.empty 2) (ofRel (Fin n) r) :=
+  isoOfAdj (G := CGraph.tensorProduct (CGraph.complete 2) (ofRel (Fin n) r))
+    (H := CGraph.cartesianProduct (CGraph.empty 2) (ofRel (Fin n) r)) (parityTwist n) (by
+      rintro ⟨a, i⟩ ⟨c, j⟩
+      show (CGraph.cartesianProduct (CGraph.empty 2) (ofRel (Fin n) r)).Adj
+          (⟨(a.1 + i.1) % 2, _⟩, i) (⟨(c.1 + j.1) % 2, _⟩, j)
+        = (CGraph.tensorProduct (CGraph.complete 2) (ofRel (Fin n) r)).Adj (a, i) (c, j)
+      rw [CGraph.cartesianProduct_adj, CGraph.tensorProduct_adj]
+      simp only [CGraph.empty_adj, CGraph.complete_adj, CGraph.ofRel_adj, Bool.false_and,
+        Bool.or_false]
+      rcases hij : (decide (i ≠ j) && (r i j || r j i)) with _ | _
+      · simp
+      · have hpar : (i.1 + j.1) % 2 = 1 := by
+          simp only [Bool.and_eq_true] at hij
+          exact h i j hij.2
+        have ha := a.isLt
+        have hc := c.isLt
+        simp only [Bool.and_true]
+        refine congrArg (fun b : Bool ↦ b) ?_
+        rw [show (decide ((⟨(a.1 + i.1) % 2, Nat.mod_lt _ (by norm_num)⟩ : Fin 2)
+            = ⟨(c.1 + j.1) % 2, Nat.mod_lt _ (by norm_num)⟩))
+          = decide ((a.1 + i.1) % 2 = (c.1 + j.1) % 2) from by
+            simp [Fin.ext_iff]]
+        rw [show (decide (a ≠ c)) = decide (a.1 ≠ c.1) from by
+          simp only [decide_eq_decide, ne_eq, not_iff_not]
+          exact ⟨fun hh ↦ congrArg Fin.val hh, fun hh ↦ Fin.ext hh⟩]
+        congr 1
+        simp only [eq_iff_iff, ne_eq]
+        omega)
+
+/-- The Chinese remainder bijection `Fin (2n) ≃ Fin 2 × Fin n` for odd `n`, as the reduction
+`k ↦ (k % 2, k % n)`.  Injectivity is elementary rather than a coprimality argument: `k` and
+`k % n` differ by `0` or `n`, and `n` is odd, so the two residues pin `k` down. -/
+noncomputable def crtEquiv (m : ℕ) : Fin (2 * (2 * m + 3)) ≃ (Fin 2 × Fin (2 * m + 3)) :=
+  Equiv.ofBijective
+    (fun k ↦ (⟨k.1 % 2, Nat.mod_lt _ (by omega)⟩, ⟨k.1 % (2 * m + 3), Nat.mod_lt _ (by omega)⟩))
+    ((Fintype.bijective_iff_injective_and_card _).2 ⟨by
+      intro k l hkl
+      have hk := mod_of_lt_two_mul (d := 2 * m + 3) k.isLt
+      have hl := mod_of_lt_two_mul (d := 2 * m + 3) l.isLt
+      simp only [Prod.mk.injEq, Fin.mk.injEq] at hkl
+      exact Fin.ext (by omega), by simp⟩)
+
+/-- **The double cover of an odd cycle is the cycle of twice the length.**  Under the Chinese
+remainder bijection, stepping once around `C_{2n}` changes the parity *and* steps once around
+`C_n` — which is exactly an edge of `K₂ × C_n`. -/
+noncomputable def cycleTensorTwo (m : ℕ) :
+    CGraph.cycle (2 * (2 * m + 3)) ≃cg
+      CGraph.tensorProduct (CGraph.complete 2) (CGraph.cycle (2 * m + 3)) :=
+  isoOfAdj (G := CGraph.cycle (2 * (2 * m + 3)))
+    (H := CGraph.tensorProduct (CGraph.complete 2) (CGraph.cycle (2 * m + 3))) (crtEquiv m) (by
+      intro k l
+      show (CGraph.tensorProduct (CGraph.complete 2) (CGraph.cycle (2 * m + 3))).Adj
+          (⟨k.1 % 2, _⟩, ⟨k.1 % (2 * m + 3), _⟩) (⟨l.1 % 2, _⟩, ⟨l.1 % (2 * m + 3), _⟩)
+        = (CGraph.cycle (2 * (2 * m + 3))).Adj k l
+      have hn : 0 < 2 * m + 3 := by omega
+      have e1 := succ_mod_eq_iff (d := 2 * m + 3) (x := k.1 % (2 * m + 3))
+        (y := l.1 % (2 * m + 3)) (Nat.mod_lt _ hn)
+      have e2 := succ_mod_eq_iff (d := 2 * m + 3) (x := l.1 % (2 * m + 3))
+        (y := k.1 % (2 * m + 3)) (Nat.mod_lt _ hn)
+      have e3 := succ_mod_eq_iff (d := 2 * (2 * m + 3)) (x := k.1) (y := l.1) k.isLt
+      have e4 := succ_mod_eq_iff (d := 2 * (2 * m + 3)) (x := l.1) (y := k.1) l.isLt
+      have hk := mod_of_lt_two_mul (d := 2 * m + 3) k.isLt
+      have hl := mod_of_lt_two_mul (d := 2 * m + 3) l.isLt
+      refine Bool.eq_iff_iff.2 ?_
+      simp only [CGraph.tensorProduct_adj, CGraph.complete_adj, CGraph.cycle, CGraph.ofRel_adj,
+        Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq, Fin.ext_iff]
+      rw [e1, e2, e3, e4]
+      omega)
 
 end Iso
 
@@ -2023,6 +2145,38 @@ theorem bipartite_self_eq_lexProduct (n : ℕ) :
   rw [← completeMultipartite_replicate 2 n, show List.replicate 2 n = [n, n] from rfl,
     completeMultipartite_pair]
 
+/-- The lexicographic product distributes over `join` in its first factor, for the same reason it
+distributes over `disjUnion`: the two are exchanged by complementation. -/
+theorem join_lexProduct (G H K : IsoGraph) :
+    lexProduct (join G H) K = join (lexProduct G K) (lexProduct H K) := by
+  conv_lhs => rw [← compl_compl (lexProduct (join G H) K)]
+  rw [compl_lexProduct, compl_join, disjUnion_lexProduct, ← compl_lexProduct G K,
+    ← compl_lexProduct H K, ← join_def]
+
+@[simp] theorem lexProduct_empty (m n : ℕ) : lexProduct (empty m) (empty n) = empty (m * n) := by
+  rw [empty_lexProduct, cartesianProduct_empty]
+
+@[simp] theorem strongProduct_empty (m n : ℕ) :
+    strongProduct (empty m) (empty n) = empty (m * n) := by
+  rw [empty_strongProduct, cartesianProduct_empty]
+
+/-- **Blowing up a complete multipartite graph multiplies its parts.**  Replacing every vertex by
+`d` independent ones keeps the graph complete multipartite, with each part `d` times as large. -/
+theorem lexProduct_completeMultipartite_empty (ds : List ℕ) (d : ℕ) :
+    lexProduct (completeMultipartite ds) (empty d) = completeMultipartite (ds.map (· * d)) := by
+  induction ds with
+  | nil => rw [List.map_nil, completeMultipartite_nil, empty_zero_lexProduct]
+  | cons a ds ih =>
+    rw [completeMultipartite_cons, join_lexProduct, ih, lexProduct_empty, List.map_cons,
+      completeMultipartite_cons]
+
+/-- The two-part case: blowing up `K_{a,b}` gives `K_{ad,bd}`. -/
+theorem bipartite_mul (a b d : ℕ) :
+    bipartite (a * d) (b * d) = lexProduct (bipartite a b) (empty d) := by
+  rw [← completeMultipartite_pair, ← completeMultipartite_pair,
+    lexProduct_completeMultipartite_empty]
+  rfl
+
 /-- **`Q_{m+n} = Q_m □ Q_n`**: splitting a bit-string of length `m + n` into its first `m` and
 last `n` bits.  Iterating `hypercube_succ` is all it takes. -/
 theorem hypercube_add (m n : ℕ) :
@@ -2115,10 +2269,71 @@ theorem compl_cycle_six : compl (cycle 6) = prism 3 := by
         Fin 6 ≃ (Fin 3 × Fin 2))
     (by decide)⟩
 
+theorem compl_prism_three : compl (prism 3) = cycle 6 := by
+  rw [← compl_cycle_six, compl_compl]
+
 /-- The cube graph is the four-rung prism. -/
 theorem hypercube_three : hypercube 3 = prism 4 := by
   show hypercube 3 = cartesianProduct (cycle 4) (complete 2)
   rw [hypercube_succ, hypercube_two]
+
+/-! ### Bipartite double covers
+
+The tensor product with `K₂` is the bipartite double cover.  Over a bipartite graph it comes apart
+into two copies of the original; over an odd cycle it does not, and gives the cycle of twice the
+length instead. -/
+
+/-- **The double cover of a path is two paths.** -/
+theorem tensorProduct_complete_two_path (n : ℕ) :
+    tensorProduct (complete 2) (path n) = disjUnion (path n) (path n) := by
+  rw [← empty_two_cartesianProduct (path n), complete_def, path_def, tensorProduct_mk, empty_def,
+    cartesianProduct_mk]
+  exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfRel n _ (by
+    intro i j hij
+    have hi := i.isLt
+    have hj := j.isLt
+    simp only [Bool.or_eq_true, beq_iff_eq] at hij
+    rcases hij with h | h <;> omega)⟩
+
+/-- **The double cover of an even cycle is two cycles.** -/
+theorem tensorProduct_complete_two_cycle (m : ℕ) :
+    tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m)) := by
+  rw [← empty_two_cartesianProduct (cycle (2 * m)), complete_def, cycle_def, tensorProduct_mk,
+    empty_def, cartesianProduct_mk]
+  exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfRel (2 * m) _ (by
+    intro i j hij
+    have hi := i.isLt
+    have hj := j.isLt
+    have key : ∀ x y : Fin (2 * m), (x.1 + 1) % (2 * m) = y.1 → (x.1 + y.1) % 2 = 1 := by
+      intro x y hxy
+      have hx := x.isLt
+      have hy := y.isLt
+      rcases Nat.lt_or_ge (x.1 + 1) (2 * m) with hlt | hge
+      · rw [Nat.mod_eq_of_lt hlt] at hxy
+        omega
+      · have : x.1 + 1 = 2 * m := by omega
+        rw [this, Nat.mod_self] at hxy
+        omega
+    simp only [Bool.or_eq_true, beq_iff_eq] at hij
+    rcases hij with h | h
+    · exact key i j h
+    · have := key j i h
+      omega)⟩
+
+/-- **The double cover of an odd cycle is one cycle of twice the length.**  The bound starts at
+`C₃`: `cycle 1` is edgeless, so its double cover is too, while `cycle 2` is an edge. -/
+theorem tensorProduct_complete_two_cycle_odd (m : ℕ) :
+    tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3)) := by
+  rw [complete_def, cycle_def, tensorProduct_mk, cycle_def]
+  exact Quotient.sound ⟨(CGraph.Iso.cycleTensorTwo m).symm⟩
+
+theorem tensorProduct_complete_two_cycle_three :
+    tensorProduct (complete 2) (cycle 3) = cycle 6 :=
+  tensorProduct_complete_two_cycle_odd 0
+
+theorem tensorProduct_complete_two_cycle_five :
+    tensorProduct (complete 2) (cycle 5) = cycle 10 :=
+  tensorProduct_complete_two_cycle_odd 1
 
 /-! ## Line graphs and Mycielskians
 

@@ -253,6 +253,12 @@ strongProduct (empty n) G = cartesianProduct (empty n) G
 cartesianProduct (empty m) (empty n) = empty (m * n)      bipartite n n = lexProduct (complete 2) (empty n)
 johnson (n + 2) n = triangular (n + 2)
 rook 2 3 = prism 3                                        compl (cycle 6) = prism 3
+lexProduct (join G H) K = join (lexProduct G K) (lexProduct H K)
+lexProduct (completeMultipartite ds) (empty d) = completeMultipartite (ds.map (· * d))
+bipartite (a * d) (b * d) = lexProduct (bipartite a b) (empty d)
+tensorProduct (complete 2) (path n) = disjUnion (path n) (path n)
+tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m))
+tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3))
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -311,6 +317,22 @@ Putting those together, `K_m[G]` is `m` copies of `G` with every pair of copies 
 blow-ups `K_m[empty d]`; `cocktailParty n = K_n[empty 2]` and its complement is a perfect matching.
 The complement proof needs the pair equality restated at `(lexProduct G H).V` as
 `CGraph.lexProduct_pair_eq`, the same reducibility dodge as `disjUnion_inl_eq_inl`.
+
+Blowing up is a `join`-level operation too: the lexicographic product distributes over `join` in
+its first factor (complementation exchanges that with the `disjUnion` rule already proved), so
+blowing up a complete multipartite graph by `empty d` just multiplies every part by `d`.
+
+The tensor product with `K₂` is the bipartite double cover, and whether it splits is exactly the
+question of bipartiteness. `CGraph.Iso.tensorTwoOfRel` handles the split case for any graph on
+`Fin n` whose edges all join an even index to an odd one — twist the `K₂` coordinate by the parity
+of the other (`CGraph.parityTwist`) and the tensor product becomes `empty 2 □ G`, which is two
+copies. Paths and even cycles qualify. Odd cycles do not, and there the cover is connected:
+`K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
+elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality
+argument. `omega` cannot see through a `%` whose modulus is a variable, so both proofs first turn
+every wrap-around into a disjunction — `succ_mod_eq_iff` for a step around a cycle,
+`mod_of_lt_two_mul` for a reduction below `2n` — after which one `omega` closes the whole
+adjacency equivalence.
 
 Johnson duality, `J(n, k) ≅ J(n, n - k)`, is the one identity here whose bijection is interesting:
 `CGraph.complSubsets` sends `s` to `sᶜ`, and `|sᶜ ∩ tᶜ| = n - |s ∪ t| = n - 2k + |s ∩ t|` turns an
