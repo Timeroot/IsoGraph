@@ -3,6 +3,7 @@ import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Combinatorics.SimpleGraph.Hasse
+import Mathlib.NumberTheory.LegendreSymbol.QuadraticChar.Basic
 
 /-!
 # Constructions
@@ -470,10 +471,20 @@ instance (n : ℕ) (S : List ℕ) : DecidableEq (circulant n S).V :=
     Fintype.card (circulant n S).V = n := Fintype.card_fin n
 
 /-- The nonzero quadratic residues mod `q`, as a lookup table — computed once, so that the Paley
-graph answers an adjacency query with one array read. -/
+graph answers an adjacency query with one array read.
+
+Written as an `Array.ofFn` over the *defining* predicate rather than by scattering `i * i % q`
+into a mutable array: building the table then costs `O(q²)` instead of `O(q)`, which is nothing
+next to the `O(q²)` adjacency matrix it feeds, and in exchange `qrTable_getElem` reads off an
+entry with no reasoning about `Array.set!` at all. -/
 private def qrTable (q : ℕ) : Array Bool :=
-  (List.range q).foldl (fun a i ↦ if i == 0 then a else a.set! (i * i % q) true)
-    (Array.replicate q false)
+  Array.ofFn (n := q) fun d ↦ decide (∃ i : Fin q, i.1 ≠ 0 ∧ i.1 * i.1 % q = d.1)
+
+private theorem qrTable_getElem (q d : ℕ) (h : d < q) :
+    (qrTable q)[d]! = decide (∃ i : Fin q, i.1 ≠ 0 ∧ i.1 * i.1 % q = d) := by
+  have hs : d < (qrTable q).size := by simpa [qrTable] using h
+  rw [getElem!_pos (qrTable q) d hs]
+  simp [qrTable]
 
 /-- The Paley graph of order `q`: `x ~ y` when `y - x` is a nonzero square mod `q`.
 
@@ -4244,6 +4255,352 @@ theorem isSRGWith_johnson_two (n : ℕ) (hn : 4 ≤ n) :
 theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
     (triangular n).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
   isSRGWith_johnson_two n hn
+
+/-! ### Paley graphs
+
+`paley q` is a Cayley graph on `ZMod q` with the nonzero squares as connection set, so the whole
+question is a character sum.  Write `χ = quadraticChar F` for the quadratic character of a finite
+field `F` with `q ≡ 1 mod 4` elements; then `χ (-1) = 1`, so `χ (y - x) = 1` is a symmetric
+relation and
+
+* `#{u | χ u = 1} = (q - 1) / 2`, from `∑ u, χ u = 0`;
+* `#{u | χ u = 1 ∧ χ (u - a) = 1} = (q - 3 - 2 * χ a) / 4` for `a ≠ 0`, from the same plus
+  `∑ u, χ (u * (u - a)) = -1`.
+
+Translating by `x` turns those two counts into the degree and the common-neighbour count, which
+is exactly `isSRGWith_of`.  The last step, `paleyIso`, identifies `paley q` — which is written on
+`Fin q` and reads its adjacency out of `qrTable` — with the field version over `ZMod q`. -/
+
+section Paley
+
+variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
+
+/-- For `a ≠ 0`, the quadratic character sum `∑ u, χ (u * (u - a))` is `-1`.
+
+`u ↦ 1 - a * u⁻¹` is a bijection from the nonzero elements to the elements other than `1`, and
+`χ (u * (u - a)) = χ (u²) * χ (1 - a * u⁻¹) = χ (1 - a * u⁻¹)`, so the sum is `∑_{w ≠ 1} χ w`. -/
+theorem quadraticChar_sum_mul_sub (hF : ringChar F ≠ 2) {a : F} (ha : a ≠ 0) :
+    ∑ u : F, quadraticChar F (u * (u - a)) = -1 := by
+  have h0 : ∑ u : F, quadraticChar F (u * (u - a))
+      = ∑ u ∈ Finset.univ.erase (0 : F), quadraticChar F (u * (u - a)) := by
+    rw [Finset.sum_erase]
+    simp
+  have key : ∑ u ∈ Finset.univ.erase (0 : F), quadraticChar F (u * (u - a))
+      = ∑ w ∈ Finset.univ.erase (1 : F), quadraticChar F w := by
+    refine Finset.sum_nbij' (i := fun u ↦ 1 - a * u⁻¹) (j := fun w ↦ a * (1 - w)⁻¹)
+      ?_ ?_ ?_ ?_ ?_
+    · intro u hu
+      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hu ⊢
+      intro h
+      rcases mul_eq_zero.mp (sub_eq_self.mp h) with h3 | h3
+      · exact ha h3
+      · exact hu (inv_eq_zero.mp h3)
+    · intro w hw
+      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hw ⊢
+      exact mul_ne_zero ha (inv_ne_zero (sub_ne_zero.2 (Ne.symm hw)))
+    · intro u hu
+      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hu
+      show a * (1 - (1 - a * u⁻¹))⁻¹ = u
+      rw [sub_sub_cancel, mul_inv, inv_inv, ← mul_assoc, mul_inv_cancel₀ ha, one_mul]
+    · intro w hw
+      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hw
+      have h1 : (1 : F) - w ≠ 0 := sub_ne_zero.2 (Ne.symm hw)
+      show 1 - a * (a * (1 - w)⁻¹)⁻¹ = w
+      rw [mul_inv, inv_inv, ← mul_assoc, mul_inv_cancel₀ ha, one_mul, sub_sub_cancel]
+    · intro u hu
+      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hu
+      have : u * (u - a) = u ^ 2 * (1 - a * u⁻¹) := by field_simp
+      rw [this, map_mul, quadraticChar_sq_one' hu, one_mul]
+  rw [h0, key, Finset.sum_erase_eq_sub (Finset.mem_univ _), quadraticChar_sum_zero hF]
+  simp
+
+variable (hq : Fintype.card F % 4 = 1)
+include hq
+
+theorem ringChar_ne_two_of_card_mod_four : ringChar F ≠ 2 := fun h ↦ by
+  have := FiniteField.even_card_iff_char_two.1 h
+  omega
+
+theorem quadraticChar_neg_one_eq_one : quadraticChar F (-1) = 1 :=
+  (quadraticChar_one_iff_isSquare (by simp)).2 (FiniteField.isSquare_neg_one_iff.2 (by omega))
+
+/-- Over a field with `q ≡ 1 mod 4` elements the quadratic character is even, which is why the
+Paley graph is a graph and not a tournament. -/
+theorem quadraticChar_neg' (a : F) : quadraticChar F (-a) = quadraticChar F a := by
+  rw [show -a = -1 * a by ring, map_mul, quadraticChar_neg_one_eq_one hq, one_mul]
+
+omit hq in
+theorem quadraticChar_sum_sub_zero (hF : ringChar F ≠ 2) (a : F) :
+    ∑ u : F, quadraticChar F (u - a) = 0 := by
+  rw [Fintype.sum_equiv (Equiv.subRight a) (fun u ↦ quadraticChar F (u - a))
+    (fun w ↦ quadraticChar F w) (fun u ↦ rfl)]
+  exact quadraticChar_sum_zero hF
+
+/-- **The degree count**: exactly half of the nonzero elements are squares. -/
+theorem card_quadraticChar_eq_one :
+    2 * ((Finset.univ.filter fun u : F ↦ quadraticChar F u = 1).card : ℤ)
+      = Fintype.card F - 1 := by
+  have hF := ringChar_ne_two_of_card_mod_four hq
+  have hsplit : ∑ u ∈ Finset.univ.erase (0 : F), (1 + quadraticChar F u)
+      = 2 * (((Finset.univ.erase (0 : F)).filter fun u ↦ quadraticChar F u = 1).card : ℤ) := by
+    rw [← Finset.sum_filter_add_sum_filter_not (Finset.univ.erase (0 : F))
+      (fun u ↦ quadraticChar F u = 1)]
+    rw [Finset.sum_congr rfl (g := fun _ ↦ (2 : ℤ)) fun u hu ↦ by
+        simp only [Finset.mem_filter] at hu; rw [hu.2]; norm_num,
+      Finset.sum_eq_zero
+        (s := (Finset.univ.erase (0 : F)).filter fun u ↦ ¬ quadraticChar F u = 1) fun u hu ↦ by
+          simp only [Finset.mem_filter, Finset.mem_erase] at hu
+          rcases quadraticChar_dichotomy hu.1.1 with h | h
+          · exact absurd h hu.2
+          · rw [h]; ring]
+    simp [mul_comm]
+  have hfe : ((Finset.univ.erase (0 : F)).filter fun u ↦ quadraticChar F u = 1)
+      = Finset.univ.filter fun u : F ↦ quadraticChar F u = 1 := by
+    refine Finset.ext fun u ↦ ?_
+    simp only [Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true]
+    exact ⟨fun h ↦ h.2, fun h ↦ ⟨fun h0 ↦ by rw [h0] at h; simp at h, h⟩⟩
+  rw [hfe] at hsplit
+  rw [← hsplit, Finset.sum_add_distrib, Finset.sum_const,
+    Finset.sum_erase_eq_sub (Finset.mem_univ _), quadraticChar_sum_zero hF,
+    Finset.card_erase_of_mem (Finset.mem_univ (0 : F)), Finset.card_univ]
+  have h2 : 1 ≤ Fintype.card F := Fintype.card_pos
+  simp only [nsmul_eq_mul, mul_one, quadraticChar_zero, sub_zero]
+  omega
+
+/-- **The common-neighbour count**: for `a ≠ 0` the number of `u` with both `u` and `u - a`
+nonzero squares is `(q - 3 - 2 * χ a) / 4`. -/
+theorem card_common_quadraticChar {a : F} (ha : a ≠ 0) :
+    4 * ((Finset.univ.filter fun u : F ↦
+          quadraticChar F u = 1 ∧ quadraticChar F (u - a) = 1).card : ℤ)
+      = Fintype.card F - 3 - 2 * quadraticChar F a := by
+  have hF := ringChar_ne_two_of_card_mod_four hq
+  have ha' : a ∈ Finset.univ.erase (0 : F) := Finset.mem_erase.2 ⟨ha, Finset.mem_univ _⟩
+  set S : Finset F := (Finset.univ.erase (0 : F)).erase a with hS
+  set P : F → Prop := fun u ↦ quadraticChar F u = 1 ∧ quadraticChar F (u - a) = 1 with hP
+  have hfe : S.filter P = Finset.univ.filter P := by
+    refine Finset.ext fun u ↦ ?_
+    simp only [hS, hP, Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true]
+    refine ⟨fun h ↦ h.2, fun h ↦ ⟨⟨fun h0 ↦ ?_, fun h0 ↦ ?_⟩, h⟩⟩
+    · rw [h0, sub_self] at h; simp at h
+    · rw [h0] at h; simp at h
+  have hsplit : ∑ u ∈ S, (1 + quadraticChar F u) * (1 + quadraticChar F (u - a))
+      = 4 * ((S.filter P).card : ℤ) := by
+    rw [← Finset.sum_filter_add_sum_filter_not S P]
+    rw [Finset.sum_congr rfl (g := fun _ ↦ (4 : ℤ)) fun u hu ↦ by
+        simp only [Finset.mem_filter, hP] at hu; rw [hu.2.1, hu.2.2]; norm_num,
+      Finset.sum_eq_zero (s := S.filter fun u ↦ ¬ P u) fun u hu ↦ by
+        simp only [Finset.mem_filter, hS, Finset.mem_erase, hP, not_and] at hu
+        rcases quadraticChar_dichotomy hu.1.2.1 with h | h
+        · rcases quadraticChar_dichotomy (sub_ne_zero.2 hu.1.1) with h' | h'
+          · exact absurd h' (hu.2 h)
+          · rw [h']; ring
+        · rw [h]; ring]
+    simp [mul_comm]
+  have hexp : ∑ u ∈ S, (1 + quadraticChar F u) * (1 + quadraticChar F (u - a))
+      = (∑ _u ∈ S, (1 : ℤ)) + (∑ u ∈ S, quadraticChar F u)
+        + (∑ u ∈ S, quadraticChar F (u - a)) + ∑ u ∈ S, quadraticChar F (u * (u - a)) := by
+    rw [← Finset.sum_add_distrib, ← Finset.sum_add_distrib, ← Finset.sum_add_distrib]
+    refine Finset.sum_congr rfl fun u _ ↦ ?_
+    rw [map_mul]
+    ring
+  have e1 : (∑ _u ∈ S, (1 : ℤ)) = (Fintype.card F : ℤ) - 2 := by
+    rw [Finset.sum_const, hS, Finset.card_erase_of_mem ha',
+      Finset.card_erase_of_mem (Finset.mem_univ (0 : F)), Finset.card_univ]
+    have h2 : 2 ≤ Fintype.card F := Fintype.one_lt_card
+    simp only [nsmul_eq_mul, mul_one]
+    omega
+  have e2 : (∑ u ∈ S, quadraticChar F u) = -quadraticChar F a := by
+    rw [hS, Finset.sum_erase_eq_sub ha', Finset.sum_erase_eq_sub (Finset.mem_univ (0 : F)),
+      quadraticChar_sum_zero hF]
+    simp
+  have e3 : (∑ u ∈ S, quadraticChar F (u - a)) = -quadraticChar F a := by
+    rw [hS, Finset.sum_erase_eq_sub ha', Finset.sum_erase_eq_sub (Finset.mem_univ (0 : F)),
+      quadraticChar_sum_sub_zero hF]
+    simp [quadraticChar_neg' hq]
+  have e4 : (∑ u ∈ S, quadraticChar F (u * (u - a))) = -1 := by
+    rw [hS, Finset.sum_erase_eq_sub ha', Finset.sum_erase_eq_sub (Finset.mem_univ (0 : F)),
+      quadraticChar_sum_mul_sub hF ha]
+    simp
+  rw [← hfe, ← hsplit, hexp, e1, e2, e3, e4]
+  ring
+
+end Paley
+
+/-! ### The Paley graph of a finite field -/
+
+/-- The **Paley graph** of a finite field: `x ~ y` when `y - x` is a nonzero square.  For
+`Fintype.card F % 4 = 1` this is `paley (Fintype.card F)` up to isomorphism; see `paleyIso`. -/
+def paleyField (F : Type) [Field F] [Fintype F] [DecidableEq F] : CGraph :=
+  cayleyAdd F fun z ↦ decide (quadraticChar F z = 1)
+
+section PaleyField
+
+variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
+
+instance : DecidableEq (paleyField F).V := inferInstanceAs (DecidableEq F)
+
+@[simp] theorem card_paleyField : Fintype.card (paleyField F).V = Fintype.card F := rfl
+
+theorem paleyField_adj (hq : Fintype.card F % 4 = 1) (x y : F) :
+    (paleyField F).Adj x y = decide (quadraticChar F (y - x) = 1) := by
+  show (cayleyAdd F fun z ↦ decide (quadraticChar F z = 1)).Adj x y = _
+  rw [cayleyAdd_adj, show x - y = -(y - x) by ring, quadraticChar_neg' hq]
+  by_cases h : x = y
+  · subst h
+    simp
+  · simp [h]
+
+theorem nbrs_paleyField (hq : Fintype.card F % 4 = 1) (x : F) :
+    (paleyField F).nbrs x = Finset.univ.filter fun y : F ↦ quadraticChar F (y - x) = 1 := by
+  refine Finset.ext (α := F) fun y ↦ ?_
+  rw [mem_nbrs, paleyField_adj hq]
+  simp only [decide_eq_true_eq, Finset.mem_filter, Finset.mem_univ, true_and]
+
+theorem nbrs_inter_paleyField (hq : Fintype.card F % 4 = 1) (x y : F) :
+    (paleyField F).nbrs x ∩ (paleyField F).nbrs y
+      = Finset.univ.filter fun z : F ↦
+          quadraticChar F (z - x) = 1 ∧ quadraticChar F (z - y) = 1 := by
+  refine Finset.ext (α := F) fun z ↦ ?_
+  rw [Finset.mem_inter, mem_nbrs, mem_nbrs, paleyField_adj hq, paleyField_adj hq]
+  simp only [decide_eq_true_eq, Finset.mem_filter, Finset.mem_univ, true_and]
+
+/-- Translation by `x` matches the neighbours of `x` with the nonzero squares. -/
+theorem card_nbrs_paleyField (hq : Fintype.card F % 4 = 1) (x : F) :
+    ((paleyField F).nbrs x).card = (Fintype.card F - 1) / 2 := by
+  have hb : (Finset.univ.filter fun y : F ↦ quadraticChar F (y - x) = 1).card
+      = (Finset.univ.filter fun u : F ↦ quadraticChar F u = 1).card := by
+    refine Finset.card_bij (fun y _ ↦ y - x) ?_ (fun a _ b _ h ↦ sub_left_inj.mp h) ?_
+    · intro y hy
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hy ⊢
+      exact hy
+    · intro u hu
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hu ⊢
+      exact ⟨u + x, by simpa using hu, by ring⟩
+  have := card_quadraticChar_eq_one hq
+  rw [nbrs_paleyField hq, hb]
+  omega
+
+theorem card_nbrs_inter_paleyField (hq : Fintype.card F % 4 = 1) {x y : F} (hxy : x ≠ y) :
+    (((paleyField F).nbrs x ∩ (paleyField F).nbrs y).card : ℤ) * 4
+      = Fintype.card F - 3 - 2 * quadraticChar F (y - x) := by
+  have hb : (Finset.univ.filter fun z : F ↦
+        quadraticChar F (z - x) = 1 ∧ quadraticChar F (z - y) = 1).card
+      = (Finset.univ.filter fun u : F ↦
+          quadraticChar F u = 1 ∧ quadraticChar F (u - (y - x)) = 1).card := by
+    refine Finset.card_bij (fun z _ ↦ z - x) ?_ (fun a _ b _ h ↦ sub_left_inj.mp h) ?_
+    · intro z hz
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hz ⊢
+      exact ⟨hz.1, by rw [show z - x - (y - x) = z - y by ring]; exact hz.2⟩
+    · intro u hu
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hu ⊢
+      refine ⟨u + x, ⟨by simpa using hu.1, ?_⟩, by ring⟩
+      rw [show u + x - y = u - (y - x) by ring]
+      exact hu.2
+  have ha : y - x ≠ 0 := sub_ne_zero.2 (Ne.symm hxy)
+  rw [nbrs_inter_paleyField hq, hb, mul_comm]
+  exact card_common_quadraticChar hq ha
+
+/-- **Paley graphs are strongly regular.**  For a finite field with `q ≡ 1 mod 4` elements the
+Paley graph has parameters `(q, (q-1)/2, (q-5)/4, (q-1)/4)`. -/
+theorem isSRGWith_paleyField (hq : Fintype.card F % 4 = 1) :
+    (paleyField F).IsSRGWith (Fintype.card F) ((Fintype.card F - 1) / 2)
+      ((Fintype.card F - 5) / 4) ((Fintype.card F - 1) / 4) := by
+  have h2 : 2 ≤ Fintype.card F := Fintype.one_lt_card
+  refine isSRGWith_of _ rfl (fun (x : F) ↦ card_nbrs_paleyField hq x)
+    (fun (x y : F) hadj ↦ ?_) (fun (x y : F) hxy hadj ↦ ?_)
+  · -- adjacent: `χ (y - x) = 1`
+    rw [paleyField_adj hq] at hadj
+    simp only [decide_eq_true_eq] at hadj
+    have hxy : x ≠ y := by
+      rintro rfl
+      rw [sub_self, quadraticChar_zero] at hadj
+      exact absurd hadj (by norm_num)
+    have := card_nbrs_inter_paleyField hq hxy
+    rw [hadj] at this
+    omega
+  · -- distinct and non-adjacent: `χ (y - x) = -1`
+    have ha : y - x ≠ 0 := sub_ne_zero.2 (Ne.symm hxy)
+    rw [paleyField_adj hq] at hadj
+    simp only [decide_eq_false_iff_not] at hadj
+    have hneg : quadraticChar F (y - x) = -1 := (quadraticChar_dichotomy ha).resolve_left hadj
+    have := card_nbrs_inter_paleyField hq hxy
+    rw [hneg] at this
+    omega
+
+theorem quadraticChar_eq_one_iff (a : F) :
+    quadraticChar F a = 1 ↔ ∃ r : F, r ≠ 0 ∧ r * r = a := by
+  constructor
+  · intro h
+    have ha : a ≠ 0 := by rintro rfl; rw [quadraticChar_zero] at h; norm_num at h
+    obtain ⟨r, hr⟩ := (quadraticChar_one_iff_isSquare ha).1 h
+    exact ⟨r, fun h0 ↦ ha (by rw [hr, h0, mul_zero]), hr.symm⟩
+  · rintro ⟨r, hr0, rfl⟩
+    exact (quadraticChar_one_iff_isSquare (mul_ne_zero hr0 hr0)).2 ⟨r, rfl⟩
+
+end PaleyField
+
+/-! ### `paley q` is the field version over `ZMod q` -/
+
+/-- `ZMod q` and `Fin q`, matched up by `ZMod.val`. -/
+def zmodEquivFin (q : ℕ) [NeZero q] : ZMod q ≃ Fin q where
+  toFun a := ⟨a.val, ZMod.val_lt a⟩
+  invFun i := (i.1 : ZMod q)
+  left_inv a := ZMod.natCast_rightInverse a
+  right_inv i := Fin.ext (ZMod.val_cast_of_lt i.2)
+
+/-- The `Fin q` arithmetic `paley` does to find the offset of `y` from `x` is subtraction in
+`ZMod q`. -/
+theorem zmod_val_sub {q : ℕ} [NeZero q] (x y : ZMod q) :
+    (y.val + q - x.val) % q = (y - x).val := by
+  rw [show y.val + q - x.val = y.val + (q - x.val) from by
+    have := ZMod.val_lt x; omega, ← ZMod.val_natCast]
+  congr 1
+  rw [Nat.cast_add, Nat.cast_sub (le_of_lt (ZMod.val_lt x)), ZMod.natCast_self,
+    ZMod.natCast_rightInverse x, ZMod.natCast_rightInverse y, zero_sub, ← sub_eq_add_neg]
+
+/-- The lookup table records exactly the nonzero squares of `ZMod q`. -/
+theorem exists_sq_iff_val {q : ℕ} [NeZero q] (a : ZMod q) :
+    (∃ i : Fin q, i.1 ≠ 0 ∧ i.1 * i.1 % q = a.val) ↔ ∃ r : ZMod q, r ≠ 0 ∧ r * r = a := by
+  constructor
+  · rintro ⟨i, hi, hia⟩
+    have hr : ((i.1 : ℕ) : ZMod q).val = i.1 := ZMod.val_cast_of_lt i.2
+    refine ⟨(i.1 : ℕ), fun h0 ↦ hi (by rw [← hr, h0, ZMod.val_zero]), ZMod.val_injective q ?_⟩
+    rw [ZMod.val_mul, hr, hia]
+  · rintro ⟨r, hr0, rfl⟩
+    refine ⟨⟨r.val, ZMod.val_lt r⟩, ?_, ?_⟩
+    · simpa using fun h ↦ hr0 ((ZMod.val_eq_zero r).1 h)
+    · rw [ZMod.val_mul]
+
+theorem paley_adj_eq (q : ℕ) [NeZero q] [Fact q.Prime] (a b : ZMod q) :
+    (paley q).Adj (zmodEquivFin q a) (zmodEquivFin q b) = (paleyField (ZMod q)).Adj a b := by
+  have key : ∀ u v : ZMod q,
+      (qrTable q)[((zmodEquivFin q v).1 + q - (zmodEquivFin q u).1) % q]!
+        = decide (quadraticChar (ZMod q) (v - u) = 1) := by
+    intro u v
+    show (qrTable q)[(v.val + q - u.val) % q]! = _
+    rw [zmod_val_sub u v, qrTable_getElem q _ (ZMod.val_lt (v - u))]
+    simp only [exists_sq_iff_val, quadraticChar_eq_one_iff]
+  show (ofRel (Fin q) _).Adj _ _ = (cayleyAdd (ZMod q) _).Adj a b
+  rw [ofRel_adj, cayleyAdd_adj]
+  show (decide ((zmodEquivFin q a) ≠ (zmodEquivFin q b)) &&
+      ((qrTable q)[((zmodEquivFin q b).1 + q - (zmodEquivFin q a).1) % q]! ||
+       (qrTable q)[((zmodEquivFin q a).1 + q - (zmodEquivFin q b).1) % q]!)) = _
+  rw [key a b, key b a]
+  congr 1
+  simp [EmbeddingLike.apply_eq_iff_eq]
+
+/-- For a prime `q`, `paley q` is the Paley graph of the field `ZMod q`. -/
+def paleyIso (q : ℕ) [NeZero q] [Fact q.Prime] : paleyField (ZMod q) ≃cg paley q :=
+  ⟨zmodEquivFin q, fun {a b} ↦
+    iff_of_eq (congrArg (fun x : Bool ↦ x = true) (paley_adj_eq q a b))⟩
+
+/-- **`paley q` is strongly regular** for every prime `q ≡ 1 mod 4`. -/
+theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).IsSRGWith q ((q - 1) / 2) ((q - 5) / 4) ((q - 1) / 4) := by
+  have hcard : Fintype.card (ZMod q) = q := ZMod.card q
+  have h := isSRGWith_paleyField (F := ZMod q) (by rw [hcard]; exact hq)
+  rw [hcard] at h
+  exact SimpleGraph.Iso.isSRGWith_of_iso (CGraph.Iso.toSimpleIso (paleyIso q)) h
 
 end SRGFamilies
 

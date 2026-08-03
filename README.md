@@ -327,7 +327,7 @@ Shrikhande, the 27 lines on a cubic surface and its complement the Schläfli gra
 Chang graphs, and Hoffman–Singleton.
 
 Each row's parameters are a theorem, and whatever can be proved rather than computed, is.
-Three infinite families are settled once and for all in `Constructions.lean`, from
+Four infinite families are settled once and for all in `Constructions.lean`, from
 `isSRGWith_of` — a restatement of strong regularity in terms of `nbrs`, a vertex's neighbours as
 a `Finset`, with no `SimpleGraph` and no `Fintype.card` of a subtype in sight:
 
@@ -337,6 +337,8 @@ theorem isSRGWith_kneser_two (n : ℕ) :
     (kneser n 2).IsSRGWith (n.choose 2) ((n - 2).choose 2) ((n - 4).choose 2) ((n - 3).choose 2)
 theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
     (triangular n).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4
+theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).IsSRGWith q ((q - 1) / 2) ((q - 5) / 4) ((q - 1) / 4)
 ```
 
 Only the *square* rook's graphs are strongly regular: in `rook m n` two squares sharing a row
@@ -347,11 +349,32 @@ k` common neighbours, and `i` is not determined by `k` once `k > 2` — though t
 (`card_nbrs_kneser`, `card_nbrs_inter_kneser`). The triangular graphs come for free: `johnsonTwoIso`
 identifies `johnson n 2` with `compl (kneser n 2)`, and `isSRGWith_compl` does the rest.
 
-That accounts for six rows. `isSRGWith_compl` alone accounts for three more — `compl clebsch`,
-`schlafli = compl linesOnCubic`, `compl hoffmanSingleton` — leaving fifteen. Of those, everything
-up to seventeen vertices is checked by kernel `decide`, and only the eight large sporadic and
-Paley entries still need `native_decide`: the predicate is decidable in `O(n³)` adjacency
-queries, and past thirty vertices that is a job for the compiler rather than the kernel.
+Paley is the one that is genuinely a character sum rather than a counting argument. `paley q`
+is a Cayley graph on the nonzero squares, so with `χ = quadraticChar F` over a field with
+`q ≡ 1 mod 4` elements, `χ (-1) = 1` makes `χ (y - x) = 1` symmetric, `∑ u, χ u = 0` gives the
+degree `(q - 1) / 2`, and
+
+```lean
+theorem quadraticChar_sum_mul_sub (hF : ringChar F ≠ 2) {a : F} (ha : a ≠ 0) :
+    ∑ u : F, quadraticChar F (u * (u - a)) = -1
+```
+
+— proved by pushing the sum through the bijection `u ↦ 1 - a * u⁻¹` from the nonzero elements to
+the elements other than `1` — turns `∑ (1 + χ u)(1 + χ (u - a))` into the common-neighbour count
+`(q - 3 - 2 * χ a) / 4`, which is `(q - 5) / 4` across an edge and `(q - 1) / 4` across a
+non-edge. `isSRGWith_paleyField` states that for any finite field; `paleyIso` then identifies
+`paley q`, which lives on `Fin q` and reads its adjacency out of the `qrTable` lookup array,
+with the field version over `ZMod q`. Making that last step bearable is why `qrTable` is an
+`Array.ofFn` over the defining predicate rather than a scatter of `i * i % q` into a mutable
+array: `qrTable_getElem` reads an entry off with no reasoning about `Array.set!`.
+
+That accounts for eleven rows. `isSRGWith_compl` alone accounts for three more — `compl clebsch`,
+`schlafli = compl linesOnCubic`, `compl hoffmanSingleton` — leaving ten. Of those, everything
+up to seventeen vertices is checked by kernel `decide`, and only the five large sporadic
+entries — `linesOnCubic`, the three Chang graphs and Hoffman–Singleton — still need
+`native_decide`: the predicate is decidable in `O(n³)` adjacency queries, and past twenty-seven
+vertices that is a twenty-five-second kernel reduction apiece, which buys no extra confidence
+over the compiler for definitions this explicit.
 
 The whole file — 24 parameter checks up to 101 vertices, plus six canonical-key comparisons —
 builds in about twenty-five seconds. That budget is what "efficiently evaluable" buys: `paley q`
@@ -560,7 +583,7 @@ invisible against an `Ω(n²)` search.
 
 The exceptions are the computational checks, which are deliberate: everything proved by
 `native_decide` — `Compute.lean`, the enumeration identities of `NamedSmallGraphs.lean`, the
-large parameter checks and the non-isomorphism theorems of `SRG.lean` — additionally uses `Lean.ofReduceBool` and
+five large sporadic parameter checks and the non-isomorphism theorems of `SRG.lean` — additionally uses `Lean.ofReduceBool` and
 `Lean.trustCompiler`, i.e. trusts the compiler. It has to: `canonAdj` is well-founded recursion over
 `Array`, which the kernel will not reduce.
 

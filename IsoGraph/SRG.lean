@@ -1,5 +1,6 @@
 import IsoGraph.Constructions
 import IsoGraph.Enum
+import Mathlib.Tactic.NormNum.Prime
 
 /-!
 # A table of strongly regular graphs
@@ -9,12 +10,17 @@ of degree `k`, every adjacent pair has `ℓ` common neighbours, and every non-ad
 The predicate is `CGraph.IsSRGWith` in `IsoGraph/Invariants.lean`, a thin wrapper around Mathlib's
 `SimpleGraph.IsSRGWith`.
 
-Nine of the rows below are theorems rather than computations: the rook, Kneser and triangular
-entries come from the infinite families `isSRGWith_rook`, `isSRGWith_kneser_two` and
-`isSRGWith_triangular` of `IsoGraph/Constructions.lean`, and `compl clebsch`, `schlafli` and
-`compl hoffmanSingleton` from `isSRGWith_compl`.  Of the rest, everything up to seventeen
-vertices is checked by kernel `decide`; only the eight largest still need `native_decide`, the
-predicate being decidable in `O(n³)` adjacency queries.
+Fourteen of the twenty-four parameter checks below are theorems rather than computations: the
+rook, Kneser, triangular and Paley entries come from the infinite families `isSRGWith_rook`,
+`isSRGWith_kneser_two`, `isSRGWith_triangular` and `isSRGWith_paley` of
+`IsoGraph/Constructions.lean`, and `compl clebsch`, `schlafli` and `compl hoffmanSingleton` from
+`isSRGWith_compl`.  Of the rest, everything up to seventeen vertices is checked by kernel
+`decide`; only the five largest sporadic graphs — `linesOnCubic`, the three Chang graphs and
+`hoffmanSingleton` — still need `native_decide`.  The predicate is decidable in `O(n³)`
+adjacency queries and the kernel does manage those: a `decide` on `linesOnCubic` takes about
+twenty-five seconds, on a Chang graph about thirty, and on `hoffmanSingleton` several minutes.
+That is a build-time price with no extra confidence attached, since the definitions are already
+small and explicit, so they are left on `native_decide`.
 
 Strongly regular graphs are the standard hard case for isomorphism testing — every vertex looks
 exactly like every other one to any degree- or triangle-counting invariant — so they are also the
@@ -61,7 +67,7 @@ Both facts are proved by computing canonical keys, i.e. by `CGraph.Enum.key_eq_i
 
 Everything here answers an adjacency query in constant or near-constant time:
 
-* `paley q` reads a precomputed table of quadratic residues;
+* `paley q` reads a precomputed table of quadratic residues (`qrTable`);
 * `hoffmanSingleton` is four divisions and a multiplication mod 5;
 * `johnson`, `kneser` and `linesOnCubic` intersect two small `Finset`s;
 * `shrikhande` is a Cayley graph on `ZMod 4 × ZMod 4`, i.e. a six-element list lookup.
@@ -199,7 +205,9 @@ theorem petersen_srg : petersen.IsSRGWith 10 3 0 1 := isSRGWith_kneser_two 5
 theorem triangular_five_srg : (triangular 5).IsSRGWith 10 6 3 4 :=
   isSRGWith_triangular 5 (by norm_num)
 
-theorem paley_thirteen_srg : (paley 13).IsSRGWith 13 6 2 3 := by native_decide
+theorem paley_thirteen_srg : (paley 13).IsSRGWith 13 6 2 3 :=
+  haveI : Fact (Nat.Prime 13) := ⟨by norm_num⟩
+  isSRGWith_paley 13 (by norm_num)
 
 theorem kneser_six_srg : (kneser 6 2).IsSRGWith 15 6 1 3 := isSRGWith_kneser_two 6
 
@@ -216,7 +224,9 @@ theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by decide
 
 theorem compl_clebsch_srg : (compl clebsch).IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
 
-theorem paley_seventeen_srg : (paley 17).IsSRGWith 17 8 3 4 := by native_decide
+theorem paley_seventeen_srg : (paley 17).IsSRGWith 17 8 3 4 :=
+  haveI : Fact (Nat.Prime 17) := ⟨by norm_num⟩
+  isSRGWith_paley 17 (by norm_num)
 
 theorem linesOnCubic_srg : linesOnCubic.IsSRGWith 27 10 1 5 := by native_decide
 
@@ -231,14 +241,18 @@ theorem chang₂_srg : chang₂.IsSRGWith 28 12 6 4 := by native_decide
 
 theorem chang₃_srg : chang₃.IsSRGWith 28 12 6 4 := by native_decide
 
-theorem paley_twentynine_srg : (paley 29).IsSRGWith 29 14 6 7 := by native_decide
+theorem paley_twentynine_srg : (paley 29).IsSRGWith 29 14 6 7 :=
+  haveI : Fact (Nat.Prime 29) := ⟨by norm_num⟩
+  isSRGWith_paley 29 (by norm_num)
 
 theorem hoffmanSingleton_srg : hoffmanSingleton.IsSRGWith 50 7 0 1 := by native_decide
 
 theorem compl_hoffmanSingleton_srg : (compl hoffmanSingleton).IsSRGWith 50 42 35 36 :=
   isSRGWith_compl _ hoffmanSingleton_srg
 
-theorem paley_hundredone_srg : (paley 101).IsSRGWith 101 50 24 25 := by native_decide
+theorem paley_hundredone_srg : (paley 101).IsSRGWith 101 50 24 25 :=
+  haveI : Fact (Nat.Prime 101) := ⟨by norm_num⟩
+  isSRGWith_paley 101 (by norm_num)
 
 /-- Strong regularity descends to `IsoGraph`, being an isomorphism invariant. -/
 theorem petersen_srg_iso : IsoGraph.IsSRGWith (Quotient.mk _ petersen) 10 3 0 1 := petersen_srg
