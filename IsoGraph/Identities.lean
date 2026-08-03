@@ -161,22 +161,61 @@ theorem sub_mod_cases {d x y : ℕ} (hx : x < d) (hy : y < d) :
   · refine Or.inl ⟨h, ?_⟩
     rw [show y + d - x = (y - x) + d by omega, Nat.add_mod_right, Nat.mod_eq_of_lt (by omega)]
 
-/-- A `0` in the connection set of a circulant contributes nothing: `x` and `y` differ by `0`
-only when they are equal, and a circulant has no loops. -/
-theorem circulant_zero_cons (n : ℕ) (S : List ℕ) :
-    circulant n (0 :: S) = circulant n S := by
-  refine (eq_ofRel (circulant n (0 :: S)) (fun x y ↦ S.contains ((y.1 + n - x.1) % n))
+/-- The two differences between distinct vertices of `circulant n S` are both nonzero and sum to
+`n`: one goes forwards around the cycle, the other backwards. -/
+theorem circulant_diff_facts (n : ℕ) (x y : Fin n) (hxy : x.1 ≠ y.1) :
+    (y.1 + n - x.1) % n + (x.1 + n - y.1) % n = n ∧
+      0 < (y.1 + n - x.1) % n ∧ 0 < (x.1 + n - y.1) % n := by
+  have h1 := sub_mod_cases x.isLt y.isLt
+  have h2 := sub_mod_cases y.isLt x.isLt
+  omega
+
+/-- **Only the differences in `(0, n)` matter.**  A circulant only ever asks whether its
+connection set contains a difference of two distinct vertices, so two connection sets agreeing
+there give the same graph — on the nose, not just up to isomorphism. -/
+theorem circulant_congr (n : ℕ) (S T : List ℕ)
+    (h : ∀ d, 0 < d → d < n → S.contains d = T.contains d) :
+    circulant n S = circulant n T := by
+  refine (eq_ofRel (circulant n S) (fun x y ↦ T.contains ((y.1 + n - x.1) % n))
     fun x y hxy ↦ ?_).trans rfl
   have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
-  have key : ∀ a b : Fin n, a.1 ≠ b.1 →
-      ((0 :: S).contains ((b.1 + n - a.1) % n)) = (S.contains ((b.1 + n - a.1) % n)) := by
-    intro a b hab
-    have h : (b.1 + n - a.1) % n ≠ 0 := by
-      rcases sub_mod_cases a.isLt b.isLt with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> omega
-    simp [h]
-  show (decide (x ≠ y) && ((0 :: S).contains ((y.1 + n - x.1) % n) ||
-    (0 :: S).contains ((x.1 + n - y.1) % n))) = _
-  rw [decide_eq_true hxy, Bool.true_and, key x y hne, key y x (Ne.symm hne)]
+  obtain ⟨-, hp, hq⟩ := circulant_diff_facts n x y hne
+  have hn : 0 < n := Nat.lt_of_le_of_lt (Nat.zero_le _) x.isLt
+  show (decide (x ≠ y) && (S.contains ((y.1 + n - x.1) % n) ||
+    S.contains ((x.1 + n - y.1) % n))) = _
+  rw [decide_eq_true hxy, Bool.true_and, h _ hp (Nat.mod_lt _ hn), h _ hq (Nat.mod_lt _ hn)]
+
+/-- A `0` in the connection set contributes nothing: `x` and `y` differ by `0` only when they are
+equal, and a circulant has no loops. -/
+theorem circulant_zero_cons (n : ℕ) (S : List ℕ) :
+    circulant n (0 :: S) = circulant n S :=
+  circulant_congr n _ _ fun d hd _ ↦ by
+    have h0 : (d == 0) = false := by simp; omega
+    simp only [List.contains_cons, h0, Bool.false_or]
+
+/-- A repeated entry in the connection set contributes nothing. -/
+theorem circulant_dup_cons (n k : ℕ) (S : List ℕ) :
+    circulant n (k :: k :: S) = circulant n (k :: S) :=
+  circulant_congr n _ _ fun d _ _ ↦ by
+    simp only [List.contains_cons]
+    cases (d == k) <;> simp
+
+/-- **The connection set is symmetric.**  A circulant joins `x` to `y` when either difference is
+listed, so replacing an entry `k` by `n - k` does not change the graph. -/
+theorem circulant_neg_cons (n k : ℕ) (hk : k ≤ n) (S : List ℕ) :
+    circulant n (k :: S) = circulant n ((n - k) :: S) := by
+  refine (eq_ofRel (circulant n (k :: S))
+    (fun x y ↦ ((n - k) :: S).contains ((y.1 + n - x.1) % n)) fun x y hxy ↦ ?_).trans rfl
+  have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
+  obtain ⟨hsum, hp, hq⟩ := circulant_diff_facts n x y hne
+  have key : ((y.1 + n - x.1) % n = k ∨ (x.1 + n - y.1) % n = k) ↔
+      ((y.1 + n - x.1) % n = n - k ∨ (x.1 + n - y.1) % n = n - k) := by omega
+  show (decide (x ≠ y) && ((k :: S).contains ((y.1 + n - x.1) % n) ||
+    (k :: S).contains ((x.1 + n - y.1) % n))) = _
+  rw [decide_eq_true hxy, Bool.true_and]
+  refine Bool.eq_iff_iff.2 ?_
+  simp only [List.contains_cons, Bool.or_eq_true, beq_iff_eq]
+  tauto
 
 /-- Peel the first fibre off a dependent sigma type indexed by `Fin (n + 1)`.  Mathlib has no
 such equivalence, and it is what lets `sigmaUnion` over `Fin (n + 1)` be recognised as a
@@ -1596,6 +1635,30 @@ theorem compl_book (n : ℕ) : compl (book n) = disjUnion (empty 2) (complete n)
     circulant n (0 :: S) = circulant n S := by
   rw [circulant_def, circulant_def, CGraph.circulant_zero_cons]
 
+/-- Only the differences in `(0, n)` matter. -/
+theorem circulant_congr (n : ℕ) (S T : List ℕ)
+    (h : ∀ d, 0 < d → d < n → S.contains d = T.contains d) :
+    circulant n S = circulant n T := by
+  rw [circulant_def, circulant_def, CGraph.circulant_congr n S T h]
+
+/-- A repeated entry in the connection set is inert. -/
+@[simp] theorem circulant_dup_cons (n k : ℕ) (S : List ℕ) :
+    circulant n (k :: k :: S) = circulant n (k :: S) := by
+  rw [circulant_def, circulant_def, CGraph.circulant_dup_cons]
+
+/-- The connection set may be negated entry by entry.  Not a `simp` lemma: it would loop. -/
+theorem circulant_neg_cons (n k : ℕ) (hk : k ≤ n) (S : List ℕ) :
+    circulant n (k :: S) = circulant n ((n - k) :: S) := by
+  rw [circulant_def, circulant_def, CGraph.circulant_neg_cons n k hk]
+
+/-- The step `n - 1` runs around the cycle backwards. -/
+theorem circulant_pred (n : ℕ) (hn : 1 ≤ n) : circulant n [n - 1] = cycle n := by
+  rw [← circulant_neg_cons n 1 hn [], circulant_one]
+
+/-- The cycle written with the symmetric connection set `{±1}`. -/
+theorem circulant_one_pred (n : ℕ) (hn : 1 ≤ n) : circulant n [1, n - 1] = cycle n := by
+  rw [circulant_neg_cons n 1 hn [n - 1], circulant_dup_cons, circulant_pred n hn]
+
 /-- **A perfect matching, as a circulant.**  `circulant (2m) {m}` joins `i` to `i + m` and to
 nothing else, so it is `m` disjoint edges — the Cartesian product of an edgeless graph with `K₂`.
 -/
@@ -2238,6 +2301,12 @@ theorem completeMultipartite_replicate (m d : ℕ) :
 theorem compl_cocktailParty (n : ℕ) :
     compl (cocktailParty n) = cartesianProduct (empty n) (complete 2) :=
   compl_completeMultipartite_replicate n 2
+
+/-- The cocktail party graph is the complement of a perfect matching, and the matching is a
+circulant. -/
+theorem compl_cocktailParty_eq_circulant (m : ℕ) :
+    compl (cocktailParty (m + 1)) = circulant (2 * (m + 1)) [m + 1] := by
+  rw [compl_cocktailParty, circulant_matching]
 
 theorem cocktailParty_eq_lexProduct (m : ℕ) :
     cocktailParty m = lexProduct (complete m) (empty 2) :=

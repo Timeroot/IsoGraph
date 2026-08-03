@@ -259,8 +259,10 @@ bipartite (a * d) (b * d) = lexProduct (bipartite a b) (empty d)
 tensorProduct (complete 2) (path n) = disjUnion (path n) (path n)
 tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m))
 tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3))
-circulant n (0 :: S) = circulant n S
+circulant n (0 :: S) = circulant n S                      circulant n (k :: k :: S) = circulant n (k :: S)
+circulant n (k :: S) = circulant n ((n - k) :: S)         circulant n [1, n - 1] = cycle n
 circulant (2 * m) [m] = cartesianProduct (empty m) (complete 2)
+compl (cocktailParty (m + 1)) = circulant (2 * (m + 1)) [m + 1]
 compl petersen = triangular 5                             petersen = compl (lineGraph (complete 5))
 ```
 
@@ -338,7 +340,10 @@ every wrap-around into a disjunction — `succ_mod_eq_iff` for a step around a c
 adjacency equivalence.  A third member of that family, `sub_mod_cases`, splits the circulant
 difference `(y + n - x) % n` into the forwards and backwards cases; it is what proves that a `0`
 in a connection set is inert, and that `circulant (2m) {m}` is a perfect matching (its `1`-nonzero
-connection set makes `i ↦ i + m` an involution, so the graph is `empty m □ K₂`).
+connection set makes `i ↦ i + m` an involution, so the graph is `empty m □ K₂`).  The same two
+facts it yields — the forwards and backwards differences are nonzero and sum to `n` — give
+`circulant_congr`: two connection sets that agree on `(0, n)` define *the same `CGraph`*, which is
+where the inert-`0`, inert-duplicate and `k ↦ n - k` rules come from.
 
 Johnson duality, `J(n, k) ≅ J(n, n - k)`, is the one identity here whose bijection is interesting:
 `CGraph.complSubsets` sends `s` to `sᶜ`, and `|sᶜ ∩ tᶜ| = n - |s ∪ t| = n - 2k + |s ∩ t|` turns an
