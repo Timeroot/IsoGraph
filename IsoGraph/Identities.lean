@@ -1023,6 +1023,16 @@ theorem book_eq_join (n : ℕ) : book n = join (complete 2) (empty n) := by
   rw [completeMultipartite_cons, completeMultipartite_pair, bipartite_eq_join, ← join_assoc,
     ← bipartite_eq_join, bipartite_one_one]
 
+/-! ## Circulants
+
+`CGraph.circulant_one_eq_cycle` is an equality of `CGraph`s already, so these are one-liners. -/
+
+@[simp] theorem circulant_nil (n : ℕ) : circulant n [] = empty n := by
+  rw [circulant_def, CGraph.circulant_nil, empty_def]
+
+@[simp] theorem circulant_one (n : ℕ) : circulant n [1] = cycle n := by
+  rw [circulant_def, CGraph.circulant_one_eq_cycle, cycle_def]
+
 /-! ## Paley graphs -/
 
 /-- The nonzero squares mod `5` are `{1, 4} = {±1}`, so `Paley(5)` is the pentagon — and the

@@ -234,6 +234,7 @@ tensorProduct G (empty n) = empty (G.V * n)
 completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds)
 completeMultipartite [a, b] = bipartite a b               cocktailParty 2 = cycle 4
 completeMultipartite (List.replicate n 1) = complete n    triangular 4 = cocktailParty 3
+circulant n [] = empty n     circulant n [1] = cycle n
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -301,9 +302,15 @@ kernel-checkable: `T(4)` is `compl (kneser 4 2)`, `kneser 4 2` is three disjoint
 `decide` on an explicit `Equiv.ofBijective`), and three uses of the cons rule turn
 `compl (cocktailParty 3)` into the same disjoint union.
 
-Not (yet) here: `cycle n = circulant n [1]` needs modular arithmetic at a variable modulus, and
-`lineGraph (cycle n) = cycle n` needs a bijection out of the `Sym2` edge subtype at a variable
-`n`.
+`circulant n [1] = cycle n` is the one identity that holds already at the level of `CGraph` —
+both sides are `ofRel` on `Fin n`, so it is an equality of graphs, not of isomorphism classes, and
+it lives in `Constructions.lean`. What it costs is the modular arithmetic: for distinct
+`a, b < n`, `(b + n - a) % n = 1 ↔ (a + 1) % n = b`, by trichotomy on `a` versus `b` and a split
+on whether `a + 1` wraps. Distinctness is genuinely needed — at `n = 1` the single vertex is its
+own successor but has difference `0`.
+
+Not (yet) here: `lineGraph (cycle n) = cycle n` needs a bijection out of the `Sym2` edge subtype
+at a variable `n`.
 
 ## Enumeration
 

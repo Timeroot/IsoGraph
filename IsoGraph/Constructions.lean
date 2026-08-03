@@ -470,6 +470,42 @@ instance (n : ℕ) (S : List ℕ) : DecidableEq (circulant n S).V :=
 @[simp] theorem card_circulant (n : ℕ) (S : List ℕ) :
     Fintype.card (circulant n S).V = n := Fintype.card_fin n
 
+@[simp] theorem circulant_nil (n : ℕ) : circulant n [] = empty n :=
+  (eq_ofRel (empty n) (fun _ _ ↦ false) fun _ _ _ ↦ rfl).symm
+
+/-- The arithmetic behind `circulant_one_eq_cycle`: for distinct `a, b < n`, the difference
+`b - a` is `1` mod `n` exactly when `b` is the successor of `a` mod `n`.  Distinctness is needed
+only for `n = 1`, where `a = b = 0` is its own successor but has difference `0`. -/
+private theorem mod_add_sub_eq_one_iff {n a b : ℕ} (ha : a < n) (hb : b < n) (hab : a ≠ b) :
+    (b + n - a) % n = 1 ↔ (a + 1) % n = b := by
+  rcases Nat.lt_trichotomy a b with h | h | h
+  · rw [show b + n - a = b - a + n by omega, Nat.add_mod_right,
+      Nat.mod_eq_of_lt (by omega : b - a < n)]
+    rcases Nat.lt_or_ge (a + 1) n with hlt | hge
+    · rw [Nat.mod_eq_of_lt hlt]; omega
+    · rw [show a + 1 = n by omega, Nat.mod_self]; omega
+  · exact absurd h hab
+  · rw [show b + n - a = n - (a - b) by omega,
+      Nat.mod_eq_of_lt (by omega : n - (a - b) < n)]
+    rcases Nat.lt_or_ge (a + 1) n with hlt | hge
+    · rw [Nat.mod_eq_of_lt hlt]; omega
+    · rw [show a + 1 = n by omega, Nat.mod_self]; omega
+
+/-- **The cycle is the circulant with connection set `{1}`** — an equality of `CGraph`s, not just
+of isomorphism classes, since both are `ofRel` on `Fin n`. -/
+theorem circulant_one_eq_cycle (n : ℕ) : circulant n [1] = cycle n := by
+  refine (eq_ofRel (circulant n [1]) (fun i j ↦ (i.1 + 1) % n == j.1) fun x y hxy ↦ ?_).trans rfl
+  have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
+  have key : ∀ a b : Fin n, a.1 ≠ b.1 →
+      ([1].contains ((b.1 + n - a.1) % n)) = ((a.1 + 1) % n == b.1) := fun a b hab ↦ by
+    have h := mod_add_sub_eq_one_iff a.2 b.2 hab
+    rw [show ([1].contains ((b.1 + n - a.1) % n)) = decide ((b.1 + n - a.1) % n = 1) by simp,
+      Bool.beq_eq_decide_eq]
+    exact decide_eq_decide.2 h
+  show (decide (x ≠ y) && ([1].contains ((y.1 + n - x.1) % n) ||
+    [1].contains ((x.1 + n - y.1) % n))) = _
+  rw [decide_eq_true hxy, Bool.true_and, key x y hne, key y x (Ne.symm hne)]
+
 /-- The nonzero quadratic residues mod `q`, as a lookup table — computed once, so that the Paley
 graph answers an adjacency query with one array read.
 
