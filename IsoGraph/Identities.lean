@@ -637,6 +637,21 @@ def emptyLexProduct (n : ℕ) (G : CGraph) [DecidableEq G.V] :
         = (CGraph.lexProduct (CGraph.empty n) G).Adj (a, b) (c, d)
       simp)
 
+/-- **`(empty n) ⊠ G = (empty n) □ G`**: likewise for the strong product.  Only the tensor
+product breaks ranks here — with an edgeless factor it is edgeless. -/
+def emptyStrongProduct (n : ℕ) (G : CGraph) [DecidableEq G.V] :
+    CGraph.strongProduct (CGraph.empty n) G ≃cg CGraph.cartesianProduct (CGraph.empty n) G :=
+  isoOfAdj (G := CGraph.strongProduct (CGraph.empty n) G)
+    (H := CGraph.cartesianProduct (CGraph.empty n) G) (Equiv.refl ((CGraph.empty n).V × G.V)) (by
+      rintro ⟨a, b⟩ ⟨c, d⟩
+      show (CGraph.cartesianProduct (CGraph.empty n) G).Adj (a, b) (c, d)
+        = (CGraph.strongProduct (CGraph.empty n) G).Adj (a, b) (c, d)
+      rcases eq_or_ne a c with rfl | hac
+      · rcases eq_or_ne b d with rfl | hbd
+        · simp [Bool.eq_false_iff.2 (G.loopless b)]
+        · simp [hbd]
+      · simp [hac])
+
 /-- **`J(n, k) ≅ J(n, n - k)`**: complementing every set turns an intersection of size `k - 1`
 into one of size `(n - k) - 1`, since `|sᶜ ∩ tᶜ| = n - |s ∪ t|` and `|s ∪ t| = 2k - |s ∩ t|`.
 
@@ -1464,6 +1479,10 @@ theorem johnson_compl (n k : ℕ) (hk : k ≤ n) : johnson n k = johnson n (n - 
 @[simp] theorem johnson_pred (n : ℕ) : johnson (n + 1) n = complete (n + 1) := by
   rw [johnson_compl (n + 1) n (by omega), show n + 1 - n = 1 from by omega, johnson_one]
 
+/-- One step further down: the `n`-subsets of an `(n+2)`-set form a triangular graph. -/
+theorem johnson_sub_two (n : ℕ) : johnson (n + 2) n = triangular (n + 2) := by
+  rw [johnson_compl (n + 2) n (by omega), show n + 2 - n = 2 from by omega]
+
 /-- The triangular graph is the complement of the Petersen-style Kneser graph on 2-sets. -/
 theorem triangular_eq_compl_kneser (n : ℕ) : triangular n = compl (kneser n 2) := by
   rw [kneser_def, compl_mk]
@@ -1688,6 +1707,13 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
     show g.canonicalize.Adj x.2 y.2 = _
     rw [CGraph.lexProduct_adj, Subsingleton.elim x.1 y.1]
     simp
+
+/-- A Cartesian product of edgeless graphs is edgeless. -/
+@[simp] theorem cartesianProduct_empty (m n : ℕ) :
+    cartesianProduct (empty m) (empty n) = empty (m * n) := by
+  rw [empty_def, empty_def, cartesianProduct_mk,
+    mk_eq_empty (G := CGraph.cartesianProduct (CGraph.empty m) (CGraph.empty n)) (by simp)]
+  simp
 
 /-- The tensor product with an edgeless graph is edgeless. -/
 @[simp] theorem tensorProduct_empty (G : IsoGraph) (n : ℕ) :
@@ -1950,6 +1976,14 @@ theorem empty_lexProduct (n : ℕ) (G : IsoGraph) :
     rw [← mk_canonicalize g, empty_def, lexProduct_mk, cartesianProduct_mk]
     exact Quotient.sound ⟨CGraph.Iso.emptyLexProduct _ _⟩
 
+/-- And so does the strong product. -/
+theorem empty_strongProduct (n : ℕ) (G : IsoGraph) :
+    strongProduct (empty n) G = cartesianProduct (empty n) G := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [← mk_canonicalize g, empty_def, strongProduct_mk, cartesianProduct_mk]
+    exact Quotient.sound ⟨CGraph.Iso.emptyStrongProduct _ _⟩
+
 /-- `K_m[G]` is `m` copies of `G` with every pair of copies joined — the complement of `m` disjoint
 copies of `compl G`. -/
 theorem complete_lexProduct (m : ℕ) (G : IsoGraph) :
@@ -1982,6 +2016,12 @@ theorem compl_cocktailParty (n : ℕ) :
 theorem cocktailParty_eq_lexProduct (m : ℕ) :
     cocktailParty m = lexProduct (complete m) (empty 2) :=
   completeMultipartite_replicate m 2
+
+/-- The balanced complete bipartite graph is the two-part blow-up. -/
+theorem bipartite_self_eq_lexProduct (n : ℕ) :
+    bipartite n n = lexProduct (complete 2) (empty n) := by
+  rw [← completeMultipartite_replicate 2 n, show List.replicate 2 n = [n, n] from rfl,
+    completeMultipartite_pair]
 
 /-- **`Q_{m+n} = Q_m □ Q_n`**: splitting a bit-string of length `m + n` into its first `m` and
 last `n` bits.  Iterating `hypercube_succ` is all it takes. -/
@@ -2056,6 +2096,24 @@ theorem prism_two : prism 2 = cycle 4 := by
   show cartesianProduct (cycle 2) (complete 2) = cycle 4
   rw [cycle_two]
   exact rook_two_two
+
+/-- `K₂ □ K₃` is the triangular prism. -/
+theorem rook_two_three : rook 2 3 = prism 3 := by
+  show cartesianProduct (complete 2) (complete 3) = cartesianProduct (cycle 3) (complete 2)
+  rw [cycle_three, cartesianProduct_comm]
+
+/-- The complement of the hexagon is the triangular prism: `i ~ i + 2` gives the two triangles and
+`i ~ i + 3` the matching between them. -/
+theorem compl_cycle_six : compl (cycle 6) = prism 3 := by
+  show compl (cycle 6) = cartesianProduct (cycle 3) (complete 2)
+  rw [cycle_def, compl_mk, cycle_def, complete_def, cartesianProduct_mk]
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.compl (CGraph.cycle 6))
+    (H := CGraph.cartesianProduct (CGraph.cycle 3) (CGraph.complete 2))
+    (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
+      fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :
+        Fin 6 ≃ (Fin 3 × Fin 2))
+    (by decide)⟩
 
 /-- The cube graph is the four-rung prism. -/
 theorem hypercube_three : hypercube 3 = prism 4 := by

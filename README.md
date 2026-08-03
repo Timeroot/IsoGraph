@@ -249,6 +249,10 @@ compl (lexProduct G H) = lexProduct (compl G) (compl H)
 lexProduct (empty n) G = cartesianProduct (empty n) G
 completeMultipartite (List.replicate m d) = lexProduct (complete m) (empty d)
 compl (cocktailParty n) = cartesianProduct (empty n) (complete 2)
+strongProduct (empty n) G = cartesianProduct (empty n) G
+cartesianProduct (empty m) (empty n) = empty (m * n)      bipartite n n = lexProduct (complete 2) (empty n)
+johnson (n + 2) n = triangular (n + 2)
+rook 2 3 = prism 3                                        compl (cycle 6) = prism 3
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -299,8 +303,9 @@ The complement identities for the hub-and-rim graphs are all one rewrite once `c
 side becomes edgeless and the two sides stop talking to each other.
 
 Two more families come out of `empty n □ G`, which is `n` disjoint copies of `G`. The
-lexicographic product agrees with the Cartesian one there (`empty_lexProduct`), and it is the one
-product of the four whose complement is again a product — `compl (G[H]) = (compl G)[compl H]`.
+lexicographic and strong products agree with the Cartesian one there (`empty_lexProduct`,
+`empty_strongProduct` — only the tensor product breaks ranks, being edgeless), and the
+lexicographic product is the one of the four whose complement is again a product — `compl (G[H]) = (compl G)[compl H]`.
 Putting those together, `K_m[G]` is `m` copies of `G` with every pair of copies joined, i.e.
 `compl (empty m □ compl G)`, and the complete multipartite graphs with equal parts are exactly the
 blow-ups `K_m[empty d]`; `cocktailParty n = K_n[empty 2]` and its complement is a perfect matching.
