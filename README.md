@@ -356,6 +356,12 @@ a field only for prime `q`, so at `q = 9` the squares are `{0, 1, 4, 7}` and the
 to `y` whenever `3 ∤ x - y` — that is `K₃,₃,₃`, not the rook's graph `R(3, 3)` that `GF(9)` would
 give.  The identity `paley 9 = completeMultipartite [3, 3, 3]` records exactly that.
 
+The file ends with a dozen `example`s — `compl (compl (cycle 5)) = cycle 5`, `circulant 7
+[0, 3, 3] = circulant 7 [3]`, `lexProduct (empty 1) (lexProduct G (empty 1)) = G` and the like —
+closed by `simp` alone.  They prove nothing new; they are a regression test that the `@[simp]`
+lemmas compose and that none of them loops.  Vertex counts are `@[simp]` for every lifted
+construction, so `(rook m n).V = m * n` is also just `simp`.
+
 Johnson duality, `J(n, k) ≅ J(n, n - k)`, is the one identity here whose bijection is interesting:
 `CGraph.complSubsets` sends `s` to `sᶜ`, and `|sᶜ ∩ tᶜ| = n - |s ∪ t| = n - 2k + |s ∩ t|` turns an
 intersection of size `k - 1` into one of size `(n - k) - 1`. Every step is truncated ℕ subtraction,

@@ -1238,6 +1238,22 @@ theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G�
 @[simp] theorem V_johnson (n k : ℕ) : (johnson n k).V = n.choose k := CGraph.card_johnson n k
 @[simp] theorem V_hypercube (n : ℕ) : (hypercube n).V = 2 ^ n := CGraph.card_hypercube n
 @[simp] theorem V_paley (q : ℕ) : (paley q).V = q := CGraph.card_paley q
+@[simp] theorem V_circulant (n : ℕ) (S : List ℕ) : (circulant n S).V = n :=
+  CGraph.card_circulant n S
+@[simp] theorem V_foldedCube (n : ℕ) : (foldedCube n).V = 2 ^ n := CGraph.card_foldedCube n
+@[simp] theorem V_wheel (n : ℕ) : (wheel n).V = 1 + n := by
+  show Fintype.card (CGraph.wheel n).V = _
+  simp [CGraph.wheel]
+@[simp] theorem V_thetaGraph (xs : List ℕ) : (thetaGraph xs).V = 2 + xs.sum :=
+  CGraph.card_thetaGraph xs
+@[simp] theorem V_tadpole (m k : ℕ) : (tadpole m k).V = m + k := CGraph.card_tadpole m k
+@[simp] theorem V_lollipop (m k : ℕ) : (lollipop m k).V = m + k := CGraph.card_lollipop m k
+@[simp] theorem V_spider (legs : List ℕ) : (spider legs).V = 1 + legs.sum :=
+  CGraph.card_spider legs
+@[simp] theorem V_doubleStar (m n : ℕ) : (doubleStar m n).V = 2 + m + n :=
+  CGraph.card_doubleStar m n
+@[simp] theorem V_cyclePendant (m : ℕ) (ks : List ℕ) : (cyclePendant m ks).V = m + ks.sum :=
+  CGraph.card_cyclePendant m ks
 
 @[simp] theorem V_compl (G : IsoGraph) : (compl G).V = G.V := by
   induction G using Quotient.inductionOn with
@@ -3060,5 +3076,32 @@ theorem mycielskian_complete_two : mycielskian (complete 2) = cycle 5 := by
       ![some (.inl 0), some (.inl 1), some (.inr 0), none, some (.inr 1)],
       by decide, by decide⟩ : Option (Fin 2 ⊕ Fin 2) ≃ Fin 5)
     (by decide)⟩
+
+/-! ## The simp set at work
+
+These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
+way they are meant to, and that none of them loops. -/
+
+example : compl (compl (cycle 5)) = cycle 5 := by simp
+
+example (n : ℕ) : cartesianProduct (empty 0) (cycle n) = empty 0 := by simp
+
+example (G : IsoGraph) : lexProduct (empty 1) (lexProduct G (empty 1)) = G := by simp
+
+example : circulant 7 [0, 3, 3] = circulant 7 [3] := by simp
+
+example : circulant 9 [0, 1] = cycle 9 := by simp
+
+example : compl (paley 13) = paley 13 := by simp
+
+example : petersen.V = 10 := by simp [Nat.choose]
+
+example (G H : IsoGraph) : (disjUnion (compl (compl G)) H).V = G.V + H.V := by simp
+
+example (m n : ℕ) : (rook m n).V = m * n := by simp
+
+example (n : ℕ) : lineGraph (empty n) = empty 0 := by simp
+
+example (n : ℕ) : tensorProduct (empty n) (complete 3) = empty (n * 3) := by simp
 
 end IsoGraph
