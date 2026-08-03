@@ -327,7 +327,7 @@ Shrikhande, the 27 lines on a cubic surface and its complement the Schläfli gra
 Chang graphs, and Hoffman–Singleton.
 
 Each row's parameters are a theorem, and whatever can be proved rather than computed, is.
-Four infinite families are settled once and for all in `Constructions.lean`, from
+Six infinite families are settled once and for all in `Constructions.lean`, from
 `isSRGWith_of` — a restatement of strong regularity in terms of `nbrs`, a vertex's neighbours as
 a `Finset`, with no `SimpleGraph` and no `Fintype.card` of a subtype in sight:
 
@@ -339,6 +339,9 @@ theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
     (triangular n).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4
 theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     (paley q).IsSRGWith q ((q - 1) / 2) ((q - 5) / 4) ((q - 1) / 4)
+theorem isSRGWith_bipartite (n : ℕ) : (bipartite n n).IsSRGWith (2 * n) n 0 n
+theorem isSRGWith_cocktailParty (n : ℕ) :
+    (cocktailParty n).IsSRGWith (2 * n) (2 * n - 2) (2 * n - 4) (2 * n - 2)
 ```
 
 Only the *square* rook's graphs are strongly regular: in `rook m n` two squares sharing a row
@@ -368,10 +371,17 @@ with the field version over `ZMod q`. Making that last step bearable is why `qrT
 `Array.ofFn` over the defining predicate rather than a scatter of `i * i % q` into a mutable
 array: `qrTable_getElem` reads an entry off with no reasoning about `Array.set!`.
 
-That accounts for eleven rows. `isSRGWith_compl` alone accounts for three more — `compl clebsch`,
-`schlafli = compl linesOnCubic`, `compl hoffmanSingleton` — leaving ten. Of those, everything
-up to seventeen vertices is checked by kernel `decide`, and only the five large sporadic
-entries — `linesOnCubic`, the three Chang graphs and Hoffman–Singleton — still need
+The last two are the easy ones. `bipartite n n` and `cocktailParty n` are both complements of
+disjoint unions of complete graphs, so adjacency is "different part" and every count the
+definition asks for is a sum of part sizes over a complement of parts; for equal parts those sums
+are products. The cocktail party case is stated for `completeMultipartite (List.replicate n a)`
+generally, and `(na, (n-1)a, (n-2)a, (n-1)a)` stays correct in the degenerate cases `n ≤ 2` on
+truncated subtraction alone.
+
+That accounts for thirteen rows. `isSRGWith_compl` alone accounts for three more — `compl
+clebsch`, `schlafli = compl linesOnCubic`, `compl hoffmanSingleton` — leaving eight. Of those,
+`cycle 5`, `clebsch` and `shrikhande` are checked by kernel `decide`, and only the five large
+sporadic entries — `linesOnCubic`, the three Chang graphs and Hoffman–Singleton — still need
 `native_decide`: the predicate is decidable in `O(n³)` adjacency queries, and past twenty-seven
 vertices that is a twenty-five-second kernel reduction apiece, which buys no extra confidence
 over the compiler for definitions this explicit.

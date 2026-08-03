@@ -10,11 +10,12 @@ of degree `k`, every adjacent pair has `ℓ` common neighbours, and every non-ad
 The predicate is `CGraph.IsSRGWith` in `IsoGraph/Invariants.lean`, a thin wrapper around Mathlib's
 `SimpleGraph.IsSRGWith`.
 
-Fourteen of the twenty-four parameter checks below are theorems rather than computations: the
-rook, Kneser, triangular and Paley entries come from the infinite families `isSRGWith_rook`,
-`isSRGWith_kneser_two`, `isSRGWith_triangular` and `isSRGWith_paley` of
+Sixteen of the twenty-four parameter checks below are theorems rather than computations: the
+rook, Kneser, triangular, Paley, complete bipartite and cocktail party entries come from the
+infinite families `isSRGWith_rook`, `isSRGWith_kneser_two`, `isSRGWith_triangular`,
+`isSRGWith_paley`, `isSRGWith_bipartite` and `isSRGWith_cocktailParty` of
 `IsoGraph/Constructions.lean`, and `compl clebsch`, `schlafli` and `compl hoffmanSingleton` from
-`isSRGWith_compl`.  Of the rest, everything up to seventeen vertices is checked by kernel
+`isSRGWith_compl`.  Of the rest, `cycle 5`, `clebsch` and `shrikhande` are checked by kernel
 `decide`; only the five largest sporadic graphs — `linesOnCubic`, the three Chang graphs and
 `hoffmanSingleton` — still need `native_decide`.  The predicate is decidable in `O(n³)`
 adjacency queries and the kernel does manage those: a `decide` on `linesOnCubic` takes about
@@ -184,19 +185,17 @@ instance : DecidableEq chang₃.V := inferInstanceAs (DecidableEq (triangular 8)
 
 /-! ## The parameters
 
-Whatever can be, is proved: the rook, Kneser and triangular entries come from the infinite
-families of `IsoGraph/Constructions.lean`, and three of the complements from `isSRGWith_compl`.
-What is left — the sporadic graphs and the Paley graphs — is `O(n³)` adjacency queries, run by the
-compiler rather than the kernel. -/
+Whatever can be, is proved: the rook, Kneser, triangular, Paley, complete bipartite and cocktail
+party entries come from the infinite families of `IsoGraph/Constructions.lean`, and three more
+from `isSRGWith_compl`.  What is left is `cycle 5`, `clebsch` and `shrikhande` by kernel `decide`,
+and five large sporadic graphs by `native_decide`. -/
 
 set_option maxRecDepth 4000 in
 theorem cycle_five_srg : (cycle 5).IsSRGWith 5 2 0 1 := by decide
 
-set_option maxRecDepth 8000 in
-theorem bipartite_srg : (bipartite 3 3).IsSRGWith 6 3 0 3 := by decide
+theorem bipartite_srg : (bipartite 3 3).IsSRGWith 6 3 0 3 := isSRGWith_bipartite 3
 
-set_option maxRecDepth 20000 in
-theorem cocktailParty_srg : (cocktailParty 4).IsSRGWith 8 6 4 6 := by decide
+theorem cocktailParty_srg : (cocktailParty 4).IsSRGWith 8 6 4 6 := isSRGWith_cocktailParty 4
 
 theorem rook_three_srg : (rook 3 3).IsSRGWith 9 4 1 2 := isSRGWith_rook 3
 

@@ -4256,6 +4256,157 @@ theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
     (triangular n).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
   isSRGWith_johnson_two n hn
 
+/-! ### Complete bipartite graphs -/
+
+theorem nbrs_bipartite_inl (m n : ℕ) (a : (complete m).V) :
+    (bipartite m n).nbrs (Sum.inl a) = Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ := by
+  refine Finset.ext (α := (complete m).V ⊕ (complete n).V) fun x ↦ ?_
+  cases x with
+  | inl b => rw [mem_nbrs]; simp
+  | inr b => rw [mem_nbrs]; simp
+
+theorem nbrs_bipartite_inr (m n : ℕ) (b : (complete n).V) :
+    (bipartite m n).nbrs (Sum.inr b) = Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩ := by
+  refine Finset.ext (α := (complete m).V ⊕ (complete n).V) fun x ↦ ?_
+  cases x with
+  | inl c => rw [mem_nbrs]; simp
+  | inr d => rw [mem_nbrs]; simp
+
+/-- **The complete bipartite graph `K_{n,n}` is strongly regular** with parameters
+`(2n, n, 0, n)`.
+
+`bipartite m n` is the complement of `Kₘ ⊔ Kₙ`, so this could go through `isSRGWith_compl`, but
+the counts are more direct read off the graph itself: a vertex on one side sees all of the other
+side, two vertices on the same side see all of the other side in common, and two adjacent
+vertices see nothing in common.  Doing it directly also avoids the `2 ≤ n` side condition that
+the truncated subtraction in `isSRGWith_compl`'s parameters would force. -/
+theorem isSRGWith_bipartite (n : ℕ) : (bipartite n n).IsSRGWith (2 * n) n 0 n := by
+  have hnbrs : ∀ x : (complete n).V ⊕ (complete n).V, ((bipartite n n).nbrs x).card = n := by
+    rintro (a | b)
+    · rw [nbrs_bipartite_inl]; simp
+    · rw [nbrs_bipartite_inr]; simp
+  refine isSRGWith_of _ ?_ hnbrs (fun (x y : (complete n).V ⊕ (complete n).V) hadj ↦ ?_)
+    (fun (x y : (complete n).V ⊕ (complete n).V) hne _ ↦ ?_)
+  · show Fintype.card ((complete n).V ⊕ (complete n).V) = 2 * n
+    simp [two_mul]
+  · -- adjacent: one vertex on each side, and the two neighbourhoods are the two sides
+    rcases x with a | b <;> rcases y with c | d <;> simp_all [nbrs_bipartite_inl,
+      nbrs_bipartite_inr, Finset.eq_empty_iff_forall_notMem]
+  · -- non-adjacent and distinct: both on the same side, with the same neighbourhood
+    rcases x with a | b <;> rcases y with c | d <;>
+      simp_all [nbrs_bipartite_inl, nbrs_bipartite_inr]
+
+/-! ### Complete multipartite graphs
+
+`completeMultipartite ds` is the complement of a disjoint union of complete graphs, so two
+vertices are adjacent exactly when they lie in different parts.  Once that is said, every count
+the strong-regularity definition asks for is a sum of part sizes over a complement, and for equal
+parts those sums are products. -/
+
+/-- Two vertices of a complete multipartite graph are adjacent exactly when they lie in different
+parts. -/
+theorem completeMultipartite_adj (ds : List ℕ)
+    (x y : Σ i : Fin ds.length, (complete (ds.get i)).V) :
+    (completeMultipartite ds).Adj x y = decide (x.1 ≠ y.1) := by
+  show (compl (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))).Adj x y = _
+  rw [compl_adj]
+  obtain ⟨i, a⟩ := x
+  obtain ⟨j, b⟩ := y
+  by_cases h : i = j
+  · subst h
+    rw [sigmaUnion_adj_mk, complete_adj]
+    by_cases hab : a = b
+    · subst hab; simp
+    · simp [hab]
+  · rw [sigmaUnion_adj_ne _ _ _ _ _ h]
+    have hne : (⟨i, a⟩ : Σ i : Fin ds.length, (complete (ds.get i)).V) ≠ ⟨j, b⟩ :=
+      fun hh ↦ h (congrArg Sigma.fst hh)
+    simp [hne, h]
+
+
+/-- The neighbourhood of `x` is everything outside `x`'s own part. -/
+theorem nbrs_completeMultipartite (ds : List ℕ)
+    (x : Σ i : Fin ds.length, (complete (ds.get i)).V) :
+    (completeMultipartite ds).nbrs x
+      = Finset.univ.filter (fun z : Σ i : Fin ds.length, (complete (ds.get i)).V ↦
+          z.1 ∉ ({x.1} : Finset (Fin ds.length))) := by
+  refine Finset.ext (α := Σ i : Fin ds.length, (complete (ds.get i)).V) fun z ↦ ?_
+  rw [mem_nbrs, completeMultipartite_adj]
+  simp only [ne_eq, decide_not, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not,
+    Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+  exact ne_comm
+
+/-- Two vertices see in common everything outside both of their parts. -/
+theorem nbrs_inter_completeMultipartite (ds : List ℕ)
+    (x y : Σ i : Fin ds.length, (complete (ds.get i)).V) :
+    (completeMultipartite ds).nbrs x ∩ (completeMultipartite ds).nbrs y
+      = Finset.univ.filter (fun z : Σ i : Fin ds.length, (complete (ds.get i)).V ↦
+          z.1 ∉ ({x.1, y.1} : Finset (Fin ds.length))) := by
+  rw [nbrs_completeMultipartite, nbrs_completeMultipartite]
+  refine Finset.ext (α := Σ i : Fin ds.length, (complete (ds.get i)).V) fun z ↦ ?_
+  simp
+
+/-- The vertices whose part avoids `S` are the fibres over `Sᶜ`, so there are `∑ j ∈ Sᶜ, ds.get j`
+of them. -/
+theorem card_filter_fst_notMem (ds : List ℕ) (S : Finset (Fin ds.length)) :
+    (Finset.univ.filter fun z : Σ i : Fin ds.length, (complete (ds.get i)).V ↦ z.1 ∉ S).card
+      = ∑ j ∈ Sᶜ, ds.get j := by
+  rw [show (Finset.univ.filter fun z : Σ i : Fin ds.length, (complete (ds.get i)).V ↦ z.1 ∉ S)
+      = Sᶜ.sigma (fun _ ↦ Finset.univ) from
+    Finset.ext (α := Σ i : Fin ds.length, (complete (ds.get i)).V) fun z ↦ by simp]
+  rw [Finset.card_sigma]
+  simp
+
+/-- With all parts of size `a`, the sums of `card_filter_fst_notMem` are products.  The length is
+left as `(List.replicate n a).length` rather than `n` so that the statement does not have to
+transport `S` along `List.length_replicate`. -/
+theorem sum_compl_replicate (n a : ℕ) (S : Finset (Fin (List.replicate n a).length)) :
+    ∑ j ∈ Sᶜ, (List.replicate n a).get j = ((List.replicate n a).length - S.card) * a := by
+  have h : ∀ j ∈ Sᶜ, (List.replicate n a).get j = a := fun j _ ↦ by simp
+  rw [Finset.sum_congr rfl h, Finset.sum_const, smul_eq_mul, Finset.card_compl, Fintype.card_fin]
+
+/-- **The complete multipartite graph with `n` parts of size `a` is strongly regular** with
+parameters `(na, (n-1)a, (n-2)a, (n-1)a)`.
+
+A vertex misses only its own part; two vertices in different parts miss both of theirs; two
+distinct vertices in the same part have the same neighbourhood.  The truncated subtractions are
+correct in the degenerate cases too: for `n ≤ 1` there are no edges and `(n-1)a = 0`, and for
+`n = 2` no two adjacent vertices have a common neighbour and `(n-2)a = 0`. -/
+theorem isSRGWith_completeMultipartite_replicate (n a : ℕ) :
+    (completeMultipartite (List.replicate n a)).IsSRGWith (n * a) ((n - 1) * a) ((n - 2) * a)
+      ((n - 1) * a) := by
+  refine isSRGWith_of _ ?_
+    (fun (x : Σ i : Fin (List.replicate n a).length,
+      (complete ((List.replicate n a).get i)).V) ↦ ?_)
+    (fun (x y : Σ i : Fin (List.replicate n a).length,
+      (complete ((List.replicate n a).get i)).V) hadj ↦ ?_)
+    (fun (x y : Σ i : Fin (List.replicate n a).length,
+      (complete ((List.replicate n a).get i)).V) hne hadj ↦ ?_)
+  · rw [card_completeMultipartite, List.sum_replicate, smul_eq_mul]
+  · rw [nbrs_completeMultipartite, card_filter_fst_notMem, sum_compl_replicate,
+      Finset.card_singleton]
+    simp
+  · rw [nbrs_inter_completeMultipartite, card_filter_fst_notMem, sum_compl_replicate]
+    rw [completeMultipartite_adj] at hadj
+    simp only [ne_eq, decide_not, Bool.not_eq_eq_eq_not, Bool.not_true,
+      decide_eq_false_iff_not] at hadj
+    rw [Finset.card_insert_of_notMem (by simpa using hadj), Finset.card_singleton]
+    simp
+  · rw [nbrs_inter_completeMultipartite, card_filter_fst_notMem, sum_compl_replicate]
+    rw [completeMultipartite_adj] at hadj
+    simp only [ne_eq, decide_not, Bool.not_eq_eq_eq_not, Bool.not_false,
+      decide_eq_true_eq] at hadj
+    rw [hadj, Finset.pair_eq_singleton, Finset.card_singleton]
+    simp
+
+/-- **The cocktail party graph `K_{n×2}` is strongly regular** with parameters
+`(2n, 2n-2, 2n-4, 2n-2)`: it is `n` parts of size two. -/
+theorem isSRGWith_cocktailParty (n : ℕ) :
+    (cocktailParty n).IsSRGWith (2 * n) (2 * n - 2) (2 * n - 4) (2 * n - 2) := by
+  have h := isSRGWith_completeMultipartite_replicate n 2
+  rwa [show n * 2 = 2 * n from by ring, show (n - 1) * 2 = 2 * n - 2 from by omega,
+    show (n - 2) * 2 = 2 * n - 4 from by omega] at h
+
 /-! ### Paley graphs
 
 `paley q` is a Cayley graph on `ZMod q` with the nonzero squares as connection set, so the whole
