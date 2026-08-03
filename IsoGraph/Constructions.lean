@@ -338,7 +338,7 @@ instance (n : ℕ) : DecidableEq (wheel n).V :=
 
 /-- The edges of the theta graph: vertex `0` and vertex `1` are the poles, and the `i`-th path
 uses `xs[i]` fresh internal vertices starting at `off`. -/
-private def thetaEdges : ℕ → List ℕ → List (ℕ × ℕ)
+def thetaEdges : ℕ → List ℕ → List (ℕ × ℕ)
   | _, [] => []
   | off, 0 :: rest => (0, 1) :: thetaEdges off rest
   | off, (k + 1) :: rest =>
@@ -395,7 +395,7 @@ instance (m k : ℕ) : DecidableEq (lollipop m k).V := inferInstanceAs (Decidabl
 
 /-- The legs of a spider: paths of the given lengths, all hanging off vertex `0`, using fresh
 vertices from `off` on. -/
-private def spiderEdges : ℕ → List ℕ → List (ℕ × ℕ)
+def spiderEdges : ℕ → List ℕ → List (ℕ × ℕ)
   | _, [] => []
   | off, k :: rest => legEdges 0 off k ++ spiderEdges (off + k) rest
 
@@ -422,7 +422,7 @@ instance (m n : ℕ) : DecidableEq (doubleStar m n).V :=
     Fintype.card (doubleStar m n).V = 2 + m + n := Fintype.card_fin _
 
 /-- Pendant vertices: `ks[i]` fresh vertices attached to vertex `v + i`, taken from `off` on. -/
-private def pendantEdges : ℕ → ℕ → List ℕ → List (ℕ × ℕ)
+def pendantEdges : ℕ → ℕ → List ℕ → List (ℕ × ℕ)
   | _, _, [] => []
   | v, off, k :: rest =>
       ((List.range k).map fun i ↦ (v, off + i)) ++ pendantEdges (v + 1) (off + k) rest

@@ -1082,6 +1082,228 @@ theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipa
   revert h1 h2
   cases c a <;> cases c b <;> cases c d <;> simp
 
+/-! ## Edge lists
+
+The `ofEdges`-based families are all built from `pathEdges`, `cycleEdges`, `cliqueEdges` and
+`legEdges`; the lemmas here put each of those lists in closed form and read off its membership,
+which is what turns a degenerate case of one of those families into a named graph. -/
+
+theorem pathEdges_cons_cons (a b : ℕ) (l : List ℕ) :
+    pathEdges (a :: b :: l) = (a, b) :: pathEdges (b :: l) := rfl
+
+theorem pathEdges_map_succ : ∀ l : List ℕ,
+    pathEdges (l.map (· + 1)) = (pathEdges l).map (fun p ↦ (p.1 + 1, p.2 + 1))
+  | [] => rfl
+  | [_] => rfl
+  | a :: b :: rest => by
+      have ih := pathEdges_map_succ (b :: rest)
+      simp only [List.map_cons] at ih ⊢
+      rw [pathEdges_cons_cons, pathEdges_cons_cons, List.map_cons, ih]
+
+theorem pathEdges_concat : ∀ (l : List ℕ) (b x : ℕ),
+    pathEdges (l ++ [b, x]) = pathEdges (l ++ [b]) ++ [(b, x)]
+  | [], _, _ => rfl
+  | [_], _, _ => rfl
+  | a :: c :: rest, b, x => by
+      have ih := pathEdges_concat (c :: rest) b x
+      simp only [List.cons_append] at ih ⊢
+      rw [pathEdges_cons_cons, pathEdges_cons_cons, ih, List.cons_append]
+
+/-- The edges of the path `0, 1, …, m`, in closed form. -/
+theorem pathEdges_range : ∀ m : ℕ,
+    pathEdges (List.range (m + 1)) = (List.range m).map (fun i ↦ (i, i + 1))
+  | 0 => rfl
+  | m + 1 => by
+      have h : (List.range (m + 1)).map (· + 1) = 1 :: ((List.range m).map (· + 1)).map (· + 1) := by
+        conv_lhs => rw [List.range_succ_eq_map]
+        simp
+      conv_lhs => rw [List.range_succ_eq_map]
+      rw [h, pathEdges_cons_cons, ← h, pathEdges_map_succ, pathEdges_range m]
+      rw [List.range_succ_eq_map, List.map_cons, List.map_map, List.map_map]
+      rfl
+
+@[simp] theorem mem_pathEdges_range (m a b : ℕ) :
+    ((a, b) ∈ pathEdges (List.range (m + 1))) ↔ (b = a + 1 ∧ a < m) := by
+  rw [pathEdges_range]
+  simp only [List.mem_map, List.mem_range, Prod.mk.injEq]
+  constructor
+  · rintro ⟨i, hi, rfl, rfl⟩
+    exact ⟨rfl, hi⟩
+  · rintro ⟨rfl, ha⟩
+    exact ⟨a, ha, rfl, rfl⟩
+
+@[simp] theorem cycleEdges_zero : cycleEdges 0 = [] := rfl
+
+/-- The edges of a cycle: the path `0, 1, …, m` together with the wrap-around edge. -/
+theorem cycleEdges_succ (k : ℕ) :
+    cycleEdges (k + 1) = (List.range k).map (fun i ↦ (i, i + 1)) ++ [(k, 0)] := by
+  rw [cycleEdges, List.range_succ, List.append_assoc,
+    show ([k] ++ [0] : List ℕ) = [k, 0] from rfl, pathEdges_concat, ← List.range_succ,
+    pathEdges_range]
+
+@[simp] theorem mem_cycleEdges_succ (k a b : ℕ) :
+    ((a, b) ∈ cycleEdges (k + 1)) ↔ ((b = a + 1 ∧ a < k) ∨ (a = k ∧ b = 0)) := by
+  rw [cycleEdges_succ]
+  simp only [List.mem_append, List.mem_map, List.mem_range, List.mem_singleton, Prod.mk.injEq]
+  constructor
+  · rintro (⟨i, hi, rfl, rfl⟩ | ⟨rfl, rfl⟩)
+    · exact Or.inl ⟨rfl, hi⟩
+    · exact Or.inr ⟨rfl, rfl⟩
+  · rintro (⟨rfl, ha⟩ | ⟨rfl, rfl⟩)
+    · exact Or.inl ⟨a, ha, rfl, rfl⟩
+    · exact Or.inr ⟨rfl, rfl⟩
+
+@[simp] theorem cliqueEdges_zero : cliqueEdges 0 = [] := rfl
+@[simp] theorem cliqueEdges_one : cliqueEdges 1 = [] := rfl
+
+@[simp] theorem mem_cliqueEdges (m a b : ℕ) : ((a, b) ∈ cliqueEdges m) ↔ (a < b ∧ b < m) := by
+  simp only [cliqueEdges, List.mem_flatMap, List.mem_map, List.mem_filter, List.mem_range,
+    decide_eq_true_eq, Prod.mk.injEq]
+  constructor
+  · rintro ⟨i, -, x, ⟨hx, hix⟩, rfl, rfl⟩
+    exact ⟨hix, hx⟩
+  · rintro ⟨hab, hb⟩
+    exact ⟨a, by omega, b, ⟨hb, hab⟩, rfl, rfl⟩
+
+@[simp] theorem legEdges_zero (v off : ℕ) : legEdges v off 0 = [] := rfl
+
+/-- A leg of `k` fresh vertices hung off vertex `0`, when the fresh vertices start at `1`, is just
+the path `0, 1, …, k`. -/
+theorem legEdges_zero_one (k : ℕ) : legEdges 0 1 k = pathEdges (List.range (k + 1)) := by
+  rw [List.range_succ_eq_map]
+  simp only [legEdges]
+
+/-- A leg hung off vertex `0` whose fresh vertices also start at `0`: the same path, with a loop
+at `0` in front of it (which `ofEdges` discards). -/
+theorem legEdges_zero_zero (k : ℕ) : legEdges 0 0 k = pathEdges (0 :: List.range k) := by
+  simp only [legEdges, Nat.add_zero, List.map_id_fun', id_eq]
+
+@[simp] theorem mem_pathEdges_zero_cons_range (k a b : ℕ) :
+    ((a, b) ∈ pathEdges (0 :: List.range k)) ↔
+      ((a = 0 ∧ b = 0 ∧ 0 < k) ∨ (b = a + 1 ∧ a + 1 < k)) := by
+  rcases k with _ | j
+  · simp [pathEdges]
+  · have h : (0 :: List.range (j + 1)) = 0 :: 0 :: (List.range j).map (· + 1) := by
+      conv_lhs => rw [List.range_succ_eq_map]
+    rw [h, pathEdges_cons_cons, ← List.range_succ_eq_map]
+    simp only [List.mem_cons, Prod.mk.injEq, mem_pathEdges_range]
+    omega
+
+/-! ## Degenerate cases of the decorated cycles and trees
+
+Each family below is an `ofEdges` over `Fin n`, so its degenerate cases are equalities of graphs
+on the nose, not merely isomorphisms: the edge list literally becomes the edge list of a cycle, a
+clique or a path. -/
+
+theorem ofEdges_nil (n : ℕ) : ofEdges n [] = empty n := by
+  rw [empty_eq_ofRel]
+  rfl
+
+theorem ofEdges_cycleEdges (m : ℕ) : ofEdges m (cycleEdges m) = cycle m := by
+  refine eq_ofRel (ofEdges m (cycleEdges m)) (fun i j ↦ (i.1 + 1) % m == j.1) ?_
+  intro x y hxy
+  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+    List.contains_eq_mem]
+  rcases m with _ | k
+  · exact absurd x.isLt (by omega)
+  · have hx : x.1 < k + 1 := x.isLt
+    have hy : y.1 < k + 1 := y.isLt
+    have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
+    have e1 := succ_mod_eq_iff (d := k + 1) (x := x.1) (y := y.1) hx
+    have e2 := succ_mod_eq_iff (d := k + 1) (x := y.1) (y := x.1) hy
+    rw [Bool.eq_iff_iff]
+    simp only [Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq, mem_cycleEdges_succ]
+    omega
+
+theorem ofEdges_cliqueEdges (m : ℕ) : ofEdges m (cliqueEdges m) = complete m := by
+  rw [complete_eq_ofRel]
+  refine eq_ofRel (ofEdges m (cliqueEdges m)) _ ?_
+  intro x y hxy
+  have hne : (x : Fin m).1 ≠ (y : Fin m).1 := fun h ↦ hxy (Fin.ext h)
+  have hx : (x : Fin m).1 < m := x.isLt
+  have hy : (y : Fin m).1 < m := y.isLt
+  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+    List.contains_eq_mem]
+  rw [Bool.eq_iff_iff]
+  simp only [Bool.or_eq_true, decide_eq_true_eq, mem_cliqueEdges, or_self, iff_true]
+  omega
+
+theorem ofEdges_legEdges_one (k : ℕ) : ofEdges (1 + k) (legEdges 0 1 k) = path (1 + k) := by
+  refine eq_ofRel (ofEdges (1 + k) (legEdges 0 1 k)) (fun i j ↦ i.1 + 1 == j.1) ?_
+  intro x y hxy
+  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+    legEdges_zero_one, List.contains_eq_mem]
+  have hx : (x : Fin (1 + k)).1 < 1 + k := x.isLt
+  have hy : (y : Fin (1 + k)).1 < 1 + k := y.isLt
+  rw [Bool.eq_iff_iff]
+  simp only [Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq, mem_pathEdges_range]
+  omega
+
+theorem ofEdges_legEdges_zero (k : ℕ) : ofEdges k (legEdges 0 0 k) = path k := by
+  refine eq_ofRel (ofEdges k (legEdges 0 0 k)) (fun i j ↦ i.1 + 1 == j.1) ?_
+  intro x y hxy
+  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+    legEdges_zero_zero, List.contains_eq_mem]
+  have hx : (x : Fin k).1 < k := x.isLt
+  have hy : (y : Fin k).1 < k := y.isLt
+  have hne : (x : Fin k).1 ≠ (y : Fin k).1 := fun h ↦ hxy (Fin.ext h)
+  rw [Bool.eq_iff_iff]
+  simp only [Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq, mem_pathEdges_zero_cons_range]
+  omega
+
+/-- A tadpole with no tail is a cycle. -/
+@[simp] theorem tadpole_zero (m : ℕ) : tadpole m 0 = cycle m := by
+  rw [tadpole, legEdges_zero, List.append_nil, Nat.add_zero, ofEdges_cycleEdges]
+
+/-- A tadpole with no cycle is a path. -/
+@[simp] theorem tadpole_zero_left (k : ℕ) : tadpole 0 k = path k := by
+  rw [tadpole, cycleEdges_zero, List.nil_append, Nat.zero_add, ofEdges_legEdges_zero]
+
+/-- A lollipop with no stick is a complete graph. -/
+@[simp] theorem lollipop_zero (m : ℕ) : lollipop m 0 = complete m := by
+  rw [lollipop, legEdges_zero, List.append_nil, Nat.add_zero, ofEdges_cliqueEdges]
+
+/-- A lollipop with no clique is a path. -/
+@[simp] theorem lollipop_zero_left (k : ℕ) : lollipop 0 k = path k := by
+  rw [lollipop, cliqueEdges_zero, List.nil_append, Nat.zero_add, ofEdges_legEdges_zero]
+
+/-- A lollipop whose clique is a single vertex is a path. -/
+@[simp] theorem lollipop_one (k : ℕ) : lollipop 1 k = path (1 + k) := by
+  rw [lollipop, cliqueEdges_one, List.nil_append, ofEdges_legEdges_one]
+
+/-- A spider with a single leg is a path. -/
+@[simp] theorem spider_singleton (k : ℕ) : spider [k] = path (1 + k) := by
+  rw [spider, show spiderEdges 1 [k] = legEdges 0 1 k from by simp [spiderEdges],
+    show (1 : ℕ) + [k].sum = 1 + k from by simp, ofEdges_legEdges_one]
+
+theorem spiderEdges_replicate_zero : ∀ (off j : ℕ), spiderEdges off (List.replicate j 0) = []
+  | _, 0 => rfl
+  | off, j + 1 => by
+      rw [List.replicate_succ, spiderEdges, legEdges_zero, List.nil_append,
+        spiderEdges_replicate_zero (off + 0) j]
+
+/-- A spider all of whose legs are empty is a single vertex. -/
+@[simp] theorem spider_replicate_zero (j : ℕ) : spider (List.replicate j 0) = empty 1 := by
+  rw [spider, spiderEdges_replicate_zero,
+    show (1 : ℕ) + (List.replicate j 0).sum = 1 from by simp, ofEdges_nil]
+
+@[simp] theorem spider_nil : spider [] = empty 1 := spider_replicate_zero 0
+
+theorem pendantEdges_replicate_zero : ∀ (v off j : ℕ), pendantEdges v off (List.replicate j 0) = []
+  | _, _, 0 => rfl
+  | v, off, j + 1 => by
+      rw [List.replicate_succ, pendantEdges, List.range_zero, List.map_nil, List.nil_append,
+        pendantEdges_replicate_zero (v + 1) (off + 0) j]
+
+/-- A cycle carrying no pendant vertices is a cycle. -/
+@[simp] theorem cyclePendant_replicate_zero (m j : ℕ) :
+    cyclePendant m (List.replicate j 0) = cycle m := by
+  rw [cyclePendant, pendantEdges_replicate_zero, List.append_nil,
+    show m + (List.replicate j 0).sum = m from by simp, ofEdges_cycleEdges]
+
+@[simp] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
+  cyclePendant_replicate_zero m 0
+
 /-! ## Two small facts about one-vertex graphs -/
 
 /-- No vertex is adjacent to itself, as an equation of `Bool`s. -/
@@ -1327,6 +1549,13 @@ theorem hypercube_def (n : ℕ) : hypercube n = ⟦CGraph.hypercube n⟧ := rfl
 theorem foldedCube_def (n : ℕ) : foldedCube n = ⟦CGraph.foldedCube n⟧ := rfl
 theorem circulant_def (n : ℕ) (S : List ℕ) : circulant n S = ⟦CGraph.circulant n S⟧ := rfl
 theorem paley_def (q : ℕ) : paley q = ⟦CGraph.paley q⟧ := rfl
+theorem thetaGraph_def (xs : List ℕ) : thetaGraph xs = ⟦CGraph.thetaGraph xs⟧ := rfl
+theorem tadpole_def (m k : ℕ) : tadpole m k = ⟦CGraph.tadpole m k⟧ := rfl
+theorem lollipop_def (m k : ℕ) : lollipop m k = ⟦CGraph.lollipop m k⟧ := rfl
+theorem spider_def (legs : List ℕ) : spider legs = ⟦CGraph.spider legs⟧ := rfl
+theorem doubleStar_def (m n : ℕ) : doubleStar m n = ⟦CGraph.doubleStar m n⟧ := rfl
+theorem cyclePendant_def (m : ℕ) (ks : List ℕ) :
+    cyclePendant m ks = ⟦CGraph.cyclePendant m ks⟧ := rfl
 
 /-- A graph and its canonical representative are the same isomorphism class. -/
 theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G⟧ :=
@@ -2096,6 +2325,43 @@ theorem foldedCube_three : foldedCube 3 = bipartite 4 4 := by
         ![![true, false, false], ![false, false, true], ![false, true, false], ![true, true, true]],
       by decide, by decide⟩ : (Fin 3 → Bool) ≃ (Fin 4 ⊕ Fin 4))
     (by decide)⟩
+
+/-! ## Decorated cycles and trees
+
+The `ofEdges`-based families — tadpoles, lollipops, spiders and cycles with pendant vertices —
+degenerate into the named families when one of their parameters vanishes.  Every one of these is
+already an equality of `CGraph`s (see the `CGraph` section above), so the proofs here only have to
+move the identity across the quotient. -/
+
+@[simp] theorem tadpole_zero (m : ℕ) : tadpole m 0 = cycle m := by
+  rw [tadpole_def, cycle_def, CGraph.tadpole_zero]
+
+@[simp] theorem tadpole_zero_left (k : ℕ) : tadpole 0 k = path k := by
+  rw [tadpole_def, path_def, CGraph.tadpole_zero_left]
+
+@[simp] theorem lollipop_zero (m : ℕ) : lollipop m 0 = complete m := by
+  rw [lollipop_def, complete_def, CGraph.lollipop_zero]
+
+@[simp] theorem lollipop_zero_left (k : ℕ) : lollipop 0 k = path k := by
+  rw [lollipop_def, path_def, CGraph.lollipop_zero_left]
+
+@[simp] theorem lollipop_one (k : ℕ) : lollipop 1 k = path (1 + k) := by
+  rw [lollipop_def, path_def, CGraph.lollipop_one]
+
+@[simp] theorem spider_singleton (k : ℕ) : spider [k] = path (1 + k) := by
+  rw [spider_def, path_def, CGraph.spider_singleton]
+
+@[simp] theorem spider_replicate_zero (j : ℕ) : spider (List.replicate j 0) = empty 1 := by
+  rw [spider_def, empty_def, CGraph.spider_replicate_zero]
+
+@[simp] theorem spider_nil : spider [] = empty 1 := spider_replicate_zero 0
+
+@[simp] theorem cyclePendant_replicate_zero (m j : ℕ) :
+    cyclePendant m (List.replicate j 0) = cycle m := by
+  rw [cyclePendant_def, cycle_def, CGraph.cyclePendant_replicate_zero]
+
+@[simp] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
+  cyclePendant_replicate_zero m 0
 
 /-! ## Products
 
@@ -3346,5 +3612,13 @@ example (m n : ℕ) : (rook m n).V = m * n := by simp
 example (n : ℕ) : lineGraph (empty n) = empty 0 := by simp
 
 example (n : ℕ) : tensorProduct (empty n) (complete 3) = empty (n * 3) := by simp
+
+example : tadpole 3 0 = complete 3 := by rw [tadpole_zero, cycle_three]
+example (k : ℕ) : spider [k] = lollipop 1 k := by simp
+example : lollipop 3 0 = complete 3 := by simp
+example : spider [1] = complete 2 := by simp
+example (m : ℕ) : IsBipartite (tadpole (2 * m) 0) := by simp
+example : cyclePendant 5 [] = cycle 5 := by simp
+example : compl (cyclePendant 5 []) = cycle 5 := by simp
 
 end IsoGraph

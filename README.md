@@ -275,6 +275,10 @@ paley 13 = circulant 13 [1, 3, 4]                         paley 17 = circulant 1
 compl (paley 13) = paley 13                               compl (paley 17) = paley 17
 paley 9 = completeMultipartite [3, 3, 3] = lexProduct (complete 3) (empty 3)
 compl petersen = triangular 5                             petersen = compl (lineGraph (complete 5))
+tadpole m 0 = cycle m                                     tadpole 0 k = path k
+lollipop m 0 = complete m                                 lollipop 0 k = path k
+lollipop 1 k = path (1 + k)                               spider [k] = path (1 + k)
+spider (List.replicate j 0) = empty 1                     cyclePendant m (List.replicate j 0) = cycle m
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -302,6 +306,20 @@ equivalence) and turns it into `CGraph.Iso.sigmaUnionSucc`. That gives the cons 
 family is reachable by `join`-level rewriting: the append rule, `[a, b] = bipartite a b`,
 `star n = completeMultipartite [1, n]`, `book n = join (complete 2) (empty n)`,
 `(completeMultipartite ds).V = ds.sum`, `cocktailParty 2 = cycle 4`.
+
+The `ofEdges` families needed a fifth. `tadpole`, `lollipop`, `spider` and `cyclePendant` are
+`ofEdges n es` over `Fin n`, so their degenerate cases are equalities of `CGraph`s on the nose —
+nothing is relabelled, the edge list simply *becomes* the edge list of a cycle, a clique or a
+path. What that needs is a closed form for each list generator:
+`pathEdges (List.range (m + 1)) = (List.range m).map (fun i ↦ (i, i + 1))`, proved by peeling the
+front off with `List.range_succ_eq_map` and pushing the shift through with `pathEdges_map_succ`;
+`cycleEdges (k + 1) = (List.range k).map (fun i ↦ (i, i + 1)) ++ [(k, 0)]`, the same plus a
+wrap-around edge split off by `pathEdges_concat`; and membership lemmas for `cliqueEdges` and
+`legEdges`. `eq_ofRel` then turns each identity into arithmetic on the indices, which `omega`
+closes — with `succ_mod_eq_iff` supplying the wrap-around, since `omega` cannot see through a `%`
+whose modulus is a variable. One pleasant accident: `legEdges 0 0 k`, the leg hung off vertex `0`
+whose fresh vertices also start at `0`, begins with the loop `(0, 0)`, and `ofRel` deletes the
+diagonal, so `tadpole 0 k` and `lollipop 0 k` are literally `path k`.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a
