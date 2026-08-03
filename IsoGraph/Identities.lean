@@ -89,6 +89,26 @@ theorem disjUnion_inr_eq_inr (G H : CGraph) (a b : H.V) :
     (@Eq (disjUnion G H).V (Sum.inr a) (Sum.inr b)) = (a = b) :=
   propext ⟨fun h ↦ Sum.inr_injective h, fun h ↦ h ▸ rfl⟩
 
+/-- `Prod.mk.injEq`, restated at the vertex type of a `lexProduct`.  Same reducibility gap as
+`disjUnion_inl_eq_inl`: the pair equality that `compl` puts in front of a product adjacency lives
+at `(lexProduct G H).V`, and `simp` will not see it as an equality of pairs. -/
+theorem lexProduct_pair_eq (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a c : G.V) (b d : H.V) :
+    (@Eq (lexProduct G H).V (a, b) (c, d)) = (a = c ∧ b = d) :=
+  Prod.mk.injEq a b c d
+
+/-- Complementation, as a bijection from the `k`-subsets of `Fin n` to the `(n - k)`-subsets. -/
+def complSubsets (n k : ℕ) (hk : k ≤ n) :
+    {s : Finset (Fin n) // s.card = k} ≃ {s : Finset (Fin n) // s.card = n - k} where
+  toFun s := ⟨s.1ᶜ, by rw [Finset.card_compl, s.2, Fintype.card_fin]⟩
+  invFun s := ⟨s.1ᶜ, by rw [Finset.card_compl, s.2, Fintype.card_fin]; omega⟩
+  left_inv s := by ext : 1; exact _root_.compl_compl s.1
+  right_inv s := by ext : 1; exact _root_.compl_compl s.1
+
+@[simp] theorem complSubsets_coe (n k : ℕ) (hk : k ≤ n) (s : {s : Finset (Fin n) // s.card = k}) :
+    ((complSubsets n k hk s : {s : Finset (Fin n) // s.card = n - k}) : Finset (Fin n)) = s.1ᶜ :=
+  rfl
+
 /-- Peel the first fibre off a dependent sigma type indexed by `Fin (n + 1)`.  Mathlib has no
 such equivalence, and it is what lets `sigmaUnion` over `Fin (n + 1)` be recognised as a
 disjoint union. -/
@@ -587,6 +607,77 @@ def sigmaUnionSucc {n : ℕ} (F : Fin (n + 1) → CGraph) [∀ i, DecidableEq (F
           · show (sigmaUnion fun i : Fin n ↦ F i.succ).Adj ⟨i, a⟩ ⟨j, b⟩ = _
             rw [sigmaUnion_adj_ne _ _ _ _ _ h,
               sigmaUnion_adj_ne F _ _ a b (fun hh ↦ h (Fin.succ_injective n hh))])
+
+/-! ### Blow-ups, and Johnson duality -/
+
+/-- **`compl (G[H]) = (compl G)[compl H]`**: of the four products, the lexicographic one is the
+only whose complement is again a product — of the complements.  Two pairs are non-adjacent in
+`G[H]` exactly when the first coordinates are non-adjacent, or equal with the second coordinates
+non-adjacent. -/
+def complLexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    CGraph.compl (CGraph.lexProduct G H) ≃cg
+      CGraph.lexProduct (CGraph.compl G) (CGraph.compl H) :=
+  isoOfAdj (G := CGraph.compl (CGraph.lexProduct G H))
+    (H := CGraph.lexProduct (CGraph.compl G) (CGraph.compl H)) (Equiv.refl (G.V × H.V)) (by
+      rintro ⟨a, b⟩ ⟨c, d⟩
+      show (CGraph.lexProduct (CGraph.compl G) (CGraph.compl H)).Adj (a, b) (c, d)
+        = (CGraph.compl (CGraph.lexProduct G H)).Adj (a, b) (c, d)
+      rcases eq_or_ne a c with rfl | hac
+      · simp [Bool.eq_false_iff.2 (G.loopless a), lexProduct_pair_eq]
+      · simp [hac, lexProduct_pair_eq])
+
+/-- **`(empty n)[G] = (empty n) □ G`**: with an edgeless first factor, both products are `n`
+disjoint copies of `G`. -/
+def emptyLexProduct (n : ℕ) (G : CGraph) [DecidableEq G.V] :
+    CGraph.lexProduct (CGraph.empty n) G ≃cg CGraph.cartesianProduct (CGraph.empty n) G :=
+  isoOfAdj (G := CGraph.lexProduct (CGraph.empty n) G)
+    (H := CGraph.cartesianProduct (CGraph.empty n) G) (Equiv.refl ((CGraph.empty n).V × G.V)) (by
+      rintro ⟨a, b⟩ ⟨c, d⟩
+      show (CGraph.cartesianProduct (CGraph.empty n) G).Adj (a, b) (c, d)
+        = (CGraph.lexProduct (CGraph.empty n) G).Adj (a, b) (c, d)
+      simp)
+
+/-- **`J(n, k) ≅ J(n, n - k)`**: complementing every set turns an intersection of size `k - 1`
+into one of size `(n - k) - 1`, since `|sᶜ ∩ tᶜ| = n - |s ∪ t|` and `|s ∪ t| = 2k - |s ∩ t|`.
+
+The arithmetic is truncated subtraction throughout, which is why the two sets have to be distinct
+before `omega` will believe it: `s = t` forces `|s ∩ t| = k`, and then both `k - 1` tests fail for
+the wrong reason. -/
+def johnsonCompl (n k : ℕ) (hk : k ≤ n) :
+    CGraph.johnson n k ≃cg CGraph.johnson n (n - k) :=
+  isoOfAdj (G := CGraph.johnson n k) (H := CGraph.johnson n (n - k)) (complSubsets n k hk) (by
+    intro s t
+    rw [CGraph.johnson_adj, CGraph.johnson_adj]
+    have key : s ≠ t →
+        ((((complSubsets n k hk) s).1 ∩ ((complSubsets n k hk) t).1).card = n - k - 1
+          ↔ (s.1 ∩ t.1).card = k - 1) := by
+      intro hst
+      show ((s.1ᶜ ∩ t.1ᶜ).card = n - k - 1) ↔ _
+      have hclt : (s.1 ∩ t.1).card < k := by
+        refine lt_of_le_of_ne (by
+          have h := Finset.card_le_card (Finset.inter_subset_left (s₁ := s.1) (s₂ := t.1))
+          have h' := s.2
+          omega) fun h ↦ hst ?_
+        have h1 : s.1 ∩ t.1 = s.1 :=
+          Finset.eq_of_subset_of_card_le Finset.inter_subset_left (by rw [s.2, h])
+        have h2 : s.1 ∩ t.1 = t.1 :=
+          Finset.eq_of_subset_of_card_le Finset.inter_subset_right (by rw [t.2, h])
+        exact Subtype.ext (h1.symm.trans h2)
+      have hcompl : (s.1ᶜ ∩ t.1ᶜ).card = n - (s.1 ∪ t.1).card := by
+        rw [← Finset.compl_union, Finset.card_compl, Fintype.card_fin]
+      have hU : (s.1 ∪ t.1).card + (s.1 ∩ t.1).card = k + k := by
+        rw [Finset.card_union_add_card_inter, s.2, t.2]
+      have hUn : (s.1 ∪ t.1).card ≤ n := (Finset.card_le_univ _).trans_eq (Fintype.card_fin n)
+      rw [hcompl]
+      omega
+    refine Bool.eq_iff_iff.2 ?_
+    simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq]
+    constructor
+    · rintro ⟨h1, h2⟩
+      have hst : s ≠ t := fun h ↦ h1 (congrArg (complSubsets n k hk) h)
+      exact ⟨hst, (key hst).1 h2⟩
+    · rintro ⟨hst, h2⟩
+      exact ⟨fun h ↦ hst ((complSubsets n k hk).injective h), (key hst).2 h2⟩)
 
 end Iso
 
@@ -1363,6 +1454,16 @@ theorem kneser_eq_empty (n k : ℕ) (hn : n < 2 * k) : kneser n k = empty (n.cho
   rw [johnson_def, mk_eq_empty h]
   simp
 
+/-- **`J(n, k) = J(n, n - k)`**: taking complements is an isomorphism of Johnson graphs.  It is
+not a `simp` lemma — it would rewrite forever. -/
+theorem johnson_compl (n k : ℕ) (hk : k ≤ n) : johnson n k = johnson n (n - k) := by
+  rw [johnson_def, johnson_def]
+  exact Quotient.sound ⟨CGraph.Iso.johnsonCompl n k hk⟩
+
+/-- The other end of `johnson_one`: the `n`-subsets of an `(n+1)`-set also form a clique. -/
+@[simp] theorem johnson_pred (n : ℕ) : johnson (n + 1) n = complete (n + 1) := by
+  rw [johnson_compl (n + 1) n (by omega), show n + 1 - n = 1 from by omega, johnson_one]
+
 /-- The triangular graph is the complement of the Petersen-style Kneser graph on 2-sets. -/
 theorem triangular_eq_compl_kneser (n : ℕ) : triangular n = compl (kneser n 2) := by
   rw [kneser_def, compl_mk]
@@ -1816,6 +1917,84 @@ theorem strongProduct_empty_two (G : IsoGraph) :
 theorem empty_two_lexProduct (G : IsoGraph) : lexProduct (empty 2) G = disjUnion G G := by
   rw [show (2 : ℕ) = 1 + 1 from rfl, ← disjUnion_empty, disjUnion_lexProduct,
     empty_one_lexProduct]
+
+/-! ### Copies and blow-ups
+
+`empty n □ G` is `n` disjoint copies of `G`, and `K_n[G]` is `n` copies with every pair of copies
+joined; the two are complements of each other.  The complete multipartite graphs with equal parts
+are exactly the blow-ups of a clique by an independent set. -/
+
+/-- Peeling one copy off `empty (n+1) □ G`. -/
+theorem empty_succ_cartesianProduct (n : ℕ) (G : IsoGraph) :
+    cartesianProduct (empty (n + 1)) G = disjUnion G (cartesianProduct (empty n) G) := by
+  rw [show n + 1 = 1 + n from Nat.add_comm n 1, ← disjUnion_empty, disjUnion_cartesianProduct,
+    empty_one_cartesianProduct]
+
+/-- **The lexicographic product is the one whose complement is a product of complements.** -/
+@[simp] theorem compl_lexProduct (G H : IsoGraph) :
+    compl (lexProduct G H) = lexProduct (compl G) (compl H) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, compl_mk, compl_mk, compl_mk,
+        lexProduct_mk]
+      exact Quotient.sound ⟨CGraph.Iso.complLexProduct _ _⟩
+
+/-- With an edgeless first factor the lexicographic and Cartesian products agree: both are `n`
+disjoint copies. -/
+theorem empty_lexProduct (n : ℕ) (G : IsoGraph) :
+    lexProduct (empty n) G = cartesianProduct (empty n) G := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [← mk_canonicalize g, empty_def, lexProduct_mk, cartesianProduct_mk]
+    exact Quotient.sound ⟨CGraph.Iso.emptyLexProduct _ _⟩
+
+/-- `K_m[G]` is `m` copies of `G` with every pair of copies joined — the complement of `m` disjoint
+copies of `compl G`. -/
+theorem complete_lexProduct (m : ℕ) (G : IsoGraph) :
+    lexProduct (complete m) G = compl (cartesianProduct (empty m) (compl G)) := by
+  conv_lhs => rw [← compl_compl (lexProduct (complete m) G)]
+  rw [compl_lexProduct, compl_complete, empty_lexProduct]
+
+/-- The complement of a complete multipartite graph with `m` equal parts is `m` disjoint cliques. -/
+theorem compl_completeMultipartite_replicate (m d : ℕ) :
+    compl (completeMultipartite (List.replicate m d))
+      = cartesianProduct (empty m) (complete d) := by
+  induction m with
+  | zero =>
+    rw [List.replicate_zero, completeMultipartite_nil, compl_empty, complete_zero,
+      empty_zero_cartesianProduct]
+  | succ m ih =>
+    rw [List.replicate_succ, compl_completeMultipartite_cons, ih, empty_succ_cartesianProduct]
+
+/-- **Equal parts make a blow-up**: `K_{m×d}` is `K_m` with each vertex blown up to `d`
+independent ones. -/
+theorem completeMultipartite_replicate (m d : ℕ) :
+    completeMultipartite (List.replicate m d) = lexProduct (complete m) (empty d) := by
+  rw [complete_lexProduct, compl_empty, ← compl_completeMultipartite_replicate, compl_compl]
+
+/-- The complement of the cocktail-party graph is a perfect matching. -/
+theorem compl_cocktailParty (n : ℕ) :
+    compl (cocktailParty n) = cartesianProduct (empty n) (complete 2) :=
+  compl_completeMultipartite_replicate n 2
+
+theorem cocktailParty_eq_lexProduct (m : ℕ) :
+    cocktailParty m = lexProduct (complete m) (empty 2) :=
+  completeMultipartite_replicate m 2
+
+/-- **`Q_{m+n} = Q_m □ Q_n`**: splitting a bit-string of length `m + n` into its first `m` and
+last `n` bits.  Iterating `hypercube_succ` is all it takes. -/
+theorem hypercube_add (m n : ℕ) :
+    hypercube (m + n) = cartesianProduct (hypercube m) (hypercube n) := by
+  induction n with
+  | zero => rw [Nat.add_zero, hypercube_zero, cartesianProduct_empty_one]
+  | succ n ih =>
+    rw [← Nat.add_assoc, hypercube_succ, ih, cartesianProduct_assoc, ← hypercube_succ]
+
+/-- `Q₄` is the `4 × 4` torus. -/
+theorem hypercube_four : hypercube 4 = cartesianProduct (cycle 4) (cycle 4) := by
+  rw [show hypercube 4 = hypercube (2 + 2) from rfl, hypercube_add, hypercube_two]
 
 /-! ### Rooks and ladders -/
 

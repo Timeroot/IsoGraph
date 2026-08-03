@@ -242,6 +242,13 @@ lexProduct (disjUnion G H) K = disjUnion (lexProduct G K) (lexProduct H K)
 cartesianProduct (empty 2) G = disjUnion G G              strongProduct (empty 2) G = disjUnion G G
 compl (star n) = disjUnion (empty 1) (complete n)         compl (book n) = disjUnion (empty 2) (complete n)
 compl (wheel n) = disjUnion (empty 1) (compl (cycle n))   compl (fan n) = disjUnion (empty 1) (compl (path n))
+hypercube (m + n) = cartesianProduct (hypercube m) (hypercube n)
+hypercube 4 = cartesianProduct (cycle 4) (cycle 4)        johnson (n + 1) n = complete (n + 1)
+johnson n k = johnson n (n - k)                           (k ≤ n)
+compl (lexProduct G H) = lexProduct (compl G) (compl H)
+lexProduct (empty n) G = cartesianProduct (empty n) G
+completeMultipartite (List.replicate m d) = lexProduct (complete m) (empty d)
+compl (cocktailParty n) = cartesianProduct (empty n) (complete 2)
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -290,6 +297,21 @@ strong and lexicographic products (not the tensor product, which is edgeless the
 The complement identities for the hub-and-rim graphs are all one rewrite once `compl_join` and
 `compl_complete` are available, since `star`, `wheel`, `fan` and `book` are each a join: the hub
 side becomes edgeless and the two sides stop talking to each other.
+
+Two more families come out of `empty n □ G`, which is `n` disjoint copies of `G`. The
+lexicographic product agrees with the Cartesian one there (`empty_lexProduct`), and it is the one
+product of the four whose complement is again a product — `compl (G[H]) = (compl G)[compl H]`.
+Putting those together, `K_m[G]` is `m` copies of `G` with every pair of copies joined, i.e.
+`compl (empty m □ compl G)`, and the complete multipartite graphs with equal parts are exactly the
+blow-ups `K_m[empty d]`; `cocktailParty n = K_n[empty 2]` and its complement is a perfect matching.
+The complement proof needs the pair equality restated at `(lexProduct G H).V` as
+`CGraph.lexProduct_pair_eq`, the same reducibility dodge as `disjUnion_inl_eq_inl`.
+
+Johnson duality, `J(n, k) ≅ J(n, n - k)`, is the one identity here whose bijection is interesting:
+`CGraph.complSubsets` sends `s` to `sᶜ`, and `|sᶜ ∩ tᶜ| = n - |s ∪ t| = n - 2k + |s ∩ t|` turns an
+intersection of size `k - 1` into one of size `(n - k) - 1`. Every step is truncated ℕ subtraction,
+so the two sets have to be known distinct — `s = t` forces `|s ∩ t| = k` — before `omega` will
+close it.
 
 A recurring nuisance in all of this: a type like `(CGraph.complete 2).V` is definitionally `Fin 2`
 but not *reducibly* so, and numerals, `simp` lemmas and instances all match at reducible
