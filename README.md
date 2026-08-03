@@ -239,6 +239,9 @@ completeMultipartite (List.replicate n 1) = complete n    triangular 4 = cocktai
 circulant n [] = empty n     circulant n [1] = cycle n
 cartesianProduct G (disjUnion H K) = disjUnion (cartesianProduct G H) (cartesianProduct G K)
 lexProduct (disjUnion G H) K = disjUnion (lexProduct G K) (lexProduct H K)
+cartesianProduct (empty 2) G = disjUnion G G              strongProduct (empty 2) G = disjUnion G G
+compl (star n) = disjUnion (empty 1) (complete n)         compl (book n) = disjUnion (empty 2) (complete n)
+compl (wheel n) = disjUnion (empty 1) (compl (cycle n))   compl (fan n) = disjUnion (empty 1) (compl (path n))
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -279,8 +282,14 @@ its first factor only — `K₂[K₁ + K₁]` is `K₄`, not `K₂ + K₂`). Her
 four ways of pairing `inl`/`inr`, and each needs an explicit `show` before `simp`: the equivalence
 is applied to a pair whose second component is only definitionally a `Sum`. The same reducibility
 gap is why `Sum.inl.injEq` does not fire on `(disjUnion G H).V`, so the file states it again as
-`CGraph.disjUnion_inl_eq_inl` with the `Eq` pinned to that type. All six quotient-level lemmas are
-`@[simp]`, pushing `disjUnion` outwards.
+`CGraph.disjUnion_inl_eq_inl` with the `Eq` pinned to that type. All seven quotient-level lemmas
+are `@[simp]`, pushing `disjUnion` outwards. Specialising them at `empty 2 = empty (1 + 1)` and
+using the `empty 1` units gives `cartesianProduct (empty 2) G = disjUnion G G` for the Cartesian,
+strong and lexicographic products (not the tensor product, which is edgeless there).
+
+The complement identities for the hub-and-rim graphs are all one rewrite once `compl_join` and
+`compl_complete` are available, since `star`, `wheel`, `fan` and `book` are each a join: the hub
+side becomes edgeless and the two sides stop talking to each other.
 
 A recurring nuisance in all of this: a type like `(CGraph.complete 2).V` is definitionally `Fin 2`
 but not *reducibly* so, and numerals, `simp` lemmas and instances all match at reducible
@@ -301,6 +310,7 @@ lineGraph (complete 4) = cocktailParty 3
 lineGraph (cycle (n+3)) = cycle (n+3)
 lineGraph (path (n+1)) = path n
 lineGraph (bipartite m n) = rook m n
+lineGraph (disjUnion G H) = disjUnion (lineGraph G) (lineGraph H)
 mycielskian (empty 0) = empty 1      mycielskian (complete 2) = cycle 5
 mycielskian (empty n) = disjUnion (star n) (empty n)
 ```
@@ -311,6 +321,12 @@ mycielskian (empty n) = disjUnion (star n) (empty n)
 exactly when they meet in one point, which is the adjacency of `J(n, 2)`. The last line is the
 Mycielskian of an edgeless graph, where the apex and the `n` shadow vertices form a star and the
 originals stay isolated.
+
+`lineGraph (disjUnion G H)` uses the same trick as `lineGraph (cycle n)`, `lineGraph (path n)` and
+`lineGraph (bipartite m n)`: give the map in the easy direction — here an edge of `G` or of `H`,
+pushed forward along `Sum.inl`/`Sum.inr` — prove it injective, and let
+`Fintype.bijective_iff_injective_and_card` supply the inverse from `E (G + H) = E G + E H`. Nobody
+has to write the inverse down, at the cost of the definition being `noncomputable`.
 
 `triangular 4 = cocktailParty 3` — the octahedron — is the one identity here that `SRG.lean` also
 proves, by `native_decide` on the canonical keys. The version in `Identities.lean` is

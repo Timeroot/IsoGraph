@@ -102,6 +102,52 @@ def sigmaFinSuccEquiv {n : ℕ} (α : Fin (n + 1) → Type) :
     induction i using Fin.cases <;> rfl
   right_inv := by rintro (x | ⟨j, x⟩) <;> rfl
 
+/-- Pushing an edge of `G` forward into `G + H` gives an edge of `G + H`. -/
+private theorem mem_edgeSet_map_inl (G H : CGraph) (e : Sym2 G.V)
+    (he : e ∈ G.toSimple.edgeSet) :
+    Sym2.map Sum.inl e ∈ (disjUnion G H).toSimple.edgeSet := by
+  induction e using Sym2.ind with
+  | _ a b =>
+    rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at he
+    rw [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, disjUnion_adj_inl_inl]
+    exact he
+
+/-- Pushing an edge of `H` forward into `G + H` gives an edge of `G + H`. -/
+private theorem mem_edgeSet_map_inr (G H : CGraph) (e : Sym2 H.V)
+    (he : e ∈ H.toSimple.edgeSet) :
+    Sym2.map Sum.inr e ∈ (disjUnion G H).toSimple.edgeSet := by
+  induction e using Sym2.ind with
+  | _ a b =>
+    rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at he
+    rw [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, disjUnion_adj_inr_inr]
+    exact he
+
+/-- An edge of `G` or an edge of `H`, read as an edge of `G + H`.  It is onto because the two
+sides have the same number of edges, so `lineGraphDisjUnion` never has to name an inverse. -/
+private def sumEdge (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (lineGraph G).V ⊕ (lineGraph H).V → (lineGraph (disjUnion G H)).V
+  | .inl e => ⟨Sym2.map Sum.inl e.1, mem_edgeSet_map_inl G H e.1 e.2⟩
+  | .inr e => ⟨Sym2.map Sum.inr e.1, mem_edgeSet_map_inr G H e.1 e.2⟩
+
+private theorem sumEdge_inj (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    Function.Injective (sumEdge G H) := by
+  rintro (⟨e, he⟩ | ⟨e, he⟩) (⟨f, hf⟩ | ⟨f, hf⟩) h <;>
+    replace h : Sym2.map _ e = Sym2.map _ f := congrArg Subtype.val h
+  · exact congrArg Sum.inl (Subtype.ext (Sym2.map.injective Sum.inl_injective h))
+  · induction e using Sym2.ind with
+    | _ a b =>
+      induction f using Sym2.ind with
+      | _ c d =>
+        rw [Sym2.map_pair_eq, Sym2.map_pair_eq] at h
+        rcases Sym2.eq_iff.1 h with ⟨h1, -⟩ | ⟨h1, -⟩ <;> exact absurd h1 (by simp)
+  · induction e using Sym2.ind with
+    | _ a b =>
+      induction f using Sym2.ind with
+      | _ c d =>
+        rw [Sym2.map_pair_eq, Sym2.map_pair_eq] at h
+        rcases Sym2.eq_iff.1 h with ⟨h1, -⟩ | ⟨h1, -⟩ <;> exact absurd h1 (by simp)
+  · exact congrArg Sum.inr (Subtype.ext (Sym2.map.injective Sum.inr_injective h))
+
 namespace Iso
 
 variable {G G' H H' : CGraph}
@@ -448,6 +494,72 @@ def lineGraph [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
           rwa [hba] at hb
         · rintro ⟨v, hv1, hv2⟩
           exact ⟨i v, Sym2.mem_map.2 ⟨v, hv1, rfl⟩, Sym2.mem_map.2 ⟨v, hv2, rfl⟩⟩
+
+/-- **The line graph of a disjoint union is the disjoint union of the line graphs**: an edge of
+`G + H` lies wholly in `G` or wholly in `H`, and two edges on opposite sides never meet.
+
+The forward map `sumEdge` is injective, and both sides have `E G + E H` vertices, so
+`Fintype.bijective_iff_injective_and_card` supplies the inverse — which is why this is
+`noncomputable`. -/
+noncomputable def lineGraphDisjUnion (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    CGraph.lineGraph (_root_.CGraph.disjUnion G H) ≃cg
+      _root_.CGraph.disjUnion (CGraph.lineGraph G) (CGraph.lineGraph H) := by
+  have hcard : Fintype.card ((CGraph.lineGraph G).V ⊕ (CGraph.lineGraph H).V)
+      = Fintype.card (CGraph.lineGraph (_root_.CGraph.disjUnion G H)).V := by
+    rw [Fintype.card_sum, CGraph.card_lineGraph, CGraph.card_lineGraph, CGraph.card_lineGraph,
+      CGraph.E_disjUnion]
+  have hbij : Function.Bijective (sumEdge G H) :=
+    Fintype.bijective_iff_injective_and_card _ |>.2 ⟨sumEdge_inj G H, hcard⟩
+  have hmem : ∀ (e : (CGraph.lineGraph G).V) (v : (_root_.CGraph.disjUnion G H).V),
+      v ∈ (((Equiv.ofBijective (sumEdge G H) hbij) (.inl e)).1 :
+            Sym2 (_root_.CGraph.disjUnion G H).V)
+        ↔ ∃ a ∈ (e.1 : Sym2 G.V), Sum.inl a = v :=
+    fun _ _ ↦ Sym2.mem_map
+  have hmem' : ∀ (e : (CGraph.lineGraph H).V) (v : (_root_.CGraph.disjUnion G H).V),
+      v ∈ (((Equiv.ofBijective (sumEdge G H) hbij) (.inr e)).1 :
+            Sym2 (_root_.CGraph.disjUnion G H).V)
+        ↔ ∃ a ∈ (e.1 : Sym2 H.V), Sum.inr a = v :=
+    fun _ _ ↦ Sym2.mem_map
+  refine (isoOfAdj (G := _root_.CGraph.disjUnion (CGraph.lineGraph G) (CGraph.lineGraph H))
+    (H := CGraph.lineGraph (_root_.CGraph.disjUnion G H))
+    (Equiv.ofBijective _ hbij) ?_).symm
+  rintro (e | e) (f | f) <;> rw [CGraph.lineGraph_adj]
+  · show _ = (CGraph.lineGraph G).Adj e f
+    rw [CGraph.lineGraph_adj]
+    congr 1
+    · exact decide_eq_decide.2
+        (not_congr ⟨fun h ↦ Sum.inl_injective (sumEdge_inj G H h), fun h ↦ by rw [h]⟩)
+    · refine decide_eq_decide.2 ⟨?_, ?_⟩
+      · rintro ⟨v, hv1, hv2⟩
+        obtain ⟨a, ha, rfl⟩ := (hmem e v).1 hv1
+        obtain ⟨b, hb, hab⟩ := (hmem f _).1 hv2
+        exact ⟨a, ha, by rwa [Sum.inl_injective hab] at hb⟩
+      · rintro ⟨v, hv1, hv2⟩
+        exact ⟨Sum.inl v, (hmem e _).2 ⟨v, hv1, rfl⟩, (hmem f _).2 ⟨v, hv2, rfl⟩⟩
+  · show _ = false
+    refine Bool.and_eq_false_iff.2 (Or.inr (decide_eq_false ?_))
+    rintro ⟨v, hv1, hv2⟩
+    obtain ⟨a, -, rfl⟩ := (hmem e v).1 hv1
+    obtain ⟨b, -, hb⟩ := (hmem' f _).1 hv2
+    exact absurd hb (by simp)
+  · show _ = false
+    refine Bool.and_eq_false_iff.2 (Or.inr (decide_eq_false ?_))
+    rintro ⟨v, hv1, hv2⟩
+    obtain ⟨a, -, rfl⟩ := (hmem' e v).1 hv1
+    obtain ⟨b, -, hb⟩ := (hmem f _).1 hv2
+    exact absurd hb (by simp)
+  · show _ = (CGraph.lineGraph H).Adj e f
+    rw [CGraph.lineGraph_adj]
+    congr 1
+    · exact decide_eq_decide.2
+        (not_congr ⟨fun h ↦ Sum.inr_injective (sumEdge_inj G H h), fun h ↦ by rw [h]⟩)
+    · refine decide_eq_decide.2 ⟨?_, ?_⟩
+      · rintro ⟨v, hv1, hv2⟩
+        obtain ⟨a, ha, rfl⟩ := (hmem' e v).1 hv1
+        obtain ⟨b, hb, hab⟩ := (hmem' f _).1 hv2
+        exact ⟨a, ha, by rwa [Sum.inr_injective hab] at hb⟩
+      · rintro ⟨v, hv1, hv2⟩
+        exact ⟨Sum.inr v, (hmem' e _).2 ⟨v, hv1, rfl⟩, (hmem' f _).2 ⟨v, hv2, rfl⟩⟩
 
 /-! ### Disjoint unions of families -/
 
@@ -1007,6 +1119,10 @@ theorem bipartite_one_one : bipartite 1 1 = complete 2 := by
 theorem star_one : star 1 = complete 2 := by
   rw [star_eq_bipartite, bipartite_one_one]
 
+/-- The complement of a star is its centre, isolated, next to a clique on the leaves. -/
+theorem compl_star (n : ℕ) : compl (star n) = disjUnion (empty 1) (complete n) := by
+  rw [star_eq_bipartite, compl_bipartite, complete_one]
+
 /-- `K_{2,2}` is the square. -/
 theorem bipartite_two_two : bipartite 2 2 = cycle 4 := by
   rw [bipartite_def, cycle_def]
@@ -1031,6 +1147,15 @@ theorem wheel_two : wheel 2 = complete 3 := by
 
 theorem wheel_three : wheel 3 = complete 4 := by
   rw [wheel_eq_join, cycle_three, join_complete]
+
+/-- The hub of a wheel is joined to everything, so it is isolated in the complement. -/
+theorem compl_wheel (n : ℕ) : compl (wheel n) = disjUnion (empty 1) (compl (cycle n)) := by
+  rw [wheel_eq_join, compl_join, compl_complete]
+
+/-- Likewise for the fan, which is a hub joined to a path rather than a cycle. -/
+theorem compl_fan (n : ℕ) : compl (fan n) = disjUnion (empty 1) (compl (path n)) := by
+  show compl (join (complete 1) (path n)) = _
+  rw [compl_join, compl_complete]
 
 /-! ## Complete multipartite graphs
 
@@ -1136,6 +1261,10 @@ theorem book_eq_join (n : ℕ) : book n = join (complete 2) (empty n) := by
   show completeMultipartite [1, 1, n] = _
   rw [completeMultipartite_cons, completeMultipartite_pair, bipartite_eq_join, ← join_assoc,
     ← bipartite_eq_join, bipartite_one_one]
+
+/-- The complement of the book `B_n` is its spine, edgeless, next to a clique on the pages. -/
+theorem compl_book (n : ℕ) : compl (book n) = disjUnion (empty 2) (complete n) := by
+  rw [book_eq_join, compl_join, compl_complete, compl_empty]
 
 /-! ## Circulants
 
@@ -1664,6 +1793,30 @@ products, and on the left only for the lexicographic one.  These are good `simp`
           disjUnion_mk, lexProduct_mk, lexProduct_mk, lexProduct_mk, disjUnion_mk]
         exact Quotient.sound ⟨CGraph.Iso.lexProductDisjUnion _ _ _⟩
 
+/-- Multiplying by two independent vertices doubles the graph.  The same holds for the strong and
+lexicographic products, but not for the tensor product, which is edgeless here. -/
+theorem empty_two_cartesianProduct (G : IsoGraph) :
+    cartesianProduct (empty 2) G = disjUnion G G := by
+  rw [show (2 : ℕ) = 1 + 1 from rfl, ← disjUnion_empty, disjUnion_cartesianProduct,
+    empty_one_cartesianProduct]
+
+theorem cartesianProduct_empty_two (G : IsoGraph) :
+    cartesianProduct G (empty 2) = disjUnion G G := by
+  rw [cartesianProduct_comm, empty_two_cartesianProduct]
+
+theorem empty_two_strongProduct (G : IsoGraph) :
+    strongProduct (empty 2) G = disjUnion G G := by
+  rw [show (2 : ℕ) = 1 + 1 from rfl, ← disjUnion_empty, disjUnion_strongProduct,
+    empty_one_strongProduct]
+
+theorem strongProduct_empty_two (G : IsoGraph) :
+    strongProduct G (empty 2) = disjUnion G G := by
+  rw [strongProduct_comm, empty_two_strongProduct]
+
+theorem empty_two_lexProduct (G : IsoGraph) : lexProduct (empty 2) G = disjUnion G G := by
+  rw [show (2 : ℕ) = 1 + 1 from rfl, ← disjUnion_empty, disjUnion_lexProduct,
+    empty_one_lexProduct]
+
 /-! ### Rooks and ladders -/
 
 theorem rook_one_left (n : ℕ) : rook 1 n = complete n := by
@@ -1735,6 +1888,17 @@ theorem hypercube_three : hypercube 3 = prism 4 := by
 The line graph turns a graph's edges into vertices, so the identities here are counted by `E`
 rather than `V`: `lineGraph (star n)` is complete on `E (star n) = n` vertices, and
 `lineGraph (complete n)` is the triangular graph `T(n) = J(n, 2)` on `C(n, 2)` of them. -/
+
+/-- **The line graph of a disjoint union is the disjoint union of the line graphs.** -/
+@[simp] theorem lineGraph_disjUnion (G H : IsoGraph) :
+    lineGraph (disjUnion G H) = disjUnion (lineGraph G) (lineGraph H) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, lineGraph_mk, lineGraph_mk,
+        lineGraph_mk, disjUnion_mk]
+      exact Quotient.sound ⟨CGraph.Iso.lineGraphDisjUnion _ _⟩
 
 @[simp] theorem lineGraph_empty (n : ℕ) : lineGraph (empty n) = empty 0 := by
   have hbot : (CGraph.empty n).toSimple = ⊥ := by
