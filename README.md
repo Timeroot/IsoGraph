@@ -259,6 +259,8 @@ bipartite (a * d) (b * d) = lexProduct (bipartite a b) (empty d)
 tensorProduct (complete 2) (path n) = disjUnion (path n) (path n)
 tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m))
 tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3))
+tensorProduct (complete 2) (bipartite m n) = disjUnion (bipartite m n) (bipartite m n)
+tensorProduct (complete 2) (ladder n) = disjUnion (ladder n) (ladder n)
 circulant n (0 :: S) = circulant n S                      circulant n (k :: k :: S) = circulant n (k :: S)
 circulant n (k :: S) = circulant n ((n - k) :: S)         circulant n [1, n - 1] = cycle n
 circulant (2 * m) [m] = cartesianProduct (empty m) (complete 2)
@@ -334,7 +336,10 @@ The tensor product with `K₂` is the bipartite double cover, and whether it spl
 question of bipartiteness. `CGraph.Iso.tensorTwoOfRel` handles the split case for any graph on
 `Fin n` whose edges all join an even index to an odd one — twist the `K₂` coordinate by the parity
 of the other (`CGraph.parityTwist`) and the tensor product becomes `empty 2 □ G`, which is two
-copies. Paths and even cycles qualify. Odd cycles do not, and there the cover is connected:
+copies. Paths and even cycles qualify. `CGraph.Iso.tensorTwoOfColouring` generalizes this to an
+arbitrary graph carrying an arbitrary proper 2-colouring `c : G.V → Bool` (twist by `c` instead of
+by the parity of the index), which is the criterion in its final form: bipartite graphs, stars and
+ladders all follow by exhibiting the colouring. Odd cycles do not, and there the cover is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality
 argument. `omega` cannot see through a `%` whose modulus is a variable, so both proofs first turn

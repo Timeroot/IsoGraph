@@ -844,6 +844,59 @@ def tensorTwoOfRel (n : ℕ) (r : Fin n → Fin n → Bool)
         simp only [eq_iff_iff, ne_eq]
         omega)
 
+/-- Twisting the `K₂` coordinate by a 2-colouring of the other coordinate. -/
+def colourTwist (G : CGraph) (c : G.V → Bool) : (Fin 2 × G.V) ≃ (Fin 2 × G.V) where
+  toFun p := (⟨(p.1.1 + (if c p.2 then 1 else 0)) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
+  invFun p := (⟨(p.1.1 + (if c p.2 then 1 else 0)) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
+  left_inv p := by
+    have h := p.1.isLt
+    refine Prod.ext (Fin.ext ?_) rfl
+    simp only
+    rcases c p.2 <;> simp only [if_true, if_false, Bool.false_eq_true] <;> omega
+  right_inv p := by
+    have h := p.1.isLt
+    refine Prod.ext (Fin.ext ?_) rfl
+    simp only
+    rcases c p.2 <;> simp only [if_true, if_false, Bool.false_eq_true] <;> omega
+
+/-- **A double cover splits whenever the graph is 2-coloured.**  This is `tensorTwoOfRel` with the
+parity of the index replaced by an arbitrary proper 2-colouring `c`, and stated for an arbitrary
+graph rather than one presented by `ofRel`: twisting the `K₂` coordinate by the colour carries the
+tensor product onto the Cartesian one. -/
+def tensorTwoOfColouring (G : CGraph) [DecidableEq G.V] (c : G.V → Bool)
+    (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
+    CGraph.tensorProduct (CGraph.complete 2) G ≃cg CGraph.cartesianProduct (CGraph.empty 2) G :=
+  isoOfAdj (G := CGraph.tensorProduct (CGraph.complete 2) G)
+    (H := CGraph.cartesianProduct (CGraph.empty 2) G) (colourTwist G c) (by
+      rintro ⟨a, x⟩ ⟨b, y⟩
+      show (CGraph.cartesianProduct (CGraph.empty 2) G).Adj
+          (⟨(a.1 + (if c x then 1 else 0)) % 2, _⟩, x)
+          (⟨(b.1 + (if c y then 1 else 0)) % 2, _⟩, y)
+        = (CGraph.tensorProduct (CGraph.complete 2) G).Adj (a, x) (b, y)
+      rw [CGraph.cartesianProduct_adj, CGraph.tensorProduct_adj]
+      simp only [CGraph.empty_adj, CGraph.complete_adj, Bool.false_and, Bool.or_false]
+      rcases hxy : G.Adj x y with _ | _
+      · simp
+      · have hne := h x y hxy
+        have ha := a.isLt
+        have hb := b.isLt
+        simp only [Bool.and_true]
+        rw [show (decide ((⟨(a.1 + (if c x then 1 else 0)) % 2,
+              Nat.mod_lt _ (by norm_num)⟩ : Fin 2)
+            = ⟨(b.1 + (if c y then 1 else 0)) % 2, Nat.mod_lt _ (by norm_num)⟩))
+          = decide ((a.1 + (if c x then 1 else 0)) % 2
+            = (b.1 + (if c y then 1 else 0)) % 2) from by simp [Fin.ext_iff]]
+        rw [show (decide (a ≠ b)) = decide (a.1 ≠ b.1) from by
+          simp only [decide_eq_decide, ne_eq, not_iff_not]
+          exact ⟨fun hh ↦ congrArg Fin.val hh, fun hh ↦ Fin.ext hh⟩]
+        congr 1
+        simp only [eq_iff_iff, ne_eq]
+        rcases hcx : c x <;> rcases hcy : c y <;>
+          simp only [if_true, if_false, Bool.false_eq_true] <;>
+          first
+            | omega
+            | exact absurd (hcx.trans hcy.symm) hne)
+
 /-- The Chinese remainder bijection `Fin (2n) ≃ Fin 2 × Fin n` for odd `n`, as the reduction
 `k ↦ (k % 2, k % n)`.  Injectivity is elementary rather than a coprimality argument: `k` and
 `k % n` differ by `0` or `n`, and `n` is odd, so the two residues pin `k` down. -/
@@ -2597,6 +2650,53 @@ theorem tensorProduct_complete_two_cycle_three :
 theorem tensorProduct_complete_two_cycle_five :
     tensorProduct (complete 2) (cycle 5) = cycle 10 :=
   tensorProduct_complete_two_cycle_odd 1
+
+/-- **A double cover splits whenever the graph is 2-coloured.**  A proper 2-colouring of `G` is
+exactly a bipartition of it, so this is the general splitting criterion; the identities below are
+instances of it. -/
+theorem tensorProduct_complete_two_of_colouring (G : CGraph) [DecidableEq G.V] (c : G.V → Bool)
+    (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
+    tensorProduct (complete 2) ⟦G⟧ = disjUnion ⟦G⟧ ⟦G⟧ := by
+  rw [← empty_two_cartesianProduct ⟦G⟧, complete_def, tensorProduct_mk, empty_def,
+    cartesianProduct_mk]
+  exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfColouring G c h⟩
+
+/-- **The double cover of a complete bipartite graph is two copies of it.** -/
+theorem tensorProduct_complete_two_bipartite (m n : ℕ) :
+    tensorProduct (complete 2) (bipartite m n) = disjUnion (bipartite m n) (bipartite m n) := by
+  rw [bipartite_def]
+  exact tensorProduct_complete_two_of_colouring (CGraph.bipartite m n)
+    (Sum.elim (fun _ ↦ false) (fun _ ↦ true)) (by
+      rintro (a | b) (c | d) hadj <;> simp at hadj ⊢)
+
+/-- The double cover of a star is two stars. -/
+theorem tensorProduct_complete_two_star (n : ℕ) :
+    tensorProduct (complete 2) (star n) = disjUnion (star n) (star n) := by
+  rw [star_eq_bipartite, tensorProduct_complete_two_bipartite]
+
+/-- **The double cover of a ladder is two ladders.**  The colouring is the parity of the sum of the
+two coordinates. -/
+theorem tensorProduct_complete_two_ladder (n : ℕ) :
+    tensorProduct (complete 2) (ladder n) = disjUnion (ladder n) (ladder n) := by
+  show tensorProduct (complete 2) (cartesianProduct (path n) (complete 2))
+      = disjUnion (cartesianProduct (path n) (complete 2)) (cartesianProduct (path n) (complete 2))
+  rw [path_def, complete_def, cartesianProduct_mk]
+  refine tensorProduct_complete_two_of_colouring
+    (CGraph.cartesianProduct (CGraph.path n) (CGraph.complete 2))
+    (fun p ↦ decide (((p.1 : Fin n).1 + (p.2 : Fin 2).1) % 2 = 1)) ?_
+  rintro ⟨i, a⟩ ⟨j, b⟩ hadj
+  have hia := a.isLt
+  have hjb := b.isLt
+  rw [CGraph.cartesianProduct_adj] at hadj
+  simp only [CGraph.complete_adj, CGraph.path, CGraph.ofRel_adj, Bool.and_eq_true,
+    Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq, Fin.ext_iff] at hadj
+  simp only [ne_eq, decide_eq_decide]
+  have hIJ : (i = j) ↔ ((i : Fin n).1 = (j : Fin n).1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
+  have hAB : (a = b) ↔ ((a : Fin 2).1 = (b : Fin 2).1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
+  simp only [hIJ, hAB] at hadj
+  rcases hadj with ⟨h1, h2⟩ | ⟨⟨-, h1⟩, h2⟩
+  · omega
+  · omega
 
 /-! ## Line graphs and Mycielskians
 
