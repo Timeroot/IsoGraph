@@ -1611,6 +1611,197 @@ theorem spiderEdges_replicate_one : ∀ (off n : ℕ),
   · rintro ⟨rfl, h1, h2⟩
     exact ⟨q - off, by omega, rfl, by omega⟩
 
+/-! ### A cycle with a single pendant vertex -/
+
+/-- A cycle carrying a single pendant vertex is a tadpole with a leg of length one. -/
+theorem cyclePendant_singleton_one (m : ℕ) : cyclePendant m [1] = tadpole m 1 := by
+  rw [cyclePendant, tadpole, show ([1] : List ℕ).sum = 1 from rfl,
+    show pendantEdges 0 m [1] = legEdges 0 m 1 from by
+      simp [pendantEdges, legEdges, pathEdges]]
+
+/-! ### Swapping the two centres of a double star -/
+
+/-- The relabelling that exchanges the two centres of a double star, carrying the leaves of each
+along with it. -/
+def doubleStarSwapFwd (m n v : ℕ) : ℕ :=
+  if v = 0 then 1 else if v = 1 then 0 else if v < 2 + m then v + n else v - m
+
+theorem doubleStarSwapFwd_lt (m n v : ℕ) (h : v < 2 + m + n) :
+    doubleStarSwapFwd m n v < 2 + n + m := by
+  unfold doubleStarSwapFwd; split_ifs <;> omega
+
+theorem doubleStarSwapFwd_fwd (m n v : ℕ) (h : v < 2 + m + n) :
+    doubleStarSwapFwd n m (doubleStarSwapFwd m n v) = v := by
+  unfold doubleStarSwapFwd
+  split_ifs <;> first | omega | exact (‹False›).elim
+
+/-- The relabelling that exchanges the two centres of a double star. -/
+def doubleStarSwap (m n : ℕ) : Fin (2 + m + n) ≃ Fin (2 + n + m) where
+  toFun p := ⟨doubleStarSwapFwd m n p.1, doubleStarSwapFwd_lt m n p.1 p.isLt⟩
+  invFun p := ⟨doubleStarSwapFwd n m p.1, doubleStarSwapFwd_lt n m p.1 p.isLt⟩
+  left_inv p := Fin.ext (doubleStarSwapFwd_fwd m n p.1 p.isLt)
+  right_inv p := Fin.ext (doubleStarSwapFwd_fwd n m p.1 p.isLt)
+
+@[simp] theorem doubleStarSwap_apply (m n : ℕ) (p : Fin (2 + m + n)) :
+    (doubleStarSwap m n p).1 = doubleStarSwapFwd m n p.1 := rfl
+
+/-- Adjacency in `doubleStar m n`, phrased entirely in terms of the underlying naturals. -/
+theorem doubleStar_adj_val (m n : ℕ) (u v : (doubleStar m n).V) :
+    (doubleStar m n).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧
+        (((u.1 = 0 ∧ v.1 = 1) ∨ (u.1 = 0 ∧ 2 ≤ v.1 ∧ v.1 < 2 + m) ∨
+            (u.1 = 1 ∧ 2 + m ≤ v.1 ∧ v.1 < 2 + m + n)) ∨
+          ((v.1 = 0 ∧ u.1 = 1) ∨ (v.1 = 0 ∧ 2 ≤ u.1 ∧ u.1 < 2 + m) ∨
+            (v.1 = 1 ∧ 2 + m ≤ u.1 ∧ u.1 < 2 + m + n)))) := by
+  simp only [doubleStar]
+  rw [ofEdges_adj_val]
+  simp only [mem_doubleStarEdges]
+
+/-! ### Theta graphs with two paths: the cycle -/
+
+/-- Adjacency in `cycle n`, phrased entirely in terms of the underlying naturals. -/
+theorem cycle_adj_val (n : ℕ) (u v : (cycle n).V) :
+    (cycle n).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1 + 1) % n = v.1 ∨ (v.1 + 1) % n = u.1)) := by
+  have huv : (u = v) ↔ (u.1 = v.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
+  simp only [cycle, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq,
+    ne_eq, huv]
+
+/-- A step around a cycle of length at least two never stands still. -/
+theorem succ_mod_ne {d x : ℕ} (h2 : 2 ≤ d) (hx : x < d) : (x + 1) % d ≠ x := by
+  by_cases h : x + 1 = d
+  · rw [h, Nat.mod_self]; omega
+  · rw [Nat.mod_eq_of_lt (by omega)]; omega
+
+/-- One path of a theta graph splits off the front of the edge list. -/
+theorem thetaEdges_cons (off k : ℕ) (rest : List ℕ) :
+    thetaEdges off (k :: rest) = thetaEdges off [k] ++ thetaEdges (off + k) rest := by
+  cases k with
+  | zero => rfl
+  | succ j => simp only [thetaEdges, List.append_nil, Nat.add_assoc]
+
+theorem mem_thetaEdges_single (off k p q : ℕ) :
+    ((p, q) ∈ thetaEdges off [k]) ↔
+      ((k = 0 ∧ p = 0 ∧ q = 1) ∨ (0 < k ∧ p = 0 ∧ q = off) ∨
+        (0 < k ∧ p = off + k - 1 ∧ q = 1) ∨ (off ≤ p ∧ q = p + 1 ∧ p + 1 < off + k)) := by
+  rcases k with _ | j
+  · simp only [thetaEdges, List.mem_singleton, Prod.mk.injEq, true_and]
+    omega
+  · simp only [thetaEdges, List.append_nil, List.mem_cons, List.mem_map, List.mem_range,
+      Prod.mk.injEq]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨i, hi, rfl, rfl⟩)
+      · exact Or.inr (Or.inl ⟨by omega, rfl, rfl⟩)
+      · exact Or.inr (Or.inr (Or.inl ⟨by omega, by omega, rfl⟩))
+      · exact Or.inr (Or.inr (Or.inr ⟨by omega, by omega, by omega⟩))
+    · rintro (⟨h, -⟩ | ⟨-, rfl, rfl⟩ | ⟨-, rfl, rfl⟩ | ⟨h1, rfl, h3⟩)
+      · exact absurd h (by omega)
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr (Or.inl ⟨by omega, rfl⟩)
+      · exact Or.inr (Or.inr ⟨p - off, by omega, by omega, by omega⟩)
+
+/-- The relabelling that reads a theta graph with two paths off as a cycle: the first path is
+traversed away from the pole `0`, the second one back towards it. -/
+def thetaCycleFwd (a b v : ℕ) : ℕ :=
+  if v = 0 then 0 else if v = 1 then a + 1 else if v < 2 + a then v - 1 else 2 * a + b + 3 - v
+
+/-- The inverse of `thetaCycleFwd`. -/
+def thetaCycleBwd (a b u : ℕ) : ℕ :=
+  if u = 0 then 0 else if u ≤ a then u + 1 else if u = a + 1 then 1 else 2 * a + b + 3 - u
+
+theorem thetaCycleFwd_lt (a b v : ℕ) (h : v < 2 + a + b) : thetaCycleFwd a b v < 2 + a + b := by
+  unfold thetaCycleFwd
+  split_ifs <;> omega
+
+theorem thetaCycleBwd_lt (a b u : ℕ) (h : u < 2 + a + b) : thetaCycleBwd a b u < 2 + a + b := by
+  unfold thetaCycleBwd
+  split_ifs <;> omega
+
+theorem thetaCycleBwd_fwd (a b v : ℕ) (h : v < 2 + a + b) :
+    thetaCycleBwd a b (thetaCycleFwd a b v) = v := by
+  unfold thetaCycleFwd thetaCycleBwd
+  split_ifs <;> first | omega | exact (‹False›).elim
+
+theorem thetaCycleFwd_bwd (a b u : ℕ) (h : u < 2 + a + b) :
+    thetaCycleFwd a b (thetaCycleBwd a b u) = u := by
+  unfold thetaCycleFwd thetaCycleBwd
+  split_ifs <;> first | omega | exact (‹False›).elim
+
+/-- The relabelling of `thetaGraph [a, b]` as `cycle (2 + a + b)`. -/
+def thetaCyclePerm (a b : ℕ) : Equiv.Perm (Fin (2 + a + b)) where
+  toFun p := ⟨thetaCycleFwd a b p.1, thetaCycleFwd_lt a b p.1 p.isLt⟩
+  invFun p := ⟨thetaCycleBwd a b p.1, thetaCycleBwd_lt a b p.1 p.isLt⟩
+  left_inv p := Fin.ext (thetaCycleBwd_fwd a b p.1 p.isLt)
+  right_inv p := Fin.ext (thetaCycleFwd_bwd a b p.1 p.isLt)
+
+@[simp] theorem thetaCyclePerm_apply (a b : ℕ) (p : Fin (2 + a + b)) :
+    (thetaCyclePerm a b p).1 = thetaCycleFwd a b p.1 := rfl
+
+/-- The arithmetic heart of `thetaGraph_pair`: one step forward around the cycle is one edge of
+the first path, or one edge of the second path taken backwards. -/
+theorem thetaCycle_step (a b p q : ℕ) (hp : p < 2 + a + b) (hq : q < 2 + a + b) :
+    ((thetaCycleFwd a b p + 1) % (2 + a + b) = thetaCycleFwd a b q) ↔
+      ((p, q) ∈ thetaEdges 2 [a] ∨ (q, p) ∈ thetaEdges (2 + a) [b]) := by
+  rw [mem_thetaEdges_single, mem_thetaEdges_single, succ_mod_eq_iff (thetaCycleFwd_lt a b p hp)]
+  constructor
+  · intro h
+    unfold thetaCycleFwd at h
+    split_ifs at h <;> rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> first
+      | (exfalso; omega)
+      | (refine Or.inl (Or.inl ⟨?_, ?_, ?_⟩) <;> omega)
+      | (refine Or.inl (Or.inr (Or.inl ⟨?_, ?_, ?_⟩)) <;> omega)
+      | (refine Or.inl (Or.inr (Or.inr (Or.inl ⟨?_, ?_, ?_⟩))) <;> omega)
+      | (refine Or.inl (Or.inr (Or.inr (Or.inr ⟨?_, ?_, ?_⟩))) <;> omega)
+      | (refine Or.inr (Or.inl ⟨?_, ?_, ?_⟩) <;> omega)
+      | (refine Or.inr (Or.inr (Or.inl ⟨?_, ?_, ?_⟩)) <;> omega)
+      | (refine Or.inr (Or.inr (Or.inr (Or.inl ⟨?_, ?_, ?_⟩))) <;> omega)
+      | (refine Or.inr (Or.inr (Or.inr (Or.inr ⟨?_, ?_, ?_⟩))) <;> omega)
+  · intro h
+    unfold thetaCycleFwd
+    rcases h with (⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩) |
+      (⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩) <;>
+      subst h2 <;>
+      split_ifs <;>
+      (try simp only [and_true, and_false, false_or, or_false]) <;>
+      first | omega | exact (‹False›).elim
+
+/-- One step forward around the cycle already forces the two endpoints apart. -/
+theorem thetaCycle_step_ne (a b p q : ℕ) (hp : p < 2 + a + b)
+    (h : (thetaCycleFwd a b p + 1) % (2 + a + b) = thetaCycleFwd a b q) :
+    thetaCycleFwd a b p ≠ thetaCycleFwd a b q := by
+  intro he
+  rw [← he] at h
+  exact succ_mod_ne (by omega) (thetaCycleFwd_lt a b p hp) h
+
+/-- Adjacency in `thetaGraph [a, b]` matches adjacency in `cycle (2 + a + b)` under
+`thetaCycleFwd`. -/
+theorem thetaCycle_adj_iff (a b p q : ℕ) (hp : p < 2 + a + b) (hq : q < 2 + a + b) :
+    (thetaCycleFwd a b p ≠ thetaCycleFwd a b q ∧
+        ((thetaCycleFwd a b p + 1) % (2 + a + b) = thetaCycleFwd a b q ∨
+          (thetaCycleFwd a b q + 1) % (2 + a + b) = thetaCycleFwd a b p)) ↔
+      (p ≠ q ∧
+        (((p, q) ∈ thetaEdges 2 [a] ∨ (p, q) ∈ thetaEdges (2 + a) [b]) ∨
+          ((q, p) ∈ thetaEdges 2 [a] ∨ (q, p) ∈ thetaEdges (2 + a) [b]))) := by
+  constructor
+  · rintro ⟨hne, hs | hs⟩
+    · refine ⟨fun he ↦ hne (by rw [he]), ?_⟩
+      rcases (thetaCycle_step a b p q hp hq).1 hs with h | h
+      · exact Or.inl (Or.inl h)
+      · exact Or.inr (Or.inr h)
+    · refine ⟨fun he ↦ hne (by rw [he]), ?_⟩
+      rcases (thetaCycle_step a b q p hq hp).1 hs with h | h
+      · exact Or.inr (Or.inl h)
+      · exact Or.inl (Or.inr h)
+  · rintro ⟨-, (h | h) | (h | h)⟩
+    · have hs := (thetaCycle_step a b p q hp hq).2 (Or.inl h)
+      exact ⟨thetaCycle_step_ne a b p q hp hs, Or.inl hs⟩
+    · have hs := (thetaCycle_step a b q p hq hp).2 (Or.inr h)
+      exact ⟨fun he ↦ thetaCycle_step_ne a b q p hq hs he.symm, Or.inr hs⟩
+    · have hs := (thetaCycle_step a b q p hq hp).2 (Or.inl h)
+      exact ⟨fun he ↦ thetaCycle_step_ne a b q p hq hs he.symm, Or.inr hs⟩
+    · have hs := (thetaCycle_step a b p q hp hq).2 (Or.inr h)
+      exact ⟨thetaCycle_step_ne a b p q hp hs, Or.inl hs⟩
+
 /-! ## Two small facts about one-vertex graphs -/
 
 /-- No vertex is adjacent to itself, as an equation of `Bool`s. -/
@@ -2885,6 +3076,50 @@ theorem star_two : star 2 = path 3 := by
         omega
   exact key.symm
 
+@[simp] theorem cyclePendant_singleton_one (m : ℕ) : cyclePendant m [1] = tadpole m 1 := by
+  rw [cyclePendant_def, tadpole_def, CGraph.cyclePendant_singleton_one]
+
+/-- A theta graph with two paths is a cycle. -/
+@[simp] theorem thetaGraph_pair (a b : ℕ) : thetaGraph [a, b] = cycle (2 + a + b) := by
+  rw [thetaGraph_def, cycle_def]
+  have hN : 2 + ([a, b] : List ℕ).sum = 2 + a + b := by simp; omega
+  set E : (CGraph.thetaGraph [a, b]).V ≃ (CGraph.cycle (2 + a + b)).V :=
+    (finCongr hN).trans (CGraph.thetaCyclePerm a b) with hE
+  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  intro x y
+  have hEz : ∀ z : (CGraph.thetaGraph [a, b]).V,
+      (E z).1 = CGraph.thetaCycleFwd a b z.1 := fun _ ↦ rfl
+  have hx : x.1 < 2 + a + b := hN ▸ x.isLt
+  have hy : y.1 < 2 + a + b := hN ▸ y.isLt
+  rw [Bool.eq_iff_iff, CGraph.cycle_adj_val, hEz x, hEz y]
+  simp only [CGraph.thetaGraph]
+  rw [CGraph.ofEdges_adj_val,
+    show CGraph.thetaEdges 2 [a, b] = CGraph.thetaEdges 2 [a] ++ CGraph.thetaEdges (2 + a) [b] from
+      CGraph.thetaEdges_cons 2 a [b]]
+  simp only [List.mem_append]
+  exact CGraph.thetaCycle_adj_iff a b x.1 y.1 hx hy
+
+/-- The two ends of a double star can be exchanged. -/
+theorem doubleStar_comm (m n : ℕ) : doubleStar m n = doubleStar n m := by
+  rw [doubleStar_def, doubleStar_def]
+  set E : (CGraph.doubleStar m n).V ≃ (CGraph.doubleStar n m).V :=
+    CGraph.doubleStarSwap m n with hE
+  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  intro x y
+  have hx : x.1 < 2 + m + n := x.isLt
+  have hy : y.1 < 2 + m + n := y.isLt
+  have hval : ∀ p : (CGraph.doubleStar m n).V,
+      (E p).1 = CGraph.doubleStarSwapFwd m n p.1 := fun _ ↦ rfl
+  rw [Bool.eq_iff_iff, CGraph.doubleStar_adj_val, CGraph.doubleStar_adj_val, hval x, hval y]
+  unfold CGraph.doubleStarSwapFwd
+  split_ifs <;>
+    (try simp only [false_and, false_or, true_and, and_true, or_false, true_or, or_true,
+      or_self]) <;> omega
+
+/-- Swapping the two paths of a two-path theta graph. -/
+theorem thetaGraph_pair_comm (a b : ℕ) : thetaGraph [a, b] = thetaGraph [b, a] := by
+  rw [thetaGraph_pair, thetaGraph_pair, show 2 + b + a = 2 + a + b from by omega]
+
 /-! ## Products
 
 The one-vertex graph is a unit for the cartesian, strong and lexicographic products and an
@@ -4149,5 +4384,13 @@ example (n : ℕ) : spider (List.replicate n 1) = star n := by simp
 example : doubleStar 0 3 = star 4 := by simp
 example : doubleStar 3 0 = star 4 := by simp
 example : doubleStar 0 1 = path 3 := by rw [doubleStar_left_zero, star_two]
+example : thetaGraph [1, 1] = cycle 4 := by simp
+example : thetaGraph [0, 2] = cycle 4 := by simp
+example : thetaGraph [1, 2] = cycle 5 := by simp
+example : thetaGraph [0, 0] = complete 2 := by simp
+example : thetaGraph [0, 1] = complete 3 := by rw [thetaGraph_pair, show 2 + 0 + 1 = 3 from rfl,
+  cycle_three]
+example (m : ℕ) : cyclePendant m [1] = tadpole m 1 := by simp
+example : doubleStar 2 3 = doubleStar 3 2 := by rw [doubleStar_comm]
 
 end IsoGraph

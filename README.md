@@ -283,6 +283,8 @@ spider [a, b] = path (1 + a + b)                          thetaGraph [k] = path 
 spider (List.replicate n 1) = star n                      star 2 = path 3
 doubleStar m 0 = star (m + 1)                             doubleStar 0 n = star (n + 1)
 thetaGraph [] = empty 2                                   thetaGraph (List.replicate (j + 1) 0) = complete 2
+thetaGraph [a, b] = cycle (2 + a + b)                     thetaGraph [a, b] = thetaGraph [b, a]
+doubleStar m n = doubleStar n m                           cyclePendant m [1] = tadpole m 1
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -346,6 +348,30 @@ disjunction of three-conjunct clauses, whose negation is some `3^8` cases: 250-4
 the same content elaborates in seconds. Two smaller `omega` quirks show up in the same proofs: it
 gives up when a hypothesis is literally `False`, and when the goal mentions `True` — both of which
 `split_ifs` produces — hence the `(‹False›).elim` and `simp only [true_and]` fallbacks.
+
+The two-path theta graph is the one that needs the whole apparatus. `thetaGraph [a, b]` draws a
+cycle, but its numbering visits the two poles first and then each path in turn, so the
+relabelling `thetaCycleFwd a b` sends `0 ↦ 0`, `1 ↦ a + 1`, the first path's interior down by one
+and the second path's interior *backwards*, since that path is traversed towards the pole `0`
+rather than away from it. Rather than compare the two adjacency relations head-on, the proof
+factors through a *directed* step lemma: `(F p + 1) % (2 + a + b) = F q` holds exactly when
+`(p, q)` is an edge of the first path or `(q, p)` is an edge of the second (`thetaCycle_step`),
+which becomes a finite case split once `succ_mod_eq_iff` has removed the `%`. Symmetrising that
+back into an undirected `Adj` statement is pure `Or`-shuffling, plus `succ_mod_ne` — a step around
+a cycle of length at least two never stands still — to recover `F p ≠ F q` for free. Splitting the
+edge list one path at a time (`thetaEdges_cons`) and describing a single path once
+(`mem_thetaEdges_single`) means both paths are the same four disjuncts at different offsets. Even
+so, the forward direction needs its disjunct chosen per branch, and the two halves of
+`succ_mod_eq_iff` choose *different* edges — from the pole `1`, wrapping around means `b = 0`
+while not wrapping means the far end of the second path — so the disjunction in the hypothesis has
+to be `rcases`d before the `first | refine …` cascade, not after.
+
+`doubleStar m n = doubleStar n m` is the same recipe one size down: `doubleStarSwapFwd` exchanges
+the two centres and slides the two leaf blocks past each other. Both of these permutations are
+built the cheap way — a plain `ℕ → ℕ` function with a bound lemma and a round-trip lemma, each
+`unfold …; split_ifs <;> omega`, and `Fin.ext` to assemble the `Equiv` — which avoids the long
+`show` blocks that `foldAt` and `rotTail` needed. `cyclePendant m [1] = tadpole m 1`, by contrast,
+is on the nose: a single pendant vertex *is* a leg of length one.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a
