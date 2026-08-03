@@ -206,8 +206,8 @@ the whole zoo through the quotient and then proves the equations that only becom
 Lifted names: `empty`, `complete`, `path`, `cycle`, `bipartite`, `completeMultipartite`, `star`,
 `wheel`, `kneser`, `johnson`, `hypercube`, `foldedCube`, `circulant`, `paley`, `thetaGraph`,
 `tadpole`, `lollipop`, `spider`, `doubleStar`, `cyclePendant`, the operations `compl`,
-`disjUnion`, `join` and the four products, and the abbreviations `book`, `fan`, `ladder`, `prism`,
-`triangular`, `rook`, `cocktailParty`.
+`disjUnion`, `join`, `lineGraph`, `mycielskian` and the four products, and the abbreviations
+`book`, `fan`, `ladder`, `prism`, `triangular`, `rook`, `cocktailParty`.
 
 The lifting has one wrinkle. `compl` and the four products need `[DecidableEq G.V]`, which a
 `CGraph` does not carry, so they cannot be `Quotient.lift`ed as they stand. They are lifted as
@@ -262,10 +262,26 @@ transparency. The fix is always the same — restate the goal with an explicit `
 transparency, ascribing whole subterms (`((if x 0 then 1 else 0 : Fin 2))`, not just the branch),
 and use `inferInstanceAs` for the instances.
 
-Not (yet) here: `lineGraph` and `mycielskian` are not lifted, because their congruences need
-`Sym2.map` and `Option (V ⊕ V)` transport; `cycle n = circulant n [1]` needs modular arithmetic at
-a variable modulus; and `completeMultipartite [a, b] = bipartite a b` founders on the dependent
-`Σ i : Fin ds.length, _` vertex type.
+`lineGraph` and `mycielskian` are lifted too, and are the two cases where the congruence is not
+just a relabelling of the same vertex set: the line graph transports along
+`SimpleGraph.Iso.mapEdgeSet` (an edge maps to `Sym2.map i`, and two edges meet iff their images
+do), the Mycielskian along `Equiv.optionCongr (Equiv.sumCongr i i)`. Their identities are counted
+by `E` rather than `V` —
+
+```
+lineGraph (empty n) = empty 0        lineGraph (star n) = complete n
+lineGraph (complete n) = johnson n 2 = triangular n
+mycielskian (empty 0) = empty 1      mycielskian (complete 2) = cycle 5
+```
+
+— the middle one being the only proof in the file that builds its bijection with
+`Equiv.ofBijective` rather than writing it down: an edge of `Kₙ` is sent to its
+`Sym2.toFinset`, a two-element subset of `Fin n`, and two *distinct* two-element subsets meet
+exactly when they meet in one point, which is the adjacency of `J(n, 2)`.
+
+Not (yet) here: `cycle n = circulant n [1]` needs modular arithmetic at a variable modulus, and
+`completeMultipartite [a, b] = bipartite a b` founders on the dependent `Σ i : Fin ds.length, _`
+vertex type.
 
 ## Enumeration
 

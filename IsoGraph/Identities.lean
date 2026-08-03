@@ -284,6 +284,48 @@ def strongProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Dec
       revert p q r a b c
       decide
 
+/-! ### Line graphs and Mycielskians
+
+Two more unary constructions.  The line graph transports along `SimpleGraph.Iso.mapEdgeSet`, and
+the Mycielskian along the same bijection applied to the original vertices, their shadows and the
+apex. -/
+
+/-- The Mycielskian respects isomorphism. -/
+def mycielskian [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
+    CGraph.mycielskian G ≃cg CGraph.mycielskian G' :=
+  isoOfAdj (G := CGraph.mycielskian G) (H := CGraph.mycielskian G')
+    (Equiv.optionCongr (Equiv.sumCongr i.toEquiv i.toEquiv)) fun x y ↦ by
+      rcases x with _ | (a | a) <;> rcases y with _ | (b | b) <;>
+        first
+          | rfl
+          | exact i.adj_eq a b
+
+/-- The line graph respects isomorphism: an isomorphism carries edges to edges, and two edges
+meet exactly when their images do. -/
+def lineGraph [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
+    CGraph.lineGraph G ≃cg CGraph.lineGraph G' :=
+  isoOfAdj (G := CGraph.lineGraph G) (H := CGraph.lineGraph G')
+    i.toSimpleIso.mapEdgeSet fun e f ↦ by
+      have hcoe : ∀ e : (CGraph.lineGraph G).V,
+          ((i.toSimpleIso.mapEdgeSet e).1 : Sym2 G'.V) = Sym2.map (fun v ↦ i v) e.1 :=
+        fun _ ↦ rfl
+      show (decide (i.toSimpleIso.mapEdgeSet e ≠ i.toSimpleIso.mapEdgeSet f) &&
+        decide (∃ v, v ∈ ((i.toSimpleIso.mapEdgeSet e).1 : Sym2 G'.V) ∧
+          v ∈ ((i.toSimpleIso.mapEdgeSet f).1 : Sym2 G'.V))) = _
+      rw [CGraph.lineGraph_adj, hcoe e, hcoe f]
+      congr 1
+      · exact decide_eq_decide.2 (not_congr (EmbeddingLike.apply_eq_iff_eq _))
+      · refine decide_eq_decide.2 ⟨?_, ?_⟩
+        · rintro ⟨v, hv1, hv2⟩
+          rw [Sym2.mem_map] at hv1 hv2
+          obtain ⟨a, ha, rfl⟩ := hv1
+          obtain ⟨b, hb, hab⟩ := hv2
+          refine ⟨a, ha, ?_⟩
+          have hba : b = a := i.toEquiv.injective hab
+          rwa [hba] at hb
+        · rintro ⟨v, hv1, hv2⟩
+          exact ⟨i v, Sym2.mem_map.2 ⟨v, hv1, rfl⟩, Sym2.mem_map.2 ⟨v, hv2, rfl⟩⟩
+
 end Iso
 
 /-! ## Two small facts about one-vertex graphs -/
@@ -459,6 +501,30 @@ def lexProduct (G H : IsoGraph) : IsoGraph :=
     lexProduct ⟦G⟧ ⟦H⟧ = ⟦CGraph.lexProduct G H⟧ :=
   Quotient.sound ⟨CGraph.Iso.lexProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
 
+/-- The line graph of an isomorphism class: its vertices are the edges, adjacent when they meet. -/
+def lineGraph (G : IsoGraph) : IsoGraph :=
+  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.lineGraph g.canonicalize⟧)
+    (by
+      rintro g h ⟨i⟩
+      exact Quotient.sound
+        ⟨CGraph.Iso.lineGraph (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
+
+@[simp] theorem lineGraph_mk (G : CGraph) [DecidableEq G.V] :
+    lineGraph ⟦G⟧ = ⟦CGraph.lineGraph G⟧ :=
+  Quotient.sound ⟨CGraph.Iso.lineGraph G.isoCanonicalize.symm⟩
+
+/-- The Mycielskian of an isomorphism class. -/
+def mycielskian (G : IsoGraph) : IsoGraph :=
+  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.mycielskian g.canonicalize⟧)
+    (by
+      rintro g h ⟨i⟩
+      exact Quotient.sound
+        ⟨CGraph.Iso.mycielskian (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
+
+@[simp] theorem mycielskian_mk (G : CGraph) [DecidableEq G.V] :
+    mycielskian ⟦G⟧ = ⟦CGraph.mycielskian G⟧ :=
+  Quotient.sound ⟨CGraph.Iso.mycielskian G.isoCanonicalize.symm⟩
+
 /-! ### Abbreviations
 
 Exactly as on `CGraph`: these are notation for the constructions above, not new definitions. -/
@@ -565,6 +631,18 @@ theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G�
     | h h =>
       show Fintype.card (CGraph.lexProduct g.canonicalize h.canonicalize).V = _
       simp
+
+@[simp] theorem V_lineGraph (G : IsoGraph) : (lineGraph G).V = G.E := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    show Fintype.card (CGraph.lineGraph g.canonicalize).V = _
+    rw [CGraph.card_lineGraph, ← E_mk, mk_canonicalize]
+
+@[simp] theorem V_mycielskian (G : IsoGraph) : (mycielskian G).V = 2 * G.V + 1 := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    show Fintype.card (CGraph.mycielskian g.canonicalize).V = _
+    simp
 
 /-! ## Recognising `empty` and `complete`
 
@@ -1308,5 +1386,160 @@ theorem prism_two : prism 2 = cycle 4 := by
 theorem hypercube_three : hypercube 3 = prism 4 := by
   show hypercube 3 = cartesianProduct (cycle 4) (complete 2)
   rw [hypercube_succ, hypercube_two]
+
+/-! ## Line graphs and Mycielskians
+
+The line graph turns a graph's edges into vertices, so the identities here are counted by `E`
+rather than `V`: `lineGraph (star n)` is complete on `E (star n) = n` vertices, and
+`lineGraph (complete n)` is the triangular graph `T(n) = J(n, 2)` on `C(n, 2)` of them. -/
+
+@[simp] theorem lineGraph_empty (n : ℕ) : lineGraph (empty n) = empty 0 := by
+  have hbot : (CGraph.empty n).toSimple = ⊥ := by
+    ext a b
+    simp [CGraph.toSimple]
+  have h : ∀ e f : (CGraph.lineGraph (CGraph.empty n)).V,
+      (CGraph.lineGraph (CGraph.empty n)).Adj e f = false := by
+    rintro ⟨e, he⟩ f
+    rw [hbot] at he
+    simp at he
+  rw [empty_def, lineGraph_mk, mk_eq_empty h, CGraph.card_lineGraph, CGraph.E_empty]
+
+/-- Every edge of a star contains the centre, so any two of them meet: the line graph of a star
+is complete. -/
+@[simp] theorem lineGraph_star (n : ℕ) : lineGraph (star n) = complete n := by
+  obtain ⟨c, hcentre⟩ : ∃ c : (CGraph.star n).V, ∀ e : (CGraph.lineGraph (CGraph.star n)).V,
+      c ∈ (e.1 : Sym2 (CGraph.star n).V) := by
+    refine ⟨(Sum.inl 0 : Fin 1 ⊕ Fin n), ?_⟩
+    rintro ⟨e, he⟩
+    revert he
+    induction e using Sym2.ind with
+    | _ a b =>
+      intro he
+      rw [SimpleGraph.mem_edgeSet] at he
+      rcases a with x | x <;> rcases b with y | y
+      · exact absurd he (by simp [CGraph.toSimple, CGraph.star])
+      · exact (Subsingleton.elim (0 : Fin 1) x) ▸ Sym2.mem_mk_left _ _
+      · exact (Subsingleton.elim (0 : Fin 1) y) ▸ Sym2.mem_mk_right _ _
+      · exact absurd he (by simp [CGraph.toSimple, CGraph.star])
+  have h : ∀ e f : (CGraph.lineGraph (CGraph.star n)).V, e ≠ f →
+      (CGraph.lineGraph (CGraph.star n)).Adj e f = true := by
+    intro e f hef
+    rw [CGraph.lineGraph_adj, decide_eq_true hef, Bool.true_and, decide_eq_true_eq]
+    exact ⟨c, hcentre e, hcentre f⟩
+  rw [star_def, lineGraph_mk, mk_eq_complete h, CGraph.card_lineGraph, CGraph.E_star]
+
+/-- **The line graph of a complete graph is the triangular graph.**  An edge of `Kₙ` is a
+two-element subset of `Fin n`, and two distinct such subsets meet exactly when they meet in
+*one* point — which is the adjacency of `J(n, 2)`. -/
+@[simp] theorem lineGraph_complete (n : ℕ) : lineGraph (complete n) = johnson n 2 := by
+  have hcard : ∀ e : (CGraph.lineGraph (CGraph.complete n)).V,
+      (e.1 : Sym2 (Fin n)).toFinset.card = 2 := by
+    rintro ⟨e, he⟩
+    exact Sym2.card_toFinset_of_not_isDiag e (SimpleGraph.not_isDiag_of_mem_edgeSet _ he)
+  set F : (CGraph.lineGraph (CGraph.complete n)).V → (CGraph.johnson n 2).V :=
+    fun e ↦ ⟨(e.1 : Sym2 (Fin n)).toFinset, hcard e⟩ with hF
+  have hmem : ∀ (e : (CGraph.lineGraph (CGraph.complete n)).V) (v : Fin n),
+      v ∈ (F e).1 ↔ v ∈ (e.1 : Sym2 (Fin n)) := fun _ _ ↦ Sym2.mem_toFinset
+  have hinj : Function.Injective F := by
+    rintro ⟨e, he⟩ ⟨f, hf⟩ hef
+    refine Subtype.ext ?_
+    revert he hf hef
+    induction e using Sym2.ind with
+    | _ a b =>
+      induction f using Sym2.ind with
+      | _ c d =>
+        intro he hf hef
+        have hab : a ≠ b := by
+          simpa [CGraph.toSimple] using SimpleGraph.not_isDiag_of_mem_edgeSet _ he
+        have hset : ({a, b} : Finset (Fin n)) = {c, d} := by
+          simpa [hF, Sym2.toFinset_mk_eq] using congrArg Subtype.val hef
+        have ha : a = c ∨ a = d := by
+          have hmem : a ∈ ({c, d} : Finset (Fin n)) := by rw [← hset]; simp
+          simpa using hmem
+        have hb : b = c ∨ b = d := by
+          have hmem : b ∈ ({c, d} : Finset (Fin n)) := by rw [← hset]; simp
+          simpa using hmem
+        rcases ha with rfl | rfl
+        · rcases hb with rfl | rfl
+          · exact absurd rfl hab
+          · rfl
+        · rcases hb with rfl | rfl
+          · exact Sym2.eq_swap
+          · exact absurd rfl hab
+  have hsurj : Function.Surjective F := by
+    rintro ⟨s, hs⟩
+    obtain ⟨a, b, hab, rfl⟩ := Finset.card_eq_two.mp hs
+    refine ⟨⟨s(a, b), ?_⟩, ?_⟩
+    · show (CGraph.complete n).toSimple.Adj a b
+      simpa [CGraph.toSimple] using hab
+    · exact Subtype.ext (by simpa [hF] using Sym2.toFinset_mk_eq (x := a) (y := b))
+  have hadj : ∀ e f, (CGraph.johnson n 2).Adj (F e) (F f)
+      = (CGraph.lineGraph (CGraph.complete n)).Adj e f := by
+    intro e f
+    rw [CGraph.johnson_adj, CGraph.lineGraph_adj]
+    by_cases hef : e = f
+    · subst hef
+      simp
+    · rw [decide_eq_true hef, decide_eq_true (show F e ≠ F f from fun h ↦ hef (hinj h)),
+        Bool.true_and, Bool.true_and,
+        show (((F e).1 ∩ (F f).1).card == 2 - 1)
+          = decide (((F e).1 ∩ (F f).1).card = 1) from
+          Bool.beq_eq_decide_eq _ _]
+      refine decide_eq_decide.2 ⟨?_, ?_⟩
+      · intro hone
+        obtain ⟨v, hv⟩ := Finset.card_eq_one.mp hone
+        have hv' : v ∈ (F e).1 ∩ (F f).1 := by rw [hv]; simp
+        rw [Finset.mem_inter] at hv'
+        exact ⟨v, (hmem e v).1 hv'.1, (hmem f v).1 hv'.2⟩
+      · rintro ⟨v, hv1, hv2⟩
+        have hvmem : v ∈ (F e).1 ∩ (F f).1 :=
+          Finset.mem_inter.2 ⟨(hmem e v).2 hv1, (hmem f v).2 hv2⟩
+        have hpos : 1 ≤ ((F e).1 ∩ (F f).1).card := Finset.card_pos.2 ⟨v, hvmem⟩
+        have hle : ((F e).1 ∩ (F f).1).card ≤ 2 :=
+          le_of_le_of_eq (Finset.card_le_card Finset.inter_subset_left) (F e).2
+        have hne2 : ((F e).1 ∩ (F f).1).card ≠ 2 := by
+          intro htwo
+          have h1 : (F e).1 ∩ (F f).1 = (F e).1 :=
+            Finset.eq_of_subset_of_card_le Finset.inter_subset_left (by rw [htwo, (F e).2])
+          have h2 : (F e).1 ∩ (F f).1 = (F f).1 :=
+            Finset.eq_of_subset_of_card_le Finset.inter_subset_right (by rw [htwo, (F f).2])
+          exact hef (hinj (Subtype.ext (h1.symm.trans h2)))
+        omega
+  rw [complete_def, lineGraph_mk, johnson_def]
+  exact Quotient.sound ⟨CGraph.isoOfAdj (Equiv.ofBijective F ⟨hinj, hsurj⟩) hadj⟩
+
+/-- The same statement under the other name for `J(n, 2)`. -/
+theorem lineGraph_complete_eq_triangular (n : ℕ) : lineGraph (complete n) = triangular n :=
+  lineGraph_complete n
+
+/-- `L(K₃) = K₃`. -/
+theorem lineGraph_complete_three : lineGraph (complete 3) = complete 3 := by
+  rw [lineGraph_complete_eq_triangular, triangular_three]
+
+/-- `L(C₃) = C₃`, the triangle being its own line graph. -/
+theorem lineGraph_cycle_three : lineGraph (cycle 3) = cycle 3 := by
+  rw [cycle_three, lineGraph_complete_three]
+
+@[simp] theorem mycielskian_empty_zero : mycielskian (empty 0) = empty 1 := by
+  have h : ∀ x y : (CGraph.mycielskian (CGraph.empty 0)).V,
+      (CGraph.mycielskian (CGraph.empty 0)).Adj x y = false := by
+    haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+    rintro (_ | (a | a)) (_ | (b | b)) <;> first | rfl | exact isEmptyElim a | exact isEmptyElim b
+  rw [empty_def, mycielskian_mk, mk_eq_empty h]
+  simp
+
+/-- **The Mycielskian of `K₂` is the 5-cycle**: two vertices, their two shadows and the apex,
+strung together as `u₀ — u₁ — w₀ — z — w₁ — u₀`. -/
+theorem mycielskian_complete_two : mycielskian (complete 2) = cycle 5 := by
+  rw [complete_def, mycielskian_mk, cycle_def]
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.mycielskian (CGraph.complete 2)) (H := CGraph.cycle 5)
+    (⟨fun x ↦ match x with
+        | none => 3
+        | some (.inl a) => if a = 0 then 0 else 1
+        | some (.inr a) => if a = 0 then 2 else 4,
+      ![some (.inl 0), some (.inl 1), some (.inr 0), none, some (.inr 1)],
+      by decide, by decide⟩ : Option (Fin 2 ⊕ Fin 2) ≃ Fin 5)
+    (by decide)⟩
 
 end IsoGraph
