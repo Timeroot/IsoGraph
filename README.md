@@ -170,9 +170,13 @@ function-typed body, and `canonMatrix` takes the permutation as an argument.
 Mathlib notion for `G.toSimple` (that is the form concrete statements get proved in), and once on
 `IsoGraph`, as a `Quotient.lift` whose side condition is precisely isomorphism-invariance. Present
 so far: `indepNum`, `cliqueNum`, `E`, `degSequence`, `IsConnected`, `IsAcyclic`, `IsTree`,
-`diameter`, `IsSRGWith`, `IsVertexTransitive`, `IsArcTransitive`. Mathlib had no invariance lemma
+`diameter`, `IsSRGWith`, `IsVertexTransitive`, `IsArcTransitive`, `IsBipartite`. Mathlib had no
+invariance lemma
 for distance or for strong regularity, so `SimpleGraph.Iso.edist_eq`, `ediam_eq`, `diam_eq`,
-`card_commonNeighbors_eq` and `isSRGWith_of_iso` are proved there.
+`card_commonNeighbors_eq` and `isSRGWith_of_iso` are proved there. `IsBipartite` is phrased as a
+`Bool`-valued colouring with no monochromatic edge rather than as a pair of vertex sets — that is
+the form the double-cover splitting theorem consumes — and `isBipartite_iff_colorable` identifies
+it with Mathlib's `Colorable 2`.
 
 `Constructions.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
 relation, delete the diagonal), `empty`, `disjUnion` — plus `compl`:
@@ -261,6 +265,8 @@ tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2
 tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3))
 tensorProduct (complete 2) (bipartite m n) = disjUnion (bipartite m n) (bipartite m n)
 tensorProduct (complete 2) (ladder n) = disjUnion (ladder n) (ladder n)
+tensorProduct (complete 2) (hypercube n) = disjUnion (hypercube n) (hypercube n)
+IsBipartite G → tensorProduct (complete 2) G = disjUnion G G
 circulant n (0 :: S) = circulant n S                      circulant n (k :: k :: S) = circulant n (k :: S)
 circulant n (k :: S) = circulant n ((n - k) :: S)         circulant n [1, n - 1] = cycle n
 circulant (2 * m) [m] = cartesianProduct (empty m) (complete 2)
@@ -333,16 +339,21 @@ its first factor (complementation exchanges that with the `disjUnion` rule alrea
 blowing up a complete multipartite graph by `empty d` just multiplies every part by `d`.
 
 The tensor product with `K₂` is the bipartite double cover, and whether it splits is exactly the
-question of bipartiteness. `CGraph.Iso.tensorTwoOfRel` handles the split case for any graph on
-`Fin n` whose edges all join an even index to an odd one — twist the `K₂` coordinate by the parity
-of the other (`CGraph.parityTwist`) and the tensor product becomes `empty 2 □ G`, which is two
-copies. Paths and even cycles qualify. `CGraph.Iso.tensorTwoOfColouring` generalizes this to an
-arbitrary graph carrying an arbitrary proper 2-colouring `c : G.V → Bool` (twist by `c` instead of
-by the parity of the index), which is the criterion in its final form: bipartite graphs, stars and
-ladders all follow by exhibiting the colouring. Odd cycles do not, and there the cover is connected:
+question of bipartiteness. `CGraph.Iso.tensorTwoOfColouring` is the splitting criterion in its
+final form: given any proper 2-colouring `c : G.V → Bool`, twisting the `K₂` coordinate by the
+colour of the other (`CGraph.Iso.colourTwist`) turns `K₂ × G` into `empty 2 □ G`, which is two
+copies of `G`. So the work is all in exhibiting colourings, and `IsBipartite` collects them:
+the empty graphs, complete bipartite graphs, stars, paths and even cycles directly; disjoint
+unions and Cartesian products of bipartite graphs by combining colourings (`xor` for the product),
+tensor products as soon as one factor is bipartite; and hypercubes, ladders and even prisms as
+products. On the other side, complete graphs on three or more vertices are not bipartite
+(pigeonhole on a triangle) and neither are odd cycles: walking around the cycle the colour
+alternates with the parity of the index, which the edge closing the cycle contradicts.
+
+Over an odd cycle, then, the cover cannot split, and in fact it is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality
-argument. `omega` cannot see through a `%` whose modulus is a variable, so both proofs first turn
+argument. `omega` cannot see through a `%` whose modulus is a variable, so that proof first turns
 every wrap-around into a disjunction — `succ_mod_eq_iff` for a step around a cycle,
 `mod_of_lt_two_mul` for a reduction below `2n` — after which one `omega` closes the whole
 adjacency equivalence.  A third member of that family, `sub_mod_cases`, splits the circulant

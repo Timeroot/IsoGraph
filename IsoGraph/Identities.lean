@@ -109,22 +109,6 @@ def complSubsets (n k : ℕ) (hk : k ≤ n) :
     ((complSubsets n k hk s : {s : Finset (Fin n) // s.card = n - k}) : Finset (Fin n)) = s.1ᶜ :=
   rfl
 
-/-- Flipping the first coordinate of `Fin 2 × Fin n` by the parity of the second.  This is the
-twist that turns a bipartite double cover into two disjoint copies. -/
-def parityTwist (n : ℕ) : (Fin 2 × Fin n) ≃ (Fin 2 × Fin n) where
-  toFun p := (⟨(p.1.1 + p.2.1) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
-  invFun p := (⟨(p.1.1 + p.2.1) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
-  left_inv p := by
-    have h := p.1.isLt
-    refine Prod.ext (Fin.ext ?_) rfl
-    simp only
-    omega
-  right_inv p := by
-    have h := p.1.isLt
-    refine Prod.ext (Fin.ext ?_) rfl
-    simp only
-    omega
-
 /-- The successor relation of a cycle, with the wrap-around split off.  `omega` cannot see through
 a `%` whose modulus is a variable, so every step around a `cycle n` is turned into this
 disjunction before the arithmetic starts. -/
@@ -807,44 +791,8 @@ def johnsonCompl (n k : ℕ) (hk : k ≤ n) :
 `K₂ × G` is the bipartite double cover of `G`.  It splits into two copies of `G` exactly when `G`
 is bipartite, and for an odd cycle it is the cycle of twice the length. -/
 
-/-- **A double cover that splits.**  If every edge of `r` joins an even-indexed vertex to an
-odd-indexed one — i.e. the parity of the index is a proper 2-colouring — then `K₂ × G` is `G`
-twice over: twisting the `K₂` coordinate by the parity of the `G` coordinate carries the tensor
-product onto the Cartesian one. -/
-def tensorTwoOfRel (n : ℕ) (r : Fin n → Fin n → Bool)
-    (h : ∀ i j : Fin n, (r i j || r j i) = true → (i.1 + j.1) % 2 = 1) :
-    CGraph.tensorProduct (CGraph.complete 2) (ofRel (Fin n) r) ≃cg
-      CGraph.cartesianProduct (CGraph.empty 2) (ofRel (Fin n) r) :=
-  isoOfAdj (G := CGraph.tensorProduct (CGraph.complete 2) (ofRel (Fin n) r))
-    (H := CGraph.cartesianProduct (CGraph.empty 2) (ofRel (Fin n) r)) (parityTwist n) (by
-      rintro ⟨a, i⟩ ⟨c, j⟩
-      show (CGraph.cartesianProduct (CGraph.empty 2) (ofRel (Fin n) r)).Adj
-          (⟨(a.1 + i.1) % 2, _⟩, i) (⟨(c.1 + j.1) % 2, _⟩, j)
-        = (CGraph.tensorProduct (CGraph.complete 2) (ofRel (Fin n) r)).Adj (a, i) (c, j)
-      rw [CGraph.cartesianProduct_adj, CGraph.tensorProduct_adj]
-      simp only [CGraph.empty_adj, CGraph.complete_adj, CGraph.ofRel_adj, Bool.false_and,
-        Bool.or_false]
-      rcases hij : (decide (i ≠ j) && (r i j || r j i)) with _ | _
-      · simp
-      · have hpar : (i.1 + j.1) % 2 = 1 := by
-          simp only [Bool.and_eq_true] at hij
-          exact h i j hij.2
-        have ha := a.isLt
-        have hc := c.isLt
-        simp only [Bool.and_true]
-        refine congrArg (fun b : Bool ↦ b) ?_
-        rw [show (decide ((⟨(a.1 + i.1) % 2, Nat.mod_lt _ (by norm_num)⟩ : Fin 2)
-            = ⟨(c.1 + j.1) % 2, Nat.mod_lt _ (by norm_num)⟩))
-          = decide ((a.1 + i.1) % 2 = (c.1 + j.1) % 2) from by
-            simp [Fin.ext_iff]]
-        rw [show (decide (a ≠ c)) = decide (a.1 ≠ c.1) from by
-          simp only [decide_eq_decide, ne_eq, not_iff_not]
-          exact ⟨fun hh ↦ congrArg Fin.val hh, fun hh ↦ Fin.ext hh⟩]
-        congr 1
-        simp only [eq_iff_iff, ne_eq]
-        omega)
-
-/-- Twisting the `K₂` coordinate by a 2-colouring of the other coordinate. -/
+/-- Twisting the `K₂` coordinate by a 2-colouring of the other coordinate.  This is the bijection
+that turns a bipartite double cover into two disjoint copies. -/
 def colourTwist (G : CGraph) (c : G.V → Bool) : (Fin 2 × G.V) ≃ (Fin 2 × G.V) where
   toFun p := (⟨(p.1.1 + (if c p.2 then 1 else 0)) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
   invFun p := (⟨(p.1.1 + (if c p.2 then 1 else 0)) % 2, Nat.mod_lt _ (by norm_num)⟩, p.2)
@@ -859,10 +807,9 @@ def colourTwist (G : CGraph) (c : G.V → Bool) : (Fin 2 × G.V) ≃ (Fin 2 × G
     simp only
     rcases c p.2 <;> simp only [if_true, if_false, Bool.false_eq_true] <;> omega
 
-/-- **A double cover splits whenever the graph is 2-coloured.**  This is `tensorTwoOfRel` with the
-parity of the index replaced by an arbitrary proper 2-colouring `c`, and stated for an arbitrary
-graph rather than one presented by `ofRel`: twisting the `K₂` coordinate by the colour carries the
-tensor product onto the Cartesian one. -/
+/-- **A double cover splits whenever the graph is 2-coloured.**  If `c` is a proper 2-colouring of
+`G` — that is, if `G` is bipartite — then twisting the `K₂` coordinate by the colour carries the
+tensor product onto the Cartesian one, which is two disjoint copies. -/
 def tensorTwoOfColouring (G : CGraph) [DecidableEq G.V] (c : G.V → Bool)
     (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
     CGraph.tensorProduct (CGraph.complete 2) G ≃cg CGraph.cartesianProduct (CGraph.empty 2) G :=
@@ -1026,6 +973,114 @@ theorem paley_thirteen_eq_circulant : paley 13 = circulant 13 [1, 3, 4] :=
 /-- The connection set of `Paley(17)` is `{±1, ±2, ±4, ±8}`. -/
 theorem paley_seventeen_eq_circulant : paley 17 = circulant 17 [1, 2, 4, 8] :=
   eq_ofRel _ _ (by decide)
+
+/-! ## Bipartiteness
+
+`CGraph.IsBipartite` is a two-colouring of the vertices with no monochromatic edge.  The
+constructions carry colourings around in the obvious way, and a colouring is exactly what
+`Iso.tensorTwoOfColouring` needs to split the double cover. -/
+
+/-- A disjoint union of bipartite graphs is bipartite. -/
+theorem IsBipartite.disjUnion {G H : CGraph} (hG : G.IsBipartite) (hH : H.IsBipartite) :
+    (CGraph.disjUnion G H).IsBipartite := by
+  obtain ⟨c, hc⟩ := hG
+  obtain ⟨d, hd⟩ := hH
+  refine ⟨Sum.elim c d, ?_⟩
+  rintro (x | x) (y | y) hxy <;> simp only [Sum.elim_inl, Sum.elim_inr] at *
+  · exact hc x y (by simpa using hxy)
+  · simp at hxy
+  · simp at hxy
+  · exact hd x y (by simpa using hxy)
+
+/-- A Cartesian product of bipartite graphs is bipartite: take the `xor` of the two colourings. -/
+theorem IsBipartite.cartesianProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsBipartite) (hH : H.IsBipartite) : (CGraph.cartesianProduct G H).IsBipartite := by
+  obtain ⟨c, hc⟩ := hG
+  obtain ⟨d, hd⟩ := hH
+  refine ⟨fun p ↦ xor (c p.1) (d p.2), ?_⟩
+  rintro ⟨x, y⟩ ⟨x', y'⟩ hxy
+  rw [CGraph.cartesianProduct_adj] at hxy
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hxy
+  rcases hxy with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · have := hd y y' h2
+    subst h1
+    simpa using fun h ↦ this (by simpa using h)
+  · have := hc x x' h1
+    subst h2
+    simpa using fun h ↦ this (by simpa using h)
+
+/-- A tensor product is bipartite as soon as one factor is: colour by that factor. -/
+theorem IsBipartite.tensorProduct_left {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsBipartite) : (CGraph.tensorProduct G H).IsBipartite := by
+  obtain ⟨c, hc⟩ := hG
+  refine ⟨fun p ↦ c p.1, ?_⟩
+  rintro ⟨x, y⟩ ⟨x', y'⟩ hxy
+  rw [CGraph.tensorProduct_adj] at hxy
+  simp only [Bool.and_eq_true] at hxy
+  exact hc x x' hxy.1
+
+theorem IsBipartite.tensorProduct_right {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hH : H.IsBipartite) : (CGraph.tensorProduct G H).IsBipartite := by
+  obtain ⟨c, hc⟩ := hH
+  refine ⟨fun p ↦ c p.2, ?_⟩
+  rintro ⟨x, y⟩ ⟨x', y'⟩ hxy
+  rw [CGraph.tensorProduct_adj] at hxy
+  simp only [Bool.and_eq_true] at hxy
+  exact hc y y' hxy.2
+
+/-- **Odd cycles are not bipartite.**  Walking around the cycle, the colour alternates with the
+parity of the index; coming back to `0` from the last vertex, which has even index, contradicts
+the edge that closes the cycle. -/
+theorem not_isBipartite_cycle_odd (m : ℕ) : ¬ (CGraph.cycle (2 * m + 3)).IsBipartite := by
+  set n := 2 * m + 3 with hn
+  rintro ⟨c, hc⟩
+  have adj : ∀ (k l : ℕ) (hk : k < n) (hl : l < n), k ≠ l → (k + 1) % n = l →
+      c (⟨k, hk⟩ : Fin n) ≠ c (⟨l, hl⟩ : Fin n) := by
+    intro k l hk hl hne hkl
+    refine hc ⟨k, hk⟩ ⟨l, hl⟩ ?_
+    simp only [CGraph.cycle, CGraph.ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq,
+      decide_eq_true_eq, ne_eq, Fin.ext_iff]
+    exact ⟨hne, Or.inl hkl⟩
+  have hz : 0 < n := by omega
+  have alt : ∀ (k : ℕ) (hk : k < n),
+      c (⟨k, hk⟩ : Fin n) = xor (c (⟨0, hz⟩ : Fin n)) (decide (k % 2 = 1)) := by
+    intro k
+    induction k with
+    | zero => intro _; simp
+    | succ k ih =>
+      intro hk
+      have hstep := adj k (k + 1) (by omega) hk (by omega) (Nat.mod_eq_of_lt hk)
+      rw [ih (by omega)] at hstep
+      have hpar : (decide ((k + 1) % 2 = 1)) = !(decide (k % 2 = 1)) := by
+        rcases Nat.mod_two_eq_zero_or_one k with h | h <;> simp [Nat.add_mod, h]
+      rw [hpar]
+      revert hstep
+      rcases c (⟨k + 1, hk⟩ : Fin n) <;> rcases c (⟨0, hz⟩ : Fin n) <;>
+        rcases (decide (k % 2 = 1)) <;> simp
+  have hlast := alt (n - 1) (by omega)
+  have hwrap : (n - 1 + 1) % n = 0 := by rw [show n - 1 + 1 = n by omega, Nat.mod_self]
+  have hclose := adj (n - 1) 0 (by omega) (by omega) (by omega) hwrap
+  rw [hlast] at hclose
+  have : (n - 1) % 2 = 0 := by omega
+  rw [this] at hclose
+  simp at hclose
+
+theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipartite := by
+  rintro ⟨c, hc⟩
+  have hadj : ∀ i j : Fin (n + 3), i.1 ≠ j.1 → (CGraph.complete (n + 3)).Adj i j := by
+    intro i j hij
+    simp only [CGraph.complete_adj, decide_eq_true_eq, ne_eq, Fin.ext_iff]
+    exact hij
+  obtain ⟨a, b, d, hab, had, hbd⟩ : ∃ a b d : (CGraph.complete (n + 3)).V,
+      (CGraph.complete (n + 3)).Adj a b ∧ (CGraph.complete (n + 3)).Adj a d ∧
+        (CGraph.complete (n + 3)).Adj b d :=
+    ⟨⟨0, by omega⟩, ⟨1, by omega⟩, ⟨2, by omega⟩, hadj _ _ (by simp), hadj _ _ (by simp),
+      hadj _ _ (by simp)⟩
+  have h1 := hc a b hab
+  have h2 := hc a d had
+  refine hc b d hbd ?_
+  revert h1 h2
+  cases c a <;> cases c b <;> cases c d <;> simp
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -2593,48 +2648,173 @@ theorem hypercube_three : hypercube 3 = prism 4 := by
   show hypercube 3 = cartesianProduct (cycle 4) (complete 2)
   rw [hypercube_succ, hypercube_two]
 
+/-! ### Bipartiteness
+
+A proper two-colouring is exactly what makes the bipartite double cover of the next section
+split, so the two belong together: the colourings are built here and cashed in there. -/
+
+@[simp] theorem isBipartite_disjUnion {G H : IsoGraph} (hG : IsBipartite G) (hH : IsBipartite H) :
+    IsBipartite (disjUnion G H) := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  exact CGraph.IsBipartite.disjUnion hG hH
+
+@[simp] theorem isBipartite_cartesianProduct {G H : IsoGraph} (hG : IsBipartite G) (hH : IsBipartite H) :
+    IsBipartite (cartesianProduct G H) := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [cartesianProduct_mk]
+  exact CGraph.IsBipartite.cartesianProduct hG hH
+
+theorem isBipartite_tensorProduct_left {G H : IsoGraph} (hG : IsBipartite G) :
+    IsBipartite (tensorProduct G H) := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [tensorProduct_mk]
+  exact CGraph.IsBipartite.tensorProduct_left hG
+
+theorem isBipartite_tensorProduct_right {G H : IsoGraph} (hH : IsBipartite H) :
+    IsBipartite (tensorProduct G H) := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [tensorProduct_mk]
+  exact CGraph.IsBipartite.tensorProduct_right hH
+
+@[simp] theorem isBipartite_empty (n : ℕ) : IsBipartite (empty n) := by
+  rw [empty_def, isBipartite_mk]
+  exact ⟨fun _ ↦ false, by simp⟩
+
+@[simp] theorem isBipartite_bipartite (m n : ℕ) : IsBipartite (bipartite m n) := by
+  rw [bipartite_def, isBipartite_mk]
+  exact ⟨Sum.elim (fun _ ↦ false) (fun _ ↦ true), by
+    rintro (a | b) (c | d) hadj <;> simp at hadj ⊢⟩
+
+@[simp] theorem isBipartite_star (n : ℕ) : IsBipartite (star n) := by
+  rw [star_eq_bipartite]; exact isBipartite_bipartite 1 n
+
+@[simp] theorem isBipartite_complete_two : IsBipartite (complete 2) := by
+  rw [← bipartite_one_one]; exact isBipartite_bipartite 1 1
+
+@[simp] theorem isBipartite_path (n : ℕ) : IsBipartite (path n) := by
+  rw [path_def, isBipartite_mk]
+  refine ⟨fun i ↦ decide ((i : Fin n).1 % 2 = 1), fun i j hij ↦ ?_⟩
+  simp only [CGraph.path, CGraph.ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq,
+    decide_eq_true_eq, ne_eq] at hij
+  simp only [ne_eq, decide_eq_decide]
+  omega
+
+@[simp] theorem isBipartite_cycle_even (m : ℕ) : IsBipartite (cycle (2 * m)) := by
+  rw [cycle_def, isBipartite_mk]
+  refine ⟨fun i ↦ decide ((i : Fin (2 * m)).1 % 2 = 1), fun i j hij ↦ ?_⟩
+  have hi := i.isLt
+  have hj := j.isLt
+  have key : ∀ x y : Fin (2 * m), (x.1 + 1) % (2 * m) = y.1 → (x.1 + y.1) % 2 = 1 := by
+    intro x y hxy
+    have hx := x.isLt
+    have hy := y.isLt
+    rcases Nat.lt_or_ge (x.1 + 1) (2 * m) with hlt | hge
+    · rw [Nat.mod_eq_of_lt hlt] at hxy
+      omega
+    · have : x.1 + 1 = 2 * m := by omega
+      rw [this, Nat.mod_self] at hxy
+      omega
+  simp only [CGraph.cycle, CGraph.ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq,
+    decide_eq_true_eq, ne_eq] at hij
+  have := hij.2
+  simp only [ne_eq, decide_eq_decide]
+  rcases this with h | h
+  · have := key i j h
+    omega
+  · have := key j i h
+    omega
+
+@[simp] theorem isBipartite_hypercube (n : ℕ) : IsBipartite (hypercube n) := by
+  induction n with
+  | zero => rw [hypercube_zero]; exact isBipartite_empty 1
+  | succ n ih =>
+    rw [hypercube_succ]
+    exact isBipartite_cartesianProduct ih isBipartite_complete_two
+
+@[simp] theorem isBipartite_ladder (n : ℕ) : IsBipartite (ladder n) :=
+  isBipartite_cartesianProduct (isBipartite_path n) isBipartite_complete_two
+
+@[simp] theorem isBipartite_prism_even (m : ℕ) : IsBipartite (prism (2 * m)) :=
+  isBipartite_cartesianProduct (isBipartite_cycle_even m) isBipartite_complete_two
+
+theorem not_isBipartite_complete (n : ℕ) : ¬ IsBipartite (complete (n + 3)) := by
+  rw [complete_def, isBipartite_mk]
+  exact CGraph.not_isBipartite_complete n
+
+theorem not_isBipartite_complete_three : ¬ IsBipartite (complete 3) := not_isBipartite_complete 0
+
+/-- **Odd cycles are not bipartite.** -/
+theorem not_isBipartite_cycle_odd (m : ℕ) : ¬ IsBipartite (cycle (2 * m + 3)) := by
+  rw [cycle_def, isBipartite_mk]
+  exact CGraph.not_isBipartite_cycle_odd m
+
+theorem not_isBipartite_cycle_three : ¬ IsBipartite (cycle 3) := not_isBipartite_cycle_odd 0
+
+theorem not_isBipartite_cycle_five : ¬ IsBipartite (cycle 5) := not_isBipartite_cycle_odd 1
+
 /-! ### Bipartite double covers
 
 The tensor product with `K₂` is the bipartite double cover.  Over a bipartite graph it comes apart
-into two copies of the original; over an odd cycle it does not, and gives the cycle of twice the
-length instead. -/
+into two copies of the original — one application of the colouring built in the previous section —
+and over an odd cycle it does not, giving the cycle of twice the length instead. -/
+
+/-- **A double cover splits whenever the graph is 2-coloured**, for a graph presented as a
+`CGraph` together with a colouring.  `tensorProduct_complete_two_of_isBipartite` is the same
+statement with the colouring existentially quantified. -/
+theorem tensorProduct_complete_two_of_colouring (G : CGraph) [DecidableEq G.V] (c : G.V → Bool)
+    (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
+    tensorProduct (complete 2) ⟦G⟧ = disjUnion ⟦G⟧ ⟦G⟧ := by
+  rw [← empty_two_cartesianProduct ⟦G⟧, complete_def, tensorProduct_mk, empty_def,
+    cartesianProduct_mk]
+  exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfColouring G c h⟩
+
+/-- **The double cover of a bipartite graph is two copies of it.** -/
+theorem tensorProduct_complete_two_of_isBipartite (G : IsoGraph) (h : IsBipartite G) :
+    tensorProduct (complete 2) G = disjUnion G G := by
+  induction G using Quotient.inductionOn with | _ G =>
+  rw [← mk_canonicalize G] at *
+  obtain ⟨c, hc⟩ := h
+  exact tensorProduct_complete_two_of_colouring _ c hc
+
+theorem tensorProduct_complete_two_hypercube (n : ℕ) :
+    tensorProduct (complete 2) (hypercube n) = disjUnion (hypercube n) (hypercube n) :=
+  tensorProduct_complete_two_of_isBipartite _ (isBipartite_hypercube n)
+
+theorem tensorProduct_complete_two_prism (m : ℕ) :
+    tensorProduct (complete 2) (prism (2 * m)) = disjUnion (prism (2 * m)) (prism (2 * m)) :=
+  tensorProduct_complete_two_of_isBipartite _ (isBipartite_prism_even m)
 
 /-- **The double cover of a path is two paths.** -/
 theorem tensorProduct_complete_two_path (n : ℕ) :
-    tensorProduct (complete 2) (path n) = disjUnion (path n) (path n) := by
-  rw [← empty_two_cartesianProduct (path n), complete_def, path_def, tensorProduct_mk, empty_def,
-    cartesianProduct_mk]
-  exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfRel n _ (by
-    intro i j hij
-    have hi := i.isLt
-    have hj := j.isLt
-    simp only [Bool.or_eq_true, beq_iff_eq] at hij
-    rcases hij with h | h <;> omega)⟩
+    tensorProduct (complete 2) (path n) = disjUnion (path n) (path n) :=
+  tensorProduct_complete_two_of_isBipartite _ (isBipartite_path n)
 
 /-- **The double cover of an even cycle is two cycles.** -/
 theorem tensorProduct_complete_two_cycle (m : ℕ) :
-    tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m)) := by
-  rw [← empty_two_cartesianProduct (cycle (2 * m)), complete_def, cycle_def, tensorProduct_mk,
-    empty_def, cartesianProduct_mk]
-  exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfRel (2 * m) _ (by
-    intro i j hij
-    have hi := i.isLt
-    have hj := j.isLt
-    have key : ∀ x y : Fin (2 * m), (x.1 + 1) % (2 * m) = y.1 → (x.1 + y.1) % 2 = 1 := by
-      intro x y hxy
-      have hx := x.isLt
-      have hy := y.isLt
-      rcases Nat.lt_or_ge (x.1 + 1) (2 * m) with hlt | hge
-      · rw [Nat.mod_eq_of_lt hlt] at hxy
-        omega
-      · have : x.1 + 1 = 2 * m := by omega
-        rw [this, Nat.mod_self] at hxy
-        omega
-    simp only [Bool.or_eq_true, beq_iff_eq] at hij
-    rcases hij with h | h
-    · exact key i j h
-    · have := key j i h
-      omega)⟩
+    tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m)) :=
+  tensorProduct_complete_two_of_isBipartite _ (isBipartite_cycle_even m)
+
+/-- **The double cover of a complete bipartite graph is two copies of it.** -/
+theorem tensorProduct_complete_two_bipartite (m n : ℕ) :
+    tensorProduct (complete 2) (bipartite m n) = disjUnion (bipartite m n) (bipartite m n) :=
+  tensorProduct_complete_two_of_isBipartite _ (isBipartite_bipartite m n)
+
+/-- The double cover of a star is two stars. -/
+theorem tensorProduct_complete_two_star (n : ℕ) :
+    tensorProduct (complete 2) (star n) = disjUnion (star n) (star n) :=
+  tensorProduct_complete_two_of_isBipartite _ (isBipartite_star n)
+
+/-- **The double cover of a ladder is two ladders.** -/
+theorem tensorProduct_complete_two_ladder (n : ℕ) :
+    tensorProduct (complete 2) (ladder n) = disjUnion (ladder n) (ladder n) :=
+  tensorProduct_complete_two_of_isBipartite _ (isBipartite_ladder n)
 
 /-- **The double cover of an odd cycle is one cycle of twice the length.**  The bound starts at
 `C₃`: `cycle 1` is edgeless, so its double cover is too, while `cycle 2` is an edge. -/
@@ -2650,53 +2830,6 @@ theorem tensorProduct_complete_two_cycle_three :
 theorem tensorProduct_complete_two_cycle_five :
     tensorProduct (complete 2) (cycle 5) = cycle 10 :=
   tensorProduct_complete_two_cycle_odd 1
-
-/-- **A double cover splits whenever the graph is 2-coloured.**  A proper 2-colouring of `G` is
-exactly a bipartition of it, so this is the general splitting criterion; the identities below are
-instances of it. -/
-theorem tensorProduct_complete_two_of_colouring (G : CGraph) [DecidableEq G.V] (c : G.V → Bool)
-    (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
-    tensorProduct (complete 2) ⟦G⟧ = disjUnion ⟦G⟧ ⟦G⟧ := by
-  rw [← empty_two_cartesianProduct ⟦G⟧, complete_def, tensorProduct_mk, empty_def,
-    cartesianProduct_mk]
-  exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfColouring G c h⟩
-
-/-- **The double cover of a complete bipartite graph is two copies of it.** -/
-theorem tensorProduct_complete_two_bipartite (m n : ℕ) :
-    tensorProduct (complete 2) (bipartite m n) = disjUnion (bipartite m n) (bipartite m n) := by
-  rw [bipartite_def]
-  exact tensorProduct_complete_two_of_colouring (CGraph.bipartite m n)
-    (Sum.elim (fun _ ↦ false) (fun _ ↦ true)) (by
-      rintro (a | b) (c | d) hadj <;> simp at hadj ⊢)
-
-/-- The double cover of a star is two stars. -/
-theorem tensorProduct_complete_two_star (n : ℕ) :
-    tensorProduct (complete 2) (star n) = disjUnion (star n) (star n) := by
-  rw [star_eq_bipartite, tensorProduct_complete_two_bipartite]
-
-/-- **The double cover of a ladder is two ladders.**  The colouring is the parity of the sum of the
-two coordinates. -/
-theorem tensorProduct_complete_two_ladder (n : ℕ) :
-    tensorProduct (complete 2) (ladder n) = disjUnion (ladder n) (ladder n) := by
-  show tensorProduct (complete 2) (cartesianProduct (path n) (complete 2))
-      = disjUnion (cartesianProduct (path n) (complete 2)) (cartesianProduct (path n) (complete 2))
-  rw [path_def, complete_def, cartesianProduct_mk]
-  refine tensorProduct_complete_two_of_colouring
-    (CGraph.cartesianProduct (CGraph.path n) (CGraph.complete 2))
-    (fun p ↦ decide (((p.1 : Fin n).1 + (p.2 : Fin 2).1) % 2 = 1)) ?_
-  rintro ⟨i, a⟩ ⟨j, b⟩ hadj
-  have hia := a.isLt
-  have hjb := b.isLt
-  rw [CGraph.cartesianProduct_adj] at hadj
-  simp only [CGraph.complete_adj, CGraph.path, CGraph.ofRel_adj, Bool.and_eq_true,
-    Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq, Fin.ext_iff] at hadj
-  simp only [ne_eq, decide_eq_decide]
-  have hIJ : (i = j) ↔ ((i : Fin n).1 = (j : Fin n).1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
-  have hAB : (a = b) ↔ ((a : Fin 2).1 = (b : Fin 2).1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
-  simp only [hIJ, hAB] at hadj
-  rcases hadj with ⟨h1, h2⟩ | ⟨⟨-, h1⟩, h2⟩
-  · omega
-  · omega
 
 /-! ## Line graphs and Mycielskians
 
@@ -3189,6 +3322,16 @@ example (n : ℕ) : cartesianProduct (empty 0) (cycle n) = empty 0 := by simp
 example (G : IsoGraph) : lexProduct (empty 1) (lexProduct G (empty 1)) = G := by simp
 
 example : circulant 7 [0, 3, 3] = circulant 7 [3] := by simp
+
+example (n : ℕ) : IsBipartite (hypercube n) := by simp
+
+example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp
+
+example (m n : ℕ) : IsBipartite (cartesianProduct (cycle (2 * m)) (path n)) := by simp
+
+example (n : ℕ) :
+    tensorProduct (complete 2) (hypercube n) = disjUnion (hypercube n) (hypercube n) :=
+  tensorProduct_complete_two_of_isBipartite _ (by simp)
 
 example : circulant 9 [0, 1] = cycle 9 := by simp
 

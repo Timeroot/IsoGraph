@@ -2,6 +2,7 @@ import IsoGraph.Basic
 import Mathlib.Combinatorics.SimpleGraph.Acyclic
 import Mathlib.Combinatorics.SimpleGraph.Diam
 import Mathlib.Combinatorics.SimpleGraph.Connectivity.WalkCounting
+import Mathlib.Combinatorics.SimpleGraph.Coloring
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
 import Mathlib.Data.Fintype.Perm
 
@@ -204,6 +205,42 @@ theorem isSRGWith_of [DecidableEq G.V] {n k ℓ μ : ℕ} (hn : Fintype.card G.V
     rw [card_commonNeighbors]
     exact hμ v w hne (by simpa using h)
 
+/-! ### Bipartiteness -/
+
+/-- The graph is *bipartite*: some two-colouring of the vertices leaves no edge monochromatic.
+Stated with `Bool` rather than with a pair of vertex sets, which is what makes it directly usable
+as the splitting criterion for the bipartite double cover in `IsoGraph/Identities.lean`. -/
+def IsBipartite : Prop := ∃ c : G.V → Bool, ∀ x y, G.Adj x y → c x ≠ c y
+
+/-- Bipartiteness transfers along an isomorphism. -/
+theorem isBipartite_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsBipartite) : H.IsBipartite := by
+  obtain ⟨c, hc⟩ := h
+  refine ⟨fun v ↦ c (i.symm v), fun x y hxy ↦ hc _ _ ?_⟩
+  rw [← i.adj_eq, i.apply_symm_apply, i.apply_symm_apply]
+  exact hxy
+
+/-- Bipartiteness is 2-colourability, in Mathlib's sense. -/
+theorem isBipartite_iff_colorable : G.IsBipartite ↔ G.toSimple.Colorable 2 := by
+  constructor
+  · rintro ⟨c, hc⟩
+    refine ⟨SimpleGraph.Coloring.mk (fun v ↦ if c v then 1 else 0) ?_⟩
+    intro x y hxy
+    have hne := hc x y (by simpa using hxy)
+    rcases hcx : c x <;> rcases hcy : c y <;> simp_all
+  · rintro ⟨c⟩
+    refine ⟨fun v ↦ decide (c v = 1), fun x y hxy ↦ ?_⟩
+    have hne : c x ≠ c y := c.valid (by simpa using hxy)
+    have hx := (c x).isLt
+    have hy := (c y).isLt
+    have : (c x).1 ≠ (c y).1 := fun h ↦ hne (Fin.ext h)
+    simp only [ne_eq, decide_eq_decide, Fin.ext_iff]
+    omega
+
+/-- Bipartiteness is decidable: there are only `2 ^ n` colourings to try.  Like the transitivity
+instances below this is exponential, and meant for small graphs only. -/
+instance [DecidableEq G.V] : Decidable G.IsBipartite :=
+  decidable_of_iff (∃ c : G.V → Bool, ∀ x y, G.Adj x y → c x ≠ c y) Iff.rfl
+
 /-! ### Transitivity
 
 Two symmetry properties, stated directly in terms of `CGraph.Iso` automorphisms rather than in
@@ -384,6 +421,14 @@ noncomputable def diameter (G : IsoGraph) : ℕ :=
     (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.diam_eq (CGraph.Iso.toSimpleIso i)) G
 
 @[simp] theorem diameter_mk (G : CGraph) : diameter (Quotient.mk _ G) = G.diameter := rfl
+
+/-- Bipartiteness. -/
+def IsBipartite (G : IsoGraph) : Prop :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsBipartite
+    (fun _ _ ⟨i⟩ ↦ propext ⟨CGraph.isBipartite_of_iso i, CGraph.isBipartite_of_iso i.symm⟩) G
+
+@[simp] theorem isBipartite_mk (G : CGraph) :
+    IsBipartite (Quotient.mk _ G) = G.IsBipartite := rfl
 
 /-- Vertex-transitivity. -/
 def IsVertexTransitive (G : IsoGraph) : Prop :=
