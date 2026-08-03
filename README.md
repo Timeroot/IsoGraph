@@ -285,6 +285,8 @@ by `E` rather than `V` —
 lineGraph (empty n) = empty 0        lineGraph (star n) = complete n
 lineGraph (complete n) = johnson n 2 = triangular n
 lineGraph (complete 4) = cocktailParty 3
+lineGraph (cycle (n+3)) = cycle (n+3)
+lineGraph (path (n+1)) = path n
 mycielskian (empty 0) = empty 1      mycielskian (complete 2) = cycle 5
 mycielskian (empty n) = disjUnion (star n) (empty n)
 ```
@@ -309,8 +311,14 @@ it lives in `Constructions.lean`. What it costs is the modular arithmetic: for d
 on whether `a + 1` wraps. Distinctness is genuinely needed — at `n = 1` the single vertex is its
 own successor but has difference `0`.
 
-Not (yet) here: `lineGraph (cycle n) = cycle n` needs a bijection out of the `Sym2` edge subtype
-at a variable `n`.
+The two variable-`n` line graphs are the same recipe run by hand. The edges of `Cₙ` are the
+consecutive pairs `s(i, i+1 mod n)` and the edges of `Pₙ₊₁` are the pairs `s(i.castSucc, i.succ)`,
+so in both cases there is an obvious map *into* the `Sym2` edge subtype; `E_cycle` and `E_path`
+give the cardinality, so `Fintype.bijective_iff_injective_and_card` upgrades injectivity to a
+bijection and no surjectivity argument is needed. Two edges then meet exactly when their indices
+are consecutive, which is the adjacency of the smaller graph. The cycle version is where `n ≥ 3`
+is needed, and it enters in exactly one place: injectivity fails at `n = 2`, where `s(0, 1)` and
+`s(1, 0)` are the same edge — the content is `cyc (cyc j) ≠ j`, two steps never return.
 
 ## Enumeration
 

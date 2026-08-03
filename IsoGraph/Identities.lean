@@ -1668,6 +1668,186 @@ theorem lineGraph_complete_four : lineGraph (complete 4) = cocktailParty 3 := by
 theorem lineGraph_cycle_three : lineGraph (cycle 3) = cycle 3 := by
   rw [cycle_three, lineGraph_complete_three]
 
+/-- Successor mod `n + 3`, the "next vertex" map along the cycle. -/
+private def cyc (n : ℕ) (i : Fin (n + 3)) : Fin (n + 3) :=
+  ⟨(i.1 + 1) % (n + 3), Nat.mod_lt _ (by omega)⟩
+
+private theorem cyc_val (n : ℕ) (i : Fin (n + 3)) : (cyc n i).1 = (i.1 + 1) % (n + 3) := rfl
+
+private theorem cyc_ne (n : ℕ) (i : Fin (n + 3)) : cyc n i ≠ i := by
+  intro h
+  have h1 : (i.1 + 1) % (n + 3) = i.1 := congrArg Fin.val h
+  have hi := i.2
+  rcases Nat.lt_or_ge (i.1 + 1) (n + 3) with hlt | hge
+  · rw [Nat.mod_eq_of_lt hlt] at h1; omega
+  · rw [show i.1 + 1 = n + 3 by omega, Nat.mod_self] at h1; omega
+
+private theorem cyc_inj (n : ℕ) : Function.Injective (cyc n) := by
+  intro i j h
+  have h1 : (i.1 + 1) % (n + 3) = (j.1 + 1) % (n + 3) := congrArg Fin.val h
+  have hi := i.2
+  have hj := j.2
+  refine Fin.ext ?_
+  rcases Nat.lt_or_ge (i.1 + 1) (n + 3) with h2 | h2 <;>
+    rcases Nat.lt_or_ge (j.1 + 1) (n + 3) with h3 | h3
+  · rw [Nat.mod_eq_of_lt h2, Nat.mod_eq_of_lt h3] at h1; omega
+  · rw [Nat.mod_eq_of_lt h2, show j.1 + 1 = n + 3 by omega, Nat.mod_self] at h1; omega
+  · rw [Nat.mod_eq_of_lt h3, show i.1 + 1 = n + 3 by omega, Nat.mod_self] at h1; omega
+  · omega
+
+/-- Two steps along the cycle never return to where they started — this is the only place
+`n ≥ 3` is used, and it is what rules out `L(C₂) = C₂`. -/
+private theorem cyc_cyc_ne (n : ℕ) (j : Fin (n + 3)) : cyc n (cyc n j) ≠ j := by
+  intro h
+  have h1 : ((j.1 + 1) % (n + 3) + 1) % (n + 3) = j.1 := congrArg Fin.val h
+  have hj := j.2
+  rcases Nat.lt_or_ge (j.1 + 1) (n + 3) with hlt | hge
+  · rw [Nat.mod_eq_of_lt hlt] at h1
+    rcases Nat.lt_or_ge (j.1 + 1 + 1) (n + 3) with h2 | h2
+    · rw [Nat.mod_eq_of_lt h2] at h1; omega
+    · rw [show j.1 + 1 + 1 = n + 3 by omega, Nat.mod_self] at h1; omega
+  · rw [show j.1 + 1 = n + 3 by omega, Nat.mod_self,
+      Nat.mod_eq_of_lt (by omega : 0 + 1 < n + 3)] at h1
+    omega
+
+/-- Cycle adjacency in terms of `cyc`. -/
+private theorem cycle_adj_cyc (n : ℕ) (i j : Fin (n + 3)) :
+    (CGraph.cycle (n + 3)).Adj i j = decide (i ≠ j ∧ (cyc n i = j ∨ cyc n j = i)) := by
+  have key : ∀ a b : Fin (n + 3), ((a.1 + 1) % (n + 3) == b.1) = decide (cyc n a = b) := by
+    intro a b
+    rw [Bool.beq_eq_decide_eq]
+    exact decide_eq_decide.2 (by rw [Fin.ext_iff, cyc_val])
+  show (decide (i ≠ j) && (((i.1 + 1) % (n + 3) == j.1) || ((j.1 + 1) % (n + 3) == i.1))) = _
+  rw [key i j, key j i, Bool.decide_and, Bool.decide_or]
+
+private theorem cyc_adj (n : ℕ) (i : Fin (n + 3)) :
+    s(i, cyc n i) ∈ (CGraph.cycle (n + 3)).toSimple.edgeSet := by
+  rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, cycle_adj_cyc]
+  exact decide_eq_true ⟨Ne.symm (cyc_ne n i), Or.inl rfl⟩
+
+/-- The edge of `Cₙ` running from `i` to its successor.  Every edge is of this form, so this is
+the bijection `Fin n ≃ E(Cₙ)` witnessing `L(Cₙ) = Cₙ`. -/
+private def cycEdge (n : ℕ) (i : Fin (n + 3)) : (CGraph.lineGraph (CGraph.cycle (n + 3))).V :=
+  ⟨s(i, cyc n i), cyc_adj n i⟩
+
+private theorem mem_cycEdge (n : ℕ) (v i : Fin (n + 3)) :
+    v ∈ ((cycEdge n i).1 : Sym2 (Fin (n + 3))) ↔ v = i ∨ v = cyc n i := Sym2.mem_iff
+
+private theorem cycEdge_inj (n : ℕ) : Function.Injective (cycEdge n) := by
+  intro i j h
+  have h1 : s(i, cyc n i) = s(j, cyc n j) := congrArg Subtype.val h
+  rcases Sym2.eq_iff.1 h1 with ⟨h2, _⟩ | ⟨h2, h3⟩
+  · exact h2
+  · exact absurd (h2 ▸ h3) (cyc_cyc_ne n j)
+
+/-- **The cycle is its own line graph**, for `n ≥ 3`.  The edges of `Cₙ` are the consecutive pairs
+`{i, i+1}`, and two of them share a vertex exactly when their indices are consecutive.  Injectivity
+is where `n ≥ 3` enters: for `n = 2` the two "edges" `{0, 1}` and `{1, 0}` coincide. -/
+@[simp] theorem lineGraph_cycle (n : ℕ) : lineGraph (cycle (n + 3)) = cycle (n + 3) := by
+  have hcard : Fintype.card (Fin (n + 3))
+      = Fintype.card (CGraph.lineGraph (CGraph.cycle (n + 3))).V := by
+    rw [CGraph.card_lineGraph, CGraph.E_cycle, Fintype.card_fin]
+  have hbij : Function.Bijective (cycEdge n) :=
+    Fintype.bijective_iff_injective_and_card _ |>.2 ⟨cycEdge_inj n, hcard⟩
+  have hadj : ∀ i j : Fin (n + 3),
+      (CGraph.lineGraph (CGraph.cycle (n + 3))).Adj (cycEdge n i) (cycEdge n j)
+        = (CGraph.cycle (n + 3)).Adj i j := by
+    intro i j
+    rw [CGraph.lineGraph_adj, cycle_adj_cyc]
+    by_cases hij : i = j
+    · subst hij; simp
+    · rw [decide_eq_true (show cycEdge n i ≠ cycEdge n j from fun h ↦ hij (cycEdge_inj n h)),
+        Bool.true_and, Bool.decide_and, decide_eq_true hij, Bool.true_and]
+      refine decide_eq_decide.2 ⟨?_, ?_⟩
+      · rintro ⟨v, hv1, hv2⟩
+        rw [mem_cycEdge] at hv1 hv2
+        rcases hv1 with h1 | h1 <;> rcases hv2 with h2 | h2
+        · exact absurd (h1.symm.trans h2) hij
+        · exact Or.inr (h2.symm.trans h1)
+        · exact Or.inl (h1.symm.trans h2)
+        · exact absurd (cyc_inj n (h1.symm.trans h2)) hij
+      · rintro (h | h)
+        · exact ⟨j, (mem_cycEdge n j i).2 (Or.inr h.symm), (mem_cycEdge n j j).2 (Or.inl rfl)⟩
+        · exact ⟨i, (mem_cycEdge n i i).2 (Or.inl rfl), (mem_cycEdge n i j).2 (Or.inr h.symm)⟩
+  rw [cycle_def, lineGraph_mk]
+  exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (cycEdge n) hbij) hadj).symm⟩
+
+/-- `L(C₄) = C₄`. -/
+theorem lineGraph_cycle_four : lineGraph (cycle 4) = cycle 4 := lineGraph_cycle 1
+
+/-- `L(C₅) = C₅`.  Together with `compl_cycle_five`, the pentagon is both self-complementary and
+its own line graph. -/
+theorem lineGraph_cycle_five : lineGraph (cycle 5) = cycle 5 := lineGraph_cycle 2
+
+/-- Path adjacency at the level of the underlying naturals.  Note that `i ≠ j` is implied by
+either disjunct, so it drops out. -/
+private theorem path_adj_val (n : ℕ) (i j : Fin n) :
+    (CGraph.path n).Adj i j = decide (i.1 + 1 = j.1 ∨ j.1 + 1 = i.1) := by
+  show (decide (i ≠ j) && ((i.1 + 1 == j.1) || (j.1 + 1 == i.1))) = _
+  by_cases h : i = j
+  · subst h; simp
+  · rw [decide_eq_true h, Bool.true_and, Bool.beq_eq_decide_eq, Bool.beq_eq_decide_eq,
+      ← Bool.decide_or]
+
+private theorem pathEdge_adj (n : ℕ) (i : Fin n) :
+    s(i.castSucc, i.succ) ∈ (CGraph.path (n + 1)).toSimple.edgeSet := by
+  rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, path_adj_val]
+  exact decide_eq_true (Or.inl (by simp))
+
+/-- The `i`-th edge of the path `0 — 1 — ⋯ — n`. -/
+private def pathEdge (n : ℕ) (i : Fin n) : (CGraph.lineGraph (CGraph.path (n + 1))).V :=
+  ⟨s(i.castSucc, i.succ), pathEdge_adj n i⟩
+
+private theorem mem_pathEdge (n : ℕ) (v : Fin (n + 1)) (i : Fin n) :
+    v ∈ ((pathEdge n i).1 : Sym2 (Fin (n + 1))) ↔ v = i.castSucc ∨ v = i.succ := Sym2.mem_iff
+
+private theorem pathEdge_inj (n : ℕ) : Function.Injective (pathEdge n) := by
+  intro i j h
+  have h1 : s(i.castSucc, i.succ) = s(j.castSucc, j.succ) := congrArg Subtype.val h
+  rcases Sym2.eq_iff.1 h1 with ⟨h2, _⟩ | ⟨h2, h3⟩
+  · exact Fin.ext (by simpa using congrArg Fin.val h2)
+  · have hv2 := congrArg Fin.val h2
+    have hv3 := congrArg Fin.val h3
+    simp only [Fin.val_castSucc, Fin.val_succ] at hv2 hv3
+    omega
+
+/-- **The line graph of a path is the shorter path**: `L(Pₙ₊₁) = Pₙ`.  Unlike the cycle this needs
+no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
+@[simp] theorem lineGraph_path (n : ℕ) : lineGraph (path (n + 1)) = path n := by
+  have hcard : Fintype.card (Fin n)
+      = Fintype.card (CGraph.lineGraph (CGraph.path (n + 1))).V := by
+    rw [CGraph.card_lineGraph, CGraph.E_path, Fintype.card_fin]
+  have hbij : Function.Bijective (pathEdge n) :=
+    Fintype.bijective_iff_injective_and_card _ |>.2 ⟨pathEdge_inj n, hcard⟩
+  have hadj : ∀ i j : Fin n,
+      (CGraph.lineGraph (CGraph.path (n + 1))).Adj (pathEdge n i) (pathEdge n j)
+        = (CGraph.path n).Adj i j := by
+    intro i j
+    rw [CGraph.lineGraph_adj, path_adj_val]
+    by_cases hij : i = j
+    · subst hij; simp
+    · have hval : i.1 ≠ j.1 := fun h ↦ hij (Fin.ext h)
+      rw [decide_eq_true (show pathEdge n i ≠ pathEdge n j from fun h ↦ hij (pathEdge_inj n h)),
+        Bool.true_and]
+      refine decide_eq_decide.2 ⟨?_, ?_⟩
+      · rintro ⟨v, hv1, hv2⟩
+        rw [mem_pathEdge] at hv1 hv2
+        rcases hv1 with h1 | h1 <;> rcases hv2 with h2 | h2 <;>
+          · have h3 := congrArg Fin.val (h1.symm.trans h2)
+            simp only [Fin.val_castSucc, Fin.val_succ] at h3
+            omega
+      · rintro (h | h)
+        · exact ⟨i.succ, (mem_pathEdge n _ i).2 (Or.inr rfl),
+            (mem_pathEdge n _ j).2 (Or.inl (Fin.ext (by simpa using h)))⟩
+        · exact ⟨i.castSucc, (mem_pathEdge n _ i).2 (Or.inl rfl),
+            (mem_pathEdge n _ j).2 (Or.inr (Fin.ext (by simpa using h.symm)))⟩
+  rw [path_def, lineGraph_mk]
+  exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (pathEdge n) hbij) hadj).symm⟩
+
+/-- `L(P₃) = P₂ = K₂`. -/
+theorem lineGraph_path_three : lineGraph (path 3) = complete 2 := by
+  rw [show (3 : ℕ) = 2 + 1 from rfl, lineGraph_path, path_two]
+
 @[simp] theorem mycielskian_empty_zero : mycielskian (empty 0) = empty 1 := by
   have h : ∀ x y : (CGraph.mycielskian (CGraph.empty 0)).V,
       (CGraph.mycielskian (CGraph.empty 0)).Adj x y = false := by
