@@ -3,6 +3,7 @@ import IsoGraph.Basic
 import IsoGraph.Invariants
 import IsoGraph.Symmetry
 import IsoGraph.Constructions
+import IsoGraph.Identities
 import IsoGraph.Compute
 import IsoGraph.Enum
 import IsoGraph.CliqueSum

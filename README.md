@@ -36,6 +36,7 @@ index modules that import their directory.
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
+| `IsoGraph/Identities.lean` | the same constructions on `IsoGraph`, and the equations between them | yes |
 | `IsoGraph/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, tested | yes |
 | `IsoGraph/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
@@ -194,6 +195,77 @@ and export the instance for their own vertex type; instance resolution only unfo
 transparency, so each *named* construction needs its own. Putting `DecidableEq` into the `CGraph`
 structure would remove the boilerplate but stop the type being a bare `Fintype`-bundled graph
 (and break `simpleEquiv`) — the instance arguments looked like the smaller price.
+
+## Identities
+
+This is what the quotient was for. On `CGraph`, `compl (compl G) = G` is *false*: the two sides
+have vertex types `G.V` and `G.V`, but they are two different `CGraph` values that happen to be
+isomorphic. On `IsoGraph` it is an equality, and a `@[simp]` lemma. `Identities.lean` re-exports
+the whole zoo through the quotient and then proves the equations that only become available there.
+
+Lifted names: `empty`, `complete`, `path`, `cycle`, `bipartite`, `completeMultipartite`, `star`,
+`wheel`, `kneser`, `johnson`, `hypercube`, `foldedCube`, `circulant`, `paley`, `thetaGraph`,
+`tadpole`, `lollipop`, `spider`, `doubleStar`, `cyclePendant`, the operations `compl`,
+`disjUnion`, `join` and the four products, and the abbreviations `book`, `fan`, `ladder`, `prism`,
+`triangular`, `rook`, `cocktailParty`.
+
+The lifting has one wrinkle. `compl` and the four products need `[DecidableEq G.V]`, which a
+`CGraph` does not carry, so they cannot be `Quotient.lift`ed as they stand. They are lifted as
+`fun g ↦ ⟦CGraph.compl g.canonicalize⟧` instead: the canonical representative's vertex type is
+`Fin (Fintype.card g.V)`, which does have the instance, and the congruence lemmas of the
+`CGraph.Iso` namespace (`Iso.compl`, `Iso.cartesianProduct`, …) discharge the well-definedness
+side condition. Each then gets a `_mk` lemma — `compl ⟦G⟧ = ⟦CGraph.compl G⟧` for any `G` with a
+`DecidableEq`, not just a canonical one. `disjUnion` needs no instance, so `disjUnion_mk` is
+`rfl`. `join` is not lifted at all: it is *defined* on the quotient as
+`compl (disjUnion (compl G) (compl H))`, which makes `compl_join` and `join_comm` free.
+
+The equations themselves come in families:
+
+```
+compl (compl G) = G          compl (cycle 5) = cycle 5     compl (path 4) = path 4
+complete 1 = empty 1         cycle 3 = complete 3          wheel 3 = complete 4
+disjUnion G (empty 0) = G    join G (empty 0) = G          join (complete m) (complete n) = complete (m + n)
+kneser n 1 = complete n      kneser n n = empty 1          johnson n 1 = complete n
+hypercube (n + 1) = cartesianProduct (hypercube n) (complete 2)
+hypercube 3 = prism 4        foldedCube 3 = bipartite 4 4  paley 5 = cycle 5
+rook m 0 = empty 0           rook 2 2 = cycle 4            bipartite 2 2 = cycle 4
+strongProduct (complete m) (complete n) = complete (m * n)
+tensorProduct G (empty n) = empty (G.V * n)
+```
+
+plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
+and lexicographic products, and the units and annihilators of each (`empty 1` for the products,
+`empty 0` for the Cartesian/strong/lex products, which collapse when either factor is empty).
+`empty 1` rather than `complete 1` is the simp-normal form, since `complete_one` points that way.
+
+Three moves prove almost all of it:
+
+1. `mk_eq_empty` / `mk_eq_complete`: a graph whose adjacency is uniformly `false` (resp. `true`
+   off the diagonal) is `empty (Fintype.card G.V)` (resp. `complete …`), the relabelling coming
+   from `Fintype.equivFin`. The hypothesis is usually `by decide`. This handles every "this
+   degenerate case is edgeless/complete" lemma without ever naming a bijection.
+2. `CGraph.isoOfAdj e (by decide)` for the sporadic small graphs — supply the vertex bijection as
+   a `![…]` / `![…]` pair and let the kernel check both directions. `bipartite 2 2 = cycle 4`,
+   `foldedCube 3 = bipartite 4 4` and `paley 5 = cycle 5` go this way.
+3. Rewriting at the `IsoGraph` level, once enough of the above is in place: `wheel 2 = complete 3`
+   is `wheel_eq_join`, `cycle_two`, `join_complete`.
+
+The structural laws are the exception, since they are statements about all graphs at once. Each
+is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a
+Boolean tautology: rewrite with the `*_adj` equations and `decide_prod_eq`
+(`decide (p = q) = (decide (p.1 = q.1) && decide (p.2 = q.2))`) until every equality test is
+between vertices of a single factor, `generalize` the six atoms, and `decide`.
+
+A recurring nuisance in all of this: a type like `(CGraph.complete 2).V` is definitionally `Fin 2`
+but not *reducibly* so, and numerals, `simp` lemmas and instances all match at reducible
+transparency. The fix is always the same — restate the goal with an explicit `show` at default
+transparency, ascribing whole subterms (`((if x 0 then 1 else 0 : Fin 2))`, not just the branch),
+and use `inferInstanceAs` for the instances.
+
+Not (yet) here: `lineGraph` and `mycielskian` are not lifted, because their congruences need
+`Sym2.map` and `Option (V ⊕ V)` transport; `cycle n = circulant n [1]` needs modular arithmetic at
+a variable modulus; and `completeMultipartite [a, b] = bipartite a b` founders on the dependent
+`Σ i : Fin ds.length, _` vertex type.
 
 ## Enumeration
 
