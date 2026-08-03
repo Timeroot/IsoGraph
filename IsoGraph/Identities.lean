@@ -939,7 +939,40 @@ noncomputable def circulantMatching (m : ℕ) :
           rw [ha, hb] at h1 h2 ⊢
           omega)
 
+/-! ### Paley graphs -/
+
+/-- The three residue classes mod `3`, which are the parts of the (degenerate) `paley 9`. -/
+private def paleyNineMap : Fin 3 ⊕ Fin 3 ⊕ Fin 3 → (CGraph.paley 9).V
+  | .inl i => ⟨3 * i.1, by omega⟩
+  | .inr (.inl i) => ⟨3 * i.1 + 1, by omega⟩
+  | .inr (.inr i) => ⟨3 * i.1 + 2, by omega⟩
+
+/-- `paley 9` is `K₃,₃,₃`: its complement is three triangles, the residue classes mod `3`. -/
+noncomputable def paleyNineIso :
+    CGraph.disjUnion (CGraph.complete 3)
+        (CGraph.disjUnion (CGraph.complete 3) (CGraph.complete 3)) ≃cg
+      CGraph.compl (CGraph.paley 9) :=
+  isoOfAdj (Equiv.ofBijective paleyNineMap (by decide)) (by decide)
+
+/-- Multiplication by the non-residue `2` mod `13` exchanges edges with non-edges. -/
+noncomputable def paleyThirteenIso : CGraph.paley 13 ≃cg CGraph.compl (CGraph.paley 13) :=
+  isoOfAdj (Equiv.ofBijective (fun x : Fin 13 ↦ (⟨2 * x.1 % 13, by omega⟩ : Fin 13))
+    (by decide)) (by decide)
+
+/-- Multiplication by the non-residue `3` mod `17`. -/
+noncomputable def paleySeventeenIso : CGraph.paley 17 ≃cg CGraph.compl (CGraph.paley 17) :=
+  isoOfAdj (Equiv.ofBijective (fun x : Fin 17 ↦ (⟨3 * x.1 % 17, by omega⟩ : Fin 17))
+    (by decide)) (by decide)
+
 end Iso
+
+/-- The connection set of `Paley(13)` is `{±1, ±3, ±4}`. -/
+theorem paley_thirteen_eq_circulant : paley 13 = circulant 13 [1, 3, 4] :=
+  eq_ofRel _ _ (by decide)
+
+/-- The connection set of `Paley(17)` is `{±1, ±2, ±4, ±8}`. -/
+theorem paley_seventeen_eq_circulant : paley 17 = circulant 17 [1, 2, 4, 8] :=
+  eq_ofRel _ _ (by decide)
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -1680,6 +1713,42 @@ theorem paley_five : paley 5 = cycle 5 := by
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.paley 5) (H := CGraph.cycle 5) (Equiv.refl (Fin 5)) (by decide)⟩
 
+/-- `Paley(13)` and `Paley(17)` as circulants: their connection sets are the nonzero squares,
+`{±1, ±3, ±4}` and `{±1, ±2, ±4, ±8}`, and `ofRel` symmetrises the rest. -/
+theorem paley_thirteen_eq_circulant : paley 13 = circulant 13 [1, 3, 4] := by
+  rw [paley_def, circulant_def, CGraph.paley_thirteen_eq_circulant]
+
+theorem paley_seventeen_eq_circulant : paley 17 = circulant 17 [1, 2, 4, 8] := by
+  rw [paley_def, circulant_def, CGraph.paley_seventeen_eq_circulant]
+
+/-- **Paley graphs are self-complementary**, because multiplication by a non-residue exchanges
+the squares with the non-squares.  The general statement needs the multiplicative structure of
+`GF(q)`; these two are the witnesses `x ↦ 2x` mod `13` and `x ↦ 3x` mod `17`. -/
+@[simp] theorem compl_paley_thirteen : compl (paley 13) = paley 13 := by
+  rw [paley_def, compl_mk]
+  exact Quotient.sound ⟨CGraph.Iso.paleyThirteenIso.symm⟩
+
+@[simp] theorem compl_paley_seventeen : compl (paley 17) = paley 17 := by
+  rw [paley_def, compl_mk]
+  exact Quotient.sound ⟨CGraph.Iso.paleySeventeenIso.symm⟩
+
+/-- **`paley 9` is not the Paley graph of order 9.**  `CGraph.paley` reads its differences in
+`ZMod q`, which is a field only for prime `q`; at `q = 9` the squares are `{0, 1, 4, 7}`, so the
+graph joins `x` to `y` exactly when `x - y` is not a multiple of `3` and one gets the complete
+tripartite graph `K₃,₃,₃` rather than the rook's graph `R(3, 3)` that `GF(9)` would give. -/
+theorem compl_paley_nine :
+    compl (paley 9) = disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) := by
+  rw [paley_def, compl_mk, complete_def, disjUnion_mk, disjUnion_mk]
+  exact Quotient.sound ⟨CGraph.Iso.paleyNineIso.symm⟩
+
+theorem paley_nine : paley 9 = completeMultipartite [3, 3, 3] := by
+  have h : compl (completeMultipartite [3, 3, 3])
+      = disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) := by
+    rw [compl_completeMultipartite_cons, compl_completeMultipartite_cons,
+      compl_completeMultipartite_cons, completeMultipartite_nil, compl_empty, complete_zero,
+      disjUnion_empty_zero]
+  rw [← compl_compl (paley 9), compl_paley_nine, ← h, compl_compl]
+
 /-! ## Kneser and Johnson graphs
 
 The degenerate parameters.  `kneser n k` and `johnson n k` both have
@@ -2296,6 +2365,11 @@ independent ones. -/
 theorem completeMultipartite_replicate (m d : ℕ) :
     completeMultipartite (List.replicate m d) = lexProduct (complete m) (empty d) := by
   rw [complete_lexProduct, compl_empty, ← compl_completeMultipartite_replicate, compl_compl]
+
+/-- `paley 9` is `K₃` with every vertex blown up to three. -/
+theorem paley_nine_eq_lexProduct : paley 9 = lexProduct (complete 3) (empty 3) := by
+  rw [paley_nine, show ([3, 3, 3] : List ℕ) = List.replicate 3 3 from rfl,
+    completeMultipartite_replicate]
 
 /-- The complement of the cocktail-party graph is a perfect matching. -/
 theorem compl_cocktailParty (n : ℕ) :

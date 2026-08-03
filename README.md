@@ -263,6 +263,9 @@ circulant n (0 :: S) = circulant n S                      circulant n (k :: k ::
 circulant n (k :: S) = circulant n ((n - k) :: S)         circulant n [1, n - 1] = cycle n
 circulant (2 * m) [m] = cartesianProduct (empty m) (complete 2)
 compl (cocktailParty (m + 1)) = circulant (2 * (m + 1)) [m + 1]
+paley 13 = circulant 13 [1, 3, 4]                         paley 17 = circulant 17 [1, 2, 4, 8]
+compl (paley 13) = paley 13                               compl (paley 17) = paley 17
+paley 9 = completeMultipartite [3, 3, 3] = lexProduct (complete 3) (empty 3)
 compl petersen = triangular 5                             petersen = compl (lineGraph (complete 5))
 ```
 
@@ -344,6 +347,14 @@ connection set makes `i ↦ i + m` an involution, so the graph is `empty m □ K
 facts it yields — the forwards and backwards differences are nonzero and sum to `n` — give
 `circulant_congr`: two connection sets that agree on `(0, n)` define *the same `CGraph`*, which is
 where the inert-`0`, inert-duplicate and `k ↦ n - k` rules come from.
+
+Paley graphs are self-complementary because multiplication by a non-residue exchanges the squares
+with the non-squares; `compl (paley 13) = paley 13` and `compl (paley 17) = paley 17` are that
+argument with the witnesses `x ↦ 2x` and `x ↦ 3x` written down and the adjacency checked by
+`decide`.  `paley 9` is a cautionary case: `CGraph.paley` reads differences in `ZMod q`, which is
+a field only for prime `q`, so at `q = 9` the squares are `{0, 1, 4, 7}` and the graph joins `x`
+to `y` whenever `3 ∤ x - y` — that is `K₃,₃,₃`, not the rook's graph `R(3, 3)` that `GF(9)` would
+give.  The identity `paley 9 = completeMultipartite [3, 3, 3]` records exactly that.
 
 Johnson duality, `J(n, k) ≅ J(n, n - k)`, is the one identity here whose bijection is interesting:
 `CGraph.complSubsets` sends `s` to `sᶜ`, and `|sᶜ ∩ tᶜ| = n - |s ∪ t| = n - 2k + |s ∩ t|` turns an
