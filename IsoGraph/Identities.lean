@@ -1304,6 +1304,313 @@ theorem pendantEdges_replicate_zero : ∀ (v off j : ℕ), pendantEdges v off (L
 @[simp] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
   cyclePendant_replicate_zero m 0
 
+/-! ## Relabellings for the `ofEdges` families
+
+The `IsoGraph` identities at the end of this file that are *not* on-the-nose equalities of
+`CGraph`s — a two-legged spider is a path, a one-path theta graph is a path, a double star with
+leaves on one side only is a star — all need an explicit relabelling of `Fin n`.  This block
+collects those relabellings together with the membership lemmas for the edge lists they act on,
+and, in each case, the piece of pure arithmetic that says the relabelling matches the edges up.
+Keeping the arithmetic separate is not just tidiness: stated as one goal, the disjunction over
+all the edge shapes is large enough that `omega` spends minutes on it. -/
+
+@[simp] theorem pathEdges_nil : pathEdges [] = [] := rfl
+@[simp] theorem pathEdges_singleton (a : ℕ) : pathEdges [a] = [] := rfl
+
+theorem pathEdges_map_add (c : ℕ) : ∀ l : List ℕ,
+    pathEdges (l.map (· + c)) = (pathEdges l).map (fun p ↦ (p.1 + c, p.2 + c))
+  | [] => rfl
+  | [_] => rfl
+  | a :: b :: rest => by
+      have ih := pathEdges_map_add c (b :: rest)
+      simp only [List.map_cons] at ih ⊢
+      rw [pathEdges_cons_cons, pathEdges_cons_cons, List.map_cons, ih]
+
+theorem legEdges_succ (v off j : ℕ) :
+    legEdges v off (j + 1) = (v, off) :: (List.range j).map (fun i ↦ (i + off, i + 1 + off)) := by
+  have h : (List.range (j + 1)).map (· + off)
+      = off :: ((List.range j).map (· + 1)).map (· + off) := by
+    conv_lhs => rw [List.range_succ_eq_map]
+    simp [Nat.add_assoc]
+  rw [legEdges, h, pathEdges_cons_cons, ← h, pathEdges_map_add, pathEdges_range, List.map_map]
+  rfl
+
+@[simp] theorem mem_legEdges (v off k p q : ℕ) :
+    ((p, q) ∈ legEdges v off k) ↔
+      ((p = v ∧ q = off ∧ 0 < k) ∨ (off ≤ p ∧ q = p + 1 ∧ p + 1 < off + k)) := by
+  rcases k with _ | j
+  · simp only [legEdges, List.range_zero, List.map_nil, pathEdges_singleton, List.not_mem_nil,
+      Nat.lt_irrefl, Nat.add_zero, false_iff, not_or, not_and]
+    exact ⟨fun _ _ ↦ not_false, fun _ _ ↦ by omega⟩
+  · rw [legEdges_succ]
+    simp only [List.mem_cons, Prod.mk.injEq, List.mem_map, List.mem_range]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨i, hi, hp, hq⟩)
+      · exact Or.inl ⟨rfl, rfl, Nat.succ_pos j⟩
+      · exact Or.inr (by omega)
+    · rintro (⟨rfl, rfl, -⟩ | ⟨h1, rfl, h3⟩)
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨p - off, by omega, by omega, by omega⟩
+
+/-- Adjacency in `path n`, phrased entirely in terms of the underlying naturals. -/
+theorem path_adj_val (n : ℕ) (u v : (path n).V) :
+    (path n).Adj u v = true ↔ (u.1 ≠ v.1 ∧ (u.1 + 1 = v.1 ∨ v.1 + 1 = u.1)) := by
+  have huv : (u = v) ↔ (u.1 = v.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
+  simp only [path, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq,
+    ne_eq, huv]
+
+/-- Adjacency in `ofEdges n es`, phrased entirely in terms of the underlying naturals. -/
+theorem ofEdges_adj_val (n : ℕ) (es : List (ℕ × ℕ)) (u v : (ofEdges n es).V) :
+    (ofEdges n es).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ es ∨ (v.1, u.1) ∈ es)) := by
+  have huv : (u = v) ↔ (u.1 = v.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
+  simp only [ofEdges, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
+    ne_eq, huv, List.contains_eq_mem]
+
+/-- Folding the interval `[0, a]` of `Fin N` back on itself, fixing everything above `a`.  This
+is the relabelling that straightens a two-legged spider into a path: the two legs, which run
+outwards from the centre, become one run from `a` down to `0` and one from `0` up. -/
+def foldAt (a N : ℕ) (h : a < N) : Equiv.Perm (Fin N) where
+  toFun p := ⟨if p.1 ≤ a then a - p.1 else p.1, by have := p.isLt; split <;> omega⟩
+  invFun p := ⟨if p.1 ≤ a then a - p.1 else p.1, by have := p.isLt; split <;> omega⟩
+  left_inv p := by
+    have hp := p.isLt
+    refine Fin.ext ?_
+    show (if (if p.1 ≤ a then a - p.1 else p.1) ≤ a then a - (if p.1 ≤ a then a - p.1 else p.1)
+      else (if p.1 ≤ a then a - p.1 else p.1)) = p.1
+    by_cases h1 : p.1 ≤ a
+    · rw [if_pos h1, if_pos (by omega : a - p.1 ≤ a)]
+      omega
+    · rw [if_neg h1, if_neg h1]
+  right_inv p := by
+    have hp := p.isLt
+    refine Fin.ext ?_
+    show (if (if p.1 ≤ a then a - p.1 else p.1) ≤ a then a - (if p.1 ≤ a then a - p.1 else p.1)
+      else (if p.1 ≤ a then a - p.1 else p.1)) = p.1
+    by_cases h1 : p.1 ≤ a
+    · rw [if_pos h1, if_pos (by omega : a - p.1 ≤ a)]
+      omega
+    · rw [if_neg h1, if_neg h1]
+
+@[simp] theorem foldAt_apply (a N : ℕ) (h : a < N) (p : Fin N) :
+    (foldAt a N h p).1 = if p.1 ≤ a then a - p.1 else p.1 := rfl
+
+/-- The arithmetic heart of `spider_pair`: after folding `[0, a]` back on itself, the two legs
+of the spider `[a, b]` become a single run of consecutive naturals.  Both sides are spelled out
+in the exact shape produced by `mem_legEdges`, so that the graph-level proof can just apply this. -/
+theorem foldAt_pair_iff (a b p q : ℕ) (hp : p < 1 + a + b) (hq : q < 1 + a + b) :
+    ((if p ≤ a then a - p else p) ≠ (if q ≤ a then a - q else q) ∧
+        ((if p ≤ a then a - p else p) + 1 = (if q ≤ a then a - q else q) ∨
+          (if q ≤ a then a - q else q) + 1 = (if p ≤ a then a - p else p))) ↔
+      (p ≠ q ∧
+        ((((p = 0 ∧ q = 1 ∧ 0 < a) ∨ (1 ≤ p ∧ q = p + 1 ∧ p + 1 < 1 + a)) ∨
+            ((p = 0 ∧ q = 1 + a ∧ 0 < b) ∨ (1 + a ≤ p ∧ q = p + 1 ∧ p + 1 < 1 + a + b))) ∨
+          (((q = 0 ∧ p = 1 ∧ 0 < a) ∨ (1 ≤ q ∧ p = q + 1 ∧ q + 1 < 1 + a)) ∨
+            ((q = 0 ∧ p = 1 + a ∧ 0 < b) ∨ (1 + a ≤ q ∧ p = q + 1 ∧ q + 1 < 1 + a + b))))) := by
+  constructor
+  · rintro ⟨hne, h⟩
+    by_cases h1 : p ≤ a <;> by_cases h2 : q ≤ a
+    · rw [if_pos h1, if_pos h2] at hne h
+      rcases h with h | h
+      · -- `q + 1 = p`, an edge of the first leg traversed towards the centre
+        by_cases hq0 : q = 0
+        · exact ⟨by omega, Or.inr (Or.inl (Or.inl ⟨by omega, by omega, by omega⟩))⟩
+        · exact ⟨by omega, Or.inr (Or.inl (Or.inr ⟨by omega, by omega, by omega⟩))⟩
+      · by_cases hp0 : p = 0
+        · exact ⟨by omega, Or.inl (Or.inl (Or.inl ⟨by omega, by omega, by omega⟩))⟩
+        · exact ⟨by omega, Or.inl (Or.inl (Or.inr ⟨by omega, by omega, by omega⟩))⟩
+    · rw [if_pos h1, if_neg h2] at hne h
+      -- only `a - p + 1 = q` is possible, forcing `p = 0` and `q = 1 + a`
+      exact ⟨by omega, Or.inl (Or.inr (Or.inl ⟨by omega, by omega, by omega⟩))⟩
+    · rw [if_neg h1, if_pos h2] at hne h
+      exact ⟨by omega, Or.inr (Or.inr (Or.inl ⟨by omega, by omega, by omega⟩))⟩
+    · rw [if_neg h1, if_neg h2] at hne h
+      rcases h with h | h
+      · exact ⟨by omega, Or.inl (Or.inr (Or.inr ⟨by omega, by omega, by omega⟩))⟩
+      · exact ⟨by omega, Or.inr (Or.inr (Or.inr ⟨by omega, by omega, by omega⟩))⟩
+  · rintro ⟨-, (((h | h) | (h | h)) | ((h | h) | (h | h)))⟩ <;> split_ifs <;> omega
+
+/-! ### Theta graphs with no internal vertices -/
+
+theorem thetaEdges_replicate_zero : ∀ (off j : ℕ),
+    thetaEdges off (List.replicate j 0) = List.replicate j (0, 1)
+  | _, 0 => rfl
+  | off, j + 1 => by
+      rw [List.replicate_succ, thetaEdges, thetaEdges_replicate_zero off j, List.replicate_succ]
+
+theorem thetaGraph_nil : thetaGraph [] = empty 2 := ofEdges_nil 2
+
+@[simp] theorem mem_thetaEdges_replicate_zero (off j p q : ℕ) :
+    ((p, q) ∈ thetaEdges off (List.replicate j 0)) ↔ (0 < j ∧ p = 0 ∧ q = 1) := by
+  rw [thetaEdges_replicate_zero]
+  simp only [List.mem_replicate, Prod.mk.injEq, ne_eq]
+  constructor
+  · rintro ⟨hj, rfl, rfl⟩
+    exact ⟨Nat.pos_of_ne_zero hj, rfl, rfl⟩
+  · rintro ⟨hj, rfl, rfl⟩
+    exact ⟨by omega, rfl, rfl⟩
+
+theorem thetaGraph_replicate_zero (j : ℕ) :
+    thetaGraph (List.replicate (j + 1) 0) = complete 2 := by
+  have hs : (List.replicate (j + 1) (0 : ℕ)).sum = 0 := by simp
+  rw [thetaGraph, hs]
+  refine (eq_ofRel (ofEdges (2 + 0) (thetaEdges 2 (List.replicate (j + 1) 0)))
+    (fun _ _ ↦ true) ?_).trans (complete_eq_ofRel 2).symm
+  intro x y hxy
+  have hx : x.1 < 2 := x.isLt
+  have hy : y.1 < 2 := y.isLt
+  have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
+  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+    List.contains_eq_mem]
+  rw [Bool.eq_iff_iff]
+  simp only [Bool.or_eq_true, decide_eq_true_eq, mem_thetaEdges_replicate_zero, or_self, iff_true]
+  omega
+
+/-! ### Theta graphs with a single path: rotating the tail -/
+
+theorem mem_thetaEdges_singleton (k p q : ℕ) :
+    ((p, q) ∈ thetaEdges 2 [k + 1]) ↔
+      ((p = 0 ∧ q = 2) ∨ (p = 2 + k ∧ q = 1) ∨ (2 ≤ p ∧ q = p + 1 ∧ p < 2 + k)) := by
+  simp only [thetaEdges, List.append_nil, List.mem_cons, List.mem_map, List.mem_range,
+    Prod.mk.injEq]
+  constructor
+  · rintro (⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨i, hi, rfl, rfl⟩)
+    · exact Or.inl ⟨rfl, rfl⟩
+    · exact Or.inr (Or.inl ⟨rfl, rfl⟩)
+    · exact Or.inr (Or.inr ⟨by omega, by omega, by omega⟩)
+  · rintro (⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨h1, rfl, h3⟩)
+    · exact Or.inl ⟨rfl, rfl⟩
+    · exact Or.inr (Or.inl ⟨rfl, rfl⟩)
+    · exact Or.inr (Or.inr ⟨p - 2, by omega, by omega, by omega⟩)
+
+/-- Rotating the interval `[1, N-1]` of `Fin N` one step down, fixing `0`.  This is the
+relabelling that straightens a one-path theta graph into a path: the second pole, which sits at
+`1`, gets moved to the far end. -/
+def rotTail (N : ℕ) : Equiv.Perm (Fin N) where
+  toFun p := ⟨if p.1 = 0 then 0 else if p.1 = 1 then N - 1 else p.1 - 1, by
+    have := p.isLt; split_ifs <;> omega⟩
+  invFun p := ⟨if p.1 = 0 then 0 else if p.1 = N - 1 then 1 else p.1 + 1, by
+    have := p.isLt; split_ifs <;> omega⟩
+  left_inv p := by
+    have hp := p.isLt
+    refine Fin.ext ?_
+    show (if (if p.1 = 0 then 0 else if p.1 = 1 then N - 1 else p.1 - 1) = 0 then 0
+      else if (if p.1 = 0 then 0 else if p.1 = 1 then N - 1 else p.1 - 1) = N - 1 then 1
+      else (if p.1 = 0 then 0 else if p.1 = 1 then N - 1 else p.1 - 1) + 1) = p.1
+    split_ifs <;> omega
+  right_inv p := by
+    have hp := p.isLt
+    refine Fin.ext ?_
+    show (if (if p.1 = 0 then 0 else if p.1 = N - 1 then 1 else p.1 + 1) = 0 then 0
+      else if (if p.1 = 0 then 0 else if p.1 = N - 1 then 1 else p.1 + 1) = 1 then N - 1
+      else (if p.1 = 0 then 0 else if p.1 = N - 1 then 1 else p.1 + 1) - 1) = p.1
+    split_ifs <;> first | omega | exact (‹False›).elim
+
+@[simp] theorem rotTail_apply (N : ℕ) (p : Fin N) :
+    (rotTail N p).1 = if p.1 = 0 then 0 else if p.1 = 1 then N - 1 else p.1 - 1 := rfl
+
+/-- The arithmetic heart of `thetaGraph_singleton`: after rotating the tail, the two poles and the
+one internal path of the theta graph become a single run of consecutive naturals.  Both sides are
+spelled out in the exact shape produced by `mem_thetaEdges_singleton`. -/
+theorem rotTail_pair_iff (k p q : ℕ) (hp : p < k + 3) (hq : q < k + 3) :
+    ((if p = 0 then 0 else if p = 1 then k + 2 else p - 1) ≠
+        (if q = 0 then 0 else if q = 1 then k + 2 else q - 1) ∧
+      ((if p = 0 then 0 else if p = 1 then k + 2 else p - 1) + 1 =
+          (if q = 0 then 0 else if q = 1 then k + 2 else q - 1) ∨
+        (if q = 0 then 0 else if q = 1 then k + 2 else q - 1) + 1 =
+          (if p = 0 then 0 else if p = 1 then k + 2 else p - 1))) ↔
+      (p ≠ q ∧
+        (((p = 0 ∧ q = 2) ∨ (p = 2 + k ∧ q = 1) ∨ (2 ≤ p ∧ q = p + 1 ∧ p < 2 + k)) ∨
+          ((q = 0 ∧ p = 2) ∨ (q = 2 + k ∧ p = 1) ∨ (2 ≤ q ∧ p = q + 1 ∧ q < 2 + k)))) := by
+  have dir : ∀ a b : ℕ, a < k + 3 → b < k + 3 →
+      (((if a = 0 then 0 else if a = 1 then k + 2 else a - 1) + 1 =
+          (if b = 0 then 0 else if b = 1 then k + 2 else b - 1)) ↔
+        ((a = 0 ∧ b = 2) ∨ (a = 2 + k ∧ b = 1) ∨ (2 ≤ a ∧ b = a + 1 ∧ a < 2 + k))) := by
+    intro a b ha hb
+    split_ifs <;> first
+      | omega
+      | (rw [false_iff]; omega)
+  constructor
+  · rintro ⟨hne, h | h⟩
+    · exact ⟨fun hpq ↦ hne (by rw [hpq]), Or.inl ((dir p q hp hq).1 h)⟩
+    · exact ⟨fun hpq ↦ hne (by rw [hpq]), Or.inr ((dir q p hq hp).1 h)⟩
+  · rintro ⟨-, h | h⟩
+    · have h' := (dir p q hp hq).2 h
+      refine ⟨?_, Or.inl h'⟩
+      rw [← h']
+      exact (Nat.lt_succ_self _).ne
+    · have h' := (dir q p hq hp).2 h
+      refine ⟨?_, Or.inr h'⟩
+      rw [← h']
+      exact ((Nat.lt_succ_self _).ne).symm
+
+/-! ### Double stars -/
+
+@[simp] theorem mem_doubleStarEdges (m n p q : ℕ) :
+    ((p, q) ∈ ((0, 1) :: (((List.range m).map fun i ↦ (0, 2 + i)) ++
+        ((List.range n).map fun i ↦ (1, 2 + m + i))))) ↔
+      ((p = 0 ∧ q = 1) ∨ (p = 0 ∧ 2 ≤ q ∧ q < 2 + m) ∨
+        (p = 1 ∧ 2 + m ≤ q ∧ q < 2 + m + n)) := by
+  simp only [List.mem_cons, List.mem_append, List.mem_map, List.mem_range, Prod.mk.injEq]
+  constructor
+  · rintro (⟨rfl, rfl⟩ | ⟨i, hi, rfl, rfl⟩ | ⟨i, hi, rfl, rfl⟩)
+    · exact Or.inl ⟨rfl, rfl⟩
+    · exact Or.inr (Or.inl ⟨rfl, by omega, by omega⟩)
+    · exact Or.inr (Or.inr ⟨rfl, by omega, by omega⟩)
+  · rintro (⟨rfl, rfl⟩ | ⟨rfl, h1, h2⟩ | ⟨rfl, h1, h2⟩)
+    · exact Or.inl ⟨rfl, rfl⟩
+    · exact Or.inr (Or.inl ⟨q - 2, by omega, rfl, by omega⟩)
+    · exact Or.inr (Or.inr ⟨q - (2 + m), by omega, rfl, by omega⟩)
+
+/-- Swapping the vertices `0` and `1` of `Fin N`. -/
+def swapZeroOne (N : ℕ) (h : 1 < N) : Equiv.Perm (Fin N) where
+  toFun p := ⟨if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1, by
+    have := p.isLt; split_ifs <;> omega⟩
+  invFun p := ⟨if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1, by
+    have := p.isLt; split_ifs <;> omega⟩
+  left_inv p := by
+    have hp := p.isLt
+    refine Fin.ext ?_
+    show (if (if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1) = 0 then 1
+      else if (if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1) = 1 then 0
+      else (if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1)) = p.1
+    split_ifs <;> first | omega | exact (‹False›).elim
+  right_inv p := by
+    have hp := p.isLt
+    refine Fin.ext ?_
+    show (if (if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1) = 0 then 1
+      else if (if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1) = 1 then 0
+      else (if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1)) = p.1
+    split_ifs <;> first | omega | exact (‹False›).elim
+
+@[simp] theorem swapZeroOne_apply (N : ℕ) (h : 1 < N) (p : Fin N) :
+    (swapZeroOne N h p).1 = if p.1 = 0 then 1 else if p.1 = 1 then 0 else p.1 := rfl
+
+/-! ### The one-legged spider, as an edge list -/
+
+theorem spiderEdges_replicate_one : ∀ (off n : ℕ),
+    spiderEdges off (List.replicate n 1) = (List.range n).map (fun i ↦ (0, off + i))
+  | _, 0 => rfl
+  | off, n + 1 => by
+      have ih := spiderEdges_replicate_one (off + 1) n
+      rw [List.replicate_succ, spiderEdges, ih, List.range_succ_eq_map, List.map_cons,
+        List.map_map]
+      simp only [legEdges, List.range_one, List.map_cons, List.map_nil, pathEdges_cons_cons,
+        pathEdges_singleton, List.cons_append, List.nil_append, Nat.add_zero, Function.comp_def]
+      congr 1
+      · rw [Nat.zero_add]
+      · exact List.map_congr_left fun i _ ↦ Prod.ext rfl (by omega)
+
+@[simp] theorem mem_spiderEdges_replicate_one (off n p q : ℕ) :
+    ((p, q) ∈ spiderEdges off (List.replicate n 1)) ↔ (p = 0 ∧ off ≤ q ∧ q < off + n) := by
+  rw [spiderEdges_replicate_one]
+  simp only [List.mem_map, List.mem_range, Prod.mk.injEq]
+  constructor
+  · rintro ⟨i, hi, rfl, rfl⟩
+    exact ⟨rfl, by omega, by omega⟩
+  · rintro ⟨rfl, h1, h2⟩
+    exact ⟨q - off, by omega, rfl, by omega⟩
+
 /-! ## Two small facts about one-vertex graphs -/
 
 /-- No vertex is adjacent to itself, as an equation of `Bool`s. -/
@@ -2362,6 +2669,221 @@ move the identity across the quotient. -/
 
 @[simp] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
   cyclePendant_replicate_zero m 0
+
+/-! ## Decorated cycles and trees, up to isomorphism
+
+Unlike the identities just above, these are not equalities of `CGraph`s: both sides are the same
+graph drawn with a different numbering of the vertices, so each one carries an explicit
+relabelling (`CGraph.foldAt`, `CGraph.rotTail`, `CGraph.swapZeroOne`, `finSumFinEquiv`). -/
+
+@[simp] theorem spider_pair (a b : ℕ) : spider [a, b] = path (1 + a + b) := by
+  rw [spider_def, path_def]
+  have hN : (1 : ℕ) + ([a, b] : List ℕ).sum = 1 + a + b := by simp [Nat.add_assoc]
+  have hes : CGraph.spiderEdges 1 [a, b]
+      = CGraph.legEdges 0 1 a ++ CGraph.legEdges 0 (1 + a) b := by
+    simp [CGraph.spiderEdges]
+  set E : (CGraph.spider [a, b]).V ≃ (CGraph.path (1 + a + b)).V :=
+    (finCongr hN).trans (CGraph.foldAt a (1 + a + b) (by omega)) with hE
+  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  intro x y
+  have hEz : ∀ z : (CGraph.spider [a, b]).V, (E z).1 = if z.1 ≤ a then a - z.1 else z.1 := by
+    intro z; rw [hE]; rfl
+  have hx : x.1 < 1 + a + b := hN ▸ x.isLt
+  have hy : y.1 < 1 + a + b := hN ▸ y.isLt
+  rw [Bool.eq_iff_iff, CGraph.path_adj_val, hEz x, hEz y]
+  simp only [CGraph.spider]
+  rw [CGraph.ofEdges_adj_val, hes]
+  simp only [List.mem_append, CGraph.mem_legEdges]
+  exact CGraph.foldAt_pair_iff a b x.1 y.1 hx hy
+
+@[simp] theorem thetaGraph_nil : thetaGraph [] = empty 2 := by
+  rw [thetaGraph_def, empty_def, CGraph.thetaGraph_nil]
+
+/-- A theta graph all of whose paths are single edges is just that edge. -/
+@[simp] theorem thetaGraph_replicate_zero (j : ℕ) :
+    thetaGraph (List.replicate (j + 1) 0) = complete 2 := by
+  rw [thetaGraph_def, complete_def, CGraph.thetaGraph_replicate_zero]
+
+/-- A theta graph with a single path is a path. -/
+@[simp] theorem thetaGraph_singleton (k : ℕ) : thetaGraph [k] = path (k + 2) := by
+  rcases k with _ | k
+  · exact thetaGraph_replicate_zero 0 |>.trans (path_two).symm
+  rw [thetaGraph_def, path_def]
+  have hN : 2 + ([k + 1] : List ℕ).sum = k + 3 := by simp; omega
+  set E : (CGraph.thetaGraph [k + 1]).V ≃ (CGraph.path (k + 1 + 2)).V :=
+    (finCongr hN).trans (CGraph.rotTail (k + 3)) with hE
+  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  intro x y
+  have hEz : ∀ z : (CGraph.thetaGraph [k + 1]).V,
+      (E z).1 = if z.1 = 0 then 0 else if z.1 = 1 then k + 2 else z.1 - 1 := fun _ ↦ rfl
+  have hx : x.1 < k + 3 := hN ▸ x.isLt
+  have hy : y.1 < k + 3 := hN ▸ y.isLt
+  rw [Bool.eq_iff_iff, CGraph.path_adj_val, hEz x, hEz y]
+  simp only [CGraph.thetaGraph]
+  rw [CGraph.ofEdges_adj_val]
+  simp only [CGraph.mem_thetaEdges_singleton]
+  exact CGraph.rotTail_pair_iff k x.1 y.1 hx hy
+
+@[simp] theorem spider_replicate_one (n : ℕ) : spider (List.replicate n 1) = star n := by
+  rw [spider_def, star_def]
+  have hN : (1 : ℕ) + (List.replicate n 1).sum = 1 + n := by simp
+  have key : (⟦CGraph.star n⟧ : IsoGraph) = ⟦CGraph.spider (List.replicate n 1)⟧ := by
+    set E : (CGraph.star n).V ≃ (CGraph.spider (List.replicate n 1)).V :=
+      (finSumFinEquiv (m := 1) (n := n)).trans (finCongr hN.symm) with hE
+    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    have hl : ∀ a : (CGraph.complete 1).V, (E (Sum.inl a)).1 = a.1 := fun _ ↦ rfl
+    have hr : ∀ b : (CGraph.complete n).V, (E (Sum.inr b)).1 = 1 + b.1 := fun _ ↦ rfl
+    have hsp : ∀ u v : (CGraph.spider (List.replicate n 1)).V,
+        ((CGraph.spider (List.replicate n 1)).Adj u v = true ↔
+          (u.1 ≠ v.1 ∧ ((u.1 = 0 ∧ 1 ≤ v.1 ∧ v.1 < 1 + n) ∨
+            (v.1 = 0 ∧ 1 ≤ u.1 ∧ u.1 < 1 + n)))) := by
+      intro u v
+      simp only [CGraph.spider]
+      rw [CGraph.ofEdges_adj_val]
+      simp only [CGraph.mem_spiderEdges_replicate_one]
+    rintro (a | a) (b | b) <;> rw [Bool.eq_iff_iff, hsp]
+    · -- both are the centre, and `Fin 1` is a subsingleton
+      rw [hl a, hl b]
+      have ha : a.1 < 1 := a.isLt
+      have hb : b.1 < 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inl_inl, Bool.false_eq_true, iff_false]
+      omega
+    · rw [hl a, hr b]
+      have ha : a.1 < 1 := a.isLt
+      have hb : b.1 < n := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inl_inr, iff_true]
+      omega
+    · rw [hr a, hl b]
+      have ha : a.1 < n := a.isLt
+      have hb : b.1 < 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inr_inl, iff_true]
+      omega
+    · rw [hr a, hr b]
+      have ha : a.1 < n := a.isLt
+      have hb : b.1 < n := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
+      omega
+  exact key.symm
+
+/-- The star with two leaves is the path on three vertices. -/
+theorem star_two : star 2 = path 3 := by
+  rw [← spider_replicate_one 2, show List.replicate 2 1 = [1, 1] from rfl, spider_pair]
+
+/-- A double star with no leaves on the second centre is a star. -/
+@[simp] theorem doubleStar_right_zero (m : ℕ) : doubleStar m 0 = star (m + 1) := by
+  rw [doubleStar_def, star_def]
+  have hN : 1 + (m + 1) = 2 + m + 0 := by omega
+  have key : (⟦CGraph.star (m + 1)⟧ : IsoGraph) = ⟦CGraph.doubleStar m 0⟧ := by
+    set E : (CGraph.star (m + 1)).V ≃ (CGraph.doubleStar m 0).V :=
+      (finSumFinEquiv (m := 1) (n := m + 1)).trans (finCongr hN) with hE
+    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    have hl : ∀ a : (CGraph.complete 1).V, (E (Sum.inl a)).1 = a.1 := fun _ ↦ rfl
+    have hr : ∀ b : (CGraph.complete (m + 1)).V, (E (Sum.inr b)).1 = 1 + b.1 := fun _ ↦ rfl
+    have hds : ∀ u v : (CGraph.doubleStar m 0).V,
+        ((CGraph.doubleStar m 0).Adj u v = true ↔
+          (u.1 ≠ v.1 ∧
+            (((u.1 = 0 ∧ v.1 = 1) ∨ (u.1 = 0 ∧ 2 ≤ v.1 ∧ v.1 < 2 + m) ∨
+                (u.1 = 1 ∧ 2 + m ≤ v.1 ∧ v.1 < 2 + m + 0)) ∨
+              ((v.1 = 0 ∧ u.1 = 1) ∨ (v.1 = 0 ∧ 2 ≤ u.1 ∧ u.1 < 2 + m) ∨
+                (v.1 = 1 ∧ 2 + m ≤ u.1 ∧ u.1 < 2 + m + 0))))) := by
+      intro u v
+      simp only [CGraph.doubleStar]
+      rw [CGraph.ofEdges_adj_val]
+      simp only [CGraph.mem_doubleStarEdges]
+    rintro (a | a) (b | b) <;> rw [Bool.eq_iff_iff, hds]
+    · rw [hl a, hl b]
+      have ha : a.1 < 1 := a.isLt
+      have hb : b.1 < 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inl_inl, Bool.false_eq_true, iff_false]
+      omega
+    · rw [hl a, hr b]
+      have ha : a.1 < 1 := a.isLt
+      have hb : b.1 < m + 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inl_inr, iff_true]
+      omega
+    · rw [hr a, hl b]
+      have ha : a.1 < m + 1 := a.isLt
+      have hb : b.1 < 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inr_inl, iff_true]
+      omega
+    · rw [hr a, hr b]
+      have ha : a.1 < m + 1 := a.isLt
+      have hb : b.1 < m + 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
+      omega
+  exact key.symm
+
+/-- A double star with no leaves on the first centre is a star. -/
+@[simp] theorem doubleStar_left_zero (n : ℕ) : doubleStar 0 n = star (n + 1) := by
+  rw [doubleStar_def, star_def]
+  have hN : 1 + (n + 1) = 2 + 0 + n := by omega
+  have key : (⟦CGraph.star (n + 1)⟧ : IsoGraph) = ⟦CGraph.doubleStar 0 n⟧ := by
+    set E : (CGraph.star (n + 1)).V ≃ (CGraph.doubleStar 0 n).V :=
+      ((finSumFinEquiv (m := 1) (n := n + 1)).trans (finCongr hN)).trans
+        (CGraph.swapZeroOne (2 + 0 + n) (by omega)) with hE
+    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    have hl : ∀ a : (CGraph.complete 1).V, (E (Sum.inl a)).1 = 1 := by
+      intro a
+      have ha : a.1 = 0 := Nat.lt_one_iff.mp a.isLt
+      show (if a.1 = 0 then 1 else if a.1 = 1 then 0 else a.1) = 1
+      rw [if_pos ha]
+    have hr : ∀ b : (CGraph.complete (n + 1)).V,
+        (E (Sum.inr b)).1 = if b.1 = 0 then 0 else 1 + b.1 := by
+      intro b
+      show (if 1 + b.1 = 0 then 1 else if 1 + b.1 = 1 then 0 else 1 + b.1)
+        = if b.1 = 0 then 0 else 1 + b.1
+      split_ifs <;> omega
+    have hds : ∀ u v : (CGraph.doubleStar 0 n).V,
+        ((CGraph.doubleStar 0 n).Adj u v = true ↔
+          (u.1 ≠ v.1 ∧
+            (((u.1 = 0 ∧ v.1 = 1) ∨ (u.1 = 0 ∧ 2 ≤ v.1 ∧ v.1 < 2 + 0) ∨
+                (u.1 = 1 ∧ 2 + 0 ≤ v.1 ∧ v.1 < 2 + 0 + n)) ∨
+              ((v.1 = 0 ∧ u.1 = 1) ∨ (v.1 = 0 ∧ 2 ≤ u.1 ∧ u.1 < 2 + 0) ∨
+                (v.1 = 1 ∧ 2 + 0 ≤ u.1 ∧ u.1 < 2 + 0 + n))))) := by
+      intro u v
+      simp only [CGraph.doubleStar]
+      rw [CGraph.ofEdges_adj_val]
+      simp only [CGraph.mem_doubleStarEdges]
+    rintro (a | a) (b | b) <;> rw [Bool.eq_iff_iff, hds]
+    · rw [hl a, hl b]
+      simp only [CGraph.star, CGraph.bipartite_adj_inl_inl, Bool.false_eq_true, iff_false]
+      omega
+    · rw [hl a, hr b]
+      have hb : b.1 < n + 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inl_inr, iff_true]
+      rcases Nat.eq_zero_or_pos b.1 with hb0 | hb0
+      · rw [if_pos hb0]
+        simp
+      · rw [if_neg (by omega : ¬ b.1 = 0)]
+        simp only [true_and, and_true]
+        omega
+    · rw [hr a, hl b]
+      have ha : a.1 < n + 1 := a.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inr_inl, iff_true]
+      rcases Nat.eq_zero_or_pos a.1 with ha0 | ha0
+      · rw [if_pos ha0]
+        simp
+      · rw [if_neg (by omega : ¬ a.1 = 0)]
+        simp only [true_and, and_true]
+        omega
+    · rw [hr a, hr b]
+      have ha : a.1 < n + 1 := a.isLt
+      have hb : b.1 < n + 1 := b.isLt
+      simp only [CGraph.star, CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
+      rcases Nat.eq_zero_or_pos a.1 with ha0 | ha0 <;>
+        rcases Nat.eq_zero_or_pos b.1 with hb0 | hb0
+      · rw [if_pos ha0, if_pos hb0]
+        simp only [true_and]
+        omega
+      · rw [if_pos ha0, if_neg (by omega : ¬ b.1 = 0)]
+        simp only [true_and]
+        omega
+      · rw [if_neg (by omega : ¬ a.1 = 0), if_pos hb0]
+        simp only [true_and]
+        omega
+      · rw [if_neg (by omega : ¬ a.1 = 0), if_neg (by omega : ¬ b.1 = 0)]
+        omega
+  exact key.symm
 
 /-! ## Products
 
@@ -3620,5 +4142,12 @@ example : spider [1] = complete 2 := by simp
 example (m : ℕ) : IsBipartite (tadpole (2 * m) 0) := by simp
 example : cyclePendant 5 [] = cycle 5 := by simp
 example : compl (cyclePendant 5 []) = cycle 5 := by simp
+example : spider [2, 2] = path 5 := by simp
+example : thetaGraph [3] = path 5 := by simp
+example (j : ℕ) : thetaGraph (List.replicate (j + 1) 0) = complete 2 := by simp
+example (n : ℕ) : spider (List.replicate n 1) = star n := by simp
+example : doubleStar 0 3 = star 4 := by simp
+example : doubleStar 3 0 = star 4 := by simp
+example : doubleStar 0 1 = path 3 := by rw [doubleStar_left_zero, star_two]
 
 end IsoGraph

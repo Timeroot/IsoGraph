@@ -279,6 +279,10 @@ tadpole m 0 = cycle m                                     tadpole 0 k = path k
 lollipop m 0 = complete m                                 lollipop 0 k = path k
 lollipop 1 k = path (1 + k)                               spider [k] = path (1 + k)
 spider (List.replicate j 0) = empty 1                     cyclePendant m (List.replicate j 0) = cycle m
+spider [a, b] = path (1 + a + b)                          thetaGraph [k] = path (k + 2)
+spider (List.replicate n 1) = star n                      star 2 = path 3
+doubleStar m 0 = star (m + 1)                             doubleStar 0 n = star (n + 1)
+thetaGraph [] = empty 2                                   thetaGraph (List.replicate (j + 1) 0) = complete 2
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -320,6 +324,28 @@ closes — with `succ_mod_eq_iff` supplying the wrap-around, since `omega` canno
 whose modulus is a variable. One pleasant accident: `legEdges 0 0 k`, the leg hung off vertex `0`
 whose fresh vertices also start at `0`, begins with the loop `(0, 0)`, and `ofRel` deletes the
 diagonal, so `tadpole 0 k` and `lollipop 0 k` are literally `path k`.
+
+The rest of that family is *not* free that way. `spider [a, b] = path (1 + a + b)`,
+`thetaGraph [k] = path (k + 2)`, `spider (List.replicate n 1) = star n` and
+`doubleStar m 0 = doubleStar 0 n = star (n + 1)` draw the same graph with a different numbering,
+so each carries an explicit permutation of `Fin n`. Three of them do all the work: `foldAt a N`
+folds the interval `[0, a]` back on itself, which straightens the two legs of a spider into one
+run; `rotTail N` rotates `[1, N-1]` one step down, which moves the second pole of a one-path theta
+graph to the far end; and `swapZeroOne N` exchanges the two centres of a double star. The star
+identities also cross from the `ofEdges` families to the `Sum`-typed `bipartite`, so they compose
+with `finSumFinEquiv` too.
+
+Two things make those proofs bearable. The first is phrasing adjacency in terms of the underlying
+naturals once and for all — `path_adj_val` and `ofEdges_adj_val` restate `Adj u v = true` as a
+condition on `u.1` and `v.1` — since `(spider legs).V` is only definitionally `Fin n`, and nothing
+about `Fin` fires under `simp` through that. The second is keeping the arithmetic in a lemma of
+its own. Stated in one go, `spider [a, b] = path (1 + a + b)` hands `omega` an eight-disjunct
+disjunction of three-conjunct clauses, whose negation is some `3^8` cases: 250-450 s, measured
+(and eliminating the truncated subtraction makes it *slower*, not faster). Split out as
+`foldAt_pair_iff`, with the disjunct picked by hand going forwards and `rintro`-split coming back,
+the same content elaborates in seconds. Two smaller `omega` quirks show up in the same proofs: it
+gives up when a hypothesis is literally `False`, and when the goal mentions `True` — both of which
+`split_ifs` produces — hence the `(‹False›).elim` and `simp only [true_and]` fallbacks.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a
