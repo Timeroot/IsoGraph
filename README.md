@@ -1767,6 +1767,13 @@ adjacent in a Johnson graph, which gives `girth_johnson` for all `k ≥ 1` and `
 previously only the `k = 2` row was known, via the strongly-regular table -- and with it a
 triangle, a 3-clique, a 3-chromatic lower bound, and non-acyclicity for the whole family.
 
+The same triangle argument runs for Kneser graphs: three pairwise disjoint blocks of `k`
+consecutive points give `girth_kneser` whenever `n ≥ 3k`, which extends the girth-three row
+from the `k = 2` case to the whole family and yields the clique, chromatic and acyclicity
+corollaries.  On the domination side the four-cube needs four codewords -- the sphere-covering
+bound `2^n ≤ γ · (n + 1)` forces at least four, and `{0000, 0001, 1110, 1111}` is a dominating
+set -- which is the first hypercube beyond the perfect-code cases `Q₁`, `Q₃`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

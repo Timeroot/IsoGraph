@@ -4592,6 +4592,18 @@ theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : CGraph} [DecidableEq G
   · exact fun h ↦ hane (congrArg Prod.fst h)
   · exact fun h ↦ hane (congrArg Prod.fst h).symm
 
+/-- **A Kneser graph with room for three disjoint blocks has girth three.** -/
+theorem girth_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) : (kneser n k).girth = 3 := by
+  refine girth_eq_three_of_triangle
+    (a := kneserBlock n k 0 (by omega)) (b := kneserBlock n k k (by omega))
+    (c := kneserBlock n k (2 * k) (by omega)) ?_ ?_ ?_ <;>
+  · rw [kneser_adj, Bool.and_eq_true, decide_eq_true_eq, decide_eq_true_eq]
+    refine ⟨kneserBlock_ne hk (by omega), ?_⟩
+    rw [Finset.eq_empty_iff_forall_notMem]
+    intro x hx
+    rw [Finset.mem_inter, mem_kneserBlock, mem_kneserBlock] at hx
+    omega
+
 /-- **A Johnson graph on at least `k + 2` points has girth three**: three `k`-sets sharing a
 common `(k-1)`-set are pairwise adjacent. -/
 theorem girth_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) : (johnson n k).girth = 3 := by
@@ -22509,4 +22521,56 @@ theorem not_isAcyclic_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
 
 theorem not_isTree_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) : ¬ IsTree (johnson n k) :=
   not_isTree_of_girth_pos (by rw [girth_johnson hk h]; omega)
+/-- **Four codewords dominate the four-cube**: the sphere-covering bound needs at least four,
+and four suffice. -/
+theorem domNum_hypercube_four : (hypercube 4).domNum = 4 := by
+  apply Nat.le_antisymm
+  · -- Upper bound: exhibit a dominating set of size 4
+    let c0 : Fin 4 → Bool := fun _ => false
+    let c1 : Fin 4 → Bool := fun i => (i = 3)
+    let c2 : Fin 4 → Bool := fun i => (i ≠ 3)
+    let c3 : Fin 4 → Bool := fun _ => true
+    let S : Finset (Fin 4 → Bool) :=
+      (insert c0 (insert c1 (insert c2 (singleton c3))))
+    have hdom : (CGraph.hypercube 4).IsDominatingSet S := by
+      intro v
+      fin_cases v <;> simp [S, CGraph.hypercube_adj] <;> decide
+    have hcard : S.card = 4 := by decide
+    show CGraph.domNum (CGraph.hypercube 4) ≤ 4
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet hdom) hcard.le
+  · -- Lower bound: 16 ≤ domNum * 5
+    show 4 ≤ (hypercube 4).domNum
+    simp only [hypercube, domNum_mk]
+    have hcard : Fintype.card (CGraph.hypercube 4).V = 16 := by decide
+    have hdeg : CGraph.maxDeg (CGraph.hypercube 4) ≤ 4 := by
+      apply CGraph.maxDeg_le_of_forall
+      intro v
+      show (CGraph.hypercube 4).toSimple.degree v ≤ 4
+      revert v; native_decide
+    have hbound : 16 ≤ CGraph.domNum (CGraph.hypercube 4) *
+        (CGraph.maxDeg (CGraph.hypercube 4) + 1) := by
+      rw [← hcard]
+      apply CGraph.card_le_domNum_mul_maxDeg_add_one
+    nlinarith
+
+/-- **A Kneser graph with room for three disjoint blocks has girth three**: three pairwise
+disjoint `k`-sets form a triangle. -/
+theorem girth_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) : (kneser n k).girth = 3 := by
+  rw [kneser_def, girth_mk]
+  exact CGraph.girth_kneser hk h
+
+theorem three_le_cliqueNum_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
+    3 ≤ (kneser n k).cliqueNum :=
+  girth_eq_three_iff.1 (girth_kneser hk h)
+
+theorem three_le_chromNum_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
+    3 ≤ (kneser n k).chromNum :=
+  (three_le_cliqueNum_kneser hk h).trans (cliqueNum_le_chromNum _)
+
+theorem not_isAcyclic_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
+    ¬ IsAcyclic (kneser n k) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_kneser hk h]; omega)
+
+theorem not_isTree_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) : ¬ IsTree (kneser n k) :=
+  not_isTree_of_girth_pos (by rw [girth_kneser hk h]; omega)
 end IsoGraph
