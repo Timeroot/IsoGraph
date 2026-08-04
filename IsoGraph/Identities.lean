@@ -7866,6 +7866,41 @@ theorem adj_eq_false_of_isRegularWith_zero {G : CGraph} (h : G.IsRegularWith 0) 
   have hpos : 0 < G.toSimple.degree x := (G.toSimple.degree_pos_iff_exists_adj x).2 ⟨y, hadj⟩
   have hd : G.toSimple.degree x = 0 := h x
   omega
+
+/-! ### Cliques in the line graph -/
+
+/-- The edges at a fixed vertex are pairwise adjacent in the line graph, so they form a clique
+of size `deg v`. -/
+theorem degree_le_cliqueNum_lineGraph (G : CGraph) [DecidableEq G.V] (v : G.V) :
+    G.toSimple.degree v ≤ (lineGraph G).cliqueNum := by
+  classical
+  set T : Finset (lineGraph G).V := {e | v ∈ e.1} with hT
+  have hmemT : ∀ e : (lineGraph G).V, e ∈ T ↔ v ∈ e.1 := by
+    intro e; rw [hT]; simp
+  have hcl : (lineGraph G).toSimple.IsClique (T : Set (lineGraph G).V) := by
+    intro e he f hf hef
+    rw [Finset.mem_coe, hmemT] at he hf
+    rw [toSimple_adj, lineGraph_adj]
+    simp only [Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+    exact ⟨hef, v, he, hf⟩
+  have hcard : T.card = G.toSimple.degree v := by
+    rw [← SimpleGraph.card_incidenceFinset_eq_degree]
+    refine Finset.card_bij (fun e _ ↦ e.1) ?_ ?_ ?_
+    · intro e he
+      rw [SimpleGraph.mem_incidenceFinset]
+      exact ⟨e.2, (hmemT e).1 he⟩
+    · intro e _ f _ h
+      exact Subtype.ext h
+    · intro x hx
+      rw [SimpleGraph.mem_incidenceFinset] at hx
+      exact ⟨⟨x, hx.1⟩, (hmemT _).2 hx.2, rfl⟩
+  have hle := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
+  rw [← hcard]
+  exact hle
+
+theorem maxDeg_le_cliqueNum_lineGraph (G : CGraph) [DecidableEq G.V] :
+    G.maxDeg ≤ (lineGraph G).cliqueNum :=
+  maxDeg_le_of_forall fun v ↦ degree_le_cliqueNum_lineGraph G v
 end CGraph
 
 namespace IsoGraph
@@ -16035,5 +16070,72 @@ example : minDeg (rook 3 3) = 4 := minDeg_rook 2 2
 example : maxDeg (kneser 5 2) = 3 := by
   rw [maxDeg_kneser 5 2 (by omega) (by omega)]
   rfl
+
+/-! ### The edge chromatic number
+
+An edge colouring of `G` is a vertex colouring of `L(G)`, so the chromatic index is the
+chromatic number of the line graph and needs no separate well-definedness argument. -/
+
+/-- The *edge chromatic number* (chromatic index) `χ'(G)`: the least number of colours needed
+to colour the edges of `G` so that edges meeting at a vertex get different colours. -/
+noncomputable def edgeChromNum (G : IsoGraph) : ℕ := chromNum (lineGraph G)
+
+theorem edgeChromNum_eq (G : IsoGraph) : G.edgeChromNum = chromNum (lineGraph G) := rfl
+
+theorem maxDeg_le_cliqueNum_lineGraph (G : IsoGraph) :
+    G.maxDeg ≤ (lineGraph G).cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, lineGraph_mk, maxDeg_mk, cliqueNum_mk]
+  exact CGraph.maxDeg_le_cliqueNum_lineGraph _
+
+/-- Every edge colouring uses at least `Δ` colours, since the edges at a vertex of maximum
+degree pairwise conflict. -/
+theorem maxDeg_le_edgeChromNum (G : IsoGraph) : G.maxDeg ≤ G.edgeChromNum :=
+  le_trans G.maxDeg_le_cliqueNum_lineGraph (cliqueNum_le_chromNum _)
+
+/-- Greedy colouring of the line graph: `χ'(G) ≤ 2Δ - 1`.  Vizing's theorem improves this to
+`Δ + 1`, but that is a much deeper fact. -/
+theorem edgeChromNum_le_two_mul_maxDeg_sub_one (G : IsoGraph) :
+    G.edgeChromNum ≤ 2 * G.maxDeg - 1 := by
+  rcases Nat.eq_zero_or_pos G.maxDeg with h | h
+  · have hE := G.two_mul_E_le_V_mul_maxDeg
+    rw [h, Nat.mul_zero] at hE
+    have h2 : chromNum (lineGraph G) ≤ (lineGraph G).V := chromNum_le_V _
+    rw [V_lineGraph] at h2
+    rw [edgeChromNum_eq, h]
+    omega
+  · have h1 := (lineGraph G).chromNum_le_maxDeg_add_one
+    have h2 := G.maxDeg_lineGraph_le
+    rw [edgeChromNum_eq]
+    omega
+
+/-- The chromatic index of a `k`-regular graph is at least `k`. -/
+theorem IsRegularWith.le_edgeChromNum {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hV : 0 < G.V) : k ≤ G.edgeChromNum := by
+  rw [← h.maxDeg_eq hV]
+  exact maxDeg_le_edgeChromNum G
+
+@[simp] theorem edgeChromNum_empty (n : ℕ) : (empty n).edgeChromNum = 0 := by
+  rw [edgeChromNum_eq, lineGraph_empty, chromNum_empty_zero]
+
+/-- Colouring the edges of a star is colouring the vertices of a complete graph. -/
+@[simp] theorem edgeChromNum_star (n : ℕ) : (star n).edgeChromNum = n := by
+  rw [edgeChromNum_eq, lineGraph_star, chromNum_complete]
+
+@[simp] theorem edgeChromNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).edgeChromNum = max G.edgeChromNum H.edgeChromNum := by
+  rw [edgeChromNum_eq, lineGraph_disjUnion, chromNum_disjUnion, edgeChromNum_eq, edgeChromNum_eq]
+
+/-- `χ'(Petersen) ≥ 3`; the true value is `4`, which needs the fact that the Petersen graph has
+no perfect matching decomposition. -/
+example : 3 ≤ petersen.edgeChromNum :=
+  isRegularWith_petersen.le_edgeChromNum (by rw [V_petersen]; omega)
+
+example : petersen.edgeChromNum ≤ 5 := by
+  have h := petersen.edgeChromNum_le_two_mul_maxDeg_sub_one
+  rw [maxDeg_petersen] at h
+  omega
+
+example : (star 4).edgeChromNum = 4 := edgeChromNum_star 4
 
 end IsoGraph

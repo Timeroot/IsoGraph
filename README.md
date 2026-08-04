@@ -1469,6 +1469,20 @@ phrased with a shift (`triangular (n + 2)`, `rook (m + 1) (n + 1)`, and so on).
 Paley graphs pick up an `isRegularWith_paley` on the way, read off from their strong
 regularity.
 
+The chromatic index arrives for free. An edge colouring of `G` is exactly a vertex
+colouring of `L(G)`, so `edgeChromNum G` is *defined* as `chromNum (lineGraph G)` —
+no new quotient obligation, because both halves already live on `IsoGraph`. The lower
+bound `Delta <= chi'` is the one piece with real content: the edges at a fixed vertex
+are pairwise adjacent in the line graph, so `CGraph.degree_le_cliqueNum_lineGraph`
+exhibits a clique of size `deg v` there, and `omega(L(G)) <= chi(L(G))` finishes it.
+The upper bound is the greedy bound applied to the line graph, which the degree
+formula of the previous section turns into `chi' <= 2 Delta - 1`; Vizing's `Delta + 1`
+is out of reach for now. The named cases follow from the existing line-graph table:
+`chi'(K_{1,n}) = n` because `L(K_{1,n}) = K_n`, `chi'` of an edgeless graph is zero,
+and `chi'` of a disjoint union is the max of the two. For the Petersen graph this
+gives `3 <= chi' <= 5`; the true value `4` needs its lack of a proper 3-edge-colouring,
+which is a genuinely harder fact.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
