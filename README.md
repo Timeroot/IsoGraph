@@ -1305,6 +1305,17 @@ So `ω(M(G)) = max (ω G) 2`, and since `χ(M(G)) = χ(G) + 1` is already availa
 `K₁` proves **Mycielski's theorem**: there are triangle-free graphs of arbitrarily large chromatic
 number, stated both as `ω ≤ 2` and as `cliqueCount 3 = 0`.
 
+The two remaining products get their edge counts, completing the table alongside
+`E_cartesianProduct` and `E_tensorProduct`.  Both come from handshaking on the degree formulas that
+were already proved.  For the strong product the degree is `(d_G + 1)(d_H + 1) - 1`, so it is the
+shifted degrees that multiply: summing `deg p + 1` over `G.V × H.V` factors as
+`(2|E_G| + |V_G|)(2|E_H| + |V_H|)`, and cancelling the `|V_G||V_H|` copies of the shift leaves
+`|E| = |V_G||E_H| + |V_H||E_G| + 2|E_G||E_H|` — exactly the cartesian count plus the tensor count,
+which is what the decomposition `G ⊠ H = (G □ H) ∪ (G × H)` predicts.  The lexicographic product is
+`|E| = |V_H|²|E_G| + |V_G||E_H|`: each edge of `G` becomes a complete bipartite graph between two
+fibres, and each fibre carries its own copy of `H`.  As a check, `paley 9 = K₃[E₃] = K_{3,3,3}` gets
+`27` edges.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -7107,6 +7107,68 @@ theorem cliqueNum_mycielskian_eq_two (G : CGraph) [DecidableEq G.V] [Nonempty G.
   rw [cliqueNum_mycielskian]
   omega
 
+/-! ### Edge counts of the strong and lexicographic products -/
+
+private theorem sum_degree_add_one (K : CGraph) :
+    ∑ v : K.V, (K.toSimple.degree v + 1) = 2 * K.E + Fintype.card K.V := by
+  rw [Finset.sum_add_distrib, SimpleGraph.sum_degrees_eq_twice_card_edges, Finset.sum_const,
+    Finset.card_univ, smul_eq_mul, mul_one]
+  rfl
+
+theorem E_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).E
+      = Fintype.card G.V * H.E + Fintype.card H.V * G.E + 2 * G.E * H.E := by
+  have hdeg : ∀ p : G.V × H.V, (strongProduct G H).toSimple.degree p + 1
+      = (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) := by
+    intro p
+    have h := degree_strongProduct G H p
+    have hpos : 1 ≤ (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) :=
+      Nat.one_le_iff_ne_zero.2 (by positivity)
+    omega
+  have hdegsum : ∑ p : G.V × H.V, (strongProduct G H).toSimple.degree p
+      = 2 * (strongProduct G H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hstrong : ∑ p : G.V × H.V, ((strongProduct G H).toSimple.degree p + 1)
+      = 2 * (strongProduct G H).E + Fintype.card G.V * Fintype.card H.V := by
+    rw [Finset.sum_add_distrib, hdegsum, Finset.sum_const, Finset.card_univ, smul_eq_mul, mul_one,
+      Fintype.card_prod]
+  have key : 2 * (strongProduct G H).E + Fintype.card G.V * Fintype.card H.V
+      = (2 * G.E + Fintype.card G.V) * (2 * H.E + Fintype.card H.V) := by
+    rw [← hstrong, ← sum_degree_add_one G, ← sum_degree_add_one H, Finset.sum_mul_sum,
+      Fintype.sum_prod_type]
+    exact Finset.sum_congr rfl fun a _ ↦ Finset.sum_congr rfl fun b _ ↦ hdeg (a, b)
+  have expand : (2 * G.E + Fintype.card G.V) * (2 * H.E + Fintype.card H.V)
+      = 2 * (Fintype.card G.V * H.E + Fintype.card H.V * G.E + 2 * G.E * H.E)
+        + Fintype.card G.V * Fintype.card H.V := by ring
+  rw [expand] at key
+  exact Nat.eq_of_mul_eq_mul_left (by norm_num) (Nat.add_right_cancel key)
+
+theorem E_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (lexProduct G H).E
+      = Fintype.card H.V * Fintype.card H.V * G.E + Fintype.card G.V * H.E := by
+  have hdeg : ∀ p : G.V × H.V, (lexProduct G H).toSimple.degree p
+      = G.toSimple.degree p.1 * Fintype.card H.V + H.toSimple.degree p.2 :=
+    fun p ↦ degree_lexProduct G H p
+  have hG : ∑ a : G.V, G.toSimple.degree a = 2 * G.E :=
+    SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hH : ∑ b : H.V, H.toSimple.degree b = 2 * H.E :=
+    SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hlex : ∑ p : G.V × H.V, (lexProduct G H).toSimple.degree p
+      = 2 * (lexProduct G H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hfibre : ∀ a : G.V,
+      ∑ b : H.V, (G.toSimple.degree a * Fintype.card H.V + H.toSimple.degree b)
+        = G.toSimple.degree a * (Fintype.card H.V * Fintype.card H.V) + 2 * H.E := by
+    intro a
+    rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, smul_eq_mul, hH]
+    ring
+  have key : 2 * (lexProduct G H).E
+      = 2 * (Fintype.card H.V * Fintype.card H.V * G.E + Fintype.card G.V * H.E) := by
+    rw [← hlex, Fintype.sum_prod_type,
+      Finset.sum_congr rfl fun a _ ↦ Finset.sum_congr rfl fun b _ ↦ hdeg (a, b),
+      Finset.sum_congr rfl fun a _ ↦ hfibre a, Finset.sum_add_distrib, ← Finset.sum_mul, hG,
+      Finset.sum_const, Finset.card_univ, smul_eq_mul]
+    ring
+  exact Nat.eq_of_mul_eq_mul_left (by norm_num) key
+
 end CGraph
 
 namespace IsoGraph
@@ -14209,5 +14271,41 @@ theorem exists_cliqueCount_three_eq_zero_and_le_chromNum (k : ℕ) :
 
 example : (mycielskian (cycle 5)).cliqueNum = 2 := by
   rw [cliqueNum_mycielskian _ (by simp), cliqueNum_cycle_five, max_self]
+
+/-! ### Edge counts of the strong and lexicographic products -/
+
+@[simp] theorem E_strongProduct (G H : IsoGraph) :
+    (strongProduct G H).E = G.V * H.E + H.V * G.E + 2 * G.E * H.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
+  exact CGraph.E_strongProduct _ _
+
+@[simp] theorem E_lexProduct (G H : IsoGraph) :
+    (lexProduct G H).E = H.V * H.V * G.E + G.V * H.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
+  exact CGraph.E_lexProduct _ _
+
+theorem E_strongProduct_eq_add (G H : IsoGraph) :
+    (strongProduct G H).E = (cartesianProduct G H).E + (tensorProduct G H).E := by
+  rw [E_strongProduct, E_cartesianProduct, E_tensorProduct]
+
+example : (strongProduct (complete 3) (complete 3)).E = 36 := by
+  rw [E_strongProduct]
+  simp
+
+example : (lexProduct (complete 2) (empty 3)).E = 9 := by
+  rw [E_lexProduct]
+  simp
+
+example : (strongProduct (path 2) (path 2)).E = 6 := by
+  rw [E_strongProduct]
+  simp
+
+example : (paley 9).E = 27 := by
+  rw [paley_nine_eq_lexProduct, E_lexProduct]
+  simp
 
 end IsoGraph
