@@ -1538,6 +1538,14 @@ complete multipartite graphs both `χ = ω` (counting the nonempty parts) and th
 `α = θ` (the parts themselves are simultaneously the largest independent set and an optimal
 clique cover) hold. Odd cycles show none of this is automatic: `C₅` has `ω = 2` but `χ = 3`.
 
+A graph is acyclic exactly when its girth is zero, so the girth table doubles as a table of
+which named families contain a cycle: the Petersen graph, the hypercubes and complete bipartite
+graphs of positive girth, the triangular, Johnson and Kneser graphs, the rook's graphs and the
+Paley graphs are all shown non-acyclic — and hence not trees — by a single rewrite each. In the
+other direction an acyclic graph has no triangle, so its clique number is at most two and it has
+no three-vertex clique at all; combined with the edge count `E + 1 = V` this pins the clique
+number of any tree on at least two vertices at exactly two.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

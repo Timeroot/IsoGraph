@@ -16662,4 +16662,92 @@ example (m n : ℕ) : (bipartite (m + 1) (n + 1)).indepNum
     = (bipartite (m + 1) (n + 1)).cliqueCoverNum := by
   rw [indepNum_bipartite, cliqueCoverNum_bipartite]
 
+/-! ### Acyclicity from girth
+
+`girth_eq_zero_iff` says that a graph is acyclic exactly when its girth is `0`, so every entry
+in the girth table for the named families immediately rules out acyclicity — and, since a tree is
+in particular acyclic, rules out being a tree as well. -/
+
+theorem not_isAcyclic_of_girth_pos {G : IsoGraph} (h : 0 < G.girth) : ¬ IsAcyclic G := by
+  rw [← girth_eq_zero_iff]
+  omega
+
+theorem girth_pos_of_not_isAcyclic {G : IsoGraph} (h : ¬ IsAcyclic G) : 0 < G.girth :=
+  Nat.pos_of_ne_zero fun h0 ↦ h (girth_eq_zero_iff.1 h0)
+
+theorem not_isTree_of_girth_pos {G : IsoGraph} (h : 0 < G.girth) : ¬ IsTree G :=
+  fun ht ↦ not_isAcyclic_of_girth_pos h ((isTree_iff_isConnected_and_isAcyclic G).1 ht).2
+
+/-- An acyclic graph has no triangle, so no clique on three vertices. -/
+theorem cliqueNum_le_two_of_isAcyclic {G : IsoGraph} (h : IsAcyclic G) : G.cliqueNum ≤ 2 := by
+  by_contra hc
+  exact not_isAcyclic_of_girth_pos
+    (by rw [girth_eq_three_of_cliqueNum (by omega)]; omega) h
+
+theorem cliqueCount_three_eq_zero_of_isAcyclic {G : IsoGraph} (h : IsAcyclic G) :
+    G.cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_iff G |>.2 (by rw [girth_eq_zero_iff.2 h]; omega)
+
+/-- A tree on at least two vertices has an edge, and no triangle. -/
+theorem cliqueNum_of_isTree {G : IsoGraph} (h : IsTree G) (hV : 2 ≤ G.V) : G.cliqueNum = 2 := by
+  have h1 := h.E_add_one
+  have h2 := two_le_cliqueNum_of_E_pos (G := G) (by omega)
+  have h3 := cliqueNum_le_two_of_isAcyclic ((isTree_iff_isConnected_and_isAcyclic G).1 h).2
+  omega
+
+/-! ### The named families that contain a cycle -/
+
+@[simp] theorem not_isAcyclic_petersen : ¬ IsAcyclic petersen :=
+  not_isAcyclic_of_girth_pos (by rw [girth_petersen]; omega)
+
+@[simp] theorem not_isAcyclic_bipartite (m n : ℕ) : ¬ IsAcyclic (bipartite (m + 2) (n + 2)) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_bipartite]; omega)
+
+@[simp] theorem not_isAcyclic_hypercube (n : ℕ) : ¬ IsAcyclic (hypercube (n + 2)) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_hypercube]; omega)
+
+@[simp] theorem not_isAcyclic_cocktailParty (n : ℕ) : ¬ IsAcyclic (cocktailParty (n + 3)) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_cocktailParty]; omega)
+
+@[simp] theorem not_isAcyclic_book (n : ℕ) : ¬ IsAcyclic (book (n + 1)) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_book]; omega)
+
+@[simp] theorem not_isAcyclic_triangular (n : ℕ) : ¬ IsAcyclic (triangular (n + 4)) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_triangular]; omega)
+
+@[simp] theorem not_isAcyclic_johnson_two (n : ℕ) : ¬ IsAcyclic (johnson (n + 4) 2) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_johnson_two]; omega)
+
+@[simp] theorem not_isAcyclic_kneser_two (n : ℕ) : ¬ IsAcyclic (kneser (n + 6) 2) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_kneser_two]; omega)
+
+theorem not_isAcyclic_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) (h : 3 ≤ max m n) :
+    ¬ IsAcyclic (rook m n) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_rook hm hn h]; omega)
+
+theorem not_isAcyclic_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq9 : 9 ≤ q) :
+    ¬ IsAcyclic (paley q) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_paley q hq hq9]; omega)
+
+@[simp] theorem not_isTree_petersen : ¬ IsTree petersen :=
+  not_isTree_of_girth_pos (by rw [girth_petersen]; omega)
+
+@[simp] theorem not_isTree_bipartite (m n : ℕ) : ¬ IsTree (bipartite (m + 2) (n + 2)) :=
+  not_isTree_of_girth_pos (by rw [girth_bipartite]; omega)
+
+@[simp] theorem not_isTree_hypercube (n : ℕ) : ¬ IsTree (hypercube (n + 2)) :=
+  not_isTree_of_girth_pos (by rw [girth_hypercube]; omega)
+
+/-- A graph with a vertex of degree at least three has a triangle in its line graph. -/
+theorem not_isAcyclic_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
+    ¬ IsAcyclic (IsoGraph.lineGraph G) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_lineGraph_eq_three h]; omega)
+
+example : ¬ IsAcyclic (hypercube 4) := by simp
+
+example : (star 5).cliqueNum = 2 := cliqueNum_of_isTree (isTree_star 5) (by rw [V_star]; omega)
+
+example (G : IsoGraph) (h : IsTree G) : G.cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isAcyclic ((isTree_iff_isConnected_and_isAcyclic G).1 h).2
+
 end IsoGraph
