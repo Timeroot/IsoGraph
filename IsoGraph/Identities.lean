@@ -6608,6 +6608,67 @@ theorem autCount_eq_one_iff (G : CGraph) :
   · intro h
     exact ⟨⟨fun a b ↦ (h a).trans (h b).symm⟩, ⟨RelIso.refl _⟩⟩
 
+/-! ### Automorphisms versus degrees and symmetry -/
+
+/-- Automorphisms preserve degrees, so a graph whose vertices all have distinct degrees is
+asymmetric. -/
+theorem autCount_eq_one_of_degree_injective (G : CGraph)
+    (h : Function.Injective fun v : G.V ↦ G.toSimple.degree v) : G.autCount = 1 := by
+  rw [autCount_eq_one_iff]
+  intro a
+  ext v
+  exact h (SimpleGraph.Iso.degree_eq a v)
+
+/-- A vertex-transitive graph has at least `|V|` automorphisms: the automorphisms carrying a fixed
+base vertex to each vertex in turn are already pairwise distinct. -/
+theorem card_le_autCount_of_isVertexTransitive (G : CGraph) [Nonempty G.V]
+    (h : G.IsVertexTransitive) : Fintype.card G.V ≤ G.autCount := by
+  obtain ⟨v₀⟩ := ‹Nonempty G.V›
+  choose f hf using h v₀
+  haveI : Finite (G ≃cg G) := G.instFiniteAut
+  have hinj : Function.Injective f := by
+    intro u v huv
+    have h1 : (f u) v₀ = (f v) v₀ := by rw [huv]
+    rw [hf u, hf v] at h1
+    exact h1
+  calc Fintype.card G.V = Nat.card G.V := Nat.card_eq_fintype_card.symm
+    _ ≤ Nat.card (G ≃cg G) := Nat.card_le_card_of_injective f hinj
+    _ = G.autCount := rfl
+
+/-- An arc-transitive graph has at least `2|E|` automorphisms, one for each arc. -/
+theorem two_mul_E_le_autCount_of_isArcTransitive (G : CGraph) (h : G.IsArcTransitive) :
+    2 * G.E ≤ G.autCount := by
+  classical
+  rcases Nat.eq_zero_or_pos G.E with hE | hE
+  · simp [hE]
+  obtain ⟨u₀, v₀, h₀⟩ := exists_adj_of_E_pos hE
+  haveI : Finite (G ≃cg G) := G.instFiniteAut
+  choose f hf1 hf2 using fun d : G.toSimple.Dart ↦
+    h u₀ v₀ d.toProd.1 d.toProd.2 h₀ d.adj
+  have hinj : Function.Injective f := by
+    intro d e hde
+    apply SimpleGraph.Dart.ext
+    have h1 : (f d) u₀ = (f e) u₀ := by rw [hde]
+    have h2 : (f d) v₀ = (f e) v₀ := by rw [hde]
+    rw [hf1 d, hf1 e] at h1
+    rw [hf2 d, hf2 e] at h2
+    exact Prod.ext h1 h2
+  calc 2 * G.E = Fintype.card G.toSimple.Dart :=
+        (SimpleGraph.dart_card_eq_twice_card_edges _).symm
+    _ = Nat.card G.toSimple.Dart := Fintype.card_eq_nat_card
+    _ ≤ Nat.card (G ≃cg G) := Nat.card_le_card_of_injective f hinj
+    _ = G.autCount := rfl
+
+/-- Too few automorphisms to move a base vertex everywhere. -/
+theorem not_isVertexTransitive_of_autCount_lt (G : CGraph) [Nonempty G.V]
+    (h : G.autCount < Fintype.card G.V) : ¬ G.IsVertexTransitive := fun hvt ↦
+  absurd (G.card_le_autCount_of_isVertexTransitive hvt) (by omega)
+
+/-- Too few automorphisms to move a base arc everywhere. -/
+theorem not_isArcTransitive_of_autCount_lt (G : CGraph) (h : G.autCount < 2 * G.E) :
+    ¬ G.IsArcTransitive := fun hat ↦
+  absurd (G.two_mul_E_le_autCount_of_isArcTransitive hat) (by omega)
+
 end CGraph
 
 namespace IsoGraph
@@ -13478,5 +13539,42 @@ theorem ne_of_autCount_ne {G H : IsoGraph} (h : G.autCount ≠ H.autCount) : G �
 example : (complete 4).autCount = 24 := by simp [Nat.factorial]
 
 example : (empty 3).autCount = 6 := by simp [Nat.factorial]
+
+/-! ### Automorphisms versus symmetry -/
+
+theorem V_le_autCount_of_isVertexTransitive (G : IsoGraph) (hV : 0 < G.V)
+    (h : G.IsVertexTransitive) : G.V ≤ G.autCount := by
+  induction G using Quotient.inductionOn with | _ g =>
+  haveI : Nonempty g.V := Fintype.card_pos_iff.1 hV
+  exact CGraph.card_le_autCount_of_isVertexTransitive g h
+
+theorem two_mul_E_le_autCount_of_isArcTransitive (G : IsoGraph) (h : G.IsArcTransitive) :
+    2 * G.E ≤ G.autCount := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.two_mul_E_le_autCount_of_isArcTransitive g h
+
+theorem not_isVertexTransitive_of_autCount_lt (G : IsoGraph) (hV : 0 < G.V)
+    (h : G.autCount < G.V) : ¬ G.IsVertexTransitive := fun hvt ↦
+  absurd (G.V_le_autCount_of_isVertexTransitive hV hvt) (by omega)
+
+theorem not_isArcTransitive_of_autCount_lt (G : IsoGraph) (h : G.autCount < 2 * G.E) :
+    ¬ G.IsArcTransitive := fun hat ↦
+  absurd (G.two_mul_E_le_autCount_of_isArcTransitive hat) (by omega)
+
+example : 5 ≤ (cycle 5).autCount := by
+  have := V_le_autCount_of_isVertexTransitive (cycle 5) (by simp) (by simp)
+  simpa using this
+
+example : 10 ≤ (cycle 5).autCount := by
+  have := two_mul_E_le_autCount_of_isArcTransitive (cycle 5) (by simp)
+  simpa using this
+
+example : 24 ≤ (hypercube 3).autCount := by
+  have := two_mul_E_le_autCount_of_isArcTransitive (hypercube 3) (by simp)
+  simpa using this
+
+example : 30 ≤ (kneser 5 2).autCount := by
+  have := two_mul_E_le_autCount_of_isArcTransitive (kneser 5 2) (by simp)
+  simpa using this
 
 end IsoGraph

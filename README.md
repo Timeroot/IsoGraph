@@ -1252,6 +1252,20 @@ automorphism of `G` and of `Gᶜ`, and spelling out both directions of `compl_ad
 `complete n`, so both have `n!` of them.  `autCount G = 1` is exactly asymmetry, and differing
 counts is another way to tell two `IsoGraph`s apart.
 
+Symmetry gives lower bounds on that count, and degrees give an upper one.  Automorphisms preserve
+degrees (`SimpleGraph.Iso.degree_eq`), so **a graph whose vertices all have distinct degrees is
+asymmetric**: `autCount G = 1`.  In the other direction, fix a base vertex `v₀` in a
+vertex-transitive graph and choose, for each `v`, an automorphism `f v` with `f v v₀ = v`; the map
+`v ↦ f v` is injective because `v₀` is sent to `v`, giving **`|V| ≤ autCount G`**.  The same
+argument one dimension up, with a base *arc* `(u₀, v₀)` and Mathlib's `Dart` type in the role of
+the arcs, gives **`2|E| ≤ autCount G`** for arc-transitive graphs, since
+`dart_card_eq_twice_card_edges` counts the darts.  Both bounds are stated in the contrapositive as
+well (`not_isVertexTransitive_of_autCount_lt`, `not_isArcTransitive_of_autCount_lt`), which is how
+one rules symmetry out from a known automorphism count.  Instantiating them at the transitive
+families already in the library yields facts like `5 ≤ autCount (cycle 5)`, `10 ≤ autCount
+(cycle 5)` from arc-transitivity, `24 ≤ autCount (hypercube 3)` and `30 ≤ autCount (kneser 5 2)` —
+each just the transitivity lemma plus `simp` evaluating `V` or `E`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
