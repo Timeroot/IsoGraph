@@ -2768,6 +2768,25 @@ theorem E_lineGraph_eq_sum_degSequence (G : CGraph) [DecidableEq G.V] :
     (lineGraph G).E = (G.degSequence.map fun d ↦ d.choose 2).sum := by
   rw [sum_degSequence_map, E_lineGraph]
 
+/-- Constant neighbour counts are exactly regularity. -/
+theorem isRegularOfDegree_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v).card = k) :
+    G.toSimple.IsRegularOfDegree k := fun v ↦ by
+  rw [SimpleGraph.degree, neighborFinset_eq_nbrs, h]
+
+theorem degSequence_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v).card = k) :
+    G.degSequence = List.replicate (Fintype.card G.V) k :=
+  degSequence_of_regular G (isRegularOfDegree_of_card_nbrs G h)
+
+@[simp] theorem degSequence_kneser {n k : ℕ} (hk : 1 ≤ k) :
+    (kneser n k).degSequence = List.replicate (n.choose k) ((n - k).choose k) := by
+  rw [degSequence_of_card_nbrs _ (card_nbrs_kneser hk), card_kneser]
+
+@[simp] theorem degSequence_rook (m n : ℕ) :
+    (rook m n).degSequence = List.replicate (m * n) ((n - 1) + (m - 1)) := by
+  rw [degSequence_of_card_nbrs _ (card_nbrs_rook)]
+  congr 1
+  simp only [rook, card_cartesianProduct, card_complete]
+
 end CGraph
 
 namespace IsoGraph
@@ -6144,10 +6163,6 @@ theorem IsSRGWith.degSequence {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G
 @[simp] theorem degSequence_petersen : degSequence petersen = List.replicate 10 3 :=
   isSRGWith_petersen.degSequence
 
-@[simp] theorem degSequence_rook (k : ℕ) :
-    degSequence (rook k k) = List.replicate (k * k) (2 * (k - 1)) :=
-  (isSRGWith_rook k).degSequence
-
 @[simp] theorem degSequence_kneser_two (n : ℕ) :
     degSequence (kneser n 2) = List.replicate (n.choose 2) ((n - 2).choose 2) :=
   (isSRGWith_kneser_two n).degSequence
@@ -6208,6 +6223,63 @@ theorem IsSRGWith.E_lineGraph {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G
 
 @[simp] theorem E_triangular (n : ℕ) : (triangular n).E = n * (n - 1).choose 2 := by
   rw [← lineGraph_complete_eq_triangular, E_lineGraph_complete]
+
+/-! ### More vertex counts -/
+
+@[simp] theorem V_rook (m n : ℕ) : (rook m n).V = m * n := by
+  show (cartesianProduct (complete m) (complete n)).V = _
+  rw [V_cartesianProduct, V_complete, V_complete]
+
+@[simp] theorem V_triangular (n : ℕ) : (triangular n).V = n.choose 2 := V_johnson n 2
+
+@[simp] theorem V_ladder (n : ℕ) : (ladder n).V = n * 2 := by
+  show (cartesianProduct (path n) (complete 2)).V = _
+  rw [V_cartesianProduct, V_path, V_complete]
+
+@[simp] theorem V_prism (n : ℕ) : (prism n).V = n * 2 := by
+  show (cartesianProduct (cycle n) (complete 2)).V = _
+  rw [V_cartesianProduct, V_cycle, V_complete]
+
+@[simp] theorem V_fan (n : ℕ) : (fan n).V = 1 + n := by
+  show (join (complete 1) (path n)).V = _
+  rw [V_join, V_complete, V_path]
+
+@[simp] theorem V_book (n : ℕ) : (book n).V = 2 + n := by
+  show (completeMultipartite [1, 1, n]).V = _
+  rw [V_completeMultipartite]
+  simp
+  omega
+
+@[simp] theorem V_cocktailParty (n : ℕ) : (cocktailParty n).V = 2 * n := by
+  show (completeMultipartite (List.replicate n 2)).V = _
+  rw [V_completeMultipartite, List.sum_replicate, smul_eq_mul]
+  omega
+
+/-! ### Regular families beyond the strongly regular ones -/
+
+/-- The handshake lemma for any graph whose degree sequence is constant. -/
+theorem two_mul_E_of_degSequence_replicate {G : IsoGraph} {n k : ℕ}
+    (h : degSequence G = List.replicate n k) : 2 * G.E = n * k := by
+  rw [← sum_degSequence, h, List.sum_replicate, smul_eq_mul]
+
+@[simp] theorem degSequence_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
+    degSequence (kneser n k) = List.replicate (n.choose k) ((n - k).choose k) := by
+  rw [kneser_def, degSequence_mk]
+  exact CGraph.degSequence_kneser hk
+
+@[simp] theorem degSequence_rook (m n : ℕ) :
+    degSequence (rook m n) = List.replicate (m * n) ((n - 1) + (m - 1)) := by
+  show degSequence (cartesianProduct (complete m) (complete n)) = _
+  rw [complete_def m, complete_def n, cartesianProduct_mk, degSequence_mk]
+  exact CGraph.degSequence_rook m n
+
+theorem two_mul_E_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
+    2 * (kneser n k).E = n.choose k * (n - k).choose k :=
+  two_mul_E_of_degSequence_replicate (degSequence_kneser n hk)
+
+theorem degSequence_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    degSequence (paley q) = List.replicate q ((q - 1) / 2) :=
+  (isSRGWith_paley q hq).degSequence
 
 /-! ### The Petersen graph -/
 
@@ -6787,6 +6859,18 @@ example : (triangular 5).E = 30 := by simp [Nat.choose]
 example (G : IsoGraph) (h : G.V = 5) (h2 : G.E = 4) : (compl G).E = 6 := by
   rw [E_compl_eq, h, h2]
   rfl
+
+example : degSequence (rook 3 3) = List.replicate 9 4 := by simp
+
+example : 2 * (kneser 5 2).E = 30 := by
+  rw [two_mul_E_kneser 5 (k := 2) (by norm_num)]
+  rfl
+
+example : (fan 4).V = 5 := by simp
+
+example : (cocktailParty 4).V = 8 := by simp
+
+example : (triangular 5).V = 10 := by simp [Nat.choose]
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp

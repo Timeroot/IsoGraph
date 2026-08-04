@@ -803,6 +803,15 @@ taken over `degSequence`, so the quotient statement is
 to a constant degree sequence gives `IsSRGWith.E_lineGraph` and `E_lineGraph_complete`, and the
 latter transports along `lineGraph_complete_eq_triangular` to `E_triangular`.
 
+Not every regular graph is strongly regular, and the ones that are not still have constant degree
+sequences. The `SRG.lean` machinery already computes neighbour-set cardinalities for several
+families, so `isRegularOfDegree_of_card_nbrs` turns a `∀ v, (G.nbrs v).card = k` into Mathlib's
+`IsRegularOfDegree` and hence into a `replicate` degree sequence. That covers the Kneser graphs
+`K(n, k)` for every `k` and the rectangular rook graphs `m × n`, where the strongly regular
+statements only reached `k = 2` and `m = n`; `two_mul_E_of_degSequence_replicate` then gives their
+edge counts. The abbreviations also acquired the vertex counts they were missing — `rook`,
+`triangular`, `ladder`, `prism`, `fan`, `book` and `cocktailParty`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
