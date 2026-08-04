@@ -980,6 +980,22 @@ conjecture, now known to be false, so the inequality is the honest statement.  A
 separates `C₃ ⊔ C₃` from `C₆`: both are `2`-regular on six vertices with six edges and neither the
 degree sequence nor the edge count can tell them apart.
 
+The chromatic number then gets the same product treatment the other invariants got.  The join adds
+(`χ(G + H) = χ(G) + χ(H)`): the upper bound puts the two palettes side by side with `Fin.castAdd`
+and `Fin.natAdd`, and the lower bound observes that in a join no colour can appear on both sides,
+so the two colour *sets* of any colouring are disjoint and each restricts to a colouring of its
+side.  The cartesian product is Sabidussi's theorem, `χ(G □ H) = max χ(G) χ(H)` for nonempty
+factors: an edge of `G □ H` moves exactly one coordinate, so colouring `(x, y)` by the *sum*
+`c_G(x) + c_H(y)` in `Fin n` — which is a group, hence has cancellation — is proper, and the two
+lower bounds come from the row and column copies of the factors.  The lexicographic product only
+gets the inequality `χ(G[H]) ≤ χ(G)·χ(H)`, by colouring with the pair of coordinate colours.  A
+second general bound, `|V| ≤ χ·α`, comes from the colour classes: each one is an independent set
+and together they cover the graph, which is how `cocktailParty (n+1)` is shown to need at least
+`n+1` colours before `chromNum_completeMultipartite` confirms it needs exactly that.  The
+multipartite formula — one colour per nonempty part — is the join rule run along
+`completeMultipartite_cons`, and it settles the cocktail-party graphs and the books; the wheels
+follow from `wheel_eq_join`, at `3` colours over an even cycle and `4` over an odd one.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

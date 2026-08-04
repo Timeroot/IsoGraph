@@ -3875,6 +3875,237 @@ theorem chromNum_tensorProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq 
   · have h' : G.Adj p.1 q.1 = true ∧ H.Adj p.2 q.2 = true := by simpa using h
     exact h'.2
 
+section ChromProducts
+
+variable {X Y : Type} [Fintype X] [Fintype Y]
+
+/-! ### The join -/
+
+omit [Fintype X] [Fintype Y] in
+/-- Two colourings with disjoint palettes colour a join. -/
+private theorem colorable_of_join_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {J : SimpleGraph (X ⊕ Y)} {a b : ℕ}
+    (hll : ∀ x y, J.Adj (.inl x) (.inl y) → S.Adj x y)
+    (hrr : ∀ x y, J.Adj (.inr x) (.inr y) → T.Adj x y)
+    (hS : S.Colorable a) (hT : T.Colorable b) : J.Colorable (a + b) := by
+  obtain ⟨cS⟩ := hS
+  obtain ⟨cT⟩ := hT
+  refine ⟨SimpleGraph.Coloring.mk
+    (Sum.elim (fun x ↦ (cS x).castAdd b) (fun y ↦ (cT y).natAdd a)) ?_⟩
+  intro v w hadj
+  cases v with
+  | inl x =>
+    cases w with
+    | inl y =>
+      refine fun h ↦ cS.valid (hll x y hadj) (Fin.ext ?_)
+      simpa using congrArg Fin.val h
+    | inr y =>
+      refine Fin.ne_of_val_ne ?_
+      have := (cS x).isLt
+      simp only [Sum.elim_inl, Sum.elim_inr, Fin.val_castAdd, Fin.val_natAdd]
+      omega
+  | inr x =>
+    cases w with
+    | inl y =>
+      refine Fin.ne_of_val_ne ?_
+      have := (cS y).isLt
+      simp only [Sum.elim_inl, Sum.elim_inr, Fin.val_castAdd, Fin.val_natAdd]
+      omega
+    | inr y =>
+      refine fun h ↦ cT.valid (hrr x y hadj) (Fin.ext ?_)
+      simpa using congrArg Fin.val h
+
+/-- In a join every colour is used on one side only, so the two palettes are disjoint and the
+chromatic numbers add. -/
+private theorem chromaticNumber_add_le_of_join_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {J : SimpleGraph (X ⊕ Y)} {n : ℕ}
+    (hll : ∀ x y, S.Adj x y → J.Adj (.inl x) (.inl y))
+    (hrr : ∀ x y, T.Adj x y → J.Adj (.inr x) (.inr y))
+    (hlr : ∀ x y, J.Adj (.inl x) (.inr y))
+    (hc : J.Colorable n) : S.chromaticNumber + T.chromaticNumber ≤ n := by
+  classical
+  obtain ⟨c⟩ := hc
+  set A : Finset (Fin n) := Finset.univ.image fun x : X ↦ c (.inl x) with hA
+  set B : Finset (Fin n) := Finset.univ.image fun y : Y ↦ c (.inr y) with hB
+  have hdisj : Disjoint A B := by
+    rw [Finset.disjoint_left]
+    intro z hz hz'
+    rw [hA, Finset.mem_image] at hz
+    rw [hB, Finset.mem_image] at hz'
+    obtain ⟨x, -, hx⟩ := hz
+    obtain ⟨y, -, hy⟩ := hz'
+    exact c.valid (hlr x y) (hx.trans hy.symm)
+  have hcard : A.card + B.card ≤ n := by
+    have h := Finset.card_le_univ (A ∪ B)
+    rwa [Finset.card_union_of_disjoint hdisj, Fintype.card_fin] at h
+  have hSA : S.Colorable A.card := by
+    have C : S.Coloring {z // z ∈ A} :=
+      SimpleGraph.Coloring.mk (fun x ↦ ⟨c (.inl x), by rw [hA, Finset.mem_image]; exact ⟨x, by simp⟩⟩)
+        fun {v w} h he ↦ c.valid (hll v w h) (congrArg Subtype.val he)
+    simpa using C.colorable
+  have hTB : T.Colorable B.card := by
+    have C : T.Coloring {z // z ∈ B} :=
+      SimpleGraph.Coloring.mk (fun y ↦ ⟨c (.inr y), by rw [hB, Finset.mem_image]; exact ⟨y, by simp⟩⟩)
+        fun {v w} h he ↦ c.valid (hrr v w h) (congrArg Subtype.val he)
+    simpa using C.colorable
+  calc S.chromaticNumber + T.chromaticNumber
+      ≤ (A.card : ℕ∞) + (B.card : ℕ∞) :=
+        add_le_add hSA.chromaticNumber_le hTB.chromaticNumber_le
+    _ = ((A.card + B.card : ℕ) : ℕ∞) := by push_cast; ring
+    _ ≤ (n : ℕ∞) := Nat.cast_le.2 hcard
+
+/-! ### The cartesian product -/
+
+omit [Fintype X] [Fintype Y] in
+/-- Colouring `G □ H` by the *sum* of the two coordinate colours, in `ZMod n`: an edge changes
+exactly one coordinate, so the sums differ by cancellation. -/
+private theorem colorable_of_cartesian_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)} {n : ℕ}
+    (hadj : ∀ p q : X × Y, P.Adj p q → (p.1 = q.1 ∧ T.Adj p.2 q.2) ∨ (S.Adj p.1 q.1 ∧ p.2 = q.2))
+    (hS : S.Colorable n) (hT : T.Colorable n) : P.Colorable n := by
+  cases n with
+  | zero =>
+    haveI : IsEmpty X := SimpleGraph.isEmpty_of_colorable_zero hS
+    haveI : IsEmpty (X × Y) := inferInstance
+    exact SimpleGraph.Colorable.of_isEmpty 0
+  | succ m =>
+    obtain ⟨cS⟩ := hS
+    obtain ⟨cT⟩ := hT
+    refine ⟨SimpleGraph.Coloring.mk (fun p ↦ cS p.1 + cT p.2) ?_⟩
+    intro v w hvw
+    show cS v.1 + cT v.2 ≠ cS w.1 + cT w.2
+    rcases hadj v w hvw with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [h1]
+      exact fun h ↦ cT.valid h2 (add_left_cancel h)
+    · rw [h2]
+      exact fun h ↦ cS.valid h1 (add_right_cancel h)
+
+omit [Fintype X] [Fintype Y] in
+/-- A copy of `G` sits inside `G □ H` as a row. -/
+private theorem chromaticNumber_le_of_cartesian_left {S : SimpleGraph X}
+    {P : SimpleGraph (X × Y)}
+    (hadj : ∀ p q : X × Y, (S.Adj p.1 q.1 ∧ p.2 = q.2) → P.Adj p q) (y : Y) :
+    S.chromaticNumber ≤ P.chromaticNumber :=
+  SimpleGraph.chromaticNumber_mono_of_hom
+    ⟨fun x ↦ (x, y), fun {a b} h ↦ hadj (a, y) (b, y) ⟨h, rfl⟩⟩
+
+omit [Fintype X] [Fintype Y] in
+/-- A copy of `H` sits inside `G □ H` as a column. -/
+private theorem chromaticNumber_le_of_cartesian_right {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)}
+    (hadj : ∀ p q : X × Y, (p.1 = q.1 ∧ T.Adj p.2 q.2) → P.Adj p q) (x : X) :
+    T.chromaticNumber ≤ P.chromaticNumber :=
+  SimpleGraph.chromaticNumber_mono_of_hom
+    ⟨fun y ↦ (x, y), fun {a b} h ↦ hadj (x, a) (x, b) ⟨rfl, h⟩⟩
+
+/-! ### The lexicographic product -/
+
+omit [Fintype X] [Fintype Y] in
+/-- Colouring `G[H]` by the pair of coordinate colours. -/
+private theorem colorable_of_lex_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)} {a b : ℕ}
+    (hadj : ∀ p q : X × Y, P.Adj p q → S.Adj p.1 q.1 ∨ (p.1 = q.1 ∧ T.Adj p.2 q.2))
+    (hS : S.Colorable a) (hT : T.Colorable b) : P.Colorable (a * b) := by
+  obtain ⟨cS⟩ := hS
+  obtain ⟨cT⟩ := hT
+  have C : P.Coloring (Fin a × Fin b) :=
+    SimpleGraph.Coloring.mk (fun p ↦ (cS p.1, cT p.2)) fun {v w} h he ↦ by
+      rcases hadj v w h with h' | ⟨h1, h2⟩
+      · exact cS.valid h' (congrArg Prod.fst he)
+      · exact cT.valid h2 (congrArg Prod.snd he)
+  simpa using C.colorable
+
+end ChromProducts
+
+/-- **The chromatic numbers of a join add.** -/
+theorem chromNum_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (join G H).chromNum = G.chromNum + H.chromNum := by
+  have hll : ∀ x y : G.V, (join G H).toSimple.Adj (.inl x) (.inl y) ↔ G.toSimple.Adj x y := by
+    intro x y
+    rw [CGraph.toSimple_adj, CGraph.toSimple_adj, join_adj_inl_inl]
+  have hrr : ∀ x y : H.V, (join G H).toSimple.Adj (.inr x) (.inr y) ↔ H.toSimple.Adj x y := by
+    intro x y
+    rw [CGraph.toSimple_adj, CGraph.toSimple_adj, join_adj_inr_inr]
+  have hlr : ∀ (x : G.V) (y : H.V), (join G H).toSimple.Adj (.inl x) (.inr y) := by
+    intro x y
+    rw [CGraph.toSimple_adj, join_adj_inl_inr]
+  refine le_antisymm (chromNum_le_iff_colorable.2 ?_) ?_
+  · exact colorable_of_join_adj (S := G.toSimple) (T := H.toSimple)
+      (J := (join G H).toSimple) (fun x y h ↦ (hll x y).1 h) (fun x y h ↦ (hrr x y).1 h)
+      colorable_chromNum colorable_chromNum
+  · refine le_chromNum_iff.2 fun m hm ↦ ?_
+    have h := chromaticNumber_add_le_of_join_adj (S := G.toSimple) (T := H.toSimple)
+      (J := (join G H).toSimple) (fun x y h ↦ (hll x y).2 h) (fun x y h ↦ (hrr x y).2 h) hlr hm
+    rw [← coe_chromNum, ← coe_chromNum, ← Nat.cast_add, Nat.cast_le] at h
+    exact h
+
+/-- **Sabidussi's theorem**: the chromatic number of a cartesian product is the larger of the two.
+Both factors have to be nonempty — the product of anything with the empty graph is empty. -/
+theorem chromNum_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a : G.V) (b : H.V) :
+    (cartesianProduct G H).chromNum = max G.chromNum H.chromNum := by
+  have hle : ∀ p q : G.V × H.V,
+      (cartesianProduct G H).toSimple.Adj p q →
+        (p.1 = q.1 ∧ H.toSimple.Adj p.2 q.2) ∨ (G.toSimple.Adj p.1 q.1 ∧ p.2 = q.2) := by
+    intro p q h
+    simpa using h
+  have hge : ∀ p q : G.V × H.V,
+      ((p.1 = q.1 ∧ H.toSimple.Adj p.2 q.2) ∨ (G.toSimple.Adj p.1 q.1 ∧ p.2 = q.2)) →
+        (cartesianProduct G H).toSimple.Adj p q := by
+    intro p q h
+    rw [CGraph.toSimple_adj, cartesianProduct_adj]
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [CGraph.toSimple_adj] at h2
+      simp [h1, h2]
+    · rw [CGraph.toSimple_adj] at h1
+      simp [h1, h2]
+  refine le_antisymm (chromNum_le_iff_colorable.2 ?_) (max_le ?_ ?_)
+  · exact colorable_of_cartesian_adj (S := G.toSimple) (T := H.toSimple)
+      (P := (cartesianProduct G H).toSimple) hle
+      (colorable_chromNum.mono (le_max_left _ _)) (colorable_chromNum.mono (le_max_right _ _))
+  · rw [← Nat.cast_le (α := ℕ∞), coe_chromNum, coe_chromNum]
+    exact chromaticNumber_le_of_cartesian_left (S := G.toSimple)
+      (P := (cartesianProduct G H).toSimple) (fun p q h ↦ hge p q (Or.inr h)) b
+  · rw [← Nat.cast_le (α := ℕ∞), coe_chromNum, coe_chromNum]
+    exact chromaticNumber_le_of_cartesian_right (T := H.toSimple)
+      (P := (cartesianProduct G H).toSimple) (fun p q h ↦ hge p q (Or.inl h)) a
+
+/-- **The lexicographic product multiplies chromatic numbers, at worst.** -/
+theorem chromNum_lexProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (lexProduct G H).chromNum ≤ G.chromNum * H.chromNum :=
+  chromNum_le_iff_colorable.2 <|
+    colorable_of_lex_adj (S := G.toSimple) (T := H.toSimple) (P := (lexProduct G H).toSimple)
+      (fun p q h ↦ by simpa using h) colorable_chromNum colorable_chromNum
+
+/-- One colour is enough exactly when there is a vertex but no edge. -/
+theorem chromNum_eq_one_iff {G : CGraph} : G.chromNum = 1 ↔ G.E = 0 ∧ 0 < Fintype.card G.V := by
+  have hb : G.toSimple = ⊥ ↔ G.E = 0 := by
+    rw [← not_iff_not, ← ne_eq, toSimple_ne_bot_iff]
+    omega
+  rw [chromNum_eq_iff_chromaticNumber, Nat.cast_one, SimpleGraph.chromaticNumber_eq_one_iff, hb,
+    Fintype.card_pos_iff]
+
+/-- **Every colour class is an independent set**, so `|V| ≤ χ·α`. -/
+theorem card_le_chromNum_mul_indepNum (G : CGraph) :
+    Fintype.card G.V ≤ G.chromNum * G.indepNum := by
+  classical
+  obtain ⟨c⟩ := G.colorable_chromNum
+  have hfib : ∀ i : Fin G.chromNum,
+      (Finset.univ.filter fun v ↦ c v = i).card ≤ G.indepNum := by
+    intro i
+    refine SimpleGraph.IsIndepSet.card_le_indepNum ?_
+    intro x hx y hy hne hadj
+    rw [Finset.coe_filter, Set.mem_setOf_eq] at hx hy
+    exact c.valid hadj (hx.2.trans hy.2.symm)
+  have hsum : Fintype.card G.V
+      = ∑ i : Fin G.chromNum, (Finset.univ.filter fun v ↦ c v = i).card := by
+    rw [← Finset.card_univ]
+    exact Finset.card_eq_sum_card_fiberwise fun v _ ↦ Finset.mem_univ (c v)
+  calc Fintype.card G.V = ∑ i : Fin G.chromNum, (Finset.univ.filter fun v ↦ c v = i).card := hsum
+    _ ≤ ∑ _i : Fin G.chromNum, G.indepNum := Finset.sum_le_sum fun i _ ↦ hfib i
+    _ = G.chromNum * G.indepNum := by rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+        smul_eq_mul]
+
 end CGraph
 
 namespace IsoGraph
@@ -8516,6 +8747,79 @@ theorem chromNum_tensorProduct_le (G H : IsoGraph) :
   chromNum_eq_two_iff.2 ⟨isBipartite_cartesianProduct (isBipartite_path _) (isBipartite_path _),
     by rw [E_cartesianProduct, E_path, E_path, V_path, V_path]; positivity⟩
 
+/-! ### The chromatic number of a join and of the products -/
+
+/-- **The chromatic numbers of a join add.** -/
+@[simp] theorem chromNum_join (G H : IsoGraph) :
+    (join G H).chromNum = G.chromNum + H.chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, chromNum_mk, chromNum_mk, chromNum_mk]
+  exact CGraph.chromNum_join _ _
+
+/-- **Sabidussi's theorem** for the cartesian product. -/
+theorem chromNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (cartesianProduct G H).chromNum = max G.chromNum H.chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [cartesianProduct_mk, chromNum_mk, chromNum_mk, chromNum_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.chromNum_cartesianProduct _ _ a b
+
+/-- **The lexicographic product multiplies chromatic numbers, at worst.** -/
+theorem chromNum_lexProduct_le (G H : IsoGraph) :
+    (lexProduct G H).chromNum ≤ G.chromNum * H.chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, chromNum_mk, chromNum_mk,
+    chromNum_mk]
+  exact CGraph.chromNum_lexProduct_le _ _
+
+/-- **`|V| ≤ χ·α`**: the colour classes are independent sets and they cover the graph. -/
+theorem V_le_chromNum_mul_indepNum (G : IsoGraph) : G.V ≤ G.chromNum * G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, indepNum_mk, V_mk]
+  exact CGraph.card_le_chromNum_mul_indepNum _
+
+/-- One colour is enough exactly when there is a vertex but no edge. -/
+theorem chromNum_eq_one_iff {G : IsoGraph} : G.chromNum = 1 ↔ G.E = 0 ∧ 0 < G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, E_mk, V_mk]
+  exact CGraph.chromNum_eq_one_iff
+
+/-! ### Complete multipartite graphs -/
+
+/-- **A complete multipartite graph needs one colour per nonempty part.** -/
+@[simp] theorem chromNum_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).chromNum = (ds.map fun d ↦ min d 1).sum := by
+  induction ds with
+  | nil => simp
+  | cons d ds ih =>
+    rw [completeMultipartite_cons, chromNum_join, ih, List.map_cons, List.sum_cons]
+    cases d with
+    | zero => simp
+    | succ k => rw [chromNum_empty, Nat.min_eq_right (by omega)]
+
+@[simp] theorem chromNum_cocktailParty (n : ℕ) : (cocktailParty n).chromNum = n := by
+  show (completeMultipartite (List.replicate n 2)).chromNum = n
+  rw [chromNum_completeMultipartite, List.map_replicate]
+  simp
+
+@[simp] theorem chromNum_book (n : ℕ) : (book (n + 1)).chromNum = 3 := by
+  show (completeMultipartite [1, 1, n + 1]).chromNum = 3
+  rw [chromNum_completeMultipartite]
+  simp
+
+@[simp] theorem chromNum_wheel_even (m : ℕ) : (wheel (2 * m + 4)).chromNum = 3 := by
+  rw [wheel_eq_join, chromNum_join, chromNum_complete,
+    show 2 * m + 4 = 2 * (m + 1) + 2 by ring, chromNum_cycle_even]
+
+@[simp] theorem chromNum_wheel_odd (m : ℕ) : (wheel (2 * m + 3)).chromNum = 4 := by
+  rw [wheel_eq_join, chromNum_join, chromNum_complete, chromNum_cycle_odd]
+
 /-! ## The simp set at work
 
 These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
@@ -8989,5 +9293,30 @@ example : disjUnion (cycle 3) (cycle 3) ≠ cycle 6 :=
     rw [chromNum_disjUnion, show (cycle 3).chromNum = 3 from chromNum_cycle_odd 0,
       show (cycle 6).chromNum = 2 from chromNum_cycle_even 2]
     decide)
+
+example : (join (complete 3) (cycle 5)).chromNum = 6 := by
+  rw [chromNum_join, chromNum_complete, show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
+
+example : (join (cycle 4) (cycle 4)).chromNum = 4 := by
+  rw [chromNum_join, show (cycle 4).chromNum = 2 from chromNum_cycle_even 1]
+
+example : (cartesianProduct (complete 4) (cycle 5)).chromNum = 4 := by
+  rw [chromNum_cartesianProduct (by simp) (by simp), chromNum_complete,
+    show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
+  decide
+
+example : (lexProduct (cycle 5) (complete 2)).chromNum ≤ 6 := by
+  have h := chromNum_lexProduct_le (cycle 5) (complete 2)
+  rw [show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1, chromNum_complete] at h
+  omega
+
+/- The independence number bounds the chromatic number from below. -/
+example (n : ℕ) : n + 1 ≤ (cocktailParty (n + 1)).chromNum := by
+  have h := V_le_chromNum_mul_indepNum (cocktailParty (n + 1))
+  rw [V_cocktailParty, indepNum_cocktailParty] at h
+  omega
+
+example : (wheel 7).chromNum = 4 := chromNum_wheel_odd 2
+example : (cocktailParty 4).chromNum = 4 := by simp
 
 end IsoGraph
