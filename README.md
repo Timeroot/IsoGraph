@@ -782,6 +782,17 @@ infinite families — the square rook graphs, `K(n, 2)` and `J(n, 2)`, the trian
 invariant, this is where the quotient statement is the one you actually want: `IsSRGWith` on
 `IsoGraph` is a property of the graph rather than of a particular labelling of it.
 
+Degree sequences were the last invariant with no identities at all. Two hold for every graph:
+`length_degSequence`, since sorting a multiset of degrees keeps one entry per vertex, and
+`sum_degSequence` — the handshake lemma, `Multiset.sort_eq` composed with Mathlib's
+`sum_degrees_eq_twice_card_edges`. Beyond those, the useful observation is that a *regular* graph
+has a constant degree sequence, and `List.eq_replicate_iff` reduces that to "every member of the
+sorted list is `k`", which is just `Multiset.mem_map` and regularity — no reasoning about the sort
+order at all. Since `IsSRGWith` carries regularity as a field, `IsSRGWith.degSequence` then hands
+back `List.replicate n k` for every family in the table above, and combining it with the handshake
+lemma gives `IsSRGWith.two_mul_E : 2 * G.E = n * k`, so `omega` reads off edge counts
+(`petersen.E = 15`, `(rook 3 3).E = 18`) from the parameters alone.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -2728,6 +2728,32 @@ theorem not_isBipartite_lexProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq
     simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
     tauto
 
+@[simp] theorem length_degSequence (G : CGraph) : G.degSequence.length = Fintype.card G.V := by
+  rw [degSequence, Multiset.length_sort, Multiset.card_map, Finset.card_val, Finset.card_univ]
+
+/-- The handshake lemma: the degrees add up to twice the edge count. -/
+theorem sum_degSequence (G : CGraph) : G.degSequence.sum = 2 * G.E := by
+  have h : ((G.degSequence : List ℕ) : Multiset ℕ)
+      = Finset.univ.val.map fun v ↦ G.toSimple.degree v := Multiset.sort_eq _ _
+  have h2 : G.degSequence.sum = (Finset.univ.val.map fun v ↦ G.toSimple.degree v).sum := by
+    rw [← h]; rfl
+  rw [h2]
+  exact SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
+
+/-- A regular graph has a constant degree sequence. -/
+theorem degSequence_of_regular (G : CGraph) {k : ℕ} (h : G.toSimple.IsRegularOfDegree k) :
+    G.degSequence = List.replicate (Fintype.card G.V) k := by
+  rw [List.eq_replicate_iff]
+  refine ⟨G.length_degSequence, fun b hb ↦ ?_⟩
+  rw [degSequence, Multiset.mem_sort, Multiset.mem_map] at hb
+  obtain ⟨v, -, rfl⟩ := hb
+  exact h v
+
+/-- Strongly regular graphs are regular, so their degree sequence is constant. -/
+theorem IsSRGWith.degSequence {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    G.degSequence = List.replicate n k := by
+  rw [degSequence_of_regular G h.regular, h.card]
+
 end CGraph
 
 namespace IsoGraph
@@ -6078,6 +6104,58 @@ theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
 
 theorem isSRGWith_petersen : IsSRGWith petersen 10 3 0 1 := isSRGWith_kneser_two 5
 
+/-! ### Degree sequences -/
+
+@[simp] theorem length_degSequence (G : IsoGraph) : (degSequence G).length = G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.length_degSequence g
+
+/-- The handshake lemma: the degrees add up to twice the edge count. -/
+theorem sum_degSequence (G : IsoGraph) : (degSequence G).sum = 2 * G.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.sum_degSequence g
+
+@[simp] theorem degSequence_empty (n : ℕ) : degSequence (empty n) = List.replicate n 0 :=
+  CGraph.degSequence_empty n
+
+@[simp] theorem degSequence_complete (n : ℕ) :
+    degSequence (complete n) = List.replicate n (n - 1) := CGraph.degSequence_complete n
+
+/-- A strongly regular graph has a constant degree sequence. -/
+theorem IsSRGWith.degSequence {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
+    IsoGraph.degSequence G = List.replicate n k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.IsSRGWith.degSequence h
+
+@[simp] theorem degSequence_petersen : degSequence petersen = List.replicate 10 3 :=
+  isSRGWith_petersen.degSequence
+
+@[simp] theorem degSequence_rook (k : ℕ) :
+    degSequence (rook k k) = List.replicate (k * k) (2 * (k - 1)) :=
+  (isSRGWith_rook k).degSequence
+
+@[simp] theorem degSequence_kneser_two (n : ℕ) :
+    degSequence (kneser n 2) = List.replicate (n.choose 2) ((n - 2).choose 2) :=
+  (isSRGWith_kneser_two n).degSequence
+
+@[simp] theorem degSequence_cocktailParty (n : ℕ) :
+    degSequence (cocktailParty n) = List.replicate (2 * n) (2 * n - 2) :=
+  (isSRGWith_cocktailParty n).degSequence
+
+@[simp] theorem degSequence_bipartite_self (n : ℕ) :
+    degSequence (bipartite n n) = List.replicate (2 * n) n :=
+  (isSRGWith_bipartite n).degSequence
+
+/-- The handshake lemma for a strongly regular graph: `n` vertices of degree `k` give `n * k / 2`
+edges. -/
+theorem IsSRGWith.two_mul_E {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
+    2 * G.E = n * k := by
+  rw [← sum_degSequence, h.degSequence, List.sum_replicate, smul_eq_mul]
+
+theorem degSequence_triangular (n : ℕ) (hn : 4 ≤ n) :
+    degSequence (triangular n) = List.replicate (n.choose 2) (2 * (n - 2)) :=
+  (isSRGWith_triangular n hn).degSequence
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6624,6 +6702,20 @@ example : IsSRGWith (triangular 5) 10 6 3 4 := isSRGWith_triangular 5 (by norm_n
 example : IsSRGWith (cocktailParty 4) 8 6 4 6 := isSRGWith_cocktailParty 4
 example : IsSRGWith (bipartite 3 3) 6 3 0 3 := isSRGWith_bipartite 3
 example : IsSRGWith (compl petersen) 10 6 3 4 := isSRGWith_petersen.compl
+
+example : (degSequence (complete 5)).sum = 20 := by
+  rw [sum_degSequence, E_complete]
+  rfl
+
+example : (degSequence petersen).length = 10 := by rw [degSequence_petersen]; rfl
+
+example : petersen.E = 15 := by have := isSRGWith_petersen.two_mul_E; omega
+
+example : (rook 3 3).E = 18 := by have := (isSRGWith_rook 3).two_mul_E; omega
+
+example : degSequence (cocktailParty 3) = [4, 4, 4, 4, 4, 4] := by
+  rw [degSequence_cocktailParty]
+  rfl
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp
