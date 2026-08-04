@@ -1012,6 +1012,22 @@ among the top `2k - 1` elements.  Specialised to `K(5, 2)` this gives `χ(peters
 `three_le_chromNum` from non-bipartiteness, `χ(petersen) = 3` exactly.  Finally the product form of
 Nordhaus–Gaddum, `|V| ≤ χ(G)·χ(Gᶜ)`, drops out of `|V| ≤ χ·α` and `α(G) = ω(Gᶜ) ≤ χ(Gᶜ)`.
 
+Two more invariants round out the degree material: `maxDeg` and `minDeg`, the largest and smallest
+vertex degree, wrapping Mathlib's `maxDegree` and `minDegree` (both `0` on the empty graph, which
+is the convention the rest of the file already uses).  Isomorphism invariance is Mathlib's
+`Iso.maxDegree_eq` / `Iso.minDegree_eq`, so the quotient lift is immediate.  The bridge to the
+existing tables is `maxDeg_eq_of_degMultiset` and `minDeg_eq_of_degMultiset` — a value that occurs
+in the degree multiset and bounds it on the right side *is* the extreme degree — with
+`maxDeg_of_degMultiset_replicate` as the regular-graph special case.  That turns every entry of
+the `degMultiset` table into two more: `Δ(Kₙ) = δ(Kₙ) = n - 1`, `Δ(Cₙ) = 2`, `Δ(Sₙ) = n` against
+`δ(Sₙ) = 1`, `Δ(Wₙ) = n` against `δ(Wₙ) = 3`, and `Δ = δ = 3` for the Petersen graph.  The
+constructions get exact formulas rather than bounds: the disjoint union takes the max, the join
+adds the other side's vertex count, and the four products behave like their degree formulas
+(`Δ(G □ H) = Δ(G) + Δ(H)`, `Δ(G × H) = Δ(G)·Δ(H)`, `Δ(G[H]) = Δ(G)·|H| + Δ(H)`, and
+`Δ(G ⊠ H) = (Δ(G)+1)(Δ(H)+1) - 1`), each with the matching `minDeg` version — the proofs pick a
+vertex of extreme degree in each factor and pair them up.  Complementation swaps the two,
+`Δ(Gᶜ) = |V| - 1 - δ(G)`, and the handshake lemma becomes the squeeze `|V|·δ ≤ 2|E| ≤ |V|·Δ`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
