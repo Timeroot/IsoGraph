@@ -1723,6 +1723,14 @@ edgeless on three vertices, so a connected non-bipartite `G` and a connected `H`
 their own enough for `G × H` to be connected.
 
 
+The Johnson graphs got their metric.  The prover showed `J(n, k)` is connected and that its
+diameter is `min(k, n - k)` — two `k`-sets at Hamming distance `d` are `d` swaps apart, and no
+pair is further — which fixes the component count at one and, by complementation, makes the
+complement of a Kneser graph `K(n, 2)` connected.  It also found a perfect matching in the rook
+graph, `ν(K_{m+1} □ K_{n+1}) = ⌊(m+1)(n+1)/2⌋`, and the degree sequence of a ladder, four
+degree-2 corners and `2n` degree-3 interior vertices, from which `2‖L_n‖ = 8 + 6n`.
+
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
