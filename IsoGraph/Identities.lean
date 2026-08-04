@@ -19092,4 +19092,847 @@ example : (path 6).cliqueCoverNum = 3 := by rw [cliqueCoverNum_path]
 example : petersen.matchNum = 5 := matchNum_petersen
 example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
 
+/-! ### Domination, independence and regularity found by the automated prover -/
+
+/-- The domination number of a path is `⌈n/3⌉`. -/
+@[simp] theorem domNum_path (n : ℕ) : (path (n + 1)).domNum = (n + 3) / 3 := by
+  simp only [IsoGraph.path, domNum_mk, CGraph.domNum]
+
+  apply le_antisymm
+  · -- domNum ≤ (n+3)/3: construct dominating set of size (n+3)/3
+    apply csInf_le
+    · exact ⟨0, fun x ⟨s, _, _⟩ => Nat.zero_le _⟩
+    · -- Exhibit a dominating set of size (n+3)/3
+      have hmod : n % 3 = 0 ∨ n % 3 = 1 ∨ n % 3 = 2 := by omega
+      rcases hmod with hk | hk | hk
+      · -- n = 3*a
+        obtain ⟨a, rfl⟩ : ∃ a, n = 3 * a := ⟨n / 3, by omega⟩
+        let S : Finset (Fin (3 * a + 1)) :=
+          Finset.image (fun i : Fin (a + 1) => ⟨3 * i.val, by omega⟩) Finset.univ
+        refine ⟨S, ?_, ?_⟩
+        · rw [Finset.card_image_of_injective _ fun i j h => Fin.ext
+            (by have := congr_arg Fin.val h; simp at this; omega), Finset.card_fin]
+          simp
+        · intro v
+          show v ∈ S ∨ ∃ u ∈ S, (CGraph.path (3 * a + 1)).Adj u v
+          dsimp only [S]
+          simp only [Finset.mem_image, Finset.mem_univ, true_and]
+          set i := v.val / 3
+          have hi : i < a + 1 := by omega
+          have hmod_v : v.val % 3 = 0 ∨ v.val % 3 = 1 ∨ v.val % 3 = 2 := by omega
+          rcases hmod_v with hm0 | hm1 | hm2
+          · left
+            have hvval : v.val = 3 * i := by omega
+            exact ⟨⟨i, hi⟩, Fin.ext (by simp; omega)⟩
+          · right
+            set ui : Fin (a + 1) := ⟨i, hi⟩
+            set u : Fin (3 * a + 1) := ⟨3 * ui.val, by omega⟩
+            have huv_ne : u ≠ v := by
+              intro h
+              have := congr_arg Fin.val h
+              dsimp [u, ui] at this
+              omega
+            have hadj : (u : ℕ) + 1 = v.val := by
+              simp [u, ui]
+              have := Nat.div_add_mod v.val 3
+              omega
+            exact ⟨u, ⟨ui, rfl⟩, by
+              rw [CGraph.path_adj]
+              simp [huv_ne, hadj]⟩
+          · right
+            have hi_lt_a : i < a := by omega
+            set ui : Fin (a + 1) := ⟨i + 1, by omega⟩
+            set u : Fin (3 * a + 1) := ⟨3 * ui.val, by omega⟩
+            have huv_ne : u ≠ v := by
+              intro h
+              have := congr_arg Fin.val h
+              dsimp [u, ui] at this
+              omega
+            have hadj : v.val + 1 = (u : ℕ) := by
+              simp [u, ui]
+              rw [← Nat.div_add_mod v.val 3, hm2]
+              omega
+            exact ⟨u, ⟨ui, rfl⟩, by
+              rw [CGraph.path_adj]
+              simp [huv_ne, hadj]⟩
+      · -- n = 3*a + 1
+        obtain ⟨a, rfl⟩ : ∃ a, n = 3 * a + 1 := ⟨n / 3, by omega⟩
+        let S : Finset (Fin (3 * a + 2)) :=
+          Finset.image (fun i : Fin (a + 1) => ⟨3 * i + 1, by omega⟩) Finset.univ
+        refine ⟨S, ?_, ?_⟩
+        · rw [Finset.card_image_of_injective _ fun i j h => Fin.ext
+            (by have := congr_arg Fin.val h; simp at this; omega), Finset.card_fin]
+          simp; omega
+        · intro v
+          show v ∈ S ∨ ∃ u ∈ S, (CGraph.path (3 * a + 2)).Adj u v
+          dsimp only [S]
+          simp only [Finset.mem_image, Finset.mem_univ, true_and]
+          set i := v.val / 3
+          have hi : i < a + 1 := by omega
+          have hmod_v : v.val % 3 = 0 ∨ v.val % 3 = 1 ∨ v.val % 3 = 2 := by omega
+          rcases hmod_v with hm0 | hm1 | hm2
+          · right
+            set ui : Fin (a + 1) := ⟨i, hi⟩
+            set u : Fin (3 * a + 2) := ⟨3 * ui.val + 1, by omega⟩
+            have huv_ne : u ≠ v := by
+              intro h
+              have := congr_arg Fin.val h
+              dsimp [u, ui] at this
+              omega
+            have hadj : v.val + 1 = (u : ℕ) := by
+              simp [u, ui]
+              rw [← Nat.div_add_mod v.val 3, hm0]
+              dsimp [i]
+            exact ⟨u, ⟨ui, rfl⟩, by
+              rw [CGraph.path_adj]
+              simp [huv_ne, hadj]⟩
+          · left
+            have hvval : v.val = 3 * i + 1 := by omega
+            exact ⟨⟨i, hi⟩, Fin.ext (by simp; omega)⟩
+          · right
+            set ui : Fin (a + 1) := ⟨i, hi⟩
+            set u : Fin (3 * a + 2) := ⟨3 * ui.val + 1, by omega⟩
+            have huv_ne : u ≠ v := by
+              intro h
+              have := congr_arg Fin.val h
+              dsimp [u, ui] at this
+              omega
+            have hadj : (u : ℕ) + 1 = v.val := by simp [u, ui]; rw [← Nat.div_add_mod v.val 3, hm2]
+            exact ⟨u, ⟨ui, rfl⟩, by
+              rw [CGraph.path_adj]
+              simp [huv_ne, hadj]⟩
+      · -- n = 3*a + 2
+        obtain ⟨a, rfl⟩ : ∃ a, n = 3 * a + 2 := ⟨n / 3, by omega⟩
+        let S : Finset (Fin (3 * a + 3)) :=
+          Finset.image (fun i : Fin (a + 1) => ⟨3 * i + 1, by omega⟩) Finset.univ
+        refine ⟨S, ?_, ?_⟩
+        · rw [Finset.card_image_of_injective _ fun i j h => Fin.ext
+            (by have := congr_arg Fin.val h; simp at this; omega), Finset.card_fin]
+          simp; omega
+        · intro v
+          show v ∈ S ∨ ∃ u ∈ S, (CGraph.path (3 * a + 3)).Adj u v
+          dsimp only [S]
+          simp only [Finset.mem_image, Finset.mem_univ, true_and]
+          set i := v.val / 3
+          have hi : i < a + 1 := by omega
+          have hmod_v : v.val % 3 = 0 ∨ v.val % 3 = 1 ∨ v.val % 3 = 2 := by omega
+          rcases hmod_v with hm0 | hm1 | hm2
+          · right
+            set ui : Fin (a + 1) := ⟨i, hi⟩
+            set u : Fin (3 * a + 3) := ⟨3 * ui.val + 1, by omega⟩
+            have huv_ne : u ≠ v := by
+              intro h
+              have := congr_arg Fin.val h
+              dsimp [u, ui] at this
+              omega
+            have hadj : v.val + 1 = (u : ℕ) := by
+              simp [u, ui]
+              rw [← Nat.div_add_mod v.val 3, hm0]
+              dsimp [i]
+            exact ⟨u, ⟨ui, rfl⟩, by
+              rw [CGraph.path_adj]
+              simp [huv_ne, hadj]⟩
+          · left
+            have hvval : v.val = 3 * i + 1 := by omega
+            exact ⟨⟨i, hi⟩, Fin.ext (by simp; omega)⟩
+          · right
+            set ui : Fin (a + 1) := ⟨i, hi⟩
+            set u : Fin (3 * a + 3) := ⟨3 * ui.val + 1, by omega⟩
+            have huv_ne : u ≠ v := by
+              intro h
+              have := congr_arg Fin.val h
+              dsimp [u, ui] at this
+              omega
+            have hadj : (u : ℕ) + 1 = v.val := by simp [u, ui]; rw [← Nat.div_add_mod v.val 3, hm2]
+            exact ⟨u, ⟨ui, rfl⟩, by
+              rw [CGraph.path_adj]
+              simp [huv_ne, hadj]⟩
+  · -- (n+3)/3 ≤ domNum: every dominating set has size ≥ (n+3)/3
+    apply le_csInf
+    · -- Nonempty
+      refine ⟨Fintype.card (CGraph.path (n + 1)).V, ⟨Finset.univ, rfl, CGraph.isDominatingSet_univ
+        (CGraph.path (n + 1))⟩⟩
+    · -- Lower bound on every element
+      intro k ⟨s, hk, hs⟩
+      rw [← hk]
+      -- V of path (n+1) is Fin (n+1)
+      -- Define T = {v : Fin (n+1) | v.val % 3 = 0}. |T| = (n+3)/3.
+      -- Each dominator covers at most one element of T (indices within 1, mod 3 argument).
+      --Every element of T is dominated, so |T| ≤ |s|.
+      simp only [CGraph.path, CGraph.ofRel, CGraph.IsDominatingSet] at hs
+      -- Every vertex v : Fin (n+1) is in s or adjacent to something in s (per hs)
+      -- Define T = {v : Fin (n+1) | v.val % 3 = 0}. |T| = (n+3)/3.
+      set T : Finset (Fin (n + 1)) := Finset.filter (fun v : Fin (n + 1) => v.val % 3 = 0)
+        Finset.univ
+      have hcard_T : T.card = (n + 3) / 3 := by
+        set m := (n + 3) / 3
+        -- There are exactly m elements in {0,...,n} divisible by 3, namely 0,3,...,3*(m-1)
+        have : T = Finset.image (fun i : Fin m => ⟨3 * i.val, by omega⟩ : Fin m → Fin (n + 1))
+          Finset.univ := by
+          ext v
+          simp [T, Finset.mem_image, Finset.mem_univ]
+          constructor
+          · intro hv
+            exact ⟨⟨v.val / 3, by omega⟩, by ext; simp; omega⟩
+          · rintro ⟨i, hi, rfl⟩
+            simp
+        rw [this, Finset.card_image_of_injective]
+        · simp
+        · intro a b h; simp at h; exact Fin.ext (by omega)
+      -- Each u ∈ s can "cover" at most one element of T.
+      -- Define a function covering each t ∈ T by some u ∈ s that dominates t.
+      -- Then injectivity (mod 3 argument) gives |T| ≤ |s|.
+      -- Step: for each t ∈ T, pick a dominator u ∈ s.
+      -- Dominator u for t means: t = u (t ∈ s) or Adj u t (u adjacent to t, i.e., |u.val - t.val| =
+      -- 1).
+      -- In either case, t.val ∈ {u.val - 1, u.val, u.val + 1} (within bounds).
+      -- Two distinct elements of T have indices both ≡ 0 mod 3, so they differ by ≥ 3.
+      -- Hence no u can dominate two distinct elements of T. ⇒ injection T → s.
+      -- Step 1: For each t ∈ T, obtain u ∈ s dominating t.
+      have hcover : ∀ t ∈ T, ∃ u ∈ s, (t : ℕ) = u.val ∨ (u.val + 1 = (t : ℕ) ∨ (t : ℕ) + 1 = u.val)
+        := by
+        intro t ht
+        specialize hs t
+        rcases hs with hts | ⟨u, hus, hadj⟩
+        · exact ⟨t, hts, Or.inl rfl⟩
+        · simp at hadj
+          obtain ⟨hne, hadj|hado⟩ := hadj
+          · exact ⟨u, hus, Or.inr (Or.inl hadj)⟩
+          · exact ⟨u, hus, Or.inr (Or.inr hado)⟩
+      -- Step 2: Each u ∈ s covers at most one element of T (mod 3 argument)
+      -- For each t ∈ T, hcover gives a dominator in s.
+      -- Key lemma: no u ∈ s covers two distinct elements of T.
+      have hunique : ∀ u ∈ s, ∀ t1 ∈ T, ∀ t2 ∈ T,
+          ((t1 : ℕ) = u.val ∨ u.val + 1 = (t1 : ℕ) ∨ (t1 : ℕ) + 1 = u.val) →
+          ((t2 : ℕ) = u.val ∨ u.val + 1 = (t2 : ℕ) ∨ (t2 : ℕ) + 1 = u.val) → t1 = t2 := by
+        intro u hu t1 ht1 t2 ht2 p1 p2
+        have ht1T : (t1 : ℕ) % 3 = 0 := Finset.mem_filter.mp ht1 |>.2
+        have ht2T : (t2 : ℕ) % 3 = 0 := Finset.mem_filter.mp ht2 |>.2
+        -- Each of t1.val, t2.val is in {u.val-1, u.val, u.val+1}
+        -- Two numbers ≡ 0 mod 3 in an interval of 3 consecutive integers must be equal.
+        have : (t1 : ℕ) % 3 = (t2 : ℕ) % 3 := by omega
+        -- More: they differ by at most 2, and both ≡ 0 mod 3, so they're equal.
+        have hle : (t1 : ℕ) ≤ (t2 : ℕ) + 2 := by omega
+        have hge : (t2 : ℕ) ≤ (t1 : ℕ) + 2 := by omega
+        have h_eq_val : (t1 : ℕ) = (t2 : ℕ) := by omega
+        exact Fin.ext h_eq_val
+      -- Build an injection from T to s.
+      -- f (as a function on the subtype T) gives dominators in s.
+      -- hunique (rephrased for the subtype) gives injectivity.
+      choose f hf using hcover
+      have hcard_le : T.card ≤ s.card := by
+        let g : T → s := fun t => ⟨f t.val t.property, hf t.val t.property |>.1⟩
+        have hg_inj : Function.Injective g := by
+          intro t1 t2 h_eq
+          have p1 := (hf t1.val t1.property).2
+          have p2 := (hf t2.val t2.property).2
+          have h_eq' : f t1.val t1.property = f t2.val t2.property := by
+            exact congr_arg Subtype.val h_eq
+          rw [h_eq'] at p1
+          have heq := hunique (f t2.val t2.property) (hf t2.val t2.property |>.1) t1.val t1.property
+            t2.val t2.property p1 p2
+          exact Subtype.ext heq
+        have himage : Finset.image (fun t : T => (g t : (CGraph.path (n+1)).V)) Finset.univ ⊆ s :=
+          by
+          intro u hu
+          obtain ⟨t, ht, rfl⟩ := Finset.mem_image.mp hu
+          exact (g t).property
+        have h1 : (Finset.image (fun t : T => (g t : (CGraph.path (n+1)).V)) Finset.univ).card =
+          T.card := by
+          rw [Finset.card_image_of_injective _ (fun a b h => hg_inj (Subtype.ext h))]
+          simp
+        exact h1 ▸ Finset.card_le_card himage
+      rw [← hcard_T]
+      exact hcard_le
+
+
+/-- An odd prism misses a perfect independent transversal by exactly one vertex. -/
+@[simp] theorem indepNum_prism_odd (m : ℕ) : (prism (2 * m + 3)).indepNum = 2 * m + 2 := by
+  set G := prism (2 * m + 3)
+  have hlower : 2 * m + 2 ≤ G.indepNum := by
+    have hG : G = ⟦CGraph.prism (2 * m + 3)⟧ := by
+      simp [G, prism, cycle, complete, cartesianProduct_mk, CGraph.prism]
+    rw [hG, indepNum_mk]
+    set I₀ : Finset (Fin (2 * m + 3)) := Finset.image (fun k : Fin (m + 1) => ⟨2 * k.val, by omega⟩)
+      Finset.univ
+    set I₁ : Finset (Fin (2 * m + 3)) := Finset.image (fun k : Fin (m + 1) =>
+      ⟨2 * k.val + 1, by omega⟩) Finset.univ
+    set S : Finset ((Fin (2 * m + 3)) × (Fin 2)) := I₀.product ({0} : Finset (Fin 2)) ∪ I₁.product
+      ({1} : Finset (Fin 2))
+    have hI₀ : I₀.card = m + 1 := by
+      rw [Finset.card_image_of_injective]
+      · simp [Finset.card_fin]
+      · intro a b h; simp [Fin.ext_iff] at h; omega
+    have hI₁ : I₁.card = m + 1 := by
+      rw [Finset.card_image_of_injective]
+      · simp [Finset.card_fin]
+      · intro a b h; simp [Fin.ext_iff] at h; omega
+    have hdisj : Disjoint (I₀.product ({0} : Finset (Fin 2))) (I₁.product ({1} : Finset (Fin 2))) :=
+      by
+      simp [Finset.disjoint_left]
+    have hS_card : S.card = 2 * m + 2 := by
+      simp only [S]
+      have hcard0 : (I₀.product ({0} : Finset (Fin 2))).card = m + 1 := by
+        show (I₀ ×ˢ ({0} : Finset (Fin 2))).card = m + 1
+        rw [Finset.card_product, hI₀]; simp
+      have hcard1 : (I₁.product ({1} : Finset (Fin 2))).card = m + 1 := by
+        show (I₁ ×ˢ ({1} : Finset (Fin 2))).card = m + 1
+        rw [Finset.card_product, hI₁]; simp
+      calc (I₀.product ({0} : Finset (Fin 2)) ∪ I₁.product ({1} : Finset (Fin 2))).card
+          = (I₀.product ({0} : Finset (Fin 2))).card + (I₁.product ({1} : Finset (Fin 2))).card :=
+            Finset.card_union_of_disjoint hdisj
+        _ = (m + 1) + (m + 1) := by rw [hcard0, hcard1]
+        _ = 2 * m + 2 := by omega
+    -- Bound on values in I₀
+    have hI₀_le : ∀ x ∈ I₀, x.val ≤ 2 * m := by
+      intro x hx
+      rw [Finset.mem_image] at hx
+      obtain ⟨k, _, rfl⟩ := hx
+      simp; omega
+    -- Bound on values in I₁
+    have hI₁_le : ∀ x ∈ I₁, x.val ≤ 2 * m + 1 := by
+      intro x hx
+      rw [Finset.mem_image] at hx
+      obtain ⟨k, _, rfl⟩ := hx
+      simp; omega
+    -- I₀ elements are even
+    have hI₀_even : ∀ x ∈ I₀, Even x.val := by
+      intro x hx
+      rw [Finset.mem_image] at hx
+      obtain ⟨k, _, rfl⟩ := hx
+      simp [even_iff_two_dvd, Nat.dvd_iff_mod_eq_zero, Nat.add_mod, Nat.mul_mod]
+    -- I₁ elements are odd
+    have hI₁_odd : ∀ x ∈ I₁, Odd x.val := by
+      intro x hx
+      rw [Finset.mem_image] at hx
+      obtain ⟨k, _, rfl⟩ := hx
+      simp [Nat.odd_iff, Nat.add_mod, Nat.mul_mod]
+    -- Next-element in I₀ is not in I₀ (for horizontal edges in layer 0)
+    have hI₀_next : ∀ i ∈ I₀, (⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ : Fin (2 * m +
+      3)) ∉ I₀ := by
+      intro i hi hmem
+      have heq0 := hI₀_even i hi
+      have heq1 := hI₀_even _ hmem
+      have hbound : i.val + 1 < 2 * m + 3 := by
+        have := hI₀_le i hi; omega
+      have heqval : ((⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ : Fin (2 * m + 3))).val =
+        i.val + 1 := by
+        simp [Nat.mod_eq_of_lt hbound]
+      have heqval : ((⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ : Fin (2 * m + 3))).val =
+        i.val + 1 := by
+        simp [Nat.mod_eq_of_lt hbound]
+      rw [heqval] at heq1
+      obtain ⟨k, hk⟩ := heq0
+      obtain ⟨l, hl⟩ := heq1
+      omega
+    -- No two elements of I₀ are adjacent in cycle(2*m+3)
+    have hI₀_is : ∀ i j : Fin (2 * m + 3), i ∈ I₀ → j ∈ I₀ → (CGraph.cycle (2 * m + 3)).Adj i j →
+      False := by
+      intro i j hi hj hadj
+      rw [CGraph.cycle_adj_val] at hadj
+      obtain ⟨hne, heq | heq⟩ := hadj
+      · have hji : j = ⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
+          simp [Fin.ext_iff, heq]
+        exact hI₀_next i hi (hji ▸ hj)
+      · have hik : i = ⟨(j.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
+          simp [Fin.ext_iff, heq.symm]
+        exact hI₀_next j hj (hik ▸ hi)
+    -- Next-element in I₁ is not in I₁
+    have hI₁_next : ∀ i ∈ I₁, (⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ : Fin (2 * m +
+      3)) ∉ I₁ := by
+      intro i hi hmem
+      have ho1 := hI₁_odd i hi
+      have ho2 := hI₁_odd _ hmem
+      have hbound : i.val + 1 < 2 * m + 3 := by
+        have := hI₁_le i hi; omega
+      have heqval : ((⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ : Fin (2 * m + 3))).val =
+        i.val + 1 := by
+        simp [Nat.mod_eq_of_lt hbound]
+      rw [heqval] at ho2
+      obtain ⟨k, hk⟩ := ho1
+      obtain ⟨l, hl⟩ := ho2
+      omega
+    -- No two elements of I₁ are adjacent in cycle(2*m+3)
+    have hI₁_is : ∀ i j : Fin (2 * m + 3), i ∈ I₁ → j ∈ I₁ → (CGraph.cycle (2 * m + 3)).Adj i j →
+      False := by
+      intro i j hi hj hadj
+      rw [CGraph.cycle_adj_val] at hadj
+      obtain ⟨hne, heq | heq⟩ := hadj
+      · have hji : j = ⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
+          simp [Fin.ext_iff, heq]
+        exact hI₁_next i hi (hji ▸ hj)
+      · have hik : i = ⟨(j.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
+          simp [Fin.ext_iff, heq.symm]
+        exact hI₁_next j hj (hik ▸ hi)
+    -- I₀ and I₁ are disjoint
+    have hdisjoint_I : Disjoint I₀ I₁ := by
+      rw [Finset.disjoint_left]
+      intro x hi hj
+      have heven := hI₀_even x hi
+      have hodd := hI₁_odd x hj
+      rcases heven with ⟨k, hk⟩; rcases hodd with ⟨l, hl⟩; omega
+    -- Cross disjointness: no vertical edges in S
+    have setiap : ∀ i : Fin (2 * m + 3), i ∈ I₀ → i ∉ I₁ := by
+      intro i hi hi'
+      have he := hI₀_even i hi
+      have ho := hI₁_odd i hi'
+      obtain ⟨k, hk⟩ := ho
+      obtain ⟨l, hl⟩ := he
+      omega
+    -- Now prove independence of S
+    have hS_indep : (CGraph.prism (2 * m + 3)).toSimple.IsIndepSet (S : Set ((Fin (2 * m + 3)) ×
+      (Fin 2))) := by
+      unfold SimpleGraph.IsIndepSet
+      intro v w hv_mem hw_mem hvw huv_adj
+      rcases v with ⟨i, b⟩
+      rcases hv_mem with ⟨j, c⟩
+      dsimp [S] at w hw_mem
+      simp only [Finset.mem_union, Finset.mem_coe] at w hw_mem
+      simp [prism, CGraph.prism] at huv_adj
+      rcases hw_mem with h' | h'
+      · rcases w with h | h
+        · rw [Finset.mem_product, Finset.mem_singleton] at h h'
+          obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
+          simp [Prod.snd] at hb hc
+          rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
+          · exfalso; exact absurd (by rw [hb, hc] : b = c) hne
+          · exact hI₀_is i j hi hj h1
+        · rw [Finset.mem_product, Finset.mem_singleton] at h h'
+          obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
+          simp [Prod.snd] at hb hc
+          rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
+          · exfalso; exact Finset.disjoint_left.mp hdisjoint_I hj (hij ▸ hi)
+          · exfalso; rw [hb, hc] at h2; exact absurd h2 (by decide)
+      · rcases w with h | h
+        · rw [Finset.mem_product, Finset.mem_singleton] at h h'
+          obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
+          simp [Prod.snd] at hb hc
+          rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
+          · exfalso; exact Finset.disjoint_left.mp hdisjoint_I (hij ▸ hi) hj
+          · exfalso; rw [hb, hc] at h2; exact absurd h2 (by decide)
+        · rw [Finset.mem_product, Finset.mem_singleton] at h h'
+          obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
+          simp [Prod.snd] at hb hc
+          rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
+          · exfalso; exact absurd (by rw [hb, hc] : b = c) hne
+          · exact hI₁_is i j hi hj h1
+    exact hS_card ▸ hS_indep.card_le_indepNum
+  have hupper : G.indepNum ≤ 2 * m + 2 := by
+    -- Every independent set in prism(2m+3) has size ≤ 2m+2.
+    -- Reason: vertical edges force ≤1 per column (so ≤2m+3 total).
+    -- If exactly 2m+3, then exactly one per column, giving a 2-coloring of the odd cycle (layer
+    -- choice), contradiction.
+    have hG2 : G = ⟦CGraph.prism (2 * m + 3)⟧ := by
+      simp [G, prism, cycle, complete, cartesianProduct_mk, CGraph.prism]
+    rw [hG2, indepNum_mk]
+    unfold CGraph.indepNum SimpleGraph.indepNum
+    -- Goal: sSup {n | ∃ s, IsNIndepSet n s} ≤ 2 * m + 2
+    -- Strategy: show every independent set has card ≤ 2*m+2, then use csSup_le'
+    have key : ∀ (s : Finset ((Fin (2 * m + 3)) × (Fin 2))),
+        (CGraph.prism (2 * m + 3)).toSimple.IsIndepSet (s : Set ((Fin (2 * m + 3)) × (Fin 2))) →
+          s.card ≤ 2 * m + 2 := by
+      intro s hs
+      unfold SimpleGraph.IsIndepSet at hs
+      -- Step A: for each column i, at most one of (i,0), (i,1) is in s (vertical edges from
+      -- complete 2)
+      have hvert : ∀ i : Fin (2 * m + 3),
+          ¬((i, (0 : Fin 2)) ∈ s ∧ (i, (1 : Fin 2)) ∈ s) := by
+        intro i ⟨h1, h2⟩
+        have hadj : (CGraph.prism (2 * m + 3)).toSimple.Adj (i, (0 : Fin 2)) (i, (1 : Fin 2)) := by
+          simp [CGraph.prism]
+        have hne : (i, (0 : Fin 2)) ≠ (i, (1 : Fin 2)) := by simp
+        exact hs h1 h2 hne hadj
+      -- Step B: fst is injective on s (since at most one per column in Fin 2)
+      have hinj_fst : ∀ x ∈ s, ∀ y ∈ s, x.1 = y.1 → x = y := by
+        intro ⟨i, b⟩ hx ⟨j, c⟩ hy hij
+        subst hij
+        by_contra hne
+        have hbc : b ≠ c := fun h => hne (Prod.ext rfl h)
+        have : b = 0 ∧ c = 1 ∨ b = 1 ∧ c = 0 := by
+          fin_cases b <;> fin_cases c <;> simp at hbc ⊢
+        rcases this with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+        · exact hvert _ ⟨hx, hy⟩
+        · have hadj : (CGraph.prism (2 * m + 3)).toSimple.Adj (i, (1 : Fin 2)) (i, (0 : Fin 2)) :=
+            by
+            simp [CGraph.prism]
+          have hne2 : (i, (0 : Fin 2)) ≠ (i, (1 : Fin 2)) := by simp
+          exact hs hy hx hne2 hadj
+      -- Step C: s.card ≤ 2*m+3 (via injection into Fin (2*m+3))
+      have hcard_le : s.card ≤ 2 * m + 3 := by
+        have hinj_fun : Function.Injective (fun x : s => (x.val.1 : Fin (2 * m + 3))) := by
+          intro x y hxy
+          exact Subtype.ext (hinj_fst x.val x.property y.val y.property hxy)
+        have := Fintype.card_le_of_injective _ hinj_fun
+        simp [Fintype.card_ofFinset] at this
+        exact this
+      -- Step D: if s.card = 2*m+3, then fst is bijective from s to univ, giving f : Fin(2*m+3) →
+      -- Fin 2
+      by_contra hcontra
+      push_neg at hcontra
+      have hcard_eq : s.card = 2 * m + 3 := by omega
+      -- Define f : Fin (2*m+3) → Fin 2 by picking the layer for each column
+      have hsurj : ∀ i : Fin (2 * m + 3), ∃ b : Fin 2, (i, b) ∈ s := by
+        have hinj_on : Set.InjOn Prod.fst (s : Set ((Fin (2 * m + 3)) × (Fin 2))) := by
+          intro x hx y hy hxy
+          exact hinj_fst x hx y hy hxy
+        have himage : s.image Prod.fst = Finset.univ := by
+          apply Finset.eq_of_subset_of_card_le (Finset.image_subset_iff.mpr fun x hx =>
+            Finset.mem_univ _)
+          rw [Finset.card_image_of_injOn (fun x hx y hy h => hinj_fst x hx y hy h), hcard_eq]
+          simp [Finset.card_fin]
+        intro i
+        have : i ∈ s.image Prod.fst := himage.symm ▸ Finset.mem_univ i
+        obtain ⟨x, hx, rfl⟩ := Finset.mem_image.mp this
+        exact ⟨x.2, hx⟩
+      choose f hf using hsurj
+      -- Step E: horizontal edges force f to be a proper 2-coloring of cycle(2*m+3)
+      -- Adjacent vertices in the cycle with the same f-value would give an edge in s,
+      -- contradiction.
+      -- But cycle(2*m+3) is not bipartite. Contradiction.
+      have hcolor : ∀ (i j : Fin (2 * m + 3)), (CGraph.cycle (2 * m + 3)).Adj i j → f i ≠ f j := by
+        intro i j hij hfij
+        have hadj : (CGraph.prism (2 * m + 3)).toSimple.Adj (i, f i) (j, f j) := by
+          show (CGraph.prism (2 * m + 3)).Adj (i, f i) (j, f j)
+          have : (CGraph.prism (2 * m + 3)).Adj (i, f i) (j, f j) := by
+            simp [CGraph.prism, CGraph.cartesianProduct_adj, CGraph.cycle, CGraph.complete_adj,
+              hfij,
+              CGraph.cycle_adj_val] at hij ⊢
+            exact hij
+          exact this
+        have hijne : i ≠ j := by
+          intro heq; subst heq; exact absurd hij (by simp [CGraph.cycle, CGraph.ofRel_adj])
+        exact hs (hf i) (hf j) (by exact ne_of_apply_ne Prod.fst hijne) hadj
+      -- So f is a proper 2-coloring of cycle(2*m+3), meaning cycle(2*m+3) is bipartite.
+      -- Contradiction.
+      have hbip : (CGraph.cycle (2 * m + 3)).IsBipartite := by
+        let c : Fin (2 * m + 3) → Bool := fun i => decide (f i = 1)
+        have hc : ∀ i j, (CGraph.cycle (2 * m + 3)).Adj i j → c i ≠ c j := by
+          intro i j hij
+          have hne := hcolor i j hij
+          show decide (f i = 1) ≠ decide (f j = 1)
+          have hne := hcolor i j hij
+          have : ∀ (a b : Fin 2), a ≠ b → decide (a = 1) ≠ decide (b = 1) := by decide
+          exact this (f i) (f j) hne
+        exact ⟨c, hc⟩
+      exact not_isBipartite_cycle_odd m hbip
+    apply csSup_le
+    · exact ⟨0, ⟨∅, SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) rfl⟩⟩
+    · intro b hb
+      obtain ⟨s, hs⟩ := hb
+      rcases hs with ⟨hs_indep, hs_card⟩
+      rw [← hs_card]
+      exact key s hs_indep
+  omega
+
+
+/-- The Johnson graph `J(n, k)` is regular of degree `k(n - k)`: a neighbour is obtained by
+swapping one of the `k` chosen elements for one of the `n - k` unchosen ones. -/
+@[simp] theorem degSequence_johnson {n k : ℕ} (hk : k ≤ n) :
+    degSequence (johnson n k) = List.replicate (n.choose k) (k * (n - k)) := by
+  simp only [johnson, degSequence_mk]
+  have hreg : (CGraph.johnson n k).toSimple.IsRegularOfDegree (k * (n - k)) := by
+    intro s
+    change SimpleGraph.degree (CGraph.johnson n k).toSimple s = k * (n - k)
+    simp only [SimpleGraph.degree]
+    have hcard : ((CGraph.johnson n k).toSimple.neighborSet s).toFinset.card =
+        Fintype.card {t : (CGraph.johnson n k).V | (CGraph.johnson n k).toSimple.Adj s t} := by
+      simp [SimpleGraph.neighborSet, Fintype.card_subtype]
+    simp only [SimpleGraph.neighborFinset]
+    rw [hcard]
+    by_cases hk0 : k = 0
+    · -- k = 0 case
+      subst hk0
+      simp [CGraph.johnson_adj]
+      have hollow : ∀ t : (CGraph.johnson n 0).V, s = t := by
+        intro t; exact Subtype.ext (by
+          ext x; simp [Finset.card_eq_zero.mp s.2, Finset.card_eq_zero.mp t.2])
+      have hpred : ∀ t : (CGraph.johnson n 0).V, ¬(¬s = t ∧ (s.1 ∩ t.1 : Finset (Fin n)) = ∅) := by
+        intro t h
+        exact h.1 (hollow t)
+      have : ∀ t : (CGraph.johnson n 0).V, ¬(¬s = t ∧ (s.1 ∩ t.1 : Finset (Fin n)) = ∅) := hpred
+      have h2 : Fintype.card {t : (CGraph.johnson n 0).V // ¬s = t ∧ (s.1 ∩ t.1 : Finset (Fin n)) =
+        ∅} = 0 := by
+        rw [Fintype.card_eq_zero_iff]
+        exact ⟨fun ⟨t, ht⟩ => hpred t ht⟩
+      exact h2
+    · -- k ≥ 1 case
+      have hk1 : 1 ≤ k := Nat.pos_of_ne_zero hk0
+      have hadj_equiv : {t : (CGraph.johnson n k).V | (CGraph.johnson n k).toSimple.Adj s t} =
+          {t : (CGraph.johnson n k).V | ¬s = t ∧ (s.1 ∩ t.1).card = k - 1} := by
+        ext t
+        show (decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)) = true ↔ ¬s = t ∧ (s.1 ∩ t.1).card = k
+          - 1
+        simp [Bool.and_eq_true]
+      simp_rw [hadj_equiv]
+      set S : Finset (Fin n) := s.1
+      have hSk : S.card = k := s.2
+      have hchar_set : ∀ t : (CGraph.johnson n k).V,
+          (¬s = t ∧ (s.1 ∩ t.1).card = k - 1) ↔
+          ∃ a ∈ s.1, ∃ b : Fin n, b ∉ s.1 ∧ t.1 = s.1.erase a ∪ {b} := by
+        intro t
+        constructor
+        · intro ⟨hne, hint⟩
+          have hs_card : s.1.card = k := hSk
+          have ht_card : t.1.card = k := t.2
+          have hsdiff_s : (s.1 \ t.1).card = 1 := by
+            have := Finset.card_sdiff_add_card_inter s.1 t.1
+            omega
+          have hint_comm : (t.1 ∩ s.1).card = k - 1 := by
+            rw [Finset.inter_comm, hint]
+          have hsdiff_t : (t.1 \ s.1).card = 1 := by
+            have h1 := Finset.card_sdiff_add_card_inter t.1 s.1
+            rw [hint_comm, ht_card] at h1
+            omega
+          have ⟨a, ha_eq⟩ := Finset.card_eq_one.mp hsdiff_s
+          have ⟨b, hb_eq⟩ := Finset.card_eq_one.mp hsdiff_t
+          have ha_mem_s : a ∈ s.1 := by
+            have := ha_eq ▸ Finset.mem_singleton_self a
+            exact Finset.mem_sdiff.mp this |>.1
+          have ha_not_mem_t : a ∉ t.1 := by
+            have := ha_eq ▸ Finset.mem_singleton_self a
+            exact Finset.mem_sdiff.mp this |>.2
+          have hb_not_mem_s : b ∉ s.1 := by
+            have := hb_eq ▸ Finset.mem_singleton_self b
+            exact Finset.mem_sdiff.mp this |>.2
+          refine ⟨a, ha_mem_s, b, hb_not_mem_s, ?_⟩
+          have hinter : s.1 ∩ t.1 = s.1 \ {a} := by
+            ext x
+            simp only [Finset.mem_inter, Finset.mem_sdiff, Finset.mem_singleton]
+            constructor
+            · rintro ⟨hxs, hxt⟩; exact ⟨hxs, fun hxa => ha_not_mem_t (hxa ▸ hxt)⟩
+            · intro ⟨hxs, hxa⟩
+              exact ⟨hxs, by
+                by_contra hxt_not
+                have hmem : x ∈ s.1 \ t.1 := Finset.mem_sdiff.mpr ⟨hxs, hxt_not⟩
+                have hxeq : x = a := Finset.mem_singleton.mp (ha_eq ▸ hmem)
+                exact hxa hxeq⟩
+          have ht_union : t.1 = (t.1 ∩ s.1) ∪ (t.1 \ s.1) := by
+            ext x; by_cases hx : x ∈ s.1 <;> simp [hx]
+          rw [ht_union, hb_eq, Finset.inter_comm, hinter, Finset.sdiff_singleton_eq_erase]
+        · rintro ⟨a, ha, b, hb, ht⟩
+          constructor
+          · intro hst; subst hst; exact hb (ht ▸ Finset.mem_union_right _ (Finset.mem_singleton_self
+              b))
+          · have hij : s.1 ∩ ((s.1).erase a ∪ {b}) = (s.1).erase a := by
+              ext x
+              simp only [Finset.mem_inter, Finset.mem_erase, Finset.mem_union, Finset.mem_singleton]
+              constructor
+              · rintro ⟨hxs, h | hxb⟩
+                · exact ⟨h.1, hxs⟩
+                · exact absurd hxs (hxb ▸ hb)
+              · rintro ⟨hxa, hxs⟩
+                exact ⟨hxs, Or.inl ⟨hxa, hxs⟩⟩
+            rw [ht, hij, Finset.card_erase_of_mem ha, hSk]
+      have hchar : ∀ t : (CGraph.johnson n k).V,
+          (¬s = t ∧ (s.1 ∩ t.1).card = k - 1) ↔
+          ∃ a ∈ s.1, ∃ b : Fin n, b ∉ s.1 ∧ t.1 = s.1.erase a ∪ {b} := by
+        intro t; exact hchar_set t
+      -- Now use hchar to build a bijection with pairs
+      have card_erase_union : ∀ a b (ha : a ∈ s.1) (hb : b ∉ s.1),
+          (s.1.erase a ∪ {b}).card = k := by
+        intro a b ha hb
+        have hdj : Disjoint (s.1.erase a) ({b} : Finset (Fin n)) := by
+          simp [Finset.disjoint_singleton_right, hb]
+        rw [Finset.card_union_of_disjoint hdj, Finset.card_erase_of_mem ha, Finset.card_singleton,
+          hSk, Nat.sub_add_cancel hk1]
+      let mkT (a : Fin n) (b : Fin n) (ha : a ∈ s.1) (hb : b ∉ s.1) : (CGraph.johnson n k).V :=
+        ⟨s.1.erase a ∪ {b}, card_erase_union a b ha hb⟩
+      have mkT_mem : ∀ a b (ha : a ∈ s.1) (hb : b ∉ s.1), mkT a b ha hb ∈
+          {t : (CGraph.johnson n k).V | ¬s = t ∧ (s.1 ∩ t.1).card = k - 1} := by
+        intro a b ha hb
+        show mkT a b ha hb ∈ _
+        unfold mkT
+        exact (hchar _).mpr ⟨a, ha, b, hb, rfl⟩
+      set T := {t : (CGraph.johnson n k).V | ¬s = t ∧ (s.1 ∩ t.1).card = k - 1}
+      -- fwd: T → {p | p.1 ∈ s.1 ∧ p.2 ∉ s.1}
+      let Spairs := {p : Fin n × Fin n | p.1 ∈ s.1 ∧ p.2 ∉ s.1}
+      let fwd : T → Spairs := fun ⟨t, ht⟩ =>
+        let h := (hchar t).mp ht
+        ⟨(h.choose, h.choose_spec.2.choose), h.choose_spec.1, h.choose_spec.2.choose_spec.1⟩
+      -- back: {p | ...} → T
+      let back : Spairs → T := fun ⟨p, hp⟩ =>
+        ⟨mkT p.1 p.2 hp.1 hp.2, mkT_mem p.1 p.2 hp.1 hp.2⟩
+      -- Helper: erase a = erase a' implies a = a' for a, a' ∈ s.1
+      have erase_eq_erase_of_mem : ∀ a a' : Fin n, a ∈ s.1 → a' ∈ s.1 →
+          s.1.erase a = s.1.erase a' → a = a' := by
+        intro a a' ha ha' hex2
+        by_contra hne
+        have hne' : a' ≠ a := mt Eq.symm hne
+        have ha'_mem_erase_a : a' ∈ s.1.erase a := by
+          simp [Finset.mem_erase, hne', ha']
+        rw [hex2] at ha'_mem_erase_a
+        simp [Finset.mem_erase] at ha'_mem_erase_a
+      -- The (a,b) representation is unique
+      have unique_repr : ∀ t : (CGraph.johnson n k).V,
+          ∀ a b a' b' : Fin n,
+          a ∈ s.1 → b ∉ s.1 → t.1 = s.1.erase a ∪ {b} →
+          a' ∈ s.1 → b' ∉ s.1 → t.1 = s.1.erase a' ∪ {b'} →
+          a = a' ∧ b = b' := by
+        intro t a b a' b' ha hb hteq1 ha' hb' hteq2
+        have hex : s.1.erase a ∪ {b} = s.1.erase a' ∪ {b'} := by
+          calc (s.1.erase a ∪ {b}) = t.1 := hteq1.symm
+            _ = s.1.erase a' ∪ {b'} := hteq2
+        have hbb' : b = b' := by
+          have hbn : b ∉ s.1.erase a' := by intro h; exact hb (Finset.mem_of_mem_erase h)
+          have hbmem : b ∈ s.1.erase a' ∪ {b'} := hex ▸ Finset.mem_union_right _
+            (Finset.mem_singleton_self _)
+          simp at hbmem; tauto
+        have hb'_notin_erase_a : b' ∉ s.1.erase a := by
+          intro h; exact hb' (Finset.mem_of_mem_erase h)
+        have hb'_notin_erase_a' : b' ∉ s.1.erase a' := by
+          intro h; exact hb' (Finset.mem_of_mem_erase h)
+        have hex2 : s.1.erase a = s.1.erase a' := by
+          have hhex' : s.1.erase a ∪ {b'} = s.1.erase a' ∪ {b'} := by
+            calc (s.1.erase a ∪ {b'}) = s.1.erase a ∪ {b} := by rw [hbb']
+              _ = t.1 := hteq1.symm
+              _ = s.1.erase a' ∪ {b'} := hteq2
+          ext x
+          by_cases hx : x = b'
+          · simp [hx, hb'_notin_erase_a, hb'_notin_erase_a']
+          · have hmem_a : x ∈ s.1.erase a ∪ {b'} ↔ x ∈ s.1.erase a := by
+              simp [Finset.mem_union, Finset.mem_singleton, hx]
+            have hmem_a' : x ∈ s.1.erase a' ∪ {b'} ↔ x ∈ s.1.erase a' := by
+              simp [Finset.mem_union, Finset.mem_singleton, hx]
+            rw [← hmem_a, hhex', hmem_a']
+        exact ⟨erase_eq_erase_of_mem a a' ha ha' hex2, hbb'⟩
+      -- fwd ∘ back = id
+      have fwd_back : ∀ p : Spairs, fwd (back p) = p := by
+        intro ⟨p, hp⟩
+        set q := back ⟨p, hp⟩
+        set hch2 := (hchar q).mp q.prop
+        set a' := hch2.choose
+        set b' := hch2.choose_spec.2.choose
+        set ha' := hch2.choose_spec.1
+        set hb' := hch2.choose_spec.2.choose_spec.1
+        set hteq2 := hch2.choose_spec.2.choose_spec.2
+        have hteq3 : (q.1 : (CGraph.johnson n k).V).1 = s.1.erase p.1 ∪ {p.2} := rfl
+        have ⟨ha_eq, hb_eq⟩ := unique_repr q.1 p.1 p.2 a' b' hp.1 hp.2 hteq3 ha' hb' hteq2
+        have hpairs : (a', b') = (p.1, p.2) := by
+          exact Prod.ext ha_eq.symm hb_eq.symm
+        show fwd q = ⟨p, hp⟩
+        apply Subtype.ext
+        exact hpairs
+      -- back ∘ fwd = id
+      have back_fwd : ∀ t : T, back (fwd t) = t := by
+        intro ⟨t, ht⟩
+        show back (fwd ⟨t, ht⟩) = ⟨t, ht⟩
+        unfold fwd back mkT
+        have h := (hchar t).mp ht
+        have hteq : (mkT h.choose h.choose_spec.2.choose h.choose_spec.1
+          h.choose_spec.2.choose_spec.1 : (CGraph.johnson n k).V).1 = t.1 :=
+          h.choose_spec.2.choose_spec.2.symm
+        apply Subtype.ext
+        show (mkT h.choose h.choose_spec.2.choose h.choose_spec.1 h.choose_spec.2.choose_spec.1 :
+          (CGraph.johnson n k).V) = t
+        exact Subtype.ext hteq
+      -- Build equiv and compute cardinality
+      let equiv : ↑T ≃ ↑Spairs := Equiv.ofBijective fwd ⟨fun t1 t2 h => by
+        have h1 := (hchar t1.1).mp t1.prop
+        have h2 := (hchar t2.1).mp t2.prop
+        have hpairs : (h1.choose, h1.choose_spec.2.choose) = (h2.choose, h2.choose_spec.2.choose) :=
+          by
+          exact congr_arg (fun p : ↑Spairs => (p : Fin n × Fin n)) h
+        have ha_eq : h1.choose = h2.choose := congr_arg Prod.fst hpairs
+        have hb_eq : h1.choose_spec.2.choose = h2.choose_spec.2.choose := congr_arg Prod.snd hpairs
+        show t1 = t2
+        set a1 := h1.choose
+        set b1 := h1.choose_spec.2.choose
+        set a2 := h2.choose
+        set b2 := h2.choose_spec.2.choose
+        have ht1 : ((t1 : (CGraph.johnson n k).V).1 : Finset (Fin n)) = s.1.erase a1 ∪ {b1} :=
+          h1.choose_spec.2.choose_spec.2
+        have ht2 : ((t2 : (CGraph.johnson n k).V).1 : Finset (Fin n)) = s.1.erase a2 ∪ {b2} :=
+          h2.choose_spec.2.choose_spec.2
+        have ha_eq' : a1 = a2 := ha_eq
+        have hb_eq' : b1 = b2 := hb_eq
+        have ht1' : ((t1 : (CGraph.johnson n k).V).1 : Finset (Fin n)) = s.1.erase a2 ∪ {b2} := by
+          rw [ht1, ha_eq', hb_eq']
+        exact Subtype.ext (Subtype.ext (ht1'.trans ht2.symm))
+        , fun p => ⟨back p, fwd_back p⟩⟩
+      have hcard_equiv : Fintype.card T = Fintype.card Spairs := Fintype.card_congr equiv
+      have hcard_spairs : Fintype.card Spairs = s.1.card * (Finset.univ \ s.1).card := by
+        let S' : Type _ := ↥s.1
+        let T' : Type _ := ↥(Finset.univ \ s.1)
+        let equiv' : Spairs ≃ S' × T' :=
+          { toFun := fun ⟨⟨a, b⟩, ha, hb⟩ => (⟨a, ha⟩, ⟨b, by simpa [Finset.mem_sdiff] using hb⟩)
+            invFun := fun ⟨⟨a, ha⟩, ⟨b, hb⟩⟩ => ⟨(a, b), ha, by simpa [Finset.mem_sdiff] using hb⟩
+            left_inv := fun ⟨⟨a, b⟩, ha, hb⟩ => by simp
+            right_inv := fun ⟨⟨a, ha⟩, ⟨b, hb⟩⟩ => by simp }
+        rw [Fintype.card_congr equiv', Fintype.card_prod]
+        rw [Fintype.card_coe, Fintype.card_coe]
+      rw [hcard_equiv, hcard_spairs]
+      have hcard_s : s.1.card = k := hSk
+      rw [hcard_s]
+      show k * (Finset.univ \ s.1).card = k * (n - k)
+      rw [Finset.card_sdiff, Finset.inter_univ, Finset.card_univ, Fintype.card_fin, hcard_s]
+  rw [CGraph.degSequence_of_regular (CGraph.johnson n k) hreg, CGraph.card_johnson]
+
+
+/-! ### Degrees and edge counts of the Johnson graphs
+
+`J(n, k)` is regular of degree `k(n - k)`, so its edge count, maximum degree and minimum degree
+all follow from the degree sequence. -/
+
+theorem two_mul_E_johnson {n k : ℕ} (hk : k ≤ n) :
+    2 * (johnson n k).E = n.choose k * (k * (n - k)) :=
+  two_mul_E_of_degSequence_replicate (degSequence_johnson hk)
+
+@[simp] theorem maxDeg_johnson {n k : ℕ} (hk : k ≤ n) : maxDeg (johnson n k) = k * (n - k) :=
+  maxDeg_eq_of_degSequence_replicate (Nat.choose_pos hk) (degSequence_johnson hk)
+
+@[simp] theorem minDeg_johnson {n k : ℕ} (hk : k ≤ n) : minDeg (johnson n k) = k * (n - k) :=
+  minDeg_eq_of_degSequence_replicate (Nat.choose_pos hk) (degSequence_johnson hk)
+
+theorem isRegularWith_johnson {n k : ℕ} (hk : k ≤ n) :
+    (johnson n k).IsRegularWith (k * (n - k)) :=
+  isRegularWith_of_degSequence (degSequence_johnson hk)
+
+/-! ### The chromatic number of a triangular graph is an edge chromatic number
+
+Since `T(n) = L(Kₙ)`, a proper colouring of `T(n)` is exactly a proper edge colouring of `Kₙ`,
+so `χ(T(n)) = χ'(Kₙ)`.  Everything known about `χ'(Kₙ)` transports. -/
+
+theorem chromNum_johnson_two (n : ℕ) : (johnson n 2).chromNum = (complete n).edgeChromNum := by
+  rw [edgeChromNum_eq, lineGraph_complete]
+
+theorem chromNum_triangular (n : ℕ) : (triangular n).chromNum = (complete n).edgeChromNum :=
+  chromNum_johnson_two n
+
+theorem chromNum_triangular_le (n : ℕ) : (triangular n).chromNum ≤ 2 * (n - 1) - 1 := by
+  rw [chromNum_triangular]
+  exact edgeChromNum_complete_le n
+
+/-- An odd complete graph is class two, so `χ(T(2m+3)) ≥ 2m + 3`. -/
+theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m + 3)).chromNum := by
+  rw [chromNum_triangular]
+  exact le_edgeChromNum_complete_odd m
+
+@[simp] theorem chromNum_triangular_three : (triangular 3).chromNum = 3 := by
+  rw [chromNum_triangular, edgeChromNum_complete_three]
+
+@[simp] theorem chromNum_triangular_four : (triangular 4).chromNum = 3 := by
+  rw [chromNum_triangular, edgeChromNum_complete_four]
+
+/-! ### Vertex covers of the triangular and Kneser graphs, by Gallai -/
+
+@[simp] theorem coverNum_triangular (n : ℕ) :
+    (triangular n).coverNum = n.choose 2 - n / 2 :=
+  coverNum_johnson_two n
+
+@[simp] theorem coverNum_kneser_two_even (m : ℕ) :
+    (kneser (2 * m + 2) 2).coverNum = (2 * m + 2).choose 2 - (2 * m + 1) := by
+  have h := (kneser (2 * m + 2) 2).coverNum_add_indepNum
+  rw [V_kneser, indepNum_kneser_two_even] at h
+  omega
+
+/-! ### Connectivity of the strong and lexicographic products -/
+
+@[simp] theorem numComponents_strongProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) : (strongProduct G H).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_strongProduct hG hH)
+
+@[simp] theorem numComponents_lexProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) : (lexProduct G H).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_lexProduct hG hH)
+
 end IsoGraph

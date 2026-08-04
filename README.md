@@ -1672,6 +1672,21 @@ guess `θ(C_{2m+3}) = m + 2` came back refuted, the counterexample being `C₃ =
 clique covers.  Elsewhere the Cartesian product formulas give the ladder its degrees and, now
 that the radius of a path is known, its radius `⌈n/2⌉ + 1`.
 
+The automated prover contributed three substantial counting arguments this round.  The
+domination number of a path, `γ(Pₙ) = ⌈n/3⌉`, comes with an explicit dominating set on every
+residue class mod 3 together with a matching lower bound built by injecting the vertices at
+positions `0, 3, 6, …` into any dominating set.  The independence number of an odd prism,
+`α(Y_{2m+3}) = 2m + 2`, alternates layers around the odd cycle and rules out `2m + 3` by
+showing that a transversal of that size would 2-colour an odd cycle.  Finally `J(n, k)` is
+regular of degree `k(n - k)`: a neighbour is obtained by swapping one chosen element for one
+unchosen one.  From that degree sequence the edge count, maximum degree and minimum degree of
+every Johnson graph follow in one line each.  Two identities round the batch out: because
+`T(n) = L(Kₙ)`, the chromatic number of a triangular graph *is* the edge chromatic number of a
+complete graph, `χ(T(n)) = χ'(Kₙ)`, so the bounds `n - 1 ≤ χ'(Kₙ) ≤ 2n - 3` and the class-two
+lower bound for odd `n` all transport; and Gallai's identity turns the known independence
+numbers of `T(n)` and `K(2m+2, 2)` into their vertex cover numbers.
+
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
