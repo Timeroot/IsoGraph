@@ -847,6 +847,21 @@ independence number, against two copies of `K₃`); the triangular prism and `K�
 on six vertices and are told apart by bipartiteness; the cube and `K₄ ⊔ K₄` are both cubic on
 eight vertices with twelve edges, again separated by connectivity.
 
+The diameter had been computed one graph at a time — each of `diameter_complete`, `diameter_path`,
+`diameter_cycle` and `diameter_bipartite` is its own hand-rolled argument about walks in the
+underlying `SimpleGraph`. Two reusable lemmas replace that for everything of diameter two: if any
+two distinct vertices are adjacent or have a common neighbour then `ediam ≤ 2`
+(`CGraph.ediam_le_two`, from `edist_le_two` on the two-edge walk), and adding one non-adjacent
+pair pins it to exactly `2` (`CGraph.diameter_eq_two`, using that `edist` is neither `0` nor `1`).
+Strong regularity supplies both hypotheses for free: `μ > 0` says precisely that non-adjacent
+vertices have a common neighbour, and `k + 1 < n` produces a non-adjacent pair, because otherwise
+`nbrs v = univ.erase v` would force `k = n - 1`. So **every strongly regular graph with `μ > 0` is
+connected**, and **is of diameter two unless it is complete** — one proof covering the Petersen
+graph, the rook's graphs, the cocktail-party graphs, the triangular graphs, the Paley graphs and
+`Kₙ,ₙ`. Connectivity also comes back the other way: a nonzero diameter means the graph is
+connected (`isConnected_of_diameter_ne_zero`), since a disconnected graph has diameter `0` by
+convention.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

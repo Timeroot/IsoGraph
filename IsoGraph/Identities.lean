@@ -2940,6 +2940,112 @@ theorem exists_degSequence_replicate_of_isVertexTransitive {G : CGraph}
     exact ⟨G.toSimple.degree v₀,
       degSequence_of_regular G fun v ↦ degree_eq_of_isVertexTransitive h v v₀⟩
 
+/-! ### Graphs of diameter two -/
+
+/-- If `u` and `v` are equal, adjacent, or joined by a path of length two, they are at distance
+at most two. -/
+theorem edist_le_two {G : CGraph} {u v : G.V}
+    (h : u = v ∨ G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v) :
+    G.toSimple.edist u v ≤ 2 := by
+  rcases h with rfl | hadj | ⟨w, h1, h2⟩
+  · simp
+  · rw [SimpleGraph.edist_eq_one_iff_adj.2 hadj]
+    norm_num
+  · refine le_trans (SimpleGraph.edist_le
+      (SimpleGraph.Walk.cons h1 (SimpleGraph.Walk.cons h2 SimpleGraph.Walk.nil))) ?_
+    simp
+
+/-- A *two-step* graph: any two distinct vertices are adjacent or have a common neighbour. -/
+theorem ediam_le_two (G : CGraph)
+    (h : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v) :
+    G.toSimple.ediam ≤ 2 :=
+  SimpleGraph.ediam_le_of_edist_le fun u v ↦
+    edist_le_two (by by_cases huv : u = v; exacts [Or.inl huv, Or.inr (h u v huv)])
+
+theorem diameter_le_two (G : CGraph)
+    (h : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v) :
+    G.diameter ≤ 2 := by
+  have h2 := ENat.toNat_le_toNat (G.ediam_le_two h) (by simp)
+  simpa [diameter, SimpleGraph.diam] using h2
+
+/-- A two-step graph with a non-adjacent pair has diameter exactly two. -/
+theorem diameter_eq_two (G : CGraph)
+    (h : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v)
+    {u v : G.V} (hne : u ≠ v) (hadj : ¬ G.toSimple.Adj u v) : G.diameter = 2 := by
+  have h1 : 1 ≤ G.toSimple.edist u v :=
+    ENat.one_le_iff_ne_zero.2 fun h0 ↦ hne (SimpleGraph.edist_eq_zero_iff.1 h0)
+  have h2 : G.toSimple.edist u v ≠ 1 := fun he ↦ hadj (SimpleGraph.edist_eq_one_iff_adj.1 he)
+  have h3 : (2 : ℕ∞) ≤ G.toSimple.edist u v := by
+    have := Order.add_one_le_of_lt (lt_of_le_of_ne h1 (Ne.symm h2))
+    simpa using this
+  have heq : G.toSimple.ediam = 2 :=
+    le_antisymm (G.ediam_le_two h) (le_trans h3 SimpleGraph.edist_le_ediam)
+  rw [diameter, SimpleGraph.diam, heq]
+  rfl
+
+/-- A graph with a nonzero diameter is connected: the diameter of a disconnected graph is `0` by
+convention. -/
+theorem isConnected_of_diameter_ne_zero (G : CGraph) (h : G.diameter ≠ 0) : G.IsConnected := by
+  have hnt : Nontrivial G.V := SimpleGraph.nontrivial_of_diam_ne_zero h
+  exact SimpleGraph.connected_of_ediam_ne_top (SimpleGraph.ediam_ne_top_of_diam_ne_zero h)
+
+/-! ### Strongly regular graphs of diameter two -/
+
+/-- In a strongly regular graph with `μ > 0`, any two distinct non-adjacent vertices have a
+common neighbour — that is what `μ` counts. -/
+theorem IsSRGWith.exists_common_neighbor {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hμ : 0 < μ) {u v : G.V} (hne : u ≠ v) (hadj : ¬ G.toSimple.Adj u v) :
+    ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v := by
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  have hcard : 0 < Fintype.card (G.toSimple.commonNeighbors u v) := by
+    rw [h'.of_not_adj hne hadj]; exact hμ
+  obtain ⟨w, hw⟩ := Fintype.card_pos_iff.1 hcard
+  exact ⟨w, hw.1, hw.2.symm⟩
+
+/-- A strongly regular graph that is not complete has a non-adjacent pair. -/
+theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hk : k + 1 < n) : ∃ u v : G.V, u ≠ v ∧ ¬ G.toSimple.Adj u v := by
+  classical
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  have hn : Fintype.card G.V = n := h'.card
+  obtain ⟨u⟩ := Fintype.card_pos_iff.1 (show 0 < Fintype.card G.V by omega)
+  by_contra hcon
+  push_neg at hcon
+  have hnbrs : G.nbrs u = Finset.univ.erase u := by
+    ext w
+    simp only [mem_nbrs, Finset.mem_erase, Finset.mem_univ, and_true]
+    constructor
+    · intro hw
+      rintro rfl
+      rw [adj_self] at hw
+      exact Bool.noConfusion hw
+    · intro hw
+      exact hcon u w (Ne.symm hw)
+  have hcard : (G.nbrs u).card = k := by rw [card_nbrs_eq_degree, h'.regular u]
+  rw [hnbrs, Finset.card_erase_of_mem (Finset.mem_univ u), Finset.card_univ, hn] at hcard
+  omega
+
+/-- **A strongly regular graph with `μ > 0` is connected**: any two non-adjacent vertices are
+joined by a path of length two. -/
+theorem IsSRGWith.isConnected {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) (hμ : 0 < μ)
+    (hn : 0 < n) : G.IsConnected := by
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  have : Nonempty G.V := Fintype.card_pos_iff.1 (by rw [h'.card]; exact hn)
+  refine SimpleGraph.connected_of_ediam_ne_top (ne_top_of_le_ne_top (by simp) (G.ediam_le_two ?_))
+  intro u v huv
+  by_cases hadj : G.toSimple.Adj u v
+  · exact Or.inl hadj
+  · exact Or.inr (h.exists_common_neighbor hμ huv hadj)
+
+/-- **A strongly regular graph with `μ > 0` that is not complete has diameter two.** -/
+theorem IsSRGWith.diameter_eq_two {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hμ : 0 < μ) (hk : k + 1 < n) : G.diameter = 2 := by
+  obtain ⟨u, v, hne, hadj⟩ := h.exists_not_adj hk
+  refine G.diameter_eq_two (fun a b hab ↦ ?_) hne hadj
+  by_cases hab2 : G.toSimple.Adj a b
+  · exact Or.inl hab2
+  · exact Or.inr (h.exists_common_neighbor hμ hab hab2)
+
 end CGraph
 
 namespace IsoGraph
@@ -6624,6 +6730,72 @@ theorem bipartite_ne_complete (m n k : ℕ) : bipartite m n ≠ complete (k + 3)
 theorem hypercube_ne_complete (n k : ℕ) : hypercube (n + 2) ≠ complete (k + 3) :=
   ne_of_isBipartite (isBipartite_hypercube (n + 2)) (not_isBipartite_complete k)
 
+/-! ### Diameter two, connectivity and strong regularity -/
+
+theorem isConnected_of_diameter_ne_zero {G : IsoGraph} (h : G.diameter ≠ 0) : IsConnected G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.isConnected_of_diameter_ne_zero g h
+
+/-- **A strongly regular graph with `μ > 0` that is not complete has diameter two.** -/
+theorem IsSRGWith.diameter_eq_two {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ)
+    (hμ : 0 < μ) (hk : k + 1 < n) : G.diameter = 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.IsSRGWith.diameter_eq_two h hμ hk
+
+/-- **A strongly regular graph with `μ > 0` is connected.** -/
+theorem IsSRGWith.isConnected {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) (hμ : 0 < μ)
+    (hn : 0 < n) : IsConnected G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.IsSRGWith.isConnected h hμ hn
+
+private theorem lt_choose_two_aux (m : ℕ) : 2 * (m + 2) + 1 < (m + 4).choose 2 := by
+  induction m with
+  | zero => decide
+  | succ p ih =>
+    have hc : (p + 1 + 4).choose 2 = (p + 4) + (p + 4).choose 2 := by
+      rw [show p + 1 + 4 = (p + 4) + 1 from rfl, Nat.choose_succ_succ, Nat.choose_one_right]
+    omega
+
+private theorem lt_choose_two {n : ℕ} (hn : 4 ≤ n) : 2 * (n - 2) + 1 < n.choose 2 := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
+  have h2 : m + 4 - 2 = m + 2 := by omega
+  rw [h2]
+  exact lt_choose_two_aux m
+
+@[simp] theorem diameter_petersen : petersen.diameter = 2 :=
+  isSRGWith_petersen.diameter_eq_two (by norm_num) (by norm_num)
+
+@[simp] theorem isConnected_petersen : IsConnected petersen :=
+  isSRGWith_petersen.isConnected (by norm_num) (by norm_num)
+
+@[simp] theorem diameter_rook (k : ℕ) : (rook (k + 2) (k + 2)).diameter = 2 :=
+  (isSRGWith_rook (k + 2)).diameter_eq_two (by norm_num)
+    (by have h : k + 2 - 1 = k + 1 := by omega
+        rw [h]; nlinarith)
+
+@[simp] theorem diameter_cocktailParty (n : ℕ) : (cocktailParty (n + 2)).diameter = 2 :=
+  (isSRGWith_cocktailParty (n + 2)).diameter_eq_two (by omega) (by omega)
+
+theorem diameter_triangular {n : ℕ} (hn : 4 ≤ n) : (triangular n).diameter = 2 :=
+  (isSRGWith_triangular n hn).diameter_eq_two (by norm_num) (lt_choose_two hn)
+
+theorem isConnected_triangular {n : ℕ} (hn : 4 ≤ n) : IsConnected (triangular n) :=
+  (isSRGWith_triangular n hn).isConnected (by norm_num) (Nat.choose_pos (by omega))
+
+theorem diameter_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq5 : 5 ≤ q) :
+    (paley q).diameter = 2 :=
+  (isSRGWith_paley q hq).diameter_eq_two (by omega) (by omega)
+
+theorem isConnected_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq5 : 5 ≤ q) :
+    IsConnected (paley q) :=
+  (isSRGWith_paley q hq).isConnected (by omega) (by omega)
+
+theorem diameter_bipartite_self (n : ℕ) : (bipartite (n + 2) (n + 2)).diameter = 2 :=
+  (isSRGWith_bipartite (n + 2)).diameter_eq_two (by omega) (by omega)
+
+theorem isConnected_bipartite_self (n : ℕ) : IsConnected (bipartite (n + 1) (n + 1)) :=
+  (isSRGWith_bipartite (n + 1)).isConnected (by omega) (by omega)
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -7297,5 +7469,19 @@ example : complete 4 ≠ path 4 :=
     decide)
 
 example (G : IsoGraph) (h : G.V = 5) : G ≠ petersen := ne_of_V_ne (by rw [h, V_petersen]; decide)
+
+example : petersen.diameter = 2 := by simp
+
+example : (rook 3 3).diameter = 2 := diameter_rook 1
+
+example : (cocktailParty 5).diameter = 2 := diameter_cocktailParty 3
+
+example : (triangular 5).diameter = 2 := diameter_triangular (by norm_num)
+
+/-- The Petersen graph is not the 10-cycle: their diameters (and degree sequences) differ. -/
+example : petersen ≠ cycle 10 :=
+  ne_of_diameter_ne (by
+    rw [diameter_petersen, show (10 : ℕ) = 9 + 1 from rfl, diameter_cycle]
+    decide)
 
 end IsoGraph
