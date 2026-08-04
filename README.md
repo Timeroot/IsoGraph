@@ -1297,6 +1297,14 @@ other.  The roots themselves are the image of the section, so they number `c(G)`
 counts add up to `|V|`.  Specialising to `c(G) = 1` recovers "a connected graph has at least
 `|V| - 1` edges", and contrapositively `|E| + 1 < |V|` forces disconnection.
 
+The Mycielskian gets its clique number too.  A clique of `M(G)` either contains the apex — and
+then everything else in it is a copy vertex, which are pairwise non-adjacent, so the clique is an
+edge — or it misses the apex, and forgetting whether each vertex is an original or a copy sends it
+injectively onto a clique of `G` of the same size (a vertex and its own copy are never adjacent).
+So `ω(M(G)) = max (ω G) 2`, and since `χ(M(G)) = χ(G) + 1` is already available, iterating `M` from
+`K₁` proves **Mycielski's theorem**: there are triangle-free graphs of arbitrarily large chromatic
+number, stated both as `ω ≤ 2` and as `cliqueCount 3 = 0`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

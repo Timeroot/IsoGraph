@@ -7007,6 +7007,106 @@ theorem E_pos_of_numComponents_lt_card (G : CGraph) (h : G.numComponents < Finty
   have := G.card_le_E_add_numComponents
   omega
 
+/-! ### The clique number of the Mycielskian -/
+
+/-- The Mycielskian creates no new cliques: apart from the edges at the apex, every clique is a
+clique of `G` in disguise. -/
+theorem cliqueNum_mycielskian (G : CGraph) [DecidableEq G.V] [Nonempty G.V] :
+    (mycielskian G).cliqueNum = max G.cliqueNum 2 := by
+  classical
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  apply le_antisymm
+  · obtain ⟨t, ht, hcard⟩ := (mycielskian G).toSimple.exists_isNClique_cliqueNum
+    show (mycielskian G).toSimple.cliqueNum ≤ _
+    rw [← hcard]
+    by_cases hnone : (none : (mycielskian G).V) ∈ t
+    · -- the apex is adjacent only to the copies, which are pairwise non-adjacent
+      refine le_trans ?_ (le_max_right _ _)
+      by_contra hc
+      push_neg at hc
+      have hcard' : 1 < (t.erase none).card := by
+        rw [Finset.card_erase_of_mem hnone]
+        omega
+      obtain ⟨x, hx, y, hy, hxy⟩ := Finset.one_lt_card.1 hcard'
+      have hinr : ∀ z ∈ t.erase none, ∃ b, z = some (.inr b) := by
+        intro z hz
+        have hzn : z ≠ none := Finset.ne_of_mem_erase hz
+        have hadj := ht (by simpa using hnone) (by simpa using Finset.mem_of_mem_erase hz)
+          (Ne.symm hzn)
+        match z, hzn with
+        | some (.inl b), _ => simp [CGraph.toSimple_adj] at hadj
+        | some (.inr b), _ => exact ⟨b, rfl⟩
+      obtain ⟨b, rfl⟩ := hinr x hx
+      obtain ⟨c, rfl⟩ := hinr y hy
+      have := ht (by simpa using Finset.mem_of_mem_erase hx)
+        (by simpa using Finset.mem_of_mem_erase hy) hxy
+      simp [CGraph.toSimple_adj] at this
+    · -- no apex: forgetting which copy a vertex is in gives a clique of `G` of the same size
+      refine le_trans ?_ (le_max_left _ _)
+      set f : (mycielskian G).V → G.V := fun x ↦ x.elim a₀ (Sum.elim id id) with hf
+      have hadj : ∀ x ∈ t, ∀ y ∈ t, x ≠ y → G.Adj (f x) (f y) = true := by
+        intro x hx y hy hxy
+        have h := ht (by simpa using hx) (by simpa using hy) hxy
+        match x, (by rintro rfl; exact hnone hx : x ≠ none),
+            y, (by rintro rfl; exact hnone hy : y ≠ none) with
+        | some (.inl b), _, some (.inl c), _ => simpa [hf, CGraph.toSimple_adj] using h
+        | some (.inl b), _, some (.inr c), _ => simpa [hf, CGraph.toSimple_adj] using h
+        | some (.inr b), _, some (.inl c), _ => simpa [hf, CGraph.toSimple_adj] using h
+        | some (.inr b), _, some (.inr c), _ => simp [CGraph.toSimple_adj] at h
+      have hinj : Set.InjOn f t := by
+        intro x hx y hy hfxy
+        by_contra hxy
+        have := hadj x hx y hy hxy
+        rw [hfxy] at this
+        exact absurd this (by simp [G.loopless])
+      have hclique : G.toSimple.IsClique ((t.image f : Finset G.V) : Set G.V) := by
+        intro u hu v hv huv
+        simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe] at hu hv
+        obtain ⟨x, hx, rfl⟩ := hu
+        obtain ⟨y, hy, rfl⟩ := hv
+        rw [CGraph.toSimple_adj]
+        exact hadj x hx y hy fun h ↦ huv (by rw [h])
+      calc t.card = (t.image f).card := (Finset.card_image_of_injOn hinj).symm
+        _ ≤ G.cliqueNum := hclique.card_le_cliqueNum
+  · refine max_le ?_ ?_
+    · -- `G` embeds as the `inl` copy
+      obtain ⟨t, ht, hcard⟩ := G.toSimple.exists_isNClique_cliqueNum
+      have hemb : Function.Injective (fun a : G.V ↦ (some (.inl a) : (mycielskian G).V)) := by
+        intro a b h
+        simpa using h
+      have hclique : (mycielskian G).toSimple.IsClique
+          ((t.map ⟨_, hemb⟩ : Finset (mycielskian G).V) : Set (mycielskian G).V) := by
+        intro u hu v hv huv
+        simp only [Finset.coe_map, Set.mem_image, Finset.mem_coe,
+          Function.Embedding.coeFn_mk] at hu hv
+        obtain ⟨x, hx, rfl⟩ := hu
+        obtain ⟨y, hy, rfl⟩ := hv
+        have := ht hx hy fun h ↦ huv (by rw [h])
+        rw [CGraph.toSimple_adj] at this ⊢
+        simpa using this
+      calc G.cliqueNum = (t.map ⟨_, hemb⟩).card := by
+            rw [Finset.card_map]; exact hcard.symm
+        _ ≤ (mycielskian G).cliqueNum := hclique.card_le_cliqueNum
+    · -- the apex together with any copy is an edge
+      have hclique : (mycielskian G).toSimple.IsClique
+          (({none, some (.inr a₀)} : Finset (mycielskian G).V) :
+            Set (mycielskian G).V) := by
+        intro u hu v hv huv
+        simp only [Finset.coe_insert, Finset.coe_singleton, Set.mem_insert_iff,
+          Set.mem_singleton_iff] at hu hv
+        rcases hu with rfl | rfl <;> rcases hv with rfl | rfl <;>
+          simp_all [CGraph.toSimple_adj]
+      have hcard : ({none, some (.inr a₀)} : Finset (mycielskian G).V).card = 2 := by
+        rw [Finset.card_insert_of_notMem (by simp), Finset.card_singleton]
+      calc (2 : ℕ) = ({none, some (.inr a₀)} : Finset (mycielskian G).V).card := hcard.symm
+        _ ≤ (mycielskian G).cliqueNum := hclique.card_le_cliqueNum
+
+/-- Mycielski's construction preserves triangle-freeness. -/
+theorem cliqueNum_mycielskian_eq_two (G : CGraph) [DecidableEq G.V] [Nonempty G.V]
+    (h : G.cliqueNum ≤ 2) : (mycielskian G).cliqueNum = 2 := by
+  rw [cliqueNum_mycielskian]
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -14068,5 +14168,46 @@ example : (empty 5).V - (empty 5).E ≤ (empty 5).numComponents := by simp
 example : ¬ (disjUnion (complete 1) (complete 1)).IsConnected := by
   apply not_isConnected_of_E_add_one_lt_V
   simp
+
+/-! ### The clique number of the Mycielskian -/
+
+theorem cliqueNum_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
+    (mycielskian G).cliqueNum = max G.cliqueNum 2 := by
+  induction G using Quotient.inductionOn with | _ g
+  rw [← mk_canonicalize g, V_mk] at hV
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
+  rw [← mk_canonicalize g, mycielskian_mk, cliqueNum_mk, cliqueNum_mk]
+  exact CGraph.cliqueNum_mycielskian _
+
+theorem cliqueNum_mycielskian_eq_two {G : IsoGraph} (hV : 0 < G.V) (h : G.cliqueNum ≤ 2) :
+    (mycielskian G).cliqueNum = 2 := by
+  rw [cliqueNum_mycielskian G hV]
+  omega
+
+/-- **Mycielski's theorem**: there are triangle-free graphs of arbitrarily large chromatic
+number.  Iterating the Mycielskian from `K₁` keeps the clique number at most two while raising
+the chromatic number by one each time. -/
+theorem exists_cliqueNum_le_two_and_le_chromNum (k : ℕ) :
+    ∃ G : IsoGraph, 0 < G.V ∧ G.cliqueNum ≤ 2 ∧ k ≤ G.chromNum := by
+  induction k with
+  | zero => exact ⟨complete 1, by simp, by simp, by simp⟩
+  | succ k ih =>
+    obtain ⟨G, hV, hw, hc⟩ := ih
+    refine ⟨mycielskian G, ?_, ?_, ?_⟩
+    · rw [V_mycielskian]
+      omega
+    · rw [cliqueNum_mycielskian G hV]
+      omega
+    · rw [chromNum_mycielskian]
+      omega
+
+/-- The same statement with triangles counted rather than measured by the clique number. -/
+theorem exists_cliqueCount_three_eq_zero_and_le_chromNum (k : ℕ) :
+    ∃ G : IsoGraph, G.cliqueCount 3 = 0 ∧ k ≤ G.chromNum := by
+  obtain ⟨G, -, hw, hc⟩ := exists_cliqueNum_le_two_and_le_chromNum k
+  exact ⟨G, (cliqueCount_eq_zero_iff G 3).2 (by omega), hc⟩
+
+example : (mycielskian (cycle 5)).cliqueNum = 2 := by
+  rw [cliqueNum_mycielskian _ (by simp), cliqueNum_cycle_five, max_self]
 
 end IsoGraph
