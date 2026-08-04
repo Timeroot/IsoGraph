@@ -24621,4 +24621,114 @@ theorem isConnected_crown (n : ℕ) : IsConnected (crown (n + 3)) := by
 @[simp] theorem numComponents_crown (n : ℕ) : (crown (n + 3)).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_crown n)
 
+theorem crown_eq_compl_rook (n : ℕ) : crown n = compl (rook n 2) := (compl_rook n 2).symm
+
+@[simp] theorem compl_crown (n : ℕ) : compl (crown n) = rook n 2 := by
+  rw [crown_eq_compl_rook, compl_compl]
+
+theorem cliqueCoverNum_crown (n : ℕ) : (crown (n + 2)).cliqueCoverNum = n + 2 := by
+  rw [cliqueCoverNum_eq, crown, ← compl_rook, compl_compl]
+  have : (n + 2 : ℕ) = (n + 1) + 1 := by omega
+  have : (2 : ℕ) = (1 : ℕ) + 1 := by omega
+  rw [‹(n + 2 : ℕ) = (n + 1) + 1›, ‹(2 : ℕ) = (1 : ℕ) + 1›]
+  rw [chromNum_rook]
+  omega
+
+
+theorem girth_crown (n : ℕ) : (crown (n + 4)).girth = 4 := by
+  rw [crown, complete_def, complete_def, tensorProduct_mk, girth_mk]
+  set G := CGraph.complete (n + 4)
+  set H := CGraph.complete 2
+  -- Helper lemmas about adj in complete graphs
+  have hG_adj : ∀ (i j : Fin (n + 4)), i ≠ j → G.Adj i j := fun i j hij => by
+    rw [CGraph.complete_adj]; exact decide_eq_true_eq.mpr hij
+  have hG_not_adj_self : ∀ (i : Fin (n + 4)), ¬G.Adj i i := fun i => by
+    rw [CGraph.complete_adj]; simp
+  have hG01 : G.Adj (0 : Fin (n + 4)) (1 : Fin (n + 4)) := hG_adj _ _ (by simp)
+  have hne12 : (1 : Fin (n + 4)) ≠ (2 : Fin (n + 4)) := by
+    intro h
+    exact absurd (Fin.ext_iff.mp h)
+      (by simp [Nat.mod_eq_of_lt (by omega : 1 < n+4),
+        Nat.mod_eq_of_lt (by omega : 2 < n+4)])
+  have hne23 : (2 : Fin (n + 4)) ≠ (3 : Fin (n + 4)) := by
+    intro h
+    exact absurd (Fin.ext_iff.mp h)
+      (by simp [Nat.mod_eq_of_lt (by omega : 2 < n+4),
+        Nat.mod_eq_of_lt (by omega : 3 < n+4)])
+  have hne30 : (3 : Fin (n + 4)) ≠ (0 : Fin (n + 4)) := by
+    intro h
+    exact absurd (Fin.ext_iff.mp h)
+      (by simp [Nat.mod_eq_of_lt (by omega : 3 < n+4),
+        Nat.mod_eq_of_lt (by omega : 0 < n+4)])
+  have h02 : (0 : Fin (n + 4)) ≠ (2 : Fin (n + 4)) := by
+    intro h
+    exact absurd (Fin.ext_iff.mp h)
+      (by simp [Nat.mod_eq_of_lt (by omega : 0 < n+4),
+        Nat.mod_eq_of_lt (by omega : 2 < n+4)])
+  have h13 : (1 : Fin (n + 4)) ≠ (3 : Fin (n + 4)) := by
+    intro h
+    exact absurd (Fin.ext_iff.mp h)
+      (by simp [Nat.mod_eq_of_lt (by omega : 1 < n+4),
+        Nat.mod_eq_of_lt (by omega : 3 < n+4)])
+  have hG12 : G.Adj (1 : Fin (n + 4)) (2 : Fin (n + 4)) := hG_adj _ _ hne12
+  have hG23 : G.Adj (2 : Fin (n + 4)) (3 : Fin (n + 4)) := hG_adj _ _ hne23
+  have hG30 : G.Adj (3 : Fin (n + 4)) (0 : Fin (n + 4)) := hG_adj _ _ hne30
+  have hH01 : H.Adj (0 : Fin 2) (1 : Fin 2) := by
+    rw [CGraph.complete_adj]; decide
+  have hH10 : H.Adj (1 : Fin 2) (0 : Fin 2) := by
+    rw [CGraph.complete_adj]; decide
+  -- The four vertices of our 4-cycle
+  let v0 : G.V × H.V := ((0 : Fin (n + 4)), (0 : Fin 2))
+  let v1 : G.V × H.V := ((1 : Fin (n + 4)), (1 : Fin 2))
+  let v2 : G.V × H.V := ((2 : Fin (n + 4)), (0 : Fin 2))
+  let v3 : G.V × H.V := ((3 : Fin (n + 4)), (1 : Fin 2))
+  have hv0v1 : (G.tensorProduct H).Adj v0 v1 := by
+    dsimp only [v0, v1]
+    rw [CGraph.tensorProduct_adj]; simp [hG01, hH01]
+  have hv1v2 : (G.tensorProduct H).Adj v1 v2 := by
+    dsimp only [v1, v2]
+    rw [CGraph.tensorProduct_adj]; simp [hG12, hH10]
+  have hv2v3 : (G.tensorProduct H).Adj v2 v3 := by
+    dsimp only [v2, v3]
+    rw [CGraph.tensorProduct_adj]; simp [hG23, hH01]
+  have hv3v0 : (G.tensorProduct H).Adj v3 v0 := by
+    dsimp only [v3, v0]
+    rw [CGraph.tensorProduct_adj]; simp [hG30, hH10]
+  have hv0v2 : v0 ≠ v2 := by
+    intro h; have := congrArg Prod.fst h; exact absurd this h02
+  have hv1v3 : v1 ≠ v3 := by
+    intro h; have := congrArg Prod.fst h; exact absurd this h13
+  apply le_antisymm
+  · exact CGraph.girth_le_four_of_square hv0v1 hv1v2 hv2v3 hv3v0 hv0v2 hv1v3
+  · exact CGraph.four_le_girth_of_isBipartite
+      (CGraph.IsBipartite.tensorProduct_right
+        ⟨fun i => if i.val = 0 then false else true,
+        fun i j hij => by
+          rw [CGraph.complete_adj] at hij
+          fin_cases i <;> fin_cases j <;> simp_all⟩)
+      (CGraph.not_isAcyclic_of_square hv0v1 hv1v2 hv2v3 hv3v0 hv0v2 hv1v3)
+
+
+@[simp] theorem maxDeg_crown (n : ℕ) : maxDeg (crown (n + 2)) = n + 1 := by
+  rw [(isRegularWith_crown (n + 2)).maxDeg_eq (by rw [V_crown]; omega)]
+  omega
+
+@[simp] theorem minDeg_crown (n : ℕ) : minDeg (crown (n + 2)) = n + 1 := by
+  rw [(isRegularWith_crown (n + 2)).minDeg_eq (by rw [V_crown]; omega)]
+  omega
+
+theorem two_le_domNum_crown (n : ℕ) : 2 ≤ (crown (n + 2)).domNum := by
+  have hV := V_le_domNum_mul_maxDeg_add_one (crown (n + 2))
+  rw [V_crown, maxDeg_crown] at hV
+  by_contra hc
+  have hd : (crown (n + 2)).domNum ≤ 1 := by omega
+  have := Nat.mul_le_mul_right (n + 1 + 1) hd
+  omega
+
+@[simp] theorem not_isAcyclic_crown (n : ℕ) : ¬ IsAcyclic (crown (n + 4)) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_crown]; omega)
+
+@[simp] theorem not_isTree_crown (n : ℕ) : ¬ IsTree (crown (n + 4)) :=
+  not_isTree_of_girth_pos (by rw [girth_crown]; omega)
+
 end IsoGraph

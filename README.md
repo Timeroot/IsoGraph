@@ -1834,6 +1834,20 @@ the friendship graph), and the independence number of a general Turán graph is 
 `⌈n / r⌉` of its largest part, which needs a careful `max?` computation over the two blocks of
 part sizes.
 
+Crown graphs turned out to be the complement of a rook graph: deleting a perfect matching from
+`K_{n,n}` leaves the tensor product `K_n × K_2`, and complementing a `n × 2` rook graph does the
+same thing, so `crown n = compl (rook n 2)` and the whole rook invariant table becomes available
+by complementation.  That is how the clique cover number `θ(S_n) = n` falls out -- it is the
+chromatic number of the rook graph, which the earlier Latin-square argument already computed.
+The prover supplied the girth: a crown graph on at least eight vertices has girth four, the
+shortest cycle alternating between the two sides and skipping the two missing matching edges,
+which also rules out acyclicity and treeness.  Regularity gives `Δ = δ = n - 1` and the walk
+argument gives connectedness for `n ≥ 3`.  One target came back refuted rather than proved: the
+guess that a crown graph needs four dominating vertices is wrong, and the counterexample the
+prover produced -- the adjacent pair `(0,0), (0,1)` in `S_4`, which between them see every other
+vertex -- shows the answer is two.  The matching lower bound `2 ≤ γ(S_n)` follows from
+`n ≤ γ · (Δ + 1)` and is proved here; the upper bound went back into the queue.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
