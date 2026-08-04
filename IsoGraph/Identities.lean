@@ -7901,6 +7901,38 @@ theorem degree_le_cliqueNum_lineGraph (G : CGraph) [DecidableEq G.V] (v : G.V) :
 theorem maxDeg_le_cliqueNum_lineGraph (G : CGraph) [DecidableEq G.V] :
     G.maxDeg ≤ (lineGraph G).cliqueNum :=
   maxDeg_le_of_forall fun v ↦ degree_le_cliqueNum_lineGraph G v
+
+/-! ### Matchings -/
+
+/-- Distinct non-adjacent vertices of the line graph are vertex-disjoint edges of `G`. -/
+theorem disjoint_of_not_adj_lineGraph (G : CGraph) [DecidableEq G.V]
+    {e f : (lineGraph G).V} (hef : e ≠ f) (h : ¬ (lineGraph G).toSimple.Adj e f) :
+    Disjoint e.1.toFinset f.1.toFinset := by
+  rw [Finset.disjoint_left]
+  intro v hv hv'
+  refine h ?_
+  rw [toSimple_adj, lineGraph_adj]
+  simp only [Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+  exact ⟨hef, v, Sym2.mem_toFinset.1 hv, Sym2.mem_toFinset.1 hv'⟩
+
+/-- A matching is an independent set in the line graph, and its edges use `2ν` distinct
+vertices, so `2ν ≤ n`. -/
+theorem two_mul_indepNum_lineGraph_le_card (G : CGraph) [DecidableEq G.V] :
+    2 * (lineGraph G).indepNum ≤ Fintype.card G.V := by
+  classical
+  obtain ⟨S, hS, hcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
+  have hb : (S.biUnion fun e ↦ e.1.toFinset).card = ∑ e ∈ S, e.1.toFinset.card := by
+    refine Finset.card_biUnion fun e he f hf hef ↦ ?_
+    exact disjoint_of_not_adj_lineGraph G hef (hS (by simpa using he) (by simpa using hf) hef)
+  have hsum : ∑ e ∈ S, e.1.toFinset.card = 2 * S.card := by
+    rw [Finset.sum_congr rfl fun e _ ↦
+      Sym2.card_toFinset_of_not_isDiag e.1 (SimpleGraph.not_isDiag_of_mem_edgeSet _ e.2)]
+    rw [Finset.sum_const, smul_eq_mul, Nat.mul_comm]
+  have hle : (S.biUnion fun e ↦ e.1.toFinset).card ≤ Fintype.card G.V :=
+    le_trans (Finset.card_le_card (Finset.subset_univ _)) (le_of_eq Finset.card_univ)
+  have hdef : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -16137,5 +16169,78 @@ example : petersen.edgeChromNum ≤ 5 := by
   omega
 
 example : (star 4).edgeChromNum = 4 := edgeChromNum_star 4
+
+
+/-! ### The matching number
+
+A matching is a set of pairwise disjoint edges, that is, an independent set in the line
+graph, so like the chromatic index the matching number needs no separate construction. -/
+
+/-- The *matching number* `ν(G)`: the largest number of pairwise disjoint edges. -/
+noncomputable def matchNum (G : IsoGraph) : ℕ := indepNum (lineGraph G)
+
+theorem matchNum_eq (G : IsoGraph) : G.matchNum = indepNum (lineGraph G) := rfl
+
+theorem matchNum_le_E (G : IsoGraph) : G.matchNum ≤ G.E := by
+  have h := (lineGraph G).coverNum_add_indepNum
+  rw [V_lineGraph] at h
+  rw [matchNum_eq]
+  omega
+
+/-- Each of the `ν` edges of a maximum matching uses two private vertices. -/
+theorem two_mul_matchNum_le_V (G : IsoGraph) : 2 * G.matchNum ≤ G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, matchNum_eq, lineGraph_mk, indepNum_mk, V_mk]
+  exact CGraph.two_mul_indepNum_lineGraph_le_card _
+
+/-- Gallai's identity in the line graph: an edge cover of `L(G)` complements a matching. -/
+theorem coverNum_lineGraph_add_matchNum (G : IsoGraph) :
+    coverNum (lineGraph G) + G.matchNum = G.E := by
+  have h := (lineGraph G).coverNum_add_indepNum
+  rwa [V_lineGraph] at h
+
+/-- Every colour class of an edge colouring is a matching, so `|E| ≤ χ' ν`. -/
+theorem E_le_edgeChromNum_mul_matchNum (G : IsoGraph) :
+    G.E ≤ G.edgeChromNum * G.matchNum := by
+  have h := V_le_chromNum_mul_indepNum (lineGraph G)
+  rwa [V_lineGraph] at h
+
+theorem matchNum_pos (G : IsoGraph) (h : 0 < G.E) : 0 < G.matchNum := by
+  rw [matchNum_eq]
+  exact one_le_indepNum (by rwa [V_lineGraph])
+
+@[simp] theorem matchNum_eq_zero_iff (G : IsoGraph) : G.matchNum = 0 ↔ G.E = 0 := by
+  refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩
+  · by_contra hE
+    have := G.matchNum_pos (Nat.pos_of_ne_zero hE)
+    omega
+  · have := G.matchNum_le_E
+    omega
+
+@[simp] theorem matchNum_empty (n : ℕ) : (empty n).matchNum = 0 := by
+  rw [matchNum_eq, lineGraph_empty, indepNum_empty]
+
+/-- A star has a single edge available to any matching. -/
+@[simp] theorem matchNum_star (n : ℕ) : (star n).matchNum = min n 1 := by
+  rw [matchNum_eq, lineGraph_star, indepNum_complete]
+
+@[simp] theorem matchNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).matchNum = G.matchNum + H.matchNum := by
+  rw [matchNum_eq, lineGraph_disjUnion, indepNum_disjUnion, matchNum_eq, matchNum_eq]
+
+/-- The Petersen graph has at most five independent edges, and `|E| ≤ χ' ν` then forces
+`χ' ≥ 3`. -/
+example : 2 * petersen.matchNum ≤ 10 := by
+  have h := petersen.two_mul_matchNum_le_V
+  rwa [V_petersen] at h
+
+example : (star 4).matchNum = 1 := by rw [matchNum_star]; omega
+
+example : (disjUnion (complete 2) (complete 2)).matchNum = 2 := by
+  rw [matchNum_disjUnion]
+  have h : (complete 2).matchNum = 1 := by
+    rw [← star_one, matchNum_star]
+    omega
+  omega
 
 end IsoGraph

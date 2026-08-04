@@ -1483,6 +1483,16 @@ and `chi'` of a disjoint union is the max of the two. For the Petersen graph thi
 gives `3 <= chi' <= 5`; the true value `4` needs its lack of a proper 3-edge-colouring,
 which is a genuinely harder fact.
 
+The *matching number* `ν(G)` is defined the same way as the chromatic index: a matching is a
+set of pairwise disjoint edges, which is exactly an independent set in the line graph, so
+`matchNum G = indepNum (lineGraph G)` and again no new quotient obligation arises. Gallai's
+identity in `L(G)` gives `coverNum (lineGraph G) + ν = |E|` for free, and
+`V_le_chromNum_mul_indepNum` applied to `L(G)` gives `|E| ≤ χ' ν`, since every colour class of
+an edge colouring is a matching. The one bound with real content is `2ν ≤ n`: a maximum
+matching is an independent set `S` in `L(G)`, its edges are pairwise vertex-disjoint, and
+`Finset.card_biUnion` over the `S`-indexed family of two-element endpoint sets embeds `2|S|`
+vertices into `V`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
