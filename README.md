@@ -961,6 +961,25 @@ diameter `2` for any two side lengths — which subsumes the old square-only pro
 strongly regular parameters.  `Q₄` and the `4 × 4` rook graph are the payoff: sixteen vertices,
 `4`-regular both, and told apart by nothing cheaper than the diameter.
 
+The newest invariant is the chromatic number, `chromNum : IsoGraph → ℕ`, defined as
+`G.toSimple.chromaticNumber.toNat` — the `toNat` is harmless because a finite graph is colourable
+by its own vertex set, so `chromaticNumber ≠ ⊤`, and `coe_chromNum` moves every statement back to
+`ℕ∞` where Mathlib's API lives.  Getting at that API needed one missing bridge: `cycle_toSimple`
+identifies `CGraph.cycle n` with Mathlib's `SimpleGraph.cycleGraph n`, translating the `(i+1) % n`
+adjacency into the `Fin`-subtraction phrasing of `cycleGraph_adj'`, and it unlocks the cycle-graph
+results generally rather than just the colouring ones.  With it, `χ(Kₙ) = n`, `χ(Pₙ₊₂) = 2`,
+`χ(C_even) = 2`, `χ(C_odd) = 3` and `χ(G ⊔ H) = max χ(G) χ(H)` all come straight from Mathlib.
+The workhorse for everything else is `chromNum_eq_two_iff : χ(G) = 2 ↔ G.IsBipartite ∧ 0 < G.E`,
+which turns the file's existing `IsBipartite` and `E` tables into chromatic numbers wholesale —
+complete bipartite graphs, stars, hypercubes, ladders, even prisms and grids all follow in one
+line each.  In the other direction `three_le_chromNum` says a non-bipartite graph needs three
+colours (so `χ(petersen) ≥ 3`, from its odd cycle), and `cliqueNum_le_chromNum` gives the other
+standard lower bound `ω ≤ χ`.  For the tensor product only the inequality
+`χ(G × H) ≤ min χ(G) χ(H)` holds — both projections are homomorphisms — and equality is Hedetniemi's
+conjecture, now known to be false, so the inequality is the honest statement.  As an invariant it
+separates `C₃ ⊔ C₃` from `C₆`: both are `2`-regular on six vertices with six edges and neither the
+degree sequence nor the edge count can tell them apart.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

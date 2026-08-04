@@ -1,4 +1,7 @@
 import IsoGraph.Constructions
+import Mathlib.Combinatorics.SimpleGraph.ConcreteColorings
+import Mathlib.Combinatorics.SimpleGraph.Sum
+import Mathlib.Combinatorics.SimpleGraph.Circulant
 
 /-!
 # Constructions on `IsoGraph`, and the identities between them
@@ -3709,6 +3712,168 @@ theorem diameter_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq 
 theorem diameter_disjUnion (G H : CGraph) (hG : 0 < Fintype.card G.V)
     (hH : 0 < Fintype.card H.V) : (disjUnion G H).diameter = 0 :=
   SimpleGraph.diam_eq_zero_of_not_connected (not_isConnected_disjUnion G H hG hH)
+
+theorem chromNum_le_iff_colorable {G : CGraph} {n : ℕ} : G.chromNum ≤ n ↔ G.toSimple.Colorable n := by
+  rw [← SimpleGraph.chromaticNumber_le_iff_colorable, ← coe_chromNum, Nat.cast_le]
+
+theorem colorable_chromNum {G : CGraph} : G.toSimple.Colorable G.chromNum := chromNum_le_iff_colorable.1 le_rfl
+
+theorem le_chromNum_iff {G : CGraph} {n : ℕ} : n ≤ G.chromNum ↔ ∀ m, G.toSimple.Colorable m → n ≤ m := by
+  rw [← Nat.cast_le (α := ℕ∞), coe_chromNum, SimpleGraph.le_chromaticNumber_iff_colorable]
+
+theorem chromNum_eq_iff {G : CGraph} {n : ℕ} :
+    G.chromNum = n ↔ G.toSimple.Colorable n ∧ ∀ m, G.toSimple.Colorable m → n ≤ m := by
+  rw [le_antisymm_iff, chromNum_le_iff_colorable, le_chromNum_iff]
+
+/-! ### The cycle is Mathlib's `cycleGraph` -/
+
+/-- One step around `cycle n`, in Mathlib's `Fin`-subtraction phrasing. -/
+private theorem cycle_step_iff {n : ℕ} {u v : Fin n} (h : u.1 ≠ v.1) :
+    (u.1 + 1) % n = v.1 ↔ (v - u).val = 1 := by
+  have hu := u.isLt
+  have hv := v.isLt
+  rcases lt_or_ge u.1 v.1 with hlt | hle
+  · rw [Fin.coe_sub_iff_le.2 (Fin.le_def.2 hlt.le), Nat.mod_eq_of_lt (by omega)]
+    omega
+  · rw [Fin.coe_sub_iff_lt.2 (Fin.lt_def.2 (by omega))]
+    rcases eq_or_lt_of_le (Nat.succ_le_of_lt hu) with he | hlt2
+    · rw [show u.1 + 1 = n from he, Nat.mod_self]; omega
+    · rw [Nat.mod_eq_of_lt (by omega)]; omega
+
+/-- `CGraph.cycle n` is Mathlib's `SimpleGraph.cycleGraph n`. -/
+@[simp] theorem cycle_toSimple (n : ℕ) : (cycle n).toSimple = SimpleGraph.cycleGraph n := by
+  ext u v
+  rw [CGraph.toSimple_adj, cycle_adj_val]
+  constructor
+  · rintro ⟨hne, h | h⟩
+    · exact SimpleGraph.cycleGraph_adj'.2 (Or.inr ((cycle_step_iff hne).1 h))
+    · exact SimpleGraph.cycleGraph_adj'.2 (Or.inl ((cycle_step_iff (Ne.symm hne)).1 h))
+  · intro hadj
+    have hne : u.1 ≠ v.1 := fun he ↦ hadj.ne (Fin.ext he)
+    rcases SimpleGraph.cycleGraph_adj'.1 hadj with h | h
+    · exact ⟨hne, Or.inr ((cycle_step_iff (Ne.symm hne)).2 h)⟩
+    · exact ⟨hne, Or.inl ((cycle_step_iff hne).2 h)⟩
+
+/-! ### Values of the chromatic number -/
+
+theorem chromNum_eq_of_chromaticNumber {G : CGraph} {n : ℕ}
+    (h : G.toSimple.chromaticNumber = n) : G.chromNum = n := by
+  rw [← Nat.cast_inj (R := ℕ∞), coe_chromNum, h]
+
+theorem chromNum_le_card (G : CGraph) : G.chromNum ≤ Fintype.card G.V := by
+  rw [← Nat.cast_le (α := ℕ∞), coe_chromNum]
+  exact SimpleGraph.chromaticNumber_le_card
+
+/-- A clique needs one colour per vertex, so `ω(G) ≤ χ(G)`. -/
+theorem cliqueNum_le_chromNum (G : CGraph) : G.cliqueNum ≤ G.chromNum := by
+  rw [← Nat.cast_le (α := ℕ∞), coe_chromNum]
+  exact SimpleGraph.cliqueNum_le_chromaticNumber
+
+theorem two_le_chromNum_of_adj {G : CGraph} {a b : G.V} (h : G.Adj a b) : 2 ≤ G.chromNum := by
+  rw [← Nat.cast_le (α := ℕ∞), coe_chromNum]
+  exact SimpleGraph.two_le_chromaticNumber_of_adj h
+
+/-- Two colours suffice exactly when the graph is bipartite. -/
+theorem isBipartite_iff_chromNum_le_two {G : CGraph} : G.IsBipartite ↔ G.chromNum ≤ 2 :=
+  G.isBipartite_iff_colorable.trans chromNum_le_iff_colorable.symm
+
+@[simp] theorem chromNum_empty_zero : (empty 0).chromNum = 0 :=
+  chromNum_eq_of_chromaticNumber (by
+    haveI : IsEmpty (empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+    rw [empty_toSimple]
+    exact SimpleGraph.chromaticNumber_eq_zero_of_isEmpty)
+
+@[simp] theorem chromNum_empty (n : ℕ) : (empty (n + 1)).chromNum = 1 :=
+  chromNum_eq_of_chromaticNumber (by
+    haveI : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
+    rw [empty_toSimple]
+    exact SimpleGraph.chromaticNumber_bot (V := (empty (n + 1)).V))
+
+/-- **`K_n` needs `n` colours.** -/
+@[simp] theorem chromNum_complete (n : ℕ) : (complete n).chromNum = n :=
+  chromNum_eq_of_chromaticNumber (by rw [complete_toSimple, SimpleGraph.chromaticNumber_top,
+    card_complete])
+
+@[simp] theorem chromNum_path (n : ℕ) : (path (n + 2)).chromNum = 2 :=
+  chromNum_eq_of_chromaticNumber (by
+    rw [path_toSimple]; exact SimpleGraph.chromaticNumber_pathGraph _ (by omega))
+
+/-- **An even cycle is bipartite.** -/
+theorem chromNum_cycle_even (m : ℕ) : (cycle (2 * m + 2)).chromNum = 2 :=
+  chromNum_eq_of_chromaticNumber (by
+    rw [cycle_toSimple]
+    exact SimpleGraph.chromaticNumber_cycleGraph_of_even _ (by omega) ⟨m + 1, by omega⟩)
+
+/-- **An odd cycle needs three colours.** -/
+theorem chromNum_cycle_odd (m : ℕ) : (cycle (2 * m + 3)).chromNum = 3 :=
+  chromNum_eq_of_chromaticNumber (by
+    rw [cycle_toSimple]
+    exact SimpleGraph.chromaticNumber_cycleGraph_of_odd _ (by omega) ⟨m + 1, by omega⟩)
+
+/-- The underlying simple graph of a disjoint union is Mathlib's `SimpleGraph.sum`. -/
+theorem toSimple_disjUnion (G H : CGraph) :
+    (disjUnion G H).toSimple = G.toSimple.sum H.toSimple := by
+  ext x y
+  cases x <;> cases y <;> simp [SimpleGraph.sum_adj, CGraph.toSimple_adj]
+
+/-- **Colouring the two halves of a disjoint union is independent.** -/
+@[simp] theorem chromNum_disjUnion (G H : CGraph) :
+    (disjUnion G H).chromNum = max G.chromNum H.chromNum := by
+  have hmax : ((max G.chromNum H.chromNum : ℕ) : ℕ∞)
+      = max (G.chromNum : ℕ∞) (H.chromNum : ℕ∞) := by
+    rcases le_total G.chromNum H.chromNum with h | h
+    · rw [max_eq_right h, max_eq_right (Nat.cast_le.2 h)]
+    · rw [max_eq_left h, max_eq_left (Nat.cast_le.2 h)]
+  rw [← Nat.cast_inj (R := ℕ∞), coe_chromNum, toSimple_disjUnion,
+    SimpleGraph.chromaticNumber_sum, hmax, coe_chromNum, coe_chromNum]
+
+theorem toSimple_ne_bot_iff {G : CGraph} : G.toSimple ≠ ⊥ ↔ 0 < G.E := by
+  show _ ↔ 0 < G.toSimple.edgeFinset.card
+  rw [Finset.card_pos, SimpleGraph.edgeFinset_nonempty]
+
+theorem chromNum_eq_iff_chromaticNumber {G : CGraph} {n : ℕ} :
+    G.chromNum = n ↔ G.toSimple.chromaticNumber = n := by
+  rw [← Nat.cast_inj (R := ℕ∞), coe_chromNum]
+
+/-- **A graph is 2-chromatic exactly when it is bipartite and has an edge.** -/
+theorem chromNum_eq_two_iff {G : CGraph} : G.chromNum = 2 ↔ G.IsBipartite ∧ 0 < G.E := by
+  rw [chromNum_eq_iff_chromaticNumber, ← toSimple_ne_bot_iff, isBipartite_iff_colorable]
+  exact_mod_cast SimpleGraph.chromaticNumber_eq_two_iff
+
+theorem chromNum_eq_zero_iff {G : CGraph} : G.chromNum = 0 ↔ Fintype.card G.V = 0 := by
+  rw [chromNum_eq_iff_chromaticNumber, Fintype.card_eq_zero_iff]
+  exact ⟨fun h ↦ SimpleGraph.isEmpty_of_chromaticNumber_eq_zero (by exact_mod_cast h),
+    fun h ↦ by exact_mod_cast SimpleGraph.chromaticNumber_eq_zero_of_isEmpty⟩
+
+/-- Anything that is not bipartite needs at least three colours. -/
+theorem three_le_chromNum {G : CGraph} (h : ¬ G.IsBipartite) : 3 ≤ G.chromNum := by
+  rw [isBipartite_iff_chromNum_le_two] at h; omega
+
+/-- Projecting a tensor product onto a factor is a graph homomorphism, so it cannot need more
+colours than either factor. -/
+private theorem chromaticNumber_le_of_hom_fst {X Y : Type} {S : SimpleGraph X}
+    {P : SimpleGraph (X × Y)} (hadj : ∀ p q : X × Y, P.Adj p q → S.Adj p.1 q.1) :
+    P.chromaticNumber ≤ S.chromaticNumber :=
+  SimpleGraph.chromaticNumber_mono_of_hom ⟨Prod.fst, fun {a b} h ↦ hadj a b h⟩
+
+private theorem chromaticNumber_le_of_hom_snd {X Y : Type} {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)} (hadj : ∀ p q : X × Y, P.Adj p q → T.Adj p.2 q.2) :
+    P.chromaticNumber ≤ T.chromaticNumber :=
+  SimpleGraph.chromaticNumber_mono_of_hom ⟨Prod.snd, fun {a b} h ↦ hadj a b h⟩
+
+/-- **A tensor product is no harder to colour than either factor.** -/
+theorem chromNum_tensorProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (tensorProduct G H).chromNum ≤ min G.chromNum H.chromNum := by
+  rw [le_min_iff, ← Nat.cast_le (α := ℕ∞), ← Nat.cast_le (α := ℕ∞), coe_chromNum, coe_chromNum,
+    coe_chromNum]
+  refine ⟨chromaticNumber_le_of_hom_fst (S := G.toSimple) (P := (tensorProduct G H).toSimple)
+      fun p q h ↦ ?_,
+    chromaticNumber_le_of_hom_snd (T := H.toSimple) (P := (tensorProduct G H).toSimple)
+      fun p q h ↦ ?_⟩
+  · have h' : G.Adj p.1 q.1 = true ∧ H.Adj p.2 q.2 = true := by simpa using h
+    exact h'.1
+  · have h' : G.Adj p.1 q.1 = true ∧ H.Adj p.2 q.2 = true := by simpa using h
+    exact h'.2
 
 end CGraph
 
@@ -8255,6 +8420,102 @@ whatever the product does to a pair of degrees. -/
     degMultiset_mk, degMultiset_mk]
   exact CGraph.degMultiset_strongProduct _ _
 
+/-! ### The chromatic number of an `IsoGraph` -/
+
+theorem chromNum_le_V (G : IsoGraph) : G.chromNum ≤ G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, V_mk]
+  exact CGraph.chromNum_le_card _
+
+/-- **`ω(G) ≤ χ(G)`.** -/
+theorem cliqueNum_le_chromNum (G : IsoGraph) : G.cliqueNum ≤ G.chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, cliqueNum_mk]
+  exact CGraph.cliqueNum_le_chromNum _
+
+theorem isBipartite_iff_chromNum_le_two {G : IsoGraph} : IsBipartite G ↔ G.chromNum ≤ 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, isBipartite_mk]
+  exact CGraph.isBipartite_iff_chromNum_le_two
+
+/-- **A graph is 2-chromatic exactly when it is bipartite and has an edge.**  With the tables of
+`IsBipartite` and of `E` above, this settles the chromatic number of every bipartite graph in
+the file. -/
+theorem chromNum_eq_two_iff {G : IsoGraph} : G.chromNum = 2 ↔ IsBipartite G ∧ 0 < G.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, isBipartite_mk, E_mk]
+  exact CGraph.chromNum_eq_two_iff
+
+@[simp] theorem chromNum_eq_zero_iff {G : IsoGraph} : G.chromNum = 0 ↔ G.V = 0 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, V_mk]
+  exact CGraph.chromNum_eq_zero_iff
+
+theorem three_le_chromNum {G : IsoGraph} (h : ¬ IsBipartite G) : 3 ≤ G.chromNum := by
+  rw [isBipartite_iff_chromNum_le_two] at h; omega
+
+/-- Two graphs with different chromatic numbers are different graphs. -/
+theorem ne_of_chromNum_ne {G H : IsoGraph} (h : G.chromNum ≠ H.chromNum) : G ≠ H :=
+  ne_of_apply_ne chromNum h
+
+/-! Values. -/
+
+@[simp] theorem chromNum_empty_zero : (empty 0).chromNum = 0 := CGraph.chromNum_empty_zero
+
+@[simp] theorem chromNum_empty (n : ℕ) : (empty (n + 1)).chromNum = 1 := CGraph.chromNum_empty n
+
+@[simp] theorem chromNum_complete (n : ℕ) : (complete n).chromNum = n := CGraph.chromNum_complete n
+
+@[simp] theorem chromNum_path (n : ℕ) : (path (n + 2)).chromNum = 2 := CGraph.chromNum_path n
+
+@[simp] theorem chromNum_cycle_even (m : ℕ) : (cycle (2 * m + 2)).chromNum = 2 :=
+  CGraph.chromNum_cycle_even m
+
+@[simp] theorem chromNum_cycle_odd (m : ℕ) : (cycle (2 * m + 3)).chromNum = 3 :=
+  CGraph.chromNum_cycle_odd m
+
+@[simp] theorem chromNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).chromNum = max G.chromNum H.chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  exact CGraph.chromNum_disjUnion g h
+
+theorem chromNum_tensorProduct_le (G H : IsoGraph) :
+    (tensorProduct G H).chromNum ≤ min G.chromNum H.chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, chromNum_mk, chromNum_mk,
+    chromNum_mk]
+  exact CGraph.chromNum_tensorProduct_le _ _
+
+/-! Derived chromatic numbers: everything bipartite with an edge. -/
+
+@[simp] theorem chromNum_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).chromNum = 2 :=
+  chromNum_eq_two_iff.2 ⟨isBipartite_bipartite _ _, by rw [E_bipartite]; positivity⟩
+
+@[simp] theorem chromNum_star (n : ℕ) : (star (n + 1)).chromNum = 2 :=
+  chromNum_eq_two_iff.2 ⟨isBipartite_star _, by rw [E_star]; omega⟩
+
+/-- **The hypercube `Q_{n+1}` is 2-chromatic.** -/
+@[simp] theorem chromNum_hypercube (n : ℕ) : (hypercube (n + 1)).chromNum = 2 := by
+  refine chromNum_eq_two_iff.2 ⟨isBipartite_hypercube _, ?_⟩
+  have h := E_hypercube (n + 1)
+  have hp : 0 < (n + 1) * 2 ^ (n + 1) := Nat.mul_pos n.succ_pos (Nat.two_pow_pos _)
+  omega
+
+@[simp] theorem chromNum_ladder (n : ℕ) : (ladder (n + 1)).chromNum = 2 :=
+  chromNum_eq_two_iff.2 ⟨isBipartite_ladder _, by rw [E_ladder]; omega⟩
+
+@[simp] theorem chromNum_prism_even (m : ℕ) : (prism (2 * m + 4)).chromNum = 2 :=
+  chromNum_eq_two_iff.2 ⟨by rw [show 2 * m + 4 = 2 * (m + 2) by ring]; exact isBipartite_prism_even _,
+    by rw [show 2 * m + 4 = (2 * m + 1) + 3 by ring, E_prism]; omega⟩
+
+/-- **A grid is 2-chromatic.** -/
+@[simp] theorem chromNum_grid (m n : ℕ) :
+    (cartesianProduct (path (m + 2)) (path (n + 2))).chromNum = 2 :=
+  chromNum_eq_two_iff.2 ⟨isBipartite_cartesianProduct (isBipartite_path _) (isBipartite_path _),
+    by rw [E_cartesianProduct, E_path, E_path, V_path, V_path]; positivity⟩
+
 /-! ## The simp set at work
 
 These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
@@ -8701,5 +8962,32 @@ example : hypercube 4 ≠ rook 4 4 :=
 
 example : (disjUnion (complete 3) (complete 3)).diameter = 0 :=
   diameter_disjUnion (by simp) (by simp)
+
+example : (complete 5).chromNum = 5 := by simp
+example : (cycle 8).chromNum = 2 := chromNum_cycle_even 3
+example : (cycle 7).chromNum = 3 := chromNum_cycle_odd 2
+example : (path 9).chromNum = 2 := by simp
+example : (hypercube 4).chromNum = 2 := by simp
+example : (bipartite 3 4).chromNum = 2 := by simp
+example : (cartesianProduct (path 3) (path 4)).chromNum = 2 := by simp
+example : (empty 7).chromNum = 1 := by simp
+example : (disjUnion (complete 4) (cycle 5)).chromNum = 4 := by
+  rw [chromNum_disjUnion, chromNum_complete, show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
+  decide
+example : (tensorProduct (cycle 3) (complete 5)).chromNum ≤ 3 := by
+  refine le_trans (chromNum_tensorProduct_le _ _) ?_
+  rw [show (cycle 3).chromNum = 3 from chromNum_cycle_odd 0]
+  exact min_le_left _ _
+/- The Petersen graph contains a 5-cycle, so two colours are not enough. -/
+example : 3 ≤ petersen.chromNum := three_le_chromNum (by simp)
+/- A `3 × 3` rook graph contains a triangle. -/
+example : 3 ≤ (rook 3 3).chromNum := le_trans (by simp) (cliqueNum_le_chromNum _)
+/- `C₃ ⊔ C₃` and `C₆` are both 2-regular on six vertices with six edges; the chromatic number
+tells them apart. -/
+example : disjUnion (cycle 3) (cycle 3) ≠ cycle 6 :=
+  ne_of_chromNum_ne (by
+    rw [chromNum_disjUnion, show (cycle 3).chromNum = 3 from chromNum_cycle_odd 0,
+      show (cycle 6).chromNum = 2 from chromNum_cycle_even 2]
+    decide)
 
 end IsoGraph

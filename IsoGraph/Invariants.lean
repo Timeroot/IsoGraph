@@ -105,6 +105,10 @@ theorem card_commonNeighbors_eq [Fintype V] [Fintype W] [DecidableRel G.Adj]
     Fintype.card (G.commonNeighbors v w) = Fintype.card (G'.commonNeighbors (f v) (f w)) :=
   Fintype.card_congr (commonNeighborsEquiv f v w)
 
+/-- Isomorphic graphs have the same chromatic number. -/
+theorem chromaticNumber_eq (f : G ≃g G') : G.chromaticNumber = G'.chromaticNumber :=
+  le_antisymm (chromaticNumber_mono_of_hom f.toHom) (chromaticNumber_mono_of_hom f.symm.toHom)
+
 section StronglyRegular
 
 variable [Fintype V] [Fintype W] [DecidableRel G.Adj] [DecidableRel G'.Adj] {n k ℓ μ : ℕ}
@@ -173,6 +177,15 @@ def IsAcyclic : Prop := G.toSimple.IsAcyclic
 /-- Diameter, i.e. the largest distance between two vertices — `0` if the graph is disconnected
 (this is Mathlib's convention for `SimpleGraph.diam`). -/
 noncomputable def diameter : ℕ := G.toSimple.diam
+
+/-- Chromatic number. -/
+noncomputable def chromNum : ℕ := G.toSimple.chromaticNumber.toNat
+
+theorem chromaticNumber_ne_top : G.toSimple.chromaticNumber ≠ ⊤ :=
+  SimpleGraph.chromaticNumber_ne_top_iff_exists.2 ⟨_, G.toSimple.colorable_of_fintype⟩
+
+@[simp] theorem coe_chromNum : (G.chromNum : ℕ∞) = G.toSimple.chromaticNumber :=
+  ENat.coe_toNat G.chromaticNumber_ne_top
 
 /-- The graph is a tree. -/
 def IsTree : Prop := G.toSimple.IsTree
@@ -445,6 +458,14 @@ noncomputable def diameter (G : IsoGraph) : ℕ :=
     (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.diam_eq (CGraph.Iso.toSimpleIso i)) G
 
 @[simp] theorem diameter_mk (G : CGraph) : diameter (Quotient.mk _ G) = G.diameter := rfl
+
+/-- Chromatic number. -/
+noncomputable def chromNum (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.chromNum
+    (fun _ _ ⟨i⟩ ↦ congrArg ENat.toNat
+      (SimpleGraph.Iso.chromaticNumber_eq (CGraph.Iso.toSimpleIso i))) G
+
+@[simp] theorem chromNum_mk (G : CGraph) : chromNum (Quotient.mk _ G) = G.chromNum := rfl
 
 /-- Bipartiteness. -/
 def IsBipartite (G : IsoGraph) : Prop :=
