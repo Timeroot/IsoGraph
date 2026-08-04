@@ -775,6 +775,13 @@ cocktail party graph, and the definitional unfoldings for the rook graph, the pr
 Petersen graph. `IsArcTransitive.lineGraph` covers the line graphs, since the arcs of `G` are
 exactly the vertices of `L(G)`.
 
+Strong regularity closes the list. `SRG.lean` builds its table at the `CGraph` level, so the
+infinite families — the square rook graphs, `K(n, 2)` and `J(n, 2)`, the triangular graphs,
+`K_{n,n}`, the cocktail party graphs and the Paley graphs — get quotient versions through the
+`_def` bridging lemmas, and `IsSRGWith.compl` through `mk_canonicalize`. Being an isomorphism
+invariant, this is where the quotient statement is the one you actually want: `IsSRGWith` on
+`IsoGraph` is a property of the graph rather than of a particular labelling of it.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

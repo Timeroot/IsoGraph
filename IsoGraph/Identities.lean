@@ -6030,6 +6030,54 @@ theorem IsArcTransitive.lineGraph {G : IsoGraph} (h : IsArcTransitive G) :
 @[simp] theorem isVertexTransitive_lineGraph_cycle (n : ℕ) :
     IsVertexTransitive (lineGraph (cycle n)) := (isArcTransitive_cycle n).lineGraph
 
+/-! ### Strong regularity -/
+
+/-- The complement of a strongly regular graph is strongly regular. -/
+theorem IsSRGWith.compl {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
+    IsSRGWith (IsoGraph.compl G) n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [compl_mk, isSRGWith_mk]
+  rw [isSRGWith_mk] at h
+  exact CGraph.isSRGWith_compl _ h
+
+theorem isSRGWith_rook (k : ℕ) : IsSRGWith (rook k k) (k * k) (2 * (k - 1)) (k - 2) 2 := by
+  show IsSRGWith (cartesianProduct (complete k) (complete k)) _ _ _ _
+  rw [complete_def, cartesianProduct_mk, isSRGWith_mk]
+  exact CGraph.isSRGWith_rook k
+
+theorem isSRGWith_kneser_two (n : ℕ) :
+    IsSRGWith (kneser n 2) (n.choose 2) ((n - 2).choose 2) ((n - 4).choose 2)
+      ((n - 3).choose 2) := by
+  rw [kneser_def, isSRGWith_mk]
+  exact CGraph.isSRGWith_kneser_two n
+
+theorem isSRGWith_johnson_two (n : ℕ) (hn : 4 ≤ n) :
+    IsSRGWith (johnson n 2) (n.choose 2) (2 * (n - 2)) (n - 2) 4 := by
+  rw [johnson_def, isSRGWith_mk]
+  exact CGraph.isSRGWith_johnson_two n hn
+
+theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
+    IsSRGWith (triangular n) (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
+  isSRGWith_johnson_two n hn
+
+theorem isSRGWith_bipartite (n : ℕ) : IsSRGWith (bipartite n n) (2 * n) n 0 n := by
+  rw [bipartite_def, isSRGWith_mk]
+  exact CGraph.isSRGWith_bipartite n
+
+theorem isSRGWith_cocktailParty (n : ℕ) :
+    IsSRGWith (cocktailParty n) (2 * n) (2 * n - 2) (2 * n - 4) (2 * n - 2) := by
+  show IsSRGWith (completeMultipartite (List.replicate n 2)) _ _ _ _
+  rw [completeMultipartite_def, isSRGWith_mk]
+  exact CGraph.isSRGWith_cocktailParty n
+
+theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    IsSRGWith (paley q) q ((q - 1) / 2) ((q - 5) / 4) ((q - 1) / 4) := by
+  rw [paley_def, isSRGWith_mk]
+  exact CGraph.isSRGWith_paley q hq
+
+theorem isSRGWith_petersen : IsSRGWith petersen 10 3 0 1 := isSRGWith_kneser_two 5
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6570,6 +6618,12 @@ example : IsVertexTransitive (compl petersen) := by simp
 example : IsVertexTransitive (cartesianProduct (hypercube 3) (cycle 5)) :=
   (isVertexTransitive_hypercube 3).cartesianProduct (isVertexTransitive_cycle 5)
 example : IsVertexTransitive (triangular 5) := by simp
+
+example : IsSRGWith (rook 3 3) 9 4 1 2 := isSRGWith_rook 3
+example : IsSRGWith (triangular 5) 10 6 3 4 := isSRGWith_triangular 5 (by norm_num)
+example : IsSRGWith (cocktailParty 4) 8 6 4 6 := isSRGWith_cocktailParty 4
+example : IsSRGWith (bipartite 3 3) 6 3 0 3 := isSRGWith_bipartite 3
+example : IsSRGWith (compl petersen) 10 6 3 4 := isSRGWith_petersen.compl
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp
