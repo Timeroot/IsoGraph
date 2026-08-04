@@ -1702,6 +1702,27 @@ has a hub of degree `n`, so `χ'(W_n) = n` and not `n - 1`; asked for the latter
 returned a `negate_state` refutation exhibiting `W₄`, whose maximum degree is already four.
 
 
+Two of the line graph's invariants are other names for invariants of the base graph, and now
+say so: `χ(L(G)) = χ'(G)` and `α(L(G)) = ν(G)`, with the vertex cover number `τ(L(G)) =
+|E(G)| - ν(G)` following from Gallai.
+
+The prover then established that every circulant graph is vertex transitive — translation by
+one is an automorphism — and a whole row of the invariant table falls out of that single fact.
+A circulant is regular, so its vertex and edge counts pin down its degree sequence and hence
+its maximum and minimum degree; its radius equals its diameter; the clique–coclique bound
+`α · ω ≤ n` applies, giving `2α ≤ n` as soon as there is an edge; the complement of a circulant
+is again vertex transitive; and Gallai turns any independence number into a vertex cover
+number.  Alongside it the prover settled `θ(K_m □ K_n) = min(m, n)` — the rows or the columns,
+whichever are fewer, are a clique cover matching the independence number — and the slab bound
+`max(α(G)·|H|, |G|·α(H)) ≤ α(G × H)` for the tensor product.
+
+The prover refuted two more conjectures.  `girth(G ⊔ H) = min(girth G, girth H)` is false under
+this development's convention that an acyclic graph has girth zero: `girth(K₁ ⊔ C₃) = 3`, not
+`min(0, 3) = 0`.  And Weichsel's theorem needs the second factor to have an edge: `K₃ × K₁` is
+edgeless on three vertices, so a connected non-bipartite `G` and a connected `H` are not on
+their own enough for `G × H` to be connected.
+
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

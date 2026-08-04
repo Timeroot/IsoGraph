@@ -20075,4 +20075,209 @@ theorem radius_lexProduct_eq_one {G H : IsoGraph} (hV : 1 < (lexProduct G H).V)
   rw [radius_eq_one_iff_domNum_eq_one hV, domNum_lexProduct G hH]
   exact hG
 
+/-- The three-cube has a perfect dominating set of size two: two antipodal vertices. -/
+theorem domNum_hypercube_three : (hypercube 3).domNum = 2 := by
+  simp only [IsoGraph.hypercube, IsoGraph.domNum_mk]
+  -- No vertex is universal in hypercube 3
+  have no_univ : ∀ v : (CGraph.hypercube 3).V, ∃ u : (CGraph.hypercube 3).V, u ≠ v ∧
+    ¬(CGraph.hypercube 3).Adj v u := by
+    native_decide
+  -- domNum ≠ 1
+  have domNum_ne_one : (CGraph.hypercube 3).domNum ≠ 1 := by
+    intro h
+    obtain ⟨s, hcard_s, hs⟩ := CGraph.exists_isDominatingSet_domNum (CGraph.hypercube 3)
+    rw [h] at hcard_s
+    obtain ⟨v, rfl⟩ := Finset.card_eq_one.mp hcard_s
+    have hdom_v : ∀ u : (CGraph.hypercube 3).V, u = v ∨ (CGraph.hypercube 3).Adj v u = true := by
+      intro u
+      have h := hs u
+      rcases h with h | ⟨u', hu', hadj⟩
+      · simp at h; exact Or.inl h
+      · rw [Finset.mem_singleton] at hu'
+        subst hu'
+        exact Or.inr hadj
+    obtain ⟨u, huv, hnu⟩ := no_univ v
+    cases hdom_v u with
+    | inl hu => exact huv hu
+    | inr hai => exact hnu hai
+  -- domNum ≥ 1
+  have domNum_pos' : 0 < (CGraph.hypercube 3).domNum :=
+    CGraph.domNum_pos (CGraph.hypercube 3)
+      (by native_decide : 0 < Fintype.card (CGraph.hypercube 3).V)
+  -- domNum ≥ 2
+  have domNum_ge_two : 2 ≤ (CGraph.hypercube 3).domNum := by omega
+  -- domNum ≤ 2: exhibit a dominating set of size 2
+  have hle2 : (CGraph.hypercube 3).domNum ≤ 2 := by
+    have hdom2 : (CGraph.hypercube 3).IsDominatingSet
+        ({(fun _ => false), (fun _ => true)} : Finset ((CGraph.hypercube 3).V)) := by
+      intro w
+      simp only [CGraph.hypercube_adj, Finset.mem_insert, Finset.mem_singleton]
+      revert w
+      native_decide
+    have hcard2 : ({(fun _ => false), (fun _ => true)} : Finset ((CGraph.hypercube 3).V)).card = 2
+      := by
+      native_decide
+    rw [← hcard2]
+    exact CGraph.domNum_le_card_of_isDominatingSet hdom2
+  omega
+
+/-! ### The line graph invariants that are edge invariants by definition
+
+Two of the line graph's invariants are simply other names for invariants of the base graph:
+a proper colouring of `L(G)` is a proper edge colouring of `G`, and an independent set in
+`L(G)` is a matching in `G`. -/
+
+@[simp] theorem chromNum_lineGraph (G : IsoGraph) : (lineGraph G).chromNum = G.edgeChromNum :=
+  (edgeChromNum_eq G).symm
+
+@[simp] theorem indepNum_lineGraph (G : IsoGraph) : (lineGraph G).indepNum = G.matchNum :=
+  (matchNum_eq G).symm
+
+@[simp] theorem coverNum_lineGraph (G : IsoGraph) :
+    (lineGraph G).coverNum = G.E - G.matchNum := by
+  have h := (lineGraph G).coverNum_add_indepNum
+  rw [V_lineGraph, indepNum_lineGraph] at h
+  omega
+
+example : (lineGraph petersen).indepNum = 5 := by rw [indepNum_lineGraph, matchNum_petersen]
+
+example : (lineGraph (complete 4)).chromNum = 3 := by
+  rw [chromNum_lineGraph, edgeChromNum_complete_four]
+
+/-- A circulant graph is vertex transitive: translation by `1` is an automorphism. -/
+theorem isVertexTransitive_circulant (n : ℕ) (S : List ℕ) :
+    IsVertexTransitive (circulant n S) := by
+  unfold IsoGraph.circulant
+  rw [IsoGraph.isVertexTransitive_mk]
+  unfold CGraph.IsVertexTransitive CGraph.circulant CGraph.ofRel
+  by_cases hn : n = 0
+  · subst hn; intro u v; fin_cases u
+  · haveI : NeZero n := ⟨hn⟩
+    intro u v
+    -- Work in ZMod n for the group structure
+    let equiv : ZMod n ≃ Fin n := {
+      toFun := fun a => ⟨a.val, ZMod.val_lt a⟩
+      invFun := fun i => (i.1 : ZMod n)
+      left_inv := fun a => ZMod.natCast_rightInverse a
+      right_inv := fun i => Fin.ext (ZMod.val_cast_of_lt i.2)
+    }
+    -- The translation permutation on Fin n
+    let d : ZMod n := (equiv.symm v) - (equiv.symm u)
+    let σ_fun : Fin n → Fin n := fun x => equiv (equiv.symm x + d)
+    have hσ_bij : Function.Bijective σ_fun := by
+      have h1 : Function.Bijective (fun z : ZMod n => z + d) := (Equiv.addRight d).bijective
+      have h2 : Function.Bijective equiv := equiv.bijective
+      have h3 : Function.Bijective equiv.symm := equiv.symm.bijective
+      exact h2.comp (h1.comp h3)
+    let σ_perm : Equiv.Perm (Fin n) := Equiv.ofBijective σ_fun hσ_bij
+    refine ⟨CGraph.autoOfPerm σ_perm (fun x y => ?_), ?_⟩
+    · -- Adjacency in circulant depends on (y - x : ZMod n).val, preserved by translation.
+      simp only [σ_perm, Equiv.ofBijective_apply, σ_fun, equiv, CGraph.ofRel_adj]
+      -- Key: (σ y).val + n - (σ x).val ≡ y.val + n - x.val (mod n)
+      -- because in ZMod: (equiv.symm y + d - (equiv.symm x + d)).val = (equiv.symm y - equiv.symm
+      -- x).val
+      have hdiff : ∀ x y : Fin n,
+          ((↑(σ_perm y) + n - ↑(σ_perm x)) % n) = ((↑y + n - ↑x) % n) := by
+        intro x y
+        have hsval : ∀ x : Fin n, (σ_perm x : ℕ) = (equiv.symm x + d : ZMod n).val := by
+          intro x; simp only [σ_perm, Equiv.ofBijective_apply, σ_fun, equiv]; rfl
+        have h1 : ((↑(σ_perm y) + n - ↑(σ_perm x)) % n : ℕ) = ((equiv.symm y + d : ZMod n).val + n -
+          (equiv.symm x + d : ZMod n).val) % n := by
+          rw [hsval y, hsval x]
+        have hsymm_val : ∀ x : Fin n, (equiv.symm x : ZMod n).val = (x : ℕ) := by
+          intro x; simp [equiv, ZMod.val_cast_of_lt x.2]
+        rw [h1]
+        let x' : ZMod n := equiv.symm x + d
+        let y' : ZMod n := equiv.symm y + d
+        have key : (y'.val + n - x'.val) % n = (y' - x').val := CGraph.zmod_val_sub x' y'
+        have hcancel : (y' - x' : ZMod n) = equiv.symm y - equiv.symm x := by
+          simp [x', y']
+        rw [hcancel] at key
+        rw [key, ← CGraph.zmod_val_sub (equiv.symm x) (equiv.symm y), hsymm_val y, hsymm_val x]
+      -- ≠ is preserved
+      have hne' : σ_perm x ≠ σ_perm y ↔ x ≠ y := σ_perm.injective.ne_iff
+      -- Now rewrite using hdiff and hne'
+      show (decide (σ_perm x ≠ σ_perm y) &&
+        (S.contains (((σ_perm y : Fin n) + n - (σ_perm x : Fin n)) % n) ||
+         S.contains (((σ_perm x : Fin n) + n - (σ_perm y : Fin n)) % n))) =
+        (decide (x ≠ y) &&
+        (S.contains (((y : Fin n) + n - (x : Fin n)) % n) ||
+         S.contains (((x : Fin n) + n - (y : Fin n)) % n)))
+      simp [hne', hdiff]
+    · show σ_perm u = v
+      simp only [σ_perm, Equiv.ofBijective_apply, σ_fun, equiv]
+      show equiv (equiv.symm u + d) = v
+      simp [d, equiv, add_sub_cancel]
+      exact Fin.ext (Nat.mod_eq_of_lt v.isLt)
+
+/-- The rows of a rook graph are cliques, and the independence number matches. -/
+theorem cliqueCoverNum_rook (m n : ℕ) :
+    (rook (m + 1) (n + 1)).cliqueCoverNum = min (m + 1) (n + 1) := by
+  rw [cliqueCoverNum_eq, compl_rook]
+  exact le_antisymm
+    (le_trans (chromNum_tensorProduct_le _ _) (by simp [chromNum_complete]))
+    (cliqueNum_le_chromNum _ |> le_trans
+      (by rw [cliqueNum_tensorProduct, cliqueNum_complete, cliqueNum_complete]))
+
+/-- The independence number of a tensor product is at least the larger of the two "column"
+bounds: an independent set of one factor lifts to a whole slab. -/
+theorem indepNum_tensorProduct_ge {G H : IsoGraph} :
+    max (G.indepNum * H.V) (G.V * H.indepNum) ≤ (tensorProduct G H).indepNum := by
+  exact max_le (indepNum_mul_V_le_indepNum_tensorProduct G H)
+    (V_mul_indepNum_le_indepNum_tensorProduct G H)
+
+/-! ### Invariants of the circulant graphs
+
+Every circulant graph is vertex transitive, and a great deal follows from that alone: it is
+regular, its radius equals its diameter, and the clique–coclique bound `α · ω ≤ |V|` applies.
+The complement of a circulant is again vertex transitive. -/
+
+theorem exists_degSequence_replicate_circulant (n : ℕ) (S : List ℕ) :
+    ∃ k, degSequence (circulant n S) = List.replicate n k := by
+  have h := exists_degSequence_replicate_of_isVertexTransitive (isVertexTransitive_circulant n S)
+  rwa [V_circulant] at h
+
+theorem exists_isRegularWith_circulant (n : ℕ) (S : List ℕ) :
+    ∃ k, (circulant n S).IsRegularWith k :=
+  exists_isRegularWith_of_isVertexTransitive (isVertexTransitive_circulant n S)
+
+/-- A circulant graph is regular, so its vertex and edge counts pin down its degree sequence. -/
+theorem degSequence_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) : degSequence (circulant n S) = List.replicate n k := by
+  have h := degSequence_of_isVertexTransitive (k := k) (isVertexTransitive_circulant n S)
+    (by rwa [V_circulant]) (by rwa [V_circulant])
+  rwa [V_circulant] at h
+
+@[simp] theorem maxDeg_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) : maxDeg (circulant n S) = k :=
+  maxDeg_eq_of_degSequence_replicate hn (degSequence_circulant hn hk)
+
+@[simp] theorem minDeg_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) : minDeg (circulant n S) = k :=
+  minDeg_eq_of_degSequence_replicate hn (degSequence_circulant hn hk)
+
+@[simp] theorem radius_circulant (n : ℕ) (S : List ℕ) :
+    (circulant n S).radius = (circulant n S).diameter :=
+  radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_circulant n S)
+
+theorem indepNum_mul_cliqueNum_le_V_circulant (n : ℕ) (S : List ℕ) :
+    (circulant n S).indepNum * (circulant n S).cliqueNum ≤ n := by
+  have h := indepNum_mul_cliqueNum_le_V (isVertexTransitive_circulant n S)
+  rwa [V_circulant] at h
+
+theorem two_mul_indepNum_le_V_circulant {n : ℕ} {S : List ℕ} (hE : 0 < (circulant n S).E) :
+    2 * (circulant n S).indepNum ≤ n := by
+  have h := two_mul_indepNum_le_V (isVertexTransitive_circulant n S) hE
+  rwa [V_circulant] at h
+
+@[simp] theorem isVertexTransitive_compl_circulant (n : ℕ) (S : List ℕ) :
+    IsVertexTransitive (compl (circulant n S)) :=
+  (isVertexTransitive_circulant n S).compl
+
+theorem coverNum_circulant (n : ℕ) (S : List ℕ) :
+    (circulant n S).coverNum = n - (circulant n S).indepNum := by
+  have h := (circulant n S).coverNum_add_indepNum
+  rw [V_circulant] at h
+  omega
+
 end IsoGraph
