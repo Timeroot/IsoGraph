@@ -22940,4 +22940,208 @@ theorem domNum_kneser_two (n : ℕ) : (kneser (n + 5) 2).domNum = 3 := by
         · simp [Finset.mem_insert, Finset.mem_singleton] at hw
           rcases hw with rfl | rfl <;> [exact ht_not_adj_u hadj; exact ht_not_adj_v hadj]
   exact le_antisymm hupp hlow
+/-- **A fan has a near-perfect matching**: pair the hub with one end of the path and match
+the rest of the path in pairs. -/
+theorem matchNum_fan (n : ℕ) : (fan (n + 1)).matchNum = (n + 2) / 2 := by
+  apply le_antisymm
+  · have h1 := (fan (n + 1)).two_mul_matchNum_le_V
+    rw [V_fan] at h1
+    omega
+  · -- Lower bound: exhibit a matching of size (n+2)/2 in fan (n+1)
+    rw [matchNum_eq]
+    rcases Nat.even_or_odd' n with ⟨k, rfl | rfl⟩
+    · have join_mk : ∀ (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V],
+          IsoGraph.join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+        intro G H _ _
+        rw [IsoGraph.join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
+        rfl
+      have hconvert : (fan (2 * k + 1)).lineGraph.indepNum =
+          (CGraph.join (CGraph.complete 1) (CGraph.path (2 * k + 1))).lineGraph.indepNum := by
+        rw [fan_eq_join, IsoGraph.complete, IsoGraph.path, join_mk, lineGraph_mk, indepNum_mk]
+      rw [hconvert]
+      have harith : (2 * k + 2) / 2 = k + 1 := by omega
+      rw [harith]
+      -- Lower bound: exhibit k+1 pairwise disjoint edges in fan (2*k+1) = join K1 P(2k+1)
+      -- Edge set of CGraph.join (complete 1) (path (2*k+1)):
+      --   - spoke edges: (inl 0, inr j) for all j : Fin (2*k+1)
+      --   - path edges: (inr i, inr (i+1)) for i : Fin (2*k)
+      -- Matching: spoke to 0, plus path edges (2i-1, 2i) for i=1..k, i.e.,
+      -- (1,2),(3,4),...,(2k-1,2k)
+      set m : ℕ := 2 * k + 1
+      -- spoke edge: {inl 0, inr ⟨0, by omega⟩}
+      let e0 : Sym2 (Fin 1 ⊕ Fin m) := Sym2.mk (Sum.inl ⟨0, by omega⟩, Sum.inr ⟨0, by omega⟩)
+      -- path edges for j : Fin k: {inr ⟨2*j+1, ...⟩, inr ⟨2*j+2, ...⟩}
+      let epath : Fin k → Sym2 (Fin 1 ⊕ Fin m) :=
+        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 2, by omega⟩)
+      -- Show e0 is an edge
+      have he0 : e0 ∈ (CGraph.join (CGraph.complete 1) (CGraph.path m)).toSimple.edgeSet := by
+        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inl_inr]
+      -- Show each epath j is an edge
+      have hepath : ∀ j : Fin k, epath j ∈ (CGraph.join (CGraph.complete 1) (CGraph.path
+        m)).toSimple.edgeSet := by
+        intro j
+        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inr_inr, CGraph.path_adj]
+        simp [Fin.ext_iff]
+      let spokeV : (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V :=
+        ⟨e0, he0⟩
+      let rimV : Fin k → (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V :=
+        fun j => ⟨epath j, hepath j⟩
+      -- inl 0 is in e0 but not in any epath j
+      have hinl0_in_e0 : (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ e0 := by
+        simp [e0]
+      have hinl0_not_in_epath : ∀ j : Fin k, (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∉ epath j := by
+        intro j; simp [epath]
+      -- spokeV ≠ rimV j (spoke has inl, rim doesn't)
+      have hspoke_ne_rim : ∀ j : Fin k, spokeV ≠ rimV j := by
+        intro j heq
+        have hval : e0 = epath j := Subtype.ext_iff.mp heq
+        have := hinl0_in_e0
+        rw [hval] at this
+        exact hinl0_not_in_epath j this
+      -- rim edge membership char
+      have hmemRim_char : ∀ j : Fin k, ∀ y : Fin 1 ⊕ Fin m,
+          y ∈ epath j ↔ y = Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩ ∨ y = Sum.inr
+            ⟨2 * (j : ℕ) + 2, by omega⟩ := by
+        intro j y; simp [epath]
+      -- vertices in e0: only inl 0 and inr 0
+      have hin0_in_e0 : (Sum.inr ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ e0 := by
+        simp [e0]
+      have hin0_not_in_epath : ∀ j : Fin k, (Sum.inr ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∉ epath j := by
+        intro j; simp [epath]
+      -- Any vertex in e0 is not in any epath j
+      have hnot_in_epath_of_in_e0 : ∀ (v : Fin 1 ⊕ Fin m) (j : Fin k), v ∈ e0 → v ∉ epath j := by
+        intro v j hv hv'
+        simp [e0] at hv
+        rcases hv with rfl | rfl
+        · exact hinl0_not_in_epath j hv'
+        · exact hin0_not_in_epath j hv'
+      -- spokeV ≠ rimV j (alternative proof using vertex membership)
+      -- (already have hspoke_ne_rim above, keep it)
+      -- vertices in epath j characterised
+      -- rimV is injective
+      have hrim_inj : Function.Injective rimV := by
+        intro j j' hj
+        have hval : epath j = epath j' := Subtype.ext_iff.mp hj
+        -- inr ⟨2*j+1, ...⟩ ∈ epath j, so ∈ epath j', so by hmemRim_char, 2*j+1 = 2*j'+1 or 2*j+1 =
+        -- 2*j'+2
+        have hm1 : (Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩ : Fin 1 ⊕ Fin m) ∈ epath j := by
+          simp [epath]
+        rw [hval] at hm1
+        rcases hmemRim_char j' _ |>.mp hm1 with h | h <;> simp [Fin.ext_iff] at h <;> omega
+      -- vertices finset
+      let vertices : Finset (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V
+        :=
+        {spokeV} ∪ Finset.univ.image rimV
+      -- Independence
+      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.join (CGraph.complete 1)
+        (CGraph.path m))).toSimple
+          (vertices : Set _) := by
+        unfold SimpleGraph.IsIndepSet
+        intro v hv w hw hvw
+        have hv' : v = spokeV ∨ ∃ j : Fin k, rimV j = v := by
+          simp [vertices] at hv; exact hv
+        have hw' : w = spokeV ∨ ∃ j : Fin k, rimV j = w := by
+          simp [vertices] at hw; exact hw
+        rcases hv' with rfl | ⟨j, rfl⟩
+        · rcases hw' with rfl | ⟨j', rfl⟩
+          · exact absurd rfl hvw
+          · intro h
+            simp [CGraph.toSimple] at h
+            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
+            exact hnot_in_epath_of_in_e0 v j' hv1 hv2
+        · rcases hw' with rfl | ⟨j', rfl⟩
+          · intro h
+            simp [CGraph.toSimple] at h
+            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
+            exact hnot_in_epath_of_in_e0 v j hv2 hv1
+          · by_cases heq : j = j'
+            · subst heq; simp at hvw
+            · intro h
+              simp [CGraph.lineGraph_adj] at h
+              -- epath j and epath j' share a vertex, but they shouldn't when j≠j'
+              obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
+              simp only [rimV] at hv1 hv2
+              rw [hmemRim_char j] at hv1
+              rw [hmemRim_char j'] at hv2
+              rcases hv1 with h|h <;> rcases hv2 with h'|h' <;> (
+                subst h; simp at h'
+                omega)
+      -- Cardinality
+      have hcard : vertices.card = k + 1 := by
+        simp only [vertices]
+        have hdisj : Disjoint {spokeV} (Finset.univ.image rimV) := by
+          rw [Finset.disjoint_singleton_left]
+          intro hv
+          obtain ⟨j, _, hj⟩ := Finset.mem_image.mp hv
+          exact hspoke_ne_rim j (hj.symm)
+        rw [Finset.card_union_of_disjoint hdisj]
+        simp [Finset.card_singleton]
+        rw [Finset.card_image_of_injective _ hrim_inj]
+        simp
+        omega
+      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
+    · -- Odd case: n = 2*k+1, fan(n+1) = fan(2*k+2)
+      have hconvert : (fan (2 * k + 1 + 1)).lineGraph.indepNum =
+          (CGraph.join (CGraph.complete 1) (CGraph.path (2 * k + 2))).lineGraph.indepNum := by
+        rw [fan_eq_join, IsoGraph.complete, IsoGraph.path, join_mk, lineGraph_mk, indepNum_mk]
+      rw [hconvert]
+      have harith : (2 * k + 1 + 2) / 2 = k + 1 := by omega
+      rw [harith]
+      set m : ℕ := 2 * k + 2
+      -- path edges for j : Fin (k+1): {inr ⟨2*j, ...⟩, inr ⟨2*j+1, ...⟩}
+      let epath : Fin (k + 1) → Sym2 (Fin 1 ⊕ Fin m) :=
+        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ), by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩)
+      -- Show each epath j is an edge (rim-rim, path edges)
+      have hepath : ∀ j : Fin (k + 1), epath j ∈ (CGraph.join (CGraph.complete 1) (CGraph.path
+        m)).toSimple.edgeSet := by
+        intro j
+        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inr_inr, CGraph.path_adj]
+        simp [Fin.ext_iff]
+      let rimV : Fin (k + 1) → (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path
+        m))).V :=
+        fun j => ⟨epath j, hepath j⟩
+      -- rim edge membership char
+      have hmemRim_char : ∀ j : Fin (k + 1), ∀ y : Fin 1 ⊕ Fin m,
+          y ∈ epath j ↔ y = Sum.inr ⟨2 * (j : ℕ), by omega⟩ ∨ y = Sum.inr
+            ⟨2 * (j : ℕ) + 1, by omega⟩ := by
+        intro j y; simp [epath]
+      -- rimV is injective
+      have hrim_inj : Function.Injective rimV := by
+        intro j j' hj
+        have hval : epath j = epath j' := Subtype.ext_iff.mp hj
+        have hm1 : (Sum.inr ⟨2 * (j : ℕ), by omega⟩ : Fin 1 ⊕ Fin m) ∈ epath j := by
+          simp [epath]
+        rw [hval] at hm1
+        rcases hmemRim_char j' _ |>.mp hm1 with h | h <;> simp [Fin.ext_iff] at h <;> omega
+      -- vertices finset
+      let vertices : Finset (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V
+        :=
+        Finset.univ.image rimV
+      -- Independence: no two epath edges share a vertex
+      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.join (CGraph.complete 1)
+        (CGraph.path m))).toSimple
+          (vertices : Set _) := by
+        unfold SimpleGraph.IsIndepSet
+        intro v hv w hw hvw
+        simp only [vertices, Finset.mem_coe, Finset.mem_image, Finset.mem_univ, true_and] at hv hw
+        obtain ⟨j, hj⟩ := hv
+        obtain ⟨j', hwj'⟩ := hw
+        subst hj hwj'
+        by_cases heq : j = j'
+        · subst heq; simp at hvw
+        · intro h
+          simp [CGraph.lineGraph_adj] at h
+          obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
+          simp [rimV] at hv2
+          rw [hmemRim_char j] at hv1
+          rw [hmemRim_char j'] at hv2
+          rcases hv1 with h|h <;> rcases hv2 with h'|h' <;> (
+            subst h; simp at h'
+            omega)
+      -- Cardinality
+      have hcard : vertices.card = k + 1 := by
+        simp only [vertices]
+        rw [Finset.card_image_of_injective _ hrim_inj]
+        simp
+      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
 end IsoGraph

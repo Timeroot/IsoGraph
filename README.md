@@ -1784,6 +1784,11 @@ graph with a degree-three vertex all have a cycle, and `empty n` is a tree exact
 (they are lexicographic products of a complete graph with an edgeless one), and the edge count
 and diameter of a circulant from its vertex-transitivity.
 
+The fan `F_n` -- a path on `n + 1` vertices joined to a hub -- has matching number
+`⌊(n + 1) / 2⌋`: the prover routed through `matchNum_eq`, turning the matching into an
+independent set in the line graph, and then exhibited one explicitly (a spoke together with
+every other path edge) while bounding it above by the vertex count.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
