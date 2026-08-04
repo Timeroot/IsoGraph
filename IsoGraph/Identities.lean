@@ -3252,6 +3252,75 @@ theorem degMultiset_compl (G : CGraph) [DecidableEq G.V] :
   rw [Multiset.map_map]
   exact Multiset.map_congr rfl fun v _ ↦ degree_compl G v
 
+/-! ### The degrees of a path -/
+
+theorem path_adj {n : ℕ} (i j : Fin n) :
+    (path n).Adj i j = (decide (i ≠ j) && ((i.1 + 1 == j.1) || (j.1 + 1 == i.1))) :=
+  rfl
+
+theorem mem_nbrs_path {n : ℕ} (i j : Fin n) :
+    j ∈ (path n).nbrs i ↔ j.1 = i.1 + 1 ∨ i.1 = j.1 + 1 := by
+  rw [mem_nbrs, path_adj]
+  simp only [Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq, Fin.ext_iff]
+  omega
+
+theorem card_nbrs_path {n : ℕ} (i : Fin n) :
+    ((path n).nbrs i).card = (if i.1 + 1 < n then 1 else 0) + (if 0 < i.1 then 1 else 0) := by
+  have hi := i.isLt
+  by_cases hn : i.1 + 1 < n <;> by_cases h0 : 0 < i.1
+  · have h : (path n).nbrs i = ({⟨i.1 - 1, by omega⟩, ⟨i.1 + 1, hn⟩} : Finset (Fin n)) :=
+      @Finset.ext (Fin n) _ _ fun j ↦ by
+        have hj := j.isLt
+        rw [mem_nbrs_path]
+        simp only [Finset.mem_insert, Finset.mem_singleton, Fin.eq_mk_iff_val_eq]
+        omega
+    rw [h, Finset.card_pair (Fin.ne_of_val_ne (show i.1 - 1 ≠ i.1 + 1 by omega))]
+    simp [hn, h0]
+  · have h : (path n).nbrs i = ({⟨i.1 + 1, hn⟩} : Finset (Fin n)) :=
+      @Finset.ext (Fin n) _ _ fun j ↦ by
+        have hj := j.isLt
+        rw [mem_nbrs_path]
+        simp only [Finset.mem_singleton, Fin.eq_mk_iff_val_eq]
+        omega
+    rw [h, Finset.card_singleton]
+    simp [hn, h0]
+  · have h : (path n).nbrs i = ({⟨i.1 - 1, by omega⟩} : Finset (Fin n)) :=
+      @Finset.ext (Fin n) _ _ fun j ↦ by
+        have hj := j.isLt
+        rw [mem_nbrs_path]
+        simp only [Finset.mem_singleton, Fin.eq_mk_iff_val_eq]
+        omega
+    rw [h, Finset.card_singleton]
+    simp [hn, h0]
+  · have h : (path n).nbrs i = (∅ : Finset (Fin n)) :=
+      @Finset.ext (Fin n) _ _ fun j ↦ by
+        have hj := j.isLt
+        rw [mem_nbrs_path]
+        simp only [Finset.notMem_empty, iff_false]
+        omega
+    rw [h]
+    simp [hn, h0]
+
+theorem degree_path {n : ℕ} (i : Fin n) :
+    (path n).toSimple.degree i = (if i.1 + 1 < n then 1 else 0) + (if 0 < i.1 then 1 else 0) := by
+  rw [← card_nbrs_eq_degree]
+  exact card_nbrs_path i
+
+private theorem univ_val_map_val (n : ℕ) :
+    (Finset.univ : Finset (Fin n)).val.map Fin.val = Multiset.range n := by
+  rw [Fin.univ_val_map, List.ofFn_eq_map, List.map_coe_finRange_eq_range]
+  rfl
+
+/-- The degrees of the path, listed vertex by vertex: the two ends have degree one and everything
+in between has degree two. -/
+theorem degMultiset_path (n : ℕ) :
+    (path n).degMultiset
+      = (Multiset.range n).map fun k ↦ (if k + 1 < n then 1 else 0) + (if 0 < k then 1 else 0) := by
+  unfold degMultiset
+  rw [show (fun i : (path n).V ↦ (path n).toSimple.degree i)
+      = (fun k ↦ (if k + 1 < n then 1 else 0) + (if 0 < k then 1 else 0)) ∘ Fin.val from
+    funext degree_path, ← Multiset.map_map, univ_val_map_val]
+
 end CGraph
 
 namespace IsoGraph
@@ -7589,6 +7658,90 @@ theorem degMultiset_of_degSequence {G : IsoGraph} {n k : ℕ}
     V_empty, Multiset.map_replicate, Multiset.map_replicate,
     show 2 - 1 + n = n + 1 from by omega, Nat.zero_add]
 
+/-! ### The degrees of a path
+
+The path is the first named graph whose degrees are not all equal, so it is the first whose degree
+multiset needs `degMultiset_path` rather than the strong-regularity machinery.  Sorting the
+resulting multiset is easy enough that the degree *sequence* comes out too. -/
+
+theorem degMultiset_path_eq (n : ℕ) :
+    degMultiset (path n)
+      = (Multiset.range n).map fun k ↦ (if k + 1 < n then 1 else 0) + (if 0 < k then 1 else 0) :=
+  CGraph.degMultiset_path n
+
+@[simp] theorem degMultiset_path (n : ℕ) :
+    degMultiset (path (n + 2)) = 1 ::ₘ 1 ::ₘ Multiset.replicate n 2 := by
+  rw [degMultiset_path_eq]
+  set g : ℕ → ℕ := fun k ↦ (if k + 1 < n + 2 then 1 else 0) + (if 0 < k then 1 else 0) with hg
+  have hmid : ∀ m, m ≤ n → (Multiset.range (m + 1)).map g = 1 ::ₘ Multiset.replicate m 2 := by
+    intro m
+    induction m with
+    | zero => intro _; simp [hg]
+    | succ p ih =>
+      intro hp
+      have hgp : g (p + 1) = 2 := by simp only [hg]; split_ifs <;> omega
+      rw [Multiset.range_succ, Multiset.map_cons, ih (by omega), hgp, Multiset.cons_swap,
+        ← Multiset.replicate_succ]
+  have hgn : g (n + 1) = 1 := by simp only [hg]; split_ifs <;> omega
+  rw [Multiset.range_succ, Multiset.map_cons, hmid n le_rfl, hgn]
+
+/-- Sorting a multiset whose sorted form we can guess. -/
+private theorem sort_eq_of_pairwise {s : Multiset ℕ} {l : List ℕ} (hl : l.Pairwise (· ≤ ·))
+    (h : (l : Multiset ℕ) = s) : s.sort (· ≤ ·) = l :=
+  List.Perm.eq_of_pairwise (fun _ _ _ _ hab hba ↦ le_antisymm hab hba)
+    (Multiset.pairwise_sort s (· ≤ ·)) hl
+    (Multiset.coe_eq_coe.mp (by rw [Multiset.sort_eq, h]))
+
+@[simp] theorem degSequence_path (n : ℕ) :
+    degSequence (path (n + 2)) = 1 :: 1 :: List.replicate n 2 := by
+  rw [degSequence_eq_sort]
+  refine sort_eq_of_pairwise ?_ ?_
+  · simp [List.pairwise_cons, List.mem_replicate]
+  · rw [degMultiset_path]
+    rfl
+
+/-- The sorted form of a multiset made of `m` copies of a small value `a` and a list `l` of larger
+ones.  This is exactly the shape of the degree multisets of the join-built families: a large hub
+and a lot of small vertices. -/
+private theorem sort_replicate_append {m a : ℕ} {l : List ℕ} (hl : l.Pairwise (· ≤ ·))
+    (hab : ∀ x ∈ List.replicate m a, ∀ b ∈ l, x ≤ b) :
+    ((l : Multiset ℕ) + Multiset.replicate m a).sort (· ≤ ·) = List.replicate m a ++ l := by
+  refine sort_eq_of_pairwise ?_ ?_
+  · exact List.pairwise_append.2 ⟨List.pairwise_replicate.2 (Or.inr le_rfl), hl, hab⟩
+  · rw [← Multiset.coe_add, Multiset.coe_replicate, add_comm]
+
+@[simp] theorem degSequence_star (n : ℕ) :
+    degSequence (star n) = List.replicate n 1 ++ [n] := by
+  rw [degSequence_eq_sort, degMultiset_star, ← Multiset.singleton_add,
+    show ({n} : Multiset ℕ) = (([n] : List ℕ) : Multiset ℕ) from rfl]
+  refine sort_replicate_append (List.pairwise_singleton _ _) fun x hx b hb ↦ ?_
+  have hx' := List.eq_of_mem_replicate hx
+  have hn := List.ne_nil_of_mem hx
+  rw [List.mem_singleton] at hb
+  rcases Nat.eq_zero_or_pos n with hn0 | hn0
+  · simp [hn0] at hn
+  · omega
+
+@[simp] theorem degSequence_wheel (n : ℕ) :
+    degSequence (wheel (n + 3)) = List.replicate (n + 3) 3 ++ [n + 3] := by
+  rw [degSequence_eq_sort, degMultiset_wheel, ← Multiset.singleton_add,
+    show ({n + 3} : Multiset ℕ) = (([n + 3] : List ℕ) : Multiset ℕ) from rfl]
+  refine sort_replicate_append (List.pairwise_singleton _ _) fun x hx b hb ↦ ?_
+  rw [List.eq_of_mem_replicate hx, List.mem_singleton] at *
+  omega
+
+@[simp] theorem degSequence_book (n : ℕ) :
+    degSequence (book n) = List.replicate n 2 ++ [n + 1, n + 1] := by
+  rw [degSequence_eq_sort, degMultiset_book,
+    show Multiset.replicate 2 (n + 1) = (([n + 1, n + 1] : List ℕ) : Multiset ℕ) from rfl]
+  refine sort_replicate_append (by simp [List.pairwise_cons]) fun x hx b hb ↦ ?_
+  have hx' := List.eq_of_mem_replicate hx
+  have hn := List.ne_nil_of_mem hx
+  have hb' : b = n + 1 := by simpa using hb
+  rcases Nat.eq_zero_or_pos n with hn0 | hn0
+  · simp [hn0] at hn
+  · omega
+
 /-! ## The simp set at work
 
 These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
@@ -7944,5 +8097,31 @@ example : degMultiset (disjUnion (cycle 3) (cycle 4)) = degMultiset (cycle 7) :=
 example : disjUnion (cycle 3) (cycle 4) ≠ cycle 7 :=
   Ne.symm (ne_of_isConnected (isConnected_cycle 6)
     (not_isConnected_disjUnion (G := cycle 3) (H := cycle 4) (by simp) (by simp)))
+
+example : degSequence (path 5) = [1, 1, 2, 2, 2] := degSequence_path 3
+
+example : degMultiset (path 2) = {1, 1} := degMultiset_path 0
+
+/- The star and the path on four vertices: same order, same size, both trees, and now separated
+by the degree multiset as well as by the diameter. -/
+example : star 3 ≠ path 4 :=
+  ne_of_degMultiset_ne (by
+    have h1 : degMultiset (star 3) = 3 ::ₘ Multiset.replicate 3 1 := degMultiset_star 3
+    have h2 : degMultiset (path 4) = 1 ::ₘ 1 ::ₘ Multiset.replicate 2 2 := degMultiset_path 2
+    rw [h1, h2]
+    decide)
+
+example : degSequence (star 4) = [1, 1, 1, 1, 4] := degSequence_star 4
+
+example : degSequence (wheel 5) = [3, 3, 3, 3, 3, 5] := degSequence_wheel 2
+
+example : degSequence (book 3) = [2, 2, 2, 4, 4] := degSequence_book 3
+
+example : path 6 ≠ cycle 6 :=
+  ne_of_degMultiset_ne (by
+    have h1 : degMultiset (path 6) = 1 ::ₘ 1 ::ₘ Multiset.replicate 4 2 := degMultiset_path 4
+    have h2 : degMultiset (cycle 6) = Multiset.replicate 6 2 := degMultiset_cycle 3
+    rw [h1, h2]
+    decide)
 
 end IsoGraph

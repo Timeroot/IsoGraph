@@ -901,6 +901,25 @@ the degree multisets of the empty and complete graphs gives those of the complet
 graphs, stars (`n ::ₘ replicate n 1`), wheels and books, none of which is a constant sequence and
 so none of which was reachable from the strong-regularity machinery.
 
+The path was the last named family whose degrees were still out of reach, since it is not
+regular and is not built by a join.  Its adjacency comes from `ofRel`, so a vertex `i` of
+`path n` has neighbours `i - 1` and `i + 1` whenever they exist: `mem_nbrs_path` reduces
+membership in `nbrs i` to a pair of arithmetic disjuncts, four `Finset.ext` case splits give
+`card_nbrs_path`, and `degMultiset_path` assembles the per-vertex degrees into a map over
+`Multiset.range n`.  Collapsing that map — the two ends contribute `1`, the `n` interior vertices
+contribute `2` — yields the simp lemma `degMultiset (path (n + 2)) = 1 ::ₘ 1 ::ₘ replicate n 2`.
+One trap is worth recording: `(path n).V` does not reduce to `Fin n` at *reducible* transparency,
+so `simp` lemmas about `Fin` refuse to fire on these goals even though `rw` and `exact` accept
+them; the proofs therefore pin the element type down with `@Finset.ext (Fin n)`.
+
+Multisets of this shape are easy enough to sort by hand that the degree *sequences* come out too.
+`sort_eq_of_pairwise` turns a guess at the sorted list into a proof (a sorted list is determined
+by its multiset), and `sort_replicate_append` packages the case that keeps recurring: many copies
+of a small degree followed by a few large hubs.  That gives `degSequence_path`,
+`degSequence_star` (`replicate n 1 ++ [n]`), `degSequence_wheel` and `degSequence_book`, and with
+them separations that the older invariants could not make, such as `star 3 ≠ path 4` — same order,
+same size, both trees.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
