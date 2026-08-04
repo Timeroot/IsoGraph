@@ -5641,6 +5641,189 @@ theorem not_isVertexTransitive_of_card_lt (G : CGraph)
     (h : Fintype.card G.V < G.indepNum * G.cliqueNum) : ¬ G.IsVertexTransitive := fun hvt ↦
   absurd (G.indepNum_mul_cliqueNum_le_card hvt) (by omega)
 
+/-! ### The domination number -/
+
+theorem domNum_le_card_of_isDominatingSet {s : Finset G.V} (h : G.IsDominatingSet s) :
+    G.domNum ≤ s.card :=
+  Nat.sInf_le ⟨s, rfl, h⟩
+
+/-- A dominating set of the minimum size `γ`. -/
+theorem exists_isDominatingSet_domNum (G : CGraph) :
+    ∃ s : Finset G.V, s.card = G.domNum ∧ G.IsDominatingSet s := by
+  have hne : {n | ∃ s : Finset G.V, s.card = n ∧ G.IsDominatingSet s}.Nonempty :=
+    ⟨Finset.univ.card, Finset.univ, rfl, isDominatingSet_univ G⟩
+  obtain ⟨s, hcard, hs⟩ := Nat.sInf_mem hne
+  exact ⟨s, hcard, hs⟩
+
+theorem domNum_le_card (G : CGraph) : G.domNum ≤ Fintype.card G.V := by
+  have := domNum_le_card_of_isDominatingSet (isDominatingSet_univ G)
+  rwa [Finset.card_univ] at this
+
+@[simp] theorem domNum_eq_zero_iff (G : CGraph) : G.domNum = 0 ↔ Fintype.card G.V = 0 := by
+  constructor
+  · intro h
+    obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
+    rw [h, Finset.card_eq_zero] at hcard
+    subst hcard
+    rw [Fintype.card_eq_zero_iff]
+    refine ⟨fun v ↦ ?_⟩
+    rcases hs v with hv | ⟨u, hu, -⟩
+    · simp at hv
+    · simp at hu
+  · intro h
+    have := G.domNum_le_card
+    omega
+
+theorem domNum_pos (G : CGraph) (h : 0 < Fintype.card G.V) : 0 < G.domNum := by
+  have := (G.domNum_eq_zero_iff).not.2 (by omega : ¬ Fintype.card G.V = 0)
+  omega
+
+/-- A vertex adjacent to everything else dominates on its own. -/
+theorem domNum_eq_one_of_universal {v : G.V} (h : ∀ u, u ≠ v → G.Adj v u) : G.domNum = 1 := by
+  have hdom : G.IsDominatingSet {v} := by
+    intro u
+    by_cases huv : u = v
+    · exact Or.inl (by simp [huv])
+    · exact Or.inr ⟨v, by simp, h u huv⟩
+  have h1 := domNum_le_card_of_isDominatingSet hdom
+  rw [Finset.card_singleton] at h1
+  have h2 : 0 < Fintype.card G.V := Fintype.card_pos_iff.2 ⟨v⟩
+  have := G.domNum_pos h2
+  omega
+
+/-- **The degree bound** `|V| ≤ γ·(Δ + 1)`: each vertex of a dominating set covers itself and at
+most `Δ` neighbours. -/
+theorem card_le_domNum_mul_maxDeg_add_one (G : CGraph) :
+    Fintype.card G.V ≤ G.domNum * (G.maxDeg + 1) := by
+  classical
+  obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
+  have hsub : (Finset.univ : Finset G.V)
+      ⊆ s.biUnion fun u ↦ insert u (G.toSimple.neighborFinset u) := by
+    intro v _
+    rcases hs v with hv | ⟨u, hu, hadj⟩
+    · exact Finset.mem_biUnion.2 ⟨v, hv, Finset.mem_insert_self _ _⟩
+    · refine Finset.mem_biUnion.2 ⟨u, hu, Finset.mem_insert_of_mem ?_⟩
+      rw [SimpleGraph.mem_neighborFinset]
+      exact (toSimple_adj _ _ _).2 hadj
+  have h1 := Finset.card_le_card hsub
+  have h2 := Finset.card_biUnion_le (s := s)
+    (t := fun u ↦ insert u (G.toSimple.neighborFinset u))
+  have h3 : ∀ u ∈ s, (insert u (G.toSimple.neighborFinset u)).card ≤ G.maxDeg + 1 := by
+    intro u _
+    refine le_trans (Finset.card_insert_le _ _) ?_
+    have := G.degree_le_maxDeg u
+    rw [SimpleGraph.card_neighborFinset_eq_degree]
+    omega
+  have h4 := Finset.sum_le_card_nsmul _ _ _ h3
+  rw [Finset.card_univ] at h1
+  rw [smul_eq_mul, hcard] at h4
+  omega
+
+/-- **`γ ≤ α`**: a *maximum* independent set is dominating, since a vertex it failed to dominate
+could be added to it. -/
+theorem domNum_le_indepNum (G : CGraph) : G.domNum ≤ G.indepNum := by
+  classical
+  obtain ⟨S, hS, hScard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  have hdom : G.IsDominatingSet S := by
+    intro v
+    by_contra hcon
+    push_neg at hcon
+    obtain ⟨hv, hne⟩ := hcon
+    have hnadj : ∀ u ∈ S, ¬ G.toSimple.Adj u v := by
+      intro u hu hadj
+      exact hne u hu ((toSimple_adj _ _ _).1 hadj)
+    have hins : G.toSimple.IsIndepSet (insert v (S : Set G.V)) := by
+      refine (Set.pairwise_insert_of_symmetric ?_).2 ⟨hS, ?_⟩
+      · intro a b hab h
+        exact hab h.symm
+      · intro b hb _
+        exact fun h ↦ hnadj b hb h.symm
+    rw [← Finset.coe_insert] at hins
+    have hcard := hins.card_le_indepNum
+    rw [Finset.card_insert_of_notMem hv, hScard] at hcard
+    omega
+  have h := domNum_le_card_of_isDominatingSet hdom
+  rw [hScard] at h
+  exact h
+
+/-- **`γ + Δ ≤ |V|`**: the complement of the neighbourhood of a vertex of maximum degree is
+dominating. -/
+theorem domNum_add_maxDeg_le_card (G : CGraph) : G.domNum + G.maxDeg ≤ Fintype.card G.V := by
+  classical
+  rcases isEmpty_or_nonempty G.V with hemp | hne
+  · have h1 : Fintype.card G.V = 0 := Fintype.card_eq_zero
+    have h2 := G.domNum_le_card
+    have h3 : G.maxDeg = 0 := by rw [maxDeg, SimpleGraph.maxDegree_of_isEmpty]
+    omega
+  obtain ⟨v₀⟩ := hne
+  obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
+  set T : Finset G.V := Finset.univ \ G.toSimple.neighborFinset v with hT
+  have hdom : G.IsDominatingSet T := by
+    intro u
+    by_cases hu : u ∈ T
+    · exact Or.inl hu
+    · refine Or.inr ⟨v, ?_, ?_⟩
+      · rw [hT, Finset.mem_sdiff]
+        exact ⟨Finset.mem_univ _, by simp⟩
+      · rw [hT, Finset.mem_sdiff] at hu
+        push_neg at hu
+        have := hu (Finset.mem_univ u)
+        rw [SimpleGraph.mem_neighborFinset] at this
+        exact (toSimple_adj _ _ _).2 (by simpa using this)
+  have hcardT : T.card = Fintype.card G.V - G.maxDeg := by
+    rw [hT, Finset.card_univ_diff, SimpleGraph.card_neighborFinset_eq_degree, hv]
+  have h1 := domNum_le_card_of_isDominatingSet hdom
+  have h2 : G.maxDeg < Fintype.card G.V := G.maxDeg_lt_card v₀
+  omega
+
+/-- **`γ ≤ τ`** for a graph with no isolated vertex: a vertex cover dominates, since every vertex
+has an edge and the far end of it is in the cover. -/
+theorem domNum_le_coverNum (G : CGraph) (h : 1 ≤ G.minDeg) : G.domNum ≤ G.coverNum := by
+  classical
+  obtain ⟨C, hC, hCcard⟩ := exists_cover_finset G.toSimple
+  have hdom : G.IsDominatingSet C := by
+    intro v
+    by_cases hv : v ∈ C
+    · exact Or.inl hv
+    · have hdeg : 1 ≤ G.toSimple.degree v := le_trans h (G.minDeg_le_degree v)
+      have hne : (G.toSimple.neighborFinset v).Nonempty := by
+        rw [← Finset.card_pos, SimpleGraph.card_neighborFinset_eq_degree]
+        omega
+      obtain ⟨u, hu⟩ := hne
+      rw [SimpleGraph.mem_neighborFinset] at hu
+      rcases hC hu with hmem | hmem
+      · exact absurd hmem hv
+      · exact Or.inr ⟨u, hmem, (toSimple_adj _ _ _).2 hu.symm⟩
+  have := domNum_le_card_of_isDominatingSet hdom
+  rw [hCcard] at this
+  exact this
+
+/-! ### The domination number of the small families -/
+
+theorem domNum_empty (n : ℕ) : (empty n).domNum = n := by
+  refine le_antisymm ?_ ?_
+  · have := (empty n).domNum_le_card
+    rwa [card_empty] at this
+  · obtain ⟨s, hcard, hs⟩ := (empty n).exists_isDominatingSet_domNum
+    have huniv : s = Finset.univ := by
+      refine Finset.eq_univ_iff_forall.2 fun v ↦ ?_
+      rcases hs v with hv | ⟨u, -, hadj⟩
+      · exact hv
+      · simp at hadj
+    rw [huniv, Finset.card_univ, card_empty] at hcard
+    omega
+
+theorem domNum_complete (n : ℕ) : (complete (n + 1)).domNum = 1 :=
+  domNum_eq_one_of_universal (v := (0 : Fin (n + 1))) fun u hu ↦ by
+    simpa using Ne.symm hu
+
+theorem domNum_star (n : ℕ) : (star n).domNum = 1 := by
+  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  refine domNum_eq_one_of_universal (v := (Sum.inl 0 : Fin 1 ⊕ Fin n)) fun u hu ↦ ?_
+  match u with
+  | Sum.inl a => exact absurd (congrArg Sum.inl (Subsingleton.elim a (0 : Fin 1))) hu
+  | Sum.inr b => exact bipartite_adj_inl_inr 1 n 0 b
+
 end CGraph
 
 namespace IsoGraph
@@ -11994,5 +12177,83 @@ example (G : IsoGraph) (h : G.V = 6) : compl G ≠ G := fun hc ↦ by
   have := V_mod_four_of_compl_eq hc
   rw [h] at this
   omega
+
+/-! ### The domination number -/
+
+theorem domNum_le_V (G : IsoGraph) : G.domNum ≤ G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, domNum_mk]
+  exact CGraph.domNum_le_card _
+
+@[simp] theorem domNum_eq_zero_iff (G : IsoGraph) : G.domNum = 0 ↔ G.V = 0 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, domNum_mk]
+  exact CGraph.domNum_eq_zero_iff _
+
+theorem domNum_pos {G : IsoGraph} (h : 0 < G.V) : 0 < G.domNum := by
+  have := (G.domNum_eq_zero_iff).not.2 (by omega : ¬ G.V = 0)
+  omega
+
+/-- **The degree bound** `|V| ≤ γ·(Δ + 1)`. -/
+theorem V_le_domNum_mul_maxDeg_add_one (G : IsoGraph) : G.V ≤ G.domNum * (G.maxDeg + 1) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, domNum_mk, maxDeg_mk]
+  exact CGraph.card_le_domNum_mul_maxDeg_add_one _
+
+/-- **`γ ≤ α`**. -/
+theorem domNum_le_indepNum (G : IsoGraph) : G.domNum ≤ G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, domNum_mk, indepNum_mk]
+  exact CGraph.domNum_le_indepNum _
+
+/-- **`γ + Δ ≤ |V|`**. -/
+theorem domNum_add_maxDeg_le_V (G : IsoGraph) : G.domNum + G.maxDeg ≤ G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, domNum_mk, maxDeg_mk]
+  exact CGraph.domNum_add_maxDeg_le_card _
+
+/-- **`γ ≤ τ`** for a graph with no isolated vertex. -/
+theorem domNum_le_coverNum {G : IsoGraph} (h : 1 ≤ G.minDeg) : G.domNum ≤ G.coverNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, domNum_mk, coverNum_mk]
+  rw [← mk_canonicalize g, minDeg_mk] at h
+  exact CGraph.domNum_le_coverNum _ h
+
+/-- With Gallai's identity, the degree bound reads `τ ≥ |V|·Δ/(Δ+1) - ...`; more usefully it
+bounds the independence number from below, since `γ ≤ α`. -/
+theorem V_le_indepNum_mul_maxDeg_add_one (G : IsoGraph) : G.V ≤ G.indepNum * (G.maxDeg + 1) :=
+  le_trans G.V_le_domNum_mul_maxDeg_add_one
+    (Nat.mul_le_mul_right _ G.domNum_le_indepNum)
+
+/-! ### The table -/
+
+@[simp] theorem domNum_empty (n : ℕ) : (empty n).domNum = n := CGraph.domNum_empty n
+
+@[simp] theorem domNum_complete (n : ℕ) : (complete (n + 1)).domNum = 1 :=
+  CGraph.domNum_complete n
+
+@[simp] theorem domNum_star (n : ℕ) : (star n).domNum = 1 := CGraph.domNum_star n
+
+/-- A `k`-regular graph needs at least `|V|/(k + 1)` vertices to dominate it. -/
+theorem le_domNum_of_regular {G : IsoGraph} {k : ℕ} (h : G.maxDeg = k) :
+    G.V ≤ G.domNum * (k + 1) := by
+  rw [← h]; exact G.V_le_domNum_mul_maxDeg_add_one
+
+/-- `γ(Petersen) ≥ 3` (the true value is `3`). -/
+theorem three_le_domNum_petersen : 3 ≤ petersen.domNum := by
+  have h := le_domNum_of_regular (G := petersen) (k := 3) maxDeg_petersen
+  rw [V_petersen] at h
+  omega
+
+/-- `γ(Cₙ) ≥ n/3`. -/
+theorem le_domNum_cycle (n : ℕ) : n + 3 ≤ (cycle (n + 3)).domNum * 3 := by
+  have h := le_domNum_of_regular (G := cycle (n + 3)) (k := 2) (maxDeg_cycle n)
+  rwa [V_cycle] at h
+
+example : (star 5).domNum = 1 := by simp
+
+example : (empty 4).domNum = 4 := by simp
+
+example : (complete 7).domNum = 1 := by simp
 
 end IsoGraph

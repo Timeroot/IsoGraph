@@ -1148,6 +1148,20 @@ both: they are Cayley graphs of the additive group of the field, so `isVertexTra
 applies, and `paley 13`, `paley 17` are already known here to be self-complementary.  That gives
 `ω(Paley 13) ≤ 3` and `ω(Paley 17) ≤ 4` — the first is sharp — with the same bounds on `α`.
 
+The **domination number** `γ` is new here rather than inherited: Mathlib has no domination API, so
+`CGraph.IsDominatingSet s` ("every vertex is in `s` or has a neighbour in `s`") and
+`γ = sInf {|s| | s dominates}` are defined from scratch, with a `Finset.map` along an isomorphism
+supplying the congruence that lifts `γ` to the quotient.  The whole vertex set dominates, so the
+infimum is over a nonempty set and `Nat.sInf_mem` hands back an actual minimum dominating set to
+work with.  Around it sit the standard bounds: covering the vertices by the closed neighbourhoods
+of a minimum dominating set gives **`|V| ≤ γ·(Δ + 1)`**; a *maximum* independent set is dominating,
+since an undominated vertex could be added to it, so **`γ ≤ α`** (and hence
+`|V| ≤ α·(Δ + 1)`); deleting the neighbourhood of a vertex of maximum degree leaves a dominating
+set, so **`γ + Δ ≤ |V|`**; and a vertex cover dominates as soon as there are no isolated vertices,
+so **`γ ≤ τ`** when `δ ≥ 1`.  The table records `γ(Eₙ) = n` and `γ(Kₙ) = γ(K₁,ₙ) = 1`, and the
+degree bound turns into lower bounds on the regular graphs — `γ(Petersen) ≥ 3` and `γ(Cₙ) ≥ n/3`,
+both of them sharp.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

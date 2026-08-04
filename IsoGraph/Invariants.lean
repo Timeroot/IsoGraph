@@ -205,6 +205,40 @@ noncomputable def diameter : ℕ := G.toSimple.diam
 /-- Vertex cover number: the size of a smallest set of vertices meeting every edge. -/
 noncomputable def coverNum : ℕ := G.toSimple.vertexCoverNum.toNat
 
+/-- A set of vertices *dominates* the graph if every vertex either lies in it or has a
+neighbour in it. -/
+def IsDominatingSet (s : Finset G.V) : Prop := ∀ v : G.V, v ∈ s ∨ ∃ u ∈ s, G.Adj u v
+
+/-- Domination number: the size of a smallest dominating set.  The whole vertex set dominates,
+so the infimum is over a nonempty set of naturals. -/
+noncomputable def domNum : ℕ := sInf {n | ∃ s : Finset G.V, s.card = n ∧ G.IsDominatingSet s}
+
+theorem isDominatingSet_univ : G.IsDominatingSet Finset.univ := fun v ↦ Or.inl (Finset.mem_univ v)
+
+/-- A dominating set is carried to a dominating set by an isomorphism. -/
+theorem IsDominatingSet.map {G H : CGraph} (i : G ≃cg H) {s : Finset G.V}
+    (h : G.IsDominatingSet s) : H.IsDominatingSet (s.map i.toEquiv.toEmbedding) := by
+  intro v
+  rcases h (i.symm v) with hv | ⟨u, hu, hadj⟩
+  · exact Or.inl (Finset.mem_map.2 ⟨i.symm v, hv, by simp⟩)
+  · refine Or.inr ⟨i u, Finset.mem_map.2 ⟨u, hu, rfl⟩, ?_⟩
+    have h2 := i.adj_eq u (i.symm v)
+    rw [i.apply_symm_apply] at h2
+    rw [h2]
+    exact hadj
+
+theorem domNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.domNum = H.domNum := by
+  have hset : {n | ∃ s : Finset G.V, s.card = n ∧ G.IsDominatingSet s}
+      = {n | ∃ s : Finset H.V, s.card = n ∧ H.IsDominatingSet s} := by
+    ext n
+    constructor
+    · rintro ⟨s, rfl, hs⟩
+      exact ⟨s.map i.toEquiv.toEmbedding, Finset.card_map _, hs.map i⟩
+    · rintro ⟨s, rfl, hs⟩
+      exact ⟨s.map i.symm.toEquiv.toEmbedding, Finset.card_map _, hs.map i.symm⟩
+  unfold domNum
+  rw [hset]
+
 /-- Chromatic number. -/
 noncomputable def chromNum : ℕ := G.toSimple.chromaticNumber.toNat
 
@@ -514,6 +548,13 @@ noncomputable def coverNum (G : IsoGraph) : ℕ :=
       (SimpleGraph.vertexCoverNum_congr (CGraph.Iso.toSimpleIso i))) G
 
 @[simp] theorem coverNum_mk (G : CGraph) : coverNum (Quotient.mk _ G) = G.coverNum := rfl
+
+/-- Domination number. -/
+noncomputable def domNum (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.domNum
+    (fun _ _ ⟨i⟩ ↦ CGraph.domNum_eq_of_iso i) G
+
+@[simp] theorem domNum_mk (G : CGraph) : domNum (Quotient.mk _ G) = G.domNum := rfl
 
 /-- Chromatic number. -/
 noncomputable def chromNum (G : IsoGraph) : ℕ :=
