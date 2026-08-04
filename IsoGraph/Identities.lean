@@ -6445,6 +6445,91 @@ theorem numComponents_lt_card_of_E_pos (G : CGraph) (h : 0 < G.E) :
   have := (G.numComponents_eq_card_iff).not.2 (by omega : ¬ G.E = 0)
   omega
 
+/-! ### Components of a Cartesian product -/
+
+/-- Reachability in a box product is reachability in both factors, so the components of a box
+product are the pairs of components. -/
+private theorem card_connectedComponent_boxProd {α β : Type*} (S : SimpleGraph α)
+    (T : SimpleGraph β) :
+    Nat.card (S.boxProd T).ConnectedComponent
+      = Nat.card S.ConnectedComponent * Nat.card T.ConnectedComponent := by
+  set φ : (S.boxProd T).ConnectedComponent → S.ConnectedComponent × T.ConnectedComponent :=
+    SimpleGraph.ConnectedComponent.lift
+      (fun p ↦ (S.connectedComponentMk p.1, T.connectedComponentMk p.2))
+      (fun p q w _ ↦ by
+        obtain ⟨h1, h2⟩ := SimpleGraph.reachable_boxProd.1 ⟨w⟩
+        exact Prod.ext (SimpleGraph.ConnectedComponent.sound h1)
+          (SimpleGraph.ConnectedComponent.sound h2)) with hφ
+  have hbij : Function.Bijective φ := by
+    constructor
+    · intro x y
+      induction x using SimpleGraph.ConnectedComponent.ind with | _ p =>
+      induction y using SimpleGraph.ConnectedComponent.ind with | _ q =>
+      intro h
+      have h1 : S.connectedComponentMk p.1 = S.connectedComponentMk q.1 := congrArg Prod.fst h
+      have h2 : T.connectedComponentMk p.2 = T.connectedComponentMk q.2 := congrArg Prod.snd h
+      exact SimpleGraph.ConnectedComponent.sound (SimpleGraph.reachable_boxProd.2
+        ⟨SimpleGraph.ConnectedComponent.exact h1, SimpleGraph.ConnectedComponent.exact h2⟩)
+    · rintro ⟨c, d⟩
+      obtain ⟨a, rfl⟩ := Quot.exists_rep c
+      obtain ⟨b, rfl⟩ := Quot.exists_rep d
+      exact ⟨(S.boxProd T).connectedComponentMk (a, b), rfl⟩
+  rw [Nat.card_eq_of_bijective φ hbij, Nat.card_prod]
+
+/-- **The components of a Cartesian product are the pairs of components.** -/
+theorem numComponents_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).numComponents = G.numComponents * H.numComponents := by
+  rw [numComponents, numComponents, numComponents, toSimple_cartesianProduct]
+  exact card_connectedComponent_boxProd _ _
+
+/-! ### A minimum-degree condition for connectedness -/
+
+/-- **A graph with `2δ(G) + 1 ≥ |V|` is connected**: two nonadjacent vertices have too many
+neighbours between them to avoid sharing one. -/
+theorem isConnected_of_card_le_two_mul_minDeg (G : CGraph) [Nonempty G.V]
+    (h : Fintype.card G.V ≤ 2 * G.minDeg + 1) : G.IsConnected := by
+  classical
+  rw [IsConnected, SimpleGraph.connected_iff]
+  refine ⟨fun u v ↦ ?_, inferInstance⟩
+  by_cases huv : u = v
+  · exact huv ▸ SimpleGraph.Reachable.refl u
+  by_cases hadj : G.toSimple.Adj u v
+  · exact hadj.reachable
+  -- neither neighbourhood contains `u` or `v`
+  set T : Finset G.V := (Finset.univ.erase u).erase v with hT
+  have hu : G.toSimple.neighborFinset u ⊆ T := by
+    intro w hw
+    rw [SimpleGraph.mem_neighborFinset] at hw
+    exact Finset.mem_erase.2 ⟨fun hwv ↦ hadj (hwv ▸ hw),
+      Finset.mem_erase.2 ⟨fun hwu ↦ (hwu ▸ hw).ne rfl, Finset.mem_univ w⟩⟩
+  have hv : G.toSimple.neighborFinset v ⊆ T := by
+    intro w hw
+    rw [SimpleGraph.mem_neighborFinset] at hw
+    exact Finset.mem_erase.2 ⟨fun hwv ↦ (hwv ▸ hw).ne rfl,
+      Finset.mem_erase.2 ⟨fun hwu ↦ hadj (hwu ▸ hw).symm, Finset.mem_univ w⟩⟩
+  have hTcard : T.card = Fintype.card G.V - 2 := by
+    rw [hT, Finset.card_erase_of_mem (Finset.mem_erase.2 ⟨fun h' ↦ huv h'.symm, Finset.mem_univ v⟩),
+      Finset.card_erase_of_mem (Finset.mem_univ u), Finset.card_univ]
+    omega
+  have hdu : G.minDeg ≤ (G.toSimple.neighborFinset u).card := G.minDeg_le_degree u
+  have hdv : G.minDeg ≤ (G.toSimple.neighborFinset v).card := G.minDeg_le_degree v
+  have hunion : (G.toSimple.neighborFinset u ∪ G.toSimple.neighborFinset v).card ≤ T.card :=
+    Finset.card_le_card (Finset.union_subset hu hv)
+  have hinter := Finset.card_union_add_card_inter
+    (G.toSimple.neighborFinset u) (G.toSimple.neighborFinset v)
+  have hcard2 : 2 ≤ Fintype.card G.V := by
+    have hle : ({u, v} : Finset G.V).card ≤ Fintype.card G.V := by
+      rw [← Finset.card_univ]; exact Finset.card_le_card (Finset.subset_univ _)
+    rwa [Finset.card_pair huv] at hle
+  have hpos : 0 < (G.toSimple.neighborFinset u ∩ G.toSimple.neighborFinset v).card := by omega
+  obtain ⟨w, hw⟩ := Finset.card_pos.1 hpos
+  rw [Finset.mem_inter, SimpleGraph.mem_neighborFinset, SimpleGraph.mem_neighborFinset] at hw
+  exact hw.1.reachable.trans hw.2.reachable.symm
+
+theorem numComponents_eq_one_of_card_le_two_mul_minDeg (G : CGraph) [Nonempty G.V]
+    (h : Fintype.card G.V ≤ 2 * G.minDeg + 1) : G.numComponents = 1 :=
+  (numComponents_eq_one_iff G).2 (G.isConnected_of_card_le_two_mul_minDeg h)
+
 end CGraph
 
 namespace IsoGraph
@@ -13251,5 +13336,38 @@ example : (join (cycle 5) (empty 3)).numComponents = 1 := by
   refine numComponents_join ?_ ?_ <;> simp
 
 example : (cycle 5).numComponents < (cycle 5).V := numComponents_lt_V_of_E_pos (by simp)
+
+/-! ### Components of a Cartesian product -/
+
+/-- **The components of a Cartesian product are the pairs of components.** -/
+@[simp] theorem numComponents_cartesianProduct (G H : IsoGraph) :
+    (cartesianProduct G H).numComponents = G.numComponents * H.numComponents := by
+  induction G using Quotient.inductionOn with | _ g
+  induction H using Quotient.inductionOn with | _ h
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, numComponents_mk,
+    numComponents_mk, numComponents_mk]
+  exact CGraph.numComponents_cartesianProduct _ _
+
+/-! ### A minimum-degree condition for connectedness -/
+
+/-- **A graph with `2δ(G) + 1 ≥ |V|` is connected.** -/
+theorem isConnected_of_V_le_two_mul_minDeg (G : IsoGraph) (hV : 0 < G.V)
+    (h : G.V ≤ 2 * minDeg G + 1) : IsConnected G := by
+  induction G using Quotient.inductionOn with | _ g
+  rw [← mk_canonicalize g, V_mk] at hV
+  rw [← mk_canonicalize g, V_mk, minDeg_mk] at h
+  rw [← mk_canonicalize g, isConnected_mk]
+  have : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
+  exact CGraph.isConnected_of_card_le_two_mul_minDeg _ h
+
+theorem numComponents_eq_one_of_V_le_two_mul_minDeg (G : IsoGraph) (hV : 0 < G.V)
+    (h : G.V ≤ 2 * minDeg G + 1) : G.numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (G.isConnected_of_V_le_two_mul_minDeg hV h)
+
+example : (cartesianProduct (empty 3) (empty 4)).numComponents = 12 := by simp
+
+example : IsConnected (hypercube 2) := by
+  refine (hypercube 2).isConnected_of_V_le_two_mul_minDeg (by simp) ?_
+  simp
 
 end IsoGraph

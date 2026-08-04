@@ -1232,6 +1232,16 @@ edge makes it non-injective and `Fintype.card_lt_of_surjective_not_injective` gi
 argument, is what keeps the two `Nat.card`/`Fintype.card` spellings from drifting onto different
 instances here.)  The join is the last entry: `numComponents (G + H) = 1` for nonempty factors.
 
+The Cartesian product multiplies component counts, **`numComponents (G □ H) = numComponents G *
+numComponents H`**.  Mathlib's `reachable_boxProd` says reachability in a box product is
+reachability in both coordinates, which is exactly what makes `ConnectedComponent.lift (fun p ↦
+(⟦p.1⟧, ⟦p.2⟧))` well defined *and* injective; surjectivity is `Quot.exists_rep` twice, so
+`Nat.card_eq_of_bijective` and `Nat.card_prod` finish it without ever writing the inverse map down.
+The last connectivity result is a sufficient condition rather than a computation: **a graph with
+`|V| ≤ 2δ(G) + 1` is connected**.  Two nonadjacent `u, v` have their neighbourhoods inside `V \
+{u, v}`, so `card_union_add_card_inter` forces `N(u) ∩ N(v)` to be nonempty and a common neighbour
+joins them — every pair is then at distance at most two.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
