@@ -1515,6 +1515,14 @@ the Kneser graphs from `K(6,2)` on — `K(5,2)` is Petersen, whose girth is five
 is `0` — and the Paley graphs on at least nine vertices. Line graphs go the other way: the
 edges at a vertex of degree `d` form a `d`-clique, so `Δ ≥ 3` already forces `girth (L G) = 3`.
 
+The *clique cover number* `θ(G)` is the third invariant defined by composition rather than by a
+new construction: a partition of the vertices into cliques is a proper colouring of the
+complement, so `cliqueCoverNum G = chromNum (compl G)`. Every fact about it is a fact about
+`chromNum` read through `compl_compl`, `compl_disjUnion` and `compl_join`, which is why the
+disjoint union adds and the join takes a maximum — exactly the reverse of the chromatic number.
+The two bounds worth naming are `α ≤ θ`, the mirror of `ω ≤ χ`, and `n ≤ θ ω`, the mirror of
+`n ≤ χ α`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

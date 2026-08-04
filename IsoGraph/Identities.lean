@@ -16467,4 +16467,88 @@ example : (paley 13).girth = 3 := by
   haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
   exact girth_paley 13 rfl (by omega)
 
+
+/-! ### The clique cover number
+
+A partition of the vertices into cliques of `G` is a proper colouring of the complement, so
+`θ(G) = χ(Ḡ)`.  As with the chromatic index this is a definition on `IsoGraph` built from
+existing pieces, and every statement about it is a statement about `chromNum` in disguise. -/
+
+/-- The *clique cover number* `θ(G)`: the least number of cliques needed to cover the
+vertices. -/
+noncomputable def cliqueCoverNum (G : IsoGraph) : ℕ := chromNum (compl G)
+
+theorem cliqueCoverNum_eq (G : IsoGraph) : G.cliqueCoverNum = chromNum (compl G) := rfl
+
+@[simp] theorem cliqueCoverNum_compl (G : IsoGraph) :
+    (IsoGraph.compl G).cliqueCoverNum = G.chromNum := by
+  rw [cliqueCoverNum_eq, compl_compl]
+
+theorem chromNum_compl (G : IsoGraph) :
+    (IsoGraph.compl G).chromNum = G.cliqueCoverNum := rfl
+
+/-- `α ≤ θ`, the complement of `ω ≤ χ`: a clique cover needs a separate clique for each vertex
+of an independent set. -/
+theorem indepNum_le_cliqueCoverNum (G : IsoGraph) : G.indepNum ≤ G.cliqueCoverNum := by
+  rw [cliqueCoverNum_eq, ← cliqueNum_compl]
+  exact cliqueNum_le_chromNum _
+
+theorem cliqueCoverNum_le_V (G : IsoGraph) : G.cliqueCoverNum ≤ G.V := by
+  have h := chromNum_le_V (compl G)
+  rwa [V_compl] at h
+
+/-- `n ≤ θ ω`, the complement of `n ≤ χ α`: each of the `θ` cliques has at most `ω` vertices. -/
+theorem V_le_cliqueCoverNum_mul_cliqueNum (G : IsoGraph) :
+    G.V ≤ G.cliqueCoverNum * G.cliqueNum := by
+  have h := V_le_chromNum_mul_indepNum (compl G)
+  rwa [V_compl, indepNum_compl] at h
+
+theorem cliqueCoverNum_le_V_sub_cliqueNum_add_one (G : IsoGraph) :
+    G.cliqueCoverNum ≤ G.V - G.cliqueNum + 1 := by
+  have h := chromNum_le_V_sub_indepNum_add_one (compl G)
+  rwa [V_compl, indepNum_compl] at h
+
+@[simp] theorem cliqueCoverNum_eq_zero_iff {G : IsoGraph} : G.cliqueCoverNum = 0 ↔ G.V = 0 := by
+  rw [cliqueCoverNum_eq, chromNum_eq_zero_iff, V_compl]
+
+/-- An edgeless graph needs one clique per vertex. -/
+@[simp] theorem cliqueCoverNum_empty (n : ℕ) : (empty n).cliqueCoverNum = n := by
+  rw [cliqueCoverNum_eq, compl_empty, chromNum_complete]
+
+@[simp] theorem cliqueCoverNum_complete_zero : (complete 0).cliqueCoverNum = 0 := by
+  rw [cliqueCoverNum_eq, compl_complete, chromNum_empty_zero]
+
+@[simp] theorem cliqueCoverNum_complete (n : ℕ) : (complete (n + 1)).cliqueCoverNum = 1 := by
+  rw [cliqueCoverNum_eq, compl_complete, chromNum_empty]
+
+/-- Cliques never cross a disjoint union, so the clique covers add. -/
+@[simp] theorem cliqueCoverNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).cliqueCoverNum = G.cliqueCoverNum + H.cliqueCoverNum := by
+  rw [cliqueCoverNum_eq, compl_disjUnion, chromNum_join, cliqueCoverNum_eq, cliqueCoverNum_eq]
+
+@[simp] theorem cliqueCoverNum_join (G H : IsoGraph) :
+    (join G H).cliqueCoverNum = max G.cliqueCoverNum H.cliqueCoverNum := by
+  rw [cliqueCoverNum_eq, compl_join, chromNum_disjUnion, cliqueCoverNum_eq, cliqueCoverNum_eq]
+
+/-- A complete bipartite graph is covered by `max m n` edges and singletons. -/
+@[simp] theorem cliqueCoverNum_bipartite (m n : ℕ) :
+    (bipartite m n).cliqueCoverNum = max m n := by
+  rw [cliqueCoverNum_eq, compl_bipartite, chromNum_disjUnion, chromNum_complete,
+    chromNum_complete]
+
+@[simp] theorem cliqueCoverNum_star (n : ℕ) : (star n).cliqueCoverNum = max 1 n :=
+  cliqueCoverNum_bipartite 1 n
+
+/-- `C₅` is self-complementary, so `θ(C₅) = χ(C₅) = 3` even though `ω(C₅) = 2`. -/
+@[simp] theorem cliqueCoverNum_cycle_five : (cycle 5).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_eq, compl_cycle_five, show (5 : ℕ) = 2 * 1 + 3 by ring, chromNum_cycle_odd]
+
+example : (empty 4).cliqueCoverNum = 4 := cliqueCoverNum_empty 4
+
+example : (cycle 5).indepNum ≤ (cycle 5).cliqueCoverNum := indepNum_le_cliqueCoverNum _
+
+/-- The clique cover bound is tight for a disjoint union of triangles. -/
+example : (disjUnion (complete 3) (complete 3)).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_disjUnion, show (3 : ℕ) = 2 + 1 by ring, cliqueCoverNum_complete]
+
 end IsoGraph
