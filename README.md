@@ -1875,6 +1875,14 @@ complete bipartite graphs, of triangular graphs and of Kneser graphs.  The frien
 not regular, and the prover produced its degree sequence separately -- `2n` twos followed by the
 hub's `2n` -- by counting the join's degree multiset and then sorting it.
 
+The Turán graph's extreme degrees follow the sizes of its extreme parts: a vertex misses
+exactly its own part, so `Δ(T(n, r)) = n - ⌊n/r⌋` (a vertex of a smallest part) and
+`δ(T(n, r)) = n - ⌈n/r⌉` (a vertex of a largest part).  With two parts of size at least one the
+graph has a dominating edge, so its radius is `2` as well as its diameter.  On the Paley side,
+the last straggler from an earlier batch came back proved on a refire: the pairs `{2i, 2i+1}`
+form an independent set in the line graph, so `ν(P_q) = ⌊q/2⌋` -- a near-perfect matching,
+perfect exactly when `q` is even, which it never is.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

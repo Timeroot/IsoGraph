@@ -25424,4 +25424,259 @@ any two vertices have a common neighbour, so its radius is two. -/
   have h5 : (turan n r).radius ≤ 2 := this
   omega
 
+/-- Dually to the maximum degree, the smallest degree of a Turán graph belongs to a vertex of
+a largest part. -/
+@[simp] theorem minDeg_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    minDeg (turan n r) = n - (n + r - 1) / r := by
+  -- Helper: compute (r * m + s) / r = m when s < r
+  have div_helper (m s : ℕ) (hs : s < r) : (r * m + s) / r = m := by
+    clear n h
+    have hm : r * (m + 1) = r * m + r := Nat.mul_succ r m
+    have hle : r * m ≤ r * m + s := by omega
+    have hlt : r * m + s < r * m + r := by omega
+    have hlt2 : r * m + s < r * (m + 1) := by rw [hm]; omega
+    have upper : (r * m + s) / r < m + 1 := Nat.div_lt_of_lt_mul hlt2
+    have lower : m ≤ (r * m + s) / r := by
+      rw [Nat.le_div_iff_mul_le hr]
+      rw [mul_comm]
+      omega
+    omega
+  have sub_one_div (q : ℕ) : (r * (q + 1) - 1) / r = q := by
+    clear n h div_helper
+    have hm : r * (q + 1) = r * q + r := Nat.mul_succ r q
+    have hge : r * q ≤ r * (q + 1) - 1 := by rw [hm]; omega
+    have hlt : r * (q + 1) - 1 < r * (q + 1) := by omega
+    exact le_antisymm
+      (Nat.le_of_lt_succ (Nat.div_lt_of_lt_mul hlt))
+      (Nat.le_div_iff_mul_le hr |>.mpr (by rw [hm]; rw [mul_comm]; omega))
+  have div_zero : r * (n / r) / r = n / r := div_helper (n / r) 0 (by omega)
+  by_cases hdvd : r ∣ n
+  · -- Case: r divides n
+    rw [turan_of_dvd hdvd]
+    rw [minDeg_completeMultipartite_replicate hr (Nat.div_pos h hr)]
+    have hn : n = r * (n / r) := (Nat.mul_div_cancel' hdvd).symm
+    have h2 : (n + r - 1) / r = n / r := by
+      rw [hn]
+      have h3 : r * (n / r) + r - 1 = r * (n / r + 1) - 1 := by rw [Nat.mul_add]; omega
+      rw [h3, sub_one_div, div_zero]
+    rw [h2, hn, div_zero]
+    clear h2 h hn div_zero sub_one_div div_helper
+    have hgoal : (r - 1) * (n / r) = r * (n / r) - n / r := by
+      rw [Nat.sub_mul, Nat.one_mul]
+    rw [hgoal]
+  · -- Case: r does not divide n
+    set k := n % r
+    have hk_pos : 0 < k := Nat.pos_of_ne_zero (fun h => hdvd (Nat.dvd_of_mod_eq_zero h))
+    have hk_lt : k < r := Nat.mod_lt n hr
+    have hv1 : n = r * (n / r) + k := by rw [Nat.div_add_mod]
+    -- Key: (r * q + k + r - 1) = r * (q + 1) + (k - 1)
+    have hreassoc : r * (n / r) + k + r - 1 = r * (n / r + 1) + (k - 1) := by
+      rw [show r * (n / r + 1) = r * (n / r) + r from by ring]
+      omega
+    have h2 : (n + r - 1) / r = n / r + 1 := by
+      rw [show n + r - 1 = r * (n / r + 1) + (k - 1) from by omega,
+        div_helper (n / r + 1) (k - 1) (by omega)]
+    have hturan : turan n r =
+        join (completeMultipartite (List.replicate k (n / r + 1)))
+          (completeMultipartite (List.replicate (r - k) (n / r))) := by
+      rw [turan, completeMultipartite_append]
+    rw [hturan]
+    have hndiv_pos : 0 < n / r := Nat.div_pos h hr
+    rw [minDeg_join
+      (by rw [V_completeMultipartite_replicate]; positivity)
+      (by
+        rw [V_completeMultipartite_replicate]
+        exact Nat.mul_pos (Nat.sub_pos_of_lt hk_lt) hndiv_pos)]
+    rw [minDeg_completeMultipartite_replicate hk_pos (by omega : 0 < n / r + 1)]
+    rw [minDeg_completeMultipartite_replicate (Nat.sub_pos_of_lt hk_lt) hndiv_pos]
+    rw [V_completeMultipartite_replicate, V_completeMultipartite_replicate]
+    rw [h2]
+    clear h2
+    set q := n / r
+    have hrq : r * (q + 1) = r * q + r := Nat.mul_succ r q
+    simp only [hrq] at *
+    have hnr1 : (r - 1) * q + (k - 1) = n - (q + 1) := by
+      rw [hv1]
+      have : (r - 1) * q + (k - 1) + (q + 1) = r * q + k := by
+        have h1 : (r - 1) * q + q = r * q := by
+          have hsub : r - 1 + 1 = r := Nat.sub_add_cancel hr
+          have h2 : (r - 1) * q + q = ((r - 1) + 1) * q := by
+            simp [add_mul]
+          rw [h2, hsub]
+        omega
+      exact Eq.symm (Nat.sub_eq_of_eq_add this.symm)
+    rw [hnr1.symm]
+    have hkr : k - 1 + (r - k) = r - 1 := by omega
+    have harg1_eq : (k - 1) * (q + 1) + (r - k) * q = (r - 1) * q + (k - 1) := by
+      have h1 : (k - 1) * (q + 1) + (r - k) * q = ((k - 1) * q + (r - k) * q) + (k - 1) := by
+        rw [Nat.mul_add]
+        omega
+      rw [h1, ← Nat.add_mul, hkr]
+    have harg2_ge : k * (q + 1) + (r - k - 1) * q ≥ (r - 1) * q + (k - 1) := by
+      have : k * q + k + (r - k - 1) * q ≥ (r - 1) * q + (k - 1) := by
+        have : (r - 1) * q = (r - k - 1) * q + k * q := by
+          have : r - 1 = r - k - 1 + k := by omega
+          rw [this, Nat.add_mul]
+        rw [this]
+        omega
+      exact this
+    rw [harg1_eq]
+    exact min_eq_left harg2_ge
+
+
+/-- A Paley graph on `q` vertices has a near-perfect matching: the pairs `{2i, 2i+1}` are
+edges, since `1` is always a square. -/
+@[simp] theorem matchNum_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).matchNum = q / 2 := by
+  have hupper : 2 * (paley q).matchNum ≤ q := by
+    have := two_mul_matchNum_le_V (paley q)
+    simp at this
+    exact this
+  have hle : (paley q).matchNum ≤ q / 2 := by omega
+  set k := q / 2
+  have hq2k1 : q = 2 * k + 1 := by omega
+  have hq_ge_2 : 2 ≤ q := Nat.Prime.two_le Fact.out
+  have hk_pos : 0 < k := Nat.div_pos hq_ge_2 (by omega)
+  -- Work at CGraph level to exhibit a matching of size k in paley q.
+  -- The edges {{2i, 2i+1} : i : Fin k} are pairwise disjoint edges of paley q.
+  have hmatch_ge : k ≤ (paley q).matchNum := by
+    rw [matchNum_eq]
+    rw [IsoGraph.paley_def]
+    rw [lineGraph_mk, indepNum_mk]
+    -- Vertices of paley q are Fin q with values 0..q-1.
+    -- Edges {{2i, 2i+1} | i : Fin k} are in paley q because difference = 1 is a QR.
+    -- They are pairwise disjoint, giving an indep set of size k in lineGraph.
+    set G' : CGraph := CGraph.paley q
+    have h2i_lt : ∀ i : Fin k, (2 * (i : ℕ) : ℕ) < q := by
+      intro i; omega
+    have h2i1_lt : ∀ i : Fin k, (2 * (i : ℕ) + 1 : ℕ) < q := by
+      intro i; omega
+    let mkEdge : Fin k → Sym2 (Fin q) := fun i =>
+      Sym2.mk ⟨(⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q), (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q)⟩
+    have hne2 : ∀ i : Fin k,
+        (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) ≠ (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q) := by
+      intro i h
+      have := congr_arg (fun x : Fin q => x.val) h
+      simp at this
+    -- Adjacency in paley q: need qrTable q[1]! = true
+    have hadj_inner : ∀ i : Fin k,
+        G'.Adj (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q) := by
+      intro i
+      let a : ZMod q := (2 * (i : ℕ) : ZMod q)
+      let b : ZMod q := (2 * (i : ℕ) + 1 : ZMod q)
+      have hiq_val : ((i : Fin k) : ZMod q).val = (i : ℕ) := by
+        exact ZMod.val_cast_of_lt (by omega)
+      have hval2 : ZMod.val (2 : ZMod q) = 2 := by
+        rw [show (2 : ZMod q) = (2 : ℕ) by rfl, ZMod.val_natCast, Nat.mod_eq_of_lt (by omega)]
+      have hval1 : ZMod.val (1 : ZMod q) = 1 := by
+        simp [ZMod.val_one]
+      have ha_val : a.val = 2 * (i : ℕ) := by
+        simp [a, ZMod.val_mul, hval2, hiq_val, Nat.mod_eq_of_lt (h2i_lt i)]
+      have hb_val : b.val = 2 * (i : ℕ) + 1 := by
+        simp [b, ZMod.val_mul, hval2, hiq_val, ZMod.val_add, hval1, Nat.mod_eq_of_lt (h2i1_lt i)]
+      have h1 : (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) = CGraph.zmodEquivFin q a := by
+        ext; simp [CGraph.zmodEquivFin, ha_val]
+      have h2 : (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q) = CGraph.zmodEquivFin q b := by
+        ext; simp [CGraph.zmodEquivFin, hb_val]
+      rw [h1, h2, CGraph.paley_adj_eq, CGraph.paleyField_adj]
+      · have hba : b - a = (1 : ZMod q) := by simp [a, b]
+        rw [hba]
+        have : quadraticChar (ZMod q) (1 : ZMod q) = 1 := by
+          rw [CGraph.quadraticChar_eq_one_iff]
+          exact ⟨1, by exact one_ne_zero, by ring⟩
+        exact decide_eq_true this
+      · have : Fintype.card (ZMod q) % 4 = 1 := by
+          rw [ZMod.card]
+          exact hq
+        exact this
+    let edgeVer : Fin k → (CGraph.lineGraph G').V := fun i =>
+      ⟨mkEdge i, by
+        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
+        exact hadj_inner i⟩
+    -- edgeVer is injective
+    have heng_inj : Function.Injective edgeVer := by
+      intro i j hij
+      have hval : mkEdge i = mkEdge j := by
+        exact congrArg Subtype.val hij
+      have hmem : (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) ∈ (mkEdge j) := by
+        rw [← hval]
+        exact Sym2.mem_mk_left _ _
+      rw [Sym2.mem_iff] at hmem; rcases hmem with h | h
+      · -- ⟨2*i,...⟩ = ⟨2*j,...⟩ as Fin q, and 2*i, 2*j < q, so i = j
+        have h' : (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) = ⟨2 * (j : ℕ), h2i_lt j⟩ := h
+        have hval : (i : ℕ) = (j : ℕ) := by
+          have := congr_arg (fun x : Fin q => x.val) h'
+          simp at this
+          exact this
+        exact Fin.ext hval
+      · -- ⟨2*i,...⟩ = ⟨2*j+1,...⟩ : Fin q, impossible by parity (both < q)
+        exfalso
+        have hval : 2 * (i : ℕ) = 2 * (j : ℕ) + 1 := by
+          have := Fin.ext_iff.mp h
+          simp at this
+          exact this
+        omega
+    -- edgeVer images are pairwise non-adjacent (edges are disjoint)
+    have heng_disjoint : ∀ i j : Fin k, i ≠ j →
+        ∀ v, v ∉ (mkEdge i) ∨ v ∉ (mkEdge j) := by
+      intro i j hij v
+      by_contra h
+      push_neg at h
+      obtain ⟨hv1, hv2⟩ := h
+      rw [Sym2.mem_iff] at hv1 hv2
+      rcases hv1 with hv1 | hv1 <;> rcases hv2 with hv2 | hv2
+      · -- v = 2i = 2j: gives i = j, contradicting hij
+        exfalso
+        have hfin : (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) = ⟨2 * (j : ℕ), h2i_lt j⟩ :=
+          hv1.symm.trans hv2
+        have := congr_arg (fun x : Fin q => x.val) hfin
+        simp at this
+        exact hij (Fin.ext this)
+      · -- v = 2i = 2j+1: parity contradiction
+        exfalso
+        have hfin : (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) = ⟨2 * (j : ℕ) + 1, h2i1_lt j⟩ :=
+          hv1.symm.trans hv2
+        have := congr_arg (fun x : Fin q => x.val) hfin
+        simp at this
+        omega
+      · -- v = 2i+1 = 2j: parity contradiction
+        exfalso
+        have hfin : (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q) = ⟨2 * (j : ℕ), h2i_lt j⟩ :=
+          hv1.symm.trans hv2
+        have := congr_arg (fun x : Fin q => x.val) hfin
+        simp at this
+        omega
+      · -- v = 2i+1 = 2j+1: gives i = j, contradicting hij
+        exfalso
+        have hfin : (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q) = ⟨2 * (j : ℕ) + 1, h2i1_lt j⟩ :=
+          hv1.symm.trans hv2
+        have := congr_arg (fun x : Fin q => x.val) hfin
+        simp at this
+        exact hij (Fin.ext this)
+    have heng_not_adj : ∀ i j : Fin k, i ≠ j →
+        ¬(CGraph.lineGraph G').toSimple.Adj (edgeVer i) (edgeVer j) := by
+      intro i j hij
+      rw [CGraph.toSimple_adj, CGraph.lineGraph_adj]
+      simp [heng_inj.ne hij]
+      intro v hv_i hv_j
+      obtain h | h := heng_disjoint i j hij v <;> [exact h hv_i; exact h hv_j]
+    -- Build the independent set
+    let S : Set (CGraph.lineGraph G').V := Set.range edgeVer
+    have hS_indep : SimpleGraph.IsIndepSet (CGraph.lineGraph G').toSimple S := by
+      intro e he f hf hef
+      obtain ⟨i, _, rfl⟩ := Set.mem_range.mp he
+      obtain ⟨j, _, rfl⟩ := Set.mem_range.mp hf
+      have hi : i ≠ j := fun h => hef (h ▸ rfl)
+      exact heng_not_adj i j hi
+    have hS_card : S.toFinset.card = k := by
+      show (Set.range edgeVer).toFinset.card = k
+      rw [Set.toFinset_range]
+      rw [Finset.card_image_of_injective _ heng_inj, Finset.card_univ, Fintype.card_fin]
+    have hS_indep' :
+        SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.paley q)).toSimple ↑S.toFinset := by
+      rw [Set.coe_toFinset]
+      exact hS_indep
+    exact hS_card ▸ SimpleGraph.IsIndepSet.card_le_indepNum hS_indep'
+  omega
+
 end IsoGraph
