@@ -17272,4 +17272,192 @@ example : ¬ IsSelfComplementary (bipartite 3 3) :=
 example : 3 ≤ (paley 13).chromNum :=
   isSelfComplementary_paley_thirteen.three_le_chromNum (by rw [V_paley]; omega)
 
+
+/-! ### Line graphs of regular graphs -/
+
+theorem pos_of_degSequence_replicate {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) : 0 < n := by
+  have h2 := two_mul_E_of_degSequence_replicate h
+  rcases Nat.eq_zero_or_pos n with rfl | hn
+  · rw [Nat.zero_mul] at h2
+    omega
+  · exact hn
+
+theorem maxDeg_eq_of_degSequence_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)
+    (h : degSequence G = List.replicate n k) : maxDeg G = k :=
+  maxDeg_of_degMultiset_replicate hn (degMultiset_of_degSequence h)
+
+theorem minDeg_eq_of_degSequence_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)
+    (h : degSequence G = List.replicate n k) : minDeg G = k :=
+  minDeg_of_degMultiset_replicate hn (degMultiset_of_degSequence h)
+
+/-- A `k`-regular graph on `n` vertices has a line graph with `n * k.choose 2` edges: one for
+each pair of edges meeting at a common vertex. -/
+theorem E_lineGraph_of_degSequence_replicate {G : IsoGraph} {n k : ℕ}
+    (h : degSequence G = List.replicate n k) : (lineGraph G).E = n * k.choose 2 := by
+  rw [E_lineGraph, h, List.map_replicate, List.sum_replicate, smul_eq_mul]
+
+/-- Counting the same edges through `|E| = n * k / 2`. -/
+theorem two_mul_E_lineGraph_of_degSequence_replicate {G : IsoGraph} {n k : ℕ}
+    (h : degSequence G = List.replicate n k) :
+    2 * (lineGraph G).E = 2 * G.E * (k - 1) := by
+  have h1 := E_lineGraph_of_degSequence_replicate h
+  have h2 := two_mul_E_of_degSequence_replicate h
+  calc 2 * (lineGraph G).E = n * (2 * k.choose 2) := by rw [h1]; ring
+    _ = n * (k * (k - 1)) := by rw [two_mul_choose_two]
+    _ = n * k * (k - 1) := by rw [Nat.mul_assoc]
+    _ = 2 * G.E * (k - 1) := by rw [h2]
+
+/-- **The line graph of a `k`-regular graph is `(2k - 2)`-regular.** -/
+theorem isRegularWith_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) :
+    (lineGraph G).IsRegularWith (2 * k - 2) := by
+  have hn := pos_of_degSequence_replicate hE h
+  refine isRegularWith_of_maxDeg_le_of_le_minDeg ?_ ?_
+  · have h3 := maxDeg_lineGraph_le G
+    rwa [maxDeg_eq_of_degSequence_replicate hn h] at h3
+  · have h3 := le_minDeg_lineGraph hE
+    rwa [minDeg_eq_of_degSequence_replicate hn h] at h3
+
+theorem maxDeg_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) : maxDeg (lineGraph G) = 2 * k - 2 := by
+  have hn := pos_of_degSequence_replicate hE h
+  have h1 := maxDeg_lineGraph_le G
+  rw [maxDeg_eq_of_degSequence_replicate hn h] at h1
+  have h2 := le_minDeg_lineGraph hE
+  rw [minDeg_eq_of_degSequence_replicate hn h] at h2
+  have h3 := minDeg_le_maxDeg (lineGraph G)
+  omega
+
+theorem minDeg_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) : minDeg (lineGraph G) = 2 * k - 2 := by
+  have hn := pos_of_degSequence_replicate hE h
+  have h1 := maxDeg_lineGraph_le G
+  rw [maxDeg_eq_of_degSequence_replicate hn h] at h1
+  have h2 := le_minDeg_lineGraph hE
+  rw [minDeg_eq_of_degSequence_replicate hn h] at h2
+  have h3 := minDeg_le_maxDeg (lineGraph G)
+  omega
+
+/-! ### Edge counts of the regular families -/
+
+@[simp] theorem E_petersen : petersen.E = 15 := by
+  have h := two_mul_E_of_degSequence_replicate degSequence_petersen
+  omega
+
+@[simp] theorem E_cocktailParty (n : ℕ) : (cocktailParty n).E = n * (2 * n - 2) := by
+  have h := two_mul_E_of_degSequence_replicate (degSequence_cocktailParty n)
+  rw [Nat.mul_assoc] at h
+  omega
+
+theorem two_mul_E_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    2 * (paley q).E = q * ((q - 1) / 2) :=
+  two_mul_E_of_degSequence_replicate (degSequence_paley q hq)
+
+theorem E_pos_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) : 0 < (kneser n k).E := by
+  have h := two_mul_E_kneser n hk
+  have h1 : 0 < n.choose k := Nat.choose_pos (by omega)
+  have h2 : 0 < (n - k).choose k := Nat.choose_pos (by omega)
+  have h3 : 0 < n.choose k * (n - k).choose k := Nat.mul_pos h1 h2
+  omega
+
+/-! ### The line graphs of the named regular families -/
+
+@[simp] theorem E_lineGraph_petersen : (lineGraph petersen).E = 30 := by
+  have h := E_lineGraph_of_degSequence_replicate degSequence_petersen
+  rw [show (3 : ℕ).choose 2 = 3 from by decide] at h
+  omega
+
+@[simp] theorem isRegularWith_lineGraph_petersen : (lineGraph petersen).IsRegularWith 4 := by
+  have h := isRegularWith_lineGraph (by rw [E_petersen]; omega) degSequence_petersen
+  norm_num at h
+  exact h
+
+@[simp] theorem E_lineGraph_prism (n : ℕ) : (lineGraph (prism (n + 3))).E = 6 * (n + 3) := by
+  have h := E_lineGraph_of_degSequence_replicate (degSequence_prism n)
+  rw [show (3 : ℕ).choose 2 = 3 from by decide] at h
+  omega
+
+@[simp] theorem isRegularWith_lineGraph_prism (n : ℕ) :
+    (lineGraph (prism (n + 3))).IsRegularWith 4 := by
+  have h := isRegularWith_lineGraph (by rw [E_prism]; omega) (degSequence_prism n)
+  norm_num at h
+  exact h
+
+@[simp] theorem E_lineGraph_hypercube (n : ℕ) :
+    (lineGraph (hypercube n)).E = 2 ^ n * n.choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_hypercube n)
+
+theorem isRegularWith_lineGraph_hypercube (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).IsRegularWith (2 * (n + 1) - 2) := by
+  refine isRegularWith_lineGraph ?_ (degSequence_hypercube (n + 1))
+  have h := E_hypercube (n + 1)
+  have h2 : 0 < (n + 1) * 2 ^ (n + 1) := Nat.mul_pos (by omega) (pow_pos (by omega) _)
+  omega
+
+@[simp] theorem E_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty n)).E = 2 * n * (2 * n - 2).choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_cocktailParty n)
+
+theorem isRegularWith_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty (n + 2))).IsRegularWith (2 * (2 * (n + 2) - 2) - 2) := by
+  refine isRegularWith_lineGraph ?_ (degSequence_cocktailParty (n + 2))
+  rw [E_cocktailParty]
+  exact Nat.mul_pos (by omega) (by omega)
+
+@[simp] theorem E_lineGraph_bipartite_self (n : ℕ) :
+    (lineGraph (bipartite n n)).E = 2 * n * n.choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_bipartite_self n)
+
+theorem isRegularWith_lineGraph_bipartite_self (n : ℕ) :
+    (lineGraph (bipartite (n + 1) (n + 1))).IsRegularWith (2 * (n + 1) - 2) := by
+  refine isRegularWith_lineGraph ?_ (degSequence_bipartite_self (n + 1))
+  rw [E_bipartite]
+  exact Nat.mul_pos (by omega) (by omega)
+
+theorem E_lineGraph_triangular (n : ℕ) (hn : 4 ≤ n) :
+    (lineGraph (triangular n)).E = n.choose 2 * (2 * (n - 2)).choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_triangular n hn)
+
+theorem isRegularWith_lineGraph_triangular (n : ℕ) (hn : 4 ≤ n) :
+    (lineGraph (triangular n)).IsRegularWith (2 * (2 * (n - 2)) - 2) := by
+  refine isRegularWith_lineGraph ?_ (degSequence_triangular n hn)
+  rw [E_triangular]
+  exact Nat.mul_pos (by omega) (Nat.choose_pos (by omega))
+
+theorem E_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) :
+    (lineGraph (kneser n k)).E = n.choose k * ((n - k).choose k).choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_kneser n hk)
+
+theorem isRegularWith_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    (lineGraph (kneser n k)).IsRegularWith (2 * (n - k).choose k - 2) :=
+  isRegularWith_lineGraph (E_pos_kneser n k hk hkn) (degSequence_kneser n hk)
+
+theorem E_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (lineGraph (paley q)).E = q * ((q - 1) / 2).choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_paley q hq)
+
+theorem isRegularWith_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : (lineGraph (paley q)).IsRegularWith (2 * ((q - 1) / 2) - 2) := by
+  refine isRegularWith_lineGraph ?_ (degSequence_paley q hq)
+  have h := two_mul_E_paley q hq
+  have h2 : 0 < q * ((q - 1) / 2) := Nat.mul_pos (by omega) (by omega)
+  omega
+
+/-! ### Consistency of the line graph counts -/
+
+example (n : ℕ) : (lineGraph (cycle (n + 3))).E = n + 3 := by
+  have h := E_lineGraph_of_degSequence_replicate (degSequence_cycle n)
+  rw [show (2 : ℕ).choose 2 = 1 from by decide] at h
+  omega
+
+example (n : ℕ) : (lineGraph (complete n)).E = n * (n - 1).choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_complete n)
+
+example : (lineGraph petersen).V = 15 := by rw [V_lineGraph, E_petersen]
+
+example (n : ℕ) : 2 * (lineGraph (hypercube (n + 1))).E = 2 * (hypercube (n + 1)).E * n := by
+  have h := two_mul_E_lineGraph_of_degSequence_replicate (degSequence_hypercube (n + 1))
+  rwa [Nat.add_sub_cancel] at h
+
 end IsoGraph

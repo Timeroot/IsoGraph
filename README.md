@@ -1593,6 +1593,18 @@ vertices is never bipartite, and combined with the independence numbers already 
 disconnected graph has a complement of diameter two, so a self-complementary graph on at least
 two vertices is connected.
 
+Regularity passes to line graphs in a controlled way. If `G` is `k`-regular on `n` vertices —
+recorded in the library as `degSequence G = List.replicate n k` — then every vertex of `G`
+contributes `C(k, 2)` pairs of incident edges, so `|E(L(G))| = n · C(k, 2)`, and each edge `uv`
+of `G` meets `(k - 1) + (k - 1)` others, making `L(G)` itself `(2k - 2)`-regular with
+`maxDeg = minDeg = 2k - 2`. Both statements are proved once from the `replicate` hypothesis and
+then instantiated across the regular families: the Petersen graph (`|E| = 15`, line graph
+`4`-regular on 15 vertices), the prisms, the hypercubes (`|E(L(Qₙ))| = 2ⁿ · C(n, 2)`), the
+cocktail-party graphs, `K_{n,n}`, the triangular and Kneser graphs, and the Paley graphs. Along
+the way the same `replicate` degree sequences give the edge counts themselves — `|E(Petersen)|
+= 15`, `|E(cocktailParty n)| = n(2n - 2)`, `2|E(Paley q)| = q(q - 1)/2` — none of which needed a
+`decide`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
