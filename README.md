@@ -549,6 +549,17 @@ couple of families for free: the rook's graph `K_m □ K_n` is not bipartite as 
 (`not_isBipartite_rook`), and the prism over an odd cycle is not bipartite
 (`not_isBipartite_prism_odd`), in both cases by pushing the failure down to a single factor.
 
+The graphs on `k`-subsets go the same way once you can produce three vertices in the right
+position.  For that there is a block construction, `Finset.attachFin` applied to `Finset.Ico a
+(a + k)`, whose cardinality and membership are both immediate; three blocks at `0`, `k` and `2k`
+are pairwise disjoint, so `not_isBipartite_kneser` holds whenever `k ≥ 1` and `3k ≤ n`.  For the
+Johnson graph the triangle is a fixed `(k-1)`-set together with three different extra points, so
+`not_isBipartite_johnson` needs only `n ≥ k + 2`; specialising to `k = 2` says triangular graphs
+on four or more points are not bipartite.  The Petersen graph escapes both — `kneser 5 2` has
+`3k > n` and is genuinely triangle-free — so it gets the odd-walk treatment instead, with its
+outer five-cycle `{0,1}, {2,3}, {4,0}, {1,2}, {3,4}` written as a function of `k % 5` and the
+five adjacencies discharged by `decide`.
+
 Over an odd cycle, then, the cover cannot split, and in fact it is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality

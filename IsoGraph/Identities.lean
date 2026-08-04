@@ -2422,6 +2422,100 @@ theorem not_isBipartite_ofEdges_of_odd_cycle (N m : ℕ) (es : List (ℕ × ℕ)
     exact (ofEdges_adj_val N es _ _).2 ⟨by simp only [ne_eq, h1, h2]; omega,
       hsub _ _ ((mem_cycleEdges m _ _).2 (Or.inr ⟨by simp only [h1]; omega, h2⟩))⟩
 
+/-! ### Triangles and odd cycles in graphs on sets -/
+
+/-- The block `[a, a + k)` as a `k`-element subset of `Fin n`. -/
+private def kneserBlock (n k a : ℕ) (h : a + k ≤ n) : {s : Finset (Fin n) // s.card = k} :=
+  ⟨(Finset.Ico a (a + k)).attachFin (fun x hx ↦ by
+      simp only [Finset.mem_Ico] at hx; omega),
+   by rw [Finset.card_attachFin, Nat.card_Ico]; omega⟩
+
+private theorem mem_kneserBlock {n k a : ℕ} {h : a + k ≤ n} (i : Fin n) :
+    i ∈ (kneserBlock n k a h).1 ↔ a ≤ i.1 ∧ i.1 < a + k := by
+  simp [kneserBlock, Finset.mem_attachFin]
+
+private theorem mk_mem_kneserBlock {n k a : ℕ} {h : a + k ≤ n} (i : ℕ) (hi : i < n) :
+    (⟨i, hi⟩ : Fin n) ∈ (kneserBlock n k a h).1 ↔ a ≤ i ∧ i < a + k := by
+  simp [kneserBlock, Finset.mem_attachFin]
+
+private theorem kneserBlock_ne {n k a b : ℕ} {ha : a + k ≤ n} {hb : b + k ≤ n} (hk : 0 < k)
+    (hab : a ≠ b) : kneserBlock n k a ha ≠ kneserBlock n k b hb := by
+  intro hEq
+  have h1 : (⟨a, by omega⟩ : Fin n) ∈ (kneserBlock n k a ha).1 :=
+    (mk_mem_kneserBlock _ _).2 (by omega)
+  have h2 : (⟨b, by omega⟩ : Fin n) ∈ (kneserBlock n k b hb).1 :=
+    (mk_mem_kneserBlock _ _).2 (by omega)
+  rw [hEq, mk_mem_kneserBlock] at h1
+  rw [← hEq, mk_mem_kneserBlock] at h2
+  omega
+
+/-- **Kneser graphs with room for three disjoint blocks are not bipartite.** -/
+theorem not_isBipartite_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
+    ¬ (CGraph.kneser n k).IsBipartite := by
+  refine not_isBipartite_of_triangle
+    (a := kneserBlock n k 0 (by omega)) (b := kneserBlock n k k (by omega))
+    (d := kneserBlock n k (2 * k) (by omega)) ?_ ?_ ?_ <;>
+  · rw [kneser_adj, Bool.and_eq_true, decide_eq_true_eq, decide_eq_true_eq]
+    refine ⟨kneserBlock_ne hk (by omega), ?_⟩
+    rw [Finset.eq_empty_iff_forall_notMem]
+    intro x hx
+    rw [Finset.mem_inter, mem_kneserBlock, mem_kneserBlock] at hx
+    omega
+
+/-- The `(k+1)`-element subset `{0, …, k-1} ∪ {k + j}` of `Fin n`. -/
+private def johnsonTri (n k j : ℕ) (h : k + j < n) : {s : Finset (Fin n) // s.card = k + 1} :=
+  ⟨(insert (k + j) (Finset.range k)).attachFin (fun x hx ↦ by
+      simp only [Finset.mem_insert, Finset.mem_range] at hx; omega),
+   by rw [Finset.card_attachFin, Finset.card_insert_of_notMem (by simp), Finset.card_range]⟩
+
+private theorem mem_johnsonTri {n k j : ℕ} {h : k + j < n} (i : Fin n) :
+    i ∈ (johnsonTri n k j h).1 ↔ i.1 = k + j ∨ i.1 < k := by
+  simp [johnsonTri, Finset.mem_attachFin]
+
+private theorem mk_mem_johnsonTri {n k j : ℕ} {h : k + j < n} (i : ℕ) (hi : i < n) :
+    (⟨i, hi⟩ : Fin n) ∈ (johnsonTri n k j h).1 ↔ i = k + j ∨ i < k := by
+  simp [johnsonTri, Finset.mem_attachFin]
+
+private theorem johnsonTri_ne {n k j j' : ℕ} {h : k + j < n} {h' : k + j' < n} (hjj : j ≠ j') :
+    johnsonTri n k j h ≠ johnsonTri n k j' h' := by
+  intro hEq
+  have h1 : (⟨k + j, h⟩ : Fin n) ∈ (johnsonTri n k j h).1 :=
+    (mk_mem_johnsonTri _ _).2 (Or.inl rfl)
+  rw [hEq, mk_mem_johnsonTri] at h1
+  omega
+
+private theorem johnsonTri_inter {n k j j' : ℕ} {h : k + j < n} {h' : k + j' < n} (hjj : j ≠ j') :
+    ((johnsonTri n k j h).1 ∩ (johnsonTri n k j' h').1).card = k := by
+  have key : (johnsonTri n k j h).1 ∩ (johnsonTri n k j' h').1
+      = (Finset.range k).attachFin (n := n) (fun x hx ↦ by
+          simp only [Finset.mem_range] at hx; omega) := by
+    ext i
+    simp only [Finset.mem_inter, mem_johnsonTri, Finset.mem_attachFin, Finset.mem_range]
+    omega
+  rw [key, Finset.card_attachFin, Finset.card_range]
+
+/-- **Johnson graphs on at least `k + 2` points are not bipartite.** -/
+theorem not_isBipartite_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
+    ¬ (CGraph.johnson n k).IsBipartite := by
+  obtain ⟨k, rfl⟩ : ∃ m, k = m + 1 := ⟨k - 1, by omega⟩
+  refine not_isBipartite_of_triangle
+    (a := johnsonTri n k 0 (by omega)) (b := johnsonTri n k 1 (by omega))
+    (d := johnsonTri n k 2 (by omega)) ?_ ?_ ?_ <;>
+  · rw [johnson_adj, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq, Nat.add_sub_cancel]
+    exact ⟨johnsonTri_ne (by omega), johnsonTri_inter (by omega)⟩
+
+/-- The outer five-cycle of the Petersen graph, as a walk in `kneser 5 2`. -/
+private def petersenWalk (k : ℕ) : (CGraph.kneser 5 2).V :=
+  if k % 5 = 0 then ⟨{0, 1}, by decide⟩
+  else if k % 5 = 1 then ⟨{2, 3}, by decide⟩
+  else if k % 5 = 2 then ⟨{4, 0}, by decide⟩
+  else if k % 5 = 3 then ⟨{1, 2}, by decide⟩
+  else ⟨{3, 4}, by decide⟩
+
+/-- **The Petersen graph is not bipartite**: it has no triangle, but it does have a five-cycle. -/
+theorem not_isBipartite_kneser_five_two : ¬ (CGraph.kneser 5 2).IsBipartite :=
+  not_isBipartite_of_odd_walk petersenWalk 5 (by decide) (by decide) (by decide)
+
 /-! ### Parity in the folded cube -/
 
 /-- Positions where `x` and `y` are both `true` are counted twice on the right, so the number of
@@ -4921,6 +5015,28 @@ theorem not_isBipartite_circulant_of_odd {n : ℕ} {S : List ℕ} (hn : n % 2 = 
   rw [isBipartite_cartesianProduct_iff (by simp) (by simp)]
   exact fun h ↦ not_isBipartite_cycle_odd m h.1
 
+/-- **Kneser graphs with room for three disjoint blocks are not bipartite.** -/
+@[simp] theorem not_isBipartite_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
+    ¬ IsBipartite (kneser n k) := by
+  rw [kneser_def, isBipartite_mk]
+  exact CGraph.not_isBipartite_kneser hk h
+
+/-- **Johnson graphs on at least `k + 2` points are not bipartite.** -/
+@[simp] theorem not_isBipartite_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
+    ¬ IsBipartite (johnson n k) := by
+  rw [johnson_def, isBipartite_mk]
+  exact CGraph.not_isBipartite_johnson hk h
+
+/-- Triangular graphs on at least four points contain a triangle. -/
+theorem not_isBipartite_triangular {n : ℕ} (h : 4 ≤ n) : ¬ IsBipartite (triangular n) :=
+  not_isBipartite_johnson (by omega) (by omega)
+
+/-- **The Petersen graph is not bipartite**: it is triangle-free, but it has a five-cycle. -/
+@[simp] theorem not_isBipartite_petersen : ¬ IsBipartite petersen := by
+  show ¬ IsBipartite (kneser 5 2)
+  rw [kneser_def, isBipartite_mk]
+  exact CGraph.not_isBipartite_kneser_five_two
+
 /-! ### Bipartite double covers
 
 The tensor product with `K₂` is the bipartite double cover.  Over a bipartite graph it comes apart
@@ -5550,6 +5666,10 @@ example : ¬ IsBipartite (foldedCube 4) := not_isBipartite_foldedCube_even 1
 example : IsBipartite (circulant 8 [1, 3]) := isBipartite_circulant (by decide) (by decide)
 example : ¬ IsBipartite (circulant 7 [2]) :=
   not_isBipartite_circulant_of_odd (by decide) 2 (by decide) (by omega) (by omega)
+example : ¬ IsBipartite (kneser 6 2) := by simp
+example : ¬ IsBipartite (johnson 5 2) := by simp
+example : ¬ IsBipartite (triangular 5) := not_isBipartite_triangular (by omega)
+example : ¬ IsBipartite petersen := by simp
 example : ¬ IsBipartite (rook 3 3) := not_isBipartite_rook 0 2
 example : ¬ IsBipartite (prism 5) := not_isBipartite_prism_odd 1
 example (G H : IsoGraph) (h : IsBipartite (disjUnion G H)) : IsBipartite G := by simp_all
