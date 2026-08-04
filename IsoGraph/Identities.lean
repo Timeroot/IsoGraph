@@ -7285,6 +7285,82 @@ theorem domNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq
   have h := domNum_le_card_of_isDominatingSet hdom
   rwa [Finset.card_product, Finset.card_univ, hs] at h
 
+/-! ### The radius of a cartesian product -/
+
+/-- The eccentricity of a vertex of a box product is the sum of the eccentricities of its
+coordinates: a farthest vertex can be chosen coordinatewise. -/
+theorem eccent_boxProd {α β : Type} [Fintype α] [Fintype β]
+    (S : SimpleGraph α) (T : SimpleGraph β) (p : α × β) :
+    (S.boxProd T).eccent p = S.eccent p.1 + T.eccent p.2 := by
+  refine le_antisymm ((SimpleGraph.eccent_le_iff _ _).2 fun q ↦ ?_) ?_
+  · rw [SimpleGraph.edist_boxProd]
+    exact add_le_add SimpleGraph.edist_le_eccent SimpleGraph.edist_le_eccent
+  · obtain ⟨x, hx⟩ := S.exists_edist_eq_eccent_of_finite p.1
+    obtain ⟨y, hy⟩ := T.exists_edist_eq_eccent_of_finite p.2
+    rw [← hx, ← hy, ← SimpleGraph.edist_boxProd (x := p) (y := (x, y))]
+    exact SimpleGraph.edist_le_eccent
+
+/-- **The radius of a box product is the sum of the radii**: a central vertex can be chosen
+coordinatewise. -/
+theorem radius_boxProd {α β : Type} [Fintype α] [Fintype β] [Nonempty α] [Nonempty β]
+    (S : SimpleGraph α) (T : SimpleGraph β) :
+    (S.boxProd T).radius = S.radius + T.radius := by
+  refine le_antisymm ?_ ?_
+  · obtain ⟨a, ha⟩ := S.exists_eccent_eq_radius
+    obtain ⟨b, hb⟩ := T.exists_eccent_eq_radius
+    rw [← ha, ← hb, ← eccent_boxProd S T (a, b)]
+    exact SimpleGraph.radius_le_eccent
+  · obtain ⟨p, hp⟩ := (S.boxProd T).exists_eccent_eq_radius
+    rw [← hp, eccent_boxProd]
+    exact add_le_add SimpleGraph.radius_le_eccent SimpleGraph.radius_le_eccent
+
+/-- **The radius of a cartesian product is the sum of the radii.**  Both factors have to be
+connected: the radius of a disconnected graph is the junk value `0`. -/
+theorem radius_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsConnected) (hH : H.IsConnected) :
+    (cartesianProduct G H).radius = G.radius + H.radius := by
+  haveI : Nonempty G.V := hG.nonempty
+  haveI : Nonempty H.V := hH.nonempty
+  have hGtop : G.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hG
+  have hHtop : H.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hH
+  have h : (cartesianProduct G H).toSimple.radius = G.toSimple.radius + H.toSimple.radius := by
+    rw [toSimple_cartesianProduct]
+    exact radius_boxProd _ _
+  show (cartesianProduct G H).toSimple.radius.toNat = _
+  rw [h, ENat.toNat_add hGtop hHtop]
+  rfl
+
+/-- Adding edges cannot increase the diameter: the strong product is at most as wide as the
+cartesian product living inside it. -/
+theorem diameter_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsConnected) (hH : H.IsConnected) :
+    (strongProduct G H).diameter ≤ G.diameter + H.diameter := by
+  haveI : Nonempty G.V := hG.nonempty
+  haveI : Nonempty H.V := hH.nonempty
+  have hcp : (cartesianProduct G H).IsConnected :=
+    (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
+  haveI : Nonempty (cartesianProduct G H).V := hcp.nonempty
+  have hne : (cartesianProduct G H).toSimple.ediam ≠ ⊤ :=
+    SimpleGraph.connected_iff_ediam_ne_top.1 hcp
+  have h := SimpleGraph.diam_anti_of_ediam_ne_top (cartesianProduct_le_strongProduct G H) hne
+  rw [← diameter_cartesianProduct G H hG hH]
+  exact h
+
+/-- The same bound for the lexicographic product. -/
+theorem diameter_lexProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsConnected) (hH : H.IsConnected) :
+    (lexProduct G H).diameter ≤ G.diameter + H.diameter := by
+  haveI : Nonempty G.V := hG.nonempty
+  haveI : Nonempty H.V := hH.nonempty
+  have hcp : (cartesianProduct G H).IsConnected :=
+    (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
+  haveI : Nonempty (cartesianProduct G H).V := hcp.nonempty
+  have hne : (cartesianProduct G H).toSimple.ediam ≠ ⊤ :=
+    SimpleGraph.connected_iff_ediam_ne_top.1 hcp
+  have h := SimpleGraph.diam_anti_of_ediam_ne_top (cartesianProduct_le_lexProduct G H) hne
+  rw [← diameter_cartesianProduct G H hG hH]
+  exact h
+
 end CGraph
 
 namespace IsoGraph
@@ -14480,6 +14556,54 @@ example : (bipartite 3 3).domNum = 2 := domNum_bipartite 1 1
 
 example : (cartesianProduct (complete 4) (complete 4)).domNum ≤ 4 := by
   have := domNum_cartesianProduct_le (complete 4) (complete 4)
+  simpa using this
+
+/-! ### The radius of a cartesian product -/
+
+theorem radius_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
+    (cartesianProduct G H).radius = G.radius + H.radius := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, isConnected_mk] at hG
+  rw [← mk_canonicalize h, isConnected_mk] at hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, radius_mk, radius_mk,
+    radius_mk]
+  exact CGraph.radius_cartesianProduct _ _ hG hH
+
+example : (cartesianProduct (cycle 5) (cycle 5)).radius = 4 := by
+  rw [radius_cartesianProduct (by simp) (by simp)]
+  simp
+
+example : (rook 4 4).radius = 2 := by
+  rw [rook, radius_cartesianProduct (by simp) (by simp)]
+  simp
+
+theorem diameter_strongProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
+    (strongProduct G H).diameter ≤ G.diameter + H.diameter := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, isConnected_mk] at hG
+  rw [← mk_canonicalize h, isConnected_mk] at hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, diameter_mk, diameter_mk,
+    diameter_mk]
+  exact CGraph.diameter_strongProduct_le _ _ hG hH
+
+theorem diameter_lexProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
+    (lexProduct G H).diameter ≤ G.diameter + H.diameter := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, isConnected_mk] at hG
+  rw [← mk_canonicalize h, isConnected_mk] at hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, diameter_mk, diameter_mk,
+    diameter_mk]
+  exact CGraph.diameter_lexProduct_le _ _ hG hH
+
+theorem radius_cartesianProduct_self {G : IsoGraph} (hG : IsConnected G) :
+    (cartesianProduct G G).radius = 2 * G.radius := by
+  rw [radius_cartesianProduct hG hG, two_mul]
+
+example : (strongProduct (cycle 5) (cycle 5)).diameter ≤ 4 := by
+  have := diameter_strongProduct_le (G := cycle 5) (H := cycle 5) (by simp) (by simp)
   simpa using this
 
 end IsoGraph

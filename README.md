@@ -1327,6 +1327,14 @@ universal in its own factor, since the opposite side comes for free — so `γ(G
 `G □ H`, giving `γ(G □ H) ≤ γ(G)·|V_H|` (the corresponding lower bound is Vizing's conjecture, so
 it is not here).
 
+The radius of a cartesian product is the sum of the radii, the companion of the diameter result
+above.  Mathlib's `edist_boxProd` already says distances add coordinatewise, so eccentricities add
+too — a farthest vertex from `(a, b)` can be chosen farthest in each coordinate separately — and
+then a centre of the product is a pair of centres.  Both directions are one application of
+`exists_eccent_eq_radius`.  The other two products only get an upper bound: they contain the
+cartesian product as a subgraph, and adding edges cannot increase the diameter, so
+`diam(G ⊠ H)` and `diam(G[H])` are both at most `diam(G) + diam(H)`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
