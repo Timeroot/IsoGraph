@@ -526,6 +526,17 @@ even `n` that is an odd closed walk, so `not_isBipartite_foldedCube_of_even`.  T
 a total function `ℕ → V`, so it is `if k ≤ n then prefixVec n k else prefixVec n 0`, which makes
 `f (n+1) = f 0` hold by `if_neg`/`if_pos` rather than by arithmetic.
 
+Circulants split the same way, and there the two halves are cleanly complementary.
+`isBipartite_circulant`: if `n` is even and every element of the connection set is odd, the parity
+of the index is a proper colouring — reducing mod an even number does not change parity, so
+`sub_mod_cases` plus `omega` is the whole argument, in either of the two orientations the
+adjacency admits.  `not_isBipartite_circulant_of_odd`: if `n` is odd and the connection set has
+any `d` with `0 < d < n`, then `k ↦ k·d mod n` is a closed walk of length `n`, which is odd.  The
+only real content there is that consecutive steps really do differ by `d`: with `a = k·d mod n`
+the next vertex is `(a + d) mod n`, which is `a + d` or `a + d - n`, and both cases give
+`d` back.  Note the asymmetry — the even case needs a condition on every element of the set, the
+odd case only needs one usable element, since a single one already forces the odd cycle.
+
 Over an odd cycle, then, the cover cannot split, and in fact it is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality

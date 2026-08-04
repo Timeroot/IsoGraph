@@ -4807,6 +4807,58 @@ theorem not_isBipartite_foldedCube_of_even {n : ℕ} (h2 : n % 2 = 0) (hn : 0 < 
 theorem not_isBipartite_foldedCube_even (m : ℕ) : ¬ IsBipartite (foldedCube (2 * m + 2)) :=
   not_isBipartite_foldedCube_of_even (by omega) (by omega)
 
+/-- **A circulant on an even number of vertices whose connection set is all odd is bipartite.**
+Colour a vertex by the parity of its index: a step of odd length always crosses, because reducing
+mod an even `n` does not change parity. -/
+theorem isBipartite_circulant {n : ℕ} {S : List ℕ} (hn : n % 2 = 0) (hS : ∀ d ∈ S, d % 2 = 1) :
+    IsBipartite (circulant n S) := by
+  rw [circulant_def, isBipartite_mk]
+  refine ⟨fun x ↦ decide (x.1 % 2 = 1), fun x y hxy ↦ ?_⟩
+  have hadj : (decide (x ≠ y) && (S.contains ((y.1 + n - x.1) % n) ||
+      S.contains ((x.1 + n - y.1) % n))) = true := hxy
+  rw [Bool.and_eq_true, Bool.or_eq_true] at hadj
+  have h1 := CGraph.sub_mod_cases x.isLt y.isLt
+  have h2 := CGraph.sub_mod_cases y.isLt x.isLt
+  simp only [ne_eq, decide_eq_decide]
+  rcases hadj.2 with h | h
+  · have := hS _ (List.mem_of_elem_eq_true h)
+    omega
+  · have := hS _ (List.mem_of_elem_eq_true h)
+    omega
+
+/-- **A circulant on an odd number of vertices is not bipartite** as soon as its connection set
+contains a difference that does something.  Stepping by `d` returns to the start after `n` steps,
+and `n` is odd. -/
+theorem not_isBipartite_circulant_of_odd {n : ℕ} {S : List ℕ} (hn : n % 2 = 1) (d : ℕ)
+    (hd : d ∈ S) (h0 : 0 < d) (hdn : d < n) : ¬ IsBipartite (circulant n S) := by
+  rw [circulant_def, isBipartite_mk]
+  have hpos : 0 < n := by omega
+  refine CGraph.not_isBipartite_of_odd_walk
+    (fun k ↦ (⟨k * d % n, Nat.mod_lt _ hpos⟩ : Fin n)) n hn ?_
+    (Fin.ext (by simp [Nat.mul_mod_right]))
+  intro k _
+  have ha : k * d % n < n := Nat.mod_lt _ hpos
+  have hb : (k + 1) * d % n = (k * d % n + d) % n := by
+    rw [show (k + 1) * d = k * d + d by ring, Nat.add_mod, Nat.mod_eq_of_lt hdn]
+  have key : ((k + 1) * d % n + n - k * d % n) % n = d ∧ k * d % n ≠ (k + 1) * d % n := by
+    rcases Nat.lt_or_ge (k * d % n + d) n with h | h
+    · rw [hb, Nat.mod_eq_of_lt h]
+      refine ⟨?_, by omega⟩
+      rw [show k * d % n + d + n - k * d % n = d + n by omega, Nat.add_mod_right]
+      exact Nat.mod_eq_of_lt hdn
+    · have he : (k * d % n + d) % n = k * d % n + d - n := by
+        conv_lhs => rw [show k * d % n + d = (k * d % n + d - n) + n by omega]
+        rw [Nat.add_mod_right]
+        exact Nat.mod_eq_of_lt (by omega)
+      rw [hb, he]
+      refine ⟨?_, by omega⟩
+      rw [show k * d % n + d - n + n - k * d % n = d by omega]
+      exact Nat.mod_eq_of_lt hdn
+  show (decide _ && (S.contains _ || S.contains _)) = true
+  rw [key.1]
+  simp only [Bool.and_eq_true, Bool.or_eq_true, ne_eq, decide_eq_true_eq, Fin.mk.injEq]
+  exact ⟨key.2, Or.inl (List.elem_eq_true_of_mem hd)⟩
+
 /-! ### Bipartite double covers
 
 The tensor product with `K₂` is the bipartite double cover.  Over a bipartite graph it comes apart
@@ -5433,6 +5485,9 @@ example : ¬ IsBipartite (mycielskian (cycle 5)) := by simp
 example : IsBipartite (mycielskian (empty 3)) := by simp
 example : IsBipartite (foldedCube 5) := isBipartite_foldedCube_odd (by decide)
 example : ¬ IsBipartite (foldedCube 4) := not_isBipartite_foldedCube_even 1
+example : IsBipartite (circulant 8 [1, 3]) := isBipartite_circulant (by decide) (by decide)
+example : ¬ IsBipartite (circulant 7 [2]) :=
+  not_isBipartite_circulant_of_odd (by decide) 2 (by decide) (by omega) (by omega)
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp
