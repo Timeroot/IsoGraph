@@ -6241,6 +6241,115 @@ theorem indepCount_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (n : 
   rw [bipartite, indepCount_compl, cliqueCount_disjUnion, cliqueCount_complete,
     cliqueCount_complete]
 
+/-! ### Counting connected components -/
+
+theorem numComponents_eq_zero_iff (G : CGraph) :
+    G.numComponents = 0 ↔ Fintype.card G.V = 0 := by
+  rw [numComponents, Nat.card_eq_zero, Fintype.card_eq_zero_iff]
+  simp only [or_iff_left (not_infinite_iff_finite.2 inferInstance)]
+  exact ⟨fun h ↦ ⟨fun v ↦ h.false (G.toSimple.connectedComponentMk v)⟩, fun _ ↦ inferInstance⟩
+
+theorem numComponents_pos_iff (G : CGraph) : 0 < G.numComponents ↔ 0 < Fintype.card G.V := by
+  rw [Nat.pos_iff_ne_zero, Nat.pos_iff_ne_zero, ne_eq, ne_eq, numComponents_eq_zero_iff]
+
+/-- A graph is connected exactly when it has one component. -/
+theorem numComponents_eq_one_iff (G : CGraph) : G.numComponents = 1 ↔ G.IsConnected := by
+  rw [numComponents, Nat.card_eq_one_iff_unique, IsConnected, SimpleGraph.connected_iff]
+  constructor
+  · rintro ⟨hsub, hne⟩
+    refine ⟨fun u v ↦ SimpleGraph.ConnectedComponent.exact (hsub.elim _ _), ?_⟩
+    obtain ⟨c⟩ := hne
+    exact SimpleGraph.ConnectedComponent.ind (β := fun _ ↦ Nonempty G.V) (fun v ↦ ⟨v⟩) c
+  · rintro ⟨hpre, hne⟩
+    exact ⟨hpre.subsingleton_connectedComponent, inferInstance⟩
+
+/-- Each component contains at least one vertex. -/
+theorem numComponents_le_card (G : CGraph) : G.numComponents ≤ Fintype.card G.V := by
+  rw [numComponents, ← Nat.card_eq_fintype_card]
+  exact Nat.card_le_card_of_surjective _ (Quot.mk_surjective)
+
+@[simp] theorem numComponents_empty (n : ℕ) : (empty n).numComponents = n := by
+  rw [numComponents, empty_toSimple]
+  have : Function.Bijective ((⊥ : SimpleGraph (Fin n)).connectedComponentMk) := by
+    refine ⟨fun u v h ↦ ?_, Quot.mk_surjective⟩
+    exact SimpleGraph.reachable_bot.1 (SimpleGraph.ConnectedComponent.exact h)
+  rw [← Nat.card_eq_of_bijective _ this, Nat.card_eq_fintype_card, Fintype.card_fin]
+
+@[simp] theorem numComponents_complete (n : ℕ) : (complete (n + 1)).numComponents = 1 :=
+  (numComponents_eq_one_iff _).2 (isConnected_complete n)
+
+/-! ### The components of a disjoint union -/
+
+/-- The inclusion of the left factor of a disjoint union, as a graph homomorphism. -/
+def disjUnionInl (G H : CGraph) : G.toSimple →g (disjUnion G H).toSimple where
+  toFun := Sum.inl
+  map_rel' {a b} h := by simpa [CGraph.toSimple_adj] using h
+
+/-- The inclusion of the right factor of a disjoint union, as a graph homomorphism. -/
+def disjUnionInr (G H : CGraph) : H.toSimple →g (disjUnion G H).toSimple where
+  toFun := Sum.inr
+  map_rel' {a b} h := by simpa [CGraph.toSimple_adj] using h
+
+/-- Send a vertex of a disjoint union to its component on whichever side it lives. -/
+private def duSplit (G H : CGraph) :
+    (disjUnion G H).V → G.toSimple.ConnectedComponent ⊕ H.toSimple.ConnectedComponent :=
+  Sum.map G.toSimple.connectedComponentMk H.toSimple.connectedComponentMk
+
+private theorem duSplit_eq_of_adj {u v : (disjUnion G H).V}
+    (h : (disjUnion G H).toSimple.Adj u v) : duSplit G H u = duSplit G H v := by
+  match u, v with
+  | Sum.inl a, Sum.inl c =>
+    have : G.toSimple.Adj a c := by simpa [CGraph.toSimple_adj] using h
+    simp [duSplit, SimpleGraph.ConnectedComponent.eq, this.reachable]
+  | Sum.inl a, Sum.inr d => exact absurd h (by simp [CGraph.toSimple_adj])
+  | Sum.inr c, Sum.inl b => exact absurd h (by simp [CGraph.toSimple_adj])
+  | Sum.inr c, Sum.inr d =>
+    have : H.toSimple.Adj c d := by simpa [CGraph.toSimple_adj] using h
+    simp [duSplit, SimpleGraph.ConnectedComponent.eq, this.reachable]
+
+private theorem duSplit_eq_of_reachable {u v : (disjUnion G H).V}
+    (h : (disjUnion G H).toSimple.Reachable u v) : duSplit G H u = duSplit G H v := by
+  obtain ⟨p⟩ := h
+  induction p with
+  | nil => rfl
+  | cons hadj _ ih => exact (duSplit_eq_of_adj hadj).trans ih
+
+/-- **The components of a disjoint union are those of the two factors.** -/
+def disjUnionComponentEquiv (G H : CGraph) :
+    (disjUnion G H).toSimple.ConnectedComponent ≃
+      G.toSimple.ConnectedComponent ⊕ H.toSimple.ConnectedComponent where
+  toFun := SimpleGraph.ConnectedComponent.lift (duSplit G H)
+    (fun _ _ p _ ↦ duSplit_eq_of_reachable ⟨p⟩)
+  invFun := Sum.elim (SimpleGraph.ConnectedComponent.map (disjUnionInl G H))
+    (SimpleGraph.ConnectedComponent.map (disjUnionInr G H))
+  left_inv := by
+    refine SimpleGraph.ConnectedComponent.ind (fun v ↦ ?_)
+    match v with
+    | Sum.inl a => rfl
+    | Sum.inr b => rfl
+  right_inv := by
+    rintro (c | c)
+    · induction c using SimpleGraph.ConnectedComponent.ind with | _ a => rfl
+    · induction c using SimpleGraph.ConnectedComponent.ind with | _ b => rfl
+
+@[simp] theorem numComponents_disjUnion (G H : CGraph) :
+    (disjUnion G H).numComponents = G.numComponents + H.numComponents := by
+  rw [numComponents, numComponents, numComponents,
+    Nat.card_congr (disjUnionComponentEquiv G H), Nat.card_sum]
+
+/-- **At most one of a graph and its complement is disconnected.** -/
+theorem numComponents_compl_eq_one (G : CGraph) [DecidableEq G.V] (h : 2 ≤ G.numComponents) :
+    (compl G).numComponents = 1 := by
+  have hne : Nonempty G.V := Fintype.card_pos_iff.1
+    ((numComponents_pos_iff G).1 (by omega))
+  rw [numComponents_eq_one_iff]
+  refine G.isConnected_compl_of_not_preconnected (fun hpre ↦ ?_)
+  have : Subsingleton G.toSimple.ConnectedComponent := hpre.subsingleton_connectedComponent
+  have : G.numComponents = 1 := by
+    rw [numComponents]
+    exact Nat.card_eq_one_iff_unique.2 ⟨this, inferInstance⟩
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -12939,5 +13048,83 @@ example : (disjUnion (complete 4) (complete 5)).cliqueCount 3 = 14 := by
   rw [show (3 : ℕ) = 2 + 1 from rfl, cliqueCount_disjUnion, cliqueCount_complete,
     cliqueCount_complete]
   decide
+
+/-! ### Counting connected components -/
+
+theorem numComponents_eq_zero_iff (G : IsoGraph) : G.numComponents = 0 ↔ G.V = 0 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.numComponents_eq_zero_iff g
+
+theorem numComponents_pos_iff (G : IsoGraph) : 0 < G.numComponents ↔ 0 < G.V := by
+  rw [Nat.pos_iff_ne_zero, Nat.pos_iff_ne_zero, ne_eq, ne_eq, numComponents_eq_zero_iff]
+
+/-- A graph is connected exactly when it has one component. -/
+theorem numComponents_eq_one_iff (G : IsoGraph) : G.numComponents = 1 ↔ G.IsConnected := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.numComponents_eq_one_iff g
+
+theorem numComponents_eq_one_of_isConnected {G : IsoGraph} (h : G.IsConnected) :
+    G.numComponents = 1 :=
+  (numComponents_eq_one_iff G).2 h
+
+theorem numComponents_le_V (G : IsoGraph) : G.numComponents ≤ G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.numComponents_le_card g
+
+@[simp] theorem numComponents_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).numComponents = G.numComponents + H.numComponents := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [disjUnion_mk, numComponents_mk, numComponents_mk, numComponents_mk]
+  exact CGraph.numComponents_disjUnion g h
+
+/-- **At most one of a graph and its complement is disconnected.** -/
+theorem numComponents_compl_eq_one {G : IsoGraph} (h : 2 ≤ G.numComponents) :
+    (compl G).numComponents = 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, numComponents_mk]
+  rw [← mk_canonicalize g, numComponents_mk] at h
+  exact CGraph.numComponents_compl_eq_one _ h
+
+/-! ### The component-count table -/
+
+@[simp] theorem numComponents_empty (n : ℕ) : (empty n).numComponents = n := by
+  rw [empty_def, numComponents_mk]
+  exact CGraph.numComponents_empty n
+
+@[simp] theorem numComponents_complete (n : ℕ) : (complete (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_complete n)
+
+@[simp] theorem numComponents_path (n : ℕ) : (path (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_path n)
+
+@[simp] theorem numComponents_cycle (n : ℕ) : (cycle (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_cycle n)
+
+@[simp] theorem numComponents_star (n : ℕ) : (star n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_star n)
+
+@[simp] theorem numComponents_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_bipartite m n)
+
+@[simp] theorem numComponents_hypercube (n : ℕ) : (hypercube n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_hypercube n)
+
+@[simp] theorem numComponents_wheel (n : ℕ) : (wheel (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_wheel n)
+
+@[simp] theorem numComponents_prism (n : ℕ) : (prism (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_prism n)
+
+@[simp] theorem numComponents_ladder (n : ℕ) : (ladder (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_ladder n)
+
+@[simp] theorem numComponents_rook (m n : ℕ) : (rook (m + 1) (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_rook m n)
+
+example : (disjUnion (cycle 5) (path 4)).numComponents = 2 := by simp
+
+example : (empty 7).numComponents = 7 := by simp
 
 end IsoGraph

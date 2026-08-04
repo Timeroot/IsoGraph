@@ -1208,6 +1208,19 @@ and reading it through `compl` gives the same statement for `indepCount` across 
 `indepCount (K_{m,n}) (k+1) = C(m, k+1) + C(n, k+1)`, and hence `indepCount (star n) (k+2) =
 C(n, k+2)`.
 
+The last counting invariant is the number of connected components, `numComponents G :=
+Nat.card G.toSimple.ConnectedComponent`; `Iso.connectedComponentEquiv` makes it an invariant for
+free.  It is `0` exactly on the empty vertex type and `1` exactly on a connected graph, which is
+how `IsConnected` re-enters the numeric world — every `isConnected_*` lemma in the table becomes
+a `numComponents _ = 1`.  It is at most `|V|`, with equality for the edgeless graph (`reachable_bot`
+makes `connectedComponentMk` a bijection there, so `numComponents (empty n) = n`).  The real work
+is **`numComponents (G ⊔ H) = numComponents G + numComponents H`**: mapping a vertex to its
+component on whichever side it lives is constant along edges, hence along walks, and that map is
+the halves of an equivalence `ConnectedComponent (G ⊔ H) ≃ ConnectedComponent G ⊕
+ConnectedComponent H`.  Finally, feeding `isConnected_compl_of_not_preconnected` through the count
+states the classical fact that **at most one of `G` and `Gᶜ` is disconnected**: if `G` has two or
+more components then `Gᶜ` has exactly one.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

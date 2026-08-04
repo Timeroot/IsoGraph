@@ -86,6 +86,11 @@ theorem indepSetSet_ncard_eq (f : G ≃g G') (n : ℕ) :
       exact isNIndepSet_map f hs
   rw [himg, Set.ncard_image_of_injective _ (Finset.map_injective _)]
 
+/-- Isomorphic graphs have equally many connected components. -/
+theorem numComponents_eq (f : G ≃g G') :
+    Nat.card G.ConnectedComponent = Nat.card G'.ConnectedComponent :=
+  Nat.card_congr f.connectedComponentEquiv
+
 theorem cliqueNum_eq (f : G ≃g G') : G.cliqueNum = G'.cliqueNum := by
   unfold SimpleGraph.cliqueNum
   congr 1
@@ -252,6 +257,18 @@ theorem indepCount_eq_card_indepSetFinset [DecidableEq G.V] (n : ℕ) :
   congr 1
   ext s
   simp [SimpleGraph.indepSetSet]
+
+/-- The number of connected components. -/
+noncomputable def numComponents : ℕ := Nat.card G.toSimple.ConnectedComponent
+
+theorem numComponents_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
+    G.numComponents = H.numComponents :=
+  SimpleGraph.Iso.numComponents_eq (CGraph.Iso.toSimpleIso i)
+
+/-- With decidable equality on the vertices the components form a `Fintype`. -/
+theorem numComponents_eq_card [DecidableEq G.V] :
+    G.numComponents = Fintype.card G.toSimple.ConnectedComponent :=
+  Nat.card_eq_fintype_card
 
 /-- Number of edges. -/
 def E : ℕ := G.toSimple.edgeFinset.card
@@ -559,6 +576,14 @@ noncomputable def indepCount (G : IsoGraph) (n : ℕ) : ℕ :=
 
 @[simp] theorem indepCount_mk (G : CGraph) (n : ℕ) :
     indepCount (Quotient.mk _ G) n = G.indepCount n := rfl
+
+/-- The number of connected components. -/
+noncomputable def numComponents (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.numComponents
+    (fun _ _ ⟨i⟩ ↦ CGraph.numComponents_eq_of_iso i) G
+
+@[simp] theorem numComponents_mk (G : CGraph) :
+    numComponents (Quotient.mk _ G) = G.numComponents := rfl
 
 /-- Number of edges. -/
 def E (G : IsoGraph) : ℕ :=
