@@ -1266,6 +1266,15 @@ families already in the library yields facts like `5 ≤ autCount (cycle 5)`, `1
 (cycle 5)` from arc-transitivity, `24 ≤ autCount (hypercube 3)` and `30 ≤ autCount (kneser 5 2)` —
 each just the transitivity lemma plus `simp` evaluating `V` or `E`.
 
+The degree-sum formula has a parity shadow, the **handshaking lemma**: a graph has evenly many
+vertices of odd degree.  Mathlib proves it for `SimpleGraph`, and the work here is transporting it
+onto the two `IsoGraph`-visible spellings of the degrees — `Multiset.countP_map` moves the count
+from a `Finset.filter` over vertices to `degMultiset`, and `Multiset.coe_countP` together with
+`Multiset.sort_eq` moves it on to the sorted `degSequence`, which is the form that survives the
+quotient.  The corollaries are the usual ones: if every degree is odd then `|V|` is even, so
+**an odd-regular graph has an even number of vertices** (no cubic graph on seven vertices), and
+contrapositively an odd number of vertices forces some degree to be even.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

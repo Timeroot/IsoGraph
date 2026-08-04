@@ -6669,6 +6669,54 @@ theorem not_isArcTransitive_of_autCount_lt (G : CGraph) (h : G.autCount < 2 * G.
     ¬ G.IsArcTransitive := fun hat ↦
   absurd (G.two_mul_E_le_autCount_of_isArcTransitive hat) (by omega)
 
+/-! ### The handshaking lemma -/
+
+/-- **Handshaking lemma.**  A graph has evenly many vertices of odd degree. -/
+theorem even_card_odd_degree (G : CGraph) :
+    Even (Finset.univ.filter fun v : G.V ↦ Odd (G.toSimple.degree v)).card :=
+  SimpleGraph.even_card_odd_degree_vertices G.toSimple
+
+/-- The handshaking lemma, read off the degree multiset. -/
+theorem even_countP_odd_degMultiset (G : CGraph) :
+    Even (G.degMultiset.countP fun d ↦ Odd d) := by
+  have h : (G.degMultiset.countP fun d ↦ Odd d)
+      = (Finset.univ.filter fun v : G.V ↦ Odd (G.toSimple.degree v)).card := by
+    rw [degMultiset, Multiset.countP_map]
+    rfl
+  rw [h]
+  exact G.even_card_odd_degree
+
+/-- The handshaking lemma, read off the degree sequence. -/
+theorem even_countP_odd_degSequence (G : CGraph) :
+    Even (G.degSequence.countP fun d ↦ decide (Odd d)) := by
+  rw [degSequence, ← Multiset.coe_countP, Multiset.sort_eq]
+  exact G.even_countP_odd_degMultiset
+
+/-- If some vertex has odd degree then so does another one. -/
+theorem exists_ne_odd_degree (G : CGraph) {v : G.V} (h : Odd (G.toSimple.degree v)) :
+    ∃ w, w ≠ v ∧ Odd (G.toSimple.degree w) :=
+  SimpleGraph.exists_ne_odd_degree_of_exists_odd_degree G.toSimple v h
+
+/-- A graph all of whose degrees are odd has evenly many vertices. -/
+theorem even_card_of_forall_odd_degree (G : CGraph) (h : ∀ v, Odd (G.toSimple.degree v)) :
+    Even (Fintype.card G.V) := by
+  have hc := G.even_card_odd_degree
+  rwa [Finset.filter_true_of_mem fun v _ ↦ h v, Finset.card_univ] at hc
+
+/-- **An odd-regular graph has evenly many vertices.**  There is no cubic graph on five
+vertices. -/
+theorem even_card_of_isRegularOfDegree_odd (G : CGraph) {k : ℕ} (hk : Odd k)
+    (h : G.toSimple.IsRegularOfDegree k) : Even (Fintype.card G.V) :=
+  G.even_card_of_forall_odd_degree fun v ↦ by rw [h v]; exact hk
+
+/-- On an odd number of vertices, some vertex has even degree. -/
+theorem exists_even_degree_of_odd_card (G : CGraph) (h : Odd (Fintype.card G.V)) :
+    ∃ v, Even (G.toSimple.degree v) := by
+  by_contra hc
+  push_neg at hc
+  exact Nat.not_even_iff_odd.2 h
+    (G.even_card_of_forall_odd_degree fun v ↦ Nat.not_even_iff_odd.1 (hc v))
+
 end CGraph
 
 namespace IsoGraph
@@ -13576,5 +13624,45 @@ example : 24 ≤ (hypercube 3).autCount := by
 example : 30 ≤ (kneser 5 2).autCount := by
   have := two_mul_E_le_autCount_of_isArcTransitive (kneser 5 2) (by simp)
   simpa using this
+
+/-! ### The handshaking lemma -/
+
+theorem even_countP_odd_degMultiset (G : IsoGraph) :
+    Even ((degMultiset G).countP fun d ↦ Odd d) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.even_countP_odd_degMultiset g
+
+theorem even_countP_odd_degSequence (G : IsoGraph) :
+    Even ((degSequence G).countP fun d ↦ decide (Odd d)) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.even_countP_odd_degSequence g
+
+/-- A graph all of whose degrees are odd has evenly many vertices. -/
+theorem even_V_of_forall_odd_mem_degSequence (G : IsoGraph)
+    (h : ∀ d ∈ degSequence G, Odd d) : Even G.V := by
+  have hc := G.even_countP_odd_degSequence
+  rwa [List.countP_eq_length.2 (fun d hd ↦ by simpa using h d hd), length_degSequence] at hc
+
+/-- **An odd-regular graph has evenly many vertices.** -/
+theorem even_V_of_degSequence_replicate {G : IsoGraph} {n k : ℕ} (hk : Odd k)
+    (h : degSequence G = List.replicate n k) : Even G.V :=
+  G.even_V_of_forall_odd_mem_degSequence fun d hd ↦ by
+    rw [h, List.mem_replicate] at hd
+    exact hd.2 ▸ hk
+
+/-- On an odd number of vertices, some degree is even. -/
+theorem exists_even_mem_degSequence_of_odd_V (G : IsoGraph) (h : Odd G.V) :
+    ∃ d ∈ degSequence G, Even d := by
+  by_contra hc
+  push_neg at hc
+  exact Nat.not_even_iff_odd.2 h (G.even_V_of_forall_odd_mem_degSequence
+    fun d hd ↦ Nat.not_even_iff_odd.1 (hc d hd))
+
+/-- There is no cubic graph on seven vertices. -/
+example (G : IsoGraph) (h : degSequence G = List.replicate 7 3) : False := by
+  have hV : G.V = 7 := by rw [← length_degSequence, h, List.length_replicate]
+  have := even_V_of_degSequence_replicate (by decide) h
+  rw [hV] at this
+  exact (by decide : ¬ Even 7) this
 
 end IsoGraph
