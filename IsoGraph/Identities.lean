@@ -4544,6 +4544,64 @@ theorem girth_cartesianProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V
   · exact fun h ↦ hane (congrArg Prod.fst h)
   · exact fun h ↦ hane (congrArg Prod.fst h).symm
 
+/-- **A triangle in a Cartesian product projects to a triangle in a factor.**  Each product edge
+moves exactly one coordinate; a triangle whose edges do not all move the same coordinate would
+need an edge moving both. -/
+theorem triangle_cartesianProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : ∀ x y z : G.V, G.Adj x y → G.Adj y z → G.Adj z x → False)
+    (hH : ∀ x y z : H.V, H.Adj x y → H.Adj y z → H.Adj z x → False)
+    (x y z : (cartesianProduct G H).V) (h1 : (cartesianProduct G H).Adj x y)
+    (h2 : (cartesianProduct G H).Adj y z) (h3 : (cartesianProduct G H).Adj z x) : False := by
+  have hne : ∀ a b : (cartesianProduct G H).V, (cartesianProduct G H).Adj a b →
+      (G.Adj a.1 b.1 ∧ a.2 = b.2 ∧ a.1 ≠ b.1) ∨ (H.Adj a.2 b.2 ∧ a.1 = b.1 ∧ a.2 ≠ b.2) := by
+    intro a b hab
+    rw [cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true, Bool.and_eq_true,
+      decide_eq_true_eq, decide_eq_true_eq] at hab
+    rcases hab with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · exact Or.inr ⟨hb, ha, fun h ↦ H.loopless b.2 (h ▸ hb)⟩
+    · exact Or.inl ⟨ha, hb, fun h ↦ G.loopless b.1 (h ▸ ha)⟩
+  rcases hne _ _ h1 with ⟨g1, e1, n1⟩ | ⟨g1, e1, n1⟩ <;>
+    rcases hne _ _ h2 with ⟨g2, e2, n2⟩ | ⟨g2, e2, n2⟩ <;>
+      rcases hne _ _ h3 with ⟨g3, e3, n3⟩ | ⟨g3, e3, n3⟩
+  all_goals first
+    | exact hG _ _ _ g1 g2 g3
+    | exact hH _ _ _ g1 g2 g3
+    | simp_all
+
+/-- **A Cartesian product of two triangle-free graphs with an edge each has girth four.** -/
+theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : CGraph} [DecidableEq G.V]
+    [DecidableEq H.V] (hG : 0 < G.E) (hH : 0 < H.E) (hcG : G.cliqueNum ≤ 2)
+    (hcH : H.cliqueNum ≤ 2) : (cartesianProduct G H).girth = 4 := by
+  have tri : ∀ (K : CGraph), K.cliqueNum ≤ 2 →
+      ∀ x y z : K.V, K.Adj x y → K.Adj y z → K.Adj z x → False := by
+    intro K hK x y z h1 h2 h3
+    have := girth_eq_three_iff.1 (girth_eq_three_of_triangle h1 h2 h3)
+    omega
+  obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
+  obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
+  have hane : a ≠ a' := by rintro rfl; exact absurd ha (by simp [G.loopless])
+  have hbne : b ≠ b' := by rintro rfl; exact absurd hb (by simp [H.loopless])
+  refine le_antisymm (girth_cartesianProduct_le_four hG hH)
+    (four_le_girth (triangle_cartesianProduct (tri G hcG) (tri H hcH)) ?_)
+  refine not_isAcyclic_of_square (a := ((a, b) : (cartesianProduct G H).V)) (b := (a', b))
+    (c := (a', b')) (d := (a, b')) ?_ ?_ ?_ ?_ ?_ ?_
+  · rw [cartesianProduct_adj]; simp [ha]
+  · rw [cartesianProduct_adj]; simp [hb]
+  · rw [cartesianProduct_adj]; simp [G.symm a' a, ha]
+  · rw [cartesianProduct_adj]; simp [H.symm b' b, hb]
+  · exact fun h ↦ hane (congrArg Prod.fst h)
+  · exact fun h ↦ hane (congrArg Prod.fst h).symm
+
+/-- **A Johnson graph on at least `k + 2` points has girth three**: three `k`-sets sharing a
+common `(k-1)`-set are pairwise adjacent. -/
+theorem girth_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) : (johnson n k).girth = 3 := by
+  obtain ⟨k, rfl⟩ : ∃ m, k = m + 1 := ⟨k - 1, by omega⟩
+  refine girth_eq_three_of_triangle
+    (a := johnsonTri n k 0 (by omega)) (b := johnsonTri n k 1 (by omega))
+    (c := johnsonTri n k 2 (by omega)) ?_ ?_ ?_ <;>
+  · rw [johnson_adj, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq, Nat.add_sub_cancel]
+    exact ⟨johnsonTri_ne (by omega), johnsonTri_inter (by omega)⟩
+
 /-- **The complete bipartite graph `K_{m+2,n+2}` has girth four.** -/
 theorem girth_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).girth = 4 := by
   have hb : (bipartite (m + 2) (n + 2)).IsBipartite :=
@@ -22390,4 +22448,65 @@ theorem domNum_triangular (n : ℕ) : (triangular (n + 2)).domNum = (n + 2) / 2 
 @[simp] theorem domNum_johnson_two (n : ℕ) : (johnson (n + 2) 2).domNum = (n + 2) / 2 :=
   domNum_triangular n
 
+/-- **A Cartesian product of two triangle-free graphs with an edge each has girth four**: the
+two edges span a square, and a triangle in the product would project to one in a factor. -/
+theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E)
+    (hcG : G.cliqueNum ≤ 2) (hcH : H.cliqueNum ≤ 2) : (cartesianProduct G H).girth = 4 := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [cartesianProduct_mk, girth_mk]
+  rw [E_mk] at hG hH
+  rw [cliqueNum_mk] at hcG hcH
+  exact CGraph.girth_cartesianProduct_of_cliqueNum_le_two hG hH hcG hcH
+
+/-- **A prism over a cycle of length at least four has girth four**, the odd case included:
+the square faces are the shortest cycles. -/
+@[simp] theorem girth_prism (n : ℕ) : (prism (n + 4)).girth = 4 := by
+  refine girth_cartesianProduct_of_cliqueNum_le_two ?_ (by simp) (by rw [cliqueNum_cycle]) (by simp)
+  rw [show n + 4 = n + 1 + 3 by ring, E_cycle]
+  omega
+
+/-- **A torus is a product of two cycles**, and has girth four once both are long enough. -/
+@[simp] theorem girth_cartesianProduct_cycle (m n : ℕ) :
+    (cartesianProduct (cycle (m + 4)) (cycle (n + 4))).girth = 4 := by
+  refine girth_cartesianProduct_of_cliqueNum_le_two ?_ ?_ (by rw [cliqueNum_cycle])
+    (by rw [cliqueNum_cycle]) <;>
+  · rw [show _ + 4 = _ + 1 + 3 from rfl, E_cycle]
+    omega
+
+/-- A cycle crossed with a path: the girth is four whichever parity the cycle has. -/
+@[simp] theorem girth_cartesianProduct_cycle_path (m n : ℕ) :
+    (cartesianProduct (cycle (m + 4)) (path (n + 2))).girth = 4 := by
+  refine girth_cartesianProduct_of_cliqueNum_le_two ?_ (by simp) (by rw [cliqueNum_cycle])
+    (by rw [cliqueNum_path])
+  rw [show m + 4 = m + 1 + 3 by ring, E_cycle]
+  omega
+
+/-- **A grid has girth four.** -/
+@[simp] theorem girth_grid (m n : ℕ) :
+    (cartesianProduct (path (m + 2)) (path (n + 2))).girth = 4 :=
+  girth_cartesianProduct (by simp) (by simp) (isBipartite_path (m + 2)) (isBipartite_path (n + 2))
+
+/-- **A Johnson graph on at least `k + 2` points has girth three**: three `k`-sets sharing a
+common `(k-1)`-set are pairwise adjacent. -/
+theorem girth_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) : (johnson n k).girth = 3 := by
+  rw [johnson_def, girth_mk]
+  exact CGraph.girth_johnson hk h
+
+/-- The Johnson graph has a triangle, so a clique of size three. -/
+theorem three_le_cliqueNum_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
+    3 ≤ (johnson n k).cliqueNum :=
+  girth_eq_three_iff.1 (girth_johnson hk h)
+
+theorem three_le_chromNum_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
+    3 ≤ (johnson n k).chromNum :=
+  (three_le_cliqueNum_johnson hk h).trans (cliqueNum_le_chromNum _)
+
+theorem not_isAcyclic_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
+    ¬ IsAcyclic (johnson n k) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_johnson hk h]; omega)
+
+theorem not_isTree_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) : ¬ IsTree (johnson n k) :=
+  not_isTree_of_girth_pos (by rw [girth_johnson hk h]; omega)
 end IsoGraph

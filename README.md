@@ -1755,6 +1755,18 @@ paths, stars, wheels, fans, books and ladders all have two vertices of different
 none of them is vertex transitive.
 
 
+A Cartesian product of two triangle-free graphs with an edge each has girth exactly four:
+the two edges span a square, and a triangle in the product would have to project to one in a
+factor, because every product edge moves exactly one coordinate and a triangle whose three
+edges do not all move the same coordinate needs an edge that moves both.  That replaces the
+bipartite hypothesis of the earlier product-girth lemma by a triangle-free one, so it settles
+the odd prisms (`girth_prism` now covers every prism on a cycle of length at least four, not
+just the even ones), the torus of two long cycles, and a cycle crossed with a path.  In the
+other direction the three `k`-sets `{0, …, k-2, k-1+j}` for `j = 0, 1, 2` are pairwise
+adjacent in a Johnson graph, which gives `girth_johnson` for all `k ≥ 1` and `n ≥ k + 2` --
+previously only the `k = 2` row was known, via the strongly-regular table -- and with it a
+triangle, a 3-clique, a 3-chromatic lower bound, and non-acyclicity for the whole family.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
