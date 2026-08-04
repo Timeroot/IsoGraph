@@ -1388,6 +1388,17 @@ two vertices in different components dominate `Gᶜ` between them
 (`domNum_compl_le_two_of_not_isConnected`), so for instance the complement of any
 disjoint union of two nonempty graphs has domination number at most two.
 
+The clique and independence numbers obey the same shape of bound. Since every
+clique needs its own colour, `omega <= chi`, and the existing
+`chromNum_add_indepNum_le_card_add_one` immediately gives
+`cliqueNum_add_indepNum_le_V_add_one : omega(G) + alpha(G) <= |V| + 1`; rewriting
+along `indepNum_compl` and `cliqueNum_compl` restates it as
+`alpha(G) + alpha(Gᶜ) <= |V| + 1` and `omega(G) + omega(Gᶜ) <= |V| + 1`. Both the
+complete and the edgeless graph attain equality. In the other direction any two
+distinct vertices are either adjacent, giving a two-clique, or non-adjacent,
+giving a two-element independent set, so `three_le_cliqueNum_add_indepNum` holds
+on two or more vertices.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -7696,6 +7696,55 @@ theorem three_le_domNum_add_domNum_compl (G : CGraph) [DecidableEq G.V]
     rw [G.symm v w] at h3
     simp [h3] at h4
 
+
+/-! ### Nordhaus–Gaddum for the clique and independence numbers -/
+
+/-- A single vertex is a one-element independent set. -/
+theorem one_le_indepNum_of_vertex {G : CGraph} (a : G.V) : 1 ≤ G.indepNum := by
+  classical
+  have hind : G.toSimple.IsIndepSet ((({a} : Finset G.V)) : Set G.V) := by
+    intro x hx y hy hxy
+    simp only [Finset.coe_singleton, Set.mem_singleton_iff] at hx hy
+    exact absurd (hx.trans hy.symm) hxy
+  simpa using hind.card_le_indepNum
+
+/-- Two distinct non-adjacent vertices form a two-element independent set. -/
+theorem two_le_indepNum {G : CGraph} {a b : G.V} (hab : a ≠ b) (h : ¬ G.Adj a b) :
+    2 ≤ G.indepNum := by
+  classical
+  have hind : G.toSimple.IsIndepSet ((({a, b} : Finset G.V)) : Set G.V) := by
+    intro x hx y hy hxy hadj
+    simp only [Finset.coe_insert, Finset.coe_singleton, Set.mem_insert_iff,
+      Set.mem_singleton_iff] at hx hy
+    rw [toSimple_adj] at hadj
+    rcases hx with rfl | rfl <;> rcases hy with rfl | rfl
+    · exact hxy rfl
+    · exact h hadj
+    · exact h ((G.symm _ _).symm ▸ hadj)
+    · exact hxy rfl
+  have := hind.card_le_indepNum
+  rwa [Finset.card_pair hab] at this
+
+/-- **Nordhaus–Gaddum for the clique number**: `ω(G) + α(G) ≤ |V| + 1`, since `ω ≤ χ` and
+`χ(G) + α(G) ≤ |V| + 1`.  Equality holds for both the complete and the edgeless graph. -/
+theorem cliqueNum_add_indepNum_le_card_add_one (G : CGraph) :
+    G.cliqueNum + G.indepNum ≤ Fintype.card G.V + 1 :=
+  le_trans (Nat.add_le_add_right G.cliqueNum_le_chromNum _)
+    G.chromNum_add_indepNum_le_card_add_one
+
+/-- On two or more vertices, `3 ≤ ω(G) + α(G)`: any two distinct vertices are either adjacent,
+giving a two-clique, or non-adjacent, giving a two-element independent set. -/
+theorem three_le_cliqueNum_add_indepNum (G : CGraph) (hV : 2 ≤ Fintype.card G.V) :
+    3 ≤ G.cliqueNum + G.indepNum := by
+  obtain ⟨a, b, hab⟩ := Fintype.exists_pair_of_one_lt_card (α := G.V) (by omega)
+  by_cases h : G.Adj a b
+  · have h1 := two_le_cliqueNum h
+    have h2 := one_le_indepNum_of_vertex a
+    omega
+  · have h1 := one_le_cliqueNum_of_vertex a
+    have h2 := two_le_indepNum hab h
+    omega
+
 end CGraph
 
 namespace IsoGraph
@@ -15338,5 +15387,76 @@ theorem domNum_compl_disjUnion_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < 
 /-- The complement of `2 K₃` is `K₃,₃`, which two vertices dominate. -/
 example : (compl (disjUnion (complete 3) (complete 3))).domNum ≤ 2 :=
   domNum_compl_disjUnion_le_two (by simp) (by simp)
+
+
+/-! ### Nordhaus–Gaddum for the clique and independence numbers -/
+
+/-- A single vertex is a one-element independent set. -/
+theorem one_le_indepNum {G : IsoGraph} (h : 0 < G.V) : 1 ≤ G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk] at h
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 h
+  rw [← mk_canonicalize g, indepNum_mk]
+  exact CGraph.one_le_indepNum_of_vertex a
+
+/-- **Nordhaus–Gaddum for the clique number**: `ω(G) + α(G) ≤ |V| + 1`. -/
+theorem cliqueNum_add_indepNum_le_V_add_one (G : IsoGraph) :
+    G.cliqueNum + G.indepNum ≤ G.V + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk, V_mk]
+  exact CGraph.cliqueNum_add_indepNum_le_card_add_one _
+
+/-- On two or more vertices, `3 ≤ ω(G) + α(G)`. -/
+theorem three_le_cliqueNum_add_indepNum {G : IsoGraph} (hV : 2 ≤ G.V) :
+    3 ≤ G.cliqueNum + G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk] at hV
+  rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk]
+  exact CGraph.three_le_cliqueNum_add_indepNum _ hV
+
+/-- The independence numbers of a graph and its complement: `α(G) + α(Gᶜ) ≤ |V| + 1`. -/
+theorem indepNum_add_indepNum_compl_le_V_add_one (G : IsoGraph) :
+    G.indepNum + (compl G).indepNum ≤ G.V + 1 := by
+  rw [indepNum_compl, Nat.add_comm]
+  exact G.cliqueNum_add_indepNum_le_V_add_one
+
+/-- The clique numbers of a graph and its complement: `ω(G) + ω(Gᶜ) ≤ |V| + 1`. -/
+theorem cliqueNum_add_cliqueNum_compl_le_V_add_one (G : IsoGraph) :
+    G.cliqueNum + (compl G).cliqueNum ≤ G.V + 1 := by
+  rw [cliqueNum_compl]
+  exact G.cliqueNum_add_indepNum_le_V_add_one
+
+/-- The matching lower bound for the complement pair. -/
+theorem three_le_indepNum_add_indepNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
+    3 ≤ G.indepNum + (compl G).indepNum := by
+  rw [indepNum_compl, Nat.add_comm]
+  exact three_le_cliqueNum_add_indepNum hV
+
+theorem three_le_cliqueNum_add_cliqueNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
+    3 ≤ G.cliqueNum + (compl G).cliqueNum := by
+  rw [cliqueNum_compl]
+  exact three_le_cliqueNum_add_indepNum hV
+
+/-- The complete graph attains the upper bound: `ω = n` and `α = 1`. -/
+example (n : ℕ) :
+    (complete (n + 1)).cliqueNum + (complete (n + 1)).indepNum = (complete (n + 1)).V + 1 := by
+  rw [cliqueNum_complete, indepNum_complete, V_complete]
+  omega
+
+/-- So does the edgeless graph, with the roles swapped. -/
+example (n : ℕ) :
+    (empty (n + 1)).cliqueNum + (empty (n + 1)).indepNum = (empty (n + 1)).V + 1 := by
+  rw [cliqueNum_empty, indepNum_empty, V_empty]
+  omega
+
+/-- The Petersen graph is far from either extreme: `ω = 2` and `α = 4`. -/
+example : petersen.cliqueNum + petersen.indepNum ≤ 11 := by
+  have h := petersen.cliqueNum_add_indepNum_le_V_add_one
+  rwa [V_petersen] at h
+
+/-- The five-cycle: `ω = α = 2`, comfortably between `3` and `6`. -/
+example : (cycle 5).cliqueNum + (cycle 5).indepNum = 4 := by
+  rw [cliqueNum_cycle_five]
+  norm_num [show ((cycle 5).indepNum) = 2 from by simp]
 
 end IsoGraph
