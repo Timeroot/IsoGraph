@@ -1065,22 +1065,25 @@ theorem not_isBipartite_cycle_odd (m : ℕ) : ¬ (CGraph.cycle (2 * m + 3)).IsBi
   rw [this] at hclose
   simp at hclose
 
-theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipartite := by
+/-- **A graph with a triangle in it is not bipartite**: three mutually adjacent vertices need
+three colours. -/
+theorem not_isBipartite_of_triangle {G : CGraph} {a b d : G.V} (hab : G.Adj a b)
+    (had : G.Adj a d) (hbd : G.Adj b d) : ¬ G.IsBipartite := by
   rintro ⟨c, hc⟩
-  have hadj : ∀ i j : Fin (n + 3), i.1 ≠ j.1 → (CGraph.complete (n + 3)).Adj i j := by
-    intro i j hij
-    simp only [CGraph.complete_adj, decide_eq_true_eq, ne_eq, Fin.ext_iff]
-    exact hij
-  obtain ⟨a, b, d, hab, had, hbd⟩ : ∃ a b d : (CGraph.complete (n + 3)).V,
-      (CGraph.complete (n + 3)).Adj a b ∧ (CGraph.complete (n + 3)).Adj a d ∧
-        (CGraph.complete (n + 3)).Adj b d :=
-    ⟨⟨0, by omega⟩, ⟨1, by omega⟩, ⟨2, by omega⟩, hadj _ _ (by simp), hadj _ _ (by simp),
-      hadj _ _ (by simp)⟩
   have h1 := hc a b hab
   have h2 := hc a d had
   refine hc b d hbd ?_
   revert h1 h2
   cases c a <;> cases c b <;> cases c d <;> simp
+
+theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipartite := by
+  have hadj : ∀ i j : Fin (n + 3), i.1 ≠ j.1 → (CGraph.complete (n + 3)).Adj i j := by
+    intro i j hij
+    simp only [CGraph.complete_adj, decide_eq_true_eq, ne_eq, Fin.ext_iff]
+    exact hij
+  exact not_isBipartite_of_triangle (a := (⟨0, by omega⟩ : (CGraph.complete (n + 3)).V))
+    (b := ⟨1, by omega⟩) (d := ⟨2, by omega⟩) (hadj _ _ (by simp)) (hadj _ _ (by simp))
+    (hadj _ _ (by simp))
 
 /-! ## Edge lists
 
@@ -2343,6 +2346,41 @@ theorem thetaDepth_parity : ∀ (b off : ℕ) (xs : List ℕ) (p q : ℕ), 2 ≤
           thetaDepth_cons b off k rest q hoff (by omega)]
         exact thetaDepth_parity b (off + k) rest p q (by omega)
           (fun x hx ↦ hpar x (List.mem_cons_of_mem k hx)) h
+
+/-! ### An odd cycle inside an edge list -/
+
+/-- A graph given by an edge list is not bipartite once its edges include an odd cycle through
+`0, 1, …, m-1`.  Walking around that cycle the colour alternates with the parity of the index, and
+the edge closing the cycle contradicts it. -/
+theorem not_isBipartite_ofEdges_of_odd_cycle (N m : ℕ) (es : List (ℕ × ℕ)) (hodd : m % 2 = 1)
+    (h3 : 3 ≤ m) (hN : m ≤ N)
+    (hsub : ∀ p q : ℕ, (p, q) ∈ cycleEdges m → ((p, q) ∈ es ∨ (q, p) ∈ es)) :
+    ¬ (ofEdges N es).IsBipartite := by
+  rintro ⟨c, hc⟩
+  have hz : 0 < N := by omega
+  have adj : ∀ (k l : ℕ) (hk : k < N) (hl : l < N), k ≠ l → (k, l) ∈ cycleEdges m →
+      c (⟨k, hk⟩ : Fin N) ≠ c (⟨l, hl⟩ : Fin N) := fun k l hk hl hne hkl ↦
+    hc ⟨k, hk⟩ ⟨l, hl⟩ ((ofEdges_adj_val N es _ _).2 ⟨hne, hsub k l hkl⟩)
+  have alt : ∀ (k : ℕ) (hk : k < N), k < m →
+      c (⟨k, hk⟩ : Fin N) = xor (c (⟨0, hz⟩ : Fin N)) (decide (k % 2 = 1)) := by
+    intro k
+    induction k with
+    | zero => intro _ _; simp
+    | succ k ih =>
+      intro hk hkm
+      have hstep := adj k (k + 1) (by omega) hk (by omega)
+        ((mem_cycleEdges m k (k + 1)).2 (Or.inl ⟨rfl, by omega⟩))
+      rw [ih (by omega) (by omega)] at hstep
+      have hpar : (decide ((k + 1) % 2 = 1)) = !(decide (k % 2 = 1)) := by
+        rcases Nat.mod_two_eq_zero_or_one k with h | h <;> simp [Nat.add_mod, h]
+      rw [hpar]
+      revert hstep
+      rcases c (⟨k + 1, hk⟩ : Fin N) <;> rcases c (⟨0, hz⟩ : Fin N) <;>
+        rcases (decide (k % 2 = 1)) <;> simp
+  have hclose := adj (m - 1) 0 (by omega) hz (by omega)
+    ((mem_cycleEdges m (m - 1) 0).2 (Or.inr ⟨by omega, rfl⟩))
+  rw [alt (m - 1) (by omega) (by omega), show (m - 1) % 2 = 0 by omega] at hclose
+  simp at hclose
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -4613,6 +4651,41 @@ theorem not_isBipartite_thetaGraph_pair {a b : ℕ} (h : (a + b) % 2 = 1) :
   rw [thetaGraph_pair, hm]
   exact not_isBipartite_cycle_odd m
 
+/-- A tadpole whose cycle is odd is not bipartite. -/
+theorem not_isBipartite_tadpole_odd (m k : ℕ) : ¬ IsBipartite (tadpole (2 * m + 3) k) := by
+  rw [tadpole_def, isBipartite_mk]
+  exact CGraph.not_isBipartite_ofEdges_of_odd_cycle _ (2 * m + 3) _ (by omega) (by omega)
+    (by omega) fun _ _ h ↦ Or.inl (List.mem_append_left _ h)
+
+/-- A cycle with pendant vertices is not bipartite when the cycle is odd. -/
+theorem not_isBipartite_cyclePendant_odd (m : ℕ) (ks : List ℕ) :
+    ¬ IsBipartite (cyclePendant (2 * m + 3) ks) := by
+  rw [cyclePendant_def, isBipartite_mk]
+  exact CGraph.not_isBipartite_ofEdges_of_odd_cycle _ (2 * m + 3) _ (by omega) (by omega)
+    (by omega) fun _ _ h ↦ Or.inl (List.mem_append_left _ h)
+
+/-- A lollipop is never bipartite: its head is a complete graph on at least three vertices, and
+the triangle `0, 1, 2` sits inside it. -/
+theorem not_isBipartite_lollipop (m k : ℕ) : ¬ IsBipartite (lollipop (m + 3) k) := by
+  rw [lollipop_def, isBipartite_mk]
+  refine CGraph.not_isBipartite_ofEdges_of_odd_cycle _ 3 _ (by omega) (by omega) (by omega) ?_
+  intro p q h
+  rw [CGraph.mem_cycleEdges] at h
+  rcases h with ⟨rfl, h⟩ | ⟨h, rfl⟩
+  · exact Or.inl (List.mem_append_left _ ((CGraph.mem_cliqueEdges _ _ _).2 ⟨by omega, by omega⟩))
+  · exact Or.inr (List.mem_append_left _ ((CGraph.mem_cliqueEdges _ _ _).2 ⟨by omega, by omega⟩))
+
+/-- A wheel is not bipartite: the hub and any edge of the rim form a triangle. -/
+theorem not_isBipartite_wheel (n : ℕ) : ¬ IsBipartite (wheel (n + 3)) := by
+  rw [wheel_def, isBipartite_mk]
+  refine CGraph.not_isBipartite_of_triangle (a := Sum.inl (0 : Fin 1))
+    (b := Sum.inr ⟨0, by omega⟩) (d := Sum.inr ⟨1, by omega⟩)
+    (by simp [CGraph.wheel]) (by simp [CGraph.wheel]) ?_
+  show (CGraph.join (CGraph.complete 1) (CGraph.cycle (n + 3))).Adj _ _ = true
+  rw [CGraph.join_adj_inr_inr, CGraph.cycle_adj_val]
+  show (0 : ℕ) ≠ 1 ∧ ((0 + 1) % (n + 3) = 1 ∨ (1 + 1) % (n + 3) = 0)
+  exact ⟨by omega, Or.inl (Nat.mod_eq_of_lt (by omega))⟩
+
 /-! ### Bipartite double covers
 
 The tensor product with `K₂` is the bipartite double cover.  Over a bipartite graph it comes apart
@@ -5185,6 +5258,10 @@ example : IsBipartite (cyclePendant 4 [1, 1]) := isBipartite_cyclePendant_even 2
 example : IsBipartite (thetaGraph [0, 2, 4]) := isBipartite_thetaGraph_even (by decide)
 example : IsBipartite (thetaGraph [1, 3, 5]) := isBipartite_thetaGraph_odd (by decide)
 example : ¬ IsBipartite (thetaGraph [0, 1]) := not_isBipartite_thetaGraph_pair (by decide)
+example (k : ℕ) : ¬ IsBipartite (tadpole 5 k) := not_isBipartite_tadpole_odd 1 k
+example : ¬ IsBipartite (cyclePendant 3 [1, 0, 2]) := not_isBipartite_cyclePendant_odd 0 [1, 0, 2]
+example : ¬ IsBipartite (lollipop 4 2) := not_isBipartite_lollipop 1 2
+example : ¬ IsBipartite (wheel 5) := not_isBipartite_wheel 2
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp

@@ -276,6 +276,30 @@ instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : DecidableEq (join 
 @[simp] theorem card_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     Fintype.card (join G H).V = Fintype.card G.V + Fintype.card H.V := Fintype.card_sum
 
+@[simp] theorem join_adj_inl_inl (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a c : G.V) :
+    (join G H).Adj (.inl a) (.inl c) = G.Adj a c := by
+  by_cases h : a = c
+  · subst h
+    simp [join, G.loopless a]
+  · have hne : (Sum.inl a : G.V ⊕ H.V) ≠ Sum.inl c := fun h' ↦ h (Sum.inl.inj h')
+    simp [join, h, hne]
+
+@[simp] theorem join_adj_inr_inr (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (b d : H.V) :
+    (join G H).Adj (.inr b) (.inr d) = H.Adj b d := by
+  by_cases h : b = d
+  · subst h
+    simp [join, H.loopless b]
+  · have hne : (Sum.inr b : G.V ⊕ H.V) ≠ Sum.inr d := fun h' ↦ h (Sum.inr.inj h')
+    simp [join, h, hne]
+
+@[simp] theorem join_adj_inl_inr (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a : G.V) (d : H.V) : (join G H).Adj (.inl a) (.inr d) = true := by
+  simp [join]
+
+@[simp] theorem join_adj_inr_inl (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (b : H.V) (c : G.V) : (join G H).Adj (.inr b) (.inl c) = true := by
+  simp [join]
+
 /-- The complete bipartite graph `K_{m,n}`. -/
 def bipartite (m n : ℕ) : CGraph := compl (disjUnion (complete m) (complete n))
 

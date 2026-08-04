@@ -492,6 +492,20 @@ On the other side, complete graphs on three or more vertices are not bipartite
 (pigeonhole on a triangle) and neither are odd cycles: walking around the cycle the colour
 alternates with the parity of the index, which the edge closing the cycle contradicts.
 
+Both of those arguments generalise, and the general forms retire the rest of the decorated
+families.  `CGraph.not_isBipartite_of_triangle` is the pigeonhole on its own — any three mutually
+adjacent vertices, no numbering involved — which is what `not_isBipartite_complete` now calls, and
+what settles the wheel, whose hub is adjacent to both ends of every rim edge.  Reaching into a
+`join` for that needed adjacency to compute, so `join_adj_inl_inl`, `join_adj_inr_inr`,
+`join_adj_inl_inr` and `join_adj_inr_inl` are `@[simp]` in `Constructions.lean`; the two same-side
+ones want the `Sum` disequality supplied by hand, since `simp` will not discharge
+`decide ¬Sum.inl a = Sum.inl c` from `a ≠ c` on its own.  The alternating-colour argument becomes
+`CGraph.not_isBipartite_ofEdges_of_odd_cycle`: an edge list containing an odd cycle through
+`0, 1, …, m-1` is never bipartite.  Its hypothesis asks only that each `cycleEdges m` entry appear
+in *either* orientation, which is what lets the lollipop use it — the triangle `0, 1, 2` lives in
+its head, but `cliqueEdges` stores `(0, 2)` where the cycle wants `(2, 0)`.  Odd tadpoles and odd
+cycles-with-pendants then follow by `List.mem_append_left`, with the decorations simply ignored.
+
 Over an odd cycle, then, the cover cannot split, and in fact it is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality
