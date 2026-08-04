@@ -1489,6 +1489,26 @@ theorem ofEdges_adj_val (n : ℕ) (es : List (ℕ × ℕ)) (u v : (ofEdges n es)
   simp only [ofEdges, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
     ne_eq, huv, List.contains_eq_mem]
 
+/-- Adjacency in `spider ks`, phrased entirely in terms of the underlying naturals. -/
+theorem spider_adj_val (ks : List ℕ) (u v : (spider ks).V) :
+    (spider ks).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ spiderEdges 1 ks ∨ (v.1, u.1) ∈ spiderEdges 1 ks)) :=
+  ofEdges_adj_val _ _ u v
+
+/-- Adjacency in `tadpole m k`, phrased entirely in terms of the underlying naturals. -/
+theorem tadpole_adj_val (m k : ℕ) (u v : (tadpole m k).V) :
+    (tadpole m k).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ cycleEdges m ++ legEdges 0 m k ∨
+        (v.1, u.1) ∈ cycleEdges m ++ legEdges 0 m k)) :=
+  ofEdges_adj_val _ _ u v
+
+/-- Adjacency in `cyclePendant m ks`, phrased entirely in terms of the underlying naturals. -/
+theorem cyclePendant_adj_val (m : ℕ) (ks : List ℕ) (u v : (cyclePendant m ks).V) :
+    (cyclePendant m ks).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ cycleEdges m ++ pendantEdges 0 m ks ∨
+        (v.1, u.1) ∈ cycleEdges m ++ pendantEdges 0 m ks)) :=
+  ofEdges_adj_val _ _ u v
+
 /-- Folding the interval `[0, a]` of `Fin N` back on itself, fixing everything above `a`.  This
 is the relabelling that straightens a two-legged spider into a path: the two legs, which run
 outwards from the centre, become one run from `a` down to `0` and one from `0` up. -/
@@ -2151,6 +2171,106 @@ theorem nonempty_iso_ofEdges_swap_theta (N s a b : ℕ) (P Q : List (ℕ × ℕ)
       swapBlocksFwd_of_lt s a b q (hP p q hpq).2⟩)
     (fun p q hpq ↦ ⟨hkey p (hQ p q hpq).1, hkey q (hQ p q hpq).2⟩)
     (fun p q ↦ by simp only [List.mem_append]; exact swapBlocks_theta_iff s a b p q hs)
+
+/-! ## Two-colourings of the decorated families
+
+A spider, a cycle with pendant vertices, and a tadpole are all two-colourable, but the colour of a
+vertex is not a function of its number alone: it depends on which leg or which pendant block the
+vertex sits in.  The two functions here recover that information from the list of block lengths,
+by the same recursion the edge lists themselves are built by. -/
+
+/-! ### The distance from the centre of a spider -/
+
+/-- The distance from the centre `0` to the vertex `v` of a spider whose legs, of lengths `ks`,
+start at `off`.  Vertices below `off` — the centre — are at distance `0`. -/
+def spiderDepth : ℕ → List ℕ → ℕ → ℕ
+  | _, [], _ => 0
+  | off, k :: rest, v =>
+      if v < off then 0 else if v < off + k then v - off + 1 else spiderDepth (off + k) rest v
+
+theorem spiderDepth_of_lt : ∀ (off : ℕ) (ks : List ℕ) (v : ℕ), v < off → spiderDepth off ks v = 0
+  | _, [], _, _ => rfl
+  | off, k :: rest, v, h => by rw [spiderDepth, if_pos h]
+
+theorem spiderDepth_cons_of_ge (off k : ℕ) (rest : List ℕ) (v : ℕ) (h : off + k ≤ v) :
+    spiderDepth off (k :: rest) v = spiderDepth (off + k) rest v := by
+  rw [spiderDepth, if_neg (by omega), if_neg (by omega)]
+
+/-- Along every edge of a spider the distance from the centre changes by one. -/
+theorem spiderDepth_parity : ∀ (off : ℕ) (ks : List ℕ) (p q : ℕ), 0 < off →
+    (p, q) ∈ spiderEdges off ks →
+      (spiderDepth off ks p + spiderDepth off ks q) % 2 = 1
+  | _, [], _, _, _ => by simp [spiderEdges]
+  | off, k :: rest, p, q, hoff => by
+      intro h
+      rw [spiderEdges, List.mem_append] at h
+      rcases h with h | h
+      · rw [mem_legEdges] at h
+        rcases h with ⟨rfl, rfl, hk⟩ | ⟨h1, rfl, h3⟩
+        · rw [spiderDepth, if_pos hoff, spiderDepth, if_neg (by omega), if_pos (by omega)]
+          omega
+        · rw [spiderDepth, if_neg (by omega), if_pos (by omega), spiderDepth, if_neg (by omega),
+            if_pos (by omega)]
+          omega
+      · have hb := mem_spiderEdges_bound (off + k) rest p q h
+        have hp : spiderDepth off (k :: rest) p = spiderDepth (off + k) rest p := by
+          rcases hb.1 with rfl | hp
+          · rw [spiderDepth_of_lt _ _ _ hoff, spiderDepth_of_lt _ _ _ (by omega)]
+          · exact spiderDepth_cons_of_ge off k rest p (by omega)
+        rw [hp, spiderDepth_cons_of_ge off k rest q (by omega)]
+        exact spiderDepth_parity (off + k) rest p q (by omega) h
+
+/-! ### The owner of a pendant vertex -/
+
+/-- For a vertex `x` of `cyclePendant m ks`: `x` itself if it lies on the cycle, and one more than
+the cycle vertex it hangs off if it is a pendant.  Its parity is a proper two-colouring when the
+cycle is even. -/
+def pendantOwner (m : ℕ) : ℕ → ℕ → List ℕ → ℕ → ℕ
+  | _, _, [], x => x
+  | v, off, k :: ks, x =>
+      if x < m then x else if x < off + k then v + 1 else pendantOwner m (v + 1) (off + k) ks x
+
+theorem pendantOwner_of_lt : ∀ (m v off : ℕ) (ks : List ℕ) (x : ℕ), x < m →
+    pendantOwner m v off ks x = x
+  | _, _, _, [], _, _ => rfl
+  | m, v, off, _ :: _, x, h => by rw [pendantOwner, if_pos h]
+
+/-- Every pendant edge runs from one of the cycle vertices `v, …, v + ks.length - 1` to a fresh
+vertex in `[off, off + ks.sum)`. -/
+theorem mem_pendantEdges_bound : ∀ (v off : ℕ) (ks : List ℕ) (p q : ℕ),
+    (p, q) ∈ pendantEdges v off ks →
+      (v ≤ p ∧ p < v + ks.length) ∧ (off ≤ q ∧ q < off + ks.sum)
+  | _, _, [], _, _ => by simp [pendantEdges]
+  | v, off, k :: ks, p, q => by
+      intro h
+      rw [pendantEdges, List.mem_append] at h
+      simp only [List.length_cons, List.sum_cons]
+      rcases h with h | h
+      · simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at h
+        obtain ⟨i, hi, rfl, rfl⟩ := h
+        omega
+      · have := mem_pendantEdges_bound (v + 1) (off + k) ks p q h
+        omega
+
+/-- Along every pendant edge the parity of `pendantOwner` changes. -/
+theorem pendantOwner_parity (m : ℕ) : ∀ (v off : ℕ) (ks : List ℕ) (p q : ℕ),
+    v + ks.length ≤ m → m ≤ off → (p, q) ∈ pendantEdges v off ks →
+      (pendantOwner m v off ks p + pendantOwner m v off ks q) % 2 = 1
+  | _, _, [], _, _, _, _ => by simp [pendantEdges]
+  | v, off, k :: ks, p, q, hv, hoff => by
+      intro h
+      rw [pendantEdges, List.mem_append] at h
+      rcases h with h | h
+      · simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at h
+        obtain ⟨i, hi, rfl, rfl⟩ := h
+        rw [pendantOwner, if_pos (by simp only [List.length_cons] at hv; omega), pendantOwner,
+          if_neg (by omega), if_pos (by omega)]
+        omega
+      · have hb := mem_pendantEdges_bound (v + 1) (off + k) ks p q h
+        simp only [List.length_cons] at hv
+        have hrec := pendantOwner_parity m (v + 1) (off + k) ks p q (by omega) (by omega) h
+        rw [pendantOwner_of_lt m (v + 1) (off + k) ks p (by omega)] at hrec
+        rwa [pendantOwner, if_pos (by omega), pendantOwner, if_neg (by omega), if_neg (by omega)]
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -4258,6 +4378,67 @@ theorem isBipartite_tensorProduct_right {G H : IsoGraph} (hH : IsBipartite H) :
 @[simp] theorem isBipartite_prism_even (m : ℕ) : IsBipartite (prism (2 * m)) :=
   isBipartite_cartesianProduct (isBipartite_cycle_even m) isBipartite_complete_two
 
+/-- **A spider is a tree, hence bipartite**: colour a vertex by the parity of its distance from
+the centre. -/
+@[simp] theorem isBipartite_spider (ks : List ℕ) : IsBipartite (spider ks) := by
+  rw [spider_def, isBipartite_mk]
+  refine ⟨fun i ↦ decide (CGraph.spiderDepth 1 ks (i : Fin (1 + ks.sum)).1 % 2 = 1),
+    fun x y hxy ↦ ?_⟩
+  rw [CGraph.spider_adj_val] at hxy
+  simp only [ne_eq, decide_eq_decide]
+  rcases hxy.2 with h | h
+  · have := CGraph.spiderDepth_parity 1 ks x.1 y.1 Nat.one_pos h
+    omega
+  · have := CGraph.spiderDepth_parity 1 ks y.1 x.1 Nat.one_pos h
+    omega
+
+/-- **A double star is a tree, hence bipartite**: one centre goes with the leaves of the other. -/
+@[simp] theorem isBipartite_doubleStar (m n : ℕ) : IsBipartite (doubleStar m n) := by
+  rw [doubleStar_def, isBipartite_mk]
+  refine ⟨fun i ↦ decide ((i : Fin (2 + m + n)).1 = 1 ∨
+    (2 ≤ (i : Fin (2 + m + n)).1 ∧ (i : Fin (2 + m + n)).1 < 2 + m)), fun x y hxy ↦ ?_⟩
+  rw [CGraph.doubleStar_adj_val] at hxy
+  simp only [ne_eq, decide_eq_decide]
+  omega
+
+/-- **A tadpole with an even cycle is bipartite**: the tail continues the alternation around the
+cycle, which closes up because the cycle has even length. -/
+@[simp] theorem isBipartite_tadpole_even (m k : ℕ) : IsBipartite (tadpole (2 * m) k) := by
+  rw [tadpole_def, isBipartite_mk]
+  refine ⟨fun i ↦ decide ((if (i : Fin (2 * m + k)).1 < 2 * m then (i : Fin (2 * m + k)).1
+    else (i : Fin (2 * m + k)).1 + 1) % 2 = 1), fun x y hxy ↦ ?_⟩
+  rw [CGraph.tadpole_adj_val] at hxy
+  simp only [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges] at hxy
+  simp only [ne_eq, decide_eq_decide]
+  obtain ⟨hne, h⟩ := hxy
+  split_ifs <;> omega
+
+/-- **A cycle of even length with pendant vertices is bipartite**: a pendant takes the colour
+opposite to the cycle vertex it hangs off. -/
+@[simp] theorem isBipartite_cyclePendant_even (t : ℕ) (ks : List ℕ) (h : ks.length ≤ 2 * t) :
+    IsBipartite (cyclePendant (2 * t) ks) := by
+  rw [cyclePendant_def, isBipartite_mk]
+  refine ⟨fun i ↦ decide (CGraph.pendantOwner (2 * t) 0 (2 * t) ks
+    (i : Fin (2 * t + ks.sum)).1 % 2 = 1), fun x y hxy ↦ ?_⟩
+  rw [CGraph.cyclePendant_adj_val] at hxy
+  simp only [ne_eq, decide_eq_decide]
+  have key : ∀ p q : ℕ, (p, q) ∈ CGraph.cycleEdges (2 * t) ++ CGraph.pendantEdges 0 (2 * t) ks →
+      (CGraph.pendantOwner (2 * t) 0 (2 * t) ks p
+        + CGraph.pendantOwner (2 * t) 0 (2 * t) ks q) % 2 = 1 := by
+    intro p q hpq
+    rw [List.mem_append] at hpq
+    rcases hpq with hpq | hpq
+    · rw [CGraph.mem_cycleEdges] at hpq
+      rw [CGraph.pendantOwner_of_lt _ _ _ _ _ (by omega),
+        CGraph.pendantOwner_of_lt _ _ _ _ _ (by omega)]
+      omega
+    · exact CGraph.pendantOwner_parity (2 * t) 0 (2 * t) ks p q (by omega) (by omega) hpq
+  rcases hxy.2 with hm | hm
+  · have := key x.1 y.1 hm
+    omega
+  · have := key y.1 x.1 hm
+    omega
+
 theorem not_isBipartite_complete (n : ℕ) : ¬ IsBipartite (complete (n + 3)) := by
   rw [complete_def, isBipartite_mk]
   exact CGraph.not_isBipartite_complete n
@@ -4838,6 +5019,10 @@ example (G : IsoGraph) : lexProduct (empty 1) (lexProduct G (empty 1)) = G := by
 example : circulant 7 [0, 3, 3] = circulant 7 [3] := by simp
 
 example (n : ℕ) : IsBipartite (hypercube n) := by simp
+example (ks : List ℕ) : IsBipartite (spider ks) := by simp
+example (m n : ℕ) : IsBipartite (doubleStar m n) := by simp
+example (k : ℕ) : IsBipartite (tadpole 6 k) := isBipartite_tadpole_even 3 k
+example : IsBipartite (cyclePendant 4 [1, 1]) := isBipartite_cyclePendant_even 2 [1, 1] (by decide)
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp
 

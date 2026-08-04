@@ -468,7 +468,12 @@ copies of `G`. So the work is all in exhibiting colourings, and `IsBipartite` co
 the empty graphs, complete bipartite graphs, stars, paths and even cycles directly; disjoint
 unions and Cartesian products of bipartite graphs by combining colourings (`xor` for the product),
 tensor products as soon as one factor is bipartite; and hypercubes, ladders and even prisms as
-products. On the other side, complete graphs on three or more vertices are not bipartite
+products.  The decorated families join the list too — spiders and double stars because they are
+trees, tadpoles and cycles-with-pendants when the cycle is even — and there the colour of a vertex
+is *not* a function of its number: it depends on which leg or which pendant block the vertex sits
+in.  `spiderDepth` and `pendantOwner` recover that by the same recursion the edge lists are built
+by, so the colouring is `decide (spiderDepth 1 ks v % 2 = 1)` and the proof obligation is one
+statement per edge shape.  On the other side, complete graphs on three or more vertices are not bipartite
 (pigeonhole on a triangle) and neither are odd cycles: walking around the cycle the colour
 alternates with the parity of the index, which the edge closing the cycle contradicts.
 
