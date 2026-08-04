@@ -1028,6 +1028,35 @@ theorem IsBipartite.tensorProduct_right {G H : CGraph} [DecidableEq G.V] [Decida
   simp only [Bool.and_eq_true] at hxy
   exact hc y y' hxy.2
 
+/-- A summand of a bipartite disjoint union is bipartite: restrict the colouring. -/
+theorem IsBipartite.of_disjUnion_left {G H : CGraph} (h : (CGraph.disjUnion G H).IsBipartite) :
+    G.IsBipartite := by
+  obtain ⟨c, hc⟩ := h
+  exact ⟨fun a ↦ c (.inl a), fun x y hxy ↦ hc _ _ (by rwa [disjUnion_adj_inl_inl])⟩
+
+theorem IsBipartite.of_disjUnion_right {G H : CGraph} (h : (CGraph.disjUnion G H).IsBipartite) :
+    H.IsBipartite := by
+  obtain ⟨c, hc⟩ := h
+  exact ⟨fun b ↦ c (.inr b), fun x y hxy ↦ hc _ _ (by rwa [disjUnion_adj_inr_inr])⟩
+
+/-- A factor of a bipartite Cartesian product is bipartite: a fixed vertex of the other factor
+cuts out a copy of it. -/
+theorem IsBipartite.of_cartesianProduct_left {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hH : Nonempty H.V) (h : (CGraph.cartesianProduct G H).IsBipartite) : G.IsBipartite := by
+  obtain ⟨c, hc⟩ := h
+  obtain ⟨b⟩ := hH
+  refine ⟨fun a ↦ c (a, b), fun x y hxy ↦ hc (x, b) (y, b) ?_⟩
+  rw [cartesianProduct_adj]
+  simp [hxy]
+
+theorem IsBipartite.of_cartesianProduct_right {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : Nonempty G.V) (h : (CGraph.cartesianProduct G H).IsBipartite) : H.IsBipartite := by
+  obtain ⟨c, hc⟩ := h
+  obtain ⟨a⟩ := hG
+  refine ⟨fun b ↦ c (a, b), fun x y hxy ↦ hc (a, x) (a, y) ?_⟩
+  rw [cartesianProduct_adj]
+  simp [hxy]
+
 /-- **Odd cycles are not bipartite.**  Walking around the cycle, the colour alternates with the
 parity of the index; coming back to `0` from the last vertex, which has even index, contradicts
 the edge that closes the cycle. -/
@@ -4538,6 +4567,27 @@ split, so the two belong together: the colourings are built here and cashed in t
   rw [cartesianProduct_mk]
   exact CGraph.IsBipartite.cartesianProduct hG hH
 
+/-- A disjoint union is bipartite exactly when both summands are. -/
+@[simp] theorem isBipartite_disjUnion_iff {G H : IsoGraph} :
+    IsBipartite (disjUnion G H) ↔ IsBipartite G ∧ IsBipartite H := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [disjUnion_mk, isBipartite_mk, isBipartite_mk, isBipartite_mk]
+  exact ⟨fun h ↦ ⟨h.of_disjUnion_left, h.of_disjUnion_right⟩,
+    fun h ↦ CGraph.IsBipartite.disjUnion h.1 h.2⟩
+
+/-- A Cartesian product of nonempty graphs is bipartite exactly when both factors are. -/
+theorem isBipartite_cartesianProduct_iff {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    IsBipartite (cartesianProduct G H) ↔ IsBipartite G ∧ IsBipartite H := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [cartesianProduct_mk, isBipartite_mk, isBipartite_mk, isBipartite_mk]
+  have hG' : Nonempty G.canonicalize.V := Fintype.card_pos_iff.1 hG
+  have hH' : Nonempty H.canonicalize.V := Fintype.card_pos_iff.1 hH
+  exact ⟨fun h ↦ ⟨h.of_cartesianProduct_left hH', h.of_cartesianProduct_right hG'⟩,
+    fun h ↦ CGraph.IsBipartite.cartesianProduct h.1 h.2⟩
+
 theorem isBipartite_tensorProduct_left {G H : IsoGraph} (hG : IsBipartite G) :
     IsBipartite (tensorProduct G H) := by
   induction G using Quotient.inductionOn with | _ G =>
@@ -4858,6 +4908,18 @@ theorem not_isBipartite_circulant_of_odd {n : ℕ} {S : List ℕ} (hn : n % 2 = 
   rw [key.1]
   simp only [Bool.and_eq_true, Bool.or_eq_true, ne_eq, decide_eq_true_eq, Fin.mk.injEq]
   exact ⟨key.2, Or.inl (List.elem_eq_true_of_mem hd)⟩
+
+/-- The rook's graph has a triangle in each row. -/
+@[simp] theorem not_isBipartite_rook (m n : ℕ) : ¬ IsBipartite (rook (m + 3) (n + 1)) := by
+  show ¬ IsBipartite (cartesianProduct (complete (m + 3)) (complete (n + 1)))
+  rw [isBipartite_cartesianProduct_iff (by simp) (by simp)]
+  exact fun h ↦ not_isBipartite_complete m h.1
+
+/-- A prism over an odd cycle is not bipartite. -/
+@[simp] theorem not_isBipartite_prism_odd (m : ℕ) : ¬ IsBipartite (prism (2 * m + 3)) := by
+  show ¬ IsBipartite (cartesianProduct (cycle (2 * m + 3)) (complete 2))
+  rw [isBipartite_cartesianProduct_iff (by simp) (by simp)]
+  exact fun h ↦ not_isBipartite_cycle_odd m h.1
 
 /-! ### Bipartite double covers
 
@@ -5488,6 +5550,9 @@ example : ¬ IsBipartite (foldedCube 4) := not_isBipartite_foldedCube_even 1
 example : IsBipartite (circulant 8 [1, 3]) := isBipartite_circulant (by decide) (by decide)
 example : ¬ IsBipartite (circulant 7 [2]) :=
   not_isBipartite_circulant_of_odd (by decide) 2 (by decide) (by omega) (by omega)
+example : ¬ IsBipartite (rook 3 3) := not_isBipartite_rook 0 2
+example : ¬ IsBipartite (prism 5) := not_isBipartite_prism_odd 1
+example (G H : IsoGraph) (h : IsBipartite (disjUnion G H)) : IsBipartite G := by simp_all
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp

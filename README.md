@@ -537,6 +537,18 @@ the next vertex is `(a + d) mod n`, which is `a + d` or `a + d - n`, and both ca
 `d` back.  Note the asymmetry — the even case needs a condition on every element of the set, the
 odd case only needs one usable element, since a single one already forces the odd cycle.
 
+The disjoint union and the Cartesian product were only ever stated in one direction — both parts
+bipartite gives a bipartite whole.  Both converses hold, and they are easier than the forward
+directions: a colouring of `G ⊔ H` restricted along `Sum.inl` is a colouring of `G`, and a
+colouring of `G □ H` restricted to the slice `· ↦ (·, b)` for any fixed `b : H.V` is a colouring
+of `G`, since `(x, b)` and `(y, b)` are adjacent exactly when `x` and `y` are.  So
+`isBipartite_disjUnion_iff` is an unconditional `simp` iff, and
+`isBipartite_cartesianProduct_iff` is an iff once both factors are nonempty (an empty factor
+kills every edge and makes the product bipartite regardless of the other one).  Those give a
+couple of families for free: the rook's graph `K_m □ K_n` is not bipartite as soon as `m ≥ 3`
+(`not_isBipartite_rook`), and the prism over an odd cycle is not bipartite
+(`not_isBipartite_prism_odd`), in both cases by pushing the failure down to a single factor.
+
 Over an odd cycle, then, the cover cannot split, and in fact it is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality
