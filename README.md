@@ -1176,6 +1176,19 @@ table therefore reappears as a radius one — `r(Kₙ) = 1`, `r(Cₙ) = ⌊n/2�
 `r(Petersen) = 2`, and likewise for rook, prism, triangular, cocktail-party, `K_{n,n}` and Paley
 graphs.
 
+Counting cliques adds a whole *family* of invariants at once: `cliqueCount n` is the number of
+`n`-element cliques, defined as `(G.toSimple.cliqueSet n).ncard` so that no decidability
+instance is needed, with `cliqueCount_eq_card_cliqueFinset` as the bridge to Mathlib's
+`cliqueFinset` when one is.  The first three values are pinned down — `1`, `|V|` and `|E|`, the
+last by exhibiting the `2`-cliques as the image of the edge set under `Sym2.toFinset` — and from
+`n = 3` on the count is governed by the clique number: `cliqueCount n = 0 ↔ ω(G) < n`, so
+`cliqueCount n > 0 ↔ n ≤ ω(G)`, and `cliqueCount n ≤ C(|V|, n)`.  Composing with the existing
+`girth = 3 ↔ 3 ≤ ω` gives a triangle test, **`cliqueCount 3 = 0 ↔ girth ≠ 3`**, and composing
+with `ω ≤ χ` gives `χ(G) < n → cliqueCount n = 0`, hence triangle-freeness for every bipartite
+graph.  Between them the two bridges fill in the table for free: the complete graph has
+`C(m, n)` cliques of each size, the empty graph none above size one, and the cycles, prisms,
+stars, complete bipartite graphs, hypercubes and the Petersen graph have no triangles.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

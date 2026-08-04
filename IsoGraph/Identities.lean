@@ -5950,6 +5950,116 @@ theorem radius_eq_diameter_of_isVertexTransitive (G : CGraph) (h : G.IsVertexTra
       exact (SimpleGraph.Iso.eccent_eq (CGraph.Iso.toSimpleIso σ) _).symm
     simp [radius, diameter, SimpleGraph.diam, key]
 
+/-! ### Counting cliques
+
+`cliqueCount n` counts the `n`-element cliques.  The first three values are forced — there is
+one empty clique, `|V|` singletons and one clique per edge — and after that the count is tied to
+the clique number: it vanishes exactly when `n` exceeds `ω(G)`. -/
+
+@[simp] theorem cliqueCount_zero (G : CGraph) : G.cliqueCount 0 = 1 := by
+  have h : G.toSimple.cliqueSet 0 = {∅} := by
+    ext s
+    simp
+  rw [cliqueCount, h, Set.ncard_singleton]
+
+@[simp] theorem cliqueCount_one (G : CGraph) : G.cliqueCount 1 = Fintype.card G.V := by
+  have h : G.toSimple.cliqueSet 1 = (fun a : G.V ↦ ({a} : Finset G.V)) '' Set.univ := by
+    ext s
+    simp [eq_comm]
+  rw [cliqueCount, h, Set.ncard_image_of_injective _ Finset.singleton_injective,
+    Set.ncard_univ, Nat.card_eq_fintype_card]
+
+/-- The `2`-cliques are exactly the edges. -/
+@[simp] theorem cliqueCount_two (G : CGraph) [DecidableEq G.V] : G.cliqueCount 2 = G.E := by
+  have h : G.toSimple.cliqueSet 2 = Sym2.toFinset '' G.toSimple.edgeSet := by
+    ext s
+    simp only [SimpleGraph.mem_cliqueSet_iff, Set.mem_image]
+    constructor
+    · rintro ⟨hcl, hcard⟩
+      obtain ⟨a, b, hab, rfl⟩ := Finset.card_eq_two.1 hcard
+      refine ⟨s(a, b), ?_, by rw [Sym2.toFinset_mk_eq]⟩
+      exact hcl (by simp) (by simp) hab
+    · rintro ⟨e, he, rfl⟩
+      induction e with
+      | _ a b =>
+        rw [SimpleGraph.mem_edgeSet] at he
+        rw [Sym2.toFinset_mk_eq]
+        refine ⟨?_, Finset.card_pair he.ne⟩
+        simpa using SimpleGraph.isClique_pair.2 (fun _ ↦ he)
+  have hinj : Set.InjOn Sym2.toFinset G.toSimple.edgeSet := by
+    intro e₁ he₁ e₂ he₂ heq
+    induction e₁ with
+    | _ a b =>
+      induction e₂ with
+      | _ c d =>
+        rw [SimpleGraph.mem_edgeSet] at he₁
+        have ha : a ∈ Sym2.toFinset s(c, d) := by rw [← heq, Sym2.toFinset_mk_eq]; simp
+        have hb : b ∈ Sym2.toFinset s(c, d) := by rw [← heq, Sym2.toFinset_mk_eq]; simp
+        exact Sym2.eq_of_ne_mem he₁.ne (by simp) (by simp)
+          (Sym2.mem_toFinset.1 ha) (Sym2.mem_toFinset.1 hb)
+  rw [cliqueCount, h, hinj.ncard_image, E, SimpleGraph.edgeFinset,
+    ← Set.ncard_eq_toFinset_card']
+
+theorem cliqueCount_eq_zero_iff (G : CGraph) (n : ℕ) : G.cliqueCount n = 0 ↔ G.cliqueNum < n := by
+  rw [cliqueCount, Set.ncard_eq_zero (Set.toFinite _), SimpleGraph.cliqueSet_eq_empty_iff,
+    cliqueFree_iff_cliqueNum_lt]
+  rfl
+
+theorem cliqueCount_pos_iff (G : CGraph) (n : ℕ) : 0 < G.cliqueCount n ↔ n ≤ G.cliqueNum := by
+  rw [Nat.pos_iff_ne_zero, ne_eq, cliqueCount_eq_zero_iff]
+  omega
+
+theorem cliqueCount_eq_zero_of_cliqueNum_lt {G : CGraph} {n : ℕ} (h : G.cliqueNum < n) :
+    G.cliqueCount n = 0 :=
+  (cliqueCount_eq_zero_iff G n).2 h
+
+theorem cliqueCount_le_choose (G : CGraph) (n : ℕ) :
+    G.cliqueCount n ≤ (Fintype.card G.V).choose n := by
+  classical
+  rw [cliqueCount_eq_card_cliqueFinset]
+  exact SimpleGraph.card_cliqueFinset_le
+
+theorem cliqueCount_eq_zero_of_card_lt {G : CGraph} {n : ℕ} (h : Fintype.card G.V < n) :
+    G.cliqueCount n = 0 :=
+  Nat.le_zero.1 ((cliqueCount_le_choose G n).trans (Nat.choose_eq_zero_of_lt h).le)
+
+/-- A graph has a triangle exactly when its girth is three, so the triangle count vanishes
+exactly when the girth is anything else. -/
+theorem cliqueCount_three_eq_zero_iff (G : CGraph) : G.cliqueCount 3 = 0 ↔ G.girth ≠ 3 := by
+  rw [cliqueCount_eq_zero_iff, ne_eq, girth_eq_three_iff]
+  omega
+
+theorem cliqueCount_two_eq_zero_iff (G : CGraph) : G.cliqueCount 2 = 0 ↔ G.E = 0 := by
+  classical
+  rw [cliqueCount_two]
+
+/-- A graph needs `n` colours before it can have an `n`-clique. -/
+theorem cliqueCount_eq_zero_of_chromNum_lt {G : CGraph} {n : ℕ} (h : G.chromNum < n) :
+    G.cliqueCount n = 0 :=
+  cliqueCount_eq_zero_of_cliqueNum_lt (lt_of_le_of_lt (cliqueNum_le_chromNum G) h)
+
+/-- Bipartite graphs are triangle-free. -/
+theorem cliqueCount_three_eq_zero_of_isBipartite {G : CGraph} (h : G.IsBipartite) :
+    G.cliqueCount 3 = 0 :=
+  cliqueCount_eq_zero_of_chromNum_lt
+    (lt_of_le_of_lt (isBipartite_iff_chromNum_le_two.1 h) (by omega))
+
+/-- Every subset of the complete graph is a clique, so the count is a binomial coefficient. -/
+@[simp] theorem cliqueCount_complete (m n : ℕ) : (complete m).cliqueCount n = m.choose n := by
+  classical
+  rw [cliqueCount_eq_card_cliqueFinset]
+  have h : (complete m).toSimple.cliqueFinset n = Finset.univ.powersetCard n := by
+    ext s
+    rw [SimpleGraph.mem_cliqueFinset_iff, SimpleGraph.isNClique_iff, Finset.mem_powersetCard,
+      complete_toSimple]
+    simp [SimpleGraph.IsClique, Set.Pairwise]
+  rw [h, Finset.card_powersetCard, Finset.card_univ, card_complete]
+
+@[simp] theorem cliqueCount_empty (m n : ℕ) : (empty m).cliqueCount (n + 2) = 0 := by
+  refine cliqueCount_eq_zero_of_cliqueNum_lt ?_
+  rw [cliqueNum_empty]
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -12485,5 +12595,90 @@ example : (star 4).radius = 1 := by simp
 example (n : ℕ) : (cycle (2 * n + 1)).radius = n := by
   rw [show 2 * n + 1 = n + n + 1 from by omega, radius_cycle]
   omega
+
+/-! ### Counting cliques -/
+
+theorem cliqueCount_le_choose (G : IsoGraph) (n : ℕ) : G.cliqueCount n ≤ G.V.choose n := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, cliqueCount_mk, V_mk]
+  exact CGraph.cliqueCount_le_choose _ n
+
+@[simp] theorem cliqueCount_zero (G : IsoGraph) : G.cliqueCount 0 = 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, cliqueCount_mk]
+  exact CGraph.cliqueCount_zero _
+
+@[simp] theorem cliqueCount_one (G : IsoGraph) : G.cliqueCount 1 = G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, cliqueCount_mk, V_mk]
+  exact CGraph.cliqueCount_one _
+
+@[simp] theorem cliqueCount_two (G : IsoGraph) : G.cliqueCount 2 = G.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, cliqueCount_mk, E_mk]
+  classical
+  exact CGraph.cliqueCount_two _
+
+theorem cliqueCount_eq_zero_iff (G : IsoGraph) (n : ℕ) :
+    G.cliqueCount n = 0 ↔ G.cliqueNum < n := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, cliqueCount_mk, cliqueNum_mk]
+  exact CGraph.cliqueCount_eq_zero_iff _ n
+
+theorem cliqueCount_pos_iff (G : IsoGraph) (n : ℕ) : 0 < G.cliqueCount n ↔ n ≤ G.cliqueNum := by
+  rw [Nat.pos_iff_ne_zero, ne_eq, cliqueCount_eq_zero_iff]
+  omega
+
+theorem cliqueCount_three_eq_zero_iff (G : IsoGraph) : G.cliqueCount 3 = 0 ↔ G.girth ≠ 3 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, cliqueCount_mk, girth_mk]
+  exact CGraph.cliqueCount_three_eq_zero_iff _
+
+theorem cliqueCount_three_eq_zero_of_isBipartite {G : IsoGraph} (h : G.IsBipartite) :
+    G.cliqueCount 3 = 0 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at h ⊢
+  rw [cliqueCount_mk]
+  rw [isBipartite_mk] at h
+  exact CGraph.cliqueCount_three_eq_zero_of_isBipartite h
+
+/-! ### The clique-count table -/
+
+@[simp] theorem cliqueCount_complete (m n : ℕ) : (complete m).cliqueCount n = m.choose n :=
+  CGraph.cliqueCount_complete m n
+
+@[simp] theorem cliqueCount_empty (m n : ℕ) : (empty m).cliqueCount (n + 2) = 0 :=
+  CGraph.cliqueCount_empty m n
+
+@[simp] theorem cliqueCount_cycle_even (m : ℕ) : (cycle (2 * m)).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_cycle_even m)
+
+@[simp] theorem cliqueCount_cycle_four : (cycle 4).cliqueCount 3 = 0 := by
+  rw [cliqueCount_three_eq_zero_iff, girth_cycle_four]
+  omega
+
+@[simp] theorem cliqueCount_cycle_five : (cycle 5).cliqueCount 3 = 0 := by
+  rw [cliqueCount_three_eq_zero_iff, girth_cycle_five]
+  omega
+
+@[simp] theorem cliqueCount_prism_even (m : ℕ) : (prism (2 * m)).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_prism_even m)
+
+@[simp] theorem cliqueCount_star (n : ℕ) : (star n).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_star n)
+
+@[simp] theorem cliqueCount_petersen : petersen.cliqueCount 3 = 0 := by
+  rw [cliqueCount_three_eq_zero_iff, girth_petersen]
+  omega
+
+@[simp] theorem cliqueCount_bipartite (m n : ℕ) : (bipartite m n).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_bipartite m n)
+
+@[simp] theorem cliqueCount_hypercube (n : ℕ) : (hypercube n).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_hypercube n)
+
+example : (complete 5).cliqueCount 3 = 10 := by rw [cliqueCount_complete]; decide
+
+example : (cycle 6).cliqueCount 3 = 0 := cliqueCount_cycle_even 3
 
 end IsoGraph

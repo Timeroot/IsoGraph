@@ -51,6 +51,23 @@ theorem isNIndepSet_map (f : G ≃g G') {n : ℕ} {s : Finset V} (h : G.IsNIndep
   obtain ⟨y, hy, rfl⟩ := hb
   exact fun hadj ↦ h.1 hx hy (fun e ↦ hab (by rw [e])) (f.map_adj_iff.1 hadj)
 
+/-- The `n`-cliques of two isomorphic graphs are in bijection, so there are equally many. -/
+theorem cliqueSet_ncard_eq (f : G ≃g G') (n : ℕ) :
+    (G.cliqueSet n).ncard = (G'.cliqueSet n).ncard := by
+  have himg : G'.cliqueSet n
+      = (fun s : Finset V ↦ s.map ⟨f, f.injective⟩) '' G.cliqueSet n := by
+    ext t
+    simp only [Set.mem_image, mem_cliqueSet_iff]
+    constructor
+    · intro ht
+      refine ⟨t.map ⟨f.symm, f.symm.injective⟩, isNClique_map f.symm ht, ?_⟩
+      rw [Finset.map_map]
+      ext x
+      simp
+    · rintro ⟨s, hs, rfl⟩
+      exact isNClique_map f hs
+  rw [himg, Set.ncard_image_of_injective _ (Finset.map_injective _)]
+
 theorem cliqueNum_eq (f : G ≃g G') : G.cliqueNum = G'.cliqueNum := by
   unfold SimpleGraph.cliqueNum
   congr 1
@@ -187,6 +204,19 @@ noncomputable def indepNum : ℕ := G.toSimple.indepNum
 
 /-- Clique number: the size of a largest set of pairwise adjacent vertices. -/
 noncomputable def cliqueNum : ℕ := G.toSimple.cliqueNum
+
+/-- The number of `n`-cliques, i.e. of `n`-element sets of pairwise adjacent vertices. -/
+noncomputable def cliqueCount (n : ℕ) : ℕ := (G.toSimple.cliqueSet n).ncard
+
+theorem cliqueCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) (n : ℕ) :
+    G.cliqueCount n = H.cliqueCount n :=
+  SimpleGraph.Iso.cliqueSet_ncard_eq (CGraph.Iso.toSimpleIso i) n
+
+/-- With decidable equality on the vertices the clique count is the cardinality of Mathlib's
+`cliqueFinset`; this is the bridge that makes it computable. -/
+theorem cliqueCount_eq_card_cliqueFinset [DecidableEq G.V] (n : ℕ) :
+    G.cliqueCount n = (G.toSimple.cliqueFinset n).card := by
+  rw [cliqueCount, ← SimpleGraph.coe_cliqueFinset, Set.ncard_coe_finset]
 
 /-- Number of edges. -/
 def E : ℕ := G.toSimple.edgeFinset.card
@@ -478,6 +508,14 @@ noncomputable def cliqueNum (G : IsoGraph) : ℕ :=
 
 @[simp] theorem cliqueNum_mk (G : CGraph) :
     cliqueNum (Quotient.mk _ G) = G.cliqueNum := rfl
+
+/-- The number of `n`-cliques. -/
+noncomputable def cliqueCount (G : IsoGraph) (n : ℕ) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ CGraph.cliqueCount g n)
+    (fun _ _ ⟨i⟩ ↦ CGraph.cliqueCount_eq_of_iso i n) G
+
+@[simp] theorem cliqueCount_mk (G : CGraph) (n : ℕ) :
+    cliqueCount (Quotient.mk _ G) n = G.cliqueCount n := rfl
 
 /-- Number of edges. -/
 def E (G : IsoGraph) : ℕ :=
