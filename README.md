@@ -687,6 +687,24 @@ two squares share a vertex exactly when they share a row or a column, which is
 `cartesianProduct (complete m) (complete n)`. `lineGraph_star` is the `m = 1` case, but it is left
 with its own proof so that the star does not depend on the general bijection.
 
+Alongside the `V_*` lemmas, which read the vertex count of every family off its `CGraph`
+counterpart, there is now a matching set of `E_*` lemmas for the edge count.  The families are
+one-liners — `E ⟦G⟧ = G.E` is definitional, so `E_complete`, `E_cycle`, `E_bipartite` and friends
+are just the `CGraph` lemma under a new name.  The operations need the usual three-step dance:
+rewrite `⟦g⟧` as `⟦g.canonicalize⟧` to get a `DecidableEq` instance, push the constructor inside
+the quotient with `join_mk`/`cartesianProduct_mk`/…, and apply the `CGraph` lemma.  That gives
+`E_disjUnion`, `E_join`, `E_cartesianProduct`, `E_tensorProduct` and `E_mycielskian`, plus
+`E_compl_add` in the subtraction-free form `(compl G).E + G.E = C(|G|, 2)`.
+
+From those the derived counts fall out by arithmetic: `E_wheel`, `E_ladder`, `E_prism` and
+`E_rook` are one rewrite each, and the two recursive families need a little more.  The hypercube
+is stated as `2 * (hypercube n).E = n * 2 ^ n` so that no division appears, and follows by
+induction on `hypercube_succ`.  Complete multipartite graphs are stated the same way as the
+complement, `(completeMultipartite ds).E + Σ C(dᵢ, 2) = C(Σ dᵢ, 2)`, and the induction over
+`completeMultipartite_cons` needs exactly one fact about binomials — `choose_two_add`, that
+splitting `a + b` points into two groups splits the pairs into within-`a`, within-`b` and across,
+which itself is an induction on `b` off `choose_two_succ`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

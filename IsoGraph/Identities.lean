@@ -5337,6 +5337,114 @@ two-element subset of `Fin n`, and two distinct such subsets meet exactly when t
 theorem lineGraph_complete_eq_triangular (n : ℕ) : lineGraph (complete n) = triangular n :=
   lineGraph_complete n
 
+/-! ### Edge counts
+
+`V_*` reads the vertex count of every family off its `CGraph` counterpart; these do the same for
+the edge count.  The operations all follow the same script: push the quotient through with
+`mk_canonicalize`, replace the constructor by its `CGraph` form, and apply the `CGraph` lemma. -/
+
+@[simp] theorem E_empty (n : ℕ) : (empty n).E = 0 := CGraph.E_empty n
+
+@[simp] theorem E_complete (n : ℕ) : (complete n).E = n.choose 2 := CGraph.E_complete n
+
+@[simp] theorem E_path (n : ℕ) : (path (n + 1)).E = n := CGraph.E_path n
+
+@[simp] theorem E_cycle (n : ℕ) : (cycle (n + 3)).E = n + 3 := CGraph.E_cycle n
+
+@[simp] theorem E_bipartite (m n : ℕ) : (bipartite m n).E = m * n := CGraph.E_bipartite m n
+
+@[simp] theorem E_star (n : ℕ) : (star n).E = n := CGraph.E_star n
+
+@[simp] theorem E_disjUnion (G H : IsoGraph) : (disjUnion G H).E = G.E + H.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  exact CGraph.E_disjUnion g h
+
+/-- A graph and its complement share out all the pairs between them. -/
+theorem E_compl_add (G : IsoGraph) : (compl G).E + G.E = G.V.choose 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
+  exact CGraph.E_compl _
+
+@[simp] theorem E_join (G H : IsoGraph) : (join G H).E = G.E + H.E + G.V * H.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
+  exact CGraph.E_join _ _
+
+@[simp] theorem E_cartesianProduct (G H : IsoGraph) :
+    (cartesianProduct G H).E = G.V * H.E + H.V * G.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
+  exact CGraph.E_cartesianProduct _ _
+
+@[simp] theorem E_tensorProduct (G H : IsoGraph) : (tensorProduct G H).E = 2 * G.E * H.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, E_mk, E_mk, E_mk]
+  exact CGraph.E_tensorProduct _ _
+
+@[simp] theorem E_mycielskian (G : IsoGraph) : (mycielskian G).E = 3 * G.E + G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, mycielskian_mk, E_mk, E_mk, V_mk]
+  exact CGraph.E_mycielskian _
+
+/-- One more point adds one pair for each old point. -/
+theorem choose_two_succ (n : ℕ) : (n + 1).choose 2 = n.choose 2 + n := by
+  rw [Nat.choose_succ_succ, Nat.choose_one_right, Nat.add_comm]
+
+/-- Splitting `a + b` points into two groups splits the pairs into three kinds. -/
+theorem choose_two_add (a b : ℕ) : (a + b).choose 2 = a.choose 2 + b.choose 2 + a * b := by
+  induction b with
+  | zero => simp
+  | succ b ih =>
+    rw [show a + (b + 1) = (a + b) + 1 by omega, choose_two_succ, choose_two_succ, ih]
+    ring
+
+/-! Derived edge counts. -/
+
+@[simp] theorem E_wheel (n : ℕ) : (wheel (n + 3)).E = 2 * (n + 3) := by
+  rw [wheel_eq_join, E_join, E_complete, E_cycle, V_complete, V_cycle]
+  norm_num
+  omega
+
+theorem E_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).E + (ds.map (·.choose 2)).sum = ds.sum.choose 2 := by
+  induction ds with
+  | nil => simp
+  | cons d ds ih =>
+    rw [completeMultipartite_cons, E_join, V_empty, V_completeMultipartite, E_empty,
+      List.map_cons, List.sum_cons, List.sum_cons, choose_two_add]
+    omega
+
+/-- The hypercube is `n`-regular on `2 ^ n` vertices. -/
+theorem E_hypercube (n : ℕ) : 2 * (hypercube n).E = n * 2 ^ n := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    rw [hypercube_succ, E_cartesianProduct, V_hypercube, V_complete, E_complete]
+    norm_num
+    ring_nf
+    ring_nf at ih
+    omega
+
+@[simp] theorem E_ladder (n : ℕ) : (ladder (n + 1)).E = 3 * n + 1 := by
+  show (cartesianProduct (path (n + 1)) (complete 2)).E = _
+  rw [E_cartesianProduct, V_path, V_complete, E_path, E_complete]
+  norm_num
+  omega
+
+@[simp] theorem E_prism (n : ℕ) : (prism (n + 3)).E = 3 * (n + 3) := by
+  show (cartesianProduct (cycle (n + 3)) (complete 2)).E = _
+  rw [E_cartesianProduct, V_cycle, V_complete, E_cycle, E_complete]
+  norm_num
+  omega
+
+@[simp] theorem E_rook (m n : ℕ) : (rook m n).E = m * n.choose 2 + n * m.choose 2 := by
+  show (cartesianProduct (complete m) (complete n)).E = _
+  rw [E_cartesianProduct, V_complete, V_complete, E_complete, E_complete]
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -5841,5 +5949,16 @@ example : thetaGraph [1, 1, 1, 1] = bipartite 2 4 := by
   rw [show ([1, 1, 1, 1] : List ℕ) = List.replicate 4 1 from rfl, thetaGraph_replicate_one]
 example : thetaGraph [1, 1] = cycle 4 := by simp
 example (n : ℕ) : thetaGraph (List.replicate n 1) = bipartite 2 n := by simp
+
+example : (wheel 6).E = 12 := by simp
+example : (prism 6).E = 18 := by simp
+example : (rook 3 3).E = 18 := by simp [Nat.choose]
+example : (hypercube 4).E = 32 := by
+  have := E_hypercube 4
+  omega
+example : (completeMultipartite [1, 1, 3]).E = 7 := by
+  have := E_completeMultipartite [1, 1, 3]
+  simp [Nat.choose] at this
+  omega
 
 end IsoGraph
