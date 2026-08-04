@@ -739,6 +739,20 @@ shortest proof that `empty (n + 2)` is disconnected. Finally the join families i
 connectivity from `isConnected_join`: `isConnected_completeMultipartite` for two nonempty parts,
 and `isConnected_book`, `isConnected_cocktailParty` and `isConnected_fan` beneath it.
 
+The clique number, independence number and diameter were in the same position `IsConnected` had
+been in — a good stock of `CGraph` lemmas and nothing on the quotient — so they get the same
+transfer. The families are one-liners, the operations go through `mk_canonicalize`, and that
+brings over `indepNum_compl`/`cliqueNum_compl`, both numbers for `⊔` and the join,
+`indepNum_completeMultipartite`, and the two product results that were proved for `CGraph`:
+`indepNum_lexProduct` and `cliqueNum_strongProduct`.
+
+The derived cases are then arithmetic on lists. `cliqueNum_completeMultipartite` is a one-line
+induction on `completeMultipartite_cons` — each part contributes `min dᵢ 1`, one vertex if it is
+nonempty — and with `List.map_replicate` that gives `cliqueNum_cocktailParty = n`, the cocktail
+party graph on `n` parts having an `n`-clique. Its independence number is `2` by the dual
+statement plus `max?` of a replicate. The star, wheel and book pick up both numbers from the
+bipartite and join lemmas.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

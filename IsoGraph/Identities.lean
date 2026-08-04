@@ -5658,6 +5658,137 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
   show IsConnected (join (complete 1) (path (n + 1)))
   exact isConnected_join (by simp) (by simp)
 
+/-! ### Cliques, independent sets and diameter -/
+
+@[simp] theorem indepNum_empty (n : ℕ) : (empty n).indepNum = n := CGraph.indepNum_empty n
+
+@[simp] theorem cliqueNum_empty (n : ℕ) : (empty n).cliqueNum = min n 1 :=
+  CGraph.cliqueNum_empty n
+
+@[simp] theorem cliqueNum_complete (n : ℕ) : (complete n).cliqueNum = n :=
+  CGraph.cliqueNum_complete n
+
+@[simp] theorem indepNum_complete (n : ℕ) : (complete n).indepNum = min n 1 :=
+  CGraph.indepNum_complete n
+
+@[simp] theorem indepNum_cycle (n : ℕ) : (cycle (n + 3)).indepNum = (n + 3) / 2 :=
+  CGraph.indepNum_cycle n
+
+@[simp] theorem indepNum_bipartite (m n : ℕ) : (bipartite m n).indepNum = max m n :=
+  CGraph.indepNum_bipartite m n
+
+@[simp] theorem cliqueNum_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).cliqueNum = 2 :=
+  CGraph.cliqueNum_bipartite m n
+
+@[simp] theorem diameter_complete (n : ℕ) : (complete (n + 2)).diameter = 1 :=
+  CGraph.diameter_complete n
+
+@[simp] theorem diameter_path (n : ℕ) : (path (n + 1)).diameter = n := CGraph.diameter_path n
+
+@[simp] theorem diameter_cycle (n : ℕ) : (cycle (n + 1)).diameter = (n + 1) / 2 :=
+  CGraph.diameter_cycle n
+
+@[simp] theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 :=
+  CGraph.diameter_bipartite m n
+
+@[simp] theorem indepNum_compl (G : IsoGraph) : (compl G).indepNum = G.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, indepNum_mk, cliqueNum_mk]
+  exact CGraph.indepNum_compl _
+
+@[simp] theorem cliqueNum_compl (G : IsoGraph) : (compl G).cliqueNum = G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, indepNum_mk, cliqueNum_mk]
+  exact CGraph.cliqueNum_compl _
+
+@[simp] theorem indepNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).indepNum = G.indepNum + H.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  exact CGraph.indepNum_disjUnion _ _
+
+@[simp] theorem cliqueNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).cliqueNum = max G.cliqueNum H.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  exact CGraph.cliqueNum_disjUnion _ _
+
+@[simp] theorem cliqueNum_join (G H : IsoGraph) :
+    (join G H).cliqueNum = G.cliqueNum + H.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, cliqueNum_mk, cliqueNum_mk,
+    cliqueNum_mk]
+  exact CGraph.cliqueNum_join _ _
+
+@[simp] theorem indepNum_join (G H : IsoGraph) :
+    (join G H).indepNum = max G.indepNum H.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, indepNum_mk, indepNum_mk, indepNum_mk]
+  exact CGraph.indepNum_join _ _
+
+@[simp] theorem indepNum_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).indepNum = (ds.max?).getD 0 :=
+  CGraph.indepNum_completeMultipartite ds
+
+@[simp] theorem indepNum_lexProduct (G H : IsoGraph) :
+    (lexProduct G H).indepNum = G.indepNum * H.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, indepNum_mk, indepNum_mk,
+    indepNum_mk]
+  exact CGraph.indepNum_lexProduct _ _
+
+@[simp] theorem cliqueNum_strongProduct (G H : IsoGraph) :
+    (strongProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, cliqueNum_mk, cliqueNum_mk,
+    cliqueNum_mk]
+  exact CGraph.cliqueNum_strongProduct _ _
+
+/-! Derived clique and independence numbers. -/
+
+@[simp] theorem cliqueNum_star (n : ℕ) : (star (n + 1)).cliqueNum = 2 :=
+  cliqueNum_bipartite 0 n
+
+@[simp] theorem indepNum_star (n : ℕ) : (star n).indepNum = max 1 n := indepNum_bipartite 1 n
+
+@[simp] theorem indepNum_wheel (n : ℕ) : (wheel (n + 3)).indepNum = (n + 3) / 2 := by
+  rw [wheel_eq_join, indepNum_join, indepNum_complete, indepNum_cycle]
+  omega
+
+@[simp] theorem cliqueNum_book (n : ℕ) : (book n).cliqueNum = 2 + min n 1 := by
+  rw [book_eq_join, cliqueNum_join, cliqueNum_complete, cliqueNum_empty]
+
+@[simp] theorem indepNum_book (n : ℕ) : (book n).indepNum = max 1 n := by
+  rw [book_eq_join, indepNum_join, indepNum_complete, indepNum_empty]
+  norm_num
+
+private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = some a := by
+  induction n with
+  | zero => rfl
+  | succ n ih => rw [List.replicate_succ, List.max?_cons, ih]; simp
+
+@[simp] theorem indepNum_cocktailParty (n : ℕ) : (cocktailParty (n + 1)).indepNum = 2 := by
+  show (completeMultipartite (List.replicate (n + 1) 2)).indepNum = 2
+  rw [indepNum_completeMultipartite, max?_replicate]
+  rfl
+
+@[simp] theorem cliqueNum_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).cliqueNum = (ds.map (min · 1)).sum := by
+  induction ds with
+  | nil => simp
+  | cons d ds ih =>
+    rw [completeMultipartite_cons, cliqueNum_join, cliqueNum_empty, ih, List.map_cons,
+      List.sum_cons]
+
+@[simp] theorem cliqueNum_cocktailParty (n : ℕ) : (cocktailParty n).cliqueNum = n := by
+  show (completeMultipartite (List.replicate n 2)).cliqueNum = n
+  rw [cliqueNum_completeMultipartite, List.map_replicate]
+  simp
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6177,6 +6308,13 @@ example : IsConnected (book 4) := by simp
 example (G : IsoGraph) (h : IsTree G) (hv : G.V = 10) : G.E = 9 := by
   have := h.E_add_one
   omega
+
+example : (cocktailParty 4).cliqueNum = 4 := by simp
+example : (book 5).indepNum = 5 := by simp
+example : (wheel 7).indepNum = 3 := by simp
+example : (compl (complete 5)).indepNum = 5 := by simp
+example : (star 6).cliqueNum = 2 := by simp
+example : (lexProduct (empty 3) (empty 4)).indepNum = 12 := by simp
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp
