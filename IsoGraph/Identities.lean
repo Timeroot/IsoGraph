@@ -2660,6 +2660,74 @@ theorem IsConnected.card_le_E_add_one {G : CGraph} (h : G.IsConnected) :
   have := SimpleGraph.Connected.card_vert_le_card_edgeSet_add_one h
   rwa [Nat.card_eq_fintype_card, Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card] at this
 
+/-- A graph with a positive edge count has an edge. -/
+theorem exists_adj_of_E_pos {G : CGraph} (h : 0 < G.E) : ∃ a b, G.Adj a b := by
+  obtain ⟨e, he⟩ := Finset.card_pos.1 h
+  induction e with
+  | _ a b =>
+    rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he
+    exact ⟨a, b, he⟩
+
+/-! ### The strong and lexicographic products contain the Cartesian one -/
+
+theorem cartesianProduct_le_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).toSimple ≤ (strongProduct G H).toSimple := by
+  intro p q hpq
+  rw [CGraph.toSimple_adj, cartesianProduct_adj] at hpq
+  rw [CGraph.toSimple_adj, strongProduct_adj]
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, ne_eq] at hpq ⊢
+  obtain ⟨h1, h2⟩ | ⟨h1, h2⟩ := hpq
+  · refine ⟨fun hq ↦ ?_, Or.inl h1, Or.inr h2⟩
+    rw [hq, adj_self] at h2
+    exact Bool.noConfusion h2
+  · refine ⟨fun hq ↦ ?_, Or.inr h1, Or.inl h2⟩
+    rw [hq, adj_self] at h1
+    exact Bool.noConfusion h1
+
+theorem cartesianProduct_le_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).toSimple ≤ (lexProduct G H).toSimple := by
+  intro p q hpq
+  rw [CGraph.toSimple_adj, cartesianProduct_adj] at hpq
+  rw [CGraph.toSimple_adj, lexProduct_adj]
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hpq ⊢
+  tauto
+
+theorem isConnected_strongProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsConnected) (hH : H.IsConnected) : (strongProduct G H).IsConnected :=
+  SimpleGraph.Connected.mono (cartesianProduct_le_strongProduct G H)
+    ((isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩)
+
+theorem isConnected_lexProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsConnected) (hH : H.IsConnected) : (lexProduct G H).IsConnected :=
+  SimpleGraph.Connected.mono (cartesianProduct_le_lexProduct G H)
+    ((isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩)
+
+/-! ### Triangles in the strong and lexicographic products -/
+
+theorem not_isBipartite_strongProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    {a b : G.V} {c d : H.V} (hab : G.Adj a b) (hcd : H.Adj c d) :
+    ¬ (strongProduct G H).IsBipartite := by
+  have hba : G.Adj b a := by rwa [G.symm]
+  have hdc : H.Adj d c := by rwa [H.symm]
+  refine not_isBipartite_of_triangle (a := (a, c)) (b := (b, d)) (d := (a, d)) ?_ ?_ ?_ <;>
+  · rw [strongProduct_adj]
+    simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, ne_eq, Prod.mk.injEq,
+      not_and]
+    refine ⟨?_, by tauto, by tauto⟩
+    intro h1 h2
+    first
+      | (rw [h2, adj_self] at hcd; exact Bool.noConfusion hcd)
+      | (rw [h1, adj_self] at hab; exact Bool.noConfusion hab)
+
+theorem not_isBipartite_lexProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    {a b : G.V} {c d : H.V} (hab : G.Adj a b) (hcd : H.Adj c d) :
+    ¬ (lexProduct G H).IsBipartite := by
+  have hba : G.Adj b a := by rwa [G.symm]
+  refine not_isBipartite_of_triangle (a := (a, c)) (b := (a, d)) (d := (b, c)) ?_ ?_ ?_ <;>
+  · rw [lexProduct_adj]
+    simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
+    tauto
+
 end CGraph
 
 namespace IsoGraph
@@ -5789,6 +5857,52 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
   rw [cliqueNum_completeMultipartite, List.map_replicate]
   simp
 
+/-! ### Connectivity and triangles in the strong and lexicographic products -/
+
+theorem isConnected_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
+    IsConnected (strongProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [strongProduct_mk, isConnected_mk]
+  rw [isConnected_mk] at hG hH
+  exact CGraph.isConnected_strongProduct hG hH
+
+theorem isConnected_lexProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
+    IsConnected (lexProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [lexProduct_mk, isConnected_mk]
+  rw [isConnected_mk] at hG hH
+  exact CGraph.isConnected_lexProduct hG hH
+
+theorem not_isBipartite_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsBipartite (strongProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [strongProduct_mk, isBipartite_mk]
+  rw [E_mk] at hG hH
+  obtain ⟨a, b, hab⟩ := CGraph.exists_adj_of_E_pos hG
+  obtain ⟨c, d, hcd⟩ := CGraph.exists_adj_of_E_pos hH
+  exact CGraph.not_isBipartite_strongProduct hab hcd
+
+theorem not_isBipartite_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsBipartite (lexProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [lexProduct_mk, isBipartite_mk]
+  rw [E_mk] at hG hH
+  obtain ⟨a, b, hab⟩ := CGraph.exists_adj_of_E_pos hG
+  obtain ⟨c, d, hcd⟩ := CGraph.exists_adj_of_E_pos hH
+  exact CGraph.not_isBipartite_lexProduct hab hcd
+
+@[simp] theorem E_complete_pos (n : ℕ) : 0 < (complete (n + 2)).E := by
+  rw [E_complete]
+  exact Nat.choose_pos (by omega)
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6315,6 +6429,15 @@ example : (wheel 7).indepNum = 3 := by simp
 example : (compl (complete 5)).indepNum = 5 := by simp
 example : (star 6).cliqueNum = 2 := by simp
 example : (lexProduct (empty 3) (empty 4)).indepNum = 12 := by simp
+
+example : IsConnected (strongProduct (path 3) (cycle 4)) :=
+  isConnected_strongProduct (by simp) (by simp)
+
+example : ¬ IsBipartite (lexProduct (complete 2) (complete 2)) :=
+  not_isBipartite_lexProduct (by simp) (by simp)
+
+example : ¬ IsBipartite (strongProduct (path 2) (path 2)) :=
+  not_isBipartite_strongProduct (by simp) (by simp)
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp

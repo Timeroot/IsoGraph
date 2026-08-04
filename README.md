@@ -753,6 +753,15 @@ party graph on `n` parts having an `n`-clique. Its independence number is `2` by
 statement plus `max?` of a replicate. The star, wheel and book pick up both numbers from the
 bipartite and join lemmas.
 
+The strong and lexicographic products both contain the Cartesian product on the same vertex set —
+`cartesianProduct_le_strongProduct` and `cartesianProduct_le_lexProduct` — so
+`SimpleGraph.Connected.mono` upgrades `isConnected_cartesianProduct` to both of them for free.
+They also both contain a triangle as soon as each factor has an edge, which
+`not_isBipartite_of_triangle` turns into `not_isBipartite_strongProduct` and
+`not_isBipartite_lexProduct`. Stating those on the quotient wants a way to say "has an edge"
+without naming a vertex, and `0 < G.E` is it: `exists_adj_of_E_pos` recovers the two endpoints by
+`Finset.card_pos` and an induction on the `Sym2`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
