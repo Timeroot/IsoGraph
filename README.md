@@ -1825,6 +1825,15 @@ of degree two, the interior of the path at degree three, and the hub) and the fa
 radius of a line graph exceeds the radius of a connected graph by at most one -- the companion
 of the earlier diameter bound, proved by lifting a walk from `G` to `L(G)` one edge at a time.
 
+The prover then filled in the harder invariants of the three new families.  Vertex
+transitivity bounds `α · ω ≤ n` from above and the tensor-product bound bounds it from below, so
+a crown graph has independence number `n` -- each side of the bipartition, as expected -- and
+hence cover number `n` too.  Both the crown graph and the friendship graph have the maximum
+matchings one would draw by hand (a perfect matching for the crown, one edge per triangle for
+the friendship graph), and the independence number of a general Turán graph is the size
+`⌈n / r⌉` of its largest part, which needs a careful `max?` computation over the two blocks of
+part sizes.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -24297,4 +24297,267 @@ theorem coverNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
 @[simp] theorem crown_one : crown 1 = empty 2 := by
   rw [crown, complete_one, tensorProduct_comm, tensorProduct_empty, V_complete]
 
+/-! ### Independence and matching for the new families -/
+
+theorem indepNum_crown (n : ℕ) : (crown (n + 2)).indepNum = n + 2 := by
+  apply le_antisymm
+  · -- Upper bound: indepNum ≤ n + 2
+    have hvt := isVertexTransitive_crown (n + 2)
+    have hclique := cliqueNum_crown n
+    have hcard := V_crown (n + 2)
+    have h := indepNum_mul_cliqueNum_le_V hvt
+    rw [hclique, hcard] at h
+    omega
+  · -- Lower bound: n + 2 ≤ indepNum
+    have htensor : crown (n + 2) = tensorProduct (complete (n + 2)) (complete 2) := rfl
+    rw [htensor]
+    have := V_mul_indepNum_le_indepNum_tensorProduct (complete (n + 2)) (complete 2)
+    rw [V_complete, indepNum_complete] at this
+    simp at this
+    omega
+
+
+theorem matchNum_crown (n : ℕ) : (crown (n + 2)).matchNum = n + 2 := by
+  rw [matchNum_eq]
+  apply le_antisymm
+  · have h1 := two_mul_matchNum_le_V (crown (n + 2))
+    rw [V_crown] at h1
+    rw [matchNum_eq] at h1; omega
+  · -- Lower bound: construct indep set of size n+2 in lineGraph
+    show n + 2 ≤ (IsoGraph.lineGraph (tensorProduct (complete (n + 2)) (complete 2))).indepNum
+    simp only [IsoGraph.complete_def, IsoGraph.tensorProduct_mk, IsoGraph.lineGraph_mk,
+      IsoGraph.indepNum_mk]
+    -- Goal: n + 2 ≤ the line graph's independence number
+    -- indepNum for CGraph = toSimple.indepNum
+    -- We exhibit n+2 pairwise disjoint edges of the tensorProduct graph.
+    set m := n + 2
+    set H := CGraph.tensorProduct (CGraph.complete m) (CGraph.complete 2)
+    -- Vertex type of H: Fin m × Fin 2
+    -- Edge i: between (i, 0) and (i+1, 1) in Fin m × Fin 2
+    -- These are edges since i ≠ i+1 (mod m, and m ≥ 2) and 0 ≠ 1.
+    -- They're pairwise disjoint.
+    have hm2 : 2 ≤ m := by omega
+    -- The edge as a vertex of lineGraph H
+    let mkEdge : Fin m → (H.lineGraph).V := fun i =>
+      ⟨Sym2.mk ((i, (0 : Fin 2)), ((i + 1 : Fin m), (1 : Fin 2))), by
+        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.tensorProduct_adj,
+          CGraph.complete_adj, CGraph.complete_adj]
+        simp⟩
+    -- Show mkEdge is injective
+    have h_inj : Function.Injective mkEdge := by
+      intro i j hij
+      have hsym2 : Sym2.mk ((i, (0 : Fin 2)), ((i + 1 : Fin m), (1 : Fin 2))) =
+        Sym2.mk ((j, (0 : Fin 2)), ((j + 1 : Fin m), (1 : Fin 2))) := by
+        exact congr_arg Subtype.val hij
+      rw [Sym2.eq_iff] at hsym2
+      rcases hsym2 with h | h
+      · exact congr_arg (fun p : Fin m × Fin 2 => p.1) h.1
+      · exfalso
+        have := congr_arg (fun v : Fin m × Fin 2 => v.2) h.1
+        simp at this
+    -- The image finset
+    let s := Finset.univ.image mkEdge
+    have hcard : s.card = n + 2 := by
+      rw [Finset.card_image_of_injective _ h_inj, Finset.card_fin]
+    -- Show no shared vertices between distinct edges (as Finset membership)
+    have hno_share : ∀ i j : Fin m, i ≠ j →
+        ∀ v, v ∈ (mkEdge i).val → v ∉ (mkEdge j).val := by
+      intro i j hij v hv1 hv2
+      simp [mkEdge] at hv1 hv2
+      rcases hv1 with rfl | hv1
+      · rcases hv2 with hv2 | hv2
+        · exfalso; apply hij; exact congr_arg Prod.fst hv2
+        · exfalso; have := congr_arg Prod.snd hv2; simp at this; exact absurd this (by decide)
+      · rcases hv2 with hv2 | hv2
+        · exfalso
+          have h := hv1.symm.trans hv2
+          have := congr_arg Prod.snd h
+          simp at this
+          exact absurd this (by decide)
+        · exfalso; apply hij
+          have h1 : (i + 1 : Fin m) = j + 1 := congr_arg Prod.fst (hv1.symm.trans hv2)
+          simp at h1
+          exact Fin.ext (by omega)
+    -- Show s is an independent set in lineGraph H
+    have hind : (H.lineGraph).toSimple.IsIndepSet (s : Set (H.lineGraph.V)) := by
+      rw [SimpleGraph.isIndepSet_iff]
+      intro e he f hf hef
+      obtain ⟨i, _, heq⟩ := Finset.mem_coe.mp he |> Finset.mem_image.mp
+      obtain ⟨j, _, hfq⟩ := Finset.mem_coe.mp hf |> Finset.mem_image.mp
+      subst heq; subst hfq
+      by_cases h : i = j
+      · exact absurd (h ▸ rfl) hef
+      · simp [CGraph.toSimple_adj, CGraph.lineGraph_adj, h_inj.ne h]
+        exact fun v hv1 => hno_share i j h v hv1
+    rw [show m = n + 2 from rfl]
+    exact hcard.symm.le.trans (hind.card_le_indepNum)
+
+
+theorem matchNum_friendship (n : ℕ) : (friendship n).matchNum = n := by
+  apply le_antisymm
+  · -- Upper bound: 2 * matchNum ≤ V = 2*n+1, so matchNum ≤ n
+    have h := (friendship n).two_mul_matchNum_le_V
+    rw [V_friendship] at h
+    omega
+  · -- Lower bound: exhibit n pairwise disjoint edges (one from each triangle)
+    rw [matchNum_eq]
+    rw [friendship]
+    have join_mk : ∀ (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V],
+          IsoGraph.join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+      intro G H _ _
+      rw [IsoGraph.join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
+      rfl
+    simp only [IsoGraph.complete, IsoGraph.empty]
+    simp only [cartesianProduct_mk]
+    rw [join_mk, IsoGraph.lineGraph_mk, IsoGraph.indepNum_mk]
+    -- Goal: n ≤ the line graph's independence number
+    set G' : CGraph :=
+      CGraph.join (CGraph.complete 1) (CGraph.cartesianProduct (CGraph.empty n) (CGraph.complete 2))
+    let mkEdge : Fin n → Sym2 G'.V :=
+      fun i => Sym2.mk (Sum.inr (i, (0 : Fin 2)), Sum.inr (i, (1 : Fin 2)))
+    have hedge : ∀ i : Fin n, mkEdge i ∈ G'.toSimple.edgeSet := by
+      intro i
+      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inr_inr,
+        CGraph.cartesianProduct_adj, CGraph.empty_adj, CGraph.complete_adj]
+      simp
+    let lineVer : Fin n → (CGraph.lineGraph G').V := fun i => ⟨mkEdge i, hedge i⟩
+    have hrung_inj : Function.Injective lineVer := by
+      intro i j hij
+      let e : Sym2 G'.V := mkEdge j
+      have hval : mkEdge i = e := by
+        exact congrArg Subtype.val hij
+      have hmem : (Sum.inr (i, (0 : Fin 2)) : G'.V) ∈ e := by
+        rw [← hval]
+        exact Sym2.mem_iff.mpr (Or.inl rfl)
+      rcases Sym2.mem_iff.mp hmem with h | h <;> simp at h
+      · obtain ⟨hi, _⟩ := Prod.ext_iff.mp h; exact hi
+      · exfalso; apply_fun (fun p : Fin n × Fin 2 => p.2) at h; simp at h
+    have hrung_not_adj :
+        ∀ i j : Fin n, i ≠ j → ¬(CGraph.lineGraph G').toSimple.Adj (lineVer i) (lineVer j) := by
+      intro i j hij
+      rw [CGraph.toSimple_adj, CGraph.lineGraph_adj]
+      have : ¬∃ v, v ∈ (lineVer i).1 ∧ v ∈ (lineVer j).1 := by
+        intro ⟨v, hv_i, hv_j⟩
+        simp [lineVer, mkEdge, Sym2.mem_iff] at hv_i hv_j
+        rcases hv_i with rfl | rfl
+        · rcases hv_j with h | h
+          · exfalso; apply hij; exact Prod.ext_iff.mp (Sum.inr.inj h) |>.1
+          · exfalso; have := congr_arg (fun p : Fin n × Fin 2 => p.2) (Sum.inr.inj h); simp at this
+        · rcases hv_j with h | h
+          · exfalso; have := congr_arg (fun p : Fin n × Fin 2 => p.2) (Sum.inr.inj h); simp at this
+          · exfalso; apply hij; exact Prod.ext_iff.mp (Sum.inr.inj h) |>.1
+      simp [this, hrung_inj.ne hij]
+    have hrung_indep :
+        (CGraph.lineGraph G').toSimple.IsIndepSet
+          (Finset.univ.image lineVer : Set (CGraph.lineGraph G').V) := by
+      intro e he f hf hef
+      rw [Finset.coe_image, Set.mem_image] at he hf
+      obtain ⟨i, _, rfl⟩ := he
+      obtain ⟨j, _, rfl⟩ := hf
+      exact hrung_not_adj i j (by intro h; exact hef (h ▸ rfl))
+    have hrung_card : (Finset.univ.image lineVer).card = n := by
+      rw [Finset.card_image_of_injective _ hrung_inj, Finset.card_univ, Fintype.card_fin]
+    have := hrung_indep.card_le_indepNum
+    rw [hrung_card] at this
+    exact this
+
+
+theorem indepNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    (turan n r).indepNum = (n + r - 1) / r := by
+  unfold turan
+  simp [indepNum_completeMultipartite]
+  set a := n / r
+  set k := n % r
+  have max_rep : ∀ (x n : ℕ), (List.replicate (n + 1) x).max? = some x := by
+    intro x n; induction n with
+    | zero => rfl
+    | succ n ih => rw [List.replicate_succ, List.max?_cons, ih]; simp
+  have hmax0 : ∀ (p a : ℕ), p > 0 →
+      ((List.replicate 0 (a + 1) ++ List.replicate p a).max?.getD 0 = a) := by
+    intro p a hp
+    simp [List.replicate_zero, List.nil_append]
+    obtain ⟨p', rfl⟩ := Nat.exists_eq_succ_of_ne_zero hp.ne'
+    rw [max_rep, Option.getD_some]
+  have hmax : ∀ (k p : ℕ) (a : ℕ),
+      k > 0 → ((List.replicate k (a + 1) ++ List.replicate p a).max?.getD 0 = a + 1) := by
+    intro k p a hk
+    induction k with
+    | zero => omega
+    | succ k ih =>
+      have : List.replicate (k + 1) (a + 1) ++ List.replicate p a =
+          (a + 1) :: (List.replicate k (a + 1) ++ List.replicate p a) := by
+        rw [List.replicate_succ, List.cons_append]
+      rw [this, List.max?_cons]
+      simp [Option.getD_some]
+      rcases L : (List.replicate k (a + 1) ++ List.replicate p a).max? with _ | x
+      · simp
+      · have hx_mem : x ∈ List.replicate k (a + 1) ++ List.replicate p a := by
+          exact List.max?_mem L
+        have hx_le : x ≤ a + 1 := by
+          rw [List.mem_append] at hx_mem
+          rcases hx_mem with hx_mem | hx_mem
+          · have := List.mem_replicate.mp hx_mem; omega
+          · have := List.mem_replicate.mp hx_mem; omega
+        rw [Option.elim_some]
+        rw [max_eq_left hx_le]
+  -- Helper: (r * q + r - 1) / r = q when r > 0
+  have turan_dep_zero : ∀ (q : ℕ), (r * q + r - 1) / r = q := by
+    intro q
+    have hge : q * r ≤ r * q + r - 1 := by
+      rw [mul_comm]
+      exact Nat.le_sub_one_of_lt (by omega)
+    have hlt : r * q + r - 1 < r * (q + 1) := by
+      rw [Nat.mul_add, Nat.mul_one]
+      exact Nat.sub_lt_self (by positivity) (by omega)
+    exact le_antisymm (Nat.le_of_lt_succ (Nat.div_lt_of_lt_mul hlt))
+      (Nat.le_div_iff_mul_le hr |>.mpr (by omega))
+  -- Helper: (r * q + r + (m-1)) / r = q + 1 when 1 ≤ m < r
+  have turan_dep_pos : ∀ (q m : ℕ), 1 ≤ m → m < r → (r * q + r + (m - 1)) / r = q + 1 := by
+    intro q m hm_pos hm_lt
+    have hm1 : m - 1 + 1 = m := Nat.sub_add_cancel hm_pos
+    have hge : (q + 1) * r ≤ r * q + r + (m - 1) := by
+      rw [Nat.add_mul, Nat.one_mul, Nat.mul_comm q r]
+      omega
+    have hm1_lt_r : m - 1 < r := by omega
+    have hlt : r * q + r + (m - 1) < r * (q + 2) := by
+      show r * q + r + (m - 1) < r * q + r + r
+      omega
+    exact le_antisymm (Nat.le_of_lt_succ (Nat.div_lt_of_lt_mul hlt))
+      (Nat.le_div_iff_mul_le hr |>.mpr (by omega))
+  rcases Nat.eq_zero_or_pos k with hk0 | hk0
+  · -- k = 0, so r ∣ n
+    have hdam : r * a + k = n := Nat.div_add_mod n r
+    rw [hk0, add_zero] at hdam
+    rw [← hdam, hk0]
+    simp
+    have : (List.replicate r a).max?.getD 0 = a := by
+      obtain ⟨r', rfl⟩ := Nat.exists_eq_succ_of_ne_zero hr.ne'
+      rw [max_rep, Option.getD_some]
+    rw [this]
+    rw [turan_dep_zero a]
+  · -- k > 0
+    rw [hmax k (r - k) a hk0]
+    set q := n / r
+    set m := n % r
+    have hdam : r * q + m = n := Nat.div_add_mod n r
+    have hm_pos : 1 ≤ m := hk0
+    have hm_lt : m < r := Nat.mod_lt n hr
+    have hdiv_rhs : n + r - 1 = r * q + r + (m - 1) := by
+      rw [show n = r * q + m from hdam.symm]
+      omega
+    rw [hdiv_rhs]
+    rw [turan_dep_pos q m hm_pos hm_lt]
+
+
+@[simp] theorem coverNum_crown (n : ℕ) : (crown (n + 2)).coverNum = n + 2 := by
+  have h := coverNum_add_indepNum (crown (n + 2))
+  rw [indepNum_crown, V_crown] at h
+  omega
+
+@[simp] theorem coverNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    (turan n r).coverNum = n - (n + r - 1) / r := by
+  have hc := coverNum_add_indepNum (turan n r)
+  rw [indepNum_turan hr h, V_turan] at hc
+  omega
+
 end IsoGraph
