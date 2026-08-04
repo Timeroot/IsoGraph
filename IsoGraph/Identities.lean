@@ -5824,6 +5824,132 @@ theorem domNum_star (n : ℕ) : (star n).domNum = 1 := by
   | Sum.inl a => exact absurd (congrArg Sum.inl (Subsingleton.elim a (0 : Fin 1))) hu
   | Sum.inr b => exact bipartite_adj_inl_inr 1 n 0 b
 
+/-! ### The radius -/
+
+/-- The most central vertex is no further from the rest than the least central one. -/
+theorem radius_le_diameter (G : CGraph) : G.radius ≤ G.diameter := by
+  by_cases hc : G.toSimple.Connected
+  · haveI : Nonempty G.V := hc.nonempty
+    have hd : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hc
+    exact ENat.toNat_le_toNat SimpleGraph.radius_le_ediam hd
+  · have h : G.toSimple.radius = ⊤ := SimpleGraph.radius_eq_top_of_not_connected hc
+    simp [radius, h]
+
+/-- Walking through a central vertex crosses the graph in at most `2r` steps. -/
+theorem diameter_le_two_mul_radius (G : CGraph) : G.diameter ≤ 2 * G.radius := by
+  by_cases hc : G.toSimple.Connected
+  · haveI : Nonempty G.V := hc.nonempty
+    obtain ⟨r, hr⟩ := ENat.ne_top_iff_exists.1 (SimpleGraph.radius_ne_top_iff.2 hc)
+    have h := SimpleGraph.ediam_le_two_mul_radius (G := G.toSimple)
+    rw [← hr] at h
+    have h2 : G.toSimple.ediam ≤ ((2 * r : ℕ) : ℕ∞) := by
+      rwa [Nat.cast_mul, Nat.cast_ofNat]
+    have h3 := ENat.toNat_le_toNat h2 (ENat.coe_ne_top _)
+    simpa [radius, ← hr] using h3
+  · have h : G.toSimple.diam = 0 := SimpleGraph.diam_eq_zero_of_not_connected hc
+    simp [diameter, h]
+
+theorem radius_pos (G : CGraph) (hc : G.IsConnected) (hV : 1 < Fintype.card G.V) :
+    0 < G.radius := by
+  haveI : Nonempty G.V := hc.nonempty
+  haveI : Nontrivial G.V := Fintype.one_lt_card_iff_nontrivial.1 hV
+  have h0 : G.toSimple.radius ≠ 0 := SimpleGraph.radius_ne_zero_of_nontrivial
+  have ht : G.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hc
+  have : G.radius ≠ 0 := by
+    simp only [radius, ne_eq, ENat.toNat_eq_zero]
+    tauto
+  omega
+
+/-- A vertex adjacent to everything else is at distance one from the rest, so it makes the
+radius `1` — provided there is something else. -/
+theorem radius_eq_one_of_universal {v : G.V} (h : ∀ u, u ≠ v → G.Adj v u)
+    (hV : 1 < Fintype.card G.V) : G.radius = 1 := by
+  haveI : Nontrivial G.V := Fintype.one_lt_card_iff_nontrivial.1 hV
+  have hle : G.toSimple.eccent v ≤ 1 :=
+    (SimpleGraph.eccent_le_one_iff v).2 fun u hu ↦ (toSimple_adj _ _ _).2 (h u (Ne.symm hu))
+  have h1 : G.toSimple.radius ≤ 1 := le_trans SimpleGraph.radius_le_eccent hle
+  have h0 : G.toSimple.radius ≠ 0 := SimpleGraph.radius_ne_zero_of_nontrivial
+  have : G.toSimple.radius = 1 := le_antisymm h1 (ENat.one_le_iff_ne_zero.2 h0)
+  simp [radius, this]
+
+/-- Conversely, radius `1` produces a vertex adjacent to everything else. -/
+theorem exists_universal_of_radius_eq_one (G : CGraph) (h : G.radius = 1) :
+    ∃ v : G.V, ∀ u, u ≠ v → G.Adj v u := by
+  have hne : G.toSimple.radius ≠ ⊤ := by
+    intro htop
+    rw [radius, htop] at h
+    simp at h
+  haveI : Nonempty G.V := by
+    by_contra hemp
+    rw [not_nonempty_iff] at hemp
+    exact hne SimpleGraph.radius_eq_top_of_isEmpty
+  obtain ⟨v, hv⟩ := SimpleGraph.exists_eccent_eq_radius (G := G.toSimple)
+  refine ⟨v, fun u hu ↦ ?_⟩
+  have h1 : G.toSimple.radius = 1 := by
+    rw [radius] at h
+    rcases ENat.ne_top_iff_exists.1 hne with ⟨r, hr⟩
+    rw [← hr] at h ⊢
+    simp only [ENat.toNat_coe] at h
+    rw [h]
+    rfl
+  have : G.toSimple.eccent v ≤ 1 := by rw [hv, h1]
+  exact (toSimple_adj _ _ _).1 ((SimpleGraph.eccent_le_one_iff v).1 this u (Ne.symm hu))
+
+/-- A graph is dominated by a single vertex exactly when it has a universal vertex. -/
+theorem domNum_eq_one_iff (G : CGraph) :
+    G.domNum = 1 ↔ ∃ v : G.V, ∀ u, u ≠ v → G.Adj v u := by
+  constructor
+  · intro h
+    obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
+    rw [h, Finset.card_eq_one] at hcard
+    obtain ⟨v, rfl⟩ := hcard
+    refine ⟨v, fun u hu ↦ ?_⟩
+    rcases hs u with hmem | ⟨w, hw, hadj⟩
+    · exact absurd (Finset.mem_singleton.1 hmem) hu
+    · rw [Finset.mem_singleton] at hw
+      subst hw
+      exact hadj
+  · rintro ⟨v, hv⟩
+    exact domNum_eq_one_of_universal hv
+
+/-- The apex of a join with a single vertex sees the whole graph, so it dominates it. -/
+theorem domNum_join_complete_one (G : CGraph) [DecidableEq G.V] :
+    (join (complete 1) G).domNum = 1 := by
+  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  haveI : Subsingleton (compl (complete 1)).V := inferInstanceAs (Subsingleton (Fin 1))
+  refine domNum_eq_one_of_universal
+    (v := (Sum.inl (0 : Fin 1) : (join (complete 1) G).V)) fun u hu ↦ ?_
+  rcases u with a | b
+  · exact absurd (congrArg Sum.inl (Subsingleton.elim a (0 : Fin 1))) hu
+  · exact join_adj_inl_inr (complete 1) G _ b
+
+theorem domNum_wheel (n : ℕ) : (wheel n).domNum = 1 := domNum_join_complete_one (cycle n)
+
+/-- **Radius one and domination number one are the same condition** on a graph with at least two
+vertices: both say that some vertex sees the whole graph. -/
+theorem radius_eq_one_iff_domNum_eq_one (G : CGraph) (hV : 1 < Fintype.card G.V) :
+    G.radius = 1 ↔ G.domNum = 1 := by
+  rw [domNum_eq_one_iff]
+  exact ⟨G.exists_universal_of_radius_eq_one, fun ⟨_, hv⟩ ↦ radius_eq_one_of_universal hv hV⟩
+
+/-- **A vertex-transitive graph has radius equal to its diameter**: every vertex is as central as
+every other, so the least and the greatest eccentricity agree. -/
+theorem radius_eq_diameter_of_isVertexTransitive (G : CGraph) (h : G.IsVertexTransitive) :
+    G.radius = G.diameter := by
+  rcases isEmpty_or_nonempty G.V with hemp | hne
+  · have h1 : G.toSimple.radius = ⊤ := SimpleGraph.radius_eq_top_of_isEmpty
+    have h2 : G.toSimple.diam = 0 := by
+      rw [SimpleGraph.diam_eq_zero]
+      exact Or.inr (by infer_instance)
+    simp [radius, diameter, h1, h2]
+  · have key : G.toSimple.radius = G.toSimple.ediam := by
+      rw [SimpleGraph.radius_eq_ediam_iff]
+      refine ⟨G.toSimple.eccent Classical.ofNonempty, fun u ↦ ?_⟩
+      obtain ⟨σ, hσ⟩ := h Classical.ofNonempty u
+      rw [← hσ]
+      exact (SimpleGraph.Iso.eccent_eq (CGraph.Iso.toSimpleIso σ) _).symm
+    simp [radius, diameter, SimpleGraph.diam, key]
+
 end CGraph
 
 namespace IsoGraph
@@ -12255,5 +12381,109 @@ example : (star 5).domNum = 1 := by simp
 example : (empty 4).domNum = 4 := by simp
 
 example : (complete 7).domNum = 1 := by simp
+
+/-! ### The radius -/
+
+theorem radius_le_diameter (G : IsoGraph) : G.radius ≤ G.diameter := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, radius_mk, diameter_mk]
+  exact CGraph.radius_le_diameter _
+
+theorem diameter_le_two_mul_radius (G : IsoGraph) : G.diameter ≤ 2 * G.radius := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, radius_mk, diameter_mk]
+  exact CGraph.diameter_le_two_mul_radius _
+
+theorem radius_pos {G : IsoGraph} (hc : IsConnected G) (hV : 1 < G.V) : 0 < G.radius := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, radius_mk]
+  rw [← mk_canonicalize g, isConnected_mk] at hc
+  rw [← mk_canonicalize g, V_mk] at hV
+  exact CGraph.radius_pos _ hc hV
+
+/-- **`r = 1 ↔ γ = 1`** on a graph with at least two vertices. -/
+theorem radius_eq_one_iff_domNum_eq_one {G : IsoGraph} (hV : 1 < G.V) :
+    G.radius = 1 ↔ G.domNum = 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, radius_mk, domNum_mk]
+  rw [← mk_canonicalize g, V_mk] at hV
+  exact CGraph.radius_eq_one_iff_domNum_eq_one _ hV
+
+/-- **A vertex-transitive graph has `r = d`.** -/
+theorem radius_eq_diameter_of_isVertexTransitive {G : IsoGraph} (h : IsVertexTransitive G) :
+    G.radius = G.diameter := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, radius_mk, diameter_mk]
+  rw [← mk_canonicalize g, isVertexTransitive_mk] at h
+  exact CGraph.radius_eq_diameter_of_isVertexTransitive _ h
+
+/-! ### The radius table -/
+
+@[simp] theorem domNum_wheel (n : ℕ) : (wheel n).domNum = 1 := CGraph.domNum_wheel n
+
+
+@[simp] theorem radius_empty (n : ℕ) : (empty n).radius = 0 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_empty n), diameter_empty]
+
+@[simp] theorem radius_complete (n : ℕ) : (complete (n + 2)).radius = 1 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_complete _),
+    diameter_complete]
+
+@[simp] theorem radius_cycle (n : ℕ) : (cycle (n + 1)).radius = (n + 1) / 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_cycle _), diameter_cycle]
+
+@[simp] theorem radius_hypercube (n : ℕ) : (hypercube n).radius = n := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_hypercube n),
+    diameter_hypercube]
+
+@[simp] theorem radius_petersen : petersen.radius = 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive isVertexTransitive_petersen, diameter_petersen]
+
+@[simp] theorem radius_rook (m n : ℕ) : (rook (m + 2) (n + 2)).radius = 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_rook _ _), diameter_rook]
+
+@[simp] theorem radius_cocktailParty (n : ℕ) : (cocktailParty (n + 2)).radius = 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (by simp), diameter_cocktailParty]
+
+theorem radius_triangular {n : ℕ} (hn : 4 ≤ n) : (triangular n).radius = 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_triangular n),
+    diameter_triangular hn]
+
+theorem radius_bipartite_self (n : ℕ) : (bipartite (n + 2) (n + 2)).radius = 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_bipartite_self _),
+    diameter_bipartite_self]
+
+@[simp] theorem radius_star (n : ℕ) : (star (n + 1)).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one (by rw [V_star]; omega)]
+  exact domNum_star (n + 1)
+
+/-- The hub of a wheel dominates it, so the wheel has radius one. -/
+@[simp] theorem radius_wheel (n : ℕ) : (wheel (n + 1)).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one (by rw [V_wheel]; omega)]
+  exact domNum_wheel (n + 1)
+
+@[simp] theorem radius_prism (n : ℕ) : (prism (n + 1)).radius = (n + 1) / 2 + 1 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_prism _), diameter_prism]
+
+theorem radius_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq5 : 5 ≤ q) :
+    (paley q).radius = 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_paley q),
+    diameter_paley q hq hq5]
+
+/-! ### Consequences -/
+
+/-- A graph of radius `r` needs at least `2r` steps to be crossed in the worst case, so a graph
+with a large diameter has a large radius. -/
+example (G : IsoGraph) (h : 5 ≤ G.diameter) : 3 ≤ G.radius := by
+  have := G.diameter_le_two_mul_radius
+  omega
+
+example : (complete 5).radius = 1 := by simp
+
+example : (star 4).radius = 1 := by simp
+
+example (n : ℕ) : (cycle (2 * n + 1)).radius = n := by
+  rw [show 2 * n + 1 = n + n + 1 from by omega, radius_cycle]
+  omega
 
 end IsoGraph

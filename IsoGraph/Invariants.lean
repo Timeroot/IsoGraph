@@ -96,6 +96,28 @@ theorem ediam_eq (f : G ≃g G') : G.ediam = G'.ediam := by
 theorem diam_eq (f : G ≃g G') : G.diam = G'.diam :=
   congrArg ENat.toNat (ediam_eq f)
 
+/-- Isomorphisms preserve eccentricity. -/
+theorem eccent_eq (f : G ≃g G') (u : V) : G.eccent u = G'.eccent (f u) := by
+  unfold SimpleGraph.eccent
+  refine le_antisymm (iSup_le fun v ↦ ?_) (iSup_le fun w ↦ ?_)
+  · rw [edist_eq f]
+    exact le_iSup (G'.edist (f u)) (f v)
+  · have hw : G'.edist (f u) w = G.edist u (f.symm w) := by
+      rw [edist_eq f u (f.symm w), f.apply_symm_apply]
+    rw [hw]
+    exact le_iSup (G.edist u) (f.symm w)
+
+/-- Isomorphic graphs have the same radius. -/
+theorem radius_eq (f : G ≃g G') : G.radius = G'.radius := by
+  unfold SimpleGraph.radius
+  refine le_antisymm (le_iInf fun w ↦ ?_) (le_iInf fun u ↦ ?_)
+  · have hw : G'.eccent w = G.eccent (f.symm w) := by
+      rw [eccent_eq f, f.apply_symm_apply]
+    rw [hw]
+    exact iInf_le _ (f.symm w)
+  · rw [eccent_eq f]
+    exact iInf_le _ (f u)
+
 /-- An isomorphism restricts to a bijection between common neighbourhoods. -/
 def commonNeighborsEquiv (f : G ≃g G') (v w : V) :
     G.commonNeighbors v w ≃ G'.commonNeighbors (f v) (f w) :=
@@ -201,6 +223,11 @@ noncomputable def girth : ℕ := G.toSimple.girth
 /-- Diameter, i.e. the largest distance between two vertices — `0` if the graph is disconnected
 (this is Mathlib's convention for `SimpleGraph.diam`). -/
 noncomputable def diameter : ℕ := G.toSimple.diam
+
+/-- Radius: the least eccentricity of a vertex, i.e. how far from the rest of the graph the most
+central vertex is.  `0` for an empty or disconnected graph, the same junk convention `diameter`
+uses. -/
+noncomputable def radius : ℕ := G.toSimple.radius.toNat
 
 /-- Vertex cover number: the size of a smallest set of vertices meeting every edge. -/
 noncomputable def coverNum : ℕ := G.toSimple.vertexCoverNum.toNat
@@ -540,6 +567,14 @@ noncomputable def diameter (G : IsoGraph) : ℕ :=
     (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.diam_eq (CGraph.Iso.toSimpleIso i)) G
 
 @[simp] theorem diameter_mk (G : CGraph) : diameter (Quotient.mk _ G) = G.diameter := rfl
+
+/-- Radius. -/
+noncomputable def radius (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.radius
+    (fun _ _ ⟨i⟩ ↦ congrArg ENat.toNat
+      (SimpleGraph.Iso.radius_eq (CGraph.Iso.toSimpleIso i))) G
+
+@[simp] theorem radius_mk (G : CGraph) : radius (Quotient.mk _ G) = G.radius := rfl
 
 /-- Vertex cover number. -/
 noncomputable def coverNum (G : IsoGraph) : ℕ :=

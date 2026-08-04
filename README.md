@@ -1162,6 +1162,20 @@ so **`γ ≤ τ`** when `δ ≥ 1`.  The table records `γ(Eₙ) = n` and `γ(K�
 degree bound turns into lower bounds on the regular graphs — `γ(Petersen) ≥ 3` and `γ(Cₙ) ≥ n/3`,
 both of them sharp.
 
+The **radius** completes the metric picture next to `diameter`.  Mathlib supplies `eccent` and
+`radius` but no isomorphism-invariance for them, so `SimpleGraph.Iso.eccent_eq` and
+`radius_eq` are proved here (transport the `⨆`/`⨅` along the equivalence, using the existing
+`edist_eq`) and `r` lifts to the quotient with the usual junk value `0` for an empty or
+disconnected graph.  Then `r ≤ d ≤ 2r`, and `r > 0` for a connected graph with an edge.  Two
+bridges make the table cheap.  First, **`r = 1 ↔ γ = 1`** whenever `|V| ≥ 2`: both say a single
+vertex sees the whole graph, one via `eccent_le_one_iff` and the other via a one-element
+dominating set — that settles the star and the wheel (whose hub is a `join` with `K₁`).  Second,
+**a vertex-transitive graph has `r = d`**, since an automorphism carrying `u` to `v` carries the
+eccentricity along, so `radius_eq_ediam_iff` applies; every transitive entry of the diameter
+table therefore reappears as a radius one — `r(Kₙ) = 1`, `r(Cₙ) = ⌊n/2⌋`, `r(Qₙ) = n`,
+`r(Petersen) = 2`, and likewise for rook, prism, triangular, cocktail-party, `K_{n,n}` and Paley
+graphs.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
