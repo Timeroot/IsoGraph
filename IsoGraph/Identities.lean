@@ -2645,6 +2645,21 @@ theorem isConnected_cartesianProduct_iff (G H : CGraph) [DecidableEq G.V] [Decid
   rw [toSimple_cartesianProduct]
   exact SimpleGraph.connected_boxProd
 
+/-- Euler's count for trees, on `CGraph`: a graph is a tree exactly when it is connected and has
+one fewer edge than it has vertices. -/
+theorem isTree_iff_isConnected_and_E (G : CGraph) :
+    G.IsTree ↔ G.IsConnected ∧ G.E + 1 = Fintype.card G.V := by
+  show G.toSimple.IsTree ↔ _
+  rw [SimpleGraph.isTree_iff_connected_and_card, Nat.card_eq_fintype_card,
+    Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card]
+  rfl
+
+/-- A connected graph has at least one fewer edge than it has vertices. -/
+theorem IsConnected.card_le_E_add_one {G : CGraph} (h : G.IsConnected) :
+    Fintype.card G.V ≤ G.E + 1 := by
+  have := SimpleGraph.Connected.card_vert_le_card_edgeSet_add_one h
+  rwa [Nat.card_eq_fintype_card, Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card] at this
+
 end CGraph
 
 namespace IsoGraph
@@ -5544,6 +5559,105 @@ theorem not_isConnected_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
   rw [isConnected_cartesianProduct]
   exact ⟨isConnected_complete m, isConnected_complete n⟩
 
+/-! ### Trees, and Euler's count -/
+
+theorem isTree_iff_isConnected_and_isAcyclic (G : IsoGraph) :
+    IsTree G ↔ IsConnected G ∧ IsAcyclic G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact SimpleGraph.isTree_iff _
+
+/-- A graph is a tree exactly when it is connected and has one fewer edge than vertices. -/
+theorem isTree_iff (G : IsoGraph) : IsTree G ↔ IsConnected G ∧ G.E + 1 = G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.isTree_iff_isConnected_and_E g
+
+theorem IsTree.E_add_one {G : IsoGraph} (h : IsTree G) : G.E + 1 = G.V :=
+  ((isTree_iff G).1 h).2
+
+/-- A connected graph has at least one fewer edge than it has vertices. -/
+theorem IsConnected.V_le_E_add_one {G : IsoGraph} (h : IsConnected G) : G.V ≤ G.E + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.IsConnected.card_le_E_add_one h
+
+/-- Too few edges to be connected. -/
+theorem not_isConnected_of_E_add_one_lt {G : IsoGraph} (h : G.E + 1 < G.V) : ¬ IsConnected G :=
+  fun hc ↦ absurd hc.V_le_E_add_one (by omega)
+
+@[simp] theorem not_isConnected_empty (n : ℕ) : ¬ IsConnected (empty (n + 2)) :=
+  not_isConnected_of_E_add_one_lt (by simp)
+
+@[simp] theorem isTree_star (n : ℕ) : IsTree (star n) := by
+  rw [isTree_iff, E_star, V_star]
+  exact ⟨isConnected_star n, by omega⟩
+
+@[simp] theorem not_isTree_cycle (n : ℕ) : ¬ IsTree (cycle (n + 3)) := by
+  rw [isTree_iff, E_cycle, V_cycle]
+  rintro ⟨-, h⟩
+  omega
+
+@[simp] theorem not_isTree_complete (n : ℕ) : ¬ IsTree (complete (n + 3)) := by
+  rw [isTree_iff, E_complete, V_complete]
+  rintro ⟨-, h⟩
+  rw [show n + 3 = (n + 2) + 1 from rfl, choose_two_succ] at h
+  have : 0 < (n + 2).choose 2 := Nat.choose_pos (by omega)
+  omega
+
+@[simp] theorem not_isTree_wheel (n : ℕ) : ¬ IsTree (wheel (n + 3)) := by
+  rw [isTree_iff, E_wheel, V_wheel]
+  rintro ⟨-, h⟩
+  omega
+
+@[simp] theorem not_isTree_prism (n : ℕ) : ¬ IsTree (prism (n + 3)) := by
+  rw [isTree_iff, E_prism]
+  rintro ⟨-, h⟩
+  rw [show prism (n + 3) = cartesianProduct (cycle (n + 3)) (complete 2) from rfl,
+    V_cartesianProduct, V_cycle, V_complete] at h
+  omega
+
+@[simp] theorem not_isTree_ladder (n : ℕ) : ¬ IsTree (ladder (n + 2)) := by
+  rw [show n + 2 = (n + 1) + 1 from rfl, isTree_iff, E_ladder]
+  rintro ⟨-, h⟩
+  rw [show ladder (n + 1 + 1) = cartesianProduct (path (n + 2)) (complete 2) from rfl,
+    V_cartesianProduct, V_path, V_complete] at h
+  omega
+
+/-- Anything connected that is not a tree has a cycle. -/
+theorem not_isAcyclic_of_isConnected {G : IsoGraph} (hc : IsConnected G) (h : ¬ IsTree G) :
+    ¬ IsAcyclic G :=
+  fun ha ↦ h ((isTree_iff_isConnected_and_isAcyclic G).2 ⟨hc, ha⟩)
+
+@[simp] theorem not_isAcyclic_complete (n : ℕ) : ¬ IsAcyclic (complete (n + 3)) :=
+  not_isAcyclic_of_isConnected (isConnected_complete (n + 2)) (not_isTree_complete n)
+
+@[simp] theorem not_isAcyclic_wheel (n : ℕ) : ¬ IsAcyclic (wheel (n + 3)) :=
+  not_isAcyclic_of_isConnected (isConnected_wheel (n + 2)) (not_isTree_wheel n)
+
+@[simp] theorem not_isAcyclic_prism (n : ℕ) : ¬ IsAcyclic (prism (n + 3)) :=
+  not_isAcyclic_of_isConnected (isConnected_prism (n + 2)) (not_isTree_prism n)
+
+@[simp] theorem not_isAcyclic_ladder (n : ℕ) : ¬ IsAcyclic (ladder (n + 2)) :=
+  not_isAcyclic_of_isConnected (isConnected_ladder (n + 1)) (not_isTree_ladder n)
+
+/-! ### Connectivity of the join families -/
+
+/-- A complete multipartite graph with two nonempty parts is connected. -/
+theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
+    IsConnected (completeMultipartite ((a + 1) :: (b + 1) :: ds)) := by
+  rw [completeMultipartite_cons]
+  exact isConnected_join (by simp) (by simp)
+
+@[simp] theorem isConnected_book (n : ℕ) : IsConnected (book n) :=
+  isConnected_completeMultipartite 0 0 [n]
+
+@[simp] theorem isConnected_cocktailParty (n : ℕ) : IsConnected (cocktailParty (n + 2)) := by
+  show IsConnected (completeMultipartite (List.replicate (n + 2) 2))
+  rw [List.replicate_succ, List.replicate_succ]
+  exact isConnected_completeMultipartite 1 1 _
+
+@[simp] theorem isConnected_fan (n : ℕ) : IsConnected (fan (n + 1)) := by
+  show IsConnected (join (complete 1) (path (n + 1)))
+  exact isConnected_join (by simp) (by simp)
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6055,6 +6169,14 @@ example : ¬ IsConnected (disjUnion (cycle 3) (cycle 4)) :=
   not_isConnected_disjUnion (by simp) (by simp)
 example (G : IsoGraph) (h : IsConnected G) : IsConnected (cartesianProduct G (path 3)) := by
   simp [h]
+
+example : ¬ IsAcyclic (wheel 5) := by simp
+example : IsTree (star 7) := by simp
+example : ¬ IsConnected (empty 3) := by simp
+example : IsConnected (book 4) := by simp
+example (G : IsoGraph) (h : IsTree G) (hv : G.V = 10) : G.E = 9 := by
+  have := h.E_add_one
+  omega
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp

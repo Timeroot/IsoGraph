@@ -723,6 +723,22 @@ case split, since `star 0` is `empty 1` rather than a bipartite graph. All of th
 lemmas, so `IsConnected (hypercube 4)` and `IsConnected (cartesianProduct G (path 3))` given
 `IsConnected G` are both discharged by `simp`.
 
+Having both `V_*` and `E_*` makes Euler's count for trees worth transferring too:
+`isTree_iff` says `IsTree G ↔ IsConnected G ∧ G.E + 1 = G.V`, out of Mathlib's
+`isTree_iff_connected_and_card`. It turns most tree questions into arithmetic that the existing
+`simp` set already answers — `isTree_star` is `1 + n` vertices against `n` edges, and
+`not_isTree_cycle`, `not_isTree_wheel`, `not_isTree_prism` and `not_isTree_ladder` are each an
+`omega` after rewriting with the counts. The complete graph needs one extra step, that
+`C(n + 2, 2)` is positive, which is `choose_two_succ` again. Splitting the tree condition the
+other way, `isTree_iff_isConnected_and_isAcyclic`, converts each of those into a
+`not_isAcyclic_*` since connectivity is already known.
+
+The same bound run one-sidedly gives `IsConnected.V_le_E_add_one` and its contrapositive
+`not_isConnected_of_E_add_one_lt`, a graph with too few edges to be connected — which is the
+shortest proof that `empty (n + 2)` is disconnected. Finally the join families inherit
+connectivity from `isConnected_join`: `isConnected_completeMultipartite` for two nonempty parts,
+and `isConnected_book`, `isConnected_cocktailParty` and `isConnected_fan` beneath it.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
