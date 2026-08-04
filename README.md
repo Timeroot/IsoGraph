@@ -862,6 +862,19 @@ graph, the rook's graphs, the cocktail-party graphs, the triangular graphs, the 
 connected (`isConnected_of_diameter_ne_zero`), since a disconnected graph has diameter `0` by
 convention.
 
+The other big source of two-step graphs is the join, where two vertices on the same side share
+every vertex of the other side as a neighbour and two vertices on opposite sides are adjacent
+outright. That gives `diameter_join_le_two` for any join of nonempty graphs, and a non-adjacent
+pair on either side upgrades it to `= 2`. Supplying that pair is again a job for an invariant
+rather than for vertices: `CGraph.exists_not_adj_of_E_lt` says a graph with fewer than
+`V choose 2` edges has one, because otherwise every vertex would have degree `V - 1` and the
+handshake lemma would force the edge count to be exactly `V choose 2`. So on the quotient the
+criterion is purely numeric — `G.E < G.V.choose 2`, i.e. "`G` is not complete" — and
+`diameter_join_left`/`diameter_join_right` hand back the diameters of the stars, books, wheels
+and fans. One payoff is the textbook example that no cheaper invariant reaches: `star 3` and
+`path 4` are both trees on four vertices with three edges, and only the diameter (`2` against `3`)
+separates them.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

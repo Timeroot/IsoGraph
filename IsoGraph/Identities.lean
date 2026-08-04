@@ -3046,6 +3046,64 @@ theorem IsSRGWith.diameter_eq_two {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWi
   · exact Or.inl hab2
   · exact Or.inr (h.exists_common_neighbor hμ hab hab2)
 
+/-! ### Joins have diameter at most two -/
+
+/-- A graph with fewer than `V choose 2` edges has a non-adjacent pair: if every two distinct
+vertices were adjacent it would be regular of degree `V - 1`, and the handshake lemma would make
+the edge count exactly `V choose 2`. -/
+theorem exists_not_adj_of_E_lt (G : CGraph) (h : G.E < (Fintype.card G.V).choose 2) :
+    ∃ u v : G.V, u ≠ v ∧ G.Adj u v = false := by
+  classical
+  by_contra hcon
+  push_neg at hcon
+  have hall : ∀ u v : G.V, u ≠ v → G.Adj u v = true := by
+    intro u v huv
+    simpa using hcon u v huv
+  have hnbrs : ∀ u : G.V, (G.nbrs u).card = Fintype.card G.V - 1 := by
+    intro u
+    have hu : G.nbrs u = Finset.univ.erase u := by
+      ext w
+      simp only [mem_nbrs, Finset.mem_erase, Finset.mem_univ, and_true]
+      constructor
+      · rintro hw rfl
+        rw [adj_self] at hw
+        exact Bool.noConfusion hw
+      · intro hw
+        exact hall u w (Ne.symm hw)
+    rw [hu, Finset.card_erase_of_mem (Finset.mem_univ u), Finset.card_univ]
+  have h2 : 2 * G.E = Fintype.card G.V * (Fintype.card G.V - 1) := by
+    rw [← sum_degSequence, degSequence_of_card_nbrs G hnbrs, List.sum_replicate, smul_eq_mul]
+  rw [Nat.choose_two_right] at h
+  set m := Fintype.card G.V * (Fintype.card G.V - 1) with hm
+  omega
+
+/-- In a join, two vertices on the same side have a common neighbour on the other side, and two
+vertices on opposite sides are adjacent. -/
+theorem two_step_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V]
+    [Nonempty H.V] (u v : (join G H).V) (huv : u ≠ v) :
+    (join G H).toSimple.Adj u v ∨
+      ∃ w, (join G H).toSimple.Adj u w ∧ (join G H).toSimple.Adj w v := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
+  rcases u with a | b <;> rcases v with c | d
+  · exact Or.inr ⟨Sum.inr b₀, by simp, by simp⟩
+  · exact Or.inl (by simp)
+  · exact Or.inl (by simp)
+  · exact Or.inr ⟨Sum.inl a₀, by simp, by simp⟩
+
+theorem diameter_join_le_two (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V]
+    [Nonempty H.V] : (join G H).diameter ≤ 2 :=
+  diameter_le_two _ (two_step_join G H)
+
+/-- A join is of diameter exactly two as soon as one side has a non-adjacent pair. -/
+theorem diameter_join_of_not_adj (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty H.V] {a c : G.V} (hne : a ≠ c) (hadj : G.Adj a c = false) :
+    (join G H).diameter = 2 := by
+  haveI : Nonempty G.V := ⟨a⟩
+  refine diameter_eq_two _ (two_step_join G H) (u := Sum.inl a) (v := Sum.inl c) ?_ ?_
+  · exact fun h ↦ hne (Sum.inl.inj h)
+  · simp [hadj]
+
 end CGraph
 
 namespace IsoGraph
@@ -6796,6 +6854,63 @@ theorem diameter_bipartite_self (n : ℕ) : (bipartite (n + 2) (n + 2)).diameter
 theorem isConnected_bipartite_self (n : ℕ) : IsConnected (bipartite (n + 1) (n + 1)) :=
   (isSRGWith_bipartite (n + 1)).isConnected (by omega) (by omega)
 
+/-! ### The diameter of a join -/
+
+theorem diameter_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (join G H).diameter ≤ 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [V_mk] at hG hH
+  haveI := Fintype.card_pos_iff.1 hG
+  haveI := Fintype.card_pos_iff.1 hH
+  rw [join_mk, diameter_mk]
+  exact CGraph.diameter_join_le_two _ _
+
+/-- A join whose left factor is not complete has diameter two. -/
+theorem diameter_join_left {G H : IsoGraph} (hH : 0 < H.V) (h : G.E < G.V.choose 2) :
+    (join G H).diameter = 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h' =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h'] at *
+  rw [V_mk] at hH
+  rw [E_mk, V_mk] at h
+  haveI := Fintype.card_pos_iff.1 hH
+  rw [join_mk, diameter_mk]
+  obtain ⟨a, c, hne, hadj⟩ := CGraph.exists_not_adj_of_E_lt _ h
+  exact CGraph.diameter_join_of_not_adj _ _ hne hadj
+
+/-- A join whose right factor is not complete has diameter two. -/
+theorem diameter_join_right {G H : IsoGraph} (hG : 0 < G.V) (h : H.E < H.V.choose 2) :
+    (join G H).diameter = 2 := by
+  rw [join_comm]
+  exact diameter_join_left hG h
+
+@[simp] theorem diameter_star (n : ℕ) : (star (n + 2)).diameter = 2 := by
+  rw [star_eq_bipartite, bipartite_eq_join]
+  refine diameter_join_right (by simp) ?_
+  rw [E_empty, V_empty]
+  exact Nat.choose_pos (by omega)
+
+@[simp] theorem diameter_book (n : ℕ) : (book (n + 2)).diameter = 2 := by
+  rw [book_eq_join]
+  refine diameter_join_right (by simp) ?_
+  rw [E_empty, V_empty]
+  exact Nat.choose_pos (by omega)
+
+@[simp] theorem diameter_wheel (n : ℕ) : (wheel (n + 4)).diameter = 2 := by
+  rw [wheel_eq_join]
+  refine diameter_join_right (by simp) ?_
+  rw [show n + 4 = n + 1 + 3 from rfl, E_cycle, V_cycle]
+  have := lt_choose_two (n := n + 1 + 3) (by omega)
+  omega
+
+@[simp] theorem diameter_fan (n : ℕ) : (fan (n + 4)).diameter = 2 := by
+  refine diameter_join_right (by simp) ?_
+  rw [show n + 4 = n + 3 + 1 from rfl, E_path, V_path]
+  have := lt_choose_two (n := n + 3 + 1) (by omega)
+  omega
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -7482,6 +7597,21 @@ example : (triangular 5).diameter = 2 := diameter_triangular (by norm_num)
 example : petersen ≠ cycle 10 :=
   ne_of_diameter_ne (by
     rw [diameter_petersen, show (10 : ℕ) = 9 + 1 from rfl, diameter_cycle]
+    decide)
+
+example : (star 5).diameter = 2 := by simp
+
+example : (wheel 6).diameter = 2 := by simp
+
+example : (fan 5).diameter = 2 := diameter_fan 1
+
+example : (book 4).diameter = 2 := by simp
+
+/-- The star and the path on four vertices have the same order, size and edge count, and both are
+trees; the diameter is what tells them apart. -/
+example : star 3 ≠ path 4 :=
+  ne_of_diameter_ne (by
+    rw [show (3 : ℕ) = 1 + 2 from rfl, diameter_star, show (4 : ℕ) = 3 + 1 from rfl, diameter_path]
     decide)
 
 end IsoGraph
