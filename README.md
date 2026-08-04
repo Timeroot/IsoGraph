@@ -1529,6 +1529,15 @@ already proved about `G` and `Ḡ`. The clique cover number of a complete multip
 the size of its largest part, since `compl_completeMultipartite_cons` unfolds the complement
 into a disjoint union of cliques and the chromatic number of a disjoint union is a maximum.
 
+Two chains of inequalities run through the invariant library: `ω ≤ χ` on the graph and
+`α ≤ θ` on its complement. Several named families meet these bounds. The rook's graph is a
+Cartesian product of two cliques, so `chromNum_rook` reads off `max m n` from
+`chromNum_cartesianProduct`, matching `cliqueNum_rook` exactly; a bipartite graph with at least
+one edge has `χ = ω = 2`, which specialises to every hypercube of positive dimension; and for
+complete multipartite graphs both `χ = ω` (counting the nonempty parts) and the dual
+`α = θ` (the parts themselves are simultaneously the largest independent set and an optimal
+clique cover) hold. Odd cycles show none of this is automatic: `C₅` has `ω = 2` but `χ = 3`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

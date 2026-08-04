@@ -16605,4 +16605,61 @@ example : (cocktailParty 3).V ≤ (cocktailParty 3).chromNum * (cocktailParty 3)
 
 example : petersen.numComponents ≤ petersen.cliqueCoverNum := numComponents_le_cliqueCoverNum _
 
+/-! ### Graphs whose colouring numbers meet their clique numbers
+
+`ω ≤ χ` and `α ≤ θ` always hold, and for several of the named families they are equalities.
+Odd cycles show that this is not automatic: `C₅` has `ω = 2` but `χ = 3`. -/
+
+/-- The rook's graph is a Cartesian product of cliques, and the chromatic number of a Cartesian
+product is the larger of the two factors' chromatic numbers. -/
+@[simp] theorem chromNum_rook (m n : ℕ) :
+    (rook (m + 1) (n + 1)).chromNum = max (m + 1) (n + 1) := by
+  show (cartesianProduct (complete (m + 1)) (complete (n + 1))).chromNum = _
+  rw [chromNum_cartesianProduct (by rw [V_complete]; omega) (by rw [V_complete]; omega),
+    chromNum_complete, chromNum_complete]
+
+/-- A bipartite graph with an edge has `χ = ω = 2`. -/
+theorem chromNum_eq_cliqueNum_of_isBipartite {G : IsoGraph} (hb : IsBipartite G) (hE : 0 < G.E) :
+    G.chromNum = G.cliqueNum := by
+  have h1 : G.chromNum = 2 := chromNum_eq_two_iff.2 ⟨hb, hE⟩
+  have h2 := cliqueNum_le_two_of_isBipartite hb
+  have h3 := two_le_cliqueNum_of_E_pos hE
+  omega
+
+/-- Both numbers count the largest row or column. -/
+theorem chromNum_eq_cliqueNum_rook (m n : ℕ) :
+    (rook (m + 1) (n + 1)).chromNum = (rook (m + 1) (n + 1)).cliqueNum := by
+  rw [chromNum_rook, cliqueNum_rook (by omega) (by omega)]
+
+/-- Both numbers count the nonempty parts. -/
+theorem chromNum_eq_cliqueNum_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).chromNum = (completeMultipartite ds).cliqueNum := by
+  rw [chromNum_completeMultipartite, cliqueNum_completeMultipartite]
+
+/-- Dually, both the independence number and the clique cover number of a complete multipartite
+graph are the size of its largest part: the parts themselves are the optimal objects on both
+sides. -/
+theorem indepNum_eq_cliqueCoverNum_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).indepNum = (completeMultipartite ds).cliqueCoverNum := by
+  induction ds with
+  | nil => rw [completeMultipartite_nil, indepNum_empty, cliqueCoverNum_empty]
+  | cons d ds ih =>
+    rw [completeMultipartite_cons, indepNum_join, cliqueCoverNum_join, indepNum_empty,
+      cliqueCoverNum_empty, ih]
+
+example : (rook 3 3).chromNum = 3 := by
+  rw [show (3 : ℕ) = 2 + 1 by ring, chromNum_rook]
+  omega
+
+example (n : ℕ) : (hypercube (n + 1)).chromNum = (hypercube (n + 1)).cliqueNum := by
+  refine chromNum_eq_cliqueNum_of_isBipartite (isBipartite_hypercube (n + 1)) ?_
+  have h := E_hypercube (n + 1)
+  have hpos : 0 < (n + 1) * 2 ^ (n + 1) :=
+    Nat.mul_pos (by omega) (pow_pos (by norm_num) _)
+  omega
+
+example (m n : ℕ) : (bipartite (m + 1) (n + 1)).indepNum
+    = (bipartite (m + 1) (n + 1)).cliqueCoverNum := by
+  rw [indepNum_bipartite, cliqueCoverNum_bipartite]
+
 end IsoGraph
