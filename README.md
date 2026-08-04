@@ -762,6 +762,19 @@ They also both contain a triangle as soon as each factor has an edge, which
 without naming a vertex, and `0 < G.E` is it: `exists_adj_of_E_pos` recovers the two endpoints by
 `Finset.card_pos` and an induction on the `Sym2`.
 
+Vertex- and arc-transitivity were the last invariant with a full `CGraph` story and nothing on the
+quotient, and they transfer the same way. The families — empty, complete, cycle, hypercube, folded
+cube, `K_{n,n}` and the Kneser graphs — are one-liners; the complement and the four products go
+through `mk_canonicalize`, and are named as dot-notation lemmas (`IsVertexTransitive.compl`,
+`IsVertexTransitive.cartesianProduct`, …) so that they chain. Since `compl_compl` is an identity
+on the quotient, the complement version is upgraded to an `iff` and tagged `simp`.
+
+The derived cases are then whichever earlier identity puts a family into one of those shapes:
+`triangular_eq_compl_kneser` for the triangular graph, `cocktailParty_eq_lexProduct` for the
+cocktail party graph, and the definitional unfoldings for the rook graph, the prism and the
+Petersen graph. `IsArcTransitive.lineGraph` covers the line graphs, since the arcs of `G` are
+exactly the vertices of `L(G)`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -5903,6 +5903,133 @@ theorem not_isBipartite_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E
   rw [E_complete]
   exact Nat.choose_pos (by omega)
 
+/-! ### Vertex- and arc-transitivity -/
+
+@[simp] theorem isVertexTransitive_empty (n : ℕ) : IsVertexTransitive (empty n) :=
+  CGraph.isVertexTransitive_empty n
+
+@[simp] theorem isArcTransitive_empty (n : ℕ) : IsArcTransitive (empty n) :=
+  CGraph.isArcTransitive_empty n
+
+@[simp] theorem isVertexTransitive_complete (n : ℕ) : IsVertexTransitive (complete n) :=
+  CGraph.isVertexTransitive_complete n
+
+@[simp] theorem isArcTransitive_complete (n : ℕ) : IsArcTransitive (complete n) :=
+  CGraph.isArcTransitive_complete n
+
+@[simp] theorem isVertexTransitive_cycle (n : ℕ) : IsVertexTransitive (cycle n) :=
+  CGraph.isVertexTransitive_cycle n
+
+@[simp] theorem isArcTransitive_cycle (n : ℕ) : IsArcTransitive (cycle n) :=
+  CGraph.isArcTransitive_cycle n
+
+@[simp] theorem isVertexTransitive_hypercube (n : ℕ) : IsVertexTransitive (hypercube n) :=
+  CGraph.isVertexTransitive_hypercube n
+
+@[simp] theorem isArcTransitive_hypercube (n : ℕ) : IsArcTransitive (hypercube n) :=
+  CGraph.isArcTransitive_hypercube n
+
+@[simp] theorem isVertexTransitive_foldedCube (n : ℕ) : IsVertexTransitive (foldedCube n) :=
+  CGraph.isVertexTransitive_foldedCube n
+
+@[simp] theorem isArcTransitive_bipartite_self (n : ℕ) : IsArcTransitive (bipartite n n) :=
+  CGraph.isArcTransitive_bipartite_self n
+
+@[simp] theorem isVertexTransitive_bipartite_self (n : ℕ) : IsVertexTransitive (bipartite n n) :=
+  CGraph.isVertexTransitive_bipartite_self n
+
+@[simp] theorem isArcTransitive_kneser (n k : ℕ) : IsArcTransitive (kneser n k) :=
+  CGraph.isArcTransitive_kneser n k
+
+@[simp] theorem isVertexTransitive_kneser (n k : ℕ) : IsVertexTransitive (kneser n k) :=
+  CGraph.isVertexTransitive_kneser n k
+
+/-- The complement has the same automorphisms. -/
+theorem IsVertexTransitive.compl {G : IsoGraph} (h : IsVertexTransitive G) :
+    IsVertexTransitive (IsoGraph.compl G) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [compl_mk, isVertexTransitive_mk]
+  rw [isVertexTransitive_mk] at h
+  exact CGraph.isVertexTransitive_compl _ h
+
+@[simp] theorem isVertexTransitive_compl (G : IsoGraph) :
+    IsVertexTransitive (IsoGraph.compl G) ↔ IsVertexTransitive G :=
+  ⟨fun h ↦ by simpa using h.compl, IsVertexTransitive.compl⟩
+
+theorem IsVertexTransitive.cartesianProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
+    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.cartesianProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [cartesianProduct_mk, isVertexTransitive_mk]
+  rw [isVertexTransitive_mk] at hG hH
+  exact CGraph.isVertexTransitive_cartesianProduct _ _ hG hH
+
+theorem IsVertexTransitive.tensorProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
+    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.tensorProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [tensorProduct_mk, isVertexTransitive_mk]
+  rw [isVertexTransitive_mk] at hG hH
+  exact CGraph.isVertexTransitive_tensorProduct _ _ hG hH
+
+theorem IsVertexTransitive.strongProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
+    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.strongProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [strongProduct_mk, isVertexTransitive_mk]
+  rw [isVertexTransitive_mk] at hG hH
+  exact CGraph.isVertexTransitive_strongProduct _ _ hG hH
+
+theorem IsVertexTransitive.lexProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
+    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.lexProduct G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [lexProduct_mk, isVertexTransitive_mk]
+  rw [isVertexTransitive_mk] at hG hH
+  exact CGraph.isVertexTransitive_lexProduct _ _ hG hH
+
+/-- Arcs of `G` are vertices of its line graph, so arc-transitivity becomes vertex-transitivity. -/
+theorem IsArcTransitive.lineGraph {G : IsoGraph} (h : IsArcTransitive G) :
+    IsVertexTransitive (IsoGraph.lineGraph G) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [lineGraph_mk, isVertexTransitive_mk]
+  rw [isArcTransitive_mk] at h
+  exact CGraph.isVertexTransitive_lineGraph _ h
+
+/-! Derived transitivity. -/
+
+@[simp] theorem isVertexTransitive_petersen : IsVertexTransitive petersen :=
+  isVertexTransitive_kneser 5 2
+
+@[simp] theorem isArcTransitive_petersen : IsArcTransitive petersen := isArcTransitive_kneser 5 2
+
+@[simp] theorem isVertexTransitive_triangular (n : ℕ) : IsVertexTransitive (triangular n) := by
+  rw [triangular_eq_compl_kneser, isVertexTransitive_compl]
+  exact isVertexTransitive_kneser n 2
+
+@[simp] theorem isVertexTransitive_rook (m n : ℕ) : IsVertexTransitive (rook m n) :=
+  (isVertexTransitive_complete m).cartesianProduct (isVertexTransitive_complete n)
+
+@[simp] theorem isVertexTransitive_prism (n : ℕ) : IsVertexTransitive (prism n) :=
+  (isVertexTransitive_cycle n).cartesianProduct (isVertexTransitive_complete 2)
+
+@[simp] theorem isVertexTransitive_cocktailParty (n : ℕ) :
+    IsVertexTransitive (cocktailParty n) := by
+  rw [cocktailParty_eq_lexProduct]
+  exact (isVertexTransitive_complete n).lexProduct (isVertexTransitive_empty 2)
+
+@[simp] theorem isVertexTransitive_lineGraph_complete (n : ℕ) :
+    IsVertexTransitive (lineGraph (complete n)) := (isArcTransitive_complete n).lineGraph
+
+@[simp] theorem isVertexTransitive_lineGraph_cycle (n : ℕ) :
+    IsVertexTransitive (lineGraph (cycle n)) := (isArcTransitive_cycle n).lineGraph
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6438,6 +6565,11 @@ example : ¬ IsBipartite (lexProduct (complete 2) (complete 2)) :=
 
 example : ¬ IsBipartite (strongProduct (path 2) (path 2)) :=
   not_isBipartite_strongProduct (by simp) (by simp)
+
+example : IsVertexTransitive (compl petersen) := by simp
+example : IsVertexTransitive (cartesianProduct (hypercube 3) (cycle 5)) :=
+  (isVertexTransitive_hypercube 3).cartesianProduct (isVertexTransitive_cycle 5)
+example : IsVertexTransitive (triangular 5) := by simp
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp
