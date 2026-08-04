@@ -7460,6 +7460,106 @@ theorem domNum_le_domNum_strongProduct (G H : CGraph) [DecidableEq G.V] [Decidab
       · exact Or.inr ⟨w.1, Finset.mem_image.2 ⟨w, hw, rfl⟩, h1⟩
   exact le_trans (domNum_le_card_of_isDominatingSet hdom) (hs ▸ Finset.card_image_le)
 
+/-! ### Independence numbers of the graph products -/
+
+/-- Independence number is antitone in the graph: adding edges can only shrink it. -/
+private theorem indepNum_anti {α : Type} [Fintype α] {S T : SimpleGraph α} (h : S ≤ T) :
+    T.indepNum ≤ S.indepNum := by
+  obtain ⟨s, hs, hcard⟩ := T.exists_isNIndepSet_indepNum
+  have hind : S.IsIndepSet (s : Set α) := by
+    intro x hx y hy hxy hadj
+    exact hs hx hy hxy (h hadj)
+  exact hcard ▸ hind.card_le_indepNum
+
+/-- The strong product is a subgraph of the lexicographic product. -/
+theorem strongProduct_le_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).toSimple ≤ (lexProduct G H).toSimple := by
+  intro p q hpq
+  rw [CGraph.toSimple_adj, strongProduct_adj] at hpq
+  rw [CGraph.toSimple_adj, lexProduct_adj]
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, ne_eq] at hpq ⊢
+  obtain ⟨hne, h1, h2⟩ := hpq
+  rcases h1 with h1 | h1
+  · refine Or.inr ⟨h1, ?_⟩
+    rcases h2 with h2 | h2
+    · exact absurd (Prod.ext h1 h2) hne
+    · exact h2
+  · exact Or.inl h1
+
+/-- **A product of independent sets is independent in the strong product**, so
+`α(G) · α(H) ≤ α(G ⊠ H)`.  This is the inequality behind the Shannon capacity of a graph. -/
+theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : CGraph)
+    [DecidableEq G.V] [DecidableEq H.V] :
+    G.indepNum * H.indepNum ≤ (strongProduct G H).indepNum := by
+  have h := indepNum_anti (strongProduct_le_lexProduct G H)
+  rwa [show (lexProduct G H).toSimple.indepNum = G.indepNum * H.indepNum from
+    indepNum_lexProduct G H] at h
+
+/-- The same product set is independent in the (sparser) cartesian product. -/
+theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : CGraph)
+    [DecidableEq G.V] [DecidableEq H.V] :
+    G.indepNum * H.indepNum ≤ (cartesianProduct G H).indepNum :=
+  le_trans (indepNum_mul_indepNum_le_indepNum_strongProduct G H)
+    (indepNum_anti (cartesianProduct_le_strongProduct G H))
+
+/-- In the tensor product a whole slab `S ×ˢ univ` over an independent set `S` is independent,
+because every tensor edge moves in *both* coordinates: `α(G) · |V(H)| ≤ α(G × H)`. -/
+theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
+    [DecidableEq G.V] [DecidableEq H.V] :
+    G.indepNum * Fintype.card H.V ≤ (tensorProduct G H).indepNum := by
+  classical
+  obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  have hind : (tensorProduct G H).toSimple.IsIndepSet
+      ((s ×ˢ (Finset.univ : Finset H.V) : Finset (G.V × H.V)) : Set (G.V × H.V)) := by
+    intro p hp q hq hpq hadj
+    rw [Finset.mem_coe, Finset.mem_product] at hp hq
+    rw [CGraph.toSimple_adj, tensorProduct_adj, Bool.and_eq_true] at hadj
+    have hne : p.1 ≠ q.1 := fun h ↦ G.loopless q.1 (h ▸ hadj.1)
+    exact hs hp.1 hq.1 hne hadj.1
+  calc G.indepNum * Fintype.card H.V
+      = (s ×ˢ (Finset.univ : Finset H.V)).card := by
+        rw [Finset.card_product, hcard, Finset.card_univ]
+        rfl
+    _ ≤ _ := hind.card_le_indepNum
+
+/-- Fibrewise counting: an independent set of `G □ H` meets each fibre `{a} × V(H)` in an
+independent set of `H`, so `α(G □ H) ≤ |V(G)| · α(H)`. -/
+theorem indepNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum := by
+  classical
+  obtain ⟨s, hs, hcard⟩ := (cartesianProduct G H).toSimple.exists_isNIndepSet_indepNum
+  have hfib : ∀ a : G.V, (s.filter fun p ↦ p.1 = a).card ≤ H.indepNum := by
+    intro a
+    have hindH : H.toSimple.IsIndepSet
+        (((s.filter fun p ↦ p.1 = a).image Prod.snd : Finset H.V) : Set H.V) := by
+      intro y hy z hz hyz hadj
+      rw [Finset.mem_coe, Finset.mem_image] at hy hz
+      obtain ⟨p, hp, rfl⟩ := hy
+      obtain ⟨q, hq, rfl⟩ := hz
+      rw [Finset.mem_filter] at hp hq
+      refine hs hp.1 hq.1 (fun h ↦ hyz (congrArg Prod.snd h)) ?_
+      rw [CGraph.toSimple_adj, cartesianProduct_adj]
+      simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+      exact Or.inl ⟨hp.2.trans hq.2.symm, hadj⟩
+    refine le_trans (Finset.card_le_card_of_injOn Prod.snd
+      (fun p hp ↦ Finset.mem_image_of_mem _ hp) ?_) hindH.card_le_indepNum
+    intro p hp q hq hpq
+    rw [Finset.mem_coe, Finset.mem_filter] at hp hq
+    exact Prod.ext (hp.2.trans hq.2.symm) hpq
+  have hsum : s.card = ∑ a : G.V, (s.filter fun p ↦ p.1 = a).card :=
+    Finset.card_eq_sum_card_fiberwise fun p _ ↦ Finset.mem_univ p.1
+  calc (cartesianProduct G H).indepNum = s.card := hcard.symm
+    _ = ∑ a : G.V, (s.filter fun p ↦ p.1 = a).card := hsum
+    _ ≤ ∑ _a : G.V, H.indepNum := Finset.sum_le_sum fun a _ ↦ hfib a
+    _ = Fintype.card G.V * H.indepNum := by
+        rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
+
+/-- The strong product has at least as many edges as the cartesian one, so the same bound holds. -/
+theorem indepNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum :=
+  le_trans (indepNum_anti (cartesianProduct_le_strongProduct G H))
+    (indepNum_cartesianProduct_le G H)
+
 end CGraph
 
 namespace IsoGraph
@@ -14782,5 +14882,88 @@ theorem max_domNum_le_domNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH :
   refine max_le (domNum_le_domNum_strongProduct G hH) ?_
   rw [strongProduct_comm]
   exact domNum_le_domNum_strongProduct H hG
+
+/-! ### Independence numbers of the graph products -/
+
+/-- `α(G) · α(H) ≤ α(G ⊠ H)`: the Shannon-capacity lower bound. -/
+theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : IsoGraph) :
+    G.indepNum * H.indepNum ≤ (strongProduct G H).indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, indepNum_mk, indepNum_mk,
+    indepNum_mk]
+  exact CGraph.indepNum_mul_indepNum_le_indepNum_strongProduct _ _
+
+/-- `α(G) · α(H) ≤ α(G □ H)`. -/
+theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : IsoGraph) :
+    G.indepNum * H.indepNum ≤ (cartesianProduct G H).indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, indepNum_mk, indepNum_mk,
+    indepNum_mk]
+  exact CGraph.indepNum_mul_indepNum_le_indepNum_cartesianProduct _ _
+
+/-- `α(G) · |V(H)| ≤ α(G × H)`, since no tensor edge stays inside a slab. -/
+theorem indepNum_mul_V_le_indepNum_tensorProduct (G H : IsoGraph) :
+    G.indepNum * H.V ≤ (tensorProduct G H).indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, indepNum_mk, indepNum_mk,
+    V_mk]
+  exact CGraph.indepNum_mul_card_le_indepNum_tensorProduct _ _
+
+/-- `α(G × H)` is also at least `|V(G)| · α(H)`, by symmetry. -/
+theorem V_mul_indepNum_le_indepNum_tensorProduct (G H : IsoGraph) :
+    G.V * H.indepNum ≤ (tensorProduct G H).indepNum := by
+  rw [tensorProduct_comm, mul_comm]
+  exact indepNum_mul_V_le_indepNum_tensorProduct H G
+
+/-- `α(G □ H) ≤ |V(G)| · α(H)`, by counting fibrewise. -/
+theorem indepNum_cartesianProduct_le (G H : IsoGraph) :
+    (cartesianProduct G H).indepNum ≤ G.V * H.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, indepNum_mk, indepNum_mk,
+    V_mk]
+  exact CGraph.indepNum_cartesianProduct_le _ _
+
+/-- The mirror bound `α(G □ H) ≤ α(G) · |V(H)|`. -/
+theorem indepNum_cartesianProduct_le' (G H : IsoGraph) :
+    (cartesianProduct G H).indepNum ≤ G.indepNum * H.V := by
+  rw [cartesianProduct_comm, mul_comm]
+  exact indepNum_cartesianProduct_le H G
+
+/-- `α(G ⊠ H) ≤ |V(G)| · α(H)`. -/
+theorem indepNum_strongProduct_le (G H : IsoGraph) :
+    (strongProduct G H).indepNum ≤ G.V * H.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, indepNum_mk, indepNum_mk,
+    V_mk]
+  exact CGraph.indepNum_strongProduct_le _ _
+
+/-- The mirror bound `α(G ⊠ H) ≤ α(G) · |V(H)|`. -/
+theorem indepNum_strongProduct_le' (G H : IsoGraph) :
+    (strongProduct G H).indepNum ≤ G.indepNum * H.V := by
+  rw [strongProduct_comm, mul_comm]
+  exact indepNum_strongProduct_le H G
+
+/-- Squeezing the two bounds: a product with a complete graph has independence number exactly
+`α(G)`, because `α(K_n) = 1` for `n ≠ 0`. -/
+theorem indepNum_cartesianProduct_complete_le (G : IsoGraph) (n : ℕ) :
+    (cartesianProduct G (complete n)).indepNum ≤ G.indepNum * n := by
+  have h := indepNum_cartesianProduct_le' G (complete n)
+  rwa [V_complete] at h
+
+example : 4 ≤ (strongProduct (cycle 5) (cycle 5)).indepNum := by
+  have h5 : (cycle 5).indepNum = 2 := by simp
+  have h := indepNum_mul_indepNum_le_indepNum_strongProduct (cycle 5) (cycle 5)
+  rw [h5] at h
+  omega
+
+example : 3 ≤ (tensorProduct (complete 3) (complete 3)).indepNum := by
+  have h := V_mul_indepNum_le_indepNum_tensorProduct (complete 3) (complete 3)
+  rw [V_complete, indepNum_complete] at h
+  omega
 
 end IsoGraph

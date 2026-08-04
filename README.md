@@ -1346,6 +1346,18 @@ product, and two universal vertices give a universal vertex, so `γ = 1` when bo
 lifting a dominating set of `G` into that vertex's fibre dominates `G[H]`, so blowing up by a
 dominated graph leaves `γ` unchanged — `γ(G[H]) = γ(G)`.
 
+Independence numbers of the products are next, and here the exact value is only available for
+the lexicographic product (`α(G[H]) = α(G)·α(H)`, already proved).  The other three get sharp-in-
+general bounds instead.  Since `α` is antitone in the edge set, the new subgraph inclusion
+`G ⊠ H ≤ G[H]` immediately gives `α(G)·α(H) ≤ α(G ⊠ H)` — the inequality behind the Shannon
+capacity of a graph, which is exactly the quantity measuring how far it can be from an equality —
+and chaining it with `G □ H ≤ G ⊠ H` gives the same lower bound for the cartesian product.  The
+tensor product is different: no tensor edge stays inside a slab `S × V(H)`, so an independent set
+of `G` widens to a full slab and `α(G)·|V(H)| ≤ α(G × H)`, with the mirrored bound by symmetry.
+In the other direction, fibrewise counting bounds the cartesian product from above: an independent
+set meets each fibre `{a} × V(H)` in an independent set of `H`, so `α(G □ H) ≤ |V(G)|·α(H)`, and
+since the strong product contains the cartesian one the same bound holds there.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
