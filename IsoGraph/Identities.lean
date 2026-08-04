@@ -16750,4 +16750,77 @@ example : (star 5).cliqueNum = 2 := cliqueNum_of_isTree (isTree_star 5) (by rw [
 example (G : IsoGraph) (h : IsTree G) : G.cliqueCount 3 = 0 :=
   cliqueCount_three_eq_zero_of_isAcyclic ((isTree_iff_isConnected_and_isAcyclic G).1 h).2
 
+/-! ### The chromatic index of the complete bipartite graphs and the stars
+
+Both are cases where the line graph is one of the named families in its own right: the line graph
+of `K_{m,n}` is the rook's graph `K_m □ K_n` and the line graph of a star is complete, so the
+chromatic index can be read straight off the chromatic-number table. -/
+
+/-- **König's edge-colouring theorem for complete bipartite graphs**: `χ'(K_{m,n}) = max m n`,
+which is exactly the maximum degree.  Here it is a consequence of `χ(K_m □ K_n) = max m n`. -/
+@[simp] theorem edgeChromNum_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).edgeChromNum = max (m + 1) (n + 1) := by
+  rw [edgeChromNum_eq, lineGraph_bipartite, chromNum_rook]
+
+/-- Stars attain the trivial lower bound `Δ ≤ χ'`. -/
+theorem edgeChromNum_star_eq_maxDeg (n : ℕ) :
+    (star (n + 1)).edgeChromNum = maxDeg (star (n + 1)) := by
+  rw [edgeChromNum_star, maxDeg_star]
+
+/-! ### Bounds on the chromatic index of the regular families -/
+
+theorem sub_one_le_edgeChromNum_complete (n : ℕ) : n - 1 ≤ (complete n).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (complete n)
+  rwa [maxDeg_complete] at h
+
+theorem edgeChromNum_complete_le (n : ℕ) : (complete n).edgeChromNum ≤ 2 * (n - 1) - 1 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one (complete n)
+  rwa [maxDeg_complete] at h
+
+theorem le_edgeChromNum_hypercube (n : ℕ) : n ≤ (hypercube n).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (hypercube n)
+  rwa [maxDeg_hypercube] at h
+
+theorem three_le_edgeChromNum_petersen : 3 ≤ petersen.edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum petersen
+  rwa [maxDeg_petersen] at h
+
+/-! ### The triangular graphs as line graphs of complete graphs
+
+`J(n, 2)` is the line graph of `Kₙ`, so the general line-graph bounds turn into statements about
+cliques, colourings and independent sets in the triangular graphs. -/
+
+/-- The `n - 1` edges at a vertex of `Kₙ` form a clique of `J(n, 2)`. -/
+theorem sub_one_le_cliqueNum_johnson_two (n : ℕ) : n - 1 ≤ (johnson n 2).cliqueNum := by
+  have h := maxDeg_le_cliqueNum_lineGraph (complete n)
+  rwa [maxDeg_complete, lineGraph_complete] at h
+
+theorem sub_one_le_chromNum_johnson_two (n : ℕ) : n - 1 ≤ (johnson n 2).chromNum :=
+  le_trans (sub_one_le_cliqueNum_johnson_two n) (cliqueNum_le_chromNum _)
+
+theorem chromNum_johnson_two_le (n : ℕ) : (johnson n 2).chromNum ≤ 2 * (n - 1) - 1 := by
+  have h := edgeChromNum_complete_le n
+  rwa [edgeChromNum_eq, lineGraph_complete] at h
+
+/-- An independent set of `J(n, 2)` is a matching of `Kₙ`, so it has at most `n / 2` members. -/
+theorem two_mul_indepNum_johnson_two_le (n : ℕ) : 2 * (johnson n 2).indepNum ≤ n := by
+  have h := two_mul_matchNum_le_V (complete n)
+  rwa [matchNum_eq, lineGraph_complete, V_complete] at h
+
+theorem matchNum_complete_le (n : ℕ) : (complete n).matchNum ≤ n / 2 := by
+  have h := two_mul_matchNum_le_V (complete n)
+  rw [V_complete] at h
+  omega
+
+theorem sub_one_le_chromNum_triangular (n : ℕ) : n - 1 ≤ (triangular n).chromNum :=
+  sub_one_le_chromNum_johnson_two n
+
+example : (bipartite 3 5).edgeChromNum = 5 := by
+  rw [show (3 : ℕ) = 2 + 1 by ring, show (5 : ℕ) = 4 + 1 by ring, edgeChromNum_bipartite]
+  omega
+
+example : (star 6).edgeChromNum = 6 := by simp
+
+example : 4 ≤ (johnson 5 2).cliqueNum := sub_one_le_cliqueNum_johnson_two 5
+
 end IsoGraph

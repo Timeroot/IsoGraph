@@ -1546,6 +1546,15 @@ other direction an acyclic graph has no triangle, so its clique number is at mos
 no three-vertex clique at all; combined with the edge count `E + 1 = V` this pins the clique
 number of any tree on at least two vertices at exactly two.
 
+Because the line graph of `K_{m,n}` is the rook's graph and the line graph of a star is complete,
+the chromatic index of both families falls out of the chromatic-number table: `χ'(K_{m,n}) =
+max m n` is König's edge-colouring theorem for complete bipartite graphs, obtained here from
+`χ(K_m □ K_n) = max m n`. The same dictionary runs the other way for the triangular graphs, which
+are the line graphs of complete graphs: the star of edges at a vertex of `Kₙ` gives `n - 1` as a
+lower bound for both the clique number and the chromatic number of `J(n, 2)`, the greedy
+line-graph colouring caps `χ(J(n, 2))` at `2(n - 1) - 1`, and an independent set of `J(n, 2)` is
+a matching of `Kₙ` and so has at most `n / 2` members.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
