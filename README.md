@@ -1091,6 +1091,24 @@ bipartiteness.  Read backwards, the same inequality is a triangle *detector*: `|
 turns the upper bound into a *lower* one: a graph with independence number at most `r` is forced to
 have many edges.
 
+**Ramsey's theorem** is not in Mathlib at all, so both halves of `R(3, 3) = 6` are proved here.
+The upper bound is the pigeonhole argument: fix a vertex `v` of a graph on six vertices; of the
+five others, three are neighbours or three are non-neighbours, and a set of three neighbours
+either contains an edge — a triangle through `v` — or is independent.  Stating it as
+`3 ≤ ω(G) ∨ 3 ≤ ω(Gᶜ)` makes the two cases literally the same lemma applied to `G` and `Gᶜ`, and
+`cliqueNum_compl` turns the result into `3 ≤ ω(G) ∨ 3 ≤ α(G)`.  The lower bound is `C₅`, whose
+clique and independence numbers are both two, so five vertices really are not enough.  Downstream,
+any triangle-free graph on six or more vertices — in particular any bipartite one — has three
+pairwise non-adjacent vertices.
+
+The general bound `R(s, t) ≤ C(s + t, s)` comes from the same picture run recursively.  It is
+stated over a `Finset` of vertices rather than the whole type, so the induction can descend into
+the neighbourhood and the non-neighbourhood of `v` without changing the ambient graph: Pascal's
+rule `C(s + t, s) = C(s - 1 + t, s - 1) + C(s + t - 1, s)` guarantees one of the two sides is big
+enough, and whatever the smaller instance returns is either already large enough or is extended by
+`v`.  Both `s` and `t` shrink, so the induction is on `s` with a nested induction on `t`.  Since
+`C(2s, s) ≤ 4^s`, the diagonal case reads `4^s ≤ |V| → s ≤ ω(G) ∨ s ≤ α(G)`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

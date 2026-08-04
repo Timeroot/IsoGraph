@@ -2,6 +2,7 @@ import IsoGraph.Constructions
 import Mathlib.Combinatorics.SimpleGraph.ConcreteColorings
 import Mathlib.Combinatorics.SimpleGraph.Sum
 import Mathlib.Combinatorics.SimpleGraph.Circulant
+import Mathlib.Data.Nat.Choose.Bounds
 
 /-!
 # Constructions on `IsoGraph`, and the identities between them
@@ -5197,6 +5198,163 @@ theorem three_le_cliqueNum_of_card_sq_lt (G : CGraph)
     (h : (Fintype.card G.V) ^ 2 < 4 * G.E) : 3 ≤ G.cliqueNum := by
   by_contra hcon
   exact absurd (G.four_mul_E_le_card_sq (by omega)) (by omega)
+
+section Ramsey
+
+variable {X : Type} [Fintype X] [DecidableEq X]
+
+omit [DecidableEq X] in
+/-- **The key pigeonhole step.**  If `v` has three neighbours in `T`, then either two of them are
+adjacent — giving a triangle through `v` — or they are pairwise non-adjacent, giving a triangle in
+the complement. -/
+private theorem three_le_cliqueNum_of_neighbors (T : SimpleGraph X) (v : X) (A : Finset X)
+    (hA : ∀ x ∈ A, T.Adj v x) (hcard : 3 ≤ A.card) :
+    3 ≤ T.cliqueNum ∨ 3 ≤ Tᶜ.cliqueNum := by
+  classical
+  by_cases hex : ∃ x ∈ A, ∃ y ∈ A, T.Adj x y
+  · obtain ⟨x, hx, y, hy, hxy⟩ := hex
+    left
+    have hcl : T.IsNClique 3 {v, x, y} :=
+      SimpleGraph.is3Clique_triple_iff.2 ⟨hA x hx, hA y hy, hxy⟩
+    have := hcl.isClique.card_le_cliqueNum
+    rwa [hcl.card_eq] at this
+  · push_neg at hex
+    right
+    obtain ⟨t, hts, htc⟩ := Finset.exists_subset_card_eq (n := 3) hcard
+    have hcl : Tᶜ.IsClique (t : Set X) := by
+      intro x hx y hy hxy
+      exact ⟨hxy, hex x (hts (Finset.mem_coe.1 hx)) y (hts (Finset.mem_coe.1 hy))⟩
+    have := hcl.card_le_cliqueNum
+    rwa [htc] at this
+
+/-- **Ramsey's theorem for `R(3, 3)`, complement form**: on six or more vertices, either the graph
+or its complement contains a triangle.  Fix a vertex `v`: of the five other vertices, three are
+neighbours of `v` or three are non-neighbours, and either way the pigeonhole step above applies. -/
+private theorem three_le_cliqueNum_or_compl (T : SimpleGraph X) (h : 6 ≤ Fintype.card X) :
+    3 ≤ T.cliqueNum ∨ 3 ≤ Tᶜ.cliqueNum := by
+  classical
+  obtain ⟨v⟩ : Nonempty X := Fintype.card_pos_iff.1 (by omega)
+  set N := T.neighborFinset v with hN
+  set M := (Finset.univ : Finset X) \ insert v N with hM
+  have hvN : v ∉ N := by simp [hN]
+  have hins := Finset.card_le_univ (insert v N)
+  rw [Finset.card_insert_of_notMem hvN] at hins
+  have hcards : N.card + M.card + 1 = Fintype.card X := by
+    rw [hM, Finset.card_univ_diff, Finset.card_insert_of_notMem hvN]
+    omega
+  have hMadj : ∀ x ∈ M, Tᶜ.Adj v x := by
+    intro x hx
+    rw [hM, Finset.mem_sdiff, Finset.mem_insert] at hx
+    push_neg at hx
+    refine (SimpleGraph.compl_adj _ _ _).2 ⟨fun hvx ↦ hx.2.1 hvx.symm, fun hadj ↦ hx.2.2 ?_⟩
+    rw [hN, SimpleGraph.mem_neighborFinset]
+    exact hadj
+  rcases (show 3 ≤ N.card ∨ 3 ≤ M.card by omega) with hc | hc
+  · exact three_le_cliqueNum_of_neighbors T v N
+      (fun x hx ↦ (SimpleGraph.mem_neighborFinset _ _ _).1 hx) hc
+  · have := three_le_cliqueNum_of_neighbors Tᶜ v M hMadj hc
+    rw [or_comm] at this
+    simpa using this
+
+omit [Fintype X] [DecidableEq X] in
+/-- **Erdős–Szekeres**: inside any vertex set of size at least `C(s + t, s)` there is a clique of
+size `s` or a clique of size `t` in the complement.  The induction is the classical one: pick a
+vertex `v` of `u`, split the rest into the neighbours `A` and non-neighbours `B` of `v`; Pascal's
+rule says `|A| ≥ C(s - 1 + t, s - 1)` or `|B| ≥ C(s + t - 1, s)`, and in each case the smaller
+instance either already gives what is wanted or gives a set that `v` extends. -/
+private theorem exists_clique_or_clique_compl (T : SimpleGraph X) :
+    ∀ (s t : ℕ) (u : Finset X), (s + t).choose s ≤ u.card →
+      (∃ c ⊆ u, T.IsClique (c : Set X) ∧ c.card = s) ∨
+      (∃ c ⊆ u, Tᶜ.IsClique (c : Set X) ∧ c.card = t) := by
+  classical
+  intro s
+  induction s with
+  | zero => exact fun t u _ ↦ Or.inl ⟨∅, by simp, by simp, rfl⟩
+  | succ s ihs =>
+    intro t
+    induction t with
+    | zero => exact fun u _ ↦ Or.inr ⟨∅, by simp, by simp, rfl⟩
+    | succ t iht =>
+      intro u hu
+      have hpascal : (s + 1 + (t + 1)).choose (s + 1)
+          = (s + (t + 1)).choose s + (s + 1 + t).choose (s + 1) := by
+        have e1 : s + 1 + (t + 1) = s + t + 1 + 1 := by omega
+        have e2 : s + (t + 1) = s + t + 1 := by omega
+        have e3 : s + 1 + t = s + t + 1 := by omega
+        rw [e1, e2, e3, Nat.choose_succ_succ]
+      have hpos : 0 < u.card := lt_of_lt_of_le (Nat.choose_pos (by omega)) hu
+      obtain ⟨v, hv⟩ := Finset.card_pos.1 hpos
+      set A := (u.erase v).filter (fun x ↦ T.Adj v x) with hA
+      set B := (u.erase v).filter (fun x ↦ ¬ T.Adj v x) with hB
+      have hsplit : A.card + B.card = (u.erase v).card :=
+        Finset.card_filter_add_card_filter_not _
+      have herase : (u.erase v).card = u.card - 1 := Finset.card_erase_of_mem hv
+      have hAu : A ⊆ u := fun x hx ↦ Finset.mem_of_mem_erase (Finset.mem_filter.1 hx).1
+      have hBu : B ⊆ u := fun x hx ↦ Finset.mem_of_mem_erase (Finset.mem_filter.1 hx).1
+      rcases (show (s + (t + 1)).choose s ≤ A.card ∨ (s + 1 + t).choose (s + 1) ≤ B.card by
+        omega) with hc | hc
+      · rcases ihs (t + 1) A hc with ⟨c, hcA, hcl, hcard⟩ | ⟨c, hcA, hcl, hcard⟩
+        · left
+          have hvc : v ∉ c := fun hmem ↦
+            (Finset.mem_erase.1 (Finset.mem_filter.1 (hcA hmem)).1).1 rfl
+          refine ⟨insert v c, ?_, ?_, ?_⟩
+          · intro x hx
+            rcases Finset.mem_insert.1 hx with rfl | hx
+            · exact hv
+            · exact hAu (hcA hx)
+          · rw [Finset.coe_insert]
+            exact hcl.insert fun b hb _ ↦ (Finset.mem_filter.1 (hcA (Finset.mem_coe.1 hb))).2
+          · rw [Finset.card_insert_of_notMem hvc, hcard]
+        · exact Or.inr ⟨c, fun x hx ↦ hAu (hcA hx), hcl, hcard⟩
+      · rcases iht B hc with ⟨c, hcB, hcl, hcard⟩ | ⟨c, hcB, hcl, hcard⟩
+        · exact Or.inl ⟨c, fun x hx ↦ hBu (hcB hx), hcl, hcard⟩
+        · right
+          have hvc : v ∉ c := fun hmem ↦
+            (Finset.mem_erase.1 (Finset.mem_filter.1 (hcB hmem)).1).1 rfl
+          refine ⟨insert v c, ?_, ?_, ?_⟩
+          · intro x hx
+            rcases Finset.mem_insert.1 hx with rfl | hx
+            · exact hv
+            · exact hBu (hcB hx)
+          · rw [Finset.coe_insert]
+            refine hcl.insert fun b hb hne ↦ (SimpleGraph.compl_adj _ _ _).2 ⟨hne, ?_⟩
+            exact (Finset.mem_filter.1 (hcB (Finset.mem_coe.1 hb))).2
+          · rw [Finset.card_insert_of_notMem hvc, hcard]
+
+end Ramsey
+
+/-! ### The Ramsey number `R(3, 3)` -/
+
+/-- **`R(3, 3) ≤ 6`**: any graph on at least six vertices has three mutually adjacent vertices or
+three mutually non-adjacent ones. -/
+theorem three_le_cliqueNum_or_three_le_indepNum (G : CGraph) (h : 6 ≤ Fintype.card G.V) :
+    3 ≤ G.cliqueNum ∨ 3 ≤ G.indepNum := by
+  classical
+  have := three_le_cliqueNum_or_compl G.toSimple h
+  rwa [SimpleGraph.cliqueNum_compl] at this
+
+/-- Triangle-free form: a triangle-free graph on six or more vertices has three pairwise
+non-adjacent vertices. -/
+theorem three_le_indepNum_of_cliqueNum_le_two (G : CGraph) (h : 6 ≤ Fintype.card G.V)
+    (hcl : G.cliqueNum ≤ 2) : 3 ≤ G.indepNum := by
+  rcases G.three_le_cliqueNum_or_three_le_indepNum h with h' | h'
+  · omega
+  · exact h'
+
+/-! ### Ramsey numbers in general -/
+
+/-- **Ramsey's theorem**, `R(s, t) ≤ C(s + t, s)`: a graph on at least `C(s + t, s)` vertices has
+a clique on `s` vertices or an independent set on `t` vertices. -/
+theorem le_cliqueNum_or_le_indepNum (G : CGraph) {s t : ℕ}
+    (h : (s + t).choose s ≤ Fintype.card G.V) : s ≤ G.cliqueNum ∨ t ≤ G.indepNum := by
+  classical
+  rcases exists_clique_or_clique_compl G.toSimple s t Finset.univ
+      (by rwa [Finset.card_univ]) with ⟨c, -, hcl, hcard⟩ | ⟨c, -, hcl, hcard⟩
+  · exact Or.inl (hcard ▸ hcl.card_le_cliqueNum)
+  · refine Or.inr ?_
+    have := hcl.card_le_cliqueNum
+    rw [hcard, SimpleGraph.cliqueNum_compl] at this
+    exact this
 
 end CGraph
 
@@ -11138,5 +11296,90 @@ example : 4 * (cycle 5).V.choose 2 ≤ (cycle 5).V ^ 2 + 4 * (cycle 5).E :=
 
 /-- Turán with `r = 2` detects that `K₄` has a clique on more than two vertices. -/
 example : 2 < (complete 4).cliqueNum := lt_cliqueNum_of_lt _ (by omega) (by simp; decide)
+
+/-! ### The Ramsey number `R(3, 3)` -/
+
+/-- **`R(3, 3) ≤ 6`**: among any six people, three are mutual friends or three are mutual
+strangers. -/
+theorem three_le_cliqueNum_or_three_le_indepNum (G : IsoGraph) (h : 6 ≤ G.V) :
+    3 ≤ G.cliqueNum ∨ 3 ≤ G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk] at h
+  rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk]
+  exact CGraph.three_le_cliqueNum_or_three_le_indepNum _ h
+
+/-- A triangle-free graph on six or more vertices has independence number at least three. -/
+theorem three_le_indepNum_of_cliqueNum_le_two (G : IsoGraph) (h : 6 ≤ G.V)
+    (hcl : G.cliqueNum ≤ 2) : 3 ≤ G.indepNum := by
+  rcases G.three_le_cliqueNum_or_three_le_indepNum h with h' | h'
+  · omega
+  · exact h'
+
+/-- The same for a graph of girth other than three, in particular any bipartite graph. -/
+theorem three_le_indepNum_of_girth_ne_three (G : IsoGraph) (h : 6 ≤ G.V) (hg : G.girth ≠ 3) :
+    3 ≤ G.indepNum := by
+  refine G.three_le_indepNum_of_cliqueNum_le_two h ?_
+  by_contra hcon
+  exact hg (girth_eq_three_iff.2 (by omega))
+
+theorem three_le_indepNum_of_isBipartite (G : IsoGraph) (h : 6 ≤ G.V) (hb : IsBipartite G) :
+    3 ≤ G.indepNum :=
+  G.three_le_indepNum_of_cliqueNum_le_two h (cliqueNum_le_two_of_isBipartite hb)
+
+/-- Either way round: on six vertices a graph or its complement has girth three. -/
+theorem girth_eq_three_or_girth_compl_eq_three (G : IsoGraph) (h : 6 ≤ G.V) :
+    G.girth = 3 ∨ (compl G).girth = 3 := by
+  rcases G.three_le_cliqueNum_or_three_le_indepNum h with h' | h'
+  · exact Or.inl (girth_eq_three_iff.2 h')
+  · exact Or.inr (girth_eq_three_iff.2 (by rwa [cliqueNum_compl]))
+
+/-! ### `R(3, 3) = 6`: five vertices are not enough -/
+
+/-- The five-cycle has neither a triangle nor three pairwise non-adjacent vertices, so the bound
+`R(3, 3) ≤ 6` cannot be improved. -/
+theorem cliqueNum_cycle_five : (cycle 5).cliqueNum = 2 := by
+  have hle : (cycle 5).cliqueNum ≤ 2 := by
+    by_contra hcon
+    have := girth_eq_three_iff.2 (show 3 ≤ (cycle 5).cliqueNum by omega)
+    rw [girth_cycle_five] at this
+    omega
+  have hge : 2 ≤ (cycle 5).cliqueNum := two_le_cliqueNum_of_E_pos (by simp)
+  omega
+
+example : (cycle 5).V = 5 ∧ (cycle 5).cliqueNum < 3 ∧ (cycle 5).indepNum < 3 := by
+  refine ⟨by simp, by rw [cliqueNum_cycle_five]; omega, ?_⟩
+  rw [show (5 : ℕ) = 2 + 3 from rfl, indepNum_cycle]
+  omega
+
+/-- The Petersen graph, being triangle-free on ten vertices, must contain three pairwise
+non-adjacent vertices. -/
+example : 3 ≤ petersen.indepNum :=
+  petersen.three_le_indepNum_of_girth_ne_three (by rw [V_petersen]; omega)
+    (by rw [girth_petersen]; omega)
+
+/-- So must the cube graph, which is bipartite on eight vertices. -/
+example : 3 ≤ (hypercube 3).indepNum :=
+  (hypercube 3).three_le_indepNum_of_isBipartite (by simp) (isBipartite_hypercube 3)
+
+/-! ### Ramsey numbers in general -/
+
+/-- **Ramsey's theorem**, `R(s, t) ≤ C(s + t, s)`. -/
+theorem le_cliqueNum_or_le_indepNum (G : IsoGraph) {s t : ℕ} (h : (s + t).choose s ≤ G.V) :
+    s ≤ G.cliqueNum ∨ t ≤ G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk] at h
+  rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk]
+  exact CGraph.le_cliqueNum_or_le_indepNum _ h
+
+/-- The diagonal case, in the crude but memorable form `4^s` — since `C(2s, s) ≤ 2^(2s)`. -/
+theorem le_cliqueNum_or_le_indepNum_of_pow (G : IsoGraph) {s : ℕ} (h : 4 ^ s ≤ G.V) :
+    s ≤ G.cliqueNum ∨ s ≤ G.indepNum := by
+  refine G.le_cliqueNum_or_le_indepNum (le_trans ?_ h)
+  calc (s + s).choose s ≤ 2 ^ (s + s) := Nat.choose_le_two_pow _ _
+    _ = 4 ^ s := by rw [← two_mul, pow_mul]; norm_num
+
+/-- A graph on `70` vertices has four mutually adjacent or four mutually non-adjacent vertices. -/
+example (G : IsoGraph) (h : 70 ≤ G.V) : 4 ≤ G.cliqueNum ∨ 4 ≤ G.indepNum :=
+  G.le_cliqueNum_or_le_indepNum (by rw [show (4 : ℕ) + 4 = 8 from rfl]; simpa using h)
 
 end IsoGraph
