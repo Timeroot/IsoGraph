@@ -290,6 +290,7 @@ lollipop 2 k = tadpole 2 k                                lollipop 3 k = tadpole
 tadpole 2 k = path (2 + k)                                lollipop 2 k = path (2 + k)
 tadpole 1 k = path (1 + k)                                cyclePendant 1 [k] = star k
 spider (pre ++ 0 :: post) = spider (pre ++ post)          cyclePendant m (ks ++ [0]) = cyclePendant m ks
+spider ks = spider ls, whenever ks.Perm ls                spider (pre ++ a :: b :: post) = spider (pre ++ b :: a :: post)
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -401,6 +402,18 @@ i.e. the star `K_{1,k}`, are two rewrites each.  Splitting the leg list of a spi
 empty-leg rule to `spider (pre ++ 0 :: post) = spider (pre ++ post)`; the corresponding rule for
 pendant vertices holds only at the *end* of the list (`cyclePendant m (ks ++ [0])`), since a `0` in
 the middle would still shift the later blocks onto later cycle vertices.
+
+A spider depends only on the *multiset* of its leg lengths (`spider_perm`), which is the one
+identity here whose two sides need not agree on any vertex.  Exchanging two adjacent legs is the
+relabelling `swapBlocksFwd` that swaps the blocks `[s, s + a)` and `[s + a, s + a + b)` and fixes
+everything else; `nonempty_iso_ofEdges_swap_legs` states it for an *abstract* edge list
+`P ++ (legEdges 0 s a ++ (legEdges 0 (s + a) b ++ Q))`, asking only that `P` live below the two
+blocks and `Q` on the centre `0` and above them, so the spider case is one application with `P`
+the earlier legs and `Q` the later ones (`mem_spiderEdges_bound` supplies the two side conditions).
+Going from an adjacent swap to an arbitrary permutation is the usual `List.Perm` induction with one
+twist: the `cons` case is not provable as stated, so the statement carries a *prefix* parameter and
+`spider (pre ++ x :: l)` is read as `spider ((pre ++ [x]) ++ l)`, which is the induction hypothesis
+at a longer prefix.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a

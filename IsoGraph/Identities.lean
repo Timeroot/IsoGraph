@@ -1934,6 +1934,149 @@ theorem thetaCycle_adj_iff (a b p q : ℕ) (hp : p < 2 + a + b) (hq : q < 2 + a 
     · have hs := (thetaCycle_step a b p q hp hq).2 (Or.inr h)
       exact ⟨thetaCycle_step_ne a b p q hp hs, Or.inl hs⟩
 
+/-! ### Exchanging two blocks of vertices
+
+The legs of a spider may be permuted, which on edge lists is the exchange of two adjacent blocks
+of consecutive vertices.  This is the only relabelling in this file that acts on an edge list left
+abstract: the parts of the list below and above the two blocks are arbitrary, subject only to
+living on the vertices they are supposed to live on. -/
+
+/-- Every vertex touched by `spiderEdges off ks` is either the centre `0` or one of the fresh
+vertices in `[off, off + ks.sum)`; the second endpoint is always a fresh one. -/
+theorem mem_spiderEdges_bound : ∀ (off : ℕ) (ks : List ℕ) (p q : ℕ),
+    (p, q) ∈ spiderEdges off ks →
+      (p = 0 ∨ (off ≤ p ∧ p < off + ks.sum)) ∧ (off ≤ q ∧ q < off + ks.sum)
+  | _, [], _, _ => by simp [spiderEdges]
+  | off, k :: rest, p, q => by
+      intro h
+      rw [spiderEdges, List.mem_append] at h
+      simp only [List.sum_cons]
+      rcases h with h | h
+      · rw [mem_legEdges] at h
+        omega
+      · have := mem_spiderEdges_bound (off + k) rest p q h
+        omega
+
+/-- Exchange the blocks `[s, s + a)` and `[s + a, s + a + b)`, fixing everything else. -/
+def swapBlocksFwd (s a b x : ℕ) : ℕ :=
+  if x < s then x else if x < s + a then x + b else if x < s + a + b then x - a else x
+
+theorem swapBlocksFwd_of_lt (s a b x : ℕ) (h : x < s) : swapBlocksFwd s a b x = x := by
+  unfold swapBlocksFwd; rw [if_pos h]
+
+theorem swapBlocksFwd_of_ge (s a b x : ℕ) (h : s + a + b ≤ x) : swapBlocksFwd s a b x = x := by
+  unfold swapBlocksFwd; split_ifs <;> omega
+
+theorem swapBlocksFwd_lt_iff (s a b x : ℕ) : swapBlocksFwd s a b x < s ↔ x < s := by
+  unfold swapBlocksFwd; split_ifs <;> omega
+
+theorem swapBlocksFwd_ge_iff (s a b x : ℕ) :
+    s + a + b ≤ swapBlocksFwd s a b x ↔ s + a + b ≤ x := by
+  unfold swapBlocksFwd; split_ifs <;> omega
+
+theorem swapBlocksFwd_eq_zero_iff (s a b x : ℕ) (hs : 0 < s) :
+    swapBlocksFwd s a b x = 0 ↔ x = 0 := by
+  unfold swapBlocksFwd; split_ifs <;> omega
+
+theorem swapBlocksFwd_lt (s a b N x : ℕ) (hN : s + a + b ≤ N) (hx : x < N) :
+    swapBlocksFwd s a b x < N := by
+  unfold swapBlocksFwd; split_ifs <;> omega
+
+/-- Exchanging the two blocks back again is the identity: the inverse of `swapBlocksFwd s a b` is
+`swapBlocksFwd s b a`. -/
+theorem swapBlocksFwd_bwd (s a b x : ℕ) :
+    swapBlocksFwd s b a (swapBlocksFwd s a b x) = x := by
+  unfold swapBlocksFwd; split_ifs <;> omega
+
+theorem swapBlocksFwd_inj (s a b u v : ℕ) (h : swapBlocksFwd s a b u = swapBlocksFwd s a b v) :
+    u = v := by
+  rw [← swapBlocksFwd_bwd s a b u, ← swapBlocksFwd_bwd s a b v, h]
+
+/-- The block exchange as a permutation of `Fin N`. -/
+def swapBlocks (s a b N : ℕ) (hN : s + a + b ≤ N) : Equiv.Perm (Fin N) where
+  toFun p := ⟨swapBlocksFwd s a b p.1, swapBlocksFwd_lt s a b N p.1 hN p.isLt⟩
+  invFun p := ⟨swapBlocksFwd s b a p.1,
+    swapBlocksFwd_lt s b a N p.1 (by omega) p.isLt⟩
+  left_inv p := Fin.ext (swapBlocksFwd_bwd s a b p.1)
+  right_inv p := Fin.ext (swapBlocksFwd_bwd s b a p.1)
+
+@[simp] theorem swapBlocks_apply (s a b N : ℕ) (hN : s + a + b ≤ N) (p : Fin N) :
+    (swapBlocks s a b N hN p).1 = swapBlocksFwd s a b p.1 := rfl
+
+/-- The block exchange carries the two legs onto each other: the leg of length `a` starting at `s`
+goes to the leg of length `a` starting at `s + b`, and the leg of length `b` starting at `s + a`
+goes to the leg of length `b` starting at `s`.  Stated in the directed form, so that `omega` never
+sees more than two disjuncts on either side. -/
+theorem swapBlocks_leg_iff (s a b p q : ℕ) (hs : 0 < s) :
+    (((swapBlocksFwd s a b p, swapBlocksFwd s a b q) ∈ legEdges 0 s b) ∨
+      ((swapBlocksFwd s a b p, swapBlocksFwd s a b q) ∈ legEdges 0 (s + b) a)) ↔
+    (((p, q) ∈ legEdges 0 s a) ∨ ((p, q) ∈ legEdges 0 (s + a) b)) := by
+  simp only [mem_legEdges]
+  unfold swapBlocksFwd
+  split_ifs <;> omega
+
+/-- Two legs hanging off the centre `0` may be exchanged: the graph is unchanged up to the
+relabelling that swaps the two blocks of fresh vertices.  `P` is the part of the edge list that
+lives below the two blocks and `Q` the part that lives above them (the centre `0`, which both may
+touch, is fixed by the relabelling). -/
+theorem nonempty_iso_ofEdges_swap_legs (N s a b : ℕ) (P Q : List (ℕ × ℕ))
+    (hs : 0 < s) (hN : s + a + b ≤ N)
+    (hP : ∀ p q : ℕ, (p, q) ∈ P → p < s ∧ q < s)
+    (hQ : ∀ p q : ℕ, (p, q) ∈ Q → (p = 0 ∨ s + a + b ≤ p) ∧ s + a + b ≤ q) :
+    Nonempty (ofEdges N (P ++ (legEdges 0 s a ++ (legEdges 0 (s + a) b ++ Q)))
+      ≃cg ofEdges N (P ++ (legEdges 0 s b ++ (legEdges 0 (s + b) a ++ Q)))) := by
+  have hfix : ∀ u : ℕ, u < s → swapBlocksFwd s a b u = u := swapBlocksFwd_of_lt s a b
+  have hkey : ∀ u : ℕ, (u = 0 ∨ s + a + b ≤ u) → swapBlocksFwd s a b u = u := by
+    rintro u (rfl | h)
+    · exact hfix 0 hs
+    · exact swapBlocksFwd_of_ge s a b u h
+  have hPiff : ∀ u v : ℕ,
+      ((swapBlocksFwd s a b u, swapBlocksFwd s a b v) ∈ P) ↔ ((u, v) ∈ P) := by
+    intro u v
+    constructor
+    · intro h
+      obtain ⟨h1, h2⟩ := hP _ _ h
+      rw [swapBlocksFwd_lt_iff] at h1 h2
+      rwa [hfix u h1, hfix v h2] at h
+    · intro h
+      obtain ⟨h1, h2⟩ := hP _ _ h
+      rwa [hfix u h1, hfix v h2]
+  have hQiff : ∀ u v : ℕ,
+      ((swapBlocksFwd s a b u, swapBlocksFwd s a b v) ∈ Q) ↔ ((u, v) ∈ Q) := by
+    intro u v
+    constructor
+    · intro h
+      obtain ⟨h1, h2⟩ := hQ _ _ h
+      have hu : u = 0 ∨ s + a + b ≤ u := by
+        rcases h1 with h1 | h1
+        · exact Or.inl ((swapBlocksFwd_eq_zero_iff s a b u hs).1 h1)
+        · exact Or.inr ((swapBlocksFwd_ge_iff s a b u).1 h1)
+      have hv : s + a + b ≤ v := (swapBlocksFwd_ge_iff s a b v).1 h2
+      rwa [hkey u hu, hkey v (Or.inr hv)] at h
+    · intro h
+      obtain ⟨h1, h2⟩ := hQ _ _ h
+      rwa [hkey u h1, hkey v (Or.inr h2)]
+  set E : (ofEdges N (P ++ (legEdges 0 s a ++ (legEdges 0 (s + a) b ++ Q)))).V
+      ≃ (ofEdges N (P ++ (legEdges 0 s b ++ (legEdges 0 (s + b) a ++ Q)))).V :=
+    swapBlocks s a b N hN with hE
+  refine ⟨isoOfAdj E ?_⟩
+  intro x y
+  have hval : ∀ p : (ofEdges N (P ++ (legEdges 0 s a ++ (legEdges 0 (s + a) b ++ Q)))).V,
+      (E p).1 = swapBlocksFwd s a b p.1 := fun _ ↦ rfl
+  have hne : (swapBlocksFwd s a b x.1 ≠ swapBlocksFwd s a b y.1) ↔ (x.1 ≠ y.1) :=
+    not_congr ⟨swapBlocksFwd_inj s a b x.1 y.1, fun h ↦ by rw [h]⟩
+  have hmid := swapBlocks_leg_iff s a b x.1 y.1 hs
+  have hmid' := swapBlocks_leg_iff s a b y.1 x.1 hs
+  rw [Bool.eq_iff_iff, ofEdges_adj_val, ofEdges_adj_val, hval x, hval y]
+  simp only [List.mem_append]
+  refine and_congr hne (or_congr ?_ ?_)
+  · refine or_congr (hPiff _ _) ?_
+    rw [← or_assoc, ← or_assoc]
+    exact or_congr hmid (hQiff _ _)
+  · refine or_congr (hPiff _ _) ?_
+    rw [← or_assoc, ← or_assoc]
+    exact or_congr hmid' (hQiff _ _)
+
 /-! ## Two small facts about one-vertex graphs -/
 
 /-- No vertex is adjacent to itself, as an equation of `Bool`s. -/
@@ -3000,6 +3143,48 @@ append, which does not match a spider given by a list literal. -/
 theorem spider_append_zero_cons (pre post : List ℕ) :
     spider (pre ++ 0 :: post) = spider (pre ++ post) := by
   rw [spider_def, spider_def, CGraph.spider_append_zero_cons]
+
+/-- Two adjacent legs of a spider may be exchanged. -/
+theorem spider_swap (pre post : List ℕ) (a b : ℕ) :
+    spider (pre ++ a :: b :: post) = spider (pre ++ b :: a :: post) := by
+  have hsum : (pre ++ b :: a :: post).sum = (pre ++ a :: b :: post).sum := by
+    simp only [List.sum_append, List.sum_cons]; omega
+  have hL : CGraph.spiderEdges 1 (pre ++ a :: b :: post)
+      = CGraph.spiderEdges 1 pre ++ (CGraph.legEdges 0 (1 + pre.sum) a ++
+          (CGraph.legEdges 0 (1 + pre.sum + a) b ++
+            CGraph.spiderEdges (1 + pre.sum + a + b) post)) := by
+    rw [CGraph.spiderEdges_append, CGraph.spiderEdges, CGraph.spiderEdges]
+  have hR : CGraph.spiderEdges 1 (pre ++ b :: a :: post)
+      = CGraph.spiderEdges 1 pre ++ (CGraph.legEdges 0 (1 + pre.sum) b ++
+          (CGraph.legEdges 0 (1 + pre.sum + b) a ++
+            CGraph.spiderEdges (1 + pre.sum + a + b) post)) := by
+    rw [CGraph.spiderEdges_append, CGraph.spiderEdges, CGraph.spiderEdges,
+      show 1 + pre.sum + b + a = 1 + pre.sum + a + b from by omega]
+  rw [spider_def, spider_def, CGraph.spider, CGraph.spider, hsum, hL, hR]
+  refine Quotient.sound (CGraph.nonempty_iso_ofEdges_swap_legs _ (1 + pre.sum) a b _ _
+    (by omega) ?_ ?_ ?_)
+  · simp only [List.sum_append, List.sum_cons]
+    omega
+  · intro p q h
+    have := CGraph.mem_spiderEdges_bound 1 pre p q h
+    omega
+  · intro p q h
+    have := CGraph.mem_spiderEdges_bound (1 + pre.sum + a + b) post p q h
+    omega
+
+/-- The spider depends only on the multiset of its leg lengths. -/
+theorem spider_perm_append {ks ls : List ℕ} (h : ks.Perm ls) :
+    ∀ pre : List ℕ, spider (pre ++ ks) = spider (pre ++ ls) := by
+  induction h with
+  | nil => intro pre; rfl
+  | cons x _ ih =>
+      intro pre
+      simpa only [List.append_assoc, List.singleton_append] using ih (pre ++ [x])
+  | swap x y l => intro pre; exact spider_swap pre l y x
+  | trans _ _ ih1 ih2 => intro pre; exact (ih1 pre).trans (ih2 pre)
+
+theorem spider_perm {ks ls : List ℕ} (h : ks.Perm ls) : spider ks = spider ls := by
+  simpa using spider_perm_append h []
 
 @[simp] theorem spider_replicate_zero (j : ℕ) : spider (List.replicate j 0) = empty 1 := by
   rw [spider_def, empty_def, CGraph.spider_replicate_zero]
@@ -4590,5 +4775,9 @@ example : cyclePendant 3 [1, 0] = cyclePendant 3 [1] := by
   simpa using cyclePendant_append_zero 3 [1]
 example : cyclePendant 1 [3] = star 3 := by simp
 example : cyclePendant 1 [2] = path 3 := by rw [cyclePendant_one, star_two]
+example : spider [1, 3, 2] = spider [2, 1, 3] := spider_perm (by decide)
+example (ks : List ℕ) : spider (ks ++ [0]) = spider (0 :: ks) :=
+  spider_perm (List.perm_append_singleton 0 ks)
+example (a b : ℕ) : spider [a, b] = spider [b, a] := spider_perm (List.Perm.swap b a [])
 
 end IsoGraph
