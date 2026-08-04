@@ -7169,6 +7169,122 @@ theorem E_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     ring
   exact Nat.eq_of_mul_eq_mul_left (by norm_num) key
 
+/-! ### Domination in disjoint unions, joins and cartesian products -/
+
+theorem isDominatingSet_disjSum {G H : CGraph} {s : Finset G.V} {t : Finset H.V}
+    (hs : G.IsDominatingSet s) (ht : H.IsDominatingSet t) :
+    (disjUnion G H).IsDominatingSet (s.disjSum t) := by
+  intro v
+  rcases v with a | b
+  · rcases hs a with h | ⟨u, hu, hadj⟩
+    · exact Or.inl (Finset.inl_mem_disjSum.2 h)
+    · exact Or.inr ⟨Sum.inl u, Finset.inl_mem_disjSum.2 hu, by simpa using hadj⟩
+  · rcases ht b with h | ⟨u, hu, hadj⟩
+    · exact Or.inl (Finset.inr_mem_disjSum.2 h)
+    · exact Or.inr ⟨Sum.inr u, Finset.inr_mem_disjSum.2 hu, by simpa using hadj⟩
+
+/-- **Domination is additive over components**: the two sides of a disjoint union have to be
+dominated separately, and any two dominating sets can be put side by side. -/
+theorem domNum_disjUnion (G H : CGraph) :
+    (disjUnion G H).domNum = G.domNum + H.domNum := by
+  apply le_antisymm
+  · obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
+    obtain ⟨t, ht, htdom⟩ := H.exists_isDominatingSet_domNum
+    have h := domNum_le_card_of_isDominatingSet (isDominatingSet_disjSum hsdom htdom)
+    rwa [Finset.card_disjSum, hs, ht] at h
+  · obtain ⟨u, hu, hudom⟩ := (disjUnion G H).exists_isDominatingSet_domNum
+    have hG : G.IsDominatingSet u.toLeft := by
+      intro v
+      rcases hudom (Sum.inl v) with h | ⟨w, hw, hadj⟩
+      · exact Or.inl (Finset.mem_toLeft.2 h)
+      · rcases w with a | b
+        · exact Or.inr ⟨a, Finset.mem_toLeft.2 hw, by simpa using hadj⟩
+        · simp at hadj
+    have hH : H.IsDominatingSet u.toRight := by
+      intro v
+      rcases hudom (Sum.inr v) with h | ⟨w, hw, hadj⟩
+      · exact Or.inl (Finset.mem_toRight.2 h)
+      · rcases w with a | b
+        · simp at hadj
+        · exact Or.inr ⟨b, Finset.mem_toRight.2 hw, by simpa using hadj⟩
+    have h1 := domNum_le_card_of_isDominatingSet hG
+    have h2 := domNum_le_card_of_isDominatingSet hH
+    have h3 : u.toLeft.card + u.toRight.card = u.card :=
+      Finset.card_toLeft_add_card_toRight
+    omega
+
+/-- One vertex from each side dominates a join. -/
+theorem domNum_join_le_two (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] : (join G H).domNum ≤ 2 := by
+  obtain ⟨a⟩ := ‹Nonempty G.V›
+  obtain ⟨b⟩ := ‹Nonempty H.V›
+  have hdom : (join G H).IsDominatingSet {Sum.inl a, Sum.inr b} := by
+    intro v
+    rcases v with x | y
+    · by_cases h : x = a
+      · exact Or.inl (by simp [h])
+      · exact Or.inr ⟨Sum.inr b, by simp, join_adj_inr_inl G H b x⟩
+    · by_cases h : y = b
+      · exact Or.inl (by simp [h])
+      · exact Or.inr ⟨Sum.inl a, by simp, join_adj_inl_inr G H a y⟩
+  have h := domNum_le_card_of_isDominatingSet hdom
+  have hcard : ({Sum.inl a, Sum.inr b} : Finset (join G H).V).card ≤ 2 :=
+    le_trans (Finset.card_insert_le _ _) (by simp)
+  omega
+
+/-- A single vertex dominates a join exactly when it is universal on its own side: the other side
+is seen for free. -/
+theorem domNum_join_eq_one_iff (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (join G H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
+  rw [domNum_eq_one_iff, domNum_eq_one_iff, domNum_eq_one_iff]
+  constructor
+  · rintro ⟨v, hv⟩
+    rcases v with a | b
+    · refine Or.inl ⟨a, fun u hu ↦ ?_⟩
+      have := hv (Sum.inl u) fun h ↦ hu (Sum.inl_injective h)
+      simpa using this
+    · refine Or.inr ⟨b, fun u hu ↦ ?_⟩
+      have := hv (Sum.inr u) fun h ↦ hu (Sum.inr_injective h)
+      simpa using this
+  · rintro (⟨a, ha⟩ | ⟨b, hb⟩)
+    · refine ⟨Sum.inl a, fun u hu ↦ ?_⟩
+      rcases u with c | d
+      · rw [join_adj_inl_inl]
+        exact ha c fun h ↦ hu (congrArg Sum.inl h)
+      · exact join_adj_inl_inr G H a d
+    · refine ⟨Sum.inr b, fun u hu ↦ ?_⟩
+      rcases u with c | d
+      · exact join_adj_inr_inl G H b c
+      · rw [join_adj_inr_inr]
+        exact hb d fun h ↦ hu (congrArg Sum.inr h)
+
+/-- Without a universal vertex on either side, a join needs exactly two dominating vertices. -/
+theorem domNum_join_eq_two (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) :
+    (join G H).domNum = 2 := by
+  haveI : Nonempty (join G H).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
+  have h1 := domNum_join_le_two G H
+  have h2 := (join G H).domNum_pos (Fintype.card_pos_iff.2 ‹Nonempty (join G H).V›)
+  have h3 : (join G H).domNum ≠ 1 := fun h ↦ by
+    rcases (domNum_join_eq_one_iff G H).1 h with h | h
+    · exact hG h
+    · exact hH h
+  omega
+
+/-- A dominating set of `G`, spread over every fibre, dominates `G □ H`. -/
+theorem domNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).domNum ≤ G.domNum * Fintype.card H.V := by
+  obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
+  have hdom : (cartesianProduct G H).IsDominatingSet (s ×ˢ Finset.univ) := by
+    rintro ⟨x, y⟩
+    rcases hsdom x with h | ⟨u, hu, hadj⟩
+    · exact Or.inl (Finset.mem_product.2 ⟨h, Finset.mem_univ _⟩)
+    · refine Or.inr ⟨(u, y), Finset.mem_product.2 ⟨hu, Finset.mem_univ _⟩, ?_⟩
+      rw [cartesianProduct_adj]
+      simp [hadj]
+  have h := domNum_le_card_of_isDominatingSet hdom
+  rwa [Finset.card_product, Finset.card_univ, hs] at h
+
 end CGraph
 
 namespace IsoGraph
@@ -14307,5 +14423,63 @@ example : (strongProduct (path 2) (path 2)).E = 6 := by
 example : (paley 9).E = 27 := by
   rw [paley_nine_eq_lexProduct, E_lexProduct]
   simp
+
+/-! ### Domination in disjoint unions, joins and cartesian products -/
+
+@[simp] theorem domNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).domNum = G.domNum + H.domNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, domNum_mk, domNum_mk, domNum_mk]
+  exact CGraph.domNum_disjUnion _ _
+
+theorem domNum_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (join G H).domNum ≤ 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, V_mk] at hG
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, domNum_mk]
+  exact CGraph.domNum_join_le_two _ _
+
+@[simp] theorem domNum_join_eq_one_iff (G H : IsoGraph) :
+    (join G H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, domNum_mk, domNum_mk, domNum_mk]
+  exact CGraph.domNum_join_eq_one_iff _ _
+
+theorem domNum_join_eq_two {G H : IsoGraph} (hGV : 0 < G.V) (hHV : 0 < H.V)
+    (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) : (join G H).domNum = 2 := by
+  have h1 := domNum_join_le_two hGV hHV
+  have h2 : 0 < (join G H).domNum := domNum_pos (by rw [V_join]; omega)
+  have h3 : (join G H).domNum ≠ 1 := fun h ↦ by
+    rcases (domNum_join_eq_one_iff G H).1 h with h | h
+    · exact hG h
+    · exact hH h
+  omega
+
+theorem domNum_cartesianProduct_le (G H : IsoGraph) :
+    (cartesianProduct G H).domNum ≤ G.domNum * H.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, domNum_mk, domNum_mk, V_mk]
+  exact CGraph.domNum_cartesianProduct_le _ _
+
+theorem domNum_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).domNum = 2 := by
+  rw [bipartite_eq_join]
+  exact domNum_join_eq_two (by simp) (by simp) (by simp) (by simp)
+
+example : (disjUnion (complete 3) (complete 4)).domNum = 2 := by simp
+
+example : (disjUnion (empty 5) (complete 3)).domNum = 6 := by simp
+
+example : (bipartite 3 3).domNum = 2 := domNum_bipartite 1 1
+
+example : (cartesianProduct (complete 4) (complete 4)).domNum ≤ 4 := by
+  have := domNum_cartesianProduct_le (complete 4) (complete 4)
+  simpa using this
 
 end IsoGraph

@@ -1316,6 +1316,17 @@ which is what the decomposition `G ⊠ H = (G □ H) ∪ (G × H)` predicts.  Th
 fibres, and each fibre carries its own copy of `H`.  As a check, `paley 9 = K₃[E₃] = K_{3,3,3}` gets
 `27` edges.
 
+Domination behaves cleanly on the same three constructions.  It is additive over a disjoint union:
+splitting a dominating set of `G ⊔ H` with `Finset.toLeft`/`toRight` dominates each side separately
+(no edge crosses, so a dominator of an `inl` vertex is an `inl` vertex), and conversely two
+dominating sets sit side by side as a `Finset.disjSum`.  A join, on the other hand, is dominated by
+one vertex from each side, so `γ ≤ 2`; and a single vertex dominates `G ∨ H` exactly when it is
+universal in its own factor, since the opposite side comes for free — so `γ(G ∨ H) = 1` iff
+`γ(G) = 1` or `γ(H) = 1`, and `2` otherwise.  That immediately gives `γ(K_{m,n}) = 2` for
+`m, n ≥ 2`.  For the cartesian product, a dominating set of `G` repeated in every fibre dominates
+`G □ H`, giving `γ(G □ H) ≤ γ(G)·|V_H|` (the corresponding lower bound is Vizing's conjecture, so
+it is not here).
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
