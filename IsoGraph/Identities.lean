@@ -17044,4 +17044,232 @@ example (G : IsoGraph) (h : G.matchNum = 0) : G.coverNum = 0 := by
   have := G.coverNum_le_two_mul_matchNum
   omega
 
+
+/-! ### Self-complementary graphs -/
+
+/-- A graph is *self-complementary* when it is isomorphic to its own complement.  Because
+`IsoGraph` is the quotient of graphs by isomorphism, this is literally the equation
+`compl G = G`. -/
+def IsSelfComplementary (G : IsoGraph) : Prop := IsoGraph.compl G = G
+
+theorem isSelfComplementary_iff {G : IsoGraph} :
+    IsSelfComplementary G ↔ IsoGraph.compl G = G := Iff.rfl
+
+theorem IsSelfComplementary.compl_eq {G : IsoGraph} (h : IsSelfComplementary G) :
+    IsoGraph.compl G = G := h
+
+theorem isSelfComplementary_compl {G : IsoGraph} (h : IsSelfComplementary G) :
+    IsSelfComplementary (IsoGraph.compl G) := by
+  show IsoGraph.compl (IsoGraph.compl G) = IsoGraph.compl G
+  rw [compl_compl, h.compl_eq]
+
+@[simp] theorem isSelfComplementary_empty_zero : IsSelfComplementary (empty 0) := by
+  show IsoGraph.compl (empty 0) = empty 0
+  rw [compl_empty, complete_zero]
+
+@[simp] theorem isSelfComplementary_empty_one : IsSelfComplementary (empty 1) := by
+  show IsoGraph.compl (empty 1) = empty 1
+  rw [compl_empty, complete_one]
+
+@[simp] theorem isSelfComplementary_path_four : IsSelfComplementary (path 4) :=
+  compl_path_four
+
+@[simp] theorem isSelfComplementary_cycle_five : IsSelfComplementary (cycle 5) :=
+  compl_cycle_five
+
+@[simp] theorem isSelfComplementary_paley_thirteen : IsSelfComplementary (paley 13) :=
+  compl_paley_thirteen
+
+@[simp] theorem isSelfComplementary_paley_seventeen : IsSelfComplementary (paley 17) :=
+  compl_paley_seventeen
+
+/-! ### Consequences of self-complementarity -/
+
+/-- A self-complementary graph has exactly half of all possible edges. -/
+theorem IsSelfComplementary.two_mul_E {G : IsoGraph} (h : IsSelfComplementary G) :
+    2 * G.E = G.V.choose 2 := by
+  have h2 := E_compl_add G
+  rw [h.compl_eq] at h2
+  omega
+
+theorem IsSelfComplementary.cliqueNum_eq_indepNum {G : IsoGraph} (h : IsSelfComplementary G) :
+    G.cliqueNum = G.indepNum := by
+  have h2 := cliqueNum_compl G
+  rwa [h.compl_eq] at h2
+
+theorem IsSelfComplementary.chromNum_eq_cliqueCoverNum {G : IsoGraph}
+    (h : IsSelfComplementary G) : G.chromNum = G.cliqueCoverNum := by
+  have h2 := chromNum_compl G
+  rwa [h.compl_eq] at h2
+
+/-- Since `V ≤ χ(G) * χ(Gᶜ)`, a self-complementary graph needs at least `√V` colours. -/
+theorem IsSelfComplementary.V_le_chromNum_sq {G : IsoGraph} (h : IsSelfComplementary G) :
+    G.V ≤ G.chromNum * G.chromNum := by
+  have h2 := V_le_chromNum_mul_chromNum_compl G
+  rwa [h.compl_eq] at h2
+
+/-- The Nordhaus–Gaddum upper bound, specialised to a self-complementary graph. -/
+theorem IsSelfComplementary.two_mul_chromNum_le {G : IsoGraph} (h : IsSelfComplementary G) :
+    2 * G.chromNum ≤ G.V + 1 := by
+  have h2 := four_mul_chromNum_mul_chromNum_compl_le G
+  rw [h.compl_eq, show (G.V + 1) ^ 2 = G.V * G.V + 2 * G.V + 1 from by ring] at h2
+  by_contra hc
+  have hle : (G.V + 2) * (G.V + 2) ≤ 2 * G.chromNum * (2 * G.chromNum) :=
+    Nat.mul_le_mul (by omega) (by omega)
+  rw [show (G.V + 2) * (G.V + 2) = G.V * G.V + 4 * G.V + 4 from by ring,
+    show 2 * G.chromNum * (2 * G.chromNum) = 4 * (G.chromNum * G.chromNum) from by ring] at hle
+  omega
+
+theorem IsSelfComplementary.three_le_chromNum {G : IsoGraph} (h : IsSelfComplementary G)
+    (hV : 5 ≤ G.V) : 3 ≤ G.chromNum := by
+  have h2 := h.V_le_chromNum_sq
+  by_contra hc
+  have h3 : G.chromNum * G.chromNum ≤ 2 * 2 := Nat.mul_le_mul (by omega) (by omega)
+  omega
+
+theorem IsSelfComplementary.not_isBipartite {G : IsoGraph} (h : IsSelfComplementary G)
+    (hV : 5 ≤ G.V) : ¬ IsBipartite G := by
+  intro hb
+  have h2 := isBipartite_iff_chromNum_le_two.1 hb
+  have h3 := h.three_le_chromNum hV
+  omega
+
+theorem IsSelfComplementary.E_pos {G : IsoGraph} (h : IsSelfComplementary G) (hV : 2 ≤ G.V) :
+    0 < G.E := by
+  have h2 := h.two_mul_E
+  have h3 := Nat.choose_pos hV
+  omega
+
+/-- A self-complementary graph is connected: otherwise its complement, which is the graph
+itself, would have diameter two. -/
+theorem IsSelfComplementary.isConnected {G : IsoGraph} (h : IsSelfComplementary G)
+    (hV : 2 ≤ G.V) : IsConnected G := by
+  by_contra hc
+  have hd := diameter_compl hc (h.E_pos hV)
+  rw [h.compl_eq] at hd
+  exact hc (isConnected_of_diameter_ne_zero (by omega))
+
+/-- An arithmetic helper: `n.choose 2` is even exactly when `n` is `0` or `1` mod `4`. -/
+theorem choose_two_mod_two_eq_zero_iff (n : ℕ) :
+    n.choose 2 % 2 = 0 ↔ n % 4 = 0 ∨ n % 4 = 1 := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    have hc : (n + 1).choose 2 = n + n.choose 2 := by
+      rw [Nat.choose_succ_succ n 1, Nat.choose_one_right]
+    omega
+
+/-- A self-complementary graph has `0` or `1` vertices mod `4`, since it has half of all
+`V.choose 2` possible edges. -/
+theorem IsSelfComplementary.V_mod_four {G : IsoGraph} (h : IsSelfComplementary G) :
+    G.V % 4 = 0 ∨ G.V % 4 = 1 := by
+  have h2 := h.two_mul_E
+  exact (choose_two_mod_two_eq_zero_iff G.V).1 (by omega)
+
+/-! ### Graphs that are not self-complementary -/
+
+theorem not_isSelfComplementary_empty (n : ℕ) : ¬ IsSelfComplementary (empty (n + 2)) := by
+  intro h
+  have h2 := h.two_mul_E
+  rw [E_empty, V_empty] at h2
+  have h3 := Nat.choose_pos (show 2 ≤ n + 2 by omega)
+  omega
+
+theorem not_isSelfComplementary_complete (n : ℕ) : ¬ IsSelfComplementary (complete (n + 2)) := by
+  intro h
+  have h2 := h.two_mul_E
+  rw [E_complete, V_complete] at h2
+  have h3 := Nat.choose_pos (show 2 ≤ n + 2 by omega)
+  omega
+
+@[simp] theorem not_isSelfComplementary_petersen : ¬ IsSelfComplementary petersen := by
+  intro h
+  have h2 := h.V_mod_four
+  rw [V_petersen] at h2
+  omega
+
+@[simp] theorem not_isSelfComplementary_hypercube (n : ℕ) :
+    ¬ IsSelfComplementary (hypercube (n + 3)) := by
+  intro h
+  refine h.not_isBipartite ?_ (isBipartite_hypercube _)
+  rw [V_hypercube]
+  have h2 : 2 ^ 3 ≤ 2 ^ (n + 3) := Nat.pow_le_pow_right (by omega) (by omega)
+  norm_num at h2
+  omega
+
+theorem not_isSelfComplementary_bipartite {m n : ℕ} (h : 5 ≤ m + n) :
+    ¬ IsSelfComplementary (bipartite m n) := by
+  intro hs
+  exact hs.not_isBipartite (by rw [V_bipartite]; omega) (isBipartite_bipartite m n)
+
+/-! ### The self-complementary Paley graphs -/
+
+@[simp] theorem E_paley_thirteen : (paley 13).E = 39 := by
+  have h := isSelfComplementary_paley_thirteen.two_mul_E
+  rw [V_paley, show (13 : ℕ).choose 2 = 78 from by decide] at h
+  omega
+
+@[simp] theorem E_paley_seventeen : (paley 17).E = 68 := by
+  have h := isSelfComplementary_paley_seventeen.two_mul_E
+  rw [V_paley, show (17 : ℕ).choose 2 = 136 from by decide] at h
+  omega
+
+theorem indepNum_paley_seventeen_le : (paley 17).indepNum ≤ 4 := by
+  have h := isSelfComplementary_paley_seventeen.cliqueNum_eq_indepNum
+  have h2 := cliqueNum_paley_seventeen_le
+  omega
+
+theorem five_le_chromNum_paley_thirteen : 5 ≤ (paley 13).chromNum := by
+  have h := V_le_chromNum_mul_indepNum (paley 13)
+  rw [V_paley] at h
+  by_contra hc
+  have h2 : (paley 13).chromNum * (paley 13).indepNum ≤ 4 * 3 :=
+    Nat.mul_le_mul (by omega) indepNum_paley_thirteen_le
+  omega
+
+theorem five_le_chromNum_paley_seventeen : 5 ≤ (paley 17).chromNum := by
+  have h := V_le_chromNum_mul_indepNum (paley 17)
+  rw [V_paley] at h
+  by_contra hc
+  have h2 : (paley 17).chromNum * (paley 17).indepNum ≤ 4 * 4 :=
+    Nat.mul_le_mul (by omega) indepNum_paley_seventeen_le
+  omega
+
+theorem chromNum_paley_thirteen_le : (paley 13).chromNum ≤ 7 := by
+  have h := isSelfComplementary_paley_thirteen.two_mul_chromNum_le
+  rw [V_paley] at h
+  omega
+
+theorem chromNum_paley_seventeen_le : (paley 17).chromNum ≤ 9 := by
+  have h := isSelfComplementary_paley_seventeen.two_mul_chromNum_le
+  rw [V_paley] at h
+  omega
+
+theorem five_le_cliqueCoverNum_paley_thirteen : 5 ≤ (paley 13).cliqueCoverNum := by
+  have h := isSelfComplementary_paley_thirteen.chromNum_eq_cliqueCoverNum
+  have h2 := five_le_chromNum_paley_thirteen
+  omega
+
+theorem five_le_cliqueCoverNum_paley_seventeen : 5 ≤ (paley 17).cliqueCoverNum := by
+  have h := isSelfComplementary_paley_seventeen.chromNum_eq_cliqueCoverNum
+  have h2 := five_le_chromNum_paley_seventeen
+  omega
+
+example : (cycle 5).E = 5 := by
+  have h := isSelfComplementary_cycle_five.two_mul_E
+  rw [V_cycle, show (5 : ℕ).choose 2 = 10 from by decide] at h
+  omega
+
+example : ¬ IsSelfComplementary (cycle 6) := by
+  intro h
+  have h2 := h.V_mod_four
+  rw [V_cycle] at h2
+  omega
+
+example : ¬ IsSelfComplementary (bipartite 3 3) :=
+  not_isSelfComplementary_bipartite (by omega)
+
+example : 3 ≤ (paley 13).chromNum :=
+  isSelfComplementary_paley_thirteen.three_le_chromNum (by rw [V_paley]; omega)
+
 end IsoGraph

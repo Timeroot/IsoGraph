@@ -1579,6 +1579,20 @@ and `|V| ≤ α + 2ν`. Gallai's identity `α + τ = |V|` turns this into `τ �
 behind the greedy two-approximation for minimum vertex cover, and combining it with the earlier
 `ν ≤ τ` sandwiches the cover number between `ν` and `2ν` for every graph.
 
+A graph is *self-complementary* when it equals its own complement — an ordinary equation
+`compl G = G` here, since `IsoGraph` is already the quotient by isomorphism, so no extra
+machinery is needed to state it. The Paley graphs on 13 and 17 vertices, `C5`, `P4` and the
+one-vertex graph are the examples in the library. Halving `|E| + |Eᶜ| = C(V, 2)` gives
+`2|E| = C(V, 2)`, which pins down `|E(Paley 13)| = 39` and `|E(Paley 17)| = 68` and, since
+`C(V, 2)` must then be even, forces `V ≡ 0` or `1 (mod 4)` — enough on its own to rule out the
+Petersen graph and `C6`. Self-complementarity also collapses each complementary pair of
+invariants onto itself: `ω = α` and `χ = θ`. Feeding that into the Nordhaus–Gaddum bounds
+`V ≤ χ(G)·χ(Gᶜ) ≤ ((V + 1)/2)^2` yields `√V ≤ χ ≤ (V + 1)/2`, so such a graph on five or more
+vertices is never bipartite, and combined with the independence numbers already computed by
+`native_decide` it gives `5 ≤ χ(Paley 13) ≤ 7` and `5 ≤ χ(Paley 17) ≤ 9`. Finally, a
+disconnected graph has a complement of diameter two, so a self-complementary graph on at least
+two vertices is connected.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
