@@ -1789,6 +1789,22 @@ The fan `F_n` -- a path on `n + 1` vertices joined to a hub -- has matching numb
 independent set in the line graph, and then exhibited one explicitly (a spoke together with
 every other path edge) while bounding it above by the vertex count.
 
+A larger harvest closes five prover targets at once: a book has matching number two, a
+balanced complete multipartite graph has a near-perfect matching (the prover enumerated the
+parts globally and paired consecutive vertices), a complete graph of odd order is class two
+(colour the pair `{i, j}` by `i + j mod n`, a proper edge colouring with `n` colours), the line
+graph raises the diameter by at most one, and -- the most useful of the five -- a clique in a
+line graph is a star or a triangle, so `ω(L(G)) = Δ(G)` as soon as `Δ(G) ≥ 3`.
+
+That last one pays for itself several times over.  Applied to `K_n` it gives the clique number
+`n - 1` of the triangular and Johnson graphs, and hence, by complementation, the
+Erdős--Ko--Rado value `α(K(n,2)) = n - 1` for the Kneser graph on pairs together with its
+vertex cover number; applied to the Petersen graph and the hypercubes it gives their line
+graphs' clique numbers.  The odd class-two colouring gives `χ(J(2m+3, 2)) = 2m + 3` and the
+clique cover number of the odd Kneser graph on pairs.  A small companion lemma -- a graph of
+girth three is not bipartite -- rules out bipartiteness for Paley graphs and for line graphs of
+graphs with a degree-three vertex.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

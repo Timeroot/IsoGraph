@@ -23144,4 +23144,715 @@ theorem matchNum_fan (n : ℕ) : (fan (n + 1)).matchNum = (n + 2) / 2 := by
         rw [Finset.card_image_of_injective _ hrim_inj]
         simp
       exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
+/-- **A book with at least two pages has matching number two**: one spine vertex pairs
+with one page vertex and the other spine vertex with another. -/
+theorem matchNum_book (n : ℕ) : (book (n + 2)).matchNum = 2 := by
+  set G := book (n + 2)
+  apply le_antisymm
+  · -- ≤ 2
+    calc G.matchNum ≤ G.coverNum := matchNum_le_coverNum G
+    _ = 2 := by
+        show (book (n + 2)).coverNum = 2
+        rw [book_eq_join]
+        simp [coverNum_join, coverNum_complete, coverNum_empty, V_complete, V_empty]
+        omega
+  · -- ≥ 2
+    rw [matchNum_eq]
+    -- Reduce to CGraph level
+    have hG_cgraph : G = ⟦CGraph.completeMultipartite [1, 1, (n + 2)]⟧ := by rfl
+    rw [hG_cgraph, lineGraph_mk, indepNum_mk]
+    set H : CGraph := CGraph.completeMultipartite [1, 1, n + 2]
+    show 2 ≤ (CGraph.lineGraph H).indepNum
+    let v00 : H.V := ⟨0, ⟨0, by simp⟩⟩
+    let v10 : H.V := ⟨1, ⟨0, by simp⟩⟩
+    let v20 : H.V := ⟨2, ⟨0, by simp⟩⟩
+    let v21 : H.V := ⟨2, ⟨1, by simp⟩⟩
+    let e1 : Sym2 H.V := Sym2.mk (v00, v20)
+    let e2 : Sym2 H.V := Sym2.mk (v10, v21)
+    have hsua_ne1 : (CGraph.sigmaUnion (fun i => CGraph.complete ([1,1,n+2].get i))).Adj v00 v20 =
+      false := by
+      exact CGraph.sigmaUnion_adj_ne (fun i => CGraph.complete ([1,1,n+2].get i)) 0 2
+        ⟨0, by simp⟩ ⟨0, by simp⟩ (by decide : (0:Fin 3) ≠ 2)
+    have hsua_ne2 : (CGraph.sigmaUnion (fun i => CGraph.complete ([1,1,n+2].get i))).Adj v10 v21 =
+      false := by
+      exact CGraph.sigmaUnion_adj_ne (fun i => CGraph.complete ([1,1,n+2].get i)) 1 2
+        ⟨0, by simp⟩ ⟨1, by simp⟩ (by decide : (1:Fin 3) ≠ 2)
+    have hv00_ne_v20 : v00 ≠ v20 := by
+      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v00, v20] at this; omega
+    have hv10_ne_v21 : v10 ≠ v21 := by
+      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v10, v21] at this; omega
+    have hadj1 : H.Adj v00 v20 = true := by
+      simp only [H, CGraph.completeMultipartite, CGraph.compl_adj]
+      rw [hsua_ne1]
+      simp [hv00_ne_v20]
+    have hadj2 : H.Adj v10 v21 = true := by
+      simp only [H, CGraph.completeMultipartite, CGraph.compl_adj]
+      rw [hsua_ne2]
+      simp [hv10_ne_v21]
+    have he1 : e1 ∈ H.toSimple.edgeSet := by
+      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]; exact hadj1
+    have he2 : e2 ∈ H.toSimple.edgeSet := by
+      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]; exact hadj2
+    set e1' : (CGraph.lineGraph H).V := ⟨e1, he1⟩
+    set e2' : (CGraph.lineGraph H).V := ⟨e2, he2⟩
+    have hne00_10 : v00 ≠ v10 := by
+      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v00, v10] at this
+    have hne00_21 : v00 ≠ v21 := by
+      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v00, v21] at this; omega
+    have hne20_10 : v20 ≠ v10 := by
+      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v20, v10] at this; omega
+    have hne20_21 : v20 ≠ v21 := by
+      intro h
+      have h' := Sigma.ext_iff.mp h
+      simp [v20, v21] at h'
+      exact absurd h' (by show (0 : Fin (n + 2)) ≠ 1; simp)
+    have he1_ne_he2 : e1 ≠ e2 := by
+      intro h'
+      rcases Sym2.eq_iff.1 h' with ⟨h1, _⟩ | ⟨h1, h2⟩
+      · exact hne00_10 h1
+      · exact hne00_21 h1
+    have hmem_e1 : ∀ v, v ∈ e1 → v = v00 ∨ v = v20 := by
+      intro v hv; induction e1 using Sym2.ind with
+      | _ a b => simpa [e1] using hv
+    have hmem_e2 : ∀ v, v ∈ e2 → v = v10 ∨ v = v21 := by
+      intro v hv; induction e2 using Sym2.ind with
+      | _ a b => simpa [e2] using hv
+    have hno_common : ¬ ∃ v, v ∈ (e1 : Sym2 H.V) ∧ v ∈ (e2 : Sym2 H.V) := by
+      intro ⟨v, hv1, hv2⟩
+      rcases hmem_e1 v hv1 with h | h <;> rcases hmem_e2 v hv2 with j | j
+      · exact hne00_10 (h.symm.trans j)
+      · exact hne00_21 (h.symm.trans j)
+      · exact hne20_10 (h.symm.trans j)
+      · exact hne20_21 (h.symm.trans j)
+    have he1'_ne_he2' : e1' ≠ e2' := by
+      intro h; exact he1_ne_he2 (congr_arg Subtype.val h)
+    have hna : ¬ (CGraph.lineGraph H).Adj e1' e2' := by
+      rw [CGraph.lineGraph_adj]
+      have hdec1 : decide (e1' ≠ e2') = true := by simp [he1'_ne_he2']
+      have hdec2 : decide (∃ v : H.V, v ∈ e1'.val ∧ v ∈ e2'.val) = false := by
+        simp [e1', e2']
+        exact fun v hv1 hv2 => hno_common ⟨v, hv1, hv2⟩
+      simp [hdec1, hdec2]
+    exact CGraph.two_le_indepNum he1'_ne_he2' hna
+
+/-- **A balanced complete multipartite graph with at least two parts has a near-perfect
+matching.** -/
+theorem matchNum_completeMultipartite_replicate (m d : ℕ) :
+    (completeMultipartite (List.replicate (m + 2) (d + 1))).matchNum
+      = (m + 2) * (d + 1) / 2 := by
+  apply le_antisymm
+  · -- Upper bound
+    have h1 := two_mul_matchNum_le_V (completeMultipartite (List.replicate (m + 2) (d + 1)))
+    rw [V_completeMultipartite, List.sum_replicate] at h1
+    simp at h1
+    omega
+  · -- Lower bound: explicit matching via global enumeration
+    let k := m + 2
+    let s := d + 1
+    let G : IsoGraph := completeMultipartite (List.replicate k s)
+    rw [matchNum_eq]
+    let H : CGraph := CGraph.completeMultipartite (List.replicate k s)
+    have hGL : G.lineGraph = ⟦CGraph.lineGraph H⟧ := by
+      simp [G, IsoGraph.completeMultipartite, IsoGraph.lineGraph_mk]
+      rfl
+    rw [hGL, indepNum_mk]
+    have hlen : (List.replicate k s).length = k := List.length_replicate
+    have hget : ∀ (i : Fin k), (List.replicate k s).get ⟨i, by rw [hlen]; exact i.2⟩ = s := by
+      intro i; simp [List.getElem_replicate]
+    -- vertex (i, a) in H, with i : Fin k, a : Fin s
+    let vertex : Fin k → Fin s → H.V := fun i a =>
+      ⟨⟨i, by rw [hlen]; exact i.2⟩, Fin.cast (hget i).symm a⟩
+    have hadj : ∀ (i j : Fin k) (a : Fin s) (b : Fin s),
+        H.Adj (vertex i a) (vertex j b) ↔ i ≠ j := by
+      intro i j a b
+      simp [vertex, H, CGraph.completeMultipartite_adj]
+      simp [Fin.ext_iff]
+    -- Key lemma: .2.val of vertex
+    have hv_snd_val : ∀ (i : Fin k) (a : Fin s), (vertex i a).2.val = a.val := by
+      intro i a; simp [vertex, Fin.cast]
+    -- f : Fin (k * s) → H.V, f(j) = vertex (j % k) (j / k)
+    let f : Fin (k * s) → H.V := fun ⟨j, hj⟩ =>
+      vertex ⟨j % k, Nat.mod_lt _ (by omega : 0 < k)⟩ ⟨j / k, Nat.div_lt_of_lt_mul hj⟩
+    have hf_fst_val : ∀ j : Fin (k * s), (f j).1.val = j.val % k := by
+      intro j; simp [f, vertex]
+    have hf_snd_val : ∀ j : Fin (k * s), (f j).2.val = j.val / k := by
+      intro j; simp [f, vertex]
+    have hf_inj : Function.Injective f := by
+      intro j1 j2 hfeq
+      have hmod : j1.val % k = j2.val % k := by
+        have h1 := congr_arg (fun v : H.V => v.1.val) hfeq
+        simp only [hf_fst_val] at h1
+        exact h1
+      have hdiv : j1.val / k = j2.val / k := by
+        have h2 := congr_arg (fun v : H.V => v.2.val) hfeq
+        simp only [hf_snd_val] at h2
+        exact h2
+      have : j1.val = j2.val := by
+        have h1' := Nat.div_add_mod j1.val k
+        have h2' := Nat.div_add_mod j2.val k
+        rw [hmod, hdiv] at h1'
+        linarith [h2']
+      exact Fin.ext this
+    -- Key bounds for all t : Fin (k * s / 2)
+    have hks_ge_2 : 2 ≤ k * s := by unfold k s; nlinarith
+    have hbound : ∀ (t : Fin (k * s / 2)), 2 * (t : ℕ) + 1 < k * s := by
+      intro t
+      have ht : (t : ℕ) < k * s / 2 := t.2
+      have := Nat.div_add_mod (k * s) 2
+      omega
+    have hbound2 : ∀ (t : Fin (k * s / 2)), 2 * (t : ℕ) < k * s := by
+      intro t; linarith [hbound t]
+    -- Edge for t : Fin (k * s / 2): connect f(2*t) and f(2*t+1)
+    let fm1 : Fin (k * s / 2) → Fin (k * s) := fun t => ⟨2 * t.val, hbound2 t⟩
+    let fm2 : Fin (k * s / 2) → Fin (k * s) := fun t => ⟨2 * t.val + 1, hbound t⟩
+    let edgeFn : Fin (k * s / 2) → (H.lineGraph).V := fun t =>
+      ⟨Sym2.mk (f (fm1 t), f (fm2 t)), by
+        rw [SimpleGraph.mem_edgeSet]
+        show H.Adj _ _ = true
+        simp only [f]
+        rw [hadj]
+        intro h
+        have hne : (2 * t.val) % k ≠ (2 * t.val + 1) % k := by
+          have hk : 2 ≤ k := by omega
+          by_contra heq
+          have hmod : (2 * t.val) % k = (2 * t.val + 1) % k := heq
+          have := Nat.modEq_iff_dvd.mp hmod.symm
+          simp at this
+          exact absurd (Int.le_of_dvd (by omega : (0 : ℤ) < 1) this) (by omega)
+        exact hne (congr_arg Fin.val h)⟩
+    -- edgeFn is injective
+    have fin_eq_of_f_eq : ∀ (a b : Fin (k * s)), f a = f b → a = b := hf_inj
+    have h_edge_inj : Function.Injective edgeFn := by
+      intro t t' h_eq
+      dsimp only [edgeFn] at h_eq
+      have hsym : Sym2.mk (f (fm1 t), f (fm2 t)) = Sym2.mk (f (fm1 t'), f (fm2 t')) := by
+        exact congr_arg Subtype.val h_eq
+      rw [Sym2.eq_iff] at hsym
+      rcases hsym with h | h
+      · -- Same order: f(fm1 t) = f(fm1 t')
+        have h1 : f (fm1 t) = f (fm1 t') := h.1
+        have hfin : fm1 t = fm1 t' := hf_inj h1
+        have := congr_arg Fin.val hfin
+        simp [fm1] at this
+        exact Fin.ext (by omega)
+      · -- Swapped: f(fm1 t) = f(fm2 t'), impossible by parity
+        exfalso
+        have h1 : f (fm1 t) = f (fm2 t') := h.1
+        have hfin : fm1 t = fm2 t' := hf_inj h1
+        have := congr_arg Fin.val hfin
+        simp [fm1, fm2] at this
+        omega
+    -- The image is an independent set in the line graph
+    let S := Finset.univ.image edgeFn
+    have hcard : S.card = k * s / 2 := by
+      rw [Finset.card_image_of_injective _ h_edge_inj, Finset.card_fin]
+    have hind : SimpleGraph.IsIndepSet (H.lineGraph).toSimple (S : Set (H.lineGraph.V)) := by
+      rw [SimpleGraph.isIndepSet_iff]
+      intro e he f hf hef
+      have he' : e ∈ S := he
+      have hf' : f ∈ S := hf
+      obtain ⟨t, _, heq⟩ := Finset.mem_image.mp he'
+      obtain ⟨t', _, hfq⟩ := Finset.mem_image.mp hf'
+      subst heq; subst hfq
+      by_cases h : t = t'
+      · exact absurd (h ▸ rfl) hef
+      · -- edges for t ≠ t' are vertex-disjoint
+        rw [show ¬H.lineGraph.toSimple.Adj (edgeFn t) (edgeFn t') ↔ H.lineGraph.Adj (edgeFn t)
+          (edgeFn t') = false from by
+          rw [CGraph.toSimple_adj]; simp]
+        rw [CGraph.lineGraph_adj]
+        simp [h_edge_inj.ne h]
+        intro v hv1 hv2
+        simp [edgeFn, fm1, fm2] at hv1 hv2
+        rcases hv1 with hv1 | hv1 <;> rcases hv2 with hv2 | hv2
+        · exfalso
+          have heq : f (fm1 t) = f (fm1 t') := hv1.symm.trans hv2
+          have hfin : fm1 t = fm1 t' := hf_inj heq
+          have := congr_arg Fin.val hfin; simp [fm1] at this; omega
+        · exfalso
+          have heq : f (fm1 t) = f (fm2 t') := hv1.symm.trans hv2
+          have hfin : fm1 t = fm2 t' := hf_inj heq
+          have := congr_arg Fin.val hfin; simp [fm1, fm2] at this; omega
+        · exfalso
+          have heq : f (fm2 t) = f (fm1 t') := hv1.symm.trans hv2
+          have hfin : fm2 t = fm1 t' := hf_inj heq
+          have := congr_arg Fin.val hfin; simp [fm1, fm2] at this; omega
+        · exfalso
+          have heq : f (fm2 t) = f (fm2 t') := hv1.symm.trans hv2
+          have hfin : fm2 t = fm2 t' := hf_inj heq
+          have := congr_arg Fin.val hfin; simp [fm2] at this; omega
+    exact hcard.ge.trans (hind.card_le_indepNum)
+
+/-- **A complete graph of odd order is class two**: `K_{2m+3}` needs `2m + 3` edge colours,
+one more than its maximum degree. -/
+theorem edgeChromNum_complete_odd (m : ℕ) :
+    (complete (2 * m + 3)).edgeChromNum = 2 * m + 3 := by
+  rw [edgeChromNum_eq, lineGraph_complete]
+  apply le_antisymm
+  · have : johnson (2 * m + 3) 2 = ⟦CGraph.johnson (2 * m + 3) 2⟧ := rfl
+    rw [this, chromNum_mk, CGraph.chromNum_le_iff_colorable]
+    classical
+    let n := 2 * m + 3
+    let G : SimpleGraph {s : Finset (Fin n) // s.card = 2} := (CGraph.johnson n 2).toSimple
+    have hcolor : ∀ (s t : {s : Finset (Fin n) // s.card = 2}), G.Adj s t →
+        ((s.1.sum Fin.val) % n) ≠ ((t.1.sum Fin.val) % n) := by
+      intro s t hadj
+      simp only [G, CGraph.toSimple_adj, CGraph.johnson_adj] at hadj
+      simp at hadj
+      have hs_ne_ht' : (s : Finset (Fin n)) ≠ (t : Finset (Fin n)) := by
+        intro h; exact hadj.1 (Subtype.ext h)
+      have hinter : ((s : Finset (Fin n)) ∩ (t : Finset (Fin n))).card = 1 := hadj.2
+      set s1 := (s : Finset (Fin n))
+      set t1 := (t : Finset (Fin n))
+      have hs1_card : s1.card = 2 := s.property
+      have ht1_card : t1.card = 2 := t.property
+      have hsdiff_s : (s1 \ t1).card = 1 := by
+        have := Finset.card_sdiff_add_card_inter s1 t1
+        rw [hs1_card, hinter] at this; omega
+      have hsdiff_t : (t1 \ s1).card = 1 := by
+        have h1 := Finset.card_sdiff_add_card_inter t1 s1
+        rw [Finset.inter_comm, hinter, ht1_card] at h1; omega
+      obtain ⟨a, ha_eq⟩ := Finset.card_eq_one.mp hsdiff_s
+      obtain ⟨b, hb_eq⟩ := Finset.card_eq_one.mp hsdiff_t
+      have ha_mem_s : a ∈ s1 := (ha_eq ▸ Finset.mem_singleton_self a) |> Finset.mem_sdiff.mp |>.1
+      have ha_not_t : a ∉ t1 := (ha_eq ▸ Finset.mem_singleton_self a) |> Finset.mem_sdiff.mp |>.2
+      have hb_mem_t : b ∈ t1 := (hb_eq ▸ Finset.mem_singleton_self b) |> Finset.mem_sdiff.mp |>.1
+      have hb_not_s : b ∉ s1 := (hb_eq ▸ Finset.mem_singleton_self b) |> Finset.mem_sdiff.mp |>.2
+      have hsum_s : ∑ x ∈ s1, (x : ℕ) = ∑ x ∈ s1 \ t1, (x : ℕ) + ∑ x ∈ s1 ∩ t1, (x : ℕ) := by
+        rw [← Finset.sum_union (Finset.disjoint_sdiff_inter _ _), Finset.sdiff_union_inter]
+      have hsum_inter : ∑ x ∈ s1 ∩ t1, (x : ℕ) = ∑ x ∈ t1 ∩ s1, (x : ℕ) := by
+        rw [Finset.inter_comm]
+      have hsum_t : ∑ x ∈ t1, (x : ℕ) = ∑ x ∈ t1 \ s1, (x : ℕ) + ∑ x ∈ t1 ∩ s1, (x : ℕ) := by
+        rw [← Finset.sum_union (Finset.disjoint_sdiff_inter ..), Finset.sdiff_union_inter]
+      rw [hsum_s, hsum_t, ha_eq, hb_eq, Finset.sum_singleton, Finset.sum_singleton, hsum_inter]
+      by_contra hneq
+      have ha_lt : (a : ℕ) < n := a.2
+      have hb_lt : (b : ℕ) < n := b.2
+      have hab : (a : ℕ) = b := by
+        have hmod : (a + ∑ x ∈ t1 ∩ s1, (x : ℕ)) % n = (b + ∑ x ∈ t1 ∩ s1, (x : ℕ)) % n := hneq
+        have hv : a.val % n = b.val % n := by
+          have h1 : (a.val : ZMod n) = (b.val : ZMod n) := by
+            have h2 : (a.val + ∑ x ∈ t1 ∩ s1, x.val : ℕ) ≡ (b.val + ∑ x ∈ t1 ∩ s1, x.val : ℕ) [MOD
+              n] := by
+              exact hmod
+            have h3 : (a.val : ZMod n) + (∑ x ∈ t1 ∩ s1, x.val : ZMod n) =
+                       (b.val : ZMod n) + (∑ x ∈ t1 ∩ s1, x.val : ZMod n) := by
+              norm_cast
+              rw [ZMod.natCast_eq_natCast_iff]
+              exact h2
+            exact add_right_cancel h3
+          exact congr_arg ZMod.val h1
+        exact Nat.mod_eq_of_lt ha_lt ▸ hv ▸ Nat.mod_eq_of_lt hb_lt
+      exact ha_not_t ((Fin.ext hab) ▸ hb_mem_t)
+    refine ⟨SimpleGraph.Coloring.mk
+      (fun s : {s : Finset (Fin n) // s.card = 2} ↦
+        ⟨(s.1.sum Fin.val) % n, Nat.mod_lt _ (by omega)⟩)
+      @fun v w h ↦ fun heq ↦ hcolor v w h (by have := congrArg Fin.val heq; exact this)⟩
+  · have h := le_edgeChromNum_complete_odd m
+    rw [← chromNum_johnson_two] at h
+    exact h
+
+/-- **The line graph does not increase the diameter by more than one.** -/
+theorem diameter_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
+    (lineGraph G).diameter ≤ G.diameter + 1 := by
+  induction G using Quotient.inductionOn with | h g =>
+  haveI : DecidableEq g.V := Classical.decEq _
+  haveI : Nonempty g.V := hG.nonempty
+  simp [diameter_mk, lineGraph_mk]
+  rw [isConnected_mk] at hG
+  rw [E_mk] at hE
+  simp only [CGraph.diameter]
+  set S := g.toSimple
+  let LG : SimpleGraph g.lineGraph.V := (CGraph.lineGraph g).toSimple
+  have hadj : ∀ e f : g.lineGraph.V,
+      LG.Adj e f ↔ e ≠ f ∧ ∃ v : g.V, v ∈ (e.1 : Sym2 g.V) ∧ v ∈ (f.1 : Sym2 g.V) := by
+    intro e f
+    simp [LG, CGraph.toSimple, CGraph.lineGraph_adj, Bool.and_eq_true]
+  -- Key lemma: walk lifting from S to LG
+  have hwalk_lift : ∀ {u v : g.V} (w : S.Walk u v) (e : g.lineGraph.V),
+      u ∈ (e.1 : Sym2 g.V) →
+      ∃ e' : g.lineGraph.V, v ∈ (e'.1 : Sym2 g.V) ∧ LG.edist e e' ≤ w.length := by
+    intro u v w e huv
+    induction w using SimpleGraph.Walk.rec generalizing e with
+    | nil =>
+      exact ⟨e, huv, by rw [SimpleGraph.edist_self]; simp⟩
+    | @cons x y z huv_tail wtail ih =>
+      let huv_tail' : S.Adj x y := by rwa [CGraph.toSimple_adj]
+      let ep : g.lineGraph.V :=
+        ⟨Sym2.mk (x, y), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using huv_tail'⟩
+      have hev' : y ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_right _ _
+      have heu' : x ∈ (e.1 : Sym2 g.V) := huv
+      have hep_u' : x ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_left _ _
+      -- Step 1: edist e ep ≤ 1 (they're adjacent or equal)
+      have hstep : LG.edist e ep ≤ 1 := by
+        by_cases heq : e = ep
+        · rw [heq]; simp
+        · have hadj_ef : LG.Adj e ep := (hadj e ep).mpr ⟨heq, x, heu', hep_u'⟩
+          have : LG.edist e ep ≤ 1 := by
+            exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef
+              SimpleGraph.Walk.nil)) (by simp)
+          exact this
+      -- Step 2: use IH from ep to get to an edge incident to z
+      obtain ⟨e', hvz', hdist'⟩ := ih ep hev'
+      -- Step 3: triangle inequality
+      have hels : LG.edist e e' ≤ LG.edist e ep + LG.edist ep e' := LG.edist_triangle
+      have hels'' : LG.edist e e' ≤ 1 + ↑wtail.length := hels.trans (add_le_add hstep hdist')
+      have hels_final : LG.edist e e' ≤ ↑(wtail.length + 1) := hels''.trans (by
+        show (1 : ℕ∞) + ↑wtail.length ≤ ↑(wtail.length + 1)
+        simp [Nat.cast_add, add_comm])
+      exact ⟨e', hvz', hels_final⟩
+  -- Get an endpoint of any line-graph vertex
+  have hendpoint : ∀ (e : g.lineGraph.V), ∃ (v : g.V), v ∈ (e.1 : Sym2 g.V) := by
+    intro ⟨se, _⟩
+    induction se using Sym2.ind with
+    | _ a b => exact ⟨a, Sym2.mem_mk_left _ _⟩
+  -- Any two edges sharing a vertex are at distance ≤ 1
+  have hshared : ∀ (e f : g.lineGraph.V) (v : g.V), v ∈ (e.1 : Sym2 g.V) → v ∈ (f.1 : Sym2 g.V) →
+    LG.edist e f ≤ 1 := by
+    intro e f v hev hfv
+    by_cases heq : e = f
+    · rw [heq]; simp
+    · have hadj_ef : LG.Adj e f := (hadj e f).mpr ⟨heq, v, hev, hfv⟩
+      exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef
+        SimpleGraph.Walk.nil)) (by simp)
+  -- edist in S between any two vertices ≤ G.diameter (as ℕ∞)
+  have hSconn : S.Connected := hG
+  have hSnediam : S.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hSconn
+  have hSdiam_eq : (g.diameter : ℕ∞) = S.diam := by
+    simp [CGraph.diameter, SimpleGraph.diam, S]
+  have hSedist : ∀ (u x : g.V), S.edist u x ≤ ↑(CGraph.diameter g) := by
+    intro u x
+    rw [hSdiam_eq]
+    exact SimpleGraph.edist_le_ediam.trans (le_of_eq (by
+      rw [show (S.diam : ℕ∞) = S.ediam.toNat from rfl]
+      exact (ENat.coe_toNat hSnediam).symm))
+  -- Pairwise LG.edist bound
+  have hbd : ∀ (e f : g.lineGraph.V), LG.edist e f ≤ ↑S.diam + 1 := by
+    intro e f
+    obtain ⟨ue, heue⟩ := hendpoint e
+    obtain ⟨xf, hxf⟩ := hendpoint f
+    have hreach : S.Reachable ue xf := hSconn ue xf
+    obtain ⟨p, hp_len_eq_dist⟩ := hreach.exists_walk_length_eq_dist
+    have hp_len_le_diam : (p.length : ℕ∞) ≤ ↑S.diam := by
+      rw [hp_len_eq_dist]
+      exact_mod_cast @SimpleGraph.dist_le_diam _ S hSnediam ue xf
+    obtain ⟨e', hvf', hlift⟩ := hwalk_lift p e heue
+    have hels'' : LG.edist e f ≤ LG.edist e e' + LG.edist e' f := LG.edist_triangle
+    have hels'_le : LG.edist e e' ≤ ↑S.diam := hlift.trans hp_len_le_diam
+    have hfinal : LG.edist e f ≤ ↑S.diam + 1 := hels''.trans (add_le_add hels'_le (hshared e' f xf
+      hvf' hxf))
+    exact hfinal
+  -- Get ediam bound
+  have hLGediam : LG.ediam ≤ ↑(S.diam + 1) := by
+    have := SimpleGraph.ediam_le_of_edist_le (fun e f => by
+      calc LG.edist e f ≤ ↑S.diam + 1 := hbd e f
+        _ = ↑(S.diam + 1) := by rw [Nat.cast_add, Nat.cast_one])
+    exact this
+  -- Convert to diam
+  have hLGediam_ne_top : LG.ediam ≠ ⊤ := by
+    intro h; simp [h] at hLGediam
+    exact absurd hLGediam (by
+      show (↑(S.diam : ℕ) + 1 : ℕ∞) ≠ ⊤
+      have : (↑(S.diam : ℕ) : ℕ∞) + 1 = ↑(S.diam + 1) := by
+        simp [Nat.cast_add, Nat.cast_one]
+      rw [this]
+      exact WithTop.coe_ne_top)
+  have hfinal : LG.diam ≤ S.diam + 1 := by
+    unfold SimpleGraph.diam
+    exact ENat.toNat_le_of_le_coe hLGediam
+  exact hfinal
+
+/-- **A clique in a line graph is a star or a triangle**, so once some vertex has degree three
+the largest star wins and the clique number of the line graph is the maximum degree. -/
+theorem cliqueNum_lineGraph_of_three_le_maxDeg {G : IsoGraph} (h : 3 ≤ maxDeg G) :
+    (lineGraph G).cliqueNum = maxDeg G := by
+  apply le_antisymm
+  · induction G using Quotient.inductionOn with | _ g =>
+    have hmax : maxDeg ⟦g⟧ = maxDeg ⟦g.canonicalize⟧ := by rw [mk_canonicalize g]
+    rw [maxDeg_mk] at h
+    have hcmax : g.maxDeg = g.canonicalize.maxDeg := by
+      rw [← maxDeg_mk, hmax, maxDeg_mk]
+    rw [hcmax] at h
+    rw [← mk_canonicalize g, lineGraph_mk, cliqueNum_mk, maxDeg_mk]
+    set H := g.canonicalize
+    -- Helper: extract adjacency in L(H) as sharing a vertex
+    have lineGraph_adj_def : ∀ e f : (CGraph.lineGraph H).V,
+        (CGraph.lineGraph H).Adj e f ↔ e ≠ f ∧ ∃ v : H.V, v ∈ (e.1 : Sym2 H.V) ∧ v ∈ (f.1 : Sym2
+          H.V) := by
+      intro e f; rw [CGraph.lineGraph_adj]; simp [Bool.and_eq_true]
+    -- Helper: elements of S are edges of H
+    have key : ∀ (S : Finset (CGraph.lineGraph H).V), (CGraph.lineGraph H).toSimple.IsClique (S :
+      Set (CGraph.lineGraph H).V) → S.card ≤ H.maxDeg := by
+      intro S hS
+      -- From hS, distinct elements of S share a vertex
+      have hclique : ∀ e ∈ S, ∀ f ∈ S, e ≠ f → ∃ v : H.V, v ∈ (e.1 : Sym2 H.V) ∧ v ∈ (f.1 : Sym2
+        H.V) := by
+        intro e he f hf hef
+        have := hS he hf hef
+        rw [CGraph.toSimple_adj, lineGraph_adj_def] at this
+        exact this.2
+      have hinj : Function.Injective (fun e : (CGraph.lineGraph H).V => e.1) := by
+        intro e f hef; exact Subtype.ext hef
+      -- Common vertex case: if some v is incident to all edges in S, then |S| ≤ deg(v) ≤ maxDeg
+      by_cases hstar : ∃ v : H.V, ∀ e ∈ S, v ∈ (e.1 : Sym2 H.V)
+      · -- Star case
+        obtain ⟨v, hv⟩ := hstar
+        have himage : Finset.image (fun e : (CGraph.lineGraph H).V => e.1) S ⊆
+          H.toSimple.incidenceFinset v := by
+          intro e he
+          simp [Finset.mem_image] at he
+          obtain ⟨e₀, he₀, rfl⟩ := he
+          simp [SimpleGraph.mem_incidenceFinset]
+          exact ⟨e₀.2, hv e₀ he₀⟩
+        calc S.card = (Finset.image (fun e : (CGraph.lineGraph H).V => e.1) S).card := by
+              rw [Finset.card_image_of_injective _ hinj]
+          _ ≤ (H.toSimple.incidenceFinset v).card := Finset.card_le_card himage
+          _ = H.toSimple.degree v := SimpleGraph.card_incidenceFinset_eq_degree H.toSimple v
+          _ ≤ H.maxDeg := H.degree_le_maxDeg v
+      · -- No common vertex: show |S| ≤ 3
+        have hcard_le_3 : S.card ≤ 3 := by
+          by_contra hcontra
+          push_neg at hcontra
+          have hge4 : 4 ≤ S.card := by omega
+          -- Pick two distinct edges e₁, e₂ in S
+          obtain ⟨e₁, he₁, e₂, he₂, hef₁₂⟩ : ∃ e₁ ∈ S, ∃ e₂ ∈ S, e₁ ≠ e₂ := by
+            have : 1 < S.card := by omega
+            obtain ⟨e₁, he₁, e₂, he₂, hef⟩ := Finset.one_lt_card.mp this
+            exact ⟨e₁, he₁, e₂, he₂, hef⟩
+          -- e₁ and e₂ share a vertex v (clique property)
+          obtain ⟨v, hv_e1, hv_e2⟩ := hclique e₁ he₁ e₂ he₂ hef₁₂
+          -- By hstar, some edge e₃ ∈ S does not contain v
+          obtain ⟨e₃, he₃, hv_not_e3⟩ : ∃ e₃ ∈ S, v ∉ (e₃.1 : Sym2 H.V) := by
+            push_neg at hstar; exact hstar v
+          have hef₁₃ : e₁ ≠ e₃ := by intro h; subst h; exact hv_not_e3 hv_e1
+          have hef₂₃ : e₂ ≠ e₃ := by intro h; subst h; exact hv_not_e3 hv_e2
+          -- e₃ shares u₁ with e₁
+          have haj_e1_e3 := hS he₁ he₃ hef₁₃
+          rw [CGraph.toSimple_adj, lineGraph_adj_def] at haj_e1_e3
+          obtain ⟨u₁, hu₁_e1, hu₁_e3⟩ := haj_e1_e3.2
+          have huv₁ : u₁ ≠ v := by intro h; rw [h] at hu₁_e3; exact hv_not_e3 hu₁_e3
+          -- e₃ shares u₂ with e₂
+          have haj_e2_e3 := hS he₂ he₃ hef₂₃
+          rw [CGraph.toSimple_adj, lineGraph_adj_def] at haj_e2_e3
+          obtain ⟨u₂, hu₂_e2, hu₂_e3⟩ := haj_e2_e3.2
+          have huv₂ : u₂ ≠ v := by intro h; rw [h] at hu₂_e3; exact hv_not_e3 hu₂_e3
+          have hne_u : u₁ ≠ u₂ := by
+            intro heq
+            have : e₁.1 = e₂.1 := by
+              have : u₁ ∈ (e₂.1 : Sym2 H.V) := heq.symm ▸ hu₂_e2
+              exact Sym2.eq_of_ne_mem huv₁ hu₁_e1 hv_e1 this hv_e2
+            exact hef₁₂ (Subtype.ext this)
+          -- e₃.1 has exactly members u₁ and u₂ (card 2, no loops)
+          have he3_edge : e₃.1 ∈ H.toSimple.edgeSet := e₃.2
+          have he3_not_diag : ¬(e₃.1).IsDiag := SimpleGraph.not_isDiag_of_mem_edgeSet _ he3_edge
+          have hcard_e3 : e₃.1.toFinset.card = 2 :=
+            Sym2.card_toFinset_of_not_isDiag e₃.1 he3_not_diag
+          have hu1_in_e3 : u₁ ∈ e₃.1.toFinset := Sym2.mem_toFinset.mpr hu₁_e3
+          have hu2_in_e3 : u₂ ∈ e₃.1.toFinset := Sym2.mem_toFinset.mpr hu₂_e3
+          have hne_uv : u₁ ≠ u₂ := hne_u
+          -- e₁.1 has exactly members v and u₁
+          have he1_edge : e₁.1 ∈ H.toSimple.edgeSet := e₁.2
+          have he1_not_diag : ¬(e₁.1).IsDiag := SimpleGraph.not_isDiag_of_mem_edgeSet _ he1_edge
+          have hcard_e1 : e₁.1.toFinset.card = 2 :=
+            Sym2.card_toFinset_of_not_isDiag e₁.1 he1_not_diag
+          have hv_in_e1 : v ∈ e₁.1.toFinset := Sym2.mem_toFinset.mpr hv_e1
+          have hu1_in_e1 : u₁ ∈ e₁.1.toFinset := Sym2.mem_toFinset.mpr hu₁_e1
+          -- Similarly for e₂
+          have he2_edge : e₂.1 ∈ H.toSimple.edgeSet := e₂.2
+          have he2_not_diag : ¬(e₂.1).IsDiag := SimpleGraph.not_isDiag_of_mem_edgeSet _ he2_edge
+          have hcard_e2 : e₂.1.toFinset.card = 2 :=
+            Sym2.card_toFinset_of_not_isDiag e₂.1 he2_not_diag
+          have hv_in_e2 : v ∈ e₂.1.toFinset := Sym2.mem_toFinset.mpr hv_e2
+          have hu2_in_e2 : u₂ ∈ e₂.1.toFinset := Sym2.mem_toFinset.mpr hu₂_e2
+          -- e₁.1.toFinset = {v, u₁}, e₂.1.toFinset = {v, u₂}, e₃.1.toFinset = {u₁, u₂}
+          -- There exists e₄ ∈ S \ {e₁, e₂, e₃}
+          have hsub : {e₁, e₂, e₃} ⊆ S := by
+            simp [Finset.insert_subset_iff, he₁, he₂, he₃]
+          have hcard_sub : ({e₁, e₂, e₃} : Finset (CGraph.lineGraph H).V).card = 3 := by
+            rw [Finset.card_insert_of_notMem, Finset.card_insert_of_notMem, Finset.card_singleton]
+            · simp [hef₂₃]
+            · intro h; simp_all
+          have hS_minus_card : (S \ {e₁, e₂, e₃}).card > 0 := by
+            have h1 := Finset.card_sdiff_of_subset hsub
+            omega
+          obtain ⟨e₄, he₄_mem⟩ := Finset.card_pos.mp hS_minus_card
+          have he₄_mem' := he₄_mem
+          obtain ⟨he₄_in_S, he₄_not_in_triple⟩ := Finset.mem_sdiff.mp he₄_mem'
+          simp [Finset.mem_insert, Finset.mem_singleton] at he₄_not_in_triple
+          obtain ⟨he₄_ne₁', he₄_ne₂', he₄_ne₃'⟩ := he₄_not_in_triple
+          -- e₄.1 is also an edge
+          have he4_edge : e₄.1 ∈ H.toSimple.edgeSet := e₄.2
+          -- Adjacency gives shared vertices
+          have haj_e4_e3 := hS he₄_in_S he₃ he₄_ne₃'
+          have haj_e4_e1 := hS he₄_in_S he₁ he₄_ne₁'
+          have haj_e4_e2 := hS he₄_in_S he₂ he₄_ne₂'
+          rw [CGraph.toSimple_adj, lineGraph_adj_def] at haj_e4_e3 haj_e4_e1 haj_e4_e2
+          -- e₄ adjacent to e₃: e₄.1 ≠ e₃.1 and share a vertex
+          -- e₄ adjacent to e₁: e₄.1 ≠ e₁.1 and share a vertex
+          -- e₄ adjacent to e₂: e₄.1 ≠ e₂.1 and share a vertex
+          -- e₁.1 has v, u₁ (v ≠ u₁), e₂.1 has v, u₂ (v ≠ u₂), e₃.1 has u₁, u₂ (u₁ ≠ u₂)
+          -- e₄.1 must intersect each of these. With |e₄.1| = 2, this forces e₄.1 = one of them.
+          -- Use Sym2.eq_of_ne_mem: if a ≠ b, a ∈ s, b ∈ s, a ∈ t, b ∈ t, and s,t are non-diag
+          -- edges, then s = t.
+          -- We show e₄.1 = e₁.1, e₂.1, or e₃.1, contradicting he₄_ne.*
+          obtain ⟨he4_adj3, w, hw_e4, hw_e3⟩ := haj_e4_e3
+          obtain ⟨he4_adj1, z, hz_e4, hz_e1⟩ := haj_e4_e1
+          obtain ⟨he4_adj2, y, hy_e4, hy_e2⟩ := haj_e4_e2
+          -- e₃.1 contains u₁, u₂ (u₁ ≠ u₂). e₄.1 shares w with e₃.1.
+          -- Since e₃.1 is non-diag with u₁,u₂ ∈ e₃.1 and u₁ ≠ u₂,
+          -- any vertex in e₃.1 is u₁ or u₂... but we don't need that.
+          -- Instead, we directly check: e₄.1 intersects e₃.1 ({u₁,u₂}), e₁.1 ({v,u₁}), e₂.1
+          -- ({v,u₂}).
+          -- e₄.1 has two endpoints. To intersect all three pairs, it must equal one of them.
+          -- Case analysis on which endpoint of e₄.1 lies in e₃.1.
+          -- w ∈ e₄.1 ∩ e₃.1. Since u₁,u₂ ∈ e₃.1 and e₃.1 is not diag with those two members,
+          -- e₃.1 = Sym2.mk (u₁, u₂). So w = u₁ or w = u₂.
+          have hsye_e3 : e₃.1 = Sym2.mk (u₁, u₂) := by
+            exact Sym2.eq_of_ne_mem hne_uv hu₁_e3 hu₂_e3 (Sym2.mem_mk_left _ _) (Sym2.mem_mk_right _
+              _)
+          have hsye_e1 : e₁.1 = Sym2.mk (v, u₁) := by
+            exact Sym2.eq_of_ne_mem huv₁.symm hv_e1 hu₁_e1 (Sym2.mem_mk_left _ _) (Sym2.mem_mk_right
+              _ _)
+          have hsye_e2 : e₂.1 = Sym2.mk (v, u₂) := by
+            exact Sym2.eq_of_ne_mem huv₂.symm hv_e2 hu₂_e2 (Sym2.mem_mk_left _ _) (Sym2.mem_mk_right
+              _ _)
+          have hw_cases : w = u₁ ∨ w = u₂ := by
+            rw [hsye_e3] at hw_e3; exact Sym2.mem_iff.mp hw_e3
+          -- Now: e₄.1 ≠ e₃.1, e₄.1 ≠ e₁.1, e₄.1 ≠ e₂.1 (from adjacency ≠)
+          -- and e₄.1 shares a vertex with each.
+          -- w = u₁ or u₂ (from e₃ intersection)
+          -- We also know z ∈ e₄.1 ∩ e₁.1, y ∈ e₄.1 ∩ e₂.1
+          -- e₁.1 = Sym2.mk (v, u₁), so z = v or z = u₁
+          have hz_cases : z = v ∨ z = u₁ := by
+            rw [hsye_e1] at hz_e1; exact Sym2.mem_iff.mp hz_e1
+          -- e₂.1 = Sym2.mk (v, u₂), so y = v or y = u₂
+          have hy_cases : y = v ∨ y = u₂ := by
+            rw [hsye_e2] at hy_e2; exact Sym2.mem_iff.mp hy_e2
+          -- e₄.1 has two elements, one of which is w ∈ {u₁,u₂}.
+          -- If w = u₁ and z = u₁ and y = u₂: e₄.1 has u₁, u₂ → e₄.1 = e₃.1, contradiction.
+          -- We go case by case and derive contradiction in each.
+          -- Derive concrete Sym2 membership in e₄.1
+          have hw'_e4 : w ∈ (e₄.1 : Sym2 H.V) := hw_e4
+          have hz'_e4 : z ∈ (e₄.1 : Sym2 H.V) := hz_e4
+          have hy'_e4 : y ∈ (e₄.1 : Sym2 H.V) := hy_e4
+          rcases hw_cases with hwu₁ | hwu₂
+          · -- w = u₁
+            have hu1_in_e4 : u₁ ∈ (e₄.1 : Sym2 H.V) := hwu₁ ▸ hw_e4
+            rcases hz_cases with hzv | hzv
+            · -- z = v
+              have hv_in_e4 : v ∈ (e₄.1 : Sym2 H.V) := hzv ▸ hz_e4
+              exfalso; apply he4_adj1; exact hinj (Sym2.eq_of_ne_mem huv₁.symm hv_in_e4 hu1_in_e4
+                hv_e1 hu₁_e1)
+            · -- z = u₁
+              rcases hy_cases with hyv | hyu2
+              · -- y = v
+                have hv_in_e4 : v ∈ (e₄.1 : Sym2 H.V) := hyv ▸ hy_e4
+                exfalso; apply he4_adj1; exact hinj (Sym2.eq_of_ne_mem huv₁.symm hv_in_e4 hu1_in_e4
+                  hv_e1 hu₁_e1)
+              · -- y = u₂
+                have hu2_in_e4 : u₂ ∈ (e₄.1 : Sym2 H.V) := hyu2 ▸ hy_e4
+                exfalso; apply he4_adj3; exact hinj (Sym2.eq_of_ne_mem hne_uv hu1_in_e4 hu2_in_e4
+                  hu₁_e3 hu₂_e3)
+          · -- w = u₂
+            have hu2_in_e4 : u₂ ∈ (e₄.1 : Sym2 H.V) := hwu₂ ▸ hw_e4
+            rcases hz_cases with hzv | hzv
+            · -- z = v
+              have hv_in_e4 : v ∈ (e₄.1 : Sym2 H.V) := hzv ▸ hz_e4
+              exfalso; apply he4_adj2; exact hinj (Sym2.eq_of_ne_mem huv₂ hu2_in_e4 hv_in_e4 hu₂_e2
+                hv_e2)
+            · -- z = u₁
+              have hu1_in_e4 : u₁ ∈ (e₄.1 : Sym2 H.V) := hzv ▸ hz_e4
+              exfalso; apply he4_adj3; exact hinj (Sym2.eq_of_ne_mem hne_uv hu1_in_e4 hu2_in_e4
+                hu₁_e3 hu₂_e3)
+        exact le_trans hcard_le_3 h
+    obtain ⟨t, ht, hcard⟩ := (CGraph.lineGraph H).toSimple.exists_isNClique_cliqueNum
+    simp only [CGraph.cliqueNum] at hcard ⊢
+    exact hcard ▸ key t ht
+  · exact G.maxDeg_le_cliqueNum_lineGraph
+
+/-- **The Johnson graph `J(2m+3, 2)` needs `2m + 3` colours**: its chromatic number is the edge
+chromatic number of the complete graph `K_{2m+3}`, which is class two. -/
+@[simp] theorem chromNum_johnson_two_odd (m : ℕ) :
+    (johnson (2 * m + 3) 2).chromNum = 2 * m + 3 := by
+  rw [chromNum_johnson_two, edgeChromNum_complete_odd]
+
+/-- **The triangular graph `T(2m+3)` needs `2m + 3` colours.** -/
+@[simp] theorem chromNum_triangular_odd (m : ℕ) :
+    (triangular (2 * m + 3)).chromNum = 2 * m + 3 := by
+  rw [← lineGraph_complete_eq_triangular, lineGraph_complete, chromNum_johnson_two_odd]
+
+/-- **The Kneser graph `K(2m+3, 2)` has clique cover number `2m + 3`**, its complement being the
+triangular graph. -/
+@[simp] theorem cliqueCoverNum_kneser_two_odd (m : ℕ) :
+    (kneser (2 * m + 3) 2).cliqueCoverNum = 2 * m + 3 := by
+  rw [cliqueCoverNum_eq, ← triangular_eq_compl_kneser, chromNum_triangular_odd]
+
+/-- **The triangular graph `T(n)` has clique number `n - 1`** for `n ≥ 4`: the largest clique is
+the star of all pairs through a fixed point. -/
+@[simp] theorem cliqueNum_triangular (n : ℕ) : (triangular (n + 4)).cliqueNum = n + 3 := by
+  rw [← lineGraph_complete_eq_triangular,
+    cliqueNum_lineGraph_of_three_le_maxDeg (by rw [maxDeg_complete]; omega), maxDeg_complete]
+  omega
+
+/-- **The Johnson graph `J(n, 2)` has clique number `n - 1`** for `n ≥ 4`. -/
+@[simp] theorem cliqueNum_johnson_two (n : ℕ) : (johnson (n + 4) 2).cliqueNum = n + 3 := by
+  rw [← lineGraph_complete, cliqueNum_lineGraph_of_three_le_maxDeg (by rw [maxDeg_complete]; omega),
+    maxDeg_complete]
+  omega
+
+/-- **Erdős--Ko--Rado for pairs**: the largest intersecting family of pairs from `n ≥ 4` points is
+a star, of size `n - 1`, so the Kneser graph `K(n, 2)` has independence number `n - 1`. -/
+@[simp] theorem indepNum_kneser_two (n : ℕ) : (kneser (n + 4) 2).indepNum = n + 3 := by
+  rw [← cliqueNum_compl, ← triangular_eq_compl_kneser, cliqueNum_triangular]
+
+/-- **The line graph of the Petersen graph has clique number three.** -/
+@[simp] theorem cliqueNum_lineGraph_petersen : (lineGraph petersen).cliqueNum = 3 := by
+  rw [cliqueNum_lineGraph_of_three_le_maxDeg (by rw [maxDeg_petersen]), maxDeg_petersen]
+
+/-- **The line graph of a hypercube `Q_{n+3}` has clique number `n + 3`.** -/
+@[simp] theorem cliqueNum_lineGraph_hypercube (n : ℕ) :
+    (lineGraph (hypercube (n + 3))).cliqueNum = n + 3 := by
+  rw [cliqueNum_lineGraph_of_three_le_maxDeg (by rw [maxDeg_hypercube]; omega), maxDeg_hypercube]
+
+/-- **A graph of girth three is not bipartite**: a bipartite graph with a cycle has girth at
+least four. -/
+theorem not_isBipartite_of_girth_eq_three {G : IsoGraph} (h : G.girth = 3) : ¬ IsBipartite G := by
+  intro hb
+  have := four_le_girth_of_isBipartite hb (not_isAcyclic_of_girth_pos (by omega))
+  omega
+
+/-- **A Paley graph on at least nine points is not bipartite.** -/
+theorem not_isBipartite_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq9 : 9 ≤ q) :
+    ¬ IsBipartite (paley q) :=
+  not_isBipartite_of_girth_eq_three (girth_paley q hq hq9)
+
+/-- **The line graph of a graph with a degree-three vertex is not bipartite**: the three edges
+at that vertex form a triangle. -/
+theorem not_isBipartite_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
+    ¬ IsBipartite (lineGraph G) :=
+  not_isBipartite_of_girth_eq_three (girth_lineGraph_eq_three h)
+
+/-- **A complete multipartite graph with at least three parts has a cycle.** -/
+@[simp] theorem not_isAcyclic_completeMultipartite_replicate (m d : ℕ) :
+    ¬ IsAcyclic (completeMultipartite (List.replicate (m + 3) (d + 1))) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_completeMultipartite_replicate]; omega)
+
+/-- **The Kneser graph `K(n, 2)` has vertex cover number `C(n, 2) - (n - 1)`**, by Gallai's
+identity and the Erdős--Ko--Rado value of its independence number. -/
+@[simp] theorem coverNum_kneser_two (n : ℕ) :
+    (kneser (n + 4) 2).coverNum = (n + 4).choose 2 - (n + 3) := by
+  have h := coverNum_add_indepNum (kneser (n + 4) 2)
+  rw [indepNum_kneser_two, V_kneser] at h
+  omega
+
+/-- **The triangular graph `T(n)` needs at least `n - 1` colours**, its clique number. -/
+theorem le_chromNum_triangular (n : ℕ) : n + 3 ≤ (triangular (n + 4)).chromNum := by
+  rw [← cliqueNum_triangular n]
+  exact cliqueNum_le_chromNum _
+
+/-- **The Johnson graph `J(n, 2)` needs at least `n - 1` colours.** -/
+theorem le_chromNum_johnson_two (n : ℕ) : n + 3 ≤ (johnson (n + 4) 2).chromNum := by
+  rw [← cliqueNum_johnson_two n]
+  exact cliqueNum_le_chromNum _
+
 end IsoGraph
