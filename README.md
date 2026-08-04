@@ -1615,6 +1615,15 @@ table from the join formulas: `|E| = 2n - 1`, `χ = ω = 3`, `girth = 3`, `α = 
 never worth taking), `τ = ⌈(n+1)/2⌉`, `Δ = n`, `δ = 2`, and `γ = r = 1` because the apex dominates
 everything.
 
+Triangle-freeness of a long cycle comes for free from vertex-transitivity. For a
+vertex-transitive graph `α · ω ≤ n`, and `α(Cₙ) = ⌊n/2⌋` is already more than a third of `n` once
+`n ≥ 4`, so `ω(Cₙ) = 2` and the girth is at least four — no inspection of walks required. The
+wheel then has `ω(Wₙ) = 3` (hub plus a rim edge) for `n ≥ 4`, and `W₃ = K₄`. The book
+`Bₙ = K₂ ∨ Eₙ` gets the rest of its table from the join formulas — `|E| = 2n + 1`, `Δ = n + 1`,
+`δ = 2`, `τ = min(n + 1, 2)`, `θ = max(1, n)`, and `γ = r = 1` since either spine vertex
+dominates — and Gallai supplies the cover numbers of the wheel and the cocktail-party graph,
+whose domination number is `2` because its radius is `2`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -17467,12 +17467,6 @@ so `α + ν ≤ τ + α = |V|`; in the other direction `|V| ≤ χ · α`.  For 
 `⌈n/2⌉`, because the line graph of `P_{n+1}` is `P_n`, which turns the matching number into the
 independence number one step down and makes the two estimates close a single induction. -/
 
-/-- **A matching and an independent set together miss no vertex twice**: `α + ν ≤ |V|`. -/
-theorem indepNum_add_matchNum_le_V (G : IsoGraph) : G.indepNum + G.matchNum ≤ G.V := by
-  have h1 := G.coverNum_add_indepNum
-  have h2 := G.matchNum_le_coverNum
-  omega
-
 /-- **The independence number of a path**: `α(Pₙ) = ⌈n/2⌉`. -/
 @[simp] theorem indepNum_path (n : ℕ) : (path n).indepNum = (n + 1) / 2 := by
   induction n with
@@ -17487,7 +17481,7 @@ theorem indepNum_add_matchNum_le_V (G : IsoGraph) : G.indepNum + G.matchNum ≤ 
         exact h
       have hnu : (path (k + 1 + 1)).matchNum = (k + 1 + 1) / 2 := by
         rw [matchNum_eq, lineGraph_path, ih]
-      have hup := (path (k + 1 + 1)).indepNum_add_matchNum_le_V
+      have hup := (path (k + 1 + 1)).matchNum_add_indepNum_le_V
       rw [V_path, hnu] at hup
       omega
 
@@ -17608,5 +17602,109 @@ example : (fan 5).chromNum = 3 := chromNum_fan 3
 example : (fan 6).indepNum = 3 := by rw [show (6 : ℕ) = 5 + 1 from rfl, indepNum_fan]
 
 example : maxDeg (fan 5) = 5 := maxDeg_fan 2
+
+/-! ### Cliques in cycles and wheels
+
+A cycle is vertex-transitive, so `α · ω ≤ n`; since `α(Cₙ) = ⌊n/2⌋` is more than a third of `n`
+once `n ≥ 4`, this alone forces `ω = 2` — the cycle is triangle-free, with no need to inspect
+its walks. -/
+
+@[simp] theorem cliqueNum_cycle_three : (cycle 3).cliqueNum = 3 := by
+  rw [cycle_three, cliqueNum_complete]
+
+/-- **A cycle of length at least four is triangle-free.** -/
+@[simp] theorem cliqueNum_cycle (n : ℕ) : (cycle (n + 4)).cliqueNum = 2 := by
+  show (cycle (n + 1 + 3)).cliqueNum = 2
+  have h := indepNum_mul_cliqueNum_le_V (isVertexTransitive_cycle (n + 1 + 3))
+  rw [V_cycle, indepNum_cycle] at h
+  have h2 : 2 ≤ (cycle (n + 1 + 3)).cliqueNum :=
+    two_le_cliqueNum_of_E_pos (by rw [E_cycle]; omega)
+  by_contra hc
+  have h3 : (n + 1 + 3) / 2 * 3 ≤ (n + 1 + 3) / 2 * (cycle (n + 1 + 3)).cliqueNum :=
+    Nat.mul_le_mul (le_refl _) (by omega)
+  omega
+
+/-- Consequently a long cycle has girth at least four. -/
+theorem four_le_girth_cycle (n : ℕ) : 4 ≤ (cycle (n + 4)).girth :=
+  four_le_girth_of_cliqueNum (by rw [cliqueNum_cycle]) (not_isAcyclic_cycle (n + 1))
+
+/-- The hub together with an edge of the rim is the largest clique in a wheel. -/
+@[simp] theorem cliqueNum_wheel (n : ℕ) : (wheel (n + 4)).cliqueNum = 3 := by
+  rw [wheel_eq_join, cliqueNum_join, cliqueNum_complete, cliqueNum_cycle]
+
+@[simp] theorem coverNum_wheel (n : ℕ) : (wheel (n + 3)).coverNum = n + 4 - (n + 3) / 2 := by
+  have h := (wheel (n + 3)).coverNum_add_indepNum
+  rw [V_wheel, indepNum_wheel] at h
+  omega
+
+example : (cycle 7).cliqueNum = 2 := cliqueNum_cycle 3
+
+example : (wheel 5).cliqueNum = 3 := cliqueNum_wheel 1
+
+/-! ### The book graph
+
+`Bₙ = K₂ ∨ Eₙ` is `n` triangles glued along a common edge.  Writing it as a join reduces every
+invariant to the two factors. -/
+
+@[simp] theorem E_book (n : ℕ) : (book n).E = 2 * n + 1 := by
+  rw [book_eq_join, E_join, E_complete, E_empty, V_complete, V_empty,
+    show (2 : ℕ).choose 2 = 1 from rfl]
+  omega
+
+/-- The two spine vertices dominate the book. -/
+@[simp] theorem maxDeg_book (n : ℕ) : maxDeg (book (n + 1)) = n + 2 := by
+  rw [book_eq_join, maxDeg_join (by simp) (by simp), maxDeg_complete, maxDeg_empty, V_complete,
+    V_empty]
+  omega
+
+/-- Each page vertex sees only the two spine vertices. -/
+@[simp] theorem minDeg_book (n : ℕ) : minDeg (book (n + 1)) = 2 := by
+  rw [book_eq_join, minDeg_join (by simp) (by simp), minDeg_complete, minDeg_empty, V_complete,
+    V_empty]
+  omega
+
+@[simp] theorem coverNum_book (n : ℕ) : (book n).coverNum = min (1 + n) 2 := by
+  rw [book_eq_join, coverNum_join, coverNum_complete, coverNum_empty, V_complete, V_empty]
+
+@[simp] theorem cliqueCoverNum_book (n : ℕ) : (book n).cliqueCoverNum = max 1 n := by
+  rw [book_eq_join, cliqueCoverNum_join, cliqueCoverNum_complete, cliqueCoverNum_empty]
+
+@[simp] theorem domNum_book (n : ℕ) : (book n).domNum = 1 := by
+  rw [book_eq_join]
+  exact (domNum_join_eq_one_iff _ _).2 (Or.inl (domNum_complete 1))
+
+@[simp] theorem radius_book (n : ℕ) : (book n).radius = 1 :=
+  (radius_eq_one_iff_domNum_eq_one (by rw [V_book]; omega)).2 (domNum_book n)
+
+@[simp] theorem numComponents_book (n : ℕ) : (book n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_book n)
+
+example : (book 4).E = 9 := E_book 4
+
+example : maxDeg (book 3) = 4 := maxDeg_book 2
+
+/-! ### The cocktail party graph -/
+
+@[simp] theorem coverNum_cocktailParty (n : ℕ) : (cocktailParty (n + 1)).coverNum = 2 * n := by
+  have h := (cocktailParty (n + 1)).coverNum_add_indepNum
+  rw [V_cocktailParty, indepNum_cocktailParty] at h
+  omega
+
+/-- No single vertex dominates the cocktail party graph — each one misses its own partner — but
+any two non-partners do. -/
+@[simp] theorem domNum_cocktailParty (n : ℕ) : (cocktailParty (n + 2)).domNum = 2 := by
+  have h1 : (cocktailParty (n + 2)).domNum ≤ 2 := by
+    have h := domNum_le_indepNum (cocktailParty (n + 2))
+    rwa [indepNum_cocktailParty] at h
+  have h2 : (cocktailParty (n + 2)).domNum ≠ 1 := by
+    intro h
+    have h3 := (radius_eq_one_iff_domNum_eq_one
+      (G := cocktailParty (n + 2)) (by rw [V_cocktailParty]; omega)).2 h
+    rw [radius_cocktailParty] at h3
+    omega
+  have h3 := domNum_pos (G := cocktailParty (n + 2)) (by rw [V_cocktailParty]; omega)
+  omega
+
+example : (cocktailParty 3).coverNum = 4 := coverNum_cocktailParty 2
 
 end IsoGraph
