@@ -17460,4 +17460,153 @@ example (n : ℕ) : 2 * (lineGraph (hypercube (n + 1))).E = 2 * (hypercube (n + 
   have h := two_mul_E_lineGraph_of_degSequence_replicate (degSequence_hypercube (n + 1))
   rwa [Nat.add_sub_cancel] at h
 
+/-! ### Independent sets and matchings in a path
+
+A maximum matching leaves at least one endpoint of each of its edges out of any independent set,
+so `α + ν ≤ τ + α = |V|`; in the other direction `|V| ≤ χ · α`.  For a path both bounds are
+`⌈n/2⌉`, because the line graph of `P_{n+1}` is `P_n`, which turns the matching number into the
+independence number one step down and makes the two estimates close a single induction. -/
+
+/-- **A matching and an independent set together miss no vertex twice**: `α + ν ≤ |V|`. -/
+theorem indepNum_add_matchNum_le_V (G : IsoGraph) : G.indepNum + G.matchNum ≤ G.V := by
+  have h1 := G.coverNum_add_indepNum
+  have h2 := G.matchNum_le_coverNum
+  omega
+
+/-- **The independence number of a path**: `α(Pₙ) = ⌈n/2⌉`. -/
+@[simp] theorem indepNum_path (n : ℕ) : (path n).indepNum = (n + 1) / 2 := by
+  induction n with
+  | zero => rw [path_zero, indepNum_empty]
+  | succ m ih =>
+    cases m with
+    | zero => rw [path_one, indepNum_empty]
+    | succ k =>
+      have hlow : k + 1 + 1 ≤ 2 * (path (k + 1 + 1)).indepNum := by
+        have h := V_le_chromNum_mul_indepNum (path (k + 2))
+        rw [V_path, chromNum_path] at h
+        exact h
+      have hnu : (path (k + 1 + 1)).matchNum = (k + 1 + 1) / 2 := by
+        rw [matchNum_eq, lineGraph_path, ih]
+      have hup := (path (k + 1 + 1)).indepNum_add_matchNum_le_V
+      rw [V_path, hnu] at hup
+      omega
+
+/-- **The vertex cover number of a path**: `τ(Pₙ) = ⌊n/2⌋`, by Gallai. -/
+@[simp] theorem coverNum_path (n : ℕ) : (path n).coverNum = n / 2 := by
+  have h := (path n).coverNum_add_indepNum
+  rw [V_path, indepNum_path] at h
+  omega
+
+/-- **The matching number of a path**: `ν(Pₙ) = ⌊n/2⌋`, since `L(P_{n+1}) = Pₙ`. -/
+@[simp] theorem matchNum_path (n : ℕ) : (path n).matchNum = n / 2 := by
+  cases n with
+  | zero => rw [path_zero, matchNum_empty]
+  | succ m => rw [matchNum_eq, lineGraph_path, indepNum_path]
+
+/-- A path with an edge is bipartite, so its largest clique is an edge. -/
+@[simp] theorem cliqueNum_path (n : ℕ) : (path (n + 2)).cliqueNum = 2 := by
+  have h := chromNum_eq_cliqueNum_of_isBipartite (isBipartite_path (n + 2))
+    (by rw [E_path]; omega)
+  rw [chromNum_path] at h
+  omega
+
+/-- König's theorem for a path: the matching number and the cover number agree. -/
+theorem matchNum_eq_coverNum_path (n : ℕ) : (path n).matchNum = (path n).coverNum := by
+  rw [matchNum_path, coverNum_path]
+
+example : (path 7).indepNum = 4 := by rw [indepNum_path]
+
+example : (path 6).matchNum = 3 := by rw [matchNum_path]
+
+/-! ### The fan graph
+
+`fan n = K₁ ∨ Pₙ` is a path with an extra apex vertex joined to all of it.  Every invariant of a
+join is determined by the two factors, so the whole table for the fan follows from the table for
+the path together with the trivial values for `K₁`. -/
+
+theorem fan_eq_join (n : ℕ) : fan n = join (complete 1) (path n) := rfl
+
+@[simp] theorem fan_zero : fan 0 = complete 1 := by
+  show join (complete 1) (path 0) = _
+  rw [path_zero, ← complete_zero, join_complete]
+
+@[simp] theorem fan_one : fan 1 = complete 2 := by
+  show join (complete 1) (path 1) = _
+  rw [path_one, ← complete_one, join_complete]
+
+@[simp] theorem fan_two : fan 2 = complete 3 := by
+  show join (complete 1) (path 2) = _
+  rw [path_two, join_complete]
+
+@[simp] theorem E_fan (n : ℕ) : (fan (n + 1)).E = 2 * n + 1 := by
+  show (join (complete 1) (path (n + 1))).E = _
+  rw [E_join, E_complete, E_path, V_complete, V_path, show (1 : ℕ).choose 2 = 0 from rfl]
+  omega
+
+@[simp] theorem chromNum_fan (n : ℕ) : (fan (n + 2)).chromNum = 3 := by
+  show (join (complete 1) (path (n + 2))).chromNum = _
+  rw [chromNum_join, chromNum_complete, chromNum_path]
+
+@[simp] theorem cliqueNum_fan (n : ℕ) : (fan (n + 2)).cliqueNum = 3 := by
+  show (join (complete 1) (path (n + 2))).cliqueNum = _
+  rw [cliqueNum_join, cliqueNum_complete, cliqueNum_path]
+
+/-- The apex is never worth taking: a maximum independent set of the fan is one of the path. -/
+@[simp] theorem indepNum_fan (n : ℕ) : (fan (n + 1)).indepNum = (n + 2) / 2 := by
+  show (join (complete 1) (path (n + 1))).indepNum = _
+  rw [indepNum_join, indepNum_complete, indepNum_path]
+  omega
+
+@[simp] theorem coverNum_fan (n : ℕ) : (fan (n + 1)).coverNum = (n + 3) / 2 := by
+  have h := (fan (n + 1)).coverNum_add_indepNum
+  rw [V_fan, indepNum_fan] at h
+  omega
+
+/-- The apex has the largest degree once the path is long enough to be a path. -/
+@[simp] theorem maxDeg_fan (n : ℕ) : maxDeg (fan (n + 3)) = n + 3 := by
+  show maxDeg (join (complete 1) (path (n + 3))) = _
+  rw [maxDeg_join (by simp) (by simp), maxDeg_complete, maxDeg_path, V_complete, V_path]
+  omega
+
+/-- An end of the path keeps the smallest degree, `2`. -/
+@[simp] theorem minDeg_fan (n : ℕ) : minDeg (fan (n + 2)) = 2 := by
+  show minDeg (join (complete 1) (path (n + 2))) = _
+  rw [minDeg_join (by simp) (by simp), minDeg_complete, minDeg_path, V_complete, V_path]
+  omega
+
+@[simp] theorem numComponents_fan (n : ℕ) : (fan (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_fan n)
+
+/-- The apex dominates the whole fan. -/
+@[simp] theorem domNum_fan (n : ℕ) : (fan n).domNum = 1 := by
+  show (join (complete 1) (path n)).domNum = _
+  exact (domNum_join_eq_one_iff _ _).2 (Or.inl (domNum_complete 0))
+
+@[simp] theorem radius_fan (n : ℕ) : (fan (n + 1)).radius = 1 :=
+  (radius_eq_one_iff_domNum_eq_one (by rw [V_fan]; omega)).2 (domNum_fan (n + 1))
+
+/-- The apex closes a triangle with the first edge of the path. -/
+@[simp] theorem girth_fan (n : ℕ) : (fan (n + 2)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_fan])
+
+@[simp] theorem not_isAcyclic_fan (n : ℕ) : ¬ IsAcyclic (fan (n + 2)) := by
+  rw [← girth_eq_zero_iff, girth_fan]
+  omega
+
+@[simp] theorem not_isTree_fan (n : ℕ) : ¬ IsTree (fan (n + 2)) :=
+  not_isTree_of_girth_pos (by rw [girth_fan]; omega)
+
+@[simp] theorem cliqueCoverNum_fan (n : ℕ) :
+    (fan n).cliqueCoverNum = max 1 ((path n).cliqueCoverNum) := by
+  show (join (complete 1) (path n)).cliqueCoverNum = _
+  rw [cliqueCoverNum_join, cliqueCoverNum_complete]
+
+example : (fan 4).E = 7 := by rw [show (4 : ℕ) = 3 + 1 from rfl, E_fan]
+
+example : (fan 5).chromNum = 3 := chromNum_fan 3
+
+example : (fan 6).indepNum = 3 := by rw [show (6 : ℕ) = 5 + 1 from rfl, indepNum_fan]
+
+example : maxDeg (fan 5) = 5 := maxDeg_fan 2
+
 end IsoGraph

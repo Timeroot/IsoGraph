@@ -1605,6 +1605,16 @@ the way the same `replicate` degree sequences give the edge counts themselves �
 = 15`, `|E(cocktailParty n)| = n(2n - 2)`, `2|E(Paley q)| = q(q - 1)/2` — none of which needed a
 `decide`.
 
+The independence number of a path had been missing, and it turns out to follow from two bounds
+that already sandwich it. Gallai's `τ + α = |V|` together with `ν ≤ τ` gives `α + ν ≤ |V|`, while
+`|V| ≤ χ · α` bounds `α` from below; since `L(P_{n+1}) = Pₙ`, the matching number of a path is the
+independence number of the path one shorter, so a single induction closes the gap and yields
+`α(Pₙ) = ⌈n/2⌉`, hence `τ(Pₙ) = ν(Pₙ) = ⌊n/2⌋` — König's theorem for paths, obtained without any
+bipartite matching machinery — and `ω(Pₙ) = 2`. The fan `Fₙ = K₁ ∨ Pₙ` then inherits a complete
+table from the join formulas: `|E| = 2n - 1`, `χ = ω = 3`, `girth = 3`, `α = ⌈n/2⌉` (the apex is
+never worth taking), `τ = ⌈(n+1)/2⌉`, `Δ = n`, `δ = 2`, and `γ = r = 1` because the apex dominates
+everything.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
