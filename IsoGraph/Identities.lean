@@ -3104,6 +3104,59 @@ theorem diameter_join_of_not_adj (G H : CGraph) [DecidableEq G.V] [DecidableEq H
   · exact fun h ↦ hne (Sum.inl.inj h)
   · simp [hadj]
 
+/-! ### The complement of a disconnected graph -/
+
+/-- Unreachable vertices are adjacent in the complement. -/
+theorem compl_adj_of_not_reachable (G : CGraph) [DecidableEq G.V] {u w : G.V}
+    (h : ¬ G.toSimple.Reachable u w) : (compl G).toSimple.Adj u w := by
+  have hne : u ≠ w := by rintro rfl; exact h (SimpleGraph.Reachable.refl u)
+  have hadj : G.Adj u w = false := by
+    by_contra hc
+    exact h (SimpleGraph.Adj.reachable (show G.toSimple.Adj u w by simpa using hc))
+  simp [hadj, hne]
+
+/-- **The complement of a disconnected graph is a two-step graph.**  Two vertices in different
+components are already adjacent in the complement; two vertices in the same component are both
+non-adjacent to anything in another component. -/
+theorem two_step_compl (G : CGraph) [DecidableEq G.V] (h : ¬ G.toSimple.Preconnected)
+    (u v : G.V) (_huv : u ≠ v) :
+    (compl G).toSimple.Adj u v ∨
+      ∃ w, (compl G).toSimple.Adj u w ∧ (compl G).toSimple.Adj w v := by
+  by_cases hr : G.toSimple.Reachable u v
+  · obtain ⟨x, y, hxy⟩ : ∃ x y, ¬ G.toSimple.Reachable x y := by
+      unfold SimpleGraph.Preconnected at h
+      push_neg at h
+      exact h
+    have key : ∀ w : G.V, ¬ G.toSimple.Reachable u w →
+        (compl G).toSimple.Adj u w ∧ (compl G).toSimple.Adj w v := fun w hw ↦
+      ⟨G.compl_adj_of_not_reachable hw,
+        (G.compl_adj_of_not_reachable fun hvw ↦ hw (hr.trans hvw)).symm⟩
+    by_cases hux : G.toSimple.Reachable u x
+    · exact Or.inr ⟨y, key y fun huy ↦ hxy (hux.symm.trans huy)⟩
+    · exact Or.inr ⟨x, key x hux⟩
+  · exact Or.inl (G.compl_adj_of_not_reachable hr)
+
+theorem diameter_compl_le_two (G : CGraph) [DecidableEq G.V] (h : ¬ G.toSimple.Preconnected) :
+    (compl G).diameter ≤ 2 :=
+  diameter_le_two _ (two_step_compl G h)
+
+/-- **The complement of a disconnected graph is connected.** -/
+theorem isConnected_compl_of_not_preconnected (G : CGraph) [DecidableEq G.V] [Nonempty G.V]
+    (h : ¬ G.toSimple.Preconnected) : (compl G).IsConnected := by
+  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+  exact SimpleGraph.connected_of_ediam_ne_top
+    (ne_top_of_le_ne_top (by simp) (ediam_le_two _ (two_step_compl G h)))
+
+/-- If the graph is disconnected and has an edge, its complement has diameter exactly two. -/
+theorem diameter_compl_eq_two (G : CGraph) [DecidableEq G.V] (h : ¬ G.toSimple.Preconnected)
+    (hE : 0 < G.E) : (compl G).diameter = 2 := by
+  obtain ⟨u, v, hne, hadj⟩ := exists_not_adj_of_E_lt (compl G)
+    (show (compl G).E < (Fintype.card G.V).choose 2 by have hc := G.E_compl; omega)
+  refine diameter_eq_two _ (two_step_compl G h) hne fun hc ↦ ?_
+  have hc' : (compl G).Adj u v = true := by simpa using hc
+  rw [hc'] at hadj
+  exact Bool.noConfusion hadj
+
 end CGraph
 
 namespace IsoGraph
@@ -6911,6 +6964,64 @@ theorem diameter_join_right {G H : IsoGraph} (hG : 0 < G.V) (h : H.E < H.V.choos
   have := lt_choose_two (n := n + 3 + 1) (by omega)
   omega
 
+/-! ### Complements of disconnected graphs -/
+
+/-- **The complement of a disconnected graph is connected.** -/
+theorem isConnected_compl_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
+    (h : ¬ IsConnected G) : IsConnected (compl G) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [V_mk] at hV
+  rw [isConnected_mk] at h
+  rw [compl_mk, isConnected_mk]
+  haveI := Fintype.card_pos_iff.1 hV
+  exact CGraph.isConnected_compl_of_not_preconnected _ fun hp ↦ h ⟨hp⟩
+
+/-- At least one of a graph and its complement is connected. -/
+theorem isConnected_or_isConnected_compl {G : IsoGraph} (hV : 0 < G.V) :
+    IsConnected G ∨ IsConnected (compl G) := by
+  by_cases h : IsConnected G
+  · exact Or.inl h
+  · exact Or.inr (isConnected_compl_of_not_isConnected hV h)
+
+theorem diameter_compl_le_two {G : IsoGraph} (hV : 0 < G.V) (h : ¬ IsConnected G) :
+    (compl G).diameter ≤ 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [V_mk] at hV
+  rw [isConnected_mk] at h
+  rw [compl_mk, diameter_mk]
+  haveI := Fintype.card_pos_iff.1 hV
+  exact CGraph.diameter_compl_le_two _ fun hp ↦ h ⟨hp⟩
+
+/-- A disconnected graph with an edge has a complement of diameter exactly two. -/
+theorem diameter_compl {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
+    (compl G).diameter = 2 := by
+  have hV : 0 < G.V := by
+    rcases Nat.eq_zero_or_pos G.V with h0 | hp
+    · have hle := E_le_choose_two G
+      rw [h0] at hle
+      simp at hle
+      omega
+    · exact hp
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [V_mk] at hV
+  rw [E_mk] at hE
+  rw [isConnected_mk] at h
+  rw [compl_mk, diameter_mk]
+  haveI := Fintype.card_pos_iff.1 hV
+  exact CGraph.diameter_compl_eq_two _ (fun hp ↦ h ⟨hp⟩) hE
+
+@[simp] theorem isConnected_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    IsConnected (compl (disjUnion G H)) :=
+  isConnected_compl_of_not_isConnected (by rw [V_disjUnion]; omega)
+    (not_isConnected_disjUnion hG hH)
+
+theorem diameter_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (hE : 0 < G.E + H.E) : (compl (disjUnion G H)).diameter = 2 :=
+  diameter_compl (not_isConnected_disjUnion hG hH) (by rw [E_disjUnion]; omega)
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -7613,5 +7724,19 @@ example : star 3 ≠ path 4 :=
   ne_of_diameter_ne (by
     rw [show (3 : ℕ) = 1 + 2 from rfl, diameter_star, show (4 : ℕ) = 3 + 1 from rfl, diameter_path]
     decide)
+
+example : IsConnected (compl (disjUnion (complete 3) (complete 3))) := by simp
+
+example : (compl (disjUnion (complete 3) (complete 3))).diameter = 2 :=
+  diameter_compl_disjUnion (by simp) (by simp) (by simp [Nat.choose])
+
+example : IsConnected (compl (empty 5)) := by
+  rw [compl_empty]
+  exact isConnected_complete 4
+
+/- A disconnected graph and a connected one of the same order and size: the six-cycle against
+two triangles, once more. -/
+example : ¬ IsConnected (disjUnion (cycle 3) (cycle 3)) :=
+  not_isConnected_disjUnion (by simp) (by simp)
 
 end IsoGraph

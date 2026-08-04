@@ -875,6 +875,19 @@ and fans. One payoff is the textbook example that no cheaper invariant reaches: 
 `path 4` are both trees on four vertices with three edges, and only the diameter (`2` against `3`)
 separates them.
 
+The third source of two-step graphs is the complement of a *disconnected* graph, and it is the
+one that needs no vertex bookkeeping at all: if `u` and `w` are unreachable in `G` then they are
+distinct and non-adjacent, hence adjacent in `Ḡ` (`CGraph.compl_adj_of_not_reachable`). So given
+any two vertices of `Ḡ`, either they were unreachable in `G` — adjacent already — or they were in
+the same component, in which case *any* vertex of another component is `Ḡ`-adjacent to both. That
+is `two_step_compl`, and it yields `isConnected_compl_of_not_isConnected` (the complement of a
+disconnected graph is connected), `diameter_compl_le_two`, and — feeding
+`exists_not_adj_of_E_lt` the complement, whose edge count `E_compl` pins down — `diameter_compl`,
+which gives `= 2` as soon as `G` has an edge. The corollary
+`isConnected_or_isConnected_compl` records the folklore fact that at least one of `G` and `Ḡ` is
+connected, and `isConnected_compl_disjUnion` specialises it to the graphs that are visibly
+disconnected.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
