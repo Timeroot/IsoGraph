@@ -1221,6 +1221,17 @@ ConnectedComponent H`.  Finally, feeding `isConnected_compl_of_not_preconnected`
 states the classical fact that **at most one of `G` and `Gᶜ` is disconnected**: if `G` has two or
 more components then `Gᶜ` has exactly one.
 
+The component count is then pinned between the other invariants.  Choosing one vertex out of each
+component gives an independent set (two representatives of different components cannot be
+adjacent), so **`numComponents G ≤ indepNum G`**; dually, a dominating set has to meet every
+component — the map from it to the components is surjective — so **`numComponents G ≤ domNum G`**.
+Both directions of `numComponents G = |V| ↔ |E| = 0` are short once the right surjection is
+available: with no edges `toSimple = ⊥` and `connectedComponentMk` is a bijection, while a single
+edge makes it non-injective and `Fintype.card_lt_of_surjective_not_injective` gives
+`numComponents G < |V|`.  (`Fintype.card_eq_nat_card`, which takes its `Fintype` as an explicit
+argument, is what keeps the two `Nat.card`/`Fintype.card` spellings from drifting onto different
+instances here.)  The join is the last entry: `numComponents (G + H) = 1` for nonempty factors.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

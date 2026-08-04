@@ -6350,6 +6350,101 @@ theorem numComponents_compl_eq_one (G : CGraph) [DecidableEq G.V] (h : 2 ≤ G.n
     exact Nat.card_eq_one_iff_unique.2 ⟨this, inferInstance⟩
   omega
 
+/-! ### Components versus the other invariants -/
+
+theorem surjective_connectedComponentMk (G : CGraph) :
+    Function.Surjective G.toSimple.connectedComponentMk :=
+  fun c ↦ Quot.exists_rep c
+
+/-- One vertex from each component is an independent set, so there are at most `α(G)` components. -/
+theorem numComponents_le_indepNum (G : CGraph) : G.numComponents ≤ G.indepNum := by
+  classical
+  choose f hout using G.surjective_connectedComponentMk
+  have hinj : Function.Injective f := fun c d h ↦ by rw [← hout c, ← hout d, h]
+  set s : Finset G.V := Finset.univ.image f with hs
+  have hcard : s.card = G.numComponents := by
+    rw [hs, Finset.card_image_of_injective _ hinj, Finset.card_univ, numComponents,
+      Fintype.card_eq_nat_card]
+  have hindep : G.toSimple.IsIndepSet s := by
+    intro x hx y hy hxy hadj
+    simp only [hs, Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ,
+      true_and] at hx hy
+    obtain ⟨c, rfl⟩ := hx
+    obtain ⟨d, rfl⟩ := hy
+    refine hxy ?_
+    have : c = d := by
+      rw [← hout c, ← hout d]
+      exact SimpleGraph.ConnectedComponent.sound hadj.reachable
+    rw [this]
+  calc G.numComponents = s.card := hcard.symm
+    _ ≤ G.indepNum := hindep.card_le_indepNum
+
+/-- A dominating set must meet every component, so there are at most `γ(G)` components. -/
+theorem numComponents_le_domNum (G : CGraph) : G.numComponents ≤ G.domNum := by
+  classical
+  obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
+  have hsurj : Function.Surjective
+      (fun v : {x : G.V // x ∈ s} ↦ G.toSimple.connectedComponentMk v.1) := by
+    intro c
+    induction c using SimpleGraph.ConnectedComponent.ind with
+    | _ v =>
+      rcases hs v with hv | ⟨u, hu, hadj⟩
+      · exact ⟨⟨v, hv⟩, rfl⟩
+      · exact ⟨⟨u, hu⟩, SimpleGraph.ConnectedComponent.sound
+          (SimpleGraph.Adj.reachable (G.toSimple_adj u v |>.2 hadj))⟩
+  rw [numComponents]
+  calc Nat.card G.toSimple.ConnectedComponent
+      ≤ Nat.card {x : G.V // x ∈ s} := Nat.card_le_card_of_surjective _ hsurj
+    _ = s.card := Nat.card_eq_finsetCard s
+    _ = G.domNum := hcard
+
+/-- The join of two nonempty graphs is connected, hence has one component. -/
+theorem numComponents_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) :
+    (join G H).numComponents = 1 :=
+  (numComponents_eq_one_iff _).2 (isConnected_join G H hG hH)
+
+theorem E_pos_of_adj {G : CGraph} {a b : G.V} (h : G.toSimple.Adj a b) : 0 < G.E :=
+  Finset.card_pos.2 ⟨s(a, b), SimpleGraph.mem_edgeFinset.2 h⟩
+
+/-- A graph has as many components as vertices exactly when it has no edges. -/
+theorem numComponents_eq_card_iff (G : CGraph) :
+    G.numComponents = Fintype.card G.V ↔ G.E = 0 := by
+  classical
+  constructor
+  · intro h
+    by_contra hE
+    obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos (Nat.pos_of_ne_zero hE)
+    have hadj : G.toSimple.Adj a b := hab
+    have hnotinj : ¬ Function.Injective G.toSimple.connectedComponentMk := fun hinj ↦
+      hadj.ne (hinj (SimpleGraph.ConnectedComponent.sound hadj.reachable))
+    have hlt := Fintype.card_lt_of_surjective_not_injective _ G.surjective_connectedComponentMk
+      hnotinj
+    rw [Fintype.card_eq_nat_card] at hlt
+    rw [numComponents] at h
+    omega
+  · intro h
+    have hbot : G.toSimple = ⊥ := by
+      ext a b
+      simp only [SimpleGraph.bot_adj, iff_false]
+      intro hadj
+      have := E_pos_of_adj hadj
+      omega
+    have hinj : Function.Injective G.toSimple.connectedComponentMk := by
+      intro u v huv
+      have hr : G.toSimple.Reachable u v := SimpleGraph.ConnectedComponent.exact huv
+      rw [hbot] at hr
+      exact SimpleGraph.reachable_bot.1 hr
+    rw [numComponents,
+      ← Nat.card_eq_of_bijective _ ⟨hinj, G.surjective_connectedComponentMk⟩,
+      Nat.card_eq_fintype_card]
+
+theorem numComponents_lt_card_of_E_pos (G : CGraph) (h : 0 < G.E) :
+    G.numComponents < Fintype.card G.V := by
+  have hle := G.numComponents_le_card
+  have := (G.numComponents_eq_card_iff).not.2 (by omega : ¬ G.E = 0)
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -13126,5 +13221,35 @@ theorem numComponents_compl_eq_one {G : IsoGraph} (h : 2 ≤ G.numComponents) :
 example : (disjUnion (cycle 5) (path 4)).numComponents = 2 := by simp
 
 example : (empty 7).numComponents = 7 := by simp
+
+/-! ### Components versus the other invariants -/
+
+theorem numComponents_le_indepNum (G : IsoGraph) : G.numComponents ≤ G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g
+  exact CGraph.numComponents_le_indepNum g
+
+theorem numComponents_le_domNum (G : IsoGraph) : G.numComponents ≤ G.domNum := by
+  induction G using Quotient.inductionOn with | _ g
+  exact CGraph.numComponents_le_domNum g
+
+@[simp] theorem numComponents_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (join G H).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_join hG hH)
+
+/-- A graph has as many components as vertices exactly when it has no edges. -/
+theorem numComponents_eq_V_iff (G : IsoGraph) : G.numComponents = G.V ↔ G.E = 0 := by
+  induction G using Quotient.inductionOn with | _ g
+  rw [← mk_canonicalize g, V_mk, E_mk, numComponents_mk]
+  exact CGraph.numComponents_eq_card_iff _
+
+theorem numComponents_lt_V_of_E_pos {G : IsoGraph} (h : 0 < G.E) : G.numComponents < G.V := by
+  have hle := G.numComponents_le_V
+  have := (G.numComponents_eq_V_iff).not.2 (by omega : ¬ G.E = 0)
+  omega
+
+example : (join (cycle 5) (empty 3)).numComponents = 1 := by
+  refine numComponents_join ?_ ?_ <;> simp
+
+example : (cycle 5).numComponents < (cycle 5).V := numComponents_lt_V_of_E_pos (by simp)
 
 end IsoGraph
