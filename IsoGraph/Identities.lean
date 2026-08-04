@@ -25738,4 +25738,15 @@ theorem compl_turan_two_mul_self (r : ℕ) :
     compl (turan (2 * r) r) = cartesianProduct (empty r) (complete 2) := by
   rw [turan_two_mul_self, compl_cocktailParty]
 
+/-- A Paley graph is `(q-1)/2`-regular on `q` vertices, so it has `q(q-1)/4` edges. -/
+@[simp] theorem E_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    4 * (paley q).E = q * (q - 1) := by
+  have h := (isRegularWith_paley q hq).two_mul_E
+  rw [V_paley] at h
+  have h2 : 2 * ((q - 1) / 2) = q - 1 := by omega
+  calc 4 * (paley q).E = 2 * (2 * (paley q).E) := by ring
+    _ = 2 * (q * ((q - 1) / 2)) := by rw [h]
+    _ = q * (2 * ((q - 1) / 2)) := by ring
+    _ = q * (q - 1) := by rw [h2]
+
 end IsoGraph

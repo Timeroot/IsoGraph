@@ -1890,6 +1890,9 @@ the blow-up `K_r[E_{n/r}]`; and its complement is `r` disjoint cliques of size `
 what the parts were all along.  Together with the existing `T(n, 1) = E_n`, `T(n, 2) = K_{a,b}`
 and `T(n, n) = K_n` that covers every degenerate choice of `r`.
 
+A Paley graph is `(q-1)/2`-regular on `q` vertices, so the handshake lemma pins its edge count
+without any character sums: `4|E(P_q)| = q(q-1)`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
