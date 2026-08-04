@@ -288,6 +288,8 @@ doubleStar m n = doubleStar n m                           cyclePendant m [1] = t
 spider (0 :: ks) = spider ks                              thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks)
 lollipop 2 k = tadpole 2 k                                lollipop 3 k = tadpole 3 k
 tadpole 2 k = path (2 + k)                                lollipop 2 k = path (2 + k)
+tadpole 1 k = path (1 + k)                                cyclePendant 1 [k] = star k
+spider (pre ++ 0 :: post) = spider (pre ++ post)          cyclePendant m (ks ++ [0]) = cyclePendant m ks
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -389,6 +391,16 @@ the tail leaves from the far end of the single edge. In the same vein a spider d
 (`spider (0 :: ks) = spider ks`) and a theta graph drops a duplicated direct pole-to-pole edge
 (`thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks)`) — for the latter the two edge lists differ by
 one repeated `(0, 1)`, which `tauto` handles once `thetaEdges` is unfolded one step.
+
+`ofEdges` discards the diagonal too, which is why `ofEdges_congr` only asks for agreement on pairs
+of *distinct* vertices.  That extra freedom is what makes `cycleEdges 1 = [(0, 0)]` — the
+one-vertex "cycle", which is a bare loop — droppable: `ofEdges_cycleEdges_one_append` deletes it,
+and with it `tadpole 1 k = path (1 + k)` and `cyclePendant 1 [k] = spider (List.replicate k 1)`,
+i.e. the star `K_{1,k}`, are two rewrites each.  Splitting the leg list of a spider along an append
+(`spiderEdges_append`, the second block starting where the first left off) generalises the
+empty-leg rule to `spider (pre ++ 0 :: post) = spider (pre ++ post)`; the corresponding rule for
+pendant vertices holds only at the *end* of the list (`cyclePendant m (ks ++ [0])`), since a `0` in
+the middle would still shift the later blocks onto later cycle vertices.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a
