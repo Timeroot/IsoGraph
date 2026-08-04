@@ -1883,6 +1883,13 @@ the last straggler from an earlier batch came back proved on a refire: the pairs
 form an independent set in the line graph, so `ν(P_q) = ⌊q/2⌋` -- a near-perfect matching,
 perfect exactly when `q` is even, which it never is.
 
+Two parts of a Turán graph are joined completely, so with `2r <= n` a single edge dominates
+the whole graph and `diam(T(n, r)) = 2`.  A few cross-family identities finish the picture:
+parts of size two make a cocktail party graph, `T(2r, r) = K_{r x 2}`; a balanced Turán graph is
+the blow-up `K_r[E_{n/r}]`; and its complement is `r` disjoint cliques of size `n/r`, which is
+what the parts were all along.  Together with the existing `T(n, 1) = E_n`, `T(n, 2) = K_{a,b}`
+and `T(n, n) = K_n` that covers every degenerate choice of `r`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

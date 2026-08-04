@@ -25679,4 +25679,63 @@ edges, since `1` is always a square. -/
     exact hS_card ▸ SimpleGraph.IsIndepSet.card_le_indepNum hS_indep'
   omega
 
+/-- Two vertices of a Turán graph in the same part are at distance two, everything else at
+distance one. -/
+theorem diameter_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r).diameter = 2 := by
+  have hr_pos : 0 < r := by omega
+  have hnr : n / r ≥ 2 := by
+    rw [ge_iff_le, Nat.le_div_iff_mul_le hr_pos]
+    omega
+  set k := n % r
+  set a := n / r
+  have hk_lt_r : k < r := Nat.mod_lt n hr_pos
+  rcases Nat.eq_zero_or_pos k with hk0 | hk0
+  · -- k = 0, so r ∣ n. Use diameter_turan_of_dvd.
+    exact diameter_turan_of_dvd (Nat.dvd_of_mod_eq_zero hk0) hr hnr
+  · -- k > 0 case
+    have hk1 : 1 ≤ k := hk0
+    have hrk_pos : 0 < r - k := by omega
+    -- Rewrite turan using cons on the list
+    have hdet : turan n r = join (empty (a + 1))
+        (completeMultipartite (List.replicate (k - 1) (a + 1) ++ List.replicate (r - k) a)) := by
+      unfold turan
+      rw [show List.replicate k (a + 1) = (a + 1) :: List.replicate (k - 1) (a + 1) from by
+        rw [show k = (k - 1) + 1 from (Nat.sub_add_cancel hk1).symm, List.replicate_succ]
+        rfl]
+      rw [List.cons_append, completeMultipartite_cons]
+    rw [hdet]
+    apply diameter_join_left
+    · -- 0 < V of completeMultipartite rest
+      rw [V_completeMultipartite]
+      have : (List.replicate (k - 1) (a + 1) ++ List.replicate (r - k) a).sum
+          = (k - 1) * (a + 1) + (r - k) * a := by
+        simp [List.sum_replicate, List.sum_append]
+      rw [this]
+      nlinarith
+    · -- E(empty (a+1)) < (empty (a+1)).V.choose 2
+      rw [E_empty, V_empty]
+      exact Nat.choose_pos (by omega)
+
+/-- Parts of size two make a cocktail party graph. -/
+@[simp] theorem turan_two_mul_self (r : ℕ) : turan (2 * r) r = cocktailParty r := by
+  rcases Nat.eq_zero_or_pos r with rfl | hr
+  · simp [turan, cocktailParty]
+  · rw [turan_of_dvd ⟨2, by ring⟩, Nat.mul_div_cancel _ hr]
+
+/-- **Equal parts make a blow-up**: a balanced Turán graph is `K_r` with every vertex blown up
+to an independent set of size `n / r`. -/
+theorem turan_eq_lexProduct_of_dvd {n r : ℕ} (h : r ∣ n) :
+    turan n r = lexProduct (complete r) (empty (n / r)) := by
+  rw [turan_of_dvd h, completeMultipartite_replicate]
+
+/-- The complement of a balanced Turán graph is `r` disjoint cliques. -/
+theorem compl_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
+    compl (turan n r) = cartesianProduct (empty r) (complete (n / r)) := by
+  rw [turan_of_dvd h, compl_completeMultipartite_replicate]
+
+/-- The complement of a cocktail party graph, read off the Turán graph it is. -/
+theorem compl_turan_two_mul_self (r : ℕ) :
+    compl (turan (2 * r) r) = cartesianProduct (empty r) (complete 2) := by
+  rw [turan_two_mul_self, compl_cocktailParty]
+
 end IsoGraph
