@@ -1335,6 +1335,17 @@ then a centre of the product is a pair of centres.  Both directions are one appl
 cartesian product as a subgraph, and adding edges cannot increase the diameter, so
 `diam(G ⊠ H)` and `diam(G[H])` are both at most `diam(G) + diam(H)`.
 
+Domination in the other two products completes the picture.  All three products share one feature —
+an edge forces the first coordinates to be equal or adjacent — so projecting a dominating set along
+`Prod.fst` always dominates the first factor, giving `γ(G) ≤ γ(G □ H)`, `γ(G) ≤ γ(G ⊠ H)` and
+`γ(G) ≤ γ(G[H])` as soon as `H` has a vertex.  Upwards, a *product* of dominating sets dominates the
+strong product (each coordinate is separately dominated, and the two vertices differ somewhere), so
+`γ(G ⊠ H) ≤ γ(G)·γ(H)`; combined with the projection bound this brackets it between `max` and
+product, and two universal vertices give a universal vertex, so `γ = 1` when both factors have
+`γ = 1`.  For the lexicographic product the two bounds meet: if `H` has a universal vertex, then
+lifting a dominating set of `G` into that vertex's fibre dominates `G[H]`, so blowing up by a
+dominated graph leaves `γ` unchanged — `γ(G[H]) = γ(G)`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

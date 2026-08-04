@@ -7361,6 +7361,105 @@ theorem diameter_lexProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V
   rw [← diameter_cartesianProduct G H hG hH]
   exact h
 
+/-! ### Domination in the graph products -/
+
+/-- **Vizing's bound for the strong product**: a product of dominating sets dominates, because a
+vertex of `G ⊠ H` is either equal or adjacent to a dominator in each coordinate. -/
+theorem domNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).domNum ≤ G.domNum * H.domNum := by
+  obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
+  obtain ⟨t, ht, htdom⟩ := H.exists_isDominatingSet_domNum
+  have hdom : (strongProduct G H).IsDominatingSet (s ×ˢ t) := by
+    rintro ⟨x, y⟩
+    have hx : ∃ u ∈ s, u = x ∨ G.Adj u x = true := by
+      rcases hsdom x with h | ⟨u, hu, hadj⟩
+      · exact ⟨x, h, Or.inl rfl⟩
+      · exact ⟨u, hu, Or.inr hadj⟩
+    have hy : ∃ v ∈ t, v = y ∨ H.Adj v y = true := by
+      rcases htdom y with h | ⟨v, hv, hadj⟩
+      · exact ⟨y, h, Or.inl rfl⟩
+      · exact ⟨v, hv, Or.inr hadj⟩
+    obtain ⟨u, hu, hux⟩ := hx
+    obtain ⟨v, hv, hvy⟩ := hy
+    by_cases hpq : ((u, v) : (strongProduct G H).V) = (x, y)
+    · exact Or.inl (hpq ▸ Finset.mem_product.2 ⟨hu, hv⟩)
+    · refine Or.inr ⟨(u, v), Finset.mem_product.2 ⟨hu, hv⟩, ?_⟩
+      rw [strongProduct_adj]
+      simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, ne_eq]
+      exact ⟨hpq, hux, hvy⟩
+  have h := domNum_le_card_of_isDominatingSet hdom
+  rwa [Finset.card_product, hs, ht] at h
+
+/-- Forgetting the second coordinate turns a dominating set of `G[H]` into one of `G`. -/
+theorem domNum_le_domNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty H.V] : G.domNum ≤ (lexProduct G H).domNum := by
+  obtain ⟨s, hs, hsdom⟩ := (lexProduct G H).exists_isDominatingSet_domNum
+  obtain ⟨y⟩ := ‹Nonempty H.V›
+  have hdom : G.IsDominatingSet (s.image Prod.fst) := by
+    intro u
+    rcases hsdom ((u, y) : (lexProduct G H).V) with h | ⟨w, hw, hadj⟩
+    · exact Or.inl (Finset.mem_image.2 ⟨(u, y), h, rfl⟩)
+    · rw [lexProduct_adj] at hadj
+      simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hadj
+      rcases hadj with h1 | ⟨h1, -⟩
+      · exact Or.inr ⟨w.1, Finset.mem_image.2 ⟨w, hw, rfl⟩, h1⟩
+      · exact Or.inl (Finset.mem_image.2 ⟨w, hw, h1⟩)
+  exact le_trans (domNum_le_card_of_isDominatingSet hdom) (hs ▸ Finset.card_image_le)
+
+/-- **A blow-up by a dominated graph does not change the domination number**: if some vertex of `H`
+sees all of `H`, then a dominating set of `G` lifted into that vertex's fibre dominates `G[H]`. -/
+theorem domNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hH : H.domNum = 1) : (lexProduct G H).domNum = G.domNum := by
+  obtain ⟨x, hx⟩ := (domNum_eq_one_iff H).1 hH
+  haveI : Nonempty H.V := ⟨x⟩
+  refine le_antisymm ?_ (domNum_le_domNum_lexProduct G H)
+  obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
+  have hdom : (lexProduct G H).IsDominatingSet (s.image fun v ↦ (v, x)) := by
+    rintro ⟨u, y⟩
+    rcases hsdom u with h | ⟨v, hv, hadj⟩
+    · by_cases hy : y = x
+      · exact Or.inl (Finset.mem_image.2 ⟨u, h, by rw [hy]⟩)
+      · refine Or.inr ⟨(u, x), Finset.mem_image.2 ⟨u, h, rfl⟩, ?_⟩
+        rw [lexProduct_adj]
+        simp [hx y hy]
+    · refine Or.inr ⟨(v, x), Finset.mem_image.2 ⟨v, hv, rfl⟩, ?_⟩
+      rw [lexProduct_adj]
+      simp [hadj]
+  refine le_trans (domNum_le_card_of_isDominatingSet hdom) ?_
+  rw [Finset.card_image_of_injective _ fun a b hab ↦ congrArg Prod.fst hab, hs]
+
+/-- Forgetting the second coordinate turns a dominating set of `G □ H` into one of `G`. -/
+theorem domNum_le_domNum_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty H.V] : G.domNum ≤ (cartesianProduct G H).domNum := by
+  obtain ⟨s, hs, hsdom⟩ := (cartesianProduct G H).exists_isDominatingSet_domNum
+  obtain ⟨y⟩ := ‹Nonempty H.V›
+  have hdom : G.IsDominatingSet (s.image Prod.fst) := by
+    intro u
+    rcases hsdom ((u, y) : (cartesianProduct G H).V) with h | ⟨w, hw, hadj⟩
+    · exact Or.inl (Finset.mem_image.2 ⟨(u, y), h, rfl⟩)
+    · rw [cartesianProduct_adj] at hadj
+      simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hadj
+      rcases hadj with ⟨h1, -⟩ | ⟨h1, -⟩
+      · exact Or.inl (Finset.mem_image.2 ⟨w, hw, h1⟩)
+      · exact Or.inr ⟨w.1, Finset.mem_image.2 ⟨w, hw, rfl⟩, h1⟩
+  exact le_trans (domNum_le_card_of_isDominatingSet hdom) (hs ▸ Finset.card_image_le)
+
+/-- Forgetting the second coordinate turns a dominating set of `G ⊠ H` into one of `G`. -/
+theorem domNum_le_domNum_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty H.V] : G.domNum ≤ (strongProduct G H).domNum := by
+  obtain ⟨s, hs, hsdom⟩ := (strongProduct G H).exists_isDominatingSet_domNum
+  obtain ⟨y⟩ := ‹Nonempty H.V›
+  have hdom : G.IsDominatingSet (s.image Prod.fst) := by
+    intro u
+    rcases hsdom ((u, y) : (strongProduct G H).V) with h | ⟨w, hw, hadj⟩
+    · exact Or.inl (Finset.mem_image.2 ⟨(u, y), h, rfl⟩)
+    · rw [strongProduct_adj] at hadj
+      simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq] at hadj
+      rcases hadj.2.1 with h1 | h1
+      · exact Or.inl (Finset.mem_image.2 ⟨w, hw, h1⟩)
+      · exact Or.inr ⟨w.1, Finset.mem_image.2 ⟨w, hw, rfl⟩, h1⟩
+  exact le_trans (domNum_le_card_of_isDominatingSet hdom) (hs ▸ Finset.card_image_le)
+
 end CGraph
 
 namespace IsoGraph
@@ -14605,5 +14704,83 @@ theorem radius_cartesianProduct_self {G : IsoGraph} (hG : IsConnected G) :
 example : (strongProduct (cycle 5) (cycle 5)).diameter ≤ 4 := by
   have := diameter_strongProduct_le (G := cycle 5) (H := cycle 5) (by simp) (by simp)
   simpa using this
+
+/-! ### Domination in the graph products -/
+
+theorem domNum_strongProduct_le (G H : IsoGraph) :
+    (strongProduct G H).domNum ≤ G.domNum * H.domNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, domNum_mk, domNum_mk, domNum_mk]
+  exact CGraph.domNum_strongProduct_le _ _
+
+theorem domNum_le_domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
+    G.domNum ≤ (lexProduct G H).domNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, domNum_mk, domNum_mk]
+  exact CGraph.domNum_le_domNum_lexProduct _ _
+
+theorem domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : H.domNum = 1) :
+    (lexProduct G H).domNum = G.domNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize h, domNum_mk] at hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, domNum_mk, domNum_mk]
+  exact CGraph.domNum_lexProduct _ _ hH
+
+/-- Two universal vertices give a universal vertex of the strong product. -/
+theorem domNum_strongProduct_eq_one {G H : IsoGraph} (hG : G.domNum = 1) (hH : H.domNum = 1) :
+    (strongProduct G H).domNum = 1 := by
+  have hGV : 0 < G.V := by
+    rcases Nat.eq_zero_or_pos G.V with h | h
+    · rw [← domNum_eq_zero_iff] at h; omega
+    · exact h
+  have hHV : 0 < H.V := by
+    rcases Nat.eq_zero_or_pos H.V with h | h
+    · rw [← domNum_eq_zero_iff] at h; omega
+    · exact h
+  have h1 := domNum_strongProduct_le G H
+  have h2 : 0 < (strongProduct G H).domNum :=
+    domNum_pos (by rw [V_strongProduct]; exact Nat.mul_pos hGV hHV)
+  rw [hG, hH] at h1
+  omega
+
+example : (lexProduct (empty 3) (complete 2)).domNum = 3 := by
+  rw [domNum_lexProduct _ (by simp), domNum_empty]
+
+example : (strongProduct (star 3) (star 4)).domNum = 1 :=
+  domNum_strongProduct_eq_one (by simp) (by simp)
+
+example : (lexProduct (cycle 5) (complete 4)).domNum = (cycle 5).domNum :=
+  domNum_lexProduct _ (by simp)
+
+theorem domNum_le_domNum_cartesianProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
+    G.domNum ≤ (cartesianProduct G H).domNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, domNum_mk, domNum_mk]
+  exact CGraph.domNum_le_domNum_cartesianProduct _ _
+
+theorem domNum_le_domNum_strongProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
+    G.domNum ≤ (strongProduct G H).domNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, domNum_mk, domNum_mk]
+  exact CGraph.domNum_le_domNum_strongProduct _ _
+
+/-- The domination number of a strong product sits between the larger factor value and the
+product of the two. -/
+theorem max_domNum_le_domNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    max G.domNum H.domNum ≤ (strongProduct G H).domNum := by
+  refine max_le (domNum_le_domNum_strongProduct G hH) ?_
+  rw [strongProduct_comm]
+  exact domNum_le_domNum_strongProduct H hG
 
 end IsoGraph
