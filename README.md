@@ -832,6 +832,21 @@ vertex and edge counts alone: `degSequence_of_isVertexTransitive` needs only `V 
 follow from the Cartesian product, and `E_lineGraph_cycle` says `L(Cₙ)` has `n` edges — as it
 should, being `Cₙ` again.
 
+All of that invariant machinery pays off twice, because on the quotient `G ≠ H` *is* the statement
+that `G` and `H` are non-isomorphic — there is no separate notion to define. Anything of the form
+`f G ≠ f H` for an invariant `f` proves it (`ne_of_V_ne`, `ne_of_E_ne`, `ne_of_degSequence_ne`,
+`ne_of_diameter_ne`, `ne_of_indepNum_ne`, `ne_of_cliqueNum_ne`), and so does any invariant
+*predicate* that holds of one and fails for the other (`ne_of_pred`, with `ne_of_isConnected`,
+`ne_of_isAcyclic`, `ne_of_isTree`, `ne_of_isBipartite` and the two transitivity versions as
+special cases). `ne_of_degree_ne` packages the common argument that two regular graphs of the same
+order but different degree cannot be isomorphic. From these, each standard family is injective in
+its parameter (`complete_inj`, `cycle_inj`, `path_inj`, `star_inj`, `empty_inj`, all `simp`), and
+the interesting separations are the ones where the cheap invariants agree: `C₆` and two triangles
+have the same order, size and degree sequence and are told apart by connectivity (or by
+independence number, against two copies of `K₃`); the triangular prism and `K₃,₃` are both cubic
+on six vertices and are told apart by bipartiteness; the cube and `K₄ ⊔ K₄` are both cubic on
+eight vertices with twelve edges, again separated by connectivity.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

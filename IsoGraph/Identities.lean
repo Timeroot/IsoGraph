@@ -6532,6 +6532,98 @@ theorem degSequence_of_isVertexTransitive {G : IsoGraph} {k : ℕ} (h : IsVertex
 theorem two_mul_E_prism (n : ℕ) : 2 * (prism (n + 3)).E = (n + 3) * 2 * 3 :=
   two_mul_E_of_degSequence_replicate (degSequence_prism n)
 
+/-! ### Distinguishing graphs
+
+Because `IsoGraph` is the quotient of `CGraph` by isomorphism, `G ≠ H` *is* the assertion that
+`G` and `H` are non-isomorphic. Every invariant therefore doubles as a tool for proving
+non-isomorphism: if it takes different values on the two graphs, they are different. -/
+
+theorem ne_of_V_ne {G H : IsoGraph} (h : G.V ≠ H.V) : G ≠ H := ne_of_apply_ne V h
+
+theorem ne_of_E_ne {G H : IsoGraph} (h : G.E ≠ H.E) : G ≠ H := ne_of_apply_ne E h
+
+theorem ne_of_degSequence_ne {G H : IsoGraph} (h : degSequence G ≠ degSequence H) : G ≠ H :=
+  ne_of_apply_ne degSequence h
+
+theorem ne_of_diameter_ne {G H : IsoGraph} (h : G.diameter ≠ H.diameter) : G ≠ H :=
+  ne_of_apply_ne diameter h
+
+theorem ne_of_indepNum_ne {G H : IsoGraph} (h : G.indepNum ≠ H.indepNum) : G ≠ H :=
+  ne_of_apply_ne indepNum h
+
+theorem ne_of_cliqueNum_ne {G H : IsoGraph} (h : G.cliqueNum ≠ H.cliqueNum) : G ≠ H :=
+  ne_of_apply_ne cliqueNum h
+
+/-- The same principle for predicates: any property of `IsoGraph`s that holds of `G` but fails
+for `H` separates them. -/
+theorem ne_of_pred {p : IsoGraph → Prop} {G H : IsoGraph} (hG : p G) (hH : ¬ p H) : G ≠ H :=
+  fun he ↦ hH (he ▸ hG)
+
+theorem ne_of_isConnected {G H : IsoGraph} (hG : IsConnected G) (hH : ¬ IsConnected H) : G ≠ H :=
+  ne_of_pred hG hH
+
+theorem ne_of_isAcyclic {G H : IsoGraph} (hG : IsAcyclic G) (hH : ¬ IsAcyclic H) : G ≠ H :=
+  ne_of_pred hG hH
+
+theorem ne_of_isTree {G H : IsoGraph} (hG : IsTree G) (hH : ¬ IsTree H) : G ≠ H :=
+  ne_of_pred hG hH
+
+theorem ne_of_isBipartite {G H : IsoGraph} (hG : IsBipartite G) (hH : ¬ IsBipartite H) : G ≠ H :=
+  ne_of_pred hG hH
+
+theorem ne_of_isVertexTransitive {G H : IsoGraph} (hG : IsVertexTransitive G)
+    (hH : ¬ IsVertexTransitive H) : G ≠ H := ne_of_pred hG hH
+
+theorem ne_of_isArcTransitive {G H : IsoGraph} (hG : IsArcTransitive G)
+    (hH : ¬ IsArcTransitive H) : G ≠ H := ne_of_pred hG hH
+
+private theorem replicate_ne {k a b : ℕ} (hk : 0 < k) (hab : a ≠ b) :
+    List.replicate k a ≠ List.replicate k b := fun h ↦
+  hab (List.eq_of_mem_replicate (h ▸ List.mem_replicate.2 ⟨hk.ne', rfl⟩))
+
+/-- Two regular graphs on the same (positive) number of vertices but of different degree are
+non-isomorphic. -/
+theorem ne_of_degree_ne {G H : IsoGraph} {n k l : ℕ} (hG : degSequence G = List.replicate n k)
+    (hH : degSequence H = List.replicate n l) (hn : 0 < n) (hkl : k ≠ l) : G ≠ H :=
+  ne_of_degSequence_ne (by rw [hG, hH]; exact replicate_ne hn hkl)
+
+/-! Each of the standard families is determined by its parameter. -/
+
+@[simp] theorem empty_inj {m n : ℕ} : empty m = empty n ↔ m = n :=
+  ⟨fun h ↦ by simpa using congrArg V h, fun h ↦ by rw [h]⟩
+
+@[simp] theorem complete_inj {m n : ℕ} : complete m = complete n ↔ m = n :=
+  ⟨fun h ↦ by simpa using congrArg V h, fun h ↦ by rw [h]⟩
+
+@[simp] theorem path_inj {m n : ℕ} : path m = path n ↔ m = n :=
+  ⟨fun h ↦ by simpa using congrArg V h, fun h ↦ by rw [h]⟩
+
+@[simp] theorem cycle_inj {m n : ℕ} : cycle m = cycle n ↔ m = n :=
+  ⟨fun h ↦ by simpa using congrArg V h, fun h ↦ by rw [h]⟩
+
+@[simp] theorem star_inj {m n : ℕ} : star m = star n ↔ m = n :=
+  ⟨fun h ↦ by have h2 := congrArg V h; simp only [V_star] at h2; omega, fun h ↦ by rw [h]⟩
+
+/-! Some non-isomorphisms between the families. -/
+
+theorem empty_ne_complete (n : ℕ) : empty (n + 2) ≠ complete (n + 2) :=
+  ne_of_E_ne (by rw [E_empty]; exact (E_complete_pos n).ne)
+
+theorem path_ne_cycle (m n : ℕ) : path (m + 1) ≠ cycle (n + 3) :=
+  ne_of_isTree (isTree_path m) (not_isTree_cycle n)
+
+theorem star_ne_cycle (m n : ℕ) : star m ≠ cycle (n + 3) :=
+  ne_of_isTree (isTree_star m) (not_isTree_cycle n)
+
+theorem complete_ne_cycle (n : ℕ) : complete (n + 4) ≠ cycle (n + 4) :=
+  ne_of_degree_ne (degSequence_complete (n + 4)) (degSequence_cycle (n + 1)) (by omega) (by omega)
+
+theorem bipartite_ne_complete (m n k : ℕ) : bipartite m n ≠ complete (k + 3) :=
+  ne_of_isBipartite (isBipartite_bipartite m n) (not_isBipartite_complete k)
+
+theorem hypercube_ne_complete (n k : ℕ) : hypercube (n + 2) ≠ complete (k + 3) :=
+  ne_of_isBipartite (isBipartite_hypercube (n + 2)) (not_isBipartite_complete k)
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -7154,5 +7246,56 @@ example : (completeMultipartite [1, 1, 3]).E = 7 := by
   have := E_completeMultipartite [1, 1, 3]
   simp [Nat.choose] at this
   omega
+
+example : complete 3 ≠ complete 4 := by simp
+
+example : cycle 4 ≠ complete 4 :=
+  ne_of_E_ne (by rw [show (4 : ℕ) = 1 + 3 from rfl, E_cycle, E_complete]; decide)
+
+example : complete 5 ≠ cycle 5 :=
+  ne_of_degSequence_ne (by
+    rw [degSequence_complete, show (5 : ℕ) = 2 + 3 from rfl, degSequence_cycle]
+    decide)
+
+/-- The six-cycle and two triangles share their order, size and degree sequence; connectivity
+tells them apart. -/
+example : cycle 6 ≠ disjUnion (cycle 3) (cycle 3) :=
+  ne_of_isConnected (isConnected_cycle 5) (not_isConnected_disjUnion (by simp) (by simp))
+
+example : cycle 6 ≠ disjUnion (complete 3) (complete 3) :=
+  ne_of_indepNum_ne (by
+    rw [show (6 : ℕ) = 3 + 3 from rfl, indepNum_cycle, indepNum_disjUnion, indepNum_complete]
+    decide)
+
+/-- The triangular prism and `K₃,₃` are both cubic on six vertices; bipartiteness separates
+them. -/
+example : prism 3 ≠ bipartite 3 3 :=
+  (ne_of_isBipartite (isBipartite_bipartite 3 3) (not_isBipartite_prism_odd 0)).symm
+
+example : path 5 ≠ cycle 5 := path_ne_cycle 4 2
+
+example : petersen ≠ cycle 10 :=
+  ne_of_degSequence_ne (by
+    rw [degSequence_petersen, show (10 : ℕ) = 7 + 3 from rfl, degSequence_cycle]
+    decide)
+
+example : disjUnion (complete 3) (empty 1) ≠ star 3 :=
+  ne_of_cliqueNum_ne (by
+    rw [cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_empty,
+      show (3 : ℕ) = 2 + 1 from rfl, cliqueNum_star]
+    decide)
+
+/-- The cube and two disjoint copies of `K₄` are both cubic on eight vertices with twelve
+edges. -/
+example : hypercube 3 ≠ disjUnion (complete 4) (complete 4) :=
+  ne_of_isConnected (isConnected_hypercube 3) (not_isConnected_disjUnion (by simp) (by simp))
+
+example : complete 4 ≠ path 4 :=
+  ne_of_diameter_ne (by
+    rw [show (4 : ℕ) = 2 + 2 from rfl, diameter_complete, show (2 + 2 : ℕ) = 3 + 1 from rfl,
+      diameter_path]
+    decide)
+
+example (G : IsoGraph) (h : G.V = 5) : G ≠ petersen := ne_of_V_ne (by rw [h, V_petersen]; decide)
 
 end IsoGraph
