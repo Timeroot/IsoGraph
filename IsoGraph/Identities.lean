@@ -15114,4 +15114,101 @@ example : (tensorProduct (cycle 4) (path 3)).chromNum = 2 := by
   · simp
   · simp
 
+/-! ### Vertex covers of the products -/
+
+/-- Gallai turns the exact independence number of a lexicographic product into an exact cover
+number: `τ(G[H]) = |V(G)|·|V(H)| - α(G)·α(H)`. -/
+@[simp] theorem coverNum_lexProduct (G H : IsoGraph) :
+    (lexProduct G H).coverNum = G.V * H.V - G.indepNum * H.indepNum := by
+  rw [coverNum_eq, V_lexProduct, indepNum_lexProduct]
+
+/-- A cover of a join must contain one whole side. -/
+@[simp] theorem coverNum_join (G H : IsoGraph) :
+    (join G H).coverNum = min (G.coverNum + H.V) (G.V + H.coverNum) := by
+  rw [coverNum_eq, V_join, indepNum_join]
+  have := G.coverNum_add_indepNum
+  have := H.coverNum_add_indepNum
+  omega
+
+/-- The independent set bound `α(G)·α(H) ≤ α(G □ H)` becomes an upper bound on `τ`. -/
+theorem coverNum_cartesianProduct_le (G H : IsoGraph) :
+    (cartesianProduct G H).coverNum ≤ G.V * H.V - G.indepNum * H.indepNum := by
+  rw [coverNum_eq, V_cartesianProduct]
+  exact Nat.sub_le_sub_left (indepNum_mul_indepNum_le_indepNum_cartesianProduct G H) _
+
+/-- The same bound for the strong product. -/
+theorem coverNum_strongProduct_le (G H : IsoGraph) :
+    (strongProduct G H).coverNum ≤ G.V * H.V - G.indepNum * H.indepNum := by
+  rw [coverNum_eq, V_strongProduct]
+  exact Nat.sub_le_sub_left (indepNum_mul_indepNum_le_indepNum_strongProduct G H) _
+
+/-- Fibrewise counting from below: `|V(G)|·τ(H) ≤ τ(G □ H)`. -/
+theorem V_mul_coverNum_le_coverNum_cartesianProduct (G H : IsoGraph) :
+    G.V * H.coverNum ≤ (cartesianProduct G H).coverNum := by
+  have h1 : G.V * H.coverNum = G.V * H.V - G.V * H.indepNum := by
+    rw [coverNum_eq, Nat.mul_sub]
+  have h2 := indepNum_cartesianProduct_le G H
+  have h3 := (cartesianProduct G H).coverNum_add_indepNum
+  rw [V_cartesianProduct] at h3
+  have h4 : G.V * H.indepNum ≤ G.V * H.V :=
+    Nat.mul_le_mul_left _ (by have := H.coverNum_add_indepNum; omega)
+  omega
+
+/-- The mirror bound `τ(G) · |V(H)| ≤ τ(G □ H)`. -/
+theorem coverNum_mul_V_le_coverNum_cartesianProduct (G H : IsoGraph) :
+    G.coverNum * H.V ≤ (cartesianProduct G H).coverNum := by
+  rw [cartesianProduct_comm]
+  have h := V_mul_coverNum_le_coverNum_cartesianProduct H G
+  rwa [mul_comm] at h
+
+/-- The strong product contains the cartesian one, and both have the same vertex set, so the
+lower bound survives: `|V(G)|·τ(H) ≤ τ(G ⊠ H)`. -/
+theorem V_mul_coverNum_le_coverNum_strongProduct (G H : IsoGraph) :
+    G.V * H.coverNum ≤ (strongProduct G H).coverNum := by
+  have h1 : G.V * H.coverNum = G.V * H.V - G.V * H.indepNum := by
+    rw [coverNum_eq, Nat.mul_sub]
+  have h2 := indepNum_strongProduct_le G H
+  have h3 := (strongProduct G H).coverNum_add_indepNum
+  rw [V_strongProduct] at h3
+  have h4 : G.V * H.indepNum ≤ G.V * H.V :=
+    Nat.mul_le_mul_left _ (by have := H.coverNum_add_indepNum; omega)
+  omega
+
+/-- The mirror bound for the strong product. -/
+theorem coverNum_mul_V_le_coverNum_strongProduct (G H : IsoGraph) :
+    G.coverNum * H.V ≤ (strongProduct G H).coverNum := by
+  rw [strongProduct_comm]
+  have h := V_mul_coverNum_le_coverNum_strongProduct H G
+  rwa [mul_comm] at h
+
+/-- A slab `S × V(H)` is independent in the tensor product, so covering it is cheap:
+`τ(G × H) ≤ τ(G)·|V(H)|`. -/
+theorem coverNum_tensorProduct_le (G H : IsoGraph) :
+    (tensorProduct G H).coverNum ≤ G.coverNum * H.V := by
+  have h1 : G.coverNum * H.V = G.V * H.V - G.indepNum * H.V := by
+    rw [coverNum_eq, Nat.sub_mul]
+  have h2 := indepNum_mul_V_le_indepNum_tensorProduct G H
+  have h3 := (tensorProduct G H).coverNum_add_indepNum
+  rw [V_tensorProduct] at h3
+  omega
+
+/-- The mirror bound `τ(G × H) ≤ |V(G)|·τ(H)`. -/
+theorem coverNum_tensorProduct_le' (G H : IsoGraph) :
+    (tensorProduct G H).coverNum ≤ G.V * H.coverNum := by
+  rw [tensorProduct_comm]
+  have h := coverNum_tensorProduct_le H G
+  rwa [mul_comm] at h
+
+example : (lexProduct (cycle 5) (complete 3)).coverNum = 13 := by
+  rw [coverNum_lexProduct, V_cycle, V_complete, indepNum_complete]
+  norm_num [show ((cycle 5).indepNum) = 2 from by simp]
+
+example : (cartesianProduct (complete 3) (complete 3)).coverNum ≤ 8 := by
+  have h := coverNum_cartesianProduct_le (complete 3) (complete 3)
+  simpa using h
+
+example : 6 ≤ (cartesianProduct (complete 3) (complete 3)).coverNum := by
+  have h := V_mul_coverNum_le_coverNum_cartesianProduct (complete 3) (complete 3)
+  simpa using h
+
 end IsoGraph

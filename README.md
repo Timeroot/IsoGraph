@@ -1369,6 +1369,14 @@ min χ(G) χ(H)` holds because either projection is a graph homomorphism, and th
 bound is exactly Hedetniemi's conjecture, which is false — so all that is proved here is the
 bipartite case, where one bipartite factor plus an edge on each side forces `χ(G × H) = 2`.
 
+Gallai's identity `τ + α = |V|` then hands over the whole independence table to vertex covers.
+The lexicographic product gets an exact value, `τ(G[H]) = |V(G)|·|V(H)| - α(G)·α(H)`; the cartesian
+and strong products inherit the two-sided bounds, `|V(G)|·τ(H)` and `τ(G)·|V(H)|` from below and
+`|V(G)|·|V(H)| - α(G)·α(H)` from above; and the tensor product is covered by a slab, giving
+`τ(G × H) ≤ min (τ(G)·|V(H)|) (|V(G)|·τ(H))`.  The join also lands here: a cover has to contain one
+whole side, so `τ(G + H) = min (τ(G) + |V(H)|) (|V(G)| + τ(H))`.  On `K₃ □ K₃` the lower bound is
+tight — six squares are needed to cover the rook's graph, and the bound gives exactly six.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
