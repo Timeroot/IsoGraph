@@ -24222,4 +24222,79 @@ theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     show LG_def.radius.toNat ≤ S.radius.toNat + 1
     rw [hLGtop]; simp
 
+/-! ### Turán graphs, the balanced case -/
+
+@[simp] theorem E_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
+    (turan n r).E = r.choose 2 * (n / r * (n / r)) := by
+  rw [turan_of_dvd h, E_completeMultipartite_replicate]
+
+theorem isRegularWith_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
+    (turan n r).IsRegularWith ((r - 1) * (n / r)) := by
+  rw [turan_of_dvd h]
+  exact isRegularWith_of_degSequence (degSequence_completeMultipartite_replicate r (n / r))
+
+theorem isConnected_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hd : 1 ≤ n / r) :
+    IsConnected (turan n r) := by
+  obtain ⟨m, rfl⟩ : ∃ m, r = m + 2 := ⟨r - 2, by omega⟩
+  obtain ⟨d, hdeq⟩ : ∃ d, n / (m + 2) = d + 1 := ⟨n / (m + 2) - 1, by omega⟩
+  rw [turan_of_dvd h, hdeq]
+  exact isConnected_completeMultipartite_replicate m d
+
+theorem diameter_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hd : 2 ≤ n / r) :
+    (turan n r).diameter = 2 := by
+  obtain ⟨m, rfl⟩ : ∃ m, r = m + 2 := ⟨r - 2, by omega⟩
+  obtain ⟨d, hdeq⟩ : ∃ d, n / (m + 2) = d + 2 := ⟨n / (m + 2) - 2, by omega⟩
+  rw [turan_of_dvd h, hdeq, diameter_completeMultipartite_replicate]
+
+theorem domNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hd : 2 ≤ n / r) :
+    (turan n r).domNum = 2 := by
+  obtain ⟨m, rfl⟩ : ∃ m, r = m + 2 := ⟨r - 2, by omega⟩
+  obtain ⟨d, hdeq⟩ : ∃ d, n / (m + 2) = d + 2 := ⟨n / (m + 2) - 2, by omega⟩
+  rw [turan_of_dvd h, hdeq, domNum_completeMultipartite_replicate]
+
+theorem matchNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hd : 1 ≤ n / r) :
+    (turan n r).matchNum = n / 2 := by
+  obtain ⟨m, rfl⟩ : ∃ m, r = m + 2 := ⟨r - 2, by omega⟩
+  obtain ⟨d, hdeq⟩ : ∃ d, n / (m + 2) = d + 1 := ⟨n / (m + 2) - 1, by omega⟩
+  have hn : (m + 2) * (d + 1) = n := by
+    rw [← hdeq]; exact Nat.mul_div_cancel' h
+  rw [turan_of_dvd h, hdeq, matchNum_completeMultipartite_replicate, hn]
+
+theorem indepNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
+    (turan n r).indepNum = n / r := by
+  obtain ⟨m, rfl⟩ : ∃ m, r = m + 1 := ⟨r - 1, by omega⟩
+  rw [turan_of_dvd h, indepNum_completeMultipartite, List.max?_replicate]
+  simp
+
+theorem coverNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
+    (turan n r).coverNum = n - n / r := by
+  have hc := coverNum_add_indepNum (turan n r)
+  rw [indepNum_turan_of_dvd h hr, V_turan] at hc
+  have : n / r ≤ n := Nat.div_le_self n r
+  omega
+
+/-! ### Turán graphs with at least three parts -/
+
+@[simp] theorem girth_turan {n r : ℕ} (hr : 3 ≤ r) (h : r ≤ n) : (turan n r).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_turan (by omega) h]; omega)
+
+@[simp] theorem not_isBipartite_turan {n r : ℕ} (hr : 3 ≤ r) (h : r ≤ n) :
+    ¬ IsBipartite (turan n r) :=
+  not_isBipartite_of_girth_eq_three (girth_turan hr h)
+
+@[simp] theorem not_isAcyclic_turan {n r : ℕ} (hr : 3 ≤ r) (h : r ≤ n) :
+    ¬ IsAcyclic (turan n r) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_turan hr h]; omega)
+
+@[simp] theorem not_isTree_turan {n r : ℕ} (hr : 3 ≤ r) (h : r ≤ n) : ¬ IsTree (turan n r) :=
+  not_isTree_of_girth_pos (by rw [girth_turan hr h]; omega)
+
+/-! ### More crown graphs -/
+
+@[simp] theorem crown_zero : crown 0 = empty 0 := by
+  rw [crown, complete_zero, tensorProduct_comm, tensorProduct_empty, V_complete]
+
+@[simp] theorem crown_one : crown 1 = empty 2 := by
+  rw [crown, complete_one, tensorProduct_comm, tensorProduct_empty, V_complete]
+
 end IsoGraph
