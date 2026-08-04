@@ -18702,4 +18702,394 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
   rw [radius_eq, inf_eq_half]
   simp [m]
 
+/-! ### Degrees and radius of the ladder -/
+
+@[simp] theorem maxDeg_ladder (n : ℕ) : maxDeg (ladder (n + 3)) = 3 := by
+  rw [show ladder (n + 3) = cartesianProduct (path (n + 3)) (complete 2) from rfl,
+    maxDeg_cartesianProduct (by rw [V_path]; omega) (by rw [V_complete]; omega),
+    maxDeg_path, maxDeg_complete]
+
+@[simp] theorem minDeg_ladder (n : ℕ) : minDeg (ladder (n + 2)) = 2 := by
+  rw [show ladder (n + 2) = cartesianProduct (path (n + 2)) (complete 2) from rfl,
+    minDeg_cartesianProduct (by rw [V_path]; omega) (by rw [V_complete]; omega),
+    minDeg_path, minDeg_complete]
+
+/-- **The radius of a ladder**: the centre of the underlying path, on either rail. -/
+@[simp] theorem radius_ladder (n : ℕ) : (ladder (n + 1)).radius = (n + 1) / 2 + 1 := by
+  rw [show ladder (n + 1) = cartesianProduct (path (n + 1)) (complete 2) from rfl,
+    radius_cartesianProduct (isConnected_path n) (isConnected_complete 1), radius_path,
+    show complete 2 = complete (0 + 2) from rfl, radius_complete]
+
+/-! ### Clique cover numbers from maximum matchings
+
+`θ ≤ |V| - ν` pairs up as many vertices as a maximum matching allows and leaves the rest as
+singletons; against `|V| ≤ θ · ω` it is tight for every triangle-free graph with a maximum
+matching, and against `α ≤ θ` it is tight for the hypercube. -/
+
+/-- **The clique cover number of a hypercube**: `θ(Qₙ) = 2ⁿ⁻¹`, the perfect matching. -/
+@[simp] theorem cliqueCoverNum_hypercube (n : ℕ) :
+    (hypercube (n + 1)).cliqueCoverNum = 2 ^ n := by
+  have h1 := cliqueCoverNum_le_V_sub_matchNum (hypercube (n + 1))
+  rw [V_hypercube, matchNum_hypercube] at h1
+  have h2 := indepNum_le_cliqueCoverNum (hypercube (n + 1))
+  rw [indepNum_hypercube] at h2
+  have h3 : (2 : ℕ) ^ (n + 1) = 2 * 2 ^ n := by ring
+  omega
+
+/-- **The clique cover number of a cycle**: `θ(Cₙ) = ⌈n/2⌉` once the cycle has no triangle. -/
+@[simp] theorem cliqueCoverNum_cycle (n : ℕ) :
+    (cycle (n + 4)).cliqueCoverNum = (n + 5) / 2 := by
+  have hm : (cycle (n + 4)).matchNum = (n + 4) / 2 := matchNum_cycle (n + 1)
+  have h1 := cliqueCoverNum_le_V_sub_matchNum (cycle (n + 4))
+  rw [V_cycle, hm] at h1
+  have h2 := V_le_cliqueCoverNum_mul_cliqueNum (cycle (n + 4))
+  rw [V_cycle, cliqueNum_cycle] at h2
+  omega
+
+@[simp] theorem cliqueCoverNum_cycle_three : (cycle 3).cliqueCoverNum = 1 := by
+  rw [cycle_three, cliqueCoverNum_complete]
+
+/-- **The clique cover number of a wheel**: the hub joins one of the rim's cliques, so the
+count is the rim's. -/
+@[simp] theorem cliqueCoverNum_wheel (n : ℕ) :
+    (wheel (n + 4)).cliqueCoverNum = (n + 5) / 2 := by
+  rw [wheel_eq_join, show complete 1 = complete (0 + 1) from rfl, cliqueCoverNum_join,
+    cliqueCoverNum_complete, cliqueCoverNum_cycle]
+  omega
+
+example : (hypercube 4).cliqueCoverNum = 8 := by
+  rw [show (4 : ℕ) = 3 + 1 from rfl, cliqueCoverNum_hypercube]; norm_num
+example : (cycle 7).cliqueCoverNum = 4 := by
+  rw [show (7 : ℕ) = 3 + 4 from rfl, cliqueCoverNum_cycle]
+example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radius_ladder]
+
+/-- The Petersen graph has independence number 4. -/
+@[simp] theorem indepNum_petersen : petersen.indepNum = 4 := by
+  unfold IsoGraph.petersen IsoGraph.indepNum IsoGraph.kneser
+  rw [Quotient.lift_mk]
+  rw [← CGraph.cliqueNum_compl]
+  have heq : (CGraph.compl (CGraph.kneser 5 2)) ≃cg CGraph.johnson 5 2 :=
+    CGraph.johnsonTwoIso 5 |>.symm
+  have hclique_iso :
+      (CGraph.compl (CGraph.kneser 5 2)).cliqueNum = (CGraph.johnson 5 2).cliqueNum := by
+    unfold CGraph.cliqueNum
+    exact SimpleGraph.Iso.cliqueNum_eq (CGraph.Iso.toSimpleIso heq)
+  rw [hclique_iso]
+  -- Now goal: CGraph.cliqueNum (johnson 5 2) = 4
+  -- Use cliqueCount to get a decidable characterization
+  have h4 : 0 < (CGraph.johnson 5 2).cliqueCount 4 ↔ 4 ≤ (CGraph.johnson 5 2).cliqueNum :=
+    CGraph.cliqueCount_pos_iff (CGraph.johnson 5 2) 4
+  have h5 : (CGraph.johnson 5 2).cliqueCount 5 = 0 ↔ (CGraph.johnson 5 2).cliqueNum < 5 :=
+    CGraph.cliqueCount_eq_zero_iff (CGraph.johnson 5 2) 5
+  have hc4 : 0 < (CGraph.johnson 5 2).cliqueCount 4 := by
+    rw [CGraph.cliqueCount_eq_card_cliqueFinset]
+    native_decide
+  have hc5 : (CGraph.johnson 5 2).cliqueCount 5 = 0 := by
+    rw [CGraph.cliqueCount_eq_card_cliqueFinset]
+    native_decide
+  have h4' : 4 ≤ (CGraph.johnson 5 2).cliqueNum := h4.mp hc4
+  have h5' : (CGraph.johnson 5 2).cliqueNum < 5 := h5.mp hc5
+  omega
+
+/-- The Petersen graph has domination number 3. -/
+@[simp] theorem domNum_petersen : petersen.domNum = 3 := by
+  rw [petersen, kneser, IsoGraph.domNum_mk]
+  let s : Finset (CGraph.kneser 5 2).V :=
+    {⟨{0,2}, by decide⟩, ⟨{0,4}, by decide⟩, ⟨{2,4}, by decide⟩}
+  have hcard : s.card = 3 := by decide
+  have hdom : (CGraph.kneser 5 2).IsDominatingSet s := by
+    unfold CGraph.IsDominatingSet
+    decide
+  have hle : (CGraph.kneser 5 2).domNum ≤ 3 :=
+    le_trans (CGraph.domNum_le_card_of_isDominatingSet hdom) (by rw [hcard])
+  have hcardV : Fintype.card (CGraph.kneser 5 2).V = 10 := CGraph.card_petersen
+  have hmaxDeg : (CGraph.kneser 5 2).maxDeg = 3 := IsoGraph.maxDeg_kneser 5 2 (by omega) (by omega)
+  have hlow : 3 ≤ (CGraph.kneser 5 2).domNum := by
+    have := CGraph.card_le_domNum_mul_maxDeg_add_one (CGraph.kneser 5 2)
+    rw [hcardV, hmaxDeg] at this; omega
+  omega
+
+/-- The Petersen graph is triangle-free, so a clique cover is a cover by edges and vertices. -/
+@[simp] theorem cliqueCoverNum_petersen : petersen.cliqueCoverNum = 5 := by
+  --Lower bound: ≥ 5 from V = 10, cliqueNum = 2
+  have hV : petersen.V = 10 := by
+    rw [petersen, V_kneser]; decide
+  have hclique : petersen.cliqueNum = 2 := by
+    show IsoGraph.cliqueNum (kneser 5 2) = 2
+    rw [IsoGraph.kneser, cliqueNum_mk]
+    refine Nat.le_antisymm ?_ ?_
+    · -- cliqueNum ≤ 2: no triangle in kneser 5 2 (3 pairwise disjoint 2-subsets need 6 elements)
+      dsimp only [SimpleGraph.cliqueNum]
+      apply csSup_le
+      · -- nonempty
+        exact ⟨0, ⟨∅, by simp [SimpleGraph.IsNClique]⟩⟩
+      · -- upper bound: every clique has size ≤ 2
+        have hub : ∀ s : Finset (CGraph.kneser 5 2).V,
+            (CGraph.kneser 5 2).toSimple.IsNClique s.card s → s.card ≤ 2 := by
+          native_decide
+        intro b hb
+        obtain ⟨s, hs⟩ := hb
+        rw [← hs.card_eq]
+        exact hub s ⟨hs.isClique, rfl⟩
+    · -- 2 ≤ cliqueNum: edge exists
+      dsimp only [SimpleGraph.cliqueNum]
+      apply le_csSup
+      · -- bounded above: clique size ≤ card of V = 10
+        refine ⟨Fintype.card (CGraph.kneser 5 2).V, fun n ⟨s, hs⟩ ↦ ?_⟩
+        rw [← hs.card_eq]
+        exact Finset.card_le_univ s
+      · -- 2 is in the set: the edge {{0,1}, {2,3}} is a 2-clique
+        let v0 : (CGraph.kneser 5 2).V := ⟨{0, 1}, by decide⟩
+        let v1 : (CGraph.kneser 5 2).V := ⟨{2, 3}, by decide⟩
+        refine ⟨{v0, v1}, ?_⟩
+        native_decide
+  have hlow : 5 ≤ petersen.cliqueCoverNum := by
+    calc 5 = 10 / 2 := by decide
+    _ ≤ petersen.cliqueCoverNum := by
+      have := V_le_cliqueCoverNum_mul_cliqueNum petersen
+      rw [hV, hclique] at this; omega
+  --Upper bound: ≤ 5 from explicit 5-clique cover of petersen (5-coloring of compl petersen)
+  have hupp : petersen.cliqueCoverNum ≤ 5 := by
+    rw [cliqueCoverNum_eq]
+    rw [petersen]
+    rw [← triangular_eq_compl_kneser]
+    show chromNum (triangular 5) ≤ 5
+    show chromNum (johnson 5 2) ≤ 5
+    simp [johnson, chromNum_mk]
+    rw [CGraph.chromNum_le_iff_colorable]
+    -- Coloring: color each 2-subset by (sum of its elements : Fin 5)
+    let coloring : (CGraph.johnson 5 2).V → Fin 5 := fun ⟨s, hs⟩ => s.sum id
+    exact ⟨coloring, by native_decide⟩
+  omega
+
+/-- The rungs of a ladder form a perfect matching. -/
+@[simp] theorem matchNum_ladder (n : ℕ) : (ladder n).matchNum = n := by
+  rw [matchNum_eq]
+  have hup : (lineGraph (ladder n)).indepNum ≤ n := by
+    have := (ladder n).two_mul_matchNum_le_V
+    rw [matchNum_eq, V_ladder] at this
+    omega
+  -- Lower bound: construct independent set of size n in lineGraph(ladder n)
+  -- The n rungs form a matching, so their edge-vertices form an independent set in the line graph.
+  -- Work at IsoGraph level: ladder n = cartesianProduct (path n) (complete 2)
+  -- lineGraph(ladder n) has vertices = edges of ladder n.
+  -- The rungs (edges ((i,0),(i,1)) for i : Fin n) are n edges that are pairwise disjoint,
+  -- so they form an independent set in the line graph.
+  have hlower : n ≤ (lineGraph (ladder n)).indepNum := by
+    show n ≤ indepNum (lineGraph (cartesianProduct (path n) (complete 2)))
+    rw [show path n = ⟦CGraph.path n⟧ from rfl, show complete 2 = ⟦CGraph.complete 2⟧ from rfl]
+    rw [cartesianProduct_mk, lineGraph_mk, indepNum_mk]
+    -- The rungs are edges between (i,0) and (i,1) in the ladder
+    -- In the line graph, these n vertices form an independent set
+    let G' : CGraph := (CGraph.path n).cartesianProduct (CGraph.complete 2)
+    -- Edge set membership for rungs
+    have hrung_mem : ∀ i : Fin n,
+        Sym2.mk ((i, (0 : Fin 2)), (i, (1 : Fin 2))) ∈ G'.toSimple.edgeSet := by
+      intro i
+      simp [G', CGraph.cartesianProduct_adj, CGraph.complete_adj, SimpleGraph.mem_edgeSet]
+    -- The vertices of lineGraph G' corresponding to rungs
+    let rungVer : Fin n → (CGraph.lineGraph G').V := fun i =>
+      ⟨Sym2.mk ((i, (0 : Fin 2)), (i, (1 : Fin 2))), hrung_mem i⟩
+    -- rungVer is injective
+    have hrungVer_inj : Function.Injective rungVer := by
+      intro i j hij
+      have hval : Sym2.mk ((i, (0 : Fin 2)), (i, (1 : Fin 2)))
+          = Sym2.mk ((j, (0 : Fin 2)), (j, (1 : Fin 2))) :=
+        congr_arg Subtype.val hij
+      rcases Sym2.eq_iff.1 hval with h | h
+      · exact congr_arg Prod.fst h.1
+      · exact congr_arg Prod.fst h.1
+    -- The image of rungVer is an independent set in lineGraph G'
+    let S : Finset (CGraph.lineGraph G').V := Finset.univ.image rungVer
+    have hS_card : S.card = n := by
+      rw [Finset.card_image_of_injective _ hrungVer_inj, Finset.card_fin]
+    have hnotadj : ∀ i j : Fin n, i ≠ j →
+        ¬(CGraph.lineGraph G').Adj (rungVer i) (rungVer j) := by
+      intro i j hij
+      show ¬_
+      rw [CGraph.lineGraph_adj]
+      simp [rungVer]
+      intro h1 h2
+      exact ⟨⟨by rintro h; exact hij (congr_arg Prod.fst h),
+              by rintro h; exact hij (congr_arg Prod.fst h)⟩,
+             by rintro h; exact hij (congr_arg Prod.fst h),
+             by rintro h; exact hij (congr_arg Prod.fst h)⟩
+    have hS_indep :
+        (CGraph.lineGraph G').toSimple.IsIndepSet (S : Set (CGraph.lineGraph G').V) := by
+      intro e he f hf hef
+      simp [S] at he hf
+      obtain ⟨i, hi, rfl⟩ := he
+      obtain ⟨j, hj, rfl⟩ := hf
+      have : i ≠ j := by intro heq; apply hef; exact heq ▸ rfl
+      exact hnotadj i j this
+    have := hS_indep.card_le_indepNum
+    rw [hS_card] at this
+    exact this
+  omega
+
+/-- The rungs of a prism form a perfect matching. -/
+@[simp] theorem matchNum_prism (n : ℕ) : (prism n).matchNum = n := by
+  set G := prism n with hG_def
+  have hV : G.V = 2 * n := by
+    simp [G, prism, V_cartesianProduct, V_cycle, V_complete]
+    ring
+  have hup : G.matchNum ≤ n := by
+    have h := G.two_mul_matchNum_le_V
+    rw [hV] at h; omega
+  have hlow : n ≤ G.matchNum := by
+    -- G = prism n = ⟦CGraph.prism n⟧
+    have hG_iso : G = ⟦CGraph.prism n⟧ := by
+      simp [hG_def, prism, cycle_def, complete_def, cartesianProduct_mk]
+    rw [hG_iso, matchNum_eq, lineGraph_mk, indepNum_mk]
+    set G' : CGraph := CGraph.prism n
+    -- The rung edge between (i, 0) and (i, 1) is an edge of G' for each i : Fin n.
+    -- These n edges are pairwise disjoint, giving an independent set of size n in lineGraph G'.
+    have rung_adj : ∀ i : Fin n, G'.Adj ((i, (0 : Fin 2)) : G'.V) ((i, (1 : Fin 2)) : G'.V) := by
+      intro i
+      simp [G', CGraph.prism, CGraph.cartesianProduct_adj, CGraph.complete_adj]
+    have rung_edge_mem : ∀ i : Fin n,
+        s(((i, (0 : Fin 2)) : G'.V), ((i, (1 : Fin 2)) : G'.V)) ∈ G'.toSimple.edgeSet := by
+      intro i
+      rw [SimpleGraph.mem_edgeSet]
+      exact rung_adj i
+    -- Build the Finset of rung-edge vertices in lineGraph(G')
+    let rungVer : Fin n → (CGraph.lineGraph G').V := fun i =>
+      ⟨s((i, (0 : Fin 2)), (i, (1 : Fin 2))), rung_edge_mem i⟩
+    let rungSet : Finset (CGraph.lineGraph G').V := Finset.univ.image rungVer
+    have rung_pair_ne : ∀ i : Fin n,
+        ((i, (0 : Fin 2)) : Fin n × Fin 2) ≠ ((i, (1 : Fin 2)) : Fin n × Fin 2) := by
+      intro i; simp
+    have hrung_inj : Function.Injective rungVer := by
+      intro i j hij
+      let e : Sym2 (Fin n × Fin 2) := s((j, (0 : Fin 2)), (j, (1 : Fin 2)))
+      have hval : s((i, (0 : Fin 2)), (i, (1 : Fin 2))) = e := by
+        exact congrArg Subtype.val hij
+      have hmem_i0 : (i, (0 : Fin 2)) ∈ e := by
+        rw [← hval]
+        exact Sym2.mem_iff.mpr (Or.inl rfl)
+      rcases Sym2.mem_iff.mp hmem_i0 with h | h <;> simp at h <;> exact h
+    have hrung_card : rungSet.card = n := by
+      rw [Finset.card_image_of_injective _ hrung_inj, Finset.card_univ, Fintype.card_fin]
+    have hrung_not_adj :
+        ∀ i j : Fin n, i ≠ j → ¬(CGraph.lineGraph G').Adj (rungVer i) (rungVer j) := by
+      intro i j hij
+      simp [CGraph.lineGraph_adj, hrung_inj.ne hij]
+      intro x hx_i hx_j
+      simp [rungVer, Sym2.mem_iff] at hx_i hx_j
+      rcases hx_i with rfl | rfl
+      · rcases hx_j with h | h <;> exact absurd (Prod.ext_iff.mp h).1 hij
+      · rcases hx_j with h | h
+        · exact absurd (Prod.ext_iff.mp h).1 hij
+        · exact absurd (Prod.ext_iff.mp h).1 hij
+    have hrung_indep :
+        (CGraph.lineGraph G').toSimple.IsIndepSet
+          (rungSet : Set (CGraph.lineGraph G').V) := by
+      intro e he f hf hef
+      rw [Finset.coe_image, Set.mem_image] at he hf
+      obtain ⟨i, _, rfl⟩ := he
+      obtain ⟨j, _, rfl⟩ := hf
+      exact hrung_not_adj i j (by intro h; exact hef (h ▸ rfl))
+    have hcaref : (CGraph.prism n).lineGraph.indepNum = (CGraph.lineGraph G').indepNum := by
+      simp [G']
+    rw [hcaref]
+    have := hrung_indep.card_le_indepNum
+    rw [hrung_card] at this
+    exact this
+  exact le_antisymm hup hlow
+
+/-- The Petersen graph is cubic and bridgeless, so it has a perfect matching. -/
+@[simp] theorem matchNum_petersen : petersen.matchNum = 5 := by
+  have hub : petersen.matchNum ≤ 5 := by
+    have h := petersen.two_mul_matchNum_le_V
+    rw [V_petersen] at h; omega
+  have hequindep : 5 ≤ petersen.lineGraph.indepNum := by
+    simp only [petersen, lineGraph_mk, indepNum_mk]
+    -- Now goal is about lineGraph Compute.petersen
+    simp only [kneser_def]
+    -- The CGraph.kneser 5 2 is exactly the canonical form of petersen.
+    -- We can relate indepNum at CGraph and IsoGraph levels.
+    have hkneser_iso : petersen = ⟦CGraph.kneser 5 2⟧ := by rfl
+    have h_le := IsoGraph.indepNum_petersen_le
+    rw [hkneser_iso, IsoGraph.indepNum_mk] at h_le
+    -- indepNum_petersen_le now gives (CGraph.kneser 5 2).indepNum ≤ 5
+    -- Use CGraph-level gallai for line graph
+    have hv : Fintype.card (CGraph.kneser 5 2).V = 10 := by
+      native_decide
+    simp only [lineGraph_mk, IsoGraph.indepNum_mk]
+    have h_exists : ∃ S : Finset (CGraph.lineGraph (CGraph.kneser 5 2)).V, S.card = 5 ∧
+        (CGraph.lineGraph (CGraph.kneser 5 2)).toSimple.IsIndepSet
+          (S : Set (CGraph.lineGraph (CGraph.kneser 5 2)).V) := by
+      native_decide
+    obtain ⟨S, hS_card, hS_indep⟩ := h_exists
+    have := hS_indep.card_le_indepNum
+    rw [hS_card] at this
+    exact this
+  have : petersen.matchNum = petersen.lineGraph.indepNum := matchNum_eq petersen
+  omega
+
+/-- A path is covered by `⌈n/2⌉` cliques: take alternate edges. -/
+@[simp] theorem cliqueCoverNum_path (n : ℕ) : (path n).cliqueCoverNum = (n + 1) / 2 := by
+  apply le_antisymm
+  · -- Upper bound: cliqueCoverNum (path n) ≤ (n+1)/2
+    rw [cliqueCoverNum_eq]
+    show chromNum (compl ⟦CGraph.path n⟧) ≤ _
+    rw [IsoGraph.compl_mk]
+    rw [chromNum_mk]
+    rw [CGraph.chromNum_le_iff_colorable]
+    -- Coloring: vertex i gets color i/2
+    -- In compl(path n), i and j are adjacent iff i ≠ j and not (path n).Adj i j
+    -- i.e., i ≠ j and |i-j| ≠ 1. We need color i ≠ color j, i.e., i/2 ≠ j/2.
+    -- If i/2 = j/2, then i and j are in {2k, 2k+1}, so |i-j| ≤ 1, contradiction.
+    let k := (n + 1) / 2
+    have hcoloring : ∀ i : Fin n, (i : ℕ) / 2 < k := by
+      intro i
+      have : (i : ℕ) < n := i.is_lt
+      omega
+    let color : (CGraph.path n).V → Fin k := fun i => ⟨i.val / 2, hcoloring i⟩
+    have hvalid : ∀ i j, (CGraph.path n).compl.toSimple.Adj i j → color i ≠ color j := by
+      intro i j hij
+      simp [CGraph.compl_toSimple] at hij
+      -- hij : ¬i = j ∧ ¬(SimpleGraph.pathGraph n).Adj i j
+      by_contra hne
+      rw [SimpleGraph.pathGraph_adj] at hij
+      -- hij.2 : ¬(i.val + 1 = j.val ∨ j.val + 1 = i.val)
+      -- hne : color i = color j, i.e., i.val / 2 = j.val / 2
+      have hne' : (i.val : ℕ) ≠ (j.val : ℕ) := by
+        intro h; exact hij.1 (Fin.ext h)
+      have hquot : (i.val : ℕ) / 2 = (j.val : ℕ) / 2 := Fin.ext_iff.mp hne
+      have hi2 := Nat.div_add_mod (i.val : ℕ) 2
+      have hj2 := Nat.div_add_mod (j.val : ℕ) 2
+      have himod := Nat.mod_lt (i.val : ℕ) (by omega : 0 < (2 : ℕ))
+      have hjmod := Nat.mod_lt (j.val : ℕ) (by omega : 0 < (2 : ℕ))
+      exact hij.2 (by omega)
+    refine ⟨color, fun hij => ?_⟩
+    simp [SimpleGraph.completeGraph]
+    exact hvalid _ _ hij
+  · -- Lower bound
+    calc (n + 1) / 2 = (path n).indepNum := (indepNum_path n).symm
+      _ ≤ (path n).cliqueCoverNum := indepNum_le_cliqueCoverNum _
+
+@[simp] theorem coverNum_petersen : petersen.coverNum = 6 := by
+  have h := petersen.coverNum_add_indepNum
+  rw [V_petersen, indepNum_petersen] at h
+  omega
+
+@[simp] theorem cliqueCoverNum_ladder (n : ℕ) : (ladder n).cliqueCoverNum = n := by
+  have h1 := cliqueCoverNum_le_V_sub_matchNum (ladder n)
+  rw [V_ladder, matchNum_ladder] at h1
+  have h2 := indepNum_le_cliqueCoverNum (ladder n)
+  rw [indepNum_ladder] at h2
+  omega
+
+@[simp] theorem cliqueCoverNum_prism (n : ℕ) : (prism (n + 4)).cliqueCoverNum = n + 4 := by
+  have h1 := cliqueCoverNum_le_V_sub_matchNum (prism (n + 4))
+  rw [V_prism, matchNum_prism] at h1
+  have h2 := V_le_cliqueCoverNum_mul_cliqueNum (prism (n + 4))
+  rw [V_prism, cliqueNum_prism] at h2
+  omega
+
+example : (path 6).cliqueCoverNum = 3 := by rw [cliqueCoverNum_path]
+example : petersen.matchNum = 5 := matchNum_petersen
+example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
+
 end IsoGraph

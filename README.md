@@ -1662,6 +1662,16 @@ matching plus the vertices it misses is a clique cover, so `θ ≤ |V| - ν`; th
 cocktail party graph both have perfect matchings, `ν(Qₙ) = 2ⁿ⁻¹` and `ν(K_{n×2}) = n`; and the
 radius of a path is `⌊n/2⌋`, the midpoint being the centre.
 
+Once a graph has a known maximum matching, `θ ≤ |V| - ν` is often exact.  Against `α ≤ θ` it
+gives `θ(Qₙ) = 2ⁿ⁻¹` and `θ` of the ladder; against `|V| ≤ θ · ω` it gives `θ(Cₙ) = θ(Wₙ) = ⌈n/2⌉`
+for triangle-free cycles and their wheels, `θ(Pₙ) = ⌈n/2⌉`, and `θ` of the prism.  The prover
+supplied the matchings themselves — perfect ones for the ladder, the prism and the Petersen
+graph — and while it was there it also settled `α(Petersen) = 4`, `γ(Petersen) = 3` and
+`θ(Petersen) = 5`, so Gallai gives `τ(Petersen) = 6`.  Not everything sent to it was true: the
+guess `θ(C_{2m+3}) = m + 2` came back refuted, the counterexample being `C₃ = K₃`, which one
+clique covers.  Elsewhere the Cartesian product formulas give the ladder its degrees and, now
+that the radius of a path is known, its radius `⌈n/2⌉ + 1`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
