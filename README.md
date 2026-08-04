@@ -920,6 +920,17 @@ of a small degree followed by a few large hubs.  That gives `degSequence_path`,
 them separations that the older invariants could not make, such as `star 3 ≠ path 4` — same order,
 same size, both trees.
 
+That leaves the four products, whose vertex set is a product and whose degree multiset is
+therefore a `Multiset.bind`: run over the degrees of the left factor and, for each one, map the
+degrees of the right factor through whatever the product does to a pair of degrees — `d + e` for
+the Cartesian product, `d * e` for the tensor product, `d * H.V + e` for the lexicographic
+product and `(d + 1) * (e + 1) - 1` for the strong product.  The per-vertex degrees
+(`degree_cartesianProduct` and friends) are the existing `card_nbrs_*` computations with the
+regularity hypotheses dropped, and a single helper turns a map over `univ : Finset (α × β)` into
+the corresponding bind.  Unlike the older `degSequence_*` product lemmas, these need no
+assumption on the factors, so they apply to ladders, prisms and anything else built by a product
+from irregular pieces.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

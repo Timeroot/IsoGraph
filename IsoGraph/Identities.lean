@@ -3321,6 +3321,103 @@ theorem degMultiset_path (n : ℕ) :
       = (fun k ↦ (if k + 1 < n then 1 else 0) + (if 0 < k then 1 else 0)) ∘ Fin.val from
     funext degree_path, ← Multiset.map_map, univ_val_map_val]
 
+/-! ### Degree multisets of the four products -/
+
+private theorem univ_val_map_prod {α β : Type} [Fintype α] [Fintype β] (f : α → β → ℕ) :
+    (Finset.univ : Finset (α × β)).val.map (fun p ↦ f p.1 p.2)
+      = (Finset.univ : Finset α).val.bind fun a ↦ (Finset.univ : Finset β).val.map (f a) := by
+  rw [← Finset.univ_product_univ, Finset.product_val]
+  simp only [SProd.sprod, Multiset.product, Multiset.map_bind]
+  exact Multiset.bind_congr fun a _ ↦ Multiset.map_map _ _ _
+
+theorem degree_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (p : (cartesianProduct G H).V) :
+    (cartesianProduct G H).toSimple.degree p
+      = G.toSimple.degree p.1 + H.toSimple.degree p.2 := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, ← card_nbrs_eq_degree,
+    nbrs_cartesianProduct, Finset.card_union_of_disjoint, Finset.card_product,
+    Finset.card_product, Finset.card_singleton, Finset.card_singleton, one_mul, mul_one,
+    Nat.add_comm]
+  refine Finset.disjoint_product.2 (Or.inr ?_)
+  rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+  exact Bool.noConfusion
+
+theorem degree_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (p : (tensorProduct G H).V) :
+    (tensorProduct G H).toSimple.degree p = G.toSimple.degree p.1 * H.toSimple.degree p.2 := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, ← card_nbrs_eq_degree,
+    nbrs_tensorProduct, Finset.card_product]
+
+theorem degree_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (p : (lexProduct G H).V) :
+    (lexProduct G H).toSimple.degree p
+      = G.toSimple.degree p.1 * Fintype.card H.V + H.toSimple.degree p.2 := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, ← card_nbrs_eq_degree,
+    nbrs_lexProduct, Finset.card_union_of_disjoint, Finset.card_product, Finset.card_product,
+    Finset.card_singleton, Finset.card_univ, one_mul]
+  refine Finset.disjoint_product.2 (Or.inl ?_)
+  rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+  exact Bool.noConfusion
+
+theorem degree_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (p : (strongProduct G H).V) :
+    (strongProduct G H).toSimple.degree p
+      = (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) - 1 := by
+  have hdG : ((G.nbrs p.1 ∪ {p.1}) : Finset G.V).card = G.toSimple.degree p.1 + 1 := by
+    rw [Finset.card_union_of_disjoint, Finset.card_singleton, card_nbrs_eq_degree]
+    rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+    exact Bool.noConfusion
+  have hdH : ((H.nbrs p.2 ∪ {p.2}) : Finset H.V).card = H.toSimple.degree p.2 + 1 := by
+    rw [Finset.card_union_of_disjoint, Finset.card_singleton, card_nbrs_eq_degree]
+    rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+    exact Bool.noConfusion
+  have hmem : ({p} : Finset (G.V × H.V)) ⊆ (G.nbrs p.1 ∪ {p.1}) ×ˢ (H.nbrs p.2 ∪ {p.2}) := by
+    rw [Finset.singleton_subset_iff, Finset.mem_product]
+    exact ⟨Finset.mem_union_right _ (Finset.mem_singleton_self _),
+      Finset.mem_union_right _ (Finset.mem_singleton_self _)⟩
+  rw [← card_nbrs_eq_degree, nbrs_strongProduct, Finset.card_sdiff,
+    Finset.inter_eq_left.2 hmem, Finset.card_product, hdG, hdH, Finset.card_singleton]
+
+theorem degMultiset_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).degMultiset
+      = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d + e := by
+  unfold degMultiset
+  rw [Multiset.map_congr rfl fun p _ ↦ degree_cartesianProduct G H p]
+  refine Eq.trans (univ_val_map_prod fun a b ↦ G.toSimple.degree a + H.toSimple.degree b) ?_
+  rw [Multiset.bind_map]
+  exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
+
+theorem degMultiset_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (tensorProduct G H).degMultiset
+      = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d * e := by
+  unfold degMultiset
+  rw [Multiset.map_congr rfl fun p _ ↦ degree_tensorProduct G H p]
+  refine Eq.trans (univ_val_map_prod fun a b ↦ G.toSimple.degree a * H.toSimple.degree b) ?_
+  rw [Multiset.bind_map]
+  exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
+
+theorem degMultiset_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (lexProduct G H).degMultiset
+      = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d * Fintype.card H.V + e := by
+  unfold degMultiset
+  rw [Multiset.map_congr rfl fun p _ ↦ degree_lexProduct G H p]
+  refine Eq.trans (univ_val_map_prod
+    fun a b ↦ G.toSimple.degree a * Fintype.card H.V + H.toSimple.degree b) ?_
+  rw [Multiset.bind_map]
+  exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
+
+theorem degMultiset_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).degMultiset
+      = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ (d + 1) * (e + 1) - 1 := by
+  unfold degMultiset
+  rw [Multiset.map_congr rfl fun p _ ↦ degree_strongProduct G H p]
+  refine Eq.trans (univ_val_map_prod
+    fun a b ↦ (G.toSimple.degree a + 1) * (H.toSimple.degree b + 1) - 1) ?_
+  rw [Multiset.bind_map]
+  exact Multiset.bind_congr fun a _ ↦
+    (Multiset.map_map (fun e ↦ (G.toSimple.degree a + 1) * (e + 1) - 1)
+      (fun v ↦ H.toSimple.degree v) _).symm
+
 end CGraph
 
 namespace IsoGraph
@@ -7742,6 +7839,48 @@ private theorem sort_replicate_append {m a : ℕ} {l : List ℕ} (hl : l.Pairwis
   · simp [hn0] at hn
   · omega
 
+/-! ### Degree multisets of the four products
+
+The vertex set of a product is a product, so its degree multiset is a `Multiset.bind`: run over
+the degrees of the left factor, and for each of them map the degrees of the right factor through
+whatever the product does to a pair of degrees. -/
+
+@[simp] theorem degMultiset_cartesianProduct (G H : IsoGraph) :
+    degMultiset (cartesianProduct G H)
+      = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ d + e := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, degMultiset_mk,
+    degMultiset_mk, degMultiset_mk]
+  exact CGraph.degMultiset_cartesianProduct _ _
+
+@[simp] theorem degMultiset_tensorProduct (G H : IsoGraph) :
+    degMultiset (tensorProduct G H)
+      = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ d * e := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, degMultiset_mk,
+    degMultiset_mk, degMultiset_mk]
+  exact CGraph.degMultiset_tensorProduct _ _
+
+@[simp] theorem degMultiset_lexProduct (G H : IsoGraph) :
+    degMultiset (lexProduct G H)
+      = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ d * H.V + e := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, degMultiset_mk,
+    degMultiset_mk, degMultiset_mk, V_mk]
+  exact CGraph.degMultiset_lexProduct _ _
+
+@[simp] theorem degMultiset_strongProduct (G H : IsoGraph) :
+    degMultiset (strongProduct G H)
+      = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ (d + 1) * (e + 1) - 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, degMultiset_mk,
+    degMultiset_mk, degMultiset_mk]
+  exact CGraph.degMultiset_strongProduct _ _
+
 /-! ## The simp set at work
 
 These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
@@ -8116,6 +8255,36 @@ example : degSequence (star 4) = [1, 1, 1, 1, 4] := degSequence_star 4
 example : degSequence (wheel 5) = [3, 3, 3, 3, 3, 5] := degSequence_wheel 2
 
 example : degSequence (book 3) = [2, 2, 2, 4, 4] := degSequence_book 3
+
+/- The three-rung ladder: the four corners have degree two and the two middle vertices degree
+three. -/
+example : degMultiset (ladder 3) = {2, 2, 3, 3, 2, 2} := by
+  have h1 : degMultiset (path 3) = 1 ::ₘ 1 ::ₘ Multiset.replicate 1 2 := degMultiset_path 1
+  have h2 : degMultiset (complete 2) = Multiset.replicate 2 1 := degMultiset_complete 2
+  rw [show ladder 3 = cartesianProduct (path 3) (complete 2) from rfl,
+    degMultiset_cartesianProduct, h1, h2]
+  decide
+
+/- A star times an edge, in the lexicographic product: the hub sees everything. -/
+example : degMultiset (lexProduct (complete 2) (empty 3)) = Multiset.replicate 6 3 := by
+  have h1 : degMultiset (complete 2) = Multiset.replicate 2 1 := degMultiset_complete 2
+  have h2 : degMultiset (empty 3) = Multiset.replicate 3 0 := degMultiset_empty 3
+  rw [degMultiset_lexProduct, h1, h2, V_empty]
+  decide
+
+/- The tensor product multiplies degrees, so each row of `K₃ × P₃` repeats the path's degrees
+scaled by two. -/
+example : degMultiset (tensorProduct (complete 3) (path 3)) = {2, 4, 2, 2, 4, 2, 2, 4, 2} := by
+  have h1 : degMultiset (complete 3) = Multiset.replicate 3 2 := degMultiset_complete 3
+  have h2 : degMultiset (path 3) = 1 ::ₘ 1 ::ₘ Multiset.replicate 1 2 := degMultiset_path 1
+  rw [degMultiset_tensorProduct, h1, h2]
+  decide
+
+/- `K₂ ⊠ K₂` is `K₄`, and the degrees agree: `(1 + 1) * (1 + 1) - 1 = 3`. -/
+example : degMultiset (strongProduct (complete 2) (complete 2)) = Multiset.replicate 4 3 := by
+  have h1 : degMultiset (complete 2) = Multiset.replicate 2 1 := degMultiset_complete 2
+  rw [degMultiset_strongProduct, h1]
+  decide
 
 example : path 6 ≠ cycle 6 :=
   ne_of_degMultiset_ne (by
