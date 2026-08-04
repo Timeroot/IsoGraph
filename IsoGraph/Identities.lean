@@ -2347,40 +2347,95 @@ theorem thetaDepth_parity : ∀ (b off : ℕ) (xs : List ℕ) (p q : ℕ), 2 ≤
         exact thetaDepth_parity b (off + k) rest p q (by omega)
           (fun x hx ↦ hpar x (List.mem_cons_of_mem k hx)) h
 
-/-! ### An odd cycle inside an edge list -/
+/-! ### Odd closed walks -/
+
+/-- **A closed walk of odd length forbids a two-colouring.**  Walking along `f` the colour
+alternates with the parity of the step count, so returning to the start after an odd number of
+steps is impossible. -/
+theorem not_isBipartite_of_odd_walk {G : CGraph} (f : ℕ → G.V) (m : ℕ) (hodd : m % 2 = 1)
+    (h : ∀ k < m, G.Adj (f k) (f (k + 1))) (hclose : f m = f 0) : ¬ G.IsBipartite := by
+  rintro ⟨c, hc⟩
+  have alt : ∀ k ≤ m, c (f k) = xor (c (f 0)) (decide (k % 2 = 1)) := by
+    intro k
+    induction k with
+    | zero => intro _; simp
+    | succ k ih =>
+      intro hk
+      have hstep := hc (f k) (f (k + 1)) (h k (by omega))
+      rw [ih (by omega)] at hstep
+      have hpar : (decide ((k + 1) % 2 = 1)) = !(decide (k % 2 = 1)) := by
+        rcases Nat.mod_two_eq_zero_or_one k with h' | h' <;> simp [Nat.add_mod, h']
+      rw [hpar]
+      revert hstep
+      rcases c (f (k + 1)) <;> rcases c (f 0) <;> rcases (decide (k % 2 = 1)) <;> simp
+  have hm := alt m le_rfl
+  rw [hclose, hodd] at hm
+  simp at hm
 
 /-- A graph given by an edge list is not bipartite once its edges include an odd cycle through
-`0, 1, …, m-1`.  Walking around that cycle the colour alternates with the parity of the index, and
-the edge closing the cycle contradicts it. -/
+`0, 1, …, m-1`: walking `k ↦ k % m` around that cycle is a closed walk of odd length. -/
 theorem not_isBipartite_ofEdges_of_odd_cycle (N m : ℕ) (es : List (ℕ × ℕ)) (hodd : m % 2 = 1)
     (h3 : 3 ≤ m) (hN : m ≤ N)
     (hsub : ∀ p q : ℕ, (p, q) ∈ cycleEdges m → ((p, q) ∈ es ∨ (q, p) ∈ es)) :
     ¬ (ofEdges N es).IsBipartite := by
-  rintro ⟨c, hc⟩
-  have hz : 0 < N := by omega
-  have adj : ∀ (k l : ℕ) (hk : k < N) (hl : l < N), k ≠ l → (k, l) ∈ cycleEdges m →
-      c (⟨k, hk⟩ : Fin N) ≠ c (⟨l, hl⟩ : Fin N) := fun k l hk hl hne hkl ↦
-    hc ⟨k, hk⟩ ⟨l, hl⟩ ((ofEdges_adj_val N es _ _).2 ⟨hne, hsub k l hkl⟩)
-  have alt : ∀ (k : ℕ) (hk : k < N), k < m →
-      c (⟨k, hk⟩ : Fin N) = xor (c (⟨0, hz⟩ : Fin N)) (decide (k % 2 = 1)) := by
-    intro k
-    induction k with
-    | zero => intro _ _; simp
-    | succ k ih =>
-      intro hk hkm
-      have hstep := adj k (k + 1) (by omega) hk (by omega)
-        ((mem_cycleEdges m k (k + 1)).2 (Or.inl ⟨rfl, by omega⟩))
-      rw [ih (by omega) (by omega)] at hstep
-      have hpar : (decide ((k + 1) % 2 = 1)) = !(decide (k % 2 = 1)) := by
-        rcases Nat.mod_two_eq_zero_or_one k with h | h <;> simp [Nat.add_mod, h]
-      rw [hpar]
-      revert hstep
-      rcases c (⟨k + 1, hk⟩ : Fin N) <;> rcases c (⟨0, hz⟩ : Fin N) <;>
-        rcases (decide (k % 2 = 1)) <;> simp
-  have hclose := adj (m - 1) 0 (by omega) hz (by omega)
-    ((mem_cycleEdges m (m - 1) 0).2 (Or.inr ⟨by omega, rfl⟩))
-  rw [alt (m - 1) (by omega) (by omega), show (m - 1) % 2 = 0 by omega] at hclose
-  simp at hclose
+  have hm : 0 < m := by omega
+  refine not_isBipartite_of_odd_walk (G := ofEdges N es)
+    (fun k ↦ (⟨k % m, Nat.lt_of_lt_of_le (Nat.mod_lt _ hm) hN⟩ : Fin N)) m hodd ?_
+    (Fin.ext (by simp))
+  intro k hk
+  dsimp only
+  have h1 : k % m = k := Nat.mod_eq_of_lt hk
+  rcases Nat.lt_or_ge (k + 1) m with h | h
+  · have h2 : (k + 1) % m = k + 1 := Nat.mod_eq_of_lt h
+    exact (ofEdges_adj_val N es _ _).2 ⟨by simp only [ne_eq, h1, h2]; omega,
+      hsub _ _ ((mem_cycleEdges m _ _).2 (Or.inl ⟨by simp only [h1, h2], by simp only [h1]; omega⟩))⟩
+  · have h2 : (k + 1) % m = 0 := by rw [show k + 1 = m by omega, Nat.mod_self]
+    exact (ofEdges_adj_val N es _ _).2 ⟨by simp only [ne_eq, h1, h2]; omega,
+      hsub _ _ ((mem_cycleEdges m _ _).2 (Or.inr ⟨by simp only [h1]; omega, h2⟩))⟩
+
+/-! ### Parity in the folded cube -/
+
+/-- Positions where `x` and `y` are both `true` are counted twice on the right, so the number of
+positions where they differ has the same parity as the total number of `true`s. -/
+theorem card_ne_add_two_mul (n : ℕ) (x y : Fin n → Bool) :
+    (Finset.univ.filter fun i ↦ x i ≠ y i).card
+        + 2 * (Finset.univ.filter fun i ↦ x i = true ∧ y i = true).card
+      = (Finset.univ.filter fun i ↦ x i = true).card
+        + (Finset.univ.filter fun i ↦ y i = true).card := by
+  rw [Finset.card_filter, Finset.card_filter, Finset.card_filter, Finset.card_filter,
+    Finset.mul_sum, ← Finset.sum_add_distrib, ← Finset.sum_add_distrib]
+  refine Finset.sum_congr rfl fun i _ ↦ ?_
+  cases x i <;> cases y i <;> simp
+
+theorem card_ne_parity (n : ℕ) (x y : Fin n → Bool) :
+    (Finset.univ.filter fun i ↦ x i ≠ y i).card % 2
+      = ((Finset.univ.filter fun i ↦ x i = true).card
+          + (Finset.univ.filter fun i ↦ y i = true).card) % 2 := by
+  have := card_ne_add_two_mul n x y
+  omega
+
+/-- The bit-string whose first `k` coordinates are `true`.  Running `k` from `0` to `n` walks from
+one antipode of the cube to the other, one coordinate at a time. -/
+def prefixVec (n k : ℕ) : Fin n → Bool := fun i ↦ decide (i.1 < k)
+
+theorem card_prefixVec_step (n k : ℕ) (hk : k < n) :
+    (Finset.univ.filter fun i ↦ prefixVec n k i ≠ prefixVec n (k + 1) i).card = 1 := by
+  rw [show (Finset.univ.filter fun i ↦ prefixVec n k i ≠ prefixVec n (k + 1) i)
+      = {(⟨k, hk⟩ : Fin n)} from ?_]
+  · simp
+  · ext i
+    simp only [prefixVec, Finset.mem_filter, Finset.mem_univ, true_and, ne_eq, decide_eq_decide,
+      Finset.mem_singleton, Fin.ext_iff]
+    omega
+
+theorem card_prefixVec_full (n : ℕ) :
+    (Finset.univ.filter fun i ↦ prefixVec n 0 i ≠ prefixVec n n i).card = n := by
+  rw [show (Finset.univ.filter fun i ↦ prefixVec n 0 i ≠ prefixVec n n i) = Finset.univ from ?_]
+  · simp
+  · ext i
+    simp only [prefixVec, Finset.mem_filter, Finset.mem_univ, true_and, ne_eq, decide_eq_decide,
+      iff_true]
+    omega
 
 /-! ### The Mycielskian -/
 
@@ -4704,6 +4759,54 @@ theorem not_isBipartite_wheel (n : ℕ) : ¬ IsBipartite (wheel (n + 3)) := by
   show (0 : ℕ) ≠ 1 ∧ ((0 + 1) % (n + 3) = 1 ∨ (1 + 1) % (n + 3) = 0)
   exact ⟨by omega, Or.inl (Nat.mod_eq_of_lt (by omega))⟩
 
+/-- Each edge of `foldedCube n` flips either one coordinate or all `n` of them, so for odd `n`
+every edge changes the parity of the number of `true`s. -/
+@[simp] theorem isBipartite_foldedCube_odd {n : ℕ} (hn : n % 2 = 1) :
+    IsBipartite (foldedCube n) := by
+  rw [foldedCube_def, isBipartite_mk]
+  refine ⟨fun x ↦ decide ((Finset.univ.filter fun i ↦ x i = true).card % 2 = 1), fun x y hxy ↦ ?_⟩
+  rw [CGraph.foldedCube_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, beq_iff_eq] at hxy
+  have hpar := CGraph.card_ne_parity n x y
+  simp only [ne_eq, decide_eq_decide]
+  rcases hxy.2 with h | h <;> rw [h] at hpar <;> omega
+
+/-- For even `n` the antipodal edges close an odd cycle: flip the coordinates one at a time from
+`0…0` to `1…1`, which takes `n` steps, and come back in one. -/
+theorem not_isBipartite_foldedCube_of_even {n : ℕ} (h2 : n % 2 = 0) (hn : 0 < n) :
+    ¬ IsBipartite (foldedCube n) := by
+  rw [foldedCube_def, isBipartite_mk]
+  refine CGraph.not_isBipartite_of_odd_walk
+    (fun k ↦ (if k ≤ n then CGraph.prefixVec n k else CGraph.prefixVec n 0 :
+      (CGraph.foldedCube n).V)) (n + 1) (by omega) ?_ ?_
+  · intro k hk
+    dsimp only
+    rcases Nat.lt_or_ge k n with hkn | hkn
+    · have hcard := CGraph.card_prefixVec_step n k hkn
+      have hne : CGraph.prefixVec n k ≠ CGraph.prefixVec n (k + 1) := by
+        intro he
+        rw [he] at hcard
+        simp at hcard
+      rw [if_pos (by omega), if_pos (by omega), CGraph.foldedCube_adj, hcard]
+      simp [hne]
+    · have hkn' : k = n := by omega
+      subst hkn'
+      have hcard := CGraph.card_prefixVec_full k
+      have hne : CGraph.prefixVec k 0 ≠ CGraph.prefixVec k k := by
+        intro he
+        have := congrFun he ⟨0, by omega⟩
+        simp [CGraph.prefixVec] at this
+        omega
+      rw [if_pos (by omega), if_neg (by omega), CGraph.foldedCube_adj,
+        show (Finset.univ.filter fun i ↦ CGraph.prefixVec k k i ≠ CGraph.prefixVec k 0 i)
+          = (Finset.univ.filter fun i ↦ CGraph.prefixVec k 0 i ≠ CGraph.prefixVec k k i) from
+          Finset.filter_congr fun i _ ↦ by exact ne_comm, hcard]
+      simp [Ne.symm hne]
+  · dsimp only
+    rw [if_neg (by omega), if_pos (by omega)]
+
+theorem not_isBipartite_foldedCube_even (m : ℕ) : ¬ IsBipartite (foldedCube (2 * m + 2)) :=
+  not_isBipartite_foldedCube_of_even (by omega) (by omega)
+
 /-! ### Bipartite double covers
 
 The tensor product with `K₂` is the bipartite double cover.  Over a bipartite graph it comes apart
@@ -5328,6 +5431,8 @@ example : ¬ IsBipartite (lollipop 4 2) := not_isBipartite_lollipop 1 2
 example : ¬ IsBipartite (wheel 5) := not_isBipartite_wheel 2
 example : ¬ IsBipartite (mycielskian (cycle 5)) := by simp
 example : IsBipartite (mycielskian (empty 3)) := by simp
+example : IsBipartite (foldedCube 5) := isBipartite_foldedCube_odd (by decide)
+example : ¬ IsBipartite (foldedCube 4) := not_isBipartite_foldedCube_even 1
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp

@@ -506,6 +506,26 @@ in *either* orientation, which is what lets the lollipop use it — the triangle
 its head, but `cliqueEdges` stores `(0, 2)` where the cycle wants `(2, 0)`.  Odd tadpoles and odd
 cycles-with-pendants then follow by `List.mem_append_left`, with the decorations simply ignored.
 
+Underneath both of those sits `CGraph.not_isBipartite_of_odd_walk`, which asks for no structure at
+all: a function `f : ℕ → G.V` whose consecutive values are adjacent for `m` steps and which
+returns to where it started, with `m` odd.  The induction on the walk is the only place the
+alternation argument is written down; the edge-list version is now three lines that instantiate it
+at `k ↦ k % m`, and the closing edge is nothing more than `m % m = 0`.  The point of factoring it
+out is that not every odd cycle in the library is presented as an edge list.
+
+The folded cube is the case in point.  `foldedCube n` is `Q_n` with the antipodal pairs joined, so
+its edges flip either one coordinate or all `n`, and it is bipartite exactly when `n` is odd.  One
+direction is a colouring: `CGraph.card_ne_parity` says the number of coordinates where `x` and `y`
+differ has the same parity as the total number of `true`s in the two of them — positions where
+both are `true` get counted twice — so for odd `n` both edge shapes flip the parity of the weight.
+That identity is proved by turning all four `Finset.card_filter`s into sums and comparing them
+pointwise, where `cases x i <;> cases y i` is the whole content.  The other direction is a walk:
+`CGraph.prefixVec n k`, the string whose first `k` coordinates are `true`, steps from `0…0` to
+`1…1` one coordinate at a time in `n` steps, and the antipodal edge closes it in one more.  For
+even `n` that is an odd closed walk, so `not_isBipartite_foldedCube_of_even`.  The walk has to be
+a total function `ℕ → V`, so it is `if k ≤ n then prefixVec n k else prefixVec n 0`, which makes
+`f (n+1) = f 0` hold by `if_neg`/`if_pos` rather than by arithmetic.
+
 Over an odd cycle, then, the cover cannot split, and in fact it is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality
