@@ -4609,6 +4609,277 @@ theorem two_le_cliqueNum_of_E_pos {G : CGraph} (h : 0 < G.E) : 2 ≤ G.cliqueNum
   obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos h
   exact two_le_cliqueNum hab
 
+/-! ### Maximum and minimum degree -/
+
+/-! ### Basic API -/
+
+theorem degree_le_maxDeg (G : CGraph) (v : G.V) : G.toSimple.degree v ≤ G.maxDeg :=
+  SimpleGraph.degree_le_maxDegree _ v
+
+theorem minDeg_le_degree (G : CGraph) (v : G.V) : G.minDeg ≤ G.toSimple.degree v :=
+  SimpleGraph.minDegree_le_degree _ v
+
+theorem maxDeg_le_of_forall {G : CGraph} {k : ℕ} (h : ∀ v, G.toSimple.degree v ≤ k) :
+    G.maxDeg ≤ k :=
+  SimpleGraph.maxDegree_le_of_forall_degree_le _ k h
+
+theorem le_minDeg_of_forall {G : CGraph} {k : ℕ} (v₀ : G.V)
+    (h : ∀ v, k ≤ G.toSimple.degree v) : k ≤ G.minDeg :=
+  haveI : Nonempty G.V := ⟨v₀⟩
+  SimpleGraph.le_minDegree_of_forall_le_degree _ k h
+
+theorem exists_degree_eq_maxDeg (G : CGraph) (v₀ : G.V) :
+    ∃ v : G.V, G.toSimple.degree v = G.maxDeg := by
+  haveI : Nonempty G.V := ⟨v₀⟩
+  obtain ⟨v, hv⟩ := SimpleGraph.exists_maximal_degree_vertex G.toSimple
+  exact ⟨v, hv.symm⟩
+
+theorem exists_degree_eq_minDeg (G : CGraph) (v₀ : G.V) :
+    ∃ v : G.V, G.toSimple.degree v = G.minDeg := by
+  haveI : Nonempty G.V := ⟨v₀⟩
+  obtain ⟨v, hv⟩ := SimpleGraph.exists_minimal_degree_vertex G.toSimple
+  exact ⟨v, hv.symm⟩
+
+theorem minDeg_le_maxDeg (G : CGraph) : G.minDeg ≤ G.maxDeg :=
+  SimpleGraph.minDegree_le_maxDegree _
+
+theorem maxDeg_lt_card (G : CGraph) (v₀ : G.V) : G.maxDeg < Fintype.card G.V :=
+  haveI : Nonempty G.V := ⟨v₀⟩
+  SimpleGraph.maxDegree_lt_card_verts _
+
+theorem mem_degMultiset {G : CGraph} {d : ℕ} :
+    d ∈ G.degMultiset ↔ ∃ v : G.V, G.toSimple.degree v = d := by
+  unfold degMultiset
+  rw [Multiset.mem_map]
+  constructor
+  · rintro ⟨v, -, hv⟩
+    exact ⟨v, hv⟩
+  · rintro ⟨v, hv⟩
+    exact ⟨v, Finset.mem_univ_val v, hv⟩
+
+/-- The maximum degree is the largest entry of the degree multiset. -/
+theorem maxDeg_eq_sup (G : CGraph) : G.maxDeg = G.degMultiset.sup := by
+  refine le_antisymm ?_ (Multiset.sup_le.2 fun d hd ↦ ?_)
+  · rcases isEmpty_or_nonempty G.V with h | h
+    · rw [maxDeg, SimpleGraph.maxDegree_of_isEmpty]
+      exact Nat.zero_le _
+    · obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg h.some
+      exact hv ▸ Multiset.le_sup (mem_degMultiset.2 ⟨v, rfl⟩)
+  · obtain ⟨v, hv⟩ := mem_degMultiset.1 hd
+    exact hv ▸ G.degree_le_maxDeg v
+
+theorem maxDeg_eq_of_degMultiset {G : CGraph} {k : ℕ} (hmem : k ∈ G.degMultiset)
+    (hle : ∀ d ∈ G.degMultiset, d ≤ k) : G.maxDeg = k := by
+  obtain ⟨v, hv⟩ := mem_degMultiset.1 hmem
+  exact le_antisymm (maxDeg_le_of_forall fun w ↦ hle _ (mem_degMultiset.2 ⟨w, rfl⟩))
+    (hv ▸ G.degree_le_maxDeg v)
+
+theorem minDeg_eq_of_degMultiset {G : CGraph} {k : ℕ} (hmem : k ∈ G.degMultiset)
+    (hle : ∀ d ∈ G.degMultiset, k ≤ d) : G.minDeg = k := by
+  obtain ⟨v, hv⟩ := mem_degMultiset.1 hmem
+  exact le_antisymm (hv ▸ G.minDeg_le_degree v)
+    (le_minDeg_of_forall v fun w ↦ hle _ (mem_degMultiset.2 ⟨w, rfl⟩))
+
+/-- Half the handshake lemma: the degree sum is squeezed between `|V|·δ` and `|V|·Δ`. -/
+theorem card_mul_minDeg_le (G : CGraph) : Fintype.card G.V * G.minDeg ≤ 2 * G.E := by
+  calc Fintype.card G.V * G.minDeg = ∑ _v : G.V, G.minDeg := by
+        rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
+    _ ≤ ∑ v : G.V, G.toSimple.degree v := Finset.sum_le_sum fun v _ ↦ G.minDeg_le_degree v
+    _ = 2 * G.E := SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
+
+theorem two_mul_E_le_card_mul_maxDeg (G : CGraph) : 2 * G.E ≤ Fintype.card G.V * G.maxDeg := by
+  calc 2 * G.E = ∑ v : G.V, G.toSimple.degree v :=
+        (SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple).symm
+    _ ≤ ∑ _v : G.V, G.maxDeg := Finset.sum_le_sum fun v _ ↦ G.degree_le_maxDeg v
+    _ = Fintype.card G.V * G.maxDeg := by rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
+
+/-! ### The disjoint union, the join and the complement -/
+
+theorem maxDeg_disjUnion (G H : CGraph) :
+    (disjUnion G H).maxDeg = max G.maxDeg H.maxDeg := by
+  refine le_antisymm (maxDeg_le_of_forall ?_) (max_le ?_ ?_)
+  · rintro (a | b)
+    · rw [degree_disjUnion_inl]; exact le_max_of_le_left (G.degree_le_maxDeg a)
+    · rw [degree_disjUnion_inr]; exact le_max_of_le_right (H.degree_le_maxDeg b)
+  · refine maxDeg_le_of_forall fun a ↦ ?_
+    rw [← degree_disjUnion_inl G H a]
+    exact degree_le_maxDeg _ _
+  · refine maxDeg_le_of_forall fun b ↦ ?_
+    rw [← degree_disjUnion_inr G H b]
+    exact degree_le_maxDeg _ _
+
+theorem minDeg_disjUnion (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
+    (disjUnion G H).minDeg = min G.minDeg H.minDeg := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
+  refine le_antisymm (le_min ?_ ?_) (le_minDeg_of_forall (Sum.inl a₀) ?_)
+  · rw [← ha, ← degree_disjUnion_inl G H a]
+    exact minDeg_le_degree _ _
+  · rw [← hb, ← degree_disjUnion_inr G H b]
+    exact minDeg_le_degree _ _
+  · rintro (a | b)
+    · rw [degree_disjUnion_inl]; exact le_trans (min_le_left _ _) (G.minDeg_le_degree a)
+    · rw [degree_disjUnion_inr]; exact le_trans (min_le_right _ _) (H.minDeg_le_degree b)
+
+theorem maxDeg_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a₀ : G.V) (b₀ : H.V) :
+    (join G H).maxDeg
+      = max (G.maxDeg + Fintype.card H.V) (Fintype.card G.V + H.maxDeg) := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
+  refine le_antisymm (maxDeg_le_of_forall ?_) (max_le ?_ ?_)
+  · rintro (a' | b')
+    · rw [degree_join_inl]
+      exact le_max_of_le_left (Nat.add_le_add_right (G.degree_le_maxDeg a') _)
+    · rw [degree_join_inr]
+      exact le_max_of_le_right (Nat.add_le_add_left (H.degree_le_maxDeg b') _)
+  · rw [← ha, ← degree_join_inl G H a]
+    exact degree_le_maxDeg _ _
+  · rw [← hb, ← degree_join_inr G H b]
+    exact degree_le_maxDeg _ _
+
+theorem minDeg_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a₀ : G.V) (b₀ : H.V) :
+    (join G H).minDeg
+      = min (G.minDeg + Fintype.card H.V) (Fintype.card G.V + H.minDeg) := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
+  refine le_antisymm (le_min ?_ ?_) (le_minDeg_of_forall (Sum.inl a₀) ?_)
+  · rw [← ha, ← degree_join_inl G H a]
+    exact minDeg_le_degree _ _
+  · rw [← hb, ← degree_join_inr G H b]
+    exact minDeg_le_degree _ _
+  · rintro (a' | b')
+    · rw [degree_join_inl]
+      exact le_trans (min_le_left _ _) (Nat.add_le_add_right (G.minDeg_le_degree a') _)
+    · rw [degree_join_inr]
+      exact le_trans (min_le_right _ _) (Nat.add_le_add_left (H.minDeg_le_degree b') _)
+
+/-- **Complementation swaps the two extreme degrees.** -/
+theorem maxDeg_compl (G : CGraph) [DecidableEq G.V] (v₀ : G.V) :
+    (compl G).maxDeg = Fintype.card G.V - 1 - G.minDeg := by
+  obtain ⟨v, hv⟩ := G.exists_degree_eq_minDeg v₀
+  refine le_antisymm (maxDeg_le_of_forall fun w ↦ ?_) ?_
+  · rw [degree_compl]
+    exact Nat.sub_le_sub_left (G.minDeg_le_degree w) _
+  · rw [← hv, ← degree_compl]
+    exact degree_le_maxDeg _ _
+
+theorem minDeg_compl (G : CGraph) [DecidableEq G.V] (v₀ : G.V) :
+    (compl G).minDeg = Fintype.card G.V - 1 - G.maxDeg := by
+  obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
+  refine le_antisymm ?_ (le_minDeg_of_forall v₀ fun w ↦ ?_)
+  · rw [← hv, ← degree_compl]
+    exact minDeg_le_degree _ _
+  · rw [degree_compl]
+    exact Nat.sub_le_sub_left (G.degree_le_maxDeg w) _
+
+/-! ### The four products -/
+
+theorem maxDeg_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (cartesianProduct G H).maxDeg = G.maxDeg + H.maxDeg := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
+  have h := degree_cartesianProduct G H ((a, b) : (cartesianProduct G H).V)
+  dsimp only at h
+  refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
+  · rw [degree_cartesianProduct]
+    exact Nat.add_le_add (G.degree_le_maxDeg _) (H.degree_le_maxDeg _)
+  · rw [← ha, ← hb, ← h]
+    exact degree_le_maxDeg _ _
+
+theorem minDeg_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (cartesianProduct G H).minDeg = G.minDeg + H.minDeg := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
+  have h := degree_cartesianProduct G H ((a, b) : (cartesianProduct G H).V)
+  dsimp only at h
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (cartesianProduct G H).V) fun p ↦ ?_)
+  · rw [← ha, ← hb, ← h]
+    exact minDeg_le_degree _ _
+  · rw [degree_cartesianProduct]
+    exact Nat.add_le_add (G.minDeg_le_degree _) (H.minDeg_le_degree _)
+
+theorem maxDeg_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (tensorProduct G H).maxDeg = G.maxDeg * H.maxDeg := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
+  have h := degree_tensorProduct G H ((a, b) : (tensorProduct G H).V)
+  dsimp only at h
+  refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
+  · rw [degree_tensorProduct]
+    exact Nat.mul_le_mul (G.degree_le_maxDeg _) (H.degree_le_maxDeg _)
+  · rw [← ha, ← hb, ← h]
+    exact degree_le_maxDeg _ _
+
+theorem minDeg_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (tensorProduct G H).minDeg = G.minDeg * H.minDeg := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
+  have h := degree_tensorProduct G H ((a, b) : (tensorProduct G H).V)
+  dsimp only at h
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (tensorProduct G H).V) fun p ↦ ?_)
+  · rw [← ha, ← hb, ← h]
+    exact minDeg_le_degree _ _
+  · rw [degree_tensorProduct]
+    exact Nat.mul_le_mul (G.minDeg_le_degree _) (H.minDeg_le_degree _)
+
+theorem maxDeg_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (lexProduct G H).maxDeg = G.maxDeg * Fintype.card H.V + H.maxDeg := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
+  have h := degree_lexProduct G H ((a, b) : (lexProduct G H).V)
+  dsimp only at h
+  refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
+  · rw [degree_lexProduct]
+    exact Nat.add_le_add (Nat.mul_le_mul_right _ (G.degree_le_maxDeg _)) (H.degree_le_maxDeg _)
+  · rw [← ha, ← hb, ← h]
+    exact degree_le_maxDeg _ _
+
+theorem minDeg_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (lexProduct G H).minDeg = G.minDeg * Fintype.card H.V + H.minDeg := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
+  have h := degree_lexProduct G H ((a, b) : (lexProduct G H).V)
+  dsimp only at h
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (lexProduct G H).V) fun p ↦ ?_)
+  · rw [← ha, ← hb, ← h]
+    exact minDeg_le_degree _ _
+  · rw [degree_lexProduct]
+    exact Nat.add_le_add (Nat.mul_le_mul_right _ (G.minDeg_le_degree _)) (H.minDeg_le_degree _)
+
+theorem maxDeg_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (strongProduct G H).maxDeg = (G.maxDeg + 1) * (H.maxDeg + 1) - 1 := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
+  have h := degree_strongProduct G H ((a, b) : (strongProduct G H).V)
+  dsimp only at h
+  refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
+  · rw [degree_strongProduct]
+    exact Nat.sub_le_sub_right (Nat.mul_le_mul (Nat.add_le_add_right (G.degree_le_maxDeg _) _)
+      (Nat.add_le_add_right (H.degree_le_maxDeg _) _)) 1
+  · rw [← ha, ← hb, ← h]
+    exact degree_le_maxDeg _ _
+
+theorem minDeg_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a₀ : G.V) (b₀ : H.V) :
+    (strongProduct G H).minDeg = (G.minDeg + 1) * (H.minDeg + 1) - 1 := by
+  obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
+  obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
+  have h := degree_strongProduct G H ((a, b) : (strongProduct G H).V)
+  dsimp only at h
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (strongProduct G H).V) fun p ↦ ?_)
+  · rw [← ha, ← hb, ← h]
+    exact minDeg_le_degree _ _
+  · rw [degree_strongProduct]
+    exact Nat.sub_le_sub_right (Nat.mul_le_mul (Nat.add_le_add_right (G.minDeg_le_degree _) _)
+      (Nat.add_le_add_right (H.minDeg_le_degree _) _)) 1
+
 end CGraph
 
 namespace IsoGraph
@@ -9526,6 +9797,339 @@ example : ¬ IsAcyclic (cycle 5) := by
   intro h
   have := girth_eq_zero_iff.2 h
   simp at this
+
+/-! ### Maximum and minimum degree -/
+
+/-! ### Basic API -/
+
+theorem minDeg_le_maxDeg (G : IsoGraph) : minDeg G ≤ maxDeg G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.minDeg_le_maxDeg _
+
+theorem maxDeg_lt_V {G : IsoGraph} (h : 0 < G.V) : maxDeg G < G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [V_mk] at h ⊢
+  obtain ⟨v⟩ := Fintype.card_pos_iff.1 h
+  exact CGraph.maxDeg_lt_card _ v
+
+theorem maxDeg_le_of_degMultiset {G : IsoGraph} {k : ℕ} (h : ∀ d ∈ degMultiset G, d ≤ k) :
+    maxDeg G ≤ k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.maxDeg_le_of_forall fun v ↦ h _ (CGraph.mem_degMultiset.2 ⟨v, rfl⟩)
+
+theorem maxDeg_eq_of_degMultiset {G : IsoGraph} {k : ℕ} (hmem : k ∈ degMultiset G)
+    (hle : ∀ d ∈ degMultiset G, d ≤ k) : maxDeg G = k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.maxDeg_eq_of_degMultiset hmem hle
+
+theorem minDeg_eq_of_degMultiset {G : IsoGraph} {k : ℕ} (hmem : k ∈ degMultiset G)
+    (hle : ∀ d ∈ degMultiset G, k ≤ d) : minDeg G = k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.minDeg_eq_of_degMultiset hmem hle
+
+/-- A regular graph, read off its degree multiset: both extremes are the common degree. -/
+theorem maxDeg_of_degMultiset_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)
+    (h : degMultiset G = Multiset.replicate n k) : maxDeg G = k :=
+  maxDeg_eq_of_degMultiset (h ▸ Multiset.mem_replicate.2 ⟨hn.ne', rfl⟩)
+    fun _ hd ↦ le_of_eq (Multiset.eq_of_mem_replicate (h ▸ hd))
+
+theorem minDeg_of_degMultiset_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)
+    (h : degMultiset G = Multiset.replicate n k) : minDeg G = k :=
+  minDeg_eq_of_degMultiset (h ▸ Multiset.mem_replicate.2 ⟨hn.ne', rfl⟩)
+    fun _ hd ↦ ge_of_eq (Multiset.eq_of_mem_replicate (h ▸ hd))
+
+/-- The maximum degree is the largest entry of the degree multiset. -/
+theorem maxDeg_eq_sup (G : IsoGraph) : maxDeg G = (degMultiset G).sup := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.maxDeg_eq_sup _
+
+/-- **The handshake bounds**: `|V|·δ ≤ 2|E| ≤ |V|·Δ`. -/
+theorem V_mul_minDeg_le (G : IsoGraph) : G.V * minDeg G ≤ 2 * G.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, minDeg_mk, E_mk]
+  exact CGraph.card_mul_minDeg_le _
+
+theorem two_mul_E_le_V_mul_maxDeg (G : IsoGraph) : 2 * G.E ≤ G.V * maxDeg G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, maxDeg_mk, E_mk]
+  exact CGraph.two_mul_E_le_card_mul_maxDeg _
+
+theorem ne_of_maxDeg_ne {G H : IsoGraph} (h : maxDeg G ≠ maxDeg H) : G ≠ H :=
+  ne_of_apply_ne maxDeg h
+
+theorem ne_of_minDeg_ne {G H : IsoGraph} (h : minDeg G ≠ minDeg H) : G ≠ H :=
+  ne_of_apply_ne minDeg h
+
+/-! ### The disjoint union, the join and the complement -/
+
+@[simp] theorem maxDeg_disjUnion (G H : IsoGraph) :
+    maxDeg (disjUnion G H) = max (maxDeg G) (maxDeg H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, maxDeg_mk, maxDeg_mk, maxDeg_mk]
+  exact CGraph.maxDeg_disjUnion _ _
+
+theorem minDeg_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    minDeg (disjUnion G H) = min (minDeg G) (minDeg H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [disjUnion_mk, minDeg_mk, minDeg_mk, minDeg_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.minDeg_disjUnion _ _ a b
+
+theorem maxDeg_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (join G H) = max (maxDeg G + H.V) (G.V + maxDeg H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [join_mk, maxDeg_mk, maxDeg_mk, maxDeg_mk, V_mk, V_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.maxDeg_join _ _ a b
+
+theorem minDeg_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    minDeg (join G H) = min (minDeg G + H.V) (G.V + minDeg H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [join_mk, minDeg_mk, minDeg_mk, minDeg_mk, V_mk, V_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.minDeg_join _ _ a b
+
+/-- **Complementation swaps the two extreme degrees.** -/
+theorem maxDeg_compl {G : IsoGraph} (hG : 0 < G.V) :
+    maxDeg (compl G) = G.V - 1 - minDeg G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [compl_mk, maxDeg_mk, minDeg_mk, V_mk]
+  rw [V_mk] at hG
+  obtain ⟨v⟩ := Fintype.card_pos_iff.1 hG
+  exact CGraph.maxDeg_compl _ v
+
+theorem minDeg_compl {G : IsoGraph} (hG : 0 < G.V) :
+    minDeg (compl G) = G.V - 1 - maxDeg G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [compl_mk, minDeg_mk, maxDeg_mk, V_mk]
+  rw [V_mk] at hG
+  obtain ⟨v⟩ := Fintype.card_pos_iff.1 hG
+  exact CGraph.minDeg_compl _ v
+
+/-! ### The four products -/
+
+theorem maxDeg_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (cartesianProduct G H) = maxDeg G + maxDeg H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [cartesianProduct_mk, maxDeg_mk, maxDeg_mk, maxDeg_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.maxDeg_cartesianProduct _ _ a b
+
+theorem minDeg_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    minDeg (cartesianProduct G H) = minDeg G + minDeg H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [cartesianProduct_mk, minDeg_mk, minDeg_mk, minDeg_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.minDeg_cartesianProduct _ _ a b
+
+theorem maxDeg_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (tensorProduct G H) = maxDeg G * maxDeg H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [tensorProduct_mk, maxDeg_mk, maxDeg_mk, maxDeg_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.maxDeg_tensorProduct _ _ a b
+
+theorem minDeg_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    minDeg (tensorProduct G H) = minDeg G * minDeg H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [tensorProduct_mk, minDeg_mk, minDeg_mk, minDeg_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.minDeg_tensorProduct _ _ a b
+
+theorem maxDeg_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (lexProduct G H) = maxDeg G * H.V + maxDeg H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [lexProduct_mk, maxDeg_mk, maxDeg_mk, maxDeg_mk, V_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.maxDeg_lexProduct _ _ a b
+
+theorem minDeg_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    minDeg (lexProduct G H) = minDeg G * H.V + minDeg H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [lexProduct_mk, minDeg_mk, minDeg_mk, minDeg_mk, V_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.minDeg_lexProduct _ _ a b
+
+theorem maxDeg_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (strongProduct G H) = (maxDeg G + 1) * (maxDeg H + 1) - 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [strongProduct_mk, maxDeg_mk, maxDeg_mk, maxDeg_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.maxDeg_strongProduct _ _ a b
+
+theorem minDeg_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    minDeg (strongProduct G H) = (minDeg G + 1) * (minDeg H + 1) - 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [strongProduct_mk, minDeg_mk, minDeg_mk, minDeg_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.minDeg_strongProduct _ _ a b
+
+/-! ### The named graphs -/
+
+@[simp] theorem maxDeg_empty (n : ℕ) : maxDeg (empty n) = 0 :=
+  Nat.le_zero.1 (maxDeg_le_of_degMultiset fun d hd ↦ by
+    rw [degMultiset_empty] at hd
+    exact le_of_eq (Multiset.eq_of_mem_replicate hd))
+
+@[simp] theorem minDeg_empty (n : ℕ) : minDeg (empty n) = 0 :=
+  Nat.le_zero.1 (le_trans (minDeg_le_maxDeg _) (le_of_eq (maxDeg_empty n)))
+
+@[simp] theorem maxDeg_complete (n : ℕ) : maxDeg (complete n) = n - 1 := by
+  cases n with
+  | zero =>
+    refine Nat.le_zero.1 (maxDeg_le_of_degMultiset fun d hd ↦ ?_)
+    rw [degMultiset_complete] at hd
+    exact le_of_eq (Multiset.eq_of_mem_replicate hd)
+  | succ m => exact maxDeg_of_degMultiset_replicate (n := m + 1) (Nat.succ_pos m) (by simp)
+
+@[simp] theorem minDeg_complete (n : ℕ) : minDeg (complete n) = n - 1 := by
+  cases n with
+  | zero => exact Nat.le_zero.1 (le_trans (minDeg_le_maxDeg _) (by simp))
+  | succ m => exact minDeg_of_degMultiset_replicate (n := m + 1) (Nat.succ_pos m) (by simp)
+
+@[simp] theorem maxDeg_cycle (n : ℕ) : maxDeg (cycle (n + 3)) = 2 :=
+  maxDeg_of_degMultiset_replicate (n := n + 3) (by omega) (by simp)
+
+@[simp] theorem minDeg_cycle (n : ℕ) : minDeg (cycle (n + 3)) = 2 :=
+  minDeg_of_degMultiset_replicate (n := n + 3) (by omega) (by simp)
+
+@[simp] theorem maxDeg_petersen : maxDeg petersen = 3 :=
+  maxDeg_of_degMultiset_replicate (n := 10) (by omega) (by simp)
+
+@[simp] theorem minDeg_petersen : minDeg petersen = 3 :=
+  minDeg_of_degMultiset_replicate (n := 10) (by omega) (by simp)
+
+@[simp] theorem maxDeg_star (n : ℕ) : maxDeg (star (n + 1)) = n + 1 := by
+  refine maxDeg_eq_of_degMultiset (by simp) fun d hd ↦ ?_
+  rw [degMultiset_star] at hd
+  rcases Multiset.mem_cons.1 hd with h | h
+  · omega
+  · rw [Multiset.eq_of_mem_replicate h]; omega
+
+@[simp] theorem minDeg_star (n : ℕ) : minDeg (star (n + 1)) = 1 := by
+  refine minDeg_eq_of_degMultiset (by simp) fun d hd ↦ ?_
+  rw [degMultiset_star] at hd
+  rcases Multiset.mem_cons.1 hd with h | h
+  · omega
+  · rw [Multiset.eq_of_mem_replicate h]
+
+@[simp] theorem maxDeg_wheel (n : ℕ) : maxDeg (wheel (n + 3)) = n + 3 := by
+  refine maxDeg_eq_of_degMultiset (by simp) fun d hd ↦ ?_
+  rw [degMultiset_wheel] at hd
+  rcases Multiset.mem_cons.1 hd with h | h
+  · omega
+  · rw [Multiset.eq_of_mem_replicate h]; omega
+
+@[simp] theorem minDeg_wheel (n : ℕ) : minDeg (wheel (n + 3)) = 3 := by
+  refine minDeg_eq_of_degMultiset (by simp) fun d hd ↦ ?_
+  rw [degMultiset_wheel] at hd
+  rcases Multiset.mem_cons.1 hd with h | h
+  · omega
+  · rw [Multiset.eq_of_mem_replicate h]
+
+@[simp] theorem maxDeg_path (n : ℕ) : maxDeg (path (n + 3)) = 2 := by
+  refine maxDeg_eq_of_degMultiset ?_ fun d hd ↦ ?_
+  · rw [show n + 3 = (n + 1) + 2 from rfl, degMultiset_path]
+    simp
+  · rw [show n + 3 = (n + 1) + 2 from rfl, degMultiset_path] at hd
+    rcases Multiset.mem_cons.1 hd with h | h
+    · omega
+    rcases Multiset.mem_cons.1 h with h | h
+    · omega
+    · rw [Multiset.eq_of_mem_replicate h]
+
+@[simp] theorem minDeg_path (n : ℕ) : minDeg (path (n + 2)) = 1 := by
+  refine minDeg_eq_of_degMultiset (by simp) fun d hd ↦ ?_
+  rw [degMultiset_path] at hd
+  rcases Multiset.mem_cons.1 hd with h | h
+  · omega
+  rcases Multiset.mem_cons.1 h with h | h
+  · omega
+  · rw [Multiset.eq_of_mem_replicate h]; omega
+
+@[simp] theorem maxDeg_hypercube (n : ℕ) : maxDeg (hypercube n) = n := by
+  induction n with
+  | zero => rw [hypercube_zero, maxDeg_empty]
+  | succ m ih =>
+    rw [hypercube_succ, maxDeg_cartesianProduct (by simp) (by simp), ih, maxDeg_complete]
+
+@[simp] theorem minDeg_hypercube (n : ℕ) : minDeg (hypercube n) = n := by
+  induction n with
+  | zero => rw [hypercube_zero, minDeg_empty]
+  | succ m ih =>
+    rw [hypercube_succ, minDeg_cartesianProduct (by simp) (by simp), ih, minDeg_complete]
+
+example : maxDeg (bipartite 3 5) = 5 := by
+  refine maxDeg_eq_of_degMultiset (by simp) fun d hd ↦ ?_
+  rw [degMultiset_bipartite] at hd
+  rcases Multiset.mem_add.1 hd with h | h
+  · rw [Multiset.eq_of_mem_replicate h]
+  · rw [Multiset.eq_of_mem_replicate h]; omega
+
+example : maxDeg (rook 3 4) = 5 := by
+  rw [show rook 3 4 = cartesianProduct (complete 3) (complete 4) from rfl,
+    maxDeg_cartesianProduct (by simp) (by simp), maxDeg_complete, maxDeg_complete]
+
+/- A graph with `Δ = δ` is regular, and the handshake bounds then pin down the edge count. -/
+example : 2 * (petersen.E) = 30 := by
+  have h1 := V_mul_minDeg_le petersen
+  have h2 := two_mul_E_le_V_mul_maxDeg petersen
+  rw [V_petersen, minDeg_petersen] at h1
+  rw [V_petersen, maxDeg_petersen] at h2
+  omega
+
+/- The complement of the `5`-cycle is the `5`-cycle, so both extremes are `2`. -/
+example : maxDeg (compl (cycle 5)) = 2 := by
+  rw [maxDeg_compl (by simp)]
+  simp
 
 /-! ## The simp set at work
 

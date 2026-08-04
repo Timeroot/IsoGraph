@@ -181,6 +181,12 @@ theorem degSequence_eq_sort : G.degSequence = G.degMultiset.sort (· ≤ ·) := 
 @[simp] theorem coe_degSequence : (G.degSequence : Multiset ℕ) = G.degMultiset :=
   Multiset.sort_eq _ _
 
+/-- Maximum degree, `0` on the empty graph. -/
+def maxDeg (G : CGraph) : ℕ := G.toSimple.maxDegree
+
+/-- Minimum degree, `0` on the empty graph. -/
+def minDeg (G : CGraph) : ℕ := G.toSimple.minDegree
+
 /-- The graph is connected (in particular, nonempty). -/
 def IsConnected : Prop := G.toSimple.Connected
 
@@ -437,6 +443,20 @@ theorem degSequence_eq_sort (G : IsoGraph) : degSequence G = (degMultiset G).sor
 
 @[simp] theorem coe_degSequence (G : IsoGraph) : (degSequence G : Multiset ℕ) = degMultiset G := by
   induction G using Quotient.inductionOn with | _ g => exact Multiset.sort_eq _ _
+
+/-- Maximum degree. -/
+def maxDeg (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.maxDeg
+    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.maxDegree_eq (CGraph.Iso.toSimpleIso i)) G
+
+@[simp] theorem maxDeg_mk (G : CGraph) : maxDeg (Quotient.mk _ G) = G.maxDeg := rfl
+
+/-- Minimum degree. -/
+def minDeg (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.minDeg
+    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.minDegree_eq (CGraph.Iso.toSimpleIso i)) G
+
+@[simp] theorem minDeg_mk (G : CGraph) : minDeg (Quotient.mk _ G) = G.minDeg := rfl
 
 /-- Connectivity. -/
 def IsConnected (G : IsoGraph) : Prop :=
