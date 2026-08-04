@@ -4106,6 +4106,147 @@ theorem card_le_chromNum_mul_indepNum (G : CGraph) :
     _ = G.chromNum * G.indepNum := by rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
         smul_eq_mul]
 
+/-! ### The Mycielskian raises the chromatic number by one -/
+
+/-- A colouring of `G` extends to the Mycielskian with one extra colour: each shadow copies its
+original, and the apex takes the new colour. -/
+private theorem colorable_mycielskian (G : CGraph) [DecidableEq G.V] {n : ℕ}
+    (h : G.toSimple.Colorable n) : (mycielskian G).toSimple.Colorable (n + 1) := by
+  obtain ⟨c⟩ := h
+  have hne : ∀ a b : G.V, G.Adj a b = true → (c a).castSucc ≠ (c b).castSucc := fun a b hab hcc ↦
+    c.valid ((CGraph.toSimple_adj G a b).2 hab) (Fin.castSucc_injective n hcc)
+  refine ⟨SimpleGraph.Coloring.mk
+    (fun x : Option (G.V ⊕ G.V) ↦ Option.elim x (Fin.last n)
+      (Sum.elim (fun a ↦ (c a).castSucc) fun a ↦ (c a).castSucc)) ?_⟩
+  intro v w hvw
+  rw [CGraph.toSimple_adj] at hvw
+  rcases v with _ | (a | a) <;> rcases w with _ | (b | b) <;>
+    simp only [mycielskian_adj_none_none, mycielskian_adj_none_inl, mycielskian_adj_none_inr,
+      mycielskian_adj_inl_none, mycielskian_adj_inl_inl, mycielskian_adj_inl_inr,
+      mycielskian_adj_inr_none, mycielskian_adj_inr_inl, mycielskian_adj_inr_inr,
+      Bool.false_eq_true] at hvw
+  · exact (Fin.castSucc_lt_last (c b)).ne'
+  · exact hne a b hvw
+  · exact hne a b hvw
+  · exact (Fin.castSucc_lt_last (c a)).ne
+  · exact hne a b hvw
+
+/-- Conversely a colouring of the Mycielskian gives back a colouring of `G` with one colour fewer:
+recolour every vertex that got the apex's colour with the colour of its shadow. -/
+private theorem colorable_of_colorable_mycielskian (G : CGraph) [DecidableEq G.V] {n : ℕ}
+    (h : (mycielskian G).toSimple.Colorable n) : G.toSimple.Colorable (n - 1) := by
+  classical
+  obtain ⟨f⟩ := h
+  set z : Fin n := f none with hz
+  have hshadow : ∀ a : G.V, f (some (.inr a)) ≠ z :=
+    fun a ↦ (f.valid (by rw [CGraph.toSimple_adj, mycielskian_adj_none_inr] : _)).symm
+  have hll : ∀ a b : G.V, G.Adj a b = true →
+      f (some (.inl a)) ≠ f (some (.inl b)) := fun a b hab ↦
+    f.valid (by rw [CGraph.toSimple_adj, mycielskian_adj_inl_inl]; exact hab)
+  have hrl : ∀ a b : G.V, G.Adj a b = true →
+      f (some (.inr a)) ≠ f (some (.inl b)) := fun a b hab ↦
+    f.valid (by rw [CGraph.toSimple_adj, mycielskian_adj_inr_inl]; exact hab)
+  have hlr : ∀ a b : G.V, G.Adj a b = true →
+      f (some (.inl a)) ≠ f (some (.inr b)) := fun a b hab ↦
+    f.valid (by rw [CGraph.toSimple_adj, mycielskian_adj_inl_inr]; exact hab)
+  have C : G.toSimple.Coloring {x : Fin n // x ≠ z} :=
+    SimpleGraph.Coloring.mk
+      (fun a ↦ if ha : f (some (.inl a)) = z then ⟨f (some (.inr a)), hshadow a⟩
+        else ⟨f (some (.inl a)), ha⟩)
+      (by
+        intro a b hab hcc
+        rw [CGraph.toSimple_adj] at hab
+        by_cases ha : f (some (.inl a)) = z <;> by_cases hb : f (some (.inl b)) = z <;>
+          simp only [ha, hb, dif_pos, dif_neg, not_false_iff, Subtype.mk.injEq] at hcc
+        · exact hll a b hab (ha.trans hb.symm)
+        · exact hrl a b hab hcc
+        · exact hlr a b hab hcc
+        · exact hll a b hab hcc)
+  have hcard : Fintype.card {x : Fin n // x ≠ z} = n - 1 := by
+    rw [Fintype.card_subtype_compl, Fintype.card_subtype_eq, Fintype.card_fin]
+  exact hcard ▸ C.colorable
+
+/-- **Mycielski's construction raises the chromatic number by exactly one.** -/
+theorem chromNum_mycielskian (G : CGraph) [DecidableEq G.V] :
+    (mycielskian G).chromNum = G.chromNum + 1 := by
+  have hpos : 0 < (mycielskian G).chromNum := by
+    rcases Nat.eq_zero_or_pos (mycielskian G).chromNum with h | h
+    · rw [chromNum_eq_zero_iff, card_mycielskian] at h
+      omega
+    · exact h
+  have h1 : (mycielskian G).chromNum ≤ G.chromNum + 1 :=
+    chromNum_le_iff_colorable.2 (colorable_mycielskian G colorable_chromNum)
+  have h2 : G.chromNum ≤ (mycielskian G).chromNum - 1 :=
+    chromNum_le_iff_colorable.2 (colorable_of_colorable_mycielskian G colorable_chromNum)
+  omega
+
+/-! ### The greedy colouring of a Kneser graph -/
+
+/-- The heart of the Kneser bound: two disjoint `k`-sets cannot have the same capped minimum.
+Below the cap they would share their smallest element; at the cap both sets live in the top
+`n - (n - 2k + 1)` elements, which is fewer than the `2k` they need between them. -/
+private theorem kneser_color_ne {n k : ℕ} (hk : 0 < k) {s t : Finset (Fin n)}
+    (hs : s.card = k) (ht : t.card = k) (hinter : s ∩ t = ∅)
+    {ms mt : Fin n} (hms : ms ∈ s) (hmsle : ∀ x ∈ s, ms ≤ x)
+    (hmt : mt ∈ t) (hmtle : ∀ x ∈ t, mt ≤ x) :
+    min (ms : ℕ) (n - 2 * k + 1) ≠ min (mt : ℕ) (n - 2 * k + 1) := by
+  classical
+  intro heq
+  set c := n - 2 * k + 1 with hc
+  rcases lt_or_ge (ms : ℕ) c with hlt | hge
+  · -- the two smallest elements agree, so the sets meet
+    rw [min_eq_left hlt.le] at heq
+    have hmt' : (mt : ℕ) = (ms : ℕ) := by
+      rcases lt_or_ge (mt : ℕ) c with h | h
+      · rw [min_eq_left h.le] at heq; omega
+      · rw [min_eq_right h] at heq; omega
+    have hmem : ms ∈ s ∩ t := Finset.mem_inter.2 ⟨hms, Fin.ext hmt' ▸ hmt⟩
+    rw [hinter] at hmem
+    simp at hmem
+  · -- both sets live above the cap, and there is no room for `2k` vertices there
+    rw [min_eq_right hge] at heq
+    have hget : c ≤ (mt : ℕ) := by
+      rcases lt_or_ge (mt : ℕ) c with h | h
+      · rw [min_eq_left h.le] at heq; omega
+      · exact h
+    have hsub : s ∪ t ⊆ Finset.univ.filter fun x : Fin n ↦ c ≤ (x : ℕ) := by
+      intro x hx
+      refine Finset.mem_filter.2 ⟨Finset.mem_univ _, ?_⟩
+      rcases Finset.mem_union.1 hx with h | h
+      · exact le_trans hge (hmsle x h)
+      · exact le_trans hget (hmtle x h)
+    have hdisj : Disjoint s t := Finset.disjoint_iff_inter_eq_empty.2 hinter
+    have hcard : (s ∪ t).card = 2 * k := by
+      rw [Finset.card_union_of_disjoint hdisj, hs, ht]; ring
+    have hfil : (Finset.univ.filter fun x : Fin n ↦ c ≤ (x : ℕ)).card ≤ n - c := by
+      have h := Finset.card_le_card_of_injOn (f := fun x : Fin n ↦ (x : ℕ))
+        (s := Finset.univ.filter fun x : Fin n ↦ c ≤ (x : ℕ)) (t := Finset.Ico c n)
+        (fun x hx ↦ Finset.mem_Ico.2 ⟨(Finset.mem_filter.1 hx).2, x.isLt⟩)
+        (fun x _ y _ h ↦ Fin.ext h)
+      rwa [Nat.card_Ico] at h
+    have hle := le_trans (Finset.card_le_card hsub) hfil
+    omega
+
+/-- **`χ(K(n, k)) ≤ n - 2k + 2`.**  Colour a `k`-set by its smallest element, capped at
+`n - 2k + 1`. -/
+theorem chromNum_kneser_le (n k : ℕ) (hk : 0 < k) :
+    (kneser n k).chromNum ≤ n - 2 * k + 2 := by
+  classical
+  rw [chromNum_le_iff_colorable, SimpleGraph.colorable_iff_exists_bdd_nat_coloring]
+  have hnonempty : ∀ s : {s : Finset (Fin n) // s.card = k}, (s : Finset (Fin n)).Nonempty := by
+    intro s
+    rw [← Finset.card_pos, s.2]
+    exact hk
+  refine ⟨SimpleGraph.Coloring.mk
+    (fun s : {s : Finset (Fin n) // s.card = k} ↦
+      min ((s : Finset (Fin n)).min' (hnonempty s)) (n - 2 * k + 1)) ?_, fun s ↦ ?_⟩
+  · rintro ⟨s, hs⟩ ⟨t, ht⟩ hadj
+    rw [CGraph.toSimple_adj, kneser_adj] at hadj
+    simp only [Bool.and_eq_true, decide_eq_true_eq, ne_eq, Subtype.mk.injEq] at hadj
+    exact kneser_color_ne hk hs ht hadj.2 (s.min'_mem _) (fun x hx ↦ s.min'_le x hx)
+      (t.min'_mem _) fun x hx ↦ t.min'_le x hx
+  · exact lt_of_le_of_lt (min_le_right _ _) (by omega)
+
 end CGraph
 
 namespace IsoGraph
@@ -8819,6 +8960,49 @@ theorem chromNum_eq_one_iff {G : IsoGraph} : G.chromNum = 1 ↔ G.E = 0 ∧ 0 < 
 
 @[simp] theorem chromNum_wheel_odd (m : ℕ) : (wheel (2 * m + 3)).chromNum = 4 := by
   rw [wheel_eq_join, chromNum_join, chromNum_complete, chromNum_cycle_odd]
+
+/-! ### The Mycielskian and the Kneser bound -/
+
+/-- **Mycielski's construction raises the chromatic number by exactly one.** -/
+@[simp] theorem chromNum_mycielskian (G : IsoGraph) :
+    (mycielskian G).chromNum = G.chromNum + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, mycielskian_mk, chromNum_mk, chromNum_mk]
+  exact CGraph.chromNum_mycielskian _
+
+/-- **`χ(K(n, k)) ≤ n - 2k + 2`.** -/
+theorem chromNum_kneser_le (n k : ℕ) (hk : 0 < k) :
+    (kneser n k).chromNum ≤ n - 2 * k + 2 := CGraph.chromNum_kneser_le n k hk
+
+/-- **The Petersen graph is 3-chromatic**: the Kneser bound gives three colours, and it is not
+bipartite. -/
+@[simp] theorem chromNum_petersen : petersen.chromNum = 3 :=
+  le_antisymm (chromNum_kneser_le 5 2 (by norm_num)) (three_le_chromNum not_isBipartite_petersen)
+
+/-- **Nordhaus–Gaddum, product form**: `|V| ≤ χ(G)·χ(Gᶜ)`, since an independent set of `G` is a
+clique of `Gᶜ`. -/
+theorem V_le_chromNum_mul_chromNum_compl (G : IsoGraph) :
+    G.V ≤ G.chromNum * (compl G).chromNum :=
+  le_trans (V_le_chromNum_mul_indepNum G)
+    (Nat.mul_le_mul_left _ (by rw [← cliqueNum_compl]; exact cliqueNum_le_chromNum _))
+
+/- The Grötzsch graph: triangle-free and 4-chromatic. -/
+example : (mycielskian (cycle 5)).chromNum = 4 := by
+  rw [chromNum_mycielskian, show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
+
+example : (mycielskian (mycielskian (cycle 5))).chromNum = 5 := by
+  rw [chromNum_mycielskian, chromNum_mycielskian,
+    show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
+
+example : (kneser 7 3).chromNum ≤ 3 := by
+  have h := chromNum_kneser_le 7 3 (by norm_num)
+  omega
+
+/- The complement of the Petersen graph is the triangular graph `T(5)`, which needs five colours;
+the product bound is tight here. -/
+example : 10 ≤ 3 * (compl petersen).chromNum := by
+  have h := V_le_chromNum_mul_chromNum_compl petersen
+  rwa [V_petersen, chromNum_petersen] at h
 
 /-! ## The simp set at work
 

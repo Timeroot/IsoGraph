@@ -996,6 +996,22 @@ multipartite formula — one colour per nonempty part — is the join rule run a
 `completeMultipartite_cons`, and it settles the cocktail-party graphs and the books; the wheels
 follow from `wheel_eq_join`, at `3` colours over an even cycle and `4` over an odd one.
 
+Two colouring results that are not about products close the chapter.  Mycielski's construction
+raises the chromatic number by exactly one, `χ(M(G)) = χ(G) + 1`.  The upper bound gives each
+shadow `u'` the colour of its original `u` and the apex a fresh colour, which is proper because a
+shadow is adjacent only to neighbours of its original.  The lower bound is the interesting half:
+given any colouring of `M(G)` with `n` colours, recolour every vertex of `G` whose colour equals
+the apex's with the colour of *its* shadow.  That never creates a conflict — an adjacent pair
+cannot both have been recoloured, since the apex colour is a single colour — and it lands in the
+`n - 1` colours other than the apex's, so `χ(G) ≤ χ(M(G)) - 1`.  Iterating from `C₅` gives the
+Grötzsch graph at `4` colours, and the tower above it, with `mycielskian` already known to preserve
+triangle-freeness elsewhere in the file.  Second, the greedy bound `χ(K(n, k)) ≤ n - 2k + 2` for
+Kneser graphs: colour a `k`-set by its smallest element, capped at `n - 2k + 1`.  Two disjoint sets
+below the cap have different minima outright; two at the cap would together need `2k` vertices
+among the top `2k - 1` elements.  Specialised to `K(5, 2)` this gives `χ(petersen) ≤ 3`, and with
+`three_le_chromNum` from non-bipartiteness, `χ(petersen) = 3` exactly.  Finally the product form of
+Nordhaus–Gaddum, `|V| ≤ χ(G)·χ(Gᶜ)`, drops out of `|V| ≤ χ·α` and `α(G) = ω(Gᶜ) ≤ χ(Gᶜ)`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
