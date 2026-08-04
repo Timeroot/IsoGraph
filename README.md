@@ -1493,6 +1493,14 @@ matching is an independent set `S` in `L(G)`, its edges are pairwise vertex-disj
 `Finset.card_biUnion` over the `S`-indexed family of two-element endpoint sets embeds `2|S|`
 vertices into `V`.
 
+Both new invariants come with a table for the named families, and the table is cheap for the
+same reason: whenever `lineGraph` of a family is itself a named graph the answer is an already
+known independence or chromatic number. `lineGraph_cycle` gives `ν(C_n) = ⌊n/2⌋` and
+`χ'(C_n) = 2` or `3` according to the parity, `lineGraph_path` gives `χ'(P_n) = 2`,
+`lineGraph_complete_four` identifies `L(K₄)` as the octahedron and so gives `ν(K₄) = 2` and
+`χ'(K₄) = 3`, and `lineGraph_bipartite` turns the rook's-graph independence bound into
+`ν(K_{m,n}) ≤ min m n`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

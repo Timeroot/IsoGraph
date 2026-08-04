@@ -16243,4 +16243,75 @@ example : (disjUnion (complete 2) (complete 2)).matchNum = 2 := by
     omega
   omega
 
+
+/-! ### Matchings and edge colourings of the named families
+
+Whenever the line graph of a family is itself a named graph, the matching number and the
+chromatic index of that family are read off from the independence and chromatic numbers of
+the line graph, which are already known. -/
+
+@[simp] theorem edgeChromNum_eq_zero_iff {G : IsoGraph} : G.edgeChromNum = 0 ↔ G.E = 0 := by
+  rw [edgeChromNum_eq, chromNum_eq_zero_iff, V_lineGraph]
+
+theorem edgeChromNum_pos {G : IsoGraph} (h : 0 < G.E) : 0 < G.edgeChromNum := by
+  rcases Nat.eq_zero_or_pos G.edgeChromNum with h0 | h0
+  · rw [edgeChromNum_eq_zero_iff] at h0; omega
+  · exact h0
+
+/-- Combining `|E| ≤ χ' ν` with `χ' ≤ 2Δ - 1`. -/
+theorem E_le_two_mul_maxDeg_sub_one_mul_matchNum (G : IsoGraph) :
+    G.E ≤ (2 * G.maxDeg - 1) * G.matchNum := by
+  refine le_trans G.E_le_edgeChromNum_mul_matchNum ?_
+  exact Nat.mul_le_mul_right _ G.edgeChromNum_le_two_mul_maxDeg_sub_one
+
+/-- The line graph of a cycle is that same cycle, so a maximum matching of `C_n` is a maximum
+independent set of `C_n`. -/
+@[simp] theorem matchNum_cycle (n : ℕ) : (cycle (n + 3)).matchNum = (n + 3) / 2 := by
+  rw [matchNum_eq, lineGraph_cycle, indepNum_cycle]
+
+@[simp] theorem matchNum_complete_three : (complete 3).matchNum = 1 := by
+  rw [matchNum_eq, lineGraph_complete_three, indepNum_complete]
+  omega
+
+/-- `L(K₄)` is the octahedron, whose independence number is `2`: `K₄` has a perfect matching. -/
+@[simp] theorem matchNum_complete_four : (complete 4).matchNum = 2 := by
+  rw [matchNum_eq, lineGraph_complete_four]
+  exact indepNum_cocktailParty 2
+
+/-- `L(K_{m,n})` is the rook's graph, so a matching of the complete bipartite graph is a
+partial permutation matrix and there are at most `min m n` of them. -/
+theorem matchNum_bipartite_le (m n : ℕ) (hm : 0 < m) (hn : 0 < n) :
+    (bipartite m n).matchNum ≤ min m n := by
+  rw [matchNum_eq, lineGraph_bipartite]
+  exact indepNum_rook_le m n hm hn
+
+/-- An even cycle is `2`-edge-colourable. -/
+@[simp] theorem edgeChromNum_cycle_even (m : ℕ) : (cycle (2 * m + 4)).edgeChromNum = 2 := by
+  rw [edgeChromNum_eq, show 2 * m + 4 = 2 * m + 1 + 3 by ring, lineGraph_cycle,
+    show 2 * m + 1 + 3 = 2 * (m + 1) + 2 by ring, chromNum_cycle_even]
+
+/-- An odd cycle needs three edge colours. -/
+@[simp] theorem edgeChromNum_cycle_odd (m : ℕ) : (cycle (2 * m + 3)).edgeChromNum = 3 := by
+  rw [edgeChromNum_eq, lineGraph_cycle, chromNum_cycle_odd]
+
+/-- `L(P_n)` is `P_{n-1}`, so a path with at least two edges is `2`-edge-colourable. -/
+@[simp] theorem edgeChromNum_path (n : ℕ) : (path (n + 3)).edgeChromNum = 2 := by
+  rw [edgeChromNum_eq, lineGraph_path, chromNum_path]
+
+@[simp] theorem edgeChromNum_complete_three : (complete 3).edgeChromNum = 3 := by
+  rw [edgeChromNum_eq, lineGraph_complete_three, chromNum_complete]
+
+/-- `χ'(K₄) = 3`: its line graph is the octahedron `K_{2,2,2}`, which is `3`-chromatic. -/
+@[simp] theorem edgeChromNum_complete_four : (complete 4).edgeChromNum = 3 := by
+  rw [edgeChromNum_eq, lineGraph_complete_four, chromNum_cocktailParty]
+
+example : (cycle 5).matchNum = 2 := by rw [show (5 : ℕ) = 2 + 3 by ring, matchNum_cycle]
+
+example : (cycle 6).edgeChromNum = 2 := by
+  rw [show (6 : ℕ) = 2 * 1 + 4 by ring, edgeChromNum_cycle_even]
+
+/-- `C₅` is not `2`-edge-colourable even though it is `2`-regular. -/
+example : (cycle 5).edgeChromNum = 3 := by
+  rw [show (5 : ℕ) = 2 * 1 + 3 by ring, edgeChromNum_cycle_odd]
+
 end IsoGraph
