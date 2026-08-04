@@ -2015,8 +2015,44 @@ theorem swapBlocks_leg_iff (s a b p q : ℕ) (hs : 0 < s) :
   unfold swapBlocksFwd
   split_ifs <;> omega
 
-/-- Two legs hanging off the centre `0` may be exchanged: the graph is unchanged up to the
-relabelling that swaps the two blocks of fresh vertices.  `P` is the part of the edge list that
+/-- Exchanging two adjacent blocks of vertices is an isomorphism of `ofEdges` graphs, provided the
+edge list splits as `P ++ (M ++ Q)` with `P` and `Q` supported on vertices the exchange fixes and
+with `M` carried onto `M'`. -/
+theorem nonempty_iso_ofEdges_swapBlocks (N s a b : ℕ) (P M M' Q : List (ℕ × ℕ))
+    (hN : s + a + b ≤ N)
+    (hP : ∀ p q : ℕ, (p, q) ∈ P → swapBlocksFwd s a b p = p ∧ swapBlocksFwd s a b q = q)
+    (hQ : ∀ p q : ℕ, (p, q) ∈ Q → swapBlocksFwd s a b p = p ∧ swapBlocksFwd s a b q = q)
+    (hM : ∀ p q : ℕ,
+      ((swapBlocksFwd s a b p, swapBlocksFwd s a b q) ∈ M') ↔ ((p, q) ∈ M)) :
+    Nonempty (ofEdges N (P ++ (M ++ Q)) ≃cg ofEdges N (P ++ (M' ++ Q))) := by
+  have hfix : ∀ R : List (ℕ × ℕ),
+      (∀ p q : ℕ, (p, q) ∈ R → swapBlocksFwd s a b p = p ∧ swapBlocksFwd s a b q = q) →
+      ∀ u v : ℕ, ((swapBlocksFwd s a b u, swapBlocksFwd s a b v) ∈ R) ↔ ((u, v) ∈ R) := by
+    intro R hR u v
+    constructor
+    · intro h
+      obtain ⟨h1, h2⟩ := hR _ _ h
+      rwa [swapBlocksFwd_inj s a b _ _ h1, swapBlocksFwd_inj s a b _ _ h2] at h
+    · intro h
+      obtain ⟨h1, h2⟩ := hR _ _ h
+      rwa [h1, h2]
+  have hPiff := hfix P hP
+  have hQiff := hfix Q hQ
+  set E : (ofEdges N (P ++ (M ++ Q))).V ≃ (ofEdges N (P ++ (M' ++ Q))).V :=
+    swapBlocks s a b N hN with hE
+  refine ⟨isoOfAdj E ?_⟩
+  intro x y
+  have hval : ∀ p : (ofEdges N (P ++ (M ++ Q))).V,
+      (E p).1 = swapBlocksFwd s a b p.1 := fun _ ↦ rfl
+  have hne : (swapBlocksFwd s a b x.1 ≠ swapBlocksFwd s a b y.1) ↔ (x.1 ≠ y.1) :=
+    not_congr ⟨swapBlocksFwd_inj s a b x.1 y.1, fun h ↦ by rw [h]⟩
+  rw [Bool.eq_iff_iff, ofEdges_adj_val, ofEdges_adj_val, hval x, hval y]
+  simp only [List.mem_append]
+  exact and_congr hne
+    (or_congr (or_congr (hPiff _ _) (or_congr (hM _ _) (hQiff _ _)))
+      (or_congr (hPiff _ _) (or_congr (hM _ _) (hQiff _ _))))
+
+/-- Two legs hanging off the centre `0` may be exchanged.  `P` is the part of the edge list that
 lives below the two blocks and `Q` the part that lives above them (the centre `0`, which both may
 touch, is fixed by the relabelling). -/
 theorem nonempty_iso_ofEdges_swap_legs (N s a b : ℕ) (P Q : List (ℕ × ℕ))
@@ -2025,57 +2061,96 @@ theorem nonempty_iso_ofEdges_swap_legs (N s a b : ℕ) (P Q : List (ℕ × ℕ))
     (hQ : ∀ p q : ℕ, (p, q) ∈ Q → (p = 0 ∨ s + a + b ≤ p) ∧ s + a + b ≤ q) :
     Nonempty (ofEdges N (P ++ (legEdges 0 s a ++ (legEdges 0 (s + a) b ++ Q)))
       ≃cg ofEdges N (P ++ (legEdges 0 s b ++ (legEdges 0 (s + b) a ++ Q)))) := by
-  have hfix : ∀ u : ℕ, u < s → swapBlocksFwd s a b u = u := swapBlocksFwd_of_lt s a b
   have hkey : ∀ u : ℕ, (u = 0 ∨ s + a + b ≤ u) → swapBlocksFwd s a b u = u := by
     rintro u (rfl | h)
-    · exact hfix 0 hs
+    · exact swapBlocksFwd_of_lt s a b 0 hs
     · exact swapBlocksFwd_of_ge s a b u h
-  have hPiff : ∀ u v : ℕ,
-      ((swapBlocksFwd s a b u, swapBlocksFwd s a b v) ∈ P) ↔ ((u, v) ∈ P) := by
-    intro u v
-    constructor
-    · intro h
-      obtain ⟨h1, h2⟩ := hP _ _ h
-      rw [swapBlocksFwd_lt_iff] at h1 h2
-      rwa [hfix u h1, hfix v h2] at h
-    · intro h
-      obtain ⟨h1, h2⟩ := hP _ _ h
-      rwa [hfix u h1, hfix v h2]
-  have hQiff : ∀ u v : ℕ,
-      ((swapBlocksFwd s a b u, swapBlocksFwd s a b v) ∈ Q) ↔ ((u, v) ∈ Q) := by
-    intro u v
-    constructor
-    · intro h
-      obtain ⟨h1, h2⟩ := hQ _ _ h
-      have hu : u = 0 ∨ s + a + b ≤ u := by
-        rcases h1 with h1 | h1
-        · exact Or.inl ((swapBlocksFwd_eq_zero_iff s a b u hs).1 h1)
-        · exact Or.inr ((swapBlocksFwd_ge_iff s a b u).1 h1)
-      have hv : s + a + b ≤ v := (swapBlocksFwd_ge_iff s a b v).1 h2
-      rwa [hkey u hu, hkey v (Or.inr hv)] at h
-    · intro h
-      obtain ⟨h1, h2⟩ := hQ _ _ h
-      rwa [hkey u h1, hkey v (Or.inr h2)]
-  set E : (ofEdges N (P ++ (legEdges 0 s a ++ (legEdges 0 (s + a) b ++ Q)))).V
-      ≃ (ofEdges N (P ++ (legEdges 0 s b ++ (legEdges 0 (s + b) a ++ Q)))).V :=
-    swapBlocks s a b N hN with hE
-  refine ⟨isoOfAdj E ?_⟩
-  intro x y
-  have hval : ∀ p : (ofEdges N (P ++ (legEdges 0 s a ++ (legEdges 0 (s + a) b ++ Q)))).V,
-      (E p).1 = swapBlocksFwd s a b p.1 := fun _ ↦ rfl
-  have hne : (swapBlocksFwd s a b x.1 ≠ swapBlocksFwd s a b y.1) ↔ (x.1 ≠ y.1) :=
-    not_congr ⟨swapBlocksFwd_inj s a b x.1 y.1, fun h ↦ by rw [h]⟩
-  have hmid := swapBlocks_leg_iff s a b x.1 y.1 hs
-  have hmid' := swapBlocks_leg_iff s a b y.1 x.1 hs
-  rw [Bool.eq_iff_iff, ofEdges_adj_val, ofEdges_adj_val, hval x, hval y]
-  simp only [List.mem_append]
-  refine and_congr hne (or_congr ?_ ?_)
-  · refine or_congr (hPiff _ _) ?_
-    rw [← or_assoc, ← or_assoc]
-    exact or_congr hmid (hQiff _ _)
-  · refine or_congr (hPiff _ _) ?_
-    rw [← or_assoc, ← or_assoc]
-    exact or_congr hmid' (hQiff _ _)
+  have h := nonempty_iso_ofEdges_swapBlocks N s a b P
+    (legEdges 0 s a ++ legEdges 0 (s + a) b) (legEdges 0 s b ++ legEdges 0 (s + b) a) Q hN
+    (fun p q hpq ↦ ⟨swapBlocksFwd_of_lt s a b p (hP p q hpq).1,
+      swapBlocksFwd_of_lt s a b q (hP p q hpq).2⟩)
+    (fun p q hpq ↦ ⟨hkey p (hQ p q hpq).1, hkey q (Or.inr (hQ p q hpq).2)⟩)
+    (fun p q ↦ by simp only [List.mem_append]; exact swapBlocks_leg_iff s a b p q hs)
+  rwa [List.append_assoc, List.append_assoc] at h
+
+/-! ### Exchanging two paths of a theta graph -/
+
+/-- The block exchange carries the path with `a` internal vertices onto the copy of it that starts
+`b` further along. -/
+theorem swapBlocksFwd_theta_fst (s a b p q : ℕ) (hs : 2 ≤ s)
+    (h : (p, q) ∈ thetaEdges s [a]) :
+    (swapBlocksFwd s a b p, swapBlocksFwd s a b q) ∈ thetaEdges (s + b) [a] := by
+  rw [mem_thetaEdges_single] at h ⊢
+  unfold swapBlocksFwd
+  split_ifs <;> omega
+
+/-- The block exchange carries the path with `b` internal vertices back onto the first block. -/
+theorem swapBlocksFwd_theta_snd (s a b p q : ℕ) (hs : 2 ≤ s)
+    (h : (p, q) ∈ thetaEdges (s + a) [b]) :
+    (swapBlocksFwd s a b p, swapBlocksFwd s a b q) ∈ thetaEdges s [b] := by
+  rw [mem_thetaEdges_single] at h ⊢
+  unfold swapBlocksFwd
+  split_ifs <;> omega
+
+theorem swapBlocks_theta_iff (s a b p q : ℕ) (hs : 2 ≤ s) :
+    (((swapBlocksFwd s a b p, swapBlocksFwd s a b q) ∈ thetaEdges s [b]) ∨
+      ((swapBlocksFwd s a b p, swapBlocksFwd s a b q) ∈ thetaEdges (s + b) [a])) ↔
+    (((p, q) ∈ thetaEdges s [a]) ∨ ((p, q) ∈ thetaEdges (s + a) [b])) := by
+  constructor
+  · rintro (h | h)
+    · have h' := swapBlocksFwd_theta_fst s b a _ _ hs h
+      rw [swapBlocksFwd_bwd, swapBlocksFwd_bwd] at h'
+      exact Or.inr h'
+    · have h' := swapBlocksFwd_theta_snd s b a _ _ hs h
+      rw [swapBlocksFwd_bwd, swapBlocksFwd_bwd] at h'
+      exact Or.inl h'
+  · rintro (h | h)
+    · exact Or.inr (swapBlocksFwd_theta_fst s a b p q hs h)
+    · exact Or.inl (swapBlocksFwd_theta_snd s a b p q hs h)
+
+/-- The paths of a theta graph split along a split of the list of path lengths. -/
+theorem thetaEdges_append : ∀ (pre post : List ℕ) (off : ℕ),
+    thetaEdges off (pre ++ post) = thetaEdges off pre ++ thetaEdges (off + pre.sum) post
+  | [], _, off => by rw [List.nil_append, thetaEdges, List.nil_append, List.sum_nil, Nat.add_zero]
+  | k :: pre, post, off => by
+      rw [List.cons_append, thetaEdges_cons, thetaEdges_append pre post (off + k),
+        thetaEdges_cons off k pre, List.append_assoc, List.sum_cons,
+        show off + k + pre.sum = off + (k + pre.sum) from by omega]
+
+/-- Every vertex touched by `thetaEdges off ks` is either a pole or one of the fresh vertices in
+`[off, off + ks.sum)`. -/
+theorem mem_thetaEdges_bound : ∀ (off : ℕ) (ks : List ℕ) (p q : ℕ),
+    (p, q) ∈ thetaEdges off ks →
+      (p < 2 ∨ (off ≤ p ∧ p < off + ks.sum)) ∧ (q < 2 ∨ (off ≤ q ∧ q < off + ks.sum))
+  | _, [], _, _ => by simp [thetaEdges]
+  | off, k :: rest, p, q => by
+      intro h
+      rw [thetaEdges_cons, List.mem_append] at h
+      simp only [List.sum_cons]
+      rcases h with h | h
+      · rw [mem_thetaEdges_single] at h
+        omega
+      · have := mem_thetaEdges_bound (off + k) rest p q h
+        omega
+
+/-- Two paths of a theta graph may be exchanged, up to the relabelling that swaps the two blocks
+of internal vertices. -/
+theorem nonempty_iso_ofEdges_swap_theta (N s a b : ℕ) (P Q : List (ℕ × ℕ))
+    (hs : 2 ≤ s) (hN : s + a + b ≤ N)
+    (hP : ∀ p q : ℕ, (p, q) ∈ P → p < s ∧ q < s)
+    (hQ : ∀ p q : ℕ, (p, q) ∈ Q →
+      (p < 2 ∨ s + a + b ≤ p) ∧ (q < 2 ∨ s + a + b ≤ q)) :
+    Nonempty (ofEdges N (P ++ ((thetaEdges s [a] ++ thetaEdges (s + a) [b]) ++ Q))
+      ≃cg ofEdges N (P ++ ((thetaEdges s [b] ++ thetaEdges (s + b) [a]) ++ Q))) := by
+  have hkey : ∀ u : ℕ, (u < 2 ∨ s + a + b ≤ u) → swapBlocksFwd s a b u = u := by
+    rintro u (h | h)
+    · exact swapBlocksFwd_of_lt s a b u (by omega)
+    · exact swapBlocksFwd_of_ge s a b u h
+  exact nonempty_iso_ofEdges_swapBlocks N s a b P _ _ Q hN
+    (fun p q hpq ↦ ⟨swapBlocksFwd_of_lt s a b p (hP p q hpq).1,
+      swapBlocksFwd_of_lt s a b q (hP p q hpq).2⟩)
+    (fun p q hpq ↦ ⟨hkey p (hQ p q hpq).1, hkey q (hQ p q hpq).2⟩)
+    (fun p q ↦ by simp only [List.mem_append]; exact swapBlocks_theta_iff s a b p q hs)
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -3465,9 +3540,53 @@ theorem doubleStar_comm (m n : ℕ) : doubleStar m n = doubleStar n m := by
     (try simp only [false_and, false_or, true_and, and_true, or_false, true_or, or_true,
       or_self]) <;> omega
 
+/-- Two adjacent paths of a theta graph may be exchanged. -/
+theorem thetaGraph_swap (pre post : List ℕ) (a b : ℕ) :
+    thetaGraph (pre ++ a :: b :: post) = thetaGraph (pre ++ b :: a :: post) := by
+  have hsum : (pre ++ b :: a :: post).sum = (pre ++ a :: b :: post).sum := by
+    simp only [List.sum_append, List.sum_cons]; omega
+  have hL : CGraph.thetaEdges 2 (pre ++ a :: b :: post)
+      = CGraph.thetaEdges 2 pre ++ ((CGraph.thetaEdges (2 + pre.sum) [a] ++
+          CGraph.thetaEdges (2 + pre.sum + a) [b]) ++
+            CGraph.thetaEdges (2 + pre.sum + a + b) post) := by
+    rw [CGraph.thetaEdges_append, CGraph.thetaEdges_cons (2 + pre.sum) a (b :: post),
+      CGraph.thetaEdges_cons (2 + pre.sum + a) b post, List.append_assoc]
+  have hR : CGraph.thetaEdges 2 (pre ++ b :: a :: post)
+      = CGraph.thetaEdges 2 pre ++ ((CGraph.thetaEdges (2 + pre.sum) [b] ++
+          CGraph.thetaEdges (2 + pre.sum + b) [a]) ++
+            CGraph.thetaEdges (2 + pre.sum + a + b) post) := by
+    rw [CGraph.thetaEdges_append, CGraph.thetaEdges_cons (2 + pre.sum) b (a :: post),
+      CGraph.thetaEdges_cons (2 + pre.sum + b) a post,
+      show 2 + pre.sum + b + a = 2 + pre.sum + a + b from by omega, List.append_assoc]
+  rw [thetaGraph_def, thetaGraph_def, CGraph.thetaGraph, CGraph.thetaGraph, hsum, hL, hR]
+  refine Quotient.sound (CGraph.nonempty_iso_ofEdges_swap_theta _ (2 + pre.sum) a b _ _
+    (by omega) ?_ ?_ ?_)
+  · simp only [List.sum_append, List.sum_cons]
+    omega
+  · intro p q h
+    have := CGraph.mem_thetaEdges_bound 2 pre p q h
+    omega
+  · intro p q h
+    have := CGraph.mem_thetaEdges_bound (2 + pre.sum + a + b) post p q h
+    omega
+
+/-- The theta graph depends only on the multiset of its path lengths. -/
+theorem thetaGraph_perm_append {xs ys : List ℕ} (h : xs.Perm ys) :
+    ∀ pre : List ℕ, thetaGraph (pre ++ xs) = thetaGraph (pre ++ ys) := by
+  induction h with
+  | nil => intro pre; rfl
+  | cons x _ ih =>
+      intro pre
+      simpa only [List.append_assoc, List.singleton_append] using ih (pre ++ [x])
+  | swap x y l => intro pre; exact thetaGraph_swap pre l y x
+  | trans _ _ ih1 ih2 => intro pre; exact (ih1 pre).trans (ih2 pre)
+
+theorem thetaGraph_perm {xs ys : List ℕ} (h : xs.Perm ys) : thetaGraph xs = thetaGraph ys := by
+  simpa using thetaGraph_perm_append h []
+
 /-- Swapping the two paths of a two-path theta graph. -/
-theorem thetaGraph_pair_comm (a b : ℕ) : thetaGraph [a, b] = thetaGraph [b, a] := by
-  rw [thetaGraph_pair, thetaGraph_pair, show 2 + b + a = 2 + a + b from by omega]
+theorem thetaGraph_pair_comm (a b : ℕ) : thetaGraph [a, b] = thetaGraph [b, a] :=
+  thetaGraph_perm (List.Perm.swap b a [])
 
 /-- A tadpole whose cycle is `C₂` — a single edge — is a path.  The relabelling swaps the two
 vertices of the cycle, so that the tail leaves from the far end. -/
@@ -4779,5 +4898,8 @@ example : spider [1, 3, 2] = spider [2, 1, 3] := spider_perm (by decide)
 example (ks : List ℕ) : spider (ks ++ [0]) = spider (0 :: ks) :=
   spider_perm (List.perm_append_singleton 0 ks)
 example (a b : ℕ) : spider [a, b] = spider [b, a] := spider_perm (List.Perm.swap b a [])
+example : thetaGraph [1, 2, 3] = thetaGraph [3, 1, 2] := thetaGraph_perm (by decide)
+example (xs : List ℕ) : thetaGraph (xs ++ [0]) = thetaGraph (0 :: xs) :=
+  thetaGraph_perm (List.perm_append_singleton 0 xs)
 
 end IsoGraph

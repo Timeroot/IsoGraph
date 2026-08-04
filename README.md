@@ -291,6 +291,7 @@ tadpole 2 k = path (2 + k)                                lollipop 2 k = path (2
 tadpole 1 k = path (1 + k)                                cyclePendant 1 [k] = star k
 spider (pre ++ 0 :: post) = spider (pre ++ post)          cyclePendant m (ks ++ [0]) = cyclePendant m ks
 spider ks = spider ls, whenever ks.Perm ls                spider (pre ++ a :: b :: post) = spider (pre ++ b :: a :: post)
+thetaGraph xs = thetaGraph ys, whenever xs.Perm ys        thetaGraph [a, b] = thetaGraph [b, a]
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -414,6 +415,15 @@ Going from an adjacent swap to an arbitrary permutation is the usual `List.Perm`
 twist: the `cons` case is not provable as stated, so the statement carries a *prefix* parameter and
 `spider (pre ++ x :: l)` is read as `spider ((pre ++ [x]) ++ l)`, which is the induction hypothesis
 at a longer prefix.
+
+The same relabelling permutes the *paths* of a theta graph, so the block exchange is stated once,
+for an abstract middle segment: `nonempty_iso_ofEdges_swapBlocks` asks only that the exchange fix
+every vertex `P` and `Q` touch and carry the middle segment onto its counterpart.  Both the leg
+version and the theta version are then a handful of lines, the theta one via a pair of directed
+lemmas (each path lands on the copy of itself that starts one block over) rather than one
+sixteen-disjunct `omega` call.  `thetaGraph [a, b] = thetaGraph [b, a]` used to go through the
+identification of a two-path theta graph with a cycle; it is now the two-element case of
+`thetaGraph_perm`.
 
 The structural laws are the exception, since they are statements about all graphs at once. Each
 is a `CGraph.Iso.*Assoc` built on `Equiv.prodAssoc`, whose adjacency obligation is reduced to a
