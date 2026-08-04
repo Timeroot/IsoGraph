@@ -1076,6 +1076,21 @@ product form `|V| ≤ χ(G)·χ(Gᶜ)` from the previous batch, AM–GM turns ea
 `4·|V| ≤ (χ(G) + χ(Gᶜ))²` and `4·χ(G)·χ(Gᶜ) ≤ (|V| + 1)²`.  Both bounds are tight on `Kₙ`, and the
 product form is enough to see that the complement of the Petersen graph needs four colours.
 
+**Turán's theorem** bounds edges by the clique number.  Mathlib proves the extremal statement —
+every `K_{r+1}`-free graph is dominated by the Turán graph, `isTuranMaximal_iff_nonempty_iso_turanGraph`
+— but states the numeric consequence only for the Turán graph itself, and it has no bridge between
+`CliqueFree` and `cliqueNum`, so both are supplied here: `cliqueFree_iff_cliqueNum_lt` says
+`S.CliqueFree n ↔ ω(S) < n` (one direction shrinks a maximum clique to size `n`, the other is
+`IsClique.card_le_cliqueNum`), and chaining a maximal graph's edge count through the isomorphism
+gives `2r·|E| ≤ (r - 1)·|V|²` whenever `ω(G) ≤ r`.  At `r = 2` this is **Mantel's theorem**,
+`4·|E| ≤ |V|²`, which the `girth_eq_three_iff` bridge routes in from girth (any graph of girth
+other than three is triangle-free) and which `cliqueNum_le_two_of_isBipartite` routes in from
+bipartiteness.  Read backwards, the same inequality is a triangle *detector*: `|V|² < 4·|E|` forces
+`girth = 3`, with no search over triples.  Both bounds are tight — on `K_{m,m}` for Mantel and on
+`Kᵣ` for Turán.  Applying the whole thing to `Gᶜ` and folding in `|E(G)| + |E(Gᶜ)| = C(|V|, 2)`
+turns the upper bound into a *lower* one: a graph with independence number at most `r` is forced to
+have many edges.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

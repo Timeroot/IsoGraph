@@ -5126,6 +5126,78 @@ theorem chromNum_add_chromNum_compl_le_card_add_one (G : CGraph) [DecidableEq G.
   rwa [G.chromNum_eq_chromOn_univ, show (compl G).chromNum = chromOn G.toSimpleᶜ Finset.univ from
     by rw [(compl G).chromNum_eq_chromOn_univ, compl_toSimple]]
 
+section Turan
+
+variable {X : Type} [Fintype X] [DecidableEq X]
+
+omit [DecidableEq X] in
+/-- Being `n`-clique-free is the same as having clique number below `n`. -/
+private theorem cliqueFree_iff_cliqueNum_lt {S : SimpleGraph X} {n : ℕ} :
+    S.CliqueFree n ↔ S.cliqueNum < n := by
+  constructor
+  · intro hcf
+    by_contra hcon
+    push_neg at hcon
+    obtain ⟨s, hs⟩ := S.exists_isNClique_cliqueNum
+    obtain ⟨t, hts, htc⟩ :=
+      Finset.exists_subset_card_eq (n := n) (show n ≤ s.card by rw [hs.card_eq]; exact hcon)
+    exact hcf t ⟨hs.isClique.subset (by exact_mod_cast hts), htc⟩
+  · intro hlt s hs
+    exact absurd (hs.card_eq ▸ hs.isClique.card_le_cliqueNum) (by omega)
+
+omit [DecidableEq X] in
+/-- **Turán's theorem**, in the loose form `2r·|E| ≤ (r - 1)·|V|²`: a graph with no `K_{r+1}`
+has at most as many edges as the Turán graph, which has at most that many. -/
+private theorem mul_card_edgeFinset_le_of_cliqueFree {S : SimpleGraph X} [DecidableRel S.Adj]
+    {r : ℕ} (hr : 0 < r) (cf : S.CliqueFree (r + 1)) :
+    2 * r * S.edgeFinset.card ≤ (r - 1) * (Fintype.card X) ^ 2 := by
+  classical
+  obtain ⟨H, _, maxH⟩ := SimpleGraph.exists_isTuranMaximal (V := X) hr
+  have h1 : S.edgeFinset.card ≤ H.edgeFinset.card := maxH.2 cf
+  have h3 : H.edgeFinset.card = (SimpleGraph.turanGraph (Fintype.card X) r).edgeFinset.card :=
+    ((SimpleGraph.isTuranMaximal_iff_nonempty_iso_turanGraph hr).mp maxH).some.card_edgeFinset_eq
+  calc 2 * r * S.edgeFinset.card
+      ≤ 2 * r * (SimpleGraph.turanGraph (Fintype.card X) r).edgeFinset.card := by
+        rw [← h3]; exact Nat.mul_le_mul_left _ h1
+    _ ≤ (r - 1) * (Fintype.card X) ^ 2 := SimpleGraph.mul_card_edgeFinset_turanGraph_le
+
+end Turan
+
+/-! ### Turán's theorem -/
+
+/-- **Turán's theorem**: a graph whose clique number is at most `r` has `2r·|E| ≤ (r - 1)·|V|²`
+edges. -/
+theorem two_mul_mul_E_le (G : CGraph) {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ r) :
+    2 * r * G.E ≤ (r - 1) * (Fintype.card G.V) ^ 2 :=
+  mul_card_edgeFinset_le_of_cliqueFree hr
+    (cliqueFree_iff_cliqueNum_lt.2 (Nat.lt_succ_of_le h))
+
+/-- **Mantel's theorem**: a triangle-free graph has at most `|V|²/4` edges. -/
+theorem four_mul_E_le_card_sq (G : CGraph) (h : G.cliqueNum ≤ 2) :
+    4 * G.E ≤ (Fintype.card G.V) ^ 2 := by
+  have := G.two_mul_mul_E_le (r := 2) (by omega) h
+  omega
+
+/-- **A bipartite graph is triangle-free**, hence has clique number at most two. -/
+theorem cliqueNum_le_two_of_isBipartite {G : CGraph} (hb : G.IsBipartite) : G.cliqueNum ≤ 2 := by
+  classical
+  by_contra hcon
+  obtain ⟨s, hs⟩ := G.toSimple.exists_isNClique_cliqueNum
+  obtain ⟨t, hts, htc⟩ :=
+    Finset.exists_subset_card_eq (n := 3)
+      (show 3 ≤ s.card by rw [hs.card_eq]; exact Nat.not_le.1 hcon)
+  have hcl : G.toSimple.IsNClique 3 t := ⟨hs.isClique.subset (by exact_mod_cast hts), htc⟩
+  obtain ⟨x, y, z, -, -, -, rfl⟩ := Finset.card_eq_three.1 htc
+  rw [SimpleGraph.is3Clique_triple_iff] at hcl
+  exact not_isBipartite_of_triangle ((toSimple_adj _ _ _).1 hcl.1)
+    ((toSimple_adj _ _ _).1 hcl.2.1) ((toSimple_adj _ _ _).1 hcl.2.2) hb
+
+/-- Contrapositive of Mantel: a graph with more than `|V|²/4` edges has a triangle. -/
+theorem three_le_cliqueNum_of_card_sq_lt (G : CGraph)
+    (h : (Fintype.card G.V) ^ 2 < 4 * G.E) : 3 ≤ G.cliqueNum := by
+  by_contra hcon
+  exact absurd (G.four_mul_E_le_card_sq (by omega)) (by omega)
+
 end CGraph
 
 namespace IsoGraph
@@ -10958,5 +11030,113 @@ example (n : ℕ) : n + 1 ≤ (cocktailParty (n + 1)).chromNum := by
 
 example : (wheel 7).chromNum = 4 := chromNum_wheel_odd 2
 example : (cocktailParty 4).chromNum = 4 := by simp
+
+/-! ### Turán's theorem -/
+
+/-- **Turán's theorem**: `ω(G) ≤ r` forces `2r·|E| ≤ (r - 1)·|V|²`. -/
+theorem two_mul_mul_E_le (G : IsoGraph) {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ r) :
+    2 * r * G.E ≤ (r - 1) * G.V ^ 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, E_mk, V_mk] at *
+  rw [cliqueNum_mk] at h
+  exact CGraph.two_mul_mul_E_le _ hr h
+
+/-- **Mantel's theorem**: `4·|E| ≤ |V|²` for a triangle-free graph. -/
+theorem four_mul_E_le_V_sq (G : IsoGraph) (h : G.cliqueNum ≤ 2) : 4 * G.E ≤ G.V ^ 2 := by
+  have := G.two_mul_mul_E_le (r := 2) (by omega) h
+  omega
+
+/-- A graph with more than `|V|²/4` edges contains a triangle, so its girth is `3`. -/
+theorem three_le_cliqueNum_of_V_sq_lt (G : IsoGraph) (h : G.V ^ 2 < 4 * G.E) :
+    3 ≤ G.cliqueNum := by
+  by_contra hcon
+  exact absurd (G.four_mul_E_le_V_sq (by omega)) (by omega)
+
+theorem girth_eq_three_of_V_sq_lt (G : IsoGraph) (h : G.V ^ 2 < 4 * G.E) : G.girth = 3 :=
+  girth_eq_three_iff.2 (G.three_le_cliqueNum_of_V_sq_lt h)
+
+/-- The general contrapositive of Turán: beating the Turán density forces a bigger clique. -/
+theorem lt_cliqueNum_of_lt (G : IsoGraph) {r : ℕ} (hr : 0 < r)
+    (h : (r - 1) * G.V ^ 2 < 2 * r * G.E) : r < G.cliqueNum := by
+  by_contra hcon
+  exact absurd (G.two_mul_mul_E_le hr (Nat.not_lt.1 hcon)) (by omega)
+
+/-- Mantel's bound applies to every graph of girth at least four, and to every bipartite graph. -/
+theorem four_mul_E_le_V_sq_of_girth_ne_three (G : IsoGraph) (h : G.girth ≠ 3) :
+    4 * G.E ≤ G.V ^ 2 := by
+  refine G.four_mul_E_le_V_sq ?_
+  by_contra hcon
+  exact h (girth_eq_three_iff.2 (by omega))
+
+theorem cliqueNum_le_two_of_isBipartite {G : IsoGraph} (h : IsBipartite G) : G.cliqueNum ≤ 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.cliqueNum_le_two_of_isBipartite h
+
+theorem four_mul_E_le_V_sq_of_isBipartite (G : IsoGraph) (h : IsBipartite G) :
+    4 * G.E ≤ G.V ^ 2 :=
+  G.four_mul_E_le_V_sq (cliqueNum_le_two_of_isBipartite h)
+
+/-! ### Turán in the complement: few independent vertices means many edges -/
+
+/-- Turán applied to `Gᶜ`: a graph with independence number at most `r` has few *non*-edges. -/
+theorem two_mul_mul_E_compl_le (G : IsoGraph) {r : ℕ} (hr : 0 < r) (h : G.indepNum ≤ r) :
+    2 * r * (compl G).E ≤ (r - 1) * G.V ^ 2 := by
+  have hV : (compl G).V = G.V := V_compl G
+  have := (compl G).two_mul_mul_E_le hr (by rwa [cliqueNum_compl])
+  rwa [hV] at this
+
+/-- Consequently a graph with independence number at most `r` has *many* edges: the `Gᶜ` bound
+turns into a lower bound on `G.E` through `|E(G)| + |E(Gᶜ)| = C(|V|, 2)`. -/
+theorem two_mul_mul_choose_le (G : IsoGraph) {r : ℕ} (hr : 0 < r) (h : G.indepNum ≤ r) :
+    2 * r * G.V.choose 2 ≤ (r - 1) * G.V ^ 2 + 2 * r * G.E := by
+  have hsum := G.E_compl_add
+  have hb := G.two_mul_mul_E_compl_le hr h
+  calc 2 * r * G.V.choose 2 = 2 * r * (compl G).E + 2 * r * G.E := by
+        rw [← Nat.mul_add, hsum]
+    _ ≤ (r - 1) * G.V ^ 2 + 2 * r * G.E := Nat.add_le_add_right hb _
+
+/-- **Mantel in the complement**: a graph with no three pairwise non-adjacent vertices has at
+least `C(n, 2) - n²/4` edges. -/
+theorem four_mul_choose_le (G : IsoGraph) (h : G.indepNum ≤ 2) :
+    4 * G.V.choose 2 ≤ G.V ^ 2 + 4 * G.E := by
+  have := G.two_mul_mul_choose_le (r := 2) (by omega) h
+  omega
+
+/-! ### Turán at work -/
+
+/-- Mantel's bound is attained by the balanced complete bipartite graph. -/
+example (m : ℕ) : 4 * (bipartite m m).E = (bipartite m m).V ^ 2 := by
+  rw [E_bipartite, V_bipartite]
+  ring
+
+/-- Turán's bound is attained by the complete graph `K_r`, whose clique number is exactly `r`. -/
+example (n : ℕ) :
+    2 * (n + 1) * (complete (n + 1)).E = ((n + 1) - 1) * (complete (n + 1)).V ^ 2 := by
+  have key : 2 * (n + 1).choose 2 = (n + 1) * n := by
+    rw [Nat.choose_two_right, Nat.add_sub_cancel]
+    obtain ⟨k, hk⟩ := Nat.even_mul_succ_self n
+    have hc : (n + 1) * n = n * (n + 1) := Nat.mul_comm _ _
+    omega
+  rw [E_complete, V_complete, Nat.add_sub_cancel]
+  calc 2 * (n + 1) * (n + 1).choose 2 = (n + 1) * (2 * (n + 1).choose 2) := by ring
+    _ = (n + 1) * ((n + 1) * n) := by rw [key]
+    _ = n * (n + 1) ^ 2 := by ring
+
+/-- The Petersen graph is well under the Mantel threshold, as it must be: it has no triangle. -/
+example : 4 * petersen.E ≤ petersen.V ^ 2 :=
+  petersen.four_mul_E_le_V_sq_of_girth_ne_three (by rw [girth_petersen]; omega)
+
+/-- Edge counting alone certifies a triangle in `K₃`. -/
+example : (complete 3).girth = 3 := girth_eq_three_of_V_sq_lt _ (by simp)
+
+/-- ... and in the triangular graph `T(5)`, which has `10` vertices and `30` edges. -/
+example : (triangular 5).girth = 3 := girth_eq_three_of_V_sq_lt _ (by simp [Nat.choose])
+
+/-- The complement bound at work on `C₅`, whose independence number is two: `40 ≤ 25 + 20`. -/
+example : 4 * (cycle 5).V.choose 2 ≤ (cycle 5).V ^ 2 + 4 * (cycle 5).E :=
+  four_mul_choose_le _ (by rw [show (5 : ℕ) = 2 + 3 from rfl, indepNum_cycle])
+
+/-- Turán with `r = 2` detects that `K₄` has a clique on more than two vertices. -/
+example : 2 < (complete 4).cliqueNum := lt_cliqueNum_of_lt _ (by omega) (by simp; decide)
 
 end IsoGraph
