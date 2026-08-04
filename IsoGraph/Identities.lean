@@ -2919,6 +2919,27 @@ theorem degSequence_strongProduct [DecidableEq G.V] [DecidableEq H.V] {m k n l :
     (card_nbrs_strongProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
     card_strongProduct]
 
+/-- An automorphism cannot change a degree, so a vertex-transitive graph is regular. -/
+theorem degree_eq_of_isVertexTransitive {G : CGraph} (h : G.IsVertexTransitive) (u v : G.V) :
+    G.toSimple.degree u = G.toSimple.degree v := by
+  obtain ⟨σ, hσ⟩ := h u v
+  rw [← hσ]
+  exact (SimpleGraph.Iso.degree_eq σ.toSimpleIso u).symm
+
+theorem exists_degSequence_replicate_of_isVertexTransitive {G : CGraph}
+    (h : G.IsVertexTransitive) : ∃ k, G.degSequence = List.replicate (Fintype.card G.V) k := by
+  cases isEmpty_or_nonempty G.V with
+  | inl hE =>
+    refine ⟨0, ?_⟩
+    have hnil : G.degSequence = [] :=
+      List.eq_nil_of_length_eq_zero (by rw [length_degSequence]; exact Fintype.card_eq_zero)
+    rw [hnil, Fintype.card_eq_zero]
+    rfl
+  | inr hN =>
+    obtain ⟨v₀⟩ := hN
+    exact ⟨G.toSimple.degree v₀,
+      degSequence_of_regular G fun v ↦ degree_eq_of_isVertexTransitive h v v₀⟩
+
 end CGraph
 
 namespace IsoGraph
@@ -6477,6 +6498,40 @@ theorem degSequence_strongProduct {G H : IsoGraph} {m k n l : ℕ}
 theorem two_mul_E_hypercube (n : ℕ) : 2 * (hypercube n).E = 2 ^ n * n :=
   two_mul_E_of_degSequence_replicate (degSequence_hypercube n)
 
+/-! ### Vertex-transitive graphs are regular -/
+
+theorem exists_degSequence_replicate_of_isVertexTransitive {G : IsoGraph}
+    (h : IsVertexTransitive G) : ∃ k, degSequence G = List.replicate G.V k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.exists_degSequence_replicate_of_isVertexTransitive h
+
+/-- A vertex-transitive graph is regular, so the vertex and edge counts already pin down its
+degree sequence. -/
+theorem degSequence_of_isVertexTransitive {G : IsoGraph} {k : ℕ} (h : IsVertexTransitive G)
+    (hV : 0 < G.V) (hk : G.V * k = 2 * G.E) : degSequence G = List.replicate G.V k := by
+  obtain ⟨k', hk'⟩ := exists_degSequence_replicate_of_isVertexTransitive h
+  have h2 := two_mul_E_of_degSequence_replicate hk'
+  have : k = k' := Nat.eq_of_mul_eq_mul_left hV (hk.trans h2)
+  rwa [this]
+
+@[simp] theorem degSequence_cycle (n : ℕ) :
+    degSequence (cycle (n + 3)) = List.replicate (n + 3) 2 := by
+  have h := degSequence_of_isVertexTransitive (k := 2) (isVertexTransitive_cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle, E_cycle]; omega)
+  rwa [V_cycle] at h
+
+@[simp] theorem degSequence_prism (n : ℕ) :
+    degSequence (prism (n + 3)) = List.replicate ((n + 3) * 2) 3 := by
+  show degSequence (cartesianProduct (cycle (n + 3)) (complete 2)) = _
+  rw [degSequence_cartesianProduct (degSequence_cycle n) (degSequence_complete 2)]
+
+@[simp] theorem E_lineGraph_cycle (n : ℕ) : (lineGraph (cycle (n + 3))).E = n + 3 := by
+  rw [E_lineGraph, degSequence_cycle, List.map_replicate, List.sum_replicate, smul_eq_mul,
+    show (2 : ℕ).choose 2 = 1 from rfl, mul_one]
+
+theorem two_mul_E_prism (n : ℕ) : 2 * (prism (n + 3)).E = (n + 3) * 2 * 3 :=
+  two_mul_E_of_degSequence_replicate (degSequence_prism n)
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -7077,6 +7132,17 @@ example : degSequence (strongProduct (complete 2) (complete 2)) = List.replicate
   rw [degSequence_strongProduct (degSequence_complete 2) (degSequence_complete 2)]
 
 example : 2 * (hypercube 4).E = 64 := by rw [two_mul_E_hypercube]; rfl
+
+example : degSequence (cycle 5) = List.replicate 5 2 := by simp
+
+example : degSequence (prism 3) = List.replicate 6 3 := by simp
+
+example : (lineGraph (cycle 6)).E = 6 := by simp
+
+example (G : IsoGraph) (h : IsVertexTransitive G) (hV : G.V = 7) (hE : G.E = 14) :
+    degSequence G = List.replicate 7 4 := by
+  have := degSequence_of_isVertexTransitive (k := 4) h (by omega) (by omega)
+  rwa [hV] at this
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp

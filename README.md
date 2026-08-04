@@ -822,6 +822,16 @@ conclusion are all of the form `degSequence _ = List.replicate _ _`, so the lemm
 hypercube's degree sequence falls out by induction along `hypercube_succ` — with
 `two_mul_E_hypercube` as the handshake corollary.
 
+The cycles are the awkward case: nothing in the development computes a neighbour set of `cycle n`,
+and doing it directly means the usual `Fin` modular arithmetic. Vertex-transitivity gets there
+without any of that. An automorphism preserves degrees — Mathlib's `SimpleGraph.Iso.degree_eq`,
+reached through `Iso.toSimpleIso` — so a vertex-transitive graph is regular, and its degree
+sequence is `List.replicate V k` for *some* `k`. The handshake lemma then pins `k` down from the
+vertex and edge counts alone: `degSequence_of_isVertexTransitive` needs only `V * k = 2 * E`. With
+`isVertexTransitive_cycle`, `V_cycle` and `E_cycle` in hand the cycles are 2-regular, the prisms
+follow from the Cartesian product, and `E_lineGraph_cycle` says `L(Cₙ)` has `n` edges — as it
+should, being `Cₙ` again.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
