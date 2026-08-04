@@ -6124,6 +6124,123 @@ theorem indepCount_two_add_E (G : CGraph) [DecidableEq G.V] :
   rw [← cliqueCount_compl, show compl (complete m) = empty m from compl_compl (empty m)]
   exact cliqueCount_empty m n
 
+/-! ### Counting cliques in a disjoint union -/
+
+/-- A clique of a disjoint union that has at least one vertex lies wholly on one of the two
+sides, because no edge crosses between them. -/
+theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
+    (disjUnion G H).toSimple.IsNClique (n + 1) s ↔
+      (∃ t : Finset G.V, G.toSimple.IsNClique (n + 1) t ∧
+          s = t.map ⟨Sum.inl, Sum.inl_injective⟩) ∨
+      (∃ t : Finset H.V, H.toSimple.IsNClique (n + 1) t ∧
+          s = t.map ⟨Sum.inr, Sum.inr_injective⟩) := by
+  constructor
+  · rintro ⟨hcl, hcard⟩
+    obtain ⟨x, hx⟩ : s.Nonempty := Finset.card_pos.1 (by omega)
+    match x, hx with
+    | .inl a, ha =>
+      have hsub : s ⊆ Finset.univ.map
+          (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (disjUnion G H).V) := by
+        intro y hy
+        match y, hy with
+        | .inl b, _ => simp
+        | .inr d, hd =>
+          exact absurd (hcl (by simpa using ha) (by simpa using hd) (by simp))
+            (by simp [CGraph.toSimple_adj])
+      obtain ⟨t, -, rfl⟩ := Finset.subset_map_iff.1 hsub
+      refine Or.inl ⟨t, ⟨?_, by simpa using hcard⟩, rfl⟩
+      intro b hb c hc hbc
+      have hb' := Finset.mem_coe.2 (Finset.mem_map_of_mem
+        (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hb))
+      have hc' := Finset.mem_coe.2 (Finset.mem_map_of_mem
+        (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hc))
+      have := hcl hb' hc' (Sum.inl_injective.ne hbc)
+      simpa [CGraph.toSimple_adj] using this
+    | .inr b, hb =>
+      have hsub : s ⊆ Finset.univ.map
+          (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (disjUnion G H).V) := by
+        intro y hy
+        match y, hy with
+        | .inr d, _ => simp
+        | .inl a, ha =>
+          exact absurd (hcl (by simpa using ha) (by simpa using hb) (by simp))
+            (by simp [CGraph.toSimple_adj])
+      obtain ⟨t, -, rfl⟩ := Finset.subset_map_iff.1 hsub
+      refine Or.inr ⟨t, ⟨?_, by simpa using hcard⟩, rfl⟩
+      intro c hc d hd hcd
+      have hc' := Finset.mem_coe.2 (Finset.mem_map_of_mem
+        (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hc))
+      have hd' := Finset.mem_coe.2 (Finset.mem_map_of_mem
+        (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hd))
+      have := hcl hc' hd' (Sum.inr_injective.ne hcd)
+      simpa [CGraph.toSimple_adj] using this
+  · rintro (⟨t, ⟨hcl, hcard⟩, rfl⟩ | ⟨t, ⟨hcl, hcard⟩, rfl⟩)
+    · refine ⟨?_, by simpa using hcard⟩
+      rintro _ hx _ hy hxy
+      simp only [Finset.coe_map, Set.mem_image, Finset.mem_coe] at hx hy
+      obtain ⟨a, ha, rfl⟩ := hx
+      obtain ⟨b, hb, rfl⟩ := hy
+      have : a ≠ b := fun h ↦ hxy (by rw [h])
+      simpa [CGraph.toSimple_adj] using hcl ha hb this
+    · refine ⟨?_, by simpa using hcard⟩
+      rintro _ hx _ hy hxy
+      simp only [Finset.coe_map, Set.mem_image, Finset.mem_coe] at hx hy
+      obtain ⟨a, ha, rfl⟩ := hx
+      obtain ⟨b, hb, rfl⟩ := hy
+      have : a ≠ b := fun h ↦ hxy (by rw [h])
+      simpa [CGraph.toSimple_adj] using hcl ha hb this
+
+/-- Cliques never cross between the two sides, so from size one on the counts simply add. -/
+theorem cliqueCount_disjUnion (G H : CGraph) (n : ℕ) :
+    (disjUnion G H).cliqueCount (n + 1) = G.cliqueCount (n + 1) + H.cliqueCount (n + 1) := by
+  classical
+  rw [cliqueCount_eq_card_cliqueFinset, cliqueCount_eq_card_cliqueFinset,
+    cliqueCount_eq_card_cliqueFinset]
+  set fl : Finset G.V ↪ Finset (disjUnion G H).V :=
+    ⟨Finset.map ⟨Sum.inl, Sum.inl_injective⟩, Finset.map_injective _⟩ with hfl
+  set fr : Finset H.V ↪ Finset (disjUnion G H).V :=
+    ⟨Finset.map ⟨Sum.inr, Sum.inr_injective⟩, Finset.map_injective _⟩ with hfr
+  have hset : (disjUnion G H).toSimple.cliqueFinset (n + 1)
+      = (G.toSimple.cliqueFinset (n + 1)).map fl
+        ∪ (H.toSimple.cliqueFinset (n + 1)).map fr := by
+    ext s
+    simp only [Finset.mem_union, Finset.mem_map, SimpleGraph.mem_cliqueFinset_iff, hfl, hfr,
+      Function.Embedding.coeFn_mk]
+    rw [isNClique_disjUnion_iff]
+    constructor
+    · rintro (⟨t, ht, rfl⟩ | ⟨t, ht, rfl⟩)
+      · exact Or.inl ⟨t, ht, rfl⟩
+      · exact Or.inr ⟨t, ht, rfl⟩
+    · rintro (⟨t, ht, rfl⟩ | ⟨t, ht, rfl⟩)
+      · exact Or.inl ⟨t, ht, rfl⟩
+      · exact Or.inr ⟨t, ht, rfl⟩
+  have hdisj : Disjoint ((G.toSimple.cliqueFinset (n + 1)).map fl)
+      ((H.toSimple.cliqueFinset (n + 1)).map fr) := by
+    rw [Finset.disjoint_left]
+    rintro s hs hs'
+    simp only [Finset.mem_map, SimpleGraph.mem_cliqueFinset_iff, hfl, hfr,
+      Function.Embedding.coeFn_mk] at hs hs'
+    obtain ⟨t, ht, rfl⟩ := hs
+    obtain ⟨u, -, hu⟩ := hs'
+    obtain ⟨a, ha⟩ : t.Nonempty := Finset.card_pos.1 (by rw [ht.card_eq]; omega)
+    have : (Sum.inl a : (disjUnion G H).V) ∈ u.map ⟨Sum.inr, Sum.inr_injective⟩ := by
+      rw [hu]; simpa using ha
+    simp at this
+  rw [hset, Finset.card_union_of_disjoint hdisj, Finset.card_map, Finset.card_map]
+
+/-- Dually, independent sets never cross a join. -/
+theorem indepCount_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (n : ℕ) :
+    (join G H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
+  classical
+  rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
+
+/-- An independent set of `K_{m,n}` is a set of vertices on one side. -/
+@[simp] theorem indepCount_bipartite (m n k : ℕ) :
+    (bipartite m n).indepCount (k + 1) = m.choose (k + 1) + n.choose (k + 1) := by
+  classical
+  rw [bipartite, indepCount_compl, cliqueCount_disjUnion, cliqueCount_complete,
+    cliqueCount_complete]
+
 end CGraph
 
 namespace IsoGraph
@@ -12790,5 +12907,37 @@ example : (empty 6).indepCount 3 = 20 := by rw [indepCount_empty]; decide
 example : (complete 4).indepCount 2 = 0 := by
   show (complete 4).indepCount (0 + 2) = 0
   simp
+
+/-! ### Counting cliques in a disjoint union -/
+
+theorem cliqueCount_disjUnion (G H : IsoGraph) (n : ℕ) :
+    (disjUnion G H).cliqueCount (n + 1)
+      = G.cliqueCount (n + 1) + H.cliqueCount (n + 1) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [disjUnion_mk, cliqueCount_mk, cliqueCount_mk, cliqueCount_mk]
+  exact CGraph.cliqueCount_disjUnion g h n
+
+theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
+    (join G H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
+  rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
+
+@[simp] theorem indepCount_bipartite (m n k : ℕ) :
+    (bipartite m n).indepCount (k + 1) = m.choose (k + 1) + n.choose (k + 1) := by
+  rw [bipartite_def, indepCount_mk]
+  exact CGraph.indepCount_bipartite m n k
+
+@[simp] theorem indepCount_star (n k : ℕ) :
+    (star n).indepCount (k + 2) = n.choose (k + 2) := by
+  rw [star_def, CGraph.star, ← bipartite_def, indepCount_bipartite]
+  simp [Nat.choose_eq_zero_of_lt]
+
+example : (bipartite 4 6).indepCount 3 = 24 := by
+  rw [show (3 : ℕ) = 2 + 1 from rfl, indepCount_bipartite]; decide
+
+example : (disjUnion (complete 4) (complete 5)).cliqueCount 3 = 14 := by
+  rw [show (3 : ℕ) = 2 + 1 from rfl, cliqueCount_disjUnion, cliqueCount_complete,
+    cliqueCount_complete]
+  decide
 
 end IsoGraph

@@ -1198,6 +1198,16 @@ complementary form of the edge count, **`indepCount 2 + |E| = C(|V|, 2)`** — t
 are precisely the non-edges.  The table is the mirror of the clique one: the empty graph has
 `C(m, n)` independent sets of each size and the complete graph none above size one.
 
+Both counts are additive over a disjoint union, once the size is at least one.  The content is
+`isNClique_disjUnion_iff`: a clique with a vertex in it cannot straddle the two sides, since no
+edge crosses, so `Finset.subset_map_iff` presents it as the image of a clique of one factor.
+Counting the two images — disjoint, because a nonempty set of `Sum.inl`s is never a set of
+`Sum.inr`s — gives **`cliqueCount (G ⊔ H) (n+1) = cliqueCount G (n+1) + cliqueCount H (n+1)`**,
+and reading it through `compl` gives the same statement for `indepCount` across a join.  Since
+`K_{m,n}` *is* a join of two empty graphs, that pins down its independent sets exactly:
+`indepCount (K_{m,n}) (k+1) = C(m, k+1) + C(n, k+1)`, and hence `indepCount (star n) (k+2) =
+C(n, k+2)`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
