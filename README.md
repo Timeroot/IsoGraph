@@ -1358,6 +1358,17 @@ In the other direction, fibrewise counting bounds the cartesian product from abo
 set meets each fibre `{a} × V(H)` in an independent set of `H`, so `α(G □ H) ≤ |V(G)|·α(H)`, and
 since the strong product contains the cartesian one the same bound holds there.
 
+Chromatic numbers of the products complete the same table.  `χ(G □ H) = max χ(G) χ(H)` and
+`χ(G[H]) ≤ χ(G)·χ(H)` were already available, and the new inclusion `G ⊠ H ≤ G[H]` transports the
+second one to the strong product, since a colouring restricts to any subgraph: `χ(G ⊠ H) ≤
+χ(G)·χ(H)`.  Below, the cartesian product sits inside both, so `max χ(G) χ(H)` is a lower bound for
+each as soon as both factors have a vertex, and the clique bound `ω ≤ χ` combines with
+`ω(G ⊠ H) = ω(G)·ω(H)` to give the sharper `ω(G)·ω(H) ≤ χ(G ⊠ H)`.  Products of complete graphs
+show the upper bound is attained.  The tensor product is the interesting one: `χ(G × H) ≤
+min χ(G) χ(H)` holds because either projection is a graph homomorphism, and the matching lower
+bound is exactly Hedetniemi's conjecture, which is false — so all that is proved here is the
+bipartite case, where one bipartite factor plus an edge on each side forces `χ(G × H) = 2`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

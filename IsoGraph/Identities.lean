@@ -7560,6 +7560,62 @@ theorem indepNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq 
   le_trans (indepNum_anti (cartesianProduct_le_strongProduct G H))
     (indepNum_cartesianProduct_le G H)
 
+/-! ### Colouring the strong product -/
+
+/-- **The strong product multiplies chromatic numbers, at worst**: it sits inside the
+lexicographic product, which is already known to satisfy `χ ≤ χ(G)·χ(H)`, and colourings pull
+back along subgraph inclusions. -/
+theorem chromNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).chromNum ≤ G.chromNum * H.chromNum :=
+  chromNum_le_iff_colorable.2
+    ((chromNum_le_iff_colorable.1 (chromNum_lexProduct_le G H)).mono_left
+      (strongProduct_le_lexProduct G H))
+
+/-- Both factors appear as fibres of the cartesian product, which the strong product contains,
+so `max χ(G) χ(H) ≤ χ(G ⊠ H)`. -/
+theorem max_chromNum_le_chromNum_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a : G.V) (b : H.V) : max G.chromNum H.chromNum ≤ (strongProduct G H).chromNum := by
+  rw [← chromNum_cartesianProduct G H a b]
+  exact chromNum_le_iff_colorable.2
+    (colorable_chromNum.mono_left (cartesianProduct_le_strongProduct G H))
+
+/-- The same sandwich for the lexicographic product. -/
+theorem max_chromNum_le_chromNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a : G.V) (b : H.V) : max G.chromNum H.chromNum ≤ (lexProduct G H).chromNum := by
+  rw [← chromNum_cartesianProduct G H a b]
+  exact chromNum_le_iff_colorable.2
+    (colorable_chromNum.mono_left (cartesianProduct_le_lexProduct G H))
+
+/-- Cliques multiply in the strong product, so `ω(G)·ω(H) ≤ χ(G ⊠ H)`: the lower bound coming
+from cliques is itself multiplicative. -/
+theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : CGraph)
+    [DecidableEq G.V] [DecidableEq H.V] :
+    G.cliqueNum * H.cliqueNum ≤ (strongProduct G H).chromNum := by
+  have h := (strongProduct G H).cliqueNum_le_chromNum
+  rwa [cliqueNum_strongProduct] at h
+
+/-- The tensor product of two graphs with an edge has an edge, hence needs two colours.  Together
+with `chromNum_tensorProduct_le` this pins `χ(G × H) = 2` as soon as one factor is bipartite and
+both have an edge.  In general the lower bound is the hard direction: Hedetniemi's conjecture that
+`χ(G × H) = min χ(G) χ(H)` is false. -/
+theorem two_le_chromNum_tensorProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : 0 < G.E) (hH : 0 < H.E) : 2 ≤ (tensorProduct G H).chromNum := by
+  obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
+  obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
+  refine two_le_chromNum_of_adj (a := ((a, b) : (tensorProduct G H).V)) (b := (a', b')) ?_
+  rw [tensorProduct_adj]
+  simp [ha, hb]
+
+/-- One bipartite factor is enough: if `G` is bipartite and both factors have an edge then
+`χ(G × H) = 2`. -/
+theorem chromNum_tensorProduct_eq_two {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsBipartite) (hGE : 0 < G.E) (hHE : 0 < H.E) :
+    (tensorProduct G H).chromNum = 2 :=
+  le_antisymm
+    (le_trans (chromNum_tensorProduct_le G H)
+      (le_trans (min_le_left _ _) (isBipartite_iff_chromNum_le_two.1 hG)))
+    (two_le_chromNum_tensorProduct hGE hHE)
+
 end CGraph
 
 namespace IsoGraph
@@ -14965,5 +15021,97 @@ example : 3 ≤ (tensorProduct (complete 3) (complete 3)).indepNum := by
   have h := V_mul_indepNum_le_indepNum_tensorProduct (complete 3) (complete 3)
   rw [V_complete, indepNum_complete] at h
   omega
+
+/-! ### Colouring the strong product -/
+
+/-- **`χ(G ⊠ H) ≤ χ(G)·χ(H)`.** -/
+theorem chromNum_strongProduct_le (G H : IsoGraph) :
+    (strongProduct G H).chromNum ≤ G.chromNum * H.chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, chromNum_mk,
+    chromNum_mk]
+  exact CGraph.chromNum_strongProduct_le _ _
+
+/-- `max χ(G) χ(H) ≤ χ(G ⊠ H)`, once both factors have a vertex. -/
+theorem max_chromNum_le_chromNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    max G.chromNum H.chromNum ≤ (strongProduct G H).chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, V_mk] at hG
+  rw [← mk_canonicalize h, V_mk] at hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, chromNum_mk,
+    chromNum_mk]
+  exact CGraph.max_chromNum_le_chromNum_strongProduct _ _ a b
+
+/-- `max χ(G) χ(H) ≤ χ(G[H])`, once both factors have a vertex. -/
+theorem max_chromNum_le_chromNum_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    max G.chromNum H.chromNum ≤ (lexProduct G H).chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, V_mk] at hG
+  rw [← mk_canonicalize h, V_mk] at hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, chromNum_mk, chromNum_mk,
+    chromNum_mk]
+  exact CGraph.max_chromNum_le_chromNum_lexProduct _ _ a b
+
+/-- `ω(G)·ω(H) ≤ χ(G ⊠ H)`. -/
+theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : IsoGraph) :
+    G.cliqueNum * H.cliqueNum ≤ (strongProduct G H).chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, cliqueNum_mk,
+    cliqueNum_mk]
+  exact CGraph.cliqueNum_mul_cliqueNum_le_chromNum_strongProduct _ _
+
+/-- Two edges make a tensor edge: `2 ≤ χ(G × H)`. -/
+theorem two_le_chromNum_tensorProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    2 ≤ (tensorProduct G H).chromNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, E_mk] at hG
+  rw [← mk_canonicalize h, E_mk] at hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, chromNum_mk]
+  exact CGraph.two_le_chromNum_tensorProduct hG hH
+
+/-- A bipartite factor and edges on both sides force `χ(G × H) = 2`. -/
+theorem chromNum_tensorProduct_eq_two {G H : IsoGraph} (hG : IsBipartite G)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : (tensorProduct G H).chromNum = 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, isBipartite_mk] at hG
+  rw [← mk_canonicalize g, E_mk] at hGE
+  rw [← mk_canonicalize h, E_mk] at hHE
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, chromNum_mk]
+  exact CGraph.chromNum_tensorProduct_eq_two hG hGE hHE
+
+/-- The strong product of complete graphs shows the upper bound is attained. -/
+example : (strongProduct (complete 3) (complete 4)).chromNum = 12 := by
+  rw [strongProduct_complete, chromNum_complete]
+
+example : 4 ≤ (strongProduct (cycle 5) (cycle 5)).chromNum := by
+  have h := cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (cycle 5) (cycle 5)
+  have h5 : (cycle 5).cliqueNum = 2 := cliqueNum_cycle_five
+  rw [h5] at h
+  omega
+
+example : (strongProduct (cycle 5) (cycle 5)).chromNum ≤ 9 := by
+  have h := chromNum_strongProduct_le (cycle 5) (cycle 5)
+  have h5 : (cycle 5).chromNum = 3 := by
+    have := chromNum_cycle_odd 1
+    norm_num at this
+    exact this
+  rw [h5] at h
+  omega
+
+example : (tensorProduct (cycle 4) (path 3)).chromNum = 2 := by
+  refine chromNum_tensorProduct_eq_two ?_ ?_ ?_
+  · simpa using isBipartite_cycle_even 2
+  · simp
+  · simp
 
 end IsoGraph
