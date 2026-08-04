@@ -7745,6 +7745,64 @@ theorem three_le_cliqueNum_add_indepNum (G : CGraph) (hV : 2 ≤ Fintype.card G.
     have h2 := two_le_indepNum hab h
     omega
 
+
+/-! ### Regular graphs -/
+
+theorem isRegularWith_iff_forall_degree {G : CGraph} {k : ℕ} :
+    G.IsRegularWith k ↔ ∀ v : G.V, G.toSimple.degree v = k := Iff.rfl
+
+/-- Constant neighbour counts are exactly regularity. -/
+theorem isRegularWith_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v).card = k) :
+    G.IsRegularWith k := isRegularOfDegree_of_card_nbrs G h
+
+/-- A constant degree sequence is exactly regularity; this is the bridge that turns the whole
+`degSequence` table into a table of regular graphs. -/
+theorem isRegularWith_of_degSequence {G : CGraph} {n k : ℕ}
+    (h : G.degSequence = List.replicate n k) : G.IsRegularWith k :=
+  isRegularWith_of_card_nbrs G fun v ↦ card_nbrs_of_degSequence h v
+
+theorem IsRegularWith.degSequence {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.degSequence = List.replicate (Fintype.card G.V) k := degSequence_of_regular G h
+
+/-- Squeezing the degrees between the two extremes forces regularity. -/
+theorem isRegularWith_of_maxDeg_le_of_le_minDeg {G : CGraph} {k : ℕ}
+    (h1 : G.maxDeg ≤ k) (h2 : k ≤ G.minDeg) : G.IsRegularWith k := fun v ↦
+  le_antisymm (le_trans (G.degree_le_maxDeg v) h1) (le_trans h2 (G.minDeg_le_degree v))
+
+theorem IsRegularWith.maxDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) (v₀ : G.V) :
+    G.maxDeg = k :=
+  le_antisymm (maxDeg_le_of_forall fun v ↦ (h v).le) (h v₀ ▸ G.degree_le_maxDeg v₀)
+
+theorem IsRegularWith.minDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) (v₀ : G.V) :
+    G.minDeg = k :=
+  le_antisymm (h v₀ ▸ G.minDeg_le_degree v₀) (le_minDeg_of_forall v₀ fun v ↦ (h v).ge)
+
+/-- **Strongly regular graphs are regular**, with the same degree parameter. -/
+theorem IsSRGWith.isRegularWith {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    G.IsRegularWith k := SimpleGraph.IsSRGWith.regular h
+
+/-- **The complement of a `k`-regular graph is `(n - 1 - k)`-regular.** -/
+theorem IsRegularWith.compl {G : CGraph} [DecidableEq G.V] {k : ℕ} (h : G.IsRegularWith k) :
+    (compl G).IsRegularWith (Fintype.card G.V - 1 - k) := fun v ↦ by
+  rw [degree_compl, h v]
+
+/-- A disjoint union of two `k`-regular graphs is `k`-regular. -/
+theorem IsRegularWith.disjUnion {G H : CGraph} {k : ℕ} (hG : G.IsRegularWith k)
+    (hH : H.IsRegularWith k) : (disjUnion G H).IsRegularWith k := by
+  rintro (a | b)
+  · rw [degree_disjUnion_inl]; exact hG a
+  · rw [degree_disjUnion_inr]; exact hH b
+
+/-- A join is regular exactly when the two sides end up with the same total degree: each vertex
+of `G` picks up all of `H` and vice versa. -/
+theorem IsRegularWith.join {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l m : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
+    (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
+    (join G H).IsRegularWith m := by
+  rintro (a | b)
+  · rw [degree_join_inl, hG a]; exact h1
+  · rw [degree_join_inr, hH b]; exact h2
+
 end CGraph
 
 namespace IsoGraph
@@ -15517,5 +15575,170 @@ example (n : ℕ) :
 example : (cycle 5).chromNum ≤ 4 := by
   have h := (cycle 5).chromNum_le_coverNum_add_one
   rwa [coverNum_cycle] at h
+
+
+/-! ### Regular graphs -/
+
+/-- A constant degree sequence is exactly regularity. -/
+theorem isRegularWith_of_degSequence {G : IsoGraph} {n k : ℕ}
+    (h : degSequence G = List.replicate n k) : G.IsRegularWith k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [degSequence_mk] at h
+  exact CGraph.isRegularWith_of_degSequence h
+
+theorem IsRegularWith.degSequence {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    IsoGraph.degSequence G = List.replicate G.V k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, isRegularWith_mk] at h
+  rw [← mk_canonicalize g, degSequence_mk, V_mk]
+  exact CGraph.IsRegularWith.degSequence h
+
+/-- **The handshake lemma for regular graphs**: `2|E| = k|V|`. -/
+theorem IsRegularWith.two_mul_E {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    2 * G.E = G.V * k := two_mul_E_of_degSequence_replicate h.degSequence
+
+theorem IsRegularWith.maxDeg_eq {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) (hV : 0 < G.V) :
+    G.maxDeg = k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, isRegularWith_mk] at h
+  rw [← mk_canonicalize g, V_mk] at hV
+  obtain ⟨v₀⟩ := Fintype.card_pos_iff.1 hV
+  rw [← mk_canonicalize g, maxDeg_mk]
+  exact CGraph.IsRegularWith.maxDeg_eq h v₀
+
+theorem IsRegularWith.minDeg_eq {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) (hV : 0 < G.V) :
+    G.minDeg = k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, isRegularWith_mk] at h
+  rw [← mk_canonicalize g, V_mk] at hV
+  obtain ⟨v₀⟩ := Fintype.card_pos_iff.1 hV
+  rw [← mk_canonicalize g, minDeg_mk]
+  exact CGraph.IsRegularWith.minDeg_eq h v₀
+
+theorem isRegularWith_of_maxDeg_le_of_le_minDeg {G : IsoGraph} {k : ℕ}
+    (h1 : G.maxDeg ≤ k) (h2 : k ≤ G.minDeg) : G.IsRegularWith k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, maxDeg_mk] at h1
+  rw [← mk_canonicalize g, minDeg_mk] at h2
+  rw [← mk_canonicalize g, isRegularWith_mk]
+  exact CGraph.isRegularWith_of_maxDeg_le_of_le_minDeg h1 h2
+
+/-- **Strongly regular graphs are regular.** -/
+theorem IsSRGWith.isRegularWith {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
+    G.IsRegularWith k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  exact CGraph.IsSRGWith.isRegularWith h
+
+/-- **A vertex-transitive graph is regular**, of degree its common vertex degree. -/
+theorem exists_isRegularWith_of_isVertexTransitive {G : IsoGraph} (h : IsVertexTransitive G) :
+    ∃ k, G.IsRegularWith k := by
+  obtain ⟨k, hk⟩ := exists_degSequence_replicate_of_isVertexTransitive h
+  exact ⟨k, isRegularWith_of_degSequence hk⟩
+
+/-! #### Regularity of the constructions -/
+
+theorem IsRegularWith.compl {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    (compl G).IsRegularWith (G.V - 1 - k) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, isRegularWith_mk] at h
+  rw [← mk_canonicalize g, V_mk, compl_mk, isRegularWith_mk]
+  exact CGraph.IsRegularWith.compl h
+
+theorem IsRegularWith.disjUnion {G H : IsoGraph} {k : ℕ} (hG : G.IsRegularWith k)
+    (hH : H.IsRegularWith k) : (disjUnion G H).IsRegularWith k := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  exact CGraph.IsRegularWith.disjUnion hG hH
+
+theorem IsRegularWith.join {G H : IsoGraph} {k l m : ℕ} (hG : G.IsRegularWith k)
+    (hH : H.IsRegularWith l) (h1 : k + H.V = m) (h2 : G.V + l = m) :
+    (join G H).IsRegularWith m := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [join_mk, isRegularWith_mk]
+  rw [isRegularWith_mk] at hG hH
+  rw [V_mk] at h1 h2
+  exact CGraph.IsRegularWith.join hG hH h1 h2
+
+/-- **The Cartesian product of a `k`-regular and an `l`-regular graph is `(k + l)`-regular.** -/
+theorem IsRegularWith.cartesianProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
+    (hH : H.IsRegularWith l) : (cartesianProduct G H).IsRegularWith (k + l) :=
+  isRegularWith_of_degSequence (degSequence_cartesianProduct hG.degSequence hH.degSequence)
+
+/-- **The tensor product multiplies the degrees.** -/
+theorem IsRegularWith.tensorProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
+    (hH : H.IsRegularWith l) : (tensorProduct G H).IsRegularWith (k * l) :=
+  isRegularWith_of_degSequence (degSequence_tensorProduct hG.degSequence hH.degSequence)
+
+/-- **The strong product**, being the union of the other two, has degree `(k+1)(l+1) - 1`. -/
+theorem IsRegularWith.strongProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
+    (hH : H.IsRegularWith l) : (strongProduct G H).IsRegularWith ((k + 1) * (l + 1) - 1) :=
+  isRegularWith_of_degSequence (degSequence_strongProduct hG.degSequence hH.degSequence)
+
+/-- **The lexicographic product**: a vertex sees `k` whole copies of `H` plus its `l` neighbours
+inside its own copy. -/
+theorem IsRegularWith.lexProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
+    (hH : H.IsRegularWith l) : (lexProduct G H).IsRegularWith (k * H.V + l) :=
+  isRegularWith_of_degSequence (degSequence_lexProduct hG.degSequence hH.degSequence)
+
+/-! #### The regularity table -/
+
+@[simp] theorem isRegularWith_empty (n : ℕ) : (empty n).IsRegularWith 0 :=
+  isRegularWith_of_degSequence (degSequence_empty n)
+
+@[simp] theorem isRegularWith_complete (n : ℕ) : (complete n).IsRegularWith (n - 1) :=
+  isRegularWith_of_degSequence (degSequence_complete n)
+
+@[simp] theorem isRegularWith_cycle (n : ℕ) : (cycle (n + 3)).IsRegularWith 2 :=
+  isRegularWith_of_degSequence (degSequence_cycle n)
+
+@[simp] theorem isRegularWith_petersen : petersen.IsRegularWith 3 :=
+  isRegularWith_of_degSequence degSequence_petersen
+
+@[simp] theorem isRegularWith_hypercube (n : ℕ) : (hypercube n).IsRegularWith n :=
+  isRegularWith_of_degSequence (degSequence_hypercube n)
+
+@[simp] theorem isRegularWith_prism (n : ℕ) : (prism (n + 3)).IsRegularWith 3 :=
+  isRegularWith_of_degSequence (degSequence_prism n)
+
+@[simp] theorem isRegularWith_cocktailParty (n : ℕ) :
+    (cocktailParty n).IsRegularWith (2 * n - 2) :=
+  isRegularWith_of_degSequence (degSequence_cocktailParty n)
+
+@[simp] theorem isRegularWith_bipartite_self (n : ℕ) : (bipartite n n).IsRegularWith n :=
+  isRegularWith_of_degSequence (degSequence_bipartite_self n)
+
+@[simp] theorem isRegularWith_rook (m n : ℕ) :
+    (rook m n).IsRegularWith ((n - 1) + (m - 1)) :=
+  isRegularWith_of_degSequence (degSequence_rook m n)
+
+theorem isRegularWith_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
+    (kneser n k).IsRegularWith ((n - k).choose k) :=
+  isRegularWith_of_degSequence (degSequence_kneser n hk)
+
+/-- The Petersen graph is `3`-regular on ten vertices, so it has fifteen edges. -/
+example : petersen.E = 15 := by
+  have h := isRegularWith_petersen.two_mul_E
+  rw [V_petersen] at h
+  omega
+
+/-- `C₅ □ K₃` is `(2 + 2)`-regular. -/
+example : (cartesianProduct (cycle 5) (complete 3)).IsRegularWith 4 := by
+  have h := (isRegularWith_cycle 2).cartesianProduct (isRegularWith_complete 3)
+  norm_num at h
+  exact h
+
+/-- The complement of a `k`-regular graph on `n` vertices is `(n - 1 - k)`-regular: for Petersen
+that is the triangular graph `T(5)`, which is `6`-regular. -/
+example : (compl petersen).IsRegularWith 6 := by
+  have h := isRegularWith_petersen.compl
+  rwa [V_petersen] at h
+
+/-- The cube `Q₃` is `3`-regular on eight vertices, so it has twelve edges. -/
+example : (hypercube 3).E = 12 := by
+  have h := (isRegularWith_hypercube 3).two_mul_E
+  rw [V_hypercube] at h
+  omega
 
 end IsoGraph

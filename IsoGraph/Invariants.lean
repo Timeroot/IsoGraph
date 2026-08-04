@@ -211,6 +211,17 @@ theorem isSRGWith_of_iso (f : G ≃g G') (h : G.IsSRGWith n k ℓ μ) : G'.IsSRG
 theorem isSRGWith_iff (f : G ≃g G') : G.IsSRGWith n k ℓ μ ↔ G'.IsSRGWith n k ℓ μ :=
   ⟨isSRGWith_of_iso f, isSRGWith_of_iso f.symm⟩
 
+/-- Regularity transfers along an isomorphism: it preserves degrees and is surjective. -/
+theorem isRegularOfDegree_of_iso (f : G ≃g G') (h : G.IsRegularOfDegree k) :
+    G'.IsRegularOfDegree k := fun v ↦ by
+  obtain ⟨u, rfl⟩ := f.surjective v
+  rw [f.degree_eq u]
+  exact h u
+
+/-- Isomorphic graphs are regular of the same degree. -/
+theorem isRegularOfDegree_iff (f : G ≃g G') : G.IsRegularOfDegree k ↔ G'.IsRegularOfDegree k :=
+  ⟨isRegularOfDegree_of_iso f, isRegularOfDegree_of_iso f.symm⟩
+
 end StronglyRegular
 
 /-- **Girth is an isomorphism invariant**: an isomorphism carries cycles to cycles of the same
@@ -386,6 +397,10 @@ vertex has degree `k`, adjacent vertices have `ℓ` common neighbours, and disti
 vertices have `μ`.  Unlike the invariants above this one takes the parameters as arguments; it is
 a property, not a number, and `IsoGraph/SRG.lean` is a table of graphs satisfying it. -/
 def IsSRGWith (n k ℓ μ : ℕ) : Prop := G.toSimple.IsSRGWith n k ℓ μ
+
+/-- The graph is *`k`-regular*: every vertex has exactly `k` neighbours.  Like `IsSRGWith` this
+takes its parameter as an argument, and it is the first condition of strong regularity. -/
+def IsRegularWith (k : ℕ) : Prop := G.toSimple.IsRegularOfDegree k
 
 /-- The neighbours of `v`, as a `Finset`.  Same thing as `G.toSimple.neighborFinset v`
 (`neighborFinset_eq_nbrs`), but phrased with `CGraph.Adj` so that it can be computed with and
@@ -680,6 +695,14 @@ def IsSRGWith (G : IsoGraph) (n k ℓ μ : ℕ) : Prop :=
 
 @[simp] theorem isSRGWith_mk (G : CGraph) (n k ℓ μ : ℕ) :
     IsSRGWith (Quotient.mk _ G) n k ℓ μ = G.IsSRGWith n k ℓ μ := rfl
+
+/-- Regularity of a given degree. -/
+def IsRegularWith (G : IsoGraph) (k : ℕ) : Prop :=
+  Quotient.lift (s := CGraph.isoSetoid) (fun H ↦ H.IsRegularWith k)
+    (fun _ _ ⟨i⟩ ↦ propext (SimpleGraph.Iso.isRegularOfDegree_iff (CGraph.Iso.toSimpleIso i))) G
+
+@[simp] theorem isRegularWith_mk (G : CGraph) (k : ℕ) :
+    IsRegularWith (Quotient.mk _ G) k = G.IsRegularWith k := rfl
 
 /-- Girth. -/
 noncomputable def girth (G : IsoGraph) : ℕ :=

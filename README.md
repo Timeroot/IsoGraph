@@ -170,10 +170,11 @@ function-typed body, and `canonMatrix` takes the permutation as an argument.
 Mathlib notion for `G.toSimple` (that is the form concrete statements get proved in), and once on
 `IsoGraph`, as a `Quotient.lift` whose side condition is precisely isomorphism-invariance. Present
 so far: `indepNum`, `cliqueNum`, `E`, `degSequence`, `IsConnected`, `IsAcyclic`, `IsTree`,
-`diameter`, `IsSRGWith`, `IsVertexTransitive`, `IsArcTransitive`, `IsBipartite`. Mathlib had no
-invariance lemma
-for distance or for strong regularity, so `SimpleGraph.Iso.edist_eq`, `ediam_eq`, `diam_eq`,
-`card_commonNeighbors_eq` and `isSRGWith_of_iso` are proved there. `IsBipartite` is phrased as a
+`diameter`, `IsSRGWith`, `IsRegularWith`, `IsVertexTransitive`, `IsArcTransitive`, `IsBipartite`.
+Mathlib had no invariance lemma
+for distance, for strong regularity or for regularity, so `SimpleGraph.Iso.edist_eq`, `ediam_eq`,
+`diam_eq`, `card_commonNeighbors_eq`, `isSRGWith_of_iso` and `isRegularOfDegree_of_iso` are proved
+there. `IsBipartite` is phrased as a
 `Bool`-valued colouring with no monochromatic edge rather than as a pair of vertex sets — that is
 the form the double-cover splitting theorem consumes — and `isBipartite_iff_colorable` identifies
 it with Mathlib's `Colorable 2`.
@@ -1408,6 +1409,28 @@ tau(G) + tau(G^c) + alpha(G) + omega(G) = 2|V|, which converts the clique-side
 Nordhaus-Gaddum pair into |V| - 1 <= tau(G) + tau(G^c) <= 2|V| - 3 (the upper bound
 on two or more vertices). The complete graph attains the lower bound. Finally, with
 no isolated vertices every vertex cover dominates, so gamma + alpha <= |V|.
+
+Regularity is the newest invariant, and it comes almost for free. `IsRegularWith k`
+says every vertex has degree `k`; it is the first clause of `IsSRGWith`, and it is
+isomorphism-invariant for the same reason strong regularity is, so it descends to the
+quotient with an `isRegularWith_mk` simp lemma. The bridge that makes it cheap is
+`isRegularWith_of_degSequence`: a graph whose degree sequence is `List.replicate n k`
+is `k`-regular, and the converse `IsRegularWith.degSequence` recovers the sequence.
+Every entry of the existing degree-sequence table therefore becomes an entry of a
+regularity table for free — the empty graph is `0`-regular, `K_n` is `(n-1)`-regular,
+cycles are `2`-regular, the Petersen graph is `3`-regular, `Q_n` is `n`-regular, prisms
+are `3`-regular, the cocktail party graph is `(2n-2)`-regular, `K_{n,n}` is `n`-regular,
+the rook graph is `((n-1)+(m-1))`-regular and the Kneser graph `K(n,k)` is
+`(n-k) choose k`-regular. The same bridge handles the four products, since their
+degree-sequence lemmas already take constant sequences as input: the Cartesian product
+of a `k`-regular and an `l`-regular graph is `(k+l)`-regular, the tensor product is
+`k*l`-regular, the strong product is `((k+1)(l+1)-1)`-regular and the lexicographic
+product is `(k|V(H)| + l)`-regular. Complements are `(|V| - 1 - k)`-regular, disjoint
+unions of equally regular graphs stay regular, and a join is regular when the two
+degrees plus the two cardinalities line up. Strongly regular graphs are regular by
+definition, vertex-transitive graphs are regular because the automorphism group moves
+any vertex to any other, and the handshake lemma specialises to `2|E| = |V| * k`,
+which is how `petersen.E = 15` and `(hypercube 3).E = 12` fall out in one line.
 
 ## Enumeration
 
