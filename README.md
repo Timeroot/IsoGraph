@@ -1447,6 +1447,17 @@ regularity hypothesis of the earlier `IsSRGWith.E_lineGraph`, and
 `2|E(L(G))| = |E| * (2k - 2)` — and since `T(n)` is the line graph of `K_n` it
 comes out `(2n - 4)`-regular with no lower bound on `n` at all.
 
+Once a graph is known to be `k`-regular, every bound phrased in terms of the maximum
+degree can be restated with `k` in its place, and `IsRegularWith.maxDeg_eq` is the
+one-line bridge that does it: `chi <= k + 1`, `n <= gamma * (k + 1)`,
+`n <= alpha * (k + 1)`, `gamma + k <= n`, `|E| <= tau * k` and
+`|E| + alpha * k <= n * k`. Regularity also constrains the graph itself. Since
+`2|E| = n * k`, a regular graph of odd degree has an even number of vertices, so there
+is no `3`-regular graph on five vertices; `k < n` whenever the graph is nonempty; the
+degree of a regular graph is unique; the complement's edge count is forced to
+`2|E(G^c)| = n(n - 1 - k)`; and a `0`-regular graph is the empty graph on its own
+vertex set.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -7854,6 +7854,18 @@ theorem le_minDeg_lineGraph (G : CGraph) [DecidableEq G.V] (e₀ : (lineGraph G)
   have h1 := G.minDeg_le_degree u
   have h2 := G.minDeg_le_degree v
   omega
+
+/-! ### Consequences of regularity -/
+
+theorem adj_eq_false_of_isRegularWith_zero {G : CGraph} (h : G.IsRegularWith 0) (x y : G.V) :
+    G.Adj x y = false := by
+  by_contra hxy
+  have hadj : G.toSimple.Adj x y := by
+    simp only [toSimple_adj]
+    simpa using hxy
+  have hpos : 0 < G.toSimple.degree x := (G.toSimple.degree_pos_iff_exists_adj x).2 ⟨y, hadj⟩
+  have hd : G.toSimple.degree x = 0 := h x
+  omega
 end CGraph
 
 namespace IsoGraph
@@ -15860,5 +15872,95 @@ example : (lineGraph (hypercube 3)).E = 24 := by
   rfl
 
 example : (triangular 5).IsRegularWith 6 := isRegularWith_triangular 5
+
+/-! ### Consequences of regularity -/
+
+/-- A `k`-regular graph on a nonempty vertex set has more than `k` vertices. -/
+theorem IsRegularWith.lt_V {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) (hV : 0 < G.V) :
+    k < G.V := by
+  rw [← h.maxDeg_eq hV]
+  exact maxDeg_lt_V hV
+
+/-- The degree of a regular graph is determined by the graph. -/
+theorem IsRegularWith.unique {G : IsoGraph} {k l : ℕ} (hk : G.IsRegularWith k)
+    (hl : G.IsRegularWith l) (hV : 0 < G.V) : k = l := by
+  rw [← hk.maxDeg_eq hV, ← hl.maxDeg_eq hV]
+
+/-- The handshake parity constraint: an odd-degree regular graph has an even number of
+vertices.  There is no `3`-regular graph on five vertices. -/
+theorem IsRegularWith.two_dvd_V {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) (hk : ¬ 2 ∣ k) :
+    2 ∣ G.V := by
+  have h2 : 2 ∣ G.V * k := ⟨G.E, h.two_mul_E.symm⟩
+  rcases (Nat.Prime.dvd_mul Nat.prime_two).1 h2 with h3 | h3
+  · exact h3
+  · exact absurd h3 hk
+
+/-- Greedy colouring on a regular graph. -/
+theorem IsRegularWith.chromNum_le {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.chromNum ≤ k + 1 := by
+  rcases Nat.eq_zero_or_pos G.V with hV | hV
+  · have := G.chromNum_le_V
+    omega
+  · rw [← h.maxDeg_eq hV]
+    exact G.chromNum_le_maxDeg_add_one
+
+/-- A dominating set of a `k`-regular graph covers at most `k + 1` vertices per element. -/
+theorem IsRegularWith.V_le_domNum_mul {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hV : 0 < G.V) : G.V ≤ G.domNum * (k + 1) :=
+  le_domNum_of_regular (h.maxDeg_eq hV)
+
+/-- The greedy bound `α ≥ n / (k + 1)` for a `k`-regular graph. -/
+theorem IsRegularWith.V_le_indepNum_mul {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hV : 0 < G.V) : G.V ≤ G.indepNum * (k + 1) := by
+  rw [← h.maxDeg_eq hV]
+  exact G.V_le_indepNum_mul_maxDeg_add_one
+
+theorem IsRegularWith.domNum_add_le {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hV : 0 < G.V) : G.domNum + k ≤ G.V := by
+  rw [← h.maxDeg_eq hV]
+  exact G.domNum_add_maxDeg_le_V
+
+/-- Each vertex of a cover of a `k`-regular graph is on `k` edges. -/
+theorem IsRegularWith.E_le_coverNum_mul {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hV : 0 < G.V) : G.E ≤ G.coverNum * k := by
+  rw [← h.maxDeg_eq hV]
+  exact G.E_le_coverNum_mul_maxDeg
+
+theorem IsRegularWith.E_add_indepNum_mul_le {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hV : 0 < G.V) : G.E + G.indepNum * k ≤ G.V * k := by
+  rw [← h.maxDeg_eq hV]
+  exact G.indepNum_mul_maxDeg_le
+
+/-- The complement of a `k`-regular graph is `(n - 1 - k)`-regular, so its edge count is
+also forced. -/
+theorem IsRegularWith.two_mul_E_compl {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    2 * (IsoGraph.compl G).E = G.V * (G.V - 1 - k) := by
+  have h2 := h.compl.two_mul_E
+  rwa [V_compl] at h2
+
+/-- A `0`-regular graph has no edges at all. -/
+theorem IsRegularWith.eq_empty {G : IsoGraph} (h : G.IsRegularWith 0) : G = empty G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at h ⊢
+  rw [isRegularWith_mk] at h
+  rw [V_mk]
+  exact mk_eq_empty (CGraph.adj_eq_false_of_isRegularWith_zero h)
+
+example : petersen.chromNum ≤ 4 := isRegularWith_petersen.chromNum_le
+
+example : (compl petersen).E = 30 := by
+  have h := isRegularWith_petersen.two_mul_E_compl
+  rw [V_petersen] at h
+  omega
+
+/-- No graph on five vertices is `3`-regular. -/
+example (G : IsoGraph) (hV : G.V = 5) : ¬ G.IsRegularWith 3 := fun h ↦ by
+  have := h.two_dvd_V (by omega)
+  omega
+
+example : (cycle 5).indepNum * 3 ≥ 5 := by
+  have h := (isRegularWith_cycle 2).V_le_indepNum_mul (by simp)
+  rw [V_cycle] at h
+  omega
 
 end IsoGraph
