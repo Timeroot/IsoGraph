@@ -6060,6 +6060,70 @@ theorem cliqueCount_three_eq_zero_of_isBipartite {G : CGraph} (h : G.IsBipartite
   rw [cliqueNum_empty]
   omega
 
+/-! ### Counting independent sets
+
+Independent sets are cliques of the complement, so the whole clique-count API transfers: each
+fact below is its clique-count counterpart read through `compl`. -/
+
+@[simp] theorem cliqueCount_compl (G : CGraph) [DecidableEq G.V] (n : ℕ) :
+    (compl G).cliqueCount n = G.indepCount n := by
+  rw [cliqueCount, indepCount]
+  congr 1
+  ext s
+  simp [compl_toSimple]
+
+@[simp] theorem indepCount_compl (G : CGraph) [DecidableEq G.V] (n : ℕ) :
+    (compl G).indepCount n = G.cliqueCount n := by
+  rw [← cliqueCount_compl (compl G), compl_compl]
+
+@[simp] theorem indepCount_zero (G : CGraph) : G.indepCount 0 = 1 := by
+  classical
+  rw [← cliqueCount_compl]
+  exact cliqueCount_zero _
+
+@[simp] theorem indepCount_one (G : CGraph) : G.indepCount 1 = Fintype.card G.V := by
+  classical
+  rw [← cliqueCount_compl, cliqueCount_one, card_compl]
+
+theorem indepCount_eq_zero_iff (G : CGraph) (n : ℕ) :
+    G.indepCount n = 0 ↔ G.indepNum < n := by
+  classical
+  rw [← cliqueCount_compl, cliqueCount_eq_zero_iff, cliqueNum_compl]
+
+theorem indepCount_pos_iff (G : CGraph) (n : ℕ) : 0 < G.indepCount n ↔ n ≤ G.indepNum := by
+  rw [Nat.pos_iff_ne_zero, ne_eq, indepCount_eq_zero_iff]
+  omega
+
+theorem indepCount_eq_zero_of_indepNum_lt {G : CGraph} {n : ℕ} (h : G.indepNum < n) :
+    G.indepCount n = 0 :=
+  (indepCount_eq_zero_iff G n).2 h
+
+theorem indepCount_le_choose (G : CGraph) (n : ℕ) :
+    G.indepCount n ≤ (Fintype.card G.V).choose n := by
+  classical
+  rw [← cliqueCount_compl]
+  have h := cliqueCount_le_choose (compl G) n
+  rwa [card_compl] at h
+
+theorem indepCount_eq_zero_of_card_lt {G : CGraph} {n : ℕ} (h : Fintype.card G.V < n) :
+    G.indepCount n = 0 :=
+  Nat.le_zero.1 ((indepCount_le_choose G n).trans (Nat.choose_eq_zero_of_lt h).le)
+
+/-- The independent pairs are exactly the non-edges. -/
+theorem indepCount_two_add_E (G : CGraph) [DecidableEq G.V] :
+    G.indepCount 2 + G.E = (Fintype.card G.V).choose 2 := by
+  rw [← cliqueCount_compl, cliqueCount_two]
+  exact E_compl G
+
+/-- Every set of vertices of the empty graph is independent. -/
+@[simp] theorem indepCount_empty (m n : ℕ) : (empty m).indepCount n = m.choose n := by
+  rw [← cliqueCount_compl]
+  exact cliqueCount_complete m n
+
+@[simp] theorem indepCount_complete (m n : ℕ) : (complete m).indepCount (n + 2) = 0 := by
+  rw [← cliqueCount_compl, show compl (complete m) = empty m from compl_compl (empty m)]
+  exact cliqueCount_empty m n
+
 end CGraph
 
 namespace IsoGraph
@@ -12680,5 +12744,51 @@ theorem cliqueCount_three_eq_zero_of_isBipartite {G : IsoGraph} (h : G.IsBiparti
 example : (complete 5).cliqueCount 3 = 10 := by rw [cliqueCount_complete]; decide
 
 example : (cycle 6).cliqueCount 3 = 0 := cliqueCount_cycle_even 3
+
+/-! ### Counting independent sets -/
+
+@[simp] theorem cliqueCount_compl (G : IsoGraph) (n : ℕ) :
+    (compl G).cliqueCount n = G.indepCount n := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, cliqueCount_mk, indepCount_mk]
+  exact CGraph.cliqueCount_compl _ n
+
+@[simp] theorem indepCount_compl (G : IsoGraph) (n : ℕ) :
+    (compl G).indepCount n = G.cliqueCount n := by
+  rw [← cliqueCount_compl (compl G), compl_compl]
+
+@[simp] theorem indepCount_zero (G : IsoGraph) : G.indepCount 0 = 1 := by
+  rw [← cliqueCount_compl, cliqueCount_zero]
+
+@[simp] theorem indepCount_one (G : IsoGraph) : G.indepCount 1 = G.V := by
+  rw [← cliqueCount_compl, cliqueCount_one, V_compl]
+
+theorem indepCount_eq_zero_iff (G : IsoGraph) (n : ℕ) :
+    G.indepCount n = 0 ↔ G.indepNum < n := by
+  rw [← cliqueCount_compl, cliqueCount_eq_zero_iff, cliqueNum_compl]
+
+theorem indepCount_pos_iff (G : IsoGraph) (n : ℕ) : 0 < G.indepCount n ↔ n ≤ G.indepNum := by
+  rw [Nat.pos_iff_ne_zero, ne_eq, indepCount_eq_zero_iff]
+  omega
+
+theorem indepCount_le_choose (G : IsoGraph) (n : ℕ) : G.indepCount n ≤ G.V.choose n := by
+  rw [← cliqueCount_compl, ← V_compl]
+  exact cliqueCount_le_choose _ n
+
+theorem indepCount_two_add_E (G : IsoGraph) : G.indepCount 2 + G.E = G.V.choose 2 := by
+  rw [← cliqueCount_compl, cliqueCount_two]
+  exact E_compl_add G
+
+@[simp] theorem indepCount_empty (m n : ℕ) : (empty m).indepCount n = m.choose n := by
+  rw [← cliqueCount_compl, compl_empty, cliqueCount_complete]
+
+@[simp] theorem indepCount_complete (m n : ℕ) : (complete m).indepCount (n + 2) = 0 := by
+  rw [← cliqueCount_compl, compl_complete, cliqueCount_empty]
+
+example : (empty 6).indepCount 3 = 20 := by rw [indepCount_empty]; decide
+
+example : (complete 4).indepCount 2 = 0 := by
+  show (complete 4).indepCount (0 + 2) = 0
+  simp
 
 end IsoGraph

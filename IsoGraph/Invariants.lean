@@ -68,6 +68,24 @@ theorem cliqueSet_ncard_eq (f : G ≃g G') (n : ℕ) :
       exact isNClique_map f hs
   rw [himg, Set.ncard_image_of_injective _ (Finset.map_injective _)]
 
+/-- The independent `n`-sets of two isomorphic graphs are in bijection, so there are equally
+many. -/
+theorem indepSetSet_ncard_eq (f : G ≃g G') (n : ℕ) :
+    (G.indepSetSet n).ncard = (G'.indepSetSet n).ncard := by
+  have himg : G'.indepSetSet n
+      = (fun s : Finset V ↦ s.map ⟨f, f.injective⟩) '' G.indepSetSet n := by
+    ext t
+    simp only [Set.mem_image, mem_indepSetSet_iff]
+    constructor
+    · intro ht
+      refine ⟨t.map ⟨f.symm, f.symm.injective⟩, isNIndepSet_map f.symm ht, ?_⟩
+      rw [Finset.map_map]
+      ext x
+      simp
+    · rintro ⟨s, hs, rfl⟩
+      exact isNIndepSet_map f hs
+  rw [himg, Set.ncard_image_of_injective _ (Finset.map_injective _)]
+
 theorem cliqueNum_eq (f : G ≃g G') : G.cliqueNum = G'.cliqueNum := by
   unfold SimpleGraph.cliqueNum
   congr 1
@@ -217,6 +235,23 @@ theorem cliqueCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) (n : ℕ) :
 theorem cliqueCount_eq_card_cliqueFinset [DecidableEq G.V] (n : ℕ) :
     G.cliqueCount n = (G.toSimple.cliqueFinset n).card := by
   rw [cliqueCount, ← SimpleGraph.coe_cliqueFinset, Set.ncard_coe_finset]
+
+/-- The number of independent `n`-sets, i.e. of `n`-element sets of pairwise non-adjacent
+vertices. -/
+noncomputable def indepCount (n : ℕ) : ℕ := (G.toSimple.indepSetSet n).ncard
+
+theorem indepCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) (n : ℕ) :
+    G.indepCount n = H.indepCount n :=
+  SimpleGraph.Iso.indepSetSet_ncard_eq (CGraph.Iso.toSimpleIso i) n
+
+/-- With decidable equality on the vertices the count is the cardinality of Mathlib's
+`indepSetFinset`. -/
+theorem indepCount_eq_card_indepSetFinset [DecidableEq G.V] (n : ℕ) :
+    G.indepCount n = (G.toSimple.indepSetFinset n).card := by
+  rw [indepCount, ← Set.ncard_coe_finset]
+  congr 1
+  ext s
+  simp [SimpleGraph.indepSetSet]
 
 /-- Number of edges. -/
 def E : ℕ := G.toSimple.edgeFinset.card
@@ -516,6 +551,14 @@ noncomputable def cliqueCount (G : IsoGraph) (n : ℕ) : ℕ :=
 
 @[simp] theorem cliqueCount_mk (G : CGraph) (n : ℕ) :
     cliqueCount (Quotient.mk _ G) n = G.cliqueCount n := rfl
+
+/-- The number of independent `n`-sets. -/
+noncomputable def indepCount (G : IsoGraph) (n : ℕ) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ CGraph.indepCount g n)
+    (fun _ _ ⟨i⟩ ↦ CGraph.indepCount_eq_of_iso i n) G
+
+@[simp] theorem indepCount_mk (G : CGraph) (n : ℕ) :
+    indepCount (Quotient.mk _ G) n = G.indepCount n := rfl
 
 /-- Number of edges. -/
 def E (G : IsoGraph) : ℕ :=

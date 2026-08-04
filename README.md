@@ -1189,6 +1189,15 @@ graph.  Between them the two bridges fill in the table for free: the complete gr
 `C(m, n)` cliques of each size, the empty graph none above size one, and the cycles, prisms,
 stars, complete bipartite graphs, hypercubes and the Petersen graph have no triangles.
 
+Counting *independent* sets then costs almost nothing, because an independent set is a clique of
+the complement.  `indepCount n := (G.toSimple.indepSetSet n).ncard` is set up exactly like
+`cliqueCount`, and the pair of `@[simp]` duality lemmas `cliqueCount (Gᶜ) n = indepCount G n` and
+`indepCount (Gᶜ) n = cliqueCount G n` carries the whole clique-count API across: `indepCount 0 =
+1`, `indepCount 1 = |V|`, `indepCount n = 0 ↔ α(G) < n`, `indepCount n ≤ C(|V|, n)`, and the
+complementary form of the edge count, **`indepCount 2 + |E| = C(|V|, 2)`** — the independent pairs
+are precisely the non-edges.  The table is the mirror of the clique one: the empty graph has
+`C(m, n)` independent sets of each size and the complete graph none above size one.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
