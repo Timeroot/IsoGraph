@@ -1523,6 +1523,12 @@ disjoint union adds and the join takes a maximum — exactly the reverse of the 
 The two bounds worth naming are `α ≤ θ`, the mirror of `ω ≤ χ`, and `n ≤ θ ω`, the mirror of
 `n ≤ χ α`.
 
+Reading the complement bounds through `θ` turns them into Nordhaus–Gaddum statements about a
+single graph: `n ≤ χ θ`, `χ + θ ≤ n + 1` and `4n ≤ (χ + θ)²` are all restatements of theorems
+already proved about `G` and `Ḡ`. The clique cover number of a complete multipartite graph is
+the size of its largest part, since `compl_completeMultipartite_cons` unfolds the complement
+into a disjoint union of cliques and the chromatic number of a disjoint union is a maximum.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

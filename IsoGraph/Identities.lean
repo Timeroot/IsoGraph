@@ -16551,4 +16551,58 @@ example : (cycle 5).indepNum ≤ (cycle 5).cliqueCoverNum := indepNum_le_cliqueC
 example : (disjUnion (complete 3) (complete 3)).cliqueCoverNum = 2 := by
   rw [cliqueCoverNum_disjUnion, show (3 : ℕ) = 2 + 1 by ring, cliqueCoverNum_complete]
 
+
+/-! ### Nordhaus–Gaddum for the clique cover number
+
+Every bound relating a graph to its complement can be read as a bound relating the chromatic
+number to the clique cover number. -/
+
+/-- `n ≤ χ θ`: the `χ` colour classes are independent sets, so `θ` of them cover `G`. -/
+theorem V_le_chromNum_mul_cliqueCoverNum (G : IsoGraph) :
+    G.V ≤ G.chromNum * G.cliqueCoverNum :=
+  G.V_le_chromNum_mul_chromNum_compl
+
+/-- The Nordhaus–Gaddum upper bound, in clique cover form. -/
+theorem chromNum_add_cliqueCoverNum_le_V_add_one (G : IsoGraph) :
+    G.chromNum + G.cliqueCoverNum ≤ G.V + 1 :=
+  G.chromNum_add_chromNum_compl_le_V_add_one
+
+theorem four_mul_V_le_chromNum_add_cliqueCoverNum_sq (G : IsoGraph) :
+    4 * G.V ≤ (G.chromNum + G.cliqueCoverNum) ^ 2 :=
+  G.four_mul_V_le_chromNum_add_chromNum_compl_sq
+
+/-- Each connected component needs a clique of its own. -/
+theorem numComponents_le_cliqueCoverNum (G : IsoGraph) :
+    G.numComponents ≤ G.cliqueCoverNum :=
+  le_trans G.numComponents_le_indepNum G.indepNum_le_cliqueCoverNum
+
+/-- The complement of a complete multipartite graph is a disjoint union of cliques, so covering
+it takes as many cliques as the largest part has vertices. -/
+@[simp] theorem cliqueCoverNum_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).cliqueCoverNum = ds.foldr max 0 := by
+  induction ds with
+  | nil => rw [completeMultipartite_nil, cliqueCoverNum_empty, List.foldr_nil]
+  | cons d ds ih =>
+    rw [cliqueCoverNum_eq, compl_completeMultipartite_cons, chromNum_disjUnion,
+      chromNum_complete, ← cliqueCoverNum_eq, ih, List.foldr_cons]
+
+/-- The complement of a cocktail party graph is a perfect matching, which two cliques cover. -/
+@[simp] theorem cliqueCoverNum_cocktailParty (n : ℕ) :
+    (cocktailParty (n + 1)).cliqueCoverNum = 2 := by
+  have h : ∀ m : ℕ, (List.replicate (m + 1) 2).foldr max 0 = 2 := by
+    intro m
+    induction m with
+    | zero => rfl
+    | succ m ih => rw [List.replicate_succ, List.foldr_cons, ih]; omega
+  show (completeMultipartite (List.replicate (n + 1) 2)).cliqueCoverNum = 2
+  rw [cliqueCoverNum_completeMultipartite, h]
+
+example : (cocktailParty 3).cliqueCoverNum = 2 := cliqueCoverNum_cocktailParty 2
+
+/-- For the cocktail party graph `n ≤ χ θ` reads `2n ≤ n · 2`, so it is tight. -/
+example : (cocktailParty 3).V ≤ (cocktailParty 3).chromNum * (cocktailParty 3).cliqueCoverNum :=
+  V_le_chromNum_mul_cliqueCoverNum _
+
+example : petersen.numComponents ≤ petersen.cliqueCoverNum := numComponents_le_cliqueCoverNum _
+
 end IsoGraph
