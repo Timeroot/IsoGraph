@@ -1805,6 +1805,26 @@ clique cover number of the odd Kneser graph on pairs.  A small companion lemma -
 girth three is not bipartite -- rules out bipartiteness for Paley graphs and for line graphs of
 graphs with a degree-three vertex.
 
+Three construction families join the list.  The Turán graph `T(n, r)` is the complete
+multipartite graph on `n` vertices whose `r` parts are as equal as possible; it is defined as
+`completeMultipartite` of `n % r` parts of size `⌊n/r⌋ + 1` followed by `r - n % r` parts of
+size `⌊n/r⌋`, which makes the vertex count a two-line calculation and the chromatic and clique
+numbers `r` outright.  `T(n, 1)` is edgeless, `T(n, n)` is complete, `T(n, 2)` is the balanced
+complete bipartite graph (hence bipartite), and `T(n, r)` collapses to a balanced multipartite
+graph when `r` divides `n`.  The friendship graph `F_n` -- `n` triangles glued at a hub -- is
+`K_1` joined to a perfect matching, so the complement of a cocktail party graph supplies every
+invariant through the join formulas: `χ = ω = 3`, `α = max(n, 1)`, `θ = n`, `β = n + 1`,
+`Δ = 2n`, `δ = 2`, girth three, domination number one, radius one and diameter two, plus
+`F_0 = K_1` and `F_1 = K_3`.  The crown graph `S_n` -- `K_{n,n}` minus a perfect matching -- is
+the tensor product `K_n × K_2`, which hands over its vertex and edge counts, bipartiteness,
+vertex-transitivity, `(n-1)`-regularity and `χ = ω = 2`, and identifies `S_2` with `2K_2` and
+`S_3` with `C_6`.
+
+Two further prover targets landed alongside them: the degree sequence of a fan (two path ends
+of degree two, the interior of the path at degree three, and the hub) and the fact that the
+radius of a line graph exceeds the radius of a connected graph by at most one -- the companion
+of the earlier diameter bound, proved by lifting a walk from `G` to `L(G)` one edge at a time.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

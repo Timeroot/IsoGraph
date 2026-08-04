@@ -8340,6 +8340,19 @@ abbrev cocktailParty (n : ℕ) : IsoGraph := completeMultipartite (List.replicat
 /-- The Petersen graph, as the Kneser graph on the 2-subsets of a 5-set. -/
 abbrev petersen : IsoGraph := kneser 5 2
 
+/-- The Turán graph `T(n, r)`: the complete multipartite graph whose `r` parts are as equal as
+possible and hold `n` vertices in total. -/
+abbrev turan (n r : ℕ) : IsoGraph :=
+  completeMultipartite (List.replicate (n % r) (n / r + 1) ++ List.replicate (r - n % r) (n / r))
+
+/-- The friendship (windmill) graph `F_n`: `n` triangles glued at a common vertex. -/
+abbrev friendship (n : ℕ) : IsoGraph :=
+  join (complete 1) (cartesianProduct (empty n) (complete 2))
+
+/-- The crown graph `S_n`: the complete bipartite graph `K_{n,n}` with a perfect matching
+removed, equivalently the bipartite double cover of `K_n`. -/
+abbrev crown (n : ℕ) : IsoGraph := tensorProduct (complete n) (complete 2)
+
 /-! ## Bridging to `CGraph`
 
 Each of these is `rfl`; they are stated so that a proof can move an identity down to the level of
@@ -23854,5 +23867,359 @@ theorem le_chromNum_triangular (n : ℕ) : n + 3 ≤ (triangular (n + 4)).chromN
 theorem le_chromNum_johnson_two (n : ℕ) : n + 3 ≤ (johnson (n + 4) 2).chromNum := by
   rw [← cliqueNum_johnson_two n]
   exact cliqueNum_le_chromNum _
+
+/-! ### Turán graphs -/
+
+@[simp] theorem V_turan (n r : ℕ) : (turan n r).V = n := by
+  rw [V_completeMultipartite, List.sum_append, List.sum_replicate, List.sum_replicate,
+    smul_eq_mul, smul_eq_mul]
+  rcases Nat.eq_zero_or_pos r with rfl | hr
+  · simp
+  · have hle : n % r ≤ r := (Nat.mod_lt n hr).le
+    calc n % r * (n / r + 1) + (r - n % r) * (n / r)
+        = (n % r + (r - n % r)) * (n / r) + n % r := by rw [Nat.add_mul]; ring
+      _ = r * (n / r) + n % r := by rw [Nat.add_sub_cancel' hle]
+      _ = n := Nat.div_add_mod n r
+
+theorem turan_of_dvd {n r : ℕ} (h : r ∣ n) :
+    turan n r = completeMultipartite (List.replicate r (n / r)) := by
+  obtain ⟨k, rfl⟩ := h
+  simp only [turan, Nat.mul_mod_right, List.replicate_zero, List.nil_append, Nat.sub_zero]
+
+theorem turan_one (n : ℕ) : turan n 1 = empty n := by
+  simp only [turan, Nat.mod_one, Nat.div_one, List.replicate_zero, List.nil_append, Nat.sub_zero,
+    List.replicate_one, completeMultipartite_singleton]
+
+theorem turan_self (n : ℕ) : turan n n = complete n := by
+  rcases Nat.eq_zero_or_pos n with rfl | hn
+  · simp [turan]
+  · simp only [turan, Nat.mod_self, Nat.div_self hn, List.replicate_zero, List.nil_append,
+      Nat.sub_zero, completeMultipartite_replicate_one]
+
+theorem turan_two (n : ℕ) : turan n 2 = bipartite ((n + 1) / 2) (n / 2) := by
+  simp only [turan]
+  rcases Nat.even_or_odd' n with ⟨m, rfl | rfl⟩
+  · rw [show 2 * m % 2 = 0 by omega, show 2 * m / 2 = m by omega, show (2 * m + 1) / 2 = m by omega]
+    simp [List.replicate_succ, completeMultipartite_pair]
+  · rw [show (2 * m + 1) % 2 = 1 by omega, show (2 * m + 1) / 2 = m by omega,
+      show (2 * m + 1 + 1) / 2 = m + 1 by omega]
+    simp [List.replicate_succ, completeMultipartite_pair]
+
+@[simp] theorem isBipartite_turan_two (n : ℕ) : IsBipartite (turan n 2) := by
+  rw [turan_two]
+  exact isBipartite_bipartite _ _
+
+@[simp] theorem chromNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) : (turan n r).chromNum = r := by
+  have hq : 1 ≤ n / r := (Nat.one_le_div_iff hr).2 h
+  have hle : n % r ≤ r := (Nat.mod_lt n hr).le
+  have e1 : min (n / r + 1) 1 = 1 := by omega
+  have e2 : min (n / r) 1 = 1 := by omega
+  rw [chromNum_completeMultipartite, List.map_append, List.map_replicate, List.map_replicate, e1,
+    e2, List.sum_append, List.sum_replicate, List.sum_replicate, smul_eq_mul, smul_eq_mul]
+  omega
+
+theorem cliqueNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) : (turan n r).cliqueNum = r := by
+  have hq : 1 ≤ n / r := (Nat.one_le_div_iff hr).2 h
+  have hle : n % r ≤ r := (Nat.mod_lt n hr).le
+  have e1 : min (n / r + 1) 1 = 1 := by omega
+  have e2 : min (n / r) 1 = 1 := by omega
+  rw [cliqueNum_completeMultipartite, List.map_append, List.map_replicate, List.map_replicate, e1,
+    e2, List.sum_append, List.sum_replicate, List.sum_replicate, smul_eq_mul, smul_eq_mul]
+  omega
+
+/-! ### Friendship graphs -/
+
+@[simp] theorem V_friendship (n : ℕ) : (friendship n).V = 2 * n + 1 := by
+  simp [V_join]
+  omega
+
+@[simp] theorem E_friendship (n : ℕ) : (friendship n).E = 3 * n := by
+  simp
+  omega
+
+theorem friendship_eq_join_compl_cocktailParty (n : ℕ) :
+    friendship n = join (complete 1) (compl (cocktailParty n)) := by
+  rw [compl_cocktailParty]
+
+@[simp] theorem indepNum_friendship (n : ℕ) : (friendship n).indepNum = max n 1 := by
+  rw [friendship_eq_join_compl_cocktailParty, indepNum_join, indepNum_compl,
+    cliqueNum_cocktailParty, indepNum_complete]
+  omega
+
+theorem friendship_zero : friendship 0 = complete 1 := by
+  rw [friendship, cartesianProduct_comm, cartesianProduct_empty_zero, join_empty_zero]
+
+theorem friendship_one : friendship 1 = complete 3 := by
+  rw [friendship, cartesianProduct_comm, cartesianProduct_empty_one, join_complete]
+
+@[simp] theorem chromNum_friendship (n : ℕ) : (friendship (n + 1)).chromNum = 3 := by
+  rw [friendship_eq_join_compl_cocktailParty, chromNum_join, ← cliqueCoverNum_eq,
+    cliqueCoverNum_cocktailParty, chromNum_complete]
+
+@[simp] theorem cliqueNum_friendship (n : ℕ) : (friendship (n + 1)).cliqueNum = 3 := by
+  rw [friendship_eq_join_compl_cocktailParty, cliqueNum_join, cliqueNum_compl,
+    indepNum_cocktailParty, cliqueNum_complete]
+
+@[simp] theorem cliqueCoverNum_friendship (n : ℕ) :
+    (friendship (n + 1)).cliqueCoverNum = n + 1 := by
+  rw [friendship_eq_join_compl_cocktailParty, cliqueCoverNum_join, cliqueCoverNum_complete,
+    cliqueCoverNum_eq, compl_compl, chromNum_cocktailParty]
+  omega
+
+@[simp] theorem coverNum_friendship (n : ℕ) : (friendship (n + 1)).coverNum = n + 2 := by
+  have h := coverNum_add_indepNum (friendship (n + 1))
+  rw [indepNum_friendship, V_friendship] at h
+  omega
+
+@[simp] theorem isConnected_friendship (n : ℕ) : IsConnected (friendship (n + 1)) :=
+  isConnected_join (by rw [V_complete]; omega) (by simp)
+
+@[simp] theorem numComponents_friendship (n : ℕ) : (friendship (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_friendship n)
+
+@[simp] theorem girth_friendship (n : ℕ) : (friendship (n + 1)).girth = 3 :=
+  girth_join_right (by rw [V_complete]; omega) (by simp)
+
+@[simp] theorem not_isBipartite_friendship (n : ℕ) : ¬ IsBipartite (friendship (n + 1)) :=
+  not_isBipartite_of_girth_eq_three (girth_friendship n)
+
+@[simp] theorem not_isAcyclic_friendship (n : ℕ) : ¬ IsAcyclic (friendship (n + 1)) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_friendship]; omega)
+
+@[simp] theorem not_isTree_friendship (n : ℕ) : ¬ IsTree (friendship (n + 1)) :=
+  not_isTree_of_girth_pos (by rw [girth_friendship]; omega)
+
+@[simp] theorem domNum_friendship (n : ℕ) : (friendship n).domNum = 1 :=
+  (domNum_join_eq_one_iff _ _).2 (Or.inl (domNum_complete 0))
+
+@[simp] theorem radius_friendship (n : ℕ) : (friendship (n + 1)).radius = 1 :=
+  (radius_eq_one_iff_domNum_eq_one (by rw [V_friendship]; omega)).2 (domNum_friendship _)
+
+/-- The complement of a cocktail party graph is a perfect matching, so it is one-regular. -/
+theorem isRegularWith_compl_cocktailParty (n : ℕ) :
+    (compl (cocktailParty (n + 1))).IsRegularWith 1 := by
+  have h := (isRegularWith_cocktailParty (n + 1)).compl
+  rwa [V_cocktailParty, show 2 * (n + 1) - 1 - (2 * (n + 1) - 2) = 1 by omega] at h
+
+@[simp] theorem maxDeg_friendship (n : ℕ) : maxDeg (friendship (n + 1)) = 2 * n + 2 := by
+  rw [friendship_eq_join_compl_cocktailParty,
+    maxDeg_join (by rw [V_complete]; omega) (by rw [V_compl, V_cocktailParty]; omega),
+    (isRegularWith_compl_cocktailParty n).maxDeg_eq (by rw [V_compl, V_cocktailParty]; omega),
+    maxDeg_complete, V_complete, V_compl, V_cocktailParty]
+  omega
+
+@[simp] theorem minDeg_friendship (n : ℕ) : minDeg (friendship (n + 1)) = 2 := by
+  rw [friendship_eq_join_compl_cocktailParty,
+    minDeg_join (by rw [V_complete]; omega) (by rw [V_compl, V_cocktailParty]; omega),
+    (isRegularWith_compl_cocktailParty n).minDeg_eq (by rw [V_compl, V_cocktailParty]; omega),
+    minDeg_complete, V_complete, V_compl, V_cocktailParty]
+  omega
+
+@[simp] theorem diameter_friendship (n : ℕ) : (friendship (n + 2)).diameter = 2 := by
+  rw [friendship_eq_join_compl_cocktailParty]
+  refine diameter_join_right (by rw [V_complete]; omega) ?_
+  rw [E_compl_eq, V_compl]
+  refine Nat.sub_lt (Nat.choose_pos ?_) ?_
+  · rw [V_cocktailParty]; omega
+  · rw [E_cocktailParty]; exact Nat.mul_pos (by omega) (by omega)
+
+/-! ### Crown graphs -/
+
+@[simp] theorem V_crown (n : ℕ) : (crown n).V = 2 * n := by
+  rw [V_tensorProduct, V_complete, V_complete]
+  omega
+
+@[simp] theorem E_crown (n : ℕ) : (crown n).E = 2 * n.choose 2 := by
+  rw [E_tensorProduct, E_complete, E_complete]
+  simp
+
+theorem crown_two : crown 2 = disjUnion (complete 2) (complete 2) :=
+  tensorProduct_complete_two_two
+
+theorem crown_three : crown 3 = cycle 6 := by
+  rw [crown, tensorProduct_comm, ← cycle_three, tensorProduct_complete_two_cycle_three]
+
+@[simp] theorem isBipartite_crown (n : ℕ) : IsBipartite (crown n) :=
+  isBipartite_tensorProduct_right isBipartite_complete_two
+
+@[simp] theorem isVertexTransitive_crown (n : ℕ) : IsVertexTransitive (crown n) :=
+  (isVertexTransitive_complete n).tensorProduct (isVertexTransitive_complete 2)
+
+@[simp] theorem isRegularWith_crown (n : ℕ) : (crown n).IsRegularWith (n - 1) := by
+  have h := (isRegularWith_complete n).tensorProduct (isRegularWith_complete 2)
+  rwa [show (2 : ℕ) - 1 = 1 from rfl, Nat.mul_one] at h
+
+@[simp] theorem cliqueNum_crown (n : ℕ) : (crown (n + 2)).cliqueNum = 2 := by
+  rw [crown, cliqueNum_tensorProduct, cliqueNum_complete, cliqueNum_complete]
+  omega
+
+@[simp] theorem chromNum_crown (n : ℕ) : (crown (n + 2)).chromNum = 2 := by
+  rw [crown, tensorProduct_comm]
+  exact chromNum_tensorProduct_eq_two isBipartite_complete_two
+    (by rw [E_complete]; exact Nat.choose_pos (by omega))
+    (by rw [E_complete]; exact Nat.choose_pos (by omega))
+
+/-! ### Harvested ATP proofs -/
+
+theorem degSequence_fan (n : ℕ) :
+    degSequence (fan (n + 3)) = [2, 2] ++ List.replicate (n + 1) 3 ++ [n + 3] := by
+  rw [degSequence_eq_sort, fan, degMultiset_join, degMultiset_complete, degMultiset_path]
+  simp [V_path]
+  -- List.Pairwise for the target
+  have hle1 : ∀ x ∈ List.replicate (n + 1) 3 ++ [n + 3], 2 ≤ x := by
+    simp [List.mem_append, List.mem_replicate]
+  have hle2 : List.Pairwise (· ≤ ·) (List.replicate (n + 1) 3 ++ [n + 3]) := by
+    rw [List.pairwise_append]
+    exact ⟨List.pairwise_replicate.2 (Or.inr le_rfl), List.pairwise_singleton _ _,
+      fun x hx y hy => by simp at hx hy; omega⟩
+  have hpairwise : (2 :: 2 :: (List.replicate (n + 1) 3 ++ [n + 3])).Pairwise (· ≤ ·) := by
+    rw [List.pairwise_cons]
+    simp
+    exact hle2
+  have hmultiset : ((2 :: 2 :: (List.replicate (n + 1) 3 ++ [n + 3]) : List ℕ) : Multiset ℕ) =
+    (2 ::ₘ 2 ::ₘ 3 ::ₘ (n + 3) ::ₘ Multiset.replicate n 3 : Multiset ℕ) := by
+    have heq : ∀ (l : List ℕ) (a : ℕ), Multiset.count a (↑l : Multiset ℕ) = List.count a l := by
+      intro l a; induction l with
+      | nil => simp
+      | cons b l ih => simp
+    apply Multiset.ext.mpr
+    intro a
+    simp [heq]
+    simp [List.count_cons, List.count_append, List.count_replicate]
+    simp [Multiset.count_cons, Multiset.count_replicate]
+    rcases eq_or_ne a 2 with ha2 | ha2 <;> rcases eq_or_ne a 3 with ha3 | ha3 <;>
+      rcases eq_or_ne a (n + 3) with ha4 | ha4 <;> simp [ha2, ha3, ha4, eq_comm] <;>
+      first
+        | omega
+        | (split_ifs; all_goals omega)
+  exact List.Perm.eq_of_pairwise (fun _ _ _ _ hab hba ↦ le_antisymm hab hba)
+    (Multiset.pairwise_sort _ (· ≤ ·)) hpairwise
+    (Multiset.coe_eq_coe.mp (by rw [Multiset.sort_eq, hmultiset]))
+
+theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
+    (lineGraph G).radius ≤ G.radius + 1 := by
+  induction G using Quotient.inductionOn with | h g =>
+  haveI : DecidableEq g.V := Classical.decEq _
+  haveI : Nonempty g.V := hG.nonempty
+  simp [radius_mk, lineGraph_mk]
+  rw [isConnected_mk] at hG
+  rw [E_mk] at hE
+  set S : SimpleGraph g.V := g.toSimple
+  set LG_def : SimpleGraph g.lineGraph.V := (CGraph.lineGraph g).toSimple
+  --LG_def is LG
+  simp only [CGraph.radius, CGraph.toSimple]
+  have hSconn : S.Connected := hG
+  by_cases hLGconn : LG_def.Connected
+  · show LG_def.radius.toNat ≤ S.radius.toNat + 1
+    have hSnediam : S.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hSconn
+    obtain ⟨v, hv⟩ := SimpleGraph.exists_eccent_eq_radius (G := S)
+    have hne : Nontrivial g.V := by
+      have hEc : 0 < g.toSimple.edgeFinset.card := by simpa [CGraph.E] using hE
+      obtain ⟨e, he⟩ := Finset.card_pos.mp hEc
+      simp only [SimpleGraph.mem_edgeFinset] at he
+      have hek := he
+      have hne' : ∃ a b : g.V, a ≠ b := by
+        induction e using Sym2.ind with
+        | _ a b =>
+          rw [SimpleGraph.mem_edgeSet] at hek
+          by_cases hab : a = b
+          · rw [hab] at hek; simp at hek
+          · exact ⟨a, b, hab⟩
+      exact ⟨hne'.choose, hne'.choose_spec.choose, hne'.choose_spec.choose_spec⟩
+    have hvadj : ∃ w : g.V, S.Adj v w := by
+      obtain ⟨u, hu⟩ := exists_ne v
+      have hr : S.Reachable v u := hSconn v u
+      have := g.exists_adj_dist_lt (r := u) (show g.toSimple.Reachable v u from hr) (Ne.symm hu)
+      exact ⟨this.choose, this.choose_spec.1⟩
+    obtain ⟨w, hw⟩ : ∃ w : g.V, g.Adj v w := by simpa [CGraph.toSimple_adj] using hvadj
+    let e0 : g.lineGraph.V :=
+      ⟨Sym2.mk (v, w), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hw⟩
+    -- Adjacency in LG_def
+    have hadjLG : ∀ e f : g.lineGraph.V,
+        LG_def.Adj e f ↔ e ≠ f ∧ ∃ x : g.V, x ∈ (e.1 : Sym2 g.V) ∧ x ∈ (f.1 : Sym2 g.V) := by
+      intro e f
+      simp [LG_def, CGraph.toSimple, CGraph.lineGraph_adj, Bool.and_eq_true]
+    -- endpoint of any linegraph vertex
+    have hendpoint : ∀ (e : g.lineGraph.V), ∃ (x : g.V), x ∈ (e.1 : Sym2 g.V) := by
+      intro ⟨se, _⟩
+      induction se using Sym2.ind with
+      | _ a b => exact ⟨a, Sym2.mem_mk_left _ _⟩
+    -- shared vertex => edist ≤ 1
+    have hshared : ∀ (e f : g.lineGraph.V) (x : g.V), x ∈ (e.1 : Sym2 g.V) → x ∈ (f.1 : Sym2 g.V) →
+        LG_def.edist e f ≤ 1 := by
+      intro e f x hev hfx
+      by_cases heq : e = f
+      · rw [heq]; simp
+      · have hadj_ef : LG_def.Adj e f := (hadjLG e f).mpr ⟨heq, x, hev, hfx⟩
+        exact le_trans
+          (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef SimpleGraph.Walk.nil)) (by simp)
+    -- walk lifting from S to LG_def
+    have hwalk_lift : ∀ (v : g.V) {u : g.V} (p : S.Walk v u) (e : g.lineGraph.V),
+        v ∈ (e.1 : Sym2 g.V) →
+        ∃ e' : g.lineGraph.V, u ∈ (e'.1 : Sym2 g.V) ∧ LG_def.edist e e' ≤ ↑p.length := by
+      intro v u p e hev
+      induction p using SimpleGraph.Walk.rec generalizing e with
+      | nil =>
+        exact ⟨e, hev, by rw [SimpleGraph.edist_self]; simp⟩
+      | @cons x y z huv_tail wtail ih =>
+        let huv_tail' : S.Adj x y := by rwa [CGraph.toSimple_adj]
+        let ep : g.lineGraph.V :=
+          ⟨Sym2.mk (x, y), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using huv_tail'⟩
+        have hev' : y ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_right _ _
+        have heu' : x ∈ (e.1 : Sym2 g.V) := hev
+        have hep_u' : x ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_left _ _
+        have hstep : LG_def.edist e ep ≤ 1 := by
+          by_cases heq : e = ep
+          · rw [heq]; simp
+          · have hadj_ef : LG_def.Adj e ep := (hadjLG e ep).mpr ⟨heq, x, heu', hep_u'⟩
+            exact le_trans
+              (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef SimpleGraph.Walk.nil))
+              (by simp)
+        obtain ⟨e', hvz', hdist'⟩ := ih ep hev'
+        have hels : LG_def.edist e e' ≤ LG_def.edist e ep + LG_def.edist ep e' :=
+          LG_def.edist_triangle
+        have hels'' : LG_def.edist e e' ≤ 1 + ↑wtail.length := hels.trans (add_le_add hstep hdist')
+        have hels_final : LG_def.edist e e' ≤ ↑(wtail.length + 1) := hels''.trans (by
+          show (1 : ℕ∞) + ↑wtail.length ≤ ↑(wtail.length + 1)
+          simp [Nat.cast_add, add_comm])
+        exact ⟨e', hvz', hels_final⟩
+    -- eccent LG(e0) ≤ S.radius + 1
+    have hecc_e0 : LG_def.eccent e0 ≤ ↑S.radius.toNat + 1 := by
+      haveI : Nonempty g.lineGraph.V := by
+        have hcard : 0 < Fintype.card (g.lineGraph).V := by rw [CGraph.card_lineGraph]; exact hE
+        exact Fintype.card_pos_iff.mp hcard
+      unfold SimpleGraph.eccent
+      apply ciSup_le
+      intro f
+      obtain ⟨u, hu⟩ := hendpoint f
+      have hreach : S.Reachable v u := hSconn v u
+      obtain ⟨p, hp_len⟩ := hreach.exists_walk_length_eq_dist
+      obtain ⟨e', hue', hlift⟩ := hwalk_lift v p e0 (Sym2.mem_mk_left _ _)
+      have hels : LG_def.edist e0 f ≤ ↑(S.dist v u) + 1 := by
+        calc LG_def.edist e0 f ≤ LG_def.edist e0 e' + LG_def.edist e' f := LG_def.edist_triangle
+          _ ≤ ↑p.length + 1 := add_le_add hlift (hshared e' f u hue' hu)
+          _ = ↑(S.dist v u) + 1 := by rw [hp_len]
+      have hdist_le_radius : (S.dist v u : ℕ∞) ≤ ↑S.radius.toNat := by
+        have h1 := @SimpleGraph.edist_le_eccent g.V S v u
+        rw [hv] at h1
+        have h2 : S.edist v u = ↑(S.dist v u) := by
+          have key : ∀ (q : S.Walk v u), S.dist v u ≤ q.length := fun q => SimpleGraph.dist_le q
+          apply le_antisymm
+          · have := SimpleGraph.Walk.edist_le p; simp [hp_len] at this; exact this
+          · rw [SimpleGraph.edist]
+            exact le_iInf fun q => mod_cast key q
+        rw [h2] at h1
+        have hradius_ne_top : S.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hSconn
+        have h1' : S.edist v u ≤ S.radius := by rw [h2]; exact h1
+        have h3 : S.dist v u ≤ S.radius.toNat := ENat.toNat_le_toNat h1' hradius_ne_top
+        exact_mod_cast h3
+      exact hels.trans (add_le_add hdist_le_radius le_rfl)
+    -- radius ≤ eccent
+    have hradius_le : LG_def.radius ≤ LG_def.eccent e0 := SimpleGraph.radius_le_eccent
+    exact ENat.toNat_le_of_le_coe (hradius_le.trans hecc_e0)
+  · -- LG disconnected
+    have hLGtop : LG_def.radius = ⊤ := SimpleGraph.radius_eq_top_of_not_connected hLGconn
+    show LG_def.radius.toNat ≤ S.radius.toNat + 1
+    rw [hLGtop]; simp
 
 end IsoGraph
