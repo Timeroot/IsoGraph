@@ -2296,14 +2296,16 @@ theorem pendantOwner_parity (m : ℕ) : ∀ (v off : ℕ) (ks : List ℕ) (p q :
 
 /-- The distance from the pole `0` to the vertex `v` of a theta graph whose paths, carrying the
 numbers of internal vertices `xs`, start at `off` — except that the far pole `1` is given the
-value `1`.  When every path has an even number of internal vertices the parity of this is a
-proper two-colouring, with the two poles in different classes. -/
-def thetaDepth (off : ℕ) (xs : List ℕ) (v : ℕ) : ℕ :=
-  if v = 1 then 1 else spiderDepth off xs v
+value `b`.  The parity of this is a proper two-colouring as soon as every path length `k`
+satisfies `(k + b) % 2 = 1`: `b = 1` covers the paths with an even number of internal vertices,
+which put the two poles in different classes, and `b = 0` the odd ones, which put them in the
+same class. -/
+def thetaDepth (b off : ℕ) (xs : List ℕ) (v : ℕ) : ℕ :=
+  if v = 1 then b else spiderDepth off xs v
 
-theorem thetaDepth_cons (off k : ℕ) (rest : List ℕ) (v : ℕ) (hoff : 2 ≤ off)
+theorem thetaDepth_cons (b off k : ℕ) (rest : List ℕ) (v : ℕ) (hoff : 2 ≤ off)
     (h : v < 2 ∨ off + k ≤ v) :
-    thetaDepth off (k :: rest) v = thetaDepth (off + k) rest v := by
+    thetaDepth b off (k :: rest) v = thetaDepth b (off + k) rest v := by
   unfold thetaDepth
   split_ifs with hv
   · rfl
@@ -2311,22 +2313,23 @@ theorem thetaDepth_cons (off k : ℕ) (rest : List ℕ) (v : ℕ) (hoff : 2 ≤ 
     · rw [spiderDepth_of_lt _ _ _ (by omega), spiderDepth_of_lt _ _ _ (by omega)]
     · exact spiderDepth_cons_of_ge off k rest v h
 
-/-- Along every edge of a theta graph all of whose paths have an even number of internal vertices,
-the parity of `thetaDepth` changes.  The last path vertex is at distance `k` from the near pole,
-so evenness of `k` is exactly what makes the two poles disagree. -/
-theorem thetaDepth_parity : ∀ (off : ℕ) (xs : List ℕ) (p q : ℕ), 2 ≤ off →
-    (∀ k ∈ xs, k % 2 = 0) → (p, q) ∈ thetaEdges off xs →
-      (thetaDepth off xs p + thetaDepth off xs q) % 2 = 1
-  | _, [], _, _, _, _ => by simp [thetaEdges]
-  | off, k :: rest, p, q, hoff, heven => by
+/-- Along every edge of a theta graph whose path lengths all have the parity `b` asks for, the
+parity of `thetaDepth` changes.  The far end of a path with `k` internal vertices is at distance
+`k` from the near pole, so `(k + b) % 2 = 1` is exactly what makes the two poles disagree. -/
+theorem thetaDepth_parity : ∀ (b off : ℕ) (xs : List ℕ) (p q : ℕ), 2 ≤ off →
+    (∀ k ∈ xs, (k + b) % 2 = 1) → (p, q) ∈ thetaEdges off xs →
+      (thetaDepth b off xs p + thetaDepth b off xs q) % 2 = 1
+  | _, _, [], _, _, _, _ => by simp [thetaEdges]
+  | b, off, k :: rest, p, q, hoff, hpar => by
       intro h
       rw [thetaEdges_cons, List.mem_append] at h
-      have hk : k % 2 = 0 := heven k (List.mem_cons_self ..)
+      have hk : (k + b) % 2 = 1 := hpar k (List.mem_cons_self ..)
       rcases h with h | h
       · rw [mem_thetaEdges_single] at h
         unfold thetaDepth
         rcases h with ⟨rfl, rfl, rfl⟩ | ⟨hk0, rfl, rfl⟩ | ⟨hk0, rfl, rfl⟩ | ⟨h1, rfl, h3⟩
         · rw [if_neg (by omega), if_pos rfl, spiderDepth, if_pos (by omega)]
+          omega
         · rw [if_neg (by omega), if_neg (by omega), spiderDepth, if_pos (by omega), spiderDepth,
             if_neg (by omega), if_pos (by omega)]
           omega
@@ -2336,10 +2339,10 @@ theorem thetaDepth_parity : ∀ (off : ℕ) (xs : List ℕ) (p q : ℕ), 2 ≤ o
             if_pos (by omega), spiderDepth, if_neg (by omega), if_pos (by omega)]
           omega
       · have hb := mem_thetaEdges_bound (off + k) rest p q h
-        rw [thetaDepth_cons off k rest p hoff (by omega),
-          thetaDepth_cons off k rest q hoff (by omega)]
-        exact thetaDepth_parity (off + k) rest p q (by omega)
-          (fun x hx ↦ heven x (List.mem_cons_of_mem k hx)) h
+        rw [thetaDepth_cons b off k rest p hoff (by omega),
+          thetaDepth_cons b off k rest q hoff (by omega)]
+        exact thetaDepth_parity b (off + k) rest p q (by omega)
+          (fun x hx ↦ hpar x (List.mem_cons_of_mem k hx)) h
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -4562,20 +4565,30 @@ opposite to the cycle vertex it hangs off. -/
   · have := key y.1 x.1 hm
     omega
 
-/-- A theta graph is bipartite as soon as every one of its paths has an even number of internal
-vertices, that is, as soon as all of its paths have odd length. -/
-@[simp] theorem isBipartite_thetaGraph_even {xs : List ℕ} (h : ∀ k ∈ xs, k % 2 = 0) :
-    IsBipartite (thetaGraph xs) := by
+/-- **A theta graph is bipartite as soon as its paths all have the same parity of length.**  The
+colouring is `thetaDepth b`, with `b` recording which class the far pole falls into. -/
+theorem isBipartite_thetaGraph_of_parity {xs : List ℕ} (b : ℕ)
+    (h : ∀ k ∈ xs, (k + b) % 2 = 1) : IsBipartite (thetaGraph xs) := by
   rw [thetaGraph_def, isBipartite_mk]
-  refine ⟨fun i ↦ decide (CGraph.thetaDepth 2 xs (i : Fin (2 + xs.sum)).1 % 2 = 1),
+  refine ⟨fun i ↦ decide (CGraph.thetaDepth b 2 xs (i : Fin (2 + xs.sum)).1 % 2 = 1),
     fun x y hxy ↦ ?_⟩
   rw [CGraph.thetaGraph_adj_val] at hxy
   simp only [ne_eq, decide_eq_decide]
   rcases hxy.2 with hm | hm
-  · have := CGraph.thetaDepth_parity 2 xs x.1 y.1 (by omega) h hm
+  · have := CGraph.thetaDepth_parity b 2 xs x.1 y.1 (by omega) h hm
     omega
-  · have := CGraph.thetaDepth_parity 2 xs y.1 x.1 (by omega) h hm
+  · have := CGraph.thetaDepth_parity b 2 xs y.1 x.1 (by omega) h hm
     omega
+
+/-- Every path of odd length: the two poles get opposite colours. -/
+@[simp] theorem isBipartite_thetaGraph_even {xs : List ℕ} (h : ∀ k ∈ xs, k % 2 = 0) :
+    IsBipartite (thetaGraph xs) :=
+  isBipartite_thetaGraph_of_parity 1 fun k hk ↦ by have := h k hk; omega
+
+/-- Every path of even length: the two poles get the same colour. -/
+@[simp] theorem isBipartite_thetaGraph_odd {xs : List ℕ} (h : ∀ k ∈ xs, k % 2 = 1) :
+    IsBipartite (thetaGraph xs) :=
+  isBipartite_thetaGraph_of_parity 0 fun k hk ↦ by have := h k hk; omega
 
 theorem not_isBipartite_complete (n : ℕ) : ¬ IsBipartite (complete (n + 3)) := by
   rw [complete_def, isBipartite_mk]
@@ -4591,6 +4604,14 @@ theorem not_isBipartite_cycle_odd (m : ℕ) : ¬ IsBipartite (cycle (2 * m + 3))
 theorem not_isBipartite_cycle_three : ¬ IsBipartite (cycle 3) := not_isBipartite_cycle_odd 0
 
 theorem not_isBipartite_cycle_five : ¬ IsBipartite (cycle 5) := not_isBipartite_cycle_odd 1
+
+/-- Two paths of different parity close up into an odd cycle, and then the graph is not
+bipartite. -/
+theorem not_isBipartite_thetaGraph_pair {a b : ℕ} (h : (a + b) % 2 = 1) :
+    ¬ IsBipartite (thetaGraph [a, b]) := by
+  obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 3 := ⟨(a + b) / 2, by omega⟩
+  rw [thetaGraph_pair, hm]
+  exact not_isBipartite_cycle_odd m
 
 /-! ### Bipartite double covers
 
@@ -5162,6 +5183,8 @@ example (m n : ℕ) : IsBipartite (doubleStar m n) := by simp
 example (k : ℕ) : IsBipartite (tadpole 6 k) := isBipartite_tadpole_even 3 k
 example : IsBipartite (cyclePendant 4 [1, 1]) := isBipartite_cyclePendant_even 2 [1, 1] (by decide)
 example : IsBipartite (thetaGraph [0, 2, 4]) := isBipartite_thetaGraph_even (by decide)
+example : IsBipartite (thetaGraph [1, 3, 5]) := isBipartite_thetaGraph_odd (by decide)
+example : ¬ IsBipartite (thetaGraph [0, 1]) := not_isBipartite_thetaGraph_pair (by decide)
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp

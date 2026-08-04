@@ -481,10 +481,14 @@ is *not* a function of its number: it depends on which leg or which pendant bloc
 in.  `spiderDepth` and `pendantOwner` recover that by the same recursion the edge lists are built
 by, so the colouring is `decide (spiderDepth 1 ks v % 2 = 1)` and the proof obligation is one
 statement per edge shape.  Theta graphs are bipartite exactly when all their paths have the same
-parity of length; the case proved here is that every path have an even number of internal
-vertices, and `thetaDepth` is `spiderDepth` with the far pole `1` pinned to the opposite colour —
-the last vertex of a path with `k` internal vertices is at distance `k` from the near pole, so
-evenness of `k` is precisely what makes the two poles disagree.  On the other side, complete graphs on three or more vertices are not bipartite
+parity of length, and `thetaDepth b` is `spiderDepth` with the far pole `1` pinned to the colour
+`b` — the far end of a path with `k` internal vertices is at distance `k` from the near pole, so
+`(k + b) % 2 = 1` is precisely what makes the two poles disagree.  One statement covers both
+parities, with `b = 1` for the paths of odd length (`isBipartite_thetaGraph_even`, the poles in
+different classes) and `b = 0` for those of even length (`isBipartite_thetaGraph_odd`, the poles
+together).  The two-path converse is free: `thetaGraph [a, b]` is a cycle of length `2 + a + b`,
+so paths of different parity give an odd cycle and `not_isBipartite_thetaGraph_pair`.
+On the other side, complete graphs on three or more vertices are not bipartite
 (pigeonhole on a triangle) and neither are odd cycles: walking around the cycle the colour
 alternates with the parity of the index, which the edge closing the cycle contradicts.
 
