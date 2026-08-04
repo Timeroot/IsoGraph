@@ -1555,6 +1555,15 @@ lower bound for both the clique number and the chromatic number of `J(n, 2)`, th
 line-graph colouring caps `χ(J(n, 2))` at `2(n - 1) - 1`, and an independent set of `J(n, 2)` is
 a matching of `Kₙ` and so has at most `n / 2` members.
 
+The Kneser graphs on pairs get the same treatment from two directions. Strong regularity with
+`μ = C(n - 3, 2) > 0` gives `K(n, 2)` diameter two, hence connectedness, one component and —
+since it is vertex-transitive — radius two, for every `n ≥ 5`. Complementation with the
+triangular graph then transports the line-graph bounds: a clique of `K(n, 2)` is a matching of
+`Kₙ`, so `2ω ≤ n`, and the `n - 1` pairs through a fixed point are pairwise intersecting, giving
+the easy half of Erdős–Ko–Rado as `n - 1 ≤ α(K(n, 2))` and hence the same bound on its clique
+cover number. For `n ≥ 6` the graph contains a triangle, so it is not bipartite and needs at
+least three colours.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

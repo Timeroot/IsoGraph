@@ -16823,4 +16823,62 @@ example : (star 6).edgeChromNum = 6 := by simp
 
 example : 4 ≤ (johnson 5 2).cliqueNum := sub_one_le_cliqueNum_johnson_two 5
 
+/-! ### The Kneser graphs on pairs
+
+`K(n, 2)` is strongly regular with `μ = C(n - 3, 2) > 0` once `n ≥ 5`, which settles its metric
+structure, and it is the complement of the triangular graph `T(n)`, which converts the line-graph
+bounds of the previous section into bounds on its cliques and independent sets. -/
+
+theorem diameter_kneser_two (m : ℕ) : (kneser (m + 5) 2).diameter = 2 := by
+  refine (isSRGWith_kneser_two (m + 5)).diameter_eq_two ?_ ?_
+  · rw [show m + 5 - 3 = m + 2 from by omega]
+    exact Nat.choose_pos (by omega)
+  · have h1 : (m + 5).choose 2 = (m + 4) + (m + 4).choose 2 := by
+      rw [Nat.choose_succ_succ (m + 4) 1, Nat.choose_one_right]
+    have h2 : (m + 4).choose 2 = (m + 3) + (m + 3).choose 2 := by
+      rw [Nat.choose_succ_succ (m + 3) 1, Nat.choose_one_right]
+    rw [show m + 5 - 2 = m + 3 from by omega]
+    omega
+
+@[simp] theorem isConnected_kneser_two (m : ℕ) : IsConnected (kneser (m + 5) 2) :=
+  isConnected_of_diameter_ne_zero (by rw [diameter_kneser_two]; omega)
+
+@[simp] theorem numComponents_kneser_two (m : ℕ) : (kneser (m + 5) 2).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_kneser_two m)
+
+@[simp] theorem radius_kneser_two (m : ℕ) : (kneser (m + 5) 2).radius = 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_kneser _ _),
+    diameter_kneser_two]
+
+/-- A clique of `K(n, 2)` is a set of pairwise disjoint pairs, that is, a matching of `Kₙ`. -/
+theorem two_mul_cliqueNum_kneser_two_le (n : ℕ) : 2 * (kneser n 2).cliqueNum ≤ n := by
+  have h := two_mul_indepNum_johnson_two_le n
+  rwa [show johnson n 2 = compl (kneser n 2) from triangular_eq_compl_kneser n,
+    indepNum_compl] at h
+
+/-- **Erdős–Ko–Rado, lower bound.**  The `n - 1` pairs through a fixed point are pairwise
+intersecting, so they form an independent set of `K(n, 2)`. -/
+theorem sub_one_le_indepNum_kneser_two (n : ℕ) : n - 1 ≤ (kneser n 2).indepNum := by
+  have h := sub_one_le_cliqueNum_johnson_two n
+  rwa [show johnson n 2 = compl (kneser n 2) from triangular_eq_compl_kneser n,
+    cliqueNum_compl] at h
+
+theorem sub_one_le_cliqueCoverNum_kneser_two (n : ℕ) :
+    n - 1 ≤ (kneser n 2).cliqueCoverNum :=
+  le_trans (sub_one_le_indepNum_kneser_two n) (indepNum_le_cliqueCoverNum _)
+
+@[simp] theorem not_isBipartite_kneser_two (n : ℕ) : ¬ IsBipartite (kneser (n + 6) 2) := by
+  intro hb
+  have h := four_le_girth_of_isBipartite hb (not_isAcyclic_kneser_two n)
+  rw [girth_kneser_two] at h
+  omega
+
+theorem three_le_chromNum_kneser_two (n : ℕ) : 3 ≤ (kneser (n + 6) 2).chromNum := by
+  by_contra hc
+  exact not_isBipartite_kneser_two n (isBipartite_iff_chromNum_le_two.2 (by omega))
+
+example : petersen.diameter = 2 := diameter_kneser_two 0
+
+example : 5 ≤ (kneser 6 2).indepNum := sub_one_le_indepNum_kneser_two 6
+
 end IsoGraph
