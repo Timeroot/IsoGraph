@@ -1648,6 +1648,20 @@ regular families is recorded as `c(G) = 1` for the triangular, cocktail-party, P
 Petersen graphs.  The domination number of a cycle is `⌈n/3⌉`: every third vertex dominates,
 matching the general `3γ ≥ n` bound for graphs of maximum degree two.
 
+The balanced complete multipartite graph `K_{m×d}` — `completeMultipartite (List.replicate m d)`,
+the cocktail party graph when `d = 2` and `Kₘ` when `d = 1` — is the lexicographic product
+`Kₘ[Eᵈ]`, and that one identity carries the whole product API across: `|V| = md`,
+`|E| = C(m, 2)d²`, the degree sequence is constant at `(m - 1)d`, and the clique number is `m`,
+so three or more parts force girth three.  Peeling one part off exhibits it as a join, which
+supplies connectivity, `diam = rad = 2` and `γ = 2` whenever there are at least two parts of at
+least two vertices each — one vertex dominates everything outside its own part but nothing
+inside it.
+
+Four statements in this area were closed by the automated prover rather than by hand.  A maximum
+matching plus the vertices it misses is a clique cover, so `θ ≤ |V| - ν`; the hypercube and the
+cocktail party graph both have perfect matchings, `ν(Qₙ) = 2ⁿ⁻¹` and `ν(K_{n×2}) = n`; and the
+radius of a path is `⌊n/2⌋`, the midpoint being the centre.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
