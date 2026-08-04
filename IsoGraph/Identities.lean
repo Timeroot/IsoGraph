@@ -25749,4 +25749,245 @@ theorem compl_turan_two_mul_self (r : ℕ) :
     _ = q * (2 * ((q - 1) / 2)) := by ring
     _ = q * (q - 1) := by rw [h2]
 
+theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H)
+    (hb : ¬ IsBipartite G) (hE : 0 < H.E) : IsConnected (tensorProduct G H) := by
+  -- Lift to CGraph level
+  have hG_iso : Quotient.mk _ G.toCGraph = G := IsoGraph.mk_toCGraph G
+  have hH_iso : Quotient.mk _ H.toCGraph = H := IsoGraph.mk_toCGraph H
+  haveI : DecidableEq G.toCGraph.V := Classical.decEq _
+  haveI : DecidableEq H.toCGraph.V := Classical.decEq _
+  have htensor : tensorProduct G H = ⟦CGraph.tensorProduct G.toCGraph H.toCGraph⟧ := by
+    conv_lhs => rw [← hG_iso, ← hH_iso]
+    exact tensorProduct_mk _ _
+  rw [htensor, isConnected_mk]
+  -- Now goal: CGraph.IsConnected (tensorProduct G.toCGraph H.toCGraph)
+  have hGC : CGraph.IsConnected G.toCGraph := by
+    have := IsoGraph.isConnected_mk G.toCGraph
+    rw [hG_iso] at this; exact this.mp hG
+  have hHC : CGraph.IsConnected H.toCGraph := by
+    have := IsoGraph.isConnected_mk H.toCGraph
+    rw [hH_iso] at this; exact this.mp hH
+  have hB : ¬ CGraph.IsBipartite G.toCGraph := by
+    have h2 : G.IsBipartite ↔ G.toCGraph.IsBipartite := by
+      rw [← IsoGraph.isBipartite_mk, hG_iso]
+    exact fun h => hb (h2.mpr h)
+  have hED : 0 < H.toCGraph.E := by
+    have h := IsoGraph.E_mk H.toCGraph
+    rw [hH_iso] at h; rw [h] at hE; exact hE
+  -- Goal: CGraph.IsConnected (tensorProduct G.toCGraph H.toCGraph)
+  -- Unfold to SimpleGraph level
+  rw [CGraph.IsConnected]
+  -- Hs	V is G.V × H.V
+  -- Adj in tensor product: (g1,h1) ~ (g2,h2) ↔ G.Adj g1 g2 ∧ H.Adj h1 h2
+  -- Key idea (Weichsel's theorem): 
+  --   - G is connected + non-bipartite → from any g, closed walks of both parities
+  --   - H is connected + has an edge → from any h, can reach any h' with both parities
+  --   → tensor product is connected
+  -- Step 1: Get an edge in H.toSimple
+  have hHne : Nonempty H.toCGraph.V := hHC.nonempty
+  have hGne : Nonempty G.toCGraph.V := hGC.nonempty
+  have hVne : Nonempty ((CGraph.tensorProduct G.toCGraph H.toCGraph).V) := 
+    ⟨(Classical.choice hGne, Classical.choice hHne)⟩
+  -- Step 2: Work at SimpleGraph level
+  set Gs := G.toCGraph.toSimple
+  set Hs := H.toCGraph.toSimple
+  have hGCs : SimpleGraph.Connected Gs := hGC
+  have hBs : ¬ SimpleGraph.IsBipartite Gs := by
+    show ¬ G.toCGraph.toSimple.IsBipartite
+    intro h
+    apply hB
+    rw [CGraph.isBipartite_iff_colorable]
+    exact h
+  -- Get an edge in Hs from hED
+  have hHedge : ∃ (u v : H.toCGraph.V), Hs.Adj u v := by
+    simp only [Hs, CGraph.toSimple_adj]
+    have hne : H.toCGraph.toSimple ≠ ⊥ :=
+      (CGraph.toSimple_ne_bot_iff (G := H.toCGraph)).symm.mp hED
+    have hne_card : 0 < H.toCGraph.toSimple.edgeFinset.card :=
+      Finset.card_pos.mpr (SimpleGraph.edgeFinset_nonempty.mpr hne)
+    have hne : H.toCGraph.toSimple.edgeFinset.Nonempty := Finset.card_pos.mp hne_card
+    obtain ⟨e, he⟩ := hne
+    rcases e with ⟨a, b⟩
+    have hadj : Hs.Adj a b := by
+      have := SimpleGraph.mem_edgeFinset.mp he
+      exact this
+    exact ⟨a, b, hadj⟩
+  obtain ⟨u₀, v₀, huv₀⟩ := hHedge
+  -- Reachability in tensor product:
+  -- Key facts:
+  -- 1. Walk extension in H: from any walk in H, I can add 2 to its length by going u₀-v₀-u₀
+  -- 2. G is connected and non-bipartite: from any g1 to any g2, walks of both parities exist
+  --    (using the odd closed walk from non-bipartiteness)
+  -- 3. Pair walks of same length in G and H to get a walk in G ⊗ H
+  -- Strategy: from (g₀, u₀) to (g, h):
+  --   - Get a walk in H from u₀ to h of length d (by connectivity of Hs)
+  --   - Pad to even length 2k ≥ d using edge (u₀,v₀)
+  --   - Get a walk in G from g₀ to g of the same even length (G is connected and nonbipartite)
+  --   - Pair to get walk in tensor product
+  -- Let T be the tensor product simple graph
+  set T := (G.toCGraph.tensorProduct H.toCGraph).toSimple
+  -- Get a base vertex
+  let g₀ := Classical.choice hGne
+  set base : (G.toCGraph.tensorProduct H.toCGraph).V := (g₀, u₀)
+  -- Goal: T.Connected
+  -- We show preconnected + nonempty
+  apply SimpleGraph.Connected.mk
+  · -- Preconnected: all reachable from base
+    have hreach_H_u : ∀ h : H.toCGraph.V, Hs.Reachable h u₀ := fun h => (hHC.preconnected h u₀)
+    have hreach_H_v : ∀ h : H.toCGraph.V, Hs.Reachable h v₀ := fun h => (hHC.preconnected h v₀)
+    -- Walk pairing in tensor product: equal-length walks pair to a walk in T
+    have walk_pair_aux : ∀ {g1 g2 : G.toCGraph.V} {h1 h2 : H.toCGraph.V} {L : ℕ},
+        ∀ (wG : Gs.Walk g1 g2) (wH : Hs.Walk h1 h2), wG.length = L → wH.length = L →
+        T.Reachable (g1, h1) (g2, h2) := by
+      intro g1 g2 h1 h2 L wG wH hwG hwH
+      induction L generalizing g1 g2 h1 h2 wG wH with
+      | zero =>
+        have hg : g1 = g2 := by
+          induction wG with
+          | nil => rfl
+          | cons _ _ ih => simp at hwG
+        have hh : h1 = h2 := by
+          induction wH with
+          | nil => rfl
+          | cons _ _ ih => simp at hwH
+        rw [hg, hh]
+      | succ L ih =>
+        cases wG with
+        | nil => simp at hwG
+        | @cons g1 g1' g2 hadj_wG rest_wG =>
+          cases wH with
+          | nil => simp at hwH
+          | @cons h1 h1' h2 hadj_wH rest_wH =>
+            have hwG' : rest_wG.length = L := by
+              simp [SimpleGraph.Walk.length] at hwG; linarith
+            have hwH' : rest_wH.length = L := by
+              simp [SimpleGraph.Walk.length] at hwH; linarith
+            have hr := ih rest_wG rest_wH hwG' hwH'
+            have hadj_T : T.Adj (g1, h1) (g1', h1') := by
+              simp [T, CGraph.toSimple_adj]
+              exact ⟨hadj_wG, hadj_wH⟩
+            exact ⟨SimpleGraph.Walk.cons hadj_T hr.some⟩
+    -- Reachability from g₀ in Gs
+    have hreach_g₀ : ∀ v : G.toCGraph.V, Gs.Reachable g₀ v := fun v => (hGCs.preconnected g₀) v
+    let walkTo : ∀ v : G.toCGraph.V, Gs.Walk g₀ v := fun v => (hreach_g₀ v).some
+    -- Odd closed walk at g₀ from ¬bipartite (by contradiction + coloring)
+    have hodd_closed : ∃ (w : Gs.Walk g₀ g₀), w.length % 2 = 1 := by
+      by_contra h_even
+      push_neg at h_even
+      have hwelldef : ∀ (v : G.toCGraph.V) (w1 w2 : Gs.Walk g₀ v),
+          w1.length % 2 = w2.length % 2 := by
+        intro v w1 w2
+        have h1 : (w1.append w2.reverse).length = w1.length + w2.length := by
+          rw [SimpleGraph.Walk.length_append, SimpleGraph.Walk.length_reverse]
+        have h2 := h_even (w1.append w2.reverse)
+        rw [h1] at h2
+        omega
+      let color : G.toCGraph.V → Fin 2 := fun v => ⟨(walkTo v).length % 2, Nat.mod_lt _ (by omega)⟩
+      have hcolor_adj : ∀ {u v : G.toCGraph.V}, Gs.Adj u v → color u ≠ color v := by
+        intro u v hadj
+        simp only [color]
+        let hcons : Gs.Walk g₀ v :=
+          (walkTo u).append (SimpleGraph.Walk.cons hadj SimpleGraph.Walk.nil)
+        have hlen : hcons.length = (walkTo u).length + 1 := by
+          simp [hcons, SimpleGraph.Walk.length_append, SimpleGraph.Walk.length_cons,
+            SimpleGraph.Walk.length_nil]
+        have hwd := hwelldef v (walkTo v) hcons
+        rw [hlen] at hwd
+        exact Fin.ne_of_val_ne (by omega : (walkTo u).length % 2 ≠ (walkTo v).length % 2)
+      exact hBs ⟨color, hcolor_adj⟩
+    obtain ⟨wOdd, hwOdd⟩ := hodd_closed
+    -- Odd closed walk at any vertex g
+    let oddAtG : ∀ g : G.toCGraph.V, Gs.Walk g g := fun g =>
+      (walkTo g).reverse.append (wOdd.append (walkTo g))
+    have hoddAtG_len : ∀ g, (oddAtG g).length % 2 = 1 := by
+      intro g
+      simp [oddAtG, SimpleGraph.Walk.length_append, SimpleGraph.Walk.length_reverse]
+      omega
+    -- Even closed walk at g (append two odd closed walks)
+    let evenAtG : ∀ g : G.toCGraph.V, Gs.Walk g g :=
+      fun g => oddAtG g |> SimpleGraph.Walk.append <| oddAtG g
+    have hevenAtG_len' : ∀ g, (evenAtG g).length = 2 * (oddAtG g).length := by
+      intro g; simp [evenAtG, SimpleGraph.Walk.length_append]
+      ring
+    have hoddAtG_pos : ∀ g, 0 < (oddAtG g).length := by
+      intro g; by_contra h; have := hoddAtG_len g
+      simp [show (oddAtG g).length = 0 from le_antisymm (le_of_not_gt h) (Nat.zero_le _)] at this
+    -- Pad G walk by k even detours (adds 2*(oddAtG target).length per detour)
+    let padWalkGAt (target : G.toCGraph.V) : ∀ (w : Gs.Walk g₀ target) (k : ℕ), Gs.Walk g₀ target :=
+      fun w k => Nat.rec w (fun _ w' => w'.append (evenAtG target)) k
+    have hpadiWalkGAt_len : ∀ (target : G.toCGraph.V) (w : Gs.Walk g₀ target) (k : ℕ),
+        (padWalkGAt target w k).length = w.length + k * (2 * (oddAtG target).length) := by
+      intro target w k; induction k with
+      | zero => simp [padWalkGAt]
+      | succ k ih => simp [padWalkGAt, hevenAtG_len']; linarith
+    -- Pad H-walk: prepend u₀→v₀→u₀ detour adds +2 to length
+    let padWalk : ∀ {target : H.toCGraph.V} (w : Hs.Walk u₀ target) (k : ℕ), Hs.Walk u₀ target :=
+      fun w k => Nat.rec w
+        (fun _ w' => SimpleGraph.Walk.cons huv₀ (SimpleGraph.Walk.cons (Hs.symm huv₀) w')) k
+    have hpadiWalk_len : ∀ {target : H.toCGraph.V} (w : Hs.Walk u₀ target) (k : ℕ),
+        (padWalk w k).length = w.length + 2 * k := by
+      intro target w k
+      induction k with
+      | zero => simp [padWalk]
+      | succ k ih => simp [padWalk, SimpleGraph.Walk.length_cons]; linarith
+    -- Walk of given parity from g₀ to g
+    have hwalk_parity : ∀ (g : G.toCGraph.V) (p : Bool),
+        ∃ (w : Gs.Walk g₀ g), w.length % 2 = (if p then 1 else 0) := by
+      intro g p
+      have hodd_len : (oddAtG g).length % 2 = 1 := hoddAtG_len g
+      have happend_len : ∀ (w : Gs.Walk g₀ g),
+          (w.append (oddAtG g)).length = w.length + (oddAtG g).length := by
+        intro w; rw [SimpleGraph.Walk.length_append]
+      by_cases hp : p
+      · -- p = true, need % 2 = 1
+        by_cases hd : (walkTo g).length % 2 = 1
+        · exact ⟨walkTo g, by simp [hp]; exact hd⟩
+        · exact ⟨(walkTo g).append (oddAtG g), by simp [hp, happend_len]; omega⟩
+      · -- p = false, need % 2 = 0
+        simp [hp]
+        by_cases hd : (walkTo g).length % 2 = 0
+        · exact ⟨walkTo g, hd⟩
+        · exact ⟨(walkTo g).append (oddAtG g), by simp [happend_len]; omega⟩
+    -- Now prove Preconnected
+    have h_preconn : ∀ (p : (G.toCGraph.tensorProduct H.toCGraph).V), T.Reachable base p := by
+      intro ⟨g, h⟩
+      let wH₀ : Hs.Walk u₀ h := (hreach_H_u h).some.reverse
+      let p' : Bool := wH₀.length % 2 = 1
+      obtain ⟨wG_base, hwG_par⟩ := hwalk_parity g p'
+      have hwG_par' : wG_base.length % 2 = wH₀.length % 2 := by
+        unfold p' at hwG_par
+        have := Nat.mod_lt wH₀.length two_pos
+        interval_cases wH₀.length % 2 <;> simp at hwG_par ⊢ <;> exact hwG_par
+      let odd_len_g := (oddAtG g).length
+      let m := wH₀.length + 1
+      let wG' := padWalkGAt g wG_base m
+      have hm_pos : 0 < m := by simp [m]
+      have hodd_pos : 0 < (oddAtG g).length := hoddAtG_pos g
+      have hwG'_len : wG'.length ≥ wH₀.length := by
+        rw [hpadiWalkGAt_len g wG_base m]
+        show wH₀.length ≤ wG_base.length + (wH₀.length + 1) * (2 * (oddAtG g).length)
+        nlinarith [hoddAtG_pos g]
+      have hwG'_par : wG'.length % 2 = wG_base.length % 2 := by
+        rw [hpadiWalkGAt_len g wG_base m]
+        simp [Nat.add_mod, Nat.mul_mod, Nat.zero_mod]
+      have hwG'_par' : wG'.length % 2 = wH₀.length % 2 := by rw [hwG'_par, hwG_par']
+      have hwG'_par' : wG'.length % 2 = wH₀.length % 2 := by rw [hwG'_par, hwG_par']
+      let L := wG'.length
+      let k := L - wH₀.length
+      have hk_even : 2 ∣ k := by omega
+      obtain ⟨n, hn⟩ := hk_even
+      let wH_padded := padWalk wH₀ n
+      have hwH_pad_len : wH_padded.length = L := by
+        rw [hpadiWalk_len]; omega
+      exact walk_pair_aux wG' wH_padded rfl hwH_pad_len
+    show T.Preconnected
+    intro p q
+    exact (h_preconn p).symm.trans (h_preconn q)
+
+
+
+theorem cliqueCoverNum_cycle_odd (m : ℕ) : (cycle (2 * m + 5)).cliqueCoverNum = m + 3 := by
+  rw [show 2 * m + 5 = (2 * m + 1) + 4 from by omega, cliqueCoverNum_cycle]
+  omega
+
 end IsoGraph

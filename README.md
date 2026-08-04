@@ -1893,6 +1893,19 @@ and `T(n, n) = K_n` that covers every degenerate choice of `r`.
 A Paley graph is `(q-1)/2`-regular on `q` vertices, so the handshake lemma pins its edge count
 without any character sums: `4|E(P_q)| = q(q-1)`.
 
+**Weichsel's theorem** came back from the prover: the tensor product of two connected graphs is
+connected as soon as one factor is non-bipartite and the other has an edge.  The proof pairs a
+walk in `G` with a walk of the same length in `H`, padding the shorter one two steps at a time
+along a fixed edge and fixing the parity with an odd closed walk through the non-bipartite
+factor.  Alongside it, an odd cycle of length at least five is covered by `m + 2` edges and one
+leftover vertex, so `θ(C_{2m+5}) = m + 3`.
+
+Firing the prover at one file with several open `sorry`s has a catch worth recording: the other
+targets in the file are in scope, so a returned proof may quietly depend on a sibling that is
+still open.  Three edge-colouring results -- for ladders, crowns and hypercubes -- came back
+this way, each a one-line appeal to König's edge colouring theorem, which is exactly the target
+that did not come back.  They are parked until König lands.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
