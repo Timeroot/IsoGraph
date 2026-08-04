@@ -1109,6 +1109,20 @@ enough, and whatever the smaller instance returns is either already large enough
 `v`.  Both `s` and `t` shrink, so the induction is on `s` with a nested induction on `t`.  Since
 `C(2s, s) ≤ 4^s`, the diagonal case reads `4^s ≤ |V| → s ≤ ω(G) ∨ s ≤ α(G)`.
 
+The **vertex cover number** `τ` joins the invariant list, lifted from Mathlib's
+`vertexCoverNum` (an `ℕ∞`-valued infimum over covering sets, so the `CGraph` version is its
+`toNat`; isomorphism invariance is Mathlib's `vertexCoverNum_congr`).  Its whole theory here is
+**Gallai's identity** `τ + α = |V|`, which is the observation that a set covers every edge exactly
+when its complement is independent — one direction takes the complement of a maximum independent
+set as a cover, the other takes the complement of a minimum cover as an independent set, and the
+only real work is moving between `Set.encard`, `Finset.card` and `ℕ∞`.  With that, every entry of
+the `indepNum` table becomes an entry of a `coverNum` table for free (`τ(Kₙ) = n - 1`,
+`τ(Cₙ) = ⌈n/2⌉`, `τ(K_{m,n}) = min m n`, `τ` is additive over disjoint unions), and in the
+complement it reads `τ(Gᶜ) + ω(G) = |V|`.  Two bounds tie `τ` to the edge count: `τ ≤ |E|`, one
+vertex per edge, and `|E| ≤ τ·Δ`, since the `τ` cover vertices' incidence sets exhaust the edges
+and each has at most `Δ` of them.  The second is tight on stars, and combined with Gallai it caps
+the independence number of a graph with many edges: `|E| + α·Δ ≤ |V|·Δ`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

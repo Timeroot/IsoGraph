@@ -6,6 +6,7 @@ import Mathlib.Combinatorics.SimpleGraph.Connectivity.WalkCounting
 import Mathlib.Combinatorics.SimpleGraph.Coloring
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
 import Mathlib.Data.Fintype.Perm
+import Mathlib.Combinatorics.SimpleGraph.VertexCover
 
 /-!
 # Invariants
@@ -200,6 +201,9 @@ noncomputable def girth : ℕ := G.toSimple.girth
 /-- Diameter, i.e. the largest distance between two vertices — `0` if the graph is disconnected
 (this is Mathlib's convention for `SimpleGraph.diam`). -/
 noncomputable def diameter : ℕ := G.toSimple.diam
+
+/-- Vertex cover number: the size of a smallest set of vertices meeting every edge. -/
+noncomputable def coverNum : ℕ := G.toSimple.vertexCoverNum.toNat
 
 /-- Chromatic number. -/
 noncomputable def chromNum : ℕ := G.toSimple.chromaticNumber.toNat
@@ -502,6 +506,14 @@ noncomputable def diameter (G : IsoGraph) : ℕ :=
     (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.diam_eq (CGraph.Iso.toSimpleIso i)) G
 
 @[simp] theorem diameter_mk (G : CGraph) : diameter (Quotient.mk _ G) = G.diameter := rfl
+
+/-- Vertex cover number. -/
+noncomputable def coverNum (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.coverNum
+    (fun _ _ ⟨i⟩ ↦ congrArg ENat.toNat
+      (SimpleGraph.vertexCoverNum_congr (CGraph.Iso.toSimpleIso i))) G
+
+@[simp] theorem coverNum_mk (G : CGraph) : coverNum (Quotient.mk _ G) = G.coverNum := rfl
 
 /-- Chromatic number. -/
 noncomputable def chromNum (G : IsoGraph) : ℕ :=

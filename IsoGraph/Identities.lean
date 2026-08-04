@@ -5356,6 +5356,139 @@ theorem le_cliqueNum_or_le_indepNum (G : CGraph) {s t : ℕ}
     rw [hcard, SimpleGraph.cliqueNum_compl] at this
     exact this
 
+section Gallai
+
+variable {X : Type} [Fintype X] [DecidableEq X]
+
+omit [DecidableEq X] in
+/-- **Gallai's identity** at the level of `SimpleGraph`: the complement of a vertex cover is an
+independent set and vice versa, so `τ + α = |V|`. -/
+private theorem vertexCoverNum_toNat_add_indepNum (S : SimpleGraph X) :
+    S.vertexCoverNum.toNat + S.indepNum = Fintype.card X := by
+  classical
+  obtain ⟨s, hs⟩ := S.exists_isNIndepSet_indepNum
+  have hα : s.card = S.indepNum := hs.card_eq
+  have hαle : S.indepNum ≤ Fintype.card X := by
+    rw [← hα, ← Finset.card_univ]
+    exact Finset.card_le_univ s
+  -- `τ ≤ |V| - α`, using the complement of a maximum independent set as a cover.
+  have hle : S.vertexCoverNum.toNat + S.indepNum ≤ Fintype.card X := by
+    have hcov : S.IsVertexCover ((s : Set X)ᶜ) :=
+      SimpleGraph.isVertexCover_compl.2 hs.isIndepSet
+    have h1 := hcov.vertexCoverNum_le
+    rw [← Finset.coe_compl, Set.encard_coe_eq_coe_finsetCard, Finset.card_compl] at h1
+    have h2 : S.vertexCoverNum.toNat ≤ Fintype.card X - s.card := by
+      have := ENat.toNat_le_toNat h1 (by simp)
+      simpa using this
+    omega
+  -- `|V| - α ≤ τ`, since the complement of a minimum cover is independent.
+  have hge : Fintype.card X ≤ S.vertexCoverNum.toNat + S.indepNum := by
+    obtain ⟨c, hcard, hcov⟩ := S.vertexCoverNum_exists
+    have hind : S.IsIndepSet cᶜ := SimpleGraph.isIndepSet_compl_iff_isVertexCover.2 hcov
+    have hfin : S.IsIndepSet ((cᶜ.toFinset : Finset X) : Set X) := by
+      rwa [Set.coe_toFinset]
+    have h1 : (cᶜ.toFinset : Finset X).card ≤ S.indepNum := hfin.card_le_indepNum
+    have h2 : c.toFinset.card + cᶜ.toFinset.card = Fintype.card X := by
+      rw [Set.toFinset_compl, Finset.card_compl]
+      have := Finset.card_le_univ c.toFinset
+      omega
+    have h3 : S.vertexCoverNum.toNat = c.toFinset.card := by
+      have hc : c.encard = (c.toFinset.card : ℕ∞) := by
+        rw [← Set.encard_coe_eq_coe_finsetCard, Set.coe_toFinset]
+      rw [← hcard, hc]
+      simp
+    omega
+  omega
+
+omit [DecidableEq X] in
+/-- A minimum vertex cover, as a `Finset`. -/
+private theorem exists_cover_finset (S : SimpleGraph X) :
+    ∃ C : Finset X, (∀ ⦃x y⦄, S.Adj x y → x ∈ C ∨ y ∈ C) ∧
+      C.card = S.vertexCoverNum.toNat := by
+  classical
+  obtain ⟨c, hcard, hcov⟩ := S.vertexCoverNum_exists
+  refine ⟨c.toFinset, fun x y hxy ↦ ?_, ?_⟩
+  · simpa using hcov hxy
+  · have hc : c.encard = (c.toFinset.card : ℕ∞) := by
+      rw [← Set.encard_coe_eq_coe_finsetCard, Set.coe_toFinset]
+    rw [← hcard, hc]
+    simp
+
+/-- **Every edge meets the cover**, so the edges are covered by the incidence sets of the `τ`
+cover vertices, each of which has at most `Δ` edges: `|E| ≤ τ·Δ`. -/
+private theorem card_edgeFinset_le_vertexCoverNum_mul_maxDegree (S : SimpleGraph X)
+    [DecidableRel S.Adj] :
+    S.edgeFinset.card ≤ S.vertexCoverNum.toNat * S.maxDegree := by
+  classical
+  obtain ⟨C, hC, hcard⟩ := exists_cover_finset S
+  have hsub : S.edgeFinset ⊆ C.biUnion (fun v ↦ S.incidenceFinset v) := by
+    intro e he
+    induction e using Sym2.ind with | _ x y =>
+    rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he
+    rcases hC he with hx | hy
+    · exact Finset.mem_biUnion.2 ⟨x, hx, by
+        rw [SimpleGraph.mem_incidenceFinset]
+        exact ⟨(SimpleGraph.mem_edgeSet _).2 he, by simp⟩⟩
+    · exact Finset.mem_biUnion.2 ⟨y, hy, by
+        rw [SimpleGraph.mem_incidenceFinset]
+        exact ⟨(SimpleGraph.mem_edgeSet _).2 he, by simp⟩⟩
+  calc S.edgeFinset.card ≤ (C.biUnion (fun v ↦ S.incidenceFinset v)).card :=
+        Finset.card_le_card hsub
+    _ ≤ ∑ v ∈ C, (S.incidenceFinset v).card := Finset.card_biUnion_le
+    _ ≤ C.card * S.maxDegree := by
+        rw [← smul_eq_mul]
+        refine Finset.sum_le_card_nsmul _ _ _ fun v _ ↦ ?_
+        rw [SimpleGraph.card_incidenceFinset_eq_degree]
+        exact SimpleGraph.degree_le_maxDegree S v
+    _ = S.vertexCoverNum.toNat * S.maxDegree := by rw [hcard]
+
+end Gallai
+
+/-! ### The vertex cover number -/
+
+/-- **Gallai's identity**: a set of vertices is a vertex cover exactly when its complement is
+independent, so `τ(G) + α(G) = |V|`. -/
+theorem coverNum_add_indepNum (G : CGraph) :
+    G.coverNum + G.indepNum = Fintype.card G.V := by
+  classical
+  exact vertexCoverNum_toNat_add_indepNum G.toSimple
+
+/-- **`|E| ≤ τ·Δ`**: each of the `τ` cover vertices takes care of at most `Δ` edges. -/
+theorem E_le_coverNum_mul_maxDeg (G : CGraph) : G.E ≤ G.coverNum * G.maxDeg := by
+  classical
+  exact card_edgeFinset_le_vertexCoverNum_mul_maxDegree G.toSimple
+
+/-- A vertex cover needs at most one vertex per edge. -/
+theorem coverNum_le_E (G : CGraph) : G.coverNum ≤ G.E := by
+  classical
+  have h := G.toSimple.vertexCoverNum_le_encard_edgeSet
+  have he : G.toSimple.edgeSet.encard = (G.E : ℕ∞) := by
+    rw [← SimpleGraph.coe_edgeFinset, Set.encard_coe_eq_coe_finsetCard]
+    rfl
+  rw [he] at h
+  simpa using ENat.toNat_le_toNat h (by simp)
+
+/-- A graph with an edge is not independent as a whole. -/
+theorem indepNum_lt_card_of_E_pos (G : CGraph) (h : 0 < G.E) :
+    G.indepNum < Fintype.card G.V := by
+  classical
+  obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos h
+  obtain ⟨s, hs⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  have hcards : s.card = G.indepNum := hs.card_eq
+  have hle : G.indepNum ≤ Fintype.card G.V := by
+    rw [← hcards, ← Finset.card_univ]
+    exact Finset.card_le_univ s
+  rcases Nat.lt_or_ge G.indepNum (Fintype.card G.V) with h' | h'
+  · exact h'
+  · exfalso
+    have huniv : s = Finset.univ := Finset.eq_univ_of_card s (by rw [hcards]; omega)
+    have hmem : ∀ x : G.V, x ∈ (s : Set G.V) := by
+      intro x
+      rw [huniv]
+      simp
+    exact hs.isIndepSet (hmem a) (hmem b) ((toSimple_adj _ _ _).2 hab).ne
+      ((toSimple_adj _ _ _).2 hab)
+
 end CGraph
 
 namespace IsoGraph
@@ -11381,5 +11514,123 @@ theorem le_cliqueNum_or_le_indepNum_of_pow (G : IsoGraph) {s : ℕ} (h : 4 ^ s �
 /-- A graph on `70` vertices has four mutually adjacent or four mutually non-adjacent vertices. -/
 example (G : IsoGraph) (h : 70 ≤ G.V) : 4 ≤ G.cliqueNum ∨ 4 ≤ G.indepNum :=
   G.le_cliqueNum_or_le_indepNum (by rw [show (4 : ℕ) + 4 = 8 from rfl]; simpa using h)
+
+/-! ### The vertex cover number -/
+
+/-- **Gallai's identity**, `τ + α = |V|`. -/
+@[simp] theorem coverNum_add_indepNum (G : IsoGraph) : G.coverNum + G.indepNum = G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, coverNum_mk, indepNum_mk, V_mk]
+  exact CGraph.coverNum_add_indepNum _
+
+theorem coverNum_eq (G : IsoGraph) : G.coverNum = G.V - G.indepNum := by
+  have := G.coverNum_add_indepNum
+  omega
+
+theorem indepNum_eq_V_sub_coverNum (G : IsoGraph) : G.indepNum = G.V - G.coverNum := by
+  have := G.coverNum_add_indepNum
+  omega
+
+theorem coverNum_le_V (G : IsoGraph) : G.coverNum ≤ G.V := by
+  have := G.coverNum_add_indepNum
+  omega
+
+/-- In the complement, Gallai reads `τ(Gᶜ) + ω(G) = |V|`. -/
+theorem coverNum_compl_add_cliqueNum (G : IsoGraph) :
+    (compl G).coverNum + G.cliqueNum = G.V := by
+  have := (compl G).coverNum_add_indepNum
+  rwa [indepNum_compl, V_compl] at this
+
+/-! ### The vertex cover table -/
+
+@[simp] theorem coverNum_empty (n : ℕ) : (empty n).coverNum = 0 := by
+  rw [coverNum_eq, V_empty, indepNum_empty]
+  omega
+
+@[simp] theorem coverNum_complete (n : ℕ) : (complete n).coverNum = n - 1 := by
+  rw [coverNum_eq, V_complete, indepNum_complete]
+  omega
+
+@[simp] theorem coverNum_cycle (n : ℕ) : (cycle (n + 3)).coverNum = (n + 3) - (n + 3) / 2 := by
+  rw [coverNum_eq, V_cycle, indepNum_cycle]
+
+@[simp] theorem coverNum_bipartite (m n : ℕ) : (bipartite m n).coverNum = min m n := by
+  rw [coverNum_eq, V_bipartite, indepNum_bipartite]
+  omega
+
+@[simp] theorem coverNum_star (n : ℕ) : (star n).coverNum = min 1 n := by
+  rw [star_eq_bipartite, coverNum_bipartite]
+
+@[simp] theorem coverNum_disjUnion (G H : IsoGraph) :
+    (disjUnion G H).coverNum = G.coverNum + H.coverNum := by
+  rw [coverNum_eq, coverNum_eq, coverNum_eq, V_disjUnion, indepNum_disjUnion]
+  have := G.coverNum_add_indepNum
+  have := H.coverNum_add_indepNum
+  omega
+
+@[simp] theorem coverNum_completeMultipartite (ds : List ℕ) :
+    (completeMultipartite ds).coverNum = ds.sum - (ds.max?).getD 0 := by
+  rw [coverNum_eq, V_completeMultipartite, indepNum_completeMultipartite]
+
+/-! ### Where the cover number sits among the other invariants -/
+
+/-- **`|E| ≤ τ·Δ`**, so a graph with many edges and small degrees needs a big cover. -/
+theorem E_le_coverNum_mul_maxDeg (G : IsoGraph) : G.E ≤ G.coverNum * G.maxDeg := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, E_mk, coverNum_mk, maxDeg_mk]
+  exact CGraph.E_le_coverNum_mul_maxDeg _
+
+/-- Turned around, this is a lower bound on the cover number, and via Gallai an upper bound on
+the independence number. -/
+theorem indepNum_mul_maxDeg_le (G : IsoGraph) :
+    G.E + G.indepNum * G.maxDeg ≤ G.V * G.maxDeg := by
+  have h1 := G.E_le_coverNum_mul_maxDeg
+  have h2 := G.coverNum_add_indepNum
+  calc G.E + G.indepNum * G.maxDeg ≤ G.coverNum * G.maxDeg + G.indepNum * G.maxDeg :=
+        Nat.add_le_add_right h1 _
+    _ = (G.coverNum + G.indepNum) * G.maxDeg := by ring
+    _ = G.V * G.maxDeg := by rw [h2]
+
+/-- A vertex cover needs at most one vertex per edge. -/
+@[simp] theorem coverNum_le_E (G : IsoGraph) : G.coverNum ≤ G.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, E_mk, coverNum_mk]
+  exact CGraph.coverNum_le_E _
+
+/-- A graph with an edge has an independent set smaller than its whole vertex set. -/
+theorem indepNum_lt_V_of_E_pos (G : IsoGraph) (h : 0 < G.E) : G.indepNum < G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, E_mk] at h
+  rw [← mk_canonicalize g, indepNum_mk, V_mk]
+  exact CGraph.indepNum_lt_card_of_E_pos _ h
+
+/-- A vertex cover meets every edge, so a graph with an edge needs one, and conversely a graph
+with no edges needs none. -/
+theorem coverNum_pos (G : IsoGraph) (h : 0 < G.E) : 0 < G.coverNum := by
+  have h1 := G.coverNum_add_indepNum
+  have h2 := G.indepNum_lt_V_of_E_pos h
+  omega
+
+@[simp] theorem coverNum_eq_zero_iff (G : IsoGraph) : G.coverNum = 0 ↔ G.E = 0 := by
+  constructor
+  · intro h
+    by_contra hcon
+    exact absurd (G.coverNum_pos (by omega)) (by omega)
+  · intro h
+    have := G.coverNum_le_E
+    omega
+
+/-! ### The cover number at work -/
+
+example : (cycle 6).coverNum = 3 := by rw [show (6 : ℕ) = 3 + 3 from rfl, coverNum_cycle]
+
+example : (complete 5).coverNum = 4 := by simp
+
+example : (bipartite 3 4).coverNum = 3 := by simp
+
+/-- `|E| ≤ τ·Δ` is an equality on stars, where a single vertex covers everything. -/
+example (n : ℕ) :
+    (star (n + 1)).E = (star (n + 1)).coverNum * (star (n + 1)).maxDeg := by
+  rw [E_star, maxDeg_star, coverNum_star, Nat.min_eq_left (by omega), one_mul]
 
 end IsoGraph
