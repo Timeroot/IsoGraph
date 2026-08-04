@@ -793,6 +793,16 @@ back `List.replicate n k` for every family in the table above, and combining it 
 lemma gives `IsSRGWith.two_mul_E : 2 * G.E = n * k`, so `omega` reads off edge counts
 (`petersen.E = 15`, `(rook 3 3).E = 18`) from the parameters alone.
 
+Two edge counts had `CGraph` versions that do not survive the quotient verbatim. `E_compl` does,
+once `Fintype.card G.V` becomes `G.V`: `(compl G).E + G.E = C(G.V, 2)`, whose subtraction form and
+the bound `E ≤ C(V, 2)` follow by `omega`. `E_lineGraph` does not — it is stated as
+`∑ v, C(deg v, 2)`, a sum over a vertex type that only exists downstairs. The fix is the degree
+sequence again: `sum_degSequence_map` says any sum of a function of the degrees is the same sum
+taken over `degSequence`, so the quotient statement is
+`(lineGraph G).E = ((degSequence G).map (C(·, 2))).sum` with no vertices in sight. Specialising it
+to a constant degree sequence gives `IsSRGWith.E_lineGraph` and `E_lineGraph_complete`, and the
+latter transports along `lineGraph_complete_eq_triangular` to `E_triangular`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

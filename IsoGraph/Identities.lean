@@ -2754,6 +2754,20 @@ theorem IsSRGWith.degSequence {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n
     G.degSequence = List.replicate n k := by
   rw [degSequence_of_regular G h.regular, h.card]
 
+/-- Any sum over the vertices of a function of the degree is a sum over the degree sequence. -/
+theorem sum_degSequence_map (G : CGraph) (f : ℕ → ℕ) :
+    (G.degSequence.map f).sum = ∑ v : G.V, f (G.toSimple.degree v) := by
+  have h : ((G.degSequence : List ℕ) : Multiset ℕ)
+      = Finset.univ.val.map fun v ↦ G.toSimple.degree v := Multiset.sort_eq _ _
+  have h2 : (G.degSequence.map f).sum = (((G.degSequence : List ℕ) : Multiset ℕ).map f).sum := rfl
+  rw [h2, h, Multiset.map_map]
+  rfl
+
+/-- The line graph's edge count, phrased so that it only mentions the degree sequence. -/
+theorem E_lineGraph_eq_sum_degSequence (G : CGraph) [DecidableEq G.V] :
+    (lineGraph G).E = (G.degSequence.map fun d ↦ d.choose 2).sum := by
+  rw [sum_degSequence_map, E_lineGraph]
+
 end CGraph
 
 namespace IsoGraph
@@ -6156,6 +6170,45 @@ theorem degSequence_triangular (n : ℕ) (hn : 4 ≤ n) :
     degSequence (triangular n) = List.replicate (n.choose 2) (2 * (n - 2)) :=
   (isSRGWith_triangular n hn).degSequence
 
+/-! ### Edge counts of the complement and the line graph -/
+
+theorem E_compl (G : IsoGraph) : (compl G).E + G.E = G.V.choose 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
+  exact CGraph.E_compl _
+
+theorem E_compl_eq (G : IsoGraph) : (compl G).E = G.V.choose 2 - G.E := by
+  have := G.E_compl
+  omega
+
+theorem E_le_choose_two (G : IsoGraph) : G.E ≤ G.V.choose 2 := by
+  have := G.E_compl
+  omega
+
+/-- The line graph has one vertex per edge, and one edge per pair of edges meeting at a vertex:
+`∑ v, C(deg v, 2)`, written over the degree sequence so as not to name a vertex. -/
+theorem E_lineGraph (G : IsoGraph) :
+    (lineGraph G).E = ((degSequence G).map fun d ↦ d.choose 2).sum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, lineGraph_mk, E_mk, degSequence_mk]
+  exact CGraph.E_lineGraph_eq_sum_degSequence _
+
+/-- A regular graph's line graph has `n * C(k, 2)` edges. -/
+theorem IsSRGWith.E_lineGraph {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
+    (lineGraph G).E = n * k.choose 2 := by
+  rw [IsoGraph.E_lineGraph, h.degSequence, List.map_replicate, List.sum_replicate, smul_eq_mul]
+
+@[simp] theorem E_lineGraph_complete (n : ℕ) :
+    (lineGraph (complete n)).E = n * (n - 1).choose 2 := by
+  rw [E_lineGraph, degSequence_complete, List.map_replicate, List.sum_replicate, smul_eq_mul]
+
+@[simp] theorem E_lineGraph_empty (n : ℕ) : (lineGraph (empty n)).E = 0 := by
+  rw [E_lineGraph, degSequence_empty, List.map_replicate, List.sum_replicate, smul_eq_mul]
+  rfl
+
+@[simp] theorem E_triangular (n : ℕ) : (triangular n).E = n * (n - 1).choose 2 := by
+  rw [← lineGraph_complete_eq_triangular, E_lineGraph_complete]
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6715,6 +6768,24 @@ example : (rook 3 3).E = 18 := by have := (isSRGWith_rook 3).two_mul_E; omega
 
 example : degSequence (cocktailParty 3) = [4, 4, 4, 4, 4, 4] := by
   rw [degSequence_cocktailParty]
+  rfl
+
+example : (compl petersen).E = 30 := by
+  rw [E_compl_eq, V_petersen]
+  have h : (10 : ℕ).choose 2 = 45 := rfl
+  have := isSRGWith_petersen.two_mul_E
+  omega
+
+example : (lineGraph petersen).E = 30 := by
+  rw [isSRGWith_petersen.E_lineGraph]
+  rfl
+
+example : (lineGraph (complete 5)).E = 30 := by simp [Nat.choose]
+
+example : (triangular 5).E = 30 := by simp [Nat.choose]
+
+example (G : IsoGraph) (h : G.V = 5) (h2 : G.E = 4) : (compl G).E = 6 := by
+  rw [E_compl_eq, h, h2]
   rfl
 
 example : (wheel 6).E = 12 := by simp
