@@ -705,6 +705,24 @@ complement, `(completeMultipartite ds).E + Σ C(dᵢ, 2) = C(Σ dᵢ, 2)`, and t
 splitting `a + b` points into two groups splits the pairs into within-`a`, within-`b` and across,
 which itself is an induction on `b` off `choose_two_succ`.
 
+Connectivity gets the same treatment. `IsConnected`, `IsAcyclic` and `IsTree` were only ever
+stated for `CGraph`, but their quotient versions are `Quotient.lift`s whose `_mk` lemmas are
+`rfl`, so `isConnected_complete`, `isConnected_path`, `isConnected_cycle`,
+`isConnected_bipartite`, `isAcyclic_empty`, `isAcyclic_path`, `isTree_path` and
+`not_isAcyclic_cycle` transfer verbatim, and `not_isConnected_disjUnion` and `isConnected_join`
+transfer with `0 < G.V` hypotheses through the three-step dance.
+
+The one genuinely new ingredient is the Cartesian product. Mathlib already knows
+`SimpleGraph.connected_boxProd`, that `G □ H` is connected iff both factors are, and
+`toSimple_cartesianProduct` identifies our `cartesianProduct` with `□` on the underlying simple
+graphs — the adjacency conditions match after `decide_eq_true_eq`, and `tauto` closes the rest.
+That upgrades the product case to an `iff` at both levels, which is what makes the grid-like
+families cheap: `isConnected_ladder`, `isConnected_prism` and `isConnected_rook` are one rewrite
+each, and `isConnected_hypercube` is an induction on `hypercube_succ`. `isConnected_star` needs a
+case split, since `star 0` is `empty 1` rather than a bipartite graph. All of these are `simp`
+lemmas, so `IsConnected (hypercube 4)` and `IsConnected (cartesianProduct G (path 3))` given
+`IsConnected G` are both discharged by `simp`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

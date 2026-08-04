@@ -2629,6 +2629,22 @@ theorem card_ne_succ (n : ℕ) (x y : Fin (n + 1) → Bool) :
         + (Finset.univ.filter fun i : Fin n ↦ x i.succ ≠ y i.succ).card := by
   rw [Finset.card_filter, Finset.card_filter, Fin.sum_univ_succ]
 
+/-! ### The Cartesian product as a box product -/
+
+/-- The Cartesian product is Mathlib's box product on the underlying simple graphs. -/
+theorem toSimple_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).toSimple = SimpleGraph.boxProd G.toSimple H.toSimple := by
+  ext p q
+  simp only [CGraph.toSimple_adj, cartesianProduct_adj, SimpleGraph.boxProd_adj,
+    Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+  tauto
+
+theorem isConnected_cartesianProduct_iff (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).IsConnected ↔ G.IsConnected ∧ H.IsConnected := by
+  show (cartesianProduct G H).toSimple.Connected ↔ _
+  rw [toSimple_cartesianProduct]
+  exact SimpleGraph.connected_boxProd
+
 end CGraph
 
 namespace IsoGraph
@@ -5445,6 +5461,89 @@ theorem E_hypercube (n : ℕ) : 2 * (hypercube n).E = n * 2 ^ n := by
   show (cartesianProduct (complete m) (complete n)).E = _
   rw [E_cartesianProduct, V_complete, V_complete, E_complete, E_complete]
 
+/-! ### Connectivity -/
+
+@[simp] theorem isConnected_empty_one : IsConnected (empty 1) := CGraph.isConnected_empty_one
+
+@[simp] theorem isConnected_complete (n : ℕ) : IsConnected (complete (n + 1)) :=
+  CGraph.isConnected_complete n
+
+@[simp] theorem isConnected_path (n : ℕ) : IsConnected (path (n + 1)) := CGraph.isConnected_path n
+
+@[simp] theorem isConnected_cycle (n : ℕ) : IsConnected (cycle (n + 1)) :=
+  CGraph.isConnected_cycle n
+
+@[simp] theorem isConnected_bipartite (m n : ℕ) : IsConnected (bipartite (m + 1) (n + 1)) :=
+  CGraph.isConnected_bipartite m n
+
+@[simp] theorem isAcyclic_empty (n : ℕ) : IsAcyclic (empty n) := CGraph.isAcyclic_empty n
+
+@[simp] theorem isAcyclic_path (n : ℕ) : IsAcyclic (path n) := CGraph.isAcyclic_path n
+
+@[simp] theorem isTree_path (n : ℕ) : IsTree (path (n + 1)) := CGraph.isTree_path n
+
+@[simp] theorem not_isAcyclic_cycle (n : ℕ) : ¬ IsAcyclic (cycle (n + 3)) :=
+  CGraph.not_isAcyclic_cycle n
+
+@[simp] theorem isConnected_star (n : ℕ) : IsConnected (star n) := by
+  cases n with
+  | zero => rw [star_zero]; exact isConnected_empty_one
+  | succ n => exact isConnected_bipartite 0 n
+
+/-- A disjoint union of two nonempty graphs is disconnected. -/
+theorem not_isConnected_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    ¬ IsConnected (disjUnion G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [disjUnion_mk, isConnected_mk]
+  rw [V_mk] at hG hH
+  exact CGraph.not_isConnected_disjUnion _ _ hG hH
+
+/-- A join of two nonempty graphs is connected, whatever the two graphs are. -/
+@[simp] theorem isConnected_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    IsConnected (join G H) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [join_mk, isConnected_mk]
+  rw [V_mk] at hG hH
+  exact CGraph.isConnected_join _ _ hG hH
+
+/-- The Cartesian product is connected exactly when both factors are. -/
+@[simp] theorem isConnected_cartesianProduct {G H : IsoGraph} :
+    IsConnected (cartesianProduct G H) ↔ IsConnected G ∧ IsConnected H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, isConnected_mk,
+    isConnected_mk, isConnected_mk]
+  exact CGraph.isConnected_cartesianProduct_iff _ _
+
+@[simp] theorem isConnected_wheel (n : ℕ) : IsConnected (wheel (n + 1)) := by
+  rw [wheel_eq_join]
+  exact isConnected_join (by simp) (by simp)
+
+@[simp] theorem isConnected_hypercube (n : ℕ) : IsConnected (hypercube n) := by
+  induction n with
+  | zero => rw [hypercube_zero]; exact isConnected_empty_one
+  | succ n ih =>
+    rw [hypercube_succ, isConnected_cartesianProduct]
+    exact ⟨ih, isConnected_complete 1⟩
+
+@[simp] theorem isConnected_ladder (n : ℕ) : IsConnected (ladder (n + 1)) := by
+  show IsConnected (cartesianProduct (path (n + 1)) (complete 2))
+  rw [isConnected_cartesianProduct]
+  exact ⟨isConnected_path n, isConnected_complete 1⟩
+
+@[simp] theorem isConnected_prism (n : ℕ) : IsConnected (prism (n + 1)) := by
+  show IsConnected (cartesianProduct (cycle (n + 1)) (complete 2))
+  rw [isConnected_cartesianProduct]
+  exact ⟨isConnected_cycle n, isConnected_complete 1⟩
+
+@[simp] theorem isConnected_rook (m n : ℕ) : IsConnected (rook (m + 1) (n + 1)) := by
+  show IsConnected (cartesianProduct (complete (m + 1)) (complete (n + 1)))
+  rw [isConnected_cartesianProduct]
+  exact ⟨isConnected_complete m, isConnected_complete n⟩
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -5949,6 +6048,13 @@ example : thetaGraph [1, 1, 1, 1] = bipartite 2 4 := by
   rw [show ([1, 1, 1, 1] : List ℕ) = List.replicate 4 1 from rfl, thetaGraph_replicate_one]
 example : thetaGraph [1, 1] = cycle 4 := by simp
 example (n : ℕ) : thetaGraph (List.replicate n 1) = bipartite 2 n := by simp
+
+example : IsConnected (prism 6) := by simp
+example : IsConnected (hypercube 4) := by simp
+example : ¬ IsConnected (disjUnion (cycle 3) (cycle 4)) :=
+  not_isConnected_disjUnion (by simp) (by simp)
+example (G : IsoGraph) (h : IsConnected G) : IsConnected (cartesianProduct G (path 3)) := by
+  simp [h]
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp
