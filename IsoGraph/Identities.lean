@@ -22573,4 +22573,371 @@ theorem not_isAcyclic_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
 
 theorem not_isTree_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) : ¬ IsTree (kneser n k) :=
   not_isTree_of_girth_pos (by rw [girth_kneser hk h]; omega)
+/-! ### Which named families are trees -/
+
+@[simp] theorem not_isTree_book (n : ℕ) : ¬ IsTree (book (n + 1)) :=
+  not_isTree_of_girth_pos (by rw [girth_book]; omega)
+
+@[simp] theorem not_isTree_cocktailParty (n : ℕ) : ¬ IsTree (cocktailParty (n + 3)) :=
+  not_isTree_of_girth_pos (by rw [girth_cocktailParty]; omega)
+
+@[simp] theorem not_isTree_triangular (n : ℕ) : ¬ IsTree (triangular (n + 4)) :=
+  not_isTree_of_girth_pos (by rw [girth_triangular]; omega)
+
+theorem not_isTree_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) (h : 3 ≤ max m n) :
+    ¬ IsTree (rook m n) :=
+  not_isTree_of_girth_pos (by rw [girth_rook hm hn h]; omega)
+
+@[simp] theorem not_isTree_completeMultipartite_replicate (m d : ℕ) :
+    ¬ IsTree (completeMultipartite (List.replicate (m + 3) (d + 1))) :=
+  not_isTree_of_girth_pos (by rw [girth_completeMultipartite_replicate]; omega)
+
+theorem not_isTree_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq9 : 9 ≤ q) :
+    ¬ IsTree (paley q) :=
+  not_isTree_of_girth_pos (by rw [girth_paley q hq hq9]; omega)
+
+theorem not_isTree_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) : ¬ IsTree (lineGraph G) :=
+  not_isTree_of_girth_pos (by rw [girth_lineGraph_eq_three h]; omega)
+
+/-- A graph with no edges is a tree exactly when it is the one-point graph. -/
+@[simp] theorem isTree_empty_iff (n : ℕ) : IsTree (empty n) ↔ n = 1 := by
+  rw [isTree_iff, E_empty, V_empty]
+  refine ⟨fun ⟨_, h⟩ ↦ by omega, ?_⟩
+  rintro rfl
+  exact ⟨by simp [isConnected_empty_one], rfl⟩
+
+@[simp] theorem not_isTree_empty (n : ℕ) : ¬ IsTree (empty (n + 2)) := by
+  rw [isTree_empty_iff]; omega
+
+@[simp] theorem isAcyclic_star (n : ℕ) : IsAcyclic (star n) :=
+  ((isTree_iff_isConnected_and_isAcyclic _).1 (isTree_star n)).2
+
+/-! ### Circulants -/
+
+/-- The edge count of a circulant, from its regularity. -/
+theorem E_circulant (n : ℕ) (S : List ℕ) (hn : 0 < n) :
+    (circulant n S).E = n * (circulant n S).minDeg / 2 := by
+  rw [← two_mul_E_circulant n S hn]
+  omega
+
+theorem diameter_circulant (n : ℕ) (S : List ℕ) :
+    (circulant n S).diameter = (circulant n S).radius := (radius_circulant n S).symm
+
+/-! ### Balanced complete multipartite graphs -/
+
+/-- A balanced complete multipartite graph is regular: every vertex misses exactly its own
+part. -/
+@[simp] theorem isRegularWith_completeMultipartite_replicate (m d : ℕ) :
+    (completeMultipartite (List.replicate m d)).IsRegularWith ((m - 1) * d) := by
+  rw [completeMultipartite_replicate]
+  simpa using (isRegularWith_complete m).lexProduct (isRegularWith_empty d)
+
+@[simp] theorem isVertexTransitive_completeMultipartite_replicate (m d : ℕ) :
+    IsVertexTransitive (completeMultipartite (List.replicate m d)) := by
+  rw [completeMultipartite_replicate]
+  exact (isVertexTransitive_complete m).lexProduct (isVertexTransitive_empty d)
+
+/-! ### Domination in Kneser graphs -/
+
+/-- **Three pairs dominate a Kneser graph on at least five points**: `{0,1}`, `{1,2}` and
+`{0,2}` between them meet or miss every pair. -/
+theorem domNum_kneser_two (n : ℕ) : (kneser (n + 5) 2).domNum = 3 := by
+  have h01 : (0 : Fin (n + 5)) ≠ 1 := by
+    intro h; have := Fin.ext_iff.mp h; simp at this
+  have h02 : (0 : Fin (n + 5)) ≠ 2 := by
+    intro h; have := Fin.ext_iff.mp h; simp [Nat.mod_eq_of_lt (by omega : 2 < n + 5)] at this
+  have h12 : (1 : Fin (n + 5)) ≠ 2 := by
+    intro h; have := Fin.ext_iff.mp h; simp [Nat.mod_eq_of_lt (by omega : 2 < n + 5)] at this
+  have key_dom : ∀ (t : Finset (Fin (n + 5))), t.card = 2 →
+      (t = {0, 1} ∨ t = {1, 2} ∨ t = {0, 2} ∨
+       t ∩ {0, 1} = ∅ ∨ t ∩ {1, 2} = ∅ ∨ t ∩ {0, 2} = ∅) := by
+    intro t ht
+    by_contra h
+    push_neg at h
+    -- h : t ≠ {0,1} ∧ t ≠ {1,2} ∧ t ≠ {0,2} ∧ t ∩ {0,1} ≠ ∅ ∧ t ∩ {1,2} ≠ ∅ ∧ t ∩ {0,2} ≠ ∅
+    obtain ⟨hne01, hne12, hne02, hint01, hint12, hint02⟩ := h
+    -- Each nonzero intersection gives an element of t in the corresponding pair.
+    have hint01' : (t ∩ {0, 1} : Finset (Fin (n+5))) ≠ ∅ := by
+      exact Finset.Nonempty.ne_empty ‹_›
+    have hint12' : (t ∩ {1, 2} : Finset (Fin (n+5))) ≠ ∅ := by
+      exact Finset.Nonempty.ne_empty ‹_›
+    have hint02' : (t ∩ {0, 2} : Finset (Fin (n+5))) ≠ ∅ := by
+      exact Finset.Nonempty.ne_empty ‹_›
+    have h0 : (0 : Fin (n+5)) ∈ t ∨ 1 ∈ t := by
+      obtain ⟨x, hx⟩ := Finset.nonempty_iff_ne_empty.mpr hint01'
+      simp at hx
+      rcases hx with ⟨hxt, rfl | rfl⟩ <;> tauto
+    have h1 : (1 : Fin (n+5)) ∈ t ∨ 2 ∈ t := by
+      obtain ⟨x, hx⟩ := Finset.nonempty_iff_ne_empty.mpr hint12'
+      simp at hx
+      rcases hx with ⟨hxt, rfl | rfl⟩ <;> tauto
+    have h2 : (0 : Fin (n+5)) ∈ t ∨ 2 ∈ t := by
+      obtain ⟨x, hx⟩ := Finset.nonempty_iff_ne_empty.mpr hint02'
+      simp at hx
+      rcases hx with ⟨hxt, rfl | rfl⟩ <;> tauto
+    have eq_pair_of_mem : ∀ (a b : Fin (n+5)), a ≠ b → a ∈ t → b ∈ t → t = {a, b} := by
+      intro a b hab ha hb
+      apply Finset.eq_of_subset_of_card_le
+      · intro x hx
+        by_contra hxne
+        have hextra : ({a, b, x} : Finset (Fin (n+5))) ⊆ t := by
+          intro y hy; simp at hy; rcases hy with rfl | rfl | rfl <;> assumption
+        have hcard := Finset.card_le_card hextra
+        have hcard3 : ({a, b, x} : Finset (Fin (n+5))).card = 3 := by
+          have hax : a ≠ x := by intro h; exact hxne (h ▸ Finset.mem_insert_self _ _)
+          have hbx : b ≠ x := by
+            intro h
+            exact hxne (h ▸ Finset.mem_insert_of_mem (Finset.mem_singleton_self _))
+          rw [Finset.card_insert_of_notMem, Finset.card_insert_of_notMem]
+          · simp
+          · exact fun h => hbx (Finset.mem_singleton.mp h)
+          · intro h; rcases Finset.mem_insert.mp h with rfl | h; exact absurd rfl hab; exact hax
+              (Finset.mem_singleton.mp h)
+        omega
+      · rw [ht, Finset.card_pair hab]
+    have hcard012 : ({0, 1, 2} : Finset (Fin (n+5))).card = 3 := by
+      simp [Finset.card_insert_of_notMem, h01, h02, h12]
+    rcases h0 with h0 | h0 <;> rcases h1 with h1 | h1 <;> rcases h2 with h2 | h2
+    · exact hne01 (eq_pair_of_mem 0 1 h01 h0 h1)
+    · have : ({0,1,2} : Finset (Fin (n+5))) ⊆ t := by
+        intro x hx; simp at hx; rcases hx with rfl | rfl | rfl <;> assumption
+      have hcard := Finset.card_le_card this
+      rw [hcard012, ht] at hcard; omega
+    · exact hne02 (eq_pair_of_mem 0 2 h02 h0 h1)
+    · exact hne02 (eq_pair_of_mem 0 2 h02 h0 h2)
+    · have := eq_pair_of_mem 1 0 h01.symm h0 h2
+      exact hne01 (this.trans (Finset.pair_comm _ _))
+    · exact hne12 (eq_pair_of_mem 1 2 h12 h0 h2)
+    · have : ({0,1,2} : Finset (Fin (n+5))) ⊆ t := by
+        intro x hx; simp at hx; rcases hx with rfl | rfl | rfl <;> [exact h2; exact h0; exact h1]
+      have hcard := Finset.card_le_card this
+      rw [hcard012, ht] at hcard; omega
+    · exact hne12 (eq_pair_of_mem 1 2 h12 h0 h2)
+  rw [kneser, IsoGraph.domNum_mk]
+  have hcard01 : ({0, 1} : Finset (Fin (n + 5))).card = 2 := Finset.card_pair h01
+  have hcard12 : ({1, 2} : Finset (Fin (n + 5))).card = 2 := Finset.card_pair h12
+  have hcard02 : ({0, 2} : Finset (Fin (n + 5))).card = 2 := Finset.card_pair h02
+  let v01 : (CGraph.kneser (n + 5) 2).V := ⟨{0, 1}, hcard01⟩
+  let v12 : (CGraph.kneser (n + 5) 2).V := ⟨{1, 2}, hcard12⟩
+  let v02 : (CGraph.kneser (n + 5) 2).V := ⟨{0, 2}, hcard02⟩
+  let s : Finset (CGraph.kneser (n + 5) 2).V := {v01, v12, v02}
+  have hd01_12 : ({0, 1} : Finset (Fin (n + 5))) ≠ {1, 2} := by
+    intro h; have := Finset.ext_iff.mp h 0; simp at this; exact h02 this
+  have hd01_02 : ({0, 1} : Finset (Fin (n + 5))) ≠ {0, 2} := by
+    intro h; have := Finset.ext_iff.mp h 2; simp at this; rcases this with h' | h' <;> [exact absurd
+      h' h02.symm; exact absurd h' h12.symm]
+  have hd12_02 : ({1, 2} : Finset (Fin (n + 5))) ≠ {0, 2} := by
+    intro h; have := Finset.ext_iff.mp h 1; simp at this; exact h12 this
+  have hne01_12 : v01 ≠ v12 := fun h => hd01_12 (Subtype.ext_iff.mp h)
+  have hne01_02 : v01 ≠ v02 := fun h => hd01_02 (Subtype.ext_iff.mp h)
+  have hne12_02 : v12 ≠ v02 := fun h => hd12_02 (Subtype.ext_iff.mp h)
+  have hcard_s : s.card = 3 := by
+    show Finset.card ({v01, v12, v02} : Finset _) = 3
+    rw [show ({v01, v12, v02} : Finset _) = insert v01 (insert v12 (insert v02 ∅)) from rfl]
+    have hv02_not_empty : v02 ∉ (∅ : Finset (CGraph.kneser (n + 5) 2).V) := Finset.notMem_empty v02
+    have hv12_not_in_v02 : v12 ∉ insert v02 (∅ : Finset _) := by
+      simp [hne12_02]
+    have hv01_not_in_v12_v02 : v01 ∉ insert v12 (insert v02 (∅ : Finset _)) := by
+      simp [Finset.mem_insert, hne01_12, hne01_02]
+    rw [Finset.card_insert_of_notMem hv01_not_in_v12_v02,
+        Finset.card_insert_of_notMem hv12_not_in_v02,
+        Finset.card_insert_of_notMem hv02_not_empty,
+        Finset.card_empty]
+  have hdom_s : (CGraph.kneser (n + 5) 2).IsDominatingSet s := by
+    unfold CGraph.IsDominatingSet
+    intro ⟨t, ht⟩
+    by_cases hmem : ⟨t, ht⟩ = v01 ∨ ⟨t, ht⟩ = v12 ∨ ⟨t, ht⟩ = v02
+    · rcases hmem with h | h | h
+      · rw [h]; simp [s]
+      · rw [h]; simp [s]
+      · rw [h]; simp [s]
+    · push_neg at hmem
+      rcases key_dom t ht with h | h | h | h | h | h
+      · exact False.elim (hmem.1 (by subst h; rfl))
+      · exact False.elim (hmem.2.1 (by subst h; rfl))
+      · exact False.elim (hmem.2.2 (by subst h; rfl))
+      · right; exact ⟨v01, Finset.mem_insert_self _ _, by
+          rw [CGraph.kneser_adj]
+          simp [decide_eq_true_eq]
+          dsimp [v01]
+          exact ⟨hmem.1.symm, h.symm ▸ Eq.symm (Finset.inter_comm t {0, 1})⟩⟩
+      · right; exact ⟨v12, Finset.mem_insert_of_mem (Finset.mem_insert_self _ _), by
+          rw [CGraph.kneser_adj]
+          simp [decide_eq_true_eq]
+          dsimp [v12]
+          exact ⟨hmem.2.1.symm, h.symm ▸ Eq.symm (Finset.inter_comm t {1, 2})⟩⟩
+      · right; exact ⟨v02, show v02 ∈ s from by simp [s], by
+          rw [CGraph.kneser_adj]
+          simp [decide_eq_true_eq]
+          dsimp [v02]
+          exact ⟨hmem.2.2.symm, h.symm ▸ Eq.symm (Finset.inter_comm t {0, 2})⟩⟩
+  have hupp : (CGraph.kneser (n + 5) 2).domNum ≤ 3 :=
+    le_trans (CGraph.domNum_le_card_of_isDominatingSet hdom_s) (by rw [hcard_s])
+  -- Lower bound: domNum ≥ 3
+  have hlow : 3 ≤ (CGraph.kneser (n + 5) 2).domNum := by
+    by_contra hlt
+    push_neg at hlt
+    obtain ⟨s, hs_card, hs_dom⟩ := CGraph.exists_isDominatingSet_domNum (CGraph.kneser (n + 5) 2)
+    have hscard : s.card ≤ 2 := by linarith
+    unfold CGraph.IsDominatingSet at hs_dom
+    have hn5 : 5 ≤ n + 5 := by omega
+    -- All elements appearing in vertices of s
+    set E := s.biUnion (fun u : (CGraph.kneser (n + 5) 2).V => u.val) with hE_def
+    have hE_card : E.card ≤ 4 := by
+      calc E.card ≤ ∑ u ∈ s, u.val.card := Finset.card_biUnion_le
+        _ = s.card * 2 := by
+            rw [Finset.sum_congr rfl (fun u hu => u.2), Finset.sum_const, smul_eq_mul]
+        _ ≤ 2 * 2 := by gcongr
+        _ = 4 := by norm_num
+    have hE_lt : E.card < Fintype.card (Fin (n + 5)) := by
+      rw [Fintype.card_fin]; omega
+    obtain ⟨x₀, hx₀⟩ : ∃ x₀ : Fin (n + 5), x₀ ∉ E := by
+      by_contra hx₀; push_neg at hx₀
+      have : E = Finset.univ := Finset.eq_univ_of_forall hx₀
+      rw [this, Finset.card_univ, Fintype.card_fin] at hE_card; omega
+    have hx₀_not_in : ∀ u ∈ s, x₀ ∉ u.val := by
+      intro u hu hmem; exact hx₀ (Finset.mem_biUnion.mpr ⟨u, hu, hmem⟩)
+    interval_cases hscard2 : s.card
+    · -- card = 0
+      have hs_empty : s = ∅ := Finset.card_eq_zero.mp hscard2; subst hs_empty
+      exact absurd (hs_dom v01) (by simp)
+    · -- card = 1
+      obtain ⟨u, hu⟩ : ∃ u : (CGraph.kneser (n + 5) 2).V, s = {u} := by
+        rw [Finset.card_eq_one] at hscard2; exact hscard2
+      subst hu
+      have hu_ne_zero : u.val ≠ ∅ := by intro h; have := u.2; simp [h] at this
+      obtain ⟨a, ha⟩ : ∃ a, a ∈ u.val := Finset.nonempty_iff_ne_empty.mpr hu_ne_zero
+      obtain ⟨c, hc⟩ : ∃ c : Fin (n + 5), c ∉ u.val := by
+        by_contra hc; push_neg at hc
+        have huniv : u.val = Finset.univ := Finset.eq_univ_of_forall hc
+        have := u.2
+        rw [huniv, Finset.card_univ, Fintype.card_fin] at this
+        omega
+      have hac : a ≠ c := by intro h; exact hc (h ▸ ha)
+      let tval : Finset (Fin (n + 5)) := {a, c}
+      have htval_card : tval.card = 2 := Finset.card_pair hac
+      let t : (CGraph.kneser (n + 5) 2).V := ⟨tval, htval_card⟩
+      have ht_ne_u : t ≠ u := by
+        intro h
+        have h1 := Subtype.ext_iff.mp h
+        exact hc (h1.symm ▸ Finset.mem_insert_of_mem (Finset.mem_singleton_self _))
+      have ht_not_mem : t ∉ ({u} : Finset _) := by simp [ht_ne_u]
+      have ht_not_adj_u : ¬(CGraph.kneser (n + 5) 2).Adj u t := by
+        rw [CGraph.kneser_adj]
+        have h_mem : a ∈ u.val ∩ tval := Finset.mem_inter.mpr ⟨ha, Finset.mem_insert_self _ _⟩
+        by_contra h_adj
+        simp at h_adj
+        exact Finset.notMem_empty a (h_adj.2 ▸ h_mem)
+      have hdom_t := hs_dom t
+      rcases hdom_t with h | ⟨u_1, hu_1, hadj⟩
+      · exact ht_not_mem h
+      · simp [Finset.mem_singleton] at hu_1
+        subst hu_1
+        exact ht_not_adj_u hadj
+    · -- card = 2
+      obtain ⟨u, v, huv, hs_eq⟩ : ∃ u v : (CGraph.kneser (n + 5) 2).V, u ≠ v ∧ s = {u, v} := by
+        rw [Finset.card_eq_two] at hscard2; exact hscard2
+      subst hs_eq
+      by_cases hint_empty : (u.val ∩ v.val : Finset (Fin (n + 5))) = ∅
+      · -- Disjoint case
+        obtain ⟨a, ha⟩ : ∃ a, a ∈ u.val := Finset.card_pos.mp (by rw [u.2]; omega)
+        obtain ⟨b, hb⟩ : ∃ b, b ∈ v.val := Finset.card_pos.mp (by rw [v.2]; omega)
+        have hab_ne : a ≠ b := by
+          intro h
+          exact Finset.notMem_empty a (hint_empty ▸ Finset.mem_inter.mpr ⟨ha, h ▸ hb⟩)
+        let tval : Finset (Fin (n + 5)) := {a, b}
+        have htval_card : tval.card = 2 := Finset.card_pair hab_ne
+        let t : (CGraph.kneser (n + 5) 2).V := ⟨tval, htval_card⟩
+        have ha_not_in_v : a ∉ v.val := by
+          intro h
+          exact Finset.notMem_empty a (hint_empty ▸ Finset.mem_inter.mpr ⟨ha, h⟩)
+        have hb_not_in_u : b ∉ u.val := by
+          intro h
+          exact Finset.notMem_empty b (hint_empty ▸ Finset.mem_inter.mpr ⟨h, hb⟩)
+        have ht_ne_u : t ≠ u := by
+          intro h
+          have h1 := Subtype.ext_iff.mp h
+          have : b ∈ u.val := by
+            rw [← h1]
+            exact Finset.mem_insert_of_mem (Finset.mem_singleton_self _)
+          exact hb_not_in_u this
+        have ht_ne_v : t ≠ v := by
+          intro h
+          have h1 := Subtype.ext_iff.mp h
+          have : a ∈ v.val := by rw [← h1]; exact Finset.mem_insert_self _ _
+          exact ha_not_in_v this
+        have ht_not_mem : t ∉ ({u, v} : Finset _) := by simp [ht_ne_u, ht_ne_v]
+        have ht_not_adj_u : ¬(CGraph.kneser (n + 5) 2).Adj u t := by
+          rw [CGraph.kneser_adj]
+          have h_mem : a ∈ u.val ∩ t.val := Finset.mem_inter.mpr ⟨ha, Finset.mem_insert_self _ _⟩
+          by_contra h_adj
+          simp at h_adj
+          exact Finset.notMem_empty a (h_adj.2 ▸ h_mem)
+        have ht_not_adj_v : ¬(CGraph.kneser (n + 5) 2).Adj v t := by
+          rw [CGraph.kneser_adj]
+          have h_mem : b ∈ v.val ∩ t.val := Finset.mem_inter.mpr ⟨hb, Finset.mem_insert_of_mem
+            (Finset.mem_singleton_self _)⟩
+          by_contra h_adj
+          simp at h_adj
+          exact Finset.notMem_empty b (h_adj.2 ▸ h_mem)
+        have hcontradiction := hs_dom t
+        rcases hcontradiction with h | ⟨w, hw, hadj⟩
+        · exact ht_not_mem h
+        · simp [Finset.mem_insert, Finset.mem_singleton] at hw
+          rcases hw with rfl | rfl <;> [exact ht_not_adj_u hadj; exact ht_not_adj_v hadj]
+      · -- Non-disjoint case
+        obtain ⟨a, ha⟩ : ∃ a, a ∈ (u.val ∩ v.val : Finset (Fin (n + 5))) :=
+          Finset.nonempty_iff_ne_empty.mpr hint_empty
+        have ha_u : a ∈ u.val := Finset.mem_inter.mp ha |>.1
+        have ha_v : a ∈ v.val := Finset.mem_inter.mp ha |>.2
+        have hdiff_u : (u.val \ v.val : Finset (Fin (n + 5))).Nonempty := by
+          by_contra hd; push_neg at hd
+          have hsub : u.val ⊆ v.val := Finset.sdiff_eq_empty_iff_subset.mp hd
+          have := Finset.card_le_card hsub
+          rw [u.2, v.2] at this
+          have : u.val = v.val := Finset.eq_of_subset_of_card_le hsub (by rw [u.2, v.2])
+          exact huv (Subtype.ext this)
+        obtain ⟨b, hb⟩ := hdiff_u
+        have hb_u : b ∈ u.val := Finset.mem_sdiff.mp hb |>.1
+        have hb_nv : b ∉ v.val := Finset.mem_sdiff.mp hb |>.2
+        have hdiff_v : (v.val \ u.val : Finset (Fin (n + 5))).Nonempty := by
+          by_contra hd; push_neg at hd
+          have hsub : v.val ⊆ u.val := Finset.sdiff_eq_empty_iff_subset.mp hd
+          have := Finset.card_le_card hsub
+          rw [v.2, u.2] at this
+          have : v.val = u.val := Finset.eq_of_subset_of_card_le hsub (by rw [v.2, u.2])
+          exact huv.symm (Subtype.ext this)
+        obtain ⟨c, hc⟩ := hdiff_v
+        have hc_v : c ∈ v.val := Finset.mem_sdiff.mp hc |>.1
+        have hc_nu : c ∉ u.val := Finset.mem_sdiff.mp hc |>.2
+        have hb_ne_c : b ≠ c := by intro h; exact hc_nu (h ▸ hb_u)
+        let tval : Finset (Fin (n + 5)) := {b, c}
+        have htval_card : tval.card = 2 := Finset.card_pair hb_ne_c
+        let t : (CGraph.kneser (n + 5) 2).V := ⟨tval, htval_card⟩
+        have ht_ne_u : t ≠ u := by
+          intro h; have := Subtype.ext_iff.mp h
+          exact hc_nu (this ▸ Finset.mem_insert_of_mem (Finset.mem_singleton_self _))
+        have ht_ne_v : t ≠ v := by
+          intro h; have := Subtype.ext_iff.mp h
+          exact hb_nv (this ▸ Finset.mem_insert_self _ _)
+        have ht_not_mem : t ∉ ({u, v} : Finset _) := by simp [ht_ne_u, ht_ne_v]
+        have ht_not_adj_u : ¬(CGraph.kneser (n + 5) 2).Adj u t := by
+          rw [CGraph.kneser_adj]
+          have h_mem : b ∈ u.val ∩ t.val := Finset.mem_inter.mpr ⟨hb_u, Finset.mem_insert_self _ _⟩
+          by_contra h_adj
+          simp at h_adj
+          exact Finset.notMem_empty b (h_adj.2 ▸ h_mem)
+        have ht_not_adj_v : ¬(CGraph.kneser (n + 5) 2).Adj v t := by
+          rw [CGraph.kneser_adj]
+          have h_mem : c ∈ v.val ∩ t.val := Finset.mem_inter.mpr ⟨hc_v, Finset.mem_insert_of_mem
+            (Finset.mem_singleton_self _)⟩
+          by_contra h_adj
+          simp at h_adj
+          exact Finset.notMem_empty c (h_adj.2 ▸ h_mem)
+        have hcontradiction := hs_dom t
+        rcases hcontradiction with h | ⟨w, hw, hadj⟩
+        · exact ht_not_mem h
+        · simp [Finset.mem_insert, Finset.mem_singleton] at hw
+          rcases hw with rfl | rfl <;> [exact ht_not_adj_u hadj; exact ht_not_adj_v hadj]
+  exact le_antisymm hupp hlow
 end IsoGraph

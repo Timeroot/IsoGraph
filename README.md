@@ -1774,6 +1774,16 @@ corollaries.  On the domination side the four-cube needs four codewords -- the s
 bound `2^n ≤ γ · (n + 1)` forces at least four, and `{0000, 0001, 1110, 1111}` is a dominating
 set -- which is the first hypercube beyond the perfect-code cases `Q₁`, `Q₃`.
 
+Three pairs -- `{0,1}`, `{1,2}`, `{0,2}` -- dominate the Kneser graph `K(n,2)` for every
+`n ≥ 5`, because any other pair either equals one of them or is disjoint from one of them, and
+no two vertices suffice; the prover found both halves.  Alongside it a sweep of small
+consequences fills in the tree column (a book, a cocktail party graph, a triangular graph, a
+rook's graph, a balanced complete multipartite graph, a Paley graph and a line graph of a
+graph with a degree-three vertex all have a cycle, and `empty n` is a tree exactly when
+`n = 1`), the regularity and vertex-transitivity of balanced complete multipartite graphs
+(they are lexicographic products of a complete graph with an edgeless one), and the edge count
+and diameter of a circulant from its vertex-transitivity.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
