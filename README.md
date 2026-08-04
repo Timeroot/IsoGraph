@@ -1624,6 +1624,18 @@ wheel then has `ω(Wₙ) = 3` (hub plus a rim edge) for `n ≥ 4`, and `W₃ = K
 dominates — and Gallai supplies the cover numbers of the wheel and the cocktail-party graph,
 whose domination number is `2` because its radius is `2`.
 
+The vertices a maximum matching misses are pairwise non-adjacent, so `|V| ≤ α + 2ν`; for `Kₙ`
+that reads `n ≤ 1 + 2ν`, and against `2ν ≤ n` it pins `ν(Kₙ) = ⌊n/2⌋`. Two families fall out.
+Because `L(Kₙ)` is the triangular graph, `α(T(n)) = ν(Kₙ) = ⌊n/2⌋`, and complementing gives
+`ω(K(n, 2)) = ⌊n/2⌋` for the Kneser graph; feeding that `α` back into `α · ω ≤ |V| = C(n, 2)`
+caps a clique of `T(2m+2)` at `2m + 1`, which is exactly the size of the star of edges at a
+vertex, so `ω(T(2m+2)) = n - 1` and dually `α(K(2m+2, 2)) = n - 1`. The companion bound
+`|E| ≤ χ' · ν` shows that complete graphs of odd order are class two: `K_{2m+3}` has
+`(m+1)(2m+3)` edges but no matching larger than `m + 1`, so `χ' ≥ 2m + 3 = Δ + 1` — Vizing's
+theorem in the one case where the easy `Δ` colours provably do not suffice. Finally the hypercube
+gets an exact independence number, `|V| ≤ χ · α` with `χ = 2` against `2α ≤ |V|` giving
+`α(Qₙ) = τ(Qₙ) = 2ⁿ⁻¹`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -17707,4 +17707,150 @@ any two non-partners do. -/
 
 example : (cocktailParty 3).coverNum = 4 := coverNum_cocktailParty 2
 
+
+/-! ### Two binomial coefficients -/
+
+theorem choose_two_two_mul (n : ℕ) : (2 * n).choose 2 = n * (2 * n - 1) := by
+  rw [Nat.choose_two_right, Nat.mul_assoc, Nat.mul_div_cancel_left _ (by norm_num : 0 < 2)]
+
+theorem choose_two_two_mul_add_one (n : ℕ) : (2 * n + 1).choose 2 = n * (2 * n + 1) := by
+  rw [Nat.choose_two_right, show 2 * n + 1 - 1 = 2 * n from rfl,
+    show (2 * n + 1) * (2 * n) = 2 * (n * (2 * n + 1)) by ring,
+    Nat.mul_div_cancel_left _ (by norm_num : 0 < 2)]
+
+/-! ### The matching number of a complete graph -/
+
+/-- **The matching number of a complete graph**: `ν(Kₙ) = ⌊n/2⌋`.  The upper bound is
+`2ν ≤ |V|`; for the lower bound, the vertices missed by a maximum matching are independent,
+so `|V| ≤ α + 2ν = 1 + 2ν`. -/
+@[simp] theorem matchNum_complete (n : ℕ) : (complete n).matchNum = n / 2 := by
+  have h1 := matchNum_complete_le n
+  have h2 := V_le_indepNum_add_two_mul_matchNum (complete n)
+  rw [V_complete, indepNum_complete] at h2
+  omega
+
+/-- A complete graph of even order has a perfect matching. -/
+theorem two_mul_matchNum_complete_two_mul (m : ℕ) :
+    2 * (complete (2 * m)).matchNum = (complete (2 * m)).V := by
+  rw [matchNum_complete, V_complete]
+  omega
+
+/-- **`K_{2m+3}` is a class-two graph**: `χ'(K_{2m+3}) ≥ 2m + 3 = Δ + 1`, because each of the
+`(m+1)(2m+3)` edges lies in a colour class of size at most `ν = m + 1`.  (Vizing's theorem says
+`Δ + 1` colours always suffice, so this is exactly the edge chromatic number.) -/
+theorem le_edgeChromNum_complete_odd (m : ℕ) :
+    2 * m + 3 ≤ (complete (2 * m + 3)).edgeChromNum := by
+  have hch : (2 * m + 3).choose 2 = (m + 1) * (2 * m + 3) := by
+    rw [show 2 * m + 3 = 2 * (m + 1) + 1 from by ring, choose_two_two_mul_add_one]
+  have h := E_le_edgeChromNum_mul_matchNum (complete (2 * m + 3))
+  rw [E_complete, matchNum_complete, hch, show (2 * m + 3) / 2 = m + 1 from by omega,
+    Nat.mul_comm (m + 1) (2 * m + 3)] at h
+  exact Nat.le_of_mul_le_mul_right h m.succ_pos
+
+/-- Complete graphs of odd order `≥ 3` need more than `Δ` colours on their edges. -/
+theorem maxDeg_lt_edgeChromNum_complete_odd (m : ℕ) :
+    maxDeg (complete (2 * m + 3)) < (complete (2 * m + 3)).edgeChromNum := by
+  have h := le_edgeChromNum_complete_odd m
+  rw [maxDeg_complete]
+  omega
+
+/-! ### Independent sets and cliques in triangular and Kneser graphs -/
+
+/-- **The independence number of a triangular graph**: an independent set in `T(n) = L(Kₙ)` is
+a matching of `Kₙ`, so `α(T(n)) = ν(Kₙ) = ⌊n/2⌋`. -/
+@[simp] theorem indepNum_johnson_two (n : ℕ) : (johnson n 2).indepNum = n / 2 := by
+  rw [← lineGraph_complete, ← matchNum_eq, matchNum_complete]
+
+theorem indepNum_triangular (n : ℕ) : (triangular n).indepNum = n / 2 :=
+  indepNum_johnson_two n
+
+@[simp] theorem coverNum_johnson_two (n : ℕ) :
+    (johnson n 2).coverNum = n.choose 2 - n / 2 := by
+  have h := (johnson n 2).coverNum_add_indepNum
+  rw [V_johnson, indepNum_johnson_two] at h
+  omega
+
+/-- Complementing turns the triangular graph into the Kneser graph `K(n, 2)`. -/
+@[simp] theorem cliqueNum_kneser_two (n : ℕ) : (kneser n 2).cliqueNum = n / 2 := by
+  have h := indepNum_johnson_two n
+  rw [show johnson n 2 = compl (kneser n 2) from triangular_eq_compl_kneser n,
+    indepNum_compl] at h
+  exact h
+
+/-- **The clique number of a triangular graph on an even ground set**: the `n - 1` edges at a
+fixed vertex of `Kₙ` are pairwise adjacent in `T(n)`, and vertex transitivity caps a clique at
+`|V| / α = n - 1`. -/
+theorem cliqueNum_johnson_two_even (m : ℕ) :
+    (johnson (2 * m + 2) 2).cliqueNum = 2 * m + 1 := by
+  have hlow := sub_one_le_cliqueNum_johnson_two (2 * m + 2)
+  have hch : (2 * m + 2).choose 2 = (m + 1) * (2 * m + 1) := by
+    rw [show 2 * m + 2 = 2 * (m + 1) from by ring, choose_two_two_mul,
+      show 2 * (m + 1) - 1 = 2 * m + 1 from by omega]
+  have hvt : IsVertexTransitive (johnson (2 * m + 2) 2) :=
+    isVertexTransitive_triangular (2 * m + 2)
+  have h := indepNum_mul_cliqueNum_le_V hvt
+  rw [V_johnson, indepNum_johnson_two, show (2 * m + 2) / 2 = m + 1 from by omega, hch] at h
+  have hup := Nat.le_of_mul_le_mul_left h m.succ_pos
+  omega
+
+theorem cliqueNum_triangular_even (m : ℕ) :
+    (triangular (2 * m + 2)).cliqueNum = 2 * m + 1 :=
+  cliqueNum_johnson_two_even m
+
+/-- The independence number of the Kneser graph `K(2m+2, 2)`, by complementation. -/
+theorem indepNum_kneser_two_even (m : ℕ) :
+    (kneser (2 * m + 2) 2).indepNum = 2 * m + 1 := by
+  have h := cliqueNum_johnson_two_even m
+  rw [show johnson (2 * m + 2) 2 = compl (kneser (2 * m + 2) 2) from
+    triangular_eq_compl_kneser (2 * m + 2), cliqueNum_compl] at h
+  exact h
+
+theorem chromNum_johnson_two_even_lower (m : ℕ) :
+    2 * m + 1 ≤ (johnson (2 * m + 2) 2).chromNum := by
+  have h := cliqueNum_le_chromNum (johnson (2 * m + 2) 2)
+  rw [cliqueNum_johnson_two_even] at h
+  exact h
+
+/-! ### Independent sets in the hypercube -/
+
+/-- **The independence number of a hypercube**: `α(Qₙ) = 2ⁿ⁻¹`.  One half comes from
+`|V| ≤ χ · α` with `χ = 2`, the other from `2α ≤ |V|`, which holds in any vertex-transitive
+graph with an edge. -/
+@[simp] theorem indepNum_hypercube (n : ℕ) : (hypercube (n + 1)).indepNum = 2 ^ n := by
+  have h1 := two_mul_indepNum_hypercube_le n
+  have h2 := V_le_chromNum_mul_indepNum (hypercube (n + 1))
+  rw [V_hypercube, chromNum_hypercube] at h2
+  have h3 : (2 : ℕ) ^ (n + 1) = 2 * 2 ^ n := by ring
+  omega
+
+@[simp] theorem coverNum_hypercube (n : ℕ) : (hypercube (n + 1)).coverNum = 2 ^ n := by
+  have h := (hypercube (n + 1)).coverNum_add_indepNum
+  rw [V_hypercube, indepNum_hypercube] at h
+  have h3 : (2 : ℕ) ^ (n + 1) = 2 * 2 ^ n := by ring
+  omega
+
+/-- The hypercube is bipartite with both sides of the bipartition as large as possible. -/
+theorem two_mul_indepNum_hypercube (n : ℕ) :
+    2 * (hypercube (n + 1)).indepNum = (hypercube (n + 1)).V := by
+  rw [indepNum_hypercube, V_hypercube]
+  ring
+
+theorem indepNum_eq_coverNum_hypercube (n : ℕ) :
+    (hypercube (n + 1)).indepNum = (hypercube (n + 1)).coverNum := by
+  rw [indepNum_hypercube, coverNum_hypercube]
+
+example : (hypercube 4).indepNum = 8 := by
+  rw [show (4 : ℕ) = 3 + 1 from rfl, indepNum_hypercube]; norm_num
+
+example : (complete 7).matchNum = 3 := by rw [matchNum_complete]
+example : (complete 8).matchNum = 4 := by rw [matchNum_complete]
+example : (triangular 6).indepNum = 3 := by rw [indepNum_triangular]
+example : (triangular 6).cliqueNum = 5 := by
+  rw [show (6 : ℕ) = 2 * 2 + 2 from rfl, cliqueNum_triangular_even]
+example : (kneser 6 2).cliqueNum = 3 := by rw [cliqueNum_kneser_two]
+example : 5 ≤ (complete 5).edgeChromNum := by
+  have h := le_edgeChromNum_complete_odd 1
+  norm_num at h
+  exact h
+
 end IsoGraph
