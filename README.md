@@ -1458,6 +1458,17 @@ degree of a regular graph is unique; the complement's edge count is forced to
 `2|E(G^c)| = n(n - 1 - k)`; and a `0`-regular graph is the empty graph on its own
 vertex set.
 
+The `maxDeg` and `minDeg` tables were complete for the graphs whose degrees vary —
+stars, wheels, paths — but empty for most of the regular families, where the answer
+is the least interesting and the proof the most tedious. Regularity supplies both at
+once: `IsRegularWith.maxDeg_eq` and `minDeg_eq` turn each entry of the regularity
+table into a pair of `simp` lemmas, so `Delta = delta` is now recorded for triangular,
+rook, prism, cocktail party, balanced complete bipartite, Kneser and Paley graphs.
+Only the nonemptiness of the vertex set is needed, which is why those statements are
+phrased with a shift (`triangular (n + 2)`, `rook (m + 1) (n + 1)`, and so on).
+Paley graphs pick up an `isRegularWith_paley` on the way, read off from their strong
+regularity.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

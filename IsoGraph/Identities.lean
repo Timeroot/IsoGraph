@@ -15963,4 +15963,77 @@ example : (cycle 5).indepNum * 3 ≥ 5 := by
   rw [V_cycle] at h
   omega
 
+/-! ### Extremal degrees of the regular families
+
+Every graph in the regularity table has `Δ = δ = k`, so `IsRegularWith.maxDeg_eq` and
+`IsRegularWith.minDeg_eq` finish off the `maxDeg` and `minDeg` tables.  The vertex sets are
+shifted where necessary so that they are nonempty. -/
+
+theorem isRegularWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).IsRegularWith ((q - 1) / 2) :=
+  (isSRGWith_paley q hq).isRegularWith
+
+@[simp] theorem maxDeg_triangular (n : ℕ) : maxDeg (triangular (n + 2)) = 2 * n := by
+  rw [(isRegularWith_triangular (n + 2)).maxDeg_eq
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))]
+  omega
+
+@[simp] theorem minDeg_triangular (n : ℕ) : minDeg (triangular (n + 2)) = 2 * n := by
+  rw [(isRegularWith_triangular (n + 2)).minDeg_eq
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))]
+  omega
+
+@[simp] theorem maxDeg_rook (m n : ℕ) : maxDeg (rook (m + 1) (n + 1)) = n + m := by
+  rw [(isRegularWith_rook (m + 1) (n + 1)).maxDeg_eq (by rw [V_rook]; positivity)]
+  omega
+
+@[simp] theorem minDeg_rook (m n : ℕ) : minDeg (rook (m + 1) (n + 1)) = n + m := by
+  rw [(isRegularWith_rook (m + 1) (n + 1)).minDeg_eq (by rw [V_rook]; positivity)]
+  omega
+
+@[simp] theorem maxDeg_prism (n : ℕ) : maxDeg (prism (n + 3)) = 3 :=
+  (isRegularWith_prism n).maxDeg_eq (by rw [V_prism]; omega)
+
+@[simp] theorem minDeg_prism (n : ℕ) : minDeg (prism (n + 3)) = 3 :=
+  (isRegularWith_prism n).minDeg_eq (by rw [V_prism]; omega)
+
+@[simp] theorem maxDeg_cocktailParty (n : ℕ) : maxDeg (cocktailParty (n + 1)) = 2 * n := by
+  rw [(isRegularWith_cocktailParty (n + 1)).maxDeg_eq (by rw [V_cocktailParty]; omega)]
+  omega
+
+@[simp] theorem minDeg_cocktailParty (n : ℕ) : minDeg (cocktailParty (n + 1)) = 2 * n := by
+  rw [(isRegularWith_cocktailParty (n + 1)).minDeg_eq (by rw [V_cocktailParty]; omega)]
+  omega
+
+@[simp] theorem maxDeg_bipartite_self (n : ℕ) : maxDeg (bipartite (n + 1) (n + 1)) = n + 1 :=
+  (isRegularWith_bipartite_self (n + 1)).maxDeg_eq (by rw [V_bipartite]; omega)
+
+@[simp] theorem minDeg_bipartite_self (n : ℕ) : minDeg (bipartite (n + 1) (n + 1)) = n + 1 :=
+  (isRegularWith_bipartite_self (n + 1)).minDeg_eq (by rw [V_bipartite]; omega)
+
+theorem maxDeg_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n) :
+    maxDeg (kneser n k) = (n - k).choose k :=
+  (isRegularWith_kneser n hk).maxDeg_eq (by rw [V_kneser]; exact Nat.choose_pos hkn)
+
+theorem minDeg_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n) :
+    minDeg (kneser n k) = (n - k).choose k :=
+  (isRegularWith_kneser n hk).minDeg_eq (by rw [V_kneser]; exact Nat.choose_pos hkn)
+
+theorem maxDeg_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    maxDeg (paley q) = (q - 1) / 2 :=
+  (isRegularWith_paley q hq).maxDeg_eq (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q))
+
+theorem minDeg_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    minDeg (paley q) = (q - 1) / 2 :=
+  (isRegularWith_paley q hq).minDeg_eq (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q))
+
+example : maxDeg (triangular 5) = 6 := maxDeg_triangular 3
+
+example : minDeg (rook 3 3) = 4 := minDeg_rook 2 2
+
+/-- The Kneser graph `K(5, 2)` is the Petersen graph, and both are `3`-regular. -/
+example : maxDeg (kneser 5 2) = 3 := by
+  rw [maxDeg_kneser 5 2 (by omega) (by omega)]
+  rfl
+
 end IsoGraph
