@@ -21920,24 +21920,219 @@ of the longer side. -/
   rw [radius_strongProduct (isConnected_hypercube m) (isConnected_hypercube n), radius_hypercube,
     radius_hypercube]
 
-/-- For vertex-transitive factors the radius already computes the diameter, so the strong product
-has diameter the maximum of the two diameters. -/
-theorem diameter_strongProduct_of_isVertexTransitive {G H : IsoGraph} (hG : IsConnected G)
-    (hH : IsConnected H) (hGt : IsVertexTransitive G) (hHt : IsVertexTransitive H) :
+/-- In the strong product, distances are the maximum of the two coordinate distances, so the
+diameter is the maximum of the two diameters. -/
+theorem diameter_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
     (strongProduct G H).diameter = max G.diameter H.diameter := by
-  rw [← radius_eq_diameter_of_isVertexTransitive (hGt.strongProduct hHt),
-    radius_strongProduct hG hH, radius_eq_diameter_of_isVertexTransitive hGt,
-    radius_eq_diameter_of_isVertexTransitive hHt]
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, diameter_mk, diameter_mk,
+    diameter_mk]
+  rw [isConnected_mk] at hG hH
+  have hdG : DecidableEq g.V := Classical.decEq _
+  have hdH : DecidableEq h.V := Classical.decEq _
+  haveI : Nonempty g.V := hG.nonempty
+  haveI : Nonempty h.V := hH.nonempty
+  set Gs := g.toSimple
+  set Hs := h.toSimple
+  set SPs := (g.strongProduct h).toSimple
+  have hSP_adj : ∀ p q : g.V × h.V,
+      SPs.Adj p q ↔ p ≠ q ∧ ((p.1 = q.1 ∨ Gs.Adj p.1 q.1) ∧ (p.2 = q.2 ∨ Hs.Adj p.2 q.2)) := by
+    simp [SPs, CGraph.toSimple, CGraph.strongProduct, Gs, Hs]
+  --PROJECT WALK LENGTHS TO G COORDINATE
+  have projectWalk_G_len : ∀ {u v : g.V × h.V}
+      (W : SPs.Walk u v), Gs.edist u.1 v.1 ≤ ↑W.length := by
+    intro u v W
+    induction W with
+    | nil => simp
+    | @cons a b c hpq rest ih =>
+      rw [SimpleGraph.Walk.length_cons]
+      rcases (hSP_adj a b).mp hpq |>.2.1 with heq | hadj
+      · rw [heq]
+        exact le_trans ih (by exact_mod_cast Nat.cast_le.mpr (Nat.le_add_right _ _))
+      · have : Gs.edist a.1 b.1 ≤ 1 := by
+          exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj
+            SimpleGraph.Walk.nil)) (by simp)
+        calc Gs.edist a.1 c.1 ≤ Gs.edist a.1 b.1 + Gs.edist b.1 c.1 := SimpleGraph.edist_triangle
+            _ ≤ 1 + ↑rest.length := add_le_add this ih
+            _ = ↑(rest.length + 1) := by push_cast; ring
+  --PROJECT WALK LENGTHS TO H COORDINATE
+  have projectWalk_H_len : ∀ {u v : g.V × h.V}
+      (W : SPs.Walk u v), Hs.edist u.2 v.2 ≤ ↑W.length := by
+    intro u v W
+    induction W with
+    | nil => simp
+    | @cons a b c hpq rest ih =>
+      rw [SimpleGraph.Walk.length_cons]
+      rcases (hSP_adj a b).mp hpq |>.2.2 with heq | hadj
+      · rw [heq]
+        exact le_trans ih (by exact_mod_cast Nat.cast_le.mpr (Nat.le_add_right _ _))
+      · have : Hs.edist a.2 b.2 ≤ 1 := by
+          exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj
+            SimpleGraph.Walk.nil)) (by simp)
+        calc Hs.edist a.2 c.2 ≤ Hs.edist a.2 b.2 + Hs.edist b.2 c.2 := SimpleGraph.edist_triangle
+            _ ≤ 1 + ↑rest.length := add_le_add this ih
+            _ = ↑(rest.length + 1) := by push_cast; ring
+  --LOWER BOUND: G distance ≤ SP distance (fixing H-coordinate)
+  have hedist_ge_G : ∀ (h0 : h.V) (g1 g2 : g.V),
+      Gs.edist g1 g2 ≤ SPs.edist (g1, h0) (g2, h0) := by
+    intro h0 g1 g2
+    by_cases hne : Nonempty (SPs.Walk (g1, h0) (g2, h0))
+    · exact le_iInf (fun q => projectWalk_G_len q)
+    · push_neg at hne
+      have : SPs.edist (g1, h0) (g2, h0) = ⊤ := by
+        rw [SimpleGraph.edist_eq_top_of_not_reachable]
+        exact fun hr => hne.elim hr.some
+      exact this.symm ▸ le_top
+  --LOWER BOUND: H distance ≤ SP distance (fixing G-coordinate)
+  have hedist_ge_H : ∀ (g0 : g.V) (h1 h2 : h.V),
+      Hs.edist h1 h2 ≤ SPs.edist (g0, h1) (g0, h2) := by
+    intro g0 h1 h2
+    by_cases hne : Nonempty (SPs.Walk (g0, h1) (g0, h2))
+    · exact le_iInf (fun q => projectWalk_H_len q)
+    · push_neg at hne
+      have : SPs.edist (g0, h1) (g0, h2) = ⊤ := by
+        rw [SimpleGraph.edist_eq_top_of_not_reachable]
+        exact fun hr => hne.elim hr.some
+      exact this.symm ▸ le_top
+  --LOWER BOUND on ediam
+  have hedist_le_SPdiam_G : ∀ g1 g2 : g.V, Gs.edist g1 g2 ≤ SPs.ediam := by
+    intro g1 g2
+    exact le_trans (hedist_ge_G (Classical.arbitrary h.V) g1 g2) (SimpleGraph.edist_le_ediam)
+  have hedist_le_SPdiam_H : ∀ h1 h2 : h.V, Hs.edist h1 h2 ≤ SPs.ediam := by
+    intro h1 h2
+    exact le_trans (hedist_ge_H (Classical.arbitrary g.V) h1 h2) (SimpleGraph.edist_le_ediam)
+  have hediam_ge_G : Gs.ediam ≤ SPs.ediam := by
+    apply SimpleGraph.ediam_le_of_edist_le; intro g1 g2; exact hedist_le_SPdiam_G g1 g2
+  have hediam_ge_H : Hs.ediam ≤ SPs.ediam := by
+    apply SimpleGraph.ediam_le_of_edist_le; intro h1 h2; exact hedist_le_SPdiam_H h1 h2
+  --SP walk of length ≤ max WG.length WH.length (combining walks)
+  let toSP_G (h0 : h.V) : Gs →g SPs := {
+    toFun := fun g => (g, h0)
+    map_rel' := @fun (a b : g.V) hab =>
+      hSP_adj (a, h0) (b, h0) |>.mpr ⟨ne_of_apply_ne Prod.fst hab.ne, Or.inr hab, Or.inl rfl⟩
+  }
+  let toSP_H (g0 : g.V) : Hs →g SPs := {
+    toFun := fun h => (g0, h)
+    map_rel' := @fun (a b : h.V) hab =>
+      hSP_adj (g0, a) (g0, b) |>.mpr ⟨ne_of_apply_ne Prod.snd hab.ne, Or.inl rfl, Or.inr hab⟩
+  }
+  have spWalk_max : ∀ (n : ℕ) {g1 g2 : g.V} {h1 h2 : h.V}
+      (WG : Gs.Walk g1 g2) (WH : Hs.Walk h1 h2),
+      WG.length + WH.length ≤ n →
+      ∃ (W : SPs.Walk (g1, h1) (g2, h2)), W.length ≤ max WG.length WH.length := by
+    intro n
+    induction n with
+    | zero =>
+      intro g1 g2 h1 h2 WG WH hle
+      have hWG : WG.length = 0 := by omega
+      have hWH : WH.length = 0 := by omega
+      have hg1g2 : g1 = g2 := by
+        have := WG.getVert_zero; have := WG.getVert_length; simp [hWG] at *; exact this
+      have hh1h2 : h1 = h2 := by
+        have := WH.getVert_zero; have := WH.getVert_length; simp [hWH] at *; exact this
+      subst hg1g2; subst hh1h2
+      exact ⟨.nil, by simp⟩
+    | succ m ih =>
+      intro g1 g2 h1 h2 WG WH hle
+      by_cases hg : WG.length = 0
+      · have hg1g2 : g1 = g2 := by
+          have := WG.getVert_zero; have := WG.getVert_length; simp [hg] at *; exact this
+        subst hg1g2
+        exact ⟨WH.map (toSP_H g1), by simp [hg]⟩
+      · by_cases hh : WH.length = 0
+        · have hh1h2 : h1 = h2 := by
+            have := WH.getVert_zero; have := WH.getVert_length; simp [hh] at *; exact this
+          subst hh1h2
+          exact ⟨WG.map (toSP_G h1), by simp [hh]⟩
+        · cases WG with
+          | nil => contradiction
+          | cons hab WGtail =>
+            cases WH with
+            | nil => contradiction
+            | cons hcd WHtail =>
+              obtain ⟨W', hW'⟩ := ih WGtail WHtail
+                (by simp [SimpleGraph.Walk.length_cons] at hle ⊢; omega)
+              exact
+                ⟨SimpleGraph.Walk.cons (hSP_adj _ _ |>.mpr
+                    ⟨by rintro ⟨rfl, rfl⟩; exact hab.ne rfl, Or.inr hab, Or.inr hcd⟩) W', by
+                  simp [SimpleGraph.Walk.length_cons] at hW' ⊢
+                  omega⟩
+  --UPPER BOUND: SP edist ≤ max of coordinate edists
+  have hedist_le_max : ∀ g1 g2 : g.V, ∀ h1 h2 : h.V,
+      SPs.edist (g1, h1) (g2, h2) ≤ max (Gs.edist g1 g2) (Hs.edist h1 h2) := by
+    intro g1 g2 h1 h2
+    by_cases hg : Gs.edist g1 g2 = ⊤
+    · simp [hg]
+    by_cases hh : Hs.edist h1 h2 = ⊤
+    · simp [hh]
+    obtain ⟨WG, hWG⟩ := SimpleGraph.exists_walk_of_edist_ne_top hg
+    obtain ⟨WH, hWH⟩ := SimpleGraph.exists_walk_of_edist_ne_top hh
+    obtain ⟨W, hW⟩ := spWalk_max (WG.length + WH.length) WG WH (le_refl _)
+    calc SPs.edist (g1, h1) (g2, h2) ≤ ↑W.length := SimpleGraph.Walk.edist_le W
+      _ ≤ ↑(max WG.length WH.length) := WithTop.coe_mono hW
+      _ = max (WG.length : ℕ∞) (WH.length : ℕ∞) := by
+          cases le_total WG.length WH.length with
+          | inl h =>
+            rw [show max WG.length WH.length = WH.length from max_eq_right h]
+            rw [max_eq_right (ENat.coe_le_coe.mpr h)]
+          | inr h =>
+            rw [show max WG.length WH.length = WG.length from max_eq_left h]
+            rw [max_eq_left (ENat.coe_le_coe.mpr h)]
+      _ ≤ max (Gs.edist g1 g2) (Hs.edist h1 h2) :=
+          max_le_max (hWG.le) (hWH.le)
+  --UPPER BOUND on ediam
+  have hediam_le_max : SPs.ediam ≤ max Gs.ediam Hs.ediam := by
+    apply SimpleGraph.ediam_le_of_edist_le
+    rintro ⟨g1, h1⟩ ⟨g2, h2⟩
+    exact le_trans (hedist_le_max g1 g2 h1 h2)
+      (max_le_max (SimpleGraph.edist_le_ediam : Gs.edist g1 g2 ≤ Gs.ediam)
+                 (SimpleGraph.edist_le_ediam : Hs.edist h1 h2 ≤ Hs.ediam))
+  --FINAL: ediam equality
+  have h_ediam_eq : SPs.ediam = max Gs.ediam Hs.ediam := by
+    exact le_antisymm hediam_le_max (max_le hediam_ge_G hediam_ge_H)
+  -- Convert to CGraph.diameter for canonicalize via isomorphism
+  have hg_iso : g.toSimple ≃g g.canonicalize.toSimple := CGraph.Iso.toSimpleIso
+    (CGraph.isoCanonicalize g)
+  have hh_iso : h.toSimple ≃g h.canonicalize.toSimple := CGraph.Iso.toSimpleIso
+    (CGraph.isoCanonicalize h)
+  have hSP_iso : (g.strongProduct h).toSimple ≃g (g.canonicalize.strongProduct
+    h.canonicalize).toSimple :=
+    CGraph.Iso.toSimpleIso (CGraph.Iso.strongProduct (CGraph.isoCanonicalize g)
+      (CGraph.isoCanonicalize h))
+  have hdiam_G : CGraph.diameter g = CGraph.diameter g.canonicalize := by
+    rw [CGraph.diameter, CGraph.diameter]
+    exact hg_iso.diam_eq
+  have hdiam_H : CGraph.diameter h = CGraph.diameter h.canonicalize := by
+    rw [CGraph.diameter, CGraph.diameter]
+    exact hh_iso.diam_eq
+  have hdiam_SP : CGraph.diameter (g.strongProduct h) = CGraph.diameter
+    (g.canonicalize.strongProduct h.canonicalize) := by
+    rw [CGraph.diameter, CGraph.diameter, hSP_iso.diam_eq]
+  rw [← hdiam_SP, ← hdiam_G, ← hdiam_H]
+  show CGraph.diameter (g.strongProduct h) = max (CGraph.diameter g) (CGraph.diameter h)
+  rw [CGraph.diameter, CGraph.diameter, CGraph.diameter]
+  rw [SimpleGraph.diam, SimpleGraph.diam, SimpleGraph.diam]
+  rw [h_ediam_eq]
+  have hGtop : g.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hG
+  have hHtop : h.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hH
+  have key : ∀ (a b : ℕ∞), a ≠ ⊤ → b ≠ ⊤ → (max a b).toNat = max a.toNat b.toNat := by
+    intro a b ha hb
+    cases le_total a b with
+    | inl hab =>
+      rw [max_eq_right hab, max_eq_right (ENat.toNat_le_toNat hab hb)]
+    | inr hab =>
+      rw [max_eq_left hab, max_eq_left (ENat.toNat_le_toNat hab ha)]
+  rw [key _ _ hGtop hHtop]
 
 @[simp] theorem diameter_strongProduct_cycle (m n : ℕ) :
     (strongProduct (cycle (m + 1)) (cycle (n + 1))).diameter = max ((m + 1) / 2) ((n + 1) / 2) := by
-  rw [diameter_strongProduct_of_isVertexTransitive (isConnected_cycle m) (isConnected_cycle n)
-    (isVertexTransitive_cycle _) (isVertexTransitive_cycle _), diameter_cycle, diameter_cycle]
+  rw [diameter_strongProduct (isConnected_cycle m) (isConnected_cycle n), diameter_cycle,
+    diameter_cycle]
 
 @[simp] theorem diameter_strongProduct_hypercube (m n : ℕ) :
     (strongProduct (hypercube m) (hypercube n)).diameter = max m n := by
-  rw [diameter_strongProduct_of_isVertexTransitive (isConnected_hypercube m)
-    (isConnected_hypercube n) (isVertexTransitive_hypercube m) (isVertexTransitive_hypercube n),
+  rw [diameter_strongProduct (isConnected_hypercube m) (isConnected_hypercube n),
     diameter_hypercube, diameter_hypercube]
 
 /-- A near-perfect matching leaves at most one vertex over, so the wheel is covered by that many
@@ -21976,5 +22171,223 @@ theorem two_mul_indepNum_le_johnson {n k : ℕ} (hE : 0 < (johnson n k).E) :
 theorem coverNum_johnson (n k : ℕ) :
     (johnson n k).coverNum = n.choose k - (johnson n k).indepNum := by
   rw [coverNum_eq, V_johnson]
+
+
+/-! ### Graphs that are not vertex transitive, by an irregular degree
+
+A vertex-transitive graph is regular, so exhibiting two vertices of different degrees rules
+transitivity out.  This settles the whole "hub plus rim" family, where the hub is the odd one
+out, and the paths and ladders, where the ends are. -/
+
+/-- **A graph with two vertices of different degrees is not vertex transitive.** -/
+theorem not_isVertexTransitive_of_minDeg_ne_maxDeg {G : IsoGraph} (hV : 0 < G.V)
+    (h : G.minDeg ≠ G.maxDeg) : ¬ IsVertexTransitive G := by
+  intro hvt
+  obtain ⟨k, hk⟩ := exists_isRegularWith_of_isVertexTransitive hvt
+  exact h ((hk.minDeg_eq hV).trans (hk.maxDeg_eq hV).symm)
+
+@[simp] theorem not_isVertexTransitive_path (n : ℕ) : ¬ IsVertexTransitive (path (n + 3)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [show n + 3 = n + 1 + 2 from rfl, minDeg_path, show n + 1 + 2 = n + 3 from rfl, maxDeg_path]
+  omega
+
+@[simp] theorem not_isVertexTransitive_star (n : ℕ) : ¬ IsVertexTransitive (star (n + 2)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [show n + 2 = n + 1 + 1 from rfl, minDeg_star, maxDeg_star]
+  omega
+
+/-- The hub of a wheel on five or more vertices has degree larger than three. -/
+@[simp] theorem not_isVertexTransitive_wheel (n : ℕ) :
+    ¬ IsVertexTransitive (wheel (n + 4)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [show n + 4 = n + 1 + 3 from rfl, minDeg_wheel, maxDeg_wheel]
+  omega
+
+/-- The hub of a fan on five or more vertices has degree larger than two. -/
+@[simp] theorem not_isVertexTransitive_fan (n : ℕ) : ¬ IsVertexTransitive (fan (n + 3)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [show n + 3 = n + 1 + 2 from rfl, minDeg_fan, show n + 1 + 2 = n + 3 from rfl, maxDeg_fan]
+  omega
+
+/-- The spine of a book with two or more pages has degree larger than two. -/
+@[simp] theorem not_isVertexTransitive_book (n : ℕ) : ¬ IsVertexTransitive (book (n + 2)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [show n + 2 = n + 1 + 1 from rfl, minDeg_book, maxDeg_book]
+  omega
+
+/-- The four corners of a ladder have degree two, the rest three. -/
+@[simp] theorem not_isVertexTransitive_ladder (n : ℕ) :
+    ¬ IsVertexTransitive (ladder (n + 3)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [show n + 3 = n + 1 + 2 from rfl, minDeg_ladder, show n + 1 + 2 = n + 3 from rfl,
+    maxDeg_ladder]
+  omega
+
+/-! ### Regularity of the ladder and of the wheel's rim -/
+
+/-- A ladder is not regular for three or more rungs; the two small ones are `K₂` and `C₄`. -/
+@[simp] theorem isRegularWith_ladder_two : (ladder 2).IsRegularWith 2 := by
+  rw [ladder_two]
+  exact isRegularWith_cycle 1
+
+@[simp] theorem isVertexTransitive_ladder_two : IsVertexTransitive (ladder 2) := by
+  rw [ladder_two]
+  exact isVertexTransitive_cycle 4
+
+@[simp] theorem isVertexTransitive_ladder_one : IsVertexTransitive (ladder 1) := by
+  rw [ladder_one]
+  exact isVertexTransitive_complete 2
+
+/-! ### The common degree of a vertex-transitive graph -/
+
+theorem isRegularWith_minDeg_of_isVertexTransitive {G : IsoGraph} (hV : 0 < G.V)
+    (h : IsVertexTransitive G) : G.IsRegularWith G.minDeg := by
+  obtain ⟨k, hk⟩ := exists_isRegularWith_of_isVertexTransitive h
+  rwa [hk.minDeg_eq hV]
+
+@[simp] theorem minDeg_eq_maxDeg_of_isVertexTransitive {G : IsoGraph} (hV : 0 < G.V)
+    (h : IsVertexTransitive G) : G.minDeg = G.maxDeg :=
+  (isRegularWith_minDeg_of_isVertexTransitive hV h).maxDeg_eq hV |>.symm
+
+/-- **The handshake lemma for a vertex-transitive graph**: `2|E| = |V| · δ`. -/
+theorem two_mul_E_of_isVertexTransitive {G : IsoGraph} (hV : 0 < G.V) (h : IsVertexTransitive G) :
+    2 * G.E = G.V * G.minDeg :=
+  (isRegularWith_minDeg_of_isVertexTransitive hV h).two_mul_E
+
+theorem degSequence_of_isVertexTransitive_minDeg {G : IsoGraph} (hV : 0 < G.V)
+    (h : IsVertexTransitive G) : degSequence G = List.replicate G.V G.minDeg :=
+  (isRegularWith_minDeg_of_isVertexTransitive hV h).degSequence
+
+/-- A vertex-transitive graph on an odd number of vertices has even degree: `|V| · δ` is even. -/
+theorem even_minDeg_of_isVertexTransitive_of_odd {G : IsoGraph} (hV : 0 < G.V)
+    (h : IsVertexTransitive G) (hodd : G.V % 2 = 1) : G.minDeg % 2 = 0 := by
+  have h2 := two_mul_E_of_isVertexTransitive hV h
+  rcases Nat.even_mul.1 (⟨G.E, by omega⟩ : Even (G.V * G.minDeg)) with he | he
+  · exact absurd (Nat.even_iff.1 he) (by omega)
+  · exact Nat.even_iff.1 he
+
+/-- **The handshake lemma for a circulant**: `2|E| = n · δ`, with no need to count the
+connection set. -/
+theorem two_mul_E_circulant (n : ℕ) (S : List ℕ) (hn : 0 < n) :
+    2 * (circulant n S).E = n * (circulant n S).minDeg := by
+  have h := two_mul_E_of_isVertexTransitive (G := circulant n S) (by simpa using hn)
+    (isVertexTransitive_circulant n S)
+  rwa [V_circulant] at h
+
+/-- A circulant on an odd number of vertices has even degree. -/
+theorem even_minDeg_circulant_of_odd {n : ℕ} (S : List ℕ) (hodd : n % 2 = 1) :
+    (circulant n S).minDeg % 2 = 0 := by
+  refine even_minDeg_of_isVertexTransitive_of_odd (G := circulant n S) (by simp; omega)
+    (isVertexTransitive_circulant n S) ?_
+  rwa [V_circulant]
+
+/-- A dominating set in `T(n) = L(Kₙ)` is an edge dominating set of `Kₙ`, so it must cover all
+but one vertex; a near-perfect matching does it. -/
+theorem domNum_triangular (n : ℕ) : (triangular (n + 2)).domNum = (n + 2) / 2 := by
+  simp only [triangular, IsoGraph.johnson, IsoGraph.domNum_mk]
+  -- goal: (CGraph.johnson (n + 2) 2).domNum = (n + 2) / 2
+  apply le_antisymm
+  · -- Upper bound: domNum ≤ indepNum ≤ (n+2)/2
+    have h1 : (CGraph.johnson (n + 2) (2 : ℕ)).domNum ≤ (CGraph.johnson (n + 2) (2 : ℕ)).indepNum :=
+      CGraph.domNum_le_indepNum _
+    have h2 : (CGraph.johnson (n + 2) (2 : ℕ)).indepNum ≤ (n + 2) / 2 := by
+      unfold CGraph.indepNum
+      simp only [SimpleGraph.indepNum]
+      apply csSup_le
+      · -- nonempty
+        exact ⟨0, ⟨∅, SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) rfl⟩⟩
+      · -- upper bound
+        intro b hb
+        obtain ⟨S, hS_indep, rfl⟩ := hb
+        -- Each pair of distinct vertices in S is disjoint (as Finsets)
+        have hdisj : ∀ u ∈ S, ∀ v ∈ S, u ≠ v → Disjoint u.1 v.1 := by
+          intro u hu v hv huv
+          by_contra hndisj
+          have hadj : (CGraph.johnson (n + 2) (2 : ℕ)).Adj u v := by
+            simp [CGraph.johnson_adj, huv, beq_iff_eq]
+            have hnd := Finset.not_disjoint_iff.mp hndisj
+            exact CGraph.card_inter_eq_one_of_ne u v huv
+              (by
+                intro h
+                obtain ⟨x, hxu, hxv⟩ := hnd
+                exact absurd (h ▸ Finset.mem_inter_of_mem hxu hxv) (by simp))
+          exact absurd hadj (hS_indep hu hv huv)
+        have hcard2 : ∀ u ∈ S, u.1.card = 2 := fun u hu => u.2
+        have hcard_biUnion : (S.biUnion (fun u => u.1)).card = ∑ u ∈ S, u.1.card :=
+          Finset.card_biUnion (fun u hu v hv huv => hdisj u hu v hv huv)
+        have hcard_sum : ∑ u ∈ S, u.1.card = 2 * S.card := by
+          rw [Finset.sum_congr rfl hcard2]
+          simp [Finset.sum_const, mul_comm]
+        have hle : 2 * S.card ≤ (n + 2) := by
+          have : (S.biUnion (fun u => u.1)).card = 2 * S.card := by rw [hcard_biUnion, hcard_sum]
+          have hsub : S.biUnion (fun u => u.1) ⊆ Finset.univ := Finset.subset_univ _
+          have := Finset.card_le_card hsub
+          simp [Finset.card_univ, Fintype.card_fin] at this
+          linarith
+        omega
+    omega
+  · -- Lower bound
+    have hlower : ∀ s : Finset (CGraph.johnson (n + 2) (2 : ℕ)).V,
+        (CGraph.johnson (n + 2) (2 : ℕ)).IsDominatingSet s → (n + 2) / 2 ≤ s.card := by
+      intro s hsdom
+      by_contra hcard
+      push_neg at hcard
+      set covered := Finset.biUnion s (fun u => u.1) with hcovered_def
+      have hcovered_size : covered.card ≤ 2 * s.card := by
+        have : ∀ u ∈ s, u.1.card = 2 := fun u hu => u.2
+        calc covered.card = (s.biUnion (fun u => u.1)).card := congr_arg Finset.card hcovered_def
+          _ ≤ ∑ u ∈ s, u.1.card := Finset.card_biUnion_le
+          _ = ∑ _ ∈ s, 2 := Finset.sum_congr rfl this
+          _ = 2 * s.card := by simp [mul_comm]
+      have h2le : 2 * s.card ≤ n := by omega
+      have huncovered : (Finset.univ \ covered).card ≥ 2 := by
+        rw [Finset.card_sdiff, Finset.inter_univ, Finset.card_univ, Fintype.card_fin]
+        omega
+      obtain ⟨a, ha, b, hb, hab⟩ : ∃ a ∈ Finset.univ \ covered, ∃ b ∈ Finset.univ \ covered, a ≠ b
+        := by
+        exact Finset.one_lt_card.mp huncovered
+      let v : (CGraph.johnson (n + 2) (2 : ℕ)).V := ⟨{a, b}, Finset.card_pair hab⟩
+      have hv_notin : v ∉ s := by
+        intro hv
+        have : a ∈ covered := hcovered_def ▸ Finset.mem_biUnion.mpr ⟨v, hv, Finset.mem_insert_self _
+          _⟩
+        exact Finset.mem_sdiff.mp ha |>.2 this
+      have ha_notin : ∀ u ∈ s, a ∉ u.1 := by
+        intro u hu hua
+        exact Finset.mem_sdiff.mp ha |>.2 (hcovered_def ▸ Finset.mem_biUnion.mpr ⟨u, hu, hua⟩)
+      have hb_notin : ∀ u ∈ s, b ∉ u.1 := by
+        intro u hu hub
+        exact Finset.mem_sdiff.mp hb |>.2 (hcovered_def ▸ Finset.mem_biUnion.mpr ⟨u, hu, hub⟩)
+      have hv_inter_empty : ∀ u ∈ s, (u.1 ∩ v.1) = ∅ := by
+        intro u hu
+        have hv1 : v.1 = {a, b} := rfl
+        have : ∀ x, x ∈ u.1 ∩ v.1 → False := by
+          intro x hx
+          simp [hv1, Finset.mem_inter] at hx
+          rcases hx.2 with rfl | rfl
+          · exact ha_notin u hu hx.1
+          · exact hb_notin u hu hx.1
+        exact Finset.not_nonempty_iff_eq_empty.mp (by rintro ⟨x, hx⟩; exact this x hx)
+      have huv_ne : ∀ u ∈ s, u ≠ v := by
+        intro u hu huv_eq
+        have := congrArg Subtype.val huv_eq
+        simp [v] at this
+        have ha_in_u : a ∈ u.1 := by rw [this]; simp
+        exact Finset.mem_sdiff.mp ha |>.2 (hcovered_def ▸ Finset.mem_biUnion.mpr ⟨u, hu, ha_in_u⟩)
+      have hv_not_adj : ∀ u ∈ s, ¬(CGraph.johnson (n + 2) (2 : ℕ)).Adj u v := by
+        intro u hu
+        simp [CGraph.johnson_adj, huv_ne u hu, hv_inter_empty u hu]
+      have hv_not_dom : ¬(v ∈ s ∨ ∃ u ∈ s, (CGraph.johnson (n + 2) (2 : ℕ)).Adj u v) := by
+        intro h
+        rcases h with hv | ⟨u, hu, hadj⟩
+        · exact hv_notin hv
+        · exact absurd hadj (hv_not_adj u hu)
+      exact hv_not_dom (hsdom v)
+    apply le_csInf
+    · exact ⟨Fintype.card _, ⟨Finset.univ, rfl, CGraph.isDominatingSet_univ _⟩⟩
+    · intro a ⟨s, hs, hsdom⟩; rw [← hs]; exact hlower s hsdom
+
+@[simp] theorem domNum_johnson_two (n : ℕ) : (johnson (n + 2) 2).domNum = (n + 2) / 2 :=
+  domNum_triangular n
 
 end IsoGraph

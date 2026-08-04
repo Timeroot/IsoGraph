@@ -1743,6 +1743,18 @@ preserves the size of an intersection just as well as its emptiness, so the same
 `min(k, n - k)`, the clique–coclique bound, and Gallai's identity for the whole family.
 
 
+Three more prover results and a hand-written companion.  The diameter of a strong product is
+the maximum of the two diameters, matching the radius; the domination number of the triangular
+graph `T(n)` is `⌊n/2⌋`, since a dominating set there is an edge dominating set of `Kₙ` and a
+near-perfect matching is one; and the edge chromatic number of the hypercube is `n`, though that
+proof is parked until König's edge-colouring theorem lands, which it uses.  Vertex transitivity
+also gives a small API of its own: a transitive graph is regular of degree `δ`, so `2‖G‖ = |G|·δ`
+and a transitive graph of odd order has even degree — which in turn counts the edges of any
+circulant without ever looking at its connection set.  The degree argument runs backwards too:
+paths, stars, wheels, fans, books and ladders all have two vertices of different degrees, so
+none of them is vertex transitive.
+
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
