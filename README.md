@@ -1028,6 +1028,31 @@ adds the other side's vertex count, and the four products behave like their degr
 vertex of extreme degree in each factor and pair them up.  Complementation swaps the two,
 `Δ(Gᶜ) = |V| - 1 - δ(G)`, and the handshake lemma becomes the squeeze `|V|·δ ≤ 2|E| ≤ |V|·Δ`.
 
+A `girth` invariant closes the loop on the acyclicity material.  Mathlib has `SimpleGraph.girth`
+(with `0` for an acyclic graph, the same kind of junk value `diameter` uses for a disconnected one)
+but not its isomorphism invariance, so `Iso.egirth_eq` proves that first: an isomorphism carries
+cycles to cycles of the same length, so `le_egirth` applied in both directions pins the two infima
+together.  On top of it sits a small toolkit for reading a girth off a picture.
+`exists_cycle_of_triangle`, `exists_cycle_of_square` and `exists_cycle_of_pentagon` build the closed
+walk explicitly and discharge `IsCycle`, which gives both an upper bound on the girth and a witness
+that the graph is not acyclic; `exists_triangle_of_girth_eq_three` and `exists_square_of_length_four`
+run the case analysis the other way, since a cycle of length three or four *is* a triangle or a
+square.  Those two give `four_le_girth` from triangle-freeness and `five_le_girth` from triangle-
+and square-freeness.
+
+The leverage comes from tying girth three to the clique number: a triangle is exactly a `3`-clique,
+so `girth_eq_three_iff : G.girth = 3 ↔ 3 ≤ ω(G)`, and every entry of the existing `cliqueNum` table
+turns into a girth statement — `Kₙ`, `Wₙ`, the book and cocktail-party graphs, rook graphs, joins,
+and the lexicographic and strong products of two graphs with an edge each all have girth `3`.  The
+contrapositive `four_le_girth_of_cliqueNum` gives the lower bound `4` whenever `ω ≤ 2`.  Girth four
+itself comes from the square spanned by one edge in each factor of a Cartesian product, with
+bipartiteness of the product ruling out the triangle: `girth (G □ H) = 4`, and with it `Qₙ` for
+`n ≥ 2`, the ladders, the even prisms, `C₄`, and `K_{m+2,n+2}`.  For girth five there are two
+entries, and they are the ones that matter: `C₅`, where triangle- and square-freeness are a
+`decide`, and the Petersen graph, where strong regularity does all the work — `ℓ = 0` forbids
+triangles and `μ = 1` forbids squares, since two opposite corners of a square share two neighbours
+— with the outer five-cycle realising the bound.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

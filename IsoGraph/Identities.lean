@@ -4247,6 +4247,368 @@ theorem chromNum_kneser_le (n k : ℕ) (hk : 0 < k) :
       (t.min'_mem _) fun x hx ↦ t.min'_le x hx
   · exact lt_of_le_of_lt (min_le_right _ _) (by omega)
 
+/-! ### Girth -/
+
+theorem girth_eq_zero_iff (G : CGraph) : G.girth = 0 ↔ G.IsAcyclic :=
+  SimpleGraph.girth_eq_zero
+
+theorem three_le_girth {G : CGraph} (h : ¬ G.IsAcyclic) : 3 ≤ G.girth :=
+  SimpleGraph.three_le_girth h
+
+theorem girth_le_length {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a} (h : w.IsCycle) :
+    G.girth ≤ w.length :=
+  SimpleGraph.girth_le_length h
+
+theorem not_isAcyclic_of_isCycle {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a}
+    (h : w.IsCycle) : ¬ G.IsAcyclic := fun hac ↦ hac w h
+
+/-- Three mutually adjacent vertices are a shortest possible cycle. -/
+theorem exists_cycle_of_triangle {G : CGraph} {a b c : G.V} (hab : G.Adj a b)
+    (hbc : G.Adj b c) (hca : G.Adj c a) :
+    ∃ (x : G.V) (w : G.toSimple.Walk x x), w.IsCycle ∧ w.length = 3 := by
+  have hab' : G.toSimple.Adj a b := (toSimple_adj G a b).2 hab
+  have hbc' : G.toSimple.Adj b c := (toSimple_adj G b c).2 hbc
+  have hca' : G.toSimple.Adj c a := (toSimple_adj G c a).2 hca
+  have hcyc : (SimpleGraph.Walk.cons hab' (.cons hbc' (.cons hca' .nil))).IsCycle := by
+    have h1 := hab'.ne
+    have h2 := hbc'.ne
+    have h3 := hca'.ne
+    simp [SimpleGraph.Walk.isCycle_def, SimpleGraph.Walk.isTrail_def, h1, h2, h3,
+      h1.symm, h3.symm]
+  exact ⟨a, _, hcyc, by simp⟩
+
+theorem not_isAcyclic_of_triangle {G : CGraph} {a b c : G.V} (hab : G.Adj a b)
+    (hbc : G.Adj b c) (hca : G.Adj c a) : ¬ G.IsAcyclic := by
+  obtain ⟨_, _, hw, _⟩ := exists_cycle_of_triangle hab hbc hca
+  exact not_isAcyclic_of_isCycle hw
+
+theorem girth_eq_three_of_triangle {G : CGraph} {a b c : G.V} (hab : G.Adj a b)
+    (hbc : G.Adj b c) (hca : G.Adj c a) : G.girth = 3 := by
+  obtain ⟨_, w, hw, hl⟩ := exists_cycle_of_triangle hab hbc hca
+  exact le_antisymm (hl ▸ girth_le_length hw) (three_le_girth (not_isAcyclic_of_isCycle hw))
+
+/-- A cycle of length three is a triangle: this is the shape a shortest cycle takes. -/
+theorem exists_triangle_of_girth_eq_three {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a}
+    (hw : w.IsCycle) (hl : w.length = 3) :
+    ∃ x y z : G.V, G.Adj x y ∧ G.Adj y z ∧ G.Adj z x := by
+  cases w with
+  | nil => simp at hl
+  | cons hab w1 =>
+    cases w1 with
+    | nil => simp at hl
+    | cons hbc w2 =>
+      cases w2 with
+      | nil => simp at hl
+      | cons hca w3 =>
+        cases w3 with
+        | cons _ _ => simp at hl
+        | nil =>
+          exact ⟨_, _, _, (toSimple_adj _ _ _).1 hab, (toSimple_adj _ _ _).1 hbc,
+            (toSimple_adj _ _ _).1 hca⟩
+
+/-- **A triangle-free graph with a cycle has girth at least four.** -/
+theorem four_le_girth {G : CGraph}
+    (htri : ∀ x y z : G.V, G.Adj x y → G.Adj y z → G.Adj z x → False)
+    (hnac : ¬ G.IsAcyclic) : 4 ≤ G.girth := by
+  have hle : (4 : ℕ∞) ≤ G.toSimple.egirth := by
+    refine SimpleGraph.le_egirth.2 fun a w hw ↦ ?_
+    have h3 := hw.three_le_length
+    rcases Nat.lt_or_ge w.length 4 with hlt | hge
+    · obtain ⟨x, y, z, h1, h2, h3⟩ := exists_triangle_of_girth_eq_three hw (by omega)
+      exact absurd (htri x y z h1 h2 h3) not_false
+    · exact_mod_cast hge
+  exact ENat.toNat_le_toNat hle (SimpleGraph.egirth_eq_top.not.2 hnac)
+
+/-- Four vertices in a square give a cycle of length four. -/
+theorem exists_cycle_of_square {G : CGraph} {a b c d : G.V} (hab : G.Adj a b) (hbc : G.Adj b c)
+    (hcd : G.Adj c d) (hda : G.Adj d a) (hac : a ≠ c) (hbd : b ≠ d) :
+    ∃ (x : G.V) (w : G.toSimple.Walk x x), w.IsCycle ∧ w.length = 4 := by
+  have hab' : G.toSimple.Adj a b := (toSimple_adj G a b).2 hab
+  have hbc' : G.toSimple.Adj b c := (toSimple_adj G b c).2 hbc
+  have hcd' : G.toSimple.Adj c d := (toSimple_adj G c d).2 hcd
+  have hda' : G.toSimple.Adj d a := (toSimple_adj G d a).2 hda
+  have hcyc : (SimpleGraph.Walk.cons hab' (.cons hbc' (.cons hcd' (.cons hda' .nil)))).IsCycle := by
+    have h1 := hab'.ne
+    have h2 := hbc'.ne
+    have h3 := hcd'.ne
+    have h4 := hda'.ne
+    simp [SimpleGraph.Walk.isCycle_def, SimpleGraph.Walk.isTrail_def, h1, h2, h3, h4,
+      h1.symm, h4.symm, hac, hac.symm, hbd]
+  exact ⟨a, _, hcyc, by simp⟩
+
+theorem not_isAcyclic_of_square {G : CGraph} {a b c d : G.V} (hab : G.Adj a b) (hbc : G.Adj b c)
+    (hcd : G.Adj c d) (hda : G.Adj d a) (hac : a ≠ c) (hbd : b ≠ d) : ¬ G.IsAcyclic := by
+  obtain ⟨_, _, hw, _⟩ := exists_cycle_of_square hab hbc hcd hda hac hbd
+  exact not_isAcyclic_of_isCycle hw
+
+theorem girth_le_four_of_square {G : CGraph} {a b c d : G.V} (hab : G.Adj a b) (hbc : G.Adj b c)
+    (hcd : G.Adj c d) (hda : G.Adj d a) (hac : a ≠ c) (hbd : b ≠ d) : G.girth ≤ 4 := by
+  obtain ⟨_, w, hw, hl⟩ := exists_cycle_of_square hab hbc hcd hda hac hbd
+  exact hl ▸ girth_le_length hw
+
+/-- A cycle of length four is a square. -/
+theorem exists_square_of_length_four {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a}
+    (hw : w.IsCycle) (hl : w.length = 4) :
+    ∃ x y z t : G.V, G.Adj x y ∧ G.Adj y z ∧ G.Adj z t ∧ G.Adj t x ∧ x ≠ z ∧ y ≠ t := by
+  cases w with
+  | nil => simp at hl
+  | cons hab w1 =>
+    cases w1 with
+    | nil => simp at hl
+    | cons hbc w2 =>
+      cases w2 with
+      | nil => simp at hl
+      | cons hcd w3 =>
+        cases w3 with
+        | nil => simp at hl
+        | cons hda w4 =>
+          cases w4 with
+          | cons _ _ => simp at hl
+          | nil =>
+            have hnd := hw.support_nodup
+            simp [SimpleGraph.Walk.support] at hnd
+            exact ⟨_, _, _, _, (toSimple_adj _ _ _).1 hab, (toSimple_adj _ _ _).1 hbc,
+              (toSimple_adj _ _ _).1 hcd, (toSimple_adj _ _ _).1 hda,
+              fun h ↦ hnd.2.1.2 h.symm, hnd.1.2.1⟩
+
+/-- **A graph with no triangle and no square, but with a cycle, has girth at least five.** -/
+theorem five_le_girth {G : CGraph}
+    (htri : ∀ x y z : G.V, G.Adj x y → G.Adj y z → G.Adj z x → False)
+    (hsq : ∀ x y z t : G.V, G.Adj x y → G.Adj y z → G.Adj z t → G.Adj t x → x = z ∨ y = t)
+    (hnac : ¬ G.IsAcyclic) : 5 ≤ G.girth := by
+  have hle : (5 : ℕ∞) ≤ G.toSimple.egirth := by
+    refine SimpleGraph.le_egirth.2 fun a w hw ↦ ?_
+    have h3 := hw.three_le_length
+    rcases Nat.lt_or_ge w.length 5 with hlt | hge
+    · interval_cases h : w.length
+      · obtain ⟨x, y, z, h1, h2, h3⟩ := exists_triangle_of_girth_eq_three hw h
+        exact absurd (htri x y z h1 h2 h3) not_false
+      · obtain ⟨x, y, z, t, h1, h2, h3, h4, hxz, hyt⟩ := exists_square_of_length_four hw h
+        rcases hsq x y z t h1 h2 h3 h4 with h | h
+        · exact absurd h hxz
+        · exact absurd h hyt
+    · exact_mod_cast hge
+  exact ENat.toNat_le_toNat hle (SimpleGraph.egirth_eq_top.not.2 hnac)
+
+/-- **A bipartite graph with a cycle has girth at least four.** -/
+theorem four_le_girth_of_isBipartite {G : CGraph} (hb : G.IsBipartite) (hnac : ¬ G.IsAcyclic) :
+    4 ≤ G.girth :=
+  four_le_girth (fun x _ z h1 h2 h3 ↦
+    not_isBipartite_of_triangle h1 ((G.symm x z).trans h3) h2 hb) hnac
+
+/-- A product of two graphs with an edge each contains a square. -/
+theorem girth_cartesianProduct_le_four {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : 0 < G.E) (hH : 0 < H.E) : (cartesianProduct G H).girth ≤ 4 := by
+  obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
+  obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
+  have hane : a ≠ a' := by rintro rfl; exact absurd ha (by simp [G.loopless])
+  have hbne : b ≠ b' := by rintro rfl; exact absurd hb (by simp [H.loopless])
+  refine girth_le_four_of_square (a := ((a, b) : (cartesianProduct G H).V)) (b := (a', b))
+    (c := (a', b')) (d := (a, b')) ?_ ?_ ?_ ?_ ?_ ?_
+  · rw [cartesianProduct_adj]; simp [ha]
+  · rw [cartesianProduct_adj]; simp [hb]
+  · rw [cartesianProduct_adj]; simp [G.symm a' a, ha]
+  · rw [cartesianProduct_adj]; simp [H.symm b' b, hb]
+  · exact fun h ↦ hane (congrArg Prod.fst h)
+  · exact fun h ↦ hane (congrArg Prod.fst h).symm
+
+/-- Five vertices in a pentagon give a cycle of length five. -/
+theorem exists_cycle_of_pentagon {G : CGraph} {a b c d e : G.V} (hab : G.Adj a b)
+    (hbc : G.Adj b c) (hcd : G.Adj c d) (hde : G.Adj d e) (hea : G.Adj e a) (hac : a ≠ c)
+    (had : a ≠ d) (hbd : b ≠ d) (hbe : b ≠ e) (hce : c ≠ e) :
+    ∃ (x : G.V) (w : G.toSimple.Walk x x), w.IsCycle ∧ w.length = 5 := by
+  have hab' : G.toSimple.Adj a b := (toSimple_adj G a b).2 hab
+  have hbc' : G.toSimple.Adj b c := (toSimple_adj G b c).2 hbc
+  have hcd' : G.toSimple.Adj c d := (toSimple_adj G c d).2 hcd
+  have hde' : G.toSimple.Adj d e := (toSimple_adj G d e).2 hde
+  have hea' : G.toSimple.Adj e a := (toSimple_adj G e a).2 hea
+  have hcyc :
+      (SimpleGraph.Walk.cons hab' (.cons hbc' (.cons hcd' (.cons hde' (.cons hea' .nil))))).IsCycle := by
+    have h1 := hab'.ne
+    have h2 := hbc'.ne
+    have h3 := hcd'.ne
+    have h4 := hde'.ne
+    have h5 := hea'.ne
+    simp [SimpleGraph.Walk.isCycle_def, SimpleGraph.Walk.isTrail_def, h1, h2, h3, h4, h5,
+      h1.symm, h5.symm, hac, hac.symm, had, had.symm, hbd, hbe, hce]
+  exact ⟨a, _, hcyc, by simp⟩
+
+theorem not_isAcyclic_of_pentagon {G : CGraph} {a b c d e : G.V} (hab : G.Adj a b)
+    (hbc : G.Adj b c) (hcd : G.Adj c d) (hde : G.Adj d e) (hea : G.Adj e a) (hac : a ≠ c)
+    (had : a ≠ d) (hbd : b ≠ d) (hbe : b ≠ e) (hce : c ≠ e) : ¬ G.IsAcyclic := by
+  obtain ⟨_, _, hw, _⟩ := exists_cycle_of_pentagon hab hbc hcd hde hea hac had hbd hbe hce
+  exact not_isAcyclic_of_isCycle hw
+
+theorem girth_le_five_of_pentagon {G : CGraph} {a b c d e : G.V} (hab : G.Adj a b)
+    (hbc : G.Adj b c) (hcd : G.Adj c d) (hde : G.Adj d e) (hea : G.Adj e a) (hac : a ≠ c)
+    (had : a ≠ d) (hbd : b ≠ d) (hbe : b ≠ e) (hce : c ≠ e) : G.girth ≤ 5 := by
+  obtain ⟨_, w, hw, hl⟩ := exists_cycle_of_pentagon hab hbc hcd hde hea hac had hbd hbe hce
+  exact hl ▸ girth_le_length hw
+
+/-! ### Girth three and the clique number -/
+
+/-- **Girth three means a triangle**, and a triangle is a three-clique: so a graph has girth
+three exactly when its clique number is at least three.  Every entry of the `cliqueNum` table is
+therefore also a girth-three certificate. -/
+theorem girth_eq_three_iff {G : CGraph} : G.girth = 3 ↔ 3 ≤ G.cliqueNum := by
+  classical
+  constructor
+  · intro h
+    have hnac : ¬ G.IsAcyclic := by
+      intro hac
+      rw [(girth_eq_zero_iff G).2 hac] at h
+      omega
+    obtain ⟨a, w, hw, hlen⟩ := SimpleGraph.exists_girth_eq_length.2 hnac
+    obtain ⟨x, y, z, h1, h2, h3⟩ := exists_triangle_of_girth_eq_three hw (hlen.symm.trans h)
+    have h1' : G.toSimple.Adj x y := (toSimple_adj _ _ _).2 h1
+    have h2' : G.toSimple.Adj y z := (toSimple_adj _ _ _).2 h2
+    have h3' : G.toSimple.Adj z x := (toSimple_adj _ _ _).2 h3
+    have hcl : G.toSimple.IsNClique 3 {x, y, z} :=
+      SimpleGraph.is3Clique_triple_iff.2 ⟨h1', h3'.symm, h2'⟩
+    have := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl.isClique)
+    rwa [hcl.card_eq] at this
+  · intro h
+    obtain ⟨s, hs⟩ := G.toSimple.exists_isNClique_cliqueNum
+    obtain ⟨t, hts, htc⟩ := Finset.exists_subset_card_eq (n := 3) (show 3 ≤ s.card by rw [hs.card_eq]; exact h)
+    have hcl : G.toSimple.IsNClique 3 t := ⟨hs.isClique.subset hts, htc⟩
+    obtain ⟨x, y, z, -, -, -, rfl⟩ := Finset.card_eq_three.1 htc
+    rw [SimpleGraph.is3Clique_triple_iff] at hcl
+    exact girth_eq_three_of_triangle ((toSimple_adj _ _ _).1 hcl.1)
+      ((toSimple_adj _ _ _).1 hcl.2.2) ((toSimple_adj _ _ _).1 hcl.2.1.symm)
+
+theorem girth_eq_three_of_cliqueNum {G : CGraph} (h : 3 ≤ G.cliqueNum) : G.girth = 3 :=
+  girth_eq_three_iff.2 h
+
+/-- **A triangle-free graph with a cycle has girth at least four**, stated through the clique
+number. -/
+theorem four_le_girth_of_cliqueNum {G : CGraph} (hcl : G.cliqueNum ≤ 2) (hnac : ¬ G.IsAcyclic) :
+    4 ≤ G.girth := by
+  have h3 := three_le_girth hnac
+  have : G.girth ≠ 3 := fun h ↦ by have := girth_eq_three_iff.1 h; omega
+  omega
+
+/-! ### Girth five from strong regularity -/
+
+/-- **A strongly regular graph with `ℓ = 0` and `μ = 1` has girth at least five**: `ℓ = 0` rules
+out triangles and `μ = 1` rules out squares, since the two opposite corners of a square would
+share two neighbours. -/
+theorem IsSRGWith.five_le_girth {G : CGraph} {n k : ℕ} (h : G.IsSRGWith n k 0 1)
+    (hnac : ¬ G.IsAcyclic) : 5 ≤ G.girth := by
+  have h' : G.toSimple.IsSRGWith n k 0 1 := h
+  refine _root_.CGraph.five_le_girth (fun x y z h1 h2 h3 ↦ ?_) (fun x y z t h1 h2 h3 h4 ↦ ?_) hnac
+  · have hzx : G.toSimple.Adj z x := (toSimple_adj _ _ _).2 h3
+    have hemp := h'.of_adj z x hzx
+    rw [Fintype.card_eq_zero_iff] at hemp
+    exact hemp.false ⟨y, ((toSimple_adj _ _ _).2 h2).symm, (toSimple_adj _ _ _).2 h1⟩
+  · by_contra hcon
+    push_neg at hcon
+    obtain ⟨hxz, hyt⟩ := hcon
+    have hy : y ∈ G.toSimple.commonNeighbors x z :=
+      ⟨(toSimple_adj _ _ _).2 h1, ((toSimple_adj _ _ _).2 h2).symm⟩
+    have ht : t ∈ G.toSimple.commonNeighbors x z :=
+      ⟨((toSimple_adj _ _ _).2 h4).symm, (toSimple_adj _ _ _).2 h3⟩
+    by_cases hadj : G.toSimple.Adj x z
+    · have hemp := h'.of_adj x z hadj
+      rw [Fintype.card_eq_zero_iff] at hemp
+      exact hemp.false ⟨y, hy⟩
+    · have hcard := h'.of_not_adj hxz hadj
+      have h2card : 1 < Fintype.card (G.toSimple.commonNeighbors x z) :=
+        Fintype.one_lt_card_iff_nontrivial.2 ⟨⟨y, hy⟩, ⟨t, ht⟩, by simpa using hyt⟩
+      omega
+
+/-! ### Girth four -/
+
+/-- A bipartite graph with a square has girth exactly four. -/
+theorem girth_eq_four_of_square_of_isBipartite {G : CGraph} (hb : G.IsBipartite) {a b c d : G.V}
+    (hab : G.Adj a b) (hbc : G.Adj b c) (hcd : G.Adj c d) (hda : G.Adj d a) (hac : a ≠ c)
+    (hbd : b ≠ d) : G.girth = 4 :=
+  le_antisymm (girth_le_four_of_square hab hbc hcd hda hac hbd)
+    (four_le_girth_of_isBipartite hb (not_isAcyclic_of_square hab hbc hcd hda hac hbd))
+
+/-- **A Cartesian product of two bipartite graphs with an edge each has girth four**: the two
+edges span a square, and the product is bipartite so there is no triangle. -/
+theorem girth_cartesianProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (hG : 0 < G.E) (hH : 0 < H.E) (hbG : G.IsBipartite) (hbH : H.IsBipartite) :
+    (cartesianProduct G H).girth = 4 := by
+  obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
+  obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
+  have hane : a ≠ a' := by rintro rfl; exact absurd ha (by simp [G.loopless])
+  refine girth_eq_four_of_square_of_isBipartite (hbG.cartesianProduct hbH)
+    (a := ((a, b) : (cartesianProduct G H).V)) (b := (a', b)) (c := (a', b')) (d := (a, b'))
+    ?_ ?_ ?_ ?_ ?_ ?_
+  · rw [cartesianProduct_adj]; simp [ha]
+  · rw [cartesianProduct_adj]; simp [hb]
+  · rw [cartesianProduct_adj]; simp [G.symm a' a, ha]
+  · rw [cartesianProduct_adj]; simp [H.symm b' b, hb]
+  · exact fun h ↦ hane (congrArg Prod.fst h)
+  · exact fun h ↦ hane (congrArg Prod.fst h).symm
+
+/-- **The complete bipartite graph `K_{m+2,n+2}` has girth four.** -/
+theorem girth_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).girth = 4 := by
+  have hb : (bipartite (m + 2) (n + 2)).IsBipartite :=
+    ⟨Sum.elim (fun _ ↦ false) (fun _ ↦ true), by rintro (a | b) (c | d) hadj <;> simp at hadj ⊢⟩
+  refine girth_eq_four_of_square_of_isBipartite hb
+    (a := (Sum.inl ⟨0, by omega⟩ : Fin (m + 2) ⊕ Fin (n + 2)))
+    (b := (Sum.inr ⟨0, by omega⟩ : Fin (m + 2) ⊕ Fin (n + 2)))
+    (c := (Sum.inl ⟨1, by omega⟩ : Fin (m + 2) ⊕ Fin (n + 2)))
+    (d := (Sum.inr ⟨1, by omega⟩ : Fin (m + 2) ⊕ Fin (n + 2)))
+    (by rw [bipartite_adj_inl_inr]) (by rw [bipartite_adj_inr_inl])
+    (by rw [bipartite_adj_inl_inr]) (by rw [bipartite_adj_inr_inl]) ?_ ?_
+  · intro h
+    have h2 : (⟨0, by omega⟩ : Fin (m + 2)) = ⟨1, by omega⟩ := Sum.inl.inj h
+    simp at h2
+  · intro h
+    have h2 : (⟨0, by omega⟩ : Fin (n + 2)) = ⟨1, by omega⟩ := Sum.inr.inj h
+    simp at h2
+
+/-! ### Two graphs of girth five -/
+
+/-- **The five-cycle has girth five.** -/
+theorem girth_cycle_five : (cycle 5).girth = 5 := by
+  refine le_antisymm ?_ (five_le_girth (by decide) (by decide) (not_isAcyclic_cycle 2))
+  exact girth_le_five_of_pentagon (a := (0 : Fin 5)) (b := (1 : Fin 5)) (c := (2 : Fin 5))
+    (d := (3 : Fin 5)) (e := (4 : Fin 5))
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+
+/-- **The Petersen graph has girth five**: it is strongly regular with `ℓ = 0` and `μ = 1`, so it
+has neither a triangle nor a square, and its outer five-cycle realises the bound. -/
+theorem girth_kneser_five_two : (kneser 5 2).girth = 5 := by
+  have hpent := girth_le_five_of_pentagon (G := kneser 5 2)
+    (a := (⟨{0, 1}, by decide⟩ : {s : Finset (Fin 5) // s.card = 2}))
+    (b := ⟨{2, 3}, by decide⟩) (c := ⟨{4, 0}, by decide⟩)
+    (d := ⟨{1, 2}, by decide⟩) (e := ⟨{3, 4}, by decide⟩)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+  have hnac := not_isAcyclic_of_pentagon (G := kneser 5 2)
+    (a := (⟨{0, 1}, by decide⟩ : {s : Finset (Fin 5) // s.card = 2}))
+    (b := ⟨{2, 3}, by decide⟩) (c := ⟨{4, 0}, by decide⟩)
+    (d := ⟨{1, 2}, by decide⟩) (e := ⟨{3, 4}, by decide⟩)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
+  exact le_antisymm hpent ((isSRGWith_kneser_two 5).five_le_girth hnac)
+
+/-- An edge is a two-clique. -/
+theorem two_le_cliqueNum {G : CGraph} {a b : G.V} (hab : G.Adj a b) : 2 ≤ G.cliqueNum := by
+  classical
+  have hne : a ≠ b := ((toSimple_adj G a b).2 hab).ne
+  have hcl : G.toSimple.IsClique ((({a, b} : Finset G.V)) : Set G.V) := by
+    rw [Finset.coe_insert, Finset.coe_singleton]
+    exact SimpleGraph.isClique_pair.2 fun _ ↦ (toSimple_adj G a b).2 hab
+  have := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
+  rwa [Finset.card_pair hne] at this
+
+/-- A single vertex is a one-clique. -/
+theorem one_le_cliqueNum_of_vertex {G : CGraph} (a : G.V) : 1 ≤ G.cliqueNum := by
+  classical
+  have hcl : G.toSimple.IsClique ((({a} : Finset G.V)) : Set G.V) := by simp
+  have := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
+  simpa using this
+
+theorem two_le_cliqueNum_of_E_pos {G : CGraph} (h : 0 < G.E) : 2 ≤ G.cliqueNum := by
+  obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos h
+  exact two_le_cliqueNum hab
+
 end CGraph
 
 namespace IsoGraph
@@ -9003,6 +9365,167 @@ the product bound is tight here. -/
 example : 10 ≤ 3 * (compl petersen).chromNum := by
   have h := V_le_chromNum_mul_chromNum_compl petersen
   rwa [V_petersen, chromNum_petersen] at h
+
+/-! ### Girth -/
+
+theorem girth_eq_zero_iff {G : IsoGraph} : G.girth = 0 ↔ IsAcyclic G := by
+  induction G using Quotient.inductionOn with | _ G => exact CGraph.girth_eq_zero_iff G
+
+theorem three_le_girth {G : IsoGraph} (h : ¬ IsAcyclic G) : 3 ≤ G.girth := by
+  induction G using Quotient.inductionOn with | _ G => exact CGraph.three_le_girth h
+
+theorem girth_eq_three_iff {G : IsoGraph} : G.girth = 3 ↔ 3 ≤ G.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ G => exact CGraph.girth_eq_three_iff
+
+theorem girth_eq_three_of_cliqueNum {G : IsoGraph} (h : 3 ≤ G.cliqueNum) : G.girth = 3 :=
+  girth_eq_three_iff.2 h
+
+theorem four_le_girth_of_cliqueNum {G : IsoGraph} (hcl : G.cliqueNum ≤ 2) (h : ¬ IsAcyclic G) :
+    4 ≤ G.girth := by
+  have h3 := three_le_girth h
+  have hne : G.girth ≠ 3 := fun hg ↦ by have := girth_eq_three_iff.1 hg; omega
+  omega
+
+theorem four_le_girth_of_isBipartite {G : IsoGraph} (hb : IsBipartite G) (h : ¬ IsAcyclic G) :
+    4 ≤ G.girth := by
+  induction G using Quotient.inductionOn with | _ G =>
+  exact CGraph.four_le_girth_of_isBipartite hb h
+
+theorem two_le_cliqueNum_of_E_pos {G : IsoGraph} (h : 0 < G.E) : 2 ≤ G.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ G => exact CGraph.two_le_cliqueNum_of_E_pos h
+
+theorem one_le_cliqueNum {G : IsoGraph} (h : 0 < G.V) : 1 ≤ G.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ G =>
+  rw [V_mk] at h
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 h
+  exact CGraph.one_le_cliqueNum_of_vertex a
+
+theorem ne_of_girth_ne {G H : IsoGraph} (h : G.girth ≠ H.girth) : G ≠ H := fun hgh ↦ h (hgh ▸ rfl)
+
+/-! ### Girth of the named graphs -/
+
+@[simp] theorem girth_empty (n : ℕ) : (empty n).girth = 0 := girth_eq_zero_iff.2 (isAcyclic_empty n)
+
+@[simp] theorem girth_path (n : ℕ) : (path n).girth = 0 := girth_eq_zero_iff.2 (isAcyclic_path n)
+
+@[simp] theorem girth_star (n : ℕ) : (star n).girth = 0 :=
+  girth_eq_zero_iff.2 ((isTree_iff_isConnected_and_isAcyclic _).1 (isTree_star n)).2
+
+@[simp] theorem girth_complete (n : ℕ) : (complete (n + 3)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by simp)
+
+@[simp] theorem girth_cocktailParty (n : ℕ) : (cocktailParty (n + 3)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by simp)
+
+@[simp] theorem girth_book (n : ℕ) : (book (n + 1)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by simp)
+
+@[simp] theorem girth_wheel (n : ℕ) : (wheel (n + 3)).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [wheel_eq_join, cliqueNum_join]
+  have : 2 ≤ (cycle (n + 3)).cliqueNum := two_le_cliqueNum_of_E_pos (by simp)
+  simp only [cliqueNum_complete]
+  omega
+
+@[simp] theorem girth_cycle_three : (cycle 3).girth = 3 := by
+  rw [cycle_three]; exact girth_complete 0
+
+theorem girth_join_left {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
+    (join G H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_join]
+  have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
+  have h2 : 1 ≤ H.cliqueNum := one_le_cliqueNum hH
+  omega
+
+theorem girth_join_right {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.E) :
+    (join G H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_join]
+  have h1 : 1 ≤ G.cliqueNum := one_le_cliqueNum hG
+  have h2 : 2 ≤ H.cliqueNum := two_le_cliqueNum_of_E_pos hH
+  omega
+
+/-- **A Cartesian product of two bipartite graphs with an edge each has girth four.** -/
+theorem girth_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E)
+    (hbG : IsBipartite G) (hbH : IsBipartite H) : (cartesianProduct G H).girth = 4 := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [cartesianProduct_mk, girth_mk]
+  rw [E_mk] at hG hH
+  rw [isBipartite_mk] at hbG hbH
+  exact CGraph.girth_cartesianProduct hG hH hbG hbH
+
+@[simp] theorem girth_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).girth = 4 := by
+  rw [bipartite_def, girth_mk]
+  exact CGraph.girth_bipartite m n
+
+@[simp] theorem girth_hypercube (n : ℕ) : (hypercube (n + 2)).girth = 4 := by
+  rw [hypercube_succ]
+  refine girth_cartesianProduct ?_ (by simp) (isBipartite_hypercube (n + 1)) isBipartite_complete_two
+  have h := E_hypercube (n + 1)
+  have : 0 < (n + 1) * 2 ^ (n + 1) := by positivity
+  omega
+
+@[simp] theorem girth_cycle_four : (cycle 4).girth = 4 := by
+  rw [← hypercube_two]; exact girth_hypercube 0
+
+@[simp] theorem girth_ladder (n : ℕ) : (ladder (n + 2)).girth = 4 :=
+  girth_cartesianProduct (by simp) (by simp) (isBipartite_path (n + 2)) isBipartite_complete_two
+
+@[simp] theorem girth_cycle_five : (cycle 5).girth = 5 := by
+  rw [cycle_def, girth_mk]; exact CGraph.girth_cycle_five
+
+theorem girth_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) (h : 3 ≤ max m n) :
+    (rook m n).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_rook hm hn]; exact h)
+
+theorem girth_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    (strongProduct G H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_strongProduct]
+  have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
+  have h2 : 2 ≤ H.cliqueNum := two_le_cliqueNum_of_E_pos hH
+  calc 3 ≤ 2 * 2 := by norm_num
+    _ ≤ G.cliqueNum * H.cliqueNum := Nat.mul_le_mul h1 h2
+
+theorem girth_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    (lexProduct G H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_lexProduct]
+  have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
+  have h2 : 2 ≤ H.cliqueNum := two_le_cliqueNum_of_E_pos hH
+  calc 3 ≤ 2 * 2 := by norm_num
+    _ ≤ G.cliqueNum * H.cliqueNum := Nat.mul_le_mul h1 h2
+
+theorem girth_prism_even (m : ℕ) : (prism (2 * m + 4)).girth = 4 := by
+  have hb : IsBipartite (cycle (2 * m + 4)) := by
+    have h := isBipartite_cycle_even (m + 2)
+    rwa [show 2 * (m + 2) = 2 * m + 4 by ring] at h
+  refine girth_cartesianProduct ?_ (by simp) hb isBipartite_complete_two
+  rw [show 2 * m + 4 = (2 * m + 1) + 3 by ring, E_cycle]
+  omega
+
+@[simp] theorem girth_petersen : petersen.girth = 5 := by
+  show (kneser 5 2).girth = 5
+  rw [kneser_def, girth_mk]
+  exact CGraph.girth_kneser_five_two
+
+example : (rook 3 4).girth = 3 := girth_rook (by norm_num) (by norm_num) (by norm_num)
+
+example : (wheel 7).girth = 3 := girth_wheel 4
+
+example : (hypercube 4).girth = 4 := girth_hypercube 2
+
+example : cycle 5 ≠ cycle 4 := ne_of_girth_ne (by simp)
+
+example : petersen ≠ hypercube 4 := ne_of_girth_ne (by simp)
+
+example : ¬ IsAcyclic (cycle 5) := by
+  intro h
+  have := girth_eq_zero_iff.2 h
+  simp at this
 
 /-! ## The simp set at work
 

@@ -1,6 +1,7 @@
 import IsoGraph.Basic
 import Mathlib.Combinatorics.SimpleGraph.Acyclic
 import Mathlib.Combinatorics.SimpleGraph.Diam
+import Mathlib.Combinatorics.SimpleGraph.Girth
 import Mathlib.Combinatorics.SimpleGraph.Connectivity.WalkCounting
 import Mathlib.Combinatorics.SimpleGraph.Coloring
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
@@ -138,6 +139,18 @@ theorem isSRGWith_iff (f : G ≃g G') : G.IsSRGWith n k ℓ μ ↔ G'.IsSRGWith 
 
 end StronglyRegular
 
+/-- **Girth is an isomorphism invariant**: an isomorphism carries cycles to cycles of the same
+length, in both directions, so the infimum of cycle lengths is the same on both sides. -/
+theorem egirth_eq (f : G ≃g G') : G.egirth = G'.egirth := by
+  refine le_antisymm (le_egirth.2 fun a w hw ↦ ?_) (le_egirth.2 fun a w hw ↦ ?_)
+  · have h := egirth_le_length (hw.map (f := f.symm.toHom) f.symm.injective)
+    rwa [Walk.length_map] at h
+  · have h := egirth_le_length (hw.map (f := f.toHom) f.injective)
+    rwa [Walk.length_map] at h
+
+theorem girth_eq (f : G ≃g G') : G.girth = G'.girth := by
+  rw [girth, girth, f.egirth_eq]
+
 end SimpleGraph.Iso
 
 /-! ## Invariants of a `CGraph` -/
@@ -173,6 +186,10 @@ def IsConnected : Prop := G.toSimple.Connected
 
 /-- The graph has no cycles. -/
 def IsAcyclic : Prop := G.toSimple.IsAcyclic
+
+/-- Girth: the length of a shortest cycle, and `0` for an acyclic graph (Mathlib's convention,
+the same kind of junk value as `diameter` uses for a disconnected graph). -/
+noncomputable def girth : ℕ := G.toSimple.girth
 
 /-- Diameter, i.e. the largest distance between two vertices — `0` if the graph is disconnected
 (this is Mathlib's convention for `SimpleGraph.diam`). -/
@@ -451,6 +468,13 @@ def IsSRGWith (G : IsoGraph) (n k ℓ μ : ℕ) : Prop :=
 
 @[simp] theorem isSRGWith_mk (G : CGraph) (n k ℓ μ : ℕ) :
     IsSRGWith (Quotient.mk _ G) n k ℓ μ = G.IsSRGWith n k ℓ μ := rfl
+
+/-- Girth. -/
+noncomputable def girth (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.girth
+    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.girth_eq (CGraph.Iso.toSimpleIso i)) G
+
+@[simp] theorem girth_mk (G : CGraph) : girth (Quotient.mk _ G) = G.girth := rfl
 
 /-- Diameter. -/
 noncomputable def diameter (G : IsoGraph) : ℕ :=
