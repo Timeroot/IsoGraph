@@ -931,6 +931,23 @@ the corresponding bind.  Unlike the older `degSequence_*` product lemmas, these 
 assumption on the factors, so they apply to ladders, prisms and anything else built by a product
 from irregular pieces.
 
+The clique numbers of the products complete a table that already had the strong product
+(`ω(G ⊠ H) = ω(G)·ω(H)`) and the independence numbers of the disjoint union, the join and the
+lexicographic product.  The three new entries are `ω(G □ H) = max ω(G) ω(H)`,
+`ω(G × H) = min ω(G) ω(H)` and `ω(G[H]) = ω(G)·ω(H)`.  Each is a statement about a graph on a
+product type whose adjacency has a particular shape, so the proofs are stated that way — over an
+abstract `P : SimpleGraph (X × Y)` together with the adjacency description — which keeps the
+`Finset`/`Set` plumbing at honest types instead of at `(cartesianProduct G H).V`, where the
+coercions stop elaborating.  Mathlib's `IsClique.card_le_cliqueNum` and
+`exists_isNClique_cliqueNum` do the rest: a clique of `G □ H` lies in one row or one column
+because a vertex outside the shared row would have to agree with two distinct vertices in the
+other coordinate; a clique of `G × H` projects injectively to both factors, and conversely any
+bijection between equal-size cliques pairs them up; and `G[H]` reuses the fibrewise count that
+bounds a clique by `ω(G)` fibres of at most `ω(H)` vertices each.  The Cartesian product is the
+one case needing nonempty factors — `ω` of the empty graph is `0`, not the maximum — and
+`cliqueNum_rook` is the immediate corollary that a rook graph's largest clique is a full row or a
+full column.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -3418,6 +3418,258 @@ theorem degMultiset_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq 
     (Multiset.map_map (fun e ↦ (G.toSimple.degree a + 1) * (e + 1) - 1)
       (fun v ↦ H.toSimple.degree v) _).symm
 
+/-! ### Clique numbers of the cartesian, tensor and lexicographic products -/
+
+section CliqueProducts
+
+variable {X Y : Type} [Fintype X] [Fintype Y] [DecidableEq X] [DecidableEq Y]
+
+omit [DecidableEq X] in
+private theorem clique_card_le {S : SimpleGraph X} {t : Finset X} (h : S.IsClique (t : Set X)) :
+    t.card ≤ S.cliqueNum :=
+  h.card_le_cliqueNum
+
+omit [Fintype X] [DecidableEq X] in
+private theorem cliqueNum_le_of_forall {S : SimpleGraph X} {n : ℕ}
+    (h : ∀ t : Finset X, S.IsClique (t : Set X) → t.card ≤ n) : S.cliqueNum ≤ n := by
+  obtain ⟨t, ht, hcard⟩ := S.exists_isNClique_cliqueNum
+  exact hcard ▸ h t ht
+
+omit [Fintype X] [DecidableEq X] in
+private theorem exists_isClique_card {S : SimpleGraph X} {n : ℕ} (h : n ≤ S.cliqueNum) :
+    ∃ t : Finset X, S.IsClique (t : Set X) ∧ t.card = n := by
+  obtain ⟨t, ht, hcard⟩ := S.exists_isNClique_cliqueNum
+  obtain ⟨u, hu, hucard⟩ := Finset.exists_subset_card_eq (s := t) (n := n) (by omega)
+  exact ⟨u, ht.subset (by exact_mod_cast hu), hucard⟩
+
+omit [DecidableEq X] in
+private theorem one_le_cliqueNum {S : SimpleGraph X} (a : X) : 1 ≤ S.cliqueNum := by
+  have h : S.IsClique (({a} : Finset X) : Set X) := by simp
+  simpa using clique_card_le h
+
+/-- The fibre bound: a finset whose first-coordinate projection is a clique and whose fibres
+project to cliques has at most `ω(S) * ω(T)` elements. -/
+private theorem card_le_mul_of_fibers {S : SimpleGraph X} {T : SimpleGraph Y}
+    (s : Finset (X × Y)) (h1 : S.IsClique ((s.image Prod.fst : Finset X) : Set X))
+    (h2 : ∀ a : X, T.IsClique (((s.filter fun p ↦ p.1 = a).image Prod.snd : Finset Y) : Set Y)) :
+    s.card ≤ S.cliqueNum * T.cliqueNum := by
+  have hfib : ∀ a : X, (s.filter fun p ↦ p.1 = a).card ≤ T.cliqueNum := by
+    intro a
+    have hinj : Set.InjOn Prod.snd
+        (((s.filter fun p ↦ p.1 = a) : Finset (X × Y)) : Set (X × Y)) := by
+      intro x hx y hy hxy
+      rw [Finset.mem_coe, Finset.mem_filter] at hx hy
+      exact Prod.ext (hx.2.trans hy.2.symm) hxy
+    rw [← Finset.card_image_of_injOn hinj]
+    exact clique_card_le (h2 a)
+  calc s.card = ∑ a ∈ s.image Prod.fst, (s.filter fun p ↦ p.1 = a).card :=
+        Finset.card_eq_sum_card_fiberwise fun x hx ↦ Finset.mem_image_of_mem _ hx
+    _ ≤ ∑ _a ∈ s.image Prod.fst, T.cliqueNum := Finset.sum_le_sum fun a _ ↦ hfib a
+    _ = (s.image Prod.fst).card * T.cliqueNum := by rw [Finset.sum_const, smul_eq_mul]
+    _ ≤ S.cliqueNum * T.cliqueNum := Nat.mul_le_mul_right _ (clique_card_le h1)
+
+/-- A clique of a graph with cartesian-product adjacency lies in a single row or a single column,
+so its clique number is the larger of the two.  The two vertices `a₀` and `b₀` are what rules out
+the empty product, whose clique number is `0`. -/
+private theorem cliqueNum_of_cartesian_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)} (a₀ : X) (b₀ : Y)
+    (hadj : ∀ p q : X × Y, P.Adj p q ↔ (p.1 = q.1 ∧ T.Adj p.2 q.2) ∨ (S.Adj p.1 q.1 ∧ p.2 = q.2)) :
+    P.cliqueNum = max S.cliqueNum T.cliqueNum := by
+  refine le_antisymm (cliqueNum_le_of_forall fun s hs ↦ ?_) (max_le ?_ ?_)
+  · by_cases hcard : s.card ≤ 1
+    · exact hcard.trans (le_max_of_le_left (one_le_cliqueNum a₀))
+    · obtain ⟨p, hp, q, hq, hpq⟩ := Finset.one_lt_card.mp (by omega : 1 < s.card)
+      rcases (hadj p q).1 (hs (Finset.mem_coe.2 hp) (Finset.mem_coe.2 hq) hpq) with
+        ⟨h1, -⟩ | ⟨-, h1⟩
+      · -- every vertex of `s` lies in the row `p.1`
+        have hall : ∀ r ∈ s, r.1 = p.1 := by
+          intro r hr
+          by_contra hne
+          have hrp : r.2 = p.2 := by
+            rcases (hadj r p).1 (hs (Finset.mem_coe.2 hr) (Finset.mem_coe.2 hp)
+              fun h ↦ hne (congrArg Prod.fst h)) with ⟨h, -⟩ | ⟨-, h⟩
+            · exact absurd h hne
+            · exact h
+          have hrq : r.2 = q.2 := by
+            rcases (hadj r q).1 (hs (Finset.mem_coe.2 hr) (Finset.mem_coe.2 hq)
+              fun h ↦ hne ((congrArg Prod.fst h).trans h1.symm)) with ⟨h, -⟩ | ⟨-, h⟩
+            · exact absurd (h.trans h1.symm) hne
+            · exact h
+          exact hpq (Prod.ext h1 (hrp.symm.trans hrq))
+        have hinj : Set.InjOn Prod.snd (s : Set (X × Y)) := fun x hx y hy hxy ↦
+          Prod.ext ((hall x (Finset.mem_coe.1 hx)).trans (hall y (Finset.mem_coe.1 hy)).symm) hxy
+        have hclique : T.IsClique ((s.image Prod.snd : Finset Y) : Set Y) := by
+          intro b hb b' hb' hne
+          rw [Finset.coe_image, Set.mem_image] at hb hb'
+          obtain ⟨x, hx, rfl⟩ := hb
+          obtain ⟨y, hy, rfl⟩ := hb'
+          have hxy : x ≠ y := fun h ↦ hne (congrArg Prod.snd h)
+          rcases (hadj x y).1 (hs hx hy hxy) with ⟨-, h⟩ | ⟨-, h⟩
+          · exact h
+          · exact absurd (Prod.ext ((hall x (Finset.mem_coe.1 hx)).trans
+              (hall y (Finset.mem_coe.1 hy)).symm) h) hxy
+        exact le_max_of_le_right (Finset.card_image_of_injOn hinj ▸ clique_card_le hclique)
+      · -- every vertex of `s` lies in the column `p.2`
+        have hall : ∀ r ∈ s, r.2 = p.2 := by
+          intro r hr
+          by_contra hne
+          have hrp : r.1 = p.1 := by
+            rcases (hadj r p).1 (hs (Finset.mem_coe.2 hr) (Finset.mem_coe.2 hp)
+              fun h ↦ hne (congrArg Prod.snd h)) with ⟨h, -⟩ | ⟨-, h⟩
+            · exact h
+            · exact absurd h hne
+          have hrq : r.1 = q.1 := by
+            rcases (hadj r q).1 (hs (Finset.mem_coe.2 hr) (Finset.mem_coe.2 hq)
+              fun h ↦ hne ((congrArg Prod.snd h).trans h1.symm)) with ⟨h, -⟩ | ⟨-, h⟩
+            · exact h
+            · exact absurd (h.trans h1.symm) hne
+          exact hpq (Prod.ext (hrp.symm.trans hrq) h1)
+        have hinj : Set.InjOn Prod.fst (s : Set (X × Y)) := fun x hx y hy hxy ↦
+          Prod.ext hxy ((hall x (Finset.mem_coe.1 hx)).trans (hall y (Finset.mem_coe.1 hy)).symm)
+        have hclique : S.IsClique ((s.image Prod.fst : Finset X) : Set X) := by
+          intro a ha a' ha' hne
+          rw [Finset.coe_image, Set.mem_image] at ha ha'
+          obtain ⟨x, hx, rfl⟩ := ha
+          obtain ⟨y, hy, rfl⟩ := ha'
+          have hxy : x ≠ y := fun h ↦ hne (congrArg Prod.fst h)
+          rcases (hadj x y).1 (hs hx hy hxy) with ⟨h, -⟩ | ⟨h, -⟩
+          · exact absurd (Prod.ext h ((hall x (Finset.mem_coe.1 hx)).trans
+              (hall y (Finset.mem_coe.1 hy)).symm)) hxy
+          · exact h
+        exact le_max_of_le_left (Finset.card_image_of_injOn hinj ▸ clique_card_le hclique)
+  · -- a maximum clique of `S`, times the single vertex `b₀`
+    obtain ⟨t, ht, htcard⟩ := exists_isClique_card (le_refl S.cliqueNum)
+    have hcard : (t ×ˢ ({b₀} : Finset Y)).card = S.cliqueNum := by
+      rw [Finset.card_product, Finset.card_singleton, mul_one, htcard]
+    refine hcard ▸ clique_card_le (S := P) ?_
+    intro x hx y hy hxy
+    rw [Finset.mem_coe, Finset.mem_product, Finset.mem_singleton] at hx hy
+    have hne : x.1 ≠ y.1 := fun h ↦ hxy (Prod.ext h (hx.2.trans hy.2.symm))
+    exact (hadj x y).2 (Or.inr ⟨ht (Finset.mem_coe.2 hx.1) (Finset.mem_coe.2 hy.1) hne,
+      hx.2.trans hy.2.symm⟩)
+  · -- the single vertex `a₀`, times a maximum clique of `T`
+    obtain ⟨u, hu, hucard⟩ := exists_isClique_card (le_refl T.cliqueNum)
+    have hcard : (({a₀} : Finset X) ×ˢ u).card = T.cliqueNum := by
+      rw [Finset.card_product, Finset.card_singleton, one_mul, hucard]
+    refine hcard ▸ clique_card_le (S := P) ?_
+    intro x hx y hy hxy
+    rw [Finset.mem_coe, Finset.mem_product, Finset.mem_singleton] at hx hy
+    have hne : x.2 ≠ y.2 := fun h ↦ hxy (Prod.ext (hx.1.trans hy.1.symm) h)
+    exact (hadj x y).2 (Or.inl ⟨hx.1.trans hy.1.symm,
+      hu (Finset.mem_coe.2 hx.2) (Finset.mem_coe.2 hy.2) hne⟩)
+
+/-- Both projections of a clique of a graph with tensor-product adjacency are injective cliques,
+and conversely any pairing of two cliques of the same size is one, so its clique number is the
+smaller of the two. -/
+private theorem cliqueNum_of_tensor_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)}
+    (hadj : ∀ p q : X × Y, P.Adj p q ↔ S.Adj p.1 q.1 ∧ T.Adj p.2 q.2) :
+    P.cliqueNum = min S.cliqueNum T.cliqueNum := by
+  refine le_antisymm (cliqueNum_le_of_forall fun s hs ↦ le_min ?_ ?_) ?_
+  · have hinj : Set.InjOn Prod.fst (s : Set (X × Y)) := by
+      intro x hx y hy hxy
+      by_contra hne
+      exact ((hadj x y).1 (hs hx hy hne)).1.ne hxy
+    have hclique : S.IsClique ((s.image Prod.fst : Finset X) : Set X) := by
+      intro a ha a' ha' hne
+      rw [Finset.coe_image, Set.mem_image] at ha ha'
+      obtain ⟨x, hx, rfl⟩ := ha
+      obtain ⟨y, hy, rfl⟩ := ha'
+      exact ((hadj x y).1 (hs hx hy fun h ↦ hne (congrArg Prod.fst h))).1
+    exact Finset.card_image_of_injOn hinj ▸ clique_card_le hclique
+  · have hinj : Set.InjOn Prod.snd (s : Set (X × Y)) := by
+      intro x hx y hy hxy
+      by_contra hne
+      exact ((hadj x y).1 (hs hx hy hne)).2.ne hxy
+    have hclique : T.IsClique ((s.image Prod.snd : Finset Y) : Set Y) := by
+      intro b hb b' hb' hne
+      rw [Finset.coe_image, Set.mem_image] at hb hb'
+      obtain ⟨x, hx, rfl⟩ := hb
+      obtain ⟨y, hy, rfl⟩ := hb'
+      exact ((hadj x y).1 (hs hx hy fun h ↦ hne (congrArg Prod.snd h))).2
+    exact Finset.card_image_of_injOn hinj ▸ clique_card_le hclique
+  · obtain ⟨t, ht, htcard⟩ := exists_isClique_card (min_le_left S.cliqueNum T.cliqueNum)
+    obtain ⟨u, hu, hucard⟩ := exists_isClique_card (min_le_right S.cliqueNum T.cliqueNum)
+    have hcards : Fintype.card {a // a ∈ t} = Fintype.card {b // b ∈ u} := by
+      rw [Fintype.card_coe, Fintype.card_coe, htcard, hucard]
+    obtain ⟨e⟩ : Nonempty ({a // a ∈ t} ≃ {b // b ∈ u}) := ⟨Fintype.equivOfCardEq hcards⟩
+    have hfinj : Function.Injective fun z : {a // a ∈ t} ↦ (z.1, (e z).1) :=
+      fun z z' hzz' ↦ Subtype.ext (congrArg Prod.fst hzz')
+    have hcard : (t.attach.image fun z ↦ (z.1, (e z).1)).card = min S.cliqueNum T.cliqueNum := by
+      rw [Finset.card_image_of_injective _ hfinj, Finset.card_attach, htcard]
+    refine hcard ▸ clique_card_le (S := P) ?_
+    intro p hp q hq hpq
+    rw [Finset.coe_image, Set.mem_image] at hp hq
+    obtain ⟨z, -, rfl⟩ := hp
+    obtain ⟨z', -, rfl⟩ := hq
+    have hzz' : z ≠ z' := fun h ↦ hpq (by rw [h])
+    exact (hadj _ _).2
+      ⟨ht (Finset.mem_coe.2 z.2) (Finset.mem_coe.2 z'.2) fun h ↦ hzz' (Subtype.ext h),
+        hu (Finset.mem_coe.2 (e z).2) (Finset.mem_coe.2 (e z').2)
+          fun h ↦ hzz' (e.injective (Subtype.ext h))⟩
+
+/-- A graph with lexicographic-product adjacency multiplies the two clique numbers. -/
+private theorem cliqueNum_of_lex_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)}
+    (hadj : ∀ p q : X × Y, P.Adj p q ↔ S.Adj p.1 q.1 ∨ (p.1 = q.1 ∧ T.Adj p.2 q.2)) :
+    P.cliqueNum = S.cliqueNum * T.cliqueNum := by
+  refine le_antisymm (cliqueNum_le_of_forall fun s hs ↦ card_le_mul_of_fibers s ?_ ?_) ?_
+  · intro a ha a' ha' hne
+    rw [Finset.coe_image, Set.mem_image] at ha ha'
+    obtain ⟨x, hx, rfl⟩ := ha
+    obtain ⟨y, hy, rfl⟩ := ha'
+    rcases (hadj x y).1 (hs hx hy fun h ↦ hne (congrArg Prod.fst h)) with h | ⟨h, -⟩
+    · exact h
+    · exact absurd h hne
+  · intro a b hb b' hb' hne
+    rw [Finset.coe_image, Set.mem_image] at hb hb'
+    obtain ⟨x, hx, rfl⟩ := hb
+    obtain ⟨y, hy, rfl⟩ := hb'
+    rw [Finset.mem_coe, Finset.mem_filter] at hx hy
+    rcases (hadj x y).1 (hs (Finset.mem_coe.2 hx.1) (Finset.mem_coe.2 hy.1)
+      fun h ↦ hne (congrArg Prod.snd h)) with h | ⟨-, h⟩
+    · exact absurd (hx.2.trans hy.2.symm) h.ne
+    · exact h
+  · obtain ⟨t, ht, htcard⟩ := exists_isClique_card (le_refl S.cliqueNum)
+    obtain ⟨u, hu, hucard⟩ := exists_isClique_card (le_refl T.cliqueNum)
+    have hcard : (t ×ˢ u).card = S.cliqueNum * T.cliqueNum := by
+      rw [Finset.card_product, htcard, hucard]
+    refine hcard ▸ clique_card_le (S := P) ?_
+    intro x hx y hy hxy
+    rw [Finset.mem_coe, Finset.mem_product] at hx hy
+    by_cases h : x.1 = y.1
+    · exact (hadj x y).2 (Or.inr ⟨h, hu (Finset.mem_coe.2 hx.2) (Finset.mem_coe.2 hy.2)
+        fun h2 ↦ hxy (Prod.ext h h2)⟩)
+    · exact (hadj x y).2 (Or.inl (ht (Finset.mem_coe.2 hx.1) (Finset.mem_coe.2 hy.1) h))
+
+end CliqueProducts
+
+/-- A clique of `G □ H` lives in a single row or a single column, so the cartesian product has the
+larger of the two clique numbers.  Both factors have to be nonempty: otherwise the product is the
+empty graph, whose clique number is `0`. -/
+theorem cliqueNum_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (a : G.V) (b : H.V) :
+    (cartesianProduct G H).cliqueNum = max G.cliqueNum H.cliqueNum :=
+  cliqueNum_of_cartesian_adj (S := G.toSimple) (T := H.toSimple)
+    (P := (cartesianProduct G H).toSimple) a b fun p q ↦ by
+      simp only [CGraph.toSimple_adj, cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true,
+        decide_eq_true_eq]
+
+/-- The tensor product has the smaller of the two clique numbers. -/
+theorem cliqueNum_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (tensorProduct G H).cliqueNum = min G.cliqueNum H.cliqueNum :=
+  cliqueNum_of_tensor_adj (S := G.toSimple) (T := H.toSimple)
+    (P := (tensorProduct G H).toSimple) fun p q ↦ by
+      simp only [CGraph.toSimple_adj, tensorProduct_adj, Bool.and_eq_true]
+
+/-- The lexicographic product multiplies clique numbers, just like the strong product. -/
+theorem cliqueNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (lexProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum :=
+  cliqueNum_of_lex_adj (S := G.toSimple) (T := H.toSimple)
+    (P := (lexProduct G H).toSimple) fun p q ↦ by
+      simp only [CGraph.toSimple_adj, lexProduct_adj, Bool.or_eq_true, Bool.and_eq_true,
+        decide_eq_true_eq]
+
 end CGraph
 
 namespace IsoGraph
@@ -6506,6 +6758,42 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
     cliqueNum_mk]
   exact CGraph.cliqueNum_strongProduct _ _
 
+/-! ### Clique numbers of the cartesian, tensor and lexicographic products -/
+
+theorem cliqueNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (cartesianProduct G H).cliqueNum = max G.cliqueNum H.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [cartesianProduct_mk, cliqueNum_mk, cliqueNum_mk, cliqueNum_mk]
+  rw [V_mk] at hG hH
+  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
+  exact CGraph.cliqueNum_cartesianProduct _ _ a b
+
+@[simp] theorem cliqueNum_tensorProduct (G H : IsoGraph) :
+    (tensorProduct G H).cliqueNum = min G.cliqueNum H.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, cliqueNum_mk, cliqueNum_mk,
+    cliqueNum_mk]
+  exact CGraph.cliqueNum_tensorProduct _ _
+
+@[simp] theorem cliqueNum_lexProduct (G H : IsoGraph) :
+    (lexProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, cliqueNum_mk, cliqueNum_mk,
+    cliqueNum_mk]
+  exact CGraph.cliqueNum_lexProduct _ _
+
+/-- A maximum clique of a rook graph is a full row or a full column. -/
+@[simp] theorem cliqueNum_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) :
+    (rook m n).cliqueNum = max m n := by
+  rw [show rook m n = cartesianProduct (complete m) (complete n) from rfl,
+    cliqueNum_cartesianProduct (by simpa using hm) (by simpa using hn), cliqueNum_complete,
+    cliqueNum_complete]
+
 /-! Derived clique and independence numbers. -/
 
 @[simp] theorem cliqueNum_star (n : ℕ) : (star (n + 1)).cliqueNum = 2 :=
@@ -8292,5 +8580,24 @@ example : path 6 ≠ cycle 6 :=
     have h2 : degMultiset (cycle 6) = Multiset.replicate 6 2 := degMultiset_cycle 3
     rw [h1, h2]
     decide)
+
+example : (cartesianProduct (bipartite 2 3) (complete 4)).cliqueNum = 4 := by
+  rw [cliqueNum_cartesianProduct (by simp) (by simp), cliqueNum_complete,
+    show bipartite 2 3 = bipartite (1 + 1) (2 + 1) from rfl, cliqueNum_bipartite]
+  decide
+
+example : (rook 3 3).cliqueNum = 3 := by simp
+
+example : (tensorProduct (complete 3) (complete 5)).cliqueNum = 3 := by simp
+
+example : (lexProduct (complete 3) (complete 5)).cliqueNum = 15 := by simp
+
+example : (lexProduct (empty 4) (complete 5)).cliqueNum = 5 := by simp
+
+example : rook 3 3 ≠ lexProduct (complete 3) (complete 3) :=
+  ne_of_cliqueNum_ne (by simp)
+
+example : tensorProduct (complete 4) (complete 4) ≠ rook 3 3 :=
+  ne_of_cliqueNum_ne (by simp)
 
 end IsoGraph
