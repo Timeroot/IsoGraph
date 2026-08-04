@@ -91,6 +91,17 @@ theorem numComponents_eq (f : G ≃g G') :
     Nat.card G.ConnectedComponent = Nat.card G'.ConnectedComponent :=
   Nat.card_congr f.connectedComponentEquiv
 
+/-- Conjugating by an isomorphism is a bijection between the automorphism groups. -/
+def autEquiv (f : G ≃g G') : (G ≃g G) ≃ (G' ≃g G') where
+  toFun a := (f.symm.trans a).trans f
+  invFun b := (f.trans b).trans f.symm
+  left_inv a := by ext v; simp
+  right_inv b := by ext v; simp
+
+/-- Isomorphic graphs have equally many automorphisms. -/
+theorem autCount_eq (f : G ≃g G') : Nat.card (G ≃g G) = Nat.card (G' ≃g G') :=
+  Nat.card_congr (autEquiv f)
+
 theorem cliqueNum_eq (f : G ≃g G') : G.cliqueNum = G'.cliqueNum := by
   unfold SimpleGraph.cliqueNum
   congr 1
@@ -269,6 +280,16 @@ theorem numComponents_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
 theorem numComponents_eq_card [DecidableEq G.V] :
     G.numComponents = Fintype.card G.toSimple.ConnectedComponent :=
   Nat.card_eq_fintype_card
+
+/-- The number of automorphisms, i.e. the order of the automorphism group. -/
+noncomputable def autCount : ℕ := Nat.card (G.toSimple ≃g G.toSimple)
+
+instance instFiniteAut : Finite (G.toSimple ≃g G.toSimple) :=
+  Finite.of_injective (fun a : G.toSimple ≃g G.toSimple ↦ a.toEquiv)
+    (fun _ _ h ↦ by ext v; exact congrArg (fun e : G.V ≃ G.V ↦ e v) h)
+
+theorem autCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.autCount = H.autCount :=
+  SimpleGraph.Iso.autCount_eq (CGraph.Iso.toSimpleIso i)
 
 /-- Number of edges. -/
 def E : ℕ := G.toSimple.edgeFinset.card
@@ -730,5 +751,12 @@ def IsArcTransitive (G : IsoGraph) : Prop :=
 
 @[simp] theorem isArcTransitive_mk (G : CGraph) :
     IsArcTransitive (Quotient.mk _ G) = G.IsArcTransitive := rfl
+
+/-- The number of automorphisms. -/
+noncomputable def autCount (G : IsoGraph) : ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.autCount
+    (fun _ _ ⟨i⟩ ↦ CGraph.autCount_eq_of_iso i) G
+
+@[simp] theorem autCount_mk (G : CGraph) : autCount (Quotient.mk _ G) = G.autCount := rfl
 
 end IsoGraph

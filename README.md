@@ -1242,6 +1242,16 @@ The last connectivity result is a sufficient condition rather than a computation
 {u, v}`, so `card_union_add_card_inter` forces `N(u) ∩ N(v)` to be nonempty and a common neighbour
 joins them — every pair is then at distance at most two.
 
+The last invariant of the file is the order of the automorphism group, `autCount G :=
+Nat.card (G.toSimple ≃g G.toSimple)`.  Its iso-invariance is conjugation, `a ↦ f⁻¹ ∘ a ∘ f`, which
+is an honest `Equiv` between the two automorphism groups (`SimpleGraph.Iso.autEquiv`).  The group
+is finite because `RelIso.toEquiv` is injective, so `autCount` is positive (the identity is always
+there) and at most `|V|!`.  Complementation leaves it alone — the same vertex permutation is an
+automorphism of `G` and of `Gᶜ`, and spelling out both directions of `compl_adj` gives
+`autCount Gᶜ = autCount G` — while every permutation is an automorphism of `empty n` and of
+`complete n`, so both have `n!` of them.  `autCount G = 1` is exactly asymmetry, and differing
+counts is another way to tell two `IsoGraph`s apart.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

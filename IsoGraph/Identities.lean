@@ -6530,6 +6530,84 @@ theorem numComponents_eq_one_of_card_le_two_mul_minDeg (G : CGraph) [Nonempty G.
     (h : Fintype.card G.V ≤ 2 * G.minDeg + 1) : G.numComponents = 1 :=
   (numComponents_eq_one_iff G).2 (G.isConnected_of_card_le_two_mul_minDeg h)
 
+/-! ### Counting automorphisms -/
+
+/-- Every permutation is an automorphism of the edgeless graph. -/
+def _root_.SimpleGraph.autBotEquiv (α : Type*) :
+    ((⊥ : SimpleGraph α) ≃g (⊥ : SimpleGraph α)) ≃ Equiv.Perm α where
+  toFun a := a.toEquiv
+  invFun e := ⟨e, by simp⟩
+  left_inv a := by ext v; rfl
+  right_inv e := by ext v; rfl
+
+/-- Every permutation is an automorphism of the complete graph. -/
+def _root_.SimpleGraph.autTopEquiv (α : Type*) :
+    ((⊤ : SimpleGraph α) ≃g (⊤ : SimpleGraph α)) ≃ Equiv.Perm α where
+  toFun a := a.toEquiv
+  invFun e := ⟨e, by simp [e.injective.ne_iff]⟩
+  left_inv a := by ext v; rfl
+  right_inv e := by ext v; rfl
+
+/-- Complementation does not change the automorphism group. -/
+def _root_.SimpleGraph.autComplEquiv {α : Type*} (S : SimpleGraph α) : (S ≃g S) ≃ (Sᶜ ≃g Sᶜ) where
+  toFun a := ⟨a.toEquiv, by
+    intro x y
+    simp only [SimpleGraph.compl_adj, ne_eq, a.toEquiv.injective.ne_iff]
+    exact and_congr_right fun _ ↦ not_congr a.map_rel_iff⟩
+  invFun b := ⟨b.toEquiv, by
+    intro x y
+    by_cases hxy : x = y
+    · subst hxy; simp
+    · have hne : ¬ (b x = b y) := fun hh ↦ hxy (b.toEquiv.injective hh)
+      have h := b.map_rel_iff (a := x) (b := y)
+      rw [SimpleGraph.compl_adj, SimpleGraph.compl_adj] at h
+      constructor
+      · intro hadj
+        by_contra hc
+        exact (h.2 ⟨hxy, hc⟩).2 hadj
+      · intro hadj
+        by_contra hc
+        exact (h.1 ⟨hne, hc⟩).2 hadj⟩
+  left_inv a := by ext v; rfl
+  right_inv b := by ext v; rfl
+
+theorem autCount_pos (G : CGraph) : 0 < G.autCount := Nat.card_pos
+
+/-- An automorphism is in particular a permutation of the vertices. -/
+theorem autCount_le_factorial (G : CGraph) : G.autCount ≤ Nat.factorial (Fintype.card G.V) := by
+  classical
+  calc G.autCount ≤ Nat.card (G.V ≃ G.V) :=
+        Nat.card_le_card_of_injective (fun a : G.toSimple ≃g G.toSimple ↦ a.toEquiv)
+          (fun _ _ h ↦ by ext v; exact congrArg (fun e : G.V ≃ G.V ↦ e v) h)
+    _ = Nat.factorial (Fintype.card G.V) := by
+        rw [Nat.card_eq_fintype_card, Fintype.card_perm]
+
+/-- **A graph and its complement have the same automorphisms.** -/
+@[simp] theorem autCount_compl (G : CGraph) [DecidableEq G.V] :
+    (compl G).autCount = G.autCount := by
+  rw [autCount, autCount, compl_toSimple]
+  exact (Nat.card_congr (SimpleGraph.autComplEquiv G.toSimple)).symm
+
+@[simp] theorem autCount_empty (n : ℕ) : (empty n).autCount = Nat.factorial n := by
+  classical
+  rw [autCount, empty_toSimple, Nat.card_congr (SimpleGraph.autBotEquiv (Fin n)),
+    Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
+
+@[simp] theorem autCount_complete (n : ℕ) : (complete n).autCount = Nat.factorial n := by
+  classical
+  rw [autCount, complete_toSimple, Nat.card_congr (SimpleGraph.autTopEquiv (Fin n)),
+    Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
+
+/-- The automorphism count is `1` exactly for an asymmetric graph. -/
+theorem autCount_eq_one_iff (G : CGraph) :
+    G.autCount = 1 ↔ ∀ a : G.toSimple ≃g G.toSimple, a = RelIso.refl _ := by
+  rw [autCount, Nat.card_eq_one_iff_unique]
+  constructor
+  · rintro ⟨hsub, -⟩ a
+    exact hsub.elim a _
+  · intro h
+    exact ⟨⟨fun a b ↦ (h a).trans (h b).symm⟩, ⟨RelIso.refl _⟩⟩
+
 end CGraph
 
 namespace IsoGraph
@@ -13369,5 +13447,36 @@ example : (cartesianProduct (empty 3) (empty 4)).numComponents = 12 := by simp
 example : IsConnected (hypercube 2) := by
   refine (hypercube 2).isConnected_of_V_le_two_mul_minDeg (by simp) ?_
   simp
+
+/-! ### Counting automorphisms -/
+
+theorem autCount_pos (G : IsoGraph) : 0 < G.autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  exact CGraph.autCount_pos g
+
+theorem autCount_le_factorial (G : IsoGraph) : G.autCount ≤ Nat.factorial G.V := by
+  induction G using Quotient.inductionOn with | _ g
+  rw [← mk_canonicalize g, V_mk, autCount_mk]
+  exact CGraph.autCount_le_factorial _
+
+/-- **A graph and its complement have the same automorphisms.** -/
+@[simp] theorem autCount_compl (G : IsoGraph) : (compl G).autCount = G.autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  rw [← mk_canonicalize g, compl_mk, autCount_mk, autCount_mk]
+  exact CGraph.autCount_compl _
+
+@[simp] theorem autCount_empty (n : ℕ) : (empty n).autCount = Nat.factorial n := by
+  rw [empty_def, autCount_mk, CGraph.autCount_empty]
+
+@[simp] theorem autCount_complete (n : ℕ) : (complete n).autCount = Nat.factorial n := by
+  rw [complete_def, autCount_mk, CGraph.autCount_complete]
+
+/-- Two graphs with different automorphism counts are different. -/
+theorem ne_of_autCount_ne {G H : IsoGraph} (h : G.autCount ≠ H.autCount) : G ≠ H :=
+  fun hGH ↦ h (hGH ▸ rfl)
+
+example : (complete 4).autCount = 24 := by simp [Nat.factorial]
+
+example : (empty 3).autCount = 6 := by simp [Nat.factorial]
 
 end IsoGraph
