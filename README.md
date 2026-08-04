@@ -1687,6 +1687,21 @@ lower bound for odd `n` all transport; and Gallai's identity turns the known ind
 numbers of `T(n)` and `K(2m+2, 2)` into their vertex cover numbers.
 
 
+A second round fills in the arithmetic that the Johnson degree sequence unlocks: the edge
+counts of `J(n, k)` and of the Kneser graph `K(n, k)`, and the edge count of the line graph
+`L(J(n, k))`.  The radius of a join is also settled.  A join of two nonempty graphs is
+connected with diameter at most two, so its radius is one or two, and `rad(G ∨ H) = 1`
+exactly when `G` or `H` has a dominating vertex; otherwise it is two.  The same
+`rad = 1 ↔ γ = 1` bridge gives the radius-one cases of the strong and lexicographic products.
+The prover contributed the domination number of a rook graph, `γ(K_m □ K_n) = min(m, n)`: one
+full row or one full column dominates, and a case split on whether some row is missed shows
+nothing smaller can.
+
+The prover also refuted a conjecture, for the second time in this development.  A wheel `W_n`
+has a hub of degree `n`, so `χ'(W_n) = n` and not `n - 1`; asked for the latter, the prover
+returned a `negate_state` refutation exhibiting `W₄`, whose maximum degree is already four.
+
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

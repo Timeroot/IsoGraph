@@ -19935,4 +19935,144 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
     (hH : IsConnected H) : (lexProduct G H).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_lexProduct hG hH)
 
+/-- A rook graph is dominated by one full row or one full column, whichever is shorter. -/
+theorem domNum_rook (m n : ℕ) : (rook (m + 1) (n + 1)).domNum = min (m + 1) (n + 1) := by
+  simp (config := { decide := true }) only [IsoGraph.rook, IsoGraph.domNum_mk,
+    IsoGraph.cartesianProduct_mk, IsoGraph.complete]
+  apply le_antisymm
+  · -- Upper bound: domNum ≤ min(m+1, n+1)
+    have h1 : (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1))).domNum ≤
+      n + 1 := by
+      calc (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1))).domNum
+          ≤ (CGraph.complete (m + 1)).domNum * Fintype.card (CGraph.complete (n + 1)).V :=
+            CGraph.domNum_cartesianProduct_le _ _
+        _ = 1 * (n + 1) := by rw [CGraph.domNum_complete, CGraph.card_complete]
+        _ = n + 1 := one_mul _
+    have h2 : (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1))).domNum ≤
+      m + 1 := by
+      have hiso : CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1)) ≃cg
+          CGraph.cartesianProduct (CGraph.complete (n + 1)) (CGraph.complete (m + 1)) :=
+        CGraph.Iso.cartesianProductComm _ _
+      rw [CGraph.domNum_eq_of_iso hiso]
+      calc (CGraph.cartesianProduct (CGraph.complete (n + 1)) (CGraph.complete (m + 1))).domNum
+          ≤ (CGraph.complete (n + 1)).domNum * Fintype.card (CGraph.complete (m + 1)).V :=
+            CGraph.domNum_cartesianProduct_le _ _
+        _ = 1 * (m + 1) := by rw [CGraph.domNum_complete, CGraph.card_complete]
+        _ = m + 1 := one_mul _
+    omega
+  · -- Lower bound: min(m+1, n+1) ≤ domNum
+    obtain ⟨S, hScard, hSdom⟩ := (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete
+      (n + 1))).exists_isDominatingSet_domNum
+    rw [← hScard]
+    set V1 := (CGraph.complete (m + 1)).V
+    set V2 := (CGraph.complete (n + 1)).V
+    have hrow_hit_or_empty : (∀ i : V1, ∃ s ∈ S, s.1 = i) ∨ (∃ i₀ : V1, ∀ s ∈ S, s.1 ≠ i₀) := by
+      by_contra h
+      push_neg at h
+      obtain ⟨hna, hnb⟩ := h
+      obtain ⟨i₀, hi₀empty⟩ := hna
+      have hA : ∀ i : V1, ∃ s ∈ S, s.1 = i := by
+        intro i
+        by_contra hi
+        obtain ⟨s, hs, heq⟩ := hnb i₀
+        exact hi₀empty s hs heq
+      exact absurd (hA i₀) (by simpa using hi₀empty)
+    rcases hrow_hit_or_empty with hrowfull | hrowempty
+    · -- hrowfull: every row has a vertex of S → m+1 ≤ |S|
+      have hinj : Function.Injective (fun i : V1 => ⟨Classical.choose (hrowfull i),
+        (Classical.choose_spec (hrowfull i)).1⟩ : V1 → S) := by
+        intro i i' heq
+        have hci := Classical.choose_spec (hrowfull i)
+        have hci' := Classical.choose_spec (hrowfull i')
+        have heq' : Classical.choose (hrowfull i) = Classical.choose (hrowfull i') := by
+          exact Subtype.ext_iff.mp heq
+        rw [← hci.2, heq', hci'.2]
+      have := Fintype.card_le_of_injective _ hinj
+      have : m + 1 ≤ S.card := by
+        have := this; rw [CGraph.card_complete] at this
+        rw [Fintype.card_subtype] at this
+        simp at this
+        exact this
+      exact min_le_of_left_le this
+    · -- hrowempty: row i₀ empty → each column needs a vertex → n+1 ≤ |S|
+      obtain ⟨i₀, hi₀empty⟩ := hrowempty
+      have huniv2 : ∀ j : V2, ∃ s ∈ S, s.2 = j := by
+        intro j
+        have hnotin : (i₀, j) ∉ S := fun h => hi₀empty (i₀, j) h rfl
+        rcases hSdom (i₀, j) with hout | ⟨u, hu, hadj⟩
+        · exact absurd hout hnotin
+        · rw [CGraph.cartesianProduct_adj] at hadj
+          simp (config := { decide := true }) [CGraph.complete_adj] at hadj
+          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · exact absurd h1 (hi₀empty u hu)
+          · exact ⟨u, hu, h2⟩
+      choose f hfmem hfproj using huniv2
+      have hinj2 : Function.Injective (fun j : V2 => ⟨f j, hfmem j⟩ : V2 → S) := by
+        intro j j' hfjj'
+        have := congr_arg Subtype.val hfjj'
+        have := congr_arg Prod.snd this
+        rw [hfproj j, hfproj j'] at this
+        exact this
+      have hcard : n + 1 ≤ S.card := by
+        have h := Fintype.card_le_of_injective _ hinj2
+        rw [CGraph.card_complete] at h
+        rw [Fintype.card_subtype] at h
+        simp at h
+        exact h
+      exact min_le_of_right_le hcard
+
+/-! ### Edge counts from the regular degree sequences -/
+
+@[simp] theorem E_johnson {n k : ℕ} (hk : k ≤ n) :
+    (johnson n k).E = n.choose k * (k * (n - k)) / 2 := by
+  have h := two_mul_E_johnson hk
+  omega
+
+@[simp] theorem E_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
+    (kneser n k).E = n.choose k * (n - k).choose k / 2 := by
+  have h := two_mul_E_kneser n hk
+  omega
+
+theorem two_mul_E_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) :
+    2 * (lineGraph (johnson n k)).E
+      = n.choose k * (k * (n - k)) * (k * (n - k) - 1) := by
+  rw [two_mul_E_lineGraph_of_degSequence_replicate (degSequence_johnson hk),
+    two_mul_E_johnson hk]
+
+/-! ### The radius of a join
+
+A join of two nonempty graphs has diameter at most two, so its radius is one or two, and it is
+one exactly when one of the two factors has a dominating vertex. -/
+
+theorem radius_join_eq_one {G H : IsoGraph} (hV : 1 < G.V + H.V)
+    (h : G.domNum = 1 ∨ H.domNum = 1) : (join G H).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one (by rwa [V_join]), domNum_join_eq_one_iff]
+  exact h
+
+theorem radius_join_eq_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h1 : G.domNum ≠ 1) (h2 : H.domNum ≠ 1) : (join G H).radius = 2 := by
+  have hV : 1 < (join G H).V := by rw [V_join]; omega
+  have hne : (join G H).radius ≠ 1 := by
+    intro h
+    rw [radius_eq_one_iff_domNum_eq_one hV, domNum_join_eq_one_iff] at h
+    rcases h with h | h
+    · exact h1 h
+    · exact h2 h
+  have hle := radius_le_diameter (join G H)
+  have hd := diameter_join_le_two hG hH
+  have hpos := radius_pos (isConnected_join hG hH) hV
+  omega
+
+/-! ### The radius of a strong or lexicographic product -/
+
+theorem radius_strongProduct_eq_one {G H : IsoGraph} (hV : 1 < (strongProduct G H).V)
+    (hG : G.domNum = 1) (hH : H.domNum = 1) : (strongProduct G H).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one hV]
+  exact domNum_strongProduct_eq_one hG hH
+
+theorem radius_lexProduct_eq_one {G H : IsoGraph} (hV : 1 < (lexProduct G H).V)
+    (hG : G.domNum = 1) (hH : H.domNum = 1) : (lexProduct G H).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one hV, domNum_lexProduct G hH]
+  exact hG
+
 end IsoGraph
