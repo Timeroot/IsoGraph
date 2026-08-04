@@ -1275,6 +1275,18 @@ quotient.  The corollaries are the usual ones: if every degree is odd then `|V|`
 **an odd-regular graph has an even number of vertices** (no cubic graph on seven vertices), and
 contrapositively an odd number of vertices forces some degree to be even.
 
+The constructions all inherit symmetry from their factors, which turns into lower bounds on
+`autCount`.  An automorphism of each side acts on a disjoint union through `Equiv.sumCongr`, and on
+any of the four products coordinatewise through `Equiv.prodCongr` — the adjacency obligations are
+the same one-line `simp only`s that `isVertexTransitive_cartesianProduct` and friends already use.
+Different pairs give different automorphisms (read the factors back off by evaluating at
+`Sum.inl x` / `Sum.inr y`, or at `(x, y₀)` / `(x₀, y)`, which is where the products need both
+factors to be nonempty), so `autCount G * autCount H ≤ autCount (G □ H)` and likewise for the
+tensor, strong and lexicographic products, for `disjUnion`, and — by complementing twice — for
+`join`.  Two copies of the *same* graph can additionally be exchanged, and since `Sum.isRight`
+detects whether the exchange happened while `Sum.elim id id` forgets it, the bound for
+`disjUnion G G` doubles to `2 · autCount G ²`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

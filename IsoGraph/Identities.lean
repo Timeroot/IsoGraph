@@ -6717,6 +6717,200 @@ theorem exists_even_degree_of_odd_card (G : CGraph) (h : Odd (Fintype.card G.V))
   exact Nat.not_even_iff_odd.2 h
     (G.even_card_of_forall_odd_degree fun v ↦ Nat.not_even_iff_odd.1 (hc v))
 
+/-! ### Automorphisms of the constructions
+
+An automorphism of each factor gives an automorphism of a disjoint union, a join, or any of the
+four products, and different pairs give different automorphisms.  So the automorphism count of a
+construction is at least the product of the counts of its factors. -/
+
+/-- The counting step shared by all the constructions below: an injective way of building an
+automorphism of `K` out of one automorphism of `G` and one of `H`. -/
+private theorem mul_autCount_le_autCount {K : CGraph}
+    (f : (G ≃cg G) → (H ≃cg H) → (K ≃cg K))
+    (hf : ∀ a a' b b', f a b = f a' b' → a = a' ∧ b = b') :
+    G.autCount * H.autCount ≤ K.autCount := by
+  haveI : Finite (K ≃cg K) := K.instFiniteAut
+  have hinj : Function.Injective fun p : (G ≃cg G) × (H ≃cg H) ↦ f p.1 p.2 := by
+    rintro ⟨a, b⟩ ⟨a', b'⟩ h
+    obtain ⟨h1, h2⟩ := hf a a' b b' h
+    rw [h1, h2]
+  calc G.autCount * H.autCount = Nat.card ((G ≃cg G) × (H ≃cg H)) := (Nat.card_prod _ _).symm
+    _ ≤ Nat.card (K ≃cg K) := Nat.card_le_card_of_injective _ hinj
+    _ = K.autCount := rfl
+
+/-- An automorphism of each side, acting on the disjoint union. -/
+def disjUnionAuto (a : G ≃cg G) (b : H ≃cg H) : disjUnion G H ≃cg disjUnion G H :=
+  autoOfPerm (G := disjUnion G H) (Equiv.sumCongr a.toEquiv b.toEquiv) (by
+    rintro (x | x) (y | y)
+    · exact a.adj_eq x y
+    · rfl
+    · rfl
+    · exact b.adj_eq x y)
+
+@[simp] theorem disjUnionAuto_inl (a : G ≃cg G) (b : H ≃cg H) (x : G.V) :
+    disjUnionAuto a b (.inl x) = .inl (a x) := rfl
+
+@[simp] theorem disjUnionAuto_inr (a : G ≃cg G) (b : H ≃cg H) (y : H.V) :
+    disjUnionAuto a b (.inr y) = .inr (b y) := rfl
+
+theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
+    G.autCount * H.autCount ≤ (disjUnion G H).autCount :=
+  mul_autCount_le_autCount disjUnionAuto fun a a' b b' h ↦ by
+    refine ⟨?_, ?_⟩
+    · ext x
+      exact Sum.inl_injective
+        (congrArg (fun σ : disjUnion G H ≃cg disjUnion G H ↦ σ (.inl x)) h)
+    · ext y
+      exact Sum.inr_injective
+        (congrArg (fun σ : disjUnion G H ≃cg disjUnion G H ↦ σ (.inr y)) h)
+
+theorem autCount_mul_le_autCount_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    G.autCount * H.autCount ≤ (join G H).autCount := by
+  have h := autCount_mul_le_autCount_disjUnion (compl G) (compl H)
+  rwa [autCount_compl, autCount_compl, ← autCount_compl (disjUnion (compl G) (compl H))] at h
+
+/-- Swapping the two copies of a graph in a disjoint union with itself. -/
+def disjUnionSwapAuto (G : CGraph) : disjUnion G G ≃cg disjUnion G G :=
+  autoOfPerm (G := disjUnion G G) (Equiv.sumComm G.V G.V) (by
+    rintro (x | x) (y | y) <;> rfl)
+
+@[simp] theorem disjUnionSwapAuto_inl (G : CGraph) (x : G.V) :
+    disjUnionSwapAuto G (.inl x) = .inr x := rfl
+
+@[simp] theorem disjUnionSwapAuto_inr (G : CGraph) (x : G.V) :
+    disjUnionSwapAuto G (.inr x) = .inl x := rfl
+
+/-- Two copies of the same graph can also be exchanged, which doubles the bound. -/
+theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : CGraph) [Nonempty G.V] :
+    2 * (G.autCount * G.autCount) ≤ (disjUnion G G).autCount := by
+  obtain ⟨x₀⟩ := ‹Nonempty G.V›
+  haveI : Finite (disjUnion G G ≃cg disjUnion G G) := (disjUnion G G).instFiniteAut
+  set f : Bool × (G ≃cg G) × (G ≃cg G) → (disjUnion G G ≃cg disjUnion G G) :=
+    fun p ↦ if p.1 then (disjUnionAuto p.2.1 p.2.2).trans (disjUnionSwapAuto G)
+      else disjUnionAuto p.2.1 p.2.2 with hfdef
+  -- The two copies are told apart by which side `inl x₀` lands in, and each factor is read back
+  -- off by forgetting the side.
+  have hside : ∀ (c : Bool) (a b : G ≃cg G), (f (c, a, b) (Sum.inl x₀)).isRight = c := by
+    rintro (_ | _) a b <;> simp [hfdef]
+  have hfst : ∀ (c : Bool) (a b : G ≃cg G) (x : G.V),
+      Sum.elim id id (f (c, a, b) (Sum.inl x)) = a x := by
+    rintro (_ | _) a b x <;> simp [hfdef]
+  have hsnd : ∀ (c : Bool) (a b : G ≃cg G) (y : G.V),
+      Sum.elim id id (f (c, a, b) (Sum.inr y)) = b y := by
+    rintro (_ | _) a b y <;> simp [hfdef]
+  have hinj : Function.Injective f := by
+    rintro ⟨c, a, b⟩ ⟨c', a', b'⟩ h
+    have hc : c = c' := by rw [← hside c a b, ← hside c' a' b', h]
+    subst hc
+    have ha : a = a' := by
+      ext x
+      rw [← hfst c a b x, ← hfst c a' b' x, h]
+    have hb : b = b' := by
+      ext y
+      rw [← hsnd c a b y, ← hsnd c a' b' y, h]
+    rw [ha, hb]
+  calc 2 * (G.autCount * G.autCount) = Nat.card (Bool × (G ≃cg G) × (G ≃cg G)) := by
+        rw [Nat.card_prod, Nat.card_prod, Nat.card_eq_fintype_card, Fintype.card_bool]
+        rfl
+    _ ≤ Nat.card (disjUnion G G ≃cg disjUnion G G) := Nat.card_le_card_of_injective f hinj
+    _ = (disjUnion G G).autCount := rfl
+
+/-- An automorphism of each factor, acting coordinatewise on the Cartesian product. -/
+def cartesianProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+    cartesianProduct G H ≃cg cartesianProduct G H :=
+  autoOfPerm (G := cartesianProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (cartesianProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    simp only [cartesianProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff,
+      (RelIso.injective b).eq_iff]
+
+@[simp] theorem cartesianProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+    (b : H ≃cg H) (x : G.V × H.V) : cartesianProductAuto a b x = (a x.1, b x.2) := rfl
+
+/-- An automorphism of each factor, acting coordinatewise on the tensor product. -/
+def tensorProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+    tensorProduct G H ≃cg tensorProduct G H :=
+  autoOfPerm (G := tensorProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (tensorProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    simp only [tensorProduct_adj, a.adj_eq, b.adj_eq]
+
+@[simp] theorem tensorProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+    (b : H ≃cg H) (x : G.V × H.V) : tensorProductAuto a b x = (a x.1, b x.2) := rfl
+
+/-- An automorphism of each factor, acting coordinatewise on the strong product. -/
+def strongProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+    strongProduct G H ≃cg strongProduct G H :=
+  autoOfPerm (G := strongProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (strongProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    simp only [strongProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff,
+      (RelIso.injective b).eq_iff, ne_eq, Prod.ext_iff]
+
+@[simp] theorem strongProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+    (b : H ≃cg H) (x : G.V × H.V) : strongProductAuto a b x = (a x.1, b x.2) := rfl
+
+/-- An automorphism of each factor, acting coordinatewise on the lexicographic product. -/
+def lexProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+    lexProduct G H ≃cg lexProduct G H :=
+  autoOfPerm (G := lexProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (lexProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    simp only [lexProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff]
+
+@[simp] theorem lexProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+    (b : H ≃cg H) (x : G.V × H.V) : lexProductAuto a b x = (a x.1, b x.2) := rfl
+
+theorem autCount_mul_le_autCount_cartesianProduct (G H : CGraph) [DecidableEq G.V]
+    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    G.autCount * H.autCount ≤ (cartesianProduct G H).autCount := by
+  obtain ⟨x₀⟩ := ‹Nonempty G.V›
+  obtain ⟨y₀⟩ := ‹Nonempty H.V›
+  refine mul_autCount_le_autCount cartesianProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
+  · ext x
+    have := congrArg
+      (fun σ : cartesianProduct G H ≃cg cartesianProduct G H ↦ (σ (x, y₀)).1) h
+    simpa using this
+  · ext y
+    have := congrArg
+      (fun σ : cartesianProduct G H ≃cg cartesianProduct G H ↦ (σ (x₀, y)).2) h
+    simpa using this
+
+theorem autCount_mul_le_autCount_tensorProduct (G H : CGraph) [DecidableEq G.V]
+    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    G.autCount * H.autCount ≤ (tensorProduct G H).autCount := by
+  obtain ⟨x₀⟩ := ‹Nonempty G.V›
+  obtain ⟨y₀⟩ := ‹Nonempty H.V›
+  refine mul_autCount_le_autCount tensorProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
+  · ext x
+    have := congrArg (fun σ : tensorProduct G H ≃cg tensorProduct G H ↦ (σ (x, y₀)).1) h
+    simpa using this
+  · ext y
+    have := congrArg (fun σ : tensorProduct G H ≃cg tensorProduct G H ↦ (σ (x₀, y)).2) h
+    simpa using this
+
+theorem autCount_mul_le_autCount_strongProduct (G H : CGraph) [DecidableEq G.V]
+    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    G.autCount * H.autCount ≤ (strongProduct G H).autCount := by
+  obtain ⟨x₀⟩ := ‹Nonempty G.V›
+  obtain ⟨y₀⟩ := ‹Nonempty H.V›
+  refine mul_autCount_le_autCount strongProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
+  · ext x
+    have := congrArg (fun σ : strongProduct G H ≃cg strongProduct G H ↦ (σ (x, y₀)).1) h
+    simpa using this
+  · ext y
+    have := congrArg (fun σ : strongProduct G H ≃cg strongProduct G H ↦ (σ (x₀, y)).2) h
+    simpa using this
+
+theorem autCount_mul_le_autCount_lexProduct (G H : CGraph) [DecidableEq G.V]
+    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    G.autCount * H.autCount ≤ (lexProduct G H).autCount := by
+  obtain ⟨x₀⟩ := ‹Nonempty G.V›
+  obtain ⟨y₀⟩ := ‹Nonempty H.V›
+  refine mul_autCount_le_autCount lexProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
+  · ext x
+    have := congrArg (fun σ : lexProduct G H ≃cg lexProduct G H ↦ (σ (x, y₀)).1) h
+    simpa using this
+  · ext y
+    have := congrArg (fun σ : lexProduct G H ≃cg lexProduct G H ↦ (σ (x₀, y)).2) h
+    simpa using this
+
 end CGraph
 
 namespace IsoGraph
@@ -13664,5 +13858,82 @@ example (G : IsoGraph) (h : degSequence G = List.replicate 7 3) : False := by
   have := even_V_of_degSequence_replicate (by decide) h
   rw [hV] at this
   exact (by decide : ¬ Even 7) this
+
+/-! ### Automorphisms of the constructions -/
+
+theorem autCount_mul_le_autCount_disjUnion (G H : IsoGraph) :
+    G.autCount * H.autCount ≤ (disjUnion G H).autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  induction H using Quotient.inductionOn with | _ h
+  rw [disjUnion_mk, autCount_mk, autCount_mk, autCount_mk]
+  exact CGraph.autCount_mul_le_autCount_disjUnion g h
+
+theorem autCount_mul_le_autCount_join (G H : IsoGraph) :
+    G.autCount * H.autCount ≤ (join G H).autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  induction H using Quotient.inductionOn with | _ h
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, autCount_mk, autCount_mk, autCount_mk]
+  exact CGraph.autCount_mul_le_autCount_join _ _
+
+theorem autCount_mul_le_autCount_cartesianProduct (G H : IsoGraph) (hG : 0 < G.V)
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (cartesianProduct G H).autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  induction H using Quotient.inductionOn with | _ h
+  rw [← mk_canonicalize g, V_mk] at hG
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, autCount_mk, autCount_mk,
+    autCount_mk]
+  exact CGraph.autCount_mul_le_autCount_cartesianProduct _ _
+
+theorem autCount_mul_le_autCount_tensorProduct (G H : IsoGraph) (hG : 0 < G.V)
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (tensorProduct G H).autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  induction H using Quotient.inductionOn with | _ h
+  rw [← mk_canonicalize g, V_mk] at hG
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, autCount_mk, autCount_mk,
+    autCount_mk]
+  exact CGraph.autCount_mul_le_autCount_tensorProduct _ _
+
+theorem autCount_mul_le_autCount_strongProduct (G H : IsoGraph) (hG : 0 < G.V)
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (strongProduct G H).autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  induction H using Quotient.inductionOn with | _ h
+  rw [← mk_canonicalize g, V_mk] at hG
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, autCount_mk, autCount_mk,
+    autCount_mk]
+  exact CGraph.autCount_mul_le_autCount_strongProduct _ _
+
+theorem autCount_mul_le_autCount_lexProduct (G H : IsoGraph) (hG : 0 < G.V)
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (lexProduct G H).autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  induction H using Quotient.inductionOn with | _ h
+  rw [← mk_canonicalize g, V_mk] at hG
+  rw [← mk_canonicalize h, V_mk] at hH
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
+  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
+  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, autCount_mk, autCount_mk,
+    autCount_mk]
+  exact CGraph.autCount_mul_le_autCount_lexProduct _ _
+
+theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : IsoGraph) (hV : 0 < G.V) :
+    2 * (G.autCount * G.autCount) ≤ (disjUnion G G).autCount := by
+  induction G using Quotient.inductionOn with | _ g
+  rw [← mk_canonicalize g, V_mk] at hV
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
+  rw [← mk_canonicalize g, disjUnion_mk, autCount_mk, autCount_mk]
+  exact CGraph.two_mul_autCount_mul_le_autCount_disjUnion_self _
+
+example : 12 ≤ (disjUnion (complete 3) (complete 4)).autCount := by
+  have := autCount_mul_le_autCount_disjUnion (complete 3) (complete 4)
+  simp [Nat.factorial] at this
+  omega
 
 end IsoGraph
