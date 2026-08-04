@@ -3670,6 +3670,46 @@ theorem cliqueNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] 
       simp only [CGraph.toSimple_adj, lexProduct_adj, Bool.or_eq_true, Bool.and_eq_true,
         decide_eq_true_eq]
 
+/-! ### The diameter of a Cartesian product -/
+
+/-- Distances in a box product add, so extremal distances do too: the box product of two nonempty
+finite graphs has the sum of the two extended diameters. -/
+theorem ediam_boxProd {α β : Type} [Fintype α] [Fintype β] [Nonempty α] [Nonempty β]
+    (S : SimpleGraph α) (T : SimpleGraph β) :
+    (S.boxProd T).ediam = S.ediam + T.ediam := by
+  refine le_antisymm (SimpleGraph.ediam_le_of_edist_le fun p q ↦ ?_) ?_
+  · rw [SimpleGraph.edist_boxProd]
+    exact add_le_add SimpleGraph.edist_le_ediam SimpleGraph.edist_le_ediam
+  · obtain ⟨a, a', ha⟩ := SimpleGraph.exists_edist_eq_ediam_of_finite (G := S)
+    obtain ⟨b, b', hb⟩ := SimpleGraph.exists_edist_eq_ediam_of_finite (G := T)
+    rw [← ha, ← hb, ← SimpleGraph.edist_boxProd (x := (a, b)) (y := (a', b'))]
+    exact SimpleGraph.edist_le_ediam
+
+/-- **The diameter of a Cartesian product is the sum of the diameters.**  Both factors have to be
+connected: the diameter of a disconnected graph is the junk value `0`. -/
+theorem diameter_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : G.IsConnected) (hH : H.IsConnected) :
+    (cartesianProduct G H).diameter = G.diameter + H.diameter := by
+  haveI : Nonempty G.V := hG.nonempty
+  haveI : Nonempty H.V := hH.nonempty
+  have hGtop : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hG
+  have hHtop : H.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hH
+  have h : (cartesianProduct G H).toSimple.ediam = G.toSimple.ediam + H.toSimple.ediam := by
+    rw [toSimple_cartesianProduct]
+    exact ediam_boxProd _ _
+  show (cartesianProduct G H).toSimple.diam = G.toSimple.diam + H.toSimple.diam
+  unfold SimpleGraph.diam
+  rw [h, ENat.toNat_add hGtop hHtop]
+
+@[simp] theorem diameter_empty (n : ℕ) : (empty n).diameter = 0 := by
+  show (empty n).toSimple.diam = 0
+  rw [empty_toSimple]
+  exact SimpleGraph.diam_bot
+
+theorem diameter_disjUnion (G H : CGraph) (hG : 0 < Fintype.card G.V)
+    (hH : 0 < Fintype.card H.V) : (disjUnion G H).diameter = 0 :=
+  SimpleGraph.diam_eq_zero_of_not_connected (not_isConnected_disjUnion G H hG hH)
+
 end CGraph
 
 namespace IsoGraph
@@ -7056,6 +7096,57 @@ theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
 
 theorem isSRGWith_petersen : IsSRGWith petersen 10 3 0 1 := isSRGWith_kneser_two 5
 
+/-! ### The diameter of a Cartesian product -/
+
+/-- **The diameter of a Cartesian product is the sum of the diameters.** -/
+theorem diameter_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
+    (cartesianProduct G H).diameter = G.diameter + H.diameter := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [cartesianProduct_mk, diameter_mk, diameter_mk, diameter_mk]
+  rw [isConnected_mk] at hG hH
+  exact CGraph.diameter_cartesianProduct _ _ hG hH
+
+@[simp] theorem diameter_empty (n : ℕ) : (empty n).diameter = 0 := CGraph.diameter_empty n
+
+@[simp] theorem diameter_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (disjUnion G H).diameter = 0 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [disjUnion_mk, diameter_mk]
+  rw [V_mk] at hG hH
+  exact CGraph.diameter_disjUnion _ _ hG hH
+
+/-- **The hypercube `Q_n` has diameter `n`**: flipping the bits one at a time is optimal. -/
+@[simp] theorem diameter_hypercube (n : ℕ) : (hypercube n).diameter = n := by
+  induction n with
+  | zero => rw [hypercube_zero, diameter_empty]
+  | succ n ih =>
+    rw [hypercube_succ, diameter_cartesianProduct (isConnected_hypercube n)
+      (isConnected_complete 1), ih, diameter_complete 0]
+
+@[simp] theorem diameter_ladder (n : ℕ) : (ladder (n + 1)).diameter = n + 1 := by
+  show (cartesianProduct (path (n + 1)) (complete 2)).diameter = n + 1
+  rw [diameter_cartesianProduct (isConnected_path n) (isConnected_complete 1), diameter_path n,
+    diameter_complete 0]
+
+@[simp] theorem diameter_prism (n : ℕ) : (prism (n + 1)).diameter = (n + 1) / 2 + 1 := by
+  show (cartesianProduct (cycle (n + 1)) (complete 2)).diameter = (n + 1) / 2 + 1
+  rw [diameter_cartesianProduct (isConnected_cycle n) (isConnected_complete 1), diameter_cycle n,
+    diameter_complete 0]
+
+@[simp] theorem diameter_rook (m n : ℕ) : (rook (m + 2) (n + 2)).diameter = 2 := by
+  show (cartesianProduct (complete (m + 2)) (complete (n + 2))).diameter = 2
+  rw [diameter_cartesianProduct (isConnected_complete (m + 1)) (isConnected_complete (n + 1)),
+    diameter_complete m, diameter_complete n]
+
+/-- The `m × n` torus, a Cartesian product of two cycles. -/
+theorem diameter_cartesianProduct_cycle (m n : ℕ) :
+    (cartesianProduct (cycle (m + 1)) (cycle (n + 1))).diameter = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [diameter_cartesianProduct (isConnected_cycle m) (isConnected_cycle n), diameter_cycle m,
+    diameter_cycle n]
+
 /-! ### Degree sequences -/
 
 @[simp] theorem length_degSequence (G : IsoGraph) : (degSequence G).length = G.V := by
@@ -7427,11 +7518,6 @@ private theorem lt_choose_two {n : ℕ} (hn : 4 ≤ n) : 2 * (n - 2) + 1 < n.cho
 
 @[simp] theorem isConnected_petersen : IsConnected petersen :=
   isSRGWith_petersen.isConnected (by norm_num) (by norm_num)
-
-@[simp] theorem diameter_rook (k : ℕ) : (rook (k + 2) (k + 2)).diameter = 2 :=
-  (isSRGWith_rook (k + 2)).diameter_eq_two (by norm_num)
-    (by have h : k + 2 - 1 = k + 1 := by omega
-        rw [h]; nlinarith)
 
 @[simp] theorem diameter_cocktailParty (n : ℕ) : (cocktailParty (n + 2)).diameter = 2 :=
   (isSRGWith_cocktailParty (n + 2)).diameter_eq_two (by omega) (by omega)
@@ -8456,7 +8542,7 @@ example (G : IsoGraph) (h : G.V = 5) : G ≠ petersen := ne_of_V_ne (by rw [h, V
 
 example : petersen.diameter = 2 := by simp
 
-example : (rook 3 3).diameter = 2 := diameter_rook 1
+example : (rook 3 3).diameter = 2 := diameter_rook 1 1
 
 example : (cocktailParty 5).diameter = 2 := diameter_cocktailParty 3
 
@@ -8599,5 +8685,21 @@ example : rook 3 3 ≠ lexProduct (complete 3) (complete 3) :=
 
 example : tensorProduct (complete 4) (complete 4) ≠ rook 3 3 :=
   ne_of_cliqueNum_ne (by simp)
+
+example : (hypercube 4).diameter = 4 := diameter_hypercube 4
+
+example : (ladder 5).diameter = 5 := diameter_ladder 4
+
+example : (prism 6).diameter = 4 := diameter_prism 5
+
+example : (rook 4 4).diameter = 2 := diameter_rook 2 2
+
+/- `Q₄` and the `4 × 4` rook graph both have sixteen vertices and are both `4`-regular, but the
+hypercube is far bigger across. -/
+example : hypercube 4 ≠ rook 4 4 :=
+  ne_of_diameter_ne (by rw [diameter_hypercube, diameter_rook]; decide)
+
+example : (disjUnion (complete 3) (complete 3)).diameter = 0 :=
+  diameter_disjUnion (by simp) (by simp)
 
 end IsoGraph

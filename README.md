@@ -948,6 +948,19 @@ one case needing nonempty factors — `ω` of the empty graph is `0`, not the ma
 `cliqueNum_rook` is the immediate corollary that a rook graph's largest clique is a full row or a
 full column.
 
+Distances behave better than clique numbers under the Cartesian product: Mathlib's
+`edist_boxProd` already says that a distance in `G □ H` is the sum of the two coordinate
+distances, and over a finite nonempty vertex set the extremal distances are attained, so
+`ediam_boxProd` adds the extended diameters and `diameter_cartesianProduct` adds the diameters
+once both factors are connected (a disconnected graph has diameter `0`, the junk value of
+`ediam.toNat`, so the hypothesis cannot be dropped).  What follows is a short list of exact
+diameters that no other invariant in the file was able to reach: `Q_n` has diameter `n` by
+induction on `hypercube_succ`, the `n`-rung ladder has diameter `n`, the `n`-gonal prism has
+diameter `⌊n/2⌋ + 1`, an `m × n` torus has diameter `⌊m/2⌋ + ⌊n/2⌋`, and the rook graph has
+diameter `2` for any two side lengths — which subsumes the old square-only proof through the
+strongly regular parameters.  `Q₄` and the `4 × 4` rook graph are the payoff: sixteen vertices,
+`4`-regular both, and told apart by nothing cheaper than the diameter.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
