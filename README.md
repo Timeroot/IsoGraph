@@ -1287,6 +1287,16 @@ tensor, strong and lexicographic products, for `disjUnion`, and — by complemen
 detects whether the exchange happened while `Sum.elim id id` forgets it, the bound for
 `disjUnion G G` doubles to `2 · autCount G ²`.
 
+Counting vertices against edges gives `|V| ≤ |E| + c(G)`, the spanning-forest bound.  The proof
+picks a root in every component (a section of `connectedComponentMk`, which is surjective) and
+sends every non-root vertex `v` to the edge joining it to a neighbour strictly closer to its root —
+such a neighbour exists because the second vertex of a shortest walk from `v` to the root is one
+(`Walk.adj_snd` plus `length_tail_add_one`).  That map is injective: if `v` and `w` chose the same
+edge then they are adjacent, hence share a root, and each would be strictly closer to it than the
+other.  The roots themselves are the image of the section, so they number `c(G)`, and the two
+counts add up to `|V|`.  Specialising to `c(G) = 1` recovers "a connected graph has at least
+`|V| - 1` edges", and contrapositively `|E| + 1 < |V|` forces disconnection.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

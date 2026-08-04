@@ -6911,6 +6911,102 @@ theorem autCount_mul_le_autCount_lexProduct (G H : CGraph) [DecidableEq G.V]
     have := congrArg (fun σ : lexProduct G H ≃cg lexProduct G H ↦ (σ (x₀, y)).2) h
     simpa using this
 
+/-! ### Vertices, edges and components -/
+
+/-- Every vertex that is not the chosen root of its component has a neighbour strictly closer to
+that root. -/
+theorem exists_adj_dist_lt (G : CGraph) {v r : G.V} (hr : G.toSimple.Reachable v r) (hv : v ≠ r) :
+    ∃ u, G.toSimple.Adj v u ∧ G.toSimple.dist u r < G.toSimple.dist v r := by
+  obtain ⟨p, hp⟩ := hr.exists_walk_length_eq_dist
+  have hpos : 0 < G.toSimple.dist v r := hr.pos_dist_of_ne hv
+  have hnp : ¬ p.Nil := by
+    simp only [SimpleGraph.Walk.nil_iff_length_eq, hp]
+    omega
+  refine ⟨p.snd, p.adj_snd hnp, ?_⟩
+  have h1 : G.toSimple.dist p.snd r ≤ p.tail.length := SimpleGraph.dist_le p.tail
+  have h2 : p.tail.length + 1 = p.length := p.length_tail_add_one hnp
+  omega
+
+/-- Choosing, in every component, one vertex to be the root, and sending every other vertex to the
+edge joining it to a neighbour closer to that root, embeds `V` minus the roots into `E`:
+`|V| ≤ |E| + c(G)`. -/
+theorem card_le_E_add_numComponents (G : CGraph) :
+    Fintype.card G.V ≤ G.E + G.numComponents := by
+  classical
+  rcases isEmpty_or_nonempty G.V with hV | hV
+  · simp [Fintype.card_eq_zero]
+  choose r hr using G.surjective_connectedComponentMk
+  set root : G.V → G.V := fun v ↦ r (G.toSimple.connectedComponentMk v) with hroot
+  have hreach : ∀ v, G.toSimple.Reachable v (root v) := by
+    intro v
+    apply SimpleGraph.ConnectedComponent.exact
+    rw [hroot]
+    exact (hr _).symm
+  have hrootroot : ∀ c, root (r c) = r c := fun c ↦ by rw [hroot]; simp only [hr]
+  -- the roots form a set of size `c(G)`
+  have hinj : Function.Injective r := fun c d h ↦ by rw [← hr c, ← hr d, h]
+  have himg : Finset.univ.filter (fun v ↦ v = root v) = Finset.univ.image r := by
+    ext v
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image]
+    constructor
+    · exact fun h ↦ ⟨G.toSimple.connectedComponentMk v, h.symm⟩
+    · rintro ⟨c, rfl⟩
+      exact (hrootroot c).symm
+  have hroots : (Finset.univ.filter (fun v ↦ v = root v)).card = G.numComponents := by
+    rw [himg, Finset.card_image_of_injective _ hinj, Finset.card_univ, numComponents,
+      Fintype.card_eq_nat_card]
+  -- and every other vertex picks out an edge, injectively
+  choose! u hu1 hu2 using fun v (hv : v ≠ root v) ↦ G.exists_adj_dist_lt (hreach v) hv
+  have hne : ∀ {v w : G.V}, G.toSimple.Adj v w → root v = root w := fun {v w} h ↦ by
+    rw [hroot]
+    simp only
+    rw [SimpleGraph.ConnectedComponent.sound h.reachable]
+  have hmaps : ∀ v ∈ Finset.univ.filter (fun v ↦ ¬ v = root v),
+      s(v, u v) ∈ G.toSimple.edgeFinset := by
+    intro v hv
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hv
+    simpa using hu1 v hv
+  have hinjOn : Set.InjOn (fun v ↦ s(v, u v))
+      (Finset.univ.filter (fun v ↦ ¬ v = root v) : Finset G.V) := by
+    intro v hv w hw h
+    simp only [Finset.coe_filter, Finset.mem_univ, true_and, Set.mem_setOf_eq] at hv hw
+    simp only [Sym2.eq, Sym2.rel_iff', Prod.mk.injEq, Prod.swap_prod_mk] at h
+    rcases h with ⟨h1, _⟩ | ⟨h1, h2⟩
+    · exact h1
+    · exfalso
+      have hrw : root v = root w := hne (h2 ▸ hu1 v hv)
+      have d1 := hu2 v hv
+      have d2 := hu2 w hw
+      rw [← h1] at d2
+      rw [h2, hrw] at d1
+      omega
+  have hcards := Finset.card_filter_add_card_filter_not
+    (s := (Finset.univ : Finset G.V)) (p := fun v ↦ v = root v)
+  have hle : (Finset.univ.filter (fun v ↦ ¬ v = root v)).card ≤ G.E :=
+    Finset.card_le_card_of_injOn _ hmaps hinjOn
+  rw [Finset.card_univ] at hcards
+  omega
+
+/-- A connected graph has at least `|V| - 1` edges. -/
+theorem card_le_E_add_one_of_isConnected (G : CGraph) (h : G.IsConnected) :
+    Fintype.card G.V ≤ G.E + 1 := by
+  have := G.card_le_E_add_numComponents
+  rw [(numComponents_eq_one_iff G).2 h] at this
+  exact this
+
+/-- Each edge can merge at most two components, so a graph with few edges has many components. -/
+theorem card_sub_E_le_numComponents (G : CGraph) :
+    Fintype.card G.V - G.E ≤ G.numComponents := by
+  have := G.card_le_E_add_numComponents
+  omega
+
+/-- More components than vertices is impossible, so a graph with fewer components than vertices
+has an edge. -/
+theorem E_pos_of_numComponents_lt_card (G : CGraph) (h : G.numComponents < Fintype.card G.V) :
+    0 < G.E := by
+  have := G.card_le_E_add_numComponents
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -13935,5 +14031,42 @@ example : 12 ≤ (disjUnion (complete 3) (complete 4)).autCount := by
   have := autCount_mul_le_autCount_disjUnion (complete 3) (complete 4)
   simp [Nat.factorial] at this
   omega
+
+/-! ### Vertices, edges and components -/
+
+/-- `|V| ≤ |E| + c(G)`: a spanning forest has `|V| - c(G)` edges. -/
+theorem V_le_E_add_numComponents (G : IsoGraph) : G.V ≤ G.E + G.numComponents := by
+  induction G using Quotient.inductionOn with | _ g
+  exact CGraph.card_le_E_add_numComponents g
+
+theorem V_le_E_add_one_of_isConnected {G : IsoGraph} (h : G.IsConnected) : G.V ≤ G.E + 1 := by
+  have := G.V_le_E_add_numComponents
+  rw [numComponents_eq_one_of_isConnected h] at this
+  exact this
+
+theorem V_sub_E_le_numComponents (G : IsoGraph) : G.V - G.E ≤ G.numComponents := by
+  have := G.V_le_E_add_numComponents
+  omega
+
+theorem E_pos_of_numComponents_lt_V {G : IsoGraph} (h : G.numComponents < G.V) : 0 < G.E := by
+  have := G.V_le_E_add_numComponents
+  omega
+
+theorem not_isConnected_of_E_add_one_lt_V {G : IsoGraph} (h : G.E + 1 < G.V) :
+    ¬ G.IsConnected := fun hc ↦ by
+  have := V_le_E_add_one_of_isConnected hc
+  omega
+
+/-- `c(G) = |V|` forces `E = 0`, and this recovers it quantitatively: each edge kills at most one
+component. -/
+theorem V_sub_numComponents_le_E (G : IsoGraph) : G.V - G.numComponents ≤ G.E := by
+  have := G.V_le_E_add_numComponents
+  omega
+
+example : (empty 5).V - (empty 5).E ≤ (empty 5).numComponents := by simp
+
+example : ¬ (disjUnion (complete 1) (complete 1)).IsConnected := by
+  apply not_isConnected_of_E_add_one_lt_V
+  simp
 
 end IsoGraph
