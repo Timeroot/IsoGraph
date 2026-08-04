@@ -1857,6 +1857,16 @@ lengths zero, one and two.  Every other pair is at distance one or two, which ne
 vertex distinct from both and hence the eight-vertex hypothesis.  Vertex transitivity turns the
 diameter into the radius for free.
 
+The general (unbalanced) Turán graph then filled out.  Because a part of a complete multipartite
+graph is simultaneously a maximum independent set and an unavoidable obstruction for any clique
+cover, `θ = α = ⌈n/r⌉` follows from the independence number already proved.  The edge count comes
+out as the complement of the within-part edges, `|E| + (n mod r)·C(⌊n/r⌋+1, 2) +
+(r - n mod r)·C(⌊n/r⌋, 2) = C(n, 2)`, for every `n` and `r` including the degenerate ones.
+Connectivity splits the part list at the boundary between the big and the small parts and joins
+the two halves, and with more parts than vertices the Turán graph degenerates to `K_n`.  The
+prover contributed the domination number: as soon as every part has two vertices no single
+vertex dominates either side of that join, so `γ(T(n, r)) = 2`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

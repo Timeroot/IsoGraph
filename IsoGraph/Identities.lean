@@ -25011,4 +25011,100 @@ theorem diameter_crown (n : ℕ) : (crown (n + 3)).diameter = 3 := by
 @[simp] theorem radius_crown (n : ℕ) : (crown (n + 3)).radius = 3 := by
   rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_crown _), diameter_crown]
 
+/-- Cliques of a complete multipartite graph meet each part at most once, so covering a Turán
+graph by cliques takes as many cliques as its largest part has vertices. -/
+theorem cliqueCoverNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    (turan n r).cliqueCoverNum = (n + r - 1) / r := by
+  rw [← indepNum_eq_cliqueCoverNum_completeMultipartite, indepNum_turan hr h]
+
+theorem cliqueCoverNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
+    (turan n r).cliqueCoverNum = n / r := by
+  rw [← indepNum_eq_cliqueCoverNum_completeMultipartite, indepNum_turan_of_dvd h hr]
+
+/-- The edges a Turán graph is missing from the complete graph are exactly those inside its
+parts. -/
+theorem E_turan (n r : ℕ) :
+    (turan n r).E + ((n % r) * ((n / r + 1).choose 2) + (r - n % r) * ((n / r).choose 2))
+      = n.choose 2 := by
+  have h := E_completeMultipartite
+    (List.replicate (n % r) (n / r + 1) ++ List.replicate (r - n % r) (n / r))
+  have hs : (List.replicate (n % r) (n / r + 1) ++ List.replicate (r - n % r) (n / r)).sum = n := by
+    rw [← V_completeMultipartite]; exact V_turan n r
+  rw [hs, List.map_append, List.sum_append, List.map_replicate, List.map_replicate,
+    List.sum_replicate, List.sum_replicate, smul_eq_mul, smul_eq_mul] at h
+  exact h
+
+/-- A Turán graph with at least two parts, none of them empty, is connected. -/
+theorem isConnected_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : IsConnected (turan n r) := by
+  have hd : 1 ≤ n / r := (Nat.one_le_div_iff (by omega)).2 h
+  have hmr : n % r < r := Nat.mod_lt _ (by omega)
+  rcases Nat.eq_zero_or_pos (n % r) with hm | hm
+  · exact isConnected_turan_of_dvd (Nat.dvd_of_mod_eq_zero hm) hr hd
+  · rw [turan, completeMultipartite_append]
+    refine isConnected_join ?_ ?_ <;>
+      rw [V_completeMultipartite, List.sum_replicate, smul_eq_mul] <;>
+      exact Nat.mul_pos (by omega) (by omega)
+
+@[simp] theorem numComponents_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) :
+    (turan n r).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_turan hr h)
+
+/-- With more parts available than vertices to fill them every part is a singleton, so the
+Turán graph is complete. -/
+@[simp] theorem turan_of_lt {n r : ℕ} (h : n < r) : turan n r = complete n := by
+  simp only [turan, Nat.mod_eq_of_lt h, Nat.div_eq_of_lt h]
+  rw [completeMultipartite_append, completeMultipartite_replicate_one]
+  have : completeMultipartite (List.replicate (r - n) 0) = empty 0 := by
+    induction (r - n) with
+    | zero => simp
+    | succ k ih => rw [List.replicate_succ, completeMultipartite_zero_cons, ih]
+  rw [this, join_empty_zero]
+
+/-- A Turán graph whose parts all have at least two vertices needs two dominating vertices:
+no single vertex is universal, and one vertex from each of two different parts suffices. -/
+theorem domNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r).domNum = 2 := by
+  by_cases hdvd : r ∣ n
+  · have hdiv : 2 ≤ n / r := by
+      have h1 := Nat.div_mul_cancel hdvd
+      nlinarith
+    exact domNum_turan_of_dvd hdvd hr hdiv
+  · -- General case: turan n r = join G H with G, H nonempty and domNum ≠ 1 for both
+    have hturan : turan n r =
+        join (completeMultipartite (List.replicate (n % r) (n / r + 1)))
+          (completeMultipartite (List.replicate (r - n % r) (n / r))) := by
+      rw [turan, completeMultipartite_append]
+    rw [hturan]
+    have hr0 : 0 < r := by omega
+    have hnrx : 2 ≤ n / r := by
+      exact Nat.le_div_iff_mul_le hr0 |>.mpr h
+    have hvG : 0 < (completeMultipartite (List.replicate (n % r) (n / r + 1))).V := by
+      rw [V_completeMultipartite_replicate]
+      exact Nat.mul_pos
+        (Nat.pos_of_ne_zero (by intro h0; exact hdvd (Nat.dvd_of_mod_eq_zero h0))) (by omega)
+    have hvH : 0 < (completeMultipartite (List.replicate (r - n % r) (n / r))).V := by
+      rw [V_completeMultipartite_replicate]
+      exact Nat.mul_pos (Nat.sub_pos_of_lt (Nat.mod_lt _ hr0)) (by omega)
+    -- Helper: domNum of completeMultipartite(replicate k d) ≠ 1 when d ≥ 2, k ≥ 1
+    -- Case k = 1: graph is empty d, domNum = d ≥ 2
+    -- Case k ≥ 2: graph has domNum = 2 by domNum_completeMultipartite_replicate
+    have hdom_ne_one_replicate (k d : ℕ) (hk : 0 < k) (hd : 2 ≤ d) :
+        (completeMultipartite (List.replicate k d)).domNum ≠ 1 := by
+      rcases k with _ | _ | k
+      · omega
+      · -- k = 1: completeMultipartite [d] = empty d
+        have : List.replicate (0 + 1) d = [d] := by simp
+        rw [this, completeMultipartite_singleton]
+        simp [domNum_empty]
+        omega
+      · -- k + 2 ≥ 2 parts of size d ≥ 2
+        obtain ⟨d', hd'⟩ : ∃ d', d = d' + 2 := ⟨d - 2, by omega⟩
+        rw [hd', show List.replicate (k + 2) (d' + 2) = List.replicate (k + 2) (d' + 2) from rfl]
+        have := domNum_completeMultipartite_replicate k d'
+        omega
+    have hNG := hdom_ne_one_replicate (n % r) (n / r + 1)
+      (Nat.pos_of_ne_zero (by intro h0; exact hdvd (Nat.dvd_of_mod_eq_zero h0))) (by omega)
+    have hNH := hdom_ne_one_replicate (r - n % r) (n / r)
+      (Nat.sub_pos_of_lt (Nat.mod_lt _ hr0)) hnrx
+    exact domNum_join_eq_two hvG hvH hNG hNH
+
 end IsoGraph
