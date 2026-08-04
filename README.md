@@ -571,6 +571,17 @@ exactly when they meet in one point, which is the adjacency of `J(n, 2)`. The la
 Mycielskian of an edgeless graph, where the apex and the `n` shadow vertices form a star and the
 originals stay isolated.
 
+That last line is also the *only* bipartite Mycielskian, which is the construction's whole point.
+`mycielskian (complete 2) = cycle 5` says where the obstruction comes from, and
+`not_isBipartite_mycielskian` says it in general: an edge `a – b` of `G` closes up into a pentagon
+`a – b – a' – w – b' – a` through the two shadows and the apex.  No cycle machinery is needed to
+see it — the shadow `a'` is adjacent to `b` and so must copy the colour of `a`, likewise `b'`
+copies `b`, and the apex is adjacent to both of those, which now disagree.  A five-way case split
+on `Bool` is the whole proof.  So `mycielskian` of a complete graph, a cycle, a path, a star or a
+complete bipartite graph is never bipartite — the last of these being the striking one, since it
+is a construction that takes a bipartite graph out of the bipartite world without going anywhere
+near a triangle.
+
 `lineGraph (disjUnion G H)` uses the same trick as `lineGraph (cycle n)`, `lineGraph (path n)` and
 `lineGraph (bipartite m n)`: give the map in the easy direction — here an edge of `G` or of `H`,
 pushed forward along `Sum.inl`/`Sum.inr` — prove it injective, and let

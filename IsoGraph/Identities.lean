@@ -2382,6 +2382,24 @@ theorem not_isBipartite_ofEdges_of_odd_cycle (N m : ℕ) (es : List (ℕ × ℕ)
   rw [alt (m - 1) (by omega) (by omega), show (m - 1) % 2 = 0 by omega] at hclose
   simp at hclose
 
+/-! ### The Mycielskian -/
+
+/-- **The Mycielskian of a graph with an edge is not bipartite.**  An edge `a – b` of `G` closes up
+into a pentagon `a – b – a' – w – b' – a` through the two shadows and the apex.  Concretely: `a'`
+and `b'` are forced to copy the colours of `a` and `b`, which differ, and the apex is adjacent to
+both. -/
+theorem not_isBipartite_mycielskian {G : CGraph} [DecidableEq G.V] {a b : G.V} (hab : G.Adj a b) :
+    ¬ (mycielskian G).IsBipartite := by
+  rintro ⟨c, hc⟩
+  have h1 := hc (some (.inl a)) (some (.inl b)) hab
+  have h2 := hc (some (.inr a)) (some (.inl b)) hab
+  have h3 := hc (some (.inl a)) (some (.inr b)) hab
+  have h4 := hc none (some (.inr a)) rfl
+  have h5 := hc none (some (.inr b)) rfl
+  revert h1 h2 h3 h4 h5
+  cases c none <;> cases c (some (.inl a)) <;> cases c (some (.inl b)) <;>
+    cases c (some (.inr a)) <;> cases c (some (.inr b)) <;> simp
+
 /-! ## Two small facts about one-vertex graphs -/
 
 /-- No vertex is adjacent to itself, as an equation of `Bool`s. -/
@@ -5237,6 +5255,52 @@ theorem mycielskian_complete_two : mycielskian (complete 2) = cycle 5 := by
       by decide, by decide⟩ : Option (Fin 2 ⊕ Fin 2) ≃ Fin 5)
     (by decide)⟩
 
+/-! ### Bipartiteness of the Mycielskian
+
+The Mycielskian raises the chromatic number by one, so the only way for it to be bipartite is for
+it to start from nothing at all. -/
+
+theorem not_isBipartite_mycielskian_mk {G : CGraph} [DecidableEq G.V] {a b : G.V}
+    (hab : G.Adj a b) : ¬ IsBipartite (mycielskian ⟦G⟧) := by
+  rw [mycielskian_mk, isBipartite_mk]
+  exact CGraph.not_isBipartite_mycielskian hab
+
+/-- The Mycielskian is bipartite only in the degenerate edgeless case, where it is a star beside
+some isolated vertices. -/
+@[simp] theorem isBipartite_mycielskian_empty (n : ℕ) : IsBipartite (mycielskian (empty n)) := by
+  rw [mycielskian_empty]
+  exact isBipartite_disjUnion (isBipartite_star n) (isBipartite_empty n)
+
+@[simp] theorem not_isBipartite_mycielskian_complete (n : ℕ) :
+    ¬ IsBipartite (mycielskian (complete (n + 2))) :=
+  not_isBipartite_mycielskian_mk (G := CGraph.complete (n + 2)) (a := ⟨0, by omega⟩)
+    (b := ⟨1, by omega⟩) (by simp)
+
+/-- Mycielski's construction really does leave the bipartite world: even applied to a complete
+bipartite graph it produces something with an odd cycle. -/
+@[simp] theorem not_isBipartite_mycielskian_bipartite (m n : ℕ) :
+    ¬ IsBipartite (mycielskian (bipartite (m + 1) (n + 1))) :=
+  not_isBipartite_mycielskian_mk (G := CGraph.bipartite (m + 1) (n + 1)) (a := .inl ⟨0, by omega⟩)
+    (b := .inr ⟨0, by omega⟩) (by simp)
+
+@[simp] theorem not_isBipartite_mycielskian_cycle (n : ℕ) :
+    ¬ IsBipartite (mycielskian (cycle (n + 2))) :=
+  not_isBipartite_mycielskian_mk (G := CGraph.cycle (n + 2)) (a := ⟨0, by omega⟩)
+    (b := ⟨1, by omega⟩) (by
+      rw [CGraph.cycle_adj_val]
+      show (0 : ℕ) ≠ 1 ∧ ((0 + 1) % (n + 2) = 1 ∨ (1 + 1) % (n + 2) = 0)
+      exact ⟨by omega, Or.inl (Nat.mod_eq_of_lt (by omega))⟩)
+
+@[simp] theorem not_isBipartite_mycielskian_path (n : ℕ) :
+    ¬ IsBipartite (mycielskian (path (n + 2))) :=
+  not_isBipartite_mycielskian_mk (G := CGraph.path (n + 2)) (a := ⟨0, by omega⟩)
+    (b := ⟨1, by omega⟩) (by simp [CGraph.path])
+
+@[simp] theorem not_isBipartite_mycielskian_star (n : ℕ) :
+    ¬ IsBipartite (mycielskian (star (n + 1))) := by
+  rw [star_eq_bipartite]
+  exact not_isBipartite_mycielskian_bipartite 0 n
+
 /-! ## The simp set at work
 
 These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
@@ -5262,6 +5326,8 @@ example (k : ℕ) : ¬ IsBipartite (tadpole 5 k) := not_isBipartite_tadpole_odd 
 example : ¬ IsBipartite (cyclePendant 3 [1, 0, 2]) := not_isBipartite_cyclePendant_odd 0 [1, 0, 2]
 example : ¬ IsBipartite (lollipop 4 2) := not_isBipartite_lollipop 1 2
 example : ¬ IsBipartite (wheel 5) := not_isBipartite_wheel 2
+example : ¬ IsBipartite (mycielskian (cycle 5)) := by simp
+example : IsBipartite (mycielskian (empty 3)) := by simp
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp
