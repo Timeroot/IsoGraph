@@ -812,6 +812,16 @@ statements only reached `k = 2` and `m = n`; `two_mul_E_of_degSequence_replicate
 edge counts. The abbreviations also acquired the vertex counts they were missing — `rook`,
 `triangular`, `ladder`, `prism`, `fan`, `book` and `cocktailParty`.
 
+All four products of regular graphs are regular, and the neighbour sets say why in one line each:
+in the Cartesian product the neighbours of `(a, b)` are `{a} × N(b)` together with `N(a) × {b}`,
+in the tensor product they are `N(a) × N(b)`, in the lexicographic product `N(a) × V(H)` together
+with `{a} × N(b)`, and in the strong product the block `(N(a) ∪ {a}) × (N(b) ∪ {b})` minus the
+point itself — degrees `k + l`, `k · l`, `k · |H| + l` and `(k+1)(l+1) - 1`. Each union is
+disjoint because `a ∉ N(a)`, which is `loopless`. On the quotient the hypotheses and the
+conclusion are all of the form `degSequence _ = List.replicate _ _`, so the lemmas chain, and the
+hypercube's degree sequence falls out by induction along `hypercube_succ` — with
+`two_mul_E_hypercube` as the handshake corollary.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

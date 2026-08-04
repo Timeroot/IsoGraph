@@ -2787,6 +2787,138 @@ theorem degSequence_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v).c
   congr 1
   simp only [rook, card_cartesianProduct, card_complete]
 
+variable {G H : CGraph}
+
+theorem card_nbrs_eq_degree (G : CGraph) (v : G.V) : (G.nbrs v).card = G.toSimple.degree v := by
+  rw [SimpleGraph.degree, neighborFinset_eq_nbrs]
+
+/-- A constant degree sequence gives back the degree of every vertex. -/
+theorem card_nbrs_of_degSequence {n k : ℕ} (h : G.degSequence = List.replicate n k) (v : G.V) :
+    (G.nbrs v).card = k := by
+  have hm : G.toSimple.degree v ∈ G.degSequence := by
+    rw [degSequence, Multiset.mem_sort, Multiset.mem_map]
+    exact ⟨v, Finset.mem_univ_val v, rfl⟩
+  rw [h, List.mem_replicate] at hm
+  rw [card_nbrs_eq_degree, hm.2]
+
+/-! ### Neighbours in the four products -/
+
+theorem nbrs_cartesianProduct [DecidableEq G.V] [DecidableEq H.V] (p : (cartesianProduct G H).V) :
+    (cartesianProduct G H).nbrs p
+      = (({p.1} : Finset G.V) ×ˢ H.nbrs p.2) ∪ (G.nbrs p.1 ×ˢ ({p.2} : Finset H.V)) := by
+  refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
+  rw [mem_nbrs, cartesianProduct_adj]
+  simp only [Finset.mem_union, Finset.mem_product, mem_nbrs,
+    Finset.mem_singleton, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+  tauto
+
+theorem card_nbrs_cartesianProduct [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+    (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
+    (p : (cartesianProduct G H).V) : ((cartesianProduct G H).nbrs p).card = k + l := by
+  rw [nbrs_cartesianProduct, Finset.card_union_of_disjoint, Finset.card_product,
+    Finset.card_product, Finset.card_singleton, Finset.card_singleton, hG, hH, one_mul, mul_one,
+    Nat.add_comm]
+  refine Finset.disjoint_product.2 (Or.inr ?_)
+  rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+  exact Bool.noConfusion
+
+theorem nbrs_tensorProduct [DecidableEq G.V] [DecidableEq H.V] (p : (tensorProduct G H).V) :
+    (tensorProduct G H).nbrs p = G.nbrs p.1 ×ˢ H.nbrs p.2 := by
+  refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
+  rw [mem_nbrs, tensorProduct_adj]
+  simp only [Finset.mem_product, mem_nbrs, Bool.and_eq_true]
+
+theorem card_nbrs_tensorProduct [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+    (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
+    (p : (tensorProduct G H).V) : ((tensorProduct G H).nbrs p).card = k * l := by
+  rw [nbrs_tensorProduct, Finset.card_product, hG, hH]
+
+theorem nbrs_lexProduct [DecidableEq G.V] [DecidableEq H.V] (p : (lexProduct G H).V) :
+    (lexProduct G H).nbrs p
+      = (G.nbrs p.1 ×ˢ (Finset.univ : Finset H.V)) ∪ (({p.1} : Finset G.V) ×ˢ H.nbrs p.2) := by
+  refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
+  rw [mem_nbrs, lexProduct_adj]
+  simp only [Finset.mem_union, Finset.mem_product, mem_nbrs,
+    Finset.mem_singleton, Finset.mem_univ, and_true, Bool.or_eq_true, Bool.and_eq_true,
+    decide_eq_true_eq]
+  tauto
+
+theorem card_nbrs_lexProduct [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+    (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
+    (p : (lexProduct G H).V) :
+    ((lexProduct G H).nbrs p).card = k * Fintype.card H.V + l := by
+  rw [nbrs_lexProduct, Finset.card_union_of_disjoint, Finset.card_product, Finset.card_product,
+    Finset.card_singleton, Finset.card_univ, hG, hH, one_mul]
+  refine Finset.disjoint_product.2 (Or.inl ?_)
+  rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+  exact Bool.noConfusion
+
+theorem nbrs_strongProduct [DecidableEq G.V] [DecidableEq H.V] (p : (strongProduct G H).V) :
+    (strongProduct G H).nbrs p
+      = ((G.nbrs p.1 ∪ {p.1}) ×ˢ (H.nbrs p.2 ∪ {p.2})) \ {p} := by
+  refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
+  rw [mem_nbrs, strongProduct_adj]
+  simp only [Finset.mem_sdiff, Finset.mem_product, Finset.mem_union,
+    mem_nbrs, Finset.mem_singleton, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, ne_eq]
+  constructor
+  · rintro ⟨hne, h1, h2⟩
+    exact ⟨⟨h1.symm.imp id Eq.symm, h2.symm.imp id Eq.symm⟩, fun h ↦ hne h.symm⟩
+  · rintro ⟨⟨h1, h2⟩, hne⟩
+    exact ⟨fun h ↦ hne h.symm, h1.symm.imp Eq.symm id, h2.symm.imp Eq.symm id⟩
+
+theorem card_nbrs_strongProduct [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+    (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
+    (p : (strongProduct G H).V) :
+    ((strongProduct G H).nbrs p).card = (k + 1) * (l + 1) - 1 := by
+  have hdG : ((G.nbrs p.1 ∪ {p.1}) : Finset G.V).card = k + 1 := by
+    rw [Finset.card_union_of_disjoint, Finset.card_singleton, hG]
+    rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+    exact Bool.noConfusion
+  have hdH : ((H.nbrs p.2 ∪ {p.2}) : Finset H.V).card = l + 1 := by
+    rw [Finset.card_union_of_disjoint, Finset.card_singleton, hH]
+    rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
+    exact Bool.noConfusion
+  have hmem : ({p} : Finset (G.V × H.V)) ⊆ (G.nbrs p.1 ∪ {p.1}) ×ˢ (H.nbrs p.2 ∪ {p.2}) := by
+    rw [Finset.singleton_subset_iff, Finset.mem_product]
+    exact ⟨Finset.mem_union_right _ (Finset.mem_singleton_self _),
+      Finset.mem_union_right _ (Finset.mem_singleton_self _)⟩
+  rw [nbrs_strongProduct, Finset.card_sdiff, Finset.inter_eq_left.2 hmem, Finset.card_product,
+    hdG, hdH, Finset.card_singleton]
+
+/-! ### Degree sequences of the four products -/
+
+theorem degSequence_cartesianProduct [DecidableEq G.V] [DecidableEq H.V] {m k n l : ℕ}
+    (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
+    (cartesianProduct G H).degSequence
+      = List.replicate (Fintype.card G.V * Fintype.card H.V) (k + l) := by
+  rw [degSequence_of_card_nbrs _
+    (card_nbrs_cartesianProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
+    card_cartesianProduct]
+
+theorem degSequence_tensorProduct [DecidableEq G.V] [DecidableEq H.V] {m k n l : ℕ}
+    (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
+    (tensorProduct G H).degSequence
+      = List.replicate (Fintype.card G.V * Fintype.card H.V) (k * l) := by
+  rw [degSequence_of_card_nbrs _
+    (card_nbrs_tensorProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
+    card_tensorProduct]
+
+theorem degSequence_lexProduct [DecidableEq G.V] [DecidableEq H.V] {m k n l : ℕ}
+    (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
+    (lexProduct G H).degSequence
+      = List.replicate (Fintype.card G.V * Fintype.card H.V) (k * Fintype.card H.V + l) := by
+  rw [degSequence_of_card_nbrs _
+    (card_nbrs_lexProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
+    card_lexProduct]
+
+theorem degSequence_strongProduct [DecidableEq G.V] [DecidableEq H.V] {m k n l : ℕ}
+    (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
+    (strongProduct G H).degSequence
+      = List.replicate (Fintype.card G.V * Fintype.card H.V) ((k + 1) * (l + 1) - 1) := by
+  rw [degSequence_of_card_nbrs _
+    (card_nbrs_strongProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
+    card_strongProduct]
+
 end CGraph
 
 namespace IsoGraph
@@ -6281,6 +6413,70 @@ theorem degSequence_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     degSequence (paley q) = List.replicate q ((q - 1) / 2) :=
   (isSRGWith_paley q hq).degSequence
 
+/-! ### Degree sequences of the products
+
+A product of regular graphs is regular, and on the quotient "regular of degree `k`" is exactly
+"the degree sequence is `List.replicate _ k`". -/
+
+private theorem card_eq_of_degSequence {G : IsoGraph} {n k : ℕ}
+    (h : degSequence G = List.replicate n k) : n = G.V := by
+  rw [← length_degSequence, h, List.length_replicate]
+
+theorem degSequence_cartesianProduct {G H : IsoGraph} {m k n l : ℕ}
+    (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
+    degSequence (cartesianProduct G H) = List.replicate (m * n) (k + l) := by
+  rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [cartesianProduct_mk, degSequence_mk, V_mk, V_mk]
+  rw [degSequence_mk] at hG hH
+  exact CGraph.degSequence_cartesianProduct hG hH
+
+theorem degSequence_tensorProduct {G H : IsoGraph} {m k n l : ℕ}
+    (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
+    degSequence (tensorProduct G H) = List.replicate (m * n) (k * l) := by
+  rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [tensorProduct_mk, degSequence_mk, V_mk, V_mk]
+  rw [degSequence_mk] at hG hH
+  exact CGraph.degSequence_tensorProduct hG hH
+
+theorem degSequence_lexProduct {G H : IsoGraph} {m k n l : ℕ}
+    (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
+    degSequence (lexProduct G H) = List.replicate (m * n) (k * n + l) := by
+  rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [lexProduct_mk, degSequence_mk, V_mk, V_mk]
+  rw [degSequence_mk] at hG hH
+  exact CGraph.degSequence_lexProduct hG hH
+
+theorem degSequence_strongProduct {G H : IsoGraph} {m k n l : ℕ}
+    (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
+    degSequence (strongProduct G H) = List.replicate (m * n) ((k + 1) * (l + 1) - 1) := by
+  rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
+  rw [strongProduct_mk, degSequence_mk, V_mk, V_mk]
+  rw [degSequence_mk] at hG hH
+  exact CGraph.degSequence_strongProduct hG hH
+
+@[simp] theorem degSequence_hypercube (n : ℕ) :
+    degSequence (hypercube n) = List.replicate (2 ^ n) n := by
+  induction n with
+  | zero => rw [hypercube_zero, degSequence_empty]; rfl
+  | succ n ih =>
+    rw [hypercube_succ, degSequence_cartesianProduct ih (degSequence_complete 2)]
+    congr 1
+
+theorem two_mul_E_hypercube (n : ℕ) : 2 * (hypercube n).E = 2 ^ n * n :=
+  two_mul_E_of_degSequence_replicate (degSequence_hypercube n)
+
 /-! ### The Petersen graph -/
 
 @[simp] theorem V_petersen : petersen.V = 10 := by
@@ -6871,6 +7067,16 @@ example : (fan 4).V = 5 := by simp
 example : (cocktailParty 4).V = 8 := by simp
 
 example : (triangular 5).V = 10 := by simp [Nat.choose]
+
+example : degSequence (hypercube 3) = List.replicate 8 3 := by simp
+
+example : degSequence (tensorProduct (complete 3) (complete 4)) = List.replicate 12 6 := by
+  rw [degSequence_tensorProduct (degSequence_complete 3) (degSequence_complete 4)]
+
+example : degSequence (strongProduct (complete 2) (complete 2)) = List.replicate 4 3 := by
+  rw [degSequence_strongProduct (degSequence_complete 2) (degSequence_complete 2)]
+
+example : 2 * (hypercube 4).E = 64 := by rw [two_mul_E_hypercube]; rfl
 
 example : (wheel 6).E = 12 := by simp
 example : (prism 6).E = 18 := by simp
