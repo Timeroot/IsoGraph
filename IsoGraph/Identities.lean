@@ -15459,4 +15459,63 @@ example : (cycle 5).cliqueNum + (cycle 5).indepNum = 4 := by
   rw [cliqueNum_cycle_five]
   norm_num [show ((cycle 5).indepNum) = 2 from by simp]
 
+
+/-! ### Nordhaus–Gaddum for the vertex cover number -/
+
+/-- Colour every vertex of a minimum vertex cover with its own colour and everything else with
+one shared colour: `χ(G) ≤ τ(G) + 1`. -/
+theorem chromNum_le_coverNum_add_one (G : IsoGraph) : G.chromNum ≤ G.coverNum + 1 := by
+  have h := G.chromNum_le_V_sub_indepNum_add_one
+  rwa [← coverNum_eq] at h
+
+/-- Since `ω ≤ χ`, a graph with a small vertex cover has small cliques too. -/
+theorem cliqueNum_le_coverNum_add_one (G : IsoGraph) : G.cliqueNum ≤ G.coverNum + 1 :=
+  le_trans G.cliqueNum_le_chromNum G.chromNum_le_coverNum_add_one
+
+/-- The exact Gallai bookkeeping for a graph and its complement: the four numbers
+`τ(G)`, `τ(Gᶜ)`, `α(G)` and `ω(G)` add up to `2|V|`, because `τ(Gᶜ) = |V| - ω(G)`. -/
+theorem coverNum_add_coverNum_compl_add_indepNum_add_cliqueNum (G : IsoGraph) :
+    G.coverNum + (compl G).coverNum + (G.indepNum + G.cliqueNum) = 2 * G.V := by
+  have h1 := G.coverNum_add_indepNum
+  have h2 := G.coverNum_compl_add_cliqueNum
+  omega
+
+/-- **Nordhaus–Gaddum, lower bound**: `|V| - 1 ≤ τ(G) + τ(Gᶜ)`, dual to `α + ω ≤ |V| + 1`. -/
+theorem V_sub_one_le_coverNum_add_coverNum_compl (G : IsoGraph) :
+    G.V - 1 ≤ G.coverNum + (compl G).coverNum := by
+  have h1 := G.coverNum_add_coverNum_compl_add_indepNum_add_cliqueNum
+  have h2 := G.cliqueNum_add_indepNum_le_V_add_one
+  omega
+
+/-- **Nordhaus–Gaddum, upper bound**: `τ(G) + τ(Gᶜ) ≤ 2|V| - 3` once there are two vertices,
+dual to `3 ≤ α + ω`. -/
+theorem coverNum_add_coverNum_compl_le {G : IsoGraph} (hV : 2 ≤ G.V) :
+    G.coverNum + (compl G).coverNum ≤ 2 * G.V - 3 := by
+  have h1 := G.coverNum_add_coverNum_compl_add_indepNum_add_cliqueNum
+  have h2 := three_le_cliqueNum_add_indepNum hV
+  omega
+
+/-- Consequently `γ(G) + α(G) ≤ |V|` for a graph with no isolated vertices. -/
+theorem domNum_add_indepNum_le_V {G : IsoGraph} (h : 1 ≤ G.minDeg) :
+    G.domNum + G.indepNum ≤ G.V := by
+  have h1 := domNum_le_coverNum h
+  have h2 := G.coverNum_add_indepNum
+  omega
+
+/-- The five-cycle is self-complementary, and `τ(C₅) = 3`; the bound `2·5 - 3 = 7` is not tight
+here, while the lower bound `5 - 1 = 4` is beaten too. -/
+example : (cycle 5).coverNum + (compl (cycle 5)).coverNum = 6 := by
+  rw [compl_cycle_five, coverNum_cycle]
+
+/-- The complete graph attains the lower bound: `τ(Kₙ) = n - 1` and `τ(Kₙᶜ) = 0`. -/
+example (n : ℕ) :
+    (complete (n + 1)).coverNum + (compl (complete (n + 1))).coverNum = n := by
+  rw [compl_complete, coverNum_complete, coverNum_empty]
+  omega
+
+/-- The five-cycle has `τ = 3`, so `χ(C₅) ≤ 4` — one more than the true value. -/
+example : (cycle 5).chromNum ≤ 4 := by
+  have h := (cycle 5).chromNum_le_coverNum_add_one
+  rwa [coverNum_cycle] at h
+
 end IsoGraph

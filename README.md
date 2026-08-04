@@ -1399,6 +1399,16 @@ distinct vertices are either adjacent, giving a two-clique, or non-adjacent,
 giving a two-element independent set, so `three_le_cliqueNum_add_indepNum` holds
 on two or more vertices.
 
+Gallai's identity turns each of those into a statement about vertex covers.
+`chromNum_le_coverNum_add_one` says chi(G) <= tau(G) + 1 — colour each vertex of a
+minimum cover individually and share one colour among the independent rest — and
+omega inherits the same bound. Adding tau(G) + alpha(G) = |V| to
+tau(G^c) + omega(G) = |V| gives the exact bookkeeping
+tau(G) + tau(G^c) + alpha(G) + omega(G) = 2|V|, which converts the clique-side
+Nordhaus-Gaddum pair into |V| - 1 <= tau(G) + tau(G^c) <= 2|V| - 3 (the upper bound
+on two or more vertices). The complete graph attains the lower bound. Finally, with
+no isolated vertices every vertex cover dominates, so gamma + alpha <= |V|.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
