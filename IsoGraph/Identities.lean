@@ -25225,4 +25225,203 @@ theorem degSequence_lineGraph_kneser {n k : ℕ} (hk : 1 ≤ k) (hkn : 2 * k ≤
   have h := (isRegularWith_lineGraph_kneser n k hk hkn).degSequence
   rwa [V_lineGraph, E_kneser n hk] at h
 
+/-- Every vertex of a friendship graph other than the hub lies in exactly one triangle, so all
+but one degree is two and the hub takes the rest. -/
+@[simp] theorem degSequence_friendship (n : ℕ) :
+    degSequence (friendship (n + 1)) = List.replicate (2 * n + 2) 2 ++ [2 * n + 2] := by
+  rw [friendship_eq_join_compl_cocktailParty, compl_cocktailParty]
+  rw [degSequence_eq_sort, degMultiset_join, degMultiset_complete,
+    degMultiset_cartesianProduct, degMultiset_empty, degMultiset_complete,
+    V_cartesianProduct, V_empty, V_complete]
+  rw [V_complete]
+  simp
+  have h1 : (n + 1) * 2 = 2 * n + 2 := by omega
+  rw [h1]
+  have h2 : Multiset.replicate n 2 + Multiset.replicate n 2 = Multiset.replicate (2 * n) 2 := by
+    rw [show 2 * n = n + n from by omega]
+    rw [Multiset.replicate_add]
+  rw [h2]
+  -- Goal: sort of multiset = replicate (2*n+2) 2 ++ [2*n+2]
+  -- Multiset = 2 ::ₘ 2 ::ₘ (2*n+2) ::ₘ replicate (2*n) 2
+  -- = replicate (2*n+2) 2 + {2*n+2}
+  have h3 : (2 ::ₘ 2 ::ₘ (2 * n + 2) ::ₘ Multiset.replicate (2 * n) 2) =
+    Multiset.replicate (2 * n + 2) 2 + {2 * n + 2} := by
+    show 2 ::ₘ 2 ::ₘ (2 * n + 2) ::ₘ Multiset.replicate (2 * n) 2 =
+      Multiset.replicate (2 * n + 2) 2 + {2 * n + 2}
+    have h3' : ∀ x : ℕ,
+        Multiset.count x (2 ::ₘ 2 ::ₘ (2 * n + 2) ::ₘ Multiset.replicate (2 * n) 2) =
+        Multiset.count x (Multiset.replicate (2 * n + 2) 2 + {2 * n + 2}) := by
+      intro x
+      simp [Multiset.count_cons, Multiset.count_replicate, Multiset.count_singleton]
+    ext x
+    exact h3' x
+  rw [h3]
+  rw [add_comm]
+  -- Goal: sort ({2*n+2} + replicate (2*n+2) 2) (· ≤ ·) = replicate (2*n+2) 2 ++ [2*n+2]
+  -- I need to prove a sort equality. Let me use the approach from sort_replicate_append inline.
+  set m := 2 * n + 2
+  set l := List.replicate m 2 ++ [m]
+  have hperm : (l : Multiset ℕ) = Multiset.replicate m 2 + {m} := by
+    simp [l]
+    have : ∀ (l1 l2 : List ℕ), (l1 ++ l2 : Multiset ℕ) = (l1 : Multiset ℕ) + (l2 : Multiset ℕ) := by
+      intro l1 l2; induction l1 with
+      | nil => simp
+      | cons a t ih => simp
+    rw [this, Multiset.coe_replicate, Multiset.coe_singleton]
+  -- l is pairwise sorted: twos inside the block, and every two is at most the hub degree
+  have hl_sorted : List.Pairwise (fun x1 x2 => x1 ≤ x2) l := by
+    simp [l, List.pairwise_append, List.pairwise_replicate]
+    omega
+  have hsort_sorted : List.Pairwise (fun x1 x2 => x1 ≤ x2)
+      (Multiset.sort ({m} + Multiset.replicate m 2) (fun x1 x2 => x1 ≤ x2)) :=
+    Multiset.pairwise_sort _ _
+  have hperm2 : (Multiset.sort ({m} + Multiset.replicate m 2) (fun x1 x2 => x1 ≤ x2) : Multiset ℕ) =
+      ({m} + Multiset.replicate m 2 : Multiset ℕ) := by
+    exact Multiset.sort_eq _ _
+  have hperm4 :
+      (Multiset.sort ({m} + Multiset.replicate m 2) (fun x1 x2 => x1 ≤ x2) : List ℕ).Perm l := by
+    exact Multiset.coe_eq_coe.mp (hperm2.trans (hperm.symm ▸ Multiset.add_comm _ _))
+  exact List.Perm.eq_of_pairwise (fun a b _ _ hab hba => le_antisymm hab hba) hsort_sorted
+    hl_sorted hperm4
+
+
+/-- A vertex of a Turán graph sees everything outside its own part, so the largest degree
+belongs to a vertex of a smallest part. -/
+@[simp] theorem maxDeg_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    maxDeg (turan n r) = n - n / r := by
+  let ds : List ℕ := List.replicate (n % r) (n / r + 1) ++ List.replicate (r - n % r) (n / r)
+  have hds : turan n r = completeMultipartite ds := rfl
+  rw [hds]
+  -- Key facts about ds
+  have hsum : ds.sum = n := by
+    simp [ds, List.sum_append, List.sum_replicate]
+    have hle : n % r ≤ r := Nat.mod_lt n hr |>.le
+    calc n % r * (n / r + 1) + (r - n % r) * (n / r)
+        = (n % r + (r - n % r)) * (n / r) + n % r := by rw [Nat.add_mul]; ring
+      _ = r * (n / r) + n % r := by rw [Nat.add_sub_cancel' hle]
+      _ = n := Nat.div_add_mod n r
+  have hmin : ∀ x ∈ ds, n / r ≤ x := by
+    intro x hx
+    simp [ds, List.mem_append, List.mem_replicate] at hx
+    omega
+  simp only [completeMultipartite_def]
+  rw [maxDeg_mk]
+  have hdeg_formula : ∀ v : (CGraph.completeMultipartite ds).V,
+      (CGraph.completeMultipartite ds).toSimple.degree v = n - ds.get v.1 := by
+    intro v
+    rw [SimpleGraph.degree, CGraph.neighborFinset_eq_nbrs, CGraph.nbrs_completeMultipartite,
+      CGraph.card_filter_fst_notMem]
+    have hsingleton : ({v.1} : Finset (Fin ds.length))ᶜ = Finset.univ \ {v.1} := by rfl
+    rw [hsingleton]
+    have h_univ_diff : (Finset.univ \ {v.1} : Finset (Fin ds.length)) = Finset.univ \ {v.1} := rfl
+    have h_sum_univ : ∑ j : Fin ds.length, ds.get j = ds.sum := by
+      have h1 : Fintype.card (Σ i : Fin ds.length, Fin (ds.get i))
+          = ∑ i : Fin ds.length, ds.get i := by
+        simp [Fintype.card_sigma, Fintype.card_fin]
+      have h2 : Fintype.card (CGraph.completeMultipartite ds).V = ds.sum :=
+        CGraph.card_completeMultipartite ds
+      rw [← h2, ← h1]
+      rfl
+    have h_eq : ∑ j ∈ (Finset.univ \ {v.1} : Finset (Fin ds.length)), ds.get j
+        + ∑ j ∈ ({v.1} : Finset (Fin ds.length)), ds.get j = ds.sum := by
+      rw [← h_sum_univ, ← Finset.sum_sdiff
+        (show ({v.1} : Finset (Fin ds.length)) ⊆ Finset.univ from Finset.subset_univ _)]
+    rw [Finset.sum_singleton] at h_eq
+    omega
+  have hdeg_le : ∀ v : (CGraph.completeMultipartite ds).V,
+      (CGraph.completeMultipartite ds).toSimple.degree v ≤ n - n / r := by
+    intro v
+    rw [hdeg_formula]
+    exact Nat.sub_le_sub_left (hmin _ (ds.get_mem _)) _
+  have hvert_small_part : ∃ i : Fin ds.length, ds.get i = n / r := by
+    have hlen : ds.length = r := by
+      simp [ds, List.length_append, List.length_replicate]
+      exact Nat.add_sub_of_le (Nat.mod_lt n hr |>.le)
+    refine ⟨⟨n % r, by rw [hlen]; exact Nat.mod_lt n hr⟩, ?_⟩
+    simp [ds]
+  have hexists : ∃ v : (CGraph.completeMultipartite ds).V,
+      (CGraph.completeMultipartite ds).toSimple.degree v = n - n / r := by
+    obtain ⟨i, hi⟩ := hvert_small_part
+    have hpos : 0 < ds.get i := by rw [hi]; exact Nat.div_pos h hr
+    exact ⟨⟨i, ⟨0, hpos⟩⟩, by rw [hdeg_formula, hi]⟩
+  exact CGraph.maxDeg_eq_of_degMultiset
+    (CGraph.mem_degMultiset.mpr hexists)
+    (fun d hd => by
+      obtain ⟨v, hv⟩ := CGraph.mem_degMultiset.mp hd
+      exact hv ▸ hdeg_le v)
+
+
+/-- No vertex of a Turán graph whose parts all have at least two vertices is universal, and
+any two vertices have a common neighbour, so its radius is two. -/
+@[simp] theorem radius_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r).radius = 2 := by
+  have hV : 1 < (turan n r).V := by rw [V_turan]; omega
+  -- No universal vertex, so radius ≠ 1
+  have hne : (turan n r).radius ≠ 1 := by
+    intro h
+    rw [radius_eq_one_iff_domNum_eq_one hV, domNum_turan hr (by omega)] at h
+    omega
+  -- diameter ≤ 2
+  have hdiam : (turan n r).diameter ≤ 2 := by
+    rw [turan, completeMultipartite_def, IsoGraph.diameter_mk]
+    set L := List.replicate (n % r) (n / r + 1) ++ List.replicate (r - n % r) (n / r)
+    have hlen' : L.length = r := by
+      simp [L, List.length_append, List.length_replicate]
+      exact Nat.add_sub_of_le (Nat.mod_lt n (by omega)).le
+    have hpartPos : ∀ i : Fin L.length, 0 < L.get i := by
+      intro i
+      simp only [L]
+      have hi : (i : ℕ)
+          < (List.replicate (n % r) (n / r + 1) ++ List.replicate (r - n % r) (n / r)).length :=
+        i.isLt
+      have hmod_lt : n % r < r := Nat.mod_lt n (by omega)
+      have hn0' : 0 < n / r := Nat.div_pos (by omega) (by omega)
+      have hforall : ∀ x ∈ (List.replicate (n % r) (n / r + 1)
+          ++ List.replicate (r - n % r) (n / r)), 0 < x := by
+        intro x hx
+        simp [List.mem_append, List.mem_replicate] at hx
+        rcases hx with ⟨_, rfl⟩ | ⟨_, rfl⟩ <;> [exact Nat.zero_lt_succ _; exact hn0']
+      exact hforall _ (List.get_mem _ ⟨i.val, hi⟩)
+    have hdiam_le : (CGraph.completeMultipartite L).toSimple.ediam ≤ 2 := by
+      apply SimpleGraph.ediam_le_of_edist_le
+      intro u v
+      by_cases huv : u = v
+      · rw [huv]; simp
+      by_cases hadj : (CGraph.completeMultipartite L).toSimple.Adj u v
+      · have := SimpleGraph.edist_eq_one_iff_adj.2 hadj
+        exact le_trans this.le (by decide)
+      · rw [CGraph.toSimple_adj] at hadj
+        rw [CGraph.completeMultipartite_adj, decide_eq_true_eq] at hadj
+        push_neg at hadj
+        have hlen_pos : 1 < L.length := by rw [hlen']; omega
+        obtain ⟨k, hk⟩ : ∃ k : Fin L.length, k ≠ u.1 := by
+          by_contra h'
+          push_neg at h'
+          have h1 := h' ⟨0, by omega⟩
+          have h2 := h' ⟨1, hlen_pos⟩
+          have := congrArg Fin.val (h1.trans h2.symm)
+          simp at this
+        set w : (CGraph.completeMultipartite L).V := ⟨k, 0, hpartPos k⟩
+        have hne1 : u.1 ≠ k := hk.symm
+        have hne2 : v.1 ≠ k := by intro heq; exact hk (hadj ▸ heq).symm
+        have hadj1 : (CGraph.completeMultipartite L).toSimple.Adj u w := by
+          dsimp only [w]
+          simp [CGraph.toSimple_adj, CGraph.completeMultipartite_adj, hne1]
+        have hadj2 : (CGraph.completeMultipartite L).toSimple.Adj v w := by
+          dsimp only [w]
+          simp [CGraph.toSimple_adj, CGraph.completeMultipartite_adj, hne2]
+        exact le_trans (SimpleGraph.edist_le (SimpleGraph.Walk.cons hadj1
+          (SimpleGraph.Walk.cons (SimpleGraph.Adj.symm hadj2) (SimpleGraph.Walk.nil)))) (by simp)
+    have h2 := ENat.toNat_le_toNat hdiam_le (by simp)
+    simp [CGraph.diameter, SimpleGraph.diam]
+    have : ENat.toNat 2 = 2 := by trivial
+    omega
+  have hdiam2 : (turan n r).diameter ≤ 2 := hdiam
+  have hc := isConnected_turan hr (by omega : r ≤ n)
+  have h3 := radius_pos hc hV
+  have h2 := radius_le_diameter (turan n r)
+  have : (turan n r).radius ≤ 2 := le_trans h2 hdiam2
+  have h4 : 1 ≤ (turan n r).radius := h3
+  have h5 : (turan n r).radius ≤ 2 := this
+  omega
+
 end IsoGraph
