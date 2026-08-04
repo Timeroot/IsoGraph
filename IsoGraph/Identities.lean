@@ -8000,6 +8000,72 @@ theorem IsSRGWith.girth_eq_three {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWit
   exact girth_eq_three_of_triangle ((toSimple_adj _ _ _).1 hv)
     ((toSimple_adj _ _ _).1 hw.2) ((toSimple_adj _ _ _).1 hw.1.symm)
 
+/-! ### Unmatched vertices form an independent set -/
+
+/-- If `M` is a maximum independent set of the line graph — a maximum matching of `G` — then the
+vertices it misses are pairwise non-adjacent: an edge between two of them could be added to `M`. -/
+theorem isIndepSet_sdiff_biUnion {G : CGraph} [DecidableEq G.V]
+    {M : Finset (lineGraph G).V} (hM : (lineGraph G).toSimple.IsIndepSet (M : Set (lineGraph G).V))
+    (hMcard : M.card = (lineGraph G).indepNum) :
+    G.toSimple.IsIndepSet ((Finset.univ \ M.biUnion fun e ↦ e.1.toFinset : Finset G.V) :
+      Set G.V) := by
+  classical
+  intro u hu v hv huv hadj
+  have hu' : u ∉ M.biUnion fun e ↦ e.1.toFinset := (Finset.mem_sdiff.1 hu).2
+  have hv' : v ∉ M.biUnion fun e ↦ e.1.toFinset := (Finset.mem_sdiff.1 hv).2
+  set e : (lineGraph G).V := ⟨s(u, v), hadj⟩ with he
+  have hnotmem : e ∉ M := by
+    intro hmem
+    exact hu' (Finset.mem_biUnion.2 ⟨e, hmem, Sym2.mem_toFinset.2 (Sym2.mem_mk_left u v)⟩)
+  have hind : (lineGraph G).toSimple.IsIndepSet ((insert e M : Finset (lineGraph G).V) :
+      Set (lineGraph G).V) := by
+    intro f hf g hg hfg
+    simp only [Finset.coe_insert, Set.mem_insert_iff, Finset.mem_coe] at hf hg
+    have key : ∀ f : (lineGraph G).V, f ∈ M → ¬ (lineGraph G).toSimple.Adj e f := by
+      intro f hf hadj'
+      rw [toSimple_adj, lineGraph_adj] at hadj'
+      simp only [Bool.and_eq_true, decide_eq_true_eq, ne_eq] at hadj'
+      obtain ⟨w, hw1, hw2⟩ := hadj'.2
+      have hwmem : w ∈ M.biUnion fun f ↦ f.1.toFinset :=
+        Finset.mem_biUnion.2 ⟨f, hf, Sym2.mem_toFinset.2 hw2⟩
+      rcases Sym2.mem_iff.1 hw1 with rfl | rfl
+      · exact hu' hwmem
+      · exact hv' hwmem
+    rcases hf with rfl | hf
+    · rcases hg with rfl | hg
+      · exact absurd rfl hfg
+      · exact key g hg
+    · rcases hg with rfl | hg
+      · exact fun h ↦ key f hf h.symm
+      · exact hM hf hg hfg
+  have hcard := hind.card_le_indepNum
+  rw [Finset.card_insert_of_notMem hnotmem, hMcard] at hcard
+  have hdefL : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
+  omega
+
+/-- **Every graph has a maximum matching whose vertices dominate all the edges**, in the counting
+form `|V| ≤ α(G) + 2ν(G)`. -/
+theorem card_le_indepNum_add_two_mul_indepNum_lineGraph (G : CGraph) [DecidableEq G.V] :
+    Fintype.card G.V ≤ G.indepNum + 2 * (lineGraph G).indepNum := by
+  classical
+  obtain ⟨M, hM, hMcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
+  have hb : (M.biUnion fun e ↦ e.1.toFinset).card = ∑ e ∈ M, e.1.toFinset.card := by
+    refine Finset.card_biUnion fun e he f hf hef ↦ ?_
+    exact disjoint_of_not_adj_lineGraph G hef (hM (by simpa using he) (by simpa using hf) hef)
+  have hsum : ∑ e ∈ M, e.1.toFinset.card = 2 * M.card := by
+    rw [Finset.sum_congr rfl fun e _ ↦
+      Sym2.card_toFinset_of_not_isDiag e.1 (SimpleGraph.not_isDiag_of_mem_edgeSet _ e.2)]
+    rw [Finset.sum_const, smul_eq_mul, Nat.mul_comm]
+  have hle := (isIndepSet_sdiff_biUnion hM hMcard).card_le_indepNum
+  have hsdiff : (Finset.univ \ M.biUnion fun e ↦ e.1.toFinset).card
+      = Fintype.card G.V - (M.biUnion fun e ↦ e.1.toFinset).card := by
+    rw [Finset.card_sdiff, Finset.card_univ, Finset.inter_univ]
+  have hsub : (M.biUnion fun e ↦ e.1.toFinset).card ≤ Fintype.card G.V :=
+    le_trans (Finset.card_le_card (Finset.subset_univ _)) (le_of_eq Finset.card_univ)
+  have hdef : G.indepNum = G.toSimple.indepNum := rfl
+  have hdefL : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -16940,5 +17006,42 @@ example : (rook 4 6).indepNum = 4 := by
   omega
 
 example (n : ℕ) : (bipartite (n + 1) (n + 1)).matchNum = n + 1 := by simp
+
+/-! ### The two-approximation for vertex covers
+
+A maximum matching leaves an independent set behind, so `|V| ≤ α + 2ν`; with Gallai's identity
+`α + τ = |V|` this is the classical `τ ≤ 2ν`.  Together with `ν ≤ τ` it says that a maximum
+matching always determines the vertex cover number to within a factor of two. -/
+
+theorem V_le_indepNum_add_two_mul_matchNum (G : IsoGraph) :
+    G.V ≤ G.indepNum + 2 * G.matchNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, indepNum_mk, matchNum_eq, lineGraph_mk, indepNum_mk]
+  exact CGraph.card_le_indepNum_add_two_mul_indepNum_lineGraph _
+
+/-- **The vertex cover number is at most twice the matching number.**  This is the guarantee
+behind the greedy two-approximation algorithm for minimum vertex cover. -/
+theorem coverNum_le_two_mul_matchNum (G : IsoGraph) : G.coverNum ≤ 2 * G.matchNum := by
+  have h1 := G.V_le_indepNum_add_two_mul_matchNum
+  have h2 := G.coverNum_add_indepNum
+  omega
+
+theorem matchNum_le_coverNum_le_two_mul_matchNum (G : IsoGraph) :
+    G.matchNum ≤ G.coverNum ∧ G.coverNum ≤ 2 * G.matchNum :=
+  ⟨G.matchNum_le_coverNum, G.coverNum_le_two_mul_matchNum⟩
+
+theorem V_le_two_mul_coverNum_of_two_mul_matchNum_eq {G : IsoGraph} (h : 2 * G.matchNum = G.V) :
+    G.V ≤ 2 * G.coverNum := by
+  have h1 := G.matchNum_le_coverNum
+  omega
+
+example : (cycle 5).coverNum ≤ 4 := by
+  have h := (cycle 5).coverNum_le_two_mul_matchNum
+  rw [show (5 : ℕ) = 2 + 3 by ring, matchNum_cycle] at h
+  omega
+
+example (G : IsoGraph) (h : G.matchNum = 0) : G.coverNum = 0 := by
+  have := G.coverNum_le_two_mul_matchNum
+  omega
 
 end IsoGraph

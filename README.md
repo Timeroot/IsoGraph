@@ -1572,6 +1572,13 @@ graphs, a perfect matching in `K_{n,n}`, and — reading the same number in the 
 `α(K_m □ K_n) = min m n`, upgrading the earlier inequality to an equality and showing the rook's
 graphs attain the clique–coclique bound `α·ω = |V|` exactly.
 
+The matching number also controls the vertex cover number from above. If `M` is a maximum
+matching — a maximum independent set of the line graph — then no edge joins two vertices missed
+by `M`, since such an edge could be added to `M`; so the missed vertices are an independent set
+and `|V| ≤ α + 2ν`. Gallai's identity `α + τ = |V|` turns this into `τ ≤ 2ν`, the guarantee
+behind the greedy two-approximation for minimum vertex cover, and combining it with the earlier
+`ν ≤ τ` sandwiches the cover number between `ν` and `2ν` for every graph.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
