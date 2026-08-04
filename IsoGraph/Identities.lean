@@ -1509,6 +1509,12 @@ theorem cyclePendant_adj_val (m : ℕ) (ks : List ℕ) (u v : (cyclePendant m ks
         (v.1, u.1) ∈ cycleEdges m ++ pendantEdges 0 m ks)) :=
   ofEdges_adj_val _ _ u v
 
+/-- Adjacency in `thetaGraph xs`, phrased entirely in terms of the underlying naturals. -/
+theorem thetaGraph_adj_val (xs : List ℕ) (u v : (thetaGraph xs).V) :
+    (thetaGraph xs).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ thetaEdges 2 xs ∨ (v.1, u.1) ∈ thetaEdges 2 xs)) :=
+  ofEdges_adj_val _ _ u v
+
 /-- Folding the interval `[0, a]` of `Fin N` back on itself, fixing everything above `a`.  This
 is the relabelling that straightens a two-legged spider into a path: the two legs, which run
 outwards from the centre, become one run from `a` down to `0` and one from `0` up. -/
@@ -2172,6 +2178,20 @@ theorem nonempty_iso_ofEdges_swap_theta (N s a b : ℕ) (P Q : List (ℕ × ℕ)
     (fun p q hpq ↦ ⟨hkey p (hQ p q hpq).1, hkey q (hQ p q hpq).2⟩)
     (fun p q ↦ by simp only [List.mem_append]; exact swapBlocks_theta_iff s a b p q hs)
 
+/-! ### Theta graphs whose paths all carry one internal vertex -/
+
+/-- The edges of such a theta graph: each of the `j` midpoints is joined to both poles. -/
+theorem mem_thetaEdges_replicate_one : ∀ (j off p q : ℕ),
+    ((p, q) ∈ thetaEdges off (List.replicate j 1)) ↔
+      ((p = 0 ∧ off ≤ q ∧ q < off + j) ∨ (off ≤ p ∧ p < off + j ∧ q = 1))
+  | 0, off, p, q => by
+      simp only [List.replicate_zero, thetaEdges, List.not_mem_nil, false_iff]
+      omega
+  | j + 1, off, p, q => by
+      rw [List.replicate_succ, thetaEdges_cons, List.mem_append, mem_thetaEdges_single,
+        mem_thetaEdges_replicate_one j (off + 1) p q]
+      omega
+
 /-! ## Two-colourings of the decorated families
 
 A spider, a cycle with pendant vertices, and a tadpole are all two-colourable, but the colour of a
@@ -2271,6 +2291,55 @@ theorem pendantOwner_parity (m : ℕ) : ∀ (v off : ℕ) (ks : List ℕ) (p q :
         have hrec := pendantOwner_parity m (v + 1) (off + k) ks p q (by omega) (by omega) h
         rw [pendantOwner_of_lt m (v + 1) (off + k) ks p (by omega)] at hrec
         rwa [pendantOwner, if_pos (by omega), pendantOwner, if_neg (by omega), if_neg (by omega)]
+
+/-! ### The distance from a pole of a theta graph -/
+
+/-- The distance from the pole `0` to the vertex `v` of a theta graph whose paths, carrying the
+numbers of internal vertices `xs`, start at `off` — except that the far pole `1` is given the
+value `1`.  When every path has an even number of internal vertices the parity of this is a
+proper two-colouring, with the two poles in different classes. -/
+def thetaDepth (off : ℕ) (xs : List ℕ) (v : ℕ) : ℕ :=
+  if v = 1 then 1 else spiderDepth off xs v
+
+theorem thetaDepth_cons (off k : ℕ) (rest : List ℕ) (v : ℕ) (hoff : 2 ≤ off)
+    (h : v < 2 ∨ off + k ≤ v) :
+    thetaDepth off (k :: rest) v = thetaDepth (off + k) rest v := by
+  unfold thetaDepth
+  split_ifs with hv
+  · rfl
+  · rcases h with h | h
+    · rw [spiderDepth_of_lt _ _ _ (by omega), spiderDepth_of_lt _ _ _ (by omega)]
+    · exact spiderDepth_cons_of_ge off k rest v h
+
+/-- Along every edge of a theta graph all of whose paths have an even number of internal vertices,
+the parity of `thetaDepth` changes.  The last path vertex is at distance `k` from the near pole,
+so evenness of `k` is exactly what makes the two poles disagree. -/
+theorem thetaDepth_parity : ∀ (off : ℕ) (xs : List ℕ) (p q : ℕ), 2 ≤ off →
+    (∀ k ∈ xs, k % 2 = 0) → (p, q) ∈ thetaEdges off xs →
+      (thetaDepth off xs p + thetaDepth off xs q) % 2 = 1
+  | _, [], _, _, _, _ => by simp [thetaEdges]
+  | off, k :: rest, p, q, hoff, heven => by
+      intro h
+      rw [thetaEdges_cons, List.mem_append] at h
+      have hk : k % 2 = 0 := heven k (List.mem_cons_self ..)
+      rcases h with h | h
+      · rw [mem_thetaEdges_single] at h
+        unfold thetaDepth
+        rcases h with ⟨rfl, rfl, rfl⟩ | ⟨hk0, rfl, rfl⟩ | ⟨hk0, rfl, rfl⟩ | ⟨h1, rfl, h3⟩
+        · rw [if_neg (by omega), if_pos rfl, spiderDepth, if_pos (by omega)]
+        · rw [if_neg (by omega), if_neg (by omega), spiderDepth, if_pos (by omega), spiderDepth,
+            if_neg (by omega), if_pos (by omega)]
+          omega
+        · rw [if_pos rfl, if_neg (by omega), spiderDepth, if_neg (by omega), if_pos (by omega)]
+          omega
+        · rw [if_neg (by omega), if_neg (by omega), spiderDepth, if_neg (by omega),
+            if_pos (by omega), spiderDepth, if_neg (by omega), if_pos (by omega)]
+          omega
+      · have hb := mem_thetaEdges_bound (off + k) rest p q h
+        rw [thetaDepth_cons off k rest p hoff (by omega),
+          thetaDepth_cons off k rest q hoff (by omega)]
+        exact thetaDepth_parity (off + k) rest p q (by omega)
+          (fun x hx ↦ heven x (List.mem_cons_of_mem k hx)) h
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -3496,6 +3565,11 @@ relabelling (`CGraph.foldAt`, `CGraph.rotTail`, `CGraph.swapZeroOne`, `finSumFin
       omega
   exact key.symm
 
+/-- Every spider all of whose legs have length one is a star. -/
+theorem spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) : spider ks = star ks.length := by
+  obtain ⟨n, rfl⟩ : ∃ n, ks = List.replicate n 1 := ⟨ks.length, List.eq_replicate_iff.2 ⟨rfl, h⟩⟩
+  rw [spider_replicate_one, List.length_replicate]
+
 /-- A single vertex carrying `k` pendant vertices is the star `K_{1,k}`. -/
 @[simp] theorem cyclePendant_one (k : ℕ) : cyclePendant 1 [k] = star k := by
   rw [cyclePendant_def, CGraph.cyclePendant_one_eq_spider, ← spider_def, spider_replicate_one]
@@ -3707,6 +3781,55 @@ theorem thetaGraph_perm {xs ys : List ℕ} (h : xs.Perm ys) : thetaGraph xs = th
 /-- Swapping the two paths of a two-path theta graph. -/
 theorem thetaGraph_pair_comm (a b : ℕ) : thetaGraph [a, b] = thetaGraph [b, a] :=
   thetaGraph_perm (List.Perm.swap b a [])
+
+/-- A theta graph all of whose paths have a single internal vertex is the complete bipartite
+graph `K_{2,n}`: the two poles on one side, the `n` midpoints on the other. -/
+@[simp] theorem thetaGraph_replicate_one (n : ℕ) :
+    thetaGraph (List.replicate n 1) = bipartite 2 n := by
+  rw [thetaGraph_def, bipartite_def]
+  have hN : (2 : ℕ) + (List.replicate n 1).sum = 2 + n := by simp
+  have key : (⟦CGraph.bipartite 2 n⟧ : IsoGraph) = ⟦CGraph.thetaGraph (List.replicate n 1)⟧ := by
+    set E : (CGraph.bipartite 2 n).V ≃ (CGraph.thetaGraph (List.replicate n 1)).V :=
+      (finSumFinEquiv (m := 2) (n := n)).trans (finCongr hN.symm) with hE
+    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    have hl : ∀ a : (CGraph.complete 2).V, (E (Sum.inl a)).1 = a.1 := fun _ ↦ rfl
+    have hr : ∀ b : (CGraph.complete n).V, (E (Sum.inr b)).1 = 2 + b.1 := fun _ ↦ rfl
+    have hth : ∀ u v : (CGraph.thetaGraph (List.replicate n 1)).V,
+        ((CGraph.thetaGraph (List.replicate n 1)).Adj u v = true ↔
+          (u.1 ≠ v.1 ∧ (((u.1 = 0 ∧ 2 ≤ v.1 ∧ v.1 < 2 + n) ∨
+              (2 ≤ u.1 ∧ u.1 < 2 + n ∧ v.1 = 1)) ∨
+            ((v.1 = 0 ∧ 2 ≤ u.1 ∧ u.1 < 2 + n) ∨ (2 ≤ v.1 ∧ v.1 < 2 + n ∧ u.1 = 1))))) := by
+      intro u v
+      rw [CGraph.thetaGraph_adj_val]
+      simp only [CGraph.mem_thetaEdges_replicate_one]
+    rintro (a | a) (b | b) <;> rw [Bool.eq_iff_iff, hth]
+    · rw [hl a, hl b]
+      have ha : a.1 < 2 := a.isLt
+      have hb : b.1 < 2 := b.isLt
+      simp only [CGraph.bipartite_adj_inl_inl, Bool.false_eq_true, iff_false]
+      omega
+    · rw [hl a, hr b]
+      have ha : a.1 < 2 := a.isLt
+      have hb : b.1 < n := b.isLt
+      simp only [CGraph.bipartite_adj_inl_inr, iff_true]
+      omega
+    · rw [hr a, hl b]
+      have ha : a.1 < n := a.isLt
+      have hb : b.1 < 2 := b.isLt
+      simp only [CGraph.bipartite_adj_inr_inl, iff_true]
+      omega
+    · rw [hr a, hr b]
+      have ha : a.1 < n := a.isLt
+      have hb : b.1 < n := b.isLt
+      simp only [CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
+      omega
+  exact key.symm
+
+/-- Every theta graph whose paths all have a single internal vertex is complete bipartite. -/
+theorem thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) :
+    thetaGraph xs = bipartite 2 xs.length := by
+  obtain ⟨n, rfl⟩ : ∃ n, xs = List.replicate n 1 := ⟨xs.length, List.eq_replicate_iff.2 ⟨rfl, h⟩⟩
+  rw [thetaGraph_replicate_one, List.length_replicate]
 
 /-- A tadpole whose cycle is `C₂` — a single edge — is a path.  The relabelling swaps the two
 vertices of the cycle, so that the tail leaves from the far end. -/
@@ -4439,6 +4562,21 @@ opposite to the cycle vertex it hangs off. -/
   · have := key y.1 x.1 hm
     omega
 
+/-- A theta graph is bipartite as soon as every one of its paths has an even number of internal
+vertices, that is, as soon as all of its paths have odd length. -/
+@[simp] theorem isBipartite_thetaGraph_even {xs : List ℕ} (h : ∀ k ∈ xs, k % 2 = 0) :
+    IsBipartite (thetaGraph xs) := by
+  rw [thetaGraph_def, isBipartite_mk]
+  refine ⟨fun i ↦ decide (CGraph.thetaDepth 2 xs (i : Fin (2 + xs.sum)).1 % 2 = 1),
+    fun x y hxy ↦ ?_⟩
+  rw [CGraph.thetaGraph_adj_val] at hxy
+  simp only [ne_eq, decide_eq_decide]
+  rcases hxy.2 with hm | hm
+  · have := CGraph.thetaDepth_parity 2 xs x.1 y.1 (by omega) h hm
+    omega
+  · have := CGraph.thetaDepth_parity 2 xs y.1 x.1 (by omega) h hm
+    omega
+
 theorem not_isBipartite_complete (n : ℕ) : ¬ IsBipartite (complete (n + 3)) := by
   rw [complete_def, isBipartite_mk]
   exact CGraph.not_isBipartite_complete n
@@ -5023,6 +5161,8 @@ example (ks : List ℕ) : IsBipartite (spider ks) := by simp
 example (m n : ℕ) : IsBipartite (doubleStar m n) := by simp
 example (k : ℕ) : IsBipartite (tadpole 6 k) := isBipartite_tadpole_even 3 k
 example : IsBipartite (cyclePendant 4 [1, 1]) := isBipartite_cyclePendant_even 2 [1, 1] (by decide)
+example : IsBipartite (thetaGraph [0, 2, 4]) := isBipartite_thetaGraph_even (by decide)
+example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
 example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp
 
@@ -5086,5 +5226,10 @@ example (a b : ℕ) : spider [a, b] = spider [b, a] := spider_perm (List.Perm.sw
 example : thetaGraph [1, 2, 3] = thetaGraph [3, 1, 2] := thetaGraph_perm (by decide)
 example (xs : List ℕ) : thetaGraph (xs ++ [0]) = thetaGraph (0 :: xs) :=
   thetaGraph_perm (List.perm_append_singleton 0 xs)
+
+example : thetaGraph [1, 1, 1, 1] = bipartite 2 4 := by
+  rw [show ([1, 1, 1, 1] : List ℕ) = List.replicate 4 1 from rfl, thetaGraph_replicate_one]
+example : thetaGraph [1, 1] = cycle 4 := by simp
+example (n : ℕ) : thetaGraph (List.replicate n 1) = bipartite 2 n := by simp
 
 end IsoGraph

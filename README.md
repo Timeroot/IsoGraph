@@ -292,6 +292,7 @@ tadpole 1 k = path (1 + k)                                cyclePendant 1 [k] = s
 spider (pre ++ 0 :: post) = spider (pre ++ post)          cyclePendant m (ks ++ [0]) = cyclePendant m ks
 spider ks = spider ls, whenever ks.Perm ls                spider (pre ++ a :: b :: post) = spider (pre ++ b :: a :: post)
 thetaGraph xs = thetaGraph ys, whenever xs.Perm ys        thetaGraph [a, b] = thetaGraph [b, a]
+thetaGraph (List.replicate n 1) = bipartite 2 n           spider ks = star ks.length, whenever ∀ k ∈ ks, k = 1
 ```
 
 plus commutativity and associativity for `disjUnion`, `join`, and the Cartesian, tensor, strong
@@ -342,7 +343,13 @@ folds the interval `[0, a]` back on itself, which straightens the two legs of a 
 run; `rotTail N` rotates `[1, N-1]` one step down, which moves the second pole of a one-path theta
 graph to the far end; and `swapZeroOne N` exchanges the two centres of a double star. The star
 identities also cross from the `ofEdges` families to the `Sum`-typed `bipartite`, so they compose
-with `finSumFinEquiv` too.
+with `finSumFinEquiv` too.  `thetaGraph (List.replicate n 1) = bipartite 2 n` is the same crossing
+one dimension up: a theta graph whose paths each carry a single internal vertex is `K_{2,n}`, with
+the two poles on one side and the `n` midpoints on the other, so `finSumFinEquiv` splits
+`Fin (2 + n)` and `mem_thetaEdges_replicate_one` — proved by the usual induction through
+`thetaEdges_cons` and `mem_thetaEdges_single` — reduces each of the four `Sum` cases to `omega`.
+`thetaGraph_of_all_one` and `spider_of_all_one` then drop the `List.replicate` by way of
+`List.eq_replicate_iff`, so a list of ones in any form is recognised.
 
 Two things make those proofs bearable. The first is phrasing adjacency in terms of the underlying
 naturals once and for all — `path_adj_val` and `ofEdges_adj_val` restate `Adj u v = true` as a
@@ -473,7 +480,11 @@ trees, tadpoles and cycles-with-pendants when the cycle is even — and there th
 is *not* a function of its number: it depends on which leg or which pendant block the vertex sits
 in.  `spiderDepth` and `pendantOwner` recover that by the same recursion the edge lists are built
 by, so the colouring is `decide (spiderDepth 1 ks v % 2 = 1)` and the proof obligation is one
-statement per edge shape.  On the other side, complete graphs on three or more vertices are not bipartite
+statement per edge shape.  Theta graphs are bipartite exactly when all their paths have the same
+parity of length; the case proved here is that every path have an even number of internal
+vertices, and `thetaDepth` is `spiderDepth` with the far pole `1` pinned to the opposite colour —
+the last vertex of a path with `k` internal vertices is at distance `k` from the near pole, so
+evenness of `k` is precisely what makes the two poles disagree.  On the other side, complete graphs on three or more vertices are not bipartite
 (pigeonhole on a triangle) and neither are odd cycles: walking around the cycle the colour
 alternates with the parity of the index, which the edge closing the cycle contradicts.
 
