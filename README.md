@@ -1508,6 +1508,13 @@ as for `2ν ≤ n`, run over the sets `e \ I` instead of over `e`. Combined with
 `τ + α = n` this yields the weak duality half of König's theorem, `ν ≤ τ`, without ever
 building the injection from a matching into a cover.
 
+Strong regularity settles the girth of the remaining named families in one stroke: if `k > 0`
+there is an edge, and `ℓ > 0` says its endpoints already share a neighbour, so
+`IsSRGWith.girth_eq_three` closes a triangle. That covers the triangular and Johnson graphs,
+the Kneser graphs from `K(6,2)` on — `K(5,2)` is Petersen, whose girth is five and whose `ℓ`
+is `0` — and the Paley graphs on at least nine vertices. Line graphs go the other way: the
+edges at a vertex of degree `d` form a `d`-clique, so `Δ ≥ 3` already forces `girth (L G) = 3`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

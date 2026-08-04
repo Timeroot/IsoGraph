@@ -7982,6 +7982,24 @@ theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) [DecidableEq G.V] :
   have hdefI : G.indepNum = G.toSimple.indepNum := rfl
   omega
 
+
+/-! ### Girth three from strong regularity -/
+
+/-- **A strongly regular graph with `ℓ > 0` has girth three**: `k > 0` produces an edge, and
+`ℓ > 0` says its two endpoints have a common neighbour, which closes a triangle. -/
+theorem IsSRGWith.girth_eq_three {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hn : 0 < n) (hk : 0 < k) (hℓ : 0 < ℓ) : G.girth = 3 := by
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  have hcard : Fintype.card G.V = n := h'.card
+  obtain ⟨u⟩ := Fintype.card_pos_iff.1 (show 0 < Fintype.card G.V by omega)
+  have hdeg : G.toSimple.degree u = k := h'.regular u
+  obtain ⟨v, hv⟩ := (G.toSimple.degree_pos_iff_exists_adj u).1 (by omega)
+  have hpos : 0 < Fintype.card (G.toSimple.commonNeighbors u v) := by
+    rw [h'.of_adj u v hv]; exact hℓ
+  obtain ⟨w, hw⟩ := Fintype.card_pos_iff.1 hpos
+  exact girth_eq_three_of_triangle ((toSimple_adj _ _ _).1 hv)
+    ((toSimple_adj _ _ _).1 hw.2) ((toSimple_adj _ _ _).1 hw.1.symm)
+
 end CGraph
 
 namespace IsoGraph
@@ -16397,5 +16415,56 @@ example : (cycle 5).matchNum + (cycle 5).indepNum = 4 := by
 example : (star 4).matchNum + (star 4).indepNum = 5 := by
   rw [matchNum_star, indepNum_star]
   omega
+
+
+/-! ### Girth three from strong regularity and from line graphs -/
+
+theorem IsSRGWith.girth_eq_three {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ)
+    (hn : 0 < n) (hk : 0 < k) (hℓ : 0 < ℓ) : G.girth = 3 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at h ⊢
+  rw [isSRGWith_mk] at h
+  rw [girth_mk]
+  exact CGraph.IsSRGWith.girth_eq_three h hn hk hℓ
+
+/-- The edges at a vertex of degree three form a triangle in the line graph. -/
+theorem girth_lineGraph_eq_three {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
+    (IsoGraph.lineGraph G).girth = 3 :=
+  girth_eq_three_of_cliqueNum (le_trans h G.maxDeg_le_cliqueNum_lineGraph)
+
+/-- Two triangles of the triangular graph meet in a vertex, so `T(n)` has girth three. -/
+@[simp] theorem girth_triangular (n : ℕ) : (triangular (n + 4)).girth = 3 :=
+  (isSRGWith_triangular (n + 4) (by omega)).girth_eq_three
+    (Nat.choose_pos (by omega)) (by omega) (by omega)
+
+@[simp] theorem girth_johnson_two (n : ℕ) : (johnson (n + 4) 2).girth = 3 :=
+  (isSRGWith_johnson_two (n + 4) (by omega)).girth_eq_three
+    (Nat.choose_pos (by omega)) (by omega) (by omega)
+
+/-- From `K(6,2)` onwards a Kneser graph has three pairwise disjoint pairs, hence a triangle;
+`K(5,2)` is the Petersen graph, whose girth is five. -/
+@[simp] theorem girth_kneser_two (n : ℕ) : (kneser (n + 6) 2).girth = 3 :=
+  (isSRGWith_kneser_two (n + 6)).girth_eq_three (Nat.choose_pos (by omega))
+    (Nat.choose_pos (by omega)) (Nat.choose_pos (by omega))
+
+/-- Paley graphs on at least nine vertices have `ℓ = (q - 5)/4 > 0`. -/
+theorem girth_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq9 : 9 ≤ q) :
+    (paley q).girth = 3 :=
+  (isSRGWith_paley q hq).girth_eq_three (by omega) (by omega) (by omega)
+
+@[simp] theorem girth_lineGraph_petersen : (IsoGraph.lineGraph petersen).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_petersen])
+
+@[simp] theorem girth_lineGraph_hypercube (n : ℕ) :
+    (IsoGraph.lineGraph (hypercube (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_hypercube]; omega)
+
+example : (triangular 5).girth = 3 := girth_triangular 1
+
+example : (kneser 6 2).girth = 3 := girth_kneser_two 0
+
+example : (paley 13).girth = 3 := by
+  haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
+  exact girth_paley 13 rfl (by omega)
 
 end IsoGraph
