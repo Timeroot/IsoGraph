@@ -24560,4 +24560,65 @@ theorem indepNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
   rw [indepNum_turan hr h, V_turan] at hc
   omega
 
+theorem isConnected_crown (n : ℕ) : IsConnected (crown (n + 3)) := by
+  simp only [crown, IsoGraph.complete, tensorProduct_mk, IsoGraph.isConnected_mk]
+  have hna : 3 ≤ n + 3 := by omega
+  set i0 : Fin (n+3) := ⟨0, by omega⟩
+  set i1 : Fin (n+3) := ⟨1, by omega⟩
+  set i2 : Fin (n+3) := ⟨2, by omega⟩
+  have hi0_ne_i1 : i0 ≠ i1 := by simp [i0, i1]
+  have hi0_ne_i2 : i0 ≠ i2 := by simp [i0, i2]
+  have hi1_ne_i2 : i1 ≠ i2 := by simp [i1, i2]
+  have hi1_ne_i0 : i1 ≠ i0 := hi0_ne_i1.symm
+  have hi2_ne_i0 : i2 ≠ i0 := hi0_ne_i2.symm
+  have hi2_ne_i1 : i2 ≠ i1 := hi1_ne_i2.symm
+  -- Adjacency in tensor product: CGraph.Adj = true ↔ i≠j ∧ b≠c
+  have hadj_true : ∀ (i j : Fin (n+3)) (b c : Fin 2),
+      i ≠ j ∧ b ≠ c →
+        ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).Adj (i, b) (j, c) = true := by
+    intro i j b c h
+    rw [CGraph.tensorProduct_adj, CGraph.complete_adj, CGraph.complete_adj]
+    simp [h]
+  -- One-hop reachability from adjacency
+  have hreach_one : ∀ {u v : Fin (n+3) × Fin 2},
+      ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).Adj u v = true →
+        SimpleGraph.Reachable
+          ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).toSimple u v := by
+    intro u v huv
+    have : ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).toSimple.Adj u v :=
+      (CGraph.toSimple_adj _ _ _).mpr huv
+    exact this.reachable
+  unfold CGraph.IsConnected
+  haveI : Nonempty ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).V :=
+    Nonempty.intro ((i0, (0 : Fin 2)) : Fin (n+3) × Fin 2)
+  apply SimpleGraph.Connected.mk
+  · -- All vertices reachable from (i0, 0)
+    have hreach_to_base : ∀ (i : Fin (n+3)) (b : Fin 2),
+        SimpleGraph.Reachable ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).toSimple
+          (i, b) (i0, (0 : Fin 2)) := by
+      intro i b
+      fin_cases b
+      · -- b = 0
+        by_cases hi : i = i0
+        · subst hi; exact SimpleGraph.Reachable.refl _
+        · exact (hreach_one (hadj_true i i0 0 1 ⟨hi, by decide⟩)).trans
+            ((hreach_one (hadj_true i0 i1 1 0 ⟨hi0_ne_i1, by decide⟩)).trans
+              ((hreach_one (hadj_true i1 i2 0 1 ⟨hi1_ne_i2, by decide⟩)).trans
+                (hreach_one (hadj_true i2 i0 1 0 ⟨hi2_ne_i0, by decide⟩))))
+      · -- b = 1
+        by_cases hi : i = i0
+        · subst hi
+          exact (hreach_one (hadj_true i0 i1 1 0 ⟨hi0_ne_i1, by decide⟩)).trans
+              ((hreach_one (hadj_true i1 i2 0 1 ⟨hi1_ne_i2, by decide⟩)).trans
+                (hreach_one (hadj_true i2 i0 1 0 ⟨hi2_ne_i0, by decide⟩)))
+        · exact hreach_one (hadj_true i i0 1 0 ⟨hi, by decide⟩)
+    intro u v
+    obtain ⟨i, b⟩ := u
+    obtain ⟨j, c⟩ := v
+    exact (hreach_to_base i b).trans (hreach_to_base j c).symm
+
+
+@[simp] theorem numComponents_crown (n : ℕ) : (crown (n + 3)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_crown n)
+
 end IsoGraph
