@@ -1377,6 +1377,17 @@ and strong products inherit the two-sided bounds, `|V(G)|·τ(H)` and `τ(G)·|V
 whole side, so `τ(G + H) = min (τ(G) + |V(H)|) (|V(G)| + τ(H))`.  On `K₃ □ K₃` the lower bound is
 tight — six squares are needed to cover the rook's graph, and the bound gives exactly six.
 
+Complementation ties the domination number down from both sides, in the style of
+Nordhaus and Gaddum. Since `γ + Δ ≤ n` holds for every graph and complementation
+sends the maximum degree to `n - 1 - δ`, adding the two bounds gives
+`domNum_add_domNum_compl_le_V_add_one : γ(G) + γ(Gᶜ) ≤ |V| + 1`, attained by the
+edgeless graph. In the other direction a graph and its complement cannot both have a
+universal vertex once there are two vertices, so `three_le_domNum_add_domNum_compl`
+gives `3 ≤ γ(G) + γ(Gᶜ)`. Disconnectedness collapses the complement even further:
+two vertices in different components dominate `Gᶜ` between them
+(`domNum_compl_le_two_of_not_isConnected`), so for instance the complement of any
+disjoint union of two nonempty graphs has domination number at most two.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

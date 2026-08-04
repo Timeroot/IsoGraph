@@ -7616,6 +7616,86 @@ theorem chromNum_tensorProduct_eq_two {G H : CGraph} [DecidableEq G.V] [Decidabl
       (le_trans (min_le_left _ _) (isBipartite_iff_chromNum_le_two.1 hG)))
     (two_le_chromNum_tensorProduct hGE hHE)
 
+
+/-! ### Nordhaus–Gaddum for the domination number -/
+
+/-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.**  Each graph satisfies `γ + Δ ≤ |V|`, and complementation turns
+the maximum degree into `|V| - 1 - δ`, so the two bounds add up with `δ ≤ Δ` to spare. -/
+theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) [DecidableEq G.V] :
+    G.domNum + (compl G).domNum ≤ Fintype.card G.V + 1 := by
+  rcases isEmpty_or_nonempty G.V with hemp | hne
+  · have h1 : Fintype.card G.V = 0 := Fintype.card_eq_zero
+    have h2 := G.domNum_le_card
+    have h3 := (compl G).domNum_le_card
+    have h4 : Fintype.card (compl G).V = Fintype.card G.V := rfl
+    omega
+  obtain ⟨v₀⟩ := hne
+  have h1 := G.domNum_add_maxDeg_le_card
+  have h2 := (compl G).domNum_add_maxDeg_le_card
+  rw [maxDeg_compl G v₀, show Fintype.card (compl G).V = Fintype.card G.V from rfl] at h2
+  have h3 := G.minDeg_le_maxDeg
+  have h4 := G.maxDeg_lt_card v₀
+  omega
+
+/-- Two vertices in different components dominate the complement: whatever `x` is, it is
+unreachable from one of them, hence adjacent to it in `Gᶜ`. -/
+theorem domNum_compl_le_two_of_not_reachable (G : CGraph) [DecidableEq G.V] {a b : G.V}
+    (h : ¬ G.toSimple.Reachable a b) : (compl G).domNum ≤ 2 := by
+  classical
+  have hdom : (compl G).IsDominatingSet ({a, b} : Finset G.V) := by
+    intro x
+    by_cases hxa : x = a
+    · exact Or.inl (by simp [hxa])
+    by_cases hxb : x = b
+    · exact Or.inl (by simp [hxb])
+    by_cases hr : G.toSimple.Reachable a x
+    · refine Or.inr ⟨b, by simp, ?_⟩
+      have hbx : ¬ G.toSimple.Reachable b x := fun hbx ↦ h (hr.trans hbx.symm)
+      simpa using compl_adj_of_not_reachable G hbx
+    · exact Or.inr ⟨a, by simp, by simpa using compl_adj_of_not_reachable G hr⟩
+  refine le_trans (domNum_le_card_of_isDominatingSet hdom) ?_
+  exact le_trans (Finset.card_insert_le _ _) (by simp)
+
+/-- A disconnected graph has a complement that two vertices dominate. -/
+theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [DecidableEq G.V] [Nonempty G.V]
+    (h : ¬ G.IsConnected) : (compl G).domNum ≤ 2 := by
+  rw [IsConnected, SimpleGraph.connected_iff] at h
+  push_neg at h
+  obtain ⟨a, b, hab⟩ : ∃ a b, ¬ G.toSimple.Reachable a b := by
+    by_contra hc
+    push_neg at hc
+    exact absurd (h fun a b ↦ hc a b) (not_isEmpty_iff.2 ‹Nonempty G.V›)
+  exact domNum_compl_le_two_of_not_reachable G hab
+
+/-- A graph and its complement cannot both have a universal vertex once there are two vertices,
+so `3 ≤ γ(G) + γ(Gᶜ)`. -/
+theorem three_le_domNum_add_domNum_compl (G : CGraph) [DecidableEq G.V]
+    (hV : 2 ≤ Fintype.card G.V) : 3 ≤ G.domNum + (compl G).domNum := by
+  have hG : 0 < G.domNum := G.domNum_pos (by omega)
+  have hGc : 0 < (compl G).domNum :=
+    (compl G).domNum_pos (by rw [show Fintype.card (compl G).V = Fintype.card G.V from rfl]; omega)
+  by_contra hc
+  have h1 : G.domNum = 1 := by omega
+  have h2 : (compl G).domNum = 1 := by omega
+  obtain ⟨v, hv⟩ := (domNum_eq_one_iff G).1 h1
+  obtain ⟨w, hw⟩ := (domNum_eq_one_iff (compl G)).1 h2
+  by_cases hvw : w = v
+  · subst hvw
+    obtain ⟨u, hu⟩ : ∃ u : G.V, u ≠ w := by
+      by_contra hc'
+      push_neg at hc'
+      have : Fintype.card G.V ≤ 1 := Fintype.card_le_one_iff.2 fun a b ↦ (hc' a).trans (hc' b).symm
+      omega
+    have h3 := hv u hu
+    have h4 := hw u hu
+    rw [compl_adj] at h4
+    simp [h3] at h4
+  · have h3 := hv w hvw
+    have h4 := hw v (fun h ↦ hvw h.symm)
+    rw [compl_adj] at h4
+    rw [G.symm v w] at h3
+    simp [h3] at h4
+
 end CGraph
 
 namespace IsoGraph
@@ -15210,5 +15290,53 @@ example : (cartesianProduct (complete 3) (complete 3)).coverNum ≤ 8 := by
 example : 6 ≤ (cartesianProduct (complete 3) (complete 3)).coverNum := by
   have h := V_mul_coverNum_le_coverNum_cartesianProduct (complete 3) (complete 3)
   simpa using h
+
+
+/-! ### Nordhaus–Gaddum for the domination number -/
+
+/-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.** -/
+theorem domNum_add_domNum_compl_le_V_add_one (G : IsoGraph) :
+    G.domNum + (compl G).domNum ≤ G.V + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, domNum_mk, domNum_mk, V_mk]
+  exact CGraph.domNum_add_domNum_compl_le_card_add_one _
+
+/-- Two vertices dominate the complement of a disconnected graph. -/
+theorem domNum_compl_le_two_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
+    (h : ¬ IsConnected G) : (compl G).domNum ≤ 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk] at hV
+  rw [← mk_canonicalize g, isConnected_mk] at h
+  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
+  rw [← mk_canonicalize g, compl_mk, domNum_mk]
+  exact CGraph.domNum_compl_le_two_of_not_isConnected _ h
+
+/-- `3 ≤ γ(G) + γ(Gᶜ)` on at least two vertices. -/
+theorem three_le_domNum_add_domNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
+    3 ≤ G.domNum + (compl G).domNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk] at hV
+  rw [← mk_canonicalize g, compl_mk, domNum_mk, domNum_mk]
+  exact CGraph.three_le_domNum_add_domNum_compl _ hV
+
+/-- The two Nordhaus–Gaddum bounds together. -/
+theorem domNum_add_domNum_compl_mem_Icc {G : IsoGraph} (hV : 2 ≤ G.V) :
+    3 ≤ G.domNum + (compl G).domNum ∧ G.domNum + (compl G).domNum ≤ G.V + 1 :=
+  ⟨three_le_domNum_add_domNum_compl hV, G.domNum_add_domNum_compl_le_V_add_one⟩
+
+/-- An edgeless graph attains the upper bound: `γ(E_n) = n` and `γ(K_n) = 1`. -/
+example (n : ℕ) : (empty (n + 1)).domNum + (compl (empty (n + 1))).domNum = (n + 1) + 1 := by
+  rw [compl_empty, domNum_empty, domNum_complete]
+
+/-- The complement of a disconnected graph — in particular of any disjoint union of two
+nonempty graphs — is dominated by two vertices. -/
+theorem domNum_compl_disjUnion_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (compl (disjUnion G H)).domNum ≤ 2 :=
+  domNum_compl_le_two_of_not_isConnected (by rw [V_disjUnion]; omega)
+    (not_isConnected_disjUnion hG hH)
+
+/-- The complement of `2 K₃` is `K₃,₃`, which two vertices dominate. -/
+example : (compl (disjUnion (complete 3) (complete 3))).domNum ≤ 2 :=
+  domNum_compl_disjUnion_le_two (by simp) (by simp)
 
 end IsoGraph
