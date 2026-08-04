@@ -4880,6 +4880,252 @@ theorem minDeg_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
     exact Nat.sub_le_sub_right (Nat.mul_le_mul (Nat.add_le_add_right (G.minDeg_le_degree _) _)
       (Nat.add_le_add_right (H.minDeg_le_degree _) _)) 1
 
+/-! ### Greedy colouring and Nordhaus–Gaddum -/
+
+section Greedy
+
+variable {X : Type} [Fintype X] [DecidableEq X]
+
+/-- **Greedy colouring**: a graph all of whose degrees are at most `d` is `(d + 1)`-colourable.
+The colouring is built one vertex at a time: a vertex has at most `d` neighbours already
+coloured, so one of the `d + 1` colours is still free for it. -/
+private theorem colorable_of_forall_degree_le (S : SimpleGraph X) [DecidableRel S.Adj] {d : ℕ}
+    (hd : ∀ v, S.degree v ≤ d) : S.Colorable (d + 1) := by
+  classical
+  have key : ∀ s : Finset X, ∃ c : X → Fin (d + 1),
+      ∀ x ∈ s, ∀ y ∈ s, S.Adj x y → c x ≠ c y := by
+    intro s
+    induction s using Finset.induction with
+    | empty => exact ⟨fun _ ↦ 0, by simp⟩
+    | insert a s ha ih =>
+      obtain ⟨c, hc⟩ := ih
+      obtain ⟨k, hk⟩ : ∃ k : Fin (d + 1), k ∉ (S.neighborFinset a).image c := by
+        by_contra hcon
+        push_neg at hcon
+        have hsub : (Finset.univ : Finset (Fin (d + 1))) ⊆ (S.neighborFinset a).image c :=
+          fun k _ ↦ hcon k
+        have h1 := Finset.card_le_card hsub
+        have h2 : ((S.neighborFinset a).image c).card ≤ d :=
+          le_trans (Finset.card_image_le) (hd a)
+        rw [Finset.card_univ, Fintype.card_fin] at h1
+        omega
+      refine ⟨Function.update c a k, fun x hx y hy hxy ↦ ?_⟩
+      have hax : ∀ z ∈ s, z ≠ a := fun z hz h ↦ ha (h ▸ hz)
+      rcases Finset.mem_insert.1 hx with rfl | hx' <;>
+        rcases Finset.mem_insert.1 hy with rfl | hy'
+      · exact absurd rfl hxy.ne
+      · rw [Function.update_self, Function.update_of_ne (hax y hy')]
+        intro h
+        exact hk (Finset.mem_image.2 ⟨y, by simp [hxy], h.symm⟩)
+      · rw [Function.update_self, Function.update_of_ne (hax x hx')]
+        intro h
+        exact hk (Finset.mem_image.2 ⟨x, by simp [hxy.symm], h⟩)
+      · rw [Function.update_of_ne (hax x hx'), Function.update_of_ne (hax y hy')]
+        exact hc x hx' y hy' hxy
+  obtain ⟨c, hc⟩ := key Finset.univ
+  exact ⟨SimpleGraph.Coloring.mk c fun {x y} hxy ↦
+    hc x (Finset.mem_univ x) y (Finset.mem_univ y) hxy⟩
+
+end Greedy
+
+/-! ### Greedy colouring -/
+
+/-- **The greedy bound** `χ ≤ Δ + 1`. -/
+theorem chromNum_le_maxDeg_add_one (G : CGraph) : G.chromNum ≤ G.maxDeg + 1 := by
+  classical
+  exact chromNum_le_iff_colorable.2
+    (colorable_of_forall_degree_le G.toSimple fun v ↦ G.degree_le_maxDeg v)
+
+/-- Contrapositive of the greedy bound: a `k`-chromatic graph has a vertex of degree `k - 1`. -/
+theorem chromNum_le_maxDeg (G : CGraph) (h : 2 ≤ G.chromNum) : G.chromNum - 1 ≤ G.maxDeg := by
+  have := G.chromNum_le_maxDeg_add_one
+  omega
+
+/-- Independence version of the greedy bound: `|V| ≤ (Δ + 1)·α`. -/
+theorem card_le_maxDeg_add_one_mul_indepNum (G : CGraph) :
+    Fintype.card G.V ≤ (G.maxDeg + 1) * G.indepNum :=
+  le_trans G.card_le_chromNum_mul_indepNum
+    (Nat.mul_le_mul_right _ G.chromNum_le_maxDeg_add_one)
+
+/-! ### Colouring around a maximum independent set -/
+
+/-- Colour a maximum independent set with a single colour and every other vertex with its own:
+`χ ≤ |V| - α + 1`. -/
+theorem chromNum_le_card_sub_indepNum_add_one (G : CGraph) :
+    G.chromNum ≤ Fintype.card G.V - G.indepNum + 1 := by
+  classical
+  obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  have hcard' : s.card = G.indepNum := hcard
+  have hcompl : Fintype.card {v : G.V // v ∉ s} = Fintype.card G.V - G.indepNum := by
+    rw [Fintype.card_subtype_compl, Fintype.card_coe, hcard']
+  obtain ⟨e⟩ : Nonempty ({v : G.V // v ∉ s} ≃ Fin (Fintype.card G.V - G.indepNum)) :=
+    ⟨Fintype.equivFinOfCardEq hcompl⟩
+  set f : G.V → ℕ := fun v ↦ if h : v ∈ s then 0 else (e ⟨v, h⟩ : ℕ) + 1 with hf
+  refine chromNum_le_iff_colorable.2 ((SimpleGraph.colorable_iff_exists_bdd_nat_coloring _).2
+    ⟨SimpleGraph.Coloring.mk f ?_, fun v ↦ ?_⟩)
+  · intro x y hxy
+    by_cases hx : x ∈ s <;> by_cases hy : y ∈ s
+    · exact absurd hxy (hs (Finset.mem_coe.2 hx) (Finset.mem_coe.2 hy) hxy.ne)
+    · simp [hf, hx, hy]
+    · simp [hf, hx, hy]
+    · simp only [hf, dif_neg hx, dif_neg hy, ne_eq, Nat.add_right_cancel_iff]
+      intro h
+      exact hxy.ne (congrArg Subtype.val (e.injective (Fin.val_injective h)))
+  · show f v < _
+    by_cases h : v ∈ s
+    · simp [hf, h]
+    · simp only [hf, dif_neg h]
+      have := (e ⟨v, h⟩).isLt
+      omega
+
+/-- The same bound in additive form. -/
+theorem chromNum_add_indepNum_le_card_add_one (G : CGraph) :
+    G.chromNum + G.indepNum ≤ Fintype.card G.V + 1 := by
+  have h := G.chromNum_le_card_sub_indepNum_add_one
+  have h2 : G.indepNum ≤ Fintype.card G.V := by
+    obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+    have hcard' : G.indepNum = s.card := hcard.symm
+    rw [hcard', ← Finset.card_univ]
+    exact Finset.card_le_univ s
+  omega
+
+section NordhausGaddum
+
+variable {X : Type} [Fintype X] [DecidableEq X]
+
+/-- The number of colours needed to colour just the vertices of `s` properly, ignoring every
+vertex outside `s`.  This is the chromatic number of the subgraph induced on `s`, phrased so
+that induction can add one vertex at a time. -/
+private noncomputable def chromOn (S : SimpleGraph X) (s : Finset X) : ℕ :=
+  sInf {n | ∃ c : X → ℕ, (∀ v ∈ s, c v < n) ∧ ∀ x ∈ s, ∀ y ∈ s, S.Adj x y → c x ≠ c y}
+
+omit [Fintype X] [DecidableEq X] in
+private theorem chromOn_le {S : SimpleGraph X} {s : Finset X} {n : ℕ} (c : X → ℕ)
+    (hb : ∀ v ∈ s, c v < n) (hp : ∀ x ∈ s, ∀ y ∈ s, S.Adj x y → c x ≠ c y) :
+    chromOn S s ≤ n :=
+  Nat.sInf_le ⟨c, hb, hp⟩
+
+omit [DecidableEq X] in
+private theorem exists_chromOn_coloring (S : SimpleGraph X) (s : Finset X) :
+    ∃ c : X → ℕ, (∀ v ∈ s, c v < chromOn S s) ∧
+      ∀ x ∈ s, ∀ y ∈ s, S.Adj x y → c x ≠ c y := by
+  have hne : {n | ∃ c : X → ℕ, (∀ v ∈ s, c v < n) ∧
+      ∀ x ∈ s, ∀ y ∈ s, S.Adj x y → c x ≠ c y}.Nonempty := by
+    refine ⟨Fintype.card X, fun v ↦ (Fintype.equivFin X v : ℕ),
+      fun v _ ↦ (Fintype.equivFin X v).isLt, fun x _ y _ hxy h ↦ ?_⟩
+    exact hxy.ne ((Fintype.equivFin X).injective (Fin.val_injective h))
+  exact Nat.sInf_mem hne
+
+omit [Fintype X] [DecidableEq X] in
+private theorem chromOn_empty (S : SimpleGraph X) : chromOn S ∅ = 0 :=
+  Nat.le_zero.1 (chromOn_le (fun _ ↦ 0) (by simp) (by simp))
+
+private theorem chromOn_insert_le (S : SimpleGraph X) (a : X) (s : Finset X) :
+    chromOn S (insert a s) ≤ chromOn S s + 1 := by
+  obtain ⟨c, hb, hp⟩ := exists_chromOn_coloring S s
+  refine chromOn_le (Function.update c a (chromOn S s)) ?_ ?_
+  · intro v hv
+    rcases eq_or_ne v a with rfl | hva
+    · rw [Function.update_self]; omega
+    · rw [Function.update_of_ne hva]
+      have := hb v ((Finset.mem_insert.1 hv).resolve_left hva)
+      omega
+  · intro x hx y hy hxy
+    rcases eq_or_ne x a with rfl | hxa
+    · rcases eq_or_ne y x with rfl | hyx
+      · exact absurd rfl hxy.ne
+      · rw [Function.update_self, Function.update_of_ne hyx]
+        exact fun h ↦ absurd (hb y ((Finset.mem_insert.1 hy).resolve_left hyx)) (by omega)
+    · rcases eq_or_ne y a with rfl | hya
+      · rw [Function.update_self, Function.update_of_ne hxa]
+        exact fun h ↦ absurd (hb x ((Finset.mem_insert.1 hx).resolve_left hxa)) (by omega)
+      · rw [Function.update_of_ne hxa, Function.update_of_ne hya]
+        exact hp x ((Finset.mem_insert.1 hx).resolve_left hxa)
+          y ((Finset.mem_insert.1 hy).resolve_left hya) hxy
+
+/-- If the neighbours of `a` inside `s` fit into a set smaller than `χ(s)`, then `a` can reuse
+one of the colours already in play: adding it costs nothing. -/
+private theorem chromOn_insert_le_of_lt (S : SimpleGraph X) {a : X} {s t : Finset X} (ha : a ∉ s)
+    (ht : ∀ v ∈ s, S.Adj a v → v ∈ t) (hlt : t.card < chromOn S s) :
+    chromOn S (insert a s) ≤ chromOn S s := by
+  obtain ⟨c, hb, hp⟩ := exists_chromOn_coloring S s
+  obtain ⟨k, hk⟩ : ((Finset.range (chromOn S s)) \ (t.image c)).Nonempty := by
+    rw [← Finset.card_pos]
+    have h1 := Finset.le_card_sdiff (t.image c) (Finset.range (chromOn S s))
+    have h2 : (t.image c).card ≤ t.card := Finset.card_image_le
+    have h3 : (Finset.range (chromOn S s)).card = chromOn S s := Finset.card_range _
+    omega
+  rw [Finset.mem_sdiff, Finset.mem_range] at hk
+  obtain ⟨hklt, hkni⟩ := hk
+  have hane : ∀ v ∈ s, v ≠ a := fun v hv h ↦ ha (h ▸ hv)
+  refine chromOn_le (Function.update c a k) ?_ ?_
+  · intro v hv
+    rcases eq_or_ne v a with rfl | hva
+    · rwa [Function.update_self]
+    · rw [Function.update_of_ne hva]
+      exact hb v ((Finset.mem_insert.1 hv).resolve_left hva)
+  · intro x hx y hy hxy
+    rcases eq_or_ne x a with rfl | hxa
+    · have hys : y ∈ s := (Finset.mem_insert.1 hy).resolve_left (Ne.symm hxy.ne)
+      rw [Function.update_self, Function.update_of_ne (hane y hys)]
+      exact fun h ↦ hkni (Finset.mem_image.2 ⟨y, ht y hys hxy, h.symm⟩)
+    · rcases eq_or_ne y a with rfl | hya
+      · have hxs : x ∈ s := (Finset.mem_insert.1 hx).resolve_left hxa
+        rw [Function.update_self, Function.update_of_ne (hane x hxs)]
+        exact fun h ↦ hkni (Finset.mem_image.2 ⟨x, ht x hxs hxy.symm, h⟩)
+      · rw [Function.update_of_ne hxa, Function.update_of_ne hya]
+        exact hp x ((Finset.mem_insert.1 hx).resolve_left hxa)
+          y ((Finset.mem_insert.1 hy).resolve_left hya) hxy
+
+/-- **Nordhaus–Gaddum, sum form**, in the `chromOn` formulation: colouring `s` in `S` and in its
+complement together costs at most `|s| + 1` colours. -/
+private theorem chromOn_add_chromOn_compl_le (S : SimpleGraph X) (s : Finset X) :
+    chromOn S s + chromOn Sᶜ s ≤ s.card + 1 := by
+  classical
+  induction s using Finset.induction with
+  | empty => simp [chromOn_empty]
+  | insert a s ha ih =>
+    have h1 := chromOn_insert_le S a s
+    have h2 := chromOn_insert_le Sᶜ a s
+    rw [Finset.card_insert_of_notMem ha]
+    by_cases hA : chromOn S (insert a s) ≤ chromOn S s
+    · omega
+    by_cases hB : chromOn Sᶜ (insert a s) ≤ chromOn Sᶜ s
+    · omega
+    have hpa : chromOn S s ≤ (s.filter fun v ↦ S.Adj a v).card := by
+      by_contra hcon
+      push_neg at hcon
+      exact hA (chromOn_insert_le_of_lt S ha (fun v hv hadj ↦ Finset.mem_filter.2 ⟨hv, hadj⟩) hcon)
+    have hqa : chromOn Sᶜ s ≤ (s.filter fun v ↦ ¬ S.Adj a v).card := by
+      by_contra hcon
+      push_neg at hcon
+      refine hB (chromOn_insert_le_of_lt Sᶜ ha (fun v hv hadj ↦ Finset.mem_filter.2 ⟨hv, ?_⟩) hcon)
+      exact (SimpleGraph.compl_adj S a v).1 hadj |>.2
+    have hsplit := Finset.card_filter_add_card_filter_not
+      (s := s) (p := fun v ↦ S.Adj a v)
+    omega
+
+end NordhausGaddum
+
+private theorem chromNum_eq_chromOn_univ (G : CGraph) [DecidableEq G.V] :
+    G.chromNum = chromOn G.toSimple Finset.univ := by
+  refine le_antisymm ?_ ?_
+  · obtain ⟨c, hb, hp⟩ := exists_chromOn_coloring G.toSimple Finset.univ
+    refine chromNum_le_iff_colorable.2 ((SimpleGraph.colorable_iff_exists_bdd_nat_coloring _).2
+      ⟨SimpleGraph.Coloring.mk c fun {x y} hxy ↦
+        hp x (Finset.mem_univ x) y (Finset.mem_univ y) hxy, fun v ↦ hb v (Finset.mem_univ v)⟩)
+  · obtain ⟨C, hC⟩ := (SimpleGraph.colorable_iff_exists_bdd_nat_coloring _).1 G.colorable_chromNum
+    exact chromOn_le (fun v ↦ C v) (fun v _ ↦ hC v)
+      (fun x _ y _ hxy ↦ C.valid hxy)
+
+/-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
+theorem chromNum_add_chromNum_compl_le_card_add_one (G : CGraph) [DecidableEq G.V] :
+    G.chromNum + (compl G).chromNum ≤ Fintype.card G.V + 1 := by
+  have h := chromOn_add_chromOn_compl_le G.toSimple (Finset.univ : Finset G.V)
+  rw [Finset.card_univ] at h
+  rwa [G.chromNum_eq_chromOn_univ, show (compl G).chromNum = chromOn G.toSimpleᶜ Finset.univ from
+    by rw [(compl G).chromNum_eq_chromOn_univ, compl_toSimple]]
+
 end CGraph
 
 namespace IsoGraph
@@ -10130,6 +10376,89 @@ example : 2 * (petersen.E) = 30 := by
 example : maxDeg (compl (cycle 5)) = 2 := by
   rw [maxDeg_compl (by simp)]
   simp
+
+/-! ### Greedy colouring and Nordhaus–Gaddum -/
+
+/-! ### Greedy colouring -/
+
+/-- **The greedy bound** `χ ≤ Δ + 1`. -/
+theorem chromNum_le_maxDeg_add_one (G : IsoGraph) : G.chromNum ≤ G.maxDeg + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, chromNum_mk, maxDeg_mk]
+  exact CGraph.chromNum_le_maxDeg_add_one _
+
+/-- A `k`-chromatic graph has a vertex of degree at least `k - 1`. -/
+theorem chromNum_sub_one_le_maxDeg (G : IsoGraph) : G.chromNum - 1 ≤ G.maxDeg := by
+  have := G.chromNum_le_maxDeg_add_one
+  omega
+
+/-- `|V| ≤ (Δ + 1)·α`: the independence number of a graph of bounded degree cannot be small. -/
+theorem V_le_maxDeg_add_one_mul_indepNum (G : IsoGraph) :
+    G.V ≤ (G.maxDeg + 1) * G.indepNum := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, maxDeg_mk, indepNum_mk]
+  exact CGraph.card_le_maxDeg_add_one_mul_indepNum _
+
+/-- `χ ≤ |V| - α + 1`. -/
+theorem chromNum_le_V_sub_indepNum_add_one (G : IsoGraph) :
+    G.chromNum ≤ G.V - G.indepNum + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, chromNum_mk, indepNum_mk]
+  exact CGraph.chromNum_le_card_sub_indepNum_add_one _
+
+theorem chromNum_add_indepNum_le_V_add_one (G : IsoGraph) :
+    G.chromNum + G.indepNum ≤ G.V + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, chromNum_mk, indepNum_mk]
+  exact CGraph.chromNum_add_indepNum_le_card_add_one _
+
+/-- **Nordhaus–Gaddum, sum form**: `4·|V| ≤ (χ(G) + χ(Gᶜ))²`, i.e. `χ(G) + χ(Gᶜ) ≥ 2√|V|`.
+This is the product form together with `4ab ≤ (a + b)²`. -/
+theorem four_mul_V_le_chromNum_add_chromNum_compl_sq (G : IsoGraph) :
+    4 * G.V ≤ (G.chromNum + (compl G).chromNum) ^ 2 := by
+  have h := V_le_chromNum_mul_chromNum_compl G
+  nlinarith [sq_nonneg (G.chromNum - (compl G).chromNum : ℤ)]
+
+/-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
+theorem chromNum_add_chromNum_compl_le_V_add_one (G : IsoGraph) :
+    G.chromNum + (compl G).chromNum ≤ G.V + 1 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, chromNum_mk, chromNum_mk, V_mk]
+  exact CGraph.chromNum_add_chromNum_compl_le_card_add_one _
+
+/-- The product counterpart of the sum bound, by AM–GM: `4·χ(G)·χ(Gᶜ) ≤ (|V| + 1)²`. -/
+theorem four_mul_chromNum_mul_chromNum_compl_le (G : IsoGraph) :
+    4 * (G.chromNum * (compl G).chromNum) ≤ (G.V + 1) ^ 2 := by
+  have h := G.chromNum_add_chromNum_compl_le_V_add_one
+  nlinarith [sq_nonneg (G.chromNum - (compl G).chromNum : ℤ)]
+
+/-! ### The bounds at work -/
+
+/-- The greedy bound is tight on complete graphs. -/
+example (n : ℕ) : (complete (n + 1)).chromNum = (complete (n + 1)).maxDeg + 1 := by
+  rw [chromNum_complete, maxDeg_complete]
+  omega
+
+/-- And on odd cycles, where two colours are not enough. -/
+example : (cycle 5).chromNum = (cycle 5).maxDeg + 1 := by
+  rw [show (5 : ℕ) = 2 * 1 + 3 from rfl, chromNum_cycle_odd, maxDeg_cycle]
+
+/-- Nordhaus–Gaddum is tight on complete graphs: `n + 1 = |V| + 1`. -/
+example (n : ℕ) : (complete (n + 1)).chromNum + (compl (complete (n + 1))).chromNum
+    = (complete (n + 1)).V + 1 := by
+  rw [compl_complete, chromNum_complete, chromNum_empty, V_complete]
+
+/-- The complement of the Petersen graph needs at least four colours. -/
+example : 4 ≤ (compl petersen).chromNum := by
+  have h := V_le_chromNum_mul_chromNum_compl petersen
+  rw [V_petersen, chromNum_petersen] at h
+  omega
+
+/-- Petersen has an independent set of size at least three, because it is `3`-regular. -/
+example : 3 ≤ petersen.indepNum := by
+  have h := V_le_maxDeg_add_one_mul_indepNum petersen
+  rw [V_petersen, maxDeg_petersen] at h
+  omega
 
 /-! ## The simp set at work
 

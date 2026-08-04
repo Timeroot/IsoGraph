@@ -1053,6 +1053,29 @@ entries, and they are the ones that matter: `C₅`, where triangle- and square-f
 triangles and `μ = 1` forbids squares, since two opposite corners of a square share two neighbours
 — with the outer five-cycle realising the bound.
 
+The colouring material gets its two general bounds.  The first is the **greedy bound**
+`χ ≤ Δ + 1`.  Mathlib has no greedy colouring, so `colorable_of_forall_degree_le` builds one:
+rather than deleting vertices and inducting on the type, it inducts on a `Finset` of
+already-coloured vertices, and at each step recolours the new vertex with `Function.update` — its
+neighbours use at most `Δ` of the `Δ + 1` colours, so one is free.  Combining it with the existing
+`|V| ≤ χ·α` gives `|V| ≤ (Δ + 1)·α`, a lower bound on the independence number of a
+bounded-degree graph, and reading it backwards says a `k`-chromatic graph has a vertex of degree
+`k - 1`.  The second bound goes the other way round the same corner: colour a *maximum*
+independent set with a single colour and give every remaining vertex a private one, and
+`χ ≤ |V| - α + 1`.
+
+The same `Function.update` idea, run over a `Finset` in both a graph and its complement at once,
+proves the **sum form of Nordhaus–Gaddum**, `χ(G) + χ(Gᶜ) ≤ |V| + 1`.  The induction needs a
+chromatic number for a *part* of a graph, so `chromOn S s` is the least number of colours that
+properly colours the vertices of `s` (ignoring everything outside), together with two steps:
+adding a vertex costs at most one colour, and it costs *nothing* if the vertex has fewer than
+`chromOn S s` neighbours inside `s`.  If adding `a` raises the count in both `G` and `Gᶜ`, then
+`a` has at least `χ(s)` neighbours in one and at least `χᶜ(s)` in the other, and those two
+neighbourhoods partition `s` — so `χ(s) + χᶜ(s) ≤ |s|` and the two increments still fit.  With the
+product form `|V| ≤ χ(G)·χ(Gᶜ)` from the previous batch, AM–GM turns each into the other's shape:
+`4·|V| ≤ (χ(G) + χ(Gᶜ))²` and `4·χ(G)·χ(Gᶜ) ≤ (|V| + 1)²`.  Both bounds are tight on `Kₙ`, and the
+product form is enough to see that the complement of the Petersen graph needs four colours.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
