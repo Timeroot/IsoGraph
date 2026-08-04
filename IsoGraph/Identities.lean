@@ -24731,4 +24731,284 @@ theorem two_le_domNum_crown (n : ℕ) : 2 ≤ (crown (n + 2)).domNum := by
 @[simp] theorem not_isTree_crown (n : ℕ) : ¬ IsTree (crown (n + 4)) :=
   not_isTree_of_girth_pos (by rw [girth_crown]; omega)
 
+/-- Any two vertices of a crown graph are at distance at most three, and the two ends of a
+removed matching edge realise that bound. -/
+theorem diameter_crown (n : ℕ) : (crown (n + 3)).diameter = 3 := by
+  rw [crown, complete_def, complete_def, tensorProduct_mk, diameter_mk]
+  let G : SimpleGraph (Fin (n + 3) × Fin 2) :=
+    (CGraph.tensorProduct (CGraph.complete (n + 3)) (CGraph.complete 2)).toSimple
+  have h_adj : ∀ p q : Fin (n + 3) × Fin 2, G.Adj p q ↔ p.1 ≠ q.1 ∧ p.2 ≠ q.2 := by
+    intro p q
+    simp [G, CGraph.toSimple_adj, CGraph.tensorProduct_adj, CGraph.complete_adj]
+  change G.diam = 3
+  set a0 : Fin (n + 3) := ⟨0, by omega⟩
+  set a1 : Fin (n + 3) := ⟨1, by omega⟩
+  set a2 : Fin (n + 3) := ⟨2, by omega⟩
+  have ha0_ne_a1 : a0 ≠ a1 := by simp [a0, a1]
+  have ha0_ne_a2 : a0 ≠ a2 := by simp [a0, a2]
+  have ha1_ne_a2 : a1 ≠ a2 := by simp [a1, a2]
+  have hfin2 : ∀ x : Fin 2, x = 0 ∨ x = 1 := by
+    intro x; rcases x with ⟨_ | _ | _, _⟩ <;> simp
+    omega
+  -- Helpers for Fin 2 inequalities
+  have h0_ne_1 : (0 : Fin 2) ≠ (1 : Fin 2) := by decide
+  -- Any walk of length ≤ 2 from (a0,0) to (a0,1) is impossible
+  -- (a0,0) and (a0,1) share a first coordinate, and their second coordinates exhaust Fin 2
+  have h_not_adj : ¬G.Adj (a0, 0) (a0, 1) := by simp [h_adj]
+  have h_no_common_neighbor :
+      ∀ w : Fin (n + 3) × Fin 2, G.Adj (a0, 0) w → G.Adj w (a0, 1) → False := by
+    intro w hw1 hw2
+    rw [h_adj] at hw1 hw2
+    rcases hfin2 w.2 with h2 | h2 <;> simp [h2] at hw1 hw2
+  -- Walk of length 3: (a0,0)-(a1,1)-(a2,0)-(a0,1)
+  have h_adj_01 : G.Adj (a0, 0) (a1, 1) := by simp [h_adj]; tauto
+  have h_adj_12 : G.Adj (a1, 1) (a2, 0) := by simp [h_adj]; tauto
+  have h_adj_23 : G.Adj (a2, 0) (a0, 1) := by simp [h_adj]; tauto
+  let w3 : G.Walk (a0, 0) (a0, 1) :=
+    SimpleGraph.Walk.cons h_adj_01
+      (SimpleGraph.Walk.cons h_adj_12
+        (SimpleGraph.Walk.cons h_adj_23 (SimpleGraph.Walk.nil)))
+  have hw3_len : w3.length = 3 := by simp [w3]
+  -- All walks from (i,x) to (j,y) have parity of length = (x ≠ y ? odd : even)
+  -- G is bipartite: color by second coordinate
+  let color : Fin (n + 3) × Fin 2 → Bool := fun p => decide (p.2 = 1)
+  have h_color_flip : ∀ p q, G.Adj p q → color p ≠ color q := by
+    intro p q hpq
+    rw [h_adj] at hpq
+    unfold color at ⊢
+    rcases hfin2 p.2 with hp2 | hp2 <;> rcases hfin2 q.2 with hq2 | hq2 <;> simp [hp2, hq2] at hpq ⊢
+  have h_bip : G.IsBipartite := by
+    exact ⟨fun p => if color p then 1 else 0, fun {p q} hpq => by
+      have hcf := h_color_flip p q hpq
+      simp [color] at hcf ⊢
+      split_ifs at hcf ⊢ <;> simp_all⟩
+  -- parity of walk length relates to colors of endpoints
+  have h_walk_parity_gen : ∀ {u v : Fin (n + 3) × Fin 2} (w : G.Walk u v),
+      (color u = color v ↔ Even w.length) ∧ (color u ≠ color v ↔ Odd w.length) := by
+    intro u v w
+    induction w using SimpleGraph.Walk.recOn with
+    | nil => simp
+    | @cons u' v' w' huv tail ih =>
+      rw [SimpleGraph.Walk.length_cons]
+      have hflip : color u' ≠ color v' := h_color_flip u' v' huv
+      have ⟨ih_iff1, ih_iff2⟩ := ih
+      rcases hu : color u' with hu | hu <;>
+      rcases hv : color v' with hv | hv <;>
+      rcases hw : color w' with hw | hw <;>
+      simp [hu, hv, hw] at hflip ih_iff1 ih_iff2 ⊢
+      · -- false, true, false: Odd tail.length → Even (tail.length + 1)
+        obtain ⟨k, hk⟩ := ih_iff2; rw [hk]; simp [Nat.even_add]
+      · -- false, true, true: Even tail.length → Odd (tail.length + 1)
+        obtain ⟨k, hk⟩ := ih_iff1; rw [hk]; simp
+      · -- true, false, false: Even tail.length → Odd (tail.length + 1)
+        obtain ⟨k, hk⟩ := ih_iff1; rw [hk]; simp
+      · -- true, false, true: Odd tail.length → Even (tail.length + 1)
+        obtain ⟨k, hk⟩ := ih_iff2; rw [hk]; simp [Nat.even_add]
+  have hcolor_0 : color (a0, 0) = false := by simp [color]
+  have hcolor_1 : color (a0, 1) = true := by simp [color]
+  have hcolor_diff : color (a0, 0) ≠ color (a0, 1) := by simp [hcolor_0, hcolor_1]
+  -- Reachability
+  have h_reach : G.Reachable (a0, 0) (a0, 1) := ⟨w3⟩
+  have h_ne_verts : ((a0, 0) : Fin (n + 3) × Fin 2) ≠ (a0, 1) := by simp
+  -- Any walk from (a0,0) to (a0,1) has odd length
+  have h_walk_odd : ∀ (w : G.Walk (a0, 0) (a0, 1)), Odd w.length := by
+    intro w; exact (h_walk_parity_gen w).2.mp hcolor_diff
+  -- No walk of length 0 or 1
+  have h_walk_len_pos : ∀ (w : G.Walk (a0, 0) (a0, 1)), 0 < w.length := by
+    intro w
+    by_contra h
+    push_neg at h
+    have hlen0 : w.length = 0 := by omega
+    rcases w with ⟨_ | _, _⟩; simp [SimpleGraph.Walk.length] at hlen0
+  -- No walk of length 1 (not adjacent)
+  have h_walk_ne_1 : ∀ (w : G.Walk (a0, 0) (a0, 1)), w.length ≠ 1 := by
+    intro w hw
+    have hadj : G.Adj (a0, 0) (a0, 1) := by
+      have hlen : w.length = 1 := hw
+      exact w.adj_of_length_eq_one hlen
+    exact h_not_adj hadj
+  -- Any walk from (a0,0) to (a0,1) has length ≥ 3
+  have h_walk_len_ge_3 : ∀ (w : G.Walk (a0, 0) (a0, 1)), 3 ≤ w.length := by
+    intro w
+    have hoa := h_walk_odd w
+    have hne0 := h_walk_len_pos w
+    have hne1 := h_walk_ne_1 w
+    rcases hoa with ⟨k, hk⟩
+    rcases k with _ | _ | k <;> simp [hk] at hne0 hne1 ⊢
+  -- edist ≥ 3 via walk-length lower bound
+  have h_edist_ge_3 : 3 ≤ G.edist (a0, 0) (a0, 1) := by
+    by_contra hlt
+    push_neg at hlt
+    -- edist < 3, so there exists a walk of length < 3 (in ℕ)
+    -- edist is an infimum over walks, so a bound below 3 exhibits a walk shorter than 3.
+    have h_reach' : G.Reachable (a0, 0) (a0, 1) := h_reach
+    have h_lt_nat : ∃ w : G.Walk (a0, 0) (a0, 1), w.length < 3 := by
+      rw [SimpleGraph.edist] at hlt
+      have hne : (⨅ w : G.Walk (a0, 0) (a0, 1), (w.length : ℕ∞)) < 3 := hlt
+      have hnonempty : Nonempty (G.Walk (a0, 0) (a0, 1)) :=
+        ⟨h_reach'.some⟩
+      have := exists_lt_of_ciInf_lt hne
+      obtain ⟨w, hw⟩ := this
+      exact ⟨w, WithTop.coe_lt_coe.mp hw⟩
+    exact absurd h_lt_nat (not_exists.mpr fun w => not_lt.mpr (h_walk_len_ge_3 w))
+  -- edist ≤ 3
+  have h_edist_le_3 : G.edist (a0, 0) (a0, 1) ≤ 3 := by
+    calc G.edist (a0, 0) (a0, 1) ≤ ↑w3.length := SimpleGraph.edist_le w3
+      _ ≤ 3 := by rw [hw3_len]; exact WithTop.coe_le_coe.mpr le_rfl
+  -- So edist (a0,0) (a0,1) = 3
+  have h_edist_eq_3 : G.edist (a0, 0) (a0, 1) = 3 := by
+    exact le_antisymm h_edist_le_3 h_edist_ge_3
+  -- Key adjacencies
+  have h_from_hub0 : ∀ i : Fin (n + 3), i ≠ a0 → G.Adj (a0, 0) (i, 1) := by
+    intro i hi; rw [h_adj]; exact ⟨hi.symm, h0_ne_1⟩
+  have h_from_hub1 : ∀ i : Fin (n + 3), i ≠ a0 → G.Adj (a0, 1) (i, 0) := by
+    intro i hi; rw [h_adj]; exact ⟨hi.symm, h0_ne_1.symm⟩
+  have h_to_hub0 : ∀ i : Fin (n + 3), i ≠ a0 → G.Adj (i, 0) (a0, 1) := by
+    intro i hi; rw [h_adj]; exact ⟨hi, h0_ne_1⟩
+  -- Hub pick: given i ≠ j, find k ∈ {a0,a1,a2} with a0 ≠ k, a1 ≠ k, a2 ≠ k... no, k ≠ i and k ≠ j
+  have h_hub_pick : ∀ (i j : Fin (n + 3)), i ≠ j →
+      ∃ k : Fin (n + 3), k ≠ i ∧ k ≠ j ∧ (k = a0 ∨ k = a1 ∨ k = a2) := by
+    intro i j hij
+    -- At least one of a0,a1,a2 is ≠ i and ≠ j, since |{i,j}| ≤ 2 < 3.
+    -- We case-split on whether i ∈ {a0,a1,a2}.
+    by_cases hi0 : i = a0
+    · subst hi0
+      by_cases hj0 : j = a0
+      · exfalso; exact hij hj0.symm
+      by_cases hj1 : j = a1
+      · subst hj1; exact ⟨a2, ha0_ne_a2.symm, ha1_ne_a2.symm, Or.inr (Or.inr rfl)⟩
+      · by_cases hj2 : j = a2
+        · subst hj2; exact ⟨a1, ha0_ne_a1.symm, ha1_ne_a2, Or.inr (Or.inl rfl)⟩
+        · exact ⟨a1, ha0_ne_a1.symm, Ne.symm hj1, Or.inr (Or.inl rfl)⟩
+    · by_cases hi1 : i = a1
+      · subst hi1
+        by_cases hj1 : j = a1
+        · exfalso; exact hij hj1.symm
+        by_cases hj0 : j = a0
+        · subst hj0; exact ⟨a2, ha1_ne_a2.symm, ha0_ne_a2.symm, Or.inr (Or.inr rfl)⟩
+        · by_cases hj2 : j = a2
+          · subst hj2; exact ⟨a0, ha0_ne_a1, ha0_ne_a2, Or.inl rfl⟩
+          · exact ⟨a0, ha0_ne_a1, Ne.symm hj0, Or.inl rfl⟩
+      · by_cases hi2 : i = a2
+        · subst hi2
+          by_cases hj2 : j = a2
+          · exfalso; exact hij hj2.symm
+          by_cases hj0 : j = a0
+          · subst hj0; exact ⟨a1, ha1_ne_a2, ha0_ne_a1.symm, Or.inr (Or.inl rfl)⟩
+          · by_cases hj1 : j = a1
+            · subst hj1; exact ⟨a0, ha0_ne_a2, ha0_ne_a1, Or.inl rfl⟩
+            · exact ⟨a0, ha0_ne_a2, Ne.symm hj0, Or.inl rfl⟩
+        · -- i ≠ a0,a1,a2
+          by_cases hj0 : j = a0
+          · subst hj0; exact ⟨a1, Ne.symm hi1, ha0_ne_a1.symm, Or.inr (Or.inl rfl)⟩
+          · by_cases hj1 : j = a1
+            · subst hj1; exact ⟨a0, Ne.symm hi0, ha0_ne_a1, Or.inl rfl⟩
+            · by_cases hj2 : j = a2
+              · subst hj2; exact ⟨a0, Ne.symm hi0, ha0_ne_a2, Or.inl rfl⟩
+              · exact ⟨a0, Ne.symm hi0, Ne.symm hj0, Or.inl rfl⟩
+  -- Extra hub adjacencies
+  have h_from_hub_a1_0 : ∀ i : Fin (n + 3), i ≠ a1 → G.Adj (a1, 0) (i, 1) := by
+    intro i hi; rw [h_adj]; exact ⟨hi.symm, h0_ne_1⟩
+  have h_from_hub_a1_1 : ∀ i : Fin (n + 3), i ≠ a1 → G.Adj (a1, 1) (i, 0) := by
+    intro i hi; rw [h_adj]; exact ⟨hi.symm, h0_ne_1.symm⟩
+  have h_from_hub_a2_0 : ∀ i : Fin (n + 3), i ≠ a2 → G.Adj (a2, 0) (i, 1) := by
+    intro i hi; rw [h_adj]; exact ⟨hi.symm, h0_ne_1⟩
+  have h_from_hub_a2_1 : ∀ i : Fin (n + 3), i ≠ a2 → G.Adj (a2, 1) (i, 0) := by
+    intro i hi; rw [h_adj]; exact ⟨hi.symm, h0_ne_1.symm⟩
+  have h_to_hub_a1_0 : ∀ i : Fin (n + 3), i ≠ a1 → G.Adj (i, 0) (a1, 1) := by
+    intro i hi; rw [h_adj]; exact ⟨hi, h0_ne_1⟩
+  have h_to_hub_a1_1 : ∀ i : Fin (n + 3), i ≠ a1 → G.Adj (i, 1) (a1, 0) := by
+    intro i hi; rw [h_adj]; exact ⟨hi, h0_ne_1.symm⟩
+  have h_to_hub_a2_0 : ∀ i : Fin (n + 3), i ≠ a2 → G.Adj (i, 0) (a2, 1) := by
+    intro i hi; rw [h_adj]; exact ⟨hi, h0_ne_1⟩
+  have h_to_hub_a2_1 : ∀ i : Fin (n + 3), i ≠ a2 → G.Adj (i, 1) (a2, 0) := by
+    intro i hi; rw [h_adj]; exact ⟨hi, h0_ne_1.symm⟩
+  -- Two distinct hubs ≠ any given i
+  have h_two_hub_ne : ∀ i : Fin (n + 3), ∃ k m : Fin (n + 3), k ≠ i ∧ m ≠ i ∧ k ≠ m ∧
+      (k = a0 ∨ k = a1 ∨ k = a2) ∧ (m = a0 ∨ m = a1 ∨ m = a2) := by
+    intro i
+    by_cases hi0 : i = a0
+    · subst hi0
+      exact ⟨a1, a2, ha0_ne_a1.symm, ha0_ne_a2.symm, ha1_ne_a2, Or.inr (Or.inl rfl),
+        Or.inr (Or.inr rfl)⟩
+    · by_cases hi1 : i = a1
+      · subst hi1
+        exact ⟨a0, a2, ha0_ne_a1, ha1_ne_a2.symm, ha0_ne_a2, Or.inl rfl,
+          Or.inr (Or.inr rfl)⟩
+      · by_cases hi2 : i = a2
+        · subst hi2
+          exact ⟨a0, a1, ha0_ne_a2, ha1_ne_a2, ha0_ne_a1, Or.inl rfl,
+            Or.inr (Or.inl rfl)⟩
+        · exact ⟨a0, a1, Ne.symm hi0, Ne.symm hi1, ha0_ne_a1, Or.inl rfl, Or.inr (Or.inl rfl)⟩
+  -- Walk (i,x) → (i, 1-x) of length 3 for any i
+  have h_walk_flip : ∀ (i : Fin (n + 3)) (x : Fin 2), G.edist (i, x) (i, 1 - x) ≤ 3 := by
+    intro i x
+    obtain ⟨k, m, hki, hmi, hkm, hkm_mem, hm_mem⟩ := h_two_hub_ne i
+    have hx_ne : x ≠ 1 - x := by
+      rcases hfin2 x with rfl | rfl <;> simp [h0_ne_1]
+    let ed1 : G.Adj (i, x) (k, 1 - x) := by
+      rw [h_adj]; simp; exact ⟨Ne.symm hki, hx_ne⟩
+    let ed2 : G.Adj (k, 1 - x) (m, x) := by
+      rw [h_adj]; simp; exact ⟨hkm, hx_ne.symm⟩
+    let ed3 : G.Adj (m, x) (i, 1 - x) := by
+      rw [h_adj]; simp; exact ⟨hmi, hx_ne⟩
+    have h1' : G.edist (i, x) (k, 1 - x) ≤ 1 := by
+      exact le_trans (G.edist_le (SimpleGraph.Walk.cons ed1 SimpleGraph.Walk.nil)) (by simp)
+    have h2' : G.edist (k, 1 - x) (m, x) ≤ 1 := by
+      exact le_trans (G.edist_le (SimpleGraph.Walk.cons ed2 SimpleGraph.Walk.nil)) (by simp)
+    have h3' : G.edist (m, x) (i, 1 - x) ≤ 1 := by
+      exact le_trans (G.edist_le (SimpleGraph.Walk.cons ed3 SimpleGraph.Walk.nil)) (by simp)
+    calc G.edist (i, x) (i, 1 - x)
+        ≤ G.edist (i, x) (k, 1 - x) + G.edist (k, 1 - x) (i, 1 - x) := G.edist_triangle
+      _ ≤ G.edist (i, x) (k, 1 - x) + (G.edist (k, 1 - x) (m, x) + G.edist (m, x) (i, 1 - x)) := by
+          gcongr; exact G.edist_triangle
+      _ ≤ 1 + (1 + 1) := by gcongr
+      _ = 3 := by norm_cast
+  -- All pairwise edist ≤ 3
+  have h_edist_le_three : ∀ (u v : Fin (n + 3) × Fin 2), G.edist u v ≤ 3 := by
+    intro ⟨i, x⟩ ⟨j, y⟩
+    by_cases h1 : i = j
+    · subst h1
+      by_cases h2 : x = y
+      · subst h2; rw [SimpleGraph.edist_self]; exact le_trans (by simp) (le_refl (3 : ℕ∞))
+      · have : y = 1 - x := by
+          rcases hfin2 x with rfl | rfl <;> rcases hfin2 y with rfl | rfl <;> simp at h2 ⊢
+        rw [this]; exact h_walk_flip i x
+    · by_cases h2 : x = y
+      · obtain ⟨k, hk_ne_i, hk_ne_j, hk_mem⟩ := h_hub_pick i j h1
+        have hflip_adj1 : G.Adj (i, x) (k, 1 - x) := by
+          rw [h_adj]; simp
+          exact ⟨Ne.symm hk_ne_i, by rcases hfin2 x with rfl | rfl <;> simp [h0_ne_1]⟩
+        have hflip_adj2 : G.Adj (k, 1 - x) (j, x) := by
+          rw [h_adj]; simp; exact ⟨hk_ne_j, by rcases hfin2 x with rfl | rfl <;> simp [h0_ne_1]⟩
+        have h1' : G.edist (i, x) (k, 1 - x) ≤ 1 := by
+          exact le_trans (G.edist_le (SimpleGraph.Walk.cons hflip_adj1 SimpleGraph.Walk.nil))
+            (by simp)
+        have h2' : G.edist (k, 1 - x) (j, x) ≤ 1 := by
+          exact le_trans (G.edist_le (SimpleGraph.Walk.cons hflip_adj2 SimpleGraph.Walk.nil))
+            (by simp)
+        subst h2
+        calc G.edist (i, x) (j, x)
+            ≤ G.edist (i, x) (k, 1 - x) + G.edist (k, 1 - x) (j, x) := G.edist_triangle
+          _ ≤ 1 + 1 := by gcongr
+          _ ≤ 3 := by decide
+      · have hadj : G.Adj (i, x) (j, y) := by
+          rw [h_adj]; simp
+          exact ⟨h1, by
+            rcases hfin2 x with rfl | rfl <;> rcases hfin2 y with rfl | rfl <;> simp at h2 ⊢⟩
+        have : G.edist (i, x) (j, y) ≤ 1 := by
+          exact le_trans (G.edist_le (SimpleGraph.Walk.cons hadj SimpleGraph.Walk.nil)) (by simp)
+        exact this.trans (by norm_cast)
+  have h_ediam_le : G.ediam ≤ 3 := SimpleGraph.ediam_le_of_edist_le h_edist_le_three
+  have h_ediam_ge : (3 : ℕ∞) ≤ G.ediam := by
+    rw [← h_edist_eq_3]
+    exact SimpleGraph.edist_le_ediam
+  have h_ediam_eq : G.ediam = 3 := le_antisymm h_ediam_le h_ediam_ge
+  rw [SimpleGraph.diam, h_ediam_eq]
+  rfl
+
+/-- A crown graph is vertex-transitive, so its radius matches its diameter. -/
+@[simp] theorem radius_crown (n : ℕ) : (crown (n + 3)).radius = 3 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_crown _), diameter_crown]
+
 end IsoGraph

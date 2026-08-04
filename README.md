@@ -1848,6 +1848,15 @@ prover produced -- the adjacent pair `(0,0), (0,1)` in `S_4`, which between them
 vertex -- shows the answer is two.  The matching lower bound `2 ≤ γ(S_n)` follows from
 `n ≤ γ · (Δ + 1)` and is proved here; the upper bound went back into the queue.
 
+The last crown-graph invariant is its diameter.  The prover's argument is the textbook one made
+formal: the two ends of a deleted matching edge lie in the same part, have no common neighbour
+because the two sides of the bipartition exhaust the second coordinate, and are joined by the
+three-step walk `(0,0) - (1,1) - (2,0) - (0,1)`; a parity argument -- the second coordinate is a
+proper two-colouring, so every walk between differently coloured endpoints is odd -- rules out
+lengths zero, one and two.  Every other pair is at distance one or two, which needs a third
+vertex distinct from both and hence the eight-vertex hypothesis.  Vertex transitivity turns the
+diameter into the radius for free.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
