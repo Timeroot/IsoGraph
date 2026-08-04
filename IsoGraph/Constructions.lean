@@ -5412,6 +5412,26 @@ theorem isVertexTransitive_kneser (n k : ℕ) : (kneser n k).IsVertexTransitive 
     (Finset.disjoint_empty_right A') (hA.trans hA'.symm) rfl
   exact ⟨kneserAuto n k π, Subtype.ext hπ⟩
 
+/-- A permutation of the ground set is an automorphism of the Johnson graph: it permutes the
+`k`-subsets and preserves the size of an intersection. -/
+def johnsonAuto (n k : ℕ) (π : Equiv.Perm (Fin n)) : johnson n k ≃cg johnson n k :=
+  autoOfPerm (G := johnson n k) (kneserPerm n k π) fun s t ↦ by
+    obtain ⟨s, hs⟩ := s
+    obtain ⟨t, ht⟩ := t
+    show (johnson n k).Adj (kneserPerm n k π ⟨s, hs⟩) (kneserPerm n k π ⟨t, ht⟩) = _
+    simp only [johnson_adj, ne_eq, Subtype.ext_iff, kneserPerm_coe,
+      (Finset.image_injective π.injective).eq_iff, ← Finset.image_inter _ _ π.injective,
+      Finset.card_image_of_injective _ π.injective]
+
+/-- Johnson graphs are vertex-transitive.  As for `isVertexTransitive_kneser`, this does not go
+through `isVertexTransitive_of_isArcTransitive`: `exists_perm_image₂` with both second
+components empty produces the permutation directly. -/
+theorem isVertexTransitive_johnson (n k : ℕ) : (johnson n k).IsVertexTransitive := by
+  rintro ⟨A, hA⟩ ⟨A', hA'⟩
+  obtain ⟨π, hπ, -⟩ := exists_perm_image₂ (Finset.disjoint_empty_right A)
+    (Finset.disjoint_empty_right A') (hA.trans hA'.symm) rfl
+  exact ⟨johnsonAuto n k π, Subtype.ext hπ⟩
+
 /-! ### Sanity checks
 
 The decision procedure agrees with the structural lemmas on small cases, and does see asymmetry

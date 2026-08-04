@@ -21277,4 +21277,704 @@ theorem two_mul_E_ladder (n : ℕ) : 2 * (ladder (n + 2)).E = 8 + 6 * n := by
     smul_eq_mul, smul_eq_mul] at h
   omega
 
+
+/-- The radius of a strong product is the maximum of the radii. -/
+theorem radius_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
+    (strongProduct G H).radius = max G.radius H.radius := by
+  induction G using Quotient.inductionOn with | _ G
+  induction H using Quotient.inductionOn with | _ H
+  have hdG : DecidableEq G.V := Classical.decEq _
+  have hdH : DecidableEq H.V := Classical.decEq _
+  rw [strongProduct_mk, radius_mk, radius_mk, radius_mk]
+  simp [isConnected_mk] at hG hH
+  haveI : Nonempty G.V := hG.nonempty
+  haveI : Nonempty H.V := hH.nonempty
+  haveI : Nonempty (G.strongProduct H).V := ⟨(Classical.arbitrary G.V, Classical.arbitrary H.V)⟩
+  set Gs := G.toSimple
+  set Hs := H.toSimple
+  set SPs := (G.strongProduct H).toSimple
+  have hSP_adj : ∀ p q : G.V × H.V, SPs.Adj p q ↔ p ≠ q ∧ ((p.1 = q.1 ∨ Gs.Adj p.1 q.1) ∧ (p.2 = q.2
+    ∨ Hs.Adj p.2 q.2)) := by
+    simp [SPs, CGraph.toSimple, CGraph.strongProduct, Gs, Hs]
+  -- For any SP-walk from u to v, there's a G-walk from u.1 to v.1 of ≤ length.
+  have projectWalk_G_len : ∀ {u v : G.V × H.V} (W : SPs.Walk u v),
+      Gs.edist u.1 v.1 ≤ ↑W.length := by
+    intro u v W
+    induction W with
+    | nil =>
+      simp
+    | @cons a b c hpq rest ih =>
+      rw [SimpleGraph.Walk.length_cons]
+      rcases (hSP_adj a b).mp hpq |>.2.1 with heq | hadj
+      · -- G coord same: a.1 = b.1, so edist a.1 c.1 = edist b.1 c.1 ≤ rest.length ≤ rest.length + 1
+        rw [heq]
+        exact le_trans ih (by exact_mod_cast Nat.cast_le.mpr (Nat.le_add_right _ _))
+      · -- G coord adjacent: prepend edge a.1-b.1
+        have : Gs.edist a.1 b.1 ≤ 1 := by
+          exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj
+            SimpleGraph.Walk.nil)) (by simp)
+        calc Gs.edist a.1 c.1 ≤ Gs.edist a.1 b.1 + Gs.edist b.1 c.1 := SimpleGraph.edist_triangle
+          _ ≤ 1 + ↑rest.length := add_le_add this ih
+          _ = ↑(rest.length + 1) := by push_cast; ring
+  have hedist_ge_G : ∀ h0 : H.V, ∀ g1 g2 : G.V, Gs.edist g1 g2 ≤ SPs.edist (g1, h0) (g2, h0) := by
+    intro h0 g1 g2
+    have key : ∀ (q : SPs.Walk (g1, h0) (g2, h0)), Gs.edist g1 g2 ≤ ↑q.length := by
+      intro q
+      exact projectWalk_G_len q
+    by_cases hne : Nonempty (SPs.Walk (g1, h0) (g2, h0))
+    · exact le_iInf (fun q => key q)
+    · push_neg at hne
+      have : SPs.edist (g1, h0) (g2, h0) = ⊤ := by
+        rw [SimpleGraph.edist_eq_top_of_not_reachable]
+        exact fun hr => hne.elim hr.some
+      exact this.symm ▸ le_top
+  -- H lower bound (symmetric to G)
+  have projectWalk_H_len : ∀ {u v : G.V × H.V} (W : SPs.Walk u v), Hs.edist u.2 v.2 ≤ ↑W.length :=
+    by
+    intro u v W
+    induction W with
+    | nil => simp
+    | @cons a b c hpq rest ih =>
+      rw [SimpleGraph.Walk.length_cons]
+      rcases (hSP_adj a b).mp hpq |>.2.2 with heq | hadj
+      · rw [heq]
+        exact le_trans ih (by exact_mod_cast Nat.cast_le.mpr (Nat.le_add_right _ _))
+      · calc Hs.edist a.2 c.2 ≤ Hs.edist a.2 b.2 + Hs.edist b.2 c.2 := SimpleGraph.edist_triangle
+          _ ≤ 1 + ↑rest.length := add_le_add (by
+              exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj
+                SimpleGraph.Walk.nil)) (by simp)) ih
+          _ = ↑(rest.length + 1) := by push_cast; ring
+  have hedist_ge_H : ∀ g0 : G.V, ∀ h1 h2 : H.V, Hs.edist h1 h2 ≤ SPs.edist (g0, h1) (g0, h2) := by
+    intro g0 h1 h2
+    have key : ∀ (q : SPs.Walk (g0, h1) (g0, h2)), Hs.edist h1 h2 ≤ ↑q.length := by
+      intro q; exact projectWalk_H_len q
+    by_cases hne : Nonempty (SPs.Walk (g0, h1) (g0, h2))
+    · exact le_iInf (fun q => key q)
+    · push_neg at hne
+      have : SPs.edist (g0, h1) (g0, h2) = ⊤ := by
+        rw [SimpleGraph.edist_eq_top_of_not_reachable]
+        exact fun hr => hne.elim hr.some
+      exact this.symm ▸ le_top
+  -- Graph hom G →g SPs fixing H-coordinate
+  let toSP_G (h0 : H.V) : Gs →g SPs := {
+    toFun := fun g => (g, h0)
+    map_rel' := @fun (a b : G.V) hab =>
+      hSP_adj (a, h0) (b, h0) |>.mpr ⟨ne_of_apply_ne Prod.fst hab.ne, Or.inr hab, Or.inl rfl⟩
+  }
+  -- Graph hom H →g SPs fixing G-coordinate
+  let toSP_H (g0 : G.V) : Hs →g SPs := {
+    toFun := fun h => (g0, h)
+    map_rel' := @fun (a b : H.V) hab =>
+      hSP_adj (g0, a) (g0, b) |>.mpr ⟨ne_of_apply_ne Prod.snd hab.ne, Or.inl rfl, Or.inr hab⟩
+  }
+  -- SP walk of length ≤ max WG.length WH.length
+  have spWalk_max : ∀ (n : ℕ) {g1 g2 : G.V} {h1 h2 : H.V}
+      (WG : Gs.Walk g1 g2) (WH : Hs.Walk h1 h2),
+      WG.length + WH.length ≤ n →
+      ∃ (W : SPs.Walk (g1, h1) (g2, h2)), W.length ≤ max WG.length WH.length := by
+    intro n
+    induction n with
+    | zero =>
+      intro g1 g2 h1 h2 WG WH hle
+      have hWG : WG.length = 0 := by omega
+      have hWH : WH.length = 0 := by omega
+      have hg1g2 : g1 = g2 := by
+        have := WG.getVert_zero; have := WG.getVert_length; simp [hWG] at *; exact this
+      have hh1h2 : h1 = h2 := by
+        have := WH.getVert_zero; have := WH.getVert_length; simp [hWH] at *; exact this
+      subst hg1g2; subst hh1h2
+      exact ⟨.nil, by simp⟩
+    | succ m ih =>
+      intro g1 g2 h1 h2 WG WH hle
+      by_cases hg : WG.length = 0
+      · have hg1g2 : g1 = g2 := by
+          have := WG.getVert_zero; have := WG.getVert_length; simp [hg] at *; exact this
+        subst hg1g2
+        exact ⟨WH.map (toSP_H g1), by simp [hg]⟩
+      · by_cases hh : WH.length = 0
+        · have hh1h2 : h1 = h2 := by
+            have := WH.getVert_zero; have := WH.getVert_length; simp [hh] at *; exact this
+          subst hh1h2
+          exact ⟨WG.map (toSP_G h1), by simp [hh]⟩
+        · cases WG with
+          | nil => contradiction
+          | cons hab WGtail =>
+            cases WH with
+            | nil => contradiction
+            | cons hcd WHtail =>
+              obtain ⟨W', hW'⟩ := ih WGtail WHtail
+                (by simp [SimpleGraph.Walk.length_cons] at hle ⊢; omega)
+              exact
+                ⟨SimpleGraph.Walk.cons (hSP_adj _ _ |>.mpr
+                    ⟨by rintro ⟨rfl, rfl⟩; exact hab.ne rfl, Or.inr hab, Or.inr hcd⟩) W', by
+                  simp [SimpleGraph.Walk.length_cons] at hW' ⊢
+                  omega⟩
+  -- Upper bound: SP edist ≤ max of coordinate edists
+  have hedist_le_max : ∀ g1 g2 : G.V, ∀ h1 h2 : H.V,
+      SPs.edist (g1, h1) (g2, h2) ≤ max (Gs.edist g1 g2) (Hs.edist h1 h2) := by
+    intro g1 g2 h1 h2
+    by_cases hg : Gs.edist g1 g2 = ⊤
+    · simp [hg]
+    by_cases hh : Hs.edist h1 h2 = ⊤
+    · simp [hh]
+    obtain ⟨WG, hWG⟩ := SimpleGraph.exists_walk_of_edist_ne_top hg
+    obtain ⟨WH, hWH⟩ := SimpleGraph.exists_walk_of_edist_ne_top hh
+    obtain ⟨W, hW⟩ := spWalk_max (WG.length + WH.length) WG WH (le_refl _)
+    calc SPs.edist (g1, h1) (g2, h2) ≤ ↑W.length := SimpleGraph.Walk.edist_le W
+      _ ≤ ↑(max WG.length WH.length) := WithTop.coe_mono hW
+      _ = max (WG.length : ℕ∞) (WH.length : ℕ∞) := by
+          show (max WG.length WH.length : ℕ∞) = max (WG.length : ℕ∞) (WH.length : ℕ∞)
+          cases le_total WG.length WH.length with
+          | inl h => simp [max_eq_right h]
+          | inr h => simp [max_eq_left h]
+      _ ≤ max (Gs.edist g1 g2) (Hs.edist h1 h2) :=
+          max_le_max (hWG.le) (hWH.le)
+  -- Eccentricity: SP eccent (g,h) = max(G eccent g, H eccent h)
+  have heccent_eq : ∀ g : G.V, ∀ h : H.V,
+      SPs.eccent (g, h) = max (Gs.eccent g) (Hs.eccent h) := by
+    intro g h
+    apply le_antisymm
+    · -- Upper bound: SP eccent ≤ max
+      simp only [SimpleGraph.eccent]
+      refine ciSup_le fun p => le_trans (hedist_le_max g p.1 h p.2) ?_
+      apply max_le
+      · exact le_trans SimpleGraph.edist_le_eccent (le_max_left _ _)
+      · exact le_trans SimpleGraph.edist_le_eccent (le_max_right _ _)
+    · -- Lower bound: max ≤ SP eccent
+      apply max_le
+      · -- Gs.eccent g ≤ SPs.eccent (g, h)
+        simp only [SimpleGraph.eccent]
+        have hbdd : BddAbove (Set.range (fun q : G.V × H.V => SPs.edist (g, h) q)) := by
+          refine ⟨max (Gs.eccent g) (Hs.eccent h), ?_⟩
+          intro x hx
+          obtain ⟨q, hq⟩ := hx
+          dsimp at hq
+          rw [← hq]
+          exact le_trans (hedist_le_max g q.1 h q.2) (max_le (le_trans SimpleGraph.edist_le_eccent
+            (le_max_left _ _)) (le_trans SimpleGraph.edist_le_eccent (le_max_right _ _)))
+        apply ciSup_le fun g' => le_trans (hedist_ge_G h g g')
+          (le_ciSup hbdd (g', h))
+      · -- Hs.eccent h ≤ SPs.eccent (g, h)
+        simp only [SimpleGraph.eccent]
+        have hbdd : BddAbove (Set.range (fun q : G.V × H.V => SPs.edist (g, h) q)) := by
+          refine ⟨max (Gs.eccent g) (Hs.eccent h), ?_⟩
+          intro x hx
+          obtain ⟨q, hq⟩ := hx
+          dsimp at hq
+          rw [← hq]
+          exact le_trans (hedist_le_max g q.1 h q.2) (max_le (le_trans SimpleGraph.edist_le_eccent
+            (le_max_left _ _)) (le_trans SimpleGraph.edist_le_eccent (le_max_right _ _)))
+        apply ciSup_le fun h' => le_trans (hedist_ge_H g h h')
+          (le_ciSup hbdd (g, h'))
+  -- SPs.radius ≤ max Gs.radius Hs.radius
+  -- For any g₀ : G.V, SPs.radius ≤ max (Gs.eccent g₀) (Hs.eccent h₀) for any h₀.
+  -- So SPs.radius ≤ max (Gs.eccent g₀) Hs.radius (since if SPs.radius > Gs.eccent g₀,
+  -- then SPs.radius ≤ Hs.eccent h for all h, so SPs.radius ≤ Hs.radius).
+  have h_aux : ∀ g₀ : G.V, SPs.radius ≤ max (Gs.eccent g₀) Hs.radius := by
+    intro g₀
+    have hle : ∀ h : H.V, SPs.radius ≤ max (Gs.eccent g₀) (Hs.eccent h) := by
+      intro h
+      exact le_trans SimpleGraph.radius_le_eccent (heccent_eq g₀ h).le
+    by_cases hg₀ : SPs.radius ≤ Gs.eccent g₀
+    · exact le_max_of_le_left hg₀
+    · push_neg at hg₀
+      have hleH : ∀ h : H.V, SPs.radius ≤ Hs.eccent h := by
+        intro h
+        have hle_h := hle h
+        rw [le_max_iff] at hle_h
+        exact hle_h.resolve_left hg₀.not_ge
+      have hleH_radius : SPs.radius ≤ Hs.radius := by
+        exact le_csInf (Set.range_nonempty _) (by rintro _ ⟨h, rfl⟩; exact hleH h)
+      exact le_max_of_le_right hleH_radius
+  -- SPs.radius ≤ max Gs.radius Hs.radius:
+  -- For any g₀, SPs.radius ≤ max (Gs.eccent g₀) Hs.radius.
+  -- Also SPs.radius ≤ max Gs.radius (Hs.eccent h₀) for any h₀ (symmetric argument).
+  -- Pick g₀ arbitrary. If Gs.eccent g₀ < SPs.radius, then SPs.radius ≤ Hs.radius ≤ max ...
+  -- If Gs.eccent g₀ ≥ SPs.radius, then SPs.radius ≤ Gs.eccent g₀ ≤ max Gs.radius ... no.
+  -- Better: use iInf. SPs.radius ≤ ⨅ g₀, max (Gs.eccent g₀) Hs.radius.
+  -- And ⨅ g₀, max (Gs.eccent g₀) Hs.radius = max (⨅ g₀, Gs.eccent g₀) Hs.radius = max Gs.radius
+  -- Hs.radius.
+  have h_le_max_enat : SPs.radius ≤ max Gs.radius Hs.radius := by
+    have h1 : SPs.radius ≤ ⨅ g₀ : G.V, max (Gs.eccent g₀) Hs.radius := by
+      apply le_ciInf
+      intro g₀; exact h_aux g₀
+    have h2 : ⨅ g₀ : G.V, max (Gs.eccent g₀) Hs.radius = max Gs.radius Hs.radius := by
+      rw [SimpleGraph.radius]
+      apply le_antisymm
+      · -- iInf_g max (Gs.eccent g) C ≤ max (iInf Gs.eccent) C
+        by_contra hlt
+        push_neg at hlt
+        -- hlt : max (⨅ g, Gs.eccent g) Hs.radius < ⨅ g, max (Gs.eccent g) Hs.radius
+        have hlt_c : Hs.radius < ⨅ g, max (Gs.eccent g) Hs.radius := hlt.trans_le' (le_max_right _
+          _)
+        -- So for all g, max (Gs.eccent g) Hs.radius ≥ ⨅ ... > Hs.radius, so Gs.eccent g > Hs.radius
+        -- ... no.
+        -- max(A, C) ≥ D > C implies A ≥ D > C, so A > C.
+        have hGs_gt_H : ∀ g : G.V, Hs.radius < Gs.eccent g := by
+          intro g
+          have hle_g : Hs.radius < max (Gs.eccent g) Hs.radius := hlt_c.trans_le (iInf_le (f := fun
+            g' => max (Gs.eccent g') Hs.radius) g)
+          rw [lt_max_iff] at hle_g
+          exact hle_g.resolve_right (lt_irrefl Hs.radius)
+        -- So max (Gs.eccent g) Hs.radius = Gs.eccent g for all g.
+        have hmax_eq : ∀ g : G.V, max (Gs.eccent g) Hs.radius = Gs.eccent g := by
+          intro g; rw [max_eq_left]; exact le_of_lt (hGs_gt_H g)
+        have hGs_radius : Gs.radius = ⨅ g : G.V, Gs.eccent g := by rw [SimpleGraph.radius]
+        rw [hGs_radius] at hlt
+        have hmax_eq' : ∀ g : G.V, max (Gs.eccent g) (⨅ u : H.V, Hs.eccent u) = Gs.eccent g := by
+          intro g
+          show max (Gs.eccent g) Hs.radius = Gs.eccent g
+          exact hmax_eq g
+        simp_rw [hmax_eq'] at hlt
+        exact absurd hlt (not_lt_of_ge (le_max_left _ _))
+      · -- max (iInf Gs.eccent) C ≤ iInf_g max (Gs.eccent g) C
+        apply max_le
+        · have hbdd : BddBelow (Set.range (Gs.eccent : G.V → ℕ∞)) :=
+            ⟨0, by rintro _ ⟨_, rfl⟩; exact zero_le _⟩
+          exact le_ciInf fun a => le_trans (ciInf_le hbdd a) (le_max_left _ _)
+        · exact le_ciInf fun _ => le_max_right _ _
+    rw [h2] at h1; exact h1
+  -- max Gs.radius Hs.radius ≤ SPs.radius
+  have h_ge_max_enat : max Gs.radius Hs.radius ≤ SPs.radius := by
+    apply max_le
+    · -- Gs.radius ≤ SPs.radius
+      apply le_csInf (Set.range_nonempty _)
+      rintro _ ⟨p, rfl⟩
+      exact le_trans (SimpleGraph.radius_le_eccent) (heccent_eq p.1 p.2 ▸ le_max_left _ _)
+    · -- Hs.radius ≤ SPs.radius
+      apply le_csInf (Set.range_nonempty _)
+      rintro _ ⟨p, rfl⟩
+      exact le_trans (SimpleGraph.radius_le_eccent) (heccent_eq p.1 p.2 ▸ le_max_right _ _)
+  have h_radius_eq_enat : SPs.radius = max Gs.radius Hs.radius := by
+    exact le_antisymm h_le_max_enat h_ge_max_enat
+  simp [radius_mk, CGraph.radius]
+  rw [h_radius_eq_enat]
+  have key : ∀ (a b : ℕ∞), a ≠ ⊤ → b ≠ ⊤ → (max a b).toNat = max a.toNat b.toNat := by
+    intro a b ha hb
+    cases le_total a b with
+    | inl hab =>
+      rw [max_eq_right hab, max_eq_right (ENat.toNat_le_toNat hab hb)]
+    | inr hab =>
+      rw [max_eq_left hab, max_eq_left (ENat.toNat_le_toNat hab ha)]
+  exact key _ _ (SimpleGraph.radius_ne_top_iff.2 hG) (SimpleGraph.radius_ne_top_iff.2 hH)
+
+/-- A wheel has a near-perfect matching. -/
+theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
+  apply le_antisymm
+  · have h1 := (wheel (n + 3)).two_mul_matchNum_le_V
+    rw [V_wheel] at h1
+    omega
+  · -- Lower bound
+    rw [matchNum_eq]
+    set G := wheel (n + 3)
+    -- We exhibit an independent set of lineGraph G of size (n+4)/2,
+    -- corresponding to a matching in G.
+    -- Vertices of G = wheel(n+3) = join (complete 1) (cycle (n+3)) live in Fin 1 ⊕ Fin (n+3).
+    -- Hub = inl 0, rim vertices = inr i for i : Fin (n+3).
+    -- Rim edges: (inr i, inr ((i+1) % (n+3))) for i : Fin (n+3).
+    -- Spoke edges: (inl 0, inr i) for i : Fin (n+3).
+    -- Construction (parity split on n):
+    --   n = 2*k (even): spoke to inr 0, plus rim edges (inr (2*i+1), inr (2*i+2)) for i < k+1.
+    --     Size = 1 + (k+1) = k+2 = (2*k+4)/2.
+    --   n = 2*k+1 (odd): rim edges (inr (2*i), inr (2*i+1)) for i < k+2.
+    --     Size = k+2 = (2*k+3+1)/2 = (n+4)/2.
+    -- These edges are pairwise disjoint, so the corresponding vertices of lineGraph G
+    -- form an independent set.
+    rcases Nat.even_or_odd' n with ⟨k, rfl | rfl⟩
+    · -- Even case: n = 2*k
+      have hconvert : (wheel (2 * k + 3)).lineGraph.indepNum =
+          (CGraph.wheel (2 * k + 3)).lineGraph.indepNum := by
+        rw [show (wheel (2 * k + 3) : IsoGraph) = ⟦CGraph.wheel (2 * k + 3)⟧ from rfl,
+            lineGraph_mk, indepNum_mk]
+      rw [hconvert]
+      have harith : (2 * k + 4) / 2 = k + 2 := by omega
+      rw [harith]
+      set m : ℕ := 2 * k + 3
+      -- spokes edge: {inl 0, inr 0}
+      let mkSpoke : Sym2 (Fin 1 ⊕ Fin m) := Sym2.mk (Sum.inl ⟨0, by omega⟩, Sum.inr ⟨0, by omega⟩)
+      -- rim edges for j : Fin (k+1): {inr(2*j+1), inr(2*j+2)}
+      let mkRim : Fin (k + 1) → Sym2 (Fin 1 ⊕ Fin m) :=
+        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 2, by omega⟩)
+      -- Show spoke is in edgeSet
+      have hspoke_mem : mkSpoke ∈ (CGraph.wheel m).toSimple.edgeSet := by
+        rw [SimpleGraph.mem_edgeSet]
+        simp [CGraph.wheel]
+        rw [CGraph.join_adj_inl_inr]
+      -- Show each rim edge is in edgeSet
+      have hrim_mem : ∀ j : Fin (k + 1),
+          mkRim j ∈ (CGraph.wheel m).toSimple.edgeSet := by
+        intro j
+        rw [SimpleGraph.mem_edgeSet]
+        simp [CGraph.wheel]
+        rw [CGraph.join_adj_inr_inr]
+        show (CGraph.cycle m).Adj ⟨2 * (j : ℕ) + 1, by omega⟩ ⟨2 * (j : ℕ) + 2, by omega⟩ = true
+        simp [CGraph.cycle, CGraph.ofRel_adj]
+        have hj : (j : ℕ) < k + 1 := j.is_lt
+        rw [Nat.mod_eq_of_lt (by omega : 2 * (j : ℕ) + 2 < m)]
+        simp
+      -- mkRim is injective
+      have hrim_inj : Function.Injective mkRim := by
+        intro j j' hjj'
+        simp only [mkRim] at hjj'
+        set a : Fin m := ⟨2 * (j : ℕ) + 1, by omega⟩
+        set b : Fin m := ⟨2 * (j : ℕ) + 2, by omega⟩
+        set a' : Fin m := ⟨2 * (j' : ℕ) + 1, by omega⟩
+        set b' : Fin m := ⟨2 * (j' : ℕ) + 2, by omega⟩
+        have heq : Sym2.mk (Sum.inr a, Sum.inr b) = Sym2.mk (Sum.inr a', Sum.inr b') := hjj'
+        have ha_in_edge' : (Sum.inr a : Fin 1 ⊕ Fin m) ∈ Sym2.mk (Sum.inr a', Sum.inr b') := by
+          rw [← heq]
+          show Sym2.Mem _ _
+          simp [Sym2.Mem, Sym2.Rel]
+        simp [Sym2.Rel] at ha_in_edge'
+        obtain h | h := ha_in_edge'
+        · simp [a, a'] at h
+          exact Fin.ext (by omega)
+        · simp [a, b'] at h
+          omega
+      let spokeV : (CGraph.lineGraph (CGraph.wheel m)).V := ⟨mkSpoke, hspoke_mem⟩
+      let rimV : Fin (k + 1) → (CGraph.lineGraph (CGraph.wheel m)).V :=
+        fun j => ⟨mkRim j, hrim_mem j⟩
+      -- Charactize spokeV vs rimV: spokeV has inl, rimV edges don't
+      -- Charactize mkSpoke membership
+      have hmem_spoke_lhs : (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ mkSpoke ∧
+          (Sum.inr ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ mkSpoke := by
+        simp [mkSpoke, Sym2.Rel]
+      have hnotmem_spoke : ∀ (v : Fin 1 ⊕ Fin m) (j : Fin (k + 1)), v ∈ mkSpoke → v ∉ mkRim j := by
+        intro v j hvmem
+        simp [mkSpoke, Sym2.Rel] at hvmem
+        rcases hvmem with rfl | rfl <;> simp [mkRim, Sym2.Rel]
+      -- spokeV ≠ rimV j
+      have hspoke_ne_rim : ∀ j : Fin (k + 1), spokeV ≠ rimV j := by
+        intro j heq
+        have hval : mkSpoke = mkRim j := Subtype.ext_iff.mp heq
+        have h1 : Sum.inl ⟨0, by omega⟩ ∈ mkSpoke := hmem_spoke_lhs.1
+        rw [hval] at h1
+        exact absurd h1 (hnotmem_spoke _ j (hmem_spoke_lhs.1))
+      -- Charactize mkRim membership
+      have hmemRim_char : ∀ j : Fin (k + 1), ∀ y : Fin 1 ⊕ Fin m,
+          y ∈ mkRim j ↔ y = Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩ ∨ y = Sum.inr
+            ⟨2 * (j : ℕ) + 2, by omega⟩ := by
+        intro j y; simp [mkRim, Sym2.Rel]
+      -- LineGraph vertices: spokeV and all rimV
+      let vertices : Finset (CGraph.lineGraph (CGraph.wheel m)).V :=
+        {spokeV} ∪ Finset.univ.image rimV
+      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.wheel m)).toSimple
+        (vertices : Set _) := by
+        unfold SimpleGraph.IsIndepSet
+        intro v hv w hw hvw
+        have hv' : v = spokeV ∨ ∃ j : Fin (k + 1), rimV j = v := by
+          simp [vertices, Finset.mem_union, Finset.mem_singleton, Finset.mem_image, Finset.mem_univ]
+            at hv
+          exact hv
+        have hw' : w = spokeV ∨ ∃ j : Fin (k + 1), rimV j = w := by
+          simp [vertices, Finset.mem_union, Finset.mem_singleton, Finset.mem_image, Finset.mem_univ]
+            at hw
+          exact hw
+        rcases hv' with rfl | ⟨j, rfl⟩
+        · rcases hw' with rfl | ⟨j', rfl⟩
+          · exact absurd rfl hvw
+          · intro h
+            simp [CGraph.toSimple] at h
+            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
+            exact hnotmem_spoke v j' hv1 hv2
+        · rcases hw' with rfl | ⟨j', rfl⟩
+          · intro h
+            simp [CGraph.toSimple] at h
+            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
+            exact hnotmem_spoke v j hv2 hv1
+          · by_cases heq : j = j'
+            · subst heq; simp [CGraph.toSimple, CGraph.lineGraph_adj]
+            · intro h
+              simp [CGraph.toSimple, CGraph.lineGraph_adj, rimV, hmemRim_char] at h
+              have hne' : (j : ℕ) ≠ (j' : ℕ) := fun hval => heq (Fin.ext hval)
+              omega
+      have hcard : vertices.card = k + 2 := by
+        simp only [vertices]
+        have hdisj : Disjoint {spokeV} (Finset.univ.image rimV) := by
+          rw [Finset.disjoint_singleton_left]
+          intro hv
+          obtain ⟨j, _, hj⟩ := Finset.mem_image.mp hv
+          exact hspoke_ne_rim j (hj.symm)
+        rw [Finset.card_union_of_disjoint hdisj]
+        simp [Finset.card_singleton]
+        rw [Finset.card_image_of_injective _ (fun j j' hj => hrim_inj (Subtype.ext_iff.mp hj))]
+        simp; omega
+      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
+    · -- Odd case: n = 2*k+1
+      -- Goal: (2*k+5)/2 ≤ (wheel (2*k+4)).lineGraph.indepNum
+      -- We work at CGraph level. wheel (2*k+4) as IsoGraph = ⟦CGraph.wheel (2*k+4)⟧
+      -- lineGraph (wheel (2*k+4)) as IsoGraph = ⟦CGraph.lineGraph (CGraph.wheel (2*k+4))⟧
+      -- indepNum of that = (CGraph.lineGraph (CGraph.wheel (2*k+4))).indepNum
+      have hconvert : (wheel (2 * k + 1 + 3)).lineGraph.indepNum =
+          (CGraph.wheel (2 * k + 4)).lineGraph.indepNum := by
+        rw [show (wheel (2 * k + 1 + 3) : IsoGraph) = ⟦CGraph.wheel (2 * k + 4)⟧ from rfl,
+            lineGraph_mk, indepNum_mk]
+      rw [hconvert]
+      -- Simplify arithmetic
+      have harith : (2 * k + 1 + 4) / 2 = k + 2 := by omega
+      rw [harith]
+      -- Define the candidate independent set: rim edges E_j = {inr(2j), inr(2j+1)} for j : Fin
+      -- (k+2)
+      set m : ℕ := 2 * k + 4
+      -- Each edge as a Sym2
+      let mkEdge : Fin (k + 2) → Sym2 (Fin 1 ⊕ Fin m) :=
+        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ), by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩)
+      -- Show each mkEdge j is in the wheel's edgeSet
+      have hedge_mem : ∀ j : Fin (k + 2),
+          mkEdge j ∈ (CGraph.wheel m).toSimple.edgeSet := by
+        intro j
+        rw [SimpleGraph.mem_edgeSet]
+        simp [CGraph.wheel]
+        rw [CGraph.join_adj_inr_inr]
+        show (CGraph.cycle m).Adj ⟨2 * (j : ℕ), by omega⟩ ⟨2 * (j : ℕ) + 1, by omega⟩ = true
+        simp [CGraph.cycle, CGraph.ofRel_adj, Fin.val_add, Fin.val_mul]
+        have hj : (j : ℕ) < k + 2 := j.is_lt
+        rw [Nat.mod_eq_of_lt (by omega : 2 * (j : ℕ) + 1 < m)]
+        simp
+      -- Build the Finset of lineGraph vertices
+      let vertices : Finset (CGraph.lineGraph (CGraph.wheel m)).V :=
+        Finset.univ.image (fun j : Fin (k + 2) =>
+          ⟨mkEdge j, hedge_mem j⟩)
+      -- Show the vertices are pairwise non-adjacent in lineGraph
+      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.wheel m)).toSimple
+        (vertices : Set _) := by
+        unfold SimpleGraph.IsIndepSet
+        intro v hv w hw
+        -- Get the Fin indices
+        obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp (show v ∈ vertices from hv)
+        obtain ⟨j', _, rfl⟩ := Finset.mem_image.mp (show w ∈ vertices from hw)
+        simp [CGraph.lineGraph_adj]
+        intro hne hsym2 x hx
+        -- Characterize membership in mkEdge
+        have hmem_j : ∀ y, y ∈ mkEdge j ↔ y = Sum.inr ⟨2 * (j : ℕ), by omega⟩ ∨ y = Sum.inr
+          ⟨2 * (j : ℕ) + 1, by omega⟩ := by
+          simp [mkEdge]
+        have hmem_j' : ∀ y, y ∈ mkEdge j' ↔ y = Sum.inr ⟨2 * (j' : ℕ), by omega⟩ ∨ y = Sum.inr
+          ⟨2 * (j' : ℕ) + 1, by omega⟩ := by
+          simp [mkEdge]
+        rw [hmem_j] at hx
+        rw [hmem_j']
+        rcases hx with hx | hx <;> intro h <;> rw [hx] at h <;> simp at h
+        all_goals {
+          -- h is of the form inr ... = inr ... implying 2*j = 2*j' or similar as Fin m
+          have hne' : j ≠ j' := fun heq => hsym2 (heq ▸ rfl)
+          omega
+        }
+      -- mkEdge is injective
+      have hmk_inj : Function.Injective mkEdge := by
+        intro j j' hjj'
+        simp only [mkEdge] at hjj'
+        -- Extract membership from mkEdge j
+        set a : Fin m := ⟨2 * (j : ℕ), by omega⟩
+        set b : Fin m := ⟨2 * (j : ℕ) + 1, by omega⟩
+        set a' : Fin m := ⟨2 * (j' : ℕ), by omega⟩
+        set b' : Fin m := ⟨2 * (j' : ℕ) + 1, by omega⟩
+        have heq : Sym2.mk (Sum.inr a, Sum.inr b) = Sym2.mk (Sum.inr a', Sum.inr b') := hjj'
+        -- From Sym2.mk equality, we know Sum.inr a is in the second mk, so it equals inr a' or inr
+        -- b'
+        have ha_in_edge' : (Sum.inr a : Fin 1 ⊕ Fin m) ∈ Sym2.mk (Sum.inr a', Sum.inr b') := by
+          rw [← heq]
+          show Sym2.Mem _ _
+          simp [Sym2.Mem, Sym2.Rel]
+        simp [Sym2.Rel] at ha_in_edge'
+        obtain h | h := ha_in_edge'
+        · -- inr a = inr a' (h : a = a' as Fin m)
+          exact Fin.ext (by simp [a, a'] at h; omega)
+        · -- inr a = inr b' (h : a = b' as Fin m)
+          simp [a, b'] at h
+          omega
+      -- Show cardinality
+      have hcard : vertices.card = k + 2 := by
+        simp only [vertices]
+        have hlift_inj : Function.Injective (fun j : Fin (k + 2) => ⟨mkEdge j, hedge_mem j⟩ : Fin (k
+          + 2) → (CGraph.lineGraph (CGraph.wheel m)).V) := by
+          intro j j' hj
+          exact hmk_inj (Subtype.ext_iff.mp hj)
+        rw [Finset.card_image_of_injective _ hlift_inj, Finset.card_fin]
+      -- Conclude
+      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
+
+
+/-- The line graph of a connected graph with at least one edge is connected. -/
+theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
+    IsConnected (lineGraph G) := by
+  have hDec : DecidableEq G.toCGraph.V := Classical.decEq _
+  set H := G.toCGraph with hH_def
+  rw [← IsoGraph.mk_toCGraph G]
+  rw [lineGraph_mk H]
+  rw [isConnected_mk]
+  simp only [hH_def] at *
+  have hG' : G.toCGraph.IsConnected := by
+    rw [← isConnected_mk (G := G.toCGraph), IsoGraph.mk_toCGraph]
+    exact hG
+  have hE' : 0 < G.toCGraph.E := by
+    rw [← E_mk (G := G.toCGraph), IsoGraph.mk_toCGraph]
+    exact hE
+  -- Theorem: line graph of a connected graph with edges is connected.
+  have hedges : G.toCGraph.toSimple.edgeFinset.Nonempty := Finset.card_pos.mp
+    (by rwa [CGraph.E] at hE')
+  obtain ⟨e₀, he₀⟩ := hedges
+  have he₀' : e₀ ∈ G.toCGraph.toSimple.edgeSet := by simpa using he₀
+  set e₀' : (CGraph.lineGraph G.toCGraph).V := ⟨e₀, he₀'⟩
+  -- For any vertex v of G, if some edge incident to v is reachable from e₀', then all edges
+  -- incident to v are reachable from e₀'
+  -- (because edges incident to the same vertex form a clique in the line graph)
+  -- For any edge f of G, since G is connected, there's a path of vertices from an endpoint of e₀ to
+  -- an endpoint of f.
+  -- By induction along this path, all edges incident to vertices on the path are reachable. In
+  -- particular, edges incident to the other endpoint of f are reachable, so f is reachable.
+  -- Step 1: edges incident to a vertex u are pairwise reachable (they form a clique)
+  have hclique : ∀ (u : G.toCGraph.V) (f g : (CGraph.lineGraph G.toCGraph).V),
+      u ∈ f.1 → u ∈ g.1 → SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple f g := by
+    intro u f g huf hug
+    by_cases hfg : f = g
+    · rw [hfg]
+    · have hadj : (CGraph.lineGraph G.toCGraph).Adj f g = true := by
+        rw [CGraph.lineGraph_adj]
+        simp [hfg]
+        exact ⟨u, huf, hug⟩
+      exact (CGraph.toSimple_adj _ _ _).mpr hadj |>.reachable
+  -- Pick an endpoint a of e₀
+  -- Get endpoints of e₀: e₀'.1 is a Sym2 of V, and it's in edgeSet so it's an actual edge.
+  -- I need at least one vertex from e₀'.1. I'll use induction on Sym2.
+  have h_sym2_mem : ∀ (s : Sym2 (G.toCGraph.V)), ∃ v : G.toCGraph.V, v ∈ s := by
+    intro s
+    change Quot (Sym2.Rel (G.toCGraph.V)) at s
+    obtain ⟨p, rfl⟩ := Quot.exists_rep s
+    refine ⟨p.1, ?_⟩
+    show Sym2.Mem p.1 (Quot.mk (Sym2.Rel G.toCGraph.V) p)
+    simp [Sym2.Mem]
+    exact ⟨p.2, Or.inl rfl⟩
+  obtain ⟨a, ha_mem⟩ := h_sym2_mem e₀'.1
+  -- All edges incident to a are reachable from e₀' (clique at a, using e₀' itself)
+  have hreach_a : ∀ f : (CGraph.lineGraph G.toCGraph).V, a ∈ f.1 →
+      SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple e₀' f := by
+    intro f hf
+    exact hclique a e₀' f ha_mem hf
+  -- A vertex is "swept" if all edges incident to it are reachable from e₀'
+  let Swept (v : G.toCGraph.V) : Prop := ∀ f : (CGraph.lineGraph G.toCGraph).V, v ∈ f.1 →
+      SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple e₀' f
+  have hswept_a : Swept a := hreach_a
+  -- Sweep propagates along adjacencies
+  have hsweep_prop : ∀ u v : G.toCGraph.V, G.toCGraph.Adj u v = true → Swept u → Swept v := by
+    intro u v huv ih
+    -- The edge {u,v} is incident to u, hence reachable
+    let fe : (CGraph.lineGraph G.toCGraph).V := ⟨Sym2.mk ⟨u, v⟩, by
+      simpa [CGraph.toSimple_adj, SimpleGraph.mem_edgeSet] using huv⟩
+    have hfe_u : u ∈ fe.1 := by simp [fe]
+    have hfe_v : v ∈ fe.1 := by simp [fe]
+    have hfe_reach := ih fe hfe_u
+    intro g hg_v
+    exact hfe_reach.trans (hclique v fe g hfe_v hg_v)
+  -- All vertices are swept (by connectedness, from a)
+  have hswept_all : ∀ v : G.toCGraph.V, Swept v := by
+    intro v
+    have hswept_all' : ∀ {u w : G.toCGraph.V} (w' : G.toCGraph.toSimple.Walk u w), Swept u → Swept w
+      := by
+      intro u w w'
+      induction w' with
+      | nil => exact id
+      | cons hadj tail ih =>
+        intro hu
+        exact ih (hsweep_prop _ _ hadj hu)
+    have hreach : G.toCGraph.toSimple.Reachable a v := by
+      change G.toCGraph.toSimple.Connected at hG'
+      exact hG' a v
+    obtain ⟨w⟩ := hreach
+    exact hswept_all' w hswept_a
+  -- All edges of G are reachable
+  have hreach_all_edges : ∀ f : (CGraph.lineGraph G.toCGraph).V,
+      SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple e₀' f := by
+    intro f
+    obtain ⟨v, hv⟩ := h_sym2_mem f.1
+    exact hswept_all v f hv
+  letI : Nonempty (CGraph.lineGraph G.toCGraph).V := ⟨e₀'⟩
+  exact SimpleGraph.Connected.mk (fun e f => (hreach_all_edges e).symm.trans (hreach_all_edges f))
+
+
+/-! ### Consequences of the strong-product radius and of line-graph connectivity -/
+
+/-- A connected graph with an edge has a connected line graph, so its line graph has one
+component. -/
+@[simp] theorem numComponents_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
+    (lineGraph G).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_lineGraph hG hE)
+
+theorem radius_strongProduct_self {G : IsoGraph} (hG : IsConnected G) :
+    (strongProduct G G).radius = G.radius := by
+  rw [radius_strongProduct hG hG, max_self]
+
+/-- The **king graph** on an `(m+1) × (n+1)` board: a king reaches every square from the middle
+of the longer side. -/
+@[simp] theorem radius_strongProduct_path (m n : ℕ) :
+    (strongProduct (path (m + 1)) (path (n + 1))).radius = max ((m + 1) / 2) ((n + 1) / 2) := by
+  rw [radius_strongProduct (isConnected_path m) (isConnected_path n), radius_path, radius_path]
+
+/-- The **toroidal king graph**. -/
+@[simp] theorem radius_strongProduct_cycle (m n : ℕ) :
+    (strongProduct (cycle (m + 1)) (cycle (n + 1))).radius = max ((m + 1) / 2) ((n + 1) / 2) := by
+  rw [radius_strongProduct (isConnected_cycle m) (isConnected_cycle n), radius_cycle, radius_cycle]
+
+@[simp] theorem radius_strongProduct_hypercube (m n : ℕ) :
+    (strongProduct (hypercube m) (hypercube n)).radius = max m n := by
+  rw [radius_strongProduct (isConnected_hypercube m) (isConnected_hypercube n), radius_hypercube,
+    radius_hypercube]
+
+/-- For vertex-transitive factors the radius already computes the diameter, so the strong product
+has diameter the maximum of the two diameters. -/
+theorem diameter_strongProduct_of_isVertexTransitive {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hGt : IsVertexTransitive G) (hHt : IsVertexTransitive H) :
+    (strongProduct G H).diameter = max G.diameter H.diameter := by
+  rw [← radius_eq_diameter_of_isVertexTransitive (hGt.strongProduct hHt),
+    radius_strongProduct hG hH, radius_eq_diameter_of_isVertexTransitive hGt,
+    radius_eq_diameter_of_isVertexTransitive hHt]
+
+@[simp] theorem diameter_strongProduct_cycle (m n : ℕ) :
+    (strongProduct (cycle (m + 1)) (cycle (n + 1))).diameter = max ((m + 1) / 2) ((n + 1) / 2) := by
+  rw [diameter_strongProduct_of_isVertexTransitive (isConnected_cycle m) (isConnected_cycle n)
+    (isVertexTransitive_cycle _) (isVertexTransitive_cycle _), diameter_cycle, diameter_cycle]
+
+@[simp] theorem diameter_strongProduct_hypercube (m n : ℕ) :
+    (strongProduct (hypercube m) (hypercube n)).diameter = max m n := by
+  rw [diameter_strongProduct_of_isVertexTransitive (isConnected_hypercube m)
+    (isConnected_hypercube n) (isVertexTransitive_hypercube m) (isVertexTransitive_hypercube n),
+    diameter_hypercube, diameter_hypercube]
+
+/-- A near-perfect matching leaves at most one vertex over, so the wheel is covered by that many
+cliques. -/
+theorem cliqueCoverNum_wheel_le (n : ℕ) :
+    (wheel (n + 3)).cliqueCoverNum ≤ (n + 5) / 2 := by
+  have h := cliqueCoverNum_le_V_sub_matchNum (wheel (n + 3))
+  rw [V_wheel, matchNum_wheel] at h
+  omega
+
+@[simp] theorem isVertexTransitive_johnson (n k : ℕ) : IsVertexTransitive (johnson n k) :=
+  CGraph.isVertexTransitive_johnson n k
+
+/-! ### Invariants of the Johnson graphs from vertex transitivity -/
+
+/-- The radius of a Johnson graph equals its diameter, `min k (n - k)`. -/
+@[simp] theorem radius_johnson {n k : ℕ} (hk : k ≤ n) : (johnson n k).radius = min k (n - k) := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_johnson n k),
+    diameter_johnson hk]
+
+/-- The clique–coclique bound for a Johnson graph. -/
+theorem indepNum_mul_cliqueNum_le_johnson (n k : ℕ) :
+    (johnson n k).indepNum * (johnson n k).cliqueNum ≤ n.choose k := by
+  have h := indepNum_mul_cliqueNum_le_V (isVertexTransitive_johnson n k)
+  rwa [V_johnson] at h
+
+/-- A vertex-transitive graph with an edge has an independent set on at most half its vertices. -/
+theorem two_mul_indepNum_le_johnson {n k : ℕ} (hE : 0 < (johnson n k).E) :
+    2 * (johnson n k).indepNum ≤ n.choose k := by
+  have h := two_mul_indepNum_le_V (isVertexTransitive_johnson n k) hE
+  rwa [V_johnson] at h
+
+@[simp] theorem isVertexTransitive_compl_johnson (n k : ℕ) :
+    IsVertexTransitive (compl (johnson n k)) := (isVertexTransitive_johnson n k).compl
+
+theorem coverNum_johnson (n k : ℕ) :
+    (johnson n k).coverNum = n.choose k - (johnson n k).indepNum := by
+  rw [coverNum_eq, V_johnson]
+
 end IsoGraph

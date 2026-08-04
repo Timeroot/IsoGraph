@@ -1731,6 +1731,18 @@ graph, `ν(K_{m+1} □ K_{n+1}) = ⌊(m+1)(n+1)/2⌋`, and the degree sequence o
 degree-2 corners and `2n` degree-3 interior vertices, from which `2‖L_n‖ = 8 + 6n`.
 
 
+The prover then took the strong product and the line graph.  It showed that the radius of a
+strong product is the maximum of the two radii — the king moves both coordinates at once, so
+distances are maxima rather than sums — which gives the radius of a king graph on any board and,
+combined with the earlier transitivity results, the diameter of the toroidal king graph and of a
+strong product of hypercubes.  It also proved that the line graph of a connected graph with an
+edge is connected, and that the wheel has a near-perfect matching.  Johnson graphs turned out
+not to need the prover at all: the permutation action that makes `kneserAuto` an automorphism
+preserves the size of an intersection just as well as its emptiness, so the same argument gives
+`johnsonAuto` and the vertex transitivity of every `J(n, k)` — and with it the radius
+`min(k, n - k)`, the clique–coclique bound, and Gallai's identity for the whole family.
+
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
