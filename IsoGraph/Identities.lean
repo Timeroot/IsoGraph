@@ -1114,6 +1114,36 @@ theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipa
     (b := ⟨1, by omega⟩) (d := ⟨2, by omega⟩) (hadj _ _ (by simp)) (hadj _ _ (by simp))
     (hadj _ _ (by simp))
 
+/-- A side of a bipartite join is bipartite: restrict the colouring. -/
+theorem IsBipartite.of_join_left {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (h : (CGraph.join G H).IsBipartite) : G.IsBipartite := by
+  obtain ⟨c, hc⟩ := h
+  exact ⟨fun a ↦ c (.inl a), fun x y hxy ↦ hc _ _ (by rwa [join_adj_inl_inl])⟩
+
+theorem IsBipartite.of_join_right {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    (h : (CGraph.join G H).IsBipartite) : H.IsBipartite := by
+  obtain ⟨c, hc⟩ := h
+  exact ⟨fun b ↦ c (.inr b), fun x y hxy ↦ hc _ _ (by rwa [join_adj_inr_inr])⟩
+
+/-- An edge on one side of a join, together with any vertex on the other side, is a triangle. -/
+theorem not_isBipartite_join_of_adj_left {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    {a b : G.V} (hab : G.Adj a b) (c : H.V) : ¬ (CGraph.join G H).IsBipartite :=
+  not_isBipartite_of_triangle (a := .inl a) (b := .inl b) (d := .inr c)
+    (by rwa [join_adj_inl_inl]) (join_adj_inl_inr G H a c) (join_adj_inl_inr G H b c)
+
+theorem not_isBipartite_join_of_adj_right {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    {a b : H.V} (hab : H.Adj a b) (c : G.V) : ¬ (CGraph.join G H).IsBipartite :=
+  not_isBipartite_of_triangle (a := .inr a) (b := .inr b) (d := .inl c)
+    (by rwa [join_adj_inr_inr]) (join_adj_inr_inl G H a c) (join_adj_inr_inl G H b c)
+
+/-- Three nonempty sides give a triangle, whatever the graphs on them are. -/
+theorem not_isBipartite_join_join {G H K : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    [DecidableEq K.V] (a : G.V) (b : H.V) (c : K.V) :
+    ¬ (CGraph.join G (CGraph.join H K)).IsBipartite :=
+  not_isBipartite_of_triangle (a := .inl a) (b := .inr (.inl b)) (d := .inr (.inr c))
+    (join_adj_inl_inr _ _ _ _) (join_adj_inl_inr _ _ _ _)
+    (by rw [join_adj_inr_inr, join_adj_inl_inr])
+
 /-! ## Edge lists
 
 The `ofEdges`-based families are all built from `pathEdges`, `cycleEdges`, `cliqueEdges` and
@@ -5037,6 +5067,68 @@ theorem not_isBipartite_triangular {n : ℕ} (h : 4 ≤ n) : ¬ IsBipartite (tri
   rw [kneser_def, isBipartite_mk]
   exact CGraph.not_isBipartite_kneser_five_two
 
+/-- A side of a bipartite join is bipartite. -/
+theorem IsBipartite.of_join_left {G H : IsoGraph} (h : IsBipartite (join G H)) : IsBipartite G := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [join_mk, isBipartite_mk] at h
+  rw [isBipartite_mk]
+  exact h.of_join_left
+
+theorem IsBipartite.of_join_right {G H : IsoGraph} (h : IsBipartite (join G H)) :
+    IsBipartite H := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
+  rw [join_mk, isBipartite_mk] at h
+  rw [isBipartite_mk]
+  exact h.of_join_right
+
+theorem not_isBipartite_join_left {G H : IsoGraph} (hG : ¬ IsBipartite G) :
+    ¬ IsBipartite (join G H) := fun h ↦ hG h.of_join_left
+
+theorem not_isBipartite_join_right {G H : IsoGraph} (hH : ¬ IsBipartite H) :
+    ¬ IsBipartite (join G H) := fun h ↦ hH h.of_join_right
+
+/-- **A join of three nonempty graphs is never bipartite.** -/
+theorem not_isBipartite_join_join {G H K : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (hK : 0 < K.V) : ¬ IsBipartite (join G (join H K)) := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  induction K using Quotient.inductionOn with | _ K =>
+  rw [← mk_canonicalize G, ← mk_canonicalize H, ← mk_canonicalize K] at *
+  rw [join_mk, join_mk, isBipartite_mk]
+  obtain ⟨a⟩ : Nonempty G.canonicalize.V := Fintype.card_pos_iff.1 hG
+  obtain ⟨b⟩ : Nonempty H.canonicalize.V := Fintype.card_pos_iff.1 hH
+  obtain ⟨c⟩ : Nonempty K.canonicalize.V := Fintype.card_pos_iff.1 hK
+  exact CGraph.not_isBipartite_join_join a b c
+
+/-- **Complete multipartite graphs with three nonempty parts are not bipartite.** -/
+@[simp] theorem not_isBipartite_completeMultipartite (a b c : ℕ) (ds : List ℕ) :
+    ¬ IsBipartite (completeMultipartite ((a + 1) :: (b + 1) :: (c + 1) :: ds)) := by
+  rw [completeMultipartite_cons, completeMultipartite_cons, completeMultipartite_cons]
+  exact not_isBipartite_join_join (by simp) (by simp) (by simp)
+
+/-- Every page of a book meets the spine in a triangle. -/
+@[simp] theorem not_isBipartite_book (n : ℕ) : ¬ IsBipartite (book (n + 1)) :=
+  not_isBipartite_completeMultipartite 0 0 n []
+
+/-- The cocktail party graph on three or more pairs is not bipartite. -/
+@[simp] theorem not_isBipartite_cocktailParty (n : ℕ) : ¬ IsBipartite (cocktailParty (n + 3)) := by
+  show ¬ IsBipartite (completeMultipartite (List.replicate (n + 3) 2))
+  rw [List.replicate_succ, List.replicate_succ, List.replicate_succ]
+  exact not_isBipartite_completeMultipartite 1 1 1 _
+
+/-- The hub of a fan sees an edge of the path. -/
+@[simp] theorem not_isBipartite_fan (n : ℕ) : ¬ IsBipartite (fan (n + 2)) := by
+  show ¬ IsBipartite (join (complete 1) (path (n + 2)))
+  rw [complete_def, path_def, join_mk, isBipartite_mk]
+  refine CGraph.not_isBipartite_join_of_adj_right
+    (a := (⟨0, by omega⟩ : (CGraph.path (n + 2)).V)) (b := ⟨1, by omega⟩) ?_ ⟨0, by omega⟩
+  rw [CGraph.path_adj_val]
+  exact ⟨by simp, Or.inl rfl⟩
+
 /-! ### Bipartite double covers
 
 The tensor product with `K₂` is the bipartite double cover.  Over a bipartite graph it comes apart
@@ -5671,6 +5763,13 @@ example : ¬ IsBipartite (johnson 5 2) := by simp
 example : ¬ IsBipartite (triangular 5) := not_isBipartite_triangular (by omega)
 example : ¬ IsBipartite petersen := by simp
 example : ¬ IsBipartite (rook 3 3) := not_isBipartite_rook 0 2
+example : ¬ IsBipartite (book 3) := by simp
+example : ¬ IsBipartite (cocktailParty 4) := by simp
+example : ¬ IsBipartite (fan 5) := by simp
+example (G : IsoGraph) : ¬ IsBipartite (join (cycle 3) G) :=
+  not_isBipartite_join_left not_isBipartite_cycle_three
+example : ¬ IsBipartite (completeMultipartite [2, 3, 4]) :=
+  not_isBipartite_completeMultipartite 1 2 3 []
 example : ¬ IsBipartite (prism 5) := not_isBipartite_prism_odd 1
 example (G H : IsoGraph) (h : IsBipartite (disjUnion G H)) : IsBipartite G := by simp_all
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp

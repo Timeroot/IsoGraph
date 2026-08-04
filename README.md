@@ -560,6 +560,17 @@ on four or more points are not bipartite.  The Petersen graph escapes both — `
 outer five-cycle `{0,1}, {2,3}, {4,0}, {1,2}, {3,4}` written as a function of `k % 5` and the
 five adjacencies discharged by `decide`.
 
+The join behaves like the disjoint union on one side and unlike it on the other.  Restricting a
+colouring along `Sum.inl` still works, so `IsBipartite.of_join_left`/`_right` hold and a
+non-bipartite side poisons the whole join.  But the join also *creates* edges, and three nonempty
+sides always give a triangle — `not_isBipartite_join_join` needs nothing at all about the three
+graphs beyond a vertex in each.  Since `completeMultipartite_cons` peels parts off as joins, that
+one lemma settles the whole family: three nonempty parts is enough
+(`not_isBipartite_completeMultipartite`), which specialises to books with at least one page and to
+cocktail party graphs on at least three pairs.  Fans go the other way round, through the
+edge-plus-vertex triangle `not_isBipartite_join_of_adj_right`: the hub sees the first edge of the
+path.
+
 Over an odd cycle, then, the cover cannot split, and in fact it is connected:
 `K₂ × C_n ≅ C_{2n}` via the Chinese remainder bijection `k ↦ (k % 2, k % n)`, whose injectivity is
 elementary (`k` and `k % n` differ by `0` or `n`, and `n` is odd) rather than a coprimality
