@@ -1501,6 +1501,13 @@ known independence or chromatic number. `lineGraph_cycle` gives `ν(C_n) = ⌊n/
 `χ'(K₄) = 3`, and `lineGraph_bipartite` turns the rook's-graph independence bound into
 `ν(K_{m,n}) ≤ min m n`.
 
+The matching number also interacts with the covering invariants. An independent set meets each
+edge of a matching at most once, so each of the `ν` disjoint edges donates a vertex outside a
+maximum independent set and `ν + α ≤ n`; the proof is the same `Finset.card_biUnion` counting
+as for `2ν ≤ n`, run over the sets `e \ I` instead of over `e`. Combined with Gallai's
+`τ + α = n` this yields the weak duality half of König's theorem, `ν ≤ τ`, without ever
+building the injection from a matching into a cover.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

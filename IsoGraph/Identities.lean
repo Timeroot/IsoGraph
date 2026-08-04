@@ -7933,6 +7933,55 @@ theorem two_mul_indepNum_lineGraph_le_card (G : CGraph) [DecidableEq G.V] :
   have hdef : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
   omega
 
+
+/-! ### Matchings versus independent sets -/
+
+/-- Every edge of `G` has an endpoint outside a given independent set. -/
+theorem one_le_card_sdiff_of_isIndepSet (G : CGraph) [DecidableEq G.V] {I : Finset G.V}
+    (hI : G.toSimple.IsIndepSet (I : Set G.V)) (e : (lineGraph G).V) :
+    1 ≤ (e.1.toFinset \ I).card := by
+  classical
+  revert e
+  refine lineGraph_vertex_cases fun u v huv ↦ ?_
+  have hadj : G.toSimple.Adj u v := huv
+  rw [Nat.one_le_iff_ne_zero, ← Nat.pos_iff_ne_zero, Finset.card_pos]
+  by_cases hu : u ∈ I
+  · exact ⟨v, Finset.mem_sdiff.2 ⟨by simp, fun hv ↦
+      hI (Finset.mem_coe.2 hu) (Finset.mem_coe.2 hv) hadj.ne hadj⟩⟩
+  · exact ⟨u, Finset.mem_sdiff.2 ⟨by simp, hu⟩⟩
+
+/-- `ν + α ≤ n`: the edges of a matching are disjoint, and each one contributes a vertex
+outside a maximum independent set. -/
+theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) [DecidableEq G.V] :
+    (lineGraph G).indepNum + G.indepNum ≤ Fintype.card G.V := by
+  classical
+  obtain ⟨M, hM, hMcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
+  obtain ⟨I, hI, hIcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  have hcard : (M.biUnion fun e ↦ e.1.toFinset \ I).card
+      = ∑ e ∈ M, (e.1.toFinset \ I).card := by
+    refine Finset.card_biUnion fun e he f hf hef ↦ ?_
+    exact (disjoint_of_not_adj_lineGraph G hef
+      (hM (by simpa using he) (by simpa using hf) hef)).mono
+      Finset.sdiff_subset Finset.sdiff_subset
+  have h1 : M.card ≤ (M.biUnion fun e ↦ e.1.toFinset \ I).card := by
+    rw [hcard]
+    calc M.card = ∑ _e ∈ M, 1 := by simp
+      _ ≤ ∑ e ∈ M, (e.1.toFinset \ I).card :=
+        Finset.sum_le_sum fun e _ ↦ one_le_card_sdiff_of_isIndepSet G hI e
+  have h2 : (M.biUnion fun e ↦ e.1.toFinset \ I) ⊆ Finset.univ \ I := by
+    intro v hv
+    rw [Finset.mem_biUnion] at hv
+    obtain ⟨e, _, hve⟩ := hv
+    rw [Finset.mem_sdiff] at hve ⊢
+    exact ⟨Finset.mem_univ v, hve.2⟩
+  have h3 : (Finset.univ \ I).card = Fintype.card G.V - I.card := by
+    rw [Finset.card_sdiff, Finset.card_univ, Finset.inter_univ]
+  have h4 := Finset.card_le_card h2
+  have h5 : I.card ≤ Fintype.card G.V := Finset.card_le_univ I
+  have hdefM : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
+  have hdefI : G.indepNum = G.toSimple.indepNum := rfl
+  omega
+
 end CGraph
 
 namespace IsoGraph
@@ -16313,5 +16362,40 @@ example : (cycle 6).edgeChromNum = 2 := by
 /-- `C₅` is not `2`-edge-colourable even though it is `2`-regular. -/
 example : (cycle 5).edgeChromNum = 3 := by
   rw [show (5 : ℕ) = 2 * 1 + 3 by ring, edgeChromNum_cycle_odd]
+
+
+/-! ### Matchings versus independent sets and covers -/
+
+/-- Since an independent set meets each edge of a matching at most once, `ν + α ≤ n`. -/
+theorem matchNum_add_indepNum_le_V (G : IsoGraph) : G.matchNum + G.indepNum ≤ G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, matchNum_eq, lineGraph_mk, indepNum_mk, indepNum_mk, V_mk]
+  exact CGraph.indepNum_lineGraph_add_indepNum_le_card _
+
+/-- `ν ≤ τ`: distinct edges of a matching need distinct vertices of a vertex cover.  Here it
+falls out of `ν + α ≤ n` and Gallai's identity `τ + α = n`. -/
+theorem matchNum_le_coverNum (G : IsoGraph) : G.matchNum ≤ G.coverNum := by
+  have h1 := G.matchNum_add_indepNum_le_V
+  have h2 := G.coverNum_add_indepNum
+  omega
+
+/-- A graph with a perfect matching has independence number at most `n / 2`. -/
+theorem two_mul_indepNum_le_V_of_two_mul_matchNum_eq (G : IsoGraph)
+    (h : 2 * G.matchNum = G.V) : 2 * G.indepNum ≤ G.V := by
+  have h1 := G.matchNum_add_indepNum_le_V
+  omega
+
+example : petersen.matchNum + petersen.indepNum ≤ 10 := by
+  have h := petersen.matchNum_add_indepNum_le_V
+  rwa [V_petersen] at h
+
+/-- `C₅` has `ν = α = 2`, one short of the bound. -/
+example : (cycle 5).matchNum + (cycle 5).indepNum = 4 := by
+  rw [show (5 : ℕ) = 2 + 3 by ring, matchNum_cycle, indepNum_cycle]
+
+/-- A star is a case where `ν + α = n` is tight. -/
+example : (star 4).matchNum + (star 4).indepNum = 5 := by
+  rw [matchNum_star, indepNum_star]
+  omega
 
 end IsoGraph
