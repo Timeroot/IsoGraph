@@ -24717,12 +24717,63 @@ theorem girth_crown (n : ℕ) : (crown (n + 4)).girth = 4 := by
   rw [(isRegularWith_crown (n + 2)).minDeg_eq (by rw [V_crown]; omega)]
   omega
 
-theorem two_le_domNum_crown (n : ℕ) : 2 ≤ (crown (n + 2)).domNum := by
-  have hV := V_le_domNum_mul_maxDeg_add_one (crown (n + 2))
-  rw [V_crown, maxDeg_crown] at hV
-  by_contra hc
-  have hd : (crown (n + 2)).domNum ≤ 1 := by omega
-  have := Nat.mul_le_mul_right (n + 1 + 1) hd
+/-- Two adjacent vertices dominate a crown graph: they lie in different halves of the
+bipartition and between them see every other vertex, while no vertex is universal. -/
+@[simp] theorem domNum_crown (n : ℕ) : (crown (n + 2)).domNum = 2 := by
+  show IsoGraph.domNum (tensorProduct (complete (n + 2)) (complete 2)) = 2
+  dsimp only [IsoGraph.complete]
+  rw [tensorProduct_mk, IsoGraph.domNum_mk]
+  -- Upper bound: {(0,0), (0,1)} dominates
+  have hdom : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).IsDominatingSet
+      {((0 : Fin (n+2)), (0 : Fin 2)), ((0 : Fin (n+2)), (1 : Fin 2))} := by
+    intro ⟨a, b⟩
+    simp only [CGraph.tensorProduct_adj, Finset.mem_insert, Finset.mem_singleton,
+      CGraph.complete_adj]
+    -- b : Fin 2 (definitionally)
+    have hb : b = (0 : Fin 2) ∨ b = (1 : Fin 2) := Fin.exists_fin_two.mp ⟨b, rfl⟩
+    rcases hb with rfl | rfl
+    · simp
+      by_cases ha : a = (0 : Fin (n+2))
+      · left; left; exact Prod.ext ha (by rfl)
+      · right; exact fun h => ha h.symm
+    · simp
+      by_cases ha : a = (0 : Fin (n+2))
+      · left; right; exact Prod.ext ha (by rfl)
+      · right; exact fun h => ha h.symm
+  -- Upper bound: domNum ≤ 2
+  have hle : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).domNum ≤ 2 :=
+    CGraph.domNum_le_card_of_isDominatingSet hdom
+  -- Lower bound: no universal vertex, so domNum ≠ 1
+  have hno_univ : ¬ ∃ v : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).V,
+      ∀ u, u ≠ v →
+        (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).Adj v u := by
+    rintro ⟨vv, hv⟩
+    set a := vv.1
+    set b := vv.2
+    set b' : Fin 2 :=
+      if b = (⟨0, by omega⟩ : Fin 2) then (⟨1, by omega⟩ : Fin 2) else (⟨0, by omega⟩ : Fin 2)
+    set w : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).V := (a, b')
+    have hbne : b' ≠ b := by
+      have hb_cases : b = (⟨0, by omega⟩ : Fin 2) ∨ b = (⟨1, by omega⟩ : Fin 2) :=
+        Fin.exists_fin_two.mp ⟨b, rfl⟩
+      rcases hb_cases with h | h <;> simp [b', h]
+      decide
+    have hne : w ≠ vv := fun h =>
+      hbne (by have := congr_arg Prod.snd h; dsimp [w, b'] at this; exact this)
+    have hadj := hv w hne
+    simp [CGraph.tensorProduct_adj, CGraph.complete_adj, w, b'] at hadj
+    exact absurd hadj.1 (by simp [a])
+  have hnot1 :
+      ¬ (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).domNum = 1 := by
+    rw [CGraph.domNum_eq_one_iff]; exact hno_univ
+  -- domNum > 0
+  let G'' : CGraph := CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)
+  have hpos : 0 < G''.domNum :=
+    @CGraph.domNum_pos G'' (by
+      show 0 < Fintype.card G''.V
+      simp [G'', CGraph.card_complete])
+  rw [show (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)) = G'' from rfl]
+    at hle hnot1 ⊢
   omega
 
 @[simp] theorem not_isAcyclic_crown (n : ℕ) : ¬ IsAcyclic (crown (n + 4)) :=
@@ -25106,5 +25157,72 @@ theorem domNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r).
     have hNH := hdom_ne_one_replicate (r - n % r) (n / r)
       (Nat.sub_pos_of_lt (Nat.mod_lt _ hr0)) hnrx
     exact domNum_join_eq_two hvG hvH hNG hNH
+
+@[simp] theorem degSequence_crown (n : ℕ) :
+    degSequence (crown (n + 2)) = List.replicate (2 * n + 4) (n + 1) := by
+  have h := (isRegularWith_crown (n + 2)).degSequence
+  rw [V_crown] at h
+  rw [h, show 2 * (n + 2) = 2 * n + 4 from by omega, show n + 2 - 1 = n + 1 from by omega]
+
+theorem degSequence_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
+    degSequence (turan n r) = List.replicate n ((r - 1) * (n / r)) := by
+  have hd := (isRegularWith_turan_of_dvd h).degSequence
+  rwa [V_turan] at hd
+
+@[simp] theorem degSequence_compl_cocktailParty (n : ℕ) :
+    degSequence (compl (cocktailParty (n + 1))) = List.replicate (2 * n + 2) 1 := by
+  have h := (isRegularWith_compl_cocktailParty n).degSequence
+  rw [V_compl, V_cocktailParty] at h
+  rw [h, show 2 * (n + 1) = 2 * n + 2 from by omega]
+
+@[simp] theorem degSequence_ladder_two : degSequence (ladder 2) = List.replicate 4 2 := by
+  have h := isRegularWith_ladder_two.degSequence
+  rwa [V_ladder] at h
+
+/-! ### Degree sequences of line graphs of regular graphs -/
+
+@[simp] theorem degSequence_lineGraph_petersen :
+    degSequence (lineGraph petersen) = List.replicate 15 4 := by
+  have h := isRegularWith_lineGraph_petersen.degSequence
+  rwa [V_lineGraph, E_petersen] at h
+
+@[simp] theorem degSequence_lineGraph_prism (n : ℕ) :
+    degSequence (lineGraph (prism (n + 3))) = List.replicate (3 * (n + 3)) 4 := by
+  have h := (isRegularWith_lineGraph_prism n).degSequence
+  rwa [V_lineGraph, E_prism] at h
+
+theorem degSequence_lineGraph_hypercube (n : ℕ) :
+    degSequence (lineGraph (hypercube (n + 1)))
+      = List.replicate ((n + 1) * 2 ^ n) (2 * (n + 1) - 2) := by
+  have h2 : 2 * (hypercube (n + 1)).E = 2 * ((n + 1) * 2 ^ n) := by
+    rw [E_hypercube, pow_succ]; ring
+  have hE : (hypercube (n + 1)).E = (n + 1) * 2 ^ n :=
+    Nat.eq_of_mul_eq_mul_left (by norm_num : 0 < 2) h2
+  have h := (isRegularWith_lineGraph_hypercube n).degSequence
+  rwa [V_lineGraph, hE] at h
+
+theorem degSequence_lineGraph_cocktailParty (n : ℕ) :
+    degSequence (lineGraph (cocktailParty (n + 2)))
+      = List.replicate ((n + 2) * (2 * (n + 2) - 2)) (2 * (2 * (n + 2) - 2) - 2) := by
+  have h := (isRegularWith_lineGraph_cocktailParty n).degSequence
+  rwa [V_lineGraph, E_cocktailParty] at h
+
+theorem degSequence_lineGraph_bipartite_self (n : ℕ) :
+    degSequence (lineGraph (bipartite (n + 1) (n + 1)))
+      = List.replicate ((n + 1) * (n + 1)) (2 * (n + 1) - 2) := by
+  have h := (isRegularWith_lineGraph_bipartite_self n).degSequence
+  rwa [V_lineGraph, E_bipartite] at h
+
+theorem degSequence_lineGraph_triangular {n : ℕ} (hn : 4 ≤ n) :
+    degSequence (lineGraph (triangular n))
+      = List.replicate (n * (n - 1).choose 2) (2 * (2 * (n - 2)) - 2) := by
+  have h := (isRegularWith_lineGraph_triangular n hn).degSequence
+  rwa [V_lineGraph, E_triangular] at h
+
+theorem degSequence_lineGraph_kneser {n k : ℕ} (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    degSequence (lineGraph (kneser n k))
+      = List.replicate (n.choose k * (n - k).choose k / 2) (2 * (n - k).choose k - 2) := by
+  have h := (isRegularWith_lineGraph_kneser n k hk hkn).degSequence
+  rwa [V_lineGraph, E_kneser n hk] at h
 
 end IsoGraph

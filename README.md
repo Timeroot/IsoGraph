@@ -1845,8 +1845,8 @@ which also rules out acyclicity and treeness.  Regularity gives `Δ = δ = n - 1
 argument gives connectedness for `n ≥ 3`.  One target came back refuted rather than proved: the
 guess that a crown graph needs four dominating vertices is wrong, and the counterexample the
 prover produced -- the adjacent pair `(0,0), (0,1)` in `S_4`, which between them see every other
-vertex -- shows the answer is two.  The matching lower bound `2 ≤ γ(S_n)` follows from
-`n ≤ γ · (Δ + 1)` and is proved here; the upper bound went back into the queue.
+vertex -- shows the answer is two.  The corrected statement went back into the queue and came
+back proved: `{(0,0), (0,1)}` is dominating and no vertex is universal, so `γ(S_n) = 2`.
 
 The last crown-graph invariant is its diameter.  The prover's argument is the textbook one made
 formal: the two ends of a deleted matching edge lie in the same part, have no common neighbour
@@ -1866,6 +1866,14 @@ Connectivity splits the part list at the boundary between the big and the small 
 the two halves, and with more parts than vertices the Turán graph degenerates to `K_n`.  The
 prover contributed the domination number: as soon as every part has two vertices no single
 vertex dominates either side of that join, so `γ(T(n, r)) = 2`.
+
+Regularity makes a degree sequence a one-line consequence, so every regular family that had a
+regularity lemma but no degree sequence got one: crown graphs, balanced Turán graphs, the
+perfect matching that complements a cocktail party graph, the two-rung ladder, and the line
+graphs of the Petersen graph, of prisms, of hypercubes, of cocktail party graphs, of balanced
+complete bipartite graphs, of triangular graphs and of Kneser graphs.  The friendship graph is
+not regular, and the prover produced its degree sequence separately -- `2n` twos followed by the
+hub's `2n` -- by counting the join's degree multiset and then sorting it.
 
 ## Enumeration
 
