@@ -16881,4 +16881,64 @@ example : petersen.diameter = 2 := diameter_kneser_two 0
 
 example : 5 ≤ (kneser 6 2).indepNum := sub_one_le_indepNum_kneser_two 6
 
+/-! ### König's matching theorem for complete bipartite graphs
+
+Every edge colouring of `G` splits its edges into `χ'(G)` matchings, so `|E| ≤ χ'(G) · ν(G)`.
+For `K_{m,n}` the chromatic index is `max m n`, and `min m n · max m n = m · n`, so the bound
+already forces `ν ≥ min m n` — which together with the clique–coclique bound on the rook's graph
+pins down the matching number, the independence number of `K_m □ K_n`, and `ν = τ`. -/
+
+theorem min_le_matchNum_bipartite (m n : ℕ) :
+    min (m + 1) (n + 1) ≤ (bipartite (m + 1) (n + 1)).matchNum := by
+  have h := E_le_edgeChromNum_mul_matchNum (bipartite (m + 1) (n + 1))
+  rw [E_bipartite, edgeChromNum_bipartite] at h
+  refine Nat.le_of_mul_le_mul_left ?_ (show 0 < max (m + 1) (n + 1) by omega)
+  calc max (m + 1) (n + 1) * min (m + 1) (n + 1)
+      = (m + 1) * (n + 1) := by rw [Nat.mul_comm]; exact min_mul_max _ _
+    _ ≤ max (m + 1) (n + 1) * (bipartite (m + 1) (n + 1)).matchNum := h
+
+@[simp] theorem matchNum_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).matchNum = min (m + 1) (n + 1) :=
+  le_antisymm (matchNum_bipartite_le _ _ (by omega) (by omega)) (min_le_matchNum_bipartite m n)
+
+/-- **König's theorem** for the complete bipartite graphs: the maximum size of a matching equals
+the minimum size of a vertex cover. -/
+theorem matchNum_eq_coverNum_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).matchNum = (bipartite (m + 1) (n + 1)).coverNum := by
+  rw [matchNum_bipartite, coverNum_bipartite]
+
+/-- `K_{n,n}` has a perfect matching. -/
+theorem two_mul_matchNum_bipartite_self (n : ℕ) :
+    2 * (bipartite (n + 1) (n + 1)).matchNum = (bipartite (n + 1) (n + 1)).V := by
+  rw [matchNum_bipartite, V_bipartite]
+  omega
+
+/-- A maximum independent set of the rook's graph is a maximum matching of `K_{m,n}`, so the
+bound `α(K_m □ K_n) ≤ min m n` from the clique–coclique inequality is attained. -/
+@[simp] theorem indepNum_rook (m n : ℕ) :
+    (rook (m + 1) (n + 1)).indepNum = min (m + 1) (n + 1) := by
+  have h := matchNum_bipartite m n
+  rwa [matchNum_eq, lineGraph_bipartite] at h
+
+@[simp] theorem coverNum_rook (m n : ℕ) :
+    (rook (m + 1) (n + 1)).coverNum = (m + 1) * (n + 1) - min (m + 1) (n + 1) := by
+  have h := coverNum_add_indepNum (rook (m + 1) (n + 1))
+  rw [indepNum_rook, V_rook] at h
+  omega
+
+theorem indepNum_mul_cliqueNum_eq_V_rook (m n : ℕ) :
+    (rook (m + 1) (n + 1)).indepNum * (rook (m + 1) (n + 1)).cliqueNum
+      = (rook (m + 1) (n + 1)).V := by
+  rw [indepNum_rook, cliqueNum_rook (by omega) (by omega), V_rook, min_mul_max]
+
+example : (bipartite 3 5).matchNum = 3 := by
+  rw [show (3 : ℕ) = 2 + 1 by ring, show (5 : ℕ) = 4 + 1 by ring, matchNum_bipartite]
+  omega
+
+example : (rook 4 6).indepNum = 4 := by
+  rw [show (4 : ℕ) = 3 + 1 by ring, show (6 : ℕ) = 5 + 1 by ring, indepNum_rook]
+  omega
+
+example (n : ℕ) : (bipartite (n + 1) (n + 1)).matchNum = n + 1 := by simp
+
 end IsoGraph

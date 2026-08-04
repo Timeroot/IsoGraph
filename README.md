@@ -1564,6 +1564,14 @@ the easy half of Erdős–Ko–Rado as `n - 1 ≤ α(K(n, 2))` and hence the sam
 cover number. For `n ≥ 6` the graph contains a triangle, so it is not bipartite and needs at
 least three colours.
 
+The chromatic index feeds straight back into matchings. An edge colouring partitions `E` into
+`χ'` matchings, so `|E| ≤ χ'·ν`; for `K_{m,n}` that reads `m·n ≤ max m n · ν`, and since
+`min m n · max m n = m·n` it forces `ν ≥ min m n`. With the clique–coclique upper bound this
+gives `ν(K_{m,n}) = min m n` exactly, hence König's theorem `ν = τ` for the complete bipartite
+graphs, a perfect matching in `K_{n,n}`, and — reading the same number in the line graph —
+`α(K_m □ K_n) = min m n`, upgrading the earlier inequality to an equality and showing the rook's
+graphs attain the clique–coclique bound `α·ω = |V|` exactly.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
