@@ -1432,6 +1432,21 @@ definition, vertex-transitive graphs are regular because the automorphism group 
 any vertex to any other, and the handshake lemma specialises to `2|E| = |V| * k`,
 which is how `petersen.E = 15` and `(hypercube 3).E = 12` fall out in one line.
 
+Line graphs get a degree theory of their own. The formula
+`deg_{L(G)}(e) = sum over the endpoints v of e of (deg_G(v) - 1)` had been buried
+as a `have` inside the proof of `E_lineGraph`; it is now the standalone
+`CGraph.degree_lineGraph`, and specialising it to an edge `s(u, v)` gives
+`degree_lineGraph_mk : deg_{L(G)}(uv) = deg u + deg v - 2` (the subtraction is
+safe because an edge gives each endpoint degree at least one). A small eliminator
+`lineGraph_vertex_cases` lets the rest of the section reason one edge at a time.
+Three consequences follow: the line graph of a `k`-regular graph is
+`(2k - 2)`-regular, `Delta(L(G)) <= 2 Delta(G) - 2`, and
+`2 delta(G) - 2 <= delta(L(G))` once `G` has an edge. Regularity in turn pins the
+size of the line graph — `|E(L(G))| = |V| * C(k, 2)`, dropping the strong
+regularity hypothesis of the earlier `IsSRGWith.E_lineGraph`, and
+`2|E(L(G))| = |E| * (2k - 2)` — and since `T(n)` is the line graph of `K_n` it
+comes out `(2n - 4)`-regular with no lower bound on `n` at all.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

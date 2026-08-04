@@ -3788,6 +3788,119 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   rw [E, SimpleGraph.edgeFinset_card]
   exact Fintype.card_congr' rfl
 
+/-- The degree of an edge `e` in `lineGraph G`: each endpoint `v` of `e` contributes the
+`G.degree v - 1` other edges incident to `v`, and no edge is counted twice because two
+distinct endpoints cannot both lie on a third edge. -/
+theorem degree_lineGraph [DecidableEq G.V] (e : (lineGraph G).V) :
+    (lineGraph G).toSimple.degree e = ∑ v ∈ e.1.toFinset, (G.toSimple.degree v - 1) := by
+  set S := G.toSimple
+  have hhadj : ∀ x y : (lineGraph G).V,
+      (lineGraph G).toSimple.Adj x y ↔ x ≠ y ∧ ∃ v : G.V, Sym2.Mem v (Subtype.val x) ∧ Sym2.Mem v (Subtype.val y) := by
+    intro x y
+    simp only [CGraph.toSimple, lineGraph_adj]
+    simp [Bool.and_eq_true, decide_eq_true_eq]
+  have heqmem : ∀ e : Sym2 G.V, e ∈ S.edgeSet ↔ e ∈ S.edgeFinset := by
+    intro e; simp [SimpleGraph.mem_edgeSet, SimpleGraph.mem_edgeFinset]
+  rw [SimpleGraph.degree]
+  set ee := e.1
+  have hee_mem : ee ∈ S.edgeFinset := (heqmem ee).mp e.2
+  have hneighbor_val :
+    Finset.image (fun f : (lineGraph G).V => f.1) (G.lineGraph.toSimple.neighborFinset e) =
+    Finset.filter (fun f => f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset) S.edgeFinset := by
+    ext f
+    simp [SimpleGraph.mem_neighborFinset, Finset.mem_image]
+    constructor
+    · rintro ⟨a, hadj, ha⟩
+      subst ha
+      have hadj' : e ≠ a ∧ ∃ v, v ∈ ee ∧ v ∈ a.1 := (hhadj e a).mp (by simpa using hadj)
+      exact ⟨a.2, fun h => hadj'.1 (Subtype.ext (h.symm)), hadj'.2⟩
+    · rintro ⟨hf1, hf2, v, hv1, hv2⟩
+      have hf1' : f ∈ S.edgeFinset := (heqmem f).mp hf1
+      let fe : (lineGraph G).V := ⟨f, (heqmem f).mpr hf1'⟩
+      have hne : e ≠ fe := fun h => hf2 ((congr_arg Subtype.val h).symm)
+      have hmem : ∃ w : G.V, w ∈ e.1 ∧ w ∈ fe.1 := ⟨v, hv1, hv2⟩
+      exact ⟨fe, ⟨hne, hmem⟩, rfl⟩
+  have hcard_eq : (G.lineGraph.toSimple.neighborFinset e).card =
+      ({f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset}).card := by
+    rw [← hneighbor_val]
+    have : (Finset.image (fun f : (lineGraph G).V => f.1) (G.lineGraph.toSimple.neighborFinset e)).card =
+        (G.lineGraph.toSimple.neighborFinset e).card := by
+      apply Finset.card_image_of_injective _ Subtype.coe_injective
+    rw [this]
+  rw [hcard_eq]
+  have hdecomp : {f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset} =
+      Finset.biUnion ee.toFinset (fun v => S.incidenceFinset v \ {ee}) := by
+    ext f
+    simp [Finset.mem_biUnion, Finset.mem_sdiff, Finset.mem_singleton, Finset.mem_filter,
+          SimpleGraph.mem_incidenceFinset]
+    constructor
+    · rintro ⟨hf1, hf2, a, ha, havf⟩
+      exact ⟨a, ha, ⟨hf1, havf⟩, hf2⟩
+    · rintro ⟨a, ha, hfa, hf2⟩
+      exact ⟨hfa.1, hf2, a, ha, hfa.2⟩
+  rw [hdecomp]
+  have hEE_inc_sym2 : ∀ v ∈ ee.toFinset, v ∈ ee := by
+    intro v hv
+    exact Sym2.mem_toFinset.mp hv
+  have hEE_inc : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceFinset v := by
+    intro v hv
+    rw [S.mem_incidenceFinset]
+    exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
+  have hEE_inc_set : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceSet v := by
+    intro v hv
+    show ee ∈ {e ∈ S.edgeSet | v ∈ e}
+    exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
+  have hpiece : ∀ v ∈ ee.toFinset, (S.incidenceFinset v \ {ee}).card = S.degree v - 1 := by
+    intro v hv
+    have hsubset : {ee} ⊆ S.incidenceFinset v := Finset.singleton_subset_iff.mpr (hEE_inc v hv)
+    have hcard_v : (S.incidenceFinset v).card = S.degree v := by
+      rw [SimpleGraph.degree, SimpleGraph.incidenceFinset]; simp
+    rw [Finset.card_sdiff_of_subset hsubset, Finset.card_singleton, hcard_v]
+  rw [Finset.card_biUnion]
+  · exact Finset.sum_congr rfl hpiece
+  · intro v hv w hw hvw
+    rw [Function.onFun, Finset.disjoint_left]
+    intro f hfv hfw
+    simp [Finset.mem_sdiff, Finset.mem_singleton] at hfv hfw
+    obtain ⟨hfv_inc, hfv_ne⟩ := hfv
+    obtain ⟨hfw_inc, hfw_ne⟩ := hfw
+    have hfv_inc' : f ∈ S.incidenceFinset v := by
+      rw [S.mem_incidenceFinset]; exact ⟨hfv_inc.1, hfv_inc.2⟩
+    have hfw_inc' : f ∈ S.incidenceFinset w := by
+      rw [S.mem_incidenceFinset]; exact ⟨hfw_inc.1, hfw_inc.2⟩
+    simp [SimpleGraph.mem_incidenceFinset] at hfv_inc' hfw_inc'
+    have hf_edge' : f ∈ S.edgeSet := hfv_inc.1
+    have hee_edge' : ee ∈ S.edgeSet := (heqmem ee).mpr hee_mem
+    have hvf_mem : Sym2.Mem v f := hfv_inc.2
+    have hwf_mem : Sym2.Mem w f := hfw_inc.2
+    have hvf : v ∈ f.toFinset := Sym2.mem_toFinset.mpr hvf_mem
+    have hwf : w ∈ f.toFinset := Sym2.mem_toFinset.mpr hwf_mem
+    -- Both f and ee have v, w as members (distinct). Since Sym2 elements have exactly 2 members,
+    -- every member of f is v or w, and same for ee. Hence f = ee by Sym2 extensionality.
+    -- f and ee both contain v and w (v ≠ w) as members. Since they're Sym2 (unordered pairs),
+    -- each must equal Sym2.mk (v, w), so they're equal.
+    -- We prove this by showing both are equal via Sym2.mk (v, w).
+    -- First, we show membership in Sym2.mk (v, w) characterizes when x ∈ f.
+    -- Key lemma: for any Sym2 e with v, w ∈ e and v ≠ w, e = Sym2.mk (v, w).
+    have hsyeq : ∀ (e : Sym2 G.V), Sym2.Mem v e → Sym2.Mem w e → v ≠ w → e = Sym2.mk (v, w) := by
+      intro e hve hwe hvw
+      obtain ⟨a, ha⟩ := Sym2.mk_surjective e
+      subst ha
+      -- For any x, x ∈ Sym2.mk a → x = a.1 ∨ x = a.2 (from cases on Sym2.Mem)
+      have hx_mem : ∀ x, Sym2.Mem x (Sym2.mk a) → x = a.1 ∨ x = a.2 := by
+        intro x hx'
+        show x = a.1 ∨ x = a.2
+        simp [Sym2.Mem, Sym2.Rel] at hx'
+        rcases hx' with ⟨y, rfl | rfl⟩ <;> simp
+      obtain rfl | rfl := hx_mem v hve
+      · obtain rfl | rfl := hx_mem w hwe
+        · exact absurd rfl hvw
+        · rfl
+      · obtain rfl | rfl := hx_mem w hwe
+        · exact Quot.sound (Sym2.Rel.swap (a.1) (a.2))
+        · exact absurd rfl hvw
+    exact hfv_ne (hsyeq f hvf_mem hwf_mem hvw ▸ hsyeq ee (Sym2.mem_toFinset.mp hv) (Sym2.mem_toFinset.mp hw) hvw ▸ rfl)
+
 @[simp] theorem E_lineGraph [DecidableEq G.V] :
     (lineGraph G).E = (∑ v : G.V, (G.toSimple.degree v).choose 2) := by
   set S := G.toSimple
@@ -3812,107 +3925,8 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
       right_inv := fun e => Subtype.ext rfl }
   -- For each edge e of G (vertex of lineGraph G), its degree in LG
   have hdeg : ∀ e : (lineGraph G).V,
-      (lineGraph G).toSimple.degree e = ∑ v ∈ e.1.toFinset, (S.degree v - 1) := by
-    intro e
-    rw [SimpleGraph.degree]
-    set ee := e.1
-    have hee_mem : ee ∈ S.edgeFinset := (heqmem ee).mp e.2
-    have hneighbor_val :
-      Finset.image (fun f : (lineGraph G).V => f.1) (G.lineGraph.toSimple.neighborFinset e) =
-      Finset.filter (fun f => f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset) S.edgeFinset := by
-      ext f
-      simp [SimpleGraph.mem_neighborFinset, Finset.mem_image]
-      constructor
-      · rintro ⟨a, hadj, ha⟩
-        subst ha
-        have hadj' : e ≠ a ∧ ∃ v, v ∈ ee ∧ v ∈ a.1 := (hhadj e a).mp (by simpa using hadj)
-        exact ⟨a.2, fun h => hadj'.1 (Subtype.ext (h.symm)), hadj'.2⟩
-      · rintro ⟨hf1, hf2, v, hv1, hv2⟩
-        have hf1' : f ∈ S.edgeFinset := (heqmem f).mp hf1
-        let fe : (lineGraph G).V := ⟨f, (heqmem f).mpr hf1'⟩
-        have hne : e ≠ fe := fun h => hf2 ((congr_arg Subtype.val h).symm)
-        have hmem : ∃ w : G.V, w ∈ e.1 ∧ w ∈ fe.1 := ⟨v, hv1, hv2⟩
-        exact ⟨fe, ⟨hne, hmem⟩, rfl⟩
-    have hcard_eq : (G.lineGraph.toSimple.neighborFinset e).card =
-        ({f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset}).card := by
-      rw [← hneighbor_val]
-      have : (Finset.image (fun f : (lineGraph G).V => f.1) (G.lineGraph.toSimple.neighborFinset e)).card =
-          (G.lineGraph.toSimple.neighborFinset e).card := by
-        apply Finset.card_image_of_injective _ Subtype.coe_injective
-      rw [this]
-    rw [hcard_eq]
-    have hdecomp : {f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset} =
-        Finset.biUnion ee.toFinset (fun v => S.incidenceFinset v \ {ee}) := by
-      ext f
-      simp [Finset.mem_biUnion, Finset.mem_sdiff, Finset.mem_singleton, Finset.mem_filter,
-            SimpleGraph.mem_incidenceFinset]
-      constructor
-      · rintro ⟨hf1, hf2, a, ha, havf⟩
-        exact ⟨a, ha, ⟨hf1, havf⟩, hf2⟩
-      · rintro ⟨a, ha, hfa, hf2⟩
-        exact ⟨hfa.1, hf2, a, ha, hfa.2⟩
-    rw [hdecomp]
-    have hEE_inc_sym2 : ∀ v ∈ ee.toFinset, v ∈ ee := by
-      intro v hv
-      exact Sym2.mem_toFinset.mp hv
-    have hEE_inc : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceFinset v := by
-      intro v hv
-      rw [S.mem_incidenceFinset]
-      exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
-    have hEE_inc_set : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceSet v := by
-      intro v hv
-      show ee ∈ {e ∈ S.edgeSet | v ∈ e}
-      exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
-    have hpiece : ∀ v ∈ ee.toFinset, (S.incidenceFinset v \ {ee}).card = S.degree v - 1 := by
-      intro v hv
-      have hsubset : {ee} ⊆ S.incidenceFinset v := Finset.singleton_subset_iff.mpr (hEE_inc v hv)
-      have hcard_v : (S.incidenceFinset v).card = S.degree v := by
-        rw [SimpleGraph.degree, SimpleGraph.incidenceFinset]; simp
-      rw [Finset.card_sdiff_of_subset hsubset, Finset.card_singleton, hcard_v]
-    rw [Finset.card_biUnion]
-    · exact Finset.sum_congr rfl hpiece
-    · intro v hv w hw hvw
-      rw [Function.onFun, Finset.disjoint_left]
-      intro f hfv hfw
-      simp [Finset.mem_sdiff, Finset.mem_singleton] at hfv hfw
-      obtain ⟨hfv_inc, hfv_ne⟩ := hfv
-      obtain ⟨hfw_inc, hfw_ne⟩ := hfw
-      have hfv_inc' : f ∈ S.incidenceFinset v := by
-        rw [S.mem_incidenceFinset]; exact ⟨hfv_inc.1, hfv_inc.2⟩
-      have hfw_inc' : f ∈ S.incidenceFinset w := by
-        rw [S.mem_incidenceFinset]; exact ⟨hfw_inc.1, hfw_inc.2⟩
-      simp [SimpleGraph.mem_incidenceFinset] at hfv_inc' hfw_inc'
-      have hf_edge' : f ∈ S.edgeSet := hfv_inc.1
-      have hee_edge' : ee ∈ S.edgeSet := (heqmem ee).mpr hee_mem
-      have hvf_mem : Sym2.Mem v f := hfv_inc.2
-      have hwf_mem : Sym2.Mem w f := hfw_inc.2
-      have hvf : v ∈ f.toFinset := Sym2.mem_toFinset.mpr hvf_mem
-      have hwf : w ∈ f.toFinset := Sym2.mem_toFinset.mpr hwf_mem
-      -- Both f and ee have v, w as members (distinct). Since Sym2 elements have exactly 2 members,
-      -- every member of f is v or w, and same for ee. Hence f = ee by Sym2 extensionality.
-      -- f and ee both contain v and w (v ≠ w) as members. Since they're Sym2 (unordered pairs),
-      -- each must equal Sym2.mk (v, w), so they're equal.
-      -- We prove this by showing both are equal via Sym2.mk (v, w).
-      -- First, we show membership in Sym2.mk (v, w) characterizes when x ∈ f.
-      -- Key lemma: for any Sym2 e with v, w ∈ e and v ≠ w, e = Sym2.mk (v, w).
-      have hsyeq : ∀ (e : Sym2 G.V), Sym2.Mem v e → Sym2.Mem w e → v ≠ w → e = Sym2.mk (v, w) := by
-        intro e hve hwe hvw
-        obtain ⟨a, ha⟩ := Sym2.mk_surjective e
-        subst ha
-        -- For any x, x ∈ Sym2.mk a → x = a.1 ∨ x = a.2 (from cases on Sym2.Mem)
-        have hx_mem : ∀ x, Sym2.Mem x (Sym2.mk a) → x = a.1 ∨ x = a.2 := by
-          intro x hx'
-          show x = a.1 ∨ x = a.2
-          simp [Sym2.Mem, Sym2.Rel] at hx'
-          rcases hx' with ⟨y, rfl | rfl⟩ <;> simp
-        obtain rfl | rfl := hx_mem v hve
-        · obtain rfl | rfl := hx_mem w hwe
-          · exact absurd rfl hvw
-          · rfl
-        · obtain rfl | rfl := hx_mem w hwe
-          · exact Quot.sound (Sym2.Rel.swap (a.1) (a.2))
-          · exact absurd rfl hvw
-      exact hfv_ne (hsyeq f hvf_mem hwf_mem hvw ▸ hsyeq ee (Sym2.mem_toFinset.mp hv) (Sym2.mem_toFinset.mp hw) hvw ▸ rfl)
+      (lineGraph G).toSimple.degree e = ∑ v ∈ e.1.toFinset, (S.degree v - 1) :=
+    fun e ↦ degree_lineGraph G e
   -- Sum of degrees in LG = ∑ e ∈ E(G), ∑ v ∈ e, (deg(v) - 1)
   have hsum_deg : ∑ e : (lineGraph G).V, (lineGraph G).toSimple.degree e =
       ∑ e ∈ S.edgeFinset, ∑ v ∈ e.toFinset, (S.degree v - 1) := by

@@ -7803,6 +7803,57 @@ theorem IsRegularWith.join {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k
   · rw [degree_join_inl, hG a]; exact h1
   · rw [degree_join_inr, hH b]; exact h2
 
+
+/-! ### Degrees in the line graph -/
+
+/-- The degree of the edge `s(u, v)` as a vertex of the line graph: the other edges at `u`
+and the other edges at `v`, with no overlap. -/
+theorem degree_lineGraph_mk (G : CGraph) [DecidableEq G.V] {u v : G.V}
+    (h : s(u, v) ∈ G.toSimple.edgeSet) :
+    (lineGraph G).toSimple.degree ⟨s(u, v), h⟩
+      = G.toSimple.degree u + G.toSimple.degree v - 2 := by
+  have hadj : G.toSimple.Adj u v := h
+  have huv : u ≠ v := hadj.ne
+  have hu : 0 < G.toSimple.degree u :=
+    G.toSimple.degree_pos_iff_exists_adj u |>.2 ⟨v, hadj⟩
+  have hv : 0 < G.toSimple.degree v :=
+    G.toSimple.degree_pos_iff_exists_adj v |>.2 ⟨u, hadj.symm⟩
+  rw [degree_lineGraph]
+  show ∑ w ∈ (s(u, v) : Sym2 G.V).toFinset, (G.toSimple.degree w - 1) = _
+  rw [Sym2.toFinset_mk_eq, Finset.sum_pair huv]
+  omega
+
+/-- Every vertex of the line graph is an edge `s(u, v)` of `G`. -/
+theorem lineGraph_vertex_cases {G : CGraph} [DecidableEq G.V]
+    {motive : (lineGraph G).V → Prop}
+    (h : ∀ (u v : G.V) (huv : s(u, v) ∈ G.toSimple.edgeSet), motive ⟨s(u, v), huv⟩)
+    (e : (lineGraph G).V) : motive e := by
+  obtain ⟨e, he⟩ := e
+  obtain ⟨⟨u, v⟩, rfl⟩ := Sym2.mk_surjective e
+  exact h u v he
+
+/-- The line graph of a `k`-regular graph is `(2k - 2)`-regular. -/
+theorem IsRegularWith.lineGraph {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (h : G.IsRegularWith k) : (CGraph.lineGraph G).IsRegularWith (2 * k - 2) := by
+  refine lineGraph_vertex_cases fun u v huv ↦ ?_
+  rw [degree_lineGraph_mk G huv, h u, h v]
+  omega
+
+theorem maxDeg_lineGraph_le (G : CGraph) [DecidableEq G.V] :
+    (lineGraph G).maxDeg ≤ 2 * G.maxDeg - 2 := by
+  refine maxDeg_le_of_forall (lineGraph_vertex_cases fun u v huv ↦ ?_)
+  rw [degree_lineGraph_mk G huv]
+  have h1 := G.degree_le_maxDeg u
+  have h2 := G.degree_le_maxDeg v
+  omega
+
+theorem le_minDeg_lineGraph (G : CGraph) [DecidableEq G.V] (e₀ : (lineGraph G).V) :
+    2 * G.minDeg - 2 ≤ (lineGraph G).minDeg := by
+  refine le_minDeg_of_forall e₀ (lineGraph_vertex_cases fun u v huv ↦ ?_)
+  rw [degree_lineGraph_mk G huv]
+  have h1 := G.minDeg_le_degree u
+  have h2 := G.minDeg_le_degree v
+  omega
 end CGraph
 
 namespace IsoGraph
@@ -15740,5 +15791,74 @@ example : (hypercube 3).E = 12 := by
   have h := (isRegularWith_hypercube 3).two_mul_E
   rw [V_hypercube] at h
   omega
+
+/-! ### Degrees in the line graph -/
+
+/-- The line graph of a `k`-regular graph is `(2k - 2)`-regular: an edge `uv` meets the `k - 1`
+other edges at `u` and the `k - 1` other edges at `v`. -/
+theorem IsRegularWith.lineGraph {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    (IsoGraph.lineGraph G).IsRegularWith (2 * k - 2) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at h ⊢
+  rw [isRegularWith_mk] at h
+  rw [lineGraph_mk, isRegularWith_mk]
+  exact CGraph.IsRegularWith.lineGraph h
+
+/-- Two edge counts of a regular graph: `L(G)` is `(2k - 2)`-regular on `|E|` vertices. -/
+theorem IsRegularWith.two_mul_E_lineGraph {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    2 * (IsoGraph.lineGraph G).E = G.E * (2 * k - 2) := by
+  have h2 := h.lineGraph.two_mul_E
+  rwa [V_lineGraph] at h2
+
+/-- Counting the pairs of edges at each vertex: `|E(L(G))| = n * C(k, 2)` for a `k`-regular
+graph on `n` vertices.  This drops the strong regularity hypothesis of `IsSRGWith.E_lineGraph`. -/
+theorem IsRegularWith.E_lineGraph {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    (IsoGraph.lineGraph G).E = G.V * k.choose 2 := by
+  rw [IsoGraph.E_lineGraph, h.degSequence, List.map_replicate, List.sum_replicate, smul_eq_mul]
+
+theorem maxDeg_lineGraph_le (G : IsoGraph) : (lineGraph G).maxDeg ≤ 2 * G.maxDeg - 2 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, lineGraph_mk, maxDeg_mk, maxDeg_mk]
+  exact CGraph.maxDeg_lineGraph_le _
+
+theorem le_minDeg_lineGraph {G : IsoGraph} (h : 0 < G.E) :
+    2 * G.minDeg - 2 ≤ (lineGraph G).minDeg := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at h ⊢
+  rw [E_mk] at h
+  rw [lineGraph_mk, minDeg_mk, minDeg_mk]
+  refine CGraph.le_minDeg_lineGraph _ ?_
+  have hcard : 0 < Fintype.card (CGraph.lineGraph g.canonicalize).V := by
+    rwa [CGraph.card_lineGraph]
+  exact (Fintype.card_pos_iff.1 hcard).some
+
+/-- The triangular graph is the line graph of a complete graph, hence `(2n - 4)`-regular.
+Unlike `isSRGWith_triangular` this needs no lower bound on `n`. -/
+@[simp] theorem isRegularWith_triangular (n : ℕ) :
+    (triangular n).IsRegularWith (2 * n - 4) := by
+  have h := (isRegularWith_complete n).lineGraph
+  rw [lineGraph_complete_eq_triangular] at h
+  have hk : 2 * (n - 1) - 2 = 2 * n - 4 := by omega
+  rwa [hk] at h
+
+example : (lineGraph petersen).IsRegularWith 4 := (isRegularWith_petersen).lineGraph
+
+example : (lineGraph petersen).V = 15 := by
+  rw [V_lineGraph]
+  have := isSRGWith_petersen.two_mul_E
+  omega
+
+/-- The Petersen graph is `3`-regular on ten vertices, so its line graph is `4`-regular on
+fifteen vertices and has thirty edges. -/
+example : (lineGraph petersen).E = 30 := by
+  rw [isRegularWith_petersen.E_lineGraph, V_petersen]
+  rfl
+
+/-- The line graph of the cube `Q₃` is `4`-regular on twelve vertices, so it has 24 edges. -/
+example : (lineGraph (hypercube 3)).E = 24 := by
+  rw [(isRegularWith_hypercube 3).E_lineGraph, V_hypercube]
+  rfl
+
+example : (triangular 5).IsRegularWith 6 := isRegularWith_triangular 5
 
 end IsoGraph
