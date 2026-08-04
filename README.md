@@ -1636,6 +1636,18 @@ theorem in the one case where the easy `Δ` colours provably do not suffice. Fin
 gets an exact independence number, `|V| ≤ χ · α` with `χ = 2` against `2α ≤ |V|` giving
 `α(Qₙ) = τ(Qₙ) = 2ⁿ⁻¹`.
 
+The clique number is the easiest of these to pin down, because `ω ≤ χ` and a single edge
+already forces `ω ≥ 2`.  That settles `ω(Qₙ) = 2`, `ω` of the ladder, and `ω` of every prism
+except the triangular one — `Y₃` contains the two triangles of `C₃`, so `ω(Y₃) = 3` — and for
+the Petersen graph the vertex-transitive bound `α · ω ≤ |V|` together with `χ = 3` (hence
+`α ≥ 4`) gives `ω = 2`, so the girth is at least four.  The independence numbers of the ladder
+and the even prism come from squeezing `α(G □ K₂) ≤ |V(G)|` against `|V| ≤ χ · α` with `χ = 2`:
+both are half the order, and Gallai converts each into a vertex cover number.  The odd prism
+only gets the upper bound `α ≤ n`, since it is not bipartite.  Connectivity of the strongly
+regular families is recorded as `c(G) = 1` for the triangular, cocktail-party, Paley and
+Petersen graphs.  The domination number of a cycle is `⌈n/3⌉`: every third vertex dominates,
+matching the general `3γ ≥ n` bound for graphs of maximum degree two.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

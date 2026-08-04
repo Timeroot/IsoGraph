@@ -17853,4 +17853,213 @@ example : 5 ≤ (complete 5).edgeChromNum := by
   norm_num at h
   exact h
 
+
+/-! ### Cliques in the hypercube and the Petersen graph -/
+
+/-- A bipartite graph with an edge has clique number exactly two. -/
+@[simp] theorem cliqueNum_hypercube (n : ℕ) : (hypercube (n + 1)).cliqueNum = 2 := by
+  have h1 := cliqueNum_le_chromNum (hypercube (n + 1))
+  rw [chromNum_hypercube] at h1
+  have h2 : 2 ≤ (hypercube (n + 1)).cliqueNum := by
+    refine two_le_cliqueNum_of_E_pos ?_
+    have h := E_hypercube (n + 1)
+    have hp : 0 < (n + 1) * 2 ^ (n + 1) := Nat.mul_pos n.succ_pos (Nat.two_pow_pos _)
+    omega
+  omega
+
+/-- Three colours suffice for the Petersen graph, so a colour class has at least four
+of its ten vertices. -/
+theorem four_le_indepNum_petersen : 4 ≤ petersen.indepNum := by
+  have h := V_le_chromNum_mul_indepNum petersen
+  rw [V_petersen, chromNum_petersen] at h
+  omega
+
+/-- **The Petersen graph is triangle-free**: it is vertex-transitive with `α ≥ 4`, and
+`α · ω ≤ 10` leaves no room for a triangle. -/
+@[simp] theorem cliqueNum_petersen : petersen.cliqueNum = 2 := by
+  have h := indepNum_mul_cliqueNum_le_V isVertexTransitive_petersen
+  rw [V_petersen] at h
+  have h2 : 2 ≤ petersen.cliqueNum :=
+    two_le_cliqueNum_of_E_pos (by rw [E_petersen]; omega)
+  have h5 : 4 * petersen.cliqueNum ≤ petersen.indepNum * petersen.cliqueNum :=
+    Nat.mul_le_mul_right _ four_le_indepNum_petersen
+  omega
+
+theorem four_le_girth_petersen : 4 ≤ petersen.girth :=
+  four_le_girth_of_cliqueNum (by rw [cliqueNum_petersen])
+    (not_isAcyclic_of_isConnected isConnected_petersen (by
+      intro h
+      have := h.E_add_one
+      rw [E_petersen, V_petersen] at this
+      omega))
+
+@[simp] theorem numComponents_petersen : petersen.numComponents = 1 :=
+  numComponents_eq_one_of_isConnected isConnected_petersen
+
+/-! ### Connectivity of the strongly regular families -/
+
+@[simp] theorem numComponents_triangular {n : ℕ} (hn : 4 ≤ n) :
+    (triangular n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_triangular hn)
+
+@[simp] theorem numComponents_cocktailParty (n : ℕ) :
+    (cocktailParty (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_cocktailParty n)
+
+theorem numComponents_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq5 : 5 ≤ q) :
+    (paley q).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_paley q hq hq5)
+
+/-! ### Prisms and ladders -/
+
+@[simp] theorem cliqueNum_ladder (n : ℕ) : (ladder (n + 2)).cliqueNum = 2 := by
+  rw [show ladder (n + 2) = cartesianProduct (path (n + 2)) (complete 2) from rfl,
+    cliqueNum_cartesianProduct (by rw [V_path]; omega) (by rw [V_complete]; omega),
+    cliqueNum_path, cliqueNum_complete]
+  norm_num
+
+/-- A prism over a cycle of length at least four is triangle-free. -/
+@[simp] theorem cliqueNum_prism (n : ℕ) : (prism (n + 4)).cliqueNum = 2 := by
+  rw [show prism (n + 4) = cartesianProduct (cycle (n + 4)) (complete 2) from rfl,
+    cliqueNum_cartesianProduct (by rw [V_cycle]; omega) (by rw [V_complete]; omega),
+    cliqueNum_cycle, cliqueNum_complete]
+  norm_num
+
+/-- The triangular prism `K₃ □ K₂` does contain a triangle. -/
+@[simp] theorem cliqueNum_prism_three : (prism 3).cliqueNum = 3 := by
+  rw [show prism 3 = cartesianProduct (cycle 3) (complete 2) from rfl,
+    cliqueNum_cartesianProduct (by rw [V_cycle]; omega) (by rw [V_complete]; omega),
+    cliqueNum_cycle_three, cliqueNum_complete]
+  norm_num
+
+/-- An odd prism needs three colours: the rim already does. -/
+@[simp] theorem chromNum_prism_odd (m : ℕ) : (prism (2 * m + 3)).chromNum = 3 := by
+  rw [show prism (2 * m + 3) = cartesianProduct (cycle (2 * m + 3)) (complete 2) from rfl,
+    chromNum_cartesianProduct (by rw [V_cycle]; omega) (by rw [V_complete]; omega),
+    chromNum_cycle_odd, chromNum_complete]
+  norm_num
+
+/-- **The independence number of a ladder**: `α(Pₙ □ K₂) = n`.  A ladder is bipartite, which
+gives `2α ≥ |V|`, and an independent set meets each rung at most once, which gives `α ≤ n`. -/
+@[simp] theorem indepNum_ladder (n : ℕ) : (ladder n).indepNum = n := by
+  have hc : (complete 2).indepNum = 1 := by rw [indepNum_complete]; norm_num
+  have hup : (ladder n).indepNum ≤ (path n).V * (complete 2).indepNum :=
+    indepNum_cartesianProduct_le _ _
+  rw [V_path, hc, Nat.mul_one] at hup
+  cases n with
+  | zero => omega
+  | succ m =>
+    have h := V_le_chromNum_mul_indepNum (ladder (m + 1))
+    rw [V_ladder, chromNum_ladder] at h
+    omega
+
+@[simp] theorem coverNum_ladder (n : ℕ) : (ladder n).coverNum = n := by
+  have h := (ladder n).coverNum_add_indepNum
+  rw [V_ladder, indepNum_ladder] at h
+  omega
+
+/-- **The independence number of an even prism**: same argument, with the even cycle supplying
+the bipartition. -/
+@[simp] theorem indepNum_prism_even (m : ℕ) : (prism (2 * m + 4)).indepNum = 2 * m + 4 := by
+  have hc : (complete 2).indepNum = 1 := by rw [indepNum_complete]; norm_num
+  have hup : (prism (2 * m + 4)).indepNum ≤ (cycle (2 * m + 4)).V * (complete 2).indepNum :=
+    indepNum_cartesianProduct_le _ _
+  rw [V_cycle, hc, Nat.mul_one] at hup
+  have h := V_le_chromNum_mul_indepNum (prism (2 * m + 4))
+  rw [V_prism, chromNum_prism_even] at h
+  omega
+
+@[simp] theorem coverNum_prism_even (m : ℕ) : (prism (2 * m + 4)).coverNum = 2 * m + 4 := by
+  have h := (prism (2 * m + 4)).coverNum_add_indepNum
+  rw [V_prism, indepNum_prism_even] at h
+  omega
+
+/-- An odd prism is vertex-transitive and triangle-free, so its independent sets are still
+capped by one vertex per rung; one rung has to be missed entirely. -/
+theorem indepNum_prism_odd_le (m : ℕ) : (prism (2 * m + 3)).indepNum ≤ 2 * m + 3 := by
+  have hc : (complete 2).indepNum = 1 := by rw [indepNum_complete]; norm_num
+  have hup : (prism (2 * m + 3)).indepNum ≤ (cycle (2 * m + 3)).V * (complete 2).indepNum :=
+    indepNum_cartesianProduct_le _ _
+  rw [V_cycle, hc, Nat.mul_one] at hup
+  omega
+
+example : (ladder 5).indepNum = 5 := by rw [indepNum_ladder]
+example : (prism 6).indepNum = 6 := by
+  rw [show (6 : ℕ) = 2 * 1 + 4 from rfl, indepNum_prism_even]
+example : (prism 5).chromNum = 3 := by
+  rw [show (5 : ℕ) = 2 * 1 + 3 from rfl, chromNum_prism_odd]
+example : (hypercube 4).cliqueNum = 2 := by
+  rw [show (4 : ℕ) = 3 + 1 from rfl, cliqueNum_hypercube]
+
+/-! ### The domination number of a cycle -/
+
+/-- **The domination number of a cycle**: `γ(Cₙ) = ⌈n/3⌉`.  The upper bound picks every third
+vertex, `0, 3, 6, …`; the lower bound is the general `3γ ≥ n` bound for cubic-or-less graphs
+already available as `le_domNum_cycle`. -/
+@[simp] theorem domNum_cycle (n : ℕ) : (cycle (n + 3)).domNum = (n + 5) / 3 := by
+  apply le_antisymm
+  · simp only [IsoGraph.cycle, IsoGraph.domNum_mk]
+    set m := (n + 5) / 3
+    set s : Finset (CGraph.cycle (n + 3)).V :=
+      Finset.image (fun i : Fin m => ⟨3 * (i : ℕ), by omega⟩) Finset.univ
+    have hcard : s.card = m := by
+      rw [Finset.card_image_of_injective]
+      · simp [Finset.card_univ, Fintype.card_fin]
+      · intro a b hab
+        rw [Fin.ext_iff] at hab
+        simp at hab
+        exact Fin.ext (by omega)
+    have hdom : (CGraph.cycle (n + 3)).IsDominatingSet s := by
+      intro v
+      have hvlt : v.val < n + 3 := v.2
+      have hmod : v.val % 3 = 0 ∨ v.val % 3 = 1 ∨ v.val % 3 = 2 := by omega
+      have mem_s_of_zero_mod : ∀ k hk, k % 3 = 0 → (⟨k, hk⟩ : (CGraph.cycle (n + 3)).V) ∈ s := by
+        intro k hk h0
+        simp only [s, Finset.mem_image, Finset.mem_univ, true_and]
+        exact ⟨⟨k / 3, by omega⟩, by simp [Fin.val_mk]; omega⟩
+      rcases hmod with h0 | h1 | h2
+      · left; exact mem_s_of_zero_mod v.val hvlt h0
+      · right
+        have hv1 : 1 ≤ v.val := by omega
+        set u : (CGraph.cycle (n + 3)).V := ⟨v.val - 1, by omega⟩
+        refine ⟨u, mem_s_of_zero_mod _ _ (by omega), ?_⟩
+        have huv : (u.val + 1) % (n + 3) = v.val := by
+          show ((v.val - 1) + 1) % (n + 3) = v.val
+          simp [Nat.sub_add_cancel hv1]
+          omega
+        rw [CGraph.cycle_adj_val]
+        have hne : u.val ≠ v.val := by
+          show (v.val - 1) ≠ v.val
+          omega
+        show _ ∧ _
+        exact ⟨hne, Or.inl huv⟩
+      · by_cases hvlast : v.val = n + 2
+        · right
+          set u : (CGraph.cycle (n + 3)).V := ⟨0, by omega⟩
+          refine ⟨u, mem_s_of_zero_mod _ _ (by omega), ?_⟩
+          show (CGraph.cycle (n + 3)).Adj u v = true
+          rw [CGraph.cycle_adj_val]
+          simp [u, hvlast]
+        · right
+          set u : (CGraph.cycle (n + 3)).V := ⟨v.val + 1, by omega⟩
+          refine ⟨u, mem_s_of_zero_mod _ _ (by omega), ?_⟩
+          have hvlt2 : v.val + 1 < n + 3 := by omega
+          show (CGraph.cycle (n + 3)).Adj u v = true
+          have huval : u.val = v.val + 1 := by simp [u, Fin.val_mk]
+          rw [CGraph.cycle_adj_val, huval]
+          have hmod2 : (v.val + 1) % (n + 3) = v.val + 1 := Nat.mod_eq_of_lt hvlt2
+          exact ⟨by omega, Or.inr hmod2⟩
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet hdom) hcard.le
+  · have hlb := le_domNum_cycle n
+    omega
+
+/-- The total domination-style consequence: a cycle needs at least a third of its vertices
+dominated, and `⌈n/3⌉` is exactly a third when `3 ∣ n`. -/
+theorem three_mul_domNum_cycle (m : ℕ) : 3 * (cycle (3 * m + 3)).domNum = 3 * m + 3 := by
+  rw [show 3 * m + 3 = (3 * m) + 3 from rfl, domNum_cycle]
+  omega
+
+example : (cycle 6).domNum = 2 := by rw [show (6 : ℕ) = 3 + 3 from rfl, domNum_cycle]
+example : (cycle 7).domNum = 3 := by rw [show (7 : ℕ) = 4 + 3 from rfl, domNum_cycle]
+
 end IsoGraph
