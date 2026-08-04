@@ -1123,6 +1123,31 @@ vertex per edge, and `|E| ≤ τ·Δ`, since the `τ` cover vertices' incidence 
 and each has at most `Δ` of them.  The second is tight on stars, and combined with Gallai it caps
 the independence number of a graph with many edges: `|E| + α·Δ ≤ |V|·Δ`.
 
+The **clique–coclique bound** `α·ω ≤ |V|` for vertex-transitive graphs is where the transitivity
+proofs of `IsoGraph/Symmetry.lean` first pay a dividend in the invariant table.  The automorphism
+group is taken as the `Finset` of adjacency-preserving permutations of the vertex type, which
+keeps everything inside `Fintype` land and needs no `Fintype (G ≃cg G)` instance.  Fix a maximum
+clique `C` and a maximum independent set `S` and count the pairs `(σ, c)` with `c ∈ C` and
+`σ c ∈ S`.  Each automorphism contributes at most one such `c`, because `σ C` is again a clique
+while `S` is independent, so the count is at most `|Aut G|`.  Transitivity makes all the fibres
+`{σ | σ c = v}` the same size `m` — carry one onto another by composing with automorphisms
+`c' ↦ c` and `v ↦ v'` — so the same count is exactly `|C|·|S|·m`, while summing the fibres over a
+fixed `c` gives `|Aut G| = |V|·m`.  The identity lies in a fibre, so `m > 0` and it cancels.  Out
+come `2α ≤ |V|` for a vertex-transitive graph with an edge and dually `2ω ≤ |V|` for one that is
+not complete, `α(K_m □ K_n) ≤ min m n` (the hard direction of the rook's graph independence
+number, since there `ω = max m n` and `|V| = mn`), `α(Qₙ) ≤ 2ⁿ⁻¹`, `α(Petersen) ≤ 5`,
+`α(Cₙ) ≤ ⌊n/2⌋` and `α·ω ≤ C(n, k)` for Kneser graphs.  Read backwards it is a certificate of
+*non*-transitivity that owes nothing to the degree sequence: the star `K₁,₃` has `α·ω = 6 > 4`.
+
+Self-complementary graphs get their own small theory, since `compl G = G` is a statement one can
+actually make on the quotient.  Such a graph has `α = ω` and owns exactly half of the possible
+edges, `2|E| = C(|V|, 2)`; expanding `|V| = 4k + r` shows `4 ∣ |V|·(|V| - 1)`, so
+**`|V| ≡ 0` or `1 (mod 4)`** — no graph on six vertices is self-complementary.  A
+self-complementary graph that is *also* vertex-transitive has `ω² ≤ |V|`, and Paley graphs are
+both: they are Cayley graphs of the additive group of the field, so `isVertexTransitive_cayleyAdd`
+applies, and `paley 13`, `paley 17` are already known here to be self-complementary.  That gives
+`ω(Paley 13) ≤ 3` and `ω(Paley 17) ≤ 4` — the first is sharp — with the same bounds on `α`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

@@ -4936,6 +4936,15 @@ theorem isVertexTransitive_cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [Add
   isVertexTransitive_ofRel A _ fun u v ↦
     ⟨Equiv.addRight (-u + v), fun x y ↦ by simp [add_sub_add_right_eq_sub], by simp⟩
 
+/-- The Paley graph of a finite field is a Cayley graph, hence vertex-transitive. -/
+theorem isVertexTransitive_paleyField (F : Type) [Field F] [Fintype F] [DecidableEq F] :
+    (paleyField F).IsVertexTransitive :=
+  isVertexTransitive_cayleyAdd F _
+
+theorem isVertexTransitive_paley (q : ℕ) [NeZero q] [Fact q.Prime] :
+    (paley q).IsVertexTransitive :=
+  isVertexTransitive_of_iso (paleyIso q) (isVertexTransitive_paleyField (ZMod q))
+
 /-! ### Cycles
 
 The successor relation `(i + 1) % n = j` defining `cycle n` is the group-theoretic successor on

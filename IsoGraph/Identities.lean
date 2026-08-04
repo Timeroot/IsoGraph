@@ -5489,6 +5489,158 @@ theorem indepNum_lt_card_of_E_pos (G : CGraph) (h : 0 < G.E) :
     exact hs.isIndepSet (hmem a) (hmem b) ((toSimple_adj _ _ _).2 hab).ne
       ((toSimple_adj _ _ _).2 hab)
 
+section CliqueCoclique
+
+variable {G : CGraph} [DecidableEq G.V]
+
+/-- The automorphism group of `G`, as a `Finset` of permutations of the vertex type.  Working
+with permutations rather than with `G ≃cg G` keeps everything inside `Fintype` land. -/
+private def autFinset (G : CGraph) [DecidableEq G.V] : Finset (Equiv.Perm G.V) :=
+  Finset.univ.filter fun σ ↦ ∀ x y, G.Adj (σ x) (σ y) = G.Adj x y
+
+private theorem mem_autFinset {σ : Equiv.Perm G.V} :
+    σ ∈ autFinset G ↔ ∀ x y, G.Adj (σ x) (σ y) = G.Adj x y := by
+  simp [autFinset]
+
+private theorem one_mem_autFinset : (1 : Equiv.Perm G.V) ∈ autFinset G := by
+  rw [mem_autFinset]; intro x y; rfl
+
+private theorem mul_mem_autFinset {σ τ : Equiv.Perm G.V} (hσ : σ ∈ autFinset G)
+    (hτ : τ ∈ autFinset G) : σ * τ ∈ autFinset G := by
+  rw [mem_autFinset] at hσ hτ ⊢
+  intro x y
+  simp only [Equiv.Perm.mul_apply]
+  rw [hσ, hτ]
+
+private theorem inv_mem_autFinset {σ : Equiv.Perm G.V} (hσ : σ ∈ autFinset G) :
+    σ⁻¹ ∈ autFinset G := by
+  rw [mem_autFinset] at hσ ⊢
+  intro x y
+  have h := hσ (σ⁻¹ x) (σ⁻¹ y)
+  simpa using h.symm
+
+private theorem mem_autFinset_of_iso (σ : G ≃cg G) : σ.toEquiv ∈ autFinset G := by
+  rw [mem_autFinset]
+  intro x y
+  exact σ.adj_eq x y
+
+/-- All fibres of the map `σ ↦ σ c` have the same size, for a vertex-transitive graph: the
+fibre over `(c, v)` is carried onto the fibre over `(c', v')` by `σ ↦ β σ α` for automorphisms
+`α : c' ↦ c` and `β : v ↦ v'`. -/
+private theorem card_autFinset_filter_eq (hvt : G.IsVertexTransitive) (c v c' v' : G.V) :
+    ((autFinset G).filter fun σ ↦ σ c = v).card
+      = ((autFinset G).filter fun σ ↦ σ c' = v').card := by
+  obtain ⟨a, ha⟩ := hvt c' c
+  obtain ⟨b, hb⟩ := hvt v v'
+  set α : Equiv.Perm G.V := a.toEquiv with hα
+  set β : Equiv.Perm G.V := b.toEquiv with hβ
+  have hαmem : α ∈ autFinset G := mem_autFinset_of_iso a
+  have hβmem : β ∈ autFinset G := mem_autFinset_of_iso b
+  have hac : α c' = c := ha
+  have hbv : β v = v' := hb
+  refine Finset.card_nbij' (fun σ ↦ β * σ * α) (fun τ ↦ β⁻¹ * τ * α⁻¹) ?_ ?_ ?_ ?_
+  · intro σ hσ
+    simp only [Finset.coe_filter, Set.mem_setOf_eq] at hσ ⊢
+    refine ⟨mul_mem_autFinset (mul_mem_autFinset hβmem hσ.1) hαmem, ?_⟩
+    simp only [Equiv.Perm.mul_apply, hac, hσ.2, hbv]
+  · intro τ hτ
+    simp only [Finset.coe_filter, Set.mem_setOf_eq] at hτ ⊢
+    refine ⟨mul_mem_autFinset (mul_mem_autFinset (inv_mem_autFinset hβmem) hτ.1)
+      (inv_mem_autFinset hαmem), ?_⟩
+    have hc : α⁻¹ c = c' := by rw [← hac]; simp
+    have hv : β⁻¹ v' = v := by rw [← hbv]; simp
+    simp only [Equiv.Perm.mul_apply, hc, hτ.2, hv]
+  · intro σ _
+    group
+  · intro τ _
+    group
+
+end CliqueCoclique
+
+/-! ### The clique–coclique bound -/
+
+/-- **The clique–coclique bound**: in a vertex-transitive graph, `α · ω ≤ |V|`.
+
+The proof is a double count of the pairs `(σ, c)` with `σ` an automorphism, `c` a vertex of a
+fixed maximum clique `C`, and `σ c` in a fixed maximum independent set `S`.  For each `σ` there
+is at most one such `c`, since `σ C` is a clique and `S` is independent; on the other hand each
+of the `|C| · |S|` pairs `(c, v)` is realised by exactly `|Aut G| / |V|` automorphisms, because
+the action is transitive. -/
+theorem indepNum_mul_cliqueNum_le_card (G : CGraph) (hvt : G.IsVertexTransitive) :
+    G.indepNum * G.cliqueNum ≤ Fintype.card G.V := by
+  classical
+  obtain ⟨S, hS, hScard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  obtain ⟨C, hC, hCcard⟩ := G.toSimple.exists_isNClique_cliqueNum
+  rcases Finset.eq_empty_or_nonempty C with rfl | ⟨c₀, hc₀⟩
+  · rw [Finset.card_empty] at hCcard
+    have hz : G.cliqueNum = 0 := hCcard.symm
+    rw [hz, Nat.mul_zero]
+    exact Nat.zero_le _
+  set Γ : Finset (Equiv.Perm G.V) := autFinset G with hΓ
+  set m : ℕ := (Γ.filter fun σ ↦ σ c₀ = c₀).card with hm
+  -- every fibre has size `m`
+  have hfib : ∀ c v : G.V, (Γ.filter fun σ ↦ σ c = v).card = m := fun c v ↦
+    card_autFinset_filter_eq hvt c v c₀ c₀
+  -- the fibres over a fixed `c` partition the automorphism group
+  have hcard : Γ.card = Fintype.card G.V * m := by
+    have := Finset.card_eq_sum_card_fiberwise
+      (f := fun σ : Equiv.Perm G.V ↦ σ c₀) (s := Γ) (t := Finset.univ)
+      (fun x _ ↦ Finset.mem_univ _)
+    rw [this]
+    rw [Finset.sum_congr rfl fun v _ ↦ hfib c₀ v, Finset.sum_const, Finset.card_univ,
+      smul_eq_mul]
+  -- the double count
+  set N : ℕ := ∑ σ ∈ Γ, (C.filter fun c ↦ σ c ∈ S).card with hN
+  have hupper : N ≤ Γ.card := by
+    have hone : ∀ σ ∈ Γ, (C.filter fun c ↦ σ c ∈ S).card ≤ 1 := by
+      intro σ hσ
+      rw [Finset.card_le_one]
+      intro x hx y hy
+      simp only [Finset.mem_filter] at hx hy
+      by_contra hne
+      have hadj : G.toSimple.Adj x y := hC hx.1 hy.1 hne
+      have hadj' : G.toSimple.Adj (σ x) (σ y) := by
+        rw [toSimple_adj] at hadj ⊢
+        rw [(mem_autFinset.1 hσ) x y]
+        exact hadj
+      exact hS hx.2 hy.2 (fun h ↦ hne (σ.injective h)) hadj'
+    calc N ≤ Γ.card • 1 := Finset.sum_le_card_nsmul _ _ 1 hone
+      _ = Γ.card := by simp
+  have hlower : N = C.card * (S.card * m) := by
+    have h1 : N = ∑ c ∈ C, (Γ.filter fun σ ↦ σ c ∈ S).card := by
+      simp only [hN, Finset.card_filter]
+      exact Finset.sum_comm
+    have h2 : ∀ c : G.V, (Γ.filter fun σ ↦ σ c ∈ S).card = S.card * m := by
+      intro c
+      have h3 := Finset.card_eq_sum_card_fiberwise
+        (f := fun σ : Equiv.Perm G.V ↦ σ c) (s := Γ.filter fun σ ↦ σ c ∈ S) (t := S)
+        (fun x hx ↦ (Finset.mem_filter.1 hx).2)
+      rw [h3]
+      have h4 : ∀ v ∈ S, ((Γ.filter fun σ ↦ σ c ∈ S).filter fun σ ↦ σ c = v).card = m := by
+        intro v hv
+        rw [Finset.filter_filter]
+        rw [Finset.filter_congr (q := fun σ ↦ σ c = v) fun σ _ ↦
+          ⟨fun h ↦ h.2, fun h ↦ ⟨h ▸ hv, h⟩⟩]
+        exact hfib c v
+      rw [Finset.sum_congr rfl h4, Finset.sum_const, smul_eq_mul]
+    rw [h1, Finset.sum_congr rfl fun c _ ↦ h2 c, Finset.sum_const, smul_eq_mul]
+  -- put the two halves together and cancel the common factor `m`
+  have hmpos : 0 < m := by
+    rw [hm]
+    refine Finset.card_pos.2 ⟨1, Finset.mem_filter.2 ⟨one_mem_autFinset, rfl⟩⟩
+  have hfinal : S.card * C.card * m ≤ Fintype.card G.V * m := by
+    calc S.card * C.card * m = C.card * (S.card * m) := by ring
+      _ = N := hlower.symm
+      _ ≤ Γ.card := hupper
+      _ = Fintype.card G.V * m := hcard
+  have := Nat.le_of_mul_le_mul_right hfinal hmpos
+  rwa [hScard, hCcard] at this
+
+/-- A graph with `α · ω > |V|` cannot be vertex-transitive. -/
+theorem not_isVertexTransitive_of_card_lt (G : CGraph)
+    (h : Fintype.card G.V < G.indepNum * G.cliqueNum) : ¬ G.IsVertexTransitive := fun hvt ↦
+  absurd (G.indepNum_mul_cliqueNum_le_card hvt) (by omega)
+
 end CGraph
 
 namespace IsoGraph
@@ -11632,5 +11784,215 @@ example : (bipartite 3 4).coverNum = 3 := by simp
 example (n : ℕ) :
     (star (n + 1)).E = (star (n + 1)).coverNum * (star (n + 1)).maxDeg := by
   rw [E_star, maxDeg_star, coverNum_star, Nat.min_eq_left (by omega), one_mul]
+
+/-! ### The clique–coclique bound -/
+
+/-- **The clique–coclique bound**: `α · ω ≤ |V|` for a vertex-transitive graph.  Both factors are
+maximised by the same graph only in very rigid cases; see the examples below. -/
+theorem indepNum_mul_cliqueNum_le_V {G : IsoGraph} (h : IsVertexTransitive G) :
+    G.indepNum * G.cliqueNum ≤ G.V := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, V_mk, indepNum_mk, cliqueNum_mk]
+  rw [← mk_canonicalize g, isVertexTransitive_mk] at h
+  exact CGraph.indepNum_mul_cliqueNum_le_card _ h
+
+/-- Contrapositive: `α · ω > |V|` is a certificate of *non*-vertex-transitivity, and one that is
+independent of the usual degree-sequence obstruction. -/
+theorem not_isVertexTransitive_of_V_lt {G : IsoGraph} (h : G.V < G.indepNum * G.cliqueNum) :
+    ¬ IsVertexTransitive G := fun hvt ↦ absurd (indepNum_mul_cliqueNum_le_V hvt) (by omega)
+
+/-- A vertex-transitive graph with an edge has an independent set of at most half its vertices. -/
+theorem two_mul_indepNum_le_V {G : IsoGraph} (h : IsVertexTransitive G) (hE : 0 < G.E) :
+    2 * G.indepNum ≤ G.V := by
+  have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hE
+  calc 2 * G.indepNum = G.indepNum * 2 := by ring
+    _ ≤ G.indepNum * G.cliqueNum := Nat.mul_le_mul_left _ h1
+    _ ≤ G.V := indepNum_mul_cliqueNum_le_V h
+
+/-- Dually, a vertex-transitive graph that is not complete has a clique of at most half its
+vertices (`2 ≤ α` says exactly that some pair of vertices is non-adjacent). -/
+theorem two_mul_cliqueNum_le_V {G : IsoGraph} (h : IsVertexTransitive G) (hα : 2 ≤ G.indepNum) :
+    2 * G.cliqueNum ≤ G.V :=
+  le_trans (Nat.mul_le_mul_right _ hα) (indepNum_mul_cliqueNum_le_V h)
+
+/-- The clique–coclique bound and the greedy bound `|V| ≤ χ · α` sandwich `|V|` between two
+products with the same first factor, so a vertex-transitive graph has `ω ≤ χ` with room to spare
+whenever the bound is not tight. -/
+theorem indepNum_mul_cliqueNum_le_chromNum_mul_indepNum {G : IsoGraph} (h : IsVertexTransitive G) :
+    G.indepNum * G.cliqueNum ≤ G.chromNum * G.indepNum :=
+  le_trans (indepNum_mul_cliqueNum_le_V h) (V_le_chromNum_mul_indepNum G)
+
+/-- In a vertex-transitive graph the independence number and the vertex cover number are related
+by `ω · (|V| - τ) ≤ |V|`. -/
+theorem cliqueNum_mul_V_sub_coverNum_le_V {G : IsoGraph} (h : IsVertexTransitive G) :
+    G.cliqueNum * (G.V - G.coverNum) ≤ G.V := by
+  rw [← indepNum_eq_V_sub_coverNum, Nat.mul_comm]
+  exact indepNum_mul_cliqueNum_le_V h
+
+/-! ### Consequences for the named families -/
+
+/-- The independence number of a rook's graph is at most `min m n`: a set of squares no two of
+which share a row or a column is a partial permutation matrix.  This is the hard direction of
+`α(K_m □ K_n) = min m n`, and it comes out of the clique–coclique bound because the rook's graph
+is vertex-transitive with `ω = max m n`. -/
+theorem indepNum_rook_le (m n : ℕ) (hm : 0 < m) (hn : 0 < n) :
+    (rook m n).indepNum ≤ min m n := by
+  have h := indepNum_mul_cliqueNum_le_V (isVertexTransitive_rook m n)
+  rw [cliqueNum_rook hm hn, V_rook] at h
+  have hmax : 0 < max m n := lt_of_lt_of_le hm (le_max_left m n)
+  refine Nat.le_of_mul_le_mul_right ?_ hmax
+  calc (rook m n).indepNum * max m n ≤ m * n := h
+    _ = min m n * max m n := (min_mul_max m n).symm
+
+/-- Hypercubes: an independent set in `Q_n` has at most `2^(n-1)` vertices (and the even-weight
+vertices show this is sharp). -/
+theorem two_mul_indepNum_hypercube_le (n : ℕ) :
+    2 * (hypercube (n + 1)).indepNum ≤ 2 ^ (n + 1) := by
+  have hE : 0 < (hypercube (n + 1)).E := by
+    have h := E_hypercube (n + 1)
+    have hpos : 0 < (n + 1) * 2 ^ (n + 1) :=
+      Nat.mul_pos (by omega) (pow_pos (by norm_num) _)
+    omega
+  have := two_mul_indepNum_le_V (isVertexTransitive_hypercube (n + 1)) hE
+  rwa [V_hypercube] at this
+
+/-- Kneser graphs: `α(K(n, k)) · ω(K(n, k)) ≤ C(n, k)`. -/
+theorem indepNum_mul_cliqueNum_kneser_le (n k : ℕ) :
+    (kneser n k).indepNum * (kneser n k).cliqueNum ≤ n.choose k := by
+  have := indepNum_mul_cliqueNum_le_V (isVertexTransitive_kneser n k)
+  rwa [V_kneser] at this
+
+/-- The Petersen graph is triangle-free, so its independence number is at most `5`.
+(The true value is `4`; the clique–coclique bound is off by one here.) -/
+theorem indepNum_petersen_le : petersen.indepNum ≤ 5 := by
+  have hE : 0 < petersen.E := by
+    have h : 2 * petersen.E = 30 := by
+      rw [two_mul_E_kneser 5 (k := 2) (by norm_num)]; rfl
+    omega
+  have := two_mul_indepNum_le_V isVertexTransitive_petersen hE
+  rw [V_petersen] at this
+  omega
+
+/-- Cycles: the clique–coclique bound recovers `α(C_n) ≤ ⌊n/2⌋`. -/
+theorem two_mul_indepNum_cycle_le (n : ℕ) : 2 * (cycle (n + 3)).indepNum ≤ n + 3 := by
+  have hE : 0 < (cycle (n + 3)).E := by simp
+  have := two_mul_indepNum_le_V (isVertexTransitive_cycle (n + 3)) hE
+  rwa [V_cycle] at this
+
+/-! Tightness: the complete graph, the cocktail-party graph and the rook's graph all meet the
+bound with equality. -/
+
+example (n : ℕ) : (complete (n + 1)).indepNum * (complete (n + 1)).cliqueNum = (complete (n + 1)).V := by
+  simp
+
+example (n : ℕ) :
+    (cocktailParty (n + 1)).indepNum * (cocktailParty (n + 1)).cliqueNum
+      = (cocktailParty (n + 1)).V := by
+  rw [indepNum_cocktailParty, cliqueNum_cocktailParty, V_cocktailParty]
+
+/-- The star `K_{1,3}` has `α · ω = 3 · 2 > 4 = |V|`, so it is not vertex-transitive. -/
+example : ¬ IsVertexTransitive (star 3) := by
+  refine not_isVertexTransitive_of_V_lt ?_
+  rw [indepNum_star, cliqueNum_star, V_star]
+  norm_num
+
+/-- Unbalanced complete bipartite graphs are not vertex-transitive. -/
+example (m n : ℕ) (h : m + 2 ≤ n) : ¬ IsVertexTransitive (bipartite (m + 1) (n + 1)) := by
+  refine not_isVertexTransitive_of_V_lt ?_
+  rw [indepNum_bipartite, cliqueNum_bipartite, V_bipartite]
+  have hmax : max (m + 1) (n + 1) = n + 1 := Nat.max_eq_right (by omega)
+  rw [hmax]
+  omega
+
+/-- Paley graphs are Cayley graphs of the additive group of the field, so they are
+vertex-transitive. -/
+@[simp] theorem isVertexTransitive_paley (q : ℕ) [NeZero q] [Fact q.Prime] :
+    IsVertexTransitive (paley q) :=
+  CGraph.isVertexTransitive_paley q
+
+/-! ### Self-complementary graphs -/
+
+/-- A self-complementary graph has as many vertices in its largest independent set as in its
+largest clique. -/
+theorem indepNum_eq_cliqueNum_of_compl_eq {G : IsoGraph} (h : compl G = G) :
+    G.indepNum = G.cliqueNum := by
+  conv_lhs => rw [← h]
+  rw [indepNum_compl]
+
+/-- A self-complementary graph owns exactly half of the possible edges. -/
+theorem two_mul_E_of_compl_eq {G : IsoGraph} (h : compl G = G) : 2 * G.E = G.V.choose 2 := by
+  have h1 := G.E_compl
+  rw [h] at h1
+  omega
+
+private theorem two_mul_choose_two (n : ℕ) : 2 * n.choose 2 = n * (n - 1) := by
+  cases n with
+  | zero => rfl
+  | succ m =>
+    rw [Nat.choose_two_right, Nat.succ_sub_one]
+    obtain ⟨k, hk⟩ := Nat.even_mul_succ_self m
+    have h : (m + 1) * m = 2 * k := by rw [Nat.mul_comm]; omega
+    rw [h]
+    omega
+
+/-- **A self-complementary graph has `|V| ≡ 0` or `1 (mod 4)`**: it owns half of the `C(|V|, 2)`
+possible edges, so `4` divides `|V| · (|V| - 1)`. -/
+theorem V_mod_four_of_compl_eq {G : IsoGraph} (h : compl G = G) :
+    G.V % 4 = 0 ∨ G.V % 4 = 1 := by
+  have h1 := two_mul_E_of_compl_eq h
+  have h2 := two_mul_choose_two G.V
+  have h3 : 4 * G.E = G.V * (G.V - 1) := by omega
+  by_contra hcon
+  push_neg at hcon
+  obtain ⟨k, hk⟩ : ∃ k, G.V = 4 * k + G.V % 4 := ⟨G.V / 4, by omega⟩
+  have hr : G.V % 4 = 2 ∨ G.V % 4 = 3 := by omega
+  rcases hr with hr | hr <;> rw [hr] at hk
+  · have hexp : G.V * (G.V - 1) = 16 * (k * k) + 12 * k + 2 := by
+      rw [hk, show 4 * k + 2 - 1 = 4 * k + 1 from by omega]; ring
+    omega
+  · have hexp : G.V * (G.V - 1) = 16 * (k * k) + 20 * k + 6 := by
+      rw [hk, show 4 * k + 3 - 1 = 4 * k + 2 from by omega]; ring
+    omega
+
+/-- A self-complementary *vertex-transitive* graph has `ω² ≤ |V|`, since `α = ω` there. -/
+theorem cliqueNum_sq_le_V_of_compl_eq {G : IsoGraph} (h : IsVertexTransitive G)
+    (hc : compl G = G) : G.cliqueNum ^ 2 ≤ G.V := by
+  have hα := indepNum_eq_cliqueNum_of_compl_eq hc
+  have hle := indepNum_mul_cliqueNum_le_V h
+  rw [hα, ← pow_two] at hle
+  exact hle
+
+/-- `ω(Paley 13) ≤ 3` (the true value is `3`), from `ω² ≤ 13`.  Since `Paley 13` is
+self-complementary this bounds its independence number too. -/
+theorem cliqueNum_paley_thirteen_le : (paley 13).cliqueNum ≤ 3 := by
+  haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
+  have h := cliqueNum_sq_le_V_of_compl_eq (isVertexTransitive_paley 13) compl_paley_thirteen
+  rw [V_paley] at h
+  by_contra hcon
+  push_neg at hcon
+  have : 4 * 4 ≤ (paley 13).cliqueNum ^ 2 := by
+    rw [pow_two]; exact Nat.mul_le_mul hcon hcon
+  omega
+
+theorem indepNum_paley_thirteen_le : (paley 13).indepNum ≤ 3 := by
+  rw [indepNum_eq_cliqueNum_of_compl_eq compl_paley_thirteen]
+  exact cliqueNum_paley_thirteen_le
+
+/-- `ω(Paley 17) ≤ 4`, from `ω² ≤ 17`. -/
+theorem cliqueNum_paley_seventeen_le : (paley 17).cliqueNum ≤ 4 := by
+  haveI : Fact (Nat.Prime 17) := ⟨by decide⟩
+  have h := cliqueNum_sq_le_V_of_compl_eq (isVertexTransitive_paley 17) compl_paley_seventeen
+  rw [V_paley] at h
+  by_contra hcon
+  push_neg at hcon
+  have : 5 * 5 ≤ (paley 17).cliqueNum ^ 2 := by
+    rw [pow_two]; exact Nat.mul_le_mul hcon hcon
+  omega
+
+/-- No graph on `6` vertices is self-complementary. -/
+example (G : IsoGraph) (h : G.V = 6) : compl G ≠ G := fun hc ↦ by
+  have := V_mod_four_of_compl_eq hc
+  rw [h] at this
+  omega
 
 end IsoGraph
