@@ -1040,7 +1040,7 @@ variable (G H : CGraph)
         exact ⟨{⟨0, hn⟩}, by simp [SimpleGraph.IsNClique, Finset.card_singleton]⟩
 
 @[simp] theorem degSequence_empty (n : ℕ) : (empty n).degSequence = List.replicate n 0 := by
-  unfold CGraph.degSequence
+  unfold CGraph.degSequence CGraph.degMultiset
   have hdeg : ∀ x : Fin n, (empty n).toSimple.degree x = 0 := by
     intro x
     rw [SimpleGraph.degree]
@@ -1309,7 +1309,7 @@ theorem compl_rook (m n : ℕ) :
       simp [Finset.filter_ne', Fintype.card_fin]
     convert this using 1
     congr 1; ext x; simp [ne_eq, eq_comm]
-  unfold CGraph.degSequence
+  unfold CGraph.degSequence CGraph.degMultiset
   rw [show (fun v : (complete n).V => (complete n).toSimple.degree v) = fun _ => n - 1 from funext hdeg]
   have hcard : Multiset.card (Finset.univ : Finset (complete n).V).val = n := by
     have h1 : (Finset.univ : Finset (complete n).V).card = Fintype.card (complete n).V := Finset.card_univ

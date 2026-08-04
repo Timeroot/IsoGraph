@@ -151,8 +151,18 @@ noncomputable def cliqueNum : ℕ := G.toSimple.cliqueNum
 /-- Number of edges. -/
 def E : ℕ := G.toSimple.edgeFinset.card
 
+/-- The multiset of vertex degrees.  This is the degree sequence before sorting; the identities
+of `IsoGraph/Identities.lean` are much easier to state and prove for the multiset, and nothing is
+lost, since `degSequence` is exactly its `sort` (`coe_degSequence`). -/
+def degMultiset : Multiset ℕ := Finset.univ.val.map fun v ↦ G.toSimple.degree v
+
 /-- Sorted degree sequence. -/
-def degSequence : List ℕ := (Finset.univ.val.map fun v ↦ G.toSimple.degree v).sort (· ≤ ·)
+def degSequence : List ℕ := G.degMultiset.sort (· ≤ ·)
+
+theorem degSequence_eq_sort : G.degSequence = G.degMultiset.sort (· ≤ ·) := rfl
+
+@[simp] theorem coe_degSequence : (G.degSequence : Multiset ℕ) = G.degMultiset :=
+  Multiset.sort_eq _ _
 
 /-- The graph is connected (in particular, nonempty). -/
 def IsConnected : Prop := G.toSimple.Connected
@@ -375,6 +385,14 @@ def E (G : IsoGraph) : ℕ :=
 
 @[simp] theorem E_mk (G : CGraph) : E (Quotient.mk _ G) = G.E := rfl
 
+/-- The multiset of vertex degrees. -/
+def degMultiset (G : IsoGraph) : Multiset ℕ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.degMultiset
+    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.degrees_eq (CGraph.Iso.toSimpleIso i)) G
+
+@[simp] theorem degMultiset_mk (G : CGraph) :
+    degMultiset (Quotient.mk _ G) = G.degMultiset := rfl
+
 /-- Sorted degree sequence. -/
 def degSequence (G : IsoGraph) : List ℕ :=
   Quotient.lift (s := CGraph.isoSetoid) CGraph.degSequence
@@ -383,6 +401,12 @@ def degSequence (G : IsoGraph) : List ℕ :=
 
 @[simp] theorem degSequence_mk (G : CGraph) :
     degSequence (Quotient.mk _ G) = G.degSequence := rfl
+
+theorem degSequence_eq_sort (G : IsoGraph) : degSequence G = (degMultiset G).sort (· ≤ ·) := by
+  induction G using Quotient.inductionOn with | _ g => rfl
+
+@[simp] theorem coe_degSequence (G : IsoGraph) : (degSequence G : Multiset ℕ) = degMultiset G := by
+  induction G using Quotient.inductionOn with | _ g => exact Multiset.sort_eq _ _
 
 /-- Connectivity. -/
 def IsConnected (G : IsoGraph) : Prop :=

@@ -888,6 +888,19 @@ which gives `= 2` as soon as `G` has an edge. The corollary
 connected, and `isConnected_compl_disjUnion` specialises it to the graphs that are visibly
 disconnected.
 
+Degree sequences are sorted lists, which makes them a poor fit for the binary constructions: the
+degree sequence of a disjoint union is a *merge* of the two sequences, not a concatenation. The
+underlying multiset has no such problem, so `degMultiset` sits alongside `degSequence` in
+`IsoGraph/Invariants.lean` — the latter is literally the `sort` of the former
+(`coe_degSequence`), so no information is lost. On the multiset the identities are the expected
+ones: `degMultiset_disjUnion` is addition, `degMultiset_compl` replaces every degree `d` by its
+co-degree `V - 1 - d`, and `degMultiset_join` shifts each side's degrees by the order of the other
+side. The last one is proved from the first two — a join *is* a complement of a disjoint union of
+complements — with the truncated subtractions resolved by `degree_le`. Feeding the join formula
+the degree multisets of the empty and complete graphs gives those of the complete bipartite
+graphs, stars (`n ::ₘ replicate n 1`), wheels and books, none of which is a constant sequence and
+so none of which was reachable from the strong-regularity machinery.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

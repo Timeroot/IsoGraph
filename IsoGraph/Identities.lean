@@ -2729,7 +2729,8 @@ theorem not_isBipartite_lexProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq
     tauto
 
 @[simp] theorem length_degSequence (G : CGraph) : G.degSequence.length = Fintype.card G.V := by
-  rw [degSequence, Multiset.length_sort, Multiset.card_map, Finset.card_val, Finset.card_univ]
+  rw [degSequence, degMultiset, Multiset.length_sort, Multiset.card_map, Finset.card_val,
+    Finset.card_univ]
 
 /-- The handshake lemma: the degrees add up to twice the edge count. -/
 theorem sum_degSequence (G : CGraph) : G.degSequence.sum = 2 * G.E := by
@@ -2745,7 +2746,7 @@ theorem degSequence_of_regular (G : CGraph) {k : ℕ} (h : G.toSimple.IsRegularO
     G.degSequence = List.replicate (Fintype.card G.V) k := by
   rw [List.eq_replicate_iff]
   refine ⟨G.length_degSequence, fun b hb ↦ ?_⟩
-  rw [degSequence, Multiset.mem_sort, Multiset.mem_map] at hb
+  rw [degSequence, degMultiset, Multiset.mem_sort, Multiset.mem_map] at hb
   obtain ⟨v, -, rfl⟩ := hb
   exact h v
 
@@ -2796,7 +2797,7 @@ theorem card_nbrs_eq_degree (G : CGraph) (v : G.V) : (G.nbrs v).card = G.toSimpl
 theorem card_nbrs_of_degSequence {n k : ℕ} (h : G.degSequence = List.replicate n k) (v : G.V) :
     (G.nbrs v).card = k := by
   have hm : G.toSimple.degree v ∈ G.degSequence := by
-    rw [degSequence, Multiset.mem_sort, Multiset.mem_map]
+    rw [degSequence, degMultiset, Multiset.mem_sort, Multiset.mem_map]
     exact ⟨v, Finset.mem_univ_val v, rfl⟩
   rw [h, List.mem_replicate] at hm
   rw [card_nbrs_eq_degree, hm.2]
@@ -3156,6 +3157,100 @@ theorem diameter_compl_eq_two (G : CGraph) [DecidableEq G.V] (h : ¬ G.toSimple.
   have hc' : (compl G).Adj u v = true := by simpa using hc
   rw [hc'] at hadj
   exact Bool.noConfusion hadj
+
+/-! ### Degree multisets of the binary constructions -/
+
+private theorem univ_val_sum (α β : Type*) [Fintype α] [Fintype β] :
+    (Finset.univ : Finset (α ⊕ β)).val
+      = (Finset.univ : Finset α).val.map Sum.inl + (Finset.univ : Finset β).val.map Sum.inr :=
+  rfl
+
+theorem nbrs_disjUnion_inl (G H : CGraph) (a : G.V) :
+    (disjUnion G H).nbrs (Sum.inl a) = (G.nbrs a).map ⟨Sum.inl, Sum.inl_injective⟩ := by
+  ext w
+  rcases w with c | d <;> simp
+
+theorem nbrs_disjUnion_inr (G H : CGraph) (b : H.V) :
+    (disjUnion G H).nbrs (Sum.inr b) = (H.nbrs b).map ⟨Sum.inr, Sum.inr_injective⟩ := by
+  ext w
+  rcases w with c | d <;> simp
+
+theorem degree_disjUnion_inl (G H : CGraph) (a : G.V) :
+    (disjUnion G H).toSimple.degree (Sum.inl a) = G.toSimple.degree a := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inl, Finset.card_map]
+
+theorem degree_disjUnion_inr (G H : CGraph) (b : H.V) :
+    (disjUnion G H).toSimple.degree (Sum.inr b) = H.toSimple.degree b := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inr, Finset.card_map]
+
+/-- **The degree multiset of a disjoint union** is the sum of the two degree multisets. -/
+theorem degMultiset_disjUnion (G H : CGraph) :
+    (disjUnion G H).degMultiset = G.degMultiset + H.degMultiset := by
+  unfold degMultiset
+  rw [univ_val_sum, Multiset.map_add, Multiset.map_map, Multiset.map_map]
+  congr 1
+  · exact Multiset.map_congr rfl fun v _ ↦ degree_disjUnion_inl G H v
+  · exact Multiset.map_congr rfl fun v _ ↦ degree_disjUnion_inr G H v
+
+theorem nbrs_compl (G : CGraph) [DecidableEq G.V] (v : G.V) :
+    (compl G).nbrs v = (G.nbrs v)ᶜ.erase v := by
+  ext w
+  simp only [mem_nbrs, compl_adj, Bool.and_eq_true, decide_eq_true_eq, ne_eq, Bool.not_eq_true',
+    Finset.mem_erase, Finset.mem_compl, Bool.not_eq_true]
+  constructor
+  · rintro ⟨h1, h2⟩
+    exact ⟨fun he ↦ h1 he.symm, h2⟩
+  · rintro ⟨h1, h2⟩
+    exact ⟨fun he ↦ h1 he.symm, h2⟩
+
+theorem degree_compl (G : CGraph) [DecidableEq G.V] (v : G.V) :
+    (compl G).toSimple.degree v = Fintype.card G.V - 1 - G.toSimple.degree v := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_compl]
+  have hv : v ∈ (G.nbrs v)ᶜ := by simp [adj_self]
+  rw [Finset.card_erase_of_mem hv, Finset.card_compl]
+  omega
+
+theorem degree_le (G : CGraph) [DecidableEq G.V] (v : G.V) :
+    G.toSimple.degree v + 1 ≤ Fintype.card G.V := by
+  rw [← card_nbrs_eq_degree]
+  have hv : v ∉ G.nbrs v := by simp [adj_self]
+  have hsub := Finset.card_le_card (Finset.subset_univ (insert v (G.nbrs v)))
+  rw [Finset.card_insert_of_notMem hv, Finset.card_univ] at hsub
+  omega
+
+theorem degree_join_inl (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a : G.V) :
+    (join G H).toSimple.degree (Sum.inl a) = G.toSimple.degree a + Fintype.card H.V := by
+  have hd := G.degree_le a
+  show (compl (disjUnion (compl G) (compl H))).toSimple.degree (Sum.inl a) = _
+  rw [degree_compl, degree_disjUnion_inl, degree_compl, card_disjUnion, card_compl, card_compl]
+  omega
+
+theorem degree_join_inr (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (b : H.V) :
+    (join G H).toSimple.degree (Sum.inr b) = Fintype.card G.V + H.toSimple.degree b := by
+  have hd := H.degree_le b
+  show (compl (disjUnion (compl G) (compl H))).toSimple.degree (Sum.inr b) = _
+  rw [degree_compl, degree_disjUnion_inr, degree_compl, card_disjUnion, card_compl, card_compl]
+  omega
+
+/-- **The degree multiset of a join**: every vertex picks up all the vertices on the other side. -/
+theorem degMultiset_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (join G H).degMultiset = G.degMultiset.map (· + Fintype.card H.V)
+      + H.degMultiset.map (· + Fintype.card G.V) := by
+  unfold degMultiset
+  rw [univ_val_sum, Multiset.map_add, Multiset.map_map, Multiset.map_map, Multiset.map_map,
+    Multiset.map_map]
+  congr 1
+  · exact Multiset.map_congr rfl fun v _ ↦ degree_join_inl G H v
+  · refine Multiset.map_congr rfl fun v _ ↦ ?_
+    show (join G H).toSimple.degree (Sum.inr v) = H.toSimple.degree v + Fintype.card G.V
+    rw [degree_join_inr, Nat.add_comm]
+
+/-- **The degree multiset of the complement**: every degree is replaced by its "co-degree". -/
+theorem degMultiset_compl (G : CGraph) [DecidableEq G.V] :
+    (compl G).degMultiset = G.degMultiset.map (fun d ↦ Fintype.card G.V - 1 - d) := by
+  unfold degMultiset
+  rw [Multiset.map_map]
+  exact Multiset.map_congr rfl fun v _ ↦ degree_compl G v
 
 end CGraph
 
@@ -7411,6 +7506,89 @@ bipartite graph it produces something with an odd cycle. -/
   rw [star_eq_bipartite]
   exact not_isBipartite_mycielskian_bipartite 0 n
 
+/-! ### Degree multisets
+
+`degSequence` is a sorted list, which makes it awkward to combine: the degree sequence of a
+disjoint union is a *merge* of the two sequences, not a concatenation.  The underlying multiset
+`degMultiset` has no such problem, and since `degSequence` is literally its `sort`
+(`coe_degSequence`) nothing is lost by working with it. -/
+
+@[simp] theorem card_degMultiset (G : IsoGraph) : Multiset.card (degMultiset G) = G.V := by
+  rw [← coe_degSequence, Multiset.coe_card, length_degSequence]
+
+/-- The handshake lemma, for the degree multiset. -/
+theorem sum_degMultiset (G : IsoGraph) : (degMultiset G).sum = 2 * G.E := by
+  rw [← coe_degSequence, Multiset.sum_coe, sum_degSequence]
+
+theorem ne_of_degMultiset_ne {G H : IsoGraph} (h : degMultiset G ≠ degMultiset H) : G ≠ H :=
+  ne_of_apply_ne degMultiset h
+
+/-- Reading a degree multiset off a constant degree sequence. -/
+theorem degMultiset_of_degSequence {G : IsoGraph} {n k : ℕ}
+    (h : degSequence G = List.replicate n k) : degMultiset G = Multiset.replicate n k := by
+  rw [← coe_degSequence, h, Multiset.coe_replicate]
+
+@[simp] theorem degMultiset_disjUnion (G H : IsoGraph) :
+    degMultiset (disjUnion G H) = degMultiset G + degMultiset H := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, degMultiset_mk, degMultiset_mk,
+    degMultiset_mk]
+  exact CGraph.degMultiset_disjUnion _ _
+
+@[simp] theorem degMultiset_join (G H : IsoGraph) :
+    degMultiset (join G H) = (degMultiset G).map (· + H.V) + (degMultiset H).map (· + G.V) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  induction H using Quotient.inductionOn with | _ h =>
+  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, degMultiset_mk, degMultiset_mk,
+    degMultiset_mk, V_mk, V_mk]
+  exact CGraph.degMultiset_join _ _
+
+@[simp] theorem degMultiset_compl (G : IsoGraph) :
+    degMultiset (compl G) = (degMultiset G).map (fun d ↦ G.V - 1 - d) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, compl_mk, degMultiset_mk, degMultiset_mk, V_mk]
+  exact CGraph.degMultiset_compl _
+
+/-! ### Degree multisets of the named graphs -/
+
+@[simp] theorem degMultiset_empty (n : ℕ) : degMultiset (empty n) = Multiset.replicate n 0 :=
+  degMultiset_of_degSequence (degSequence_empty n)
+
+@[simp] theorem degMultiset_complete (n : ℕ) :
+    degMultiset (complete n) = Multiset.replicate n (n - 1) :=
+  degMultiset_of_degSequence (degSequence_complete n)
+
+@[simp] theorem degMultiset_cycle (n : ℕ) :
+    degMultiset (cycle (n + 3)) = Multiset.replicate (n + 3) 2 :=
+  degMultiset_of_degSequence (degSequence_cycle n)
+
+@[simp] theorem degMultiset_petersen : degMultiset petersen = Multiset.replicate 10 3 :=
+  degMultiset_of_degSequence degSequence_petersen
+
+@[simp] theorem degMultiset_bipartite (m n : ℕ) :
+    degMultiset (bipartite m n) = Multiset.replicate m n + Multiset.replicate n m := by
+  rw [bipartite_eq_join, degMultiset_join, degMultiset_empty, degMultiset_empty, V_empty, V_empty,
+    Multiset.map_replicate, Multiset.map_replicate]
+  simp
+
+@[simp] theorem degMultiset_star (n : ℕ) :
+    degMultiset (star n) = n ::ₘ Multiset.replicate n 1 := by
+  rw [star_eq_bipartite, degMultiset_bipartite, Multiset.replicate_one, Multiset.singleton_add]
+
+@[simp] theorem degMultiset_wheel (n : ℕ) :
+    degMultiset (wheel (n + 3)) = (n + 3) ::ₘ Multiset.replicate (n + 3) 3 := by
+  rw [wheel_eq_join, degMultiset_join, degMultiset_complete, degMultiset_cycle, V_complete,
+    V_cycle, Multiset.map_replicate, Multiset.map_replicate,
+    show 1 - 1 + (n + 3) = n + 3 from by omega, show 2 + 1 = 3 from rfl,
+    Multiset.replicate_one, Multiset.singleton_add]
+
+@[simp] theorem degMultiset_book (n : ℕ) :
+    degMultiset (book n) = Multiset.replicate 2 (n + 1) + Multiset.replicate n 2 := by
+  rw [book_eq_join, degMultiset_join, degMultiset_complete, degMultiset_empty, V_complete,
+    V_empty, Multiset.map_replicate, Multiset.map_replicate,
+    show 2 - 1 + n = n + 1 from by omega, Nat.zero_add]
+
 /-! ## The simp set at work
 
 These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
@@ -7738,5 +7916,33 @@ example : IsConnected (compl (empty 5)) := by
 two triangles, once more. -/
 example : ¬ IsConnected (disjUnion (cycle 3) (cycle 3)) :=
   not_isConnected_disjUnion (by simp) (by simp)
+
+example : degMultiset (star 4) = {4, 1, 1, 1, 1} := by
+  rw [degMultiset_star]
+  rfl
+
+example : degMultiset (wheel 4) = {4, 3, 3, 3, 3} := by
+  rw [show (4 : ℕ) = 1 + 3 from rfl, degMultiset_wheel]
+  rfl
+
+/- The complement of the five-cycle is a five-cycle, degree by degree. -/
+example : degMultiset (compl (cycle 5)) = Multiset.replicate 5 2 := by
+  rw [compl_cycle_five, show (5 : ℕ) = 2 + 3 from rfl, degMultiset_cycle]
+
+example : star 4 ≠ cycle 4 :=
+  ne_of_degMultiset_ne (by
+    rw [degMultiset_star, show (4 : ℕ) = 1 + 3 from rfl, degMultiset_cycle]
+    decide)
+
+/- The degree multiset does not separate everything: a triangle plus a square has the same
+degrees as the seven-cycle, and only connectivity tells them apart. -/
+example : degMultiset (disjUnion (cycle 3) (cycle 4)) = degMultiset (cycle 7) := by
+  rw [show (3 : ℕ) = 0 + 3 from rfl, show (4 : ℕ) = 1 + 3 from rfl, degMultiset_disjUnion,
+    degMultiset_cycle, degMultiset_cycle, show (7 : ℕ) = 4 + 3 from rfl, degMultiset_cycle]
+  rfl
+
+example : disjUnion (cycle 3) (cycle 4) ≠ cycle 7 :=
+  Ne.symm (ne_of_isConnected (isConnected_cycle 6)
+    (not_isConnected_disjUnion (G := cycle 3) (H := cycle 4) (by simp) (by simp)))
 
 end IsoGraph
