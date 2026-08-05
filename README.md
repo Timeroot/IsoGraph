@@ -1915,6 +1915,11 @@ beside a cocktail party graph, a Turán graph's complement is `r` disjoint cliqu
 them one vertex larger), and the triangular graph and the Kneser graph `K(n, 2)` are each
 other's complements in both directions rather than only one.
 
+The prover also settled the matching number of a general Turán graph. The proof is a round-robin
+argument: send vertex `j` to slot `j / r` of part `j mod r`, which is a bijection onto the vertex
+set, and then pair `2t` with `2t + 1`. Consecutive vertices differ mod `r` whenever `r` is at
+least two, so every pair is an edge, and the resulting `n / 2` edges are pairwise disjoint.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

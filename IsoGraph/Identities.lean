@@ -26332,4 +26332,161 @@ theorem compl_turan (n r : ℕ) :
 @[simp] theorem compl_kneser_two (n : ℕ) : compl (kneser n 2) = triangular n :=
   (triangular_eq_compl_kneser n).symm
 
+/-- A Turán graph with at least two parts has a near-perfect matching: pair the vertices up
+in round-robin order, so consecutive vertices land in different parts. -/
+theorem matchNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : (turan n r).matchNum = n / 2 := by
+  apply le_antisymm
+  · -- Upper bound
+    have h1 := two_mul_matchNum_le_V (turan n r)
+    rw [V_turan] at h1
+    omega
+  · -- Lower bound: construct a matching of size n/2
+    -- Strategy: use matchNum_complete (n) = n/2 and turan n r ≤ complete n ... 
+    -- No, matchNum is antitone for subgraphs, so that gives upper bound.
+    -- Instead, construct explicit matching.
+    -- turan n r = completeMultipartite L where L has r parts of sizes q or q+1.
+    -- We can form a matching of size n/2 by pairing vertices in round-robin order.
+    rw [matchNum_eq]
+    set m := n % r with hm_def
+    set q := n / r with hq_def
+    set L : List ℕ := List.replicate m (q + 1) ++ List.replicate (r - m) q
+    set H : CGraph := CGraph.completeMultipartite L
+    have hturan : turan n r = ⟦H⟧ := by rfl
+    rw [hturan, lineGraph_mk, indepNum_mk]
+    have hLlen : L.length = r := by
+      simp [L, List.length_append, List.length_replicate]
+      have := Nat.mod_lt n (by linarith : 0 < r)
+      omega
+    have hLsum : L.sum = n := by
+      simp [L, hm_def, hq_def]
+      have hle : n % r < r := Nat.mod_lt n (by linarith)
+      rw [hLlen] at *
+      have hmod_div := Nat.div_add_mod n r
+      have hle2 : n % r ≤ r := le_of_lt ‹_›
+      have hgoal : n % r * (n / r + 1) + (r - n % r) * (n / r) = r * (n / r) + n % r := by
+        have h1 : (r - n % r) * (n / r) = r * (n / r) - (n % r) * (n / r) := Nat.sub_mul _ _ _
+        rw [h1, Nat.mul_add]
+        have hmq_le_rq : n % r * (n / r) ≤ r * (n / r) := Nat.mul_le_mul_right _ hle2
+        omega
+      linarith
+    -- Now prove lower bound: indepNum (lineGraph H) ≥ n/2
+    -- f : Fin n → H.V by round-robin assignment
+    have hpos_r : 0 < r := by linarith
+    have hmod_lt : n % r < r := Nat.mod_lt n hpos_r
+    -- For j : Fin n, the part index is ⟨j % L.length, ...⟩ = ⟨j % r, ...⟩ (using hLlen)
+    -- and the vertex-in-part index is j / r, which is < L.get ⟨j % r, ...⟩
+    -- because L.get ⟨j%r, _⟩ ≥ n/r = q, and j/r ≤ q, with j/r < q when L.get = q.
+    -- L.get i = q+1 if i.val < m, else q.
+    -- j < n = r*q + m. If j%r < m, part size q+1, j/r ≤ q < q+1 ✓.
+    -- If j%r ≥ m, then j = r*(j/r) + (j%r) ≥ r*(j/r) + m, so r*(j/r) < r*q + m = n,
+    --   and j%r ≥ m means r*(j/r) ≤ n - m = r*q, but j < n forces r*(j/r) < r*q, so j/r < q. ✓
+    -- Helper: for i : Fin r, L.get ⟨i, ...⟩ = if i < m then q+1 else q
+    have hLget : ∀ (i : Fin r),
+        L.get ⟨i, by rw [hLlen]; exact i.2⟩ = if i.val < m then q + 1 else q := by
+      intro ⟨i, hi⟩
+      simp only [L]
+      simp [List.getElem_append]
+    -- f : Fin n → H.V by round-robin
+    let f : Fin n → H.V := fun j =>
+      ⟨⟨j.val % r, show j.val % r < L.length from hLlen.symm ▸ Nat.mod_lt _ hpos_r⟩, ⟨j.val / r, by
+        have hj' : j.val < n := j.isLt
+        rw [hLget ⟨j.val % r, Nat.mod_lt _ hpos_r⟩]
+        split_ifs with h
+        · rw [hq_def]
+          clear hLget hLlen hLsum h
+          have hj' : (j : ℕ) < n := j.isLt
+          have hqm2 : n = r * (n / r) + n % r := by
+            have := Nat.div_add_mod n r; linarith
+          have h1 : (j : ℕ) < r * (n / r) + r := by omega
+          have h2 : r * (n / r) + r = r * (n / r + 1) := by ring
+          rw [h2] at h1
+          exact Nat.div_lt_of_lt_mul h1
+        · rw [hq_def]
+          clear hLget hLlen hLsum
+          have hj' : (j : ℕ) < n := j.isLt
+          have hqm2 : n = r * (n / r) + n % r := by
+            have := Nat.div_add_mod n r; linarith
+          have hval_ge : n % r ≤ (j : ℕ) % r := not_lt.mp h
+          clear h
+          have hj_decomp := Nat.div_add_mod (j : ℕ) r
+          have hj_mod_lt := Nat.mod_lt (j : ℕ) hpos_r
+          have hqr_pos : 0 < n / r := Nat.div_pos (by omega) hpos_r
+          have h_jdiv_lt : (j : ℕ) / r < n / r := by
+            have := hj_decomp
+            nlinarith
+          have h1 : (j : ℕ) < r * (n / r) := by nlinarith
+          exact Nat.div_lt_of_lt_mul h1⟩⟩
+    have hf_inj : Function.Injective f := by
+      intro ⟨j1, hj1⟩ ⟨j2, hj2⟩ hfeq
+      have hf1 : (j1 : ℕ) % r = (j2 : ℕ) % r := by
+        have h1 := congr_arg (fun x : H.V => x.1.val) hfeq
+        simp [f] at h1 ⊢
+        exact h1
+      have hf2 : (j1 : ℕ) / r = (j2 : ℕ) / r := by
+        have := congr_arg (fun x : H.V => x.2.val) hfeq
+        simp [f] at this
+        exact this
+      have hdecomp1 := Nat.div_add_mod j1 r
+      have hdecomp2 := Nat.div_add_mod j2 r
+      clear f hfeq hLget hLlen hLsum hpos_r hmod_lt
+      have heq : j1 = j2 := by
+        rw [← hdecomp1, ← hdecomp2, hf1, hf2]
+      exact Fin.ext heq
+    have hf_adj : ∀ j1 j2 : Fin n, H.Adj (f j1) (f j2) ↔ (j1.val % r ≠ j2.val % r) := by
+      intro j1 j2
+      rw [CGraph.completeMultipartite_adj]
+      simp [f]
+    have hedge_exists : ∀ t : Fin (n / 2),
+        H.Adj (f ⟨2 * t.val, by omega⟩) (f ⟨2 * t.val + 1, by omega⟩) := by
+      intro t
+      rw [hf_adj]
+      intro h
+      have h2 : (2 * (t : ℕ) + 1) % r = (2 * (t : ℕ)) % r := by exact_mod_cast h.symm
+      set x := (2 * (t : ℕ)) % r
+      have hx_lt : x < r := Nat.mod_lt _ hpos_r
+      have h4 : x = (x + 1) % r := by
+        have h1mod : 1 % r = 1 := Nat.mod_eq_of_lt (by omega)
+        show x = ((2 * (t : ℕ)) % r + 1) % r
+        rw [← h2]
+        rw [Nat.add_mod, h1mod]
+      by_cases hx1 : x + 1 < r
+      · rw [Nat.mod_eq_of_lt hx1] at h4; omega
+      · have : x + 1 = r := by omega
+        rw [this, Nat.mod_self] at h4; omega
+    -- Build independent set in lineGraph H: the n/2 edges (f(2t), f(2t+1))
+    let edgeFn : Fin (n / 2) → (H.lineGraph).V := fun t =>
+      ⟨Sym2.mk ((f ⟨2 * t.val, by omega⟩), (f ⟨2 * t.val + 1, by omega⟩)),
+       (by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hedge_exists t)⟩
+    have h_edge_inj : Function.Injective edgeFn := by
+      intro t t' h_eq
+      have := congr_arg Subtype.val h_eq
+      simp at this
+      rw [Sym2.eq_iff] at this
+      rcases this with h | h
+      · have := hf_inj h.1
+        simp [Fin.ext_iff] at this
+        exact Fin.ext (by omega)
+      · exfalso
+        have h1 := hf_inj h.1
+        simp at h1
+        omega
+    let S := Finset.image edgeFn Finset.univ
+    have hS_card : S.card = n / 2 := by
+      rw [Finset.card_image_of_injective _ h_edge_inj, Finset.card_fin]
+    have hS_ind : SimpleGraph.IsIndepSet H.lineGraph.toSimple (S : Set (H.lineGraph.V)) := by
+      rw [SimpleGraph.isIndepSet_iff]
+      intro e he f' hf' hef
+      have he' : e ∈ S := by simpa using he
+      have hfq' : f' ∈ S := by simpa using hf'
+      obtain ⟨t, -, ht⟩ := Finset.mem_image.mp he'
+      obtain ⟨t', -, ht'⟩ := Finset.mem_image.mp hfq'
+      subst ht; subst ht'
+      by_cases h : t = t'
+      · exfalso; apply hef; simp [h]
+      · simp only [CGraph.toSimple_adj, CGraph.lineGraph_adj, edgeFn]
+        simp [hf_inj.eq_iff]
+        intro hne hor
+        exact ⟨⟨hne, by omega⟩, by omega, hne⟩
+    exact hS_card.ge.trans (hS_ind.card_le_indepNum)
+
 end IsoGraph
