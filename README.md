@@ -1906,6 +1906,10 @@ still open.  Three edge-colouring results -- for ladders, crowns and hypercubes 
 this way, each a one-line appeal to König's edge colouring theorem, which is exactly the target
 that did not come back.  They are parked until König lands.
 
+The friendship graph turned out to be the one edge colouring the prover could do from scratch:
+`chi'(F_n) = 2n`, by numbering the spokes at the hub `2i` and `2i+1` and giving the triangle
+edge at petal `i` the colour `2i + 2 mod 2n`, then checking the three ways two edges can meet.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

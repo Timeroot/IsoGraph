@@ -25990,4 +25990,323 @@ theorem cliqueCoverNum_cycle_odd (m : ℕ) : (cycle (2 * m + 5)).cliqueCoverNum 
   rw [show 2 * m + 5 = (2 * m + 1) + 4 from by omega, cliqueCoverNum_cycle]
   omega
 
+/-- The friendship graph is class one: colour the spokes at the hub with `2n` colours and each
+triangle edge with a colour missing at both of its ends. -/
+theorem edgeChromNum_friendship (n : ℕ) :
+    (friendship (n + 2)).edgeChromNum = 2 * n + 4 := by
+  rw [edgeChromNum_eq]
+  apply le_antisymm
+  · -- Upper bound: need chromNum (lineGraph (friendship (n+2))) ≤ 2*n+4
+    rw [show lineGraph (friendship (n + 2)) = ⟦(lineGraph (friendship (n + 2))).toCGraph⟧ from
+      (IsoGraph.mk_toCGraph _).symm]
+    rw [chromNum_mk, CGraph.chromNum_le_iff_colorable]
+    simp only [friendship, complete_def, empty_def]
+    haveI : DecidableEq (Fin 1) := inferInstance
+    haveI : DecidableEq (Fin (n + 2)) := inferInstance
+    haveI : DecidableEq (Fin 2) := inferInstance
+    rw [cartesianProduct_mk, join_mk, lineGraph_mk]
+    rw [IsoGraph.toCGraph_mk]
+    set G' := (CGraph.complete 1).join ((CGraph.empty (n + 2)).cartesianProduct (CGraph.complete 2))
+    set L' := CGraph.lineGraph G'
+    let icanL : L'.canonicalize ≃cg L' := L'.isoCanonicalize.symm
+    have htransfer : L'.toSimple.Colorable (2 * n + 4) →
+           L'.canonicalize.toSimple.Colorable (2 * n + 4) := by
+      intro ⟨c, hc⟩
+      exact ⟨fun v => c (icanL v), fun {u v} huv => hc (icanL.toSimpleIso.map_rel_iff.mpr huv)⟩
+    apply htransfer
+    set m := n + 2
+    -- We need L'.toSimple.Colorable (2 * m) where L' = lineGraph G'
+    -- G'.V = Fin 1 ⊕ (Fin m × Fin 2)
+    -- Edges of G': spokes {inl (), inr (i,b)} and rails {inr (i,0), inr (i,1)}
+    -- Coloring of lineGraph G': color each edge (Sym2 of G'.V) with a value in Fin (2*m).
+    -- spoke(i,b) ↦ 2*i + b, rail i ↦ (2*i + 2) % (2*m)
+    let spokeColor : Fin m → Fin 2 → Fin (2 * m) := fun i b => ⟨2 * i.val + b.val, by omega⟩
+    -- Define a function on Sym2 (Fin 1 ⊕ (Fin m × Fin 2)) → Fin (2*m) using Quot.lift
+    -- First define on ordered pairs, showing symmetry.
+    let colorPair : (Fin 1 ⊕ (Fin m × Fin 2)) → (Fin 1 ⊕ (Fin m × Fin 2)) → Fin (2 * m) :=
+      fun a b =>
+      match a, b with
+      | Sum.inl 0, Sum.inl 0 => 0
+      | Sum.inl 0, Sum.inr (i, b) => spokeColor i b
+      | Sum.inr (i, b), Sum.inl 0 => spokeColor i b
+      | Sum.inr (i, b), Sum.inr (j, c) =>
+        if i = j ∧ b = 0 ∧ c = 1 then
+          ⟨(2 * i.val + 2) % (2 * m), by exact Nat.mod_lt _ (by omega)⟩
+        else if i = j ∧ b = 1 ∧ c = 0 then
+          ⟨(2 * i.val + 2) % (2 * m), by exact Nat.mod_lt _ (by omega)⟩
+        else 0
+    -- colorPair is symmetric
+    have fin1_zero : ∀ (x : Fin 1), x = 0 := fun x => Fin.eq_zero x
+    have hsym : ∀ a b : Fin 1 ⊕ (Fin m × Fin 2), colorPair a b = colorPair b a := by
+      intro a b
+      rcases a with x | ⟨i, b0⟩ <;> rcases b with y | ⟨j, c0⟩
+      · simp [colorPair, fin1_zero x, fin1_zero y]
+      · simp [colorPair, fin1_zero x]
+      · simp [colorPair, fin1_zero y]
+      · simp only [colorPair]
+        by_cases hij : i = j
+        · subst hij; fin_cases b0 <;> fin_cases c0 <;> simp
+        · have : ¬(j = i) := fun h => hij h.symm
+          simp [hij, this]
+    -- Lift colorPair to Sym2
+    let colorOnSym2 : Sym2 (Fin 1 ⊕ (Fin m × Fin 2)) → Fin (2 * m) :=
+      Quot.lift (fun p => colorPair p.1 p.2) (fun p q hpq => by
+        simp at hpq
+        rcases hpq with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+        · rfl
+        · exact hsym _ _)
+    -- Coloring of line graph
+    let c : (CGraph.lineGraph G').V → Fin (2 * m) := fun e => colorOnSym2 e.1
+    -- Show c is a proper coloring
+    refine ⟨c, fun {e f} hef => ?_⟩
+    simp [CGraph.toSimple] at hef
+    rw [CGraph.lineGraph_adj] at hef
+    simp [SimpleGraph.completeGraph] at *
+    obtain ⟨hef_ne, ⟨v, hv_e, hv_f⟩⟩ := hef
+    obtain ⟨ea, hea⟩ := e
+    obtain ⟨eb, heb⟩ := f
+    dsimp only [c, colorOnSym2] at *
+    induction ea using Sym2.ind with
+    | h a b =>
+      simp [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at hea
+      rcases a with a | ⟨i, b0⟩ <;> rcases b with b | ⟨j, c0⟩
+      · -- inl-inl: impossible, complete 1 has no edges
+        rw [CGraph.join_adj_inl_inl] at hea
+        simp [CGraph.complete] at hea
+        fin_cases a; fin_cases b; simp at hea
+      · -- inl-inr: spoke
+        fin_cases a
+        simp at hea
+        -- ea = s(inl 0, inr (j, c0)), a spoke, color = spokeColor j c0
+        induction eb using Sym2.ind with
+        | h a' b' =>
+          simp [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at heb
+          rcases a' with a'' | ⟨i', b''⟩ <;> rcases b' with b''' | ⟨j', c''⟩
+          · -- eb inl-inl: impossible
+            rw [CGraph.join_adj_inl_inl] at heb
+            simp [CGraph.complete] at heb
+            fin_cases a''; fin_cases b'''; simp at heb
+          · -- eb inl-inr: spoke
+            fin_cases a''
+            simp [colorPair, spokeColor] at *
+            intro h
+            apply hef_ne
+            have hj : j = j' := by
+              apply Fin.ext; omega
+            subst hj; fin_cases c0 <;> fin_cases c'' <;> simp_all
+          · -- eb inr-inl: spoke
+            rw [CGraph.join_adj_inr_inl] at heb
+            simp at heb
+            fin_cases b'''
+            simp [colorPair, spokeColor] at *
+            intro h
+            apply hef_ne
+            have hj : j = i' := by
+              apply Fin.ext; omega
+            subst hj; fin_cases c0 <;> fin_cases b'' <;> simp_all
+          · -- eb inr-inr: rail
+            rw [CGraph.join_adj_inr_inr] at heb
+            rw [CGraph.cartesianProduct_adj] at heb
+            simp [CGraph.empty_adj, CGraph.complete_adj] at heb
+            simp [colorPair, spokeColor] at *
+            obtain ⟨rfl, hbc_ne⟩ := heb
+            -- hv_f : v = inr (i', b'') ∨ v = inr (i', c'')
+            -- hv_e : v = inl 0 ∨ v = inr (j, c0)
+            -- v can't be inl 0 ( eb has no inl endpoint), so v = inr (j, c0) = inr (i',某)
+            -- Hence j = i'.
+            have hj : j = i' := by
+              -- v must be inr (j, c0) since eb has no inl
+              have hv_eq : v = Sum.inr (j, c0) := by
+                rcases hv_e with hv_e | hv_e
+                · rcases hv_f with h | h <;> simp [hv_e] at h
+                · exact hv_e
+              rcases hv_f with h | h <;> simp [hv_eq] at h
+              · exact (Prod.ext_iff.mp (Sum.inr_injective h)).1
+              · exact (Prod.ext_iff.mp (Sum.inr_injective h)).1
+            subst hj
+            simp at *
+            fin_cases b'' <;> fin_cases c'' <;> simp at hbc_ne ⊢ <;>
+              all_goals (
+                let jj := (j : Fin m).val
+                have hjlt : jj < m := j.isLt
+                unfold Lean.Internal.coeM at *
+                intro h
+                have hle : 2 * jj + 2 ≤ 2 * m := by omega
+                fin_cases c0 <;> simp at *
+                · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
+                    by_cases hlt : 2 * jj + 2 < 2 * m
+                    · rw [Nat.mod_eq_of_lt hlt]; omega
+                    · have heq : 2 * jj + 2 = 2 * m := by omega
+                      rw [heq, Nat.mod_self]; omega
+                  exact key h.symm
+                · have key : ((2 * (j : Fin m).val + 2) % (2 * m)) % 2 = 0 := by
+                    rw [Nat.mod_mod_of_dvd _ (by omega : 2 ∣ 2 * m)]
+                    simp
+                  have h1 : (2 * (j : Fin m).val + 1) % 2 = 1 := by omega
+                  omega)
+      · -- inr-inl: spoke
+        fin_cases b
+        simp at hea
+        induction eb using Sym2.ind with
+        | h a' b' =>
+          simp [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at heb
+          rcases a' with a'' | ⟨i', b''⟩ <;> rcases b' with b''' | ⟨j', c''⟩
+          · -- eb inl-inl: impossible
+            rw [CGraph.join_adj_inl_inl] at heb
+            simp [CGraph.complete] at heb
+            fin_cases a''; fin_cases b'''; simp at heb
+          · -- eb inl-inr: spoke, both spokes sharing inl 0
+            fin_cases a''
+            simp [colorPair, spokeColor] at *
+            intro h
+            apply hef_ne
+            have hij : i = j' := by
+              apply Fin.ext; omega
+            subst hij
+            fin_cases b0 <;> fin_cases c'' <;> simp_all
+          · -- eb inr-inl: spoke, same vertex must match
+            rw [CGraph.join_adj_inr_inl] at heb
+            simp at heb
+            fin_cases b'''
+            simp [colorPair, spokeColor] at *
+            intro h
+            apply hef_ne
+            have hij : i = i' := by
+              apply Fin.ext; omega
+            subst hij; fin_cases b0 <;> fin_cases b'' <;> simp_all
+          · -- eb inr-inr: rail, spoke vs rail
+            rw [CGraph.join_adj_inr_inr] at heb
+            rw [CGraph.cartesianProduct_adj] at heb
+            simp [CGraph.empty_adj, CGraph.complete_adj] at heb
+            simp [colorPair, spokeColor] at *
+            obtain ⟨rfl, hbc_ne⟩ := heb
+            have hv_eq : v = Sum.inr (i, b0) := by
+              rcases hv_e with hv_e | hv_e <;> rcases hv_f with hv_f | hv_f <;>
+                simp [hv_e] at *
+            have hij : i = i' := by
+              rcases hv_f with h | h <;> simp [hv_eq] at h
+              · exact (Prod.ext_iff.mp (Sum.inr_injective h)).1
+              · exact (Prod.ext_iff.mp (Sum.inr_injective h)).1
+            subst hij
+            simp at *
+            fin_cases b'' <;> fin_cases c'' <;> simp at hbc_ne ⊢ <;>
+              all_goals (
+                let jj := (i : Fin m).val
+                have hjlt : jj < m := i.isLt
+                unfold Lean.Internal.coeM at *
+                intro h
+                have hle : 2 * jj + 2 ≤ 2 * m := by omega
+                fin_cases b0 <;> simp at *
+                · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
+                    by_cases hlt : 2 * jj + 2 < 2 * m
+                    · rw [Nat.mod_eq_of_lt hlt]; omega
+                    · have heq : 2 * jj + 2 = 2 * m := by omega
+                      rw [heq, Nat.mod_self]; omega
+                  exact key h.symm
+                · have key : ((2 * (i : Fin m).val + 2) % (2 * m)) % 2 = 0 := by
+                    rw [Nat.mod_mod_of_dvd _ (by omega : 2 ∣ 2 * m)]
+                    simp
+                  have h1 : (2 * (i : Fin m).val + 1) % 2 = 1 := by omega
+                  omega)
+      · -- inr-inr: rail
+        rw [CGraph.join_adj_inr_inr] at hea
+        rw [CGraph.cartesianProduct_adj] at hea
+        simp [CGraph.empty_adj, CGraph.complete_adj] at hea
+        simp [colorPair, spokeColor] at *
+        obtain ⟨rfl, hbc_ne⟩ := hea
+        -- Set jj before simp might eliminate i
+        set jj := (i : Fin m).val
+        have hjlt : jj < m := i.isLt
+        induction eb using Sym2.ind with
+        | h a' b' =>
+          simp [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at heb
+          rcases a' with a'' | ⟨i', b''⟩ <;> rcases b' with b''' | ⟨j', c''⟩
+          · -- eb inl-inl: impossible
+            rw [CGraph.join_adj_inl_inl] at heb
+            simp [CGraph.complete] at heb
+            fin_cases a''; fin_cases b'''; simp at heb
+          · -- eb inl-inr: spoke, rail vs spoke
+            fin_cases a''
+            simp at heb
+            simp at *
+            have hv_eq : v = Sum.inr (j', c'') := by
+              rcases hv_f with hv_f | hv_f
+              · rcases hv_e with hv_e | hv_e <;> simp [hv_f] at *
+              · exact hv_f
+            have hij : j' = i := by
+              rcases hv_e with hv_e | hv_e <;> simp [hv_eq] at hv_e
+              · exact (Prod.ext_iff.mp (Sum.inr_injective hv_e)).1
+              · exact (Prod.ext_iff.mp (Sum.inr_injective hv_e)).1
+            subst hij
+            simp at *
+            unfold Lean.Internal.coeM at *
+            intro h
+            fin_cases b0 <;> fin_cases c0 <;> simp at hbc_ne ⊢ <;>
+              all_goals (
+                fin_cases c'' <;> simp at *
+                · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
+                    by_cases hlt : 2 * jj + 2 < 2 * m
+                    · rw [Nat.mod_eq_of_lt hlt]; omega
+                    · have heq : 2 * jj + 2 = 2 * m := by omega
+                      rw [heq, Nat.mod_self]; omega
+                  exact key h
+                · have key : ((2 * jj + 2) % (2 * m)) % 2 = 0 := by
+                    rw [Nat.mod_mod_of_dvd _ (by omega : 2 ∣ 2 * m)]
+                    simp
+                  have h1 : (2 * jj + 1) % 2 = 1 := by omega
+                  omega)
+          · -- eb inr-inl: spoke, rail vs spoke
+            rw [CGraph.join_adj_inr_inl] at heb
+            simp at heb
+            fin_cases b'''
+            simp at *
+            have hv_eq : v = Sum.inr (i', b'') := by
+              rcases hv_f with hv_f | hv_f <;>
+                rcases hv_e with hv_e | hv_e <;> simp [hv_f] at *
+            have hij : i' = i := by
+              rcases hv_e with hv_e | hv_e <;> simp [hv_eq] at hv_e
+              · exact (Prod.ext_iff.mp (Sum.inr_injective hv_e)).1
+              · exact (Prod.ext_iff.mp (Sum.inr_injective hv_e)).1
+            subst hij
+            simp at *
+            unfold Lean.Internal.coeM at *
+            intro h
+            have hle : 2 * jj + 2 ≤ 2 * m := by omega
+            fin_cases b0 <;> fin_cases c0 <;> simp at hbc_ne ⊢ <;>
+              all_goals (
+                fin_cases b'' <;> simp at *
+                · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
+                    by_cases hlt : 2 * jj + 2 < 2 * m
+                    · rw [Nat.mod_eq_of_lt hlt]; omega
+                    · have heq : 2 * jj + 2 = 2 * m := by omega
+                      rw [heq, Nat.mod_self]; omega
+                  exact key h
+                · have key : ((2 * jj + 2) % (2 * m)) % 2 = 0 := by
+                    rw [Nat.mod_mod_of_dvd _ (by omega : 2 ∣ 2 * m)]
+                    simp
+                  have h1 : (2 * jj + 1) % 2 = 1 := by omega
+                  omega)
+          · -- eb inr-inr: rail, rail vs rail
+            rw [CGraph.join_adj_inr_inr] at heb
+            rw [CGraph.cartesianProduct_adj] at heb
+            simp [CGraph.empty_adj, CGraph.complete_adj] at heb
+            simp at *
+            obtain ⟨rfl, hb''_ne⟩ := heb
+            have hij : i' = i := by
+              rcases hv_e with hv_e | hv_e <;> rcases hv_f with hv_f | hv_f
+              · exact ((Prod.ext_iff.mp (Sum.inr_injective (hv_e.symm.trans hv_f))).1).symm
+              · exact ((Prod.ext_iff.mp (Sum.inr_injective (hv_e.symm.trans hv_f))).1).symm
+              · exact (Prod.ext_iff.mp (Sum.inr_injective (hv_f.symm.trans hv_e))).1
+              · exact (Prod.ext_iff.mp (Sum.inr_injective (hv_f.symm.trans hv_e))).1
+            subst hij
+            simp at *
+            fin_cases b0 <;> fin_cases c0 <;> fin_cases b'' <;> fin_cases c'' <;> simp_all
+  · -- Lower bound: 2*n+4 ≤ chromNum (lineGraph (friendship (n+2)))
+    have h1 := maxDeg_le_edgeChromNum (friendship (n + 2))
+    rw [edgeChromNum_eq] at h1
+    have h2 : maxDeg (friendship (n + 2)) = 2 * n + 4 := by
+      rw [show n + 2 = (n + 1) + 1 from by ring]
+      exact maxDeg_friendship (n + 1) ▸ by omega
+    omega
+
 end IsoGraph
