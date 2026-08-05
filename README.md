@@ -2005,6 +2005,30 @@ since the honest value `⊤` truncates that way. `radius_eq_zero_of_not_isConnec
 once and `radius_disjUnion` applies it, closing the last gap in the radius row of the invariant
 table apart from the Mycielskian.
 
+`E_le_E_turan` sharpens the Turán bound above from the arithmetic inequality
+`2r·|E| ≤ (r - 1)·|V|²` to the extremal statement itself: a graph with `ω(G) ≤ r` has no more
+edges than the Turán graph `T(|V|, r)` does. Both are corollaries of the same Mathlib theorem,
+but the arithmetic form loses the remainder term, so the sharp version is strictly stronger
+whenever `r ∤ |V|`. Getting there means reconciling two edge counts — Mathlib's
+`card_edgeFinset_turanGraph`, which is `(n² - s²)(r - 1)/(2r) + C(s, 2)` for `s = n mod r`, and
+this library's `E_turan`, which counts the parts directly as `s·C(q + 1, 2) + (r - s)·C(q, 2)`
+subtracted from `C(n, 2)`. Doubling both and casting to `ℤ` makes them the same polynomial in
+`q`, `r` and `s`.
+
+The degree row of the Mycielskian table closes as well, and it closes all at once, because
+`degMultiset_mycielskian` computes the whole multiset: the original vertices contribute `2d`
+for each degree `d` of `G`, the shadows contribute `d + 1`, and the apex contributes `|V|`. Both
+`minDeg_mycielskian` (`min (min (2δ) (δ + 1)) |V|`, for a nonempty `G`) and `maxDeg_mycielskian`
+(`max (2Δ) |V|`) then read straight off it, as would any other order statistic. `μ(G)` is
+connected as soon as `G` has no isolated vertex — every shadow reaches the apex in one step and
+every original reaches a shadow of a neighbour — which is `isConnected_mycielskian`.
+
+One more edge-colouring criterion, in the negative direction this time. A `k`-regular graph on an
+odd number of vertices is class two: each colour class is a matching, so it misses a vertex and
+has at most `(|V| - 1)/2` edges, while handshaking puts `|V|·k/2` edges in the graph — so `Δ = k`
+colours cannot suffice. This is `maxDeg_lt_edgeChromNum_of_isRegularWith_odd`, and it generalises
+the complete-graph-of-odd-order case that was proved by hand earlier.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

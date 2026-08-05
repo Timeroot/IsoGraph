@@ -27629,4 +27629,592 @@ diameter: the true value is `⊤`, and `⊤` truncates to `0`. -/
     (disjUnion G H).radius = 0 :=
   radius_eq_zero_of_not_isConnected (not_isConnected_disjUnion hG hH)
 
+/-- **A regular graph of odd order is class two**: each colour class misses a vertex, so `Δ`
+colours cover fewer than `E` edges. -/
+theorem maxDeg_lt_edgeChromNum_of_isRegularWith_odd {G : IsoGraph} {k : ℕ}
+    (h : G.IsRegularWith k) (hk : 0 < k) (hodd : G.V % 2 = 1) : maxDeg G < G.edgeChromNum := by
+  have hV : 0 < G.V := by omega
+  rw [h.maxDeg_eq hV]
+  -- Key facts:
+  -- 2 * E = V * k
+  -- E ≤ edgeChromNum * matchNum
+  -- 2 * matchNum ≤ V
+  -- V % 2 = 1
+  -- From these: V * k ≤ 2 * edgeChromNum * matchNum, and matchNum ≤ (V-1)/2
+  -- So V * k ≤ edgeChromNum * (V-1), so edgeChromNum > k when k > 0 and V odd.
+  have h2E := h.two_mul_E
+  have hE_le := G.E_le_edgeChromNum_mul_matchNum
+  have hmatch_bound := G.two_mul_matchNum_le_V
+  -- matchNum ≤ (V - 1) / 2
+  have hm_le : G.matchNum ≤ (G.V - 1) / 2 := by
+    omega
+  -- V * k ≤ edgeChromNum * (V - 1)
+  have hm_le2 : 2 * G.matchNum ≤ G.V - 1 := by omega
+  have hV1 : G.V - 1 ≥ 0 := Nat.zero_le _
+  -- From 2*E = V*k and E ≤ edgeChromNum * matchNum:
+  -- V * k ≤ 2 * (edgeChromNum * matchNum)
+  -- With 2*matchNum ≤ V-1:
+  -- V * k ≤ edgeChromNum * (V - 1)
+  have hVk : G.V * k ≤ G.edgeChromNum * (G.V - 1) := by nlinarith
+  -- If edgeChromNum ≤ k, contradiction (for k > 0, G.V ≥ 1, V odd so V-1 < V)
+  by_contra hle
+  push_neg at hle
+  have : G.V * k ≤ k * (G.V - 1) := by nlinarith
+  nlinarith [Nat.sub_add_cancel hV]
+
+/-- **Turán's theorem**: among the graphs on `n` vertices with no clique of size `r + 1`, the
+Turán graph `T(n, r)` has the most edges. -/
+theorem E_le_E_turan {G : IsoGraph} {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ r) :
+    G.E ≤ (turan G.V r).E := by
+  induction G using Quotient.inductionOn with | _ g => ?_
+  simp only [cliqueNum_mk, E_mk, V_mk] at h ⊢
+  -- Step 1: Get CliqueFree (r+1) for g.toSimple
+  have hcf : g.toSimple.CliqueFree (r + 1) := by
+    intro s hs
+    have h2 : s.card ≤ g.toSimple.cliqueNum := hs.isClique.card_le_cliqueNum
+    rw [CGraph.cliqueNum] at h
+    rw [hs.card_eq] at h2; omega
+  -- Step 2: Get Turán-maximal graph on g.V
+  classical
+  obtain ⟨H, _, maxH⟩ := SimpleGraph.exists_isTuranMaximal (V := g.V) hr
+  -- Step 3: g's edge count ≤ H's edge count
+  have hle1 : g.toSimple.edgeFinset.card ≤ H.edgeFinset.card := maxH.2 hcf
+  -- Step 4: H ≅ turanGraph, so same edge count
+  have hiso := (SimpleGraph.isTuranMaximal_iff_nonempty_iso_turanGraph hr).mp maxH
+  obtain ⟨i⟩ := hiso
+  have hle2 : H.edgeFinset.card = (SimpleGraph.turanGraph (Fintype.card g.V) r).edgeFinset.card :=
+    i.card_edgeFinset_eq
+  -- Step 5: relate (turan (Fintype.card g.V) r).E to turanGraph
+  set n := Fintype.card g.V
+  -- Both turanGraph n r and turan n r have the same edge count.
+  have key : (SimpleGraph.turanGraph n r).edgeFinset.card = (turan n r).E := by
+    have hturanGraph_E := @SimpleGraph.card_edgeFinset_turanGraph n r
+    have hturan_E := E_turan n r
+    set q := n / r
+    set s := n % r
+    have hq : r * q + s = n := Nat.div_add_mod n r
+    have hs_lt : s < r := Nat.mod_lt n hr
+    have hsle : s ≤ r := hs_lt.le
+    let corr := s * Nat.choose (q + 1) 2 + (r - s) * Nat.choose q 2
+    -- From E_turan: (turan n r).E + corr = n.choose 2
+    -- Goal: turanGraph.card + corr = n.choose 2 (then omega)
+    rw [hturanGraph_E]
+    -- Need: (n^2 - s^2) * (r-1) / (2*r) + s.choose 2 + corr = n.choose 2
+    -- Equivalently, 2 * lhs + 2 * corr = 2 * n.choose 2 = n*(n-1)
+    -- It suffices to show turanGraph.card + corr = n.choose 2
+    suffices h : (n ^ 2 - s ^ 2) * (r - 1) / (2 * r) + s.choose 2 + corr = n.choose 2 by
+      omega
+    -- Multiply by 2 to avoid Nat division
+    have h2choose_s : 2 * s.choose 2 = s * (s - 1) := by
+      rw [Nat.choose_two_right, mul_comm,
+          Nat.div_mul_cancel (even_iff_two_dvd.mp (Nat.even_mul_pred_self s))]
+    have h2choose_q1 : 2 * ((q + 1).choose 2) = (q + 1) * q := by
+      rw [Nat.choose_two_right]
+      exact Nat.mul_div_cancel' (even_iff_two_dvd.mp (Nat.even_mul_pred_self (q + 1)))
+    have h2choose_q : 2 * (q.choose 2) = q * (q - 1) := by
+      rw [Nat.choose_two_right]
+      rw [mul_comm, Nat.div_mul_cancel (even_iff_two_dvd.mp (Nat.even_mul_pred_self q))]
+    have h2E0 : 2 * n.choose 2 = n * (n - 1) := by
+      rw [Nat.choose_two_right, mul_comm,
+          Nat.div_mul_cancel (even_iff_two_dvd.mp (Nat.even_mul_pred_self n))]
+    have h2corr : 2 * corr = s * ((q + 1) * q) + (r - s) * (q * (q - 1)) := by
+      unfold corr
+      have : 2 * (s * ((q + 1).choose 2) + (r - s) * (q.choose 2)) =
+        s * (2 * ((q + 1).choose 2)) + (r - s) * (2 * (q.choose 2)) := by ring
+      rw [this, h2choose_q1, h2choose_q]
+    -- Key: 2 * turanGraph term
+    -- (n^2 - s^2) = r * q * (r * q + 2 * s)
+    have hsq : n ^ 2 - s ^ 2 = r * q * (r * q + 2 * s) := by
+      rw [← hq]; ring_nf; omega
+    have h2turan : 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r)) = q * (r * q + 2 * s) * (r - 1) := by
+      rw [hsq]
+      have : r * q * (r * q + 2 * s) * (r - 1) = r * (q * (r * q + 2 * s) * (r - 1)) := by ring
+      rw [this]
+      rw [show 2 * r = r * 2 from mul_comm _ _]
+      rw [Nat.mul_div_mul_left _ _ hr]
+      rw [mul_comm, Nat.div_mul_cancel]
+      by_cases hq2 : Even q
+      · exact dvd_mul_of_dvd_left (dvd_mul_of_dvd_left (even_iff_two_dvd.mp hq2) _) _
+      · by_cases hr2 : Even r
+        · have hmid : 2 ∣ r * q + 2 * s := by
+            exact dvd_add (dvd_mul_of_dvd_left (even_iff_two_dvd.mp hr2) q) (dvd_mul_right 2 s)
+          exact dvd_mul_of_dvd_left (dvd_mul_of_dvd_right hmid q) (r - 1)
+        · have hrd : Even (r - 1) := by
+            rw [Nat.even_sub (show 1 ≤ r from hr)]
+            simp [Nat.even_iff] at hr2 ⊢
+            omega
+          exact dvd_mul_of_dvd_right hrd.two_dvd _
+    -- Now: 2*(LHS + corr) = 2*n.choose 2  ↔  LHS + corr = n.choose 2
+    have : 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r) + s.choose 2 + corr) = 2 * n.choose 2 := by
+      calc 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r) + s.choose 2 + corr)
+          = 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r)) + 2 * s.choose 2 + 2 * corr := by ring
+        _ = q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) + (r - s) * (q * (q -
+            1))) := by
+            rw [h2turan, h2choose_s, h2corr]
+        _ = n * (n - 1) := by
+            by_cases hq0 : q = 0
+            · simp only [hq0] at hq ⊢; rw [show n = s from by omega]; simp [mul_zero, zero_mul,
+                  add_zero]
+            · have hq1 : 1 ≤ q := Nat.pos_of_ne_zero hq0
+              by_cases hs0 : s = 0
+              · rw [hs0] at hq ⊢; ring_nf at *
+                have : ∀ x : ℕ, x - 0 = x := fun x => Nat.sub_zero x
+                rw [this r] at *
+                rw [show n = q * r from hq.symm]
+                have : q * r * (q * r - 1) = q * r * (q - 1) + q ^ 2 * r * (r - 1) := by
+                  zify [Nat.cast_sub (show 1 ≤ q from hq1), Nat.cast_sub (show 1 ≤ r from hr),
+                      Nat.cast_sub (show 1 ≤ q * r from by nlinarith)]
+                  ring
+                rw [this]
+              · have hs1 : 1 ≤ s := Nat.pos_of_ne_zero hs0
+                have hpos_n : 1 ≤ n := by omega
+
+                have hsub_r1 : (r - 1 : ℤ) = ↑r - 1 := by omega
+                have hsub_s1 : (s - 1 : ℤ) = ↑s - 1 := by omega
+                have hsub_q1 : (q - 1 : ℤ) = ↑q - 1 := by omega
+                have hsub_rs : (r - s : ℤ) = ↑r - ↑s := by omega
+                have hsub_n1 : (n - 1 : ℤ) = ↑n - 1 := by omega
+                have hn_int : (n : ℤ) = ↑r * ↑q + ↑s := by norm_cast; omega
+                have hgoal : q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) + (r
+                    - s) * (q * (q - 1))) = n * (n - 1) := by
+                  have hcast : (q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) +
+                      (r - s) * (q * (q - 1))) : ℤ) =
+                      (n * (n - 1) : ℤ) := by
+                    rw [hn_int]
+                    ring
+                  have hup_lhs : (↑(q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) *
+                      q) + (r - s) * (q * (q - 1))) : ℕ) : ℤ) =
+                      (q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) + (r - s) *
+                          (q * (q - 1))) : ℤ) := by
+                    push_cast [Nat.cast_sub (show 1 ≤ r from hr), Nat.cast_sub hsle,
+                        Nat.cast_sub hq1, Nat.cast_sub hs1, Nat.cast_sub (show s ≤ r from hsle),
+                        Nat.cast_sub (show 1 ≤ q from hq1)]
+                    rfl
+                  have hup_rhs : (↑(n * (n - 1)) : ℤ) = (n * (n - 1) : ℤ) := by
+                    push_cast [Nat.cast_sub (show 1 ≤ n from hpos_n)]
+                    rfl
+                  exact Nat.cast_injective (hup_lhs.trans (hcast.trans hup_rhs.symm))
+                exact hgoal
+        _ = 2 * n.choose 2 := h2E0.symm
+    omega
+  rw [CGraph.E]
+  exact le_trans (hle1.trans hle2.le) key.le
+
+/-- Each original vertex of `μ(G)` has its degree doubled, each shadow gains the apex, and the
+apex sees every shadow. -/
+theorem degMultiset_mycielskian (G : IsoGraph) :
+    (mycielskian G).degMultiset
+      = G.degMultiset.map (fun d ↦ 2 * d) + G.degMultiset.map (fun d ↦ d + 1) + {G.V} := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g, mycielskian_mk, degMultiset_mk, degMultiset_mk, V_mk]
+  set F := g.canonicalize
+  let H := (CGraph.mycielskian F).toSimple
+  -- Neighbor finset lemmas from Constructions.lean
+  have h_neighborFinset_inl : ∀ a : F.V,
+      H.neighborFinset (some (Sum.inl a)) =
+        (Finset.image (fun b : F.V => some (Sum.inl b)) (F.toSimple.neighborFinset a) ∪
+          Finset.image (fun b : F.V => some (Sum.inr b)) (F.toSimple.neighborFinset a)) := by
+    intro a; ext y; simp [H, CGraph.mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
+    rcases y with _ | y | y <;> simp
+  have h_neighborFinset_inr : ∀ a : F.V,
+      H.neighborFinset (some (Sum.inr a)) =
+        Finset.image (fun b : F.V => some (Sum.inl b)) (F.toSimple.neighborFinset a) ∪ {none} := by
+    intro a; ext y; simp [H, CGraph.mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
+    rcases y with _ | y | y <;> simp
+  have h_neighborFinset_none :
+      H.neighborFinset none = Finset.image (fun b : F.V => some (Sum.inr b)) Finset.univ := by
+    ext y; simp [H, CGraph.mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
+    rcases y with _ | y | y <;> simp
+  -- Degree lemmas
+  have hinjl : Function.Injective (fun b : F.V => some (Sum.inl b) : F.V → Option (F.V ⊕ F.V)) :=
+    fun x y h => Sum.inl_injective (Option.some_injective _ h)
+  have hinjr : Function.Injective (fun b : F.V => some (Sum.inr b) : F.V → Option (F.V ⊕ F.V)) :=
+    fun x y h => Sum.inr_injective (Option.some_injective _ h)
+  have hdeg_inl : ∀ a : F.V, H.degree (some (Sum.inl a)) = 2 * F.toSimple.degree a := by
+    intro a
+    rw [SimpleGraph.degree, h_neighborFinset_inl, Finset.card_union_of_disjoint]
+    · rw [Finset.card_image_of_injective _ hinjl, Finset.card_image_of_injective _ hinjr,
+        SimpleGraph.degree]; ring
+    · rw [Finset.disjoint_left]; simp [Finset.mem_image]
+  have hdeg_inr : ∀ a : F.V, H.degree (some (Sum.inr a)) = F.toSimple.degree a + 1 := by
+    intro a
+    rw [SimpleGraph.degree, h_neighborFinset_inr, Finset.card_union_of_disjoint]
+    · rw [Finset.card_image_of_injective _ hinjl]; rfl
+    · simp [Finset.disjoint_singleton_right]
+  have hdeg_none : H.degree none = Fintype.card F.V := by
+    rw [SimpleGraph.degree, h_neighborFinset_none, Finset.card_image_of_injective _ hinjr]; simp
+  -- Now compute degMultiset
+  unfold CGraph.degMultiset
+  have option_split_FV_FV :
+      Multiset.map (fun v => H.degree v) (Finset.univ : Finset (Option (F.V ⊕ F.V))).val =
+        [(fun v => H.degree v) none] +
+        Multiset.map (fun v => H.degree v) ((Finset.univ : Finset (F.V ⊕ F.V)).map ⟨some,
+            Option.some_injective (F.V ⊕ F.V)⟩).val := by
+    have : (Finset.univ : Finset (Option (F.V ⊕ F.V))).val =
+        none ::ₘ ((Finset.univ : Finset (F.V ⊕ F.V)).map ⟨some, Option.some_injective (F.V ⊕
+            F.V)⟩).val := by
+      rfl
+    rw [this]; simp [Multiset.map_cons]
+  rw [option_split_FV_FV]
+  -- univ(F.V ⊕ F.V).val = univ(F.V).val.map inl + univ(F.V).val.map inr
+  have hsum_univ : (Finset.univ : Finset (F.V ⊕ F.V)).val =
+      (Finset.univ : Finset F.V).val.map Sum.inl + (Finset.univ : Finset F.V).val.map Sum.inr := by
+    rfl
+  simp only [hdeg_none]
+  -- Rewrite the Finset.map over Option (F.V ⊕ F.V) to expose inl/inr
+  have hmap_split : (Finset.univ : Finset (F.V ⊕ F.V)).map ⟨some, Option.some_injective _⟩ =
+      ((Finset.univ : Finset F.V).map (⟨fun a => some (Sum.inl a), fun x y h => by cases h; rfl⟩ :
+          F.V ↪ Option (F.V ⊕ F.V))) ∪
+      ((Finset.univ : Finset F.V).map (⟨fun b => some (Sum.inr b), fun x y h => by cases h; rfl⟩ :
+          F.V ↪ Option (F.V ⊕ F.V))) := by
+    ext x; simp
+  have hdisjoint : Disjoint
+      ((Finset.univ : Finset F.V).map (⟨fun a => some (Sum.inl a), fun x y h => by cases h; rfl⟩ :
+          F.V ↪ Option (F.V ⊕ F.V)))
+      ((Finset.univ : Finset F.V).map (⟨fun b => some (Sum.inr b), fun x y h => by cases h; rfl⟩ :
+          F.V ↪ Option (F.V ⊕ F.V))) := by
+    rw [Finset.disjoint_left]
+    simp
+  rw [hmap_split]
+  have hcoe_union :
+      ((Finset.map (⟨fun a => some (Sum.inl a), fun x y h => by cases h; rfl⟩ : F.V ↪ Option (F.V ⊕
+          F.V)) Finset.univ ∪
+        Finset.map (⟨fun b => some (Sum.inr b), fun x y h => by cases h; rfl⟩ : F.V ↪ Option (F.V ⊕
+            F.V)) Finset.univ : Finset (Option (F.V ⊕ F.V))).val
+      = (Finset.map (⟨fun a => some (Sum.inl a), fun x y h => by cases h; rfl⟩ : F.V ↪ Option (F.V
+          ⊕ F.V)) Finset.univ).val +
+        (Finset.map (⟨fun b => some (Sum.inr b), fun x y h => by cases h; rfl⟩ : F.V ↪ Option (F.V
+            ⊕ F.V)) Finset.univ).val) := by
+    set S1 := (Finset.univ : Finset F.V).map (⟨fun a => some (Sum.inl a), fun x y h =>
+        by cases h; rfl⟩ : F.V ↪ Option (F.V ⊕ F.V))
+    set S2 := (Finset.univ : Finset F.V).map (⟨fun b => some (Sum.inr b), fun x y h =>
+        by cases h; rfl⟩ : F.V ↪ Option (F.V ⊕ F.V))
+    have : (S1 ∪ S2 : Finset (Option (F.V ⊕ F.V))) = S1.disjUnion S2 hdisjoint := by
+      simp [Finset.disjUnion_eq_union]
+    rw [this]
+    simp [Finset.disjUnion]
+  rw [hcoe_union, Multiset.map_add]
+  have hmap_inl : Multiset.map (fun v => H.degree v)
+      (Finset.map (⟨fun a => some (Sum.inl a), fun x y h => Sum.inl_injective
+          (Option.some_injective _ h)⟩ : F.V ↪ Option (F.V ⊕ F.V)) Finset.univ).val =
+      Multiset.map (fun a => H.degree (some (Sum.inl a))) Finset.univ.val := by
+    simp [Finset.map_val, Multiset.map_map]
+  have hmap_inr : Multiset.map (fun v => H.degree v)
+      (Finset.map (⟨fun b => some (Sum.inr b), fun x y h => Sum.inr_injective
+          (Option.some_injective _ h)⟩ : F.V ↪ Option (F.V ⊕ F.V)) Finset.univ).val =
+      Multiset.map (fun b => H.degree (some (Sum.inr b))) Finset.univ.val := by
+    simp [Finset.map_val, Multiset.map_map]
+  rw [hmap_inl, hmap_inr]
+  rw [Multiset.map_congr rfl fun x _ => hdeg_inl x, Multiset.map_congr rfl fun x _ => hdeg_inr x]
+  simp only [F]
+  simp [Fintype.card_fin]
+  have h1 : (fun x => 2 * x) ∘ (fun x => g.canonicalize.toSimple.degree
+      x) = fun x => 2 * g.canonicalize.toSimple.degree x := rfl
+  have h2 : (fun x => x + 1) ∘ (fun x => g.canonicalize.toSimple.degree
+      x) = fun x => g.canonicalize.toSimple.degree x + 1 := rfl
+  rw [show (List.ofFn ((fun x => 2 * x) ∘ fun x => g.canonicalize.toSimple.degree x)) = List.ofFn
+      (fun x => 2 * g.canonicalize.toSimple.degree x) from h1 ▸ rfl,
+      show (List.ofFn ((fun x => x + 1) ∘ fun x => g.canonicalize.toSimple.degree
+          x)) = List.ofFn (fun x => g.canonicalize.toSimple.degree x + 1) from h2 ▸ rfl]
+  show (↑(Fintype.card g.V :: ((List.ofFn fun x => 2 * g.canonicalize.toSimple.degree x) ++
+      List.ofFn fun x => g.canonicalize.toSimple.degree x + 1)) : Multiset ℕ) =
+    ↑((List.ofFn fun x => 2 * g.canonicalize.toSimple.degree x) ++ List.ofFn fun x =>
+        g.canonicalize.toSimple.degree x + 1) + {Fintype.card g.V}
+  have goal : ∀ (n : ℕ) (L : List ℕ), (↑(n :: L) : Multiset ℕ) = ↑L + {n} := by
+    intro n L
+    change Multiset.ofList (n :: L) = Multiset.ofList L + {n}
+    show n ::ₘ Multiset.ofList L = Multiset.ofList L + {n}
+    rw [← Multiset.singleton_add, Multiset.add_comm]
+  exact goal _ _
+
+/-- The minimum degree of a Mycielskian: the three kinds of vertex give `2δ`, `δ + 1` and `n`. -/
+theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
+    (mycielskian G).minDeg = min (min (2 * G.minDeg) (G.minDeg + 1)) G.V := by
+  induction G using Quotient.inductionOn' with | _ G0
+  let H := G0.canonicalize
+  have hdec : DecidableEq H.V := inferInstance
+  have hG : (⟦G0⟧ : IsoGraph) = ⟦H⟧ := (mk_canonicalize G0).symm
+  have hmyci : mycielskian (⟦G0⟧ : IsoGraph) = ⟦H.mycielskian⟧ := by
+    rw [hG, IsoGraph.mycielskian_mk]
+  have hmindeg : (mycielskian (⟦G0⟧ : IsoGraph)).minDeg = H.mycielskian.minDeg := by
+    rw [hmyci, minDeg_mk]
+  have hv : IsoGraph.V ⟦G0⟧ = Fintype.card H.V := by
+    simp [V_mk]
+    show Fintype.card G0.V = Fintype.card (Fin (Fintype.card G0.V))
+    simp
+  rw [hmindeg, hv, minDeg_mk]
+  have hmindeg_eq : G0.minDeg = H.minDeg := by
+    unfold CGraph.minDeg H
+    exact SimpleGraph.Iso.minDegree_eq (CGraph.Iso.toSimpleIso G0.isoCanonicalize)
+  rw [hmindeg_eq]
+  have hDM_iso := degMultiset_mycielskian ⟦H⟧
+  rw [degMultiset_mk] at hDM_iso
+  -- `degMultiset_mk` again, to read `(mycielskian ⟦H⟧).degMultiset` as
+  -- `H.mycielskian.degMultiset`
+  rw [IsoGraph.mycielskian_mk, degMultiset_mk] at hDM_iso
+  have hVH : V ⟦H⟧ = Fintype.card H.V := by simp [IsoGraph.V]
+  have hVH_pos : 0 < V ⟦H⟧ := hG.symm ▸ h
+  have hHpos : 0 < Fintype.card H.V := hVH.symm ▸ hVH_pos
+  haveI : Nonempty H.V := Fintype.card_pos_iff.mp hHpos
+  have hmin_mem : H.minDeg ∈ H.degMultiset := by
+    obtain ⟨v, hv⟩ := H.exists_degree_eq_minDeg (Classical.choice ‹Nonempty H.V›)
+    exact CGraph.mem_degMultiset.2 ⟨v, hv⟩
+  have hge_min : ∀ d ∈ H.degMultiset, H.minDeg ≤ d := by
+    intro d hd
+    obtain ⟨v, hv⟩ := CGraph.mem_degMultiset.1 hd
+    exact hv ▸ H.minDeg_le_degree v
+  have h2min_mem : 2 * H.minDeg ∈ H.mycielskian.degMultiset := by
+    rw [hDM_iso]
+    exact Multiset.mem_add.mpr (Or.inl (Multiset.mem_add.mpr (Or.inl (Multiset.mem_map.mpr
+        ⟨H.minDeg, hmin_mem, rfl⟩))))
+  have hmin1_mem : H.minDeg + 1 ∈ H.mycielskian.degMultiset := by
+    rw [hDM_iso]
+    exact Multiset.mem_add.mpr (Or.inl (Multiset.mem_add.mpr (Or.inr (Multiset.mem_map.mpr
+        ⟨H.minDeg, hmin_mem, rfl⟩))))
+  have hcard_mem : Fintype.card H.V ∈ H.mycielskian.degMultiset := by
+    rw [hDM_iso, hVH]
+    exact Multiset.mem_add.mpr (Or.inr (Multiset.mem_singleton.mpr rfl))
+  have hkmem :
+      min (min (2 * H.minDeg) (H.minDeg + 1)) (Fintype.card H.V) ∈ H.mycielskian.degMultiset := by
+    have : min (2 * H.minDeg) (H.minDeg + 1) ∈ H.mycielskian.degMultiset := by
+      rcases le_total (2 * H.minDeg) (H.minDeg + 1) with h | h
+      · rw [min_eq_left h]
+        exact h2min_mem
+      · rw [min_eq_right h]
+        exact hmin1_mem
+    rcases le_total (min (2 * H.minDeg) (H.minDeg + 1)) (Fintype.card H.V) with h | h
+    · rw [min_eq_left h]
+      exact this
+    · rw [min_eq_right h]
+      exact hcard_mem
+  have hlower : ∀ d ∈ H.mycielskian.degMultiset, min (min (2 * H.minDeg) (H.minDeg +
+      1)) (Fintype.card H.V) ≤ d := by
+    intro d hd
+    rw [hDM_iso] at hd
+    simp only [Multiset.mem_add, Multiset.mem_map, Multiset.mem_singleton] at hd
+    rcases hd with h | h
+    · rcases h with h | h
+      · -- 2 * a = d
+        obtain ⟨a, ha, rfl⟩ := h
+        exact min_le_of_left_le (min_le_of_left_le (by linarith [hge_min a ha]))
+      · -- a + 1 = d
+        obtain ⟨a, ha, hd_eq⟩ := h
+        rw [← hd_eq]
+        exact min_le_of_left_le (min_le_of_right_le (by linarith [hge_min a ha]))
+    · -- d = V ⟦H⟧
+      subst h
+      exact min_le_right _ _
+  exact CGraph.minDeg_eq_of_degMultiset hkmem hlower
+
+/-- In the Mycielskian each original vertex has its degree doubled, each shadow vertex has one
+more neighbour than its original, and the apex sees every shadow. -/
+theorem maxDeg_mycielskian (G : IsoGraph) :
+    maxDeg (mycielskian G) = max (2 * maxDeg G) G.V := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    letI : DecidableEq g.V := Classical.decEq _
+    simp [maxDeg_mk, mycielskian_mk, IsoGraph.V]
+    set H : CGraph := g.mycielskian
+    set Hs := H.toSimple
+    -- Neighbor finset lemmas (copying E_mycielskian proof pattern)
+    have h_adj_inl_inl :
+        ∀ a b : g.V, Hs.Adj (some (Sum.inl a)) (some (Sum.inl b)) ↔ g.Adj a b = true := by
+      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; tauto
+    have h_adj_inl_inr :
+        ∀ a b : g.V, Hs.Adj (some (Sum.inl a)) (some (Sum.inr b)) ↔ g.Adj a b = true := by
+      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; tauto
+    have h_adj_inl_none : ∀ a : g.V, ¬Hs.Adj (some (Sum.inl a)) none := by
+      intro a; dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
+    have h_adj_inr_inl :
+        ∀ a b : g.V, Hs.Adj (some (Sum.inr a)) (some (Sum.inl b)) ↔ g.Adj a b = true := by
+      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; tauto
+    have h_adj_inr_inr : ∀ a b : g.V, ¬Hs.Adj (some (Sum.inr a)) (some (Sum.inr b)) := by
+      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
+    have h_adj_inr_none : ∀ a : g.V, Hs.Adj (some (Sum.inr a)) none := by
+      intro a; dsimp [Hs, H, mycielskian, CGraph.toSimple]
+    have h_adj_none_inr : ∀ b : g.V, Hs.Adj none (some (Sum.inr b)) := by
+      intro b; dsimp [Hs, H, mycielskian, CGraph.toSimple]
+    have h_adj_none_inl : ∀ b : g.V, ¬Hs.Adj none (some (Sum.inl b)) := by
+      intro b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
+    have h_adj_none_none : ¬Hs.Adj none none := by
+      dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
+    have h_inl_ne_inr : ∀ (x y : g.V), ¬some (Sum.inl x) = some (Sum.inr y) :=
+      fun x y h => by
+        injection h with h'
+        cases h'
+    have h_neighborFinset_inl : ∀ a : g.V,
+        Hs.neighborFinset (some (Sum.inl a)) =
+          (Finset.image (fun b : g.V => some (Sum.inl b)) (g.toSimple.neighborFinset a) ∪
+            Finset.image (fun b : g.V => some (Sum.inr b)) (g.toSimple.neighborFinset a)) := by
+      intro a
+      ext y
+      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_union, Finset.mem_image]
+      rcases y with _ | y
+      · simp [h_adj_inl_none a]
+      · rcases y with (y | y)
+        · rw [h_adj_inl_inl a y]
+          simp
+          constructor
+          · intro h; exact Or.inl ⟨y, h, rfl⟩
+          · intro h; rcases h with (⟨b, hb, hb2⟩ | ⟨b, hb, hb2⟩)
+            · exact (Sum.inl_injective (Option.some_injective _ hb2)) ▸ hb
+            · exact absurd hb2.symm (h_inl_ne_inr y b)
+        · rw [h_adj_inl_inr a y]
+          simp [CGraph.toSimple]
+          constructor
+          · intro h; exact Or.inr ⟨y, h, rfl⟩
+          · intro h; rcases h with (⟨b, hb, hb2⟩ | ⟨b, hb, hb2⟩)
+            · exact absurd hb2 (h_inl_ne_inr b y)
+            · exact (Sum.inr_injective (Option.some_injective _ hb2)) ▸ hb
+    have h_neighborFinset_inr : ∀ a : g.V,
+        Hs.neighborFinset (some (Sum.inr a)) =
+          Finset.image (fun b : g.V => some (Sum.inl b)) (g.toSimple.neighborFinset
+              a) ∪ {none} := by
+      intro a
+      ext y
+      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_union, Finset.mem_image,
+          Finset.mem_singleton]
+      rcases y with _ | y
+      · simp [h_adj_inr_none a]
+      · rcases y with (y | y)
+        · rw [h_adj_inr_inl a y]
+          simp
+          exact ⟨fun h => ⟨y, h, rfl⟩, fun ⟨b, hb, hb2⟩ => (Sum.inl_injective
+              (Option.some_injective _ hb2)) ▸ hb⟩
+        · show Hs.Adj (some (Sum.inr a)) (some (Sum.inr y)) ↔ _
+          simp [h_adj_inr_inr a y, CGraph.toSimple]
+          exact fun x _ hx => h_inl_ne_inr x y hx
+    have h_neighborFinset_none :
+        Hs.neighborFinset none = Finset.image (fun b : g.V => some (Sum.inr b)) Finset.univ := by
+      ext y
+      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_image, Finset.mem_univ, true_and]
+      rcases y with _ | y
+      · simp
+      · rcases y with (y | y)
+        · simp [h_adj_none_inl y]
+          intro x; exact fun h => h_inl_ne_inr y x h.symm
+        · simp [h_adj_none_inr y]
+    -- Injectivity helpers
+    have hinjl : Function.Injective (fun b : g.V => some (Sum.inl b) : g.V → H.V) :=
+      fun x y h => Sum.inl_injective (Option.some_injective (g.V ⊕ g.V) h)
+    have hinjr : Function.Injective (fun b : g.V => some (Sum.inr b) : g.V → H.V) :=
+      fun x y h => Sum.inr_injective (Option.some_injective (g.V ⊕ g.V) h)
+    -- Degree lemmas
+    have hdeg_inl : ∀ a : g.V, Hs.degree (some (Sum.inl a)) = 2 * g.toSimple.degree a := by
+      intro a
+      rw [SimpleGraph.degree, h_neighborFinset_inl, Finset.card_union_of_disjoint]
+      · rw [Finset.card_image_of_injective _ hinjl, Finset.card_image_of_injective _ hinjr,
+            SimpleGraph.degree]
+        ring
+      · rw [Finset.disjoint_left]; simp [Finset.mem_image]
+    have hdeg_inr : ∀ a : g.V, Hs.degree (some (Sum.inr a)) = g.toSimple.degree a + 1 := by
+      intro a
+      rw [SimpleGraph.degree, h_neighborFinset_inr, Finset.card_union_of_disjoint]
+      · rw [Finset.card_image_of_injective _ hinjl]
+        rfl
+      · simp [Finset.disjoint_singleton_right]
+    have hdeg_none : Hs.degree none = Fintype.card g.V := by
+      rw [SimpleGraph.degree, h_neighborFinset_none]
+      rw [Finset.card_image_of_injective _ hinjr]
+      simp
+    -- Now prove maxDeg ≤ ...
+    apply le_antisymm
+    · -- All vertices of H have degree ≤ max (2 * maxDeg g) |V(g)|
+      apply CGraph.maxDeg_le_of_forall
+      intro v
+      rcases v with _ | (v | v)
+      · rw [hdeg_none]
+        exact le_max_of_le_right (le_refl _)
+      · rw [hdeg_inl]
+        exact le_max_of_le_left (by linarith [CGraph.degree_le_maxDeg g v])
+      · rw [hdeg_inr]
+        have h1 : g.toSimple.degree v + 1 ≤ Fintype.card g.V := by
+          linarith [CGraph.degree_le_maxDeg g v, CGraph.maxDeg_lt_card g v]
+        exact le_max_of_le_right h1
+    · -- Reverse: max (2 * maxDeg g) |V(g)| ≤ maxDeg H
+      have hnone : Fintype.card g.V ≤ H.maxDeg := by
+        rw [← hdeg_none]
+        exact CGraph.degree_le_maxDeg H none
+      have hinl_maxdeg : 2 * g.maxDeg ≤ H.maxDeg := by
+        rcases isEmpty_or_nonempty g.V with hempty | ⟨v₀⟩
+        · simp [CGraph.maxDeg, SimpleGraph.maxDegree_of_isEmpty]
+        · obtain ⟨v, hv⟩ := CGraph.exists_degree_eq_maxDeg g (v₀.some)
+          rw [← hv, ← hdeg_inl]
+          exact CGraph.degree_le_maxDeg H (some (Sum.inl v))
+      exact max_le hinl_maxdeg hnone
+
+/-- With no isolated vertex every original reaches a shadow, and every shadow reaches the apex. -/
+theorem isConnected_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) :
+    IsConnected (mycielskian G) := by
+  induction G using Quotient.inductionOn with | _ H =>
+  classical
+  haveI : DecidableEq H.V := inferInstance
+  have hH : 0 < H.minDeg := by rwa [minDeg_mk] at h
+  rw [mycielskian_mk, isConnected_mk]
+  -- Goal: H.mycielskian.IsConnected
+  show SimpleGraph.Connected (H.mycielskian.toSimple)
+  rw [SimpleGraph.connected_iff]
+  have hab : ∀ a : H.V, ∃ b : H.V, H.Adj a b = true := by
+    intro a
+    have hmin : H.minDeg = H.toSimple.minDegree := rfl
+    have hdeg_ge : H.toSimple.minDegree ≤ H.toSimple.degree a :=
+      SimpleGraph.minDegree_le_degree _ a
+    have hdeg : 0 < H.toSimple.degree a := by omega
+    rw [SimpleGraph.degree, Finset.card_pos] at hdeg
+    obtain ⟨b, hb⟩ := hdeg
+    simp [SimpleGraph.mem_neighborFinset] at hb
+    exact ⟨b, hb⟩
+  constructor
+  · -- Preconnected: everyone reaches everyone via apex `none`
+    intro u v
+    -- Everyone reaches none, none reaches everyone → everyone reaches everyone
+    have hto_apex : ∀ w : (H.mycielskian).V, (H.mycielskian).toSimple.Reachable w none := by
+      intro w
+      cases w with
+      | none => rfl
+      | some w =>
+        cases w with
+        | inl a =>
+          obtain ⟨b, hb⟩ := hab a
+          show (H.mycielskian.toSimple).Reachable _ _
+          have h1 : H.mycielskian.Adj (some (.inl a)) (some (.inr b)) = true := by
+            rw [CGraph.mycielskian_adj_inl_inr H a b, hb]
+          have h2 : H.mycielskian.Adj (some (.inr
+              b)) none = true := CGraph.mycielskian_adj_inr_none H b
+          exact ((SimpleGraph.Walk.cons (by show (H.mycielskian.toSimple).Adj _ _; exact h1)
+            (SimpleGraph.Walk.cons (by show (H.mycielskian.toSimple).Adj _ _; exact h2)
+                SimpleGraph.Walk.nil)).reachable)
+        | inr b =>
+          show (H.mycielskian.toSimple).Reachable _ _
+          have : H.mycielskian.Adj (some (.inr
+              b)) none = true := CGraph.mycielskian_adj_inr_none H b
+          exact (SimpleGraph.Walk.cons (by show (H.mycielskian.toSimple).Adj _ _; exact this)
+              SimpleGraph.Walk.nil).reachable
+    have h_apex_to : ∀ w : (H.mycielskian).V, (H.mycielskian).toSimple.Reachable none w := by
+      intro w
+      cases w with
+      | none => exact SimpleGraph.Reachable.refl none
+      | some w =>
+        cases w with
+        | inl c =>
+          obtain ⟨d, hd⟩ := hab c
+          show (H.mycielskian.toSimple).Reachable none _
+          have h1 : H.mycielskian.Adj none (some (.inr
+              d)) = true := CGraph.mycielskian_adj_none_inr H d
+          have h2 : H.mycielskian.Adj (some (.inr d)) (some (.inl c)) = true := by
+            rw [CGraph.mycielskian_adj_inr_inl H d c]
+            exact (H.symm d c).trans hd
+          exact ((SimpleGraph.Walk.cons (by show (H.mycielskian.toSimple).Adj _ _; exact h1)
+            (SimpleGraph.Walk.cons (by show (H.mycielskian.toSimple).Adj _ _; exact h2)
+                SimpleGraph.Walk.nil)).reachable)
+        | inr b =>
+          show (H.mycielskian.toSimple).Reachable none _
+          have : H.mycielskian.Adj none (some (.inr
+              b)) = true := CGraph.mycielskian_adj_none_inr H b
+          exact (SimpleGraph.Walk.cons (by show (H.mycielskian.toSimple).Adj _ _; exact this)
+              SimpleGraph.Walk.nil).reachable
+    exact (hto_apex u).trans (h_apex_to v)
+  · -- Nonempty
+    exact ⟨none⟩
+
 end IsoGraph
