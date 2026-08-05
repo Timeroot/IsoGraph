@@ -29091,6 +29091,45 @@ theorem cliqueCoverNum_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 
   have h2 := two_mul_matchNum_le_V G
   omega
 
+/-- Every vertex of `K_{m,n}` sees the whole of the other side. -/
+theorem maxDeg_bipartite (m n : ℕ) : maxDeg (bipartite (m + 1) (n + 1)) = max (m + 1) (n + 1) := by
+  rw [bipartite_eq_join, maxDeg_join (by simp) (by simp), maxDeg_empty, maxDeg_empty, V_empty,
+    V_empty]
+  omega
+
+/-- The smaller side is the one whose vertices have the larger degree, so the minimum is the
+smaller of the two sizes. -/
+theorem minDeg_bipartite (m n : ℕ) : minDeg (bipartite (m + 1) (n + 1)) = min (m + 1) (n + 1) := by
+  rw [bipartite_eq_join, minDeg_join (by simp) (by simp), minDeg_empty, minDeg_empty, V_empty,
+    V_empty]
+  omega
+
+/-- A bipartite graph with a near-perfect matching has the largest independent set its vertex
+count allows: one colour class already has `⌈|V| / 2⌉` vertices, and the matching stops anything
+bigger. -/
+theorem indepNum_of_isBipartite_of_matchNum {G : IsoGraph} (h : IsBipartite G) (hE : 0 < G.E)
+    (hm : G.V ≤ 2 * G.matchNum + 1) : G.indepNum = (G.V + 1) / 2 := by
+  have hlb := V_le_chromNum_mul_indepNum G
+  rw [chromNum_eq_two_iff.mpr ⟨h, hE⟩] at hlb
+  have hsum := coverNum_add_indepNum G
+  have hcov := matchNum_le_coverNum G
+  have h2 := two_mul_matchNum_le_V G
+  omega
+
+/-- The complementary statement: the cover takes the other half. -/
+theorem coverNum_of_isBipartite_of_matchNum {G : IsoGraph} (h : IsBipartite G) (hE : 0 < G.E)
+    (hm : G.V ≤ 2 * G.matchNum + 1) : G.coverNum = G.V / 2 := by
+  have h1 := indepNum_of_isBipartite_of_matchNum h hE hm
+  have hsum := coverNum_add_indepNum G
+  omega
+
+/-- The odd prism misses one vertex of a perfect independent set, so its cover needs one more. -/
+theorem coverNum_prism_odd (m : ℕ) : (prism (2 * m + 3)).coverNum = 2 * m + 4 := by
+  have h1 := indepNum_prism_odd m
+  have h2 := coverNum_add_indepNum (prism (2 * m + 3))
+  rw [V_prism] at h2
+  omega
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -34602,6 +34641,22 @@ theorem cliqueCoverNum_foldedCube_odd (m : ℕ) :
   have hV : (foldedCube (2 * m + 3)).V = 2 * 2 ^ (2 * m + 2) := by
     rw [V_foldedCube]; ring
   rw [cliqueCoverNum_of_cliqueNum_le_two hc.le (by omega), hV]
+  omega
+
+/-- The folded cube is `(n + 3)`-regular on `2ⁿ⁺²` vertices. -/
+theorem E_foldedCube (n : ℕ) : (foldedCube (n + 2)).E = 2 ^ (n + 1) * (n + 3) := by
+  have h : 2 * (foldedCube (n + 2)).E = 2 * (2 ^ (n + 1) * (n + 3)) := by
+    rw [two_mul_E_foldedCube n]; ring
+  exact Nat.eq_of_mul_eq_mul_left (by norm_num) h
+
+/-- The odd folded cube is bipartite with a perfect matching, so the vertex cover takes exactly
+half of it. -/
+theorem coverNum_foldedCube_odd (m : ℕ) :
+    (foldedCube (2 * m + 1)).coverNum = 2 ^ (2 * m) := by
+  have h1 := indepNum_foldedCube_odd m
+  have h2 := coverNum_add_indepNum (foldedCube (2 * m + 1))
+  have hV : (foldedCube (2 * m + 1)).V = 2 * 2 ^ (2 * m) := by
+    rw [V_foldedCube]; ring
   omega
 
 end IsoGraph

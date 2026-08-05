@@ -2233,7 +2233,21 @@ near-perfect (`|V| ≤ 2ν + 1`): the matching covers all but at most one vertex
 counting bound blocks anything smaller from below. `cliqueCoverNum_grotzsch = 6` drops out of it
 in four lines — `|V| = 11`, `ν = 5`, `ω = 2` — replacing a forty-five-line explicit six-colouring
 of the complement. The new instance is `cliqueCoverNum_foldedCube_odd`: an odd folded cube is
-bipartite with a perfect matching, so `κ(foldedCube (2m + 3)) = 2²ᵐ⁺²`, exactly half its vertex count.
+bipartite with a perfect matching, so `κ(foldedCube (2m + 3)) = 2²ᵐ⁺²`, exactly half its
+vertex count.
+
+The independence side of the same argument is a weak König theorem.
+`indepNum_of_isBipartite_of_matchNum` says a bipartite graph with a near-perfect matching has
+`α = ⌈|V| / 2⌉`: one colour class already supplies that many vertices through `|V| ≤ χ · α` with
+`χ = 2`, and `α = |V| − τ ≤ |V| − ν` caps it. `coverNum_of_isBipartite_of_matchNum` is the
+complement, `τ = ⌊|V| / 2⌋`. Two vertex covers that were missing fall out by subtraction:
+`coverNum_foldedCube_odd = 2²ᵐ` and `coverNum_prism_odd (2m + 3) = 2m + 4`, the second one a
+vertex more than half because an odd prism's largest independent set misses a vertex.
+
+Three small holes in the older rows are filled too. `maxDeg_bipartite (m + 1) (n + 1)` and
+`minDeg_bipartite` are `max` and `min` of the two side sizes, read off `bipartite_eq_join`
+together with `maxDeg_join` and `minDeg_join` — the `_self` special cases were all that existed.
+And `E_foldedCube (n + 2) = 2ⁿ⁺¹(n + 3)` is `two_mul_E_foldedCube` divided by two.
 
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
