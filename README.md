@@ -1980,6 +1980,11 @@ rim vertices: the spoke to rim vertex `i` takes colour `i` and the rim edge `{i,
 colour `i + 2` modulo the rim length, so the hub's `n` colours are all distinct and each rim
 vertex sees three different ones.
 
+The metric invariants use the convention that a disconnected graph has diameter and radius `0`,
+since the honest value `⊤` truncates that way. `radius_eq_zero_of_not_isConnected` states this
+once and `radius_disjUnion` applies it, closing the last gap in the radius row of the invariant
+table apart from the Mycielskian.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

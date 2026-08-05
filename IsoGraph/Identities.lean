@@ -27586,4 +27586,19 @@ theorem edgeChromNum_wheel (n : ℕ) : (wheel (n + 4)).edgeChromNum = n + 4 := b
     rw [this] at h
     exact h
 
+/-- The radius of a disconnected graph is `0`, matching the convention already used for the
+diameter: the true value is `⊤`, and `⊤` truncates to `0`. -/
+@[simp] theorem radius_eq_zero_of_not_isConnected {G : IsoGraph} (h : ¬ IsConnected G) :
+    G.radius = 0 := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [isConnected_mk] at h
+  rw [radius_mk]
+  show (g.toSimple.radius).toNat = 0
+  rw [SimpleGraph.radius_eq_top_of_not_connected h]
+  rfl
+
+@[simp] theorem radius_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (disjUnion G H).radius = 0 :=
+  radius_eq_zero_of_not_isConnected (not_isConnected_disjUnion hG hH)
+
 end IsoGraph
