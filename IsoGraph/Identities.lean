@@ -29073,6 +29073,24 @@ theorem diameter_mycielskian_le_four (G : IsoGraph) (h : 0 < G.minDeg) :
   rw [radius_mycielskian G h] at h1
   omega
 
+/-- In a triangle-free graph every clique of a clique cover is a vertex or an edge, so a cover
+needs at least half the vertices. -/
+theorem le_cliqueCoverNum_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 2) :
+    (G.V + 1) / 2 ≤ G.cliqueCoverNum := by
+  have hlb := V_le_cliqueCoverNum_mul_cliqueNum G
+  have h2 : G.cliqueCoverNum * G.cliqueNum ≤ G.cliqueCoverNum * 2 := Nat.mul_le_mul_left _ hc
+  omega
+
+/-- A triangle-free graph with a near-perfect matching has the smallest clique cover its vertex
+count allows: the matching edges cover everything but at most one vertex, and no clique can do
+better than an edge. -/
+theorem cliqueCoverNum_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 2)
+    (hm : G.V ≤ 2 * G.matchNum + 1) : G.cliqueCoverNum = (G.V + 1) / 2 := by
+  have hlb := le_cliqueCoverNum_of_cliqueNum_le_two hc
+  have hub := cliqueCoverNum_le_V_sub_matchNum G
+  have h2 := two_mul_matchNum_le_V G
+  omega
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -29226,48 +29244,9 @@ theorem not_isVertexTransitive_grotzsch : ¬ IsVertexTransitive grotzsch :=
 
 /-- A triangle-free graph's cliques are its vertices and edges, so `κ = |V| - ν`. -/
 theorem cliqueCoverNum_grotzsch : grotzsch.cliqueCoverNum = 6 := by
-  rw [cliqueCoverNum_eq]
-  have hlb : 6 ≤ chromNum grotzschᶜ := by
-    have h1 := V_le_chromNum_mul_indepNum grotzschᶜ
-    simp [indepNum_compl, cliqueNum_grotzsch] at h1
-    omega
-  have Rub : chromNum grotzschᶜ ≤ 6 := by
-    have hgrotzsch_compl : grotzschᶜ = ⟦CGraph.compl (CGraph.mycielskian (CGraph.cycle
-        5).canonicalize)⟧ := by
-      rw [grotzsch, show (cycle 5 : IsoGraph) = ⟦CGraph.cycle 5⟧ from rfl,
-        mycielskian_mk, compl_mk]
-      exact Quotient.sound ⟨CGraph.Iso.compl (CGraph.Iso.mycielskian (CGraph.isoCanonicalize
-          (CGraph.cycle 5)))⟩
-    let hiso : CGraph.Iso
-        (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5).canonicalize))
-        (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5))) :=
-      CGraph.Iso.compl (CGraph.Iso.mycielskian (CGraph.isoCanonicalize (CGraph.cycle 5)).symm)
-    have hinvar : (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5).canonicalize)).chromNum =
-        (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5))).chromNum := by
-      have hchrom := SimpleGraph.Iso.chromaticNumber_eq hiso.toSimpleIso
-      have chromNum_congr : ∀ {G H : CGraph} (i : CGraph.Iso G H), G.chromNum = H.chromNum := by
-        intro G H i
-        have h1 := CGraph.coe_chromNum (G := G)
-        have h2 := CGraph.coe_chromNum (G := H)
-        have h3 : G.toSimple.chromaticNumber = H.toSimple.chromaticNumber :=
-            SimpleGraph.Iso.chromaticNumber_eq i.toSimpleIso
-        rw [← Nat.cast_inj (R := ℕ∞), h1, h2, h3]
-      exact chromNum_congr hiso
-    rw [hgrotzsch_compl, IsoGraph.chromNum_mk, hinvar]
-    rw [← Nat.cast_le (α := ℕ∞), CGraph.coe_chromNum,
-      SimpleGraph.chromaticNumber_le_iff_colorable]
-    -- Build an explicit 6-coloring of compl(mycielskian(cycle 5))
-    -- Coloring: none↦5, inl a↦{0→4,1→0,2→1,3→2,4→3}, inr a↦a
-    let color : (CGraph.cycle 5).mycielskian.compl.V → Fin 6 := fun x =>
-      match x with
-      | none => 5
-      | some (Sum.inl a) => match a with
-        | ⟨0, _⟩ => 4 | ⟨1, _⟩ => 0 | ⟨2, _⟩ => 1 | ⟨3, _⟩ => 2 | ⟨4, _⟩ => 3
-      | some (Sum.inr a) => Fin.castLE (by omega) a
-    have hvalid : ∀ ⦃v w⦄, (CGraph.cycle
-        5).mycielskian.compl.toSimple.Adj v w → color v ≠ color w := by
-      decide
-    exact ⟨SimpleGraph.Coloring.mk color (fun {v w} hv => hvalid hv)⟩
+  have h1 := V_grotzsch
+  have h2 := matchNum_grotzsch
+  have h3 := cliqueCoverNum_of_cliqueNum_le_two cliqueNum_grotzsch.le (by omega)
   omega
 
 /-! ### Tadpoles, lollipops, double stars and theta graphs
@@ -34610,5 +34589,19 @@ theorem diameter_foldedCube (n : ℕ) : (foldedCube (n + 1)).diameter = (n + 2) 
 /-- Vertex-transitive graphs have radius equal to diameter. -/
 theorem radius_foldedCube (n : ℕ) : (foldedCube (n + 1)).radius = (n + 2) / 2 := by
   rw [radius_eq_diameter_of_isVertexTransitive (by simp), diameter_foldedCube]
+
+/-- The odd folded cube is bipartite with a perfect matching, so half its vertices' worth of
+edges cover it. -/
+theorem cliqueCoverNum_foldedCube_odd (m : ℕ) :
+    (foldedCube (2 * m + 3)).cliqueCoverNum = 2 ^ (2 * m + 2) := by
+  have hm : (foldedCube (2 * m + 3)).matchNum = 2 ^ (2 * m + 2) := by
+    have := matchNum_foldedCube_odd (m + 1)
+    rw [show 2 * (m + 1) + 1 = 2 * m + 3 by ring, show 2 * (m + 1) = 2 * m + 2 by ring] at this
+    exact this
+  have hc := cliqueNum_foldedCube (2 * m)
+  have hV : (foldedCube (2 * m + 3)).V = 2 * 2 ^ (2 * m + 2) := by
+    rw [V_foldedCube]; ring
+  rw [cliqueCoverNum_of_cliqueNum_le_two hc.le (by omega), hV]
+  omega
 
 end IsoGraph

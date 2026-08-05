@@ -2225,6 +2225,16 @@ The two readable corollaries are `chromNum_thetaGraph_odd`, where the parity hyp
 positivity automatic, and `chromNum_thetaGraph_even`, where it has to be asked for — `0` is even,
 and a path with no internal vertices collapses onto the pole-to-pole edge.
 
+The clique cover argument behind the Mycielskian's `κ` is really general, so it is now stated as
+such. `le_cliqueCoverNum_of_cliqueNum_le_two` says a triangle-free graph needs at least
+`⌈|V| / 2⌉` cliques, since each one is a vertex or an edge, and
+`cliqueCoverNum_of_cliqueNum_le_two` upgrades that to an equality whenever the matching number is
+near-perfect (`|V| ≤ 2ν + 1`): the matching covers all but at most one vertex from above, and the
+counting bound blocks anything smaller from below. `cliqueCoverNum_grotzsch = 6` drops out of it
+in four lines — `|V| = 11`, `ν = 5`, `ω = 2` — replacing a forty-five-line explicit six-colouring
+of the complement. The new instance is `cliqueCoverNum_foldedCube_odd`: an odd folded cube is
+bipartite with a perfect matching, so `κ(foldedCube (2m + 3)) = 2²ᵐ⁺²`, exactly half its vertex count.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
