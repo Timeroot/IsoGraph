@@ -2113,6 +2113,32 @@ other clique vertices plus the first vertex of the tail and beats everything els
 `chromNum_tadpole_even (2 * m + 4) k = 2` is one line: `isBipartite_tadpole_even` plus a nonzero
 edge count through `chromNum_eq_two_iff`.
 
+The last three families — spiders, theta graphs and cycles with pendants — start to fill in too.
+The edge counts go first: `E_spider legs = legs.sum` and `E_cyclePendant (m + 3) ks =
+m + 3 + ks.sum`, both by the same route as the earlier four, showing the generated list has no
+loop, no duplicate and no reversed pair and then reading off its length. Neither list is flat, so
+both proofs are inductions that carry a moving offset — `spiderEdges off (k :: rest)` recurses
+with `off + k`, and `mem_spiderEdges_bound` is what keeps the recursive tail disjoint from the leg
+just emitted. `isConnected_cyclePendant (m + 3) ks` and its `numComponents = 1` follow the tadpole
+argument: walk a pendant onto its cycle vertex, then around the cycle. The minimum degrees are
+both `1` and both are found at a leaf — `minDeg_spider` at the far end of any nonempty leg,
+`minDeg_cyclePendant` at any pendant — with the same offset-carrying induction underneath.
+`chromNum_tadpole_odd (2 * m + 3) k = 3` is the other half of the tadpole's chromatic number: the
+odd cycle sitting inside forces a third colour, and colouring the cycle with three and then
+alternating two of them down the tail shows three is enough. `chromNum_cyclePendant_even
+(2 * t + 2) ks = 2` is the easy parity, straight out of `isBipartite_cyclePendant_even`. The
+double star's covering numbers close its row: `coverNum_doubleStar = 2` is one line from
+`indepNum_doubleStar` through `coverNum_eq`, and `cliqueCoverNum_doubleStar (m + 1) (n + 1) =
+m + n + 2` is squeezed between `α ≤ κ` from below and `κ ≤ |V| − ν` from above, both of which land
+on `m + n + 2` because `ν = 2`.
+
+Two theta-graph conjectures were refuted along the way, and for the same reason. A path with no
+internal vertices *is* the edge `0 – 1`, so `thetaGraph [0, 0]` is not a theta graph at all — the
+two paths collapse onto each other and it is `K₂`, which is a tree. That kills
+`¬IsAcyclic (thetaGraph xs)` for `2 ≤ xs.length`, and `[0, 0, 1]` collapses to a triangle, whose
+maximum degree is `2` rather than `3`, which kills `maxDeg (thetaGraph xs) = xs.length`. Both are
+back in flight with every path required to be subdivided at least once.
+
 The Mycielskian's independence number is now bracketed from both sides.
 `V_le_indepNum_mycielskian` says `|V(G)| ≤ α(μ(G))` for every `G`, because the `|V(G)|` shadow
 vertices are pairwise non-adjacent — shadows only ever meet originals and the apex. Going the
