@@ -26569,4 +26569,109 @@ theorem circulant_six_one_three : circulant 6 [1, 3] = bipartite 3 3 := by
   rw [circulant_six_one_three]
   exact isBipartite_bipartite 3 3
 
+/-- A vertex of a Turán graph misses exactly its own part, so the degree sequence takes two
+values: the `n % r` big parts contribute the small degree and the rest the large one. -/
+theorem degSequence_turan {n r : ℕ} (hr : 0 < r) :
+    degSequence (turan n r)
+      = List.replicate (n % r * (n / r + 1)) (n - n / r - 1)
+          ++ List.replicate ((r - n % r) * (n / r)) (n - n / r) := by
+  set m := n % r with hm_def
+  set k := n / r with hk_def
+  have hm_lt : m < r := Nat.mod_lt n hr
+  have hsum_n : n = r * k + m := by rw [hk_def, hm_def, Nat.div_add_mod]
+  -- turan = join of two completeMultipartite(replicate ...) graphs
+  have hturan : turan n r = join (completeMultipartite (List.replicate m (k + 1)))
+      (completeMultipartite (List.replicate (r - m) k)) := by
+    rw [turan, completeMultipartite_append]
+  rw [hturan, degSequence_eq_sort, degMultiset_join]
+  -- Compute degMultiset of each chunk via degMultiset_of_degSequence
+  have hdseq1 : degSequence (completeMultipartite (List.replicate m (k + 1))) =
+      List.replicate (m * (k + 1)) ((m - 1) * (k + 1)) :=
+    degSequence_completeMultipartite_replicate m (k + 1)
+  have hdseq2 : degSequence (completeMultipartite (List.replicate (r - m) k)) =
+      List.replicate ((r - m) * k) ((r - m - 1) * k) :=
+    degSequence_completeMultipartite_replicate (r - m) k
+  have hdmm1 : degMultiset (completeMultipartite (List.replicate m (k + 1))) =
+      Multiset.replicate (m * (k + 1)) ((m - 1) * (k + 1)) :=
+    degMultiset_of_degSequence hdseq1
+  have hdmm2 : degMultiset (completeMultipartite (List.replicate (r - m) k)) =
+      Multiset.replicate ((r - m) * k) ((r - m - 1) * k) :=
+    degMultiset_of_degSequence hdseq2
+  rw [hdmm1, hdmm2, V_completeMultipartite_replicate, V_completeMultipartite_replicate]
+  simp only [Multiset.map_replicate]
+  have hr_gt_m : r > m := hm_lt
+  have hrep1 : Multiset.replicate (m * (k + 1)) ((m - 1) * (k + 1) + (r - m) * k) =
+      Multiset.replicate (m * (k + 1)) (n - k - 1) := by
+    by_cases hm0 : m = 0
+    · simp [hm0]
+    · have hmpos : 0 < m := Nat.pos_of_ne_zero hm0
+      have hval : (m - 1) * (k + 1) + (r - m) * k + (k + 1) = n := by
+        have h1 : (m - 1) + 1 = m := Nat.sub_add_cancel hmpos
+        have h2 : (m - 1) * (k + 1) + (k + 1) = m * (k + 1) := by
+          rw [show (m - 1) * (k + 1) + (k + 1) = ((m - 1) + 1) * (k + 1) from by ring, h1]
+        rw [show (m - 1) * (k + 1) + (r - m) * k + (k + 1) =
+            ((m - 1) * (k + 1) + (k + 1)) + (r - m) * k from by ring, h2]
+        have hthis : m * (k + 1) + (r - m) * k = r * k + m := by
+          have hsub : (r - m) + m = r := Nat.sub_add_cancel (le_of_lt hr_gt_m)
+          rw [show m * (k + 1) + (r - m) * k = m * k + m + (r - m) * k from by ring]
+          have : r * k + m = ((r - m) + m) * k + m := by rw [hsub]
+          rw [this]; ring
+        rw [hthis, hsum_n]
+      have : (m - 1) * (k + 1) + (r - m) * k = n - (k + 1) := by
+        exact Nat.eq_sub_of_add_eq hval
+      rw [this]; simp [Nat.sub_sub]
+  have hrep2 : Multiset.replicate ((r - m) * k) ((r - m - 1) * k + m * (k + 1)) =
+      Multiset.replicate ((r - m) * k) (n - k) := by
+    have hval : (r - m - 1) * k + m * (k + 1) + k = n := by
+      have h1 : (r - m - 1) + 1 = r - m := Nat.sub_add_cancel (Nat.sub_pos_of_lt hr_gt_m)
+      have h2 : (r - m - 1) * k + k = (r - m) * k := by
+        rw [show (r - m - 1) * k + k = ((r - m - 1) + 1) * k from by ring, h1]
+      rw [show (r - m - 1) * k + m * (k + 1) + k =
+          ((r - m - 1) * k + k) + m * (k + 1) from by ring, h2]
+      have hthis : (r - m) * k + m * (k + 1) = r * k + m := by
+        have hsub : (r - m) + m = r := Nat.sub_add_cancel (le_of_lt hr_gt_m)
+        rw [show (r - m) * k + m * (k + 1) = (r - m) * k + m * k + m from by ring]
+        have : r * k + m = ((r - m) + m) * k + m := by rw [hsub]
+        rw [this]; ring
+      rw [hthis, hsum_n]
+    have : (r - m - 1) * k + m * (k + 1) = n - k := by
+      exact Nat.eq_sub_of_add_eq hval
+    rw [this]
+  rw [hrep1, hrep2]
+  rw [add_comm]
+  set a := n - k - 1
+  set b := n - k
+  set m' := m * (k + 1)
+  set l' := List.replicate ((r - m) * k) b
+  have hl_pairwise : l'.Pairwise (· ≤ ·) := List.pairwise_replicate.2 (by omega)
+  have hle : ∀ x ∈ List.replicate m' a, ∀ b' ∈ l', x ≤ b' := by
+    intro x hx b' hb'
+    rw [List.eq_of_mem_replicate hx, List.eq_of_mem_replicate hb']
+    omega
+  have hsort_perm :
+      (Multiset.sort ((l' : Multiset ℕ) + Multiset.replicate m' a) (· ≤ ·) : Multiset ℕ) =
+      ((l' : Multiset ℕ) + Multiset.replicate m' a : Multiset ℕ) :=
+    Multiset.sort_eq _ _
+  have hl_sorted : List.Pairwise (fun x1 x2 => x1 ≤ x2) (List.replicate m' a ++ l') := by
+    exact List.pairwise_append.2 ⟨List.pairwise_replicate.2 (by omega), hl_pairwise, hle⟩
+  have hperm4 :
+      (Multiset.sort ((l' : Multiset ℕ) + Multiset.replicate m' a) (· ≤ ·) : List ℕ).Perm
+      (List.replicate m' a ++ l') := by
+    have : (l' : Multiset ℕ) + Multiset.replicate m' a =
+        (List.replicate m' a ++ l' : Multiset ℕ) := by
+      rw [Multiset.add_comm]
+      have heq : ∀ x : ℕ, Multiset.count x (Multiset.replicate m' a + ↑l')
+          = Multiset.count x (↑(List.replicate m' a ++ l')) := by
+        intro x
+        simp [Multiset.count_add, Multiset.count_replicate, List.count_append,
+          List.count_replicate]
+      exact (Multiset.ext (α := ℕ)).mpr heq
+    apply Multiset.coe_eq_coe.mp
+    rw [hsort_perm, this]
+  have hsort_pairwise : List.Pairwise (fun x1 x2 => x1 ≤ x2)
+      (Multiset.sort ((l' : Multiset ℕ) + Multiset.replicate m' a) (· ≤ ·)) :=
+    Multiset.pairwise_sort _ _
+  exact List.Perm.eq_of_pairwise (fun x y _ _ hxy hyx => le_antisymm hxy hyx)
+    hsort_pairwise hl_sorted hperm4
+
 end IsoGraph

@@ -1935,6 +1935,11 @@ all `m` diameters added, and for `m = 2` and `m = 3` that is `K4` and `K(3,3)` r
 second is the reason every odd difference on six points is `1`, `3` or `5`, so the parity classes
 of the hexagon become the two sides of a complete bipartite graph.
 
+The prover returned the degree sequence of a general Turán graph, and the proof turned out not to
+need `r <= n` at all: when there are more parts than vertices the Turán graph is complete and the
+two-value formula degenerates correctly, so the landed statement is the stronger one. Sorting the
+multiset of degrees is most of the work — the graph side is just "a vertex misses its own part".
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
