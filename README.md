@@ -1949,6 +1949,23 @@ onto its own complement. Transporting the witness along `paleyIso` gives the sta
 combinatorial model, and `compl_paley` records the resulting `compl (paley q) = paley q` as a
 conditional `simp` lemma.
 
+Three more small coincidences join the identity table. `circulant_six_one_two` identifies the
+octahedron `K_{2,2,2}` with the circulant `C₆(1, 2)`, by complementing the perfect matching
+`C₆(3)` that `compl_cocktailParty_eq_circulant` already supplies. `circulant_six_two_three`
+identifies the triangular prism with `C₆(2, 3)`: the even residues span one triangle, the odd
+residues the other, and the three diameters are the rungs. `fan_three` records that the fan on a
+three-vertex path and the two-page book are both `K₄` with one edge deleted.
+
+The prover's biggest return in this round is a round-robin edge colouring of the even complete
+graph. Identifying the vertices of `K_{2m+4}` with `ℤ/(2m+3)` plus one extra point, the edge
+`{i, j}` takes colour `i + j` and the edge from the extra point to `i` takes colour `2i`; since
+`2m+3` is odd, doubling is invertible mod `2m+3`, which is what makes the second rule collision
+free. That gives `edgeChromNum_complete_even`, and with the single edge handled separately it
+covers every even complete graph. Because the line graph of `K_n` is the triangular graph and the
+triangular graph is the complement of `K(n, 2)`, the same result immediately yields
+`cliqueCoverNum_kneser_two_even`: covering the Kneser graph `K(2m+4, 2)` by cliques needs `2m+3`
+of them.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

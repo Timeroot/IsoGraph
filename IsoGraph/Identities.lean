@@ -26777,4 +26777,291 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
 @[simp] theorem compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     compl (paley q) = paley q := isSelfComplementary_paley q hq
 
+/-- The octahedron as a circulant: dropping the diameters from `C₆` leaves the complement of a
+perfect matching, which is the three-pair cocktail party graph. -/
+theorem circulant_six_one_two : circulant 6 [1, 2] = cocktailParty 3 := by
+  have h : compl (cocktailParty 3) = circulant 6 [3] := by
+    simpa using compl_cocktailParty_eq_circulant 2
+  have h2 : circulant 6 [1, 2] = compl (circulant 6 [3]) := by
+    rw [circulant_def, circulant_def, compl_mk]
+    exact Quotient.sound ⟨CGraph.isoOfAdj
+      (G := CGraph.circulant 6 [1, 2]) (H := CGraph.compl (CGraph.circulant 6 [3]))
+      (Equiv.refl (Fin 6)) (by decide)⟩
+  rw [h2, ← h, compl_compl]
+
+/-- The triangular prism as a circulant: the even and odd residues each span a triangle and the
+diameters match them up. -/
+theorem circulant_six_two_three : circulant 6 [2, 3] = prism 3 := by
+  rw [circulant_def, prism, cycle_def, complete_def, cartesianProduct_mk]
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.circulant 6 [2, 3])
+    (H := CGraph.cartesianProduct (CGraph.cycle 3) (CGraph.complete 2))
+    (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
+      fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :
+        Fin 6 ≃ (Fin 3 × Fin 2))
+    (by decide)⟩
+
+/-- The three-vertex fan is the two-page book: both are `K₄` with one edge removed. -/
+theorem fan_three : fan 3 = book 2 := by
+  rw [book_eq_join]
+  show join (complete 1) (path 3) = join (complete 2) (empty 2)
+  rw [complete_def, path_def, join_mk, complete_def, empty_def, join_mk]
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.join (CGraph.complete 1) (CGraph.path 3))
+    (H := CGraph.join (CGraph.complete 2) (CGraph.empty 2))
+    (⟨Sum.elim ![.inl 0] ![.inr 0, .inl 1, .inr 1],
+      Sum.elim ![.inl 0, .inr 1] ![.inr 0, .inr 2], by decide, by decide⟩ :
+        (Fin 1 ⊕ Fin 3) ≃ (Fin 2 ⊕ Fin 2))
+    (by decide)⟩
+
+/-- **A complete graph of even order is class one.**  Label the vertices by `ℤ/(2m+3)` together
+with an extra point; colour the edge `{i, j}` by `i + j` and the edge from the extra point to `i`
+by `2i`, a round-robin schedule with `2m+3` colours. -/
+theorem edgeChromNum_complete_even_add_four (m : ℕ) :
+    (complete (2 * m + 4)).edgeChromNum = 2 * m + 3 := by
+  have hlower : 2 * m + 3 ≤ (complete (2 * m + 4)).edgeChromNum := by
+    have hE := E_complete (2 * m + 4)
+    have hm := matchNum_complete (2 * m + 4)
+    have h1 := E_le_edgeChromNum_mul_matchNum (complete (2 * m + 4))
+    rw [hE, hm] at h1
+    rw [Nat.choose_two_right] at h1
+    rw [show (2 * m + 4) / 2 = m + 2 from by omega] at h1
+    simp only [show 2 * m + 4 - 1 = 2 * m + 3 from by omega] at h1
+    have hdiv : (2 * m + 4) * (2 * m + 3) / 2 = (m + 2) * (2 * m + 3) := by
+      rw [show 2 * m + 4 = 2 * (m + 2) from by omega]
+      simp [mul_assoc, Nat.mul_div_cancel_left _ (by omega : 0 < 2)]
+    rw [hdiv] at h1
+    nlinarith
+  have hupper : (complete (2 * m + 4)).edgeChromNum ≤ 2 * m + 3 := by
+    rw [edgeChromNum_eq]
+    simp only [complete]
+    rw [lineGraph_mk, chromNum_mk, CGraph.chromNum_le_iff_colorable]
+    set n := 2 * m + 3 with hn_def
+    set inv2 := m + 2 with hinv2_def
+    have hmod : 2 * (m + 2) = (2 * m + 3) + 1 := by ring
+    have hmul_inv2 (k : ℕ) : 2 * (k * inv2 % n) % n = k % n := by
+      have h2inv : 2 * inv2 = n + 1 := hmod
+      set q := k * inv2 / n
+      set r := k * inv2 % n
+      have hdiv : n * q + r = k * inv2 := Nat.div_add_mod _ _
+      have hkey : 2 * (n * q + r) = n * k + k := by
+        calc 2 * (n * q + r) = 2 * (k * inv2) := by rw [hdiv]
+          _ = (n + 1) * k := by rw [← h2inv]; ring
+          _ = n * k + k := by ring
+      -- 2*r ≡ k (mod n)
+      have hmod2 : (2 * r : ℤ) % (n : ℤ) = (k : ℤ) % (n : ℤ) := by
+        have : (2 * r : ℤ) = (n : ℤ) * (↑k - 2 * ↑q) + (k : ℤ) := by linarith
+        rw [this, Int.add_emod, Int.mul_emod]
+        simp
+      exact_mod_cast hmod2
+    let colorFn : Fin (n + 1) → Fin (n + 1) → Fin n := fun a b =>
+      if ha : (a : ℕ) = n then ⟨(b : ℕ) % n, Nat.mod_lt _ (by omega)⟩
+      else if hb : (b : ℕ) = n then ⟨(a : ℕ) % n, Nat.mod_lt _ (by omega)⟩
+      else ⟨((a : ℕ) + (b : ℕ)) * inv2 % n, Nat.mod_lt _ (by omega)⟩
+    have hsym : ∀ a b, colorFn a b = colorFn b a := by
+      intro a b; dsimp [colorFn]
+      split_ifs with ha hb <;> simp_all
+      · rw [show (↑b + ↑a : ℕ) = ↑a + ↑b from by omega]
+    let colorOnSym2 : Sym2 (Fin (n + 1)) → Fin n := Sym2.lift ⟨colorFn, hsym⟩
+    have hcolorFn_ne : ∀ (v x y : Fin (n + 1)), x ≠ y → x ≠ v → y ≠ v →
+        colorFn v x ≠ colorFn v y := by
+      intro v x y hxy hxv hyv
+      dsimp [colorFn]
+      by_cases hv : (v : ℕ) = n
+      · -- v = last n: x, y ≠ last n
+        have hxne_n : (x : ℕ) ≠ n := by intro h; exact hxv (Fin.ext (by omega))
+        have hyne_n : (y : ℕ) ≠ n := by intro h; exact hyv (Fin.ext (by omega))
+        simp [hv]
+        intro h
+        have hxlt : (x : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le x) hxne_n
+        have hylt : (y : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le y) hyne_n
+        have h2 : (x : ℕ) % n = (y : ℕ) % n := h
+        exact hxy (Fin.ext (by simp [Nat.mod_eq_of_lt hxlt, Nat.mod_eq_of_lt hylt] at h2; exact h2))
+      · push_neg at hv
+        have hvlt : (v : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le v) hv
+        -- Helper: from 2*a % n = (a + b) % n with a,b < n, deduce a = b
+        have heq_of_double : ∀ (a b : ℕ), a < n → b < n → 2 * a % n = (a + b) % n → a = b := by
+          intro a b ha hb h
+          have h1 : ((2 * a : ℤ) % (n : ℤ)) = ((a + b : ℤ) % (n : ℤ)) := by exact_mod_cast h
+          have h2 : ((a : ℤ) - (b : ℤ)) % (n : ℤ) = 0 := by
+            rw [Int.emod_eq_emod_iff_emod_sub_eq_zero] at h1
+            ring_nf at h1 ⊢; exact h1
+          obtain ⟨k, hk⟩ := Int.modEq_zero_iff_dvd.mp h2
+          have : (a : ℤ) = (b : ℤ) := by nlinarith [show k = 0 from by nlinarith]
+          exact_mod_cast this
+        by_cases hx : (x : ℕ) = n
+        · have hyne_n : (y : ℕ) ≠ n := by intro h; exact hxy (Fin.ext (by omega))
+          simp [hv, hx, hyne_n]
+          intro h
+          have this := hmul_inv2 (v + y)
+          rw [h.symm] at this
+          rw [Nat.mod_eq_of_lt hvlt] at this
+          exact hyv (Fin.ext (heq_of_double v y hvlt
+            (Nat.lt_of_le_of_ne (Fin.is_le y) hyne_n) this).symm)
+        · push_neg at hx
+          have hxlt : (x : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le x) hx
+          by_cases hy : (y : ℕ) = n
+          · simp [hv, hx, hy]
+            intro h
+            have key := hmul_inv2 (v + x)
+            rw [h] at key
+            rw [Nat.mod_eq_of_lt hvlt] at key
+            exact hxv (Fin.ext (heq_of_double v x hvlt hxlt key).symm)
+          · push_neg at hy
+            have hylt : (y : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le y) hy
+            simp [hv, hx, hy]
+            intro h
+            have keyx := hmul_inv2 (v + x)
+            have keyy := hmul_inv2 (v + y)
+            rw [h] at keyx
+            rw [keyy] at keyx
+            have h_eq : (x : ℕ) = (y : ℕ) := by
+              have h1 : ((v + y : ℤ) % (n : ℤ)) = ((v + x : ℤ) % (n : ℤ)) := by exact_mod_cast keyx
+              have h2 : ((y : ℤ) - (x : ℤ)) % (n : ℤ) = 0 := by
+                rw [Int.emod_eq_emod_iff_emod_sub_eq_zero] at h1
+                ring_nf at h1 ⊢; exact h1
+              obtain ⟨k, hk⟩ := Int.modEq_zero_iff_dvd.mp h2
+              have : (y : ℤ) = (x : ℤ) := by nlinarith [show k = 0 from by nlinarith]
+              exact_mod_cast this.symm
+            exact hxy (Fin.ext h_eq)
+    -- The goal is Colorable n for the line graph. Build a Coloring.
+    -- colorOnSym2 is defined on all Sym2; we restrict to edges of complete (n+1).
+    -- Adjacent edges share a vertex and are distinct; with distinct endpoints this gives
+    -- different colors.
+    -- Build Coloring for the line graph
+    -- The line graph vertices are edges of complete (2*m+4), that is, pairs in
+    -- Sym2 (Fin (2*m+4)) with distinct endpoints
+    -- n = 2*m+3, so Fin (n+1) = Fin (2*m+4)
+    show (CGraph.lineGraph (CGraph.complete (2 * m + 4))).toSimple.Colorable n
+    let coloring : (CGraph.lineGraph (CGraph.complete (2 * m + 4))).V → Fin n :=
+      fun x => colorOnSym2 x.val
+    have hcolor_valid : ∀ (x y : (CGraph.lineGraph (CGraph.complete (2 * m + 4))).V),
+        (CGraph.lineGraph (CGraph.complete (2 * m + 4))).toSimple.Adj x y →
+          coloring x ≠ coloring y := by
+      intro x y hadj
+      rw [CGraph.toSimple_adj] at hadj
+      rw [CGraph.lineGraph_adj] at hadj
+      simp at hadj
+      obtain ⟨hef, v, hv_e, hv_f⟩ := hadj
+      obtain ⟨e, he⟩ := x
+      obtain ⟨f, hf⟩ := y
+      obtain ⟨p, rfl⟩ := Sym2.mk_surjective e
+      obtain ⟨q, rfl⟩ := Sym2.mk_surjective f
+      set a := p.1; set b := p.2
+      set c := q.1; set d := q.2
+      have hef' : Sym2.mk (a, b) ≠ Sym2.mk (c, d) := by
+        intro h; exact hef (Subtype.ext h)
+      rw [CGraph.complete_toSimple] at he hf
+      have hab : a ≠ b := by
+        intro h
+        have he' : Sym2.mk (a, a) ∈ (CGraph.complete (2 * m + 4)).toSimple.edgeSet := by
+          simp [show p = (a, a) from Prod.ext rfl h.symm] at he
+        simp [CGraph.complete_toSimple] at he'
+      have hcd : c ≠ d := by
+        intro h
+        have hf' : Sym2.mk (c, c) ∈ (CGraph.complete (2 * m + 4)).toSimple.edgeSet := by
+          simp [show q = (c, c) from Prod.ext rfl h.symm] at hf
+        simp [CGraph.complete_toSimple] at hf'
+      -- Key helper: for an edge {x,y} of complete and v in {x,y},
+      -- colorOnSym2 {x,y} = colorFn v (other)
+      -- where "other" is y if v=x, and x if v=y.
+      -- In all cases, colorOnSym2 e = colorFn v (other endpoint of e at v)
+      -- and colorOnSym2 f = colorFn v (other endpoint of f at v).
+      -- Then hcolorFn_ne gives inequality since e ≠ f implies the other endpoints differ and
+      -- neither equals v.
+      -- First, relate colorOnSym2 to colorFn v (other)
+      have colorOnSym2_eq : ∀ (x y : Fin (n + 1)), Sym2.Mem v (Sym2.mk (x, y)) →
+          colorOnSym2 (Sym2.mk (x, y)) = colorFn v (if v = x then y else x) := by
+        intro x y hmem
+        simp only [colorOnSym2, Sym2.lift_mk]
+        simp [Sym2.Mem] at hmem
+        rcases hmem with ⟨z, hz|hz⟩
+        · -- inl: x = z, y = v
+          simp [hz]
+        · -- inr: x = v, y = z (or similar)
+          simp [hz]
+          rw [hsym]
+          by_cases h : v = z <;> simp [h]
+      have hv_e' : Sym2.Mem v (Sym2.mk (a, b)) := by
+        change Sym2.Mem v (Sym2.mk p) at hv_e
+        simpa [show a = p.1 from rfl, show b = p.2 from rfl] using hv_e
+      have hv_f' : Sym2.Mem v (Sym2.mk (c, d)) := by
+        change Sym2.Mem v (Sym2.mk q) at hv_f
+        simpa [show c = q.1 from rfl, show d = q.2 from rfl] using hv_f
+      show colorOnSym2 (Sym2.mk (a, b)) ≠ colorOnSym2 (Sym2.mk (c, d))
+      rw [colorOnSym2_eq a b hv_e', colorOnSym2_eq c d hv_f']
+      have mem_or : ∀ (w x y : Fin (n+1)), Sym2.Mem w (Sym2.mk (x, y)) → w = x ∨ w = y := by
+        intro w x y hmem; simp [Sym2.Mem] at hmem
+        rcases hmem with ⟨z, hz|hz⟩ <;> [left; right] <;> tauto
+      rcases mem_or v a b hv_e' with hv_a | hv_b
+      · -- v = a
+        rw [hv_a] at hv_e' hv_f' ⊢
+        have hba : b ≠ a := hab.symm
+        rcases mem_or a c d hv_f' with hv_c | hv_d
+        · -- v = a = c
+          rw [hv_c] at hv_f' ⊢
+          simp
+          have hbd : b ≠ d := fun h' => hef' (by rw [h', hv_c])
+          have hbc : b ≠ c := fun h' => hba (h'.trans hv_c.symm)
+          have hdc : d ≠ c := fun h' => hcd h'.symm
+          exact hcolorFn_ne c b d
+            (fun h => hef' (by rw [hv_c, h]))
+            hbc
+            hdc
+        · -- v = a, v = d
+          rw [hv_d] at hv_f' ⊢
+          have hbc : b ≠ c := fun h' => hef' (by
+            rw [hv_d, h']; exact Quot.sound (Sym2.Rel.swap _ _))
+          have hbd : b ≠ d := fun h' => hba (h' ▸ hv_d.symm)
+          simp [hcd.symm]
+          exact hcolorFn_ne d b c
+            (fun h => hef' (by rw [h, hv_d]; exact Quot.sound (Sym2.Rel.swap _ _)))
+            hbd
+            (fun h' => hcd h')
+      · -- v = b
+        rw [hv_b] at hv_e' hv_f' ⊢
+        have hba : a ≠ b := hab
+        rcases mem_or b c d hv_f' with hv_c | hv_d
+        · -- v = b = c
+          rw [hv_c] at hv_f' ⊢
+          have hac' : a ≠ c := fun h' => hba (h'.trans hv_c.symm)
+          simp [hac'.symm]
+          have had : a ≠ d := fun h' => hef' (by
+            rw [h', hv_c]; exact Quot.sound (Sym2.Rel.swap _ _))
+          have hdc : d ≠ c := fun h' => hcd h'.symm
+          exact hcolorFn_ne c a d
+            (fun h => hef' (by rw [h, hv_c]; exact Quot.sound (Sym2.Rel.swap _ _)))
+            hac'
+            hdc
+        · -- v = b = d
+          rw [hv_d] at hv_f' ⊢
+          have had' : a ≠ d := fun h' => hba (h' ▸ hv_d.symm)
+          simp [had'.symm, hcd.symm]
+          exact hcolorFn_ne d a c
+            (fun h => hef' (by rw [h, hv_d]))
+            had'
+            hcd
+    exact ⟨SimpleGraph.Coloring.mk coloring (fun {x y} h => hcolor_valid x y h)⟩
+  exact le_antisymm hupper hlower
+
+/-- Every even complete graph beyond the single edge is class one. -/
+@[simp] theorem edgeChromNum_complete_even (m : ℕ) :
+    (complete (2 * m + 2)).edgeChromNum = 2 * m + 1 := by
+  cases m with
+  | zero =>
+    refine le_antisymm ?_ (edgeChromNum_pos ?_)
+    · simpa using edgeChromNum_complete_le 2
+    · rw [E_complete]; decide
+  | succ k =>
+    rw [show 2 * (k + 1) + 2 = 2 * k + 4 by ring, show 2 * (k + 1) + 1 = 2 * k + 3 by ring]
+    exact edgeChromNum_complete_even_add_four k
+
+/-- Covering the triangular graph `T(n)` by cliques is edge colouring `K_n`. -/
+theorem cliqueCoverNum_kneser_two_even (m : ℕ) :
+    (kneser (2 * m + 4) 2).cliqueCoverNum = 2 * m + 3 := by
+  rw [cliqueCoverNum_eq, ← triangular_eq_compl_kneser,
+    show triangular (2 * m + 4) = lineGraph (complete (2 * m + 4)) from
+      (lineGraph_complete_eq_triangular (2 * m + 4)).symm,
+    ← edgeChromNum_eq, edgeChromNum_complete_even_add_four]
+
 end IsoGraph
