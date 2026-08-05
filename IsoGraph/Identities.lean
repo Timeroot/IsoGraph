@@ -28732,6 +28732,252 @@ theorem V_le_indepNum_mycielskian (G : IsoGraph) : G.V ≤ (mycielskian G).indep
     show n ≤ (CGraph.mycielskian g.canonicalize).indepNum
     exact hcard ▸ hind.card_le_indepNum
 
+/-- An independent set of `μ G` meets the shadows in at most everything and the original copy in
+an independent set. -/
+theorem indepNum_mycielskian_le (G : IsoGraph) (hV : 0 < G.V) :
+    (mycielskian G).indepNum ≤ G.V + G.indepNum := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [← mk_canonicalize g] at *
+    simp only [indepNum_mk, V_mk]
+    rw [mycielskian_mk, indepNum_mk]
+    set G' := g.canonicalize
+    set n := Fintype.card G'.V
+
+    -- Helper embeddings
+    let inlEmb : G'.V → (G'.mycielskian).V := fun a => some (Sum.inl a)
+    let inrEmb : G'.V → (G'.mycielskian).V := fun a => some (Sum.inr a)
+    have hinl_inj : Function.Injective inlEmb := by
+      intro a b h; exact Sum.inl_injective (Option.some_injective _ h)
+    have hinr_inj : Function.Injective inrEmb := by
+      intro a b h; exact Sum.inr_injective (Option.some_injective _ h)
+    have hinl_adj : ∀ a b : G'.V, (G'.mycielskian).Adj (inlEmb a) (inlEmb b) = G'.Adj a b := by
+      intro a b; rfl
+    have hnone_inr_adj : ∀ a : G'.V, (G'.mycielskian).Adj none (inrEmb a) = true := by
+      intro a; rfl
+    -- inr vertices are pairwise non-adjacent in μG'
+    have hinr_not_adj : ∀ a b : G'.V, (G'.mycielskian).Adj (inrEmb a) (inrEmb b) = false := by
+      intro a b; simp [inrEmb, CGraph.mycielskian_adj_inr_inr]
+    --key: any indep set s of μG' has |s| ≤ n + α(G')
+    have key : ∀ (s : Finset ((G'.mycielskian).V)), (G'.mycielskian).toSimple.IsIndepSet (↑s) →
+        s.card ≤ n + G'.indepNum := by
+      intro s hs_ind
+      -- The inl-vertices of s, as a Finset of G'.V
+      let A : Finset G'.V := Finset.univ.filter (fun a => inlEmb a ∈ s)
+      -- The inr-vertices of s, as a Finset of G'.V  
+      let B : Finset G'.V := Finset.univ.filter (fun a => inrEmb a ∈ s)
+      -- Key facts about A and B
+      -- A is an indep set in G'
+      have hA_indep : G'.toSimple.IsIndepSet (A : Set G'.V) := by
+        intro a ha b hb hab
+        simp [A] at ha hb
+        intro hadj
+        have hnot_adj := hs_ind ha hb (hinl_inj.ne hab)
+        simp [CGraph.toSimple_adj] at hnot_adj
+        rw [hinl_adj] at hnot_adj
+        simp [CGraph.toSimple_adj] at hadj
+        simp [hnot_adj] at hadj
+      have hA_card : A.card ≤ G'.indepNum := hA_indep.card_le_indepNum
+      -- B.card ≤ n
+      have hB_card : B.card ≤ n := by
+        have : B.card ≤ Fintype.card G'.V := Finset.card_le_univ B
+        exact this
+      -- The inlEmb image of A has size |A|
+      have himage_inl : (Finset.image inlEmb
+          A).card = A.card := Finset.card_image_of_injective _ hinl_inj
+      -- The inrEmb image of B has size |B|
+      have himage_inr : (Finset.image inrEmb
+          B).card = B.card := Finset.card_image_of_injective _ hinr_inj
+      -- none is not in any inlEmb or inrEmb image
+      have hnone_not_inl : none ∉ Finset.image inlEmb A := by simp [inlEmb]
+      have hnone_not_inr : none ∉ Finset.image inrEmb B := by simp [inrEmb]
+      -- inlEmb images and inrEmb images are disjoint
+      have hdisl : Disjoint (Finset.image inlEmb A) (Finset.image inrEmb B) := by
+        rw [Finset.disjoint_left]
+        intro v hvl hvr
+        obtain ⟨a, _, rfl⟩ := Finset.mem_image.mp hvl
+        obtain ⟨b, _, hb⟩ := Finset.mem_image.mp hvr
+        simp [inlEmb, inrEmb] at hb
+        have := Option.some_injective _ hb
+        exact Sum.inl_ne_inr this.symm
+      -- Case split on none ∈ s
+      -- Subset relations
+      have hs_sub_caseA : none ∈ s → s ⊆ {none} ∪ Finset.image inlEmb A := by
+        intro hnone v hv
+        cases v with
+        | none => simp
+        | some x =>
+          cases x with
+          | inl a =>
+            have : some (Sum.inl a) ∈ Finset.image inlEmb A := by
+              simp [Finset.mem_image, A]
+              exact ⟨a, hv, rfl⟩
+            rw [Finset.mem_union]
+            exact Or.inr this
+          | inr a =>
+            exfalso
+            have hne : (none : G'.mycielskian.V) ≠ some (Sum.inr a) := by simp
+            have := hs_ind hnone hv hne
+            simp [inrEmb, hnone_inr_adj a] at this
+      have hs_sub_caseB : none ∉ s → s ⊆ Finset.image inlEmb A ∪ Finset.image inrEmb B := by
+        intro hnone v hv
+        cases v with
+        | none => exact absurd hv hnone
+        | some x =>
+          cases x with
+          | inl a =>
+            have : some (Sum.inl a) ∈ Finset.image inlEmb A := by
+              simp [Finset.mem_image, A]
+              exact ⟨a, hv, rfl⟩
+            rw [Finset.mem_union]
+            exact Or.inl this
+          | inr a =>
+            have : some (Sum.inr a) ∈ Finset.image inrEmb B := by
+              simp [Finset.mem_image, B]
+              exact ⟨a, hv, rfl⟩
+            rw [Finset.mem_union]
+            exact Or.inr this
+      -- B = ∅ when none ∈ s
+      have hB_empty : none ∈ s → B = ∅ := by
+        intro hnone
+        ext a; simp [B]
+        intro ha_mem
+        exfalso
+        have hne : (none : G'.mycielskian.V) ≠ some (Sum.inr a) := by simp
+        have := hs_ind hnone ha_mem hne
+        simp [inrEmb, hnone_inr_adj a] at this
+      -- Case split on none ∈ s
+      by_cases hnone : none ∈ s
+      · have hs_subA := hs_sub_caseA hnone
+        have hcard : s.card ≤ 1 + A.card := by
+          calc s.card ≤ ({none} ∪ Finset.image inlEmb A).card := Finset.card_le_card hs_subA
+            _ = 1 + A.card := by
+              rw [Finset.card_union_of_disjoint (Finset.disjoint_singleton_left.mpr hnone_not_inl)]
+              simp [himage_inl]
+        have hn : 0 < n := hV
+        omega
+      · have hs_subB' := hs_sub_caseB hnone
+        have hcardB' : s.card ≤ A.card + B.card := by
+          calc s.card ≤ (Finset.image inlEmb A ∪ Finset.image inrEmb B).card :=
+              Finset.card_le_card hs_subB'
+            _ = A.card + B.card := by
+              rw [Finset.card_union_of_disjoint hdisl, himage_inl, himage_inr]
+        linarith
+
+    have goal : (CGraph.mycielskian G').indepNum ≤ n + G'.indepNum := by
+      unfold CGraph.indepNum
+      rw [SimpleGraph.indepNum]
+      have hbdd : BddAbove {n | ∃ s : Finset ((G'.mycielskian).V),
+          (G'.mycielskian).toSimple.IsNIndepSet n s} :=
+        ⟨Fintype.card _, fun k ⟨s, hs⟩ => by
+          rw [← hs.card_eq]
+          exact Finset.card_le_univ s⟩
+      apply csSup_le'
+      · intro k hk
+        obtain ⟨s, hs⟩ := hk
+        rcases hs with ⟨hs_ind, hs_card⟩
+        rw [← hs_card]
+        unfold CGraph.indepNum at key
+        exact key s hs_ind
+    exact goal
+
+
+/-- The apex is at distance one from the shadows and two from everything else. -/
+theorem radius_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) : (mycielskian G).radius = 2 := by
+  have hGV : 0 < G.V := by
+    induction G using Quotient.inductionOn with | _ g =>
+    haveI : DecidableEq g.V := Classical.decEq _
+    rw [IsoGraph.minDeg_mk] at h
+    rw [IsoGraph.V_mk]
+    by_contra hp
+    push_neg at hp
+    have hc : Fintype.card g.V = 0 := by omega
+    have : g.minDeg = 0 := by
+      show g.minDeg = 0
+      haveI : IsEmpty g.V := by
+        rw [Fintype.card_eq_zero_iff] at hc; exact hc
+      show g.minDeg = 0
+      show g.toSimple.minDegree = 0
+      rw [SimpleGraph.minDegree]
+      simp [Finset.image_empty]
+    omega
+  -- Helper: for any CGraph H with 0 < H.minDeg, eccent none of mycielskian H ≤ 2
+  have hecc_mycielskian_apex (H : CGraph) [DecidableEq H.V] (hH : 0 < H.minDeg) :
+      (CGraph.mycielskian H).toSimple.eccent none ≤ 2 := by
+    rw [SimpleGraph.eccent_le_iff]
+    intro u
+    cases u with
+    | none => simp [SimpleGraph.edist_self]
+    | some w =>
+      cases w with
+      | inr b =>
+        have hadj : (CGraph.mycielskian H).Adj none (some (.inr
+            b)) = true := CGraph.mycielskian_adj_none_inr H b
+        show (CGraph.mycielskian H).toSimple.edist none (some (.inr b)) ≤ 2
+        calc (CGraph.mycielskian H).toSimple.edist none (some (.inr b))
+            ≤ (SimpleGraph.Walk.cons (by exact hadj)
+                SimpleGraph.Walk.nil).length := SimpleGraph.edist_le _
+          _ = 1 := by simp
+          _ ≤ 2 := by decide
+      | inl a =>
+        -- Need a neighbor of a in H
+        have hdeg : 0 < H.toSimple.degree a := by
+          exact lt_of_lt_of_le hH (H.minDeg_le_degree a)
+        rw [SimpleGraph.degree] at hdeg
+        rw [Finset.card_pos] at hdeg
+        obtain ⟨d, hd⟩ := hdeg
+        simp [SimpleGraph.mem_neighborFinset] at hd
+        have h1 : (CGraph.mycielskian H).Adj none (some (.inr
+            d)) = true := CGraph.mycielskian_adj_none_inr H d
+        have h2 : (CGraph.mycielskian H).Adj (some (.inr d)) (some (.inl a)) = true := by
+          rw [CGraph.mycielskian_adj_inr_inl H d a]
+          exact (H.symm d a).trans hd
+        show (CGraph.mycielskian H).toSimple.edist none (some (.inl a)) ≤ 2
+        calc (CGraph.mycielskian H).toSimple.edist none (some (.inl a))
+            ≤ (SimpleGraph.Walk.cons (by exact h1) (SimpleGraph.Walk.cons (by exact h2)
+                SimpleGraph.Walk.nil)).length := SimpleGraph.edist_le _
+          _ = 2 := by simp
+          _ ≤ 2 := by decide
+  -- Step 1: radius ≤ 2 (apex has eccent ≤ 2)
+  have hradius_le : (mycielskian G).radius ≤ 2 := by
+    induction G using Quotient.inductionOn with | _ g =>
+    show (mycielskian (Quotient.mk _ g)).radius ≤ 2
+    haveI : DecidableEq g.V := Classical.decEq _
+    rw [IsoGraph.mycielskian_mk, IsoGraph.radius_mk]
+    have hcg_minDeg : 0 < g.minDeg := by rwa [IsoGraph.minDeg_mk] at h
+    have hecc_le : (CGraph.mycielskian g).toSimple.eccent none ≤ 2 :=
+      hecc_mycielskian_apex g hcg_minDeg
+    have hradius_eccent : (CGraph.mycielskian g).toSimple.radius ≤
+        (CGraph.mycielskian g).toSimple.eccent none :=
+      SimpleGraph.radius_le_eccent
+    have hradius_le_two : (CGraph.mycielskian g).toSimple.radius ≤ 2 :=
+      le_trans hradius_eccent hecc_le
+    have hconn : (CGraph.mycielskian g).toSimple.Connected := by
+      have := isConnected_mycielskian (Quotient.mk _ g) h
+      simp [IsoGraph.IsConnected, IsoGraph.mycielskian_mk] at this
+      exact this
+    have hne : Nonempty g.mycielskian.V := ⟨none⟩
+    have hradius_ne_top : (CGraph.mycielskian g).toSimple.radius ≠ ⊤ :=
+      SimpleGraph.radius_ne_top_iff.2 hconn
+    show (CGraph.mycielskian g).radius ≤ 2
+    rw [CGraph.radius]
+    exact ENat.toNat_le_toNat hradius_le_two (by simp)
+  -- Step 2: radius ≠ 1 (no universal vertex, domNum ≠ 1)
+  have hpos := radius_pos (isConnected_mycielskian G h) (by rw [V_mycielskian]; omega)
+  have hdom_ne : (mycielskian G).domNum ≠ 1 := by
+    rw [domNum_mycielskian G hGV]
+    have := domNum_pos hGV; omega
+  have hradius_ne_one : (mycielskian G).radius ≠ 1 := by
+    intro h_eq_one
+    rw [radius_eq_one_iff_domNum_eq_one (by rw [V_mycielskian]; omega)] at h_eq_one
+    exact hdom_ne h_eq_one
+  have hr_eq : (mycielskian G).radius = 2 := by
+    have hle : (mycielskian G).radius ≤ 2 := hradius_le
+    have hne1 : (mycielskian G).radius ≠ 1 := hradius_ne_one
+    have hne0 : (mycielskian G).radius ≠ 0 := ne_of_gt hpos
+    omega
+  exact hr_eq
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -31376,6 +31622,332 @@ theorem matchNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).matchNum 
       have hdisj : ¬ ∃ v : G.V, v ∈ (↑ev1.1 : Sym2 G.V) ∧ v ∈ (↑ev2.1 : Sym2 G.V) := he_disjoint
       simp [hne, hdisj]
     exact CGraph.two_le_indepNum hne hna
+
+/-- The far end of the tail is the unique pendant. -/
+theorem minDeg_lollipop (m k : ℕ) : minDeg (lollipop (m + 2) (k + 1)) = 1 := by
+  simp only [IsoGraph.lollipop, IsoGraph.minDeg_mk]
+  set G := CGraph.lollipop (m + 2) (k + 1)
+  
+  set v_last : G.V := ⟨m + k + 2, by omega⟩
+  -- Connectivity of G
+  have hconn : G.IsConnected := by
+    have := isConnected_lollipop (m + 1) (k + 1)
+    rw [IsoGraph.lollipop, IsoGraph.isConnected_mk] at this
+    exact this
+  -- All vertices have degree ≥ 1
+  have hall : ∀ v : G.V, 1 ≤ G.toSimple.degree v := by
+    intro v
+    have hvadj : ∃ w : G.V, G.Adj v w := by
+      -- Construct a neighbor based on v.val
+      set ev := v.val
+      set em := m + 2
+      set ek := k + 1
+      set en := m + k + 3
+      by_cases hev : ev < em
+      · -- v is in the clique
+        by_cases hev0 : ev = 0
+        · -- Use neighbor m+2 (first leg vertex)
+          refine ⟨⟨em, by omega⟩, ?_⟩
+          show (CGraph.ofEdges _ _).Adj v ⟨em, by omega⟩ = true
+          simp [CGraph.ofEdges, CGraph.ofRel_adj]
+          have hv0 : v = ⟨0, by omega⟩ := Fin.ext hev0
+          simp [hv0]
+          omega
+        · -- Use neighbor 0
+          refine ⟨⟨0, by omega⟩, ?_⟩
+          exact (CGraph.ofEdges_adj_val _ _ _ _).2 ⟨hev0, Or.inr (List.mem_append_left _
+              (by rw [CGraph.mem_cliqueEdges]; exact ⟨Nat.pos_of_ne_zero hev0, hev⟩))⟩
+      · -- v is on the leg (ev ≥ em)
+        by_cases hev_eq : ev = em
+        · -- neighbor is 0, edge (0, em) in legEdges
+          refine ⟨⟨0, by omega⟩, ?_⟩
+          have hv_ne_zero : v ≠ ⟨0, by omega⟩ := by
+            intro h; simp [h, ev, em] at hev_eq
+          dsimp only [G, CGraph.lollipop]
+          rw [CGraph.ofEdges_adj_val]
+          have hv_val : v.val = m + 2 := hev_eq
+          rw [hv_val]
+          simp
+        · -- ev > em, use neighbor with val = ev - 1 (leg edge (ev-1, ev))
+          have hev_gt : ev > em := by omega
+          have hevd1 : ev - 1 ≥ em := by omega
+          have hevd1_lt : ev - 1 + 1 < em + ek := by omega
+          refine ⟨⟨ev - 1, by omega⟩, ?_⟩
+          dsimp only [G, CGraph.lollipop]
+          rw [CGraph.ofEdges_adj_val]
+          have hEv1_lt_en' : ev - 1 < m + 2 + (k + 1) := by omega
+          have hEv1_val : (⟨ev - 1, hEv1_lt_en'⟩ : G.V).val = ev - 1 := rfl
+          rw [hEv1_val]
+          refine ⟨by omega, Or.inr ?_⟩
+          exact List.mem_append_right _
+              (by rw [CGraph.mem_legEdges]; exact Or.inr ⟨hevd1, by omega, hevd1_lt⟩)
+    exact Nat.lt_of_lt_of_le zero_lt_one (G.toSimple.degree_pos_iff_exists_adj v |>.2 hvadj)
+  -- The last vertex has degree = 1  
+  have hdeg_last : G.toSimple.degree v_last = 1 := by
+    dsimp only [G, CGraph.lollipop]
+    rw [← CGraph.card_nbrs_eq_degree]
+    have hvlast_val : v_last.val = m + k + 2 := rfl
+    -- Hall gives degree ≥ 1
+    have hcard_ge : 1 ≤ ((CGraph.ofEdges _ _).nbrs v_last).card := by
+      have := hall v_last
+      rwa [CGraph.card_nbrs_eq_degree]
+    -- Case split on k
+    by_cases hk0 : k = 0
+    · -- k = 0: nbrs v_last = {⟨0,...⟩}
+      subst hk0
+      set w0 : G.V := ⟨0, by omega⟩
+      have hnbrs : (CGraph.ofEdges (m + 2 + (0 + 1)) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges
+          0 (m + 2) (0 + 1))).nbrs v_last = {w0} := by
+        ext w
+        simp [CGraph.mem_nbrs]
+        rw [CGraph.ofEdges_adj_val, hvlast_val]
+        constructor
+        · intro ⟨hne, hmem⟩
+          simp [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at hmem
+          rcases hmem with hmem | hmem
+          · omega
+          · rcases hmem with hmem | hmem
+            · exact hmem
+            · exfalso; omega
+        · intro hew
+          subst hew
+          simp only [w0]
+          refine ⟨by omega, Or.inr (List.mem_append_right _ ?_)⟩
+          rw [CGraph.mem_legEdges]
+          exact Or.inl ⟨rfl, rfl, Nat.succ_pos _⟩
+      rw [hnbrs]
+      exact Finset.card_singleton w0
+    · -- k ≥ 1: nbrs v_last = {⟨m+k+1,...⟩}
+      set w2 : G.V := ⟨m + k + 1, by omega⟩
+      have hnbrs : (CGraph.ofEdges (m + 2 + (k + 1)) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges
+          0 (m + 2) (k + 1))).nbrs v_last = {w2} := by
+        ext w
+        simp [CGraph.mem_nbrs]
+        rw [CGraph.ofEdges_adj_val, hvlast_val]
+        constructor
+        · intro ⟨hne, hmem⟩
+          simp [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at hmem
+          rcases hmem with hmem | hmem
+          · omega
+          · rcases hmem with hmem | hmem
+            · omega
+            · have hv2 : w2.val = m + k + 1 := rfl
+              exact Fin.ext (hmem.2.1.symm.trans hv2)
+        · rintro rfl
+          simp only [w2]
+          refine ⟨by omega, Or.inr ?_⟩
+          apply List.mem_append_right
+          rw [CGraph.mem_legEdges]
+          exact Or.inr ⟨by omega, by omega, by omega⟩
+      rw [hnbrs]; exact Finset.card_singleton w2
+  -- Combine
+  show G.minDeg = 1
+  have h1 : G.minDeg ≤ 1 := le_trans (CGraph.minDeg_le_degree G v_last) hdeg_last.le
+  have h2 : 1 ≤ G.minDeg := CGraph.le_minDeg_of_forall v_last hall
+  exact le_antisymm h1 h2
+
+
+/-- The junction has the `m + 1` clique edges plus the first tail edge. -/
+theorem maxDeg_lollipop (m k : ℕ) : maxDeg (lollipop (m + 2) (k + 1)) = m + 2 := by
+  change (CGraph.lollipop (m + 2) (k + 1)).maxDeg = m + 2
+  -- G = lollipop (m+2) (k+1)
+  -- Vertex 0 has degree m+2
+  have hdeg0 : (CGraph.lollipop (m + 2) (k + 1)).toSimple.degree ⟨0, by omega⟩ = m + 2 := by
+    rw [← CGraph.card_nbrs_eq_degree]
+    -- Characterize nbrs of ⟨0,...⟩
+    let n := m + 2 + (k + 1)
+    have h0 : (0 : ℕ) < n := by omega
+    -- Every vertex v with v.1 ∈ {1,...,m+1,m+2} is a neighbor, and only those.
+    have hnbrs : (CGraph.lollipop (m + 2) (k + 1)).nbrs ⟨0, h0⟩ = Finset.image (fun i : Fin (m + 2)
+        => ⟨i.val + 1, by omega⟩) Finset.univ := by
+      apply Finset.ext
+      intro w
+      simp only [CGraph.lollipop, CGraph.nbrs, Finset.mem_filter, Finset.mem_image,
+        Finset.mem_univ, true_and]
+      rw [CGraph.ofEdges_adj_val]
+      constructor
+      · rintro ⟨hne, heng⟩
+        simp only [CGraph.mem_cliqueEdges, CGraph.mem_legEdges, List.mem_append] at heng
+        rcases heng with heng | heng
+        · rcases heng with heng | heng | heng
+          · -- case 1: 0 < w.val ∧ w.val < m+2
+            exact ⟨⟨w.val - 1, by omega⟩, Fin.ext (by simp; omega)⟩
+          · -- case 2: w.val = m+2
+            exact ⟨⟨m + 1, by omega⟩, Fin.ext (by simp; omega)⟩
+          · omega
+        · omega
+      · rintro ⟨i, rfl⟩
+        simp only [CGraph.mem_cliqueEdges, CGraph.mem_legEdges, List.mem_append]
+        refine ⟨by omega, ?_⟩
+        by_cases hi : (i : ℕ) < m + 1
+        · exact Or.inl (Or.inl (by omega))
+        · have hi2 : (i : ℕ) = m + 1 := by omega
+          apply Or.inl
+          apply Or.inr
+          simp [hi2]
+    rw [hnbrs]
+    rw [Finset.card_image_of_injective _ (fun a b h =>
+        by exact Fin.ext (by have := congr_arg Fin.val h; simp at this; omega))]
+    rw [Finset.card_univ, Fintype.card_fin]
+  have hmem : (m + 2 : ℕ) ∈ (CGraph.lollipop (m + 2) (k + 1)).degMultiset :=
+    CGraph.mem_degMultiset.mpr ⟨⟨0, by omega⟩, hdeg0⟩
+  have hule : ∀ v : (CGraph.lollipop (m + 2) (k + 1)).V, (CGraph.lollipop (m + 2) (k +
+      1)).toSimple.degree v ≤ m + 2 := by
+    intro v
+    rw [← CGraph.card_nbrs_eq_degree]
+    -- Characterize: Adj v w ↔ ...
+    have hadj : ∀ w : (CGraph.lollipop (m + 2) (k + 1)).V, (CGraph.lollipop (m + 2) (k +
+        1)).Adj v w ↔
+      v.val ≠ w.val ∧
+        ((v.val < w.val ∧ w.val < m + 2) ∨
+         (0 < k + 1 ∧ v.val = 0 ∧ w.val = m + 2) ∨
+         (m + 2 ≤ v.val ∧ w.val = v.val + 1 ∧ v.val + 1 < m + 2 + (k + 1)) ∨
+         (w.val < v.val ∧ v.val < m + 2) ∨
+         (0 < k + 1 ∧ w.val = 0 ∧ v.val = m + 2) ∨
+         (m + 2 ≤ w.val ∧ v.val = w.val + 1 ∧ w.val + 1 < m + 2 + (k + 1))) := by
+      intro w
+      simp only [CGraph.lollipop, CGraph.ofEdges_adj_val]
+      simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges]
+      grind
+    have hv_lt : v.val < m + 2 + (k + 1) := v.2
+    by_cases hvcl : v.val < m + 2
+    · -- v is a clique vertex
+      -- nbrs v ⊆ {w | w.val < m+2 ∧ w ≠ v} ∪ {⟨m+2,...⟩}
+      -- This set has card ≤ (m+2-1)+1 = m+2
+      let cliqueSet : Finset ((CGraph.lollipop (m + 2) (k + 1)).V) :=
+        Finset.filter (fun w => w.val < m + 2 ∧ w.val ≠ v.val) Finset.univ
+      have hnbrs_sub : (CGraph.lollipop (m + 2) (k + 1)).nbrs v ⊆ cliqueSet ∪ {⟨m + 2,
+          by omega⟩} := by
+        intro w hw
+        rw [CGraph.mem_nbrs] at hw
+        simp only [Finset.mem_union, Finset.mem_filter, Finset.mem_univ, true_and,
+            Finset.mem_singleton, cliqueSet]
+        rcases (hadj w).mp hw with ⟨hne, hcases⟩
+        rcases hcases with h1 | h2 | h3 | h4 | h5 | h6
+        · -- v < w < m+2: w is in clique, w ≠ v
+          exact Or.inl ⟨h1.2, hne.symm⟩
+        · -- v = 0, w = m+2
+          have : w.val = m + 2 := by omega
+          exact Or.inr (Fin.ext this)
+        · -- m+2 ≤ v, contradicting hvcl
+          exfalso; omega
+        · -- w < v < m+2: w is in clique, w ≠ v
+          exact Or.inl ⟨by omega, hne.symm⟩
+        · -- w = 0, v = m+2, contradicting hvcl
+          exfalso; omega
+        · -- m+2 ≤ w, v = w+1, so v ≥ m+3, contradicting hvcl
+          exfalso; omega
+      let cliqueAll : Finset ((CGraph.lollipop (m + 2) (k + 1)).V) :=
+        Finset.filter (fun w : Fin (m + 2 + (k + 1)) => w.val < m + 2) Finset.univ
+      have hcard_cliqueSet : cliqueSet.card ≤ m + 1 := by
+        have hcliqueSet_sub : cliqueSet ⊆ cliqueAll \ {v} := by
+          intro w hw
+          simp [cliqueSet, cliqueAll, Finset.mem_sdiff, Finset.mem_filter] at hw ⊢
+          exact ⟨hw.1, fun h => hw.2 (by rw [h])⟩
+        have hcard_cliqueAll : cliqueAll.card = m + 2 := by
+          have heq : cliqueAll = Finset.image (fun i : Fin (m + 2) => ⟨i.val, by omega⟩ : Fin (m +
+              2) → Fin (m + 2 + (k + 1))) Finset.univ := by
+            ext (w : Fin (m + 2 + (k + 1))); simp [cliqueAll, Finset.mem_image, Finset.mem_univ,
+                true_and]
+            exact ⟨fun h => ⟨⟨w.val, h⟩, rfl⟩, fun ⟨i, hi⟩ => hi ▸ i.2⟩
+          rw [heq, Finset.card_image_of_injective _ (fun a b h => Fin.ext
+              (by have := congr_arg Fin.val h; simp at this; omega)), Finset.card_univ,
+                  Fintype.card_fin]
+        have hv_in_clique : v ∈ cliqueAll := by simp [cliqueAll, hvcl]
+        have hcard_diff : (cliqueAll \ {v}).card = m + 1 := by
+          rw [Finset.card_sdiff_of_subset (Finset.singleton_subset_iff.mpr hv_in_clique),
+              hcard_cliqueAll, Finset.card_singleton]
+          omega
+        exact le_trans (Finset.card_mono hcliqueSet_sub) hcard_diff.le
+      have hcard_nbrs_clique : ((CGraph.lollipop (m + 2) (k + 1)).nbrs v).card ≤ m + 2 := by
+        calc ((CGraph.lollipop (m + 2) (k + 1)).nbrs v).card
+            ≤ (cliqueSet ∪ {⟨m + 2, by omega⟩}).card := Finset.card_mono hnbrs_sub
+          _ ≤ cliqueSet.card + 1 := Finset.card_union_le _ _
+          _ ≤ m + 1 + 1 := by omega
+          _ = m + 2 := by omega
+      exact hcard_nbrs_clique
+    · -- v is a leg vertex (m+2 ≤ v.val)
+      have hvge : m + 2 ≤ v.val := by omega
+      -- For leg vertices, degree ≤ 2. Then 2 ≤ m + 2.
+      -- Define f : nbrs v → Bool by f w = (w.val < v.val).
+      -- This is injective (by hadj analysis), so card ≤ 2.
+      have hdeg_le_2 : ((CGraph.lollipop (m + 2) (k + 1)).nbrs v).card ≤ 2 := by
+        set S := (CGraph.lollipop (m + 2) (k + 1)).nbrs v
+        -- Define g : S → Bool by g w = (w.val < v.val). This is injective.
+        have hinj : ∀ w1 ∈ S, ∀ w2 ∈ S, (w1.val < v.val ↔ w2.val < v.val) → w1 = w2 := by
+          intro w1 hw1 w2 hw2 hbooll
+          rw [CGraph.mem_nbrs] at hw1 hw2
+          rw [hadj w1] at hw1; rw [hadj w2] at hw2
+          obtain ⟨hne1, hc1⟩ := hw1; obtain ⟨hne2, hc2⟩ := hw2
+          set a1 := w1.val; set a2 := w2.val; set bv := v.val
+          -- Eliminate impossible cases for w1: bv ≥ m+2 eliminates cases where bv < a1 ∧ a1 < m+2,
+          -- a1 < bv ∧ bv < m+2, bv = 0 case
+          have hw1_valid :
+            (m + 2 ≤ bv ∧ a1 = bv + 1 ∧ bv + 1 < m + 2 + (k + 1)) ∨
+            (0 < k + 1 ∧ a1 = 0 ∧ bv = m + 2) ∨
+            (m + 2 ≤ a1 ∧ bv = a1 + 1 ∧ a1 + 1 < m + 2 + (k + 1)) := by
+            rcases hc1 with h | h | h | h | h | h
+            · exact absurd (by omega : bv < a1) (not_lt_of_ge (by omega))
+            · exfalso; omega
+            · exact Or.inl h
+            · exfalso; omega
+            · exact Or.inr (Or.inl h)
+            · exact Or.inr (Or.inr h)
+          have hw2_valid :
+            (m + 2 ≤ bv ∧ a2 = bv + 1 ∧ bv + 1 < m + 2 + (k + 1)) ∨
+            (0 < k + 1 ∧ a2 = 0 ∧ bv = m + 2) ∨
+            (m + 2 ≤ a2 ∧ bv = a2 + 1 ∧ a2 + 1 < m + 2 + (k + 1)) := by
+            rcases hc2 with h | h | h | h | h | h
+            · exact absurd (by omega : bv < a2) (not_lt_of_ge (by omega))
+            · exfalso; omega
+            · exact Or.inl h
+            · exfalso; omega
+            · exact Or.inr (Or.inl h)
+            · exact Or.inr (Or.inr h)
+          -- bool values: T3→false, T5→true (0 < m+2), T6→true (a < bv since bv = a+1)
+          rcases hw1_valid with ⟨_, ha1_eq, _⟩ | ⟨_, ha1_eq, hbv_eq⟩ | ⟨_, hbv_eq, _⟩
+          · rcases hw2_valid with ⟨_, ha2_eq, _⟩ | ⟨_, ha2_eq, hbv_eq2⟩ | ⟨_, hbv_eq2, _⟩
+            · exact Fin.ext (by omega)
+            · exfalso; simp [ha1_eq] at hbooll; omega
+            · exfalso; simp [ha1_eq] at hbooll; omega
+          · rcases hw2_valid with ⟨_, ha2_eq, _⟩ | ⟨_, ha2_eq, hbv_eq2⟩ | ⟨_, hbv_eq2, _⟩
+            · exfalso; simp [ha1_eq] at hbooll; omega
+            · exact Fin.ext (by omega)
+            · exfalso; omega
+          · rcases hw2_valid with ⟨_, ha2_eq, _⟩ | ⟨_, ha2_eq, hbv_eq2⟩ | ⟨_, hbv_eq2, _⟩
+            · exfalso; simp [hbv_eq] at hbooll; omega
+            · exfalso; omega
+            · exact Fin.ext (by omega)
+        -- Injectivity into Bool (which has card 2) gives card S ≤ 2.
+        -- Map each neighbor to Fin 2: 0 if w.val < v.val, 1 otherwise. This is injective.
+        let f : S → Fin 2 := fun ⟨w, hw⟩ => if w.val < v.val then 0 else 1
+        have hf_inj : Function.Injective f := by
+          intro ⟨w1, hw1⟩ ⟨w2, hw2⟩ heq
+          have hbooll : (w1.val < v.val ↔ w2.val < v.val) := by
+            simp only [f] at heq
+            show (w1.val < v.val ↔ w2.val < v.val)
+            by_cases h1 : w1.val < v.val <;> by_cases h2 : w2.val < v.val <;> simp [h1, h2] at heq ⊢
+          exact Subtype.ext (hinj w1 hw1 w2 hw2 hbooll)
+        have := Fintype.card_le_of_injective f hf_inj
+        simp [Fintype.card_fin] at this
+        exact this
+      omega
+  exact @CGraph.maxDeg_eq_of_degMultiset (CGraph.lollipop (m + 2) (k + 1)) (m + 2) hmem (fun d hd
+      => by
+    rw [CGraph.mem_degMultiset] at hd
+    obtain ⟨v, hv⟩ := hd
+    rw [← hv]
+    exact hule v)
+
+
+/-- An even cycle with a tail is bipartite, and it has an edge. -/
+theorem chromNum_tadpole_even (m k : ℕ) : (tadpole (2 * m + 4) k).chromNum = 2 := by
+  refine chromNum_eq_two_iff.mpr ⟨?_, ?_⟩
+  · have := isBipartite_tadpole_even (m + 2) k
+    rwa [show 2 * (m + 2) = 2 * m + 4 from by ring] at this
+  · have := E_tadpole (2 * m + 1) k
+    rw [show 2 * m + 1 + 3 = 2 * m + 4 from by ring] at this
+    omega
 
 /-! ### The folded cube
 

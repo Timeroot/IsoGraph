@@ -2094,7 +2094,8 @@ The connectivity row of those families follows. All three of `isConnected_tadpol
 `isConnected_lollipop (m + 1) k` and `isConnected_doubleStar m n` are proved the same way — pick
 vertex `0` as a hub and walk every other vertex back to it, along the cycle, around the clique or
 straight down a pendant — and each hands `numComponents = 1` to
-`numComponents_eq_one_of_isConnected` for free. From connectivity the double star's whole row unwinds at once: it has `m + n + 1` edges
+`numComponents_eq_one_of_isConnected` for free. From connectivity the double star's whole row
+unwinds at once: it has `m + n + 1` edges
 on `m + n + 2` vertices, so `isTree_doubleStar` is `isTree_iff` applied to `E_doubleStar` and
 `V_doubleStar`, and then `girth_doubleStar = 0` because a tree is acyclic and
 `cliqueNum_doubleStar = 2` because a tree with two vertices has the central edge and nothing
@@ -2106,12 +2107,29 @@ pendants for the lower bound, and for the upper bound `{0, 1}` is a vertex cover
 `ν ≤ τ ≤ 2`. On the tadpole side, `minDeg_tadpole (m + 3) (k + 1) = 1` is the far end of the
 tail, and `cliqueNum_tadpole (m + 4) k = 2` needs the cycle to be long enough to be triangle-free
 — at `m + 3 = 3` the tadpole *does* contain a triangle, which is why this one starts at `m + 4`.
+The lollipop's degrees came next: `minDeg_lollipop (m + 2) (k + 1) = 1` is again the far end of
+the tail, and `maxDeg_lollipop (m + 2) (k + 1) = m + 2` is the junction, which sees the `m + 1`
+other clique vertices plus the first vertex of the tail and beats everything else. And
+`chromNum_tadpole_even (2 * m + 4) k = 2` is one line: `isBipartite_tadpole_even` plus a nonzero
+edge count through `chromNum_eq_two_iff`.
 
-One more Mycielskian bound came out of the same round. `V_le_indepNum_mycielskian` says
-`|V(G)| ≤ α(μ(G))` for every `G`, because the `|V(G)|` shadow vertices are pairwise non-adjacent
-— shadows only ever meet originals and the apex. That is the easy half of the independence number
-the Grötzsch row is still missing; the matching upper bound is what needs the neighbourhood
-counting argument.
+The Mycielskian's independence number is now bracketed from both sides.
+`V_le_indepNum_mycielskian` says `|V(G)| ≤ α(μ(G))` for every `G`, because the `|V(G)|` shadow
+vertices are pairwise non-adjacent — shadows only ever meet originals and the apex. Going the
+other way, `indepNum_mycielskian_le` says `α(μ(G)) ≤ |V(G)| + α(G)` for nonempty `G`. Take an
+independent set `I`. If it contains the apex then it contains no shadow at all, so what is left
+is an independent set of the original copy and `|I| ≤ 1 + α(G)`, which is where `0 < |V(G)|` is
+spent. If it does not, then `I` splits into its originals — independent in `G`, so at most `α(G)`
+of them — and its shadows, of which there are at most `|V(G)|`. The nonemptiness hypothesis is
+not decoration: the prover *refuted* the statement without it, since `μ` of the empty graph on no
+vertices is a lone apex with `α = 1` against a right-hand side of `0`.
+
+`radius_mycielskian` is exact whenever `G` has no isolated vertex: `rad(μ(G)) = 2`. The apex is at
+distance `1` from every shadow and at distance `2` from every original vertex — walk to the
+shadow of one of its neighbours — so its eccentricity is exactly `2`, and the radius is at most
+`2`. It is not `1`, because no vertex of `μ(G)` is adjacent to all the others: the apex misses the
+originals, an original misses the apex, and a shadow misses the other shadows. That is
+`radius_eq_one_iff_domNum_eq_one` read backwards.
 
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
