@@ -26489,4 +26489,20 @@ theorem matchNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : (turan n r).ma
         exact ⟨⟨hne, by omega⟩, by omega, hne⟩
     exact hS_card.ge.trans (hS_ind.card_le_indepNum)
 
+/-- The crown graph on eight vertices is the cube: both are `K₄ × K₂`, once as a tensor product
+and once as the four-rung prism. -/
+theorem crown_four : crown 4 = hypercube 3 := by
+  rw [hypercube_three]
+  show tensorProduct (complete 4) (complete 2) = cartesianProduct (cycle 4) (complete 2)
+  rw [complete_def, complete_def, tensorProduct_mk, cycle_def, cartesianProduct_mk]
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.tensorProduct (CGraph.complete 4) (CGraph.complete 2))
+    (H := CGraph.cartesianProduct (CGraph.cycle 4) (CGraph.complete 2))
+    (⟨fun p ↦ ![![(0, 0), (2, 1)], ![(2, 0), (0, 1)], ![(1, 1), (3, 0)], ![(3, 1), (1, 0)]]
+        p.1 p.2,
+      fun p ↦ ![![(0, 0), (1, 1)], ![(3, 1), (2, 0)], ![(1, 0), (0, 1)], ![(2, 1), (3, 0)]]
+        p.1 p.2, by decide, by decide⟩ :
+        (Fin 4 × Fin 2) ≃ (Fin 4 × Fin 2))
+    (by decide)⟩
+
 end IsoGraph

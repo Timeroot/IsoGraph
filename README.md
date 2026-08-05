@@ -1920,6 +1920,11 @@ argument: send vertex `j` to slot `j / r` of part `j mod r`, which is a bijectio
 set, and then pair `2t` with `2t + 1`. Consecutive vertices differ mod `r` whenever `r` is at
 least two, so every pair is an edge, and the resulting `n / 2` edges are pairwise disjoint.
 
+One small-graph coincidence went in by hand: the crown graph on eight vertices is the cube. Both
+sides are `K4` times `K2`, but with different products — the crown is the tensor product and the
+cube is the four-rung prism — so the identity is an explicit vertex bijection checked by `decide`,
+built by matching each vertex to the one non-neighbour it has on the other side.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
