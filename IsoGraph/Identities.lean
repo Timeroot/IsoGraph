@@ -34347,6 +34347,159 @@ theorem domNum_prism_le (n : ℕ) : (prism (n + 3)).domNum ≤ 2 * n + 3 := by
   rw [V_prism, maxDeg_prism] at h
   omega
 
+/-! ### Vertex-transitive graphs of odd order are class two -/
+
+/-- **A vertex-transitive graph of odd order with an edge is class two.**  Vertex-transitivity
+gives regularity, and a regular graph of odd order needs more than `Δ` edge colours because each
+colour class is a matching and so misses a vertex. -/
+theorem maxDeg_lt_edgeChromNum_of_isVertexTransitive_odd {G : IsoGraph}
+    (h : IsVertexTransitive G) (hodd : G.V % 2 = 1) (hE : 0 < G.E) :
+    maxDeg G < G.edgeChromNum := by
+  have hV : 0 < G.V := by omega
+  refine maxDeg_lt_edgeChromNum_of_isRegularWith_odd
+    (isRegularWith_minDeg_of_isVertexTransitive hV h) ?_ hodd
+  by_contra hk
+  have hk0 : G.minDeg = 0 := by omega
+  have h2 := two_mul_E_of_isVertexTransitive hV h
+  rw [hk0, Nat.mul_zero] at h2
+  omega
+
+/-- Every circulant graph on an odd number of vertices is class two. -/
+theorem maxDeg_lt_edgeChromNum_circulant {n : ℕ} {S : List ℕ} (hodd : n % 2 = 1)
+    (hE : 0 < (circulant n S).E) :
+    maxDeg (circulant n S) < (circulant n S).edgeChromNum :=
+  maxDeg_lt_edgeChromNum_of_isVertexTransitive_odd (isVertexTransitive_circulant n S)
+    (by rw [V_circulant]; exact hodd) hE
+
+/-- Kneser graphs with an odd number of vertices are class two: `χ'(K(n, k)) > C(n − k, k)`. -/
+theorem edgeChromNum_kneser_ge {n k : ℕ} (hk : 1 ≤ k) (hn : 2 * k ≤ n)
+    (hodd : n.choose k % 2 = 1) : (n - k).choose k < (kneser n k).edgeChromNum := by
+  have hkn : k ≤ n := by omega
+  have hE : 0 < (kneser n k).E := by
+    have h := two_mul_E_kneser n hk
+    have hp : 0 < n.choose k * (n - k).choose k :=
+      Nat.mul_pos (Nat.choose_pos hkn) (Nat.choose_pos (by omega))
+    omega
+  have h := maxDeg_lt_edgeChromNum_of_isVertexTransitive_odd (isVertexTransitive_kneser n k)
+    (by rw [V_kneser]; exact hodd) hE
+  rwa [maxDeg_kneser n k hk hkn] at h
+
+/-- `K(7, 3)` is `4`-regular on `35` vertices, so it needs at least five edge colours. -/
+theorem edgeChromNum_kneser_seven_three_ge : 5 ≤ (kneser 7 3).edgeChromNum := by
+  have h := edgeChromNum_kneser_ge (n := 7) (k := 3) (by norm_num) (by norm_num) (by decide)
+  norm_num at h
+  omega
+
+/-- Johnson graphs with an odd number of vertices are class two: `χ'(J(n, k)) > k(n − k)`. -/
+theorem edgeChromNum_johnson_ge {n k : ℕ} (hk : 1 ≤ k) (hkn : k < n)
+    (hodd : n.choose k % 2 = 1) : k * (n - k) < (johnson n k).edgeChromNum := by
+  have hV : 0 < (johnson n k).V := by rw [V_johnson]; exact Nat.choose_pos hkn.le
+  have hd : maxDeg (johnson n k) = k * (n - k) := maxDeg_johnson hkn.le
+  have hmin : minDeg (johnson n k) = k * (n - k) := by
+    rw [minDeg_eq_maxDeg_of_isVertexTransitive hV (isVertexTransitive_johnson n k), hd]
+  have hE : 0 < (johnson n k).E := by
+    have h := two_mul_E_of_isVertexTransitive hV (isVertexTransitive_johnson n k)
+    rw [hmin, V_johnson] at h
+    have hp : 0 < n.choose k * (k * (n - k)) :=
+      Nat.mul_pos (Nat.choose_pos hkn.le) (Nat.mul_pos (by omega) (by omega))
+    omega
+  have h := maxDeg_lt_edgeChromNum_of_isVertexTransitive_odd (isVertexTransitive_johnson n k)
+    (by rw [V_johnson]; exact hodd) hE
+  rwa [hd] at h
+
+/-- `J(7, 3)` is `12`-regular on `35` vertices. -/
+theorem edgeChromNum_johnson_seven_three_ge : 13 ≤ (johnson 7 3).edgeChromNum := by
+  have h := edgeChromNum_johnson_ge (n := 7) (k := 3) (by norm_num) (by norm_num) (by decide)
+  norm_num at h
+  omega
+
+/-! ### Independence and cover bounds for the tree-and-cycle families
+
+`|V| ≤ χ · α` — some colour class has at least `|V| / χ` vertices, and colour classes are
+independent — turns every known chromatic number into an independence lower bound, and
+`τ + α = |V|` turns that into a cover upper bound.  These are the first entries in the
+`indepNum` and `coverNum` rows for the spider, the tadpole, the lollipop and the theta graph.
+-/
+
+theorem le_indepNum_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    1 + legs.sum ≤ 2 * (spider legs).indepNum := by
+  have h1 := V_le_chromNum_mul_indepNum (spider legs)
+  rw [chromNum_spider legs h, V_spider] at h1
+  omega
+
+theorem coverNum_spider_le (legs : List ℕ) (h : 0 < legs.sum) :
+    2 * (spider legs).coverNum ≤ 1 + legs.sum := by
+  have h1 := coverNum_add_indepNum (spider legs)
+  have h2 := le_indepNum_spider legs h
+  rw [V_spider] at h1
+  omega
+
+theorem le_indepNum_tadpole_even (m k : ℕ) :
+    2 * m + k + 4 ≤ 2 * (tadpole (2 * m + 4) k).indepNum := by
+  have h1 := V_le_chromNum_mul_indepNum (tadpole (2 * m + 4) k)
+  rw [chromNum_tadpole_even, V_tadpole] at h1
+  omega
+
+theorem coverNum_tadpole_even_le (m k : ℕ) :
+    2 * (tadpole (2 * m + 4) k).coverNum ≤ 2 * m + k + 4 := by
+  have h1 := coverNum_add_indepNum (tadpole (2 * m + 4) k)
+  have h2 := le_indepNum_tadpole_even m k
+  rw [V_tadpole] at h1
+  omega
+
+theorem le_indepNum_tadpole_odd (m k : ℕ) :
+    2 * m + k + 3 ≤ 3 * (tadpole (2 * m + 3) k).indepNum := by
+  have h1 := V_le_chromNum_mul_indepNum (tadpole (2 * m + 3) k)
+  rw [chromNum_tadpole_odd, V_tadpole] at h1
+  omega
+
+theorem coverNum_tadpole_odd_le (m k : ℕ) :
+    3 * (tadpole (2 * m + 3) k).coverNum ≤ 2 * (2 * m + k + 3) := by
+  have h1 := coverNum_add_indepNum (tadpole (2 * m + 3) k)
+  have h2 := le_indepNum_tadpole_odd m k
+  rw [V_tadpole] at h1
+  omega
+
+/-- The lollipop needs `m + 2` colours for its clique, so the bound is weak, but it is the first
+entry in the cell. -/
+theorem le_indepNum_lollipop (m k : ℕ) :
+    m + k + 2 ≤ (m + 2) * (lollipop (m + 2) k).indepNum := by
+  have h1 := V_le_chromNum_mul_indepNum (lollipop (m + 2) k)
+  rw [chromNum_lollipop, V_lollipop] at h1
+  omega
+
+theorem le_indepNum_thetaGraph_even {xs : List ℕ} (hne : xs ≠ []) (h0 : ∀ k ∈ xs, 0 < k)
+    (h : ∀ k ∈ xs, k % 2 = 0) : 2 + xs.sum ≤ 2 * (thetaGraph xs).indepNum := by
+  have h1 := V_le_chromNum_mul_indepNum (thetaGraph xs)
+  rw [chromNum_thetaGraph_even hne h0 h, V_thetaGraph] at h1
+  omega
+
+theorem coverNum_thetaGraph_even_le {xs : List ℕ} (hne : xs ≠ []) (h0 : ∀ k ∈ xs, 0 < k)
+    (h : ∀ k ∈ xs, k % 2 = 0) : 2 * (thetaGraph xs).coverNum ≤ 2 + xs.sum := by
+  have h1 := coverNum_add_indepNum (thetaGraph xs)
+  have h2 := le_indepNum_thetaGraph_even hne h0 h
+  rw [V_thetaGraph] at h1
+  omega
+
+theorem le_indepNum_thetaGraph_odd {xs : List ℕ} (hne : xs ≠ []) (h : ∀ k ∈ xs, k % 2 = 1) :
+    2 + xs.sum ≤ 2 * (thetaGraph xs).indepNum := by
+  have h1 := V_le_chromNum_mul_indepNum (thetaGraph xs)
+  rw [chromNum_thetaGraph_odd hne h, V_thetaGraph] at h1
+  omega
+
+theorem le_indepNum_cyclePendant_even (t : ℕ) (ks : List ℕ) (h : ks.length ≤ 2 * t + 2) :
+    2 * t + 2 + ks.sum ≤ 2 * (cyclePendant (2 * t + 2) ks).indepNum := by
+  have h1 := V_le_chromNum_mul_indepNum (cyclePendant (2 * t + 2) ks)
+  rw [chromNum_cyclePendant_even t ks h, V_cyclePendant] at h1
+  omega
+
+theorem coverNum_cyclePendant_even_le (t : ℕ) (ks : List ℕ) (h : ks.length ≤ 2 * t + 2) :
+    2 * (cyclePendant (2 * t + 2) ks).coverNum ≤ 2 * t + 2 + ks.sum := by
+  have h1 := coverNum_add_indepNum (cyclePendant (2 * t + 2) ks)
+  have h2 := le_indepNum_cyclePendant_even t ks h
+  rw [V_cyclePendant] at h1
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

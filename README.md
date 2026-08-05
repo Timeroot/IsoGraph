@@ -2310,6 +2310,28 @@ the true `2ⁿ · n!`), `le_autCount_kneser` and `le_autCount_bipartite_self`. T
 bounds, not values, but they are the first non-trivial ones in the table, and they are exactly the
 inequality that `not_isArcTransitive_of_autCount_lt` reads backwards.
 
+The class-two argument also wanted generalising. It was being applied family by family through
+`maxDeg_lt_edgeChromNum_of_isRegularWith_odd`, but the regularity always came from
+vertex-transitivity, so `maxDeg_lt_edgeChromNum_of_isVertexTransitive_odd` states the real
+theorem: **a vertex-transitive graph of odd order with an edge is class two.** (The edge
+hypothesis is what rules out `empty (2n + 1)`, and it is exactly what forces the common degree to
+be positive, via the vertex-transitive handshake `2E = |V| · δ`.) Three new rows fall out at
+once: `maxDeg_lt_edgeChromNum_circulant` covers *every* circulant on an odd number of vertices
+whatever its connection set, and `edgeChromNum_kneser_ge` and `edgeChromNum_johnson_ge` give
+`χ'(K(n, k)) > C(n − k, k)` and `χ'(J(n, k)) > k(n − k)` whenever `C(n, k)` is odd, with
+`edgeChromNum_kneser_seven_three_ge` and `edgeChromNum_johnson_seven_three_ge` as the smallest
+instances (both on `35` vertices).
+
+The spider, tadpole, lollipop, theta and cycle-with-pendants families had chromatic numbers but
+no independence or cover entries at all. `V_le_chromNum_mul_indepNum` — some colour class holds
+at least `|V| / χ` vertices, and colour classes are independent — converts each of those
+chromatic numbers into a lower bound on `α`, and `τ + α = |V|` reflects it into an upper bound on
+`τ`: `le_indepNum_spider`, `le_indepNum_tadpole_even`, `le_indepNum_tadpole_odd`,
+`le_indepNum_lollipop`, `le_indepNum_thetaGraph_even`, `le_indepNum_thetaGraph_odd`,
+`le_indepNum_cyclePendant_even`, each with its `coverNum_…_le` companion. The bipartite cases are
+tight up to rounding; the lollipop's is weak, because the clique drives `χ` up to `m + 2`, but it
+is the first thing known about that cell.
+
 Vertex-transitivity gives a weaker but far more widely applicable bound than arc-transitivity:
 `V_le_autCount_of_isVertexTransitive` says `|V| ≤ |Aut(G)|`, because the orbit of a single vertex
 is everything. The library proves vertex-transitivity for a dozen families that are not known to
