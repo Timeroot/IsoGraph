@@ -2047,6 +2047,34 @@ every original to the shadow of its partner, which uses `2ν(G) = |V|` vertices 
 leaves only the apex out. The upper bound is just `2ν ≤ |V|` applied to `μ(G)`, which has
 `2|V| + 1` vertices.
 
+The four decorated families — tadpoles, lollipops, double stars and theta graphs — get their
+edge counts. All four are built by `CGraph.ofEdges` from an explicit list, so the argument is
+always the same: the list has no self-loops, no duplicates and no reversed pairs, therefore `E`
+is its length. Doing that honestly is most of the work, and the theta graph is the worst of them
+because its edge list is assembled recursively, one path at a time, with an offset that moves as
+the recursion descends; the induction has to carry all four disjointness facts at once. The
+answers are `E(D_{m,n}) = m + n + 1`, `E(L_{m+1,k}) = C(m + 1, 2) + k`, `E(T_{m+3,k}) = m + k + 3`
+and `E(Θ_{xs}) = Σxs + |xs|`. A few shape invariants come with them: a lollipop with at least
+three clique vertices has a triangle, so `girth_lollipop = 3`, and its clique is the largest one
+it has, `cliqueNum_lollipop (m + 2) k = m + 2`; a tadpole's junction is its only vertex of degree
+three, `maxDeg_tadpole = 3`; and a double star has a pendant, so `minDeg_doubleStar = 1`, with
+`maxDeg_doubleStar = max m n + 1` at the busier of the two centres.
+
+The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
+antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
+in one coordinate or in all `n` of them. Counting neighbours gives
+`isRegularWith_foldedCube : (foldedCube (n + 2)).IsRegularWith (n + 3)` — the `n + 2` is needed
+because for `n = 1` the antipodal edge *is* the coordinate edge — and `minDeg`, `maxDeg` and
+`2E = 2ⁿ⁺²(n + 3)` all follow from regularity. The girth is the interesting one: a triangle would
+need three pairwise Hamming distances each equal to `1` or `n`, and every combination is
+impossible once `n ≥ 3`. All ones is a triangle in the hypercube, which is bipartite; exactly one
+`n` dies on the triangle inequality, since the other two distances sum to at most `2 < n`, or on
+a `n - 1 = 1` count; and two or more `n`s force two of the three vertices to coincide. With the
+coordinate square `00…, 10…, 11…, 01…` on the other side, `girth_foldedCube = 4`, and
+`cliqueNum_foldedCube = 2` and `¬IsAcyclic` fall out of it. For odd `n` the antipodal map reverses
+parity, so the graph stays bipartite; being connected and regular it then has a perfect matching,
+which gives `chromNum = 2` and `indepNum = matchNum = 2ⁿ⁻¹`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
