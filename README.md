@@ -1972,6 +1972,14 @@ and Kneser graphs: `edgeChromNum_complete` states the two cases as a single cond
 there), and `cliqueCoverNum_kneser_two` records the general identity that covering `K(n, 2)` by
 cliques is exactly edge colouring `K_n`.
 
+Two more edge colourings came back from the prover, both by explicit constructions rather than by
+appeal to König or Vizing. `edgeChromNum_hypercube` colours the edge of `Qₙ` joining `x` to
+`x` with bit `i` flipped by the colour `i`, which is a proper `n`-edge-colouring because two edges
+sharing a vertex flip different bits. `edgeChromNum_wheel` handles the wheel with at least four
+rim vertices: the spoke to rim vertex `i` takes colour `i` and the rim edge `{i, i+1}` takes
+colour `i + 2` modulo the rim length, so the hub's `n` colours are all distinct and each rim
+vertex sees three different ones.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
