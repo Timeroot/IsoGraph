@@ -2310,6 +2310,25 @@ the true `2ⁿ · n!`), `le_autCount_kneser` and `le_autCount_bipartite_self`. T
 bounds, not values, but they are the first non-trivial ones in the table, and they are exactly the
 inequality that `not_isArcTransitive_of_autCount_lt` reads backwards.
 
+Vertex-transitivity gives a weaker but far more widely applicable bound than arc-transitivity:
+`V_le_autCount_of_isVertexTransitive` says `|V| ≤ |Aut(G)|`, because the orbit of a single vertex
+is everything. The library proves vertex-transitivity for a dozen families that are not known to
+be arc-transitive, and every one of them now has an entry: `le_autCount_foldedCube`
+(`2ⁿ ≤ |Aut|`), `le_autCount_triangular`, `le_autCount_johnson`, `le_autCount_rook`,
+`le_autCount_prism`, `le_autCount_cocktailParty`, `le_autCount_crown`, `le_autCount_paley`,
+`le_autCount_circulant` (for *every* connection set), `le_autCount_completeMultipartite_replicate`
+and the two line graphs `le_autCount_lineGraph_complete` and `le_autCount_lineGraph_cycle`, whose
+vertex sets are the edge sets of `Kₙ` and `Cₙ`. Between these and the arc-transitive `2E` bounds
+the `autCount` column is no longer empty for anything in the library that is transitive at all.
+
+Two general degree bounds bracket the domination number of a regular graph:
+`V_le_domNum_mul_maxDeg_add_one` (`|V| ≤ γ · (Δ + 1)`, since a chosen vertex dominates its closed
+neighbourhood and no more) and `domNum_add_maxDeg_le_V` (`γ + Δ ≤ |V|`). Feeding in the two
+regularity facts that had no domination entry yet gives `le_domNum_prism` (`n ≤ 2γ` for the cubic
+circular ladder `Cₙ □ K₂`) with `domNum_prism_le` above it, and `le_domNum_foldedCube`
+(`2ⁿ⁺² ≤ γ · (n + 4)`) with `domNum_foldedCube_le`. Neither pair pins the value down, but they
+are the first entries in those two cells.
+
 The *negative* half of the transitivity table gets the same treatment.
 `not_isVertexTransitive_of_minDeg_ne_maxDeg` — a vertex-transitive graph is regular — already
 ruled out `path`, `star`, `wheel`, `fan`, `book`, `ladder` and `grotzsch`; the missing entries

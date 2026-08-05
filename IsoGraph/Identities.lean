@@ -34253,6 +34253,100 @@ theorem not_isArcTransitive_grotzsch : ¬ IsArcTransitive grotzsch :=
   not_isArcTransitive_of_not_isVertexTransitive (by rw [minDeg_grotzsch]; omega)
     not_isVertexTransitive_grotzsch
 
+/-! ### Automorphism counts of the vertex-transitive families -/
+
+/-- A vertex-transitive graph has at least `|V|` automorphisms. -/
+theorem le_autCount_foldedCube (n : ℕ) : 2 ^ n ≤ (foldedCube n).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (foldedCube n)
+    (by rw [V_foldedCube]; positivity) (isVertexTransitive_foldedCube n)
+  rwa [V_foldedCube] at h
+
+theorem le_autCount_triangular (n : ℕ) : (n + 2).choose 2 ≤ (triangular (n + 2)).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (triangular (n + 2))
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega)) (isVertexTransitive_triangular (n + 2))
+  rwa [V_triangular] at h
+
+theorem le_autCount_johnson {n k : ℕ} (hk : k ≤ n) : n.choose k ≤ (johnson n k).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (johnson n k)
+    (by rw [V_johnson]; exact Nat.choose_pos hk) (isVertexTransitive_johnson n k)
+  rwa [V_johnson] at h
+
+theorem le_autCount_rook (m n : ℕ) :
+    (m + 1) * (n + 1) ≤ (rook (m + 1) (n + 1)).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (rook (m + 1) (n + 1))
+    (by rw [V_rook]; positivity) (isVertexTransitive_rook (m + 1) (n + 1))
+  rwa [V_rook] at h
+
+theorem le_autCount_prism (n : ℕ) : (n + 1) * 2 ≤ (prism (n + 1)).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (prism (n + 1))
+    (by rw [V_prism]; positivity) (isVertexTransitive_prism (n + 1))
+  rwa [V_prism] at h
+
+theorem le_autCount_cocktailParty (n : ℕ) : 2 * (n + 1) ≤ (cocktailParty (n + 1)).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (cocktailParty (n + 1))
+    (by rw [V_cocktailParty]; positivity) (isVertexTransitive_cocktailParty (n + 1))
+  rwa [V_cocktailParty] at h
+
+theorem le_autCount_crown (n : ℕ) : 2 * (n + 1) ≤ (crown (n + 1)).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (crown (n + 1))
+    (by rw [V_crown]; positivity) (isVertexTransitive_crown (n + 1))
+  rwa [V_crown] at h
+
+theorem le_autCount_paley (q : ℕ) [NeZero q] [Fact q.Prime] : q ≤ (paley q).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (paley q)
+    (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q)) (isVertexTransitive_paley q)
+  rwa [V_paley] at h
+
+theorem le_autCount_circulant (n : ℕ) (S : List ℕ) :
+    n + 1 ≤ (circulant (n + 1) S).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive (circulant (n + 1) S)
+    (by rw [V_circulant]; omega) (isVertexTransitive_circulant (n + 1) S)
+  rwa [V_circulant] at h
+
+theorem le_autCount_completeMultipartite_replicate (m d : ℕ) :
+    (m + 1) * (d + 1) ≤ (completeMultipartite (List.replicate (m + 1) (d + 1))).autCount := by
+  have h := V_le_autCount_of_isVertexTransitive
+    (completeMultipartite (List.replicate (m + 1) (d + 1)))
+    (by rw [V_completeMultipartite_replicate]; positivity)
+    (isVertexTransitive_completeMultipartite_replicate (m + 1) (d + 1))
+  rwa [V_completeMultipartite_replicate] at h
+
+/-- The line graph of `Kₙ` has one vertex per edge, and it inherits vertex-transitivity from the
+arc-transitivity of `Kₙ`. -/
+theorem le_autCount_lineGraph_complete (n : ℕ) :
+    (n + 2).choose 2 ≤ (lineGraph (complete (n + 2))).autCount := by
+  have hE : (complete (n + 2)).E = (n + 2).choose 2 := E_complete (n + 2)
+  have h := V_le_autCount_of_isVertexTransitive (lineGraph (complete (n + 2)))
+    (by rw [V_lineGraph, hE]; exact Nat.choose_pos (by omega))
+    (isVertexTransitive_lineGraph_complete (n + 2))
+  rwa [V_lineGraph, hE] at h
+
+theorem le_autCount_lineGraph_cycle (n : ℕ) :
+    n + 3 ≤ (lineGraph (cycle (n + 3))).autCount := by
+  have hE : (cycle (n + 3)).E = n + 3 := E_cycle n
+  have h := V_le_autCount_of_isVertexTransitive (lineGraph (cycle (n + 3)))
+    (by rw [V_lineGraph, hE]; omega) (isVertexTransitive_lineGraph_cycle (n + 3))
+  rwa [V_lineGraph, hE] at h
+
+/-! ### Domination brackets from the degree bounds
+
+`|V| ≤ γ · (Δ + 1)` (each chosen vertex dominates at most `Δ + 1` vertices) and `γ + Δ ≤ |V|`
+(a maximum-degree vertex together with the complement of its closed neighbourhood dominates)
+bracket the domination number of any regular graph as soon as the degree is known.
+-/
+
+/-- The circular ladder is cubic on `2n` vertices, so at least a quarter of them must be chosen. -/
+theorem le_domNum_prism (n : ℕ) : n + 3 ≤ 2 * (prism (n + 3)).domNum := by
+  have h := V_le_domNum_mul_maxDeg_add_one (prism (n + 3))
+  rw [V_prism, maxDeg_prism] at h
+  omega
+
+/-- The matching upper bound. -/
+theorem domNum_prism_le (n : ℕ) : (prism (n + 3)).domNum ≤ 2 * n + 3 := by
+  have h := domNum_add_maxDeg_le_V (prism (n + 3))
+  rw [V_prism, maxDeg_prism] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
@@ -35002,6 +35096,20 @@ theorem coverNum_foldedCube_odd (m : ℕ) :
   have h2 := coverNum_add_indepNum (foldedCube (2 * m + 1))
   have hV : (foldedCube (2 * m + 1)).V = 2 * 2 ^ (2 * m) := by
     rw [V_foldedCube]; ring
+  omega
+
+/-- The folded cube `□ₙ₊₂` is `(n + 3)`-regular on `2ⁿ⁺²` vertices. -/
+theorem le_domNum_foldedCube (n : ℕ) :
+    2 ^ (n + 2) ≤ (foldedCube (n + 2)).domNum * (n + 4) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (foldedCube (n + 2))
+  rw [V_foldedCube, maxDeg_foldedCube] at h
+  simpa using h
+
+/-- The matching upper bound. -/
+theorem domNum_foldedCube_le (n : ℕ) :
+    (foldedCube (n + 2)).domNum + n + 3 ≤ 2 ^ (n + 2) := by
+  have h := domNum_add_maxDeg_le_V (foldedCube (n + 2))
+  rw [V_foldedCube, maxDeg_foldedCube] at h
   omega
 
 end IsoGraph
