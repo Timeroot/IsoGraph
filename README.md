@@ -2310,6 +2310,21 @@ the true `2ⁿ · n!`), `le_autCount_kneser` and `le_autCount_bipartite_self`. T
 bounds, not values, but they are the first non-trivial ones in the table, and they are exactly the
 inequality that `not_isArcTransitive_of_autCount_lt` reads backwards.
 
+The rest of the `edgeChromNum` row can at least be bracketed. `Δ ≤ χ'` (the edges at a vertex
+pairwise conflict) and `χ' ≤ 2Δ − 1` (greedy on the line graph, whose maximum degree is `2Δ − 2`)
+are both already proved in general, so every family whose maximum degree is known gets an
+entry: `le_edgeChromNum_{ladder, prism, crown, cocktailParty, book, fan, doubleStar, turan,
+foldedCube, grotzsch}`, with `edgeChromNum_{ladder, prism, foldedCube, grotzsch}_le` on the other
+side. `le_edgeChromNum_mycielskian` states the general one — `max(2Δ, |V|) ≤ χ'(M(G))`, both
+terms of the maximum being realised, the first at a doubled original vertex and the second at the
+apex. When Vizing lands, every one of these lower bounds becomes a two-value bracket, and the
+class-one families become exact.
+
+Two more domination cells fall to the degree bracket: `le_domNum_tadpole` and `domNum_tadpole_le`
+(the tadpole is cubic at its junction, so `|V| ≤ 4γ`), and `le_domNum_lollipop` with
+`domNum_lollipop_le` (the clique vertex dominates the whole head at once, giving the much better
+`γ + m + 2 ≤ |V|`).
+
 The class-two argument also wanted generalising. It was being applied family by family through
 `maxDeg_lt_edgeChromNum_of_isRegularWith_odd`, but the regularity always came from
 vertex-transitivity, so `maxDeg_lt_edgeChromNum_of_isVertexTransitive_odd` states the real

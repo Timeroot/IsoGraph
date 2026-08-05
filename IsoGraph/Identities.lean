@@ -34500,6 +34500,100 @@ theorem coverNum_cyclePendant_even_le (t : ℕ) (ks : List ℕ) (h : ks.length �
   rw [V_cyclePendant] at h1
   omega
 
+/-! ### Edge chromatic lower bounds from the maximum degree
+
+`Δ ≤ χ'` because the edges at a vertex pairwise conflict.  Until Vizing's theorem is available
+this is the only entry many of these cells can have, but it is a sharp one: for every class-one
+graph it is the answer.
+-/
+
+/-- The Mycielskian's apex sees every shadow, and the original vertices double their degree. -/
+theorem le_edgeChromNum_mycielskian (G : IsoGraph) :
+    max (2 * maxDeg G) G.V ≤ (mycielskian G).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (mycielskian G)
+  rwa [maxDeg_mycielskian] at h
+
+theorem le_edgeChromNum_grotzsch : 5 ≤ grotzsch.edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum grotzsch
+  rwa [maxDeg_grotzsch] at h
+
+theorem edgeChromNum_grotzsch_le : grotzsch.edgeChromNum ≤ 9 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one grotzsch
+  rwa [maxDeg_grotzsch] at h
+
+theorem le_edgeChromNum_ladder (n : ℕ) : 3 ≤ (ladder (n + 3)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (ladder (n + 3))
+  rwa [maxDeg_ladder] at h
+
+theorem edgeChromNum_ladder_le (n : ℕ) : (ladder (n + 3)).edgeChromNum ≤ 5 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one (ladder (n + 3))
+  rwa [maxDeg_ladder] at h
+
+theorem le_edgeChromNum_prism (n : ℕ) : 3 ≤ (prism (n + 3)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (prism (n + 3))
+  rwa [maxDeg_prism] at h
+
+theorem edgeChromNum_prism_le (n : ℕ) : (prism (n + 3)).edgeChromNum ≤ 5 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one (prism (n + 3))
+  rwa [maxDeg_prism] at h
+
+theorem le_edgeChromNum_crown (n : ℕ) : n + 1 ≤ (crown (n + 2)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (crown (n + 2))
+  rwa [maxDeg_crown] at h
+
+theorem le_edgeChromNum_cocktailParty (n : ℕ) :
+    2 * n ≤ (cocktailParty (n + 1)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (cocktailParty (n + 1))
+  rwa [maxDeg_cocktailParty] at h
+
+theorem le_edgeChromNum_book (n : ℕ) : n + 2 ≤ (book (n + 1)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (book (n + 1))
+  rwa [maxDeg_book] at h
+
+theorem le_edgeChromNum_fan (n : ℕ) : n + 3 ≤ (fan (n + 3)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (fan (n + 3))
+  rwa [maxDeg_fan] at h
+
+theorem le_edgeChromNum_doubleStar (m n : ℕ) :
+    max m n + 1 ≤ (doubleStar m n).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (doubleStar m n)
+  rwa [maxDeg_doubleStar] at h
+
+theorem le_edgeChromNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    n - n / r ≤ (turan n r).edgeChromNum := by
+  have h1 := maxDeg_le_edgeChromNum (turan n r)
+  rwa [maxDeg_turan hr h] at h1
+
+/-! ### Domination brackets for the tadpole and the lollipop -/
+
+/-- The tadpole is cubic at its junction and has `m + k + 4` vertices. -/
+theorem le_domNum_tadpole (m k : ℕ) :
+    m + k + 4 ≤ 4 * (tadpole (m + 3) (k + 1)).domNum := by
+  have h := V_le_domNum_mul_maxDeg_add_one (tadpole (m + 3) (k + 1))
+  rw [V_tadpole, maxDeg_tadpole] at h
+  omega
+
+theorem domNum_tadpole_le (m k : ℕ) :
+    (tadpole (m + 3) (k + 1)).domNum + 3 ≤ m + k + 4 := by
+  have h := domNum_add_maxDeg_le_V (tadpole (m + 3) (k + 1))
+  rw [V_tadpole, maxDeg_tadpole] at h
+  omega
+
+/-- The lollipop's clique vertex dominates the whole head at once. -/
+theorem le_domNum_lollipop (m k : ℕ) :
+    m + k + 3 ≤ (lollipop (m + 2) (k + 1)).domNum * (m + 3) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (lollipop (m + 2) (k + 1))
+  rw [V_lollipop, maxDeg_lollipop] at h
+  have h2 : (lollipop (m + 2) (k + 1)).domNum * (m + 2 + 1)
+      = (lollipop (m + 2) (k + 1)).domNum * (m + 3) := by ring
+  omega
+
+theorem domNum_lollipop_le (m k : ℕ) :
+    (lollipop (m + 2) (k + 1)).domNum + m + 2 ≤ m + k + 3 := by
+  have h := domNum_add_maxDeg_le_V (lollipop (m + 2) (k + 1))
+  rw [V_lollipop, maxDeg_lollipop] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
@@ -35263,6 +35357,17 @@ theorem domNum_foldedCube_le (n : ℕ) :
     (foldedCube (n + 2)).domNum + n + 3 ≤ 2 ^ (n + 2) := by
   have h := domNum_add_maxDeg_le_V (foldedCube (n + 2))
   rw [V_foldedCube, maxDeg_foldedCube] at h
+  omega
+
+theorem le_edgeChromNum_foldedCube (n : ℕ) :
+    n + 3 ≤ (foldedCube (n + 2)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (foldedCube (n + 2))
+  rwa [maxDeg_foldedCube] at h
+
+theorem edgeChromNum_foldedCube_le (n : ℕ) :
+    (foldedCube (n + 2)).edgeChromNum ≤ 2 * n + 5 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one (foldedCube (n + 2))
+  rw [maxDeg_foldedCube] at h
   omega
 
 end IsoGraph
