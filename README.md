@@ -2132,6 +2132,18 @@ double star's covering numbers close its row: `coverNum_doubleStar = 2` is one l
 m + n + 2` is squeezed between `α ≤ κ` from below and `κ ≤ |V| − ν` from above, both of which land
 on `m + n + 2` because `ν = 2`.
 
+The spider then goes the way the double star went. `isConnected_spider` walks each vertex back
+down its own leg to the centre, and once that is in hand `numComponents_spider = 1`,
+`isTree_spider` (`legs.sum` edges on `1 + legs.sum` vertices), `girth_spider = 0` and
+`cliqueNum_spider = 2` are each a line or two. `chromNum_spider = 2` is slightly more than that,
+because the two colours need an actual edge to justify them, and finding one means digging the
+pair `(0, 1)` out of `spiderEdges 1 legs` — which takes an induction that skips the zero-length
+legs, since a leg of length `0` contributes no edges at all. And the double star's metric row
+closes: `diameter_doubleStar (m + 1) (n + 1) = 3` is the pendant-centre-centre-pendant walk, with
+an explicit walk in each of the four cases for the upper bound and the two specific pendants `2`
+and `m + 3` for the lower one, and `radius_doubleStar = 2` follows because a centre reaches
+everything in two steps and nothing dominates.
+
 Two theta-graph conjectures were refuted along the way, and for the same reason. A path with no
 internal vertices *is* the edge `0 – 1`, so `thetaGraph [0, 0]` is not a theta graph at all — the
 two paths collapse onto each other and it is `K₂`, which is a tree. That kills
