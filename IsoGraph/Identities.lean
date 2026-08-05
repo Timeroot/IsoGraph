@@ -27064,4 +27064,24 @@ theorem cliqueCoverNum_kneser_two_even (m : ℕ) :
       (lineGraph_complete_eq_triangular (2 * m + 4)).symm,
     ← edgeChromNum_eq, edgeChromNum_complete_even_add_four]
 
+/-- The edge chromatic number of a complete graph on at least two vertices: `Δ` when the order is
+even and `Δ + 1` when it is odd. -/
+theorem edgeChromNum_complete (n : ℕ) :
+    (complete (n + 2)).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
+  obtain ⟨m, hm | hm⟩ := Nat.even_or_odd' n
+  · subst hm
+    rw [if_pos (by omega), edgeChromNum_complete_even]
+  · subst hm
+    rw [if_neg (by omega), show 2 * m + 1 + 2 = 2 * m + 3 by ring, edgeChromNum_complete_odd]
+
+@[simp] theorem chromNum_triangular_even (m : ℕ) :
+    (triangular (2 * m + 4)).chromNum = 2 * m + 3 := by
+  rw [chromNum_triangular, edgeChromNum_complete_even_add_four]
+
+/-- Covering the Kneser graph `K(n, 2)` by cliques is edge colouring `K_n`, since the complement
+of `K(n, 2)` is the triangular graph and that is the line graph of `K_n`. -/
+theorem cliqueCoverNum_kneser_two (n : ℕ) :
+    (kneser n 2).cliqueCoverNum = (complete n).edgeChromNum := by
+  rw [cliqueCoverNum_eq, ← triangular_eq_compl_kneser, chromNum_triangular]
+
 end IsoGraph

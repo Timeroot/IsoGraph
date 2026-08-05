@@ -1966,6 +1966,12 @@ triangular graph is the complement of `K(n, 2)`, the same result immediately yie
 `cliqueCoverNum_kneser_two_even`: covering the Kneser graph `K(2m+4, 2)` by cliques needs `2m+3`
 of them.
 
+With both parities of `edgeChromNum_complete` in hand the table closes up around the triangular
+and Kneser graphs: `edgeChromNum_complete` states the two cases as a single conditional,
+`chromNum_triangular_even` completes the chromatic number of `T(n)` (the odd case was already
+there), and `cliqueCoverNum_kneser_two` records the general identity that covering `K(n, 2)` by
+cliques is exactly edge colouring `K_n`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
