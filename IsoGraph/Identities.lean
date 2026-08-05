@@ -34125,6 +34125,134 @@ theorem le_autCount_bipartite_self (n : ℕ) : 2 * (n * n) ≤ (bipartite n n).a
   rw [E_bipartite] at h
   exact h
 
+/-! ### The negative entries of the vertex-transitivity column -/
+
+/-- The friendship windmill has hub degree `2n` and rim degree `2`, so from two blades on it is
+not vertex-transitive. -/
+@[simp] theorem not_isVertexTransitive_friendship (n : ℕ) :
+    ¬ IsVertexTransitive (friendship (n + 2)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [show n + 2 = (n + 1) + 1 from rfl, minDeg_friendship, maxDeg_friendship]
+  omega
+
+/-- The tadpole has a degree-one tail end and a degree-three junction. -/
+@[simp] theorem not_isVertexTransitive_tadpole (m k : ℕ) :
+    ¬ IsVertexTransitive (tadpole (m + 3) (k + 1)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [minDeg_tadpole, maxDeg_tadpole]
+  omega
+
+/-- The lollipop has a degree-one stick end and a clique of degree `m + 2`. -/
+@[simp] theorem not_isVertexTransitive_lollipop (m k : ℕ) :
+    ¬ IsVertexTransitive (lollipop (m + 2) (k + 1)) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [minDeg_lollipop, maxDeg_lollipop]
+  omega
+
+/-- A double star with at least one leaf has leaves of degree one and a centre of degree at
+least two.  (With no leaves at all it is `K₂`, which *is* vertex-transitive.) -/
+@[simp] theorem not_isVertexTransitive_doubleStar (m n : ℕ) :
+    ¬ IsVertexTransitive (doubleStar (m + 1) n) := by
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [minDeg_doubleStar, maxDeg_doubleStar]
+  omega
+
+/-- **The Mycielskian of a `k`-regular graph is never vertex-transitive for `k ≥ 2`.**  The
+shadow of a vertex keeps degree `k`, but the apex is joined to all `|V|` shadows and the
+original vertices double their degree to `2k`; since `k + 1 ≤ |V|` and `k + 2 ≤ 2k`, the
+minimum degree `k + 1` falls short of the maximum. -/
+theorem not_isVertexTransitive_mycielskian {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hk : 2 ≤ k) (hV : 0 < G.V) : ¬ IsVertexTransitive (mycielskian G) := by
+  have hlt : maxDeg G < G.V := maxDeg_lt_V hV
+  have hmax : maxDeg G = k := h.maxDeg_eq hV
+  have hmin : minDeg G = k := h.minDeg_eq hV
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp) ?_
+  rw [minDeg_mycielskian G hV, maxDeg_mycielskian G, hmax, hmin]
+  omega
+
+/-- In particular the Grötzsch graph's parent `C₅` is `2`-regular; the same argument covers every
+Mycielskian tower step. -/
+theorem not_isVertexTransitive_mycielskian_cycle (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (cycle (n + 3))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_cycle n) (by omega) (by simp)
+
+/-! ### The negative entries of the arc-transitivity column
+
+Arc-transitivity implies vertex-transitivity as soon as there are no isolated vertices, so every
+negative vertex-transitivity entry is also a negative arc-transitivity entry.  The lift of
+`CGraph.isVertexTransitive_of_isArcTransitive` to the quotient replaces "no isolated vertices"
+with the cleaner `0 < δ`.
+-/
+
+/-- **Arc-transitive graphs with no isolated vertex are vertex-transitive.**  Given `u` and `v`,
+pick any neighbours `u'` and `v'` and carry the arc `u → u'` to the arc `v → v'`. -/
+theorem IsArcTransitive.isVertexTransitive {G : IsoGraph} (h : IsArcTransitive G)
+    (hδ : 0 < G.minDeg) : IsVertexTransitive G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at *
+  rw [isVertexTransitive_mk]
+  rw [isArcTransitive_mk] at h
+  rw [minDeg_mk] at hδ
+  refine CGraph.isVertexTransitive_of_isArcTransitive _ (fun u ↦ ?_) h
+  have hd : 0 < g.canonicalize.toSimple.degree u :=
+    lt_of_lt_of_le hδ (CGraph.minDeg_le_degree g.canonicalize u)
+  obtain ⟨v, hv⟩ := (SimpleGraph.degree_pos_iff_exists_adj g.canonicalize.toSimple u).1 hd
+  exact ⟨v, hv⟩
+
+/-- The contrapositive, which is how the whole column below is filled. -/
+theorem not_isArcTransitive_of_not_isVertexTransitive {G : IsoGraph} (hδ : 0 < G.minDeg)
+    (h : ¬ IsVertexTransitive G) : ¬ IsArcTransitive G :=
+  fun ha ↦ h (ha.isVertexTransitive hδ)
+
+@[simp] theorem not_isArcTransitive_path (n : ℕ) : ¬ IsArcTransitive (path (n + 3)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [show n + 3 = n + 1 + 2 from rfl, minDeg_path]; omega) (not_isVertexTransitive_path n)
+
+@[simp] theorem not_isArcTransitive_star (n : ℕ) : ¬ IsArcTransitive (star (n + 2)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [show n + 2 = n + 1 + 1 from rfl, minDeg_star]; omega) (not_isVertexTransitive_star n)
+
+@[simp] theorem not_isArcTransitive_wheel (n : ℕ) : ¬ IsArcTransitive (wheel (n + 4)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [show n + 4 = n + 1 + 3 from rfl, minDeg_wheel]; omega) (not_isVertexTransitive_wheel n)
+
+@[simp] theorem not_isArcTransitive_fan (n : ℕ) : ¬ IsArcTransitive (fan (n + 3)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [show n + 3 = n + 1 + 2 from rfl, minDeg_fan]; omega) (not_isVertexTransitive_fan n)
+
+@[simp] theorem not_isArcTransitive_book (n : ℕ) : ¬ IsArcTransitive (book (n + 2)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [show n + 2 = n + 1 + 1 from rfl, minDeg_book]; omega) (not_isVertexTransitive_book n)
+
+@[simp] theorem not_isArcTransitive_ladder (n : ℕ) : ¬ IsArcTransitive (ladder (n + 3)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [show n + 3 = n + 1 + 2 from rfl, minDeg_ladder]; omega)
+    (not_isVertexTransitive_ladder n)
+
+@[simp] theorem not_isArcTransitive_friendship (n : ℕ) : ¬ IsArcTransitive (friendship (n + 2)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [show n + 2 = n + 1 + 1 from rfl, minDeg_friendship]; omega)
+    (not_isVertexTransitive_friendship n)
+
+@[simp] theorem not_isArcTransitive_tadpole (m k : ℕ) :
+    ¬ IsArcTransitive (tadpole (m + 3) (k + 1)) :=
+  not_isArcTransitive_of_not_isVertexTransitive (by rw [minDeg_tadpole]; omega)
+    (not_isVertexTransitive_tadpole m k)
+
+@[simp] theorem not_isArcTransitive_lollipop (m k : ℕ) :
+    ¬ IsArcTransitive (lollipop (m + 2) (k + 1)) :=
+  not_isArcTransitive_of_not_isVertexTransitive (by rw [minDeg_lollipop]; omega)
+    (not_isVertexTransitive_lollipop m k)
+
+@[simp] theorem not_isArcTransitive_doubleStar (m n : ℕ) :
+    ¬ IsArcTransitive (doubleStar (m + 1) n) :=
+  not_isArcTransitive_of_not_isVertexTransitive (by rw [minDeg_doubleStar]; omega)
+    (not_isVertexTransitive_doubleStar m n)
+
+theorem not_isArcTransitive_grotzsch : ¬ IsArcTransitive grotzsch :=
+  not_isArcTransitive_of_not_isVertexTransitive (by rw [minDeg_grotzsch]; omega)
+    not_isVertexTransitive_grotzsch
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

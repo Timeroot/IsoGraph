@@ -2310,6 +2310,33 @@ the true `2ⁿ · n!`), `le_autCount_kneser` and `le_autCount_bipartite_self`. T
 bounds, not values, but they are the first non-trivial ones in the table, and they are exactly the
 inequality that `not_isArcTransitive_of_autCount_lt` reads backwards.
 
+The *negative* half of the transitivity table gets the same treatment.
+`not_isVertexTransitive_of_minDeg_ne_maxDeg` — a vertex-transitive graph is regular — already
+ruled out `path`, `star`, `wheel`, `fan`, `book`, `ladder` and `grotzsch`; the missing entries
+were the families whose degree sequence is obviously non-constant but had never been checked.
+`not_isVertexTransitive_friendship` (hub degree `2n` against rim degree `2`),
+`not_isVertexTransitive_tadpole` (`1` against `3`), `not_isVertexTransitive_lollipop` (`1`
+against `m + 2`) and `not_isVertexTransitive_doubleStar` (`1` against `max m n + 1`) close them,
+each one a two-line degree comparison. The interesting one is
+`not_isVertexTransitive_mycielskian`: **the Mycielskian of a `k`-regular graph is never
+vertex-transitive once `k ≥ 2`.** The shadow of a vertex keeps degree `k` while the original
+vertices double to `2k` and the apex reaches all `|V|` shadows, so `δ(M(G)) = k + 1` (using
+`k + 1 ≤ |V|`) but `Δ(M(G)) ≥ 2k ≥ k + 2`. `not_isVertexTransitive_mycielskian_cycle` specialises
+it to the whole Mycielski tower over cycles, of which the Grötzsch graph is the first step.
+
+Arc-transitivity is the stronger property, so each of those is also a negative arc-transitivity
+entry — but only after the implication is available on the quotient.
+`IsArcTransitive.isVertexTransitive` lifts `CGraph.isVertexTransitive_of_isArcTransitive` through
+`Quotient.inductionOn`, and in doing so trades the pointwise hypothesis "no isolated vertices"
+for the single invariant inequality `0 < δ`: given `u` and `v`, pick neighbours `u'` and `v'` and
+carry the arc `u → u'` to `v → v'`. Its contrapositive
+`not_isArcTransitive_of_not_isVertexTransitive` then fills the column in one pass —
+`not_isArcTransitive_{path, star, wheel, fan, book, ladder, friendship, tadpole, lollipop,
+doubleStar, grotzsch}` — each proved by evaluating the minimum degree and quoting the
+vertex-transitivity failure. Together with `not_isArcTransitive_of_autCount_lt` these are the
+only ways the library can currently refute arc-transitivity, and the degree route is by far the
+cheaper of the two.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
