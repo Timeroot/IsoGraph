@@ -28861,6 +28861,52 @@ theorem not_isVertexTransitive_grotzsch : ¬ IsVertexTransitive grotzsch :=
   not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp)
     (by rw [minDeg_grotzsch, maxDeg_grotzsch]; omega)
 
+/-- A triangle-free graph's cliques are its vertices and edges, so `κ = |V| - ν`. -/
+theorem cliqueCoverNum_grotzsch : grotzsch.cliqueCoverNum = 6 := by
+  rw [cliqueCoverNum_eq]
+  have hlb : 6 ≤ chromNum grotzschᶜ := by
+    have h1 := V_le_chromNum_mul_indepNum grotzschᶜ
+    simp [indepNum_compl, cliqueNum_grotzsch] at h1
+    omega
+  have Rub : chromNum grotzschᶜ ≤ 6 := by
+    have hgrotzsch_compl : grotzschᶜ = ⟦CGraph.compl (CGraph.mycielskian (CGraph.cycle
+        5).canonicalize)⟧ := by
+      rw [grotzsch, show (cycle 5 : IsoGraph) = ⟦CGraph.cycle 5⟧ from rfl,
+        mycielskian_mk, compl_mk]
+      exact Quotient.sound ⟨CGraph.Iso.compl (CGraph.Iso.mycielskian (CGraph.isoCanonicalize
+          (CGraph.cycle 5)))⟩
+    let hiso : CGraph.Iso
+        (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5).canonicalize))
+        (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5))) :=
+      CGraph.Iso.compl (CGraph.Iso.mycielskian (CGraph.isoCanonicalize (CGraph.cycle 5)).symm)
+    have hinvar : (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5).canonicalize)).chromNum =
+        (CGraph.compl (CGraph.mycielskian (CGraph.cycle 5))).chromNum := by
+      have hchrom := SimpleGraph.Iso.chromaticNumber_eq hiso.toSimpleIso
+      have chromNum_congr : ∀ {G H : CGraph} (i : CGraph.Iso G H), G.chromNum = H.chromNum := by
+        intro G H i
+        have h1 := CGraph.coe_chromNum (G := G)
+        have h2 := CGraph.coe_chromNum (G := H)
+        have h3 : G.toSimple.chromaticNumber = H.toSimple.chromaticNumber :=
+            SimpleGraph.Iso.chromaticNumber_eq i.toSimpleIso
+        rw [← Nat.cast_inj (R := ℕ∞), h1, h2, h3]
+      exact chromNum_congr hiso
+    rw [hgrotzsch_compl, IsoGraph.chromNum_mk, hinvar]
+    rw [← Nat.cast_le (α := ℕ∞), CGraph.coe_chromNum,
+      SimpleGraph.chromaticNumber_le_iff_colorable]
+    -- Build an explicit 6-coloring of compl(mycielskian(cycle 5))
+    -- Coloring: none↦5, inl a↦{0→4,1→0,2→1,3→2,4→3}, inr a↦a
+    let color : (CGraph.cycle 5).mycielskian.compl.V → Fin 6 := fun x =>
+      match x with
+      | none => 5
+      | some (Sum.inl a) => match a with
+        | ⟨0, _⟩ => 4 | ⟨1, _⟩ => 0 | ⟨2, _⟩ => 1 | ⟨3, _⟩ => 2 | ⟨4, _⟩ => 3
+      | some (Sum.inr a) => Fin.castLE (by omega) a
+    have hvalid : ∀ ⦃v w⦄, (CGraph.cycle
+        5).mycielskian.compl.toSimple.Adj v w → color v ≠ color w := by
+      decide
+    exact ⟨SimpleGraph.Coloring.mk color (fun {v w} hv => hvalid hv)⟩
+  omega
+
 /-! ### Tadpoles, lollipops, double stars and theta graphs
 
 The four decorated families all reduce to `CGraph.ofEdges` on an explicit edge list, so the
@@ -30518,6 +30564,208 @@ theorem cliqueNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).cliqueNum = m + 2 
     le_trans (CGraph.cliqueNum_le_chromNum G) hchrom
   exact le_antisymm hupper hlower
 
+/-- Greedily colouring the tail of a lollipop needs no colour beyond the clique's. -/
+theorem chromNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).chromNum = m + 2 := by
+  simp [IsoGraph.lollipop, IsoGraph.chromNum_mk]
+  rw [CGraph.chromNum_eq_iff]
+  -- We need: Colorable (m+2) and ∀ m', Colorable m' → m+2 ≤ m'
+  constructor
+  · -- Colorable with m+2 colors
+    have : (m + 2) ≥ 2 := by omega
+    -- Define the coloring: clique vertices get color = their index, path vertices get alternating
+    -- colors 1,2
+    let f : Fin (m + 2 + k) → Fin (m + 2) := fun v =>
+      if h : v.val < m + 2 then ⟨v.val, by omega⟩
+      else ⟨1 - ((v.val - (m + 2)) % 2), by omega⟩
+    have hproper : ∀ {u v : Fin (m + 2 + k)},
+        (CGraph.ofEdges (m + 2 + k) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges 0 (m + 2)
+            k)).Adj u v = true →
+        f u ≠ f v := by
+      intro u v huv
+      rw [CGraph.ofEdges_adj_val] at huv
+      obtain ⟨hne, huv' | huv'⟩ := huv
+      · -- edge (u, v)
+        rw [List.mem_append] at huv'
+        rcases huv' with hu' | hv'
+        · -- u,v in clique
+          rw [CGraph.mem_cliqueEdges] at hu'
+          obtain ⟨hlt, hb⟩ := hu'
+          simp [f, show (u : ℕ) < m + 2 from hlt.trans hb, show (v : ℕ) < m + 2 from hb]
+          exact hne
+        · -- edge in legEdges
+          rw [CGraph.mem_legEdges] at hv'
+          rcases hv' with (⟨hu0, hvleg, hkpos⟩ | ⟨humble, hv_eq, hvbound⟩)
+          · -- (0, m+2): f 0 = 0, f (m+2) = 1 - 0 = 1
+            have hu0' : u = 0 := Fin.ext hu0
+            have hvleg' : v = ⟨m + 2, by omega⟩ := Fin.ext hvleg
+            simp [f, hu0', hvleg']
+          · -- (u, u+1) in path: both ≥ m+2, offsets j and j+1 have different parities
+            have hu_ge : m + 2 ≤ (u : ℕ) := humble
+            have hv_eq' : (v : ℕ) = (u : ℕ) + 1 := hv_eq
+            simp [f, show ¬((u : ℕ) < m + 2) from by omega,
+                  show ¬((v : ℕ) < m + 2) from by omega]
+            rw [hv_eq']
+            set j : ℕ := (u : ℕ) - (m + 2)
+            simp [show (↑u + 1 - (m + 2) : ℕ) = j + 1 from by omega]
+            have hm2 : 2 ≤ m + 2 := this
+            rcases Nat.mod_two_eq_zero_or_one j with h | h <;> simp [h] <;> omega
+      · -- edge (v, u): handle symmetrically
+        rw [List.mem_append] at huv'
+        rcases huv' with hv' | hu'
+        · rw [CGraph.mem_cliqueEdges] at hv'
+          obtain ⟨hlt, hb⟩ := hv'
+          simp [f, show (v : ℕ) < m + 2 from hlt.trans hb, show (u : ℕ) < m + 2 from hb]
+          exact hne
+        · rw [CGraph.mem_legEdges] at hu'
+          rcases hu' with (⟨hu0, hvleg, hkpos⟩ | ⟨humble, hu_eq, hvbound⟩)
+          · -- (m+2, 0): f (m+2) = 1, f 0 = 0
+            have hv0' : v = 0 := Fin.ext hu0
+            have huleg' : u = ⟨m + 2, by omega⟩ := Fin.ext hvleg
+            simp [f, hv0', huleg']
+          · -- (v, v+1) in path swapped: u = v+1, both ≥ m+2
+            have hv_ge : m + 2 ≤ (v : ℕ) := humble
+            simp [f, show ¬((v : ℕ) < m + 2) from by omega,
+                  show ¬((u : ℕ) < m + 2) from by omega]
+            rw [hu_eq]
+            set j : ℕ := (v : ℕ) - (m + 2)
+            simp [show (↑v + 1 - (m + 2) : ℕ) = j + 1 from by omega]
+            have hm2 : 2 ≤ m + 2 := this
+            rcases Nat.mod_two_eq_zero_or_one j with h | h <;> simp [h] <;> omega
+    unfold CGraph.toSimple
+    show SimpleGraph.Colorable _ _
+    refine ⟨SimpleGraph.Coloring.mk f (fun {u v} huv ↦ hproper ?_)⟩
+    simp [CGraph.lollipop] at huv
+    exact huv
+  · -- Lower bound: lollipop contains a clique of size m+2, so chromNum ≥ m+2
+    have hlb : (m + 2 : ℕ) ≤ (CGraph.lollipop (m + 2) k).chromNum := by
+      have hchrom_le : (CGraph.complete (m + 2)).toSimple.chromaticNumber ≤ (CGraph.lollipop (m +
+          2) k).toSimple.chromaticNumber := by
+        apply SimpleGraph.chromaticNumber_mono_of_hom
+        refine ⟨Fin.castLE (by omega : m + 2 ≤ m + 2 + k), fun {a b} hab ↦ ?_⟩
+        simp only [CGraph.lollipop, CGraph.toSimple, CGraph.ofEdges_adj_val]
+        have hne : a.val ≠ b.val := by
+          intro he
+          have : a = b := Fin.ext he
+          simp [CGraph.complete, this] at hab
+        have ha : a.val < m + 2 := a.isLt
+        have hb : b.val < m + 2 := b.isLt
+        let f : Fin (m + 2) → Fin (m + 2 + k) := Fin.castLE (by omega : m + 2 ≤ m + 2 + k)
+        have hne2 : (f a).val ≠ (f b).val := by
+          simp [f, Fin.castLE]; exact hne
+        have hclique : ((f a).val, (f b).val) ∈ CGraph.cliqueEdges (m + 2) ∨
+          ((f b).val, (f a).val) ∈ CGraph.cliqueEdges (m + 2) := by
+          rcases lt_or_gt_of_ne hne with hlt | hlt
+          · left; rw [CGraph.mem_cliqueEdges]; exact ⟨hlt, hb⟩
+          · right; rw [CGraph.mem_cliqueEdges]; exact ⟨hlt, ha⟩
+        exact ⟨hne2, Or.elim hclique (fun h => Or.inl (List.mem_append_left _ h)) (fun h => Or.inr
+            (List.mem_append_left _ h))⟩
+      rw [CGraph.complete_toSimple, SimpleGraph.chromaticNumber_top,
+          CGraph.card_complete] at hchrom_le
+      rw [CGraph.chromNum]
+      exact ENat.toNat_le_toNat hchrom_le (CGraph.chromaticNumber_ne_top _)
+    intro m_1 hm_1
+    exact le_trans hlb (CGraph.chromNum_le_iff_colorable.mpr hm_1)
+
+/-- Every pendant of a double star, and nothing else. -/
+theorem indepNum_doubleStar (m n : ℕ) :
+    (doubleStar (m + 1) (n + 1)).indepNum = m + n + 2 := by
+  -- Work at CGraph level
+  set G := CGraph.doubleStar (m + 1) (n + 1)
+  -- V = m + n + 4
+  have hV : Fintype.card G.V = m + n + 4 := by
+    simp [G, CGraph.card_doubleStar]; omega
+  -- Two disjoint edges: (0,2) and (1, m+3)
+  -- Any vertex cover needs ≥ 2 vertices, so coverNum ≥ 2, so indepNum ≤ V - 2 = m+n+2
+  -- Also pendants (≥2) form indep set of size m+n+2, so indepNum ≥ m+n+2
+  -- Key CGraph facts work at toSimple level
+  -- Step A: Indep set of size m+n+2 (pendants with val ≥ 2)
+  let s : Finset G.V := Finset.univ.filter (fun v : G.V => 2 ≤ v.1)
+  have hs_card : s.card = m + n + 2 := by
+    have heq : s = Finset.image (fun i : Fin (m + n + 2) => ⟨i.val + 2, by omega⟩ : Fin (m + n + 2)
+        → G.V) (Finset.univ : Finset (Fin (m + n + 2))) := by
+      ext v
+      simp only [s, Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image]
+      constructor
+      · intro hv2
+        exact ⟨⟨v.1 - 2, by omega⟩, Fin.ext (Nat.sub_add_cancel hv2)⟩
+      · rintro ⟨i, rfl⟩
+        simp
+    rw [heq]
+    rw [Finset.card_image_of_injective _ (fun i j h => by
+      have := congr_arg Fin.val h; simp at this; exact Fin.ext this)]
+    simp
+  have hs_indep : G.toSimple.IsIndepSet (s : Set G.V) := by
+    intro v hv w hw hvw
+    simp [s] at hv hw
+    rw [CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
+    omega
+  have hindep_ge : m + n + 2 ≤ G.indepNum := by
+    rw [← hs_card]
+    exact hs_indep.card_le_indepNum
+  -- Step B: coverNum ≥ 2 (disjoint edges (0,2) and (1, m+3))  
+  have h_cover_02 : G.toSimple.Adj ⟨0, by omega⟩ ⟨2, by omega⟩ := by
+    simp [G, CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
+  have h_cover_1_m3 : G.toSimple.Adj ⟨1, by omega⟩ ⟨2 + (m + 1), by omega⟩ := by
+    simp [G, CGraph.toSimple_adj, CGraph.doubleStar_adj_val]; omega
+  have h_disjoint : (⟨0, by omega⟩ : G.V) ≠ (⟨1, by omega⟩ : G.V) ∧
+      (⟨0, by omega⟩ : G.V) ≠ (⟨2 + (m + 1), by omega⟩ : G.V) ∧
+      (⟨2, by omega⟩ : G.V) ≠ (⟨1, by omega⟩ : G.V) ∧
+      (⟨2, by omega⟩ : G.V) ≠ (⟨2 + (m + 1), by omega⟩ : G.V) := by
+    simp [Fin.ext_iff]; omega
+  set a : G.V := ⟨0, by omega⟩
+  set b : G.V := ⟨2, by omega⟩
+  set c : G.V := ⟨1, by omega⟩
+  set d : G.V := ⟨2 + (m + 1), by omega⟩
+  have hab : G.toSimple.Adj a b := h_cover_02
+  have hcd : G.toSimple.Adj c d := h_cover_1_m3
+  have hdad : a ≠ b ∧ a ≠ d ∧ a ≠ c ∧ b ≠ c ∧ b ≠ d ∧ c ≠ d := by
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> intro h <;> have := congr_arg Fin.val h <;> simp [a, b, c,
+        d] at this <;> omega
+  have hge_pair : ∀ (u v : G.V), u ≠ v → 2 ≤ ({u, v} : Set G.V).encard := by
+    intro u v huv; rw [Set.encard_pair huv]
+  have le_two_of_mem {C : Set G.V} {u v : G.V} (huv : u ≠ v) (hu : u ∈ C) (hv : v ∈
+      C) : 2 ≤ C.encard := by
+    exact le_trans (hge_pair u v huv) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨hu,
+        Set.singleton_subset_iff.mpr hv⟩))
+  have hcover_ge_enat : 2 ≤ G.toSimple.vertexCoverNum := by
+    have hvc_lower : ∀ C : Set G.V, G.toSimple.IsVertexCover C → 2 ≤ C.encard := by
+      intro C hC
+      have ha_or_b : a ∈ C ∨ b ∈ C := hC hab
+      have hc_or_d : c ∈ C ∨ d ∈ C := hC hcd
+      rcases ha_or_b with ha | hb <;> rcases hc_or_d with hc | hd
+      · exact le_trans (hge_pair a c hdad.2.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨ha,
+          Set.singleton_subset_iff.mpr hc⟩))
+      · exact le_trans (hge_pair a d hdad.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨ha,
+          Set.singleton_subset_iff.mpr hd⟩))
+      · exact le_trans (hge_pair b c hdad.2.2.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨hb,
+          Set.singleton_subset_iff.mpr hc⟩))
+      · exact le_trans (hge_pair b d hdad.2.2.2.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr
+          ⟨hb, Set.singleton_subset_iff.mpr hd⟩))
+    apply le_csInf
+    · exact ⟨_, ⟨Set.univ, rfl⟩⟩
+    · rintro _ ⟨C, rfl⟩
+      by_cases hC : G.toSimple.IsVertexCover C
+      · simp [hC]
+        exact hvc_lower C hC
+      · simp [hC]
+
+  have hcover_ge : 2 ≤ G.coverNum := by
+    have hfin : G.toSimple.vertexCoverNum ≠ ⊤ := by
+      have hcov : G.toSimple.IsVertexCover (Set.univ : Set
+          G.V) := fun x y _ => Or.inl (Set.mem_univ x)
+      have h1 := hcov.vertexCoverNum_le
+      have hne : (Set.univ : Set G.V).encard ≠ ⊤ := by simp [Set.encard_univ]
+      intro h; apply hne; exact le_antisymm le_top (h ▸ h1)
+    unfold CGraph.coverNum
+    apply ENat.toNat_le_toNat hcover_ge_enat hfin
+  
+  -- Step C: Combine
+  have hadd : G.coverNum + G.indepNum = Fintype.card G.V :=
+    CGraph.coverNum_add_indepNum G
+  rw [hV] at hadd
+  show G.indepNum = m + n + 2
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
@@ -30844,5 +31092,399 @@ theorem not_isAcyclic_foldedCube (n : ℕ) : ¬ IsAcyclic (foldedCube (n + 3)) :
   have hg : (foldedCube (n + 3)).girth = 0 := (@girth_eq_zero_iff _).mpr hac
   rw [girth_foldedCube] at hg
   exact absurd hg (by omega)
+
+/-- A vertex at Hamming distance `d` is reachable in `d` coordinate steps, or in one antipodal
+step followed by `n - d` coordinate steps; the worst `d` gives `⌈n / 2⌉`. -/
+theorem diameter_foldedCube (n : ℕ) : (foldedCube (n + 1)).diameter = (n + 2) / 2 := by
+  simp only [IsoGraph.foldedCube]
+  rw [IsoGraph.diameter_mk]
+  set m := n + 1
+  set k := (n + 2) / 2
+  set hamming : (Fin m → Bool) → (Fin m → Bool) → ℕ :=
+    fun x y => (Finset.univ.filter (fun i => x i ≠ y i)).card
+  -- Hamming distance 0 means equality
+  have hamming_zero_iff : ∀ x y, hamming x y = 0 ↔ x = y := by
+    intro x y
+    simp only [hamming, Finset.card_eq_zero, Finset.ext_iff]
+    constructor
+    · intro h
+      exact funext fun i => by_contra fun hi =>
+        absurd (h i).1 (by simp [hi])
+    · intro h; subst h; simp
+  -- Coordinate flip edge
+  have hflip_adj' : ∀ (v : Fin m → Bool) (i : Fin m),
+      (CGraph.foldedCube m).Adj v (fun j => if j = i then !v i else v j) := by
+    intro v i
+    simp [CGraph.foldedCube_adj]
+    refine ⟨fun h => ?_, Or.inl ?_⟩
+    · have := congr_fun h i; simp at this
+    · show ({i_1 : Fin m | i_1 = i ∧ v i_1 = v i} : Finset _).card = 1
+      have : ({i_1 : Fin m | i_1 = i ∧ v i_1 = v i} : Finset _) = {i} := by
+        ext j; simp
+        exact fun hji => hji ▸ rfl
+      rw [this]; simp
+  -- Hamming of flipped coordinate (where x i ≠ y i) decreases by 1
+  have h_hamming_flip : ∀ (v : Fin m → Bool) (i : Fin m) (y : Fin m → Bool), v i ≠ y i →
+      hamming (fun j => if j = i then !v i else v j) y = hamming v y - 1 := by
+    intro v i y hne
+    simp only [hamming]
+    have key : ({j : Fin m | (fun j => if j = i then !v i else v j) j ≠ y j} : Finset _) =
+      ({j | v j ≠ y j} : Finset _) \ {i} := by
+      ext j
+      by_cases hji : j = i
+      · subst hji; simp [hne]
+      · simp [hji]
+    rw [key]
+    have hi : i ∈ ({j | v j ≠ y j} : Finset _) := by simp [hne]
+    rw [Finset.card_sdiff, Finset.inter_comm, Finset.inter_singleton_of_mem hi,
+        Finset.card_singleton]
+  -- edist ≤ hamming, by induction
+  have h_edist_le_hamming : ∀ x y : Fin m → Bool,
+      (CGraph.foldedCube m).toSimple.edist x y ≤ (hamming x y : ℕ∞) := by
+    intro x y
+    have h_edist_le_hamming' : ∀ d : ℕ, (∀ a b : Fin m → Bool, hamming a b = d →
+        (CGraph.foldedCube m).toSimple.edist a b ≤ (d : ℕ∞)) := by
+      intro d
+      induction d using Nat.strong_induction_on with | _ d ih =>
+      intro a b hab
+      -- Adj is symmetric
+      have hamm_symm : ∀ u v, hamming u v = hamming v u := by
+        intro u v
+        simp only [hamming]
+        simp [ne_comm]
+      have hadj_symm : ∀ u v, (CGraph.foldedCube m).Adj u v → (CGraph.foldedCube m).Adj v u := by
+        intro u v huv
+        simp only [CGraph.foldedCube_adj] at huv ⊢
+        simp [ne_comm] at huv ⊢
+        exact huv
+      by_cases hd0 : d = 0
+      · have : hamming a b = 0 := by rw [hab, hd0]
+        rw [(hamming_zero_iff a b).mp this]
+        simp
+      · have hd0' : 0 < d := Nat.pos_of_ne_zero hd0
+        have : hamming a b > 0 := by omega
+        obtain ⟨i, hi⟩ : ∃ i, a i ≠ b i := by
+          by_contra h
+          push_neg at h
+          have : hamming a b = 0 := by
+            simp [hamming, h]
+          omega
+        set aa' := fun j => if j = i then !a i else a j
+        have hadj_aa' : (CGraph.foldedCube m).Adj a aa' := by
+          exact (hflip_adj' a i).symm ▸ rfl
+        have hadj_a'a : (CGraph.foldedCube m).Adj aa' a := hadj_symm _ _ hadj_aa'
+        have hham : hamming aa' b = d - 1 := by
+          rw [show aa' = (fun j => if j = i then !a i else a j) from rfl]
+          rw [h_hamming_flip a i b hi, hab]
+        have hgedist1 : (CGraph.foldedCube m).toSimple.edist aa' b ≤ ↑(d - 1) := ih (d -
+            1) (Nat.sub_lt hd0' zero_lt_one) aa' b hham
+        have hgedist2 : (CGraph.foldedCube m).toSimple.edist aa' a ≤ 1 := by
+          have hw : ∃ w : (CGraph.foldedCube m).toSimple.Walk aa' a, w.length = 1 :=
+            ⟨SimpleGraph.Walk.cons (hadj_a'a) (SimpleGraph.Walk.nil), by simp⟩
+          obtain ⟨w, hw⟩ := hw
+          exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+        calc (CGraph.foldedCube m).toSimple.edist a b
+            ≤ (CGraph.foldedCube m).toSimple.edist a aa' + (CGraph.foldedCube
+                m).toSimple.edist aa' b :=
+              SimpleGraph.edist_triangle
+          _ ≤ 1 + ↑(d - 1) := by
+              gcongr
+              · rw [SimpleGraph.edist_comm]; exact hgedist2
+          _ ≤ (d : ℕ∞) := by
+              have hadd : (1 : ℕ∞) + ↑(d - 1) = ↑d := by
+                have h : 1 + (d - 1) = d := Nat.add_sub_of_le hd0'
+                rw [show (1 : ℕ∞) = ↑(1 : ℕ) from rfl, ← Nat.cast_add, h]
+              exact hadd.le
+    exact h_edist_le_hamming' _ _ _ rfl
+  -- Antipode edge: !x is adjacent to x (hamming = m)
+  have hflip_all_adj' : ∀ (v : Fin m → Bool),
+      (CGraph.foldedCube m).Adj v (fun i => !v i) := by
+    intro v
+    simp [CGraph.foldedCube_adj]
+    exact fun h => by
+      have := congr_fun h ⟨0, Nat.zero_lt_of_lt (Nat.succ_pos n)⟩
+      simp at this
+  -- edist(x, !x) ≤ 1
+  have h_edist_flip_all : ∀ (v : Fin m → Bool),
+      (CGraph.foldedCube m).toSimple.edist v (fun i => !v i) ≤ 1 := by
+    intro v
+    have hadj : (CGraph.foldedCube m).toSimple.Adj v (fun i => !v i) := by
+      simpa using hflip_all_adj' v
+    exact le_trans (SimpleGraph.edist_le (SimpleGraph.Walk.cons hadj
+        SimpleGraph.Walk.nil)) (by simp)
+  -- hamming(!x, y) = m - hamming(x, y)
+  have h_hamming_flip_all : ∀ (x y : Fin m → Bool),
+      hamming (fun i => !x i) y = m - hamming x y := by
+    intro x y
+    simp only [hamming]
+    have hcompl : Finset.univ.filter (fun j => (fun i => !x i) j ≠ y j) =
+        Finset.univ \ (Finset.univ.filter (fun j => x j ≠ y j)) := by
+      ext j; by_cases h : x j = y j <;> simp [h]
+    rw [hcompl, Finset.card_sdiff, Finset.card_univ]
+    simp
+  -- Upper bound: edist(x,y) ≤ min(hamming(x,y), 1 + (m - hamming(x,y)))
+  have h_edist_bound : ∀ (x y : Fin m → Bool),
+      (CGraph.foldedCube m).toSimple.edist x y ≤ ((min (hamming x y) (1 + (m - hamming x y)) : ℕ) :
+          ℕ∞) := by
+    intro x y
+    have h1 : (CGraph.foldedCube m).toSimple.edist x y ≤ (hamming x y :
+        ℕ∞) := h_edist_le_hamming x y
+    have h2 : (CGraph.foldedCube m).toSimple.edist x y ≤ 1 + ((m - hamming x y : ℕ) : ℕ∞) := by
+      calc (CGraph.foldedCube m).toSimple.edist x y
+          ≤ (CGraph.foldedCube m).toSimple.edist x (fun i => !x i)
+            + (CGraph.foldedCube m).toSimple.edist (fun i => !x i) y :=
+            SimpleGraph.edist_triangle
+        _ ≤ 1 + ((hamming (fun i => !x i) y : ℕ) : ℕ∞) := by
+            exact add_le_add (h_edist_flip_all x) (h_edist_le_hamming _ _)
+        _ = 1 + ((m - hamming x y : ℕ) : ℕ∞) := by rw [h_hamming_flip_all x y]
+    exact le_min h1 (by exact_mod_cast h2)
+  -- Lower bound: for the specific pair (all-false, first-k-true), all walks have length ≥ k.
+  -- Then edist ≥ k, and combined with edist ≤ k (from upper bound + arithmetic), edist = k for that
+  -- pair,
+  -- so diameter ≥ k. Combined with diameter ≤ k (from edist ≤ k for all pairs), diameter = k.
+  -- Step 1: ediam ≤ k
+  have h_ediam_le : (CGraph.foldedCube m).toSimple.ediam ≤ (k : ℕ∞) := by
+    apply SimpleGraph.ediam_le_of_edist_le
+    intro x y
+    have hb := h_edist_bound x y
+    -- min(hamming x y, 1 + (m - hamming x y)) ≤ k for all x,y
+    have hlim : hamming x y ≤ m := by
+      simp only [hamming]
+      exact le_trans (Finset.card_le_card (Finset.filter_subset _ _)) (by simp [Finset.card_univ])
+    have : (min (hamming x y) (1 + (m - hamming x y)) : ℕ) ≤ k := by
+      simp only [min_le_iff]
+      by_cases h : hamming x y ≤ k
+      · left; exact h
+      · right
+        have h2 : k < hamming x y := lt_of_not_ge h
+        have hmk : 1 + (m - hamming x y) ≤ k := by
+          have h1 : hamming x y ≤ m := hlim
+          have h3 : m - hamming x y ≤ k - 1 := by omega
+          omega
+        exact hmk
+    exact_mod_cast hb.trans (WithTop.coe_le_coe.mpr this)
+  -- Lower bound: construct x, y with edist(x,y) ≥ k
+  -- x = all false, y = first k entries true
+  set xf : Fin m → Bool := fun _ => false
+  set yf : Fin m → Bool := fun i => if (i.val < k) then true else false
+  have h_hamming_xy : hamming xf yf = k := by
+    simp only [hamming, xf, yf]
+    have hle : k ≤ m := by
+      show (n + 2) / 2 ≤ n + 1; omega
+    have hfilter : Finset.univ.filter (fun i : Fin m => false ≠ (if (i : ℕ) < k then true else
+        false)) =
+        Finset.filter (fun i : Fin m => (i : ℕ) < k) Finset.univ := by
+      ext i; simp
+    rw [hfilter]
+    have hfun : ∀ i : Fin m, (i : ℕ) < k ↔ ∃ j : Fin k, Fin.castLE hle j = i := by
+      intro i; constructor
+      · intro hi; exact ⟨⟨i.val, by omega⟩, Fin.ext (by simp)⟩
+      · rintro ⟨j, hj⟩; exact hj.symm ▸ j.isLt
+    have hset : Finset.filter (fun i : Fin m => (i : ℕ) < k) Finset.univ =
+        Finset.image (fun j : Fin k => Fin.castLE hle j) Finset.univ := by
+      ext i; simp [hfun]
+    rw [hset, Finset.card_image_of_injective _ (Fin.castLE_injective hle), Finset.card_fin]
+  -- Lower bound: all walks from xf to yf have length ≥ k
+  -- Key: for each coordinate i, the number of edges flipping coord i (call it flipCount i)
+  -- satisfies flipCount i % 2 = (xf i ≠ yf i). Summing over coords where xf≠yf gives ≥ k,
+  -- and Σ flipCount i = walk.length + m * (#antipodal edges). Refined argument gives walk.length ≥
+  -- k.
+  -- classify an edge as coord-edge at i or antipodal
+  have h_edge_types : ∀ u v, (CGraph.foldedCube m).toSimple.Adj u v →
+      (∃ i, v = fun j => if j = i then !u i else u j) ∨ (v = fun i => !u i) := by
+    intro u v hadj
+    have hadj' : (CGraph.foldedCube m).Adj u v := by
+      simpa [CGraph.toSimple] using hadj
+    rw [CGraph.foldedCube_adj] at hadj'
+    simp [Bool.and_eq_true] at hadj'
+    obtain ⟨hne, hcard⟩ := hadj'
+    -- Helper: for Bool, if x ≠ y then !x = y
+    have hbool : ∀ (a b : Bool), a ≠ b → b = !a := by decide +revert
+    rcases hcard with hcard1 | hcardm
+    · -- hamming = 1, exactly one coordinate differs
+      obtain ⟨i, hi⟩ := Finset.card_eq_one.mp hcard1
+      have him : i ∈ ({j | u j ≠ v j} : Finset _) := by
+        rw [hi]
+        simp
+      refine Or.inl ⟨i, funext fun j => ?_⟩
+      by_cases hj : j = i
+      · subst hj; rw [if_pos rfl]; exact hbool _ _ (Finset.mem_filter.mp him).2
+      · have heq : u j = v j := by
+          by_contra hneq
+          have hjmem : j ∈ ({j | u j ≠ v j} : Finset _) := by simp [hneq]
+          rw [hi] at hjmem
+          simp at hjmem
+          exact hj hjmem
+        rw [if_neg hj, heq]
+    · -- hamming = m, all coordinates differ
+      right
+      funext i
+      have hdiff : u i ≠ v i := by
+        by_contra h
+        have heq : u i = v i := by tauto
+        have hne2 : ({j | u j ≠ v j} : Finset _) ≠ Finset.univ := by
+          intro h
+          have := Finset.ext_iff.mp h i
+          simp [heq] at this
+        exact absurd (Finset.card_lt_card (Finset.ssubset_univ_iff.mpr hne2))
+          (by simp [hcardm, Finset.card_univ])
+      exact hbool _ _ hdiff
+  -- Lower bound: edist xf yf ≥ k
+  -- Audit lemma by walk induction
+  -- For each walk w from u to v, we extract fc_i(w) = # coord-edges at coord i, and A(w) = #
+  -- antipodal edges.
+  -- Key: (fc_i(w) + A(w)) % 2 = (if u i ≠ v i then 1 else 0)
+  -- And length(w) = Σ_i fc_i(w) + A(w).
+  -- From this, for xf→yf, length ≥ k.
+  -- We prove this via a joint existence statement.
+  have h_audit_exists : ∀ {u v : Fin m → Bool} (w : (CGraph.foldedCube m).toSimple.Walk u v),
+      ∃ (fc : Fin m → ℕ) (a : ℕ),
+        (∀ i, (fc i + a) % 2 = (if u i ≠ v i then 1 else 0)) ∧
+        w.length = (∑ i, fc i) + a := by
+    intro u v w
+    induction w with
+    | nil =>
+      exact ⟨fun _ => 0, 0, fun _ => by simp, by simp⟩
+    | @cons u' v' w' huv tail ih =>
+      obtain ⟨fc_t, a_t, hfc_t, hlen_t⟩ := ih
+      have eti := h_edge_types u' v' huv
+      rcases eti with ⟨icoord, hvi⟩ | hvi
+      · -- coord edge at icoord
+        have huniv_icoord : v' icoord ≠ u' icoord := by
+          have h := congr_fun hvi icoord; simp at h; simp [h]
+        have hsame_all_j : ∀ j ≠ icoord, v' j = u' j := by
+          intro j hj; have := congr_fun hvi j; simp [hj] at this; exact this
+        -- fc: add 1 to coord icoord; a stays same
+        let fc_cons : Fin m → ℕ := fun j => fc_t j + (if j = icoord then 1 else 0)
+        refine ⟨fc_cons, a_t, ?_, ?_⟩
+        · intro j
+          by_cases hji : j = icoord
+          · rw [hji]
+            simp [fc_cons]
+            have hft := hfc_t icoord
+            have hvicoord : v' icoord = !u' icoord := by simp [hvi]
+            rw [hvicoord] at hft
+            simp at hft
+            rw [show fc_t icoord + 1 + a_t = (fc_t icoord + a_t) + 1 from
+                by omega, Nat.add_mod, hft]
+            by_cases heq : u' icoord = w' icoord <;> simp [heq]
+          · simp [fc_cons, hji]
+            have hvj : v' j = u' j := hsame_all_j j hji
+            have hft := hfc_t j
+            rw [hvj] at hft
+            by_cases heq : u' j = w' j <;> simp [heq] at hft ⊢ <;> exact hft
+        · rw [SimpleGraph.Walk.length_cons huv tail, hlen_t]
+          have hsum : ∑ j, (fc_t j + (if j = icoord then 1 else 0)) = ∑ j, fc_t j + 1 := by
+            rw [Finset.sum_add_distrib]
+            simp
+          rw [hsum]; omega
+      · -- antipodal edge
+        have huniv : v' = fun j => !u' j := hvi
+        have hfc_t' : ∀ j, (fc_t j + a_t) % 2 = (if u' j = w' j then 1 else 0) := by
+          intro j
+          have hft := hfc_t j
+          rw [huniv] at hft
+          rcases beh : u' j with _
+          rcases beh2 : w' j with _
+          simp [beh, beh2] at hft ⊢
+          exact hft
+        refine ⟨fc_t, a_t + 1, ?_, ?_⟩
+        · intro j
+          show (fc_t j + (a_t + 1)) % 2 = if u' j ≠ w' j then 1 else 0
+          have hft := hfc_t' j
+          rw [show fc_t j + (a_t + 1) = (fc_t j + a_t) + 1 from by omega, Nat.add_mod, hft]
+          by_cases heq : u' j = w' j <;> simp [heq]
+        · rw [SimpleGraph.Walk.length_cons huv tail, hlen_t]
+          ring
+  have h_reach : (CGraph.foldedCube m).toSimple.Reachable xf yf := by
+    by_contra hno
+    have : (CGraph.foldedCube
+        m).toSimple.edist xf yf = ⊤ := SimpleGraph.edist_eq_top_of_not_reachable hno
+    have hb := h_edist_bound xf yf
+    rw [this] at hb
+    simp at hb
+  -- All walks from xf to yf have length ≥ k
+  have h_walk_ge_k : ∀ (w : (CGraph.foldedCube m).toSimple.Walk xf yf), k ≤ w.length := by
+    intro w
+    obtain ⟨fc, a, hfc, hlen⟩ := h_audit_exists w
+    -- For xf (all false) and yf (first k true):
+    -- xf i ≠ yf i ↔ (i : ℕ) < k
+    have hcond : ∀ i, (xf i ≠ yf i) ↔ ((i : ℕ) < k) := by
+      intro i; simp [xf, yf]
+    -- hamming xf yf = k, i.e., # of coords where xf ≠ yf is k
+    have hfilter_card : (Finset.univ.filter (fun i => xf i ≠ yf i)).card = k := h_hamming_xy
+    -- Case split on a % 2
+    by_cases ha_even : a % 2 = 0
+    · -- A even: for each i with xf i ≠ yf i, fc i is odd ≥ 1
+      let S := Finset.univ.filter (fun i => xf i ≠ yf i)
+      have hS_card : S.card = k := hfilter_card
+      have hfc_ge_one : ∀ i ∈ S, 1 ≤ fc i := by
+        intro i hi
+        have hfi := hfc i
+        have hai : xf i ≠ yf i := Finset.mem_filter.mp hi |>.2
+        simp [hai] at hfi
+        omega
+      have hcard_le_sum : S.card ≤ ∑ i ∈ S, fc i := by
+        calc S.card = ∑ i ∈ S, (1 : ℕ) := by simp
+          _ ≤ ∑ i ∈ S, fc i := Finset.sum_le_sum hfc_ge_one
+      rw [hS_card] at hcard_le_sum
+      have : k ≤ w.length := by
+        calc k ≤ ∑ i ∈ S, fc i := hcard_le_sum
+        _ ≤ ∑ i, fc i := Finset.sum_le_sum_of_subset (Finset.filter_subset _ _)
+        _ ≤ ∑ i, fc i + a := Nat.le_add_right _ _
+        _ = w.length := hlen.symm
+      exact this
+    · -- A odd: for each i with xf i = yf i (m-k of them), fc i is odd ≥ 1
+      have ha_pos : 1 ≤ a := Nat.pos_of_ne_zero fun h => ha_even (by rw [h])
+      have hfc_ge_one_odd : ∀ i, xf i = yf i → 1 ≤ fc i := by
+        intro i heq
+        have hfi := hfc i
+        simp [heq] at hfi; omega
+      have hcard_eq : (Finset.univ.filter (fun i => xf i = yf i)).card = m - k := by
+        have hsum : (Finset.univ.filter (fun i => xf i = yf i)).card +
+            (Finset.univ.filter (fun i => xf i ≠ yf i)).card = m := by
+          have : (Finset.univ.filter (fun i => xf i = yf i)) ∪
+              (Finset.univ.filter (fun i => xf i ≠ yf i)) = Finset.univ := by
+            ext i; by_cases hi : xf i = yf i <;> simp [hi]
+          rw [← Finset.card_union_of_disjoint
+            (Finset.disjoint_filter.mpr (fun _ _ _ => by tauto)), this]
+          simp
+        rw [hfilter_card] at hsum; omega
+      have hsum_odd_ge : ∑ i, fc i ≥ ∑ i ∈ Finset.univ.filter (fun i => xf i = yf i), fc i :=
+        Finset.sum_le_sum_of_subset (Finset.filter_subset _ _)
+      have hcard_le_sum_odd : (Finset.univ.filter (fun i => xf i = yf
+          i)).card ≤ ∑ i ∈ Finset.univ.filter (fun i => xf i = yf i), fc i := by
+        calc (Finset.univ.filter (fun i => xf i = yf i)).card = ∑ i ∈ Finset.univ.filter (fun i =>
+            xf i = yf i), (1 : ℕ) := by simp
+          _ ≤ ∑ i ∈ Finset.univ.filter (fun i => xf i = yf i), fc i := Finset.sum_le_sum (fun i hi
+              => hfc_ge_one_odd i (Finset.mem_filter.mp hi |>.2))
+      rw [hcard_eq] at hcard_le_sum_odd
+      have hmk_le : (m : ℕ) - k + 1 ≥ k := by
+        show (n + 1) - (n + 2) / 2 + 1 ≥ (n + 2) / 2
+        omega
+      omega
+  have h_edist_ge : (k : ℕ∞) ≤ (CGraph.foldedCube m).toSimple.edist xf yf := by
+    apply le_csInf
+    · exact ⟨↑(h_reach.some.length), Set.mem_range_self h_reach.some⟩
+    · rintro _ ⟨w, rfl⟩
+      show (k : ℕ∞) ≤ ↑w.length
+      exact WithTop.coe_le_coe.mpr (h_walk_ge_k w)
+  have h_edist_eq : (CGraph.foldedCube m).toSimple.edist xf yf = (k : ℕ∞) := by
+    apply le_antisymm
+    · exact_mod_cast (h_edist_bound xf yf).trans (WithTop.coe_le_coe.mpr (by simp [h_hamming_xy]))
+    · exact h_edist_ge
+  have h_ediam_ge : (k : ℕ∞) ≤ (CGraph.foldedCube m).toSimple.ediam :=
+    h_edist_eq ▸ SimpleGraph.edist_le_ediam
+  have h_ediam_eq_nn : (CGraph.foldedCube m).toSimple.ediam = (k : ℕ∞) :=
+    le_antisymm h_ediam_le h_ediam_ge
+  simp only [CGraph.diameter]
+  change (CGraph.foldedCube m).toSimple.diam = k
+  rw [SimpleGraph.diam, h_ediam_eq_nn]
+  rfl
+
+
+/-- Vertex-transitive graphs have radius equal to diameter. -/
+theorem radius_foldedCube (n : ℕ) : (foldedCube (n + 1)).radius = (n + 2) / 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (by simp), diameter_foldedCube]
 
 end IsoGraph

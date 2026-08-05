@@ -2060,7 +2060,10 @@ bound and the Mycielskian of a pentagon has no triangle. The matching number is 
 neatest route turned out to be the line graph — the five edges `vᵢ u_{i+1}` are pairwise disjoint,
 so they are an independent set of `L(grotzsch)`, and `matchNum_eq` converts that back; the upper
 bound is `2ν ≤ 11`. Finally `¬IsAcyclic` follows from the graph not being bipartite, and
-`¬IsVertexTransitive` from `δ ≠ Δ`. The one entry still missing is `α` — the five shadows are
+`¬IsVertexTransitive` from `δ ≠ Δ`. The clique cover number is `6`, and since
+`κ(G) = χ(Gᶜ)` this is a statement about the complement: `|V| ≤ χ · α` applied to `grotzschᶜ`,
+whose independence number is `ω(grotzsch) = 2`, gives `χ(grotzschᶜ) ≥ 11/2`, hence `≥ 6`, and an
+explicit six-colouring of the complement matches it. The one entry still missing is `α` — the five shadows are
 independent, and the answer is `5`, but the obvious general shape `α(μ(G)) = max (2 α(G)) |V(G)|`
 is false (`K₁ ⊔ K₃` has an independent set of size five in its Mycielskian and only `max 4 4 = 4`
 on the right), and brute force over the eleven vertices is out of reach for a `native_decide`-free
@@ -2077,7 +2080,15 @@ and `E(Θ_{xs}) = Σxs + |xs|`. A few shape invariants come with them: a lollipo
 three clique vertices has a triangle, so `girth_lollipop = 3`, and its clique is the largest one
 it has, `cliqueNum_lollipop (m + 2) k = m + 2`; a tadpole's junction is its only vertex of degree
 three, `maxDeg_tadpole = 3`; and a double star has a pendant, so `minDeg_doubleStar = 1`, with
-`maxDeg_doubleStar = max m n + 1` at the busier of the two centres.
+`maxDeg_doubleStar = max m n + 1` at the busier of the two centres. Two harder entries followed.
+`chromNum_lollipop (m + 2) k = m + 2` needs a colouring in both directions: upwards, give clique
+vertex `i` the colour `i` and alternate two of those colours along the tail, which is proper
+because the tail is a path hanging off vertex `0`; downwards, the inclusion `Fin (m + 2) ↪
+Fin (m + 2 + k)` is a graph homomorphism from `K_{m+2}`, and `chromaticNumber_mono_of_hom` does
+the rest. `indepNum_doubleStar (m + 1) (n + 1) = m + n + 2` goes through the complement instead:
+the `m + n + 2` pendants are pairwise non-adjacent, and the two disjoint edges `0–2` and
+`1–(m + 3)` force every vertex cover to have at least two vertices, so `τ ≥ 2` and
+`α = |V| - τ ≤ m + n + 2` by `coverNum_add_indepNum`.
 
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
@@ -2092,7 +2103,17 @@ a `n - 1 = 1` count; and two or more `n`s force two of the three vertices to coi
 coordinate square `00…, 10…, 11…, 01…` on the other side, `girth_foldedCube = 4`, and
 `cliqueNum_foldedCube = 2` and `¬IsAcyclic` fall out of it. For odd `n` the antipodal map reverses
 parity, so the graph stays bipartite; being connected and regular it then has a perfect matching,
-which gives `chromNum = 2` and `indepNum = matchNum = 2ⁿ⁻¹`.
+which gives `chromNum = 2` and `indepNum = matchNum = 2ⁿ⁻¹`. The metric entries came last and are
+the longest proof in the section: `diameter_foldedCube (n + 1) = (n + 2) / 2`. Upwards, a walk of
+Hamming length `d` gets you from `x` to `y`, and so does one antipodal step followed by `n - d`
+coordinate steps, so the distance is at most `min d (1 + (n - d))`, which never exceeds `⌈n/2⌉`.
+Downwards needs an actual pair at that distance, and a parity audit to certify it: every walk is
+recorded as a vector `fc : Fin n → ℕ` of per-coordinate flip counts together with a count `a` of
+antipodal steps, an induction on the walk shows `(fc i + a) % 2` is `1` exactly on the coordinates
+where the endpoints differ, and `length = Σ fc + a`. For `x = 000…` and `y = 11…100…` with `⌈n/2⌉`
+ones, an even `a` forces `⌈n/2⌉` odd flip counts and an odd `a` forces `n - ⌈n/2⌉` of them, and
+both bounds are at least `⌈n/2⌉`. The radius is then free, since the folded cube is
+vertex-transitive.
 
 ## Enumeration
 
