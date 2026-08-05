@@ -28994,6 +28994,66 @@ theorem coverNum_lt_coverNum_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
   rw [V_mycielskian] at h1
   omega
 
+/-- A forest has no odd cycle at all, so two colours always suffice. -/
+theorem isBipartite_of_isAcyclic {G : IsoGraph} (h : IsAcyclic G) : IsBipartite G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [IsoGraph.isAcyclic_mk] at h
+  rw [IsoGraph.isBipartite_mk, CGraph.isBipartite_iff_colorable]
+  exact h.isBipartite
+
+/-- The contrapositive: an odd cycle somewhere means a cycle somewhere. -/
+theorem not_isAcyclic_of_not_isBipartite {G : IsoGraph} (h : ¬ IsBipartite G) : ¬ IsAcyclic G :=
+  fun hac ↦ h (isBipartite_of_isAcyclic hac)
+
+/-- One edge of `G` is enough to put a five-cycle inside `μ G`. -/
+theorem not_isBipartite_mycielskian_of_E_pos (G : IsoGraph) (h : 0 < G.E) :
+    ¬ IsBipartite (mycielskian G) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [← mk_canonicalize g] at h ⊢
+  rw [E_mk] at h
+  obtain ⟨a, b, hab⟩ := CGraph.exists_adj_of_E_pos h
+  exact not_isBipartite_mycielskian_mk hab
+
+/-- An edge of `G` closes into a pentagon of `μ G`. -/
+theorem not_isAcyclic_mycielskian (G : IsoGraph) (h : 0 < G.E) :
+    ¬ IsAcyclic (mycielskian G) :=
+  not_isAcyclic_of_not_isBipartite (not_isBipartite_mycielskian_of_E_pos G h)
+
+/-- A triangle-free graph with a perfect matching has a Mycielskian whose clique cover number is
+one more than the original vertex count: the cover is by edges, and one vertex is left over. -/
+theorem cliqueCoverNum_mycielskian (G : IsoGraph) (hV : 0 < G.V) (hc : G.cliqueNum ≤ 2)
+    (hm : 2 * G.matchNum = G.V) : (mycielskian G).cliqueCoverNum = G.V + 1 := by
+  have hlb := V_le_cliqueCoverNum_mul_cliqueNum (mycielskian G)
+  rw [V_mycielskian, cliqueNum_mycielskian_eq_two hV hc] at hlb
+  have hub := cliqueCoverNum_le_V_sub_matchNum (mycielskian G)
+  rw [V_mycielskian, matchNum_mycielskian G hm] at hub
+  omega
+
+/-- The apex reaches every shadow and every shadow reaches its original. -/
+theorem numComponents_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) :
+    (mycielskian G).numComponents = 1 :=
+  (numComponents_eq_one_iff _).mpr (isConnected_mycielskian G h)
+
+/-- An edge in each factor gives a triangle in the strong product. -/
+theorem not_isAcyclic_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsAcyclic (G ⊠g H) :=
+  not_isAcyclic_of_not_isBipartite (not_isBipartite_strongProduct hG hH)
+
+/-- An edge in each factor gives a triangle in the lexicographic product. -/
+theorem not_isAcyclic_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsAcyclic (G ·g H) :=
+  not_isAcyclic_of_not_isBipartite (not_isBipartite_lexProduct hG hH)
+
+/-- A join with a non-bipartite factor keeps that factor's odd cycle. -/
+theorem not_isAcyclic_join_left {G H : IsoGraph} (hG : ¬ IsBipartite G) :
+    ¬ IsAcyclic (G ∇g H) :=
+  not_isAcyclic_of_not_isBipartite (not_isBipartite_join_left hG)
+
+/-- Three nonempty graphs joined together contain a triangle. -/
+theorem not_isAcyclic_join_join {G H K : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) (hK : 0 < K.V) :
+    ¬ IsAcyclic (G ∇g (H ∇g K)) :=
+  not_isAcyclic_of_not_isBipartite (not_isBipartite_join_join hG hH hK)
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -29137,15 +29197,8 @@ theorem matchNum_grotzsch : grotzsch.matchNum = 5 := by
   omega
 
 /-- Twenty edges on eleven vertices is far too many for a forest. -/
-theorem not_isAcyclic_grotzsch : ¬ IsAcyclic grotzsch := by
-  intro hac
-  have hibp : ∀ G : IsoGraph, G.IsAcyclic → G.IsBipartite := by
-    intro G hG
-    induction G using Quotient.inductionOn with | _ g =>
-    rw [IsoGraph.isAcyclic_mk] at hG
-    rw [IsoGraph.isBipartite_mk, CGraph.isBipartite_iff_colorable]
-    exact hG.isBipartite
-  exact not_isBipartite_grotzsch (hibp grotzsch hac)
+theorem not_isAcyclic_grotzsch : ¬ IsAcyclic grotzsch :=
+  not_isAcyclic_of_not_isBipartite not_isBipartite_grotzsch
 
 /-- The shadows have degree three and the apex degree five. -/
 theorem not_isVertexTransitive_grotzsch : ¬ IsVertexTransitive grotzsch :=

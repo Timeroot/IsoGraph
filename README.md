@@ -2189,6 +2189,27 @@ the Mycielskian construction always costs at least one extra cover vertex, which
 shadow of the fact that it always costs at least one extra colour. Both are three `have`s and an
 `omega`.
 
+Forests are bipartite, and that one implication turns a whole shelf of non-bipartiteness results
+into acyclicity results. `isBipartite_of_isAcyclic` is the implication — a forest has no cycle at
+all, so in particular no odd one — and `not_isAcyclic_of_not_isBipartite` is its contrapositive.
+That immediately gives `not_isAcyclic_strongProduct` and `not_isAcyclic_lexProduct` whenever both
+factors have an edge, `not_isAcyclic_join_left` whenever the left factor is not bipartite, and
+`not_isAcyclic_join_join` for any three nonempty graphs joined together. It also shortens
+`not_isAcyclic_grotzsch` to a single line. For the Mycielskian the same route needs one step
+first: `not_isBipartite_mycielskian_of_E_pos` promotes the existing edge-indexed statement to the
+edge-count hypothesis by pulling an edge out of `exists_adj_of_E_pos`, and then
+`not_isAcyclic_mycielskian` says that one edge of `G` is enough to put a cycle — in fact the
+pentagon `vₐ – v_b – uₐ – w – u_b – vₐ` — into `μ(G)`. `numComponents_mycielskian = 1` is the
+matching restatement of `isConnected_mycielskian`.
+
+The Mycielskian's clique cover number is exact whenever the input is triangle-free and has a
+perfect matching: `cliqueCoverNum_mycielskian : κ(μ(G)) = |V(G)| + 1`. Both bounds are one
+rewrite each. From above, `μ(G)` inherits the perfect matching as a matching of size `|V(G)|`
+(`matchNum_mycielskian`), and `cliqueCoverNum_le_V_sub_matchNum` turns that into
+`κ ≤ (2|V(G)| + 1) − |V(G)|`. From below, `μ(G)` is still triangle-free
+(`cliqueNum_mycielskian_eq_two`), so `V ≤ κ · ω` reads `2|V(G)| + 1 ≤ 2κ`, and an odd vertex count
+cannot be covered by `|V(G)|` edges. `cliqueCoverNum_grotzsch = 6` is the case `G = C₅`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
