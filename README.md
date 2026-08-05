@@ -2291,6 +2291,25 @@ balanced complete multipartite graphs with `m · d` odd give
 Paley graphs turn into `ten_le_coverNum_paley_thirteen` and
 `thirteen_le_coverNum_paley_seventeen` by `τ + α = |V|`.
 
+A fourth class-two family joins them, and this one needs a parity computation rather than a
+parity hypothesis. `L(Kₙ)` is `(2n − 4)`-regular on `C(n, 2)` vertices, so
+`maxDeg_lt_edgeChromNum_triangular` applies whenever that binomial coefficient is odd — which
+happens exactly when `n ≡ 2` or `3 (mod 4)`. `edgeChromNum_triangular_ge` evaluates the maximum
+degree to give `χ'(T(n + 4)) ≥ 2n + 5`, and the two smallest cases are
+`edgeChromNum_triangular_six_ge` (`T(6)` is `8`-regular on `15` vertices, so `χ' ≥ 9`) and
+`edgeChromNum_triangular_seven_ge` (`T(7)` is `10`-regular on `21`, so `χ' ≥ 11`). Alongside it
+`cliqueNum_le_maxDeg_add_one` records the composite `ω ≤ χ ≤ Δ + 1`, which had never been stated
+even though both halves were there.
+
+The `autCount` row had nothing in it beyond `complete` and `empty`, so the arc-transitivity
+proofs are now cashed in. `two_mul_E_le_autCount_of_isArcTransitive` says an arc-transitive graph
+has at least `2E` automorphisms — one for each image of a fixed arc — and every arc-transitive
+family in the library gets its entry: `thirty_le_autCount_petersen`,
+`two_mul_le_autCount_cycle`, `mul_two_pow_le_autCount_hypercube` (`|Aut(Qₙ)| ≥ n · 2ⁿ`, against
+the true `2ⁿ · n!`), `le_autCount_kneser` and `le_autCount_bipartite_self`. These are lower
+bounds, not values, but they are the first non-trivial ones in the table, and they are exactly the
+inequality that `not_isArcTransitive_of_autCount_lt` reads backwards.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

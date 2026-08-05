@@ -29188,6 +29188,10 @@ theorem radius_compl_le_two {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E)
   rw [diameter_compl h hE] at h1
   exact h1
 
+/-- Greedy colouring bounds the clique number too, since `ω ≤ χ ≤ Δ + 1`. -/
+theorem cliqueNum_le_maxDeg_add_one (G : IsoGraph) : G.cliqueNum ≤ maxDeg G + 1 :=
+  le_trans (cliqueNum_le_chromNum G) (chromNum_le_maxDeg_add_one G)
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -34051,6 +34055,75 @@ theorem thirteen_le_coverNum_paley_seventeen : 13 ≤ (paley 17).coverNum := by
   have h2 := indepNum_paley_seventeen_le
   rw [V_paley] at h
   omega
+
+/-- **Triangular graphs of odd order are class two.**  `L(Kₙ)` is `(2n - 4)`-regular on
+`C(n, 2)` vertices, so an odd binomial coefficient forces an extra edge colour. -/
+theorem maxDeg_lt_edgeChromNum_triangular {n : ℕ} (hn : 3 ≤ n) (hodd : n.choose 2 % 2 = 1) :
+    maxDeg (triangular n) < (triangular n).edgeChromNum := by
+  refine maxDeg_lt_edgeChromNum_of_isRegularWith_odd (isRegularWith_triangular n) (by omega) ?_
+  rw [V_triangular]
+  exact hodd
+
+/-- The same bound with the maximum degree evaluated. -/
+theorem edgeChromNum_triangular_ge (n : ℕ) (hodd : (n + 4).choose 2 % 2 = 1) :
+    2 * n + 5 ≤ (triangular (n + 4)).edgeChromNum := by
+  have h := maxDeg_lt_edgeChromNum_triangular (n := n + 4) (by omega) hodd
+  have hd : maxDeg (triangular (n + 4)) = 2 * n + 4 := by
+    have hr := maxDeg_triangular (n + 2)
+    rw [show n + 2 + 2 = n + 4 by ring] at hr
+    omega
+  omega
+
+/-- `T(6)` is `8`-regular on `15` vertices. -/
+theorem edgeChromNum_triangular_six_ge : 9 ≤ (triangular 6).edgeChromNum := by
+  have h := edgeChromNum_triangular_ge 2 (by decide)
+  norm_num at h
+  exact h
+
+/-- `T(7)` is `10`-regular on `21` vertices. -/
+theorem edgeChromNum_triangular_seven_ge : 11 ≤ (triangular 7).edgeChromNum := by
+  have h := edgeChromNum_triangular_ge 3 (by decide)
+  norm_num at h
+  exact h
+
+/-! ### Lower bounds on automorphism counts
+
+An arc-transitive graph has an automorphism carrying any arc to any other, so its automorphism
+group is at least as large as its arc count `2E`.  These are the first entries in the
+`autCount` row for anything other than `complete` and `empty`.
+-/
+
+/-- The Petersen graph is arc-transitive with `15` edges. -/
+theorem thirty_le_autCount_petersen : 30 ≤ petersen.autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive petersen isArcTransitive_petersen
+  rw [E_petersen] at h
+  omega
+
+/-- The cycle is arc-transitive with `n` edges; its automorphism group is in fact exactly the
+dihedral group of that order. -/
+theorem two_mul_le_autCount_cycle (n : ℕ) : 2 * (n + 3) ≤ (cycle (n + 3)).autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_cycle (n + 3))
+  rw [E_cycle] at h
+  omega
+
+/-- The hypercube is arc-transitive with `n · 2ⁿ⁻¹` edges. -/
+theorem mul_two_pow_le_autCount_hypercube (n : ℕ) : n * 2 ^ n ≤ (hypercube n).autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_hypercube n)
+  rw [E_hypercube] at h
+  exact h
+
+/-- Kneser graphs are arc-transitive, so `|Aut|` is at least the number of arcs. -/
+theorem le_autCount_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
+    n.choose k * (n - k).choose k ≤ (kneser n k).autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_kneser n k)
+  rw [two_mul_E_kneser n hk] at h
+  exact h
+
+/-- `K_{n,n}` is arc-transitive with `n²` edges. -/
+theorem le_autCount_bipartite_self (n : ℕ) : 2 * (n * n) ≤ (bipartite n n).autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_bipartite_self n)
+  rw [E_bipartite] at h
+  exact h
 
 /-! ### The folded cube
 
