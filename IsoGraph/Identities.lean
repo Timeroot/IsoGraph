@@ -26505,4 +26505,42 @@ theorem crown_four : crown 4 = hypercube 3 := by
         (Fin 4 × Fin 2) ≃ (Fin 4 × Fin 2))
     (by decide)⟩
 
+/-! ### The Grötzsch graph
+
+The Mycielskian of the pentagon: eleven vertices, twenty edges, no triangle, and four colours
+needed.  It is the smallest triangle-free graph with chromatic number four, so it is the first
+interesting output of `exists_cliqueNum_le_two_and_le_chromNum`. -/
+
+/-- The **Grötzsch graph**, the Mycielskian of the pentagon. -/
+abbrev grotzsch : IsoGraph := mycielskian (cycle 5)
+
+@[simp] theorem V_grotzsch : grotzsch.V = 11 := by
+  rw [grotzsch, V_mycielskian, V_cycle]
+
+@[simp] theorem E_grotzsch : grotzsch.E = 20 := by
+  rw [grotzsch, E_mycielskian, E_cycle, V_cycle]
+
+/-- **Grötzsch's graph needs four colours**: the pentagon needs three and the Mycielskian adds
+one. -/
+@[simp] theorem chromNum_grotzsch : grotzsch.chromNum = 4 := by
+  rw [grotzsch, chromNum_mycielskian, show (5 : ℕ) = 2 * 1 + 3 from rfl, chromNum_cycle_odd]
+
+/-- **Grötzsch's graph is triangle free**: the Mycielskian never creates a triangle out of a
+pentagon. -/
+@[simp] theorem cliqueNum_grotzsch : grotzsch.cliqueNum = 2 := by
+  refine cliqueNum_mycielskian_eq_two ?_ ?_
+  · rw [V_cycle]; omega
+  · rw [show (5 : ℕ) = 1 + 4 from rfl, cliqueNum_cycle]
+
+@[simp] theorem not_isBipartite_grotzsch : ¬ IsBipartite grotzsch := by
+  rw [isBipartite_iff_chromNum_le_two, chromNum_grotzsch]
+  omega
+
+/-- The Grötzsch graph is not the Petersen graph: they have different orders. -/
+theorem grotzsch_ne_petersen : grotzsch ≠ petersen := by
+  intro h
+  have := congrArg IsoGraph.V h
+  rw [V_grotzsch, V_petersen] at this
+  omega
+
 end IsoGraph

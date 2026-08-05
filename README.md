@@ -1925,6 +1925,11 @@ sides are `K4` times `K2`, but with different products — the crown is the tens
 cube is the four-rung prism — so the identity is an explicit vertex bijection checked by `decide`,
 built by matching each vertex to the one non-neighbour it has on the other side.
 
+The Grötzsch graph now has a name of its own. It is the Mycielskian of the pentagon, so its order,
+size, chromatic number and clique number all fall out of the general Mycielskian lemmas: eleven
+vertices, twenty edges, four colours, no triangle. That makes it the smallest witness to
+`exists_cliqueNum_le_two_and_le_chromNum` beyond the pentagon itself.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
