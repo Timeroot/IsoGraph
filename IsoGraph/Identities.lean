@@ -29130,6 +29130,64 @@ theorem coverNum_prism_odd (m : ℕ) : (prism (2 * m + 3)).coverNum = 2 * m + 4 
   rw [V_prism] at h2
   omega
 
+/-- A triangle is a cycle, so a graph with a large clique cannot be a forest. -/
+theorem not_isAcyclic_of_three_le_cliqueNum {G : IsoGraph} (h : 3 ≤ G.cliqueNum) :
+    ¬ IsAcyclic G :=
+  not_isAcyclic_of_girth_pos (by rw [girth_eq_three_of_cliqueNum h]; omega)
+
+/-- A triangle-free graph that is not a forest has a shortest cycle of length at least four. -/
+theorem four_le_girth_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 2)
+    (h : ¬ IsAcyclic G) : 4 ≤ G.girth := by
+  have h3 := three_le_girth h
+  have h4 : G.girth ≠ 3 := fun he ↦ by have := girth_eq_three_iff.1 he; omega
+  omega
+
+/-- The Mycielskian of a triangle-free graph with an edge is triangle-free and has a cycle, so
+its girth is at least four. -/
+theorem four_le_girth_mycielskian (G : IsoGraph) (hc : G.cliqueNum ≤ 2) (hE : 0 < G.E) :
+    4 ≤ (mycielskian G).girth := by
+  have hV : 0 < G.V := by have := indepNum_lt_V_of_E_pos G hE; omega
+  exact four_le_girth_of_cliqueNum_le_two (cliqueNum_mycielskian_eq_two hV hc).le
+    (not_isAcyclic_mycielskian G hE)
+
+/-- Two edges, one from each factor, span a four-cycle in the Cartesian product; if a factor has
+a triangle the product inherits it. -/
+theorem not_isAcyclic_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsAcyclic (G □g H) := by
+  have hVG : 0 < G.V := by have := indepNum_lt_V_of_E_pos G hG; omega
+  have hVH : 0 < H.V := by have := indepNum_lt_V_of_E_pos H hH; omega
+  rcases Nat.lt_or_ge G.cliqueNum 3 with h1 | h1
+  · rcases Nat.lt_or_ge H.cliqueNum 3 with h2 | h2
+    · exact not_isAcyclic_of_girth_pos
+        (by rw [girth_cartesianProduct_of_cliqueNum_le_two hG hH (by omega) (by omega)]; omega)
+    · exact not_isAcyclic_of_three_le_cliqueNum
+        (by rw [cliqueNum_cartesianProduct hVG hVH]; omega)
+  · exact not_isAcyclic_of_three_le_cliqueNum
+      (by rw [cliqueNum_cartesianProduct hVG hVH]; omega)
+
+/-- A triangle in each factor gives a triangle in the tensor product. -/
+theorem girth_tensorProduct {G H : IsoGraph} (hG : 3 ≤ G.cliqueNum) (hH : 3 ≤ H.cliqueNum) :
+    (G ⊗g H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_tensorProduct]
+  omega
+
+theorem not_isAcyclic_tensorProduct {G H : IsoGraph} (hG : 3 ≤ G.cliqueNum)
+    (hH : 3 ≤ H.cliqueNum) : ¬ IsAcyclic (G ⊗g H) :=
+  not_isAcyclic_of_girth_pos (by rw [girth_tensorProduct hG hH]; omega)
+
+/-- The tensor product of two connected graphs, one of them non-bipartite, is connected. -/
+theorem numComponents_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H)
+    (hb : ¬ IsBipartite G) (hE : 0 < H.E) : (G ⊗g H).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct hG hH hb hE)
+
+/-- The complement of a disconnected graph has diameter two, hence radius at most two. -/
+theorem radius_compl_le_two {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
+    Gᶜ.radius ≤ 2 := by
+  have h1 := radius_le_diameter Gᶜ
+  rw [diameter_compl h hE] at h1
+  exact h1
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -33907,6 +33965,92 @@ theorem chromNum_thetaGraph_odd {xs : List ℕ} (hne : xs ≠ []) (h : ∀ k ∈
 theorem chromNum_thetaGraph_even {xs : List ℕ} (hne : xs ≠ []) (h0 : ∀ k ∈ xs, 0 < k)
     (h : ∀ k ∈ xs, k % 2 = 0) : (thetaGraph xs).chromNum = 2 :=
   chromNum_thetaGraph_of_parity 1 hne h0 (fun k hk ↦ by have := h k hk; omega)
+
+/-- A spider is a tree, so it has no cycle. -/
+@[simp] theorem isAcyclic_spider (legs : List ℕ) : IsAcyclic (spider legs) :=
+  ((isTree_iff_isConnected_and_isAcyclic _).1 (isTree_spider legs)).2
+
+/-- A double star is a tree, so it has no cycle. -/
+@[simp] theorem isAcyclic_doubleStar (m n : ℕ) : IsAcyclic (doubleStar m n) :=
+  ((isTree_iff_isConnected_and_isAcyclic _).1 (isTree_doubleStar m n)).2
+
+/-- Covering the triangular graph by cliques is colouring the Kneser graph on the same pairs. -/
+theorem cliqueCoverNum_triangular (n : ℕ) :
+    (triangular n).cliqueCoverNum = (kneser n 2).chromNum := by
+  rw [cliqueCoverNum_eq, compl_triangular]
+
+/-- Lovász' bound for `K(n, 2)` transported through the complement. -/
+theorem cliqueCoverNum_triangular_le (n : ℕ) :
+    (triangular (n + 4)).cliqueCoverNum ≤ n + 2 := by
+  have h := chromNum_kneser_le (n + 4) 2 (by norm_num)
+  rw [cliqueCoverNum_triangular]
+  omega
+
+/-- `L(K₅)` is covered by three cliques, since its complement is the Petersen graph. -/
+theorem cliqueCoverNum_triangular_five : (triangular 5).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_eq, ← compl_petersen, compl_compl, chromNum_petersen]
+
+/-- The complement of a lexicographic product is the lexicographic product of the complements,
+so a clique cover splits the same way a colouring does. -/
+theorem cliqueCoverNum_lexProduct_le (G H : IsoGraph) :
+    (G ·g H).cliqueCoverNum ≤ G.cliqueCoverNum * H.cliqueCoverNum := by
+  simp only [cliqueCoverNum_eq, compl_lexProduct]
+  exact chromNum_lexProduct_le _ _
+
+/-- **Paley graphs are class two.**  They are regular of odd order, so `Δ` colours leave an edge
+uncoloured. -/
+theorem maxDeg_lt_edgeChromNum_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (h5 : 5 ≤ q) : maxDeg (paley q) < (paley q).edgeChromNum := by
+  refine maxDeg_lt_edgeChromNum_of_isRegularWith_odd (isRegularWith_paley q hq) (by omega) ?_
+  rw [V_paley]
+  omega
+
+/-- Spelling the previous bound out: `χ'(Paley q) ≥ (q + 1) / 2`. -/
+theorem edgeChromNum_paley_ge (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (h5 : 5 ≤ q) :
+    (q + 1) / 2 ≤ (paley q).edgeChromNum := by
+  have h := maxDeg_lt_edgeChromNum_paley q hq h5
+  rw [maxDeg_paley q hq] at h
+  omega
+
+/-- **Rook graphs of odd order are class two.**  `R(2m+3, 2n+3)` is regular on an odd number of
+vertices. -/
+theorem edgeChromNum_rook_odd_ge (m n : ℕ) :
+    2 * m + 2 * n + 5 ≤ (rook (2 * m + 3) (2 * n + 3)).edgeChromNum := by
+  have hodd : (rook (2 * m + 3) (2 * n + 3)).V % 2 = 1 := by
+    rw [V_rook, Nat.mul_mod, show (2 * m + 3) % 2 = 1 by omega, show (2 * n + 3) % 2 = 1 by omega]
+  have h := maxDeg_lt_edgeChromNum_of_isRegularWith_odd
+    (isRegularWith_rook (2 * m + 3) (2 * n + 3)) (by omega) hodd
+  have hd : maxDeg (rook (2 * m + 3) (2 * n + 3)) = 2 * m + 2 * n + 4 := by
+    have hr := maxDeg_rook (2 * m + 2) (2 * n + 2)
+    rw [show 2 * m + 2 + 1 = 2 * m + 3 by ring, show 2 * n + 2 + 1 = 2 * n + 3 by ring] at hr
+    omega
+  rw [hd] at h
+  omega
+
+/-- **Balanced complete multipartite graphs of odd order are class two.** -/
+theorem edgeChromNum_completeMultipartite_replicate_ge {m d : ℕ} (hm : 2 ≤ m) (hd : 0 < d)
+    (hodd : m * d % 2 = 1) :
+    (m - 1) * d + 1 ≤ (completeMultipartite (List.replicate m d)).edgeChromNum := by
+  have h := maxDeg_lt_edgeChromNum_of_isRegularWith_odd
+    (isRegularWith_completeMultipartite_replicate m d)
+    (Nat.mul_pos (by omega) hd)
+    (by rw [V_completeMultipartite_replicate]; exact hodd)
+  rw [maxDeg_completeMultipartite_replicate (by omega) hd] at h
+  omega
+
+/-- `α(Paley 13) ≤ 3` leaves at least ten vertices for the cover. -/
+theorem ten_le_coverNum_paley_thirteen : 10 ≤ (paley 13).coverNum := by
+  have h := coverNum_add_indepNum (paley 13)
+  have h2 := indepNum_paley_thirteen_le
+  rw [V_paley] at h
+  omega
+
+/-- `α(Paley 17) ≤ 4` leaves at least thirteen vertices for the cover. -/
+theorem thirteen_le_coverNum_paley_seventeen : 13 ≤ (paley 17).coverNum := by
+  have h := coverNum_add_indepNum (paley 17)
+  have h2 := indepNum_paley_seventeen_le
+  rw [V_paley] at h
+  omega
 
 /-! ### The folded cube
 

@@ -2249,6 +2249,48 @@ Three small holes in the older rows are filled too. `maxDeg_bipartite (m + 1) (n
 together with `maxDeg_join` and `minDeg_join` — the `_self` special cases were all that existed.
 And `E_foldedCube (n + 2) = 2ⁿ⁺¹(n + 3)` is `two_mul_E_foldedCube` divided by two.
 
+Cycles now propagate through the products. `not_isAcyclic_of_three_le_cliqueNum` is the
+contrapositive of `cliqueNum_le_two_of_isAcyclic` and does most of the work:
+`not_isAcyclic_cartesianProduct` splits on whether either factor has a triangle — if one does,
+`cliqueNum_cartesianProduct = max ω(G) ω(H)` carries it into the product, and if neither does,
+`girth_cartesianProduct_of_cliqueNum_le_two` produces the four-cycle spanned by one edge from each
+side. The tensor product needs triangles in *both* factors, since `ω(G ⊗ H) = min ω(G) ω(H)`, so
+`girth_tensorProduct = 3` and `not_isAcyclic_tensorProduct` both ask for that.
+`numComponents_tensorProduct = 1` is `isConnected_tensorProduct` read through
+`numComponents_eq_one_of_isConnected`, and it is the first entry in the tensor product's
+connectivity row. Two trees fill in their own missing cells: `isAcyclic_spider` and
+`isAcyclic_doubleStar` are the acyclic halves of `isTree_spider` and `isTree_doubleStar`.
+
+Between three and four there is nothing, so `four_le_girth_of_cliqueNum_le_two` says a
+triangle-free graph that is not a forest has girth at least four — `three_le_girth` rules out
+`0`, `1` and `2`, and `girth_eq_three_iff` rules out `3`. Applied to the Mycielskian, whose clique
+number is exactly `2` on any triangle-free graph and which is never a forest once there is an
+edge, this gives `four_le_girth_mycielskian`, the first entry in that row.
+`radius_compl_le_two` is `diameter_compl = 2` composed with `rad ≤ diam`: the complement of a
+disconnected graph with an edge has every vertex within two steps of every other, so some vertex
+is within two steps of all of them.
+
+The clique cover row picks up the triangular graphs. `cliqueCoverNum_triangular` is just
+`compl_triangular` fed through `κ(G) = χ(Gᶜ)`: covering `L(Kₙ)` by cliques is colouring the Kneser
+graph `K(n, 2)`. Lovász' bound then gives `cliqueCoverNum_triangular_le : κ(L(K_{n+4})) ≤ n + 2`,
+and the smallest case is exact — `cliqueCoverNum_triangular_five = 3`, because `L(K₅)ᶜ` is the
+Petersen graph and `χ(Petersen) = 3`. `cliqueCoverNum_lexProduct_le` is the same trick on the
+other side: `compl_lexProduct` says the complement of a lexicographic product is the lexicographic
+product of the complements, so `chromNum_lexProduct_le` transports verbatim into
+`κ(G · H) ≤ κ(G) · κ(H)`.
+
+Three families are shown to be **class two**, that is, to need `Δ + 1` edge colours rather than
+`Δ`. The general reason is `maxDeg_lt_edgeChromNum_of_isRegularWith_odd`: a regular graph on an
+odd number of vertices has no perfect matching, so `Δ` colour classes cannot cover all `E` edges.
+Paley graphs are regular on `q` vertices with `q` odd, giving `maxDeg_lt_edgeChromNum_paley` and
+the explicit `edgeChromNum_paley_ge : χ'(Paley q) ≥ (q + 1) / 2`. Rook graphs with both sides odd
+have `(2m + 3)(2n + 3)` vertices, giving `edgeChromNum_rook_odd_ge : χ' ≥ 2m + 2n + 5`. And
+balanced complete multipartite graphs with `m · d` odd give
+`edgeChromNum_completeMultipartite_replicate_ge : χ' ≥ (m − 1)d + 1`. These are the first
+`edgeChromNum` entries for all three families. Finally, `α ≤ 3` and `α ≤ 4` for the two small
+Paley graphs turn into `ten_le_coverNum_paley_thirteen` and
+`thirteen_le_coverNum_paley_seventeen` by `τ + α = |V|`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
