@@ -28978,6 +28978,22 @@ theorem radius_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) : (mycielskian G).r
     omega
   exact hr_eq
 
+/-- The `|V(G)|` shadows are an independent set, so the complementary cover is small. -/
+theorem coverNum_mycielskian_le (G : IsoGraph) : (mycielskian G).coverNum ≤ G.V + 1 := by
+  have h1 := coverNum_add_indepNum (mycielskian G)
+  have h2 := V_le_indepNum_mycielskian G
+  rw [V_mycielskian] at h1
+  omega
+
+/-- Covering `μ G` costs at least one more than covering `G`. -/
+theorem coverNum_lt_coverNum_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
+    G.coverNum + 1 ≤ (mycielskian G).coverNum := by
+  have h1 := coverNum_add_indepNum (mycielskian G)
+  have h2 := coverNum_add_indepNum G
+  have h3 := indepNum_mycielskian_le G hV
+  rw [V_mycielskian] at h1
+  omega
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -33746,6 +33762,40 @@ theorem radius_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).radius = 2 
     apply ENat.toNat_le_of_le_coe
     exact le_trans (SimpleGraph.radius_le_eccent (u := v0)) hecc0
   exact le_antisymm hup hlow
+
+/-- A cycle with a tail has as many edges as vertices, so it cannot be a tree. -/
+theorem not_isAcyclic_tadpole (m k : ℕ) : ¬ IsAcyclic (tadpole (m + 3) k) := by
+  intro hac
+  have htree : IsTree (tadpole (m + 3) k) :=
+    (isTree_iff_isConnected_and_isAcyclic _).mpr ⟨isConnected_tadpole m k, hac⟩
+  have := (isTree_iff _).mp htree
+  rw [E_tadpole, V_tadpole] at this
+  omega
+
+/-- A clique on three or more vertices already has more edges than a tree may. -/
+theorem not_isAcyclic_lollipop (m k : ℕ) : ¬ IsAcyclic (lollipop (m + 3) k) := by
+  intro hac
+  have htree : IsTree (lollipop (m + 3) k) :=
+    (isTree_iff_isConnected_and_isAcyclic _).mpr ⟨isConnected_lollipop (m + 2) k, hac⟩
+  have h := ((isTree_iff _).mp htree).2
+  have hE : (lollipop (m + 3) k).E = (m + 3).choose 2 + k := E_lollipop (m + 2) k
+  have hch : m + 3 ≤ (m + 3).choose 2 := by
+    have hc : (m + 3).choose 2 = (m + 3) * (m + 2) / 2 := by
+      rw [Nat.choose_two_right]; simp
+    rw [hc, Nat.le_div_iff_mul_le (by omega)]
+    nlinarith
+  rw [hE, V_lollipop] at h
+  omega
+
+/-- Hanging pendants off a cycle leaves the edge and vertex counts equal. -/
+theorem not_isAcyclic_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
+    ¬ IsAcyclic (cyclePendant (m + 3) ks) := by
+  intro hac
+  have htree : IsTree (cyclePendant (m + 3) ks) :=
+    (isTree_iff_isConnected_and_isAcyclic _).mpr ⟨isConnected_cyclePendant m ks h, hac⟩
+  have h2 := (isTree_iff _).mp htree
+  rw [E_cyclePendant m ks h, V_cyclePendant] at h2
+  omega
 
 /-! ### The folded cube
 

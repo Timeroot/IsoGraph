@@ -2144,6 +2144,17 @@ an explicit walk in each of the four cases for the upper bound and the two speci
 and `m + 3` for the lower one, and `radius_doubleStar = 2` follows because a centre reaches
 everything in two steps and nothing dominates.
 
+Three of the families are provably *not* trees, and all three go the same way: assume acyclicity,
+combine it with the connectivity lemma to get `IsTree`, and then read `|E| = |V| - 1` off
+`isTree_iff` and contradict the edge count. `not_isAcyclic_tadpole (m + 3) k` and
+`not_isAcyclic_cyclePendant (m + 3) ks` both have `|E| = |V|` exactly — a cycle with things hanging
+off it has one edge too many — so `omega` closes them immediately. `not_isAcyclic_lollipop
+(m + 3) k` has more room than that, `binom(m + 3, 2) + k` edges against `m + 3 + k` vertices, and
+the arithmetic step is showing `m + 3 ≤ binom(m + 3, 2)`, which is `Nat.choose_two_right` followed
+by `Nat.le_div_iff_mul_le` and one `nlinarith`. The `m + 3` floor is real in each case: the
+`K₂`-with-a-tail and the `2`-cycle degenerate away, and a lollipop on two clique vertices is a
+path.
+
 Two theta-graph conjectures were refuted along the way, and for the same reason. A path with no
 internal vertices *is* the edge `0 – 1`, so `thetaGraph [0, 0]` is not a theta graph at all — the
 two paths collapse onto each other and it is `K₂`, which is a tree. That kills
@@ -2168,6 +2179,15 @@ shadow of one of its neighbours — so its eccentricity is exactly `2`, and the 
 `2`. It is not `1`, because no vertex of `μ(G)` is adjacent to all the others: the apex misses the
 originals, an original misses the apex, and a shadow misses the other shadows. That is
 `radius_eq_one_iff_domNum_eq_one` read backwards.
+
+The independence bracket transfers straight to vertex covers through
+`coverNum_add_indepNum` (`τ + α = |V|`). Reading `V_le_indepNum_mycielskian` through it gives
+`coverNum_mycielskian_le : τ(μ(G)) ≤ |V(G)| + 1`, since `μ(G)` has `2|V(G)| + 1` vertices and at
+least `|V(G)|` of them can be left out of the cover. Reading `indepNum_mycielskian_le` through it
+the other way gives `coverNum_lt_coverNum_mycielskian : τ(G) + 1 ≤ τ(μ(G))` for nonempty `G` —
+the Mycielskian construction always costs at least one extra cover vertex, which is the covering
+shadow of the fact that it always costs at least one extra colour. Both are three `have`s and an
+`omega`.
 
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
