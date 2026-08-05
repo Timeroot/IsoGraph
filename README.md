@@ -1930,6 +1930,11 @@ size, chromatic number and clique number all fall out of the general Mycielskian
 vertices, twenty edges, four colours, no triangle. That makes it the smallest witness to
 `exists_cliqueNum_le_two_and_le_chromNum` beyond the pentagon itself.
 
+Two Möbius ladders join the small-graph identities: `circulant (2m) [1, m]` is a `2m`-cycle with
+all `m` diameters added, and for `m = 2` and `m = 3` that is `K4` and `K(3,3)` respectively. The
+second is the reason every odd difference on six points is `1`, `3` or `5`, so the parity classes
+of the hexagon become the two sides of a complete bipartite graph.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

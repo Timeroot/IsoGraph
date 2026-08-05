@@ -26543,4 +26543,30 @@ theorem grotzsch_ne_petersen : grotzsch ≠ petersen := by
   rw [V_grotzsch, V_petersen] at this
   omega
 
+/-! ### Möbius ladders
+
+`circulant (2 * m) [1, m]` is the Möbius ladder: a `2m`-cycle with every pair of opposite
+vertices joined.  The two smallest ones are graphs we already know. -/
+
+/-- The two-rung Möbius ladder is `K₄`: the square plus both diagonals. -/
+theorem circulant_four_one_two : circulant 4 [1, 2] = complete 4 := by
+  rw [circulant_def, complete_def]
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.circulant 4 [1, 2]) (H := CGraph.complete 4) (Equiv.refl (Fin 4)) (by decide)⟩
+
+/-- The three-rung Möbius ladder is `K_{3,3}`: the hexagon's odd differences are exactly `1`,
+`3` and `5`, so every even vertex meets every odd one. -/
+theorem circulant_six_one_three : circulant 6 [1, 3] = bipartite 3 3 := by
+  rw [circulant_def, bipartite_def]
+  exact Quotient.sound ⟨CGraph.isoOfAdj
+    (G := CGraph.circulant 6 [1, 3]) (H := CGraph.bipartite 3 3)
+    (⟨![.inl 0, .inr 0, .inl 1, .inr 1, .inl 2, .inr 2],
+      Sum.elim ![0, 2, 4] ![1, 3, 5], by decide, by decide⟩ : Fin 6 ≃ (Fin 3 ⊕ Fin 3))
+    (by decide)⟩
+
+/-- The three-rung Möbius ladder is bipartite, unlike every other one. -/
+@[simp] theorem isBipartite_circulant_six_one_three : IsBipartite (circulant 6 [1, 3]) := by
+  rw [circulant_six_one_three]
+  exact isBipartite_bipartite 3 3
+
 end IsoGraph
