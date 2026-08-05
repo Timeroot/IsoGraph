@@ -28703,6 +28703,164 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
     exact hle
   exact le_antisymm upper lower
 
+/-! ### The rest of the Grötzsch row
+
+These need the general Mycielskian invariants proved above, so they sit here rather than
+with the other Grötzsch facts. -/
+
+/-- The apex has degree `5`, the pentagon vertices `2 · 2 = 4`, the shadows `2 + 1 = 3`. -/
+theorem degMultiset_grotzsch :
+    grotzsch.degMultiset
+      = Multiset.replicate 5 4 + Multiset.replicate 5 3 + {5} := by
+    unfold grotzsch
+    rw [degMultiset_mycielskian, degMultiset_cycle (n := 2)]
+    simp [V_cycle]
+
+/-- The shadows are the vertices of least degree. -/
+theorem minDeg_grotzsch : grotzsch.minDeg = 3 := by
+  refine minDeg_eq_of_degMultiset ?_ ?_
+  · rw [degMultiset_grotzsch]; simp
+  · intro d hd
+    rw [degMultiset_grotzsch] at hd
+    simp (config := { decide := true }) only [Multiset.mem_add, Multiset.mem_replicate,
+        Multiset.mem_singleton] at hd
+    rcases hd with ⟨_, rfl⟩ | ⟨_, rfl⟩ | ⟨_, rfl⟩ <;> omega
+
+/-- The apex is the vertex of greatest degree. -/
+theorem maxDeg_grotzsch : maxDeg grotzsch = 5 := by
+  rw [grotzsch, maxDeg_mycielskian, maxDeg_cycle, V_cycle]
+  decide
+
+/-- The Mycielskian of a graph with no isolated vertex is connected. -/
+theorem isConnected_grotzsch : IsConnected grotzsch := by
+  rw [grotzsch]
+  apply isConnected_mycielskian
+  rw [minDeg_cycle 2]
+  norm_num
+
+theorem numComponents_grotzsch : grotzsch.numComponents = 1 := (numComponents_eq_one_iff
+    grotzsch).2 isConnected_grotzsch
+
+/-- `γ(C₅) = 2` and the Mycielskian adds exactly one. -/
+theorem domNum_grotzsch : grotzsch.domNum = 3 := by
+  rw [show grotzsch = mycielskian (cycle 5) from rfl]
+  rw [domNum_mycielskian (cycle 5) (by simp)]
+  rw [show (5 : ℕ) = 2 + 3 from rfl]
+  rw [domNum_cycle 2]
+
+/-- No vertex sees all ten others, but every pair is joined by a path of length two. -/
+theorem diameter_grotzsch : grotzsch.diameter = 2 := by
+  rw [grotzsch, show cycle 5 = (⟦CGraph.cycle 5⟧ : IsoGraph) from rfl, IsoGraph.mycielskian_mk,
+      IsoGraph.diameter_mk]
+  exact @CGraph.diameter_eq_two (CGraph.mycielskian (CGraph.cycle 5)) (by decide) none (some
+      (Sum.inl (0 : Fin 5))) (by decide) (by decide)
+
+theorem radius_grotzsch : grotzsch.radius = 2 := by
+  set G : CGraph := CGraph.mycielskian (CGraph.cycle 5)
+  have hgrotzsch : grotzsch = Quotient.mk _ G := by
+    rw [grotzsch, cycle_def, mycielskian_mk]
+  -- Transfer IsoGraph facts to CGraph level
+  have hG_maxDeg : G.maxDeg = 5 := by
+    rw [← maxDeg_grotzsch, hgrotzsch, maxDeg_mk]
+  have hG_V : Fintype.card G.V = 11 := by
+    rw [← V_grotzsch, hgrotzsch, V_mk]
+  -- No universal vertex in G (degree ≤ 5 < 10)
+  have hno_univ_G : ¬ ∃ v : G.V, ∀ u : G.V, u ≠ v → G.Adj v u := by
+    decide
+  -- Radius of G (CGraph) is 2
+  have hG_connected : G.IsConnected := by
+    have := isConnected_grotzsch
+    rw [hgrotzsch, IsoGraph.isConnected_mk] at this
+    exact this
+  have h_radius_G : G.radius = 2 := by
+    -- Two-step property for G
+    have h_two_step_G : ∀ u v : G.V, u ≠ v →
+        G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v := by
+      decide
+    -- diameter ≤ 2
+    have hdiam_G : G.diameter ≤ 2 := CGraph.diameter_le_two G h_two_step_G
+    -- radius ≤ diameter ≤ 2
+    have hrad_le_G : G.radius ≤ 2 := le_trans (CGraph.radius_le_diameter G) hdiam_G
+    -- radius ≠ 1: no universal vertex → domNum ≠ 1 → radius ≠ 1
+    have hdom_ne_one_G : G.domNum ≠ 1 := by
+      intro h
+      rw [CGraph.domNum_eq_one_iff G] at h
+      exact hno_univ_G h
+    have hpos_G : 0 < G.radius := CGraph.radius_pos G hG_connected (by omega : 1 < Fintype.card G.V)
+    have hne1_G : G.radius ≠ 1 := by
+      intro h
+      rw [CGraph.radius_eq_one_iff_domNum_eq_one G (by omega : 1 < Fintype.card G.V)] at h
+      exact hdom_ne_one_G h
+    omega
+  rw [hgrotzsch, IsoGraph.radius_mk, h_radius_G]
+
+/-- The Mycielskian creates no triangle out of a pentagon, but `vᵢ uⱼ vₖ uₗ` closes up. -/
+theorem girth_grotzsch : grotzsch.girth = 4 := by
+  rw [show grotzsch = mycielskian (cycle 5) from rfl]
+  simp only [cycle, mycielskian_mk]
+  rw [girth_mk]
+  let G := CGraph.cycle 5
+  set M := G.mycielskian
+  let a : M.V := some (Sum.inl (0 : Fin 5))
+  let b : M.V := some (Sum.inr (1 : Fin 5))
+  let c : M.V := (none : Option (Fin 5 ⊕ Fin 5))
+  let d : M.V := some (Sum.inr (4 : Fin 5))
+  have hab : M.Adj a b := by decide
+  have hbc : M.Adj b c := by decide
+  have hcd : M.Adj c d := by decide
+  have hda : M.Adj d a := by decide
+  have hac : a ≠ c := by decide
+  have hbd : b ≠ d := by decide
+  have hle : M.girth ≤ 4 := CGraph.girth_le_four_of_square hab hbc hcd hda hac hbd
+  have hnac : ¬ M.IsAcyclic := CGraph.not_isAcyclic_of_square hab hbc hcd hda hac hbd
+  have htri : ∀ x y z : M.V, M.Adj x y → M.Adj y z → M.Adj z x → False := by
+    decide
+  exact le_antisymm hle (CGraph.four_le_girth htri hnac)
+
+/-- Eleven vertices admit a matching missing only one of them. -/
+theorem matchNum_grotzsch : grotzsch.matchNum = 5 := by
+  have hub : grotzsch.matchNum ≤ 5 := by
+    have h := grotzsch.two_mul_matchNum_le_V
+    rw [V_grotzsch] at h; omega
+  have hequindep : 5 ≤ grotzsch.lineGraph.indepNum := by
+    rw [grotzsch, IsoGraph.cycle, mycielskian_mk]
+    simp only [lineGraph_mk, indepNum_mk]
+    -- the five edges `vᵢ uᵢ₊₁` are pairwise disjoint, so they are independent in the line graph
+    have h_exists : ∃ S : Finset (CGraph.lineGraph (CGraph.mycielskian (CGraph.cycle 5))).V,
+        S.card = 5 ∧
+        (CGraph.lineGraph (CGraph.mycielskian (CGraph.cycle 5))).toSimple.IsIndepSet
+          (S : Set (CGraph.lineGraph (CGraph.mycielskian (CGraph.cycle 5))).V) := by
+      refine ⟨{⟨s(some (Sum.inl (0 : Fin 5)), some (Sum.inr (1 : Fin 5))), by decide⟩,
+        ⟨s(some (Sum.inl (1 : Fin 5)), some (Sum.inr (2 : Fin 5))), by decide⟩,
+        ⟨s(some (Sum.inl (2 : Fin 5)), some (Sum.inr (3 : Fin 5))), by decide⟩,
+        ⟨s(some (Sum.inl (3 : Fin 5)), some (Sum.inr (4 : Fin 5))), by decide⟩,
+        ⟨s(some (Sum.inl (4 : Fin 5)), some (Sum.inr (0 : Fin 5))), by decide⟩},
+        ?_, ?_⟩
+      · decide
+      · decide
+    obtain ⟨S, hS_card, hS_indep⟩ := h_exists
+    have h1 := hS_indep.card_le_indepNum
+    rw [hS_card] at h1
+    exact h1
+  have h_eq := matchNum_eq grotzsch
+  omega
+
+/-- Twenty edges on eleven vertices is far too many for a forest. -/
+theorem not_isAcyclic_grotzsch : ¬ IsAcyclic grotzsch := by
+  intro hac
+  have hibp : ∀ G : IsoGraph, G.IsAcyclic → G.IsBipartite := by
+    intro G hG
+    induction G using Quotient.inductionOn with | _ g =>
+    rw [IsoGraph.isAcyclic_mk] at hG
+    rw [IsoGraph.isBipartite_mk, CGraph.isBipartite_iff_colorable]
+    exact hG.isBipartite
+  exact not_isBipartite_grotzsch (hibp grotzsch hac)
+
+/-- The shadows have degree three and the apex degree five. -/
+theorem not_isVertexTransitive_grotzsch : ¬ IsVertexTransitive grotzsch :=
+  not_isVertexTransitive_of_minDeg_ne_maxDeg (by simp)
+    (by rw [minDeg_grotzsch, maxDeg_grotzsch]; omega)
+
 /-! ### Tadpoles, lollipops, double stars and theta graphs
 
 The four decorated families all reduce to `CGraph.ofEdges` on an explicit edge list, so the

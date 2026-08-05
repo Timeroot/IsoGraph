@@ -2047,6 +2047,25 @@ every original to the shadow of its partner, which uses `2ν(G) = |V|` vertices 
 leaves only the apex out. The upper bound is just `2ν ≤ |V|` applied to `μ(G)`, which has
 `2|V| + 1` vertices.
 
+Those general lemmas immediately fill in most of the Grötzsch row, since `grotzsch` is by
+definition `mycielskian (cycle 5)`. `degMultiset_grotzsch` is five `4`s (the pentagon vertices,
+`2 · 2`), five `3`s (their shadows, `2 + 1`) and a single `5` (the apex), so `δ = 3` and `Δ = 5`;
+`γ = γ(C₅) + 1 = 3`; the pentagon has no isolated vertex, so the graph is connected and
+`numComponents = 1`. Three of the twelve needed work of their own. The diameter and the radius
+are both `2` — every pair of vertices is joined by a path of length two (two shadows through the
+apex, a shadow and a pentagon vertex through a common pentagon neighbour, the apex and `vᵢ`
+through `u_{i±1}`), and nothing is adjacent to all ten others, which rules out `1` via
+`radius_eq_one_iff_domNum_eq_one`. The girth is `4`: the square `v₀ u₁ w u₄` gives the upper
+bound and the Mycielskian of a pentagon has no triangle. The matching number is `5`, and the
+neatest route turned out to be the line graph — the five edges `vᵢ u_{i+1}` are pairwise disjoint,
+so they are an independent set of `L(grotzsch)`, and `matchNum_eq` converts that back; the upper
+bound is `2ν ≤ 11`. Finally `¬IsAcyclic` follows from the graph not being bipartite, and
+`¬IsVertexTransitive` from `δ ≠ Δ`. The one entry still missing is `α` — the five shadows are
+independent, and the answer is `5`, but the obvious general shape `α(μ(G)) = max (2 α(G)) |V(G)|`
+is false (`K₁ ⊔ K₃` has an independent set of size five in its Mycielskian and only `max 4 4 = 4`
+on the right), and brute force over the eleven vertices is out of reach for a `native_decide`-free
+kernel.
+
 The four decorated families — tadpoles, lollipops, double stars and theta graphs — get their
 edge counts. All four are built by `CGraph.ofEdges` from an explicit list, so the argument is
 always the same: the list has no self-loops, no duplicates and no reversed pairs, therefore `E`
