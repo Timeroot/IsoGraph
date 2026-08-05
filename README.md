@@ -1940,6 +1940,15 @@ need `r <= n` at all: when there are more parts than vertices the Turán graph i
 two-value formula degenerates correctly, so the landed statement is the stronger one. Sorting the
 multiset of degrees is most of the work — the graph side is just "a vertex misses its own part".
 
+`isSelfComplementary_paley` generalises the two hard-coded witnesses for `q = 13` and `q = 17`:
+for any prime `q ≡ 1 (mod 4)`, pick a field element `g` whose quadratic character is `-1`, and
+multiplication by `g` is a bijection of the field that sends squares to non-squares and back. Since
+`q ≡ 1 (mod 4)` makes `-1` a square, the difference `g * x - g * y = g * (x - y)` flips membership
+in the residue set exactly when `x - y` did not, so the map is an isomorphism from the Paley graph
+onto its own complement. Transporting the witness along `paleyIso` gives the statement for the
+combinatorial model, and `compl_paley` records the resulting `compl (paley q) = paley q` as a
+conditional `simp` lemma.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
