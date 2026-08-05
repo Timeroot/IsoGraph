@@ -2406,6 +2406,49 @@ vertex-transitivity failure. Together with `not_isArcTransitive_of_autCount_lt` 
 only ways the library can currently refute arc-transitivity, and the degree route is by far the
 cheaper of the two.
 
+That closes the transitivity column for the cone-shaped families, which leaves them with an empty
+*automorphism* cell: `V_le_autCount_of_isVertexTransitive` is the library's only general lower
+bound on `|Aut G|`, and it needs exactly the property those families lack. The way in is
+`autCount_mul_le_autCount_join`, `|Aut G| · |Aut H| ≤ |Aut (G ∇g H)|`, which holds because the two
+sides of a join may be permuted independently. Every cone in the library is already known to be a
+join — `bipartite_eq_join`, `star_eq_bipartite`, `wheel_eq_join`, `book_eq_join`, `fan_eq_join`
+and `friendship_eq_join_compl_cocktailParty` — so one bound opens five cells at once:
+`factorial_mul_factorial_le_autCount_bipartite` (`m! · n!`), `factorial_le_autCount_star` (`n!`,
+the rays permute freely), `two_mul_factorial_le_autCount_book` (`2 · n!`, the pages permute and
+the spine flips), `le_autCount_wheel` (`2(n + 3)`, the rim's dihedral symmetry, quoting
+`two_mul_le_autCount_cycle`), `le_autCount_friendship` (`2(n + 1)`, via `autCount_compl` and the
+cocktail-party bound) and `autCount_path_le_autCount_fan`, which is only relative to the path
+because the path's own automorphism count is still unproved.
+
+The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
+are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
+`V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
+class of a clique cover is an independent set's worth of cliques, so `indepNum_grotzsch_le` reads
+`α ≤ θ = 6` off `cliqueCoverNum_grotzsch`. Feeding both through `τ + α = |V|` gives
+`five_le_coverNum_grotzsch` and `coverNum_grotzsch_le`. Ruling out `α = 6` is the one remaining
+step, and it is still out for automated proof.
+
+Two whole rows get their first entries from general inequalities that had never been specialised.
+For the line graph, `indepNum_lineGraph` says an independent set of `L(G)` *is* a matching of `G`,
+so `matchNum_le_cliqueCoverNum_lineGraph` (`ν(G) ≤ θ(L(G))`) and `two_mul_matchNum_lineGraph_le_E`
+(`2ν(L(G)) ≤ |E(G)|`) are immediate, and `E_le_domNum_lineGraph_mul` combines `V_lineGraph` with
+`maxDeg_lineGraph_le` to give `|E| ≤ γ(L(G)) · 2Δ(G)`. For the circulant, `maxDeg_circulant` turns
+an edge count into a degree, after which `le_domNum_circulant` (`n ≤ γ(k + 1)`),
+`domNum_circulant_le` (`γ + k ≤ n`), `chromNum_circulant_le` (`χ ≤ k + 1`),
+`le_cliqueCoverNum_mul_cliqueNum_circulant` and `two_mul_matchNum_le_circulant` all follow. Since
+`radius_circulant` already identifies the radius with the diameter, the circulant row is now empty
+only in its girth and connectivity cells.
+
+Finally, distance. `radius_eq_one_iff_domNum_eq_one` says a graph has radius one exactly when one
+vertex dominates it, so the domination *lower* bounds proved above are also eccentricity lower
+bounds: `two_le_radius_tadpole` and `two_le_radius_lollipop` rule out `γ = 1` by arithmetic and
+then use `radius_pos` to conclude `r ≥ 2`, with `two_le_diameter_tadpole` and
+`two_le_diameter_lollipop` following through `radius_le_diameter`. These are the first entries in
+the distance cells of those two families. In the same spirit `not_isTree_thetaGraph` compares
+`V_thetaGraph` with `E_thetaGraph`: a theta graph on two or more internally disjoint paths has
+`|V| = 2 + Σxs` against `|E| = Σxs + |xs|`, so it has at least as many edges as vertices and the
+edge-counting cycle detector applies.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

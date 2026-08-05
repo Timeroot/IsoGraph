@@ -34653,6 +34653,177 @@ theorem le_cliqueCoverNum_lollipop (m k : ℕ) :
   rw [cliqueNum_lollipop, V_lollipop] at h
   omega
 
+/-! ### Automorphisms of the graphs built by joining
+
+`|Aut G| · |Aut H| ≤ |Aut (G ∇g H)|`, because an automorphism of each side extends to the join
+by acting on the two sides independently.  Every cone-shaped family in the library is a join
+with `complete 1` or `complete 2`, so this single bound opens the automorphism cell for the
+star, the wheel, the book, the fan and the friendship windmill — the graphs that are *not*
+vertex-transitive and so are out of reach of `V_le_autCount_of_isVertexTransitive`.
+-/
+
+theorem factorial_mul_factorial_le_autCount_bipartite (m n : ℕ) :
+    m.factorial * n.factorial ≤ (bipartite m n).autCount := by
+  have h := autCount_mul_le_autCount_join (empty m) (empty n)
+  rwa [← bipartite_eq_join, autCount_empty, autCount_empty] at h
+
+/-- The star's rays may be permuted arbitrarily. -/
+theorem factorial_le_autCount_star (n : ℕ) : n.factorial ≤ (star n).autCount := by
+  have h := factorial_mul_factorial_le_autCount_bipartite 1 n
+  rw [← star_eq_bipartite] at h
+  simpa using h
+
+/-- The wheel inherits the dihedral symmetry of its rim. -/
+theorem le_autCount_wheel (n : ℕ) : 2 * (n + 3) ≤ (wheel (n + 3)).autCount := by
+  have h := autCount_mul_le_autCount_join (complete 1) (cycle (n + 3))
+  rw [← wheel_eq_join, autCount_complete, Nat.factorial_one, Nat.one_mul] at h
+  have h2 := two_mul_le_autCount_cycle n
+  omega
+
+/-- The book's pages may be permuted arbitrarily, and its spine may be flipped. -/
+theorem two_mul_factorial_le_autCount_book (n : ℕ) :
+    2 * n.factorial ≤ (book n).autCount := by
+  have h := autCount_mul_le_autCount_join (complete 2) (empty n)
+  rwa [← book_eq_join, autCount_complete, autCount_empty,
+    show Nat.factorial 2 = 2 from rfl] at h
+
+/-- The fan is a cone over a path, so it is at least as symmetric as the path. -/
+theorem autCount_path_le_autCount_fan (n : ℕ) : (path n).autCount ≤ (fan n).autCount := by
+  have h := autCount_mul_le_autCount_join (complete 1) (path n)
+  rwa [← fan_eq_join, autCount_complete, Nat.factorial_one, Nat.one_mul] at h
+
+/-- The windmill is a cone over a perfect matching, whose automorphism group is the one of the
+cocktail-party graph it complements. -/
+theorem le_autCount_friendship (n : ℕ) : 2 * (n + 1) ≤ (friendship (n + 1)).autCount := by
+  have h := autCount_mul_le_autCount_join (complete 1) ((cocktailParty (n + 1))ᶜ)
+  rw [← friendship_eq_join_compl_cocktailParty, autCount_complete, Nat.factorial_one,
+    Nat.one_mul, autCount_compl] at h
+  have h2 := le_autCount_cocktailParty n
+  omega
+
+/-! ### The Grötzsch graph's independence number, bracketed
+
+The eleven vertices of the Grötzsch graph split into the five shadows, the five rim vertices and
+the apex.  The shadows are pairwise non-adjacent, so `α ≥ 5`; and a clique cover of a
+triangle-free graph is an independent set's worth of cliques, so `α ≤ θ = 6`.  The complementary
+bracket for the vertex cover follows from `τ + α = |V|`.
+-/
+
+theorem five_le_indepNum_grotzsch : 5 ≤ grotzsch.indepNum := by
+  have h := V_le_indepNum_mycielskian (cycle 5)
+  rwa [V_cycle] at h
+
+theorem indepNum_grotzsch_le : grotzsch.indepNum ≤ 6 := by
+  have h := indepNum_le_cliqueCoverNum grotzsch
+  rwa [cliqueCoverNum_grotzsch] at h
+
+theorem five_le_coverNum_grotzsch : 5 ≤ grotzsch.coverNum := by
+  have h := coverNum_add_indepNum grotzsch
+  have h2 := indepNum_grotzsch_le
+  rw [V_grotzsch] at h
+  omega
+
+theorem coverNum_grotzsch_le : grotzsch.coverNum ≤ 6 := by
+  have h := coverNum_add_indepNum grotzsch
+  have h2 := five_le_indepNum_grotzsch
+  rw [V_grotzsch] at h
+  omega
+
+/-! ### The line graph's matching, covering and dominating numbers
+
+An independent set of `L(G)` is a matching of `G`, so the three general inequalities relating
+independence, clique covers and domination transfer verbatim to the line graph.
+-/
+
+theorem matchNum_le_cliqueCoverNum_lineGraph (G : IsoGraph) :
+    G.matchNum ≤ (lineGraph G).cliqueCoverNum := by
+  have h := indepNum_le_cliqueCoverNum (lineGraph G)
+  rwa [indepNum_lineGraph] at h
+
+theorem two_mul_matchNum_lineGraph_le_E (G : IsoGraph) :
+    2 * (lineGraph G).matchNum ≤ G.E := by
+  have h := two_mul_matchNum_le_V (lineGraph G)
+  rwa [V_lineGraph] at h
+
+/-- Each vertex of `L(G)` dominates at most `2Δ - 1` vertices including itself. -/
+theorem E_le_domNum_lineGraph_mul (G : IsoGraph) (hd : 1 ≤ G.maxDeg) :
+    G.E ≤ (lineGraph G).domNum * (2 * G.maxDeg) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (lineGraph G)
+  have h2 := maxDeg_lineGraph_le G
+  rw [V_lineGraph] at h
+  exact h.trans (Nat.mul_le_mul_left _ (by omega))
+
+/-! ### Circulants: domination, colouring and clique covers
+
+A circulant is regular, so once its degree is pinned down by an edge count the general
+`|V| ≤ γ(Δ + 1)`, `γ + Δ ≤ |V|` and `χ ≤ Δ + 1` bounds specialise to it.
+-/
+
+theorem le_domNum_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) : n ≤ (circulant n S).domNum * (k + 1) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (circulant n S)
+  rwa [V_circulant, maxDeg_circulant hn hk] at h
+
+theorem domNum_circulant_le {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) : (circulant n S).domNum + k ≤ n := by
+  have h := domNum_add_maxDeg_le_V (circulant n S)
+  rwa [V_circulant, maxDeg_circulant hn hk] at h
+
+theorem chromNum_circulant_le {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) : (circulant n S).chromNum ≤ k + 1 := by
+  have h := chromNum_le_maxDeg_add_one (circulant n S)
+  rwa [maxDeg_circulant hn hk] at h
+
+theorem le_cliqueCoverNum_mul_cliqueNum_circulant (n : ℕ) (S : List ℕ) :
+    n ≤ (circulant n S).cliqueCoverNum * (circulant n S).cliqueNum := by
+  have h := V_le_cliqueCoverNum_mul_cliqueNum (circulant n S)
+  rwa [V_circulant] at h
+
+theorem two_mul_matchNum_le_circulant (n : ℕ) (S : List ℕ) :
+    2 * (circulant n S).matchNum ≤ n := by
+  have h := two_mul_matchNum_le_V (circulant n S)
+  rwa [V_circulant] at h
+
+/-! ### Eccentricity from domination
+
+`r = 1` exactly when a single vertex dominates the graph, so the domination lower bounds proved
+for the tadpole and the lollipop immediately force a radius — and hence a diameter — of at least
+two.  These are the first entries in the distance cells of those two families.
+-/
+
+theorem two_le_radius_tadpole (m k : ℕ) : 2 ≤ (tadpole (m + 4) (k + 1)).radius := by
+  have hV : 1 < (tadpole (m + 4) (k + 1)).V := by rw [V_tadpole]; omega
+  have hc : IsConnected (tadpole (m + 4) (k + 1)) := isConnected_tadpole (m + 1) (k + 1)
+  have hpos := radius_pos hc hV
+  have h : m + 1 + k + 4 ≤ 4 * (tadpole (m + 4) (k + 1)).domNum := le_domNum_tadpole (m + 1) k
+  have hne : (tadpole (m + 4) (k + 1)).domNum ≠ 1 := by intro he; rw [he] at h; omega
+  have h1 : (tadpole (m + 4) (k + 1)).radius ≠ 1 := fun he ↦
+    hne ((radius_eq_one_iff_domNum_eq_one hV).1 he)
+  omega
+
+theorem two_le_diameter_tadpole (m k : ℕ) : 2 ≤ (tadpole (m + 4) (k + 1)).diameter :=
+  le_trans (two_le_radius_tadpole m k) (radius_le_diameter _)
+
+theorem two_le_radius_lollipop (m k : ℕ) : 2 ≤ (lollipop (m + 2) (k + 2)).radius := by
+  have hV : 1 < (lollipop (m + 2) (k + 2)).V := by rw [V_lollipop]; omega
+  have hc : IsConnected (lollipop (m + 2) (k + 2)) := isConnected_lollipop (m + 1) (k + 2)
+  have hpos := radius_pos hc hV
+  have h : m + (k + 1) + 3 ≤ (lollipop (m + 2) (k + 2)).domNum * (m + 3) :=
+    le_domNum_lollipop m (k + 1)
+  have hne : (lollipop (m + 2) (k + 2)).domNum ≠ 1 := by
+    intro he; rw [he, Nat.one_mul] at h; omega
+  have h1 : (lollipop (m + 2) (k + 2)).radius ≠ 1 := fun he ↦
+    hne ((radius_eq_one_iff_domNum_eq_one hV).1 he)
+  omega
+
+theorem two_le_diameter_lollipop (m k : ℕ) : 2 ≤ (lollipop (m + 2) (k + 2)).diameter :=
+  le_trans (two_le_radius_lollipop m k) (radius_le_diameter _)
+
+/-- A theta graph with two or more internally disjoint paths has more edges than vertices. -/
+theorem not_isTree_thetaGraph (xs : List ℕ) (h : ∀ k ∈ xs, 0 < k) (hl : 2 ≤ xs.length) :
+    ¬ IsTree (thetaGraph xs) :=
+  not_isTree_of_V_le_E (by rw [V_thetaGraph, E_thetaGraph xs h]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
