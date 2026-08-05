@@ -1910,6 +1910,11 @@ The friendship graph turned out to be the one edge colouring the prover could do
 `chi'(F_n) = 2n`, by numbering the spokes at the hub `2i` and `2i+1` and giving the triangle
 edge at petal `i` the colour `2i + 2 mod 2n`, then checking the three ways two edges can meet.
 
+Complements round out the newer families: the friendship graph's complement is an isolated hub
+beside a cocktail party graph, a Turán graph's complement is `r` disjoint cliques (`n mod r` of
+them one vertex larger), and the triangular graph and the Kneser graph `K(n, 2)` are each
+other's complements in both directions rather than only one.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

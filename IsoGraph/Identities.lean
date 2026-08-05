@@ -26309,4 +26309,27 @@ theorem edgeChromNum_friendship (n : ℕ) :
       exact maxDeg_friendship (n + 1) ▸ by omega
     omega
 
+/-- The complement of the friendship graph: the hub becomes isolated and the petals become a
+cocktail party graph. -/
+@[simp] theorem compl_friendship (n : ℕ) :
+    compl (friendship n) = disjUnion (empty 1) (cocktailParty n) := by
+  rw [friendship, compl_join, compl_complete, ← compl_cocktailParty, compl_compl]
+
+/-- The complement of a Turán graph is `r` disjoint cliques, `n % r` of them one vertex larger
+than the others. -/
+theorem compl_turan (n r : ℕ) :
+    compl (turan n r)
+      = disjUnion (cartesianProduct (empty (n % r)) (complete (n / r + 1)))
+          (cartesianProduct (empty (r - n % r)) (complete (n / r))) := by
+  rw [turan, completeMultipartite_append, compl_join, compl_completeMultipartite_replicate,
+    compl_completeMultipartite_replicate]
+
+/-- The complement of the triangular graph is the Kneser graph `K(n, 2)`. -/
+@[simp] theorem compl_triangular (n : ℕ) : compl (triangular n) = kneser n 2 := by
+  rw [triangular_eq_compl_kneser, compl_compl]
+
+/-- The complement of the Kneser graph `K(n, 2)` is the triangular graph. -/
+@[simp] theorem compl_kneser_two (n : ℕ) : compl (kneser n 2) = triangular n :=
+  (triangular_eq_compl_kneser n).symm
+
 end IsoGraph
