@@ -219,63 +219,83 @@ The lifting has one wrinkle. `compl` and the four products need `[DecidableEq G.
 `fun g ↦ ⟦CGraph.compl g.canonicalize⟧` instead: the canonical representative's vertex type is
 `Fin (Fintype.card g.V)`, which does have the instance, and the congruence lemmas of the
 `CGraph.Iso` namespace (`Iso.compl`, `Iso.cartesianProduct`, …) discharge the well-definedness
-side condition. Each then gets a `_mk` lemma — `compl ⟦G⟧ = ⟦CGraph.compl G⟧` for any `G` with a
-`DecidableEq`, not just a canonical one. `disjUnion` needs no instance, so `disjUnion_mk` is
-`rfl`. `join` is not lifted at all: it is *defined* on the quotient as
-`compl (disjUnion (compl G) (compl H))`, which makes `compl_join` and `join_comm` free.
+side condition. Each then gets a `_mk` lemma — `(show IsoGraph from ⟦G⟧)ᶜ = ⟦CGraph.compl G⟧` for
+any `G` with a `DecidableEq`, not just a canonical one. `disjUnion` needs no instance, so
+`disjUnion_mk` is `rfl`. `join` is not lifted at all: it is *defined* on the quotient as
+`(Gᶜ ⊕g Hᶜ)ᶜ`, which makes `compl_join` and `join_comm` free.
+
+Each operation on `IsoGraph` has a notation:
+
+```
+Gᶜ    complement      G ⊕g H   disjoint union   G □g H  Cartesian product   G ⊠g H  strong product
+                      G ∇g H   join             G ⊗g H  tensor product      G ·g H  lexicographic
+```
+
+Complementation is the `Compl` instance (`\^c`), so it is spelled the way Mathlib spells
+complementation everywhere else; the rest are `infixl`, the four products at 70 and the two sums
+at 60, so `G ⊕g H □g K` is `G ⊕g (H □g K)`. The `g` suffix and the `⊕g` symbol follow Mathlib's
+`SimpleGraph.sum`, which stays in scope — the two overload and resolve by type — and `□`
+follows Mathlib's `SimpleGraph.boxProd`. Of the other box characters that suggested themselves
+(`☐`, `⧠`, `◻`) none has a Lean input abbreviation, whereas `□` is `\square`.
+
+Two things to know about `ᶜ`. There is no instance for `CGraph`: its complement takes a
+`DecidableEq G.V`, so it is not a bare `α → α`, and `CGraph.compl` keeps its long name. And
+`⟦g⟧ᶜ` does not elaborate — instance search sees the type as `Quotient CGraph.isoSetoid` and will
+not unfold `IsoGraph` to reach the instance. A type ascription does not help, since it leaves the
+inferred type unchanged; write `(show IsoGraph from ⟦g⟧)ᶜ`.
 
 The equations themselves come in families:
 
 ```
-compl (compl G) = G          compl (cycle 5) = cycle 5     compl (path 4) = path 4
+Gᶜᶜ = G                      (cycle 5)ᶜ = cycle 5          (path 4)ᶜ = path 4
 complete 1 = empty 1         cycle 3 = complete 3          wheel 3 = complete 4
-disjUnion G (empty 0) = G    join G (empty 0) = G          join (complete m) (complete n) = complete (m + n)
+G ⊕g empty 0 = G             G ∇g empty 0 = G              complete m ∇g complete n = complete (m + n)
 kneser n 1 = complete n      kneser n n = empty 1          johnson n 1 = complete n
-hypercube (n + 1) = cartesianProduct (hypercube n) (complete 2)
+hypercube (n + 1) = hypercube n □g complete 2
 hypercube 3 = prism 4        foldedCube 3 = bipartite 4 4  paley 5 = cycle 5
 rook m 0 = empty 0           rook 2 2 = cycle 4            bipartite 2 2 = cycle 4
-compl (cycle 4) = disjUnion (complete 2) (complete 2)
-strongProduct (complete m) (complete n) = complete (m * n)
-tensorProduct G (empty n) = empty (G.V * n)
-compl (rook m n) = tensorProduct (complete m) (complete n)
-completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds)
+(cycle 4)ᶜ = complete 2 ⊕g complete 2
+complete m ⊠g complete n = complete (m * n)
+G ⊗g empty n = empty (G.V * n)
+(rook m n)ᶜ = complete m ⊗g complete n
+completeMultipartite (d :: ds) = empty d ∇g completeMultipartite ds
 completeMultipartite [a, b] = bipartite a b               cocktailParty 2 = cycle 4
 completeMultipartite (List.replicate n 1) = complete n    triangular 4 = cocktailParty 3
 circulant n [] = empty n     circulant n [1] = cycle n
-cartesianProduct G (disjUnion H K) = disjUnion (cartesianProduct G H) (cartesianProduct G K)
-lexProduct (disjUnion G H) K = disjUnion (lexProduct G K) (lexProduct H K)
-cartesianProduct (empty 2) G = disjUnion G G              strongProduct (empty 2) G = disjUnion G G
-compl (star n) = disjUnion (empty 1) (complete n)         compl (book n) = disjUnion (empty 2) (complete n)
-compl (wheel n) = disjUnion (empty 1) (compl (cycle n))   compl (fan n) = disjUnion (empty 1) (compl (path n))
-hypercube (m + n) = cartesianProduct (hypercube m) (hypercube n)
-hypercube 4 = cartesianProduct (cycle 4) (cycle 4)        johnson (n + 1) n = complete (n + 1)
+G □g (H ⊕g K) = (G □g H) ⊕g (G □g K)
+(G ⊕g H) ·g K = (G ·g K) ⊕g (H ·g K)
+empty 2 □g G = G ⊕g G                                     empty 2 ⊠g G = G ⊕g G
+(star n)ᶜ = empty 1 ⊕g complete n                         (book n)ᶜ = empty 2 ⊕g complete n
+(wheel n)ᶜ = empty 1 ⊕g (cycle n)ᶜ                        (fan n)ᶜ = empty 1 ⊕g (path n)ᶜ
+hypercube (m + n) = hypercube m □g hypercube n
+hypercube 4 = cycle 4 □g cycle 4                          johnson (n + 1) n = complete (n + 1)
 johnson n k = johnson n (n - k)                           (k ≤ n)
-compl (lexProduct G H) = lexProduct (compl G) (compl H)
-lexProduct (empty n) G = cartesianProduct (empty n) G
-completeMultipartite (List.replicate m d) = lexProduct (complete m) (empty d)
-compl (cocktailParty n) = cartesianProduct (empty n) (complete 2)
-strongProduct (empty n) G = cartesianProduct (empty n) G
-cartesianProduct (empty m) (empty n) = empty (m * n)      bipartite n n = lexProduct (complete 2) (empty n)
+(G ·g H)ᶜ = Gᶜ ·g Hᶜ
+empty n ·g G = empty n □g G
+completeMultipartite (List.replicate m d) = complete m ·g empty d
+(cocktailParty n)ᶜ = empty n □g complete 2
+empty n ⊠g G = empty n □g G
+empty m □g empty n = empty (m * n)                        bipartite n n = complete 2 ·g empty n
 johnson (n + 2) n = triangular (n + 2)
-rook 2 3 = prism 3                                        compl (cycle 6) = prism 3
-lexProduct (join G H) K = join (lexProduct G K) (lexProduct H K)
-lexProduct (completeMultipartite ds) (empty d) = completeMultipartite (ds.map (· * d))
-bipartite (a * d) (b * d) = lexProduct (bipartite a b) (empty d)
-tensorProduct (complete 2) (path n) = disjUnion (path n) (path n)
-tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m))
-tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3))
-tensorProduct (complete 2) (bipartite m n) = disjUnion (bipartite m n) (bipartite m n)
-tensorProduct (complete 2) (ladder n) = disjUnion (ladder n) (ladder n)
-tensorProduct (complete 2) (hypercube n) = disjUnion (hypercube n) (hypercube n)
-IsBipartite G → tensorProduct (complete 2) G = disjUnion G G
+rook 2 3 = prism 3                                        (cycle 6)ᶜ = prism 3
+(G ∇g H) ·g K = (G ·g K) ∇g (H ·g K)
+completeMultipartite ds ·g empty d = completeMultipartite (ds.map (· * d))
+bipartite (a * d) (b * d) = bipartite a b ·g empty d
+complete 2 ⊗g path n = path n ⊕g path n
+complete 2 ⊗g cycle (2 * m) = cycle (2 * m) ⊕g cycle (2 * m)
+complete 2 ⊗g cycle (2 * m + 3) = cycle (2 * (2 * m + 3))
+complete 2 ⊗g bipartite m n = bipartite m n ⊕g bipartite m n
+complete 2 ⊗g ladder n = ladder n ⊕g ladder n
+complete 2 ⊗g hypercube n = hypercube n ⊕g hypercube n
+IsBipartite G → complete 2 ⊗g G = G ⊕g G
 circulant n (0 :: S) = circulant n S                      circulant n (k :: k :: S) = circulant n (k :: S)
 circulant n (k :: S) = circulant n ((n - k) :: S)         circulant n [1, n - 1] = cycle n
-circulant (2 * m) [m] = cartesianProduct (empty m) (complete 2)
-compl (cocktailParty (m + 1)) = circulant (2 * (m + 1)) [m + 1]
+circulant (2 * m) [m] = empty m □g complete 2
+(cocktailParty (m + 1))ᶜ = circulant (2 * (m + 1)) [m + 1]
 paley 13 = circulant 13 [1, 3, 4]                         paley 17 = circulant 17 [1, 2, 4, 8]
-compl (paley 13) = paley 13                               compl (paley 17) = paley 17
-paley 9 = completeMultipartite [3, 3, 3] = lexProduct (complete 3) (empty 3)
-compl petersen = triangular 5                             petersen = compl (lineGraph (complete 5))
+(paley 13)ᶜ = paley 13                                    (paley 17)ᶜ = paley 17
+paley 9 = completeMultipartite [3, 3, 3] = complete 3 ·g empty 3
+petersenᶜ = triangular 5                                  petersen = (lineGraph (complete 5))ᶜ
 tadpole m 0 = cycle m                                     tadpole 0 k = path k
 lollipop m 0 = complete m                                 lollipop 0 k = path k
 lollipop 1 k = path (1 + k)                               spider [k] = path (1 + k)

@@ -8215,7 +8215,18 @@ def compl (G : IsoGraph) : IsoGraph :=
       exact Quotient.sound
         ⟨CGraph.Iso.compl (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
 
-@[simp] theorem compl_mk (G : CGraph) [DecidableEq G.V] : compl ⟦G⟧ = ⟦CGraph.compl G⟧ :=
+/-- Complementation is written `Gᶜ`.  There is no such instance for `CGraph`, whose complement
+needs a `DecidableEq` on the vertex type and so cannot be a bare `α → α`.
+
+Note that `⟦g⟧ᶜ` does not elaborate — instance search sees the type `Quotient CGraph.isoSetoid`
+and will not unfold `IsoGraph` to reach it.  Write `(show IsoGraph from ⟦g⟧)ᶜ`; a type ascription
+is *not* enough, since it leaves the inferred type unchanged. -/
+instance : Compl IsoGraph := ⟨compl⟩
+
+theorem compl_eq (G : IsoGraph) : Gᶜ = compl G := rfl
+
+@[simp] theorem compl_mk (G : CGraph) [DecidableEq G.V] :
+    (show IsoGraph from ⟦G⟧)ᶜ = ⟦CGraph.compl G⟧ :=
   Quotient.sound ⟨CGraph.Iso.compl G.isoCanonicalize.symm⟩
 
 /-- The disjoint union of two isomorphism classes. -/
@@ -8230,7 +8241,7 @@ def disjUnion (G H : IsoGraph) : IsoGraph :=
     disjUnion ⟦G⟧ ⟦H⟧ = ⟦CGraph.disjUnion G H⟧ := rfl
 
 /-- The join of two isomorphism classes: a disjoint union with all edges across. -/
-def join (G H : IsoGraph) : IsoGraph := compl (disjUnion (compl G) (compl H))
+def join (G H : IsoGraph) : IsoGraph := (disjUnion Gᶜ Hᶜ)ᶜ
 
 /-- The cartesian product of two isomorphism classes. -/
 def cartesianProduct (G H : IsoGraph) : IsoGraph :=
@@ -8287,6 +8298,23 @@ def lexProduct (G H : IsoGraph) : IsoGraph :=
 @[simp] theorem lexProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     lexProduct ⟦G⟧ ⟦H⟧ = ⟦CGraph.lexProduct G H⟧ :=
   Quotient.sound ⟨CGraph.Iso.lexProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
+
+/-! ### Notation
+
+One symbol per binary operation, each suffixed with `g` in the style of Mathlib's `⊕g` for
+`SimpleGraph.sum` — which stays in scope, and which the overload resolves against by type.  The
+squared symbols follow Mathlib's `□` for `SimpleGraph.boxProd`; of the alternative box characters
+only `□` (`\square`) has a Lean input abbreviation.  Complementation is the `Compl` instance
+above rather than a notation of its own.
+
+The four products bind more tightly than the two sums, so `G ⊕g H □g K` is `G ⊕g (H □g K)`. -/
+
+@[inherit_doc] infixl:60 " ⊕g " => IsoGraph.disjUnion
+@[inherit_doc] infixl:60 " ∇g " => IsoGraph.join
+@[inherit_doc] infixl:70 " □g " => IsoGraph.cartesianProduct
+@[inherit_doc] infixl:70 " ⊗g " => IsoGraph.tensorProduct
+@[inherit_doc] infixl:70 " ⊠g " => IsoGraph.strongProduct
+@[inherit_doc] infixl:70 " ·g " => IsoGraph.lexProduct
 
 /-- The line graph of an isomorphism class: its vertices are the edges, adjacent when they meet. -/
 def lineGraph (G : IsoGraph) : IsoGraph :=
@@ -8416,7 +8444,7 @@ theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G�
 @[simp] theorem V_cyclePendant (m : ℕ) (ks : List ℕ) : (cyclePendant m ks).V = m + ks.sum :=
   CGraph.card_cyclePendant m ks
 
-@[simp] theorem V_compl (G : IsoGraph) : (compl G).V = G.V := by
+@[simp] theorem V_compl (G : IsoGraph) : Gᶜ.V = G.V := by
   induction G using Quotient.inductionOn with
   | h g => show Fintype.card (CGraph.compl g.canonicalize).V = _; simp
 
@@ -8426,7 +8454,7 @@ theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G�
     | h h => exact CGraph.card_disjUnion g h
 
 @[simp] theorem V_join (G H : IsoGraph) : (join G H).V = G.V + H.V := by
-  show (compl (disjUnion (compl G) (compl H))).V = _
+  show (disjUnion Gᶜ Hᶜ)ᶜ.V = _
   simp
 
 @[simp] theorem V_cartesianProduct (G H : IsoGraph) :
@@ -8502,19 +8530,19 @@ theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = emp
 /-! ## The join, and the constructions built from it
 
 `join_mk` is what makes the rest of this section possible: it says the `IsoGraph`-level `join`,
-defined as `compl (disjUnion (compl G) (compl H))` with no lift of its own, agrees with
+defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees with
 `CGraph.join`. -/
 
 @[simp] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
-  show compl (disjUnion (compl ⟦G⟧) (compl ⟦H⟧)) = _
+  show (disjUnion (show IsoGraph from ⟦G⟧)ᶜ (show IsoGraph from ⟦H⟧)ᶜ)ᶜ = _
   rw [compl_mk, compl_mk, disjUnion_mk, compl_mk]
   rfl
 
-theorem join_def (G H : IsoGraph) : join G H = compl (disjUnion (compl G) (compl H)) := rfl
+theorem join_def (G H : IsoGraph) : join G H = (disjUnion Gᶜ Hᶜ)ᶜ := rfl
 
 theorem bipartite_eq_compl (m n : ℕ) :
-    bipartite m n = compl (disjUnion (complete m) (complete n)) := by
+    bipartite m n = (disjUnion (complete m) (complete n))ᶜ := by
   rw [complete_def, complete_def, disjUnion_mk, compl_mk]
   rfl
 
@@ -8526,32 +8554,32 @@ theorem wheel_eq_join (n : ℕ) : wheel n = join (complete 1) (cycle n) := by
 
 /-! ## Complementation -/
 
-@[simp] theorem compl_compl (G : IsoGraph) : compl (compl G) = G := by
+@[simp] theorem compl_compl (G : IsoGraph) : Gᶜᶜ = G := by
   induction G using Quotient.inductionOn with
   | h g =>
-    show compl ⟦CGraph.compl g.canonicalize⟧ = ⟦g⟧
+    show (show IsoGraph from ⟦CGraph.compl g.canonicalize⟧)ᶜ = ⟦g⟧
     rw [compl_mk, CGraph.compl_compl]
     exact mk_canonicalize g
 
-@[simp] theorem compl_empty (n : ℕ) : compl (empty n) = complete n := by
+@[simp] theorem compl_empty (n : ℕ) : (empty n)ᶜ = complete n := by
   rw [empty_def, compl_mk]
   rfl
 
-@[simp] theorem compl_complete (n : ℕ) : compl (complete n) = empty n := by
+@[simp] theorem compl_complete (n : ℕ) : (complete n)ᶜ = empty n := by
   rw [← compl_empty, compl_compl]
 
 @[simp] theorem compl_join (G H : IsoGraph) :
-    compl (join G H) = disjUnion (compl G) (compl H) := by
-  show compl (compl (disjUnion (compl G) (compl H))) = _
+    (join G H)ᶜ = disjUnion Gᶜ Hᶜ := by
+  show (disjUnion Gᶜ Hᶜ)ᶜᶜ = _
   rw [compl_compl]
 
 @[simp] theorem compl_disjUnion (G H : IsoGraph) :
-    compl (disjUnion G H) = join (compl G) (compl H) := by
-  show _ = compl (disjUnion (compl (compl G)) (compl (compl H)))
+    (disjUnion G H)ᶜ = join Gᶜ Hᶜ := by
+  show _ = (disjUnion Gᶜᶜ Hᶜᶜ)ᶜ
   rw [compl_compl, compl_compl]
 
 @[simp] theorem compl_bipartite (m n : ℕ) :
-    compl (bipartite m n) = disjUnion (complete m) (complete n) := by
+    (bipartite m n)ᶜ = disjUnion (complete m) (complete n) := by
   rw [bipartite_eq_compl, compl_compl]
 
 /-! ## Disjoint unions -/
@@ -8596,14 +8624,14 @@ theorem disjUnion_assoc (G H K : IsoGraph) :
 /-! ## Joins -/
 
 theorem join_comm (G H : IsoGraph) : join G H = join H G := by
-  show compl (disjUnion (compl G) (compl H)) = compl (disjUnion (compl H) (compl G))
+  show (disjUnion Gᶜ Hᶜ)ᶜ = (disjUnion Hᶜ Gᶜ)ᶜ
   rw [disjUnion_comm]
 
 theorem join_assoc (G H K : IsoGraph) : join (join G H) K = join G (join H K) := by
-  show compl (disjUnion (compl (join G H)) (compl K))
-    = compl (disjUnion (compl G) (compl (join H K)))
-  show compl (disjUnion (compl (compl (disjUnion (compl G) (compl H)))) (compl K))
-    = compl (disjUnion (compl G) (compl (compl (disjUnion (compl H) (compl K)))))
+  show (disjUnion (join G H)ᶜ Kᶜ)ᶜ
+    = (disjUnion Gᶜ (join H K)ᶜ)ᶜ
+  show (disjUnion (disjUnion Gᶜ Hᶜ)ᶜᶜ Kᶜ)ᶜ
+    = (disjUnion Gᶜ (disjUnion Hᶜ Kᶜ)ᶜᶜ)ᶜ
   rw [compl_compl, compl_compl, disjUnion_assoc]
 
 /-! ## Small graphs
@@ -8641,14 +8669,14 @@ theorem cycle_three : cycle 3 = complete 3 :=
   Quotient.sound ⟨CGraph.isoOfAdj (Equiv.refl _) (by decide)⟩
 
 /-- The 5-cycle is self-complementary. -/
-@[simp] theorem compl_cycle_five : compl (cycle 5) = cycle 5 := by
+@[simp] theorem compl_cycle_five : (cycle 5)ᶜ = cycle 5 := by
   rw [cycle_def, compl_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (⟨![0, 2, 4, 1, 3], ![0, 3, 1, 4, 2], by decide, by decide⟩ : Equiv.Perm (Fin 5))
     (by decide)⟩
 
 /-- The path on four vertices is self-complementary. -/
-@[simp] theorem compl_path_four : compl (path 4) = path 4 := by
+@[simp] theorem compl_path_four : (path 4)ᶜ = path 4 := by
   rw [path_def, compl_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (⟨![1, 3, 0, 2], ![2, 0, 3, 1], by decide, by decide⟩ : Equiv.Perm (Fin 4))
@@ -8684,7 +8712,7 @@ theorem star_one : star 1 = complete 2 := by
   rw [star_eq_bipartite, bipartite_one_one]
 
 /-- The complement of a star is its centre, isolated, next to a clique on the leaves. -/
-theorem compl_star (n : ℕ) : compl (star n) = disjUnion (empty 1) (complete n) := by
+theorem compl_star (n : ℕ) : (star n)ᶜ = disjUnion (empty 1) (complete n) := by
   rw [star_eq_bipartite, compl_bipartite, complete_one]
 
 /-- `K_{2,2}` is the square. -/
@@ -8697,7 +8725,7 @@ theorem bipartite_two_two : bipartite 2 2 = cycle 4 := by
     (by decide)⟩
 
 /-- The complement of the square is a perfect matching. -/
-@[simp] theorem compl_cycle_four : compl (cycle 4) = disjUnion (complete 2) (complete 2) := by
+@[simp] theorem compl_cycle_four : (cycle 4)ᶜ = disjUnion (complete 2) (complete 2) := by
   rw [← bipartite_two_two, compl_bipartite]
 
 @[simp] theorem wheel_zero : wheel 0 = empty 1 := by
@@ -8713,12 +8741,12 @@ theorem wheel_three : wheel 3 = complete 4 := by
   rw [wheel_eq_join, cycle_three, join_complete]
 
 /-- The hub of a wheel is joined to everything, so it is isolated in the complement. -/
-theorem compl_wheel (n : ℕ) : compl (wheel n) = disjUnion (empty 1) (compl (cycle n)) := by
+theorem compl_wheel (n : ℕ) : (wheel n)ᶜ = disjUnion (empty 1) (cycle n)ᶜ := by
   rw [wheel_eq_join, compl_join, compl_complete]
 
 /-- Likewise for the fan, which is a hub joined to a path rather than a cycle. -/
-theorem compl_fan (n : ℕ) : compl (fan n) = disjUnion (empty 1) (compl (path n)) := by
-  show compl (join (complete 1) (path n)) = _
+theorem compl_fan (n : ℕ) : (fan n)ᶜ = disjUnion (empty 1) (path n)ᶜ := by
+  show (join (complete 1) (path n))ᶜ = _
   rw [compl_join, compl_complete]
 
 /-! ## Complete multipartite graphs
@@ -8794,8 +8822,8 @@ theorem completeMultipartite_append (ds es : List ℕ) :
     rw [List.cons_append, completeMultipartite_cons, ih, completeMultipartite_cons, join_assoc]
 
 theorem compl_completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
-    compl (completeMultipartite (d :: ds))
-      = disjUnion (complete d) (compl (completeMultipartite ds)) := by
+    (completeMultipartite (d :: ds))ᶜ
+      = disjUnion (complete d) (completeMultipartite ds)ᶜ := by
   rw [completeMultipartite_cons, compl_join, compl_empty]
 
 theorem completeMultipartite_pair (a b : ℕ) : completeMultipartite [a, b] = bipartite a b := by
@@ -8827,7 +8855,7 @@ theorem book_eq_join (n : ℕ) : book n = join (complete 2) (empty n) := by
     ← bipartite_eq_join, bipartite_one_one]
 
 /-- The complement of the book `B_n` is its spine, edgeless, next to a clique on the pages. -/
-theorem compl_book (n : ℕ) : compl (book n) = disjUnion (empty 2) (complete n) := by
+theorem compl_book (n : ℕ) : (book n)ᶜ = disjUnion (empty 2) (complete n) := by
   rw [book_eq_join, compl_join, compl_complete, compl_empty]
 
 /-! ## Circulants
@@ -8901,11 +8929,11 @@ theorem paley_seventeen_eq_circulant : paley 17 = circulant 17 [1, 2, 4, 8] := b
 /-- **Paley graphs are self-complementary**, because multiplication by a non-residue exchanges
 the squares with the non-squares.  The general statement needs the multiplicative structure of
 `GF(q)`; these two are the witnesses `x ↦ 2x` mod `13` and `x ↦ 3x` mod `17`. -/
-@[simp] theorem compl_paley_thirteen : compl (paley 13) = paley 13 := by
+@[simp] theorem compl_paley_thirteen : (paley 13)ᶜ = paley 13 := by
   rw [paley_def, compl_mk]
   exact Quotient.sound ⟨CGraph.Iso.paleyThirteenIso.symm⟩
 
-@[simp] theorem compl_paley_seventeen : compl (paley 17) = paley 17 := by
+@[simp] theorem compl_paley_seventeen : (paley 17)ᶜ = paley 17 := by
   rw [paley_def, compl_mk]
   exact Quotient.sound ⟨CGraph.Iso.paleySeventeenIso.symm⟩
 
@@ -8914,12 +8942,12 @@ the squares with the non-squares.  The general statement needs the multiplicativ
 graph joins `x` to `y` exactly when `x - y` is not a multiple of `3` and one gets the complete
 tripartite graph `K₃,₃,₃` rather than the rook's graph `R(3, 3)` that `GF(9)` would give. -/
 theorem compl_paley_nine :
-    compl (paley 9) = disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) := by
+    (paley 9)ᶜ = disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) := by
   rw [paley_def, compl_mk, complete_def, disjUnion_mk, disjUnion_mk]
   exact Quotient.sound ⟨CGraph.Iso.paleyNineIso.symm⟩
 
 theorem paley_nine : paley 9 = completeMultipartite [3, 3, 3] := by
-  have h : compl (completeMultipartite [3, 3, 3])
+  have h : (completeMultipartite [3, 3, 3])ᶜ
       = disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) := by
     rw [compl_completeMultipartite_cons, compl_completeMultipartite_cons,
       compl_completeMultipartite_cons, completeMultipartite_nil, compl_empty, complete_zero,
@@ -9019,7 +9047,7 @@ theorem johnson_sub_two (n : ℕ) : johnson (n + 2) n = triangular (n + 2) := by
   rw [johnson_compl (n + 2) n (by omega), show n + 2 - n = 2 from by omega]
 
 /-- The triangular graph is the complement of the Petersen-style Kneser graph on 2-sets. -/
-theorem triangular_eq_compl_kneser (n : ℕ) : triangular n = compl (kneser n 2) := by
+theorem triangular_eq_compl_kneser (n : ℕ) : triangular n = (kneser n 2)ᶜ := by
   rw [kneser_def, compl_mk]
   exact Quotient.sound ⟨CGraph.johnsonTwoIso n⟩
 
@@ -9049,9 +9077,9 @@ theorem kneser_four_two :
     (Equiv.ofBijective kneserFourTwoMap (by decide)) (by decide)⟩
 
 theorem triangular_four : triangular 4 = cocktailParty 3 := by
-  have h : compl (cocktailParty 3)
+  have h : (cocktailParty 3)ᶜ
       = disjUnion (complete 2) (disjUnion (complete 2) (complete 2)) := by
-    show compl (completeMultipartite [2, 2, 2]) = _
+    show (completeMultipartite [2, 2, 2])ᶜ = _
     rw [compl_completeMultipartite_cons, compl_completeMultipartite_cons,
       compl_completeMultipartite_cons, completeMultipartite_nil, compl_empty, complete_zero,
       disjUnion_empty_zero]
@@ -9984,7 +10012,7 @@ theorem empty_succ_cartesianProduct (n : ℕ) (G : IsoGraph) :
 
 /-- **The lexicographic product is the one whose complement is a product of complements.** -/
 @[simp] theorem compl_lexProduct (G H : IsoGraph) :
-    compl (lexProduct G H) = lexProduct (compl G) (compl H) := by
+    (lexProduct G H)ᶜ = lexProduct Gᶜ Hᶜ := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -10011,15 +10039,15 @@ theorem empty_strongProduct (n : ℕ) (G : IsoGraph) :
     exact Quotient.sound ⟨CGraph.Iso.emptyStrongProduct _ _⟩
 
 /-- `K_m[G]` is `m` copies of `G` with every pair of copies joined — the complement of `m` disjoint
-copies of `compl G`. -/
+copies of `Gᶜ`. -/
 theorem complete_lexProduct (m : ℕ) (G : IsoGraph) :
-    lexProduct (complete m) G = compl (cartesianProduct (empty m) (compl G)) := by
+    lexProduct (complete m) G = (cartesianProduct (empty m) Gᶜ)ᶜ := by
   conv_lhs => rw [← compl_compl (lexProduct (complete m) G)]
   rw [compl_lexProduct, compl_complete, empty_lexProduct]
 
 /-- The complement of a complete multipartite graph with `m` equal parts is `m` disjoint cliques. -/
 theorem compl_completeMultipartite_replicate (m d : ℕ) :
-    compl (completeMultipartite (List.replicate m d))
+    (completeMultipartite (List.replicate m d))ᶜ
       = cartesianProduct (empty m) (complete d) := by
   induction m with
   | zero =>
@@ -10041,13 +10069,13 @@ theorem paley_nine_eq_lexProduct : paley 9 = lexProduct (complete 3) (empty 3) :
 
 /-- The complement of the cocktail-party graph is a perfect matching. -/
 theorem compl_cocktailParty (n : ℕ) :
-    compl (cocktailParty n) = cartesianProduct (empty n) (complete 2) :=
+    (cocktailParty n)ᶜ = cartesianProduct (empty n) (complete 2) :=
   compl_completeMultipartite_replicate n 2
 
 /-- The cocktail party graph is the complement of a perfect matching, and the matching is a
 circulant. -/
 theorem compl_cocktailParty_eq_circulant (m : ℕ) :
-    compl (cocktailParty (m + 1)) = circulant (2 * (m + 1)) [m + 1] := by
+    (cocktailParty (m + 1))ᶜ = circulant (2 * (m + 1)) [m + 1] := by
   rw [compl_cocktailParty, circulant_matching]
 
 theorem cocktailParty_eq_lexProduct (m : ℕ) :
@@ -10131,7 +10159,7 @@ theorem rook_two_two : rook 2 2 = cycle 4 := by
 /-- The complement of the rook's graph is the tensor product of the two complete graphs — the
 `CGraph`-level `CGraph.compl_rook`, transported to the quotient. -/
 theorem compl_rook (m n : ℕ) :
-    compl (rook m n) = tensorProduct (complete m) (complete n) := by
+    (rook m n)ᶜ = tensorProduct (complete m) (complete n) := by
   have hrook : (rook m n : IsoGraph) = ⟦CGraph.rook m n⟧ := by
     rw [show (rook m n : IsoGraph) = cartesianProduct (complete m) (complete n) from rfl,
       complete_def, complete_def, cartesianProduct_mk]
@@ -10173,8 +10201,8 @@ theorem rook_two_three : rook 2 3 = prism 3 := by
 
 /-- The complement of the hexagon is the triangular prism: `i ~ i + 2` gives the two triangles and
 `i ~ i + 3` the matching between them. -/
-theorem compl_cycle_six : compl (cycle 6) = prism 3 := by
-  show compl (cycle 6) = cartesianProduct (cycle 3) (complete 2)
+theorem compl_cycle_six : (cycle 6)ᶜ = prism 3 := by
+  show (cycle 6)ᶜ = cartesianProduct (cycle 3) (complete 2)
   rw [cycle_def, compl_mk, cycle_def, complete_def, cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.compl (CGraph.cycle 6))
@@ -10184,7 +10212,7 @@ theorem compl_cycle_six : compl (cycle 6) = prism 3 := by
         Fin 6 ≃ (Fin 3 × Fin 2))
     (by decide)⟩
 
-theorem compl_prism_three : compl (prism 3) = cycle 6 := by
+theorem compl_prism_three : (prism 3)ᶜ = cycle 6 := by
   rw [← compl_cycle_six, compl_compl]
 
 /-- The cube graph is the four-rung prism. -/
@@ -10881,7 +10909,7 @@ the edge count.  The operations all follow the same script: push the quotient th
   exact CGraph.E_disjUnion g h
 
 /-- A graph and its complement share out all the pairs between them. -/
-theorem E_compl_add (G : IsoGraph) : (compl G).E + G.E = G.V.choose 2 := by
+theorem E_compl_add (G : IsoGraph) : Gᶜ.E + G.E = G.V.choose 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
   exact CGraph.E_compl _
@@ -11180,12 +11208,12 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
 @[simp] theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 :=
   CGraph.diameter_bipartite m n
 
-@[simp] theorem indepNum_compl (G : IsoGraph) : (compl G).indepNum = G.cliqueNum := by
+@[simp] theorem indepNum_compl (G : IsoGraph) : Gᶜ.indepNum = G.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, indepNum_mk, cliqueNum_mk]
   exact CGraph.indepNum_compl _
 
-@[simp] theorem cliqueNum_compl (G : IsoGraph) : (compl G).cliqueNum = G.indepNum := by
+@[simp] theorem cliqueNum_compl (G : IsoGraph) : Gᶜ.cliqueNum = G.indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, indepNum_mk, cliqueNum_mk]
   exact CGraph.cliqueNum_compl _
@@ -11403,7 +11431,7 @@ theorem not_isBipartite_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E
 
 /-- The complement has the same automorphisms. -/
 theorem IsVertexTransitive.compl {G : IsoGraph} (h : IsVertexTransitive G) :
-    IsVertexTransitive (IsoGraph.compl G) := by
+    IsVertexTransitive Gᶜ := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g] at *
   rw [compl_mk, isVertexTransitive_mk]
@@ -11411,7 +11439,7 @@ theorem IsVertexTransitive.compl {G : IsoGraph} (h : IsVertexTransitive G) :
   exact CGraph.isVertexTransitive_compl _ h
 
 @[simp] theorem isVertexTransitive_compl (G : IsoGraph) :
-    IsVertexTransitive (IsoGraph.compl G) ↔ IsVertexTransitive G :=
+    IsVertexTransitive Gᶜ ↔ IsVertexTransitive G :=
   ⟨fun h ↦ by simpa using h.compl, IsVertexTransitive.compl⟩
 
 theorem IsVertexTransitive.cartesianProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
@@ -11491,7 +11519,7 @@ theorem IsArcTransitive.lineGraph {G : IsoGraph} (h : IsArcTransitive G) :
 
 /-- The complement of a strongly regular graph is strongly regular. -/
 theorem IsSRGWith.compl {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
-    IsSRGWith (IsoGraph.compl G) n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) := by
+    IsSRGWith Gᶜ n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g] at *
   rw [compl_mk, isSRGWith_mk]
@@ -11636,12 +11664,12 @@ theorem degSequence_triangular (n : ℕ) (hn : 4 ≤ n) :
 
 /-! ### Edge counts of the complement and the line graph -/
 
-theorem E_compl (G : IsoGraph) : (compl G).E + G.E = G.V.choose 2 := by
+theorem E_compl (G : IsoGraph) : Gᶜ.E + G.E = G.V.choose 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
   exact CGraph.E_compl _
 
-theorem E_compl_eq (G : IsoGraph) : (compl G).E = G.V.choose 2 - G.E := by
+theorem E_compl_eq (G : IsoGraph) : Gᶜ.E = G.V.choose 2 - G.E := by
   have := G.E_compl
   omega
 
@@ -12042,7 +12070,7 @@ theorem diameter_join_right {G H : IsoGraph} (hG : 0 < G.V) (h : H.E < H.V.choos
 
 /-- **The complement of a disconnected graph is connected.** -/
 theorem isConnected_compl_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
-    (h : ¬ IsConnected G) : IsConnected (compl G) := by
+    (h : ¬ IsConnected G) : IsConnected Gᶜ := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g] at *
   rw [V_mk] at hV
@@ -12053,13 +12081,13 @@ theorem isConnected_compl_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
 
 /-- At least one of a graph and its complement is connected. -/
 theorem isConnected_or_isConnected_compl {G : IsoGraph} (hV : 0 < G.V) :
-    IsConnected G ∨ IsConnected (compl G) := by
+    IsConnected G ∨ IsConnected Gᶜ := by
   by_cases h : IsConnected G
   · exact Or.inl h
   · exact Or.inr (isConnected_compl_of_not_isConnected hV h)
 
 theorem diameter_compl_le_two {G : IsoGraph} (hV : 0 < G.V) (h : ¬ IsConnected G) :
-    (compl G).diameter ≤ 2 := by
+    Gᶜ.diameter ≤ 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g] at *
   rw [V_mk] at hV
@@ -12070,7 +12098,7 @@ theorem diameter_compl_le_two {G : IsoGraph} (hV : 0 < G.V) (h : ¬ IsConnected 
 
 /-- A disconnected graph with an edge has a complement of diameter exactly two. -/
 theorem diameter_compl {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
-    (compl G).diameter = 2 := by
+    Gᶜ.diameter = 2 := by
   have hV : 0 < G.V := by
     rcases Nat.eq_zero_or_pos G.V with h0 | hp
     · have hle := E_le_choose_two G
@@ -12088,12 +12116,12 @@ theorem diameter_compl {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
   exact CGraph.diameter_compl_eq_two _ (fun hp ↦ h ⟨hp⟩) hE
 
 @[simp] theorem isConnected_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    IsConnected (compl (disjUnion G H)) :=
+    IsConnected (disjUnion G H)ᶜ :=
   isConnected_compl_of_not_isConnected (by rw [V_disjUnion]; omega)
     (not_isConnected_disjUnion hG hH)
 
 theorem diameter_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
-    (hE : 0 < G.E + H.E) : (compl (disjUnion G H)).diameter = 2 :=
+    (hE : 0 < G.E + H.E) : (disjUnion G H)ᶜ.diameter = 2 :=
   diameter_compl (not_isConnected_disjUnion hG hH) (by rw [E_disjUnion]; omega)
 
 /-! ### The Petersen graph -/
@@ -12104,12 +12132,12 @@ theorem diameter_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
 
 /-- The complement of the Petersen graph is the triangular graph `T(5)`, the Johnson graph
 `J(5, 2)`. -/
-theorem compl_petersen : compl petersen = triangular 5 := by
+theorem compl_petersen : petersenᶜ = triangular 5 := by
   rw [triangular_eq_compl_kneser]
 
 /-- **The Petersen graph is the complement of the line graph of `K₅`** — Kneser's original
 description of it. -/
-theorem petersen_eq_compl_lineGraph : petersen = compl (lineGraph (complete 5)) := by
+theorem petersen_eq_compl_lineGraph : petersen = (lineGraph (complete 5))ᶜ := by
   rw [lineGraph_complete_eq_triangular, ← compl_petersen, compl_compl]
 
 /-- `L(K₃) = K₃`. -/
@@ -12524,7 +12552,7 @@ theorem degMultiset_of_degSequence {G : IsoGraph} {n k : ℕ}
   exact CGraph.degMultiset_join _ _
 
 @[simp] theorem degMultiset_compl (G : IsoGraph) :
-    degMultiset (compl G) = (degMultiset G).map (fun d ↦ G.V - 1 - d) := by
+    degMultiset Gᶜ = (degMultiset G).map (fun d ↦ G.V - 1 - d) := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, degMultiset_mk, degMultiset_mk, V_mk]
   exact CGraph.degMultiset_compl _
@@ -12881,10 +12909,10 @@ bipartite. -/
 @[simp] theorem chromNum_petersen : petersen.chromNum = 3 :=
   le_antisymm (chromNum_kneser_le 5 2 (by norm_num)) (three_le_chromNum not_isBipartite_petersen)
 
-/-- **Nordhaus–Gaddum, product form**: `|V| ≤ χ(G)·χ(Gᶜ)`, since an independent set of `G` is a
+/-- **Nordhaus–Gaddum, product form**: `|V| ≤ χ(G)·χGᶜ`, since an independent set of `G` is a
 clique of `Gᶜ`. -/
 theorem V_le_chromNum_mul_chromNum_compl (G : IsoGraph) :
-    G.V ≤ G.chromNum * (compl G).chromNum :=
+    G.V ≤ G.chromNum * Gᶜ.chromNum :=
   le_trans (V_le_chromNum_mul_indepNum G)
     (Nat.mul_le_mul_left _ (by rw [← cliqueNum_compl]; exact cliqueNum_le_chromNum _))
 
@@ -12902,7 +12930,7 @@ example : (kneser 7 3).chromNum ≤ 3 := by
 
 /- The complement of the Petersen graph is the triangular graph `T(5)`, which needs five colours;
 the product bound is tight here. -/
-example : 10 ≤ 3 * (compl petersen).chromNum := by
+example : 10 ≤ 3 * petersenᶜ.chromNum := by
   have h := V_le_chromNum_mul_chromNum_compl petersen
   rwa [V_petersen, chromNum_petersen] at h
 
@@ -13174,7 +13202,7 @@ theorem minDeg_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
 
 /-- **Complementation swaps the two extreme degrees.** -/
 theorem maxDeg_compl {G : IsoGraph} (hG : 0 < G.V) :
-    maxDeg (compl G) = G.V - 1 - minDeg G := by
+    maxDeg Gᶜ = G.V - 1 - minDeg G := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g] at *
   rw [compl_mk, maxDeg_mk, minDeg_mk, V_mk]
@@ -13183,7 +13211,7 @@ theorem maxDeg_compl {G : IsoGraph} (hG : 0 < G.V) :
   exact CGraph.maxDeg_compl _ v
 
 theorem minDeg_compl {G : IsoGraph} (hG : 0 < G.V) :
-    minDeg (compl G) = G.V - 1 - maxDeg G := by
+    minDeg Gᶜ = G.V - 1 - maxDeg G := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g] at *
   rw [compl_mk, minDeg_mk, maxDeg_mk, V_mk]
@@ -13396,7 +13424,7 @@ example : 2 * (petersen.E) = 30 := by
   omega
 
 /- The complement of the `5`-cycle is the `5`-cycle, so both extremes are `2`. -/
-example : maxDeg (compl (cycle 5)) = 2 := by
+example : maxDeg (cycle 5)ᶜ = 2 := by
   rw [maxDeg_compl (by simp)]
   simp
 
@@ -13435,25 +13463,25 @@ theorem chromNum_add_indepNum_le_V_add_one (G : IsoGraph) :
   rw [← mk_canonicalize g, V_mk, chromNum_mk, indepNum_mk]
   exact CGraph.chromNum_add_indepNum_le_card_add_one _
 
-/-- **Nordhaus–Gaddum, sum form**: `4·|V| ≤ (χ(G) + χ(Gᶜ))²`, i.e. `χ(G) + χ(Gᶜ) ≥ 2√|V|`.
+/-- **Nordhaus–Gaddum, sum form**: `4·|V| ≤ (χ(G) + χGᶜ)²`, i.e. `χ(G) + χGᶜ ≥ 2√|V|`.
 This is the product form together with `4ab ≤ (a + b)²`. -/
 theorem four_mul_V_le_chromNum_add_chromNum_compl_sq (G : IsoGraph) :
-    4 * G.V ≤ (G.chromNum + (compl G).chromNum) ^ 2 := by
+    4 * G.V ≤ (G.chromNum + Gᶜ.chromNum) ^ 2 := by
   have h := V_le_chromNum_mul_chromNum_compl G
-  nlinarith [sq_nonneg (G.chromNum - (compl G).chromNum : ℤ)]
+  nlinarith [sq_nonneg (G.chromNum - Gᶜ.chromNum : ℤ)]
 
-/-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
+/-- **Nordhaus–Gaddum, sum form**: `χ(G) + χGᶜ ≤ |V| + 1`. -/
 theorem chromNum_add_chromNum_compl_le_V_add_one (G : IsoGraph) :
-    G.chromNum + (compl G).chromNum ≤ G.V + 1 := by
+    G.chromNum + Gᶜ.chromNum ≤ G.V + 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, chromNum_mk, chromNum_mk, V_mk]
   exact CGraph.chromNum_add_chromNum_compl_le_card_add_one _
 
-/-- The product counterpart of the sum bound, by AM–GM: `4·χ(G)·χ(Gᶜ) ≤ (|V| + 1)²`. -/
+/-- The product counterpart of the sum bound, by AM–GM: `4·χ(G)·χGᶜ ≤ (|V| + 1)²`. -/
 theorem four_mul_chromNum_mul_chromNum_compl_le (G : IsoGraph) :
-    4 * (G.chromNum * (compl G).chromNum) ≤ (G.V + 1) ^ 2 := by
+    4 * (G.chromNum * Gᶜ.chromNum) ≤ (G.V + 1) ^ 2 := by
   have h := G.chromNum_add_chromNum_compl_le_V_add_one
-  nlinarith [sq_nonneg (G.chromNum - (compl G).chromNum : ℤ)]
+  nlinarith [sq_nonneg (G.chromNum - Gᶜ.chromNum : ℤ)]
 
 /-! ### The bounds at work -/
 
@@ -13467,12 +13495,12 @@ example : (cycle 5).chromNum = (cycle 5).maxDeg + 1 := by
   rw [show (5 : ℕ) = 2 * 1 + 3 from rfl, chromNum_cycle_odd, maxDeg_cycle]
 
 /-- Nordhaus–Gaddum is tight on complete graphs: `n + 1 = |V| + 1`. -/
-example (n : ℕ) : (complete (n + 1)).chromNum + (compl (complete (n + 1))).chromNum
+example (n : ℕ) : (complete (n + 1)).chromNum + (complete (n + 1))ᶜ.chromNum
     = (complete (n + 1)).V + 1 := by
   rw [compl_complete, chromNum_complete, chromNum_empty, V_complete]
 
 /-- The complement of the Petersen graph needs at least four colours. -/
-example : 4 ≤ (compl petersen).chromNum := by
+example : 4 ≤ petersenᶜ.chromNum := by
   have h := V_le_chromNum_mul_chromNum_compl petersen
   rw [V_petersen, chromNum_petersen] at h
   omega
@@ -13488,7 +13516,7 @@ example : 3 ≤ petersen.indepNum := by
 These are not new facts — they are a regression test that the `@[simp]` lemmas above compose the
 way they are meant to, and that none of them loops. -/
 
-example : compl (compl (cycle 5)) = cycle 5 := by simp
+example : (cycle 5)ᶜᶜ = cycle 5 := by simp
 
 example (n : ℕ) : cartesianProduct (empty 0) (cycle n) = empty 0 := by simp
 
@@ -13541,11 +13569,11 @@ example (n : ℕ) :
 
 example : circulant 9 [0, 1] = cycle 9 := by simp
 
-example : compl (paley 13) = paley 13 := by simp
+example : (paley 13)ᶜ = paley 13 := by simp
 
 example : petersen.V = 10 := by simp [Nat.choose]
 
-example (G H : IsoGraph) : (disjUnion (compl (compl G)) H).V = G.V + H.V := by simp
+example (G H : IsoGraph) : (disjUnion Gᶜᶜ H).V = G.V + H.V := by simp
 
 example (m n : ℕ) : (rook m n).V = m * n := by simp
 
@@ -13559,7 +13587,7 @@ example : lollipop 3 0 = complete 3 := by simp
 example : spider [1] = complete 2 := by simp
 example (m : ℕ) : IsBipartite (tadpole (2 * m) 0) := by simp
 example : cyclePendant 5 [] = cycle 5 := by simp
-example : compl (cyclePendant 5 []) = cycle 5 := by simp
+example : (cyclePendant 5 [])ᶜ = cycle 5 := by simp
 example : spider [2, 2] = path 5 := by simp
 example : thetaGraph [3] = path 5 := by simp
 example (j : ℕ) : thetaGraph (List.replicate (j + 1) 0) = complete 2 := by simp
@@ -13617,7 +13645,7 @@ example (G : IsoGraph) (h : IsTree G) (hv : G.V = 10) : G.E = 9 := by
 example : (cocktailParty 4).cliqueNum = 4 := by simp
 example : (book 5).indepNum = 5 := by simp
 example : (wheel 7).indepNum = 3 := by simp
-example : (compl (complete 5)).indepNum = 5 := by simp
+example : (complete 5)ᶜ.indepNum = 5 := by simp
 example : (star 6).cliqueNum = 2 := by simp
 example : (lexProduct (empty 3) (empty 4)).indepNum = 12 := by simp
 
@@ -13630,7 +13658,7 @@ example : ¬ IsBipartite (lexProduct (complete 2) (complete 2)) :=
 example : ¬ IsBipartite (strongProduct (path 2) (path 2)) :=
   not_isBipartite_strongProduct (by simp) (by simp)
 
-example : IsVertexTransitive (compl petersen) := by simp
+example : IsVertexTransitive petersenᶜ := by simp
 example : IsVertexTransitive (cartesianProduct (hypercube 3) (cycle 5)) :=
   (isVertexTransitive_hypercube 3).cartesianProduct (isVertexTransitive_cycle 5)
 example : IsVertexTransitive (triangular 5) := by simp
@@ -13639,7 +13667,7 @@ example : IsSRGWith (rook 3 3) 9 4 1 2 := isSRGWith_rook 3
 example : IsSRGWith (triangular 5) 10 6 3 4 := isSRGWith_triangular 5 (by norm_num)
 example : IsSRGWith (cocktailParty 4) 8 6 4 6 := isSRGWith_cocktailParty 4
 example : IsSRGWith (bipartite 3 3) 6 3 0 3 := isSRGWith_bipartite 3
-example : IsSRGWith (compl petersen) 10 6 3 4 := isSRGWith_petersen.compl
+example : IsSRGWith petersenᶜ 10 6 3 4 := isSRGWith_petersen.compl
 
 example : (degSequence (complete 5)).sum = 20 := by
   rw [sum_degSequence, E_complete]
@@ -13655,7 +13683,7 @@ example : degSequence (cocktailParty 3) = [4, 4, 4, 4, 4, 4] := by
   rw [degSequence_cocktailParty]
   rfl
 
-example : (compl petersen).E = 30 := by
+example : petersenᶜ.E = 30 := by
   rw [E_compl_eq, V_petersen]
   have h : (10 : ℕ).choose 2 = 45 := rfl
   have := isSRGWith_petersen.two_mul_E
@@ -13669,7 +13697,7 @@ example : (lineGraph (complete 5)).E = 30 := by simp [Nat.choose]
 
 example : (triangular 5).E = 30 := by simp [Nat.choose]
 
-example (G : IsoGraph) (h : G.V = 5) (h2 : G.E = 4) : (compl G).E = 6 := by
+example (G : IsoGraph) (h : G.V = 5) (h2 : G.E = 4) : Gᶜ.E = 6 := by
   rw [E_compl_eq, h, h2]
   rfl
 
@@ -13797,12 +13825,12 @@ example : star 3 ≠ path 4 :=
     rw [show (3 : ℕ) = 1 + 2 from rfl, diameter_star, show (4 : ℕ) = 3 + 1 from rfl, diameter_path]
     decide)
 
-example : IsConnected (compl (disjUnion (complete 3) (complete 3))) := by simp
+example : IsConnected (disjUnion (complete 3) (complete 3))ᶜ := by simp
 
-example : (compl (disjUnion (complete 3) (complete 3))).diameter = 2 :=
+example : (disjUnion (complete 3) (complete 3))ᶜ.diameter = 2 :=
   diameter_compl_disjUnion (by simp) (by simp) (by simp [Nat.choose])
 
-example : IsConnected (compl (empty 5)) := by
+example : IsConnected (empty 5)ᶜ := by
   rw [compl_empty]
   exact isConnected_complete 4
 
@@ -13820,7 +13848,7 @@ example : degMultiset (wheel 4) = {4, 3, 3, 3, 3} := by
   rfl
 
 /- The complement of the five-cycle is a five-cycle, degree by degree. -/
-example : degMultiset (compl (cycle 5)) = Multiset.replicate 5 2 := by
+example : degMultiset (cycle 5)ᶜ = Multiset.replicate 5 2 := by
   rw [compl_cycle_five, show (5 : ℕ) = 2 + 3 from rfl, degMultiset_cycle]
 
 example : star 4 ≠ cycle 4 :=
@@ -14031,18 +14059,18 @@ theorem four_mul_E_le_V_sq_of_isBipartite (G : IsoGraph) (h : IsBipartite G) :
 
 /-- Turán applied to `Gᶜ`: a graph with independence number at most `r` has few *non*-edges. -/
 theorem two_mul_mul_E_compl_le (G : IsoGraph) {r : ℕ} (hr : 0 < r) (h : G.indepNum ≤ r) :
-    2 * r * (compl G).E ≤ (r - 1) * G.V ^ 2 := by
-  have hV : (compl G).V = G.V := V_compl G
-  have := (compl G).two_mul_mul_E_le hr (by rwa [cliqueNum_compl])
+    2 * r * Gᶜ.E ≤ (r - 1) * G.V ^ 2 := by
+  have hV : Gᶜ.V = G.V := V_compl G
+  have := Gᶜ.two_mul_mul_E_le hr (by rwa [cliqueNum_compl])
   rwa [hV] at this
 
 /-- Consequently a graph with independence number at most `r` has *many* edges: the `Gᶜ` bound
-turns into a lower bound on `G.E` through `|E(G)| + |E(Gᶜ)| = C(|V|, 2)`. -/
+turns into a lower bound on `G.E` through `|E(G)| + |EGᶜ| = C(|V|, 2)`. -/
 theorem two_mul_mul_choose_le (G : IsoGraph) {r : ℕ} (hr : 0 < r) (h : G.indepNum ≤ r) :
     2 * r * G.V.choose 2 ≤ (r - 1) * G.V ^ 2 + 2 * r * G.E := by
   have hsum := G.E_compl_add
   have hb := G.two_mul_mul_E_compl_le hr h
-  calc 2 * r * G.V.choose 2 = 2 * r * (compl G).E + 2 * r * G.E := by
+  calc 2 * r * G.V.choose 2 = 2 * r * Gᶜ.E + 2 * r * G.E := by
         rw [← Nat.mul_add, hsum]
     _ ≤ (r - 1) * G.V ^ 2 + 2 * r * G.E := Nat.add_le_add_right hb _
 
@@ -14121,7 +14149,7 @@ theorem three_le_indepNum_of_isBipartite (G : IsoGraph) (h : 6 ≤ G.V) (hb : Is
 
 /-- Either way round: on six vertices a graph or its complement has girth three. -/
 theorem girth_eq_three_or_girth_compl_eq_three (G : IsoGraph) (h : 6 ≤ G.V) :
-    G.girth = 3 ∨ (compl G).girth = 3 := by
+    G.girth = 3 ∨ Gᶜ.girth = 3 := by
   rcases G.three_le_cliqueNum_or_three_le_indepNum h with h' | h'
   · exact Or.inl (girth_eq_three_iff.2 h')
   · exact Or.inr (girth_eq_three_iff.2 (by rwa [cliqueNum_compl]))
@@ -14195,10 +14223,10 @@ theorem coverNum_le_V (G : IsoGraph) : G.coverNum ≤ G.V := by
   have := G.coverNum_add_indepNum
   omega
 
-/-- In the complement, Gallai reads `τ(Gᶜ) + ω(G) = |V|`. -/
+/-- In the complement, Gallai reads `τGᶜ + ω(G) = |V|`. -/
 theorem coverNum_compl_add_cliqueNum (G : IsoGraph) :
-    (compl G).coverNum + G.cliqueNum = G.V := by
-  have := (compl G).coverNum_add_indepNum
+    Gᶜ.coverNum + G.cliqueNum = G.V := by
+  have := Gᶜ.coverNum_add_indepNum
   rwa [indepNum_compl, V_compl] at this
 
 /-! ### The vertex cover table -/
@@ -14422,13 +14450,13 @@ vertex-transitive. -/
 
 /-- A self-complementary graph has as many vertices in its largest independent set as in its
 largest clique. -/
-theorem indepNum_eq_cliqueNum_of_compl_eq {G : IsoGraph} (h : compl G = G) :
+theorem indepNum_eq_cliqueNum_of_compl_eq {G : IsoGraph} (h : Gᶜ = G) :
     G.indepNum = G.cliqueNum := by
   conv_lhs => rw [← h]
   rw [indepNum_compl]
 
 /-- A self-complementary graph owns exactly half of the possible edges. -/
-theorem two_mul_E_of_compl_eq {G : IsoGraph} (h : compl G = G) : 2 * G.E = G.V.choose 2 := by
+theorem two_mul_E_of_compl_eq {G : IsoGraph} (h : Gᶜ = G) : 2 * G.E = G.V.choose 2 := by
   have h1 := G.E_compl
   rw [h] at h1
   omega
@@ -14445,7 +14473,7 @@ private theorem two_mul_choose_two (n : ℕ) : 2 * n.choose 2 = n * (n - 1) := b
 
 /-- **A self-complementary graph has `|V| ≡ 0` or `1 (mod 4)`**: it owns half of the `C(|V|, 2)`
 possible edges, so `4` divides `|V| · (|V| - 1)`. -/
-theorem V_mod_four_of_compl_eq {G : IsoGraph} (h : compl G = G) :
+theorem V_mod_four_of_compl_eq {G : IsoGraph} (h : Gᶜ = G) :
     G.V % 4 = 0 ∨ G.V % 4 = 1 := by
   have h1 := two_mul_E_of_compl_eq h
   have h2 := two_mul_choose_two G.V
@@ -14464,7 +14492,7 @@ theorem V_mod_four_of_compl_eq {G : IsoGraph} (h : compl G = G) :
 
 /-- A self-complementary *vertex-transitive* graph has `ω² ≤ |V|`, since `α = ω` there. -/
 theorem cliqueNum_sq_le_V_of_compl_eq {G : IsoGraph} (h : IsVertexTransitive G)
-    (hc : compl G = G) : G.cliqueNum ^ 2 ≤ G.V := by
+    (hc : Gᶜ = G) : G.cliqueNum ^ 2 ≤ G.V := by
   have hα := indepNum_eq_cliqueNum_of_compl_eq hc
   have hle := indepNum_mul_cliqueNum_le_V h
   rw [hα, ← pow_two] at hle
@@ -14498,7 +14526,7 @@ theorem cliqueNum_paley_seventeen_le : (paley 17).cliqueNum ≤ 4 := by
   omega
 
 /-- No graph on `6` vertices is self-complementary. -/
-example (G : IsoGraph) (h : G.V = 6) : compl G ≠ G := fun hc ↦ by
+example (G : IsoGraph) (h : G.V = 6) : Gᶜ ≠ G := fun hc ↦ by
   have := V_mod_four_of_compl_eq hc
   rw [h] at this
   omega
@@ -14773,14 +14801,14 @@ example : (cycle 6).cliqueCount 3 = 0 := cliqueCount_cycle_even 3
 /-! ### Counting independent sets -/
 
 @[simp] theorem cliqueCount_compl (G : IsoGraph) (n : ℕ) :
-    (compl G).cliqueCount n = G.indepCount n := by
+    Gᶜ.cliqueCount n = G.indepCount n := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, cliqueCount_mk, indepCount_mk]
   exact CGraph.cliqueCount_compl _ n
 
 @[simp] theorem indepCount_compl (G : IsoGraph) (n : ℕ) :
-    (compl G).indepCount n = G.cliqueCount n := by
-  rw [← cliqueCount_compl (compl G), compl_compl]
+    Gᶜ.indepCount n = G.cliqueCount n := by
+  rw [← cliqueCount_compl Gᶜ, compl_compl]
 
 @[simp] theorem indepCount_zero (G : IsoGraph) : G.indepCount 0 = 1 := by
   rw [← cliqueCount_compl, cliqueCount_zero]
@@ -14879,7 +14907,7 @@ theorem numComponents_le_V (G : IsoGraph) : G.numComponents ≤ G.V := by
 
 /-- **At most one of a graph and its complement is disconnected.** -/
 theorem numComponents_compl_eq_one {G : IsoGraph} (h : 2 ≤ G.numComponents) :
-    (compl G).numComponents = 1 := by
+    Gᶜ.numComponents = 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, numComponents_mk]
   rw [← mk_canonicalize g, numComponents_mk] at h
@@ -15001,7 +15029,7 @@ theorem autCount_le_factorial (G : IsoGraph) : G.autCount ≤ Nat.factorial G.V 
   exact CGraph.autCount_le_factorial _
 
 /-- **A graph and its complement have the same automorphisms.** -/
-@[simp] theorem autCount_compl (G : IsoGraph) : (compl G).autCount = G.autCount := by
+@[simp] theorem autCount_compl (G : IsoGraph) : Gᶜ.autCount = G.autCount := by
   induction G using Quotient.inductionOn with | _ g
   rw [← mk_canonicalize g, compl_mk, autCount_mk, autCount_mk]
   exact CGraph.autCount_compl _
@@ -15747,16 +15775,16 @@ example : 6 ≤ (cartesianProduct (complete 3) (complete 3)).coverNum := by
 
 /-! ### Nordhaus–Gaddum for the domination number -/
 
-/-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.** -/
+/-- **`γ(G) + γGᶜ ≤ |V| + 1`.** -/
 theorem domNum_add_domNum_compl_le_V_add_one (G : IsoGraph) :
-    G.domNum + (compl G).domNum ≤ G.V + 1 := by
+    G.domNum + Gᶜ.domNum ≤ G.V + 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, domNum_mk, domNum_mk, V_mk]
   exact CGraph.domNum_add_domNum_compl_le_card_add_one _
 
 /-- Two vertices dominate the complement of a disconnected graph. -/
 theorem domNum_compl_le_two_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
-    (h : ¬ IsConnected G) : (compl G).domNum ≤ 2 := by
+    (h : ¬ IsConnected G) : Gᶜ.domNum ≤ 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, V_mk] at hV
   rw [← mk_canonicalize g, isConnected_mk] at h
@@ -15764,9 +15792,9 @@ theorem domNum_compl_le_two_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
   rw [← mk_canonicalize g, compl_mk, domNum_mk]
   exact CGraph.domNum_compl_le_two_of_not_isConnected _ h
 
-/-- `3 ≤ γ(G) + γ(Gᶜ)` on at least two vertices. -/
+/-- `3 ≤ γ(G) + γGᶜ` on at least two vertices. -/
 theorem three_le_domNum_add_domNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
-    3 ≤ G.domNum + (compl G).domNum := by
+    3 ≤ G.domNum + Gᶜ.domNum := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, V_mk] at hV
   rw [← mk_canonicalize g, compl_mk, domNum_mk, domNum_mk]
@@ -15774,22 +15802,22 @@ theorem three_le_domNum_add_domNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
 
 /-- The two Nordhaus–Gaddum bounds together. -/
 theorem domNum_add_domNum_compl_mem_Icc {G : IsoGraph} (hV : 2 ≤ G.V) :
-    3 ≤ G.domNum + (compl G).domNum ∧ G.domNum + (compl G).domNum ≤ G.V + 1 :=
+    3 ≤ G.domNum + Gᶜ.domNum ∧ G.domNum + Gᶜ.domNum ≤ G.V + 1 :=
   ⟨three_le_domNum_add_domNum_compl hV, G.domNum_add_domNum_compl_le_V_add_one⟩
 
 /-- An edgeless graph attains the upper bound: `γ(E_n) = n` and `γ(K_n) = 1`. -/
-example (n : ℕ) : (empty (n + 1)).domNum + (compl (empty (n + 1))).domNum = (n + 1) + 1 := by
+example (n : ℕ) : (empty (n + 1)).domNum + (empty (n + 1))ᶜ.domNum = (n + 1) + 1 := by
   rw [compl_empty, domNum_empty, domNum_complete]
 
 /-- The complement of a disconnected graph — in particular of any disjoint union of two
 nonempty graphs — is dominated by two vertices. -/
 theorem domNum_compl_disjUnion_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (compl (disjUnion G H)).domNum ≤ 2 :=
+    (disjUnion G H)ᶜ.domNum ≤ 2 :=
   domNum_compl_le_two_of_not_isConnected (by rw [V_disjUnion]; omega)
     (not_isConnected_disjUnion hG hH)
 
 /-- The complement of `2 K₃` is `K₃,₃`, which two vertices dominate. -/
-example : (compl (disjUnion (complete 3) (complete 3))).domNum ≤ 2 :=
+example : (disjUnion (complete 3) (complete 3))ᶜ.domNum ≤ 2 :=
   domNum_compl_disjUnion_le_two (by simp) (by simp)
 
 
@@ -15818,26 +15846,26 @@ theorem three_le_cliqueNum_add_indepNum {G : IsoGraph} (hV : 2 ≤ G.V) :
   rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk]
   exact CGraph.three_le_cliqueNum_add_indepNum _ hV
 
-/-- The independence numbers of a graph and its complement: `α(G) + α(Gᶜ) ≤ |V| + 1`. -/
+/-- The independence numbers of a graph and its complement: `α(G) + αGᶜ ≤ |V| + 1`. -/
 theorem indepNum_add_indepNum_compl_le_V_add_one (G : IsoGraph) :
-    G.indepNum + (compl G).indepNum ≤ G.V + 1 := by
+    G.indepNum + Gᶜ.indepNum ≤ G.V + 1 := by
   rw [indepNum_compl, Nat.add_comm]
   exact G.cliqueNum_add_indepNum_le_V_add_one
 
-/-- The clique numbers of a graph and its complement: `ω(G) + ω(Gᶜ) ≤ |V| + 1`. -/
+/-- The clique numbers of a graph and its complement: `ω(G) + ωGᶜ ≤ |V| + 1`. -/
 theorem cliqueNum_add_cliqueNum_compl_le_V_add_one (G : IsoGraph) :
-    G.cliqueNum + (compl G).cliqueNum ≤ G.V + 1 := by
+    G.cliqueNum + Gᶜ.cliqueNum ≤ G.V + 1 := by
   rw [cliqueNum_compl]
   exact G.cliqueNum_add_indepNum_le_V_add_one
 
 /-- The matching lower bound for the complement pair. -/
 theorem three_le_indepNum_add_indepNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
-    3 ≤ G.indepNum + (compl G).indepNum := by
+    3 ≤ G.indepNum + Gᶜ.indepNum := by
   rw [indepNum_compl, Nat.add_comm]
   exact three_le_cliqueNum_add_indepNum hV
 
 theorem three_le_cliqueNum_add_cliqueNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
-    3 ≤ G.cliqueNum + (compl G).cliqueNum := by
+    3 ≤ G.cliqueNum + Gᶜ.cliqueNum := by
   rw [cliqueNum_compl]
   exact three_le_cliqueNum_add_indepNum hV
 
@@ -15877,24 +15905,24 @@ theorem cliqueNum_le_coverNum_add_one (G : IsoGraph) : G.cliqueNum ≤ G.coverNu
   le_trans G.cliqueNum_le_chromNum G.chromNum_le_coverNum_add_one
 
 /-- The exact Gallai bookkeeping for a graph and its complement: the four numbers
-`τ(G)`, `τ(Gᶜ)`, `α(G)` and `ω(G)` add up to `2|V|`, because `τ(Gᶜ) = |V| - ω(G)`. -/
+`τ(G)`, `τGᶜ`, `α(G)` and `ω(G)` add up to `2|V|`, because `τGᶜ = |V| - ω(G)`. -/
 theorem coverNum_add_coverNum_compl_add_indepNum_add_cliqueNum (G : IsoGraph) :
-    G.coverNum + (compl G).coverNum + (G.indepNum + G.cliqueNum) = 2 * G.V := by
+    G.coverNum + Gᶜ.coverNum + (G.indepNum + G.cliqueNum) = 2 * G.V := by
   have h1 := G.coverNum_add_indepNum
   have h2 := G.coverNum_compl_add_cliqueNum
   omega
 
-/-- **Nordhaus–Gaddum, lower bound**: `|V| - 1 ≤ τ(G) + τ(Gᶜ)`, dual to `α + ω ≤ |V| + 1`. -/
+/-- **Nordhaus–Gaddum, lower bound**: `|V| - 1 ≤ τ(G) + τGᶜ`, dual to `α + ω ≤ |V| + 1`. -/
 theorem V_sub_one_le_coverNum_add_coverNum_compl (G : IsoGraph) :
-    G.V - 1 ≤ G.coverNum + (compl G).coverNum := by
+    G.V - 1 ≤ G.coverNum + Gᶜ.coverNum := by
   have h1 := G.coverNum_add_coverNum_compl_add_indepNum_add_cliqueNum
   have h2 := G.cliqueNum_add_indepNum_le_V_add_one
   omega
 
-/-- **Nordhaus–Gaddum, upper bound**: `τ(G) + τ(Gᶜ) ≤ 2|V| - 3` once there are two vertices,
+/-- **Nordhaus–Gaddum, upper bound**: `τ(G) + τGᶜ ≤ 2|V| - 3` once there are two vertices,
 dual to `3 ≤ α + ω`. -/
 theorem coverNum_add_coverNum_compl_le {G : IsoGraph} (hV : 2 ≤ G.V) :
-    G.coverNum + (compl G).coverNum ≤ 2 * G.V - 3 := by
+    G.coverNum + Gᶜ.coverNum ≤ 2 * G.V - 3 := by
   have h1 := G.coverNum_add_coverNum_compl_add_indepNum_add_cliqueNum
   have h2 := three_le_cliqueNum_add_indepNum hV
   omega
@@ -15908,12 +15936,12 @@ theorem domNum_add_indepNum_le_V {G : IsoGraph} (h : 1 ≤ G.minDeg) :
 
 /-- The five-cycle is self-complementary, and `τ(C₅) = 3`; the bound `2·5 - 3 = 7` is not tight
 here, while the lower bound `5 - 1 = 4` is beaten too. -/
-example : (cycle 5).coverNum + (compl (cycle 5)).coverNum = 6 := by
+example : (cycle 5).coverNum + (cycle 5)ᶜ.coverNum = 6 := by
   rw [compl_cycle_five, coverNum_cycle]
 
 /-- The complete graph attains the lower bound: `τ(Kₙ) = n - 1` and `τ(Kₙᶜ) = 0`. -/
 example (n : ℕ) :
-    (complete (n + 1)).coverNum + (compl (complete (n + 1))).coverNum = n := by
+    (complete (n + 1)).coverNum + (complete (n + 1))ᶜ.coverNum = n := by
   rw [compl_complete, coverNum_complete, coverNum_empty]
   omega
 
@@ -15984,7 +16012,7 @@ theorem exists_isRegularWith_of_isVertexTransitive {G : IsoGraph} (h : IsVertexT
 /-! #### Regularity of the constructions -/
 
 theorem IsRegularWith.compl {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
-    (compl G).IsRegularWith (G.V - 1 - k) := by
+    Gᶜ.IsRegularWith (G.V - 1 - k) := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, isRegularWith_mk] at h
   rw [← mk_canonicalize g, V_mk, compl_mk, isRegularWith_mk]
@@ -16077,7 +16105,7 @@ example : (cartesianProduct (cycle 5) (complete 3)).IsRegularWith 4 := by
 
 /-- The complement of a `k`-regular graph on `n` vertices is `(n - 1 - k)`-regular: for Petersen
 that is the triangular graph `T(5)`, which is `6`-regular. -/
-example : (compl petersen).IsRegularWith 6 := by
+example : petersenᶜ.IsRegularWith 6 := by
   have h := isRegularWith_petersen.compl
   rwa [V_petersen] at h
 
@@ -16217,7 +16245,7 @@ theorem IsRegularWith.E_add_indepNum_mul_le {G : IsoGraph} {k : ℕ} (h : G.IsRe
 /-- The complement of a `k`-regular graph is `(n - 1 - k)`-regular, so its edge count is
 also forced. -/
 theorem IsRegularWith.two_mul_E_compl {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
-    2 * (IsoGraph.compl G).E = G.V * (G.V - 1 - k) := by
+    2 * Gᶜ.E = G.V * (G.V - 1 - k) := by
   have h2 := h.compl.two_mul_E
   rwa [V_compl] at h2
 
@@ -16231,7 +16259,7 @@ theorem IsRegularWith.eq_empty {G : IsoGraph} (h : G.IsRegularWith 0) : G = empt
 
 example : petersen.chromNum ≤ 4 := isRegularWith_petersen.chromNum_le
 
-example : (compl petersen).E = 30 := by
+example : petersenᶜ.E = 30 := by
   have h := isRegularWith_petersen.two_mul_E_compl
   rw [V_petersen] at h
   omega
@@ -16625,16 +16653,16 @@ existing pieces, and every statement about it is a statement about `chromNum` in
 
 /-- The *clique cover number* `θ(G)`: the least number of cliques needed to cover the
 vertices. -/
-noncomputable def cliqueCoverNum (G : IsoGraph) : ℕ := chromNum (compl G)
+noncomputable def cliqueCoverNum (G : IsoGraph) : ℕ := chromNum Gᶜ
 
-theorem cliqueCoverNum_eq (G : IsoGraph) : G.cliqueCoverNum = chromNum (compl G) := rfl
+theorem cliqueCoverNum_eq (G : IsoGraph) : G.cliqueCoverNum = chromNum Gᶜ := rfl
 
 @[simp] theorem cliqueCoverNum_compl (G : IsoGraph) :
-    (IsoGraph.compl G).cliqueCoverNum = G.chromNum := by
+    Gᶜ.cliqueCoverNum = G.chromNum := by
   rw [cliqueCoverNum_eq, compl_compl]
 
 theorem chromNum_compl (G : IsoGraph) :
-    (IsoGraph.compl G).chromNum = G.cliqueCoverNum := rfl
+    Gᶜ.chromNum = G.cliqueCoverNum := rfl
 
 /-- `α ≤ θ`, the complement of `ω ≤ χ`: a clique cover needs a separate clique for each vertex
 of an independent set. -/
@@ -16643,18 +16671,18 @@ theorem indepNum_le_cliqueCoverNum (G : IsoGraph) : G.indepNum ≤ G.cliqueCover
   exact cliqueNum_le_chromNum _
 
 theorem cliqueCoverNum_le_V (G : IsoGraph) : G.cliqueCoverNum ≤ G.V := by
-  have h := chromNum_le_V (compl G)
+  have h := chromNum_le_V Gᶜ
   rwa [V_compl] at h
 
 /-- `n ≤ θ ω`, the complement of `n ≤ χ α`: each of the `θ` cliques has at most `ω` vertices. -/
 theorem V_le_cliqueCoverNum_mul_cliqueNum (G : IsoGraph) :
     G.V ≤ G.cliqueCoverNum * G.cliqueNum := by
-  have h := V_le_chromNum_mul_indepNum (compl G)
+  have h := V_le_chromNum_mul_indepNum Gᶜ
   rwa [V_compl, indepNum_compl] at h
 
 theorem cliqueCoverNum_le_V_sub_cliqueNum_add_one (G : IsoGraph) :
     G.cliqueCoverNum ≤ G.V - G.cliqueNum + 1 := by
-  have h := chromNum_le_V_sub_indepNum_add_one (compl G)
+  have h := chromNum_le_V_sub_indepNum_add_one Gᶜ
   rwa [V_compl, indepNum_compl] at h
 
 @[simp] theorem cliqueCoverNum_eq_zero_iff {G : IsoGraph} : G.cliqueCoverNum = 0 ↔ G.V = 0 := by
@@ -17002,14 +17030,14 @@ theorem diameter_kneser_two (m : ℕ) : (kneser (m + 5) 2).diameter = 2 := by
 /-- A clique of `K(n, 2)` is a set of pairwise disjoint pairs, that is, a matching of `Kₙ`. -/
 theorem two_mul_cliqueNum_kneser_two_le (n : ℕ) : 2 * (kneser n 2).cliqueNum ≤ n := by
   have h := two_mul_indepNum_johnson_two_le n
-  rwa [show johnson n 2 = compl (kneser n 2) from triangular_eq_compl_kneser n,
+  rwa [show johnson n 2 = (kneser n 2)ᶜ from triangular_eq_compl_kneser n,
     indepNum_compl] at h
 
 /-- **Erdős–Ko–Rado, lower bound.**  The `n - 1` pairs through a fixed point are pairwise
 intersecting, so they form an independent set of `K(n, 2)`. -/
 theorem sub_one_le_indepNum_kneser_two (n : ℕ) : n - 1 ≤ (kneser n 2).indepNum := by
   have h := sub_one_le_cliqueNum_johnson_two n
-  rwa [show johnson n 2 = compl (kneser n 2) from triangular_eq_compl_kneser n,
+  rwa [show johnson n 2 = (kneser n 2)ᶜ from triangular_eq_compl_kneser n,
     cliqueNum_compl] at h
 
 theorem sub_one_le_cliqueCoverNum_kneser_two (n : ℕ) :
@@ -17132,26 +17160,26 @@ example (G : IsoGraph) (h : G.matchNum = 0) : G.coverNum = 0 := by
 
 /-- A graph is *self-complementary* when it is isomorphic to its own complement.  Because
 `IsoGraph` is the quotient of graphs by isomorphism, this is literally the equation
-`compl G = G`. -/
-def IsSelfComplementary (G : IsoGraph) : Prop := IsoGraph.compl G = G
+`Gᶜ = G`. -/
+def IsSelfComplementary (G : IsoGraph) : Prop := Gᶜ = G
 
 theorem isSelfComplementary_iff {G : IsoGraph} :
-    IsSelfComplementary G ↔ IsoGraph.compl G = G := Iff.rfl
+    IsSelfComplementary G ↔ Gᶜ = G := Iff.rfl
 
 theorem IsSelfComplementary.compl_eq {G : IsoGraph} (h : IsSelfComplementary G) :
-    IsoGraph.compl G = G := h
+    Gᶜ = G := h
 
 theorem isSelfComplementary_compl {G : IsoGraph} (h : IsSelfComplementary G) :
-    IsSelfComplementary (IsoGraph.compl G) := by
-  show IsoGraph.compl (IsoGraph.compl G) = IsoGraph.compl G
+    IsSelfComplementary Gᶜ := by
+  show Gᶜᶜ = Gᶜ
   rw [compl_compl, h.compl_eq]
 
 @[simp] theorem isSelfComplementary_empty_zero : IsSelfComplementary (empty 0) := by
-  show IsoGraph.compl (empty 0) = empty 0
+  show (empty 0)ᶜ = empty 0
   rw [compl_empty, complete_zero]
 
 @[simp] theorem isSelfComplementary_empty_one : IsSelfComplementary (empty 1) := by
-  show IsoGraph.compl (empty 1) = empty 1
+  show (empty 1)ᶜ = empty 1
   rw [compl_empty, complete_one]
 
 @[simp] theorem isSelfComplementary_path_four : IsSelfComplementary (path 4) :=
@@ -17185,7 +17213,7 @@ theorem IsSelfComplementary.chromNum_eq_cliqueCoverNum {G : IsoGraph}
   have h2 := chromNum_compl G
   rwa [h.compl_eq] at h2
 
-/-- Since `V ≤ χ(G) * χ(Gᶜ)`, a self-complementary graph needs at least `√V` colours. -/
+/-- Since `V ≤ χ(G) * χGᶜ`, a self-complementary graph needs at least `√V` colours. -/
 theorem IsSelfComplementary.V_le_chromNum_sq {G : IsoGraph} (h : IsSelfComplementary G) :
     G.V ≤ G.chromNum * G.chromNum := by
   have h2 := V_le_chromNum_mul_chromNum_compl G
@@ -17856,7 +17884,7 @@ theorem indepNum_triangular (n : ℕ) : (triangular n).indepNum = n / 2 :=
 /-- Complementing turns the triangular graph into the Kneser graph `K(n, 2)`. -/
 @[simp] theorem cliqueNum_kneser_two (n : ℕ) : (kneser n 2).cliqueNum = n / 2 := by
   have h := indepNum_johnson_two n
-  rw [show johnson n 2 = compl (kneser n 2) from triangular_eq_compl_kneser n,
+  rw [show johnson n 2 = (kneser n 2)ᶜ from triangular_eq_compl_kneser n,
     indepNum_compl] at h
   exact h
 
@@ -17884,7 +17912,7 @@ theorem cliqueNum_triangular_even (m : ℕ) :
 theorem indepNum_kneser_two_even (m : ℕ) :
     (kneser (2 * m + 2) 2).indepNum = 2 * m + 1 := by
   have h := cliqueNum_johnson_two_even m
-  rw [show johnson (2 * m + 2) 2 = compl (kneser (2 * m + 2) 2) from
+  rw [show johnson (2 * m + 2) 2 = (kneser (2 * m + 2) 2)ᶜ from
     triangular_eq_compl_kneser (2 * m + 2), cliqueNum_compl] at h
   exact h
 
@@ -18313,8 +18341,8 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
   -- endpoints of an edge.
   -- Unmatched vertices get colors S.card..V-S.card-1 (each unique).
   -- Since S.card + (V - 2*S.card) = V - S.card, this uses V-S.card colors.
-  -- Valid: same-color vertices are either in the same edge of S (adjacent in g, so not in compl)
-  --   or are the same unmatched vertex.
+  -- Valid: same-color vertices are either in the same edge of S (adjacent in g, so not in
+  --   the complement) or are the same unmatched vertex.
   set equivS' : S ≃ Fin S.card := Fintype.equivFinOfCardEq (by simp) with hequivS'_def
   -- For each matched vertex, identify its edge in S
   have hvedge : ∀ v ∈ matchedS, ∃ e ∈ S, v ∈ e.1.toFinset := by
@@ -18342,7 +18370,7 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
   -- Show f is a valid coloring of g.compl.toSimple
   refine SimpleGraph.colorable_iff_exists_bdd_nat_coloring _ |>.2 ?_
   refine ⟨SimpleGraph.Coloring.mk f ?_, fun v => ?_⟩
-  · -- Adjacent in compl → different colors
+  · -- Adjacent in the complement → different colors
     intro u v huv
     simp [CGraph.compl_adj] at huv
     -- huv : ¬ g.toSimple.Adj u v (and u ≠ v implied)
@@ -18931,7 +18959,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
     _ ≤ petersen.cliqueCoverNum := by
       have := V_le_cliqueCoverNum_mul_cliqueNum petersen
       rw [hV, hclique] at this; omega
-  --Upper bound: ≤ 5 from explicit 5-clique cover of petersen (5-coloring of compl petersen)
+  --Upper bound: ≤ 5 from explicit 5-clique cover of petersen (5-colouring of petersenᶜ)
   have hupp : petersen.cliqueCoverNum ≤ 5 := by
     rw [cliqueCoverNum_eq]
     rw [petersen]
@@ -19115,12 +19143,12 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
   apply le_antisymm
   · -- Upper bound: cliqueCoverNum (path n) ≤ (n+1)/2
     rw [cliqueCoverNum_eq]
-    show chromNum (compl ⟦CGraph.path n⟧) ≤ _
+    show chromNum (show IsoGraph from ⟦CGraph.path n⟧)ᶜ ≤ _
     rw [IsoGraph.compl_mk]
     rw [chromNum_mk]
     rw [CGraph.chromNum_le_iff_colorable]
     -- Coloring: vertex i gets color i/2
-    -- In compl(path n), i and j are adjacent iff i ≠ j and not (path n).Adj i j
+    -- In (path n)ᶜ, i and j are adjacent iff i ≠ j and not (path n).Adj i j
     -- i.e., i ≠ j and |i-j| ≠ 1. We need color i ≠ color j, i.e., i/2 ≠ j/2.
     -- If i/2 = j/2, then i and j are in {2k, 2k+1}, so |i-j| ≤ 1, contradiction.
     let k := (n + 1) / 2
@@ -20354,7 +20382,7 @@ theorem two_mul_indepNum_le_V_circulant {n : ℕ} {S : List ℕ} (hE : 0 < (circ
   rwa [V_circulant] at h
 
 @[simp] theorem isVertexTransitive_compl_circulant (n : ℕ) (S : List ℕ) :
-    IsVertexTransitive (compl (circulant n S)) :=
+    IsVertexTransitive (circulant n S)ᶜ :=
   (isVertexTransitive_circulant n S).compl
 
 theorem coverNum_circulant (n : ℕ) (S : List ℕ) :
@@ -21343,7 +21371,7 @@ theorem degSequence_ladder (n : ℕ) :
 @[simp] theorem numComponents_johnson {n k : ℕ} (hk : k ≤ n) : (johnson n k).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_johnson hk)
 
-@[simp] theorem isConnected_compl_kneser_two (n : ℕ) : IsConnected (compl (kneser (n + 2) 2)) := by
+@[simp] theorem isConnected_compl_kneser_two (n : ℕ) : IsConnected (kneser (n + 2) 2)ᶜ := by
   rw [← triangular_eq_compl_kneser]
   exact isConnected_johnson (by omega)
 
@@ -22249,7 +22277,7 @@ theorem two_mul_indepNum_le_johnson {n k : ℕ} (hE : 0 < (johnson n k).E) :
   rwa [V_johnson] at h
 
 @[simp] theorem isVertexTransitive_compl_johnson (n k : ℕ) :
-    IsVertexTransitive (compl (johnson n k)) := (isVertexTransitive_johnson n k).compl
+    IsVertexTransitive (johnson n k)ᶜ := (isVertexTransitive_johnson n k).compl
 
 theorem coverNum_johnson (n k : ℕ) :
     (johnson n k).coverNum = n.choose k - (johnson n k).indepNum := by
@@ -23938,7 +23966,7 @@ theorem cliqueNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) : (turan n r).cli
   omega
 
 theorem friendship_eq_join_compl_cocktailParty (n : ℕ) :
-    friendship n = join (complete 1) (compl (cocktailParty n)) := by
+    friendship n = join (complete 1) (cocktailParty n)ᶜ := by
   rw [compl_cocktailParty]
 
 @[simp] theorem indepNum_friendship (n : ℕ) : (friendship n).indepNum = max n 1 := by
@@ -23997,7 +24025,7 @@ theorem friendship_one : friendship 1 = complete 3 := by
 
 /-- The complement of a cocktail party graph is a perfect matching, so it is one-regular. -/
 theorem isRegularWith_compl_cocktailParty (n : ℕ) :
-    (compl (cocktailParty (n + 1))).IsRegularWith 1 := by
+    (cocktailParty (n + 1))ᶜ.IsRegularWith 1 := by
   have h := (isRegularWith_cocktailParty (n + 1)).compl
   rwa [V_cocktailParty, show 2 * (n + 1) - 1 - (2 * (n + 1) - 2) = 1 by omega] at h
 
@@ -24621,9 +24649,9 @@ theorem isConnected_crown (n : ℕ) : IsConnected (crown (n + 3)) := by
 @[simp] theorem numComponents_crown (n : ℕ) : (crown (n + 3)).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_crown n)
 
-theorem crown_eq_compl_rook (n : ℕ) : crown n = compl (rook n 2) := (compl_rook n 2).symm
+theorem crown_eq_compl_rook (n : ℕ) : crown n = (rook n 2)ᶜ := (compl_rook n 2).symm
 
-@[simp] theorem compl_crown (n : ℕ) : compl (crown n) = rook n 2 := by
+@[simp] theorem compl_crown (n : ℕ) : (crown n)ᶜ = rook n 2 := by
   rw [crown_eq_compl_rook, compl_compl]
 
 theorem cliqueCoverNum_crown (n : ℕ) : (crown (n + 2)).cliqueCoverNum = n + 2 := by
@@ -25170,7 +25198,7 @@ theorem degSequence_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
   rwa [V_turan] at hd
 
 @[simp] theorem degSequence_compl_cocktailParty (n : ℕ) :
-    degSequence (compl (cocktailParty (n + 1))) = List.replicate (2 * n + 2) 1 := by
+    degSequence (cocktailParty (n + 1))ᶜ = List.replicate (2 * n + 2) 1 := by
   have h := (isRegularWith_compl_cocktailParty n).degSequence
   rw [V_compl, V_cocktailParty] at h
   rw [h, show 2 * (n + 1) = 2 * n + 2 from by omega]
@@ -25730,12 +25758,12 @@ theorem turan_eq_lexProduct_of_dvd {n r : ℕ} (h : r ∣ n) :
 
 /-- The complement of a balanced Turán graph is `r` disjoint cliques. -/
 theorem compl_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
-    compl (turan n r) = cartesianProduct (empty r) (complete (n / r)) := by
+    (turan n r)ᶜ = cartesianProduct (empty r) (complete (n / r)) := by
   rw [turan_of_dvd h, compl_completeMultipartite_replicate]
 
 /-- The complement of a cocktail party graph, read off the Turán graph it is. -/
 theorem compl_turan_two_mul_self (r : ℕ) :
-    compl (turan (2 * r) r) = cartesianProduct (empty r) (complete 2) := by
+    (turan (2 * r) r)ᶜ = cartesianProduct (empty r) (complete 2) := by
   rw [turan_two_mul_self, compl_cocktailParty]
 
 /-- A Paley graph is `(q-1)/2`-regular on `q` vertices, so it has `q(q-1)/4` edges. -/
@@ -26312,24 +26340,24 @@ theorem edgeChromNum_friendship (n : ℕ) :
 /-- The complement of the friendship graph: the hub becomes isolated and the petals become a
 cocktail party graph. -/
 @[simp] theorem compl_friendship (n : ℕ) :
-    compl (friendship n) = disjUnion (empty 1) (cocktailParty n) := by
+    (friendship n)ᶜ = disjUnion (empty 1) (cocktailParty n) := by
   rw [friendship, compl_join, compl_complete, ← compl_cocktailParty, compl_compl]
 
 /-- The complement of a Turán graph is `r` disjoint cliques, `n % r` of them one vertex larger
 than the others. -/
 theorem compl_turan (n r : ℕ) :
-    compl (turan n r)
+    (turan n r)ᶜ
       = disjUnion (cartesianProduct (empty (n % r)) (complete (n / r + 1)))
           (cartesianProduct (empty (r - n % r)) (complete (n / r))) := by
   rw [turan, completeMultipartite_append, compl_join, compl_completeMultipartite_replicate,
     compl_completeMultipartite_replicate]
 
 /-- The complement of the triangular graph is the Kneser graph `K(n, 2)`. -/
-@[simp] theorem compl_triangular (n : ℕ) : compl (triangular n) = kneser n 2 := by
+@[simp] theorem compl_triangular (n : ℕ) : (triangular n)ᶜ = kneser n 2 := by
   rw [triangular_eq_compl_kneser, compl_compl]
 
 /-- The complement of the Kneser graph `K(n, 2)` is the triangular graph. -/
-@[simp] theorem compl_kneser_two (n : ℕ) : compl (kneser n 2) = triangular n :=
+@[simp] theorem compl_kneser_two (n : ℕ) : (kneser n 2)ᶜ = triangular n :=
   (triangular_eq_compl_kneser n).symm
 
 /-- A Turán graph with at least two parts has a near-perfect matching: pair the vertices up
@@ -26705,7 +26733,7 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
     apply this _ hq_gt
     convert hcard using 1
     · rw [Nat.cast_sub (by omega : 1 ≤ Fintype.card F)] ; push_cast; ring
-  -- Step 2: Build iso paleyField F ≃cg compl (paleyField F) using x ↦ g * x
+  -- Step 2: Build iso paleyField F ≃cg CGraph.compl (paleyField F) using x ↦ g * x
   let e : F ≃ F := {
     toFun := fun x ↦ g * x
     invFun := fun x ↦ g⁻¹ * x
@@ -26763,7 +26791,7 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
       have hiso : IsSquare (g * (y - x)) ↔ ¬IsSquare (y - x) := by
         rw [← (isSquare_iff _ hgdiff_ne), hchi_gd]
       by_cases hid : IsSquare (y - x) <;> simp [hid, hiso]
-  -- Step 3: Build iso paley q ≃cg compl (paley q) by transporting
+  -- Step 3: Build iso paley q ≃cg CGraph.compl (paley q) by transporting
   let iso_field : CGraph.paleyField F ≃cg CGraph.compl (CGraph.paleyField F) :=
     CGraph.isoOfAdj e he_adj
   -- `paleyIso q : paleyField F ≃cg paley q` transports the witness across the two models of the
@@ -26775,14 +26803,14 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
 
 /-- The complement of a Paley graph of prime order is itself. -/
 @[simp] theorem compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
-    compl (paley q) = paley q := isSelfComplementary_paley q hq
+    (paley q)ᶜ = paley q := isSelfComplementary_paley q hq
 
 /-- The octahedron as a circulant: dropping the diameters from `C₆` leaves the complement of a
 perfect matching, which is the three-pair cocktail party graph. -/
 theorem circulant_six_one_two : circulant 6 [1, 2] = cocktailParty 3 := by
-  have h : compl (cocktailParty 3) = circulant 6 [3] := by
+  have h : (cocktailParty 3)ᶜ = circulant 6 [3] := by
     simpa using compl_cocktailParty_eq_circulant 2
-  have h2 : circulant 6 [1, 2] = compl (circulant 6 [3]) := by
+  have h2 : circulant 6 [1, 2] = (circulant 6 [3])ᶜ := by
     rw [circulant_def, circulant_def, compl_mk]
     exact Quotient.sound ⟨CGraph.isoOfAdj
       (G := CGraph.circulant 6 [1, 2]) (H := CGraph.compl (CGraph.circulant 6 [3]))
