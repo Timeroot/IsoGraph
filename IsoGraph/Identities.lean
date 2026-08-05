@@ -8237,9 +8237,6 @@ def disjUnion (G H : IsoGraph) : IsoGraph :=
       rintro g₁ h₁ g₂ h₂ ⟨i⟩ ⟨j⟩
       exact Quotient.sound ⟨CGraph.Iso.disjUnion i j⟩) G H
 
-@[simp] theorem disjUnion_mk (G H : CGraph) :
-    disjUnion ⟦G⟧ ⟦H⟧ = ⟦CGraph.disjUnion G H⟧ := rfl
-
 /-- The join of two isomorphism classes: a disjoint union with all edges across. -/
 def join (G H : IsoGraph) : IsoGraph := (disjUnion Gᶜ Hᶜ)ᶜ
 
@@ -8253,10 +8250,6 @@ def cartesianProduct (G H : IsoGraph) : IsoGraph :=
         (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
         (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
 
-@[simp] theorem cartesianProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    cartesianProduct ⟦G⟧ ⟦H⟧ = ⟦CGraph.cartesianProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.cartesianProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
-
 /-- The tensor product of two isomorphism classes. -/
 def tensorProduct (G H : IsoGraph) : IsoGraph :=
   Quotient.lift₂ (s₁ := CGraph.isoSetoid) (s₂ := CGraph.isoSetoid)
@@ -8266,10 +8259,6 @@ def tensorProduct (G H : IsoGraph) : IsoGraph :=
       exact Quotient.sound ⟨CGraph.Iso.tensorProduct
         (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
         (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
-
-@[simp] theorem tensorProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    tensorProduct ⟦G⟧ ⟦H⟧ = ⟦CGraph.tensorProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.tensorProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
 
 /-- The strong product of two isomorphism classes. -/
 def strongProduct (G H : IsoGraph) : IsoGraph :=
@@ -8281,10 +8270,6 @@ def strongProduct (G H : IsoGraph) : IsoGraph :=
         (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
         (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
 
-@[simp] theorem strongProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    strongProduct ⟦G⟧ ⟦H⟧ = ⟦CGraph.strongProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.strongProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
-
 /-- The lexicographic product of two isomorphism classes. -/
 def lexProduct (G H : IsoGraph) : IsoGraph :=
   Quotient.lift₂ (s₁ := CGraph.isoSetoid) (s₂ := CGraph.isoSetoid)
@@ -8294,10 +8279,6 @@ def lexProduct (G H : IsoGraph) : IsoGraph :=
       exact Quotient.sound ⟨CGraph.Iso.lexProduct
         (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
         (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
-
-@[simp] theorem lexProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    lexProduct ⟦G⟧ ⟦H⟧ = ⟦CGraph.lexProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.lexProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
 
 /-! ### Notation
 
@@ -8315,6 +8296,25 @@ The four products bind more tightly than the two sums, so `G ⊕g H □g K` is `
 @[inherit_doc] infixl:70 " ⊗g " => IsoGraph.tensorProduct
 @[inherit_doc] infixl:70 " ⊠g " => IsoGraph.strongProduct
 @[inherit_doc] infixl:70 " ·g " => IsoGraph.lexProduct
+
+@[simp] theorem disjUnion_mk (G H : CGraph) :
+    ⟦G⟧ ⊕g ⟦H⟧ = ⟦CGraph.disjUnion G H⟧ := rfl
+
+@[simp] theorem cartesianProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    ⟦G⟧ □g ⟦H⟧ = ⟦CGraph.cartesianProduct G H⟧ :=
+  Quotient.sound ⟨CGraph.Iso.cartesianProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
+
+@[simp] theorem tensorProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    ⟦G⟧ ⊗g ⟦H⟧ = ⟦CGraph.tensorProduct G H⟧ :=
+  Quotient.sound ⟨CGraph.Iso.tensorProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
+
+@[simp] theorem strongProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    ⟦G⟧ ⊠g ⟦H⟧ = ⟦CGraph.strongProduct G H⟧ :=
+  Quotient.sound ⟨CGraph.Iso.strongProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
+
+@[simp] theorem lexProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    ⟦G⟧ ·g ⟦H⟧ = ⟦CGraph.lexProduct G H⟧ :=
+  Quotient.sound ⟨CGraph.Iso.lexProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
 
 /-- The line graph of an isomorphism class: its vertices are the edges, adjacent when they meet. -/
 def lineGraph (G : IsoGraph) : IsoGraph :=
@@ -8348,19 +8348,19 @@ Exactly as on `CGraph`: these are notation for the constructions above, not new 
 abbrev book (n : ℕ) : IsoGraph := completeMultipartite [1, 1, n]
 
 /-- The fan graph on a path of `n` vertices. -/
-abbrev fan (n : ℕ) : IsoGraph := join (complete 1) (path n)
+abbrev fan (n : ℕ) : IsoGraph := complete 1 ∇g path n
 
 /-- The `n`-rung ladder. -/
-abbrev ladder (n : ℕ) : IsoGraph := cartesianProduct (path n) (complete 2)
+abbrev ladder (n : ℕ) : IsoGraph := path n □g complete 2
 
 /-- The `n`-gonal prism. -/
-abbrev prism (n : ℕ) : IsoGraph := cartesianProduct (cycle n) (complete 2)
+abbrev prism (n : ℕ) : IsoGraph := cycle n □g complete 2
 
 /-- The triangular graph `T(n)`. -/
 abbrev triangular (n : ℕ) : IsoGraph := johnson n 2
 
 /-- The `m × n` rook's graph. -/
-abbrev rook (m n : ℕ) : IsoGraph := cartesianProduct (complete m) (complete n)
+abbrev rook (m n : ℕ) : IsoGraph := complete m □g complete n
 
 /-- The cocktail party graph on `n` pairs. -/
 abbrev cocktailParty (n : ℕ) : IsoGraph := completeMultipartite (List.replicate n 2)
@@ -8375,11 +8375,11 @@ abbrev turan (n r : ℕ) : IsoGraph :=
 
 /-- The friendship (windmill) graph `F_n`: `n` triangles glued at a common vertex. -/
 abbrev friendship (n : ℕ) : IsoGraph :=
-  join (complete 1) (cartesianProduct (empty n) (complete 2))
+  complete 1 ∇g (empty n □g complete 2)
 
 /-- The crown graph `S_n`: the complete bipartite graph `K_{n,n}` with a perfect matching
 removed, equivalently the bipartite double cover of `K_n`. -/
-abbrev crown (n : ℕ) : IsoGraph := tensorProduct (complete n) (complete 2)
+abbrev crown (n : ℕ) : IsoGraph := complete n ⊗g complete 2
 
 /-! ## Bridging to `CGraph`
 
@@ -8448,38 +8448,38 @@ theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G�
   induction G using Quotient.inductionOn with
   | h g => show Fintype.card (CGraph.compl g.canonicalize).V = _; simp
 
-@[simp] theorem V_disjUnion (G H : IsoGraph) : (disjUnion G H).V = G.V + H.V := by
+@[simp] theorem V_disjUnion (G H : IsoGraph) : (G ⊕g H).V = G.V + H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h => exact CGraph.card_disjUnion g h
 
-@[simp] theorem V_join (G H : IsoGraph) : (join G H).V = G.V + H.V := by
-  show (disjUnion Gᶜ Hᶜ)ᶜ.V = _
+@[simp] theorem V_join (G H : IsoGraph) : (G ∇g H).V = G.V + H.V := by
+  show (Gᶜ ⊕g Hᶜ)ᶜ.V = _
   simp
 
 @[simp] theorem V_cartesianProduct (G H : IsoGraph) :
-    (cartesianProduct G H).V = G.V * H.V := by
+    (G □g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
       show Fintype.card (CGraph.cartesianProduct g.canonicalize h.canonicalize).V = _
       simp
 
-@[simp] theorem V_tensorProduct (G H : IsoGraph) : (tensorProduct G H).V = G.V * H.V := by
+@[simp] theorem V_tensorProduct (G H : IsoGraph) : (G ⊗g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
       show Fintype.card (CGraph.tensorProduct g.canonicalize h.canonicalize).V = _
       simp
 
-@[simp] theorem V_strongProduct (G H : IsoGraph) : (strongProduct G H).V = G.V * H.V := by
+@[simp] theorem V_strongProduct (G H : IsoGraph) : (G ⊠g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
       show Fintype.card (CGraph.strongProduct g.canonicalize h.canonicalize).V = _
       simp
 
-@[simp] theorem V_lexProduct (G H : IsoGraph) : (lexProduct G H).V = G.V * H.V := by
+@[simp] theorem V_lexProduct (G H : IsoGraph) : (G ·g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
@@ -8534,21 +8534,21 @@ defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees with
 `CGraph.join`. -/
 
 @[simp] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
-  show (disjUnion (show IsoGraph from ⟦G⟧)ᶜ (show IsoGraph from ⟦H⟧)ᶜ)ᶜ = _
+    ⟦G⟧ ∇g ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+  show ((show IsoGraph from ⟦G⟧)ᶜ ⊕g (show IsoGraph from ⟦H⟧)ᶜ)ᶜ = _
   rw [compl_mk, compl_mk, disjUnion_mk, compl_mk]
   rfl
 
-theorem join_def (G H : IsoGraph) : join G H = (disjUnion Gᶜ Hᶜ)ᶜ := rfl
+theorem join_def (G H : IsoGraph) : G ∇g H = (Gᶜ ⊕g Hᶜ)ᶜ := rfl
 
 theorem bipartite_eq_compl (m n : ℕ) :
-    bipartite m n = (disjUnion (complete m) (complete n))ᶜ := by
+    bipartite m n = (complete m ⊕g complete n)ᶜ := by
   rw [complete_def, complete_def, disjUnion_mk, compl_mk]
   rfl
 
 theorem star_eq_bipartite (n : ℕ) : star n = bipartite 1 n := rfl
 
-theorem wheel_eq_join (n : ℕ) : wheel n = join (complete 1) (cycle n) := by
+theorem wheel_eq_join (n : ℕ) : wheel n = complete 1 ∇g cycle n := by
   rw [complete_def, cycle_def, join_mk]
   rfl
 
@@ -8569,29 +8569,29 @@ theorem wheel_eq_join (n : ℕ) : wheel n = join (complete 1) (cycle n) := by
   rw [← compl_empty, compl_compl]
 
 @[simp] theorem compl_join (G H : IsoGraph) :
-    (join G H)ᶜ = disjUnion Gᶜ Hᶜ := by
-  show (disjUnion Gᶜ Hᶜ)ᶜᶜ = _
+    (G ∇g H)ᶜ = Gᶜ ⊕g Hᶜ := by
+  show (Gᶜ ⊕g Hᶜ)ᶜᶜ = _
   rw [compl_compl]
 
 @[simp] theorem compl_disjUnion (G H : IsoGraph) :
-    (disjUnion G H)ᶜ = join Gᶜ Hᶜ := by
-  show _ = (disjUnion Gᶜᶜ Hᶜᶜ)ᶜ
+    (G ⊕g H)ᶜ = Gᶜ ∇g Hᶜ := by
+  show _ = (Gᶜᶜ ⊕g Hᶜᶜ)ᶜ
   rw [compl_compl, compl_compl]
 
 @[simp] theorem compl_bipartite (m n : ℕ) :
-    (bipartite m n)ᶜ = disjUnion (complete m) (complete n) := by
+    (bipartite m n)ᶜ = complete m ⊕g complete n := by
   rw [bipartite_eq_compl, compl_compl]
 
 /-! ## Disjoint unions -/
 
-theorem disjUnion_comm (G H : IsoGraph) : disjUnion G H = disjUnion H G := by
+theorem disjUnion_comm (G H : IsoGraph) : G ⊕g H = H ⊕g G := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
     | h h => exact Quotient.sound (CGraph.disjUnion_comm g h)
 
 theorem disjUnion_assoc (G H K : IsoGraph) :
-    disjUnion (disjUnion G H) K = disjUnion G (disjUnion H K) := by
+    (G ⊕g H) ⊕g K = G ⊕g (H ⊕g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -8599,7 +8599,7 @@ theorem disjUnion_assoc (G H K : IsoGraph) :
       induction K using Quotient.inductionOn with
       | h k => exact Quotient.sound (CGraph.disjUnion_assoc g h k)
 
-@[simp] theorem disjUnion_empty_zero (G : IsoGraph) : disjUnion G (empty 0) = G := by
+@[simp] theorem disjUnion_empty_zero (G : IsoGraph) : G ⊕g empty 0 = G := by
   haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -8612,10 +8612,10 @@ theorem disjUnion_assoc (G H K : IsoGraph) :
             | exact (IsEmpty.false a).elim
             | exact (IsEmpty.false b).elim)⟩
 
-@[simp] theorem empty_zero_disjUnion (G : IsoGraph) : disjUnion (empty 0) G = G := by
+@[simp] theorem empty_zero_disjUnion (G : IsoGraph) : empty 0 ⊕g G = G := by
   rw [disjUnion_comm, disjUnion_empty_zero]
 
-@[simp] theorem disjUnion_empty (m n : ℕ) : disjUnion (empty m) (empty n) = empty (m + n) := by
+@[simp] theorem disjUnion_empty (m n : ℕ) : empty m ⊕g empty n = empty (m + n) := by
   rw [empty_def, empty_def, disjUnion_mk,
     mk_eq_empty (G := CGraph.disjUnion (CGraph.empty m) (CGraph.empty n))
       (by rintro (a | a) (b | b) <;> rfl)]
@@ -8623,15 +8623,15 @@ theorem disjUnion_assoc (G H K : IsoGraph) :
 
 /-! ## Joins -/
 
-theorem join_comm (G H : IsoGraph) : join G H = join H G := by
-  show (disjUnion Gᶜ Hᶜ)ᶜ = (disjUnion Hᶜ Gᶜ)ᶜ
+theorem join_comm (G H : IsoGraph) : G ∇g H = H ∇g G := by
+  show (Gᶜ ⊕g Hᶜ)ᶜ = (Hᶜ ⊕g Gᶜ)ᶜ
   rw [disjUnion_comm]
 
-theorem join_assoc (G H K : IsoGraph) : join (join G H) K = join G (join H K) := by
-  show (disjUnion (join G H)ᶜ Kᶜ)ᶜ
-    = (disjUnion Gᶜ (join H K)ᶜ)ᶜ
-  show (disjUnion (disjUnion Gᶜ Hᶜ)ᶜᶜ Kᶜ)ᶜ
-    = (disjUnion Gᶜ (disjUnion Hᶜ Kᶜ)ᶜᶜ)ᶜ
+theorem join_assoc (G H K : IsoGraph) : (G ∇g H) ∇g K = G ∇g (H ∇g K) := by
+  show ((G ∇g H)ᶜ ⊕g Kᶜ)ᶜ
+    = (Gᶜ ⊕g (H ∇g K)ᶜ)ᶜ
+  show ((Gᶜ ⊕g Hᶜ)ᶜᶜ ⊕g Kᶜ)ᶜ
+    = (Gᶜ ⊕g (Hᶜ ⊕g Kᶜ)ᶜᶜ)ᶜ
   rw [compl_compl, compl_compl, disjUnion_assoc]
 
 /-! ## Small graphs
@@ -8684,16 +8684,16 @@ theorem cycle_three : cycle 3 = complete 3 :=
 
 /-! ## Bipartite, star, wheel -/
 
-theorem bipartite_eq_join (m n : ℕ) : bipartite m n = join (empty m) (empty n) := by
+theorem bipartite_eq_join (m n : ℕ) : bipartite m n = empty m ∇g empty n := by
   rw [join_def, compl_empty, compl_empty, bipartite_eq_compl]
 
-@[simp] theorem join_empty_zero (G : IsoGraph) : join G (empty 0) = G := by
+@[simp] theorem join_empty_zero (G : IsoGraph) : G ∇g empty 0 = G := by
   rw [join_def, compl_empty, complete_zero, disjUnion_empty_zero, compl_compl]
 
-@[simp] theorem empty_zero_join (G : IsoGraph) : join (empty 0) G = G := by
+@[simp] theorem empty_zero_join (G : IsoGraph) : empty 0 ∇g G = G := by
   rw [join_comm, join_empty_zero]
 
-@[simp] theorem join_complete (m n : ℕ) : join (complete m) (complete n) = complete (m + n) := by
+@[simp] theorem join_complete (m n : ℕ) : complete m ∇g complete n = complete (m + n) := by
   rw [join_def, compl_complete, compl_complete, disjUnion_empty, compl_empty]
 
 @[simp] theorem bipartite_zero_right (m : ℕ) : bipartite m 0 = empty m := by
@@ -8712,7 +8712,7 @@ theorem star_one : star 1 = complete 2 := by
   rw [star_eq_bipartite, bipartite_one_one]
 
 /-- The complement of a star is its centre, isolated, next to a clique on the leaves. -/
-theorem compl_star (n : ℕ) : (star n)ᶜ = disjUnion (empty 1) (complete n) := by
+theorem compl_star (n : ℕ) : (star n)ᶜ = empty 1 ⊕g complete n := by
   rw [star_eq_bipartite, compl_bipartite, complete_one]
 
 /-- `K_{2,2}` is the square. -/
@@ -8725,7 +8725,7 @@ theorem bipartite_two_two : bipartite 2 2 = cycle 4 := by
     (by decide)⟩
 
 /-- The complement of the square is a perfect matching. -/
-@[simp] theorem compl_cycle_four : (cycle 4)ᶜ = disjUnion (complete 2) (complete 2) := by
+@[simp] theorem compl_cycle_four : (cycle 4)ᶜ = complete 2 ⊕g complete 2 := by
   rw [← bipartite_two_two, compl_bipartite]
 
 @[simp] theorem wheel_zero : wheel 0 = empty 1 := by
@@ -8741,12 +8741,12 @@ theorem wheel_three : wheel 3 = complete 4 := by
   rw [wheel_eq_join, cycle_three, join_complete]
 
 /-- The hub of a wheel is joined to everything, so it is isolated in the complement. -/
-theorem compl_wheel (n : ℕ) : (wheel n)ᶜ = disjUnion (empty 1) (cycle n)ᶜ := by
+theorem compl_wheel (n : ℕ) : (wheel n)ᶜ = empty 1 ⊕g (cycle n)ᶜ := by
   rw [wheel_eq_join, compl_join, compl_complete]
 
 /-- Likewise for the fan, which is a hub joined to a path rather than a cycle. -/
-theorem compl_fan (n : ℕ) : (fan n)ᶜ = disjUnion (empty 1) (path n)ᶜ := by
-  show (join (complete 1) (path n))ᶜ = _
+theorem compl_fan (n : ℕ) : (fan n)ᶜ = empty 1 ⊕g (path n)ᶜ := by
+  show (complete 1 ∇g path n)ᶜ = _
   rw [compl_join, compl_complete]
 
 /-! ## Complete multipartite graphs
@@ -8796,7 +8796,7 @@ theorem book_one : book 1 = complete 3 := by
 /-- Peeling off the first part: the rest of the multipartite graph, joined to an independent
 set of the first part's size. -/
 theorem completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
-    completeMultipartite (d :: ds) = join (empty d) (completeMultipartite ds) := by
+    completeMultipartite (d :: ds) = empty d ∇g completeMultipartite ds := by
   have h : (⟦CGraph.sigmaUnion fun i : Fin (d :: ds).length ↦ CGraph.complete ((d :: ds).get i)⟧ :
       IsoGraph)
       = disjUnion ⟦CGraph.complete d⟧
@@ -8815,7 +8815,7 @@ theorem completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
 
 theorem completeMultipartite_append (ds es : List ℕ) :
     completeMultipartite (ds ++ es)
-      = join (completeMultipartite ds) (completeMultipartite es) := by
+      = completeMultipartite ds ∇g completeMultipartite es := by
   induction ds with
   | nil => rw [List.nil_append, completeMultipartite_nil, empty_zero_join]
   | cons d ds ih =>
@@ -8823,7 +8823,7 @@ theorem completeMultipartite_append (ds es : List ℕ) :
 
 theorem compl_completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
     (completeMultipartite (d :: ds))ᶜ
-      = disjUnion (complete d) (completeMultipartite ds)ᶜ := by
+      = complete d ⊕g (completeMultipartite ds)ᶜ := by
   rw [completeMultipartite_cons, compl_join, compl_empty]
 
 theorem completeMultipartite_pair (a b : ℕ) : completeMultipartite [a, b] = bipartite a b := by
@@ -8849,13 +8849,13 @@ theorem completeMultipartite_replicate_one (n : ℕ) :
   show completeMultipartite [2, 2] = cycle 4
   rw [completeMultipartite_pair, bipartite_two_two]
 
-theorem book_eq_join (n : ℕ) : book n = join (complete 2) (empty n) := by
+theorem book_eq_join (n : ℕ) : book n = complete 2 ∇g empty n := by
   show completeMultipartite [1, 1, n] = _
   rw [completeMultipartite_cons, completeMultipartite_pair, bipartite_eq_join, ← join_assoc,
     ← bipartite_eq_join, bipartite_one_one]
 
 /-- The complement of the book `B_n` is its spine, edgeless, next to a clique on the pages. -/
-theorem compl_book (n : ℕ) : (book n)ᶜ = disjUnion (empty 2) (complete n) := by
+theorem compl_book (n : ℕ) : (book n)ᶜ = empty 2 ⊕g complete n := by
   rw [book_eq_join, compl_join, compl_complete, compl_empty]
 
 /-! ## Circulants
@@ -8901,7 +8901,7 @@ theorem circulant_one_pred (n : ℕ) (hn : 1 ≤ n) : circulant n [1, n - 1] = c
 nothing else, so it is `m` disjoint edges — the Cartesian product of an edgeless graph with `K₂`.
 -/
 theorem circulant_matching (m : ℕ) :
-    circulant (2 * (m + 1)) [m + 1] = cartesianProduct (empty (m + 1)) (complete 2) := by
+    circulant (2 * (m + 1)) [m + 1] = empty (m + 1) □g complete 2 := by
   rw [circulant_def, empty_def, complete_def, cartesianProduct_mk]
   exact Quotient.sound ⟨(CGraph.Iso.circulantMatching m).symm⟩
 
@@ -8942,13 +8942,13 @@ the squares with the non-squares.  The general statement needs the multiplicativ
 graph joins `x` to `y` exactly when `x - y` is not a multiple of `3` and one gets the complete
 tripartite graph `K₃,₃,₃` rather than the rook's graph `R(3, 3)` that `GF(9)` would give. -/
 theorem compl_paley_nine :
-    (paley 9)ᶜ = disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) := by
+    (paley 9)ᶜ = complete 3 ⊕g (complete 3 ⊕g complete 3) := by
   rw [paley_def, compl_mk, complete_def, disjUnion_mk, disjUnion_mk]
   exact Quotient.sound ⟨CGraph.Iso.paleyNineIso.symm⟩
 
 theorem paley_nine : paley 9 = completeMultipartite [3, 3, 3] := by
   have h : (completeMultipartite [3, 3, 3])ᶜ
-      = disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) := by
+      = complete 3 ⊕g (complete 3 ⊕g complete 3) := by
     rw [compl_completeMultipartite_cons, compl_completeMultipartite_cons,
       compl_completeMultipartite_cons, completeMultipartite_nil, compl_empty, complete_zero,
       disjUnion_empty_zero]
@@ -9067,7 +9067,7 @@ private def kneserFourTwoMap : Fin 2 ⊕ Fin 2 ⊕ Fin 2 → (CGraph.kneser 4 2)
   | .inr (.inr 1) => ⟨{1, 2}, by decide⟩
 
 theorem kneser_four_two :
-    kneser 4 2 = disjUnion (complete 2) (disjUnion (complete 2) (complete 2)) := by
+    kneser 4 2 = complete 2 ⊕g (complete 2 ⊕g complete 2) := by
   rw [kneser_def, complete_def, disjUnion_mk, disjUnion_mk]
   symm
   exact Quotient.sound ⟨CGraph.isoOfAdj
@@ -9078,7 +9078,7 @@ theorem kneser_four_two :
 
 theorem triangular_four : triangular 4 = cocktailParty 3 := by
   have h : (cocktailParty 3)ᶜ
-      = disjUnion (complete 2) (disjUnion (complete 2) (complete 2)) := by
+      = complete 2 ⊕g (complete 2 ⊕g complete 2) := by
     show (completeMultipartite [2, 2, 2])ᶜ = _
     rw [compl_completeMultipartite_cons, compl_completeMultipartite_cons,
       compl_completeMultipartite_cons, completeMultipartite_nil, compl_empty, complete_zero,
@@ -9110,7 +9110,7 @@ bit-string of length `n + 1` into its first bit and the rest turns "differ in ex
 into the cartesian product's "agree on one side and differ on the other".  `CGraph.card_ne_succ`
 does the counting. -/
 theorem hypercube_succ (n : ℕ) :
-    hypercube (n + 1) = cartesianProduct (hypercube n) (complete 2) := by
+    hypercube (n + 1) = hypercube n □g complete 2 := by
   rw [hypercube_def, hypercube_def n, complete_def, cartesianProduct_mk]
   refine Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.hypercube (n + 1))
@@ -9676,7 +9676,7 @@ absorbing element for the tensor product, which has no edges as soon as one fact
 `empty 1` rather than `complete 1` throughout: the two are equal, and `complete_one` puts
 `empty 1` in `simp` normal form. -/
 
-theorem cartesianProduct_comm (G H : IsoGraph) : cartesianProduct G H = cartesianProduct H G := by
+theorem cartesianProduct_comm (G H : IsoGraph) : G □g H = H □g G := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9685,7 +9685,7 @@ theorem cartesianProduct_comm (G H : IsoGraph) : cartesianProduct G H = cartesia
         = ⟦CGraph.cartesianProduct h.canonicalize g.canonicalize⟧
       exact Quotient.sound ⟨CGraph.Iso.cartesianProductComm _ _⟩
 
-theorem tensorProduct_comm (G H : IsoGraph) : tensorProduct G H = tensorProduct H G := by
+theorem tensorProduct_comm (G H : IsoGraph) : G ⊗g H = H ⊗g G := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9694,7 +9694,7 @@ theorem tensorProduct_comm (G H : IsoGraph) : tensorProduct G H = tensorProduct 
         = ⟦CGraph.tensorProduct h.canonicalize g.canonicalize⟧
       exact Quotient.sound ⟨CGraph.Iso.tensorProductComm _ _⟩
 
-theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct H G := by
+theorem strongProduct_comm (G H : IsoGraph) : G ⊠g H = H ⊠g G := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9703,7 +9703,7 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
         = ⟦CGraph.strongProduct h.canonicalize g.canonicalize⟧
       exact Quotient.sound ⟨CGraph.Iso.strongProductComm _ _⟩
 
-@[simp] theorem cartesianProduct_empty_one (G : IsoGraph) : cartesianProduct G (empty 1) = G := by
+@[simp] theorem cartesianProduct_empty_one (G : IsoGraph) : G □g empty 1 = G := by
   haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9715,10 +9715,10 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
     rw [CGraph.cartesianProduct_adj, Subsingleton.elim x.2 y.2]
     simp
 
-@[simp] theorem empty_one_cartesianProduct (G : IsoGraph) : cartesianProduct (empty 1) G = G := by
+@[simp] theorem empty_one_cartesianProduct (G : IsoGraph) : empty 1 □g G = G := by
   rw [cartesianProduct_comm, cartesianProduct_empty_one]
 
-@[simp] theorem strongProduct_empty_one (G : IsoGraph) : strongProduct G (empty 1) = G := by
+@[simp] theorem strongProduct_empty_one (G : IsoGraph) : G ⊠g empty 1 = G := by
   haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9735,10 +9735,10 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
     · have hxy : x ≠ y := fun hh ↦ hx (congrArg Prod.fst hh)
       simp [hx, hxy, Subsingleton.elim x.2 y.2]
 
-@[simp] theorem empty_one_strongProduct (G : IsoGraph) : strongProduct (empty 1) G = G := by
+@[simp] theorem empty_one_strongProduct (G : IsoGraph) : empty 1 ⊠g G = G := by
   rw [strongProduct_comm, strongProduct_empty_one]
 
-@[simp] theorem lexProduct_empty_one (G : IsoGraph) : lexProduct G (empty 1) = G := by
+@[simp] theorem lexProduct_empty_one (G : IsoGraph) : G ·g empty 1 = G := by
   haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9750,7 +9750,7 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
     rw [CGraph.lexProduct_adj]
     simp
 
-@[simp] theorem empty_one_lexProduct (G : IsoGraph) : lexProduct (empty 1) G = G := by
+@[simp] theorem empty_one_lexProduct (G : IsoGraph) : empty 1 ·g G = G := by
   haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9764,14 +9764,14 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
 
 /-- A Cartesian product of edgeless graphs is edgeless. -/
 @[simp] theorem cartesianProduct_empty (m n : ℕ) :
-    cartesianProduct (empty m) (empty n) = empty (m * n) := by
+    empty m □g empty n = empty (m * n) := by
   rw [empty_def, empty_def, cartesianProduct_mk,
     mk_eq_empty (G := CGraph.cartesianProduct (CGraph.empty m) (CGraph.empty n)) (by simp)]
   simp
 
 /-- The tensor product with an edgeless graph is edgeless. -/
 @[simp] theorem tensorProduct_empty (G : IsoGraph) (n : ℕ) :
-    tensorProduct G (empty n) = empty (G.V * n) := by
+    G ⊗g empty n = empty (G.V * n) := by
   induction G using Quotient.inductionOn with
   | h g =>
     rw [← mk_canonicalize g, empty_def, tensorProduct_mk,
@@ -9779,12 +9779,12 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
     simp
 
 @[simp] theorem empty_tensorProduct (n : ℕ) (G : IsoGraph) :
-    tensorProduct (empty n) G = empty (n * G.V) := by
+    empty n ⊗g G = empty (n * G.V) := by
   rw [tensorProduct_comm, tensorProduct_empty, Nat.mul_comm]
 
 /-- The strong product of complete graphs is complete. -/
 @[simp] theorem strongProduct_complete (m n : ℕ) :
-    strongProduct (complete m) (complete n) = complete (m * n) := by
+    complete m ⊠g complete n = complete (m * n) := by
   have h : ∀ x y : (CGraph.strongProduct (CGraph.complete m) (CGraph.complete n)).V, x ≠ y →
       (CGraph.strongProduct (CGraph.complete m) (CGraph.complete n)).Adj x y = true := by
     intro x y hxy
@@ -9794,7 +9794,7 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
 
 /-- The lexicographic product of complete graphs is complete. -/
 @[simp] theorem lexProduct_complete (m n : ℕ) :
-    lexProduct (complete m) (complete n) = complete (m * n) := by
+    complete m ·g complete n = complete (m * n) := by
   have h : ∀ x y : (CGraph.lexProduct (CGraph.complete m) (CGraph.complete n)).V, x ≠ y →
       (CGraph.lexProduct (CGraph.complete m) (CGraph.complete n)).Adj x y = true := by
     intro x y hxy
@@ -9810,7 +9810,7 @@ theorem strongProduct_comm (G H : IsoGraph) : strongProduct G H = strongProduct 
 A factor with no vertices annihilates every product, and all four products are associative. -/
 
 @[simp] theorem cartesianProduct_empty_zero (G : IsoGraph) :
-    cartesianProduct G (empty 0) = empty 0 := by
+    G □g empty 0 = empty 0 := by
   haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9820,11 +9820,11 @@ A factor with no vertices annihilates every product, and all four products are a
     exact mk_eq_empty_zero
 
 @[simp] theorem empty_zero_cartesianProduct (G : IsoGraph) :
-    cartesianProduct (empty 0) G = empty 0 := by
+    empty 0 □g G = empty 0 := by
   rw [cartesianProduct_comm, cartesianProduct_empty_zero]
 
 @[simp] theorem strongProduct_empty_zero (G : IsoGraph) :
-    strongProduct G (empty 0) = empty 0 := by
+    G ⊠g empty 0 = empty 0 := by
   haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9834,10 +9834,10 @@ A factor with no vertices annihilates every product, and all four products are a
     exact mk_eq_empty_zero
 
 @[simp] theorem empty_zero_strongProduct (G : IsoGraph) :
-    strongProduct (empty 0) G = empty 0 := by
+    empty 0 ⊠g G = empty 0 := by
   rw [strongProduct_comm, strongProduct_empty_zero]
 
-@[simp] theorem lexProduct_empty_zero (G : IsoGraph) : lexProduct G (empty 0) = empty 0 := by
+@[simp] theorem lexProduct_empty_zero (G : IsoGraph) : G ·g empty 0 = empty 0 := by
   haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9846,7 +9846,7 @@ A factor with no vertices annihilates every product, and all four products are a
       inferInstanceAs (IsEmpty (g.canonicalize.V × (CGraph.empty 0).V))
     exact mk_eq_empty_zero
 
-@[simp] theorem empty_zero_lexProduct (G : IsoGraph) : lexProduct (empty 0) G = empty 0 := by
+@[simp] theorem empty_zero_lexProduct (G : IsoGraph) : empty 0 ·g G = empty 0 := by
   haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
   induction G using Quotient.inductionOn with
   | h g =>
@@ -9856,7 +9856,7 @@ A factor with no vertices annihilates every product, and all four products are a
     exact mk_eq_empty_zero
 
 theorem cartesianProduct_assoc (G H K : IsoGraph) :
-    cartesianProduct (cartesianProduct G H) K = cartesianProduct G (cartesianProduct H K) := by
+    (G □g H) □g K = G □g (H □g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9868,7 +9868,7 @@ theorem cartesianProduct_assoc (G H K : IsoGraph) :
         exact Quotient.sound ⟨CGraph.Iso.cartesianProductAssoc _ _ _⟩
 
 theorem tensorProduct_assoc (G H K : IsoGraph) :
-    tensorProduct (tensorProduct G H) K = tensorProduct G (tensorProduct H K) := by
+    (G ⊗g H) ⊗g K = G ⊗g (H ⊗g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9880,7 +9880,7 @@ theorem tensorProduct_assoc (G H K : IsoGraph) :
         exact Quotient.sound ⟨CGraph.Iso.tensorProductAssoc _ _ _⟩
 
 theorem strongProduct_assoc (G H K : IsoGraph) :
-    strongProduct (strongProduct G H) K = strongProduct G (strongProduct H K) := by
+    (G ⊠g H) ⊠g K = G ⊠g (H ⊠g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9892,7 +9892,7 @@ theorem strongProduct_assoc (G H K : IsoGraph) :
         exact Quotient.sound ⟨CGraph.Iso.strongProductAssoc _ _ _⟩
 
 theorem lexProduct_assoc (G H K : IsoGraph) :
-    lexProduct (lexProduct G H) K = lexProduct G (lexProduct H K) := by
+    (G ·g H) ·g K = G ·g (H ·g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9910,8 +9910,8 @@ products, and on the left only for the lexicographic one.  These are good `simp`
 `disjUnion` outwards, so a product of unions normalises to a union of products. -/
 
 @[simp] theorem cartesianProduct_disjUnion (G H K : IsoGraph) :
-    cartesianProduct G (disjUnion H K)
-      = disjUnion (cartesianProduct G H) (cartesianProduct G K) := by
+    G □g (H ⊕g K)
+      = (G □g H) ⊕g (G □g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9924,13 +9924,13 @@ products, and on the left only for the lexicographic one.  These are good `simp`
         exact Quotient.sound ⟨CGraph.Iso.cartesianProductDisjUnion _ _ _⟩
 
 @[simp] theorem disjUnion_cartesianProduct (G H K : IsoGraph) :
-    cartesianProduct (disjUnion G H) K
-      = disjUnion (cartesianProduct G K) (cartesianProduct H K) := by
+    (G ⊕g H) □g K
+      = (G □g K) ⊕g (H □g K) := by
   rw [cartesianProduct_comm, cartesianProduct_disjUnion, cartesianProduct_comm,
     cartesianProduct_comm K H]
 
 @[simp] theorem tensorProduct_disjUnion (G H K : IsoGraph) :
-    tensorProduct G (disjUnion H K) = disjUnion (tensorProduct G H) (tensorProduct G K) := by
+    G ⊗g (H ⊕g K) = (G ⊗g H) ⊕g (G ⊗g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9942,11 +9942,11 @@ products, and on the left only for the lexicographic one.  These are good `simp`
         exact Quotient.sound ⟨CGraph.Iso.tensorProductDisjUnion _ _ _⟩
 
 @[simp] theorem disjUnion_tensorProduct (G H K : IsoGraph) :
-    tensorProduct (disjUnion G H) K = disjUnion (tensorProduct G K) (tensorProduct H K) := by
+    (G ⊕g H) ⊗g K = (G ⊗g K) ⊕g (H ⊗g K) := by
   rw [tensorProduct_comm, tensorProduct_disjUnion, tensorProduct_comm, tensorProduct_comm K H]
 
 @[simp] theorem strongProduct_disjUnion (G H K : IsoGraph) :
-    strongProduct G (disjUnion H K) = disjUnion (strongProduct G H) (strongProduct G K) := by
+    G ⊠g (H ⊕g K) = (G ⊠g H) ⊕g (G ⊠g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9958,12 +9958,12 @@ products, and on the left only for the lexicographic one.  These are good `simp`
         exact Quotient.sound ⟨CGraph.Iso.strongProductDisjUnion _ _ _⟩
 
 @[simp] theorem disjUnion_strongProduct (G H K : IsoGraph) :
-    strongProduct (disjUnion G H) K = disjUnion (strongProduct G K) (strongProduct H K) := by
+    (G ⊕g H) ⊠g K = (G ⊠g K) ⊕g (H ⊠g K) := by
   rw [strongProduct_comm, strongProduct_disjUnion, strongProduct_comm, strongProduct_comm K H]
 
 /-- The lexicographic product distributes over `disjUnion` in its first factor only. -/
 @[simp] theorem disjUnion_lexProduct (G H K : IsoGraph) :
-    lexProduct (disjUnion G H) K = disjUnion (lexProduct G K) (lexProduct H K) := by
+    (G ⊕g H) ·g K = (G ·g K) ⊕g (H ·g K) := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -9977,24 +9977,24 @@ products, and on the left only for the lexicographic one.  These are good `simp`
 /-- Multiplying by two independent vertices doubles the graph.  The same holds for the strong and
 lexicographic products, but not for the tensor product, which is edgeless here. -/
 theorem empty_two_cartesianProduct (G : IsoGraph) :
-    cartesianProduct (empty 2) G = disjUnion G G := by
+    empty 2 □g G = G ⊕g G := by
   rw [show (2 : ℕ) = 1 + 1 from rfl, ← disjUnion_empty, disjUnion_cartesianProduct,
     empty_one_cartesianProduct]
 
 theorem cartesianProduct_empty_two (G : IsoGraph) :
-    cartesianProduct G (empty 2) = disjUnion G G := by
+    G □g empty 2 = G ⊕g G := by
   rw [cartesianProduct_comm, empty_two_cartesianProduct]
 
 theorem empty_two_strongProduct (G : IsoGraph) :
-    strongProduct (empty 2) G = disjUnion G G := by
+    empty 2 ⊠g G = G ⊕g G := by
   rw [show (2 : ℕ) = 1 + 1 from rfl, ← disjUnion_empty, disjUnion_strongProduct,
     empty_one_strongProduct]
 
 theorem strongProduct_empty_two (G : IsoGraph) :
-    strongProduct G (empty 2) = disjUnion G G := by
+    G ⊠g empty 2 = G ⊕g G := by
   rw [strongProduct_comm, empty_two_strongProduct]
 
-theorem empty_two_lexProduct (G : IsoGraph) : lexProduct (empty 2) G = disjUnion G G := by
+theorem empty_two_lexProduct (G : IsoGraph) : empty 2 ·g G = G ⊕g G := by
   rw [show (2 : ℕ) = 1 + 1 from rfl, ← disjUnion_empty, disjUnion_lexProduct,
     empty_one_lexProduct]
 
@@ -10006,13 +10006,13 @@ are exactly the blow-ups of a clique by an independent set. -/
 
 /-- Peeling one copy off `empty (n+1) □ G`. -/
 theorem empty_succ_cartesianProduct (n : ℕ) (G : IsoGraph) :
-    cartesianProduct (empty (n + 1)) G = disjUnion G (cartesianProduct (empty n) G) := by
+    empty (n + 1) □g G = G ⊕g (empty n □g G) := by
   rw [show n + 1 = 1 + n from Nat.add_comm n 1, ← disjUnion_empty, disjUnion_cartesianProduct,
     empty_one_cartesianProduct]
 
 /-- **The lexicographic product is the one whose complement is a product of complements.** -/
 @[simp] theorem compl_lexProduct (G H : IsoGraph) :
-    (lexProduct G H)ᶜ = lexProduct Gᶜ Hᶜ := by
+    (G ·g H)ᶜ = Gᶜ ·g Hᶜ := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -10024,7 +10024,7 @@ theorem empty_succ_cartesianProduct (n : ℕ) (G : IsoGraph) :
 /-- With an edgeless first factor the lexicographic and Cartesian products agree: both are `n`
 disjoint copies. -/
 theorem empty_lexProduct (n : ℕ) (G : IsoGraph) :
-    lexProduct (empty n) G = cartesianProduct (empty n) G := by
+    empty n ·g G = empty n □g G := by
   induction G using Quotient.inductionOn with
   | h g =>
     rw [← mk_canonicalize g, empty_def, lexProduct_mk, cartesianProduct_mk]
@@ -10032,7 +10032,7 @@ theorem empty_lexProduct (n : ℕ) (G : IsoGraph) :
 
 /-- And so does the strong product. -/
 theorem empty_strongProduct (n : ℕ) (G : IsoGraph) :
-    strongProduct (empty n) G = cartesianProduct (empty n) G := by
+    empty n ⊠g G = empty n □g G := by
   induction G using Quotient.inductionOn with
   | h g =>
     rw [← mk_canonicalize g, empty_def, strongProduct_mk, cartesianProduct_mk]
@@ -10041,14 +10041,14 @@ theorem empty_strongProduct (n : ℕ) (G : IsoGraph) :
 /-- `K_m[G]` is `m` copies of `G` with every pair of copies joined — the complement of `m` disjoint
 copies of `Gᶜ`. -/
 theorem complete_lexProduct (m : ℕ) (G : IsoGraph) :
-    lexProduct (complete m) G = (cartesianProduct (empty m) Gᶜ)ᶜ := by
-  conv_lhs => rw [← compl_compl (lexProduct (complete m) G)]
+    complete m ·g G = (empty m □g Gᶜ)ᶜ := by
+  conv_lhs => rw [← compl_compl (complete m ·g G)]
   rw [compl_lexProduct, compl_complete, empty_lexProduct]
 
 /-- The complement of a complete multipartite graph with `m` equal parts is `m` disjoint cliques. -/
 theorem compl_completeMultipartite_replicate (m d : ℕ) :
     (completeMultipartite (List.replicate m d))ᶜ
-      = cartesianProduct (empty m) (complete d) := by
+      = empty m □g complete d := by
   induction m with
   | zero =>
     rw [List.replicate_zero, completeMultipartite_nil, compl_empty, complete_zero,
@@ -10059,17 +10059,17 @@ theorem compl_completeMultipartite_replicate (m d : ℕ) :
 /-- **Equal parts make a blow-up**: `K_{m×d}` is `K_m` with each vertex blown up to `d`
 independent ones. -/
 theorem completeMultipartite_replicate (m d : ℕ) :
-    completeMultipartite (List.replicate m d) = lexProduct (complete m) (empty d) := by
+    completeMultipartite (List.replicate m d) = complete m ·g empty d := by
   rw [complete_lexProduct, compl_empty, ← compl_completeMultipartite_replicate, compl_compl]
 
 /-- `paley 9` is `K₃` with every vertex blown up to three. -/
-theorem paley_nine_eq_lexProduct : paley 9 = lexProduct (complete 3) (empty 3) := by
+theorem paley_nine_eq_lexProduct : paley 9 = complete 3 ·g empty 3 := by
   rw [paley_nine, show ([3, 3, 3] : List ℕ) = List.replicate 3 3 from rfl,
     completeMultipartite_replicate]
 
 /-- The complement of the cocktail-party graph is a perfect matching. -/
 theorem compl_cocktailParty (n : ℕ) :
-    (cocktailParty n)ᶜ = cartesianProduct (empty n) (complete 2) :=
+    (cocktailParty n)ᶜ = empty n □g complete 2 :=
   compl_completeMultipartite_replicate n 2
 
 /-- The cocktail party graph is the complement of a perfect matching, and the matching is a
@@ -10079,34 +10079,34 @@ theorem compl_cocktailParty_eq_circulant (m : ℕ) :
   rw [compl_cocktailParty, circulant_matching]
 
 theorem cocktailParty_eq_lexProduct (m : ℕ) :
-    cocktailParty m = lexProduct (complete m) (empty 2) :=
+    cocktailParty m = complete m ·g empty 2 :=
   completeMultipartite_replicate m 2
 
 /-- The balanced complete bipartite graph is the two-part blow-up. -/
 theorem bipartite_self_eq_lexProduct (n : ℕ) :
-    bipartite n n = lexProduct (complete 2) (empty n) := by
+    bipartite n n = complete 2 ·g empty n := by
   rw [← completeMultipartite_replicate 2 n, show List.replicate 2 n = [n, n] from rfl,
     completeMultipartite_pair]
 
 /-- The lexicographic product distributes over `join` in its first factor, for the same reason it
 distributes over `disjUnion`: the two are exchanged by complementation. -/
 theorem join_lexProduct (G H K : IsoGraph) :
-    lexProduct (join G H) K = join (lexProduct G K) (lexProduct H K) := by
-  conv_lhs => rw [← compl_compl (lexProduct (join G H) K)]
+    (G ∇g H) ·g K = (G ·g K) ∇g (H ·g K) := by
+  conv_lhs => rw [← compl_compl ((G ∇g H) ·g K)]
   rw [compl_lexProduct, compl_join, disjUnion_lexProduct, ← compl_lexProduct G K,
     ← compl_lexProduct H K, ← join_def]
 
-@[simp] theorem lexProduct_empty (m n : ℕ) : lexProduct (empty m) (empty n) = empty (m * n) := by
+@[simp] theorem lexProduct_empty (m n : ℕ) : empty m ·g empty n = empty (m * n) := by
   rw [empty_lexProduct, cartesianProduct_empty]
 
 @[simp] theorem strongProduct_empty (m n : ℕ) :
-    strongProduct (empty m) (empty n) = empty (m * n) := by
+    empty m ⊠g empty n = empty (m * n) := by
   rw [empty_strongProduct, cartesianProduct_empty]
 
 /-- **Blowing up a complete multipartite graph multiplies its parts.**  Replacing every vertex by
 `d` independent ones keeps the graph complete multipartite, with each part `d` times as large. -/
 theorem lexProduct_completeMultipartite_empty (ds : List ℕ) (d : ℕ) :
-    lexProduct (completeMultipartite ds) (empty d) = completeMultipartite (ds.map (· * d)) := by
+    completeMultipartite ds ·g empty d = completeMultipartite (ds.map (· * d)) := by
   induction ds with
   | nil => rw [List.map_nil, completeMultipartite_nil, empty_zero_lexProduct]
   | cons a ds ih =>
@@ -10115,7 +10115,7 @@ theorem lexProduct_completeMultipartite_empty (ds : List ℕ) (d : ℕ) :
 
 /-- The two-part case: blowing up `K_{a,b}` gives `K_{ad,bd}`. -/
 theorem bipartite_mul (a b d : ℕ) :
-    bipartite (a * d) (b * d) = lexProduct (bipartite a b) (empty d) := by
+    bipartite (a * d) (b * d) = bipartite a b ·g empty d := by
   rw [← completeMultipartite_pair, ← completeMultipartite_pair,
     lexProduct_completeMultipartite_empty]
   rfl
@@ -10123,31 +10123,31 @@ theorem bipartite_mul (a b d : ℕ) :
 /-- **`Q_{m+n} = Q_m □ Q_n`**: splitting a bit-string of length `m + n` into its first `m` and
 last `n` bits.  Iterating `hypercube_succ` is all it takes. -/
 theorem hypercube_add (m n : ℕ) :
-    hypercube (m + n) = cartesianProduct (hypercube m) (hypercube n) := by
+    hypercube (m + n) = hypercube m □g hypercube n := by
   induction n with
   | zero => rw [Nat.add_zero, hypercube_zero, cartesianProduct_empty_one]
   | succ n ih =>
     rw [← Nat.add_assoc, hypercube_succ, ih, cartesianProduct_assoc, ← hypercube_succ]
 
 /-- `Q₄` is the `4 × 4` torus. -/
-theorem hypercube_four : hypercube 4 = cartesianProduct (cycle 4) (cycle 4) := by
+theorem hypercube_four : hypercube 4 = cycle 4 □g cycle 4 := by
   rw [show hypercube 4 = hypercube (2 + 2) from rfl, hypercube_add, hypercube_two]
 
 /-! ### Rooks and ladders -/
 
 theorem rook_one_left (n : ℕ) : rook 1 n = complete n := by
-  show cartesianProduct (complete 1) (complete n) = complete n
+  show complete 1 □g complete n = complete n
   rw [complete_one, empty_one_cartesianProduct]
 
 theorem rook_one_right (m : ℕ) : rook m 1 = complete m := by
-  show cartesianProduct (complete m) (complete 1) = complete m
+  show complete m □g complete 1 = complete m
   rw [complete_one, cartesianProduct_empty_one]
 
 theorem rook_comm (m n : ℕ) : rook m n = rook n m := cartesianProduct_comm _ _
 
 /-- The `2 × 2` rook's graph is the square. -/
 theorem rook_two_two : rook 2 2 = cycle 4 := by
-  show cartesianProduct (complete 2) (complete 2) = cycle 4
+  show complete 2 □g complete 2 = cycle 4
   rw [complete_def, cartesianProduct_mk, cycle_def]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.cartesianProduct (CGraph.complete 2) (CGraph.complete 2))
@@ -10159,50 +10159,50 @@ theorem rook_two_two : rook 2 2 = cycle 4 := by
 /-- The complement of the rook's graph is the tensor product of the two complete graphs — the
 `CGraph`-level `CGraph.compl_rook`, transported to the quotient. -/
 theorem compl_rook (m n : ℕ) :
-    (rook m n)ᶜ = tensorProduct (complete m) (complete n) := by
+    (rook m n)ᶜ = complete m ⊗g complete n := by
   have hrook : (rook m n : IsoGraph) = ⟦CGraph.rook m n⟧ := by
-    rw [show (rook m n : IsoGraph) = cartesianProduct (complete m) (complete n) from rfl,
+    rw [show (rook m n : IsoGraph) = complete m □g complete n from rfl,
       complete_def, complete_def, cartesianProduct_mk]
   rw [hrook, compl_mk, CGraph.compl_rook, complete_def, complete_def, tensorProduct_mk]
 
 /-- `K₂ × K₂` is a perfect matching: the tensor product keeps only the two "diagonal" moves. -/
 theorem tensorProduct_complete_two_two :
-    tensorProduct (complete 2) (complete 2) = disjUnion (complete 2) (complete 2) := by
+    complete 2 ⊗g complete 2 = complete 2 ⊕g complete 2 := by
   rw [← compl_rook, rook_two_two, compl_cycle_four]
 
 @[simp] theorem rook_zero_left (n : ℕ) : rook 0 n = empty 0 := by
-  show cartesianProduct (complete 0) (complete n) = empty 0
+  show complete 0 □g complete n = empty 0
   rw [complete_zero, empty_zero_cartesianProduct]
 
 @[simp] theorem rook_zero_right (m : ℕ) : rook m 0 = empty 0 := by
-  show cartesianProduct (complete m) (complete 0) = empty 0
+  show complete m □g complete 0 = empty 0
   rw [complete_zero, cartesianProduct_empty_zero]
 
 /-- The two-rung ladder is the square. -/
 theorem ladder_two : ladder 2 = cycle 4 := by
-  show cartesianProduct (path 2) (complete 2) = cycle 4
+  show path 2 □g complete 2 = cycle 4
   rw [path_two]
   exact rook_two_two
 
 theorem ladder_one : ladder 1 = complete 2 := by
-  show cartesianProduct (path 1) (complete 2) = complete 2
+  show path 1 □g complete 2 = complete 2
   rw [path_one, empty_one_cartesianProduct]
 
 /-- The two-rung prism is the square. -/
 theorem prism_two : prism 2 = cycle 4 := by
-  show cartesianProduct (cycle 2) (complete 2) = cycle 4
+  show cycle 2 □g complete 2 = cycle 4
   rw [cycle_two]
   exact rook_two_two
 
 /-- `K₂ □ K₃` is the triangular prism. -/
 theorem rook_two_three : rook 2 3 = prism 3 := by
-  show cartesianProduct (complete 2) (complete 3) = cartesianProduct (cycle 3) (complete 2)
+  show complete 2 □g complete 3 = cycle 3 □g complete 2
   rw [cycle_three, cartesianProduct_comm]
 
 /-- The complement of the hexagon is the triangular prism: `i ~ i + 2` gives the two triangles and
 `i ~ i + 3` the matching between them. -/
 theorem compl_cycle_six : (cycle 6)ᶜ = prism 3 := by
-  show (cycle 6)ᶜ = cartesianProduct (cycle 3) (complete 2)
+  show (cycle 6)ᶜ = cycle 3 □g complete 2
   rw [cycle_def, compl_mk, cycle_def, complete_def, cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.compl (CGraph.cycle 6))
@@ -10217,7 +10217,7 @@ theorem compl_prism_three : (prism 3)ᶜ = cycle 6 := by
 
 /-- The cube graph is the four-rung prism. -/
 theorem hypercube_three : hypercube 3 = prism 4 := by
-  show hypercube 3 = cartesianProduct (cycle 4) (complete 2)
+  show hypercube 3 = cycle 4 □g complete 2
   rw [hypercube_succ, hypercube_two]
 
 /-! ### Bipartiteness
@@ -10226,13 +10226,13 @@ A proper two-colouring is exactly what makes the bipartite double cover of the n
 split, so the two belong together: the colourings are built here and cashed in there. -/
 
 @[simp] theorem isBipartite_disjUnion {G H : IsoGraph} (hG : IsBipartite G) (hH : IsBipartite H) :
-    IsBipartite (disjUnion G H) := by
+    IsBipartite (G ⊕g H) := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   exact CGraph.IsBipartite.disjUnion hG hH
 
 @[simp] theorem isBipartite_cartesianProduct {G H : IsoGraph} (hG : IsBipartite G) (hH : IsBipartite H) :
-    IsBipartite (cartesianProduct G H) := by
+    IsBipartite (G □g H) := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [← mk_canonicalize G, ← mk_canonicalize H] at *
@@ -10241,7 +10241,7 @@ split, so the two belong together: the colourings are built here and cashed in t
 
 /-- A disjoint union is bipartite exactly when both summands are. -/
 @[simp] theorem isBipartite_disjUnion_iff {G H : IsoGraph} :
-    IsBipartite (disjUnion G H) ↔ IsBipartite G ∧ IsBipartite H := by
+    IsBipartite (G ⊕g H) ↔ IsBipartite G ∧ IsBipartite H := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [disjUnion_mk, isBipartite_mk, isBipartite_mk, isBipartite_mk]
@@ -10250,7 +10250,7 @@ split, so the two belong together: the colourings are built here and cashed in t
 
 /-- A Cartesian product of nonempty graphs is bipartite exactly when both factors are. -/
 theorem isBipartite_cartesianProduct_iff {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    IsBipartite (cartesianProduct G H) ↔ IsBipartite G ∧ IsBipartite H := by
+    IsBipartite (G □g H) ↔ IsBipartite G ∧ IsBipartite H := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [← mk_canonicalize G, ← mk_canonicalize H] at *
@@ -10261,7 +10261,7 @@ theorem isBipartite_cartesianProduct_iff {G H : IsoGraph} (hG : 0 < G.V) (hH : 0
     fun h ↦ CGraph.IsBipartite.cartesianProduct h.1 h.2⟩
 
 theorem isBipartite_tensorProduct_left {G H : IsoGraph} (hG : IsBipartite G) :
-    IsBipartite (tensorProduct G H) := by
+    IsBipartite (G ⊗g H) := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [← mk_canonicalize G, ← mk_canonicalize H] at *
@@ -10269,7 +10269,7 @@ theorem isBipartite_tensorProduct_left {G H : IsoGraph} (hG : IsBipartite G) :
   exact CGraph.IsBipartite.tensorProduct_left hG
 
 theorem isBipartite_tensorProduct_right {G H : IsoGraph} (hH : IsBipartite H) :
-    IsBipartite (tensorProduct G H) := by
+    IsBipartite (G ⊗g H) := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [← mk_canonicalize G, ← mk_canonicalize H] at *
@@ -10583,13 +10583,13 @@ theorem not_isBipartite_circulant_of_odd {n : ℕ} {S : List ℕ} (hn : n % 2 = 
 
 /-- The rook's graph has a triangle in each row. -/
 @[simp] theorem not_isBipartite_rook (m n : ℕ) : ¬ IsBipartite (rook (m + 3) (n + 1)) := by
-  show ¬ IsBipartite (cartesianProduct (complete (m + 3)) (complete (n + 1)))
+  show ¬ IsBipartite (complete (m + 3) □g complete (n + 1))
   rw [isBipartite_cartesianProduct_iff (by simp) (by simp)]
   exact fun h ↦ not_isBipartite_complete m h.1
 
 /-- A prism over an odd cycle is not bipartite. -/
 @[simp] theorem not_isBipartite_prism_odd (m : ℕ) : ¬ IsBipartite (prism (2 * m + 3)) := by
-  show ¬ IsBipartite (cartesianProduct (cycle (2 * m + 3)) (complete 2))
+  show ¬ IsBipartite (cycle (2 * m + 3) □g complete 2)
   rw [isBipartite_cartesianProduct_iff (by simp) (by simp)]
   exact fun h ↦ not_isBipartite_cycle_odd m h.1
 
@@ -10616,7 +10616,7 @@ theorem not_isBipartite_triangular {n : ℕ} (h : 4 ≤ n) : ¬ IsBipartite (tri
   exact CGraph.not_isBipartite_kneser_five_two
 
 /-- A side of a bipartite join is bipartite. -/
-theorem IsBipartite.of_join_left {G H : IsoGraph} (h : IsBipartite (join G H)) : IsBipartite G := by
+theorem IsBipartite.of_join_left {G H : IsoGraph} (h : IsBipartite (G ∇g H)) : IsBipartite G := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [← mk_canonicalize G, ← mk_canonicalize H] at *
@@ -10624,7 +10624,7 @@ theorem IsBipartite.of_join_left {G H : IsoGraph} (h : IsBipartite (join G H)) :
   rw [isBipartite_mk]
   exact h.of_join_left
 
-theorem IsBipartite.of_join_right {G H : IsoGraph} (h : IsBipartite (join G H)) :
+theorem IsBipartite.of_join_right {G H : IsoGraph} (h : IsBipartite (G ∇g H)) :
     IsBipartite H := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
@@ -10634,14 +10634,14 @@ theorem IsBipartite.of_join_right {G H : IsoGraph} (h : IsBipartite (join G H)) 
   exact h.of_join_right
 
 theorem not_isBipartite_join_left {G H : IsoGraph} (hG : ¬ IsBipartite G) :
-    ¬ IsBipartite (join G H) := fun h ↦ hG h.of_join_left
+    ¬ IsBipartite (G ∇g H) := fun h ↦ hG h.of_join_left
 
 theorem not_isBipartite_join_right {G H : IsoGraph} (hH : ¬ IsBipartite H) :
-    ¬ IsBipartite (join G H) := fun h ↦ hH h.of_join_right
+    ¬ IsBipartite (G ∇g H) := fun h ↦ hH h.of_join_right
 
 /-- **A join of three nonempty graphs is never bipartite.** -/
 theorem not_isBipartite_join_join {G H K : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
-    (hK : 0 < K.V) : ¬ IsBipartite (join G (join H K)) := by
+    (hK : 0 < K.V) : ¬ IsBipartite (G ∇g (H ∇g K)) := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   induction K using Quotient.inductionOn with | _ K =>
@@ -10670,7 +10670,7 @@ theorem not_isBipartite_join_join {G H K : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.
 
 /-- The hub of a fan sees an edge of the path. -/
 @[simp] theorem not_isBipartite_fan (n : ℕ) : ¬ IsBipartite (fan (n + 2)) := by
-  show ¬ IsBipartite (join (complete 1) (path (n + 2)))
+  show ¬ IsBipartite (complete 1 ∇g path (n + 2))
   rw [complete_def, path_def, join_mk, isBipartite_mk]
   refine CGraph.not_isBipartite_join_of_adj_right
     (a := (⟨0, by omega⟩ : (CGraph.path (n + 2)).V)) (b := ⟨1, by omega⟩) ?_ ⟨0, by omega⟩
@@ -10688,65 +10688,65 @@ and over an odd cycle it does not, giving the cycle of twice the length instead.
 statement with the colouring existentially quantified. -/
 theorem tensorProduct_complete_two_of_colouring (G : CGraph) [DecidableEq G.V] (c : G.V → Bool)
     (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
-    tensorProduct (complete 2) ⟦G⟧ = disjUnion ⟦G⟧ ⟦G⟧ := by
+    complete 2 ⊗g ⟦G⟧ = ⟦G⟧ ⊕g ⟦G⟧ := by
   rw [← empty_two_cartesianProduct ⟦G⟧, complete_def, tensorProduct_mk, empty_def,
     cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.Iso.tensorTwoOfColouring G c h⟩
 
 /-- **The double cover of a bipartite graph is two copies of it.** -/
 theorem tensorProduct_complete_two_of_isBipartite (G : IsoGraph) (h : IsBipartite G) :
-    tensorProduct (complete 2) G = disjUnion G G := by
+    complete 2 ⊗g G = G ⊕g G := by
   induction G using Quotient.inductionOn with | _ G =>
   rw [← mk_canonicalize G] at *
   obtain ⟨c, hc⟩ := h
   exact tensorProduct_complete_two_of_colouring _ c hc
 
 theorem tensorProduct_complete_two_hypercube (n : ℕ) :
-    tensorProduct (complete 2) (hypercube n) = disjUnion (hypercube n) (hypercube n) :=
+    complete 2 ⊗g hypercube n = hypercube n ⊕g hypercube n :=
   tensorProduct_complete_two_of_isBipartite _ (isBipartite_hypercube n)
 
 theorem tensorProduct_complete_two_prism (m : ℕ) :
-    tensorProduct (complete 2) (prism (2 * m)) = disjUnion (prism (2 * m)) (prism (2 * m)) :=
+    complete 2 ⊗g prism (2 * m) = prism (2 * m) ⊕g prism (2 * m) :=
   tensorProduct_complete_two_of_isBipartite _ (isBipartite_prism_even m)
 
 /-- **The double cover of a path is two paths.** -/
 theorem tensorProduct_complete_two_path (n : ℕ) :
-    tensorProduct (complete 2) (path n) = disjUnion (path n) (path n) :=
+    complete 2 ⊗g path n = path n ⊕g path n :=
   tensorProduct_complete_two_of_isBipartite _ (isBipartite_path n)
 
 /-- **The double cover of an even cycle is two cycles.** -/
 theorem tensorProduct_complete_two_cycle (m : ℕ) :
-    tensorProduct (complete 2) (cycle (2 * m)) = disjUnion (cycle (2 * m)) (cycle (2 * m)) :=
+    complete 2 ⊗g cycle (2 * m) = cycle (2 * m) ⊕g cycle (2 * m) :=
   tensorProduct_complete_two_of_isBipartite _ (isBipartite_cycle_even m)
 
 /-- **The double cover of a complete bipartite graph is two copies of it.** -/
 theorem tensorProduct_complete_two_bipartite (m n : ℕ) :
-    tensorProduct (complete 2) (bipartite m n) = disjUnion (bipartite m n) (bipartite m n) :=
+    complete 2 ⊗g bipartite m n = bipartite m n ⊕g bipartite m n :=
   tensorProduct_complete_two_of_isBipartite _ (isBipartite_bipartite m n)
 
 /-- The double cover of a star is two stars. -/
 theorem tensorProduct_complete_two_star (n : ℕ) :
-    tensorProduct (complete 2) (star n) = disjUnion (star n) (star n) :=
+    complete 2 ⊗g star n = star n ⊕g star n :=
   tensorProduct_complete_two_of_isBipartite _ (isBipartite_star n)
 
 /-- **The double cover of a ladder is two ladders.** -/
 theorem tensorProduct_complete_two_ladder (n : ℕ) :
-    tensorProduct (complete 2) (ladder n) = disjUnion (ladder n) (ladder n) :=
+    complete 2 ⊗g ladder n = ladder n ⊕g ladder n :=
   tensorProduct_complete_two_of_isBipartite _ (isBipartite_ladder n)
 
 /-- **The double cover of an odd cycle is one cycle of twice the length.**  The bound starts at
 `C₃`: `cycle 1` is edgeless, so its double cover is too, while `cycle 2` is an edge. -/
 theorem tensorProduct_complete_two_cycle_odd (m : ℕ) :
-    tensorProduct (complete 2) (cycle (2 * m + 3)) = cycle (2 * (2 * m + 3)) := by
+    complete 2 ⊗g cycle (2 * m + 3) = cycle (2 * (2 * m + 3)) := by
   rw [complete_def, cycle_def, tensorProduct_mk, cycle_def]
   exact Quotient.sound ⟨(CGraph.Iso.cycleTensorTwo m).symm⟩
 
 theorem tensorProduct_complete_two_cycle_three :
-    tensorProduct (complete 2) (cycle 3) = cycle 6 :=
+    complete 2 ⊗g cycle 3 = cycle 6 :=
   tensorProduct_complete_two_cycle_odd 0
 
 theorem tensorProduct_complete_two_cycle_five :
-    tensorProduct (complete 2) (cycle 5) = cycle 10 :=
+    complete 2 ⊗g cycle 5 = cycle 10 :=
   tensorProduct_complete_two_cycle_odd 1
 
 /-! ## Line graphs and Mycielskians
@@ -10757,7 +10757,7 @@ rather than `V`: `lineGraph (star n)` is complete on `E (star n) = n` vertices, 
 
 /-- **The line graph of a disjoint union is the disjoint union of the line graphs.** -/
 @[simp] theorem lineGraph_disjUnion (G H : IsoGraph) :
-    lineGraph (disjUnion G H) = disjUnion (lineGraph G) (lineGraph H) := by
+    lineGraph (G ⊕g H) = lineGraph G ⊕g lineGraph H := by
   induction G using Quotient.inductionOn with
   | h g =>
     induction H using Quotient.inductionOn with
@@ -10903,7 +10903,7 @@ the edge count.  The operations all follow the same script: push the quotient th
 
 @[simp] theorem E_star (n : ℕ) : (star n).E = n := CGraph.E_star n
 
-@[simp] theorem E_disjUnion (G H : IsoGraph) : (disjUnion G H).E = G.E + H.E := by
+@[simp] theorem E_disjUnion (G H : IsoGraph) : (G ⊕g H).E = G.E + H.E := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   exact CGraph.E_disjUnion g h
@@ -10914,20 +10914,20 @@ theorem E_compl_add (G : IsoGraph) : Gᶜ.E + G.E = G.V.choose 2 := by
   rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
   exact CGraph.E_compl _
 
-@[simp] theorem E_join (G H : IsoGraph) : (join G H).E = G.E + H.E + G.V * H.V := by
+@[simp] theorem E_join (G H : IsoGraph) : (G ∇g H).E = G.E + H.E + G.V * H.V := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
   exact CGraph.E_join _ _
 
 @[simp] theorem E_cartesianProduct (G H : IsoGraph) :
-    (cartesianProduct G H).E = G.V * H.E + H.V * G.E := by
+    (G □g H).E = G.V * H.E + H.V * G.E := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
   exact CGraph.E_cartesianProduct _ _
 
-@[simp] theorem E_tensorProduct (G H : IsoGraph) : (tensorProduct G H).E = 2 * G.E * H.E := by
+@[simp] theorem E_tensorProduct (G H : IsoGraph) : (G ⊗g H).E = 2 * G.E * H.E := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, E_mk, E_mk, E_mk]
@@ -10978,19 +10978,19 @@ theorem E_hypercube (n : ℕ) : 2 * (hypercube n).E = n * 2 ^ n := by
     omega
 
 @[simp] theorem E_ladder (n : ℕ) : (ladder (n + 1)).E = 3 * n + 1 := by
-  show (cartesianProduct (path (n + 1)) (complete 2)).E = _
+  show (path (n + 1) □g complete 2).E = _
   rw [E_cartesianProduct, V_path, V_complete, E_path, E_complete]
   norm_num
   omega
 
 @[simp] theorem E_prism (n : ℕ) : (prism (n + 3)).E = 3 * (n + 3) := by
-  show (cartesianProduct (cycle (n + 3)) (complete 2)).E = _
+  show (cycle (n + 3) □g complete 2).E = _
   rw [E_cartesianProduct, V_cycle, V_complete, E_cycle, E_complete]
   norm_num
   omega
 
 @[simp] theorem E_rook (m n : ℕ) : (rook m n).E = m * n.choose 2 + n * m.choose 2 := by
-  show (cartesianProduct (complete m) (complete n)).E = _
+  show (complete m □g complete n).E = _
   rw [E_cartesianProduct, V_complete, V_complete, E_complete, E_complete]
 
 /-! ### Connectivity -/
@@ -11024,7 +11024,7 @@ theorem E_hypercube (n : ℕ) : 2 * (hypercube n).E = n * 2 ^ n := by
 
 /-- A disjoint union of two nonempty graphs is disconnected. -/
 theorem not_isConnected_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    ¬ IsConnected (disjUnion G H) := by
+    ¬ IsConnected (G ⊕g H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [disjUnion_mk, isConnected_mk]
@@ -11033,7 +11033,7 @@ theorem not_isConnected_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
 
 /-- A join of two nonempty graphs is connected, whatever the two graphs are. -/
 @[simp] theorem isConnected_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    IsConnected (join G H) := by
+    IsConnected (G ∇g H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -11043,7 +11043,7 @@ theorem not_isConnected_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
 
 /-- The Cartesian product is connected exactly when both factors are. -/
 @[simp] theorem isConnected_cartesianProduct {G H : IsoGraph} :
-    IsConnected (cartesianProduct G H) ↔ IsConnected G ∧ IsConnected H := by
+    IsConnected (G □g H) ↔ IsConnected G ∧ IsConnected H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, isConnected_mk,
@@ -11062,17 +11062,17 @@ theorem not_isConnected_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
     exact ⟨ih, isConnected_complete 1⟩
 
 @[simp] theorem isConnected_ladder (n : ℕ) : IsConnected (ladder (n + 1)) := by
-  show IsConnected (cartesianProduct (path (n + 1)) (complete 2))
+  show IsConnected (path (n + 1) □g complete 2)
   rw [isConnected_cartesianProduct]
   exact ⟨isConnected_path n, isConnected_complete 1⟩
 
 @[simp] theorem isConnected_prism (n : ℕ) : IsConnected (prism (n + 1)) := by
-  show IsConnected (cartesianProduct (cycle (n + 1)) (complete 2))
+  show IsConnected (cycle (n + 1) □g complete 2)
   rw [isConnected_cartesianProduct]
   exact ⟨isConnected_cycle n, isConnected_complete 1⟩
 
 @[simp] theorem isConnected_rook (m n : ℕ) : IsConnected (rook (m + 1) (n + 1)) := by
-  show IsConnected (cartesianProduct (complete (m + 1)) (complete (n + 1)))
+  show IsConnected (complete (m + 1) □g complete (n + 1))
   rw [isConnected_cartesianProduct]
   exact ⟨isConnected_complete m, isConnected_complete n⟩
 
@@ -11127,14 +11127,14 @@ theorem not_isConnected_of_E_add_one_lt {G : IsoGraph} (h : G.E + 1 < G.V) : ¬ 
 @[simp] theorem not_isTree_prism (n : ℕ) : ¬ IsTree (prism (n + 3)) := by
   rw [isTree_iff, E_prism]
   rintro ⟨-, h⟩
-  rw [show prism (n + 3) = cartesianProduct (cycle (n + 3)) (complete 2) from rfl,
+  rw [show prism (n + 3) = cycle (n + 3) □g complete 2 from rfl,
     V_cartesianProduct, V_cycle, V_complete] at h
   omega
 
 @[simp] theorem not_isTree_ladder (n : ℕ) : ¬ IsTree (ladder (n + 2)) := by
   rw [show n + 2 = (n + 1) + 1 from rfl, isTree_iff, E_ladder]
   rintro ⟨-, h⟩
-  rw [show ladder (n + 1 + 1) = cartesianProduct (path (n + 2)) (complete 2) from rfl,
+  rw [show ladder (n + 1 + 1) = path (n + 2) □g complete 2 from rfl,
     V_cartesianProduct, V_path, V_complete] at h
   omega
 
@@ -11172,7 +11172,7 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
   exact isConnected_completeMultipartite 1 1 _
 
 @[simp] theorem isConnected_fan (n : ℕ) : IsConnected (fan (n + 1)) := by
-  show IsConnected (join (complete 1) (path (n + 1)))
+  show IsConnected (complete 1 ∇g path (n + 1))
   exact isConnected_join (by simp) (by simp)
 
 /-! ### Cliques, independent sets and diameter -/
@@ -11219,19 +11219,19 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
   exact CGraph.cliqueNum_compl _
 
 @[simp] theorem indepNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).indepNum = G.indepNum + H.indepNum := by
+    (G ⊕g H).indepNum = G.indepNum + H.indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   exact CGraph.indepNum_disjUnion _ _
 
 @[simp] theorem cliqueNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).cliqueNum = max G.cliqueNum H.cliqueNum := by
+    (G ⊕g H).cliqueNum = max G.cliqueNum H.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   exact CGraph.cliqueNum_disjUnion _ _
 
 @[simp] theorem cliqueNum_join (G H : IsoGraph) :
-    (join G H).cliqueNum = G.cliqueNum + H.cliqueNum := by
+    (G ∇g H).cliqueNum = G.cliqueNum + H.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, cliqueNum_mk, cliqueNum_mk,
@@ -11239,7 +11239,7 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
   exact CGraph.cliqueNum_join _ _
 
 @[simp] theorem indepNum_join (G H : IsoGraph) :
-    (join G H).indepNum = max G.indepNum H.indepNum := by
+    (G ∇g H).indepNum = max G.indepNum H.indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, indepNum_mk, indepNum_mk, indepNum_mk]
@@ -11250,7 +11250,7 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
   CGraph.indepNum_completeMultipartite ds
 
 @[simp] theorem indepNum_lexProduct (G H : IsoGraph) :
-    (lexProduct G H).indepNum = G.indepNum * H.indepNum := by
+    (G ·g H).indepNum = G.indepNum * H.indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, indepNum_mk, indepNum_mk,
@@ -11258,7 +11258,7 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
   exact CGraph.indepNum_lexProduct _ _
 
 @[simp] theorem cliqueNum_strongProduct (G H : IsoGraph) :
-    (strongProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum := by
+    (G ⊠g H).cliqueNum = G.cliqueNum * H.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, cliqueNum_mk, cliqueNum_mk,
@@ -11268,7 +11268,7 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
 /-! ### Clique numbers of the cartesian, tensor and lexicographic products -/
 
 theorem cliqueNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (cartesianProduct G H).cliqueNum = max G.cliqueNum H.cliqueNum := by
+    (G □g H).cliqueNum = max G.cliqueNum H.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -11279,7 +11279,7 @@ theorem cliqueNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V
   exact CGraph.cliqueNum_cartesianProduct _ _ a b
 
 @[simp] theorem cliqueNum_tensorProduct (G H : IsoGraph) :
-    (tensorProduct G H).cliqueNum = min G.cliqueNum H.cliqueNum := by
+    (G ⊗g H).cliqueNum = min G.cliqueNum H.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, cliqueNum_mk, cliqueNum_mk,
@@ -11287,7 +11287,7 @@ theorem cliqueNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V
   exact CGraph.cliqueNum_tensorProduct _ _
 
 @[simp] theorem cliqueNum_lexProduct (G H : IsoGraph) :
-    (lexProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum := by
+    (G ·g H).cliqueNum = G.cliqueNum * H.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, cliqueNum_mk, cliqueNum_mk,
@@ -11297,7 +11297,7 @@ theorem cliqueNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V
 /-- A maximum clique of a rook graph is a full row or a full column. -/
 @[simp] theorem cliqueNum_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) :
     (rook m n).cliqueNum = max m n := by
-  rw [show rook m n = cartesianProduct (complete m) (complete n) from rfl,
+  rw [show rook m n = complete m □g complete n from rfl,
     cliqueNum_cartesianProduct (by simpa using hm) (by simpa using hn), cliqueNum_complete,
     cliqueNum_complete]
 
@@ -11345,7 +11345,7 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
 /-! ### Connectivity and triangles in the strong and lexicographic products -/
 
 theorem isConnected_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    IsConnected (strongProduct G H) := by
+    IsConnected (G ⊠g H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -11354,7 +11354,7 @@ theorem isConnected_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   exact CGraph.isConnected_strongProduct hG hH
 
 theorem isConnected_lexProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    IsConnected (lexProduct G H) := by
+    IsConnected (G ·g H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -11363,7 +11363,7 @@ theorem isConnected_lexProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsCon
   exact CGraph.isConnected_lexProduct hG hH
 
 theorem not_isBipartite_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    ¬ IsBipartite (strongProduct G H) := by
+    ¬ IsBipartite (G ⊠g H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -11374,7 +11374,7 @@ theorem not_isBipartite_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < 
   exact CGraph.not_isBipartite_strongProduct hab hcd
 
 theorem not_isBipartite_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    ¬ IsBipartite (lexProduct G H) := by
+    ¬ IsBipartite (G ·g H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -11527,7 +11527,7 @@ theorem IsSRGWith.compl {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k �
   exact CGraph.isSRGWith_compl _ h
 
 theorem isSRGWith_rook (k : ℕ) : IsSRGWith (rook k k) (k * k) (2 * (k - 1)) (k - 2) 2 := by
-  show IsSRGWith (cartesianProduct (complete k) (complete k)) _ _ _ _
+  show IsSRGWith (complete k □g complete k) _ _ _ _
   rw [complete_def, cartesianProduct_mk, isSRGWith_mk]
   exact CGraph.isSRGWith_rook k
 
@@ -11567,7 +11567,7 @@ theorem isSRGWith_petersen : IsSRGWith petersen 10 3 0 1 := isSRGWith_kneser_two
 
 /-- **The diameter of a Cartesian product is the sum of the diameters.** -/
 theorem diameter_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (cartesianProduct G H).diameter = G.diameter + H.diameter := by
+    (G □g H).diameter = G.diameter + H.diameter := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -11578,7 +11578,7 @@ theorem diameter_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
 @[simp] theorem diameter_empty (n : ℕ) : (empty n).diameter = 0 := CGraph.diameter_empty n
 
 @[simp] theorem diameter_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (disjUnion G H).diameter = 0 := by
+    (G ⊕g H).diameter = 0 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [disjUnion_mk, diameter_mk]
@@ -11594,23 +11594,23 @@ theorem diameter_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
       (isConnected_complete 1), ih, diameter_complete 0]
 
 @[simp] theorem diameter_ladder (n : ℕ) : (ladder (n + 1)).diameter = n + 1 := by
-  show (cartesianProduct (path (n + 1)) (complete 2)).diameter = n + 1
+  show (path (n + 1) □g complete 2).diameter = n + 1
   rw [diameter_cartesianProduct (isConnected_path n) (isConnected_complete 1), diameter_path n,
     diameter_complete 0]
 
 @[simp] theorem diameter_prism (n : ℕ) : (prism (n + 1)).diameter = (n + 1) / 2 + 1 := by
-  show (cartesianProduct (cycle (n + 1)) (complete 2)).diameter = (n + 1) / 2 + 1
+  show (cycle (n + 1) □g complete 2).diameter = (n + 1) / 2 + 1
   rw [diameter_cartesianProduct (isConnected_cycle n) (isConnected_complete 1), diameter_cycle n,
     diameter_complete 0]
 
 @[simp] theorem diameter_rook (m n : ℕ) : (rook (m + 2) (n + 2)).diameter = 2 := by
-  show (cartesianProduct (complete (m + 2)) (complete (n + 2))).diameter = 2
+  show (complete (m + 2) □g complete (n + 2)).diameter = 2
   rw [diameter_cartesianProduct (isConnected_complete (m + 1)) (isConnected_complete (n + 1)),
     diameter_complete m, diameter_complete n]
 
 /-- The `m × n` torus, a Cartesian product of two cycles. -/
 theorem diameter_cartesianProduct_cycle (m n : ℕ) :
-    (cartesianProduct (cycle (m + 1)) (cycle (n + 1))).diameter = (m + 1) / 2 + (n + 1) / 2 := by
+    (cycle (m + 1) □g cycle (n + 1)).diameter = (m + 1) / 2 + (n + 1) / 2 := by
   rw [diameter_cartesianProduct (isConnected_cycle m) (isConnected_cycle n), diameter_cycle m,
     diameter_cycle n]
 
@@ -11704,21 +11704,21 @@ theorem IsSRGWith.E_lineGraph {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G
 /-! ### More vertex counts -/
 
 @[simp] theorem V_rook (m n : ℕ) : (rook m n).V = m * n := by
-  show (cartesianProduct (complete m) (complete n)).V = _
+  show (complete m □g complete n).V = _
   rw [V_cartesianProduct, V_complete, V_complete]
 
 @[simp] theorem V_triangular (n : ℕ) : (triangular n).V = n.choose 2 := V_johnson n 2
 
 @[simp] theorem V_ladder (n : ℕ) : (ladder n).V = n * 2 := by
-  show (cartesianProduct (path n) (complete 2)).V = _
+  show (path n □g complete 2).V = _
   rw [V_cartesianProduct, V_path, V_complete]
 
 @[simp] theorem V_prism (n : ℕ) : (prism n).V = n * 2 := by
-  show (cartesianProduct (cycle n) (complete 2)).V = _
+  show (cycle n □g complete 2).V = _
   rw [V_cartesianProduct, V_cycle, V_complete]
 
 @[simp] theorem V_fan (n : ℕ) : (fan n).V = 1 + n := by
-  show (join (complete 1) (path n)).V = _
+  show (complete 1 ∇g path n).V = _
   rw [V_join, V_complete, V_path]
 
 @[simp] theorem V_book (n : ℕ) : (book n).V = 2 + n := by
@@ -11746,7 +11746,7 @@ theorem two_mul_E_of_degSequence_replicate {G : IsoGraph} {n k : ℕ}
 
 @[simp] theorem degSequence_rook (m n : ℕ) :
     degSequence (rook m n) = List.replicate (m * n) ((n - 1) + (m - 1)) := by
-  show degSequence (cartesianProduct (complete m) (complete n)) = _
+  show degSequence (complete m □g complete n) = _
   rw [complete_def m, complete_def n, cartesianProduct_mk, degSequence_mk]
   exact CGraph.degSequence_rook m n
 
@@ -11769,7 +11769,7 @@ private theorem card_eq_of_degSequence {G : IsoGraph} {n k : ℕ}
 
 theorem degSequence_cartesianProduct {G H : IsoGraph} {m k n l : ℕ}
     (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
-    degSequence (cartesianProduct G H) = List.replicate (m * n) (k + l) := by
+    degSequence (G □g H) = List.replicate (m * n) (k + l) := by
   rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -11780,7 +11780,7 @@ theorem degSequence_cartesianProduct {G H : IsoGraph} {m k n l : ℕ}
 
 theorem degSequence_tensorProduct {G H : IsoGraph} {m k n l : ℕ}
     (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
-    degSequence (tensorProduct G H) = List.replicate (m * n) (k * l) := by
+    degSequence (G ⊗g H) = List.replicate (m * n) (k * l) := by
   rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -11791,7 +11791,7 @@ theorem degSequence_tensorProduct {G H : IsoGraph} {m k n l : ℕ}
 
 theorem degSequence_lexProduct {G H : IsoGraph} {m k n l : ℕ}
     (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
-    degSequence (lexProduct G H) = List.replicate (m * n) (k * n + l) := by
+    degSequence (G ·g H) = List.replicate (m * n) (k * n + l) := by
   rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -11802,7 +11802,7 @@ theorem degSequence_lexProduct {G H : IsoGraph} {m k n l : ℕ}
 
 theorem degSequence_strongProduct {G H : IsoGraph} {m k n l : ℕ}
     (hG : degSequence G = List.replicate m k) (hH : degSequence H = List.replicate n l) :
-    degSequence (strongProduct G H) = List.replicate (m * n) ((k + 1) * (l + 1) - 1) := by
+    degSequence (G ⊠g H) = List.replicate (m * n) ((k + 1) * (l + 1) - 1) := by
   rw [card_eq_of_degSequence hG, card_eq_of_degSequence hH]
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -11846,7 +11846,7 @@ theorem degSequence_of_isVertexTransitive {G : IsoGraph} {k : ℕ} (h : IsVertex
 
 @[simp] theorem degSequence_prism (n : ℕ) :
     degSequence (prism (n + 3)) = List.replicate ((n + 3) * 2) 3 := by
-  show degSequence (cartesianProduct (cycle (n + 3)) (complete 2)) = _
+  show degSequence (cycle (n + 3) □g complete 2) = _
   rw [degSequence_cartesianProduct (degSequence_cycle n) (degSequence_complete 2)]
 
 @[simp] theorem E_lineGraph_cycle (n : ℕ) : (lineGraph (cycle (n + 3))).E = n + 3 := by
@@ -12012,7 +12012,7 @@ theorem isConnected_bipartite_self (n : ℕ) : IsConnected (bipartite (n + 1) (n
 /-! ### The diameter of a join -/
 
 theorem diameter_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (join G H).diameter ≤ 2 := by
+    (G ∇g H).diameter ≤ 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -12024,7 +12024,7 @@ theorem diameter_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
 
 /-- A join whose left factor is not complete has diameter two. -/
 theorem diameter_join_left {G H : IsoGraph} (hH : 0 < H.V) (h : G.E < G.V.choose 2) :
-    (join G H).diameter = 2 := by
+    (G ∇g H).diameter = 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h' =>
   rw [← mk_canonicalize g, ← mk_canonicalize h'] at *
@@ -12037,7 +12037,7 @@ theorem diameter_join_left {G H : IsoGraph} (hH : 0 < H.V) (h : G.E < G.V.choose
 
 /-- A join whose right factor is not complete has diameter two. -/
 theorem diameter_join_right {G H : IsoGraph} (hG : 0 < G.V) (h : H.E < H.V.choose 2) :
-    (join G H).diameter = 2 := by
+    (G ∇g H).diameter = 2 := by
   rw [join_comm]
   exact diameter_join_left hG h
 
@@ -12116,12 +12116,12 @@ theorem diameter_compl {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
   exact CGraph.diameter_compl_eq_two _ (fun hp ↦ h ⟨hp⟩) hE
 
 @[simp] theorem isConnected_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    IsConnected (disjUnion G H)ᶜ :=
+    IsConnected (G ⊕g H)ᶜ :=
   isConnected_compl_of_not_isConnected (by rw [V_disjUnion]; omega)
     (not_isConnected_disjUnion hG hH)
 
 theorem diameter_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
-    (hE : 0 < G.E + H.E) : (disjUnion G H)ᶜ.diameter = 2 :=
+    (hE : 0 < G.E + H.E) : (G ⊕g H)ᶜ.diameter = 2 :=
   diameter_compl (not_isConnected_disjUnion hG hH) (by rw [E_disjUnion]; omega)
 
 /-! ### The Petersen graph -/
@@ -12391,7 +12391,7 @@ exactly when they share a row or a column. -/
         · exact ⟨Sum.inr p.2, (mem_bipartiteEdge m n _ p).2 (Or.inr rfl),
             (mem_bipartiteEdge m n _ q).2 (Or.inr (by rw [h]))⟩
   have hrook : (rook m n : IsoGraph) = ⟦CGraph.rook m n⟧ := by
-    rw [show (rook m n : IsoGraph) = cartesianProduct (complete m) (complete n) from rfl,
+    rw [show (rook m n : IsoGraph) = complete m □g complete n from rfl,
       complete_def, complete_def, cartesianProduct_mk]
   rw [bipartite_def, lineGraph_mk, hrook]
   exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (bipartiteEdge m n) hbij) hadj).symm⟩
@@ -12426,7 +12426,7 @@ private def mycielskianEmptyEquiv (n : ℕ) :
 /-- The Mycielskian of an edgeless graph: the apex together with the `n` shadow vertices forms a
 star, and the `n` original vertices stay isolated. -/
 theorem mycielskian_empty (n : ℕ) :
-    mycielskian (empty n) = disjUnion (star n) (empty n) := by
+    mycielskian (empty n) = star n ⊕g empty n := by
   rw [empty_def, mycielskian_mk, star_def, disjUnion_mk]
   refine Quotient.sound ⟨(CGraph.isoOfAdj
     (G := CGraph.disjUnion (CGraph.star n) (CGraph.empty n))
@@ -12536,7 +12536,7 @@ theorem degMultiset_of_degSequence {G : IsoGraph} {n k : ℕ}
   rw [← coe_degSequence, h, Multiset.coe_replicate]
 
 @[simp] theorem degMultiset_disjUnion (G H : IsoGraph) :
-    degMultiset (disjUnion G H) = degMultiset G + degMultiset H := by
+    degMultiset (G ⊕g H) = degMultiset G + degMultiset H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, degMultiset_mk, degMultiset_mk,
@@ -12544,7 +12544,7 @@ theorem degMultiset_of_degSequence {G : IsoGraph} {n k : ℕ}
   exact CGraph.degMultiset_disjUnion _ _
 
 @[simp] theorem degMultiset_join (G H : IsoGraph) :
-    degMultiset (join G H) = (degMultiset G).map (· + H.V) + (degMultiset H).map (· + G.V) := by
+    degMultiset (G ∇g H) = (degMultiset G).map (· + H.V) + (degMultiset H).map (· + G.V) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, degMultiset_mk, degMultiset_mk,
@@ -12687,7 +12687,7 @@ the degrees of the left factor, and for each of them map the degrees of the righ
 whatever the product does to a pair of degrees. -/
 
 @[simp] theorem degMultiset_cartesianProduct (G H : IsoGraph) :
-    degMultiset (cartesianProduct G H)
+    degMultiset (G □g H)
       = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ d + e := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -12696,7 +12696,7 @@ whatever the product does to a pair of degrees. -/
   exact CGraph.degMultiset_cartesianProduct _ _
 
 @[simp] theorem degMultiset_tensorProduct (G H : IsoGraph) :
-    degMultiset (tensorProduct G H)
+    degMultiset (G ⊗g H)
       = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ d * e := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -12705,7 +12705,7 @@ whatever the product does to a pair of degrees. -/
   exact CGraph.degMultiset_tensorProduct _ _
 
 @[simp] theorem degMultiset_lexProduct (G H : IsoGraph) :
-    degMultiset (lexProduct G H)
+    degMultiset (G ·g H)
       = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ d * H.V + e := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -12714,7 +12714,7 @@ whatever the product does to a pair of degrees. -/
   exact CGraph.degMultiset_lexProduct _ _
 
 @[simp] theorem degMultiset_strongProduct (G H : IsoGraph) :
-    degMultiset (strongProduct G H)
+    degMultiset (G ⊠g H)
       = (degMultiset G).bind fun d ↦ (degMultiset H).map fun e ↦ (d + 1) * (e + 1) - 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -12777,13 +12777,13 @@ theorem ne_of_chromNum_ne {G H : IsoGraph} (h : G.chromNum ≠ H.chromNum) : G �
   CGraph.chromNum_cycle_odd m
 
 @[simp] theorem chromNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).chromNum = max G.chromNum H.chromNum := by
+    (G ⊕g H).chromNum = max G.chromNum H.chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   exact CGraph.chromNum_disjUnion g h
 
 theorem chromNum_tensorProduct_le (G H : IsoGraph) :
-    (tensorProduct G H).chromNum ≤ min G.chromNum H.chromNum := by
+    (G ⊗g H).chromNum ≤ min G.chromNum H.chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, chromNum_mk, chromNum_mk,
@@ -12814,7 +12814,7 @@ theorem chromNum_tensorProduct_le (G H : IsoGraph) :
 
 /-- **A grid is 2-chromatic.** -/
 @[simp] theorem chromNum_grid (m n : ℕ) :
-    (cartesianProduct (path (m + 2)) (path (n + 2))).chromNum = 2 :=
+    (path (m + 2) □g path (n + 2)).chromNum = 2 :=
   chromNum_eq_two_iff.2 ⟨isBipartite_cartesianProduct (isBipartite_path _) (isBipartite_path _),
     by rw [E_cartesianProduct, E_path, E_path, V_path, V_path]; positivity⟩
 
@@ -12822,7 +12822,7 @@ theorem chromNum_tensorProduct_le (G H : IsoGraph) :
 
 /-- **The chromatic numbers of a join add.** -/
 @[simp] theorem chromNum_join (G H : IsoGraph) :
-    (join G H).chromNum = G.chromNum + H.chromNum := by
+    (G ∇g H).chromNum = G.chromNum + H.chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, chromNum_mk, chromNum_mk, chromNum_mk]
@@ -12830,7 +12830,7 @@ theorem chromNum_tensorProduct_le (G H : IsoGraph) :
 
 /-- **Sabidussi's theorem** for the cartesian product. -/
 theorem chromNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (cartesianProduct G H).chromNum = max G.chromNum H.chromNum := by
+    (G □g H).chromNum = max G.chromNum H.chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -12842,7 +12842,7 @@ theorem chromNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
 
 /-- **The lexicographic product multiplies chromatic numbers, at worst.** -/
 theorem chromNum_lexProduct_le (G H : IsoGraph) :
-    (lexProduct G H).chromNum ≤ G.chromNum * H.chromNum := by
+    (G ·g H).chromNum ≤ G.chromNum * H.chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, chromNum_mk, chromNum_mk,
@@ -12999,7 +12999,7 @@ theorem ne_of_girth_ne {G H : IsoGraph} (h : G.girth ≠ H.girth) : G ≠ H := f
   rw [cycle_three]; exact girth_complete 0
 
 theorem girth_join_left {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
-    (join G H).girth = 3 := by
+    (G ∇g H).girth = 3 := by
   refine girth_eq_three_of_cliqueNum ?_
   rw [cliqueNum_join]
   have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
@@ -13007,7 +13007,7 @@ theorem girth_join_left {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
   omega
 
 theorem girth_join_right {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.E) :
-    (join G H).girth = 3 := by
+    (G ∇g H).girth = 3 := by
   refine girth_eq_three_of_cliqueNum ?_
   rw [cliqueNum_join]
   have h1 : 1 ≤ G.cliqueNum := one_le_cliqueNum hG
@@ -13016,7 +13016,7 @@ theorem girth_join_right {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.E) :
 
 /-- **A Cartesian product of two bipartite graphs with an edge each has girth four.** -/
 theorem girth_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E)
-    (hbG : IsBipartite G) (hbH : IsBipartite H) : (cartesianProduct G H).girth = 4 := by
+    (hbG : IsBipartite G) (hbH : IsBipartite H) : (G □g H).girth = 4 := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [← mk_canonicalize G, ← mk_canonicalize H] at *
@@ -13050,7 +13050,7 @@ theorem girth_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) (h : 3 ≤ max m n) :
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_rook hm hn]; exact h)
 
 theorem girth_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    (strongProduct G H).girth = 3 := by
+    (G ⊠g H).girth = 3 := by
   refine girth_eq_three_of_cliqueNum ?_
   rw [cliqueNum_strongProduct]
   have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
@@ -13059,7 +13059,7 @@ theorem girth_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
     _ ≤ G.cliqueNum * H.cliqueNum := Nat.mul_le_mul h1 h2
 
 theorem girth_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    (lexProduct G H).girth = 3 := by
+    (G ·g H).girth = 3 := by
   refine girth_eq_three_of_cliqueNum ?_
   rw [cliqueNum_lexProduct]
   have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
@@ -13161,14 +13161,14 @@ theorem ne_of_minDeg_ne {G H : IsoGraph} (h : minDeg G ≠ minDeg H) : G ≠ H :
 /-! ### The disjoint union, the join and the complement -/
 
 @[simp] theorem maxDeg_disjUnion (G H : IsoGraph) :
-    maxDeg (disjUnion G H) = max (maxDeg G) (maxDeg H) := by
+    maxDeg (G ⊕g H) = max (maxDeg G) (maxDeg H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, maxDeg_mk, maxDeg_mk, maxDeg_mk]
   exact CGraph.maxDeg_disjUnion _ _
 
 theorem minDeg_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    minDeg (disjUnion G H) = min (minDeg G) (minDeg H) := by
+    minDeg (G ⊕g H) = min (minDeg G) (minDeg H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13179,7 +13179,7 @@ theorem minDeg_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.minDeg_disjUnion _ _ a b
 
 theorem maxDeg_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    maxDeg (join G H) = max (maxDeg G + H.V) (G.V + maxDeg H) := by
+    maxDeg (G ∇g H) = max (maxDeg G + H.V) (G.V + maxDeg H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13190,7 +13190,7 @@ theorem maxDeg_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.maxDeg_join _ _ a b
 
 theorem minDeg_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    minDeg (join G H) = min (minDeg G + H.V) (G.V + minDeg H) := by
+    minDeg (G ∇g H) = min (minDeg G + H.V) (G.V + minDeg H) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13222,7 +13222,7 @@ theorem minDeg_compl {G : IsoGraph} (hG : 0 < G.V) :
 /-! ### The four products -/
 
 theorem maxDeg_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    maxDeg (cartesianProduct G H) = maxDeg G + maxDeg H := by
+    maxDeg (G □g H) = maxDeg G + maxDeg H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13233,7 +13233,7 @@ theorem maxDeg_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.maxDeg_cartesianProduct _ _ a b
 
 theorem minDeg_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    minDeg (cartesianProduct G H) = minDeg G + minDeg H := by
+    minDeg (G □g H) = minDeg G + minDeg H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13244,7 +13244,7 @@ theorem minDeg_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.minDeg_cartesianProduct _ _ a b
 
 theorem maxDeg_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    maxDeg (tensorProduct G H) = maxDeg G * maxDeg H := by
+    maxDeg (G ⊗g H) = maxDeg G * maxDeg H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13255,7 +13255,7 @@ theorem maxDeg_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.maxDeg_tensorProduct _ _ a b
 
 theorem minDeg_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    minDeg (tensorProduct G H) = minDeg G * minDeg H := by
+    minDeg (G ⊗g H) = minDeg G * minDeg H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13266,7 +13266,7 @@ theorem minDeg_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.minDeg_tensorProduct _ _ a b
 
 theorem maxDeg_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    maxDeg (lexProduct G H) = maxDeg G * H.V + maxDeg H := by
+    maxDeg (G ·g H) = maxDeg G * H.V + maxDeg H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13277,7 +13277,7 @@ theorem maxDeg_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.maxDeg_lexProduct _ _ a b
 
 theorem minDeg_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    minDeg (lexProduct G H) = minDeg G * H.V + minDeg H := by
+    minDeg (G ·g H) = minDeg G * H.V + minDeg H := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13288,7 +13288,7 @@ theorem minDeg_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.minDeg_lexProduct _ _ a b
 
 theorem maxDeg_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    maxDeg (strongProduct G H) = (maxDeg G + 1) * (maxDeg H + 1) - 1 := by
+    maxDeg (G ⊠g H) = (maxDeg G + 1) * (maxDeg H + 1) - 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13299,7 +13299,7 @@ theorem maxDeg_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.maxDeg_strongProduct _ _ a b
 
 theorem minDeg_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    minDeg (strongProduct G H) = (minDeg G + 1) * (minDeg H + 1) - 1 := by
+    minDeg (G ⊠g H) = (minDeg G + 1) * (minDeg H + 1) - 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -13412,7 +13412,7 @@ example : maxDeg (bipartite 3 5) = 5 := by
   · rw [Multiset.eq_of_mem_replicate h]; omega
 
 example : maxDeg (rook 3 4) = 5 := by
-  rw [show rook 3 4 = cartesianProduct (complete 3) (complete 4) from rfl,
+  rw [show rook 3 4 = complete 3 □g complete 4 from rfl,
     maxDeg_cartesianProduct (by simp) (by simp), maxDeg_complete, maxDeg_complete]
 
 /- A graph with `Δ = δ` is regular, and the handshake bounds then pin down the edge count. -/
@@ -13518,9 +13518,9 @@ way they are meant to, and that none of them loops. -/
 
 example : (cycle 5)ᶜᶜ = cycle 5 := by simp
 
-example (n : ℕ) : cartesianProduct (empty 0) (cycle n) = empty 0 := by simp
+example (n : ℕ) : empty 0 □g cycle n = empty 0 := by simp
 
-example (G : IsoGraph) : lexProduct (empty 1) (lexProduct G (empty 1)) = G := by simp
+example (G : IsoGraph) : empty 1 ·g (G ·g empty 1) = G := by simp
 
 example : circulant 7 [0, 3, 3] = circulant 7 [3] := by simp
 
@@ -13551,20 +13551,20 @@ example : ¬ IsBipartite (rook 3 3) := not_isBipartite_rook 0 2
 example : ¬ IsBipartite (book 3) := by simp
 example : ¬ IsBipartite (cocktailParty 4) := by simp
 example : ¬ IsBipartite (fan 5) := by simp
-example (G : IsoGraph) : ¬ IsBipartite (join (cycle 3) G) :=
+example (G : IsoGraph) : ¬ IsBipartite (cycle 3 ∇g G) :=
   not_isBipartite_join_left not_isBipartite_cycle_three
 example : ¬ IsBipartite (completeMultipartite [2, 3, 4]) :=
   not_isBipartite_completeMultipartite 1 2 3 []
 example : ¬ IsBipartite (prism 5) := not_isBipartite_prism_odd 1
-example (G H : IsoGraph) (h : IsBipartite (disjUnion G H)) : IsBipartite G := by simp_all
+example (G H : IsoGraph) (h : IsBipartite (G ⊕g H)) : IsBipartite G := by simp_all
 example (n : ℕ) : IsBipartite (thetaGraph (List.replicate n 1)) := by simp
 
-example (m n : ℕ) : IsBipartite (disjUnion (ladder m) (bipartite m n)) := by simp
+example (m n : ℕ) : IsBipartite (ladder m ⊕g bipartite m n) := by simp
 
-example (m n : ℕ) : IsBipartite (cartesianProduct (cycle (2 * m)) (path n)) := by simp
+example (m n : ℕ) : IsBipartite (cycle (2 * m) □g path n) := by simp
 
 example (n : ℕ) :
-    tensorProduct (complete 2) (hypercube n) = disjUnion (hypercube n) (hypercube n) :=
+    complete 2 ⊗g hypercube n = hypercube n ⊕g hypercube n :=
   tensorProduct_complete_two_of_isBipartite _ (by simp)
 
 example : circulant 9 [0, 1] = cycle 9 := by simp
@@ -13573,13 +13573,13 @@ example : (paley 13)ᶜ = paley 13 := by simp
 
 example : petersen.V = 10 := by simp [Nat.choose]
 
-example (G H : IsoGraph) : (disjUnion Gᶜᶜ H).V = G.V + H.V := by simp
+example (G H : IsoGraph) : (Gᶜᶜ ⊕g H).V = G.V + H.V := by simp
 
 example (m n : ℕ) : (rook m n).V = m * n := by simp
 
 example (n : ℕ) : lineGraph (empty n) = empty 0 := by simp
 
-example (n : ℕ) : tensorProduct (empty n) (complete 3) = empty (n * 3) := by simp
+example (n : ℕ) : empty n ⊗g complete 3 = empty (n * 3) := by simp
 
 example : tadpole 3 0 = complete 3 := by rw [tadpole_zero, cycle_three]
 example (k : ℕ) : spider [k] = lollipop 1 k := by simp
@@ -13629,9 +13629,9 @@ example (n : ℕ) : thetaGraph (List.replicate n 1) = bipartite 2 n := by simp
 
 example : IsConnected (prism 6) := by simp
 example : IsConnected (hypercube 4) := by simp
-example : ¬ IsConnected (disjUnion (cycle 3) (cycle 4)) :=
+example : ¬ IsConnected (cycle 3 ⊕g cycle 4) :=
   not_isConnected_disjUnion (by simp) (by simp)
-example (G : IsoGraph) (h : IsConnected G) : IsConnected (cartesianProduct G (path 3)) := by
+example (G : IsoGraph) (h : IsConnected G) : IsConnected (G □g path 3) := by
   simp [h]
 
 example : ¬ IsAcyclic (wheel 5) := by simp
@@ -13647,19 +13647,19 @@ example : (book 5).indepNum = 5 := by simp
 example : (wheel 7).indepNum = 3 := by simp
 example : (complete 5)ᶜ.indepNum = 5 := by simp
 example : (star 6).cliqueNum = 2 := by simp
-example : (lexProduct (empty 3) (empty 4)).indepNum = 12 := by simp
+example : (empty 3 ·g empty 4).indepNum = 12 := by simp
 
-example : IsConnected (strongProduct (path 3) (cycle 4)) :=
+example : IsConnected (path 3 ⊠g cycle 4) :=
   isConnected_strongProduct (by simp) (by simp)
 
-example : ¬ IsBipartite (lexProduct (complete 2) (complete 2)) :=
+example : ¬ IsBipartite (complete 2 ·g complete 2) :=
   not_isBipartite_lexProduct (by simp) (by simp)
 
-example : ¬ IsBipartite (strongProduct (path 2) (path 2)) :=
+example : ¬ IsBipartite (path 2 ⊠g path 2) :=
   not_isBipartite_strongProduct (by simp) (by simp)
 
 example : IsVertexTransitive petersenᶜ := by simp
-example : IsVertexTransitive (cartesianProduct (hypercube 3) (cycle 5)) :=
+example : IsVertexTransitive (hypercube 3 □g cycle 5) :=
   (isVertexTransitive_hypercube 3).cartesianProduct (isVertexTransitive_cycle 5)
 example : IsVertexTransitive (triangular 5) := by simp
 
@@ -13715,10 +13715,10 @@ example : (triangular 5).V = 10 := by simp [Nat.choose]
 
 example : degSequence (hypercube 3) = List.replicate 8 3 := by simp
 
-example : degSequence (tensorProduct (complete 3) (complete 4)) = List.replicate 12 6 := by
+example : degSequence (complete 3 ⊗g complete 4) = List.replicate 12 6 := by
   rw [degSequence_tensorProduct (degSequence_complete 3) (degSequence_complete 4)]
 
-example : degSequence (strongProduct (complete 2) (complete 2)) = List.replicate 4 3 := by
+example : degSequence (complete 2 ⊠g complete 2) = List.replicate 4 3 := by
   rw [degSequence_strongProduct (degSequence_complete 2) (degSequence_complete 2)]
 
 example : 2 * (hypercube 4).E = 64 := by rw [two_mul_E_hypercube]; rfl
@@ -13757,10 +13757,10 @@ example : complete 5 ≠ cycle 5 :=
 
 /-- The six-cycle and two triangles share their order, size and degree sequence; connectivity
 tells them apart. -/
-example : cycle 6 ≠ disjUnion (cycle 3) (cycle 3) :=
+example : cycle 6 ≠ cycle 3 ⊕g cycle 3 :=
   ne_of_isConnected (isConnected_cycle 5) (not_isConnected_disjUnion (by simp) (by simp))
 
-example : cycle 6 ≠ disjUnion (complete 3) (complete 3) :=
+example : cycle 6 ≠ complete 3 ⊕g complete 3 :=
   ne_of_indepNum_ne (by
     rw [show (6 : ℕ) = 3 + 3 from rfl, indepNum_cycle, indepNum_disjUnion, indepNum_complete]
     decide)
@@ -13777,7 +13777,7 @@ example : petersen ≠ cycle 10 :=
     rw [degSequence_petersen, show (10 : ℕ) = 7 + 3 from rfl, degSequence_cycle]
     decide)
 
-example : disjUnion (complete 3) (empty 1) ≠ star 3 :=
+example : complete 3 ⊕g empty 1 ≠ star 3 :=
   ne_of_cliqueNum_ne (by
     rw [cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_empty,
       show (3 : ℕ) = 2 + 1 from rfl, cliqueNum_star]
@@ -13785,7 +13785,7 @@ example : disjUnion (complete 3) (empty 1) ≠ star 3 :=
 
 /-- The cube and two disjoint copies of `K₄` are both cubic on eight vertices with twelve
 edges. -/
-example : hypercube 3 ≠ disjUnion (complete 4) (complete 4) :=
+example : hypercube 3 ≠ complete 4 ⊕g complete 4 :=
   ne_of_isConnected (isConnected_hypercube 3) (not_isConnected_disjUnion (by simp) (by simp))
 
 example : complete 4 ≠ path 4 :=
@@ -13825,9 +13825,9 @@ example : star 3 ≠ path 4 :=
     rw [show (3 : ℕ) = 1 + 2 from rfl, diameter_star, show (4 : ℕ) = 3 + 1 from rfl, diameter_path]
     decide)
 
-example : IsConnected (disjUnion (complete 3) (complete 3))ᶜ := by simp
+example : IsConnected (complete 3 ⊕g complete 3)ᶜ := by simp
 
-example : (disjUnion (complete 3) (complete 3))ᶜ.diameter = 2 :=
+example : (complete 3 ⊕g complete 3)ᶜ.diameter = 2 :=
   diameter_compl_disjUnion (by simp) (by simp) (by simp [Nat.choose])
 
 example : IsConnected (empty 5)ᶜ := by
@@ -13836,7 +13836,7 @@ example : IsConnected (empty 5)ᶜ := by
 
 /- A disconnected graph and a connected one of the same order and size: the six-cycle against
 two triangles, once more. -/
-example : ¬ IsConnected (disjUnion (cycle 3) (cycle 3)) :=
+example : ¬ IsConnected (cycle 3 ⊕g cycle 3) :=
   not_isConnected_disjUnion (by simp) (by simp)
 
 example : degMultiset (star 4) = {4, 1, 1, 1, 1} := by
@@ -13858,12 +13858,12 @@ example : star 4 ≠ cycle 4 :=
 
 /- The degree multiset does not separate everything: a triangle plus a square has the same
 degrees as the seven-cycle, and only connectivity tells them apart. -/
-example : degMultiset (disjUnion (cycle 3) (cycle 4)) = degMultiset (cycle 7) := by
+example : degMultiset (cycle 3 ⊕g cycle 4) = degMultiset (cycle 7) := by
   rw [show (3 : ℕ) = 0 + 3 from rfl, show (4 : ℕ) = 1 + 3 from rfl, degMultiset_disjUnion,
     degMultiset_cycle, degMultiset_cycle, show (7 : ℕ) = 4 + 3 from rfl, degMultiset_cycle]
   rfl
 
-example : disjUnion (cycle 3) (cycle 4) ≠ cycle 7 :=
+example : cycle 3 ⊕g cycle 4 ≠ cycle 7 :=
   Ne.symm (ne_of_isConnected (isConnected_cycle 6)
     (not_isConnected_disjUnion (G := cycle 3) (H := cycle 4) (by simp) (by simp)))
 
@@ -13891,12 +13891,12 @@ three. -/
 example : degMultiset (ladder 3) = {2, 2, 3, 3, 2, 2} := by
   have h1 : degMultiset (path 3) = 1 ::ₘ 1 ::ₘ Multiset.replicate 1 2 := degMultiset_path 1
   have h2 : degMultiset (complete 2) = Multiset.replicate 2 1 := degMultiset_complete 2
-  rw [show ladder 3 = cartesianProduct (path 3) (complete 2) from rfl,
+  rw [show ladder 3 = path 3 □g complete 2 from rfl,
     degMultiset_cartesianProduct, h1, h2]
   decide
 
 /- A star times an edge, in the lexicographic product: the hub sees everything. -/
-example : degMultiset (lexProduct (complete 2) (empty 3)) = Multiset.replicate 6 3 := by
+example : degMultiset (complete 2 ·g empty 3) = Multiset.replicate 6 3 := by
   have h1 : degMultiset (complete 2) = Multiset.replicate 2 1 := degMultiset_complete 2
   have h2 : degMultiset (empty 3) = Multiset.replicate 3 0 := degMultiset_empty 3
   rw [degMultiset_lexProduct, h1, h2, V_empty]
@@ -13904,14 +13904,14 @@ example : degMultiset (lexProduct (complete 2) (empty 3)) = Multiset.replicate 6
 
 /- The tensor product multiplies degrees, so each row of `K₃ × P₃` repeats the path's degrees
 scaled by two. -/
-example : degMultiset (tensorProduct (complete 3) (path 3)) = {2, 4, 2, 2, 4, 2, 2, 4, 2} := by
+example : degMultiset (complete 3 ⊗g path 3) = {2, 4, 2, 2, 4, 2, 2, 4, 2} := by
   have h1 : degMultiset (complete 3) = Multiset.replicate 3 2 := degMultiset_complete 3
   have h2 : degMultiset (path 3) = 1 ::ₘ 1 ::ₘ Multiset.replicate 1 2 := degMultiset_path 1
   rw [degMultiset_tensorProduct, h1, h2]
   decide
 
 /- `K₂ ⊠ K₂` is `K₄`, and the degrees agree: `(1 + 1) * (1 + 1) - 1 = 3`. -/
-example : degMultiset (strongProduct (complete 2) (complete 2)) = Multiset.replicate 4 3 := by
+example : degMultiset (complete 2 ⊠g complete 2) = Multiset.replicate 4 3 := by
   have h1 : degMultiset (complete 2) = Multiset.replicate 2 1 := degMultiset_complete 2
   rw [degMultiset_strongProduct, h1]
   decide
@@ -13923,23 +13923,23 @@ example : path 6 ≠ cycle 6 :=
     rw [h1, h2]
     decide)
 
-example : (cartesianProduct (bipartite 2 3) (complete 4)).cliqueNum = 4 := by
+example : (bipartite 2 3 □g complete 4).cliqueNum = 4 := by
   rw [cliqueNum_cartesianProduct (by simp) (by simp), cliqueNum_complete,
     show bipartite 2 3 = bipartite (1 + 1) (2 + 1) from rfl, cliqueNum_bipartite]
   decide
 
 example : (rook 3 3).cliqueNum = 3 := by simp
 
-example : (tensorProduct (complete 3) (complete 5)).cliqueNum = 3 := by simp
+example : (complete 3 ⊗g complete 5).cliqueNum = 3 := by simp
 
-example : (lexProduct (complete 3) (complete 5)).cliqueNum = 15 := by simp
+example : (complete 3 ·g complete 5).cliqueNum = 15 := by simp
 
-example : (lexProduct (empty 4) (complete 5)).cliqueNum = 5 := by simp
+example : (empty 4 ·g complete 5).cliqueNum = 5 := by simp
 
-example : rook 3 3 ≠ lexProduct (complete 3) (complete 3) :=
+example : rook 3 3 ≠ complete 3 ·g complete 3 :=
   ne_of_cliqueNum_ne (by simp)
 
-example : tensorProduct (complete 4) (complete 4) ≠ rook 3 3 :=
+example : complete 4 ⊗g complete 4 ≠ rook 3 3 :=
   ne_of_cliqueNum_ne (by simp)
 
 example : (hypercube 4).diameter = 4 := diameter_hypercube 4
@@ -13955,7 +13955,7 @@ hypercube is far bigger across. -/
 example : hypercube 4 ≠ rook 4 4 :=
   ne_of_diameter_ne (by rw [diameter_hypercube, diameter_rook]; decide)
 
-example : (disjUnion (complete 3) (complete 3)).diameter = 0 :=
+example : (complete 3 ⊕g complete 3).diameter = 0 :=
   diameter_disjUnion (by simp) (by simp)
 
 example : (complete 5).chromNum = 5 := by simp
@@ -13964,12 +13964,12 @@ example : (cycle 7).chromNum = 3 := chromNum_cycle_odd 2
 example : (path 9).chromNum = 2 := by simp
 example : (hypercube 4).chromNum = 2 := by simp
 example : (bipartite 3 4).chromNum = 2 := by simp
-example : (cartesianProduct (path 3) (path 4)).chromNum = 2 := by simp
+example : (path 3 □g path 4).chromNum = 2 := by simp
 example : (empty 7).chromNum = 1 := by simp
-example : (disjUnion (complete 4) (cycle 5)).chromNum = 4 := by
+example : (complete 4 ⊕g cycle 5).chromNum = 4 := by
   rw [chromNum_disjUnion, chromNum_complete, show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
   decide
-example : (tensorProduct (cycle 3) (complete 5)).chromNum ≤ 3 := by
+example : (cycle 3 ⊗g complete 5).chromNum ≤ 3 := by
   refine le_trans (chromNum_tensorProduct_le _ _) ?_
   rw [show (cycle 3).chromNum = 3 from chromNum_cycle_odd 0]
   exact min_le_left _ _
@@ -13979,24 +13979,24 @@ example : 3 ≤ petersen.chromNum := three_le_chromNum (by simp)
 example : 3 ≤ (rook 3 3).chromNum := le_trans (by simp) (cliqueNum_le_chromNum _)
 /- `C₃ ⊔ C₃` and `C₆` are both 2-regular on six vertices with six edges; the chromatic number
 tells them apart. -/
-example : disjUnion (cycle 3) (cycle 3) ≠ cycle 6 :=
+example : cycle 3 ⊕g cycle 3 ≠ cycle 6 :=
   ne_of_chromNum_ne (by
     rw [chromNum_disjUnion, show (cycle 3).chromNum = 3 from chromNum_cycle_odd 0,
       show (cycle 6).chromNum = 2 from chromNum_cycle_even 2]
     decide)
 
-example : (join (complete 3) (cycle 5)).chromNum = 6 := by
+example : (complete 3 ∇g cycle 5).chromNum = 6 := by
   rw [chromNum_join, chromNum_complete, show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
 
-example : (join (cycle 4) (cycle 4)).chromNum = 4 := by
+example : (cycle 4 ∇g cycle 4).chromNum = 4 := by
   rw [chromNum_join, show (cycle 4).chromNum = 2 from chromNum_cycle_even 1]
 
-example : (cartesianProduct (complete 4) (cycle 5)).chromNum = 4 := by
+example : (complete 4 □g cycle 5).chromNum = 4 := by
   rw [chromNum_cartesianProduct (by simp) (by simp), chromNum_complete,
     show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1]
   decide
 
-example : (lexProduct (cycle 5) (complete 2)).chromNum ≤ 6 := by
+example : (cycle 5 ·g complete 2).chromNum ≤ 6 := by
   have h := chromNum_lexProduct_le (cycle 5) (complete 2)
   rw [show (cycle 5).chromNum = 3 from chromNum_cycle_odd 1, chromNum_complete] at h
   omega
@@ -14250,7 +14250,7 @@ theorem coverNum_compl_add_cliqueNum (G : IsoGraph) :
   rw [star_eq_bipartite, coverNum_bipartite]
 
 @[simp] theorem coverNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).coverNum = G.coverNum + H.coverNum := by
+    (G ⊕g H).coverNum = G.coverNum + H.coverNum := by
   rw [coverNum_eq, coverNum_eq, coverNum_eq, V_disjUnion, indepNum_disjUnion]
   have := G.coverNum_add_indepNum
   have := H.coverNum_add_indepNum
@@ -14847,7 +14847,7 @@ example : (complete 4).indepCount 2 = 0 := by
 /-! ### Counting cliques in a disjoint union -/
 
 theorem cliqueCount_disjUnion (G H : IsoGraph) (n : ℕ) :
-    (disjUnion G H).cliqueCount (n + 1)
+    (G ⊕g H).cliqueCount (n + 1)
       = G.cliqueCount (n + 1) + H.cliqueCount (n + 1) := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -14855,7 +14855,7 @@ theorem cliqueCount_disjUnion (G H : IsoGraph) (n : ℕ) :
   exact CGraph.cliqueCount_disjUnion g h n
 
 theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
-    (join G H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
+    (G ∇g H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
   rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
 
 @[simp] theorem indepCount_bipartite (m n k : ℕ) :
@@ -14871,7 +14871,7 @@ theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
 example : (bipartite 4 6).indepCount 3 = 24 := by
   rw [show (3 : ℕ) = 2 + 1 from rfl, indepCount_bipartite]; decide
 
-example : (disjUnion (complete 4) (complete 5)).cliqueCount 3 = 14 := by
+example : (complete 4 ⊕g complete 5).cliqueCount 3 = 14 := by
   rw [show (3 : ℕ) = 2 + 1 from rfl, cliqueCount_disjUnion, cliqueCount_complete,
     cliqueCount_complete]
   decide
@@ -14899,7 +14899,7 @@ theorem numComponents_le_V (G : IsoGraph) : G.numComponents ≤ G.V := by
   exact CGraph.numComponents_le_card g
 
 @[simp] theorem numComponents_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).numComponents = G.numComponents + H.numComponents := by
+    (G ⊕g H).numComponents = G.numComponents + H.numComponents := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [disjUnion_mk, numComponents_mk, numComponents_mk, numComponents_mk]
@@ -14950,7 +14950,7 @@ theorem numComponents_compl_eq_one {G : IsoGraph} (h : 2 ≤ G.numComponents) :
 @[simp] theorem numComponents_rook (m n : ℕ) : (rook (m + 1) (n + 1)).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_rook m n)
 
-example : (disjUnion (cycle 5) (path 4)).numComponents = 2 := by simp
+example : (cycle 5 ⊕g path 4).numComponents = 2 := by simp
 
 example : (empty 7).numComponents = 7 := by simp
 
@@ -14965,7 +14965,7 @@ theorem numComponents_le_domNum (G : IsoGraph) : G.numComponents ≤ G.domNum :=
   exact CGraph.numComponents_le_domNum g
 
 @[simp] theorem numComponents_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (join G H).numComponents = 1 :=
+    (G ∇g H).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_join hG hH)
 
 /-- A graph has as many components as vertices exactly when it has no edges. -/
@@ -14979,7 +14979,7 @@ theorem numComponents_lt_V_of_E_pos {G : IsoGraph} (h : 0 < G.E) : G.numComponen
   have := (G.numComponents_eq_V_iff).not.2 (by omega : ¬ G.E = 0)
   omega
 
-example : (join (cycle 5) (empty 3)).numComponents = 1 := by
+example : (cycle 5 ∇g empty 3).numComponents = 1 := by
   refine numComponents_join ?_ ?_ <;> simp
 
 example : (cycle 5).numComponents < (cycle 5).V := numComponents_lt_V_of_E_pos (by simp)
@@ -14988,7 +14988,7 @@ example : (cycle 5).numComponents < (cycle 5).V := numComponents_lt_V_of_E_pos (
 
 /-- **The components of a Cartesian product are the pairs of components.** -/
 @[simp] theorem numComponents_cartesianProduct (G H : IsoGraph) :
-    (cartesianProduct G H).numComponents = G.numComponents * H.numComponents := by
+    (G □g H).numComponents = G.numComponents * H.numComponents := by
   induction G using Quotient.inductionOn with | _ g
   induction H using Quotient.inductionOn with | _ h
   rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, numComponents_mk,
@@ -15011,7 +15011,7 @@ theorem numComponents_eq_one_of_V_le_two_mul_minDeg (G : IsoGraph) (hV : 0 < G.V
     (h : G.V ≤ 2 * minDeg G + 1) : G.numComponents = 1 :=
   numComponents_eq_one_of_isConnected (G.isConnected_of_V_le_two_mul_minDeg hV h)
 
-example : (cartesianProduct (empty 3) (empty 4)).numComponents = 12 := by simp
+example : (empty 3 □g empty 4).numComponents = 12 := by simp
 
 example : IsConnected (hypercube 2) := by
   refine (hypercube 2).isConnected_of_V_le_two_mul_minDeg (by simp) ?_
@@ -15128,21 +15128,21 @@ example (G : IsoGraph) (h : degSequence G = List.replicate 7 3) : False := by
 /-! ### Automorphisms of the constructions -/
 
 theorem autCount_mul_le_autCount_disjUnion (G H : IsoGraph) :
-    G.autCount * H.autCount ≤ (disjUnion G H).autCount := by
+    G.autCount * H.autCount ≤ (G ⊕g H).autCount := by
   induction G using Quotient.inductionOn with | _ g
   induction H using Quotient.inductionOn with | _ h
   rw [disjUnion_mk, autCount_mk, autCount_mk, autCount_mk]
   exact CGraph.autCount_mul_le_autCount_disjUnion g h
 
 theorem autCount_mul_le_autCount_join (G H : IsoGraph) :
-    G.autCount * H.autCount ≤ (join G H).autCount := by
+    G.autCount * H.autCount ≤ (G ∇g H).autCount := by
   induction G using Quotient.inductionOn with | _ g
   induction H using Quotient.inductionOn with | _ h
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, autCount_mk, autCount_mk, autCount_mk]
   exact CGraph.autCount_mul_le_autCount_join _ _
 
 theorem autCount_mul_le_autCount_cartesianProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (cartesianProduct G H).autCount := by
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G □g H).autCount := by
   induction G using Quotient.inductionOn with | _ g
   induction H using Quotient.inductionOn with | _ h
   rw [← mk_canonicalize g, V_mk] at hG
@@ -15154,7 +15154,7 @@ theorem autCount_mul_le_autCount_cartesianProduct (G H : IsoGraph) (hG : 0 < G.V
   exact CGraph.autCount_mul_le_autCount_cartesianProduct _ _
 
 theorem autCount_mul_le_autCount_tensorProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (tensorProduct G H).autCount := by
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G ⊗g H).autCount := by
   induction G using Quotient.inductionOn with | _ g
   induction H using Quotient.inductionOn with | _ h
   rw [← mk_canonicalize g, V_mk] at hG
@@ -15166,7 +15166,7 @@ theorem autCount_mul_le_autCount_tensorProduct (G H : IsoGraph) (hG : 0 < G.V)
   exact CGraph.autCount_mul_le_autCount_tensorProduct _ _
 
 theorem autCount_mul_le_autCount_strongProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (strongProduct G H).autCount := by
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G ⊠g H).autCount := by
   induction G using Quotient.inductionOn with | _ g
   induction H using Quotient.inductionOn with | _ h
   rw [← mk_canonicalize g, V_mk] at hG
@@ -15178,7 +15178,7 @@ theorem autCount_mul_le_autCount_strongProduct (G H : IsoGraph) (hG : 0 < G.V)
   exact CGraph.autCount_mul_le_autCount_strongProduct _ _
 
 theorem autCount_mul_le_autCount_lexProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (lexProduct G H).autCount := by
+    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G ·g H).autCount := by
   induction G using Quotient.inductionOn with | _ g
   induction H using Quotient.inductionOn with | _ h
   rw [← mk_canonicalize g, V_mk] at hG
@@ -15190,14 +15190,14 @@ theorem autCount_mul_le_autCount_lexProduct (G H : IsoGraph) (hG : 0 < G.V)
   exact CGraph.autCount_mul_le_autCount_lexProduct _ _
 
 theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : IsoGraph) (hV : 0 < G.V) :
-    2 * (G.autCount * G.autCount) ≤ (disjUnion G G).autCount := by
+    2 * (G.autCount * G.autCount) ≤ (G ⊕g G).autCount := by
   induction G using Quotient.inductionOn with | _ g
   rw [← mk_canonicalize g, V_mk] at hV
   haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
   rw [← mk_canonicalize g, disjUnion_mk, autCount_mk, autCount_mk]
   exact CGraph.two_mul_autCount_mul_le_autCount_disjUnion_self _
 
-example : 12 ≤ (disjUnion (complete 3) (complete 4)).autCount := by
+example : 12 ≤ (complete 3 ⊕g complete 4).autCount := by
   have := autCount_mul_le_autCount_disjUnion (complete 3) (complete 4)
   simp [Nat.factorial] at this
   omega
@@ -15235,7 +15235,7 @@ theorem V_sub_numComponents_le_E (G : IsoGraph) : G.V - G.numComponents ≤ G.E 
 
 example : (empty 5).V - (empty 5).E ≤ (empty 5).numComponents := by simp
 
-example : ¬ (disjUnion (complete 1) (complete 1)).IsConnected := by
+example : ¬ (complete 1 ⊕g complete 1).IsConnected := by
   apply not_isConnected_of_E_add_one_lt_V
   simp
 
@@ -15283,32 +15283,32 @@ example : (mycielskian (cycle 5)).cliqueNum = 2 := by
 /-! ### Edge counts of the strong and lexicographic products -/
 
 @[simp] theorem E_strongProduct (G H : IsoGraph) :
-    (strongProduct G H).E = G.V * H.E + H.V * G.E + 2 * G.E * H.E := by
+    (G ⊠g H).E = G.V * H.E + H.V * G.E + 2 * G.E * H.E := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
   exact CGraph.E_strongProduct _ _
 
 @[simp] theorem E_lexProduct (G H : IsoGraph) :
-    (lexProduct G H).E = H.V * H.V * G.E + G.V * H.E := by
+    (G ·g H).E = H.V * H.V * G.E + G.V * H.E := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, E_mk, E_mk, E_mk, V_mk, V_mk]
   exact CGraph.E_lexProduct _ _
 
 theorem E_strongProduct_eq_add (G H : IsoGraph) :
-    (strongProduct G H).E = (cartesianProduct G H).E + (tensorProduct G H).E := by
+    (G ⊠g H).E = (G □g H).E + (G ⊗g H).E := by
   rw [E_strongProduct, E_cartesianProduct, E_tensorProduct]
 
-example : (strongProduct (complete 3) (complete 3)).E = 36 := by
+example : (complete 3 ⊠g complete 3).E = 36 := by
   rw [E_strongProduct]
   simp
 
-example : (lexProduct (complete 2) (empty 3)).E = 9 := by
+example : (complete 2 ·g empty 3).E = 9 := by
   rw [E_lexProduct]
   simp
 
-example : (strongProduct (path 2) (path 2)).E = 6 := by
+example : (path 2 ⊠g path 2).E = 6 := by
   rw [E_strongProduct]
   simp
 
@@ -15319,14 +15319,14 @@ example : (paley 9).E = 27 := by
 /-! ### Domination in disjoint unions, joins and cartesian products -/
 
 @[simp] theorem domNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).domNum = G.domNum + H.domNum := by
+    (G ⊕g H).domNum = G.domNum + H.domNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, domNum_mk, domNum_mk, domNum_mk]
   exact CGraph.domNum_disjUnion _ _
 
 theorem domNum_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (join G H).domNum ≤ 2 := by
+    (G ∇g H).domNum ≤ 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, V_mk] at hG
@@ -15337,24 +15337,24 @@ theorem domNum_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   exact CGraph.domNum_join_le_two _ _
 
 @[simp] theorem domNum_join_eq_one_iff (G H : IsoGraph) :
-    (join G H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
+    (G ∇g H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, domNum_mk, domNum_mk, domNum_mk]
   exact CGraph.domNum_join_eq_one_iff _ _
 
 theorem domNum_join_eq_two {G H : IsoGraph} (hGV : 0 < G.V) (hHV : 0 < H.V)
-    (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) : (join G H).domNum = 2 := by
+    (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) : (G ∇g H).domNum = 2 := by
   have h1 := domNum_join_le_two hGV hHV
-  have h2 : 0 < (join G H).domNum := domNum_pos (by rw [V_join]; omega)
-  have h3 : (join G H).domNum ≠ 1 := fun h ↦ by
+  have h2 : 0 < (G ∇g H).domNum := domNum_pos (by rw [V_join]; omega)
+  have h3 : (G ∇g H).domNum ≠ 1 := fun h ↦ by
     rcases (domNum_join_eq_one_iff G H).1 h with h | h
     · exact hG h
     · exact hH h
   omega
 
 theorem domNum_cartesianProduct_le (G H : IsoGraph) :
-    (cartesianProduct G H).domNum ≤ G.domNum * H.V := by
+    (G □g H).domNum ≤ G.domNum * H.V := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, domNum_mk, domNum_mk, V_mk]
@@ -15364,20 +15364,20 @@ theorem domNum_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).domNum = 2 :=
   rw [bipartite_eq_join]
   exact domNum_join_eq_two (by simp) (by simp) (by simp) (by simp)
 
-example : (disjUnion (complete 3) (complete 4)).domNum = 2 := by simp
+example : (complete 3 ⊕g complete 4).domNum = 2 := by simp
 
-example : (disjUnion (empty 5) (complete 3)).domNum = 6 := by simp
+example : (empty 5 ⊕g complete 3).domNum = 6 := by simp
 
 example : (bipartite 3 3).domNum = 2 := domNum_bipartite 1 1
 
-example : (cartesianProduct (complete 4) (complete 4)).domNum ≤ 4 := by
+example : (complete 4 □g complete 4).domNum ≤ 4 := by
   have := domNum_cartesianProduct_le (complete 4) (complete 4)
   simpa using this
 
 /-! ### The radius of a cartesian product -/
 
 theorem radius_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (cartesianProduct G H).radius = G.radius + H.radius := by
+    (G □g H).radius = G.radius + H.radius := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, isConnected_mk] at hG
@@ -15386,7 +15386,7 @@ theorem radius_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsCo
     radius_mk]
   exact CGraph.radius_cartesianProduct _ _ hG hH
 
-example : (cartesianProduct (cycle 5) (cycle 5)).radius = 4 := by
+example : (cycle 5 □g cycle 5).radius = 4 := by
   rw [radius_cartesianProduct (by simp) (by simp)]
   simp
 
@@ -15395,7 +15395,7 @@ example : (rook 4 4).radius = 2 := by
   simp
 
 theorem diameter_strongProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (strongProduct G H).diameter ≤ G.diameter + H.diameter := by
+    (G ⊠g H).diameter ≤ G.diameter + H.diameter := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, isConnected_mk] at hG
@@ -15405,7 +15405,7 @@ theorem diameter_strongProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   exact CGraph.diameter_strongProduct_le _ _ hG hH
 
 theorem diameter_lexProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (lexProduct G H).diameter ≤ G.diameter + H.diameter := by
+    (G ·g H).diameter ≤ G.diameter + H.diameter := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, isConnected_mk] at hG
@@ -15415,24 +15415,24 @@ theorem diameter_lexProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : IsCon
   exact CGraph.diameter_lexProduct_le _ _ hG hH
 
 theorem radius_cartesianProduct_self {G : IsoGraph} (hG : IsConnected G) :
-    (cartesianProduct G G).radius = 2 * G.radius := by
+    (G □g G).radius = 2 * G.radius := by
   rw [radius_cartesianProduct hG hG, two_mul]
 
-example : (strongProduct (cycle 5) (cycle 5)).diameter ≤ 4 := by
+example : (cycle 5 ⊠g cycle 5).diameter ≤ 4 := by
   have := diameter_strongProduct_le (G := cycle 5) (H := cycle 5) (by simp) (by simp)
   simpa using this
 
 /-! ### Domination in the graph products -/
 
 theorem domNum_strongProduct_le (G H : IsoGraph) :
-    (strongProduct G H).domNum ≤ G.domNum * H.domNum := by
+    (G ⊠g H).domNum ≤ G.domNum * H.domNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, domNum_mk, domNum_mk, domNum_mk]
   exact CGraph.domNum_strongProduct_le _ _
 
 theorem domNum_le_domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
-    G.domNum ≤ (lexProduct G H).domNum := by
+    G.domNum ≤ (G ·g H).domNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize h, V_mk] at hH
@@ -15441,7 +15441,7 @@ theorem domNum_le_domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V)
   exact CGraph.domNum_le_domNum_lexProduct _ _
 
 theorem domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : H.domNum = 1) :
-    (lexProduct G H).domNum = G.domNum := by
+    (G ·g H).domNum = G.domNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize h, domNum_mk] at hH
@@ -15450,7 +15450,7 @@ theorem domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : H.domNum = 1) :
 
 /-- Two universal vertices give a universal vertex of the strong product. -/
 theorem domNum_strongProduct_eq_one {G H : IsoGraph} (hG : G.domNum = 1) (hH : H.domNum = 1) :
-    (strongProduct G H).domNum = 1 := by
+    (G ⊠g H).domNum = 1 := by
   have hGV : 0 < G.V := by
     rcases Nat.eq_zero_or_pos G.V with h | h
     · rw [← domNum_eq_zero_iff] at h; omega
@@ -15460,22 +15460,22 @@ theorem domNum_strongProduct_eq_one {G H : IsoGraph} (hG : G.domNum = 1) (hH : H
     · rw [← domNum_eq_zero_iff] at h; omega
     · exact h
   have h1 := domNum_strongProduct_le G H
-  have h2 : 0 < (strongProduct G H).domNum :=
+  have h2 : 0 < (G ⊠g H).domNum :=
     domNum_pos (by rw [V_strongProduct]; exact Nat.mul_pos hGV hHV)
   rw [hG, hH] at h1
   omega
 
-example : (lexProduct (empty 3) (complete 2)).domNum = 3 := by
+example : (empty 3 ·g complete 2).domNum = 3 := by
   rw [domNum_lexProduct _ (by simp), domNum_empty]
 
-example : (strongProduct (star 3) (star 4)).domNum = 1 :=
+example : (star 3 ⊠g star 4).domNum = 1 :=
   domNum_strongProduct_eq_one (by simp) (by simp)
 
-example : (lexProduct (cycle 5) (complete 4)).domNum = (cycle 5).domNum :=
+example : (cycle 5 ·g complete 4).domNum = (cycle 5).domNum :=
   domNum_lexProduct _ (by simp)
 
 theorem domNum_le_domNum_cartesianProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
-    G.domNum ≤ (cartesianProduct G H).domNum := by
+    G.domNum ≤ (G □g H).domNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize h, V_mk] at hH
@@ -15484,7 +15484,7 @@ theorem domNum_le_domNum_cartesianProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 
   exact CGraph.domNum_le_domNum_cartesianProduct _ _
 
 theorem domNum_le_domNum_strongProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
-    G.domNum ≤ (strongProduct G H).domNum := by
+    G.domNum ≤ (G ⊠g H).domNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize h, V_mk] at hH
@@ -15495,7 +15495,7 @@ theorem domNum_le_domNum_strongProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H
 /-- The domination number of a strong product sits between the larger factor value and the
 product of the two. -/
 theorem max_domNum_le_domNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    max G.domNum H.domNum ≤ (strongProduct G H).domNum := by
+    max G.domNum H.domNum ≤ (G ⊠g H).domNum := by
   refine max_le (domNum_le_domNum_strongProduct G hH) ?_
   rw [strongProduct_comm]
   exact domNum_le_domNum_strongProduct H hG
@@ -15504,7 +15504,7 @@ theorem max_domNum_le_domNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH :
 
 /-- `α(G) · α(H) ≤ α(G ⊠ H)`: the Shannon-capacity lower bound. -/
 theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : IsoGraph) :
-    G.indepNum * H.indepNum ≤ (strongProduct G H).indepNum := by
+    G.indepNum * H.indepNum ≤ (G ⊠g H).indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, indepNum_mk, indepNum_mk,
@@ -15513,7 +15513,7 @@ theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : IsoGraph) :
 
 /-- `α(G) · α(H) ≤ α(G □ H)`. -/
 theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : IsoGraph) :
-    G.indepNum * H.indepNum ≤ (cartesianProduct G H).indepNum := by
+    G.indepNum * H.indepNum ≤ (G □g H).indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, indepNum_mk, indepNum_mk,
@@ -15522,7 +15522,7 @@ theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : IsoGraph) :
 
 /-- `α(G) · |V(H)| ≤ α(G × H)`, since no tensor edge stays inside a slab. -/
 theorem indepNum_mul_V_le_indepNum_tensorProduct (G H : IsoGraph) :
-    G.indepNum * H.V ≤ (tensorProduct G H).indepNum := by
+    G.indepNum * H.V ≤ (G ⊗g H).indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, indepNum_mk, indepNum_mk,
@@ -15531,13 +15531,13 @@ theorem indepNum_mul_V_le_indepNum_tensorProduct (G H : IsoGraph) :
 
 /-- `α(G × H)` is also at least `|V(G)| · α(H)`, by symmetry. -/
 theorem V_mul_indepNum_le_indepNum_tensorProduct (G H : IsoGraph) :
-    G.V * H.indepNum ≤ (tensorProduct G H).indepNum := by
+    G.V * H.indepNum ≤ (G ⊗g H).indepNum := by
   rw [tensorProduct_comm, mul_comm]
   exact indepNum_mul_V_le_indepNum_tensorProduct H G
 
 /-- `α(G □ H) ≤ |V(G)| · α(H)`, by counting fibrewise. -/
 theorem indepNum_cartesianProduct_le (G H : IsoGraph) :
-    (cartesianProduct G H).indepNum ≤ G.V * H.indepNum := by
+    (G □g H).indepNum ≤ G.V * H.indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, indepNum_mk, indepNum_mk,
@@ -15546,13 +15546,13 @@ theorem indepNum_cartesianProduct_le (G H : IsoGraph) :
 
 /-- The mirror bound `α(G □ H) ≤ α(G) · |V(H)|`. -/
 theorem indepNum_cartesianProduct_le' (G H : IsoGraph) :
-    (cartesianProduct G H).indepNum ≤ G.indepNum * H.V := by
+    (G □g H).indepNum ≤ G.indepNum * H.V := by
   rw [cartesianProduct_comm, mul_comm]
   exact indepNum_cartesianProduct_le H G
 
 /-- `α(G ⊠ H) ≤ |V(G)| · α(H)`. -/
 theorem indepNum_strongProduct_le (G H : IsoGraph) :
-    (strongProduct G H).indepNum ≤ G.V * H.indepNum := by
+    (G ⊠g H).indepNum ≤ G.V * H.indepNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, indepNum_mk, indepNum_mk,
@@ -15561,24 +15561,24 @@ theorem indepNum_strongProduct_le (G H : IsoGraph) :
 
 /-- The mirror bound `α(G ⊠ H) ≤ α(G) · |V(H)|`. -/
 theorem indepNum_strongProduct_le' (G H : IsoGraph) :
-    (strongProduct G H).indepNum ≤ G.indepNum * H.V := by
+    (G ⊠g H).indepNum ≤ G.indepNum * H.V := by
   rw [strongProduct_comm, mul_comm]
   exact indepNum_strongProduct_le H G
 
 /-- Squeezing the two bounds: a product with a complete graph has independence number exactly
 `α(G)`, because `α(K_n) = 1` for `n ≠ 0`. -/
 theorem indepNum_cartesianProduct_complete_le (G : IsoGraph) (n : ℕ) :
-    (cartesianProduct G (complete n)).indepNum ≤ G.indepNum * n := by
+    (G □g complete n).indepNum ≤ G.indepNum * n := by
   have h := indepNum_cartesianProduct_le' G (complete n)
   rwa [V_complete] at h
 
-example : 4 ≤ (strongProduct (cycle 5) (cycle 5)).indepNum := by
+example : 4 ≤ (cycle 5 ⊠g cycle 5).indepNum := by
   have h5 : (cycle 5).indepNum = 2 := by simp
   have h := indepNum_mul_indepNum_le_indepNum_strongProduct (cycle 5) (cycle 5)
   rw [h5] at h
   omega
 
-example : 3 ≤ (tensorProduct (complete 3) (complete 3)).indepNum := by
+example : 3 ≤ (complete 3 ⊗g complete 3).indepNum := by
   have h := V_mul_indepNum_le_indepNum_tensorProduct (complete 3) (complete 3)
   rw [V_complete, indepNum_complete] at h
   omega
@@ -15587,7 +15587,7 @@ example : 3 ≤ (tensorProduct (complete 3) (complete 3)).indepNum := by
 
 /-- **`χ(G ⊠ H) ≤ χ(G)·χ(H)`.** -/
 theorem chromNum_strongProduct_le (G H : IsoGraph) :
-    (strongProduct G H).chromNum ≤ G.chromNum * H.chromNum := by
+    (G ⊠g H).chromNum ≤ G.chromNum * H.chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, chromNum_mk,
@@ -15596,7 +15596,7 @@ theorem chromNum_strongProduct_le (G H : IsoGraph) :
 
 /-- `max χ(G) χ(H) ≤ χ(G ⊠ H)`, once both factors have a vertex. -/
 theorem max_chromNum_le_chromNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    max G.chromNum H.chromNum ≤ (strongProduct G H).chromNum := by
+    max G.chromNum H.chromNum ≤ (G ⊠g H).chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, V_mk] at hG
@@ -15609,7 +15609,7 @@ theorem max_chromNum_le_chromNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (
 
 /-- `max χ(G) χ(H) ≤ χ(G[H])`, once both factors have a vertex. -/
 theorem max_chromNum_le_chromNum_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    max G.chromNum H.chromNum ≤ (lexProduct G H).chromNum := by
+    max G.chromNum H.chromNum ≤ (G ·g H).chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, V_mk] at hG
@@ -15622,7 +15622,7 @@ theorem max_chromNum_le_chromNum_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH 
 
 /-- `ω(G)·ω(H) ≤ χ(G ⊠ H)`. -/
 theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : IsoGraph) :
-    G.cliqueNum * H.cliqueNum ≤ (strongProduct G H).chromNum := by
+    G.cliqueNum * H.cliqueNum ≤ (G ⊠g H).chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, cliqueNum_mk,
@@ -15631,7 +15631,7 @@ theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : IsoGraph) :
 
 /-- Two edges make a tensor edge: `2 ≤ χ(G × H)`. -/
 theorem two_le_chromNum_tensorProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    2 ≤ (tensorProduct G H).chromNum := by
+    2 ≤ (G ⊗g H).chromNum := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, E_mk] at hG
@@ -15641,7 +15641,7 @@ theorem two_le_chromNum_tensorProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < 
 
 /-- A bipartite factor and edges on both sides force `χ(G × H) = 2`. -/
 theorem chromNum_tensorProduct_eq_two {G H : IsoGraph} (hG : IsBipartite G)
-    (hGE : 0 < G.E) (hHE : 0 < H.E) : (tensorProduct G H).chromNum = 2 := by
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : (G ⊗g H).chromNum = 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, isBipartite_mk] at hG
@@ -15651,16 +15651,16 @@ theorem chromNum_tensorProduct_eq_two {G H : IsoGraph} (hG : IsBipartite G)
   exact CGraph.chromNum_tensorProduct_eq_two hG hGE hHE
 
 /-- The strong product of complete graphs shows the upper bound is attained. -/
-example : (strongProduct (complete 3) (complete 4)).chromNum = 12 := by
+example : (complete 3 ⊠g complete 4).chromNum = 12 := by
   rw [strongProduct_complete, chromNum_complete]
 
-example : 4 ≤ (strongProduct (cycle 5) (cycle 5)).chromNum := by
+example : 4 ≤ (cycle 5 ⊠g cycle 5).chromNum := by
   have h := cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (cycle 5) (cycle 5)
   have h5 : (cycle 5).cliqueNum = 2 := cliqueNum_cycle_five
   rw [h5] at h
   omega
 
-example : (strongProduct (cycle 5) (cycle 5)).chromNum ≤ 9 := by
+example : (cycle 5 ⊠g cycle 5).chromNum ≤ 9 := by
   have h := chromNum_strongProduct_le (cycle 5) (cycle 5)
   have h5 : (cycle 5).chromNum = 3 := by
     have := chromNum_cycle_odd 1
@@ -15669,7 +15669,7 @@ example : (strongProduct (cycle 5) (cycle 5)).chromNum ≤ 9 := by
   rw [h5] at h
   omega
 
-example : (tensorProduct (cycle 4) (path 3)).chromNum = 2 := by
+example : (cycle 4 ⊗g path 3).chromNum = 2 := by
   refine chromNum_tensorProduct_eq_two ?_ ?_ ?_
   · simpa using isBipartite_cycle_even 2
   · simp
@@ -15680,12 +15680,12 @@ example : (tensorProduct (cycle 4) (path 3)).chromNum = 2 := by
 /-- Gallai turns the exact independence number of a lexicographic product into an exact cover
 number: `τ(G[H]) = |V(G)|·|V(H)| - α(G)·α(H)`. -/
 @[simp] theorem coverNum_lexProduct (G H : IsoGraph) :
-    (lexProduct G H).coverNum = G.V * H.V - G.indepNum * H.indepNum := by
+    (G ·g H).coverNum = G.V * H.V - G.indepNum * H.indepNum := by
   rw [coverNum_eq, V_lexProduct, indepNum_lexProduct]
 
 /-- A cover of a join must contain one whole side. -/
 @[simp] theorem coverNum_join (G H : IsoGraph) :
-    (join G H).coverNum = min (G.coverNum + H.V) (G.V + H.coverNum) := by
+    (G ∇g H).coverNum = min (G.coverNum + H.V) (G.V + H.coverNum) := by
   rw [coverNum_eq, V_join, indepNum_join]
   have := G.coverNum_add_indepNum
   have := H.coverNum_add_indepNum
@@ -15693,23 +15693,23 @@ number: `τ(G[H]) = |V(G)|·|V(H)| - α(G)·α(H)`. -/
 
 /-- The independent set bound `α(G)·α(H) ≤ α(G □ H)` becomes an upper bound on `τ`. -/
 theorem coverNum_cartesianProduct_le (G H : IsoGraph) :
-    (cartesianProduct G H).coverNum ≤ G.V * H.V - G.indepNum * H.indepNum := by
+    (G □g H).coverNum ≤ G.V * H.V - G.indepNum * H.indepNum := by
   rw [coverNum_eq, V_cartesianProduct]
   exact Nat.sub_le_sub_left (indepNum_mul_indepNum_le_indepNum_cartesianProduct G H) _
 
 /-- The same bound for the strong product. -/
 theorem coverNum_strongProduct_le (G H : IsoGraph) :
-    (strongProduct G H).coverNum ≤ G.V * H.V - G.indepNum * H.indepNum := by
+    (G ⊠g H).coverNum ≤ G.V * H.V - G.indepNum * H.indepNum := by
   rw [coverNum_eq, V_strongProduct]
   exact Nat.sub_le_sub_left (indepNum_mul_indepNum_le_indepNum_strongProduct G H) _
 
 /-- Fibrewise counting from below: `|V(G)|·τ(H) ≤ τ(G □ H)`. -/
 theorem V_mul_coverNum_le_coverNum_cartesianProduct (G H : IsoGraph) :
-    G.V * H.coverNum ≤ (cartesianProduct G H).coverNum := by
+    G.V * H.coverNum ≤ (G □g H).coverNum := by
   have h1 : G.V * H.coverNum = G.V * H.V - G.V * H.indepNum := by
     rw [coverNum_eq, Nat.mul_sub]
   have h2 := indepNum_cartesianProduct_le G H
-  have h3 := (cartesianProduct G H).coverNum_add_indepNum
+  have h3 := (G □g H).coverNum_add_indepNum
   rw [V_cartesianProduct] at h3
   have h4 : G.V * H.indepNum ≤ G.V * H.V :=
     Nat.mul_le_mul_left _ (by have := H.coverNum_add_indepNum; omega)
@@ -15717,7 +15717,7 @@ theorem V_mul_coverNum_le_coverNum_cartesianProduct (G H : IsoGraph) :
 
 /-- The mirror bound `τ(G) · |V(H)| ≤ τ(G □ H)`. -/
 theorem coverNum_mul_V_le_coverNum_cartesianProduct (G H : IsoGraph) :
-    G.coverNum * H.V ≤ (cartesianProduct G H).coverNum := by
+    G.coverNum * H.V ≤ (G □g H).coverNum := by
   rw [cartesianProduct_comm]
   have h := V_mul_coverNum_le_coverNum_cartesianProduct H G
   rwa [mul_comm] at h
@@ -15725,11 +15725,11 @@ theorem coverNum_mul_V_le_coverNum_cartesianProduct (G H : IsoGraph) :
 /-- The strong product contains the cartesian one, and both have the same vertex set, so the
 lower bound survives: `|V(G)|·τ(H) ≤ τ(G ⊠ H)`. -/
 theorem V_mul_coverNum_le_coverNum_strongProduct (G H : IsoGraph) :
-    G.V * H.coverNum ≤ (strongProduct G H).coverNum := by
+    G.V * H.coverNum ≤ (G ⊠g H).coverNum := by
   have h1 : G.V * H.coverNum = G.V * H.V - G.V * H.indepNum := by
     rw [coverNum_eq, Nat.mul_sub]
   have h2 := indepNum_strongProduct_le G H
-  have h3 := (strongProduct G H).coverNum_add_indepNum
+  have h3 := (G ⊠g H).coverNum_add_indepNum
   rw [V_strongProduct] at h3
   have h4 : G.V * H.indepNum ≤ G.V * H.V :=
     Nat.mul_le_mul_left _ (by have := H.coverNum_add_indepNum; omega)
@@ -15737,7 +15737,7 @@ theorem V_mul_coverNum_le_coverNum_strongProduct (G H : IsoGraph) :
 
 /-- The mirror bound for the strong product. -/
 theorem coverNum_mul_V_le_coverNum_strongProduct (G H : IsoGraph) :
-    G.coverNum * H.V ≤ (strongProduct G H).coverNum := by
+    G.coverNum * H.V ≤ (G ⊠g H).coverNum := by
   rw [strongProduct_comm]
   have h := V_mul_coverNum_le_coverNum_strongProduct H G
   rwa [mul_comm] at h
@@ -15745,30 +15745,30 @@ theorem coverNum_mul_V_le_coverNum_strongProduct (G H : IsoGraph) :
 /-- A slab `S × V(H)` is independent in the tensor product, so covering it is cheap:
 `τ(G × H) ≤ τ(G)·|V(H)|`. -/
 theorem coverNum_tensorProduct_le (G H : IsoGraph) :
-    (tensorProduct G H).coverNum ≤ G.coverNum * H.V := by
+    (G ⊗g H).coverNum ≤ G.coverNum * H.V := by
   have h1 : G.coverNum * H.V = G.V * H.V - G.indepNum * H.V := by
     rw [coverNum_eq, Nat.sub_mul]
   have h2 := indepNum_mul_V_le_indepNum_tensorProduct G H
-  have h3 := (tensorProduct G H).coverNum_add_indepNum
+  have h3 := (G ⊗g H).coverNum_add_indepNum
   rw [V_tensorProduct] at h3
   omega
 
 /-- The mirror bound `τ(G × H) ≤ |V(G)|·τ(H)`. -/
 theorem coverNum_tensorProduct_le' (G H : IsoGraph) :
-    (tensorProduct G H).coverNum ≤ G.V * H.coverNum := by
+    (G ⊗g H).coverNum ≤ G.V * H.coverNum := by
   rw [tensorProduct_comm]
   have h := coverNum_tensorProduct_le H G
   rwa [mul_comm] at h
 
-example : (lexProduct (cycle 5) (complete 3)).coverNum = 13 := by
+example : (cycle 5 ·g complete 3).coverNum = 13 := by
   rw [coverNum_lexProduct, V_cycle, V_complete, indepNum_complete]
   norm_num [show ((cycle 5).indepNum) = 2 from by simp]
 
-example : (cartesianProduct (complete 3) (complete 3)).coverNum ≤ 8 := by
+example : (complete 3 □g complete 3).coverNum ≤ 8 := by
   have h := coverNum_cartesianProduct_le (complete 3) (complete 3)
   simpa using h
 
-example : 6 ≤ (cartesianProduct (complete 3) (complete 3)).coverNum := by
+example : 6 ≤ (complete 3 □g complete 3).coverNum := by
   have h := V_mul_coverNum_le_coverNum_cartesianProduct (complete 3) (complete 3)
   simpa using h
 
@@ -15812,12 +15812,12 @@ example (n : ℕ) : (empty (n + 1)).domNum + (empty (n + 1))ᶜ.domNum = (n + 1)
 /-- The complement of a disconnected graph — in particular of any disjoint union of two
 nonempty graphs — is dominated by two vertices. -/
 theorem domNum_compl_disjUnion_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (disjUnion G H)ᶜ.domNum ≤ 2 :=
+    (G ⊕g H)ᶜ.domNum ≤ 2 :=
   domNum_compl_le_two_of_not_isConnected (by rw [V_disjUnion]; omega)
     (not_isConnected_disjUnion hG hH)
 
 /-- The complement of `2 K₃` is `K₃,₃`, which two vertices dominate. -/
-example : (disjUnion (complete 3) (complete 3))ᶜ.domNum ≤ 2 :=
+example : (complete 3 ⊕g complete 3)ᶜ.domNum ≤ 2 :=
   domNum_compl_disjUnion_le_two (by simp) (by simp)
 
 
@@ -16019,14 +16019,14 @@ theorem IsRegularWith.compl {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
   exact CGraph.IsRegularWith.compl h
 
 theorem IsRegularWith.disjUnion {G H : IsoGraph} {k : ℕ} (hG : G.IsRegularWith k)
-    (hH : H.IsRegularWith k) : (disjUnion G H).IsRegularWith k := by
+    (hH : H.IsRegularWith k) : (G ⊕g H).IsRegularWith k := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   exact CGraph.IsRegularWith.disjUnion hG hH
 
 theorem IsRegularWith.join {G H : IsoGraph} {k l m : ℕ} (hG : G.IsRegularWith k)
     (hH : H.IsRegularWith l) (h1 : k + H.V = m) (h2 : G.V + l = m) :
-    (join G H).IsRegularWith m := by
+    (G ∇g H).IsRegularWith m := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h] at *
@@ -16037,23 +16037,23 @@ theorem IsRegularWith.join {G H : IsoGraph} {k l m : ℕ} (hG : G.IsRegularWith 
 
 /-- **The Cartesian product of a `k`-regular and an `l`-regular graph is `(k + l)`-regular.** -/
 theorem IsRegularWith.cartesianProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
-    (hH : H.IsRegularWith l) : (cartesianProduct G H).IsRegularWith (k + l) :=
+    (hH : H.IsRegularWith l) : (G □g H).IsRegularWith (k + l) :=
   isRegularWith_of_degSequence (degSequence_cartesianProduct hG.degSequence hH.degSequence)
 
 /-- **The tensor product multiplies the degrees.** -/
 theorem IsRegularWith.tensorProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
-    (hH : H.IsRegularWith l) : (tensorProduct G H).IsRegularWith (k * l) :=
+    (hH : H.IsRegularWith l) : (G ⊗g H).IsRegularWith (k * l) :=
   isRegularWith_of_degSequence (degSequence_tensorProduct hG.degSequence hH.degSequence)
 
 /-- **The strong product**, being the union of the other two, has degree `(k+1)(l+1) - 1`. -/
 theorem IsRegularWith.strongProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
-    (hH : H.IsRegularWith l) : (strongProduct G H).IsRegularWith ((k + 1) * (l + 1) - 1) :=
+    (hH : H.IsRegularWith l) : (G ⊠g H).IsRegularWith ((k + 1) * (l + 1) - 1) :=
   isRegularWith_of_degSequence (degSequence_strongProduct hG.degSequence hH.degSequence)
 
 /-- **The lexicographic product**: a vertex sees `k` whole copies of `H` plus its `l` neighbours
 inside its own copy. -/
 theorem IsRegularWith.lexProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
-    (hH : H.IsRegularWith l) : (lexProduct G H).IsRegularWith (k * H.V + l) :=
+    (hH : H.IsRegularWith l) : (G ·g H).IsRegularWith (k * H.V + l) :=
   isRegularWith_of_degSequence (degSequence_lexProduct hG.degSequence hH.degSequence)
 
 /-! #### The regularity table -/
@@ -16098,7 +16098,7 @@ example : petersen.E = 15 := by
   omega
 
 /-- `C₅ □ K₃` is `(2 + 2)`-regular. -/
-example : (cartesianProduct (cycle 5) (complete 3)).IsRegularWith 4 := by
+example : (cycle 5 □g complete 3).IsRegularWith 4 := by
   have h := (isRegularWith_cycle 2).cartesianProduct (isRegularWith_complete 3)
   norm_num at h
   exact h
@@ -16399,7 +16399,7 @@ theorem IsRegularWith.le_edgeChromNum {G : IsoGraph} {k : ℕ} (h : G.IsRegularW
   rw [edgeChromNum_eq, lineGraph_star, chromNum_complete]
 
 @[simp] theorem edgeChromNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).edgeChromNum = max G.edgeChromNum H.edgeChromNum := by
+    (G ⊕g H).edgeChromNum = max G.edgeChromNum H.edgeChromNum := by
   rw [edgeChromNum_eq, lineGraph_disjUnion, chromNum_disjUnion, edgeChromNum_eq, edgeChromNum_eq]
 
 /-- `χ'(Petersen) ≥ 3`; the true value is `4`, which needs the fact that the Petersen graph has
@@ -16469,7 +16469,7 @@ theorem matchNum_pos (G : IsoGraph) (h : 0 < G.E) : 0 < G.matchNum := by
   rw [matchNum_eq, lineGraph_star, indepNum_complete]
 
 @[simp] theorem matchNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).matchNum = G.matchNum + H.matchNum := by
+    (G ⊕g H).matchNum = G.matchNum + H.matchNum := by
   rw [matchNum_eq, lineGraph_disjUnion, indepNum_disjUnion, matchNum_eq, matchNum_eq]
 
 /-- The Petersen graph has at most five independent edges, and `|E| ≤ χ' ν` then forces
@@ -16480,7 +16480,7 @@ example : 2 * petersen.matchNum ≤ 10 := by
 
 example : (star 4).matchNum = 1 := by rw [matchNum_star]; omega
 
-example : (disjUnion (complete 2) (complete 2)).matchNum = 2 := by
+example : (complete 2 ⊕g complete 2).matchNum = 2 := by
   rw [matchNum_disjUnion]
   have h : (complete 2).matchNum = 1 := by
     rw [← star_one, matchNum_star]
@@ -16700,11 +16700,11 @@ theorem cliqueCoverNum_le_V_sub_cliqueNum_add_one (G : IsoGraph) :
 
 /-- Cliques never cross a disjoint union, so the clique covers add. -/
 @[simp] theorem cliqueCoverNum_disjUnion (G H : IsoGraph) :
-    (disjUnion G H).cliqueCoverNum = G.cliqueCoverNum + H.cliqueCoverNum := by
+    (G ⊕g H).cliqueCoverNum = G.cliqueCoverNum + H.cliqueCoverNum := by
   rw [cliqueCoverNum_eq, compl_disjUnion, chromNum_join, cliqueCoverNum_eq, cliqueCoverNum_eq]
 
 @[simp] theorem cliqueCoverNum_join (G H : IsoGraph) :
-    (join G H).cliqueCoverNum = max G.cliqueCoverNum H.cliqueCoverNum := by
+    (G ∇g H).cliqueCoverNum = max G.cliqueCoverNum H.cliqueCoverNum := by
   rw [cliqueCoverNum_eq, compl_join, chromNum_disjUnion, cliqueCoverNum_eq, cliqueCoverNum_eq]
 
 /-- A complete bipartite graph is covered by `max m n` edges and singletons. -/
@@ -16725,7 +16725,7 @@ example : (empty 4).cliqueCoverNum = 4 := cliqueCoverNum_empty 4
 example : (cycle 5).indepNum ≤ (cycle 5).cliqueCoverNum := indepNum_le_cliqueCoverNum _
 
 /-- The clique cover bound is tight for a disjoint union of triangles. -/
-example : (disjUnion (complete 3) (complete 3)).cliqueCoverNum = 2 := by
+example : (complete 3 ⊕g complete 3).cliqueCoverNum = 2 := by
   rw [cliqueCoverNum_disjUnion, show (3 : ℕ) = 2 + 1 by ring, cliqueCoverNum_complete]
 
 
@@ -16791,7 +16791,7 @@ Odd cycles show that this is not automatic: `C₅` has `ω = 2` but `χ = 3`. -/
 product is the larger of the two factors' chromatic numbers. -/
 @[simp] theorem chromNum_rook (m n : ℕ) :
     (rook (m + 1) (n + 1)).chromNum = max (m + 1) (n + 1) := by
-  show (cartesianProduct (complete (m + 1)) (complete (n + 1))).chromNum = _
+  show (complete (m + 1) □g complete (n + 1)).chromNum = _
   rw [chromNum_cartesianProduct (by rw [V_complete]; omega) (by rw [V_complete]; omega),
     chromNum_complete, chromNum_complete]
 
@@ -17629,36 +17629,36 @@ example : (path 6).matchNum = 3 := by rw [matchNum_path]
 join is determined by the two factors, so the whole table for the fan follows from the table for
 the path together with the trivial values for `K₁`. -/
 
-theorem fan_eq_join (n : ℕ) : fan n = join (complete 1) (path n) := rfl
+theorem fan_eq_join (n : ℕ) : fan n = complete 1 ∇g path n := rfl
 
 @[simp] theorem fan_zero : fan 0 = complete 1 := by
-  show join (complete 1) (path 0) = _
+  show complete 1 ∇g path 0 = _
   rw [path_zero, ← complete_zero, join_complete]
 
 @[simp] theorem fan_one : fan 1 = complete 2 := by
-  show join (complete 1) (path 1) = _
+  show complete 1 ∇g path 1 = _
   rw [path_one, ← complete_one, join_complete]
 
 @[simp] theorem fan_two : fan 2 = complete 3 := by
-  show join (complete 1) (path 2) = _
+  show complete 1 ∇g path 2 = _
   rw [path_two, join_complete]
 
 @[simp] theorem E_fan (n : ℕ) : (fan (n + 1)).E = 2 * n + 1 := by
-  show (join (complete 1) (path (n + 1))).E = _
+  show (complete 1 ∇g path (n + 1)).E = _
   rw [E_join, E_complete, E_path, V_complete, V_path, show (1 : ℕ).choose 2 = 0 from rfl]
   omega
 
 @[simp] theorem chromNum_fan (n : ℕ) : (fan (n + 2)).chromNum = 3 := by
-  show (join (complete 1) (path (n + 2))).chromNum = _
+  show (complete 1 ∇g path (n + 2)).chromNum = _
   rw [chromNum_join, chromNum_complete, chromNum_path]
 
 @[simp] theorem cliqueNum_fan (n : ℕ) : (fan (n + 2)).cliqueNum = 3 := by
-  show (join (complete 1) (path (n + 2))).cliqueNum = _
+  show (complete 1 ∇g path (n + 2)).cliqueNum = _
   rw [cliqueNum_join, cliqueNum_complete, cliqueNum_path]
 
 /-- The apex is never worth taking: a maximum independent set of the fan is one of the path. -/
 @[simp] theorem indepNum_fan (n : ℕ) : (fan (n + 1)).indepNum = (n + 2) / 2 := by
-  show (join (complete 1) (path (n + 1))).indepNum = _
+  show (complete 1 ∇g path (n + 1)).indepNum = _
   rw [indepNum_join, indepNum_complete, indepNum_path]
   omega
 
@@ -17669,13 +17669,13 @@ theorem fan_eq_join (n : ℕ) : fan n = join (complete 1) (path n) := rfl
 
 /-- The apex has the largest degree once the path is long enough to be a path. -/
 @[simp] theorem maxDeg_fan (n : ℕ) : maxDeg (fan (n + 3)) = n + 3 := by
-  show maxDeg (join (complete 1) (path (n + 3))) = _
+  show maxDeg (complete 1 ∇g path (n + 3)) = _
   rw [maxDeg_join (by simp) (by simp), maxDeg_complete, maxDeg_path, V_complete, V_path]
   omega
 
 /-- An end of the path keeps the smallest degree, `2`. -/
 @[simp] theorem minDeg_fan (n : ℕ) : minDeg (fan (n + 2)) = 2 := by
-  show minDeg (join (complete 1) (path (n + 2))) = _
+  show minDeg (complete 1 ∇g path (n + 2)) = _
   rw [minDeg_join (by simp) (by simp), minDeg_complete, minDeg_path, V_complete, V_path]
   omega
 
@@ -17684,7 +17684,7 @@ theorem fan_eq_join (n : ℕ) : fan n = join (complete 1) (path n) := rfl
 
 /-- The apex dominates the whole fan. -/
 @[simp] theorem domNum_fan (n : ℕ) : (fan n).domNum = 1 := by
-  show (join (complete 1) (path n)).domNum = _
+  show (complete 1 ∇g path n).domNum = _
   exact (domNum_join_eq_one_iff _ _).2 (Or.inl (domNum_complete 0))
 
 @[simp] theorem radius_fan (n : ℕ) : (fan (n + 1)).radius = 1 :=
@@ -17703,7 +17703,7 @@ theorem fan_eq_join (n : ℕ) : fan n = join (complete 1) (path n) := rfl
 
 @[simp] theorem cliqueCoverNum_fan (n : ℕ) :
     (fan n).cliqueCoverNum = max 1 ((path n).cliqueCoverNum) := by
-  show (join (complete 1) (path n)).cliqueCoverNum = _
+  show (complete 1 ∇g path n).cliqueCoverNum = _
   rw [cliqueCoverNum_join, cliqueCoverNum_complete]
 
 example : (fan 4).E = 7 := by rw [show (4 : ℕ) = 3 + 1 from rfl, E_fan]
@@ -18024,28 +18024,28 @@ theorem numComponents_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
 /-! ### Prisms and ladders -/
 
 @[simp] theorem cliqueNum_ladder (n : ℕ) : (ladder (n + 2)).cliqueNum = 2 := by
-  rw [show ladder (n + 2) = cartesianProduct (path (n + 2)) (complete 2) from rfl,
+  rw [show ladder (n + 2) = path (n + 2) □g complete 2 from rfl,
     cliqueNum_cartesianProduct (by rw [V_path]; omega) (by rw [V_complete]; omega),
     cliqueNum_path, cliqueNum_complete]
   norm_num
 
 /-- A prism over a cycle of length at least four is triangle-free. -/
 @[simp] theorem cliqueNum_prism (n : ℕ) : (prism (n + 4)).cliqueNum = 2 := by
-  rw [show prism (n + 4) = cartesianProduct (cycle (n + 4)) (complete 2) from rfl,
+  rw [show prism (n + 4) = cycle (n + 4) □g complete 2 from rfl,
     cliqueNum_cartesianProduct (by rw [V_cycle]; omega) (by rw [V_complete]; omega),
     cliqueNum_cycle, cliqueNum_complete]
   norm_num
 
 /-- The triangular prism `K₃ □ K₂` does contain a triangle. -/
 @[simp] theorem cliqueNum_prism_three : (prism 3).cliqueNum = 3 := by
-  rw [show prism 3 = cartesianProduct (cycle 3) (complete 2) from rfl,
+  rw [show prism 3 = cycle 3 □g complete 2 from rfl,
     cliqueNum_cartesianProduct (by rw [V_cycle]; omega) (by rw [V_complete]; omega),
     cliqueNum_cycle_three, cliqueNum_complete]
   norm_num
 
 /-- An odd prism needs three colours: the rim already does. -/
 @[simp] theorem chromNum_prism_odd (m : ℕ) : (prism (2 * m + 3)).chromNum = 3 := by
-  rw [show prism (2 * m + 3) = cartesianProduct (cycle (2 * m + 3)) (complete 2) from rfl,
+  rw [show prism (2 * m + 3) = cycle (2 * m + 3) □g complete 2 from rfl,
     chromNum_cartesianProduct (by rw [V_cycle]; omega) (by rw [V_complete]; omega),
     chromNum_cycle_odd, chromNum_complete]
   norm_num
@@ -18183,7 +18183,7 @@ identity carries every product formula across in one step. -/
 /-- Peeling one part off a balanced complete multipartite graph. -/
 theorem completeMultipartite_replicate_succ (m d : ℕ) :
     completeMultipartite (List.replicate (m + 1) d)
-      = join (empty d) (completeMultipartite (List.replicate m d)) := by
+      = empty d ∇g completeMultipartite (List.replicate m d) := by
   rw [List.replicate_succ, completeMultipartite_cons]
 
 @[simp] theorem V_completeMultipartite_replicate (m d : ℕ) :
@@ -18816,18 +18816,18 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
 /-! ### Degrees and radius of the ladder -/
 
 @[simp] theorem maxDeg_ladder (n : ℕ) : maxDeg (ladder (n + 3)) = 3 := by
-  rw [show ladder (n + 3) = cartesianProduct (path (n + 3)) (complete 2) from rfl,
+  rw [show ladder (n + 3) = path (n + 3) □g complete 2 from rfl,
     maxDeg_cartesianProduct (by rw [V_path]; omega) (by rw [V_complete]; omega),
     maxDeg_path, maxDeg_complete]
 
 @[simp] theorem minDeg_ladder (n : ℕ) : minDeg (ladder (n + 2)) = 2 := by
-  rw [show ladder (n + 2) = cartesianProduct (path (n + 2)) (complete 2) from rfl,
+  rw [show ladder (n + 2) = path (n + 2) □g complete 2 from rfl,
     minDeg_cartesianProduct (by rw [V_path]; omega) (by rw [V_complete]; omega),
     minDeg_path, minDeg_complete]
 
 /-- **The radius of a ladder**: the centre of the underlying path, on either rail. -/
 @[simp] theorem radius_ladder (n : ℕ) : (ladder (n + 1)).radius = (n + 1) / 2 + 1 := by
-  rw [show ladder (n + 1) = cartesianProduct (path (n + 1)) (complete 2) from rfl,
+  rw [show ladder (n + 1) = path (n + 1) □g complete 2 from rfl,
     radius_cartesianProduct (isConnected_path n) (isConnected_complete 1), radius_path,
     show complete 2 = complete (0 + 2) from rfl, radius_complete]
 
@@ -18987,7 +18987,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
   -- The rungs (edges ((i,0),(i,1)) for i : Fin n) are n edges that are pairwise disjoint,
   -- so they form an independent set in the line graph.
   have hlower : n ≤ (lineGraph (ladder n)).indepNum := by
-    show n ≤ indepNum (lineGraph (cartesianProduct (path n) (complete 2)))
+    show n ≤ indepNum (lineGraph (path n □g complete 2))
     rw [show path n = ⟦CGraph.path n⟧ from rfl, show complete 2 = ⟦CGraph.complete 2⟧ from rfl]
     rw [cartesianProduct_mk, lineGraph_mk, indepNum_mk]
     -- The rungs are edges between (i,0) and (i,1) in the ladder
@@ -20039,11 +20039,11 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
 /-! ### Connectivity of the strong and lexicographic products -/
 
 @[simp] theorem numComponents_strongProduct {G H : IsoGraph} (hG : IsConnected G)
-    (hH : IsConnected H) : (strongProduct G H).numComponents = 1 :=
+    (hH : IsConnected H) : (G ⊠g H).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_strongProduct hG hH)
 
 @[simp] theorem numComponents_lexProduct {G H : IsoGraph} (hG : IsConnected G)
-    (hH : IsConnected H) : (lexProduct G H).numComponents = 1 :=
+    (hH : IsConnected H) : (G ·g H).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_lexProduct hG hH)
 
 /-- A rook graph is dominated by one full row or one full column, whichever is shorter. -/
@@ -20156,33 +20156,33 @@ A join of two nonempty graphs has diameter at most two, so its radius is one or 
 one exactly when one of the two factors has a dominating vertex. -/
 
 theorem radius_join_eq_one {G H : IsoGraph} (hV : 1 < G.V + H.V)
-    (h : G.domNum = 1 ∨ H.domNum = 1) : (join G H).radius = 1 := by
+    (h : G.domNum = 1 ∨ H.domNum = 1) : (G ∇g H).radius = 1 := by
   rw [radius_eq_one_iff_domNum_eq_one (by rwa [V_join]), domNum_join_eq_one_iff]
   exact h
 
 theorem radius_join_eq_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
-    (h1 : G.domNum ≠ 1) (h2 : H.domNum ≠ 1) : (join G H).radius = 2 := by
-  have hV : 1 < (join G H).V := by rw [V_join]; omega
-  have hne : (join G H).radius ≠ 1 := by
+    (h1 : G.domNum ≠ 1) (h2 : H.domNum ≠ 1) : (G ∇g H).radius = 2 := by
+  have hV : 1 < (G ∇g H).V := by rw [V_join]; omega
+  have hne : (G ∇g H).radius ≠ 1 := by
     intro h
     rw [radius_eq_one_iff_domNum_eq_one hV, domNum_join_eq_one_iff] at h
     rcases h with h | h
     · exact h1 h
     · exact h2 h
-  have hle := radius_le_diameter (join G H)
+  have hle := radius_le_diameter (G ∇g H)
   have hd := diameter_join_le_two hG hH
   have hpos := radius_pos (isConnected_join hG hH) hV
   omega
 
 /-! ### The radius of a strong or lexicographic product -/
 
-theorem radius_strongProduct_eq_one {G H : IsoGraph} (hV : 1 < (strongProduct G H).V)
-    (hG : G.domNum = 1) (hH : H.domNum = 1) : (strongProduct G H).radius = 1 := by
+theorem radius_strongProduct_eq_one {G H : IsoGraph} (hV : 1 < (G ⊠g H).V)
+    (hG : G.domNum = 1) (hH : H.domNum = 1) : (G ⊠g H).radius = 1 := by
   rw [radius_eq_one_iff_domNum_eq_one hV]
   exact domNum_strongProduct_eq_one hG hH
 
-theorem radius_lexProduct_eq_one {G H : IsoGraph} (hV : 1 < (lexProduct G H).V)
-    (hG : G.domNum = 1) (hH : H.domNum = 1) : (lexProduct G H).radius = 1 := by
+theorem radius_lexProduct_eq_one {G H : IsoGraph} (hV : 1 < (G ·g H).V)
+    (hG : G.domNum = 1) (hH : H.domNum = 1) : (G ·g H).radius = 1 := by
   rw [radius_eq_one_iff_domNum_eq_one hV, domNum_lexProduct G hH]
   exact hG
 
@@ -20333,7 +20333,7 @@ theorem cliqueCoverNum_rook (m n : ℕ) :
 /-- The independence number of a tensor product is at least the larger of the two "column"
 bounds: an independent set of one factor lifts to a whole slab. -/
 theorem indepNum_tensorProduct_ge {G H : IsoGraph} :
-    max (G.indepNum * H.V) (G.V * H.indepNum) ≤ (tensorProduct G H).indepNum := by
+    max (G.indepNum * H.V) (G.V * H.indepNum) ≤ (G ⊗g H).indepNum := by
   exact max_le (indepNum_mul_V_le_indepNum_tensorProduct G H)
     (V_mul_indepNum_le_indepNum_tensorProduct G H)
 
@@ -21391,7 +21391,7 @@ theorem two_mul_E_ladder (n : ℕ) : 2 * (ladder (n + 2)).E = 8 + 6 * n := by
 
 /-- The radius of a strong product is the maximum of the radii. -/
 theorem radius_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (strongProduct G H).radius = max G.radius H.radius := by
+    (G ⊠g H).radius = max G.radius H.radius := by
   induction G using Quotient.inductionOn with | _ G
   induction H using Quotient.inductionOn with | _ H
   have hdG : DecidableEq G.V := Classical.decEq _
@@ -22012,29 +22012,29 @@ component. -/
   numComponents_eq_one_of_isConnected (isConnected_lineGraph hG hE)
 
 theorem radius_strongProduct_self {G : IsoGraph} (hG : IsConnected G) :
-    (strongProduct G G).radius = G.radius := by
+    (G ⊠g G).radius = G.radius := by
   rw [radius_strongProduct hG hG, max_self]
 
 /-- The **king graph** on an `(m+1) × (n+1)` board: a king reaches every square from the middle
 of the longer side. -/
 @[simp] theorem radius_strongProduct_path (m n : ℕ) :
-    (strongProduct (path (m + 1)) (path (n + 1))).radius = max ((m + 1) / 2) ((n + 1) / 2) := by
+    (path (m + 1) ⊠g path (n + 1)).radius = max ((m + 1) / 2) ((n + 1) / 2) := by
   rw [radius_strongProduct (isConnected_path m) (isConnected_path n), radius_path, radius_path]
 
 /-- The **toroidal king graph**. -/
 @[simp] theorem radius_strongProduct_cycle (m n : ℕ) :
-    (strongProduct (cycle (m + 1)) (cycle (n + 1))).radius = max ((m + 1) / 2) ((n + 1) / 2) := by
+    (cycle (m + 1) ⊠g cycle (n + 1)).radius = max ((m + 1) / 2) ((n + 1) / 2) := by
   rw [radius_strongProduct (isConnected_cycle m) (isConnected_cycle n), radius_cycle, radius_cycle]
 
 @[simp] theorem radius_strongProduct_hypercube (m n : ℕ) :
-    (strongProduct (hypercube m) (hypercube n)).radius = max m n := by
+    (hypercube m ⊠g hypercube n).radius = max m n := by
   rw [radius_strongProduct (isConnected_hypercube m) (isConnected_hypercube n), radius_hypercube,
     radius_hypercube]
 
 /-- In the strong product, distances are the maximum of the two coordinate distances, so the
 diameter is the maximum of the two diameters. -/
 theorem diameter_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (strongProduct G H).diameter = max G.diameter H.diameter := by
+    (G ⊠g H).diameter = max G.diameter H.diameter := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, diameter_mk, diameter_mk,
@@ -22237,12 +22237,12 @@ theorem diameter_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsCon
   rw [key _ _ hGtop hHtop]
 
 @[simp] theorem diameter_strongProduct_cycle (m n : ℕ) :
-    (strongProduct (cycle (m + 1)) (cycle (n + 1))).diameter = max ((m + 1) / 2) ((n + 1) / 2) := by
+    (cycle (m + 1) ⊠g cycle (n + 1)).diameter = max ((m + 1) / 2) ((n + 1) / 2) := by
   rw [diameter_strongProduct (isConnected_cycle m) (isConnected_cycle n), diameter_cycle,
     diameter_cycle]
 
 @[simp] theorem diameter_strongProduct_hypercube (m n : ℕ) :
-    (strongProduct (hypercube m) (hypercube n)).diameter = max m n := by
+    (hypercube m ⊠g hypercube n).diameter = max m n := by
   rw [diameter_strongProduct (isConnected_hypercube m) (isConnected_hypercube n),
     diameter_hypercube, diameter_hypercube]
 
@@ -22504,7 +22504,7 @@ theorem domNum_triangular (n : ℕ) : (triangular (n + 2)).domNum = (n + 2) / 2 
 /-- **A Cartesian product of two triangle-free graphs with an edge each has girth four**: the
 two edges span a square, and a triangle in the product would project to one in a factor. -/
 theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E)
-    (hcG : G.cliqueNum ≤ 2) (hcH : H.cliqueNum ≤ 2) : (cartesianProduct G H).girth = 4 := by
+    (hcG : G.cliqueNum ≤ 2) (hcH : H.cliqueNum ≤ 2) : (G □g H).girth = 4 := by
   induction G using Quotient.inductionOn with | _ G =>
   induction H using Quotient.inductionOn with | _ H =>
   rw [← mk_canonicalize G, ← mk_canonicalize H] at *
@@ -22522,7 +22522,7 @@ the square faces are the shortest cycles. -/
 
 /-- **A torus is a product of two cycles**, and has girth four once both are long enough. -/
 @[simp] theorem girth_cartesianProduct_cycle (m n : ℕ) :
-    (cartesianProduct (cycle (m + 4)) (cycle (n + 4))).girth = 4 := by
+    (cycle (m + 4) □g cycle (n + 4)).girth = 4 := by
   refine girth_cartesianProduct_of_cliqueNum_le_two ?_ ?_ (by rw [cliqueNum_cycle])
     (by rw [cliqueNum_cycle]) <;>
   · rw [show _ + 4 = _ + 1 + 3 from rfl, E_cycle]
@@ -22530,7 +22530,7 @@ the square faces are the shortest cycles. -/
 
 /-- A cycle crossed with a path: the girth is four whichever parity the cycle has. -/
 @[simp] theorem girth_cartesianProduct_cycle_path (m n : ℕ) :
-    (cartesianProduct (cycle (m + 4)) (path (n + 2))).girth = 4 := by
+    (cycle (m + 4) □g path (n + 2)).girth = 4 := by
   refine girth_cartesianProduct_of_cliqueNum_le_two ?_ (by simp) (by rw [cliqueNum_cycle])
     (by rw [cliqueNum_path])
   rw [show m + 4 = m + 1 + 3 by ring, E_cycle]
@@ -22538,7 +22538,7 @@ the square faces are the shortest cycles. -/
 
 /-- **A grid has girth four.** -/
 @[simp] theorem girth_grid (m n : ℕ) :
-    (cartesianProduct (path (m + 2)) (path (n + 2))).girth = 4 :=
+    (path (m + 2) □g path (n + 2)).girth = 4 :=
   girth_cartesianProduct (by simp) (by simp) (isBipartite_path (m + 2)) (isBipartite_path (n + 2))
 
 /-- **A Johnson graph on at least `k + 2` points has girth three**: three `k`-sets sharing a
@@ -23966,7 +23966,7 @@ theorem cliqueNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) : (turan n r).cli
   omega
 
 theorem friendship_eq_join_compl_cocktailParty (n : ℕ) :
-    friendship n = join (complete 1) (cocktailParty n)ᶜ := by
+    friendship n = complete 1 ∇g (cocktailParty n)ᶜ := by
   rw [compl_cocktailParty]
 
 @[simp] theorem indepNum_friendship (n : ℕ) : (friendship n).indepNum = max n 1 := by
@@ -24061,7 +24061,7 @@ theorem isRegularWith_compl_cocktailParty (n : ℕ) :
   rw [E_tensorProduct, E_complete, E_complete]
   simp
 
-theorem crown_two : crown 2 = disjUnion (complete 2) (complete 2) :=
+theorem crown_two : crown 2 = complete 2 ⊕g complete 2 :=
   tensorProduct_complete_two_two
 
 theorem crown_three : crown 3 = cycle 6 := by
@@ -24337,7 +24337,7 @@ theorem indepNum_crown (n : ℕ) : (crown (n + 2)).indepNum = n + 2 := by
     rw [hclique, hcard] at h
     omega
   · -- Lower bound: n + 2 ≤ indepNum
-    have htensor : crown (n + 2) = tensorProduct (complete (n + 2)) (complete 2) := rfl
+    have htensor : crown (n + 2) = complete (n + 2) ⊗g complete 2 := rfl
     rw [htensor]
     have := V_mul_indepNum_le_indepNum_tensorProduct (complete (n + 2)) (complete 2)
     rw [V_complete, indepNum_complete] at this
@@ -24352,7 +24352,7 @@ theorem matchNum_crown (n : ℕ) : (crown (n + 2)).matchNum = n + 2 := by
     rw [V_crown] at h1
     rw [matchNum_eq] at h1; omega
   · -- Lower bound: construct indep set of size n+2 in lineGraph
-    show n + 2 ≤ (IsoGraph.lineGraph (tensorProduct (complete (n + 2)) (complete 2))).indepNum
+    show n + 2 ≤ (IsoGraph.lineGraph (complete (n + 2) ⊗g complete 2)).indepNum
     simp only [IsoGraph.complete_def, IsoGraph.tensorProduct_mk, IsoGraph.lineGraph_mk,
       IsoGraph.indepNum_mk]
     -- Goal: n + 2 ≤ the line graph's independence number
@@ -24748,7 +24748,7 @@ theorem girth_crown (n : ℕ) : (crown (n + 4)).girth = 4 := by
 /-- Two adjacent vertices dominate a crown graph: they lie in different halves of the
 bipartition and between them see every other vertex, while no vertex is universal. -/
 @[simp] theorem domNum_crown (n : ℕ) : (crown (n + 2)).domNum = 2 := by
-  show IsoGraph.domNum (tensorProduct (complete (n + 2)) (complete 2)) = 2
+  show IsoGraph.domNum (complete (n + 2) ⊗g complete 2) = 2
   dsimp only [IsoGraph.complete]
   rw [tensorProduct_mk, IsoGraph.domNum_mk]
   -- Upper bound: {(0,0), (0,1)} dominates
@@ -25753,17 +25753,17 @@ theorem diameter_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r
 /-- **Equal parts make a blow-up**: a balanced Turán graph is `K_r` with every vertex blown up
 to an independent set of size `n / r`. -/
 theorem turan_eq_lexProduct_of_dvd {n r : ℕ} (h : r ∣ n) :
-    turan n r = lexProduct (complete r) (empty (n / r)) := by
+    turan n r = complete r ·g empty (n / r) := by
   rw [turan_of_dvd h, completeMultipartite_replicate]
 
 /-- The complement of a balanced Turán graph is `r` disjoint cliques. -/
 theorem compl_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
-    (turan n r)ᶜ = cartesianProduct (empty r) (complete (n / r)) := by
+    (turan n r)ᶜ = empty r □g complete (n / r) := by
   rw [turan_of_dvd h, compl_completeMultipartite_replicate]
 
 /-- The complement of a cocktail party graph, read off the Turán graph it is. -/
 theorem compl_turan_two_mul_self (r : ℕ) :
-    (turan (2 * r) r)ᶜ = cartesianProduct (empty r) (complete 2) := by
+    (turan (2 * r) r)ᶜ = empty r □g complete 2 := by
   rw [turan_two_mul_self, compl_cocktailParty]
 
 /-- A Paley graph is `(q-1)/2`-regular on `q` vertices, so it has `q(q-1)/4` edges. -/
@@ -25778,13 +25778,13 @@ theorem compl_turan_two_mul_self (r : ℕ) :
     _ = q * (q - 1) := by rw [h2]
 
 theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H)
-    (hb : ¬ IsBipartite G) (hE : 0 < H.E) : IsConnected (tensorProduct G H) := by
+    (hb : ¬ IsBipartite G) (hE : 0 < H.E) : IsConnected (G ⊗g H) := by
   -- Lift to CGraph level
   have hG_iso : Quotient.mk _ G.toCGraph = G := IsoGraph.mk_toCGraph G
   have hH_iso : Quotient.mk _ H.toCGraph = H := IsoGraph.mk_toCGraph H
   haveI : DecidableEq G.toCGraph.V := Classical.decEq _
   haveI : DecidableEq H.toCGraph.V := Classical.decEq _
-  have htensor : tensorProduct G H = ⟦CGraph.tensorProduct G.toCGraph H.toCGraph⟧ := by
+  have htensor : G ⊗g H = ⟦CGraph.tensorProduct G.toCGraph H.toCGraph⟧ := by
     conv_lhs => rw [← hG_iso, ← hH_iso]
     exact tensorProduct_mk _ _
   rw [htensor, isConnected_mk]
@@ -26340,15 +26340,15 @@ theorem edgeChromNum_friendship (n : ℕ) :
 /-- The complement of the friendship graph: the hub becomes isolated and the petals become a
 cocktail party graph. -/
 @[simp] theorem compl_friendship (n : ℕ) :
-    (friendship n)ᶜ = disjUnion (empty 1) (cocktailParty n) := by
+    (friendship n)ᶜ = empty 1 ⊕g cocktailParty n := by
   rw [friendship, compl_join, compl_complete, ← compl_cocktailParty, compl_compl]
 
 /-- The complement of a Turán graph is `r` disjoint cliques, `n % r` of them one vertex larger
 than the others. -/
 theorem compl_turan (n r : ℕ) :
     (turan n r)ᶜ
-      = disjUnion (cartesianProduct (empty (n % r)) (complete (n / r + 1)))
-          (cartesianProduct (empty (r - n % r)) (complete (n / r))) := by
+      = disjUnion (empty (n % r) □g complete (n / r + 1))
+          (empty (r - n % r) □g complete (n / r)) := by
   rw [turan, completeMultipartite_append, compl_join, compl_completeMultipartite_replicate,
     compl_completeMultipartite_replicate]
 
@@ -26521,7 +26521,7 @@ theorem matchNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : (turan n r).ma
 and once as the four-rung prism. -/
 theorem crown_four : crown 4 = hypercube 3 := by
   rw [hypercube_three]
-  show tensorProduct (complete 4) (complete 2) = cartesianProduct (cycle 4) (complete 2)
+  show complete 4 ⊗g complete 2 = cycle 4 □g complete 2
   rw [complete_def, complete_def, tensorProduct_mk, cycle_def, cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.tensorProduct (CGraph.complete 4) (CGraph.complete 2))
@@ -26832,7 +26832,7 @@ theorem circulant_six_two_three : circulant 6 [2, 3] = prism 3 := by
 /-- The three-vertex fan is the two-page book: both are `K₄` with one edge removed. -/
 theorem fan_three : fan 3 = book 2 := by
   rw [book_eq_join]
-  show join (complete 1) (path 3) = join (complete 2) (empty 2)
+  show complete 1 ∇g path 3 = complete 2 ∇g empty 2
   rw [complete_def, path_def, join_mk, complete_def, empty_def, join_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.join (CGraph.complete 1) (CGraph.path 3))
@@ -27626,7 +27626,7 @@ diameter: the true value is `⊤`, and `⊤` truncates to `0`. -/
   rfl
 
 @[simp] theorem radius_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (disjUnion G H).radius = 0 :=
+    (G ⊕g H).radius = 0 :=
   radius_eq_zero_of_not_isConnected (not_isConnected_disjUnion hG hH)
 
 /-- **A regular graph of odd order is class two**: each colour class misses a vertex, so `Δ`

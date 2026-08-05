@@ -244,6 +244,12 @@ Two things to know about `ᶜ`. There is no instance for `CGraph`: its complemen
 not unfold `IsoGraph` to reach the instance. A type ascription does not help, since it leaves the
 inferred type unchanged; write `(show IsoGraph from ⟦g⟧)ᶜ`.
 
+Every `IsoGraph`-level statement in the library is written in this notation; the prefix spellings
+survive only where the notation is not available — inside the `CGraph` namespace, where these
+names mean the un-quotiented operations, and in the six defining `def`s themselves, since the
+`infixl` declarations have to come after them. `join` is one of those: it is defined as
+`(disjUnion Gᶜ Hᶜ)ᶜ` because `∇g` cannot be introduced until `join` exists.
+
 The equations themselves come in families:
 
 ```
