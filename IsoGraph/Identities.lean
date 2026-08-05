@@ -34594,6 +34594,65 @@ theorem domNum_lollipop_le (m k : ℕ) :
   rw [V_lollipop, maxDeg_lollipop] at h
   omega
 
+/-! ### Counting edges detects the cycles
+
+A graph with at least as many edges as vertices cannot be a tree, and if it is also connected it
+cannot be acyclic.  This is the cheapest cycle detector in the library: it needs no witness
+cycle, only the two counts.
+-/
+
+theorem not_isTree_of_V_le_E {G : IsoGraph} (h : G.V ≤ G.E) : ¬ IsTree G :=
+  fun ht ↦ by have := ht.E_add_one; omega
+
+theorem not_isTree_of_not_isAcyclic {G : IsoGraph} (h : ¬ IsAcyclic G) : ¬ IsTree G :=
+  fun ht ↦ h ((isTree_iff_isConnected_and_isAcyclic G).1 ht).2
+
+theorem not_isAcyclic_of_V_le_E {G : IsoGraph} (hc : IsConnected G) (h : G.V ≤ G.E) :
+    ¬ IsAcyclic G :=
+  not_isAcyclic_of_isConnected hc (not_isTree_of_V_le_E h)
+
+/-- The tadpole has exactly as many edges as vertices. -/
+@[simp] theorem not_isTree_tadpole (m k : ℕ) : ¬ IsTree (tadpole (m + 3) k) :=
+  not_isTree_of_V_le_E (by rw [V_tadpole, E_tadpole])
+
+/-- Attaching pendant paths to a cycle keeps the edge and vertex counts equal. -/
+theorem not_isTree_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
+    ¬ IsTree (cyclePendant (m + 3) ks) :=
+  not_isTree_of_V_le_E (by rw [V_cyclePendant, E_cyclePendant m ks h])
+
+@[simp] theorem not_isTree_lollipop (m k : ℕ) : ¬ IsTree (lollipop (m + 3) k) :=
+  not_isTree_of_not_isAcyclic (not_isAcyclic_lollipop m k)
+
+/-- The tadpole is triangle-free once its cycle has four or more vertices, so its shortest cycle
+has length at least four. -/
+theorem four_le_girth_tadpole (m k : ℕ) : 4 ≤ (tadpole (m + 4) k).girth :=
+  four_le_girth_of_cliqueNum (cliqueNum_tadpole m k).le (not_isAcyclic_tadpole (m + 1) k)
+
+/-! ### Clique covers of the tree-and-cycle families
+
+`|V| ≤ κ · ω`, since every clique in a cover has at most `ω` vertices.  For a triangle-free
+graph this is `κ ≥ ⌈|V| / 2⌉`, which is the first entry in the clique-cover cell for the spider
+and the tadpole; the lollipop's clique makes its bound weaker but still non-trivial.
+-/
+
+theorem le_cliqueCoverNum_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    (2 + legs.sum) / 2 ≤ (spider legs).cliqueCoverNum := by
+  have h1 := le_cliqueCoverNum_of_cliqueNum_le_two (cliqueNum_spider legs h).le
+  rw [V_spider] at h1
+  omega
+
+theorem le_cliqueCoverNum_tadpole (m k : ℕ) :
+    (m + k + 5) / 2 ≤ (tadpole (m + 4) k).cliqueCoverNum := by
+  have h1 := le_cliqueCoverNum_of_cliqueNum_le_two (cliqueNum_tadpole m k).le
+  rw [V_tadpole] at h1
+  omega
+
+theorem le_cliqueCoverNum_lollipop (m k : ℕ) :
+    m + k + 2 ≤ (lollipop (m + 2) k).cliqueCoverNum * (m + 2) := by
+  have h := V_le_cliqueCoverNum_mul_cliqueNum (lollipop (m + 2) k)
+  rw [cliqueNum_lollipop, V_lollipop] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

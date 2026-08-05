@@ -2310,6 +2310,19 @@ the true `2ⁿ · n!`), `le_autCount_kneser` and `le_autCount_bipartite_self`. T
 bounds, not values, but they are the first non-trivial ones in the table, and they are exactly the
 inequality that `not_isArcTransitive_of_autCount_lt` reads backwards.
 
+The cheapest cycle detector in the library turns out to be counting. A tree satisfies
+`E + 1 = |V|`, so `not_isTree_of_V_le_E` rejects anything with at least as many edges as
+vertices, without exhibiting a cycle; `not_isAcyclic_of_V_le_E` adds connectedness to upgrade
+that to acyclicity, and `not_isTree_of_not_isAcyclic` is the trivial direction that had never
+been separated out. The tadpole and the cycle with pendant paths have *exactly* as many edges as
+vertices, so `not_isTree_tadpole` and `not_isTree_cyclePendant` are one-liners; the lollipop goes
+through its clique instead. `four_le_girth_tadpole` then pins the tadpole's girth from below,
+since it is triangle-free as soon as its cycle has four vertices.
+
+The clique-cover row gains the same three families via `|V| ≤ κ · ω`: `le_cliqueCoverNum_spider`
+and `le_cliqueCoverNum_tadpole` give `κ ≥ ⌈|V| / 2⌉` for the two triangle-free ones, and
+`le_cliqueCoverNum_lollipop` the weaker `|V| ≤ κ(m + 2)` that its clique allows.
+
 The rest of the `edgeChromNum` row can at least be bracketed. `Δ ≤ χ'` (the edges at a vertex
 pairwise conflict) and `χ' ≤ 2Δ − 1` (greedy on the line graph, whose maximum degree is `2Δ − 2`)
 are both already proved in general, so every family whose maximum degree is known gets an
