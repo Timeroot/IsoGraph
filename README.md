@@ -2029,6 +2029,18 @@ has at most `(|V| - 1)/2` edges, while handshaking puts `|V|·k/2` edges in the 
 colours cannot suffice. This is `maxDeg_lt_edgeChromNum_of_isRegularWith_odd`, and it generalises
 the complete-graph-of-odd-order case that was proved by hand earlier.
 
+Two more Mycielskian rows, both exact. `domNum_mycielskian` says domination costs exactly one
+more: `γ(μ(G)) = γ(G) + 1` for nonempty `G`. Upwards is the obvious construction — the shadows of
+a dominating set, plus the apex to cover the shadows the apex does not otherwise reach. Downwards
+is the real work, and it splits on whether the apex is in the dominating set `D`: if it is,
+projecting `D \ {apex}` back to `V(G)` dominates `G` and costs one fewer; if it is not, then some
+shadow lies in `D` (the apex has to be dominated), and dropping one such shadow from the union of
+`D`'s originals and shadows leaves a dominating set of `G`. `matchNum_mycielskian` says a graph
+with a perfect matching gives a Mycielskian with a *near*-perfect one, `ν(μ(G)) = |V(G)|`: match
+every original to the shadow of its partner, which uses `2ν(G) = |V|` vertices on each side and
+leaves only the apex out. The upper bound is just `2ν ≤ |V|` applied to `μ(G)`, which has
+`2|V| + 1` vertices.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
