@@ -28703,6 +28703,35 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
     exact hle
   exact le_antisymm upper lower
 
+/-- All `n` shadows are pairwise non-adjacent. -/
+theorem V_le_indepNum_mycielskian (G : IsoGraph) : G.V ≤ (mycielskian G).indepNum := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    simp [V, indepNum, mycielskian]
+    -- Goal: Fintype.card g.V ≤ g.canonicalize.mycielskian.indepNum
+    -- The shadows form an independent set of size Fintype.card g.V
+    let n := Fintype.card g.V
+    let shadows : Finset (CGraph.mycielskian g.canonicalize).V := Finset.image (some ∘
+        Sum.inr) Finset.univ
+    have hind : (CGraph.mycielskian g.canonicalize).toSimple.IsIndepSet (shadows : Set _) := by
+      intro x hx y hy hne hadj
+      simp [shadows] at hx hy
+      obtain ⟨i, hi⟩ := hx
+      obtain ⟨j, hj⟩ := hy
+      subst hi hj
+      simp [CGraph.toSimple_adj] at hadj
+      rw [CGraph.mycielskian_adj_inr_inr] at hadj
+      exact absurd hadj (by simp)
+    have hcard : shadows.card = n := by
+      have hinj : Function.Injective (some ∘ Sum.inr : Fin n → (CGraph.mycielskian
+          g.canonicalize).V) := by
+        intro a b h
+        have := Option.some_injective _ h
+        exact Sum.inr_injective this
+      simp [shadows, Finset.card_image_of_injective _ hinj]
+    show n ≤ (CGraph.mycielskian g.canonicalize).indepNum
+    exact hcard ▸ hind.card_le_indepNum
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -30765,6 +30794,588 @@ theorem indepNum_doubleStar (m n : ℕ) :
   rw [hV] at hadd
   show G.indepNum = m + n + 2
   omega
+
+/-- A cycle with a path glued to it stays connected. -/
+theorem isConnected_tadpole (m k : ℕ) : IsConnected (tadpole (m + 3) k) := by
+  unfold IsoGraph.tadpole
+  rw [IsoGraph.isConnected_mk]
+  show CGraph.IsConnected _
+  simp only [CGraph.IsConnected]
+  haveI : Nonempty (CGraph.tadpole (m + 3) k).V := by
+    show Nonempty (Fin (m + 3 + k))
+    exact ⟨0, by omega⟩
+  apply SimpleGraph.Connected.mk
+  · -- Preconnected: use reachability from 0
+    have hreach : ∀ (v : Fin (m + 3 + k)),
+        (CGraph.tadpole (m + 3) k).toSimple.Reachable
+          (⟨0, by omega⟩ : Fin (m + 3 + k)) v := by
+      intro v
+      by_cases hv : (v : ℕ) < m + 3
+      · -- cycle part: reach via forward cycle edges 0→1→...→v
+        let vi := (v : ℕ)
+        -- Reachability to all cycle vertices by induction on index
+        have hall : ∀ (i : ℕ) (hi : i < m + 3),
+            (CGraph.tadpole (m + 3) k).toSimple.Reachable
+              (⟨0, by omega⟩ : Fin (m + 3 + k)) (⟨i, by omega⟩ : Fin (m + 3 + k)) := by
+          intro i hi
+          induction i with
+          | zero => exact SimpleGraph.Reachable.refl _
+          | succ j ih =>
+            have ihj : ∀ (hj : j < m + 3), (CGraph.tadpole (m + 3) k).toSimple.Reachable
+                (⟨0, by omega⟩ : Fin (m + 3 + k)) (⟨j, by omega⟩ : Fin (m + 3 + k)) := ih
+            have hj_lt_m3 : j + 1 < m + 3 := hi
+            have ihj' := ihj (by omega)
+            have hadj : (CGraph.tadpole (m + 3) k).Adj ⟨j, by omega⟩ ⟨j + 1, by omega⟩ := by
+              rw [CGraph.tadpole_adj_val]
+              simp only []
+              refine ⟨by omega, Or.inl ?_⟩
+              rw [List.mem_append]
+              exact Or.inl ((CGraph.mem_cycleEdges (m + 3) j (j + 1)).mpr
+                (Or.inl ⟨rfl, by omega⟩))
+            obtain ⟨w⟩ := ihj'
+            exact ⟨w.concat hadj⟩
+        exact hall vi (by omega)
+      · -- tail part: reach via leg edges 0→m+3→m+4→...→v
+        have hk_pos : 0 < k := by omega
+        -- Helper: show (0, m+3) is in legEdges 0 (m+3) k
+        have hleg0 : (0, m + 3) ∈ CGraph.legEdges 0 (m + 3) k := by
+          rw [CGraph.mem_legEdges]
+          exact Or.inl ⟨rfl, rfl, hk_pos⟩
+        -- Edge (m+3+j, m+3+j+1) ∈ legEdges for j+1 < k
+        have hledge_succ : ∀ j, j + 1 < k →
+            (m + 3 + j, m + 3 + j + 1) ∈ CGraph.legEdges 0 (m + 3) k := by
+          intro j hj
+          rw [CGraph.mem_legEdges]
+          exact Or.inr ⟨by omega, by omega, by omega⟩
+        -- Show reachability to all tail vertices by induction on t
+        let tailV : ∀ t, t < k → Fin (m + 3 + k) := fun t ht => ⟨m + 3 + t, by omega⟩
+        have hall_tail : ∀ t (ht : t < k),
+            (CGraph.tadpole (m + 3) k).toSimple.Reachable
+              (⟨0, by omega⟩ : Fin (m + 3 + k)) (tailV t ht) := by
+          intro t ht
+          induction t with
+          | zero =>
+            show (CGraph.tadpole (m + 3) k).toSimple.Reachable
+              (⟨0, by omega⟩ : Fin (m + 3 + k)) (tailV 0 ht)
+            have hadj : (CGraph.tadpole (m + 3) k).Adj ⟨0, by omega⟩ (tailV 0 ht) := by
+              simp only [tailV]
+              rw [CGraph.tadpole_adj_val]
+              simp only []
+              exact ⟨by omega, Or.inl (by rw [List.mem_append]; right; exact hleg0)⟩
+            obtain ⟨w⟩ := SimpleGraph.Reachable.refl _
+            exact ⟨w.concat hadj⟩
+          | succ j ih =>
+            show (CGraph.tadpole (m + 3) k).toSimple.Reachable
+              (⟨0, by omega⟩ : Fin (m + 3 + k)) (tailV (j + 1) ht)
+            have ihj : j < k := by omega
+            have ihj' := ih ihj
+            have hadj : (CGraph.tadpole (m + 3) k).Adj (tailV j ihj) (tailV (j + 1) ht) := by
+              simp only [tailV]
+              rw [CGraph.tadpole_adj_val]
+              simp only []
+              have hmem : (m + 3 + j, m + 3 + (j + 1)) ∈ CGraph.legEdges 0 (m +
+                  3) k := hledge_succ j (by omega)
+              exact ⟨by omega, Or.inl (by rw [List.mem_append]; right; exact hmem)⟩
+            obtain ⟨w⟩ := ihj'
+            exact ⟨w.concat hadj⟩
+        set t := (v : ℕ) - (m + 3)
+        have ht_lt_k : t < k := by
+          simp only [t]
+          omega
+        have hv_eq : v = tailV t ht_lt_k := by
+          simp [tailV, t]
+          have hle : m + 3 ≤ (v : ℕ) := by omega
+          apply Fin.ext
+          simp
+          omega
+        rw [hv_eq]
+        exact hall_tail t ht_lt_k
+    intro u v
+    exact (hreach u).symm.trans (hreach v)
+
+theorem numComponents_tadpole (m k : ℕ) : (tadpole (m + 3) k).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tadpole m k)
+
+/-- The far end of the tail is the unique pendant. -/
+theorem minDeg_tadpole (m k : ℕ) : minDeg (tadpole (m + 3) (k + 1)) = 1 := by
+  rw [tadpole_def, minDeg_mk]
+  apply le_antisymm
+  · -- minDeg ≤ 1: the far end vertex has degree 1
+    let v : (CGraph.tadpole (m + 3) (k + 1)).V := ⟨m + 3 + k, by omega⟩
+    have hv1' : v.1 = m + 3 + k := rfl
+    have hdeg_le : (CGraph.tadpole (m + 3) (k + 1)).toSimple.degree v ≤ 1 := by
+      rw [← CGraph.card_nbrs_eq_degree]
+      -- The neighbor set of v is a subset of a singleton, so card ≤ 1.
+      -- v.1 = m+3+k. CycleEdges (m+3) involves only vertices < m+3, so no cycle edges incident.
+      -- legEdges 0 (m+3) (k+1) has edge (0, m+3) and edges (m+3+j, m+3+j+1) for j < k+1.
+      -- v.1 = m+3+k appears in legEdges only as second endpoint of (m+2+k, m+3+k) when k≥1,
+      -- or as second endpoint of (0, m+3) when k=0.
+      -- So at most one neighbor.
+      have hsub : (CGraph.tadpole (m + 3) (k + 1)).nbrs v ⊆
+          if k = 0 then {(⟨0, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V)}
+          else {(⟨m + 2 + k, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V)} := by
+        split
+        · -- k = 0
+          intro w hw
+          rw [CGraph.mem_nbrs] at hw
+          rw [CGraph.tadpole_adj_val] at hw
+          rw [hv1'] at hw
+          rw [List.mem_append, List.mem_append] at hw
+          rw [CGraph.mem_cycleEdges, CGraph.mem_legEdges, CGraph.mem_cycleEdges,
+              CGraph.mem_legEdges] at hw
+          rcases hw with ⟨hne, hor⟩
+          rcases hor with h | h
+          · rcases h with h | h <;> omega
+          · rcases h with h | h
+            · rcases h with h | h <;> omega
+            · rcases h with h | h
+              · exact Finset.mem_singleton.mpr (Fin.ext_iff.mpr h.1)
+              · omega
+        · -- k ≠ 0
+          intro w hw
+          rw [CGraph.mem_nbrs] at hw
+          rw [CGraph.tadpole_adj_val] at hw
+          rw [hv1'] at hw
+          rw [List.mem_append, List.mem_append] at hw
+          rw [CGraph.mem_cycleEdges, CGraph.mem_legEdges, CGraph.mem_cycleEdges,
+              CGraph.mem_legEdges] at hw
+          rcases hw with ⟨hne, hor⟩
+          rcases hor with h | h
+          · rcases h with h | h <;> omega
+          · rcases h with h | h
+            · omega
+            · rcases h with h | h
+              · omega
+              · rcases h with ⟨hle, hvw, hlt⟩
+                have hvw' : w.1 = m + 2 + k := by omega
+                exact Finset.mem_singleton.mpr (Fin.ext_iff.mpr hvw')
+      split_ifs at hsub with hk
+      · exact Finset.card_le_one.mpr (fun x hx y hy =>
+          by rw [Finset.mem_singleton.mp (hsub hx), Finset.mem_singleton.mp (hsub hy)])
+      · exact Finset.card_le_one.mpr (fun x hx y hy =>
+          by rw [Finset.mem_singleton.mp (hsub hx), Finset.mem_singleton.mp (hsub hy)])
+    exact le_trans (CGraph.minDeg_le_degree _ v) hdeg_le
+  · -- 1 ≤ minDeg: every vertex has degree ≥ 1
+    apply CGraph.le_minDeg_of_forall (⟨0, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V)
+    intro v
+    -- Exhibit a neighbor of v to show degree ≥ 1
+    have hneighbor : ∃ w : (CGraph.tadpole (m + 3) (k + 1)).V, (CGraph.tadpole (m + 3) (k +
+        1)).Adj v w = true := by
+      by_cases hv0 : v.1 = 0
+      · exact ⟨⟨1, by omega⟩, by rw [CGraph.tadpole_adj_val]; simp [hv0]⟩
+      · by_cases hvm : v.1 < m + 3
+        · refine ⟨⟨v.1 - 1, by omega⟩, ?_⟩
+          rw [CGraph.tadpole_adj_val]
+          simp [hv0]
+          omega
+        · by_cases hv_leg : v.1 = m + 3
+          · exact ⟨⟨0, by omega⟩, by rw [CGraph.tadpole_adj_val]; simp [hv_leg]⟩
+          · have hv_gt : m + 3 < v.1 := by omega
+            refine ⟨⟨v.1 - 1, by omega⟩, ?_⟩
+            rw [CGraph.tadpole_adj_val]
+            simp
+            omega
+    exact (CGraph.toSimple (CGraph.tadpole (m + 3) (k +
+        1))).degree_pos_iff_exists_adj v |>.mpr hneighbor
+
+/-- A cycle of length four or more is triangle free, and gluing on a path adds no clique. -/
+theorem cliqueNum_tadpole (m k : ℕ) : (tadpole (m + 4) k).cliqueNum = 2 := by
+  -- Triangle-freeness at IsoGraph level
+  unfold IsoGraph.tadpole
+  rw [IsoGraph.cliqueNum_mk]
+  -- Lower bound: 2 ≤ cliqueNum from E > 0
+  have h2 : 2 ≤ (CGraph.tadpole (m + 4) k).cliqueNum := by
+    apply CGraph.two_le_cliqueNum_of_E_pos
+    show 0 < (CGraph.tadpole (m + 4) k).E
+    have hE := IsoGraph.E_tadpole (m + 1) k
+    show 0 < (CGraph.tadpole ((m + 1) + 3) k).E
+    rw [show m + 4 = (m + 1) + 3 from by omega]
+    simp [IsoGraph.tadpole_def] at hE
+    rw [hE]
+    omega
+  -- Upper bound: cliqueNum ≤ 2 from triangle-freeness
+  have htri2 : ∀ (x y z : (CGraph.tadpole (m + 4) k).V),
+      (CGraph.tadpole (m + 4) k).Adj x y →
+      (CGraph.tadpole (m + 4) k).Adj y z →
+      (CGraph.tadpole (m + 4) k).Adj z x → False := by
+    intro x y z hxy hyz hzx
+    rw [CGraph.tadpole_adj_val] at hxy hyz hzx
+    simp only [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges] at hxy hyz hzx
+    omega
+  have hle : (CGraph.tadpole (m + 4) k).cliqueNum ≤ 2 := by
+    by_contra hcon
+    have hcon2 : 3 ≤ (CGraph.tadpole (m + 4) k).cliqueNum := by omega
+    have hg : (CGraph.tadpole (m + 4) k).girth = 3 :=
+      CGraph.girth_eq_three_of_cliqueNum hcon2
+    have hnac : ¬ (CGraph.tadpole (m + 4) k).IsAcyclic := by
+      intro hac; rw [(CGraph.girth_eq_zero_iff _).mpr hac] at hg; omega
+    have := CGraph.four_le_girth htri2 hnac
+    omega
+  omega
+
+/-- A clique with a path glued to it stays connected. -/
+theorem isConnected_lollipop (m k : ℕ) : IsConnected (lollipop (m + 1) k) := by
+  rw [lollipop_def, IsoGraph.isConnected_mk, CGraph.IsConnected, SimpleGraph.connected_iff]
+  refine ⟨?_, ⟨⟨0, by omega⟩⟩⟩
+  let G := CGraph.ofEdges (m + 1 + k) (CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k)
+  have hG : (CGraph.lollipop (m + 1) k).toSimple = G.toSimple := rfl
+  show SimpleGraph.Preconnected G.toSimple
+  -- Reachable to root (vertex 0) for every vertex
+  let root : G.V := ⟨0, by omega⟩
+  have hreach : ∀ (v : G.V), G.toSimple.Reachable v root := by
+    intro v
+    by_cases hvclique : v.1 < m + 1
+    · -- v is in the clique
+      by_cases hv0 : v = root
+      · rw [hv0]
+      · have hv0' : v.1 ≠ 0 := by
+          intro h; apply hv0; exact Fin.ext h
+        have huv : G.Adj v root := by
+          rw [CGraph.ofEdges_adj_val]
+          have : root.1 = 0 := rfl
+          simp [this]
+          exact ⟨fun h => hv0' (by rw [h]; rfl), Or.inl ⟨Nat.pos_of_ne_zero hv0', by omega⟩⟩
+        exact ⟨SimpleGraph.Walk.cons huv SimpleGraph.Walk.nil⟩
+    · -- v is in the leg: v.1 ≥ m+1
+      push_neg at hvclique
+      -- Convert hvclique to Nat
+      have hvclique' : m + 1 ≤ v.1 := by
+        exact_mod_cast hvclique
+      -- Helper: leg vertex ⟨m+1+jj, hj⟩ has .1 = m+1+jj
+      let legV : ∀ (jj : ℕ) (hj : m + 1 + jj < m + 1 + k), G.V := fun jj hj => ⟨m + 1 + jj, hj⟩
+      have legV_val : ∀ (jj : ℕ) (hj : m + 1 + jj < m + 1 + k), (legV jj hj).1 = m + 1 + jj := by
+        intro jj hj; rfl
+      -- Base leg vertex (jj=0) is adjacent to root
+      have hleg_adj_zero : k > 0 → G.Adj (legV 0 (by omega)) root := by
+        intro hk
+        rw [CGraph.ofEdges_adj_val]
+        simp only [root, ne_eq]
+        rw [legV_val]
+        exact ⟨by omega, Or.inr (by
+          rw [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges]
+          exact Or.inr (Or.inl ⟨rfl, rfl, hk⟩))⟩
+      -- Reachability of leg vertices by induction on jj
+      have hreachLeg : ∀ (jj : ℕ) (hj : m + 1 + jj < m + 1 + k), jj < k →
+          G.toSimple.Reachable (legV jj hj) root := by
+        intro jj hj hj'
+        induction jj with
+        | zero =>
+          exact ⟨SimpleGraph.Walk.cons (hleg_adj_zero (by omega)) SimpleGraph.Walk.nil⟩
+        | succ ii hii =>
+          have hiik : ii < k := by omega
+          have hii_bound : m + 1 + ii < m + 1 + k := by omega
+          have hu_reach : G.toSimple.Reachable (legV ii hii_bound) root := hii hii_bound hiik
+          have hwu_bound : m + 1 + (ii + 1) < m + 1 + k := hj
+          have hadj_w_u : G.Adj (legV (ii + 1) hwu_bound) (legV ii hii_bound) := by
+            rw [CGraph.ofEdges_adj_val]
+            simp only [ne_eq]
+            rw [legV_val, legV_val]
+            exact ⟨by omega, Or.inr (by
+              rw [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges]
+              exact Or.inr (Or.inr ⟨by omega, by omega, by omega⟩))⟩
+          exact ⟨SimpleGraph.Walk.cons hadj_w_u hu_reach.some⟩
+      -- Now handle v: v = legV (v.1 - (m+1)) ...
+      have hv_bound : m + 1 + (v.1 - (m + 1)) < m + 1 + k := by omega
+      have hv_lt : v.1 - (m + 1) < k := by omega
+      have hv_eq : v = legV (v.1 - (m + 1)) hv_bound := by
+        apply Fin.ext
+        rw [legV_val]
+        omega
+      rw [hv_eq]
+      exact hreachLeg _ hv_bound hv_lt
+  intro u v
+  exact (hreach u).trans (hreach v).symm
+
+theorem numComponents_lollipop (m k : ℕ) : (lollipop (m + 1) k).numComponents = 1 :=
+  (numComponents_eq_one_iff _).2 (isConnected_lollipop m k)
+
+/-- Every pendant hangs off one of the two centres, and the centres are joined. -/
+theorem isConnected_doubleStar (m n : ℕ) : IsConnected (doubleStar m n) := by
+  unfold IsoGraph.IsConnected IsoGraph.doubleStar
+  simp
+  -- Goal: CGraph.IsConnected (CGraph.doubleStar m n)
+  simp only [CGraph.IsConnected]
+  rw [SimpleGraph.connected_iff]
+  -- All vertices reachable from 0.
+  set N := 2 + m + n
+  -- Define helper: adjacency in toSimple at key pairs
+  let G := CGraph.doubleStar m n
+  have adj_0_1 : G.toSimple.Adj ⟨0, by omega⟩ ⟨1, by omega⟩ := by
+    rw [CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
+    simp
+  -- For each i < m, edge (0, 2+i)
+  have bound_0 : 0 < N := by omega
+  have bound_1 : 1 < N := by omega
+  have hPendant0Fin : ∀ (i : ℕ), i < m → 2 + i < N := by intro i hi; omega
+  have hPendant1Fin : ∀ (i : ℕ), i < n → 2 + m + i < N := by intro i hi; omega
+  have h_pendant0 : ∀ (i : ℕ) (hi : i < m),
+      G.toSimple.Adj ⟨0, bound_0⟩ ⟨2 + i, hPendant0Fin i hi⟩ := by
+    intro i hi
+    rw [CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
+    simp; omega
+  have h_pendant1 : ∀ (i : ℕ) (hi : i < n),
+      G.toSimple.Adj ⟨1, bound_1⟩ ⟨2 + m + i, hPendant1Fin i hi⟩ := by
+    intro i hi
+    rw [CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
+    simp; omega
+  -- Reachable from 0 to all vertices
+  have hreach_base : G.toSimple.Reachable ⟨0, bound_0⟩ ⟨1, bound_1⟩ :=
+    adj_0_1.reachable
+  have hreach_pendant0 : ∀ (i : ℕ) (hi : i < m),
+      G.toSimple.Reachable ⟨0, bound_0⟩ ⟨2 + i, hPendant0Fin i hi⟩ :=
+    fun i hi => (h_pendant0 i hi).reachable
+  have hreach_pendant1 : ∀ (i : ℕ) (hi : i < n),
+      G.toSimple.Reachable ⟨0, bound_0⟩ ⟨2 + m + i, hPendant1Fin i hi⟩ := by
+    intro i hi
+    exact hreach_base.trans ((h_pendant1 i hi).reachable)
+  -- Now prove reachability for all vertices by case analysis
+  have hreach : ∀ (u : Fin N), G.toSimple.Reachable ⟨0, bound_0⟩ u := by
+    intro ⟨v, hv⟩
+    by_cases hv0 : v = 0
+    · subst hv0
+      exact SimpleGraph.Reachable.refl _
+    by_cases hv1 : v = 1
+    · subst hv1
+      exact hreach_base
+    by_cases hv2 : v < 2 + m
+    · obtain ⟨i, hi, hi2⟩ : ∃ i, i < m ∧ 2 + i = v := by
+        exact ⟨v - 2, by omega, by omega⟩
+      have heq : (⟨2 + i, hPendant0Fin i hi⟩ : G.V) = ⟨v, hv⟩ := Fin.ext hi2
+      exact heq ▸ hreach_pendant0 i hi
+    · obtain ⟨i, hi, hi2⟩ : ∃ i, i < n ∧ 2 + m + i = v := by
+        exact ⟨v - (2 + m), by omega, by omega⟩
+      have heq : (⟨2 + m + i, hPendant1Fin i hi⟩ : G.V) = ⟨v, hv⟩ := Fin.ext hi2
+      exact heq ▸ hreach_pendant1 i hi
+  refine ⟨fun u v => (hreach u).symm.trans (hreach v), ⟨⟨0, bound_0⟩⟩⟩
+
+theorem numComponents_doubleStar (m n : ℕ) : (doubleStar m n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_doubleStar m n)
+
+/-- A double star has `m + n + 1` edges on `m + n + 2` vertices and is connected. -/
+theorem isTree_doubleStar (m n : ℕ) : IsTree (doubleStar m n) := by
+  exact (IsoGraph.isTree_iff (doubleStar m n)).mpr ⟨isConnected_doubleStar m n,
+      by rw [E_doubleStar, V_doubleStar]; omega⟩
+
+theorem girth_doubleStar (m n : ℕ) : (doubleStar m n).girth = 0 := by
+  rw [girth_eq_zero_iff]
+  exact (isTree_iff_isConnected_and_isAcyclic _).mp (isTree_doubleStar m n) |>.2
+
+/-- The central edge is the largest clique in a tree. -/
+theorem cliqueNum_doubleStar (m n : ℕ) : (doubleStar m n).cliqueNum = 2 := by
+  apply cliqueNum_of_isTree (h := isTree_doubleStar m n)
+  show 2 ≤ (doubleStar m n).V
+  simp
+  omega
+
+theorem chromNum_doubleStar (m n : ℕ) : (doubleStar m n).chromNum = 2 := by
+  simp only [doubleStar, IsoGraph.chromNum_mk]
+  rw [CGraph.chromNum_eq_iff]
+  -- Goal: (CGraph.doubleStar m n).toSimple.Colorable 2 ∧ ∀ m_1, ... → 2 ≤ m_1
+  constructor
+  · rw [← CGraph.isBipartite_iff_colorable]
+    -- Construct a 2-coloring: vertices 0 and ≥ 2+m get color true,
+    -- vertices 1 and 2..2+m-1 get color false.
+    set c : (CGraph.doubleStar m
+        n).V → Bool := fun v => if v.val = 0 ∨ 2 + m ≤ v.val then true else false
+    refine ⟨c, ?_⟩
+    intro a b hab
+    rw [CGraph.doubleStar_adj_val] at hab
+    have ha_val : a.val < 2 + m + n := a.isLt
+    have hb_val : b.val < 2 + m + n := b.isLt
+    simp only [c]
+    -- The goal is about decide on Nat propositions given Nat hypotheses from adj_val.
+    -- We case-split on the 6 cases from the disjunction using ` omega`-friendly approach.
+    -- First, rewrite the Bool goal into a Prop goal.
+    have key : (a.val = 0 ∨ 2 + m ≤ a.val) ↔ ¬(b.val = 0 ∨ 2 + m ≤ b.val) := by
+      constructor
+      · intro ha; by_contra hb; omega
+      · intro hb; by_contra ha; push_neg at ha; omega
+    show (if a.val = 0 ∨ 2 + m ≤ a.val then true else
+        false) ≠ if b.val = 0 ∨ 2 + m ≤ b.val then true else false
+    split <;> simp_all
+  · intro m_1 hcol
+    have hadj : (CGraph.doubleStar m n).Adj ⟨0, by omega⟩ ⟨1, by omega⟩ := by
+      simp [CGraph.doubleStar_adj_val]
+    have h := CGraph.two_le_chromNum_of_adj hadj
+    rw [CGraph.le_chromNum_iff] at h
+    exact h m_1 hcol
+
+/-- The two centres dominate, and one vertex cannot. -/
+theorem domNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).domNum = 2 := by
+  simp only [IsoGraph.doubleStar, IsoGraph.domNum_mk]
+  let G := CGraph.doubleStar (m + 1) (n + 1)
+  -- Upper bound: {0, 1} is dominating
+  have hub : G.domNum ≤ 2 := by
+    let v0 : G.V := ⟨0, by omega⟩
+    let v1 : G.V := ⟨1, by omega⟩
+    have hdom : G.IsDominatingSet {v0, v1} := by
+      intro v
+      simp only [v0, v1]
+      by_cases hv0 : v = ⟨0, by omega⟩
+      · exact Or.inl (by simp [hv0])
+      · by_cases hv1 : v = ⟨1, by omega⟩
+        · exact Or.inl (by simp [hv1])
+        · right
+          have hv0' : v.val ≠ 0 := by intro h; apply hv0; exact Fin.ext h
+          have hv1' : v.val ≠ 1 := by intro h; apply hv1; exact Fin.ext h
+          by_cases hpend0 : 2 ≤ v.val ∧ v.val < 2 + (m + 1)
+          · exact ⟨v0, by simp [v0], by
+              rw [CGraph.doubleStar_adj_val]
+              simp [v0, hv0']
+              omega⟩
+          · push_neg at hpend0
+            have hpend1 : 2 + (m + 1) ≤ v.val ∧ v.val < 2 + (m + 1) + (n + 1) := by omega
+            exact ⟨v1, by simp [v1], by
+              rw [CGraph.doubleStar_adj_val]
+              simp [v1, hv1']
+              omega⟩
+    have h1 := CGraph.domNum_le_card_of_isDominatingSet hdom
+    have hcard : ({v0, v1} : Finset G.V).card = 2 := by
+      rw [Finset.card_pair]
+      exact ne_of_apply_ne (fun x => x.val) (by simp [v0, v1])
+    rw [hcard] at h1
+    exact h1
+  -- Helper: compute .val of literal vertices in G
+  let mk0 : G.V := ⟨0, by omega⟩
+  let mk1 : G.V := ⟨1, by omega⟩
+  let mkpend0 : Fin (m + 1) → G.V := fun i => ⟨2 + i.val, by omega⟩
+  let mkpend1 : Fin (n + 1) → G.V := fun i => ⟨2 + (m + 1) + i.val, by omega⟩
+  have hval_0 : mk0.val = 0 := rfl
+  have hval_1 : mk1.val = 1 := rfl
+  have hval_pend0 : ∀ (i : Fin (m + 1)), (mkpend0 i).val = 2 + (i : ℕ) := by
+    intro i; show (⟨2 + i.val, by omega⟩ : Fin (2 + (m + 1) + (n + 1))).val = 2 + (i : ℕ); rfl
+  have hval_pend1 : ∀ (i : Fin (n + 1)), (mkpend1 i).val = 2 + (m + 1) + (i : ℕ) := by
+    intro i; show (⟨2 + (m + 1) + i.val, by omega⟩ : Fin (2 + (m + 1) + (n + 1))).val = 2 + (m +
+        1) + (i : ℕ); rfl
+  -- No vertex is universal in doubleStar (m+1) (n+1)
+  have huniv : ∀ v : G.V, ∃ u : G.V, u ≠ v ∧ ¬G.Adj v u := by
+    intro v
+    by_cases hv0 : v.val = 0
+    · -- v = mk0; pick mkpend1 ⟨0,...⟩ which is not adj to mk0... wait, pendants of 1 are not adj to
+      -- 0.
+      refine ⟨mkpend1 ⟨0, by omega⟩, ?_, ?_⟩
+      · intro h; rw [← h] at hv0; simp [hval_pend1] at hv0
+      · have hmk10 : (mkpend1 ⟨0, by omega⟩ : G.V).val = 2 + (m + 1) + 0 := by
+          simpa using hval_pend1 ⟨0, by omega⟩
+        rw [CGraph.doubleStar_adj_val, hmk10, hv0]
+        omega
+    · by_cases hv1 : v.val = 1
+      · -- v = mk1; pick mkpend0 ⟨0,...⟩ not adj to mk1
+        refine ⟨mkpend0 ⟨0, by omega⟩, ?_, ?_⟩
+        · intro h; rw [← h] at hv1; simp [hval_pend0] at hv1
+        · rw [CGraph.doubleStar_adj_val]
+          simp [hval_pend0, hv1]
+      · -- v is a pendant of 0 or 1, but not 0 or 1 itself. v.val ≥ 2.
+        by_cases hvpend0 : v.val < 2 + (m + 1)
+        · -- v is a pendant of 0; pick mk1 (center 1) — pendants of 0 are not adj to 1
+          refine ⟨mk1, ?_, ?_⟩
+          · intro h; rw [← h] at hv1; simp [hval_1] at hv1
+          · rw [CGraph.doubleStar_adj_val]
+            simp [hval_1, hv0, hv1, hvpend0]
+        · -- v.val ≥ 2+(m+1), so v is a pendant of 1; pick mk0
+          refine ⟨mk0, ?_, ?_⟩
+          · intro h; rw [← h] at hv0; simp [hval_0] at hv0
+          · rw [CGraph.doubleStar_adj_val]
+            simp [hval_0, hv0]
+            omega
+  have hlow : G.domNum ≠ 1 := by
+    intro h
+    rw [CGraph.domNum_eq_one_iff] at h
+    obtain ⟨v, hv⟩ := h
+    obtain ⟨u, hne, hna⟩ := huniv v
+    exact hna (hv u hne)
+  -- Combine
+  have hpos : 0 < G.domNum := by
+    apply CGraph.domNum_pos
+    exact Fintype.card_pos_iff.mpr ⟨⟨0, by omega⟩⟩
+  have h1 : 1 < G.domNum := by omega
+  change G.domNum = 2
+  omega
+
+/-- Match each centre to one of its own pendants; a third edge would need a third centre. -/
+theorem matchNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).matchNum = 2 := by
+  apply le_antisymm
+  · -- matchNum ≤ 2 via coverNum ≤ 2
+    apply le_trans (matchNum_le_coverNum _) _
+    simp only [IsoGraph.doubleStar, coverNum_mk]
+    -- {0, 1} is a vertex cover of doubleStar (m+1)(n+1)
+    let S : Set (CGraph.doubleStar (m + 1) (n + 1)).V := {⟨0, by omega⟩, ⟨1, by omega⟩}
+    have hvc : SimpleGraph.IsVertexCover (CGraph.doubleStar (m + 1) (n + 1)).toSimple S := by
+      intro u v huv
+      rw [CGraph.toSimple_adj] at huv
+      rw [CGraph.doubleStar_adj_val] at huv
+      rcases huv with ⟨hne, hcases⟩
+      -- In all 6 cases, either u.1 ∈ {0,1} or v.1 ∈ {0,1}
+      have : u.1 = 0 ∨ u.1 = 1 ∨ v.1 = 0 ∨ v.1 = 1 := by omega
+      set e0 : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨0, by omega⟩
+      set e1 : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨1, by omega⟩
+      rcases this with h | h | h | h
+      · left; rw [Set.mem_insert_iff]; exact Or.inl (Fin.ext (h.trans (by simp)))
+      · left; rw [Set.mem_insert_iff, Set.mem_singleton_iff]; exact Or.inr (Fin.ext (h.trans
+          (by simp)))
+      · right; rw [Set.mem_insert_iff]; exact Or.inl (Fin.ext (h.trans (by simp)))
+      · right; rw [Set.mem_insert_iff, Set.mem_singleton_iff]; exact Or.inr (Fin.ext (h.trans
+          (by simp)))
+    have hne : (⟨0, by omega⟩ : (CGraph.doubleStar (m + 1) (n + 1)).V) ≠ ⟨1, by omega⟩ := by
+      intro h; simp at h
+    have henc : S.encard = 2 := by
+      rw [show S = ({⟨0, by omega⟩, ⟨1, by omega⟩} : Set _) from rfl]
+      rw [Set.encard_pair hne]
+    rw [CGraph.coverNum]
+    have h1 := hvc.vertexCoverNum_le.trans henc.le
+    exact ENat.toNat_le_toNat h1 (by simp)
+  · -- 2 ≤ matchNum: exhibit two disjoint edges
+    rw [matchNum_eq, IsoGraph.doubleStar, lineGraph_mk, indepNum_mk]
+    let G := CGraph.doubleStar (m + 1) (n + 1)
+    -- Edge e1 = s(⟨0,...⟩, ⟨2,...⟩) is in G
+    let ve0 : G.V := ⟨0, by omega⟩
+    let ve2 : G.V := ⟨2, by omega⟩
+    let ve1 : G.V := ⟨1, by omega⟩
+    let ve2m1 : G.V := ⟨2 + (m + 1), by omega⟩
+    have he1_mem : s(ve0, ve2) ∈ G.toSimple.edgeSet := by
+      simp [G, SimpleGraph.mem_edgeSet, CGraph.toSimple]
+      rw [CGraph.doubleStar_adj_val]
+      simp [ve0, ve2]
+    have he2_mem : s(ve1, ve2m1) ∈ G.toSimple.edgeSet := by
+      simp [G, SimpleGraph.mem_edgeSet, CGraph.toSimple]
+      rw [CGraph.doubleStar_adj_val]
+      simp [ve1, ve2m1]
+      omega
+    let ev1 : (CGraph.lineGraph G).V := ⟨s(ve0, ve2), he1_mem⟩
+    let ev2 : (CGraph.lineGraph G).V := ⟨s(ve1, ve2m1), he2_mem⟩
+    -- They're not adjacent in lineGraph: edges are disjoint
+    have hve0_ne_ve1 : ve0 ≠ ve1 := by
+      intro h; have := congr_arg Fin.val h; simp [ve0, ve1] at this
+    have hve0_ne_ve2m1 : ve0 ≠ ve2m1 := by
+      intro h; have := congr_arg Fin.val h; simp [ve0, ve2m1] at this; omega
+    have hve2_ne_ve1 : ve2 ≠ ve1 := by
+      intro h; have := congr_arg Fin.val h; simp [ve2, ve1] at this
+    have hve2_ne_ve2m1 : ve2 ≠ ve2m1 := by
+      intro h; have := congr_arg Fin.val h; simp [ve2, ve2m1] at this
+    have he_disjoint : ¬ ∃ v : G.V, v ∈ (s(ve0, ve2) : Sym2 G.V) ∧ v ∈ (s(ve1, ve2m1) : Sym2
+        G.V) := by
+      intro ⟨v, hv1, hv2⟩
+      simp at hv1 hv2
+      rcases hv1 with rfl | rfl <;> rcases hv2 with h | h
+      · exact hve0_ne_ve1 h
+      · exact hve0_ne_ve2m1 h
+      · exact hve2_ne_ve1 h
+      · exact hve2_ne_ve2m1 h
+    have hve0_not_in_ev2 : ve0 ∉ (s(ve1, ve2m1) : Sym2 G.V) := by
+      intro hv
+      simp at hv
+      rcases hv with h | h <;> [exact hve0_ne_ve1 h; exact hve0_ne_ve2m1 h]
+    have hne : ev1 ≠ ev2 := by
+      intro h
+      have h1 : (s(ve0, ve2) : Sym2 G.V) = s(ve1, ve2m1) := congrArg Subtype.val h
+      have hmem1 : ve0 ∈ (s(ve0, ve2) : Sym2 G.V) := Sym2.mem_mk_left _ _
+      rw [h1] at hmem1
+      exact hve0_not_in_ev2 hmem1
+    have hna : ¬ (CGraph.lineGraph G).Adj ev1 ev2 := by
+      rw [CGraph.lineGraph_adj]
+      have hdisj : ¬ ∃ v : G.V, v ∈ (↑ev1.1 : Sym2 G.V) ∧ v ∈ (↑ev2.1 : Sym2 G.V) := he_disjoint
+      simp [hne, hdisj]
+    exact CGraph.two_le_indepNum hne hna
 
 /-! ### The folded cube
 

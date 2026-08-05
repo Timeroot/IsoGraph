@@ -2090,6 +2090,29 @@ the `m + n + 2` pendants are pairwise non-adjacent, and the two disjoint edges `
 `1–(m + 3)` force every vertex cover to have at least two vertices, so `τ ≥ 2` and
 `α = |V| - τ ≤ m + n + 2` by `coverNum_add_indepNum`.
 
+The connectivity row of those families follows. All three of `isConnected_tadpole (m + 3) k`,
+`isConnected_lollipop (m + 1) k` and `isConnected_doubleStar m n` are proved the same way — pick
+vertex `0` as a hub and walk every other vertex back to it, along the cycle, around the clique or
+straight down a pendant — and each hands `numComponents = 1` to
+`numComponents_eq_one_of_isConnected` for free. From connectivity the double star's whole row unwinds at once: it has `m + n + 1` edges
+on `m + n + 2` vertices, so `isTree_doubleStar` is `isTree_iff` applied to `E_doubleStar` and
+`V_doubleStar`, and then `girth_doubleStar = 0` because a tree is acyclic and
+`cliqueNum_doubleStar = 2` because a tree with two vertices has the central edge and nothing
+bigger. `chromNum_doubleStar = 2` two-colours by centre-versus-pendant. The last two are counting
+arguments in opposite directions. `domNum_doubleStar (m + 1) (n + 1) = 2`: the two centres
+dominate everything, and no single vertex can, since a pendant of `0` and a pendant of `1` have no
+common neighbour. `matchNum_doubleStar (m + 1) (n + 1) = 2`: match each centre to one of its own
+pendants for the lower bound, and for the upper bound `{0, 1}` is a vertex cover, so
+`ν ≤ τ ≤ 2`. On the tadpole side, `minDeg_tadpole (m + 3) (k + 1) = 1` is the far end of the
+tail, and `cliqueNum_tadpole (m + 4) k = 2` needs the cycle to be long enough to be triangle-free
+— at `m + 3 = 3` the tadpole *does* contain a triangle, which is why this one starts at `m + 4`.
+
+One more Mycielskian bound came out of the same round. `V_le_indepNum_mycielskian` says
+`|V(G)| ≤ α(μ(G))` for every `G`, because the `|V(G)|` shadow vertices are pairwise non-adjacent
+— shadows only ever meet originals and the apex. That is the easy half of the independence number
+the Grötzsch row is still missing; the matching upper bound is what needs the neighbourhood
+counting argument.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
