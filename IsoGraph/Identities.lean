@@ -29054,6 +29054,25 @@ theorem not_isAcyclic_join_join {G H K : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
     ¬ IsAcyclic (G ∇g (H ∇g K)) :=
   not_isAcyclic_of_not_isBipartite (not_isBipartite_join_join hG hH hK)
 
+/-- An odd circulant with a nonzero connection is not bipartite, so it has a cycle. -/
+theorem not_isAcyclic_circulant_of_odd {n : ℕ} {S : List ℕ} (hn : n % 2 = 1) (d : ℕ) (hd : d ∈ S)
+    (h0 : 0 < d) (hdn : d < n) : ¬ IsAcyclic (circulant n S) :=
+  not_isAcyclic_of_not_isBipartite (not_isBipartite_circulant_of_odd hn d hd h0 hdn)
+
+/-- The Mycielskian's diameter is bracketed by its radius: at least two and at most four. -/
+theorem two_le_diameter_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) :
+    2 ≤ (mycielskian G).diameter := by
+  have h1 := radius_le_diameter (mycielskian G)
+  rw [radius_mycielskian G h] at h1
+  exact h1
+
+/-- The other half of the bracket, from `diam ≤ 2 · rad`. -/
+theorem diameter_mycielskian_le_four (G : IsoGraph) (h : 0 < G.minDeg) :
+    (mycielskian G).diameter ≤ 4 := by
+  have h1 := diameter_le_two_mul_radius (mycielskian G)
+  rw [radius_mycielskian G h] at h1
+  omega
+
 /-! ### The rest of the Grötzsch row
 
 These need the general Mycielskian invariants proved above, so they sit here rather than
@@ -33849,6 +33868,27 @@ theorem not_isAcyclic_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ 
   have h2 := (isTree_iff _).mp htree
   rw [E_cyclePendant m ks h, V_cyclePendant] at h2
   omega
+
+/-- Every path the same parity means two colours, once each path is genuinely subdivided. -/
+theorem chromNum_thetaGraph_of_parity {xs : List ℕ} (b : ℕ) (hne : xs ≠ [])
+    (h0 : ∀ k ∈ xs, 0 < k) (h : ∀ k ∈ xs, (k + b) % 2 = 1) : (thetaGraph xs).chromNum = 2 := by
+  refine chromNum_eq_two_iff.mpr ⟨isBipartite_thetaGraph_of_parity b h, ?_⟩
+  have hlen : 0 < xs.length := by
+    cases xs with
+    | nil => exact absurd rfl hne
+    | cons a t => simp
+  rw [E_thetaGraph xs h0]
+  omega
+
+/-- All the paths odd is the `b = 0` case, and odd paths are automatically subdivided. -/
+theorem chromNum_thetaGraph_odd {xs : List ℕ} (hne : xs ≠ []) (h : ∀ k ∈ xs, k % 2 = 1) :
+    (thetaGraph xs).chromNum = 2 :=
+  chromNum_thetaGraph_of_parity 0 hne (fun k hk ↦ by have := h k hk; omega) (by simpa using h)
+
+/-- All the paths even is the `b = 1` case, and there positivity has to be asked for. -/
+theorem chromNum_thetaGraph_even {xs : List ℕ} (hne : xs ≠ []) (h0 : ∀ k ∈ xs, 0 < k)
+    (h : ∀ k ∈ xs, k % 2 = 0) : (thetaGraph xs).chromNum = 2 :=
+  chromNum_thetaGraph_of_parity 1 hne h0 (fun k hk ↦ by have := h k hk; omega)
 
 /-! ### The folded cube
 

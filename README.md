@@ -2210,6 +2210,21 @@ rewrite each. From above, `μ(G)` inherits the perfect matching as a matching of
 (`cliqueNum_mycielskian_eq_two`), so `V ≤ κ · ω` reads `2|V(G)| + 1 ≤ 2κ`, and an odd vertex count
 cannot be covered by `|V(G)|` edges. `cliqueCoverNum_grotzsch = 6` is the case `G = C₅`.
 
+Two more consequences of what is already there. `radius_mycielskian = 2` brackets the diameter
+through the two standard inequalities: `two_le_diameter_mycielskian` is `rad ≤ diam` read
+forwards and `diameter_mycielskian_le_four` is `diam ≤ 2 · rad` read forwards, so once `G` has no
+isolated vertex the diameter of `μ(G)` is `2`, `3` or `4`. And
+`not_isAcyclic_circulant_of_odd` is the forest-is-bipartite argument applied to
+`not_isBipartite_circulant_of_odd`: an odd circulant with any nonzero connection has a cycle.
+
+The theta graph gets its chromatic number in the same-parity case.
+`chromNum_thetaGraph_of_parity` says two colours suffice as soon as every path has the same
+parity of length and every path is genuinely subdivided; `isBipartite_thetaGraph_of_parity`
+supplies the colouring and `E_thetaGraph` supplies the edge that stops the answer being `1`.
+The two readable corollaries are `chromNum_thetaGraph_odd`, where the parity hypothesis makes
+positivity automatic, and `chromNum_thetaGraph_even`, where it has to be asked for — `0` is even,
+and a path with no internal vertices collapses onto the pole-to-pole edge.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
