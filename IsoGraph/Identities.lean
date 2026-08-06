@@ -37043,6 +37043,85 @@ theorem E_compl_lineGraph (G : IsoGraph) :
   rw [E_lineGraph, V_lineGraph] at hd
   omega
 
+/-! ### The grid and the torus -/
+
+@[simp] theorem V_grid (m n : ℕ) : (path m □g path n).V = m * n := by
+  rw [V_cartesianProduct, V_path, V_path]
+
+theorem E_grid (m n : ℕ) : (path (m + 1) □g path (n + 1)).E = (m + 1) * n + (n + 1) * m := by
+  rw [E_cartesianProduct, E_path, E_path, V_path, V_path]
+
+theorem cliqueNum_grid (m n : ℕ) : (path (m + 2) □g path (n + 2)).cliqueNum = 2 := by
+  have h := cliqueNum_cartesianProduct (G := path (m + 2)) (H := path (n + 2))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [cliqueNum_path, cliqueNum_path] at h
+  omega
+
+theorem maxDeg_grid (m n : ℕ) : maxDeg (path (m + 3) □g path (n + 3)) = 4 := by
+  have h := maxDeg_cartesianProduct (G := path (m + 3)) (H := path (n + 3))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_path, maxDeg_path] at h
+  omega
+
+theorem minDeg_grid (m n : ℕ) : minDeg (path (m + 2) □g path (n + 2)) = 2 := by
+  have h := minDeg_cartesianProduct (G := path (m + 2)) (H := path (n + 2))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [minDeg_path, minDeg_path] at h
+  omega
+
+@[simp] theorem isConnected_grid (m n : ℕ) : IsConnected (path (m + 1) □g path (n + 1)) :=
+  isConnected_cartesianProduct.2 ⟨isConnected_path m, isConnected_path n⟩
+
+theorem diameter_grid (m n : ℕ) : (path (m + 1) □g path (n + 1)).diameter = m + n := by
+  rw [diameter_cartesianProduct (isConnected_path m) (isConnected_path n), diameter_path,
+    diameter_path]
+
+theorem radius_grid (m n : ℕ) :
+    (path (m + 1) □g path (n + 1)).radius = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_path m) (isConnected_path n), radius_path, radius_path]
+
+@[simp] theorem V_cartesianProduct_cycle (m n : ℕ) : (cycle m □g cycle n).V = m * n := by
+  rw [V_cartesianProduct, V_cycle, V_cycle]
+
+theorem E_cartesianProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) □g cycle (n + 3)).E = 2 * ((m + 3) * (n + 3)) := by
+  rw [E_cartesianProduct, E_cycle, E_cycle, V_cycle, V_cycle]
+  ring
+
+theorem cliqueNum_cartesianProduct_cycle (m n : ℕ) :
+    (cycle (m + 4) □g cycle (n + 4)).cliqueNum = 2 := by
+  have h := cliqueNum_cartesianProduct (G := cycle (m + 4)) (H := cycle (n + 4))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem maxDeg_cartesianProduct_cycle (m n : ℕ) :
+    maxDeg (cycle (m + 3) □g cycle (n + 3)) = 4 := by
+  have h := maxDeg_cartesianProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [maxDeg_cycle, maxDeg_cycle] at h
+  omega
+
+theorem minDeg_cartesianProduct_cycle (m n : ℕ) :
+    minDeg (cycle (m + 3) □g cycle (n + 3)) = 4 := by
+  have h := minDeg_cartesianProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_cycle, minDeg_cycle] at h
+  omega
+
+@[simp] theorem isConnected_cartesianProduct_cycle (m n : ℕ) :
+    IsConnected (cycle (m + 1) □g cycle (n + 1)) :=
+  isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_cycle n⟩
+
+@[simp] theorem isVertexTransitive_cartesianProduct_cycle (m n : ℕ) :
+    IsVertexTransitive (cycle m □g cycle n) :=
+  (isVertexTransitive_cycle m).cartesianProduct (isVertexTransitive_cycle n)
+
+theorem radius_cartesianProduct_cycle (m n : ℕ) :
+    (cycle (m + 1) □g cycle (n + 1)).radius = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_cycle m) (isConnected_cycle n), radius_cycle,
+    radius_cycle]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

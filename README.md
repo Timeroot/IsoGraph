@@ -2823,6 +2823,18 @@ across the complement. `maxDeg_compl_lineGraph` and `minDeg_compl_lineGraph` inh
 regularity hypothesis `degSequence G = List.replicate n k` that the line graph's own degree
 lemmas need, and `E_compl_lineGraph` subtracts `∑ C(d, 2)` from `C(E(G), 2)`.
 
+Two product families had only a colouring and a girth on file, and the Cartesian product row
+fills the rest of them in. For the grid `Pₘ □ Pₙ` that is `V_grid`, `E_grid`, `cliqueNum_grid`,
+`maxDeg_grid` (which is `4` once both sides have at least three vertices), `minDeg_grid`,
+`isConnected_grid`, `diameter_grid = m + n` and `radius_grid`. For the torus `Cₘ □ Cₙ` it is
+`V_cartesianProduct_cycle`, `E_cartesianProduct_cycle = 2mn`,
+`cliqueNum_cartesianProduct_cycle`, `maxDeg_cartesianProduct_cycle`,
+`minDeg_cartesianProduct_cycle` — both `4`, since the torus is quartic —
+`isConnected_cartesianProduct_cycle`, `radius_cartesianProduct_cycle` and
+`isVertexTransitive_cartesianProduct_cycle`, the last from the product of two vertex-transitive
+factors. Neither row includes an independence number: the Cartesian product has no formula for
+one, only the two bounds `indepNum_cartesianProduct_le` and `indepNum_cartesianProduct_le'`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
