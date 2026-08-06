@@ -41047,6 +41047,200 @@ theorem radius_disjUnion_hypercube_complete (m n : ℕ) :
     (hypercube m ⊕g complete (n + 1)).radius = 0 :=
   radius_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
 
+/-! ### The Mycielskian of a cycle -/
+
+@[simp] theorem V_mycielskian_cycle (m : ℕ) : (mycielskian (cycle m)).V = 2 * m + 1 := by
+  rw [V_mycielskian, V_cycle]
+
+theorem E_mycielskian_cycle (m : ℕ) : (mycielskian (cycle (m + 3))).E = 4 * (m + 3) := by
+  rw [E_mycielskian, E_cycle, V_cycle]
+  omega
+
+theorem chromNum_mycielskian_cycle_even (m : ℕ) :
+    (mycielskian (cycle (2 * m + 2))).chromNum = 3 := by
+  rw [chromNum_mycielskian, chromNum_cycle_even]
+
+theorem chromNum_mycielskian_cycle_odd (m : ℕ) :
+    (mycielskian (cycle (2 * m + 3))).chromNum = 4 := by
+  rw [chromNum_mycielskian, chromNum_cycle_odd]
+
+theorem cliqueNum_mycielskian_cycle (m : ℕ) :
+    (mycielskian (cycle (m + 4))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (cycle (m + 4)) (by rw [V_cycle]; omega)
+  rw [cliqueNum_cycle] at h
+  omega
+
+theorem maxDeg_mycielskian_cycle (m : ℕ) :
+    maxDeg (mycielskian (cycle (m + 3))) = max 4 (m + 3) := by
+  have h := maxDeg_mycielskian (cycle (m + 3))
+  rw [maxDeg_cycle, V_cycle] at h
+  omega
+
+theorem minDeg_mycielskian_cycle (m : ℕ) :
+    (mycielskian (cycle (m + 3))).minDeg = min 3 (m + 3) := by
+  have h := minDeg_mycielskian (cycle (m + 3)) (by rw [V_cycle]; omega)
+  rw [minDeg_cycle, V_cycle] at h
+  omega
+
+theorem domNum_mycielskian_cycle (m : ℕ) :
+    (mycielskian (cycle (m + 3))).domNum = (m + 5) / 3 + 1 := by
+  have h := domNum_mycielskian (cycle (m + 3)) (by rw [V_cycle]; omega)
+  rw [domNum_cycle] at h
+  omega
+
+theorem isConnected_mycielskian_cycle (m : ℕ) :
+    IsConnected (mycielskian (cycle (m + 3))) :=
+  isConnected_mycielskian _ (by rw [minDeg_cycle]; omega)
+
+theorem numComponents_mycielskian_cycle (m : ℕ) :
+    (mycielskian (cycle (m + 3))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_cycle]; omega)
+
+theorem radius_mycielskian_cycle (m : ℕ) : (mycielskian (cycle (m + 3))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_cycle]; omega)
+
+theorem four_le_girth_mycielskian_cycle (m : ℕ) :
+    4 ≤ (mycielskian (cycle (m + 4))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_cycle]) (by rw [E_cycle]; omega)
+
+theorem matchNum_mycielskian_cycle_even (m : ℕ) :
+    (mycielskian (cycle (2 * m + 4))).matchNum = 2 * m + 4 := by
+  have h := matchNum_mycielskian (cycle (2 * m + 4)) (by rw [matchNum_cycle, V_cycle]; omega)
+  rwa [V_cycle] at h
+
+theorem cliqueCoverNum_mycielskian_cycle_even (m : ℕ) :
+    (mycielskian (cycle (2 * m + 4))).cliqueCoverNum = 2 * m + 5 := by
+  have h := cliqueCoverNum_mycielskian (cycle (2 * m + 4)) (by rw [V_cycle]; omega)
+    (by rw [cliqueNum_cycle]) (by rw [matchNum_cycle, V_cycle]; omega)
+  rw [V_cycle] at h
+  omega
+
+/-! ### The Mycielskian of a path -/
+
+@[simp] theorem V_mycielskian_path (m : ℕ) : (mycielskian (path m)).V = 2 * m + 1 := by
+  rw [V_mycielskian, V_path]
+
+theorem E_mycielskian_path (m : ℕ) : (mycielskian (path (m + 1))).E = 4 * m + 1 := by
+  rw [E_mycielskian, E_path, V_path]
+  omega
+
+theorem chromNum_mycielskian_path (m : ℕ) :
+    (mycielskian (path (m + 2))).chromNum = 3 := by
+  rw [chromNum_mycielskian, chromNum_path]
+
+theorem cliqueNum_mycielskian_path (m : ℕ) :
+    (mycielskian (path (m + 2))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (path (m + 2)) (by rw [V_path]; omega)
+  rw [cliqueNum_path] at h
+  omega
+
+theorem maxDeg_mycielskian_path (m : ℕ) :
+    maxDeg (mycielskian (path (m + 3))) = max 4 (m + 3) := by
+  have h := maxDeg_mycielskian (path (m + 3))
+  rw [maxDeg_path, V_path] at h
+  omega
+
+theorem minDeg_mycielskian_path (m : ℕ) :
+    (mycielskian (path (m + 2))).minDeg = min 2 (m + 2) := by
+  have h := minDeg_mycielskian (path (m + 2)) (by rw [V_path]; omega)
+  rw [minDeg_path, V_path] at h
+  omega
+
+theorem domNum_mycielskian_path (m : ℕ) :
+    (mycielskian (path (m + 1))).domNum = (m + 3) / 3 + 1 := by
+  have h := domNum_mycielskian (path (m + 1)) (by rw [V_path]; omega)
+  rw [domNum_path] at h
+  omega
+
+theorem isConnected_mycielskian_path (m : ℕ) :
+    IsConnected (mycielskian (path (m + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_path]; omega)
+
+theorem numComponents_mycielskian_path (m : ℕ) :
+    (mycielskian (path (m + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_path]; omega)
+
+theorem radius_mycielskian_path (m : ℕ) : (mycielskian (path (m + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_path]; omega)
+
+theorem four_le_girth_mycielskian_path (m : ℕ) :
+    4 ≤ (mycielskian (path (m + 2))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_path]) (by rw [E_path]; omega)
+
+theorem matchNum_mycielskian_path_even (m : ℕ) :
+    (mycielskian (path (2 * m + 2))).matchNum = 2 * m + 2 := by
+  have h := matchNum_mycielskian (path (2 * m + 2)) (by rw [matchNum_path, V_path]; omega)
+  rwa [V_path] at h
+
+theorem cliqueCoverNum_mycielskian_path_even (m : ℕ) :
+    (mycielskian (path (2 * m + 2))).cliqueCoverNum = 2 * m + 3 := by
+  have h := cliqueCoverNum_mycielskian (path (2 * m + 2)) (by rw [V_path]; omega)
+    (by rw [cliqueNum_path]) (by rw [matchNum_path, V_path]; omega)
+  rw [V_path] at h
+  omega
+
+/-! ### The Mycielskian of a complete graph -/
+
+@[simp] theorem V_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete m)).V = 2 * m + 1 := by
+  rw [V_mycielskian, V_complete]
+
+theorem E_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete m)).E = 3 * m.choose 2 + m := by
+  rw [E_mycielskian, E_complete, V_complete]
+
+theorem chromNum_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete m)).chromNum = m + 1 := by
+  rw [chromNum_mycielskian, chromNum_complete]
+
+theorem cliqueNum_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete (m + 1))).cliqueNum = max (m + 1) 2 := by
+  have h := cliqueNum_mycielskian (complete (m + 1)) (by rw [V_complete]; omega)
+  rw [cliqueNum_complete] at h
+  omega
+
+theorem maxDeg_mycielskian_complete (m : ℕ) :
+    maxDeg (mycielskian (complete m)) = max (2 * (m - 1)) m := by
+  have h := maxDeg_mycielskian (complete m)
+  rw [maxDeg_complete, V_complete] at h
+  omega
+
+theorem minDeg_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete (m + 1))).minDeg = min (2 * m) (m + 1) := by
+  have h := minDeg_mycielskian (complete (m + 1)) (by rw [V_complete]; omega)
+  rw [minDeg_complete, V_complete] at h
+  omega
+
+theorem domNum_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete (m + 1))).domNum = 2 := by
+  have h := domNum_mycielskian (complete (m + 1)) (by rw [V_complete]; omega)
+  rw [domNum_complete] at h
+  omega
+
+theorem isConnected_mycielskian_complete (m : ℕ) :
+    IsConnected (mycielskian (complete (m + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_complete]; omega)
+
+theorem numComponents_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete (m + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_complete]; omega)
+
+theorem radius_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete (m + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_complete]; omega)
+
+theorem girth_mycielskian_complete (m : ℕ) :
+    (mycielskian (complete (m + 3))).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  have h := cliqueNum_mycielskian (complete (m + 3)) (by rw [V_complete]; omega)
+  rw [cliqueNum_complete] at h
+  omega
+
+theorem matchNum_mycielskian_complete_even (m : ℕ) :
+    (mycielskian (complete (2 * m))).matchNum = 2 * m := by
+  have h := matchNum_mycielskian (complete (2 * m)) (by rw [matchNum_complete, V_complete]; omega)
+  rwa [V_complete] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

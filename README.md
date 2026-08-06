@@ -3207,6 +3207,19 @@ are both `max 2 n` while its independence number `2ᵐ + min n 1` and its matchi
 `2ᵐ + ⌊n/2⌋` simply add. `domNum_disjUnion_hypercube_complete` records that a complete component
 costs exactly one more dominating vertex.
 
+The Mycielskian had a full set of general laws but no rows of its own, so the cycle, the path and
+the complete graph now get one each. `M(G)` has `2|V| + 1` vertices and `3|E| + |V|` edges, and one
+more colour than `G`, so `χ(M(C₂ₘ₊₁)) = 4` and `χ(M(Kₘ)) = m + 1`. The clique number only ever
+rises to `max ω 2`, which is what makes the construction useful: `M(Cₙ)` and `M(Pₙ)` are
+triangle-free with chromatic number three, and `four_le_girth_mycielskian` confirms girth at least
+four for both. `M(Kₘ)` is the opposite case — it keeps the triangles it started with, so
+`girth_mycielskian_complete = 3`. Degrees follow `max (2Δ) |V|` and
+`min (min 2δ (δ+1)) |V|`, giving `maxDeg (M(Cₙ)) = max 4 n` and `minDeg (M(Cₙ)) = min 3 n`. Every
+Mycielskian of a graph with no isolated vertex has radius exactly two and one component, and its
+domination number is one more than the original's. Where the base graph has a perfect matching —
+an even cycle, an even path, an even complete graph — `M(G)` has a matching of size `|V(G)|`, and
+for the triangle-free cases that pins the clique cover number at `|V(G)| + 1`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
