@@ -2798,6 +2798,23 @@ a product of two binomial coefficients halved and so is not linear in its atoms;
 instead by rewriting backwards along `E_compl` and cancelling with `Nat.add_sub_cancel`.
 `isVertexTransitive_compl_kneser` completes the pair with the Johnson version already on file.
 
+The Mycielskian is the one construction whose complement row is stated for a general graph:
+`indepNum_compl_mycielskian`, `cliqueCoverNum_compl_mycielskian`, `chromNum_compl_mycielskian`,
+`cliqueNum_compl_mycielskian_le`, `maxDeg_compl_mycielskian`, `minDeg_compl_mycielskian` and
+`E_compl_mycielskian` express everything in terms of `G`'s own invariants — for instance the
+complement of `M(G)` has `2·V(G) - max (2·Δ(G)) (V(G))` for its minimum degree, and no
+positivity hypothesis is needed anywhere the vertex count appears, since `M(G)` always has the
+extra apex vertex. The independence number is only bounded above in the library, so its dual
+`cliqueNum_compl_mycielskian_le` is an inequality too.
+
+Its most famous instance gets exact numbers. `indepNum_compl_grotzsch`,
+`chromNum_compl_grotzsch`, `cliqueCoverNum_compl_grotzsch`, `cliqueNum_compl_grotzsch_le`,
+`maxDeg_compl_grotzsch`, `minDeg_compl_grotzsch` and `E_compl_grotzsch` describe the complement
+of the Grötzsch graph: `11` vertices, `35` edges, degrees between `5` and `7`, chromatic number
+`6` and clique cover number `4`. Finally the odd folded cubes are bipartite, so
+`cliqueNum_compl_foldedCube_odd` and `cliqueCoverNum_compl_foldedCube_odd` read off `2 ^ (2m)`
+and `2` from that, and `isVertexTransitive_compl_foldedCube` holds for every `n`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

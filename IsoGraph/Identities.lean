@@ -36937,6 +36937,83 @@ theorem E_compl_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
 theorem isVertexTransitive_compl_kneser (n k : ℕ) : IsVertexTransitive ((kneser n k)ᶜ) :=
   (isVertexTransitive_compl _).2 (isVertexTransitive_kneser n k)
 
+/-! ### Complements of the Mycielskian, the Grötzsch graph and the odd folded cubes -/
+
+theorem indepNum_compl_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
+    ((mycielskian G)ᶜ).indepNum = max G.cliqueNum 2 := by
+  rw [indepNum_compl, cliqueNum_mycielskian G hV]
+
+theorem cliqueCoverNum_compl_mycielskian (G : IsoGraph) :
+    ((mycielskian G)ᶜ).cliqueCoverNum = G.chromNum + 1 := by
+  rw [cliqueCoverNum_compl, chromNum_mycielskian]
+
+theorem chromNum_compl_mycielskian (G : IsoGraph) (hV : 0 < G.V) (hc : G.cliqueNum ≤ 2)
+    (hm : 2 * G.matchNum = G.V) : ((mycielskian G)ᶜ).chromNum = G.V + 1 := by
+  rw [chromNum_compl, cliqueCoverNum_mycielskian G hV hc hm]
+
+theorem cliqueNum_compl_mycielskian_le (G : IsoGraph) (hV : 0 < G.V) :
+    ((mycielskian G)ᶜ).cliqueNum ≤ G.V + G.indepNum := by
+  rw [cliqueNum_compl]
+  exact indepNum_mycielskian_le G hV
+
+theorem maxDeg_compl_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
+    maxDeg ((mycielskian G)ᶜ) = 2 * G.V - min (min (2 * G.minDeg) (G.minDeg + 1)) G.V := by
+  have h := maxDeg_compl (G := mycielskian G) (by rw [V_mycielskian]; omega)
+  rw [V_mycielskian, minDeg_mycielskian G hV] at h
+  omega
+
+theorem minDeg_compl_mycielskian (G : IsoGraph) :
+    minDeg ((mycielskian G)ᶜ) = 2 * G.V - max (2 * maxDeg G) G.V := by
+  have h := minDeg_compl (G := mycielskian G) (by rw [V_mycielskian]; omega)
+  rw [V_mycielskian, maxDeg_mycielskian G] at h
+  omega
+
+theorem E_compl_mycielskian (G : IsoGraph) :
+    ((mycielskian G)ᶜ).E = (2 * G.V + 1).choose 2 - (3 * G.E + G.V) := by
+  have h := E_compl (mycielskian G)
+  rw [E_mycielskian, V_mycielskian] at h
+  omega
+
+theorem indepNum_compl_grotzsch : (grotzschᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_grotzsch]
+
+theorem chromNum_compl_grotzsch : (grotzschᶜ).chromNum = 6 := by
+  rw [chromNum_compl, cliqueCoverNum_grotzsch]
+
+theorem cliqueCoverNum_compl_grotzsch : (grotzschᶜ).cliqueCoverNum = 4 := by
+  rw [cliqueCoverNum_compl, chromNum_grotzsch]
+
+theorem cliqueNum_compl_grotzsch_le : (grotzschᶜ).cliqueNum ≤ 6 := by
+  rw [cliqueNum_compl]
+  exact indepNum_grotzsch_le
+
+theorem maxDeg_compl_grotzsch : maxDeg (grotzschᶜ) = 7 := by
+  have h := maxDeg_compl (G := grotzsch) (by rw [V_grotzsch]; omega)
+  rw [V_grotzsch, minDeg_grotzsch] at h
+  omega
+
+theorem minDeg_compl_grotzsch : minDeg (grotzschᶜ) = 5 := by
+  have h := minDeg_compl (G := grotzsch) (by rw [V_grotzsch]; omega)
+  rw [V_grotzsch, maxDeg_grotzsch] at h
+  omega
+
+theorem E_compl_grotzsch : (grotzschᶜ).E = 35 := by
+  have h := E_compl grotzsch
+  rw [E_grotzsch, V_grotzsch, show (11 : ℕ).choose 2 = 55 from rfl] at h
+  omega
+
+theorem cliqueNum_compl_foldedCube_odd (m : ℕ) :
+    ((foldedCube (2 * m + 1))ᶜ).cliqueNum = 2 ^ (2 * m) := by
+  rw [cliqueNum_compl, indepNum_foldedCube_odd]
+
+theorem cliqueCoverNum_compl_foldedCube_odd {n : ℕ} (hn : n % 2 = 1) :
+    ((foldedCube n)ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_foldedCube_odd hn]
+
+theorem isVertexTransitive_compl_foldedCube (n : ℕ) :
+    IsVertexTransitive ((foldedCube n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_foldedCube n)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
