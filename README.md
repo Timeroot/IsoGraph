@@ -3266,6 +3266,14 @@ case, which follows from `diameter_join_left` once the star is large enough not 
 entry: it is `min (n+3) (m+3)` for two stars, because a leaf of either side sees only its own
 centre and the whole of the other side.
 
+The matching disjoint union rows for the star complete the pair: `Sₘ ⊕ Sₙ`, `Kₘ ⊕ Sₙ` and
+`Cₘ ⊕ Sₙ`. Almost every invariant of a disjoint union is either the sum or the extremum of the two
+sides, so these rows read off directly — the vertex counts and independence numbers add, the clique
+and chromatic numbers take a maximum. Two entries are worth naming. The domination number of
+`Sₘ ⊕ Sₙ` is two, one centre from each side, no matter how large the stars get, and the minimum
+degree of any of these unions with a star is one, because the star always supplies a leaf. Being
+disconnected, all three have two components, diameter zero and radius zero.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

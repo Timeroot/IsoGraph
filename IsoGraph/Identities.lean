@@ -42344,6 +42344,226 @@ theorem girth_join_cycle_star (m n : ℕ) :
     (cycle (m + 4) ∇g star (n + 1)).girth = 3 :=
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle_star]; omega)
 
+/-! ### The disjoint union of two stars -/
+
+@[simp] theorem V_disjUnion_star (m n : ℕ) : (star m ⊕g star n).V = m + n + 2 := by
+  rw [V_disjUnion, V_star, V_star]
+  omega
+
+@[simp] theorem E_disjUnion_star (m n : ℕ) : (star m ⊕g star n).E = m + n := by
+  rw [E_disjUnion, E_star, E_star]
+
+theorem cliqueNum_disjUnion_star (m n : ℕ) :
+    (star (m + 1) ⊕g star (n + 1)).cliqueNum = 2 := by
+  have h := cliqueNum_disjUnion (star (m + 1)) (star (n + 1))
+  rw [cliqueNum_star, cliqueNum_star] at h
+  omega
+
+theorem chromNum_disjUnion_star (m n : ℕ) :
+    (star (m + 1) ⊕g star (n + 1)).chromNum = 2 := by
+  have h := chromNum_disjUnion (star (m + 1)) (star (n + 1))
+  rw [chromNum_star, chromNum_star] at h
+  omega
+
+theorem indepNum_disjUnion_star (m n : ℕ) :
+    (star m ⊕g star n).indepNum = max 1 m + max 1 n := by
+  rw [indepNum_disjUnion, indepNum_star, indepNum_star]
+
+theorem coverNum_disjUnion_star (m n : ℕ) :
+    (star m ⊕g star n).coverNum = min 1 m + min 1 n := by
+  rw [coverNum_disjUnion, coverNum_star, coverNum_star]
+
+theorem cliqueCoverNum_disjUnion_star (m n : ℕ) :
+    (star m ⊕g star n).cliqueCoverNum = max 1 m + max 1 n := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_star, cliqueCoverNum_star]
+
+theorem matchNum_disjUnion_star (m n : ℕ) :
+    (star m ⊕g star n).matchNum = min m 1 + min n 1 := by
+  rw [matchNum_disjUnion, matchNum_star, matchNum_star]
+
+theorem domNum_disjUnion_star (m n : ℕ) : (star m ⊕g star n).domNum = 2 := by
+  have h := domNum_disjUnion (star m) (star n)
+  rw [domNum_star, domNum_star] at h
+  omega
+
+theorem edgeChromNum_disjUnion_star (m n : ℕ) :
+    (star m ⊕g star n).edgeChromNum = max m n := by
+  rw [edgeChromNum_disjUnion, edgeChromNum_star, edgeChromNum_star]
+
+theorem maxDeg_disjUnion_star (m n : ℕ) :
+    maxDeg (star (m + 1) ⊕g star (n + 1)) = max (m + 1) (n + 1) := by
+  rw [maxDeg_disjUnion, maxDeg_star, maxDeg_star]
+
+theorem minDeg_disjUnion_star (m n : ℕ) :
+    minDeg (star (m + 1) ⊕g star (n + 1)) = 1 := by
+  have h := minDeg_disjUnion (G := star (m + 1)) (H := star (n + 1))
+    (by rw [V_star]; omega) (by rw [V_star]; omega)
+  rw [minDeg_star, minDeg_star] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_star (m n : ℕ) :
+    (star m ⊕g star n).numComponents = 2 := by
+  have h := numComponents_disjUnion (star m) (star n)
+  rw [numComponents_star, numComponents_star] at h
+  omega
+
+theorem not_isConnected_disjUnion_star (m n : ℕ) : ¬ IsConnected (star m ⊕g star n) :=
+  not_isConnected_disjUnion (by rw [V_star]; omega) (by rw [V_star]; omega)
+
+theorem diameter_disjUnion_star (m n : ℕ) : (star m ⊕g star n).diameter = 0 :=
+  diameter_disjUnion (by rw [V_star]; omega) (by rw [V_star]; omega)
+
+theorem radius_disjUnion_star (m n : ℕ) : (star m ⊕g star n).radius = 0 :=
+  radius_disjUnion (by rw [V_star]; omega) (by rw [V_star]; omega)
+
+/-! ### The disjoint union of a complete graph and a star -/
+
+@[simp] theorem V_disjUnion_complete_star (m n : ℕ) :
+    (complete m ⊕g star n).V = m + n + 1 := by
+  rw [V_disjUnion, V_complete, V_star]
+  omega
+
+@[simp] theorem E_disjUnion_complete_star (m n : ℕ) :
+    (complete m ⊕g star n).E = m.choose 2 + n := by
+  rw [E_disjUnion, E_complete, E_star]
+
+theorem cliqueNum_disjUnion_complete_star (m n : ℕ) :
+    (complete m ⊕g star (n + 1)).cliqueNum = max m 2 := by
+  rw [cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_star]
+
+theorem chromNum_disjUnion_complete_star (m n : ℕ) :
+    (complete m ⊕g star (n + 1)).chromNum = max m 2 := by
+  rw [chromNum_disjUnion, chromNum_complete, chromNum_star]
+
+theorem indepNum_disjUnion_complete_star (m n : ℕ) :
+    (complete m ⊕g star n).indepNum = min m 1 + max 1 n := by
+  rw [indepNum_disjUnion, indepNum_complete, indepNum_star]
+
+theorem coverNum_disjUnion_complete_star (m n : ℕ) :
+    (complete m ⊕g star n).coverNum = m - 1 + min 1 n := by
+  rw [coverNum_disjUnion, coverNum_complete, coverNum_star]
+
+theorem cliqueCoverNum_disjUnion_complete_star (m n : ℕ) :
+    (complete (m + 1) ⊕g star n).cliqueCoverNum = 1 + max 1 n := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_complete, cliqueCoverNum_star]
+
+theorem matchNum_disjUnion_complete_star (m n : ℕ) :
+    (complete m ⊕g star n).matchNum = m / 2 + min n 1 := by
+  rw [matchNum_disjUnion, matchNum_complete, matchNum_star]
+
+theorem domNum_disjUnion_complete_star (m n : ℕ) :
+    (complete (m + 1) ⊕g star n).domNum = 2 := by
+  have h := domNum_disjUnion (complete (m + 1)) (star n)
+  rw [domNum_complete, domNum_star] at h
+  omega
+
+theorem maxDeg_disjUnion_complete_star (m n : ℕ) :
+    maxDeg (complete m ⊕g star (n + 1)) = max (m - 1) (n + 1) := by
+  rw [maxDeg_disjUnion, maxDeg_complete, maxDeg_star]
+
+theorem minDeg_disjUnion_complete_star (m n : ℕ) :
+    minDeg (complete (m + 1) ⊕g star (n + 1)) = min m 1 := by
+  have h := minDeg_disjUnion (G := complete (m + 1)) (H := star (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_star]; omega)
+  rw [minDeg_complete, minDeg_star] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_complete_star (m n : ℕ) :
+    (complete (m + 1) ⊕g star n).numComponents = 2 := by
+  have h := numComponents_disjUnion (complete (m + 1)) (star n)
+  rw [numComponents_complete, numComponents_star] at h
+  omega
+
+theorem not_isConnected_disjUnion_complete_star (m n : ℕ) :
+    ¬ IsConnected (complete (m + 1) ⊕g star n) :=
+  not_isConnected_disjUnion (by rw [V_complete]; omega) (by rw [V_star]; omega)
+
+theorem diameter_disjUnion_complete_star (m n : ℕ) :
+    (complete (m + 1) ⊕g star n).diameter = 0 :=
+  diameter_disjUnion (by rw [V_complete]; omega) (by rw [V_star]; omega)
+
+theorem radius_disjUnion_complete_star (m n : ℕ) :
+    (complete (m + 1) ⊕g star n).radius = 0 :=
+  radius_disjUnion (by rw [V_complete]; omega) (by rw [V_star]; omega)
+
+/-! ### The disjoint union of a cycle and a star -/
+
+@[simp] theorem V_disjUnion_cycle_star (m n : ℕ) :
+    (cycle m ⊕g star n).V = m + n + 1 := by
+  rw [V_disjUnion, V_cycle, V_star]
+  omega
+
+@[simp] theorem E_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ⊕g star n).E = m + 3 + n := by
+  rw [E_disjUnion, E_cycle, E_star]
+
+theorem cliqueNum_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 4) ⊕g star (n + 1)).cliqueNum = 2 := by
+  have h := cliqueNum_disjUnion (cycle (m + 4)) (star (n + 1))
+  rw [cliqueNum_cycle, cliqueNum_star] at h
+  omega
+
+theorem chromNum_disjUnion_cycle_star_even (m n : ℕ) :
+    (cycle (2 * m + 2) ⊕g star (n + 1)).chromNum = 2 := by
+  have h := chromNum_disjUnion (cycle (2 * m + 2)) (star (n + 1))
+  rw [chromNum_cycle_even, chromNum_star] at h
+  omega
+
+theorem chromNum_disjUnion_cycle_star_odd (m n : ℕ) :
+    (cycle (2 * m + 3) ⊕g star (n + 1)).chromNum = 3 := by
+  have h := chromNum_disjUnion (cycle (2 * m + 3)) (star (n + 1))
+  rw [chromNum_cycle_odd, chromNum_star] at h
+  omega
+
+theorem indepNum_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ⊕g star n).indepNum = (m + 3) / 2 + max 1 n := by
+  rw [indepNum_disjUnion, indepNum_cycle, indepNum_star]
+
+theorem coverNum_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ⊕g star n).coverNum = m + 3 - (m + 3) / 2 + min 1 n := by
+  rw [coverNum_disjUnion, coverNum_cycle, coverNum_star]
+
+theorem cliqueCoverNum_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 4) ⊕g star n).cliqueCoverNum = (m + 5) / 2 + max 1 n := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_cycle, cliqueCoverNum_star]
+
+theorem matchNum_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ⊕g star n).matchNum = (m + 3) / 2 + min n 1 := by
+  rw [matchNum_disjUnion, matchNum_cycle, matchNum_star]
+
+theorem domNum_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ⊕g star n).domNum = (m + 5) / 3 + 1 := by
+  rw [domNum_disjUnion, domNum_cycle, domNum_star]
+
+theorem maxDeg_disjUnion_cycle_star (m n : ℕ) :
+    maxDeg (cycle (m + 3) ⊕g star (n + 1)) = max 2 (n + 1) := by
+  rw [maxDeg_disjUnion, maxDeg_cycle, maxDeg_star]
+
+theorem minDeg_disjUnion_cycle_star (m n : ℕ) :
+    minDeg (cycle (m + 3) ⊕g star (n + 1)) = 1 := by
+  have h := minDeg_disjUnion (G := cycle (m + 3)) (H := star (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+  rw [minDeg_cycle, minDeg_star] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 1) ⊕g star n).numComponents = 2 := by
+  have h := numComponents_disjUnion (cycle (m + 1)) (star n)
+  rw [numComponents_cycle, numComponents_star] at h
+  omega
+
+theorem not_isConnected_disjUnion_cycle_star (m n : ℕ) :
+    ¬ IsConnected (cycle (m + 1) ⊕g star n) :=
+  not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+
+theorem diameter_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 1) ⊕g star n).diameter = 0 :=
+  diameter_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+
+theorem radius_disjUnion_cycle_star (m n : ℕ) :
+    (cycle (m + 1) ⊕g star n).radius = 0 :=
+  radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
