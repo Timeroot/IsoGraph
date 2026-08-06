@@ -38599,6 +38599,203 @@ theorem cliqueNum_compl_lexProduct_complete (m n : ℕ) :
     ((complete (m + 1) ·g complete (n + 1))ᶜ).cliqueNum = 1 := by
   rw [cliqueNum_compl, indepNum_lexProduct_complete]
 
+/-! ### Edge counts and degrees of more complements -/
+
+theorem E_compl_bipartite (m n : ℕ) :
+    ((bipartite m n)ᶜ).E = (m + n).choose 2 - m * n := by
+  have h := E_compl (bipartite m n)
+  rw [E_bipartite, V_bipartite] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_book (n : ℕ) : ((book n)ᶜ).E = (2 + n).choose 2 - (2 * n + 1) := by
+  have h := E_compl (book n)
+  rw [E_book, V_book] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_cocktailParty (n : ℕ) :
+    ((cocktailParty n)ᶜ).E = (2 * n).choose 2 - n * (2 * n - 2) := by
+  have h := E_compl (cocktailParty n)
+  rw [E_cocktailParty, V_cocktailParty] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_completeMultipartite_replicate (m d : ℕ) :
+    ((completeMultipartite (List.replicate m d))ᶜ).E
+      = (m * d).choose 2 - m.choose 2 * (d * d) := by
+  have h := E_compl (completeMultipartite (List.replicate m d))
+  rw [E_completeMultipartite_replicate, V_completeMultipartite_replicate] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_fan (n : ℕ) : ((fan (n + 1))ᶜ).E = (1 + (n + 1)).choose 2 - (2 * n + 1) := by
+  have h := E_compl (fan (n + 1))
+  rw [E_fan, V_fan] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_friendship (n : ℕ) : ((friendship n)ᶜ).E = (2 * n + 1).choose 2 - 3 * n := by
+  have h := E_compl (friendship n)
+  rw [E_friendship, V_friendship] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_lexProduct_complete (m n : ℕ) :
+    ((complete m ·g complete n)ᶜ).E
+      = (m * n).choose 2 - (n * n * m.choose 2 + m * n.choose 2) := by
+  have h := E_compl (complete m ·g complete n)
+  rw [E_lexProduct_complete, V_lexProduct_complete] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_rook (m n : ℕ) :
+    ((rook m n)ᶜ).E = (m * n).choose 2 - (m * n.choose 2 + n * m.choose 2) := by
+  have h := E_compl (rook m n)
+  rw [E_rook, V_rook] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_star (n : ℕ) : ((star n)ᶜ).E = (1 + n).choose 2 - n := by
+  have h := E_compl (star n)
+  rw [E_star, V_star] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_strongProduct_complete (m n : ℕ) :
+    ((complete m ⊠g complete n)ᶜ).E
+      = (m * n).choose 2 - (m * n.choose 2 + n * m.choose 2 + 2 * m.choose 2 * n.choose 2) := by
+  have h := E_compl (complete m ⊠g complete n)
+  rw [E_strongProduct_complete, V_strongProduct_complete] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem E_compl_triangular (n : ℕ) :
+    ((triangular n)ᶜ).E = (n.choose 2).choose 2 - n * (n - 1).choose 2 := by
+  have h := E_compl (triangular n)
+  rw [E_triangular, V_triangular] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_bipartite (m n : ℕ) :
+    maxDeg ((bipartite (m + 1) (n + 1))ᶜ) = max m n := by
+  have h := maxDeg_compl (G := bipartite (m + 1) (n + 1)) (by rw [V_bipartite]; omega)
+  rw [V_bipartite, minDeg_bipartite] at h
+  omega
+
+theorem minDeg_compl_bipartite (m n : ℕ) :
+    minDeg ((bipartite (m + 1) (n + 1))ᶜ) = min m n := by
+  have h := minDeg_compl (G := bipartite (m + 1) (n + 1)) (by rw [V_bipartite]; omega)
+  rw [V_bipartite, maxDeg_bipartite] at h
+  omega
+
+theorem maxDeg_compl_book (n : ℕ) : maxDeg ((book (n + 1))ᶜ) = n := by
+  have h := maxDeg_compl (G := book (n + 1)) (by rw [V_book]; omega)
+  rw [V_book, minDeg_book] at h
+  omega
+
+theorem minDeg_compl_book (n : ℕ) : minDeg ((book (n + 1))ᶜ) = 0 := by
+  have h := minDeg_compl (G := book (n + 1)) (by rw [V_book]; omega)
+  rw [V_book, maxDeg_book] at h
+  omega
+
+theorem maxDeg_compl_cocktailParty (n : ℕ) : maxDeg ((cocktailParty (n + 1))ᶜ) = 1 := by
+  have h := maxDeg_compl (G := cocktailParty (n + 1)) (by rw [V_cocktailParty]; omega)
+  rw [V_cocktailParty, minDeg_cocktailParty] at h
+  omega
+
+theorem minDeg_compl_cocktailParty (n : ℕ) : minDeg ((cocktailParty (n + 1))ᶜ) = 1 := by
+  have h := minDeg_compl (G := cocktailParty (n + 1)) (by rw [V_cocktailParty]; omega)
+  rw [V_cocktailParty, maxDeg_cocktailParty] at h
+  omega
+
+theorem maxDeg_compl_fan (n : ℕ) : maxDeg ((fan (n + 2))ᶜ) = n := by
+  have h := maxDeg_compl (G := fan (n + 2)) (by rw [V_fan]; omega)
+  rw [V_fan, minDeg_fan] at h
+  omega
+
+theorem minDeg_compl_fan (n : ℕ) : minDeg ((fan (n + 3))ᶜ) = 0 := by
+  have h := minDeg_compl (G := fan (n + 3)) (by rw [V_fan]; omega)
+  rw [V_fan, maxDeg_fan] at h
+  omega
+
+theorem maxDeg_compl_friendship (n : ℕ) : maxDeg ((friendship (n + 1))ᶜ) = 2 * n := by
+  have h := maxDeg_compl (G := friendship (n + 1)) (by rw [V_friendship]; omega)
+  rw [V_friendship, minDeg_friendship] at h
+  omega
+
+theorem minDeg_compl_friendship (n : ℕ) : minDeg ((friendship (n + 1))ᶜ) = 0 := by
+  have h := minDeg_compl (G := friendship (n + 1)) (by rw [V_friendship]; omega)
+  rw [V_friendship, maxDeg_friendship] at h
+  omega
+
+theorem maxDeg_compl_rook (m n : ℕ) : maxDeg ((rook (m + 1) (n + 1))ᶜ) = m * n := by
+  have h := maxDeg_compl (G := rook (m + 1) (n + 1)) (by rw [V_rook]; positivity)
+  rw [V_rook, minDeg_rook] at h
+  have e : (m + 1) * (n + 1) = m * n + m + n + 1 := by ring
+  omega
+
+theorem minDeg_compl_rook (m n : ℕ) : minDeg ((rook (m + 1) (n + 1))ᶜ) = m * n := by
+  have h := minDeg_compl (G := rook (m + 1) (n + 1)) (by rw [V_rook]; positivity)
+  rw [V_rook, maxDeg_rook] at h
+  have e : (m + 1) * (n + 1) = m * n + m + n + 1 := by ring
+  omega
+
+theorem maxDeg_compl_star (n : ℕ) : maxDeg ((star (n + 1))ᶜ) = n := by
+  have h := maxDeg_compl (G := star (n + 1)) (by rw [V_star]; omega)
+  rw [V_star, minDeg_star] at h
+  omega
+
+theorem minDeg_compl_star (n : ℕ) : minDeg ((star (n + 1))ᶜ) = 0 := by
+  have h := minDeg_compl (G := star (n + 1)) (by rw [V_star]; omega)
+  rw [V_star, maxDeg_star] at h
+  omega
+
+theorem maxDeg_compl_triangular (n : ℕ) :
+    maxDeg ((triangular (n + 2))ᶜ) = (n + 2).choose 2 - 2 * n - 1 := by
+  have h := maxDeg_compl (G := triangular (n + 2))
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+  rw [V_triangular, minDeg_triangular] at h
+  omega
+
+theorem minDeg_compl_triangular (n : ℕ) :
+    minDeg ((triangular (n + 2))ᶜ) = (n + 2).choose 2 - 2 * n - 1 := by
+  have h := minDeg_compl (G := triangular (n + 2))
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+  rw [V_triangular, maxDeg_triangular] at h
+  omega
+
+theorem maxDeg_compl_petersen : maxDeg (petersenᶜ) = 6 := by
+  have h := maxDeg_compl (G := petersen) (by rw [V_petersen]; omega)
+  rw [V_petersen, minDeg_petersen] at h
+  omega
+
+theorem minDeg_compl_petersen : minDeg (petersenᶜ) = 6 := by
+  have h := minDeg_compl (G := petersen) (by rw [V_petersen]; omega)
+  rw [V_petersen, maxDeg_petersen] at h
+  omega
+
+theorem maxDeg_compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    maxDeg ((paley q)ᶜ) = (q - 1) / 2 := by
+  have h := maxDeg_compl (G := paley q) (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q))
+  rw [V_paley, minDeg_paley q hq] at h
+  omega
+
+theorem minDeg_compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    minDeg ((paley q)ᶜ) = (q - 1) / 2 := by
+  have h := minDeg_compl (G := paley q) (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q))
+  rw [V_paley, maxDeg_paley q hq] at h
+  omega
+
+theorem maxDeg_compl_completeMultipartite_replicate {m d : ℕ} (hm : 0 < m) (hd : 0 < d) :
+    maxDeg ((completeMultipartite (List.replicate m d))ᶜ) = d - 1 := by
+  obtain ⟨k, rfl⟩ : ∃ k, m = k + 1 := ⟨m - 1, by omega⟩
+  have h := maxDeg_compl (G := completeMultipartite (List.replicate (k + 1) d))
+    (by rw [V_completeMultipartite_replicate]; positivity)
+  rw [V_completeMultipartite_replicate, minDeg_completeMultipartite_replicate hm hd,
+    Nat.add_sub_cancel] at h
+  have e : (k + 1) * d = k * d + d := by ring
+  omega
+
+theorem minDeg_compl_completeMultipartite_replicate {m d : ℕ} (hm : 0 < m) (hd : 0 < d) :
+    minDeg ((completeMultipartite (List.replicate m d))ᶜ) = d - 1 := by
+  obtain ⟨k, rfl⟩ : ∃ k, m = k + 1 := ⟨m - 1, by omega⟩
+  have h := minDeg_compl (G := completeMultipartite (List.replicate (k + 1) d))
+    (by rw [V_completeMultipartite_replicate]; positivity)
+  rw [V_completeMultipartite_replicate, maxDeg_completeMultipartite_replicate hm hd,
+    Nat.add_sub_cancel] at h
+  have e : (k + 1) * d = k * d + d := by ring
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

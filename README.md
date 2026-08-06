@@ -3034,6 +3034,22 @@ independence numbers give the mirror set, `cliqueNum_compl_rook = min (m+1) (n+1
 pair above, every one of the four numbers `ω`, `α`, `χ`, `θ` is now recorded on the complement of
 each family where it is known on the family itself.
 
+The last two complement columns to fill are the edge count and the degree pair, which need
+`E_compl` and the `V - 1 -` degree transport rather than a plain swap. Eleven families gain an
+edge count — `E_compl_bipartite = C(m+n,2) - mn`, `E_compl_rook`, `E_compl_triangular`,
+`E_compl_star`, `E_compl_book`, `E_compl_fan`, `E_compl_friendship`, `E_compl_cocktailParty`,
+`E_compl_completeMultipartite_replicate` and the strong and lexicographic products of two complete
+graphs — and eleven gain both degrees. Several of those degrees collapse to something much
+smaller than the graph they came from: `maxDeg_compl_cocktailParty = minDeg_compl_cocktailParty
+= 1`, because the complement of a cocktail party graph is exactly the perfect matching that was
+removed from `K_{2n}`; `maxDeg_compl_rook = minDeg_compl_rook = mn`, the rook graph being regular;
+`minDeg_compl_star = minDeg_compl_book = minDeg_compl_fan = minDeg_compl_friendship = 0`, each
+because the family has a vertex joined to everything, which becomes an isolated vertex; and
+`maxDeg_compl_bipartite = max m n` against `minDeg_compl_bipartite = min m n`, the two sides
+trading places. `maxDeg_compl_paley = minDeg_compl_paley = (q-1)/2` is the degree statement of
+self-complementarity, and `maxDeg_compl_completeMultipartite_replicate = d - 1` recovers the fact
+that the complement of a balanced complete multipartite graph is a disjoint union of `K_d`s.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
