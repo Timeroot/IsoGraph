@@ -39998,6 +39998,206 @@ theorem chromNum_cartesianProduct_cycle_odd_path (a n : ℕ) :
   rw [chromNum_cycle_odd, chromNum_path] at h
   omega
 
+/-! ### Connectivity of the tensor product
+
+`isConnected_tensorProduct` asks for a connected non-bipartite left factor and a connected right
+factor with at least one edge; the odd cycles, the complete graphs on at least three vertices and
+the Petersen graph all serve on the left. -/
+
+theorem E_pos_hypercube (n : ℕ) : 0 < (hypercube (n + 1)).E := by
+  have h := E_hypercube (n + 1)
+  have hp : 0 < (n + 1) * 2 ^ (n + 1) := by positivity
+  omega
+
+theorem isConnected_tensorProduct_cycle_odd_cycle (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g cycle (n + 3)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_cycle (n + 2))
+    (not_isBipartite_cycle_odd a) (by rw [E_cycle]; omega)
+
+theorem numComponents_tensorProduct_cycle_odd_cycle (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g cycle (n + 3)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_cycle a n)
+
+theorem isConnected_tensorProduct_cycle_odd_path (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g path (n + 2)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_path (n + 1))
+    (not_isBipartite_cycle_odd a) (by rw [E_path]; omega)
+
+theorem numComponents_tensorProduct_cycle_odd_path (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g path (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_path a n)
+
+theorem isConnected_tensorProduct_cycle_odd_complete (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g complete (n + 2)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_complete (n + 1))
+    (not_isBipartite_cycle_odd a) (E_complete_pos n)
+
+theorem numComponents_tensorProduct_cycle_odd_complete (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g complete (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_complete a n)
+
+theorem isConnected_tensorProduct_cycle_odd_hypercube (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g hypercube (n + 1)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_hypercube (n + 1))
+    (not_isBipartite_cycle_odd a) (E_pos_hypercube n)
+
+theorem numComponents_tensorProduct_cycle_odd_hypercube (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g hypercube (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_hypercube a n)
+
+theorem isConnected_tensorProduct_cycle_odd_petersen (a : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g petersen) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) isConnected_petersen
+    (not_isBipartite_cycle_odd a) (by rw [E_petersen]; omega)
+
+theorem numComponents_tensorProduct_cycle_odd_petersen (a : ℕ) :
+    (cycle (2 * a + 3) ⊗g petersen).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_petersen a)
+
+theorem isConnected_tensorProduct_cycle_odd_star (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g star (n + 1)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_star (n + 1))
+    (not_isBipartite_cycle_odd a) (by rw [E_star]; omega)
+
+theorem numComponents_tensorProduct_cycle_odd_star (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g star (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_star a n)
+
+theorem isConnected_tensorProduct_complete_cycle (m n : ℕ) :
+    IsConnected (complete (m + 3) ⊗g cycle (n + 3)) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_cycle (n + 2))
+    (not_isBipartite_complete m) (by rw [E_cycle]; omega)
+
+theorem numComponents_tensorProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 3) ⊗g cycle (n + 3)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_complete_cycle m n)
+
+theorem isConnected_tensorProduct_complete_path (m n : ℕ) :
+    IsConnected (complete (m + 3) ⊗g path (n + 2)) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_path (n + 1))
+    (not_isBipartite_complete m) (by rw [E_path]; omega)
+
+theorem numComponents_tensorProduct_complete_path (m n : ℕ) :
+    (complete (m + 3) ⊗g path (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_complete_path m n)
+
+theorem isConnected_tensorProduct_complete_hypercube (m n : ℕ) :
+    IsConnected (complete (m + 3) ⊗g hypercube (n + 1)) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_hypercube (n + 1))
+    (not_isBipartite_complete m) (E_pos_hypercube n)
+
+theorem numComponents_tensorProduct_complete_hypercube (m n : ℕ) :
+    (complete (m + 3) ⊗g hypercube (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_complete_hypercube m n)
+
+theorem isConnected_tensorProduct_complete_petersen (m : ℕ) :
+    IsConnected (complete (m + 3) ⊗g petersen) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) isConnected_petersen
+    (not_isBipartite_complete m) (by rw [E_petersen]; omega)
+
+theorem numComponents_tensorProduct_complete_petersen (m : ℕ) :
+    (complete (m + 3) ⊗g petersen).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_complete_petersen m)
+
+theorem isConnected_tensorProduct_complete_star (m n : ℕ) :
+    IsConnected (complete (m + 3) ⊗g star (n + 1)) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_star (n + 1))
+    (not_isBipartite_complete m) (by rw [E_star]; omega)
+
+theorem numComponents_tensorProduct_complete_star (m n : ℕ) :
+    (complete (m + 3) ⊗g star (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_complete_star m n)
+
+theorem isConnected_tensorProduct_petersen_cycle (n : ℕ) :
+    IsConnected (petersen ⊗g cycle (n + 3)) :=
+  isConnected_tensorProduct isConnected_petersen (isConnected_cycle (n + 2))
+    not_isBipartite_petersen (by rw [E_cycle]; omega)
+
+theorem numComponents_tensorProduct_petersen_cycle (n : ℕ) :
+    (petersen ⊗g cycle (n + 3)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_petersen_cycle n)
+
+theorem isConnected_tensorProduct_petersen_path (n : ℕ) :
+    IsConnected (petersen ⊗g path (n + 2)) :=
+  isConnected_tensorProduct isConnected_petersen (isConnected_path (n + 1))
+    not_isBipartite_petersen (by rw [E_path]; omega)
+
+theorem numComponents_tensorProduct_petersen_path (n : ℕ) :
+    (petersen ⊗g path (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_petersen_path n)
+
+theorem isConnected_tensorProduct_petersen_complete (n : ℕ) :
+    IsConnected (petersen ⊗g complete (n + 2)) :=
+  isConnected_tensorProduct isConnected_petersen (isConnected_complete (n + 1))
+    not_isBipartite_petersen (E_complete_pos n)
+
+theorem numComponents_tensorProduct_petersen_complete (n : ℕ) :
+    (petersen ⊗g complete (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_petersen_complete n)
+
+theorem isConnected_tensorProduct_petersen_hypercube (n : ℕ) :
+    IsConnected (petersen ⊗g hypercube (n + 1)) :=
+  isConnected_tensorProduct isConnected_petersen (isConnected_hypercube (n + 1))
+    not_isBipartite_petersen (E_pos_hypercube n)
+
+theorem numComponents_tensorProduct_petersen_hypercube (n : ℕ) :
+    (petersen ⊗g hypercube (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_petersen_hypercube n)
+
+theorem isConnected_tensorProduct_petersen_star (n : ℕ) :
+    IsConnected (petersen ⊗g star (n + 1)) :=
+  isConnected_tensorProduct isConnected_petersen (isConnected_star (n + 1))
+    not_isBipartite_petersen (by rw [E_star]; omega)
+
+theorem numComponents_tensorProduct_petersen_star (n : ℕ) :
+    (petersen ⊗g star (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_petersen_star n)
+
+theorem isConnected_tensorProduct_petersen_petersen :
+    IsConnected (petersen ⊗g petersen) :=
+  isConnected_tensorProduct isConnected_petersen isConnected_petersen
+    not_isBipartite_petersen (by rw [E_petersen]; omega)
+
+theorem numComponents_tensorProduct_petersen_petersen :
+    (petersen ⊗g petersen).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected isConnected_tensorProduct_petersen_petersen
+
+/-! ### Triangles in the tensor product
+
+A tensor product of two graphs with a triangle has a triangle, so its girth is three. -/
+
+theorem girth_tensorProduct_complete_wheel (m n : ℕ) :
+    (complete (m + 3) ⊗g wheel (n + 4)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_complete]; omega) (by rw [cliqueNum_wheel])
+
+theorem girth_tensorProduct_complete_fan (m n : ℕ) :
+    (complete (m + 3) ⊗g fan (n + 2)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_complete]; omega) (by rw [cliqueNum_fan])
+
+theorem girth_tensorProduct_complete_book (m n : ℕ) :
+    (complete (m + 3) ⊗g book (n + 1)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_complete]; omega) (by rw [cliqueNum_book]; omega)
+
+theorem girth_tensorProduct_complete_friendship (m n : ℕ) :
+    (complete (m + 3) ⊗g friendship (n + 1)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_complete]; omega) (by rw [cliqueNum_friendship])
+
+theorem girth_tensorProduct_complete_cocktailParty (m n : ℕ) :
+    (complete (m + 3) ⊗g cocktailParty (n + 3)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_complete]; omega) (by rw [cliqueNum_cocktailParty]; omega)
+
+theorem girth_tensorProduct_complete_triangular (m n : ℕ) :
+    (complete (m + 3) ⊗g triangular (n + 4)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_complete]; omega) (by rw [cliqueNum_triangular]; omega)
+
+theorem girth_tensorProduct_wheel_wheel (m n : ℕ) :
+    (wheel (m + 4) ⊗g wheel (n + 4)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_wheel]) (by rw [cliqueNum_wheel])
+
+theorem girth_tensorProduct_friendship_friendship (m n : ℕ) :
+    (friendship (m + 1) ⊗g friendship (n + 1)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_friendship]) (by rw [cliqueNum_friendship])
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

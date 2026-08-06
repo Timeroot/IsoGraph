@@ -3139,6 +3139,18 @@ factor has a triangle: `girth_cartesianProduct_complete_cycle = 3` once `m ≥ 3
 maximum finally fills the colouring holes in the torus and the cylinder, where
 `chromNum_cartesianProduct_cycle_even_even = 2` and its three odd siblings equal `3`.
 
+Connectivity of the tensor product is the one product law that needs a parity hypothesis:
+`isConnected_tensorProduct` wants a connected non-bipartite left factor and a connected right
+factor with an edge, because otherwise `G ⊗ H` splits into two halves. Three graphs supply the left
+factor — the odd cycles, `Kₘ` for `m ≥ 3`, and the Petersen graph — and each is now paired with the
+cycle, the path, the complete graph, the hypercube, the star and the Petersen graph on the right,
+giving seventeen connected tensor products and their component counts. `E_pos_hypercube` is the
+small lemma that makes the hypercube admissible on the right: `2|E(Qₙ₊₁)| = (n+1)2ⁿ⁺¹` is positive,
+so `Qₙ₊₁` has an edge. Girth needs no parity at all — a triangle in each factor gives a triangle in
+the product — so `girth_tensorProduct` also settles the products of `Kₘ` with the wheel, the fan,
+the book, the friendship graph, the cocktail party graph and the triangular graph, along with
+`Wₘ ⊗ Wₙ` and `Fₘ ⊗ Fₙ`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
