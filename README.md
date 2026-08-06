@@ -3529,6 +3529,17 @@ the one thing the circulant rows cannot claim — there is no general connectivi
 not care: `M(C_n(S))` is connected and has radius two as soon as `k` is positive, because the
 Mycielskian construction supplies its own apex vertex.
 
+The Paley graph gets the same pair of rows, and it is the most tightly constrained of the
+families, since `paley q` only behaves when `q` is a prime with `q % 4 = 1`. Those instance and
+congruence hypotheses thread through every statement, but the payoff is that `paley q` is
+`(q-1)/2`-regular with an explicit degree sequence, so `L(P_q)` is `(2⌊(q-1)/2⌋ - 2)`-regular on
+`q(q-1)/4` vertices, connected with radius and diameter at most three, and — once `q ≥ 9`, the
+first prime power where the degree clears three — of clique number `(q-1)/2` and girth three. Sizes
+are stated in doubled form, `2|E(L(P_q))| = q(q-1)/2`, to keep the halving exact in `ℕ`. The
+Mycielskian rows need much less: `M(P_q)` is connected of radius two whenever `q ≥ 5`, its
+domination number is one more than the Paley graph's, and its independence number is at least `q`,
+because the whole shadow copy of the vertex set is independent regardless of the original graph.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

@@ -46541,6 +46541,124 @@ theorem coverNum_mycielskian_circulant_le (n : ℕ) (S : List ℕ) :
   have h := coverNum_mycielskian_le (circulant n S)
   rwa [V_circulant] at h
 
+/-! ### The line graph of a Paley graph -/
+
+theorem E_pos_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq5 : 5 ≤ q) :
+    0 < (paley q).E := by
+  have h := two_mul_E_paley q hq
+  have h2 : 0 < q * ((q - 1) / 2) := Nat.mul_pos (by omega) (by omega)
+  omega
+
+theorem two_mul_V_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    2 * (lineGraph (paley q)).V = q * ((q - 1) / 2) := by
+  rw [V_lineGraph]
+  exact two_mul_E_paley q hq
+
+theorem maxDeg_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq5 : 5 ≤ q) :
+    maxDeg (lineGraph (paley q)) = 2 * ((q - 1) / 2) - 2 :=
+  maxDeg_lineGraph (E_pos_paley q hq hq5) (degSequence_paley q hq)
+
+theorem minDeg_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq5 : 5 ≤ q) :
+    minDeg (lineGraph (paley q)) = 2 * ((q - 1) / 2) - 2 :=
+  minDeg_lineGraph (E_pos_paley q hq hq5) (degSequence_paley q hq)
+
+theorem degSequence_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : degSequence (lineGraph (paley q))
+      = List.replicate (q * ((q - 1) / 2) / 2) (2 * ((q - 1) / 2) - 2) := by
+  have h := two_mul_E_paley q hq
+  have hd := (isRegularWith_lineGraph_paley q hq hq5).degSequence
+  rw [V_lineGraph] at hd
+  rwa [show (paley q).E = q * ((q - 1) / 2) / 2 from by omega] at hd
+
+theorem isConnected_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : IsConnected (lineGraph (paley q)) :=
+  isConnected_lineGraph (isConnected_paley q hq hq5) (E_pos_paley q hq hq5)
+
+theorem numComponents_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : (lineGraph (paley q)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_paley q hq hq5) (E_pos_paley q hq hq5)
+
+theorem diameter_lineGraph_paley_le (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : (lineGraph (paley q)).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (isConnected_paley q hq hq5) (E_pos_paley q hq hq5)
+  rw [diameter_paley q hq hq5] at h
+  omega
+
+theorem radius_lineGraph_paley_le (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : (lineGraph (paley q)).radius ≤ 3 := by
+  have h := radius_lineGraph_le (isConnected_paley q hq hq5) (E_pos_paley q hq hq5)
+  rw [radius_paley q hq hq5] at h
+  omega
+
+theorem cliqueNum_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq9 : 9 ≤ q) : (lineGraph (paley q)).cliqueNum = (q - 1) / 2 := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := paley q)
+    (by rw [maxDeg_paley q hq]; omega)
+  rwa [maxDeg_paley q hq] at hm
+
+theorem girth_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) (hq9 : 9 ≤ q) :
+    (lineGraph (paley q)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_paley q hq]; omega)
+
+theorem not_isBipartite_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq9 : 9 ≤ q) : ¬ IsBipartite (lineGraph (paley q)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_paley q hq]; omega)
+
+theorem not_isTree_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq9 : 9 ≤ q) : ¬ IsTree (lineGraph (paley q)) :=
+  not_isTree_lineGraph (by rw [maxDeg_paley q hq]; omega)
+
+/-! ### The Mycielskian of a Paley graph -/
+
+@[simp] theorem V_mycielskian_paley (q : ℕ) : (mycielskian (paley q)).V = 2 * q + 1 := by
+  rw [V_mycielskian, V_paley]
+
+theorem two_mul_E_mycielskian_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    2 * (mycielskian (paley q)).E = 3 * (q * ((q - 1) / 2)) + 2 * q := by
+  have h := two_mul_E_paley q hq
+  rw [E_mycielskian, V_paley]
+  omega
+
+theorem maxDeg_mycielskian_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    maxDeg (mycielskian (paley q)) = max (2 * ((q - 1) / 2)) q := by
+  rw [maxDeg_mycielskian, maxDeg_paley q hq, V_paley]
+
+theorem minDeg_mycielskian_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    minDeg (mycielskian (paley q))
+      = min (min (2 * ((q - 1) / 2)) ((q - 1) / 2 + 1)) q := by
+  have h := minDeg_mycielskian (paley q) (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q))
+  rwa [minDeg_paley q hq, V_paley] at h
+
+theorem isConnected_mycielskian_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : IsConnected (mycielskian (paley q)) := by
+  refine isConnected_mycielskian _ ?_
+  rw [minDeg_paley q hq]
+  omega
+
+theorem radius_mycielskian_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : (mycielskian (paley q)).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  rw [minDeg_paley q hq]
+  omega
+
+theorem numComponents_mycielskian_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
+    (hq5 : 5 ≤ q) : (mycielskian (paley q)).numComponents = 1 := by
+  refine numComponents_mycielskian _ ?_
+  rw [minDeg_paley q hq]
+  omega
+
+theorem domNum_mycielskian_paley (q : ℕ) [NeZero q] :
+    (mycielskian (paley q)).domNum = (paley q).domNum + 1 :=
+  domNum_mycielskian _ (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q))
+
+theorem coverNum_mycielskian_paley_le (q : ℕ) : (mycielskian (paley q)).coverNum ≤ q + 1 := by
+  have h := coverNum_mycielskian_le (paley q)
+  rwa [V_paley] at h
+
+theorem le_indepNum_mycielskian_paley (q : ℕ) : q ≤ (mycielskian (paley q)).indepNum := by
+  have h := V_le_indepNum_mycielskian (paley q)
+  rwa [V_paley] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
