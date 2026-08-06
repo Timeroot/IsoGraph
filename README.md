@@ -2965,6 +2965,15 @@ around `n - 1`, so the complement of a 4-regular torus is `mn - 5`-regular at bo
 independence number of the complement is the clique number of the original — two for the three
 Cartesian products, four for the king graph.
 
+The other three products of two cycles get the same treatment:
+`E_compl_tensorProduct_cycle`, `E_compl_strongProduct_cycle` and `E_compl_lexProduct_cycle`
+with their degree pairs — `mn - 5` for the tensor product, `mn - 9` for the strong product and
+`mn - 2n - 9` for the lexicographic one, which is the only one of the three that is not
+vertex-regular in `m` — and the independence numbers `2`, `4` and `4`. The lexicographic
+product earns one extra lemma the others cannot: because it is the only product with a closed
+form for its own independence number, `cliqueNum_compl_lexProduct_cycle` gives the clique number
+of the complement as `⌊m/2⌋⌊n/2⌋`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

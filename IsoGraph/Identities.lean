@@ -37991,6 +37991,88 @@ theorem indepNum_compl_king (m n : ℕ) :
     ((path (m + 2) ⊠g path (n + 2))ᶜ).indepNum = 4 := by
   rw [indepNum_compl, cliqueNum_king]
 
+/-! ### Complements of the tensor, strong and lexicographic products of two cycles -/
+
+theorem E_compl_tensorProduct_cycle (m n : ℕ) :
+    ((cycle (m + 3) ⊗g cycle (n + 3))ᶜ).E
+      = ((m + 3) * (n + 3)).choose 2 - 2 * (m + 3) * (n + 3) := by
+  have h := E_compl (cycle (m + 3) ⊗g cycle (n + 3))
+  rw [E_tensorProduct_cycle, V_tensorProduct_cycle] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_tensorProduct_cycle (m n : ℕ) :
+    maxDeg ((cycle (m + 3) ⊗g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
+  have h := maxDeg_compl (G := cycle (m + 3) ⊗g cycle (n + 3))
+    (by rw [V_tensorProduct_cycle]; positivity)
+  rw [V_tensorProduct_cycle, minDeg_tensorProduct_cycle] at h
+  omega
+
+theorem minDeg_compl_tensorProduct_cycle (m n : ℕ) :
+    minDeg ((cycle (m + 3) ⊗g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
+  have h := minDeg_compl (G := cycle (m + 3) ⊗g cycle (n + 3))
+    (by rw [V_tensorProduct_cycle]; positivity)
+  rw [V_tensorProduct_cycle, maxDeg_tensorProduct_cycle] at h
+  omega
+
+theorem indepNum_compl_tensorProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊗g cycle (n + 4))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_tensorProduct_cycle]
+
+theorem E_compl_strongProduct_cycle (m n : ℕ) :
+    ((cycle (m + 3) ⊠g cycle (n + 3))ᶜ).E
+      = ((m + 3) * (n + 3)).choose 2
+          - ((m + 3) * (n + 3) + (n + 3) * (m + 3) + 2 * (m + 3) * (n + 3)) := by
+  have h := E_compl (cycle (m + 3) ⊠g cycle (n + 3))
+  rw [E_strongProduct_cycle, V_strongProduct_cycle] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_strongProduct_cycle (m n : ℕ) :
+    maxDeg ((cycle (m + 3) ⊠g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 9 := by
+  have h := maxDeg_compl (G := cycle (m + 3) ⊠g cycle (n + 3))
+    (by rw [V_strongProduct_cycle]; positivity)
+  rw [V_strongProduct_cycle, minDeg_strongProduct_cycle] at h
+  omega
+
+theorem minDeg_compl_strongProduct_cycle (m n : ℕ) :
+    minDeg ((cycle (m + 3) ⊠g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 9 := by
+  have h := minDeg_compl (G := cycle (m + 3) ⊠g cycle (n + 3))
+    (by rw [V_strongProduct_cycle]; positivity)
+  rw [V_strongProduct_cycle, maxDeg_strongProduct_cycle] at h
+  omega
+
+theorem indepNum_compl_strongProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊠g cycle (n + 4))ᶜ).indepNum = 4 := by
+  rw [indepNum_compl, cliqueNum_strongProduct_cycle]
+
+theorem E_compl_lexProduct_cycle (m n : ℕ) :
+    ((cycle (m + 3) ·g cycle (n + 3))ᶜ).E
+      = ((m + 3) * (n + 3)).choose 2 - ((n + 3) * (n + 3) * (m + 3) + (m + 3) * (n + 3)) := by
+  have h := E_compl (cycle (m + 3) ·g cycle (n + 3))
+  rw [E_lexProduct_cycle, V_lexProduct_cycle] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_lexProduct_cycle (m n : ℕ) :
+    maxDeg ((cycle (m + 3) ·g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 2 * (n + 3) - 3 := by
+  have h := maxDeg_compl (G := cycle (m + 3) ·g cycle (n + 3))
+    (by rw [V_lexProduct_cycle]; positivity)
+  rw [V_lexProduct_cycle, minDeg_lexProduct_cycle] at h
+  omega
+
+theorem minDeg_compl_lexProduct_cycle (m n : ℕ) :
+    minDeg ((cycle (m + 3) ·g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 2 * (n + 3) - 3 := by
+  have h := minDeg_compl (G := cycle (m + 3) ·g cycle (n + 3))
+    (by rw [V_lexProduct_cycle]; positivity)
+  rw [V_lexProduct_cycle, maxDeg_lexProduct_cycle] at h
+  omega
+
+theorem indepNum_compl_lexProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) ·g cycle (n + 4))ᶜ).indepNum = 4 := by
+  rw [indepNum_compl, cliqueNum_lexProduct_cycle]
+
+theorem cliqueNum_compl_lexProduct_cycle (m n : ℕ) :
+    ((cycle (m + 3) ·g cycle (n + 3))ᶜ).cliqueNum = (m + 3) / 2 * ((n + 3) / 2) := by
+  rw [cliqueNum_compl, indepNum_lexProduct_cycle]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
