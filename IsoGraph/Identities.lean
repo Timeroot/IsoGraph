@@ -36869,6 +36869,74 @@ theorem E_compl_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
   rw [E_cyclePendant m ks h, V_cyclePendant] at hd
   omega
 
+/-! ### Complements of the double star, the Johnson and Kneser graphs -/
+
+theorem cliqueNum_compl_doubleStar (m n : ℕ) :
+    ((doubleStar (m + 1) (n + 1))ᶜ).cliqueNum = m + n + 2 := by
+  rw [cliqueNum_compl, indepNum_doubleStar]
+
+theorem indepNum_compl_doubleStar (m n : ℕ) : ((doubleStar m n)ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_doubleStar]
+
+theorem chromNum_compl_doubleStar (m n : ℕ) :
+    ((doubleStar (m + 1) (n + 1))ᶜ).chromNum = m + n + 2 := by
+  rw [chromNum_compl, cliqueCoverNum_doubleStar]
+
+theorem cliqueCoverNum_compl_doubleStar (m n : ℕ) :
+    ((doubleStar m n)ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_doubleStar]
+
+theorem maxDeg_compl_doubleStar (m n : ℕ) : maxDeg ((doubleStar m n)ᶜ) = m + n := by
+  have h := maxDeg_compl (G := doubleStar m n) (by rw [V_doubleStar]; omega)
+  rw [V_doubleStar, minDeg_doubleStar] at h
+  omega
+
+theorem minDeg_compl_doubleStar (m n : ℕ) : minDeg ((doubleStar m n)ᶜ) = min m n := by
+  have h := minDeg_compl (G := doubleStar m n) (by rw [V_doubleStar]; omega)
+  rw [V_doubleStar, maxDeg_doubleStar] at h
+  omega
+
+theorem E_compl_doubleStar (m n : ℕ) :
+    ((doubleStar m n)ᶜ).E = (2 + m + n).choose 2 - (m + n + 1) := by
+  have h := E_compl (doubleStar m n)
+  rw [E_doubleStar, V_doubleStar] at h
+  omega
+
+theorem maxDeg_compl_johnson {n k : ℕ} (hk : k ≤ n) :
+    maxDeg ((johnson n k)ᶜ) = n.choose k - 1 - k * (n - k) := by
+  have h := maxDeg_compl (G := johnson n k) (by rw [V_johnson]; exact Nat.choose_pos hk)
+  rwa [V_johnson, minDeg_johnson hk] at h
+
+theorem minDeg_compl_johnson {n k : ℕ} (hk : k ≤ n) :
+    minDeg ((johnson n k)ᶜ) = n.choose k - 1 - k * (n - k) := by
+  have h := minDeg_compl (G := johnson n k) (by rw [V_johnson]; exact Nat.choose_pos hk)
+  rwa [V_johnson, maxDeg_johnson hk] at h
+
+theorem E_compl_johnson {n k : ℕ} (hk : k ≤ n) :
+    ((johnson n k)ᶜ).E = (n.choose k).choose 2 - n.choose k * (k * (n - k)) / 2 := by
+  have h := E_compl (johnson n k)
+  rw [E_johnson hk, V_johnson] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n) :
+    maxDeg ((kneser n k)ᶜ) = n.choose k - 1 - (n - k).choose k := by
+  have h := maxDeg_compl (G := kneser n k) (by rw [V_kneser]; exact Nat.choose_pos hkn)
+  rwa [V_kneser, minDeg_kneser n k hk hkn] at h
+
+theorem minDeg_compl_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n) :
+    minDeg ((kneser n k)ᶜ) = n.choose k - 1 - (n - k).choose k := by
+  have h := minDeg_compl (G := kneser n k) (by rw [V_kneser]; exact Nat.choose_pos hkn)
+  rwa [V_kneser, maxDeg_kneser n k hk hkn] at h
+
+theorem E_compl_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
+    ((kneser n k)ᶜ).E = (n.choose k).choose 2 - n.choose k * (n - k).choose k / 2 := by
+  have h := E_compl (kneser n k)
+  rw [E_kneser n hk, V_kneser] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem isVertexTransitive_compl_kneser (n k : ℕ) : IsVertexTransitive ((kneser n k)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_kneser n k)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

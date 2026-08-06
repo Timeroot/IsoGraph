@@ -2784,6 +2784,20 @@ is a single vertex), `cliqueCoverNum_compl_thetaGraph_odd`,
 hypotheses unchanged — `ks.length ≤ m + 3` so the pendants fit, the parity conditions on the
 theta graph's paths — which is the honest thing for a transported statement to do.
 
+The double star closes the tree families: `cliqueNum_compl_doubleStar`,
+`indepNum_compl_doubleStar`, `chromNum_compl_doubleStar`, `cliqueCoverNum_compl_doubleStar`,
+`maxDeg_compl_doubleStar`, `minDeg_compl_doubleStar` and `E_compl_doubleStar` give the whole
+row, and the minimum degree of the complement is `min m n`, since `V - 1 - (max m n + 1)`
+collapses to it.
+
+The Johnson and Kneser graphs are regular, so their complements are too, and
+`maxDeg_compl_johnson`, `minDeg_compl_johnson`, `maxDeg_compl_kneser` and `minDeg_compl_kneser`
+agree pairwise: `C(n, k) - 1 - k(n - k)` and `C(n, k) - 1 - C(n - k, k)`. The edge counts
+`E_compl_johnson` and `E_compl_kneser` cannot go through `omega`, because the subtracted term is
+a product of two binomial coefficients halved and so is not linear in its atoms; they close
+instead by rewriting backwards along `E_compl` and cancelling with `Nat.add_sub_cancel`.
+`isVertexTransitive_compl_kneser` completes the pair with the Johnson version already on file.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
