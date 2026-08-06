@@ -38073,6 +38073,85 @@ theorem cliqueNum_compl_lexProduct_cycle (m n : ℕ) :
     ((cycle (m + 3) ·g cycle (n + 3))ᶜ).cliqueNum = (m + 3) / 2 * ((n + 3) / 2) := by
   rw [cliqueNum_compl, indepNum_lexProduct_cycle]
 
+/-! ### Complements of the products of two paths and of the tensor product of complete graphs -/
+
+theorem E_compl_tensorProduct_path (m n : ℕ) :
+    ((path (m + 1) ⊗g path (n + 1))ᶜ).E = ((m + 1) * (n + 1)).choose 2 - 2 * m * n := by
+  have h := E_compl (path (m + 1) ⊗g path (n + 1))
+  rw [E_tensorProduct_path, V_tensorProduct_path] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_tensorProduct_path (m n : ℕ) :
+    maxDeg ((path (m + 2) ⊗g path (n + 2))ᶜ) = (m + 2) * (n + 2) - 2 := by
+  have h := maxDeg_compl (G := path (m + 2) ⊗g path (n + 2))
+    (by rw [V_tensorProduct_path]; positivity)
+  rw [V_tensorProduct_path, minDeg_tensorProduct_path] at h
+  omega
+
+theorem minDeg_compl_tensorProduct_path (m n : ℕ) :
+    minDeg ((path (m + 3) ⊗g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
+  have h := minDeg_compl (G := path (m + 3) ⊗g path (n + 3))
+    (by rw [V_tensorProduct_path]; positivity)
+  rw [V_tensorProduct_path, maxDeg_tensorProduct_path] at h
+  omega
+
+theorem indepNum_compl_tensorProduct_path (m n : ℕ) :
+    ((path (m + 2) ⊗g path (n + 2))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_tensorProduct_path]
+
+theorem E_compl_lexProduct_path (m n : ℕ) :
+    ((path (m + 1) ·g path (n + 1))ᶜ).E
+      = ((m + 1) * (n + 1)).choose 2 - ((n + 1) * (n + 1) * m + (m + 1) * n) := by
+  have h := E_compl (path (m + 1) ·g path (n + 1))
+  rw [E_lexProduct_path, V_lexProduct_path] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_lexProduct_path (m n : ℕ) :
+    maxDeg ((path (m + 2) ·g path (n + 2))ᶜ) = (m + 2) * (n + 2) - n - 4 := by
+  have h := maxDeg_compl (G := path (m + 2) ·g path (n + 2))
+    (by rw [V_lexProduct_path]; positivity)
+  rw [V_lexProduct_path, minDeg_lexProduct_path] at h
+  omega
+
+theorem minDeg_compl_lexProduct_path (m n : ℕ) :
+    minDeg ((path (m + 3) ·g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 2 * n - 9 := by
+  have h := minDeg_compl (G := path (m + 3) ·g path (n + 3))
+    (by rw [V_lexProduct_path]; positivity)
+  rw [V_lexProduct_path, maxDeg_lexProduct_path] at h
+  omega
+
+theorem indepNum_compl_lexProduct_path (m n : ℕ) :
+    ((path (m + 2) ·g path (n + 2))ᶜ).indepNum = 4 := by
+  rw [indepNum_compl, cliqueNum_lexProduct_path]
+
+theorem cliqueNum_compl_lexProduct_path (m n : ℕ) :
+    ((path m ·g path n)ᶜ).cliqueNum = (m + 1) / 2 * ((n + 1) / 2) := by
+  rw [cliqueNum_compl, indepNum_lexProduct_path]
+
+theorem E_compl_tensorProduct_complete (m n : ℕ) :
+    ((complete m ⊗g complete n)ᶜ).E = (m * n).choose 2 - 2 * m.choose 2 * n.choose 2 := by
+  have h := E_compl (complete m ⊗g complete n)
+  rw [E_tensorProduct_complete, V_tensorProduct_complete] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_tensorProduct_complete (m n : ℕ) :
+    maxDeg ((complete (m + 1) ⊗g complete (n + 1))ᶜ) = (m + 1) * (n + 1) - 1 - m * n := by
+  have h := maxDeg_compl (G := complete (m + 1) ⊗g complete (n + 1))
+    (by rw [V_tensorProduct_complete]; positivity)
+  rw [V_tensorProduct_complete, minDeg_tensorProduct_complete] at h
+  omega
+
+theorem minDeg_compl_tensorProduct_complete (m n : ℕ) :
+    minDeg ((complete (m + 1) ⊗g complete (n + 1))ᶜ) = (m + 1) * (n + 1) - 1 - m * n := by
+  have h := minDeg_compl (G := complete (m + 1) ⊗g complete (n + 1))
+    (by rw [V_tensorProduct_complete]; positivity)
+  rw [V_tensorProduct_complete, maxDeg_tensorProduct_complete] at h
+  omega
+
+theorem indepNum_compl_tensorProduct_complete (m n : ℕ) :
+    ((complete m ⊗g complete n)ᶜ).indepNum = min m n := by
+  rw [indepNum_compl, cliqueNum_tensorProduct_complete]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

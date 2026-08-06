@@ -2974,6 +2974,19 @@ product earns one extra lemma the others cannot: because it is the only product 
 form for its own independence number, `cliqueNum_compl_lexProduct_cycle` gives the clique number
 of the complement as `⌊m/2⌋⌊n/2⌋`.
 
+Paths behave the same way under the tensor and lexicographic products, except that a path is not
+regular, so the two degree lemmas of a complement no longer agree:
+`maxDeg_compl_tensorProduct_path = mn - 2` comes from the minimum degree `1` of a tensor product
+of paths, while `minDeg_compl_tensorProduct_path = mn - 5` comes from its maximum degree `4`, and
+the lexicographic pair `mn - n - 4` and `mn - 2n - 9` splits the same way.
+`indepNum_compl_tensorProduct_path = 2` and `indepNum_compl_lexProduct_path = 4` mirror the cycle
+case, and `cliqueNum_compl_lexProduct_path = ⌈m/2⌉⌈n/2⌉` holds for *all* `m` and `n`, with no
+shift needed, because the independence number of a lexicographic product of paths already does.
+The tensor product of two complete graphs closes the column: it is `mn`-vertex and `mn`-regular
+minus the diagonal, so `maxDeg_compl_tensorProduct_complete` and
+`minDeg_compl_tensorProduct_complete` agree at `(m+1)(n+1) - 1 - mn`, and
+`indepNum_compl_tensorProduct_complete = min m n` is the clique number of the original.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
