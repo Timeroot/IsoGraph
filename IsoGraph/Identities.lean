@@ -39438,6 +39438,152 @@ theorem radius_lexProduct_complete (m n : ℕ) :
   have h : 2 * 1 ≤ (m + 2) * (n + 1) := Nat.mul_le_mul (by omega) (by omega)
   omega
 
+/-! ### Perfect factors in the tensor and lexicographic products -/
+
+/-- The tensor product projects onto either factor, so `χ(G ⊗ H) ≤ min χ(G) χ(H)`, while its
+clique number is `min ω(G) ω(H)`; when both factors have `χ = ω` the two bounds meet. -/
+theorem chromNum_tensorProduct_of_chromNum_eq_cliqueNum {G H : IsoGraph}
+    (hG : G.chromNum = G.cliqueNum) (hH : H.chromNum = H.cliqueNum) :
+    (G ⊗g H).chromNum = min G.cliqueNum H.cliqueNum := by
+  have h1 := chromNum_tensorProduct_le G H
+  have h2 := cliqueNum_le_chromNum (G ⊗g H)
+  rw [cliqueNum_tensorProduct] at h2
+  rw [hG, hH] at h1
+  omega
+
+theorem chromNum_eq_cliqueNum_path (n : ℕ) :
+    (path (n + 2)).chromNum = (path (n + 2)).cliqueNum := by
+  rw [chromNum_path, cliqueNum_path]
+
+theorem chromNum_eq_cliqueNum_complete (n : ℕ) :
+    (complete n).chromNum = (complete n).cliqueNum := by
+  rw [chromNum_complete, cliqueNum_complete]
+
+theorem chromNum_tensorProduct_complete (m n : ℕ) :
+    (complete m ⊗g complete n).chromNum = min m n := by
+  have h := chromNum_tensorProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_complete m) (chromNum_eq_cliqueNum_complete n)
+  rwa [cliqueNum_complete, cliqueNum_complete] at h
+
+theorem chromNum_tensorProduct_cycle_even (m n : ℕ) :
+    (cycle (2 * m + 4) ⊗g cycle (2 * n + 4)).chromNum = 2 := by
+  have h := chromNum_tensorProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_cycle_even m) (chromNum_eq_cliqueNum_cycle_even n)
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem chromNum_tensorProduct_hypercube (m n : ℕ) :
+    (hypercube (m + 1) ⊗g hypercube (n + 1)).chromNum = 2 := by
+  have h := chromNum_tensorProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_hypercube m) (chromNum_eq_cliqueNum_hypercube n)
+  rw [cliqueNum_hypercube, cliqueNum_hypercube] at h
+  omega
+
+theorem chromNum_tensorProduct_bipartite (a b c d : ℕ) :
+    (bipartite (a + 1) (b + 1) ⊗g bipartite (c + 1) (d + 1)).chromNum = 2 := by
+  have h := chromNum_tensorProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_bipartite a b) (chromNum_eq_cliqueNum_bipartite c d)
+  rw [cliqueNum_bipartite, cliqueNum_bipartite] at h
+  omega
+
+theorem chromNum_tensorProduct_complete_path (m n : ℕ) :
+    (complete m ⊗g path (n + 2)).chromNum = min m 2 := by
+  have h := chromNum_tensorProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_complete m) (chromNum_eq_cliqueNum_path n)
+  rwa [cliqueNum_complete, cliqueNum_path] at h
+
+theorem chromNum_tensorProduct_complete_cycle_even (m n : ℕ) :
+    (complete m ⊗g cycle (2 * n + 4)).chromNum = min m 2 := by
+  have h := chromNum_tensorProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_complete m) (chromNum_eq_cliqueNum_cycle_even n)
+  rwa [cliqueNum_complete, cliqueNum_cycle] at h
+
+theorem chromNum_strongProduct_complete_path (m n : ℕ) :
+    (complete m ⊠g path (n + 2)).chromNum = m * 2 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_complete m) (chromNum_eq_cliqueNum_path n)
+  rwa [cliqueNum_complete, cliqueNum_path] at h
+
+theorem chromNum_lexProduct_complete_path (m n : ℕ) :
+    (complete m ·g path (n + 2)).chromNum = m * 2 := by
+  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_complete m) (chromNum_eq_cliqueNum_path n)
+  rwa [cliqueNum_complete, cliqueNum_path] at h
+
+theorem chromNum_strongProduct_complete_cycle_even (m n : ℕ) :
+    (complete m ⊠g cycle (2 * n + 4)).chromNum = m * 2 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_complete m) (chromNum_eq_cliqueNum_cycle_even n)
+  rwa [cliqueNum_complete, cliqueNum_cycle] at h
+
+theorem chromNum_strongProduct_path_cycle_even (m n : ℕ) :
+    (path (m + 2) ⊠g cycle (2 * n + 4)).chromNum = 4 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_path m) (chromNum_eq_cliqueNum_cycle_even n)
+  rw [cliqueNum_path, cliqueNum_cycle] at h
+  omega
+
+theorem chromNum_lexProduct_path_cycle_even (m n : ℕ) :
+    (path (m + 2) ·g cycle (2 * n + 4)).chromNum = 4 := by
+  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_path m) (chromNum_eq_cliqueNum_cycle_even n)
+  rw [cliqueNum_path, cliqueNum_cycle] at h
+  omega
+
+/-- The clique cover dual: independent sets multiply in a lexicographic product and clique covers
+multiply at worst, so factors with `κ = α` force equality. -/
+theorem cliqueCoverNum_lexProduct_of_cliqueCoverNum_eq_indepNum {G H : IsoGraph}
+    (hG : G.cliqueCoverNum = G.indepNum) (hH : H.cliqueCoverNum = H.indepNum) :
+    (G ·g H).cliqueCoverNum = G.indepNum * H.indepNum := by
+  have h1 := cliqueCoverNum_lexProduct_le G H
+  have h2 := indepNum_le_cliqueCoverNum (G ·g H)
+  rw [indepNum_lexProduct] at h2
+  rw [hG, hH] at h1
+  omega
+
+theorem cliqueCoverNum_eq_indepNum_path (n : ℕ) :
+    (path n).cliqueCoverNum = (path n).indepNum := by
+  rw [cliqueCoverNum_path, indepNum_path]
+
+theorem cliqueCoverNum_eq_indepNum_complete (n : ℕ) :
+    (complete (n + 1)).cliqueCoverNum = (complete (n + 1)).indepNum := by
+  rw [cliqueCoverNum_complete, indepNum_complete]
+  omega
+
+theorem cliqueCoverNum_eq_indepNum_cycle_even (m : ℕ) :
+    (cycle (2 * m + 4)).cliqueCoverNum = (cycle (2 * m + 4)).indepNum := by
+  rw [cliqueCoverNum_cycle, indepNum_cycle]
+  omega
+
+theorem cliqueCoverNum_lexProduct_path (m n : ℕ) :
+    (path m ·g path n).cliqueCoverNum = (m + 1) / 2 * ((n + 1) / 2) := by
+  have h := cliqueCoverNum_lexProduct_of_cliqueCoverNum_eq_indepNum
+    (cliqueCoverNum_eq_indepNum_path m) (cliqueCoverNum_eq_indepNum_path n)
+  rwa [indepNum_path, indepNum_path] at h
+
+theorem cliqueCoverNum_lexProduct_complete (m n : ℕ) :
+    (complete (m + 1) ·g complete (n + 1)).cliqueCoverNum = 1 := by
+  have h := cliqueCoverNum_lexProduct_of_cliqueCoverNum_eq_indepNum
+    (cliqueCoverNum_eq_indepNum_complete m) (cliqueCoverNum_eq_indepNum_complete n)
+  rw [indepNum_complete, indepNum_complete, Nat.min_eq_right (by omega : 1 ≤ m + 1),
+    Nat.min_eq_right (by omega : 1 ≤ n + 1)] at h
+  simpa using h
+
+theorem cliqueCoverNum_lexProduct_cycle_even (m n : ℕ) :
+    (cycle (2 * m + 4) ·g cycle (2 * n + 4)).cliqueCoverNum = (m + 2) * (n + 2) := by
+  have h := cliqueCoverNum_lexProduct_of_cliqueCoverNum_eq_indepNum
+    (cliqueCoverNum_eq_indepNum_cycle_even m) (cliqueCoverNum_eq_indepNum_cycle_even n)
+  rw [indepNum_cycle, indepNum_cycle, show (2 * m + 4) / 2 = m + 2 from by omega,
+    show (2 * n + 4) / 2 = n + 2 from by omega] at h
+  exact h
+
+theorem cliqueCoverNum_lexProduct_path_complete (m n : ℕ) :
+    (path m ·g complete (n + 1)).cliqueCoverNum = (m + 1) / 2 := by
+  have h := cliqueCoverNum_lexProduct_of_cliqueCoverNum_eq_indepNum
+    (cliqueCoverNum_eq_indepNum_path m) (cliqueCoverNum_eq_indepNum_complete n)
+  rw [indepNum_path, indepNum_complete, Nat.min_eq_right (by omega : 1 ≤ n + 1)] at h
+  simpa using h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

@@ -3099,6 +3099,21 @@ A dominating vertex in the second factor is inherited by the whole lexicographic
 gives `domNum_lexProduct_complete`, `domNum_strongProduct_complete = 1` and the two radius-one
 statements that follow from it.
 
+The same squeeze works one product further down and once in the dual. A tensor product projects
+onto either factor, so `χ(G ⊗ H) ≤ min χ(G) χ(H)`, and its clique number is `min ω(G) ω(H)`;
+`chromNum_tensorProduct_of_chromNum_eq_cliqueNum` therefore pins `χ(G ⊗ H) = min ω(G) ω(H)` for
+perfect-in-this-sense factors, which gives `chromNum_tensorProduct_complete = min m n` — the
+tensor product of two complete graphs needs exactly as many colours as the smaller one — along
+with the even cycles, the hypercubes, the complete bipartite graphs and the mixed complete-path
+and complete-even-cycle cases. Dually, independent sets multiply exactly in a lexicographic
+product while clique covers multiply only at worst, so a factor with `κ = α` closes that gap too:
+`cliqueCoverNum_lexProduct_of_cliqueCoverNum_eq_indepNum` yields
+`cliqueCoverNum_lexProduct_path = ⌈m/2⌉⌈n/2⌉`, `cliqueCoverNum_lexProduct_cycle_even
+= (m+2)(n+2)` and `cliqueCoverNum_lexProduct_complete = 1`, the last because a lexicographic
+product of two complete graphs is itself complete. The witnesses `chromNum_eq_cliqueNum_path`,
+`chromNum_eq_cliqueNum_complete`, `cliqueCoverNum_eq_indepNum_path` and their siblings are
+recorded separately, since each is reused by four or five of these corollaries.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
