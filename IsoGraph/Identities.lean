@@ -35908,6 +35908,146 @@ theorem compl_lollipop_zero (m : ℕ) : (lollipop m 0)ᶜ = empty m := by
 theorem lineGraph_lollipop_zero (m : ℕ) : lineGraph (lollipop m 0) = johnson m 2 := by
   rw [lollipop_zero, lineGraph_complete]
 
+/-! ### One-path theta graphs and one-legged spiders
+
+A theta graph with a single path and a spider with a single leg are both paths, so the path row
+transfers into the two families whose maximum degree is otherwise out of reach.
+-/
+
+theorem maxDeg_thetaGraph_singleton (k : ℕ) : maxDeg (thetaGraph [k + 1]) = 2 := by
+  rw [thetaGraph_singleton, show k + 1 + 2 = k + 3 from by ring, maxDeg_path]
+
+theorem minDeg_thetaGraph_singleton (k : ℕ) : minDeg (thetaGraph [k]) = 1 := by
+  rw [thetaGraph_singleton, minDeg_path]
+
+theorem matchNum_thetaGraph_singleton (k : ℕ) :
+    (thetaGraph [k]).matchNum = (k + 2) / 2 := by
+  rw [thetaGraph_singleton, matchNum_path]
+
+theorem indepNum_thetaGraph_singleton (k : ℕ) :
+    (thetaGraph [k]).indepNum = (k + 3) / 2 := by
+  have h := indepNum_path (k + 2)
+  rw [thetaGraph_singleton]
+  omega
+
+theorem coverNum_thetaGraph_singleton (k : ℕ) :
+    (thetaGraph [k]).coverNum = (k + 2) / 2 := by
+  rw [thetaGraph_singleton, coverNum_path]
+
+theorem cliqueCoverNum_thetaGraph_singleton (k : ℕ) :
+    (thetaGraph [k]).cliqueCoverNum = (k + 3) / 2 := by
+  have h := cliqueCoverNum_path (k + 2)
+  rw [thetaGraph_singleton]
+  omega
+
+theorem cliqueNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).cliqueNum = 2 := by
+  rw [thetaGraph_singleton, cliqueNum_path]
+
+theorem chromNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).chromNum = 2 := by
+  rw [thetaGraph_singleton, chromNum_path]
+
+theorem domNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).domNum = (k + 4) / 3 := by
+  have h := domNum_path (k + 1)
+  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring]
+  omega
+
+theorem radius_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).radius = (k + 2) / 2 := by
+  have h := radius_path (k + 1)
+  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring]
+  omega
+
+theorem diameter_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).diameter = k + 1 := by
+  have h := diameter_path (k + 1)
+  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring]
+  omega
+
+theorem edgeChromNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k + 1]).edgeChromNum = 2 := by
+  rw [thetaGraph_singleton, show k + 1 + 2 = k + 3 from by ring, edgeChromNum_path]
+
+theorem girth_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).girth = 0 := by
+  rw [thetaGraph_singleton, girth_path]
+
+theorem isAcyclic_thetaGraph_singleton (k : ℕ) : IsAcyclic (thetaGraph [k]) := by
+  rw [thetaGraph_singleton]
+  exact isAcyclic_path _
+
+theorem isTree_thetaGraph_singleton (k : ℕ) : IsTree (thetaGraph [k]) := by
+  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring]
+  exact isTree_path (k + 1)
+
+theorem isConnected_thetaGraph_singleton (k : ℕ) : IsConnected (thetaGraph [k]) := by
+  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring]
+  exact isConnected_path (k + 1)
+
+theorem numComponents_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).numComponents = 1 := by
+  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring, numComponents_path]
+
+theorem lineGraph_thetaGraph_singleton (k : ℕ) : lineGraph (thetaGraph [k]) = path (k + 1) := by
+  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring, lineGraph_path]
+
+theorem not_isVertexTransitive_thetaGraph_singleton (k : ℕ) :
+    ¬ IsVertexTransitive (thetaGraph [k + 1]) := by
+  rw [thetaGraph_singleton, show k + 1 + 2 = k + 3 from by ring]
+  exact not_isVertexTransitive_path k
+
+theorem not_isArcTransitive_thetaGraph_singleton (k : ℕ) :
+    ¬ IsArcTransitive (thetaGraph [k + 1]) := by
+  rw [thetaGraph_singleton, show k + 1 + 2 = k + 3 from by ring]
+  exact not_isArcTransitive_path k
+
+theorem not_isSelfComplementary_thetaGraph_singleton (k : ℕ) :
+    ¬ IsSelfComplementary (thetaGraph [k + 3]) := by
+  rw [thetaGraph_singleton, show k + 3 + 2 = k + 5 from by ring]
+  exact not_isSelfComplementary_path k
+
+theorem maxDeg_spider_singleton (k : ℕ) : maxDeg (spider [k + 2]) = 2 := by
+  rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring, maxDeg_path]
+
+theorem matchNum_spider_singleton (k : ℕ) : (spider [k]).matchNum = (k + 1) / 2 := by
+  rw [spider_singleton, show 1 + k = k + 1 from by ring, matchNum_path]
+
+theorem indepNum_spider_singleton (k : ℕ) : (spider [k]).indepNum = (k + 2) / 2 := by
+  have h := indepNum_path (k + 1)
+  rw [spider_singleton, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem coverNum_spider_singleton (k : ℕ) : (spider [k]).coverNum = (k + 1) / 2 := by
+  rw [spider_singleton, show 1 + k = k + 1 from by ring, coverNum_path]
+
+theorem cliqueCoverNum_spider_singleton (k : ℕ) :
+    (spider [k]).cliqueCoverNum = (k + 2) / 2 := by
+  have h := cliqueCoverNum_path (k + 1)
+  rw [spider_singleton, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem domNum_spider_singleton (k : ℕ) : (spider [k]).domNum = (k + 3) / 3 := by
+  have h := domNum_path k
+  rw [spider_singleton, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem radius_spider_singleton (k : ℕ) : (spider [k]).radius = (k + 1) / 2 := by
+  have h := radius_path k
+  rw [spider_singleton, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem diameter_spider_singleton (k : ℕ) : (spider [k]).diameter = k := by
+  rw [spider_singleton, show 1 + k = k + 1 from by ring, diameter_path]
+
+theorem edgeChromNum_spider_singleton (k : ℕ) : (spider [k + 2]).edgeChromNum = 2 := by
+  rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring, edgeChromNum_path]
+
+theorem lineGraph_spider_singleton (k : ℕ) : lineGraph (spider [k]) = path k := by
+  rw [spider_singleton, show 1 + k = k + 1 from by ring, lineGraph_path]
+
+theorem not_isVertexTransitive_spider_singleton (k : ℕ) :
+    ¬ IsVertexTransitive (spider [k + 2]) := by
+  rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring]
+  exact not_isVertexTransitive_path k
+
+theorem not_isArcTransitive_spider_singleton (k : ℕ) : ¬ IsArcTransitive (spider [k + 2]) := by
+  rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring]
+  exact not_isArcTransitive_path k
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

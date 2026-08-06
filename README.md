@@ -2634,6 +2634,27 @@ rather than a bound: `autCount_lollipop_zero` is `m!` on the nose. Alongside it 
 `isArcTransitive_lollipop_zero`, and the two structural identities `compl_lollipop_zero` and
 `lineGraph_lollipop_zero`, the latter landing on the Johnson graph `J(m, 2)`.
 
+The last two degenerate columns are the theta graph with a single path and the spider with a
+single leg, both of which are paths: `thetaGraph [k]` is `Pₖ₊₂` and `spider [k]` is `P₁₊ₖ`. The
+path row transfers wholesale, and it is worth more here than elsewhere because the maximum degree
+is precisely the invariant that blocks the general theta and spider rows. On the theta side:
+`maxDeg_thetaGraph_singleton`, `minDeg_thetaGraph_singleton`, `matchNum_thetaGraph_singleton`,
+`indepNum_thetaGraph_singleton`, `coverNum_thetaGraph_singleton`,
+`cliqueCoverNum_thetaGraph_singleton`, `cliqueNum_thetaGraph_singleton`,
+`chromNum_thetaGraph_singleton`, `domNum_thetaGraph_singleton`, `radius_thetaGraph_singleton`,
+`diameter_thetaGraph_singleton`, `edgeChromNum_thetaGraph_singleton`,
+`girth_thetaGraph_singleton`, `isAcyclic_thetaGraph_singleton`, `isTree_thetaGraph_singleton`
+(which is consistent with `not_isTree_thetaGraph`, since that one needs at least two paths),
+`isConnected_thetaGraph_singleton`, `numComponents_thetaGraph_singleton`,
+`lineGraph_thetaGraph_singleton`, `not_isVertexTransitive_thetaGraph_singleton`,
+`not_isArcTransitive_thetaGraph_singleton` and `not_isSelfComplementary_thetaGraph_singleton`.
+On the spider side the same list appears as `maxDeg_spider_singleton`,
+`matchNum_spider_singleton`, `indepNum_spider_singleton`, `coverNum_spider_singleton`,
+`cliqueCoverNum_spider_singleton`, `domNum_spider_singleton`, `radius_spider_singleton`,
+`diameter_spider_singleton`, `edgeChromNum_spider_singleton`, `lineGraph_spider_singleton`,
+`not_isVertexTransitive_spider_singleton` and `not_isArcTransitive_spider_singleton`, the rest of
+the row already being covered by the general spider lemmas.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
