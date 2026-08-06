@@ -36428,6 +36428,97 @@ theorem numComponents_lollipop_one (k : ℕ) : (lollipop 1 k).numComponents = 1 
 theorem lineGraph_lollipop_one (k : ℕ) : lineGraph (lollipop 1 k) = path k := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring, lineGraph_path]
 
+/-! ### Kneser graphs below the packing threshold
+
+Two `k`-subsets of an `n`-set cannot be disjoint once `n < 2 * k`, so `kneser n k` is edgeless
+there.  The whole edgeless row therefore applies, in a range where the usual Kneser arguments —
+which all assume `2 * k ≤ n` — say nothing at all.
+-/
+
+theorem maxDeg_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : maxDeg (kneser n k) = 0 := by
+  rw [kneser_eq_empty n k h, maxDeg_empty]
+
+theorem minDeg_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : minDeg (kneser n k) = 0 := by
+  rw [kneser_eq_empty n k h, minDeg_empty]
+
+theorem matchNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).matchNum = 0 := by
+  rw [kneser_eq_empty n k h, matchNum_empty]
+
+theorem coverNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).coverNum = 0 := by
+  rw [kneser_eq_empty n k h, coverNum_empty]
+
+theorem indepNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k).indepNum = n.choose k := by
+  rw [kneser_eq_empty n k h, indepNum_empty]
+
+theorem cliqueNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k).cliqueNum = min (n.choose k) 1 := by
+  rw [kneser_eq_empty n k h, cliqueNum_empty]
+
+theorem cliqueCoverNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k).cliqueCoverNum = n.choose k := by
+  rw [kneser_eq_empty n k h, cliqueCoverNum_empty]
+
+theorem domNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).domNum = n.choose k := by
+  rw [kneser_eq_empty n k h, domNum_empty]
+
+theorem numComponents_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k).numComponents = n.choose k := by
+  rw [kneser_eq_empty n k h, numComponents_empty]
+
+theorem radius_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).radius = 0 := by
+  rw [kneser_eq_empty n k h, radius_empty]
+
+theorem diameter_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).diameter = 0 := by
+  rw [kneser_eq_empty n k h, diameter_empty]
+
+theorem girth_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).girth = 0 := by
+  rw [kneser_eq_empty n k h, girth_empty]
+
+theorem edgeChromNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k).edgeChromNum = 0 := by
+  rw [kneser_eq_empty n k h, edgeChromNum_empty]
+
+theorem chromNum_kneser_of_lt (n k : ℕ) (hk : k ≤ n) (h : n < 2 * k) :
+    (kneser n k).chromNum = 1 := by
+  obtain ⟨m, hm⟩ : ∃ m, n.choose k = m + 1 := ⟨n.choose k - 1, by
+    have := Nat.choose_pos hk; omega⟩
+  rw [kneser_eq_empty n k h, hm, chromNum_empty]
+
+theorem degSequence_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    degSequence (kneser n k) = List.replicate (n.choose k) 0 := by
+  rw [kneser_eq_empty n k h, degSequence_empty]
+
+theorem autCount_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k).autCount = Nat.factorial (n.choose k) := by
+  rw [kneser_eq_empty n k h, autCount_empty]
+
+theorem isRegularWith_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k).IsRegularWith 0 := by
+  rw [kneser_eq_empty n k h]
+  exact isRegularWith_empty _
+
+theorem isAcyclic_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : IsAcyclic (kneser n k) := by
+  rw [kneser_eq_empty n k h]
+  exact isAcyclic_empty _
+
+theorem isBipartite_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : IsBipartite (kneser n k) := by
+  rw [kneser_eq_empty n k h]
+  exact isBipartite_empty _
+
+theorem isArcTransitive_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    IsArcTransitive (kneser n k) := by
+  rw [kneser_eq_empty n k h]
+  exact isArcTransitive_empty _
+
+theorem compl_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    (kneser n k)ᶜ = complete (n.choose k) := by
+  rw [kneser_eq_empty n k h, compl_empty]
+
+theorem lineGraph_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+    lineGraph (kneser n k) = empty 0 := by
+  rw [kneser_eq_empty n k h, lineGraph_empty]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

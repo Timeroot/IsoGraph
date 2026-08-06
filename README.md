@@ -2713,6 +2713,19 @@ identical list for the lollipop: `maxDeg_lollipop_one`, `minDeg_lollipop_one`,
 `lineGraph_lollipop_one`. Note the reversal of sign against the general row: a tadpole is never
 acyclic and never a tree once its cycle is real, but at `m = 1` it is both.
 
+One more Kneser column comes for free, and it is a whole half-plane rather than a single value.
+Two `k`-subsets of an `n`-set cannot be disjoint once `n < 2 * k`, so `kneser_eq_empty` says the
+graph is edgeless on `C(n, k)` vertices there, and every Kneser lemma in the file assumes the
+opposite inequality. The edgeless row transfers under that hypothesis as `maxDeg_kneser_of_lt`,
+`minDeg_kneser_of_lt`, `matchNum_kneser_of_lt`, `coverNum_kneser_of_lt`, `indepNum_kneser_of_lt`,
+`cliqueNum_kneser_of_lt`, `cliqueCoverNum_kneser_of_lt`, `domNum_kneser_of_lt`,
+`numComponents_kneser_of_lt`, `radius_kneser_of_lt`, `diameter_kneser_of_lt`,
+`girth_kneser_of_lt`, `edgeChromNum_kneser_of_lt`, `degSequence_kneser_of_lt`,
+`autCount_kneser_of_lt` (which is `C(n, k)!`, the full symmetric group),
+`isRegularWith_kneser_of_lt`, `isAcyclic_kneser_of_lt`, `isBipartite_kneser_of_lt`,
+`isArcTransitive_kneser_of_lt`, `compl_kneser_of_lt` and `lineGraph_kneser_of_lt`. Only
+`chromNum_kneser_of_lt` needs a second hypothesis, `k ≤ n`, to know there is a vertex at all.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
