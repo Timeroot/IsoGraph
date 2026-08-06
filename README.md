@@ -3443,6 +3443,17 @@ fourteen, and minimum degree at least four. Both are connected with one componen
 and both inherit distance bounds one better than the board's own: `m + n + 3` for the grid's line
 graph and `max(m, n) + 2` for the king's.
 
+Back on the Mycielskian side, the spider and the cycle-with-pendant-paths were the two list-indexed
+families still missing rows, and they are the two where the interesting hypothesis is not on a
+number but on a list. A spider is a tree, so `M(S)` has chromatic number three and clique number
+two, and — because a tree with at least one edge is triangle-free — girth at least four; the whole
+row runs off the single side condition `0 < legs.sum`, which is what rules out the one-vertex
+spider whose Mycielskian is an isolated pair. `cyclePendant` needs two side conditions instead of
+one, `ks.length ≤ m + 3` so the pendant list fits on the rim and `0 < ks.sum` so at least one
+pendant path is non-empty, and with both in hand its Mycielskian is connected with radius exactly
+two, minimum degree two, and `4(m + 3 + ks.sum)` edges. Chromatic number three is available on the
+even rim, where the cycle-with-pendants is bipartite.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

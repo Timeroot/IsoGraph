@@ -45406,6 +45406,132 @@ theorem maxDeg_lineGraph_king_le (m n : ℕ) :
   rw [maxDeg_king] at h
   omega
 
+/-! ### The Mycielskian of a spider -/
+
+@[simp] theorem V_mycielskian_spider (legs : List ℕ) :
+    (mycielskian (spider legs)).V = 2 * legs.sum + 3 := by
+  rw [V_mycielskian, V_spider]
+  omega
+
+@[simp] theorem E_mycielskian_spider (legs : List ℕ) :
+    (mycielskian (spider legs)).E = 4 * legs.sum + 1 := by
+  rw [E_mycielskian, E_spider, V_spider]
+  omega
+
+theorem chromNum_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    (mycielskian (spider legs)).chromNum = 3 := by
+  have hm := chromNum_mycielskian (spider legs)
+  rw [chromNum_spider legs h] at hm
+  omega
+
+theorem cliqueNum_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    (mycielskian (spider legs)).cliqueNum = 2 := by
+  have hm := cliqueNum_mycielskian (spider legs) (by rw [V_spider]; omega)
+  rw [cliqueNum_spider legs h] at hm
+  omega
+
+theorem minDeg_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    minDeg (mycielskian (spider legs)) = 2 := by
+  have hm := minDeg_mycielskian (spider legs) (by rw [V_spider]; omega)
+  rw [minDeg_spider legs h, V_spider] at hm
+  omega
+
+theorem isConnected_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    IsConnected (mycielskian (spider legs)) :=
+  isConnected_mycielskian _ (by rw [minDeg_spider legs h]; omega)
+
+theorem numComponents_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    (mycielskian (spider legs)).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_spider legs h]; omega)
+
+theorem radius_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    (mycielskian (spider legs)).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_spider legs h]; omega)
+
+theorem two_le_diameter_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    2 ≤ (mycielskian (spider legs)).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_spider legs h]; omega)
+
+theorem diameter_mycielskian_spider_le_four (legs : List ℕ) (h : 0 < legs.sum) :
+    (mycielskian (spider legs)).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_spider legs h]; omega)
+
+theorem four_le_girth_mycielskian_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    4 ≤ (mycielskian (spider legs)).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_spider legs h]) (by rw [E_spider]; omega)
+
+theorem domNum_mycielskian_spider (legs : List ℕ) :
+    (mycielskian (spider legs)).domNum = (spider legs).domNum + 1 :=
+  domNum_mycielskian _ (by rw [V_spider]; omega)
+
+theorem coverNum_mycielskian_spider_le (legs : List ℕ) :
+    (mycielskian (spider legs)).coverNum ≤ legs.sum + 2 := by
+  have h := coverNum_mycielskian_le (spider legs)
+  rw [V_spider] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_spider (legs : List ℕ) :
+    1 + legs.sum ≤ (mycielskian (spider legs)).indepNum := by
+  have h := V_le_indepNum_mycielskian (spider legs)
+  rwa [V_spider] at h
+
+/-! ### The Mycielskian of a cycle with pendant paths -/
+
+@[simp] theorem V_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) :
+    (mycielskian (cyclePendant m ks)).V = 2 * (m + ks.sum) + 1 := by
+  rw [V_mycielskian, V_cyclePendant]
+
+theorem E_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
+    (mycielskian (cyclePendant (m + 3) ks)).E = 4 * (m + 3 + ks.sum) := by
+  rw [E_mycielskian, E_cyclePendant m ks h, V_cyclePendant]
+  omega
+
+theorem minDeg_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : minDeg (mycielskian (cyclePendant (m + 3) ks)) = 2 := by
+  have hm := minDeg_mycielskian (cyclePendant (m + 3) ks) (by rw [V_cyclePendant]; omega)
+  rw [minDeg_cyclePendant m ks h h2, V_cyclePendant] at hm
+  omega
+
+theorem isConnected_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : IsConnected (mycielskian (cyclePendant (m + 3) ks)) :=
+  isConnected_mycielskian _ (by rw [minDeg_cyclePendant m ks h h2]; omega)
+
+theorem numComponents_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : (mycielskian (cyclePendant (m + 3) ks)).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_cyclePendant m ks h h2]; omega)
+
+theorem radius_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : (mycielskian (cyclePendant (m + 3) ks)).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_cyclePendant m ks h h2]; omega)
+
+theorem two_le_diameter_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : 2 ≤ (mycielskian (cyclePendant (m + 3) ks)).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_cyclePendant m ks h h2]; omega)
+
+theorem diameter_mycielskian_cyclePendant_le_four (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : (mycielskian (cyclePendant (m + 3) ks)).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_cyclePendant m ks h h2]; omega)
+
+theorem chromNum_mycielskian_cyclePendant_even (t : ℕ) (ks : List ℕ) (h : ks.length ≤ 2 * t + 2) :
+    (mycielskian (cyclePendant (2 * t + 2) ks)).chromNum = 3 := by
+  have hm := chromNum_mycielskian (cyclePendant (2 * t + 2) ks)
+  rw [chromNum_cyclePendant_even t ks h] at hm
+  omega
+
+theorem domNum_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) :
+    (mycielskian (cyclePendant (m + 1) ks)).domNum = (cyclePendant (m + 1) ks).domNum + 1 :=
+  domNum_mycielskian _ (by rw [V_cyclePendant]; omega)
+
+theorem coverNum_mycielskian_cyclePendant_le (m : ℕ) (ks : List ℕ) :
+    (mycielskian (cyclePendant m ks)).coverNum ≤ m + ks.sum + 1 := by
+  have h := coverNum_mycielskian_le (cyclePendant m ks)
+  rwa [V_cyclePendant] at h
+
+theorem V_le_indepNum_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) :
+    m + ks.sum ≤ (mycielskian (cyclePendant m ks)).indepNum := by
+  have h := V_le_indepNum_mycielskian (cyclePendant m ks)
+  rwa [V_cyclePendant] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
