@@ -3285,6 +3285,15 @@ collapses to `m + n + 4` for the path joined to a star, since the star's centre 
 Minimum degree is the dual minimum. Every one of the three has diameter exactly two, established
 through `diameter_join_left` from the fact that a path on `m + 3` vertices is never complete.
 
+The disjoint union side got the same treatment, with `Pₘ ⊕ Cₙ`, `Pₘ ⊕ Kₙ` and `Pₘ ⊕ Sₙ` filled in.
+A disjoint union has more usable general laws than a join does — matching number, domination number
+and edge chromatic number all split across the two sides, where the join has no law for any of the
+three — so these rows are the widest in the two tables, sixteen invariants apiece. The edge
+chromatic number is the maximum of the two sides, giving `2` for a path beside an even cycle, `3`
+beside an odd one, and `2n + 3` beside `K₂ₙ₊₃`; the domination number is the honest sum, so a path
+beside a complete graph needs `⌈(m+3)/3⌉ + 1` vertices. As always the union is disconnected, hence
+two components with diameter and radius both zero.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

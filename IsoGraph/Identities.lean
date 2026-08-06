@@ -42767,6 +42767,243 @@ theorem diameter_join_path_star (m n : ℕ) : (path (m + 3) ∇g star n).diamete
   rw [E_path, V_path, h]
   omega
 
+/-! ### The disjoint union of a path and a cycle -/
+
+@[simp] theorem V_disjUnion_path_cycle (m n : ℕ) : (path m ⊕g cycle n).V = m + n := by
+  rw [V_disjUnion, V_path, V_cycle]
+
+@[simp] theorem E_disjUnion_path_cycle (m n : ℕ) :
+    (path (m + 1) ⊕g cycle (n + 3)).E = m + (n + 3) := by
+  rw [E_disjUnion, E_path, E_cycle]
+
+theorem cliqueNum_disjUnion_path_cycle (m n : ℕ) :
+    (path (m + 2) ⊕g cycle (n + 4)).cliqueNum = 2 := by
+  have h := cliqueNum_disjUnion (path (m + 2)) (cycle (n + 4))
+  rw [cliqueNum_path, cliqueNum_cycle] at h
+  omega
+
+theorem chromNum_disjUnion_path_cycle_even (m n : ℕ) :
+    (path (m + 2) ⊕g cycle (2 * n + 2)).chromNum = 2 := by
+  have h := chromNum_disjUnion (path (m + 2)) (cycle (2 * n + 2))
+  rw [chromNum_path, chromNum_cycle_even] at h
+  omega
+
+theorem chromNum_disjUnion_path_cycle_odd (m n : ℕ) :
+    (path (m + 2) ⊕g cycle (2 * n + 3)).chromNum = 3 := by
+  have h := chromNum_disjUnion (path (m + 2)) (cycle (2 * n + 3))
+  rw [chromNum_path, chromNum_cycle_odd] at h
+  omega
+
+theorem indepNum_disjUnion_path_cycle (m n : ℕ) :
+    (path m ⊕g cycle (n + 3)).indepNum = (m + 1) / 2 + (n + 3) / 2 := by
+  rw [indepNum_disjUnion, indepNum_path, indepNum_cycle]
+
+theorem coverNum_disjUnion_path_cycle (m n : ℕ) :
+    (path m ⊕g cycle (n + 3)).coverNum = m / 2 + (n + 3 - (n + 3) / 2) := by
+  rw [coverNum_disjUnion, coverNum_path, coverNum_cycle]
+
+theorem cliqueCoverNum_disjUnion_path_cycle (m n : ℕ) :
+    (path m ⊕g cycle (n + 4)).cliqueCoverNum = (m + 1) / 2 + (n + 5) / 2 := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_cycle]
+
+theorem matchNum_disjUnion_path_cycle (m n : ℕ) :
+    (path m ⊕g cycle (n + 3)).matchNum = m / 2 + (n + 3) / 2 := by
+  rw [matchNum_disjUnion, matchNum_path, matchNum_cycle]
+
+theorem domNum_disjUnion_path_cycle (m n : ℕ) :
+    (path (m + 1) ⊕g cycle (n + 3)).domNum = (m + 3) / 3 + (n + 5) / 3 := by
+  rw [domNum_disjUnion, domNum_path, domNum_cycle]
+
+theorem edgeChromNum_disjUnion_path_cycle_even (m n : ℕ) :
+    (path (m + 3) ⊕g cycle (2 * n + 4)).edgeChromNum = 2 := by
+  have h := edgeChromNum_disjUnion (path (m + 3)) (cycle (2 * n + 4))
+  rw [edgeChromNum_path, edgeChromNum_cycle_even] at h
+  omega
+
+theorem edgeChromNum_disjUnion_path_cycle_odd (m n : ℕ) :
+    (path (m + 3) ⊕g cycle (2 * n + 3)).edgeChromNum = 3 := by
+  have h := edgeChromNum_disjUnion (path (m + 3)) (cycle (2 * n + 3))
+  rw [edgeChromNum_path, edgeChromNum_cycle_odd] at h
+  omega
+
+theorem maxDeg_disjUnion_path_cycle (m n : ℕ) :
+    maxDeg (path (m + 3) ⊕g cycle (n + 3)) = 2 := by
+  have h := maxDeg_disjUnion (path (m + 3)) (cycle (n + 3))
+  rw [maxDeg_path, maxDeg_cycle] at h
+  omega
+
+theorem minDeg_disjUnion_path_cycle (m n : ℕ) :
+    minDeg (path (m + 2) ⊕g cycle (n + 3)) = 1 := by
+  have h := minDeg_disjUnion (G := path (m + 2)) (H := cycle (n + 3))
+    (by rw [V_path]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_path, minDeg_cycle] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_path_cycle (m n : ℕ) :
+    (path (m + 1) ⊕g cycle (n + 1)).numComponents = 2 := by
+  have h := numComponents_disjUnion (path (m + 1)) (cycle (n + 1))
+  rw [numComponents_path, numComponents_cycle] at h
+  omega
+
+theorem not_isConnected_disjUnion_path_cycle (m n : ℕ) :
+    ¬ IsConnected (path (m + 1) ⊕g cycle (n + 1)) :=
+  not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
+
+theorem diameter_disjUnion_path_cycle (m n : ℕ) :
+    (path (m + 1) ⊕g cycle (n + 1)).diameter = 0 :=
+  diameter_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
+
+theorem radius_disjUnion_path_cycle (m n : ℕ) :
+    (path (m + 1) ⊕g cycle (n + 1)).radius = 0 :=
+  radius_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
+
+/-! ### The disjoint union of a path and a complete graph -/
+
+@[simp] theorem V_disjUnion_path_complete (m n : ℕ) : (path m ⊕g complete n).V = m + n := by
+  rw [V_disjUnion, V_path, V_complete]
+
+@[simp] theorem E_disjUnion_path_complete (m n : ℕ) :
+    (path (m + 1) ⊕g complete n).E = m + n.choose 2 := by
+  rw [E_disjUnion, E_path, E_complete]
+
+theorem cliqueNum_disjUnion_path_complete (m n : ℕ) :
+    (path (m + 2) ⊕g complete n).cliqueNum = max 2 n := by
+  rw [cliqueNum_disjUnion, cliqueNum_path, cliqueNum_complete]
+
+theorem chromNum_disjUnion_path_complete (m n : ℕ) :
+    (path (m + 2) ⊕g complete n).chromNum = max 2 n := by
+  rw [chromNum_disjUnion, chromNum_path, chromNum_complete]
+
+theorem indepNum_disjUnion_path_complete (m n : ℕ) :
+    (path m ⊕g complete n).indepNum = (m + 1) / 2 + min n 1 := by
+  rw [indepNum_disjUnion, indepNum_path, indepNum_complete]
+
+theorem coverNum_disjUnion_path_complete (m n : ℕ) :
+    (path m ⊕g complete n).coverNum = m / 2 + (n - 1) := by
+  rw [coverNum_disjUnion, coverNum_path, coverNum_complete]
+
+theorem cliqueCoverNum_disjUnion_path_complete (m n : ℕ) :
+    (path m ⊕g complete (n + 1)).cliqueCoverNum = (m + 1) / 2 + 1 := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_complete]
+
+theorem matchNum_disjUnion_path_complete (m n : ℕ) :
+    (path m ⊕g complete n).matchNum = m / 2 + n / 2 := by
+  rw [matchNum_disjUnion, matchNum_path, matchNum_complete]
+
+theorem domNum_disjUnion_path_complete (m n : ℕ) :
+    (path (m + 1) ⊕g complete (n + 1)).domNum = (m + 3) / 3 + 1 := by
+  rw [domNum_disjUnion, domNum_path, domNum_complete]
+
+theorem edgeChromNum_disjUnion_path_complete_odd (m n : ℕ) :
+    (path (m + 3) ⊕g complete (2 * n + 3)).edgeChromNum = 2 * n + 3 := by
+  have h := edgeChromNum_disjUnion (path (m + 3)) (complete (2 * n + 3))
+  rw [edgeChromNum_path, edgeChromNum_complete_odd] at h
+  omega
+
+theorem maxDeg_disjUnion_path_complete (m n : ℕ) :
+    maxDeg (path (m + 3) ⊕g complete n) = max 2 (n - 1) := by
+  rw [maxDeg_disjUnion, maxDeg_path, maxDeg_complete]
+
+theorem minDeg_disjUnion_path_complete (m n : ℕ) :
+    minDeg (path (m + 2) ⊕g complete (n + 1)) = min 1 n := by
+  have h := minDeg_disjUnion (G := path (m + 2)) (H := complete (n + 1))
+    (by rw [V_path]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_path, minDeg_complete] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_path_complete (m n : ℕ) :
+    (path (m + 1) ⊕g complete (n + 1)).numComponents = 2 := by
+  have h := numComponents_disjUnion (path (m + 1)) (complete (n + 1))
+  rw [numComponents_path, numComponents_complete] at h
+  omega
+
+theorem not_isConnected_disjUnion_path_complete (m n : ℕ) :
+    ¬ IsConnected (path (m + 1) ⊕g complete (n + 1)) :=
+  not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_complete]; omega)
+
+theorem diameter_disjUnion_path_complete (m n : ℕ) :
+    (path (m + 1) ⊕g complete (n + 1)).diameter = 0 :=
+  diameter_disjUnion (by rw [V_path]; omega) (by rw [V_complete]; omega)
+
+theorem radius_disjUnion_path_complete (m n : ℕ) :
+    (path (m + 1) ⊕g complete (n + 1)).radius = 0 :=
+  radius_disjUnion (by rw [V_path]; omega) (by rw [V_complete]; omega)
+
+/-! ### The disjoint union of a path and a star -/
+
+@[simp] theorem V_disjUnion_path_star (m n : ℕ) : (path m ⊕g star n).V = m + n + 1 := by
+  rw [V_disjUnion, V_path, V_star]
+  omega
+
+@[simp] theorem E_disjUnion_path_star (m n : ℕ) :
+    (path (m + 1) ⊕g star n).E = m + n := by
+  rw [E_disjUnion, E_path, E_star]
+
+theorem cliqueNum_disjUnion_path_star (m n : ℕ) :
+    (path (m + 2) ⊕g star (n + 1)).cliqueNum = 2 := by
+  have h := cliqueNum_disjUnion (path (m + 2)) (star (n + 1))
+  rw [cliqueNum_path, cliqueNum_star] at h
+  omega
+
+theorem chromNum_disjUnion_path_star (m n : ℕ) :
+    (path (m + 2) ⊕g star (n + 1)).chromNum = 2 := by
+  have h := chromNum_disjUnion (path (m + 2)) (star (n + 1))
+  rw [chromNum_path, chromNum_star] at h
+  omega
+
+theorem indepNum_disjUnion_path_star (m n : ℕ) :
+    (path m ⊕g star n).indepNum = (m + 1) / 2 + max 1 n := by
+  rw [indepNum_disjUnion, indepNum_path, indepNum_star]
+
+theorem coverNum_disjUnion_path_star (m n : ℕ) :
+    (path m ⊕g star n).coverNum = m / 2 + min 1 n := by
+  rw [coverNum_disjUnion, coverNum_path, coverNum_star]
+
+theorem cliqueCoverNum_disjUnion_path_star (m n : ℕ) :
+    (path m ⊕g star n).cliqueCoverNum = (m + 1) / 2 + max 1 n := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_star]
+
+theorem matchNum_disjUnion_path_star (m n : ℕ) :
+    (path m ⊕g star n).matchNum = m / 2 + min n 1 := by
+  rw [matchNum_disjUnion, matchNum_path, matchNum_star]
+
+theorem domNum_disjUnion_path_star (m n : ℕ) :
+    (path (m + 1) ⊕g star n).domNum = (m + 3) / 3 + 1 := by
+  rw [domNum_disjUnion, domNum_path, domNum_star]
+
+theorem edgeChromNum_disjUnion_path_star (m n : ℕ) :
+    (path (m + 3) ⊕g star n).edgeChromNum = max 2 n := by
+  rw [edgeChromNum_disjUnion, edgeChromNum_path, edgeChromNum_star]
+
+theorem maxDeg_disjUnion_path_star (m n : ℕ) :
+    maxDeg (path (m + 3) ⊕g star (n + 1)) = max 2 (n + 1) := by
+  rw [maxDeg_disjUnion, maxDeg_path, maxDeg_star]
+
+theorem minDeg_disjUnion_path_star (m n : ℕ) :
+    minDeg (path (m + 2) ⊕g star (n + 1)) = 1 := by
+  have h := minDeg_disjUnion (G := path (m + 2)) (H := star (n + 1))
+    (by rw [V_path]; omega) (by rw [V_star]; omega)
+  rw [minDeg_path, minDeg_star] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_path_star (m n : ℕ) :
+    (path (m + 1) ⊕g star n).numComponents = 2 := by
+  have h := numComponents_disjUnion (path (m + 1)) (star n)
+  rw [numComponents_path, numComponents_star] at h
+  omega
+
+theorem not_isConnected_disjUnion_path_star (m n : ℕ) :
+    ¬ IsConnected (path (m + 1) ⊕g star n) :=
+  not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_star]; omega)
+
+theorem diameter_disjUnion_path_star (m n : ℕ) :
+    (path (m + 1) ⊕g star n).diameter = 0 :=
+  diameter_disjUnion (by rw [V_path]; omega) (by rw [V_star]; omega)
+
+theorem radius_disjUnion_path_star (m n : ℕ) :
+    (path (m + 1) ⊕g star n).radius = 0 :=
+  radius_disjUnion (by rw [V_path]; omega) (by rw [V_star]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
