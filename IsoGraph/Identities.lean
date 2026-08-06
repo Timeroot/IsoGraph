@@ -41241,6 +41241,173 @@ theorem matchNum_mycielskian_complete_even (m : ℕ) :
   have h := matchNum_mycielskian (complete (2 * m)) (by rw [matchNum_complete, V_complete]; omega)
   rwa [V_complete] at h
 
+/-! ### The Mycielskian of a hypercube -/
+
+@[simp] theorem V_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube n)).V = 2 * 2 ^ n + 1 := by
+  rw [V_mycielskian, V_hypercube]
+
+theorem E_mycielskian_hypercube (n : ℕ) :
+    2 * (mycielskian (hypercube n)).E = 3 * (n * 2 ^ n) + 2 * 2 ^ n := by
+  have h := E_hypercube n
+  rw [E_mycielskian, V_hypercube,
+    show 2 * (3 * (hypercube n).E + 2 ^ n) = 3 * (2 * (hypercube n).E) + 2 * 2 ^ n from by ring, h]
+
+theorem chromNum_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube (n + 1))).chromNum = 3 := by
+  rw [chromNum_mycielskian, chromNum_hypercube]
+
+theorem cliqueNum_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube (n + 1))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (hypercube (n + 1)) (by rw [V_hypercube]; positivity)
+  rw [cliqueNum_hypercube] at h
+  omega
+
+theorem maxDeg_mycielskian_hypercube (n : ℕ) :
+    maxDeg (mycielskian (hypercube n)) = max (2 * n) (2 ^ n) := by
+  have h := maxDeg_mycielskian (hypercube n)
+  rwa [maxDeg_hypercube, V_hypercube] at h
+
+theorem minDeg_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube (n + 1))).minDeg = min (n + 2) (2 ^ (n + 1)) := by
+  have h := minDeg_mycielskian (hypercube (n + 1)) (by rw [V_hypercube]; positivity)
+  rwa [minDeg_hypercube, V_hypercube,
+    show min (2 * (n + 1)) (n + 1 + 1) = n + 2 from by omega] at h
+
+theorem isConnected_mycielskian_hypercube (n : ℕ) :
+    IsConnected (mycielskian (hypercube (n + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_hypercube]; omega)
+
+theorem numComponents_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube (n + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_hypercube]; omega)
+
+theorem radius_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube (n + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_hypercube]; omega)
+
+theorem four_le_girth_mycielskian_hypercube (n : ℕ) :
+    4 ≤ (mycielskian (hypercube (n + 1))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_hypercube]) (E_pos_hypercube n)
+
+theorem matchNum_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube (n + 1))).matchNum = 2 ^ (n + 1) := by
+  have h := matchNum_mycielskian (hypercube (n + 1))
+    (by rw [matchNum_hypercube, V_hypercube]; ring)
+  rwa [V_hypercube] at h
+
+theorem cliqueCoverNum_mycielskian_hypercube (n : ℕ) :
+    (mycielskian (hypercube (n + 1))).cliqueCoverNum = 2 ^ (n + 1) + 1 := by
+  have h := cliqueCoverNum_mycielskian (hypercube (n + 1)) (by rw [V_hypercube]; positivity)
+    (by rw [cliqueNum_hypercube]) (by rw [matchNum_hypercube, V_hypercube]; ring)
+  rwa [V_hypercube] at h
+
+/-! ### The Mycielskian of the Petersen graph -/
+
+@[simp] theorem V_mycielskian_petersen : (mycielskian petersen).V = 21 := by
+  rw [V_mycielskian, V_petersen]
+
+@[simp] theorem E_mycielskian_petersen : (mycielskian petersen).E = 55 := by
+  rw [E_mycielskian, E_petersen, V_petersen]
+
+@[simp] theorem chromNum_mycielskian_petersen : (mycielskian petersen).chromNum = 4 := by
+  rw [chromNum_mycielskian, chromNum_petersen]
+
+theorem cliqueNum_mycielskian_petersen : (mycielskian petersen).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian petersen (by rw [V_petersen]; omega)
+  rw [cliqueNum_petersen] at h
+  omega
+
+theorem maxDeg_mycielskian_petersen : maxDeg (mycielskian petersen) = 10 := by
+  have h := maxDeg_mycielskian petersen
+  rw [maxDeg_petersen, V_petersen] at h
+  omega
+
+theorem minDeg_mycielskian_petersen : (mycielskian petersen).minDeg = 4 := by
+  have h := minDeg_mycielskian petersen (by rw [V_petersen]; omega)
+  rw [minDeg_petersen, V_petersen] at h
+  omega
+
+theorem domNum_mycielskian_petersen : (mycielskian petersen).domNum = 4 := by
+  have h := domNum_mycielskian petersen (by rw [V_petersen]; omega)
+  rw [domNum_petersen] at h
+  omega
+
+theorem isConnected_mycielskian_petersen : IsConnected (mycielskian petersen) :=
+  isConnected_mycielskian _ (by rw [minDeg_petersen]; omega)
+
+theorem numComponents_mycielskian_petersen : (mycielskian petersen).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_petersen]; omega)
+
+theorem radius_mycielskian_petersen : (mycielskian petersen).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_petersen]; omega)
+
+theorem four_le_girth_mycielskian_petersen : 4 ≤ (mycielskian petersen).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_petersen]) (by rw [E_petersen]; omega)
+
+theorem matchNum_mycielskian_petersen : (mycielskian petersen).matchNum = 10 := by
+  have h := matchNum_mycielskian petersen (by rw [matchNum_petersen, V_petersen])
+  rwa [V_petersen] at h
+
+theorem cliqueCoverNum_mycielskian_petersen : (mycielskian petersen).cliqueCoverNum = 11 := by
+  have h := cliqueCoverNum_mycielskian petersen (by rw [V_petersen]; omega)
+    (by rw [cliqueNum_petersen]) (by rw [matchNum_petersen, V_petersen])
+  rw [V_petersen] at h
+  omega
+
+/-! ### The Mycielskian of a star -/
+
+@[simp] theorem V_mycielskian_star (n : ℕ) : (mycielskian (star n)).V = 2 * n + 3 := by
+  rw [V_mycielskian, V_star]
+  omega
+
+theorem E_mycielskian_star (n : ℕ) : (mycielskian (star n)).E = 4 * n + 1 := by
+  rw [E_mycielskian, E_star, V_star]
+  omega
+
+theorem chromNum_mycielskian_star (n : ℕ) :
+    (mycielskian (star (n + 1))).chromNum = 3 := by
+  rw [chromNum_mycielskian, chromNum_star]
+
+theorem cliqueNum_mycielskian_star (n : ℕ) :
+    (mycielskian (star (n + 1))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (star (n + 1)) (by rw [V_star]; omega)
+  rw [cliqueNum_star] at h
+  omega
+
+theorem maxDeg_mycielskian_star (n : ℕ) :
+    maxDeg (mycielskian (star (n + 1))) = 2 * n + 2 := by
+  have h := maxDeg_mycielskian (star (n + 1))
+  rw [maxDeg_star, V_star] at h
+  omega
+
+theorem minDeg_mycielskian_star (n : ℕ) :
+    (mycielskian (star (n + 1))).minDeg = 2 := by
+  have h := minDeg_mycielskian (star (n + 1)) (by rw [V_star]; omega)
+  rw [minDeg_star, V_star] at h
+  omega
+
+theorem domNum_mycielskian_star (n : ℕ) :
+    (mycielskian (star (n + 1))).domNum = 2 := by
+  have h := domNum_mycielskian (star (n + 1)) (by rw [V_star]; omega)
+  rw [domNum_star] at h
+  omega
+
+theorem isConnected_mycielskian_star (n : ℕ) :
+    IsConnected (mycielskian (star (n + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_star]; omega)
+
+theorem numComponents_mycielskian_star (n : ℕ) :
+    (mycielskian (star (n + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_star]; omega)
+
+theorem radius_mycielskian_star (n : ℕ) : (mycielskian (star (n + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_star]; omega)
+
+theorem four_le_girth_mycielskian_star (n : ℕ) :
+    4 ≤ (mycielskian (star (n + 1))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_star]) (by rw [E_star]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

@@ -3220,6 +3220,15 @@ domination number is one more than the original's. Where the base graph has a pe
 an even cycle, an even path, an even complete graph — `M(G)` has a matching of size `|V(G)|`, and
 for the triangle-free cases that pins the clique cover number at `|V(G)| + 1`.
 
+Three more Mycielskian rows cover the hypercube, the Petersen graph and the star. `M(Qₙ₊₁)` is
+triangle-free of chromatic number three with `maxDeg = max 2n 2ⁿ`, and since the cube has a perfect
+matching its Mycielskian has matching number `2ⁿ⁺¹` and clique cover number `2ⁿ⁺¹ + 1`. The
+Petersen row is entirely concrete: `21` vertices, `55` edges, chromatic number `4`, clique number
+`2`, degrees between `4` and `10`, domination number `4`, radius `2`, girth at least `4`, matching
+number `10` and clique cover number `11`. `M(Sₙ)` is the smallest of the three — its minimum
+degree is always exactly `2`, because a star has a leaf and the Mycielskian gives every leaf its
+twin plus the apex.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
