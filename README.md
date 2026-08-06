@@ -2490,6 +2490,28 @@ for binary codes of covering radius one — together with `le_domNum_kneser`, `d
 `k`-regular graph is `(2k − 2)`-regular — feeds the usual sandwich to give
 `le_edgeChromNum_lineGraph` and `edgeChromNum_lineGraph_le`.
 
+The triangle-count column falls out in one pass. `cliqueCount G 3` counts the triangles, and it
+vanishes as soon as the clique number is at most two, which for a bipartite graph is automatic:
+`cliqueCount_three_eq_zero_of_isBipartite` turns every bipartiteness proof in the library into a
+triangle count. That gives `cliqueCount_path`, `cliqueCount_ladder`, `cliqueCount_spider`,
+`cliqueCount_doubleStar`, `cliqueCount_crown`, `cliqueCount_turan_two`, and — with the parity
+side conditions those families carry — `cliqueCount_cyclePendant_even`,
+`cliqueCount_thetaGraph_even`, `cliqueCount_thetaGraph_odd` and `cliqueCount_circulant`. The
+non-bipartite triangle-free graphs go through `cliqueNum` instead: `cliqueCount_tadpole` (the
+tadpole's cycle has length at least four), `cliqueCount_grotzsch`, `cliqueCount_foldedCube`, and
+`cliqueCount_mycielskian`, which is the whole point of Mycielski's construction — the
+Mycielskian of a triangle-free graph is triangle-free while its chromatic number goes up by one.
+
+The same bipartiteness proofs settle the *negative* half of the self-complementarity column. A
+self-complementary graph on five or more vertices needs at least three colours, so it is never
+bipartite; `not_isSelfComplementary_of_isBipartite` packages that, and applying it gives
+`not_isSelfComplementary_path`, `not_isSelfComplementary_star`, `not_isSelfComplementary_ladder`,
+`not_isSelfComplementary_crown`, `not_isSelfComplementary_doubleStar`,
+`not_isSelfComplementary_spider`, `not_isSelfComplementary_cycle_even` and
+`not_isSelfComplementary_tadpole_even`. The vertex-count thresholds in those statements are not
+slack: `path 4` and the one-vertex graph are bipartite *and* self-complementary, and they are the
+only two that are.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

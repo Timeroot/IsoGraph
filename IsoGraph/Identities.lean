@@ -35081,6 +35081,106 @@ theorem edgeChromNum_lineGraph_le {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
   have h1 := edgeChromNum_le_two_mul_maxDeg_sub_one (lineGraph G)
   rwa [maxDeg_lineGraph hE h] at h1
 
+/-! ### Counting triangles in the triangle-free families
+
+`cliqueCount G 3` is the number of triangles.  It vanishes exactly when the girth is not three,
+and in particular whenever the graph is bipartite or its clique number is at most two — two
+conditions the library already knows for most of its families.
+-/
+
+@[simp] theorem cliqueCount_path (n : ℕ) : (path n).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_path n)
+
+@[simp] theorem cliqueCount_ladder (n : ℕ) : (ladder n).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_ladder n)
+
+@[simp] theorem cliqueCount_spider (legs : List ℕ) : (spider legs).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_spider legs)
+
+@[simp] theorem cliqueCount_doubleStar (m n : ℕ) : (doubleStar m n).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_doubleStar m n)
+
+@[simp] theorem cliqueCount_crown (n : ℕ) : (crown n).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_crown n)
+
+@[simp] theorem cliqueCount_turan_two (n : ℕ) : (turan n 2).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_turan_two n)
+
+theorem cliqueCount_cyclePendant_even (t : ℕ) (ks : List ℕ) (h : ks.length ≤ 2 * t) :
+    (cyclePendant (2 * t) ks).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_cyclePendant_even t ks h)
+
+theorem cliqueCount_thetaGraph_even {xs : List ℕ} (h : ∀ k ∈ xs, k % 2 = 0) :
+    (thetaGraph xs).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_thetaGraph_even h)
+
+theorem cliqueCount_thetaGraph_odd {xs : List ℕ} (h : ∀ k ∈ xs, k % 2 = 1) :
+    (thetaGraph xs).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_thetaGraph_odd h)
+
+theorem cliqueCount_circulant {n : ℕ} {S : List ℕ} (hn : n % 2 = 0) (hS : ∀ d ∈ S, d % 2 = 1) :
+    (circulant n S).cliqueCount 3 = 0 :=
+  cliqueCount_three_eq_zero_of_isBipartite (isBipartite_circulant hn hS)
+
+@[simp] theorem cliqueCount_tadpole (m k : ℕ) : (tadpole (m + 4) k).cliqueCount 3 = 0 :=
+  (cliqueCount_eq_zero_iff _ 3).2 (by rw [cliqueNum_tadpole]; omega)
+
+@[simp] theorem cliqueCount_grotzsch : grotzsch.cliqueCount 3 = 0 :=
+  (cliqueCount_eq_zero_iff _ 3).2 (by rw [cliqueNum_grotzsch]; omega)
+
+/-- The Mycielskian of a triangle-free graph is triangle-free: that is the whole point of the
+construction. -/
+theorem cliqueCount_mycielskian {G : IsoGraph} (hV : 0 < G.V) (h : G.cliqueNum ≤ 2) :
+    (mycielskian G).cliqueCount 3 = 0 :=
+  (cliqueCount_eq_zero_iff _ 3).2 (by rw [cliqueNum_mycielskian_eq_two hV h]; omega)
+
+/-! ### Graphs that are not self-complementary, by bipartiteness
+
+A self-complementary graph on five or more vertices needs at least three colours, so it is never
+bipartite.  That refutes self-complementarity for every bipartite family in the library once it
+is large enough — the exceptions `path 4` and `empty 1` below the threshold are exactly the two
+small self-complementary bipartite graphs.
+-/
+
+theorem not_isSelfComplementary_of_isBipartite {G : IsoGraph} (hb : IsBipartite G)
+    (hV : 5 ≤ G.V) : ¬ IsSelfComplementary G :=
+  fun h ↦ h.not_isBipartite hV hb
+
+@[simp] theorem not_isSelfComplementary_path (n : ℕ) :
+    ¬ IsSelfComplementary (path (n + 5)) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_path _) (by rw [V_path]; omega)
+
+@[simp] theorem not_isSelfComplementary_star (n : ℕ) :
+    ¬ IsSelfComplementary (star (n + 5)) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_star _)
+    (by rw [star_eq_bipartite, V_bipartite]; omega)
+
+@[simp] theorem not_isSelfComplementary_ladder (n : ℕ) :
+    ¬ IsSelfComplementary (ladder (n + 3)) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_ladder _) (by rw [V_ladder]; omega)
+
+@[simp] theorem not_isSelfComplementary_crown (n : ℕ) :
+    ¬ IsSelfComplementary (crown (n + 3)) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_crown _) (by rw [V_crown]; omega)
+
+@[simp] theorem not_isSelfComplementary_doubleStar (m n : ℕ) :
+    ¬ IsSelfComplementary (doubleStar (m + 3) n) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_doubleStar _ _)
+    (by rw [V_doubleStar]; omega)
+
+theorem not_isSelfComplementary_spider (legs : List ℕ) (h : 4 ≤ legs.sum) :
+    ¬ IsSelfComplementary (spider legs) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_spider legs) (by rw [V_spider]; omega)
+
+theorem not_isSelfComplementary_cycle_even (m : ℕ) :
+    ¬ IsSelfComplementary (cycle (2 * (m + 3))) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_cycle_even _) (by rw [V_cycle]; omega)
+
+theorem not_isSelfComplementary_tadpole_even (m k : ℕ) :
+    ¬ IsSelfComplementary (tadpole (2 * (m + 3)) k) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_tadpole_even _ _)
+    (by rw [V_tadpole]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
@@ -35856,5 +35956,8 @@ theorem edgeChromNum_foldedCube_le (n : ℕ) :
   have h := edgeChromNum_le_two_mul_maxDeg_sub_one (foldedCube (n + 2))
   rw [maxDeg_foldedCube] at h
   omega
+
+@[simp] theorem cliqueCount_foldedCube (n : ℕ) : (foldedCube (n + 3)).cliqueCount 3 = 0 :=
+  (cliqueCount_eq_zero_iff _ 3).2 (by rw [cliqueNum_foldedCube]; omega)
 
 end IsoGraph
