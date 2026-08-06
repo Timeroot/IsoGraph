@@ -43933,6 +43933,214 @@ theorem V_le_indepNum_mycielskian_lollipop (m k : ℕ) :
   rw [V_lollipop] at h
   omega
 
+/-! ### The line graph of a wheel -/
+
+@[simp] theorem V_lineGraph_wheel (n : ℕ) :
+    (lineGraph (wheel (n + 3))).V = 2 * (n + 3) := by
+  rw [V_lineGraph, E_wheel]
+
+theorem chromNum_lineGraph_wheel (n : ℕ) :
+    (lineGraph (wheel (n + 4))).chromNum = n + 4 := by
+  rw [chromNum_lineGraph, edgeChromNum_wheel]
+
+theorem indepNum_lineGraph_wheel (n : ℕ) :
+    (lineGraph (wheel (n + 3))).indepNum = (n + 4) / 2 := by
+  rw [indepNum_lineGraph, matchNum_wheel]
+
+theorem coverNum_lineGraph_wheel (n : ℕ) :
+    (lineGraph (wheel (n + 3))).coverNum = 2 * (n + 3) - (n + 4) / 2 := by
+  rw [coverNum_lineGraph, E_wheel, matchNum_wheel]
+
+theorem cliqueNum_lineGraph_wheel (n : ℕ) :
+    (lineGraph (wheel (n + 3))).cliqueNum = n + 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := wheel (n + 3))
+    (by rw [maxDeg_wheel]; omega)
+  rw [maxDeg_wheel] at h
+  omega
+
+theorem girth_lineGraph_wheel (n : ℕ) : (lineGraph (wheel (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_wheel]; omega)
+
+theorem not_isBipartite_lineGraph_wheel (n : ℕ) :
+    ¬ IsBipartite (lineGraph (wheel (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_wheel]; omega)
+
+theorem not_isAcyclic_lineGraph_wheel (n : ℕ) :
+    ¬ IsAcyclic (lineGraph (wheel (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_wheel]; omega)
+
+theorem not_isTree_lineGraph_wheel (n : ℕ) : ¬ IsTree (lineGraph (wheel (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_wheel]; omega)
+
+theorem isConnected_lineGraph_wheel (n : ℕ) : IsConnected (lineGraph (wheel (n + 3))) :=
+  isConnected_lineGraph (isConnected_wheel _) (by rw [E_wheel]; omega)
+
+theorem numComponents_lineGraph_wheel (n : ℕ) :
+    (lineGraph (wheel (n + 3))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_wheel _) (by rw [E_wheel]; omega)
+
+theorem radius_lineGraph_wheel_le (n : ℕ) : (lineGraph (wheel (n + 3))).radius ≤ 2 := by
+  have h := radius_lineGraph_le (G := wheel (n + 3)) (isConnected_wheel _)
+    (by rw [E_wheel]; omega)
+  rw [radius_wheel] at h
+  omega
+
+theorem diameter_lineGraph_wheel_le (n : ℕ) : (lineGraph (wheel (n + 4))).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := wheel (n + 4)) (isConnected_wheel _)
+    (by rw [E_wheel]; omega)
+  rw [diameter_wheel] at h
+  omega
+
+theorem maxDeg_lineGraph_wheel_le (n : ℕ) : maxDeg (lineGraph (wheel (n + 3))) ≤ 2 * n + 4 := by
+  have h := maxDeg_lineGraph_le (wheel (n + 3))
+  rw [maxDeg_wheel] at h
+  omega
+
+theorem le_minDeg_lineGraph_wheel (n : ℕ) : 4 ≤ minDeg (lineGraph (wheel (n + 3))) := by
+  have h := le_minDeg_lineGraph (G := wheel (n + 3)) (by rw [E_wheel]; omega)
+  rw [minDeg_wheel] at h
+  omega
+
+/-! ### The line graph of a fan -/
+
+@[simp] theorem V_lineGraph_fan (n : ℕ) : (lineGraph (fan (n + 1))).V = 2 * n + 1 := by
+  rw [V_lineGraph, E_fan]
+
+theorem le_chromNum_lineGraph_fan (n : ℕ) :
+    n + 3 ≤ (lineGraph (fan (n + 3))).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_fan n
+
+theorem indepNum_lineGraph_fan (n : ℕ) :
+    (lineGraph (fan (n + 1))).indepNum = (n + 2) / 2 := by
+  rw [indepNum_lineGraph, matchNum_fan]
+
+theorem coverNum_lineGraph_fan (n : ℕ) :
+    (lineGraph (fan (n + 1))).coverNum = 2 * n + 1 - (n + 2) / 2 := by
+  rw [coverNum_lineGraph, E_fan, matchNum_fan]
+
+theorem cliqueNum_lineGraph_fan (n : ℕ) :
+    (lineGraph (fan (n + 3))).cliqueNum = n + 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := fan (n + 3))
+    (by rw [maxDeg_fan]; omega)
+  rw [maxDeg_fan] at h
+  omega
+
+theorem girth_lineGraph_fan (n : ℕ) : (lineGraph (fan (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_fan]; omega)
+
+theorem not_isBipartite_lineGraph_fan (n : ℕ) :
+    ¬ IsBipartite (lineGraph (fan (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_fan]; omega)
+
+theorem not_isAcyclic_lineGraph_fan (n : ℕ) :
+    ¬ IsAcyclic (lineGraph (fan (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_fan]; omega)
+
+theorem not_isTree_lineGraph_fan (n : ℕ) : ¬ IsTree (lineGraph (fan (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_fan]; omega)
+
+theorem isConnected_lineGraph_fan (n : ℕ) : IsConnected (lineGraph (fan (n + 1))) :=
+  isConnected_lineGraph (isConnected_fan _) (by rw [E_fan]; omega)
+
+theorem numComponents_lineGraph_fan (n : ℕ) :
+    (lineGraph (fan (n + 1))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_fan _) (by rw [E_fan]; omega)
+
+theorem radius_lineGraph_fan_le (n : ℕ) : (lineGraph (fan (n + 1))).radius ≤ 2 := by
+  have h := radius_lineGraph_le (G := fan (n + 1)) (isConnected_fan _) (by rw [E_fan]; omega)
+  rw [radius_fan] at h
+  omega
+
+theorem diameter_lineGraph_fan_le (n : ℕ) : (lineGraph (fan (n + 4))).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := fan (n + 4)) (isConnected_fan _) (by rw [E_fan]; omega)
+  rw [diameter_fan] at h
+  omega
+
+theorem maxDeg_lineGraph_fan_le (n : ℕ) : maxDeg (lineGraph (fan (n + 3))) ≤ 2 * n + 4 := by
+  have h := maxDeg_lineGraph_le (fan (n + 3))
+  rw [maxDeg_fan] at h
+  omega
+
+theorem le_minDeg_lineGraph_fan (n : ℕ) : 2 ≤ minDeg (lineGraph (fan (n + 2))) := by
+  have h := le_minDeg_lineGraph (G := fan (n + 2)) (by rw [E_fan]; omega)
+  rw [minDeg_fan] at h
+  omega
+
+/-! ### The line graph of a friendship graph -/
+
+@[simp] theorem V_lineGraph_friendship (n : ℕ) : (lineGraph (friendship n)).V = 3 * n := by
+  rw [V_lineGraph, E_friendship]
+
+theorem chromNum_lineGraph_friendship (n : ℕ) :
+    (lineGraph (friendship (n + 2))).chromNum = 2 * n + 4 := by
+  rw [chromNum_lineGraph, edgeChromNum_friendship]
+
+theorem indepNum_lineGraph_friendship (n : ℕ) :
+    (lineGraph (friendship n)).indepNum = n := by
+  rw [indepNum_lineGraph, matchNum_friendship]
+
+theorem coverNum_lineGraph_friendship (n : ℕ) :
+    (lineGraph (friendship n)).coverNum = 2 * n := by
+  rw [coverNum_lineGraph, E_friendship, matchNum_friendship]
+  omega
+
+theorem cliqueNum_lineGraph_friendship (n : ℕ) :
+    (lineGraph (friendship (n + 2))).cliqueNum = 2 * n + 4 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := friendship (n + 2))
+    (by rw [maxDeg_friendship]; omega)
+  rw [maxDeg_friendship] at h
+  omega
+
+theorem girth_lineGraph_friendship (n : ℕ) : (lineGraph (friendship (n + 2))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_friendship]; omega)
+
+theorem not_isBipartite_lineGraph_friendship (n : ℕ) :
+    ¬ IsBipartite (lineGraph (friendship (n + 2))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_friendship]; omega)
+
+theorem not_isAcyclic_lineGraph_friendship (n : ℕ) :
+    ¬ IsAcyclic (lineGraph (friendship (n + 2))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_friendship]; omega)
+
+theorem not_isTree_lineGraph_friendship (n : ℕ) :
+    ¬ IsTree (lineGraph (friendship (n + 2))) :=
+  not_isTree_lineGraph (by rw [maxDeg_friendship]; omega)
+
+theorem isConnected_lineGraph_friendship (n : ℕ) :
+    IsConnected (lineGraph (friendship (n + 1))) :=
+  isConnected_lineGraph (isConnected_friendship n) (by rw [E_friendship]; omega)
+
+theorem numComponents_lineGraph_friendship (n : ℕ) :
+    (lineGraph (friendship (n + 1))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_friendship n) (by rw [E_friendship]; omega)
+
+theorem radius_lineGraph_friendship_le (n : ℕ) :
+    (lineGraph (friendship (n + 1))).radius ≤ 2 := by
+  have h := radius_lineGraph_le (G := friendship (n + 1)) (isConnected_friendship n)
+    (by rw [E_friendship]; omega)
+  rw [radius_friendship] at h
+  omega
+
+theorem diameter_lineGraph_friendship_le (n : ℕ) :
+    (lineGraph (friendship (n + 2))).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := friendship (n + 2)) (isConnected_friendship _)
+    (by rw [E_friendship]; omega)
+  rw [diameter_friendship] at h
+  omega
+
+theorem maxDeg_lineGraph_friendship_le (n : ℕ) :
+    maxDeg (lineGraph (friendship (n + 1))) ≤ 4 * n + 2 := by
+  have h := maxDeg_lineGraph_le (friendship (n + 1))
+  rw [maxDeg_friendship] at h
+  omega
+
+theorem le_minDeg_lineGraph_friendship (n : ℕ) :
+    2 ≤ minDeg (lineGraph (friendship (n + 1))) := by
+  have h := le_minDeg_lineGraph (G := friendship (n + 1)) (by rw [E_friendship]; omega)
+  rw [minDeg_friendship] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

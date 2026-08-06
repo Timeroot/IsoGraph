@@ -3344,6 +3344,18 @@ and the pendant-vertex argument has nothing to point at. Where a tail is present
 of the Mycielskian is exactly two in both cases, since the underlying `δ = 1` and the general law
 gives `min (min 2 2) |V|`.
 
+The line graph now has family rows of its own, starting with the three cone-shaped graphs: the
+wheel, the fan and the friendship graph. These rows cost almost nothing to state, because the
+general laws already carry all of the content — `V(L(G)) = |E(G)|`, `χ(L(G)) = χ'(G)`,
+`α(L(G)) = ν(G)`, `τ(L(G)) = |E(G)| - ν(G)`, and `ω(L(G)) = Δ(G)` whenever `Δ(G) ≥ 3` — so each row
+is a matter of feeding in the edge count, the matching number and the maximum degree that the table
+already records. The clique number is the interesting entry: `L(Wₙ₊₃)` has clique number `n + 3`
+and `L(F(n+2))` has clique number `2n + 4`, in both cases because a vertex of maximum degree turns
+into a maximum clique of edges through it. Once `Δ ≥ 3` the line graph also has a triangle, so all
+three families give line graphs that are non-bipartite, non-acyclic and not trees. Only the wheel
+and the friendship graph get an exact chromatic number, since those are the two whose edge
+chromatic number is known exactly; the fan settles for the lower bound `χ(L(Fₙ₊₃)) ≥ n + 3`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
