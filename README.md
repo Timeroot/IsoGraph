@@ -2544,6 +2544,27 @@ transfers. That gives `maxDeg_thetaGraph_pair`, `minDeg_thetaGraph_pair`,
 single pendant vertex is a tadpole — gives `maxDeg_cyclePendant_singleton_one` and
 `minDeg_cyclePendant_singleton_one`.
 
+The colouring and symmetry cells of those two special cases follow the same route.
+`cliqueNum_thetaGraph_pair`, `indepNum_thetaGraph_pair`, `chromNum_thetaGraph_pair_even`,
+`chromNum_thetaGraph_pair_odd`, `edgeChromNum_thetaGraph_pair_even` and
+`edgeChromNum_thetaGraph_pair_odd` split on the parity of `a + b` exactly as the cycle does, and
+`cliqueNum_spider_pair`, `chromNum_spider_pair`, `indepNum_spider_pair` and `girth_spider_pair`
+come straight off the path. Since a two-path theta graph *is* a cycle it is arc-transitive —
+`isVertexTransitive_thetaGraph_pair`, `isArcTransitive_thetaGraph_pair` and the dihedral bound
+`two_mul_le_autCount_thetaGraph_pair` — whereas a two-legged spider is a path and so is not even
+vertex-transitive: `not_isVertexTransitive_spider_pair`, `not_isArcTransitive_spider_pair`, and
+likewise `not_isVertexTransitive_cyclePendant_singleton_one`,
+`not_isArcTransitive_cyclePendant_singleton_one`, `not_isVertexTransitive_bipartite` and
+`not_isArcTransitive_bipartite` for an unbalanced complete bipartite graph.
+
+Arc transitivity is worth more than vertex transitivity in the automorphism column: it gives
+`2|E| ≤ |Aut|` rather than `|V| ≤ |Aut|`. Cashing that in for the three arc-transitive families
+whose edge count is known gives `two_mul_E_le_autCount_hypercube` (`n · 2ⁿ`),
+`two_mul_E_le_autCount_kneser` (`C(n, k) · C(n − k, k)`) and
+`two_mul_E_le_autCount_bipartite_self` (`2n²`), each far beyond what the vertex count alone
+would give. `le_autCount_thetaGraph_replicate_one` covers the remaining degenerate theta graph,
+the one whose paths all have length one and which is therefore `K₂,ₙ`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

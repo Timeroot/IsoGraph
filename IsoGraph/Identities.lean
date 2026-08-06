@@ -35378,6 +35378,136 @@ theorem minDeg_cyclePendant_singleton_one (m : ℕ) :
     minDeg (cyclePendant (m + 3) [1]) = 1 := by
   rw [cyclePendant_singleton_one, minDeg_tadpole]
 
+/-! ### Colouring and symmetry for the two-parameter theta graph and spider
+
+The rest of the cycle's and the path's rows, transferred along `thetaGraph_pair` and
+`spider_pair`, together with the transitivity that comes with them: a two-path theta graph is a
+cycle, hence arc-transitive, while a two-legged spider is a path, hence not even vertex-transitive.
+-/
+
+theorem cliqueNum_thetaGraph_pair (a b : ℕ) (h : 2 ≤ a + b) :
+    (thetaGraph [a, b]).cliqueNum = 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 4 := ⟨a + b - 2, by omega⟩
+  rw [thetaGraph_pair, hc, cliqueNum_cycle]
+
+theorem indepNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    (thetaGraph [a, b]).indepNum = (a + b + 2) / 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, indepNum_cycle]
+  omega
+
+theorem chromNum_thetaGraph_pair_even (a b : ℕ) (h : (a + b) % 2 = 0) :
+    (thetaGraph [a, b]).chromNum = 2 := by
+  obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 2 := ⟨(a + b) / 2, by omega⟩
+  rw [thetaGraph_pair, hm, chromNum_cycle_even]
+
+theorem chromNum_thetaGraph_pair_odd (a b : ℕ) (h : (a + b) % 2 = 1) :
+    (thetaGraph [a, b]).chromNum = 3 := by
+  obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 3 := ⟨(a + b - 1) / 2, by omega⟩
+  rw [thetaGraph_pair, hm, chromNum_cycle_odd]
+
+theorem edgeChromNum_thetaGraph_pair_even (a b : ℕ) (h : (a + b) % 2 = 0) (h2 : 2 ≤ a + b) :
+    (thetaGraph [a, b]).edgeChromNum = 2 := by
+  obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 4 := ⟨(a + b - 2) / 2, by omega⟩
+  rw [thetaGraph_pair, hm, edgeChromNum_cycle_even]
+
+theorem edgeChromNum_thetaGraph_pair_odd (a b : ℕ) (h : (a + b) % 2 = 1) :
+    (thetaGraph [a, b]).edgeChromNum = 3 := by
+  obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 3 := ⟨(a + b - 1) / 2, by omega⟩
+  rw [thetaGraph_pair, hm, edgeChromNum_cycle_odd]
+
+theorem cliqueNum_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : (spider [a, b]).cliqueNum = 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
+  rw [spider_pair, hc, cliqueNum_path]
+
+theorem chromNum_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : (spider [a, b]).chromNum = 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
+  rw [spider_pair, hc, chromNum_path]
+
+theorem indepNum_spider_pair (a b : ℕ) : (spider [a, b]).indepNum = (a + b + 2) / 2 := by
+  rw [spider_pair, indepNum_path]
+  omega
+
+theorem girth_spider_pair (a b : ℕ) : (spider [a, b]).girth = 0 := by
+  rw [spider_pair, girth_path]
+
+theorem isVertexTransitive_thetaGraph_pair (a b : ℕ) :
+    IsVertexTransitive (thetaGraph [a, b]) := by
+  rw [thetaGraph_pair]
+  exact isVertexTransitive_cycle _
+
+theorem isArcTransitive_thetaGraph_pair (a b : ℕ) : IsArcTransitive (thetaGraph [a, b]) := by
+  rw [thetaGraph_pair]
+  exact isArcTransitive_cycle _
+
+theorem two_mul_le_autCount_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    2 * (a + b + 2) ≤ (thetaGraph [a, b]).autCount := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  have h2 := two_mul_le_autCount_cycle c
+  rw [thetaGraph_pair, hc]
+  omega
+
+theorem not_isVertexTransitive_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
+    ¬ IsVertexTransitive (spider [a, b]) := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 3 := ⟨a + b - 2, by omega⟩
+  rw [spider_pair, hc]
+  exact not_isVertexTransitive_path c
+
+theorem not_isArcTransitive_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
+    ¬ IsArcTransitive (spider [a, b]) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [minDeg_spider_pair a b (by omega)]; omega)
+    (not_isVertexTransitive_spider_pair a b h)
+
+theorem not_isVertexTransitive_cyclePendant_singleton_one (m : ℕ) :
+    ¬ IsVertexTransitive (cyclePendant (m + 3) [1]) := by
+  rw [cyclePendant_singleton_one]
+  exact not_isVertexTransitive_tadpole m 0
+
+theorem not_isArcTransitive_cyclePendant_singleton_one (m : ℕ) :
+    ¬ IsArcTransitive (cyclePendant (m + 3) [1]) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [minDeg_cyclePendant_singleton_one]; omega)
+    (not_isVertexTransitive_cyclePendant_singleton_one m)
+
+theorem not_isVertexTransitive_bipartite (m n : ℕ) (h : m ≠ n) :
+    ¬ IsVertexTransitive (bipartite (m + 1) (n + 1)) :=
+  not_isVertexTransitive_of_minDeg_ne_maxDeg (by rw [V_bipartite]; omega)
+    (by rw [minDeg_bipartite, maxDeg_bipartite]; omega)
+
+theorem not_isArcTransitive_bipartite (m n : ℕ) (h : m ≠ n) :
+    ¬ IsArcTransitive (bipartite (m + 1) (n + 1)) :=
+  not_isArcTransitive_of_not_isVertexTransitive
+    (by rw [minDeg_bipartite]; omega)
+    (not_isVertexTransitive_bipartite m n h)
+
+/-! ### Automorphism counts from arc transitivity
+
+An arc-transitive graph has at least `2|E|` automorphisms, which for the three arc-transitive
+families whose edge count is known beats the vertex-transitive bound `|V| ≤ |Aut|` by a wide
+margin. -/
+
+theorem two_mul_E_le_autCount_hypercube (n : ℕ) : 2 ^ n * n ≤ (hypercube n).autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive (hypercube n) (isArcTransitive_hypercube n)
+  rwa [two_mul_E_hypercube] at h
+
+theorem two_mul_E_le_autCount_kneser (n k : ℕ) (hk : 1 ≤ k) :
+    n.choose k * (n - k).choose k ≤ (kneser n k).autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive (kneser n k) (isArcTransitive_kneser n k)
+  rwa [two_mul_E_kneser n hk] at h
+
+theorem two_mul_E_le_autCount_bipartite_self (n : ℕ) :
+    2 * (n * n) ≤ (bipartite n n).autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive (bipartite n n)
+    (isArcTransitive_bipartite_self n)
+  rwa [E_bipartite] at h
+
+theorem le_autCount_thetaGraph_replicate_one (n : ℕ) :
+    2 * n.factorial ≤ (thetaGraph (List.replicate n 1)).autCount := by
+  have h := factorial_mul_factorial_le_autCount_bipartite 2 n
+  rw [thetaGraph_replicate_one]
+  rwa [show Nat.factorial 2 = 2 from rfl] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
