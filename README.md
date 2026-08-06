@@ -3467,6 +3467,20 @@ number exactly `Δ(G)`, since the Mycielskian's `max(ω, 2)` never binds on a li
 triangle. Both blocks are stated for an arbitrary `G : IsoGraph`, so every family row in the table
 feeds into them.
 
+Iterating each operator against itself is the other half of that story. The iterated line graph
+`L(L(G))` is the one that pays off for regular inputs: a `k`-regular `G` has a `(2k - 2)`-regular
+line graph, and feeding that degree sequence straight back into the same lemma makes `L(L(G))`
+`(2(2k - 2) - 2)`-regular, with clique number to match once the degree clears three. Distances
+degrade by one at each step, so `L(L(G))` has radius and diameter at most two more than `G` — that
+chain needs `L(G)` to have an edge of its own, which is a real hypothesis rather than a formality,
+since a perfect matching has a line graph with no edges at all. The iterated Mycielskian `M(M(G))`
+is exact on almost everything: `4|V| + 3` vertices, `9|E| + 5|V| + 1` edges, chromatic number
+`χ + 2`, domination number `γ + 2`, clique number `max(ω, 2)` — the second application no longer
+moves it — and radius exactly two. The one lemma that made that block work is
+`minDeg_mycielskian_of_pos`, which collapses the three-way minimum in `minDeg_mycielskian` to
+`min(δ + 1, |V|)` as soon as `δ` is positive; without it the minimum-degree hypothesis needed to
+apply the connectivity lemma a second time is not something `omega` can discharge.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

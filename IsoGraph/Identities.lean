@@ -45664,6 +45664,147 @@ theorem matchNum_mycielskian_lineGraph {G : IsoGraph} (h : 2 * (lineGraph G).mat
   have hm := matchNum_mycielskian (lineGraph G) (by rw [V_lineGraph]; exact h)
   rwa [V_lineGraph] at hm
 
+/-! ### The iterated line graph -/
+
+theorem isRegularWith_lineGraph_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (hE2 : 0 < (lineGraph G).E) (h : degSequence G = List.replicate n k) :
+    (lineGraph (lineGraph G)).IsRegularWith (2 * (2 * k - 2) - 2) :=
+  isRegularWith_lineGraph hE2 (isRegularWith_lineGraph hE h).degSequence
+
+theorem maxDeg_lineGraph_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (hE2 : 0 < (lineGraph G).E) (h : degSequence G = List.replicate n k) :
+    maxDeg (lineGraph (lineGraph G)) = 2 * (2 * k - 2) - 2 :=
+  maxDeg_lineGraph hE2 (isRegularWith_lineGraph hE h).degSequence
+
+theorem minDeg_lineGraph_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (hE2 : 0 < (lineGraph G).E) (h : degSequence G = List.replicate n k) :
+    minDeg (lineGraph (lineGraph G)) = 2 * (2 * k - 2) - 2 :=
+  minDeg_lineGraph hE2 (isRegularWith_lineGraph hE h).degSequence
+
+theorem maxDeg_lineGraph_lineGraph_le (G : IsoGraph) :
+    maxDeg (lineGraph (lineGraph G)) ≤ 2 * (2 * maxDeg G - 2) - 2 := by
+  have h1 := maxDeg_lineGraph_le (lineGraph G)
+  have h2 := maxDeg_lineGraph_le G
+  omega
+
+theorem isConnected_lineGraph_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
+    (hE2 : 0 < (lineGraph G).E) : IsConnected (lineGraph (lineGraph G)) :=
+  isConnected_lineGraph (isConnected_lineGraph hG hE) hE2
+
+theorem numComponents_lineGraph_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
+    (hE2 : 0 < (lineGraph G).E) : (lineGraph (lineGraph G)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_lineGraph hG hE) hE2
+
+theorem radius_lineGraph_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
+    (hE2 : 0 < (lineGraph G).E) : (lineGraph (lineGraph G)).radius ≤ G.radius + 2 := by
+  have h1 := radius_lineGraph_le (G := lineGraph G) (isConnected_lineGraph hG hE) hE2
+  have h2 := radius_lineGraph_le (G := G) hG hE
+  omega
+
+theorem diameter_lineGraph_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
+    (hE2 : 0 < (lineGraph G).E) : (lineGraph (lineGraph G)).diameter ≤ G.diameter + 2 := by
+  have h1 := diameter_lineGraph_le (G := lineGraph G) (isConnected_lineGraph hG hE) hE2
+  have h2 := diameter_lineGraph_le (G := G) hG hE
+  omega
+
+theorem cliqueNum_lineGraph_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) (h3 : 3 ≤ 2 * k - 2) :
+    (lineGraph (lineGraph G)).cliqueNum = 2 * k - 2 := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := lineGraph G)
+    (by rw [maxDeg_lineGraph hE h]; exact h3)
+  rwa [maxDeg_lineGraph hE h] at hm
+
+theorem girth_lineGraph_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) (h3 : 3 ≤ 2 * k - 2) :
+    (lineGraph (lineGraph G)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_lineGraph hE h]; exact h3)
+
+theorem not_isBipartite_lineGraph_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) (h3 : 3 ≤ 2 * k - 2) :
+    ¬ IsBipartite (lineGraph (lineGraph G)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_lineGraph hE h]; exact h3)
+
+theorem not_isTree_lineGraph_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) (h3 : 3 ≤ 2 * k - 2) :
+    ¬ IsTree (lineGraph (lineGraph G)) :=
+  not_isTree_lineGraph (by rw [maxDeg_lineGraph hE h]; exact h3)
+
+/-! ### The iterated Mycielskian -/
+
+theorem minDeg_mycielskian_of_pos {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.minDeg) :
+    (mycielskian G).minDeg = min (G.minDeg + 1) G.V := by
+  have hm := minDeg_mycielskian G hV
+  omega
+
+@[simp] theorem V_mycielskian_mycielskian (G : IsoGraph) :
+    (mycielskian (mycielskian G)).V = 4 * G.V + 3 := by
+  rw [V_mycielskian, V_mycielskian]
+  omega
+
+@[simp] theorem E_mycielskian_mycielskian (G : IsoGraph) :
+    (mycielskian (mycielskian G)).E = 9 * G.E + 5 * G.V + 1 := by
+  rw [E_mycielskian, E_mycielskian, V_mycielskian]
+  omega
+
+@[simp] theorem chromNum_mycielskian_mycielskian (G : IsoGraph) :
+    (mycielskian (mycielskian G)).chromNum = G.chromNum + 2 := by
+  have h1 := chromNum_mycielskian (mycielskian G)
+  have h2 := chromNum_mycielskian G
+  omega
+
+theorem cliqueNum_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V) :
+    (mycielskian (mycielskian G)).cliqueNum = max G.cliqueNum 2 := by
+  have h1 := cliqueNum_mycielskian (mycielskian G) (by rw [V_mycielskian]; omega)
+  rw [cliqueNum_mycielskian G hV] at h1
+  omega
+
+theorem maxDeg_mycielskian_mycielskian (G : IsoGraph) :
+    maxDeg (mycielskian (mycielskian G)) = max (2 * max (2 * maxDeg G) G.V) (2 * G.V + 1) := by
+  rw [maxDeg_mycielskian, maxDeg_mycielskian, V_mycielskian]
+
+theorem isConnected_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.minDeg) :
+    IsConnected (mycielskian (mycielskian G)) :=
+  isConnected_mycielskian _ (by rw [minDeg_mycielskian_of_pos hV h]; omega)
+
+theorem numComponents_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.minDeg) :
+    (mycielskian (mycielskian G)).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_mycielskian_of_pos hV h]; omega)
+
+theorem radius_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.minDeg) :
+    (mycielskian (mycielskian G)).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_mycielskian_of_pos hV h]; omega)
+
+theorem two_le_diameter_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V)
+    (h : 0 < G.minDeg) : 2 ≤ (mycielskian (mycielskian G)).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_mycielskian_of_pos hV h]; omega)
+
+theorem diameter_mycielskian_mycielskian_le_four {G : IsoGraph} (hV : 0 < G.V)
+    (h : 0 < G.minDeg) : (mycielskian (mycielskian G)).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_mycielskian_of_pos hV h]; omega)
+
+theorem four_le_girth_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V)
+    (hc : G.cliqueNum ≤ 2) : 4 ≤ (mycielskian (mycielskian G)).girth := by
+  refine four_le_girth_mycielskian _ ?_ (by rw [E_mycielskian]; omega)
+  rw [cliqueNum_mycielskian G hV]
+  omega
+
+theorem domNum_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V) :
+    (mycielskian (mycielskian G)).domNum = G.domNum + 2 := by
+  have h1 := domNum_mycielskian (mycielskian G) (by rw [V_mycielskian]; omega)
+  rw [domNum_mycielskian G hV] at h1
+  omega
+
+theorem coverNum_mycielskian_mycielskian_le (G : IsoGraph) :
+    (mycielskian (mycielskian G)).coverNum ≤ 2 * G.V + 2 := by
+  have h := coverNum_mycielskian_le (mycielskian G)
+  rw [V_mycielskian] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_mycielskian (G : IsoGraph) :
+    2 * G.V + 1 ≤ (mycielskian (mycielskian G)).indepNum := by
+  have h := V_le_indepNum_mycielskian (mycielskian G)
+  rwa [V_mycielskian] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
