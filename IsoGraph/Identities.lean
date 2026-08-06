@@ -43455,6 +43455,160 @@ theorem V_le_indepNum_mycielskian_johnson (n k : ℕ) :
   rw [V_johnson] at h
   omega
 
+/-! ### The Mycielskian of a Turán graph -/
+
+theorem minDeg_turan_pos {n r : ℕ} (hr : 2 ≤ r) (hn : r ≤ n) : 0 < minDeg (turan n r) := by
+  have hm : n * 2 ≤ n * r := Nat.mul_le_mul_left n hr
+  have hlt : (n + r - 1) / r < n := by
+    rw [Nat.div_lt_iff_lt_mul (by omega : 0 < r)]
+    omega
+  rw [minDeg_turan (by omega) hn]
+  omega
+
+@[simp] theorem V_mycielskian_turan (n r : ℕ) : (mycielskian (turan n r)).V = 2 * n + 1 := by
+  rw [V_mycielskian, V_turan]
+
+theorem E_mycielskian_turan (n r : ℕ) :
+    (mycielskian (turan n r)).E
+        + 3 * ((n % r) * ((n / r + 1).choose 2) + (r - n % r) * ((n / r).choose 2))
+      = 3 * n.choose 2 + n := by
+  have h := E_turan n r
+  rw [E_mycielskian, V_turan]
+  omega
+
+theorem chromNum_mycielskian_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) :
+    (mycielskian (turan n r)).chromNum = r + 1 := by
+  rw [chromNum_mycielskian, chromNum_turan hr hn]
+
+theorem cliqueNum_mycielskian_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) :
+    (mycielskian (turan n r)).cliqueNum = max r 2 := by
+  have h := cliqueNum_mycielskian (turan n r) (by rw [V_turan]; omega)
+  rw [cliqueNum_turan hr hn] at h
+  omega
+
+theorem maxDeg_mycielskian_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) :
+    maxDeg (mycielskian (turan n r)) = max (2 * (n - n / r)) n := by
+  have h := maxDeg_mycielskian (turan n r)
+  rw [maxDeg_turan hr hn, V_turan] at h
+  omega
+
+theorem minDeg_mycielskian_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) :
+    minDeg (mycielskian (turan n r))
+      = min (min (2 * (n - (n + r - 1) / r)) (n - (n + r - 1) / r + 1)) n := by
+  have h := minDeg_mycielskian (turan n r) (by rw [V_turan]; omega)
+  rw [minDeg_turan hr hn, V_turan] at h
+  omega
+
+theorem domNum_mycielskian_turan {n r : ℕ} (hr : 2 ≤ r) (hn : 2 * r ≤ n) :
+    (mycielskian (turan n r)).domNum = 3 := by
+  have h := domNum_mycielskian (turan n r) (by rw [V_turan]; omega)
+  rw [domNum_turan hr hn] at h
+  omega
+
+theorem isConnected_mycielskian_turan {n r : ℕ} (hr : 2 ≤ r) (hn : r ≤ n) :
+    IsConnected (mycielskian (turan n r)) :=
+  isConnected_mycielskian _ (minDeg_turan_pos hr hn)
+
+theorem numComponents_mycielskian_turan {n r : ℕ} (hr : 2 ≤ r) (hn : r ≤ n) :
+    (mycielskian (turan n r)).numComponents = 1 :=
+  numComponents_mycielskian _ (minDeg_turan_pos hr hn)
+
+theorem radius_mycielskian_turan {n r : ℕ} (hr : 2 ≤ r) (hn : r ≤ n) :
+    (mycielskian (turan n r)).radius = 2 :=
+  radius_mycielskian _ (minDeg_turan_pos hr hn)
+
+theorem two_le_diameter_mycielskian_turan {n r : ℕ} (hr : 2 ≤ r) (hn : r ≤ n) :
+    2 ≤ (mycielskian (turan n r)).diameter :=
+  two_le_diameter_mycielskian _ (minDeg_turan_pos hr hn)
+
+theorem diameter_mycielskian_turan_le_four {n r : ℕ} (hr : 2 ≤ r) (hn : r ≤ n) :
+    (mycielskian (turan n r)).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (minDeg_turan_pos hr hn)
+
+theorem matchNum_mycielskian_turan {m r : ℕ} (hr : 2 ≤ r) (hn : r ≤ 2 * m) :
+    (mycielskian (turan (2 * m) r)).matchNum = 2 * m := by
+  have h := matchNum_mycielskian (turan (2 * m) r)
+    (by rw [matchNum_turan hr hn, V_turan]; omega)
+  rw [V_turan] at h
+  omega
+
+theorem cliqueCoverNum_mycielskian_turan (m : ℕ) :
+    (mycielskian (turan (2 * m + 2) 2)).cliqueCoverNum = 2 * m + 3 := by
+  have h := cliqueCoverNum_mycielskian (turan (2 * m + 2) 2) (by rw [V_turan]; omega)
+    (by rw [cliqueNum_turan (by omega) (by omega)])
+    (by rw [matchNum_turan (by omega) (by omega), V_turan]; omega)
+  rw [V_turan] at h
+  omega
+
+theorem indepNum_mycielskian_turan_le {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) :
+    (mycielskian (turan n r)).indepNum ≤ n + (n + r - 1) / r := by
+  have h := indepNum_mycielskian_le (turan n r) (by rw [V_turan]; omega)
+  rw [indepNum_turan hr hn, V_turan] at h
+  omega
+
+theorem coverNum_mycielskian_turan_le (n r : ℕ) :
+    (mycielskian (turan n r)).coverNum ≤ n + 1 := by
+  have h := coverNum_mycielskian_le (turan n r)
+  rw [V_turan] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_turan (n r : ℕ) :
+    n ≤ (mycielskian (turan n r)).indepNum := by
+  have h := V_le_indepNum_mycielskian (turan n r)
+  rw [V_turan] at h
+  omega
+
+theorem girth_mycielskian_turan {n r : ℕ} (hr : 3 ≤ r) (hn : r ≤ n) :
+    (mycielskian (turan n r)).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_mycielskian_turan (by omega) hn]
+  omega
+
+/-! ### The Mycielskian of a complete multipartite graph -/
+
+@[simp] theorem V_mycielskian_completeMultipartite (ds : List ℕ) :
+    (mycielskian (completeMultipartite ds)).V = 2 * ds.sum + 1 := by
+  rw [V_mycielskian, V_completeMultipartite]
+
+theorem E_mycielskian_completeMultipartite (ds : List ℕ) :
+    (mycielskian (completeMultipartite ds)).E + 3 * (ds.map (·.choose 2)).sum
+      = 3 * ds.sum.choose 2 + ds.sum := by
+  have h := E_completeMultipartite ds
+  rw [E_mycielskian, V_completeMultipartite]
+  omega
+
+theorem chromNum_mycielskian_completeMultipartite (ds : List ℕ) :
+    (mycielskian (completeMultipartite ds)).chromNum
+      = (ds.map fun d ↦ min d 1).sum + 1 := by
+  rw [chromNum_mycielskian, chromNum_completeMultipartite]
+
+theorem cliqueNum_mycielskian_completeMultipartite (ds : List ℕ) (hs : 0 < ds.sum) :
+    (mycielskian (completeMultipartite ds)).cliqueNum
+      = max (ds.map (min · 1)).sum 2 := by
+  have h := cliqueNum_mycielskian (completeMultipartite ds)
+    (by rw [V_completeMultipartite]; omega)
+  rw [cliqueNum_completeMultipartite] at h
+  omega
+
+theorem indepNum_mycielskian_completeMultipartite_le (ds : List ℕ) (hs : 0 < ds.sum) :
+    (mycielskian (completeMultipartite ds)).indepNum ≤ ds.sum + (ds.max?).getD 0 := by
+  have h := indepNum_mycielskian_le (completeMultipartite ds)
+    (by rw [V_completeMultipartite]; omega)
+  rw [indepNum_completeMultipartite, V_completeMultipartite] at h
+  omega
+
+theorem coverNum_mycielskian_completeMultipartite_le (ds : List ℕ) :
+    (mycielskian (completeMultipartite ds)).coverNum ≤ ds.sum + 1 := by
+  have h := coverNum_mycielskian_le (completeMultipartite ds)
+  rw [V_completeMultipartite] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_completeMultipartite (ds : List ℕ) :
+    ds.sum ≤ (mycielskian (completeMultipartite ds)).indepNum := by
+  have h := V_le_indepNum_mycielskian (completeMultipartite ds)
+  rw [V_completeMultipartite] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

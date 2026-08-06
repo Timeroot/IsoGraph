@@ -3313,6 +3313,16 @@ number of `M(T n)` is `χ'(Kₙ) + 1`, which is as sharp as the underlying edge-
 allows. For the Kneser and Johnson graphs connectivity needs a hypothesis — `2k ≤ n` and `k < n`
 respectively — because otherwise the graph has isolated vertices and the Mycielskian falls apart.
 
+The Turán graph gets the fullest Mycielskian row in the table, because almost every invariant of
+`T(n, r)` is already known in closed form: `χ(M) = r + 1`, `ω(M) = max r 2`, `γ(M) = 3` once
+`2r ≤ n`, and for even `n` the matching number of the Mycielskian is exactly `n`, since `T(n, r)`
+has a perfect matching. Getting the connectivity block needed one new general fact,
+`minDeg_turan_pos`, which says a Turán graph with at least two parts has no isolated vertex; it
+follows from `⌈n/r⌉ < n`, itself a consequence of `2n ≤ nr`. The complete multipartite graph,
+Turán's ungrouped cousin, gets the invariants that are stated over a general part-size list — the
+chromatic number is the number of non-empty parts plus one, and the edge count keeps the additive
+form `|E(M)| + 3 Σ binom dᵢ 2 = 3 binom (Σ dᵢ) 2 + Σ dᵢ` that the underlying law is stated in.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
