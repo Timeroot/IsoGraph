@@ -39248,6 +39248,196 @@ theorem coverNum_compl_lineGraph_hypercube (n : ℕ) :
   rw [cliqueNum_lineGraph_hypercube, V_lineGraph] at h
   omega
 
+/-! ### Colourings and metrics of the strong and lexicographic products -/
+
+/-- If both factors have chromatic number equal to their clique number, the strong product does
+too: the clique bound below meets the product colouring above. -/
+theorem chromNum_strongProduct_of_chromNum_eq_cliqueNum {G H : IsoGraph}
+    (hG : G.chromNum = G.cliqueNum) (hH : H.chromNum = H.cliqueNum) :
+    (G ⊠g H).chromNum = G.cliqueNum * H.cliqueNum := by
+  have h1 := chromNum_strongProduct_le G H
+  have h2 := cliqueNum_le_chromNum (G ⊠g H)
+  rw [cliqueNum_strongProduct] at h2
+  rw [hG, hH] at h1
+  omega
+
+/-- The same for the lexicographic product. -/
+theorem chromNum_lexProduct_of_chromNum_eq_cliqueNum {G H : IsoGraph}
+    (hG : G.chromNum = G.cliqueNum) (hH : H.chromNum = H.cliqueNum) :
+    (G ·g H).chromNum = G.cliqueNum * H.cliqueNum := by
+  have h1 := chromNum_lexProduct_le G H
+  have h2 := cliqueNum_le_chromNum (G ·g H)
+  rw [cliqueNum_lexProduct] at h2
+  rw [hG, hH] at h1
+  omega
+
+theorem chromNum_king (m n : ℕ) : (path (m + 2) ⊠g path (n + 2)).chromNum = 4 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (G := path (m + 2)) (H := path (n + 2))
+    (by rw [chromNum_path, cliqueNum_path]) (by rw [chromNum_path, cliqueNum_path])
+  rw [cliqueNum_path, cliqueNum_path] at h
+  omega
+
+theorem chromNum_strongProduct_complete (m n : ℕ) :
+    (complete m ⊠g complete n).chromNum = m * n := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum (G := complete m) (H := complete n)
+    (by rw [chromNum_complete, cliqueNum_complete])
+    (by rw [chromNum_complete, cliqueNum_complete])
+  rwa [cliqueNum_complete, cliqueNum_complete] at h
+
+theorem chromNum_lexProduct_complete (m n : ℕ) :
+    (complete m ·g complete n).chromNum = m * n := by
+  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum (G := complete m) (H := complete n)
+    (by rw [chromNum_complete, cliqueNum_complete])
+    (by rw [chromNum_complete, cliqueNum_complete])
+  rwa [cliqueNum_complete, cliqueNum_complete] at h
+
+theorem chromNum_eq_cliqueNum_cycle_even (m : ℕ) :
+    (cycle (2 * m + 4)).chromNum = (cycle (2 * m + 4)).cliqueNum := by
+  rw [cliqueNum_cycle, show 2 * m + 4 = 2 * (m + 1) + 2 from by ring, chromNum_cycle_even]
+
+theorem chromNum_strongProduct_cycle_even (m n : ℕ) :
+    (cycle (2 * m + 4) ⊠g cycle (2 * n + 4)).chromNum = 4 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_cycle_even m) (chromNum_eq_cliqueNum_cycle_even n)
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem chromNum_lexProduct_cycle_even (m n : ℕ) :
+    (cycle (2 * m + 4) ·g cycle (2 * n + 4)).chromNum = 4 := by
+  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_cycle_even m) (chromNum_eq_cliqueNum_cycle_even n)
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem chromNum_eq_cliqueNum_hypercube (n : ℕ) :
+    (hypercube (n + 1)).chromNum = (hypercube (n + 1)).cliqueNum := by
+  rw [chromNum_hypercube, cliqueNum_hypercube]
+
+theorem chromNum_strongProduct_hypercube (m n : ℕ) :
+    (hypercube (m + 1) ⊠g hypercube (n + 1)).chromNum = 4 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_hypercube m) (chromNum_eq_cliqueNum_hypercube n)
+  rw [cliqueNum_hypercube, cliqueNum_hypercube] at h
+  omega
+
+theorem chromNum_lexProduct_hypercube (m n : ℕ) :
+    (hypercube (m + 1) ·g hypercube (n + 1)).chromNum = 4 := by
+  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_hypercube m) (chromNum_eq_cliqueNum_hypercube n)
+  rw [cliqueNum_hypercube, cliqueNum_hypercube] at h
+  omega
+
+theorem chromNum_eq_cliqueNum_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).chromNum = (bipartite (m + 1) (n + 1)).cliqueNum := by
+  rw [chromNum_bipartite, cliqueNum_bipartite]
+
+theorem chromNum_strongProduct_bipartite (a b c d : ℕ) :
+    (bipartite (a + 1) (b + 1) ⊠g bipartite (c + 1) (d + 1)).chromNum = 4 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_bipartite a b) (chromNum_eq_cliqueNum_bipartite c d)
+  rw [cliqueNum_bipartite, cliqueNum_bipartite] at h
+  omega
+
+theorem chromNum_lexProduct_bipartite (a b c d : ℕ) :
+    (bipartite (a + 1) (b + 1) ·g bipartite (c + 1) (d + 1)).chromNum = 4 := by
+  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_bipartite a b) (chromNum_eq_cliqueNum_bipartite c d)
+  rw [cliqueNum_bipartite, cliqueNum_bipartite] at h
+  omega
+
+/-- The **king graph** on an `(m+1) × (n+1)` board: a king crosses the board in `max m n` moves. -/
+theorem diameter_king (m n : ℕ) : (path (m + 1) ⊠g path (n + 1)).diameter = max m n := by
+  rw [diameter_strongProduct (isConnected_path m) (isConnected_path n), diameter_path,
+    diameter_path]
+
+theorem diameter_strongProduct_complete (m n : ℕ) :
+    (complete (m + 2) ⊠g complete (n + 2)).diameter = 1 := by
+  rw [diameter_strongProduct (isConnected_complete (m + 1)) (isConnected_complete (n + 1)),
+    diameter_complete, diameter_complete, max_self]
+
+theorem radius_strongProduct_complete (m n : ℕ) :
+    (complete (m + 2) ⊠g complete (n + 2)).radius = 1 := by
+  rw [radius_strongProduct (isConnected_complete (m + 1)) (isConnected_complete (n + 1)),
+    radius_complete, radius_complete, max_self]
+
+theorem numComponents_king (m n : ℕ) :
+    (path (m + 1) ⊠g path (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_king m n)
+
+theorem numComponents_grid (m n : ℕ) :
+    (path (m + 1) □g path (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_grid m n)
+
+theorem numComponents_cartesianProduct_cycle (m n : ℕ) :
+    (cycle (m + 1) □g cycle (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_cycle m n)
+
+theorem numComponents_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 1) □g path (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_cycle_path m n)
+
+theorem numComponents_strongProduct_cycle (m n : ℕ) :
+    (cycle (m + 1) ⊠g cycle (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_strongProduct_cycle m n)
+
+theorem numComponents_strongProduct_complete (m n : ℕ) :
+    (complete (m + 1) ⊠g complete (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_strongProduct_complete m n)
+
+theorem numComponents_lexProduct_cycle (m n : ℕ) :
+    (cycle (m + 1) ·g cycle (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_lexProduct_cycle m n)
+
+theorem numComponents_lexProduct_complete (m n : ℕ) :
+    (complete (m + 1) ·g complete (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_lexProduct_complete m n)
+
+theorem numComponents_strongProduct_hypercube (m n : ℕ) :
+    (hypercube m ⊠g hypercube n).numComponents = 1 :=
+  numComponents_strongProduct (isConnected_hypercube m) (isConnected_hypercube n)
+
+theorem numComponents_lexProduct_hypercube (m n : ℕ) :
+    (hypercube m ·g hypercube n).numComponents = 1 :=
+  numComponents_lexProduct (isConnected_hypercube m) (isConnected_hypercube n)
+
+theorem coverNum_lexProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ·g cycle (n + 3)).coverNum
+      = (m + 3) * (n + 3) - (m + 3) / 2 * ((n + 3) / 2) := by
+  rw [coverNum_lexProduct, V_cycle, V_cycle, indepNum_cycle, indepNum_cycle]
+
+theorem coverNum_lexProduct_path (m n : ℕ) :
+    (path m ·g path n).coverNum = m * n - (m + 1) / 2 * ((n + 1) / 2) := by
+  rw [coverNum_lexProduct, V_path, V_path, indepNum_path, indepNum_path]
+
+theorem coverNum_lexProduct_complete (m n : ℕ) :
+    (complete (m + 1) ·g complete (n + 1)).coverNum = (m + 1) * (n + 1) - 1 := by
+  rw [coverNum_eq, V_lexProduct, V_complete, V_complete, indepNum_lexProduct_complete]
+
+/-- A dominating vertex of the second factor makes the lexicographic product dominated exactly as
+its first factor is. -/
+theorem domNum_lexProduct_complete (G : IsoGraph) (n : ℕ) :
+    (G ·g complete (n + 1)).domNum = G.domNum :=
+  domNum_lexProduct G (domNum_complete n)
+
+theorem domNum_strongProduct_complete (m n : ℕ) :
+    (complete (m + 1) ⊠g complete (n + 1)).domNum = 1 :=
+  domNum_strongProduct_eq_one (domNum_complete m) (domNum_complete n)
+
+theorem radius_strongProduct_of_domNum_complete (m n : ℕ) :
+    (complete (m + 2) ⊠g complete (n + 1)).radius = 1 := by
+  refine radius_strongProduct_eq_one ?_ (domNum_complete (m + 1)) (domNum_complete n)
+  rw [V_strongProduct, V_complete, V_complete]
+  have h : 2 * 1 ≤ (m + 2) * (n + 1) := Nat.mul_le_mul (by omega) (by omega)
+  omega
+
+theorem radius_lexProduct_complete (m n : ℕ) :
+    (complete (m + 2) ·g complete (n + 1)).radius = 1 := by
+  refine radius_lexProduct_eq_one ?_ (domNum_complete (m + 1)) (domNum_complete n)
+  rw [V_lexProduct, V_complete, V_complete]
+  have h : 2 * 1 ≤ (m + 2) * (n + 1) := Nat.mul_le_mul (by omega) (by omega)
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

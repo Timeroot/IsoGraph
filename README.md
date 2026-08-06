@@ -3080,6 +3080,25 @@ large clique lose almost everything: `coverNum_compl_complete = 0`, `coverNum_co
 and `coverNum_compl_lollipop (m + 2) k = k`, the complement of a lollipop being covered by its
 tail. `coverNum_compl_cocktailParty n = n` is the balanced case, half the vertices either way.
 
+Two colouring lemmas fill in most of what the strong and lexicographic products were missing.
+Both products satisfy `χ(G ∗ H) ≤ χ(G)·χ(H)` — colour a pair by the pair of colours — and both
+have `ω(G ∗ H) = ω(G)·ω(H)`, so whenever each factor happens to have `χ = ω` the two bounds meet:
+`chromNum_strongProduct_of_chromNum_eq_cliqueNum` and its lexicographic twin give `χ = ω(G)·ω(H)`
+on the nose. Paths, even cycles, hypercubes, complete graphs and complete bipartite graphs all
+have `χ = ω`, so `chromNum_king = 4` (the king graph needs four colours, one per square of a
+`2 × 2` block), `chromNum_strongProduct_cycle_even = 4`, `chromNum_strongProduct_hypercube = 4`,
+`chromNum_strongProduct_bipartite = 4` and `chromNum_strongProduct_complete = mn`, together with
+the same five for the lexicographic product. The metric side uses the general
+`diameter_strongProduct` and `radius_strongProduct`, both maxima over the two factors:
+`diameter_king = max m n` is the number of moves a king needs to cross the board, and the strong
+product of two complete graphs has diameter and radius one. Ten `numComponents` corollaries record
+that the grid, the king graph and the strong and lexicographic products of cycles, complete graphs
+and hypercubes are all connected, and the Gallai identity turns `indepNum_lexProduct` into
+`coverNum_lexProduct_cycle`, `coverNum_lexProduct_path` and `coverNum_lexProduct_complete`.
+A dominating vertex in the second factor is inherited by the whole lexicographic product, which
+gives `domNum_lexProduct_complete`, `domNum_strongProduct_complete = 1` and the two radius-one
+statements that follow from it.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
