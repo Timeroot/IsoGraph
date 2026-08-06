@@ -37761,6 +37761,72 @@ theorem chromNum_disjUnion_cycle_even_odd (m n : ℕ) :
   rw [chromNum_cycle_even, chromNum_cycle_odd] at h
   omega
 
+/-! ### The disjoint union of two paths -/
+
+@[simp] theorem V_disjUnion_path (m n : ℕ) : (path m ⊕g path n).V = m + n := by
+  rw [V_disjUnion, V_path, V_path]
+
+theorem E_disjUnion_path (m n : ℕ) : (path (m + 1) ⊕g path (n + 1)).E = m + n := by
+  rw [E_disjUnion, E_path, E_path]
+
+theorem cliqueNum_disjUnion_path (m n : ℕ) :
+    (path (m + 2) ⊕g path (n + 2)).cliqueNum = 2 := by
+  rw [cliqueNum_disjUnion, cliqueNum_path, cliqueNum_path]
+  omega
+
+theorem indepNum_disjUnion_path (m n : ℕ) :
+    (path m ⊕g path n).indepNum = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [indepNum_disjUnion, indepNum_path, indepNum_path]
+
+theorem matchNum_disjUnion_path (m n : ℕ) :
+    (path m ⊕g path n).matchNum = m / 2 + n / 2 := by
+  rw [matchNum_disjUnion, matchNum_path, matchNum_path]
+
+theorem cliqueCoverNum_disjUnion_path (m n : ℕ) :
+    (path m ⊕g path n).cliqueCoverNum = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_path]
+
+theorem domNum_disjUnion_path (m n : ℕ) :
+    (path (m + 1) ⊕g path (n + 1)).domNum = (m + 3) / 3 + (n + 3) / 3 := by
+  rw [domNum_disjUnion, domNum_path, domNum_path]
+
+@[simp] theorem maxDeg_disjUnion_path (m n : ℕ) :
+    maxDeg (path (m + 3) ⊕g path (n + 3)) = 2 := by
+  rw [maxDeg_disjUnion, maxDeg_path, maxDeg_path]
+  omega
+
+@[simp] theorem minDeg_disjUnion_path (m n : ℕ) :
+    minDeg (path (m + 2) ⊕g path (n + 2)) = 1 := by
+  have h := minDeg_disjUnion (G := path (m + 2)) (H := path (n + 2))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [minDeg_path, minDeg_path] at h
+  omega
+
+theorem chromNum_disjUnion_path (m n : ℕ) :
+    (path (m + 2) ⊕g path (n + 2)).chromNum = 2 := by
+  rw [chromNum_disjUnion, chromNum_path, chromNum_path]
+  omega
+
+@[simp] theorem isBipartite_disjUnion_path (m n : ℕ) :
+    IsBipartite (path m ⊕g path n) :=
+  isBipartite_disjUnion (isBipartite_path m) (isBipartite_path n)
+
+@[simp] theorem numComponents_disjUnion_path (m n : ℕ) :
+    (path (m + 1) ⊕g path (n + 1)).numComponents = 2 := by
+  rw [numComponents_disjUnion, numComponents_path, numComponents_path]
+
+theorem not_isConnected_disjUnion_path (m n : ℕ) :
+    ¬ IsConnected (path (m + 1) ⊕g path (n + 1)) :=
+  not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_path]; omega)
+
+@[simp] theorem diameter_disjUnion_path (m n : ℕ) :
+    (path (m + 1) ⊕g path (n + 1)).diameter = 0 :=
+  diameter_disjUnion (by rw [V_path]; omega) (by rw [V_path]; omega)
+
+@[simp] theorem radius_disjUnion_path (m n : ℕ) :
+    (path (m + 1) ⊕g path (n + 1)).radius = 0 :=
+  radius_disjUnion (by rw [V_path]; omega) (by rw [V_path]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

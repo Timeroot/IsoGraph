@@ -2936,6 +2936,15 @@ or near-perfect matching), `cliqueCoverNum_disjUnion_cycle`, `domNum_disjUnion_c
 `radius_disjUnion_cycle` are zero, which is the convention the rest of the file uses for
 disconnected graphs.
 
+Two paths side by side give the same row without the parity cases, plus one the cycle version
+cannot have: `isBipartite_disjUnion_path`, so `chromNum_disjUnion_path = 2` outright.
+`indepNum_disjUnion_path`, `matchNum_disjUnion_path`, `cliqueCoverNum_disjUnion_path` and
+`domNum_disjUnion_path` add up componentwise; `cliqueNum_disjUnion_path = 2`,
+`maxDeg_disjUnion_path = 2` and `minDeg_disjUnion_path = 1` are the extrema; and
+`V_disjUnion_path`, `E_disjUnion_path`, `numComponents_disjUnion_path = 2`,
+`not_isConnected_disjUnion_path`, `diameter_disjUnion_path` and `radius_disjUnion_path` close it
+out.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
