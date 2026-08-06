@@ -3303,6 +3303,16 @@ drops to three. The last gap in the disjoint union table, `Cₘ ⊕ Kₙ`, close
 edge chromatic number is `2n + 3` whenever the complete side is `K₂ₙ₊₃`, since an odd complete graph
 out-colours any cycle.
 
+The three set-system families — the triangular graph, the Kneser graph and the Johnson graph — now
+have Mycielskian rows too, and because all three are regular the degree entries come out in closed
+form: `Δ(M G) = max (2d) |V(G)|` and `δ(M G) = min (min (2d) (d+1)) |V(G)|`, with `d` equal to
+`2n` for `T(n+2)`, `binom (n-k) k` for `K(n,k)` and `k(n-k)` for `J(n,k)`. The triangular graph is
+the one with a full row, since it has a clique number and a domination number on record: `M(T(n+4))`
+has clique number `n + 3` and hence girth three, and `γ(M(T(n+2))) = ⌈(n+2)/2⌉ + 1`. The chromatic
+number of `M(T n)` is `χ'(Kₙ) + 1`, which is as sharp as the underlying edge-colouring result
+allows. For the Kneser and Johnson graphs connectivity needs a hypothesis — `2k ≤ n` and `k < n`
+respectively — because otherwise the graph has isolated vertices and the Mycielskian falls apart.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

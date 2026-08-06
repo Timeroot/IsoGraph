@@ -43244,6 +43244,217 @@ theorem radius_disjUnion_cycle_complete (m n : ℕ) :
     (cycle (m + 1) ⊕g complete (n + 1)).radius = 0 :=
   radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
 
+/-! ### The Mycielskian of a triangular graph -/
+
+@[simp] theorem V_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular n)).V = 2 * n.choose 2 + 1 := by
+  rw [V_mycielskian, V_triangular]
+
+@[simp] theorem E_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular n)).E = 3 * (n * (n - 1).choose 2) + n.choose 2 := by
+  rw [E_mycielskian, E_triangular, V_triangular]
+
+theorem chromNum_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular n)).chromNum = (complete n).edgeChromNum + 1 := by
+  rw [chromNum_mycielskian, chromNum_triangular]
+
+theorem cliqueNum_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular (n + 4))).cliqueNum = n + 3 := by
+  have h := cliqueNum_mycielskian (triangular (n + 4))
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+  rw [cliqueNum_triangular] at h
+  omega
+
+theorem maxDeg_mycielskian_triangular (n : ℕ) :
+    maxDeg (mycielskian (triangular (n + 2))) = max (4 * n) ((n + 2).choose 2) := by
+  have h := maxDeg_mycielskian (triangular (n + 2))
+  rw [maxDeg_triangular, V_triangular] at h
+  omega
+
+theorem minDeg_mycielskian_triangular (n : ℕ) :
+    minDeg (mycielskian (triangular (n + 2)))
+      = min (min (4 * n) (2 * n + 1)) ((n + 2).choose 2) := by
+  have h := minDeg_mycielskian (triangular (n + 2))
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+  rw [minDeg_triangular, V_triangular] at h
+  omega
+
+theorem domNum_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular (n + 2))).domNum = (n + 2) / 2 + 1 := by
+  have h := domNum_mycielskian (triangular (n + 2))
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+  rw [domNum_triangular] at h
+  omega
+
+theorem isConnected_mycielskian_triangular (n : ℕ) :
+    IsConnected (mycielskian (triangular (n + 3))) :=
+  isConnected_mycielskian _ (by rw [minDeg_triangular]; omega)
+
+theorem numComponents_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular (n + 3))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_triangular]; omega)
+
+theorem radius_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular (n + 3))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_triangular]; omega)
+
+theorem two_le_diameter_mycielskian_triangular (n : ℕ) :
+    2 ≤ (mycielskian (triangular (n + 3))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_triangular]; omega)
+
+theorem diameter_mycielskian_triangular_le_four (n : ℕ) :
+    (mycielskian (triangular (n + 3))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_triangular]; omega)
+
+theorem indepNum_mycielskian_triangular_le (n : ℕ) :
+    (mycielskian (triangular (n + 2))).indepNum ≤ (n + 2).choose 2 + (n + 2) / 2 := by
+  have h := indepNum_mycielskian_le (triangular (n + 2))
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+  rw [indepNum_triangular, V_triangular] at h
+  omega
+
+theorem coverNum_mycielskian_triangular_le (n : ℕ) :
+    (mycielskian (triangular n)).coverNum ≤ n.choose 2 + 1 := by
+  have h := coverNum_mycielskian_le (triangular n)
+  rw [V_triangular] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_triangular (n : ℕ) :
+    n.choose 2 ≤ (mycielskian (triangular n)).indepNum := by
+  have h := V_le_indepNum_mycielskian (triangular n)
+  rw [V_triangular] at h
+  omega
+
+theorem girth_mycielskian_triangular (n : ℕ) :
+    (mycielskian (triangular (n + 4))).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_mycielskian_triangular]
+  omega
+
+/-! ### The Mycielskian of a Kneser graph -/
+
+@[simp] theorem V_mycielskian_kneser (n k : ℕ) :
+    (mycielskian (kneser n k)).V = 2 * n.choose k + 1 := by
+  rw [V_mycielskian, V_kneser]
+
+@[simp] theorem E_mycielskian_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
+    (mycielskian (kneser n k)).E
+      = 3 * (n.choose k * (n - k).choose k / 2) + n.choose k := by
+  rw [E_mycielskian, E_kneser n hk, V_kneser]
+
+theorem maxDeg_mycielskian_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n) :
+    maxDeg (mycielskian (kneser n k)) = max (2 * (n - k).choose k) (n.choose k) := by
+  have h := maxDeg_mycielskian (kneser n k)
+  rw [maxDeg_kneser n k hk hkn, V_kneser] at h
+  omega
+
+theorem minDeg_mycielskian_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n) :
+    minDeg (mycielskian (kneser n k))
+      = min (min (2 * (n - k).choose k) ((n - k).choose k + 1)) (n.choose k) := by
+  have h := minDeg_mycielskian (kneser n k)
+    (by rw [V_kneser]; exact Nat.choose_pos hkn)
+  rw [minDeg_kneser n k hk hkn, V_kneser] at h
+  omega
+
+theorem isConnected_mycielskian_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    IsConnected (mycielskian (kneser n k)) :=
+  isConnected_mycielskian _
+    (by rw [minDeg_kneser n k hk (by omega)]; exact Nat.choose_pos (by omega))
+
+theorem numComponents_mycielskian_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    (mycielskian (kneser n k)).numComponents = 1 :=
+  numComponents_mycielskian _
+    (by rw [minDeg_kneser n k hk (by omega)]; exact Nat.choose_pos (by omega))
+
+theorem radius_mycielskian_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    (mycielskian (kneser n k)).radius = 2 :=
+  radius_mycielskian _
+    (by rw [minDeg_kneser n k hk (by omega)]; exact Nat.choose_pos (by omega))
+
+theorem two_le_diameter_mycielskian_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    2 ≤ (mycielskian (kneser n k)).diameter :=
+  two_le_diameter_mycielskian _
+    (by rw [minDeg_kneser n k hk (by omega)]; exact Nat.choose_pos (by omega))
+
+theorem diameter_mycielskian_kneser_le_four (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    (mycielskian (kneser n k)).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _
+    (by rw [minDeg_kneser n k hk (by omega)]; exact Nat.choose_pos (by omega))
+
+theorem coverNum_mycielskian_kneser_le (n k : ℕ) :
+    (mycielskian (kneser n k)).coverNum ≤ n.choose k + 1 := by
+  have h := coverNum_mycielskian_le (kneser n k)
+  rw [V_kneser] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_kneser (n k : ℕ) :
+    n.choose k ≤ (mycielskian (kneser n k)).indepNum := by
+  have h := V_le_indepNum_mycielskian (kneser n k)
+  rw [V_kneser] at h
+  omega
+
+/-! ### The Mycielskian of a Johnson graph -/
+
+@[simp] theorem V_mycielskian_johnson (n k : ℕ) :
+    (mycielskian (johnson n k)).V = 2 * n.choose k + 1 := by
+  rw [V_mycielskian, V_johnson]
+
+@[simp] theorem E_mycielskian_johnson {n k : ℕ} (hk : k ≤ n) :
+    (mycielskian (johnson n k)).E
+      = 3 * (n.choose k * (k * (n - k)) / 2) + n.choose k := by
+  rw [E_mycielskian, E_johnson hk, V_johnson]
+
+theorem maxDeg_mycielskian_johnson {n k : ℕ} (hk : k ≤ n) :
+    maxDeg (mycielskian (johnson n k)) = max (2 * (k * (n - k))) (n.choose k) := by
+  have h := maxDeg_mycielskian (johnson n k)
+  rw [maxDeg_johnson hk, V_johnson] at h
+  omega
+
+theorem minDeg_mycielskian_johnson {n k : ℕ} (hk : k ≤ n) :
+    minDeg (mycielskian (johnson n k))
+      = min (min (2 * (k * (n - k))) (k * (n - k) + 1)) (n.choose k) := by
+  have h := minDeg_mycielskian (johnson n k)
+    (by rw [V_johnson]; exact Nat.choose_pos hk)
+  rw [minDeg_johnson hk, V_johnson] at h
+  omega
+
+theorem isConnected_mycielskian_johnson {n k : ℕ} (hk : 1 ≤ k) (hkn : k < n) :
+    IsConnected (mycielskian (johnson n k)) :=
+  isConnected_mycielskian _
+    (by rw [minDeg_johnson (by omega)]; exact Nat.mul_pos (by omega) (by omega))
+
+theorem numComponents_mycielskian_johnson {n k : ℕ} (hk : 1 ≤ k) (hkn : k < n) :
+    (mycielskian (johnson n k)).numComponents = 1 :=
+  numComponents_mycielskian _
+    (by rw [minDeg_johnson (by omega)]; exact Nat.mul_pos (by omega) (by omega))
+
+theorem radius_mycielskian_johnson {n k : ℕ} (hk : 1 ≤ k) (hkn : k < n) :
+    (mycielskian (johnson n k)).radius = 2 :=
+  radius_mycielskian _
+    (by rw [minDeg_johnson (by omega)]; exact Nat.mul_pos (by omega) (by omega))
+
+theorem two_le_diameter_mycielskian_johnson {n k : ℕ} (hk : 1 ≤ k) (hkn : k < n) :
+    2 ≤ (mycielskian (johnson n k)).diameter :=
+  two_le_diameter_mycielskian _
+    (by rw [minDeg_johnson (by omega)]; exact Nat.mul_pos (by omega) (by omega))
+
+theorem diameter_mycielskian_johnson_le_four {n k : ℕ} (hk : 1 ≤ k) (hkn : k < n) :
+    (mycielskian (johnson n k)).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _
+    (by rw [minDeg_johnson (by omega)]; exact Nat.mul_pos (by omega) (by omega))
+
+theorem coverNum_mycielskian_johnson_le (n k : ℕ) :
+    (mycielskian (johnson n k)).coverNum ≤ n.choose k + 1 := by
+  have h := coverNum_mycielskian_le (johnson n k)
+  rw [V_johnson] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_johnson (n k : ℕ) :
+    n.choose k ≤ (mycielskian (johnson n k)).indepNum := by
+  have h := V_le_indepNum_mycielskian (johnson n k)
+  rw [V_johnson] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
