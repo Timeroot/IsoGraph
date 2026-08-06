@@ -34824,6 +34824,119 @@ theorem not_isTree_thetaGraph (xs : List ℕ) (h : ∀ k ∈ xs, 0 < k) (hl : 2 
     ¬ IsTree (thetaGraph xs) :=
   not_isTree_of_V_le_E (by rw [V_thetaGraph, E_thetaGraph xs h]; omega)
 
+/-! ### Automorphisms of a complete multipartite graph, part by part
+
+`completeMultipartite_cons` peels one part off the front as a join, so the join bound on
+automorphism counts turns into a recursion: each part of size `d` contributes a factor of `d!`.
+Applied to a balanced Turán graph it recovers the vertex count, which is the bound the transitive
+route already gives, but the recursion itself is what the unbalanced parts will need.
+-/
+
+theorem factorial_mul_autCount_le_autCount_completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
+    d.factorial * (completeMultipartite ds).autCount
+      ≤ (completeMultipartite (d :: ds)).autCount := by
+  rw [completeMultipartite_cons]
+  have h := autCount_mul_le_autCount_join (empty d) (completeMultipartite ds)
+  rwa [autCount_empty] at h
+
+theorem le_autCount_turan (m d : ℕ) :
+    (m + 1) * (d + 1) ≤ (turan ((m + 1) * (d + 1)) (m + 1)).autCount := by
+  have hdvd : (m + 1) ∣ (m + 1) * (d + 1) := Dvd.intro _ rfl
+  rw [turan_of_dvd hdvd, Nat.mul_div_cancel_left _ (Nat.succ_pos m)]
+  exact le_autCount_completeMultipartite_replicate m d
+
+/-! ### More edge chromatic brackets
+
+`Δ ≤ χ' ≤ 2Δ - 1` again, now for the families whose maximum degree was known but whose edge
+colouring cell was still empty.
+-/
+
+theorem le_edgeChromNum_tadpole (m k : ℕ) : 3 ≤ (tadpole (m + 3) (k + 1)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (tadpole (m + 3) (k + 1))
+  rwa [maxDeg_tadpole] at h
+
+theorem edgeChromNum_tadpole_le (m k : ℕ) : (tadpole (m + 3) (k + 1)).edgeChromNum ≤ 5 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one (tadpole (m + 3) (k + 1))
+  rwa [maxDeg_tadpole] at h
+
+theorem le_edgeChromNum_lollipop (m k : ℕ) :
+    m + 2 ≤ (lollipop (m + 2) (k + 1)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (lollipop (m + 2) (k + 1))
+  rwa [maxDeg_lollipop] at h
+
+theorem edgeChromNum_lollipop_le (m k : ℕ) :
+    (lollipop (m + 2) (k + 1)).edgeChromNum ≤ 2 * m + 3 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one (lollipop (m + 2) (k + 1))
+  rw [maxDeg_lollipop] at h
+  omega
+
+theorem edgeChromNum_doubleStar_le (m n : ℕ) :
+    (doubleStar m n).edgeChromNum ≤ 2 * max m n + 1 := by
+  have h := edgeChromNum_le_two_mul_maxDeg_sub_one (doubleStar m n)
+  rw [maxDeg_doubleStar] at h
+  omega
+
+theorem le_edgeChromNum_triangular (n : ℕ) : 2 * n ≤ (triangular (n + 2)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (triangular (n + 2))
+  rwa [maxDeg_triangular] at h
+
+theorem le_edgeChromNum_johnson {n k : ℕ} (hk : k ≤ n) :
+    k * (n - k) ≤ (johnson n k).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (johnson n k)
+  rwa [maxDeg_johnson hk] at h
+
+theorem le_edgeChromNum_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (q - 1) / 2 ≤ (paley q).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (paley q)
+  rwa [maxDeg_paley q hq] at h
+
+/-! ### Clique covers from the clique number
+
+`|V| ≤ θ ω` once more, for the three families whose clique number is exactly known but whose
+clique-cover cell was empty.
+-/
+
+theorem le_cliqueCoverNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    n ≤ (turan n r).cliqueCoverNum * r := by
+  have h1 := V_le_cliqueCoverNum_mul_cliqueNum (turan n r)
+  rwa [V_turan, cliqueNum_turan hr h] at h1
+
+theorem le_cliqueCoverNum_crown (n : ℕ) : n + 2 ≤ (crown (n + 2)).cliqueCoverNum := by
+  have h := le_cliqueCoverNum_of_cliqueNum_le_two (cliqueNum_crown n).le
+  rw [V_crown] at h
+  omega
+
+theorem le_cliqueCoverNum_johnson_two (n : ℕ) :
+    (n + 4).choose 2 ≤ (johnson (n + 4) 2).cliqueCoverNum * (n + 3) := by
+  have h := V_le_cliqueCoverNum_mul_cliqueNum (johnson (n + 4) 2)
+  rwa [V_johnson, cliqueNum_johnson_two] at h
+
+theorem le_cliqueCoverNum_triangular_of_choose (n : ℕ) :
+    (n + 4).choose 2 ≤ (triangular (n + 4)).cliqueCoverNum * (n + 3) := by
+  have h := V_le_cliqueCoverNum_mul_cliqueNum (triangular (n + 4))
+  rwa [V_triangular, cliqueNum_triangular] at h
+
+/-! ### Domination in the Paley graph
+
+The Paley graph is `(q - 1)/2`-regular, so a dominating set covers at most `(q + 1)/2` vertices
+per element.
+-/
+
+theorem le_domNum_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    q ≤ (paley q).domNum * ((q - 1) / 2 + 1) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (paley q)
+  rwa [V_paley, maxDeg_paley q hq] at h
+
+theorem domNum_paley_le (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).domNum + (q - 1) / 2 ≤ q := by
+  have h := domNum_add_maxDeg_le_V (paley q)
+  rwa [V_paley, maxDeg_paley q hq] at h
+
+/-- A cycle with pendant paths attached contains a cycle, so its girth is at least three. -/
+theorem three_le_girth_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
+    3 ≤ (cyclePendant (m + 3) ks).girth :=
+  three_le_girth (not_isAcyclic_cyclePendant m ks h)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

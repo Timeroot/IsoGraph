@@ -2449,6 +2449,27 @@ the distance cells of those two families. In the same spirit `not_isTree_thetaGr
 `|V| = 2 + Σxs` against `|E| = Σxs + |xs|`, so it has at least as many edges as vertices and the
 edge-counting cycle detector applies.
 
+The join bound also recurses. `completeMultipartite_cons` peels the first part off as a join with
+an empty graph, so `factorial_mul_autCount_le_autCount_completeMultipartite_cons` reads
+`d! · |Aut(completeMultipartite ds)| ≤ |Aut(completeMultipartite (d :: ds))|` — each part of size
+`d` contributes a factor of `d!`. Feeding a balanced list into it, via `turan_of_dvd`, gives
+`le_autCount_turan` for the divisible case; that particular bound is no better than the transitive
+one, but the recursion is what the unbalanced parts will eventually need.
+
+The `Δ ≤ χ' ≤ 2Δ − 1` sandwich has now been applied everywhere the maximum degree is known:
+`le_edgeChromNum_tadpole` and `edgeChromNum_tadpole_le` bracket the tadpole between `3` and `5`,
+`le_edgeChromNum_lollipop` and `edgeChromNum_lollipop_le` bracket the lollipop between `m + 2` and
+`2m + 3`, `edgeChromNum_doubleStar_le` supplies the upper half of the double star's bracket, and
+`le_edgeChromNum_triangular`, `le_edgeChromNum_johnson` and `le_edgeChromNum_paley` give
+unconditional lower bounds where the earlier parity arguments needed `|V|` to be odd. Similarly
+`|V| ≤ θ ω` has been applied everywhere the clique number is known: `le_cliqueCoverNum_turan`
+(`n ≤ θ r`), `le_cliqueCoverNum_crown` (triangle-free, so `θ ≥ n + 2`),
+`le_cliqueCoverNum_johnson_two` and `le_cliqueCoverNum_triangular_of_choose`. The Paley graph's
+domination cell opens the same way, from `maxDeg_paley`: `le_domNum_paley` is `q ≤ γ((q − 1)/2 + 1)`
+and `domNum_paley_le` is `γ + (q − 1)/2 ≤ q`. Finally `three_le_girth_cyclePendant` records that a
+cycle with pendant paths attached is not acyclic, hence has girth at least three — the first entry
+in that family's girth cell.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
