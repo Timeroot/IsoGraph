@@ -3614,6 +3614,21 @@ observation that `δ(μ(G)) > 0` whenever `δ(G) > 0`, settles both columns at o
 graph, the hypercube, the Petersen graph, the prism, the cocktail party graph, the crown, the
 folded cube, `K_{n,n}` and the triangular graph — nine families for the price of one argument.
 
+The regularity column goes the same way, and it is the last one that had holes. A `k`-regular
+graph on a nonempty vertex set has `δ = k = Δ`, so a single pair of distinct degrees rules out
+regularity *at every degree at once*: `not_isRegularWith_of_minDeg_ne_maxDeg` is quantified over
+`k`. Each family then costs three lines, since its two degrees are already recorded — 1 against 2
+for the path, 1 against `n + 2` for the star, 3 against `n + 4` for the wheel, 2 against `n + 3`
+for the fan and the book, 2 against `2n + 4` for the friendship graph, 3 against 5 for the
+Grötzsch graph, 1 against `max m n + 1` for the double star, 1 against 3 for the tadpole,
+1 against `m + 2` for the lollipop, 2 against 4 for the grid, 3 against 8 for the king graph, and
+`n - ⌈n/r⌉` against `n - ⌊n/r⌋` for the Turán graph when `r ∤ n`. The offsets are the whole
+subtlety: `star 1`, `wheel 3`, `book 1` and `friendship 1` are `K₂`, `K₄`, `K₃` and `K₃`, every
+one of them regular, so each statement has to begin one step past the index its degree lemmas do.
+
+Two entries in the bipartite column went with them — a grid is bipartite, being a product of
+paths, and the king graph is not, since its chromatic number is four.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
@@ -4156,3 +4171,26 @@ are tail calls), and a benchmark confirms it: minimum-of-six total CPU time is 1
 as it is for the `List.mergeSort` detour that replaced the unspecified `Array.qsort`. Measure on
 a quiet machine, though — this one is shared, and single wall-clock runs of the benchmark vary by
 a factor of four under load, which is enough to invent a regression that is not there.
+
+### What is not there
+
+The invariant table is dense but not full, and the gaps are worth naming so nobody goes looking
+for entries that were never proved.
+
+The one blocked on a missing dependency is the edge chromatic number of the ladder and of the
+crown. Both are bipartite with a known maximum degree, so both follow in four lines from König's
+edge-colouring theorem — a bipartite graph is `Δ`-edge-colourable — and Mathlib has neither that
+nor Vizing's theorem. Hall's marriage theorem *is* there
+(`SimpleGraph.exists_isMatching_of_forall_ncard_le`), which is the usual route in, so this is a
+matter of work rather than of mathematics. The edge chromatic numbers proved so far — the
+complete graph in both parities, the hypercube, the wheel — each come from a construction rather
+than from a general theorem.
+
+The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
+(Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the girth
+of a general cycle and of a general tadpole as opposed to the fixed small ones, the automorphism
+count for most families — `autCount` is settled for the empty, complete, path, Kneser, Johnson,
+circulant and lollipop families and for complements, and not for the cycle, star, wheel, Petersen
+or hypercube — and, for the grid and the king graph, everything below the degree and colouring
+entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
+a general `girth_cyclePendant` first.

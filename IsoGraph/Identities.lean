@@ -47858,4 +47858,109 @@ theorem not_isArcTransitive_mycielskian_triangular (n : ℕ) :
     ¬ IsArcTransitive (mycielskian (triangular (n + 3))) :=
   not_isArcTransitive_mycielskian (isRegularWith_triangular (n + 3)) (by omega)
     (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+/-! ### Which of the named families are regular
+
+Every family whose minimum and maximum degree are already known can be settled at once: a
+`k`-regular graph on a nonempty vertex set has `minDeg = k = maxDeg`, so the two being different
+rules out regularity of *every* degree.  The positive entries (`isRegularWith_cycle`,
+`isRegularWith_petersen`, …) are already in the library; these are the negative ones. -/
+
+theorem not_isRegularWith_of_minDeg_ne_maxDeg {G : IsoGraph} (hV : 0 < G.V)
+    (h : G.minDeg ≠ G.maxDeg) (k : ℕ) : ¬ G.IsRegularWith k := by
+  intro hreg
+  exact h ((hreg.minDeg_eq hV).trans (hreg.maxDeg_eq hV).symm)
+
+theorem not_isRegularWith_path (n k : ℕ) : ¬ IsRegularWith (path (n + 3)) k := by
+  have hmin : minDeg (path (n + 3)) = 1 := minDeg_path (n + 1)
+  have hmax : maxDeg (path (n + 3)) = 2 := maxDeg_path n
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_path]; omega) (by omega) k
+
+theorem not_isRegularWith_star (n k : ℕ) : ¬ IsRegularWith (star (n + 2)) k := by
+  have hmin : minDeg (star (n + 2)) = 1 := minDeg_star (n + 1)
+  have hmax : maxDeg (star (n + 2)) = n + 2 := maxDeg_star (n + 1)
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_star]; omega) (by omega) k
+
+theorem not_isRegularWith_wheel (n k : ℕ) : ¬ IsRegularWith (wheel (n + 4)) k := by
+  have hmin : minDeg (wheel (n + 4)) = 3 := minDeg_wheel (n + 1)
+  have hmax : maxDeg (wheel (n + 4)) = n + 4 := maxDeg_wheel (n + 1)
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_wheel]; omega) (by omega) k
+
+theorem not_isRegularWith_fan (n k : ℕ) : ¬ IsRegularWith (fan (n + 3)) k := by
+  have hmin : minDeg (fan (n + 3)) = 2 := minDeg_fan (n + 1)
+  have hmax : maxDeg (fan (n + 3)) = n + 3 := maxDeg_fan n
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_fan]; omega) (by omega) k
+
+theorem not_isRegularWith_book (n k : ℕ) : ¬ IsRegularWith (book (n + 2)) k := by
+  have hmin : minDeg (book (n + 2)) = 2 := minDeg_book (n + 1)
+  have hmax : maxDeg (book (n + 2)) = n + 3 := maxDeg_book (n + 1)
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_book]; omega) (by omega) k
+
+theorem not_isRegularWith_friendship (n k : ℕ) : ¬ IsRegularWith (friendship (n + 2)) k := by
+  have hmin : minDeg (friendship (n + 2)) = 2 := minDeg_friendship (n + 1)
+  have hmax : maxDeg (friendship (n + 2)) = 2 * (n + 1) + 2 := maxDeg_friendship (n + 1)
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_friendship]; omega) (by omega) k
+
+theorem not_isRegularWith_grotzsch (k : ℕ) : ¬ grotzsch.IsRegularWith k := by
+  have hmin : grotzsch.minDeg = 3 := minDeg_grotzsch
+  have hmax : maxDeg grotzsch = 5 := maxDeg_grotzsch
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_grotzsch]; omega) (by omega) k
+
+theorem not_isRegularWith_doubleStar {m n : ℕ} (h : 0 < m + n) (k : ℕ) :
+    ¬ IsRegularWith (doubleStar m n) k := by
+  have hmin : minDeg (doubleStar m n) = 1 := minDeg_doubleStar m n
+  have hmax : maxDeg (doubleStar m n) = max m n + 1 := maxDeg_doubleStar m n
+  have hlt : 0 < max m n := by omega
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_doubleStar]; omega) (by omega) k
+
+theorem not_isRegularWith_tadpole (m j k : ℕ) : ¬ IsRegularWith (tadpole (m + 3) (j + 1)) k := by
+  have hmin : minDeg (tadpole (m + 3) (j + 1)) = 1 := minDeg_tadpole m j
+  have hmax : maxDeg (tadpole (m + 3) (j + 1)) = 3 := maxDeg_tadpole m j
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_tadpole]; omega) (by omega) k
+
+theorem not_isRegularWith_lollipop (m j k : ℕ) :
+    ¬ IsRegularWith (lollipop (m + 2) (j + 1)) k := by
+  have hmin : minDeg (lollipop (m + 2) (j + 1)) = 1 := minDeg_lollipop m j
+  have hmax : maxDeg (lollipop (m + 2) (j + 1)) = m + 2 := maxDeg_lollipop m j
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_lollipop]; omega) (by omega) k
+
+theorem not_isRegularWith_grid (m n k : ℕ) :
+    ¬ IsRegularWith (path (m + 3) □g path (n + 3)) k := by
+  have hmin : minDeg (path (m + 3) □g path (n + 3)) = 2 := minDeg_grid (m + 1) (n + 1)
+  have hmax : maxDeg (path (m + 3) □g path (n + 3)) = 4 := maxDeg_grid m n
+  refine not_isRegularWith_of_minDeg_ne_maxDeg ?_ (by omega) k
+  rw [V_grid]
+  positivity
+
+theorem not_isRegularWith_king (m n k : ℕ) :
+    ¬ IsRegularWith (path (m + 3) ⊠g path (n + 3)) k := by
+  have hmin : minDeg (path (m + 3) ⊠g path (n + 3)) = 3 := minDeg_king (m + 1) (n + 1)
+  have hmax : maxDeg (path (m + 3) ⊠g path (n + 3)) = 8 := maxDeg_king m n
+  refine not_isRegularWith_of_minDeg_ne_maxDeg ?_ (by omega) k
+  rw [V_king]
+  positivity
+
+theorem not_isRegularWith_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) (h : ¬ r ∣ n) (k : ℕ) :
+    ¬ IsRegularWith (turan n r) k := by
+  have hr2 : 2 ≤ r := by
+    rcases Nat.lt_or_ge r 2 with hlt | hge
+    · have hr1 : r = 1 := by omega
+      subst hr1
+      exact absurd (one_dvd n) h
+    · exact hge
+  have hnpos : 0 < n := by omega
+  have hlt : n / r < n := Nat.div_lt_self hnpos hr2
+  have hmin : minDeg (turan n r) = n - (n / r + 1) := by
+    rw [minDeg_turan hr hn, ceilDiv_of_not_dvd hr h]
+  have hmax : maxDeg (turan n r) = n - n / r := maxDeg_turan hr hn
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_turan]; omega) (by omega) k
+
+/-! ### Bipartiteness of the grid and the king graph -/
+
+@[simp] theorem isBipartite_grid (m n : ℕ) : IsBipartite (path (m + 2) □g path (n + 2)) :=
+  isBipartite_cartesianProduct (isBipartite_path _) (isBipartite_path _)
+
+theorem not_isBipartite_king (m n : ℕ) : ¬ IsBipartite (path (m + 2) ⊠g path (n + 2)) := by
+  have h : (path (m + 2) ⊠g path (n + 2)).chromNum = 4 := chromNum_king m n
+  rw [isBipartite_iff_chromNum_le_two, h]
+  omega
 end IsoGraph
