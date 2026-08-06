@@ -37122,6 +37122,80 @@ theorem radius_cartesianProduct_cycle (m n : ℕ) :
   rw [radius_cartesianProduct (isConnected_cycle m) (isConnected_cycle n), radius_cycle,
     radius_cycle]
 
+/-! ### The cylinder and the king graph -/
+
+@[simp] theorem V_cartesianProduct_cycle_path (m n : ℕ) : (cycle m □g path n).V = m * n := by
+  rw [V_cartesianProduct, V_cycle, V_path]
+
+theorem E_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 3) □g path (n + 1)).E = (m + 3) * n + (n + 1) * (m + 3) := by
+  rw [E_cartesianProduct, E_cycle, E_path, V_cycle, V_path]
+
+theorem cliqueNum_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 4) □g path (n + 2)).cliqueNum = 2 := by
+  have h := cliqueNum_cartesianProduct (G := cycle (m + 4)) (H := path (n + 2))
+    (by rw [V_cycle]; omega) (by rw [V_path]; omega)
+  rw [cliqueNum_cycle, cliqueNum_path] at h
+  omega
+
+theorem maxDeg_cartesianProduct_cycle_path (m n : ℕ) :
+    maxDeg (cycle (m + 3) □g path (n + 3)) = 4 := by
+  have h := maxDeg_cartesianProduct (G := cycle (m + 3)) (H := path (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_cycle, maxDeg_path] at h
+  omega
+
+theorem minDeg_cartesianProduct_cycle_path (m n : ℕ) :
+    minDeg (cycle (m + 3) □g path (n + 2)) = 3 := by
+  have h := minDeg_cartesianProduct (G := cycle (m + 3)) (H := path (n + 2))
+    (by rw [V_cycle]; omega) (by rw [V_path]; omega)
+  rw [minDeg_cycle, minDeg_path] at h
+  omega
+
+@[simp] theorem isConnected_cartesianProduct_cycle_path (m n : ℕ) :
+    IsConnected (cycle (m + 1) □g path (n + 1)) :=
+  isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_path n⟩
+
+theorem diameter_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 1) □g path (n + 1)).diameter = (m + 1) / 2 + n := by
+  rw [diameter_cartesianProduct (isConnected_cycle m) (isConnected_path n), diameter_cycle,
+    diameter_path]
+
+theorem radius_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 1) □g path (n + 1)).radius = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_cycle m) (isConnected_path n), radius_cycle,
+    radius_path]
+
+@[simp] theorem V_king (m n : ℕ) : (path m ⊠g path n).V = m * n := by
+  rw [V_strongProduct, V_path, V_path]
+
+theorem E_king (m n : ℕ) :
+    (path (m + 1) ⊠g path (n + 1)).E = (m + 1) * n + (n + 1) * m + 2 * m * n := by
+  rw [E_strongProduct, E_path, E_path, V_path, V_path]
+
+theorem cliqueNum_king (m n : ℕ) : (path (m + 2) ⊠g path (n + 2)).cliqueNum = 4 := by
+  have h := cliqueNum_strongProduct (path (m + 2)) (path (n + 2))
+  rw [cliqueNum_path, cliqueNum_path] at h
+  omega
+
+theorem maxDeg_king (m n : ℕ) : maxDeg (path (m + 3) ⊠g path (n + 3)) = 8 := by
+  have h := maxDeg_strongProduct (G := path (m + 3)) (H := path (n + 3))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_path, maxDeg_path] at h
+  omega
+
+theorem minDeg_king (m n : ℕ) : minDeg (path (m + 2) ⊠g path (n + 2)) = 3 := by
+  have h := minDeg_strongProduct (G := path (m + 2)) (H := path (n + 2))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [minDeg_path, minDeg_path] at h
+  omega
+
+@[simp] theorem isConnected_king (m n : ℕ) : IsConnected (path (m + 1) ⊠g path (n + 1)) :=
+  isConnected_strongProduct (isConnected_path m) (isConnected_path n)
+
+@[simp] theorem girth_king (m n : ℕ) : (path (m + 2) ⊠g path (n + 2)).girth = 3 :=
+  girth_strongProduct (by rw [E_path]; omega) (by rw [E_path]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

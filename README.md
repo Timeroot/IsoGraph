@@ -2835,6 +2835,17 @@ fills the rest of them in. For the grid `Pₘ □ Pₙ` that is `V_grid`, `E_gri
 factors. Neither row includes an independence number: the Cartesian product has no formula for
 one, only the two bounds `indepNum_cartesianProduct_le` and `indepNum_cartesianProduct_le'`.
 
+Two more product families come for free from the same lemmas. The cylinder `Cₘ □ Pₙ` gets
+`V_cartesianProduct_cycle_path`, `E_cartesianProduct_cycle_path`,
+`cliqueNum_cartesianProduct_cycle_path`, `maxDeg_cartesianProduct_cycle_path` (`4`),
+`minDeg_cartesianProduct_cycle_path` (`3`, at the two boundary circles),
+`isConnected_cartesianProduct_cycle_path`, `diameter_cartesianProduct_cycle_path` and
+`radius_cartesianProduct_cycle_path`, joining the `girth_cartesianProduct_cycle_path` that was
+already there. The king graph `Pₘ ⊠ Pₙ` — a chessboard with diagonal moves allowed — comes from
+the strong product instead: `V_king`, `E_king`, `cliqueNum_king = 4` (a king, its neighbour and
+the two squares completing the `2 × 2` block), `maxDeg_king = 8`, `minDeg_king = 3` at a corner,
+`isConnected_king` and `girth_king = 3`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
