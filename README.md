@@ -3151,6 +3151,24 @@ the product — so `girth_tensorProduct` also settles the products of `Kₘ` wit
 the book, the friendship graph, the cocktail party graph and the triangular graph, along with
 `Wₘ ⊗ Wₙ` and `Fₘ ⊗ Fₙ`.
 
+The strong and lexicographic products now get full rows too: `Kₘ ⊠ Cₙ`, `Cₘ ⊠ Qₙ` and `Kₘ · Cₙ`.
+Both products keep every cartesian edge and add more, so degrees multiply rather than add —
+`maxDeg_strongProduct_cycle_hypercube = 3(n+1) - 1` comes straight from `(a+1)(b+1) - 1`, and
+`maxDeg_lexProduct_complete_cycle = m(n+3) + 2` from `maxDeg G · |V(H)| + maxDeg H`. Both are
+therefore regular whenever their factors are: `isRegularWith_strongProduct_complete_cycle` has
+degree `3m + 2` and `isRegularWith_lexProduct_complete_cycle` degree `m(n+3) + 2`. Distances behave
+differently in the two: the strong product takes a maximum, so
+`diameter_strongProduct_cycle_hypercube = max ⌊m/2⌋ n`, while the lexicographic product collapses
+to diameter at most two and is left alone here. Every one of these products has a triangle — the
+strong product of two graphs with an edge already does — so all three girths are `3`.
+Independence is the one invariant where the lexicographic product is the clean one:
+`indepNum_lexProduct` multiplies, and since `α(Kₘ) = 1` this gives
+`indepNum_lexProduct_complete_cycle = ⌊n/2⌋` and hence
+`coverNum_lexProduct_complete_cycle = m(n+3) - ⌊n/2⌋`. Colouring needs the `χ = ω` squeeze in both
+factors, which the complete graph, the even cycle and the hypercube all satisfy, so
+`chromNum_strongProduct_complete_hypercube = 2m`, `chromNum_lexProduct_cycle_even_hypercube = 4`
+and three more cells fill in, along with `cliqueCoverNum_lexProduct_complete_cycle_even = n + 2`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
