@@ -37315,6 +37315,98 @@ theorem minDeg_lexProduct_cycle (m n : ℕ) :
     IsVertexTransitive (cycle m ·g cycle n) :=
   (isVertexTransitive_cycle m).lexProduct (isVertexTransitive_cycle n)
 
+/-! ### The tensor and lexicographic products of two paths -/
+
+@[simp] theorem V_tensorProduct_path (m n : ℕ) : (path m ⊗g path n).V = m * n := by
+  rw [V_tensorProduct, V_path, V_path]
+
+theorem E_tensorProduct_path (m n : ℕ) : (path (m + 1) ⊗g path (n + 1)).E = 2 * m * n := by
+  rw [E_tensorProduct, E_path, E_path]
+
+theorem cliqueNum_tensorProduct_path (m n : ℕ) :
+    (path (m + 2) ⊗g path (n + 2)).cliqueNum = 2 := by
+  have h := cliqueNum_tensorProduct (path (m + 2)) (path (n + 2))
+  rw [cliqueNum_path, cliqueNum_path] at h
+  omega
+
+theorem maxDeg_tensorProduct_path (m n : ℕ) :
+    maxDeg (path (m + 3) ⊗g path (n + 3)) = 4 := by
+  have h := maxDeg_tensorProduct (G := path (m + 3)) (H := path (n + 3))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_path, maxDeg_path] at h
+  omega
+
+theorem minDeg_tensorProduct_path (m n : ℕ) :
+    minDeg (path (m + 2) ⊗g path (n + 2)) = 1 := by
+  have h := minDeg_tensorProduct (G := path (m + 2)) (H := path (n + 2))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [minDeg_path, minDeg_path] at h
+  omega
+
+@[simp] theorem isBipartite_tensorProduct_path (m n : ℕ) :
+    IsBipartite (path m ⊗g path n) :=
+  isBipartite_tensorProduct_left (isBipartite_path m)
+
+@[simp] theorem chromNum_tensorProduct_path (m n : ℕ) :
+    (path (m + 2) ⊗g path (n + 2)).chromNum = 2 :=
+  chromNum_eq_two_iff.2 ⟨isBipartite_tensorProduct_path _ _,
+    by rw [E_tensorProduct, E_path, E_path]; positivity⟩
+
+@[simp] theorem V_lexProduct_path (m n : ℕ) : (path m ·g path n).V = m * n := by
+  rw [V_lexProduct, V_path, V_path]
+
+theorem E_lexProduct_path (m n : ℕ) :
+    (path (m + 1) ·g path (n + 1)).E = (n + 1) * (n + 1) * m + (m + 1) * n := by
+  rw [E_lexProduct, E_path, E_path, V_path, V_path]
+
+theorem cliqueNum_lexProduct_path (m n : ℕ) :
+    (path (m + 2) ·g path (n + 2)).cliqueNum = 4 := by
+  have h := cliqueNum_lexProduct (path (m + 2)) (path (n + 2))
+  rw [cliqueNum_path, cliqueNum_path] at h
+  omega
+
+theorem indepNum_lexProduct_path (m n : ℕ) :
+    (path m ·g path n).indepNum = (m + 1) / 2 * ((n + 1) / 2) := by
+  rw [indepNum_lexProduct, indepNum_path, indepNum_path]
+
+theorem maxDeg_lexProduct_path (m n : ℕ) :
+    maxDeg (path (m + 3) ·g path (n + 3)) = 2 * (n + 3) + 2 := by
+  have h := maxDeg_lexProduct (G := path (m + 3)) (H := path (n + 3))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_path, maxDeg_path, V_path] at h
+  omega
+
+theorem minDeg_lexProduct_path (m n : ℕ) :
+    minDeg (path (m + 2) ·g path (n + 2)) = n + 3 := by
+  have h := minDeg_lexProduct (G := path (m + 2)) (H := path (n + 2))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [minDeg_path, minDeg_path, V_path] at h
+  omega
+
+@[simp] theorem isConnected_lexProduct_path (m n : ℕ) :
+    IsConnected (path (m + 1) ·g path (n + 1)) :=
+  isConnected_lexProduct (isConnected_path m) (isConnected_path n)
+
+@[simp] theorem numComponents_lexProduct_path (m n : ℕ) :
+    (path (m + 1) ·g path (n + 1)).numComponents = 1 :=
+  numComponents_lexProduct (isConnected_path m) (isConnected_path n)
+
+@[simp] theorem girth_lexProduct_path (m n : ℕ) :
+    (path (m + 2) ·g path (n + 2)).girth = 3 :=
+  girth_lexProduct (by rw [E_path]; omega) (by rw [E_path]; omega)
+
+theorem not_isBipartite_lexProduct_path (m n : ℕ) :
+    ¬ IsBipartite (path (m + 2) ·g path (n + 2)) :=
+  not_isBipartite_lexProduct (by rw [E_path]; omega) (by rw [E_path]; omega)
+
+theorem chromNum_lexProduct_path (m n : ℕ) :
+    (path (m + 2) ·g path (n + 2)).chromNum = 4 := by
+  have h1 := chromNum_lexProduct_le (path (m + 2)) (path (n + 2))
+  have h2 := cliqueNum_le_chromNum (path (m + 2) ·g path (n + 2))
+  rw [chromNum_path, chromNum_path] at h1
+  rw [cliqueNum_lexProduct_path] at h2
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

@@ -2867,6 +2867,22 @@ lexicographic product multiplies them), `maxDeg_lexProduct_cycle` and `minDeg_le
 `isVertexTransitive_lexProduct_cycle`. The asymmetry in the degree, which depends on `n` but not
 on `m`, is the asymmetry of the product itself.
 
+Paths make a good second pair of factors, because they are bipartite and the two products react
+to that in opposite ways. The tensor product stays bipartite —
+`isBipartite_tensorProduct_path` follows from the left factor alone — so
+`chromNum_tensorProduct_path = 2` and `cliqueNum_tensorProduct_path = 2`, with
+`V_tensorProduct_path`, `E_tensorProduct_path = 2mn`, `maxDeg_tensorProduct_path = 4` and
+`minDeg_tensorProduct_path = 1` filling in the rest. Connectivity is missing on purpose: the
+tensor product of two bipartite graphs always splits into two halves.
+
+The lexicographic product does the opposite. `not_isBipartite_lexProduct_path` holds as soon as
+both factors have an edge, and in fact `cliqueNum_lexProduct_path = 4` and
+`chromNum_lexProduct_path = 4`: the clique number forces the chromatic number up from below and
+`chromNum_lexProduct_le` caps it at `2 · 2` from above, so the two bounds meet. The rest of the
+row is `V_lexProduct_path`, `E_lexProduct_path`, `indepNum_lexProduct_path`,
+`maxDeg_lexProduct_path`, `minDeg_lexProduct_path = n + 3`, `isConnected_lexProduct_path`,
+`numComponents_lexProduct_path = 1` and `girth_lexProduct_path = 3`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
