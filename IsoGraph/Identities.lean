@@ -44790,6 +44790,189 @@ theorem le_chromNum_lineGraph_book (n : ℕ) :
   rw [chromNum_lineGraph]
   exact le_edgeChromNum_book n
 
+/-! ### The line graph of a triangular graph -/
+
+@[simp] theorem V_lineGraph_triangular (n : ℕ) :
+    (lineGraph (triangular n)).V = n * (n - 1).choose 2 := by
+  rw [V_lineGraph, E_triangular]
+
+theorem E_pos_triangular (n : ℕ) : 0 < (triangular (n + 4)).E := by
+  have h : 0 < (n + 4) * ((n + 4 - 1).choose 2) :=
+    Nat.mul_pos (by omega) (Nat.choose_pos (by omega))
+  rw [E_triangular]
+  omega
+
+theorem cliqueNum_lineGraph_triangular (n : ℕ) :
+    (lineGraph (triangular (n + 4))).cliqueNum = 2 * n + 4 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := triangular (n + 4))
+    (by rw [maxDeg_triangular]; omega)
+  rw [maxDeg_triangular] at h
+  omega
+
+theorem girth_lineGraph_triangular (n : ℕ) : (lineGraph (triangular (n + 4))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_triangular]; omega)
+
+theorem not_isBipartite_lineGraph_triangular (n : ℕ) :
+    ¬ IsBipartite (lineGraph (triangular (n + 4))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_triangular]; omega)
+
+theorem not_isAcyclic_lineGraph_triangular (n : ℕ) :
+    ¬ IsAcyclic (lineGraph (triangular (n + 4))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_triangular]; omega)
+
+theorem not_isTree_lineGraph_triangular (n : ℕ) :
+    ¬ IsTree (lineGraph (triangular (n + 4))) :=
+  not_isTree_lineGraph (by rw [maxDeg_triangular]; omega)
+
+theorem isConnected_lineGraph_triangular (n : ℕ) :
+    IsConnected (lineGraph (triangular (n + 4))) :=
+  isConnected_lineGraph (isConnected_triangular (by omega)) (E_pos_triangular n)
+
+theorem numComponents_lineGraph_triangular (n : ℕ) :
+    (lineGraph (triangular (n + 4))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_triangular (by omega)) (E_pos_triangular n)
+
+theorem radius_lineGraph_triangular_le (n : ℕ) :
+    (lineGraph (triangular (n + 4))).radius ≤ 3 := by
+  have h := radius_lineGraph_le (G := triangular (n + 4)) (isConnected_triangular (by omega))
+    (E_pos_triangular n)
+  rw [radius_triangular (n := n + 4) (by omega)] at h
+  omega
+
+theorem diameter_lineGraph_triangular_le (n : ℕ) :
+    (lineGraph (triangular (n + 4))).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := triangular (n + 4)) (isConnected_triangular (by omega))
+    (E_pos_triangular n)
+  rw [diameter_triangular (n := n + 4) (by omega)] at h
+  omega
+
+theorem maxDeg_lineGraph_triangular (n : ℕ) :
+    maxDeg (lineGraph (triangular (n + 4))) = 4 * n + 6 := by
+  have h1 := maxDeg_lineGraph_le (triangular (n + 4))
+  have h2 := le_minDeg_lineGraph (G := triangular (n + 4)) (E_pos_triangular n)
+  have h3 := minDeg_le_maxDeg (lineGraph (triangular (n + 4)))
+  rw [maxDeg_triangular] at h1
+  rw [minDeg_triangular] at h2
+  omega
+
+theorem minDeg_lineGraph_triangular (n : ℕ) :
+    minDeg (lineGraph (triangular (n + 4))) = 4 * n + 6 := by
+  have h1 := maxDeg_lineGraph_le (triangular (n + 4))
+  have h2 := le_minDeg_lineGraph (G := triangular (n + 4)) (E_pos_triangular n)
+  have h3 := minDeg_le_maxDeg (lineGraph (triangular (n + 4)))
+  rw [maxDeg_triangular] at h1
+  rw [minDeg_triangular] at h2
+  omega
+
+/-! ### The line graph of the Grötzsch graph -/
+
+@[simp] theorem V_lineGraph_grotzsch : (lineGraph grotzsch).V = 20 := by
+  rw [V_lineGraph, E_grotzsch]
+
+theorem le_chromNum_lineGraph_grotzsch : 5 ≤ (lineGraph grotzsch).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_grotzsch
+
+theorem indepNum_lineGraph_grotzsch : (lineGraph grotzsch).indepNum = 5 := by
+  rw [indepNum_lineGraph, matchNum_grotzsch]
+
+theorem coverNum_lineGraph_grotzsch : (lineGraph grotzsch).coverNum = 15 := by
+  have h := coverNum_lineGraph grotzsch
+  rw [E_grotzsch, matchNum_grotzsch] at h
+  omega
+
+theorem cliqueNum_lineGraph_grotzsch : (lineGraph grotzsch).cliqueNum = 5 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := grotzsch)
+    (by rw [maxDeg_grotzsch]; omega)
+  rw [maxDeg_grotzsch] at h
+  omega
+
+theorem girth_lineGraph_grotzsch : (lineGraph grotzsch).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_grotzsch]; omega)
+
+theorem not_isBipartite_lineGraph_grotzsch : ¬ IsBipartite (lineGraph grotzsch) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_grotzsch]; omega)
+
+theorem not_isAcyclic_lineGraph_grotzsch : ¬ IsAcyclic (lineGraph grotzsch) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_grotzsch]; omega)
+
+theorem not_isTree_lineGraph_grotzsch : ¬ IsTree (lineGraph grotzsch) :=
+  not_isTree_lineGraph (by rw [maxDeg_grotzsch]; omega)
+
+theorem isConnected_lineGraph_grotzsch : IsConnected (lineGraph grotzsch) :=
+  isConnected_lineGraph isConnected_grotzsch (by rw [E_grotzsch]; omega)
+
+theorem numComponents_lineGraph_grotzsch : (lineGraph grotzsch).numComponents = 1 :=
+  numComponents_lineGraph isConnected_grotzsch (by rw [E_grotzsch]; omega)
+
+theorem radius_lineGraph_grotzsch_le : (lineGraph grotzsch).radius ≤ 3 := by
+  have h := radius_lineGraph_le (G := grotzsch) isConnected_grotzsch
+    (by rw [E_grotzsch]; omega)
+  rw [radius_grotzsch] at h
+  omega
+
+theorem diameter_lineGraph_grotzsch_le : (lineGraph grotzsch).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := grotzsch) isConnected_grotzsch
+    (by rw [E_grotzsch]; omega)
+  rw [diameter_grotzsch] at h
+  omega
+
+theorem maxDeg_lineGraph_grotzsch_le : maxDeg (lineGraph grotzsch) ≤ 8 := by
+  have h := maxDeg_lineGraph_le grotzsch
+  rw [maxDeg_grotzsch] at h
+  omega
+
+theorem le_minDeg_lineGraph_grotzsch : 4 ≤ minDeg (lineGraph grotzsch) := by
+  have h := le_minDeg_lineGraph (G := grotzsch) (by rw [E_grotzsch]; omega)
+  rw [minDeg_grotzsch] at h
+  omega
+
+/-! ### The line graph of a Turán graph -/
+
+theorem V_lineGraph_turan (n r : ℕ) :
+    (lineGraph (turan n r)).V
+        + ((n % r) * ((n / r + 1).choose 2) + (r - n % r) * ((n / r).choose 2))
+      = n.choose 2 := by
+  rw [V_lineGraph]
+  exact E_turan n r
+
+theorem indepNum_lineGraph_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) :
+    (lineGraph (turan n r)).indepNum = n / 2 := by
+  rw [indepNum_lineGraph, matchNum_turan hr h]
+
+theorem coverNum_lineGraph_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) :
+    (lineGraph (turan n r)).coverNum = (turan n r).E - n / 2 := by
+  rw [coverNum_lineGraph, matchNum_turan hr h]
+
+theorem cliqueNum_lineGraph_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) (h3 : 3 ≤ n - n / r) :
+    (lineGraph (turan n r)).cliqueNum = n - n / r := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := turan n r)
+    (by rw [maxDeg_turan hr h]; exact h3)
+  rw [maxDeg_turan hr h] at hm
+  omega
+
+theorem girth_lineGraph_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) (h3 : 3 ≤ n - n / r) :
+    (lineGraph (turan n r)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_turan hr h]; exact h3)
+
+theorem not_isBipartite_lineGraph_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n)
+    (h3 : 3 ≤ n - n / r) : ¬ IsBipartite (lineGraph (turan n r)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_turan hr h]; exact h3)
+
+theorem not_isAcyclic_lineGraph_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n)
+    (h3 : 3 ≤ n - n / r) : ¬ IsAcyclic (lineGraph (turan n r)) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_turan hr h]; exact h3)
+
+theorem not_isTree_lineGraph_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) (h3 : 3 ≤ n - n / r) :
+    ¬ IsTree (lineGraph (turan n r)) :=
+  not_isTree_lineGraph (by rw [maxDeg_turan hr h]; exact h3)
+
+theorem maxDeg_lineGraph_turan_le {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+    maxDeg (lineGraph (turan n r)) ≤ 2 * (n - n / r) - 2 := by
+  have hm := maxDeg_lineGraph_le (turan n r)
+  rw [maxDeg_turan hr h] at hm
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

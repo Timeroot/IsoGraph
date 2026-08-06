@@ -3389,6 +3389,19 @@ three. Chromatic numbers stay as lower bounds here, since the edge chromatic num
 families are themselves only bounded below in the table; that gap is what a proof of Vizing's
 theorem would close.
 
+The triangular graph, the Grötzsch graph and the Turán graph close out the line graph block, and
+they close it out at three different levels of completeness. `T(n+4)` is `2(n+2)`-regular and
+connected, so its row is exact throughout: `L(T(n+4))` is `(4n + 6)`-regular with clique number
+`2n + 4`, girth three, one component, and radius and diameter at most three. The Grötzsch graph is
+not regular — degrees run from three to five — so the sandwich only pins `L(M)` between minimum
+degree four and maximum degree eight, but everything that does not need regularity is exact: 20
+vertices, independence number five, vertex cover number fifteen, clique number five. The Turán
+graph is the loosest of the three, because `E_turan` states the edge count as a subtraction from
+`C(n,2)` rather than as a closed form, and nothing in the library derives `0 < |E(T(n,r))|` from
+that. So the Turán row gets its independence and cover numbers from the matching number, its clique
+number and girth from the maximum degree `n - ⌊n/r⌋`, and a one-sided bound on the maximum degree —
+but no connectivity, radius or diameter, since those all need edge positivity as an input.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
