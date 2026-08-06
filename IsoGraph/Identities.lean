@@ -35281,6 +35281,103 @@ theorem not_isSelfComplementary_mycielskian {G : IsoGraph} (hV : 3 ≤ G.V)
     rw [cliqueNum_mycielskian_eq_two (by omega) h]
     omega)
 
+/-! ### The two-path theta graph and the two-legged spider
+
+`thetaGraph [a, b]` is a cycle and `spider [a, b]` is a path, so every invariant of those two
+families transfers verbatim.  These are the first entries in the theta graph's and the spider's
+rows for matching, domination, covering and eccentricity, all of which are otherwise blocked on
+the maximum degree.
+-/
+
+theorem maxDeg_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) : maxDeg (thetaGraph [a, b]) = 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, maxDeg_cycle]
+
+theorem minDeg_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) : minDeg (thetaGraph [a, b]) = 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, minDeg_cycle]
+
+theorem domNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    (thetaGraph [a, b]).domNum = (a + b + 4) / 3 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, domNum_cycle]
+  omega
+
+theorem matchNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    (thetaGraph [a, b]).matchNum = (a + b + 2) / 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, matchNum_cycle]
+  omega
+
+theorem coverNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    (thetaGraph [a, b]).coverNum = (a + b + 3) / 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, coverNum_cycle]
+  omega
+
+theorem radius_thetaGraph_pair (a b : ℕ) : (thetaGraph [a, b]).radius = (a + b + 2) / 2 := by
+  rw [thetaGraph_pair, show 2 + a + b = 1 + a + b + 1 from by ring, radius_cycle]
+  omega
+
+theorem diameter_thetaGraph_pair (a b : ℕ) : (thetaGraph [a, b]).diameter = (a + b + 2) / 2 := by
+  rw [thetaGraph_pair, show 2 + a + b = 1 + a + b + 1 from by ring, diameter_cycle]
+  omega
+
+theorem isConnected_thetaGraph_pair (a b : ℕ) : IsConnected (thetaGraph [a, b]) := by
+  rw [thetaGraph_pair, show 2 + a + b = 1 + a + b + 1 from by ring]
+  exact isConnected_cycle _
+
+theorem numComponents_thetaGraph_pair (a b : ℕ) : (thetaGraph [a, b]).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_thetaGraph_pair a b)
+
+theorem matchNum_spider_pair (a b : ℕ) : (spider [a, b]).matchNum = (a + b + 1) / 2 := by
+  rw [spider_pair, matchNum_path]
+  omega
+
+theorem coverNum_spider_pair (a b : ℕ) : (spider [a, b]).coverNum = (a + b + 1) / 2 := by
+  rw [spider_pair, coverNum_path]
+  omega
+
+theorem cliqueCoverNum_spider_pair (a b : ℕ) :
+    (spider [a, b]).cliqueCoverNum = (a + b + 2) / 2 := by
+  rw [spider_pair, cliqueCoverNum_path]
+  omega
+
+theorem domNum_spider_pair (a b : ℕ) : (spider [a, b]).domNum = (a + b + 3) / 3 := by
+  rw [spider_pair, show 1 + a + b = a + b + 1 from by ring, domNum_path]
+
+theorem radius_spider_pair (a b : ℕ) : (spider [a, b]).radius = (a + b + 1) / 2 := by
+  rw [spider_pair, show 1 + a + b = a + b + 1 from by ring, radius_path]
+
+theorem diameter_spider_pair (a b : ℕ) : (spider [a, b]).diameter = a + b := by
+  rw [spider_pair, show 1 + a + b = a + b + 1 from by ring, diameter_path]
+
+theorem maxDeg_spider_pair (a b : ℕ) (h : 2 ≤ a + b) : maxDeg (spider [a, b]) = 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 3 := ⟨a + b - 2, by omega⟩
+  rw [spider_pair, hc, maxDeg_path]
+
+theorem minDeg_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : minDeg (spider [a, b]) = 1 := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
+  rw [spider_pair, hc, minDeg_path]
+
+theorem edgeChromNum_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
+    (spider [a, b]).edgeChromNum = 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 3 := ⟨a + b - 2, by omega⟩
+  rw [spider_pair, hc, edgeChromNum_path]
+
+/-! ### A cycle with one pendant vertex
+
+`cyclePendant m [1]` is the tadpole `T(m, 1)`, which fills the first cells of the
+`cyclePendant` row for the degree invariants. -/
+
+theorem maxDeg_cyclePendant_singleton_one (m : ℕ) :
+    maxDeg (cyclePendant (m + 3) [1]) = 3 := by
+  rw [cyclePendant_singleton_one, maxDeg_tadpole]
+
+theorem minDeg_cyclePendant_singleton_one (m : ℕ) :
+    minDeg (cyclePendant (m + 3) [1]) = 1 := by
+  rw [cyclePendant_singleton_one, minDeg_tadpole]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

@@ -2530,6 +2530,20 @@ every remaining family: `not_isSelfComplementary_disjUnion` and `not_isSelfCompl
 three vertices. The thresholds are again sharp where the small cases really are
 self-complementary: `cycle 5` and `path 4` are, and so is `rook 1 1`.
 
+The theta graph and the spider are the two families whose rows are still mostly empty, because
+almost everything about them runs through a maximum degree the library cannot yet compute. Their
+two-parameter special cases are an exception: `thetaGraph [a, b]` is the cycle on `a + b + 2`
+vertices and `spider [a, b]` is the path on `a + b + 1`, so every cycle and path invariant
+transfers. That gives `maxDeg_thetaGraph_pair`, `minDeg_thetaGraph_pair`,
+`domNum_thetaGraph_pair`, `matchNum_thetaGraph_pair`, `coverNum_thetaGraph_pair`,
+`radius_thetaGraph_pair`, `diameter_thetaGraph_pair`, `isConnected_thetaGraph_pair` and
+`numComponents_thetaGraph_pair`, and on the spider side `matchNum_spider_pair`,
+`coverNum_spider_pair`, `cliqueCoverNum_spider_pair`, `domNum_spider_pair`, `radius_spider_pair`,
+`diameter_spider_pair`, `maxDeg_spider_pair`, `minDeg_spider_pair` and
+`edgeChromNum_spider_pair`. The same trick through `cyclePendant_singleton_one` — a cycle with a
+single pendant vertex is a tadpole — gives `maxDeg_cyclePendant_singleton_one` and
+`minDeg_cyclePendant_singleton_one`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
