@@ -3050,6 +3050,21 @@ trading places. `maxDeg_compl_paley = minDeg_compl_paley = (q-1)/2` is the degre
 self-complementarity, and `maxDeg_compl_completeMultipartite_replicate = d - 1` recovers the fact
 that the complement of a balanced complete multipartite graph is a disjoint union of `K_d`s.
 
+Two structural invariants of a complement come almost free once the clique number is known.
+A graph with three mutually adjacent vertices has girth three, so `girth_eq_three_of_cliqueNum`
+turns every `cliqueNum_compl` lemma into a girth lemma as soon as the index is large enough to
+push the clique number past two. That is the whole of the new `girth_compl` column — twenty five
+lemmas, `girth_compl_cycle` for `C_{n+6}`, `girth_compl_path` for `P_{n+5}`, and the same for the
+wheel, crown, ladder, both prism parities, the double star, the hypercube, the rook graph, the
+Kneser and Johnson graphs on pairs, the fan, friendship, book and circulant families, the
+degenerate spider, theta-graph, tadpole and cycle-pendant cases, and the disjoint unions and joins
+of two cycles or two paths. The general `girth_compl_lineGraph` needs only `3 ≤ G.matchNum`: three
+disjoint edges of `G` are three pairwise non-adjacent vertices of `L(G)`, hence a triangle in its
+complement. The other half of the batch is connectivity: the complement of a disconnected graph is
+connected, with diameter exactly two, so `isConnected_compl_disjUnion_cycle`,
+`diameter_compl_disjUnion_cycle = 2` and `numComponents_compl_disjUnion_cycle = 1` hold, and
+likewise for the disjoint unions of two paths and of two complete graphs.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

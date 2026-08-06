@@ -38796,6 +38796,139 @@ theorem minDeg_compl_completeMultipartite_replicate {m d : ℕ} (hm : 0 < m) (hd
   have e : (k + 1) * d = k * d + d := by ring
   omega
 
+/-! ### Girth and connectivity of complements -/
+
+theorem girth_compl_cycle (n : ℕ) : ((cycle (n + 6))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_cycle]; omega)
+
+theorem girth_compl_path (n : ℕ) : ((path (n + 5))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_path]; omega)
+
+theorem girth_compl_wheel (n : ℕ) : ((wheel (n + 6))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_wheel]; omega)
+
+theorem girth_compl_crown (n : ℕ) : ((crown (n + 3))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_crown]; omega)
+
+theorem girth_compl_ladder (n : ℕ) : ((ladder (n + 3))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_ladder]; omega)
+
+theorem girth_compl_prism_even (m : ℕ) : ((prism (2 * m + 4))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_prism_even]; omega)
+
+theorem girth_compl_prism_odd (m : ℕ) : ((prism (2 * m + 5))ᶜ).girth = 3 := by
+  have h := cliqueNum_compl_prism_odd (m + 1)
+  rw [show 2 * (m + 1) + 3 = 2 * m + 5 from by omega] at h
+  exact girth_eq_three_of_cliqueNum (by omega)
+
+theorem girth_compl_doubleStar (m n : ℕ) : ((doubleStar (m + 2) (n + 1))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_doubleStar]; omega)
+
+theorem girth_compl_hypercube (n : ℕ) : ((hypercube (n + 3))ᶜ).girth = 3 := by
+  have h2 : 2 ^ 2 ≤ 2 ^ (n + 2) := Nat.pow_le_pow_right (by norm_num) (by omega)
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_compl_hypercube]
+  norm_num at h2 ⊢
+  omega
+
+theorem girth_compl_rook (m n : ℕ) : ((rook (m + 3) (n + 3))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_rook]; omega)
+
+theorem girth_compl_kneser_two (n : ℕ) : ((kneser (n + 4) 2)ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_kneser_two]; omega)
+
+theorem girth_compl_johnson_two (n : ℕ) : ((johnson (n + 6) 2)ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_johnson_two]; omega)
+
+theorem girth_compl_fan (n : ℕ) : ((fan (n + 5))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_fan]; omega)
+
+theorem girth_compl_friendship (n : ℕ) : ((friendship (n + 3))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_friendship]; omega)
+
+theorem girth_compl_book (n : ℕ) : ((book (n + 3))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_book]; omega)
+
+theorem girth_compl_circulant_one (n : ℕ) : ((circulant (n + 6) [1])ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_circulant_one]; omega)
+
+theorem girth_compl_circulant_nil (n : ℕ) : ((circulant (n + 3) [])ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_circulant_nil]; omega)
+
+theorem girth_compl_spider_singleton (k : ℕ) : ((spider [k + 4])ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_spider_singleton]; omega)
+
+theorem girth_compl_thetaGraph_singleton (k : ℕ) : ((thetaGraph [k + 3])ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_thetaGraph_singleton]; omega)
+
+theorem girth_compl_tadpole_zero (m : ℕ) : ((tadpole (m + 6) 0)ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_tadpole_zero]; omega)
+
+theorem girth_compl_cyclePendant_replicate_zero (m j : ℕ) :
+    ((cyclePendant (m + 6) (List.replicate j 0))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_cyclePendant_replicate_zero]; omega)
+
+theorem girth_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊕g cycle (n + 4))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_disjUnion_cycle]; omega)
+
+theorem girth_compl_disjUnion_path (m n : ℕ) :
+    ((path (m + 4) ⊕g path (n + 4))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_disjUnion_path]; omega)
+
+theorem girth_compl_join_cycle (m n : ℕ) :
+    ((cycle (m + 6) ∇g cycle (n + 3))ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_join_cycle]; omega)
+
+theorem girth_compl_join_path (m n : ℕ) :
+    ((path (m + 5) ∇g path n)ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_join_path]; omega)
+
+theorem girth_compl_lineGraph (G : IsoGraph) (h : 3 ≤ G.matchNum) :
+    ((lineGraph G)ᶜ).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_lineGraph]; omega)
+
+theorem isConnected_compl_disjUnion_cycle (m n : ℕ) :
+    IsConnected ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ) :=
+  isConnected_compl_disjUnion (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+
+theorem isConnected_compl_disjUnion_path (m n : ℕ) :
+    IsConnected ((path (m + 1) ⊕g path (n + 1))ᶜ) :=
+  isConnected_compl_disjUnion (by rw [V_path]; omega) (by rw [V_path]; omega)
+
+theorem isConnected_compl_disjUnion_complete (m n : ℕ) :
+    IsConnected ((complete (m + 1) ⊕g complete (n + 1))ᶜ) :=
+  isConnected_compl_disjUnion (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+
+theorem diameter_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ).diameter = 2 :=
+  diameter_compl_disjUnion (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+    (by rw [E_cycle, E_cycle]; omega)
+
+theorem diameter_compl_disjUnion_path (m n : ℕ) :
+    ((path (m + 2) ⊕g path (n + 2))ᶜ).diameter = 2 :=
+  diameter_compl_disjUnion (by rw [V_path]; omega) (by rw [V_path]; omega)
+    (by rw [E_path, E_path]; omega)
+
+theorem diameter_compl_disjUnion_complete (m n : ℕ) :
+    ((complete (m + 2) ⊕g complete (n + 2))ᶜ).diameter = 2 := by
+  refine diameter_compl_disjUnion (by rw [V_complete]; omega) (by rw [V_complete]; omega) ?_
+  rw [E_complete, E_complete]
+  have := Nat.choose_pos (show 2 ≤ m + 2 by omega)
+  omega
+
+theorem numComponents_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ).numComponents = 1 :=
+  numComponents_compl_eq_one (by rw [numComponents_disjUnion_cycle])
+
+theorem numComponents_compl_disjUnion_path (m n : ℕ) :
+    ((path (m + 1) ⊕g path (n + 1))ᶜ).numComponents = 1 :=
+  numComponents_compl_eq_one (by rw [numComponents_disjUnion_path])
+
+theorem numComponents_compl_disjUnion_complete (m n : ℕ) :
+    ((complete (m + 1) ⊕g complete (n + 1))ᶜ).numComponents = 1 :=
+  numComponents_compl_eq_one (by rw [numComponents_disjUnion_complete])
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
