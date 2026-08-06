@@ -39,7 +39,7 @@ theorem take_getElem! {a b : Array Nat} {j : Nat} (h : a.toList.take j = b.toLis
 
 theorem pathPre_of_take {a b : Array Nat} (hab : a.size ≤ b.size)
     (h : a.toList.take a.size = b.toList.take a.size) : PathPre a b :=
-  ⟨hab, fun i hi => take_getElem! h hi hi⟩
+  ⟨hab, fun _ hi => take_getElem! h hi hi⟩
 
 theorem take_of_pathPre {a b : Array Nat} (h : PathPre a b) :
     a.toList.take a.size = b.toList.take a.size :=

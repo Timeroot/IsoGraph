@@ -331,7 +331,7 @@ theorem invArray_size (m : Nat) (a : Array Nat) : (invArray m a).size = m := by
       let w' : ∃ bs, bs ++ tail = List.range' 0 m := ⟨x ++ [head], by
         show x ++ [head] ++ tail = List.range' 0 m
         rw [List.append_assoc]; exact hx⟩
-      simp [bind, pure] at *
+      simp [pure] at *
       exact ih new_st (x ++ [head]) (by simp [List.append_assoc]; exact hx) hnew_st
   have heq : (forIn' (List.range' 0 m) (Array.replicate m 0)
       (fun a_1 x r => if a[a_1]! < m then pure (ForInStep.yield (r.setIfInBounds a[a_1]! a_1)) else pure (ForInStep.yield r)) : Id (Array Nat))
@@ -346,7 +346,7 @@ theorem invArray_size (m : Nat) (a : Array Nat) : (invArray m a).size = m := by
   exact loop_size _ _ _ (Array.size_replicate)
 
 /-- On a permutation array, `invArray` really is the inverse. -/
-theorem invArray_apply {m : Nat} {a : Array Nat} (ha : a.size = m)
+theorem invArray_apply {m : Nat} {a : Array Nat} (_ha : a.size = m)
     (h : Canon.IsPerm m fun v => a[v]!) (i : Nat) (hi : i < m) :
     (invArray m a)[a[i]!]! = i := by
   -- The result of invArray m a does not depend on a[i] for i >= m (out of range reads are 0)
@@ -360,11 +360,11 @@ theorem invArray_apply {m : Nat} {a : Array Nat} (ha : a.size = m)
     intro l
     induction l with
     | nil =>
-      simp [List.forIn']
+      simp
     | cons hd tl ih =>
       intro init
       simp only [List.foldl_cons]
-      simp (config := { decide := true }) [List.forIn']
+      simp (config := { decide := true })
       rw [List.foldl_map]
       simp
   -- Now prove the main goal
@@ -403,7 +403,7 @@ theorem invArray_apply {m : Nat} {a : Array Nat} (ha : a.size = m)
     unfold Array.setIfInBounds
     by_cases hj : j < x.size
     · dsimp [getElem!]
-      simp [hj, Array.getElem_set, hjk, hk]
+      simp [hj, hjk, hk]
     · simp [hj]
   have arr_size : ∀ (x : Array Nat) (k : Nat), k < m → (fstep x k).size = x.size := by
     intro x k hk

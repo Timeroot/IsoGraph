@@ -160,12 +160,12 @@ theorem dfsNode_paths (n : Nat) (f : Nat → Nat → Bool) (P : Array Nat → Pr
     exact ih hpre hst
   case refine_9 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 ih1 hpre hst
+      childInv' st1 st2 habort2 ih1 hpre hst
     rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
     exact (ih1 (fun Q hQ => hpre Q hQ.of_push) hst).unwind path
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 hpre hst
+      childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 hpre hst
     rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
       (by simpa using habort2)]
     exact ih2 hpre ((ih1 (fun Q hQ => hpre Q hQ.of_push) hst).unwind path)

@@ -4639,7 +4639,7 @@ theorem dfsNode_ok (n : Nat) (f : Nat → Nat → Bool) :
     exact ih hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw)) hst
   case refine_9 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv st1 st2 habort2 ih1 hp hverts hst
+      childInv st1 st2 habort2 ih1 hp hverts hst
     have hv : v < n := hverts v (by simp)
     have hwf'' : Part.WF n p'' := by
       have h2 : p'' = (refine (Graph.ofOracle n f) p' inW hashSeed).1 := by rw [href]
@@ -4650,7 +4650,7 @@ theorem dfsNode_ok (n : Nat) (f : Nat → Nat → Bool) :
     exact (ih1 hwf'' hst).unwind path
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv st1 st2 habort2 orb2 ih1 _ih1' ih2 hp hverts hst
+      childInv st1 st2 habort2 orb2 ih1 _ih1' ih2 hp hverts hst
     have hv : v < n := hverts v (by simp)
     have hwf'' : Part.WF n p'' := by
       have h2 : p'' = (refine (Graph.ofOracle n f) p' inW hashSeed).1 := by rw [href]

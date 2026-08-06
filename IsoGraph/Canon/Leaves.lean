@@ -286,7 +286,7 @@ theorem dfsNode_good (n : Nat) (f : Nat → Nat → Bool) :
     exact ih hnode (fun w hw => hverts w (List.mem_cons_of_mem _ hw)) hst
   case refine_9 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 ih1 hnode hverts hst
+      childInv' st1 st2 habort2 ih1 hnode hverts hst
     obtain ⟨c, htc, hv, hcell⟩ := hverts v (by simp)
     have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href
     have hcinv : childInv (Graph.ofOracle n f) invPath p v = childInv' := by
@@ -299,7 +299,7 @@ theorem dfsNode_good (n : Nat) (f : Nat → Nat → Bool) :
     exact (ih1 hnode' hst).unwind path
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 hnode hverts hst
+      childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 hnode hverts hst
     obtain ⟨c, htc, hv, hcell⟩ := hverts v (by simp)
     have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href
     have hcinv : childInv (Graph.ofOracle n f) invPath p v = childInv' := by

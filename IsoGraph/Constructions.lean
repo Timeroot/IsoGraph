@@ -248,7 +248,7 @@ theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι �
   obtain ⟨j, b⟩ := y
   by_cases h : i = j
   · subst h
-    simp only [sigmaUnion_adj_mk, dif_pos (rfl : i = i)]
+    simp only [sigmaUnion_adj_mk]
     show (F i).Adj a b = ((F i).Adj a b || (F i).Adj b a)
     rw [(F i).symm b a, Bool.or_self]
   · simp only [sigmaUnion_adj_ne F i j a b h, dif_neg h, dif_neg (Ne.symm h), Bool.or_self]
@@ -835,7 +835,7 @@ theorem mycielskian_eq_ofRel (G : CGraph) [DecidableEq G.V] :
       simp only [mycielskian_adj_inl_inl, mycielskian_adj_inl_inr, mycielskian_adj_inr_inl,
         mycielskian_adj_inr_inr, mycielskian_adj_none_inl, mycielskian_adj_none_inr,
         mycielskian_adj_inl_none, mycielskian_adj_inr_none, mycielskian_adj_none_none,
-        Bool.or_self, Bool.or_false, Bool.false_or, Bool.or_true, Bool.true_or] <;>
+        Bool.or_self] <;>
       first
         | rfl
         | rw [G.symm b a, Bool.or_self]
@@ -1023,7 +1023,7 @@ variable (G H : CGraph)
       rw [Finset.card_le_one]
       exact fun x hx y hy => Classical.not_not.1 fun hne => by
         have := hk hx hy hne
-        simp [empty_adj] at this
+        simp at this
     omega
   · -- min n 1 ≤ sSup
     apply le_csSup
@@ -1037,14 +1037,14 @@ variable (G H : CGraph)
       rcases n.eq_zero_or_pos with rfl | hn
       · simp
       · push_cast [min_eq_right (Nat.succ_le_of_lt hn)]
-        exact ⟨{⟨0, hn⟩}, by simp [SimpleGraph.IsNClique, Finset.card_singleton]⟩
+        exact ⟨{⟨0, hn⟩}, by simp⟩
 
 @[simp] theorem degSequence_empty (n : ℕ) : (empty n).degSequence = List.replicate n 0 := by
   unfold CGraph.degSequence CGraph.degMultiset
   have hdeg : ∀ x : Fin n, (empty n).toSimple.degree x = 0 := by
     intro x
     rw [SimpleGraph.degree]
-    simp [SimpleGraph.neighborFinset, empty_adj]
+    simp [SimpleGraph.neighborFinset]
   have : ∀ v : Fin n, (empty n).toSimple.degree v = 0 := hdeg
   simp only [this]
   -- Step 1: The multiset Finset.univ.val has card n
@@ -1102,7 +1102,6 @@ variable (G H : CGraph)
 
 @[simp] theorem isConnected_empty_one : (empty 1).IsConnected := by
   simp only [IsConnected]
-  change SimpleGraph.Connected (empty 1).toSimple
   decide
 
 /-! ### The complement -/
@@ -1115,7 +1114,7 @@ variable (G H : CGraph)
   refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
   rcases eq_or_ne x y with rfl | h
   · simp [compl, G.loopless x]
-  · simp [compl, h, Ne.symm h, G.symm x y]
+  · simp [compl, h, G.symm x y]
 
 @[simp] theorem indepNum_compl [DecidableEq G.V] : (compl G).indepNum = G.cliqueNum := by
   simp [indepNum, cliqueNum, compl_toSimple, SimpleGraph.indepNum_compl]
@@ -1284,7 +1283,7 @@ theorem compl_rook (m n : ℕ) :
         have hn1 : 1 ≤ n := Nat.one_le_iff_ne_zero.mpr hn
         have hmin : min n 1 = 1 := min_eq_right hn1
         rw [hmin]
-        exact ⟨{⟨0, hn1⟩}, SimpleGraph.IsNIndepSet.mk (by simp [h_isIndep_top, SimpleGraph.IsIndepSet]) (by simp)⟩
+        exact ⟨{⟨0, hn1⟩}, SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) (by simp)⟩
     exact le_csSup hbdd hmem
 
 @[simp] theorem isConnected_complete (n : ℕ) : (complete (n + 1)).IsConnected := by
@@ -1300,7 +1299,7 @@ theorem compl_rook (m n : ℕ) :
     (complete n).degSequence = List.replicate n (n - 1) := by
   have htosimple : (complete n).toSimple = SimpleGraph.completeGraph (Fin n) := by
     ext x y
-    simp [CGraph.toSimple, complete, compl, ofRel_adj, empty_adj, decide_eq_true_eq]
+    simp [CGraph.toSimple, complete, compl, empty_adj]
   show (complete n).degSequence = _
   have hdeg : ∀ v : (complete n).V, (complete n).toSimple.degree v = n - 1 := by
     intro v
@@ -1620,7 +1619,7 @@ theorem compl_rook (m n : ℕ) :
       simp at this ⊢
       exact_mod_cast this
     · push_neg at hne
-      simp [hne]
+      simp
   -- hexist
   have hexist : (SimpleGraph.pathGraph (n + 1)).edist 0 ⟨n, Nat.lt_succ_self n⟩ = ↑n :=
     le_antisymm hexist_upper hexist_lower
@@ -1685,7 +1684,7 @@ theorem compl_rook (m n : ℕ) :
         show (cycle m).toSimple.Reachable i ⟨(i.val + (k + 1)) % m, Nat.mod_lt _ (by omega)⟩
         have hstep : (cycle m).toSimple.Adj ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ ⟨((i.val + k) + 1) % m, Nat.mod_lt _ (by omega)⟩ := by
           convert step_adj ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ using 2
-          simp [Fin.val_mk]
+          simp
         obtain ⟨w⟩ := ih
         exact ⟨w.concat hstep⟩
     -- Reachability between any two vertices
@@ -1698,7 +1697,7 @@ theorem compl_rook (m n : ℕ) :
         have h1 : (↑i + (↑j + m - ↑i)) = ↑j + m := ‹_›
         rw [h1]
         have h2 : ((↑j + m) % m : ℕ) = ↑j := by
-          simp [Nat.add_mod, Nat.mod_eq_of_lt (by omega : (j : ℕ) < m)]
+          simp [Nat.mod_eq_of_lt (by omega : (j : ℕ) < m)]
         exact h2
       have h_eq : j = ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ := by
         exact Fin.ext hk.symm
@@ -1850,7 +1849,7 @@ theorem compl_rook (m n : ℕ) :
   have h_edge : ∀ i : Fin (n + 1), (cycle (n + 1)).toSimple.Adj i (i + 1) := by
     intro i
     simp [cycle, ofRel_adj, toSimple_adj]
-    exact ⟨hn, Or.inl (by rw [Fin.val_add]; simp [Fin.val_add])⟩
+    exact ⟨hn, Or.inl (by rw [Fin.val_add]; simp)⟩
   -- Clockwise walk of length t from u to (u + t)
   let finAdd : ℕ → Fin (n + 1) := fun t => ⟨t % (n + 1), Nat.mod_lt t (Nat.succ_pos n)⟩
   have h_edist_walk : ∀ (u : Fin (n + 1)) (t : ℕ), t ≤ n → (cycle (n + 1)).toSimple.edist u (u + finAdd t) ≤ (t : ℕ∞) := by
@@ -1892,7 +1891,7 @@ theorem compl_rook (m n : ℕ) :
     have hfin_add_sub : ∀ (u v : Fin (n + 1)), u + (v - u) = v := by
       intro u v
       ext
-      simp [Fin.val_add, Fin.val_sub]
+      simp
     -- Helper: Fin.val of subtraction
     have ht_def : t = (v - u).val := by
       simp [t, Fin.sub_def]
@@ -1920,7 +1919,7 @@ theorem compl_rook (m n : ℕ) :
       -- t' ≤ m (since t' = (n+1-t) % (n+1) and hbtle says n+1-t ≤ m)
       have ht'_le_m : t' ≤ m := by
         by_cases ht0 : t = 0
-        · simp [ht0, t']
+        · simp [t']
           omega
         · -- t > 0 case: t' + t = n + 1
           have ht_pos : 0 < t := Nat.pos_of_ne_zero ht0
@@ -1928,7 +1927,7 @@ theorem compl_rook (m n : ℕ) :
           have ht'_lt : t' < n + 1 := Nat.mod_lt _ (Nat.succ_pos n)
           have htsum : t' + t = n + 1 := by
             have hsum_zero : (u - v : Fin (n + 1)) + (v - u) = 0 := by
-              ext; simp [Fin.val_add, Fin.val_sub, Fin.val_zero]
+              ext; simp
             have hval : ((u - v).val + (v - u).val) % (n + 1) = 0 := by
               have h1 : ((u - v : Fin (n + 1)) + (v - u)).val = (0 : Fin (n + 1)).val := by rw [hsum_zero]
               rw [Fin.val_add] at h1
@@ -1970,7 +1969,7 @@ theorem compl_rook (m n : ℕ) :
     rcases hij with ⟨hne, hj|hi⟩
     · -- j = i + 1
       have hij1 : j = i + 1 := by
-        ext; simp [Fin.ext_iff, Fin.val_add] at hj ⊢; omega
+        ext; simp [Fin.val_add] at hj ⊢; omega
       rw [hij1]
       simp only [f]
       rw [abs_sub_le_iff]
@@ -1979,7 +1978,7 @@ theorem compl_rook (m n : ℕ) :
         have : (i + 1 : Fin (n + 1)) = 0 := by
           ext; simp [Fin.val_add, hmax]
         rw [this]
-        simp only [f, Fin.val_zero]
+        simp only [Fin.val_zero]
         simp
         constructor <;> omega
       · -- i.val < n, so (i+1).val = i.val + 1
@@ -2001,7 +2000,7 @@ theorem compl_rook (m n : ℕ) :
       · have : (j + 1 : Fin (n + 1)) = 0 := by
           ext; simp [Fin.val_add, hmax]
         rw [this]
-        simp only [f, Fin.val_zero]
+        simp only [Fin.val_zero]
         simp
         constructor <;> omega
       · have hj_lt_n : (j : ℕ) < n := Nat.lt_of_le_of_ne (Nat.lt_succ_iff.mp j.isLt) hmax
@@ -2044,7 +2043,7 @@ theorem compl_rook (m n : ℕ) :
     have hreach : (cycle (n + 1)).toSimple.Reachable base ⟨m, by omega⟩ := by
       rw [← hfinAdd]
       have hne : (cycle (n + 1)).toSimple.edist base (base + finAdd m) ≠ ⊤ := by
-        have : (m : ℕ∞) ≠ ⊤ := by simp [WithTop.ne_top_iff_exists]
+        have : (m : ℕ∞) ≠ ⊤ := by simp
         exact ne_top_of_le_ne_top this (h_edist_walk base m (by omega))
       exact (SimpleGraph.edist_ne_top_iff_reachable).mp hne
     -- Reachable: use le_csInf
@@ -2085,7 +2084,7 @@ theorem compl_rook (m n : ℕ) :
       have hlast : (⟨m - 1, by omega⟩ : Fin m) + 1 = 0 := by
         ext; simp [Fin.val_add]
         have : m - 1 + 1 = m := Nat.sub_add_cancel (by omega)
-        simp [this, Nat.mod_eq_of_lt (show 0 < m from by omega)]
+        simp [this]
       rw [add_assoc, hlast, add_zero]
   have hshift_inj := hshift_bijective.1
   have hshift_surj := hshift_bijective.2
@@ -2127,7 +2126,7 @@ theorem compl_rook (m n : ℕ) :
       exact Finset.card_map (⟨shift, hshift_inj⟩ : Fin m ↪ Fin m)
     have hcard_union : (s ∪ s.map ⟨shift, hshift_inj⟩).card = 2 * s.card := by
       rw [Finset.card_union_of_disjoint hd, hcard_map, two_mul]
-    exact hcard_union ▸ le_trans (Finset.card_le_univ _) (by simp [card_cycle])
+    exact hcard_union ▸ le_trans (Finset.card_le_univ _) (by simp)
   have hupper' : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
       s.card ≤ m / 2 := by
     intro s hindep
@@ -2152,9 +2151,9 @@ theorem compl_rook (m n : ℕ) :
       have h2b1_lt_m : 2 * b.val + 1 < m := by omega
       -- Fin.val of our constructed elements
       have hval_a : ((⟨2 * a.val + 1, by omega⟩ : Fin m).val) = 2 * a.val + 1 := by
-        simp [Fin.val_mk, Nat.mod_eq_of_lt h2a1_lt_m]
+        simp
       have hval_b : ((⟨2 * b.val + 1, by omega⟩ : Fin m).val) = 2 * b.val + 1 := by
-        simp [Fin.val_mk, Nat.mod_eq_of_lt h2b1_lt_m]
+        simp
       -- (v+1) as Fin m: (2*k+1)+1 = 2*k+2. Two cases: 2*k+2 < m or 2*k+2 = m.
       -- In either case ((v+1).val) is even.
       have h2a2_le_m : 2 * a.val + 2 ≤ m := by omega
@@ -2187,7 +2186,7 @@ theorem compl_rook (m n : ℕ) :
     · -- s has size m/2
       rw [Finset.card_image_of_injective _ (fun i j hij => by
         have := Fin.ext_iff.mp hij
-        simp [Fin.val_mk] at this
+        simp at this
         omega), Finset.card_fin]
   -- Now combine to get sSup = m/2
   have hindep_empty : (cycle m).toSimple.IsIndepSet (∅ : Set (Fin m)) := by
@@ -2371,9 +2370,9 @@ theorem compl_rook (m n : ℕ) :
     unfold SimpleGraph.IsIndepSet
     simp
     intro v hv w hw hvw
-    simp only [Set.mem_union, Finset.coe_map, Set.mem_image] at hv hw
+    simp only [Set.mem_union, Set.mem_image] at hv hw
     rcases hv with ⟨x, hx, rfl⟩ | ⟨x, hx, rfl⟩ <;> rcases hw with ⟨y, hy, rfl⟩ | ⟨y, hy, rfl⟩ <;>
-      simp [SimpleGraph.sum_adj] at hvw ⊢
+      simp at hvw ⊢
     · intro hadj; exact hsG.1 hx hy hvw (by simpa using hadj)
     · intro hadj; exact hsH.1 hx hy hvw (by simpa using hadj)
   -- 0 ∈ SG and 0 ∈ SH (empty independent set)
@@ -2489,7 +2488,7 @@ theorem compl_rook (m n : ℕ) :
     constructor
     · -- IsClique / pairwise adj
       intro a ha b hb hab
-      simp [Finset.mem_map, Set.mem_image] at ha hb
+      simp [Set.mem_image] at ha hb
       obtain ⟨x, hx, rfl⟩ := ha
       obtain ⟨y, hy, rfl⟩ := hb
       have hxy : x ≠ y := fun heq => hab (by rw [heq])
@@ -2507,7 +2506,7 @@ theorem compl_rook (m n : ℕ) :
     constructor
     · -- IsClique / pairwise adj
       intro a ha b hb hab
-      simp [Finset.mem_map, Set.mem_image] at ha hb
+      simp [Set.mem_image] at ha hb
       obtain ⟨x, hx, rfl⟩ := ha
       obtain ⟨y, hy, rfl⟩ := hb
       have hxy : x ≠ y := fun heq => hab (by rw [heq])
@@ -2527,11 +2526,11 @@ theorem compl_rook (m n : ℕ) :
   -- Lower bound from G: SG.cliqueNum ≤ SD.cliqueNum
   have hle_G : sSup SSG ≤ sSup SC := by
     apply csSup_le _ hSSG
-    exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+    exact ⟨0, ∅, by simp⟩
   -- Lower bound from H
   have hle_H : sSup SSH ≤ sSup SC := by
     apply csSup_le _ hSSH
-    exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+    exact ⟨0, ∅, by simp⟩
   -- Lower bound: max ≤ SD
   have hlower : max (sSup SSG) (sSup SSH) ≤ sSup SC := max_le hle_G hle_H
   -- Upper bound: SD ≤ max
@@ -2580,7 +2579,7 @@ theorem compl_rook (m n : ℕ) :
         exact hadj, ht_n⟩
     · show s = t.map (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ G.V ⊕ H.V)
       ext y
-      simp [Finset.mem_map, Finset.mem_image]
+      simp [Finset.mem_map]
       exact ⟨fun hy => ⟨decoder y, Finset.mem_image.mpr ⟨y, hy, rfl⟩, hinl_decoder y hy⟩,
              fun ⟨a, ha, hxy⟩ => by
                obtain ⟨z, hz, hza⟩ := Finset.mem_image.mp ha
@@ -2628,7 +2627,7 @@ theorem compl_rook (m n : ℕ) :
         exact hadj, rfl⟩
     · show s = t.map (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ G.V ⊕ H.V)
       ext y
-      simp [Finset.mem_map, Finset.mem_image]
+      simp [Finset.mem_map]
       exact ⟨fun hy => ⟨encoder y, Finset.mem_image.mpr ⟨y, hy, rfl⟩, hinr_encoder y hy⟩,
              fun ⟨a, ha, hxy⟩ => by
                obtain ⟨z, hz, hza⟩ := Finset.mem_image.mp ha
@@ -2640,7 +2639,7 @@ theorem compl_rook (m n : ℕ) :
     · subst hempty
       have hn0 : n = 0 := hs.card_eq.symm
       subst hn0
-      left; exact ⟨∅, by simp [SimpleGraph.IsNClique]⟩
+      left; exact ⟨∅, by simp⟩
     · obtain ⟨v, hv⟩ := Finset.nonempty_of_ne_empty hempty
       cases v with
       | inl x =>
@@ -2659,7 +2658,7 @@ theorem compl_rook (m n : ℕ) :
         exact ⟨t, this ▸ ht1⟩
   have hupper : sSup SC ≤ max (sSup SSG) (sSup SSH) := by
     apply csSup_le
-    · exact ⟨0, ⟨∅, by simp [SimpleGraph.IsNClique]⟩⟩
+    · exact ⟨0, ⟨∅, by simp⟩⟩
     · intro n hn
       rcases hmem n hn with h | h
       · exact le_max_of_le_left (le_csSup hSSG_bdd h)
@@ -2704,7 +2703,7 @@ theorem disjUnion_assoc (K : CGraph) :
 
 theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) :
     ¬(disjUnion G H).IsConnected := by
-  simp only [IsoGraph.IsConnected, IsoGraph.isConnected_mk, CGraph.IsConnected]
+  simp only [CGraph.IsConnected]
   intro h
   have hGne : Nonempty G.V := Fintype.card_pos_iff.mp hG
   have hHne : Nonempty H.V := Fintype.card_pos_iff.mp hH
@@ -2719,10 +2718,10 @@ theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.
     | inl a =>
       cases y with
       | inl c => simp [side]
-      | inr d => simp [side, disjUnion_adj_inl_inr] at h_adj
+      | inr d => simp [disjUnion_adj_inl_inr] at h_adj
     | inr b =>
       cases y with
-      | inl c => simp [side, disjUnion_adj_inr_inl] at h_adj
+      | inl c => simp [disjUnion_adj_inr_inl] at h_adj
       | inr d => simp [side]
   -- Adjacency preserves side, so Reachability preserves side
   have keep_side : ∀ {u v : G.V ⊕ H.V}, (disjUnion G H).toSimple.Reachable u v → side u = side v := by
@@ -2770,10 +2769,10 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   simp only [IsConnected, join, compl, CGraph.toSimple]
   have hcross : ∀ (a : G.V) (b : H.V),
       ((join G H).toSimple.Adj (Sum.inl a) (Sum.inr b) = true) := by
-    simp [join, compl, CGraph.toSimple, ofRel_adj, disjUnion_adj_inl_inr]
+    simp [join, compl, CGraph.toSimple, disjUnion_adj_inl_inr]
   have hcross' : ∀ (a : G.V) (b : H.V),
       ((join G H).toSimple.Adj (Sum.inr b) (Sum.inl a) = true) := by
-    simp [join, compl, CGraph.toSimple, ofRel_adj, disjUnion_adj_inr_inl]
+    simp [join, compl, CGraph.toSimple, disjUnion_adj_inr_inl]
   set J := (join G H).toSimple
   obtain ⟨a0⟩ := Fintype.card_pos_iff.mp hG
   obtain ⟨b0⟩ := Fintype.card_pos_iff.mp hH
@@ -2825,17 +2824,17 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   have hge_left : cliqueNum (compl G) ≤ cliqueNum (disjUnion (compl G) (compl H)) := by
     apply cliqueNum_le_of_emb
     exact { toFun := Sum.inl, inj' := Sum.inl_injective,
-            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
   have hge_right : cliqueNum (compl H) ≤ cliqueNum (disjUnion (compl G) (compl H)) := by
     apply cliqueNum_le_of_emb
     exact { toFun := Sum.inr, inj' := Sum.inr_injective,
-            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
   have hge : max (cliqueNum (compl G)) (cliqueNum (compl H)) ≤ cliqueNum (disjUnion (compl G) (compl H)) :=
     max_le hge_left hge_right
   -- Cross pairs are not adjacent in disjUnion
   have hno_cross : ∀ (a : G.compl.V) (b : H.compl.V),
       ¬(disjUnion G.compl H.compl).toSimple.Adj (Sum.inl a) (Sum.inr b) := by
-    simp [CGraph.toSimple, disjUnion, compl, ofRel]
+    simp [CGraph.toSimple, disjUnion, compl]
   -- Any clique in disjUnion is in one side
   have clique_one_side : ∀ (C : Finset (G.compl.V ⊕ H.compl.V))
       (hC : (disjUnion G.compl H.compl).toSimple.IsNClique C.card C),
@@ -2859,10 +2858,10 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
       max (cliqueNum (compl G)) (cliqueNum (compl H)) := by
     let embL : (compl G).toSimple ↪g (disjUnion (compl G) (compl H)).toSimple :=
       { toFun := Sum.inl, inj' := Sum.inl_injective,
-        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
     let embR : (compl H).toSimple ↪g (disjUnion (compl G) (compl H)).toSimple :=
       { toFun := Sum.inr, inj' := Sum.inr_injective,
-        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl, ofRel] }
+        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
     simp only [CGraph.cliqueNum, SimpleGraph.cliqueNum]
     apply csSup_le
     · exact ⟨0, ⟨∅, by simp [SimpleGraph.isNClique_empty]⟩⟩
@@ -2955,7 +2954,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   rw [hbip]
   have hdiv (k : ℕ) : 2 ∣ k * (k - 1) := by
     rcases k with _ | _ | k <;> simp [Nat.mul_succ, parity_simps]
-    exact even_iff_two_dvd.mp (by simp [mul_add, parity_simps])
+    exact even_iff_two_dvd.mp (by simp [parity_simps])
   have h2' : 2 * (Nat.choose (m + n) 2) = (m + n) * (m + n - 1) := by
     rw [Nat.choose_two_right, Nat.mul_div_cancel' (hdiv _)]
   have h3' : 2 * (Nat.choose m 2) = m * (m - 1) := by
@@ -2987,7 +2986,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   rw [indepNum_compl, cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_complete]
 
 @[simp] theorem cliqueNum_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).cliqueNum = 2 := by
-  simp only [bipartite, cliqueNum_compl, indepNum_disjUnion, indepNum_complete, min_eq_left_of_lt]
+  simp only [bipartite, cliqueNum_compl, indepNum_disjUnion, indepNum_complete]
   omega
 
 @[simp] theorem isConnected_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).IsConnected := by
@@ -3064,7 +3063,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   -- All pairs in different parts are adjacent
   have h_adj_cross : ∀ a : V₁, ∀ d : V₂, G.Adj (.inl a) (.inr d) := by
     intro a d
-    simp only [G, bipartite, CGraph.toSimple_adj, compl, ofRel_adj]
+    simp only [G, bipartite, CGraph.toSimple_adj, compl]
     rw [disjUnion_adj_inl_inr]
     simp
   have h_adj_cross' : ∀ b : V₂, ∀ c : V₁, G.Adj (.inr b) (.inl c) := by
@@ -3209,13 +3208,13 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
       rw [this] at hs
       have : n = 0 := by
         have := SimpleGraph.IsNClique.card_eq hs
-        simp [‹s = ∅›] at this
+        simp at this
         exact this.symm
       exact this
     rw [csSup_eq_of_forall_le_of_forall_lt_exists_gt]
-    · exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+    · exact ⟨0, ∅, by simp⟩
     · intro n hn; have := this hn; simp at this; exact this.le
-    · intro w hw; exact ⟨0, by simp [SimpleGraph.IsNClique], hw⟩
+    · intro w hw; exact ⟨0, by simp, hw⟩
   | cons h tl ih =>
     let Fi : Fin (tl.length + 1) → CGraph := fun i => complete ((h :: tl).get i)
     have hcliqueNum_Fi : ∀ i, (Fi i).cliqueNum = (h :: tl).get i := fun i => cliqueNum_complete _
@@ -3259,7 +3258,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
       · -- Upper bound
         unfold CGraph.cliqueNum SimpleGraph.cliqueNum
         apply csSup_le
-        · exact ⟨0, ∅, by simp [SimpleGraph.IsNClique]⟩
+        · exact ⟨0, ∅, by simp⟩
         · intro n ⟨s, hs⟩
           by_cases hs0 : s = ∅
           · rw [hs0] at hs; have hcard := SimpleGraph.IsNClique.card_eq hs; simp at hcard; rw [← hcard]; exact Nat.zero_le _
@@ -3317,14 +3316,14 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
           intro f
           have : (Finset.univ : Finset (Fin (tl.length + 1))) =
               {(0 : Fin (tl.length + 1))} ∪ Finset.image Fin.succ (Finset.univ : Finset (Fin tl.length)) := by
-            ext i; simp [Finset.mem_union, Finset.mem_image, Finset.mem_univ, Finset.mem_singleton]
+            ext i; simp [Finset.mem_univ]
           rw [this, Finset.sup_union, Finset.sup_singleton]
           rw [Finset.sup_image]
           rfl
         -- Step 2: Apply split to (a :: tl).get
         have hget : ∀ (i : Fin tl.length), (a :: tl).get i.succ = tl.get i := by
-          intro i; simp [List.get]
-        have hget0 : (a :: tl).get 0 = a := by simp [List.get]
+          intro i; simp
+        have hget0 : (a :: tl).get 0 = a := by simp
         rw [hsplit, hget0]
         rw [Finset.sup_congr rfl (fun i _ => hget i)]
         rw [ih]
@@ -3405,7 +3404,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
         subst hb_eq_g; subst hh_eq_a
         simp [SimpleGraph.mem_neighborFinset] at ha
     simp only [hdeg, Fintype.sum_prod_type]
-    simp [Finset.sum_add_distrib, Finset.mul_sum, Finset.sum_mul]
+    simp [Finset.sum_add_distrib, Finset.mul_sum]
   -- Use handshaking lemma
   have hhand : 2 * (cartesianProduct G H).toSimple.edgeFinset.card =
       ∑ v : G.V × H.V, (cartesianProduct G H).toSimple.degree v :=
@@ -3432,7 +3431,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
     set NHfinset := H.toSimple.neighborFinset h
     have hfinset : (G.tensorProduct H).toSimple.neighborFinset (g, h) = NGfinset ×ˢ NHfinset := by
       ext ⟨g', h'⟩
-      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_product]
+      simp only [SimpleGraph.mem_neighborFinset]
       rw [hadj, Finset.mem_product]
       simp [NGfinset, NHfinset, SimpleGraph.mem_neighborFinset]
     rw [hfinset, Finset.card_product]
@@ -3618,8 +3617,8 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   -- cliqueNum unfolds to sSup of clique sizes
   -- We prove both directions.
   -- Get witnesses of max cliques in G and H
-  have h0G : ∃ s : Finset G.V, sG.IsNClique 0 s := ⟨∅, by simp [SimpleGraph.IsNClique]⟩
-  have h0H : ∃ s : Finset H.V, sH.IsNClique 0 s := ⟨∅, by simp [SimpleGraph.IsNClique]⟩
+  have h0G : ∃ s : Finset G.V, sG.IsNClique 0 s := ⟨∅, by simp⟩
+  have h0H : ∃ s : Finset H.V, sH.IsNClique 0 s := ⟨∅, by simp⟩
   have hωG_nonempty : {n | ∃ s : Finset G.V, sG.IsNClique n s}.Nonempty := ⟨0, h0G⟩
   have hωG_bdd : BddAbove {n | ∃ s : Finset G.V, sG.IsNClique n s} := by
     exact ⟨Fintype.card G.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact Finset.card_le_univ s⟩
@@ -3654,8 +3653,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
       exact hadj.2.1.resolve_left (fun h => hne (h ▸ rfl))
     -- Step 2: Each fiber's image in H is a clique
     have fiber_clique : ∀ g ∈ projG, sH.IsClique (projHfiber g) := by
-      intro g hg
-      intro h1 hh1 h2 hh2 hne
+      intro g hg h1 hh1 h2 hh2 hne
       obtain ⟨p1, hp1, rfl⟩ := Finset.mem_image.mp hh1
       obtain ⟨p2, hp2, rfl⟩ := Finset.mem_image.mp hh2
       have hne2 : p1 ≠ p2 := fun h => hne (by simp [h])
@@ -3722,11 +3720,11 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   -- cliqueNum = sup' of the sizes finset
   have hset_eq_G : {n | ∃ s : Finset G.V, sG.IsNClique n s} = (sizes_G : Set ℕ) := by
     ext n
-    simp [sizes_G, cliques_G, SimpleGraph.IsNClique]
+    simp [sizes_G, cliques_G]
     exact ⟨fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩, fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩⟩
   have hset_eq_H : {n | ∃ s : Finset H.V, sH.IsNClique n s} = (sizes_H : Set ℕ) := by
     ext n
-    simp [sizes_H, cliques_H, SimpleGraph.IsNClique]
+    simp [sizes_H, cliques_H]
     exact ⟨fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩, fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩⟩
   have hcliqueNum_eq_G : sG.cliqueNum = sizes_G.max' hsizes_G_ne := by
     rw [SimpleGraph.cliqueNum, hset_eq_G]
@@ -3756,7 +3754,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   let u := sGmax.product sHmax
   have hu_clique_carrier : sGH.IsClique (↑(sGmax.product sHmax) : Set (G.V × H.V)) := by
     intro p hp q hq hpq
-    simp [Finset.mem_product] at hp hq
+    simp at hp hq
     obtain ⟨hpG, hpH⟩ := hp
     obtain ⟨hqG, hqH⟩ := hq
     rw [hasAdj]
@@ -3800,7 +3798,7 @@ theorem degree_lineGraph [DecidableEq G.V] (e : (lineGraph G).V) :
     simp only [CGraph.toSimple, lineGraph_adj]
     simp [Bool.and_eq_true, decide_eq_true_eq]
   have heqmem : ∀ e : Sym2 G.V, e ∈ S.edgeSet ↔ e ∈ S.edgeFinset := by
-    intro e; simp [SimpleGraph.mem_edgeSet, SimpleGraph.mem_edgeFinset]
+    intro e; simp [SimpleGraph.mem_edgeFinset]
   rw [SimpleGraph.degree]
   set ee := e.1
   have hee_mem : ee ∈ S.edgeFinset := (heqmem ee).mp e.2
@@ -3890,7 +3888,7 @@ theorem degree_lineGraph [DecidableEq G.V] (e : (lineGraph G).V) :
       have hx_mem : ∀ x, Sym2.Mem x (Sym2.mk a) → x = a.1 ∨ x = a.2 := by
         intro x hx'
         show x = a.1 ∨ x = a.2
-        simp [Sym2.Mem, Sym2.Rel] at hx'
+        simp [Sym2.Mem] at hx'
         rcases hx' with ⟨y, rfl | rfl⟩ <;> simp
       obtain rfl | rfl := hx_mem v hve
       · obtain rfl | rfl := hx_mem w hwe
@@ -3917,7 +3915,7 @@ theorem degree_lineGraph [DecidableEq G.V] (e : (lineGraph G).V) :
     (SimpleGraph.sum_degrees_eq_twice_card_edges (lineGraph G).toSimple).symm
   -- Build equivalence between (lineGraph G).V and S.edgeFinset
   have heqmem : ∀ e : Sym2 G.V, e ∈ S.edgeSet ↔ e ∈ S.edgeFinset := by
-    intro e; simp [SimpleGraph.mem_edgeSet, SimpleGraph.mem_edgeFinset]
+    intro e; simp [SimpleGraph.mem_edgeFinset]
   let vequiv : (lineGraph G).V ≃ S.edgeFinset :=
     { toFun := fun x => ⟨x.1, (heqmem x.1).mp x.2⟩
       invFun := fun e => ⟨e.1, (heqmem e.1).mpr e.2⟩
@@ -4552,6 +4550,7 @@ theorem quadraticChar_sum_mul_sub (hF : ringChar F ≠ 2) {a : F} (ha : a ≠ 0)
 variable (hq : Fintype.card F % 4 = 1)
 include hq
 
+omit [DecidableEq F] in
 theorem ringChar_ne_two_of_card_mod_four : ringChar F ≠ 2 := fun h ↦ by
   have := FiniteField.even_card_iff_char_two.1 h
   omega
@@ -5041,7 +5040,7 @@ not change *which* coordinates two strings differ in. -/
 private theorem xorPerm_involutive (n : ℕ) (d : Fin n → Bool) :
     Function.Involutive (fun x : Fin n → Bool ↦ fun i ↦ x i ^^ d i) := fun x ↦ by
   funext i
-  simp [Bool.xor_assoc]
+  simp
 
 private theorem filter_xor_eq (n : ℕ) (d x y : Fin n → Bool) :
     (Finset.univ.filter fun i ↦ (x i ^^ d i) ≠ (y i ^^ d i)) =
@@ -5061,7 +5060,7 @@ theorem isVertexTransitive_hypercube (n : ℕ) : (hypercube n).IsVertexTransitiv
     rw [filter_xor_eq, filter_xor_eq]
   · funext i
     show (u i ^^ (u i ^^ v i)) = v i
-    simp [← Bool.xor_assoc]
+    simp
 
 private theorem xor_eq_decide_of_filter_eq {n : ℕ} {x y : Fin n → Bool} {i₀ : Fin n}
     (h : (Finset.univ.filter fun i ↦ x i ≠ y i) = {i₀}) (k : Fin n) :
@@ -5128,7 +5127,7 @@ theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransit
     exact decide_eq_decide.2 ((xorPerm_involutive n fun i ↦ u i ^^ v i).toPerm _).injective.ne_iff
   · funext i
     show (u i ^^ (u i ^^ v i)) = v i
-    simp [← Bool.xor_assoc]
+    simp
 
 /-! ### Products
 

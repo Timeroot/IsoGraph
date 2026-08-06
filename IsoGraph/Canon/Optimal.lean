@@ -328,7 +328,7 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
     · exact hloop w hw (by simp [hwv, hnw])
   case refine_9 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 ih1 D hnode htcex hverts hnodup hfuel hnone hgood hpthc hjmpc
+      childInv' st1 st2 habort2 ih1 D hnode htcex hverts hnodup hfuel hnone hgood hpthc hjmpc
       hloop hproc hmarkP hgens
     obtain ⟨c, htc, hv, hcell⟩ := hverts v (by simp)
     have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href
@@ -345,7 +345,7 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
       (fun l hl => hpthc l hl v (by simp)) (hjmpc.child v)) habort2
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 D hnode htcex hverts hnodup hfuel hnone
+      childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 D hnode htcex hverts hnodup hfuel hnone
       hgood hpthc hjmpc hloop hproc hmarkP hgens
     obtain ⟨c, htc, hv, hcell⟩ := hverts v (by simp)
     have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href

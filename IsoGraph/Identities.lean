@@ -18127,7 +18127,7 @@ already available as `le_domNum_cycle`. -/
       have mem_s_of_zero_mod : ∀ k hk, k % 3 = 0 → (⟨k, hk⟩ : (CGraph.cycle (n + 3)).V) ∈ s := by
         intro k hk h0
         simp only [s, Finset.mem_image, Finset.mem_univ, true_and]
-        exact ⟨⟨k / 3, by omega⟩, by simp [Fin.val_mk]; omega⟩
+        exact ⟨⟨k / 3, by omega⟩, by simp; omega⟩
       rcases hmod with h0 | h1 | h2
       · left; exact mem_s_of_zero_mod v.val hvlt h0
       · right
@@ -18156,7 +18156,7 @@ already available as `le_domNum_cycle`. -/
           refine ⟨u, mem_s_of_zero_mod _ _ (by omega), ?_⟩
           have hvlt2 : v.val + 1 < n + 3 := by omega
           show (CGraph.cycle (n + 3)).Adj u v = true
-          have huval : u.val = v.val + 1 := by simp [u, Fin.val_mk]
+          have huval : u.val = v.val + 1 := by simp [u]
           rw [CGraph.cycle_adj_val, huval]
           have hmod2 : (v.val + 1) % (n + 3) = v.val + 1 := Nat.mod_eq_of_lt hvlt2
           exact ⟨by omega, Or.inr hmod2⟩
@@ -18358,7 +18358,7 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
       Fintype.card {v : g.V // v ∉ matchedS} = Fintype.card g.V - 2 * S.card := by
     have h1 : Fintype.card {v : g.V // v ∉ matchedS} = Fintype.card g.V - matchedS.card := by
       rw [Fintype.card_subtype_compl]
-      simp [Finset.card_univ]
+      simp
     rw [h1, hmatched_card, hcard]
   let unmatchedEmb : {v : g.V // v ∉ matchedS} ≃ Fin (Fintype.card g.V - 2 * S.card) :=
     Fintype.equivFinOfCardEq hcard_unmatched
@@ -18372,7 +18372,7 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
   refine ⟨SimpleGraph.Coloring.mk f ?_, fun v => ?_⟩
   · -- Adjacent in the complement → different colors
     intro u v huv
-    simp [CGraph.compl_adj] at huv
+    simp at huv
     -- huv : ¬ g.toSimple.Adj u v (and u ≠ v implied)
     by_cases hu : u ∈ matchedS
     · by_cases hv : v ∈ matchedS
@@ -18576,7 +18576,7 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
         have hi : i = j := by
           unfold vertex at h
           have := congr_arg Sigma.fst h.1
-          simp [vertex] at this
+          simp at this
           exact Fin.ext this
         exact hi
       · -- Swapped: vertex i 0 = vertex (j+1) 1, impossible (0 ≠ 1 in Fin 2)
@@ -18602,7 +18602,7 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
         rw [CGraph.lineGraph_adj]
         simp [h_inj.ne h]
         intro x hx
-        simp [edgeFn, Sym2.toFinset_mk_eq] at hx ⊢
+        simp [edgeFn] at hx ⊢
         rcases hx with rfl | rfl
         · constructor
           · exact fun heq => h (Fin.ext (by
@@ -18933,7 +18933,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
       dsimp only [SimpleGraph.cliqueNum]
       apply csSup_le
       · -- nonempty
-        exact ⟨0, ⟨∅, by simp [SimpleGraph.IsNClique]⟩⟩
+        exact ⟨0, ⟨∅, by simp⟩⟩
       · -- upper bound: every clique has size ≤ 2
         have hub : ∀ s : Finset (CGraph.kneser 5 2).V,
             (CGraph.kneser 5 2).toSimple.IsNClique s.card s → s.card ≤ 2 := by
@@ -19114,7 +19114,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
     have h := petersen.two_mul_matchNum_le_V
     rw [V_petersen] at h; omega
   have hequindep : 5 ≤ petersen.lineGraph.indepNum := by
-    simp only [petersen, lineGraph_mk, indepNum_mk]
+    simp only [petersen]
     -- Now goal is about lineGraph Compute.petersen
     simp only [kneser_def]
     -- The CGraph.kneser 5 2 is exactly the canonical form of petersen.
@@ -19472,11 +19472,11 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
       ({1} : Finset (Fin 2))
     have hI₀ : I₀.card = m + 1 := by
       rw [Finset.card_image_of_injective]
-      · simp [Finset.card_fin]
+      · simp
       · intro a b h; simp [Fin.ext_iff] at h; omega
     have hI₁ : I₁.card = m + 1 := by
       rw [Finset.card_image_of_injective]
-      · simp [Finset.card_fin]
+      · simp
       · intro a b h; simp [Fin.ext_iff] at h; omega
     have hdisj : Disjoint (I₀.product ({0} : Finset (Fin 2))) (I₁.product ({1} : Finset (Fin 2))) :=
       by
@@ -19511,13 +19511,13 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
       intro x hx
       rw [Finset.mem_image] at hx
       obtain ⟨k, _, rfl⟩ := hx
-      simp [even_iff_two_dvd, Nat.dvd_iff_mod_eq_zero, Nat.add_mod, Nat.mul_mod]
+      simp [even_iff_two_dvd]
     -- I₁ elements are odd
     have hI₁_odd : ∀ x ∈ I₁, Odd x.val := by
       intro x hx
       rw [Finset.mem_image] at hx
       obtain ⟨k, _, rfl⟩ := hx
-      simp [Nat.odd_iff, Nat.add_mod, Nat.mul_mod]
+      simp
     -- Next-element in I₀ is not in I₀ (for horizontal edges in layer 0)
     have hI₀_next : ∀ i ∈ I₀, (⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ : Fin (2 * m +
       3)) ∉ I₀ := by
@@ -19543,7 +19543,7 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
       rw [CGraph.cycle_adj_val] at hadj
       obtain ⟨hne, heq | heq⟩ := hadj
       · have hji : j = ⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
-          simp [Fin.ext_iff, heq]
+          simp [heq]
         exact hI₀_next i hi (hji ▸ hj)
       · have hik : i = ⟨(j.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
           simp [Fin.ext_iff, heq.symm]
@@ -19570,7 +19570,7 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
       rw [CGraph.cycle_adj_val] at hadj
       obtain ⟨hne, heq | heq⟩ := hadj
       · have hji : j = ⟨(i.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
-          simp [Fin.ext_iff, heq]
+          simp [heq]
         exact hI₁_next i hi (hji ▸ hj)
       · have hik : i = ⟨(j.val + 1) % (2 * m + 3), Nat.mod_lt _ (by omega)⟩ := by
           simp [Fin.ext_iff, heq.symm]
@@ -19599,31 +19599,31 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
       rcases hv_mem with ⟨j, c⟩
       dsimp [S] at w hw_mem
       simp only [Finset.mem_union, Finset.mem_coe] at w hw_mem
-      simp [prism, CGraph.prism] at huv_adj
+      simp [CGraph.prism] at huv_adj
       rcases hw_mem with h' | h'
       · rcases w with h | h
         · rw [Finset.mem_product, Finset.mem_singleton] at h h'
           obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
-          simp [Prod.snd] at hb hc
+          simp at hb hc
           rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
           · exfalso; exact absurd (by rw [hb, hc] : b = c) hne
           · exact hI₀_is i j hi hj h1
         · rw [Finset.mem_product, Finset.mem_singleton] at h h'
           obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
-          simp [Prod.snd] at hb hc
+          simp at hb hc
           rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
           · exfalso; exact Finset.disjoint_left.mp hdisjoint_I hj (hij ▸ hi)
           · exfalso; rw [hb, hc] at h2; exact absurd h2 (by decide)
       · rcases w with h | h
         · rw [Finset.mem_product, Finset.mem_singleton] at h h'
           obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
-          simp [Prod.snd] at hb hc
+          simp at hb hc
           rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
           · exfalso; exact Finset.disjoint_left.mp hdisjoint_I (hij ▸ hi) hj
           · exfalso; rw [hb, hc] at h2; exact absurd h2 (by decide)
         · rw [Finset.mem_product, Finset.mem_singleton] at h h'
           obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
-          simp [Prod.snd] at hb hc
+          simp at hb hc
           rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
           · exfalso; exact absurd (by rw [hb, hc] : b = c) hne
           · exact hI₁_is i j hi hj h1
@@ -19674,7 +19674,7 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
           intro x y hxy
           exact Subtype.ext (hinj_fst x.val x.property y.val y.property hxy)
         have := Fintype.card_le_of_injective _ hinj_fun
-        simp [Fintype.card_ofFinset] at this
+        simp at this
         exact this
       -- Step D: if s.card = 2*m+3, then fst is bijective from s to univ, giving f : Fin(2*m+3) →
       -- Fin 2
@@ -19690,7 +19690,7 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
           apply Finset.eq_of_subset_of_card_le (Finset.image_subset_iff.mpr fun x hx =>
             Finset.mem_univ _)
           rw [Finset.card_image_of_injOn (fun x hx y hy h => hinj_fst x hx y hy h), hcard_eq]
-          simp [Finset.card_fin]
+          simp
         intro i
         have : i ∈ s.image Prod.fst := himage.symm ▸ Finset.mem_univ i
         obtain ⟨x, hx, rfl⟩ := Finset.mem_image.mp this
@@ -19706,8 +19706,7 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
           show (CGraph.prism (2 * m + 3)).Adj (i, f i) (j, f j)
           have : (CGraph.prism (2 * m + 3)).Adj (i, f i) (j, f j) := by
             simp [CGraph.prism, CGraph.cartesianProduct_adj, CGraph.cycle, CGraph.complete_adj,
-              hfij,
-              CGraph.cycle_adj_val] at hij ⊢
+              hfij] at hij ⊢
             exact hij
           exact this
         have hijne : i ≠ j := by
@@ -19901,9 +19900,9 @@ swapping one of the `k` chosen elements for one of the `n - k` unchosen ones. -/
           by_cases hx : x = b'
           · simp [hx, hb'_notin_erase_a, hb'_notin_erase_a']
           · have hmem_a : x ∈ s.1.erase a ∪ {b'} ↔ x ∈ s.1.erase a := by
-              simp [Finset.mem_union, Finset.mem_singleton, hx]
+              simp [hx]
             have hmem_a' : x ∈ s.1.erase a' ∪ {b'} ↔ x ∈ s.1.erase a' := by
-              simp [Finset.mem_union, Finset.mem_singleton, hx]
+              simp [hx]
             rw [← hmem_a, hhex', hmem_a']
         exact ⟨erase_eq_erase_of_mem a a' ha ha' hex2, hbb'⟩
       -- fwd ∘ back = id
@@ -20283,7 +20282,7 @@ theorem isVertexTransitive_circulant (n : ℕ) (S : List ℕ) :
     let σ_perm : Equiv.Perm (Fin n) := Equiv.ofBijective σ_fun hσ_bij
     refine ⟨CGraph.autoOfPerm σ_perm (fun x y => ?_), ?_⟩
     · -- Adjacency in circulant depends on (y - x : ZMod n).val, preserved by translation.
-      simp only [σ_perm, Equiv.ofBijective_apply, σ_fun, equiv, CGraph.ofRel_adj]
+      simp only [σ_perm, Equiv.ofBijective_apply, σ_fun, equiv]
       -- Key: (σ y).val + n - (σ x).val ≡ y.val + n - x.val (mod n)
       -- because in ZMod: (equiv.symm y + d - (equiv.symm x + d)).val = (equiv.symm y - equiv.symm
       -- x).val
@@ -20399,7 +20398,7 @@ theorem matchNum_rook (m n : ℕ) :
   · -- Upper bound: 2 * indepNum(L(rook)) ≤ V(rook) = (m+1)*(n+1)
     have h := (rook (m + 1) (n + 1)).two_mul_matchNum_le_V
     rw [matchNum_eq] at h
-    rw [show (rook (m + 1) (n + 1)).V = (m + 1) * (n + 1) from by simp [rook, V_mk]] at h
+    rw [show (rook (m + 1) (n + 1)).V = (m + 1) * (n + 1) from by simp [rook]] at h
     omega
   · -- Lower bound
     rw [← matchNum_eq]
@@ -20530,7 +20529,6 @@ theorem matchNum_rook (m n : ℕ) :
       rw [htarget]
       -- Build horizontal edges H(i,j) for i : Fin(m+1), j : Fin k
       -- and vertical edges V(t) for t : Fin((m+1)/2) in column n = 2*k
-      skip
       let mv2 := (m + 1) / 2
       -- Final column index
       let last_col : Fin (2 * k + 1) := ⟨2 * k, by omega⟩
@@ -20615,7 +20613,7 @@ theorem matchNum_rook (m n : ℕ) :
           · dsimp [hv0v] at hx
             have h1 : (t : ℕ) = (t' : ℕ) := by
               have := congr_arg Prod.fst hx
-              simp [hv0v_fst] at this
+              simp at this
               omega
             exact hne (Fin.ext h1)
           · dsimp [hv1v] at hx
@@ -20632,7 +20630,7 @@ theorem matchNum_rook (m n : ℕ) :
           · dsimp [hv1v] at hx
             have h1 : (t : ℕ) = (t' : ℕ) := by
               have := congr_arg Prod.fst hx
-              simp [hv1v_fst] at this
+              simp at this
               omega
             exact hne (Fin.ext h1)
       -- EdgeVertex injectivity
@@ -20659,7 +20657,7 @@ theorem matchNum_rook (m n : ℕ) :
         · dsimp [hv0v] at h1
           have ht : (t : ℕ) = (t' : ℕ) := by
             have := congr_arg Prod.fst h1
-            simp [hv0v_fst] at this
+            simp at this
             omega
           exact Fin.ext ht
         · exfalso
@@ -20683,7 +20681,7 @@ theorem matchNum_rook (m n : ℕ) :
       have hhS_indep : (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
         (CGraph.complete (2 * k + 1)))).toSimple.IsIndepSet (Finset.univ.image hEdgeVertex) := by
         intro e he f hf haf
-        simp only [Finset.coe_image, Finset.mem_image, Set.mem_image] at he hf
+        simp only [Finset.coe_image, Set.mem_image] at he hf
         obtain ⟨x, _, rfl⟩ := he
         obtain ⟨y, _, rfl⟩ := hf
         simp [CGraph.toSimple_adj, CGraph.lineGraph_adj]
@@ -20723,7 +20721,7 @@ theorem matchNum_rook (m n : ℕ) :
       have hvS_indep : (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
         (CGraph.complete (2 * k + 1)))).toSimple.IsIndepSet (Finset.univ.image vEdgeVertex) := by
         intro e he f hf haf
-        simp only [Finset.coe_image, Finset.mem_image, Set.mem_image] at he hf
+        simp only [Finset.coe_image, Set.mem_image] at he hf
         obtain ⟨t, _, rfl⟩ := he
         obtain ⟨t', _, rfl⟩ := hf
         simp [CGraph.toSimple_adj, CGraph.lineGraph_adj]
@@ -20748,7 +20746,7 @@ theorem matchNum_rook (m n : ℕ) :
           have h2 := (hH_col_lt p).1
           simp [hv0v_snd] at h1
           have := congr_arg Fin.val h1
-          simp [hv0v_snd_val] at this
+          simp at this
           omega
         have hne1 : hv0 p ≠ hv1v t := by
           intro h
@@ -20756,7 +20754,7 @@ theorem matchNum_rook (m n : ℕ) :
           have h2 := (hH_col_lt p).1
           simp [hv1v_snd] at h1
           have := congr_arg Fin.val h1
-          simp [hv1v_snd_val] at this
+          simp at this
           omega
         have hne2 : hv1 p ≠ hv0v t := by
           intro h
@@ -20764,7 +20762,7 @@ theorem matchNum_rook (m n : ℕ) :
           have h2 := (hH_col_lt p).2
           simp [hv0v_snd] at h1
           have := congr_arg Fin.val h1
-          simp [hv0v_snd_val] at this
+          simp at this
           omega
         have hne3 : hv1 p ≠ hv1v t := by
           intro h
@@ -20772,7 +20770,7 @@ theorem matchNum_rook (m n : ℕ) :
           have h2 := (hH_col_lt p).2
           simp [hv1v_snd] at h1
           have := congr_arg Fin.val h1
-          simp [hv1v_snd_val] at this
+          simp at this
           omega
         intro _ _
         exact ⟨⟨hne0, hne1⟩, hne2, hne3⟩
@@ -20802,7 +20800,7 @@ theorem matchNum_rook (m n : ℕ) :
           rw [hsymm] at hadj
           exact h_cross p t hadj
         intro e he f hf haf
-        simp [Finset.mem_union, Finset.mem_image] at he hf
+        simp at he hf
         rcases he with he | he
         · obtain ⟨p, hp, rfl⟩ := he
           rcases hf with hf | hf
@@ -20918,7 +20916,7 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
             ext x
             simp [s'_val, Finset.mem_sdiff, Finset.mem_singleton]
             by_cases hx : x = a
-            · subst hx; simp [hab, Finset.mem_sdiff, Finset.mem_singleton]
+            · subst hx; simp [hab]
             · simp [hx]; exact fun _ => Or.inr ‹_›
           have hcard_sa : (s.val ∩ {a}).card = 1 := by
             rw [Finset.inter_eq_right.mpr (Finset.singleton_subset_iff.mpr ha_s)]
@@ -21163,7 +21161,7 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
           constructor
           · rintro ⟨j, hj⟩
             have hval : x.val = j.val + (n - k) := by
-              have := congr_arg Fin.val hj; simp [Fin.val_mk, Nat.add_comm] at this ⊢; exact
+              have := congr_arg Fin.val hj; simp at this ⊢; exact
                 this.symm
             rw [hval]; exact Nat.le_add_left _ _
           · intro hx
@@ -21180,7 +21178,7 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
             exact ⟨⟨x.val - (n - k), by omega⟩, Fin.ext (by simp [Nat.add_sub_of_le h1])⟩
           · rintro ⟨i, hi⟩
             subst hi
-            have : (⟨n - k + i.val, by omega⟩ : Fin n).val = n - k + i.val := by simp [Fin.val_mk]
+            have : (⟨n - k + i.val, by omega⟩ : Fin n).val = n - k + i.val := by simp
             rw [this]
             exact ⟨by omega, by omega⟩
         rw [hint_eq, Finset.card_image_of_injective _ hinj, Finset.card_univ]
@@ -21340,8 +21338,8 @@ theorem degSequence_ladder (n : ℕ) :
     simp [Multiset.map_cons, Multiset.map_replicate]
   rw [h1]
   -- Compute join
-  simp only [Multiset.join, Multiset.bind]
-  simp (config := { decide := true }) [Multiset.map_replicate, Multiset.bind,
+  simp only [Multiset.join]
+  simp (config := { decide := true }) [
     Multiset.sum_replicate]
   -- Step: n • replicate 2 3 = replicate (2 * n) 3
   have hrep : ∀ (m : ℕ) (a : ℕ), m • Multiset.replicate 2 a = Multiset.replicate (2 * m) a := by
@@ -21536,8 +21534,8 @@ theorem radius_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConne
       _ = max (WG.length : ℕ∞) (WH.length : ℕ∞) := by
           show (max WG.length WH.length : ℕ∞) = max (WG.length : ℕ∞) (WH.length : ℕ∞)
           cases le_total WG.length WH.length with
-          | inl h => simp [max_eq_right h]
-          | inr h => simp [max_eq_left h]
+          | inl h => simp
+          | inr h => simp
       _ ≤ max (Gs.edist g1 g2) (Hs.edist h1 h2) :=
           max_le_max (hWG.le) (hWH.le)
   -- Eccentricity: SP eccent (g,h) = max(G eccent g, H eccent h)
@@ -21658,7 +21656,7 @@ theorem radius_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConne
       exact le_trans (SimpleGraph.radius_le_eccent) (heccent_eq p.1 p.2 ▸ le_max_right _ _)
   have h_radius_eq_enat : SPs.radius = max Gs.radius Hs.radius := by
     exact le_antisymm h_le_max_enat h_ge_max_enat
-  simp [radius_mk, CGraph.radius]
+  simp [CGraph.radius]
   rw [h_radius_eq_enat]
   have key : ∀ (a b : ℕ∞), a ≠ ⊤ → b ≠ ⊤ → (max a b).toNat = max a.toNat b.toNat := by
     intro a b ha hb
@@ -21735,8 +21733,8 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
         have ha_in_edge' : (Sum.inr a : Fin 1 ⊕ Fin m) ∈ Sym2.mk (Sum.inr a', Sum.inr b') := by
           rw [← heq]
           show Sym2.Mem _ _
-          simp [Sym2.Mem, Sym2.Rel]
-        simp [Sym2.Rel] at ha_in_edge'
+          simp [Sym2.Mem]
+        simp at ha_in_edge'
         obtain h | h := ha_in_edge'
         · simp [a, a'] at h
           exact Fin.ext (by omega)
@@ -21749,11 +21747,11 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
       -- Charactize mkSpoke membership
       have hmem_spoke_lhs : (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ mkSpoke ∧
           (Sum.inr ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ mkSpoke := by
-        simp [mkSpoke, Sym2.Rel]
+        simp [mkSpoke]
       have hnotmem_spoke : ∀ (v : Fin 1 ⊕ Fin m) (j : Fin (k + 1)), v ∈ mkSpoke → v ∉ mkRim j := by
         intro v j hvmem
-        simp [mkSpoke, Sym2.Rel] at hvmem
-        rcases hvmem with rfl | rfl <;> simp [mkRim, Sym2.Rel]
+        simp [mkSpoke] at hvmem
+        rcases hvmem with rfl | rfl <;> simp [mkRim]
       -- spokeV ≠ rimV j
       have hspoke_ne_rim : ∀ j : Fin (k + 1), spokeV ≠ rimV j := by
         intro j heq
@@ -21765,7 +21763,7 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
       have hmemRim_char : ∀ j : Fin (k + 1), ∀ y : Fin 1 ⊕ Fin m,
           y ∈ mkRim j ↔ y = Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩ ∨ y = Sum.inr
             ⟨2 * (j : ℕ) + 2, by omega⟩ := by
-        intro j y; simp [mkRim, Sym2.Rel]
+        intro j y; simp [mkRim]
       -- LineGraph vertices: spokeV and all rimV
       let vertices : Finset (CGraph.lineGraph (CGraph.wheel m)).V :=
         {spokeV} ∪ Finset.univ.image rimV
@@ -21774,11 +21772,11 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
         unfold SimpleGraph.IsIndepSet
         intro v hv w hw hvw
         have hv' : v = spokeV ∨ ∃ j : Fin (k + 1), rimV j = v := by
-          simp [vertices, Finset.mem_union, Finset.mem_singleton, Finset.mem_image, Finset.mem_univ]
+          simp [vertices]
             at hv
           exact hv
         have hw' : w = spokeV ∨ ∃ j : Fin (k + 1), rimV j = w := by
-          simp [vertices, Finset.mem_union, Finset.mem_singleton, Finset.mem_image, Finset.mem_univ]
+          simp [vertices]
             at hw
           exact hw
         rcases hv' with rfl | ⟨j, rfl⟩
@@ -21838,7 +21836,7 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
         simp [CGraph.wheel]
         rw [CGraph.join_adj_inr_inr]
         show (CGraph.cycle m).Adj ⟨2 * (j : ℕ), by omega⟩ ⟨2 * (j : ℕ) + 1, by omega⟩ = true
-        simp [CGraph.cycle, CGraph.ofRel_adj, Fin.val_add, Fin.val_mul]
+        simp [CGraph.cycle, CGraph.ofRel_adj]
         have hj : (j : ℕ) < k + 2 := j.is_lt
         rw [Nat.mod_eq_of_lt (by omega : 2 * (j : ℕ) + 1 < m)]
         simp
@@ -21886,8 +21884,8 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
         have ha_in_edge' : (Sum.inr a : Fin 1 ⊕ Fin m) ∈ Sym2.mk (Sum.inr a', Sum.inr b') := by
           rw [← heq]
           show Sym2.Mem _ _
-          simp [Sym2.Mem, Sym2.Rel]
-        simp [Sym2.Rel] at ha_in_edge'
+          simp [Sym2.Mem]
+        simp at ha_in_edge'
         obtain h | h := ha_in_edge'
         · -- inr a = inr a' (h : a = a' as Fin m)
           exact Fin.ext (by simp [a, a'] at h; omega)

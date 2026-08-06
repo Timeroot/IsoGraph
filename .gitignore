@@ -1,2 +1,8 @@
 /.lake/
 /screenlog.0
+
+# Local scratch: the draft file every batch is written in, the ATP target files it is
+# harvested from, and the per-directory MCP registration. None of them are part of the build.
+/Scratch.lean
+/IsoGraph/AtpBatch*.lean
+/.mcp.json

@@ -361,7 +361,7 @@ theorem dfsNode_best (n : Nat) (f : Nat → Nat → Bool) :
     rw [dfsChildren_abort habort]; exact hgood habort
   case refine_8 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark ih hp hverts hnc hfuel
-    intro hgood hb
+      hgood hb
     rw [dfsChildren_marked (by simpa using habort) hmark]
     have hb' : st.best.isSome = true := by
       rcases hb with h | ⟨_, hng, hzero⟩
@@ -374,7 +374,7 @@ theorem dfsNode_best (n : Nat) (f : Nat → Nat → Bool) :
       (fun w hw => hnc w (List.mem_cons_of_mem _ hw)) hfuel hgood (Or.inl hb')
   case refine_9 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 ih1 hp hverts hnc hfuel hgood _
+      childInv' st1 st2 habort2 ih1 hp hverts hnc hfuel hgood _
     have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href
     have hwf'' : Part.WF n p'' := by
       have h2 : p'' = (child (Graph.ofOracle n f) p v).1 := by rw [hchild]
@@ -388,7 +388,7 @@ theorem dfsNode_best (n : Nat) (f : Nat → Nat → Bool) :
     exact ih1 hwf'' (by omega) hgood
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
-    intro childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 hp hverts hnc hfuel hgood _
+      childInv' st1 st2 habort2 orb2 ih1 _ih1' ih2 hp hverts hnc hfuel hgood _
     have hchild : child (Graph.ofOracle n f) p v = (p'', tr) := by rw [child, hind]; exact href
     have hwf'' : Part.WF n p'' := by
       have h2 : p'' = (child (Graph.ofOracle n f) p v).1 := by rw [hchild]

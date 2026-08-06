@@ -377,7 +377,7 @@ theorem canonicalize_eq_graphOfCode (G : CGraph) :
     funext fun (j : Fin (Fintype.card G.V)) ↦ ?_))
   rw [CGraph.canonicalize_adj, graphOfCode_adj]
   by_cases h : i = j
-  · subst h; simp [Bool.eq_false_iff.2 (G.canon_loopless i)]
+  · subst h; simp
   · rw [decide_eq_true h, Bool.true_and,
       testBit_codeOfAdj_ne _ (AdjMatrix.get_comm G.canon_adj_symm) i.2 j.2
         (fun he ↦ h (Fin.ext he)),
