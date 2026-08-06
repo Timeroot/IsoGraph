@@ -3017,6 +3017,23 @@ disjoint union and the join of two cycles, and the two path products. The rook g
 prettiest case: it is one of the few families where both directions are known, so
 `min (m+1) (n+1)` and `max (m+1) (n+1)` sit side by side on the same complement.
 
+The same trade happens one level down, between cliques and independent sets: `indepNum_compl`
+and `cliqueNum_compl` say `α(Ḡ) = ω(G)` and `ω(Ḡ) = α(G)`, and the library had accumulated many
+clique numbers whose complement partner was missing and many independence numbers likewise. Forty
+five lemmas close that gap in one sweep. The clique numbers give
+`indepNum_compl_triangular = n + 3`, `indepNum_compl_johnson_two`, `indepNum_compl_kneser_two
+= ⌊n/2⌋`, `indepNum_compl_cocktailParty = n`, `indepNum_compl_fan = 3`,
+`indepNum_compl_lineGraph_petersen = 3` and `indepNum_compl_lineGraph_hypercube = n + 3` (the
+complement of a line graph has an independent set for each of the original's biggest stars),
+`indepNum_compl_strongProduct_complete = indepNum_compl_lexProduct_complete = mn` because those
+two products of complete graphs are complete, and the whole shelf of small
+cycle-pendant, theta-graph, spider, circulant, tadpole and lollipop degenerate cases. The
+independence numbers give the mirror set, `cliqueNum_compl_rook = min (m+1) (n+1)`,
+`cliqueNum_compl_kneser_two = n + 3`, `cliqueNum_compl_johnson_two = ⌊n/2⌋`,
+`cliqueNum_compl_fan`, `cliqueNum_compl_spider_pair` and the rest. Together with the chromatic
+pair above, every one of the four numbers `ω`, `α`, `χ`, `θ` is now recorded on the complement of
+each family where it is known on the family itself.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

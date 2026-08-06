@@ -38452,6 +38452,153 @@ theorem cliqueCoverNum_compl_lexProduct_path (m n : ℕ) :
     ((path (m + 2) ·g path (n + 2))ᶜ).cliqueCoverNum = 4 := by
   rw [cliqueCoverNum_compl, chromNum_lexProduct_path]
 
+/-! ### Clique and independence numbers of complements -/
+
+theorem indepNum_compl_book (n : ℕ) : ((book n)ᶜ).indepNum = 2 + min n 1 := by
+  rw [indepNum_compl, cliqueNum_book]
+
+theorem indepNum_compl_cocktailParty (n : ℕ) : ((cocktailParty n)ᶜ).indepNum = n := by
+  rw [indepNum_compl, cliqueNum_cocktailParty]
+
+theorem indepNum_compl_cycle_five : ((cycle 5)ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_cycle_five]
+
+theorem indepNum_compl_fan (n : ℕ) : ((fan (n + 2))ᶜ).indepNum = 3 := by
+  rw [indepNum_compl, cliqueNum_fan]
+
+theorem indepNum_compl_cycle_three : ((cycle 3)ᶜ).indepNum = 3 := by
+  rw [indepNum_compl, cliqueNum_cycle_three]
+
+theorem indepNum_compl_kneser_two (n : ℕ) : ((kneser n 2)ᶜ).indepNum = n / 2 := by
+  rw [indepNum_compl, cliqueNum_kneser_two]
+
+theorem indepNum_compl_johnson_two_even (m : ℕ) :
+    ((johnson (2 * m + 2) 2)ᶜ).indepNum = 2 * m + 1 := by
+  rw [indepNum_compl, cliqueNum_johnson_two_even]
+
+theorem indepNum_compl_prism_three : ((prism 3)ᶜ).indepNum = 3 := by
+  rw [indepNum_compl, cliqueNum_prism_three]
+
+theorem indepNum_compl_triangular (n : ℕ) : ((triangular (n + 4))ᶜ).indepNum = n + 3 := by
+  rw [indepNum_compl, cliqueNum_triangular]
+
+theorem indepNum_compl_johnson_two (n : ℕ) : ((johnson (n + 4) 2)ᶜ).indepNum = n + 3 := by
+  rw [indepNum_compl, cliqueNum_johnson_two]
+
+theorem indepNum_compl_lineGraph_petersen : ((lineGraph petersen)ᶜ).indepNum = 3 := by
+  rw [indepNum_compl, cliqueNum_lineGraph_petersen]
+
+theorem indepNum_compl_lineGraph_hypercube (n : ℕ) :
+    ((lineGraph (hypercube (n + 3)))ᶜ).indepNum = n + 3 := by
+  rw [indepNum_compl, cliqueNum_lineGraph_hypercube]
+
+theorem indepNum_compl_friendship (n : ℕ) : ((friendship (n + 1))ᶜ).indepNum = 3 := by
+  rw [indepNum_compl, cliqueNum_friendship]
+
+theorem indepNum_compl_cyclePendant_replicate_zero (m j : ℕ) :
+    ((cyclePendant (m + 4) (List.replicate j 0))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_cyclePendant_replicate_zero]
+
+theorem indepNum_compl_cyclePendant_one (k : ℕ) : ((cyclePendant 1 [k + 1])ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_cyclePendant_one]
+
+theorem indepNum_compl_thetaGraph_singleton (k : ℕ) : ((thetaGraph [k])ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_thetaGraph_singleton]
+
+theorem indepNum_compl_circulant_one (n : ℕ) : ((circulant (n + 4) [1])ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_circulant_one]
+
+theorem indepNum_compl_kneser_one (n : ℕ) : ((kneser n 1)ᶜ).indepNum = n := by
+  rw [indepNum_compl, cliqueNum_kneser_one]
+
+theorem indepNum_compl_johnson_one (n : ℕ) : ((johnson n 1)ᶜ).indepNum = n := by
+  rw [indepNum_compl, cliqueNum_johnson_one]
+
+theorem indepNum_compl_circulant_nil (n : ℕ) : ((circulant n [])ᶜ).indepNum = min n 1 := by
+  rw [indepNum_compl, cliqueNum_circulant_nil]
+
+theorem indepNum_compl_tadpole_one (k : ℕ) : ((tadpole 1 (k + 1))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_tadpole_one]
+
+theorem indepNum_compl_lollipop_one (k : ℕ) : ((lollipop 1 (k + 1))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_lollipop_one]
+
+theorem indepNum_compl_strongProduct_complete (m n : ℕ) :
+    ((complete m ⊠g complete n)ᶜ).indepNum = m * n := by
+  rw [indepNum_compl, cliqueNum_strongProduct_complete]
+
+theorem indepNum_compl_lexProduct_complete (m n : ℕ) :
+    ((complete m ·g complete n)ᶜ).indepNum = m * n := by
+  rw [indepNum_compl, cliqueNum_lexProduct_complete]
+
+theorem cliqueNum_compl_book (n : ℕ) : ((book n)ᶜ).cliqueNum = max 1 n := by
+  rw [cliqueNum_compl, indepNum_book]
+
+theorem cliqueNum_compl_cocktailParty (n : ℕ) : ((cocktailParty (n + 1))ᶜ).cliqueNum = 2 := by
+  rw [cliqueNum_compl, indepNum_cocktailParty]
+
+theorem cliqueNum_compl_rook (m n : ℕ) :
+    ((rook (m + 1) (n + 1))ᶜ).cliqueNum = min (m + 1) (n + 1) := by
+  rw [cliqueNum_compl, indepNum_rook]
+
+theorem cliqueNum_compl_fan (n : ℕ) : ((fan (n + 1))ᶜ).cliqueNum = (n + 2) / 2 := by
+  rw [cliqueNum_compl, indepNum_fan]
+
+theorem cliqueNum_compl_johnson_two (n : ℕ) : ((johnson n 2)ᶜ).cliqueNum = n / 2 := by
+  rw [cliqueNum_compl, indepNum_johnson_two]
+
+theorem cliqueNum_compl_kneser_two (n : ℕ) : ((kneser (n + 4) 2)ᶜ).cliqueNum = n + 3 := by
+  rw [cliqueNum_compl, indepNum_kneser_two]
+
+theorem cliqueNum_compl_friendship (n : ℕ) : ((friendship n)ᶜ).cliqueNum = max n 1 := by
+  rw [cliqueNum_compl, indepNum_friendship]
+
+theorem cliqueNum_compl_spider_pair (a b : ℕ) : ((spider [a, b])ᶜ).cliqueNum = (a + b + 2) / 2 := by
+  rw [cliqueNum_compl, indepNum_spider_pair]
+
+theorem cliqueNum_compl_cyclePendant_replicate_zero (m j : ℕ) :
+    ((cyclePendant (m + 3) (List.replicate j 0))ᶜ).cliqueNum = (m + 3) / 2 := by
+  rw [cliqueNum_compl, indepNum_cyclePendant_replicate_zero]
+
+theorem cliqueNum_compl_cyclePendant_one (k : ℕ) : ((cyclePendant 1 [k])ᶜ).cliqueNum = max 1 k := by
+  rw [cliqueNum_compl, indepNum_cyclePendant_one]
+
+theorem cliqueNum_compl_tadpole_zero (m : ℕ) : ((tadpole (m + 3) 0)ᶜ).cliqueNum = (m + 3) / 2 := by
+  rw [cliqueNum_compl, indepNum_tadpole_zero]
+
+theorem cliqueNum_compl_lollipop_zero (m : ℕ) : ((lollipop m 0)ᶜ).cliqueNum = min m 1 := by
+  rw [cliqueNum_compl, indepNum_lollipop_zero]
+
+theorem cliqueNum_compl_thetaGraph_singleton (k : ℕ) :
+    ((thetaGraph [k])ᶜ).cliqueNum = (k + 3) / 2 := by
+  rw [cliqueNum_compl, indepNum_thetaGraph_singleton]
+
+theorem cliqueNum_compl_spider_singleton (k : ℕ) : ((spider [k])ᶜ).cliqueNum = (k + 2) / 2 := by
+  rw [cliqueNum_compl, indepNum_spider_singleton]
+
+theorem cliqueNum_compl_circulant_one (n : ℕ) :
+    ((circulant (n + 3) [1])ᶜ).cliqueNum = (n + 3) / 2 := by
+  rw [cliqueNum_compl, indepNum_circulant_one]
+
+theorem cliqueNum_compl_kneser_one (n : ℕ) : ((kneser n 1)ᶜ).cliqueNum = min n 1 := by
+  rw [cliqueNum_compl, indepNum_kneser_one]
+
+theorem cliqueNum_compl_johnson_one (n : ℕ) : ((johnson n 1)ᶜ).cliqueNum = min n 1 := by
+  rw [cliqueNum_compl, indepNum_johnson_one]
+
+theorem cliqueNum_compl_circulant_nil (n : ℕ) : ((circulant n [])ᶜ).cliqueNum = n := by
+  rw [cliqueNum_compl, indepNum_circulant_nil]
+
+theorem cliqueNum_compl_tadpole_one (k : ℕ) : ((tadpole 1 k)ᶜ).cliqueNum = (k + 2) / 2 := by
+  rw [cliqueNum_compl, indepNum_tadpole_one]
+
+theorem cliqueNum_compl_lollipop_one (k : ℕ) : ((lollipop 1 k)ᶜ).cliqueNum = (k + 2) / 2 := by
+  rw [cliqueNum_compl, indepNum_lollipop_one]
+
+theorem cliqueNum_compl_lexProduct_complete (m n : ℕ) :
+    ((complete (m + 1) ·g complete (n + 1))ᶜ).cliqueNum = 1 := by
+  rw [cliqueNum_compl, indepNum_lexProduct_complete]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
