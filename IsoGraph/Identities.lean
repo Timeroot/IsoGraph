@@ -35508,6 +35508,139 @@ theorem le_autCount_thetaGraph_replicate_one (n : ℕ) :
   rw [thetaGraph_replicate_one]
   rwa [show Nat.factorial 2 = 2 from rfl] at h
 
+/-! ### Spiders and theta graphs whose legs all have length one
+
+A spider all of whose legs have length one is a star, and a theta graph all of whose paths have
+length one is `K₂,ₙ`.  Both identities are already in the file; what follows is the row of
+invariants they carry across, which is the second batch of entries in two families that are
+otherwise blocked on the maximum degree.
+-/
+
+theorem maxDeg_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) (hne : ks ≠ []) :
+    maxDeg (spider ks) = ks.length := by
+  obtain ⟨n, hn⟩ : ∃ n, ks.length = n + 1 := by
+    cases ks with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [spider_of_all_one h, hn, maxDeg_star]
+
+theorem minDeg_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) (hne : ks ≠ []) :
+    minDeg (spider ks) = 1 := by
+  obtain ⟨n, hn⟩ : ∃ n, ks.length = n + 1 := by
+    cases ks with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [spider_of_all_one h, hn, minDeg_star]
+
+theorem matchNum_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) :
+    (spider ks).matchNum = min ks.length 1 := by
+  rw [spider_of_all_one h, matchNum_star]
+
+theorem domNum_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) :
+    (spider ks).domNum = 1 := by
+  rw [spider_of_all_one h, domNum_star]
+
+theorem coverNum_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) :
+    (spider ks).coverNum = min 1 ks.length := by
+  rw [spider_of_all_one h, coverNum_star]
+
+theorem indepNum_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) :
+    (spider ks).indepNum = max 1 ks.length := by
+  rw [spider_of_all_one h, indepNum_star]
+
+theorem cliqueCoverNum_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) :
+    (spider ks).cliqueCoverNum = max 1 ks.length := by
+  rw [spider_of_all_one h, cliqueCoverNum_star]
+
+theorem edgeChromNum_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) :
+    (spider ks).edgeChromNum = ks.length := by
+  rw [spider_of_all_one h, edgeChromNum_star]
+
+theorem radius_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) (hne : ks ≠ []) :
+    (spider ks).radius = 1 := by
+  obtain ⟨n, hn⟩ : ∃ n, ks.length = n + 1 := by
+    cases ks with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [spider_of_all_one h, hn, radius_star]
+
+theorem diameter_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) (hl : 2 ≤ ks.length) :
+    (spider ks).diameter = 2 := by
+  obtain ⟨n, hn⟩ : ∃ n, ks.length = n + 2 := ⟨ks.length - 2, by omega⟩
+  rw [spider_of_all_one h, hn, diameter_star]
+
+theorem factorial_le_autCount_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) :
+    ks.length.factorial ≤ (spider ks).autCount := by
+  rw [spider_of_all_one h]
+  exact factorial_le_autCount_star _
+
+theorem maxDeg_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hne : xs ≠ []) :
+    maxDeg (thetaGraph xs) = max 2 xs.length := by
+  obtain ⟨n, hn⟩ : ∃ n, xs.length = n + 1 := by
+    cases xs with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [thetaGraph_of_all_one h, hn, maxDeg_bipartite]
+
+theorem minDeg_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hne : xs ≠ []) :
+    minDeg (thetaGraph xs) = min 2 xs.length := by
+  obtain ⟨n, hn⟩ : ∃ n, xs.length = n + 1 := by
+    cases xs with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [thetaGraph_of_all_one h, hn, minDeg_bipartite]
+
+theorem matchNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hne : xs ≠ []) :
+    (thetaGraph xs).matchNum = min 2 xs.length := by
+  obtain ⟨n, hn⟩ : ∃ n, xs.length = n + 1 := by
+    cases xs with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [thetaGraph_of_all_one h, hn, matchNum_bipartite]
+
+theorem indepNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) :
+    (thetaGraph xs).indepNum = max 2 xs.length := by
+  rw [thetaGraph_of_all_one h, indepNum_bipartite]
+
+theorem coverNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) :
+    (thetaGraph xs).coverNum = min 2 xs.length := by
+  rw [thetaGraph_of_all_one h, coverNum_bipartite]
+
+theorem cliqueCoverNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) :
+    (thetaGraph xs).cliqueCoverNum = max 2 xs.length := by
+  rw [thetaGraph_of_all_one h, cliqueCoverNum_bipartite]
+
+theorem edgeChromNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hne : xs ≠ []) :
+    (thetaGraph xs).edgeChromNum = max 2 xs.length := by
+  obtain ⟨n, hn⟩ : ∃ n, xs.length = n + 1 := by
+    cases xs with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [thetaGraph_of_all_one h, hn, edgeChromNum_bipartite]
+
+theorem domNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hl : 2 ≤ xs.length) :
+    (thetaGraph xs).domNum = 2 := by
+  obtain ⟨n, hn⟩ : ∃ n, xs.length = n + 2 := ⟨xs.length - 2, by omega⟩
+  rw [thetaGraph_of_all_one h, hn, domNum_bipartite]
+
+theorem diameter_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hl : 2 ≤ xs.length) :
+    (thetaGraph xs).diameter = 2 := by
+  obtain ⟨n, hn⟩ : ∃ n, xs.length = n + 2 := ⟨xs.length - 2, by omega⟩
+  rw [thetaGraph_of_all_one h, hn, diameter_bipartite]
+
+theorem isConnected_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hne : xs ≠ []) :
+    IsConnected (thetaGraph xs) := by
+  obtain ⟨n, hn⟩ : ∃ n, xs.length = n + 1 := by
+    cases xs with
+    | nil => exact absurd rfl hne
+    | cons a t => exact ⟨t.length, rfl⟩
+  rw [thetaGraph_of_all_one h, hn]
+  exact isConnected_bipartite 1 n
+
+theorem numComponents_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) (hne : xs ≠ []) :
+    (thetaGraph xs).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_thetaGraph_of_all_one h hne)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

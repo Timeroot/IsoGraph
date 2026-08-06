@@ -2565,6 +2565,25 @@ whose edge count is known gives `two_mul_E_le_autCount_hypercube` (`n · 2ⁿ`),
 would give. `le_autCount_thetaGraph_replicate_one` covers the remaining degenerate theta graph,
 the one whose paths all have length one and which is therefore `K₂,ₙ`.
 
+That last identity is the general one: `thetaGraph_of_all_one` says that a theta graph whose
+paths all have length one is `K₂,ₙ`, and `spider_of_all_one` says that a spider whose legs all
+have length one is a star. Both take a hypothesis `∀ k ∈ ks, k = 1` rather than a literal
+`List.replicate`, so they apply to any such list, and the whole star row transfers across:
+`maxDeg_spider_of_all_one`, `minDeg_spider_of_all_one`, `matchNum_spider_of_all_one`,
+`domNum_spider_of_all_one`, `coverNum_spider_of_all_one`, `indepNum_spider_of_all_one`,
+`cliqueCoverNum_spider_of_all_one`, `edgeChromNum_spider_of_all_one`,
+`radius_spider_of_all_one`, `diameter_spider_of_all_one` and
+`factorial_le_autCount_spider_of_all_one`, the last of which says the legs can be permuted
+arbitrarily. The bipartite row transfers the same way, with `max 2 ks.length` and
+`min 2 ks.length` in place of the star's `1`: `maxDeg_thetaGraph_of_all_one`,
+`minDeg_thetaGraph_of_all_one`, `matchNum_thetaGraph_of_all_one`,
+`indepNum_thetaGraph_of_all_one`, `coverNum_thetaGraph_of_all_one`,
+`cliqueCoverNum_thetaGraph_of_all_one`, `edgeChromNum_thetaGraph_of_all_one`,
+`domNum_thetaGraph_of_all_one`, `diameter_thetaGraph_of_all_one`,
+`isConnected_thetaGraph_of_all_one` and `numComponents_thetaGraph_of_all_one`. The side
+conditions are exactly the ones the star and bipartite lemmas need: a non-empty list for the
+degrees and the radius, and at least two entries for the diameter and the domination number.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
