@@ -37538,6 +37538,85 @@ theorem isConnected_lexProduct_complete (m n : ℕ) :
     IsVertexTransitive (complete m ·g complete n) :=
   (isVertexTransitive_complete m).lexProduct (isVertexTransitive_complete n)
 
+/-! ### The join of two cycles -/
+
+@[simp] theorem V_join_cycle (m n : ℕ) : (cycle m ∇g cycle n).V = m + n := by
+  rw [V_join, V_cycle, V_cycle]
+
+theorem E_join_cycle (m n : ℕ) :
+    (cycle (m + 3) ∇g cycle (n + 3)).E = (m + 3) + (n + 3) + (m + 3) * (n + 3) := by
+  rw [E_join, E_cycle, E_cycle, V_cycle, V_cycle]
+
+theorem cliqueNum_join_cycle (m n : ℕ) :
+    (cycle (m + 4) ∇g cycle (n + 4)).cliqueNum = 4 := by
+  have h := cliqueNum_join (cycle (m + 4)) (cycle (n + 4))
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem indepNum_join_cycle (m n : ℕ) :
+    (cycle (m + 3) ∇g cycle (n + 3)).indepNum = max ((m + 3) / 2) ((n + 3) / 2) := by
+  rw [indepNum_join, indepNum_cycle, indepNum_cycle]
+
+theorem cliqueCoverNum_join_cycle (m n : ℕ) :
+    (cycle (m + 4) ∇g cycle (n + 4)).cliqueCoverNum = max ((m + 5) / 2) ((n + 5) / 2) := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_cycle, cliqueCoverNum_cycle]
+
+theorem maxDeg_join_cycle (m n : ℕ) :
+    maxDeg (cycle (m + 3) ∇g cycle (n + 3)) = max (n + 5) (m + 5) := by
+  have h := maxDeg_join (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [maxDeg_cycle, maxDeg_cycle, V_cycle, V_cycle] at h
+  omega
+
+theorem minDeg_join_cycle (m n : ℕ) :
+    minDeg (cycle (m + 3) ∇g cycle (n + 3)) = min (n + 5) (m + 5) := by
+  have h := minDeg_join (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_cycle, minDeg_cycle, V_cycle, V_cycle] at h
+  omega
+
+@[simp] theorem isConnected_join_cycle (m n : ℕ) :
+    IsConnected (cycle (m + 1) ∇g cycle (n + 1)) :=
+  isConnected_join (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+
+@[simp] theorem numComponents_join_cycle (m n : ℕ) :
+    (cycle (m + 1) ∇g cycle (n + 1)).numComponents = 1 :=
+  numComponents_join (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+
+@[simp] theorem girth_join_cycle (m n : ℕ) :
+    (cycle (m + 4) ∇g cycle (n + 4)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle]; omega)
+
+theorem chromNum_join_cycle_even (m n : ℕ) :
+    (cycle (2 * m + 2) ∇g cycle (2 * n + 2)).chromNum = 4 := by
+  have h := chromNum_join (cycle (2 * m + 2)) (cycle (2 * n + 2))
+  rw [chromNum_cycle_even, chromNum_cycle_even] at h
+  omega
+
+theorem chromNum_join_cycle_odd (m n : ℕ) :
+    (cycle (2 * m + 3) ∇g cycle (2 * n + 3)).chromNum = 6 := by
+  have h := chromNum_join (cycle (2 * m + 3)) (cycle (2 * n + 3))
+  rw [chromNum_cycle_odd, chromNum_cycle_odd] at h
+  omega
+
+theorem chromNum_join_cycle_even_odd (m n : ℕ) :
+    (cycle (2 * m + 2) ∇g cycle (2 * n + 3)).chromNum = 5 := by
+  have h := chromNum_join (cycle (2 * m + 2)) (cycle (2 * n + 3))
+  rw [chromNum_cycle_even, chromNum_cycle_odd] at h
+  omega
+
+theorem diameter_join_cycle (m n : ℕ) :
+    (cycle (m + 4) ∇g cycle (n + 4)).diameter = 2 := by
+  have h : (m + 4).choose 2 = (m + 4) * (m + 3) / 2 := by
+    rw [Nat.choose_two_right, show m + 4 - 1 = m + 3 by omega]
+  have h2 : m + 5 ≤ (m + 4) * (m + 3) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 4) * (m + 3) = m * m + 7 * m + 12 := by ring
+    omega
+  refine diameter_join_left (by rw [V_cycle]; omega) ?_
+  rw [E_cycle, V_cycle, h]
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

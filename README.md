@@ -2901,6 +2901,21 @@ are `mn - 1`, and `indepNum_lexProduct_complete = 1`. The edge counts
 formulas give them, since the two expressions are different ways of writing `C(mn, 2)`.
 Connectivity, girth three and vertex transitivity round out both rows.
 
+The join is the last binary operation with a full set of invariant lemmas, and joining two cycles
+exercises all of them at once. `V_join_cycle` and `E_join_cycle` are the easy half;
+`cliqueNum_join_cycle = 4` (a join adds clique numbers, and a long cycle contributes two),
+`indepNum_join_cycle` and `cliqueCoverNum_join_cycle` are maxima rather than sums, and
+`maxDeg_join_cycle` and `minDeg_join_cycle` are the max and the min of `n + 5` and `m + 5` — a
+vertex keeps its two old neighbours and gains the whole other cycle. `isConnected_join_cycle`
+and `numComponents_join_cycle` hold for any two non-empty cycles, and
+`girth_join_cycle = 3` follows from the clique number alone.
+
+The chromatic number splits on parity in both arguments, so it needs three lemmas:
+`chromNum_join_cycle_even = 4`, `chromNum_join_cycle_odd = 6` and
+`chromNum_join_cycle_even_odd = 5`. Finally `diameter_join_cycle = 2`: a join has diameter at
+most two always, and it is exactly two as soon as one factor is missing an edge, which
+`diameter_join_left` reduces to `Cₙ` having fewer than `C(n, 2)` edges.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
