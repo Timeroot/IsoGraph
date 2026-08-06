@@ -39747,6 +39747,257 @@ theorem isVertexTransitive_compl_lineGraph_petersen :
     IsVertexTransitive ((lineGraph petersen)ᶜ) :=
   (isVertexTransitive_compl _).2 isVertexTransitive_lineGraph_petersen
 
+/-! ### The cartesian product of a complete graph with a cycle -/
+
+@[simp] theorem V_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete m □g cycle n).V = m * n := by
+  rw [V_cartesianProduct, V_complete, V_cycle]
+
+theorem E_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete m □g cycle (n + 3)).E = m * (n + 3) + (n + 3) * m.choose 2 := by
+  rw [E_cartesianProduct, E_complete, E_cycle, V_complete, V_cycle]
+
+theorem cliqueNum_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 2) □g cycle (n + 4)).cliqueNum = m + 2 := by
+  have h := cliqueNum_cartesianProduct (G := complete (m + 2)) (H := cycle (n + 4))
+    (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
+  rw [cliqueNum_complete, cliqueNum_cycle] at h
+  omega
+
+theorem chromNum_cartesianProduct_complete_cycle_even (m t : ℕ) :
+    (complete (m + 2) □g cycle (2 * t + 2)).chromNum = m + 2 := by
+  have h := chromNum_cartesianProduct (G := complete (m + 2)) (H := cycle (2 * t + 2))
+    (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
+  rw [chromNum_complete, chromNum_cycle_even] at h
+  omega
+
+theorem chromNum_cartesianProduct_complete_cycle_odd (m t : ℕ) :
+    (complete (m + 3) □g cycle (2 * t + 3)).chromNum = m + 3 := by
+  have h := chromNum_cartesianProduct (G := complete (m + 3)) (H := cycle (2 * t + 3))
+    (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
+  rw [chromNum_complete, chromNum_cycle_odd] at h
+  omega
+
+@[simp] theorem isConnected_cartesianProduct_complete_cycle (m n : ℕ) :
+    IsConnected (complete (m + 1) □g cycle (n + 1)) :=
+  isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_cycle n⟩
+
+theorem numComponents_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 1) □g cycle (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_complete_cycle m n)
+
+theorem diameter_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 2) □g cycle (n + 1)).diameter = 1 + (n + 1) / 2 := by
+  rw [diameter_cartesianProduct (isConnected_complete (m + 1)) (isConnected_cycle n),
+    diameter_complete, diameter_cycle]
+
+theorem radius_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 2) □g cycle (n + 1)).radius = 1 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_complete (m + 1)) (isConnected_cycle n),
+    radius_complete, radius_cycle]
+
+theorem maxDeg_cartesianProduct_complete_cycle (m n : ℕ) :
+    maxDeg (complete (m + 1) □g cycle (n + 3)) = m + 2 := by
+  have h := maxDeg_cartesianProduct (G := complete (m + 1)) (H := cycle (n + 3))
+    (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
+  rw [maxDeg_complete, maxDeg_cycle] at h
+  omega
+
+theorem minDeg_cartesianProduct_complete_cycle (m n : ℕ) :
+    minDeg (complete (m + 1) □g cycle (n + 3)) = m + 2 := by
+  have h := minDeg_cartesianProduct (G := complete (m + 1)) (H := cycle (n + 3))
+    (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_complete, minDeg_cycle] at h
+  omega
+
+theorem isRegularWith_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 1) □g cycle (n + 3)).IsRegularWith (m + 2) := by
+  have h := (isRegularWith_complete (m + 1)).cartesianProduct (isRegularWith_cycle n)
+  rwa [show m + 1 - 1 + 2 = m + 2 from by omega] at h
+
+theorem girth_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 3) □g cycle (n + 3)).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  have h := cliqueNum_cartesianProduct (G := complete (m + 3)) (H := cycle (n + 3))
+    (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
+  rw [cliqueNum_complete] at h
+  omega
+
+/-! ### The cartesian product of a complete graph with a path -/
+
+@[simp] theorem V_cartesianProduct_complete_path (m n : ℕ) :
+    (complete m □g path n).V = m * n := by
+  rw [V_cartesianProduct, V_complete, V_path]
+
+theorem E_cartesianProduct_complete_path (m n : ℕ) :
+    (complete m □g path (n + 1)).E = m * n + (n + 1) * m.choose 2 := by
+  rw [E_cartesianProduct, E_complete, E_path, V_complete, V_path]
+
+theorem cliqueNum_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) □g path (n + 2)).cliqueNum = m + 2 := by
+  have h := cliqueNum_cartesianProduct (G := complete (m + 2)) (H := path (n + 2))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [cliqueNum_complete, cliqueNum_path] at h
+  omega
+
+theorem chromNum_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) □g path (n + 2)).chromNum = m + 2 := by
+  have h := chromNum_cartesianProduct (G := complete (m + 2)) (H := path (n + 2))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [chromNum_complete, chromNum_path] at h
+  omega
+
+@[simp] theorem isConnected_cartesianProduct_complete_path (m n : ℕ) :
+    IsConnected (complete (m + 1) □g path (n + 1)) :=
+  isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_path n⟩
+
+theorem numComponents_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 1) □g path (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_complete_path m n)
+
+theorem diameter_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) □g path (n + 1)).diameter = 1 + n := by
+  rw [diameter_cartesianProduct (isConnected_complete (m + 1)) (isConnected_path n),
+    diameter_complete, diameter_path]
+
+theorem radius_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) □g path (n + 1)).radius = 1 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_complete (m + 1)) (isConnected_path n),
+    radius_complete, radius_path]
+
+theorem maxDeg_cartesianProduct_complete_path (m n : ℕ) :
+    maxDeg (complete (m + 1) □g path (n + 3)) = m + 2 := by
+  have h := maxDeg_cartesianProduct (G := complete (m + 1)) (H := path (n + 3))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_complete, maxDeg_path] at h
+  omega
+
+theorem minDeg_cartesianProduct_complete_path (m n : ℕ) :
+    minDeg (complete (m + 1) □g path (n + 2)) = m + 1 := by
+  have h := minDeg_cartesianProduct (G := complete (m + 1)) (H := path (n + 2))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [minDeg_complete, minDeg_path] at h
+  omega
+
+theorem girth_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 3) □g path (n + 2)).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  have h := cliqueNum_cartesianProduct (G := complete (m + 3)) (H := path (n + 2))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [cliqueNum_complete] at h
+  omega
+
+/-! ### The cartesian product of a cycle with a hypercube -/
+
+@[simp] theorem V_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    (cycle m □g hypercube n).V = m * 2 ^ n := by
+  rw [V_cartesianProduct, V_cycle, V_hypercube]
+
+theorem cliqueNum_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 4) □g hypercube (n + 1)).cliqueNum = 2 := by
+  have h := cliqueNum_cartesianProduct (G := cycle (m + 4)) (H := hypercube (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rw [cliqueNum_cycle, cliqueNum_hypercube] at h
+  omega
+
+theorem chromNum_cartesianProduct_cycle_hypercube_even (t n : ℕ) :
+    (cycle (2 * t + 2) □g hypercube (n + 1)).chromNum = 2 := by
+  have h := chromNum_cartesianProduct (G := cycle (2 * t + 2)) (H := hypercube (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rw [chromNum_cycle_even, chromNum_hypercube] at h
+  omega
+
+theorem chromNum_cartesianProduct_cycle_hypercube_odd (t n : ℕ) :
+    (cycle (2 * t + 3) □g hypercube (n + 1)).chromNum = 3 := by
+  have h := chromNum_cartesianProduct (G := cycle (2 * t + 3)) (H := hypercube (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rw [chromNum_cycle_odd, chromNum_hypercube] at h
+  omega
+
+@[simp] theorem isConnected_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    IsConnected (cycle (m + 1) □g hypercube n) :=
+  isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_hypercube n⟩
+
+theorem numComponents_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 1) □g hypercube n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_cycle_hypercube m n)
+
+theorem diameter_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 1) □g hypercube n).diameter = (m + 1) / 2 + n := by
+  rw [diameter_cartesianProduct (isConnected_cycle m) (isConnected_hypercube n), diameter_cycle,
+    diameter_hypercube]
+
+theorem radius_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 1) □g hypercube n).radius = (m + 1) / 2 + n := by
+  rw [radius_cartesianProduct (isConnected_cycle m) (isConnected_hypercube n), radius_cycle,
+    radius_hypercube]
+
+theorem maxDeg_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    maxDeg (cycle (m + 3) □g hypercube n) = 2 + n := by
+  have h := maxDeg_cartesianProduct (G := cycle (m + 3)) (H := hypercube n)
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rw [maxDeg_cycle, maxDeg_hypercube] at h
+  omega
+
+theorem minDeg_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    minDeg (cycle (m + 3) □g hypercube n) = 2 + n := by
+  have h := minDeg_cartesianProduct (G := cycle (m + 3)) (H := hypercube n)
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rw [minDeg_cycle, minDeg_hypercube] at h
+  omega
+
+theorem isRegularWith_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 3) □g hypercube n).IsRegularWith (2 + n) :=
+  (isRegularWith_cycle m).cartesianProduct (isRegularWith_hypercube n)
+
+theorem girth_cartesianProduct_cycle_hypercube_even (t n : ℕ) :
+    (cycle (2 * t + 4) □g hypercube (n + 1)).girth = 4 := by
+  have hE : 0 < (hypercube (n + 1)).E := by
+    have h := E_hypercube (n + 1)
+    have hp : 0 < (n + 1) * 2 ^ (n + 1) := by positivity
+    omega
+  have hb : IsBipartite (cycle (2 * t + 4)) := by
+    rw [show 2 * t + 4 = 2 * (t + 2) from by ring]
+    exact isBipartite_cycle_even (t + 2)
+  exact girth_cartesianProduct (by rw [E_cycle]; omega) hE hb (isBipartite_hypercube (n + 1))
+
+/-! ### Colouring the torus and the cylinder -/
+
+theorem chromNum_cartesianProduct_cycle_even_even (a b : ℕ) :
+    (cycle (2 * a + 2) □g cycle (2 * b + 2)).chromNum = 2 := by
+  have h := chromNum_cartesianProduct (G := cycle (2 * a + 2)) (H := cycle (2 * b + 2))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [chromNum_cycle_even, chromNum_cycle_even] at h
+  omega
+
+theorem chromNum_cartesianProduct_cycle_odd_even (a b : ℕ) :
+    (cycle (2 * a + 3) □g cycle (2 * b + 2)).chromNum = 3 := by
+  have h := chromNum_cartesianProduct (G := cycle (2 * a + 3)) (H := cycle (2 * b + 2))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [chromNum_cycle_odd, chromNum_cycle_even] at h
+  omega
+
+theorem chromNum_cartesianProduct_cycle_odd_odd (a b : ℕ) :
+    (cycle (2 * a + 3) □g cycle (2 * b + 3)).chromNum = 3 := by
+  have h := chromNum_cartesianProduct (G := cycle (2 * a + 3)) (H := cycle (2 * b + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [chromNum_cycle_odd, chromNum_cycle_odd] at h
+  omega
+
+theorem chromNum_cartesianProduct_cycle_even_path (a n : ℕ) :
+    (cycle (2 * a + 2) □g path (n + 2)).chromNum = 2 := by
+  have h := chromNum_cartesianProduct (G := cycle (2 * a + 2)) (H := path (n + 2))
+    (by rw [V_cycle]; omega) (by rw [V_path]; omega)
+  rw [chromNum_cycle_even, chromNum_path] at h
+  omega
+
+theorem chromNum_cartesianProduct_cycle_odd_path (a n : ℕ) :
+    (cycle (2 * a + 3) □g path (n + 2)).chromNum = 3 := by
+  have h := chromNum_cartesianProduct (G := cycle (2 * a + 3)) (H := path (n + 2))
+    (by rw [V_cycle]; omega) (by rw [V_path]; omega)
+  rw [chromNum_cycle_odd, chromNum_path] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

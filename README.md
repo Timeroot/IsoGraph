@@ -3127,6 +3127,18 @@ Petersen graph, of the triangular and rook graphs, of the cocktail party graphs,
 graph, of the balanced complete multipartite graphs, of `K_{n,n}`, and of the line graphs of `Kₙ`,
 `Cₙ` and the Petersen graph.
 
+Three cartesian products get a full row of their own: `Kₘ □ Cₙ`, `Kₘ □ Pₙ` and `Cₘ □ Qₙ`. The
+general product lemmas do all the work — orders and edge counts multiply and add, clique numbers
+and chromatic numbers take a maximum, diameters and radii add, and degrees add — so each row is a
+dozen one-line corollaries: `cliqueNum_cartesianProduct_complete_cycle = m + 2`,
+`diameter_cartesianProduct_complete_path = 1 + n`, `radius_cartesianProduct_cycle_hypercube
+= ⌈m/2⌉ + n`, `isRegularWith_cartesianProduct_cycle_hypercube` with degree `2 + n`, and so on. The
+chromatic number of `Kₘ □ Cₙ` splits on the parity of the cycle, and girth splits on whether a
+factor has a triangle: `girth_cartesianProduct_complete_cycle = 3` once `m ≥ 3`, while
+`girth_cartesianProduct_cycle_hypercube_even = 4` because both factors are then bipartite. The same
+maximum finally fills the colouring holes in the torus and the cylinder, where
+`chromNum_cartesianProduct_cycle_even_even = 2` and its three odd siblings equal `3`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
