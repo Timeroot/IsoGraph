@@ -37196,6 +37196,79 @@ theorem minDeg_king (m n : ℕ) : minDeg (path (m + 2) ⊠g path (n + 2)) = 3 :=
 @[simp] theorem girth_king (m n : ℕ) : (path (m + 2) ⊠g path (n + 2)).girth = 3 :=
   girth_strongProduct (by rw [E_path]; omega) (by rw [E_path]; omega)
 
+/-! ### The tensor and strong products of two cycles -/
+
+@[simp] theorem V_tensorProduct_cycle (m n : ℕ) : (cycle m ⊗g cycle n).V = m * n := by
+  rw [V_tensorProduct, V_cycle, V_cycle]
+
+theorem E_tensorProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊗g cycle (n + 3)).E = 2 * (m + 3) * (n + 3) := by
+  rw [E_tensorProduct, E_cycle, E_cycle]
+
+theorem cliqueNum_tensorProduct_cycle (m n : ℕ) :
+    (cycle (m + 4) ⊗g cycle (n + 4)).cliqueNum = 2 := by
+  have h := cliqueNum_tensorProduct (cycle (m + 4)) (cycle (n + 4))
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem maxDeg_tensorProduct_cycle (m n : ℕ) :
+    maxDeg (cycle (m + 3) ⊗g cycle (n + 3)) = 4 := by
+  have h := maxDeg_tensorProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [maxDeg_cycle, maxDeg_cycle] at h
+  omega
+
+theorem minDeg_tensorProduct_cycle (m n : ℕ) :
+    minDeg (cycle (m + 3) ⊗g cycle (n + 3)) = 4 := by
+  have h := minDeg_tensorProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_cycle, minDeg_cycle] at h
+  omega
+
+@[simp] theorem isVertexTransitive_tensorProduct_cycle (m n : ℕ) :
+    IsVertexTransitive (cycle m ⊗g cycle n) :=
+  (isVertexTransitive_cycle m).tensorProduct (isVertexTransitive_cycle n)
+
+@[simp] theorem V_strongProduct_cycle (m n : ℕ) : (cycle m ⊠g cycle n).V = m * n := by
+  rw [V_strongProduct, V_cycle, V_cycle]
+
+theorem E_strongProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊠g cycle (n + 3)).E
+      = (m + 3) * (n + 3) + (n + 3) * (m + 3) + 2 * (m + 3) * (n + 3) := by
+  rw [E_strongProduct, E_cycle, E_cycle, V_cycle, V_cycle]
+
+theorem cliqueNum_strongProduct_cycle (m n : ℕ) :
+    (cycle (m + 4) ⊠g cycle (n + 4)).cliqueNum = 4 := by
+  have h := cliqueNum_strongProduct (cycle (m + 4)) (cycle (n + 4))
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem maxDeg_strongProduct_cycle (m n : ℕ) :
+    maxDeg (cycle (m + 3) ⊠g cycle (n + 3)) = 8 := by
+  have h := maxDeg_strongProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [maxDeg_cycle, maxDeg_cycle] at h
+  omega
+
+theorem minDeg_strongProduct_cycle (m n : ℕ) :
+    minDeg (cycle (m + 3) ⊠g cycle (n + 3)) = 8 := by
+  have h := minDeg_strongProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_cycle, minDeg_cycle] at h
+  omega
+
+@[simp] theorem isConnected_strongProduct_cycle (m n : ℕ) :
+    IsConnected (cycle (m + 1) ⊠g cycle (n + 1)) :=
+  isConnected_strongProduct (isConnected_cycle m) (isConnected_cycle n)
+
+@[simp] theorem girth_strongProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊠g cycle (n + 3)).girth = 3 :=
+  girth_strongProduct (by rw [E_cycle]; omega) (by rw [E_cycle]; omega)
+
+@[simp] theorem isVertexTransitive_strongProduct_cycle (m n : ℕ) :
+    IsVertexTransitive (cycle m ⊠g cycle n) :=
+  (isVertexTransitive_cycle m).strongProduct (isVertexTransitive_cycle n)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

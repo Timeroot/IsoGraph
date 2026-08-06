@@ -2846,6 +2846,18 @@ the strong product instead: `V_king`, `E_king`, `cliqueNum_king = 4` (a king, it
 the two squares completing the `2 × 2` block), `maxDeg_king = 8`, `minDeg_king = 3` at a corner,
 `isConnected_king` and `girth_king = 3`.
 
+The other two products of a pair of cycles get the same treatment.
+`V_tensorProduct_cycle`, `E_tensorProduct_cycle = 2mn`, `cliqueNum_tensorProduct_cycle`,
+`maxDeg_tensorProduct_cycle`, `minDeg_tensorProduct_cycle` — both `4`, the product of the two
+factors' degrees rather than their sum — and `isVertexTransitive_tensorProduct_cycle` cover
+`Cₘ ⊗ Cₙ`. There is deliberately no connectivity lemma there: the tensor product of two even
+cycles falls apart into two components, so no unconditional statement is available. The strong
+product has no such problem, and `V_strongProduct_cycle`, `E_strongProduct_cycle`,
+`cliqueNum_strongProduct_cycle = 4`, `maxDeg_strongProduct_cycle`,
+`minDeg_strongProduct_cycle` — both `8` — `isConnected_strongProduct_cycle`,
+`girth_strongProduct_cycle = 3` and `isVertexTransitive_strongProduct_cycle` describe the
+toroidal king graph.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
