@@ -41891,6 +41891,249 @@ theorem coverNum_mycielskian_friendship_le (n : ℕ) :
   have h := coverNum_mycielskian_le (friendship n)
   rwa [V_friendship, show 2 * n + 1 + 1 = 2 * n + 2 from by omega] at h
 
+/-! ### The Mycielskian of a ladder -/
+
+@[simp] theorem V_mycielskian_ladder (n : ℕ) : (mycielskian (ladder n)).V = 4 * n + 1 := by
+  rw [V_mycielskian, V_ladder]
+  omega
+
+theorem E_mycielskian_ladder (n : ℕ) : (mycielskian (ladder (n + 1))).E = 11 * n + 5 := by
+  rw [E_mycielskian, E_ladder, V_ladder]
+  omega
+
+theorem chromNum_mycielskian_ladder (n : ℕ) :
+    (mycielskian (ladder (n + 1))).chromNum = 3 := by
+  rw [chromNum_mycielskian, chromNum_ladder]
+
+theorem cliqueNum_mycielskian_ladder (n : ℕ) :
+    (mycielskian (ladder (n + 2))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (ladder (n + 2)) (by rw [V_ladder]; omega)
+  rw [cliqueNum_ladder] at h
+  omega
+
+theorem maxDeg_mycielskian_ladder (n : ℕ) :
+    maxDeg (mycielskian (ladder (n + 3))) = 2 * n + 6 := by
+  have h := maxDeg_mycielskian (ladder (n + 3))
+  rw [maxDeg_ladder, V_ladder] at h
+  omega
+
+theorem minDeg_mycielskian_ladder (n : ℕ) :
+    (mycielskian (ladder (n + 2))).minDeg = 3 := by
+  have h := minDeg_mycielskian (ladder (n + 2)) (by rw [V_ladder]; omega)
+  rw [minDeg_ladder, V_ladder] at h
+  omega
+
+theorem isConnected_mycielskian_ladder (n : ℕ) :
+    IsConnected (mycielskian (ladder (n + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_ladder]; omega)
+
+theorem numComponents_mycielskian_ladder (n : ℕ) :
+    (mycielskian (ladder (n + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_ladder]; omega)
+
+theorem radius_mycielskian_ladder (n : ℕ) :
+    (mycielskian (ladder (n + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_ladder]; omega)
+
+theorem two_le_diameter_mycielskian_ladder (n : ℕ) :
+    2 ≤ (mycielskian (ladder (n + 2))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_ladder]; omega)
+
+theorem diameter_mycielskian_ladder_le_four (n : ℕ) :
+    (mycielskian (ladder (n + 2))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_ladder]; omega)
+
+theorem four_le_girth_mycielskian_ladder (n : ℕ) :
+    4 ≤ (mycielskian (ladder (n + 2))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_ladder]) (by rw [E_ladder]; omega)
+
+theorem matchNum_mycielskian_ladder (n : ℕ) :
+    (mycielskian (ladder n)).matchNum = 2 * n := by
+  have h := matchNum_mycielskian (ladder n) (by rw [matchNum_ladder, V_ladder]; omega)
+  rw [V_ladder] at h
+  omega
+
+theorem cliqueCoverNum_mycielskian_ladder (n : ℕ) :
+    (mycielskian (ladder (n + 2))).cliqueCoverNum = 2 * n + 5 := by
+  have h := cliqueCoverNum_mycielskian (ladder (n + 2)) (by rw [V_ladder]; omega)
+    (by rw [cliqueNum_ladder]) (by rw [matchNum_ladder, V_ladder]; omega)
+  rw [V_ladder] at h
+  omega
+
+theorem indepNum_mycielskian_ladder_le (n : ℕ) :
+    (mycielskian (ladder (n + 1))).indepNum ≤ 3 * n + 3 := by
+  have h := indepNum_mycielskian_le (ladder (n + 1)) (by rw [V_ladder]; omega)
+  rw [V_ladder, indepNum_ladder] at h
+  omega
+
+theorem coverNum_mycielskian_ladder_le (n : ℕ) :
+    (mycielskian (ladder n)).coverNum ≤ 2 * n + 1 := by
+  have h := coverNum_mycielskian_le (ladder n)
+  rw [V_ladder] at h
+  omega
+
+/-! ### The Mycielskian of a prism -/
+
+@[simp] theorem V_mycielskian_prism (n : ℕ) : (mycielskian (prism n)).V = 4 * n + 1 := by
+  rw [V_mycielskian, V_prism]
+  omega
+
+theorem E_mycielskian_prism (n : ℕ) : (mycielskian (prism (n + 3))).E = 11 * n + 33 := by
+  rw [E_mycielskian, E_prism, V_prism]
+  omega
+
+theorem cliqueNum_mycielskian_prism (n : ℕ) :
+    (mycielskian (prism (n + 4))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (prism (n + 4)) (by rw [V_prism]; omega)
+  rw [cliqueNum_prism] at h
+  omega
+
+theorem maxDeg_mycielskian_prism (n : ℕ) :
+    maxDeg (mycielskian (prism (n + 3))) = 2 * n + 6 := by
+  have h := maxDeg_mycielskian (prism (n + 3))
+  rw [maxDeg_prism, V_prism] at h
+  omega
+
+theorem minDeg_mycielskian_prism (n : ℕ) :
+    (mycielskian (prism (n + 3))).minDeg = 4 := by
+  have h := minDeg_mycielskian (prism (n + 3)) (by rw [V_prism]; omega)
+  rw [minDeg_prism, V_prism] at h
+  omega
+
+theorem isConnected_mycielskian_prism (n : ℕ) :
+    IsConnected (mycielskian (prism (n + 3))) :=
+  isConnected_mycielskian _ (by rw [minDeg_prism]; omega)
+
+theorem numComponents_mycielskian_prism (n : ℕ) :
+    (mycielskian (prism (n + 3))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_prism]; omega)
+
+theorem radius_mycielskian_prism (n : ℕ) :
+    (mycielskian (prism (n + 3))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_prism]; omega)
+
+theorem two_le_diameter_mycielskian_prism (n : ℕ) :
+    2 ≤ (mycielskian (prism (n + 3))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_prism]; omega)
+
+theorem diameter_mycielskian_prism_le_four (n : ℕ) :
+    (mycielskian (prism (n + 3))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_prism]; omega)
+
+theorem four_le_girth_mycielskian_prism (n : ℕ) :
+    4 ≤ (mycielskian (prism (n + 4))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_prism]) (by rw [E_prism]; omega)
+
+theorem matchNum_mycielskian_prism (n : ℕ) :
+    (mycielskian (prism n)).matchNum = 2 * n := by
+  have h := matchNum_mycielskian (prism n) (by rw [matchNum_prism, V_prism]; omega)
+  rw [V_prism] at h
+  omega
+
+theorem cliqueCoverNum_mycielskian_prism (n : ℕ) :
+    (mycielskian (prism (n + 4))).cliqueCoverNum = 2 * n + 9 := by
+  have h := cliqueCoverNum_mycielskian (prism (n + 4)) (by rw [V_prism]; omega)
+    (by rw [cliqueNum_prism]) (by rw [matchNum_prism, V_prism]; omega)
+  rw [V_prism] at h
+  omega
+
+theorem coverNum_mycielskian_prism_le (n : ℕ) :
+    (mycielskian (prism n)).coverNum ≤ 2 * n + 1 := by
+  have h := coverNum_mycielskian_le (prism n)
+  rw [V_prism] at h
+  omega
+
+/-! ### The Mycielskian of a crown graph -/
+
+@[simp] theorem V_mycielskian_crown (n : ℕ) : (mycielskian (crown n)).V = 4 * n + 1 := by
+  rw [V_mycielskian, V_crown]
+  omega
+
+theorem E_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown n)).E = 6 * n.choose 2 + 2 * n := by
+  rw [E_mycielskian, E_crown, V_crown]
+  omega
+
+theorem chromNum_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).chromNum = 3 := by
+  rw [chromNum_mycielskian, chromNum_crown]
+
+theorem cliqueNum_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (crown (n + 2)) (by rw [V_crown]; omega)
+  rw [cliqueNum_crown] at h
+  omega
+
+theorem maxDeg_mycielskian_crown (n : ℕ) :
+    maxDeg (mycielskian (crown (n + 2))) = 2 * n + 4 := by
+  have h := maxDeg_mycielskian (crown (n + 2))
+  rw [maxDeg_crown, V_crown] at h
+  omega
+
+theorem minDeg_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).minDeg = n + 2 := by
+  have h := minDeg_mycielskian (crown (n + 2)) (by rw [V_crown]; omega)
+  rw [minDeg_crown, V_crown] at h
+  omega
+
+theorem domNum_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).domNum = 3 := by
+  have h := domNum_mycielskian (crown (n + 2)) (by rw [V_crown]; omega)
+  rw [domNum_crown] at h
+  omega
+
+theorem isConnected_mycielskian_crown (n : ℕ) :
+    IsConnected (mycielskian (crown (n + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_crown]; omega)
+
+theorem numComponents_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_crown]; omega)
+
+theorem radius_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_crown]; omega)
+
+theorem two_le_diameter_mycielskian_crown (n : ℕ) :
+    2 ≤ (mycielskian (crown (n + 2))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_crown]; omega)
+
+theorem diameter_mycielskian_crown_le_four (n : ℕ) :
+    (mycielskian (crown (n + 2))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_crown]; omega)
+
+theorem four_le_girth_mycielskian_crown (n : ℕ) :
+    4 ≤ (mycielskian (crown (n + 2))).girth := by
+  refine four_le_girth_mycielskian _ (by rw [cliqueNum_crown]) ?_
+  have h := Nat.choose_pos (show 2 ≤ n + 2 by omega)
+  rw [E_crown]
+  omega
+
+theorem matchNum_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).matchNum = 2 * n + 4 := by
+  have h := matchNum_mycielskian (crown (n + 2)) (by rw [matchNum_crown, V_crown])
+  rw [V_crown] at h
+  omega
+
+theorem cliqueCoverNum_mycielskian_crown (n : ℕ) :
+    (mycielskian (crown (n + 2))).cliqueCoverNum = 2 * n + 5 := by
+  have h := cliqueCoverNum_mycielskian (crown (n + 2)) (by rw [V_crown]; omega)
+    (by rw [cliqueNum_crown]) (by rw [matchNum_crown, V_crown])
+  rw [V_crown] at h
+  omega
+
+theorem indepNum_mycielskian_crown_le (n : ℕ) :
+    (mycielskian (crown (n + 2))).indepNum ≤ 3 * n + 6 := by
+  have h := indepNum_mycielskian_le (crown (n + 2)) (by rw [V_crown]; omega)
+  rw [V_crown, indepNum_crown] at h
+  omega
+
+theorem coverNum_mycielskian_crown_le (n : ℕ) :
+    (mycielskian (crown n)).coverNum ≤ 2 * n + 1 := by
+  have h := coverNum_mycielskian_le (crown n)
+  rw [V_crown] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

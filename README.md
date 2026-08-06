@@ -3247,6 +3247,15 @@ more neighbour, the apex — while the maximum degree tracks the hub: `2n + 6` f
 `2n + 4` for `M(Bₙ₊₁)` and `4n + 4` for the friendship graph `M(Frₙ₊₁)`, whose hub is the largest of
 the three. Chromatic number is four for all three, one more than the three the base graphs need.
 
+The three cubic-or-regular triangle-free families — the ladder, the prism and the crown graph —
+give the cleanest Mycielskian rows of the lot. Every one of them has a perfect matching, so
+`matchNum (M G) = |V(G)|` holds with no side condition on the parameter, and for the parameters
+where the clique number is two that fixes the clique cover number at `|V(G)| + 1`. The minimum
+degree of the Mycielskian is three for the ladder and four for the prism, one more than the base
+graph's in each case; the crown's grows with its parameter, `minDeg (M (crown (n+2))) = n + 2`. All
+three are triangle-free, so the girth of the Mycielskian is at least four and the chromatic number
+is three where the base graph is bipartite.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
