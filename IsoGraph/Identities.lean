@@ -43004,6 +43004,246 @@ theorem radius_disjUnion_path_star (m n : ℕ) :
     (path (m + 1) ⊕g star n).radius = 0 :=
   radius_disjUnion (by rw [V_path]; omega) (by rw [V_star]; omega)
 
+/-! ### The Mycielskian of a double star -/
+
+@[simp] theorem V_mycielskian_doubleStar (m n : ℕ) :
+    (mycielskian (doubleStar m n)).V = 2 * m + 2 * n + 5 := by
+  rw [V_mycielskian, V_doubleStar]
+  omega
+
+@[simp] theorem E_mycielskian_doubleStar (m n : ℕ) :
+    (mycielskian (doubleStar m n)).E = 4 * m + 4 * n + 5 := by
+  rw [E_mycielskian, E_doubleStar, V_doubleStar]
+  omega
+
+theorem chromNum_mycielskian_doubleStar (m n : ℕ) :
+    (mycielskian (doubleStar m n)).chromNum = 3 := by
+  have h := chromNum_mycielskian (doubleStar m n)
+  rw [chromNum_doubleStar] at h
+  omega
+
+theorem cliqueNum_mycielskian_doubleStar (m n : ℕ) :
+    (mycielskian (doubleStar m n)).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (doubleStar m n) (by rw [V_doubleStar]; omega)
+  rw [cliqueNum_doubleStar] at h
+  omega
+
+theorem maxDeg_mycielskian_doubleStar (m n : ℕ) :
+    maxDeg (mycielskian (doubleStar m n)) = max (2 * max m n + 2) (m + n + 2) := by
+  have h := maxDeg_mycielskian (doubleStar m n)
+  rw [maxDeg_doubleStar, V_doubleStar] at h
+  omega
+
+theorem minDeg_mycielskian_doubleStar (m n : ℕ) :
+    minDeg (mycielskian (doubleStar m n)) = 2 := by
+  have h := minDeg_mycielskian (doubleStar m n) (by rw [V_doubleStar]; omega)
+  rw [minDeg_doubleStar, V_doubleStar] at h
+  omega
+
+theorem domNum_mycielskian_doubleStar (m n : ℕ) :
+    (mycielskian (doubleStar (m + 1) (n + 1))).domNum = 3 := by
+  have h := domNum_mycielskian (doubleStar (m + 1) (n + 1)) (by rw [V_doubleStar]; omega)
+  rw [domNum_doubleStar] at h
+  omega
+
+theorem isConnected_mycielskian_doubleStar (m n : ℕ) :
+    IsConnected (mycielskian (doubleStar m n)) :=
+  isConnected_mycielskian _ (by rw [minDeg_doubleStar]; omega)
+
+theorem numComponents_mycielskian_doubleStar (m n : ℕ) :
+    (mycielskian (doubleStar m n)).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_doubleStar]; omega)
+
+theorem radius_mycielskian_doubleStar (m n : ℕ) :
+    (mycielskian (doubleStar m n)).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_doubleStar]; omega)
+
+theorem two_le_diameter_mycielskian_doubleStar (m n : ℕ) :
+    2 ≤ (mycielskian (doubleStar m n)).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_doubleStar]; omega)
+
+theorem diameter_mycielskian_doubleStar_le_four (m n : ℕ) :
+    (mycielskian (doubleStar m n)).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_doubleStar]; omega)
+
+theorem four_le_girth_mycielskian_doubleStar (m n : ℕ) :
+    4 ≤ (mycielskian (doubleStar m n)).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_doubleStar]) (by rw [E_doubleStar]; omega)
+
+theorem indepNum_mycielskian_doubleStar_le (m n : ℕ) :
+    (mycielskian (doubleStar (m + 1) (n + 1))).indepNum ≤ 2 * m + 2 * n + 6 := by
+  have h := indepNum_mycielskian_le (doubleStar (m + 1) (n + 1)) (by rw [V_doubleStar]; omega)
+  rw [indepNum_doubleStar, V_doubleStar] at h
+  omega
+
+theorem coverNum_mycielskian_doubleStar_le (m n : ℕ) :
+    (mycielskian (doubleStar m n)).coverNum ≤ m + n + 3 := by
+  have h := coverNum_mycielskian_le (doubleStar m n)
+  rw [V_doubleStar] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_doubleStar (m n : ℕ) :
+    m + n + 2 ≤ (mycielskian (doubleStar m n)).indepNum := by
+  have h := V_le_indepNum_mycielskian (doubleStar m n)
+  rw [V_doubleStar] at h
+  omega
+
+/-! ### The Mycielskian of a rook's graph -/
+
+@[simp] theorem V_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook m n)).V = 2 * (m * n) + 1 := by
+  rw [V_mycielskian, V_rook]
+
+@[simp] theorem E_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook m n)).E = 3 * (m * n.choose 2 + n * m.choose 2) + m * n := by
+  rw [E_mycielskian, E_rook, V_rook]
+
+theorem chromNum_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook (m + 1) (n + 1))).chromNum = max (m + 1) (n + 1) + 1 := by
+  rw [chromNum_mycielskian, chromNum_rook]
+
+theorem cliqueNum_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook (m + 1) (n + 1))).cliqueNum = max (max (m + 1) (n + 1)) 2 := by
+  have h := cliqueNum_mycielskian (rook (m + 1) (n + 1)) (by rw [V_rook]; positivity)
+  rw [cliqueNum_rook (m := m + 1) (n := n + 1) (by omega) (by omega)] at h
+  omega
+
+theorem maxDeg_mycielskian_rook (m n : ℕ) :
+    maxDeg (mycielskian (rook (m + 1) (n + 1))) =
+      max (2 * (n + m)) ((m + 1) * (n + 1)) := by
+  have h := maxDeg_mycielskian (rook (m + 1) (n + 1))
+  rw [maxDeg_rook, V_rook] at h
+  omega
+
+theorem minDeg_mycielskian_rook (m n : ℕ) :
+    minDeg (mycielskian (rook (m + 1) (n + 1))) =
+      min (min (2 * (n + m)) (n + m + 1)) ((m + 1) * (n + 1)) := by
+  have h := minDeg_mycielskian (rook (m + 1) (n + 1)) (by rw [V_rook]; positivity)
+  rw [minDeg_rook, V_rook] at h
+  omega
+
+theorem domNum_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook (m + 1) (n + 1))).domNum = min (m + 1) (n + 1) + 1 := by
+  have h := domNum_mycielskian (rook (m + 1) (n + 1)) (by rw [V_rook]; positivity)
+  rw [domNum_rook] at h
+  omega
+
+theorem isConnected_mycielskian_rook (m n : ℕ) :
+    IsConnected (mycielskian (rook (m + 2) (n + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_rook]; omega)
+
+theorem numComponents_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook (m + 2) (n + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_rook]; omega)
+
+theorem radius_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook (m + 2) (n + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_rook]; omega)
+
+theorem two_le_diameter_mycielskian_rook (m n : ℕ) :
+    2 ≤ (mycielskian (rook (m + 2) (n + 1))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_rook]; omega)
+
+theorem diameter_mycielskian_rook_le_four (m n : ℕ) :
+    (mycielskian (rook (m + 2) (n + 1))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_rook]; omega)
+
+theorem indepNum_mycielskian_rook_le (m n : ℕ) :
+    (mycielskian (rook (m + 1) (n + 1))).indepNum ≤
+      (m + 1) * (n + 1) + min (m + 1) (n + 1) := by
+  have h := indepNum_mycielskian_le (rook (m + 1) (n + 1)) (by rw [V_rook]; positivity)
+  rw [indepNum_rook, V_rook] at h
+  omega
+
+theorem coverNum_mycielskian_rook_le (m n : ℕ) :
+    (mycielskian (rook m n)).coverNum ≤ m * n + 1 := by
+  have h := coverNum_mycielskian_le (rook m n)
+  rw [V_rook] at h
+  omega
+
+theorem girth_mycielskian_rook (m n : ℕ) :
+    (mycielskian (rook (m + 3) (n + 1))).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  have h := cliqueNum_mycielskian (rook (m + 3) (n + 1)) (by rw [V_rook]; positivity)
+  rw [cliqueNum_rook (m := m + 3) (n := n + 1) (by omega) (by omega)] at h
+  omega
+
+/-! ### The disjoint union of a cycle and a complete graph -/
+
+@[simp] theorem V_disjUnion_cycle_complete (m n : ℕ) : (cycle m ⊕g complete n).V = m + n := by
+  rw [V_disjUnion, V_cycle, V_complete]
+
+@[simp] theorem E_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ⊕g complete n).E = m + 3 + n.choose 2 := by
+  rw [E_disjUnion, E_cycle, E_complete]
+
+theorem cliqueNum_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 4) ⊕g complete n).cliqueNum = max 2 n := by
+  rw [cliqueNum_disjUnion, cliqueNum_cycle, cliqueNum_complete]
+
+theorem chromNum_disjUnion_cycle_complete_even (m n : ℕ) :
+    (cycle (2 * m + 2) ⊕g complete n).chromNum = max 2 n := by
+  rw [chromNum_disjUnion, chromNum_cycle_even, chromNum_complete]
+
+theorem chromNum_disjUnion_cycle_complete_odd (m n : ℕ) :
+    (cycle (2 * m + 3) ⊕g complete n).chromNum = max 3 n := by
+  rw [chromNum_disjUnion, chromNum_cycle_odd, chromNum_complete]
+
+theorem indepNum_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ⊕g complete n).indepNum = (m + 3) / 2 + min n 1 := by
+  rw [indepNum_disjUnion, indepNum_cycle, indepNum_complete]
+
+theorem coverNum_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ⊕g complete n).coverNum = m + 3 - (m + 3) / 2 + (n - 1) := by
+  rw [coverNum_disjUnion, coverNum_cycle, coverNum_complete]
+
+theorem cliqueCoverNum_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 4) ⊕g complete (n + 1)).cliqueCoverNum = (m + 5) / 2 + 1 := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_cycle, cliqueCoverNum_complete]
+
+theorem matchNum_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ⊕g complete n).matchNum = (m + 3) / 2 + n / 2 := by
+  rw [matchNum_disjUnion, matchNum_cycle, matchNum_complete]
+
+theorem domNum_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ⊕g complete (n + 1)).domNum = (m + 5) / 3 + 1 := by
+  rw [domNum_disjUnion, domNum_cycle, domNum_complete]
+
+theorem edgeChromNum_disjUnion_cycle_complete_odd (m n : ℕ) :
+    (cycle (2 * m + 4) ⊕g complete (2 * n + 3)).edgeChromNum = 2 * n + 3 := by
+  have h := edgeChromNum_disjUnion (cycle (2 * m + 4)) (complete (2 * n + 3))
+  rw [edgeChromNum_cycle_even, edgeChromNum_complete_odd] at h
+  omega
+
+theorem maxDeg_disjUnion_cycle_complete (m n : ℕ) :
+    maxDeg (cycle (m + 3) ⊕g complete n) = max 2 (n - 1) := by
+  rw [maxDeg_disjUnion, maxDeg_cycle, maxDeg_complete]
+
+theorem minDeg_disjUnion_cycle_complete (m n : ℕ) :
+    minDeg (cycle (m + 3) ⊕g complete (n + 1)) = min 2 n := by
+  have h := minDeg_disjUnion (G := cycle (m + 3)) (H := complete (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_cycle, minDeg_complete] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 1) ⊕g complete (n + 1)).numComponents = 2 := by
+  have h := numComponents_disjUnion (cycle (m + 1)) (complete (n + 1))
+  rw [numComponents_cycle, numComponents_complete] at h
+  omega
+
+theorem not_isConnected_disjUnion_cycle_complete (m n : ℕ) :
+    ¬ IsConnected (cycle (m + 1) ⊕g complete (n + 1)) :=
+  not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+
+theorem diameter_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 1) ⊕g complete (n + 1)).diameter = 0 :=
+  diameter_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+
+theorem radius_disjUnion_cycle_complete (m n : ℕ) :
+    (cycle (m + 1) ⊕g complete (n + 1)).radius = 0 :=
+  radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

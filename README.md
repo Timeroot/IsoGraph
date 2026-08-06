@@ -3294,6 +3294,15 @@ beside an odd one, and `2n + 3` beside `K₂ₙ₊₃`; the domination number is
 beside a complete graph needs `⌈(m+3)/3⌉ + 1` vertices. As always the union is disconnected, hence
 two components with diameter and radius both zero.
 
+Two more families joined the Mycielskian table, and they make an instructive contrast. The double
+star is a tree, so `M(S_{m,n})` is as tame as a Mycielskian gets: clique number two, chromatic
+number three, minimum degree exactly two and girth at least four, all independent of the two
+parameters. The rook's graph is the opposite — it already has large cliques, so its Mycielskian
+inherits them, `ω(M(K_m □ K_n)) = max (max m n) 2`, and once the board is at least `3 × 1` the girth
+drops to three. The last gap in the disjoint union table, `Cₘ ⊕ Kₙ`, closes at the same time; its
+edge chromatic number is `2n + 3` whenever the complete side is `K₂ₙ₊₃`, since an odd complete graph
+out-colours any cycle.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
