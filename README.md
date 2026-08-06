@@ -3356,6 +3356,17 @@ three families give line graphs that are non-bipartite, non-acyclic and not tree
 and the friendship graph get an exact chromatic number, since those are the two whose edge
 chromatic number is known exactly; the fan settles for the lower bound `χ(L(Fₙ₊₃)) ≥ n + 3`.
 
+The book, the crown and the ladder extend the line graph block, and the crown is the one that pays
+off. A crown graph is regular, so the two general bounds `Δ(L(G)) ≤ 2Δ(G) - 2` and
+`2δ(G) - 2 ≤ δ(L(G))` close on each other: with `δ = Δ = n + 2` for `crown (n + 3)`, the sandwich
+`2n + 2 ≤ δ(L) ≤ Δ(L) ≤ 2n + 2` forces both degrees of the line graph to be exactly `2n + 2`, and
+no new combinatorics is needed. The book and the ladder are irregular, so they only get the
+bounds. Along the way the crown row needs `E_pos_crown`, the observation that `crown (n + 3)` has
+at least one edge — a fact that has to be dug out of `2 · binom (n+3) 2` rather than read off,
+since `omega` cannot see inside a binomial coefficient. Three of the ladder proofs are shorter than
+their siblings for a pleasant reason: `Δ(ladder (n + 3)) = 3` on the nose, so the hypothesis
+`Δ ≥ 3` is closed by `rfl` and the usual trailing `omega` would have nothing left to do.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

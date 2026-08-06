@@ -44141,6 +44141,208 @@ theorem le_minDeg_lineGraph_friendship (n : ℕ) :
   rw [minDeg_friendship] at h
   omega
 
+/-! ### The line graph of a book -/
+
+@[simp] theorem V_lineGraph_book (n : ℕ) : (lineGraph (book n)).V = 2 * n + 1 := by
+  rw [V_lineGraph, E_book]
+
+theorem indepNum_lineGraph_book (n : ℕ) : (lineGraph (book (n + 2))).indepNum = 2 := by
+  rw [indepNum_lineGraph, matchNum_book]
+
+theorem coverNum_lineGraph_book (n : ℕ) :
+    (lineGraph (book (n + 2))).coverNum = 2 * n + 3 := by
+  have h := coverNum_lineGraph (book (n + 2))
+  rw [E_book, matchNum_book] at h
+  omega
+
+theorem cliqueNum_lineGraph_book (n : ℕ) :
+    (lineGraph (book (n + 2))).cliqueNum = n + 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := book (n + 2))
+    (by rw [maxDeg_book]; omega)
+  rw [maxDeg_book] at h
+  omega
+
+theorem girth_lineGraph_book (n : ℕ) : (lineGraph (book (n + 2))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_book]; omega)
+
+theorem not_isBipartite_lineGraph_book (n : ℕ) :
+    ¬ IsBipartite (lineGraph (book (n + 2))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_book]; omega)
+
+theorem not_isAcyclic_lineGraph_book (n : ℕ) : ¬ IsAcyclic (lineGraph (book (n + 2))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_book]; omega)
+
+theorem not_isTree_lineGraph_book (n : ℕ) : ¬ IsTree (lineGraph (book (n + 2))) :=
+  not_isTree_lineGraph (by rw [maxDeg_book]; omega)
+
+theorem isConnected_lineGraph_book (n : ℕ) : IsConnected (lineGraph (book n)) :=
+  isConnected_lineGraph (isConnected_book n) (by rw [E_book]; omega)
+
+theorem numComponents_lineGraph_book (n : ℕ) : (lineGraph (book n)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_book n) (by rw [E_book]; omega)
+
+theorem radius_lineGraph_book_le (n : ℕ) : (lineGraph (book n)).radius ≤ 2 := by
+  have h := radius_lineGraph_le (G := book n) (isConnected_book n) (by rw [E_book]; omega)
+  rw [radius_book] at h
+  omega
+
+theorem diameter_lineGraph_book_le (n : ℕ) : (lineGraph (book (n + 2))).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := book (n + 2)) (isConnected_book _)
+    (by rw [E_book]; omega)
+  rw [diameter_book] at h
+  omega
+
+theorem maxDeg_lineGraph_book_le (n : ℕ) : maxDeg (lineGraph (book (n + 1))) ≤ 2 * n + 2 := by
+  have h := maxDeg_lineGraph_le (book (n + 1))
+  rw [maxDeg_book] at h
+  omega
+
+theorem le_minDeg_lineGraph_book (n : ℕ) : 2 ≤ minDeg (lineGraph (book (n + 1))) := by
+  have h := le_minDeg_lineGraph (G := book (n + 1)) (by rw [E_book]; omega)
+  rw [minDeg_book] at h
+  omega
+
+/-! ### The line graph of a crown graph -/
+
+@[simp] theorem V_lineGraph_crown (n : ℕ) :
+    (lineGraph (crown n)).V = 2 * n.choose 2 := by
+  rw [V_lineGraph, E_crown]
+
+theorem indepNum_lineGraph_crown (n : ℕ) :
+    (lineGraph (crown (n + 2))).indepNum = n + 2 := by
+  rw [indepNum_lineGraph, matchNum_crown]
+
+theorem coverNum_lineGraph_crown (n : ℕ) :
+    (lineGraph (crown (n + 2))).coverNum = 2 * (n + 2).choose 2 - (n + 2) := by
+  rw [coverNum_lineGraph, E_crown, matchNum_crown]
+
+theorem cliqueNum_lineGraph_crown (n : ℕ) :
+    (lineGraph (crown (n + 4))).cliqueNum = n + 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := crown (n + 4))
+    (by rw [maxDeg_crown]; omega)
+  rw [maxDeg_crown] at h
+  omega
+
+theorem girth_lineGraph_crown (n : ℕ) : (lineGraph (crown (n + 4))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_crown]; omega)
+
+theorem not_isBipartite_lineGraph_crown (n : ℕ) :
+    ¬ IsBipartite (lineGraph (crown (n + 4))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_crown]; omega)
+
+theorem not_isAcyclic_lineGraph_crown (n : ℕ) : ¬ IsAcyclic (lineGraph (crown (n + 4))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_crown]; omega)
+
+theorem not_isTree_lineGraph_crown (n : ℕ) : ¬ IsTree (lineGraph (crown (n + 4))) :=
+  not_isTree_lineGraph (by rw [maxDeg_crown]; omega)
+
+theorem E_pos_crown (n : ℕ) : 0 < (crown (n + 3)).E := by
+  have h := Nat.choose_pos (n := n + 3) (k := 2) (by omega)
+  rw [E_crown]
+  omega
+
+theorem isConnected_lineGraph_crown (n : ℕ) : IsConnected (lineGraph (crown (n + 3))) :=
+  isConnected_lineGraph (isConnected_crown n) (E_pos_crown n)
+
+theorem numComponents_lineGraph_crown (n : ℕ) :
+    (lineGraph (crown (n + 3))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_crown n) (E_pos_crown n)
+
+theorem radius_lineGraph_crown_le (n : ℕ) : (lineGraph (crown (n + 3))).radius ≤ 4 := by
+  have h := radius_lineGraph_le (G := crown (n + 3)) (isConnected_crown n) (E_pos_crown n)
+  rw [radius_crown] at h
+  omega
+
+theorem diameter_lineGraph_crown_le (n : ℕ) : (lineGraph (crown (n + 3))).diameter ≤ 4 := by
+  have h := diameter_lineGraph_le (G := crown (n + 3)) (isConnected_crown n) (E_pos_crown n)
+  rw [diameter_crown] at h
+  omega
+
+theorem maxDeg_lineGraph_crown (n : ℕ) :
+    maxDeg (lineGraph (crown (n + 3))) = 2 * n + 2 := by
+  have h1 := maxDeg_lineGraph_le (crown (n + 3))
+  have h2 := le_minDeg_lineGraph (G := crown (n + 3)) (E_pos_crown n)
+  have h3 := minDeg_le_maxDeg (lineGraph (crown (n + 3)))
+  rw [maxDeg_crown] at h1
+  rw [minDeg_crown] at h2
+  omega
+
+theorem minDeg_lineGraph_crown (n : ℕ) :
+    minDeg (lineGraph (crown (n + 3))) = 2 * n + 2 := by
+  have h1 := maxDeg_lineGraph_le (crown (n + 3))
+  have h2 := le_minDeg_lineGraph (G := crown (n + 3)) (E_pos_crown n)
+  have h3 := minDeg_le_maxDeg (lineGraph (crown (n + 3)))
+  rw [maxDeg_crown] at h1
+  rw [minDeg_crown] at h2
+  omega
+
+/-! ### The line graph of a ladder -/
+
+@[simp] theorem V_lineGraph_ladder (n : ℕ) :
+    (lineGraph (ladder (n + 1))).V = 3 * n + 1 := by
+  rw [V_lineGraph, E_ladder]
+
+theorem indepNum_lineGraph_ladder (n : ℕ) : (lineGraph (ladder n)).indepNum = n := by
+  rw [indepNum_lineGraph, matchNum_ladder]
+
+theorem coverNum_lineGraph_ladder (n : ℕ) :
+    (lineGraph (ladder (n + 1))).coverNum = 2 * n := by
+  have h := coverNum_lineGraph (ladder (n + 1))
+  rw [E_ladder, matchNum_ladder] at h
+  omega
+
+theorem cliqueNum_lineGraph_ladder (n : ℕ) :
+    (lineGraph (ladder (n + 3))).cliqueNum = 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := ladder (n + 3))
+    (by rw [maxDeg_ladder])
+  rw [maxDeg_ladder] at h
+  omega
+
+theorem girth_lineGraph_ladder (n : ℕ) : (lineGraph (ladder (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_ladder])
+
+theorem not_isBipartite_lineGraph_ladder (n : ℕ) :
+    ¬ IsBipartite (lineGraph (ladder (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_ladder])
+
+theorem not_isAcyclic_lineGraph_ladder (n : ℕ) :
+    ¬ IsAcyclic (lineGraph (ladder (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_ladder])
+
+theorem not_isTree_lineGraph_ladder (n : ℕ) : ¬ IsTree (lineGraph (ladder (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_ladder])
+
+theorem isConnected_lineGraph_ladder (n : ℕ) : IsConnected (lineGraph (ladder (n + 1))) :=
+  isConnected_lineGraph (isConnected_ladder n) (by rw [E_ladder]; omega)
+
+theorem numComponents_lineGraph_ladder (n : ℕ) :
+    (lineGraph (ladder (n + 1))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_ladder n) (by rw [E_ladder]; omega)
+
+theorem radius_lineGraph_ladder_le (n : ℕ) :
+    (lineGraph (ladder (n + 1))).radius ≤ (n + 1) / 2 + 2 := by
+  have h := radius_lineGraph_le (G := ladder (n + 1)) (isConnected_ladder n)
+    (by rw [E_ladder]; omega)
+  rw [radius_ladder] at h
+  omega
+
+theorem diameter_lineGraph_ladder_le (n : ℕ) :
+    (lineGraph (ladder (n + 1))).diameter ≤ n + 2 := by
+  have h := diameter_lineGraph_le (G := ladder (n + 1)) (isConnected_ladder n)
+    (by rw [E_ladder]; omega)
+  rw [diameter_ladder] at h
+  omega
+
+theorem maxDeg_lineGraph_ladder_le (n : ℕ) : maxDeg (lineGraph (ladder (n + 3))) ≤ 4 := by
+  have h := maxDeg_lineGraph_le (ladder (n + 3))
+  rw [maxDeg_ladder] at h
+  omega
+
+theorem le_minDeg_lineGraph_ladder (n : ℕ) : 2 ≤ minDeg (lineGraph (ladder (n + 2))) := by
+  have h := le_minDeg_lineGraph (G := ladder (n + 2)) (by rw [E_ladder]; omega)
+  rw [minDeg_ladder] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
