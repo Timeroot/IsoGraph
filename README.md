@@ -3454,6 +3454,19 @@ pendant path is non-empty, and with both in hand its Mycielskian is connected wi
 two, minimum degree two, and `4(m + 3 + ks.sum)` edges. Chromatic number three is available on the
 even rim, where the cycle-with-pendants is bipartite.
 
+With every named family in the table now carrying both a line graph row and a Mycielskian row, the
+obvious next question is what happens when the two operators are composed, and the answer is that
+both composites are fully described by the general laws with no new combinatorics at all. For
+`L(M(G))` the input is that `M(G)` has `3|E| + |V|` edges, maximum degree `max(2Δ, |V|)` and
+diameter at most four, which gives a line graph that is connected with one component whenever `G`
+has positive minimum degree, has radius at most three and diameter at most five, and has clique
+number exactly `max(2Δ, |V|)` once that quantity clears three. For `M(L(G))` the input is that
+`L(G)` has `|E|` vertices and chromatic number `χ′(G)`, so the Mycielskian has `2|E| + 1` vertices,
+chromatic number `χ′(G) + 1`, independence number at least `|E|`, and — when `Δ(G) ≥ 3` — clique
+number exactly `Δ(G)`, since the Mycielskian's `max(ω, 2)` never binds on a line graph with a
+triangle. Both blocks are stated for an arbitrary `G : IsoGraph`, so every family row in the table
+feeds into them.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
