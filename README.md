@@ -3065,6 +3065,21 @@ connected, with diameter exactly two, so `isConnected_compl_disjUnion_cycle`,
 `diameter_compl_disjUnion_cycle = 2` and `numComponents_compl_disjUnion_cycle = 1` hold, and
 likewise for the disjoint unions of two paths and of two complete graphs.
 
+The vertex cover number of a complement is the last of the four Gallai quantities to be filled in,
+and it is the cheapest: `coverNum_compl_add_cliqueNum` says `τ(Gᶜ) + ω(G) = |V|`, because a cover of
+the complement is the outside of an independent set of the complement, which is a clique of `G`.
+The packaged form `coverNum_compl_eq : Gᶜ.coverNum = G.V - G.cliqueNum` turns every known clique
+number into a cover number of the complement, and the whole column follows in one line each: the
+general products (`coverNum_compl_strongProduct` and `coverNum_compl_lexProduct` both subtract
+`ω(G)ω(H)`, the tensor product subtracts the minimum, the Cartesian product the maximum, the join
+the sum and the disjoint union the maximum), the Mycielskian, the line graph of a graph of maximum
+degree at least three, and then some forty named families. The triangle-free ones lose exactly two
+vertices — `coverNum_compl_cycle = n + 2`, `coverNum_compl_path = n`, `coverNum_compl_hypercube
+= 2ⁿ⁺¹ - 2`, `coverNum_compl_petersen = 8`, `coverNum_compl_grotzsch = 9` — while the ones with a
+large clique lose almost everything: `coverNum_compl_complete = 0`, `coverNum_compl_kneser_one = 0`
+and `coverNum_compl_lollipop (m + 2) k = k`, the complement of a lollipop being covered by its
+tail. `coverNum_compl_cocktailParty n = n` is the balanced case, half the vertices either way.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

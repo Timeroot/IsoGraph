@@ -38929,6 +38929,325 @@ theorem numComponents_compl_disjUnion_complete (m n : ℕ) :
     ((complete (m + 1) ⊕g complete (n + 1))ᶜ).numComponents = 1 :=
   numComponents_compl_eq_one (by rw [numComponents_disjUnion_complete])
 
+/-! ### Vertex cover numbers of complements -/
+
+theorem coverNum_compl_eq (G : IsoGraph) : Gᶜ.coverNum = G.V - G.cliqueNum := by
+  have h := coverNum_compl_add_cliqueNum G
+  omega
+
+theorem coverNum_compl_disjUnion (G H : IsoGraph) :
+    ((G ⊕g H)ᶜ).coverNum = G.V + H.V - max G.cliqueNum H.cliqueNum := by
+  rw [coverNum_compl_eq, V_disjUnion, cliqueNum_disjUnion]
+
+theorem coverNum_compl_join (G H : IsoGraph) :
+    ((G ∇g H)ᶜ).coverNum = G.V + H.V - (G.cliqueNum + H.cliqueNum) := by
+  rw [coverNum_compl_eq, V_join, cliqueNum_join]
+
+theorem coverNum_compl_strongProduct (G H : IsoGraph) :
+    ((G ⊠g H)ᶜ).coverNum = G.V * H.V - G.cliqueNum * H.cliqueNum := by
+  rw [coverNum_compl_eq, V_strongProduct, cliqueNum_strongProduct]
+
+theorem coverNum_compl_lexProduct (G H : IsoGraph) :
+    ((G ·g H)ᶜ).coverNum = G.V * H.V - G.cliqueNum * H.cliqueNum := by
+  rw [coverNum_compl_eq, V_lexProduct, cliqueNum_lexProduct]
+
+theorem coverNum_compl_tensorProduct (G H : IsoGraph) :
+    ((G ⊗g H)ᶜ).coverNum = G.V * H.V - min G.cliqueNum H.cliqueNum := by
+  rw [coverNum_compl_eq, V_tensorProduct, cliqueNum_tensorProduct]
+
+theorem coverNum_compl_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    ((G □g H)ᶜ).coverNum = G.V * H.V - max G.cliqueNum H.cliqueNum := by
+  rw [coverNum_compl_eq, V_cartesianProduct, cliqueNum_cartesianProduct hG hH]
+
+theorem coverNum_compl_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
+    ((mycielskian G)ᶜ).coverNum = 2 * G.V + 1 - max G.cliqueNum 2 := by
+  rw [coverNum_compl_eq, V_mycielskian, cliqueNum_mycielskian G hV]
+
+theorem coverNum_compl_lineGraph (G : IsoGraph) (h : 3 ≤ maxDeg G) :
+    ((lineGraph G)ᶜ).coverNum = G.E - maxDeg G := by
+  rw [coverNum_compl_eq, V_lineGraph, cliqueNum_lineGraph_of_three_le_maxDeg h]
+
+theorem coverNum_compl_complete (n : ℕ) : ((complete n)ᶜ).coverNum = 0 := by
+  have h := coverNum_compl_add_cliqueNum (complete n)
+  rw [cliqueNum_complete, V_complete] at h
+  omega
+
+theorem coverNum_compl_empty (n : ℕ) : ((empty n)ᶜ).coverNum = n - min n 1 := by
+  have h := coverNum_compl_add_cliqueNum (empty n)
+  rw [cliqueNum_empty, V_empty] at h
+  omega
+
+theorem coverNum_compl_cycle (n : ℕ) : ((cycle (n + 4))ᶜ).coverNum = n + 2 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (n + 4))
+  rw [cliqueNum_cycle, V_cycle] at h
+  omega
+
+theorem coverNum_compl_cycle_three : ((cycle 3)ᶜ).coverNum = 0 := by
+  have h := coverNum_compl_add_cliqueNum (cycle 3)
+  rw [cliqueNum_cycle_three, V_cycle] at h
+  omega
+
+theorem coverNum_compl_cycle_five : ((cycle 5)ᶜ).coverNum = 3 := by
+  have h := coverNum_compl_add_cliqueNum (cycle 5)
+  rw [cliqueNum_cycle_five, V_cycle] at h
+  omega
+
+theorem coverNum_compl_path (n : ℕ) : ((path (n + 2))ᶜ).coverNum = n := by
+  have h := coverNum_compl_add_cliqueNum (path (n + 2))
+  rw [cliqueNum_path, V_path] at h
+  omega
+
+theorem coverNum_compl_star (n : ℕ) : ((star (n + 1))ᶜ).coverNum = n := by
+  have h := coverNum_compl_add_cliqueNum (star (n + 1))
+  rw [cliqueNum_star, V_star] at h
+  omega
+
+theorem coverNum_compl_wheel (n : ℕ) : ((wheel (n + 4))ᶜ).coverNum = n + 2 := by
+  have h := coverNum_compl_add_cliqueNum (wheel (n + 4))
+  rw [cliqueNum_wheel, V_wheel] at h
+  omega
+
+theorem coverNum_compl_fan (n : ℕ) : ((fan (n + 2))ᶜ).coverNum = n := by
+  have h := coverNum_compl_add_cliqueNum (fan (n + 2))
+  rw [cliqueNum_fan, V_fan] at h
+  omega
+
+theorem coverNum_compl_book (n : ℕ) : ((book n)ᶜ).coverNum = n - min n 1 := by
+  have h := coverNum_compl_add_cliqueNum (book n)
+  rw [cliqueNum_book, V_book] at h
+  omega
+
+theorem coverNum_compl_crown (n : ℕ) : ((crown (n + 2))ᶜ).coverNum = 2 * n + 2 := by
+  have h := coverNum_compl_add_cliqueNum (crown (n + 2))
+  rw [cliqueNum_crown, V_crown] at h
+  omega
+
+theorem coverNum_compl_ladder (n : ℕ) : ((ladder (n + 2))ᶜ).coverNum = 2 * n + 2 := by
+  have h := coverNum_compl_add_cliqueNum (ladder (n + 2))
+  rw [cliqueNum_ladder, V_ladder] at h
+  omega
+
+theorem coverNum_compl_prism (n : ℕ) : ((prism (n + 4))ᶜ).coverNum = 2 * n + 6 := by
+  have h := coverNum_compl_add_cliqueNum (prism (n + 4))
+  rw [cliqueNum_prism, V_prism] at h
+  omega
+
+theorem coverNum_compl_prism_three : ((prism 3)ᶜ).coverNum = 3 := by
+  have h := coverNum_compl_add_cliqueNum (prism 3)
+  rw [cliqueNum_prism_three, V_prism] at h
+  omega
+
+theorem coverNum_compl_bipartite (m n : ℕ) :
+    ((bipartite (m + 1) (n + 1))ᶜ).coverNum = m + n := by
+  have h := coverNum_compl_add_cliqueNum (bipartite (m + 1) (n + 1))
+  rw [cliqueNum_bipartite, V_bipartite] at h
+  omega
+
+theorem coverNum_compl_cocktailParty (n : ℕ) : ((cocktailParty n)ᶜ).coverNum = n := by
+  have h := coverNum_compl_add_cliqueNum (cocktailParty n)
+  rw [cliqueNum_cocktailParty, V_cocktailParty] at h
+  omega
+
+theorem coverNum_compl_doubleStar (m n : ℕ) : ((doubleStar m n)ᶜ).coverNum = m + n := by
+  have h := coverNum_compl_add_cliqueNum (doubleStar m n)
+  rw [cliqueNum_doubleStar, V_doubleStar] at h
+  omega
+
+theorem coverNum_compl_friendship (n : ℕ) : ((friendship (n + 1))ᶜ).coverNum = 2 * n := by
+  have h := coverNum_compl_add_cliqueNum (friendship (n + 1))
+  rw [cliqueNum_friendship, V_friendship] at h
+  omega
+
+theorem coverNum_compl_grotzsch : (grotzschᶜ).coverNum = 9 := by
+  have h := coverNum_compl_add_cliqueNum grotzsch
+  rw [cliqueNum_grotzsch, V_grotzsch] at h
+  omega
+
+theorem coverNum_compl_petersen : (petersenᶜ).coverNum = 8 := by
+  have h := coverNum_compl_add_cliqueNum petersen
+  rw [cliqueNum_petersen, V_petersen] at h
+  omega
+
+theorem coverNum_compl_hypercube (n : ℕ) : ((hypercube (n + 1))ᶜ).coverNum = 2 ^ (n + 1) - 2 := by
+  have h := coverNum_compl_add_cliqueNum (hypercube (n + 1))
+  rw [cliqueNum_hypercube, V_hypercube] at h
+  exact Nat.eq_sub_of_add_eq h
+
+theorem coverNum_compl_triangular (n : ℕ) :
+    ((triangular (n + 4))ᶜ).coverNum = (n + 4).choose 2 - (n + 3) := by
+  have h := coverNum_compl_add_cliqueNum (triangular (n + 4))
+  rw [cliqueNum_triangular, V_triangular] at h
+  omega
+
+theorem coverNum_compl_johnson_two (n : ℕ) :
+    ((johnson (n + 4) 2)ᶜ).coverNum = (n + 4).choose 2 - (n + 3) := by
+  have h := coverNum_compl_add_cliqueNum (johnson (n + 4) 2)
+  rw [cliqueNum_johnson_two, V_johnson] at h
+  omega
+
+theorem coverNum_compl_kneser_two (n : ℕ) :
+    ((kneser n 2)ᶜ).coverNum = n.choose 2 - n / 2 := by
+  have h := coverNum_compl_add_cliqueNum (kneser n 2)
+  rw [cliqueNum_kneser_two, V_kneser] at h
+  omega
+
+theorem coverNum_compl_kneser_one (n : ℕ) : ((kneser n 1)ᶜ).coverNum = 0 := by
+  have h := coverNum_compl_add_cliqueNum (kneser n 1)
+  rw [cliqueNum_kneser_one, V_kneser, Nat.choose_one_right] at h
+  omega
+
+theorem coverNum_compl_johnson_one (n : ℕ) : ((johnson n 1)ᶜ).coverNum = 0 := by
+  have h := coverNum_compl_add_cliqueNum (johnson n 1)
+  rw [cliqueNum_johnson_one, V_johnson, Nat.choose_one_right] at h
+  omega
+
+theorem coverNum_compl_lollipop (m k : ℕ) : ((lollipop (m + 2) k)ᶜ).coverNum = k := by
+  have h := coverNum_compl_add_cliqueNum (lollipop (m + 2) k)
+  rw [cliqueNum_lollipop, V_lollipop] at h
+  omega
+
+theorem coverNum_compl_lollipop_one (k : ℕ) : ((lollipop 1 (k + 1))ᶜ).coverNum = k := by
+  have h := coverNum_compl_add_cliqueNum (lollipop 1 (k + 1))
+  rw [cliqueNum_lollipop_one, V_lollipop] at h
+  omega
+
+theorem coverNum_compl_tadpole (m k : ℕ) : ((tadpole (m + 4) k)ᶜ).coverNum = m + k + 2 := by
+  have h := coverNum_compl_add_cliqueNum (tadpole (m + 4) k)
+  rw [cliqueNum_tadpole, V_tadpole] at h
+  omega
+
+theorem coverNum_compl_tadpole_one (k : ℕ) : ((tadpole 1 (k + 1))ᶜ).coverNum = k := by
+  have h := coverNum_compl_add_cliqueNum (tadpole 1 (k + 1))
+  rw [cliqueNum_tadpole_one, V_tadpole] at h
+  omega
+
+theorem coverNum_compl_spider (legs : List ℕ) (hs : 0 < legs.sum) :
+    ((spider legs)ᶜ).coverNum = legs.sum - 1 := by
+  have h := coverNum_compl_add_cliqueNum (spider legs)
+  rw [cliqueNum_spider legs hs, V_spider] at h
+  omega
+
+theorem coverNum_compl_thetaGraph_singleton (k : ℕ) :
+    ((thetaGraph [k])ᶜ).coverNum = k := by
+  have h := coverNum_compl_add_cliqueNum (thetaGraph [k])
+  rw [cliqueNum_thetaGraph_singleton, V_thetaGraph, List.sum_singleton] at h
+  omega
+
+theorem coverNum_compl_circulant_one (n : ℕ) : ((circulant (n + 4) [1])ᶜ).coverNum = n + 2 := by
+  have h := coverNum_compl_add_cliqueNum (circulant (n + 4) [1])
+  rw [cliqueNum_circulant_one, V_circulant] at h
+  omega
+
+theorem coverNum_compl_circulant_nil (n : ℕ) : ((circulant n [])ᶜ).coverNum = n - min n 1 := by
+  have h := coverNum_compl_add_cliqueNum (circulant n [])
+  rw [cliqueNum_circulant_nil, V_circulant] at h
+  omega
+
+theorem coverNum_compl_cyclePendant_replicate_zero (m j : ℕ) :
+    ((cyclePendant (m + 4) (List.replicate j 0))ᶜ).coverNum = m + 2 := by
+  rw [cyclePendant_replicate_zero, coverNum_compl_cycle]
+
+theorem coverNum_compl_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) :
+    ((rook m n)ᶜ).coverNum = m * n - max m n := by
+  have h := coverNum_compl_add_cliqueNum (rook m n)
+  rw [cliqueNum_rook hm hn, V_rook] at h
+  omega
+
+theorem coverNum_compl_turan {n r : ℕ} (hr : 0 < r) (hrn : r ≤ n) :
+    ((turan n r)ᶜ).coverNum = n - r := by
+  have h := coverNum_compl_add_cliqueNum (turan n r)
+  rw [cliqueNum_turan hr hrn, V_turan] at h
+  omega
+
+theorem coverNum_compl_grid (m n : ℕ) :
+    ((path (m + 2) □g path (n + 2))ᶜ).coverNum = (m + 2) * (n + 2) - 2 := by
+  have h := coverNum_compl_add_cliqueNum (path (m + 2) □g path (n + 2))
+  rw [cliqueNum_grid, V_grid] at h
+  omega
+
+theorem coverNum_compl_king (m n : ℕ) :
+    ((path (m + 2) ⊠g path (n + 2))ᶜ).coverNum = (m + 2) * (n + 2) - 4 := by
+  have h := coverNum_compl_add_cliqueNum (path (m + 2) ⊠g path (n + 2))
+  rw [cliqueNum_king, V_king] at h
+  omega
+
+theorem coverNum_compl_cartesianProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) □g cycle (n + 4))ᶜ).coverNum = (m + 4) * (n + 4) - 2 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (m + 4) □g cycle (n + 4))
+  rw [cliqueNum_cartesianProduct_cycle, V_cartesianProduct_cycle] at h
+  omega
+
+theorem coverNum_compl_cartesianProduct_cycle_path (m n : ℕ) :
+    ((cycle (m + 4) □g path (n + 2))ᶜ).coverNum = (m + 4) * (n + 2) - 2 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (m + 4) □g path (n + 2))
+  rw [cliqueNum_cartesianProduct_cycle_path, V_cartesianProduct_cycle_path] at h
+  omega
+
+theorem coverNum_compl_tensorProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊗g cycle (n + 4))ᶜ).coverNum = (m + 4) * (n + 4) - 2 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ⊗g cycle (n + 4))
+  rw [cliqueNum_tensorProduct_cycle, V_tensorProduct_cycle] at h
+  omega
+
+theorem coverNum_compl_tensorProduct_path (m n : ℕ) :
+    ((path (m + 2) ⊗g path (n + 2))ᶜ).coverNum = (m + 2) * (n + 2) - 2 := by
+  have h := coverNum_compl_add_cliqueNum (path (m + 2) ⊗g path (n + 2))
+  rw [cliqueNum_tensorProduct_path, V_tensorProduct_path] at h
+  omega
+
+theorem coverNum_compl_strongProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊠g cycle (n + 4))ᶜ).coverNum = (m + 4) * (n + 4) - 4 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ⊠g cycle (n + 4))
+  rw [cliqueNum_strongProduct_cycle, V_strongProduct_cycle] at h
+  omega
+
+theorem coverNum_compl_lexProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) ·g cycle (n + 4))ᶜ).coverNum = (m + 4) * (n + 4) - 4 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ·g cycle (n + 4))
+  rw [cliqueNum_lexProduct_cycle, V_lexProduct_cycle] at h
+  omega
+
+theorem coverNum_compl_lexProduct_path (m n : ℕ) :
+    ((path (m + 2) ·g path (n + 2))ᶜ).coverNum = (m + 2) * (n + 2) - 4 := by
+  have h := coverNum_compl_add_cliqueNum (path (m + 2) ·g path (n + 2))
+  rw [cliqueNum_lexProduct_path, V_lexProduct_path] at h
+  omega
+
+theorem coverNum_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊕g cycle (n + 4))ᶜ).coverNum = m + n + 6 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ⊕g cycle (n + 4))
+  rw [cliqueNum_disjUnion_cycle, V_disjUnion_cycle] at h
+  omega
+
+theorem coverNum_compl_disjUnion_path (m n : ℕ) :
+    ((path (m + 2) ⊕g path (n + 2))ᶜ).coverNum = m + n + 2 := by
+  have h := coverNum_compl_add_cliqueNum (path (m + 2) ⊕g path (n + 2))
+  rw [cliqueNum_disjUnion_path, V_disjUnion_path] at h
+  omega
+
+theorem coverNum_compl_join_cycle (m n : ℕ) :
+    ((cycle (m + 4) ∇g cycle (n + 4))ᶜ).coverNum = m + n + 4 := by
+  have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ∇g cycle (n + 4))
+  rw [cliqueNum_join_cycle, V_join_cycle] at h
+  omega
+
+theorem coverNum_compl_join_path (m n : ℕ) :
+    ((path (m + 2) ∇g path (n + 2))ᶜ).coverNum = m + n := by
+  have h := coverNum_compl_add_cliqueNum (path (m + 2) ∇g path (n + 2))
+  rw [cliqueNum_join_path, V_join_path] at h
+  omega
+
+theorem coverNum_compl_lineGraph_petersen : ((lineGraph petersen)ᶜ).coverNum = 12 := by
+  have h := coverNum_compl_add_cliqueNum (lineGraph petersen)
+  rw [cliqueNum_lineGraph_petersen, V_lineGraph, E_petersen] at h
+  omega
+
+theorem coverNum_compl_lineGraph_hypercube (n : ℕ) :
+    ((lineGraph (hypercube (n + 3)))ᶜ).coverNum = (hypercube (n + 3)).E - (n + 3) := by
+  have h := coverNum_compl_add_cliqueNum (lineGraph (hypercube (n + 3)))
+  rw [cliqueNum_lineGraph_hypercube, V_lineGraph] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
