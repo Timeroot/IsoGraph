@@ -38152,6 +38152,146 @@ theorem indepNum_compl_tensorProduct_complete (m n : ℕ) :
     ((complete m ⊗g complete n)ᶜ).indepNum = min m n := by
   rw [indepNum_compl, cliqueNum_tensorProduct_complete]
 
+/-! ### Complements of disjoint unions and joins of two named families -/
+
+theorem E_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ).E = ((m + 3) + (n + 3)).choose 2 - ((m + 3) + (n + 3)) := by
+  have h := E_compl (cycle (m + 3) ⊕g cycle (n + 3))
+  rw [E_disjUnion_cycle, V_disjUnion_cycle] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_disjUnion_cycle (m n : ℕ) :
+    maxDeg ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ) = m + n + 3 := by
+  have h := maxDeg_compl (G := cycle (m + 3) ⊕g cycle (n + 3))
+    (by rw [V_disjUnion_cycle]; omega)
+  rw [V_disjUnion_cycle, minDeg_disjUnion_cycle] at h
+  omega
+
+theorem minDeg_compl_disjUnion_cycle (m n : ℕ) :
+    minDeg ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ) = m + n + 3 := by
+  have h := minDeg_compl (G := cycle (m + 3) ⊕g cycle (n + 3))
+    (by rw [V_disjUnion_cycle]; omega)
+  rw [V_disjUnion_cycle, maxDeg_disjUnion_cycle] at h
+  omega
+
+theorem indepNum_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊕g cycle (n + 4))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_disjUnion_cycle]
+
+theorem cliqueNum_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ).cliqueNum = (m + 3) / 2 + (n + 3) / 2 := by
+  rw [cliqueNum_compl, indepNum_disjUnion_cycle]
+
+theorem E_compl_disjUnion_path (m n : ℕ) :
+    ((path (m + 1) ⊕g path (n + 1))ᶜ).E = ((m + 1) + (n + 1)).choose 2 - (m + n) := by
+  have h := E_compl (path (m + 1) ⊕g path (n + 1))
+  rw [E_disjUnion_path, V_disjUnion_path] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_disjUnion_path (m n : ℕ) :
+    maxDeg ((path (m + 2) ⊕g path (n + 2))ᶜ) = m + n + 2 := by
+  have h := maxDeg_compl (G := path (m + 2) ⊕g path (n + 2))
+    (by rw [V_disjUnion_path]; omega)
+  rw [V_disjUnion_path, minDeg_disjUnion_path] at h
+  omega
+
+theorem minDeg_compl_disjUnion_path (m n : ℕ) :
+    minDeg ((path (m + 3) ⊕g path (n + 3))ᶜ) = m + n + 3 := by
+  have h := minDeg_compl (G := path (m + 3) ⊕g path (n + 3))
+    (by rw [V_disjUnion_path]; omega)
+  rw [V_disjUnion_path, maxDeg_disjUnion_path] at h
+  omega
+
+theorem indepNum_compl_disjUnion_path (m n : ℕ) :
+    ((path (m + 2) ⊕g path (n + 2))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_disjUnion_path]
+
+theorem cliqueNum_compl_disjUnion_path (m n : ℕ) :
+    ((path m ⊕g path n)ᶜ).cliqueNum = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [cliqueNum_compl, indepNum_disjUnion_path]
+
+theorem E_compl_disjUnion_complete (m n : ℕ) :
+    ((complete m ⊕g complete n)ᶜ).E = (m + n).choose 2 - (m.choose 2 + n.choose 2) := by
+  have h := E_compl (complete m ⊕g complete n)
+  rw [E_disjUnion_complete, V_disjUnion_complete] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_disjUnion_complete (m n : ℕ) :
+    maxDeg ((complete (m + 1) ⊕g complete (n + 1))ᶜ) = m + n + 1 - min m n := by
+  have h := maxDeg_compl (G := complete (m + 1) ⊕g complete (n + 1))
+    (by rw [V_disjUnion_complete]; omega)
+  rw [V_disjUnion_complete, minDeg_disjUnion_complete] at h
+  omega
+
+theorem minDeg_compl_disjUnion_complete (m n : ℕ) :
+    minDeg ((complete (m + 1) ⊕g complete (n + 1))ᶜ) = m + n + 1 - max m n := by
+  have h := minDeg_compl (G := complete (m + 1) ⊕g complete (n + 1))
+    (by rw [V_disjUnion_complete]; omega)
+  rw [V_disjUnion_complete, maxDeg_disjUnion_complete] at h
+  omega
+
+theorem indepNum_compl_disjUnion_complete (m n : ℕ) :
+    ((complete m ⊕g complete n)ᶜ).indepNum = max m n := by
+  rw [indepNum_compl, cliqueNum_disjUnion_complete]
+
+theorem cliqueNum_compl_disjUnion_complete (m n : ℕ) :
+    ((complete (m + 1) ⊕g complete (n + 1))ᶜ).cliqueNum = 2 := by
+  rw [cliqueNum_compl, indepNum_disjUnion_complete]
+
+theorem E_compl_join_cycle (m n : ℕ) :
+    ((cycle (m + 3) ∇g cycle (n + 3))ᶜ).E
+      = ((m + 3) + (n + 3)).choose 2 - ((m + 3) + (n + 3) + (m + 3) * (n + 3)) := by
+  have h := E_compl (cycle (m + 3) ∇g cycle (n + 3))
+  rw [E_join_cycle, V_join_cycle] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_join_cycle (m n : ℕ) :
+    maxDeg ((cycle (m + 3) ∇g cycle (n + 3))ᶜ) = max m n := by
+  have h := maxDeg_compl (G := cycle (m + 3) ∇g cycle (n + 3)) (by rw [V_join_cycle]; omega)
+  rw [V_join_cycle, minDeg_join_cycle] at h
+  omega
+
+theorem minDeg_compl_join_cycle (m n : ℕ) :
+    minDeg ((cycle (m + 3) ∇g cycle (n + 3))ᶜ) = min m n := by
+  have h := minDeg_compl (G := cycle (m + 3) ∇g cycle (n + 3)) (by rw [V_join_cycle]; omega)
+  rw [V_join_cycle, maxDeg_join_cycle] at h
+  omega
+
+theorem indepNum_compl_join_cycle (m n : ℕ) :
+    ((cycle (m + 4) ∇g cycle (n + 4))ᶜ).indepNum = 4 := by
+  rw [indepNum_compl, cliqueNum_join_cycle]
+
+theorem cliqueNum_compl_join_cycle (m n : ℕ) :
+    ((cycle (m + 3) ∇g cycle (n + 3))ᶜ).cliqueNum = max ((m + 3) / 2) ((n + 3) / 2) := by
+  rw [cliqueNum_compl, indepNum_join_cycle]
+
+theorem E_compl_join_path (m n : ℕ) :
+    ((path (m + 1) ∇g path (n + 1))ᶜ).E
+      = ((m + 1) + (n + 1)).choose 2 - (m + n + (m + 1) * (n + 1)) := by
+  have h := E_compl (path (m + 1) ∇g path (n + 1))
+  rw [E_join_path, V_join_path] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_join_path (m n : ℕ) :
+    maxDeg ((path (m + 2) ∇g path (n + 2))ᶜ) = max m n := by
+  have h := maxDeg_compl (G := path (m + 2) ∇g path (n + 2)) (by rw [V_join_path]; omega)
+  rw [V_join_path, minDeg_join_path] at h
+  omega
+
+theorem minDeg_compl_join_path (m n : ℕ) :
+    minDeg ((path (m + 3) ∇g path (n + 3))ᶜ) = min m n := by
+  have h := minDeg_compl (G := path (m + 3) ∇g path (n + 3)) (by rw [V_join_path]; omega)
+  rw [V_join_path, maxDeg_join_path] at h
+  omega
+
+theorem indepNum_compl_join_path (m n : ℕ) :
+    ((path (m + 2) ∇g path (n + 2))ᶜ).indepNum = 4 := by
+  rw [indepNum_compl, cliqueNum_join_path]
+
+theorem cliqueNum_compl_join_path (m n : ℕ) :
+    ((path m ∇g path n)ᶜ).cliqueNum = max ((m + 1) / 2) ((n + 1) / 2) := by
+  rw [cliqueNum_compl, indepNum_join_path]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

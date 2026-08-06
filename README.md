@@ -2987,6 +2987,20 @@ minus the diagonal, so `maxDeg_compl_tensorProduct_complete` and
 `minDeg_compl_tensorProduct_complete` agree at `(m+1)(n+1) - 1 - mn`, and
 `indepNum_compl_tensorProduct_complete = min m n` is the clique number of the original.
 
+Complementation swaps the two binary operations — the complement of a disjoint union is a join of
+complements and vice versa — so the last five complement rows are the disjoint unions and joins of
+the named families, with the same five lemmas each. The unions give
+`E_compl_disjUnion_cycle`, `maxDeg_compl_disjUnion_cycle = minDeg_compl_disjUnion_cycle = m+n+3`
+(a `2`-regular union complements to an `(m+n+3)`-regular graph), `indepNum_compl_disjUnion_cycle
+= 2` and `cliqueNum_compl_disjUnion_cycle = ⌊m/2⌋ + ⌊n/2⌋`; the path and complete-graph unions
+follow suit, with the complete case keeping its `min`/`max` shape in `m + n + 1 - min m n` and
+`m + n + 1 - max m n`. The joins are the prettiest of the batch, because the `min`/`max` in a
+join's degrees cancels against the `V - 1 -` of a complement exactly:
+`maxDeg_compl_join_cycle = max m n` and `minDeg_compl_join_cycle = min m n`, and the same two for
+paths — the complement of a join of two `(m+3)`- and `(n+3)`-vertex graphs forgets everything but
+the two sizes. `indepNum_compl_join_cycle = indepNum_compl_join_path = 4`, and the clique numbers
+of those complements are the independence numbers of the joins, `max ⌈m/2⌉ ⌈n/2⌉`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
