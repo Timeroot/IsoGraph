@@ -3433,6 +3433,16 @@ carry that as an explicit hypothesis on `C(n-k, k)` or `k(n-k)` rather than on `
 themselves — the arithmetic of when a binomial coefficient clears three is not something `omega`
 can see.
 
+The grid and king graphs are the two product families in the line graph block, and they are the
+cleanest rows to state because both have bounded degree independent of the board size. On the
+interior-sized boards the grid is between two- and four-regular and the king graph between three-
+and eight-regular, so `L(Pₘ₊₃ □ Pₙ₊₃)` has clique number four, maximum degree at most six, and
+minimum degree at least two, while `L(Pₘ₊₃ ⊠ Pₙ₊₃)` has clique number eight, maximum degree at most
+fourteen, and minimum degree at least four. Both are connected with one component from
+`E_pos_grid` and `E_pos_king`, which are one `positivity` call each on the closed-form edge counts,
+and both inherit distance bounds one better than the board's own: `m + n + 3` for the grid's line
+graph and `max(m, n) + 2` for the king's.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

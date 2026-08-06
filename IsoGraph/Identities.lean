@@ -45279,6 +45279,133 @@ theorem degSequence_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
   have hd := (isRegularWith_lineGraph_johnson hk h).degSequence
   rwa [V_lineGraph, E_johnson (le_of_lt h)] at hd
 
+/-! ### The line graph of a grid graph -/
+
+@[simp] theorem V_lineGraph_grid (m n : ℕ) :
+    (lineGraph (path (m + 1) □g path (n + 1))).V = (m + 1) * n + (n + 1) * m := by
+  rw [V_lineGraph, E_grid]
+
+theorem E_pos_grid (m n : ℕ) : 0 < (path (m + 2) □g path (n + 2)).E := by
+  rw [E_grid]
+  positivity
+
+theorem isConnected_lineGraph_grid (m n : ℕ) :
+    IsConnected (lineGraph (path (m + 2) □g path (n + 2))) :=
+  isConnected_lineGraph (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
+
+theorem numComponents_lineGraph_grid (m n : ℕ) :
+    (lineGraph (path (m + 2) □g path (n + 2))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
+
+theorem le_minDeg_lineGraph_grid (m n : ℕ) :
+    2 ≤ minDeg (lineGraph (path (m + 2) □g path (n + 2))) := by
+  have h := le_minDeg_lineGraph (G := path (m + 2) □g path (n + 2)) (E_pos_grid m n)
+  rw [minDeg_grid] at h
+  omega
+
+theorem radius_lineGraph_grid_le (m n : ℕ) :
+    (lineGraph (path (m + 2) □g path (n + 2))).radius ≤ (m + 2) / 2 + (n + 2) / 2 + 1 := by
+  have h := radius_lineGraph_le (G := path (m + 2) □g path (n + 2))
+    (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
+  rw [radius_grid] at h
+  omega
+
+theorem diameter_lineGraph_grid_le (m n : ℕ) :
+    (lineGraph (path (m + 2) □g path (n + 2))).diameter ≤ m + n + 3 := by
+  have h := diameter_lineGraph_le (G := path (m + 2) □g path (n + 2))
+    (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
+  rw [diameter_grid] at h
+  omega
+
+theorem cliqueNum_lineGraph_grid (m n : ℕ) :
+    (lineGraph (path (m + 3) □g path (n + 3))).cliqueNum = 4 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := path (m + 3) □g path (n + 3))
+    (by rw [maxDeg_grid]; omega)
+  rw [maxDeg_grid] at h
+  omega
+
+theorem girth_lineGraph_grid (m n : ℕ) :
+    (lineGraph (path (m + 3) □g path (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_grid]; omega)
+
+theorem not_isBipartite_lineGraph_grid (m n : ℕ) :
+    ¬ IsBipartite (lineGraph (path (m + 3) □g path (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_grid]; omega)
+
+theorem not_isAcyclic_lineGraph_grid (m n : ℕ) :
+    ¬ IsAcyclic (lineGraph (path (m + 3) □g path (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_grid]; omega)
+
+theorem not_isTree_lineGraph_grid (m n : ℕ) :
+    ¬ IsTree (lineGraph (path (m + 3) □g path (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_grid]; omega)
+
+theorem maxDeg_lineGraph_grid_le (m n : ℕ) :
+    maxDeg (lineGraph (path (m + 3) □g path (n + 3))) ≤ 6 := by
+  have h := maxDeg_lineGraph_le (path (m + 3) □g path (n + 3))
+  rw [maxDeg_grid] at h
+  omega
+
+/-! ### The line graph of a king graph -/
+
+@[simp] theorem V_lineGraph_king (m n : ℕ) :
+    (lineGraph (path (m + 1) ⊠g path (n + 1))).V = (m + 1) * n + (n + 1) * m + 2 * m * n := by
+  rw [V_lineGraph, E_king]
+
+theorem E_pos_king (m n : ℕ) : 0 < (path (m + 2) ⊠g path (n + 2)).E := by
+  rw [E_king]
+  positivity
+
+theorem isConnected_lineGraph_king (m n : ℕ) :
+    IsConnected (lineGraph (path (m + 2) ⊠g path (n + 2))) :=
+  isConnected_lineGraph (isConnected_king (m + 1) (n + 1)) (E_pos_king m n)
+
+theorem numComponents_lineGraph_king (m n : ℕ) :
+    (lineGraph (path (m + 2) ⊠g path (n + 2))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_king (m + 1) (n + 1)) (E_pos_king m n)
+
+theorem le_minDeg_lineGraph_king (m n : ℕ) :
+    4 ≤ minDeg (lineGraph (path (m + 2) ⊠g path (n + 2))) := by
+  have h := le_minDeg_lineGraph (G := path (m + 2) ⊠g path (n + 2)) (E_pos_king m n)
+  rw [minDeg_king] at h
+  omega
+
+theorem diameter_lineGraph_king_le (m n : ℕ) :
+    (lineGraph (path (m + 2) ⊠g path (n + 2))).diameter ≤ max (m + 1) (n + 1) + 1 := by
+  have h := diameter_lineGraph_le (G := path (m + 2) ⊠g path (n + 2))
+    (isConnected_king (m + 1) (n + 1)) (E_pos_king m n)
+  rw [diameter_king] at h
+  omega
+
+theorem cliqueNum_lineGraph_king (m n : ℕ) :
+    (lineGraph (path (m + 3) ⊠g path (n + 3))).cliqueNum = 8 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := path (m + 3) ⊠g path (n + 3))
+    (by rw [maxDeg_king]; omega)
+  rw [maxDeg_king] at h
+  omega
+
+theorem girth_lineGraph_king (m n : ℕ) :
+    (lineGraph (path (m + 3) ⊠g path (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_king]; omega)
+
+theorem not_isBipartite_lineGraph_king (m n : ℕ) :
+    ¬ IsBipartite (lineGraph (path (m + 3) ⊠g path (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_king]; omega)
+
+theorem not_isAcyclic_lineGraph_king (m n : ℕ) :
+    ¬ IsAcyclic (lineGraph (path (m + 3) ⊠g path (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_king]; omega)
+
+theorem not_isTree_lineGraph_king (m n : ℕ) :
+    ¬ IsTree (lineGraph (path (m + 3) ⊠g path (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_king]; omega)
+
+theorem maxDeg_lineGraph_king_le (m n : ℕ) :
+    maxDeg (lineGraph (path (m + 3) ⊠g path (n + 3))) ≤ 14 := by
+  have h := maxDeg_lineGraph_le (path (m + 3) ⊠g path (n + 3))
+  rw [maxDeg_king] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
