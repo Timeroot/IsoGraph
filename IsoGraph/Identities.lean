@@ -37269,6 +37269,52 @@ theorem minDeg_strongProduct_cycle (m n : ℕ) :
     IsVertexTransitive (cycle m ⊠g cycle n) :=
   (isVertexTransitive_cycle m).strongProduct (isVertexTransitive_cycle n)
 
+/-! ### The lexicographic product of two cycles -/
+
+@[simp] theorem V_lexProduct_cycle (m n : ℕ) : (cycle m ·g cycle n).V = m * n := by
+  rw [V_lexProduct, V_cycle, V_cycle]
+
+theorem E_lexProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ·g cycle (n + 3)).E
+      = (n + 3) * (n + 3) * (m + 3) + (m + 3) * (n + 3) := by
+  rw [E_lexProduct, E_cycle, E_cycle, V_cycle, V_cycle]
+
+theorem cliqueNum_lexProduct_cycle (m n : ℕ) :
+    (cycle (m + 4) ·g cycle (n + 4)).cliqueNum = 4 := by
+  have h := cliqueNum_lexProduct (cycle (m + 4)) (cycle (n + 4))
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem indepNum_lexProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ·g cycle (n + 3)).indepNum = (m + 3) / 2 * ((n + 3) / 2) := by
+  rw [indepNum_lexProduct, indepNum_cycle, indepNum_cycle]
+
+theorem maxDeg_lexProduct_cycle (m n : ℕ) :
+    maxDeg (cycle (m + 3) ·g cycle (n + 3)) = 2 * (n + 3) + 2 := by
+  have h := maxDeg_lexProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [maxDeg_cycle, maxDeg_cycle, V_cycle] at h
+  omega
+
+theorem minDeg_lexProduct_cycle (m n : ℕ) :
+    minDeg (cycle (m + 3) ·g cycle (n + 3)) = 2 * (n + 3) + 2 := by
+  have h := minDeg_lexProduct (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_cycle, minDeg_cycle, V_cycle] at h
+  omega
+
+@[simp] theorem isConnected_lexProduct_cycle (m n : ℕ) :
+    IsConnected (cycle (m + 1) ·g cycle (n + 1)) :=
+  isConnected_lexProduct (isConnected_cycle m) (isConnected_cycle n)
+
+@[simp] theorem girth_lexProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ·g cycle (n + 3)).girth = 3 :=
+  girth_lexProduct (by rw [E_cycle]; omega) (by rw [E_cycle]; omega)
+
+@[simp] theorem isVertexTransitive_lexProduct_cycle (m n : ℕ) :
+    IsVertexTransitive (cycle m ·g cycle n) :=
+  (isVertexTransitive_cycle m).lexProduct (isVertexTransitive_cycle n)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

@@ -2858,6 +2858,15 @@ product has no such problem, and `V_strongProduct_cycle`, `E_strongProduct_cycle
 `girth_strongProduct_cycle = 3` and `isVertexTransitive_strongProduct_cycle` describe the
 toroidal king graph.
 
+The lexicographic product finishes the set, so all four products of a pair of cycles now have a
+row: `V_lexProduct_cycle`, `E_lexProduct_cycle`, `cliqueNum_lexProduct_cycle = 4`,
+`indepNum_lexProduct_cycle` (the only one of the four with an independence number, since the
+lexicographic product multiplies them), `maxDeg_lexProduct_cycle` and `minDeg_lexProduct_cycle`
+— both `2n + 8`, since a vertex sees both neighbouring copies whole plus two vertices in its own
+— `isConnected_lexProduct_cycle`, `girth_lexProduct_cycle = 3` and
+`isVertexTransitive_lexProduct_cycle`. The asymmetry in the degree, which depends on `n` but not
+on `m`, is the asymmetry of the product itself.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
