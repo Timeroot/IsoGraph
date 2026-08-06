@@ -3169,6 +3169,19 @@ factors, which the complete graph, the even cycle and the hypercube all satisfy,
 `chromNum_strongProduct_complete_hypercube = 2m`, `chromNum_lexProduct_cycle_even_hypercube = 4`
 and three more cells fill in, along with `cliqueCoverNum_lexProduct_complete_cycle_even = n + 2`.
 
+Three more product rows follow the same recipe: `Kₘ ⊠ Pₙ`, `Kₘ · Pₙ` and `Pₘ ⊠ Qₙ`, plus the
+lexicographic `Cₘ · Qₙ`. The path is the first factor here that is not regular, so its rows split
+between `maxDeg` and `minDeg` rather than collapsing into a regularity statement:
+`maxDeg_strongProduct_complete_path = 3m + 2` uses the interior degree `2`, while
+`minDeg_strongProduct_complete_path = 2m + 1` uses the endpoint degree `1`, and the lexicographic
+versions are `m(n+3) + 2` and `m(n+2) + 1`. `Cₘ · Qₙ` is regular again, with degree
+`2·2ⁿ + n`. Its edge count is stated in doubled form, `2|E(Cₘ · Qₙ)| = 2·4ⁿ·m + m·n·2ⁿ`, because
+`E_hypercube` itself only pins down `2|E(Qₙ)|`. Independence in the lexicographic product still
+multiplies, so `α(Kₘ · Pₙ) = ⌈n/2⌉` and `α(Cₘ · Qₙ) = ⌊m/2⌋·2ⁿ`, with the matching cover numbers.
+Finally, `domNum_lexProduct` says the domination number of `G · H` equals that of `G` whenever `H`
+has a dominating vertex, so `G · Sₙ`, `G · Wₙ`, `G · Fₙ`, `G · Bₙ` and `G · Frₙ` all inherit
+`γ(G)` for every `G` at once.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

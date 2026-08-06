@@ -40403,6 +40403,243 @@ theorem cliqueCoverNum_lexProduct_complete_cycle_even (m n : ℕ) :
     Nat.one_mul] at h
   omega
 
+/-! ### The strong product of a complete graph with a path -/
+
+@[simp] theorem V_strongProduct_complete_path (m n : ℕ) :
+    (complete m ⊠g path n).V = m * n := by
+  rw [V_strongProduct, V_complete, V_path]
+
+theorem E_strongProduct_complete_path (m n : ℕ) :
+    (complete m ⊠g path (n + 1)).E
+      = m * n + (n + 1) * m.choose 2 + 2 * m.choose 2 * n := by
+  rw [E_strongProduct, E_complete, E_path, V_complete, V_path]
+
+theorem cliqueNum_strongProduct_complete_path (m n : ℕ) :
+    (complete m ⊠g path (n + 2)).cliqueNum = m * 2 := by
+  rw [cliqueNum_strongProduct, cliqueNum_complete, cliqueNum_path]
+
+theorem isConnected_strongProduct_complete_path (m n : ℕ) :
+    IsConnected (complete (m + 1) ⊠g path (n + 1)) :=
+  isConnected_strongProduct (isConnected_complete m) (isConnected_path n)
+
+theorem numComponents_strongProduct_complete_path (m n : ℕ) :
+    (complete (m + 1) ⊠g path (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_strongProduct_complete_path m n)
+
+theorem diameter_strongProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) ⊠g path (n + 1)).diameter = max 1 n := by
+  rw [diameter_strongProduct (isConnected_complete (m + 1)) (isConnected_path n),
+    diameter_complete, diameter_path]
+
+theorem radius_strongProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) ⊠g path (n + 1)).radius = max 1 ((n + 1) / 2) := by
+  rw [radius_strongProduct (isConnected_complete (m + 1)) (isConnected_path n), radius_complete,
+    radius_path]
+
+theorem maxDeg_strongProduct_complete_path (m n : ℕ) :
+    maxDeg (complete (m + 1) ⊠g path (n + 3)) = 3 * m + 2 := by
+  have h := maxDeg_strongProduct (G := complete (m + 1)) (H := path (n + 3))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_complete, maxDeg_path] at h
+  omega
+
+theorem minDeg_strongProduct_complete_path (m n : ℕ) :
+    minDeg (complete (m + 1) ⊠g path (n + 2)) = 2 * m + 1 := by
+  have h := minDeg_strongProduct (G := complete (m + 1)) (H := path (n + 2))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [minDeg_complete, minDeg_path] at h
+  omega
+
+theorem girth_strongProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) ⊠g path (n + 2)).girth = 3 :=
+  girth_strongProduct (E_complete_pos m) (by rw [E_path]; omega)
+
+/-! ### The lexicographic product of a complete graph with a path -/
+
+@[simp] theorem V_lexProduct_complete_path (m n : ℕ) :
+    (complete m ·g path n).V = m * n := by
+  rw [V_lexProduct, V_complete, V_path]
+
+theorem E_lexProduct_complete_path (m n : ℕ) :
+    (complete m ·g path (n + 1)).E = (n + 1) * (n + 1) * m.choose 2 + m * n := by
+  rw [E_lexProduct, E_complete, E_path, V_complete, V_path]
+
+theorem cliqueNum_lexProduct_complete_path (m n : ℕ) :
+    (complete m ·g path (n + 2)).cliqueNum = m * 2 := by
+  rw [cliqueNum_lexProduct, cliqueNum_complete, cliqueNum_path]
+
+theorem indepNum_lexProduct_complete_path (m n : ℕ) :
+    (complete (m + 1) ·g path n).indepNum = (n + 1) / 2 := by
+  rw [indepNum_lexProduct, indepNum_complete, indepNum_path,
+    Nat.min_eq_right (by omega : 1 ≤ m + 1), Nat.one_mul]
+
+theorem coverNum_lexProduct_complete_path (m n : ℕ) :
+    (complete (m + 1) ·g path n).coverNum = (m + 1) * n - (n + 1) / 2 := by
+  rw [coverNum_lexProduct, V_complete, V_path, indepNum_complete, indepNum_path,
+    Nat.min_eq_right (by omega : 1 ≤ m + 1), Nat.one_mul]
+
+theorem isConnected_lexProduct_complete_path (m n : ℕ) :
+    IsConnected (complete (m + 1) ·g path (n + 1)) :=
+  isConnected_lexProduct (isConnected_complete m) (isConnected_path n)
+
+theorem numComponents_lexProduct_complete_path (m n : ℕ) :
+    (complete (m + 1) ·g path (n + 1)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_lexProduct_complete_path m n)
+
+theorem maxDeg_lexProduct_complete_path (m n : ℕ) :
+    maxDeg (complete (m + 1) ·g path (n + 3)) = m * (n + 3) + 2 := by
+  have h := maxDeg_lexProduct (G := complete (m + 1)) (H := path (n + 3))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_complete, maxDeg_path, V_path] at h
+  simpa using h
+
+theorem minDeg_lexProduct_complete_path (m n : ℕ) :
+    minDeg (complete (m + 1) ·g path (n + 2)) = m * (n + 2) + 1 := by
+  have h := minDeg_lexProduct (G := complete (m + 1)) (H := path (n + 2))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [minDeg_complete, minDeg_path, V_path] at h
+  simpa using h
+
+theorem girth_lexProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) ·g path (n + 2)).girth = 3 :=
+  girth_lexProduct (E_complete_pos m) (by rw [E_path]; omega)
+
+/-! ### The strong product of a path with a hypercube -/
+
+@[simp] theorem V_strongProduct_path_hypercube (m n : ℕ) :
+    (path m ⊠g hypercube n).V = m * 2 ^ n := by
+  rw [V_strongProduct, V_path, V_hypercube]
+
+theorem cliqueNum_strongProduct_path_hypercube (m n : ℕ) :
+    (path (m + 2) ⊠g hypercube (n + 1)).cliqueNum = 4 := by
+  rw [cliqueNum_strongProduct, cliqueNum_path, cliqueNum_hypercube]
+
+theorem isConnected_strongProduct_path_hypercube (m n : ℕ) :
+    IsConnected (path (m + 1) ⊠g hypercube n) :=
+  isConnected_strongProduct (isConnected_path m) (isConnected_hypercube n)
+
+theorem numComponents_strongProduct_path_hypercube (m n : ℕ) :
+    (path (m + 1) ⊠g hypercube n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_strongProduct_path_hypercube m n)
+
+theorem diameter_strongProduct_path_hypercube (m n : ℕ) :
+    (path (m + 1) ⊠g hypercube n).diameter = max m n := by
+  rw [diameter_strongProduct (isConnected_path m) (isConnected_hypercube n), diameter_path,
+    diameter_hypercube]
+
+theorem radius_strongProduct_path_hypercube (m n : ℕ) :
+    (path (m + 1) ⊠g hypercube n).radius = max ((m + 1) / 2) n := by
+  rw [radius_strongProduct (isConnected_path m) (isConnected_hypercube n), radius_path,
+    radius_hypercube]
+
+theorem maxDeg_strongProduct_path_hypercube (m n : ℕ) :
+    maxDeg (path (m + 3) ⊠g hypercube n) = 3 * n + 2 := by
+  have h := maxDeg_strongProduct (G := path (m + 3)) (H := hypercube n)
+    (by rw [V_path]; omega) (by rw [V_hypercube]; positivity)
+  rw [maxDeg_path, maxDeg_hypercube] at h
+  omega
+
+theorem minDeg_strongProduct_path_hypercube (m n : ℕ) :
+    minDeg (path (m + 2) ⊠g hypercube n) = 2 * n + 1 := by
+  have h := minDeg_strongProduct (G := path (m + 2)) (H := hypercube n)
+    (by rw [V_path]; omega) (by rw [V_hypercube]; positivity)
+  rw [minDeg_path, minDeg_hypercube] at h
+  omega
+
+theorem girth_strongProduct_path_hypercube (m n : ℕ) :
+    (path (m + 2) ⊠g hypercube (n + 1)).girth = 3 :=
+  girth_strongProduct (by rw [E_path]; omega) (E_pos_hypercube n)
+
+theorem chromNum_strongProduct_path_hypercube (m n : ℕ) :
+    (path (m + 2) ⊠g hypercube (n + 1)).chromNum = 4 := by
+  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_path m) (chromNum_eq_cliqueNum_hypercube n)
+  rwa [cliqueNum_path, cliqueNum_hypercube] at h
+
+theorem chromNum_lexProduct_path_hypercube (m n : ℕ) :
+    (path (m + 2) ·g hypercube (n + 1)).chromNum = 4 := by
+  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum
+    (chromNum_eq_cliqueNum_path m) (chromNum_eq_cliqueNum_hypercube n)
+  rwa [cliqueNum_path, cliqueNum_hypercube] at h
+
+/-! ### The lexicographic product of a cycle with a hypercube -/
+
+@[simp] theorem V_lexProduct_cycle_hypercube (m n : ℕ) :
+    (cycle m ·g hypercube n).V = m * 2 ^ n := by
+  rw [V_lexProduct, V_cycle, V_hypercube]
+
+theorem E_lexProduct_cycle_hypercube (m n : ℕ) :
+    2 * (cycle (m + 3) ·g hypercube n).E
+      = 2 * (2 ^ n * 2 ^ n * (m + 3)) + (m + 3) * (n * 2 ^ n) := by
+  have h := E_hypercube n
+  rw [E_lexProduct, V_hypercube, V_cycle, E_cycle,
+    show 2 * (2 ^ n * 2 ^ n * (m + 3) + (m + 3) * (hypercube n).E)
+      = 2 * (2 ^ n * 2 ^ n * (m + 3)) + (m + 3) * (2 * (hypercube n).E) from by ring, h]
+
+theorem cliqueNum_lexProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 4) ·g hypercube (n + 1)).cliqueNum = 4 := by
+  rw [cliqueNum_lexProduct, cliqueNum_cycle, cliqueNum_hypercube]
+
+theorem indepNum_lexProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 3) ·g hypercube (n + 1)).indepNum = (m + 3) / 2 * 2 ^ n := by
+  rw [indepNum_lexProduct, indepNum_cycle, indepNum_hypercube]
+
+theorem coverNum_lexProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 3) ·g hypercube (n + 1)).coverNum
+      = (m + 3) * 2 ^ (n + 1) - (m + 3) / 2 * 2 ^ n := by
+  rw [coverNum_lexProduct, V_cycle, V_hypercube, indepNum_cycle, indepNum_hypercube]
+
+theorem isConnected_lexProduct_cycle_hypercube (m n : ℕ) :
+    IsConnected (cycle (m + 1) ·g hypercube n) :=
+  isConnected_lexProduct (isConnected_cycle m) (isConnected_hypercube n)
+
+theorem numComponents_lexProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 1) ·g hypercube n).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_lexProduct_cycle_hypercube m n)
+
+theorem maxDeg_lexProduct_cycle_hypercube (m n : ℕ) :
+    maxDeg (cycle (m + 3) ·g hypercube n) = 2 * 2 ^ n + n := by
+  have h := maxDeg_lexProduct (G := cycle (m + 3)) (H := hypercube n)
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rwa [maxDeg_cycle, maxDeg_hypercube, V_hypercube] at h
+
+theorem minDeg_lexProduct_cycle_hypercube (m n : ℕ) :
+    minDeg (cycle (m + 3) ·g hypercube n) = 2 * 2 ^ n + n := by
+  have h := minDeg_lexProduct (G := cycle (m + 3)) (H := hypercube n)
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rwa [minDeg_cycle, minDeg_hypercube, V_hypercube] at h
+
+theorem isRegularWith_lexProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 3) ·g hypercube n).IsRegularWith (2 * 2 ^ n + n) := by
+  have h := (isRegularWith_cycle m).lexProduct (isRegularWith_hypercube n)
+  rwa [V_hypercube] at h
+
+theorem girth_lexProduct_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 3) ·g hypercube (n + 1)).girth = 3 :=
+  girth_lexProduct (by rw [E_cycle]; omega) (E_pos_hypercube n)
+
+/-! ### Domination in a lexicographic product with a dominated right factor -/
+
+theorem domNum_lexProduct_star (G : IsoGraph) (n : ℕ) :
+    (G ·g star n).domNum = G.domNum :=
+  domNum_lexProduct G (domNum_star n)
+
+theorem domNum_lexProduct_wheel (G : IsoGraph) (n : ℕ) :
+    (G ·g wheel n).domNum = G.domNum :=
+  domNum_lexProduct G (domNum_wheel n)
+
+theorem domNum_lexProduct_fan (G : IsoGraph) (n : ℕ) :
+    (G ·g fan n).domNum = G.domNum :=
+  domNum_lexProduct G (domNum_fan n)
+
+theorem domNum_lexProduct_book (G : IsoGraph) (n : ℕ) :
+    (G ·g book n).domNum = G.domNum :=
+  domNum_lexProduct G (domNum_book n)
+
+theorem domNum_lexProduct_friendship (G : IsoGraph) (n : ℕ) :
+    (G ·g friendship n).domNum = G.domNum :=
+  domNum_lexProduct G (domNum_friendship n)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
