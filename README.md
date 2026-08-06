@@ -2584,6 +2584,33 @@ arbitrarily. The bipartite row transfers the same way, with `max 2 ks.length` an
 conditions are exactly the ones the star and bipartite lemmas need: a non-empty list for the
 degrees and the radius, and at least two entries for the diameter and the domination number.
 
+The `cyclePendant` family — a cycle with pendant vertices hung off its first few positions — is
+still known mostly through inequalities, but its two degenerate cases collapse onto families that
+are known exactly. `cyclePendant_replicate_zero` says that hanging *no* pendant vertices anywhere
+leaves the cycle alone, and it carries the whole cycle row across:
+`maxDeg_cyclePendant_replicate_zero`, `matchNum_cyclePendant_replicate_zero`,
+`indepNum_cyclePendant_replicate_zero`, `coverNum_cyclePendant_replicate_zero`,
+`cliqueNum_cyclePendant_replicate_zero`, `cliqueCoverNum_cyclePendant_replicate_zero`,
+`domNum_cyclePendant_replicate_zero`, `radius_cyclePendant_replicate_zero`,
+`diameter_cyclePendant_replicate_zero`, `degSequence_cyclePendant_replicate_zero`,
+`isRegularWith_cyclePendant_replicate_zero`, the parity-split colourings
+`chromNum_cyclePendant_replicate_zero_odd`, `edgeChromNum_cyclePendant_replicate_zero_even` and
+`edgeChromNum_cyclePendant_replicate_zero_odd`, and on the symmetry side
+`isVertexTransitive_cyclePendant_replicate_zero`, `isArcTransitive_cyclePendant_replicate_zero`
+and the dihedral bound `two_mul_le_autCount_cyclePendant_replicate_zero`.
+
+At the other extreme `cyclePendant_one` puts all `k` pendant vertices on the single vertex of a
+one-vertex cycle, which is a star. That gives `maxDeg_cyclePendant_one`,
+`minDeg_cyclePendant_one`, `matchNum_cyclePendant_one`, `domNum_cyclePendant_one`,
+`indepNum_cyclePendant_one`, `coverNum_cyclePendant_one`, `cliqueCoverNum_cyclePendant_one`,
+`edgeChromNum_cyclePendant_one`, `girth_cyclePendant_one`, `radius_cyclePendant_one`,
+`diameter_cyclePendant_one`, `chromNum_cyclePendant_one`, `cliqueNum_cyclePendant_one`,
+`isTree_cyclePendant_one`, `isBipartite_cyclePendant_one` and
+`factorial_le_autCount_cyclePendant_one`, together with the two structural identities
+`lineGraph_cyclePendant_one` (the line graph of a star is complete) and `compl_cyclePendant_one`,
+and the failures of symmetry `not_isVertexTransitive_cyclePendant_one` and
+`not_isArcTransitive_cyclePendant_one` once there are at least two pendant vertices.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

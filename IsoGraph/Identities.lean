@@ -35641,6 +35641,154 @@ theorem numComponents_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k
     (thetaGraph xs).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_thetaGraph_of_all_one h hne)
 
+/-! ### Degenerate cycles with pendant vertices
+
+A cycle carrying no pendant vertices at all is a cycle, and a one-vertex cycle carrying `k` of
+them is a star.  Both are already recorded; here is the row of invariants they transport into the
+`cyclePendant` family, which is otherwise known only through inequalities.
+-/
+
+theorem maxDeg_cyclePendant_replicate_zero (m j : ℕ) :
+    maxDeg (cyclePendant (m + 3) (List.replicate j 0)) = 2 := by
+  rw [cyclePendant_replicate_zero, maxDeg_cycle]
+
+theorem matchNum_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 3) (List.replicate j 0)).matchNum = (m + 3) / 2 := by
+  rw [cyclePendant_replicate_zero, matchNum_cycle]
+
+theorem indepNum_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 3) (List.replicate j 0)).indepNum = (m + 3) / 2 := by
+  rw [cyclePendant_replicate_zero, indepNum_cycle]
+
+theorem coverNum_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 3) (List.replicate j 0)).coverNum = (m + 3) - (m + 3) / 2 := by
+  rw [cyclePendant_replicate_zero, coverNum_cycle]
+
+theorem cliqueNum_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 4) (List.replicate j 0)).cliqueNum = 2 := by
+  rw [cyclePendant_replicate_zero, cliqueNum_cycle]
+
+theorem cliqueCoverNum_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 4) (List.replicate j 0)).cliqueCoverNum = (m + 5) / 2 := by
+  rw [cyclePendant_replicate_zero, cliqueCoverNum_cycle]
+
+theorem domNum_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 3) (List.replicate j 0)).domNum = (m + 5) / 3 := by
+  rw [cyclePendant_replicate_zero, domNum_cycle]
+
+theorem radius_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 1) (List.replicate j 0)).radius = (m + 1) / 2 := by
+  rw [cyclePendant_replicate_zero, radius_cycle]
+
+theorem diameter_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 1) (List.replicate j 0)).diameter = (m + 1) / 2 := by
+  rw [cyclePendant_replicate_zero, diameter_cycle]
+
+theorem isVertexTransitive_cyclePendant_replicate_zero (m j : ℕ) :
+    IsVertexTransitive (cyclePendant m (List.replicate j 0)) := by
+  rw [cyclePendant_replicate_zero]
+  exact isVertexTransitive_cycle m
+
+theorem isArcTransitive_cyclePendant_replicate_zero (m j : ℕ) :
+    IsArcTransitive (cyclePendant m (List.replicate j 0)) := by
+  rw [cyclePendant_replicate_zero]
+  exact isArcTransitive_cycle m
+
+theorem isRegularWith_cyclePendant_replicate_zero (m j : ℕ) :
+    (cyclePendant (m + 3) (List.replicate j 0)).IsRegularWith 2 := by
+  rw [cyclePendant_replicate_zero]
+  exact isRegularWith_cycle m
+
+theorem degSequence_cyclePendant_replicate_zero (m j : ℕ) :
+    degSequence (cyclePendant (m + 3) (List.replicate j 0)) = List.replicate (m + 3) 2 := by
+  rw [cyclePendant_replicate_zero, degSequence_cycle]
+
+theorem chromNum_cyclePendant_replicate_zero_odd (t j : ℕ) :
+    (cyclePendant (2 * t + 3) (List.replicate j 0)).chromNum = 3 := by
+  rw [cyclePendant_replicate_zero, chromNum_cycle_odd]
+
+theorem edgeChromNum_cyclePendant_replicate_zero_even (t j : ℕ) :
+    (cyclePendant (2 * t + 4) (List.replicate j 0)).edgeChromNum = 2 := by
+  rw [cyclePendant_replicate_zero, edgeChromNum_cycle_even]
+
+theorem edgeChromNum_cyclePendant_replicate_zero_odd (t j : ℕ) :
+    (cyclePendant (2 * t + 3) (List.replicate j 0)).edgeChromNum = 3 := by
+  rw [cyclePendant_replicate_zero, edgeChromNum_cycle_odd]
+
+theorem two_mul_le_autCount_cyclePendant_replicate_zero (m j : ℕ) :
+    2 * (m + 3) ≤ (cyclePendant (m + 3) (List.replicate j 0)).autCount := by
+  rw [cyclePendant_replicate_zero]
+  exact two_mul_le_autCount_cycle m
+
+theorem maxDeg_cyclePendant_one (k : ℕ) : maxDeg (cyclePendant 1 [k + 1]) = k + 1 := by
+  rw [cyclePendant_one, maxDeg_star]
+
+theorem minDeg_cyclePendant_one (k : ℕ) : minDeg (cyclePendant 1 [k + 1]) = 1 := by
+  rw [cyclePendant_one, minDeg_star]
+
+theorem matchNum_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k]).matchNum = min k 1 := by
+  rw [cyclePendant_one, matchNum_star]
+
+theorem domNum_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k]).domNum = 1 := by
+  rw [cyclePendant_one, domNum_star]
+
+theorem indepNum_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k]).indepNum = max 1 k := by
+  rw [cyclePendant_one, indepNum_star]
+
+theorem coverNum_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k]).coverNum = min 1 k := by
+  rw [cyclePendant_one, coverNum_star]
+
+theorem cliqueCoverNum_cyclePendant_one (k : ℕ) :
+    (cyclePendant 1 [k]).cliqueCoverNum = max 1 k := by
+  rw [cyclePendant_one, cliqueCoverNum_star]
+
+theorem edgeChromNum_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k]).edgeChromNum = k := by
+  rw [cyclePendant_one, edgeChromNum_star]
+
+theorem girth_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k]).girth = 0 := by
+  rw [cyclePendant_one, girth_star]
+
+theorem radius_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k + 1]).radius = 1 := by
+  rw [cyclePendant_one, radius_star]
+
+theorem diameter_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k + 2]).diameter = 2 := by
+  rw [cyclePendant_one, diameter_star]
+
+theorem chromNum_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k + 1]).chromNum = 2 := by
+  rw [cyclePendant_one, chromNum_star]
+
+theorem cliqueNum_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k + 1]).cliqueNum = 2 := by
+  rw [cyclePendant_one, cliqueNum_star]
+
+theorem isTree_cyclePendant_one (k : ℕ) : IsTree (cyclePendant 1 [k]) := by
+  rw [cyclePendant_one]
+  exact isTree_star k
+
+theorem isBipartite_cyclePendant_one (k : ℕ) : IsBipartite (cyclePendant 1 [k]) := by
+  rw [cyclePendant_one]
+  exact isBipartite_star k
+
+theorem lineGraph_cyclePendant_one (k : ℕ) : lineGraph (cyclePendant 1 [k]) = complete k := by
+  rw [cyclePendant_one, lineGraph_star]
+
+theorem compl_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k])ᶜ = empty 1 ⊕g complete k := by
+  rw [cyclePendant_one, compl_star]
+
+theorem factorial_le_autCount_cyclePendant_one (k : ℕ) :
+    k.factorial ≤ (cyclePendant 1 [k]).autCount := by
+  rw [cyclePendant_one]
+  exact factorial_le_autCount_star k
+
+theorem not_isVertexTransitive_cyclePendant_one (k : ℕ) :
+    ¬ IsVertexTransitive (cyclePendant 1 [k + 2]) := by
+  rw [cyclePendant_one]
+  exact not_isVertexTransitive_star k
+
+theorem not_isArcTransitive_cyclePendant_one (k : ℕ) :
+    ¬ IsArcTransitive (cyclePendant 1 [k + 2]) := by
+  rw [cyclePendant_one]
+  exact not_isArcTransitive_star k
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
