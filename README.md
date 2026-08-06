@@ -3402,6 +3402,24 @@ that. So the Turán row gets its independence and cover numbers from the matchin
 number and girth from the maximum degree `n - ⌊n/r⌋`, and a one-sided bound on the maximum degree —
 but no connectivity, radius or diameter, since those all need edge positivity as an input.
 
+The Turán gap from the previous paragraph turned out to be one lemma deep. `E_pos_of_isConnected`
+says that a connected graph on two or more vertices has an edge, which follows immediately from
+`E_pos_of_numComponents_lt_V` once `numComponents` is pinned at one. That is enough to finish the
+Turán row — `L(T(n,r))` is connected with one component, and its radius and diameter are at most
+three whenever `2r ≤ n` — and it is the general tool the block was missing all along, since almost
+every named family in the table has a connectivity theorem but only a handful have a closed-form
+edge count that `positivity` can chew on.
+
+The tadpole and lollipop graphs round out the line graph block with its two non-regular
+"cycle-plus-tail" rows. `Tₘ₊₃,ₖ₊₁` has maximum degree three and minimum degree one, so its line
+graph gets clique number three, girth three and maximum degree at most four, but no lower bound on
+the minimum degree worth stating (the sandwich returns `0`). `Lₘ₊₃,ₖ₊₁` has maximum degree `m + 3`,
+which carries straight over to the clique number of its line graph. Chromatic and independence
+numbers are two-sided bounds on both rows rather than values, inherited from the Vizing-style
+bounds `Δ ≤ χ′ ≤ 2Δ - 1` that the table records for these families; the independence bounds are the
+matching-number bounds read through `α(L(G)) = ν(G)`, and the cover numbers follow from
+`β(L(G)) = |E(G)| - ν(G)`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

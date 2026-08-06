@@ -44973,6 +44973,183 @@ theorem maxDeg_lineGraph_turan_le {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
   rw [maxDeg_turan hr h] at hm
   omega
 
+/-! ### Edge positivity from connectivity -/
+
+theorem E_pos_of_isConnected {G : IsoGraph} (h : IsConnected G) (hV : 2 ≤ G.V) : 0 < G.E :=
+  E_pos_of_numComponents_lt_V (by rw [numComponents_eq_one_of_isConnected h]; omega)
+
+/-! ### More of the line graph of a Turán graph -/
+
+theorem E_pos_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : 0 < (turan n r).E :=
+  E_pos_of_isConnected (isConnected_turan hr h) (by rw [V_turan]; omega)
+
+theorem isConnected_lineGraph_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) :
+    IsConnected (lineGraph (turan n r)) :=
+  isConnected_lineGraph (isConnected_turan hr h) (E_pos_turan hr h)
+
+theorem numComponents_lineGraph_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) :
+    (lineGraph (turan n r)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_turan hr h) (E_pos_turan hr h)
+
+theorem radius_lineGraph_turan_le {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) :
+    (lineGraph (turan n r)).radius ≤ 3 := by
+  have h2 : r ≤ n := by omega
+  have hle := radius_lineGraph_le (G := turan n r) (isConnected_turan hr h2) (E_pos_turan hr h2)
+  rw [radius_turan hr h] at hle
+  omega
+
+theorem diameter_lineGraph_turan_le {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) :
+    (lineGraph (turan n r)).diameter ≤ 3 := by
+  have h2 : r ≤ n := by omega
+  have hle := diameter_lineGraph_le (G := turan n r) (isConnected_turan hr h2) (E_pos_turan hr h2)
+  rw [diameter_turan hr h] at hle
+  omega
+
+theorem le_minDeg_lineGraph_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) :
+    2 * (n - (n + r - 1) / r) - 2 ≤ minDeg (lineGraph (turan n r)) := by
+  have hle := le_minDeg_lineGraph (G := turan n r) (E_pos_turan hr h)
+  rwa [minDeg_turan (by omega) h] at hle
+
+/-! ### The line graph of a tadpole graph -/
+
+@[simp] theorem V_lineGraph_tadpole (m k : ℕ) :
+    (lineGraph (tadpole (m + 3) k)).V = m + 3 + k := by
+  rw [V_lineGraph, E_tadpole]
+
+theorem E_pos_tadpole (m k : ℕ) : 0 < (tadpole (m + 3) k).E := by
+  rw [E_tadpole]
+  omega
+
+theorem isConnected_lineGraph_tadpole (m k : ℕ) :
+    IsConnected (lineGraph (tadpole (m + 3) k)) :=
+  isConnected_lineGraph (isConnected_tadpole m k) (E_pos_tadpole m k)
+
+theorem numComponents_lineGraph_tadpole (m k : ℕ) :
+    (lineGraph (tadpole (m + 3) k)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_tadpole m k) (E_pos_tadpole m k)
+
+theorem cliqueNum_lineGraph_tadpole (m k : ℕ) :
+    (lineGraph (tadpole (m + 3) (k + 1))).cliqueNum = 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := tadpole (m + 3) (k + 1))
+    (by rw [maxDeg_tadpole])
+  rw [maxDeg_tadpole] at h
+  omega
+
+theorem girth_lineGraph_tadpole (m k : ℕ) : (lineGraph (tadpole (m + 3) (k + 1))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_tadpole])
+
+theorem not_isBipartite_lineGraph_tadpole (m k : ℕ) :
+    ¬ IsBipartite (lineGraph (tadpole (m + 3) (k + 1))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_tadpole])
+
+theorem not_isAcyclic_lineGraph_tadpole (m k : ℕ) :
+    ¬ IsAcyclic (lineGraph (tadpole (m + 3) (k + 1))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_tadpole])
+
+theorem not_isTree_lineGraph_tadpole (m k : ℕ) :
+    ¬ IsTree (lineGraph (tadpole (m + 3) (k + 1))) :=
+  not_isTree_lineGraph (by rw [maxDeg_tadpole])
+
+theorem maxDeg_lineGraph_tadpole_le (m k : ℕ) :
+    maxDeg (lineGraph (tadpole (m + 3) (k + 1))) ≤ 4 := by
+  have h := maxDeg_lineGraph_le (tadpole (m + 3) (k + 1))
+  rw [maxDeg_tadpole] at h
+  omega
+
+theorem le_chromNum_lineGraph_tadpole (m k : ℕ) :
+    3 ≤ (lineGraph (tadpole (m + 3) (k + 1))).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_tadpole m k
+
+theorem chromNum_lineGraph_tadpole_le (m k : ℕ) :
+    (lineGraph (tadpole (m + 3) (k + 1))).chromNum ≤ 5 := by
+  rw [chromNum_lineGraph]
+  exact edgeChromNum_tadpole_le m k
+
+theorem le_indepNum_lineGraph_tadpole (m k : ℕ) :
+    m + k + 4 ≤ 5 * (lineGraph (tadpole (m + 3) (k + 1))).indepNum := by
+  rw [indepNum_lineGraph]
+  exact le_matchNum_tadpole m k
+
+theorem coverNum_lineGraph_tadpole (m k : ℕ) :
+    (lineGraph (tadpole (m + 3) k)).coverNum = m + 3 + k - (tadpole (m + 3) k).matchNum := by
+  rw [coverNum_lineGraph, E_tadpole]
+
+theorem coverNum_lineGraph_tadpole_le (m k : ℕ) :
+    5 * (lineGraph (tadpole (m + 3) (k + 1))).coverNum ≤ 4 * (m + k + 4) := by
+  have h := coverNum_lineGraph (tadpole (m + 3) (k + 1))
+  have h2 := le_matchNum_tadpole m k
+  rw [E_tadpole] at h
+  omega
+
+/-! ### The line graph of a lollipop graph -/
+
+@[simp] theorem V_lineGraph_lollipop (m k : ℕ) :
+    (lineGraph (lollipop (m + 1) k)).V = (m + 1).choose 2 + k := by
+  rw [V_lineGraph, E_lollipop]
+
+theorem E_pos_lollipop (m k : ℕ) : 0 < (lollipop (m + 2) k).E := by
+  have h := Nat.choose_pos (n := m + 1 + 1) (k := 2) (by omega)
+  rw [E_lollipop]
+  omega
+
+theorem isConnected_lineGraph_lollipop (m k : ℕ) :
+    IsConnected (lineGraph (lollipop (m + 2) k)) :=
+  isConnected_lineGraph (isConnected_lollipop (m + 1) k) (E_pos_lollipop m k)
+
+theorem numComponents_lineGraph_lollipop (m k : ℕ) :
+    (lineGraph (lollipop (m + 2) k)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_lollipop (m + 1) k) (E_pos_lollipop m k)
+
+theorem cliqueNum_lineGraph_lollipop (m k : ℕ) :
+    (lineGraph (lollipop (m + 3) (k + 1))).cliqueNum = m + 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := lollipop (m + 3) (k + 1))
+    (by rw [maxDeg_lollipop]; omega)
+  rw [maxDeg_lollipop] at h
+  omega
+
+theorem girth_lineGraph_lollipop (m k : ℕ) :
+    (lineGraph (lollipop (m + 3) (k + 1))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_lollipop]; omega)
+
+theorem not_isBipartite_lineGraph_lollipop (m k : ℕ) :
+    ¬ IsBipartite (lineGraph (lollipop (m + 3) (k + 1))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_lollipop]; omega)
+
+theorem not_isAcyclic_lineGraph_lollipop (m k : ℕ) :
+    ¬ IsAcyclic (lineGraph (lollipop (m + 3) (k + 1))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_lollipop]; omega)
+
+theorem not_isTree_lineGraph_lollipop (m k : ℕ) :
+    ¬ IsTree (lineGraph (lollipop (m + 3) (k + 1))) :=
+  not_isTree_lineGraph (by rw [maxDeg_lollipop]; omega)
+
+theorem maxDeg_lineGraph_lollipop_le (m k : ℕ) :
+    maxDeg (lineGraph (lollipop (m + 2) (k + 1))) ≤ 2 * m + 2 := by
+  have h := maxDeg_lineGraph_le (lollipop (m + 2) (k + 1))
+  rw [maxDeg_lollipop] at h
+  omega
+
+theorem le_chromNum_lineGraph_lollipop (m k : ℕ) :
+    m + 2 ≤ (lineGraph (lollipop (m + 2) (k + 1))).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_lollipop m k
+
+theorem chromNum_lineGraph_lollipop_le (m k : ℕ) :
+    (lineGraph (lollipop (m + 2) (k + 1))).chromNum ≤ 2 * m + 3 := by
+  rw [chromNum_lineGraph]
+  exact edgeChromNum_lollipop_le m k
+
+theorem le_indepNum_lineGraph_lollipop (m k : ℕ) :
+    (m + 2).choose 2 + (k + 1) ≤ (2 * m + 3) * (lineGraph (lollipop (m + 2) (k + 1))).indepNum := by
+  rw [indepNum_lineGraph]
+  exact le_matchNum_lollipop m k
+
+theorem coverNum_lineGraph_lollipop (m k : ℕ) :
+    (lineGraph (lollipop (m + 1) k)).coverNum
+      = (m + 1).choose 2 + k - (lollipop (m + 1) k).matchNum := by
+  rw [coverNum_lineGraph, E_lollipop]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
