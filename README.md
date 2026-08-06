@@ -3182,6 +3182,20 @@ Finally, `domNum_lexProduct` says the domination number of `G · H` equals that 
 has a dominating vertex, so `G · Sₙ`, `G · Wₙ`, `G · Fₙ`, `G · Bₙ` and `G · Frₙ` all inherit
 `γ(G)` for every `G` at once.
 
+The join and the disjoint union each gain a row as well: `Pₘ ∇ Cₙ`, `Qₘ ∇ Qₙ` and `Qₘ ⊕ Qₙ`. The
+join is the complement of the disjoint union, so the two tables are mirror images — clique numbers
+and chromatic numbers add across a join and take a maximum across a disjoint union, while
+independence numbers and clique cover numbers do the opposite. That gives
+`chromNum_join_path_cycle_odd = 5` against `chromNum_disjUnion_hypercube = 2`, and
+`indepNum_join_hypercube = max 2ᵐ 2ⁿ` against `indepNum_disjUnion_hypercube = 2ᵐ + 2ⁿ`. Degrees
+follow the same mirror: a join vertex also sees the whole opposite side, so
+`maxDeg_join_hypercube = max (m + 2ⁿ) (2ᵐ + n)`, whereas the disjoint union just takes
+`max m n`. A join of two nonempty graphs is always connected and, once each side has an edge, has
+diameter exactly `2` — `diameter_join_left` gets this from `|E(Pₘ)| < C(m, 2)` — while a disjoint
+union of two nonempty graphs is disconnected with two components and diameter and radius `0`.
+Matchings, covers and edge colourings split cleanly over a disjoint union, so `Qₘ ⊕ Qₙ` also gets
+its matching number `2ᵐ + 2ⁿ` and its chromatic index `max (m+1) (n+1)`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
