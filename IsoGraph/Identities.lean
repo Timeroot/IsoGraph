@@ -36658,6 +36658,111 @@ theorem E_compl_crown (n : ℕ) : ((crown n)ᶜ).E = (2 * n).choose 2 - 2 * n.ch
 theorem isVertexTransitive_compl_crown (n : ℕ) : IsVertexTransitive ((crown n)ᶜ) :=
   (isVertexTransitive_compl _).2 (isVertexTransitive_crown n)
 
+/-! ### Complements of the wheel, the ladder and the prism -/
+
+theorem cliqueNum_compl_wheel (n : ℕ) : ((wheel (n + 3))ᶜ).cliqueNum = (n + 3) / 2 := by
+  rw [cliqueNum_compl, indepNum_wheel]
+
+theorem indepNum_compl_wheel (n : ℕ) : ((wheel (n + 4))ᶜ).indepNum = 3 := by
+  rw [indepNum_compl, cliqueNum_wheel]
+
+theorem chromNum_compl_wheel (n : ℕ) : ((wheel (n + 4))ᶜ).chromNum = (n + 5) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_wheel]
+
+theorem cliqueCoverNum_compl_wheel_even (m : ℕ) :
+    ((wheel (2 * m + 4))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_wheel_even]
+
+theorem cliqueCoverNum_compl_wheel_odd (m : ℕ) :
+    ((wheel (2 * m + 3))ᶜ).cliqueCoverNum = 4 := by
+  rw [cliqueCoverNum_compl, chromNum_wheel_odd]
+
+theorem maxDeg_compl_wheel (n : ℕ) : maxDeg ((wheel (n + 3))ᶜ) = n := by
+  have h := maxDeg_compl (G := wheel (n + 3)) (by rw [V_wheel]; omega)
+  rw [V_wheel, minDeg_wheel] at h
+  omega
+
+theorem minDeg_compl_wheel (n : ℕ) : minDeg ((wheel (n + 3))ᶜ) = 0 := by
+  have h := minDeg_compl (G := wheel (n + 3)) (by rw [V_wheel]; omega)
+  rw [V_wheel, maxDeg_wheel] at h
+  omega
+
+theorem E_compl_wheel (n : ℕ) : ((wheel (n + 3))ᶜ).E = (n + 4).choose 2 - 2 * (n + 3) := by
+  have h := E_compl (wheel (n + 3))
+  rw [E_wheel, V_wheel, show 1 + (n + 3) = n + 4 from by ring] at h
+  omega
+
+theorem cliqueNum_compl_ladder (n : ℕ) : ((ladder n)ᶜ).cliqueNum = n := by
+  rw [cliqueNum_compl, indepNum_ladder]
+
+theorem indepNum_compl_ladder (n : ℕ) : ((ladder (n + 2))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_ladder]
+
+theorem chromNum_compl_ladder (n : ℕ) : ((ladder n)ᶜ).chromNum = n := by
+  rw [chromNum_compl, cliqueCoverNum_ladder]
+
+theorem cliqueCoverNum_compl_ladder (n : ℕ) : ((ladder (n + 1))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_ladder]
+
+theorem maxDeg_compl_ladder (n : ℕ) : maxDeg ((ladder (n + 3))ᶜ) = 2 * n + 3 := by
+  have h := maxDeg_compl (G := ladder (n + 3)) (by rw [V_ladder]; omega)
+  have h2 : minDeg (ladder (n + 3)) = 2 := by
+    rw [show n + 3 = n + 1 + 2 from by ring, minDeg_ladder]
+  rw [V_ladder, h2] at h
+  omega
+
+theorem minDeg_compl_ladder (n : ℕ) : minDeg ((ladder (n + 3))ᶜ) = 2 * n + 2 := by
+  have h := minDeg_compl (G := ladder (n + 3)) (by rw [V_ladder]; omega)
+  rw [V_ladder, maxDeg_ladder] at h
+  omega
+
+theorem E_compl_ladder (n : ℕ) :
+    ((ladder (n + 1))ᶜ).E = ((n + 1) * 2).choose 2 - (3 * n + 1) := by
+  have h := E_compl (ladder (n + 1))
+  rw [E_ladder, V_ladder] at h
+  omega
+
+theorem cliqueNum_compl_prism_even (m : ℕ) :
+    ((prism (2 * m + 4))ᶜ).cliqueNum = 2 * m + 4 := by
+  rw [cliqueNum_compl, indepNum_prism_even]
+
+theorem cliqueNum_compl_prism_odd (m : ℕ) :
+    ((prism (2 * m + 3))ᶜ).cliqueNum = 2 * m + 2 := by
+  rw [cliqueNum_compl, indepNum_prism_odd]
+
+theorem indepNum_compl_prism (n : ℕ) : ((prism (n + 4))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_prism]
+
+theorem chromNum_compl_prism (n : ℕ) : ((prism (n + 4))ᶜ).chromNum = n + 4 := by
+  rw [chromNum_compl, cliqueCoverNum_prism]
+
+theorem cliqueCoverNum_compl_prism_even (m : ℕ) :
+    ((prism (2 * m + 4))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_prism_even]
+
+theorem cliqueCoverNum_compl_prism_odd (m : ℕ) :
+    ((prism (2 * m + 3))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_prism_odd]
+
+theorem maxDeg_compl_prism (n : ℕ) : maxDeg ((prism (n + 3))ᶜ) = 2 * n + 2 := by
+  have h := maxDeg_compl (G := prism (n + 3)) (by rw [V_prism]; omega)
+  rw [V_prism, minDeg_prism] at h
+  omega
+
+theorem minDeg_compl_prism (n : ℕ) : minDeg ((prism (n + 3))ᶜ) = 2 * n + 2 := by
+  have h := minDeg_compl (G := prism (n + 3)) (by rw [V_prism]; omega)
+  rw [V_prism, maxDeg_prism] at h
+  omega
+
+theorem E_compl_prism (n : ℕ) :
+    ((prism (n + 3))ᶜ).E = ((n + 3) * 2).choose 2 - 3 * (n + 3) := by
+  have h := E_compl (prism (n + 3))
+  rw [E_prism, V_prism] at h
+  omega
+
+theorem isVertexTransitive_compl_prism (n : ℕ) : IsVertexTransitive ((prism n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_prism n)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

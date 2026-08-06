@@ -2748,6 +2748,20 @@ and `cliqueNum_compl_crown`, `indepNum_compl_crown`, `chromNum_compl_crown`,
 `cliqueCoverNum_compl_crown`, `maxDeg_compl_crown`, `minDeg_compl_crown`, `E_compl_crown` and
 `isVertexTransitive_compl_crown` do the same for the crown graph.
 
+Three more families follow. The wheel's complement splits off its hub, so
+`minDeg_compl_wheel` is `0` while `maxDeg_compl_wheel (n + 3) = n`; the rest of the row is
+`cliqueNum_compl_wheel`, `indepNum_compl_wheel`, `chromNum_compl_wheel`,
+`cliqueCoverNum_compl_wheel_even`, `cliqueCoverNum_compl_wheel_odd` and `E_compl_wheel`, whose
+edge count needs the vertex count rewritten from `1 + (n + 3)` to `n + 4` before `omega` will
+recognise the two binomial coefficients as the same atom. The ladder and the prism are both
+cubic, so their complements are `(2n + 2)`- and `(2n + 3)`-regular-ish in the sense that
+`maxDeg_compl_ladder`, `minDeg_compl_ladder`, `maxDeg_compl_prism` and `minDeg_compl_prism` all
+come out linear in `n`, with the prism's two agreeing because the prism itself is regular.
+`cliqueNum_compl_ladder`, `indepNum_compl_ladder`, `chromNum_compl_ladder`,
+`cliqueCoverNum_compl_ladder`, `E_compl_ladder` and the six prism analogues — split by parity
+where the prism's own row is — finish the picture, and `isVertexTransitive_compl_prism` carries
+the prism's vertex transitivity across.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
