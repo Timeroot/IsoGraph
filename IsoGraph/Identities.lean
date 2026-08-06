@@ -44557,6 +44557,239 @@ theorem minDeg_lineGraph_hypercube (n : ℕ) :
     (by rw [E_hypercube_succ]; positivity) (degSequence_hypercube (n + 1))
   omega
 
+/-! ### The line graph of the Petersen graph -/
+
+@[simp] theorem V_lineGraph_petersen : (lineGraph petersen).V = 15 := by
+  rw [V_lineGraph, E_petersen]
+
+theorem le_chromNum_lineGraph_petersen : 3 ≤ (lineGraph petersen).chromNum := by
+  rw [chromNum_lineGraph]
+  exact three_le_edgeChromNum_petersen
+
+theorem indepNum_lineGraph_petersen : (lineGraph petersen).indepNum = 5 := by
+  rw [indepNum_lineGraph, matchNum_petersen]
+
+theorem coverNum_lineGraph_petersen : (lineGraph petersen).coverNum = 10 := by
+  have h := coverNum_lineGraph petersen
+  rw [E_petersen, matchNum_petersen] at h
+  omega
+
+theorem not_isBipartite_lineGraph_petersen : ¬ IsBipartite (lineGraph petersen) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_petersen])
+
+theorem not_isAcyclic_lineGraph_petersen : ¬ IsAcyclic (lineGraph petersen) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_petersen])
+
+theorem not_isTree_lineGraph_petersen : ¬ IsTree (lineGraph petersen) :=
+  not_isTree_lineGraph (by rw [maxDeg_petersen])
+
+theorem isConnected_lineGraph_petersen : IsConnected (lineGraph petersen) :=
+  isConnected_lineGraph isConnected_petersen (by rw [E_petersen]; omega)
+
+theorem numComponents_lineGraph_petersen : (lineGraph petersen).numComponents = 1 :=
+  numComponents_lineGraph isConnected_petersen (by rw [E_petersen]; omega)
+
+theorem radius_lineGraph_petersen_le : (lineGraph petersen).radius ≤ 3 := by
+  have h := radius_lineGraph_le (G := petersen) isConnected_petersen
+    (by rw [E_petersen]; omega)
+  rw [radius_petersen] at h
+  omega
+
+theorem diameter_lineGraph_petersen_le : (lineGraph petersen).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := petersen) isConnected_petersen
+    (by rw [E_petersen]; omega)
+  rw [diameter_petersen] at h
+  omega
+
+theorem maxDeg_lineGraph_petersen : maxDeg (lineGraph petersen) = 4 := by
+  have h1 := maxDeg_lineGraph_le petersen
+  have h2 := le_minDeg_lineGraph (G := petersen) (by rw [E_petersen]; omega)
+  have h3 := minDeg_le_maxDeg (lineGraph petersen)
+  rw [maxDeg_petersen] at h1
+  rw [minDeg_petersen] at h2
+  omega
+
+theorem minDeg_lineGraph_petersen : minDeg (lineGraph petersen) = 4 := by
+  have h1 := maxDeg_lineGraph_le petersen
+  have h2 := le_minDeg_lineGraph (G := petersen) (by rw [E_petersen]; omega)
+  have h3 := minDeg_le_maxDeg (lineGraph petersen)
+  rw [maxDeg_petersen] at h1
+  rw [minDeg_petersen] at h2
+  omega
+
+/-! ### The line graph of a prism -/
+
+@[simp] theorem V_lineGraph_prism (n : ℕ) : (lineGraph (prism (n + 3))).V = 3 * (n + 3) := by
+  rw [V_lineGraph, E_prism]
+
+theorem le_chromNum_lineGraph_prism (n : ℕ) :
+    3 ≤ (lineGraph (prism (n + 3))).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_prism n
+
+theorem indepNum_lineGraph_prism (n : ℕ) : (lineGraph (prism n)).indepNum = n := by
+  rw [indepNum_lineGraph, matchNum_prism]
+
+theorem coverNum_lineGraph_prism (n : ℕ) :
+    (lineGraph (prism (n + 3))).coverNum = 2 * n + 6 := by
+  have h := coverNum_lineGraph (prism (n + 3))
+  rw [E_prism, matchNum_prism] at h
+  omega
+
+theorem cliqueNum_lineGraph_prism (n : ℕ) :
+    (lineGraph (prism (n + 3))).cliqueNum = 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := prism (n + 3))
+    (by rw [maxDeg_prism])
+  rw [maxDeg_prism] at h
+  omega
+
+theorem girth_lineGraph_prism (n : ℕ) : (lineGraph (prism (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_prism])
+
+theorem not_isBipartite_lineGraph_prism (n : ℕ) :
+    ¬ IsBipartite (lineGraph (prism (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_prism])
+
+theorem not_isAcyclic_lineGraph_prism (n : ℕ) :
+    ¬ IsAcyclic (lineGraph (prism (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_prism])
+
+theorem not_isTree_lineGraph_prism (n : ℕ) : ¬ IsTree (lineGraph (prism (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_prism])
+
+theorem isConnected_lineGraph_prism (n : ℕ) : IsConnected (lineGraph (prism (n + 3))) :=
+  isConnected_lineGraph (isConnected_prism _) (by rw [E_prism]; omega)
+
+theorem numComponents_lineGraph_prism (n : ℕ) :
+    (lineGraph (prism (n + 3))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_prism _) (by rw [E_prism]; omega)
+
+theorem radius_lineGraph_prism_le (n : ℕ) :
+    (lineGraph (prism (n + 3))).radius ≤ (n + 3) / 2 + 2 := by
+  have h := radius_lineGraph_le (G := prism (n + 3)) (isConnected_prism _)
+    (by rw [E_prism]; omega)
+  rw [radius_prism] at h
+  omega
+
+theorem diameter_lineGraph_prism_le (n : ℕ) :
+    (lineGraph (prism (n + 3))).diameter ≤ (n + 3) / 2 + 2 := by
+  have h := diameter_lineGraph_le (G := prism (n + 3)) (isConnected_prism _)
+    (by rw [E_prism]; omega)
+  rw [diameter_prism] at h
+  omega
+
+theorem maxDeg_lineGraph_prism (n : ℕ) : maxDeg (lineGraph (prism (n + 3))) = 4 := by
+  have h1 := maxDeg_lineGraph_le (prism (n + 3))
+  have h2 := le_minDeg_lineGraph (G := prism (n + 3)) (by rw [E_prism]; omega)
+  have h3 := minDeg_le_maxDeg (lineGraph (prism (n + 3)))
+  rw [maxDeg_prism] at h1
+  rw [minDeg_prism] at h2
+  omega
+
+theorem minDeg_lineGraph_prism (n : ℕ) : minDeg (lineGraph (prism (n + 3))) = 4 := by
+  have h1 := maxDeg_lineGraph_le (prism (n + 3))
+  have h2 := le_minDeg_lineGraph (G := prism (n + 3)) (by rw [E_prism]; omega)
+  have h3 := minDeg_le_maxDeg (lineGraph (prism (n + 3)))
+  rw [maxDeg_prism] at h1
+  rw [minDeg_prism] at h2
+  omega
+
+/-! ### The line graph of a cocktail party graph -/
+
+@[simp] theorem V_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty n)).V = n * (2 * n - 2) := by
+  rw [V_lineGraph, E_cocktailParty]
+
+theorem E_pos_cocktailParty (n : ℕ) : 0 < (cocktailParty (n + 2)).E := by
+  rw [E_cocktailParty, show 2 * (n + 2) - 2 = 2 * n + 2 from by omega]
+  positivity
+
+theorem le_chromNum_lineGraph_cocktailParty (n : ℕ) :
+    2 * n ≤ (lineGraph (cocktailParty (n + 1))).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_cocktailParty n
+
+theorem indepNum_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty (n + 2))).indepNum = n + 2 := by
+  rw [indepNum_lineGraph, matchNum_cocktailParty]
+
+theorem coverNum_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty (n + 2))).coverNum = (n + 2) * (2 * n + 1) := by
+  have h := coverNum_lineGraph (cocktailParty (n + 2))
+  rw [E_cocktailParty, matchNum_cocktailParty] at h
+  have h2 : (n + 2) * (2 * (n + 2) - 2) = (n + 2) * (2 * n + 1) + (n + 2) := by
+    rw [show 2 * (n + 2) - 2 = 2 * n + 2 from by omega]
+    ring
+  omega
+
+theorem cliqueNum_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty (n + 3))).cliqueNum = 2 * n + 4 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := cocktailParty (n + 3))
+    (by rw [maxDeg_cocktailParty]; omega)
+  rw [maxDeg_cocktailParty] at h
+  omega
+
+theorem girth_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_cocktailParty]; omega)
+
+theorem not_isBipartite_lineGraph_cocktailParty (n : ℕ) :
+    ¬ IsBipartite (lineGraph (cocktailParty (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_cocktailParty]; omega)
+
+theorem not_isAcyclic_lineGraph_cocktailParty (n : ℕ) :
+    ¬ IsAcyclic (lineGraph (cocktailParty (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_cocktailParty]; omega)
+
+theorem not_isTree_lineGraph_cocktailParty (n : ℕ) :
+    ¬ IsTree (lineGraph (cocktailParty (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_cocktailParty]; omega)
+
+theorem isConnected_lineGraph_cocktailParty (n : ℕ) :
+    IsConnected (lineGraph (cocktailParty (n + 2))) :=
+  isConnected_lineGraph (isConnected_cocktailParty n) (E_pos_cocktailParty n)
+
+theorem numComponents_lineGraph_cocktailParty (n : ℕ) :
+    (lineGraph (cocktailParty (n + 2))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_cocktailParty n) (E_pos_cocktailParty n)
+
+theorem radius_lineGraph_cocktailParty_le (n : ℕ) :
+    (lineGraph (cocktailParty (n + 2))).radius ≤ 3 := by
+  have h := radius_lineGraph_le (G := cocktailParty (n + 2)) (isConnected_cocktailParty n)
+    (E_pos_cocktailParty n)
+  rw [radius_cocktailParty] at h
+  omega
+
+theorem diameter_lineGraph_cocktailParty_le (n : ℕ) :
+    (lineGraph (cocktailParty (n + 2))).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := cocktailParty (n + 2)) (isConnected_cocktailParty n)
+    (E_pos_cocktailParty n)
+  rw [diameter_cocktailParty] at h
+  omega
+
+theorem maxDeg_lineGraph_cocktailParty (n : ℕ) :
+    maxDeg (lineGraph (cocktailParty (n + 2))) = 4 * n + 2 := by
+  have h1 := maxDeg_lineGraph_le (cocktailParty (n + 2))
+  have h2 := le_minDeg_lineGraph (G := cocktailParty (n + 2)) (E_pos_cocktailParty n)
+  have h3 := minDeg_le_maxDeg (lineGraph (cocktailParty (n + 2)))
+  rw [maxDeg_cocktailParty] at h1
+  rw [minDeg_cocktailParty] at h2
+  omega
+
+theorem minDeg_lineGraph_cocktailParty (n : ℕ) :
+    minDeg (lineGraph (cocktailParty (n + 2))) = 4 * n + 2 := by
+  have h1 := maxDeg_lineGraph_le (cocktailParty (n + 2))
+  have h2 := le_minDeg_lineGraph (G := cocktailParty (n + 2)) (E_pos_cocktailParty n)
+  have h3 := minDeg_le_maxDeg (lineGraph (cocktailParty (n + 2)))
+  rw [maxDeg_cocktailParty] at h1
+  rw [minDeg_cocktailParty] at h2
+  omega
+
+theorem le_chromNum_lineGraph_book (n : ℕ) :
+    n + 2 ≤ (lineGraph (book (n + 1))).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_book n
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

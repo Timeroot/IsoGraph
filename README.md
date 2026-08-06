@@ -3378,6 +3378,17 @@ hand the whole row follows — `L(Qₙ₊₁)` has `(n+1)·2ⁿ` vertices, chrom
 Class 1), independence number `2ⁿ` (a perfect matching), vertex cover number `n·2ⁿ`, and is
 `2n`-regular.
 
+The Petersen graph, the prism and the cocktail party graph give the line graph block its three
+cubic-or-better regular rows. All three are regular, so all three get exact degrees for their line
+graphs from the closing sandwich: `L(P)` and `L(Yₙ₊₃)` are `4`-regular and `L(Kₙ₊₂ₓ₂)` is
+`(4n + 2)`-regular. The Petersen row is the one with the most already on record — its line graph is
+the Kneser graph complement that the table knows as a `4`-regular graph on 15 vertices with clique
+number three — so the new entries are the ones that come from the general laws: independence number
+five (the Petersen graph has a perfect matching), vertex cover number ten, and diameter at most
+three. Chromatic numbers stay as lower bounds here, since the edge chromatic numbers of these three
+families are themselves only bounded below in the table; that gap is what a proof of Vizing's
+theorem would close.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
