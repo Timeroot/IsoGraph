@@ -3001,6 +3001,22 @@ paths — the complement of a join of two `(m+3)`- and `(n+3)`-vertex graphs for
 the two sizes. `indepNum_compl_join_cycle = indepNum_compl_join_path = 4`, and the clique numbers
 of those complements are the independence numbers of the joins, `max ⌈m/2⌉ ⌈n/2⌉`.
 
+Two invariants trade places under complementation exactly: `chromNum_compl` says `χ(Ḡ) = θ(G)` and
+`cliqueCoverNum_compl` says `θ(Ḡ) = χ(G)`, so every chromatic number in the library is a clique
+cover number of a complement and vice versa. That turns two existing columns into two more, and
+the batch fills in every pairing that was still missing a partner. From the clique cover side:
+`chromNum_compl_bipartite = max m n`, `chromNum_compl_rook = min (m+1) (n+1)`,
+`chromNum_compl_book`, `chromNum_compl_cocktailParty = 2`, `chromNum_compl_friendship = n+1`,
+`chromNum_compl_petersen = 5`, the two Kneser parities, the spider, theta-graph, circulant,
+tadpole, lollipop and cycle-pendant halving formulas, and the five disjoint-union and join rows.
+From the chromatic side: `cliqueCoverNum_compl_rook = max (m+1) (n+1)` (the mirror image of the
+rook line above), `cliqueCoverNum_compl_grid = 2`, `cliqueCoverNum_compl_petersen = 3`,
+`cliqueCoverNum_compl_fan`, `cliqueCoverNum_compl_book`, `cliqueCoverNum_compl_cocktailParty = n`,
+the two triangular parities with the Johnson graph that matches them, both parities of the
+disjoint union and the join of two cycles, and the two path products. The rook graph is the
+prettiest case: it is one of the few families where both directions are known, so
+`min (m+1) (n+1)` and `max (m+1) (n+1)` sit side by side on the same complement.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

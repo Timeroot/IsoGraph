@@ -38292,6 +38292,166 @@ theorem cliqueNum_compl_join_path (m n : ℕ) :
     ((path m ∇g path n)ᶜ).cliqueNum = max ((m + 1) / 2) ((n + 1) / 2) := by
   rw [cliqueNum_compl, indepNum_join_path]
 
+/-! ### Chromatic and clique cover numbers of complements -/
+
+theorem chromNum_compl_bipartite (m n : ℕ) : ((bipartite m n)ᶜ).chromNum = max m n := by
+  rw [chromNum_compl, cliqueCoverNum_bipartite]
+
+theorem chromNum_compl_cocktailParty (n : ℕ) : ((cocktailParty (n + 1))ᶜ).chromNum = 2 := by
+  rw [chromNum_compl, cliqueCoverNum_cocktailParty]
+
+theorem chromNum_compl_book (n : ℕ) : ((book n)ᶜ).chromNum = max 1 n := by
+  rw [chromNum_compl, cliqueCoverNum_book]
+
+theorem chromNum_compl_rook (m n : ℕ) :
+    ((rook (m + 1) (n + 1))ᶜ).chromNum = min (m + 1) (n + 1) := by
+  rw [chromNum_compl, cliqueCoverNum_rook]
+
+theorem chromNum_compl_friendship (n : ℕ) : ((friendship (n + 1))ᶜ).chromNum = n + 1 := by
+  rw [chromNum_compl, cliqueCoverNum_friendship]
+
+theorem chromNum_compl_kneser_two_odd (m : ℕ) :
+    ((kneser (2 * m + 3) 2)ᶜ).chromNum = 2 * m + 3 := by
+  rw [chromNum_compl, cliqueCoverNum_kneser_two_odd]
+
+theorem chromNum_compl_kneser_two_even (m : ℕ) :
+    ((kneser (2 * m + 4) 2)ᶜ).chromNum = 2 * m + 3 := by
+  rw [chromNum_compl, cliqueCoverNum_kneser_two_even]
+
+theorem chromNum_compl_petersen : (petersenᶜ).chromNum = 5 := by
+  rw [chromNum_compl, cliqueCoverNum_petersen]
+
+theorem chromNum_compl_spider_pair (a b : ℕ) :
+    ((spider [a, b])ᶜ).chromNum = (a + b + 2) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_spider_pair]
+
+theorem chromNum_compl_spider_singleton (k : ℕ) :
+    ((spider [k])ᶜ).chromNum = (k + 2) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_spider_singleton]
+
+theorem chromNum_compl_thetaGraph_singleton (k : ℕ) :
+    ((thetaGraph [k])ᶜ).chromNum = (k + 3) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_thetaGraph_singleton]
+
+theorem chromNum_compl_circulant_one (n : ℕ) :
+    ((circulant (n + 4) [1])ᶜ).chromNum = (n + 5) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_circulant_one]
+
+theorem chromNum_compl_tadpole_zero (m : ℕ) :
+    ((tadpole (m + 4) 0)ᶜ).chromNum = (m + 5) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_tadpole_zero]
+
+theorem chromNum_compl_tadpole_one (k : ℕ) : ((tadpole 1 k)ᶜ).chromNum = (k + 2) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_tadpole_one]
+
+theorem chromNum_compl_lollipop_one (k : ℕ) : ((lollipop 1 k)ᶜ).chromNum = (k + 2) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_lollipop_one]
+
+theorem chromNum_compl_cyclePendant_replicate_zero (m j : ℕ) :
+    ((cyclePendant (m + 4) (List.replicate j 0))ᶜ).chromNum = (m + 5) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_cyclePendant_replicate_zero]
+
+theorem chromNum_compl_join_cycle (m n : ℕ) :
+    ((cycle (m + 4) ∇g cycle (n + 4))ᶜ).chromNum = max ((m + 5) / 2) ((n + 5) / 2) := by
+  rw [chromNum_compl, cliqueCoverNum_join_cycle]
+
+theorem chromNum_compl_join_path (m n : ℕ) :
+    ((path m ∇g path n)ᶜ).chromNum = max ((m + 1) / 2) ((n + 1) / 2) := by
+  rw [chromNum_compl, cliqueCoverNum_join_path]
+
+theorem chromNum_compl_disjUnion_cycle (m n : ℕ) :
+    ((cycle (m + 4) ⊕g cycle (n + 4))ᶜ).chromNum = (m + 5) / 2 + (n + 5) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_disjUnion_cycle]
+
+theorem chromNum_compl_disjUnion_path (m n : ℕ) :
+    ((path m ⊕g path n)ᶜ).chromNum = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_disjUnion_path]
+
+theorem chromNum_compl_disjUnion_complete (m n : ℕ) :
+    ((complete (m + 1) ⊕g complete (n + 1))ᶜ).chromNum = 2 := by
+  rw [chromNum_compl, cliqueCoverNum_disjUnion_complete]
+
+theorem cliqueCoverNum_compl_cocktailParty (n : ℕ) :
+    ((cocktailParty n)ᶜ).cliqueCoverNum = n := by
+  rw [cliqueCoverNum_compl, chromNum_cocktailParty]
+
+theorem cliqueCoverNum_compl_book (n : ℕ) : ((book (n + 1))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_book]
+
+theorem cliqueCoverNum_compl_fan (n : ℕ) : ((fan (n + 2))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_fan]
+
+theorem cliqueCoverNum_compl_rook (m n : ℕ) :
+    ((rook (m + 1) (n + 1))ᶜ).cliqueCoverNum = max (m + 1) (n + 1) := by
+  rw [cliqueCoverNum_compl, chromNum_rook]
+
+theorem cliqueCoverNum_compl_friendship (n : ℕ) :
+    ((friendship (n + 1))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_friendship]
+
+theorem cliqueCoverNum_compl_petersen : (petersenᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_petersen]
+
+theorem cliqueCoverNum_compl_grid (m n : ℕ) :
+    ((path (m + 2) □g path (n + 2))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_grid]
+
+theorem cliqueCoverNum_compl_triangular_odd (m : ℕ) :
+    ((triangular (2 * m + 3))ᶜ).cliqueCoverNum = 2 * m + 3 := by
+  rw [cliqueCoverNum_compl, chromNum_triangular_odd]
+
+theorem cliqueCoverNum_compl_triangular_even (m : ℕ) :
+    ((triangular (2 * m + 4))ᶜ).cliqueCoverNum = 2 * m + 3 := by
+  rw [cliqueCoverNum_compl, chromNum_triangular_even]
+
+theorem cliqueCoverNum_compl_johnson_two_odd (m : ℕ) :
+    ((johnson (2 * m + 3) 2)ᶜ).cliqueCoverNum = 2 * m + 3 := by
+  rw [cliqueCoverNum_compl, chromNum_johnson_two_odd]
+
+theorem cliqueCoverNum_compl_join_cycle_even (m n : ℕ) :
+    ((cycle (2 * m + 2) ∇g cycle (2 * n + 2))ᶜ).cliqueCoverNum = 4 := by
+  rw [cliqueCoverNum_compl, chromNum_join_cycle_even]
+
+theorem cliqueCoverNum_compl_join_cycle_odd (m n : ℕ) :
+    ((cycle (2 * m + 3) ∇g cycle (2 * n + 3))ᶜ).cliqueCoverNum = 6 := by
+  rw [cliqueCoverNum_compl, chromNum_join_cycle_odd]
+
+theorem cliqueCoverNum_compl_join_cycle_even_odd (m n : ℕ) :
+    ((cycle (2 * m + 2) ∇g cycle (2 * n + 3))ᶜ).cliqueCoverNum = 5 := by
+  rw [cliqueCoverNum_compl, chromNum_join_cycle_even_odd]
+
+theorem cliqueCoverNum_compl_join_path (m n : ℕ) :
+    ((path (m + 2) ∇g path (n + 2))ᶜ).cliqueCoverNum = 4 := by
+  rw [cliqueCoverNum_compl, chromNum_join_path]
+
+theorem cliqueCoverNum_compl_disjUnion_cycle_even (m n : ℕ) :
+    ((cycle (2 * m + 2) ⊕g cycle (2 * n + 2))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_disjUnion_cycle_even]
+
+theorem cliqueCoverNum_compl_disjUnion_cycle_odd (m n : ℕ) :
+    ((cycle (2 * m + 3) ⊕g cycle (2 * n + 3))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_disjUnion_cycle_odd]
+
+theorem cliqueCoverNum_compl_disjUnion_cycle_even_odd (m n : ℕ) :
+    ((cycle (2 * m + 2) ⊕g cycle (2 * n + 3))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_disjUnion_cycle_even_odd]
+
+theorem cliqueCoverNum_compl_disjUnion_path (m n : ℕ) :
+    ((path (m + 2) ⊕g path (n + 2))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_disjUnion_path]
+
+theorem cliqueCoverNum_compl_disjUnion_complete (m n : ℕ) :
+    ((complete m ⊕g complete n)ᶜ).cliqueCoverNum = max m n := by
+  rw [cliqueCoverNum_compl, chromNum_disjUnion_complete]
+
+theorem cliqueCoverNum_compl_tensorProduct_path (m n : ℕ) :
+    ((path (m + 2) ⊗g path (n + 2))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_tensorProduct_path]
+
+theorem cliqueCoverNum_compl_lexProduct_path (m n : ℕ) :
+    ((path (m + 2) ·g path (n + 2))ᶜ).cliqueCoverNum = 4 := by
+  rw [cliqueCoverNum_compl, chromNum_lexProduct_path]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
