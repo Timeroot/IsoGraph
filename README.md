@@ -3323,6 +3323,17 @@ Turán's ungrouped cousin, gets the invariants that are stated over a general pa
 chromatic number is the number of non-empty parts plus one, and the edge count keeps the additive
 form `|E(M)| + 3 Σ binom dᵢ 2 = 3 binom (Σ dᵢ) 2 + Σ dᵢ` that the underlying law is stated in.
 
+Three named graphs finish the Mycielskian block. The Grötzsch graph is itself `M(C₅)`, so its
+Mycielskian is `M²(C₅)`, a triangle-free graph on 23 vertices and 71 edges with chromatic number
+five — the smallest member of the Mycielski tower that the table does not already name. Every one
+of its invariants is a numeral: `Δ = 11`, `δ = 4`, `γ = 4`, `rad = 2`, `girth ≥ 4`. The grid graph
+`Pₘ □ Pₙ` and the king graph `Pₘ ⊠ Pₙ` supply the two-parameter rows. They differ exactly where
+the underlying products do: the grid is triangle-free, so `M(Pₘ □ Pₙ)` has girth at least four and
+chromatic number three, while the king graph already contains `K₄`, so its Mycielskian has clique
+number four, chromatic number five, and girth exactly three. The maximum degrees keep the `max`
+form the general law produces, `max 8 (mn)` for the grid and `max 16 (mn)` for the king, because
+for small boards the apex vertex outranks the doubled interior degree.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

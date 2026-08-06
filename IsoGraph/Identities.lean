@@ -43609,6 +43609,191 @@ theorem V_le_indepNum_mycielskian_completeMultipartite (ds : List ℕ) :
   rw [V_completeMultipartite] at h
   omega
 
+/-! ### The Mycielskian of the Grötzsch graph -/
+
+@[simp] theorem V_mycielskian_grotzsch : (mycielskian grotzsch).V = 23 := by
+  rw [V_mycielskian, V_grotzsch]
+
+@[simp] theorem E_mycielskian_grotzsch : (mycielskian grotzsch).E = 71 := by
+  rw [E_mycielskian, E_grotzsch, V_grotzsch]
+
+theorem chromNum_mycielskian_grotzsch : (mycielskian grotzsch).chromNum = 5 := by
+  have h := chromNum_mycielskian grotzsch
+  rw [chromNum_grotzsch] at h
+  omega
+
+theorem cliqueNum_mycielskian_grotzsch : (mycielskian grotzsch).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian grotzsch (by rw [V_grotzsch]; omega)
+  rw [cliqueNum_grotzsch] at h
+  omega
+
+theorem maxDeg_mycielskian_grotzsch : maxDeg (mycielskian grotzsch) = 11 := by
+  have h := maxDeg_mycielskian grotzsch
+  rw [maxDeg_grotzsch, V_grotzsch] at h
+  omega
+
+theorem minDeg_mycielskian_grotzsch : minDeg (mycielskian grotzsch) = 4 := by
+  have h := minDeg_mycielskian grotzsch (by rw [V_grotzsch]; omega)
+  rw [minDeg_grotzsch, V_grotzsch] at h
+  omega
+
+theorem domNum_mycielskian_grotzsch : (mycielskian grotzsch).domNum = 4 := by
+  have h := domNum_mycielskian grotzsch (by rw [V_grotzsch]; omega)
+  rw [domNum_grotzsch] at h
+  omega
+
+theorem isConnected_mycielskian_grotzsch : IsConnected (mycielskian grotzsch) :=
+  isConnected_mycielskian _ (by rw [minDeg_grotzsch]; omega)
+
+theorem numComponents_mycielskian_grotzsch : (mycielskian grotzsch).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_grotzsch]; omega)
+
+theorem radius_mycielskian_grotzsch : (mycielskian grotzsch).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_grotzsch]; omega)
+
+theorem two_le_diameter_mycielskian_grotzsch : 2 ≤ (mycielskian grotzsch).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_grotzsch]; omega)
+
+theorem diameter_mycielskian_grotzsch_le_four : (mycielskian grotzsch).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_grotzsch]; omega)
+
+theorem four_le_girth_mycielskian_grotzsch : 4 ≤ (mycielskian grotzsch).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_grotzsch]) (by rw [E_grotzsch]; omega)
+
+theorem coverNum_mycielskian_grotzsch_le : (mycielskian grotzsch).coverNum ≤ 12 := by
+  have h := coverNum_mycielskian_le grotzsch
+  rw [V_grotzsch] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_grotzsch : 11 ≤ (mycielskian grotzsch).indepNum := by
+  have h := V_le_indepNum_mycielskian grotzsch
+  rw [V_grotzsch] at h
+  omega
+
+/-! ### The Mycielskian of a grid graph -/
+
+@[simp] theorem V_mycielskian_grid (m n : ℕ) :
+    (mycielskian (path m □g path n)).V = 2 * (m * n) + 1 := by
+  rw [V_mycielskian, V_grid]
+
+@[simp] theorem E_mycielskian_grid (m n : ℕ) :
+    (mycielskian (path (m + 1) □g path (n + 1))).E
+      = 3 * ((m + 1) * n + (n + 1) * m) + (m + 1) * (n + 1) := by
+  rw [E_mycielskian, E_grid, V_grid]
+
+theorem chromNum_mycielskian_grid (m n : ℕ) :
+    (mycielskian (path (m + 2) □g path (n + 2))).chromNum = 3 := by
+  have h := chromNum_mycielskian (path (m + 2) □g path (n + 2))
+  rw [chromNum_grid] at h
+  omega
+
+theorem cliqueNum_mycielskian_grid (m n : ℕ) :
+    (mycielskian (path (m + 2) □g path (n + 2))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (path (m + 2) □g path (n + 2))
+    (by rw [V_grid]; positivity)
+  rw [cliqueNum_grid] at h
+  omega
+
+theorem maxDeg_mycielskian_grid (m n : ℕ) :
+    maxDeg (mycielskian (path (m + 3) □g path (n + 3)))
+      = max 8 ((m + 3) * (n + 3)) := by
+  have h := maxDeg_mycielskian (path (m + 3) □g path (n + 3))
+  rw [maxDeg_grid, V_grid] at h
+  omega
+
+theorem minDeg_mycielskian_grid (m n : ℕ) :
+    minDeg (mycielskian (path (m + 2) □g path (n + 2)))
+      = min 3 ((m + 2) * (n + 2)) := by
+  have h := minDeg_mycielskian (path (m + 2) □g path (n + 2))
+    (by rw [V_grid]; positivity)
+  rw [minDeg_grid, V_grid] at h
+  omega
+
+theorem isConnected_mycielskian_grid (m n : ℕ) :
+    IsConnected (mycielskian (path (m + 2) □g path (n + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_grid]; omega)
+
+theorem numComponents_mycielskian_grid (m n : ℕ) :
+    (mycielskian (path (m + 2) □g path (n + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_grid]; omega)
+
+theorem radius_mycielskian_grid (m n : ℕ) :
+    (mycielskian (path (m + 2) □g path (n + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_grid]; omega)
+
+theorem four_le_girth_mycielskian_grid (m n : ℕ) :
+    4 ≤ (mycielskian (path (m + 2) □g path (n + 2))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_grid]) (by rw [E_grid]; positivity)
+
+theorem coverNum_mycielskian_grid_le (m n : ℕ) :
+    (mycielskian (path m □g path n)).coverNum ≤ m * n + 1 := by
+  have h := coverNum_mycielskian_le (path m □g path n)
+  rw [V_grid] at h
+  omega
+
+/-! ### The Mycielskian of a king graph -/
+
+@[simp] theorem V_mycielskian_king (m n : ℕ) :
+    (mycielskian (path m ⊠g path n)).V = 2 * (m * n) + 1 := by
+  rw [V_mycielskian, V_king]
+
+@[simp] theorem E_mycielskian_king (m n : ℕ) :
+    (mycielskian (path (m + 1) ⊠g path (n + 1))).E
+      = 3 * ((m + 1) * n + (n + 1) * m + 2 * m * n) + (m + 1) * (n + 1) := by
+  rw [E_mycielskian, E_king, V_king]
+
+theorem chromNum_mycielskian_king (m n : ℕ) :
+    (mycielskian (path (m + 2) ⊠g path (n + 2))).chromNum = 5 := by
+  have h := chromNum_mycielskian (path (m + 2) ⊠g path (n + 2))
+  rw [chromNum_king] at h
+  omega
+
+theorem cliqueNum_mycielskian_king (m n : ℕ) :
+    (mycielskian (path (m + 2) ⊠g path (n + 2))).cliqueNum = 4 := by
+  have h := cliqueNum_mycielskian (path (m + 2) ⊠g path (n + 2))
+    (by rw [V_king]; positivity)
+  rw [cliqueNum_king] at h
+  omega
+
+theorem maxDeg_mycielskian_king (m n : ℕ) :
+    maxDeg (mycielskian (path (m + 3) ⊠g path (n + 3)))
+      = max 16 ((m + 3) * (n + 3)) := by
+  have h := maxDeg_mycielskian (path (m + 3) ⊠g path (n + 3))
+  rw [maxDeg_king, V_king] at h
+  omega
+
+theorem minDeg_mycielskian_king (m n : ℕ) :
+    minDeg (mycielskian (path (m + 2) ⊠g path (n + 2)))
+      = min 4 ((m + 2) * (n + 2)) := by
+  have h := minDeg_mycielskian (path (m + 2) ⊠g path (n + 2))
+    (by rw [V_king]; positivity)
+  rw [minDeg_king, V_king] at h
+  omega
+
+theorem isConnected_mycielskian_king (m n : ℕ) :
+    IsConnected (mycielskian (path (m + 2) ⊠g path (n + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_king]; omega)
+
+theorem numComponents_mycielskian_king (m n : ℕ) :
+    (mycielskian (path (m + 2) ⊠g path (n + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_king]; omega)
+
+theorem radius_mycielskian_king (m n : ℕ) :
+    (mycielskian (path (m + 2) ⊠g path (n + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_king]; omega)
+
+theorem girth_mycielskian_king (m n : ℕ) :
+    (mycielskian (path (m + 2) ⊠g path (n + 2))).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_mycielskian_king]
+  omega
+
+theorem coverNum_mycielskian_king_le (m n : ℕ) :
+    (mycielskian (path m ⊠g path n)).coverNum ≤ m * n + 1 := by
+  have h := coverNum_mycielskian_le (path m ⊠g path n)
+  rw [V_king] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
