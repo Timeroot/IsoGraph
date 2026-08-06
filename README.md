@@ -3334,6 +3334,16 @@ number four, chromatic number five, and girth exactly three. The maximum degrees
 form the general law produces, `max 8 (mn)` for the grid and `max 16 (mn)` for the king, because
 for small boards the apex vertex outranks the doubled interior degree.
 
+The tadpole and the lollipop close out the Mycielskian block for the one-cycle-plus-a-tail family.
+They behave as differently under `M` as they do on their own: the tadpole's cycle is long, so
+`ω(Tₘ,ₖ) = 2` for `m ≥ 4` and the Mycielskian stays triangle-free with girth at least four, while
+the lollipop carries a `K₍ₘ₊₂₎`, so `ω(M) = m + 2`, `χ(M) = m + 3`, and the girth collapses to
+three. Both need a non-empty tail for the connectivity block, since `minDeg_tadpole` and
+`minDeg_lollipop` are only stated with `k + 1` — with no tail the graph is a bare cycle or clique
+and the pendant-vertex argument has nothing to point at. Where a tail is present the minimum degree
+of the Mycielskian is exactly two in both cases, since the underlying `δ = 1` and the general law
+gives `min (min 2 2) |V|`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

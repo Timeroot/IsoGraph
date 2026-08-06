@@ -43794,6 +43794,145 @@ theorem coverNum_mycielskian_king_le (m n : ℕ) :
   rw [V_king] at h
   omega
 
+/-! ### The Mycielskian of a tadpole graph -/
+
+@[simp] theorem V_mycielskian_tadpole (m k : ℕ) :
+    (mycielskian (tadpole m k)).V = 2 * (m + k) + 1 := by
+  rw [V_mycielskian, V_tadpole]
+
+theorem E_mycielskian_tadpole (m k : ℕ) :
+    (mycielskian (tadpole (m + 3) k)).E = 4 * (m + k) + 12 := by
+  have h := E_mycielskian (tadpole (m + 3) k)
+  rw [E_tadpole, V_tadpole] at h
+  omega
+
+theorem cliqueNum_mycielskian_tadpole (m k : ℕ) :
+    (mycielskian (tadpole (m + 4) k)).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (tadpole (m + 4) k) (by rw [V_tadpole]; omega)
+  rw [cliqueNum_tadpole] at h
+  omega
+
+theorem maxDeg_mycielskian_tadpole (m k : ℕ) :
+    maxDeg (mycielskian (tadpole (m + 3) (k + 1))) = max 6 (m + k + 4) := by
+  have h := maxDeg_mycielskian (tadpole (m + 3) (k + 1))
+  rw [maxDeg_tadpole, V_tadpole] at h
+  omega
+
+theorem minDeg_mycielskian_tadpole (m k : ℕ) :
+    minDeg (mycielskian (tadpole (m + 3) (k + 1))) = 2 := by
+  have h := minDeg_mycielskian (tadpole (m + 3) (k + 1)) (by rw [V_tadpole]; omega)
+  rw [minDeg_tadpole, V_tadpole] at h
+  omega
+
+theorem isConnected_mycielskian_tadpole (m k : ℕ) :
+    IsConnected (mycielskian (tadpole (m + 3) (k + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_tadpole]; omega)
+
+theorem numComponents_mycielskian_tadpole (m k : ℕ) :
+    (mycielskian (tadpole (m + 3) (k + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_tadpole]; omega)
+
+theorem radius_mycielskian_tadpole (m k : ℕ) :
+    (mycielskian (tadpole (m + 3) (k + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_tadpole]; omega)
+
+theorem two_le_diameter_mycielskian_tadpole (m k : ℕ) :
+    2 ≤ (mycielskian (tadpole (m + 3) (k + 1))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_tadpole]; omega)
+
+theorem diameter_mycielskian_tadpole_le_four (m k : ℕ) :
+    (mycielskian (tadpole (m + 3) (k + 1))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_tadpole]; omega)
+
+theorem four_le_girth_mycielskian_tadpole (m k : ℕ) :
+    4 ≤ (mycielskian (tadpole (m + 4) k)).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_tadpole]) (by rw [E_tadpole]; omega)
+
+theorem coverNum_mycielskian_tadpole_le (m k : ℕ) :
+    (mycielskian (tadpole m k)).coverNum ≤ m + k + 1 := by
+  have h := coverNum_mycielskian_le (tadpole m k)
+  rw [V_tadpole] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_tadpole (m k : ℕ) :
+    m + k ≤ (mycielskian (tadpole m k)).indepNum := by
+  have h := V_le_indepNum_mycielskian (tadpole m k)
+  rw [V_tadpole] at h
+  omega
+
+/-! ### The Mycielskian of a lollipop graph -/
+
+@[simp] theorem V_mycielskian_lollipop (m k : ℕ) :
+    (mycielskian (lollipop m k)).V = 2 * (m + k) + 1 := by
+  rw [V_mycielskian, V_lollipop]
+
+@[simp] theorem E_mycielskian_lollipop (m k : ℕ) :
+    (mycielskian (lollipop (m + 1) k)).E
+      = 3 * ((m + 1).choose 2 + k) + (m + 1 + k) := by
+  rw [E_mycielskian, E_lollipop, V_lollipop]
+
+theorem chromNum_mycielskian_lollipop (m k : ℕ) :
+    (mycielskian (lollipop (m + 2) k)).chromNum = m + 3 := by
+  have h := chromNum_mycielskian (lollipop (m + 2) k)
+  rw [chromNum_lollipop] at h
+  omega
+
+theorem cliqueNum_mycielskian_lollipop (m k : ℕ) :
+    (mycielskian (lollipop (m + 2) k)).cliqueNum = m + 2 := by
+  have h := cliqueNum_mycielskian (lollipop (m + 2) k) (by rw [V_lollipop]; omega)
+  rw [cliqueNum_lollipop] at h
+  omega
+
+theorem maxDeg_mycielskian_lollipop (m k : ℕ) :
+    maxDeg (mycielskian (lollipop (m + 2) (k + 1))) = max (2 * m + 4) (m + k + 3) := by
+  have h := maxDeg_mycielskian (lollipop (m + 2) (k + 1))
+  rw [maxDeg_lollipop, V_lollipop] at h
+  omega
+
+theorem minDeg_mycielskian_lollipop (m k : ℕ) :
+    minDeg (mycielskian (lollipop (m + 2) (k + 1))) = 2 := by
+  have h := minDeg_mycielskian (lollipop (m + 2) (k + 1)) (by rw [V_lollipop]; omega)
+  rw [minDeg_lollipop, V_lollipop] at h
+  omega
+
+theorem isConnected_mycielskian_lollipop (m k : ℕ) :
+    IsConnected (mycielskian (lollipop (m + 2) (k + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_lollipop]; omega)
+
+theorem numComponents_mycielskian_lollipop (m k : ℕ) :
+    (mycielskian (lollipop (m + 2) (k + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_lollipop]; omega)
+
+theorem radius_mycielskian_lollipop (m k : ℕ) :
+    (mycielskian (lollipop (m + 2) (k + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_lollipop]; omega)
+
+theorem two_le_diameter_mycielskian_lollipop (m k : ℕ) :
+    2 ≤ (mycielskian (lollipop (m + 2) (k + 1))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_lollipop]; omega)
+
+theorem diameter_mycielskian_lollipop_le_four (m k : ℕ) :
+    (mycielskian (lollipop (m + 2) (k + 1))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_lollipop]; omega)
+
+theorem girth_mycielskian_lollipop (m k : ℕ) :
+    (mycielskian (lollipop (m + 3) k)).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_mycielskian_lollipop]
+  omega
+
+theorem coverNum_mycielskian_lollipop_le (m k : ℕ) :
+    (mycielskian (lollipop m k)).coverNum ≤ m + k + 1 := by
+  have h := coverNum_mycielskian_le (lollipop m k)
+  rw [V_lollipop] at h
+  omega
+
+theorem V_le_indepNum_mycielskian_lollipop (m k : ℕ) :
+    m + k ≤ (mycielskian (lollipop m k)).indepNum := by
+  have h := V_le_indepNum_mycielskian (lollipop m k)
+  rw [V_lollipop] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
