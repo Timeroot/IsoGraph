@@ -3572,6 +3572,21 @@ cube's clique number is, `maxDeg_compl_foldedCube` and `minDeg_compl_foldedCube`
 a product of a power of two and a linear factor — so it rewrites backwards along `E_compl` and
 cancels instead.
 
+The line graph and Mycielskian rows for the folded cube close the grid, and they had to be stated
+after everything else: the folded cube's regularity, size and metric entries are themselves the
+last things proved in the file, so `L(FQₙ)` and `M(FQₙ)` can only be built once those are in
+scope. From `degSequence_foldedCube = List.replicate 2ⁿ⁺² (n + 3)` the whole line graph follows
+mechanically — `L(FQₙ₊₂)` is `(2n + 4)`-regular on `2ⁿ⁺¹(n + 3)` vertices with
+`2ⁿ⁺² · C(n + 3, 2)` edges, connected, of clique number `n + 3` and girth three, and neither a
+tree nor bipartite. Its diameter and radius are at most `⌈n/2⌉ + 1`, one more than the folded
+cube's own, which is the generic line-graph bound instantiated at the closed form. On the
+Mycielskian side, `M(FQₙ)` has `2·2ⁿ + 1` vertices and `3·2ⁿ⁺¹(n + 3) + 2ⁿ⁺²` edges, minimum
+degree `min (n + 4) 2ⁿ⁺²` — the general formula `min (min 2δ (δ + 1)) |V|` simplifies here because
+`δ + 1` is always the smaller of the first two — maximum degree `max (2n + 6) 2ⁿ⁺²`, and radius
+exactly two. Since the folded cube is triangle-free for `n ≥ 3`, its Mycielskian is too: clique
+number two and girth at least four, so the construction can be iterated to build triangle-free
+graphs of arbitrarily large chromatic number starting from a folded cube rather than from `C₅`.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

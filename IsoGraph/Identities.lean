@@ -47459,4 +47459,137 @@ theorem E_compl_foldedCube (n : ℕ) :
   have h := E_compl (foldedCube (n + 2))
   rw [E_foldedCube, V_foldedCube] at h
   rw [← h, Nat.add_sub_cancel]
+/-! ### The line graph of the folded cube -/
+
+theorem E_pos_foldedCube (n : ℕ) : 0 < (foldedCube (n + 2)).E := by
+  rw [E_foldedCube]
+  positivity
+
+theorem degSequence_foldedCube (n : ℕ) :
+    degSequence (foldedCube (n + 2)) = List.replicate (2 ^ (n + 2)) (n + 3) := by
+  have h := (isRegularWith_foldedCube n).degSequence
+  rwa [V_foldedCube] at h
+
+@[simp] theorem V_lineGraph_foldedCube (n : ℕ) :
+    (lineGraph (foldedCube (n + 2))).V = 2 ^ (n + 1) * (n + 3) := by
+  rw [V_lineGraph, E_foldedCube]
+
+theorem E_lineGraph_foldedCube (n : ℕ) :
+    (lineGraph (foldedCube (n + 2))).E = 2 ^ (n + 2) * (n + 3).choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_foldedCube n)
+
+theorem isRegularWith_lineGraph_foldedCube (n : ℕ) :
+    (lineGraph (foldedCube (n + 2))).IsRegularWith (2 * (n + 3) - 2) :=
+  isRegularWith_lineGraph (E_pos_foldedCube n) (degSequence_foldedCube n)
+
+theorem maxDeg_lineGraph_foldedCube (n : ℕ) :
+    maxDeg (lineGraph (foldedCube (n + 2))) = 2 * (n + 3) - 2 :=
+  maxDeg_lineGraph (E_pos_foldedCube n) (degSequence_foldedCube n)
+
+theorem minDeg_lineGraph_foldedCube (n : ℕ) :
+    minDeg (lineGraph (foldedCube (n + 2))) = 2 * (n + 3) - 2 :=
+  minDeg_lineGraph (E_pos_foldedCube n) (degSequence_foldedCube n)
+
+theorem degSequence_lineGraph_foldedCube (n : ℕ) :
+    degSequence (lineGraph (foldedCube (n + 2)))
+      = List.replicate (2 ^ (n + 1) * (n + 3)) (2 * (n + 3) - 2) := by
+  have h := (isRegularWith_lineGraph_foldedCube n).degSequence
+  rwa [V_lineGraph_foldedCube] at h
+
+theorem isConnected_lineGraph_foldedCube (n : ℕ) :
+    IsConnected (lineGraph (foldedCube (n + 2))) := by
+  have hc : IsConnected (foldedCube (n + 2)) := isConnected_foldedCube (n + 1)
+  exact isConnected_lineGraph hc (E_pos_foldedCube n)
+
+theorem numComponents_lineGraph_foldedCube (n : ℕ) :
+    (lineGraph (foldedCube (n + 2))).numComponents = 1 := by
+  have hc : IsConnected (foldedCube (n + 2)) := isConnected_foldedCube (n + 1)
+  exact numComponents_lineGraph hc (E_pos_foldedCube n)
+
+theorem diameter_lineGraph_foldedCube_le (n : ℕ) :
+    (lineGraph (foldedCube (n + 2))).diameter ≤ (n + 3) / 2 + 1 := by
+  have hc : IsConnected (foldedCube (n + 2)) := isConnected_foldedCube (n + 1)
+  have h2 : (foldedCube (n + 2)).diameter = (n + 3) / 2 := diameter_foldedCube (n + 1)
+  have h := diameter_lineGraph_le hc (E_pos_foldedCube n)
+  omega
+
+theorem radius_lineGraph_foldedCube_le (n : ℕ) :
+    (lineGraph (foldedCube (n + 2))).radius ≤ (n + 3) / 2 + 1 := by
+  have hc : IsConnected (foldedCube (n + 2)) := isConnected_foldedCube (n + 1)
+  have h2 : (foldedCube (n + 2)).radius = (n + 3) / 2 := radius_foldedCube (n + 1)
+  have h := radius_lineGraph_le hc (E_pos_foldedCube n)
+  omega
+
+theorem cliqueNum_lineGraph_foldedCube (n : ℕ) :
+    (lineGraph (foldedCube (n + 2))).cliqueNum = n + 3 := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := foldedCube (n + 2))
+    (by rw [maxDeg_foldedCube]; omega)
+  rwa [maxDeg_foldedCube] at hm
+
+theorem girth_lineGraph_foldedCube (n : ℕ) : (lineGraph (foldedCube (n + 2))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_foldedCube]; omega)
+
+theorem not_isBipartite_lineGraph_foldedCube (n : ℕ) :
+    ¬ IsBipartite (lineGraph (foldedCube (n + 2))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_foldedCube]; omega)
+
+theorem not_isTree_lineGraph_foldedCube (n : ℕ) : ¬ IsTree (lineGraph (foldedCube (n + 2))) :=
+  not_isTree_lineGraph (by rw [maxDeg_foldedCube]; omega)
+
+/-! ### The Mycielskian of the folded cube -/
+
+@[simp] theorem V_mycielskian_foldedCube (n : ℕ) :
+    (mycielskian (foldedCube n)).V = 2 * 2 ^ n + 1 := by
+  rw [V_mycielskian, V_foldedCube]
+
+theorem E_mycielskian_foldedCube (n : ℕ) :
+    (mycielskian (foldedCube (n + 2))).E = 3 * (2 ^ (n + 1) * (n + 3)) + 2 ^ (n + 2) := by
+  rw [E_mycielskian, E_foldedCube, V_foldedCube]
+
+theorem maxDeg_mycielskian_foldedCube (n : ℕ) :
+    maxDeg (mycielskian (foldedCube (n + 2))) = max (2 * (n + 3)) (2 ^ (n + 2)) := by
+  rw [maxDeg_mycielskian, maxDeg_foldedCube, V_foldedCube]
+
+theorem minDeg_mycielskian_foldedCube (n : ℕ) :
+    minDeg (mycielskian (foldedCube (n + 2))) = min (n + 4) (2 ^ (n + 2)) := by
+  have h := minDeg_mycielskian (foldedCube (n + 2)) (by rw [V_foldedCube]; positivity)
+  rw [minDeg_foldedCube, V_foldedCube] at h
+  omega
+
+theorem isConnected_mycielskian_foldedCube (n : ℕ) :
+    IsConnected (mycielskian (foldedCube (n + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_foldedCube]; omega)
+
+theorem numComponents_mycielskian_foldedCube (n : ℕ) :
+    (mycielskian (foldedCube (n + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_foldedCube]; omega)
+
+theorem radius_mycielskian_foldedCube (n : ℕ) :
+    (mycielskian (foldedCube (n + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_foldedCube]; omega)
+
+theorem cliqueNum_mycielskian_foldedCube (n : ℕ) :
+    (mycielskian (foldedCube (n + 3))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (foldedCube (n + 3)) (by rw [V_foldedCube]; positivity)
+  rw [cliqueNum_foldedCube] at h
+  omega
+
+theorem four_le_girth_mycielskian_foldedCube (n : ℕ) :
+    4 ≤ (mycielskian (foldedCube (n + 3))).girth := by
+  have hE : 0 < (foldedCube (n + 3)).E := E_pos_foldedCube (n + 1)
+  exact four_le_girth_mycielskian _ (by rw [cliqueNum_foldedCube]) hE
+
+theorem domNum_mycielskian_foldedCube (n : ℕ) :
+    (mycielskian (foldedCube n)).domNum = (foldedCube n).domNum + 1 :=
+  domNum_mycielskian _ (by rw [V_foldedCube]; positivity)
+
+theorem coverNum_mycielskian_foldedCube_le (n : ℕ) :
+    (mycielskian (foldedCube n)).coverNum ≤ 2 ^ n + 1 := by
+  have h := coverNum_mycielskian_le (foldedCube n)
+  rwa [V_foldedCube] at h
+
+theorem le_indepNum_mycielskian_foldedCube (n : ℕ) :
+    2 ^ n ≤ (mycielskian (foldedCube n)).indepNum := by
+  have h := V_le_indepNum_mycielskian (foldedCube n)
+  rwa [V_foldedCube] at h
 end IsoGraph
