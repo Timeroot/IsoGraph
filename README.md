@@ -2883,6 +2883,24 @@ row is `V_lexProduct_path`, `E_lexProduct_path`, `indepNum_lexProduct_path`,
 `maxDeg_lexProduct_path`, `minDeg_lexProduct_path = n + 3`, `isConnected_lexProduct_path`,
 `numComponents_lexProduct_path = 1` and `girth_lexProduct_path = 3`.
 
+Complete factors are the third pair, and here the three non-Cartesian products separate cleanly
+(the Cartesian one is already the rook graph). The tensor product `Kₘ ⊗ Kₙ` keeps only the
+smaller clique, `cliqueNum_tensorProduct_complete = min m n`, and its degrees multiply:
+`maxDeg_tensorProduct_complete` and `minDeg_tensorProduct_complete` are both `mn` on
+`K₍ₘ₊₁₎ ⊗ K₍ₙ₊₁₎`. It is connected once the left factor is non-bipartite, which
+`isConnected_tensorProduct_complete` and `numComponents_tensorProduct_complete` record from
+`K₍ₘ₊₃₎`, and `E_tensorProduct_complete`, `girth_tensorProduct_complete = 3` and
+`isVertexTransitive_tensorProduct_complete` complete the row.
+
+The strong and lexicographic products both give back a complete graph on `mn` vertices, and the
+invariants say so without needing a graph isomorphism: `cliqueNum_strongProduct_complete` and
+`cliqueNum_lexProduct_complete` are `mn`, all four of `maxDeg_strongProduct_complete`,
+`minDeg_strongProduct_complete`, `maxDeg_lexProduct_complete` and `minDeg_lexProduct_complete`
+are `mn - 1`, and `indepNum_lexProduct_complete = 1`. The edge counts
+`E_strongProduct_complete` and `E_lexProduct_complete` are left in the shape the product
+formulas give them, since the two expressions are different ways of writing `C(mn, 2)`.
+Connectivity, girth three and vertex transitivity round out both rows.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

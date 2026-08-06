@@ -37407,6 +37407,137 @@ theorem chromNum_lexProduct_path (m n : ℕ) :
   rw [cliqueNum_lexProduct_path] at h2
   omega
 
+/-! ### The tensor, strong and lexicographic products of two complete graphs -/
+
+@[simp] theorem V_tensorProduct_complete (m n : ℕ) : (complete m ⊗g complete n).V = m * n := by
+  rw [V_tensorProduct, V_complete, V_complete]
+
+theorem E_tensorProduct_complete (m n : ℕ) :
+    (complete m ⊗g complete n).E = 2 * m.choose 2 * n.choose 2 := by
+  rw [E_tensorProduct, E_complete, E_complete]
+
+@[simp] theorem cliqueNum_tensorProduct_complete (m n : ℕ) :
+    (complete m ⊗g complete n).cliqueNum = min m n := by
+  rw [cliqueNum_tensorProduct, cliqueNum_complete, cliqueNum_complete]
+
+theorem maxDeg_tensorProduct_complete (m n : ℕ) :
+    maxDeg (complete (m + 1) ⊗g complete (n + 1)) = m * n := by
+  have h := maxDeg_tensorProduct (G := complete (m + 1)) (H := complete (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+  rw [maxDeg_complete, maxDeg_complete] at h
+  simpa using h
+
+theorem minDeg_tensorProduct_complete (m n : ℕ) :
+    minDeg (complete (m + 1) ⊗g complete (n + 1)) = m * n := by
+  have h := minDeg_tensorProduct (G := complete (m + 1)) (H := complete (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_complete, minDeg_complete] at h
+  simpa using h
+
+@[simp] theorem girth_tensorProduct_complete (m n : ℕ) :
+    (complete (m + 3) ⊗g complete (n + 3)).girth = 3 :=
+  girth_tensorProduct (by rw [cliqueNum_complete]; omega) (by rw [cliqueNum_complete]; omega)
+
+theorem isConnected_tensorProduct_complete (m n : ℕ) :
+    IsConnected (complete (m + 3) ⊗g complete (n + 2)) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_complete (n + 1))
+    (not_isBipartite_complete m) (E_complete_pos n)
+
+theorem numComponents_tensorProduct_complete (m n : ℕ) :
+    (complete (m + 3) ⊗g complete (n + 2)).numComponents = 1 :=
+  numComponents_tensorProduct (isConnected_complete (m + 2)) (isConnected_complete (n + 1))
+    (not_isBipartite_complete m) (E_complete_pos n)
+
+@[simp] theorem isVertexTransitive_tensorProduct_complete (m n : ℕ) :
+    IsVertexTransitive (complete m ⊗g complete n) :=
+  (isVertexTransitive_complete m).tensorProduct (isVertexTransitive_complete n)
+
+@[simp] theorem V_strongProduct_complete (m n : ℕ) : (complete m ⊠g complete n).V = m * n := by
+  rw [V_strongProduct, V_complete, V_complete]
+
+theorem E_strongProduct_complete (m n : ℕ) :
+    (complete m ⊠g complete n).E
+      = m * n.choose 2 + n * m.choose 2 + 2 * m.choose 2 * n.choose 2 := by
+  rw [E_strongProduct, E_complete, E_complete, V_complete, V_complete]
+
+@[simp] theorem cliqueNum_strongProduct_complete (m n : ℕ) :
+    (complete m ⊠g complete n).cliqueNum = m * n := by
+  rw [cliqueNum_strongProduct, cliqueNum_complete, cliqueNum_complete]
+
+theorem maxDeg_strongProduct_complete (m n : ℕ) :
+    maxDeg (complete (m + 1) ⊠g complete (n + 1)) = (m + 1) * (n + 1) - 1 := by
+  have h := maxDeg_strongProduct (G := complete (m + 1)) (H := complete (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+  rw [maxDeg_complete, maxDeg_complete, Nat.add_sub_cancel, Nat.add_sub_cancel] at h
+  exact h
+
+theorem minDeg_strongProduct_complete (m n : ℕ) :
+    minDeg (complete (m + 1) ⊠g complete (n + 1)) = (m + 1) * (n + 1) - 1 := by
+  have h := minDeg_strongProduct (G := complete (m + 1)) (H := complete (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_complete, minDeg_complete, Nat.add_sub_cancel, Nat.add_sub_cancel] at h
+  exact h
+
+@[simp] theorem girth_strongProduct_complete (m n : ℕ) :
+    (complete (m + 2) ⊠g complete (n + 2)).girth = 3 :=
+  girth_strongProduct (E_complete_pos m) (E_complete_pos n)
+
+theorem isConnected_strongProduct_complete (m n : ℕ) :
+    IsConnected (complete (m + 1) ⊠g complete (n + 1)) :=
+  isConnected_strongProduct (isConnected_complete m) (isConnected_complete n)
+
+@[simp] theorem isVertexTransitive_strongProduct_complete (m n : ℕ) :
+    IsVertexTransitive (complete m ⊠g complete n) :=
+  (isVertexTransitive_complete m).strongProduct (isVertexTransitive_complete n)
+
+@[simp] theorem V_lexProduct_complete (m n : ℕ) : (complete m ·g complete n).V = m * n := by
+  rw [V_lexProduct, V_complete, V_complete]
+
+theorem E_lexProduct_complete (m n : ℕ) :
+    (complete m ·g complete n).E = n * n * m.choose 2 + m * n.choose 2 := by
+  rw [E_lexProduct, E_complete, E_complete, V_complete, V_complete]
+
+@[simp] theorem cliqueNum_lexProduct_complete (m n : ℕ) :
+    (complete m ·g complete n).cliqueNum = m * n := by
+  rw [cliqueNum_lexProduct, cliqueNum_complete, cliqueNum_complete]
+
+theorem indepNum_lexProduct_complete (m n : ℕ) :
+    (complete (m + 1) ·g complete (n + 1)).indepNum = 1 := by
+  have h := indepNum_lexProduct (complete (m + 1)) (complete (n + 1))
+  rw [indepNum_complete, indepNum_complete, Nat.min_eq_right (by omega : 1 ≤ m + 1),
+    Nat.min_eq_right (by omega : 1 ≤ n + 1)] at h
+  omega
+
+theorem maxDeg_lexProduct_complete (m n : ℕ) :
+    maxDeg (complete (m + 1) ·g complete (n + 1)) = (m + 1) * (n + 1) - 1 := by
+  have h := maxDeg_lexProduct (G := complete (m + 1)) (H := complete (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+  rw [maxDeg_complete, maxDeg_complete, V_complete] at h
+  simp only [Nat.add_sub_cancel] at h
+  have e : (m + 1) * (n + 1) = m * (n + 1) + (n + 1) := by ring
+  omega
+
+theorem minDeg_lexProduct_complete (m n : ℕ) :
+    minDeg (complete (m + 1) ·g complete (n + 1)) = (m + 1) * (n + 1) - 1 := by
+  have h := minDeg_lexProduct (G := complete (m + 1)) (H := complete (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_complete, minDeg_complete, V_complete] at h
+  simp only [Nat.add_sub_cancel] at h
+  have e : (m + 1) * (n + 1) = m * (n + 1) + (n + 1) := by ring
+  omega
+
+@[simp] theorem girth_lexProduct_complete (m n : ℕ) :
+    (complete (m + 2) ·g complete (n + 2)).girth = 3 :=
+  girth_lexProduct (E_complete_pos m) (E_complete_pos n)
+
+theorem isConnected_lexProduct_complete (m n : ℕ) :
+    IsConnected (complete (m + 1) ·g complete (n + 1)) :=
+  isConnected_lexProduct (isConnected_complete m) (isConnected_complete n)
+
+@[simp] theorem isVertexTransitive_lexProduct_complete (m n : ℕ) :
+    IsVertexTransitive (complete m ·g complete n) :=
+  (isVertexTransitive_complete m).lexProduct (isVertexTransitive_complete n)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
