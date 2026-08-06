@@ -2676,6 +2676,26 @@ graph supplies `matchNum_kneser_one`, `indepNum_kneser_one`, `coverNum_kneser_on
 `lineGraph_kneser_one`, and — in place of the general bound `le_autCount_kneser` — the exact
 count `autCount_kneser_one = n!`.
 
+The Johnson row has the same shape as the Kneser one — well developed at `k = 2`, thin
+elsewhere — and `johnson_one` fills its other end: `matchNum_johnson_one`,
+`indepNum_johnson_one`, `cliqueNum_johnson_one`, `chromNum_johnson_one`,
+`cliqueCoverNum_johnson_one`, `domNum_johnson_one`, `edgeChromNum_johnson_one`,
+`autCount_johnson_one`, `isArcTransitive_johnson_one`, `compl_johnson_one`,
+`lineGraph_johnson_one` and `not_isSelfComplementary_johnson_one`. The line graph identity is
+the amusing one: the line graph of `J(n, 1)` is `J(n, 2)`.
+
+The circulant with an empty connection list is the edgeless graph, which is the cheapest column
+of all but still one the general circulant lemmas do not reach, since most of them assume a
+non-empty connection set. It gives `maxDeg_circulant_nil`, `minDeg_circulant_nil`,
+`matchNum_circulant_nil`, `indepNum_circulant_nil`, `coverNum_circulant_nil`,
+`cliqueNum_circulant_nil`, `cliqueCoverNum_circulant_nil`, `chromNum_circulant_nil`,
+`edgeChromNum_circulant_nil`, `domNum_circulant_nil`, `radius_circulant_nil`,
+`diameter_circulant_nil`, `girth_circulant_nil`, `numComponents_circulant_nil`,
+`degSequence_circulant_nil`, `autCount_circulant_nil`, `isRegularWith_circulant_nil`,
+`isAcyclic_circulant_nil`, `isBipartite_circulant_nil`, `isArcTransitive_circulant_nil`,
+`not_isConnected_circulant_nil`, `not_isSelfComplementary_circulant_nil`,
+`compl_circulant_nil` and `lineGraph_circulant_nil`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

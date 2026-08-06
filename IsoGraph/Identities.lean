@@ -36166,6 +36166,132 @@ theorem not_isSelfComplementary_kneser_one (n : ℕ) :
   rw [kneser_one]
   exact not_isSelfComplementary_complete n
 
+/-! ### One-element Johnson graphs and connectionless circulants
+
+`johnson n 1` is the complete graph and `circulant n []` is the edgeless graph, which fills the
+`k = 1` column of the Johnson row and the empty column of the circulant row.
+-/
+
+theorem matchNum_johnson_one (n : ℕ) : (johnson n 1).matchNum = n / 2 := by
+  rw [johnson_one, matchNum_complete]
+
+theorem indepNum_johnson_one (n : ℕ) : (johnson n 1).indepNum = min n 1 := by
+  rw [johnson_one, indepNum_complete]
+
+theorem cliqueNum_johnson_one (n : ℕ) : (johnson n 1).cliqueNum = n := by
+  rw [johnson_one, cliqueNum_complete]
+
+theorem chromNum_johnson_one (n : ℕ) : (johnson n 1).chromNum = n := by
+  rw [johnson_one, chromNum_complete]
+
+theorem cliqueCoverNum_johnson_one (n : ℕ) : (johnson (n + 1) 1).cliqueCoverNum = 1 := by
+  rw [johnson_one, cliqueCoverNum_complete]
+
+theorem domNum_johnson_one (n : ℕ) : (johnson (n + 1) 1).domNum = 1 := by
+  rw [johnson_one, domNum_complete]
+
+theorem edgeChromNum_johnson_one (n : ℕ) :
+    (johnson (n + 2) 1).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
+  rw [johnson_one, edgeChromNum_complete]
+
+theorem autCount_johnson_one (n : ℕ) : (johnson n 1).autCount = Nat.factorial n := by
+  rw [johnson_one, autCount_complete]
+
+theorem isArcTransitive_johnson_one (n : ℕ) : IsArcTransitive (johnson n 1) := by
+  rw [johnson_one]
+  exact isArcTransitive_complete n
+
+theorem compl_johnson_one (n : ℕ) : (johnson n 1)ᶜ = empty n := by
+  rw [johnson_one, compl_complete]
+
+theorem lineGraph_johnson_one (n : ℕ) : lineGraph (johnson n 1) = johnson n 2 := by
+  rw [johnson_one, lineGraph_complete]
+
+theorem not_isSelfComplementary_johnson_one (n : ℕ) :
+    ¬ IsSelfComplementary (johnson (n + 2) 1) := by
+  rw [johnson_one]
+  exact not_isSelfComplementary_complete n
+
+theorem maxDeg_circulant_nil (n : ℕ) : maxDeg (circulant n []) = 0 := by
+  rw [circulant_nil, maxDeg_empty]
+
+theorem minDeg_circulant_nil (n : ℕ) : minDeg (circulant n []) = 0 := by
+  rw [circulant_nil, minDeg_empty]
+
+theorem matchNum_circulant_nil (n : ℕ) : (circulant n []).matchNum = 0 := by
+  rw [circulant_nil, matchNum_empty]
+
+theorem indepNum_circulant_nil (n : ℕ) : (circulant n []).indepNum = n := by
+  rw [circulant_nil, indepNum_empty]
+
+theorem coverNum_circulant_nil (n : ℕ) : (circulant n []).coverNum = 0 := by
+  rw [circulant_nil, coverNum_empty]
+
+theorem cliqueNum_circulant_nil (n : ℕ) : (circulant n []).cliqueNum = min n 1 := by
+  rw [circulant_nil, cliqueNum_empty]
+
+theorem cliqueCoverNum_circulant_nil (n : ℕ) : (circulant n []).cliqueCoverNum = n := by
+  rw [circulant_nil, cliqueCoverNum_empty]
+
+theorem chromNum_circulant_nil (n : ℕ) : (circulant (n + 1) []).chromNum = 1 := by
+  rw [circulant_nil, chromNum_empty]
+
+theorem edgeChromNum_circulant_nil (n : ℕ) : (circulant n []).edgeChromNum = 0 := by
+  rw [circulant_nil, edgeChromNum_empty]
+
+theorem domNum_circulant_nil (n : ℕ) : (circulant n []).domNum = n := by
+  rw [circulant_nil, domNum_empty]
+
+theorem radius_circulant_nil (n : ℕ) : (circulant n []).radius = 0 := by
+  rw [circulant_nil, radius_empty]
+
+theorem diameter_circulant_nil (n : ℕ) : (circulant n []).diameter = 0 := by
+  rw [circulant_nil, diameter_empty]
+
+theorem girth_circulant_nil (n : ℕ) : (circulant n []).girth = 0 := by
+  rw [circulant_nil, girth_empty]
+
+theorem numComponents_circulant_nil (n : ℕ) : (circulant n []).numComponents = n := by
+  rw [circulant_nil, numComponents_empty]
+
+theorem degSequence_circulant_nil (n : ℕ) :
+    degSequence (circulant n []) = List.replicate n 0 := by
+  rw [circulant_nil, degSequence_empty]
+
+theorem autCount_circulant_nil (n : ℕ) : (circulant n []).autCount = Nat.factorial n := by
+  rw [circulant_nil, autCount_empty]
+
+theorem isRegularWith_circulant_nil (n : ℕ) : (circulant n []).IsRegularWith 0 := by
+  rw [circulant_nil]
+  exact isRegularWith_empty n
+
+theorem isAcyclic_circulant_nil (n : ℕ) : IsAcyclic (circulant n []) := by
+  rw [circulant_nil]
+  exact isAcyclic_empty n
+
+theorem isBipartite_circulant_nil (n : ℕ) : IsBipartite (circulant n []) := by
+  rw [circulant_nil]
+  exact isBipartite_empty n
+
+theorem isArcTransitive_circulant_nil (n : ℕ) : IsArcTransitive (circulant n []) := by
+  rw [circulant_nil]
+  exact isArcTransitive_empty n
+
+theorem not_isConnected_circulant_nil (n : ℕ) : ¬ IsConnected (circulant (n + 2) []) := by
+  rw [circulant_nil]
+  exact not_isConnected_empty n
+
+theorem not_isSelfComplementary_circulant_nil (n : ℕ) :
+    ¬ IsSelfComplementary (circulant (n + 2) []) := by
+  rw [circulant_nil]
+  exact not_isSelfComplementary_empty n
+
+theorem compl_circulant_nil (n : ℕ) : (circulant n [])ᶜ = complete n := by
+  rw [circulant_nil, compl_empty]
+
+theorem lineGraph_circulant_nil (n : ℕ) : lineGraph (circulant n []) = empty 0 := by
+  rw [circulant_nil, lineGraph_empty]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
