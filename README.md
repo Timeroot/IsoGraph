@@ -2655,6 +2655,27 @@ On the spider side the same list appears as `maxDeg_spider_singleton`,
 `not_isVertexTransitive_spider_singleton` and `not_isArcTransitive_spider_singleton`, the rest of
 the row already being covered by the general spider lemmas.
 
+Two more families have a degenerate parameter that lands on something known exactly. A circulant
+with the single connection `[1]` is a cycle, which turns the circulant row from a list of bounds
+into exact values: `matchNum_circulant_one`, `indepNum_circulant_one`, `coverNum_circulant_one`,
+`cliqueNum_circulant_one`, `cliqueCoverNum_circulant_one`, `domNum_circulant_one`,
+`diameter_circulant_one`, `radius_circulant_one`, the parity splits
+`chromNum_circulant_one_even`, `chromNum_circulant_one_odd`,
+`edgeChromNum_circulant_one_even` and `edgeChromNum_circulant_one_odd`, together with
+`isRegularWith_circulant_one`, `isConnected_circulant_one`, `numComponents_circulant_one`,
+`not_isTree_circulant_one`, and on the symmetry side `isArcTransitive_circulant_one` — stronger
+than the general `isVertexTransitive_circulant` — with the dihedral bound
+`two_mul_le_autCount_circulant_one`.
+
+`kneser_one` does the same job with the complete graph on the other side. The Kneser row is one
+of the better developed ones, but almost all of it is stated for `k = 2`; at `k = 1` the complete
+graph supplies `matchNum_kneser_one`, `indepNum_kneser_one`, `coverNum_kneser_one`,
+`cliqueNum_kneser_one`, `chromNum_kneser_one`, `cliqueCoverNum_kneser_one`, `domNum_kneser_one`,
+`radius_kneser_one`, `diameter_kneser_one`, `edgeChromNum_kneser_one`, `girth_kneser_one`,
+`not_isSelfComplementary_kneser_one`, the two structural identities `compl_kneser_one` and
+`lineGraph_kneser_one`, and — in place of the general bound `le_autCount_kneser` — the exact
+count `autCount_kneser_one = n!`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

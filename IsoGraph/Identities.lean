@@ -36048,6 +36048,124 @@ theorem not_isArcTransitive_spider_singleton (k : ℕ) : ¬ IsArcTransitive (spi
   rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring]
   exact not_isArcTransitive_path k
 
+/-! ### Single-connection circulants and one-element Kneser graphs
+
+`circulant n [1]` is the cycle and `kneser n 1` is the complete graph, so both families inherit
+an exact row where otherwise only bounds are known.
+-/
+
+theorem matchNum_circulant_one (n : ℕ) : (circulant (n + 3) [1]).matchNum = (n + 3) / 2 := by
+  rw [circulant_one, matchNum_cycle]
+
+theorem indepNum_circulant_one (n : ℕ) : (circulant (n + 3) [1]).indepNum = (n + 3) / 2 := by
+  rw [circulant_one, indepNum_cycle]
+
+theorem coverNum_circulant_one (n : ℕ) :
+    (circulant (n + 3) [1]).coverNum = (n + 3) - (n + 3) / 2 := by
+  rw [circulant_one, coverNum_cycle]
+
+theorem cliqueNum_circulant_one (n : ℕ) : (circulant (n + 4) [1]).cliqueNum = 2 := by
+  rw [circulant_one, cliqueNum_cycle]
+
+theorem cliqueCoverNum_circulant_one (n : ℕ) :
+    (circulant (n + 4) [1]).cliqueCoverNum = (n + 5) / 2 := by
+  rw [circulant_one, cliqueCoverNum_cycle]
+
+theorem domNum_circulant_one (n : ℕ) : (circulant (n + 3) [1]).domNum = (n + 5) / 3 := by
+  rw [circulant_one, domNum_cycle]
+
+theorem diameter_circulant_one (n : ℕ) : (circulant (n + 1) [1]).diameter = (n + 1) / 2 := by
+  rw [circulant_one, diameter_cycle]
+
+theorem radius_circulant_one (n : ℕ) : (circulant (n + 1) [1]).radius = (n + 1) / 2 := by
+  rw [circulant_one, radius_cycle]
+
+theorem chromNum_circulant_one_even (m : ℕ) : (circulant (2 * m + 2) [1]).chromNum = 2 := by
+  rw [circulant_one, chromNum_cycle_even]
+
+theorem chromNum_circulant_one_odd (m : ℕ) : (circulant (2 * m + 3) [1]).chromNum = 3 := by
+  rw [circulant_one, chromNum_cycle_odd]
+
+theorem edgeChromNum_circulant_one_even (m : ℕ) :
+    (circulant (2 * m + 4) [1]).edgeChromNum = 2 := by
+  rw [circulant_one, edgeChromNum_cycle_even]
+
+theorem edgeChromNum_circulant_one_odd (m : ℕ) :
+    (circulant (2 * m + 3) [1]).edgeChromNum = 3 := by
+  rw [circulant_one, edgeChromNum_cycle_odd]
+
+theorem isRegularWith_circulant_one (n : ℕ) : (circulant (n + 3) [1]).IsRegularWith 2 := by
+  rw [circulant_one]
+  exact isRegularWith_cycle n
+
+theorem isConnected_circulant_one (n : ℕ) : IsConnected (circulant (n + 1) [1]) := by
+  rw [circulant_one]
+  exact isConnected_cycle n
+
+theorem numComponents_circulant_one (n : ℕ) : (circulant (n + 1) [1]).numComponents = 1 := by
+  rw [circulant_one, numComponents_cycle]
+
+theorem isArcTransitive_circulant_one (n : ℕ) : IsArcTransitive (circulant n [1]) := by
+  rw [circulant_one]
+  exact isArcTransitive_cycle n
+
+theorem two_mul_le_autCount_circulant_one (n : ℕ) :
+    2 * (n + 3) ≤ (circulant (n + 3) [1]).autCount := by
+  rw [circulant_one]
+  exact two_mul_le_autCount_cycle n
+
+theorem not_isTree_circulant_one (n : ℕ) : ¬ IsTree (circulant (n + 3) [1]) := by
+  rw [circulant_one]
+  exact not_isTree_cycle n
+
+theorem matchNum_kneser_one (n : ℕ) : (kneser n 1).matchNum = n / 2 := by
+  rw [kneser_one, matchNum_complete]
+
+theorem indepNum_kneser_one (n : ℕ) : (kneser n 1).indepNum = min n 1 := by
+  rw [kneser_one, indepNum_complete]
+
+theorem coverNum_kneser_one (n : ℕ) : (kneser n 1).coverNum = n - 1 := by
+  rw [kneser_one, coverNum_complete]
+
+theorem cliqueNum_kneser_one (n : ℕ) : (kneser n 1).cliqueNum = n := by
+  rw [kneser_one, cliqueNum_complete]
+
+theorem chromNum_kneser_one (n : ℕ) : (kneser n 1).chromNum = n := by
+  rw [kneser_one, chromNum_complete]
+
+theorem cliqueCoverNum_kneser_one (n : ℕ) : (kneser (n + 1) 1).cliqueCoverNum = 1 := by
+  rw [kneser_one, cliqueCoverNum_complete]
+
+theorem domNum_kneser_one (n : ℕ) : (kneser (n + 1) 1).domNum = 1 := by
+  rw [kneser_one, domNum_complete]
+
+theorem radius_kneser_one (n : ℕ) : (kneser (n + 2) 1).radius = 1 := by
+  rw [kneser_one, radius_complete]
+
+theorem diameter_kneser_one (n : ℕ) : (kneser (n + 2) 1).diameter = 1 := by
+  rw [kneser_one, diameter_complete]
+
+theorem edgeChromNum_kneser_one (n : ℕ) :
+    (kneser (n + 2) 1).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
+  rw [kneser_one, edgeChromNum_complete]
+
+theorem autCount_kneser_one (n : ℕ) : (kneser n 1).autCount = Nat.factorial n := by
+  rw [kneser_one, autCount_complete]
+
+theorem compl_kneser_one (n : ℕ) : (kneser n 1)ᶜ = empty n := by
+  rw [kneser_one, compl_complete]
+
+theorem lineGraph_kneser_one (n : ℕ) : lineGraph (kneser n 1) = johnson n 2 := by
+  rw [kneser_one, lineGraph_complete]
+
+theorem girth_kneser_one (n : ℕ) : (kneser (n + 3) 1).girth = 3 := by
+  rw [kneser_one, girth_complete]
+
+theorem not_isSelfComplementary_kneser_one (n : ℕ) :
+    ¬ IsSelfComplementary (kneser (n + 2) 1) := by
+  rw [kneser_one]
+  exact not_isSelfComplementary_complete n
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
