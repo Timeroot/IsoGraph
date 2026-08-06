@@ -37827,6 +37827,72 @@ theorem not_isConnected_disjUnion_path (m n : ℕ) :
     (path (m + 1) ⊕g path (n + 1)).radius = 0 :=
   radius_disjUnion (by rw [V_path]; omega) (by rw [V_path]; omega)
 
+/-! ### The disjoint union of two complete graphs -/
+
+@[simp] theorem V_disjUnion_complete (m n : ℕ) : (complete m ⊕g complete n).V = m + n := by
+  rw [V_disjUnion, V_complete, V_complete]
+
+theorem E_disjUnion_complete (m n : ℕ) :
+    (complete m ⊕g complete n).E = m.choose 2 + n.choose 2 := by
+  rw [E_disjUnion, E_complete, E_complete]
+
+theorem cliqueNum_disjUnion_complete (m n : ℕ) :
+    (complete m ⊕g complete n).cliqueNum = max m n := by
+  rw [cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_complete]
+
+theorem chromNum_disjUnion_complete (m n : ℕ) :
+    (complete m ⊕g complete n).chromNum = max m n := by
+  rw [chromNum_disjUnion, chromNum_complete, chromNum_complete]
+
+theorem indepNum_disjUnion_complete (m n : ℕ) :
+    (complete (m + 1) ⊕g complete (n + 1)).indepNum = 2 := by
+  have h := indepNum_disjUnion (complete (m + 1)) (complete (n + 1))
+  rw [indepNum_complete, indepNum_complete] at h
+  omega
+
+theorem matchNum_disjUnion_complete (m n : ℕ) :
+    (complete m ⊕g complete n).matchNum = m / 2 + n / 2 := by
+  rw [matchNum_disjUnion, matchNum_complete, matchNum_complete]
+
+theorem cliqueCoverNum_disjUnion_complete (m n : ℕ) :
+    (complete (m + 1) ⊕g complete (n + 1)).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_complete, cliqueCoverNum_complete]
+
+theorem domNum_disjUnion_complete (m n : ℕ) :
+    (complete (m + 1) ⊕g complete (n + 1)).domNum = 2 := by
+  rw [domNum_disjUnion, domNum_complete, domNum_complete]
+
+@[simp] theorem maxDeg_disjUnion_complete (m n : ℕ) :
+    maxDeg (complete m ⊕g complete n) = max (m - 1) (n - 1) := by
+  rw [maxDeg_disjUnion, maxDeg_complete, maxDeg_complete]
+
+@[simp] theorem minDeg_disjUnion_complete (m n : ℕ) :
+    minDeg (complete (m + 1) ⊕g complete (n + 1)) = min m n := by
+  have h := minDeg_disjUnion (G := complete (m + 1)) (H := complete (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_complete, minDeg_complete] at h
+  omega
+
+@[simp] theorem girth_disjUnion_complete (m n : ℕ) :
+    (complete (m + 3) ⊕g complete (n + 3)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_disjUnion_complete]; omega)
+
+@[simp] theorem numComponents_disjUnion_complete (m n : ℕ) :
+    (complete (m + 1) ⊕g complete (n + 1)).numComponents = 2 := by
+  rw [numComponents_disjUnion, numComponents_complete, numComponents_complete]
+
+theorem not_isConnected_disjUnion_complete (m n : ℕ) :
+    ¬ IsConnected (complete (m + 1) ⊕g complete (n + 1)) :=
+  not_isConnected_disjUnion (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+
+@[simp] theorem diameter_disjUnion_complete (m n : ℕ) :
+    (complete (m + 1) ⊕g complete (n + 1)).diameter = 0 :=
+  diameter_disjUnion (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+
+@[simp] theorem radius_disjUnion_complete (m n : ℕ) :
+    (complete (m + 1) ⊕g complete (n + 1)).radius = 0 :=
+  radius_disjUnion (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

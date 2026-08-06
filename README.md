@@ -2945,6 +2945,15 @@ cannot have: `isBipartite_disjUnion_path`, so `chromNum_disjUnion_path = 2` outr
 `not_isConnected_disjUnion_path`, `diameter_disjUnion_path` and `radius_disjUnion_path` close it
 out.
 
+Two complete graphs side by side — the complement of a complete bipartite graph — complete the
+disjoint union trio. Here the extremal invariants are the interesting ones:
+`cliqueNum_disjUnion_complete` and `chromNum_disjUnion_complete` are both `max m n`, and
+`maxDeg_disjUnion_complete` and `minDeg_disjUnion_complete` are the max and min of the two
+degrees. The additive ones collapse to constants, since each clique contributes exactly one:
+`indepNum_disjUnion_complete`, `cliqueCoverNum_disjUnion_complete` and
+`domNum_disjUnion_complete` are all `2`. `E_disjUnion_complete`, `matchNum_disjUnion_complete`,
+`girth_disjUnion_complete = 3` and the four disconnectedness facts finish the row.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
