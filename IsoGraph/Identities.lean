@@ -36763,6 +36763,112 @@ theorem E_compl_prism (n : ℕ) :
 theorem isVertexTransitive_compl_prism (n : ℕ) : IsVertexTransitive ((prism n)ᶜ) :=
   (isVertexTransitive_compl _).2 (isVertexTransitive_prism n)
 
+/-! ### Complements of the tadpole, lollipop, spider, theta and cycle-pendant families -/
+
+theorem indepNum_compl_tadpole (m k : ℕ) : ((tadpole (m + 4) k)ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_tadpole]
+
+theorem cliqueCoverNum_compl_tadpole_even (m k : ℕ) :
+    ((tadpole (2 * m + 4) k)ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_tadpole_even]
+
+theorem cliqueCoverNum_compl_tadpole_odd (m k : ℕ) :
+    ((tadpole (2 * m + 3) k)ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_tadpole_odd]
+
+theorem maxDeg_compl_tadpole (m k : ℕ) :
+    maxDeg ((tadpole (m + 3) (k + 1))ᶜ) = m + k + 2 := by
+  have h := maxDeg_compl (G := tadpole (m + 3) (k + 1)) (by rw [V_tadpole]; omega)
+  rw [V_tadpole, minDeg_tadpole] at h
+  omega
+
+theorem minDeg_compl_tadpole (m k : ℕ) :
+    minDeg ((tadpole (m + 3) (k + 1))ᶜ) = m + k := by
+  have h := minDeg_compl (G := tadpole (m + 3) (k + 1)) (by rw [V_tadpole]; omega)
+  rw [V_tadpole, maxDeg_tadpole] at h
+  omega
+
+theorem E_compl_tadpole (m k : ℕ) :
+    ((tadpole (m + 3) k)ᶜ).E = (m + 3 + k).choose 2 - (m + 3 + k) := by
+  have h := E_compl (tadpole (m + 3) k)
+  rw [E_tadpole, V_tadpole] at h
+  omega
+
+theorem indepNum_compl_lollipop (m k : ℕ) : ((lollipop (m + 2) k)ᶜ).indepNum = m + 2 := by
+  rw [indepNum_compl, cliqueNum_lollipop]
+
+theorem cliqueCoverNum_compl_lollipop (m k : ℕ) :
+    ((lollipop (m + 2) k)ᶜ).cliqueCoverNum = m + 2 := by
+  rw [cliqueCoverNum_compl, chromNum_lollipop]
+
+theorem maxDeg_compl_lollipop (m k : ℕ) :
+    maxDeg ((lollipop (m + 2) (k + 1))ᶜ) = m + k + 1 := by
+  have h := maxDeg_compl (G := lollipop (m + 2) (k + 1)) (by rw [V_lollipop]; omega)
+  rw [V_lollipop, minDeg_lollipop] at h
+  omega
+
+theorem minDeg_compl_lollipop (m k : ℕ) : minDeg ((lollipop (m + 2) (k + 1))ᶜ) = k := by
+  have h := minDeg_compl (G := lollipop (m + 2) (k + 1)) (by rw [V_lollipop]; omega)
+  rw [V_lollipop, maxDeg_lollipop] at h
+  omega
+
+theorem E_compl_lollipop (m k : ℕ) :
+    ((lollipop (m + 1) k)ᶜ).E = (m + 1 + k).choose 2 - ((m + 1).choose 2 + k) := by
+  have h := E_compl (lollipop (m + 1) k)
+  rw [E_lollipop, V_lollipop] at h
+  omega
+
+theorem indepNum_compl_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    ((spider legs)ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_spider legs h]
+
+theorem cliqueCoverNum_compl_spider (legs : List ℕ) (h : 0 < legs.sum) :
+    ((spider legs)ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_spider legs h]
+
+theorem maxDeg_compl_spider (legs : List ℕ) (hs : 0 < legs.sum) :
+    maxDeg ((spider legs)ᶜ) = legs.sum - 1 := by
+  have h := maxDeg_compl (G := spider legs) (by rw [V_spider]; omega)
+  rw [V_spider, minDeg_spider legs hs] at h
+  omega
+
+theorem E_compl_spider (legs : List ℕ) :
+    ((spider legs)ᶜ).E = (1 + legs.sum).choose 2 - legs.sum := by
+  have h := E_compl (spider legs)
+  rw [E_spider, V_spider] at h
+  omega
+
+theorem cliqueCoverNum_compl_thetaGraph_odd {xs : List ℕ} (hne : xs ≠ [])
+    (h : ∀ k ∈ xs, k % 2 = 1) : ((thetaGraph xs)ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_thetaGraph_odd hne h]
+
+theorem cliqueCoverNum_compl_thetaGraph_even {xs : List ℕ} (hne : xs ≠ [])
+    (h0 : ∀ k ∈ xs, 0 < k) (h : ∀ k ∈ xs, k % 2 = 0) :
+    ((thetaGraph xs)ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_thetaGraph_even hne h0 h]
+
+theorem E_compl_thetaGraph (xs : List ℕ) (h0 : ∀ k ∈ xs, 0 < k) :
+    ((thetaGraph xs)ᶜ).E = (2 + xs.sum).choose 2 - (xs.sum + xs.length) := by
+  have h := E_compl (thetaGraph xs)
+  rw [E_thetaGraph xs h0, V_thetaGraph] at h
+  omega
+
+theorem cliqueCoverNum_compl_cyclePendant_even (t : ℕ) (ks : List ℕ)
+    (h : ks.length ≤ 2 * t + 2) : ((cyclePendant (2 * t + 2) ks)ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_cyclePendant_even t ks h]
+
+theorem maxDeg_compl_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : maxDeg ((cyclePendant (m + 3) ks)ᶜ) = m + ks.sum + 1 := by
+  have hd := maxDeg_compl (G := cyclePendant (m + 3) ks) (by rw [V_cyclePendant]; omega)
+  rw [V_cyclePendant, minDeg_cyclePendant m ks h h2] at hd
+  omega
+
+theorem E_compl_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
+    ((cyclePendant (m + 3) ks)ᶜ).E = (m + 3 + ks.sum).choose 2 - (m + 3 + ks.sum) := by
+  have hd := E_compl (cyclePendant (m + 3) ks)
+  rw [E_cyclePendant m ks h, V_cyclePendant] at hd
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

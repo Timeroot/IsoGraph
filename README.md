@@ -2762,6 +2762,28 @@ come out linear in `n`, with the prism's two agreeing because the prism itself i
 where the prism's own row is — finish the picture, and `isVertexTransitive_compl_prism` carries
 the prism's vertex transitivity across.
 
+The list-parameterised families come last, and there the complement column is partial by
+necessity: it can only say as much as the family's own row does. The tadpole and the lollipop
+have full rows, so `indepNum_compl_tadpole`, `cliqueCoverNum_compl_tadpole_even`,
+`cliqueCoverNum_compl_tadpole_odd`, `maxDeg_compl_tadpole`, `minDeg_compl_tadpole` and
+`E_compl_tadpole` come out in closed form, as do `indepNum_compl_lollipop`,
+`cliqueCoverNum_compl_lollipop`, `maxDeg_compl_lollipop`, `minDeg_compl_lollipop` and
+`E_compl_lollipop` — the last of which keeps two binomial coefficients, `C(m + 1 + k, 2)` for
+the vertex count and `C(m + 1, 2)` for the clique's own edges, and `omega` is content to treat
+both as atoms. The lollipop's complement has minimum degree exactly `k`: the clique vertices,
+which dominated the graph, become the sparse ones.
+
+For the spider, the theta graph and the cycle with pendants, only the clique, chromatic and
+minimum-degree facts are known in general, so the complement inherits exactly those:
+`indepNum_compl_spider`, `cliqueCoverNum_compl_spider`, `maxDeg_compl_spider` and
+`E_compl_spider` for the spider (all but the last needing `0 < legs.sum`, since the empty spider
+is a single vertex), `cliqueCoverNum_compl_thetaGraph_odd`,
+`cliqueCoverNum_compl_thetaGraph_even` and `E_compl_thetaGraph` for the theta graph, and
+`cliqueCoverNum_compl_cyclePendant_even`, `maxDeg_compl_cyclePendant` and
+`E_compl_cyclePendant` for the cycle with pendants. Each of these carries its source lemma's
+hypotheses unchanged — `ks.length ≤ m + 3` so the pendants fit, the parity conditions on the
+theta graph's paths — which is the honest thing for a transported statement to do.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
