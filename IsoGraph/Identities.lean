@@ -37684,6 +37684,83 @@ theorem diameter_join_path (m n : ℕ) :
   rw [E_path, V_path, h]
   omega
 
+/-! ### The disjoint union of two cycles -/
+
+@[simp] theorem V_disjUnion_cycle (m n : ℕ) : (cycle m ⊕g cycle n).V = m + n := by
+  rw [V_disjUnion, V_cycle, V_cycle]
+
+theorem E_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊕g cycle (n + 3)).E = (m + 3) + (n + 3) := by
+  rw [E_disjUnion, E_cycle, E_cycle]
+
+theorem cliqueNum_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 4) ⊕g cycle (n + 4)).cliqueNum = 2 := by
+  have h := cliqueNum_disjUnion (cycle (m + 4)) (cycle (n + 4))
+  rw [cliqueNum_cycle, cliqueNum_cycle] at h
+  omega
+
+theorem indepNum_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊕g cycle (n + 3)).indepNum = (m + 3) / 2 + (n + 3) / 2 := by
+  rw [indepNum_disjUnion, indepNum_cycle, indepNum_cycle]
+
+theorem matchNum_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊕g cycle (n + 3)).matchNum = (m + 3) / 2 + (n + 3) / 2 := by
+  rw [matchNum_disjUnion, matchNum_cycle, matchNum_cycle]
+
+theorem cliqueCoverNum_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 4) ⊕g cycle (n + 4)).cliqueCoverNum = (m + 5) / 2 + (n + 5) / 2 := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_cycle, cliqueCoverNum_cycle]
+
+theorem domNum_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊕g cycle (n + 3)).domNum = (m + 5) / 3 + (n + 5) / 3 := by
+  rw [domNum_disjUnion, domNum_cycle, domNum_cycle]
+
+@[simp] theorem maxDeg_disjUnion_cycle (m n : ℕ) :
+    maxDeg (cycle (m + 3) ⊕g cycle (n + 3)) = 2 := by
+  rw [maxDeg_disjUnion, maxDeg_cycle, maxDeg_cycle]
+  omega
+
+@[simp] theorem minDeg_disjUnion_cycle (m n : ℕ) :
+    minDeg (cycle (m + 3) ⊕g cycle (n + 3)) = 2 := by
+  have h := minDeg_disjUnion (G := cycle (m + 3)) (H := cycle (n + 3))
+    (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+  rw [minDeg_cycle, minDeg_cycle] at h
+  omega
+
+@[simp] theorem numComponents_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 1) ⊕g cycle (n + 1)).numComponents = 2 := by
+  rw [numComponents_disjUnion, numComponents_cycle, numComponents_cycle]
+
+theorem not_isConnected_disjUnion_cycle (m n : ℕ) :
+    ¬ IsConnected (cycle (m + 1) ⊕g cycle (n + 1)) :=
+  not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+
+@[simp] theorem diameter_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 1) ⊕g cycle (n + 1)).diameter = 0 :=
+  diameter_disjUnion (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+
+@[simp] theorem radius_disjUnion_cycle (m n : ℕ) :
+    (cycle (m + 1) ⊕g cycle (n + 1)).radius = 0 :=
+  radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
+
+theorem chromNum_disjUnion_cycle_even (m n : ℕ) :
+    (cycle (2 * m + 2) ⊕g cycle (2 * n + 2)).chromNum = 2 := by
+  have h := chromNum_disjUnion (cycle (2 * m + 2)) (cycle (2 * n + 2))
+  rw [chromNum_cycle_even, chromNum_cycle_even] at h
+  omega
+
+theorem chromNum_disjUnion_cycle_odd (m n : ℕ) :
+    (cycle (2 * m + 3) ⊕g cycle (2 * n + 3)).chromNum = 3 := by
+  have h := chromNum_disjUnion (cycle (2 * m + 3)) (cycle (2 * n + 3))
+  rw [chromNum_cycle_odd, chromNum_cycle_odd] at h
+  omega
+
+theorem chromNum_disjUnion_cycle_even_odd (m n : ℕ) :
+    (cycle (2 * m + 2) ⊕g cycle (2 * n + 3)).chromNum = 3 := by
+  have h := chromNum_disjUnion (cycle (2 * m + 2)) (cycle (2 * n + 3))
+  rw [chromNum_cycle_even, chromNum_cycle_odd] at h
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

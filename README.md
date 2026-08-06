@@ -2923,6 +2923,19 @@ independence number and clique cover number both count `⌈n/2⌉`. `V_join_path
 `maxDeg_join_path`, `minDeg_join_path`, `isConnected_join_path`, `numComponents_join_path`,
 `girth_join_path = 3` and `diameter_join_path = 2` finish it.
 
+The disjoint union is the join's opposite, and a pair of cycles is the smallest interesting case
+— it is the general disconnected 2-regular graph. Everything additive stays additive:
+`indepNum_disjUnion_cycle`, `matchNum_disjUnion_cycle` (the same value, as a cycle has a perfect
+or near-perfect matching), `cliqueCoverNum_disjUnion_cycle`, `domNum_disjUnion_cycle` and
+`numComponents_disjUnion_cycle = 2`. Everything extremal is an extremum:
+`cliqueNum_disjUnion_cycle = 2`, `maxDeg_disjUnion_cycle` and `minDeg_disjUnion_cycle` are both
+`2`, and the chromatic number is the max, so it splits on parity again across
+`chromNum_disjUnion_cycle_even = 2`, `chromNum_disjUnion_cycle_odd = 3` and
+`chromNum_disjUnion_cycle_even_odd = 3`. Being disconnected,
+`not_isConnected_disjUnion_cycle` holds and both `diameter_disjUnion_cycle` and
+`radius_disjUnion_cycle` are zero, which is the convention the rest of the file uses for
+disconnected graphs.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
