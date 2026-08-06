@@ -3114,6 +3114,19 @@ product of two complete graphs is itself complete. The witnesses `chromNum_eq_cl
 `chromNum_eq_cliqueNum_complete`, `cliqueCoverNum_eq_indepNum_path` and their siblings are
 recorded separately, since each is reused by four or five of these corollaries.
 
+Vertex transitivity spreads along three routes, and forty-three new lemmas walk each of them a
+little further. All four products preserve it, so the hypercubes, the products of a cycle with a
+hypercube, of a complete graph with a cycle, of two Kneser graphs, of two Paley graphs, of two
+crowns and of two folded cubes are all vertex-transitive under whichever products are recorded for
+them. `IsArcTransitive.lineGraph` turns arc transitivity of `G` into vertex transitivity of `L(G)`,
+which now covers the line graphs of the hypercube, of every Kneser graph, of the Petersen graph, of
+`K_{n,n}`, of the empty graph, of the cycle and edgeless circulants, of `J(n, 1)`, of the theta
+graph on two paths, and of the degenerate tadpole, lollipop and cycle-pendant families. Finally
+complementation preserves it, which adds the complements of the complete and empty graphs, of the
+Petersen graph, of the triangular and rook graphs, of the cocktail party graphs, of every Paley
+graph, of the balanced complete multipartite graphs, of `K_{n,n}`, and of the line graphs of `Kₙ`,
+`Cₙ` and the Petersen graph.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

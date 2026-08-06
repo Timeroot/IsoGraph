@@ -39584,6 +39584,169 @@ theorem cliqueCoverNum_lexProduct_path_complete (m n : ℕ) :
   rw [indepNum_path, indepNum_complete, Nat.min_eq_right (by omega : 1 ≤ n + 1)] at h
   simpa using h
 
+/-! ### More vertex-transitive graphs -/
+
+theorem isVertexTransitive_cartesianProduct_hypercube (m n : ℕ) :
+    IsVertexTransitive (hypercube m □g hypercube n) :=
+  (isVertexTransitive_hypercube m).cartesianProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_tensorProduct_hypercube (m n : ℕ) :
+    IsVertexTransitive (hypercube m ⊗g hypercube n) :=
+  (isVertexTransitive_hypercube m).tensorProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_strongProduct_hypercube (m n : ℕ) :
+    IsVertexTransitive (hypercube m ⊠g hypercube n) :=
+  (isVertexTransitive_hypercube m).strongProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_lexProduct_hypercube (m n : ℕ) :
+    IsVertexTransitive (hypercube m ·g hypercube n) :=
+  (isVertexTransitive_hypercube m).lexProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_cartesianProduct_cycle_hypercube (m n : ℕ) :
+    IsVertexTransitive (cycle m □g hypercube n) :=
+  (isVertexTransitive_cycle m).cartesianProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_tensorProduct_cycle_hypercube (m n : ℕ) :
+    IsVertexTransitive (cycle m ⊗g hypercube n) :=
+  (isVertexTransitive_cycle m).tensorProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_strongProduct_cycle_hypercube (m n : ℕ) :
+    IsVertexTransitive (cycle m ⊠g hypercube n) :=
+  (isVertexTransitive_cycle m).strongProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_lexProduct_cycle_hypercube (m n : ℕ) :
+    IsVertexTransitive (cycle m ·g hypercube n) :=
+  (isVertexTransitive_cycle m).lexProduct (isVertexTransitive_hypercube n)
+
+theorem isVertexTransitive_cartesianProduct_complete_cycle (m n : ℕ) :
+    IsVertexTransitive (complete m □g cycle n) :=
+  (isVertexTransitive_complete m).cartesianProduct (isVertexTransitive_cycle n)
+
+theorem isVertexTransitive_tensorProduct_complete_cycle (m n : ℕ) :
+    IsVertexTransitive (complete m ⊗g cycle n) :=
+  (isVertexTransitive_complete m).tensorProduct (isVertexTransitive_cycle n)
+
+theorem isVertexTransitive_strongProduct_complete_cycle (m n : ℕ) :
+    IsVertexTransitive (complete m ⊠g cycle n) :=
+  (isVertexTransitive_complete m).strongProduct (isVertexTransitive_cycle n)
+
+theorem isVertexTransitive_lexProduct_complete_cycle (m n : ℕ) :
+    IsVertexTransitive (complete m ·g cycle n) :=
+  (isVertexTransitive_complete m).lexProduct (isVertexTransitive_cycle n)
+
+theorem isVertexTransitive_cartesianProduct_kneser (m k n l : ℕ) :
+    IsVertexTransitive (kneser m k □g kneser n l) :=
+  (isVertexTransitive_kneser m k).cartesianProduct (isVertexTransitive_kneser n l)
+
+theorem isVertexTransitive_tensorProduct_kneser (m k n l : ℕ) :
+    IsVertexTransitive (kneser m k ⊗g kneser n l) :=
+  (isVertexTransitive_kneser m k).tensorProduct (isVertexTransitive_kneser n l)
+
+theorem isVertexTransitive_cartesianProduct_paley (p q : ℕ) [NeZero p] [Fact p.Prime] [NeZero q]
+    [Fact q.Prime] : IsVertexTransitive (paley p □g paley q) :=
+  (isVertexTransitive_paley p).cartesianProduct (isVertexTransitive_paley q)
+
+theorem isVertexTransitive_strongProduct_paley (p q : ℕ) [NeZero p] [Fact p.Prime] [NeZero q]
+    [Fact q.Prime] : IsVertexTransitive (paley p ⊠g paley q) :=
+  (isVertexTransitive_paley p).strongProduct (isVertexTransitive_paley q)
+
+theorem isVertexTransitive_cartesianProduct_crown (m n : ℕ) :
+    IsVertexTransitive (crown m □g crown n) :=
+  (isVertexTransitive_crown m).cartesianProduct (isVertexTransitive_crown n)
+
+theorem isVertexTransitive_cartesianProduct_foldedCube (m n : ℕ) :
+    IsVertexTransitive (foldedCube m □g foldedCube n) :=
+  (isVertexTransitive_foldedCube m).cartesianProduct (isVertexTransitive_foldedCube n)
+
+theorem isVertexTransitive_strongProduct_foldedCube (m n : ℕ) :
+    IsVertexTransitive (foldedCube m ⊠g foldedCube n) :=
+  (isVertexTransitive_foldedCube m).strongProduct (isVertexTransitive_foldedCube n)
+
+/-! Line graphs of arc-transitive graphs. -/
+
+theorem isVertexTransitive_lineGraph_hypercube (n : ℕ) :
+    IsVertexTransitive (lineGraph (hypercube n)) := (isArcTransitive_hypercube n).lineGraph
+
+theorem isVertexTransitive_lineGraph_kneser (n k : ℕ) :
+    IsVertexTransitive (lineGraph (kneser n k)) := (isArcTransitive_kneser n k).lineGraph
+
+theorem isVertexTransitive_lineGraph_petersen :
+    IsVertexTransitive (lineGraph petersen) := isArcTransitive_petersen.lineGraph
+
+theorem isVertexTransitive_lineGraph_bipartite_self (n : ℕ) :
+    IsVertexTransitive (lineGraph (bipartite n n)) := (isArcTransitive_bipartite_self n).lineGraph
+
+theorem isVertexTransitive_lineGraph_empty (n : ℕ) :
+    IsVertexTransitive (lineGraph (empty n)) := (isArcTransitive_empty n).lineGraph
+
+theorem isVertexTransitive_lineGraph_circulant_one (n : ℕ) :
+    IsVertexTransitive (lineGraph (circulant n [1])) := (isArcTransitive_circulant_one n).lineGraph
+
+theorem isVertexTransitive_lineGraph_circulant_nil (n : ℕ) :
+    IsVertexTransitive (lineGraph (circulant n [])) := (isArcTransitive_circulant_nil n).lineGraph
+
+theorem isVertexTransitive_lineGraph_johnson_one (n : ℕ) :
+    IsVertexTransitive (lineGraph (johnson n 1)) := (isArcTransitive_johnson_one n).lineGraph
+
+theorem isVertexTransitive_lineGraph_thetaGraph_pair (a b : ℕ) :
+    IsVertexTransitive (lineGraph (thetaGraph [a, b])) :=
+  (isArcTransitive_thetaGraph_pair a b).lineGraph
+
+theorem isVertexTransitive_lineGraph_tadpole_zero (m : ℕ) :
+    IsVertexTransitive (lineGraph (tadpole m 0)) := (isArcTransitive_tadpole_zero m).lineGraph
+
+theorem isVertexTransitive_lineGraph_lollipop_zero (m : ℕ) :
+    IsVertexTransitive (lineGraph (lollipop m 0)) := (isArcTransitive_lollipop_zero m).lineGraph
+
+theorem isVertexTransitive_lineGraph_cyclePendant_replicate_zero (m j : ℕ) :
+    IsVertexTransitive (lineGraph (cyclePendant m (List.replicate j 0))) :=
+  (isArcTransitive_cyclePendant_replicate_zero m j).lineGraph
+
+/-! Complements of vertex-transitive graphs. -/
+
+theorem isVertexTransitive_compl_complete (n : ℕ) : IsVertexTransitive ((complete n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_complete n)
+
+theorem isVertexTransitive_compl_empty (n : ℕ) : IsVertexTransitive ((empty n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_empty n)
+
+theorem isVertexTransitive_compl_petersen : IsVertexTransitive (petersenᶜ) :=
+  (isVertexTransitive_compl _).2 isVertexTransitive_petersen
+
+theorem isVertexTransitive_compl_triangular (n : ℕ) : IsVertexTransitive ((triangular n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_triangular n)
+
+theorem isVertexTransitive_compl_rook (m n : ℕ) : IsVertexTransitive ((rook m n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_rook m n)
+
+theorem isVertexTransitive_compl_cocktailParty (n : ℕ) :
+    IsVertexTransitive ((cocktailParty n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_cocktailParty n)
+
+theorem isVertexTransitive_compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] :
+    IsVertexTransitive ((paley q)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_paley q)
+
+theorem isVertexTransitive_compl_completeMultipartite_replicate (m d : ℕ) :
+    IsVertexTransitive ((completeMultipartite (List.replicate m d))ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_completeMultipartite_replicate m d)
+
+theorem isVertexTransitive_compl_bipartite_self (n : ℕ) :
+    IsVertexTransitive ((bipartite n n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_bipartite_self n)
+
+theorem isVertexTransitive_compl_lineGraph_complete (n : ℕ) :
+    IsVertexTransitive ((lineGraph (complete n))ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_lineGraph_complete n)
+
+theorem isVertexTransitive_compl_lineGraph_cycle (n : ℕ) :
+    IsVertexTransitive ((lineGraph (cycle n))ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_lineGraph_cycle n)
+
+theorem isVertexTransitive_compl_lineGraph_petersen :
+    IsVertexTransitive ((lineGraph petersen)ᶜ) :=
+  (isVertexTransitive_compl _).2 isVertexTransitive_lineGraph_petersen
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
