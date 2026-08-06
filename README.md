@@ -2611,6 +2611,29 @@ one-vertex cycle, which is a star. That gives `maxDeg_cyclePendant_one`,
 and the failures of symmetry `not_isVertexTransitive_cyclePendant_one` and
 `not_isArcTransitive_cyclePendant_one` once there are at least two pendant vertices.
 
+The tadpole and lollipop rows have the same shape of gap: outside the degrees and the chromatic
+number they are known only through inequalities, because a cycle or clique with a tail attached
+resists the counting arguments that work on the pure families. Their `k = 0` columns do not,
+since `tadpole_zero` is a cycle and `lollipop_zero` is a complete graph. That gives
+`maxDeg_tadpole_zero`, `minDeg_tadpole_zero`, `matchNum_tadpole_zero`, `indepNum_tadpole_zero`,
+`coverNum_tadpole_zero`, `cliqueCoverNum_tadpole_zero`, `domNum_tadpole_zero`,
+`radius_tadpole_zero`, `diameter_tadpole_zero`, `degSequence_tadpole_zero`,
+`isRegularWith_tadpole_zero`, the parity pair `edgeChromNum_tadpole_zero_even` and
+`edgeChromNum_tadpole_zero_odd`, and the symmetry statements
+`isVertexTransitive_tadpole_zero`, `isArcTransitive_tadpole_zero` and
+`two_mul_le_autCount_tadpole_zero` — each of which fails as soon as the tail is non-empty, which
+is exactly why the general row is so much weaker.
+
+The lollipop side is stronger still, because the complete graph has an exact automorphism count
+rather than a bound: `autCount_lollipop_zero` is `m!` on the nose. Alongside it are
+`maxDeg_lollipop_zero`, `minDeg_lollipop_zero`, `matchNum_lollipop_zero`,
+`indepNum_lollipop_zero`, `coverNum_lollipop_zero`, `cliqueCoverNum_lollipop_zero`,
+`domNum_lollipop_zero`, `radius_lollipop_zero`, `diameter_lollipop_zero`,
+`edgeChromNum_lollipop_zero` (with its parity `if`), `degSequence_lollipop_zero`,
+`isRegularWith_lollipop_zero`, `isVertexTransitive_lollipop_zero`,
+`isArcTransitive_lollipop_zero`, and the two structural identities `compl_lollipop_zero` and
+`lineGraph_lollipop_zero`, the latter landing on the Johnson graph `J(m, 2)`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

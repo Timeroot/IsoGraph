@@ -35789,6 +35789,125 @@ theorem not_isArcTransitive_cyclePendant_one (k : ℕ) :
   rw [cyclePendant_one]
   exact not_isArcTransitive_star k
 
+/-! ### Tadpoles and lollipops with no tail
+
+A tadpole with an empty tail is a cycle and a lollipop with an empty stick is a complete graph, so
+the exact values known for those two families fill in the `k = 0` column of the tadpole and
+lollipop rows, where until now only inequalities were available.
+-/
+
+theorem maxDeg_tadpole_zero (m : ℕ) : maxDeg (tadpole (m + 3) 0) = 2 := by
+  rw [tadpole_zero, maxDeg_cycle]
+
+theorem minDeg_tadpole_zero (m : ℕ) : minDeg (tadpole (m + 3) 0) = 2 := by
+  rw [tadpole_zero, minDeg_cycle]
+
+theorem matchNum_tadpole_zero (m : ℕ) : (tadpole (m + 3) 0).matchNum = (m + 3) / 2 := by
+  rw [tadpole_zero, matchNum_cycle]
+
+theorem indepNum_tadpole_zero (m : ℕ) : (tadpole (m + 3) 0).indepNum = (m + 3) / 2 := by
+  rw [tadpole_zero, indepNum_cycle]
+
+theorem coverNum_tadpole_zero (m : ℕ) :
+    (tadpole (m + 3) 0).coverNum = (m + 3) - (m + 3) / 2 := by
+  rw [tadpole_zero, coverNum_cycle]
+
+theorem cliqueCoverNum_tadpole_zero (m : ℕ) :
+    (tadpole (m + 4) 0).cliqueCoverNum = (m + 5) / 2 := by
+  rw [tadpole_zero, cliqueCoverNum_cycle]
+
+theorem domNum_tadpole_zero (m : ℕ) : (tadpole (m + 3) 0).domNum = (m + 5) / 3 := by
+  rw [tadpole_zero, domNum_cycle]
+
+theorem radius_tadpole_zero (m : ℕ) : (tadpole (m + 1) 0).radius = (m + 1) / 2 := by
+  rw [tadpole_zero, radius_cycle]
+
+theorem diameter_tadpole_zero (m : ℕ) : (tadpole (m + 1) 0).diameter = (m + 1) / 2 := by
+  rw [tadpole_zero, diameter_cycle]
+
+theorem edgeChromNum_tadpole_zero_even (t : ℕ) : (tadpole (2 * t + 4) 0).edgeChromNum = 2 := by
+  rw [tadpole_zero, edgeChromNum_cycle_even]
+
+theorem edgeChromNum_tadpole_zero_odd (t : ℕ) : (tadpole (2 * t + 3) 0).edgeChromNum = 3 := by
+  rw [tadpole_zero, edgeChromNum_cycle_odd]
+
+theorem degSequence_tadpole_zero (m : ℕ) :
+    degSequence (tadpole (m + 3) 0) = List.replicate (m + 3) 2 := by
+  rw [tadpole_zero, degSequence_cycle]
+
+theorem isRegularWith_tadpole_zero (m : ℕ) : (tadpole (m + 3) 0).IsRegularWith 2 := by
+  rw [tadpole_zero]
+  exact isRegularWith_cycle m
+
+theorem isVertexTransitive_tadpole_zero (m : ℕ) : IsVertexTransitive (tadpole m 0) := by
+  rw [tadpole_zero]
+  exact isVertexTransitive_cycle m
+
+theorem isArcTransitive_tadpole_zero (m : ℕ) : IsArcTransitive (tadpole m 0) := by
+  rw [tadpole_zero]
+  exact isArcTransitive_cycle m
+
+theorem two_mul_le_autCount_tadpole_zero (m : ℕ) :
+    2 * (m + 3) ≤ (tadpole (m + 3) 0).autCount := by
+  rw [tadpole_zero]
+  exact two_mul_le_autCount_cycle m
+
+theorem maxDeg_lollipop_zero (m : ℕ) : maxDeg (lollipop m 0) = m - 1 := by
+  rw [lollipop_zero, maxDeg_complete]
+
+theorem minDeg_lollipop_zero (m : ℕ) : minDeg (lollipop m 0) = m - 1 := by
+  rw [lollipop_zero, minDeg_complete]
+
+theorem matchNum_lollipop_zero (m : ℕ) : (lollipop m 0).matchNum = m / 2 := by
+  rw [lollipop_zero, matchNum_complete]
+
+theorem indepNum_lollipop_zero (m : ℕ) : (lollipop m 0).indepNum = min m 1 := by
+  rw [lollipop_zero, indepNum_complete]
+
+theorem coverNum_lollipop_zero (m : ℕ) : (lollipop m 0).coverNum = m - 1 := by
+  rw [lollipop_zero, coverNum_complete]
+
+theorem cliqueCoverNum_lollipop_zero (m : ℕ) : (lollipop (m + 1) 0).cliqueCoverNum = 1 := by
+  rw [lollipop_zero, cliqueCoverNum_complete]
+
+theorem domNum_lollipop_zero (m : ℕ) : (lollipop (m + 1) 0).domNum = 1 := by
+  rw [lollipop_zero, domNum_complete]
+
+theorem radius_lollipop_zero (m : ℕ) : (lollipop (m + 2) 0).radius = 1 := by
+  rw [lollipop_zero, radius_complete]
+
+theorem diameter_lollipop_zero (m : ℕ) : (lollipop (m + 2) 0).diameter = 1 := by
+  rw [lollipop_zero, diameter_complete]
+
+theorem edgeChromNum_lollipop_zero (m : ℕ) :
+    (lollipop (m + 2) 0).edgeChromNum = if m % 2 = 0 then m + 1 else m + 2 := by
+  rw [lollipop_zero, edgeChromNum_complete]
+
+theorem autCount_lollipop_zero (m : ℕ) : (lollipop m 0).autCount = Nat.factorial m := by
+  rw [lollipop_zero, autCount_complete]
+
+theorem degSequence_lollipop_zero (m : ℕ) :
+    degSequence (lollipop m 0) = List.replicate m (m - 1) := by
+  rw [lollipop_zero, degSequence_complete]
+
+theorem isRegularWith_lollipop_zero (m : ℕ) : (lollipop m 0).IsRegularWith (m - 1) := by
+  rw [lollipop_zero]
+  exact isRegularWith_complete m
+
+theorem isVertexTransitive_lollipop_zero (m : ℕ) : IsVertexTransitive (lollipop m 0) := by
+  rw [lollipop_zero]
+  exact isVertexTransitive_complete m
+
+theorem isArcTransitive_lollipop_zero (m : ℕ) : IsArcTransitive (lollipop m 0) := by
+  rw [lollipop_zero]
+  exact isArcTransitive_complete m
+
+theorem compl_lollipop_zero (m : ℕ) : (lollipop m 0)ᶜ = empty m := by
+  rw [lollipop_zero, compl_complete]
+
+theorem lineGraph_lollipop_zero (m : ℕ) : lineGraph (lollipop m 0) = johnson m 2 := by
+  rw [lollipop_zero, lineGraph_complete]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
