@@ -3420,6 +3420,19 @@ bounds `Δ ≤ χ′ ≤ 2Δ - 1` that the table records for these families; the
 matching-number bounds read through `α(L(G)) = ν(G)`, and the cover numbers follow from
 `β(L(G)) = |E(G)| - ν(G)`.
 
+The Kneser and Johnson graphs are the last two families to get line graph rows, and they are the
+two where every entry is parametric rather than numeric. Both are regular — `K(n,k)` with degree
+`C(n-k, k)` and `J(n,k)` with degree `k(n-k)` — so both line graphs are regular too, with degree
+twice that minus two, and both get an exact edge count `|E(L(G))| = |V(G)| · C(deg, 2)` from the
+replicated degree sequence. The Johnson row is the more complete of the two, because
+`isConnected_johnson` holds for every `k ≤ n`: feeding it through the new `E_pos_johnson` gives
+connectivity, one component, and radius and diameter at most `min(k, n-k) + 1` for `L(J(n,k))`. The
+Kneser row stops short of connectivity, since the library only proves `K(n,2)` connected. Clique
+number, girth, and the three negative structural facts need a degree of at least three, so they
+carry that as an explicit hypothesis on `C(n-k, k)` or `k(n-k)` rather than on `n` and `k`
+themselves — the arithmetic of when a binomial coefficient clears three is not something `omega`
+can see.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

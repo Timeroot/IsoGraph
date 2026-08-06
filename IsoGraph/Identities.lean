@@ -45150,6 +45150,135 @@ theorem coverNum_lineGraph_lollipop (m k : ℕ) :
       = (m + 1).choose 2 + k - (lollipop (m + 1) k).matchNum := by
   rw [coverNum_lineGraph, E_lollipop]
 
+/-! ### The line graph of a Kneser graph -/
+
+theorem V_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) :
+    (lineGraph (kneser n k)).V = n.choose k * (n - k).choose k / 2 := by
+  rw [V_lineGraph, E_kneser n hk]
+
+theorem maxDeg_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    maxDeg (lineGraph (kneser n k)) = 2 * (n - k).choose k - 2 :=
+  maxDeg_lineGraph (E_pos_kneser n k hk hkn) (degSequence_kneser n hk)
+
+theorem minDeg_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : 2 * k ≤ n) :
+    minDeg (lineGraph (kneser n k)) = 2 * (n - k).choose k - 2 :=
+  minDeg_lineGraph (E_pos_kneser n k hk hkn) (degSequence_kneser n hk)
+
+theorem cliqueNum_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n)
+    (h3 : 3 ≤ (n - k).choose k) :
+    (lineGraph (kneser n k)).cliqueNum = (n - k).choose k := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := kneser n k)
+    (by rw [maxDeg_kneser n k hk hkn]; exact h3)
+  rwa [maxDeg_kneser n k hk hkn] at h
+
+theorem girth_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n)
+    (h3 : 3 ≤ (n - k).choose k) : (lineGraph (kneser n k)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_kneser n k hk hkn]; exact h3)
+
+theorem not_isBipartite_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n)
+    (h3 : 3 ≤ (n - k).choose k) : ¬ IsBipartite (lineGraph (kneser n k)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_kneser n k hk hkn]; exact h3)
+
+theorem not_isAcyclic_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n)
+    (h3 : 3 ≤ (n - k).choose k) : ¬ IsAcyclic (lineGraph (kneser n k)) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_kneser n k hk hkn]; exact h3)
+
+theorem not_isTree_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n)
+    (h3 : 3 ≤ (n - k).choose k) : ¬ IsTree (lineGraph (kneser n k)) :=
+  not_isTree_lineGraph (by rw [maxDeg_kneser n k hk hkn]; exact h3)
+
+theorem coverNum_lineGraph_kneser (n k : ℕ) (hk : 1 ≤ k) :
+    (lineGraph (kneser n k)).coverNum
+      = n.choose k * (n - k).choose k / 2 - (kneser n k).matchNum := by
+  rw [coverNum_lineGraph, E_kneser n hk]
+
+/-! ### The line graph of a Johnson graph -/
+
+theorem E_pos_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) : 0 < (johnson n k).E := by
+  have h1 := two_mul_E_johnson (le_of_lt h)
+  have h2 : 0 < n.choose k := Nat.choose_pos (by omega)
+  have h4 : 0 < n.choose k * (k * (n - k)) :=
+    Nat.mul_pos h2 (Nat.mul_pos hk (by omega))
+  omega
+
+theorem V_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) :
+    (lineGraph (johnson n k)).V = n.choose k * (k * (n - k)) / 2 := by
+  rw [V_lineGraph, E_johnson hk]
+
+theorem E_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) :
+    (lineGraph (johnson n k)).E = n.choose k * (k * (n - k)).choose 2 :=
+  E_lineGraph_of_degSequence_replicate (degSequence_johnson hk)
+
+theorem isRegularWith_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    (lineGraph (johnson n k)).IsRegularWith (2 * (k * (n - k)) - 2) :=
+  isRegularWith_lineGraph (E_pos_johnson hk h) (degSequence_johnson (le_of_lt h))
+
+theorem maxDeg_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    maxDeg (lineGraph (johnson n k)) = 2 * (k * (n - k)) - 2 :=
+  maxDeg_lineGraph (E_pos_johnson hk h) (degSequence_johnson (le_of_lt h))
+
+theorem minDeg_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    minDeg (lineGraph (johnson n k)) = 2 * (k * (n - k)) - 2 :=
+  minDeg_lineGraph (E_pos_johnson hk h) (degSequence_johnson (le_of_lt h))
+
+theorem isConnected_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    IsConnected (lineGraph (johnson n k)) :=
+  isConnected_lineGraph (isConnected_johnson (le_of_lt h)) (E_pos_johnson hk h)
+
+theorem numComponents_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    (lineGraph (johnson n k)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_johnson (le_of_lt h)) (E_pos_johnson hk h)
+
+theorem radius_lineGraph_johnson_le {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    (lineGraph (johnson n k)).radius ≤ min k (n - k) + 1 := by
+  have hle := radius_lineGraph_le (G := johnson n k) (isConnected_johnson (le_of_lt h))
+    (E_pos_johnson hk h)
+  rwa [radius_johnson (le_of_lt h)] at hle
+
+theorem diameter_lineGraph_johnson_le {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    (lineGraph (johnson n k)).diameter ≤ min k (n - k) + 1 := by
+  have hle := diameter_lineGraph_le (G := johnson n k) (isConnected_johnson (le_of_lt h))
+    (E_pos_johnson hk h)
+  rwa [diameter_johnson (le_of_lt h)] at hle
+
+theorem cliqueNum_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) (h3 : 3 ≤ k * (n - k)) :
+    (lineGraph (johnson n k)).cliqueNum = k * (n - k) := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := johnson n k)
+    (by rw [maxDeg_johnson hk]; exact h3)
+  rwa [maxDeg_johnson hk] at h
+
+theorem girth_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) (h3 : 3 ≤ k * (n - k)) :
+    (lineGraph (johnson n k)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_johnson hk]; exact h3)
+
+theorem not_isBipartite_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) (h3 : 3 ≤ k * (n - k)) :
+    ¬ IsBipartite (lineGraph (johnson n k)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_johnson hk]; exact h3)
+
+theorem not_isAcyclic_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) (h3 : 3 ≤ k * (n - k)) :
+    ¬ IsAcyclic (lineGraph (johnson n k)) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_johnson hk]; exact h3)
+
+theorem not_isTree_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) (h3 : 3 ≤ k * (n - k)) :
+    ¬ IsTree (lineGraph (johnson n k)) :=
+  not_isTree_lineGraph (by rw [maxDeg_johnson hk]; exact h3)
+
+theorem le_chromNum_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) :
+    k * (n - k) ≤ (lineGraph (johnson n k)).chromNum := by
+  rw [chromNum_lineGraph]
+  exact le_edgeChromNum_johnson hk
+
+theorem coverNum_lineGraph_johnson {n k : ℕ} (hk : k ≤ n) :
+    (lineGraph (johnson n k)).coverNum
+      = n.choose k * (k * (n - k)) / 2 - (johnson n k).matchNum := by
+  rw [coverNum_lineGraph, E_johnson hk]
+
+theorem degSequence_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
+    degSequence (lineGraph (johnson n k))
+      = List.replicate (n.choose k * (k * (n - k)) / 2) (2 * (k * (n - k)) - 2) := by
+  have hd := (isRegularWith_lineGraph_johnson hk h).degSequence
+  rwa [V_lineGraph, E_johnson (le_of_lt h)] at hd
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
