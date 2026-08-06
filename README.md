@@ -3196,6 +3196,17 @@ union of two nonempty graphs is disconnected with two components and diameter an
 Matchings, covers and edge colourings split cleanly over a disjoint union, so `Qₘ ⊕ Qₙ` also gets
 its matching number `2ᵐ + 2ⁿ` and its chromatic index `max (m+1) (n+1)`.
 
+The hypercube joins and unions continue with `Kₘ ∇ Qₙ`, `Cₘ ∇ Qₙ` and `Qₘ ⊕ Kₙ`. Each edge count is
+stated in doubled form, `2|E(Kₘ ∇ Qₙ)| = 2·C(m,2) + n·2ⁿ + 2m·2ⁿ`, for the same reason as before.
+The complete factor makes `χ(Kₘ ∇ Qₙ) = m + 2` — a join adds chromatic numbers and the hypercube
+contributes two — and the cycle factor splits on parity, `χ(C₂ₘ ∇ Qₙ) = 4` against
+`χ(C₂ₘ₊₁ ∇ Qₙ) = 5`. `diameter_join_cycle_hypercube = 2` is the one that needs an argument: the
+cycle is not complete, since `m + 4 < C(m+4, 2)`, so `diameter_join_left` applies. On the union
+side, `Qₘ ⊕ Kₙ` mixes a bipartite factor with a complete one, so its clique and chromatic numbers
+are both `max 2 n` while its independence number `2ᵐ + min n 1` and its matching number
+`2ᵐ + ⌊n/2⌋` simply add. `domNum_disjUnion_hypercube_complete` records that a complete component
+costs exactly one more dominating vertex.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

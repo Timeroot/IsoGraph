@@ -40845,6 +40845,208 @@ theorem radius_disjUnion_hypercube (m n : ℕ) :
     (hypercube m ⊕g hypercube n).radius = 0 :=
   radius_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity)
 
+/-! ### The join of a complete graph with a hypercube -/
+
+@[simp] theorem V_join_complete_hypercube (m n : ℕ) :
+    (complete m ∇g hypercube n).V = m + 2 ^ n := by
+  rw [V_join, V_complete, V_hypercube]
+
+theorem E_join_complete_hypercube (m n : ℕ) :
+    2 * (complete m ∇g hypercube n).E = 2 * m.choose 2 + n * 2 ^ n + 2 * (m * 2 ^ n) := by
+  have h := E_hypercube n
+  rw [E_join, E_complete, V_complete, V_hypercube,
+    show 2 * (m.choose 2 + (hypercube n).E + m * 2 ^ n)
+      = 2 * m.choose 2 + 2 * (hypercube n).E + 2 * (m * 2 ^ n) from by ring, h]
+
+theorem cliqueNum_join_complete_hypercube (m n : ℕ) :
+    (complete m ∇g hypercube (n + 1)).cliqueNum = m + 2 := by
+  rw [cliqueNum_join, cliqueNum_complete, cliqueNum_hypercube]
+
+theorem chromNum_join_complete_hypercube (m n : ℕ) :
+    (complete m ∇g hypercube (n + 1)).chromNum = m + 2 := by
+  rw [chromNum_join, chromNum_complete, chromNum_hypercube]
+
+theorem indepNum_join_complete_hypercube (m n : ℕ) :
+    (complete m ∇g hypercube (n + 1)).indepNum = max (min m 1) (2 ^ n) := by
+  rw [indepNum_join, indepNum_complete, indepNum_hypercube]
+
+theorem cliqueCoverNum_join_complete_hypercube (m n : ℕ) :
+    (complete (m + 1) ∇g hypercube (n + 1)).cliqueCoverNum = max 1 (2 ^ n) := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_complete, cliqueCoverNum_hypercube]
+
+theorem coverNum_join_complete_hypercube (m n : ℕ) :
+    (complete m ∇g hypercube (n + 1)).coverNum
+      = min (m - 1 + 2 ^ (n + 1)) (m + 2 ^ n) := by
+  rw [coverNum_join, coverNum_complete, coverNum_hypercube, V_complete, V_hypercube]
+
+theorem maxDeg_join_complete_hypercube (m n : ℕ) :
+    maxDeg (complete (m + 1) ∇g hypercube n) = max (m + 2 ^ n) (m + 1 + n) := by
+  have h := maxDeg_join (G := complete (m + 1)) (H := hypercube n)
+    (by rw [V_complete]; omega) (by rw [V_hypercube]; positivity)
+  rw [maxDeg_complete, maxDeg_hypercube, V_complete, V_hypercube] at h
+  simpa using h
+
+theorem minDeg_join_complete_hypercube (m n : ℕ) :
+    minDeg (complete (m + 1) ∇g hypercube n) = min (m + 2 ^ n) (m + 1 + n) := by
+  have h := minDeg_join (G := complete (m + 1)) (H := hypercube n)
+    (by rw [V_complete]; omega) (by rw [V_hypercube]; positivity)
+  rw [minDeg_complete, minDeg_hypercube, V_complete, V_hypercube] at h
+  simpa using h
+
+@[simp] theorem isConnected_join_complete_hypercube (m n : ℕ) :
+    IsConnected (complete (m + 1) ∇g hypercube n) :=
+  isConnected_join (by rw [V_complete]; omega) (by rw [V_hypercube]; positivity)
+
+@[simp] theorem numComponents_join_complete_hypercube (m n : ℕ) :
+    (complete (m + 1) ∇g hypercube n).numComponents = 1 :=
+  numComponents_join (by rw [V_complete]; omega) (by rw [V_hypercube]; positivity)
+
+@[simp] theorem girth_join_complete_hypercube (m n : ℕ) :
+    (complete (m + 1) ∇g hypercube (n + 1)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_complete_hypercube]; omega)
+
+/-! ### The join of a cycle with a hypercube -/
+
+@[simp] theorem V_join_cycle_hypercube (m n : ℕ) :
+    (cycle m ∇g hypercube n).V = m + 2 ^ n := by
+  rw [V_join, V_cycle, V_hypercube]
+
+theorem E_join_cycle_hypercube (m n : ℕ) :
+    2 * (cycle (m + 3) ∇g hypercube n).E
+      = 2 * (m + 3) + n * 2 ^ n + 2 * ((m + 3) * 2 ^ n) := by
+  have h := E_hypercube n
+  rw [E_join, E_cycle, V_cycle, V_hypercube,
+    show 2 * ((m + 3) + (hypercube n).E + (m + 3) * 2 ^ n)
+      = 2 * (m + 3) + 2 * (hypercube n).E + 2 * ((m + 3) * 2 ^ n) from by ring, h]
+
+theorem cliqueNum_join_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 4) ∇g hypercube (n + 1)).cliqueNum = 4 := by
+  rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_hypercube]
+
+theorem chromNum_join_cycle_even_hypercube (m n : ℕ) :
+    (cycle (2 * m + 2) ∇g hypercube (n + 1)).chromNum = 4 := by
+  rw [chromNum_join, chromNum_cycle_even, chromNum_hypercube]
+
+theorem chromNum_join_cycle_odd_hypercube (m n : ℕ) :
+    (cycle (2 * m + 3) ∇g hypercube (n + 1)).chromNum = 5 := by
+  rw [chromNum_join, chromNum_cycle_odd, chromNum_hypercube]
+
+theorem indepNum_join_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 3) ∇g hypercube (n + 1)).indepNum = max ((m + 3) / 2) (2 ^ n) := by
+  rw [indepNum_join, indepNum_cycle, indepNum_hypercube]
+
+theorem cliqueCoverNum_join_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 4) ∇g hypercube (n + 1)).cliqueCoverNum = max ((m + 5) / 2) (2 ^ n) := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_cycle, cliqueCoverNum_hypercube]
+
+theorem coverNum_join_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 3) ∇g hypercube (n + 1)).coverNum
+      = min ((m + 3) - (m + 3) / 2 + 2 ^ (n + 1)) (m + 3 + 2 ^ n) := by
+  rw [coverNum_join, coverNum_cycle, coverNum_hypercube, V_cycle, V_hypercube]
+
+theorem maxDeg_join_cycle_hypercube (m n : ℕ) :
+    maxDeg (cycle (m + 3) ∇g hypercube n) = max (2 + 2 ^ n) (m + 3 + n) := by
+  have h := maxDeg_join (G := cycle (m + 3)) (H := hypercube n)
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rwa [maxDeg_cycle, maxDeg_hypercube, V_cycle, V_hypercube] at h
+
+theorem minDeg_join_cycle_hypercube (m n : ℕ) :
+    minDeg (cycle (m + 3) ∇g hypercube n) = min (2 + 2 ^ n) (m + 3 + n) := by
+  have h := minDeg_join (G := cycle (m + 3)) (H := hypercube n)
+    (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+  rwa [minDeg_cycle, minDeg_hypercube, V_cycle, V_hypercube] at h
+
+@[simp] theorem isConnected_join_cycle_hypercube (m n : ℕ) :
+    IsConnected (cycle (m + 1) ∇g hypercube n) :=
+  isConnected_join (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+
+@[simp] theorem numComponents_join_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 1) ∇g hypercube n).numComponents = 1 :=
+  numComponents_join (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
+
+@[simp] theorem girth_join_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 4) ∇g hypercube (n + 1)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle_hypercube]; omega)
+
+theorem diameter_join_cycle_hypercube (m n : ℕ) :
+    (cycle (m + 4) ∇g hypercube n).diameter = 2 := by
+  have h : (m + 4).choose 2 = (m + 4) * (m + 3) / 2 := by
+    rw [Nat.choose_two_right, show m + 4 - 1 = m + 3 by omega]
+  have h2 : m + 5 ≤ (m + 4) * (m + 3) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 4) * (m + 3) = m * m + 7 * m + 12 := by ring
+    omega
+  refine diameter_join_left (by rw [V_hypercube]; positivity) ?_
+  rw [E_cycle, V_cycle, h]
+  omega
+
+/-! ### The disjoint union of a hypercube with a complete graph -/
+
+@[simp] theorem V_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube m ⊕g complete n).V = 2 ^ m + n := by
+  rw [V_disjUnion, V_hypercube, V_complete]
+
+theorem E_disjUnion_hypercube_complete (m n : ℕ) :
+    2 * (hypercube m ⊕g complete n).E = m * 2 ^ m + 2 * n.choose 2 := by
+  have h := E_hypercube m
+  rw [E_disjUnion, E_complete,
+    show 2 * ((hypercube m).E + n.choose 2) = 2 * (hypercube m).E + 2 * n.choose 2 from by ring, h]
+
+theorem cliqueNum_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube (m + 1) ⊕g complete n).cliqueNum = max 2 n := by
+  rw [cliqueNum_disjUnion, cliqueNum_hypercube, cliqueNum_complete]
+
+theorem chromNum_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube (m + 1) ⊕g complete n).chromNum = max 2 n := by
+  rw [chromNum_disjUnion, chromNum_hypercube, chromNum_complete]
+
+theorem indepNum_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube (m + 1) ⊕g complete n).indepNum = 2 ^ m + min n 1 := by
+  rw [indepNum_disjUnion, indepNum_hypercube, indepNum_complete]
+
+theorem matchNum_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube (m + 1) ⊕g complete n).matchNum = 2 ^ m + n / 2 := by
+  rw [matchNum_disjUnion, matchNum_hypercube, matchNum_complete]
+
+theorem coverNum_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube (m + 1) ⊕g complete n).coverNum = 2 ^ m + (n - 1) := by
+  rw [coverNum_disjUnion, coverNum_hypercube, coverNum_complete]
+
+theorem cliqueCoverNum_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube (m + 1) ⊕g complete (n + 1)).cliqueCoverNum = 2 ^ m + 1 := by
+  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_hypercube, cliqueCoverNum_complete]
+
+theorem domNum_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube m ⊕g complete (n + 1)).domNum = (hypercube m).domNum + 1 := by
+  rw [domNum_disjUnion, domNum_complete]
+
+@[simp] theorem maxDeg_disjUnion_hypercube_complete (m n : ℕ) :
+    maxDeg (hypercube m ⊕g complete n) = max m (n - 1) := by
+  rw [maxDeg_disjUnion, maxDeg_hypercube, maxDeg_complete]
+
+theorem minDeg_disjUnion_hypercube_complete (m n : ℕ) :
+    minDeg (hypercube m ⊕g complete (n + 1)) = min m n := by
+  have h := minDeg_disjUnion (G := hypercube m) (H := complete (n + 1))
+    (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
+  rw [minDeg_hypercube, minDeg_complete] at h
+  simpa using h
+
+@[simp] theorem numComponents_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube m ⊕g complete (n + 1)).numComponents = 2 := by
+  rw [numComponents_disjUnion, numComponents_hypercube, numComponents_complete]
+
+theorem not_isConnected_disjUnion_hypercube_complete (m n : ℕ) :
+    ¬ IsConnected (hypercube m ⊕g complete (n + 1)) :=
+  not_isConnected_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
+
+theorem diameter_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube m ⊕g complete (n + 1)).diameter = 0 :=
+  diameter_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
+
+theorem radius_disjUnion_hypercube_complete (m n : ℕ) :
+    (hypercube m ⊕g complete (n + 1)).radius = 0 :=
+  radius_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
