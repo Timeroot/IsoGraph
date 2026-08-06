@@ -3499,6 +3499,20 @@ number lands on `χ_G + χ_H + 1` over a join and `max(χ_G, χ_H) + 1` over a d
 number over a complement is the pretty one — `M(Gᶜ)` has clique number `max(α_G, 2)`, trading the
 clique number of the complement for the independence number of the original.
 
+The tensor and lexicographic products complete the sweep. Both have exact degree formulas —
+`Δ_G Δ_H` for the tensor product, `Δ_G |V_H| + Δ_H` for the lexicographic one — so their line
+graphs get the same two-sided degree bound, clique number and girth-three conclusion as the other
+three products. The connectivity hypotheses differ in an instructive way. A lexicographic product
+is connected as soon as both factors are, but a tensor product of two connected graphs can still
+fall apart: `G ⊗ H` needs `G` to be non-bipartite, which is exactly the obstruction that splits the
+product into its two halves. That hypothesis is carried all the way through to
+`isConnected_lineGraph_tensorProduct`. On the Mycielskian side the clique numbers are the payoff:
+`M(G ⊗ H)` has clique number `max(min(ω_G, ω_H), 2)` and `M(G · H)` has `max(ω_G ω_H, 2)`, the
+minimum and the product being the respective clique numbers of the two operations. Connectivity of
+`M(G · H)` only needs `δ_H` positive, because the lexicographic minimum degree `δ_G |V_H| + δ_H` is
+already positive then, whereas `M(G ⊗ H)` needs both factors to have positive minimum degree since
+theirs multiply.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

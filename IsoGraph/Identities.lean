@@ -46134,6 +46134,177 @@ theorem cliqueNum_mycielskian_compl {G : IsoGraph} (hG : 0 < G.V) :
   rw [E_mycielskian, E_strongProduct, V_strongProduct]
   omega
 
+/-! ### Edge positivity for the tensor and lexicographic products -/
+
+theorem E_pos_tensorProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    0 < (G ⊗g H).E := by
+  rw [E_tensorProduct]
+  exact Nat.mul_pos (by omega) hH
+
+theorem E_pos_lexProduct_left {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
+    0 < (G ·g H).E := by
+  have h : 0 < H.V * H.V * G.E := Nat.mul_pos (Nat.mul_pos hH hH) hG
+  rw [E_lexProduct]
+  omega
+
+theorem E_pos_lexProduct_right {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.E) :
+    0 < (G ·g H).E := by
+  have h : 0 < G.V * H.E := Nat.mul_pos hG hH
+  rw [E_lexProduct]
+  omega
+
+/-! ### The line graph of a tensor product -/
+
+theorem V_lineGraph_tensorProduct (G H : IsoGraph) :
+    (lineGraph (G ⊗g H)).V = 2 * G.E * H.E := by
+  rw [V_lineGraph, E_tensorProduct]
+
+theorem maxDeg_lineGraph_tensorProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (lineGraph (G ⊗g H)) ≤ 2 * (maxDeg G * maxDeg H) - 2 := by
+  have h := maxDeg_lineGraph_le (G ⊗g H)
+  rwa [maxDeg_tensorProduct hG hH] at h
+
+theorem le_minDeg_lineGraph_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (hE : 0 < (G ⊗g H).E) :
+    2 * (minDeg G * minDeg H) - 2 ≤ minDeg (lineGraph (G ⊗g H)) := by
+  have h := le_minDeg_lineGraph hE
+  rwa [minDeg_tensorProduct hG hH] at h
+
+theorem isConnected_lineGraph_tensorProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hb : ¬ IsBipartite G) (hE : 0 < G.E) (hE2 : 0 < H.E) :
+    IsConnected (lineGraph (G ⊗g H)) :=
+  isConnected_lineGraph (isConnected_tensorProduct hG hH hb hE2) (E_pos_tensorProduct hE hE2)
+
+theorem numComponents_lineGraph_tensorProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hb : ¬ IsBipartite G) (hE : 0 < G.E) (hE2 : 0 < H.E) :
+    (lineGraph (G ⊗g H)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_tensorProduct hG hH hb hE2) (E_pos_tensorProduct hE hE2)
+
+theorem cliqueNum_lineGraph_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G * maxDeg H) :
+    (lineGraph (G ⊗g H)).cliqueNum = maxDeg G * maxDeg H := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := G ⊗g H)
+    (by rw [maxDeg_tensorProduct hG hH]; exact h3)
+  rwa [maxDeg_tensorProduct hG hH] at hm
+
+theorem girth_lineGraph_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G * maxDeg H) : (lineGraph (G ⊗g H)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_tensorProduct hG hH]; exact h3)
+
+theorem not_isBipartite_lineGraph_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G * maxDeg H) : ¬ IsBipartite (lineGraph (G ⊗g H)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_tensorProduct hG hH]; exact h3)
+
+/-! ### The line graph of a lexicographic product -/
+
+theorem V_lineGraph_lexProduct (G H : IsoGraph) :
+    (lineGraph (G ·g H)).V = H.V * H.V * G.E + G.V * H.E := by
+  rw [V_lineGraph, E_lexProduct]
+
+theorem maxDeg_lineGraph_lexProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (lineGraph (G ·g H)) ≤ 2 * (maxDeg G * H.V + maxDeg H) - 2 := by
+  have h := maxDeg_lineGraph_le (G ·g H)
+  rwa [maxDeg_lexProduct hG hH] at h
+
+theorem le_minDeg_lineGraph_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (hE : 0 < (G ·g H).E) :
+    2 * (minDeg G * H.V + minDeg H) - 2 ≤ minDeg (lineGraph (G ·g H)) := by
+  have h := le_minDeg_lineGraph hE
+  rwa [minDeg_lexProduct hG hH] at h
+
+theorem isConnected_lineGraph_lexProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G ·g H).E) : IsConnected (lineGraph (G ·g H)) :=
+  isConnected_lineGraph (isConnected_lexProduct hG hH) hE
+
+theorem numComponents_lineGraph_lexProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G ·g H).E) : (lineGraph (G ·g H)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_lexProduct hG hH) hE
+
+theorem diameter_lineGraph_lexProduct_le {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G ·g H).E) :
+    (lineGraph (G ·g H)).diameter ≤ G.diameter + H.diameter + 1 := by
+  have h := diameter_lineGraph_le (isConnected_lexProduct hG hH) hE
+  have h2 := diameter_lexProduct_le hG hH
+  omega
+
+theorem cliqueNum_lineGraph_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G * H.V + maxDeg H) :
+    (lineGraph (G ·g H)).cliqueNum = maxDeg G * H.V + maxDeg H := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := G ·g H)
+    (by rw [maxDeg_lexProduct hG hH]; exact h3)
+  rwa [maxDeg_lexProduct hG hH] at hm
+
+theorem girth_lineGraph_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G * H.V + maxDeg H) : (lineGraph (G ·g H)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_lexProduct hG hH]; exact h3)
+
+theorem not_isBipartite_lineGraph_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G * H.V + maxDeg H) : ¬ IsBipartite (lineGraph (G ·g H)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_lexProduct hG hH]; exact h3)
+
+/-! ### The Mycielskian of a tensor product -/
+
+@[simp] theorem V_mycielskian_tensorProduct (G H : IsoGraph) :
+    (mycielskian (G ⊗g H)).V = 2 * (G.V * H.V) + 1 := by
+  rw [V_mycielskian, V_tensorProduct]
+
+@[simp] theorem E_mycielskian_tensorProduct (G H : IsoGraph) :
+    (mycielskian (G ⊗g H)).E = 3 * (2 * G.E * H.E) + G.V * H.V := by
+  rw [E_mycielskian, E_tensorProduct, V_tensorProduct]
+
+theorem maxDeg_mycielskian_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (mycielskian (G ⊗g H)) = max (2 * (maxDeg G * maxDeg H)) (G.V * H.V) := by
+  rw [maxDeg_mycielskian, maxDeg_tensorProduct hG hH, V_tensorProduct]
+
+theorem cliqueNum_mycielskian_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (mycielskian (G ⊗g H)).cliqueNum = max (min G.cliqueNum H.cliqueNum) 2 := by
+  have hm := cliqueNum_mycielskian (G ⊗g H) (by rw [V_tensorProduct]; exact Nat.mul_pos hG hH)
+  rwa [cliqueNum_tensorProduct] at hm
+
+theorem isConnected_mycielskian_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : 0 < minDeg G) (h2 : 0 < minDeg H) : IsConnected (mycielskian (G ⊗g H)) := by
+  refine isConnected_mycielskian _ ?_
+  rw [minDeg_tensorProduct hG hH]
+  exact Nat.mul_pos h h2
+
+theorem radius_mycielskian_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : 0 < minDeg G) (h2 : 0 < minDeg H) : (mycielskian (G ⊗g H)).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  rw [minDeg_tensorProduct hG hH]
+  exact Nat.mul_pos h h2
+
+/-! ### The Mycielskian of a lexicographic product -/
+
+@[simp] theorem V_mycielskian_lexProduct (G H : IsoGraph) :
+    (mycielskian (G ·g H)).V = 2 * (G.V * H.V) + 1 := by
+  rw [V_mycielskian, V_lexProduct]
+
+@[simp] theorem E_mycielskian_lexProduct (G H : IsoGraph) :
+    (mycielskian (G ·g H)).E = 3 * (H.V * H.V * G.E) + 3 * (G.V * H.E) + G.V * H.V := by
+  rw [E_mycielskian, E_lexProduct, V_lexProduct]
+  omega
+
+theorem maxDeg_mycielskian_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (mycielskian (G ·g H)) = max (2 * (maxDeg G * H.V + maxDeg H)) (G.V * H.V) := by
+  rw [maxDeg_mycielskian, maxDeg_lexProduct hG hH, V_lexProduct]
+
+theorem cliqueNum_mycielskian_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (mycielskian (G ·g H)).cliqueNum = max (G.cliqueNum * H.cliqueNum) 2 := by
+  have hm := cliqueNum_mycielskian (G ·g H) (by rw [V_lexProduct]; exact Nat.mul_pos hG hH)
+  rwa [cliqueNum_lexProduct] at hm
+
+theorem isConnected_mycielskian_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : 0 < minDeg H) : IsConnected (mycielskian (G ·g H)) := by
+  refine isConnected_mycielskian _ ?_
+  rw [minDeg_lexProduct hG hH]
+  omega
+
+theorem radius_mycielskian_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : 0 < minDeg H) : (mycielskian (G ·g H)).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  rw [minDeg_lexProduct hG hH]
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
