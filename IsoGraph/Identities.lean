@@ -41408,6 +41408,262 @@ theorem four_le_girth_mycielskian_star (n : ℕ) :
     4 ≤ (mycielskian (star (n + 1))).girth :=
   four_le_girth_mycielskian _ (by rw [cliqueNum_star]) (by rw [E_star]; omega)
 
+/-! ### The Mycielskian of a complete bipartite graph -/
+
+@[simp] theorem V_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite m n)).V = 2 * (m + n) + 1 := by
+  rw [V_mycielskian, V_bipartite]
+
+@[simp] theorem E_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite m n)).E = 3 * (m * n) + (m + n) := by
+  rw [E_mycielskian, E_bipartite, V_bipartite]
+
+theorem chromNum_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite (m + 1) (n + 1))).chromNum = 3 := by
+  rw [chromNum_mycielskian, chromNum_bipartite]
+
+theorem cliqueNum_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite (m + 1) (n + 1))).cliqueNum = 2 := by
+  have h := cliqueNum_mycielskian (bipartite (m + 1) (n + 1)) (by rw [V_bipartite]; omega)
+  rw [cliqueNum_bipartite] at h
+  omega
+
+theorem maxDeg_mycielskian_bipartite (m n : ℕ) :
+    maxDeg (mycielskian (bipartite (m + 1) (n + 1)))
+      = max (2 * max (m + 1) (n + 1)) (m + n + 2) := by
+  have h := maxDeg_mycielskian (bipartite (m + 1) (n + 1))
+  rwa [maxDeg_bipartite, V_bipartite, show m + 1 + (n + 1) = m + n + 2 from by omega] at h
+
+theorem minDeg_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite (m + 2) (n + 2))).minDeg = min (m + 2) (n + 2) + 1 := by
+  have h := minDeg_mycielskian (bipartite (m + 2) (n + 2)) (by rw [V_bipartite]; omega)
+  rw [minDeg_bipartite, V_bipartite] at h
+  omega
+
+theorem domNum_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite (m + 2) (n + 2))).domNum = 3 := by
+  have h := domNum_mycielskian (bipartite (m + 2) (n + 2)) (by rw [V_bipartite]; omega)
+  rw [domNum_bipartite] at h
+  omega
+
+theorem isConnected_mycielskian_bipartite (m n : ℕ) :
+    IsConnected (mycielskian (bipartite (m + 1) (n + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_bipartite]; omega)
+
+theorem numComponents_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite (m + 1) (n + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_bipartite]; omega)
+
+theorem radius_mycielskian_bipartite (m n : ℕ) :
+    (mycielskian (bipartite (m + 1) (n + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_bipartite]; omega)
+
+theorem two_le_diameter_mycielskian_bipartite (m n : ℕ) :
+    2 ≤ (mycielskian (bipartite (m + 1) (n + 1))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_bipartite]; omega)
+
+theorem diameter_mycielskian_bipartite_le_four (m n : ℕ) :
+    (mycielskian (bipartite (m + 1) (n + 1))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_bipartite]; omega)
+
+theorem four_le_girth_mycielskian_bipartite (m n : ℕ) :
+    4 ≤ (mycielskian (bipartite (m + 1) (n + 1))).girth :=
+  four_le_girth_mycielskian _ (by rw [cliqueNum_bipartite]) (by rw [E_bipartite]; positivity)
+
+theorem matchNum_mycielskian_bipartite (n : ℕ) :
+    (mycielskian (bipartite (n + 1) (n + 1))).matchNum = 2 * n + 2 := by
+  have h := matchNum_mycielskian (bipartite (n + 1) (n + 1))
+    (by rw [matchNum_bipartite, V_bipartite]; omega)
+  rw [V_bipartite] at h
+  omega
+
+theorem cliqueCoverNum_mycielskian_bipartite (n : ℕ) :
+    (mycielskian (bipartite (n + 1) (n + 1))).cliqueCoverNum = 2 * n + 3 := by
+  have h := cliqueCoverNum_mycielskian (bipartite (n + 1) (n + 1)) (by rw [V_bipartite]; omega)
+    (by rw [cliqueNum_bipartite]) (by rw [matchNum_bipartite, V_bipartite]; omega)
+  rw [V_bipartite] at h
+  omega
+
+theorem indepNum_mycielskian_bipartite_le (m n : ℕ) :
+    (mycielskian (bipartite (m + 1) (n + 1))).indepNum ≤ m + n + 2 + max (m + 1) (n + 1) := by
+  have h := indepNum_mycielskian_le (bipartite (m + 1) (n + 1)) (by rw [V_bipartite]; omega)
+  rw [V_bipartite, indepNum_bipartite] at h
+  omega
+
+theorem coverNum_mycielskian_bipartite_le (m n : ℕ) :
+    (mycielskian (bipartite m n)).coverNum ≤ m + n + 1 := by
+  have h := coverNum_mycielskian_le (bipartite m n)
+  rwa [V_bipartite] at h
+
+/-! ### The Mycielskian of a cocktail party graph -/
+
+@[simp] theorem V_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty n)).V = 4 * n + 1 := by
+  rw [V_mycielskian, V_cocktailParty]
+  omega
+
+theorem E_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 1))).E = 6 * n * n + 8 * n + 2 := by
+  rw [E_mycielskian, E_cocktailParty, V_cocktailParty,
+    show 2 * (n + 1) - 2 = 2 * n from by omega]
+  ring
+
+theorem chromNum_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty n)).chromNum = n + 1 := by
+  rw [chromNum_mycielskian, chromNum_cocktailParty]
+
+theorem cliqueNum_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 2))).cliqueNum = n + 2 := by
+  have h := cliqueNum_mycielskian (cocktailParty (n + 2)) (by rw [V_cocktailParty]; omega)
+  rw [cliqueNum_cocktailParty] at h
+  omega
+
+theorem maxDeg_mycielskian_cocktailParty (n : ℕ) :
+    maxDeg (mycielskian (cocktailParty (n + 1))) = max (4 * n) (2 * n + 2) := by
+  have h := maxDeg_mycielskian (cocktailParty (n + 1))
+  rw [maxDeg_cocktailParty, V_cocktailParty] at h
+  omega
+
+theorem minDeg_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 2))).minDeg = 2 * n + 3 := by
+  have h := minDeg_mycielskian (cocktailParty (n + 2)) (by rw [V_cocktailParty]; omega)
+  rw [minDeg_cocktailParty, V_cocktailParty] at h
+  omega
+
+theorem domNum_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 2))).domNum = 3 := by
+  have h := domNum_mycielskian (cocktailParty (n + 2)) (by rw [V_cocktailParty]; omega)
+  rw [domNum_cocktailParty] at h
+  omega
+
+theorem isConnected_mycielskian_cocktailParty (n : ℕ) :
+    IsConnected (mycielskian (cocktailParty (n + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_cocktailParty]; omega)
+
+theorem numComponents_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_cocktailParty]; omega)
+
+theorem radius_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_cocktailParty]; omega)
+
+theorem two_le_diameter_mycielskian_cocktailParty (n : ℕ) :
+    2 ≤ (mycielskian (cocktailParty (n + 2))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_cocktailParty]; omega)
+
+theorem diameter_mycielskian_cocktailParty_le_four (n : ℕ) :
+    (mycielskian (cocktailParty (n + 2))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_cocktailParty]; omega)
+
+theorem girth_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 3))).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_mycielskian_cocktailParty]; omega)
+
+theorem matchNum_mycielskian_cocktailParty (n : ℕ) :
+    (mycielskian (cocktailParty (n + 2))).matchNum = 2 * n + 4 := by
+  have h := matchNum_mycielskian (cocktailParty (n + 2))
+    (by rw [matchNum_cocktailParty, V_cocktailParty])
+  rw [V_cocktailParty] at h
+  omega
+
+theorem indepNum_mycielskian_cocktailParty_le (n : ℕ) :
+    (mycielskian (cocktailParty (n + 1))).indepNum ≤ 2 * n + 4 := by
+  have h := indepNum_mycielskian_le (cocktailParty (n + 1)) (by rw [V_cocktailParty]; omega)
+  rw [V_cocktailParty, indepNum_cocktailParty] at h
+  omega
+
+theorem coverNum_mycielskian_cocktailParty_le (n : ℕ) :
+    (mycielskian (cocktailParty n)).coverNum ≤ 2 * n + 1 := by
+  have h := coverNum_mycielskian_le (cocktailParty n)
+  rwa [V_cocktailParty] at h
+
+/-! ### The Mycielskian of a wheel -/
+
+@[simp] theorem V_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel n)).V = 2 * n + 3 := by
+  rw [V_mycielskian, V_wheel]
+  omega
+
+theorem E_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel (n + 3))).E = 7 * n + 22 := by
+  rw [E_mycielskian, E_wheel, V_wheel]
+  omega
+
+theorem chromNum_mycielskian_wheel_even (m : ℕ) :
+    (mycielskian (wheel (2 * m + 4))).chromNum = 4 := by
+  rw [chromNum_mycielskian, chromNum_wheel_even]
+
+theorem chromNum_mycielskian_wheel_odd (m : ℕ) :
+    (mycielskian (wheel (2 * m + 3))).chromNum = 5 := by
+  rw [chromNum_mycielskian, chromNum_wheel_odd]
+
+theorem cliqueNum_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel (n + 4))).cliqueNum = 3 := by
+  have h := cliqueNum_mycielskian (wheel (n + 4)) (by rw [V_wheel]; omega)
+  rw [cliqueNum_wheel] at h
+  omega
+
+theorem maxDeg_mycielskian_wheel (n : ℕ) :
+    maxDeg (mycielskian (wheel (n + 3))) = 2 * n + 6 := by
+  have h := maxDeg_mycielskian (wheel (n + 3))
+  rw [maxDeg_wheel, V_wheel] at h
+  omega
+
+theorem minDeg_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel (n + 3))).minDeg = 4 := by
+  have h := minDeg_mycielskian (wheel (n + 3)) (by rw [V_wheel]; omega)
+  rw [minDeg_wheel, V_wheel] at h
+  omega
+
+theorem domNum_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel (n + 1))).domNum = 2 := by
+  have h := domNum_mycielskian (wheel (n + 1)) (by rw [V_wheel]; omega)
+  rw [domNum_wheel] at h
+  omega
+
+theorem isConnected_mycielskian_wheel (n : ℕ) :
+    IsConnected (mycielskian (wheel (n + 3))) :=
+  isConnected_mycielskian _ (by rw [minDeg_wheel]; omega)
+
+theorem numComponents_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel (n + 3))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_wheel]; omega)
+
+theorem radius_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel (n + 3))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_wheel]; omega)
+
+theorem two_le_diameter_mycielskian_wheel (n : ℕ) :
+    2 ≤ (mycielskian (wheel (n + 3))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_wheel]; omega)
+
+theorem diameter_mycielskian_wheel_le_four (n : ℕ) :
+    (mycielskian (wheel (n + 3))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_wheel]; omega)
+
+theorem girth_mycielskian_wheel (n : ℕ) :
+    (mycielskian (wheel (n + 4))).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_mycielskian_wheel])
+
+theorem matchNum_mycielskian_wheel (m : ℕ) :
+    (mycielskian (wheel (2 * m + 3))).matchNum = 2 * m + 4 := by
+  have h := matchNum_mycielskian (wheel (2 * m + 3))
+    (by rw [matchNum_wheel, V_wheel]; omega)
+  rw [V_wheel] at h
+  omega
+
+theorem indepNum_mycielskian_wheel_le (n : ℕ) :
+    (mycielskian (wheel (n + 3))).indepNum ≤ n + 4 + (n + 3) / 2 := by
+  have h := indepNum_mycielskian_le (wheel (n + 3)) (by rw [V_wheel]; omega)
+  rw [V_wheel, indepNum_wheel] at h
+  omega
+
+theorem coverNum_mycielskian_wheel_le (n : ℕ) :
+    (mycielskian (wheel n)).coverNum ≤ n + 2 := by
+  have h := coverNum_mycielskian_le (wheel n)
+  rwa [V_wheel, show 1 + n + 1 = n + 2 from by omega] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

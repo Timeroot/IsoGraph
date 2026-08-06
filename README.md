@@ -3229,6 +3229,15 @@ number `10` and clique cover number `11`. `M(Sₙ)` is the smallest of the three
 degree is always exactly `2`, because a star has a leaf and the Mycielskian gives every leaf its
 twin plus the apex.
 
+A third batch of Mycielskian rows takes in the complete bipartite graph, the cocktail party graph
+and the wheel, which between them span the two regimes. `Kₘ,ₙ` is triangle-free, so `M(Kₘ,ₙ)` has
+chromatic number three and girth at least four, and in the balanced case `Kₙ,ₙ` the perfect
+matching carries over to give matching number `2n + 2` and clique cover number `2n + 3`. The
+cocktail party graph and the wheel both contain triangles, so their Mycielskians keep girth three:
+`ω(M(CP(n+3))) = n + 3` and `ω(M(Wₙ₊₄)) = 3`. The wheel is the tidiest row — `M(Wₙ₊₃)` always has
+minimum degree exactly `4`, maximum degree `2n + 6` and domination number `2`, and its chromatic
+number is four or five according to the parity of the rim.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
