@@ -2815,6 +2815,14 @@ of the Grötzsch graph: `11` vertices, `35` edges, degrees between `5` and `7`, 
 `cliqueNum_compl_foldedCube_odd` and `cliqueCoverNum_compl_foldedCube_odd` read off `2 ^ (2m)`
 and `2` from that, and `isVertexTransitive_compl_foldedCube` holds for every `n`.
 
+Line graphs are the last general construction to get the treatment, and there the duality reads
+particularly well: `cliqueNum_compl_lineGraph` says the largest clique in `L(G)ᶜ` is `G`'s
+matching number, and `cliqueCoverNum_compl_lineGraph` says its clique cover number is `G`'s edge
+chromatic number, both of them restatements of `indepNum_lineGraph` and `chromNum_lineGraph`
+across the complement. `maxDeg_compl_lineGraph` and `minDeg_compl_lineGraph` inherit the
+regularity hypothesis `degSequence G = List.replicate n k` that the line graph's own degree
+lemmas need, and `E_compl_lineGraph` subtracts `∑ C(d, 2)` from `C(E(G), 2)`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
@@ -2839,6 +2847,13 @@ where the endpoints differ, and `length = Σ fc + a`. For `x = 000…` and `y = 
 ones, an even `a` forces `⌈n/2⌉` odd flip counts and an odd `a` forces `n - ⌈n/2⌉` of them, and
 both bounds are at least `⌈n/2⌉`. The radius is then free, since the folded cube is
 vertex-transitive.
+
+The complement column closes the section. `indepNum_compl_foldedCube` is `2` because the folded
+cube's clique number is, `maxDeg_compl_foldedCube` and `minDeg_compl_foldedCube` are both
+`2ⁿ⁺² - 1 - (n + 3)` because the folded cube is regular, and `E_compl_foldedCube` is
+`C(2ⁿ⁺², 2) - 2ⁿ⁺¹(n + 3)`. That last one cannot be finished by `omega` — the subtracted term is
+a product of a power of two and a linear factor — so it rewrites backwards along `E_compl` and
+cancels instead.
 
 ## Enumeration
 

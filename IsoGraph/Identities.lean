@@ -37014,6 +37014,35 @@ theorem isVertexTransitive_compl_foldedCube (n : ℕ) :
     IsVertexTransitive ((foldedCube n)ᶜ) :=
   (isVertexTransitive_compl _).2 (isVertexTransitive_foldedCube n)
 
+/-! ### Complements of line graphs -/
+
+theorem cliqueNum_compl_lineGraph (G : IsoGraph) : ((lineGraph G)ᶜ).cliqueNum = G.matchNum := by
+  rw [cliqueNum_compl, indepNum_lineGraph]
+
+theorem cliqueCoverNum_compl_lineGraph (G : IsoGraph) :
+    ((lineGraph G)ᶜ).cliqueCoverNum = G.edgeChromNum := by
+  rw [cliqueCoverNum_compl, chromNum_lineGraph]
+
+theorem maxDeg_compl_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) :
+    maxDeg ((lineGraph G)ᶜ) = G.E - 1 - (2 * k - 2) := by
+  have hd := maxDeg_compl (G := lineGraph G) (by rwa [V_lineGraph])
+  rw [V_lineGraph, minDeg_lineGraph hE h] at hd
+  omega
+
+theorem minDeg_compl_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) :
+    minDeg ((lineGraph G)ᶜ) = G.E - 1 - (2 * k - 2) := by
+  have hd := minDeg_compl (G := lineGraph G) (by rwa [V_lineGraph])
+  rw [V_lineGraph, maxDeg_lineGraph hE h] at hd
+  omega
+
+theorem E_compl_lineGraph (G : IsoGraph) :
+    ((lineGraph G)ᶜ).E = G.E.choose 2 - ((degSequence G).map fun d ↦ d.choose 2).sum := by
+  have hd := E_compl (lineGraph G)
+  rw [E_lineGraph, V_lineGraph] at hd
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
@@ -37793,4 +37822,25 @@ theorem edgeChromNum_foldedCube_le (n : ℕ) :
 @[simp] theorem cliqueCount_foldedCube (n : ℕ) : (foldedCube (n + 3)).cliqueCount 3 = 0 :=
   (cliqueCount_eq_zero_iff _ 3).2 (by rw [cliqueNum_foldedCube]; omega)
 
+
+/-! ### Complements of the folded cube -/
+
+theorem indepNum_compl_foldedCube (n : ℕ) : ((foldedCube (n + 3))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_foldedCube]
+
+theorem maxDeg_compl_foldedCube (n : ℕ) :
+    maxDeg ((foldedCube (n + 2))ᶜ) = 2 ^ (n + 2) - 1 - (n + 3) := by
+  have h := maxDeg_compl (G := foldedCube (n + 2)) (by rw [V_foldedCube]; positivity)
+  rwa [V_foldedCube, minDeg_foldedCube] at h
+
+theorem minDeg_compl_foldedCube (n : ℕ) :
+    minDeg ((foldedCube (n + 2))ᶜ) = 2 ^ (n + 2) - 1 - (n + 3) := by
+  have h := minDeg_compl (G := foldedCube (n + 2)) (by rw [V_foldedCube]; positivity)
+  rwa [V_foldedCube, maxDeg_foldedCube] at h
+
+theorem E_compl_foldedCube (n : ℕ) :
+    ((foldedCube (n + 2))ᶜ).E = (2 ^ (n + 2)).choose 2 - 2 ^ (n + 1) * (n + 3) := by
+  have h := E_compl (foldedCube (n + 2))
+  rw [E_foldedCube, V_foldedCube] at h
+  rw [← h, Nat.add_sub_cancel]
 end IsoGraph
