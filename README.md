@@ -3367,6 +3367,17 @@ since `omega` cannot see inside a binomial coefficient. Three of the ladder proo
 their siblings for a pleasant reason: `Δ(ladder (n + 3)) = 3` on the nose, so the hypothesis
 `Δ ≥ 3` is closed by `rfl` and the usual trailing `omega` would have nothing left to do.
 
+The double star, the rook's graph and the hypercube round out the line graph block, and they show
+the three regimes the general laws fall into. The double star is as irregular as a tree gets, so it
+only earns bounds: `Δ(L) ≤ 2 max m n`, and a clique number `max (m+2) n + 1` that comes straight
+from the larger of the two hubs. The rook's graph is regular, so the degree sandwich closes again
+and `L(Kₘ₊₂ □ Kₙ₊₂)` is exactly `(2m + 2n + 2)`-regular. The hypercube needed a small piece of
+bookkeeping first: the library states its edge count only in doubled form, `2|E(Qₙ)| = n · 2ⁿ`, so
+`E_hypercube_succ` divides through once and for all to give `|E(Qₙ₊₁)| = (n+1)·2ⁿ`. With that in
+hand the whole row follows — `L(Qₙ₊₁)` has `(n+1)·2ⁿ` vertices, chromatic number `n + 1` (Qₙ₊₁ is
+Class 1), independence number `2ⁿ` (a perfect matching), vertex cover number `n·2ⁿ`, and is
+`2n`-regular.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

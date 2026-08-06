@@ -44343,6 +44343,220 @@ theorem le_minDeg_lineGraph_ladder (n : ℕ) : 2 ≤ minDeg (lineGraph (ladder (
   rw [minDeg_ladder] at h
   omega
 
+/-! ### The line graph of a double star -/
+
+@[simp] theorem V_lineGraph_doubleStar (m n : ℕ) :
+    (lineGraph (doubleStar m n)).V = m + n + 1 := by
+  rw [V_lineGraph, E_doubleStar]
+
+theorem indepNum_lineGraph_doubleStar (m n : ℕ) :
+    (lineGraph (doubleStar (m + 1) (n + 1))).indepNum = 2 := by
+  rw [indepNum_lineGraph, matchNum_doubleStar]
+
+theorem coverNum_lineGraph_doubleStar (m n : ℕ) :
+    (lineGraph (doubleStar (m + 1) (n + 1))).coverNum = m + n + 1 := by
+  have h := coverNum_lineGraph (doubleStar (m + 1) (n + 1))
+  rw [E_doubleStar, matchNum_doubleStar] at h
+  omega
+
+theorem cliqueNum_lineGraph_doubleStar (m n : ℕ) :
+    (lineGraph (doubleStar (m + 2) n)).cliqueNum = max (m + 2) n + 1 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := doubleStar (m + 2) n)
+    (by rw [maxDeg_doubleStar]; omega)
+  rw [maxDeg_doubleStar] at h
+  omega
+
+theorem girth_lineGraph_doubleStar (m n : ℕ) :
+    (lineGraph (doubleStar (m + 2) n)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_doubleStar]; omega)
+
+theorem not_isBipartite_lineGraph_doubleStar (m n : ℕ) :
+    ¬ IsBipartite (lineGraph (doubleStar (m + 2) n)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_doubleStar]; omega)
+
+theorem not_isAcyclic_lineGraph_doubleStar (m n : ℕ) :
+    ¬ IsAcyclic (lineGraph (doubleStar (m + 2) n)) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_doubleStar]; omega)
+
+theorem not_isTree_lineGraph_doubleStar (m n : ℕ) :
+    ¬ IsTree (lineGraph (doubleStar (m + 2) n)) :=
+  not_isTree_lineGraph (by rw [maxDeg_doubleStar]; omega)
+
+theorem isConnected_lineGraph_doubleStar (m n : ℕ) :
+    IsConnected (lineGraph (doubleStar m n)) :=
+  isConnected_lineGraph (isConnected_doubleStar m n) (by rw [E_doubleStar]; omega)
+
+theorem numComponents_lineGraph_doubleStar (m n : ℕ) :
+    (lineGraph (doubleStar m n)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_doubleStar m n) (by rw [E_doubleStar]; omega)
+
+theorem radius_lineGraph_doubleStar_le (m n : ℕ) :
+    (lineGraph (doubleStar (m + 1) (n + 1))).radius ≤ 3 := by
+  have h := radius_lineGraph_le (G := doubleStar (m + 1) (n + 1))
+    (isConnected_doubleStar _ _) (by rw [E_doubleStar]; omega)
+  rw [radius_doubleStar] at h
+  omega
+
+theorem diameter_lineGraph_doubleStar_le (m n : ℕ) :
+    (lineGraph (doubleStar (m + 1) (n + 1))).diameter ≤ 4 := by
+  have h := diameter_lineGraph_le (G := doubleStar (m + 1) (n + 1))
+    (isConnected_doubleStar _ _) (by rw [E_doubleStar]; omega)
+  rw [diameter_doubleStar] at h
+  omega
+
+theorem maxDeg_lineGraph_doubleStar_le (m n : ℕ) :
+    maxDeg (lineGraph (doubleStar m n)) ≤ 2 * max m n := by
+  have h := maxDeg_lineGraph_le (doubleStar m n)
+  rw [maxDeg_doubleStar] at h
+  omega
+
+/-! ### The line graph of a rook's graph -/
+
+@[simp] theorem V_lineGraph_rook (m n : ℕ) :
+    (lineGraph (rook m n)).V = m * n.choose 2 + n * m.choose 2 := by
+  rw [V_lineGraph, E_rook]
+
+theorem E_pos_rook (m n : ℕ) : 0 < (rook (m + 2) (n + 2)).E := by
+  have h : 0 < (m + 2) * ((n + 2).choose 2) :=
+    Nat.mul_pos (by omega) (Nat.choose_pos (by omega))
+  rw [E_rook]
+  omega
+
+theorem indepNum_lineGraph_rook (m n : ℕ) :
+    (lineGraph (rook (m + 1) (n + 1))).indepNum = (m + 1) * (n + 1) / 2 := by
+  rw [indepNum_lineGraph, matchNum_rook]
+
+theorem coverNum_lineGraph_rook (m n : ℕ) :
+    (lineGraph (rook (m + 1) (n + 1))).coverNum
+      = (m + 1) * (n + 1).choose 2 + (n + 1) * (m + 1).choose 2 - (m + 1) * (n + 1) / 2 := by
+  rw [coverNum_lineGraph, E_rook, matchNum_rook]
+
+theorem cliqueNum_lineGraph_rook (m n : ℕ) :
+    (lineGraph (rook (m + 2) (n + 3))).cliqueNum = m + n + 3 := by
+  have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := rook (m + 2) (n + 3))
+    (by rw [maxDeg_rook]; omega)
+  rw [maxDeg_rook] at h
+  omega
+
+theorem girth_lineGraph_rook (m n : ℕ) : (lineGraph (rook (m + 2) (n + 3))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_rook]; omega)
+
+theorem not_isBipartite_lineGraph_rook (m n : ℕ) :
+    ¬ IsBipartite (lineGraph (rook (m + 2) (n + 3))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_rook]; omega)
+
+theorem not_isAcyclic_lineGraph_rook (m n : ℕ) :
+    ¬ IsAcyclic (lineGraph (rook (m + 2) (n + 3))) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_rook]; omega)
+
+theorem not_isTree_lineGraph_rook (m n : ℕ) :
+    ¬ IsTree (lineGraph (rook (m + 2) (n + 3))) :=
+  not_isTree_lineGraph (by rw [maxDeg_rook]; omega)
+
+theorem isConnected_lineGraph_rook (m n : ℕ) :
+    IsConnected (lineGraph (rook (m + 2) (n + 2))) :=
+  isConnected_lineGraph (isConnected_rook _ _) (E_pos_rook m n)
+
+theorem numComponents_lineGraph_rook (m n : ℕ) :
+    (lineGraph (rook (m + 2) (n + 2))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_rook _ _) (E_pos_rook m n)
+
+theorem radius_lineGraph_rook_le (m n : ℕ) :
+    (lineGraph (rook (m + 2) (n + 2))).radius ≤ 3 := by
+  have h := radius_lineGraph_le (G := rook (m + 2) (n + 2)) (isConnected_rook _ _)
+    (E_pos_rook m n)
+  rw [radius_rook] at h
+  omega
+
+theorem diameter_lineGraph_rook_le (m n : ℕ) :
+    (lineGraph (rook (m + 2) (n + 2))).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (G := rook (m + 2) (n + 2)) (isConnected_rook _ _)
+    (E_pos_rook m n)
+  rw [diameter_rook] at h
+  omega
+
+theorem maxDeg_lineGraph_rook (m n : ℕ) :
+    maxDeg (lineGraph (rook (m + 2) (n + 2))) = 2 * m + 2 * n + 2 := by
+  have h1 := maxDeg_lineGraph_le (rook (m + 2) (n + 2))
+  have h2 := le_minDeg_lineGraph (G := rook (m + 2) (n + 2)) (E_pos_rook m n)
+  have h3 := minDeg_le_maxDeg (lineGraph (rook (m + 2) (n + 2)))
+  rw [maxDeg_rook] at h1
+  rw [minDeg_rook] at h2
+  omega
+
+theorem minDeg_lineGraph_rook (m n : ℕ) :
+    minDeg (lineGraph (rook (m + 2) (n + 2))) = 2 * m + 2 * n + 2 := by
+  have h1 := maxDeg_lineGraph_le (rook (m + 2) (n + 2))
+  have h2 := le_minDeg_lineGraph (G := rook (m + 2) (n + 2)) (E_pos_rook m n)
+  have h3 := minDeg_le_maxDeg (lineGraph (rook (m + 2) (n + 2)))
+  rw [maxDeg_rook] at h1
+  rw [minDeg_rook] at h2
+  omega
+
+/-! ### The line graph of a hypercube -/
+
+theorem E_hypercube_succ (n : ℕ) : (hypercube (n + 1)).E = (n + 1) * 2 ^ n := by
+  have h := E_hypercube (n + 1)
+  have h3 : (n + 1) * 2 ^ (n + 1) = 2 * ((n + 1) * 2 ^ n) := by ring
+  omega
+
+theorem two_mul_V_lineGraph_hypercube (n : ℕ) :
+    2 * (lineGraph (hypercube n)).V = n * 2 ^ n := by
+  rw [V_lineGraph, E_hypercube]
+
+theorem V_lineGraph_hypercube_succ (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).V = (n + 1) * 2 ^ n := by
+  rw [V_lineGraph, E_hypercube_succ]
+
+theorem chromNum_lineGraph_hypercube (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).chromNum = n + 1 := by
+  rw [chromNum_lineGraph, edgeChromNum_hypercube]
+
+theorem indepNum_lineGraph_hypercube (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).indepNum = 2 ^ n := by
+  rw [indepNum_lineGraph, matchNum_hypercube]
+
+theorem coverNum_lineGraph_hypercube (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).coverNum = n * 2 ^ n := by
+  have h := coverNum_lineGraph (hypercube (n + 1))
+  rw [matchNum_hypercube, E_hypercube_succ] at h
+  have h3 : (n + 1) * 2 ^ n = n * 2 ^ n + 2 ^ n := by ring
+  omega
+
+theorem isConnected_lineGraph_hypercube (n : ℕ) :
+    IsConnected (lineGraph (hypercube (n + 1))) :=
+  isConnected_lineGraph (isConnected_hypercube _) (by rw [E_hypercube_succ]; positivity)
+
+theorem numComponents_lineGraph_hypercube (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_hypercube _) (by rw [E_hypercube_succ]; positivity)
+
+theorem radius_lineGraph_hypercube_le (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).radius ≤ n + 2 := by
+  have h := radius_lineGraph_le (G := hypercube (n + 1)) (isConnected_hypercube _)
+    (by rw [E_hypercube_succ]; positivity)
+  rw [radius_hypercube] at h
+  omega
+
+theorem diameter_lineGraph_hypercube_le (n : ℕ) :
+    (lineGraph (hypercube (n + 1))).diameter ≤ n + 2 := by
+  have h := diameter_lineGraph_le (G := hypercube (n + 1)) (isConnected_hypercube _)
+    (by rw [E_hypercube_succ]; positivity)
+  rw [diameter_hypercube] at h
+  omega
+
+theorem maxDeg_lineGraph_hypercube (n : ℕ) :
+    maxDeg (lineGraph (hypercube (n + 1))) = 2 * n := by
+  have h := maxDeg_lineGraph (G := hypercube (n + 1))
+    (by rw [E_hypercube_succ]; positivity) (degSequence_hypercube (n + 1))
+  omega
+
+theorem minDeg_lineGraph_hypercube (n : ℕ) :
+    minDeg (lineGraph (hypercube (n + 1))) = 2 * n := by
+  have h := minDeg_lineGraph (G := hypercube (n + 1))
+    (by rw [E_hypercube_succ]; positivity) (degSequence_hypercube (n + 1))
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
