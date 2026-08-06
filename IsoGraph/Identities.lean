@@ -37617,6 +37617,73 @@ theorem diameter_join_cycle (m n : ℕ) :
   rw [E_cycle, V_cycle, h]
   omega
 
+/-! ### The join of two paths -/
+
+@[simp] theorem V_join_path (m n : ℕ) : (path m ∇g path n).V = m + n := by
+  rw [V_join, V_path, V_path]
+
+theorem E_join_path (m n : ℕ) :
+    (path (m + 1) ∇g path (n + 1)).E = m + n + (m + 1) * (n + 1) := by
+  rw [E_join, E_path, E_path, V_path, V_path]
+
+theorem cliqueNum_join_path (m n : ℕ) :
+    (path (m + 2) ∇g path (n + 2)).cliqueNum = 4 := by
+  have h := cliqueNum_join (path (m + 2)) (path (n + 2))
+  rw [cliqueNum_path, cliqueNum_path] at h
+  omega
+
+theorem indepNum_join_path (m n : ℕ) :
+    (path m ∇g path n).indepNum = max ((m + 1) / 2) ((n + 1) / 2) := by
+  rw [indepNum_join, indepNum_path, indepNum_path]
+
+theorem cliqueCoverNum_join_path (m n : ℕ) :
+    (path m ∇g path n).cliqueCoverNum = max ((m + 1) / 2) ((n + 1) / 2) := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_path, cliqueCoverNum_path]
+
+theorem chromNum_join_path (m n : ℕ) :
+    (path (m + 2) ∇g path (n + 2)).chromNum = 4 := by
+  have h := chromNum_join (path (m + 2)) (path (n + 2))
+  rw [chromNum_path, chromNum_path] at h
+  omega
+
+theorem maxDeg_join_path (m n : ℕ) :
+    maxDeg (path (m + 3) ∇g path (n + 3)) = max (n + 5) (m + 5) := by
+  have h := maxDeg_join (G := path (m + 3)) (H := path (n + 3))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [maxDeg_path, maxDeg_path, V_path, V_path] at h
+  omega
+
+theorem minDeg_join_path (m n : ℕ) :
+    minDeg (path (m + 2) ∇g path (n + 2)) = min (n + 3) (m + 3) := by
+  have h := minDeg_join (G := path (m + 2)) (H := path (n + 2))
+    (by rw [V_path]; omega) (by rw [V_path]; omega)
+  rw [minDeg_path, minDeg_path, V_path, V_path] at h
+  omega
+
+@[simp] theorem isConnected_join_path (m n : ℕ) :
+    IsConnected (path (m + 1) ∇g path (n + 1)) :=
+  isConnected_join (by rw [V_path]; omega) (by rw [V_path]; omega)
+
+@[simp] theorem numComponents_join_path (m n : ℕ) :
+    (path (m + 1) ∇g path (n + 1)).numComponents = 1 :=
+  numComponents_join (by rw [V_path]; omega) (by rw [V_path]; omega)
+
+@[simp] theorem girth_join_path (m n : ℕ) :
+    (path (m + 2) ∇g path (n + 2)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_path]; omega)
+
+theorem diameter_join_path (m n : ℕ) :
+    (path (m + 3) ∇g path (n + 3)).diameter = 2 := by
+  have h : (m + 3).choose 2 = (m + 3) * (m + 2) / 2 := by
+    rw [Nat.choose_two_right, show m + 3 - 1 = m + 2 by omega]
+  have h2 : m + 3 ≤ (m + 3) * (m + 2) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 3) * (m + 2) = m * m + 5 * m + 6 := by ring
+    omega
+  refine diameter_join_left (by rw [V_path]; omega) ?_
+  rw [E_path, V_path, h]
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

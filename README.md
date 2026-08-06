@@ -2916,6 +2916,13 @@ The chromatic number splits on parity in both arguments, so it needs three lemma
 most two always, and it is exactly two as soon as one factor is missing an edge, which
 `diameter_join_left` reduces to `Cₙ` having fewer than `C(n, 2)` edges.
 
+Joining two paths gives the same shape of row with none of the parity cases, because a path is
+always two-chromatic: `chromNum_join_path = 4` and `cliqueNum_join_path = 4` need no case split.
+`indepNum_join_path` and `cliqueCoverNum_join_path` are the same expression, since a path's
+independence number and clique cover number both count `⌈n/2⌉`. `V_join_path`, `E_join_path`,
+`maxDeg_join_path`, `minDeg_join_path`, `isConnected_join_path`, `numComponents_join_path`,
+`girth_join_path = 3` and `diameter_join_path = 2` finish it.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
