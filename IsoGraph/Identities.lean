@@ -41664,6 +41664,233 @@ theorem coverNum_mycielskian_wheel_le (n : ℕ) :
   have h := coverNum_mycielskian_le (wheel n)
   rwa [V_wheel, show 1 + n + 1 = n + 2 from by omega] at h
 
+/-! ### The Mycielskian of a fan -/
+
+@[simp] theorem V_mycielskian_fan (n : ℕ) : (mycielskian (fan n)).V = 2 * n + 3 := by
+  rw [V_mycielskian, V_fan]
+  omega
+
+theorem E_mycielskian_fan (n : ℕ) : (mycielskian (fan (n + 1))).E = 7 * n + 5 := by
+  rw [E_mycielskian, E_fan, V_fan]
+  omega
+
+theorem chromNum_mycielskian_fan (n : ℕ) :
+    (mycielskian (fan (n + 2))).chromNum = 4 := by
+  rw [chromNum_mycielskian, chromNum_fan]
+
+theorem cliqueNum_mycielskian_fan (n : ℕ) :
+    (mycielskian (fan (n + 2))).cliqueNum = 3 := by
+  have h := cliqueNum_mycielskian (fan (n + 2)) (by rw [V_fan]; omega)
+  rw [cliqueNum_fan] at h
+  omega
+
+theorem maxDeg_mycielskian_fan (n : ℕ) :
+    maxDeg (mycielskian (fan (n + 3))) = 2 * n + 6 := by
+  have h := maxDeg_mycielskian (fan (n + 3))
+  rw [maxDeg_fan, V_fan] at h
+  omega
+
+theorem minDeg_mycielskian_fan (n : ℕ) :
+    (mycielskian (fan (n + 2))).minDeg = 3 := by
+  have h := minDeg_mycielskian (fan (n + 2)) (by rw [V_fan]; omega)
+  rw [minDeg_fan, V_fan] at h
+  omega
+
+theorem domNum_mycielskian_fan (n : ℕ) :
+    (mycielskian (fan n)).domNum = 2 := by
+  have h := domNum_mycielskian (fan n) (by rw [V_fan]; omega)
+  rw [domNum_fan] at h
+  omega
+
+theorem isConnected_mycielskian_fan (n : ℕ) :
+    IsConnected (mycielskian (fan (n + 2))) :=
+  isConnected_mycielskian _ (by rw [minDeg_fan]; omega)
+
+theorem numComponents_mycielskian_fan (n : ℕ) :
+    (mycielskian (fan (n + 2))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_fan]; omega)
+
+theorem radius_mycielskian_fan (n : ℕ) :
+    (mycielskian (fan (n + 2))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_fan]; omega)
+
+theorem two_le_diameter_mycielskian_fan (n : ℕ) :
+    2 ≤ (mycielskian (fan (n + 2))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_fan]; omega)
+
+theorem diameter_mycielskian_fan_le_four (n : ℕ) :
+    (mycielskian (fan (n + 2))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_fan]; omega)
+
+theorem girth_mycielskian_fan (n : ℕ) :
+    (mycielskian (fan (n + 2))).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_mycielskian_fan])
+
+theorem matchNum_mycielskian_fan (m : ℕ) :
+    (mycielskian (fan (2 * m + 1))).matchNum = 2 * m + 2 := by
+  have h := matchNum_mycielskian (fan (2 * m + 1)) (by rw [matchNum_fan, V_fan]; omega)
+  rw [V_fan] at h
+  omega
+
+theorem indepNum_mycielskian_fan_le (n : ℕ) :
+    (mycielskian (fan (n + 1))).indepNum ≤ n + 2 + (n + 2) / 2 := by
+  have h := indepNum_mycielskian_le (fan (n + 1)) (by rw [V_fan]; omega)
+  rw [V_fan, indepNum_fan] at h
+  omega
+
+theorem coverNum_mycielskian_fan_le (n : ℕ) :
+    (mycielskian (fan n)).coverNum ≤ n + 2 := by
+  have h := coverNum_mycielskian_le (fan n)
+  rwa [V_fan, show 1 + n + 1 = n + 2 from by omega] at h
+
+/-! ### The Mycielskian of a book -/
+
+@[simp] theorem V_mycielskian_book (n : ℕ) : (mycielskian (book n)).V = 2 * n + 5 := by
+  rw [V_mycielskian, V_book]
+  omega
+
+theorem E_mycielskian_book (n : ℕ) : (mycielskian (book n)).E = 7 * n + 5 := by
+  rw [E_mycielskian, E_book, V_book]
+  omega
+
+theorem chromNum_mycielskian_book (n : ℕ) :
+    (mycielskian (book (n + 1))).chromNum = 4 := by
+  rw [chromNum_mycielskian, chromNum_book]
+
+theorem cliqueNum_mycielskian_book (n : ℕ) :
+    (mycielskian (book (n + 1))).cliqueNum = 3 := by
+  have h := cliqueNum_mycielskian (book (n + 1)) (by rw [V_book]; omega)
+  rw [cliqueNum_book] at h
+  omega
+
+theorem maxDeg_mycielskian_book (n : ℕ) :
+    maxDeg (mycielskian (book (n + 1))) = 2 * n + 4 := by
+  have h := maxDeg_mycielskian (book (n + 1))
+  rw [maxDeg_book, V_book] at h
+  omega
+
+theorem minDeg_mycielskian_book (n : ℕ) :
+    (mycielskian (book (n + 1))).minDeg = 3 := by
+  have h := minDeg_mycielskian (book (n + 1)) (by rw [V_book]; omega)
+  rw [minDeg_book, V_book] at h
+  omega
+
+theorem domNum_mycielskian_book (n : ℕ) :
+    (mycielskian (book n)).domNum = 2 := by
+  have h := domNum_mycielskian (book n) (by rw [V_book]; omega)
+  rw [domNum_book] at h
+  omega
+
+theorem isConnected_mycielskian_book (n : ℕ) :
+    IsConnected (mycielskian (book (n + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_book]; omega)
+
+theorem numComponents_mycielskian_book (n : ℕ) :
+    (mycielskian (book (n + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_book]; omega)
+
+theorem radius_mycielskian_book (n : ℕ) :
+    (mycielskian (book (n + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_book]; omega)
+
+theorem two_le_diameter_mycielskian_book (n : ℕ) :
+    2 ≤ (mycielskian (book (n + 1))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_book]; omega)
+
+theorem diameter_mycielskian_book_le_four (n : ℕ) :
+    (mycielskian (book (n + 1))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_book]; omega)
+
+theorem girth_mycielskian_book (n : ℕ) :
+    (mycielskian (book (n + 1))).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_mycielskian_book])
+
+theorem indepNum_mycielskian_book_le (n : ℕ) :
+    (mycielskian (book n)).indepNum ≤ 2 + n + max 1 n := by
+  have h := indepNum_mycielskian_le (book n) (by rw [V_book]; omega)
+  rw [V_book, indepNum_book] at h
+  omega
+
+theorem coverNum_mycielskian_book_le (n : ℕ) :
+    (mycielskian (book n)).coverNum ≤ n + 3 := by
+  have h := coverNum_mycielskian_le (book n)
+  rwa [V_book, show 2 + n + 1 = n + 3 from by omega] at h
+
+/-! ### The Mycielskian of a friendship graph -/
+
+@[simp] theorem V_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship n)).V = 4 * n + 3 := by
+  rw [V_mycielskian, V_friendship]
+  omega
+
+theorem E_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship n)).E = 11 * n + 1 := by
+  rw [E_mycielskian, E_friendship, V_friendship]
+  omega
+
+theorem chromNum_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship (n + 1))).chromNum = 4 := by
+  rw [chromNum_mycielskian, chromNum_friendship]
+
+theorem cliqueNum_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship (n + 1))).cliqueNum = 3 := by
+  have h := cliqueNum_mycielskian (friendship (n + 1)) (by rw [V_friendship]; omega)
+  rw [cliqueNum_friendship] at h
+  omega
+
+theorem maxDeg_mycielskian_friendship (n : ℕ) :
+    maxDeg (mycielskian (friendship (n + 1))) = 4 * n + 4 := by
+  have h := maxDeg_mycielskian (friendship (n + 1))
+  rw [maxDeg_friendship, V_friendship] at h
+  omega
+
+theorem minDeg_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship (n + 1))).minDeg = 3 := by
+  have h := minDeg_mycielskian (friendship (n + 1)) (by rw [V_friendship]; omega)
+  rw [minDeg_friendship, V_friendship] at h
+  omega
+
+theorem domNum_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship n)).domNum = 2 := by
+  have h := domNum_mycielskian (friendship n) (by rw [V_friendship]; omega)
+  rw [domNum_friendship] at h
+  omega
+
+theorem isConnected_mycielskian_friendship (n : ℕ) :
+    IsConnected (mycielskian (friendship (n + 1))) :=
+  isConnected_mycielskian _ (by rw [minDeg_friendship]; omega)
+
+theorem numComponents_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship (n + 1))).numComponents = 1 :=
+  numComponents_mycielskian _ (by rw [minDeg_friendship]; omega)
+
+theorem radius_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship (n + 1))).radius = 2 :=
+  radius_mycielskian _ (by rw [minDeg_friendship]; omega)
+
+theorem two_le_diameter_mycielskian_friendship (n : ℕ) :
+    2 ≤ (mycielskian (friendship (n + 1))).diameter :=
+  two_le_diameter_mycielskian _ (by rw [minDeg_friendship]; omega)
+
+theorem diameter_mycielskian_friendship_le_four (n : ℕ) :
+    (mycielskian (friendship (n + 1))).diameter ≤ 4 :=
+  diameter_mycielskian_le_four _ (by rw [minDeg_friendship]; omega)
+
+theorem girth_mycielskian_friendship (n : ℕ) :
+    (mycielskian (friendship (n + 1))).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_mycielskian_friendship])
+
+theorem indepNum_mycielskian_friendship_le (n : ℕ) :
+    (mycielskian (friendship n)).indepNum ≤ 2 * n + 1 + max n 1 := by
+  have h := indepNum_mycielskian_le (friendship n) (by rw [V_friendship]; omega)
+  rw [V_friendship, indepNum_friendship] at h
+  omega
+
+theorem coverNum_mycielskian_friendship_le (n : ℕ) :
+    (mycielskian (friendship n)).coverNum ≤ 2 * n + 2 := by
+  have h := coverNum_mycielskian_le (friendship n)
+  rwa [V_friendship, show 2 * n + 1 + 1 = 2 * n + 2 from by omega] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

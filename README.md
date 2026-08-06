@@ -3238,6 +3238,15 @@ cocktail party graph and the wheel both contain triangles, so their Mycielskians
 minimum degree exactly `4`, maximum degree `2n + 6` and domination number `2`, and its chromatic
 number is four or five according to the parity of the rim.
 
+The Mycielskian sweep finishes with three graphs built around a hub: the fan, the book and the
+friendship graph. All three are dominated by a single vertex, so all three Mycielskians have
+domination number exactly two, and all three carry a triangle across, so `girth (M G) = 3` and
+`ω(M G) = 3` in every case. What separates them is the degree profile. The minimum degree of the
+Mycielskian is three throughout — the hub's spokes have degree two, and the construction adds one
+more neighbour, the apex — while the maximum degree tracks the hub: `2n + 6` for `M(Fₙ₊₃)`,
+`2n + 4` for `M(Bₙ₊₁)` and `4n + 4` for the friendship graph `M(Frₙ₊₁)`, whose hub is the largest of
+the three. Chromatic number is four for all three, one more than the three the base graphs need.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
