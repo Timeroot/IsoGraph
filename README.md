@@ -2954,6 +2954,17 @@ degrees. The additive ones collapse to constants, since each clique contributes 
 `domNum_disjUnion_complete` are all `2`. `E_disjUnion_complete`, `matchNum_disjUnion_complete`,
 `girth_disjUnion_complete = 3` and the four disconnectedness facts finish the row.
 
+The complement column reaches the product families too. A complement has no product structure,
+so only the four invariants that complementation transports survive, but those four are exactly
+the ones the product rows supply: `E_compl_grid`, `maxDeg_compl_grid`, `minDeg_compl_grid` and
+`indepNum_compl_grid = 2`, and the same quartet for the torus
+(`E_compl_cartesianProduct_cycle` and friends), the cylinder
+(`E_compl_cartesianProduct_cycle_path` and friends) and the king graph (`E_compl_king`,
+`maxDeg_compl_king`, `minDeg_compl_king`, `indepNum_compl_king = 4`). The degree bounds swap
+around `n - 1`, so the complement of a 4-regular torus is `mn - 5`-regular at both ends, and the
+independence number of the complement is the clique number of the original — two for the three
+Cartesian products, four for the king graph.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

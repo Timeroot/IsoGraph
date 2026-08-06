@@ -37893,6 +37893,104 @@ theorem not_isConnected_disjUnion_complete (m n : ℕ) :
     (complete (m + 1) ⊕g complete (n + 1)).radius = 0 :=
   radius_disjUnion (by rw [V_complete]; omega) (by rw [V_complete]; omega)
 
+/-! ### Complements of the grid, torus, cylinder and king graph -/
+
+theorem E_compl_grid (m n : ℕ) :
+    ((path (m + 1) □g path (n + 1))ᶜ).E
+      = ((m + 1) * (n + 1)).choose 2 - ((m + 1) * n + (n + 1) * m) := by
+  have h := E_compl (path (m + 1) □g path (n + 1))
+  rw [E_grid, V_grid] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_grid (m n : ℕ) :
+    maxDeg ((path (m + 3) □g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 3 := by
+  have h := maxDeg_compl (G := path (m + 3) □g path (n + 3)) (by rw [V_grid]; positivity)
+  rw [V_grid, minDeg_grid] at h
+  omega
+
+theorem minDeg_compl_grid (m n : ℕ) :
+    minDeg ((path (m + 3) □g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
+  have h := minDeg_compl (G := path (m + 3) □g path (n + 3)) (by rw [V_grid]; positivity)
+  rw [V_grid, maxDeg_grid] at h
+  omega
+
+theorem indepNum_compl_grid (m n : ℕ) :
+    ((path (m + 2) □g path (n + 2))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_grid]
+
+theorem E_compl_cartesianProduct_cycle (m n : ℕ) :
+    ((cycle (m + 3) □g cycle (n + 3))ᶜ).E
+      = ((m + 3) * (n + 3)).choose 2 - 2 * ((m + 3) * (n + 3)) := by
+  have h := E_compl (cycle (m + 3) □g cycle (n + 3))
+  rw [E_cartesianProduct_cycle, V_cartesianProduct_cycle] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_cartesianProduct_cycle (m n : ℕ) :
+    maxDeg ((cycle (m + 3) □g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
+  have h := maxDeg_compl (G := cycle (m + 3) □g cycle (n + 3))
+    (by rw [V_cartesianProduct_cycle]; positivity)
+  rw [V_cartesianProduct_cycle, minDeg_cartesianProduct_cycle] at h
+  omega
+
+theorem minDeg_compl_cartesianProduct_cycle (m n : ℕ) :
+    minDeg ((cycle (m + 3) □g cycle (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
+  have h := minDeg_compl (G := cycle (m + 3) □g cycle (n + 3))
+    (by rw [V_cartesianProduct_cycle]; positivity)
+  rw [V_cartesianProduct_cycle, maxDeg_cartesianProduct_cycle] at h
+  omega
+
+theorem indepNum_compl_cartesianProduct_cycle (m n : ℕ) :
+    ((cycle (m + 4) □g cycle (n + 4))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_cartesianProduct_cycle]
+
+theorem E_compl_cartesianProduct_cycle_path (m n : ℕ) :
+    ((cycle (m + 3) □g path (n + 1))ᶜ).E
+      = ((m + 3) * (n + 1)).choose 2 - ((m + 3) * n + (n + 1) * (m + 3)) := by
+  have h := E_compl (cycle (m + 3) □g path (n + 1))
+  rw [E_cartesianProduct_cycle_path, V_cartesianProduct_cycle_path] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_cartesianProduct_cycle_path (m n : ℕ) :
+    maxDeg ((cycle (m + 3) □g path (n + 2))ᶜ) = (m + 3) * (n + 2) - 4 := by
+  have h := maxDeg_compl (G := cycle (m + 3) □g path (n + 2))
+    (by rw [V_cartesianProduct_cycle_path]; positivity)
+  rw [V_cartesianProduct_cycle_path, minDeg_cartesianProduct_cycle_path] at h
+  omega
+
+theorem minDeg_compl_cartesianProduct_cycle_path (m n : ℕ) :
+    minDeg ((cycle (m + 3) □g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
+  have h := minDeg_compl (G := cycle (m + 3) □g path (n + 3))
+    (by rw [V_cartesianProduct_cycle_path]; positivity)
+  rw [V_cartesianProduct_cycle_path, maxDeg_cartesianProduct_cycle_path] at h
+  omega
+
+theorem indepNum_compl_cartesianProduct_cycle_path (m n : ℕ) :
+    ((cycle (m + 4) □g path (n + 2))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_cartesianProduct_cycle_path]
+
+theorem E_compl_king (m n : ℕ) :
+    ((path (m + 1) ⊠g path (n + 1))ᶜ).E
+      = ((m + 1) * (n + 1)).choose 2 - ((m + 1) * n + (n + 1) * m + 2 * m * n) := by
+  have h := E_compl (path (m + 1) ⊠g path (n + 1))
+  rw [E_king, V_king] at h
+  rw [← h, Nat.add_sub_cancel]
+
+theorem maxDeg_compl_king (m n : ℕ) :
+    maxDeg ((path (m + 2) ⊠g path (n + 2))ᶜ) = (m + 2) * (n + 2) - 4 := by
+  have h := maxDeg_compl (G := path (m + 2) ⊠g path (n + 2)) (by rw [V_king]; positivity)
+  rw [V_king, minDeg_king] at h
+  omega
+
+theorem minDeg_compl_king (m n : ℕ) :
+    minDeg ((path (m + 3) ⊠g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 9 := by
+  have h := minDeg_compl (G := path (m + 3) ⊠g path (n + 3)) (by rw [V_king]; positivity)
+  rw [V_king, maxDeg_king] at h
+  omega
+
+theorem indepNum_compl_king (m n : ℕ) :
+    ((path (m + 2) ⊠g path (n + 2))ᶜ).indepNum = 4 := by
+  rw [indepNum_compl, cliqueNum_king]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
