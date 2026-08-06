@@ -34937,6 +34937,150 @@ theorem three_le_girth_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤
     3 ≤ (cyclePendant (m + 3) ks).girth :=
   three_le_girth (not_isAcyclic_cyclePendant m ks h)
 
+/-! ### Matchings from independence, and matchings from edge colourings
+
+Two routes into the matching-number cells that were still empty.  Where the independence number
+is known exactly, `ν ≤ τ = |V| - α ≤ 2ν` brackets the matching number between a half and a whole
+of the vertex cover.  Where it is not, `|E| ≤ χ' ν` converts an edge-colouring upper bound into a
+matching lower bound: a proper edge colouring splits the edges into `χ'` matchings, so one of
+them has at least `|E| / χ'` edges.
+-/
+
+theorem matchNum_triangular_le (n : ℕ) : (triangular n).matchNum ≤ n.choose 2 - n / 2 := by
+  have h1 := matchNum_le_coverNum (triangular n)
+  have h2 := coverNum_add_indepNum (triangular n)
+  rw [V_triangular, indepNum_triangular] at h2
+  omega
+
+theorem le_matchNum_triangular (n : ℕ) :
+    n.choose 2 - n / 2 ≤ 2 * (triangular n).matchNum := by
+  have h1 := coverNum_le_two_mul_matchNum (triangular n)
+  have h2 := coverNum_add_indepNum (triangular n)
+  rw [V_triangular, indepNum_triangular] at h2
+  omega
+
+theorem matchNum_johnson_two_le (n : ℕ) : (johnson n 2).matchNum ≤ n.choose 2 - n / 2 := by
+  have h1 := matchNum_le_coverNum (johnson n 2)
+  have h2 := coverNum_add_indepNum (johnson n 2)
+  rw [V_johnson, indepNum_johnson_two] at h2
+  omega
+
+theorem le_matchNum_johnson_two (n : ℕ) :
+    n.choose 2 - n / 2 ≤ 2 * (johnson n 2).matchNum := by
+  have h1 := coverNum_le_two_mul_matchNum (johnson n 2)
+  have h2 := coverNum_add_indepNum (johnson n 2)
+  rw [V_johnson, indepNum_johnson_two] at h2
+  omega
+
+theorem matchNum_kneser_two_le (n : ℕ) :
+    (kneser (n + 4) 2).matchNum ≤ (n + 4).choose 2 - (n + 3) := by
+  have h1 := matchNum_le_coverNum (kneser (n + 4) 2)
+  have h2 := coverNum_add_indepNum (kneser (n + 4) 2)
+  rw [V_kneser, indepNum_kneser_two] at h2
+  omega
+
+theorem le_matchNum_kneser_two (n : ℕ) :
+    (n + 4).choose 2 - (n + 3) ≤ 2 * (kneser (n + 4) 2).matchNum := by
+  have h1 := coverNum_le_two_mul_matchNum (kneser (n + 4) 2)
+  have h2 := coverNum_add_indepNum (kneser (n + 4) 2)
+  rw [V_kneser, indepNum_kneser_two] at h2
+  omega
+
+/-- The tadpole has `Δ = 3`, so `χ' ≤ 5` and one of the five colour classes is large. -/
+theorem le_matchNum_tadpole (m k : ℕ) :
+    m + k + 4 ≤ 5 * (tadpole (m + 3) (k + 1)).matchNum := by
+  have h1 := E_le_edgeChromNum_mul_matchNum (tadpole (m + 3) (k + 1))
+  have h2 := edgeChromNum_tadpole_le m k
+  rw [E_tadpole] at h1
+  calc m + k + 4 = m + 3 + (k + 1) := by ring
+    _ ≤ (tadpole (m + 3) (k + 1)).edgeChromNum * (tadpole (m + 3) (k + 1)).matchNum := h1
+    _ ≤ 5 * (tadpole (m + 3) (k + 1)).matchNum := Nat.mul_le_mul_right _ h2
+
+theorem le_matchNum_lollipop (m k : ℕ) :
+    (m + 2).choose 2 + (k + 1) ≤ (2 * m + 3) * (lollipop (m + 2) (k + 1)).matchNum := by
+  have h1 := E_le_edgeChromNum_mul_matchNum (lollipop (m + 2) (k + 1))
+  have h2 := edgeChromNum_lollipop_le m k
+  rw [E_lollipop] at h1
+  exact h1.trans (Nat.mul_le_mul_right _ h2)
+
+/-- The lollipop's vertex cover, from the chromatic bound on its independence number. -/
+theorem coverNum_lollipop_le (m k : ℕ) :
+    (m + 2) * (lollipop (m + 2) k).coverNum ≤ (m + 1) * (m + k + 2) := by
+  have h1 := coverNum_add_indepNum (lollipop (m + 2) k)
+  have h2 := le_indepNum_lollipop m k
+  rw [V_lollipop] at h1
+  have h5 : (m + 2) * (lollipop (m + 2) k).coverNum + (m + 2) * (lollipop (m + 2) k).indepNum
+      = (m + 1) * (m + k + 2) + (m + k + 2) := by
+    rw [← Nat.mul_add, h1]; ring
+  omega
+
+/-! ### The last of the domination brackets
+
+`|V| ≤ γ(Δ + 1)` and `γ + Δ ≤ |V|` for the remaining families whose maximum degree is known.  The
+hypercube bound is the classical sphere-covering bound for binary codes of radius one.
+-/
+
+theorem le_domNum_hypercube (n : ℕ) : 2 ^ n ≤ (hypercube n).domNum * (n + 1) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (hypercube n)
+  rwa [V_hypercube, maxDeg_hypercube] at h
+
+theorem domNum_hypercube_le (n : ℕ) : (hypercube n).domNum + n ≤ 2 ^ n := by
+  have h := domNum_add_maxDeg_le_V (hypercube n)
+  rwa [V_hypercube, maxDeg_hypercube] at h
+
+theorem le_domNum_kneser {n k : ℕ} (hk : 1 ≤ k) (hkn : k ≤ n) :
+    n.choose k ≤ (kneser n k).domNum * ((n - k).choose k + 1) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (kneser n k)
+  rwa [V_kneser, maxDeg_kneser n k hk hkn] at h
+
+theorem domNum_kneser_le {n k : ℕ} (hk : 1 ≤ k) (hkn : k ≤ n) :
+    (kneser n k).domNum + (n - k).choose k ≤ n.choose k := by
+  have h := domNum_add_maxDeg_le_V (kneser n k)
+  rwa [V_kneser, maxDeg_kneser n k hk hkn] at h
+
+theorem le_domNum_johnson {n k : ℕ} (hk : k ≤ n) :
+    n.choose k ≤ (johnson n k).domNum * (k * (n - k) + 1) := by
+  have h := V_le_domNum_mul_maxDeg_add_one (johnson n k)
+  rwa [V_johnson, maxDeg_johnson hk] at h
+
+theorem domNum_johnson_le {n k : ℕ} (hk : k ≤ n) :
+    (johnson n k).domNum + k * (n - k) ≤ n.choose k := by
+  have h := domNum_add_maxDeg_le_V (johnson n k)
+  rwa [V_johnson, maxDeg_johnson hk] at h
+
+theorem le_domNum_ladder (n : ℕ) : n + 3 ≤ 2 * (ladder (n + 3)).domNum := by
+  have h := V_le_domNum_mul_maxDeg_add_one (ladder (n + 3))
+  rw [V_ladder, maxDeg_ladder] at h
+  omega
+
+theorem domNum_ladder_le (n : ℕ) : (ladder (n + 3)).domNum + 3 ≤ 2 * (n + 3) := by
+  have h := domNum_add_maxDeg_le_V (ladder (n + 3))
+  rw [V_ladder, maxDeg_ladder] at h
+  omega
+
+/-- The ladder is `Pₙ □ K₂`, so it is at least twice as symmetric as the path. -/
+theorem two_mul_autCount_path_le_autCount_ladder (n : ℕ) :
+    2 * (path (n + 1)).autCount ≤ (ladder (n + 1)).autCount := by
+  have h := autCount_mul_le_autCount_cartesianProduct (path (n + 1)) (complete 2)
+    (by rw [V_path]; omega) (by rw [V_complete]; omega)
+  rw [show ladder (n + 1) = path (n + 1) □g complete 2 from rfl]
+  rw [autCount_complete, show Nat.factorial 2 = 2 from rfl] at h
+  omega
+
+/-- The line graph of a `k`-regular graph is `(2k - 2)`-regular, so its edge chromatic number is
+bracketed by the usual sandwich. -/
+theorem le_edgeChromNum_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) :
+    2 * k - 2 ≤ (lineGraph G).edgeChromNum := by
+  have h1 := maxDeg_le_edgeChromNum (lineGraph G)
+  rwa [maxDeg_lineGraph hE h] at h1
+
+theorem edgeChromNum_lineGraph_le {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
+    (h : degSequence G = List.replicate n k) :
+    (lineGraph G).edgeChromNum ≤ 2 * (2 * k - 2) - 1 := by
+  have h1 := edgeChromNum_le_two_mul_maxDeg_sub_one (lineGraph G)
+  rwa [maxDeg_lineGraph hE h] at h1
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

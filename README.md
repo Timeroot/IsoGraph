@@ -2470,6 +2470,26 @@ and `domNum_paley_le` is `γ + (q − 1)/2 ≤ q`. Finally `three_le_girth_cycle
 cycle with pendant paths attached is not acyclic, hence has girth at least three — the first entry
 in that family's girth cell.
 
+The matching-number column has two ways in. Where the independence number is known exactly,
+`ν ≤ τ ≤ 2ν` together with `τ + α = |V|` brackets the matching number between a half and a whole
+of the vertex cover: `matchNum_triangular_le` and `le_matchNum_triangular` bracket the triangular
+graph around `C(n, 2) − ⌊n/2⌋`, and `matchNum_johnson_two_le`, `le_matchNum_johnson_two`,
+`matchNum_kneser_two_le` and `le_matchNum_kneser_two` do the same for `johnson n 2` and
+`kneser (n + 4) 2`. Where it is not known, the edge-colouring bound `|E| ≤ χ' ν` runs the other
+way: a proper edge colouring splits `E` into `χ'` matchings, so one of them has at least `|E|/χ'`
+edges. Combined with the brackets above this gives `le_matchNum_tadpole` (`|E| = m + k + 4` and
+`χ' ≤ 5`, so `ν ≥ (m + k + 4)/5`) and `le_matchNum_lollipop`. `coverNum_lollipop_le` completes the
+lollipop's covering cell from the chromatic bound on its independence number.
+
+Three more domination brackets close out that column: `le_domNum_hypercube` and
+`domNum_hypercube_le` — the first of these, `2ⁿ ≤ γ(n + 1)`, is exactly the sphere-covering bound
+for binary codes of covering radius one — together with `le_domNum_kneser`, `domNum_kneser_le`,
+`le_domNum_johnson`, `domNum_johnson_le`, `le_domNum_ladder` and `domNum_ladder_le`. Since
+`ladder n` is literally `Pₙ □ K₂`, the product bound on automorphism counts also gives
+`two_mul_autCount_path_le_autCount_ladder`, and `maxDeg_lineGraph` — the line graph of a
+`k`-regular graph is `(2k − 2)`-regular — feeds the usual sandwich to give
+`le_edgeChromNum_lineGraph` and `edgeChromNum_lineGraph_le`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
