@@ -3256,6 +3256,16 @@ graph's in each case; the crown's grows with its parameter, `minDeg (M (crown (n
 three are triangle-free, so the girth of the Mycielskian is at least four and the chromatic number
 is three where the base graph is bipartite.
 
+Until now the join and disjoint union tables only knew four families — the path, the cycle, the
+complete graph and the hypercube — so the star has been added as a fifth. Three joins are covered:
+`Sₘ ∇ Sₙ`, `Kₘ ∇ Sₙ` and `Cₘ ∇ Sₙ`. A join of two stars has clique number and chromatic number
+four, since each star contributes an edge and every cross pair is joined; adding a complete graph
+instead pushes both up to `m + 2`, and adding an odd cycle gives five. The diameter is two in every
+case, which follows from `diameter_join_left` once the star is large enough not to be complete —
+`Sₘ₊₂` has `m + 2` edges against `(m+3)(m+2)/2` possible ones. Minimum degree is the interesting
+entry: it is `min (n+3) (m+3)` for two stars, because a leaf of either side sees only its own
+centre and the whole of the other side.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

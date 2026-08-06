@@ -42134,6 +42134,216 @@ theorem coverNum_mycielskian_crown_le (n : ℕ) :
   rw [V_crown] at h
   omega
 
+/-! ### Joining two stars -/
+
+@[simp] theorem V_join_star (m n : ℕ) : (star m ∇g star n).V = m + n + 2 := by
+  rw [V_join, V_star, V_star]
+  omega
+
+theorem E_join_star (m n : ℕ) :
+    (star m ∇g star n).E = m + n + (1 + m) * (1 + n) := by
+  rw [E_join, E_star, E_star, V_star, V_star]
+
+theorem cliqueNum_join_star (m n : ℕ) :
+    (star (m + 1) ∇g star (n + 1)).cliqueNum = 4 := by
+  rw [cliqueNum_join, cliqueNum_star, cliqueNum_star]
+
+theorem chromNum_join_star (m n : ℕ) :
+    (star (m + 1) ∇g star (n + 1)).chromNum = 4 := by
+  rw [chromNum_join, chromNum_star, chromNum_star]
+
+theorem indepNum_join_star (m n : ℕ) :
+    (star m ∇g star n).indepNum = max (max 1 m) (max 1 n) := by
+  rw [indepNum_join, indepNum_star, indepNum_star]
+
+theorem coverNum_join_star (m n : ℕ) :
+    (star m ∇g star n).coverNum = min (min 1 m + (1 + n)) (1 + m + min 1 n) := by
+  rw [coverNum_join, coverNum_star, coverNum_star, V_star, V_star]
+
+theorem cliqueCoverNum_join_star (m n : ℕ) :
+    (star m ∇g star n).cliqueCoverNum = max (max 1 m) (max 1 n) := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_star, cliqueCoverNum_star]
+
+theorem maxDeg_join_star (m n : ℕ) :
+    maxDeg (star (m + 1) ∇g star (n + 1)) = m + n + 3 := by
+  have h := maxDeg_join (G := star (m + 1)) (H := star (n + 1))
+    (by rw [V_star]; omega) (by rw [V_star]; omega)
+  rw [maxDeg_star, maxDeg_star, V_star, V_star] at h
+  omega
+
+theorem minDeg_join_star (m n : ℕ) :
+    minDeg (star (m + 1) ∇g star (n + 1)) = min (n + 3) (m + 3) := by
+  have h := minDeg_join (G := star (m + 1)) (H := star (n + 1))
+    (by rw [V_star]; omega) (by rw [V_star]; omega)
+  rw [minDeg_star, minDeg_star, V_star, V_star] at h
+  omega
+
+theorem isConnected_join_star (m n : ℕ) : IsConnected (star m ∇g star n) :=
+  isConnected_join (by rw [V_star]; omega) (by rw [V_star]; omega)
+
+theorem numComponents_join_star (m n : ℕ) : (star m ∇g star n).numComponents = 1 :=
+  numComponents_join (by rw [V_star]; omega) (by rw [V_star]; omega)
+
+theorem diameter_join_star (m n : ℕ) : (star (m + 2) ∇g star n).diameter = 2 := by
+  have h : (1 + (m + 2)).choose 2 = (m + 3) * (m + 2) / 2 := by
+    rw [show 1 + (m + 2) = m + 3 from by omega, Nat.choose_two_right,
+      show m + 3 - 1 = m + 2 from by omega]
+  have h2 : m + 3 ≤ (m + 3) * (m + 2) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 3) * (m + 2) = m * m + 5 * m + 6 := by ring
+    omega
+  refine diameter_join_left (by rw [V_star]; omega) ?_
+  rw [E_star, V_star, h]
+  omega
+
+theorem girth_join_star (m n : ℕ) : (star (m + 1) ∇g star (n + 1)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_star]; omega)
+
+/-! ### Joining a complete graph and a star -/
+
+@[simp] theorem V_join_complete_star (m n : ℕ) :
+    (complete m ∇g star n).V = m + n + 1 := by
+  rw [V_join, V_complete, V_star]
+  omega
+
+theorem E_join_complete_star (m n : ℕ) :
+    (complete m ∇g star n).E = m.choose 2 + n + m * (1 + n) := by
+  rw [E_join, E_complete, E_star, V_complete, V_star]
+
+theorem cliqueNum_join_complete_star (m n : ℕ) :
+    (complete m ∇g star (n + 1)).cliqueNum = m + 2 := by
+  rw [cliqueNum_join, cliqueNum_complete, cliqueNum_star]
+
+theorem chromNum_join_complete_star (m n : ℕ) :
+    (complete m ∇g star (n + 1)).chromNum = m + 2 := by
+  rw [chromNum_join, chromNum_complete, chromNum_star]
+
+theorem indepNum_join_complete_star (m n : ℕ) :
+    (complete m ∇g star n).indepNum = max (min m 1) (max 1 n) := by
+  rw [indepNum_join, indepNum_complete, indepNum_star]
+
+theorem coverNum_join_complete_star (m n : ℕ) :
+    (complete m ∇g star n).coverNum = min (m - 1 + (1 + n)) (m + min 1 n) := by
+  rw [coverNum_join, coverNum_complete, coverNum_star, V_complete, V_star]
+
+theorem cliqueCoverNum_join_complete_star (m n : ℕ) :
+    (complete (m + 1) ∇g star n).cliqueCoverNum = max 1 n := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_complete, cliqueCoverNum_star]
+  omega
+
+theorem maxDeg_join_complete_star (m n : ℕ) :
+    maxDeg (complete (m + 1) ∇g star (n + 1)) = m + n + 2 := by
+  have h := maxDeg_join (G := complete (m + 1)) (H := star (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_star]; omega)
+  rw [maxDeg_complete, maxDeg_star, V_complete, V_star] at h
+  omega
+
+theorem minDeg_join_complete_star (m n : ℕ) :
+    minDeg (complete (m + 1) ∇g star (n + 1)) = m + 2 := by
+  have h := minDeg_join (G := complete (m + 1)) (H := star (n + 1))
+    (by rw [V_complete]; omega) (by rw [V_star]; omega)
+  rw [minDeg_complete, minDeg_star, V_complete, V_star] at h
+  omega
+
+theorem isConnected_join_complete_star (m n : ℕ) :
+    IsConnected (complete (m + 1) ∇g star n) :=
+  isConnected_join (by rw [V_complete]; omega) (by rw [V_star]; omega)
+
+theorem numComponents_join_complete_star (m n : ℕ) :
+    (complete (m + 1) ∇g star n).numComponents = 1 :=
+  numComponents_join (by rw [V_complete]; omega) (by rw [V_star]; omega)
+
+theorem diameter_join_complete_star (m n : ℕ) :
+    (complete (m + 1) ∇g star (n + 2)).diameter = 2 := by
+  have h : (1 + (n + 2)).choose 2 = (n + 3) * (n + 2) / 2 := by
+    rw [show 1 + (n + 2) = n + 3 from by omega, Nat.choose_two_right,
+      show n + 3 - 1 = n + 2 from by omega]
+  have h2 : n + 3 ≤ (n + 3) * (n + 2) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (n + 3) * (n + 2) = n * n + 5 * n + 6 := by ring
+    omega
+  refine diameter_join_right (by rw [V_complete]; omega) ?_
+  rw [E_star, V_star, h]
+  omega
+
+theorem girth_join_complete_star (m n : ℕ) :
+    (complete (m + 1) ∇g star (n + 1)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_complete_star]; omega)
+
+/-! ### Joining a cycle and a star -/
+
+@[simp] theorem V_join_cycle_star (m n : ℕ) :
+    (cycle m ∇g star n).V = m + n + 1 := by
+  rw [V_join, V_cycle, V_star]
+  omega
+
+theorem E_join_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ∇g star n).E = m + 3 + n + (m + 3) * (1 + n) := by
+  rw [E_join, E_cycle, E_star, V_cycle, V_star]
+
+theorem cliqueNum_join_cycle_star (m n : ℕ) :
+    (cycle (m + 4) ∇g star (n + 1)).cliqueNum = 4 := by
+  rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_star]
+
+theorem chromNum_join_cycle_star_even (m n : ℕ) :
+    (cycle (2 * m + 2) ∇g star (n + 1)).chromNum = 4 := by
+  rw [chromNum_join, chromNum_cycle_even, chromNum_star]
+
+theorem chromNum_join_cycle_star_odd (m n : ℕ) :
+    (cycle (2 * m + 3) ∇g star (n + 1)).chromNum = 5 := by
+  rw [chromNum_join, chromNum_cycle_odd, chromNum_star]
+
+theorem indepNum_join_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ∇g star n).indepNum = max ((m + 3) / 2) (max 1 n) := by
+  rw [indepNum_join, indepNum_cycle, indepNum_star]
+
+theorem coverNum_join_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ∇g star n).coverNum
+      = min (m + 3 - (m + 3) / 2 + (1 + n)) (m + 3 + min 1 n) := by
+  rw [coverNum_join, coverNum_cycle, coverNum_star, V_cycle, V_star]
+
+theorem cliqueCoverNum_join_cycle_star (m n : ℕ) :
+    (cycle (m + 4) ∇g star n).cliqueCoverNum = max ((m + 5) / 2) (max 1 n) := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_cycle, cliqueCoverNum_star]
+
+theorem maxDeg_join_cycle_star (m n : ℕ) :
+    maxDeg (cycle (m + 3) ∇g star (n + 1)) = m + n + 4 := by
+  have h := maxDeg_join (G := cycle (m + 3)) (H := star (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+  rw [maxDeg_cycle, maxDeg_star, V_cycle, V_star] at h
+  omega
+
+theorem minDeg_join_cycle_star (m n : ℕ) :
+    minDeg (cycle (m + 3) ∇g star (n + 1)) = min (n + 4) (m + 4) := by
+  have h := minDeg_join (G := cycle (m + 3)) (H := star (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+  rw [minDeg_cycle, minDeg_star, V_cycle, V_star] at h
+  omega
+
+theorem isConnected_join_cycle_star (m n : ℕ) :
+    IsConnected (cycle (m + 3) ∇g star n) :=
+  isConnected_join (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+
+theorem numComponents_join_cycle_star (m n : ℕ) :
+    (cycle (m + 3) ∇g star n).numComponents = 1 :=
+  numComponents_join (by rw [V_cycle]; omega) (by rw [V_star]; omega)
+
+theorem diameter_join_cycle_star (m n : ℕ) :
+    (cycle (m + 4) ∇g star n).diameter = 2 := by
+  have h : (m + 4).choose 2 = (m + 4) * (m + 3) / 2 := by
+    rw [Nat.choose_two_right, show m + 4 - 1 = m + 3 from by omega]
+  have h2 : m + 5 ≤ (m + 4) * (m + 3) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 4) * (m + 3) = m * m + 7 * m + 12 := by ring
+    omega
+  refine diameter_join_left (by rw [V_star]; omega) ?_
+  rw [E_cycle, V_cycle, h]
+  omega
+
+theorem girth_join_cycle_star (m n : ℕ) :
+    (cycle (m + 4) ∇g star (n + 1)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle_star]; omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
