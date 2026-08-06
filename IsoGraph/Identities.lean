@@ -35181,6 +35181,106 @@ theorem not_isSelfComplementary_tadpole_even (m k : ℕ) :
   not_isSelfComplementary_of_isBipartite (isBipartite_tadpole_even _ _)
     (by rw [V_tadpole]; omega)
 
+/-! ### More graphs that are not self-complementary
+
+Beyond bipartiteness there are three cheap obstructions: the vertex count must be `0` or `1`
+mod `4`, the clique and independence numbers must agree, and the graph must be connected.  Each
+one is a one-line consequence of a lemma already in the file, and between them they refute
+self-complementarity for almost every remaining family.
+-/
+
+theorem not_isSelfComplementary_of_V_mod_four {G : IsoGraph} (h : G.V % 4 = 2 ∨ G.V % 4 = 3) :
+    ¬ IsSelfComplementary G := by
+  intro hs
+  rcases hs.V_mod_four with h' | h' <;> omega
+
+theorem not_isSelfComplementary_of_cliqueNum_ne_indepNum {G : IsoGraph}
+    (h : G.cliqueNum ≠ G.indepNum) : ¬ IsSelfComplementary G :=
+  fun hs ↦ h hs.cliqueNum_eq_indepNum
+
+theorem not_isSelfComplementary_of_not_isConnected {G : IsoGraph} (hV : 2 ≤ G.V)
+    (h : ¬ IsConnected G) : ¬ IsSelfComplementary G :=
+  fun hs ↦ h (hs.isConnected hV)
+
+theorem not_isSelfComplementary_of_two_mul_E_ne {G : IsoGraph} (h : 2 * G.E ≠ G.V.choose 2) :
+    ¬ IsSelfComplementary G :=
+  fun hs ↦ h hs.two_mul_E
+
+theorem not_isSelfComplementary_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    ¬ IsSelfComplementary (G ⊕g H) :=
+  not_isSelfComplementary_of_not_isConnected (by rw [V_disjUnion]; omega)
+    (not_isConnected_disjUnion hG hH)
+
+@[simp] theorem not_isSelfComplementary_grotzsch : ¬ IsSelfComplementary grotzsch :=
+  not_isSelfComplementary_of_V_mod_four (by rw [V_grotzsch]; omega)
+
+theorem not_isSelfComplementary_cycle_three_mod_four (m : ℕ) :
+    ¬ IsSelfComplementary (cycle (4 * m + 3)) :=
+  not_isSelfComplementary_of_V_mod_four (by rw [V_cycle]; omega)
+
+theorem not_isSelfComplementary_prism_odd (m : ℕ) :
+    ¬ IsSelfComplementary (prism (2 * m + 1)) :=
+  not_isSelfComplementary_of_V_mod_four (by rw [V_prism]; omega)
+
+theorem not_isSelfComplementary_prism_even (m : ℕ) :
+    ¬ IsSelfComplementary (prism (2 * (m + 2))) :=
+  not_isSelfComplementary_of_isBipartite (isBipartite_prism_even _) (by rw [V_prism]; omega)
+
+theorem not_isSelfComplementary_friendship_odd (m : ℕ) :
+    ¬ IsSelfComplementary (friendship (2 * m + 1)) :=
+  not_isSelfComplementary_of_V_mod_four (by rw [V_friendship]; omega)
+
+theorem not_isSelfComplementary_friendship (n : ℕ) :
+    ¬ IsSelfComplementary (friendship (n + 4)) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_friendship, indepNum_friendship]; omega)
+
+theorem not_isSelfComplementary_cocktailParty (n : ℕ) :
+    ¬ IsSelfComplementary (cocktailParty (n + 3)) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_cocktailParty, indepNum_cocktailParty]; omega)
+
+theorem not_isSelfComplementary_book (n : ℕ) : ¬ IsSelfComplementary (book (n + 4)) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_book, indepNum_book]; omega)
+
+theorem not_isSelfComplementary_wheel (n : ℕ) : ¬ IsSelfComplementary (wheel (n + 8)) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_wheel, indepNum_wheel]; omega)
+
+theorem not_isSelfComplementary_fan (n : ℕ) : ¬ IsSelfComplementary (fan (n + 8)) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_fan, indepNum_fan]; omega)
+
+theorem not_isSelfComplementary_triangular (n : ℕ) :
+    ¬ IsSelfComplementary (triangular (n + 4)) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_triangular, indepNum_triangular]; omega)
+
+theorem not_isSelfComplementary_johnson_two (n : ℕ) :
+    ¬ IsSelfComplementary (johnson (n + 4) 2) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_johnson_two, indepNum_johnson_two]; omega)
+
+theorem not_isSelfComplementary_kneser_two (n : ℕ) :
+    ¬ IsSelfComplementary (kneser (n + 4) 2) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_kneser_two, indepNum_kneser_two]; omega)
+
+theorem not_isSelfComplementary_rook (m n : ℕ) (h : m ≠ n) :
+    ¬ IsSelfComplementary (rook (m + 1) (n + 1)) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_rook (by omega) (by omega), indepNum_rook]; omega)
+
+/-- The Mycielskian of a triangle-free graph on at least three vertices has clique number two
+but independence number at least three. -/
+theorem not_isSelfComplementary_mycielskian {G : IsoGraph} (hV : 3 ≤ G.V)
+    (h : G.cliqueNum ≤ 2) : ¬ IsSelfComplementary (mycielskian G) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    have h1 := V_le_indepNum_mycielskian G
+    rw [cliqueNum_mycielskian_eq_two (by omega) h]
+    omega)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

@@ -2512,6 +2512,24 @@ bipartite; `not_isSelfComplementary_of_isBipartite` packages that, and applying 
 slack: `path 4` and the one-vertex graph are bipartite *and* self-complementary, and they are the
 only two that are.
 
+Bipartiteness is only the first of four cheap obstructions to self-complementarity, and the other
+three are packaged as `not_isSelfComplementary_of_V_mod_four` (a self-complementary graph has
+half of all `C(V, 2)` possible edges, so `C(V, 2)` is even and `V` is `0` or `1` mod four),
+`not_isSelfComplementary_of_cliqueNum_ne_indepNum` (complementation swaps cliques and independent
+sets, so `ω = α`) and `not_isSelfComplementary_of_not_isConnected` — with
+`not_isSelfComplementary_of_two_mul_E_ne` for the raw edge count. Between them they settle almost
+every remaining family: `not_isSelfComplementary_disjUnion` and `not_isSelfComplementary_grotzsch`
+(eleven vertices), `not_isSelfComplementary_cycle_three_mod_four`,
+`not_isSelfComplementary_prism_odd` and `not_isSelfComplementary_prism_even`,
+`not_isSelfComplementary_friendship_odd` and `not_isSelfComplementary_friendship`,
+`not_isSelfComplementary_cocktailParty`, `not_isSelfComplementary_book`,
+`not_isSelfComplementary_wheel`, `not_isSelfComplementary_fan`,
+`not_isSelfComplementary_triangular`, `not_isSelfComplementary_johnson_two`,
+`not_isSelfComplementary_kneser_two`, `not_isSelfComplementary_rook` for a non-square board, and
+`not_isSelfComplementary_mycielskian` for the Mycielskian of any triangle-free graph on at least
+three vertices. The thresholds are again sharp where the small cases really are
+self-complementary: `cycle 5` and `path 4` are, and so is `rook 1 1`.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
