@@ -2726,6 +2726,28 @@ opposite inequality. The edgeless row transfers under that hypothesis as `maxDeg
 `isArcTransitive_kneser_of_lt`, `compl_kneser_of_lt` and `lineGraph_kneser_of_lt`. Only
 `chromNum_kneser_of_lt` needs a second hypothesis, `k ≤ n`, to know there is a vertex at all.
 
+Complementation gives a second axis to work along, and it is cheap in a different way: cliques
+and independent sets swap, the chromatic number and the clique cover number swap, the
+automorphism group is unchanged, and the degrees and edge count are determined by
+`V - 1 - deg` and `C(V, 2) - E`. So every family whose four counting invariants are known also
+determines them for its complement, even when that complement has no name of its own. For the
+cycle that is `cliqueNum_compl_cycle`, `indepNum_compl_cycle`, `chromNum_compl_cycle`,
+`cliqueCoverNum_compl_cycle_even`, `cliqueCoverNum_compl_cycle_odd`, `maxDeg_compl_cycle`,
+`minDeg_compl_cycle`, `E_compl_cycle`, `isVertexTransitive_compl_cycle` and
+`two_mul_le_autCount_compl_cycle`; for the path, `cliqueNum_compl_path`, `indepNum_compl_path`,
+`chromNum_compl_path`, `cliqueCoverNum_compl_path`, `maxDeg_compl_path`, `minDeg_compl_path`,
+`E_compl_path` and `not_isVertexTransitive_compl_path`, the last of which runs the transitivity
+equivalence backwards.
+
+The same treatment applies to the two vertex-transitive families with exact counts.
+`cliqueNum_compl_hypercube`, `indepNum_compl_hypercube`, `chromNum_compl_hypercube`,
+`cliqueCoverNum_compl_hypercube`, `maxDeg_compl_hypercube`, `minDeg_compl_hypercube`,
+`isVertexTransitive_compl_hypercube` and `two_mul_E_le_autCount_compl_hypercube` cover the
+complement of `Qₙ` — whose independence and clique numbers are the hypercube's own, swapped —
+and `cliqueNum_compl_crown`, `indepNum_compl_crown`, `chromNum_compl_crown`,
+`cliqueCoverNum_compl_crown`, `maxDeg_compl_crown`, `minDeg_compl_crown`, `E_compl_crown` and
+`isVertexTransitive_compl_crown` do the same for the crown graph.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

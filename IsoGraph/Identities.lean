@@ -36519,6 +36519,145 @@ theorem lineGraph_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
     lineGraph (kneser n k) = empty 0 := by
   rw [kneser_eq_empty n k h, lineGraph_empty]
 
+/-! ### Complements of the named families
+
+Cliques and independent sets swap under complementation, as do the chromatic number and the
+clique cover number, and the automorphism group is unchanged.  Together with the degree and edge
+identities that gives a complement column for every family whose four counting invariants are
+known, even when the complement itself has no name.
+-/
+
+theorem cliqueNum_compl_cycle (n : ℕ) : ((cycle (n + 3))ᶜ).cliqueNum = (n + 3) / 2 := by
+  rw [cliqueNum_compl, indepNum_cycle]
+
+theorem indepNum_compl_cycle (n : ℕ) : ((cycle (n + 4))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_cycle]
+
+theorem chromNum_compl_cycle (n : ℕ) : ((cycle (n + 4))ᶜ).chromNum = (n + 5) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_cycle]
+
+theorem cliqueCoverNum_compl_cycle_even (m : ℕ) : ((cycle (2 * m + 2))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_cycle_even]
+
+theorem cliqueCoverNum_compl_cycle_odd (m : ℕ) : ((cycle (2 * m + 3))ᶜ).cliqueCoverNum = 3 := by
+  rw [cliqueCoverNum_compl, chromNum_cycle_odd]
+
+theorem maxDeg_compl_cycle (n : ℕ) : maxDeg ((cycle (n + 3))ᶜ) = n := by
+  have h := maxDeg_compl (G := cycle (n + 3)) (by rw [V_cycle]; omega)
+  rw [V_cycle, minDeg_cycle] at h
+  omega
+
+theorem minDeg_compl_cycle (n : ℕ) : minDeg ((cycle (n + 3))ᶜ) = n := by
+  have h := minDeg_compl (G := cycle (n + 3)) (by rw [V_cycle]; omega)
+  rw [V_cycle, maxDeg_cycle] at h
+  omega
+
+theorem E_compl_cycle (n : ℕ) : ((cycle (n + 3))ᶜ).E = (n + 3).choose 2 - (n + 3) := by
+  have h := E_compl (cycle (n + 3))
+  rw [E_cycle, V_cycle] at h
+  omega
+
+theorem isVertexTransitive_compl_cycle (n : ℕ) : IsVertexTransitive ((cycle n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_cycle n)
+
+theorem two_mul_le_autCount_compl_cycle (n : ℕ) :
+    2 * (n + 3) ≤ ((cycle (n + 3))ᶜ).autCount := by
+  rw [autCount_compl]
+  exact two_mul_le_autCount_cycle n
+
+theorem cliqueNum_compl_path (n : ℕ) : ((path n)ᶜ).cliqueNum = (n + 1) / 2 := by
+  rw [cliqueNum_compl, indepNum_path]
+
+theorem indepNum_compl_path (n : ℕ) : ((path (n + 2))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_path]
+
+theorem chromNum_compl_path (n : ℕ) : ((path n)ᶜ).chromNum = (n + 1) / 2 := by
+  rw [chromNum_compl, cliqueCoverNum_path]
+
+theorem cliqueCoverNum_compl_path (n : ℕ) : ((path (n + 2))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_path]
+
+theorem maxDeg_compl_path (n : ℕ) : maxDeg ((path (n + 3))ᶜ) = n + 1 := by
+  have h := maxDeg_compl (G := path (n + 3)) (by rw [V_path]; omega)
+  have h2 : minDeg (path (n + 3)) = 1 := by
+    rw [show n + 3 = n + 1 + 2 from by ring, minDeg_path]
+  rw [V_path, h2] at h
+  omega
+
+theorem minDeg_compl_path (n : ℕ) : minDeg ((path (n + 3))ᶜ) = n := by
+  have h := minDeg_compl (G := path (n + 3)) (by rw [V_path]; omega)
+  rw [V_path, maxDeg_path] at h
+  omega
+
+theorem E_compl_path (n : ℕ) : ((path (n + 1))ᶜ).E = (n + 1).choose 2 - n := by
+  have h := E_compl (path (n + 1))
+  rw [E_path, V_path] at h
+  omega
+
+theorem not_isVertexTransitive_compl_path (n : ℕ) :
+    ¬ IsVertexTransitive ((path (n + 3))ᶜ) :=
+  fun h ↦ not_isVertexTransitive_path n ((isVertexTransitive_compl _).1 h)
+
+theorem cliqueNum_compl_hypercube (n : ℕ) : ((hypercube (n + 1))ᶜ).cliqueNum = 2 ^ n := by
+  rw [cliqueNum_compl, indepNum_hypercube]
+
+theorem indepNum_compl_hypercube (n : ℕ) : ((hypercube (n + 1))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_hypercube]
+
+theorem chromNum_compl_hypercube (n : ℕ) : ((hypercube (n + 1))ᶜ).chromNum = 2 ^ n := by
+  rw [chromNum_compl, cliqueCoverNum_hypercube]
+
+theorem cliqueCoverNum_compl_hypercube (n : ℕ) : ((hypercube (n + 1))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_hypercube]
+
+theorem maxDeg_compl_hypercube (n : ℕ) :
+    maxDeg ((hypercube n)ᶜ) = 2 ^ n - 1 - n := by
+  have h := maxDeg_compl (G := hypercube n) (by rw [V_hypercube]; positivity)
+  rwa [V_hypercube, minDeg_hypercube] at h
+
+theorem minDeg_compl_hypercube (n : ℕ) :
+    minDeg ((hypercube n)ᶜ) = 2 ^ n - 1 - n := by
+  have h := minDeg_compl (G := hypercube n) (by rw [V_hypercube]; positivity)
+  rwa [V_hypercube, maxDeg_hypercube] at h
+
+theorem isVertexTransitive_compl_hypercube (n : ℕ) : IsVertexTransitive ((hypercube n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_hypercube n)
+
+theorem two_mul_E_le_autCount_compl_hypercube (n : ℕ) :
+    2 ^ n * n ≤ ((hypercube n)ᶜ).autCount := by
+  rw [autCount_compl]
+  exact two_mul_E_le_autCount_hypercube n
+
+theorem cliqueNum_compl_crown (n : ℕ) : ((crown (n + 2))ᶜ).cliqueNum = n + 2 := by
+  rw [cliqueNum_compl, indepNum_crown]
+
+theorem indepNum_compl_crown (n : ℕ) : ((crown (n + 2))ᶜ).indepNum = 2 := by
+  rw [indepNum_compl, cliqueNum_crown]
+
+theorem chromNum_compl_crown (n : ℕ) : ((crown (n + 2))ᶜ).chromNum = n + 2 := by
+  rw [chromNum_compl, cliqueCoverNum_crown]
+
+theorem cliqueCoverNum_compl_crown (n : ℕ) : ((crown (n + 2))ᶜ).cliqueCoverNum = 2 := by
+  rw [cliqueCoverNum_compl, chromNum_crown]
+
+theorem maxDeg_compl_crown (n : ℕ) : maxDeg ((crown (n + 2))ᶜ) = n + 2 := by
+  have h := maxDeg_compl (G := crown (n + 2)) (by rw [V_crown]; omega)
+  rw [V_crown, minDeg_crown] at h
+  omega
+
+theorem minDeg_compl_crown (n : ℕ) : minDeg ((crown (n + 2))ᶜ) = n + 2 := by
+  have h := minDeg_compl (G := crown (n + 2)) (by rw [V_crown]; omega)
+  rw [V_crown, maxDeg_crown] at h
+  omega
+
+theorem E_compl_crown (n : ℕ) : ((crown n)ᶜ).E = (2 * n).choose 2 - 2 * n.choose 2 := by
+  have h := E_compl (crown n)
+  rw [E_crown, V_crown] at h
+  omega
+
+theorem isVertexTransitive_compl_crown (n : ℕ) : IsVertexTransitive ((crown n)ᶜ) :=
+  (isVertexTransitive_compl _).2 (isVertexTransitive_crown n)
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
