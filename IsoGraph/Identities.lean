@@ -36292,6 +36292,142 @@ theorem compl_circulant_nil (n : ℕ) : (circulant n [])ᶜ = complete n := by
 theorem lineGraph_circulant_nil (n : ℕ) : lineGraph (circulant n []) = empty 0 := by
   rw [circulant_nil, lineGraph_empty]
 
+/-! ### Tadpoles and lollipops on a one-vertex head
+
+A tadpole whose cycle is a single vertex and a lollipop whose clique is a single vertex are both
+paths, which fills the `m = 1` column of the two rows whose general entries all need `m ≥ 3`.
+-/
+
+theorem maxDeg_tadpole_one (k : ℕ) : maxDeg (tadpole 1 (k + 2)) = 2 := by
+  rw [tadpole_one, show 1 + (k + 2) = k + 3 from by ring, maxDeg_path]
+
+theorem minDeg_tadpole_one (k : ℕ) : minDeg (tadpole 1 (k + 1)) = 1 := by
+  rw [tadpole_one, show 1 + (k + 1) = k + 2 from by ring, minDeg_path]
+
+theorem matchNum_tadpole_one (k : ℕ) : (tadpole 1 k).matchNum = (k + 1) / 2 := by
+  rw [tadpole_one, show 1 + k = k + 1 from by ring, matchNum_path]
+
+theorem indepNum_tadpole_one (k : ℕ) : (tadpole 1 k).indepNum = (k + 2) / 2 := by
+  have h := indepNum_path (k + 1)
+  rw [tadpole_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem coverNum_tadpole_one (k : ℕ) : (tadpole 1 k).coverNum = (k + 1) / 2 := by
+  rw [tadpole_one, show 1 + k = k + 1 from by ring, coverNum_path]
+
+theorem cliqueCoverNum_tadpole_one (k : ℕ) : (tadpole 1 k).cliqueCoverNum = (k + 2) / 2 := by
+  have h := cliqueCoverNum_path (k + 1)
+  rw [tadpole_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem cliqueNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 1)).cliqueNum = 2 := by
+  rw [tadpole_one, show 1 + (k + 1) = k + 2 from by ring, cliqueNum_path]
+
+theorem chromNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 1)).chromNum = 2 := by
+  rw [tadpole_one, show 1 + (k + 1) = k + 2 from by ring, chromNum_path]
+
+theorem domNum_tadpole_one (k : ℕ) : (tadpole 1 k).domNum = (k + 3) / 3 := by
+  have h := domNum_path k
+  rw [tadpole_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem radius_tadpole_one (k : ℕ) : (tadpole 1 k).radius = (k + 1) / 2 := by
+  have h := radius_path k
+  rw [tadpole_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem diameter_tadpole_one (k : ℕ) : (tadpole 1 k).diameter = k := by
+  rw [tadpole_one, show 1 + k = k + 1 from by ring, diameter_path]
+
+theorem edgeChromNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 2)).edgeChromNum = 2 := by
+  rw [tadpole_one, show 1 + (k + 2) = k + 3 from by ring, edgeChromNum_path]
+
+theorem girth_tadpole_one (k : ℕ) : (tadpole 1 k).girth = 0 := by
+  rw [tadpole_one, girth_path]
+
+theorem isAcyclic_tadpole_one (k : ℕ) : IsAcyclic (tadpole 1 k) := by
+  rw [tadpole_one]
+  exact isAcyclic_path _
+
+theorem isTree_tadpole_one (k : ℕ) : IsTree (tadpole 1 k) := by
+  rw [tadpole_one, show 1 + k = k + 1 from by ring]
+  exact isTree_path k
+
+theorem isConnected_tadpole_one (k : ℕ) : IsConnected (tadpole 1 k) := by
+  rw [tadpole_one, show 1 + k = k + 1 from by ring]
+  exact isConnected_path k
+
+theorem numComponents_tadpole_one (k : ℕ) : (tadpole 1 k).numComponents = 1 := by
+  rw [tadpole_one, show 1 + k = k + 1 from by ring, numComponents_path]
+
+theorem lineGraph_tadpole_one (k : ℕ) : lineGraph (tadpole 1 k) = path k := by
+  rw [tadpole_one, show 1 + k = k + 1 from by ring, lineGraph_path]
+
+theorem maxDeg_lollipop_one (k : ℕ) : maxDeg (lollipop 1 (k + 2)) = 2 := by
+  rw [lollipop_one, show 1 + (k + 2) = k + 3 from by ring, maxDeg_path]
+
+theorem minDeg_lollipop_one (k : ℕ) : minDeg (lollipop 1 (k + 1)) = 1 := by
+  rw [lollipop_one, show 1 + (k + 1) = k + 2 from by ring, minDeg_path]
+
+theorem matchNum_lollipop_one (k : ℕ) : (lollipop 1 k).matchNum = (k + 1) / 2 := by
+  rw [lollipop_one, show 1 + k = k + 1 from by ring, matchNum_path]
+
+theorem indepNum_lollipop_one (k : ℕ) : (lollipop 1 k).indepNum = (k + 2) / 2 := by
+  have h := indepNum_path (k + 1)
+  rw [lollipop_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem coverNum_lollipop_one (k : ℕ) : (lollipop 1 k).coverNum = (k + 1) / 2 := by
+  rw [lollipop_one, show 1 + k = k + 1 from by ring, coverNum_path]
+
+theorem cliqueCoverNum_lollipop_one (k : ℕ) : (lollipop 1 k).cliqueCoverNum = (k + 2) / 2 := by
+  have h := cliqueCoverNum_path (k + 1)
+  rw [lollipop_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem cliqueNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 1)).cliqueNum = 2 := by
+  rw [lollipop_one, show 1 + (k + 1) = k + 2 from by ring, cliqueNum_path]
+
+theorem chromNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 1)).chromNum = 2 := by
+  rw [lollipop_one, show 1 + (k + 1) = k + 2 from by ring, chromNum_path]
+
+theorem domNum_lollipop_one (k : ℕ) : (lollipop 1 k).domNum = (k + 3) / 3 := by
+  have h := domNum_path k
+  rw [lollipop_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem radius_lollipop_one (k : ℕ) : (lollipop 1 k).radius = (k + 1) / 2 := by
+  have h := radius_path k
+  rw [lollipop_one, show 1 + k = k + 1 from by ring]
+  omega
+
+theorem diameter_lollipop_one (k : ℕ) : (lollipop 1 k).diameter = k := by
+  rw [lollipop_one, show 1 + k = k + 1 from by ring, diameter_path]
+
+theorem edgeChromNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 2)).edgeChromNum = 2 := by
+  rw [lollipop_one, show 1 + (k + 2) = k + 3 from by ring, edgeChromNum_path]
+
+theorem girth_lollipop_one (k : ℕ) : (lollipop 1 k).girth = 0 := by
+  rw [lollipop_one, girth_path]
+
+theorem isAcyclic_lollipop_one (k : ℕ) : IsAcyclic (lollipop 1 k) := by
+  rw [lollipop_one]
+  exact isAcyclic_path _
+
+theorem isTree_lollipop_one (k : ℕ) : IsTree (lollipop 1 k) := by
+  rw [lollipop_one, show 1 + k = k + 1 from by ring]
+  exact isTree_path k
+
+theorem isConnected_lollipop_one (k : ℕ) : IsConnected (lollipop 1 k) := by
+  rw [lollipop_one, show 1 + k = k + 1 from by ring]
+  exact isConnected_path k
+
+theorem numComponents_lollipop_one (k : ℕ) : (lollipop 1 k).numComponents = 1 := by
+  rw [lollipop_one, show 1 + k = k + 1 from by ring, numComponents_path]
+
+theorem lineGraph_lollipop_one (k : ℕ) : lineGraph (lollipop 1 k) = path k := by
+  rw [lollipop_one, show 1 + k = k + 1 from by ring, lineGraph_path]
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

@@ -2696,6 +2696,23 @@ non-empty connection set. It gives `maxDeg_circulant_nil`, `minDeg_circulant_nil
 `not_isConnected_circulant_nil`, `not_isSelfComplementary_circulant_nil`,
 `compl_circulant_nil` and `lineGraph_circulant_nil`.
 
+The other end of the tadpole and lollipop rows is the one-vertex head. Every general entry in
+those two rows assumes `m ≥ 3` — the arguments need a genuine cycle or a genuine clique — so
+`m = 1`, where both graphs degenerate to a path, is untouched by them. It supplies
+`maxDeg_tadpole_one`, `minDeg_tadpole_one`, `matchNum_tadpole_one`, `indepNum_tadpole_one`,
+`coverNum_tadpole_one`, `cliqueCoverNum_tadpole_one`, `cliqueNum_tadpole_one`,
+`chromNum_tadpole_one`, `domNum_tadpole_one`, `radius_tadpole_one`, `diameter_tadpole_one`,
+`edgeChromNum_tadpole_one`, `girth_tadpole_one`, `isAcyclic_tadpole_one`, `isTree_tadpole_one`,
+`isConnected_tadpole_one`, `numComponents_tadpole_one` and `lineGraph_tadpole_one`, with the
+identical list for the lollipop: `maxDeg_lollipop_one`, `minDeg_lollipop_one`,
+`matchNum_lollipop_one`, `indepNum_lollipop_one`, `coverNum_lollipop_one`,
+`cliqueCoverNum_lollipop_one`, `cliqueNum_lollipop_one`, `chromNum_lollipop_one`,
+`domNum_lollipop_one`, `radius_lollipop_one`, `diameter_lollipop_one`,
+`edgeChromNum_lollipop_one`, `girth_lollipop_one`, `isAcyclic_lollipop_one`,
+`isTree_lollipop_one`, `isConnected_lollipop_one`, `numComponents_lollipop_one` and
+`lineGraph_lollipop_one`. Note the reversal of sign against the general row: a tadpole is never
+acyclic and never a tree once its cycle is real, but at `m = 1` it is both.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
