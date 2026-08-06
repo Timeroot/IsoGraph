@@ -3587,6 +3587,33 @@ exactly two. Since the folded cube is triangle-free for `n ≥ 3`, its Mycielski
 number two and girth at least four, so the construction can be iterated to build triangle-free
 graphs of arbitrarily large chromatic number starting from a folded cube rather than from `C₅`.
 
+Finally the theta graph gets a Mycielskian row, the one family that had none. `M(Θ(xs))` has
+`2(2 + Σxs) + 1` vertices and, when no path length is zero, `3(Σxs + |xs|) + (2 + Σxs)` edges; its
+domination number is one more than the theta graph's and its independence number is at least
+`2 + Σxs`, both of which hold for any list. Connectivity, radius two and the degree formulas need
+a positive minimum degree, which the library only supplies in the all-ones case, where
+`Θ(1, 1, …, 1)` is the complete bipartite graph `K_{2,|xs|}` and `δ = min 2 |xs|`.
+
+The transitivity columns had a matching set of gaps, all of them negative entries. The tool is
+`not_isVertexTransitive_of_minDeg_ne_maxDeg`: a vertex-transitive graph is regular, so exhibiting
+two different degrees refutes it, and `not_isArcTransitive_of_not_isVertexTransitive` upgrades
+that to arc-transitivity whenever `δ > 0`. A grid `Pₘ₊₃ □ Pₙ₊₃` has corners of degree two and
+interior vertices of degree four; the king graph `Pₘ₊₃ ⊠ Pₙ₊₃` splits three against eight. For the
+Turán graph the split is subtler: `T(n, r)` has degrees `n - ⌊n/r⌋` and `n - ⌈n/r⌉`, which coincide
+exactly when `r ∣ n`, and the divisibility case is already known to be vertex-transitive since
+`T(n, r)` is then the balanced complete multipartite graph. Turning `⌈n/r⌉ = ⌊n/r⌋ + 1` into a
+proof needs `(n + r - 1)/r = n/r + 1`, which comes out of `Nat.succ_div` once `r ∤ n` kills the
+correction term. The theta graph is the last one: with every path of length one, `Θ(xs)` has
+degrees `min 2 |xs|` and `max 2 |xs|`, so it is transitive only at `|xs| = 2`, which is the cycle
+case already on the books.
+
+Mycielskians are never transitive either, for a reason that is uniform rather than family by
+family. If `G` is `k`-regular with `k ≥ 2` then `μ(G)` has minimum degree `min(2k, k+1, |V|)` and
+maximum degree `max(2k, |V|)`, and `Δ(G) < |V|` forces these apart. That single lemma, plus the
+observation that `δ(μ(G)) > 0` whenever `δ(G) > 0`, settles both columns at once for the complete
+graph, the hypercube, the Petersen graph, the prism, the cocktail party graph, the crown, the
+folded cube, `K_{n,n}` and the triangular graph — nine families for the price of one argument.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**

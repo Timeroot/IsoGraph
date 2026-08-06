@@ -47592,4 +47592,272 @@ theorem le_indepNum_mycielskian_foldedCube (n : ℕ) :
     2 ^ n ≤ (mycielskian (foldedCube n)).indepNum := by
   have h := V_le_indepNum_mycielskian (foldedCube n)
   rwa [V_foldedCube] at h
+/-! ### The Mycielskian of a theta graph -/
+
+@[simp] theorem V_mycielskian_thetaGraph (xs : List ℕ) :
+    (mycielskian (thetaGraph xs)).V = 2 * (2 + xs.sum) + 1 := by
+  rw [V_mycielskian, V_thetaGraph]
+
+theorem E_mycielskian_thetaGraph (xs : List ℕ) (h : ∀ k ∈ xs, 0 < k) :
+    (mycielskian (thetaGraph xs)).E = 3 * (xs.sum + xs.length) + (2 + xs.sum) := by
+  rw [E_mycielskian, E_thetaGraph xs h, V_thetaGraph]
+
+theorem domNum_mycielskian_thetaGraph (xs : List ℕ) :
+    (mycielskian (thetaGraph xs)).domNum = (thetaGraph xs).domNum + 1 :=
+  domNum_mycielskian _ (by rw [V_thetaGraph]; omega)
+
+theorem coverNum_mycielskian_thetaGraph_le (xs : List ℕ) :
+    (mycielskian (thetaGraph xs)).coverNum ≤ 2 + xs.sum + 1 := by
+  have h := coverNum_mycielskian_le (thetaGraph xs)
+  rwa [V_thetaGraph] at h
+
+theorem le_indepNum_mycielskian_thetaGraph (xs : List ℕ) :
+    2 + xs.sum ≤ (mycielskian (thetaGraph xs)).indepNum := by
+  have h := V_le_indepNum_mycielskian (thetaGraph xs)
+  rwa [V_thetaGraph] at h
+
+theorem length_pos_of_ne_nil_thetaGraph {xs : List ℕ} (hne : xs ≠ []) : 0 < xs.length := by
+  cases xs with
+  | nil => exact absurd rfl hne
+  | cons a t => exact Nat.succ_pos _
+
+theorem isConnected_mycielskian_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hne : xs ≠ []) : IsConnected (mycielskian (thetaGraph xs)) := by
+  refine isConnected_mycielskian _ ?_
+  have hl := length_pos_of_ne_nil_thetaGraph hne
+  rw [minDeg_thetaGraph_of_all_one h hne]
+  omega
+
+theorem numComponents_mycielskian_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hne : xs ≠ []) : (mycielskian (thetaGraph xs)).numComponents = 1 := by
+  refine numComponents_mycielskian _ ?_
+  have hl := length_pos_of_ne_nil_thetaGraph hne
+  rw [minDeg_thetaGraph_of_all_one h hne]
+  omega
+
+theorem radius_mycielskian_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hne : xs ≠ []) : (mycielskian (thetaGraph xs)).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  have hl := length_pos_of_ne_nil_thetaGraph hne
+  rw [minDeg_thetaGraph_of_all_one h hne]
+  omega
+
+theorem maxDeg_mycielskian_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hne : xs ≠ []) : maxDeg (mycielskian (thetaGraph xs))
+      = max (2 * max 2 xs.length) (2 + xs.sum) := by
+  rw [maxDeg_mycielskian, maxDeg_thetaGraph_of_all_one h hne, V_thetaGraph]
+
+theorem minDeg_mycielskian_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hne : xs ≠ []) : minDeg (mycielskian (thetaGraph xs))
+      = min (min (2 * min 2 xs.length) (min 2 xs.length + 1)) (2 + xs.sum) := by
+  have hm := minDeg_mycielskian (thetaGraph xs) (by rw [V_thetaGraph]; omega)
+  rwa [minDeg_thetaGraph_of_all_one h hne, V_thetaGraph] at hm
+
+/-! ### The grid and the king graph are not vertex-transitive
+
+A grid with at least three rows and three columns has corner vertices of degree `2` and interior
+vertices of degree `4`, so it cannot be vertex-transitive; the king graph splits `3` against `8`
+in the same way.  Since both have no isolated vertices, arc-transitivity fails too. -/
+
+theorem not_isVertexTransitive_grid (m n : ℕ) :
+    ¬ IsVertexTransitive (path (m + 3) □g path (n + 3)) := by
+  have hmin : minDeg (path (m + 3) □g path (n + 3)) = 2 := minDeg_grid (m + 1) (n + 1)
+  have hmax : maxDeg (path (m + 3) □g path (n + 3)) = 4 := maxDeg_grid m n
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg ?_ (by omega)
+  rw [V_grid]
+  positivity
+
+theorem not_isArcTransitive_grid (m n : ℕ) :
+    ¬ IsArcTransitive (path (m + 3) □g path (n + 3)) := by
+  have hmin : minDeg (path (m + 3) □g path (n + 3)) = 2 := minDeg_grid (m + 1) (n + 1)
+  exact not_isArcTransitive_of_not_isVertexTransitive (by omega)
+    (not_isVertexTransitive_grid m n)
+
+theorem not_isVertexTransitive_king (m n : ℕ) :
+    ¬ IsVertexTransitive (path (m + 3) ⊠g path (n + 3)) := by
+  have hmin : minDeg (path (m + 3) ⊠g path (n + 3)) = 3 := minDeg_king (m + 1) (n + 1)
+  have hmax : maxDeg (path (m + 3) ⊠g path (n + 3)) = 8 := maxDeg_king m n
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg ?_ (by omega)
+  rw [V_king]
+  positivity
+
+theorem not_isArcTransitive_king (m n : ℕ) :
+    ¬ IsArcTransitive (path (m + 3) ⊠g path (n + 3)) := by
+  have hmin : minDeg (path (m + 3) ⊠g path (n + 3)) = 3 := minDeg_king (m + 1) (n + 1)
+  exact not_isArcTransitive_of_not_isVertexTransitive (by omega)
+    (not_isVertexTransitive_king m n)
+
+/-! ### The Turán graph is vertex-transitive only when the parts are equal
+
+`T(n, r)` has parts of sizes `⌈n/r⌉` and `⌊n/r⌋`, so its degrees are `n - ⌊n/r⌋` and `n - ⌈n/r⌉`.
+These agree exactly when `r ∣ n`, and in that case the graph is a balanced complete multipartite
+graph, which is vertex-transitive.  When `r ∤ n` the two degrees differ by one. -/
+
+theorem div_pred_of_not_dvd {k r : ℕ} (h : ¬ r ∣ (k + 1)) : k / r = (k + 1) / r := by
+  rw [Nat.succ_div, if_neg h, Nat.add_zero]
+
+theorem ceilDiv_of_not_dvd {n r : ℕ} (hr : 0 < r) (h : ¬ r ∣ n) :
+    (n + r - 1) / r = n / r + 1 := by
+  obtain ⟨k, rfl⟩ : ∃ k, n = k + 1 := by
+    rcases Nat.eq_zero_or_pos n with rfl | hn
+    · exact absurd (dvd_zero r) h
+    · exact ⟨n - 1, by omega⟩
+  have he : k + 1 + r - 1 = k + r := by omega
+  have h2 : (k + r) / r = k / r + 1 := Nat.add_div_right k hr
+  rw [he, h2, div_pred_of_not_dvd h]
+
+theorem not_isVertexTransitive_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) (h : ¬ r ∣ n) :
+    ¬ IsVertexTransitive (turan n r) := by
+  have hr2 : 2 ≤ r := by
+    rcases Nat.lt_or_ge r 2 with hlt | hge
+    · have hr1 : r = 1 := by omega
+      subst hr1
+      exact absurd (one_dvd n) h
+    · exact hge
+  have hnpos : 0 < n := by omega
+  have hlt : n / r < n := Nat.div_lt_self hnpos hr2
+  have hmin : minDeg (turan n r) = n - (n / r + 1) := by
+    rw [minDeg_turan hr hn, ceilDiv_of_not_dvd hr h]
+  have hmax : maxDeg (turan n r) = n - n / r := maxDeg_turan hr hn
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by rw [V_turan]; omega) ?_
+  omega
+
+theorem not_isArcTransitive_turan {n r : ℕ} (hr : 2 ≤ r) (hn : r ≤ n) (h : ¬ r ∣ n) :
+    ¬ IsArcTransitive (turan n r) :=
+  not_isArcTransitive_of_not_isVertexTransitive (minDeg_turan_pos hr hn)
+    (not_isVertexTransitive_turan (by omega) hn h)
+
+/-! ### A theta graph is vertex-transitive only when it is a cycle
+
+With every path of length one the theta graph on `xs` is `K_{2,|xs|}` with the two hubs joined,
+whose degrees are `2` and `|xs|`.  These agree only when `|xs| = 2`, the case already recorded as
+`isVertexTransitive_thetaGraph_pair`. -/
+
+theorem not_isVertexTransitive_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hne : xs ≠ []) (hl : xs.length ≠ 2) : ¬ IsVertexTransitive (thetaGraph xs) := by
+  have hp := length_pos_of_ne_nil_thetaGraph hne
+  refine not_isVertexTransitive_of_minDeg_ne_maxDeg (by rw [V_thetaGraph]; omega) ?_
+  rw [minDeg_thetaGraph_of_all_one h hne, maxDeg_thetaGraph_of_all_one h hne]
+  omega
+
+theorem not_isArcTransitive_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hne : xs ≠ []) (hl : xs.length ≠ 2) : ¬ IsArcTransitive (thetaGraph xs) := by
+  have hp := length_pos_of_ne_nil_thetaGraph hne
+  refine not_isArcTransitive_of_not_isVertexTransitive ?_
+    (not_isVertexTransitive_thetaGraph_of_all_one h hne hl)
+  rw [minDeg_thetaGraph_of_all_one h hne]
+  omega
+
+/-! ### No Mycielskian of a regular graph is transitive
+
+`μ(G)` keeps the old degrees at `2k` on the copied vertices but gives the apex degree `|V|`, so as
+soon as `G` is `k`-regular with `k ≥ 2` the Mycielskian has two different degrees.  The minimum
+degree stays positive, so arc-transitivity fails as well. -/
+
+theorem minDeg_mycielskian_pos {G : IsoGraph} (hV : 0 < G.V) (hδ : 0 < G.minDeg) :
+    0 < minDeg (mycielskian G) := by
+  rw [minDeg_mycielskian G hV]
+  omega
+
+theorem not_isArcTransitive_mycielskian {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
+    (hk : 2 ≤ k) (hV : 0 < G.V) : ¬ IsArcTransitive (mycielskian G) := by
+  refine not_isArcTransitive_of_not_isVertexTransitive ?_
+    (not_isVertexTransitive_mycielskian h hk hV)
+  refine minDeg_mycielskian_pos hV ?_
+  rw [h.minDeg_eq hV]
+  omega
+
+theorem not_isArcTransitive_mycielskian_cycle (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (cycle (n + 3))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_cycle n) (by omega) (by simp)
+
+theorem not_isVertexTransitive_mycielskian_complete (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (complete (n + 3))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_complete (n + 3)) (by omega)
+    (by rw [V_complete]; omega)
+
+theorem not_isArcTransitive_mycielskian_complete (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (complete (n + 3))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_complete (n + 3)) (by omega)
+    (by rw [V_complete]; omega)
+
+theorem not_isVertexTransitive_mycielskian_hypercube (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (hypercube (n + 2))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_hypercube (n + 2)) (by omega)
+    (by rw [V_hypercube]; positivity)
+
+theorem not_isArcTransitive_mycielskian_hypercube (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (hypercube (n + 2))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_hypercube (n + 2)) (by omega)
+    (by rw [V_hypercube]; positivity)
+
+theorem not_isVertexTransitive_mycielskian_petersen :
+    ¬ IsVertexTransitive (mycielskian petersen) :=
+  not_isVertexTransitive_mycielskian isRegularWith_petersen (by omega)
+    (by rw [V_petersen]; omega)
+
+theorem not_isArcTransitive_mycielskian_petersen :
+    ¬ IsArcTransitive (mycielskian petersen) :=
+  not_isArcTransitive_mycielskian isRegularWith_petersen (by omega)
+    (by rw [V_petersen]; omega)
+
+theorem not_isVertexTransitive_mycielskian_prism (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (prism (n + 3))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_prism n) (by omega)
+    (by rw [V_prism]; omega)
+
+theorem not_isArcTransitive_mycielskian_prism (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (prism (n + 3))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_prism n) (by omega)
+    (by rw [V_prism]; omega)
+
+theorem not_isVertexTransitive_mycielskian_cocktailParty (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (cocktailParty (n + 2))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_cocktailParty (n + 2)) (by omega)
+    (by rw [V_cocktailParty]; omega)
+
+theorem not_isArcTransitive_mycielskian_cocktailParty (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (cocktailParty (n + 2))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_cocktailParty (n + 2)) (by omega)
+    (by rw [V_cocktailParty]; omega)
+
+theorem not_isVertexTransitive_mycielskian_crown (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (crown (n + 3))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_crown (n + 3)) (by omega)
+    (by rw [V_crown]; omega)
+
+theorem not_isArcTransitive_mycielskian_crown (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (crown (n + 3))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_crown (n + 3)) (by omega)
+    (by rw [V_crown]; omega)
+
+theorem not_isVertexTransitive_mycielskian_foldedCube (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (foldedCube (n + 2))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_foldedCube n) (by omega)
+    (by rw [V_foldedCube]; positivity)
+
+theorem not_isArcTransitive_mycielskian_foldedCube (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (foldedCube (n + 2))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_foldedCube n) (by omega)
+    (by rw [V_foldedCube]; positivity)
+
+theorem not_isVertexTransitive_mycielskian_bipartite_self (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (bipartite (n + 2) (n + 2))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_bipartite_self (n + 2)) (by omega)
+    (by rw [V_bipartite]; omega)
+
+theorem not_isArcTransitive_mycielskian_bipartite_self (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (bipartite (n + 2) (n + 2))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_bipartite_self (n + 2)) (by omega)
+    (by rw [V_bipartite]; omega)
+
+theorem not_isVertexTransitive_mycielskian_triangular (n : ℕ) :
+    ¬ IsVertexTransitive (mycielskian (triangular (n + 3))) :=
+  not_isVertexTransitive_mycielskian (isRegularWith_triangular (n + 3)) (by omega)
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
+
+theorem not_isArcTransitive_mycielskian_triangular (n : ℕ) :
+    ¬ IsArcTransitive (mycielskian (triangular (n + 3))) :=
+  not_isArcTransitive_mycielskian (isRegularWith_triangular (n + 3)) (by omega)
+    (by rw [V_triangular]; exact Nat.choose_pos (by omega))
 end IsoGraph
