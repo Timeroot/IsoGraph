@@ -46305,6 +46305,242 @@ theorem radius_mycielskian_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < 
   rw [minDeg_lexProduct hG hH]
   omega
 
+/-! ### Two closed forms for the balanced complete multipartite graph -/
+
+@[simp] theorem cliqueNum_completeMultipartite_replicate (m d : ℕ) :
+    (completeMultipartite (List.replicate m (d + 1))).cliqueNum = m := by
+  rw [cliqueNum_completeMultipartite, List.map_replicate, show min (d + 1) 1 = 1 from by omega,
+    List.sum_replicate, smul_eq_mul, Nat.mul_one]
+
+@[simp] theorem chromNum_completeMultipartite_replicate (m d : ℕ) :
+    (completeMultipartite (List.replicate m (d + 1))).chromNum = m := by
+  rw [chromNum_completeMultipartite, List.map_replicate, show min (d + 1) 1 = 1 from by omega,
+    List.sum_replicate, smul_eq_mul, Nat.mul_one]
+
+theorem maxDeg_completeMultipartite_replicate_succ (m d : ℕ) :
+    maxDeg (completeMultipartite (List.replicate (m + 2) (d + 1))) = (m + 1) * (d + 1) :=
+  maxDeg_completeMultipartite_replicate (by omega) (by omega)
+
+theorem minDeg_completeMultipartite_replicate_succ (m d : ℕ) :
+    minDeg (completeMultipartite (List.replicate (m + 2) (d + 1))) = (m + 1) * (d + 1) :=
+  minDeg_completeMultipartite_replicate (by omega) (by omega)
+
+theorem E_pos_completeMultipartite_replicate (m d : ℕ) :
+    0 < (completeMultipartite (List.replicate (m + 2) (d + 1))).E := by
+  rw [E_completeMultipartite_replicate]
+  exact Nat.mul_pos (Nat.choose_pos (by omega)) (by positivity)
+
+/-! ### The line graph of a balanced complete multipartite graph -/
+
+theorem V_lineGraph_completeMultipartite_replicate (m d : ℕ) :
+    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))).V
+      = (m + 2).choose 2 * ((d + 1) * (d + 1)) := by
+  rw [V_lineGraph, E_completeMultipartite_replicate]
+
+theorem isRegularWith_lineGraph_completeMultipartite_replicate (m d : ℕ) :
+    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))).IsRegularWith
+      (2 * ((m + 1) * (d + 1)) - 2) :=
+  isRegularWith_lineGraph (E_pos_completeMultipartite_replicate m d)
+    (degSequence_completeMultipartite_replicate (m + 2) (d + 1))
+
+theorem maxDeg_lineGraph_completeMultipartite_replicate (m d : ℕ) :
+    maxDeg (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1))))
+      = 2 * ((m + 1) * (d + 1)) - 2 :=
+  maxDeg_lineGraph (E_pos_completeMultipartite_replicate m d)
+    (degSequence_completeMultipartite_replicate (m + 2) (d + 1))
+
+theorem minDeg_lineGraph_completeMultipartite_replicate (m d : ℕ) :
+    minDeg (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1))))
+      = 2 * ((m + 1) * (d + 1)) - 2 :=
+  minDeg_lineGraph (E_pos_completeMultipartite_replicate m d)
+    (degSequence_completeMultipartite_replicate (m + 2) (d + 1))
+
+theorem isConnected_lineGraph_completeMultipartite_replicate (m d : ℕ) :
+    IsConnected (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))) :=
+  isConnected_lineGraph (isConnected_completeMultipartite_replicate m d)
+    (E_pos_completeMultipartite_replicate m d)
+
+theorem numComponents_lineGraph_completeMultipartite_replicate (m d : ℕ) :
+    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_completeMultipartite_replicate m d)
+    (E_pos_completeMultipartite_replicate m d)
+
+theorem diameter_lineGraph_completeMultipartite_replicate_le (m d : ℕ) :
+    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 2)))).diameter ≤ 3 := by
+  have hc : IsConnected (completeMultipartite (List.replicate (m + 2) (d + 2))) :=
+    isConnected_completeMultipartite_replicate m (d + 1)
+  have hE : 0 < (completeMultipartite (List.replicate (m + 2) (d + 2))).E :=
+    E_pos_completeMultipartite_replicate m (d + 1)
+  have h := diameter_lineGraph_le hc hE
+  rw [diameter_completeMultipartite_replicate] at h
+  omega
+
+theorem radius_lineGraph_completeMultipartite_replicate_le (m d : ℕ) :
+    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 2)))).radius ≤ 3 := by
+  have hc : IsConnected (completeMultipartite (List.replicate (m + 2) (d + 2))) :=
+    isConnected_completeMultipartite_replicate m (d + 1)
+  have hE : 0 < (completeMultipartite (List.replicate (m + 2) (d + 2))).E :=
+    E_pos_completeMultipartite_replicate m (d + 1)
+  have h := radius_lineGraph_le hc hE
+  rw [radius_completeMultipartite_replicate] at h
+  omega
+
+theorem cliqueNum_lineGraph_completeMultipartite_replicate {m d : ℕ}
+    (h3 : 3 ≤ (m + 1) * (d + 1)) :
+    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))).cliqueNum
+      = (m + 1) * (d + 1) := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg
+    (G := completeMultipartite (List.replicate (m + 2) (d + 1)))
+    (by rw [maxDeg_completeMultipartite_replicate_succ]; exact h3)
+  rwa [maxDeg_completeMultipartite_replicate_succ] at hm
+
+theorem girth_lineGraph_completeMultipartite_replicate {m d : ℕ} (h3 : 3 ≤ (m + 1) * (d + 1)) :
+    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_completeMultipartite_replicate_succ]; exact h3)
+
+theorem not_isBipartite_lineGraph_completeMultipartite_replicate {m d : ℕ}
+    (h3 : 3 ≤ (m + 1) * (d + 1)) :
+    ¬ IsBipartite (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_completeMultipartite_replicate_succ]; exact h3)
+
+/-! ### The Mycielskian of a balanced complete multipartite graph -/
+
+@[simp] theorem V_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    (mycielskian (completeMultipartite (List.replicate m d))).V = 2 * (m * d) + 1 := by
+  rw [V_mycielskian, V_completeMultipartite_replicate]
+
+@[simp] theorem E_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    (mycielskian (completeMultipartite (List.replicate m d))).E
+      = 3 * (m.choose 2 * (d * d)) + m * d := by
+  rw [E_mycielskian, E_completeMultipartite_replicate, V_completeMultipartite_replicate]
+
+@[simp] theorem chromNum_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    (mycielskian (completeMultipartite (List.replicate m (d + 1)))).chromNum = m + 1 := by
+  rw [chromNum_mycielskian, chromNum_completeMultipartite_replicate]
+
+theorem cliqueNum_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    (mycielskian (completeMultipartite (List.replicate (m + 1) (d + 1)))).cliqueNum
+      = max (m + 1) 2 := by
+  have hm := cliqueNum_mycielskian (completeMultipartite (List.replicate (m + 1) (d + 1)))
+    (by rw [V_completeMultipartite_replicate]; positivity)
+  rwa [cliqueNum_completeMultipartite_replicate] at hm
+
+theorem maxDeg_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    maxDeg (mycielskian (completeMultipartite (List.replicate (m + 2) (d + 1))))
+      = max (2 * ((m + 1) * (d + 1))) ((m + 2) * (d + 1)) := by
+  rw [maxDeg_mycielskian, maxDeg_completeMultipartite_replicate_succ,
+    V_completeMultipartite_replicate]
+
+theorem isConnected_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    IsConnected (mycielskian (completeMultipartite (List.replicate (m + 2) (d + 1)))) := by
+  refine isConnected_mycielskian _ ?_
+  rw [minDeg_completeMultipartite_replicate_succ]
+  positivity
+
+theorem radius_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    (mycielskian (completeMultipartite (List.replicate (m + 2) (d + 1)))).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  rw [minDeg_completeMultipartite_replicate_succ]
+  positivity
+
+theorem domNum_mycielskian_completeMultipartite_replicate (m d : ℕ) :
+    (mycielskian (completeMultipartite (List.replicate (m + 2) (d + 2)))).domNum = 3 := by
+  have h1 := domNum_mycielskian (completeMultipartite (List.replicate (m + 2) (d + 2)))
+    (by rw [V_completeMultipartite_replicate]; positivity)
+  rw [domNum_completeMultipartite_replicate] at h1
+  omega
+
+/-! ### The line graph of a circulant graph -/
+
+theorem E_pos_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (hk0 : 0 < k)
+    (hk : n * k = 2 * (circulant n S).E) : 0 < (circulant n S).E := by
+  have h := Nat.mul_pos hn hk0
+  omega
+
+theorem two_mul_V_lineGraph_circulant {n k : ℕ} {S : List ℕ}
+    (hk : n * k = 2 * (circulant n S).E) : 2 * (lineGraph (circulant n S)).V = n * k := by
+  rw [V_lineGraph]
+  omega
+
+theorem isRegularWith_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (hk0 : 0 < k)
+    (hk : n * k = 2 * (circulant n S).E) :
+    (lineGraph (circulant n S)).IsRegularWith (2 * k - 2) :=
+  isRegularWith_lineGraph (E_pos_circulant hn hk0 hk) (degSequence_circulant hn hk)
+
+theorem maxDeg_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (hk0 : 0 < k)
+    (hk : n * k = 2 * (circulant n S).E) : maxDeg (lineGraph (circulant n S)) = 2 * k - 2 :=
+  maxDeg_lineGraph (E_pos_circulant hn hk0 hk) (degSequence_circulant hn hk)
+
+theorem minDeg_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (hk0 : 0 < k)
+    (hk : n * k = 2 * (circulant n S).E) : minDeg (lineGraph (circulant n S)) = 2 * k - 2 :=
+  minDeg_lineGraph (E_pos_circulant hn hk0 hk) (degSequence_circulant hn hk)
+
+theorem cliqueNum_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (h3 : 3 ≤ k)
+    (hk : n * k = 2 * (circulant n S).E) : (lineGraph (circulant n S)).cliqueNum = k := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := circulant n S)
+    (by rw [maxDeg_circulant hn hk]; exact h3)
+  rwa [maxDeg_circulant hn hk] at hm
+
+theorem girth_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (h3 : 3 ≤ k)
+    (hk : n * k = 2 * (circulant n S).E) : (lineGraph (circulant n S)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_circulant hn hk]; exact h3)
+
+theorem not_isBipartite_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (h3 : 3 ≤ k)
+    (hk : n * k = 2 * (circulant n S).E) : ¬ IsBipartite (lineGraph (circulant n S)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_circulant hn hk]; exact h3)
+
+theorem not_isTree_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (h3 : 3 ≤ k)
+    (hk : n * k = 2 * (circulant n S).E) : ¬ IsTree (lineGraph (circulant n S)) :=
+  not_isTree_lineGraph (by rw [maxDeg_circulant hn hk]; exact h3)
+
+/-! ### The Mycielskian of a circulant graph -/
+
+@[simp] theorem V_mycielskian_circulant (n : ℕ) (S : List ℕ) :
+    (mycielskian (circulant n S)).V = 2 * n + 1 := by
+  rw [V_mycielskian, V_circulant]
+
+@[simp] theorem E_mycielskian_circulant (n : ℕ) (S : List ℕ) :
+    (mycielskian (circulant n S)).E = 3 * (circulant n S).E + n := by
+  rw [E_mycielskian, V_circulant]
+
+theorem two_mul_E_mycielskian_circulant {n k : ℕ} {S : List ℕ}
+    (hk : n * k = 2 * (circulant n S).E) :
+    2 * (mycielskian (circulant n S)).E = 3 * (n * k) + 2 * n := by
+  rw [E_mycielskian_circulant]
+  omega
+
+theorem maxDeg_mycielskian_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) :
+    maxDeg (mycielskian (circulant n S)) = max (2 * k) n := by
+  rw [maxDeg_mycielskian, maxDeg_circulant hn hk, V_circulant]
+
+theorem minDeg_mycielskian_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) :
+    minDeg (mycielskian (circulant n S)) = min (min (2 * k) (k + 1)) n := by
+  have h := minDeg_mycielskian (circulant n S) (by rw [V_circulant]; exact hn)
+  rwa [minDeg_circulant hn hk, V_circulant] at h
+
+theorem isConnected_mycielskian_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (hk0 : 0 < k)
+    (hk : n * k = 2 * (circulant n S).E) : IsConnected (mycielskian (circulant n S)) := by
+  refine isConnected_mycielskian _ ?_
+  rw [minDeg_circulant hn hk]
+  exact hk0
+
+theorem radius_mycielskian_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (hk0 : 0 < k)
+    (hk : n * k = 2 * (circulant n S).E) : (mycielskian (circulant n S)).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  rw [minDeg_circulant hn hk]
+  exact hk0
+
+theorem domNum_mycielskian_circulant {n : ℕ} {S : List ℕ} (hn : 0 < n) :
+    (mycielskian (circulant n S)).domNum = (circulant n S).domNum + 1 :=
+  domNum_mycielskian _ (by rw [V_circulant]; exact hn)
+
+theorem coverNum_mycielskian_circulant_le (n : ℕ) (S : List ℕ) :
+    (mycielskian (circulant n S)).coverNum ≤ n + 1 := by
+  have h := coverNum_mycielskian_le (circulant n S)
+  rwa [V_circulant] at h
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

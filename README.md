@@ -3513,6 +3513,22 @@ minimum and the product being the respective clique numbers of the two operation
 already positive then, whereas `M(G ⊗ H)` needs both factors to have positive minimum degree since
 theirs multiply.
 
+Two regular families that had been sitting unmined now get the same treatment. The balanced
+complete multipartite graph `K_{m×d}` is `(m-1)d`-regular with an explicit degree sequence, so the
+whole regular-line-graph chain applies to it verbatim: `L(K_{m×d})` is `(2(m-1)d - 2)`-regular on
+`C(m,2)d²` vertices, connected, of radius and diameter at most three, with clique number `(m-1)d`
+and girth three once that degree clears three. Two new closed forms made the block go through —
+`cliqueNum_completeMultipartite_replicate` and its chromatic twin, both of which collapse the
+`(ds.map (min · 1)).sum` in the general multipartite lemmas to just the number of parts when every
+part is nonempty. They give `M(K_{m×d})` chromatic number `m + 1` and clique number `max(m, 2)`
+directly. Circulant graphs are the other family: they are vertex-transitive, hence regular, and
+`degSequence_circulant` already packages that as a `List.replicate`, so `L(C_n(S))` comes out
+`(2k - 2)`-regular for the common degree `k`, with clique number `k` when `k ≥ 3`. Connectivity is
+the one thing the circulant rows cannot claim — there is no general connectivity lemma for
+`C_n(S)`, since the connection set may generate a proper subgroup — but the Mycielskian side does
+not care: `M(C_n(S))` is connected and has radius two as soon as `k` is positive, because the
+Mycielskian construction supplies its own apex vertex.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
