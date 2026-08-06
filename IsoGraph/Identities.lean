@@ -42564,6 +42564,209 @@ theorem radius_disjUnion_cycle_star (m n : ℕ) :
     (cycle (m + 1) ⊕g star n).radius = 0 :=
   radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
 
+/-! ### The join of a path and a complete graph -/
+
+@[simp] theorem V_join_path_complete (m n : ℕ) : (path m ∇g complete n).V = m + n := by
+  rw [V_join, V_path, V_complete]
+
+@[simp] theorem E_join_path_complete (m n : ℕ) :
+    (path (m + 1) ∇g complete n).E = m + n.choose 2 + (m + 1) * n := by
+  rw [E_join, E_path, E_complete, V_path, V_complete]
+
+theorem cliqueNum_join_path_complete (m n : ℕ) :
+    (path (m + 2) ∇g complete n).cliqueNum = 2 + n := by
+  rw [cliqueNum_join, cliqueNum_path, cliqueNum_complete]
+
+theorem chromNum_join_path_complete (m n : ℕ) :
+    (path (m + 2) ∇g complete n).chromNum = 2 + n := by
+  rw [chromNum_join, chromNum_path, chromNum_complete]
+
+theorem indepNum_join_path_complete (m n : ℕ) :
+    (path m ∇g complete n).indepNum = max ((m + 1) / 2) (min n 1) := by
+  rw [indepNum_join, indepNum_path, indepNum_complete]
+
+theorem coverNum_join_path_complete (m n : ℕ) :
+    (path m ∇g complete n).coverNum = min (m / 2 + n) (m + (n - 1)) := by
+  rw [coverNum_join, coverNum_path, coverNum_complete, V_path, V_complete]
+
+theorem cliqueCoverNum_join_path_complete (m n : ℕ) :
+    (path (m + 1) ∇g complete (n + 1)).cliqueCoverNum = (m + 2) / 2 := by
+  have h := cliqueCoverNum_join (path (m + 1)) (complete (n + 1))
+  rw [cliqueCoverNum_path, cliqueCoverNum_complete] at h
+  omega
+
+theorem maxDeg_join_path_complete (m n : ℕ) :
+    maxDeg (path (m + 3) ∇g complete (n + 1)) = max (n + 3) (m + 3 + n) := by
+  have h := maxDeg_join (G := path (m + 3)) (H := complete (n + 1))
+    (by rw [V_path]; omega) (by rw [V_complete]; omega)
+  rw [maxDeg_path, maxDeg_complete, V_path, V_complete] at h
+  omega
+
+theorem minDeg_join_path_complete (m n : ℕ) :
+    minDeg (path (m + 2) ∇g complete (n + 1)) = min (n + 2) (m + 2 + n) := by
+  have h := minDeg_join (G := path (m + 2)) (H := complete (n + 1))
+    (by rw [V_path]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_path, minDeg_complete, V_path, V_complete] at h
+  omega
+
+theorem isConnected_join_path_complete (m n : ℕ) :
+    IsConnected (path (m + 1) ∇g complete (n + 1)) :=
+  isConnected_join (by rw [V_path]; omega) (by rw [V_complete]; omega)
+
+theorem numComponents_join_path_complete (m n : ℕ) :
+    (path (m + 1) ∇g complete (n + 1)).numComponents = 1 :=
+  numComponents_join (by rw [V_path]; omega) (by rw [V_complete]; omega)
+
+theorem diameter_join_path_complete (m n : ℕ) :
+    (path (m + 3) ∇g complete (n + 1)).diameter = 2 := by
+  have h : (m + 3).choose 2 = (m + 3) * (m + 2) / 2 := by
+    rw [Nat.choose_two_right, show m + 3 - 1 = m + 2 from by omega]
+  have h2 : m + 3 ≤ (m + 3) * (m + 2) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 3) * (m + 2) = m * m + 5 * m + 6 := by ring
+    omega
+  refine diameter_join_left (by rw [V_complete]; omega) ?_
+  rw [E_path, V_path, h]
+  omega
+
+/-! ### The join of a cycle and a complete graph -/
+
+@[simp] theorem V_join_cycle_complete (m n : ℕ) : (cycle m ∇g complete n).V = m + n := by
+  rw [V_join, V_cycle, V_complete]
+
+@[simp] theorem E_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ∇g complete n).E = m + 3 + n.choose 2 + (m + 3) * n := by
+  rw [E_join, E_cycle, E_complete, V_cycle, V_complete]
+
+theorem cliqueNum_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 4) ∇g complete n).cliqueNum = 2 + n := by
+  rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_complete]
+
+theorem chromNum_join_cycle_complete_even (m n : ℕ) :
+    (cycle (2 * m + 2) ∇g complete n).chromNum = 2 + n := by
+  rw [chromNum_join, chromNum_cycle_even, chromNum_complete]
+
+theorem chromNum_join_cycle_complete_odd (m n : ℕ) :
+    (cycle (2 * m + 3) ∇g complete n).chromNum = 3 + n := by
+  rw [chromNum_join, chromNum_cycle_odd, chromNum_complete]
+
+theorem indepNum_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ∇g complete n).indepNum = max ((m + 3) / 2) (min n 1) := by
+  rw [indepNum_join, indepNum_cycle, indepNum_complete]
+
+theorem coverNum_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 3) ∇g complete n).coverNum =
+      min (m + 3 - (m + 3) / 2 + n) (m + 3 + (n - 1)) := by
+  rw [coverNum_join, coverNum_cycle, coverNum_complete, V_cycle, V_complete]
+
+theorem cliqueCoverNum_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 4) ∇g complete (n + 1)).cliqueCoverNum = (m + 5) / 2 := by
+  have h := cliqueCoverNum_join (cycle (m + 4)) (complete (n + 1))
+  rw [cliqueCoverNum_cycle, cliqueCoverNum_complete] at h
+  omega
+
+theorem maxDeg_join_cycle_complete (m n : ℕ) :
+    maxDeg (cycle (m + 3) ∇g complete (n + 1)) = max (n + 3) (m + 3 + n) := by
+  have h := maxDeg_join (G := cycle (m + 3)) (H := complete (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+  rw [maxDeg_cycle, maxDeg_complete, V_cycle, V_complete] at h
+  omega
+
+theorem minDeg_join_cycle_complete (m n : ℕ) :
+    minDeg (cycle (m + 3) ∇g complete (n + 1)) = min (n + 3) (m + 3 + n) := by
+  have h := minDeg_join (G := cycle (m + 3)) (H := complete (n + 1))
+    (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+  rw [minDeg_cycle, minDeg_complete, V_cycle, V_complete] at h
+  omega
+
+theorem isConnected_join_cycle_complete (m n : ℕ) :
+    IsConnected (cycle (m + 1) ∇g complete (n + 1)) :=
+  isConnected_join (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+
+theorem numComponents_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 1) ∇g complete (n + 1)).numComponents = 1 :=
+  numComponents_join (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
+
+theorem diameter_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 4) ∇g complete (n + 1)).diameter = 2 := by
+  have h : (m + 4).choose 2 = (m + 4) * (m + 3) / 2 := by
+    rw [Nat.choose_two_right, show m + 4 - 1 = m + 3 from by omega]
+  have h2 : m + 5 ≤ (m + 4) * (m + 3) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 4) * (m + 3) = m * m + 7 * m + 12 := by ring
+    omega
+  refine diameter_join_left (by rw [V_complete]; omega) ?_
+  rw [E_cycle, V_cycle, h]
+  omega
+
+/-! ### The join of a path and a star -/
+
+@[simp] theorem V_join_path_star (m n : ℕ) : (path m ∇g star n).V = m + n + 1 := by
+  rw [V_join, V_path, V_star]
+  omega
+
+@[simp] theorem E_join_path_star (m n : ℕ) :
+    (path (m + 1) ∇g star n).E = m + n + (m + 1) * (n + 1) := by
+  rw [E_join, E_path, E_star, V_path, V_star,
+    show 1 + n = n + 1 from by omega]
+
+theorem cliqueNum_join_path_star (m n : ℕ) :
+    (path (m + 2) ∇g star (n + 1)).cliqueNum = 4 := by
+  have h := cliqueNum_join (path (m + 2)) (star (n + 1))
+  rw [cliqueNum_path, cliqueNum_star] at h
+  omega
+
+theorem chromNum_join_path_star (m n : ℕ) :
+    (path (m + 2) ∇g star (n + 1)).chromNum = 4 := by
+  have h := chromNum_join (path (m + 2)) (star (n + 1))
+  rw [chromNum_path, chromNum_star] at h
+  omega
+
+theorem indepNum_join_path_star (m n : ℕ) :
+    (path m ∇g star n).indepNum = max ((m + 1) / 2) (max 1 n) := by
+  rw [indepNum_join, indepNum_path, indepNum_star]
+
+theorem coverNum_join_path_star (m n : ℕ) :
+    (path m ∇g star n).coverNum = min (m / 2 + (n + 1)) (m + min 1 n) := by
+  rw [coverNum_join, coverNum_path, coverNum_star, V_path, V_star,
+    show 1 + n = n + 1 from by omega]
+
+theorem cliqueCoverNum_join_path_star (m n : ℕ) :
+    (path m ∇g star n).cliqueCoverNum = max ((m + 1) / 2) (max 1 n) := by
+  rw [cliqueCoverNum_join, cliqueCoverNum_path, cliqueCoverNum_star]
+
+theorem maxDeg_join_path_star (m n : ℕ) :
+    maxDeg (path (m + 3) ∇g star (n + 1)) = m + n + 4 := by
+  have h := maxDeg_join (G := path (m + 3)) (H := star (n + 1))
+    (by rw [V_path]; omega) (by rw [V_star]; omega)
+  rw [maxDeg_path, maxDeg_star, V_path, V_star] at h
+  omega
+
+theorem minDeg_join_path_star (m n : ℕ) :
+    minDeg (path (m + 2) ∇g star (n + 1)) = min (n + 3) (m + 3) := by
+  have h := minDeg_join (G := path (m + 2)) (H := star (n + 1))
+    (by rw [V_path]; omega) (by rw [V_star]; omega)
+  rw [minDeg_path, minDeg_star, V_path, V_star] at h
+  omega
+
+theorem isConnected_join_path_star (m n : ℕ) : IsConnected (path (m + 1) ∇g star n) :=
+  isConnected_join (by rw [V_path]; omega) (by rw [V_star]; omega)
+
+theorem numComponents_join_path_star (m n : ℕ) :
+    (path (m + 1) ∇g star n).numComponents = 1 :=
+  numComponents_join (by rw [V_path]; omega) (by rw [V_star]; omega)
+
+theorem diameter_join_path_star (m n : ℕ) : (path (m + 3) ∇g star n).diameter = 2 := by
+  have h : (m + 3).choose 2 = (m + 3) * (m + 2) / 2 := by
+    rw [Nat.choose_two_right, show m + 3 - 1 = m + 2 from by omega]
+  have h2 : m + 3 ≤ (m + 3) * (m + 2) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 3) * (m + 2) = m * m + 5 * m + 6 := by ring
+    omega
+  refine diameter_join_left (by rw [V_star]; omega) ?_
+  rw [E_path, V_path, h]
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`

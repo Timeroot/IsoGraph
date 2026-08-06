@@ -3274,6 +3274,17 @@ and chromatic numbers take a maximum. Two entries are worth naming. The dominati
 degree of any of these unions with a star is one, because the star always supplies a leaf. Being
 disconnected, all three have two components, diameter zero and radius zero.
 
+With the star in place the join table still had gaps between the families it already knew, so the
+three missing cross pairs have been filled in: `Pₘ ∇ Kₙ`, `Cₘ ∇ Kₙ` and `Pₘ ∇ Sₙ`. Joining a
+complete graph onto anything simply shifts the clique and chromatic numbers up by `n`, so a path
+gives `n + 2` and an odd cycle `n + 3`; joining a path onto a star gives four, one edge from each
+side. The degree entries are where the two sides interact. Maximum degree is
+`max (n + 3) (m + n + 3)` for a path joined to `Kₙ₊₁` — an interior path vertex sees two neighbours
+plus the whole complete side, while a complete vertex sees everything except itself — and it
+collapses to `m + n + 4` for the path joined to a star, since the star's centre always wins.
+Minimum degree is the dual minimum. Every one of the three has diameter exactly two, established
+through `diameter_join_left` from the fact that a path on `m + 3` vertices is never complete.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives
