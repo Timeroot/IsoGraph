@@ -3481,6 +3481,24 @@ moves it — and radius exactly two. The one lemma that made that block work is
 `min(δ + 1, |V|)` as soon as `δ` is positive; without it the minimum-degree hypothesis needed to
 apply the connectivity lemma a second time is not something `omega` can discharge.
 
+Crossing the two unary operators with the five binary ones fills in the rest of the grid. The
+line graph of a Cartesian product, a join, a disjoint union, a strong product and a complement now
+each get a row, and because `maxDeg` and `minDeg` of every binary operator have closed forms, the
+generic degree sandwich `2δ - 2 ≤ deg L(G) ≤ 2Δ - 2` specialises to a concrete two-sided bound in
+each case: `2(Δ_G + Δ_H) - 2` for the Cartesian product, `2·max(Δ_G + |V_H|, |V_G| + Δ_H) - 2` for
+the join, `2((Δ_G + 1)(Δ_H + 1) - 1) - 2` for the strong product, and `2(|V| - 1 - δ) - 2` for the
+complement. Connectivity and distance come along with them — `L(G □ H)` has radius and diameter at
+most one more than the sum of the factors', `L(G ⊠ H)` one more than their maximum, and `L(G ∇ H)`
+has diameter at most three for any two nonempty graphs, since a join always has diameter at most
+two. The disjoint union is the exception that proves the rule: `lineGraph_disjUnion` splits the
+line graph outright, so `L(G ⊕ H)` has exactly two components when both sides are connected with an
+edge, and is therefore never connected. Small edge-positivity helpers for the four products make
+these rows usable, since almost every line graph lemma needs `0 < E` to rule out the empty graph.
+The Mycielskian half is more uniform: order and size are polynomial in the factors, and chromatic
+number lands on `χ_G + χ_H + 1` over a join and `max(χ_G, χ_H) + 1` over a disjoint union. Clique
+number over a complement is the pretty one — `M(Gᶜ)` has clique number `max(α_G, 2)`, trading the
+clique number of the complement for the independence number of the original.
+
 The folded cube row is new, and it is nearly complete. `foldedCube n` is `Qₙ` with every
 antipodal pair joined, so `foldedCube_adj` says `x` and `y` are adjacent exactly when they differ
 in one coordinate or in all `n` of them. Counting neighbours gives

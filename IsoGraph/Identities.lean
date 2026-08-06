@@ -45805,6 +45805,335 @@ theorem V_le_indepNum_mycielskian_mycielskian (G : IsoGraph) :
   have h := V_le_indepNum_mycielskian (mycielskian G)
   rwa [V_mycielskian] at h
 
+/-! ### Edge positivity for the binary operators -/
+
+theorem E_pos_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
+    0 < (G □g H).E := by
+  have h := Nat.mul_pos hH hG
+  rw [E_cartesianProduct]
+  omega
+
+theorem E_pos_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) : 0 < (G ∇g H).E := by
+  have h := Nat.mul_pos hG hH
+  rw [E_join]
+  omega
+
+theorem E_pos_disjUnion_left {G H : IsoGraph} (hG : 0 < G.E) : 0 < (G ⊕g H).E := by
+  rw [E_disjUnion]
+  omega
+
+theorem E_pos_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
+    0 < (G ⊠g H).E := by
+  have h := Nat.mul_pos hH hG
+  rw [E_strongProduct]
+  omega
+
+/-! ### The line graph of a Cartesian product -/
+
+theorem V_lineGraph_cartesianProduct (G H : IsoGraph) :
+    (lineGraph (G □g H)).V = G.V * H.E + H.V * G.E := by
+  rw [V_lineGraph, E_cartesianProduct]
+
+theorem maxDeg_lineGraph_cartesianProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (lineGraph (G □g H)) ≤ 2 * (maxDeg G + maxDeg H) - 2 := by
+  have h := maxDeg_lineGraph_le (G □g H)
+  rwa [maxDeg_cartesianProduct hG hH] at h
+
+theorem le_minDeg_lineGraph_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (hE : 0 < (G □g H).E) :
+    2 * (minDeg G + minDeg H) - 2 ≤ minDeg (lineGraph (G □g H)) := by
+  have h := le_minDeg_lineGraph hE
+  rwa [minDeg_cartesianProduct hG hH] at h
+
+theorem isConnected_lineGraph_cartesianProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G □g H).E) : IsConnected (lineGraph (G □g H)) :=
+  isConnected_lineGraph (isConnected_cartesianProduct.2 ⟨hG, hH⟩) hE
+
+theorem numComponents_lineGraph_cartesianProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G □g H).E) : (lineGraph (G □g H)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_cartesianProduct.2 ⟨hG, hH⟩) hE
+
+theorem diameter_lineGraph_cartesianProduct_le {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G □g H).E) :
+    (lineGraph (G □g H)).diameter ≤ G.diameter + H.diameter + 1 := by
+  have h := diameter_lineGraph_le (isConnected_cartesianProduct.2 ⟨hG, hH⟩) hE
+  rw [diameter_cartesianProduct hG hH] at h
+  omega
+
+theorem radius_lineGraph_cartesianProduct_le {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G □g H).E) :
+    (lineGraph (G □g H)).radius ≤ G.radius + H.radius + 1 := by
+  have h := radius_lineGraph_le (isConnected_cartesianProduct.2 ⟨hG, hH⟩) hE
+  rw [radius_cartesianProduct hG hH] at h
+  omega
+
+theorem cliqueNum_lineGraph_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G + maxDeg H) :
+    (lineGraph (G □g H)).cliqueNum = maxDeg G + maxDeg H := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := G □g H)
+    (by rw [maxDeg_cartesianProduct hG hH]; exact h3)
+  rwa [maxDeg_cartesianProduct hG hH] at hm
+
+theorem girth_lineGraph_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ maxDeg G + maxDeg H) : (lineGraph (G □g H)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_cartesianProduct hG hH]; exact h3)
+
+theorem not_isBipartite_lineGraph_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V)
+    (hH : 0 < H.V) (h3 : 3 ≤ maxDeg G + maxDeg H) : ¬ IsBipartite (lineGraph (G □g H)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_cartesianProduct hG hH]; exact h3)
+
+/-! ### The line graph of a join -/
+
+theorem V_lineGraph_join (G H : IsoGraph) :
+    (lineGraph (G ∇g H)).V = G.E + H.E + G.V * H.V := by
+  rw [V_lineGraph, E_join]
+
+theorem maxDeg_lineGraph_join_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (lineGraph (G ∇g H)) ≤ 2 * max (maxDeg G + H.V) (G.V + maxDeg H) - 2 := by
+  have h := maxDeg_lineGraph_le (G ∇g H)
+  rwa [maxDeg_join hG hH] at h
+
+theorem le_minDeg_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    2 * min (minDeg G + H.V) (G.V + minDeg H) - 2 ≤ minDeg (lineGraph (G ∇g H)) := by
+  have h := le_minDeg_lineGraph (E_pos_join hG hH)
+  rwa [minDeg_join hG hH] at h
+
+theorem isConnected_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    IsConnected (lineGraph (G ∇g H)) :=
+  isConnected_lineGraph (isConnected_join hG hH) (E_pos_join hG hH)
+
+theorem numComponents_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (lineGraph (G ∇g H)).numComponents = 1 :=
+  numComponents_lineGraph (isConnected_join hG hH) (E_pos_join hG hH)
+
+theorem diameter_lineGraph_join_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (lineGraph (G ∇g H)).diameter ≤ 3 := by
+  have h := diameter_lineGraph_le (isConnected_join hG hH) (E_pos_join hG hH)
+  have h2 := diameter_join_le_two hG hH
+  omega
+
+theorem cliqueNum_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ max (maxDeg G + H.V) (G.V + maxDeg H)) :
+    (lineGraph (G ∇g H)).cliqueNum = max (maxDeg G + H.V) (G.V + maxDeg H) := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := G ∇g H)
+    (by rw [maxDeg_join hG hH]; exact h3)
+  rwa [maxDeg_join hG hH] at hm
+
+theorem girth_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h3 : 3 ≤ max (maxDeg G + H.V) (G.V + maxDeg H)) : (lineGraph (G ∇g H)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_join hG hH]; exact h3)
+
+/-! ### The line graph of a disjoint union -/
+
+theorem V_lineGraph_disjUnion (G H : IsoGraph) : (lineGraph (G ⊕g H)).V = G.E + H.E := by
+  rw [V_lineGraph, E_disjUnion]
+
+theorem maxDeg_lineGraph_disjUnion_le (G H : IsoGraph) :
+    maxDeg (lineGraph (G ⊕g H)) ≤ 2 * max (maxDeg G) (maxDeg H) - 2 := by
+  have h := maxDeg_lineGraph_le (G ⊕g H)
+  rwa [maxDeg_disjUnion] at h
+
+theorem le_minDeg_lineGraph_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (hE : 0 < (G ⊕g H).E) :
+    2 * min (minDeg G) (minDeg H) - 2 ≤ minDeg (lineGraph (G ⊕g H)) := by
+  have h := le_minDeg_lineGraph hE
+  rwa [minDeg_disjUnion hG hH] at h
+
+theorem numComponents_lineGraph_disjUnion {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < G.E) (hE2 : 0 < H.E) :
+    (lineGraph (G ⊕g H)).numComponents = 2 := by
+  rw [lineGraph_disjUnion, numComponents_disjUnion, numComponents_lineGraph hG hE,
+    numComponents_lineGraph hH hE2]
+
+theorem not_isConnected_lineGraph_disjUnion {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < G.E) (hE2 : 0 < H.E) :
+    ¬ IsConnected (lineGraph (G ⊕g H)) := by
+  intro h
+  have h1 := numComponents_eq_one_of_isConnected h
+  rw [numComponents_lineGraph_disjUnion hG hH hE hE2] at h1
+  omega
+
+/-! ### The line graph of a strong product -/
+
+theorem V_lineGraph_strongProduct (G H : IsoGraph) :
+    (lineGraph (G ⊠g H)).V = G.V * H.E + H.V * G.E + 2 * G.E * H.E := by
+  rw [V_lineGraph, E_strongProduct]
+
+theorem maxDeg_lineGraph_strongProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (lineGraph (G ⊠g H)) ≤ 2 * ((maxDeg G + 1) * (maxDeg H + 1) - 1) - 2 := by
+  have h := maxDeg_lineGraph_le (G ⊠g H)
+  rwa [maxDeg_strongProduct hG hH] at h
+
+theorem le_minDeg_lineGraph_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (hE : 0 < (G ⊠g H).E) :
+    2 * ((minDeg G + 1) * (minDeg H + 1) - 1) - 2 ≤ minDeg (lineGraph (G ⊠g H)) := by
+  have h := le_minDeg_lineGraph hE
+  rwa [minDeg_strongProduct hG hH] at h
+
+theorem isConnected_lineGraph_strongProduct {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G ⊠g H).E) : IsConnected (lineGraph (G ⊠g H)) :=
+  isConnected_lineGraph (isConnected_strongProduct hG hH) hE
+
+theorem diameter_lineGraph_strongProduct_le {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G ⊠g H).E) :
+    (lineGraph (G ⊠g H)).diameter ≤ max G.diameter H.diameter + 1 := by
+  have h := diameter_lineGraph_le (isConnected_strongProduct hG hH) hE
+  rw [diameter_strongProduct hG hH] at h
+  omega
+
+theorem radius_lineGraph_strongProduct_le {G H : IsoGraph} (hG : IsConnected G)
+    (hH : IsConnected H) (hE : 0 < (G ⊠g H).E) :
+    (lineGraph (G ⊠g H)).radius ≤ max G.radius H.radius + 1 := by
+  have h := radius_lineGraph_le (isConnected_strongProduct hG hH) hE
+  rw [radius_strongProduct hG hH] at h
+  omega
+
+/-! ### The line graph of a complement -/
+
+theorem V_lineGraph_compl (G : IsoGraph) : (lineGraph Gᶜ).V + G.E = G.V.choose 2 := by
+  rw [V_lineGraph]
+  exact E_compl G
+
+theorem maxDeg_lineGraph_compl_le {G : IsoGraph} (hG : 0 < G.V) :
+    maxDeg (lineGraph Gᶜ) ≤ 2 * (G.V - 1 - minDeg G) - 2 := by
+  have h := maxDeg_lineGraph_le Gᶜ
+  rwa [maxDeg_compl hG] at h
+
+theorem le_minDeg_lineGraph_compl {G : IsoGraph} (hG : 0 < G.V) (hE : 0 < Gᶜ.E) :
+    2 * (G.V - 1 - maxDeg G) - 2 ≤ minDeg (lineGraph Gᶜ) := by
+  have h := le_minDeg_lineGraph hE
+  rwa [minDeg_compl hG] at h
+
+theorem cliqueNum_lineGraph_compl {G : IsoGraph} (hG : 0 < G.V) (h3 : 3 ≤ G.V - 1 - minDeg G) :
+    (lineGraph Gᶜ).cliqueNum = G.V - 1 - minDeg G := by
+  have hm := cliqueNum_lineGraph_of_three_le_maxDeg (G := Gᶜ)
+    (by rw [maxDeg_compl hG]; exact h3)
+  rwa [maxDeg_compl hG] at hm
+
+/-! ### The Mycielskian of a join -/
+
+@[simp] theorem V_mycielskian_join (G H : IsoGraph) :
+    (mycielskian (G ∇g H)).V = 2 * G.V + 2 * H.V + 1 := by
+  rw [V_mycielskian, V_join]
+  omega
+
+@[simp] theorem E_mycielskian_join (G H : IsoGraph) :
+    (mycielskian (G ∇g H)).E = 3 * G.E + 3 * H.E + 3 * (G.V * H.V) + G.V + H.V := by
+  rw [E_mycielskian, E_join, V_join]
+  omega
+
+@[simp] theorem chromNum_mycielskian_join (G H : IsoGraph) :
+    (mycielskian (G ∇g H)).chromNum = G.chromNum + H.chromNum + 1 := by
+  rw [chromNum_mycielskian, chromNum_join]
+
+theorem cliqueNum_mycielskian_join {G H : IsoGraph} (hG : 0 < G.V) :
+    (mycielskian (G ∇g H)).cliqueNum = max (G.cliqueNum + H.cliqueNum) 2 := by
+  have hm := cliqueNum_mycielskian (G ∇g H) (by rw [V_join]; omega)
+  rwa [cliqueNum_join] at hm
+
+theorem maxDeg_mycielskian_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (mycielskian (G ∇g H))
+      = max (2 * max (maxDeg G + H.V) (G.V + maxDeg H)) (G.V + H.V) := by
+  rw [maxDeg_mycielskian, maxDeg_join hG hH, V_join]
+
+theorem isConnected_mycielskian_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    IsConnected (mycielskian (G ∇g H)) := by
+  refine isConnected_mycielskian _ ?_
+  rw [minDeg_join hG hH]
+  omega
+
+theorem radius_mycielskian_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (mycielskian (G ∇g H)).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  rw [minDeg_join hG hH]
+  omega
+
+/-! ### The Mycielskian of a Cartesian product -/
+
+@[simp] theorem V_mycielskian_cartesianProduct (G H : IsoGraph) :
+    (mycielskian (G □g H)).V = 2 * (G.V * H.V) + 1 := by
+  rw [V_mycielskian, V_cartesianProduct]
+
+@[simp] theorem E_mycielskian_cartesianProduct (G H : IsoGraph) :
+    (mycielskian (G □g H)).E = 3 * (G.V * H.E) + 3 * (H.V * G.E) + G.V * H.V := by
+  rw [E_mycielskian, E_cartesianProduct, V_cartesianProduct]
+  omega
+
+theorem maxDeg_mycielskian_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    maxDeg (mycielskian (G □g H)) = max (2 * (maxDeg G + maxDeg H)) (G.V * H.V) := by
+  rw [maxDeg_mycielskian, maxDeg_cartesianProduct hG hH, V_cartesianProduct]
+
+theorem isConnected_mycielskian_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : 0 < minDeg G) : IsConnected (mycielskian (G □g H)) := by
+  refine isConnected_mycielskian _ ?_
+  rw [minDeg_cartesianProduct hG hH]
+  omega
+
+theorem radius_mycielskian_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : 0 < minDeg G) : (mycielskian (G □g H)).radius = 2 := by
+  refine radius_mycielskian _ ?_
+  rw [minDeg_cartesianProduct hG hH]
+  omega
+
+/-! ### The Mycielskian of a disjoint union -/
+
+@[simp] theorem V_mycielskian_disjUnion (G H : IsoGraph) :
+    (mycielskian (G ⊕g H)).V = 2 * G.V + 2 * H.V + 1 := by
+  rw [V_mycielskian, V_disjUnion]
+  omega
+
+@[simp] theorem E_mycielskian_disjUnion (G H : IsoGraph) :
+    (mycielskian (G ⊕g H)).E = 3 * G.E + 3 * H.E + G.V + H.V := by
+  rw [E_mycielskian, E_disjUnion, V_disjUnion]
+  omega
+
+@[simp] theorem chromNum_mycielskian_disjUnion (G H : IsoGraph) :
+    (mycielskian (G ⊕g H)).chromNum = max G.chromNum H.chromNum + 1 := by
+  rw [chromNum_mycielskian, chromNum_disjUnion]
+
+theorem matchNum_mycielskian_disjUnion {G H : IsoGraph}
+    (h : 2 * (G.matchNum + H.matchNum) = G.V + H.V) :
+    (mycielskian (G ⊕g H)).matchNum = G.V + H.V := by
+  have hm := matchNum_mycielskian (G ⊕g H) (by rw [matchNum_disjUnion, V_disjUnion]; exact h)
+  rwa [V_disjUnion] at hm
+
+theorem domNum_mycielskian_disjUnion {G H : IsoGraph} (hG : 0 < G.V) :
+    (mycielskian (G ⊕g H)).domNum = G.domNum + H.domNum + 1 := by
+  have hm := domNum_mycielskian (G ⊕g H) (by rw [V_disjUnion]; omega)
+  rwa [domNum_disjUnion] at hm
+
+/-! ### The Mycielskian of a complement -/
+
+@[simp] theorem V_mycielskian_compl (G : IsoGraph) : (mycielskian Gᶜ).V = 2 * G.V + 1 := by
+  rw [V_mycielskian, V_compl]
+
+theorem E_mycielskian_compl (G : IsoGraph) :
+    (mycielskian Gᶜ).E + 3 * G.E = 3 * (G.V.choose 2) + G.V := by
+  have h := E_compl G
+  rw [E_mycielskian, V_compl]
+  omega
+
+theorem maxDeg_mycielskian_compl {G : IsoGraph} (hG : 0 < G.V) :
+    maxDeg (mycielskian Gᶜ) = max (2 * (G.V - 1 - minDeg G)) G.V := by
+  rw [maxDeg_mycielskian, maxDeg_compl hG, V_compl]
+
+theorem cliqueNum_mycielskian_compl {G : IsoGraph} (hG : 0 < G.V) :
+    (mycielskian Gᶜ).cliqueNum = max G.indepNum 2 := by
+  have hm := cliqueNum_mycielskian Gᶜ (by rw [V_compl]; exact hG)
+  rwa [cliqueNum_compl] at hm
+
+/-! ### The Mycielskian of a strong product -/
+
+@[simp] theorem V_mycielskian_strongProduct (G H : IsoGraph) :
+    (mycielskian (G ⊠g H)).V = 2 * (G.V * H.V) + 1 := by
+  rw [V_mycielskian, V_strongProduct]
+
+@[simp] theorem E_mycielskian_strongProduct (G H : IsoGraph) :
+    (mycielskian (G ⊠g H)).E
+      = 3 * (G.V * H.E) + 3 * (H.V * G.E) + 3 * (2 * G.E * H.E) + G.V * H.V := by
+  rw [E_mycielskian, E_strongProduct, V_strongProduct]
+  omega
+
 /-! ### The folded cube
 
 `foldedCube n` is `Qₙ` with every antipodal pair joined, so it is `(n + 1)`-regular once `n ≥ 2`
