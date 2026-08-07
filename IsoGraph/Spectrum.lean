@@ -95,7 +95,11 @@ The best-known application of the variational principle is **Hoffman's ratio bou
 `n · 1_S - |S| · 1`, which is orthogonal to the all-ones vector and spans no edge, so its
 Rayleigh quotient is `-k |S| ² / n` and `|S| (k - λ_min) ≤ n (-λ_min)`.  For the triangular graph
 `T(n)`, where `k = 2 (n - 2)` and `λ_min = -2`, that is the matching bound
-`two_mul_indepNum_triangular_le : 2 α ≤ n`.
+`two_mul_indepNum_triangular_le : 2 α ≤ n`.  Since every colour class is independent, `n ≤ χ α`,
+and the ratio bound turns into Hoffman's bound on the chromatic number,
+`sub_lambdaMin_le_chromNum_mul : k - λ_min ≤ χ (-λ_min)`, the product form of
+`χ ≥ 1 - λ_max / λ_min`.  The Petersen graph is the standard illustration: it is triangle-free,
+so no clique forces its chromatic number, but `3 - (-2) ≤ χ · 2` already gives `χ ≥ 3`.
 
 ## Line graphs
 
@@ -2292,6 +2296,58 @@ theorem indepNum_mul_sub_lambdaMin_le {G : CGraph} [Nonempty G.V] {k : ℕ}
   obtain ⟨S, hS, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
   have := card_mul_sub_lambdaMin_le hk hS
   rwa [hcard] at this
+
+/-- **Hoffman's bound on the chromatic number** of a `k`-regular graph:
+`(k - λ_min) ≤ χ · (-λ_min)`, the product form of `χ ≥ 1 - k / λ_min`.  Each colour class is an
+independent set, so `n ≤ χ α`, and the ratio bound `indepNum_mul_sub_lambdaMin_le` caps `α`. -/
+theorem sub_lambdaMin_le_chromNum_mul {G : CGraph} [Nonempty G.V] {k : ℕ}
+    (hk : G.IsRegularWith k) :
+    (k : ℝ) - G.lambdaMin ≤ G.chromNum * (-G.lambdaMin) := by
+  have hn : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
+  have hα := indepNum_mul_sub_lambdaMin_le hk
+  have hχ : (Fintype.card G.V : ℝ) ≤ (G.chromNum : ℝ) * G.indepNum := by
+    exact_mod_cast G.card_le_chromNum_mul_indepNum
+  have hlm : G.lambdaMin ≤ 0 := G.lambdaMin_nonpos
+  have hk0 : (0 : ℝ) ≤ k := Nat.cast_nonneg k
+  have hχ0 : (0 : ℝ) ≤ (G.chromNum : ℝ) := Nat.cast_nonneg _
+  have hkL : (0 : ℝ) ≤ (k : ℝ) - G.lambdaMin := by linarith
+  have h1 : (Fintype.card G.V : ℝ) * ((k : ℝ) - G.lambdaMin)
+      ≤ (G.chromNum : ℝ) * ((G.indepNum : ℝ) * ((k : ℝ) - G.lambdaMin)) := by
+    rw [← mul_assoc]
+    exact mul_le_mul_of_nonneg_right hχ hkL
+  have h2 : (G.chromNum : ℝ) * ((G.indepNum : ℝ) * ((k : ℝ) - G.lambdaMin))
+      ≤ (G.chromNum : ℝ) * ((Fintype.card G.V : ℝ) * (-G.lambdaMin)) :=
+    mul_le_mul_of_nonneg_left hα hχ0
+  exact le_of_mul_le_mul_left (h1.trans (h2.trans (le_of_eq (by ring)))) hn
+
+/-- Hoffman's chromatic bound in its textbook shape: for a regular graph
+`λ_max - λ_min ≤ χ · (-λ_min)`, that is `χ ≥ 1 - λ_max / λ_min`. -/
+theorem lambdaMax_sub_lambdaMin_le_chromNum_mul {G : CGraph} [Nonempty G.V] {k : ℕ}
+    (hk : G.IsRegularWith k) :
+    G.lambdaMax - G.lambdaMin ≤ G.chromNum * (-G.lambdaMin) := by
+  rw [lambdaMax_of_isRegularWith hk]
+  exact sub_lambdaMin_le_chromNum_mul hk
+
+/-- The Petersen graph is triangle-free, so its clique number gives nothing, but the ratio bound
+does: `3 - (-2) ≤ χ · 2` forces `3 ≤ χ`. -/
+example : 3 ≤ SRG.petersen.chromNum := by
+  haveI : Nonempty SRG.petersen.V :=
+    Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
+  have hlm : SRG.petersen.lambdaMin = -2 := by
+    refine le_antisymm (lambdaMin_le ?_) ((le_lambdaMin_iff _).2 ?_)
+    · rw [spectrum_petersen]
+      simp
+    · intro x hx
+      rw [spectrum_petersen] at hx
+      simp only [Multiset.mem_cons, Multiset.mem_add, Multiset.mem_replicate] at hx
+      rcases hx with rfl | ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> norm_num
+  have h := sub_lambdaMin_le_chromNum_mul SRG.petersen_srg.regular
+  rw [hlm] at h
+  by_contra hcon
+  push_neg at hcon
+  have h2 : (SRG.petersen.chromNum : ℝ) ≤ 2 := by exact_mod_cast Nat.lt_succ_iff.1 hcon
+  push_cast at h
+  linarith
 
 /-- **The eigenvalues of a path are all `< 2`.** -/
 theorem lt_two_of_mem_spectrum_path (n : ℕ) {x : ℝ} (hx : x ∈ (path n).spectrum) : x < 2 := by

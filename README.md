@@ -4245,6 +4245,20 @@ graph `T(n) = L(Kₙ)`, where `k = 2 (n - 2)` and `λ_min = -2` (a line graph), 
 `2 α(T(n)) ≤ n` — an independent set of `T(n)` is a matching of `Kₙ`, recovered here without
 looking at a single edge.
 
+Colour classes are independent sets, so `n ≤ χ α`, and feeding that into the ratio bound gives
+Hoffman's lower bound on the chromatic number:
+
+```lean
+theorem sub_lambdaMin_le_chromNum_mul {G : CGraph} [Nonempty G.V] {k : ℕ}
+    (hk : G.IsRegularWith k) :
+    (k : ℝ) - G.lambdaMin ≤ G.chromNum * (-G.lambdaMin)
+```
+
+— the product form of `χ ≥ 1 - λ_max / λ_min`, kept multiplication-only so that nothing has to be
+said about `λ_min` being nonzero. The classic illustration is the Petersen graph: it has no
+triangle, so its clique number says only `χ ≥ 2`, while `3 - (-2) ≤ χ · 2` gives `χ ≥ 3` — the
+true value, and a lower bound that comes from nothing but the spectrum.
+
 ### Smith's family and ADE
 
 `IsSmith G` says the largest eigenvalue of `G` is exactly `2`; `IsSubcritical G` says every
