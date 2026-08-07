@@ -3884,7 +3884,8 @@ generalized Petersen graphs `GP(n, k)` — and the rest are edge lists.
 | `tietze`, `bidiakisCube`, `dyck` | six mutually adjacent regions on the Möbius strip, a cube with two chorded faces, the cubic symmetric graph on 32 vertices |
 | `robertson`, `balaban10Cage`, `balaban11Cage`, `tutte12Cage` | the `(4,5)`-cage, and the cubic cages of girth 10, 11 and 12 |
 | `harries`, `harriesWong` | the other two `(3,10)`-cages, told apart from `balaban10Cage` by `\|Aut\|` = 120, 24, 80 |
-| `gray`, `foster` | the smallest cubic semisymmetric graph, and the cubic distance-transitive graph on 90 vertices |
+| `gray`, `foster`, `ljubljana`, `biggsSmith` | the smallest cubic semisymmetric graph, a second one on 112 vertices, and the cubic distance-transitive graphs on 90 and 102 vertices — the latter of girth 9, the one girth whose cage has no name |
+| `holt`, `flowerSnark` | the smallest half-transitive graph, and the smallest flower snark |
 
 For each graph the file records the order, the edge count, the degree, connectivity,
 bipartiteness, and the girth. Two certificates do the work that `Decidable` instances cannot:
@@ -3937,9 +3938,10 @@ graph branches two ways instead of three — `126 · 3 · 2¹⁰` rather than `1
 12-cage, about ninety times fewer leaves.
 
 Every graph in the gallery now has its girth: 6 for `heawood`, `pappus`, `mobiusKantor`,
-`desargues`, `nauru` and `dyck`, 7 for `mcgee` and `coxeter`, 8 for `tutteCoxeter` and `gray`, 10
-for `balaban10Cage`, `harries`, `harriesWong` and `foster`, 11 for `balaban11Cage` and 12 for
-`tutte12Cage` — the last a search over 126 vertices to depth eleven.
+`desargues`, `nauru` and `dyck`, 7 for `mcgee` and `coxeter`, 8 for `tutteCoxeter` and `gray`, 9
+for `biggsSmith`, 10 for `balaban10Cage`, `harries`, `harriesWong`, `foster` and `ljubljana`, 11
+for `balaban11Cage` and 12 for `tutte12Cage` — the last a search over 126 vertices to depth
+eleven.
 
 The constructions overlap, and the canonical key settles the coincidences: `gp 5 2` is the
 Petersen graph, `gp 4 1` the cube, `gp 6 1` the hexagonal prism, and the Möbius–Kantor,

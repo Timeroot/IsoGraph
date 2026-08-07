@@ -49,8 +49,12 @@ girth.
 | `foster`               |  90 | 135 |      3 |    10 | yes       |
 | `balaban11Cage`        | 112 | 168 |      3 |    11 | no        |
 | `tutte12Cage`          | 126 | 189 |      3 |    12 | yes       |
+| `holt`                 |  27 |  54 |      4 |     5 | no        |
+| `flowerSnark`          |  20 |  30 |      3 |     5 | no        |
+| `biggsSmith`           | 102 | 153 |      3 |     9 | no        |
+| `ljubljana`            | 112 | 168 |      3 |    10 | yes       |
 
-Two remarks on what is and is not here.
+Three remarks on what is and is not here.
 
 * A *`(k, g)`-cage* is a smallest `k`-regular graph of girth `g`.  A cubic cage is known for every
   girth from three to twelve, and all of them are here except the `(3, 9)`-cage on fifty-eight
@@ -64,7 +68,17 @@ Two remarks on what is and is not here.
   vertex-transitive; and `foster`, the cubic distance-transitive graph on ninety vertices.
   Minimality is a statement about *all* graphs of a given order and so is out of reach here; what
   the file proves is that each of these graphs is regular of the right degree and of the right
-  girth.
+  girth.  Girth nine is the one gap, and `biggsSmith` is as close as a name gets to it: the
+  eighteen `(3, 9)`-cages on fifty-eight vertices are anonymous, while the Biggs–Smith graph is
+  the cubic distance-transitive graph of girth nine.
+* The other three sporadic additions are chosen for a symmetry property each.  `holt` is the
+  smallest half-transitive graph — vertex- and edge-transitive but not arc-transitive, since its
+  automorphism group has order fifty-four and an arc-transitive graph on twenty-seven vertices of
+  degree four would need at least a hundred and eight.  `ljubljana` is semi-symmetric, like
+  `gray`.  And `flowerSnark` is the smallest flower snark: a bridgeless cubic graph whose edges
+  need four colours, as `SRG.petersen`, the smallest snark of all, also does.  None of the three
+  properties named in this paragraph is proved here — they are what the graphs are *for* — but
+  the order, size, degree, connectivity, bipartiteness and girth of each are.
 * Of the five Platonic solids, `complete 4` is the tetrahedron, `hypercube 3` the cube,
   `cocktailParty 3` the octahedron, and `dodecahedron` and `icosahedron` are defined here.
   `gp_four_one_iso_hypercube` identifies the cube as a generalized Petersen graph too.  Six of
@@ -1671,6 +1685,226 @@ set_option maxHeartbeats 4000000 in
   exact le_antisymm hcyc (twelve_le_girth_of_nbrList tutte12Cage_nb
       (by native_decide)
       (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-! ## Four more graphs with names
+
+Two of these fill gaps in the symmetry table.  The Holt graph is the smallest
+*half-transitive* graph: vertex- and edge-transitive, but not arc-transitive, so no
+automorphism reverses an edge.  The Ljubljana graph is another cubic semi-symmetric
+graph, larger than the Gray graph above and, like it, the incidence graph of a
+configuration.
+
+The Biggs–Smith graph is the cubic distance-transitive graph of girth nine, the one girth
+for which the cage itself has no name.  The flower snark `J₅` is the smallest of the
+flower snarks: bridgeless, cubic, and needing four colours on its edges, like the Petersen
+graph, which is the smallest snark of all. -/
+
+/-- The edges of the Holt graph. -/
+def holtEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (0, 4), (1, 5), (1, 6), (1, 7), (2, 8), (2, 9), (2, 10), (3, 11),
+   (3, 12), (3, 13), (4, 14), (4, 15), (4, 16), (5, 11), (5, 14), (5, 17), (6, 8), (6, 16), (6, 18),
+   (7, 13), (7, 19), (7, 20), (8, 15), (8, 19), (9, 12), (9, 16), (9, 21), (10, 11), (10, 22),
+   (10, 23), (11, 21), (12, 20), (12, 22), (13, 14), (13, 24), (14, 25), (15, 23), (15, 24),
+   (16, 26), (17, 18), (17, 19), (17, 23), (18, 20), (18, 21), (19, 22), (20, 26), (21, 25),
+   (22, 24), (23, 25), (24, 26), (25, 26)]
+
+/-- The Holt graph, also called the Doyle graph: the smallest half-transitive graph, on
+twenty-seven vertices.  It is vertex- and edge-transitive, but its automorphism group has
+order fifty-four and so is too small to reverse an edge. -/
+abbrev holt : CGraph := ofEdges 27 holtEdges
+
+/-- The edges of the flower snark `J₅`. -/
+def flowerSnarkEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (1, 4), (1, 5), (2, 6), (2, 7), (3, 8), (3, 9), (4, 6), (4, 10), (5, 11),
+   (5, 12), (6, 13), (7, 14), (7, 15), (8, 11), (8, 15), (9, 12), (9, 14), (10, 16), (10, 17),
+   (11, 16), (12, 17), (13, 18), (13, 19), (14, 18), (15, 19), (16, 18), (17, 19)]
+
+/-- The flower snark `J₅`: five copies of a claw, their centres left alone, their first leaves
+joined in a five-cycle and their other leaves in a ten-cycle. -/
+abbrev flowerSnark : CGraph := ofEdges 20 flowerSnarkEdges
+
+/-- The LCF code of the Biggs–Smith graph. -/
+def biggsSmithCode : List ℤ :=
+  [16, 24, -38, 17, 34, 48, -19, 41, -35, 47, -20, 34, -36, 21, 14, 48, -16, -36, -43, 28, -17, 21,
+    29, -43, 46, -24, 28, -38, -14, -50, -45, 21, 8, 27, -21, 20, -37, 39, -34, -44, -8, 38, -21,
+    25, 15, -34, 18, -28, -41, 36, 8, -29, -21, -48, -28, -20, -47, 14, -8, -15, -27, 38, 24, -48,
+    -18, 25, 38, 31, -25, 24, -46, -14, 28, 11, 21, 35, -39, 43, 36, -38, 14, 50, 43, 36, -11, -36,
+    -24, 45, 8, 19, -25, 38, 20, -24, -14, -21, -8, 44, -31, -38, -28, 37]
+
+/-- The Biggs–Smith graph: the cubic distance-transitive graph on a hundred and two vertices, and
+the only one of girth nine. -/
+abbrev biggsSmith : CGraph := ofEdges 102 (lcfEdges biggsSmithCode 1)
+
+/-- The LCF code of the Ljubljana graph. -/
+def ljubljanaCode : List ℤ :=
+  [47, -23, -31, 39, 25, -21, -31, -41, 25, 15, 29, -41, -19, 15, -49, 33, 39, -35, -21, 17, -33,
+    49, 41, 31, -15, -29, 41, 31, -15, -25, 21, 31, -51, -25, 23, 9, -17, 51, 35, -29, 21, -51, -39,
+    33, -9, -51, 51, -47, -33, 19, 51, -21, 29, 21, -31, -39]
+
+/-- The Ljubljana graph: the cubic semi-symmetric graph on a hundred and twelve vertices, the
+incidence graph of the Ljubljana configuration `56₃`. -/
+abbrev ljubljana : CGraph := ofEdges 112 (lcfEdges ljubljanaCode 2)
+
+@[simp] theorem card_holt : Fintype.card holt.V = 27 := card_ofEdges _ _
+
+@[simp] theorem E_holt : holt.E = 54 := by native_decide
+
+theorem isRegularWith_holt : holt.IsRegularWith 4 :=
+  isRegularWith_of_degSequence (n := 27) (by native_decide)
+
+@[simp] theorem isConnected_holt : holt.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 27)) (by norm_num) (by native_decide)
+
+/-- The Holt graph has an odd cycle, so it is not bipartite. -/
+@[simp] theorem not_isBipartite_holt : ¬ holt.IsBipartite :=
+  not_isBipartite_of_odd_walk (walkOn 27 (by norm_num) [0, 3, 13, 7, 1]) 5 rfl (by decide) rfl
+
+/-- The neighbour table of the Holt graph. -/
+def holtTbl : List (List holt.V) := holt.nbrTable (List.finRange 27)
+
+/-- The neighbours of `a` in the Holt graph. -/
+def holtNb (a : holt.V) : List holt.V := holtTbl.getD a.1 []
+
+theorem holt_nb : ∀ a b : holt.V, b ∈ holtNb a ↔ holt.Adj a b := by
+  native_decide
+
+/-- The Holt graph has girth five. -/
+@[simp] theorem girth_holt : holt.girth = 5 := by
+  have hcyc : holt.girth ≤ 5 :=
+    girth_le_of_cycleList
+      (vtx 27 0) [vtx 27 3, vtx 27 13, vtx 27 7, vtx 27 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ holt.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 27 0) [vtx 27 3, vtx 27 13, vtx 27 7, vtx 27 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (five_le_girth_of_nbrList holt_nb
+      (by native_decide)
+      (by native_decide) hnac)
+
+@[simp] theorem card_flowerSnark : Fintype.card flowerSnark.V = 20 := card_ofEdges _ _
+
+@[simp] theorem E_flowerSnark : flowerSnark.E = 30 := by native_decide
+
+theorem isRegularWith_flowerSnark : flowerSnark.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 20) (by native_decide)
+
+@[simp] theorem isConnected_flowerSnark : flowerSnark.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 20)) (by norm_num) (by native_decide)
+
+/-- The flower snark `J₅` has an odd cycle, so it is not bipartite. -/
+@[simp] theorem not_isBipartite_flowerSnark : ¬ flowerSnark.IsBipartite :=
+  not_isBipartite_of_odd_walk (walkOn 20 (by norm_num) [0, 2, 6, 4, 1]) 5 rfl (by decide) rfl
+
+/-- The neighbour table of the flower snark `J₅`. -/
+def flowerSnarkTbl : List (List flowerSnark.V) := flowerSnark.nbrTable (List.finRange 20)
+
+/-- The neighbours of `a` in the flower snark `J₅`. -/
+def flowerSnarkNb (a : flowerSnark.V) : List flowerSnark.V := flowerSnarkTbl.getD a.1 []
+
+theorem flowerSnark_nb : ∀ a b : flowerSnark.V, b ∈ flowerSnarkNb a ↔ flowerSnark.Adj a b := by
+  native_decide
+
+/-- The flower snark `J₅` has girth five. -/
+@[simp] theorem girth_flowerSnark : flowerSnark.girth = 5 := by
+  have hcyc : flowerSnark.girth ≤ 5 :=
+    girth_le_of_cycleList
+      (vtx 20 0) [vtx 20 2, vtx 20 6, vtx 20 4, vtx 20 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ flowerSnark.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 20 0) [vtx 20 2, vtx 20 6, vtx 20 4, vtx 20 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (five_le_girth_of_nbrList flowerSnark_nb
+      (by native_decide)
+      (by native_decide) hnac)
+
+@[simp] theorem card_biggsSmith : Fintype.card biggsSmith.V = 102 := card_ofEdges _ _
+
+@[simp] theorem E_biggsSmith : biggsSmith.E = 153 := by native_decide
+
+theorem isRegularWith_biggsSmith : biggsSmith.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 102) (by native_decide)
+
+@[simp] theorem isConnected_biggsSmith : biggsSmith.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 102)) (by norm_num) (by native_decide)
+
+/-- The Biggs–Smith graph has an odd cycle, so it is not bipartite. -/
+@[simp] theorem not_isBipartite_biggsSmith : ¬ biggsSmith.IsBipartite :=
+  not_isBipartite_of_odd_walk (walkOn 102 (by norm_num) [0, 101, 36, 37, 38, 4, 3, 2, 1])
+    9 rfl (by decide) rfl
+
+/-- The neighbour table of the Biggs–Smith graph. -/
+def biggsSmithTbl : List (List biggsSmith.V) := biggsSmith.nbrTable (List.finRange 102)
+
+/-- The neighbours of `a` in the Biggs–Smith graph. -/
+def biggsSmithNb (a : biggsSmith.V) : List biggsSmith.V := biggsSmithTbl.getD a.1 []
+
+theorem biggsSmith_nb : ∀ a b : biggsSmith.V, b ∈ biggsSmithNb a ↔ biggsSmith.Adj a b := by
+  native_decide
+
+/-- The Biggs–Smith graph has girth nine. -/
+@[simp] theorem girth_biggsSmith : biggsSmith.girth = 9 := by
+  have hcyc : biggsSmith.girth ≤ 9 :=
+    girth_le_of_cycleList
+      (vtx 102 0) [vtx 102 101, vtx 102 36, vtx 102 37, vtx 102 38, vtx 102 4, vtx 102 3, vtx 102 2,
+        vtx 102 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ biggsSmith.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 102 0) [vtx 102 101, vtx 102 36, vtx 102 37, vtx 102 38, vtx 102 4, vtx 102 3, vtx 102 2,
+        vtx 102 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (nine_le_girth_of_nbrList biggsSmith_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+@[simp] theorem card_ljubljana : Fintype.card ljubljana.V = 112 := card_ofEdges _ _
+
+@[simp] theorem E_ljubljana : ljubljana.E = 168 := by native_decide
+
+theorem isRegularWith_ljubljana : ljubljana.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 112) (by native_decide)
+
+@[simp] theorem isConnected_ljubljana : ljubljana.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 112)) (by norm_num) (by native_decide)
+
+@[simp] theorem isBipartite_ljubljana : ljubljana.IsBipartite :=
+  ⟨fun v ↦ decide (v.1 % 2 = 1), by native_decide⟩
+
+/-- The neighbour table of the Ljubljana graph. -/
+def ljubljanaTbl : List (List ljubljana.V) := ljubljana.nbrTable (List.finRange 112)
+
+/-- The neighbours of `a` in the Ljubljana graph. -/
+def ljubljanaNb (a : ljubljana.V) : List ljubljana.V := ljubljanaTbl.getD a.1 []
+
+theorem ljubljana_nb : ∀ a b : ljubljana.V, b ∈ ljubljanaNb a ↔ ljubljana.Adj a b := by
+  native_decide
+
+/-- The Ljubljana graph has girth ten. -/
+@[simp] theorem girth_ljubljana : ljubljana.girth = 10 := by
+  have hcyc : ljubljana.girth ≤ 10 :=
+    girth_le_of_cycleList
+      (vtx 112 0) [vtx 112 47, vtx 112 46, vtx 112 45, vtx 112 44, vtx 112 43, vtx 112 42,
+        vtx 112 3, vtx 112 2, vtx 112 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ ljubljana.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 112 0) [vtx 112 47, vtx 112 46, vtx 112 45, vtx 112 44, vtx 112 43, vtx 112 42,
+        vtx 112 3, vtx 112 2, vtx 112 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (ten_le_girth_of_nbrList ljubljana_nb
       (by native_decide)
       (by native_decide)
       (by native_decide)

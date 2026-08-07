@@ -4723,6 +4723,67 @@ theorem eight_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
   · simp only [List.length_cons] at hlt
     omega
 
+/-- **Girth at least nine** from a neighbour list, as `six_le_girth_of_nbrList` at length
+nine. -/
+theorem nine_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
+      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
+      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
+      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
+    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
+      f ∈ (nb e).erase d,
+      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
+    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
+      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e,
+      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
+    (h8 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
+      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f,
+      ¬ (a ∈ nb h ∧ [a, b, c, d, e, f, g, h].Nodup))
+    (hnac : ¬ G.IsAcyclic) : 9 ≤ G.girth := by
+  refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
+  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, _ | ⟨i, t⟩⟩⟩⟩⟩⟩⟩⟩
+  · simp at h2
+  · simp at h2
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h3 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
+      hch.2)) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h4 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
+      hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2))
+      ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h5 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
+      hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
+      (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2)) ⟨(hnb
+      _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h6 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
+      hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
+      (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
+      (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
+      hch.2.2.2.2)) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h7 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
+      hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
+      (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
+      (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
+      hch.2.2.2.2.1)) g (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
+      hnd.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2)) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h8 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
+      hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
+      (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
+      (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
+      hch.2.2.2.2.1)) g (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
+      hnd.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.1)) h (mem_erase_of_ne_of_mem
+      (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.2))
+      ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.length_cons] at hlt
+    omega
+
 /-- **Girth at least ten** from a neighbour list, as `six_le_girth_of_nbrList` at length
 ten. -/
 theorem ten_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
