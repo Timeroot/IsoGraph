@@ -10,49 +10,55 @@ graphs, two Platonic solids, and a handful of sporadic graphs.  For each one the
 order, the number of edges, the degree, connectivity, whether the graph is bipartite, and the
 girth.
 
-| graph                  |   n |   E | degree | girth | bipartite |
-|------------------------|-----|-----|--------|-------|-----------|
-| `heawood`              |  14 |  21 |      3 |     6 | yes       |
-| `mcgee`                |  24 |  36 |      3 |     7 | no        |
-| `tutteCoxeter`         |  30 |  45 |      3 |     8 | yes       |
-| `franklin`             |  12 |  18 |      3 |     4 | yes       |
-| `pappus`               |  18 |  27 |      3 |     6 | yes       |
-| `folkman`              |  20 |  40 |      4 |     4 | yes       |
-| `frucht`               |  12 |  18 |      3 |     3 | no        |
-| `durer`                |  12 |  18 |      3 |     3 | no        |
-| `mobiusKantor`         |  16 |  24 |      3 |     6 | yes       |
-| `dodecahedron`         |  20 |  30 |      3 |     5 | no        |
-| `desargues`            |  20 |  30 |      3 |     6 | yes       |
-| `nauru`                |  24 |  36 |      3 |     6 | yes       |
-| `coxeter`              |  28 |  42 |      3 |     7 | no        |
-| `wagner`               |   8 |  12 |      3 |     4 | no        |
-| `chvatal`              |  12 |  24 |      4 |     4 | no        |
-| `icosahedron`          |  12 |  30 |      5 |     3 | no        |
-| `tutte`                |  46 |  69 |      3 |     4 | no        |
-| `moserSpindle`         |   7 |  11 |    3–4 |     3 | no        |
-| `grotzsch`             |  11 |  20 |    3–5 |     4 | no        |
-| `herschel`             |  11 |  18 |    3–4 |     4 | yes       |
-| `tietze`               |  12 |  18 |      3 |     3 | no        |
-| `truncatedTetrahedron` |  12 |  18 |      3 |     3 | no        |
-| `bidiakisCube`         |  12 |  18 |      3 |     4 | no        |
-| `robertson`            |  19 |  38 |      4 |     5 | no        |
-| `dyck`                 |  32 |  48 |      3 |     6 | yes       |
-| `balaban10Cage`        |  70 | 105 |      3 |    10 | yes       |
-| `cuboctahedron`        |  12 |  24 |      4 |     3 | no        |
-| `truncatedCube`        |  24 |  36 |      3 |     3 | no        |
-| `truncatedOctahedron`  |  24 |  36 |      3 |     4 | yes       |
-| `icosidodecahedron`    |  30 |  60 |      4 |     3 | no        |
-| `truncatedIcosahedron` |  60 |  90 |      3 |     5 | no        |
-| `gray`                 |  54 |  81 |      3 |     8 | yes       |
-| `harries`              |  70 | 105 |      3 |    10 | yes       |
-| `harriesWong`          |  70 | 105 |      3 |    10 | yes       |
-| `foster`               |  90 | 135 |      3 |    10 | yes       |
-| `balaban11Cage`        | 112 | 168 |      3 |    11 | no        |
-| `tutte12Cage`          | 126 | 189 |      3 |    12 | yes       |
-| `holt`                 |  27 |  54 |      4 |     5 | no        |
-| `flowerSnark`          |  20 |  30 |      3 |     5 | no        |
-| `biggsSmith`           | 102 | 153 |      3 |     9 | no        |
-| `ljubljana`            | 112 | 168 |      3 |    10 | yes       |
+| graph                    |   n |   E | degree | girth | bipartite |
+|--------------------------|-----|-----|--------|-------|-----------|
+| `heawood`                |  14 |  21 |      3 |     6 | yes       |
+| `mcgee`                  |  24 |  36 |      3 |     7 | no        |
+| `tutteCoxeter`           |  30 |  45 |      3 |     8 | yes       |
+| `franklin`               |  12 |  18 |      3 |     4 | yes       |
+| `pappus`                 |  18 |  27 |      3 |     6 | yes       |
+| `folkman`                |  20 |  40 |      4 |     4 | yes       |
+| `frucht`                 |  12 |  18 |      3 |     3 | no        |
+| `durer`                  |  12 |  18 |      3 |     3 | no        |
+| `mobiusKantor`           |  16 |  24 |      3 |     6 | yes       |
+| `dodecahedron`           |  20 |  30 |      3 |     5 | no        |
+| `desargues`              |  20 |  30 |      3 |     6 | yes       |
+| `nauru`                  |  24 |  36 |      3 |     6 | yes       |
+| `coxeter`                |  28 |  42 |      3 |     7 | no        |
+| `wagner`                 |   8 |  12 |      3 |     4 | no        |
+| `chvatal`                |  12 |  24 |      4 |     4 | no        |
+| `icosahedron`            |  12 |  30 |      5 |     3 | no        |
+| `tutte`                  |  46 |  69 |      3 |     4 | no        |
+| `moserSpindle`           |   7 |  11 |    3–4 |     3 | no        |
+| `grotzsch`               |  11 |  20 |    3–5 |     4 | no        |
+| `herschel`               |  11 |  18 |    3–4 |     4 | yes       |
+| `tietze`                 |  12 |  18 |      3 |     3 | no        |
+| `truncatedTetrahedron`   |  12 |  18 |      3 |     3 | no        |
+| `bidiakisCube`           |  12 |  18 |      3 |     4 | no        |
+| `robertson`              |  19 |  38 |      4 |     5 | no        |
+| `dyck`                   |  32 |  48 |      3 |     6 | yes       |
+| `balaban10Cage`          |  70 | 105 |      3 |    10 | yes       |
+| `cuboctahedron`          |  12 |  24 |      4 |     3 | no        |
+| `truncatedCube`          |  24 |  36 |      3 |     3 | no        |
+| `truncatedOctahedron`    |  24 |  36 |      3 |     4 | yes       |
+| `icosidodecahedron`      |  30 |  60 |      4 |     3 | no        |
+| `truncatedIcosahedron`   |  60 |  90 |      3 |     5 | no        |
+| `gray`                   |  54 |  81 |      3 |     8 | yes       |
+| `harries`                |  70 | 105 |      3 |    10 | yes       |
+| `harriesWong`            |  70 | 105 |      3 |    10 | yes       |
+| `foster`                 |  90 | 135 |      3 |    10 | yes       |
+| `balaban11Cage`          | 112 | 168 |      3 |    11 | no        |
+| `tutte12Cage`            | 126 | 189 |      3 |    12 | yes       |
+| `holt`                   |  27 |  54 |      4 |     5 | no        |
+| `flowerSnark`            |  20 |  30 |      3 |     5 | no        |
+| `biggsSmith`             | 102 | 153 |      3 |     9 | no        |
+| `ljubljana`              | 112 | 168 |      3 |    10 | yes       |
+| `triakisTetrahedron`     |   8 |  18 |    3–6 |     3 | no        |
+| `rhombicDodecahedron`    |  14 |  24 |    3–4 |     4 | yes       |
+| `triakisOctahedron`      |  14 |  36 |    3–8 |     3 | no        |
+| `tetrakisHexahedron`     |  14 |  36 |    4–6 |     3 | no        |
+| `rhombicTriacontahedron` |  32 |  60 |    3–5 |     4 | yes       |
+| `pentakisDodecahedron`   |  32 |  90 |    5–6 |     3 | no        |
 
 Three remarks on what is and is not here.
 
@@ -84,8 +90,10 @@ Three remarks on what is and is not here.
   `gp_four_one_iso_hypercube` identifies the cube as a generalized Petersen graph too.  Six of
   the thirteen Archimedean solids follow: the four truncations `truncatedTetrahedron`,
   `truncatedCube`, `truncatedOctahedron` and `truncatedIcosahedron` — the last being the football
-  — and the two rectifications `cuboctahedron` and `icosidodecahedron`.  `herschel` is the
-  smallest non-Hamiltonian polyhedron.
+  — and the two rectifications `cuboctahedron` and `icosidodecahedron`.  Their six duals, the
+  Catalan solids `triakisTetrahedron`, `triakisOctahedron`, `tetrakisHexahedron`,
+  `pentakisDodecahedron`, `rhombicDodecahedron` and `rhombicTriacontahedron`, close the section.
+  `herschel` is the smallest non-Hamiltonian polyhedron.
 
 ## Proof style
 
@@ -1912,5 +1920,225 @@ theorem ljubljana_nb : ∀ a b : ljubljana.V, b ∈ ljubljanaNb a ↔ ljubljana.
       (by native_decide)
       (by native_decide)
       (by native_decide) hnac)
+
+/-! ## The Catalan solids
+
+The duals of the six Archimedean solids above, and so the six Catalan solids that go with
+them.  None is regular — that is the point of the duality, since a solid whose faces are all
+alike has vertices of two kinds — so each records a degree sequence in place of a degree.
+Two of them, the rhombic dodecahedron and the rhombic triacontahedron, are the duals of the
+two quasiregular solids, and they are exactly the two that are bipartite: their vertices are
+those of a Platonic solid together with those of its dual, and every edge runs between the
+two.
+
+Each is computed as the face-adjacency graph of the corresponding Archimedean solid, then
+renumbered breadth-first so that the back-edge certificate applies. -/
+
+/-- The edges of the triakis tetrahedron. -/
+def triakisTetrahedronEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (2, 3), (2, 4), (2, 6), (2, 7),
+   (3, 5), (3, 6), (3, 7), (4, 6), (5, 6), (6, 7)]
+
+/-- The triakis tetrahedron: a tetrahedron with a triangular pyramid raised on each face, and the
+dual of the truncated tetrahedron. -/
+abbrev triakisTetrahedron : CGraph := ofEdges 8 triakisTetrahedronEdges
+
+/-- The edges of the rhombic dodecahedron. -/
+def rhombicDodecahedronEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (1, 4), (1, 5), (1, 6), (2, 4), (2, 7), (2, 8), (3, 6), (3, 8), (3, 9),
+   (4, 10), (5, 10), (5, 11), (6, 11), (7, 10), (7, 12), (8, 12), (9, 11), (9, 12), (10, 13),
+   (11, 13), (12, 13)]
+
+/-- The rhombic dodecahedron, dual to the cuboctahedron: twelve rhombic faces, and the vertices of
+a cube together with those of an octahedron, no two of a kind adjacent. -/
+abbrev rhombicDodecahedron : CGraph := ofEdges 14 rhombicDodecahedronEdges
+
+/-- The edges of the triakis octahedron. -/
+def triakisOctahedronEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (2, 3), (2, 4),
+   (2, 7), (2, 9), (2, 10), (2, 11), (3, 5), (3, 8), (3, 10), (3, 11), (3, 12), (4, 7), (5, 8),
+   (6, 7), (6, 8), (7, 8), (7, 9), (7, 11), (7, 13), (8, 11), (8, 12), (8, 13), (9, 11), (10, 11),
+   (11, 12), (11, 13)]
+
+/-- The triakis octahedron, dual to the truncated cube: an octahedron with a pyramid raised on
+each face. -/
+abbrev triakisOctahedron : CGraph := ofEdges 14 triakisOctahedronEdges
+
+/-- The edges of the tetrakis hexahedron. -/
+def tetrakisHexahedronEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (0, 4), (1, 2), (1, 3), (1, 5), (1, 6), (1, 7), (2, 4), (2, 5), (2, 8),
+   (2, 9), (3, 4), (3, 6), (3, 10), (3, 11), (4, 8), (4, 11), (4, 12), (5, 7), (5, 9), (6, 7),
+   (6, 10), (7, 9), (7, 10), (7, 13), (8, 9), (8, 12), (9, 12), (9, 13), (10, 11), (10, 12),
+   (10, 13), (11, 12), (12, 13)]
+
+/-- The tetrakis hexahedron, dual to the truncated octahedron: a cube with a pyramid raised on
+each face.  It is also the barycentric-free subdivision that gives the Delaunay triangulation
+of the body-centred cubic lattice. -/
+abbrev tetrakisHexahedron : CGraph := ofEdges 14 tetrakisHexahedronEdges
+
+/-- The edges of the rhombic triacontahedron. -/
+def rhombicTriacontahedronEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 6), (1, 7), (2, 6), (2, 8), (3, 7), (3, 9), (4, 8),
+   (4, 10), (5, 9), (5, 10), (6, 11), (6, 12), (6, 13), (7, 11), (7, 14), (7, 15), (8, 13), (8, 16),
+   (8, 17), (9, 15), (9, 18), (9, 19), (10, 17), (10, 19), (10, 20), (11, 21), (12, 21), (12, 22),
+   (13, 22), (14, 21), (14, 23), (15, 23), (16, 22), (16, 24), (17, 24), (18, 23), (18, 25),
+   (19, 25), (20, 24), (20, 25), (21, 26), (21, 27), (22, 26), (22, 28), (23, 27), (23, 29),
+   (24, 28), (24, 30), (25, 29), (25, 30), (26, 31), (27, 31), (28, 31), (29, 31), (30, 31)]
+
+/-- The rhombic triacontahedron, dual to the icosidodecahedron: thirty golden rhombi, on the
+vertices of a dodecahedron together with those of an icosahedron. -/
+abbrev rhombicTriacontahedron : CGraph := ofEdges 32 rhombicTriacontahedronEdges
+
+/-- The edges of the pentakis dodecahedron. -/
+def pentakisDodecahedronEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 2), (1, 4), (1, 6), (1, 7), (1, 8), (2, 5), (2, 6),
+   (2, 9), (2, 10), (3, 4), (3, 5), (3, 11), (3, 12), (3, 13), (4, 7), (4, 12), (4, 14), (5, 9),
+   (5, 11), (5, 15), (6, 8), (6, 10), (6, 16), (7, 8), (7, 14), (7, 17), (8, 16), (8, 17), (8, 18),
+   (9, 10), (9, 15), (9, 19), (10, 16), (10, 19), (10, 20), (11, 13), (11, 15), (11, 21), (12, 13),
+   (12, 14), (12, 22), (13, 21), (13, 22), (13, 23), (14, 17), (14, 22), (14, 24), (15, 19),
+   (15, 21), (15, 25), (16, 18), (16, 20), (16, 26), (17, 18), (17, 24), (17, 27), (18, 26),
+   (18, 27), (19, 20), (19, 25), (19, 28), (20, 26), (20, 28), (21, 23), (21, 25), (21, 29),
+   (22, 23), (22, 24), (22, 30), (23, 29), (23, 30), (24, 27), (24, 30), (25, 28), (25, 29),
+   (26, 27), (26, 28), (26, 31), (27, 30), (27, 31), (28, 29), (28, 31), (29, 30), (29, 31),
+   (30, 31)]
+
+/-- The pentakis dodecahedron, dual to the truncated icosahedron: a dodecahedron with a pentagonal
+pyramid raised on each face. -/
+abbrev pentakisDodecahedron : CGraph := ofEdges 32 pentakisDodecahedronEdges
+
+@[simp] theorem card_triakisTetrahedron : Fintype.card triakisTetrahedron.V = 8 := card_ofEdges _ _
+
+@[simp] theorem E_triakisTetrahedron : triakisTetrahedron.E = 18 := by native_decide
+
+@[simp] theorem degSequence_triakisTetrahedron :
+    triakisTetrahedron.degSequence = [3, 3, 3, 3, 6, 6, 6, 6] := by native_decide
+
+@[simp] theorem isConnected_triakisTetrahedron : triakisTetrahedron.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 8)) (by norm_num) (by native_decide)
+
+/-- The triakis tetrahedron has triangular faces. -/
+@[simp] theorem not_isBipartite_triakisTetrahedron : ¬ triakisTetrahedron.IsBipartite :=
+  not_isBipartite_of_triangle (a := vtx 8 0) (b := vtx 8 2) (d := vtx 8 1)
+    (by decide) (by decide) (by decide)
+
+/-- The triakis tetrahedron has girth three: `0 - 2 - 1 - 0` is a triangle. -/
+@[simp] theorem girth_triakisTetrahedron : triakisTetrahedron.girth = 3 :=
+  girth_eq_three_of_triangle (a := vtx 8 0) (b := vtx 8 2) (c := vtx 8 1)
+    (by decide) (by decide) (by decide)
+
+@[simp] theorem card_rhombicDodecahedron : Fintype.card rhombicDodecahedron.V = 14 :=
+  card_ofEdges _ _
+
+@[simp] theorem E_rhombicDodecahedron : rhombicDodecahedron.E = 24 := by native_decide
+
+@[simp] theorem degSequence_rhombicDodecahedron :
+    rhombicDodecahedron.degSequence = [3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4] := by native_decide
+
+@[simp] theorem isConnected_rhombicDodecahedron : rhombicDodecahedron.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 14)) (by norm_num) (by native_decide)
+
+@[simp] theorem isBipartite_rhombicDodecahedron : rhombicDodecahedron.IsBipartite :=
+  ⟨fun v ↦ decide (v.1 ∈ [0, 4, 5, 6, 7, 8, 9, 13]), by native_decide⟩
+
+/-- The rhombic dodecahedron has girth four: its faces are rhombi. -/
+@[simp] theorem girth_rhombicDodecahedron : rhombicDodecahedron.girth = 4 := by
+  have hnac : ¬ rhombicDodecahedron.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 14 0) [vtx 14 2, vtx 14 4, vtx 14 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hcyc : rhombicDodecahedron.girth ≤ 4 :=
+    girth_le_of_cycleList
+      (vtx 14 0) [vtx 14 2, vtx 14 4, vtx 14 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
+
+@[simp] theorem card_triakisOctahedron : Fintype.card triakisOctahedron.V = 14 := card_ofEdges _ _
+
+@[simp] theorem E_triakisOctahedron : triakisOctahedron.E = 36 := by native_decide
+
+@[simp] theorem degSequence_triakisOctahedron :
+    triakisOctahedron.degSequence = [3, 3, 3, 3, 3, 3, 3, 3, 8, 8, 8, 8, 8, 8] := by native_decide
+
+@[simp] theorem isConnected_triakisOctahedron : triakisOctahedron.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 14)) (by norm_num) (by native_decide)
+
+/-- The triakis octahedron has triangular faces. -/
+@[simp] theorem not_isBipartite_triakisOctahedron : ¬ triakisOctahedron.IsBipartite :=
+  not_isBipartite_of_triangle (a := vtx 14 0) (b := vtx 14 2) (d := vtx 14 1)
+    (by decide) (by decide) (by decide)
+
+/-- The triakis octahedron has girth three: `0 - 2 - 1 - 0` is a triangle. -/
+@[simp] theorem girth_triakisOctahedron : triakisOctahedron.girth = 3 :=
+  girth_eq_three_of_triangle (a := vtx 14 0) (b := vtx 14 2) (c := vtx 14 1)
+    (by decide) (by decide) (by decide)
+
+@[simp] theorem card_tetrakisHexahedron : Fintype.card tetrakisHexahedron.V = 14 := card_ofEdges _ _
+
+@[simp] theorem E_tetrakisHexahedron : tetrakisHexahedron.E = 36 := by native_decide
+
+@[simp] theorem degSequence_tetrakisHexahedron :
+    tetrakisHexahedron.degSequence = [4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6] := by native_decide
+
+@[simp] theorem isConnected_tetrakisHexahedron : tetrakisHexahedron.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 14)) (by norm_num) (by native_decide)
+
+/-- The tetrakis hexahedron has triangular faces. -/
+@[simp] theorem not_isBipartite_tetrakisHexahedron : ¬ tetrakisHexahedron.IsBipartite :=
+  not_isBipartite_of_triangle (a := vtx 14 0) (b := vtx 14 2) (d := vtx 14 1)
+    (by decide) (by decide) (by decide)
+
+/-- The tetrakis hexahedron has girth three: `0 - 2 - 1 - 0` is a triangle. -/
+@[simp] theorem girth_tetrakisHexahedron : tetrakisHexahedron.girth = 3 :=
+  girth_eq_three_of_triangle (a := vtx 14 0) (b := vtx 14 2) (c := vtx 14 1)
+    (by decide) (by decide) (by decide)
+
+@[simp] theorem card_rhombicTriacontahedron : Fintype.card rhombicTriacontahedron.V = 32 :=
+  card_ofEdges _ _
+
+@[simp] theorem E_rhombicTriacontahedron : rhombicTriacontahedron.E = 60 := by native_decide
+
+@[simp] theorem degSequence_rhombicTriacontahedron :
+    rhombicTriacontahedron.degSequence = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5] := by native_decide
+
+@[simp] theorem isConnected_rhombicTriacontahedron : rhombicTriacontahedron.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 32)) (by norm_num) (by native_decide)
+
+@[simp] theorem isBipartite_rhombicTriacontahedron : rhombicTriacontahedron.IsBipartite :=
+  ⟨fun v ↦ decide (v.1 ∈ [0, 6, 7, 8, 9, 10, 21, 22, 23, 24, 25, 31]), by native_decide⟩
+
+/-- The rhombic triacontahedron has girth four: its faces are rhombi. -/
+@[simp] theorem girth_rhombicTriacontahedron : rhombicTriacontahedron.girth = 4 := by
+  have hnac : ¬ rhombicTriacontahedron.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 32 0) [vtx 32 2, vtx 32 6, vtx 32 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hcyc : rhombicTriacontahedron.girth ≤ 4 :=
+    girth_le_of_cycleList
+      (vtx 32 0) [vtx 32 2, vtx 32 6, vtx 32 1]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
+
+@[simp] theorem card_pentakisDodecahedron : Fintype.card pentakisDodecahedron.V = 32 :=
+  card_ofEdges _ _
+
+@[simp] theorem E_pentakisDodecahedron : pentakisDodecahedron.E = 90 := by native_decide
+
+@[simp] theorem degSequence_pentakisDodecahedron :
+    pentakisDodecahedron.degSequence = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6] := by native_decide
+
+@[simp] theorem isConnected_pentakisDodecahedron : pentakisDodecahedron.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 32)) (by norm_num) (by native_decide)
+
+/-- The pentakis dodecahedron has triangular faces. -/
+@[simp] theorem not_isBipartite_pentakisDodecahedron : ¬ pentakisDodecahedron.IsBipartite :=
+  not_isBipartite_of_triangle (a := vtx 32 0) (b := vtx 32 2) (d := vtx 32 1)
+    (by decide) (by decide) (by decide)
+
+/-- The pentakis dodecahedron has girth three: `0 - 2 - 1 - 0` is a triangle. -/
+@[simp] theorem girth_pentakisDodecahedron : pentakisDodecahedron.girth = 3 :=
+  girth_eq_three_of_triangle (a := vtx 32 0) (b := vtx 32 2) (c := vtx 32 1)
+    (by decide) (by decide) (by decide)
 
 end NamedGraphs

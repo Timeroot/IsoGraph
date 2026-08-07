@@ -3881,6 +3881,7 @@ generalized Petersen graphs `GP(n, k)` — and the rest are edge lists.
 | `icosahedron`, `tutte`, `moserSpindle`, `grotzsch` | Platonic solid, Tait's conjecture refuted, Hadwiger–Nelson, Mycielski |
 | `herschel` | the smallest non-Hamiltonian polyhedron |
 | `truncatedTetrahedron`, `cuboctahedron`, `truncatedCube`, `truncatedOctahedron`, `icosidodecahedron`, `truncatedIcosahedron` | six Archimedean solids: four truncations and two rectifications, the last being the football |
+| `triakisTetrahedron`, `triakisOctahedron`, `tetrakisHexahedron`, `pentakisDodecahedron`, `rhombicDodecahedron`, `rhombicTriacontahedron` | their duals, the matching six Catalan solids; the two rhombic ones are bipartite |
 | `tietze`, `bidiakisCube`, `dyck` | six mutually adjacent regions on the Möbius strip, a cube with two chorded faces, the cubic symmetric graph on 32 vertices |
 | `robertson`, `balaban10Cage`, `balaban11Cage`, `tutte12Cage` | the `(4,5)`-cage, and the cubic cages of girth 10, 11 and 12 |
 | `harries`, `harriesWong` | the other two `(3,10)`-cages, told apart from `balaban10Cage` by `\|Aut\|` = 120, 24, 80 |
