@@ -4192,11 +4192,25 @@ theorem int_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty 
 Feeding it the two roots of the quadratic gives the textbook form,
 `isSquare_discrim_or_conference_of_isSRGWith`: the discriminant `(ℓ - μ)² + 4 (k - μ)` is a
 perfect square, unless the parameters are of *conference* type. Both branches occur among the
-graphs of `SRG.lean`: the Paley graphs are conference graphs — `paley 13` is an
-`srg(13, 6, 2, 3)` with `2·6 + 12·(2 - 3) = 0` and eigenvalues `(-1 ± √13) / 2` — while every
-other family in the table has a square discriminant and integer eigenvalues. This is the
-condition that rules out most candidate parameter sets, and it is the reason the search for
-Moore graphs of degree `57` is a search rather than a construction.
+graphs of `SRG.lean`: the Paley graphs are conference graphs, while every other family in the
+table has a square discriminant and integer eigenvalues. This is the condition that rules out
+most candidate parameter sets, and it is the reason the search for Moore graphs of degree `57` is
+a search rather than a construction.
+
+The conference case is worked out in full, and it is the one spectrum here that is irrational:
+
+```lean
+theorem spectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).spectrum
+      = (2 * (t : ℝ)) ::ₘ
+        (Multiset.replicate (2 * t) ((-1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2)
+          + Multiset.replicate (2 * t) ((-1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2))
+```
+
+`P(q)` is an `srg(q, (q-1)/2, (q-5)/4, (q-1)/4)`, so `ℓ - μ = -1` and `k - μ = (q-1)/4`: the two
+roots of `x² + x - (q-1)/4` are `(-1 ± √q) / 2`. Nothing extra is needed to pin the
+multiplicities down — the trace condition `k + f r + g s = 0` collapses to `(f - g) √q = 0`, and
+`√q > 0` forces `f = g = (q-1)/2`. For `q = 13` that is `6, ((-1 + √13)/2)⁶, ((-1 - √13)/2)⁶`.
 
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation

@@ -147,6 +147,9 @@ and a rational eigenvalue of a graph is an integer, since `charpoly` is a monic 
 `2 k + (n - 1) (ℓ - μ) = 0`, the conference graphs — the Paley graphs are the standard examples.
 `isSquare_discrim_or_conference_of_isSRGWith` restates it as the textbook dichotomy: either the
 discriminant `(ℓ - μ) ² + 4 (k - μ)` is a perfect square, or the parameters are of conference type.
+`spectrum_paley` is the conference case worked out: for a prime `q = 4t + 1` the Paley graph has
+spectrum `2t, ((-1 + √q) / 2)^(2t), ((-1 - √q) / 2)^(2t)`, and the equal multiplicities are forced
+by the trace condition itself, which reads `(f - g) √q = 0`.
 
 ## The Smith family and ADE
 
@@ -1670,6 +1673,52 @@ theorem spectrum_triangular (m : ℕ) :
   have hfn : f = m + 3 := by exact_mod_cast hf
   have hgn : g = (m + 4).choose 2 - (m + 4) := by omega
   rw [h3, hfn, hgn]
+  push_cast
+  ring_nf
+
+/-- **The spectrum of the Paley graph** `P(q)` for a prime `q = 4t + 1`: the degree `2t` once, and
+the two conjugates `(-1 ± √q) / 2`, each with multiplicity `2t`.  This is the conference case of
+`int_or_conference_of_isSRGWith` — the one family here whose eigenvalues are irrational, and the
+reason the two multiplicities have to agree: `k + f r + g s = 0` reads `(f - g) √q = 0`. -/
+theorem spectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).spectrum
+      = (2 * (t : ℝ)) ::ₘ
+        (Multiset.replicate (2 * t) ((-1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2)
+          + Multiset.replicate (2 * t) ((-1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2)) := by
+  haveI : NeZero (4 * t + 1) := ⟨by omega⟩
+  have hsrg := isSRGWith_paley (4 * t + 1) (by omega)
+  rw [show (4 * t + 1 - 1) / 2 = 2 * t from by omega,
+    show (4 * t + 1 - 5) / 4 = t - 1 from by omega,
+    show (4 * t + 1 - 1) / 4 = t from by omega] at hsrg
+  haveI : Nonempty (paley (4 * t + 1)).V :=
+    Fintype.card_pos_iff.1 (by rw [hsrg.card]; omega)
+  obtain ⟨q, hq⟩ : ∃ q : ℝ, q = Real.sqrt (4 * (t : ℝ) + 1) := ⟨_, rfl⟩
+  have hq0 : 0 < q := by
+    rw [hq]
+    exact Real.sqrt_pos.2 (by positivity)
+  have hqsq : q ^ 2 = 4 * (t : ℝ) + 1 := by
+    rw [hq]
+    exact Real.sq_sqrt (by positivity)
+  have hcast : ((t - 1 : ℕ) : ℝ) = (t : ℝ) - 1 := by
+    rw [Nat.cast_sub ht]
+    norm_num
+  obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega)
+    (r := (-1 + q) / 2) (s := (-1 - q) / 2)
+    (by rw [hcast]; ring)
+    (by push_cast; linear_combination (-1 / 4 : ℝ) * hqsq)
+    (by intro hc; linarith)
+  have h1' : (f : ℝ) + g + 1 = 4 * (t : ℝ) + 1 := by exact_mod_cast h1
+  push_cast at h2
+  have hkey : ((f : ℝ) - g) * q = 0 := by linear_combination 2 * h2 + h1'
+  have hfg : (f : ℝ) = g := by
+    rcases mul_eq_zero.1 hkey with hc | hc
+    · linarith
+    · linarith
+  have hfR : (f : ℝ) = 2 * t := by linarith
+  have hgR : (g : ℝ) = 2 * t := by linarith
+  have hf : f = 2 * t := by exact_mod_cast hfR
+  have hg : g = 2 * t := by exact_mod_cast hgR
+  rw [h3, hf, hg, hq]
   push_cast
   ring_nf
 
