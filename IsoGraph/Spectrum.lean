@@ -52,6 +52,19 @@ isomorphism (`Cospectral.of_iso`) and it implies equality of `V` and of `E`.  A 
 be: `isDS_empty` and `isDS_complete`, the latter by squeezing the degree sequence between
 `sum_sq_spectrum` and `SimpleGraph.degree_lt_card_verts`.
 
+## The extreme eigenvalues and the Rayleigh quotient
+
+`lambdaMax` and `lambdaMin` are the largest and smallest eigenvalue of a nonempty graph.
+`exists_orthogonal_diagonal` sharpens `exists_conj_diagonal` to an *orthogonal* conjugation, which
+turns the quadratic form into a weighted sum of squares in rotated coordinates
+(`exists_rotate_quadratic`) and so gives the two halves of the variational principle,
+`lambdaMin_mul_le_rayleigh` and `rayleigh_le_lambdaMax`, both attained
+(`exists_rayleigh_eq_lambdaMax`).  Test vectors then read off bounds: the all-ones vector gives
+`avg_degree_le_lambdaMax` (`2 E ≤ λ_max · V`), and `e u ± e v` across an edge gives
+`one_le_lambdaMax` and `lambdaMin_le_neg_one`.  From the other side,
+`abs_le_maxDeg_of_mem_spectrum` bounds every eigenvalue by the maximum degree, by evaluating the
+eigenvector equation where the eigenvector is largest.
+
 ## Line graphs
 
 `transpose_mul_incMat` factors the line graph through the incidence matrix `incMat`, as
@@ -1378,6 +1391,188 @@ theorem lambdaMin_nonpos (G : CGraph) [Nonempty G.V] : G.lambdaMin ≤ 0 := by
     Finset.sum_lt_sum_of_nonempty Finset.univ_nonempty fun i _ ↦
       lt_of_lt_of_le h (Finset.inf'_le _ (Finset.mem_univ i))
   simp [hsum] at hlt
+
+/-- **Every eigenvalue is bounded in absolute value by the maximum degree.**  Evaluate the
+eigenvector equation at a coordinate where `|v|` is largest. -/
+theorem abs_le_maxDeg_of_isEigenvalue {G : CGraph} {x : ℝ} (h : G.IsEigenvalue x) :
+    |x| ≤ (G.maxDeg : ℝ) := by
+  classical
+  obtain ⟨u, hu0, hu⟩ := h
+  obtain ⟨i₀, hi₀⟩ := Function.ne_iff.1 hu0
+  obtain ⟨p, -, hp⟩ :=
+    Finset.exists_max_image (Finset.univ : Finset G.V) (fun i ↦ |u i|) ⟨i₀, Finset.mem_univ i₀⟩
+  have hup : 0 < |u p| := lt_of_lt_of_le (abs_pos.2 hi₀) (hp i₀ (Finset.mem_univ i₀))
+  have hrow : ∑ j, G.adjMat p j = (G.toSimple.degree p : ℝ) := by
+    have h1 : (G.adjMat *ᵥ (1 : G.V → ℝ)) p = (G.toSimple.degree p : ℝ) := by
+      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
+    simpa [Matrix.mulVec, dotProduct] using h1
+  have e : x * u p = ∑ j, G.adjMat p j * u j := by
+    have h2 := congrFun hu p
+    simpa [Matrix.mulVec, dotProduct] using h2.symm
+  have key : |x| * |u p| ≤ (G.maxDeg : ℝ) * |u p| := by
+    calc |x| * |u p| = |x * u p| := (abs_mul _ _).symm
+      _ = |∑ j, G.adjMat p j * u j| := by rw [e]
+      _ ≤ ∑ j, |G.adjMat p j * u j| := Finset.abs_sum_le_sum_abs _ _
+      _ = ∑ j, G.adjMat p j * |u j| := by
+            refine Finset.sum_congr rfl fun j _ ↦ ?_
+            rw [abs_mul, abs_of_nonneg (G.adjMat_nonneg p j)]
+      _ ≤ ∑ j, G.adjMat p j * |u p| :=
+            Finset.sum_le_sum fun j _ ↦
+              mul_le_mul_of_nonneg_left (hp j (Finset.mem_univ j)) (G.adjMat_nonneg p j)
+      _ = (G.toSimple.degree p : ℝ) * |u p| := by rw [← Finset.sum_mul, hrow]
+      _ ≤ (G.maxDeg : ℝ) * |u p| :=
+            mul_le_mul_of_nonneg_right
+              (by exact_mod_cast G.toSimple.degree_le_maxDegree p) (abs_nonneg _)
+  exact le_of_mul_le_mul_right key hup
+
+theorem abs_le_maxDeg_of_mem_spectrum {G : CGraph} {x : ℝ} (hx : x ∈ G.spectrum) :
+    |x| ≤ (G.maxDeg : ℝ) :=
+  abs_le_maxDeg_of_isEigenvalue ((G.mem_spectrum_iff x).1 hx)
+
+theorem neg_maxDeg_le_lambdaMin (G : CGraph) [Nonempty G.V] : -(G.maxDeg : ℝ) ≤ G.lambdaMin :=
+  (le_lambdaMin_iff G).2 fun _ hx ↦ neg_le_of_abs_le (abs_le_maxDeg_of_mem_spectrum hx)
+
+theorem abs_lambdaMin_le_maxDeg (G : CGraph) [Nonempty G.V] : |G.lambdaMin| ≤ (G.maxDeg : ℝ) :=
+  abs_le_maxDeg_of_mem_spectrum (lambdaMin_mem_spectrum G)
+
+/-- Each `eigenvalues i` is a member of the spectrum. -/
+theorem eigenvalues_mem_spectrum (G : CGraph) (i : G.V) : G.eigenvalues i ∈ G.spectrum := by
+  rw [spectrum_eq_map, Multiset.mem_map]
+  exact ⟨i, Finset.mem_univ_val i, rfl⟩
+
+/-- A real symmetric matrix is orthogonally diagonalisable: there is an orthogonal `U` with
+`Uᵀ A U` the diagonal matrix of eigenvalues. -/
+theorem exists_orthogonal_diagonal (G : CGraph) :
+    ∃ U : Matrix G.V G.V ℝ, Uᵀ * U = 1 ∧ U * Uᵀ = 1 ∧
+      Uᵀ * G.adjMat * U = Matrix.diagonal G.eigenvalues := by
+  have hA := G.isHermitian_adjMat
+  set U : Matrix G.V G.V ℝ := ↑hA.eigenvectorUnitary with hUdef
+  have hU : U ∈ unitary (Matrix G.V G.V ℝ) := hA.eigenvectorUnitary.2
+  have hst : Star.star U * G.adjMat * U = Matrix.diagonal G.eigenvalues := by
+    have h := hA.conjStarAlgAut_star_eigenvectorUnitary
+    rw [Unitary.conjStarAlgAut_apply, Unitary.coe_star, star_star] at h
+    exact h
+  have hstar : Star.star U = Uᵀ := by
+    rw [Matrix.star_eq_conjTranspose, Matrix.conjTranspose_eq_transpose_of_trivial]
+  rw [hstar] at hst
+  refine ⟨U, ?_, ?_, hst⟩
+  · rw [← hstar]; exact hU.1
+  · rw [← hstar]; exact hU.2
+
+/-- **Diagonalising rotates the quadratic form into a weighted sum of squares.**  There are
+coordinates `w`, of the same length as `v`, in which `⟪v, A v⟫ = ∑ λ i * w i ^ 2`. -/
+theorem exists_rotate_quadratic (G : CGraph) (v : G.V → ℝ) :
+    ∃ w : G.V → ℝ, v ⬝ᵥ (G.adjMat *ᵥ v) = ∑ i, G.eigenvalues i * w i ^ 2 ∧
+      v ⬝ᵥ v = ∑ i, w i ^ 2 := by
+  obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_diagonal
+  refine ⟨Uᵀ *ᵥ v, ?_, ?_⟩
+  · have hA : G.adjMat = U * Matrix.diagonal G.eigenvalues * Uᵀ := by
+      rw [← hD]
+      calc G.adjMat = U * Uᵀ * G.adjMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
+        _ = U * (Uᵀ * G.adjMat * U) * Uᵀ := by simp only [mul_assoc]
+    rw [hA, show (U * Matrix.diagonal G.eigenvalues * Uᵀ) *ᵥ v
+          = U *ᵥ (Matrix.diagonal G.eigenvalues *ᵥ (Uᵀ *ᵥ v)) by
+        simp only [Matrix.mulVec_mulVec, mul_assoc],
+      dotProduct_mulVec, show v ᵥ* U = Uᵀ *ᵥ v by
+        rw [← Matrix.vecMul_transpose, Matrix.transpose_transpose]]
+    simp only [dotProduct, Matrix.mulVec_diagonal]
+    exact Finset.sum_congr rfl fun i _ ↦ by ring
+  · have hn : (Uᵀ *ᵥ v) ⬝ᵥ (Uᵀ *ᵥ v) = v ⬝ᵥ v := by
+      rw [dotProduct_mulVec, show (Uᵀ *ᵥ v) ᵥ* Uᵀ = U *ᵥ (Uᵀ *ᵥ v) by
+        rw [Matrix.vecMul_transpose], Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
+    rw [← hn]
+    exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+
+/-- **The Rayleigh quotient is bounded above by the largest eigenvalue.** -/
+theorem rayleigh_le_lambdaMax (G : CGraph) [Nonempty G.V] (v : G.V → ℝ) :
+    v ⬝ᵥ (G.adjMat *ᵥ v) ≤ G.lambdaMax * (v ⬝ᵥ v) := by
+  obtain ⟨w, h1, h2⟩ := G.exists_rotate_quadratic v
+  rw [h1, h2, Finset.mul_sum]
+  exact Finset.sum_le_sum fun i _ ↦
+    mul_le_mul_of_nonneg_right (le_lambdaMax (G.eigenvalues_mem_spectrum i)) (sq_nonneg _)
+
+/-- **The Rayleigh quotient is bounded below by the smallest eigenvalue.** -/
+theorem lambdaMin_mul_le_rayleigh (G : CGraph) [Nonempty G.V] (v : G.V → ℝ) :
+    G.lambdaMin * (v ⬝ᵥ v) ≤ v ⬝ᵥ (G.adjMat *ᵥ v) := by
+  obtain ⟨w, h1, h2⟩ := G.exists_rotate_quadratic v
+  rw [h1, h2, Finset.mul_sum]
+  exact Finset.sum_le_sum fun i _ ↦
+    mul_le_mul_of_nonneg_right (lambdaMin_le (G.eigenvalues_mem_spectrum i)) (sq_nonneg _)
+
+/-- The Rayleigh quotient of `e u + s • e v` across an edge: the quadratic form is `2 s` and the
+norm is `1 + s ^ 2`. -/
+private theorem rayleigh_pair {G : CGraph} {u v : G.V} (h : G.Adj u v) (s : ℝ) :
+    ∃ w : G.V → ℝ, w ⬝ᵥ (G.adjMat *ᵥ w) = 2 * s ∧ w ⬝ᵥ w = 1 + s ^ 2 := by
+  classical
+  have hne : u ≠ v := by rintro rfl; exact G.loopless u h
+  have huv : G.adjMat u v = 1 := by simp [adjMat_apply, h]
+  have hvu : G.adjMat v u = 1 := by simp [adjMat_apply, ← G.symm u v, h]
+  have huu : G.adjMat u u = 0 := by simp [adjMat_apply, G.loopless u]
+  have hvv : G.adjMat v v = 0 := by simp [adjMat_apply, G.loopless v]
+  refine ⟨fun x ↦ (if x = u then (1 : ℝ) else 0) + s * (if x = v then 1 else 0), ?_, ?_⟩
+  · have hAw : ∀ x, (G.adjMat *ᵥ fun y ↦ (if y = u then (1 : ℝ) else 0)
+        + s * (if y = v then 1 else 0)) x = G.adjMat x u + s * G.adjMat x v := fun x ↦ by
+      simp only [Matrix.mulVec, dotProduct, mul_add, Finset.sum_add_distrib, mul_ite, mul_one,
+        mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true, mul_comm s, ← mul_assoc]
+      rw [← Finset.sum_mul, Finset.sum_ite_eq' Finset.univ v (fun y ↦ G.adjMat x y)]
+      simp [mul_comm]
+    simp only [dotProduct, hAw, add_mul, Finset.sum_add_distrib, ite_mul, one_mul, zero_mul,
+      Finset.sum_ite_eq', Finset.mem_univ, if_true, mul_assoc]
+    rw [← Finset.mul_sum,
+      Finset.sum_ite_eq' Finset.univ v (fun y ↦ G.adjMat y u + s * G.adjMat y v)]
+    simp only [if_true, Finset.mem_univ, huv, hvu, huu, hvv]
+    ring
+  · simp only [dotProduct, add_mul, mul_add, Finset.sum_add_distrib, ite_mul, mul_ite, one_mul,
+      zero_mul, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true, if_neg hne,
+      if_neg hne.symm]
+    ring
+
+/-- **A graph with an edge has an eigenvalue at least `1`.** -/
+theorem one_le_lambdaMax {G : CGraph} [Nonempty G.V] {u v : G.V} (h : G.Adj u v) :
+    1 ≤ G.lambdaMax := by
+  obtain ⟨w, h1, h2⟩ := rayleigh_pair h 1
+  have := G.rayleigh_le_lambdaMax w
+  rw [h1, h2] at this
+  norm_num at this
+  linarith
+
+/-- **A graph with an edge has an eigenvalue at most `-1`.** -/
+theorem lambdaMin_le_neg_one {G : CGraph} [Nonempty G.V] {u v : G.V} (h : G.Adj u v) :
+    G.lambdaMin ≤ -1 := by
+  obtain ⟨w, h1, h2⟩ := rayleigh_pair h (-1)
+  have := G.lambdaMin_mul_le_rayleigh w
+  rw [h1, h2] at this
+  norm_num at this
+  linarith
+
+/-- **The largest eigenvalue is at least the average degree.** -/
+theorem avg_degree_le_lambdaMax (G : CGraph) [Nonempty G.V] :
+    2 * (G.E : ℝ) ≤ G.lambdaMax * Fintype.card G.V := by
+  classical
+  have hone : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (G.adjMat *ᵥ fun _ ↦ (1 : ℝ)) = 2 * (G.E : ℝ) := by
+    have hdeg : ∀ i, (G.adjMat *ᵥ fun _ : G.V ↦ (1 : ℝ)) i = (G.toSimple.degree i : ℝ) :=
+      fun i ↦ by simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
+    have hE : G.E = G.toSimple.edgeFinset.card := rfl
+    simp only [dotProduct, hdeg, one_mul]
+    rw [← Nat.cast_sum, SimpleGraph.sum_degrees_eq_twice_card_edges, hE]
+    push_cast
+    ring
+  have hnorm : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (fun _ ↦ (1 : ℝ)) = (Fintype.card G.V : ℝ) := by
+    simp [dotProduct, Finset.card_univ]
+  have := G.rayleigh_le_lambdaMax fun _ ↦ (1 : ℝ)
+  rwa [hone, hnorm] at this
+
+/-- The bound is attained: an eigenvector for the largest eigenvalue maximises the quotient. -/
+theorem exists_rayleigh_eq_lambdaMax (G : CGraph) [Nonempty G.V] :
+    ∃ v : G.V → ℝ, v ≠ 0 ∧ v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMax * (v ⬝ᵥ v) := by
+  obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 (lambdaMax_mem_spectrum G)
+  exact ⟨v, hv0, by rw [hv, dotProduct_smul, smul_eq_mul]⟩
+
+/-- The bound is attained: an eigenvector for the smallest eigenvalue minimises the quotient. -/
+theorem exists_rayleigh_eq_lambdaMin (G : CGraph) [Nonempty G.V] :
+    ∃ v : G.V → ℝ, v ≠ 0 ∧ v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMin * (v ⬝ᵥ v) := by
+  obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 (lambdaMin_mem_spectrum G)
+  exact ⟨v, hv0, by rw [hv, dotProduct_smul, smul_eq_mul]⟩
 
 /-- **The eigenvalues of a path are all `< 2`.** -/
 theorem lt_two_of_mem_spectrum_path (n : ℕ) {x : ℝ} (hx : x ∈ (path n).spectrum) : x < 2 := by

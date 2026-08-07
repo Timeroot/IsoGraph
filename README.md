@@ -4068,6 +4068,24 @@ restate Smith's two conditions. It sits between `0` (the eigenvalues sum to zero
 mirror image, an `inf'` with the same four lemmas, and it is where the line-graph bound lands:
 `-2 ≤ (lineGraph G).lambdaMin`.
 
+Both are pinned down by the **Rayleigh quotient**. `exists_orthogonal_diagonal` upgrades the
+spectral theorem to an orthogonal `U`, and in the rotated coordinates `w = Uᵀ v` the quadratic
+form is a weighted sum of squares, `⟪v, A v⟫ = ∑ λᵢ wᵢ²`, with `‖w‖ = ‖v‖`
+(`exists_rotate_quadratic`). Bounding each `λᵢ` gives the variational principle in both
+directions:
+
+```lean
+theorem rayleigh_le_lambdaMax (G : CGraph) [Nonempty G.V] (v : G.V → ℝ) :
+    v ⬝ᵥ (G.adjMat *ᵥ v) ≤ G.lambdaMax * (v ⬝ᵥ v)
+```
+
+and both bounds are attained, by an eigenvector. That makes every test vector a lower bound on
+`lambdaMax`: the all-ones vector gives `2 E ≤ lambdaMax * V`, so the largest eigenvalue is at
+least the average degree (`avg_degree_le_lambdaMax`), and `e u ± e v` across a single edge gives
+`one_le_lambdaMax` and `lambdaMin_le_neg_one`. Together with `abs_le_maxDeg_of_mem_spectrum` —
+proved the other way round, by evaluating `A u = x u` at a coordinate where `|u|` is largest —
+the whole spectrum is trapped in `[-Δ, Δ]` with `lambdaMax` no smaller than the average degree.
+
 ### Smith's family and ADE
 
 `IsSmith G` says the largest eigenvalue of `G` is exactly `2`; `IsSubcritical G` says every
