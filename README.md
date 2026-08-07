@@ -4060,7 +4060,10 @@ theorem spectrum_neg_of_isBipartite {G : CGraph} (h : G.IsBipartite) :
 because the diagonal sign matrix `S` of the bipartition satisfies `S A S = -A`, making `A`
 similar to minus itself. The moments are also what make cospectrality useful.
 `Cospectral G H` is equality of characteristic polynomials; it follows from
-isomorphism and implies equality of `V` and of `E`. `IsDS G`, *determined by its spectrum*, is
+isomorphism and implies equality of `V` and of `E`, and, by the third moment and by all of them
+at once, of the triangle count (`Cospectral.cliqueCount_three_eq`) and of the number of closed
+walks of each length (`Cospectral.sum_card_closedWalks_eq`).
+`IsDS G`, *determined by its spectrum*, is
 the converse for a fixed `G`, and it holds for two families:
 
 ```lean
@@ -4224,6 +4227,33 @@ all determined by the spectrum, that makes regularity a spectral property:
 ```lean
 theorem Cospectral.isRegularWith {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : H.IsRegularWith k
+```
+
+Once regularity is spectral, connectedness follows it. The bridge is the multiplicity of the
+degree: `exists_orthonormal_eigenbasis` repackages the orthogonal diagonalisation as a family of
+unit eigenvectors in which every vector expands, and an eigenvalue occurring once in the spectrum
+then has a one-dimensional eigenspace, because the expansion of an eigenvector for `c` is
+supported on the indices carrying `c`:
+
+```lean
+theorem exists_smul_of_count_spectrum_eq_one {G : CGraph} {c : ℝ}
+    (hc : G.spectrum.count c = 1) {u v : G.V → ℝ} (hu : G.adjMat *ᵥ u = c • u) (hu0 : u ≠ 0)
+    (hv : G.adjMat *ᵥ v = c • v) : ∃ a : ℝ, v = a • u
+```
+
+For a `k`-regular graph the degree is a simple eigenvalue exactly when the graph is connected. If
+it is, every eigenvector for `k` is constant (`eq_of_mulVec_eq_of_isRegularWith`) and two
+orthonormal vectors cannot both be constant, since `⟪c 1, d 1⟫ = c d n`. If it is not, pick two
+unreachable vertices: the indicator of the component of the first is again an eigenvector for `k`
+— inside the component every neighbour is in it, outside none is — and it is not a multiple of
+the all-ones vector. So
+
+```lean
+theorem isConnected_iff_count_spectrum_eq_one {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k) :
+    G.IsConnected ↔ G.spectrum.count (k : ℝ) = 1
+
+theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) (hconn : G.IsConnected) : H.IsConnected
 ```
 
 The other side of the principle — bounding `⟪v, A v⟫` from below by `λ_min` — is what makes

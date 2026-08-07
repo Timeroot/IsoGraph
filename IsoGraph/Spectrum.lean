@@ -65,7 +65,9 @@ with a starting point and a direction.  The odd moments of a bipartite graph the
 and indeed `spectrum_neg_of_isBipartite` says the whole spectrum is symmetric about zero: the
 diagonal sign matrix of the bipartition conjugates `A` into `-A`.
 `Cospectral G H` is equality of characteristic polynomials; it is implied by
-isomorphism (`Cospectral.of_iso`) and it implies equality of `V` and of `E`.  A graph is
+isomorphism (`Cospectral.of_iso`) and it implies equality of `V` and of `E`, and — by the same
+moments — of the triangle count (`Cospectral.cliqueCount_three_eq`) and of the number of closed
+walks of every length (`Cospectral.sum_card_closedWalks_eq`).  A graph is
 *determined by its spectrum*, `IsDS`, when the converse holds for it.  Two families are proved to
 be: `isDS_empty` and `isDS_complete`, the latter by squeezing the degree sequence between
 `sum_sq_spectrum` and `SimpleGraph.degree_lt_card_verts`.
@@ -149,6 +151,18 @@ be the marks of the affine diagram gives the bound for both the affine diagram (
 the marks are literally the Perron eigenvector, `mulVec_affineE8` and friends) and the finite one
 it extends.  Strictness for the finite diagrams comes from `two_notMem_spectrum_*`: the linear
 system `A v = 2 v` forces `v = 0`, which is the nonsingularity of the Cartan matrix.
+
+## Connectedness of a regular graph
+
+`exists_orthonormal_eigenbasis` packages the orthogonal diagonalisation as a family of unit
+eigenvectors in which every vector expands, and `exists_smul_of_count_spectrum_eq_one` reads off
+the consequence of an eigenvalue occurring once: its eigenspace is a line, since the expansion of
+an eigenvector for `c` is supported on the indices carrying `c`.  For a `k`-regular graph that
+pins connectedness down, `isConnected_iff_count_spectrum_eq_one`.  In one direction an eigenvector
+for `k` on a connected graph is constant (`eq_of_mulVec_eq_of_isRegularWith`) and two orthonormal
+vectors cannot both be constant; in the other, if two vertices are unreachable then the indicator
+of a component is an eigenvector for `k` that is not a multiple of the all-ones vector.  Combined
+with `Cospectral.isRegularWith` this makes connectedness spectral as well: `Cospectral.isConnected`.
 
 ## Not proved here
 
@@ -1531,6 +1545,23 @@ theorem Cospectral.E_eq {G H : CGraph} (h : Cospectral G H) : G.E = H.E := by
     rw [← sum_sq_spectrum, ← sum_sq_spectrum, h.spectrum_eq]
   have : (G.E : ℝ) = H.E := by linarith
   exact_mod_cast this
+
+/-- **Cospectral graphs have the same number of triangles**, by the sum of the cubes of the
+eigenvalues. -/
+theorem Cospectral.cliqueCount_three_eq {G H : CGraph} (h : Cospectral G H) :
+    G.cliqueCount 3 = H.cliqueCount 3 := by
+  have h6 : (6 : ℝ) * G.cliqueCount 3 = 6 * H.cliqueCount 3 := by
+    rw [← sum_cube_spectrum, ← sum_cube_spectrum, h.spectrum_eq]
+  have : (G.cliqueCount 3 : ℝ) = H.cliqueCount 3 := by linarith
+  exact_mod_cast this
+
+/-- **Cospectral graphs have the same number of closed walks of every length**, since that count
+is the corresponding moment of the spectrum. -/
+theorem Cospectral.sum_card_closedWalks_eq {G H : CGraph} (h : Cospectral G H) (n : ℕ) :
+    ∑ v : G.V, (Fintype.card {w : G.toSimple.Walk v v // w.length = n} : ℝ)
+      = ∑ v : H.V, (Fintype.card {w : H.toSimple.Walk v v // w.length = n} : ℝ) := by
+  rw [← sum_pow_spectrum_eq_card_closedWalks, ← sum_pow_spectrum_eq_card_closedWalks,
+    h.spectrum_eq]
 
 /-- A graph is **determined by its spectrum** when every cospectral graph is isomorphic to it. -/
 def IsDS (G : CGraph) : Prop := ∀ H : CGraph, Cospectral G H → Nonempty (G ≃cg H)
@@ -3526,6 +3557,197 @@ theorem spectrum_compl_petersen :
   have hcard : Fintype.card SRG.petersen.V = 10 := SRG.petersen_srg.card
   rw [spectrum_compl_of_isRegularWith hconn hreg, hcard, spectrum_petersen]
   norm_num [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate]
+
+/-! ## Connectedness of a regular graph is spectral
+
+The degree of a `k`-regular graph is a simple eigenvalue exactly when the graph is connected: an
+eigenvector for `k` is constant on a connected graph, and the indicator of a component is a second
+one otherwise. -/
+
+/-- **An orthonormal eigenbasis.**  The columns of the orthogonal matrix diagonalising `A` form a
+family `e` of unit eigenvectors, pairwise orthogonal, in which every vector expands. -/
+theorem exists_orthonormal_eigenbasis (G : CGraph) :
+    ∃ e : G.V → G.V → ℝ,
+      (∀ i, G.adjMat *ᵥ e i = G.eigenvalues i • e i) ∧
+      (∀ i j, e i ⬝ᵥ e j = if i = j then 1 else 0) ∧
+      (∀ v : G.V → ℝ, v = ∑ i, (e i ⬝ᵥ v) • e i) := by
+  obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_diagonal
+  have hAU : G.adjMat * U = U * Matrix.diagonal G.eigenvalues := by
+    calc G.adjMat * U = U * Uᵀ * G.adjMat * U := by rw [hUU', one_mul]
+      _ = U * (Uᵀ * G.adjMat * U) := by simp only [mul_assoc]
+      _ = U * Matrix.diagonal G.eigenvalues := by rw [hD]
+  refine ⟨fun i x ↦ U x i, fun i ↦ funext fun x ↦ ?_, fun i j ↦ ?_, fun v ↦ funext fun x ↦ ?_⟩
+  · have h := congrFun (congrFun hAU x) i
+    simp only [Matrix.mul_apply, Matrix.diagonal_apply, mul_ite, mul_zero, Finset.sum_ite_eq',
+      Finset.mem_univ, if_true] at h
+    simpa [Matrix.mulVec, dotProduct, mul_comm] using h
+  · have h := congrFun (congrFun hUU i) j
+    simp only [Matrix.mul_apply, Matrix.transpose_apply, Matrix.one_apply] at h
+    simpa [dotProduct] using h
+  · have h : ∀ y, (if x = y then (1 : ℝ) else 0) = ∑ i, U x i * U y i := fun y ↦ by
+      have h' := congrFun (congrFun hUU' x) y
+      simp only [Matrix.mul_apply, Matrix.transpose_apply, Matrix.one_apply] at h'
+      exact h'.symm
+    calc v x = ∑ y, (if x = y then (1 : ℝ) else 0) * v y := by simp
+      _ = ∑ y, ∑ i, U x i * U y i * v y := by simp_rw [h, Finset.sum_mul]
+      _ = ∑ i, ∑ y, U x i * U y i * v y := Finset.sum_comm
+      _ = ∑ i, (∑ y, U y i * v y) * U x i := by
+          refine Finset.sum_congr rfl fun i _ ↦ ?_
+          rw [Finset.sum_mul]
+          exact Finset.sum_congr rfl fun y _ ↦ by ring
+      _ = _ := by simp [dotProduct]
+
+/-- The multiplicity of `c` in the spectrum counts the indices carrying the eigenvalue `c`. -/
+theorem count_spectrum (G : CGraph) (c : ℝ) :
+    G.spectrum.count c = (Finset.univ.filter fun i ↦ G.eigenvalues i = c).card := by
+  rw [spectrum_eq_map, Multiset.count_map]
+  simp [Finset.card, Finset.filter_val, eq_comm]
+
+/-- **A simple eigenvalue has a one-dimensional eigenspace**: if `c` occurs once in the spectrum
+then every eigenvector for `c` is a multiple of any fixed nonzero one.  Expanding in an
+orthonormal eigenbasis, the coordinates off the `c`-eigenspace vanish, and only one coordinate
+is left. -/
+theorem exists_smul_of_count_spectrum_eq_one {G : CGraph} {c : ℝ}
+    (hc : G.spectrum.count c = 1) {u v : G.V → ℝ} (hu : G.adjMat *ᵥ u = c • u) (hu0 : u ≠ 0)
+    (hv : G.adjMat *ᵥ v = c • v) : ∃ a : ℝ, v = a • u := by
+  obtain ⟨e, heig, -, hexp⟩ := G.exists_orthonormal_eigenbasis
+  have htrans : G.adjMatᵀ = G.adjMat := Matrix.ext fun i j ↦ adjMat_symm G j i
+  have hcoord : ∀ z : G.V → ℝ, G.adjMat *ᵥ z = c • z → ∀ i, G.eigenvalues i ≠ c →
+      e i ⬝ᵥ z = 0 := by
+    intro z hz i hi
+    have hvm : e i ᵥ* G.adjMat = G.eigenvalues i • e i := by
+      rw [show G.adjMat = G.adjMatᵀ from htrans.symm, Matrix.vecMul_transpose]
+      exact heig i
+    have h1 : e i ⬝ᵥ (G.adjMat *ᵥ z) = G.eigenvalues i * (e i ⬝ᵥ z) := by
+      rw [dotProduct_mulVec, hvm, smul_dotProduct, smul_eq_mul]
+    rw [hz, dotProduct_smul, smul_eq_mul] at h1
+    have h2 : (G.eigenvalues i - c) * (e i ⬝ᵥ z) = 0 := by linarith [h1]
+    rcases mul_eq_zero.1 h2 with h | h
+    · exact absurd (sub_eq_zero.1 h) hi
+    · exact h
+  rw [count_spectrum] at hc
+  obtain ⟨i0, hi0⟩ := Finset.card_eq_one.1 hc
+  have hsingle : ∀ z : G.V → ℝ, G.adjMat *ᵥ z = c • z → z = (e i0 ⬝ᵥ z) • e i0 := by
+    intro z hz
+    conv_lhs => rw [hexp z]
+    refine Finset.sum_eq_single i0 (fun i _ hi ↦ ?_) fun h ↦ absurd (Finset.mem_univ i0) h
+    have hne : G.eigenvalues i ≠ c := by
+      intro hEq
+      have hmem : i ∈ Finset.univ.filter fun j ↦ G.eigenvalues j = c :=
+        Finset.mem_filter.2 ⟨Finset.mem_univ i, hEq⟩
+      rw [hi0, Finset.mem_singleton] at hmem
+      exact hi hmem
+    rw [hcoord z hz i hne, zero_smul]
+  obtain ⟨b, hbdef⟩ : ∃ b : ℝ, b = e i0 ⬝ᵥ u := ⟨_, rfl⟩
+  obtain ⟨d, hddef⟩ : ∃ d : ℝ, d = e i0 ⬝ᵥ v := ⟨_, rfl⟩
+  have hu' : u = b • e i0 := by rw [hbdef]; exact hsingle u hu
+  have hv' : v = d • e i0 := by rw [hddef]; exact hsingle v hv
+  have hb : b ≠ 0 := by
+    intro h0
+    exact hu0 (by rw [hu', h0, zero_smul])
+  exact ⟨d / b, by rw [hv', hu', smul_smul, div_mul_cancel₀ _ hb]⟩
+
+/-- **The degree of a connected regular graph is a simple eigenvalue.**  Any eigenvector for `k`
+is constant, and two orthonormal ones cannot both be constant. -/
+theorem count_spectrum_eq_one_of_isConnected {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
+    (hreg : G.IsRegularWith k) : G.spectrum.count (k : ℝ) = 1 := by
+  haveI : Nonempty G.V := hconn.nonempty
+  obtain ⟨e, heig, hortho, -⟩ := G.exists_orthonormal_eigenbasis
+  have hn : (Fintype.card G.V : ℝ) ≠ 0 := by
+    exact_mod_cast Fintype.card_ne_zero
+  have hconst : ∀ i, G.eigenvalues i = (k : ℝ) → ∀ x y : G.V, e i x = e i y := by
+    intro i hi x y
+    refine eq_of_mulVec_eq_of_isRegularWith hconn hreg ?_ x y
+    rw [heig i, hi]
+  rw [count_spectrum]
+  refine le_antisymm (Finset.card_le_one.2 fun i hi j hj ↦ ?_) ?_
+  · rw [Finset.mem_filter] at hi hj
+    by_contra hne
+    have hdot : ∀ a b : G.V, (∀ x y : G.V, e a x = e a y) → (∀ x y : G.V, e b x = e b y) →
+        e a ⬝ᵥ e b = (Fintype.card G.V : ℝ) * (e a (Classical.arbitrary G.V) *
+          e b (Classical.arbitrary G.V)) := by
+      intro a b ha hb
+      simp only [dotProduct]
+      rw [Finset.sum_congr rfl fun x _ ↦ by
+        rw [ha x (Classical.arbitrary G.V), hb x (Classical.arbitrary G.V)]]
+      simp [Finset.card_univ, mul_comm]
+    have hii := hdot i i (hconst i hi.2) (hconst i hi.2)
+    have hij := hdot i j (hconst i hi.2) (hconst j hj.2)
+    rw [hortho i i, if_pos rfl] at hii
+    rw [hortho i j, if_neg hne] at hij
+    have hi0 : e i (Classical.arbitrary G.V) = 0 := by
+      rcases mul_eq_zero.1 (by linarith [hij] : (Fintype.card G.V : ℝ) *
+        (e i (Classical.arbitrary G.V) * e j (Classical.arbitrary G.V)) = 0) with h | h
+      · exact absurd h hn
+      · rcases mul_eq_zero.1 h with h' | h'
+        · exact h'
+        · exfalso
+          have hjj := hdot j j (hconst j hj.2) (hconst j hj.2)
+          rw [hortho j j, if_pos rfl] at hjj
+          rw [h'] at hjj
+          simp at hjj
+    rw [hi0] at hii
+    simp at hii
+  · rw [Finset.one_le_card]
+    have hk : G.lambdaMax = (k : ℝ) := lambdaMax_of_isRegularWith hreg
+    have hmem : (k : ℝ) ∈ G.spectrum := hk ▸ G.lambdaMax_mem_spectrum
+    rw [spectrum_eq_map, Multiset.mem_map] at hmem
+    obtain ⟨i, -, hi⟩ := hmem
+    exact ⟨i, Finset.mem_filter.2 ⟨Finset.mem_univ i, hi⟩⟩
+
+/-- **A regular graph whose degree is a simple eigenvalue is connected.**  Otherwise the
+indicator of a connected component is a second, non-constant eigenvector for `k`. -/
+theorem isConnected_of_count_spectrum_eq_one {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k)
+    (hc : G.spectrum.count (k : ℝ) = 1) : G.IsConnected := by
+  haveI : Nonempty G.V := by
+    rw [← Fintype.card_pos_iff, ← card_spectrum]
+    have h1 : 0 < Multiset.count (k : ℝ) G.spectrum := by omega
+    exact lt_of_lt_of_le h1 (Multiset.count_le_card _ _)
+  have hone : G.adjMat *ᵥ (1 : G.V → ℝ) = (k : ℝ) • (1 : G.V → ℝ) :=
+    (hasEigenvector_one_of_isRegularWith hreg).2
+  have hone0 : (1 : G.V → ℝ) ≠ 0 := fun h ↦ by
+    simpa using congrFun h (Classical.arbitrary G.V)
+  rw [IsConnected, SimpleGraph.connected_iff]
+  refine ⟨fun a b ↦ ?_, ‹Nonempty G.V›⟩
+  by_contra hnr
+  set z : G.V → ℝ := fun x ↦ if G.toSimple.Reachable a x then 1 else 0 with hzdef
+  have hz : G.adjMat *ᵥ z = (k : ℝ) • z := by
+    funext x
+    rw [show (G.adjMat *ᵥ z) x = ∑ y ∈ G.toSimple.neighborFinset x, z y from by
+      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]]
+    by_cases hx : G.toSimple.Reachable a x
+    · have hall : ∀ y ∈ G.toSimple.neighborFinset x, z y = 1 := by
+        intro y hy
+        have hy' : G.toSimple.Adj x y := (SimpleGraph.mem_neighborFinset _ _ _).1 hy
+        simp [hzdef, hx.trans hy'.reachable]
+      have hd : (G.toSimple.neighborFinset x).card = k := hreg x
+      rw [Finset.sum_congr rfl hall, Finset.sum_const, hd]
+      simp [hzdef, hx]
+    · have hall : ∀ y ∈ G.toSimple.neighborFinset x, z y = 0 := by
+        intro y hy
+        have hy' : G.toSimple.Adj x y := (SimpleGraph.mem_neighborFinset _ _ _).1 hy
+        have : ¬ G.toSimple.Reachable a y := fun h ↦ hx (h.trans hy'.symm.reachable)
+        simp [hzdef, this]
+      rw [Finset.sum_congr rfl hall, Finset.sum_const_zero]
+      simp [hzdef, hx]
+  obtain ⟨t, ht⟩ := exists_smul_of_count_spectrum_eq_one hc hone hone0 hz
+  have hza : z a = 1 := by simp [hzdef]
+  have hzb : z b = 0 := by simp [hzdef, hnr]
+  rw [ht] at hza hzb
+  simp only [Pi.smul_apply, Pi.one_apply, smul_eq_mul, mul_one] at hza hzb
+  exact absurd (hza.symm.trans hzb) one_ne_zero
+
+/-- **Connectedness of a regular graph is read off its spectrum**: the degree is a simple
+eigenvalue exactly for the connected ones. -/
+theorem isConnected_iff_count_spectrum_eq_one {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k) :
+    G.IsConnected ↔ G.spectrum.count (k : ℝ) = 1 :=
+  ⟨fun h ↦ count_spectrum_eq_one_of_isConnected h hreg, isConnected_of_count_spectrum_eq_one hreg⟩
+
+/-- **Connectedness is determined by the spectrum, for a regular graph.** -/
+theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) (hconn : G.IsConnected) : H.IsConnected :=
+  (isConnected_iff_count_spectrum_eq_one (h.isRegularWith hG)).2
+    (by rw [← h.spectrum_eq]; exact (isConnected_iff_count_spectrum_eq_one hG).1 hconn)
 
 end CGraph
 
