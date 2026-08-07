@@ -171,6 +171,12 @@ of `w` that fits under it leaves a nonnegative eigenvector with a zero coordinat
 (`exists_smul_of_mulVec_eq_lambdaMax`).  Two orthonormal eigenvectors for `λ_max` would then be
 nonzero multiples of the same `w`, so `λ_max` is simple: `count_spectrum_lambdaMax_eq_one`.
 
+The Perron vector also settles the equality case of `lambdaMax_le_maxDeg`: at a vertex where `w` is
+largest the eigenvector equation squeezes `Δ w x = ∑_{y ∼ x} w y ≤ deg x · w x ≤ Δ w x`, so that
+vertex has full degree and `w` is largest at all of its neighbours too; connectedness makes `w`
+constant and the equation then reads `deg x = Δ` everywhere.  So a connected graph has
+`λ_max = Δ` exactly when it is regular (`lambdaMax_eq_maxDeg_iff`).
+
 For a `k`-regular graph `λ_max = k`, so that pins connectedness down,
 `isConnected_iff_count_spectrum_eq_one`: if the graph is disconnected the indicator of a component
 is a second eigenvector for `k`, not a multiple of the all-ones vector.  Combined
@@ -3836,6 +3842,62 @@ theorem count_spectrum_lambdaMax_eq_one {G : CGraph} [Nonempty G.V] (hconn : G.I
     rw [spectrum_eq_map, Multiset.mem_map] at hmem
     obtain ⟨i, -, hi⟩ := hmem
     exact ⟨i, Finset.mem_filter.2 ⟨Finset.mem_univ i, hi⟩⟩
+
+/-- **A connected graph with `λ_max = Δ` is regular.**  At a vertex where the positive Perron
+vector `w` is largest, `Δ w x = ∑_{y ∼ x} w y ≤ deg x · w x ≤ Δ w x`, so `x` has full degree and
+`w` is again largest at every neighbour; connectedness makes `w` constant, and then the
+eigenvector equation reads `deg x = Δ` at every vertex. -/
+theorem isRegularWith_of_lambdaMax_eq_maxDeg {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected)
+    (h : G.lambdaMax = (G.maxDeg : ℝ)) : G.IsRegularWith G.maxDeg := by
+  classical
+  obtain ⟨w, hwpos, hw⟩ := exists_pos_mulVec_eq_lambdaMax hconn
+  have hnb : ∀ x : G.V, ∑ y ∈ G.toSimple.neighborFinset x, w y = (G.maxDeg : ℝ) * w x := by
+    intro x
+    have h1 := congrFun hw x
+    rw [show (G.adjMat *ᵥ w) x = ∑ y ∈ G.toSimple.neighborFinset x, w y from by
+      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply], h] at h1
+    simpa using h1
+  obtain ⟨x0, -, hx0⟩ := Finset.exists_max_image (Finset.univ : Finset G.V) w
+    ⟨Classical.arbitrary G.V, Finset.mem_univ _⟩
+  have hle : ∀ x : G.V, w x ≤ w x0 := fun x ↦ hx0 x (Finset.mem_univ x)
+  have hstep : ∀ x : G.V, w x = w x0 →
+      G.toSimple.degree x = G.maxDeg ∧ ∀ y ∈ G.toSimple.neighborFinset x, w y = w x0 := by
+    intro x hx
+    have hdle : G.toSimple.degree x ≤ G.maxDeg := G.degree_le_maxDeg x
+    have hsum : ∑ y ∈ G.toSimple.neighborFinset x, w y ≤ (G.toSimple.degree x : ℝ) * w x0 := by
+      rw [show (G.toSimple.degree x : ℝ) * w x0
+          = ∑ _y ∈ G.toSimple.neighborFinset x, w x0 from by
+        rw [Finset.sum_const, SimpleGraph.card_neighborFinset_eq_degree, nsmul_eq_mul]]
+      exact Finset.sum_le_sum fun y _ ↦ hle y
+    rw [hnb x, hx] at hsum
+    have hw0 : 0 < w x0 := hwpos x0
+    have hdeg : G.toSimple.degree x = G.maxDeg := by
+      have : (G.maxDeg : ℝ) ≤ (G.toSimple.degree x : ℝ) :=
+        le_of_mul_le_mul_right (by linarith [hsum]) hw0
+      exact le_antisymm hdle (by exact_mod_cast this)
+    refine ⟨hdeg, fun y hy ↦ ?_⟩
+    have hzero : ∑ z ∈ G.toSimple.neighborFinset x, (w x0 - w z) = 0 := by
+      rw [Finset.sum_sub_distrib, Finset.sum_const, SimpleGraph.card_neighborFinset_eq_degree,
+        hdeg, nsmul_eq_mul, hnb x, hx]
+      ring
+    have := (Finset.sum_eq_zero_iff_of_nonneg fun z _ ↦ sub_nonneg.2 (hle z)).1 hzero y hy
+    linarith [this]
+  have hconst : ∀ x : G.V, w x = w x0 := by
+    intro x
+    have hwalk : ∀ (a b : G.V) (p : G.toSimple.Walk a b), w a = w x0 → w b = w x0 := by
+      intro a b p
+      induction p with
+      | nil => exact id
+      | cons hadj _ ih =>
+        exact fun ha ↦ ih ((hstep _ ha).2 _ ((SimpleGraph.mem_neighborFinset _ _ _).2 hadj))
+    exact (hconn.preconnected x0 x).elim fun p ↦ hwalk x0 x p rfl
+  exact fun x ↦ (hstep x (hconst x)).1
+
+/-- **For a connected graph the largest eigenvalue equals the maximum degree exactly when the graph
+is regular**, bracketing `λ_max` strictly below `Δ` otherwise. -/
+theorem lambdaMax_eq_maxDeg_iff {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected) :
+    G.lambdaMax = (G.maxDeg : ℝ) ↔ G.IsRegularWith G.maxDeg :=
+  ⟨isRegularWith_of_lambdaMax_eq_maxDeg hconn, lambdaMax_of_isRegularWith⟩
 
 /-! ## Connectedness of a regular graph is spectral
 

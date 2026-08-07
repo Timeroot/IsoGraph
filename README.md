@@ -4278,6 +4278,19 @@ theorem count_spectrum_lambdaMax_eq_one {G : CGraph} [Nonempty G.V] (hconn : G.I
     G.spectrum.count G.lambdaMax = 1
 ```
 
+The Perron vector also settles when the upper bound `λ_max ≤ Δ` is tight. At a vertex `x` where
+`w` is largest, `Δ w x = ∑_{y ∼ x} w y ≤ deg x · w x ≤ Δ w x`, so `x` has full degree and `w` is
+largest at each of its neighbours as well; connectedness spreads that everywhere, `w` is constant,
+and the eigenvector equation becomes `deg x = Δ` at every vertex:
+
+```lean
+theorem lambdaMax_eq_maxDeg_iff {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected) :
+    G.lambdaMax = (G.maxDeg : ℝ) ↔ G.IsRegularWith G.maxDeg
+```
+
+So a connected non-regular graph has `λ_max < Δ` strictly — the companion of
+`isRegularWith_of_two_mul_E_eq`, which says the same at the lower end, for the average degree.
+
 For a `k`-regular graph `λ_max = k`, so the degree is a simple eigenvalue whenever the graph is
 connected. Conversely, if it is not, pick two unreachable vertices: the indicator of the component
 of the first is again an eigenvector for `k` — inside the component every neighbour is in it,
