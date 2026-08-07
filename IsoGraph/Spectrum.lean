@@ -37,6 +37,10 @@ the factorisation back to `ℝ[X]`.
 * `spectrum_tensorProduct` — the tensor (categorical) product multiplies them pairwise, via the
   Kronecker product `adjMat_tensorProduct` and simultaneous diagonalisation
   (`exists_conj_diagonal`).
+* `spectrum_cartesianProduct` — the cartesian product *adds* them pairwise, the same way:
+  `adjMat_cartesianProduct` is `I ⊗ A H + A G ⊗ I`, and `P₁ ⊗ P₂` diagonalises both summands.
+* `spectrum_strongProduct` — the strong product sends `(λ, μ)` to `(1 + λ) (1 + μ) - 1`, because
+  `adjMat_strongProduct` is `(A G + I) ⊗ (A H + I) - I`.
 * `hasEigenvector_compl` — for the complement only the eigenvector statement is proved: an
   eigenvector of `G` orthogonal to the all-ones vector is an eigenvector of `Gᶜ` for the
   eigenvalue `-1 - x`, since `Gᶜ`'s adjacency matrix is `J - I - A`.  The all-ones vector itself
@@ -899,9 +903,10 @@ theorem spectrum_tensorProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : Decid
       Matrix.diagonal_kronecker_diagonal]
     congr!
 
-private theorem map_product_mul {α β : Type} (f : α → ℝ) (g : β → ℝ)
+private theorem map_product_apply₂ {α β : Type} (f : α → ℝ) (g : β → ℝ) (F : ℝ → ℝ → ℝ)
     (s : Multiset α) (t : Multiset β) :
-    (s ×ˢ t).map (fun p ↦ f p.1 * g p.2) = ((s.map f) ×ˢ (t.map g)).map (fun p ↦ p.1 * p.2) := by
+    (s ×ˢ t).map (fun p ↦ F (f p.1) (g p.2))
+      = ((s.map f) ×ˢ (t.map g)).map (fun p ↦ F p.1 p.2) := by
   induction s using Multiset.induction with
   | empty => simp
   | cons a s ih =>
@@ -909,8 +914,114 @@ private theorem map_product_mul {α β : Type} (f : α → ℝ) (g : β → ℝ)
 
 theorem spectrum_tensorProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     (tensorProduct G H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 * p.2) := by
-  rw [spectrum_tensorProduct, spectrum_eq_map, spectrum_eq_map, ← map_product_mul,
+  rw [spectrum_tensorProduct, spectrum_eq_map, spectrum_eq_map, ← map_product_apply₂,
     ← Finset.univ_product_univ, Finset.product_val]
+
+/-- The adjacency matrix of a cartesian product is `I ⊗ A H + A G ⊗ I`. -/
+theorem adjMat_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).adjMat
+      = (1 : Matrix G.V G.V ℝ) ⊗ₖ H.adjMat + G.adjMat ⊗ₖ (1 : Matrix H.V H.V ℝ) := by
+  ext p q
+  by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
+    simp [adjMat_apply, cartesianProduct, Matrix.kroneckerMap, Matrix.one_apply, h1, h2,
+      G.loopless, H.loopless]
+
+/-- **The eigenvalues of a cartesian product are the sums of the eigenvalues.** -/
+theorem spectrum_cartesianProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : DecidableEq H.V] :
+    (cartesianProduct G H).spectrum
+      = Finset.univ.val.map (fun p : G.V × H.V ↦ G.eigenvalues p.1 + H.eigenvalues p.2) := by
+  have e1 : dG = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  have e2 : dH = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  subst e1; subst e2
+  obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
+  obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
+  have hdiag : (1 : Matrix G.V G.V ℝ) ⊗ₖ Matrix.diagonal H.eigenvalues
+      + Matrix.diagonal G.eigenvalues ⊗ₖ (1 : Matrix H.V H.V ℝ)
+      = Matrix.diagonal (fun p : G.V × H.V ↦ G.eigenvalues p.1 + H.eigenvalues p.2) := by
+    ext p q
+    by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
+      simp [Matrix.kroneckerMap, Matrix.one_apply, Matrix.diagonal_apply, Prod.ext_iff, h1, h2,
+        add_comm]
+  have key : P₁ ⊗ₖ (P₂ * Matrix.diagonal H.eigenvalues)
+      + (P₁ * Matrix.diagonal G.eigenvalues) ⊗ₖ P₂
+      = (P₁ ⊗ₖ P₂) * Matrix.diagonal
+          (fun p : G.V × H.V ↦ G.eigenvalues p.1 + H.eigenvalues p.2) := by
+    rw [← hdiag, Matrix.mul_add, ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul,
+      Matrix.mul_one, Matrix.mul_one]
+  refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
+    congr!
+  · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
+    congr!
+  · rw [adjMat_cartesianProduct, Matrix.add_mul, ← Matrix.mul_kronecker_mul,
+      ← Matrix.mul_kronecker_mul, e₁, e₂]
+    simp only [Matrix.one_mul]
+    rw [key]
+    congr!
+
+theorem spectrum_cartesianProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 + p.2) := by
+  rw [spectrum_cartesianProduct, spectrum_eq_map, spectrum_eq_map, ← map_product_apply₂,
+    ← Finset.univ_product_univ, Finset.product_val]
+
+/-- The adjacency matrix of a strong product is `(A G + I) ⊗ (A H + I) - I`. -/
+theorem adjMat_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).adjMat = (G.adjMat + 1) ⊗ₖ (H.adjMat + 1) - 1 := by
+  ext p q
+  by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
+    by_cases hA1 : G.Adj p.1 q.1 <;> by_cases hA2 : H.Adj p.2 q.2 <;>
+    simp [adjMat_apply, strongProduct, Matrix.kroneckerMap, Matrix.one_apply, Prod.ext_iff,
+      Matrix.add_apply, Matrix.sub_apply, h1, h2, hA1, hA2, G.loopless, H.loopless]
+
+/-- **The eigenvalues of a strong product** are `(1 + λ) (1 + μ) - 1`. -/
+theorem spectrum_strongProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : DecidableEq H.V] :
+    (strongProduct G H).spectrum
+      = Finset.univ.val.map (fun p : G.V × H.V ↦
+          (1 + G.eigenvalues p.1) * (1 + H.eigenvalues p.2) - 1) := by
+  have e1 : dG = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  have e2 : dH = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  subst e1; subst e2
+  obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
+  obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
+  set D₁ : Matrix G.V G.V ℝ := Matrix.diagonal G.eigenvalues with hD₁
+  set D₂ : Matrix H.V H.V ℝ := Matrix.diagonal H.eigenvalues with hD₂
+  have hdiag : (D₁ + 1) ⊗ₖ (D₂ + 1) - (1 : Matrix (G.V × H.V) (G.V × H.V) ℝ)
+      = Matrix.diagonal (fun p : G.V × H.V ↦
+          (1 + G.eigenvalues p.1) * (1 + H.eigenvalues p.2) - 1) := by
+    ext p q
+    by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
+      simp [hD₁, hD₂, Matrix.kroneckerMap, Matrix.one_apply, Matrix.diagonal_apply, Prod.ext_iff,
+        Matrix.add_apply, Matrix.sub_apply, h1, h2]
+    all_goals ring
+  have key : (P₁ * D₁ + P₁) ⊗ₖ (P₂ * D₂ + P₂) - P₁ ⊗ₖ P₂
+      = (P₁ ⊗ₖ P₂) * Matrix.diagonal (fun p : G.V × H.V ↦
+          (1 + G.eigenvalues p.1) * (1 + H.eigenvalues p.2) - 1) := by
+    rw [show P₁ * D₁ + P₁ = P₁ * (D₁ + 1) by rw [Matrix.mul_add, Matrix.mul_one],
+      show P₂ * D₂ + P₂ = P₂ * (D₂ + 1) by rw [Matrix.mul_add, Matrix.mul_one],
+      ← hdiag, Matrix.mul_sub, ← Matrix.mul_kronecker_mul, Matrix.mul_one]
+  refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
+    congr!
+  · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
+    congr!
+  · rw [adjMat_strongProduct, Matrix.sub_mul, ← Matrix.mul_kronecker_mul, Matrix.add_mul,
+      Matrix.add_mul, e₁, e₂]
+    simp only [Matrix.one_mul]
+    rw [key]
+    congr!
+
+theorem spectrum_strongProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (strongProduct G H).spectrum
+      = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ (1 + p.1) * (1 + p.2) - 1) := by
+  rw [spectrum_strongProduct, spectrum_eq_map, spectrum_eq_map,
+    ← map_product_apply₂ G.eigenvalues H.eigenvalues (fun a b ↦ (1 + a) * (1 + b) - 1),
+    ← Finset.univ_product_univ, Finset.product_val]
+
+/-- **Powers of the adjacency matrix count walks.** -/
+theorem adjMat_pow_apply (G : CGraph) [DecidableEq G.V] (n : ℕ) (u v : G.V) :
+    (G.adjMat ^ n) u v = (Fintype.card {w : G.toSimple.Walk u v // w.length = n} : ℝ) := by
+  rw [adjMat, SimpleGraph.adjMatrix_pow_apply_eq_card_walk]
+  rfl
 
 /-! ## Traces: the order and the size are read off the spectrum -/
 
@@ -2571,6 +2682,18 @@ theorem spectrum_tensorProduct (G H : IsoGraph) :
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [tensorProduct_mk, spectrum_mk, spectrum_mk, spectrum_mk,
       CGraph.spectrum_tensorProduct' g h]
+
+theorem spectrum_cartesianProduct (G H : IsoGraph) :
+    (G □g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 + p.2) :=
+  Quotient.inductionOn₂ G H fun g h ↦ by
+    rw [cartesianProduct_mk, spectrum_mk, spectrum_mk, spectrum_mk,
+      CGraph.spectrum_cartesianProduct' g h]
+
+theorem spectrum_strongProduct (G H : IsoGraph) :
+    (G ⊠g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ (1 + p.1) * (1 + p.2) - 1) :=
+  Quotient.inductionOn₂ G H fun g h ↦ by
+    rw [strongProduct_mk, spectrum_mk, spectrum_mk, spectrum_mk,
+      CGraph.spectrum_strongProduct' g h]
 
 /-! ### Determined by the spectrum -/
 

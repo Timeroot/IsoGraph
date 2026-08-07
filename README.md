@@ -3981,7 +3981,11 @@ discrete Fourier matrix built from `cycZeta n = exp (2 π i / n)` makes it diago
 The constructions behave as expected. Disjoint union concatenates spectra, because `adjMat` is
 block diagonal; the tensor product multiplies them pairwise, because `adjMat` is a Kronecker
 product (`adjMat_tensorProduct`) and both factors can be diagonalised at once
-(`exists_conj_diagonal`). The complement gets only the eigenvector statement: `Gᶜ`'s adjacency
+(`exists_conj_diagonal`). The same Kronecker argument handles the other two products, since
+`adjMat_cartesianProduct` is `I ⊗ A H + A G ⊗ I` and `adjMat_strongProduct` is
+`(A G + I) ⊗ (A H + I) - I`: the cartesian product *adds* the eigenvalues pairwise and the strong
+product sends `(λ, μ)` to `(1 + λ) (1 + μ) - 1`. The complement gets only the eigenvector
+statement: `Gᶜ`'s adjacency
 matrix is `J - I - A`, so an eigenvector orthogonal to the all-ones vector survives with `x`
 replaced by `-1 - x`. That is enough to determine the spectrum of a regular graph, where the
 all-ones vector is itself an eigenvector, but the full multiset for an arbitrary complement needs
