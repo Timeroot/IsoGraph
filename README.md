@@ -44,6 +44,7 @@ index modules that import their directory.
 | `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
 | `IsoGraph/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
 | `IsoGraph/SRG.lean` | a table of strongly regular graphs, parameters checked | yes |
+| `IsoGraph/NamedGraphs.lean` | the cubic cages, generalized Petersen graphs, and other named graphs | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
@@ -3753,12 +3754,14 @@ definitions and all six checks, builds in about four seconds.
 
 ## Strongly regular graphs
 
-`SRG.lean` is a table of 24 strongly regular graphs — `(n, k, ℓ, μ)` meaning `n` vertices,
+`SRG.lean` is a table of 28 strongly regular graphs — `(n, k, ℓ, μ)` meaning `n` vertices,
 `k`-regular, `ℓ` common neighbours across an edge and `μ` across a non-edge. Families first
 (`cycle 5`, `bipartite 3 3`, `cocktailParty 4`, `rook m n`, `triangular n`, `kneser 6 2`,
 `foldedCube`, `paley q` up to `Paley(101)`), then the sporadic ones defined in that file:
 Shrikhande, the 27 lines on a cubic surface and its complement the Schläfli graph, the three
-Chang graphs, and Hoffman–Singleton.
+Chang graphs, Hoffman–Singleton, and the three graphs that come out of the Steiner system
+`S(3, 6, 22)` — Gewirtz `(56, 10, 0, 2)`, `M₂₂` `(77, 16, 0, 4)` and Higman–Sims
+`(100, 22, 0, 6)`.
 
 Each row's parameters are a theorem, and whatever can be proved rather than computed, is.
 Six infinite families are settled once and for all in `Constructions.lean`, from
@@ -3845,8 +3848,60 @@ theorem changs_pairwise_not_iso :
 
 Both lists are complete classifications — the only `(16, 6, 2, 2)` graphs and the only
 `(28, 12, 6, 4)` graphs respectively — so what is checked here is that the library agrees with
-the classification. Missing, for want of the Steiner system `S(3, 6, 22)`: Higman–Sims, Gewirtz,
-and the `M₂₂` graph.
+the classification.
+
+The last three rows are the ones that need a design of their own. The Steiner system
+`S(3, 6, 22)` is built explicitly, as Witt did: the 21 points of `PG(2, 4)`, its 21 lines
+extended by a new point, and the 56 hyperovals of one of the three classes, giving 77 blocks of
+six points in which every triple of points lies in exactly one block —
+
+```lean
+theorem witt_steiner (a b c : Fin 22) (hab : a ≠ b) (hac : a ≠ c) (hbc : b ≠ c) :
+    ((List.range 77).filter fun i ↦ inBlock i a && inBlock i b && inBlock i c).length = 1
+```
+
+— and then the Gewirtz graph is the 56 hyperovals joined when disjoint, the `M₂₂` graph is all 77
+blocks joined when disjoint, and Higman–Sims is the 22 points, the 77 blocks and one apex, joined
+by incidence. Blocks are stored twice over: as readable six-element lists, and as an `Array` of
+22-bit masks, so that disjointness is one `&&&` and the parameter checks stay in seconds.
+
+## Cages and other named graphs
+
+`NamedGraphs.lean` is the gallery: the graphs with proper names that are too big for
+`NamedSmallGraphs.lean` and not strongly regular, so miss `SRG.lean` too. Two constructions carry
+most of them — LCF notation, a Hamiltonian cycle plus a periodic list of chords, and the
+generalized Petersen graphs `GP(n, k)` — and the rest are edge lists.
+
+| graph | why it is famous |
+|-------|------------------|
+| `heawood`, `mcgee`, `tutteCoxeter` | the cubic cages of girth 6, 7 and 8 |
+| `franklin`, `pappus`, `folkman`, `frucht` | more LCF graphs: Klein-bottle map, `9₃` configuration, smallest semi-symmetric graph, trivial automorphism group |
+| `durer`, `mobiusKantor`, `dodecahedron`, `desargues`, `nauru` | `GP(6,2)`, `GP(8,3)`, `GP(10,2)`, `GP(10,3)`, `GP(12,5)` |
+| `coxeter`, `wagner`, `chvatal` | girth-7 cubic graph on 28 vertices, `V₈`, the smallest triangle-free 4-regular 4-chromatic graph |
+| `icosahedron`, `tutte`, `moserSpindle`, `grotzsch` | Platonic solid, Tait's conjecture refuted, Hadwiger–Nelson, Mycielski |
+
+For each graph the file records the order, the edge count, the degree, connectivity,
+bipartiteness, and the girth where the girth ladder of `Identities.lean` reaches it. Two
+certificates do the work that `Decidable` instances cannot:
+
+```lean
+theorem isConnected_of_backEdge {n : ℕ} {G : CGraph} (e : G.V ≃ Fin n) (hn : 0 < n)
+    (h : ∀ v : G.V, 0 < (e v).1 → ∃ w : G.V, (e w).1 < (e v).1 ∧ G.Adj v w) : G.IsConnected
+```
+
+— number the vertices so that every vertex but the first has a smaller-numbered neighbour, which
+is `n²` adjacency queries rather than a search, since Mathlib's `Decidable Connected` is hopeless
+at 30 vertices — and, for the graphs that are *not* bipartite, an odd closed walk given as a
+cyclic list of vertex numbers, fed to `not_isBipartite_of_odd_walk`. Bipartiteness itself is
+always an explicit two-colouring: parity of the vertex number for the LCF graphs, and
+`(i + i / n) % 2` for the bipartite generalized Petersen graphs. Nothing here searches for a
+colouring or a path.
+
+The constructions overlap, and the canonical key settles the coincidences: `gp 5 2` is the
+Petersen graph, `gp 4 1` the cube, `gp 6 1` the hexagonal prism, and the Möbius–Kantor,
+Desargues, dodecahedron and Nauru graphs all have LCF codes as well as `GP` descriptions.
+Minimality — what makes a cage a cage — is a statement about all graphs of a given order, so it
+stays out of reach; what is proved is that each graph has the degree, girth and order claimed.
 
 ## Transitivity and clique sums
 
