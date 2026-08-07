@@ -4206,6 +4206,25 @@ least the average degree (`avg_degree_le_lambdaMax`), and `e u ± e v` across a 
 proved the other way round, by evaluating `A u = x u` at a coordinate where `|u|` is largest —
 the whole spectrum is trapped in `[-Δ, Δ]` with `lambdaMax` no smaller than the average degree.
 
+The other side of the principle — bounding `⟪v, A v⟫` from below by `λ_min` — is what makes
+**Hoffman's ratio bound** work:
+
+```lean
+theorem card_mul_sub_lambdaMin_le {G : CGraph} [Nonempty G.V] {k : ℕ} (hk : G.IsRegularWith k)
+    {S : Finset G.V} (hS : G.toSimple.IsIndepSet (S : Set G.V)) :
+    (S.card : ℝ) * ((k : ℝ) - G.lambdaMin)
+      ≤ (Fintype.card G.V : ℝ) * (-G.lambdaMin)
+```
+
+The test vector is `v = n · 1_S - |S| · 1`, the indicator of the independent set corrected to be
+orthogonal to the all-ones vector. Everything then reduces to four dot products: `1_S ⬝ A 1_S`
+is zero because `S` spans no edge, `1 ⬝ A 1_S = 1_S ⬝ A 1 = k |S|` because the graph is regular,
+and `1 ⬝ A 1 = k n`. So `⟪v, A v⟫ = -k n |S| ²` against `⟪v, v⟫ = n² |S| - n |S| ²`, and
+`λ_min ⟪v,v⟫ ≤ ⟪v, A v⟫` is the bound after cancelling `n` and `|S|`. Applied to the triangular
+graph `T(n) = L(Kₙ)`, where `k = 2 (n - 2)` and `λ_min = -2` (a line graph), it says
+`2 α(T(n)) ≤ n` — an independent set of `T(n)` is a matching of `Kₙ`, recovered here without
+looking at a single edge.
+
 ### Smith's family and ADE
 
 `IsSmith G` says the largest eigenvalue of `G` is exactly `2`; `IsSubcritical G` says every

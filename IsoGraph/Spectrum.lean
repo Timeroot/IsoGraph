@@ -83,6 +83,13 @@ turns the quadratic form into a weighted sum of squares in rotated coordinates
 `abs_le_maxDeg_of_mem_spectrum` bounds every eigenvalue by the maximum degree, by evaluating the
 eigenvector equation where the eigenvector is largest.
 
+The best-known application of the variational principle is **Hoffman's ratio bound**,
+`card_mul_sub_lambdaMin_le`: in a `k`-regular graph an independent set `S` gives the test vector
+`n · 1_S - |S| · 1`, which is orthogonal to the all-ones vector and spans no edge, so its
+Rayleigh quotient is `-k |S| ² / n` and `|S| (k - λ_min) ≤ n (-λ_min)`.  For the triangular graph
+`T(n)`, where `k = 2 (n - 2)` and `λ_min = -2`, that is the matching bound
+`two_mul_indepNum_triangular_le : 2 α ≤ n`.
+
 ## Line graphs
 
 `transpose_mul_incMat` factors the line graph through the incidence matrix `incMat`, as
@@ -2087,6 +2094,93 @@ theorem exists_rayleigh_eq_lambdaMin (G : CGraph) [Nonempty G.V] :
   obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 (lambdaMin_mem_spectrum G)
   exact ⟨v, hv0, by rw [hv, dotProduct_smul, smul_eq_mul]⟩
 
+/-! ### Hoffman's ratio bound -/
+
+/-- **Hoffman's ratio bound**: in a `k`-regular graph an independent set `S` satisfies
+`|S| (k - λ_min) ≤ n (-λ_min)`.  The test vector is the indicator of `S`, corrected to sum to
+zero; it spans no edge, so its Rayleigh quotient is `-k |S| ² / n`. -/
+theorem card_mul_sub_lambdaMin_le {G : CGraph} [Nonempty G.V] {k : ℕ} (hk : G.IsRegularWith k)
+    {S : Finset G.V} (hS : G.toSimple.IsIndepSet (S : Set G.V)) :
+    (S.card : ℝ) * ((k : ℝ) - G.lambdaMin)
+      ≤ (Fintype.card G.V : ℝ) * (-G.lambdaMin) := by
+  set n : ℝ := (Fintype.card G.V : ℝ) with hn_def
+  set s : ℝ := (S.card : ℝ) with hs_def
+  set lm : ℝ := G.lambdaMin with hlm_def
+  have hn : 0 < n := by rw [hn_def]; exact_mod_cast Fintype.card_pos
+  have hs0 : 0 ≤ s := by positivity
+  set ind : G.V → ℝ := fun i ↦ if i ∈ S then 1 else 0 with hind_def
+  -- the transpose is the matrix itself, and the all-ones vector is a `k`-eigenvector
+  have htrans : G.adjMatᵀ = G.adjMat := Matrix.ext fun i j ↦ adjMat_symm G j i
+  have hone : G.adjMat *ᵥ (1 : G.V → ℝ) = (k : ℝ) • (1 : G.V → ℝ) :=
+    (hasEigenvector_one_of_isRegularWith hk).2
+  have h1v : (1 : G.V → ℝ) ᵥ* G.adjMat = (k : ℝ) • (1 : G.V → ℝ) := by
+    rw [show G.adjMat = G.adjMatᵀ from htrans.symm, Matrix.vecMul_transpose]
+    exact hone
+  -- the four dot products of the indicator and the all-ones vector
+  have hind_one : ind ⬝ᵥ (1 : G.V → ℝ) = s := by
+    simp [dotProduct, hind_def, hs_def]
+  have hone_ind : (1 : G.V → ℝ) ⬝ᵥ ind = s := by
+    simp [dotProduct, hind_def, hs_def]
+  have hind_ind : ind ⬝ᵥ ind = s := by
+    simp [dotProduct, hind_def, hs_def, mul_ite]
+  have hone_one : (1 : G.V → ℝ) ⬝ᵥ (1 : G.V → ℝ) = n := by
+    simp [dotProduct, hn_def, Finset.card_univ]
+  -- `S` spans no edge, so the indicator has quadratic form zero
+  have hindA : ind ⬝ᵥ (G.adjMat *ᵥ ind) = 0 := by
+    simp only [dotProduct, Matrix.mulVec, Finset.mul_sum]
+    refine Finset.sum_eq_zero fun i _ ↦ Finset.sum_eq_zero fun j _ ↦ ?_
+    by_cases hi : i ∈ S
+    · by_cases hj : j ∈ S
+      · by_cases hij : i = j
+        · subst hij; simp [adjMat_apply, G.loopless i]
+        · have hadj : ¬ G.toSimple.Adj i j := hS hi hj hij
+          rw [toSimple_adj] at hadj
+          simp [adjMat_apply, hadj]
+      · simp [hind_def, hj]
+    · simp [hind_def, hi]
+  -- the test vector: `n` times the indicator, corrected by `|S|` times the all-ones vector
+  set v : G.V → ℝ := n • ind - s • (1 : G.V → ℝ) with hv_def
+  have hnorm : v ⬝ᵥ v = n ^ 2 * s - 2 * n * s * s + s ^ 2 * n := by
+    simp only [hv_def, sub_dotProduct, dotProduct_sub, smul_dotProduct, dotProduct_smul,
+      smul_eq_mul, hind_ind, hind_one, hone_ind, hone_one]
+    ring
+  have hquad : v ⬝ᵥ (G.adjMat *ᵥ v) = -(2 * n * s * ((k : ℝ) * s)) + s ^ 2 * ((k : ℝ) * n) := by
+    simp only [hv_def, Matrix.mulVec_sub, Matrix.mulVec_smul, hone, sub_dotProduct,
+      dotProduct_sub, smul_dotProduct, dotProduct_smul, smul_eq_mul, hindA, hind_one,
+      hone_one]
+    have h1A : (1 : G.V → ℝ) ⬝ᵥ (G.adjMat *ᵥ ind) = (k : ℝ) * s := by
+      rw [dotProduct_mulVec, h1v, smul_dotProduct, smul_eq_mul, hone_ind]
+    rw [h1A]
+    ring
+  -- Rayleigh
+  have hkey := G.lambdaMin_mul_le_rayleigh v
+  rw [hnorm, hquad, ← hlm_def] at hkey
+  have hL : n * (lm * (n * s - s * s)) = lm * (n ^ 2 * s - 2 * n * s * s + s ^ 2 * n) := by ring
+  have hR : n * (-((k : ℝ) * (s * s)))
+      = -(2 * n * s * ((k : ℝ) * s)) + s ^ 2 * ((k : ℝ) * n) := by ring
+  have h3 : lm * (n * s - s * s) ≤ -((k : ℝ) * (s * s)) :=
+    le_of_mul_le_mul_left (by rw [hL, hR]; exact hkey) hn
+  rcases eq_or_lt_of_le hs0 with hs | hs
+  · rw [← hs]
+    have : lm ≤ 0 := by rw [hlm_def]; exact G.lambdaMin_nonpos
+    nlinarith
+  · have h4 : lm * n - lm * s + (k : ℝ) * s ≤ 0 := by
+      refine le_of_mul_le_mul_left ?_ hs
+      have hE : s * (lm * n - lm * s + (k : ℝ) * s) = lm * (n * s - s * s) + (k : ℝ) * (s * s) := by
+        ring
+      rw [hE, mul_zero]
+      linarith
+    linarith
+
+/-- **Hoffman's ratio bound** in terms of the independence number. -/
+theorem indepNum_mul_sub_lambdaMin_le {G : CGraph} [Nonempty G.V] {k : ℕ}
+    (hk : G.IsRegularWith k) :
+    (G.indepNum : ℝ) * ((k : ℝ) - G.lambdaMin)
+      ≤ (Fintype.card G.V : ℝ) * (-G.lambdaMin) := by
+  obtain ⟨S, hS, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  have := card_mul_sub_lambdaMin_le hk hS
+  rwa [hcard] at this
+
 /-- **The eigenvalues of a path are all `< 2`.** -/
 theorem lt_two_of_mem_spectrum_path (n : ℕ) {x : ℝ} (hx : x ∈ (path n).spectrum) : x < 2 := by
   rw [spectrum_path, Multiset.mem_map] at hx
@@ -3015,6 +3109,41 @@ theorem neg_two_mem_spectrum_lineGraph_complete {n : ℕ} (hn : 4 ≤ n) :
 theorem neg_two_le_lambdaMin_lineGraph (G : CGraph) [DecidableEq G.V]
     [Nonempty (lineGraph G).V] : -2 ≤ (lineGraph G).lambdaMin :=
   (le_lambdaMin_iff _).2 fun _ hx ↦ neg_two_le_of_mem_spectrum_lineGraph G hx
+
+/-- **A matching bound out of the ratio bound**: an independent set in the triangular graph
+`T(n) = L(Kₙ)` is a matching of `Kₙ`, so it has at most `n / 2` edges.  Spectrally that is
+`k = 2 (n - 2)` against `λ_min = -2`. -/
+theorem two_mul_indepNum_triangular_le (m : ℕ) :
+    2 * (triangular (m + 4)).indepNum ≤ m + 4 := by
+  have hsrg := isSRGWith_triangular (m + 4) (by omega)
+  rw [show 2 * (m + 4 - 2) = 2 * m + 4 from by omega,
+    show m + 4 - 2 = m + 2 from by omega] at hsrg
+  haveI : Nonempty (triangular (m + 4)).V :=
+    Fintype.card_pos_iff.1 (by rw [hsrg.card]; exact Nat.choose_pos (by omega))
+  have hpos : 0 < (m + 4).choose 2 - (m + 4) := by
+    have := lt_choose_two (n := m + 4) (by omega)
+    omega
+  have hm : (0 : ℝ) ≤ m := Nat.cast_nonneg m
+  have hlm : (triangular (m + 4)).lambdaMin = -2 := by
+    refine le_antisymm (lambdaMin_le ?_) ((le_lambdaMin_iff _).2 ?_)
+    · rw [spectrum_triangular]
+      simp only [Multiset.mem_cons, Multiset.mem_add, Multiset.mem_replicate]
+      exact Or.inr (Or.inr ⟨by omega, trivial⟩)
+    · intro x hx
+      rw [spectrum_triangular] at hx
+      simp only [Multiset.mem_cons, Multiset.mem_add, Multiset.mem_replicate] at hx
+      rcases hx with rfl | ⟨-, rfl⟩ | ⟨-, rfl⟩
+      · linarith
+      · linarith
+      · exact le_rfl
+  have h := indepNum_mul_sub_lambdaMin_le hsrg.regular
+  rw [hlm, hsrg.card, Nat.cast_choose_two] at h
+  push_cast at h
+  have h2 : (2 * ((triangular (m + 4)).indepNum : ℝ)) * ((m : ℝ) + 3)
+      ≤ ((m : ℝ) + 4) * ((m : ℝ) + 3) := by nlinarith [h]
+  have h3 : 2 * ((triangular (m + 4)).indepNum : ℝ) ≤ (m : ℝ) + 4 :=
+    le_of_mul_le_mul_right h2 (by linarith)
+  exact_mod_cast h3
 
 /-! ## The spectrum of a complement
 
