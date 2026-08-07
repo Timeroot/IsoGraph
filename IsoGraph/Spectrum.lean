@@ -52,6 +52,14 @@ isomorphism (`Cospectral.of_iso`) and it implies equality of `V` and of `E`.  A 
 be: `isDS_empty` and `isDS_complete`, the latter by squeezing the degree sequence between
 `sum_sq_spectrum` and `SimpleGraph.degree_lt_card_verts`.
 
+## Line graphs
+
+`transpose_mul_incMat` factors the line graph through the incidence matrix `incMat`, as
+`Bᵀ B = A(L G) + 2 I`.  Since `Bᵀ B` is positive semidefinite this gives
+`neg_two_le_of_mem_spectrum_lineGraph`: no line graph has an eigenvalue below `-2`, the other
+half of the reason ADE turns up here.  The bound is attained whenever `B` has a kernel, which it
+does as soon as there are more edges than vertices (`neg_two_mem_spectrum_lineGraph`).
+
 ## Strongly regular graphs
 
 `sq_eq_of_isSRGWith` is the identity `A ^ 2 = k I + ℓ A + μ (J - I - A)` read off on an
@@ -2050,6 +2058,135 @@ theorem dynkinD_zero_iso : Nonempty (dynkinD 0 ≃cg dynkinD4) :=
 theorem affineD_zero_iso : Nonempty (affineD 0 ≃cg affineD4) :=
   ⟨isoOfAdj (finSumFinEquiv : Fin 1 ⊕ Fin 4 ≃ Fin 5) (by decide)⟩
 
+/-! ### Line graphs -/
+
+/-- The incidence matrix: rows indexed by vertices, columns by edges (the vertices of the line
+graph), with a `1` exactly when the vertex lies on the edge. -/
+def incMat (G : CGraph) [DecidableEq G.V] : Matrix G.V (lineGraph G).V ℝ :=
+  Matrix.of fun v e ↦ if v ∈ (e.1 : Sym2 G.V) then 1 else 0
+
+theorem incMat_apply (G : CGraph) [DecidableEq G.V] (v : G.V) (e : (lineGraph G).V) :
+    G.incMat v e = if v ∈ (e.1 : Sym2 G.V) then 1 else 0 := rfl
+
+private theorem card_filter_mem {G : CGraph} [DecidableEq G.V] (z : Sym2 G.V) :
+    z ∈ G.toSimple.edgeSet → (Finset.univ.filter fun v : G.V ↦ v ∈ z).card = 2 := by
+  induction z using Sym2.ind with
+  | _ a b =>
+    intro hz
+    have hab : a ≠ b := G.toSimple.ne_of_adj ((SimpleGraph.mem_edgeSet _).1 hz)
+    rw [← Finset.card_pair hab]
+    congr 1
+    ext v
+    simp [Sym2.mem_iff]
+
+private theorem card_filter_mem_inter {G : CGraph} [DecidableEq G.V] {z w : Sym2 G.V}
+    (h : z ≠ w) :
+    ((Finset.univ.filter fun v : G.V ↦ v ∈ z ∧ v ∈ w).card : ℝ)
+      = if ∃ v, v ∈ z ∧ v ∈ w then 1 else 0 := by
+  have hle : (Finset.univ.filter fun v : G.V ↦ v ∈ z ∧ v ∈ w).card ≤ 1 := by
+    rw [Finset.card_le_one]
+    intro a ha b hb
+    simp only [Finset.mem_filter] at ha hb
+    by_contra hab
+    exact h (((Sym2.mem_and_mem_iff hab).1 ⟨ha.2.1, hb.2.1⟩).trans
+      ((Sym2.mem_and_mem_iff hab).1 ⟨ha.2.2, hb.2.2⟩).symm)
+  split_ifs with hex
+  · obtain ⟨v, hv⟩ := hex
+    have hne : (Finset.univ.filter fun v : G.V ↦ v ∈ z ∧ v ∈ w).Nonempty :=
+      ⟨v, Finset.mem_filter.2 ⟨Finset.mem_univ _, hv⟩⟩
+    have hpos := Finset.card_pos.2 hne
+    have hone : (Finset.univ.filter fun v : G.V ↦ v ∈ z ∧ v ∈ w).card = 1 := by omega
+    rw [hone, Nat.cast_one]
+  · have hempty : (Finset.univ.filter fun v : G.V ↦ v ∈ z ∧ v ∈ w) = ∅ :=
+      Finset.filter_eq_empty_iff.2 fun {v} _ hv ↦ hex ⟨v, hv⟩
+    rw [hempty, Finset.card_empty, Nat.cast_zero]
+
+/-- **The incidence matrix factors the line graph.**  `Bᵀ B = A(L G) + 2 I`: two distinct edges
+contribute a `1` when they meet and an edge meets itself in its two endpoints. -/
+theorem transpose_mul_incMat (G : CGraph) [DecidableEq G.V] :
+    G.incMatᵀ * G.incMat
+      = (lineGraph G).adjMat + (2 : ℝ) • (1 : Matrix (lineGraph G).V (lineGraph G).V ℝ) := by
+  ext e f
+  have hentry : ∀ v : G.V, G.incMatᵀ e v * G.incMat v f
+      = if v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V) then (1 : ℝ) else 0 := by
+    intro v
+    rw [Matrix.transpose_apply, incMat_apply, incMat_apply]
+    by_cases h1 : v ∈ (e.1 : Sym2 G.V) <;> by_cases h2 : v ∈ (f.1 : Sym2 G.V) <;> simp [h1, h2]
+  have hsum : (G.incMatᵀ * G.incMat) e f
+      = ((Finset.univ.filter
+          fun v : G.V ↦ v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V)).card : ℝ) := by
+    simp only [Matrix.mul_apply, hentry, Finset.sum_boole]
+  rw [hsum, Matrix.add_apply]
+  by_cases hef : e = f
+  · subst hef
+    rw [adjMat_apply, if_neg (by simp)]
+    simp only [Matrix.smul_apply, Matrix.one_apply_eq, smul_eq_mul, mul_one, zero_add]
+    rw [show (Finset.univ.filter fun v : G.V ↦ v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (e.1 : Sym2 G.V))
+        = Finset.univ.filter fun v : G.V ↦ v ∈ (e.1 : Sym2 G.V) from
+      Finset.filter_congr fun v _ ↦ by simp, card_filter_mem e.1 e.2]
+    norm_num
+  · rw [Matrix.smul_apply, Matrix.one_apply_ne hef, smul_zero, add_zero, adjMat_apply,
+      card_filter_mem_inter (fun h ↦ hef (Subtype.ext h))]
+    by_cases hmeet : ∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V)
+    · rw [if_pos hmeet, if_pos]
+      simpa [lineGraph_adj, hef] using hmeet
+    · rw [if_neg hmeet, if_neg]
+      simpa [lineGraph_adj, hef] using hmeet
+
+/-- **No eigenvalue of a line graph is below `-2`.**  This is the factorisation
+`A(L G) + 2 I = Bᵀ B` together with `⟪v, Bᵀ B v⟫ = ‖B v‖² ≥ 0`; it is the spectral half of the
+reason the ADE diagrams classify the graphs with least eigenvalue `-2`. -/
+theorem neg_two_le_of_mem_spectrum_lineGraph (G : CGraph) [DecidableEq G.V] {x : ℝ}
+    (hx : x ∈ (lineGraph G).spectrum) : -2 ≤ x := by
+  obtain ⟨v, hv0, hv⟩ := ((lineGraph G).mem_spectrum_iff x).1 hx
+  have hBB : v ⬝ᵥ ((G.incMatᵀ * G.incMat) *ᵥ v) = (G.incMat *ᵥ v) ⬝ᵥ (G.incMat *ᵥ v) := by
+    rw [← Matrix.mulVec_mulVec, dotProduct_mulVec, Matrix.vecMul_transpose]
+  have hnn : (0 : ℝ) ≤ (G.incMat *ᵥ v) ⬝ᵥ (G.incMat *ᵥ v) :=
+    Finset.sum_nonneg fun i _ ↦ mul_self_nonneg _
+  have hkey : v ⬝ᵥ ((G.incMatᵀ * G.incMat) *ᵥ v) = (x + 2) * (v ⬝ᵥ v) := by
+    rw [transpose_mul_incMat, Matrix.add_mulVec, hv, Matrix.smul_mulVec, Matrix.one_mulVec,
+      dotProduct_add, dotProduct_smul, dotProduct_smul]
+    simp only [smul_eq_mul]
+    ring
+  have hpos : 0 < v ⬝ᵥ v :=
+    lt_of_le_of_ne (Finset.sum_nonneg fun i _ ↦ mul_self_nonneg _)
+      (Ne.symm fun h ↦ hv0 (dotProduct_self_eq_zero.1 h))
+  have hfin : 0 ≤ (x + 2) * (v ⬝ᵥ v) := by rw [← hkey, hBB]; exact hnn
+  nlinarith [hpos, hfin]
+
+/-- **`-2` really is an eigenvalue** as soon as `G` has more edges than vertices: the incidence
+matrix then has a kernel, and a vector killed by `B` is an eigenvector of `Bᵀ B - 2 I`. -/
+theorem neg_two_mem_spectrum_lineGraph (G : CGraph) [DecidableEq G.V]
+    (h : Fintype.card G.V < G.E) : (-2 : ℝ) ∈ (lineGraph G).spectrum := by
+  have hinj : ¬ Function.Injective (Matrix.mulVecLin G.incMat) := by
+    intro hinj
+    have hle := LinearMap.finrank_le_finrank_of_injective (R := ℝ) hinj
+    rw [Module.finrank_fintype_fun_eq_card, Module.finrank_fintype_fun_eq_card,
+      card_lineGraph] at hle
+    omega
+  obtain ⟨v, hmem, hne⟩ := Submodule.ne_bot_iff _ |>.1
+    fun hbot ↦ hinj (LinearMap.ker_eq_bot.1 hbot)
+  have hv : G.incMat *ᵥ v = 0 := hmem
+  refine ((lineGraph G).mem_spectrum_iff _).2 ⟨v, hne, ?_⟩
+  rw [eq_sub_of_add_eq (transpose_mul_incMat G).symm, Matrix.sub_mulVec, ← Matrix.mulVec_mulVec,
+    hv, Matrix.mulVec_zero, Matrix.smul_mulVec, Matrix.one_mulVec, zero_sub]
+  module
+
+private theorem lt_choose_two {n : ℕ} (hn : 4 ≤ n) : n < n.choose 2 := by
+  induction n, hn using Nat.le_induction with
+  | base => decide
+  | succ n hn ih =>
+    have h2 : (n + 1).choose 2 = n + n.choose 2 := by
+      rw [Nat.choose_succ_succ, Nat.choose_one_right]
+    omega
+
+/-- The line graph of `Kₙ` — the triangular graph `T(n)` — has `-2` in its spectrum for `n ≥ 4`. -/
+theorem neg_two_mem_spectrum_lineGraph_complete {n : ℕ} (hn : 4 ≤ n) :
+    (-2 : ℝ) ∈ (lineGraph (complete n)).spectrum := by
+  refine neg_two_mem_spectrum_lineGraph _ ?_
+  rw [E_complete]
+  simpa using lt_choose_two hn
+
 end CGraph
 
 namespace IsoGraph
@@ -2163,5 +2300,14 @@ theorem not_isDS_star_four : ¬ IsDS (star 4) := by
   have h1 : (star 4 : IsoGraph).numComponents = 1 := numComponents_star 4
   rw [h _ cospectral_star_four] at h1
   simp at h1
+
+/-! ### Line graphs -/
+
+theorem neg_two_le_of_mem_spectrum_lineGraph (G : IsoGraph) {x : ℝ} :
+    x ∈ G.lineGraph.spectrum → -2 ≤ x := by
+  classical
+  refine Quotient.inductionOn G fun g hx ↦ ?_
+  rw [lineGraph_mk, spectrum_mk] at hx
+  exact CGraph.neg_two_le_of_mem_spectrum_lineGraph g hx
 
 end IsoGraph
