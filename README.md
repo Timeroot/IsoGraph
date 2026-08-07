@@ -3996,12 +3996,29 @@ theorem spectrum_hypercube (n : ℕ) :
 
 — the eigenvalues of `K₂` are `±1`, so the step adds `1` to every eigenvalue of `Q n` and
 subtracts `1` from every eigenvalue of `Q n`, and the two copies recombine by Pascal's rule.
-The complement gets only the eigenvector
-statement: `Gᶜ`'s adjacency
-matrix is `J - I - A`, so an eigenvector orthogonal to the all-ones vector survives with `x`
-replaced by `-1 - x`. That is enough to determine the spectrum of a regular graph, where the
-all-ones vector is itself an eigenvector, but the full multiset for an arbitrary complement needs
-simultaneous diagonalisation with `J` and is not proved.
+The complement starts from the eigenvector statement: `Gᶜ`'s adjacency matrix is `J - I - A`, so
+an eigenvector orthogonal to the all-ones vector survives with `x` replaced by `-1 - x`. For a
+connected regular graph that determines the whole multiset:
+
+```lean
+theorem spectrum_compl_of_isRegularWith {G : CGraph} [inst : DecidableEq G.V]
+    (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
+    (compl G).spectrum = ((Fintype.card G.V : ℝ) - 1 - k)
+      ::ₘ (G.spectrum.erase (k : ℝ)).map (fun x ↦ -1 - x)
+```
+
+The input is that the `k`-eigenspace is one-dimensional, `eq_of_mulVec_eq_of_isRegularWith`: at a
+vertex where an eigenvector for `k` is largest, its `k` neighbours average to that same value, so
+they attain it too, and connectivity spreads the equality over the graph. Given that, take the
+orthogonal `U` diagonalising `A` and set `w = Uᵀ 1`. The vector `w` is an eigenvector of the
+diagonal matrix for `k`, so it is supported on the eigenvalue `k`; it is nonzero because
+`U w = 1`; and the columns it is supported on are constant, so orthogonality leaves exactly one
+of them, with `w i₀ ² = n`. Hence `Uᵀ J U = w wᵀ` is the diagonal matrix `n · e(i₀)`, and
+`Uᵀ (J - I - A) U` is diagonal with entries `-1 - λ i` away from `i₀` and `n - 1 - k` at it.
+The proof has to work entirely over `G.V`, since `(compl G).V` is definitionally `G.V` but
+instance search will not unfold it, and it opens by substituting the classical `DecidableEq`
+instance for the bound one so that the `1`s coming from `exists_orthogonal_diagonal` match the
+`1`s written in the proof.
 
 All the moments of the spectrum are available. One conjugation diagonalises every power of `A`
 at once (`trace_adjMat_pow`), so the `n`-th moment is the trace of `Aⁿ`, and `adjMat_pow_apply`

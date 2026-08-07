@@ -45,11 +45,13 @@ the factorisation back to `ℝ[X]`.
 * `spectrum_hypercube` — iterating the cartesian product along `hypercube_succ` gives the
   eigenvalues `n - 2 j` of `Q n` with multiplicity `n.choose j`; the induction step is Pascal's
   rule, since `± 1` shifts the eigenvalues of `Q n` into those of `Q (n + 1)`.
-* `hasEigenvector_compl` — for the complement only the eigenvector statement is proved: an
-  eigenvector of `G` orthogonal to the all-ones vector is an eigenvector of `Gᶜ` for the
-  eigenvalue `-1 - x`, since `Gᶜ`'s adjacency matrix is `J - I - A`.  The all-ones vector itself
-  is handled by `hasEigenvector_one_of_isRegularWith`, so for a `k`-regular graph this determines
-  every eigenvalue.
+* `hasEigenvector_compl` — an eigenvector of `G` orthogonal to the all-ones vector is an
+  eigenvector of `Gᶜ` for the eigenvalue `-1 - x`, since `Gᶜ`'s adjacency matrix is `J - I - A`.
+  The all-ones vector itself is handled by `hasEigenvector_one_of_isRegularWith`.  For a
+  *connected* `k`-regular graph that is the whole story: `eq_of_mulVec_eq_of_isRegularWith` shows
+  the `k`-eigenspace is spanned by the all-ones vector, and `spectrum_compl_of_isRegularWith`
+  concludes that the spectrum of `Gᶜ` is `n - 1 - k` together with `-1 - x` for each of the
+  remaining eigenvalues `x`.
 
 ## Trace identities and cospectrality
 
@@ -2842,6 +2844,208 @@ theorem neg_two_mem_spectrum_lineGraph_complete {n : ℕ} (hn : 4 ≤ n) :
 theorem neg_two_le_lambdaMin_lineGraph (G : CGraph) [DecidableEq G.V]
     [Nonempty (lineGraph G).V] : -2 ≤ (lineGraph G).lambdaMin :=
   (le_lambdaMin_iff _).2 fun _ hx ↦ neg_two_le_of_mem_spectrum_lineGraph G hx
+
+/-! ## The spectrum of a complement
+
+For a connected `k`-regular graph the whole spectrum of the complement is determined: the
+all-ones vector spans the `k`-eigenspace, and every other eigenvector is orthogonal to it, so
+`J - I - A` acts on it as `-1 - x`. -/
+
+/-- **On a connected regular graph the degree has a one-dimensional eigenspace**: an eigenvector
+for the degree is constant.  At a vertex where the eigenvector is largest, the `k` neighbours
+average to that same value, so they all attain it too, and connectivity spreads the equality. -/
+theorem eq_of_mulVec_eq_of_isRegularWith {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
+    (hreg : G.IsRegularWith k) {v : G.V → ℝ} (hv : G.adjMat *ᵥ v = (k : ℝ) • v) (i j : G.V) :
+    v i = v j := by
+  classical
+  haveI : Nonempty G.V := hconn.nonempty
+  obtain ⟨p, -, hp⟩ := Finset.exists_max_image (Finset.univ : Finset G.V) v
+    ⟨Classical.arbitrary G.V, Finset.mem_univ _⟩
+  have hsum : ∀ x : G.V, ∑ y ∈ G.toSimple.neighborFinset x, v y = k * v x := by
+    intro x
+    have h1 := congrFun hv x
+    rw [show (G.adjMat *ᵥ v) x = ∑ y ∈ G.toSimple.neighborFinset x, v y from by
+      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]] at h1
+    simpa using h1
+  have step : ∀ x y : G.V, G.toSimple.Adj x y → v x = v p → v y = v p := by
+    intro x y hxy hx
+    by_contra hne
+    have hlt : v y < v p := lt_of_le_of_ne (hp y (Finset.mem_univ y)) hne
+    have hcard : (G.toSimple.neighborFinset x).card = k := hreg x
+    have h1 : ∑ z ∈ G.toSimple.neighborFinset x, v z
+        < ∑ _z ∈ G.toSimple.neighborFinset x, v p :=
+      Finset.sum_lt_sum (fun z _ ↦ hp z (Finset.mem_univ z))
+        ⟨y, (SimpleGraph.mem_neighborFinset _ _ _).2 hxy, hlt⟩
+    rw [hsum x, hx, Finset.sum_const, hcard, nsmul_eq_mul] at h1
+    exact lt_irrefl _ h1
+  have walkeq : ∀ (x y : G.V) (w : G.toSimple.Walk x y), v x = v p → v y = v p := by
+    intro x y w
+    induction w with
+    | nil => exact id
+    | cons h _ ih => exact fun hx ↦ ih (step _ _ h hx)
+  have hall : ∀ x : G.V, v x = v p := fun x ↦
+    (hconn.preconnected p x).elim fun w ↦ walkeq p x w rfl
+  rw [hall i, hall j]
+
+/-- **The spectrum of the complement of a connected regular graph.**  The degree `k` is replaced
+by `n - 1 - k` and every other eigenvalue `x` by `-1 - x`. -/
+theorem spectrum_compl_of_isRegularWith {G : CGraph} [inst : DecidableEq G.V]
+    (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
+    (compl G).spectrum = ((Fintype.card G.V : ℝ) - 1 - k)
+      ::ₘ (G.spectrum.erase (k : ℝ)).map (fun x ↦ -1 - x) := by
+  obtain rfl : inst = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  haveI : Nonempty G.V := hconn.nonempty
+  have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
+  obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_diagonal G
+  have hAU : G.adjMat * U = U * Matrix.diagonal G.eigenvalues := by
+    calc G.adjMat * U = (U * Uᵀ) * (G.adjMat * U) := by rw [hUU', one_mul]
+      _ = U * (Uᵀ * G.adjMat * U) := by simp only [mul_assoc]
+      _ = U * Matrix.diagonal G.eigenvalues := by rw [hdiag]
+  -- the columns of `U` are the eigenvectors
+  have hcol : ∀ i, G.adjMat *ᵥ (Uᵀ i) = G.eigenvalues i • (Uᵀ i) := by
+    intro i
+    funext x
+    have h1 : (G.adjMat * U) x i = U x i * G.eigenvalues i := by
+      rw [hAU, Matrix.mul_diagonal]
+    simpa [Matrix.mulVec, dotProduct, Matrix.mul_apply, mul_comm] using h1
+  have horth : ∀ i j, (Uᵀ i) ⬝ᵥ (Uᵀ j) = if i = j then 1 else 0 := by
+    intro i j
+    have h1 : (Uᵀ * U) i j = (1 : Matrix G.V G.V ℝ) i j := by rw [hUU]
+    rw [Matrix.one_apply] at h1
+    simpa [Matrix.mul_apply, dotProduct] using h1
+  -- an eigenvector for the degree is constant
+  have hconstv : ∀ i, G.eigenvalues i = k → ∀ x y, U x i = U y i := by
+    intro i hi x y
+    exact eq_of_mulVec_eq_of_isRegularWith hconn hreg (by rw [hcol i, hi]) x y
+  set w : G.V → ℝ := fun i ↦ ∑ x, U x i with hw
+  have hone : G.adjMat *ᵥ (fun _ ↦ (1 : ℝ)) = (k : ℝ) • (fun _ ↦ (1 : ℝ)) :=
+    (hasEigenvector_one_of_isRegularWith hreg).2
+  have hwvec : Uᵀ *ᵥ (fun _ ↦ (1 : ℝ)) = w := by
+    funext i
+    simp [Matrix.mulVec, dotProduct, hw]
+  -- `w` is supported on the eigenvalue `k`
+  have hzero : ∀ i, G.eigenvalues i ≠ k → w i = 0 := by
+    intro i hi
+    have h1 : Matrix.diagonal G.eigenvalues *ᵥ w = (k : ℝ) • w := by
+      rw [← hwvec, ← hdiag, Matrix.mulVec_mulVec, mul_assoc, mul_assoc, hUU', mul_one,
+        ← Matrix.mulVec_mulVec, hone, Matrix.mulVec_smul, hwvec]
+    have h2 := congrFun h1 i
+    simp only [Matrix.mulVec_diagonal, Pi.smul_apply, smul_eq_mul] at h2
+    rcases mul_eq_zero.1 (by linarith [h2] : (G.eigenvalues i - k) * w i = 0) with hc | hc
+    · exact absurd (sub_eq_zero.1 hc) hi
+    · exact hc
+  -- some coordinate of `w` is nonzero
+  have hwne : w ≠ 0 := by
+    intro h0
+    have h1 : U *ᵥ w = (fun _ ↦ (1 : ℝ)) := by
+      rw [← hwvec, Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
+    rw [h0, Matrix.mulVec_zero] at h1
+    have h2 := congrFun h1 (Classical.arbitrary G.V)
+    norm_num at h2
+  obtain ⟨i₀, hi₀⟩ := Function.ne_iff.1 hwne
+  have hi₀0 : w i₀ ≠ 0 := by simpa using hi₀
+  have hlam : G.eigenvalues i₀ = k := by
+    by_contra hcon
+    exact hi₀0 (hzero i₀ hcon)
+  -- the constant value `c` of the column `i₀`
+  obtain ⟨c, hc⟩ : ∃ c, ∀ x, U x i₀ = c :=
+    ⟨U (Classical.arbitrary G.V) i₀, fun x ↦ hconstv i₀ hlam x _⟩
+  have hwc : w i₀ = c * Fintype.card G.V := by
+    rw [hw]
+    simp [hc, Finset.card_univ, mul_comm]
+  have hcsq : c ^ 2 * Fintype.card G.V = 1 := by
+    have h1 := horth i₀ i₀
+    rw [if_pos rfl] at h1
+    simp only [dotProduct, Matrix.transpose_apply, hc, Finset.sum_const, Finset.card_univ,
+      nsmul_eq_mul] at h1
+    rw [← h1]
+    ring
+  have hwsq : w i₀ ^ 2 = Fintype.card G.V := by
+    rw [hwc, show (c * Fintype.card G.V) ^ 2
+      = (c ^ 2 * Fintype.card G.V) * Fintype.card G.V from by ring, hcsq, one_mul]
+  -- every other coordinate of `w` vanishes
+  have hwvanish : ∀ i, i ≠ i₀ → w i = 0 := by
+    intro i hne
+    by_cases hi : G.eigenvalues i = k
+    · obtain ⟨e, he⟩ : ∃ e, ∀ x, U x i = e :=
+        ⟨U (Classical.arbitrary G.V) i, fun x ↦ hconstv i hi x _⟩
+      have h1 := horth i i₀
+      rw [if_neg hne] at h1
+      simp only [dotProduct, Matrix.transpose_apply, he, hc, Finset.sum_const, Finset.card_univ,
+        nsmul_eq_mul] at h1
+      have hcne : c ≠ 0 := by
+        intro h0
+        rw [h0, zero_mul] at hwc
+        exact hi₀0 hwc
+      have he0 : e = 0 := by
+        rcases mul_eq_zero.1 h1 with h | h
+        · exact absurd h (ne_of_gt hnpos)
+        · rcases mul_eq_zero.1 h with h' | h'
+          · exact h'
+          · exact absurd h' hcne
+      rw [hw]
+      simp [he, he0]
+    · exact hzero i hi
+  -- conjugating the complement
+  set d : G.V → ℝ := fun i ↦ (if i = i₀ then (Fintype.card G.V : ℝ) else 0) - 1
+    - G.eigenvalues i with hdd
+  have hJ : Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1) * U = Matrix.vecMulVec w w := by
+    ext i j
+    have hrow : ∀ y : G.V, (Uᵀ * Matrix.vecMulVec (1 : G.V → ℝ) 1) i y = w i := fun y ↦ by
+      simp [Matrix.mul_apply, hw]
+    rw [Matrix.mul_apply]
+    simp only [hrow, ← Finset.mul_sum, Matrix.vecMulVec_apply]
+    simp [hw]
+  have hvv : Matrix.vecMulVec w w
+      = Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0) := by
+    ext i j
+    rcases eq_or_ne i i₀ with hi | hi
+    · rcases eq_or_ne j i₀ with hj | hj
+      · subst hi
+        subst hj
+        simp [Matrix.vecMulVec_apply, Matrix.diagonal, ← sq, hwsq]
+      · subst hi
+        simp [Matrix.vecMulVec_apply, Matrix.diagonal, Ne.symm hj, hwvanish j hj]
+    · simp [Matrix.vecMulVec_apply, Matrix.diagonal, hi, hwvanish i hi]
+  have hdsplit : Matrix.diagonal d
+      = Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0) - 1
+        - Matrix.diagonal G.eigenvalues := by
+    rw [hdd, ← Matrix.diagonal_one, ← Matrix.diagonal_sub, ← Matrix.diagonal_sub]
+  have hfinal : Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1 - 1 - G.adjMat) * U
+      = Matrix.diagonal d := by
+    rw [Matrix.mul_sub, Matrix.sub_mul, Matrix.mul_sub, Matrix.sub_mul, hJ, hvv, hdiag, mul_one,
+      hUU, hdsplit]
+  have hcon2 : (Matrix.vecMulVec (1 : G.V → ℝ) 1 - 1 - G.adjMat) * U = U * Matrix.diagonal d := by
+    calc (Matrix.vecMulVec (1 : G.V → ℝ) 1 - 1 - G.adjMat) * U
+        = (U * Uᵀ) * ((Matrix.vecMulVec (1 : G.V → ℝ) 1 - 1 - G.adjMat) * U) := by
+          rw [hUU', one_mul]
+      _ = U * (Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1 - 1 - G.adjMat) * U) := by
+          simp only [mul_assoc]
+      _ = U * Matrix.diagonal d := by rw [hfinal]
+  have hspec : (compl G).spectrum = Finset.univ.val.map d :=
+    spectrum_eq_of_conj (G := compl G) (P := U) (Q := Uᵀ) (d := d) hUU' hUU
+      (by rw [adjMat_compl]; exact hcon2)
+  -- unpacking the two multisets
+  have hmem : i₀ ∈ (Finset.univ : Finset G.V).val := Finset.mem_univ i₀
+  have hsplit : (Finset.univ : Finset G.V).val = i₀ ::ₘ (Finset.univ : Finset G.V).val.erase i₀ :=
+    (Multiset.cons_erase hmem).symm
+  have hnodup : i₀ ∉ (Finset.univ : Finset G.V).val.erase i₀ := fun h ↦ by
+    have hnd := Finset.univ.nodup (α := G.V)
+    rw [hsplit] at hnd
+    exact (Multiset.nodup_cons.1 hnd).1 h
+  have hspecG : G.spectrum.erase (k : ℝ)
+      = ((Finset.univ : Finset G.V).val.erase i₀).map G.eigenvalues := by
+    rw [spectrum_eq_map]
+    conv_lhs => rw [hsplit]
+    rw [Multiset.map_cons, hlam, Multiset.erase_cons_head]
+  rw [hspec, hspecG, Multiset.map_map]
+  conv_lhs => rw [hsplit]
+  rw [Multiset.map_cons]
+  congr 1
+  · simp [hdd, hlam]
+  · refine Multiset.map_congr rfl fun i hi ↦ ?_
+    have hne : i ≠ i₀ := fun h ↦ hnodup (h ▸ hi)
+    simp [hdd, hne]
 
 end CGraph
 
