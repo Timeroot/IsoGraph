@@ -4042,6 +4042,30 @@ theorem eigenvalue_eq_of_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ
 
 so the twenty-eight graphs of `SRG.lean` all have three-element spectra with known values.
 
+Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
+matrix and `transpose_mul_incMat` is the factorisation
+
+```lean
+theorem transpose_mul_incMat (G : CGraph) [DecidableEq G.V] :
+    G.incMatᵀ * G.incMat
+      = (lineGraph G).adjMat + (2 : ℝ) • (1 : Matrix (lineGraph G).V (lineGraph G).V ℝ)
+```
+
+— the entry at `(e, f)` counts the vertices the two edges share, which is `2` on the diagonal and
+`1` or `0` off it, exactly the adjacency of the line graph. Since `⟪v, Bᵀ B v⟫ = ‖B v‖²` is
+nonnegative, no line graph has an eigenvalue below `-2`
+(`neg_two_le_of_mem_spectrum_lineGraph`), and `-2` is attained as soon as `B` has a kernel, which
+it does whenever there are more edges than vertices. That is the other place ADE comes from: the
+connected graphs with least eigenvalue `-2` are the line graphs together with the exceptional
+root-system graphs.
+
+The largest eigenvalue has a name, `lambdaMax`, for nonempty graphs. It is a `Finset.sup'` of
+`eigenvalues`, so `le_lambdaMax` and `lambdaMax_mem_spectrum` characterise it, and
+`lambdaMax_le_iff`/`lambdaMax_lt_iff` convert any statement about the whole spectrum into one
+about that single number — which is how `isSmith_iff_lambdaMax` and `isSubcritical_iff_lambdaMax`
+restate Smith's two conditions. It sits between `0` (the eigenvalues sum to zero) and `maxDeg`
+(the all-ones vector), with equality at the degree for a regular graph.
+
 ### Smith's family and ADE
 
 `IsSmith G` says the largest eigenvalue of `G` is exactly `2`; `IsSubcritical G` says every
