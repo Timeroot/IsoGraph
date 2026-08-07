@@ -10,16 +10,17 @@ of degree `k`, every adjacent pair has `ℓ` common neighbours, and every non-ad
 The predicate is `CGraph.IsSRGWith` in `IsoGraph/Invariants.lean`, a thin wrapper around Mathlib's
 `SimpleGraph.IsSRGWith`.
 
-Sixteen of the twenty-four parameter checks below are theorems rather than computations: the
+Seventeen of the twenty-eight parameter checks below are theorems rather than computations: the
 rook, Kneser, triangular, Paley, complete bipartite and cocktail party entries come from the
 infinite families `isSRGWith_rook`, `isSRGWith_kneser_two`, `isSRGWith_triangular`,
 `isSRGWith_paley`, `isSRGWith_bipartite` and `isSRGWith_cocktailParty` of
-`IsoGraph/Constructions.lean`, and `compl clebsch`, `schlafli` and `compl hoffmanSingleton` from
-`isSRGWith_compl`.  Of the rest, `cycle 5`, `clebsch` and `shrikhande` are checked by kernel
-`decide`; only the five largest sporadic graphs — `linesOnCubic`, the three Chang graphs and
-`hoffmanSingleton` — still need `native_decide`.  The predicate is decidable in `O(n³)`
-adjacency queries and the kernel does manage those: a `decide` on `linesOnCubic` takes about
-twenty-five seconds, on a Chang graph about thirty, and on `hoffmanSingleton` several minutes.
+`IsoGraph/Constructions.lean`, and `compl clebsch`, `schlafli`, `compl hoffmanSingleton` and
+`compl higmanSims` from `isSRGWith_compl`.  Of the rest, `cycle 5`, `clebsch` and `shrikhande` are
+checked by kernel `decide`; the eight largest sporadic graphs — `linesOnCubic`, the three Chang
+graphs, `hoffmanSingleton`, `gewirtz`, `m22` and `higmanSims` — need `native_decide`.  The
+predicate is decidable in `O(n³)` adjacency queries and the kernel does manage the smaller ones:
+a `decide` on `linesOnCubic` takes about twenty-five seconds, on a Chang graph about thirty, and
+on `hoffmanSingleton` several minutes.
 That is a build-time price with no extra confidence attached, since the definitions are already
 small and explicit, so they are left on `native_decide`.
 
@@ -60,6 +61,10 @@ Both facts are proved by computing canonical keys, i.e. by `CGraph.Enum.key_eq_i
 | `paley 29`               |  29 |  14 |   6 |   7 |
 | `hoffmanSingleton`       |  50 |   7 |   0 |   1 |
 | `compl hoffmanSingleton` |  50 |  42 |  35 |  36 |
+| `gewirtz`                |  56 |  10 |   0 |   2 |
+| `m22`                    |  77 |  16 |   0 |   4 |
+| `higmanSims`             | 100 |  22 |   0 |   6 |
+| `compl higmanSims`       | 100 |  77 |  60 |  56 |
 | `paley 101`              | 101 |  50 |  24 |  25 |
 
 `SRG.table` collects them as data: each row carries the graph, the parameters and the proof.
@@ -71,13 +76,17 @@ Everything here answers an adjacency query in constant or near-constant time:
 * `paley q` reads a precomputed table of quadratic residues (`qrTable`);
 * `hoffmanSingleton` is four divisions and a multiplication mod 5;
 * `johnson`, `kneser` and `linesOnCubic` intersect two small `Finset`s;
-* `shrikhande` is a Cayley graph on `ZMod 4 × ZMod 4`, i.e. a six-element list lookup.
+* `shrikhande` is a Cayley graph on `ZMod 4 × ZMod 4`, i.e. a six-element list lookup;
+* `gewirtz`, `m22` and `higmanSims` read the blocks of `S(3, 6, 22)` out of an array of 22-bit
+  masks, so a query is one array access and one bitwise `and` or bit test.
 
 ## Not here yet
 
-The Higman–Sims graph `(100, 22, 0, 6)`, the Gewirtz graph `(56, 10, 0, 2)` and the `M₂₂` graph
-`(77, 16, 0, 4)` all want the Steiner system `S(3, 6, 22)`, which nothing in this development
-builds yet.
+The three largest entries — `gewirtz`, `m22` and `higmanSims` — are the graphs of the Steiner
+system `S(3, 6, 22)`, whose 77 blocks are written out in `wittBlocks` and checked by
+`witt_steiner`.  Beyond them the next natural targets are the Hall–Janko graph
+`(100, 36, 14, 12)` and the McLaughlin graph `(275, 112, 30, 56)`, and the general Latin-square
+and Steiner block-graph families.
 -/
 
 namespace SRG
@@ -183,6 +192,123 @@ instance : DecidableEq chang₁.V := inferInstanceAs (DecidableEq (triangular 8)
 instance : DecidableEq chang₂.V := inferInstanceAs (DecidableEq (triangular 8).V)
 instance : DecidableEq chang₃.V := inferInstanceAs (DecidableEq (triangular 8).V)
 
+/-! ### The Steiner system `S(3, 6, 22)`
+
+A *Steiner system* `S(3, 6, 22)` is a family of six-element subsets — *blocks*, or *hexads* — of a
+22-element point set such that every three points lie in exactly one block.  There are 77 blocks,
+and the system is unique up to isomorphism; `witt_steiner` below checks the defining property of
+the copy written down here.
+
+The construction is Witt's.  Take the projective plane `PG(2, 4)`: 21 points, 21 lines of five
+points each.  A *hyperoval* is a six-point set meeting every line in either zero or two points;
+there are 168 of them, and they fall into three classes of 56, two hyperovals lying in the same
+class exactly when they meet in an even number of points.  Adjoin a 22nd point `21` to the plane.
+The blocks are then
+
+* the 21 lines, each extended by the new point, and
+* the 56 hyperovals of one class.
+
+The lists are the result of that computation, with the points of `PG(2, 4)` numbered `0 … 20` in
+the lexicographic order of their normalised homogeneous coordinates over `GF(4)`.
+-/
+
+/-- The 56 hyperovals of one class in `PG(2, 4)`: the blocks of `S(3, 6, 22)` missing the point
+`21`. -/
+def wittHexads : List (List ℕ) :=
+  [ [0, 1, 5, 10, 16, 19], [0, 1, 6, 9, 15, 20], [0, 1, 7, 12, 14, 17],
+    [0, 1, 8, 11, 13, 18], [0, 2, 5, 9, 14, 18], [0, 2, 6, 10, 13, 17],
+    [0, 2, 7, 11, 16, 20], [0, 2, 8, 12, 15, 19], [0, 3, 5, 12, 13, 20],
+    [0, 3, 6, 11, 14, 19], [0, 3, 7, 10, 15, 18], [0, 3, 8, 9, 16, 17],
+    [0, 4, 5, 11, 15, 17], [0, 4, 6, 12, 16, 18], [0, 4, 7, 9, 13, 19],
+    [0, 4, 8, 10, 14, 20], [1, 2, 5, 6, 11, 12], [1, 2, 7, 8, 9, 10],
+    [1, 2, 13, 14, 19, 20], [1, 2, 15, 16, 17, 18], [1, 3, 5, 8, 14, 15],
+    [1, 3, 6, 7, 13, 16], [1, 3, 9, 12, 18, 19], [1, 3, 10, 11, 17, 20],
+    [1, 4, 5, 7, 18, 20], [1, 4, 6, 8, 17, 19], [1, 4, 9, 11, 14, 16],
+    [1, 4, 10, 12, 13, 15], [2, 3, 5, 7, 17, 19], [2, 3, 6, 8, 18, 20],
+    [2, 3, 9, 11, 13, 15], [2, 3, 10, 12, 14, 16], [2, 4, 5, 8, 13, 16],
+    [2, 4, 6, 7, 14, 15], [2, 4, 9, 12, 17, 20], [2, 4, 10, 11, 18, 19],
+    [3, 4, 5, 6, 9, 10], [3, 4, 7, 8, 11, 12], [3, 4, 13, 14, 17, 18],
+    [3, 4, 15, 16, 19, 20], [5, 6, 13, 15, 18, 19], [5, 6, 14, 16, 17, 20],
+    [5, 7, 9, 12, 15, 16], [5, 7, 10, 11, 13, 14], [5, 8, 9, 11, 19, 20],
+    [5, 8, 10, 12, 17, 18], [6, 7, 9, 11, 17, 18], [6, 7, 10, 12, 19, 20],
+    [6, 8, 9, 12, 13, 14], [6, 8, 10, 11, 15, 16], [7, 8, 13, 15, 17, 20],
+    [7, 8, 14, 16, 18, 19], [9, 10, 13, 16, 18, 20], [9, 10, 14, 15, 17, 19],
+    [11, 12, 13, 16, 17, 19], [11, 12, 14, 15, 18, 20] ]
+
+/-- The 21 lines of `PG(2, 4)`, each extended by the point `21`: the blocks of `S(3, 6, 22)`
+through that point. -/
+def wittLines : List (List ℕ) :=
+  [ [0, 1, 2, 3, 4, 21], [0, 5, 6, 7, 8, 21], [0, 9, 10, 11, 12, 21],
+    [0, 13, 14, 15, 16, 21], [0, 17, 18, 19, 20, 21], [1, 5, 9, 13, 17, 21],
+    [1, 6, 10, 14, 18, 21], [1, 7, 11, 15, 19, 21], [1, 8, 12, 16, 20, 21],
+    [2, 5, 10, 15, 20, 21], [2, 6, 9, 16, 19, 21], [2, 7, 12, 13, 18, 21],
+    [2, 8, 11, 14, 17, 21], [3, 5, 11, 16, 18, 21], [3, 6, 12, 15, 17, 21],
+    [3, 7, 9, 14, 20, 21], [3, 8, 10, 13, 19, 21], [4, 5, 12, 14, 19, 21],
+    [4, 6, 11, 13, 20, 21], [4, 7, 10, 16, 17, 21], [4, 8, 9, 15, 18, 21] ]
+
+/-- The 77 blocks of the Steiner system `S(3, 6, 22)`, hexads first: blocks `0 … 55` avoid the
+point `21` and blocks `56 … 76` contain it. -/
+def wittBlocks : List (List ℕ) := wittHexads ++ wittLines
+
+/-- The blocks as 22-bit masks, so that "point `p` lies in block `i`" and "blocks `i` and `j` are
+disjoint" are one machine word each. -/
+def wittMasks : Array ℕ :=
+  (wittBlocks.map fun B ↦ B.foldr (fun p m ↦ m ||| 2 ^ p) 0).toArray
+
+/-- Point `p` lies in block `i`. -/
+def inBlock (i p : ℕ) : Bool := (wittMasks.getD i 0).testBit p
+
+/-- Blocks `i` and `j` are disjoint.  A block is never disjoint from itself, so this relation is
+already irreflexive. -/
+def disjBlocks (i j : ℕ) : Bool := wittMasks.getD i 0 &&& wittMasks.getD j 0 == 0
+
+theorem wittBlocks_length : wittBlocks.length = 77 := by native_decide
+
+theorem wittBlocks_six : ∀ B ∈ wittBlocks, B.length = 6 ∧ B.Nodup ∧ ∀ p ∈ B, p < 22 := by
+  native_decide
+
+/-- **The defining property of the Steiner system**: any three distinct points of `Fin 22` lie in
+exactly one of the 77 blocks. -/
+theorem witt_steiner (a b c : Fin 22) (hab : a ≠ b) (hac : a ≠ c) (hbc : b ≠ c) :
+    ((List.range 77).filter fun i ↦ inBlock i a && inBlock i b && inBlock i c).length = 1 := by
+  revert hab hac hbc; revert a b c; native_decide
+
+/-! ### The three graphs -/
+
+/-- The Gewirtz graph, also called the Sims–Gewirtz graph: the 56 blocks of `S(3, 6, 22)` missing
+a fixed point, adjacent when disjoint.  The unique `(56, 10, 0, 2)` graph. -/
+def gewirtz : CGraph := ofRel (Fin 56) fun x y ↦ disjBlocks x.1 y.1
+
+instance : DecidableEq gewirtz.V := inferInstanceAs (DecidableEq (Fin 56))
+
+/-- The `M₂₂` graph: all 77 blocks of `S(3, 6, 22)`, adjacent when disjoint.  The unique
+`(77, 16, 0, 4)` graph; its automorphism group is the Mathieu group `M₂₂` extended by an outer
+automorphism. -/
+def m22 : CGraph := ofRel (Fin 77) fun x y ↦ disjBlocks x.1 y.1
+
+instance : DecidableEq m22.V := inferInstanceAs (DecidableEq (Fin 77))
+
+/-- Adjacency of the Higman–Sims graph on `0 … 99`: the 22 points `0 … 21` of `S(3, 6, 22)`, its
+77 blocks `22 … 98`, and one extra vertex `99`.
+
+* `99` is adjacent to every point;
+* a point is adjacent to the blocks containing it;
+* two blocks are adjacent when they are disjoint.
+
+Only the direction `x < y` is listed: `ofRel` symmetrises. -/
+private def higmanSimsAdj (x y : ℕ) : Bool :=
+  if x < 22 then
+    if y < 22 then false else if y < 99 then inBlock (y - 22) x else true
+  else if x < 99 then
+    if 22 ≤ y ∧ y < 99 then disjBlocks (x - 22) (y - 22) else false
+  else false
+
+/-- The Higman–Sims graph: 100 vertices, the unique `(100, 22, 0, 6)` graph.  Its automorphism
+group contains the sporadic simple Higman–Sims group with index two. -/
+def higmanSims : CGraph := ofRel (Fin 100) fun x y ↦ higmanSimsAdj x.1 y.1
+
+instance : DecidableEq higmanSims.V := inferInstanceAs (DecidableEq (Fin 100))
+
 /-! ## The parameters
 
 Whatever can be, is proved: the rook, Kneser, triangular, Paley, complete bipartite and cocktail
@@ -248,6 +374,15 @@ theorem hoffmanSingleton_srg : hoffmanSingleton.IsSRGWith 50 7 0 1 := by native_
 
 theorem compl_hoffmanSingleton_srg : (compl hoffmanSingleton).IsSRGWith 50 42 35 36 :=
   isSRGWith_compl _ hoffmanSingleton_srg
+
+theorem gewirtz_srg : gewirtz.IsSRGWith 56 10 0 2 := by native_decide
+
+theorem m22_srg : m22.IsSRGWith 77 16 0 4 := by native_decide
+
+theorem higmanSims_srg : higmanSims.IsSRGWith 100 22 0 6 := by native_decide
+
+theorem compl_higmanSims_srg : (compl higmanSims).IsSRGWith 100 77 60 56 :=
+  isSRGWith_compl _ higmanSims_srg
 
 theorem paley_hundredone_srg : (paley 101).IsSRGWith 101 50 24 25 :=
   haveI : Fact (Nat.Prime 101) := ⟨by norm_num⟩
@@ -337,12 +472,17 @@ def table : List Entry :=
     ⟨"Hoffman–Singleton", hoffmanSingleton, 50, 7, 0, 1, hoffmanSingleton_srg⟩,
     ⟨"complement of Hoffman–Singleton", compl hoffmanSingleton, 50, 42, 35, 36,
       compl_hoffmanSingleton_srg⟩,
+    ⟨"Gewirtz", gewirtz, 56, 10, 0, 2, gewirtz_srg⟩,
+    ⟨"M₂₂", m22, 77, 16, 0, 4, m22_srg⟩,
+    ⟨"Higman–Sims", higmanSims, 100, 22, 0, 6, higmanSims_srg⟩,
+    ⟨"complement of Higman–Sims", compl higmanSims, 100, 77, 60, 56, compl_higmanSims_srg⟩,
     ⟨"Paley(101)", paley 101, 101, 50, 24, 25, paley_hundredone_srg⟩ ]
 
-#guard table.length = 24
+#guard table.length = 28
 
 #guard table.map (fun e ↦ e.n) =
-  [5, 6, 8, 9, 10, 10, 13, 15, 15, 16, 16, 16, 16, 17, 27, 27, 28, 28, 28, 28, 29, 50, 50, 101]
+  [5, 6, 8, 9, 10, 10, 13, 15, 15, 16, 16, 16, 16, 17, 27, 27, 28, 28, 28, 28, 29, 50, 50, 56, 77,
+    100, 100, 101]
 
 /-- The parameters of any row satisfy the standard feasibility identity
 `k (k - ℓ - 1) = (n - k - 1) μ` — counting, in two ways, the edges between the neighbours and the
