@@ -127,8 +127,8 @@ the vanishing diagonal then pins the constant to `1`;
 and with three `exists_isSRGWith_of_card_toFinset_spectrum_eq_three` says a connected regular
 graph is strongly regular.  The converse is `card_toFinset_spectrum_eq_three_of_isSRGWith`: at
 most three because every eigenvalue but the degree is a root of the same quadratic, at least three
-because a non-adjacent pair is at distance `2` — which also says its diameter is exactly `2`,
-`diameter_of_isSRGWith`.  Putting the two together,
+because a non-adjacent pair is at distance `2`, which is the same distance-two argument that
+`IsSRGWith.diameter_eq_two` runs by hand.  Putting the two together,
 `Cospectral.exists_isSRGWith` says that **strong regularity is determined by the spectrum**.
 Factor `minSpecPoly` as `(X - k) (X - r) (X - s)` — the degree is an eigenvalue, so it is one of
 the three — and `aeval_minSpecPoly` turns that into `(A - k) (A - r) (A - s) = 0`.  Hence every
@@ -4862,22 +4862,6 @@ theorem card_toFinset_spectrum_eq_three_of_isSRGWith {G : CGraph} {n k l m : ℕ
   have h3 := G.dist_lt_card_toFinset_spectrum i j
   omega
 
-/-- **A connected strongly regular graph that is not complete has diameter `2`.**  It has three
-distinct eigenvalues, so its diameter is at most `2`; and the non-adjacent pair is at distance
-at least `2`. -/
-theorem diameter_of_isSRGWith {G : CGraph} {n k l m : ℕ} (hconn : G.IsConnected)
-    (h : G.IsSRGWith n k l m) {i j : G.V} (hij : i ≠ j) (hnadj : G.Adj i j = false) :
-    G.diameter = 2 := by
-  haveI : Nonempty G.V := ⟨i⟩
-  have h3 := card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hij hnadj
-  have hlt := G.diameter_lt_card_toFinset_spectrum
-  rw [h3] at hlt
-  have h2 : 1 < G.toSimple.dist i j :=
-    hconn.one_lt_dist_of_ne_of_not_adj hij (by simp [hnadj])
-  have hne : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hconn
-  have hle : G.toSimple.dist i j ≤ G.diameter := SimpleGraph.dist_le_diam hne
-  omega
-
 /-- **Strong regularity is determined by the spectrum.**  A graph cospectral with a connected,
 non-complete strongly regular graph is itself strongly regular, of the same degree. -/
 theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l m : ℕ}
@@ -5184,5 +5168,51 @@ theorem card_toFinset_spectrum_eq_two_iff {G : IsoGraph} {k : ℕ} (hconn : G.Is
   refine ⟨eq_complete_of_card_toFinset_spectrum_eq_two hconn hreg, fun h ↦ ?_⟩
   obtain ⟨n, hn⟩ : ∃ n, G.V = n + 2 := ⟨G.V - 2, by omega⟩
   rw [h, hn, card_toFinset_spectrum_complete]
+
+/-- **A strongly regular graph has at most three distinct eigenvalues.** -/
+theorem card_toFinset_spectrum_le_three_of_isSRGWith {G : IsoGraph} {n k l m : ℕ}
+    (h : G.IsSRGWith n k l m) : G.spectrum.toFinset.card ≤ 3 := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [spectrum_mk]
+    rw [isSRGWith_mk] at h
+    exact CGraph.card_toFinset_spectrum_le_three_of_isSRGWith h
+
+/-- **A connected strongly regular graph that is not complete has exactly three distinct
+eigenvalues.** -/
+theorem card_toFinset_spectrum_eq_three_of_isSRGWith {G : IsoGraph} {n k l m : ℕ}
+    (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) (hE : G.E < G.V.choose 2) :
+    G.spectrum.toFinset.card = 3 := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [E_mk, V_mk] at hE
+    rw [isSRGWith_mk] at h
+    rw [isConnected_mk] at hconn
+    rw [spectrum_mk]
+    obtain ⟨i, j, hij, hnadj⟩ := CGraph.exists_not_adj_of_E_lt g hE
+    exact CGraph.card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hij hnadj
+
+/-- **A connected regular graph with three distinct eigenvalues is strongly regular.** -/
+theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : IsoGraph} {k : ℕ}
+    (hconn : G.IsConnected) (hreg : G.IsRegularWith k) (h3 : G.spectrum.toFinset.card = 3) :
+    ∃ l m : ℕ, G.IsSRGWith G.V k l m := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [spectrum_mk] at h3
+    rw [isConnected_mk] at hconn
+    rw [isRegularWith_mk] at hreg
+    rw [V_mk]
+    simpa only [isSRGWith_mk] using
+      CGraph.exists_isSRGWith_of_card_toFinset_spectrum_eq_three hconn hreg h3
+
+/-- **Strong regularity is determined by the spectrum.** -/
+theorem Cospectral.exists_isSRGWith {G H : IsoGraph} (hc : Cospectral G H) {n k l m : ℕ}
+    (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) (hE : G.E < G.V.choose 2) :
+    ∃ l' m' : ℕ, H.IsSRGWith H.V k l' m' := by
+  refine exists_isSRGWith_of_card_toFinset_spectrum_eq_three
+    (Cospectral.isConnected hc h.isRegularWith hconn)
+    (Cospectral.isRegularWith hc h.isRegularWith) ?_
+  rw [← hc.spectrum_eq]
+  exact card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hE
 
 end IsoGraph
