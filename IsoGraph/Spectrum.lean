@@ -4,6 +4,7 @@ import Mathlib.Analysis.Matrix.Spectrum
 import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
 import Mathlib.RingTheory.RootsOfUnity.Complex
+import Mathlib.Algebra.GCDMonoid.IntegrallyClosed
 
 /-!
 # Spectral graph theory
@@ -136,6 +137,16 @@ for every parameter: `spectrum_cocktailParty` gives `2n - 2, 0ⁿ, (-2)ⁿ⁻¹`
 `2n - 2, (n - 2)^(2n-2), (-2)^((n-1)²)`, and `spectrum_triangular` gives
 `2n - 4, (n - 4)ⁿ⁻¹, (-2)^(C(n,2) - n)` — the last two both line graphs, hence both bottoming
 out at `-2`.
+
+That every one of those roots came out an integer is no accident: it is the **integrality
+condition**, `int_or_conference_of_isSRGWith`.  Eliminating `s` from the trace conditions leaves
+`(f - g) r = -(k + g (ℓ - μ))`, so as soon as the two multiplicities differ, `r` is *rational* —
+and a rational eigenvalue of a graph is an integer, since `charpoly` is a monic integer polynomial
+(`charpoly_eq_map_int`, `isIntegral_of_mem_spectrum`) and `ℤ` is integrally closed in `ℚ`
+(`exists_intCast_eq_of_ratCast_mem_spectrum`).  The excluded case `f = g` is exactly
+`2 k + (n - 1) (ℓ - μ) = 0`, the conference graphs — the Paley graphs are the standard examples.
+`isSquare_discrim_or_conference_of_isSRGWith` restates it as the textbook dichotomy: either the
+discriminant `(ℓ - μ) ² + 4 (k - μ)` is a perfect square, or the parameters are of conference type.
 
 ## The Smith family and ADE
 
@@ -302,6 +313,44 @@ theorem spectrum_eq_of_card_le (G : CGraph) (s : Finset ℝ)
   · exact le_trans (Multiset.nodup_iff_count_le_one.1 s.nodup x)
       (Multiset.one_le_count_iff_mem.2 ((mem_spectrum_iff G x).2 (hs x hx)))
   · simp [Multiset.count_eq_zero_of_notMem (fun h ↦ hx (Finset.mem_def.mpr h))]
+
+/-! ## Integrality
+
+The adjacency matrix has integer entries, so the characteristic polynomial is a *monic integer*
+polynomial and every eigenvalue is an algebraic integer.  Since `ℤ` is integrally closed in `ℚ`,
+a rational eigenvalue is an integer. -/
+
+/-- The adjacency matrix, over `ℤ`. -/
+def adjMatInt (G : CGraph) : Matrix G.V G.V ℤ := fun i j ↦ if G.Adj i j then 1 else 0
+
+theorem adjMat_eq_map_adjMatInt (G : CGraph) :
+    G.adjMat = G.adjMatInt.map (Int.castRingHom ℝ) := by
+  ext i j
+  simp [adjMat_apply, adjMatInt, apply_ite]
+
+/-- **The characteristic polynomial has integer coefficients.** -/
+theorem charpoly_eq_map_int (G : CGraph) :
+    G.charpoly = G.adjMatInt.charpoly.map (Int.castRingHom ℝ) := by
+  rw [charpoly_eq_matrix_charpoly, adjMat_eq_map_adjMatInt, Matrix.charpoly_map]
+
+/-- **Every eigenvalue is an algebraic integer**: it is a root of the monic integer polynomial
+`charpoly`. -/
+theorem isIntegral_of_mem_spectrum (G : CGraph) {x : ℝ} (hx : x ∈ G.spectrum) :
+    IsIntegral ℤ x := by
+  refine ⟨G.adjMatInt.charpoly, Matrix.charpoly_monic _, ?_⟩
+  have h1 : G.charpoly.IsRoot x := (Polynomial.mem_roots G.monic_charpoly.ne_zero).1 hx
+  rw [charpoly_eq_map_int] at h1
+  rw [Polynomial.eval₂_eq_eval_map]
+  simpa [algebraMap_int_eq] using h1
+
+/-- **A rational eigenvalue is an integer**, because `ℤ` is integrally closed in `ℚ`. -/
+theorem exists_intCast_eq_of_ratCast_mem_spectrum (G : CGraph) {q : ℚ}
+    (hq : (q : ℝ) ∈ G.spectrum) : ∃ z : ℤ, (z : ℝ) = (q : ℝ) := by
+  have h1 : IsIntegral ℤ ((algebraMap ℚ ℝ) q) := by
+    simpa using G.isIntegral_of_mem_spectrum hq
+  have h2 : IsIntegral ℤ q := h1.tower_bot (algebraMap ℚ ℝ).injective
+  obtain ⟨z, hz⟩ := IsIntegrallyClosed.isIntegral_iff.1 h2
+  exact ⟨z, by rw [← hz]; norm_cast⟩
 
 /-! ## Isomorphism invariance -/
 
@@ -1444,6 +1493,86 @@ theorem spectrum_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {n k l 
   · linarith
   · rw [hdec, he1, Multiset.replicate_one, add_assoc]
     rfl
+
+/-- **The integrality condition for strongly regular parameters.**  Either the two non-degree
+eigenvalues are integers, or `2 k + (n - 1) (ℓ - μ) = 0` — the *conference graph* case, where `r`
+and `s` are irrational conjugates.  The multiplicities `f` and `g` decide which: eliminating `s`
+from `k + f r + g s = 0` gives `(f - g) r = -(k + g (ℓ - μ))`, so if `f ≠ g` then `r` is rational
+and hence an integer, while if `f = g` the same equation is the conference identity. -/
+theorem int_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V]
+    {n k l m : ℕ} (h : G.IsSRGWith n k l m) (hm : 0 < m) {r s : ℝ}
+    (hrs : r + s = (l : ℝ) - m) (hprod : r * s = -((k : ℝ) - m)) (hne : r ≠ s) :
+    (∃ a b : ℤ, r = a ∧ s = b) ∨ 2 * (k : ℝ) + ((n : ℝ) - 1) * ((l : ℝ) - m) = 0 := by
+  obtain ⟨f, g, hfg, htr, hspec⟩ := spectrum_isSRGWith h hm hrs hprod hne
+  have hn : (n : ℝ) = (f : ℝ) + g + 1 := by exact_mod_cast hfg.symm
+  by_cases hfe : (f : ℝ) = (g : ℝ)
+  · right
+    linear_combination (2 : ℝ) * htr - ((f : ℝ) + g) * hrs + (s - r) * hfe + ((l : ℝ) - m) * hn
+  · left
+    have hd : (f : ℝ) - g ≠ 0 := sub_ne_zero.2 hfe
+    obtain ⟨qr, hqr⟩ : ∃ q : ℚ, (q : ℝ) = r :=
+      ⟨-((k : ℚ) + g * ((l : ℚ) - m)) / ((f : ℚ) - g), by
+        push_cast
+        rw [div_eq_iff hd]
+        linear_combination -htr + (g : ℝ) * hrs⟩
+    obtain ⟨qs, hqs⟩ : ∃ q : ℚ, (q : ℝ) = s :=
+      ⟨((l : ℚ) - m) - qr, by push_cast; rw [hqr]; linarith⟩
+    have hspecr : f ≠ 0 → r ∈ G.spectrum := fun hf ↦ by
+      rw [hspec]
+      exact Multiset.mem_cons_of_mem
+        (Multiset.mem_add.2 (Or.inl (Multiset.mem_replicate.2 ⟨hf, rfl⟩)))
+    have hspecs : g ≠ 0 → s ∈ G.spectrum := fun hg ↦ by
+      rw [hspec]
+      exact Multiset.mem_cons_of_mem
+        (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨hg, rfl⟩)))
+    have hmain : ∃ a : ℤ, r = (a : ℝ) := by
+      by_cases hf : f = 0
+      · have hg : g ≠ 0 := fun hg0 ↦ hfe (by rw [hf, hg0])
+        obtain ⟨b, hb⟩ :=
+          G.exists_intCast_eq_of_ratCast_mem_spectrum (q := qs) (by rw [hqs]; exact hspecs hg)
+        exact ⟨(l : ℤ) - m - b, by push_cast; rw [hb, hqs]; linarith⟩
+      · obtain ⟨a, ha⟩ :=
+          G.exists_intCast_eq_of_ratCast_mem_spectrum (q := qr) (by rw [hqr]; exact hspecr hf)
+        exact ⟨a, by rw [ha, hqr]⟩
+    obtain ⟨a, ha⟩ := hmain
+    exact ⟨a, (l : ℤ) - m - a, ha, by push_cast; rw [← ha]; linarith⟩
+
+/-- The integrality condition in its textbook form: for a strongly regular graph the discriminant
+`(ℓ - μ) ² + 4 (k - μ)` is a perfect square, unless `2 k + (n - 1) (ℓ - μ) = 0`. -/
+theorem isSquare_discrim_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V]
+    {n k l m : ℕ} (h : G.IsSRGWith n k l m) (hm : 0 < m)
+    (hD : 0 < ((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m)) :
+    (∃ d : ℤ, ((l : ℤ) - m) ^ 2 + 4 * ((k : ℤ) - m) = d ^ 2)
+      ∨ 2 * (k : ℤ) + ((n : ℤ) - 1) * ((l : ℤ) - m) = 0 := by
+  obtain ⟨D, hDdef⟩ : ∃ D : ℝ, D = ((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m) := ⟨_, rfl⟩
+  rw [← hDdef] at hD
+  have hsq : Real.sqrt D ^ 2 = D := Real.sq_sqrt hD.le
+  have hpos : 0 < Real.sqrt D := Real.sqrt_pos.2 hD
+  have hrs : (((l : ℝ) - m) + Real.sqrt D) / 2 + (((l : ℝ) - m) - Real.sqrt D) / 2
+      = (l : ℝ) - m := by ring
+  have hprod : (((l : ℝ) - m) + Real.sqrt D) / 2 * ((((l : ℝ) - m) - Real.sqrt D) / 2)
+      = -((k : ℝ) - m) := by
+    have h1 : (((l : ℝ) - m) + Real.sqrt D) / 2 * ((((l : ℝ) - m) - Real.sqrt D) / 2)
+        = (((l : ℝ) - m) ^ 2 - Real.sqrt D ^ 2) / 4 := by ring
+    rw [h1, hsq, hDdef]
+    ring
+  have hne : (((l : ℝ) - m) + Real.sqrt D) / 2 ≠ (((l : ℝ) - m) - Real.sqrt D) / 2 := by
+    intro hc
+    linarith
+  rcases int_or_conference_of_isSRGWith h hm hrs hprod hne with ⟨a, b, ha, hb⟩ | hc
+  · left
+    refine ⟨a - b, ?_⟩
+    have h1 : Real.sqrt D = ((a - b : ℤ) : ℝ) := by
+      push_cast
+      rw [← ha, ← hb]
+      ring
+    have h2 : ((((l : ℤ) - m) ^ 2 + 4 * ((k : ℤ) - m) : ℤ) : ℝ) = (((a - b : ℤ) : ℝ)) ^ 2 := by
+      rw [← h1, hsq, hDdef]
+      push_cast
+      ring
+    exact_mod_cast h2
+  · right
+    exact_mod_cast hc
 
 /-- **The spectrum of the Petersen graph**: `3` once, `1` five times, `-2` four times. -/
 theorem spectrum_petersen :

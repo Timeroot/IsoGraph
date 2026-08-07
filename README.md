@@ -4165,6 +4165,39 @@ the three: `cocktailParty` is linear, `rook` and `triangular` need one cancellat
 (`mul_right_cancel₀`) against `k + 2` and `m + 2` respectively. Both of the last two are line
 graphs — `K_n □ K_n = L(K_{n,n})` and `T(n) = L(Kₙ)` — which is why both bottom out at `-2`.
 
+That the roots keep coming out integral is a theorem, not a coincidence. Eliminating `s` from the
+two trace conditions leaves `(f - g) r = -(k + g (ℓ - μ))`, so the moment the two multiplicities
+differ, `r` is a *rational* number — and a rational eigenvalue of a graph has to be an integer.
+The adjacency matrix has integer entries, so `charpoly` is the image of a monic integer
+polynomial,
+
+```lean
+theorem charpoly_eq_map_int (G : CGraph) :
+    G.charpoly = G.adjMatInt.charpoly.map (Int.castRingHom ℝ)
+
+theorem isIntegral_of_mem_spectrum (G : CGraph) {x : ℝ} (hx : x ∈ G.spectrum) : IsIntegral ℤ x
+```
+
+and `ℤ` is integrally closed in `ℚ`, which is `exists_intCast_eq_of_ratCast_mem_spectrum`. The
+excluded case `f = g` turns the same equation into `2 k + (n - 1) (ℓ - μ) = 0`, so the dichotomy
+is:
+
+```lean
+theorem int_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V]
+    {n k l m : ℕ} (h : G.IsSRGWith n k l m) (hm : 0 < m) {r s : ℝ}
+    (hrs : r + s = (l : ℝ) - m) (hprod : r * s = -((k : ℝ) - m)) (hne : r ≠ s) :
+    (∃ a b : ℤ, r = a ∧ s = b) ∨ 2 * (k : ℝ) + ((n : ℝ) - 1) * ((l : ℝ) - m) = 0
+```
+
+Feeding it the two roots of the quadratic gives the textbook form,
+`isSquare_discrim_or_conference_of_isSRGWith`: the discriminant `(ℓ - μ)² + 4 (k - μ)` is a
+perfect square, unless the parameters are of *conference* type. Both branches occur among the
+graphs of `SRG.lean`: the Paley graphs are conference graphs — `paley 13` is an
+`srg(13, 6, 2, 3)` with `2·6 + 12·(2 - 3) = 0` and eigenvalues `(-1 ± √13) / 2` — while every
+other family in the table has a square discriminant and integer eigenvalues. This is the
+condition that rules out most candidate parameter sets, and it is the reason the search for
+Moore graphs of degree `57` is a search rather than a construction.
+
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
 
