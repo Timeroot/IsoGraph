@@ -125,7 +125,10 @@ One means no edges at all, `card_toFinset_spectrum_eq_one_iff`; two means comple
 `card_toFinset_spectrum_eq_two_iff`, since the same argument makes `A - r` a constant matrix and
 the vanishing diagonal then pins the constant to `1`;
 and with three `exists_isSRGWith_of_card_toFinset_spectrum_eq_three` says a connected regular
-graph is strongly regular.
+graph is strongly regular.  The converse is `card_toFinset_spectrum_eq_three_of_isSRGWith`: at
+most three because every eigenvalue but the degree is a root of the same quadratic, at least three
+because a non-adjacent pair is at distance `2`.  Putting the two together,
+`Cospectral.exists_isSRGWith` says that **strong regularity is determined by the spectrum**.
 Factor `minSpecPoly` as `(X - k) (X - r) (X - s)` — the degree is an eigenvalue, so it is one of
 the three — and `aeval_minSpecPoly` turns that into `(A - k) (A - r) (A - s) = 0`.  Hence every
 column of `M = (A - r) (A - s)` is a `k`-eigenvector, and since a connected regular graph has `k`
@@ -4816,6 +4819,61 @@ theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : �
     · push_neg at hex
       exact ⟨0, fun v w hvw hn ↦ absurd (hex v w hvw) (by simpa using hn)⟩
   exact ⟨l, m, rfl, hreg, hl, fun v w hne hnadj ↦ hm v w hne hnadj⟩
+
+/-- **A strongly regular graph has at most three distinct eigenvalues.**  Every eigenvalue other
+than the degree is a root of `X ² - (ℓ - μ) X - (k - μ)`, and a quadratic has at most two. -/
+theorem card_toFinset_spectrum_le_three_of_isSRGWith {G : CGraph} {n k l m : ℕ}
+    (h : G.IsSRGWith n k l m) : G.spectrum.toFinset.card ≤ 3 := by
+  set p : ℝ[X] := X ^ 2 - C ((l : ℝ) - m) * X - C ((k : ℝ) - m) with hp
+  have hmon : p.Monic := by
+    rw [hp]
+    monicity!
+  have hdeg : p.natDegree = 2 := by
+    rw [hp]
+    compute_degree!
+  have hsub : G.spectrum.toFinset ⊆ insert (k : ℝ) p.roots.toFinset := by
+    intro x hx
+    rcases eq_or_ne x (k : ℝ) with rfl | hxk
+    · exact Finset.mem_insert_self _ _
+    · refine Finset.mem_insert_of_mem ?_
+      rw [Multiset.mem_toFinset, Polynomial.mem_roots hmon.ne_zero]
+      have hev : G.IsEigenvalue x := (G.mem_spectrum_iff x).1 (Multiset.mem_toFinset.1 hx)
+      have hq := sq_eq_of_isSRGWith_of_ne h hxk hev
+      simp only [hp, IsRoot.def, eval_sub, eval_pow, eval_X, eval_mul, eval_C]
+      linarith
+  calc G.spectrum.toFinset.card ≤ (insert (k : ℝ) p.roots.toFinset).card :=
+        Finset.card_le_card hsub
+    _ ≤ p.roots.toFinset.card + 1 := Finset.card_insert_le _ _
+    _ ≤ Multiset.card p.roots + 1 := Nat.add_le_add_right (Multiset.toFinset_card_le _) 1
+    _ ≤ p.natDegree + 1 := Nat.add_le_add_right p.card_roots' 1
+    _ = 3 := by rw [hdeg]
+
+/-- **A connected strongly regular graph that is not complete has exactly three distinct
+eigenvalues.**  The upper bound is the quadratic; for the lower bound, two distinct non-adjacent
+vertices are at distance at least `2`, and `dist_lt_card_toFinset_spectrum` does the rest. -/
+theorem card_toFinset_spectrum_eq_three_of_isSRGWith {G : CGraph} {n k l m : ℕ}
+    (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) {i j : G.V} (hij : i ≠ j)
+    (hnadj : G.Adj i j = false) : G.spectrum.toFinset.card = 3 := by
+  haveI : Nonempty G.V := ⟨i⟩
+  refine le_antisymm (card_toFinset_spectrum_le_three_of_isSRGWith h) ?_
+  have h2 : 1 < G.toSimple.dist i j :=
+    hconn.one_lt_dist_of_ne_of_not_adj hij (by simp [hnadj])
+  have h3 := G.dist_lt_card_toFinset_spectrum i j
+  omega
+
+/-- **Strong regularity is determined by the spectrum.**  A graph cospectral with a connected,
+non-complete strongly regular graph is itself strongly regular, of the same degree. -/
+theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l m : ℕ}
+    (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) {i j : G.V} (hij : i ≠ j)
+    (hnadj : G.Adj i j = false) :
+    ∃ l' m' : ℕ, H.IsSRGWith (Fintype.card H.V) k l' m' := by
+  have hreg : G.IsRegularWith k := h.regular
+  have hHreg : H.IsRegularWith k := CGraph.Cospectral.isRegularWith hc hreg
+  have hHconn : H.IsConnected := CGraph.Cospectral.isConnected hc hreg hconn
+  have h3 : H.spectrum.toFinset.card = 3 := by
+    rw [← cospectral_iff_spectrum_eq.1 hc]
+    exact card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hij hnadj
+  exact exists_isSRGWith_of_card_toFinset_spectrum_eq_three hHconn hHreg h3
 
 end CGraph
 

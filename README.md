@@ -4271,6 +4271,21 @@ theorem card_toFinset_spectrum_eq_two_iff {G : IsoGraph} {k : ℕ} (hconn : G.Is
 
 The three-eigenvalue case is the converse of `spectrum_isSRGWith`, so the two together say that
 strong regularity of a connected regular graph *is* the condition "three distinct eigenvalues".
+That is worth stating on its own, because the number of distinct eigenvalues is manifestly a
+spectral quantity:
+
+```lean
+theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l m : ℕ}
+    (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) {i j : G.V} (hij : i ≠ j)
+    (hnadj : G.Adj i j = false) :
+    ∃ l' m' : ℕ, H.IsSRGWith (Fintype.card H.V) k l' m'
+```
+
+— strong regularity is determined by the spectrum. The direction not proved above is
+`card_toFinset_spectrum_eq_three_of_isSRGWith`. At most three, because every eigenvalue other
+than `k` is a root of `X² - (ℓ - μ)X - (k - μ)` and a quadratic has at most two roots; at least
+three, because the two vertices `i ≠ j` that are assumed non-adjacent sit at distance `2`, so the
+diameter bound above forces a third eigenvalue.
 
 ```lean
 theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : ℕ}
