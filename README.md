@@ -4044,7 +4044,31 @@ theorem eigenvalue_eq_of_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ
       ∨ x = (((l : ℝ) - m) - Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2
 ```
 
-so the twenty-eight graphs of `SRG.lean` all have three-element spectra with known values.
+so the twenty-eight graphs of `SRG.lean` all have three-element spectra with known values. The
+multiplicities are fixed by the same two moments. Applying the matrix identity to the all-ones
+vector gives the parameter identity `k² = k + ℓ k + μ (n - 1 - k)` — `sq_degree_of_isSRGWith`,
+stated over `ℝ` so that none of the subtractions truncate — and rearranged it reads
+`(k - r) (k - s) = n μ`, which is what forces the degree to occur exactly once:
+
+```lean
+theorem spectrum_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {n k l m : ℕ}
+    (h : G.IsSRGWith n k l m) (hm : 0 < m) {r s : ℝ} (hrs : r + s = (l : ℝ) - m)
+    (hprod : r * s = -((k : ℝ) - m)) (hne : r ≠ s) :
+    ∃ f g : ℕ, f + g + 1 = n ∧ (k : ℝ) + f * r + g * s = 0 ∧
+      G.spectrum = (k : ℝ) ::ₘ (Multiset.replicate f r + Multiset.replicate g s)
+```
+
+The two roots are passed in rather than written with a square root, so that in any concrete case
+they are rational and the multiplicities fall out of `f + g + 1 = n` and `k + f r + g s = 0` by
+`omega`. For the Petersen graph, an `srg(10, 3, 0, 1)`, the roots are `1` and `-2`:
+
+```lean
+theorem spectrum_petersen :
+    SRG.petersen.spectrum = 3 ::ₘ (Multiset.replicate 5 1 + Multiset.replicate 4 (-2))
+```
+
+No connectivity argument and no eigenspace dimensions are involved: everything comes from
+`∑ λ = 0`, `∑ λ² = n k` and the count `f + g + 1 = n`.
 
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation

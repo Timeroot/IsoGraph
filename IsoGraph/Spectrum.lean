@@ -1,4 +1,5 @@
 import IsoGraph.Identities
+import IsoGraph.SRG
 import Mathlib.Analysis.Matrix.Spectrum
 import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
@@ -83,6 +84,17 @@ does as soon as there are more edges than vertices (`neg_two_mem_spectrum_lineGr
 eigenvector orthogonal to the all-ones vector; `eigenvalue_eq_of_isSRGWith` solves the resulting
 quadratic, so the spectrum of a strongly regular graph consists of `k` together with the two
 roots `((ℓ - μ) ± √((ℓ - μ) ^ 2 + 4 (k - μ))) / 2`.
+
+The multiplicities come next.  `sq_degree_of_isSRGWith` is the parameter identity
+`k ^ 2 = k + ℓ k + μ (n - 1 - k)`, obtained by applying that matrix identity to the all-ones
+vector (this avoids the truncated subtraction in Mathlib's `param_eq`), and
+`spectrum_isSRGWith` turns it into the whole spectrum: for `μ > 0` and distinct roots `r ≠ s`
+of `x ^ 2 = (ℓ - μ) x + (k - μ)`, the spectrum is `k` once together with `r` and `s` with
+multiplicities `f` and `g` fixed by the two trace conditions `f + g + 1 = n` and
+`k + f r + g s = 0`.  That the degree occurs exactly *once* is the content of the parameter
+identity in the form `(k - r) (k - s) = n μ`; no connectivity or eigenspace-dimension theory is
+needed, only `∑ λ = 0` and `∑ λ ^ 2 = n k`.  `spectrum_petersen` is the example:
+`3, 1⁵, (-2)⁴`.
 
 ## The Smith family and ADE
 
@@ -1075,6 +1087,145 @@ theorem sum_sq_spectrum (G : CGraph) : (G.spectrum.map (· ^ 2)).sum = 2 * (G.E 
     SimpleGraph.sum_degrees_eq_twice_card_edges, hE]
   push_cast
   ring
+
+/-! ## The multiplicities of a strongly regular graph -/
+
+/-- **The parameter identity of a strongly regular graph**, `k (k - ℓ - 1) = (n - k - 1) μ`, in
+the form the spectrum needs it: apply `A ^ 2 = k I + ℓ A + μ (J - I - A)` to the all-ones
+vector. -/
+theorem sq_degree_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {n k l m : ℕ}
+    (h : G.IsSRGWith n k l m) : (k : ℝ) ^ 2 = k + l * k + m * ((n : ℝ) - 1 - k) := by
+  obtain ⟨i₀⟩ := ‹Nonempty G.V›
+  have hone : G.adjMat *ᵥ (fun _ ↦ (1 : ℝ)) = (k : ℝ) • (fun _ ↦ (1 : ℝ)) :=
+    (hasEigenvector_one_of_isRegularWith h.regular).2
+  have hmat : G.adjMat * G.adjMat
+      = (k : ℝ) • 1 + (l : ℝ) • G.adjMat + (m : ℝ) • (G.toSimpleᶜ.adjMatrix ℝ) := by
+    have hme := h.matrix_eq (α := ℝ)
+    rw [pow_two] at hme
+    simpa [adjMat, Nat.cast_smul_eq_nsmul] using hme
+  have hcompl : (G.toSimpleᶜ.adjMatrix ℝ) *ᵥ (fun _ ↦ (1 : ℝ))
+      = ((n : ℝ) - 1 - k) • (fun _ ↦ (1 : ℝ)) := by
+    rw [compl_adjMatrix_eq, Matrix.sub_mulVec, Matrix.sub_mulVec, hone, Matrix.one_mulVec]
+    funext i
+    have hcard : (Fintype.card G.V : ℝ) = n := by rw [h.card]
+    simp [Matrix.mulVec, dotProduct, Matrix.vecMulVec, Finset.card_univ, hcard]
+  have hsq : (G.adjMat * G.adjMat) *ᵥ (fun _ ↦ (1 : ℝ)) = ((k : ℝ) ^ 2) • (fun _ ↦ (1 : ℝ)) := by
+    rw [← Matrix.mulVec_mulVec, hone, Matrix.mulVec_smul, hone, smul_smul, ← pow_two]
+  have key : ((k : ℝ) ^ 2) • (fun _ : G.V ↦ (1 : ℝ))
+      = ((k : ℝ) + l * k + m * ((n : ℝ) - 1 - k)) • (fun _ : G.V ↦ (1 : ℝ)) := by
+    rw [← hsq, hmat, Matrix.add_mulVec, Matrix.add_mulVec, Matrix.smul_mulVec,
+      Matrix.smul_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec, hone, hcompl]
+    module
+  simpa using congrFun key i₀
+
+/-- **The spectrum of a strongly regular graph, with multiplicities.**  Given the two roots `r`
+and `s` of `x ^ 2 = (ℓ - μ) x + (k - μ)`, an `srg(n, k, ℓ, μ)` with `μ > 0` has spectrum `k` once
+and `r`, `s` with multiplicities `f` and `g` determined by `f + g + 1 = n` and `k + f r + g s = 0`
+(the trace conditions).  That the degree occurs exactly once is `(k - r) (k - s) = n μ`, the
+parameter identity. -/
+theorem spectrum_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {n k l m : ℕ}
+    (h : G.IsSRGWith n k l m) (hm : 0 < m) {r s : ℝ} (hrs : r + s = (l : ℝ) - m)
+    (hprod : r * s = -((k : ℝ) - m)) (hne : r ≠ s) :
+    ∃ f g : ℕ, f + g + 1 = n ∧ (k : ℝ) + f * r + g * s = 0 ∧
+      G.spectrum = (k : ℝ) ::ₘ (Multiset.replicate f r + Multiset.replicate g s) := by
+  have hn : 0 < n := h.card ▸ Fintype.card_pos
+  -- the parameter identity, in the form `(k - r) (k - s) = n μ`
+  have hkrs : ((k : ℝ) - r) * ((k : ℝ) - s) = (n : ℝ) * m := by
+    linear_combination sq_degree_of_isSRGWith h - (k : ℝ) * hrs + hprod
+  have hpos : (0 : ℝ) < (n : ℝ) * m := by positivity
+  have hkr : (k : ℝ) ≠ r := by
+    intro hc
+    rw [← hc] at hkrs
+    simp at hkrs
+    omega
+  have hks : (k : ℝ) ≠ s := by
+    intro hc
+    rw [← hc] at hkrs
+    simp at hkrs
+    omega
+  -- every eigenvalue is `k`, `r` or `s`
+  have htri : ∀ x ∈ G.spectrum, x = (k : ℝ) ∨ x = r ∨ x = s := by
+    intro x hx
+    by_cases hxk : x = (k : ℝ)
+    · exact Or.inl hxk
+    · have hq := sq_eq_of_isSRGWith_of_ne h hxk ((G.mem_spectrum_iff x).1 hx)
+      have : (x - r) * (x - s) = 0 := by linear_combination hq - x * hrs + hprod
+      rcases mul_eq_zero.1 this with hc | hc
+      · exact Or.inr (Or.inl (sub_eq_zero.1 hc))
+      · exact Or.inr (Or.inr (sub_eq_zero.1 hc))
+  set e : ℕ := G.spectrum.count (k : ℝ) with he
+  set f : ℕ := G.spectrum.count r with hf
+  set g : ℕ := G.spectrum.count s with hg
+  have hdec : G.spectrum = Multiset.replicate e (k : ℝ)
+      + Multiset.replicate f r + Multiset.replicate g s := by
+    refine Multiset.ext.2 fun x ↦ ?_
+    simp only [Multiset.count_add, Multiset.count_replicate, he, hf, hg]
+    by_cases hxk : x = (k : ℝ)
+    · subst hxk
+      simp [Ne.symm hkr, Ne.symm hks]
+    · by_cases hxr : x = r
+      · subst hxr
+        simp [hkr, Ne.symm hne]
+      · by_cases hxs : x = s
+        · subst hxs
+          simp [hks, hne]
+        · have : x ∉ G.spectrum := fun hx ↦ by
+            rcases htri x hx with hc | hc | hc <;> simp_all
+          simp [Multiset.count_eq_zero.2 this, Ne.symm hxk, Ne.symm hxr, Ne.symm hxs]
+  -- the three moment equations
+  have hcard : (e : ℝ) + f + g = n := by
+    have h1 := congrArg Multiset.card hdec
+    rw [card_spectrum, h.card] at h1
+    simp only [Multiset.card_add, Multiset.card_replicate] at h1
+    exact_mod_cast h1.symm
+  have hsum0 : (e : ℝ) * k + f * r + g * s = 0 := by
+    have h1 := congrArg Multiset.sum hdec
+    rw [G.sum_spectrum] at h1
+    simp only [Multiset.sum_add, Multiset.sum_replicate, nsmul_eq_mul] at h1
+    linarith [h1]
+  have hsq2 : (e : ℝ) * k ^ 2 + f * r ^ 2 + g * s ^ 2 = (n : ℝ) * k := by
+    have h1 := G.sum_sq_spectrum_eq_sum_degrees
+    have hdeg : ∑ _i : G.V, ((k : ℕ) : ℝ) = (n : ℝ) * k := by
+      simp [Finset.card_univ, h.card]
+    have h2 : ∑ i, (G.toSimple.degree i : ℝ) = (n : ℝ) * k := by
+      rw [← hdeg]
+      exact Finset.sum_congr rfl fun i _ ↦ by rw [h.regular i]
+    rw [h2, hdec] at h1
+    simp only [Multiset.map_add, Multiset.sum_add, Multiset.map_replicate,
+      Multiset.sum_replicate, nsmul_eq_mul] at h1
+    linarith [h1]
+  -- the degree occurs exactly once
+  have hone : (e : ℝ) = 1 := by
+    have hkey : (e : ℝ) * (((k : ℝ) - r) * ((k : ℝ) - s)) = (n : ℝ) * m := by
+      linear_combination hsq2 - (r + s) * hsum0 + (r * s) * hcard + (n : ℝ) * hprod
+    rw [hkrs] at hkey
+    rcases mul_eq_zero.1 (by linarith : ((e : ℝ) - 1) * ((n : ℝ) * m) = 0) with hc | hc
+    · linarith
+    · exact absurd hc (ne_of_gt hpos)
+  have he1 : e = 1 := by exact_mod_cast hone
+  rw [hone] at hcard hsum0
+  refine ⟨f, g, ?_, ?_, ?_⟩
+  · have : (f : ℝ) + g + 1 = n := by linarith
+    exact_mod_cast this
+  · linarith
+  · rw [hdec, he1, Multiset.replicate_one, add_assoc]
+    rfl
+
+/-- **The spectrum of the Petersen graph**: `3` once, `1` five times, `-2` four times. -/
+theorem spectrum_petersen :
+    SRG.petersen.spectrum = 3 ::ₘ (Multiset.replicate 5 1 + Multiset.replicate 4 (-2)) := by
+  haveI : Nonempty SRG.petersen.V :=
+    Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
+  obtain ⟨f, g, h1, h2, h3⟩ :=
+    spectrum_isSRGWith SRG.petersen_srg (by norm_num) (r := 1) (s := -2)
+      (by norm_num) (by norm_num) (by norm_num)
+  have h2' : (f : ℝ) + 3 = 2 * g := by push_cast at h2; linarith
+  have h2'' : f + 3 = 2 * g := by exact_mod_cast h2'
+  have hf : f = 5 := by omega
+  have hg : g = 4 := by omega
+  subst hf; subst hg
+  rw [h3]
+  norm_num
 
 /-! ## Cospectral graphs and graphs determined by their spectrum -/
 
