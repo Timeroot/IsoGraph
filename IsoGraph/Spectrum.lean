@@ -165,6 +165,18 @@ vectors cannot both be constant; in the other, if two vertices are unreachable t
 of a component is an eigenvector for `k` that is not a multiple of the all-ones vector.  Combined
 with `Cospectral.isRegularWith` this makes connectedness spectral as well: `Cospectral.isConnected`.
 
+## Bipartiteness of a connected regular graph
+
+`spectrum_neg_of_isBipartite` gives one direction — a bipartite graph has a symmetric spectrum, so
+`-k` is an eigenvalue of a `k`-regular bipartite graph.  The converse needs connectedness
+(`isBipartite_of_neg_mem_spectrum`): from `A v = -k v` the triangle inequality gives `A |v| ≥ k |v|`
+coordinatewise, both sides sum to `k ∑ |v|`, so `A |v| = k |v|` and `|v|` is constant.  Each
+neighbour sum `∑_{y ∼ x} v y = -k v x` is then an extremal sum of `k` terms of equal modulus,
+forcing `v y = -v x` along every edge, so the sign of `v` is a `2`-colouring.  Since `-k` is the
+smallest an eigenvalue of a `k`-regular graph can be, this also reads
+`isBipartite_iff_lambdaMin_eq` (`λ_min = -k`), and it makes bipartiteness spectral for connected
+regular graphs (`Cospectral.isBipartite`).
+
 ## Not proved here
 
 The full multiset spectrum of a complement (which needs simultaneous diagonalisation with `J`),
@@ -3831,6 +3843,108 @@ theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
   (isConnected_iff_count_spectrum_eq_one (h.isRegularWith hG)).2
     (by rw [← h.spectrum_eq]; exact (isConnected_iff_count_spectrum_eq_one hG).1 hconn)
 
+/-! ## Bipartiteness of a connected regular graph is spectral
+
+The easy half is `spectrum_neg_of_isBipartite`: the spectrum of a bipartite graph is symmetric, so
+`-k` is an eigenvalue whenever `k` is.  The converse below needs regularity and connectedness. -/
+
+/-- **A connected regular graph with `-k` in its spectrum is bipartite.**  If `A v = -k v` then
+`|v|` satisfies `A |v| ≥ k |v|` coordinatewise by the triangle inequality, and both sides have the
+same total sum, so `A |v| = k |v|`; connectedness makes `|v|` constant.  Every neighbour sum
+`∑_{y ∼ x} v y = -k v x` is then a sum of `k` terms of equal modulus attaining the extreme value,
+which forces `v y = -v x` along every edge: the sign of `v` is a proper `2`-colouring. -/
+theorem isBipartite_of_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
+    (hreg : G.IsRegularWith k) (hk : -(k : ℝ) ∈ G.spectrum) : G.IsBipartite := by
+  classical
+  obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 hk
+  obtain ⟨w, hwdef⟩ : ∃ w : G.V → ℝ, w = fun x ↦ |v x| := ⟨_, rfl⟩
+  have hnb : ∀ x : G.V, ∑ y ∈ G.toSimple.neighborFinset x, v y = -(k : ℝ) * v x := by
+    intro x
+    have h1 := congrFun hv x
+    rw [show (G.adjMat *ᵥ v) x = ∑ y ∈ G.toSimple.neighborFinset x, v y from by
+      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]] at h1
+    simpa using h1
+  have hnbw : ∀ x : G.V, (G.adjMat *ᵥ w) x = ∑ y ∈ G.toSimple.neighborFinset x, w y := by
+    intro x
+    simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
+  have hge : ∀ x : G.V, (k : ℝ) * w x ≤ (G.adjMat *ᵥ w) x := by
+    intro x
+    rw [hnbw, hwdef]
+    calc (k : ℝ) * |v x| = |-(k : ℝ) * v x| := by
+          rw [abs_mul, abs_neg, Nat.abs_cast]
+      _ = |∑ y ∈ G.toSimple.neighborFinset x, v y| := by rw [hnb x]
+      _ ≤ ∑ y ∈ G.toSimple.neighborFinset x, |v y| := Finset.abs_sum_le_sum_abs _ _
+  have htot : ∑ x, (G.adjMat *ᵥ w) x = ∑ x, (k : ℝ) * w x := by
+    simp only [Matrix.mulVec, dotProduct]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun j _ ↦ ?_
+    rw [← Finset.sum_mul, show ∑ i, G.adjMat i j = ∑ i, G.adjMat j i from
+      Finset.sum_congr rfl fun i _ ↦ adjMat_symm G i j, sum_adjMat_row hreg]
+  have heq : G.adjMat *ᵥ w = (k : ℝ) • w := by
+    funext x
+    have := (Finset.sum_eq_sum_iff_of_le (fun i _ ↦ hge i)).1 htot.symm x (Finset.mem_univ x)
+    simpa using this.symm
+  have hconst := eq_of_mulVec_eq_of_isRegularWith hconn hreg heq
+  obtain ⟨x0, hx0⟩ := Function.ne_iff.1 hv0
+  have hx0' : v x0 ≠ 0 := hx0
+  have hwpos : ∀ x : G.V, 0 < w x := by
+    intro x
+    rw [hconst x x0, hwdef]
+    exact abs_pos.2 hx0'
+  have hvne : ∀ x : G.V, v x ≠ 0 := fun x ↦ by
+    have := hwpos x
+    rw [hwdef] at this
+    exact abs_pos.1 this
+  have habs : ∀ x y : G.V, |v x| = |v y| := fun x y ↦ by
+    have := hconst x y
+    rwa [hwdef] at this
+  have key : ∀ x y : G.V, G.toSimple.Adj x y → v y = -v x := by
+    intro x y hxy
+    have hcard : (G.toSimple.neighborFinset x).card = k := hreg x
+    have hterm : ∀ z ∈ G.toSimple.neighborFinset x, 0 ≤ v z * v x + v x ^ 2 := by
+      intro z _
+      have h1 : |v z * v x| = v x ^ 2 := by
+        rw [abs_mul, habs z x, ← sq, sq_abs]
+      nlinarith [neg_abs_le (v z * v x), h1]
+    have hsum0 : ∑ z ∈ G.toSimple.neighborFinset x, (v z * v x + v x ^ 2) = 0 := by
+      rw [Finset.sum_add_distrib, ← Finset.sum_mul, hnb x, Finset.sum_const, hcard, nsmul_eq_mul]
+      ring
+    have hzero := (Finset.sum_eq_zero_iff_of_nonneg hterm).1 hsum0 y
+      ((SimpleGraph.mem_neighborFinset _ _ _).2 hxy)
+    have hx2 : v x ≠ 0 := hvne x
+    rcases mul_eq_zero.1 (by linear_combination hzero : (v y + v x) * v x = 0) with h | h
+    · linarith [h]
+    · exact absurd h hx2
+  refine ⟨fun x ↦ decide (0 < v x), fun x y hxy ↦ ?_⟩
+  have hyx : v y = -v x := key x y ((G.toSimple_adj x y).2 hxy)
+  have hx : v x ≠ 0 := hvne x
+  rcases lt_or_gt_of_ne hx with hneg | hpos
+  · simp [hyx, not_lt.2 hneg.le, neg_pos.2 hneg]
+  · simp [hyx, hpos, not_lt.2 (neg_nonpos.2 hpos.le)]
+
+/-- **Bipartiteness of a connected regular graph is determined by its spectrum.** -/
+theorem isBipartite_iff_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
+    (hreg : G.IsRegularWith k) : G.IsBipartite ↔ -(k : ℝ) ∈ G.spectrum := by
+  refine ⟨fun h ↦ ?_, isBipartite_of_neg_mem_spectrum hconn hreg⟩
+  haveI : Nonempty G.V := hconn.nonempty
+  rw [← spectrum_neg_of_isBipartite h, Multiset.mem_map]
+  exact ⟨(k : ℝ), mem_spectrum_of_isRegularWith hreg, rfl⟩
+
+/-- **A connected regular graph is bipartite exactly when `λ_min = -k`.**  The lower bound
+`-Δ ≤ λ_min` is the other half: for a regular graph `-k` is as small as an eigenvalue can be. -/
+theorem isBipartite_iff_lambdaMin_eq {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected) {k : ℕ}
+    (hreg : G.IsRegularWith k) : G.IsBipartite ↔ G.lambdaMin = -(k : ℝ) := by
+  have hmax : G.maxDeg = k := hreg.maxDeg_eq (Classical.arbitrary G.V)
+  rw [isBipartite_iff_neg_mem_spectrum hconn hreg]
+  refine ⟨fun h ↦ le_antisymm (lambdaMin_le h) ?_, fun h ↦ h ▸ G.lambdaMin_mem_spectrum⟩
+  have := G.neg_maxDeg_le_lambdaMin
+  rwa [hmax] at this
+
+theorem Cospectral.isBipartite {G H : CGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) (hconn : G.IsConnected) (hbip : G.IsBipartite) : H.IsBipartite :=
+  (isBipartite_iff_neg_mem_spectrum (h.isConnected hG hconn) (h.isRegularWith hG)).2
+    (by rw [← h.spectrum_eq]; exact (isBipartite_iff_neg_mem_spectrum hconn hG).1 hbip)
+
 end CGraph
 
 namespace IsoGraph
@@ -4005,6 +4119,12 @@ theorem Cospectral.isConnected {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) (hconn : G.IsConnected) : H.IsConnected :=
   Quotient.inductionOn₂ G H
     (fun _ _ h hG hconn ↦ CGraph.Cospectral.isConnected h hG hconn) h hG hconn
+
+/-- **Bipartiteness of a connected regular graph is determined by the spectrum.** -/
+theorem Cospectral.isBipartite {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) (hconn : G.IsConnected) (hbip : IsBipartite G) : IsBipartite H :=
+  Quotient.inductionOn₂ G H
+    (fun _ _ h hG hconn hbip ↦ CGraph.Cospectral.isBipartite h hG hconn hbip) h hG hconn hbip
 
 /-- A graph is **determined by its spectrum** when no other isomorphism class is cospectral. -/
 def IsDS (G : IsoGraph) : Prop := ∀ H : IsoGraph, Cospectral G H → G = H

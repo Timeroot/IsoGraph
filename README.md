@@ -4268,6 +4268,27 @@ theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) (hconn : G.IsConnected) : H.IsConnected
 ```
 
+Connectedness plus regularity also makes *bipartiteness* readable off the spectrum. One direction
+is `spectrum_neg_of_isBipartite` above: the spectrum is symmetric, so `-k` appears in it. The
+converse is the interesting one:
+
+```lean
+theorem isBipartite_of_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
+    (hreg : G.IsRegularWith k) (hk : -(k : ℝ) ∈ G.spectrum) : G.IsBipartite
+```
+
+Given `A v = -k v`, the triangle inequality makes `|v|` a *sub*eigenvector, `k |v| ≤ A |v|`
+coordinatewise; but both sides have the same total sum `k ∑ |v|`, because every column of `A` sums
+to `k`, so the inequality is an equality at every vertex. Then `|v|` is an eigenvector for `k`,
+hence constant and nowhere zero. Each neighbour sum `∑_{y ∼ x} v y = -k v x` is now a sum of `k`
+terms of equal modulus `|v x|` attaining the extreme value `-k v x`, which forces `v y = -v x` on
+every edge — the sign of `v` is a proper `2`-colouring. Since `-k ≤ λ_min` for a `k`-regular
+graph, the same statement reads `isBipartite_iff_lambdaMin_eq`: a connected `k`-regular graph is
+bipartite iff `λ_min = -k`. Bipartiteness is therefore spectral in this class
+(`Cospectral.isBipartite`), which together with `Cospectral.isConnected` and
+`Cospectral.isRegularWith` means a graph cospectral with a connected regular bipartite graph is
+itself connected, regular and bipartite.
+
 The other side of the principle — bounding `⟪v, A v⟫` from below by `λ_min` — is what makes
 **Hoffman's ratio bound** work:
 
