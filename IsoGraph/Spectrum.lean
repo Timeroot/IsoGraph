@@ -151,6 +151,14 @@ discriminant `(ℓ - μ) ² + 4 (k - μ)` is a perfect square, or the parameters
 spectrum `2t, ((-1 + √q) / 2)^(2t), ((-1 - √q) / 2)^(2t)`, and the equal multiplicities are forced
 by the trace condition itself, which reads `(f - g) √q = 0`.
 
+`degree_of_isSRGWith_moore` is the payoff: run the dichotomy on the parameters
+`srg(k² + 1, k, 0, 1)` of a Moore graph of diameter `2`.  The conference branch collapses to
+`k = 2`; on the other branch
+`c = √(4k - 3)` is a positive integer and eliminating `k` from the trace condition gives
+`16 (f - g) c = c⁴ - 2 c² - 15`, so `c ∣ 15` and `k ∈ {3, 7, 57}`.  This is the **Hoffman–Singleton
+theorem**, and its four degrees are the pentagon, the Petersen graph, the Hoffman–Singleton graph
+and the graph on `3250` vertices nobody has found or ruled out.
+
 ## The Smith family and ADE
 
 `IsSmith G` says `2` is the largest eigenvalue of `G` and `IsSubcritical G` says every eigenvalue
@@ -1576,6 +1584,76 @@ theorem isSquare_discrim_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.
     exact_mod_cast h2
   · right
     exact_mod_cast hc
+
+/-- **The Hoffman–Singleton parameter theorem.** A Moore graph of diameter `2` and girth `5` is
+a strongly regular graph with parameters `srg(k ^ 2 + 1, k, 0, 1)`, and its degree can only be
+`2`, `3`, `7` or `57` — realised by the pentagon, the Petersen graph and the Hoffman–Singleton
+graph, with the case `k = 57` still open.
+
+The proof is pure arithmetic on top of `int_or_conference_of_isSRGWith`. The eigenvalues other
+than `k` are the roots of `x ^ 2 + x - (k - 1)`, so the discriminant is `4 k - 3`. In the
+conference case `2 k + k ^ 2 * (0 - 1) = 0` forces `k = 2`. Otherwise `√(4 k - 3)` is a positive
+integer `c`, the multiplicity equation reads `(f - g) c = k ^ 2 - 2 k`, and eliminating `k` via
+`c ^ 2 = 4 k - 3` turns it into `16 (f - g) c = c ^ 4 - 2 c ^ 2 - 15`; hence `c ∣ 15`, so
+`c ∈ {1, 3, 5, 15}` and `k = (c ^ 2 + 3) / 4 ∈ {1, 3, 7, 57}`. -/
+theorem degree_of_isSRGWith_moore {G : CGraph} [DecidableEq G.V] {k : ℕ} (hk : 2 ≤ k)
+    (h : G.IsSRGWith (k ^ 2 + 1) k 0 1) : k = 2 ∨ k = 3 ∨ k = 7 ∨ k = 57 := by
+  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by rw [h.card]; positivity)
+  have hk0 : (2 : ℝ) ≤ (k : ℝ) := by exact_mod_cast hk
+  obtain ⟨d, hd⟩ : ∃ d : ℝ, d = Real.sqrt (4 * (k : ℝ) - 3) := ⟨_, rfl⟩
+  have hd0 : 0 < d := by
+    rw [hd]
+    exact Real.sqrt_pos.2 (by linarith)
+  have hdsq : d ^ 2 = 4 * (k : ℝ) - 3 := by
+    rw [hd]
+    exact Real.sq_sqrt (by linarith)
+  have hrs : (-1 + d) / 2 + (-1 - d) / 2 = ((0 : ℕ) : ℝ) - ((1 : ℕ) : ℝ) := by
+    push_cast
+    ring
+  have hprod : (-1 + d) / 2 * ((-1 - d) / 2) = -(((k : ℕ) : ℝ) - ((1 : ℕ) : ℝ)) := by
+    push_cast
+    linear_combination (-1 / 4 : ℝ) * hdsq
+  have hne : (-1 + d) / 2 ≠ (-1 - d) / 2 := by
+    intro hc
+    linarith
+  -- the order and the trace pin down the two multiplicities
+  obtain ⟨f, g, h1, h2, -⟩ := spectrum_isSRGWith h (by norm_num) hrs hprod hne
+  have h1' : (f : ℝ) + g + 1 = (k : ℝ) ^ 2 + 1 := by exact_mod_cast h1
+  have hlin : ((f : ℝ) - g) * d = (k : ℝ) ^ 2 - 2 * k := by linear_combination 2 * h2 + h1'
+  rcases int_or_conference_of_isSRGWith h (by norm_num) hrs hprod hne with ⟨a, b, ha, hb⟩ | hconf
+  · -- the discriminant is a perfect square, so `d` is a positive integer, and it divides `15`
+    obtain ⟨c, hc⟩ : ∃ c : ℤ, ((c : ℤ) : ℝ) = d :=
+      ⟨a - b, by push_cast; rw [← ha, ← hb]; ring⟩
+    have hc0 : 0 < c := by
+      have h0 : (0 : ℝ) < ((c : ℤ) : ℝ) := by rw [hc]; exact hd0
+      exact_mod_cast h0
+    have hcsq : c * c = 4 * (k : ℤ) - 3 := by
+      have h0 : ((c : ℤ) : ℝ) * ((c : ℤ) : ℝ) = 4 * (k : ℝ) - 3 := by
+        rw [hc]
+        linear_combination hdsq
+      exact_mod_cast h0
+    have hlin' : ((f : ℤ) - g) * c = (k : ℤ) ^ 2 - 2 * k := by
+      have h0 : ((f : ℝ) - g) * ((c : ℤ) : ℝ) = (k : ℝ) ^ 2 - 2 * k := by rw [hc]; exact hlin
+      exact_mod_cast h0
+    have hdvd : c ∣ 15 :=
+      ⟨c ^ 3 - 2 * c - 16 * ((f : ℤ) - g), by
+        linear_combination (16 : ℤ) * hlin' + (5 - c * c - 4 * (k : ℤ)) * hcsq⟩
+    have hk' : (2 : ℤ) ≤ (k : ℤ) := by exact_mod_cast hk
+    -- the four positive divisors of `15` leave only `k ∈ {3, 7, 57}`
+    have hfin : ∀ e n : ℤ, 0 < e → e ∣ 15 → e * e = 4 * n - 3 → 2 ≤ n →
+        n = 2 ∨ n = 3 ∨ n = 7 ∨ n = 57 := by
+      intro e n he0 hdv hesq hn
+      have hele : e ≤ 15 := Int.le_of_dvd (by norm_num) hdv
+      interval_cases e <;> omega
+    have := hfin c (k : ℤ) hc0 hdvd hcsq hk'
+    omega
+  · -- the conference case forces `2 k = k ^ 2`, so `k = 2`
+    left
+    push_cast at hconf
+    have h0 : (k : ℝ) * ((k : ℝ) - 2) = 0 := by linear_combination -hconf
+    rcases mul_eq_zero.1 h0 with hc | hc
+    · linarith
+    · exact_mod_cast (by linarith : (k : ℝ) = 2)
 
 /-- **The spectrum of the Petersen graph**: `3` once, `1` five times, `-2` four times. -/
 theorem spectrum_petersen :

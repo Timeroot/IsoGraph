@@ -4212,6 +4212,31 @@ roots of `x² + x - (q-1)/4` are `(-1 ± √q) / 2`. Nothing extra is needed to 
 multiplicities down — the trace condition `k + f r + g s = 0` collapses to `(f - g) √q = 0`, and
 `√q > 0` forces `f = g = (q-1)/2`. For `q = 13` that is `6, ((-1 + √13)/2)⁶, ((-1 - √13)/2)⁶`.
 
+The other branch of the dichotomy is where the classification theorems live. A *Moore graph* of
+diameter `2` — girth `5`, degree `k`, and `k² + 1` vertices, so every non-adjacent pair has
+exactly one common neighbour and every adjacent pair has none — is an `srg(k² + 1, k, 0, 1)`, and
+that is enough to determine `k`:
+
+```lean
+theorem degree_of_isSRGWith_moore {G : CGraph} [DecidableEq G.V] {k : ℕ} (hk : 2 ≤ k)
+    (h : G.IsSRGWith (k ^ 2 + 1) k 0 1) : k = 2 ∨ k = 3 ∨ k = 7 ∨ k = 57
+```
+
+This is the **Hoffman–Singleton theorem**, and the proof is three lines of arithmetic on top of
+the integrality condition. Here `ℓ - μ = -1` and `k - μ = k - 1`, so the discriminant is `4k - 3`.
+On the conference branch `2k + k²(ℓ - μ) = 0` reads `2k = k²`, forcing `k = 2` (the pentagon). On
+the integral branch `c = √(4k - 3)` is a positive integer, the trace condition becomes
+`(f - g) c = k² - 2k`, and substituting `k = (c² + 3)/4` clears the denominators into
+
+```
+16 (f - g) c = c⁴ - 2c² - 15
+```
+
+so `c` divides `15`. That leaves `c ∈ {1, 3, 5, 15}`, hence `k ∈ {1, 3, 7, 57}`, and `k ≥ 2` kills
+the first. The three small degrees are realised by the pentagon, the Petersen graph and the
+Hoffman–Singleton graph on `50` vertices; whether a `57`-regular Moore graph on `3250` vertices
+exists is open, which is why the sentence above says *search* rather than *construction*.
+
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
 
