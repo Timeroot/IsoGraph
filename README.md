@@ -3881,8 +3881,7 @@ generalized Petersen graphs `GP(n, k)` — and the rest are edge lists.
 | `icosahedron`, `tutte`, `moserSpindle`, `grotzsch` | Platonic solid, Tait's conjecture refuted, Hadwiger–Nelson, Mycielski |
 
 For each graph the file records the order, the edge count, the degree, connectivity,
-bipartiteness, and the girth where the girth ladder of `Identities.lean` reaches it. Two
-certificates do the work that `Decidable` instances cannot:
+bipartiteness, and the girth. Two certificates do the work that `Decidable` instances cannot:
 
 ```lean
 theorem isConnected_of_backEdge {n : ℕ} {G : CGraph} (e : G.V ≃ Fin n) (hn : 0 < n)
@@ -3896,6 +3895,38 @@ cyclic list of vertex numbers, fed to `not_isBipartite_of_odd_walk`. Bipartitene
 always an explicit two-colouring: parity of the vertex number for the LCF graphs, and
 `(i + i / n) % 2` for the bipartite generalized Petersen graphs. Nothing here searches for a
 colouring or a path.
+
+Girth above five needed new machinery. The old ladder in `Identities.lean` was one hand-written
+lemma per length — triangle, square, pentagon — and stops there, so `Identities.lean` now states
+the rung once, at every length, in terms of *cycle lists*: a list `u :: vs` of distinct vertices,
+consecutive ones adjacent, with the last adjacent back to `u`.
+
+```lean
+theorem girth_le_of_cycleList {G : CGraph} (u : G.V) (vs : List G.V)
+    (h3 : 2 ≤ vs.length) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun x y ↦ G.Adj x y) (u :: vs)) (hcl : G.Adj (vs.getLastD u) u) :
+    G.girth ≤ vs.length + 1
+
+theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
+    (h : ∀ (u : G.V) (vs : List G.V), 2 ≤ vs.length → vs.length + 1 < L → (u :: vs).Nodup →
+      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u → False)
+    (hnac : ¬ G.IsAcyclic) : L ≤ G.girth
+```
+
+`exists_cycleList_of_isCycle` reads a cycle list off a cycle (`w.support.tail`, with
+`IsCycle.support_nodup` and `Walk.isChain_adj_support` doing the work) and
+`exists_cycle_of_cycleList` builds the cycle back up along the chain; everything else is a
+corollary. The upper bound is then a list literal — `girth_le_of_cycleList 0 [1, 2, 3, 4, 5, 18,
+17]` for `tutteCoxeter` — and the lower bound is an exhaustive search, packaged per length by
+`six_le_girth_of_nbrList`, `seven_le_girth_of_nbrList` and `eight_le_girth_of_nbrList`.
+
+That search has to be phrased carefully. As a nested `∀` over vertices the decision procedure
+enumerates the whole vertex type at every level, which is `30⁷` for the Tutte–Coxeter graph and
+never finishes; as `∀ b ∈ nb a` it walks only along edges, `30 · 3⁶`, but recomputing `nb` from
+the adjacency function costs about a millisecond a call. Precomputing the neighbour lists once,
+in a top-level `def` (`CGraph.nbrTable`), brings the deepest of the eight searches down to about
+two seconds, and all eight cages now have their girth: 6 for `heawood`, `pappus`, `mobiusKantor`,
+`desargues` and `nauru`, 7 for `mcgee` and `coxeter`, 8 for `tutteCoxeter`.
 
 The constructions overlap, and the canonical key settles the coincidences: `gp 5 2` is the
 Petersen graph, `gp 4 1` the cube, `gp 6 1` the hexagonal prism, and the Möbius–Kantor,

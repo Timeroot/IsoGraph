@@ -7,9 +7,8 @@ import IsoGraph.SRG
 The graphs that have proper names but are too big for `IsoGraph/NamedSmallGraphs.lean` and are not
 strongly regular, so miss `IsoGraph/SRG.lean` as well: the cubic cages, the generalized Petersen
 graphs, two Platonic solids, and a handful of sporadic graphs.  For each one the file records the
-order, the number of edges, the degree, connectivity, whether the graph is bipartite, and — when
-the girth is at most five, which is as far as the machinery of `IsoGraph/Identities.lean` reaches
-— the girth.
+order, the number of edges, the degree, connectivity, whether the graph is bipartite, and the
+girth.
 
 | graph                 |  n |  E | degree | girth | bipartite |
 |-----------------------|----|----|--------|-------|-----------|
@@ -40,7 +39,7 @@ Two remarks on what is and is not here.
   the first three are already defined elsewhere.  `coxeter` is not a cage — `mcgee` is smaller —
   but it is the other famous cubic graph of girth seven.  Minimality is a statement about *all*
   graphs of a given order and so is out of reach here; what the file proves is that each of these
-  graphs is regular of the right degree, and (for `girth ≤ 5`) of the right girth.
+  graphs is regular of the right degree and of the right girth.
 * Of the five Platonic solids, `complete 4` is the tetrahedron, `hypercube 3` the cube,
   `cocktailParty 3` the octahedron, and `dodecahedron` and `icosahedron` are defined here.
   `gp_four_one_iso_hypercube` identifies the cube as a generalized Petersen graph too.
@@ -64,6 +63,15 @@ parity of the vertex number works for every graph here given by an LCF code, and
 One wrinkle in the girth proofs: the distinctness side conditions of `exists_cycle_of_square` and
 `exists_cycle_of_pentagon` are stated at the vertex type `G.V`, where `decide` does not always
 find the `DecidableEq` instance, so they go through `Fin.ne_of_val_ne` instead.
+
+Above girth five those per-length lemmas run out, and the cages go through the cycle lists of
+`IsoGraph/Identities.lean` instead; see "The girth of the cages" at the end of the file.  The one
+thing that needs care there is *how* the search for a short cycle is phrased.  Written as a
+nested `∀` over vertices, the decision procedure enumerates the whole vertex type at every level
+— `30⁷` for `tutteCoxeter`, which never finishes.  Written as `∀ b ∈ nb a`, it walks only along
+edges, which is `30 · 3⁶` — but recomputing `nb` from the adjacency function costs a millisecond
+a call.  Precomputing the neighbour lists once, in a top-level `def`, is what brings the deepest
+search down to about two seconds.
 -/
 
 set_option maxRecDepth 4000
@@ -632,5 +640,242 @@ theorem dodecahedron_lcf :
 
 theorem nauru_lcf : Nonempty (lcf [5, -9, 7, -7, 9, -5] 4 ≃cg nauru) := by
   rw [← key_eq_iff]; native_decide
+
+/-! ## The girth of the cages
+
+Every graph above of girth at most five got it from the hand-written ladder of
+`IsoGraph/Identities.lean`.  The cages of girth six, seven and eight go through the cycle-list
+machinery instead: `girth_le_of_cycleList` turns an explicit list of vertices into an upper
+bound, and `six_le_girth_of_nbrList`, `seven_le_girth_of_nbrList` and
+`eight_le_girth_of_nbrList` turn an exhaustive search along a neighbour table into a lower
+bound. -/
+
+/-- The neighbour table of the heawood graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def heawoodTbl : List (List heawood.V) := heawood.nbrTable (List.finRange 14)
+
+/-- The neighbours of `a` in the heawood graph. -/
+def heawoodNb (a : heawood.V) : List heawood.V := heawoodTbl.getD a.1 []
+
+theorem heawood_nb : ∀ a b : heawood.V, b ∈ heawoodNb a ↔ heawood.Adj a b := by
+  native_decide
+
+/-- The Heawood graph, the `(3, 6)`-cage, has girth six: `0 - 1 - 2 - 3 - 4 - 5 - 0` is a
+six-cycle, and a search along the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_heawood : heawood.girth = 6 := by
+  have hcyc : heawood.girth ≤ 6 :=
+    girth_le_of_cycleList
+      (vtx 14 0) [vtx 14 1, vtx 14 2, vtx 14 3, vtx 14 4, vtx 14 5]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ heawood.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 14 0) [vtx 14 1, vtx 14 2, vtx 14 3, vtx 14 4, vtx 14 5]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (six_le_girth_of_nbrList heawood_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-- The neighbour table of the pappus graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def pappusTbl : List (List pappus.V) := pappus.nbrTable (List.finRange 18)
+
+/-- The neighbours of `a` in the pappus graph. -/
+def pappusNb (a : pappus.V) : List pappus.V := pappusTbl.getD a.1 []
+
+theorem pappus_nb : ∀ a b : pappus.V, b ∈ pappusNb a ↔ pappus.Adj a b := by
+  native_decide
+
+/-- The Pappus graph has girth six: `0 - 1 - 2 - 3 - 4 - 5 - 0` is a six-cycle, and a search along
+the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_pappus : pappus.girth = 6 := by
+  have hcyc : pappus.girth ≤ 6 :=
+    girth_le_of_cycleList
+      (vtx 18 0) [vtx 18 1, vtx 18 2, vtx 18 3, vtx 18 4, vtx 18 5]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ pappus.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 18 0) [vtx 18 1, vtx 18 2, vtx 18 3, vtx 18 4, vtx 18 5]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (six_le_girth_of_nbrList pappus_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-- The neighbour table of the mobiusKantor graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def mobiusKantorTbl : List (List mobiusKantor.V) := mobiusKantor.nbrTable (List.finRange 16)
+
+/-- The neighbours of `a` in the mobiusKantor graph. -/
+def mobiusKantorNb (a : mobiusKantor.V) : List mobiusKantor.V := mobiusKantorTbl.getD a.1 []
+
+theorem mobiusKantor_nb : ∀ a b : mobiusKantor.V, b ∈ mobiusKantorNb a ↔ mobiusKantor.Adj a b := by
+  native_decide
+
+/-- The Möbius–Kantor graph has girth six: `0 - 1 - 2 - 3 - 11 - 8 - 0` is a six-cycle, and a
+search along the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_mobiusKantor : mobiusKantor.girth = 6 := by
+  have hcyc : mobiusKantor.girth ≤ 6 :=
+    girth_le_of_cycleList
+      (vtx 16 0) [vtx 16 1, vtx 16 2, vtx 16 3, vtx 16 11, vtx 16 8]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ mobiusKantor.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 16 0) [vtx 16 1, vtx 16 2, vtx 16 3, vtx 16 11, vtx 16 8]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (six_le_girth_of_nbrList mobiusKantor_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-- The neighbour table of the desargues graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def desarguesTbl : List (List desargues.V) := desargues.nbrTable (List.finRange 20)
+
+/-- The neighbours of `a` in the desargues graph. -/
+def desarguesNb (a : desargues.V) : List desargues.V := desarguesTbl.getD a.1 []
+
+theorem desargues_nb : ∀ a b : desargues.V, b ∈ desarguesNb a ↔ desargues.Adj a b := by
+  native_decide
+
+/-- The Desargues graph has girth six: `0 - 1 - 2 - 3 - 13 - 10 - 0` is a six-cycle, and a search
+along the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_desargues : desargues.girth = 6 := by
+  have hcyc : desargues.girth ≤ 6 :=
+    girth_le_of_cycleList
+      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 13, vtx 20 10]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ desargues.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 13, vtx 20 10]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (six_le_girth_of_nbrList desargues_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-- The neighbour table of the nauru graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def nauruTbl : List (List nauru.V) := nauru.nbrTable (List.finRange 24)
+
+/-- The neighbours of `a` in the nauru graph. -/
+def nauruNb (a : nauru.V) : List nauru.V := nauruTbl.getD a.1 []
+
+theorem nauru_nb : ∀ a b : nauru.V, b ∈ nauruNb a ↔ nauru.Adj a b := by
+  native_decide
+
+/-- The Nauru graph has girth six: `0 - 1 - 2 - 14 - 19 - 12 - 0` is a six-cycle, and a search
+along the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_nauru : nauru.girth = 6 := by
+  have hcyc : nauru.girth ≤ 6 :=
+    girth_le_of_cycleList
+      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 14, vtx 24 19, vtx 24 12]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ nauru.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 14, vtx 24 19, vtx 24 12]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (six_le_girth_of_nbrList nauru_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-- The neighbour table of the mcgee graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def mcgeeTbl : List (List mcgee.V) := mcgee.nbrTable (List.finRange 24)
+
+/-- The neighbours of `a` in the mcgee graph. -/
+def mcgeeNb (a : mcgee.V) : List mcgee.V := mcgeeTbl.getD a.1 []
+
+theorem mcgee_nb : ∀ a b : mcgee.V, b ∈ mcgeeNb a ↔ mcgee.Adj a b := by
+  native_decide
+
+/-- The McGee graph has girth seven: `0 - 1 - 2 - 3 - 4 - 11 - 12 - 0` is a seven-cycle, and a
+search along the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_mcgee : mcgee.girth = 7 := by
+  have hcyc : mcgee.girth ≤ 7 :=
+    girth_le_of_cycleList
+      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 3, vtx 24 4, vtx 24 11, vtx 24 12]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ mcgee.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 3, vtx 24 4, vtx 24 11, vtx 24 12]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (seven_le_girth_of_nbrList mcgee_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-- The neighbour table of the coxeter graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def coxeterTbl : List (List coxeter.V) := coxeter.nbrTable (List.finRange 28)
+
+/-- The neighbours of `a` in the coxeter graph. -/
+def coxeterNb (a : coxeter.V) : List coxeter.V := coxeterTbl.getD a.1 []
+
+theorem coxeter_nb : ∀ a b : coxeter.V, b ∈ coxeterNb a ↔ coxeter.Adj a b := by
+  native_decide
+
+/-- The Coxeter graph has girth seven: `0 - 1 - 2 - 3 - 4 - 5 - 6 - 0` is a seven-cycle, and a
+search along the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_coxeter : coxeter.girth = 7 := by
+  have hcyc : coxeter.girth ≤ 7 :=
+    girth_le_of_cycleList
+      (vtx 28 0) [vtx 28 1, vtx 28 2, vtx 28 3, vtx 28 4, vtx 28 5, vtx 28 6]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ coxeter.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 28 0) [vtx 28 1, vtx 28 2, vtx 28 3, vtx 28 4, vtx 28 5, vtx 28 6]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (seven_le_girth_of_nbrList coxeter_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+/-- The neighbour table of the tutteCoxeter graph.  Looking a neighbour up in a table is what makes
+the girth search below tractable: the decision procedure would otherwise recompute the
+neighbours of every vertex at every level of the search. -/
+def tutteCoxeterTbl : List (List tutteCoxeter.V) := tutteCoxeter.nbrTable (List.finRange 30)
+
+/-- The neighbours of `a` in the tutteCoxeter graph. -/
+def tutteCoxeterNb (a : tutteCoxeter.V) : List tutteCoxeter.V := tutteCoxeterTbl.getD a.1 []
+
+theorem tutteCoxeter_nb : ∀ a b : tutteCoxeter.V, b ∈ tutteCoxeterNb a ↔ tutteCoxeter.Adj a b := by
+  native_decide
+
+/-- The Tutte–Coxeter graph, the `(3, 8)`-cage, has girth eight: `0 - 1 - 2 - 3 - 4 - 5 - 18 - 17 -
+0` is an eight-cycle, and a search along the
+neighbour table finds no shorter one. -/
+@[simp] theorem girth_tutteCoxeter : tutteCoxeter.girth = 8 := by
+  have hcyc : tutteCoxeter.girth ≤ 8 :=
+    girth_le_of_cycleList
+      (vtx 30 0) [vtx 30 1, vtx 30 2, vtx 30 3, vtx 30 4, vtx 30 5, vtx 30 18, vtx 30 17]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ tutteCoxeter.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 30 0) [vtx 30 1, vtx 30 2, vtx 30 3, vtx 30 4, vtx 30 5, vtx 30 18, vtx 30 17]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (eight_le_girth_of_nbrList tutteCoxeter_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
 
 end NamedGraphs

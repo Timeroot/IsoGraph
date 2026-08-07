@@ -4445,6 +4445,215 @@ theorem girth_le_five_of_pentagon {G : CGraph} {a b c d e : G.V} (hab : G.Adj a 
     (had : a ≠ d) (hbd : b ≠ d) (hbe : b ≠ e) (hce : c ≠ e) : G.girth ≤ 5 := by
   obtain ⟨_, w, hw, hl⟩ := exists_cycle_of_pentagon hab hbc hcd hde hea hac had hbd hbe hce
   exact hl ▸ girth_le_length hw
+/-! ### Cycles as lists of vertices
+
+The girth ladder above stops at five, one hand-written rung per length.  A *cycle list* states
+the same thing once, at every length: a list `u :: vs` of distinct vertices, consecutive ones
+adjacent, with the last adjacent back to `u`.  `exists_cycleList_of_isCycle` reads one off a
+cycle, `exists_cycle_of_cycleList` builds the cycle back up, and `le_girth_of_forall_cycleList`
+is the lower bound.  With a precomputed neighbour table (`nbrTable`) the hypotheses of
+`six_le_girth_of_nbrList` and friends are one `native_decide` each, which is how the cubic cages
+of `IsoGraph/NamedGraphs.lean` get their girth. -/
+
+theorem getLastD_support {V : Type} {G : SimpleGraph V} {u v : V} (p : G.Walk u v) (x : V) :
+    p.support.getLastD x = v := by
+  induction p generalizing x with
+  | nil => rfl
+  | cons h q ih => rw [SimpleGraph.Walk.support_cons, List.getLastD_cons]; exact ih _
+
+theorem exists_cycleList_of_isCycle {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a}
+    (hw : w.IsCycle) :
+    ∃ (u : G.V) (vs : List G.V), vs.length + 1 = w.length ∧ (u :: vs).Nodup ∧
+      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) ∧ G.Adj (vs.getLastD u) u := by
+  cases w with
+  | nil => exact absurd rfl hw.ne_nil
+  | @cons _ b _ h p =>
+    refine ⟨b, p.support.tail, ?_, ?_, ?_, ?_⟩
+    · simp [SimpleGraph.Walk.length_support]
+    · rw [← SimpleGraph.Walk.support_eq_cons]
+      simpa using hw.support_nodup
+    · rw [← SimpleGraph.Walk.support_eq_cons]
+      exact p.isChain_adj_support
+    · have hl : p.support.getLastD b = a := getLastD_support p b
+      rw [SimpleGraph.Walk.support_eq_cons p, List.getLastD_cons] at hl
+      rw [hl]
+      exact h
+
+/-- A chain of adjacencies is a walk. -/
+theorem exists_walk_of_isChain {G : CGraph} : ∀ (u : G.V) (vs : List G.V),
+    List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) →
+    ∃ p : G.toSimple.Walk u (vs.getLastD u), p.support = u :: vs := by
+  intro u vs
+  induction vs generalizing u with
+  | nil => exact fun _ ↦ ⟨.nil, rfl⟩
+  | cons b t ih =>
+    intro hch
+    obtain ⟨hub, hch'⟩ := List.isChain_cons_cons.1 hch
+    obtain ⟨q, hq⟩ := ih b hch'
+    rw [List.getLastD_cons]
+    refine ⟨.cons ((toSimple_adj G u b).2 hub) q, ?_⟩
+    rw [SimpleGraph.Walk.support_cons, hq]
+
+/-- In a path of length at least two, the two endpoints are not joined by an edge of the path. -/
+theorem not_mem_edges_of_isPath {V : Type} {G : SimpleGraph V} {u v : V} :
+    ∀ (p : G.Walk u v), p.IsPath → 2 ≤ p.length → s(u, v) ∉ p.edges := by
+  intro p
+  induction p with
+  | nil => simp
+  | @cons a b c h q ih =>
+    intro hp hlen hmem
+    rw [SimpleGraph.Walk.cons_isPath_iff] at hp
+    rw [SimpleGraph.Walk.edges_cons, List.mem_cons] at hmem
+    rcases hmem with heq | hmem
+    · have hbc : b = c := by
+        rcases Sym2.eq_iff.1 heq with ⟨_, hbc⟩ | ⟨hac, _⟩
+        · exact hbc.symm
+        · exact absurd hac h.ne
+      subst hbc
+      rw [SimpleGraph.Walk.isPath_iff_eq_nil] at hp
+      simp [hp.1] at hlen
+    · exact hp.2 (q.fst_mem_support_of_mem_edges hmem)
+
+/-- **A list of vertices, read back as a cycle.** -/
+theorem exists_cycle_of_cycleList {G : CGraph} (u : G.V) (vs : List G.V)
+    (h2 : 2 ≤ vs.length) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun x y ↦ G.Adj x y) (u :: vs)) (hcl : G.Adj (vs.getLastD u) u) :
+    ∃ (x : G.V) (w : G.toSimple.Walk x x), w.IsCycle ∧ w.length = vs.length + 1 := by
+  obtain ⟨p, hp⟩ := exists_walk_of_isChain u vs hch
+  have hpath : p.IsPath := SimpleGraph.Walk.IsPath.mk' (hp ▸ hnd)
+  have hlen : p.length = vs.length := by
+    have hs := SimpleGraph.Walk.length_support p
+    rw [hp] at hs
+    simpa using hs.symm
+  have hadj : G.toSimple.Adj u (vs.getLastD u) := ((toSimple_adj G _ u).2 hcl).symm
+  refine ⟨u, .cons hadj p.reverse, ?_, ?_⟩
+  · rw [SimpleGraph.Walk.cons_isCycle_iff]
+    refine ⟨hpath.reverse, ?_⟩
+    rw [SimpleGraph.Walk.edges_reverse, List.mem_reverse]
+    exact not_mem_edges_of_isPath p hpath (by omega)
+  · simp [hlen]
+
+/-- A cycle list of length `n` bounds the girth by `n`. -/
+theorem girth_le_of_cycleList {G : CGraph} (u : G.V) (vs : List G.V)
+    (h2 : 2 ≤ vs.length) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun x y ↦ G.Adj x y) (u :: vs)) (hcl : G.Adj (vs.getLastD u) u) :
+    G.girth ≤ vs.length + 1 := by
+  obtain ⟨_, w, hw, hl⟩ := exists_cycle_of_cycleList u vs h2 hnd hch hcl
+  exact hl ▸ girth_le_length hw
+
+/-- A graph with a cycle list is not acyclic. -/
+theorem not_isAcyclic_of_cycleList {G : CGraph} (u : G.V) (vs : List G.V)
+    (h2 : 2 ≤ vs.length) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun x y ↦ G.Adj x y) (u :: vs)) (hcl : G.Adj (vs.getLastD u) u) :
+    ¬ G.IsAcyclic := by
+  obtain ⟨_, _, hw, _⟩ := exists_cycle_of_cycleList u vs h2 hnd hch hcl
+  exact not_isAcyclic_of_isCycle hw
+
+/-- **A graph with a cycle but no short cycle list has large girth.** -/
+theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
+    (h : ∀ (u : G.V) (vs : List G.V), 2 ≤ vs.length → vs.length + 1 < L → (u :: vs).Nodup →
+      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u → False)
+    (hnac : ¬ G.IsAcyclic) : L ≤ G.girth := by
+  have hle : (L : ℕ∞) ≤ G.toSimple.egirth := by
+    refine SimpleGraph.le_egirth.2 fun a w hw ↦ ?_
+    rcases Nat.lt_or_ge w.length L with hlt | hge
+    · obtain ⟨u, vs, hlen, hnd, hch, hcl⟩ := exists_cycleList_of_isCycle hw
+      have h3 := hw.three_le_length
+      exact absurd (h u vs (by omega) (by omega) hnd hch hcl) not_false
+    · exact_mod_cast hge
+  exact ENat.toNat_le_toNat hle (SimpleGraph.egirth_eq_top.not.2 hnac)
+
+/-- **Girth at least six** from a neighbour list: a graph with a cycle and no cycle list
+shorter than 6 has girth at least 6. -/
+theorem six_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ¬ (a ∈ nb e ∧ [a, b, c, d,
+      e].Nodup))
+    (hnac : ¬ G.IsAcyclic) : 6 ≤ G.girth := by
+  refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
+  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, t⟩⟩⟩⟩⟩
+  · simp at h2
+  · simp at h2
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h3 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h4 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2) ⟨(hnb _ _).2
+      hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h5 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.length_cons] at hlt
+    omega
+
+/-- **Girth at least seven** from a neighbour list: a graph with a cycle and no cycle list
+shorter than 7 has girth at least 7. -/
+theorem seven_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ¬ (a ∈ nb e ∧ [a, b, c, d,
+      e].Nodup))
+    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ¬ (a ∈ nb f ∧ [a,
+      b, c, d, e, f].Nodup))
+    (hnac : ¬ G.IsAcyclic) : 7 ≤ G.girth := by
+  refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
+  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, t⟩⟩⟩⟩⟩⟩
+  · simp at h2
+  · simp at h2
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h3 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h4 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2) ⟨(hnb _ _).2
+      hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h5 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h6 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.length_cons] at hlt
+    omega
+
+/-- **Girth at least eight** from a neighbour list: a graph with a cycle and no cycle list
+shorter than 8 has girth at least 8. -/
+theorem eight_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ¬ (a ∈ nb e ∧ [a, b, c, d,
+      e].Nodup))
+    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ¬ (a ∈ nb f ∧ [a,
+      b, c, d, e, f].Nodup))
+    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ∀ g ∈ nb f, ¬ (a ∈
+      nb g ∧ [a, b, c, d, e, f, g].Nodup))
+    (hnac : ¬ G.IsAcyclic) : 8 ≤ G.girth := by
+  refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
+  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, t⟩⟩⟩⟩⟩⟩⟩
+  · simp at h2
+  · simp at h2
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h3 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h4 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2) ⟨(hnb _ _).2
+      hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h5 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h6 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h7 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2.1) g ((hnb _ _).2 hch.2.2.2.2.2) ⟨(hnb _ _).2
+      hcl, hnd⟩
+  · simp only [List.length_cons] at hlt
+    omega
+
+/-- The neighbour lists of every vertex in `l`, as a table indexed by position in `l`. -/
+def nbrTable (G : CGraph) (l : List G.V) : List (List G.V) :=
+  l.map fun a ↦ l.filter fun b ↦ G.Adj a b
 
 /-! ### Girth three and the clique number -/
 
