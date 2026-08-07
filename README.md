@@ -4034,10 +4034,22 @@ theorem sum_pow_spectrum_eq_card_closedWalks (G : CGraph) (n : ℕ) :
       = ∑ v : G.V, (Fintype.card {w : G.toSimple.Walk v v // w.length = n} : ℝ)
 ```
 
-The first two are the ones with names: `sum_spectrum` — the trace of `A` is zero, there being no
-closed walks of length one — and `sum_sq_spectrum`, the trace of `A²` is `2 E`, the closed walks
-of length two being the edges traversed both ways. A bipartite graph has no closed walk of odd
-length at all, and in fact its whole spectrum is symmetric:
+The first three are the ones with names: `sum_spectrum` — the trace of `A` is zero, there being no
+closed walks of length one — `sum_sq_spectrum`, the trace of `A²` is `2 E`, the closed walks
+of length two being the edges traversed both ways — and `sum_cube_spectrum`:
+
+```lean
+theorem sum_cube_spectrum (G : CGraph) :
+    (G.spectrum.map (· ^ 3)).sum = 6 * (G.cliqueCount 3 : ℝ)
+```
+
+The trace of `A³` is the number of ordered triples of mutually adjacent vertices, and the six
+orderings of one triangle are exactly its fibre over `{a, b, c}`, so the count is fiberwise:
+`Finset.card_eq_sum_card_fiberwise` over `cliqueFinset 3`, with the fibre identified with the
+explicit six-element finset of permutations. The forward inclusion is twenty-seven cases of
+`rcases` on which of `a, b, c` each coordinate is, of which twenty-one die on `Adj.irrefl`.
+A bipartite graph has no closed walk of odd length at all, and in fact its whole spectrum is
+symmetric:
 
 ```lean
 theorem spectrum_neg_of_isBipartite {G : CGraph} (h : G.IsBipartite) :

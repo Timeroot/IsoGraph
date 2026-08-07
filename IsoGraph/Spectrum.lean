@@ -59,7 +59,9 @@ the factorisation back to `ℝ[X]`.
 first two moments.  All of them at once: `trace_adjMat_pow` diagonalises every power of `A` with
 one conjugation, so `sum_pow_spectrum` identifies the `n`-th moment with the trace of `A ^ n`,
 which `adjMat_pow_apply` turns into a count of closed walks
-(`sum_pow_spectrum_eq_card_closedWalks`).  The odd moments of a bipartite graph therefore vanish,
+(`sum_pow_spectrum_eq_card_closedWalks`).  At `n = 3` that is the classical triangle count,
+`sum_cube_spectrum : ∑ λ ³ = 6 · #triangles`, since a closed walk of length three is a triangle
+with a starting point and a direction.  The odd moments of a bipartite graph therefore vanish,
 and indeed `spectrum_neg_of_isBipartite` says the whole spectrum is symmetric about zero: the
 diagonal sign matrix of the bipartition conjugates `A` into `-A`.
 `Cospectral G H` is equality of characteristic polynomials; it is implied by
@@ -1123,6 +1125,88 @@ theorem sum_pow_spectrum_eq_card_closedWalks (G : CGraph) (n : ℕ) :
   classical
   rw [sum_pow_spectrum, Matrix.trace]
   exact Finset.sum_congr rfl fun v _ ↦ adjMat_pow_apply G n v v
+
+/-! ### The third moment counts triangles -/
+
+/-- The ordered triples of mutually adjacent vertices. -/
+private def orderedTriangles (G : CGraph) : Finset (G.V × G.V × G.V) :=
+  Finset.univ.filter fun t ↦
+    G.toSimple.Adj t.1 t.2.1 ∧ G.toSimple.Adj t.2.1 t.2.2 ∧ G.toSimple.Adj t.2.2 t.1
+
+private theorem trace_adjMat_cube (G : CGraph) :
+    (G.adjMat ^ 3).trace = (G.orderedTriangles.card : ℝ) := by
+  have hterm : ∀ i k j : G.V, G.adjMat i j * G.adjMat j k * G.adjMat k i
+      = if G.toSimple.Adj i j ∧ G.toSimple.Adj j k ∧ G.toSimple.Adj k i then 1 else 0 := by
+    intro i k j
+    simp only [adjMat_apply, ← toSimple_adj]
+    by_cases h1 : G.Adj i j <;> by_cases h2 : G.Adj j k <;> by_cases h3 : G.Adj k i <;>
+      simp [h1, h2, h3]
+  have h3 : G.adjMat ^ 3 = G.adjMat * G.adjMat * G.adjMat := by
+    rw [pow_succ, pow_succ, pow_one]
+  rw [h3]
+  simp only [Matrix.trace, Matrix.diag_apply, Matrix.mul_apply, Finset.sum_mul]
+  rw [orderedTriangles, Finset.card_filter]
+  simp only [Fintype.sum_prod_type]
+  push_cast
+  refine Finset.sum_congr rfl fun i _ ↦ ?_
+  rw [Finset.sum_comm]
+  exact Finset.sum_congr rfl fun k _ ↦ Finset.sum_congr rfl fun j _ ↦ hterm i j k
+
+private theorem card_orderedTriangles (G : CGraph) :
+    G.orderedTriangles.card = 6 * (G.toSimple.cliqueFinset 3).card := by
+  rw [orderedTriangles,
+    Finset.card_eq_sum_card_fiberwise (f := fun t : G.V × G.V × G.V ↦ ({t.1, t.2.1, t.2.2} :
+      Finset G.V)) (t := G.toSimple.cliqueFinset 3) ?_]
+  · rw [Finset.sum_congr rfl (g := fun _ ↦ 6) ?_, Finset.sum_const, smul_eq_mul, mul_comm]
+    intro s hs
+    obtain ⟨a, b, c, hab, hac, hbc, rfl⟩ :=
+      SimpleGraph.is3Clique_iff.1 (SimpleGraph.mem_cliqueFinset_iff.1 hs)
+    have hset : (Finset.univ.filter fun t : G.V × G.V × G.V ↦
+          (G.toSimple.Adj t.1 t.2.1 ∧ G.toSimple.Adj t.2.1 t.2.2 ∧ G.toSimple.Adj t.2.2 t.1) ∧
+            ({t.1, t.2.1, t.2.2} : Finset G.V) = {a, b, c})
+        = {(a, b, c), (a, c, b), (b, a, c), (b, c, a), (c, a, b), (c, b, a)} := by
+      ext ⟨x, y, z⟩
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_insert,
+        Finset.mem_singleton, Prod.mk.injEq]
+      constructor
+      · rintro ⟨⟨hxy, hyz, hzx⟩, heq⟩
+        have hx : x ∈ ({a, b, c} : Finset G.V) := heq ▸ (by simp)
+        have hy : y ∈ ({a, b, c} : Finset G.V) := heq ▸ (by simp)
+        have hz : z ∈ ({a, b, c} : Finset G.V) := heq ▸ (by simp)
+        simp only [Finset.mem_insert, Finset.mem_singleton] at hx hy hz
+        rcases hx with rfl | rfl | rfl <;> rcases hy with rfl | rfl | rfl <;>
+          rcases hz with rfl | rfl | rfl <;> simp_all
+      · have hba := hab.symm
+        have hca := hac.symm
+        have hcb := hbc.symm
+        rintro (⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ |
+            ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩) <;>
+          refine ⟨⟨by assumption, by assumption, by assumption⟩, ?_⟩ <;>
+          (ext w; simp only [Finset.mem_insert, Finset.mem_singleton]; try tauto)
+    rw [Finset.filter_filter, hset]
+    have h1 : a ≠ b := hab.ne
+    have h2 : a ≠ c := hac.ne
+    have h3 : b ≠ c := hbc.ne
+    rw [Finset.card_insert_of_notMem (by simp [Prod.ext_iff, h1, h2, h3, h1.symm, h2.symm,
+        h3.symm]),
+      Finset.card_insert_of_notMem (by simp [Prod.ext_iff, h1, h2, h3, h1.symm, h2.symm, h3.symm]),
+      Finset.card_insert_of_notMem (by simp [Prod.ext_iff, h1, h2, h3, h2.symm, h3.symm]),
+      Finset.card_insert_of_notMem (by simp [Prod.ext_iff, h1, h3, h2.symm, h3.symm]),
+      Finset.card_insert_of_notMem (by simp [Prod.ext_iff, h1, h1.symm]),
+      Finset.card_singleton]
+  · rintro ⟨x, y, z⟩ ht
+    have ht' : G.toSimple.Adj x y ∧ G.toSimple.Adj y z ∧ G.toSimple.Adj z x := by simpa using ht
+    exact SimpleGraph.mem_cliqueFinset_iff.2
+      (SimpleGraph.is3Clique_triple_iff.2 ⟨ht'.1, ht'.2.2.symm, ht'.2.1⟩)
+
+/-- **The third moment counts triangles.**  The trace of `A ³` counts closed walks of length
+three, and each triangle contributes six of them, one for each ordering of its vertices. -/
+theorem sum_cube_spectrum (G : CGraph) :
+    (G.spectrum.map (· ^ 3)).sum = 6 * (G.cliqueCount 3 : ℝ) := by
+  rw [sum_pow_spectrum, trace_adjMat_cube, card_orderedTriangles,
+    G.cliqueCount_eq_card_cliqueFinset 3]
+  push_cast
+  ring
 
 /-! ### Bipartite graphs have a symmetric spectrum -/
 
@@ -3103,6 +3187,11 @@ theorem spectrum_eq_roots_charpoly (G : IsoGraph) : G.spectrum = G.charpoly.root
 
 theorem sum_sq_spectrum (G : IsoGraph) : (G.spectrum.map (· ^ 2)).sum = 2 * (G.E : ℝ) :=
   Quotient.inductionOn G fun g ↦ g.sum_sq_spectrum
+
+/-- **The third moment counts triangles**, six times over. -/
+theorem sum_cube_spectrum (G : IsoGraph) :
+    (G.spectrum.map (· ^ 3)).sum = 6 * (G.cliqueCount 3 : ℝ) :=
+  Quotient.inductionOn G fun g ↦ g.sum_cube_spectrum
 
 @[simp] theorem spectrum_empty (n : ℕ) : (empty n).spectrum = Multiset.replicate n 0 :=
   CGraph.spectrum_empty n
