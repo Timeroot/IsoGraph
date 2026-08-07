@@ -4257,6 +4257,37 @@ is a walk of length `k`, while every lower term is zero, there being no shorter 
 monic leading coefficient then reads `0 < 0`. The path `Pₙ` shows the bound is tight: `n` distinct
 eigenvalues `2 cos(jπ/(n+1))` and diameter `n - 1`.
 
+Counting distinct eigenvalues from the bottom is just as informative. One means a single vertex,
+two means a complete graph, and three — for a connected regular graph — means strongly regular.
+That is the converse of `spectrum_isSRGWith`, so the two together say that strong regularity of a
+connected regular graph *is* the condition "three distinct eigenvalues".
+
+```lean
+theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : ℕ}
+    (hconn : G.IsConnected) (hreg : G.IsRegularWith k)
+    (h3 : G.spectrum.toFinset.card = 3) :
+    ∃ l m : ℕ, G.IsSRGWith (Fintype.card G.V) k l m
+```
+
+The degree of a regular graph is one of its eigenvalues, so the three are `k`, `r` and `s`, and
+`aeval_minSpecPoly` turns the factorisation of `minSpecPoly` into `(A - k)(A - r)(A - s) = 0`.
+Set `M = (A - r)(A - s)`. Then `A M = k M`, so *every column of `M` is a `k`-eigenvector* — and
+for a connected regular graph `k` is a simple eigenvalue whose eigenvector is the all-ones vector
+(`count_spectrum_eq_one_of_isConnected`), so every column of `M` is constant. `M` is symmetric,
+being a polynomial in `A`, which forces the columns to share their constant:
+`exists_forall_eq_of_mul_eq_smul` gives `M = t J`. Expanding `M = A² - (r + s)A + rs·1` off the
+diagonal, where the identity contributes nothing, and reading `A²` as a count of common
+neighbours (`adjMat_sq_apply`),
+
+```
+#(common neighbours of u, v) = t + (r + s)·A(u, v)
+```
+
+which is `t + r + s` on the edges and `t` off them. Those are the `ℓ` and `μ` of the definition.
+They come out of the argument as *reals*, so the statement is an existential over natural
+numbers: the proof picks one adjacent pair and one non-adjacent pair and transfers their counts
+to all the others, falling back on `0` when no such pair exists.
+
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
 

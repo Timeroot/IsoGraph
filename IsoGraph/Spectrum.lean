@@ -118,6 +118,21 @@ and it becomes `diagonal (p ∘ λ)` — so `A ᵏ` is a combination of the lowe
 exactly `k`, which `exists_dist_eq` produces by cutting a shortest walk: the walk counts of
 `adjMat_pow_apply` make the top term positive and every lower term zero.
 
+## Three distinct eigenvalues
+
+The smallest interesting case of that count is the converse of the strongly regular story.  A
+connected graph with one distinct eigenvalue is a point, with two it is complete, and with three
+`exists_isSRGWith_of_card_toFinset_spectrum_eq_three` says a regular one is strongly regular.
+Factor `minSpecPoly` as `(X - k) (X - r) (X - s)` — the degree is an eigenvalue, so it is one of
+the three — and `aeval_minSpecPoly` turns that into `(A - k) (A - r) (A - s) = 0`.  Hence every
+column of `M = (A - r) (A - s)` is a `k`-eigenvector, and since a connected regular graph has `k`
+as a *simple* eigenvalue with the all-ones eigenvector, every column is constant; `M` is
+symmetric, so all the columns share their constant and `M = t J`
+(`exists_forall_eq_of_mul_eq_smul`).  Off the diagonal `M = A ² - (r + s) A`, and
+`adjMat_sq_apply` reads `A ²` as a count of common neighbours: adjacent pairs have `t + r + s` of
+them and non-adjacent pairs `t`.  Together with `spectrum_isSRGWith` in the other direction,
+strong regularity of a connected regular graph *is* the condition "three distinct eigenvalues".
+
 ## Line graphs
 
 `transpose_mul_incMat` factors the line graph through the incidence matrix `incMat`, as
@@ -4564,6 +4579,151 @@ theorem diameter_lt_card_toFinset_spectrum (G : CGraph) [Nonempty G.V] :
   obtain ⟨u, v, huv⟩ := SimpleGraph.exists_dist_eq_diam (G := G.toSimple)
   rw [diameter, ← huv]
   exact G.dist_lt_card_toFinset_spectrum u v
+
+/-! ## Three distinct eigenvalues means strongly regular -/
+
+/-- The annihilation of `sum_coeff_smul_adjMat_pow`, packaged as an evaluation of `minSpecPoly`
+in the matrix algebra.  This is the form in which the polynomial can be factored. -/
+theorem aeval_minSpecPoly (G : CGraph) : aeval G.adjMat G.minSpecPoly = 0 := by
+  rw [aeval_eq_sum_range, natDegree_minSpecPoly]
+  exact G.sum_coeff_smul_adjMat_pow
+
+/-- The square of the adjacency matrix counts common neighbours.  (On the diagonal that is the
+degree; the statement holds there too, since a vertex is not its own neighbour.) -/
+theorem adjMat_sq_apply (G : CGraph) (u v : G.V) :
+    (G.adjMat ^ 2) u v = (Fintype.card (G.toSimple.commonNeighbors u v) : ℝ) := by
+  have hset : Fintype.card (G.toSimple.commonNeighbors u v)
+      = (Finset.univ.filter fun w ↦ G.Adj u w = true ∧ G.Adj w v = true).card := by
+    rw [← Set.toFinset_card]
+    congr 1
+    ext w
+    simp [SimpleGraph.mem_commonNeighbors, G.symm v w]
+  rw [hset, pow_two, Matrix.mul_apply, Finset.card_filter]
+  push_cast
+  refine Finset.sum_congr rfl fun w _ ↦ ?_
+  simp only [adjMat_apply]
+  by_cases h1 : G.Adj u w = true <;> by_cases h2 : G.Adj w v = true <;> simp [h1, h2]
+
+/-- **A symmetric matrix whose columns are `k`-eigenvectors is a multiple of the all-ones
+matrix**, when `G` is connected and `k`-regular.  The degree of a connected regular graph is a
+simple eigenvalue with the all-ones eigenvector, so every column of `M` is constant; symmetry
+then forces the columns to share their constant. -/
+theorem exists_forall_eq_of_mul_eq_smul {G : CGraph} {k : ℕ} (hconn : G.IsConnected)
+    (hreg : G.IsRegularWith k) {M : Matrix G.V G.V ℝ} (hsymm : ∀ i j, M i j = M j i)
+    (hM : G.adjMat * M = (k : ℝ) • M) : ∃ c : ℝ, ∀ i j, M i j = c := by
+  haveI : Nonempty G.V := hconn.nonempty
+  have hcount := count_spectrum_eq_one_of_isConnected hconn hreg
+  have hone : G.adjMat *ᵥ (1 : G.V → ℝ) = (k : ℝ) • 1 :=
+    (hasEigenvector_one_of_isRegularWith hreg).2
+  have hone0 : (1 : G.V → ℝ) ≠ 0 := by
+    intro h
+    simpa using congrFun h (Classical.arbitrary G.V)
+  have hcol : ∀ j, ∃ a : ℝ, ∀ i, M i j = a := by
+    intro j
+    have hv : G.adjMat *ᵥ (fun i ↦ M i j) = (k : ℝ) • fun i ↦ M i j := by
+      funext i
+      have h1 := congrFun (congrFun hM i) j
+      simpa [Matrix.mul_apply, Matrix.mulVec, dotProduct] using h1
+    obtain ⟨a, ha⟩ := exists_smul_of_count_spectrum_eq_one hcount hone hone0 hv
+    exact ⟨a, fun i ↦ by simpa using congrFun ha i⟩
+  choose a ha using hcol
+  refine ⟨a (Classical.arbitrary G.V), fun i j ↦ ?_⟩
+  rw [ha j i, ← ha j (Classical.arbitrary G.V), hsymm _ j]
+  exact ha (Classical.arbitrary G.V) j
+
+/-- **A connected regular graph with three distinct eigenvalues is strongly regular.**  Writing
+the spectrum as `{k, r, s}`, the minimal polynomial gives `(A - k) (A - r) (A - s) = 0`, so every
+column of `M = (A - r) (A - s)` is a `k`-eigenvector; as `k` is simple and `M` is symmetric,
+`M` is a constant matrix `t J`.  Off the diagonal that reads
+`#(common neighbours) = t + (r + s) · A`, which is one value on the edges and another off them.
+
+This is the converse of `spectrum_isSRGWith`, and together with it says that strong regularity of
+a connected regular graph is exactly the condition "three distinct eigenvalues". -/
+theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : ℕ}
+    (hconn : G.IsConnected) (hreg : G.IsRegularWith k)
+    (h3 : G.spectrum.toFinset.card = 3) :
+    ∃ l m : ℕ, G.IsSRGWith (Fintype.card G.V) k l m := by
+  haveI : Nonempty G.V := hconn.nonempty
+  obtain ⟨a, b, c, hab, hac, hbc, hset⟩ := Finset.card_eq_three.1 h3
+  have hk : (k : ℝ) ∈ G.spectrum.toFinset := by
+    simpa using mem_spectrum_of_isRegularWith hreg
+  rw [hset] at hk
+  simp only [Finset.mem_insert, Finset.mem_singleton] at hk
+  -- name the two eigenvalues other than the degree
+  obtain ⟨r, s, hkr, hks, hrs, hspec⟩ :
+      ∃ r s : ℝ, (k : ℝ) ≠ r ∧ (k : ℝ) ≠ s ∧ r ≠ s ∧
+        G.spectrum.toFinset = {(k : ℝ), r, s} := by
+    rcases hk with rfl | rfl | rfl
+    · exact ⟨b, c, hab, hac, hbc, hset⟩
+    · exact ⟨a, c, hab.symm, hbc, hac, by rw [hset]; ext x; simp; tauto⟩
+    · exact ⟨a, b, hac.symm, hbc.symm, hab, by rw [hset]; ext x; simp; tauto⟩
+  clear hset hab hac hbc hk
+  -- the minimal polynomial factors, so `(A - k) (A - r) (A - s) = 0`
+  have hpoly : G.minSpecPoly = (X - C (k : ℝ)) * ((X - C r) * (X - C s)) := by
+    rw [minSpecPoly, hspec, Finset.prod_insert (by simp [hkr, hks]),
+      Finset.prod_insert (by simp [hrs]), Finset.prod_singleton]
+  have hann : (G.adjMat - (k : ℝ) • 1) *
+      ((G.adjMat - r • 1) * (G.adjMat - s • 1)) = 0 := by
+    have h1 := G.aeval_minSpecPoly
+    rw [hpoly] at h1
+    simp only [map_mul, map_sub, aeval_X, aeval_C, Algebra.algebraMap_eq_smul_one] at h1
+    exact h1
+  set M : Matrix G.V G.V ℝ := (G.adjMat - r • 1) * (G.adjMat - s • 1) with hMdef
+  have hMeq : M = G.adjMat ^ 2 - (r + s) • G.adjMat + (r * s) • 1 := by
+    rw [hMdef]
+    simp only [sub_mul, mul_sub, smul_mul_assoc, mul_smul_comm, one_mul, mul_one, ← sq]
+    module
+  have hAM : G.adjMat * M = (k : ℝ) • M := by
+    rw [sub_mul, smul_mul_assoc, one_mul, sub_eq_zero] at hann
+    exact hann
+  have hAt : G.adjMatᵀ = G.adjMat := Matrix.ext fun i j ↦ adjMat_symm G j i
+  have hsymm : ∀ i j, M i j = M j i := by
+    have ht : Mᵀ = M := by
+      rw [hMeq]
+      simp [Matrix.transpose_add, Matrix.transpose_sub, Matrix.transpose_smul,
+        Matrix.transpose_pow, hAt]
+    intro i j
+    exact (congrFun (congrFun ht i) j).symm
+  obtain ⟨t, ht⟩ := exists_forall_eq_of_mul_eq_smul hconn hreg hsymm hAM
+  -- off the diagonal the constant `t` pins down the two common-neighbour counts
+  have hoff : ∀ i j, i ≠ j →
+      (Fintype.card (G.toSimple.commonNeighbors i j) : ℝ) - (r + s) * G.adjMat i j = t := by
+    intro i j hij
+    have h1 := ht i j
+    rw [hMeq] at h1
+    simp only [Matrix.add_apply, Matrix.sub_apply, Matrix.smul_apply, smul_eq_mul,
+      Matrix.one_apply_ne hij, mul_zero, add_zero] at h1
+    rwa [adjMat_sq_apply] at h1
+  have hadj : ∀ i j, G.toSimple.Adj i j →
+      (Fintype.card (G.toSimple.commonNeighbors i j) : ℝ) = t + (r + s) := by
+    intro i j hij
+    have h1 := hoff i j hij.ne
+    rw [adjMat_apply, if_pos (by simpa [toSimple_adj] using hij)] at h1
+    linarith
+  have hnadj : ∀ i j, i ≠ j → ¬G.toSimple.Adj i j →
+      (Fintype.card (G.toSimple.commonNeighbors i j) : ℝ) = t := by
+    intro i j hij hnij
+    have h1 := hoff i j hij
+    rw [adjMat_apply, if_neg (by simpa [toSimple_adj] using hnij)] at h1
+    linarith
+  -- read off the two parameters as natural numbers
+  obtain ⟨l, hl⟩ : ∃ l : ℕ, ∀ v w, G.toSimple.Adj v w →
+      Fintype.card (G.toSimple.commonNeighbors v w) = l := by
+    by_cases hex : ∃ v w, G.toSimple.Adj v w
+    · obtain ⟨v0, w0, h0⟩ := hex
+      refine ⟨Fintype.card (G.toSimple.commonNeighbors v0 w0), fun v w hvw ↦ ?_⟩
+      exact_mod_cast (hadj v w hvw).trans (hadj v0 w0 h0).symm
+    · push_neg at hex
+      exact ⟨0, fun v w hvw ↦ absurd hvw (hex v w)⟩
+  obtain ⟨m, hm⟩ : ∃ m : ℕ, ∀ v w, v ≠ w → ¬G.toSimple.Adj v w →
+      Fintype.card (G.toSimple.commonNeighbors v w) = m := by
+    by_cases hex : ∃ v w, v ≠ w ∧ ¬G.toSimple.Adj v w
+    · obtain ⟨v0, w0, h0, h0'⟩ := hex
+      refine ⟨Fintype.card (G.toSimple.commonNeighbors v0 w0), fun v w hvw hn ↦ ?_⟩
+      exact_mod_cast (hnadj v w hvw hn).trans (hnadj v0 w0 h0 h0').symm
+    · push_neg at hex
+      exact ⟨0, fun v w hvw hn ↦ absurd (hex v w hvw) (by simpa using hn)⟩
+  exact ⟨l, m, rfl, hreg, hl, fun v w hne hnadj ↦ hm v w hne hnadj⟩
 
 end CGraph
 
