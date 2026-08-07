@@ -3047,6 +3047,25 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph} [inst : DecidableEq G.V]
     have hne : i ≠ i₀ := fun h ↦ hnodup (h ▸ hi)
     simp [hdd, hne]
 
+/-- **The spectrum of the complement of the Petersen graph**: `6` once, `-2` five times and `1`
+four times. -/
+theorem spectrum_compl_petersen :
+    (compl SRG.petersen).spectrum
+      = 6 ::ₘ (Multiset.replicate 5 (-2 : ℝ) + Multiset.replicate 4 1) := by
+  have hconn : SRG.petersen.IsConnected :=
+    SRG.petersen_srg.isConnected (by norm_num) (by norm_num)
+  have hreg : SRG.petersen.IsRegularWith 3 := SRG.petersen_srg.regular
+  have hcard : Fintype.card SRG.petersen.V = 10 := SRG.petersen_srg.card
+  rw [spectrum_compl_of_isRegularWith hconn hreg, hcard, spectrum_petersen]
+  norm_num [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate]
+
+/-- **The spectrum of the triangular graph `T(5)`**, the line graph of `K₅`: it is the complement
+of the Petersen graph, so its smallest eigenvalue is the `-2` of a line graph. -/
+theorem spectrum_triangular_five :
+    (triangular 5).spectrum
+      = 6 ::ₘ (Multiset.replicate 5 (-2 : ℝ) + Multiset.replicate 4 1) :=
+  (spectrum_congr SRG.triangular_five_eq_compl_petersen.some).trans spectrum_compl_petersen
+
 end CGraph
 
 namespace IsoGraph

@@ -4020,6 +4020,10 @@ instance search will not unfold it, and it opens by substituting the classical `
 instance for the bound one so that the `1`s coming from `exists_orthogonal_diagonal` match the
 `1`s written in the proof.
 
+Petersen is the example: `3, 1⁵, (-2)⁴` becomes `6, (-2)⁵, 1⁴` for the complement, which is the
+triangular graph `T(5) = L(K₅)` — so `spectrum_triangular_five` comes for free through
+`triangular_five_eq_compl_petersen`, with the `-2` that every line graph has.
+
 All the moments of the spectrum are available. One conjugation diagonalises every power of `A`
 at once (`trace_adjMat_pow`), so the `n`-th moment is the trace of `Aⁿ`, and `adjMat_pow_apply`
 reads that off as a count of closed walks:
