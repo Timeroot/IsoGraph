@@ -4221,6 +4221,12 @@ the vector has norm `2 Δ`, so the quotient is at least `√Δ`. Together with t
 brackets the largest eigenvalue as `√Δ ≤ lambdaMax ≤ Δ`, with both ends attained — the star `K_{1,Δ}`
 at the bottom and any `Δ`-regular graph at the top.
 
+Nonnegativity of `A` gives a sharper upper bound than `Δ` on the rest of the spectrum: replacing a
+vector by its absolute value keeps the norm and cannot decrease the quadratic form
+(`abs_dotProduct_mulVec_le`), so an eigenvector for `x` witnesses `|x| ≤ lambdaMax` — the largest
+eigenvalue *is* the spectral radius (`abs_le_lambdaMax_of_mem_spectrum`), and in particular
+`-lambdaMax ≤ lambdaMin`.
+
 Equality in either direction pins the vector down:
 
 ```lean
@@ -4304,24 +4310,23 @@ theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) (hconn : G.IsConnected) : H.IsConnected
 ```
 
-Connectedness plus regularity also makes *bipartiteness* readable off the spectrum. One direction
-is `spectrum_neg_of_isBipartite` above: the spectrum is symmetric, so `-k` appears in it. The
+Connectedness also makes *bipartiteness* readable off the spectrum. One direction is
+`spectrum_neg_of_isBipartite` above: the spectrum is symmetric, so `-λ_max` appears in it. The
 converse is the interesting one:
 
 ```lean
-theorem isBipartite_of_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
-    (hreg : G.IsRegularWith k) (hk : -(k : ℝ) ∈ G.spectrum) : G.IsBipartite
+theorem isBipartite_of_neg_lambdaMax_mem_spectrum {G : CGraph} [Nonempty G.V]
+    (hconn : G.IsConnected) (h : -G.lambdaMax ∈ G.spectrum) : G.IsBipartite
 ```
 
-Given `A v = -k v`, the triangle inequality makes `|v|` a *sub*eigenvector, `k |v| ≤ A |v|`
-coordinatewise; but both sides have the same total sum `k ∑ |v|`, because every column of `A` sums
-to `k`, so the inequality is an equality at every vertex. Then `|v|` is an eigenvector for `k`,
-hence constant and nowhere zero. Each neighbour sum `∑_{y ∼ x} v y = -k v x` is now a sum of `k`
-terms of equal modulus `|v x|` attaining the extreme value `-k v x`, which forces `v y = -v x` on
-every edge — the sign of `v` is a proper `2`-colouring. Since `-k ≤ λ_min` for a `k`-regular
-graph, the same statement reads `isBipartite_iff_lambdaMin_eq`: a connected `k`-regular graph is
-bipartite iff `λ_min = -k`. Bipartiteness is therefore spectral in this class
-(`Cospectral.isBipartite`), which together with `Cospectral.isConnected` and
+Given `A v = -λ_max v`, the quadratic form of `|v|` is at least `|⟪v, A v⟫| = λ_max ⟪v, v⟫`, so
+`|v|` attains the maximum of the Rayleigh quotient and is therefore the positive Perron vector.
+Subtracting the two quadratic forms leaves `∑_{x,y} A x y (|v x| |v y| + v x v y) = 0`, a sum of
+nonnegative terms, so every one of them vanishes: along each edge `v x · v y = -|v x| |v y| < 0`.
+The sign of `v` is then a proper `2`-colouring. Since `-λ_max ≤ λ_min` always, the criterion reads
+`λ_min = -λ_max` (`isBipartite_iff_lambdaMin_eq_neg_lambdaMax`), and for a `k`-regular graph
+`λ_min = -k` (`isBipartite_iff_lambdaMin_eq`). Bipartiteness is therefore spectral for connected
+regular graphs (`Cospectral.isBipartite`), which together with `Cospectral.isConnected` and
 `Cospectral.isRegularWith` means a graph cospectral with a connected regular bipartite graph is
 itself connected, regular and bipartite.
 

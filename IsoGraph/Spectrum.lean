@@ -85,6 +85,9 @@ turns the quadratic form into a weighted sum of squares in rotated coordinates
 gives `sqrt_maxDeg_le_lambdaMax` (`√Δ ≤ λ_max`).  From the other side,
 `abs_le_maxDeg_of_mem_spectrum` bounds every eigenvalue by the maximum degree, by evaluating the
 eigenvector equation where the eigenvector is largest, so `λ_max` is trapped between `√Δ` and `Δ`.
+Sharper, `λ_max` is the spectral radius: `abs_le_lambdaMax_of_mem_spectrum`, because replacing an
+eigenvector by its absolute value keeps the norm and cannot decrease the quadratic form
+(`abs_dotProduct_mulVec_le`, nonnegativity of `A`).
 
 The *equality* case is `mulVec_eq_of_rayleigh_eq_lambdaMax`: a vector attaining the maximum is an
 eigenvector, since in rotated coordinates the quotient is a weighted average of the eigenvalues.
@@ -182,17 +185,18 @@ For a `k`-regular graph `λ_max = k`, so that pins connectedness down,
 is a second eigenvector for `k`, not a multiple of the all-ones vector.  Combined
 with `Cospectral.isRegularWith` this makes connectedness spectral as well: `Cospectral.isConnected`.
 
-## Bipartiteness of a connected regular graph
+## Bipartiteness of a connected graph
 
 `spectrum_neg_of_isBipartite` gives one direction — a bipartite graph has a symmetric spectrum, so
-`-k` is an eigenvalue of a `k`-regular bipartite graph.  The converse needs connectedness
-(`isBipartite_of_neg_mem_spectrum`): from `A v = -k v` the triangle inequality gives `A |v| ≥ k |v|`
-coordinatewise, both sides sum to `k ∑ |v|`, so `A |v| = k |v|` and `|v|` is constant.  Each
-neighbour sum `∑_{y ∼ x} v y = -k v x` is then an extremal sum of `k` terms of equal modulus,
-forcing `v y = -v x` along every edge, so the sign of `v` is a `2`-colouring.  Since `-k` is the
-smallest an eigenvalue of a `k`-regular graph can be, this also reads
-`isBipartite_iff_lambdaMin_eq` (`λ_min = -k`), and it makes bipartiteness spectral for connected
-regular graphs (`Cospectral.isBipartite`).
+`-λ_max` is an eigenvalue of it.  The converse needs connectedness
+(`isBipartite_of_neg_lambdaMax_mem_spectrum`).  From `A v = -λ_max v`, `|v|` attains the maximum of
+the Rayleigh quotient (its quadratic form is at least `|⟪v, A v⟫| = λ_max ⟪v, v⟫`), so it is a
+positive Perron vector; the two quadratic forms then differ by `∑ A x y (|v x||v y| + v x v y)`,
+a sum of nonnegative terms equal to zero, so `v x · v y < 0` on every edge and the sign of `v` is a
+proper `2`-colouring.  Since `λ_min ≥ -λ_max` always (`neg_lambdaMax_le_lambdaMin`), this reads
+`isBipartite_iff_lambdaMin_eq_neg_lambdaMax`, and for a `k`-regular graph
+`isBipartite_iff_lambdaMin_eq` (`λ_min = -k`); with `Cospectral.isConnected` it makes bipartiteness
+spectral for connected regular graphs (`Cospectral.isBipartite`).
 
 ## Not proved here
 
@@ -2235,6 +2239,45 @@ theorem sqrt_maxDeg_le_lambdaMax (G : CGraph) [Nonempty G.V] :
   rw [← hd, ← hsdef]
   nlinarith [h2, hdpos]
 
+/-- The quadratic form of a graph, as a double sum over ordered pairs. -/
+theorem dotProduct_mulVec_eq_sum (G : CGraph) (v : G.V → ℝ) :
+    v ⬝ᵥ (G.adjMat *ᵥ v) = ∑ x, ∑ y, G.adjMat x y * (v x * v y) := by
+  simp only [dotProduct, Matrix.mulVec, Finset.mul_sum]
+  exact Finset.sum_congr rfl fun x _ ↦ Finset.sum_congr rfl fun y _ ↦ by ring
+
+/-- **Taking absolute values can only increase the quadratic form**, because `A` has nonnegative
+entries. -/
+theorem abs_dotProduct_mulVec_le (G : CGraph) (v : G.V → ℝ) :
+    |v ⬝ᵥ (G.adjMat *ᵥ v)| ≤ (fun x ↦ |v x|) ⬝ᵥ (G.adjMat *ᵥ fun x ↦ |v x|) := by
+  simp only [dotProduct, Matrix.mulVec, Finset.mul_sum]
+  refine le_trans (Finset.abs_sum_le_sum_abs _ _) (Finset.sum_le_sum fun x _ ↦ ?_)
+  refine le_trans (Finset.abs_sum_le_sum_abs _ _) (Finset.sum_le_sum fun y _ ↦ ?_)
+  exact le_of_eq (by rw [abs_mul, abs_mul, abs_of_nonneg (adjMat_nonneg G x y)])
+
+/-- **`λ_max` is the spectral radius**: no eigenvalue exceeds it in absolute value.  Replacing an
+eigenvector by its absolute value keeps the norm and does not decrease the quadratic form. -/
+theorem abs_le_lambdaMax_of_mem_spectrum {G : CGraph} [Nonempty G.V] {x : ℝ}
+    (hx : x ∈ G.spectrum) : |x| ≤ G.lambdaMax := by
+  obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 hx
+  have hnorm : (fun y ↦ |v y|) ⬝ᵥ (fun y ↦ |v y|) = v ⬝ᵥ v := by
+    simp [dotProduct, abs_mul_abs_self]
+  have hpos : 0 < v ⬝ᵥ v := by
+    obtain ⟨y0, hy0⟩ := Function.ne_iff.1 hv0
+    rw [dotProduct]
+    exact Finset.sum_pos' (fun y _ ↦ mul_self_nonneg _)
+      ⟨y0, Finset.mem_univ _, mul_self_pos.2 hy0⟩
+  have h1 : |v ⬝ᵥ (G.adjMat *ᵥ v)| = |x| * (v ⬝ᵥ v) := by
+    rw [hv, dotProduct_smul, smul_eq_mul, abs_mul, abs_of_pos hpos]
+  have h2 := G.abs_dotProduct_mulVec_le v
+  have h3 := G.rayleigh_le_lambdaMax fun y ↦ |v y|
+  rw [hnorm] at h3
+  rw [h1] at h2
+  exact le_of_mul_le_mul_right (by linarith) hpos
+
+/-- Every eigenvalue is at least `-λ_max`. -/
+theorem neg_lambdaMax_le_lambdaMin (G : CGraph) [Nonempty G.V] : -G.lambdaMax ≤ G.lambdaMin :=
+  (abs_le.1 (abs_le_lambdaMax_of_mem_spectrum G.lambdaMin_mem_spectrum)).1
+
 /-- The bound is attained: an eigenvector for the largest eigenvalue maximises the quotient. -/
 theorem exists_rayleigh_eq_lambdaMax (G : CGraph) [Nonempty G.V] :
     ∃ v : G.V → ℝ, v ≠ 0 ∧ v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMax * (v ⬝ᵥ v) := by
@@ -3727,13 +3770,8 @@ theorem mulVec_abs_of_mulVec_eq_lambdaMax {G : CGraph} [Nonempty G.V] {v : G.V �
     simp [dotProduct, abs_mul_abs_self]
   have hveq : v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMax * (v ⬝ᵥ v) := by
     rw [hv, dotProduct_smul, smul_eq_mul]
-  have hq : v ⬝ᵥ (G.adjMat *ᵥ v) ≤ (fun x ↦ |v x|) ⬝ᵥ (G.adjMat *ᵥ fun x ↦ |v x|) := by
-    simp only [dotProduct, Matrix.mulVec, Finset.mul_sum]
-    refine Finset.sum_le_sum fun x _ ↦ Finset.sum_le_sum fun y _ ↦ ?_
-    have h1 : v x * v y ≤ |v x| * |v y| := by
-      rw [← abs_mul]
-      exact le_abs_self _
-    nlinarith [adjMat_nonneg G x y, h1]
+  have hq : v ⬝ᵥ (G.adjMat *ᵥ v) ≤ (fun x ↦ |v x|) ⬝ᵥ (G.adjMat *ᵥ fun x ↦ |v x|) :=
+    (le_abs_self _).trans (G.abs_dotProduct_mulVec_le v)
   rw [hnorm]
   linarith [hveq ▸ hq]
 
@@ -4011,84 +4049,94 @@ theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
   (isConnected_iff_count_spectrum_eq_one (h.isRegularWith hG)).2
     (by rw [← h.spectrum_eq]; exact (isConnected_iff_count_spectrum_eq_one hG).1 hconn)
 
-/-! ## Bipartiteness of a connected regular graph is spectral
+/-! ## Bipartiteness of a connected graph is spectral
 
 The easy half is `spectrum_neg_of_isBipartite`: the spectrum of a bipartite graph is symmetric, so
-`-k` is an eigenvalue whenever `k` is.  The converse below needs regularity and connectedness. -/
+`-λ_max` is an eigenvalue whenever `λ_max` is.  The converse needs connectedness, and for a regular
+graph it becomes a statement about the degree, `-k` being the smallest possible eigenvalue. -/
 
-/-- **A connected regular graph with `-k` in its spectrum is bipartite.**  If `A v = -k v` then
-`|v|` satisfies `A |v| ≥ k |v|` coordinatewise by the triangle inequality, and both sides have the
-same total sum, so `A |v| = k |v|`; connectedness makes `|v|` constant.  Every neighbour sum
-`∑_{y ∼ x} v y = -k v x` is then a sum of `k` terms of equal modulus attaining the extreme value,
-which forces `v y = -v x` along every edge: the sign of `v` is a proper `2`-colouring. -/
+/-- **A connected graph with `-λ_max` in its spectrum is bipartite.**  If `A v = -λ_max v` then
+`|v|` attains the maximum of the Rayleigh quotient, so it is a positive `λ_max`-eigenvector; the
+two quadratic forms then differ by a sum of nonnegative terms which vanishes, forcing
+`v x · v y < 0` on every edge.  The sign of `v` is a proper `2`-colouring. -/
+theorem isBipartite_of_neg_lambdaMax_mem_spectrum {G : CGraph} [Nonempty G.V]
+    (hconn : G.IsConnected) (h : -G.lambdaMax ∈ G.spectrum) : G.IsBipartite := by
+  classical
+  obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 h
+  obtain ⟨u, hudef⟩ : ∃ u : G.V → ℝ, u = fun y ↦ |v y| := ⟨_, rfl⟩
+  have hnorm : u ⬝ᵥ u = v ⬝ᵥ v := by
+    rw [hudef]
+    simp [dotProduct, abs_mul_abs_self]
+  have hpos : 0 < v ⬝ᵥ v := by
+    obtain ⟨y0, hy0⟩ := Function.ne_iff.1 hv0
+    rw [dotProduct]
+    exact Finset.sum_pos' (fun y _ ↦ mul_self_nonneg _)
+      ⟨y0, Finset.mem_univ _, mul_self_pos.2 hy0⟩
+  have hvv : v ⬝ᵥ (G.adjMat *ᵥ v) = -G.lambdaMax * (v ⬝ᵥ v) := by
+    rw [hv, dotProduct_smul, smul_eq_mul]
+  have heq : u ⬝ᵥ (G.adjMat *ᵥ u) = G.lambdaMax * (u ⬝ᵥ u) := by
+    refine le_antisymm (G.rayleigh_le_lambdaMax u) ?_
+    have h2 : |v ⬝ᵥ (G.adjMat *ᵥ v)| ≤ u ⬝ᵥ (G.adjMat *ᵥ u) := by
+      rw [hudef]
+      exact G.abs_dotProduct_mulVec_le v
+    rw [hvv, abs_mul, abs_neg, abs_of_nonneg G.lambdaMax_nonneg, abs_of_pos hpos] at h2
+    rw [hnorm]
+    exact h2
+  have hue : G.adjMat *ᵥ u = G.lambdaMax • u := mulVec_eq_of_rayleigh_eq_lambdaMax G heq
+  have hu0 : u ≠ 0 := by
+    intro h0
+    rw [← hnorm, h0] at hpos
+    simp [dotProduct] at hpos
+  have hupos : ∀ y : G.V, 0 < u y :=
+    pos_of_mulVec_eq_of_nonneg hconn hue (fun y ↦ by rw [hudef]; exact abs_nonneg _) hu0
+  have hpt : ∀ x y : G.V, 0 ≤ G.adjMat x y * (u x * u y + v x * v y) := by
+    intro x y
+    refine mul_nonneg (adjMat_nonneg G x y) ?_
+    rw [hudef]
+    dsimp only
+    rw [← abs_mul]
+    linarith [neg_abs_le (v x * v y)]
+  have hsum : ∑ x, ∑ y, G.adjMat x y * (u x * u y + v x * v y) = 0 := by
+    have h1 : ∑ x, ∑ y, G.adjMat x y * (u x * u y + v x * v y)
+        = u ⬝ᵥ (G.adjMat *ᵥ u) + v ⬝ᵥ (G.adjMat *ᵥ v) := by
+      rw [dotProduct_mulVec_eq_sum, dotProduct_mulVec_eq_sum, ← Finset.sum_add_distrib]
+      refine Finset.sum_congr rfl fun x _ ↦ ?_
+      rw [← Finset.sum_add_distrib]
+      exact Finset.sum_congr rfl fun y _ ↦ by ring
+    rw [h1, heq, hvv, hnorm]
+    ring
+  have hterm : ∀ x y : G.V, G.adjMat x y * (u x * u y + v x * v y) = 0 := by
+    intro x y
+    have h1 : ∑ y', G.adjMat x y' * (u x * u y' + v x * v y') = 0 :=
+      (Finset.sum_eq_zero_iff_of_nonneg fun x' _ ↦
+        Finset.sum_nonneg fun y' _ ↦ hpt x' y').1 hsum x (Finset.mem_univ x)
+    exact (Finset.sum_eq_zero_iff_of_nonneg fun y' _ ↦ hpt x y').1 h1 y (Finset.mem_univ y)
+  refine ⟨fun x ↦ decide (0 < v x), fun x y hxy ↦ ?_⟩
+  have hone : G.adjMat x y = 1 := by rw [adjMat_apply]; simp [hxy]
+  have hlt : v x * v y < 0 := by
+    have := hterm x y
+    rw [hone, one_mul] at this
+    nlinarith [hupos x, hupos y, this]
+  rcases mul_neg_iff.1 hlt with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · simp [h1, not_lt.2 h2.le]
+  · simp [h2, not_lt.2 h1.le]
+
+/-- **A connected graph is bipartite exactly when `λ_min = -λ_max`.** -/
+theorem isBipartite_iff_lambdaMin_eq_neg_lambdaMax {G : CGraph} [Nonempty G.V]
+    (hconn : G.IsConnected) : G.IsBipartite ↔ G.lambdaMin = -G.lambdaMax := by
+  refine ⟨fun hb ↦ le_antisymm ?_ (G.neg_lambdaMax_le_lambdaMin), fun hm ↦ ?_⟩
+  · refine lambdaMin_le ?_
+    rw [← spectrum_neg_of_isBipartite hb, Multiset.mem_map]
+    exact ⟨G.lambdaMax, G.lambdaMax_mem_spectrum, rfl⟩
+  · exact isBipartite_of_neg_lambdaMax_mem_spectrum hconn (hm ▸ G.lambdaMin_mem_spectrum)
+
+/-- **A connected regular graph with `-k` in its spectrum is bipartite**, since `k` is its largest
+eigenvalue. -/
 theorem isBipartite_of_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
     (hreg : G.IsRegularWith k) (hk : -(k : ℝ) ∈ G.spectrum) : G.IsBipartite := by
-  classical
-  obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 hk
-  obtain ⟨w, hwdef⟩ : ∃ w : G.V → ℝ, w = fun x ↦ |v x| := ⟨_, rfl⟩
-  have hnb : ∀ x : G.V, ∑ y ∈ G.toSimple.neighborFinset x, v y = -(k : ℝ) * v x := by
-    intro x
-    have h1 := congrFun hv x
-    rw [show (G.adjMat *ᵥ v) x = ∑ y ∈ G.toSimple.neighborFinset x, v y from by
-      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]] at h1
-    simpa using h1
-  have hnbw : ∀ x : G.V, (G.adjMat *ᵥ w) x = ∑ y ∈ G.toSimple.neighborFinset x, w y := by
-    intro x
-    simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
-  have hge : ∀ x : G.V, (k : ℝ) * w x ≤ (G.adjMat *ᵥ w) x := by
-    intro x
-    rw [hnbw, hwdef]
-    calc (k : ℝ) * |v x| = |-(k : ℝ) * v x| := by
-          rw [abs_mul, abs_neg, Nat.abs_cast]
-      _ = |∑ y ∈ G.toSimple.neighborFinset x, v y| := by rw [hnb x]
-      _ ≤ ∑ y ∈ G.toSimple.neighborFinset x, |v y| := Finset.abs_sum_le_sum_abs _ _
-  have htot : ∑ x, (G.adjMat *ᵥ w) x = ∑ x, (k : ℝ) * w x := by
-    simp only [Matrix.mulVec, dotProduct]
-    rw [Finset.sum_comm]
-    refine Finset.sum_congr rfl fun j _ ↦ ?_
-    rw [← Finset.sum_mul, show ∑ i, G.adjMat i j = ∑ i, G.adjMat j i from
-      Finset.sum_congr rfl fun i _ ↦ adjMat_symm G i j, sum_adjMat_row hreg]
-  have heq : G.adjMat *ᵥ w = (k : ℝ) • w := by
-    funext x
-    have := (Finset.sum_eq_sum_iff_of_le (fun i _ ↦ hge i)).1 htot.symm x (Finset.mem_univ x)
-    simpa using this.symm
-  have hconst := eq_of_mulVec_eq_of_isRegularWith hconn hreg heq
-  obtain ⟨x0, hx0⟩ := Function.ne_iff.1 hv0
-  have hx0' : v x0 ≠ 0 := hx0
-  have hwpos : ∀ x : G.V, 0 < w x := by
-    intro x
-    rw [hconst x x0, hwdef]
-    exact abs_pos.2 hx0'
-  have hvne : ∀ x : G.V, v x ≠ 0 := fun x ↦ by
-    have := hwpos x
-    rw [hwdef] at this
-    exact abs_pos.1 this
-  have habs : ∀ x y : G.V, |v x| = |v y| := fun x y ↦ by
-    have := hconst x y
-    rwa [hwdef] at this
-  have key : ∀ x y : G.V, G.toSimple.Adj x y → v y = -v x := by
-    intro x y hxy
-    have hcard : (G.toSimple.neighborFinset x).card = k := hreg x
-    have hterm : ∀ z ∈ G.toSimple.neighborFinset x, 0 ≤ v z * v x + v x ^ 2 := by
-      intro z _
-      have h1 : |v z * v x| = v x ^ 2 := by
-        rw [abs_mul, habs z x, ← sq, sq_abs]
-      nlinarith [neg_abs_le (v z * v x), h1]
-    have hsum0 : ∑ z ∈ G.toSimple.neighborFinset x, (v z * v x + v x ^ 2) = 0 := by
-      rw [Finset.sum_add_distrib, ← Finset.sum_mul, hnb x, Finset.sum_const, hcard, nsmul_eq_mul]
-      ring
-    have hzero := (Finset.sum_eq_zero_iff_of_nonneg hterm).1 hsum0 y
-      ((SimpleGraph.mem_neighborFinset _ _ _).2 hxy)
-    have hx2 : v x ≠ 0 := hvne x
-    rcases mul_eq_zero.1 (by linear_combination hzero : (v y + v x) * v x = 0) with h | h
-    · linarith [h]
-    · exact absurd h hx2
-  refine ⟨fun x ↦ decide (0 < v x), fun x y hxy ↦ ?_⟩
-  have hyx : v y = -v x := key x y ((G.toSimple_adj x y).2 hxy)
-  have hx : v x ≠ 0 := hvne x
-  rcases lt_or_gt_of_ne hx with hneg | hpos
-  · simp [hyx, not_lt.2 hneg.le, neg_pos.2 hneg]
-  · simp [hyx, hpos, not_lt.2 (neg_nonpos.2 hpos.le)]
+  haveI : Nonempty G.V := hconn.nonempty
+  exact isBipartite_of_neg_lambdaMax_mem_spectrum hconn
+    (by rwa [lambdaMax_of_isRegularWith hreg])
 
 /-- **Bipartiteness of a connected regular graph is determined by its spectrum.** -/
 theorem isBipartite_iff_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
