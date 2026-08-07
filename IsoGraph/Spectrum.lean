@@ -54,7 +54,13 @@ the factorisation back to `ℝ[X]`.
 ## Trace identities and cospectrality
 
 `sum_spectrum` (the trace is zero) and `sum_sq_spectrum` (the trace of `A ^ 2` is `2 E`) are the
-first two moments.  `Cospectral G H` is equality of characteristic polynomials; it is implied by
+first two moments.  All of them at once: `trace_adjMat_pow` diagonalises every power of `A` with
+one conjugation, so `sum_pow_spectrum` identifies the `n`-th moment with the trace of `A ^ n`,
+which `adjMat_pow_apply` turns into a count of closed walks
+(`sum_pow_spectrum_eq_card_closedWalks`).  The odd moments of a bipartite graph therefore vanish,
+and indeed `spectrum_neg_of_isBipartite` says the whole spectrum is symmetric about zero: the
+diagonal sign matrix of the bipartition conjugates `A` into `-A`.
+`Cospectral G H` is equality of characteristic polynomials; it is implied by
 isomorphism (`Cospectral.of_iso`) and it implies equality of `V` and of `E`.  A graph is
 *determined by its spectrum*, `IsDS`, when the converse holds for it.  Two families are proved to
 be: `isDS_empty` and `isDS_complete`, the latter by squeezing the degree sequence between
@@ -1049,26 +1055,37 @@ theorem adjMat_pow_apply (G : CGraph) [DecidableEq G.V] (n : ℕ) (u v : G.V) :
   rw [spectrum_eq_map]
   exact h1.symm.trans h2
 
-theorem trace_adjMat_sq (G : CGraph) :
-    (G.adjMat * G.adjMat).trace = ∑ i, (G.eigenvalues i) ^ 2 := by
-  classical
+/-- **The trace of `A ^ n` is the `n`-th power sum of the eigenvalues.**  A conjugation that
+diagonalises `A` diagonalises every power of it. -/
+theorem trace_adjMat_pow (G : CGraph) (n : ℕ) :
+    (G.adjMat ^ n).trace = ∑ i, G.eigenvalues i ^ n := by
   obtain ⟨P, Q, hPQ, hQP, h⟩ := exists_conj_diagonal G
   set D : Matrix G.V G.V ℝ := Matrix.diagonal G.eigenvalues with hD
   have hA : G.adjMat = P * D * Q := by
     calc G.adjMat = G.adjMat * (P * Q) := by rw [hPQ, mul_one]
       _ = G.adjMat * P * Q := by rw [mul_assoc]
       _ = P * D * Q := by rw [h]
-  calc (G.adjMat * G.adjMat).trace = (P * (D * D) * Q).trace := by
-        rw [hA]
-        congr 1
-        calc P * D * Q * (P * D * Q) = P * D * (Q * P) * D * Q := by
-              simp only [mul_assoc]
-          _ = P * (D * D) * Q := by rw [hQP]; simp only [mul_assoc, mul_one]
-    _ = (Q * (P * (D * D))).trace := by rw [Matrix.trace_mul_comm]
-    _ = (D * D).trace := by rw [← mul_assoc, hQP, one_mul]
-    _ = ∑ i, (G.eigenvalues i) ^ 2 := by
-        rw [hD, Matrix.diagonal_mul_diagonal, Matrix.trace_diagonal]
-        exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+  have hpow : ∀ m : ℕ, G.adjMat ^ m = P * D ^ m * Q := by
+    intro m
+    induction m with
+    | zero => simp [hPQ]
+    | succ m ih =>
+      rw [pow_succ, ih, hA, pow_succ]
+      calc P * D ^ m * Q * (P * D * Q) = P * D ^ m * (Q * P) * D * Q := by
+            simp only [mul_assoc]
+        _ = P * (D ^ m * D) * Q := by rw [hQP]; simp only [mul_assoc, mul_one]
+        _ = P * (D ^ m * D) * Q := rfl
+  calc (G.adjMat ^ n).trace = (P * D ^ n * Q).trace := by rw [hpow]
+    _ = (Q * (P * D ^ n)).trace := by rw [Matrix.trace_mul_comm]
+    _ = (D ^ n).trace := by rw [← mul_assoc, hQP, one_mul]
+    _ = ∑ i, G.eigenvalues i ^ n := by
+        rw [hD, Matrix.diagonal_pow, Matrix.trace_diagonal]
+        rfl
+
+theorem trace_adjMat_sq (G : CGraph) :
+    (G.adjMat * G.adjMat).trace = ∑ i, (G.eigenvalues i) ^ 2 := by
+  rw [← pow_two]
+  exact trace_adjMat_pow G 2
 
 /-- **The sum of the squares of the eigenvalues is the sum of the degrees.** -/
 theorem sum_sq_spectrum_eq_sum_degrees (G : CGraph) :
@@ -1090,6 +1107,64 @@ theorem sum_sq_spectrum (G : CGraph) : (G.spectrum.map (· ^ 2)).sum = 2 * (G.E 
     SimpleGraph.sum_degrees_eq_twice_card_edges, hE]
   push_cast
   ring
+
+/-- **The `n`-th moment of the spectrum is the trace of `A ^ n`.** -/
+theorem sum_pow_spectrum (G : CGraph) (n : ℕ) :
+    (G.spectrum.map (· ^ n)).sum = (G.adjMat ^ n).trace := by
+  rw [trace_adjMat_pow, spectrum_eq_map, Multiset.map_map]
+  simp only [Finset.sum, Function.comp_def]
+
+/-- **The `n`-th moment of the spectrum counts closed walks of length `n`.** -/
+theorem sum_pow_spectrum_eq_card_closedWalks (G : CGraph) (n : ℕ) :
+    (G.spectrum.map (· ^ n)).sum
+      = ∑ v : G.V, (Fintype.card {w : G.toSimple.Walk v v // w.length = n} : ℝ) := by
+  classical
+  rw [sum_pow_spectrum, Matrix.trace]
+  exact Finset.sum_congr rfl fun v _ ↦ adjMat_pow_apply G n v v
+
+/-! ### Bipartite graphs have a symmetric spectrum -/
+
+/-- **The spectrum of a bipartite graph is symmetric about zero.**  Flipping the sign of one side
+of the bipartition conjugates `A` into `-A`, so `A` is similar to minus itself. -/
+theorem spectrum_neg_of_isBipartite {G : CGraph} (h : G.IsBipartite) :
+    G.spectrum.map (fun x ↦ -x) = G.spectrum := by
+  classical
+  obtain ⟨c, hc⟩ := h
+  set s : G.V → ℝ := fun i ↦ if c i then 1 else -1 with hs
+  set S : Matrix G.V G.V ℝ := Matrix.diagonal s with hS
+  have hSS : S * S = 1 := by
+    rw [hS, Matrix.diagonal_mul_diagonal, ← Matrix.diagonal_one]
+    congr 1
+    funext i
+    by_cases hci : c i <;> simp [hs, hci]
+  have hAS : G.adjMat * S = -(S * G.adjMat) := by
+    ext i j
+    rw [hS]
+    simp only [Matrix.mul_diagonal, Matrix.diagonal_mul, Matrix.neg_apply]
+    by_cases hij : G.Adj i j
+    · have hsum : s i + s j = 0 := by
+        have := hc i j hij
+        by_cases hci : c i <;> by_cases hcj : c j <;> simp_all
+      linear_combination G.adjMat i j * hsum
+    · simp [adjMat_apply, hij]
+  obtain ⟨P, Q, hPQ, hQP, hcon⟩ := exists_conj_diagonal G
+  have hneg : Matrix.diagonal (fun i ↦ -G.eigenvalues i) = -Matrix.diagonal G.eigenvalues :=
+    (Matrix.diagonal_neg _).symm
+  have key : G.spectrum = Finset.univ.val.map (fun i ↦ -G.eigenvalues i) := by
+    refine spectrum_eq_of_conj (P := S * P) (Q := Q * S) ?_ ?_ ?_
+    · calc S * P * (Q * S) = S * (P * Q) * S := by simp only [mul_assoc]
+        _ = 1 := by rw [hPQ, mul_one, hSS]
+    · calc Q * S * (S * P) = Q * (S * S) * P := by simp only [mul_assoc]
+        _ = 1 := by rw [hSS, mul_one, hQP]
+    · calc G.adjMat * (S * P) = G.adjMat * S * P := by rw [mul_assoc]
+        _ = -(S * G.adjMat) * P := by rw [hAS]
+        _ = -(S * (G.adjMat * P)) := by rw [neg_mul, mul_assoc]
+        _ = -(S * (P * Matrix.diagonal G.eigenvalues)) := by rw [hcon]
+        _ = S * P * Matrix.diagonal (fun i ↦ -G.eigenvalues i) := by
+            rw [hneg, Matrix.mul_neg, ← mul_assoc]
+  conv_lhs => rw [spectrum_eq_map]
+  rw [Multiset.map_map]
+  simpa [Function.comp_def] using key.symm
 
 /-! ## The multiplicities of a strongly regular graph -/
 

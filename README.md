@@ -4003,9 +4003,29 @@ replaced by `-1 - x`. That is enough to determine the spectrum of a regular grap
 all-ones vector is itself an eigenvector, but the full multiset for an arbitrary complement needs
 simultaneous diagonalisation with `J` and is not proved.
 
-Two moments of the spectrum are available: `sum_spectrum` — the trace of `A` is zero — and
-`sum_sq_spectrum`, the trace of `A²` is `2 E`, which is `∑ deg` rearranged. They are what make
-cospectrality useful. `Cospectral G H` is equality of characteristic polynomials; it follows from
+All the moments of the spectrum are available. One conjugation diagonalises every power of `A`
+at once (`trace_adjMat_pow`), so the `n`-th moment is the trace of `Aⁿ`, and `adjMat_pow_apply`
+reads that off as a count of closed walks:
+
+```lean
+theorem sum_pow_spectrum_eq_card_closedWalks (G : CGraph) (n : ℕ) :
+    (G.spectrum.map (· ^ n)).sum
+      = ∑ v : G.V, (Fintype.card {w : G.toSimple.Walk v v // w.length = n} : ℝ)
+```
+
+The first two are the ones with names: `sum_spectrum` — the trace of `A` is zero, there being no
+closed walks of length one — and `sum_sq_spectrum`, the trace of `A²` is `2 E`, the closed walks
+of length two being the edges traversed both ways. A bipartite graph has no closed walk of odd
+length at all, and in fact its whole spectrum is symmetric:
+
+```lean
+theorem spectrum_neg_of_isBipartite {G : CGraph} (h : G.IsBipartite) :
+    G.spectrum.map (fun x ↦ -x) = G.spectrum
+```
+
+because the diagonal sign matrix `S` of the bipartition satisfies `S A S = -A`, making `A`
+similar to minus itself. The moments are also what make cospectrality useful.
+`Cospectral G H` is equality of characteristic polynomials; it follows from
 isomorphism and implies equality of `V` and of `E`. `IsDS G`, *determined by its spectrum*, is
 the converse for a fixed `G`, and it holds for two families:
 
