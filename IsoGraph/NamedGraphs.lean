@@ -10,39 +10,51 @@ graphs, two Platonic solids, and a handful of sporadic graphs.  For each one the
 order, the number of edges, the degree, connectivity, whether the graph is bipartite, and the
 girth.
 
-| graph                 |  n |  E | degree | girth | bipartite |
-|-----------------------|----|----|--------|-------|-----------|
-| `heawood`             | 14 | 21 |      3 |     6 | yes       |
-| `mcgee`               | 24 | 36 |      3 |     7 | no        |
-| `tutteCoxeter`        | 30 | 45 |      3 |     8 | yes       |
-| `franklin`            | 12 | 18 |      3 |     4 | yes       |
-| `pappus`              | 18 | 27 |      3 |     6 | yes       |
-| `folkman`             | 20 | 40 |      4 |     4 | yes       |
-| `frucht`              | 12 | 18 |      3 |     3 | no        |
-| `durer`               | 12 | 18 |      3 |     3 | no        |
-| `mobiusKantor`        | 16 | 24 |      3 |     6 | yes       |
-| `dodecahedron`        | 20 | 30 |      3 |     5 | no        |
-| `desargues`           | 20 | 30 |      3 |     6 | yes       |
-| `nauru`               | 24 | 36 |      3 |     6 | yes       |
-| `coxeter`             | 28 | 42 |      3 |     7 | no        |
-| `wagner`              |  8 | 12 |      3 |     4 | no        |
-| `chvatal`             | 12 | 24 |      4 |     4 | no        |
-| `icosahedron`         | 12 | 30 |      5 |     3 | no        |
-| `tutte`               | 46 | 69 |      3 |     4 | no        |
-| `moserSpindle`        |  7 | 11 |    3–4 |     3 | no        |
-| `grotzsch`            | 11 | 20 |    3–5 |     4 | no        |
+| graph                  |  n |   E | degree | girth | bipartite |
+|------------------------|----|-----|--------|-------|-----------|
+| `heawood`              | 14 |  21 |      3 |     6 | yes       |
+| `mcgee`                | 24 |  36 |      3 |     7 | no        |
+| `tutteCoxeter`         | 30 |  45 |      3 |     8 | yes       |
+| `franklin`             | 12 |  18 |      3 |     4 | yes       |
+| `pappus`               | 18 |  27 |      3 |     6 | yes       |
+| `folkman`              | 20 |  40 |      4 |     4 | yes       |
+| `frucht`               | 12 |  18 |      3 |     3 | no        |
+| `durer`                | 12 |  18 |      3 |     3 | no        |
+| `mobiusKantor`         | 16 |  24 |      3 |     6 | yes       |
+| `dodecahedron`         | 20 |  30 |      3 |     5 | no        |
+| `desargues`            | 20 |  30 |      3 |     6 | yes       |
+| `nauru`                | 24 |  36 |      3 |     6 | yes       |
+| `coxeter`              | 28 |  42 |      3 |     7 | no        |
+| `wagner`               |  8 |  12 |      3 |     4 | no        |
+| `chvatal`              | 12 |  24 |      4 |     4 | no        |
+| `icosahedron`          | 12 |  30 |      5 |     3 | no        |
+| `tutte`                | 46 |  69 |      3 |     4 | no        |
+| `moserSpindle`         |  7 |  11 |    3–4 |     3 | no        |
+| `grotzsch`             | 11 |  20 |    3–5 |     4 | no        |
+| `herschel`             | 11 |  18 |    3–4 |     4 | yes       |
+| `tietze`               | 12 |  18 |      3 |     3 | no        |
+| `truncatedTetrahedron` | 12 |  18 |      3 |     3 | no        |
+| `bidiakisCube`         | 12 |  18 |      3 |     4 | no        |
+| `robertson`            | 19 |  38 |      4 |     5 | no        |
+| `dyck`                 | 32 |  48 |      3 |     6 | yes       |
+| `balaban10Cage`        | 70 | 105 |      3 |    10 | yes       |
 
 Two remarks on what is and is not here.
 
 * A *`(k, g)`-cage* is a smallest `k`-regular graph of girth `g`.  The cubic cages up to girth
-  eight are `complete 4`, `bipartite 3 3`, `SRG.petersen`, `heawood`, `mcgee` and `tutteCoxeter`;
-  the first three are already defined elsewhere.  `coxeter` is not a cage — `mcgee` is smaller —
-  but it is the other famous cubic graph of girth seven.  Minimality is a statement about *all*
-  graphs of a given order and so is out of reach here; what the file proves is that each of these
-  graphs is regular of the right degree and of the right girth.
+  ten are `complete 4`, `bipartite 3 3`, `SRG.petersen`, `heawood`, `mcgee`, `tutteCoxeter` and
+  `balaban10Cage`; the first three are already defined elsewhere, and the last is one of three
+  cages of girth ten, told apart from the Harries and Harries–Wong graphs by the order of its
+  automorphism group.  `robertson` is the cage of the next degree up, `(4, 5)`.  `coxeter` is not
+  a cage — `mcgee` is smaller — but it is the other famous cubic graph of girth seven.
+  Minimality is a statement about *all* graphs of a given order and so is out of reach here; what
+  the file proves is that each of these graphs is regular of the right degree and of the right
+  girth.
 * Of the five Platonic solids, `complete 4` is the tetrahedron, `hypercube 3` the cube,
   `cocktailParty 3` the octahedron, and `dodecahedron` and `icosahedron` are defined here.
   `gp_four_one_iso_hypercube` identifies the cube as a generalized Petersen graph too.
+  `truncatedTetrahedron` is the one Archimedean solid here, and `herschel` the smallest
+  non-Hamiltonian polyhedron.
 
 ## Proof style
 
@@ -641,14 +653,206 @@ theorem dodecahedron_lcf :
 theorem nauru_lcf : Nonempty (lcf [5, -9, 7, -7, 9, -5] 4 ≃cg nauru) := by
   rw [← key_eq_iff]; native_decide
 
+/-! ## More named graphs
+
+Seven more graphs with proper names: a polyhedron, a snark-adjacent cubic graph, an Archimedean
+solid, the smallest four-regular graph of girth five, and three more cubic graphs, the last of
+them a `(3, 10)`-cage. -/
+
+/-- The edges of the Herschel graph, numbered so that the back-edge certificate holds. -/
+def herschelEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (0, 4), (1, 5), (1, 6), (2, 5), (2, 7), (3, 7), (3, 8), (4, 6), (4, 8),
+   (5, 9), (5, 10), (6, 10), (7, 9), (8, 9), (8, 10)]
+
+/-- The Herschel graph: the smallest non-Hamiltonian polyhedral graph, on eleven vertices. -/
+abbrev herschel : CGraph := ofEdges 11 herschelEdges
+
+/-- The edges of Tietze's graph: the Petersen graph with one vertex blown up into a triangle. -/
+def tietzeEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (1, 4), (1, 5), (2, 6), (2, 7), (3, 8), (3, 9), (4, 6), (4, 10), (5, 7),
+   (5, 11), (6, 11), (7, 10), (8, 9), (8, 10), (9, 11)]
+
+/-- Tietze's graph: the cubic graph whose embedding in the Möbius strip subdivides it into six
+mutually adjacent regions. -/
+abbrev tietze : CGraph := ofEdges 12 tietzeEdges
+
+/-- The edges of the truncated tetrahedron. -/
+def truncatedTetrahedronEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 3), (1, 2), (1, 4), (2, 5), (3, 6), (3, 7), (4, 8), (4, 9), (5, 10),
+   (5, 11), (6, 7), (6, 9), (7, 11), (8, 9), (8, 10), (10, 11)]
+
+/-- The truncated tetrahedron: the Archimedean solid with four hexagonal and four triangular
+faces. -/
+abbrev truncatedTetrahedron : CGraph := ofEdges 12 truncatedTetrahedronEdges
+
+/-- The edges of the Robertson graph, numbered so that the back-edge certificate holds. -/
+def robertsonEdges : List (ℕ × ℕ) :=
+  [(0, 1), (0, 4), (0, 15), (0, 18), (1, 2), (1, 8), (1, 12), (2, 3), (2, 6), (2, 17), (3, 4),
+   (3, 11), (3, 14), (4, 5), (4, 9), (5, 6), (5, 12), (5, 16), (6, 7), (6, 10), (7, 8), (7, 14),
+   (7, 18), (8, 9), (8, 16), (9, 10), (9, 13), (10, 11), (10, 15), (11, 12), (11, 18), (12, 13),
+   (13, 14), (13, 17), (14, 15), (15, 16), (16, 17), (17, 18)]
+
+/-- The Robertson graph: the unique `(4, 5)`-cage, the smallest four-regular graph of girth
+five. -/
+abbrev robertson : CGraph := ofEdges 19 robertsonEdges
+
+/-- The Bidiakis cube: the cube with two opposite faces subdivided by a chord each. -/
+abbrev bidiakisCube : CGraph := lcf [-6, 4, -4] 4
+
+/-- The Dyck graph: the cubic symmetric graph on thirty-two vertices. -/
+abbrev dyck : CGraph := lcf [5, -5, 13, -13] 8
+
+/-- The LCF code of the Balaban 10-cage. -/
+def balabanCode : List ℤ :=
+  [-9, -25, -19, 29, 13, 35, -13, -29, 19, 25, 9, -29, 29, 17, 33, 21, 9, -13, -31, -9, 25, 17, 9,
+    -31, 27, -9, 17, -19, -29, 27, -17, -9, -29, 33, -25, 25, -21, 17, -17, 29, 35, -29, 17, -17,
+    21, -25, 25, -33, 29, 9, 17, -27, 29, 19, -17, 9, -27, 31, -9, -17, -25, 9, 31, 13, -9, -21,
+    -33, -17, -29, 29]
+
+/-- The Balaban 10-cage: one of the three `(3, 10)`-cages, told apart from the Harries and
+Harries–Wong graphs by its automorphism group of order eighty.  Spelled out as `ofEdges 70` rather
+than as `lcf balabanCode 1` so that the vertex type is literally `Fin 70`; the two are the same
+graph. -/
+abbrev balaban10Cage : CGraph := ofEdges 70 (lcfEdges balabanCode 1)
+
+@[simp] theorem card_herschel : Fintype.card herschel.V = 11 := card_ofEdges _ _
+
+@[simp] theorem E_herschel : herschel.E = 18 := by native_decide
+
+/-- The Herschel graph is not regular: it has three vertices of degree four. -/
+@[simp] theorem degSequence_herschel :
+    herschel.degSequence = [3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4] := by native_decide
+
+@[simp] theorem isConnected_herschel : herschel.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 11)) (by norm_num) (by native_decide)
+
+@[simp] theorem isBipartite_herschel : herschel.IsBipartite :=
+  ⟨fun v ↦ decide (v.1 ∈ [0, 5, 6, 7, 8]), by native_decide⟩
+
+/-- The Herschel graph has girth four: `0 - 1 - 5 - 2 - 0` is a square. -/
+@[simp] theorem girth_herschel : herschel.girth = 4 := by
+  have hnac : ¬ herschel.IsAcyclic :=
+    not_isAcyclic_of_cycleList (vtx 11 0) [vtx 11 1, vtx 11 5, vtx 11 2]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  refine le_antisymm ?_ (four_le_girth (by native_decide) hnac)
+  exact girth_le_of_cycleList (vtx 11 0) [vtx 11 1, vtx 11 5, vtx 11 2]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+
+@[simp] theorem card_tietze : Fintype.card tietze.V = 12 := card_ofEdges _ _
+
+@[simp] theorem E_tietze : tietze.E = 18 := by native_decide
+
+theorem isRegularWith_tietze : tietze.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 12) (by native_decide)
+
+@[simp] theorem isConnected_tietze : tietze.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 12)) (by norm_num) (by native_decide)
+
+@[simp] theorem not_isBipartite_tietze : ¬ tietze.IsBipartite :=
+  not_isBipartite_of_triangle (a := vtx 12 3) (b := vtx 12 8) (d := vtx 12 9)
+    (by decide) (by decide) (by decide)
+
+@[simp] theorem girth_tietze : tietze.girth = 3 :=
+  girth_eq_three_of_triangle (a := vtx 12 3) (b := vtx 12 8) (c := vtx 12 9)
+    (by decide) (by decide) (by decide)
+
+@[simp] theorem card_truncatedTetrahedron : Fintype.card truncatedTetrahedron.V = 12 :=
+  card_ofEdges _ _
+
+@[simp] theorem E_truncatedTetrahedron : truncatedTetrahedron.E = 18 := by native_decide
+
+theorem isRegularWith_truncatedTetrahedron : truncatedTetrahedron.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 12) (by native_decide)
+
+@[simp] theorem isConnected_truncatedTetrahedron : truncatedTetrahedron.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 12)) (by norm_num) (by native_decide)
+
+@[simp] theorem not_isBipartite_truncatedTetrahedron : ¬ truncatedTetrahedron.IsBipartite :=
+  not_isBipartite_of_triangle (a := vtx 12 0) (b := vtx 12 1) (d := vtx 12 2)
+    (by decide) (by decide) (by decide)
+
+@[simp] theorem girth_truncatedTetrahedron : truncatedTetrahedron.girth = 3 :=
+  girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 1) (c := vtx 12 2)
+    (by decide) (by decide) (by decide)
+
+@[simp] theorem card_robertson : Fintype.card robertson.V = 19 := card_ofEdges _ _
+
+@[simp] theorem E_robertson : robertson.E = 38 := by native_decide
+
+theorem isRegularWith_robertson : robertson.IsRegularWith 4 :=
+  isRegularWith_of_degSequence (n := 19) (by native_decide)
+
+@[simp] theorem isConnected_robertson : robertson.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 19)) (by norm_num) (by native_decide)
+
+@[simp] theorem not_isBipartite_robertson : ¬ robertson.IsBipartite :=
+  not_isBipartite_of_odd_walk (walkOn 19 (by norm_num) [0, 1, 2, 3, 4]) 5 rfl (by decide) rfl
+
+/-- The Robertson graph has girth five: `0 - 1 - 2 - 3 - 4 - 0` is a pentagon. -/
+@[simp] theorem girth_robertson : robertson.girth = 5 := by
+  have hnac : ¬ robertson.IsAcyclic :=
+    not_isAcyclic_of_cycleList (vtx 19 0) [vtx 19 1, vtx 19 2, vtx 19 3, vtx 19 4]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  refine le_antisymm ?_ (five_le_girth (by native_decide) (by native_decide) hnac)
+  exact girth_le_of_cycleList (vtx 19 0) [vtx 19 1, vtx 19 2, vtx 19 3, vtx 19 4]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+
+@[simp] theorem card_bidiakisCube : Fintype.card bidiakisCube.V = 12 := card_ofEdges _ _
+
+@[simp] theorem E_bidiakisCube : bidiakisCube.E = 18 := by native_decide
+
+theorem isRegularWith_bidiakisCube : bidiakisCube.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 12) (by native_decide)
+
+@[simp] theorem isConnected_bidiakisCube : bidiakisCube.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 12)) (by norm_num) (by native_decide)
+
+@[simp] theorem not_isBipartite_bidiakisCube : ¬ bidiakisCube.IsBipartite :=
+  not_isBipartite_of_odd_walk (walkOn 12 (by norm_num) [0, 1, 2, 10, 11]) 5 rfl (by decide) rfl
+
+/-- The Bidiakis cube has girth four: `0 - 1 - 5 - 6 - 0` is a square. -/
+@[simp] theorem girth_bidiakisCube : bidiakisCube.girth = 4 := by
+  have hnac : ¬ bidiakisCube.IsAcyclic :=
+    not_isAcyclic_of_cycleList (vtx 12 0) [vtx 12 1, vtx 12 5, vtx 12 6]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  refine le_antisymm ?_ (four_le_girth (by native_decide) hnac)
+  exact girth_le_of_cycleList (vtx 12 0) [vtx 12 1, vtx 12 5, vtx 12 6]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+
+@[simp] theorem card_dyck : Fintype.card dyck.V = 32 := card_ofEdges _ _
+
+@[simp] theorem E_dyck : dyck.E = 48 := by native_decide
+
+theorem isRegularWith_dyck : dyck.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 32) (by native_decide)
+
+@[simp] theorem isConnected_dyck : dyck.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 32)) (by norm_num) (by native_decide)
+
+@[simp] theorem isBipartite_dyck : dyck.IsBipartite :=
+  ⟨fun v ↦ decide (v.1 % 2 = 1), by native_decide⟩
+
+@[simp] theorem card_balaban10Cage : Fintype.card balaban10Cage.V = 70 := card_ofEdges _ _
+
+@[simp] theorem E_balaban10Cage : balaban10Cage.E = 105 := by native_decide
+
+theorem isRegularWith_balaban10Cage : balaban10Cage.IsRegularWith 3 :=
+  isRegularWith_of_degSequence (n := 70) (by native_decide)
+
+@[simp] theorem isConnected_balaban10Cage : balaban10Cage.IsConnected :=
+  isConnected_of_backEdge (Equiv.refl (Fin 70)) (by norm_num) (by native_decide)
+
+@[simp] theorem isBipartite_balaban10Cage : balaban10Cage.IsBipartite :=
+  ⟨fun v ↦ decide (v.1 % 2 = 1), by native_decide⟩
+
 /-! ## The girth of the cages
 
 Every graph above of girth at most five got it from the hand-written ladder of
-`IsoGraph/Identities.lean`.  The cages of girth six, seven and eight go through the cycle-list
+`IsoGraph/Identities.lean`.  The graphs of girth six and beyond go through the cycle-list
 machinery instead: `girth_le_of_cycleList` turns an explicit list of vertices into an upper
-bound, and `six_le_girth_of_nbrList`, `seven_le_girth_of_nbrList` and
-`eight_le_girth_of_nbrList` turn an exhaustive search along a neighbour table into a lower
-bound. -/
+bound, and `six_le_girth_of_nbrList`, `seven_le_girth_of_nbrList`, `eight_le_girth_of_nbrList`
+and `ten_le_girth_of_nbrList` turn an exhaustive search along a neighbour table into a lower
+bound.  The last of them, at the Balaban 10-cage, searches seventy vertices to depth nine. -/
 
 /-- The neighbour table of the heawood graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -872,6 +1076,54 @@ neighbour table finds no shorter one. -/
       (vtx 30 0) [vtx 30 1, vtx 30 2, vtx 30 3, vtx 30 4, vtx 30 5, vtx 30 18, vtx 30 17]
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (eight_le_girth_of_nbrList tutteCoxeter_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+def dyckTbl : List (List dyck.V) := dyck.nbrTable (List.finRange 32)
+
+def dyckNb (a : dyck.V) : List dyck.V := dyckTbl.getD a.1 []
+
+theorem dyck_nb : ∀ a b : dyck.V, b ∈ dyckNb a ↔ dyck.Adj a b := by
+  native_decide
+
+@[simp] theorem girth_dyck : dyck.girth = 6 := by
+  have hcyc : dyck.girth ≤ 6 :=
+    girth_le_of_cycleList
+      (vtx 32 0) [vtx 32 1, vtx 32 2, vtx 32 3, vtx 32 4, vtx 32 5]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ dyck.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 32 0) [vtx 32 1, vtx 32 2, vtx 32 3, vtx 32 4, vtx 32 5]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (six_le_girth_of_nbrList dyck_nb
+      (by native_decide)
+      (by native_decide)
+      (by native_decide) hnac)
+
+def balabanTbl : List (List balaban10Cage.V) := balaban10Cage.nbrTable (List.finRange 70)
+
+def balabanNb (a : balaban10Cage.V) : List balaban10Cage.V := balabanTbl.getD a.1 []
+
+theorem balaban_nb : ∀ a b : balaban10Cage.V, b ∈ balabanNb a ↔ balaban10Cage.Adj a b := by
+  native_decide
+
+@[simp] theorem girth_balaban10Cage : balaban10Cage.girth = 10 := by
+  have hcyc : balaban10Cage.girth ≤ 10 :=
+    girth_le_of_cycleList
+      (vtx 70 0) [vtx 70 1, vtx 70 2, vtx 70 3, vtx 70 4, vtx 70 5, vtx 70 6, vtx 70 63,
+        vtx 70 62, vtx 70 61]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  have hnac : ¬ balaban10Cage.IsAcyclic :=
+    not_isAcyclic_of_cycleList
+      (vtx 70 0) [vtx 70 1, vtx 70 2, vtx 70 3, vtx 70 4, vtx 70 5, vtx 70 6, vtx 70 63,
+        vtx 70 62, vtx 70 61]
+      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (ten_le_girth_of_nbrList balaban_nb
+      (by native_decide)
+      (by native_decide)
       (by native_decide)
       (by native_decide)
       (by native_decide)

@@ -4563,14 +4563,18 @@ theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
     · exact_mod_cast hge
   exact ENat.toNat_le_toNat hle (SimpleGraph.egirth_eq_top.not.2 hnac)
 
-/-- **Girth at least six** from a neighbour list: a graph with a cycle and no cycle list
-shorter than 6 has girth at least 6. -/
+/-- **Girth at least six from a neighbour list.**  `nb` is a list of neighbours of each vertex —
+in practice a precomputed table, which is what makes the search below cheap — and the hypotheses
+say that no closed walk of three, four or five steps along it has distinct vertices.  A graph with
+a cycle and no such short cycle has girth at least six. -/
 theorem six_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ¬ (a ∈ nb e ∧ [a, b, c, d,
-      e].Nodup))
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b,
+      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c,
+      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d,
+      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
     (hnac : ¬ G.IsAcyclic) : 6 ≤ G.girth := by
   refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
   rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, t⟩⟩⟩⟩⟩
@@ -4587,16 +4591,18 @@ theorem six_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
   · simp only [List.length_cons] at hlt
     omega
 
-/-- **Girth at least seven** from a neighbour list: a graph with a cycle and no cycle list
-shorter than 7 has girth at least 7. -/
+/-- **Girth at least seven** from a neighbour list, as `six_le_girth_of_nbrList` at length
+seven. -/
 theorem seven_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ¬ (a ∈ nb e ∧ [a, b, c, d,
-      e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ¬ (a ∈ nb f ∧ [a,
-      b, c, d, e, f].Nodup))
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b,
+      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c,
+      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d,
+      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
+    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e,
+      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
     (hnac : ¬ G.IsAcyclic) : 7 ≤ G.girth := by
   refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
   rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, t⟩⟩⟩⟩⟩⟩
@@ -4616,18 +4622,20 @@ theorem seven_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
   · simp only [List.length_cons] at hlt
     omega
 
-/-- **Girth at least eight** from a neighbour list: a graph with a cycle and no cycle list
-shorter than 8 has girth at least 8. -/
+/-- **Girth at least eight** from a neighbour list, as `six_le_girth_of_nbrList` at length
+eight. -/
 theorem eight_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ¬ (a ∈ nb e ∧ [a, b, c, d,
-      e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ¬ (a ∈ nb f ∧ [a,
-      b, c, d, e, f].Nodup))
-    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ∀ g ∈ nb f, ¬ (a ∈
-      nb g ∧ [a, b, c, d, e, f, g].Nodup))
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b,
+      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c,
+      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d,
+      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
+    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e,
+      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
+    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ∀ g ∈ nb f,
+      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
     (hnac : ¬ G.IsAcyclic) : 8 ≤ G.girth := by
   refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
   rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, t⟩⟩⟩⟩⟩⟩⟩
@@ -4648,6 +4656,57 @@ theorem eight_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
     exact h7 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
       _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2.1) g ((hnb _ _).2 hch.2.2.2.2.2) ⟨(hnb _ _).2
       hcl, hnd⟩
+  · simp only [List.length_cons] at hlt
+    omega
+
+/-- **Girth at least ten** from a neighbour list, as `six_le_girth_of_nbrList` at length
+ten. -/
+theorem ten_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
+    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b,
+      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
+    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c,
+      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
+    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d,
+      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
+    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e,
+      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
+    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ∀ g ∈ nb f,
+      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
+    (h8 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ∀ g ∈ nb f, ∀ h ∈
+      nb g,
+      ¬ (a ∈ nb h ∧ [a, b, c, d, e, f, g, h].Nodup))
+    (h9 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ nb b, ∀ d ∈ nb c, ∀ e ∈ nb d, ∀ f ∈ nb e, ∀ g ∈ nb f, ∀ h ∈
+      nb g, ∀ i ∈ nb h,
+      ¬ (a ∈ nb i ∧ [a, b, c, d, e, f, g, h, i].Nodup))
+    (hnac : ¬ G.IsAcyclic) : 10 ≤ G.girth := by
+  refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
+  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, _ | ⟨i, _ | ⟨j, t⟩⟩⟩⟩⟩⟩⟩⟩⟩
+  · simp at h2
+  · simp at h2
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h3 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h4 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2) ⟨(hnb _ _).2
+      hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h5 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h6 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h7 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2.1) g ((hnb _ _).2 hch.2.2.2.2.2) ⟨(hnb _ _).2
+      hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h8 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2.1) g ((hnb _ _).2 hch.2.2.2.2.2.1) h ((hnb _
+      _).2 hch.2.2.2.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
+  · simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
+    exact h9 u b ((hnb _ _).2 hch.1) c ((hnb _ _).2 hch.2.1) d ((hnb _ _).2 hch.2.2.1) e ((hnb _
+      _).2 hch.2.2.2.1) f ((hnb _ _).2 hch.2.2.2.2.1) g ((hnb _ _).2 hch.2.2.2.2.2.1) h ((hnb _
+      _).2 hch.2.2.2.2.2.2.1) i ((hnb _ _).2 hch.2.2.2.2.2.2.2) ⟨(hnb _ _).2 hcl, hnd⟩
   · simp only [List.length_cons] at hlt
     omega
 

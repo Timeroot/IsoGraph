@@ -3879,6 +3879,9 @@ generalized Petersen graphs `GP(n, k)` — and the rest are edge lists.
 | `durer`, `mobiusKantor`, `dodecahedron`, `desargues`, `nauru` | `GP(6,2)`, `GP(8,3)`, `GP(10,2)`, `GP(10,3)`, `GP(12,5)` |
 | `coxeter`, `wagner`, `chvatal` | girth-7 cubic graph on 28 vertices, `V₈`, the smallest triangle-free 4-regular 4-chromatic graph |
 | `icosahedron`, `tutte`, `moserSpindle`, `grotzsch` | Platonic solid, Tait's conjecture refuted, Hadwiger–Nelson, Mycielski |
+| `herschel`, `truncatedTetrahedron` | smallest non-Hamiltonian polyhedron, Archimedean solid |
+| `tietze`, `bidiakisCube`, `dyck` | six mutually adjacent regions on the Möbius strip, a cube with two chorded faces, the cubic symmetric graph on 32 vertices |
+| `robertson`, `balaban10Cage` | the `(4,5)`-cage and a `(3,10)`-cage |
 
 For each graph the file records the order, the edge count, the degree, connectivity,
 bipartiteness, and the girth. Two certificates do the work that `Decidable` instances cannot:
@@ -3924,9 +3927,10 @@ That search has to be phrased carefully. As a nested `∀` over vertices the dec
 enumerates the whole vertex type at every level, which is `30⁷` for the Tutte–Coxeter graph and
 never finishes; as `∀ b ∈ nb a` it walks only along edges, `30 · 3⁶`, but recomputing `nb` from
 the adjacency function costs about a millisecond a call. Precomputing the neighbour lists once,
-in a top-level `def` (`CGraph.nbrTable`), brings the deepest of the eight searches down to about
-two seconds, and all eight cages now have their girth: 6 for `heawood`, `pappus`, `mobiusKantor`,
-`desargues` and `nauru`, 7 for `mcgee` and `coxeter`, 8 for `tutteCoxeter`.
+in a top-level `def` (`CGraph.nbrTable`), brings the Tutte–Coxeter search down to about two
+seconds, and every graph in the gallery now has its girth: 6 for `heawood`, `pappus`,
+`mobiusKantor`, `desargues`, `nauru` and `dyck`, 7 for `mcgee` and `coxeter`, 8 for
+`tutteCoxeter`, and 10 for `balaban10Cage`, which searches seventy vertices to depth nine.
 
 The constructions overlap, and the canonical key settles the coincidences: `gp 5 2` is the
 Petersen graph, `gp 4 1` the cube, `gp 6 1` the hexagonal prism, and the Möbius–Kantor,
