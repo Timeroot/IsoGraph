@@ -42,6 +42,9 @@ the factorisation back to `ℝ[X]`.
   `adjMat_cartesianProduct` is `I ⊗ A H + A G ⊗ I`, and `P₁ ⊗ P₂` diagonalises both summands.
 * `spectrum_strongProduct` — the strong product sends `(λ, μ)` to `(1 + λ) (1 + μ) - 1`, because
   `adjMat_strongProduct` is `(A G + I) ⊗ (A H + I) - I`.
+* `spectrum_hypercube` — iterating the cartesian product along `hypercube_succ` gives the
+  eigenvalues `n - 2 j` of `Q n` with multiplicity `n.choose j`; the induction step is Pascal's
+  rule, since `± 1` shifts the eigenvalues of `Q n` into those of `Q (n + 1)`.
 * `hasEigenvector_compl` — for the complement only the eigenvector statement is proved: an
   eigenvector of `G` orthogonal to the all-ones vector is an eigenvector of `Gᶜ` for the
   eigenvalue `-1 - x`, since `Gᶜ`'s adjacency matrix is `J - I - A`.  The all-ones vector itself
@@ -2845,6 +2848,61 @@ theorem spectrum_strongProduct (G H : IsoGraph) :
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [strongProduct_mk, spectrum_mk, spectrum_mk, spectrum_mk,
       CGraph.spectrum_strongProduct' g h]
+
+/-- Pascal's rule, on multisets of eigenvalues. -/
+private theorem sum_replicate_choose_succ (n : ℕ) (v : ℕ → ℝ) :
+    ∑ j ∈ Finset.range (n + 1 + 1), Multiset.replicate ((n + 1).choose j) (v j)
+      = ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) (v j)
+        + ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) (v (j + 1)) := by
+  have hz : ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose (j + 1)) (v (j + 1))
+      = ∑ j ∈ Finset.range n, Multiset.replicate (n.choose (j + 1)) (v (j + 1)) := by
+    rw [Finset.sum_range_succ, Nat.choose_succ_self, Multiset.replicate_zero, add_zero]
+  rw [Finset.sum_range_succ' (fun j ↦ Multiset.replicate ((n + 1).choose j) (v j)) (n + 1),
+    Finset.sum_range_succ' (fun j ↦ Multiset.replicate (n.choose j) (v j)) n]
+  simp only [Nat.choose_succ_succ, Multiset.replicate_add, Finset.sum_add_distrib,
+    Nat.choose_zero_right]
+  rw [hz]
+  abel
+
+/-- Multiplying a multiset by the spectrum `{1, -1}` of `K₂`. -/
+private theorem product_pm_one (s : Multiset ℝ) :
+    (s ×ˢ ((1 : ℝ) ::ₘ Multiset.replicate 1 (-1))).map (fun p ↦ p.1 + p.2)
+      = s.map (fun x ↦ x + 1) + s.map (fun x ↦ x + (-1)) := by
+  rw [Multiset.replicate_one, Multiset.product_cons,
+    show ({-1} : Multiset ℝ) = (-1 : ℝ) ::ₘ 0 from rfl, Multiset.product_cons,
+    Multiset.product_zero, add_zero]
+  simp [Multiset.map_add, Multiset.map_map]
+
+private theorem map_finset_sum {ι : Type*} (s : Finset ι) (m : ι → Multiset ℝ) (f : ℝ → ℝ) :
+    (∑ x ∈ s, m x).map f = ∑ x ∈ s, (m x).map f :=
+  map_sum (Multiset.mapAddMonoidHom f) m s
+
+/-- **The spectrum of the hypercube**: `Q n` has eigenvalue `n - 2 j` with multiplicity
+`n.choose j`.  `Q (n + 1) = Q n □ K₂` adds `±1` to every eigenvalue, and Pascal's rule does the
+rest. -/
+theorem spectrum_hypercube (n : ℕ) :
+    (hypercube n).spectrum
+      = ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) ((n : ℝ) - 2 * j) := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    have h2 : (complete 2).spectrum = (1 : ℝ) ::ₘ Multiset.replicate 1 (-1) := by
+      have := spectrum_complete 1
+      norm_num at this
+      simpa using this
+    rw [hypercube_succ, spectrum_cartesianProduct, h2, product_pm_one, ih]
+    push_cast
+    rw [sum_replicate_choose_succ n (fun j ↦ (n : ℝ) + 1 - 2 * j)]
+    congr 1
+    · rw [map_finset_sum]
+      refine Finset.sum_congr rfl fun j _ ↦ ?_
+      rw [Multiset.map_replicate]
+      ring_nf
+    · rw [map_finset_sum]
+      refine Finset.sum_congr rfl fun j _ ↦ ?_
+      rw [Multiset.map_replicate]
+      push_cast
+      ring_nf
 
 /-! ### Determined by the spectrum -/
 

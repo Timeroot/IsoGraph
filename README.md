@@ -3984,7 +3984,19 @@ product (`adjMat_tensorProduct`) and both factors can be diagonalised at once
 (`exists_conj_diagonal`). The same Kronecker argument handles the other two products, since
 `adjMat_cartesianProduct` is `I ⊗ A H + A G ⊗ I` and `adjMat_strongProduct` is
 `(A G + I) ⊗ (A H + I) - I`: the cartesian product *adds* the eigenvalues pairwise and the strong
-product sends `(λ, μ)` to `(1 + λ) (1 + μ) - 1`. The complement gets only the eigenvector
+product sends `(λ, μ)` to `(1 + λ) (1 + μ) - 1`. Iterating the cartesian product along
+`hypercube_succ : Q (n + 1) = Q n □ K₂` gives the hypercube, whose spectrum is the binomial
+distribution:
+
+```lean
+theorem spectrum_hypercube (n : ℕ) :
+    (hypercube n).spectrum
+      = ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) ((n : ℝ) - 2 * j)
+```
+
+— the eigenvalues of `K₂` are `±1`, so the step adds `1` to every eigenvalue of `Q n` and
+subtracts `1` from every eigenvalue of `Q n`, and the two copies recombine by Pascal's rule.
+The complement gets only the eigenvector
 statement: `Gᶜ`'s adjacency
 matrix is `J - I - A`, so an eigenvector orthogonal to the all-ones vector survives with `x`
 replaced by `-1 - x`. That is enough to determine the spectrum of a regular graph, where the
