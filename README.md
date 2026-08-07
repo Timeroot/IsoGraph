@@ -4208,6 +4208,18 @@ least the average degree (`avg_degree_le_lambdaMax`), and `e u ± e v` across a 
 `one_le_lambdaMax` and `lambdaMin_le_neg_one`. Together with `abs_le_maxDeg_of_mem_spectrum` —
 proved the other way round, by evaluating `A u = x u` at a coordinate where `|u|` is largest —
 the whole spectrum is trapped in `[-Δ, Δ]` with `lambdaMax` no smaller than the average degree.
+A sharper test vector is the star at a vertex of maximum degree, weighting the centre by `√Δ` and
+each of its `Δ` neighbours by `1`:
+
+```lean
+theorem sqrt_maxDeg_le_lambdaMax (G : CGraph) [Nonempty G.V] :
+    Real.sqrt (G.maxDeg : ℝ) ≤ G.lambdaMax
+```
+
+The quadratic form counts each of the `2 Δ` ordered centre–neighbour pairs with weight `√Δ`, while
+the vector has norm `2 Δ`, so the quotient is at least `√Δ`. Together with the upper bound this
+brackets the largest eigenvalue as `√Δ ≤ lambdaMax ≤ Δ`, with both ends attained — the star `K_{1,Δ}`
+at the bottom and any `Δ`-regular graph at the top.
 
 Equality in either direction pins the vector down:
 

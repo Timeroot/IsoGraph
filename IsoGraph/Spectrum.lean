@@ -81,9 +81,10 @@ turns the quadratic form into a weighted sum of squares in rotated coordinates
 `lambdaMin_mul_le_rayleigh` and `rayleigh_le_lambdaMax`, both attained
 (`exists_rayleigh_eq_lambdaMax`).  Test vectors then read off bounds: the all-ones vector gives
 `avg_degree_le_lambdaMax` (`2 E ≤ λ_max · V`), and `e u ± e v` across an edge gives
-`one_le_lambdaMax` and `lambdaMin_le_neg_one`.  From the other side,
+`one_le_lambdaMax` and `lambdaMin_le_neg_one`; the star centred at a vertex of maximum degree
+gives `sqrt_maxDeg_le_lambdaMax` (`√Δ ≤ λ_max`).  From the other side,
 `abs_le_maxDeg_of_mem_spectrum` bounds every eigenvalue by the maximum degree, by evaluating the
-eigenvector equation where the eigenvector is largest.
+eigenvector equation where the eigenvector is largest, so `λ_max` is trapped between `√Δ` and `Δ`.
 
 The *equality* case is `mulVec_eq_of_rayleigh_eq_lambdaMax`: a vector attaining the maximum is an
 eigenvector, since in rotated coordinates the quotient is a weighted average of the eigenvalues.
@@ -2123,6 +2124,87 @@ theorem avg_degree_le_lambdaMax (G : CGraph) [Nonempty G.V] :
     simp [dotProduct, Finset.card_univ]
   have := G.rayleigh_le_lambdaMax fun _ ↦ (1 : ℝ)
   rwa [hone, hnorm] at this
+
+/-- **`√Δ ≤ λ_max`.**  Weighting a vertex of maximum degree by `√Δ` and each of its neighbours by
+`1` gives a vector of norm `2 Δ` whose quadratic form is at least `2 Δ √Δ`: the centre sees `Δ`
+neighbours and each neighbour sees the centre. -/
+theorem sqrt_maxDeg_le_lambdaMax (G : CGraph) [Nonempty G.V] :
+    Real.sqrt (G.maxDeg : ℝ) ≤ G.lambdaMax := by
+  obtain ⟨v, hv⟩ := G.toSimple.exists_maximal_degree_vertex
+  have hdeg : G.toSimple.degree v = G.maxDeg := hv.symm
+  rcases Nat.eq_zero_or_pos G.maxDeg with h0 | hpos
+  · rw [h0, Nat.cast_zero, Real.sqrt_zero]
+    exact G.lambdaMax_nonneg
+  obtain ⟨d, hd⟩ : ∃ d : ℕ, d = G.maxDeg := ⟨_, rfl⟩
+  have hdpos : 0 < (d : ℝ) := by rw [hd]; exact_mod_cast hpos
+  obtain ⟨s, hsdef⟩ : ∃ s : ℝ, s = Real.sqrt (d : ℝ) := ⟨_, rfl⟩
+  have hs0 : 0 ≤ s := by rw [hsdef]; positivity
+  have hss : s * s = (d : ℝ) := by rw [hsdef]; exact Real.mul_self_sqrt (le_of_lt hdpos)
+  obtain ⟨N, hNdef⟩ : ∃ N : Finset G.V, N = G.toSimple.neighborFinset v := ⟨_, rfl⟩
+  have hNcard : N.card = d := by rw [hNdef, hd]; exact hdeg
+  have hvN : v ∉ N := by
+    rw [hNdef, SimpleGraph.mem_neighborFinset]
+    exact G.toSimple.irrefl
+  obtain ⟨x, hxdef⟩ : ∃ x : G.V → ℝ, x = fun u ↦ if u = v then s else if u ∈ N then 1 else 0 :=
+    ⟨_, rfl⟩
+  have hxv : x v = s := by rw [hxdef]; simp
+  have hxN : ∀ u ∈ N, x u = 1 := by
+    intro u hu
+    have hne : u ≠ v := fun h ↦ hvN (h ▸ hu)
+    rw [hxdef]
+    simp [hne, hu]
+  have hx0 : ∀ u, 0 ≤ x u := by
+    intro u
+    rw [hxdef]
+    dsimp only
+    split
+    · exact hs0
+    · split
+      · exact zero_le_one
+      · exact le_rfl
+  have hmulVec : ∀ u : G.V, (G.adjMat *ᵥ x) u = ∑ w ∈ G.toSimple.neighborFinset u, x w := by
+    intro u
+    simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
+  have hAxv : (G.adjMat *ᵥ x) v = (d : ℝ) := by
+    rw [hmulVec, ← hNdef, Finset.sum_congr rfl hxN, Finset.sum_const, hNcard, nsmul_eq_mul,
+      mul_one]
+  have hAxN : ∀ u ∈ N, s ≤ (G.adjMat *ᵥ x) u := by
+    intro u hu
+    rw [hmulVec, ← hxv]
+    refine Finset.single_le_sum (fun w _ ↦ hx0 w) ?_
+    rw [SimpleGraph.mem_neighborFinset]
+    exact ((SimpleGraph.mem_neighborFinset _ _ _).1 (hNdef ▸ hu)).symm
+  have hquad : 2 * (d : ℝ) * s ≤ x ⬝ᵥ (G.adjMat *ᵥ x) := by
+    have hsub : insert v N ⊆ (Finset.univ : Finset G.V) := Finset.subset_univ _
+    have hstep : ∑ u ∈ insert v N, x u * (G.adjMat *ᵥ x) u ≤ x ⬝ᵥ (G.adjMat *ᵥ x) := by
+      rw [dotProduct]
+      refine Finset.sum_le_sum_of_subset_of_nonneg hsub fun u _ _ ↦ ?_
+      refine mul_nonneg (hx0 u) ?_
+      rw [hmulVec]
+      exact Finset.sum_nonneg fun w _ ↦ hx0 w
+    refine le_trans ?_ hstep
+    rw [Finset.sum_insert hvN, hxv, hAxv]
+    have hN' : ∑ u ∈ N, (s : ℝ) ≤ ∑ u ∈ N, x u * (G.adjMat *ᵥ x) u := by
+      refine Finset.sum_le_sum fun u hu ↦ ?_
+      rw [hxN u hu, one_mul]
+      exact hAxN u hu
+    rw [Finset.sum_const, hNcard, nsmul_eq_mul] at hN'
+    nlinarith [hN']
+  have hnorm : x ⬝ᵥ x = 2 * (d : ℝ) := by
+    rw [dotProduct, ← Finset.sum_subset (Finset.subset_univ (insert v N)) ?_]
+    · rw [Finset.sum_insert hvN, hxv, Finset.sum_congr rfl fun u hu ↦ by rw [hxN u hu],
+        Finset.sum_const, hNcard, nsmul_eq_mul, hss]
+      ring
+    · intro u _ hu
+      have hne : u ≠ v := fun h ↦ hu (h ▸ Finset.mem_insert_self v N)
+      have huN : u ∉ N := fun h ↦ hu (Finset.mem_insert_of_mem h)
+      rw [hxdef]
+      simp [hne, huN]
+  have hray := G.rayleigh_le_lambdaMax x
+  rw [hnorm] at hray
+  have h2 : 2 * (d : ℝ) * s ≤ G.lambdaMax * (2 * (d : ℝ)) := le_trans hquad hray
+  rw [← hd, ← hsdef]
+  nlinarith [h2, hdpos]
 
 /-- The bound is attained: an eigenvector for the largest eigenvalue maximises the quotient. -/
 theorem exists_rayleigh_eq_lambdaMax (G : CGraph) [Nonempty G.V] :
