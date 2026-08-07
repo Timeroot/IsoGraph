@@ -3964,6 +3964,8 @@ bottom of the file, along with `Cospectral`, `IsDS`, and the spectra below.
 | `complete n` | `n - 1` once, `-1` with multiplicity `n - 1` |
 | `path n` | `2 cos (π (m + 1) / (n + 1))`, `m < n` |
 | `cycle n` | `2 cos (2 π m / n)`, `m < n` |
+| `bipartite m n` | `±√(m n)` once each, `0` with multiplicity `m + n - 2` |
+| `star n` | `±√n` once each, `0` with multiplicity `n - 1` |
 
 The two closed forms are the only analytic work in the file, and they are done two different
 ways. The path is done by exhibiting eigenvectors: `sin (π (m + 1) (i + 1) / (n + 1))` is one,
@@ -4000,6 +4002,32 @@ The complete case is the interesting one: from `spectrum_complete` a cospectral 
 `∑ deg = m² + m` on `m + 1` vertices, every degree is at most `m`, and `Finset.sum_lt_sum` says a
 single deficient vertex would break the total — so every degree is `m`, every neighbourhood is
 `univ.erase x` by `Finset.eq_of_subset_of_card_le`, and `H` is complete.
+
+`IsDS` is not vacuous in the other direction either. Since the characteristic polynomial is the
+product of `X - λ` over the spectrum, `cospectral_iff_spectrum_eq` upgrades `Cospectral` from
+equality of polynomials to equality of multisets, and the classical counterexample is then a
+computation. The complete bipartite graphs are the cheap source of it: their adjacency matrix is
+`fromBlocks 0 J J 0`, so `A³ = (m n) A`, and one lemma handles the whole family —
+
+```lean
+theorem spectrum_eq_of_cube_eq_smul {G : CGraph} {c : ℝ} (hc : 0 < c)
+    (hcube : G.adjMat * G.adjMat * G.adjMat = c • G.adjMat) (hE : (G.E : ℝ) = c) :
+    G.spectrum = Real.sqrt c ::ₘ (-Real.sqrt c) ::ₘ
+      Multiset.replicate (Fintype.card G.V - 2) 0
+```
+
+`A³ = c A` forces every eigenvalue into `{0, ±√c}`, and the two moments then pin the
+multiplicities down without any further geometry: `∑ λ = 0` makes `+√c` and `-√c` equally
+frequent, and `∑ λ² = 2 E = 2 c` makes that common multiplicity one. `spectrum_bipartite` and
+`spectrum_star` are corollaries, and they collide:
+
+```lean
+theorem not_isDS_star_four : ¬ IsDS (star 4)
+```
+
+because `star 4` and `bipartite 2 2 ⊕g empty 1` both have spectrum `2, -2, 0, 0, 0` while the
+first is connected and the second is not — `numComponents` separates them where the spectrum
+cannot.
 
 For a strongly regular graph the identity `A² = k I + ℓ A + μ (J - I - A)`, read off on an
 eigenvector orthogonal to the all-ones vector, says every eigenvalue other than `k` satisfies

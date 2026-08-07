@@ -126,6 +126,13 @@ theorem charpoly_eq_prod (G : CGraph) :
     G.charpoly = ∏ i, (X - C (G.eigenvalues i)) :=
   G.isHermitian_adjMat.charpoly_eq
 
+/-- The characteristic polynomial is the product over the spectrum, so it carries exactly the
+information the spectrum does. -/
+theorem charpoly_eq_prod_spectrum (G : CGraph) :
+    G.charpoly = (G.spectrum.map (fun x ↦ X - C x)).prod := by
+  rw [spectrum_eq_map, Multiset.map_map, charpoly_eq_prod]
+  rfl
+
 theorem monic_charpoly (G : CGraph) : G.charpoly.Monic := Matrix.charpoly_monic _
 
 
@@ -952,6 +959,11 @@ theorem Cospectral.trans {G H K : CGraph} (h : Cospectral G H) (h' : Cospectral 
 
 theorem Cospectral.of_iso {G H : CGraph} (i : G ≃cg H) : Cospectral G H := charpoly_congr i
 
+theorem cospectral_iff_spectrum_eq {G H : CGraph} :
+    G.Cospectral H ↔ G.spectrum = H.spectrum := by
+  refine ⟨Cospectral.spectrum_eq, fun h ↦ ?_⟩
+  rw [Cospectral, charpoly_eq_prod_spectrum, charpoly_eq_prod_spectrum, h]
+
 /-- **Cospectral graphs have the same number of vertices.** -/
 theorem Cospectral.card_eq {G H : CGraph} (h : Cospectral G H) :
     Fintype.card G.V = Fintype.card H.V := by
@@ -1044,6 +1056,148 @@ theorem isDS_complete (n : ℕ) : IsDS (complete n) := by
   · have hne : e x ≠ e y := fun hc ↦ hxy (e.injective hc)
     rw [complete_adj, decide_eq_true hxy]
     exact (toSimple_adj H _ _).mp (hadj _ _ hne)
+
+/-! ## Graphs with `A ^ 3 = c A` -/
+
+theorem spectrum_eq_of_cube_eq_smul {G : CGraph} {c : ℝ} (hc : 0 < c)
+    (hcube : G.adjMat * G.adjMat * G.adjMat = c • G.adjMat) (hE : (G.E : ℝ) = c) :
+    G.spectrum = Real.sqrt c ::ₘ (-Real.sqrt c) ::ₘ
+      Multiset.replicate (Fintype.card G.V - 2) 0 := by
+  classical
+  set r := Real.sqrt c with hrdef
+  have hr : 0 < r := Real.sqrt_pos.2 hc
+  have hr2 : r ^ 2 = c := Real.sq_sqrt hc.le
+  have hmem : ∀ x ∈ G.spectrum, x = r ∨ x = -r ∨ x = 0 := by
+    intro x hx
+    obtain ⟨v, hv0, hv⟩ := (mem_spectrum_iff G x).1 hx
+    have e1 : (G.adjMat * G.adjMat * G.adjMat) *ᵥ v = (x * x * x) • v := by
+      rw [← Matrix.mulVec_mulVec, ← Matrix.mulVec_mulVec]
+      simp only [hv, Matrix.mulVec_smul, smul_smul]
+    have e2 : (G.adjMat * G.adjMat * G.adjMat) *ᵥ v = (c * x) • v := by
+      rw [hcube, Matrix.smul_mulVec, hv, smul_smul]
+    have e3 : (x * x * x - c * x) • v = 0 := by
+      rw [sub_smul, ← e1, e2, sub_self]
+    have e4 : x * x * x - c * x = 0 := by
+      rcases smul_eq_zero.1 e3 with h | h
+      · exact h
+      · exact absurd h hv0
+    have e5 : x * (x - r) * (x + r) = 0 := by linear_combination e4 - x * hr2
+    rcases mul_eq_zero.1 e5 with h | h
+    · rcases mul_eq_zero.1 h with h' | h'
+      · exact Or.inr (Or.inr h')
+      · exact Or.inl (by linarith)
+    · exact Or.inr (Or.inl (by linarith))
+  obtain ⟨a, ha⟩ : ∃ k, G.spectrum.count r = k := ⟨_, rfl⟩
+  obtain ⟨b, hb⟩ : ∃ k, G.spectrum.count (-r) = k := ⟨_, rfl⟩
+  obtain ⟨z, hz⟩ : ∃ k, G.spectrum.count 0 = k := ⟨_, rfl⟩
+  set t : Multiset ℝ :=
+    Multiset.replicate a r + Multiset.replicate b (-r) + Multiset.replicate z 0 with htdef
+  have hrne : r ≠ -r := by intro h; linarith
+  have hr0 : r ≠ 0 := hr.ne'
+  have hle : t ≤ G.spectrum := by
+    refine Multiset.le_iff_count.2 fun x ↦ ?_
+    by_cases h1 : x = r
+    · subst h1
+      simp [htdef, Multiset.count_replicate, Ne.symm hrne, Ne.symm hr0, ha]
+    · by_cases h2 : x = -r
+      · subst h2
+        simp [htdef, Multiset.count_replicate, hrne, Ne.symm (neg_ne_zero.2 hr0), hb]
+      · by_cases h3 : x = 0
+        · subst h3
+          simp [htdef, Multiset.count_replicate, Ne.symm h1, Ne.symm h2, hz]
+        · simp [htdef, Multiset.count_replicate, Ne.symm h1, Ne.symm h2, Ne.symm h3]
+  have hsub : ∀ x ∈ G.spectrum, x ∈ ({r, -r, 0} : Finset ℝ) := by
+    intro x hx
+    rcases hmem x hx with h | h | h <;> simp [h]
+  have hins1 : r ∉ ({-r, 0} : Finset ℝ) := by simp [hrne, hr0]
+  have hins2 : (-r) ∉ ({0} : Finset ℝ) := by simp [neg_eq_zero, hr0]
+  have hcard : Multiset.card G.spectrum = a + b + z := by
+    rw [← Multiset.sum_count_eq_card hsub, Finset.sum_insert hins1, Finset.sum_insert hins2,
+      Finset.sum_singleton, ha, hb, hz, add_assoc]
+  have hcardt : Multiset.card t = a + b + z := by simp [htdef]
+  have heq : t = G.spectrum := Multiset.eq_of_le_of_card_le hle (by rw [hcard, hcardt])
+  have hs0 : (a : ℝ) * r - (b : ℝ) * r = 0 := by
+    have h := sum_spectrum G
+    rw [← heq] at h
+    simpa [htdef, Multiset.sum_replicate, nsmul_eq_mul, sub_eq_add_neg, mul_neg] using h
+  have hs2 : ((a : ℝ) + (b : ℝ)) * c = 2 * c := by
+    have h := sum_sq_spectrum G
+    rw [← heq, hE] at h
+    have h' : (a : ℝ) * r ^ 2 + (b : ℝ) * r ^ 2 = 2 * c := by
+      simpa [htdef, Multiset.sum_replicate, nsmul_eq_mul, neg_pow] using h
+    rw [hr2] at h'
+    linarith
+  have hab : (a : ℝ) = (b : ℝ) := by
+    have hz' : ((a : ℝ) - (b : ℝ)) * r = 0 := by rw [sub_mul]; linarith
+    rcases mul_eq_zero.1 hz' with h | h
+    · linarith
+    · exact absurd h hr0
+  have hsum2 : (a : ℝ) + (b : ℝ) = 2 := mul_right_cancel₀ hc.ne' hs2
+  have ha1 : a = 1 := by
+    have : (a : ℝ) = 1 := by linarith
+    exact_mod_cast this
+  have hb1 : b = 1 := by
+    have : (b : ℝ) = 1 := by linarith
+    exact_mod_cast this
+  have hzc : z = Fintype.card G.V - 2 := by
+    have h := hcard
+    rw [card_spectrum, ha1, hb1] at h
+    omega
+  rw [← heq, htdef, ha1, hb1, hzc]
+  simp [← Multiset.singleton_add, add_assoc]
+
+/-! ## Complete bipartite graphs and stars -/
+
+private theorem ones_mul_ones (p q r : ℕ) :
+    (Matrix.of fun _ _ ↦ (1 : ℝ) : Matrix (Fin p) (Fin q) ℝ) *
+        (Matrix.of fun _ _ ↦ (1 : ℝ) : Matrix (Fin q) (Fin r) ℝ) =
+      (q : ℝ) • Matrix.of fun _ _ ↦ (1 : ℝ) := by
+  ext i j
+  simp [Matrix.mul_apply]
+
+theorem adjMat_bipartite (m n : ℕ) :
+    (bipartite m n).adjMat =
+      Matrix.fromBlocks 0 (Matrix.of fun _ _ ↦ (1 : ℝ)) (Matrix.of fun _ _ ↦ (1 : ℝ)) 0 := by
+  ext x y
+  cases x <;> cases y <;> simp [adjMat_apply]
+
+theorem adjMat_bipartite_cube (m n : ℕ) :
+    (bipartite m n).adjMat * (bipartite m n).adjMat * (bipartite m n).adjMat =
+      ((m * n : ℕ) : ℝ) • (bipartite m n).adjMat := by
+  rw [adjMat_bipartite, Matrix.fromBlocks_multiply, Matrix.fromBlocks_multiply,
+    Matrix.fromBlocks_smul]
+  simp only [Matrix.mul_zero, Matrix.zero_mul, add_zero, zero_add, smul_zero]
+  congr 1 <;> ext i j <;> simp [Matrix.mul_apply, mul_comm]
+
+theorem spectrum_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).spectrum =
+      Real.sqrt ((m + 1) * (n + 1)) ::ₘ (-Real.sqrt ((m + 1) * (n + 1)) ::ₘ
+        Multiset.replicate (m + n) 0) := by
+  have hc : (0 : ℝ) < ((m + 1) * (n + 1) : ℕ) := by positivity
+  have h := spectrum_eq_of_cube_eq_smul (G := bipartite (m + 1) (n + 1)) hc
+    (adjMat_bipartite_cube (m + 1) (n + 1)) (by simp)
+  rw [h, card_bipartite, show m + 1 + (n + 1) - 2 = m + n from by omega]
+  norm_num
+
+theorem spectrum_star (n : ℕ) :
+    (star (n + 1)).spectrum =
+      Real.sqrt (n + 1) ::ₘ (-Real.sqrt (n + 1) ::ₘ Multiset.replicate n 0) := by
+  have h := spectrum_bipartite 0 n
+  rw [star]
+  norm_num at h ⊢
+  exact h
+
+/-! ## A cospectral pair -/
+
+/-- The star `K₁,₄` and the disjoint union of the four-cycle `K₂,₂` with an isolated vertex are
+cospectral: both spectra are `2, -2, 0, 0, 0`. -/
+theorem cospectral_star_four :
+    (star 4).Cospectral (disjUnion (bipartite 2 2) (empty 1)) := by
+  have hs := spectrum_star 3
+  have hb := spectrum_bipartite 1 1
+  norm_num at hs hb
+  rw [cospectral_iff_spectrum_eq, spectrum_disjUnion, spectrum_empty, hs, hb]
+  simp [Multiset.cons_add]
 
 /-! ## Bounding the eigenvalues with a positive vector
 
@@ -1529,5 +1683,17 @@ theorem isDS_mk_iff (G : CGraph) : IsDS ⟦G⟧ ↔ G.IsDS := by
 theorem isDS_empty (n : ℕ) : IsDS (empty n) := (isDS_mk_iff _).2 (CGraph.isDS_empty n)
 
 theorem isDS_complete (n : ℕ) : IsDS (complete n) := (isDS_mk_iff _).2 (CGraph.isDS_complete n)
+
+theorem cospectral_star_four : Cospectral (star 4) (bipartite 2 2 ⊕g empty 1) := by
+  rw [star_def, bipartite_def, empty_def, disjUnion_mk, cospectral_mk]
+  exact CGraph.cospectral_star_four
+
+/-- **Not every graph is determined by its spectrum.**  The star `K₁,₄` is cospectral with
+`K₂,₂ ⊔ K₁`, which is disconnected. -/
+theorem not_isDS_star_four : ¬ IsDS (star 4) := by
+  intro h
+  have h1 : (star 4 : IsoGraph).numComponents = 1 := numComponents_star 4
+  rw [h _ cospectral_star_four] at h1
+  simp at h1
 
 end IsoGraph
