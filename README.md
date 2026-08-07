@@ -4048,9 +4048,10 @@ so the twenty-eight graphs of `SRG.lean` all have three-element spectra with kno
 eigenvalue is strictly below it. Smith's theorem classifies the connected graphs of each kind,
 and the answer is the simply-laced ADE classification: subcritical means a Dynkin diagram
 `Aₙ Dₙ E₆ E₇ E₈`, critical means an affine one `Ãₙ D̃ₙ Ẽ₆ Ẽ₇ Ẽ₈`. The classification itself — that
-the list is complete — is not formalised. Every diagram on it that is not already a path or a
-cycle is, together with the two families that are: `isSubcritical_path` is `Aₙ` and
-`isSmith_cycle` is `Ãₙ`.
+the list is complete — is not formalised, but every diagram on it is. Four of the ten entries are
+infinite families and each is handled for all `n` at once: `isSubcritical_path` is `Aₙ`,
+`isSmith_cycle` is `Ãₙ`, `isSubcritical_dynkinD` is `Dₙ` and `isSmith_affineD` is `D̃ₙ`. The six
+exceptional diagrams are individual graphs.
 
 One lemma does all of it:
 
@@ -4074,9 +4075,27 @@ theorem two_notMem_spectrum_dynkinE8 : (2 : ℝ) ∉ dynkinE8.spectrum
 ```
 
 which is just `linarith` on the eight component equations of `A v = 2 v` forcing `v = 0` — the
-nonsingularity of the Cartan matrix, spelled out. `IsDS` for the path and the cycle would need
-the converse direction of Smith's theorem and is left open, as are the parametric `Dₙ` and `D̃ₙ`
-for `n > 4`.
+nonsingularity of the Cartan matrix, spelled out.
+
+The `D` families need a little more machinery, since `n` is a variable. Both are built on the
+vertex type `Fin (m + 1) ⊕ Fin k` — a chain, then the pendant vertices, two at each end of the
+chain for `D̃ₘ₊₄` and two at one end and one at the other for `Dₘ₊₄` — which keeps the sum along
+the chain apart from the sum over the leaves, and four small lemmas evaluate the former. The
+marks are `2` on the chain and `1` on the leaves. Nonsingularity is now an induction rather than
+a `linarith`: writing `C t` for the value of an eigenvector for `2` at chain position `t`, the
+interior equations say `C (t + 1) + C (t - 1) = 2 C t` and the forked end says `C 1 = 2 C 0 -
+(leaves) = C 0`, so `C` is constant along the whole chain; the lone pendant vertex at the far end
+then reads `C (m - 1) + C m / 2 = 2 C m`, which forces that constant to be `0`.
+
+```lean
+theorem isSmith_affineD (m : ℕ) : IsSmith (affineD m)
+theorem isSubcritical_dynkinD (m : ℕ) : IsSubcritical (dynkinD m)
+theorem dynkinD_zero_iso : Nonempty (dynkinD 0 ≃cg dynkinD4)
+```
+
+The last one checks the encoding against the hand-built `D₄`: the two agree by `decide` under
+`finSumFinEquiv`. `IsDS` for the path and the cycle would need the converse direction of Smith's
+theorem and is left open.
 
 ## Transitivity and clique sums
 

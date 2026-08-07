@@ -65,8 +65,9 @@ roots `((ℓ - μ) ± √((ℓ - μ) ^ 2 + 4 (k - μ))) / 2`.
 is below `2`.  Smith's theorem classifies the connected graphs of each kind: the subcritical ones
 are the simply-laced Dynkin diagrams `Aₙ Dₙ E₆ E₇ E₈`, and the critical ones are their affine
 extensions `Ãₙ D̃ₙ Ẽ₆ Ẽ₇ Ẽ₈`.  The classification itself is not formalised, but every diagram in
-it that is not a path or a cycle is: `dynkinD4`, `dynkinE6`, `dynkinE7`, `dynkinE8` and their
-affine versions, together with `isSubcritical_path` (`Aₙ`) and `isSmith_cycle` (`Ãₙ`).
+it is: `isSubcritical_path` (`Aₙ`), `isSmith_cycle` (`Ãₙ`), the parametric families
+`isSubcritical_dynkinD` and `isSmith_affineD` (`Dₙ` and `D̃ₙ` for every `n ≥ 4`), and the six
+exceptional diagrams `dynkinE6`, `dynkinE7`, `dynkinE8` with their affine versions.
 
 The tool is `le_of_mulVec_le`: if some strictly positive `w` satisfies `A w ≤ c w` pointwise then
 every eigenvalue is at most `c`, by looking at the vertex maximising `u i / w i`.  Taking `w` to
@@ -79,7 +80,7 @@ system `A v = 2 v` forces `v = 0`, which is the nonsingularity of the Cartan mat
 
 The full multiset spectrum of a complement (which needs simultaneous diagonalisation with `J`),
 `IsDS` for the path and the cycle (which needs the converse direction of Smith's theorem), and
-the parametric families `Dₙ` and `D̃ₙ` for `n > 4`.
+Smith's theorem itself — that the list above is complete.
 -/
 
 set_option autoImplicit false
@@ -1298,7 +1299,8 @@ a Smith graph leaves the marks as a strict subeigenvector, which is why the fini
 and `2` itself is not an eigenvalue because the Cartan matrix `2I - A` is nonsingular.
 
 `Aₙ` is the path (`spectrum_path`, `lt_two_of_mem_spectrum_path`) and `Ãₙ` is the cycle
-(`spectrum_cycle`, `two_mem_spectrum_cycle`); the exceptional diagrams are defined here. -/
+(`spectrum_cycle`, `two_mem_spectrum_cycle`); the exceptional diagrams are defined here, and the
+families `Dₙ` and `D̃ₙ` are treated for all `n` at the end of the section. -/
 
 /-- The graph has largest eigenvalue exactly `2`: it belongs to **Smith's family**. -/
 def IsSmith (G : CGraph) : Prop := (2 : ℝ) ∈ G.spectrum ∧ ∀ x ∈ G.spectrum, x ≤ 2
@@ -1581,6 +1583,472 @@ theorem le_two_of_mem_spectrum_affineE8 {x : ℝ} (hx : x ∈ affineE8.spectrum)
 
 theorem isSmith_affineE8 : IsSmith affineE8 :=
   ⟨two_mem_spectrum_affineE8, fun _ hx ↦ le_two_of_mem_spectrum_affineE8 hx⟩
+
+/-! ### The parametric families `Dₙ` and `D̃ₙ`
+
+The diagrams `D₄ ⊂ D₅ ⊂ ⋯` and `D̃₄ ⊂ D̃₅ ⊂ ⋯` are handled for every `n` at once.  Both are a
+chain of vertices carrying the mark `2` with pendant vertices carrying the mark `1` at the ends:
+two at each end for `D̃`, two at one end and one at the other for `D`.  The vertex type is
+`Fin (m + 1) ⊕ Fin k`, the chain and the pendant vertices, which keeps the two kinds of sum
+apart.  The four lemmas below evaluate a sum along the chain. -/
+
+private theorem chain_split {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) :
+    ∑ j : Fin (m + 1), (if i.1 + 1 = j.1 ∨ j.1 + 1 = i.1 then u j else 0)
+      = (∑ j : Fin (m + 1), if i.1 + 1 = j.1 then u j else 0)
+        + ∑ j : Fin (m + 1), (if j.1 + 1 = i.1 then u j else 0) := by
+  rw [← Finset.sum_add_distrib]
+  refine Finset.sum_congr rfl fun j _ ↦ ?_
+  by_cases h1 : i.1 + 1 = j.1 <;> by_cases h2 : j.1 + 1 = i.1
+  · omega
+  all_goals simp [h1, h2]
+
+private theorem chain_up {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) (h : i.1 < m) :
+    (∑ j : Fin (m + 1), if i.1 + 1 = j.1 then u j else 0) = u ⟨i.1 + 1, by omega⟩ := by
+  rw [Finset.sum_eq_single (⟨i.1 + 1, by omega⟩ : Fin (m + 1))]
+  · simp
+  · intro b _ hb
+    exact if_neg fun hh ↦ hb (Fin.ext hh.symm)
+  · intro hh; exact absurd (Finset.mem_univ _) hh
+
+private theorem chain_up_last {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) (h : i.1 = m) :
+    (∑ j : Fin (m + 1), if i.1 + 1 = j.1 then u j else 0) = 0 := by
+  refine Finset.sum_eq_zero fun j _ ↦ if_neg ?_
+  have := j.isLt
+  omega
+
+private theorem chain_down {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) (h : 0 < i.1) :
+    (∑ j : Fin (m + 1), if j.1 + 1 = i.1 then u j else 0) = u ⟨i.1 - 1, by omega⟩ := by
+  have hlt := i.isLt
+  rw [Finset.sum_eq_single (⟨i.1 - 1, by omega⟩ : Fin (m + 1))]
+  · exact if_pos (by simp; omega)
+  · intro b _ hb
+    exact if_neg fun hh ↦ hb (Fin.ext (by simp; omega))
+  · intro hh; exact absurd (Finset.mem_univ _) hh
+
+private theorem chain_down_zero {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) (h : i.1 = 0) :
+    (∑ j : Fin (m + 1), if j.1 + 1 = i.1 then u j else 0) = 0 :=
+  Finset.sum_eq_zero fun j _ ↦ if_neg (by omega)
+
+/-! #### The affine diagram `D̃ₘ₊₄` -/
+
+/-- The affine Dynkin diagram `D̃ₘ₊₄`: a chain of `m + 1` vertices, with two pendant vertices
+attached at each end.  `affineD 0` is the star `D̃₄`. -/
+def affineD (m : ℕ) : CGraph :=
+  ofRel (Fin (m + 1) ⊕ Fin 4) fun x y ↦
+    match x, y with
+    | Sum.inl i, Sum.inl j => i.1 + 1 == j.1
+    | Sum.inl i, Sum.inr k => (i.1 == 0 && decide (k.1 ≤ 1)) || (i.1 == m && decide (2 ≤ k.1))
+    | Sum.inr _, _ => false
+
+theorem affineD_adj_inl_inl (m : ℕ) (i j : Fin (m + 1)) :
+    (affineD m).Adj (Sum.inl i) (Sum.inl j) = true ↔ (i.1 + 1 = j.1 ∨ j.1 + 1 = i.1) := by
+  simp only [affineD, ofRel_adj, Bool.and_eq_true, decide_eq_true_eq, Bool.or_eq_true, beq_iff_eq,
+    ne_eq, Sum.inl.injEq, Fin.ext_iff]
+  omega
+
+theorem affineD_adj_inl_inr (m : ℕ) (i : Fin (m + 1)) (k : Fin 4) :
+    (affineD m).Adj (Sum.inl i) (Sum.inr k) = true ↔
+      ((i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ 2 ≤ k.1)) := by
+  simp only [affineD, ofRel_adj, Bool.and_eq_true, decide_eq_true_eq, Bool.or_eq_true, beq_iff_eq,
+    ne_eq, reduceCtorEq, not_false_eq_true, decide_true, Bool.true_and, Bool.or_false]
+
+theorem affineD_adj_inr_inl (m : ℕ) (k : Fin 4) (i : Fin (m + 1)) :
+    (affineD m).Adj (Sum.inr k) (Sum.inl i) = true ↔
+      ((i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ 2 ≤ k.1)) := by
+  rw [(affineD m).symm]; exact affineD_adj_inl_inr m i k
+
+theorem affineD_adj_inr_inr (m : ℕ) (k l : Fin 4) :
+    (affineD m).Adj (Sum.inr k) (Sum.inr l) = false := by
+  simp [affineD, ofRel_adj]
+
+/-- The action of the adjacency matrix of `D̃` at a chain vertex: the two chain neighbours, plus
+the pendant vertices at whichever end of the chain the vertex sits. -/
+theorem affineD_mulVec_inl (m : ℕ) (v : (affineD m).V → ℝ) (i : Fin (m + 1)) :
+    ((affineD m).adjMat *ᵥ v) (Sum.inl i)
+      = ((∑ j : Fin (m + 1), if i.1 + 1 = j.1 then v (Sum.inl j) else 0)
+          + ∑ j : Fin (m + 1), (if j.1 + 1 = i.1 then v (Sum.inl j) else 0))
+        + ((if i.1 = 0 then v (Sum.inr 0) + v (Sum.inr 1) else 0)
+          + (if i.1 = m then v (Sum.inr 2) + v (Sum.inr 3) else 0)) := by
+  have hchain : ∀ j : Fin (m + 1), (affineD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j)
+      = if i.1 + 1 = j.1 ∨ j.1 + 1 = i.1 then v (Sum.inl j) else 0 := by
+    intro j
+    rw [adjMat_apply]
+    by_cases h : i.1 + 1 = j.1 ∨ j.1 + 1 = i.1
+    · rw [if_pos ((affineD_adj_inl_inl m i j).2 h), if_pos h, one_mul]
+    · rw [if_neg fun hh ↦ h ((affineD_adj_inl_inl m i j).1 hh), if_neg h, zero_mul]
+  have hleaf : ∀ k : Fin 4, (affineD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k)
+      = if (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ 2 ≤ k.1) then v (Sum.inr k) else 0 := by
+    intro k
+    rw [adjMat_apply]
+    by_cases h : (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ 2 ≤ k.1)
+    · rw [if_pos ((affineD_adj_inl_inr m i k).2 h), if_pos h, one_mul]
+    · rw [if_neg fun hh ↦ h ((affineD_adj_inl_inr m i k).1 hh), if_neg h, zero_mul]
+  have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inl i)
+      = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j))
+        + ∑ k : Fin 4, (affineD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k) :=
+    Fintype.sum_sum_type (f := fun x ↦ (affineD m).adjMat (Sum.inl i) x * v x)
+  rw [hsplit]
+  simp only [hchain, hleaf]
+  rw [chain_split]
+  congr 1
+  rw [Fin.sum_univ_four]
+  by_cases h0 : i.1 = 0 <;> by_cases hm : i.1 = m <;> simp [h0, hm] <;>
+    split_ifs <;> ring
+
+theorem affineD_mulVec_inr_le (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) (hk : k.1 ≤ 1) :
+    ((affineD m).adjMat *ᵥ v) (Sum.inr k) = v (Sum.inl ⟨0, Nat.succ_pos m⟩) := by
+  have hchain : ∀ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j)
+      = if j = (⟨0, Nat.succ_pos m⟩ : Fin (m + 1)) then v (Sum.inl j) else 0 := by
+    intro j
+    rw [adjMat_apply]
+    by_cases hj : j.1 = 0
+    · rw [if_pos ((affineD_adj_inr_inl m k j).2 (Or.inl ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
+    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+      rcases (affineD_adj_inr_inl m k j).1 hh with h | h
+      · exact hj h.1
+      · omega
+  have hleaf : ∀ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
+    intro l
+    rw [adjMat_apply, if_neg (by rw [affineD_adj_inr_inr]; simp), zero_mul]
+  have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inr k)
+      = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
+        + ∑ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
+    Fintype.sum_sum_type (f := fun x ↦ (affineD m).adjMat (Sum.inr k) x * v x)
+  rw [hsplit]
+  simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
+    Finset.mem_univ, if_true]
+
+theorem affineD_mulVec_inr_ge (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) (hk : 2 ≤ k.1) :
+    ((affineD m).adjMat *ᵥ v) (Sum.inr k) = v (Sum.inl ⟨m, Nat.lt_succ_self m⟩) := by
+  have hchain : ∀ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j)
+      = if j = (⟨m, Nat.lt_succ_self m⟩ : Fin (m + 1)) then v (Sum.inl j) else 0 := by
+    intro j
+    rw [adjMat_apply]
+    by_cases hj : j.1 = m
+    · rw [if_pos ((affineD_adj_inr_inl m k j).2 (Or.inr ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
+    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+      rcases (affineD_adj_inr_inl m k j).1 hh with h | h
+      · omega
+      · exact hj h.1
+  have hleaf : ∀ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
+    intro l
+    rw [adjMat_apply, if_neg (by rw [affineD_adj_inr_inr]; simp), zero_mul]
+  have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inr k)
+      = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
+        + ∑ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
+    Fintype.sum_sum_type (f := fun x ↦ (affineD m).adjMat (Sum.inr k) x * v x)
+  rw [hsplit]
+  simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
+    Finset.mem_univ, if_true]
+
+/-- The marks of `D̃ₘ₊₄`: `2` along the chain and `1` at the four pendant vertices. -/
+def marksAffineD (m : ℕ) : (affineD m).V → ℝ := Sum.elim (fun _ ↦ 2) (fun _ ↦ 1)
+
+theorem marksAffineD_pos (m : ℕ) (x : (affineD m).V) : 0 < marksAffineD m x := by
+  rcases x with i | k <;> norm_num [marksAffineD]
+
+theorem mulVec_affineD (m : ℕ) :
+    (affineD m).adjMat *ᵥ marksAffineD m = (2 : ℝ) • marksAffineD m := by
+  funext x
+  rcases x with i | k
+  · rw [affineD_mulVec_inl]
+    have hi : i.1 ≤ m := Nat.lt_succ_iff.1 i.isLt
+    rcases Nat.eq_or_lt_of_le hi with hm | hm
+    · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
+      · rw [chain_up_last _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_pos hm]
+        norm_num [marksAffineD]
+      · rw [chain_up_last _ _ hm, chain_down _ _ h0, if_neg (by omega), if_pos hm]
+        norm_num [marksAffineD]
+    · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
+      · rw [chain_up _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_neg (by omega)]
+        norm_num [marksAffineD]
+      · rw [chain_up _ _ hm, chain_down _ _ h0, if_neg (by omega), if_neg (by omega)]
+        norm_num [marksAffineD]
+  · rcases Nat.lt_or_ge k.1 2 with hk | hk
+    · rw [affineD_mulVec_inr_le _ _ _ (by omega)]
+      norm_num [marksAffineD]
+    · rw [affineD_mulVec_inr_ge _ _ _ hk]
+      norm_num [marksAffineD]
+
+
+
+theorem card_affineD (m : ℕ) : Fintype.card (affineD m).V = m + 5 := by
+  show Fintype.card (Fin (m + 1) ⊕ Fin 4) = m + 5
+  simp
+
+theorem two_mem_spectrum_affineD (m : ℕ) : (2 : ℝ) ∈ (affineD m).spectrum := by
+  haveI : Nonempty (affineD m).V := ⟨Sum.inl ⟨0, Nat.succ_pos m⟩⟩
+  exact mem_spectrum_of_mulVec_eq (marksAffineD_pos m) (mulVec_affineD m)
+
+theorem le_two_of_mem_spectrum_affineD (m : ℕ) {x : ℝ} (hx : x ∈ (affineD m).spectrum) : x ≤ 2 :=
+  spectrum_le_of_mulVec_le (marksAffineD_pos m)
+    (fun i ↦ by simpa using le_of_eq (congrFun (mulVec_affineD m) i)) hx
+
+/-- **Every affine diagram `D̃ₙ` is a Smith graph.** -/
+theorem isSmith_affineD (m : ℕ) : IsSmith (affineD m) :=
+  ⟨two_mem_spectrum_affineD m, fun _ hx ↦ le_two_of_mem_spectrum_affineD m hx⟩
+
+
+
+/-! #### The Dynkin diagram `Dₘ₊₄` -/
+
+/-- The Dynkin diagram `Dₘ₊₄`: a chain of `m + 1` vertices with two pendant vertices at one end
+and one at the other.  `dynkinD 0` is the claw `D₄`. -/
+def dynkinD (m : ℕ) : CGraph :=
+  ofRel (Fin (m + 1) ⊕ Fin 3) fun x y ↦
+    match x, y with
+    | Sum.inl i, Sum.inl j => i.1 + 1 == j.1
+    | Sum.inl i, Sum.inr k => (i.1 == 0 && decide (k.1 ≤ 1)) || (i.1 == m && k.1 == 2)
+    | Sum.inr _, _ => false
+
+theorem dynkinD_adj_inl_inl (m : ℕ) (i j : Fin (m + 1)) :
+    (dynkinD m).Adj (Sum.inl i) (Sum.inl j) = true ↔ (i.1 + 1 = j.1 ∨ j.1 + 1 = i.1) := by
+  simp only [dynkinD, ofRel_adj, Bool.and_eq_true, decide_eq_true_eq, Bool.or_eq_true, beq_iff_eq,
+    ne_eq, Sum.inl.injEq, Fin.ext_iff]
+  omega
+
+theorem dynkinD_adj_inl_inr (m : ℕ) (i : Fin (m + 1)) (k : Fin 3) :
+    (dynkinD m).Adj (Sum.inl i) (Sum.inr k) = true ↔
+      ((i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ k.1 = 2)) := by
+  simp only [dynkinD, ofRel_adj, Bool.and_eq_true, decide_eq_true_eq, Bool.or_eq_true, beq_iff_eq,
+    ne_eq, reduceCtorEq, not_false_eq_true, decide_true, Bool.true_and, Bool.or_false]
+
+theorem dynkinD_adj_inr_inl (m : ℕ) (k : Fin 3) (i : Fin (m + 1)) :
+    (dynkinD m).Adj (Sum.inr k) (Sum.inl i) = true ↔
+      ((i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ k.1 = 2)) := by
+  rw [(dynkinD m).symm]; exact dynkinD_adj_inl_inr m i k
+
+theorem dynkinD_adj_inr_inr (m : ℕ) (k l : Fin 3) :
+    (dynkinD m).Adj (Sum.inr k) (Sum.inr l) = false := by
+  simp [dynkinD, ofRel_adj]
+
+theorem dynkinD_mulVec_inl (m : ℕ) (v : (dynkinD m).V → ℝ) (i : Fin (m + 1)) :
+    ((dynkinD m).adjMat *ᵥ v) (Sum.inl i)
+      = ((∑ j : Fin (m + 1), if i.1 + 1 = j.1 then v (Sum.inl j) else 0)
+          + ∑ j : Fin (m + 1), (if j.1 + 1 = i.1 then v (Sum.inl j) else 0))
+        + ((if i.1 = 0 then v (Sum.inr 0) + v (Sum.inr 1) else 0)
+          + (if i.1 = m then v (Sum.inr 2) else 0)) := by
+  have hchain : ∀ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j)
+      = if i.1 + 1 = j.1 ∨ j.1 + 1 = i.1 then v (Sum.inl j) else 0 := by
+    intro j
+    rw [adjMat_apply]
+    by_cases h : i.1 + 1 = j.1 ∨ j.1 + 1 = i.1
+    · rw [if_pos ((dynkinD_adj_inl_inl m i j).2 h), if_pos h, one_mul]
+    · rw [if_neg fun hh ↦ h ((dynkinD_adj_inl_inl m i j).1 hh), if_neg h, zero_mul]
+  have hleaf : ∀ k : Fin 3, (dynkinD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k)
+      = if (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ k.1 = 2) then v (Sum.inr k) else 0 := by
+    intro k
+    rw [adjMat_apply]
+    by_cases h : (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ k.1 = 2)
+    · rw [if_pos ((dynkinD_adj_inl_inr m i k).2 h), if_pos h, one_mul]
+    · rw [if_neg fun hh ↦ h ((dynkinD_adj_inl_inr m i k).1 hh), if_neg h, zero_mul]
+  have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inl i)
+      = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j))
+        + ∑ k : Fin 3, (dynkinD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k) :=
+    Fintype.sum_sum_type (f := fun x ↦ (dynkinD m).adjMat (Sum.inl i) x * v x)
+  rw [hsplit]
+  simp only [hchain, hleaf]
+  rw [chain_split]
+  congr 1
+  rw [Fin.sum_univ_three]
+  by_cases h0 : i.1 = 0 <;> by_cases hm : i.1 = m <;> simp [h0, hm]
+  all_goals split_ifs <;> ring
+
+theorem dynkinD_mulVec_inr_le (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3) (hk : k.1 ≤ 1) :
+    ((dynkinD m).adjMat *ᵥ v) (Sum.inr k) = v (Sum.inl ⟨0, Nat.succ_pos m⟩) := by
+  have hchain : ∀ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j)
+      = if j = (⟨0, Nat.succ_pos m⟩ : Fin (m + 1)) then v (Sum.inl j) else 0 := by
+    intro j
+    rw [adjMat_apply]
+    by_cases hj : j.1 = 0
+    · rw [if_pos ((dynkinD_adj_inr_inl m k j).2 (Or.inl ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
+    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+      rcases (dynkinD_adj_inr_inl m k j).1 hh with h | h
+      · exact hj h.1
+      · omega
+  have hleaf : ∀ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
+    intro l
+    rw [adjMat_apply, if_neg (by rw [dynkinD_adj_inr_inr]; simp), zero_mul]
+  have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inr k)
+      = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
+        + ∑ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
+    Fintype.sum_sum_type (f := fun x ↦ (dynkinD m).adjMat (Sum.inr k) x * v x)
+  rw [hsplit]
+  simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
+    Finset.mem_univ, if_true]
+
+theorem dynkinD_mulVec_inr_two (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3) (hk : k.1 = 2) :
+    ((dynkinD m).adjMat *ᵥ v) (Sum.inr k) = v (Sum.inl ⟨m, Nat.lt_succ_self m⟩) := by
+  have hchain : ∀ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j)
+      = if j = (⟨m, Nat.lt_succ_self m⟩ : Fin (m + 1)) then v (Sum.inl j) else 0 := by
+    intro j
+    rw [adjMat_apply]
+    by_cases hj : j.1 = m
+    · rw [if_pos ((dynkinD_adj_inr_inl m k j).2 (Or.inr ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
+    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+      rcases (dynkinD_adj_inr_inl m k j).1 hh with h | h
+      · omega
+      · exact hj h.1
+  have hleaf : ∀ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
+    intro l
+    rw [adjMat_apply, if_neg (by rw [dynkinD_adj_inr_inr]; simp), zero_mul]
+  have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inr k)
+      = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
+        + ∑ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
+    Fintype.sum_sum_type (f := fun x ↦ (dynkinD m).adjMat (Sum.inr k) x * v x)
+  rw [hsplit]
+  simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
+    Finset.mem_univ, if_true]
+
+/-- The marks of `Dₘ₊₄`: `2` along the chain and `1` at the three pendant vertices. -/
+def marksDynkinD (m : ℕ) : (dynkinD m).V → ℝ := Sum.elim (fun _ ↦ 2) (fun _ ↦ 1)
+
+theorem marksDynkinD_pos (m : ℕ) (x : (dynkinD m).V) : 0 < marksDynkinD m x := by
+  rcases x with i | k <;> norm_num [marksDynkinD]
+
+theorem card_dynkinD (m : ℕ) : Fintype.card (dynkinD m).V = m + 4 := by
+  show Fintype.card (Fin (m + 1) ⊕ Fin 3) = m + 4
+  simp
+
+theorem mulVec_le_dynkinD (m : ℕ) (x : (dynkinD m).V) :
+    ((dynkinD m).adjMat *ᵥ marksDynkinD m) x ≤ 2 * marksDynkinD m x := by
+  rcases x with i | k
+  · rw [dynkinD_mulVec_inl]
+    have hi : i.1 ≤ m := Nat.lt_succ_iff.1 i.isLt
+    rcases Nat.eq_or_lt_of_le hi with hm | hm
+    · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
+      · rw [chain_up_last _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_pos hm]
+        norm_num [marksDynkinD]
+      · rw [chain_up_last _ _ hm, chain_down _ _ h0, if_neg (by omega), if_pos hm]
+        norm_num [marksDynkinD]
+    · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
+      · rw [chain_up _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_neg (by omega)]
+        norm_num [marksDynkinD]
+      · rw [chain_up _ _ hm, chain_down _ _ h0, if_neg (by omega), if_neg (by omega)]
+        norm_num [marksDynkinD]
+  · rcases Nat.lt_or_ge k.1 2 with hk | hk
+    · rw [dynkinD_mulVec_inr_le _ _ _ (by omega)]
+      norm_num [marksDynkinD]
+    · rw [dynkinD_mulVec_inr_two _ _ _ (by omega)]
+      norm_num [marksDynkinD]
+
+
+
+set_option maxHeartbeats 1000000 in
+/-- **`2` is not an eigenvalue of `Dₙ`.**  An eigenvector for `2` is forced to be constant along
+the chain by the recurrence `c(t-1) + c(t+1) = 2 c t` together with the boundary condition at the
+forked end; the single pendant vertex at the other end then forces that constant to vanish. -/
+theorem two_notMem_spectrum_dynkinD (m : ℕ) : (2 : ℝ) ∉ (dynkinD m).spectrum := by
+  intro hx
+  obtain ⟨v, hv0, hv⟩ := (mem_spectrum_iff _ _).1 hx
+  obtain ⟨C, hC⟩ : ∃ C : ℕ → ℝ, ∀ j : Fin (m + 1), v (Sum.inl j) = C j.1 :=
+    ⟨fun t ↦ v (Sum.inl ⟨min t m, Nat.lt_succ_of_le (min_le_right t m)⟩), fun j ↦ by
+      simp only [min_eq_left (Nat.lt_succ_iff.1 j.isLt), Fin.eta]⟩
+  -- the three pendant vertices
+  have hp0 : C 0 = 2 * v (Sum.inr 0) := by
+    have e := congrFun hv (Sum.inr (0 : Fin 3))
+    rw [dynkinD_mulVec_inr_le m v 0 (by norm_num), hC] at e
+    simpa using e
+  have hp1 : C 0 = 2 * v (Sum.inr 1) := by
+    have e := congrFun hv (Sum.inr (1 : Fin 3))
+    rw [dynkinD_mulVec_inr_le m v 1 (by norm_num), hC] at e
+    simpa using e
+  have hp2 : C m = 2 * v (Sum.inr 2) := by
+    have e := congrFun hv (Sum.inr (2 : Fin 3))
+    rw [dynkinD_mulVec_inr_two m v 2 (by norm_num), hC] at e
+    simpa using e
+  -- the chain equations
+  have hzero : 0 < m → C 1 + (v (Sum.inr 0) + v (Sum.inr 1)) = 2 * C 0 := by
+    intro h
+    have e := congrFun hv (Sum.inl (⟨0, Nat.succ_pos m⟩ : Fin (m + 1)))
+    rw [dynkinD_mulVec_inl, chain_up _ _ (by simpa using h), chain_down_zero _ _ (by simp),
+      if_pos (by simp), if_neg (by simp; omega), Pi.smul_apply, smul_eq_mul, hC, hC] at e
+    simpa using e
+  have hlast : 0 < m → C (m - 1) + v (Sum.inr 2) = 2 * C m := by
+    intro h
+    have e := congrFun hv (Sum.inl (⟨m, Nat.lt_succ_self m⟩ : Fin (m + 1)))
+    rw [dynkinD_mulVec_inl, chain_up_last _ _ (by simp), chain_down _ _ (by simpa using h),
+      if_neg (by simp; omega), if_pos (by simp), Pi.smul_apply, smul_eq_mul, hC, hC] at e
+    simpa using e
+  have hint : ∀ t : ℕ, t + 1 < m → C (t + 1 + 1) + C t = 2 * C (t + 1) := by
+    intro t ht
+    have e := congrFun hv (Sum.inl (⟨t + 1, by omega⟩ : Fin (m + 1)))
+    rw [dynkinD_mulVec_inl, chain_up _ _ (by simpa using ht), chain_down _ _ (by simp),
+      if_neg (by simp), if_neg (by simp; omega), Pi.smul_apply, smul_eq_mul, hC, hC, hC] at e
+    simpa using e
+  have hsingle : m = 0 → v (Sum.inr 0) + v (Sum.inr 1) + v (Sum.inr 2) = 2 * C 0 := by
+    intro h
+    have e := congrFun hv (Sum.inl (⟨0, Nat.succ_pos m⟩ : Fin (m + 1)))
+    rw [dynkinD_mulVec_inl, chain_up_last _ _ (by simp [h]), chain_down_zero _ _ (by simp),
+      if_pos (by simp), if_pos (by simp [h]), Pi.smul_apply, smul_eq_mul, hC] at e
+    simpa using e
+  -- the chain is constant
+  have key : ∀ t : ℕ, t < m → C t = C 0 ∧ C (t + 1) = C 0 := by
+    intro t
+    induction t with
+    | zero =>
+      intro h
+      refine ⟨rfl, ?_⟩
+      simp only [Nat.zero_add]
+      have h1 := hzero h
+      linarith
+    | succ s ih =>
+      intro h
+      obtain ⟨h1, h2⟩ := ih (by omega)
+      refine ⟨h2, ?_⟩
+      have h3 := hint s (by omega)
+      linarith
+  have hall : ∀ t : ℕ, t ≤ m → C t = C 0 := by
+    intro t ht
+    rcases Nat.lt_or_ge t m with h | h
+    · exact (key t h).1
+    · have htm : t = m := le_antisymm ht h
+      subst htm
+      rcases Nat.eq_zero_or_pos t with h0 | h0
+      · rw [h0]
+      · have h1 := (key (t - 1) (by omega)).2
+        rwa [Nat.sub_add_cancel h0] at h1
+  have hC0 : C 0 = 0 := by
+    rcases Nat.eq_zero_or_pos m with hm | hm
+    · subst hm
+      have h := hsingle rfl
+      linarith
+    · have h := hlast hm
+      have h1 := hall m le_rfl
+      have h2 := hall (m - 1) (by omega)
+      linarith
+  refine hv0 (funext fun x ↦ ?_)
+  have e0 : v (Sum.inr (0 : Fin 3)) = 0 := by linarith
+  have e1 : v (Sum.inr (1 : Fin 3)) = 0 := by linarith
+  have e2 : v (Sum.inr (2 : Fin 3)) = 0 := by
+    have h1 := hall m le_rfl
+    linarith
+  rcases x with j | k
+  · show v (Sum.inl j) = 0
+    rw [hC, hall j.1 (Nat.lt_succ_iff.1 j.isLt), hC0]
+  · show v (Sum.inr k) = 0
+    fin_cases k
+    · exact e0
+    · exact e1
+    · exact e2
+
+
+
+theorem lt_two_of_mem_spectrum_dynkinD (m : ℕ) {x : ℝ} (hx : x ∈ (dynkinD m).spectrum) : x < 2 :=
+  lt_of_le_of_ne (spectrum_le_of_mulVec_le (marksDynkinD_pos m) (mulVec_le_dynkinD m) hx)
+    (fun h ↦ two_notMem_spectrum_dynkinD m (h ▸ hx))
+
+/-- **Every Dynkin diagram `Dₙ` is subcritical.** -/
+theorem isSubcritical_dynkinD (m : ℕ) : IsSubcritical (dynkinD m) :=
+  fun _ hx ↦ lt_two_of_mem_spectrum_dynkinD m hx
+
+/-- `D₄` in the parametric family is the claw. -/
+theorem dynkinD_zero_iso : Nonempty (dynkinD 0 ≃cg dynkinD4) :=
+  ⟨isoOfAdj (finSumFinEquiv : Fin 1 ⊕ Fin 3 ≃ Fin 4) (by decide)⟩
+
+/-- `D̃₄` in the parametric family is the star with four edges. -/
+theorem affineD_zero_iso : Nonempty (affineD 0 ≃cg affineD4) :=
+  ⟨isoOfAdj (finSumFinEquiv : Fin 1 ⊕ Fin 4 ≃ Fin 5) (by decide)⟩
 
 end CGraph
 
