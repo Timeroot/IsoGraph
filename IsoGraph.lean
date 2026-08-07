@@ -10,3 +10,4 @@ import IsoGraph.CliqueSum
 import IsoGraph.NamedSmallGraphs
 import IsoGraph.SRG
 import IsoGraph.NamedGraphs
+import IsoGraph.Spectrum

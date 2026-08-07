@@ -45,6 +45,7 @@ index modules that import their directory.
 | `IsoGraph/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
 | `IsoGraph/SRG.lean` | a table of strongly regular graphs, parameters checked | yes |
 | `IsoGraph/NamedGraphs.lean` | the cubic cages, generalized Petersen graphs, and other named graphs | yes |
+| `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
@@ -3949,6 +3950,105 @@ Petersen graph, `gp 4 1` the cube, `gp 6 1` the hexagonal prism, and the Möbius
 Desargues, dodecahedron and Nauru graphs all have LCF codes as well as `GP` descriptions.
 Minimality — what makes a cage a cage — is a statement about all graphs of a given order, so it
 stays out of reach; what is proved is that each graph has the degree, girth and order claimed.
+
+## Spectral graph theory
+
+`Spectrum.lean` is the adjacency spectrum. `CGraph.adjMat` is the adjacency matrix over `ℝ`, it
+is symmetric, so `CGraph.charpoly` splits and `CGraph.spectrum` — the multiset of its roots — has
+exactly `V` entries. Both are isomorphism invariants and both are lifted to `IsoGraph` at the
+bottom of the file, along with `Cospectral`, `IsDS`, and the spectra below.
+
+| graph | spectrum |
+|-------|----------|
+| `empty n` | `0` with multiplicity `n` |
+| `complete n` | `n - 1` once, `-1` with multiplicity `n - 1` |
+| `path n` | `2 cos (π (m + 1) / (n + 1))`, `m < n` |
+| `cycle n` | `2 cos (2 π m / n)`, `m < n` |
+
+The two closed forms are the only analytic work in the file, and they are done two different
+ways. The path is done by exhibiting eigenvectors: `sin (π (m + 1) (i + 1) / (n + 1))` is one,
+the eigenvalue equation being the product-to-sum identity `sin a * 2 cos t = sin (a - t) + sin (a
++ t)`, with the two boundary terms vanishing because `sin 0 = sin π = 0`. Since `cos` is
+injective on `[0, π]` the `n` values are distinct, and `spectrum_eq_of_card_le` — `V` distinct
+eigenvalues *are* the whole spectrum — closes it without any multiplicity argument. The cycle
+cannot be done that way, because its eigenvalues come in coincident pairs. It is instead
+diagonalised outright: the adjacency matrix is the circulant `P + P⁻¹`, so conjugating by the
+discrete Fourier matrix built from `cycZeta n = exp (2 π i / n)` makes it diagonal over `ℂ`, and
+`charpoly_cycle` transfers the resulting factorisation back to `ℝ[X]`.
+
+The constructions behave as expected. Disjoint union concatenates spectra, because `adjMat` is
+block diagonal; the tensor product multiplies them pairwise, because `adjMat` is a Kronecker
+product (`adjMat_tensorProduct`) and both factors can be diagonalised at once
+(`exists_conj_diagonal`). The complement gets only the eigenvector statement: `Gᶜ`'s adjacency
+matrix is `J - I - A`, so an eigenvector orthogonal to the all-ones vector survives with `x`
+replaced by `-1 - x`. That is enough to determine the spectrum of a regular graph, where the
+all-ones vector is itself an eigenvector, but the full multiset for an arbitrary complement needs
+simultaneous diagonalisation with `J` and is not proved.
+
+Two moments of the spectrum are available: `sum_spectrum` — the trace of `A` is zero — and
+`sum_sq_spectrum`, the trace of `A²` is `2 E`, which is `∑ deg` rearranged. They are what make
+cospectrality useful. `Cospectral G H` is equality of characteristic polynomials; it follows from
+isomorphism and implies equality of `V` and of `E`. `IsDS G`, *determined by its spectrum*, is
+the converse for a fixed `G`, and it holds for two families:
+
+```lean
+theorem isDS_empty (n : ℕ) : IsDS (empty n)
+theorem isDS_complete (n : ℕ) : IsDS (complete n)
+```
+
+The complete case is the interesting one: from `spectrum_complete` a cospectral `H` has
+`∑ deg = m² + m` on `m + 1` vertices, every degree is at most `m`, and `Finset.sum_lt_sum` says a
+single deficient vertex would break the total — so every degree is `m`, every neighbourhood is
+`univ.erase x` by `Finset.eq_of_subset_of_card_le`, and `H` is complete.
+
+For a strongly regular graph the identity `A² = k I + ℓ A + μ (J - I - A)`, read off on an
+eigenvector orthogonal to the all-ones vector, says every eigenvalue other than `k` satisfies
+`x² = (ℓ - μ) x + (k - μ)`:
+
+```lean
+theorem eigenvalue_eq_of_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ}
+    (h : G.IsSRGWith n k l m) {x : ℝ} (hev : G.IsEigenvalue x) :
+    x = k ∨ x = (((l : ℝ) - m) + Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2
+      ∨ x = (((l : ℝ) - m) - Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2
+```
+
+so the twenty-eight graphs of `SRG.lean` all have three-element spectra with known values.
+
+### Smith's family and ADE
+
+`IsSmith G` says the largest eigenvalue of `G` is exactly `2`; `IsSubcritical G` says every
+eigenvalue is strictly below it. Smith's theorem classifies the connected graphs of each kind,
+and the answer is the simply-laced ADE classification: subcritical means a Dynkin diagram
+`Aₙ Dₙ E₆ E₇ E₈`, critical means an affine one `Ãₙ D̃ₙ Ẽ₆ Ẽ₇ Ẽ₈`. The classification itself — that
+the list is complete — is not formalised. Every diagram on it that is not already a path or a
+cycle is, together with the two families that are: `isSubcritical_path` is `Aₙ` and
+`isSmith_cycle` is `Ãₙ`.
+
+One lemma does all of it:
+
+```lean
+theorem le_of_mulVec_le {G : CGraph} {c : ℝ} {w : G.V → ℝ} (hw : ∀ i, 0 < w i)
+    (hle : ∀ i, (G.adjMat *ᵥ w) i ≤ c * w i) {x : ℝ} (hx : G.IsEigenvalue x) : x ≤ c
+```
+
+— a strictly positive subeigenvector bounds the whole spectrum. The proof is the usual one: pick
+the vertex `p` maximising `u i / w i` for the eigenvector `u` (after replacing `u` by `-u` if
+need be, so that the maximum is positive) and compare `x u p = ∑ A p j u j` against `t A w p`,
+where `t` is the maximal ratio; the adjacency matrix being nonnegative is what makes the
+comparison go through. The `w` to use is the diagram's list of *marks*, `![6, 3, 4, 2, 5, 4, 3,
+2, 1]` for `Ẽ₈` and so on. For an affine diagram the marks satisfy `A w = 2 w` exactly — they are
+the Perron eigenvector — which gives both the bound and, through
+`mem_spectrum_of_mulVec_eq`, membership; for the finite diagram inside it the same vector gives
+`A w ≤ 2 w` with slack. Strictness there comes separately, from
+
+```lean
+theorem two_notMem_spectrum_dynkinE8 : (2 : ℝ) ∉ dynkinE8.spectrum
+```
+
+which is just `linarith` on the eight component equations of `A v = 2 v` forcing `v = 0` — the
+nonsingularity of the Cartan matrix, spelled out. `IsDS` for the path and the cycle would need
+the converse direction of Smith's theorem and is left open, as are the parametric `Dₙ` and `D̃ₙ`
+for `n > 4`.
 
 ## Transitivity and clique sums
 
