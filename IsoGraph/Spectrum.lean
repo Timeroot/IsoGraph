@@ -118,11 +118,13 @@ and it becomes `diagonal (p ∘ λ)` — so `A ᵏ` is a combination of the lowe
 exactly `k`, which `exists_dist_eq` produces by cutting a shortest walk: the walk counts of
 `adjMat_pow_apply` make the top term positive and every lower term zero.
 
-## Three distinct eigenvalues
+## Few distinct eigenvalues
 
-The smallest interesting case of that count is the converse of the strongly regular story.  A
-connected graph with one distinct eigenvalue is a point, with two it is complete, and with three
-`exists_isSRGWith_of_card_toFinset_spectrum_eq_three` says a regular one is strongly regular.
+Counting the distinct eigenvalues from the bottom is the converse of the strongly regular story.
+One means a single vertex; two means complete, `card_toFinset_spectrum_eq_two_iff`, since the same
+argument makes `A - r` a constant matrix and the vanishing diagonal then pins the constant to `1`;
+and with three `exists_isSRGWith_of_card_toFinset_spectrum_eq_three` says a connected regular
+graph is strongly regular.
 Factor `minSpecPoly` as `(X - k) (X - r) (X - s)` — the degree is an eigenvalue, so it is one of
 the three — and `aeval_minSpecPoly` turns that into `(A - k) (A - r) (A - s) = 0`.  Hence every
 column of `M = (A - r) (A - s)` is a `k`-eigenvector, and since a connected regular graph has `k`
@@ -4580,7 +4582,7 @@ theorem diameter_lt_card_toFinset_spectrum (G : CGraph) [Nonempty G.V] :
   rw [diameter, ← huv]
   exact G.dist_lt_card_toFinset_spectrum u v
 
-/-! ## Three distinct eigenvalues means strongly regular -/
+/-! ## Few distinct eigenvalues -/
 
 /-- The annihilation of `sum_coeff_smul_adjMat_pow`, packaged as an evaluation of `minSpecPoly`
 in the matrix algebra.  This is the form in which the polynomial can be factored. -/
@@ -4630,6 +4632,67 @@ theorem exists_forall_eq_of_mul_eq_smul {G : CGraph} {k : ℕ} (hconn : G.IsConn
   refine ⟨a (Classical.arbitrary G.V), fun i j ↦ ?_⟩
   rw [ha j i, ← ha j (Classical.arbitrary G.V), hsymm _ j]
   exact ha (Classical.arbitrary G.V) j
+
+/-- **A connected regular graph with two distinct eigenvalues is complete.**  With the spectrum
+`{k, r}` the matrix `M = A - r` is a constant `t J` by the same argument, and the vanishing
+diagonal of `A` gives `r = -t`.  So every off-diagonal entry of `A` equals `t`, which is `0` or
+`1`; and `t = 0` would make `A` the zero matrix, forcing `k = 0 = r`. -/
+theorem adj_of_card_toFinset_spectrum_eq_two {G : CGraph} {k : ℕ} (hconn : G.IsConnected)
+    (hreg : G.IsRegularWith k) (h2 : G.spectrum.toFinset.card = 2) (i j : G.V) (hij : i ≠ j) :
+    G.Adj i j = true := by
+  haveI : Nonempty G.V := hconn.nonempty
+  obtain ⟨a, b, hab, hset⟩ := Finset.card_eq_two.1 h2
+  have hk : (k : ℝ) ∈ G.spectrum.toFinset := by
+    simpa using mem_spectrum_of_isRegularWith hreg
+  rw [hset] at hk
+  simp only [Finset.mem_insert, Finset.mem_singleton] at hk
+  obtain ⟨r, hkr, hspec⟩ : ∃ r : ℝ, (k : ℝ) ≠ r ∧ G.spectrum.toFinset = {(k : ℝ), r} := by
+    rcases hk with rfl | rfl
+    · exact ⟨b, hab, hset⟩
+    · exact ⟨a, hab.symm, by rw [hset]; exact Finset.pair_comm _ _⟩
+  have hpoly : G.minSpecPoly = (X - C (k : ℝ)) * (X - C r) := by
+    rw [minSpecPoly, hspec, Finset.prod_insert (by simp [hkr]), Finset.prod_singleton]
+  have hann : (G.adjMat - (k : ℝ) • 1) * (G.adjMat - r • 1) = 0 := by
+    have h1 := G.aeval_minSpecPoly
+    rw [hpoly] at h1
+    simp only [map_mul, map_sub, aeval_X, aeval_C, Algebra.algebraMap_eq_smul_one] at h1
+    exact h1
+  set M : Matrix G.V G.V ℝ := G.adjMat - r • 1 with hMdef
+  have hAM : G.adjMat * M = (k : ℝ) • M := by
+    rw [sub_mul, smul_mul_assoc, one_mul, sub_eq_zero] at hann
+    exact hann
+  have hsymm : ∀ x y, M x y = M y x := by
+    intro x y
+    rw [hMdef]
+    simp only [Matrix.sub_apply, Matrix.smul_apply, smul_eq_mul, adjMat_symm G x y,
+      Matrix.one_apply, eq_comm (a := x) (b := y)]
+  obtain ⟨t, ht⟩ := exists_forall_eq_of_mul_eq_smul hconn hreg hsymm hAM
+  have hoff : ∀ x y : G.V, x ≠ y → G.adjMat x y = t := by
+    intro x y hxy
+    have h1 := ht x y
+    rw [hMdef] at h1
+    simpa [Matrix.one_apply_ne hxy] using h1
+  have hdiag : -r = t := by
+    have h1 := ht i i
+    rw [hMdef] at h1
+    simpa [adjMat_apply, G.adj_self] using h1
+  rcases eq_or_ne t 0 with h0 | h0
+  · exfalso
+    have hA : G.adjMat = 0 := by
+      ext x y
+      rcases eq_or_ne x y with rfl | hxy
+      · simp [adjMat_apply, G.adj_self]
+      · rw [hoff x y hxy, h0, Matrix.zero_apply]
+    have hk0 : (k : ℝ) = 0 := by
+      have h1 : G.adjMat *ᵥ (1 : G.V → ℝ) = (k : ℝ) • 1 :=
+        (hasEigenvector_one_of_isRegularWith hreg).2
+      rw [hA] at h1
+      simpa using (congrFun h1 (Classical.arbitrary G.V)).symm
+    exact hkr (by rw [hk0]; linarith [hdiag.trans h0])
+  · by_contra hn
+    have h1 := hoff i j hij
+    rw [adjMat_apply, if_neg hn] at h1
+    exact h0 h1.symm
 
 /-- **A connected regular graph with three distinct eigenvalues is strongly regular.**  Writing
 the spectrum as `{k, r, s}`, the minimal polynomial gives `(A - k) (A - r) (A - s) = 0`, so every
@@ -4952,5 +5015,40 @@ theorem diameter_lt_card_toFinset_spectrum (G : IsoGraph) (hG : 0 < G.V) :
   | h g =>
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
     exact g.diameter_lt_card_toFinset_spectrum
+
+/-! ### Few distinct eigenvalues -/
+
+@[simp] theorem card_toFinset_spectrum_complete (n : ℕ) :
+    (complete (n + 2)).spectrum.toFinset.card = 2 := by
+  have hne : ((n + 1 : ℕ) : ℝ) ≠ -1 := by
+    intro h
+    have h0 : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+    push_cast at h
+    linarith
+  have hset : (complete (n + 2)).spectrum.toFinset = {((n + 1 : ℕ) : ℝ), -1} := by
+    rw [show n + 2 = (n + 1) + 1 from rfl, spectrum_complete (n + 1)]
+    ext x
+    rw [Multiset.toFinset_cons, Finset.mem_insert, Multiset.mem_toFinset, Multiset.mem_replicate]
+    simp
+  rw [hset]
+  exact Finset.card_pair hne
+
+/-- **A connected regular graph with two distinct eigenvalues is complete.** -/
+theorem eq_complete_of_card_toFinset_spectrum_eq_two {G : IsoGraph} {k : ℕ}
+    (hconn : G.IsConnected) (hreg : G.IsRegularWith k)
+    (h2 : G.spectrum.toFinset.card = 2) : G = complete G.V := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    exact mk_eq_complete fun x y hxy ↦
+      CGraph.adj_of_card_toFinset_spectrum_eq_two hconn hreg h2 x y hxy
+
+/-- **Two distinct eigenvalues characterises the complete graphs** among the connected regular
+graphs on at least two vertices. -/
+theorem card_toFinset_spectrum_eq_two_iff {G : IsoGraph} {k : ℕ} (hconn : G.IsConnected)
+    (hreg : G.IsRegularWith k) (hV : 2 ≤ G.V) :
+    G.spectrum.toFinset.card = 2 ↔ G = complete G.V := by
+  refine ⟨eq_complete_of_card_toFinset_spectrum_eq_two hconn hreg, fun h ↦ ?_⟩
+  obtain ⟨n, hn⟩ : ∃ n, G.V = n + 2 := ⟨G.V - 2, by omega⟩
+  rw [h, hn, card_toFinset_spectrum_complete]
 
 end IsoGraph

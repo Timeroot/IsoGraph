@@ -4259,8 +4259,15 @@ eigenvalues `2 cos(jπ/(n+1))` and diameter `n - 1`.
 
 Counting distinct eigenvalues from the bottom is just as informative. One means a single vertex,
 two means a complete graph, and three — for a connected regular graph — means strongly regular.
-That is the converse of `spectrum_isSRGWith`, so the two together say that strong regularity of a
-connected regular graph *is* the condition "three distinct eigenvalues".
+
+```lean
+theorem card_toFinset_spectrum_eq_two_iff {G : IsoGraph} {k : ℕ} (hconn : G.IsConnected)
+    (hreg : G.IsRegularWith k) (hV : 2 ≤ G.V) :
+    G.spectrum.toFinset.card = 2 ↔ G = complete G.V
+```
+
+The three-eigenvalue case is the converse of `spectrum_isSRGWith`, so the two together say that
+strong regularity of a connected regular graph *is* the condition "three distinct eigenvalues".
 
 ```lean
 theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : ℕ}
@@ -4287,6 +4294,12 @@ which is `t + r + s` on the edges and `t` off them. Those are the `ℓ` and `μ`
 They come out of the argument as *reals*, so the statement is an existential over natural
 numbers: the proof picks one adjacent pair and one non-adjacent pair and transfers their counts
 to all the others, falling back on `0` when no such pair exists.
+
+The two-eigenvalue case is the same argument one degree down. With spectrum `{k, r}` the matrix
+`M = A - r` is constant, `M = t J`, and the diagonal of `A` is zero, so `r = -t`; every
+off-diagonal entry of `A` is then `t`, which has to be `0` or `1`. If it were `0` the adjacency
+matrix would vanish, making `k = 0 = r` and collapsing the two eigenvalues into one — so it is
+`1`, and the graph is complete.
 
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
