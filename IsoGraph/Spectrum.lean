@@ -70,10 +70,12 @@ roots `((ℓ - μ) ± √((ℓ - μ) ^ 2 + 4 (k - μ))) / 2`.
 ## The Smith family and ADE
 
 `IsSmith G` says `2` is the largest eigenvalue of `G` and `IsSubcritical G` says every eigenvalue
-is below `2`.  Smith's theorem classifies the connected graphs of each kind: the subcritical ones
-are the simply-laced Dynkin diagrams `Aₙ Dₙ E₆ E₇ E₈`, and the critical ones are their affine
-extensions `Ãₙ D̃ₙ Ẽ₆ Ẽ₇ Ẽ₈`.  The classification itself is not formalised, but every diagram in
-it is: `isSubcritical_path` (`Aₙ`), `isSmith_cycle` (`Ãₙ`), the parametric families
+is below `2`; `lambdaMax`, the largest eigenvalue of a nonempty graph, restates both as
+`isSmith_iff_lambdaMax` and `isSubcritical_iff_lambdaMax`.  Smith's theorem classifies the
+connected graphs of each kind: the subcritical ones are the simply-laced Dynkin diagrams
+`Aₙ Dₙ E₆ E₇ E₈`, and the critical ones are their affine extensions `Ãₙ D̃ₙ Ẽ₆ Ẽ₇ Ẽ₈`.  The
+classification itself is not formalised, but every diagram in it is: `isSubcritical_path`
+(`Aₙ`), `isSmith_cycle` (`Ãₙ`), the parametric families
 `isSubcritical_dynkinD` and `isSmith_affineD` (`Dₙ` and `D̃ₙ` for every `n ≥ 4`), and the six
 exceptional diagrams `dynkinE6`, `dynkinE7`, `dynkinE8` with their affine versions.
 
@@ -1272,6 +1274,68 @@ theorem mem_spectrum_of_mulVec_eq {G : CGraph} [Nonempty G.V] {c : ℝ} {w : G.V
   (mem_spectrum_iff G c).2 ⟨w, fun h0 ↦ (hw (Classical.arbitrary G.V)).ne'
     (congrFun h0 (Classical.arbitrary G.V)), h⟩
 
+/-! ### The largest eigenvalue -/
+
+/-- The largest eigenvalue of a nonempty graph. -/
+noncomputable def lambdaMax (G : CGraph) [Nonempty G.V] : ℝ :=
+  Finset.univ.sup' Finset.univ_nonempty G.eigenvalues
+
+theorem lambdaMax_mem_spectrum (G : CGraph) [Nonempty G.V] : G.lambdaMax ∈ G.spectrum := by
+  obtain ⟨i, -, hi⟩ := Finset.exists_mem_eq_sup' (Finset.univ_nonempty (α := G.V)) G.eigenvalues
+  rw [spectrum_eq_map, Multiset.mem_map]
+  exact ⟨i, Finset.mem_univ_val i, hi.symm⟩
+
+theorem le_lambdaMax {G : CGraph} [Nonempty G.V] {x : ℝ} (hx : x ∈ G.spectrum) :
+    x ≤ G.lambdaMax := by
+  rw [spectrum_eq_map, Multiset.mem_map] at hx
+  obtain ⟨i, -, rfl⟩ := hx
+  exact Finset.le_sup' _ (Finset.mem_univ i)
+
+theorem lambdaMax_le_iff (G : CGraph) [Nonempty G.V] {c : ℝ} :
+    G.lambdaMax ≤ c ↔ ∀ x ∈ G.spectrum, x ≤ c :=
+  ⟨fun h _ hx ↦ (le_lambdaMax hx).trans h, fun h ↦ h _ (lambdaMax_mem_spectrum G)⟩
+
+theorem lambdaMax_lt_iff (G : CGraph) [Nonempty G.V] {c : ℝ} :
+    G.lambdaMax < c ↔ ∀ x ∈ G.spectrum, x < c :=
+  ⟨fun h _ hx ↦ lt_of_le_of_lt (le_lambdaMax hx) h, fun h ↦ h _ (lambdaMax_mem_spectrum G)⟩
+
+theorem lambdaMax_congr {G H : CGraph} [Nonempty G.V] [Nonempty H.V] (i : G ≃cg H) :
+    G.lambdaMax = H.lambdaMax :=
+  le_antisymm (le_lambdaMax (spectrum_congr i ▸ lambdaMax_mem_spectrum G))
+    (le_lambdaMax ((spectrum_congr i).symm ▸ lambdaMax_mem_spectrum H))
+
+theorem lambdaMax_le_of_mulVec_le {G : CGraph} [Nonempty G.V] {c : ℝ} {w : G.V → ℝ}
+    (hw : ∀ i, 0 < w i) (hle : ∀ i, (G.adjMat *ᵥ w) i ≤ c * w i) : G.lambdaMax ≤ c :=
+  (lambdaMax_le_iff G).2 fun _ hx ↦ spectrum_le_of_mulVec_le hw hle hx
+
+/-- The largest eigenvalue is nonnegative, because the eigenvalues sum to zero. -/
+theorem lambdaMax_nonneg (G : CGraph) [Nonempty G.V] : 0 ≤ G.lambdaMax := by
+  by_contra h
+  push_neg at h
+  have hsum : ∑ i, G.eigenvalues i = 0 := by
+    have hs := G.sum_spectrum
+    rwa [spectrum_eq_map, ← Finset.sum_eq_multiset_sum] at hs
+  have hlt : ∑ i, G.eigenvalues i < ∑ _i : G.V, (0 : ℝ) :=
+    Finset.sum_lt_sum_of_nonempty Finset.univ_nonempty fun i _ ↦
+      lt_of_le_of_lt (Finset.le_sup' _ (Finset.mem_univ i)) h
+  simp [hsum] at hlt
+
+/-- The all-ones vector bounds the largest eigenvalue by the maximum degree. -/
+theorem lambdaMax_le_maxDeg (G : CGraph) [Nonempty G.V] : G.lambdaMax ≤ (G.maxDeg : ℝ) := by
+  refine lambdaMax_le_of_mulVec_le (w := 1) (fun _ ↦ one_pos) fun i ↦ ?_
+  have hdeg : (G.adjMat *ᵥ (1 : G.V → ℝ)) i = (G.toSimple.degree i : ℝ) := by
+    simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
+  rw [hdeg, Pi.one_apply, mul_one]
+  exact_mod_cast G.toSimple.degree_le_maxDegree i
+
+/-- For a regular graph the largest eigenvalue is the degree. -/
+theorem lambdaMax_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ} (h : G.IsRegularWith k) :
+    G.lambdaMax = (k : ℝ) :=
+  le_antisymm
+    (lambdaMax_le_of_mulVec_le (w := 1) (fun _ ↦ one_pos) fun i ↦ by
+      rw [(hasEigenvector_one_of_isRegularWith h).2]; simp)
+    (le_lambdaMax (mem_spectrum_of_isRegularWith h))
+
 /-- **The eigenvalues of a path are all `< 2`.** -/
 theorem lt_two_of_mem_spectrum_path (n : ℕ) {x : ℝ} (hx : x ∈ (path n).spectrum) : x < 2 := by
   rw [spectrum_path, Multiset.mem_map] at hx
@@ -1315,6 +1379,15 @@ def IsSmith (G : CGraph) : Prop := (2 : ℝ) ∈ G.spectrum ∧ ∀ x ∈ G.spec
 
 /-- Every eigenvalue is `< 2`; for a connected graph this characterises the `ADE` diagrams. -/
 def IsSubcritical (G : CGraph) : Prop := ∀ x ∈ G.spectrum, x < 2
+
+/-- Smith's condition, as an equation on the largest eigenvalue. -/
+theorem isSmith_iff_lambdaMax (G : CGraph) [Nonempty G.V] : IsSmith G ↔ G.lambdaMax = 2 := by
+  refine ⟨fun ⟨h2, hle⟩ ↦ le_antisymm ((lambdaMax_le_iff G).2 hle) (le_lambdaMax h2),
+    fun h ↦ ⟨h ▸ lambdaMax_mem_spectrum G, fun x hx ↦ h ▸ le_lambdaMax hx⟩⟩
+
+theorem isSubcritical_iff_lambdaMax (G : CGraph) [Nonempty G.V] :
+    IsSubcritical G ↔ G.lambdaMax < 2 :=
+  (lambdaMax_lt_iff G).symm
 
 theorem isSubcritical_path (n : ℕ) : IsSubcritical (path n) :=
   fun _ hx ↦ lt_two_of_mem_spectrum_path n hx
