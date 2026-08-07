@@ -4064,7 +4064,9 @@ The largest eigenvalue has a name, `lambdaMax`, for nonempty graphs. It is a `Fi
 `lambdaMax_le_iff`/`lambdaMax_lt_iff` convert any statement about the whole spectrum into one
 about that single number — which is how `isSmith_iff_lambdaMax` and `isSubcritical_iff_lambdaMax`
 restate Smith's two conditions. It sits between `0` (the eigenvalues sum to zero) and `maxDeg`
-(the all-ones vector), with equality at the degree for a regular graph.
+(the all-ones vector), with equality at the degree for a regular graph. `lambdaMin` is the
+mirror image, an `inf'` with the same four lemmas, and it is where the line-graph bound lands:
+`-2 ≤ (lineGraph G).lambdaMin`.
 
 ### Smith's family and ADE
 

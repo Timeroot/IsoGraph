@@ -1336,6 +1336,49 @@ theorem lambdaMax_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ} (h : G.
       rw [(hasEigenvector_one_of_isRegularWith h).2]; simp)
     (le_lambdaMax (mem_spectrum_of_isRegularWith h))
 
+/-- The smallest eigenvalue of a nonempty graph. -/
+noncomputable def lambdaMin (G : CGraph) [Nonempty G.V] : ℝ :=
+  Finset.univ.inf' Finset.univ_nonempty G.eigenvalues
+
+theorem lambdaMin_mem_spectrum (G : CGraph) [Nonempty G.V] : G.lambdaMin ∈ G.spectrum := by
+  obtain ⟨i, -, hi⟩ := Finset.exists_mem_eq_inf' (Finset.univ_nonempty (α := G.V)) G.eigenvalues
+  rw [spectrum_eq_map, Multiset.mem_map]
+  exact ⟨i, Finset.mem_univ_val i, hi.symm⟩
+
+theorem lambdaMin_le {G : CGraph} [Nonempty G.V] {x : ℝ} (hx : x ∈ G.spectrum) :
+    G.lambdaMin ≤ x := by
+  rw [spectrum_eq_map, Multiset.mem_map] at hx
+  obtain ⟨i, -, rfl⟩ := hx
+  exact Finset.inf'_le _ (Finset.mem_univ i)
+
+theorem le_lambdaMin_iff (G : CGraph) [Nonempty G.V] {c : ℝ} :
+    c ≤ G.lambdaMin ↔ ∀ x ∈ G.spectrum, c ≤ x :=
+  ⟨fun h _ hx ↦ h.trans (lambdaMin_le hx), fun h ↦ h _ (lambdaMin_mem_spectrum G)⟩
+
+theorem lt_lambdaMin_iff (G : CGraph) [Nonempty G.V] {c : ℝ} :
+    c < G.lambdaMin ↔ ∀ x ∈ G.spectrum, c < x :=
+  ⟨fun h _ hx ↦ lt_of_lt_of_le h (lambdaMin_le hx), fun h ↦ h _ (lambdaMin_mem_spectrum G)⟩
+
+theorem lambdaMin_congr {G H : CGraph} [Nonempty G.V] [Nonempty H.V] (i : G ≃cg H) :
+    G.lambdaMin = H.lambdaMin :=
+  le_antisymm (lambdaMin_le ((spectrum_congr i).symm ▸ lambdaMin_mem_spectrum H))
+    (lambdaMin_le (spectrum_congr i ▸ lambdaMin_mem_spectrum G))
+
+theorem lambdaMin_le_lambdaMax (G : CGraph) [Nonempty G.V] : G.lambdaMin ≤ G.lambdaMax :=
+  lambdaMin_le (lambdaMax_mem_spectrum G)
+
+/-- The smallest eigenvalue is nonpositive, because the eigenvalues sum to zero. -/
+theorem lambdaMin_nonpos (G : CGraph) [Nonempty G.V] : G.lambdaMin ≤ 0 := by
+  by_contra h
+  push_neg at h
+  have hsum : ∑ i, G.eigenvalues i = 0 := by
+    have hs := G.sum_spectrum
+    rwa [spectrum_eq_map, ← Finset.sum_eq_multiset_sum] at hs
+  have hlt : ∑ _i : G.V, (0 : ℝ) < ∑ i, G.eigenvalues i :=
+    Finset.sum_lt_sum_of_nonempty Finset.univ_nonempty fun i _ ↦
+      lt_of_lt_of_le h (Finset.inf'_le _ (Finset.mem_univ i))
+  simp [hsum] at hlt
+
 /-- **The eigenvalues of a path are all `< 2`.** -/
 theorem lt_two_of_mem_spectrum_path (n : ℕ) {x : ℝ} (hx : x ∈ (path n).spectrum) : x < 2 := by
   rw [spectrum_path, Multiset.mem_map] at hx
@@ -2259,6 +2302,11 @@ theorem neg_two_mem_spectrum_lineGraph_complete {n : ℕ} (hn : 4 ≤ n) :
   refine neg_two_mem_spectrum_lineGraph _ ?_
   rw [E_complete]
   simpa using lt_choose_two hn
+
+/-- The line-graph bound, stated for the smallest eigenvalue. -/
+theorem neg_two_le_lambdaMin_lineGraph (G : CGraph) [DecidableEq G.V]
+    [Nonempty (lineGraph G).V] : -2 ≤ (lineGraph G).lambdaMin :=
+  (le_lambdaMin_iff _).2 fun _ hx ↦ neg_two_le_of_mem_spectrum_lineGraph G hx
 
 end CGraph
 
