@@ -3879,9 +3879,12 @@ generalized Petersen graphs `GP(n, k)` — and the rest are edge lists.
 | `durer`, `mobiusKantor`, `dodecahedron`, `desargues`, `nauru` | `GP(6,2)`, `GP(8,3)`, `GP(10,2)`, `GP(10,3)`, `GP(12,5)` |
 | `coxeter`, `wagner`, `chvatal` | girth-7 cubic graph on 28 vertices, `V₈`, the smallest triangle-free 4-regular 4-chromatic graph |
 | `icosahedron`, `tutte`, `moserSpindle`, `grotzsch` | Platonic solid, Tait's conjecture refuted, Hadwiger–Nelson, Mycielski |
-| `herschel`, `truncatedTetrahedron` | smallest non-Hamiltonian polyhedron, Archimedean solid |
+| `herschel` | the smallest non-Hamiltonian polyhedron |
+| `truncatedTetrahedron`, `cuboctahedron`, `truncatedCube`, `truncatedOctahedron`, `icosidodecahedron`, `truncatedIcosahedron` | six Archimedean solids: four truncations and two rectifications, the last being the football |
 | `tietze`, `bidiakisCube`, `dyck` | six mutually adjacent regions on the Möbius strip, a cube with two chorded faces, the cubic symmetric graph on 32 vertices |
-| `robertson`, `balaban10Cage` | the `(4,5)`-cage and a `(3,10)`-cage |
+| `robertson`, `balaban10Cage`, `balaban11Cage`, `tutte12Cage` | the `(4,5)`-cage, and the cubic cages of girth 10, 11 and 12 |
+| `harries`, `harriesWong` | the other two `(3,10)`-cages, told apart from `balaban10Cage` by `\|Aut\|` = 120, 24, 80 |
+| `gray`, `foster` | the smallest cubic semisymmetric graph, and the cubic distance-transitive graph on 90 vertices |
 
 For each graph the file records the order, the edge count, the degree, connectivity,
 bipartiteness, and the girth. Two certificates do the work that `Decidable` instances cannot:
@@ -3921,16 +3924,22 @@ theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
 `exists_cycle_of_cycleList` builds the cycle back up along the chain; everything else is a
 corollary. The upper bound is then a list literal — `girth_le_of_cycleList 0 [1, 2, 3, 4, 5, 18,
 17]` for `tutteCoxeter` — and the lower bound is an exhaustive search, packaged per length by
-`six_le_girth_of_nbrList`, `seven_le_girth_of_nbrList` and `eight_le_girth_of_nbrList`.
+`five_le_girth_of_nbrList` through `twelve_le_girth_of_nbrList`.
 
 That search has to be phrased carefully. As a nested `∀` over vertices the decision procedure
 enumerates the whole vertex type at every level, which is `30⁷` for the Tutte–Coxeter graph and
 never finishes; as `∀ b ∈ nb a` it walks only along edges, `30 · 3⁶`, but recomputing `nb` from
 the adjacency function costs about a millisecond a call. Precomputing the neighbour lists once,
 in a top-level `def` (`CGraph.nbrTable`), brings the Tutte–Coxeter search down to about two
-seconds, and every graph in the gallery now has its girth: 6 for `heawood`, `pappus`,
-`mobiusKantor`, `desargues`, `nauru` and `dyck`, 7 for `mcgee` and `coxeter`, 8 for
-`tutteCoxeter`, and 10 for `balaban10Cage`, which searches seventy vertices to depth nine.
+seconds. One more factor comes free: a walk with distinct vertices never steps back where it came
+from, so each level after the first searches `(nb c).erase b` rather than `nb c`, and a cubic
+graph branches two ways instead of three — `126 · 3 · 2¹⁰` rather than `126 · 3¹¹` for the Tutte
+12-cage, about ninety times fewer leaves.
+
+Every graph in the gallery now has its girth: 6 for `heawood`, `pappus`, `mobiusKantor`,
+`desargues`, `nauru` and `dyck`, 7 for `mcgee` and `coxeter`, 8 for `tutteCoxeter` and `gray`, 10
+for `balaban10Cage`, `harries`, `harriesWong` and `foster`, 11 for `balaban11Cage` and 12 for
+`tutte12Cage` — the last a search over 126 vertices to depth eleven.
 
 The constructions overlap, and the canonical key settles the coincidences: `gp 5 2` is the
 Petersen graph, `gp 4 1` the cube, `gp 6 1` the hexagonal prism, and the Möbius–Kantor,
