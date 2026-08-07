@@ -4285,7 +4285,9 @@ theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l 
 `card_toFinset_spectrum_eq_three_of_isSRGWith`. At most three, because every eigenvalue other
 than `k` is a root of `X² - (ℓ - μ)X - (k - μ)` and a quadratic has at most two roots; at least
 three, because the two vertices `i ≠ j` that are assumed non-adjacent sit at distance `2`, so the
-diameter bound above forces a third eigenvalue.
+diameter bound above forces a third eigenvalue. Read the other way round, that same pair of facts
+says a connected non-complete strongly regular graph has diameter exactly `2`
+(`diameter_of_isSRGWith`) — which is where the Moore graphs of the previous section came from.
 
 ```lean
 theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : ℕ}

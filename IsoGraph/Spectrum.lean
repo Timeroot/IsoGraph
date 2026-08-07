@@ -127,7 +127,8 @@ the vanishing diagonal then pins the constant to `1`;
 and with three `exists_isSRGWith_of_card_toFinset_spectrum_eq_three` says a connected regular
 graph is strongly regular.  The converse is `card_toFinset_spectrum_eq_three_of_isSRGWith`: at
 most three because every eigenvalue but the degree is a root of the same quadratic, at least three
-because a non-adjacent pair is at distance `2`.  Putting the two together,
+because a non-adjacent pair is at distance `2` — which also says its diameter is exactly `2`,
+`diameter_of_isSRGWith`.  Putting the two together,
 `Cospectral.exists_isSRGWith` says that **strong regularity is determined by the spectrum**.
 Factor `minSpecPoly` as `(X - k) (X - r) (X - s)` — the degree is an eigenvalue, so it is one of
 the three — and `aeval_minSpecPoly` turns that into `(A - k) (A - r) (A - s) = 0`.  Hence every
@@ -4859,6 +4860,22 @@ theorem card_toFinset_spectrum_eq_three_of_isSRGWith {G : CGraph} {n k l m : ℕ
   have h2 : 1 < G.toSimple.dist i j :=
     hconn.one_lt_dist_of_ne_of_not_adj hij (by simp [hnadj])
   have h3 := G.dist_lt_card_toFinset_spectrum i j
+  omega
+
+/-- **A connected strongly regular graph that is not complete has diameter `2`.**  It has three
+distinct eigenvalues, so its diameter is at most `2`; and the non-adjacent pair is at distance
+at least `2`. -/
+theorem diameter_of_isSRGWith {G : CGraph} {n k l m : ℕ} (hconn : G.IsConnected)
+    (h : G.IsSRGWith n k l m) {i j : G.V} (hij : i ≠ j) (hnadj : G.Adj i j = false) :
+    G.diameter = 2 := by
+  haveI : Nonempty G.V := ⟨i⟩
+  have h3 := card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hij hnadj
+  have hlt := G.diameter_lt_card_toFinset_spectrum
+  rw [h3] at hlt
+  have h2 : 1 < G.toSimple.dist i j :=
+    hconn.one_lt_dist_of_ne_of_not_adj hij (by simp [hnadj])
+  have hne : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hconn
+  have hle : G.toSimple.dist i j ≤ G.diameter := SimpleGraph.dist_le_diam hne
   omega
 
 /-- **Strong regularity is determined by the spectrum.**  A graph cospectral with a connected,
