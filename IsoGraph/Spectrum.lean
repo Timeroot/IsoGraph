@@ -108,6 +108,16 @@ and the ratio bound turns into Hoffman's bound on the chromatic number,
 `χ ≥ 1 - λ_max / λ_min`.  The Petersen graph is the standard illustration: it is triangle-free,
 so no clique forces its chromatic number, but `3 - (-2) ≤ χ · 2` already gives `χ ≥ 3`.
 
+## The diameter
+
+The spectrum bounds the diameter from above, `diameter_lt_card_toFinset_spectrum`: a graph with
+`k` *distinct* eigenvalues has diameter at most `k - 1`.  `minSpecPoly`, the product of `X - λ`
+over the distinct eigenvalues, annihilates the adjacency matrix — conjugate to the diagonal form
+and it becomes `diagonal (p ∘ λ)` — so `A ᵏ` is a combination of the lower powers
+(`sum_coeff_smul_adjMat_pow`).  Read that relation at the entry `(u, w)` for a pair at distance
+exactly `k`, which `exists_dist_eq` produces by cutting a shortest walk: the walk counts of
+`adjMat_pow_apply` make the top term positive and every lower term zero.
+
 ## Line graphs
 
 `transpose_mul_incMat` factors the line graph through the incidence matrix `incMat`, as
@@ -4417,6 +4427,144 @@ theorem Cospectral.isBipartite {G H : CGraph} (h : Cospectral G H) {k : ℕ}
   (isBipartite_iff_neg_mem_spectrum (h.isConnected hG hconn) (h.isRegularWith hG)).2
     (by rw [← h.spectrum_eq]; exact (isBipartite_iff_neg_mem_spectrum hconn hG).1 hbip)
 
+/-! ## The number of distinct eigenvalues bounds the diameter
+
+`minSpecPoly`, the product of `X - λ` over the *distinct* eigenvalues, annihilates the adjacency
+matrix: conjugating to the diagonal form turns `p (A)` into `diagonal (p ∘ λ)`, which is zero.
+So `A ᵏ` is a combination of the lower powers, where `k` is the number of distinct eigenvalues.
+Comparing the `(u, v)` entry with the walk counts of `adjMat_pow_apply` gives
+`dist_lt_card_toFinset_spectrum` and hence `diameter_lt_card_toFinset_spectrum`. -/
+
+/-- The monic polynomial whose roots are the **distinct** eigenvalues of `G`, each once.  It is
+the minimal polynomial of the adjacency matrix, though that is not proved here. -/
+noncomputable def minSpecPoly (G : CGraph) : ℝ[X] :=
+  ∏ x ∈ G.spectrum.toFinset, (X - C x)
+
+theorem monic_minSpecPoly (G : CGraph) : G.minSpecPoly.Monic :=
+  monic_prod_of_monic _ _ fun x _ ↦ monic_X_sub_C x
+
+@[simp] theorem natDegree_minSpecPoly (G : CGraph) :
+    G.minSpecPoly.natDegree = G.spectrum.toFinset.card := by
+  rw [minSpecPoly, natDegree_prod _ _ fun x _ ↦ X_sub_C_ne_zero x]
+  simp
+
+theorem eval_minSpecPoly_eigenvalues (G : CGraph) (i : G.V) :
+    G.minSpecPoly.eval (G.eigenvalues i) = 0 := by
+  rw [minSpecPoly, eval_prod]
+  refine Finset.prod_eq_zero (i := G.eigenvalues i) ?_ (by simp)
+  simpa using G.eigenvalues_mem_spectrum i
+
+/-- **The distinct eigenvalues annihilate the adjacency matrix.**  Written out, this says that
+`A ^ k` is a linear combination of `1, A, …, A ^ (k - 1)`, with `k` the number of distinct
+eigenvalues. -/
+theorem sum_coeff_smul_adjMat_pow (G : CGraph) :
+    ∑ i ∈ Finset.range (G.spectrum.toFinset.card + 1),
+      G.minSpecPoly.coeff i • G.adjMat ^ i = 0 := by
+  obtain ⟨P, Q, hPQ, hQP, h⟩ := exists_conj_diagonal G
+  set D : Matrix G.V G.V ℝ := Matrix.diagonal G.eigenvalues with hD
+  have hA : G.adjMat = P * D * Q := by
+    calc G.adjMat = G.adjMat * (P * Q) := by rw [hPQ, mul_one]
+      _ = G.adjMat * P * Q := by rw [mul_assoc]
+      _ = P * D * Q := by rw [h]
+  have hpow : ∀ m : ℕ, G.adjMat ^ m = P * D ^ m * Q := by
+    intro m
+    induction m with
+    | zero => simp [hPQ]
+    | succ m ih =>
+      rw [pow_succ, ih, hA, pow_succ]
+      calc P * D ^ m * Q * (P * D * Q) = P * D ^ m * (Q * P) * D * Q := by
+            simp only [mul_assoc]
+        _ = P * (D ^ m * D) * Q := by rw [hQP]; simp only [mul_assoc, mul_one]
+  have hsum : ∑ i ∈ Finset.range (G.spectrum.toFinset.card + 1),
+      G.minSpecPoly.coeff i • D ^ i = 0 := by
+    ext u v
+    rw [Matrix.sum_apply, Matrix.zero_apply]
+    by_cases huv : u = v
+    · subst huv
+      rw [Finset.sum_congr rfl fun i _ ↦
+        show (G.minSpecPoly.coeff i • D ^ i) u u = G.minSpecPoly.coeff i * G.eigenvalues u ^ i from
+          by simp [hD, Matrix.diagonal_pow, Matrix.diagonal_apply_eq],
+        ← G.natDegree_minSpecPoly, ← eval_eq_sum_range]
+      exact G.eval_minSpecPoly_eigenvalues u
+    · refine Finset.sum_eq_zero fun i _ ↦ ?_
+      simp [hD, Matrix.diagonal_pow, Matrix.diagonal_apply_ne _ huv]
+  calc ∑ i ∈ Finset.range (G.spectrum.toFinset.card + 1),
+        G.minSpecPoly.coeff i • G.adjMat ^ i
+      = P * (∑ i ∈ Finset.range (G.spectrum.toFinset.card + 1),
+          G.minSpecPoly.coeff i • D ^ i) * Q := by
+        rw [Finset.mul_sum, Finset.sum_mul]
+        refine Finset.sum_congr rfl fun i _ ↦ ?_
+        rw [hpow, Matrix.mul_smul, Matrix.smul_mul]
+    _ = 0 := by rw [hsum]; simp
+
+/-- Below the distance there are no walks at all. -/
+theorem adjMat_pow_apply_eq_zero_of_lt_dist (G : CGraph) {u v : G.V} {n : ℕ}
+    (h : n < G.toSimple.dist u v) : (G.adjMat ^ n) u v = 0 := by
+  rw [adjMat_pow_apply, Nat.cast_eq_zero, Fintype.card_eq_zero_iff]
+  refine ⟨fun w ↦ ?_⟩
+  exact absurd (w.2 ▸ SimpleGraph.dist_le w.1) (not_le.2 h)
+
+/-- At the distance there is one. -/
+theorem adjMat_pow_apply_pos_of_dist_eq (G : CGraph) {u v : G.V} {n : ℕ}
+    (hr : G.toSimple.Reachable u v) (h : G.toSimple.dist u v = n) :
+    0 < (G.adjMat ^ n) u v := by
+  obtain ⟨p, hp⟩ := hr.exists_walk_length_eq_dist
+  rw [adjMat_pow_apply, Nat.cast_pos, Fintype.card_pos_iff]
+  exact ⟨⟨p, hp.trans h⟩⟩
+
+/-- **Every distance below an attained one is attained**: cutting a shortest walk at its `i`-th
+vertex produces a vertex at distance exactly `i` from the start, because the two halves have
+lengths `i` and `d - i` and the triangle inequality leaves no slack. -/
+theorem exists_dist_eq (G : CGraph) {u v : G.V} {i : ℕ} (hi : i ≤ G.toSimple.dist u v) :
+    ∃ w : G.V, G.toSimple.dist u w = i := by
+  rcases Nat.eq_zero_or_pos (G.toSimple.dist u v) with h0 | h0
+  · exact ⟨u, by rw [SimpleGraph.dist_self]; omega⟩
+  have hr : G.toSimple.Reachable u v := SimpleGraph.Reachable.of_dist_ne_zero (by omega)
+  obtain ⟨p, hp⟩ := hr.exists_walk_length_eq_dist
+  refine ⟨p.getVert i, le_antisymm ?_ ?_⟩
+  · have := SimpleGraph.dist_le (p.take i)
+    simpa [hp, Nat.min_eq_left hi] using this
+  · have h1 := SimpleGraph.dist_le (p.drop i)
+    rw [SimpleGraph.Walk.drop_length, hp] at h1
+    have h2 : G.toSimple.Reachable (p.getVert i) v := (p.drop i).reachable
+    have h3 := h2.dist_triangle_right u
+    omega
+
+/-- **Two vertices are closer than the number of distinct eigenvalues.**  If `dist u w = k` then
+`(A ^ k) u w > 0` while `(A ^ i) u w = 0` for every `i < k`, so the annihilating relation
+`∑ i ≤ k, c i A ^ i = 0` reads `1 * (A ^ k) u w = 0` at the entry `(u, w)` — a contradiction. -/
+theorem dist_lt_card_toFinset_spectrum (G : CGraph) (u v : G.V) :
+    G.toSimple.dist u v < G.spectrum.toFinset.card := by
+  by_contra hcon
+  push_neg at hcon
+  obtain ⟨k, hk⟩ : ∃ k, G.spectrum.toFinset.card = k := ⟨_, rfl⟩
+  obtain ⟨w, hw⟩ := G.exists_dist_eq (u := u) (v := v) (i := k) (by omega)
+  have hk0 : 0 < k := by
+    rw [← hk]
+    exact Finset.card_pos.2 ⟨G.eigenvalues u, by simpa using G.eigenvalues_mem_spectrum u⟩
+  have hr : G.toSimple.Reachable u w := SimpleGraph.Reachable.of_dist_ne_zero (by omega)
+  have hzero : ∑ i ∈ Finset.range (k + 1), G.minSpecPoly.coeff i * (G.adjMat ^ i) u w = 0 := by
+    have h1 := G.sum_coeff_smul_adjMat_pow
+    rw [hk] at h1
+    have h2 := congrFun (congrFun h1 u) w
+    simpa only [Matrix.sum_apply, Matrix.smul_apply, smul_eq_mul, Matrix.zero_apply] using h2
+  rw [Finset.sum_range_succ, Finset.sum_eq_zero (fun i hi ↦ ?_), zero_add] at hzero
+  · have hcoeff : G.minSpecPoly.coeff k = 1 := by
+      have := G.monic_minSpecPoly.coeff_natDegree
+      rwa [G.natDegree_minSpecPoly, hk] at this
+    rw [hcoeff, one_mul] at hzero
+    exact absurd hzero (ne_of_gt (G.adjMat_pow_apply_pos_of_dist_eq hr hw))
+  · rw [Finset.mem_range] at hi
+    rw [G.adjMat_pow_apply_eq_zero_of_lt_dist (by omega), mul_zero]
+
+/-- **The number of distinct eigenvalues exceeds the diameter.** -/
+theorem diameter_lt_card_toFinset_spectrum (G : CGraph) [Nonempty G.V] :
+    G.diameter < G.spectrum.toFinset.card := by
+  classical
+  obtain ⟨u, v, huv⟩ := SimpleGraph.exists_dist_eq_diam (G := G.toSimple)
+  rw [diameter, ← huv]
+  exact G.dist_lt_card_toFinset_spectrum u v
+
 end CGraph
 
 namespace IsoGraph
@@ -4633,5 +4781,16 @@ theorem neg_two_le_of_mem_spectrum_lineGraph (G : IsoGraph) {x : ℝ} :
   refine Quotient.inductionOn G fun g hx ↦ ?_
   rw [lineGraph_mk, spectrum_mk] at hx
   exact CGraph.neg_two_le_of_mem_spectrum_lineGraph g hx
+
+/-! ### The diameter -/
+
+/-- **The number of distinct eigenvalues exceeds the diameter.** -/
+theorem diameter_lt_card_toFinset_spectrum (G : IsoGraph) (hG : 0 < G.V) :
+    G.diameter < G.spectrum.toFinset.card := by
+  classical
+  induction G using Quotient.inductionOn with
+  | h g =>
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
+    exact g.diameter_lt_card_toFinset_spectrum
 
 end IsoGraph

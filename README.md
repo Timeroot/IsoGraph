@@ -4237,6 +4237,26 @@ the first. The three small degrees are realised by the pentagon, the Petersen gr
 Hoffman–Singleton graph on `50` vertices; whether a `57`-regular Moore graph on `3250` vertices
 exists is open, which is why the sentence above says *search* rather than *construction*.
 
+A Moore graph of diameter `2` has exactly three distinct eigenvalues, and that is no coincidence:
+the number of *distinct* eigenvalues bounds the diameter.
+
+```lean
+theorem diameter_lt_card_toFinset_spectrum (G : CGraph) [Nonempty G.V] :
+    G.diameter < G.spectrum.toFinset.card
+```
+
+`minSpecPoly` is the product of `X - λ` over the distinct eigenvalues — the minimal polynomial of
+the adjacency matrix, though it is not called that here. It annihilates `A`: conjugating to the
+diagonal form turns `p(A)` into `diagonal (p ∘ λ)`, and every diagonal entry is a root. So `Aᵏ` is
+a linear combination of `1, A, …, Aᵏ⁻¹` (`sum_coeff_smul_adjMat_pow`), where `k` is the number of
+distinct eigenvalues. Now read that relation at a single entry. If some pair were at distance `k`
+or more, cutting a shortest walk at its `i`-th vertex gives a pair at distance exactly `k`
+(`exists_dist_eq` — the two halves have lengths `i` and `d - i`, so the triangle inequality leaves
+no slack), and at that entry `adjMat_pow_apply` makes the top term positive, since a shortest walk
+is a walk of length `k`, while every lower term is zero, there being no shorter walk at all. The
+monic leading coefficient then reads `0 < 0`. The path `Pₙ` shows the bound is tight: `n` distinct
+eigenvalues `2 cos(jπ/(n+1))` and diameter `n - 1`.
+
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
 
