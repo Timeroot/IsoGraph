@@ -4253,12 +4253,35 @@ theorem exists_smul_of_count_spectrum_eq_one {G : CGraph} {c : ℝ}
     (hv : G.adjMat *ᵥ v = c • v) : ∃ a : ℝ, v = a • u
 ```
 
-For a `k`-regular graph the degree is a simple eigenvalue exactly when the graph is connected. If
-it is, every eigenvector for `k` is constant (`eq_of_mulVec_eq_of_isRegularWith`) and two
-orthonormal vectors cannot both be constant, since `⟪c 1, d 1⟫ = c d n`. If it is not, pick two
-unreachable vertices: the indicator of the component of the first is again an eigenvector for `k`
-— inside the component every neighbour is in it, outside none is — and it is not a multiple of
-the all-ones vector. So
+For the *largest* eigenvalue of a connected graph the eigenspace is a line for free, by
+Perron–Frobenius. The adjacency matrix has nonnegative entries, so replacing `v` by `|v|` can only
+increase `⟪v, A v⟫` while leaving `⟪v, v⟫` alone; if `v` attained the maximum then so does `|v|`,
+and an attaining vector is an eigenvector:
+
+```lean
+theorem mulVec_abs_of_mulVec_eq_lambdaMax {G : CGraph} [Nonempty G.V] {v : G.V → ℝ}
+    (hv : G.adjMat *ᵥ v = G.lambdaMax • v) :
+    G.adjMat *ᵥ (fun x ↦ |v x|) = G.lambdaMax • fun x ↦ |v x|
+```
+
+A nonnegative eigenvector of a *connected* graph is everywhere positive: where it vanishes, the
+eigenvector equation reads `0 = ∑_{y ∼ x} w y`, a sum of nonnegative terms, so the zero spreads to
+every neighbour and along every walk (`pos_of_mulVec_eq_of_nonneg`). That produces the positive
+Perron vector `w` of `exists_pos_mulVec_eq_lambdaMax`, and it spans the top eigenspace: given any
+other eigenvector `u`, subtract the largest multiple `t w` that still fits under `u` — namely
+`t = min_x u x / w x` — and `u - t w` is a nonnegative eigenvector with a zero coordinate, hence
+zero (`exists_smul_of_mulVec_eq_lambdaMax`). Two orthonormal eigenvectors for `λ_max` would be
+nonzero multiples of the same `w`, and multiples of one vector are never orthogonal, so
+
+```lean
+theorem count_spectrum_lambdaMax_eq_one {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected) :
+    G.spectrum.count G.lambdaMax = 1
+```
+
+For a `k`-regular graph `λ_max = k`, so the degree is a simple eigenvalue whenever the graph is
+connected. Conversely, if it is not, pick two unreachable vertices: the indicator of the component
+of the first is again an eigenvector for `k` — inside the component every neighbour is in it,
+outside none is — and it is not a multiple of the all-ones vector. So
 
 ```lean
 theorem isConnected_iff_count_spectrum_eq_one {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k) :

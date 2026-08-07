@@ -153,16 +153,27 @@ the marks are literally the Perron eigenvector, `mulVec_affineE8` and friends) a
 it extends.  Strictness for the finite diagrams comes from `two_notMem_spectrum_*`: the linear
 system `A v = 2 v` forces `v = 0`, which is the nonsingularity of the Cartan matrix.
 
-## Connectedness of a regular graph
+## Perron–Frobenius and connectedness of a regular graph
 
 `exists_orthonormal_eigenbasis` packages the orthogonal diagonalisation as a family of unit
 eigenvectors in which every vector expands, and `exists_smul_of_count_spectrum_eq_one` reads off
 the consequence of an eigenvalue occurring once: its eigenspace is a line, since the expansion of
-an eigenvector for `c` is supported on the indices carrying `c`.  For a `k`-regular graph that
-pins connectedness down, `isConnected_iff_count_spectrum_eq_one`.  In one direction an eigenvector
-for `k` on a connected graph is constant (`eq_of_mulVec_eq_of_isRegularWith`) and two orthonormal
-vectors cannot both be constant; in the other, if two vertices are unreachable then the indicator
-of a component is an eigenvector for `k` that is not a multiple of the all-ones vector.  Combined
+an eigenvector for `c` is supported on the indices carrying `c`.
+
+For the *largest* eigenvalue of a connected graph the line comes for free, without knowing the
+multiplicity in advance.  Because `A` has nonnegative entries, `⟪|v|, A |v|⟫ ≥ ⟪v, A v⟫` while the
+norms agree, so `|v|` also attains the maximum of the Rayleigh quotient and is an eigenvector
+(`mulVec_abs_of_mulVec_eq_lambdaMax`).  A nonnegative eigenvector of a connected graph is
+everywhere positive (`pos_of_mulVec_eq_of_nonneg`): a zero coordinate makes a sum of nonnegative
+terms vanish, so the zero spreads along every walk.  That gives the positive Perron vector `w`
+(`exists_pos_mulVec_eq_lambdaMax`), and subtracting from any other eigenvector the largest multiple
+of `w` that fits under it leaves a nonnegative eigenvector with a zero coordinate, hence zero
+(`exists_smul_of_mulVec_eq_lambdaMax`).  Two orthonormal eigenvectors for `λ_max` would then be
+nonzero multiples of the same `w`, so `λ_max` is simple: `count_spectrum_lambdaMax_eq_one`.
+
+For a `k`-regular graph `λ_max = k`, so that pins connectedness down,
+`isConnected_iff_count_spectrum_eq_one`: if the graph is disconnected the indicator of a component
+is a second eigenvector for `k`, not a multiple of the all-ones vector.  Combined
 with `Cospectral.isRegularWith` this makes connectedness spectral as well: `Cospectral.isConnected`.
 
 ## Bipartiteness of a connected regular graph
@@ -3652,11 +3663,7 @@ theorem spectrum_compl_petersen :
   rw [spectrum_compl_of_isRegularWith hconn hreg, hcard, spectrum_petersen]
   norm_num [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate]
 
-/-! ## Connectedness of a regular graph is spectral
-
-The degree of a `k`-regular graph is a simple eigenvalue exactly when the graph is connected: an
-eigenvector for `k` is constant on a connected graph, and the indicator of a component is a second
-one otherwise. -/
+/-! ## An orthonormal eigenbasis -/
 
 /-- **An orthonormal eigenbasis.**  The columns of the orthogonal matrix diagonalising `A` form a
 family `e` of unit eigenvectors, pairwise orthogonal, in which every vector expands. -/
@@ -3696,6 +3703,145 @@ theorem count_spectrum (G : CGraph) (c : ℝ) :
     G.spectrum.count c = (Finset.univ.filter fun i ↦ G.eigenvalues i = c).card := by
   rw [spectrum_eq_map, Multiset.count_map]
   simp [Finset.card, Finset.filter_val, eq_comm]
+
+/-! ## Perron–Frobenius: the largest eigenvalue of a connected graph
+
+Nonnegativity of `A` makes `|v|` an eigenvector whenever `v` is one for `λ_max`, and connectedness
+then makes it strictly positive; the top eigenspace is spanned by that positive vector, so `λ_max`
+is a simple eigenvalue. -/
+
+/-- **Taking absolute values preserves a `λ_max`-eigenvector.**  Since `A` has nonnegative entries,
+`⟪|v|, A |v|⟫ ≥ ⟪v, A v⟫`, while the two vectors have the same norm; so `|v|` also attains the
+maximum of the Rayleigh quotient, and an attaining vector is an eigenvector. -/
+theorem mulVec_abs_of_mulVec_eq_lambdaMax {G : CGraph} [Nonempty G.V] {v : G.V → ℝ}
+    (hv : G.adjMat *ᵥ v = G.lambdaMax • v) :
+    G.adjMat *ᵥ (fun x ↦ |v x|) = G.lambdaMax • fun x ↦ |v x| := by
+  refine mulVec_eq_of_rayleigh_eq_lambdaMax G (le_antisymm (G.rayleigh_le_lambdaMax _) ?_)
+  have hnorm : (fun x ↦ |v x|) ⬝ᵥ (fun x ↦ |v x|) = v ⬝ᵥ v := by
+    simp [dotProduct, abs_mul_abs_self]
+  have hveq : v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMax * (v ⬝ᵥ v) := by
+    rw [hv, dotProduct_smul, smul_eq_mul]
+  have hq : v ⬝ᵥ (G.adjMat *ᵥ v) ≤ (fun x ↦ |v x|) ⬝ᵥ (G.adjMat *ᵥ fun x ↦ |v x|) := by
+    simp only [dotProduct, Matrix.mulVec, Finset.mul_sum]
+    refine Finset.sum_le_sum fun x _ ↦ Finset.sum_le_sum fun y _ ↦ ?_
+    have h1 : v x * v y ≤ |v x| * |v y| := by
+      rw [← abs_mul]
+      exact le_abs_self _
+    nlinarith [adjMat_nonneg G x y, h1]
+  rw [hnorm]
+  linarith [hveq ▸ hq]
+
+/-- **A nonnegative eigenvector of a connected graph is strictly positive.**  If it vanished at a
+vertex, the eigenvector equation there would be a sum of nonnegative terms equal to zero, so it
+would vanish at every neighbour, and connectedness would spread the zero everywhere. -/
+theorem pos_of_mulVec_eq_of_nonneg {G : CGraph} (hconn : G.IsConnected) {c : ℝ} {w : G.V → ℝ}
+    (hw : G.adjMat *ᵥ w = c • w) (hnn : ∀ x, 0 ≤ w x) (hne : w ≠ 0) (x : G.V) : 0 < w x := by
+  classical
+  have hnb : ∀ y : G.V, ∑ z ∈ G.toSimple.neighborFinset y, w z = c * w y := by
+    intro y
+    have h1 := congrFun hw y
+    rw [show (G.adjMat *ᵥ w) y = ∑ z ∈ G.toSimple.neighborFinset y, w z from by
+      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]] at h1
+    simpa using h1
+  have hstep : ∀ y z : G.V, G.toSimple.Adj y z → w y = 0 → w z = 0 := by
+    intro y z hyz hy
+    refine (Finset.sum_eq_zero_iff_of_nonneg fun u _ ↦ hnn u).1 ?_ z
+      ((SimpleGraph.mem_neighborFinset _ _ _).2 hyz)
+    rw [hnb y, hy, mul_zero]
+  rcases (hnn x).lt_or_eq with hlt | heq
+  · exact hlt
+  · exfalso
+    refine hne (funext fun y ↦ ?_)
+    have hwalk : ∀ (a b : G.V) (p : G.toSimple.Walk a b), w a = 0 → w b = 0 := by
+      intro a b p
+      induction p with
+      | nil => exact id
+      | cons h _ ih => exact fun ha ↦ ih (hstep _ _ h ha)
+    exact (hconn.preconnected x y).elim fun p ↦ hwalk x y p heq.symm
+
+/-- **Perron–Frobenius for a connected graph**: the largest eigenvalue has an everywhere positive
+eigenvector. -/
+theorem exists_pos_mulVec_eq_lambdaMax {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected) :
+    ∃ w : G.V → ℝ, (∀ x, 0 < w x) ∧ G.adjMat *ᵥ w = G.lambdaMax • w := by
+  obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 G.lambdaMax_mem_spectrum
+  refine ⟨fun x ↦ |v x|, ?_, mulVec_abs_of_mulVec_eq_lambdaMax hv⟩
+  refine pos_of_mulVec_eq_of_nonneg hconn (mulVec_abs_of_mulVec_eq_lambdaMax hv)
+    (fun x ↦ abs_nonneg _) ?_
+  obtain ⟨x0, hx0⟩ := Function.ne_iff.1 hv0
+  exact fun h ↦ hx0 (abs_eq_zero.1 (congrFun h x0))
+
+/-- **The top eigenspace of a connected graph is a line.**  Subtracting the largest multiple of the
+positive eigenvector `w` that still fits under `u` leaves a nonnegative eigenvector vanishing
+somewhere, which must be zero. -/
+theorem exists_smul_of_mulVec_eq_lambdaMax {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected)
+    {w u : G.V → ℝ} (hwpos : ∀ x, 0 < w x) (hw : G.adjMat *ᵥ w = G.lambdaMax • w)
+    (hu : G.adjMat *ᵥ u = G.lambdaMax • u) : ∃ t : ℝ, u = t • w := by
+  classical
+  obtain ⟨x0, -, hx0⟩ := Finset.exists_min_image (Finset.univ : Finset G.V) (fun x ↦ u x / w x)
+    ⟨Classical.arbitrary G.V, Finset.mem_univ _⟩
+  obtain ⟨t, htdef⟩ : ∃ t : ℝ, t = u x0 / w x0 := ⟨_, rfl⟩
+  refine ⟨t, ?_⟩
+  by_contra hne
+  have hzne : u - t • w ≠ 0 := fun h ↦ hne (by
+    have := sub_eq_zero.1 h
+    simpa using this)
+  have hz : G.adjMat *ᵥ (u - t • w) = G.lambdaMax • (u - t • w) := by
+    rw [Matrix.mulVec_sub, Matrix.mulVec_smul, hu, hw, smul_sub, smul_comm]
+  have hnn : ∀ x, 0 ≤ (u - t • w) x := by
+    intro x
+    have h1 : t ≤ u x / w x := by rw [htdef]; exact hx0 x (Finset.mem_univ x)
+    have h2 : t * w x ≤ u x := (le_div_iff₀ (hwpos x)).1 h1
+    simpa using by linarith [h2]
+  have hpos := pos_of_mulVec_eq_of_nonneg hconn hz hnn hzne x0
+  have hzero : (u - t • w) x0 = 0 := by
+    have : t * w x0 = u x0 := by
+      rw [htdef, div_mul_cancel₀ _ (ne_of_gt (hwpos x0))]
+    simpa using by linarith [this]
+  rw [hzero] at hpos
+  exact lt_irrefl _ hpos
+
+/-- **The largest eigenvalue of a connected graph is simple.**  Two orthonormal eigenvectors for it
+would both be multiples of the same positive vector `w`, hence have inner product a nonzero
+multiple of `⟪w, w⟫`. -/
+theorem count_spectrum_lambdaMax_eq_one {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected) :
+    G.spectrum.count G.lambdaMax = 1 := by
+  classical
+  obtain ⟨e, heig, hortho, -⟩ := G.exists_orthonormal_eigenbasis
+  obtain ⟨w, hwpos, hw⟩ := exists_pos_mulVec_eq_lambdaMax hconn
+  have hww : 0 < w ⬝ᵥ w := by
+    rw [dotProduct]
+    exact Finset.sum_pos (fun x _ ↦ mul_pos (hwpos x) (hwpos x)) ⟨Classical.arbitrary G.V,
+      Finset.mem_univ _⟩
+  rw [count_spectrum]
+  refine le_antisymm (Finset.card_le_one.2 fun i hi j hj ↦ ?_) ?_
+  · rw [Finset.mem_filter] at hi hj
+    by_contra hne
+    obtain ⟨a, ha⟩ := exists_smul_of_mulVec_eq_lambdaMax hconn hwpos hw (hi.2 ▸ heig i)
+    obtain ⟨b, hb⟩ := exists_smul_of_mulVec_eq_lambdaMax hconn hwpos hw (hj.2 ▸ heig j)
+    have hii : a * a * (w ⬝ᵥ w) = 1 := by
+      have := hortho i i
+      rw [if_pos rfl, ha, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
+      linarith [this]
+    have hij : a * b * (w ⬝ᵥ w) = 0 := by
+      have := hortho i j
+      rw [if_neg hne, ha, hb, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
+      linarith [this]
+    have hjj : b * b * (w ⬝ᵥ w) = 1 := by
+      have := hortho j j
+      rw [if_pos rfl, hb, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
+      linarith [this]
+    nlinarith [hii, hij, hjj, hww]
+  · rw [Finset.one_le_card]
+    have hmem := G.lambdaMax_mem_spectrum
+    rw [spectrum_eq_map, Multiset.mem_map] at hmem
+    obtain ⟨i, -, hi⟩ := hmem
+    exact ⟨i, Finset.mem_filter.2 ⟨Finset.mem_univ i, hi⟩⟩
+
+/-! ## Connectedness of a regular graph is spectral
+
+The degree of a `k`-regular graph is its largest eigenvalue, so for a connected graph it is simple;
+conversely the indicator of a component is a second eigenvector for `k` when the graph is not
+connected. -/
 
 /-- **A simple eigenvalue has a one-dimensional eigenspace**: if `c` occurs once in the spectrum
 then every eigenvector for `c` is a multiple of any fixed nonzero one.  Expanding in an
@@ -3741,53 +3887,13 @@ theorem exists_smul_of_count_spectrum_eq_one {G : CGraph} {c : ℝ}
     exact hu0 (by rw [hu', h0, zero_smul])
   exact ⟨d / b, by rw [hv', hu', smul_smul, div_mul_cancel₀ _ hb]⟩
 
-/-- **The degree of a connected regular graph is a simple eigenvalue.**  Any eigenvector for `k`
-is constant, and two orthonormal ones cannot both be constant. -/
+/-- **The degree of a connected regular graph is a simple eigenvalue.**  It is the largest
+eigenvalue of a regular graph, and the largest eigenvalue of a connected graph is simple. -/
 theorem count_spectrum_eq_one_of_isConnected {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
     (hreg : G.IsRegularWith k) : G.spectrum.count (k : ℝ) = 1 := by
   haveI : Nonempty G.V := hconn.nonempty
-  obtain ⟨e, heig, hortho, -⟩ := G.exists_orthonormal_eigenbasis
-  have hn : (Fintype.card G.V : ℝ) ≠ 0 := by
-    exact_mod_cast Fintype.card_ne_zero
-  have hconst : ∀ i, G.eigenvalues i = (k : ℝ) → ∀ x y : G.V, e i x = e i y := by
-    intro i hi x y
-    refine eq_of_mulVec_eq_of_isRegularWith hconn hreg ?_ x y
-    rw [heig i, hi]
-  rw [count_spectrum]
-  refine le_antisymm (Finset.card_le_one.2 fun i hi j hj ↦ ?_) ?_
-  · rw [Finset.mem_filter] at hi hj
-    by_contra hne
-    have hdot : ∀ a b : G.V, (∀ x y : G.V, e a x = e a y) → (∀ x y : G.V, e b x = e b y) →
-        e a ⬝ᵥ e b = (Fintype.card G.V : ℝ) * (e a (Classical.arbitrary G.V) *
-          e b (Classical.arbitrary G.V)) := by
-      intro a b ha hb
-      simp only [dotProduct]
-      rw [Finset.sum_congr rfl fun x _ ↦ by
-        rw [ha x (Classical.arbitrary G.V), hb x (Classical.arbitrary G.V)]]
-      simp [Finset.card_univ, mul_comm]
-    have hii := hdot i i (hconst i hi.2) (hconst i hi.2)
-    have hij := hdot i j (hconst i hi.2) (hconst j hj.2)
-    rw [hortho i i, if_pos rfl] at hii
-    rw [hortho i j, if_neg hne] at hij
-    have hi0 : e i (Classical.arbitrary G.V) = 0 := by
-      rcases mul_eq_zero.1 (by linarith [hij] : (Fintype.card G.V : ℝ) *
-        (e i (Classical.arbitrary G.V) * e j (Classical.arbitrary G.V)) = 0) with h | h
-      · exact absurd h hn
-      · rcases mul_eq_zero.1 h with h' | h'
-        · exact h'
-        · exfalso
-          have hjj := hdot j j (hconst j hj.2) (hconst j hj.2)
-          rw [hortho j j, if_pos rfl] at hjj
-          rw [h'] at hjj
-          simp at hjj
-    rw [hi0] at hii
-    simp at hii
-  · rw [Finset.one_le_card]
-    have hk : G.lambdaMax = (k : ℝ) := lambdaMax_of_isRegularWith hreg
-    have hmem : (k : ℝ) ∈ G.spectrum := hk ▸ G.lambdaMax_mem_spectrum
-    rw [spectrum_eq_map, Multiset.mem_map] at hmem
-    obtain ⟨i, -, hi⟩ := hmem
-    exact ⟨i, Finset.mem_filter.2 ⟨Finset.mem_univ i, hi⟩⟩
+  rw [← lambdaMax_of_isRegularWith hreg]
+  exact count_spectrum_lambdaMax_eq_one hconn
 
 /-- **A regular graph whose degree is a simple eigenvalue is connected.**  Otherwise the
 indicator of a connected component is a second, non-constant eigenvector for `k`. -/
