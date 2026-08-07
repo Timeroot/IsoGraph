@@ -4206,6 +4206,26 @@ least the average degree (`avg_degree_le_lambdaMax`), and `e u ± e v` across a 
 proved the other way round, by evaluating `A u = x u` at a coordinate where `|u|` is largest —
 the whole spectrum is trapped in `[-Δ, Δ]` with `lambdaMax` no smaller than the average degree.
 
+Equality in either direction pins the vector down:
+
+```lean
+theorem mulVec_eq_of_rayleigh_eq_lambdaMax (G : CGraph) [Nonempty G.V] {v : G.V → ℝ}
+    (hv : v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMax * (v ⬝ᵥ v)) :
+    G.adjMat *ᵥ v = G.lambdaMax • v
+```
+
+In the rotated coordinates the hypothesis reads `∑ (λ_max - λᵢ) wᵢ² = 0`, a sum of nonnegative
+terms, so `wᵢ` vanishes off the top eigenspace and `A v = λ_max v` on rotating back. Feeding the
+all-ones vector into that turns `avg_degree_le_lambdaMax` into a characterisation: if the largest
+eigenvalue *equals* the average degree then the all-ones vector is an eigenvector, i.e. every
+vertex has degree `λ_max` (`isRegularWith_of_two_mul_E_eq`). Since `V`, `E` and `lambdaMax` are
+all determined by the spectrum, that makes regularity a spectral property:
+
+```lean
+theorem Cospectral.isRegularWith {G H : CGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) : H.IsRegularWith k
+```
+
 The other side of the principle — bounding `⟪v, A v⟫` from below by `λ_min` — is what makes
 **Hoffman's ratio bound** work:
 

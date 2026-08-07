@@ -83,6 +83,13 @@ turns the quadratic form into a weighted sum of squares in rotated coordinates
 `abs_le_maxDeg_of_mem_spectrum` bounds every eigenvalue by the maximum degree, by evaluating the
 eigenvector equation where the eigenvector is largest.
 
+The *equality* case is `mulVec_eq_of_rayleigh_eq_lambdaMax`: a vector attaining the maximum is an
+eigenvector, since in rotated coordinates the quotient is a weighted average of the eigenvalues.
+Applied to the all-ones vector this says that a graph whose largest eigenvalue equals its average
+degree is regular (`isRegularWith_of_two_mul_E_eq`), and hence that **regularity is determined by
+the spectrum**, `Cospectral.isRegularWith`: the order, the size and `lambdaMax` are all read off
+the spectrum, and together they force every degree to be `k`.
+
 The best-known application of the variational principle is **Hoffman's ratio bound**,
 `card_mul_sub_lambdaMin_le`: in a `k`-regular graph an independent set `S` gives the test vector
 `n · 1_S - |S| · 1`, which is orthogonal to the all-ones vector and spans no edge, so its
@@ -2093,6 +2100,111 @@ theorem exists_rayleigh_eq_lambdaMin (G : CGraph) [Nonempty G.V] :
     ∃ v : G.V → ℝ, v ≠ 0 ∧ v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMin * (v ⬝ᵥ v) := by
   obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 (lambdaMin_mem_spectrum G)
   exact ⟨v, hv0, by rw [hv, dotProduct_smul, smul_eq_mul]⟩
+
+/-! ### The equality case: regularity is spectral -/
+
+/-- **The equality case of the variational principle**: a vector whose Rayleigh quotient attains
+`lambdaMax` is an eigenvector for it.  In rotated coordinates the quotient is a weighted average
+of the eigenvalues, so it can only reach the largest one on the corresponding eigenspace. -/
+theorem mulVec_eq_of_rayleigh_eq_lambdaMax (G : CGraph) [Nonempty G.V] {v : G.V → ℝ}
+    (hv : v ⬝ᵥ (G.adjMat *ᵥ v) = G.lambdaMax * (v ⬝ᵥ v)) :
+    G.adjMat *ᵥ v = G.lambdaMax • v := by
+  obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_diagonal
+  have hA : G.adjMat = U * Matrix.diagonal G.eigenvalues * Uᵀ := by
+    rw [← hD]
+    calc G.adjMat = U * Uᵀ * G.adjMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
+      _ = U * (Uᵀ * G.adjMat * U) * Uᵀ := by simp only [mul_assoc]
+  obtain ⟨w, hw⟩ : ∃ w : G.V → ℝ, w = Uᵀ *ᵥ v := ⟨_, rfl⟩
+  have hUw : U *ᵥ w = v := by rw [hw, Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
+  have hAv : G.adjMat *ᵥ v = U *ᵥ (Matrix.diagonal G.eigenvalues *ᵥ w) := by
+    rw [hA, hw, show (U * Matrix.diagonal G.eigenvalues * Uᵀ) *ᵥ v
+      = U *ᵥ (Matrix.diagonal G.eigenvalues *ᵥ (Uᵀ *ᵥ v)) by
+      simp only [Matrix.mulVec_mulVec, mul_assoc]]
+  have hvT : ∀ x : G.V → ℝ, x ᵥ* U = Uᵀ *ᵥ x := fun x ↦ by
+    rw [← Matrix.vecMul_transpose, Matrix.transpose_transpose]
+  have hTU : ∀ x : G.V → ℝ, Uᵀ *ᵥ (U *ᵥ x) = x := fun x ↦ by
+    rw [Matrix.mulVec_mulVec, hUU, Matrix.one_mulVec]
+  have h1 : v ⬝ᵥ (G.adjMat *ᵥ v) = ∑ i, G.eigenvalues i * w i ^ 2 := by
+    rw [hAv, ← hUw, dotProduct_mulVec, hvT, hTU]
+    simp only [dotProduct, Matrix.mulVec_diagonal]
+    exact Finset.sum_congr rfl fun i _ ↦ by ring
+  have h2 : v ⬝ᵥ v = ∑ i, w i ^ 2 := by
+    rw [← hUw, dotProduct_mulVec, hvT, hTU]
+    simp only [dotProduct]
+    exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+  -- every coordinate off the top eigenspace has to vanish
+  have hsum : ∑ i, (G.lambdaMax - G.eigenvalues i) * w i ^ 2 = 0 := by
+    have hvv := hv
+    rw [h1, h2, Finset.mul_sum] at hvv
+    have hsplit : ∑ i, (G.lambdaMax - G.eigenvalues i) * w i ^ 2
+        = (∑ i, G.lambdaMax * w i ^ 2) - ∑ i, G.eigenvalues i * w i ^ 2 := by
+      rw [← Finset.sum_sub_distrib]
+      exact Finset.sum_congr rfl fun i _ ↦ by ring
+    rw [hsplit, hvv, sub_self]
+  have hzero : ∀ i, (G.lambdaMax - G.eigenvalues i) * w i ^ 2 = 0 :=
+    fun i ↦ (Finset.sum_eq_zero_iff_of_nonneg fun j _ ↦
+      mul_nonneg (sub_nonneg.2 (le_lambdaMax (G.eigenvalues_mem_spectrum j))) (sq_nonneg _)).1
+      hsum i (Finset.mem_univ i)
+  have hd : ∀ i, G.eigenvalues i * w i = G.lambdaMax * w i := by
+    intro i
+    rcases mul_eq_zero.1 (hzero i) with h | h
+    · rw [sub_eq_zero.1 h]
+    · rw [pow_eq_zero_iff two_ne_zero] at h
+      rw [h, mul_zero, mul_zero]
+  rw [hAv, show Matrix.diagonal G.eigenvalues *ᵥ w = G.lambdaMax • w from
+    funext fun i ↦ by rw [Matrix.mulVec_diagonal]; exact hd i, Matrix.mulVec_smul, hUw]
+
+/-- **A graph whose largest eigenvalue is the average degree is regular.**  The all-ones vector
+attains the Rayleigh maximum, so it is an eigenvector, and its eigenvalue equation at a vertex
+says that the vertex has degree `λ_max`. -/
+theorem isRegularWith_of_two_mul_E_eq (G : CGraph) [Nonempty G.V] {k : ℕ}
+    (hlam : G.lambdaMax = k) (hE : 2 * G.E = Fintype.card G.V * k) : G.IsRegularWith k := by
+  have hdeg : ∀ i, (G.adjMat *ᵥ fun _ : G.V ↦ (1 : ℝ)) i = (G.toSimple.degree i : ℝ) :=
+    fun i ↦ by simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
+  have hone : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (G.adjMat *ᵥ fun _ ↦ (1 : ℝ)) = 2 * (G.E : ℝ) := by
+    have hEd : G.E = G.toSimple.edgeFinset.card := rfl
+    simp only [dotProduct, hdeg, one_mul]
+    rw [← Nat.cast_sum, SimpleGraph.sum_degrees_eq_twice_card_edges, hEd]
+    push_cast
+    ring
+  have hnorm : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (fun _ ↦ (1 : ℝ)) = (Fintype.card G.V : ℝ) := by
+    simp [dotProduct, Finset.card_univ]
+  have hcast : (2 * G.E : ℝ) = (Fintype.card G.V : ℝ) * k := by exact_mod_cast hE
+  have heq : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (G.adjMat *ᵥ fun _ ↦ (1 : ℝ))
+      = G.lambdaMax * ((fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ fun _ ↦ (1 : ℝ)) := by
+    rw [hone, hnorm, hlam]
+    push_cast at hcast ⊢
+    linarith
+  have hvec := G.mulVec_eq_of_rayleigh_eq_lambdaMax heq
+  intro i
+  have hi := congrFun hvec i
+  rw [hdeg i, hlam] at hi
+  simp only [Pi.smul_apply, smul_eq_mul, mul_one] at hi
+  exact_mod_cast hi
+
+/-- **Regularity is determined by the spectrum**: a graph cospectral with a `k`-regular graph is
+itself `k`-regular, since the order, the size and the largest eigenvalue are all spectral. -/
+theorem Cospectral.isRegularWith {G H : CGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) : H.IsRegularWith k := by
+  rcases isEmpty_or_nonempty H.V with hemp | hne
+  · exact fun i ↦ (hemp.false i).elim
+  haveI : Nonempty G.V := by
+    rw [← Fintype.card_pos_iff] at hne ⊢
+    rw [h.card_eq]
+    exact hne
+  have hspec : G.spectrum = H.spectrum := h.spectrum_eq
+  have hlamG : G.lambdaMax = k := lambdaMax_of_isRegularWith hG
+  have hlam : H.lambdaMax = k := by
+    refine le_antisymm ((lambdaMax_le_iff H).2 fun x hx ↦ ?_) ?_
+    · rw [← hlamG]
+      exact le_lambdaMax (by rw [hspec]; exact hx)
+    · exact le_lambdaMax (by rw [← hspec, ← hlamG]; exact lambdaMax_mem_spectrum G)
+  have hEG : 2 * G.E = Fintype.card G.V * k := by
+    have hsum : ∑ i : G.V, G.toSimple.degree i = Fintype.card G.V * k := by
+      rw [Finset.sum_congr rfl fun i _ ↦ hG i, Finset.sum_const, Finset.card_univ, smul_eq_mul]
+    rw [show G.E = G.toSimple.edgeFinset.card from rfl,
+      ← SimpleGraph.sum_degrees_eq_twice_card_edges, hsum]
+  exact H.isRegularWith_of_two_mul_E_eq hlam (by rw [← h.E_eq, ← h.card_eq]; exact hEG)
 
 /-! ### Hoffman's ratio bound -/
 
