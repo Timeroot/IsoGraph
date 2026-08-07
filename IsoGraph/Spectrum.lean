@@ -107,7 +107,11 @@ multiplicities `f` and `g` fixed by the two trace conditions `f + g + 1 = n` and
 `k + f r + g s = 0`.  That the degree occurs exactly *once* is the content of the parameter
 identity in the form `(k - r) (k - s) = n μ`; no connectivity or eigenspace-dimension theory is
 needed, only `∑ λ = 0` and `∑ λ ^ 2 = n k`.  `spectrum_petersen` is the example:
-`3, 1⁵, (-2)⁴`.
+`3, 1⁵, (-2)⁴`.  The same three lines run over the classical families, whose roots are integers
+for every parameter: `spectrum_cocktailParty` gives `2n - 2, 0ⁿ, (-2)ⁿ⁻¹`, `spectrum_rook` gives
+`2n - 2, (n - 2)^(2n-2), (-2)^((n-1)²)`, and `spectrum_triangular` gives
+`2n - 4, (n - 4)ⁿ⁻¹, (-2)^(C(n,2) - n)` — the last two both line graphs, hence both bottoming
+out at `-2`.
 
 ## The Smith family and ADE
 
@@ -1390,6 +1394,89 @@ theorem spectrum_petersen :
   subst hf; subst hg
   rw [h3]
   norm_num
+
+/-- **The spectrum of the cocktail party graph `K_{n×2}`**: `2n - 2` once, `0` with multiplicity
+`n` and `-2` with multiplicity `n - 1`. -/
+theorem spectrum_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).spectrum
+      = (2 * (m : ℝ) + 2) ::ₘ (Multiset.replicate (m + 2) 0 + Multiset.replicate (m + 1) (-2)) := by
+  have hsrg := isSRGWith_cocktailParty (m + 2)
+  rw [show 2 * (m + 2) - 2 = 2 * m + 2 from by omega,
+    show 2 * (m + 2) - 4 = 2 * m from by omega] at hsrg
+  haveI : Nonempty (cocktailParty (m + 2)).V :=
+    Fintype.card_pos_iff.1 (by rw [hsrg.card]; omega)
+  obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega) (r := 0) (s := -2)
+    (by push_cast; ring) (by push_cast; ring) (by norm_num)
+  have h1' : (f : ℝ) + g + 1 = 2 * (m + 2) := by exact_mod_cast h1
+  push_cast at h2
+  have hg : (g : ℝ) = m + 1 := by linarith
+  have hf : (f : ℝ) = m + 2 := by linarith
+  have hgn : g = m + 1 := by exact_mod_cast hg
+  have hfn : f = m + 2 := by exact_mod_cast hf
+  rw [h3, hfn, hgn]
+  push_cast
+  ring_nf
+
+/-- **The spectrum of the rook's graph `K_n □ K_n`**: the degree `2n - 2` once, `n - 2` with
+multiplicity `2 (n - 1)`, and `-2` with multiplicity `(n - 1) ²`. -/
+theorem spectrum_rook (k : ℕ) :
+    (rook (k + 2) (k + 2)).spectrum
+      = (2 * (k : ℝ) + 2) ::ₘ (Multiset.replicate (2 * (k + 1)) (k : ℝ)
+          + Multiset.replicate ((k + 1) ^ 2) (-2)) := by
+  have hsrg := isSRGWith_rook (k + 2)
+  rw [show 2 * (k + 2 - 1) = 2 * k + 2 from by omega,
+    show k + 2 - 2 = k from by omega] at hsrg
+  haveI : Nonempty (rook (k + 2) (k + 2)).V :=
+    Fintype.card_pos_iff.1 (by rw [hsrg.card]; positivity)
+  obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega) (r := (k : ℝ)) (s := -2)
+    (by push_cast; ring) (by push_cast; ring)
+    (by have h0 : (0 : ℝ) ≤ k := Nat.cast_nonneg k; exact ne_of_gt (by linarith))
+  have h1' : (f : ℝ) + g + 1 = (k + 2) * (k + 2) := by exact_mod_cast h1
+  push_cast at h2
+  have hk2 : ((k : ℝ) + 2) ≠ 0 := by positivity
+  have hf : (f : ℝ) = 2 * (k + 1) := by
+    have := mul_right_cancel₀ hk2 (show (f : ℝ) * (k + 2) = (2 * (k + 1)) * (k + 2) by
+      linear_combination 2 * h1' + h2)
+    exact this
+  have hg : (g : ℝ) = (k + 1) ^ 2 := by
+    rw [hf] at h1'
+    linarith [h1', sq_nonneg ((k : ℝ) + 1)]
+  have hfn : f = 2 * (k + 1) := by exact_mod_cast hf
+  have hgn : g = (k + 1) ^ 2 := by exact_mod_cast hg
+  rw [h3, hfn, hgn]
+  push_cast
+  ring_nf
+
+/-- **The spectrum of the triangular graph `T(n) = L(Kₙ)`**: the degree `2 (n - 2)` once, `n - 4`
+with multiplicity `n - 1`, and `-2` with multiplicity `C(n, 2) - n`. -/
+theorem spectrum_triangular (m : ℕ) :
+    (triangular (m + 4)).spectrum
+      = (2 * (m : ℝ) + 4) ::ₘ (Multiset.replicate (m + 3) (m : ℝ)
+          + Multiset.replicate ((m + 4).choose 2 - (m + 4)) (-2)) := by
+  have hsrg := isSRGWith_triangular (m + 4) (by omega)
+  rw [show 2 * (m + 4 - 2) = 2 * m + 4 from by omega,
+    show m + 4 - 2 = m + 2 from by omega] at hsrg
+  haveI : Nonempty (triangular (m + 4)).V :=
+    Fintype.card_pos_iff.1 (by rw [hsrg.card]; exact Nat.choose_pos (by omega))
+  obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega) (r := (m : ℝ)) (s := -2)
+    (by push_cast; ring) (by push_cast; ring)
+    (by have h0 : (0 : ℝ) ≤ m := Nat.cast_nonneg m; exact ne_of_gt (by linarith))
+  have hN : (((m + 4).choose 2 : ℕ) : ℝ) = ((m : ℝ) + 4) * ((m : ℝ) + 3) / 2 := by
+    rw [Nat.cast_choose_two]
+    push_cast
+    ring
+  have h1' : (f : ℝ) + g + 1 = ((m : ℝ) + 4) * ((m : ℝ) + 3) / 2 := by
+    rw [← hN]; exact_mod_cast h1
+  push_cast at h2
+  have hm2 : ((m : ℝ) + 2) ≠ 0 := by positivity
+  have hf : (f : ℝ) = m + 3 :=
+    mul_right_cancel₀ hm2 (show (f : ℝ) * (m + 2) = ((m : ℝ) + 3) * (m + 2) by
+      linear_combination 2 * h1' + h2)
+  have hfn : f = m + 3 := by exact_mod_cast hf
+  have hgn : g = (m + 4).choose 2 - (m + 4) := by omega
+  rw [h3, hfn, hgn]
+  push_cast
+  ring_nf
 
 /-! ## Cospectral graphs and graphs determined by their spectrum -/
 
@@ -3142,13 +3229,6 @@ theorem spectrum_compl_petersen :
   have hcard : Fintype.card SRG.petersen.V = 10 := SRG.petersen_srg.card
   rw [spectrum_compl_of_isRegularWith hconn hreg, hcard, spectrum_petersen]
   norm_num [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate]
-
-/-- **The spectrum of the triangular graph `T(5)`**, the line graph of `K₅`: it is the complement
-of the Petersen graph, so its smallest eigenvalue is the `-2` of a line graph. -/
-theorem spectrum_triangular_five :
-    (triangular 5).spectrum
-      = 6 ::ₘ (Multiset.replicate 5 (-2 : ℝ) + Multiset.replicate 4 1) :=
-  (spectrum_congr SRG.triangular_five_eq_compl_petersen.some).trans spectrum_compl_petersen
 
 end CGraph
 

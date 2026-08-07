@@ -4020,9 +4020,10 @@ instance search will not unfold it, and it opens by substituting the classical `
 instance for the bound one so that the `1`s coming from `exists_orthogonal_diagonal` match the
 `1`s written in the proof.
 
-Petersen is the example: `3, 1⁵, (-2)⁴` becomes `6, (-2)⁵, 1⁴` for the complement, which is the
-triangular graph `T(5) = L(K₅)` — so `spectrum_triangular_five` comes for free through
-`triangular_five_eq_compl_petersen`, with the `-2` that every line graph has.
+Petersen is the example: `3, 1⁵, (-2)⁴` becomes `6, (-2)⁵, 1⁴` for `spectrum_compl_petersen`.
+That complement is the triangular graph `T(5) = L(K₅)`, and `spectrum_triangular 1` says the same
+multiset by a completely different route — the strongly regular parameters — which is a useful
+consistency check on both.
 
 All the moments of the spectrum are available. One conjugation diagonalises every power of `A`
 at once (`trace_adjMat_pow`), so the `n`-th moment is the trace of `Aⁿ`, and `adjMat_pow_apply`
@@ -4134,6 +4135,32 @@ theorem spectrum_petersen :
 
 No connectivity argument and no eigenspace dimensions are involved: everything comes from
 `∑ λ = 0`, `∑ λ² = n k` and the count `f + g + 1 = n`.
+
+The classical infinite families go through unchanged, because their roots are integers for every
+parameter:
+
+```lean
+theorem spectrum_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).spectrum
+      = (2 * (m : ℝ) + 2) ::ₘ (Multiset.replicate (m + 2) 0 + Multiset.replicate (m + 1) (-2))
+
+theorem spectrum_rook (k : ℕ) :
+    (rook (k + 2) (k + 2)).spectrum
+      = (2 * (k : ℝ) + 2) ::ₘ (Multiset.replicate (2 * (k + 1)) (k : ℝ)
+          + Multiset.replicate ((k + 1) ^ 2) (-2))
+
+theorem spectrum_triangular (m : ℕ) :
+    (triangular (m + 4)).spectrum
+      = (2 * (m : ℝ) + 4) ::ₘ (Multiset.replicate (m + 3) (m : ℝ)
+          + Multiset.replicate ((m + 4).choose 2 - (m + 4)) (-2))
+```
+
+The offsets in the statements (`m + 2`, `k + 2`, `m + 4`) are the ranges where the parameters are
+those of a genuine strongly regular graph, and they let every subtraction be discharged by
+`omega` before the eigenvalue argument starts. Only the multiplicity bookkeeping differs between
+the three: `cocktailParty` is linear, `rook` and `triangular` need one cancellation
+(`mul_right_cancel₀`) against `k + 2` and `m + 2` respectively. Both of the last two are line
+graphs — `K_n □ K_n = L(K_{n,n})` and `T(n) = L(Kₙ)` — which is why both bottom out at `-2`.
 
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
