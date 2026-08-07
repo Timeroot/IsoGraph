@@ -121,8 +121,9 @@ exactly `k`, which `exists_dist_eq` produces by cutting a shortest walk: the wal
 ## Few distinct eigenvalues
 
 Counting the distinct eigenvalues from the bottom is the converse of the strongly regular story.
-One means a single vertex; two means complete, `card_toFinset_spectrum_eq_two_iff`, since the same
-argument makes `A - r` a constant matrix and the vanishing diagonal then pins the constant to `1`;
+One means no edges at all, `card_toFinset_spectrum_eq_one_iff`; two means complete,
+`card_toFinset_spectrum_eq_two_iff`, since the same argument makes `A - r` a constant matrix and
+the vanishing diagonal then pins the constant to `1`;
 and with three `exists_isSRGWith_of_card_toFinset_spectrum_eq_three` says a connected regular
 graph is strongly regular.
 Factor `minSpecPoly` as `(X - k) (X - r) (X - s)` — the degree is an eigenvalue, so it is one of
@@ -4633,6 +4634,34 @@ theorem exists_forall_eq_of_mul_eq_smul {G : CGraph} {k : ℕ} (hconn : G.IsConn
   rw [ha j i, ← ha j (Classical.arbitrary G.V), hsymm _ j]
   exact ha (Classical.arbitrary G.V) j
 
+/-- **A graph with one distinct eigenvalue has no edges.**  The minimal polynomial is `X - r`, so
+`A = r` on the diagonal too — and the diagonal of an adjacency matrix is zero. -/
+theorem adjMat_eq_zero_of_card_toFinset_spectrum_eq_one {G : CGraph} [Nonempty G.V]
+    (h1 : G.spectrum.toFinset.card = 1) : G.adjMat = 0 := by
+  obtain ⟨r, hspec⟩ := Finset.card_eq_one.1 h1
+  have hpoly : G.minSpecPoly = X - C r := by
+    rw [minSpecPoly, hspec, Finset.prod_singleton]
+  have hann : G.adjMat - r • 1 = 0 := by
+    have h2 := G.aeval_minSpecPoly
+    rw [hpoly] at h2
+    simp only [map_sub, aeval_X, aeval_C, Algebra.algebraMap_eq_smul_one] at h2
+    exact h2
+  have hA : G.adjMat = r • (1 : Matrix G.V G.V ℝ) := by
+    rw [← sub_eq_zero]; exact hann
+  have hr : r = 0 := by
+    have h3 := congrFun (congrFun hA (Classical.arbitrary G.V)) (Classical.arbitrary G.V)
+    simpa [adjMat_apply, G.adj_self] using h3.symm
+  rw [hA, hr, zero_smul]
+
+theorem adj_eq_false_of_card_toFinset_spectrum_eq_one {G : CGraph} [Nonempty G.V]
+    (h1 : G.spectrum.toFinset.card = 1) (x y : G.V) : G.Adj x y = false := by
+  have h2 := congrFun (congrFun (adjMat_eq_zero_of_card_toFinset_spectrum_eq_one h1) x) y
+  rw [adjMat_apply, Matrix.zero_apply] at h2
+  by_contra hn
+  rw [Bool.not_eq_false] at hn
+  rw [if_pos hn] at h2
+  exact one_ne_zero h2
+
 /-- **A connected regular graph with two distinct eigenvalues is complete.**  With the spectrum
 `{k, r}` the matrix `M = A - r` is a constant `t J` by the same argument, and the vanishing
 diagonal of `A` gives `r = -t`.  So every off-diagonal entry of `A` equals `t`, which is `0` or
@@ -5017,6 +5046,36 @@ theorem diameter_lt_card_toFinset_spectrum (G : IsoGraph) (hG : 0 < G.V) :
     exact g.diameter_lt_card_toFinset_spectrum
 
 /-! ### Few distinct eigenvalues -/
+
+@[simp] theorem card_toFinset_spectrum_empty (n : ℕ) :
+    (empty (n + 1)).spectrum.toFinset.card = 1 := by
+  have hset : (Multiset.replicate (n + 1) (0 : ℝ)).toFinset = {0} := by
+    ext x
+    rw [Multiset.mem_toFinset, Multiset.mem_replicate]
+    simp
+  rw [spectrum_empty, hset, Finset.card_singleton]
+
+/-- **A graph with one distinct eigenvalue has no edges.** -/
+theorem eq_empty_of_card_toFinset_spectrum_eq_one {G : IsoGraph}
+    (h1 : G.spectrum.toFinset.card = 1) : G = empty G.V := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [spectrum_mk] at h1
+    haveI : Nonempty g.V := by
+      rw [← Fintype.card_pos_iff, ← CGraph.card_spectrum]
+      by_contra hc
+      have hz : g.spectrum = 0 := Multiset.card_eq_zero.1 (by omega)
+      rw [hz] at h1
+      simp at h1
+    exact mk_eq_empty fun x y ↦
+      CGraph.adj_eq_false_of_card_toFinset_spectrum_eq_one h1 x y
+
+/-- **One distinct eigenvalue characterises the edgeless graphs.** -/
+theorem card_toFinset_spectrum_eq_one_iff {G : IsoGraph} (hV : 1 ≤ G.V) :
+    G.spectrum.toFinset.card = 1 ↔ G = empty G.V := by
+  refine ⟨eq_empty_of_card_toFinset_spectrum_eq_one, fun h ↦ ?_⟩
+  obtain ⟨n, hn⟩ : ∃ n, G.V = n + 1 := ⟨G.V - 1, by omega⟩
+  rw [h, hn, card_toFinset_spectrum_empty]
 
 @[simp] theorem card_toFinset_spectrum_complete (n : ℕ) :
     (complete (n + 2)).spectrum.toFinset.card = 2 := by

@@ -4257,10 +4257,13 @@ is a walk of length `k`, while every lower term is zero, there being no shorter 
 monic leading coefficient then reads `0 < 0`. The path `Pₙ` shows the bound is tight: `n` distinct
 eigenvalues `2 cos(jπ/(n+1))` and diameter `n - 1`.
 
-Counting distinct eigenvalues from the bottom is just as informative. One means a single vertex,
+Counting distinct eigenvalues from the bottom is just as informative. One means no edges at all,
 two means a complete graph, and three — for a connected regular graph — means strongly regular.
 
 ```lean
+theorem card_toFinset_spectrum_eq_one_iff {G : IsoGraph} (hV : 1 ≤ G.V) :
+    G.spectrum.toFinset.card = 1 ↔ G = empty G.V
+
 theorem card_toFinset_spectrum_eq_two_iff {G : IsoGraph} {k : ℕ} (hconn : G.IsConnected)
     (hreg : G.IsRegularWith k) (hV : 2 ≤ G.V) :
     G.spectrum.toFinset.card = 2 ↔ G = complete G.V
@@ -4295,7 +4298,11 @@ They come out of the argument as *reals*, so the statement is an existential ove
 numbers: the proof picks one adjacent pair and one non-adjacent pair and transfers their counts
 to all the others, falling back on `0` when no such pair exists.
 
-The two-eigenvalue case is the same argument one degree down. With spectrum `{k, r}` the matrix
+The one-eigenvalue case is the same argument two degrees down. With a single eigenvalue `r` the
+minimal polynomial is `X - r`, so `A = r·1` — and the diagonal of an adjacency matrix is zero, so
+`r = 0` and the graph is edgeless.
+
+The two-eigenvalue case runs one degree further. With spectrum `{k, r}` the matrix
 `M = A - r` is constant, `M = t J`, and the diagonal of `A` is zero, so `r = -t`; every
 off-diagonal entry of `A` is then `t`, which has to be `0` or `1`. If it were `0` the adjacency
 matrix would vanish, making `k = 0 = r` and collapsing the two eigenvalues into one — so it is
