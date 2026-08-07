@@ -3908,6 +3908,22 @@ theorem Cospectral.V_eq {G H : IsoGraph} (h : Cospectral G H) : G.V = H.V := by
 theorem Cospectral.E_eq {G H : IsoGraph} (h : Cospectral G H) : G.E = H.E :=
   Quotient.inductionOn₂ G H (fun _ _ h ↦ CGraph.Cospectral.E_eq h) h
 
+/-- Cospectral graphs have the same number of triangles. -/
+theorem Cospectral.cliqueCount_three_eq {G H : IsoGraph} (h : Cospectral G H) :
+    G.cliqueCount 3 = H.cliqueCount 3 :=
+  Quotient.inductionOn₂ G H (fun _ _ h ↦ CGraph.Cospectral.cliqueCount_three_eq h) h
+
+/-- **Regularity is determined by the spectrum.** -/
+theorem Cospectral.isRegularWith {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) : H.IsRegularWith k :=
+  Quotient.inductionOn₂ G H (fun _ _ h hG ↦ CGraph.Cospectral.isRegularWith h hG) h hG
+
+/-- **Connectedness of a regular graph is determined by the spectrum.** -/
+theorem Cospectral.isConnected {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) (hconn : G.IsConnected) : H.IsConnected :=
+  Quotient.inductionOn₂ G H
+    (fun _ _ h hG hconn ↦ CGraph.Cospectral.isConnected h hG hconn) h hG hconn
+
 /-- A graph is **determined by its spectrum** when no other isomorphism class is cospectral. -/
 def IsDS (G : IsoGraph) : Prop := ∀ H : IsoGraph, Cospectral G H → G = H
 
