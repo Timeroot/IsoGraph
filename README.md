@@ -3074,8 +3074,50 @@ fills the rest of them in. For the grid `Pₘ □ Pₙ` that is `V_grid`, `E_gri
 `minDeg_cartesianProduct_cycle` — both `4`, since the torus is quartic —
 `isConnected_cartesianProduct_cycle`, `radius_cartesianProduct_cycle` and
 `isVertexTransitive_cartesianProduct_cycle`, the last from the product of two vertex-transitive
-factors. Neither row includes an independence number: the Cartesian product has no formula for
-one, only the two bounds `indepNum_cartesianProduct_le` and `indepNum_cartesianProduct_le'`.
+factors. The torus's independence number is on file whenever one of its sides is even:
+`indepNum_cartesianProduct_cycle_even : α(Cₘ □ Cₙ) = n·⌊m/2⌋` for even `n`, and
+`indepNum_cartesianProduct_cycle_even'` for even `m`. The upper bound is the general
+`indepNum_cartesianProduct_le'` — at most a maximum independent set of `Cₘ` in each of the `n`
+columns — and `CGraph.le_indepNum_cartesianProduct_cycle` meets it with a checkerboard: take the
+first `2⌊m/2⌋` rows and, in row `a`, the columns congruent to `a` mod `2`. Two chosen squares in
+one row are two columns apart and two in adjacent rows have columns of opposite parity, so the set
+is independent; the column wrap is safe because `n` is even, and the row wrap because row
+`2⌊m/2⌋ − 1` neighbours row `0` only when `m` is even, where the two have opposite parity. The true
+value in general is `min(n⌊m/2⌋, m⌊n/2⌋)`, and an even side is exactly the case where the
+checkerboard reaches it: `n⌊m/2⌋ ≤ m(n/2)` whenever `n` is even, so the bound the construction
+meets is the smaller of the two. With both sides odd the minimum is still `n⌊m/2⌋` for `m ≤ n`,
+but the checkerboard's last row now neighbours its first with the same parity, and closing the
+cycle instead needs a column-by-column staircase whose shift has to be corrected somewhere around
+the wrap; that case keeps only the two bounds `indepNum_cartesianProduct_le` and
+`indepNum_cartesianProduct_le'`. The grid's independence number is also on file, but by a route
+that has nothing to do with the product structure.
+
+That route is the **boustrophedon numbering** of an `m × n` board: `L(x, y) = xn + y` along the
+even rows and `xn + (n − 1 − y)` along the odd ones. `snake_inj` says it is injective and
+`snake_step` says squares whose numbers differ by one are neighbours, which together make it a
+Hamiltonian path of the grid written as arithmetic rather than as a walk — no walk API is involved,
+only `row_col_eq`, the statement that `x` and `y < n` are recoverable from `xn + y`. Pairing the
+square numbered `2i` with the one numbered `2i + 1` then reads two ways. As a partition of the
+board into `⌈mn/2⌉` cliques it bounds independent sets, which is
+`indepNum_cartesianProduct_path_le`; combined with `|V| ≤ χ·α` and `χ ≤ 2` for a bipartite graph
+that gives `indepNum_grid : α(Pₘ □ Pₙ) = ⌈mn/2⌉`, and Gallai turns it into
+`coverNum_grid = ⌊mn/2⌋`. As a set of `⌊mn/2⌋` pairwise disjoint edges it is a near-perfect
+matching: `le_indepNum_lineGraph_of_pairing` turns `k` disjoint edges into `ν ≥ k` — they are `k`
+pairwise non-adjacent vertices of the line graph — and `le_indepNum_lineGraph_board` feeds it the
+boustrophedon pairs, for `matchNum_grid = ⌊mn/2⌋`. Every grid edge is a king move, so the same
+pairs give `matchNum_king = ⌊mn/2⌋`.
+
+The king graph's other three entries are blockings of the board. `indepNum_king = ⌈m/2⌉·⌈n/2⌉`:
+two kings in one `2 × 2` block are a single move apart, so rounding both coordinates down to the
+block index is injective on an independent set, and the lower bound is the general
+`indepNum_mul_indepNum_le_indepNum_strongProduct` with `indepNum_path` on both factors.
+`coverNum_king` is Gallai again. `domNum_king = ⌈m/3⌉·⌈n/3⌉` needs both directions separately:
+one king per `3 × 3` block, at `(3a + 1, 3b + 1)` and pushed back onto the board at the far edges,
+dominates every square (`domNum_strongProduct_path_le`), and no single king covers two of the
+squares `(3a, 3b)`, which are three apart in both coordinates, so rounding a dominating king to
+the block it covers is onto (`le_domNum_strongProduct_path`). The grid's domination number is the
+one entry of those four that is missing, and deliberately so: its closed form is a 2011 theorem of
+Gonçalves, Pinlou, Rao and Thomassé, not an exercise.
 
 Two more product families come for free from the same lemmas. The cylinder `Cₘ □ Pₙ` gets
 `V_cartesianProduct_cycle_path`, `E_cartesianProduct_cycle_path`,
@@ -5608,6 +5650,8 @@ automorphism count for most families — `autCount` is settled for the empty, co
 Johnson, circulant and lollipop families, for complements and, exactly and not just as a bound, for
 the star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and
 `autCount_bipartite_self`), the cycle (`autCount_cycle`), the wheel (`autCount_wheel`) and the
-Petersen graph (`autCount_petersen`), but not for the hypercube — and, for the grid and the king
-graph, everything below the degree and colouring entries: independence, domination, covering and
-matching numbers.
+Petersen graph (`autCount_petersen`), but not for the hypercube — the domination number of a
+grid, whose closed form is a 2011 theorem of Gonçalves, Pinlou, Rao and Thomassé and the only one
+of the grid's and the king graph's eight entries below the colouring row that is not on file — and
+the independence number of a torus with two odd sides, where the value is still
+`min(n⌊m/2⌋, m⌊n/2⌋)` but the checkerboard that proves the even case does not close up.

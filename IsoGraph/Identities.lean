@@ -10896,6 +10896,438 @@ theorem girth_cyclePendant (m : ℕ) (ks : List ℕ) (hks : ks.length ≤ m + 3)
       (fun a ha b hb hadj _ _ ↦ cycle_adj_of_cyclePendant_adj (hlow a ha) (hlow b hb) hadj)
       h2 hlt hnd hch hcl
 
+/-! ## The grid and the king graph: independence, covering, domination, matching -/
+
+/-- Two kings in the same `2 × 2` block of the board are a single move apart, so rounding both
+coordinates down to the block index is injective on an independent set. -/
+theorem indepNum_strongProduct_path_le (m n : ℕ) :
+    (strongProduct (path m) (path n)).indepNum ≤ ((m + 1) / 2) * ((n + 1) / 2) := by
+  classical
+  obtain ⟨s, hs, hcard⟩ :=
+    (strongProduct (path m) (path n)).toSimple.exists_isNIndepSet_indepNum
+  have hmaps : ∀ p ∈ s, ((p.1.1 / 2, p.2.1 / 2) : ℕ × ℕ) ∈
+      (Finset.range ((m + 1) / 2)) ×ˢ (Finset.range ((n + 1) / 2)) := by
+    intro p _
+    have h1 := p.1.isLt
+    have h2 := p.2.isLt
+    simp only [Finset.mem_product, Finset.mem_range]
+    omega
+  have hinj : ∀ p ∈ (s : Set (strongProduct (path m) (path n)).V),
+      ∀ q ∈ (s : Set (strongProduct (path m) (path n)).V),
+      ((p.1.1 / 2, p.2.1 / 2) : ℕ × ℕ) = (q.1.1 / 2, q.2.1 / 2) → p = q := by
+    intro p hp q hq heq
+    by_contra hpq
+    have hd1 : p.1.1 / 2 = q.1.1 / 2 := congrArg Prod.fst heq
+    have hd2 : p.2.1 / 2 = q.2.1 / 2 := congrArg Prod.snd heq
+    refine hs hp hq hpq ?_
+    rw [CGraph.toSimple_adj, strongProduct_adj]
+    simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, ne_eq]
+    refine ⟨hpq, ?_, ?_⟩
+    · by_cases he : p.1.1 = q.1.1
+      · exact Or.inl (Fin.ext he)
+      · exact Or.inr ((path_adj_val m p.1 q.1).2 ⟨he, by omega⟩)
+    · by_cases he : p.2.1 = q.2.1
+      · exact Or.inl (Fin.ext he)
+      · exact Or.inr ((path_adj_val n p.2 q.2).2 ⟨he, by omega⟩)
+  calc (strongProduct (path m) (path n)).indepNum
+      = s.card := hcard.symm
+    _ ≤ ((Finset.range ((m + 1) / 2)) ×ˢ (Finset.range ((n + 1) / 2))).card :=
+        Finset.card_le_card_of_injOn _ hmaps hinj
+    _ = ((m + 1) / 2) * ((n + 1) / 2) := by
+        rw [Finset.card_product, Finset.card_range, Finset.card_range]
+
+/-- One half of "a king moves to a neighbouring square": consecutive or equal indices in a path
+give the `Pₖ`-component of a strong-product adjacency. -/
+theorem path_step_or_eq {k : ℕ} (p q : (path k).V)
+    (h : p.1 = q.1 ∨ p.1 + 1 = q.1 ∨ q.1 + 1 = p.1) :
+    (decide (p = q) || (path k).Adj p q) = true := by
+  simp only [Bool.or_eq_true, decide_eq_true_eq]
+  rcases h with h | h
+  · exact Or.inl (Fin.ext h)
+  · exact Or.inr ((path_adj_val k p q).2 ⟨by omega, by omega⟩)
+
+/-- The converse of `path_step_or_eq`. -/
+theorem val_step_or_eq_of_path_step {k : ℕ} {p q : (path k).V}
+    (h : (decide (p = q) || (path k).Adj p q) = true) :
+    p.1 = q.1 ∨ p.1 + 1 = q.1 ∨ q.1 + 1 = p.1 := by
+  simp only [Bool.or_eq_true, decide_eq_true_eq] at h
+  rcases h with h | h
+  · exact Or.inl (by rw [h])
+  · exact Or.inr ((path_adj_val k p q).1 h).2
+
+/-- **Kings every third rank and file dominate the board.**  The king at block `(a, b)` sits on
+square `(3a + 1, 3b + 1)`, pushed back to the last rank or file when that would fall off the
+board, and covers the whole `3 × 3` block. -/
+theorem domNum_strongProduct_path_le (m n : ℕ) :
+    (strongProduct (path m) (path n)).domNum ≤ ((m + 2) / 3) * ((n + 2) / 3) := by
+  classical
+  rcases Nat.eq_zero_or_pos m with hm | hm
+  · subst hm; simp
+  rcases Nat.eq_zero_or_pos n with hn | hn
+  · subst hn; simp
+  let f : ℕ × ℕ → (strongProduct (path m) (path n)).V := fun ab ↦
+    (⟨min (3 * ab.1 + 1) (m - 1), by omega⟩, ⟨min (3 * ab.2 + 1) (n - 1), by omega⟩)
+  have hf1 : ∀ ab : ℕ × ℕ, (f ab).1.1 = min (3 * ab.1 + 1) (m - 1) := fun _ ↦ rfl
+  have hf2 : ∀ ab : ℕ × ℕ, (f ab).2.1 = min (3 * ab.2 + 1) (n - 1) := fun _ ↦ rfl
+  have hmem : ∀ v : (strongProduct (path m) (path n)).V,
+      f (v.1.1 / 3, v.2.1 / 3) ∈
+        (Finset.range ((m + 2) / 3) ×ˢ Finset.range ((n + 2) / 3)).image f := by
+    intro v
+    refine Finset.mem_image_of_mem f ?_
+    have h1 := v.1.isLt
+    have h2 := v.2.isLt
+    simp only [Finset.mem_product, Finset.mem_range]
+    omega
+  have hdom : (strongProduct (path m) (path n)).IsDominatingSet
+      ((Finset.range ((m + 2) / 3) ×ˢ Finset.range ((n + 2) / 3)).image f) := by
+    intro v
+    have h1 := v.1.isLt
+    have h2 := v.2.isLt
+    have e1 := hf1 (v.1.1 / 3, v.2.1 / 3)
+    have e2 := hf2 (v.1.1 / 3, v.2.1 / 3)
+    by_cases hv : f (v.1.1 / 3, v.2.1 / 3) = v
+    · exact Or.inl (hv ▸ hmem v)
+    · refine Or.inr ⟨f (v.1.1 / 3, v.2.1 / 3), hmem v, ?_⟩
+      rw [strongProduct_adj]
+      simp only [Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+      exact ⟨hv, path_step_or_eq _ _ (by omega), path_step_or_eq _ _ (by omega)⟩
+  simpa [Finset.card_product] using
+    (domNum_le_card_of_isDominatingSet hdom).trans (Finset.card_image_le)
+
+/-- **A king cannot cover two squares three files apart.**  The `⌈m/3⌉ · ⌈n/3⌉` squares with both
+coordinates divisible by `3` have pairwise disjoint closed neighbourhoods, so every dominating set
+has at least that many kings — rounding a king's coordinates to the block it covers is onto. -/
+theorem le_domNum_strongProduct_path (m n : ℕ) :
+    ((m + 2) / 3) * ((n + 2) / 3) ≤ (strongProduct (path m) (path n)).domNum := by
+  classical
+  obtain ⟨s, hcard, hs⟩ := (strongProduct (path m) (path n)).exists_isDominatingSet_domNum
+  rw [← hcard]
+  have hsurj : Set.SurjOn (fun p : (strongProduct (path m) (path n)).V ↦
+      (((p.1.1 + 1) / 3, (p.2.1 + 1) / 3) : ℕ × ℕ)) ↑s
+      ↑(Finset.range ((m + 2) / 3) ×ˢ Finset.range ((n + 2) / 3)) := by
+    rintro ⟨a, b⟩ hab
+    simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe, Finset.mem_range] at hab
+    obtain ⟨ha, hb⟩ := hab
+    have ha3 : 3 * a < m := by omega
+    have hb3 : 3 * b < n := by omega
+    have hkey : ∀ u : (strongProduct (path m) (path n)).V,
+        (u.1.1 = 3 * a ∨ u.1.1 + 1 = 3 * a ∨ 3 * a + 1 = u.1.1) →
+        (u.2.1 = 3 * b ∨ u.2.1 + 1 = 3 * b ∨ 3 * b + 1 = u.2.1) →
+        (((u.1.1 + 1) / 3, (u.2.1 + 1) / 3) : ℕ × ℕ) = (a, b) := by
+      intro u h1 h2
+      simp only [Prod.mk.injEq]
+      exact ⟨by omega, by omega⟩
+    rcases hs ((⟨3 * a, ha3⟩, ⟨3 * b, hb3⟩) :
+        (strongProduct (path m) (path n)).V) with hv | ⟨u, hu, hadj⟩
+    · exact ⟨_, hv, hkey _ (Or.inl rfl) (Or.inl rfl)⟩
+    · rw [strongProduct_adj] at hadj
+      simp only [Bool.and_eq_true] at hadj
+      exact ⟨u, hu, hkey u (val_step_or_eq_of_path_step hadj.2.1)
+        (val_step_or_eq_of_path_step hadj.2.2)⟩
+  calc ((m + 2) / 3) * ((n + 2) / 3)
+      = (Finset.range ((m + 2) / 3) ×ˢ Finset.range ((n + 2) / 3)).card := by
+        rw [Finset.card_product, Finset.card_range, Finset.card_range]
+    _ ≤ s.card := Finset.card_le_card_of_surjOn _ hsurj
+
+/-! ### The boustrophedon numbering of a board -/
+
+/-- Division with remainder, read off a pair of digits: `x * n + y` determines `x` and `y` once
+`y < n`. -/
+theorem row_col_eq {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
+    (h : x * n + y = x' * n + y') : x = x' ∧ y = y' := by
+  rcases Nat.lt_trichotomy x x' with hx | hx | hx
+  · exact absurd h (by
+      have h1 : (x + 1) * n ≤ x' * n := Nat.mul_le_mul_right n hx
+      have h2 : (x + 1) * n = x * n + n := by ring
+      omega)
+  · exact ⟨hx, by rw [hx] at h; omega⟩
+  · exact absurd h (by
+      have h1 : (x' + 1) * n ≤ x * n := Nat.mul_le_mul_right n hx
+      have h2 : (x' + 1) * n = x' * n + n := by ring
+      omega)
+
+/-- Stepping the row-major numbering by one either moves along a row or wraps to the next one. -/
+theorem row_col_step {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
+    (h : x * n + y + 1 = x' * n + y') :
+    (x = x' ∧ y + 1 = y') ∨ (x + 1 = x' ∧ y + 1 = n ∧ y' = 0) := by
+  rcases Nat.lt_or_ge (y + 1) n with hlt | hge
+  · exact Or.inl (row_col_eq hlt hy' (by omega))
+  · have hxn : (x + 1) * n = x * n + n := by ring
+    obtain ⟨h1, h2⟩ := row_col_eq (show (0 : ℕ) < n by omega) hy'
+      (show (x + 1) * n + 0 = x' * n + y' by omega)
+    exact Or.inr ⟨h1, by omega, h2.symm⟩
+
+/-- **Consecutive squares of the boustrophedon numbering are adjacent.**  Numbering an `m × n`
+board row by row, left to right along the even rows and right to left along the odd ones, two
+squares whose numbers differ by one share a row and are neighbouring columns, or share a column
+and are neighbouring rows. -/
+theorem snake_step {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
+    (h : x * n + (if x % 2 = 0 then y else n - 1 - y) + 1
+      = x' * n + (if x' % 2 = 0 then y' else n - 1 - y')) :
+    (x = x' ∧ (y + 1 = y' ∨ y' + 1 = y)) ∨ (y = y' ∧ x + 1 = x') := by
+  have hs : (if x % 2 = 0 then y else n - 1 - y) < n := by split; omega; omega
+  have hs' : (if x' % 2 = 0 then y' else n - 1 - y') < n := by split; omega; omega
+  rcases row_col_step hs hs' h with ⟨h1, h2⟩ | ⟨h1, h2, h3⟩
+  · subst h1
+    exact Or.inl ⟨rfl, by split_ifs at h2 <;> omega⟩
+  · exact Or.inr ⟨by split_ifs at h2 h3 <;> omega, h1⟩
+
+/-- The boustrophedon numbering is injective. -/
+theorem snake_inj {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
+    (h : x * n + (if x % 2 = 0 then y else n - 1 - y)
+      = x' * n + (if x' % 2 = 0 then y' else n - 1 - y')) : x = x' ∧ y = y' := by
+  have hs : (if x % 2 = 0 then y else n - 1 - y) < n := by split; omega; omega
+  have hs' : (if x' % 2 = 0 then y' else n - 1 - y') < n := by split; omega; omega
+  obtain ⟨h1, h2⟩ := row_col_eq hs hs' h
+  subst h1
+  exact ⟨rfl, by split_ifs at h2 <;> omega⟩
+
+/-- **The independence number of a grid is at most `⌈mn/2⌉`.**  The boustrophedon numbering is a
+Hamiltonian path, so pairing up the squares numbered `2i` and `2i + 1` partitions the board into
+`⌈mn/2⌉` edges and single squares, and an independent set meets each of them once. -/
+theorem indepNum_cartesianProduct_path_le (m n : ℕ) :
+    (cartesianProduct (path m) (path n)).indepNum ≤ (m * n + 1) / 2 := by
+  classical
+  obtain ⟨s, hs, hcard⟩ :=
+    (cartesianProduct (path m) (path n)).toSimple.exists_isNIndepSet_indepNum
+  let L : (cartesianProduct (path m) (path n)).V → ℕ := fun p ↦
+    p.1.1 * n + (if p.1.1 % 2 = 0 then p.2.1 else n - 1 - p.2.1)
+  have hLval : ∀ p : (cartesianProduct (path m) (path n)).V,
+      L p = p.1.1 * n + (if p.1.1 % 2 = 0 then p.2.1 else n - 1 - p.2.1) := fun _ ↦ rfl
+  have hLlt : ∀ p : (cartesianProduct (path m) (path n)).V, L p < m * n := by
+    intro p
+    have h1 := p.1.isLt
+    have h2 := p.2.isLt
+    have h3 : (p.1.1 + 1) * n ≤ m * n := Nat.mul_le_mul_right n h1
+    have h4 : (p.1.1 + 1) * n = p.1.1 * n + n := by ring
+    have h5 : (if p.1.1 % 2 = 0 then p.2.1 else n - 1 - p.2.1) < n := by split; omega; omega
+    rw [hLval]
+    omega
+  have hstep : ∀ p q : (cartesianProduct (path m) (path n)).V, L p + 1 = L q →
+      (cartesianProduct (path m) (path n)).Adj p q = true := by
+    intro p q h
+    have h1 := p.2.isLt
+    have h2 := q.2.isLt
+    rw [hLval, hLval] at h
+    rw [cartesianProduct_adj]
+    simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+    rcases snake_step h1 h2 h with ⟨hx, hy⟩ | ⟨hy, hx⟩
+    · exact Or.inl ⟨Fin.ext hx, (path_adj_val n p.2 q.2).2 ⟨by omega, by omega⟩⟩
+    · exact Or.inr ⟨(path_adj_val m p.1 q.1).2 ⟨by omega, by omega⟩, Fin.ext hy⟩
+  have hmaps : ∀ p ∈ s, L p / 2 ∈ Finset.range ((m * n + 1) / 2) := by
+    intro p _
+    have := hLlt p
+    simp only [Finset.mem_range]
+    omega
+  have hinj : ∀ p ∈ (s : Set (cartesianProduct (path m) (path n)).V),
+      ∀ q ∈ (s : Set (cartesianProduct (path m) (path n)).V), L p / 2 = L q / 2 → p = q := by
+    intro p hp q hq heq
+    by_contra hpq
+    have hne : L p ≠ L q := by
+      intro he
+      rw [hLval, hLval] at he
+      obtain ⟨h1, h2⟩ := snake_inj p.2.isLt q.2.isLt he
+      exact hpq (Prod.ext (Fin.ext h1) (Fin.ext h2))
+    have hadj : (cartesianProduct (path m) (path n)).Adj p q = true := by
+      rcases (by omega : L p + 1 = L q ∨ L q + 1 = L p) with h | h
+      · exact hstep p q h
+      · rw [(cartesianProduct (path m) (path n)).symm]
+        exact hstep q p h
+    exact hs hp hq hpq (by rw [CGraph.toSimple_adj]; exact hadj)
+  calc (cartesianProduct (path m) (path n)).indepNum
+      = s.card := hcard.symm
+    _ ≤ (Finset.range ((m * n + 1) / 2)).card := Finset.card_le_card_of_injOn _ hmaps hinj
+    _ = (m * n + 1) / 2 := Finset.card_range _
+
+/-! ### Matchings from a list of disjoint edges -/
+
+/-- **`k` pairwise disjoint edges give `ν ≥ k`.**  Each edge is a vertex of the line graph, and
+disjointness is exactly non-adjacency there. -/
+theorem le_indepNum_lineGraph_of_pairing {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (a b : Fin k → G.V) (hadj : ∀ i, G.Adj (a i) (b i) = true)
+    (hdisj : ∀ i j : Fin k, i ≠ j → a i ≠ a j ∧ a i ≠ b j ∧ b i ≠ a j ∧ b i ≠ b j) :
+    k ≤ (lineGraph G).indepNum := by
+  classical
+  let E : Fin k → (lineGraph G).V := fun i ↦
+    ⟨Sym2.mk (a i, b i), by rw [SimpleGraph.mem_edgeSet, toSimple_adj]; exact hadj i⟩
+  have hEinj : Function.Injective E := by
+    intro i j hij
+    by_contra hne
+    obtain ⟨h1, h2, h3, h4⟩ := hdisj i j hne
+    have hval : Sym2.mk (a i, b i) = Sym2.mk (a j, b j) := congrArg Subtype.val hij
+    rcases Sym2.eq_iff.1 hval with ⟨he, _⟩ | ⟨he, _⟩
+    · exact h1 he
+    · exact h2 he
+  let S : Finset (lineGraph G).V := Finset.univ.image E
+  have hScard : S.card = k := by
+    rw [Finset.card_image_of_injective _ hEinj, Finset.card_fin]
+  have hSindep : (lineGraph G).toSimple.IsIndepSet (S : Set (lineGraph G).V) := by
+    intro e he f hf hef
+    simp only [S, Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ,
+      true_and] at he hf
+    obtain ⟨i, rfl⟩ := he
+    obtain ⟨j, rfl⟩ := hf
+    have hij : i ≠ j := fun h ↦ hef (by rw [h])
+    obtain ⟨h1, h2, h3, h4⟩ := hdisj i j hij
+    rw [toSimple_adj, lineGraph_adj]
+    simp only [E, Bool.and_eq_true, decide_eq_true_eq, ne_eq, Sym2.mem_iff, not_and, not_exists]
+    rintro - v (rfl | rfl) (h | h)
+    · exact h1 h
+    · exact h2 h
+    · exact h3 h
+    · exact h4 h
+  have := hSindep.card_le_indepNum
+  rwa [hScard] at this
+
+/-- **The boustrophedon matching of a board.**  Pairing the square numbered `2i` with the one
+numbered `2i + 1` gives `⌊mn/2⌋` disjoint edges in any graph on the board that contains the grid
+adjacencies. -/
+theorem le_indepNum_lineGraph_board {m n : ℕ} (G : CGraph) [DecidableEq G.V]
+    (φ : (path m).V × (path n).V → G.V) (hφ : Function.Injective φ)
+    (hadj : ∀ p q : (path m).V × (path n).V,
+      ((p.1 = q.1 ∧ (p.2.1 + 1 = q.2.1 ∨ q.2.1 + 1 = p.2.1)) ∨ (p.2 = q.2 ∧ p.1.1 + 1 = q.1.1)) →
+      G.Adj (φ p) (φ q) = true) :
+    m * n / 2 ≤ (lineGraph G).indepNum := by
+  classical
+  rcases Nat.eq_zero_or_pos m with hm | hm
+  · simp [hm]
+  rcases Nat.eq_zero_or_pos n with hn | hn
+  · simp [hn]
+  let P : ℕ → (path m).V × (path n).V := fun k ↦
+    (⟨min (k / n) (m - 1), by omega⟩,
+      ⟨if (k / n) % 2 = 0 then k % n else n - 1 - k % n,
+        by have := Nat.mod_lt k hn; split; omega; omega⟩)
+  have hProw : ∀ k, (P k).1.1 = min (k / n) (m - 1) := fun _ ↦ rfl
+  have hPcol : ∀ k, (P k).2.1 = if (k / n) % 2 = 0 then k % n else n - 1 - k % n := fun _ ↦ rfl
+  have hPval : ∀ k, k < m * n →
+      (P k).1.1 * n + (if (P k).1.1 % 2 = 0 then (P k).2.1 else n - 1 - (P k).2.1) = k := by
+    intro k hk
+    have hdiv : k / n < m := (Nat.div_lt_iff_lt_mul hn).2 hk
+    have hmod : k % n < n := Nat.mod_lt k hn
+    have hrow : (P k).1.1 = k / n := by rw [hProw]; omega
+    rw [hrow, hPcol]
+    split_ifs with hpar
+    · exact Nat.div_add_mod' k n
+    · rw [show n - 1 - (n - 1 - k % n) = k % n by omega]
+      exact Nat.div_add_mod' k n
+  have hPinj : ∀ s t, s < m * n → t < m * n → P s = P t → s = t := by
+    intro s t hs ht hst
+    rw [← hPval s hs, ← hPval t ht, hst]
+  have hstep : ∀ s, s + 1 < m * n → G.Adj (φ (P s)) (φ (P (s + 1))) = true := by
+    intro s hs
+    refine hadj _ _ ?_
+    have h1 := hPval s (by omega)
+    have h2 := hPval (s + 1) hs
+    have hy := (P s).2.isLt
+    have hy' := (P (s + 1)).2.isLt
+    rcases snake_step (n := n) (x := (P s).1.1) (y := (P s).2.1) (x' := (P (s + 1)).1.1)
+      (y' := (P (s + 1)).2.1) hy hy' (by omega) with ⟨hx, hcol⟩ | ⟨hcol, hx⟩
+    · exact Or.inl ⟨Fin.ext hx, hcol⟩
+    · exact Or.inr ⟨Fin.ext hcol, hx⟩
+  have hlt : ∀ i : Fin (m * n / 2), 2 * i.1 + 1 < m * n := by
+    intro i
+    have := i.isLt
+    omega
+  refine le_indepNum_lineGraph_of_pairing (fun i ↦ φ (P (2 * i.1)))
+    (fun i ↦ φ (P (2 * i.1 + 1))) (fun i ↦ hstep _ (hlt i)) ?_
+  have hne : ∀ s t, s < m * n → t < m * n → s ≠ t → φ (P s) ≠ φ (P t) := by
+    intro s t hs ht hst h
+    exact hst (hPinj s t hs ht (hφ h))
+  intro i j hij
+  have hij' : i.1 ≠ j.1 := fun h ↦ hij (Fin.ext h)
+  exact ⟨hne _ _ (by have := hlt i; omega) (by have := hlt j; omega) (by omega),
+    hne _ _ (by have := hlt i; omega) (hlt j) (by omega),
+    hne _ _ (hlt i) (by have := hlt j; omega) (by omega),
+    hne _ _ (hlt i) (hlt j) (by omega)⟩
+
+/-- The grid contains `⌊mn/2⌋` disjoint edges. -/
+theorem le_indepNum_lineGraph_grid (m n : ℕ) :
+    m * n / 2 ≤ (lineGraph (cartesianProduct (path m) (path n))).indepNum := by
+  refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
+  intro p q h
+  rw [cartesianProduct_adj]
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+  rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · exact Or.inl ⟨h1, (path_adj_val n p.2 q.2).2 ⟨by omega, h2⟩⟩
+  · exact Or.inr ⟨(path_adj_val m p.1 q.1).2 ⟨by omega, Or.inl h2⟩, h1⟩
+
+/-- The king graph contains `⌊mn/2⌋` disjoint edges: the grid's own matching. -/
+theorem le_indepNum_lineGraph_king (m n : ℕ) :
+    m * n / 2 ≤ (lineGraph (strongProduct (path m) (path n))).indepNum := by
+  refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
+  intro p q h
+  rw [strongProduct_adj]
+  simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, ne_eq]
+  rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · refine ⟨fun he ↦ ?_, Or.inl h1, Or.inr ((path_adj_val n p.2 q.2).2 ⟨by omega, h2⟩)⟩
+    rw [he] at h2
+    omega
+  · refine ⟨fun he ↦ ?_, Or.inr ((path_adj_val m p.1 q.1).2 ⟨by omega, Or.inl h2⟩), Or.inl h1⟩
+    rw [he] at h2
+    omega
+
+
+/-! ### The independence number of a torus with an even side -/
+
+/-- **The checkerboard on a torus with an even side.**  Take the first even number of rows and,
+in row `a`, the columns congruent to `a` mod `2`.  Two chosen squares in the same row are two
+columns apart, and two in adjacent rows are in columns of opposite parity, so the set is
+independent; the wrap-around is safe in the column direction because `n` is even, and in the row
+direction because the last row used is `2⌊m/2⌋ - 1`, which is adjacent to row `0` only when `m`
+is even, when it has the opposite parity. -/
+theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
+    n * (m / 2) ≤ (cartesianProduct (cycle m) (cycle n)).indepNum := by
+  classical
+  let Φ : Fin (2 * (m / 2)) × Fin (n / 2) → (cartesianProduct (cycle m) (cycle n)).V := fun ab ↦
+    (⟨ab.1.1, by have := ab.1.isLt; omega⟩, ⟨2 * ab.2.1 + ab.1.1 % 2, by have := ab.2.isLt; omega⟩)
+  have hΦ1 : ∀ ab, (Φ ab).1.1 = ab.1.1 := fun _ ↦ rfl
+  have hΦ2 : ∀ ab, (Φ ab).2.1 = 2 * ab.2.1 + ab.1.1 % 2 := fun _ ↦ rfl
+  have hrow : ∀ ab, (Φ ab).1.1 < m := by
+    intro ab; rw [hΦ1]; have := ab.1.isLt; omega
+  have hcol : ∀ ab, (Φ ab).2.1 < n := by
+    intro ab; rw [hΦ2]; have := ab.2.isLt; omega
+  have hinj : Function.Injective Φ := by
+    intro x y h
+    have h1 : (Φ x).1.1 = (Φ y).1.1 := by rw [h]
+    have h2 : (Φ x).2.1 = (Φ y).2.1 := by rw [h]
+    simp only [hΦ1] at h1
+    simp only [hΦ2] at h2
+    exact Prod.ext (Fin.ext h1) (Fin.ext (by omega))
+  set S : Finset (cartesianProduct (cycle m) (cycle n)).V := Finset.univ.image Φ with hS
+  have hindep : (cartesianProduct (cycle m) (cycle n)).toSimple.IsIndepSet
+      (S : Set (cartesianProduct (cycle m) (cycle n)).V) := by
+    intro p hp q hq _
+    simp only [hS, Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ,
+      true_and] at hp hq
+    obtain ⟨x, rfl⟩ := hp
+    obtain ⟨y, rfl⟩ := hq
+    have hx1 := x.1.isLt
+    have hx2 := x.2.isLt
+    have hy1 := y.1.isLt
+    have hy2 := y.2.isLt
+    rw [toSimple_adj, cartesianProduct_adj]
+    simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, not_or, not_and]
+    refine ⟨fun heq hadj ↦ ?_, fun hadj heq ↦ ?_⟩
+    · have hv := (cycle_adj_val n (Φ x).2 (Φ y).2).1 hadj
+      have hr : (Φ x).1.1 = (Φ y).1.1 := by rw [heq]
+      rw [mod_succ_norm (hcol x), mod_succ_norm (hcol y)] at hv
+      simp only [hΦ1] at hr
+      simp only [hΦ2] at hv
+      rcases hv.2 with hv | hv <;> split_ifs at hv <;> omega
+    · have hv := (cycle_adj_val m (Φ x).1 (Φ y).1).1 hadj
+      have hc : (Φ x).2.1 = (Φ y).2.1 := by rw [heq]
+      rw [mod_succ_norm (hrow x), mod_succ_norm (hrow y)] at hv
+      simp only [hΦ2] at hc
+      simp only [hΦ1] at hv
+      rcases hv.2 with hv | hv <;> split_ifs at hv <;> omega
+  have hcard : S.card = n * (m / 2) := by
+    rw [hS, Finset.card_image_of_injective _ hinj, Finset.card_univ, Fintype.card_prod,
+      Fintype.card_fin, Fintype.card_fin]
+    have hn2 : 2 * (n / 2) = n := by omega
+    calc 2 * (m / 2) * (n / 2) = m / 2 * (2 * (n / 2)) := by ring
+      _ = n * (m / 2) := by rw [hn2]; ring
+  exact hcard ▸ hindep.card_le_indepNum
+
 end CGraph
 
 namespace IsoGraph
@@ -50954,5 +51386,97 @@ theorem cliqueNum_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 
     omega
   · rw [E_cyclePendant (m + 1) ks (by omega)]
     omega
+
+
+/-- **The independence number of a king graph**: `α(Pₘ ⊠ Pₙ) = ⌈m/2⌉ · ⌈n/2⌉`, the kings placed
+on every other rank and every other file.  The lower bound is the general
+`indepNum_mul_indepNum_le_indepNum_strongProduct` and the upper bound is the `2 × 2` blocking. -/
+@[simp] theorem indepNum_king (m n : ℕ) :
+    (path m ⊠g path n).indepNum = ((m + 1) / 2) * ((n + 1) / 2) := by
+  refine le_antisymm ?_ ?_
+  · rw [path_def, path_def, strongProduct_mk, indepNum_mk]
+    exact CGraph.indepNum_strongProduct_path_le m n
+  · have h := indepNum_mul_indepNum_le_indepNum_strongProduct (path m) (path n)
+    rwa [indepNum_path, indepNum_path] at h
+
+/-- **The vertex cover number of a king graph**, by Gallai. -/
+@[simp] theorem coverNum_king (m n : ℕ) :
+    (path m ⊠g path n).coverNum = m * n - ((m + 1) / 2) * ((n + 1) / 2) := by
+  have h := (path m ⊠g path n).coverNum_add_indepNum
+  rw [V_strongProduct, V_path, V_path, indepNum_king] at h
+  omega
+
+/-- **The domination number of a king graph**: `γ(Pₘ ⊠ Pₙ) = ⌈m/3⌉ · ⌈n/3⌉`, one king per
+`3 × 3` block of the board. -/
+@[simp] theorem domNum_king (m n : ℕ) :
+    (path m ⊠g path n).domNum = ((m + 2) / 3) * ((n + 2) / 3) := by
+  rw [path_def, path_def, strongProduct_mk, domNum_mk]
+  exact le_antisymm (CGraph.domNum_strongProduct_path_le m n)
+    (CGraph.le_domNum_strongProduct_path m n)
+
+/-- **The independence number of a grid**: `α(Pₘ □ Pₙ) = ⌈mn/2⌉`, the larger colour class of the
+checkerboard colouring.  The lower bound is `|V| ≤ χ·α` with `χ ≤ 2`, and the upper bound is the
+boustrophedon pairing of the board. -/
+@[simp] theorem indepNum_grid (m n : ℕ) :
+    (path m □g path n).indepNum = (m * n + 1) / 2 := by
+  refine le_antisymm ?_ ?_
+  · rw [path_def, path_def, cartesianProduct_mk, indepNum_mk]
+    exact CGraph.indepNum_cartesianProduct_path_le m n
+  · have hb : IsBipartite (path m □g path n) :=
+      isBipartite_cartesianProduct (isBipartite_path m) (isBipartite_path n)
+    have h := V_le_chromNum_mul_indepNum (path m □g path n)
+    rw [V_grid] at h
+    have h2 : (path m □g path n).chromNum * (path m □g path n).indepNum
+        ≤ 2 * (path m □g path n).indepNum :=
+      Nat.mul_le_mul_right _ (isBipartite_iff_chromNum_le_two.1 hb)
+    omega
+
+/-- **The vertex cover number of a grid**, by Gallai: `τ = ⌊mn/2⌋`. -/
+@[simp] theorem coverNum_grid (m n : ℕ) :
+    (path m □g path n).coverNum = m * n / 2 := by
+  have h := (path m □g path n).coverNum_add_indepNum
+  rw [V_grid, indepNum_grid] at h
+  omega
+
+/-- **The matching number of a grid**: `ν(Pₘ □ Pₙ) = ⌊mn/2⌋`, a near-perfect matching along the
+boustrophedon Hamiltonian path. -/
+@[simp] theorem matchNum_grid (m n : ℕ) : (path m □g path n).matchNum = m * n / 2 := by
+  refine le_antisymm ?_ ?_
+  · have h := (path m □g path n).two_mul_matchNum_le_V
+    rw [V_grid] at h
+    omega
+  · rw [matchNum_eq, path_def, path_def, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
+    exact CGraph.le_indepNum_lineGraph_grid m n
+
+/-- **The matching number of a king graph**: `ν(Pₘ ⊠ Pₙ) = ⌊mn/2⌋`, the grid's matching again. -/
+@[simp] theorem matchNum_king (m n : ℕ) : (path m ⊠g path n).matchNum = m * n / 2 := by
+  refine le_antisymm ?_ ?_
+  · have h := (path m ⊠g path n).two_mul_matchNum_le_V
+    rw [V_strongProduct, V_path, V_path] at h
+    omega
+  · rw [matchNum_eq, path_def, path_def, strongProduct_mk, lineGraph_mk, indepNum_mk]
+    exact CGraph.le_indepNum_lineGraph_king m n
+
+/-! ## The torus: independence number when a side is even -/
+
+/-- **The independence number of a torus with an even side**: `α(Cₘ □ Cₙ) = n · ⌊m/2⌋` as soon as
+`n` is even.  The upper bound is the general `indepNum_cartesianProduct_le'` — at most a maximum
+independent set of `Cₘ` in each of the `n` columns — and the checkerboard of
+`CGraph.le_indepNum_cartesianProduct_cycle` meets it.  When both sides are odd the value drops to
+`min (n⌊m/2⌋) (m⌊n/2⌋) - 1` and only the two bounds are on file. -/
+theorem indepNum_cartesianProduct_cycle_even (m n : ℕ) (hev : n % 2 = 0) :
+    (cycle (m + 3) □g cycle n).indepNum = n * ((m + 3) / 2) := by
+  refine le_antisymm ?_ ?_
+  · have h := indepNum_cartesianProduct_le' (cycle (m + 3)) (cycle n)
+    rwa [indepNum_cycle, V_cycle, Nat.mul_comm] at h
+  · rw [cycle_def, cycle_def, cartesianProduct_mk, indepNum_mk]
+    exact CGraph.le_indepNum_cartesianProduct_cycle (m + 3) n hev
+
+/-- The mirror of `indepNum_cartesianProduct_cycle_even`: `α(Cₘ □ Cₙ) = m · ⌊n/2⌋` when `m` is
+even. -/
+theorem indepNum_cartesianProduct_cycle_even' (m n : ℕ) (hev : m % 2 = 0) :
+    (cycle m □g cycle (n + 3)).indepNum = m * ((n + 3) / 2) := by
+  rw [cartesianProduct_comm]
+  exact indepNum_cartesianProduct_cycle_even n m hev
 
 end IsoGraph
