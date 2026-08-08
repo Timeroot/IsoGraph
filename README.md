@@ -2422,6 +2422,25 @@ the spine flips), `le_autCount_wheel` (`2(n + 3)`, the rim's dihedral symmetry, 
 cocktail-party bound) and `autCount_path_le_autCount_fan`, which is only relative to the path
 because the path's own automorphism count is still unproved.
 
+The star's `n!` is the one of those that is now an *equality*. As soon as `n ≥ 2` the centre of
+`K_{1,n}` is the only vertex with two distinct neighbours — a ray has exactly one — so
+`exists_eq_inl_of_two_neighbours` identifies it in first-order terms that an isomorphism must
+preserve, `aut_apply_inl` concludes that every automorphism fixes it, and `exists_perm_of_aut`
+peels off what remains as a permutation of the rays. Going the other way, `starAut` turns any
+permutation of the rays into an automorphism, so `starAut` is a bijection
+`Equiv.Perm (Fin n) → Aut(K_{1,n})` and `Nat.card_eq_of_bijective` reads off the count:
+
+```lean
+theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial
+```
+
+The index `n + 2` is not shyness about small cases: they are genuinely different, since `star 0`
+is `K₁` with one automorphism and `star 1` is `K₂` with two, against `0! = 1! = 1`. This is the
+library's first exact automorphism count for a graph that is not an empty or complete graph in
+disguise — `autCount_kneser_one`, `autCount_johnson_one` and `autCount_lollipop_zero` all reduce
+to `autCount_complete` — and the argument is the general shape the remaining families will need:
+pin down an orbit by a property automorphisms preserve, then count what acts on the rest.
+
 The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
 are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
 `V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
@@ -5314,7 +5333,7 @@ The rest are genuinely hard, or at least not cheap: the chromatic number of a Kn
 (Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the girth
 of a general cycle and of a general tadpole as opposed to the fixed small ones, the automorphism
 count for most families — `autCount` is settled for the empty, complete, path, Kneser, Johnson,
-circulant and lollipop families and for complements, and not for the cycle, star, wheel, Petersen
-or hypercube — and, for the grid and the king graph, everything below the degree and colouring
+circulant and lollipop families, for complements and, exactly and not just as a bound, for the
+star (`autCount_star`), but not for the cycle, wheel, Petersen or hypercube — and, for the grid and the king graph, everything below the degree and colouring
 entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
 a general `girth_cyclePendant` first.

@@ -7300,6 +7300,80 @@ theorem autCount_le_factorial (G : CGraph) : G.autCount ≤ Nat.factorial (Finty
   rw [autCount, complete_toSimple, Nat.card_congr (SimpleGraph.autTopEquiv (Fin n)),
     Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
 
+/-- A ray of a star has only one neighbour, so a vertex of `K_{1,n}` with two distinct neighbours
+is the centre. -/
+theorem exists_eq_inl_of_two_neighbours {n : ℕ} {x u v : (bipartite 1 n).V} (huv : u ≠ v)
+    (hu : (bipartite 1 n).Adj x u = true) (hv : (bipartite 1 n).Adj x v = true) :
+    ∃ a, x = Sum.inl a := by
+  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  rcases x with a | b
+  · exact ⟨a, rfl⟩
+  · exfalso
+    apply huv
+    rcases u with c | d
+    · rcases v with c' | d'
+      · rw [Subsingleton.elim c c']
+      · simp at hv
+    · simp at hu
+
+/-- **Every automorphism of a star with at least two rays fixes the centre**, since the centre is
+the only vertex with two distinct neighbours. -/
+theorem aut_apply_inl {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2))
+    (a : (complete 1).V) : f (.inl a) = .inl a := by
+  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  obtain ⟨u, v, huv⟩ :=
+    Fintype.exists_pair_of_one_lt_card (α := (complete (n + 2)).V) (by simp)
+  have hne : (Sum.inr u : (bipartite 1 (n + 2)).V) ≠ Sum.inr v := fun h ↦ huv (Sum.inr.inj h)
+  obtain ⟨a', ha'⟩ := exists_eq_inl_of_two_neighbours
+    (x := f (.inl a)) (u := f (Sum.inr u)) (v := f (Sum.inr v))
+    (fun h ↦ hne (f.injective h)) (by rw [f.adj_eq]; simp) (by rw [f.adj_eq]; simp)
+  rw [ha', Subsingleton.elim a' a]
+
+/-- With the centre fixed, an automorphism of a star with at least two rays is nothing but a
+permutation of the rays. -/
+theorem exists_perm_of_aut {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2)) :
+    ∃ σ : Equiv.Perm (Fin (n + 2)), f = starAut (n + 2) σ := by
+  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  have hex : ∀ b : (complete (n + 2)).V, ∃ r, f (.inr b) = Sum.inr r := by
+    intro b
+    rcases hb : f (.inr b) with a | r
+    · exact absurd (f.injective (hb.trans (aut_apply_inl f a).symm)) (by simp)
+    · exact ⟨r, rfl⟩
+  choose g hg using hex
+  have hginj : Function.Injective g := by
+    intro b c h
+    have hbc : f (.inr b) = f (.inr c) := by rw [hg b, hg c, h]
+    exact Sum.inr.inj (f.injective hbc)
+  refine ⟨Equiv.ofBijective g (Finite.injective_iff_bijective.1 hginj), ?_⟩
+  ext x
+  rcases x with a | b
+  · rw [aut_apply_inl f a, starAut_inl]
+  · rw [hg b, starAut_inr]
+    rfl
+
+/-- **The star `K_{1,n}` has exactly `n!` automorphisms** once it has at least two rays: every
+automorphism fixes the centre, and what is left is an arbitrary permutation of the rays.  This is
+the upper bound matching `IsoGraph.factorial_le_autCount_star`; the two smaller stars are
+exceptions, `star 0 = K₁` has one automorphism and `star 1 = K₂` has two. -/
+theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial := by
+  have hb : Function.Bijective (starAut (n + 2)) := by
+    constructor
+    · intro σ τ h
+      refine Equiv.ext fun b ↦ ?_
+      have h1 : (Sum.inr (σ b) : (bipartite 1 (n + 2)).V) = Sum.inr (τ b) :=
+        congrArg (fun e : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2) ↦ e (.inr b)) h
+      exact Sum.inr.inj h1
+    · intro f
+      obtain ⟨σ, hσ⟩ := exists_perm_of_aut f
+      exact ⟨σ, hσ.symm⟩
+  have hcard : Nat.card (Equiv.Perm (Fin (n + 2)))
+      = Nat.card (bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2)) :=
+    Nat.card_eq_of_bijective _ hb
+  have hperm : Nat.card (Equiv.Perm (Fin (n + 2))) = (n + 2).factorial := by
+    rw [Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
+  show Nat.card (bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2)) = (n + 2).factorial
+  rw [← hcard, hperm]
+
 /-- The automorphism count is `1` exactly for an asymmetric graph. -/
 theorem autCount_eq_one_iff (G : CGraph) :
     G.autCount = 1 ↔ ∀ a : G.toSimple ≃g G.toSimple, a = RelIso.refl _ := by
@@ -35310,6 +35384,11 @@ theorem factorial_le_autCount_star (n : ℕ) : n.factorial ≤ (star n).autCount
   have h := factorial_mul_factorial_le_autCount_bipartite 1 n
   rw [← star_eq_bipartite] at h
   simpa using h
+
+/-- **The star `K_{1,n}` has exactly `n!` automorphisms** for `n ≥ 2`: the centre is the only
+vertex with two distinct neighbours, so it is fixed, and the rays may then be permuted freely. -/
+theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial := by
+  rw [star_def, autCount_mk, CGraph.autCount_star]
 
 /-- The wheel inherits the dihedral symmetry of its rim. -/
 theorem le_autCount_wheel (n : ℕ) : 2 * (n + 3) ≤ (wheel (n + 3)).autCount := by

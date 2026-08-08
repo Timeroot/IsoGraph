@@ -5207,6 +5207,18 @@ def bipartiteSwap (n : ℕ) : bipartite n n ≃cg bipartite n n :=
 
 @[simp] theorem bipartiteSwap_inr (n : ℕ) (b : Fin n) : bipartiteSwap n (.inr b) = .inl b := rfl
 
+/-- Permuting the rays of the star `K_{1,n}` and fixing its centre. -/
+def starAut (n : ℕ) (σ : Equiv.Perm (Fin n)) : bipartite 1 n ≃cg bipartite 1 n :=
+  autoOfPerm (G := bipartite 1 n) (Equiv.sumCongr (Equiv.refl (Fin 1)) σ) fun x y ↦ by
+    show (bipartite 1 n).Adj (Sum.map id σ x) (Sum.map id σ y) = _
+    rcases x with a | b <;> rcases y with c | d <;> simp
+
+@[simp] theorem starAut_inl (n : ℕ) (σ : Equiv.Perm (Fin n)) (a : Fin 1) :
+    starAut n σ (.inl a) = .inl a := rfl
+
+@[simp] theorem starAut_inr (n : ℕ) (σ : Equiv.Perm (Fin n)) (b : Fin n) :
+    starAut n σ (.inr b) = .inr (σ b) := rfl
+
 /-- Every arc of `K_{m,n}` crosses between the two sides. -/
 theorem bipartite_arc (m n : ℕ) (x y : (bipartite m n).V) (h : (bipartite m n).Adj x y) :
     (∃ a b, x = .inl a ∧ y = .inr b) ∨ (∃ a b, x = .inr b ∧ y = .inl a) := by
