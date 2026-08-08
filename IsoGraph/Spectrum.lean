@@ -190,6 +190,11 @@ which is the boundary condition a degree-one endpoint imposes, where `path_adjMa
 `g` to vanish there instead.  `lapSpectrum_eq_of_card_le`, the Laplacian twin of
 `spectrum_eq_of_card_le`, then turns `n` distinct eigenvalues into the whole multiset.
 
+The moments of the Laplacian spectrum are the traces of the powers of `L`, `sum_pow_lapSpectrum`,
+by the same one-conjugation argument as for the adjacency matrix (`trace_lapMat_pow`).  The second
+one is `sum_sq_lapSpectrum`: `∑ μ ² = 2 E + ∑ d (i) ²`, because `L ² = D ² - D A - A D + A ²` and
+the two cross terms have zero diagonal — a loopless graph has `A i i = 0`.
+
 Two bounds come out of the same picture:
 `le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`, the largest-coordinate argument again) and
 the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
@@ -198,7 +203,12 @@ the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete gra
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
 `count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
-`LapCospectral.isConnected` needs no regularity where `Cospectral.isConnected` does.  For regular
+`LapCospectral.isConnected` needs no regularity where `Cospectral.isConnected` does.  The second
+moment adds the sum of squared degrees (`LapCospectral.sum_sq_degrees_eq`), and with the first
+moment that is enough to pin the whole degree sequence of a regular graph's partner:
+`∑ (d (i) - k) ² = ∑ d (i) ² - 2 k ∑ d (i) + n k ²` vanishes, so `LapCospectral.isRegularWith`
+makes **regularity a Laplacian spectral invariant**, where the adjacency twin
+`Cospectral.isRegularWith` has to route through `lambdaMax`.  For regular
 graphs the adjacency notion is the stronger one, `Cospectral.lapCospectral`; without regularity
 it is not, and `not_lapCospectral_star_four` is the witness.
 
@@ -5248,6 +5258,62 @@ theorem exists_orthogonal_lap_diagonal (G : CGraph) :
   · rw [← hstar]; exact hU.1
   · rw [← hstar]; exact hU.2
 
+/-- Every power of `L` is diagonalised by the same orthogonal matrix, so its trace is the sum of
+the `n`-th powers of the Laplacian eigenvalues. -/
+theorem trace_lapMat_pow (G : CGraph) (n : ℕ) :
+    (G.lapMat ^ n).trace = ∑ i, G.lapEigenvalues i ^ n := by
+  obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_lap_diagonal G
+  set D : Matrix G.V G.V ℝ := Matrix.diagonal G.lapEigenvalues with hD
+  have hA : G.lapMat = U * D * Uᵀ := by
+    calc G.lapMat = (U * Uᵀ) * G.lapMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
+      _ = U * (Uᵀ * G.lapMat * U) * Uᵀ := by simp only [mul_assoc]
+      _ = U * D * Uᵀ := by rw [hdiag]
+  have hpow : ∀ m : ℕ, G.lapMat ^ m = U * D ^ m * Uᵀ := by
+    intro m
+    induction m with
+    | zero => simp [hUU']
+    | succ m ih =>
+      rw [pow_succ, ih, hA, pow_succ]
+      calc U * D ^ m * Uᵀ * (U * D * Uᵀ) = U * D ^ m * (Uᵀ * U) * D * Uᵀ := by
+            simp only [mul_assoc]
+        _ = U * (D ^ m * D) * Uᵀ := by rw [hUU]; simp only [mul_assoc, mul_one]
+  calc (G.lapMat ^ n).trace = (U * D ^ n * Uᵀ).trace := by rw [hpow]
+    _ = (Uᵀ * (U * D ^ n)).trace := by rw [Matrix.trace_mul_comm]
+    _ = (D ^ n).trace := by rw [← mul_assoc, hUU, one_mul]
+    _ = ∑ i, G.lapEigenvalues i ^ n := by
+        rw [hD, Matrix.diagonal_pow, Matrix.trace_diagonal]
+        rfl
+
+/-- **The moments of the Laplacian spectrum are the traces of the powers of `L`.** -/
+theorem sum_pow_lapSpectrum (G : CGraph) (n : ℕ) :
+    (G.lapSpectrum.map (· ^ n)).sum = (G.lapMat ^ n).trace := by
+  rw [trace_lapMat_pow, lapSpectrum_eq_map, Multiset.map_map]
+  simp only [Finset.sum, Function.comp_def]
+
+/-- **The second moment of the Laplacian spectrum**: `∑ μ ² = 2 E + ∑ d (i) ²`.  The trace of
+`L ²` is the trace of `D ²` plus the trace of `A ²`, the cross terms `D A` and `A D` having zero
+diagonal because the graph is loopless. -/
+theorem sum_sq_lapSpectrum (G : CGraph) :
+    (G.lapSpectrum.map (· ^ 2)).sum
+      = 2 * (G.E : ℝ) + ∑ i, (G.toSimple.degree i : ℝ) ^ 2 := by
+  set D : Matrix G.V G.V ℝ := Matrix.diagonal (fun i ↦ (G.toSimple.degree i : ℝ)) with hD
+  have hDA : (D * G.adjMat).trace = 0 := by
+    rw [Matrix.trace]
+    refine Finset.sum_eq_zero fun i _ ↦ ?_
+    rw [Matrix.diag_apply, hD, Matrix.diagonal_mul]
+    simp [adjMat_apply, G.adj_self]
+  have hAD : (G.adjMat * D).trace = 0 := by
+    rw [Matrix.trace_mul_comm]
+    exact hDA
+  have hDD : (D * D).trace = ∑ i, (G.toSimple.degree i : ℝ) ^ 2 := by
+    rw [hD, Matrix.diagonal_mul_diagonal, Matrix.trace_diagonal]
+    exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+  have hAA : (G.adjMat * G.adjMat).trace = 2 * (G.E : ℝ) := by
+    rw [← pow_two, ← sum_pow_spectrum, ← sum_sq_spectrum]
+  rw [sum_pow_lapSpectrum, pow_two, lapMat_eq_diagonal_sub, ← hD, Matrix.sub_mul, Matrix.mul_sub,
+    Matrix.mul_sub, Matrix.trace_sub, Matrix.trace_sub, Matrix.trace_sub, hDA, hAD, hDD, hAA]
+  ring
+
 /-- **The Laplacians of a graph and of its complement add up to `n I - J`.** -/
 theorem lapMat_compl (G : CGraph) [DecidableEq G.V] :
     (compl G).lapMat
@@ -5852,6 +5918,59 @@ theorem LapCospectral.isConnected {G H : CGraph} (h : LapCospectral G H) (hG : G
   rw [← h.lapSpectrum_eq]
   exact hG
 
+/-- **Laplacian cospectral graphs have the same sum of squared degrees**, by the second moment:
+`∑ μ ² = 2 E + ∑ d (i) ²` and the number of edges is already an invariant. -/
+theorem LapCospectral.sum_sq_degrees_eq {G H : CGraph} (h : LapCospectral G H) :
+    ∑ i, (G.toSimple.degree i : ℝ) ^ 2 = ∑ i, (H.toSimple.degree i : ℝ) ^ 2 := by
+  have h2 : (G.lapSpectrum.map (· ^ 2)).sum = (H.lapSpectrum.map (· ^ 2)).sum := by
+    rw [h.lapSpectrum_eq]
+  rw [sum_sq_lapSpectrum, sum_sq_lapSpectrum, h.E_eq] at h2
+  linarith
+
+/-- **Regularity is a Laplacian spectral invariant.**  The first two moments pin the degree
+sequence of a Laplacian cospectral partner of a `k`-regular graph: its degrees sum to `n k` and
+its squared degrees to `n k ²`, so `∑ (d (i) - k) ² = 0` and every degree is `k`.  The adjacency
+twin `Cospectral.isRegularWith` needs the extremal eigenvalue instead. -/
+theorem LapCospectral.isRegularWith {G H : CGraph} (h : LapCospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) : H.IsRegularWith k := by
+  classical
+  have hcard : Fintype.card H.V = Fintype.card G.V := h.card_eq.symm
+  -- the degrees of `H` sum to `n k`
+  have hdegsum : ∑ i, H.toSimple.degree i = ∑ i, G.toSimple.degree i := by
+    rw [SimpleGraph.sum_degrees_eq_twice_card_edges, SimpleGraph.sum_degrees_eq_twice_card_edges]
+    have hE1 : G.E = G.toSimple.edgeFinset.card := rfl
+    have hE2 : H.E = H.toSimple.edgeFinset.card := rfl
+    have := h.E_eq
+    omega
+  have hGsum : ∑ i, G.toSimple.degree i = Fintype.card G.V * k := by
+    rw [Finset.sum_congr rfl fun i _ ↦ hG i, Finset.sum_const, Finset.card_univ, smul_eq_mul]
+  have hlin : ∑ i, (H.toSimple.degree i : ℝ) = Fintype.card G.V * (k : ℝ) := by
+    rw [← Nat.cast_sum, hdegsum, hGsum]
+    push_cast
+    ring
+  -- and their squares to `n k ²`
+  have hGsq : ∑ i, (G.toSimple.degree i : ℝ) ^ 2 = Fintype.card G.V * (k : ℝ) ^ 2 := by
+    have hpt : ∀ i : G.V, (G.toSimple.degree i : ℝ) ^ 2 = (k : ℝ) ^ 2 := fun i ↦ by rw [hG i]
+    rw [Finset.sum_congr rfl fun i _ ↦ hpt i, Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+  have hsq : ∑ i, (H.toSimple.degree i : ℝ) ^ 2 = Fintype.card G.V * (k : ℝ) ^ 2 := by
+    rw [← h.sum_sq_degrees_eq]
+    exact hGsq
+  -- so the variance vanishes
+  have hvar : ∑ i, ((H.toSimple.degree i : ℝ) - k) ^ 2 = 0 := by
+    have hpt : ∀ i : H.V, ((H.toSimple.degree i : ℝ) - k) ^ 2
+        = (H.toSimple.degree i : ℝ) ^ 2 - 2 * k * (H.toSimple.degree i : ℝ) + k ^ 2 :=
+      fun i ↦ by ring
+    rw [Finset.sum_congr rfl fun i _ ↦ hpt i, Finset.sum_add_distrib, Finset.sum_sub_distrib,
+      ← Finset.mul_sum, Finset.sum_const, Finset.card_univ, nsmul_eq_mul, hsq, hlin, hcard]
+    ring
+  intro v
+  have h0 := (Finset.sum_eq_zero_iff_of_nonneg fun i _ ↦ sq_nonneg
+    ((H.toSimple.degree i : ℝ) - k)).1 hvar v (Finset.mem_univ v)
+  have h1 : (H.toSimple.degree v : ℝ) = (k : ℝ) := by
+    have := sq_eq_zero_iff.1 h0
+    linarith
+  exact_mod_cast h1
+
 /-- For regular graphs the two notions agree in one direction: cospectral regular graphs are
 Laplacian cospectral. -/
 theorem Cospectral.lapCospectral {G H : CGraph} (h : Cospectral G H) {k : ℕ}
@@ -6372,6 +6491,12 @@ theorem LapCospectral.numComponents_eq {G H : IsoGraph} (h : LapCospectral G H) 
 theorem LapCospectral.isConnected {G H : IsoGraph} (h : LapCospectral G H) (hG : G.IsConnected) :
     H.IsConnected :=
   Quotient.inductionOn₂ G H (fun _ _ h hG ↦ CGraph.LapCospectral.isConnected h hG) h hG
+
+/-- **Regularity is a Laplacian spectral invariant**, from the first two moments of the
+spectrum, where the adjacency twin `Cospectral.isRegularWith` goes through `lambdaMax`. -/
+theorem LapCospectral.isRegularWith {G H : IsoGraph} (h : LapCospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) : H.IsRegularWith k :=
+  Quotient.inductionOn₂ G H (fun _ _ h hG ↦ CGraph.LapCospectral.isRegularWith h hG) h hG
 
 /-- Cospectral regular graphs are Laplacian cospectral. -/
 theorem Cospectral.lapCospectral {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}

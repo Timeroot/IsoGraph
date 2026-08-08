@@ -4421,6 +4421,20 @@ rather than reflection — is reused to prove it. From there
 `lapSpectrum_eq_of_card_le`, the Laplacian twin of `spectrum_eq_of_card_le`, turns `n` distinct
 eigenvalues into the whole multiset.
 
+Moments work here just as they do for the adjacency matrix. `trace_lapMat_pow` diagonalises every
+power of `L` with a single conjugation, so `sum_pow_lapSpectrum` identifies `∑ μ ⁿ` with
+`tr (Lⁿ)`, and expanding `L² = D² - DA - AD + A²` gives the second moment
+
+```lean
+theorem sum_sq_lapSpectrum (G : CGraph) :
+    (G.lapSpectrum.map (· ^ 2)).sum
+      = 2 * (G.E : ℝ) + ∑ i, (G.toSimple.degree i : ℝ) ^ 2
+```
+
+The two cross terms drop out because a loopless graph has `A i i = 0`, so `D A` and `A D` have zero
+diagonal; what survives is `tr (D²) = ∑ d(i)²` and `tr (A²) = 2 E`. So where the adjacency second
+moment is `2 E` on the nose, the Laplacian one carries the degree sequence's second moment as well.
+
 The complement identity is also exactly what bounds the spectrum from above: `n - μ` is a Laplacian
 eigenvalue of the complement, hence nonnegative, so `le_card_of_mem_lapSpectrum` gives the sharp
 `μ ≤ n` — attained by `K_n`, whose Laplacian spectrum is `0, n, …, n`. The cruder
@@ -4432,6 +4446,22 @@ Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
 point of the whole section — the number of components (`LapCospectral.numComponents_eq`), so
 `LapCospectral.isConnected` carries connectedness across with no regularity hypothesis at all.
+
+The second moment adds one more invariant, and it is a useful one. `LapCospectral.sum_sq_degrees_eq`
+says Laplacian cospectral graphs have the same `∑ d(i)²`, since they already have the same `E`. Two
+moments determine the degree sequence of a regular graph: if `G` is `k`-regular and `H` is Laplacian
+cospectral with it, then `H`'s degrees sum to `n k` and its squared degrees to `n k²`, so
+
+```
+∑ (d(i) - k)² = ∑ d(i)² - 2 k ∑ d(i) + n k² = n k² - 2 n k² + n k² = 0
+```
+
+and a sum of squares vanishes only termwise. That is `LapCospectral.isRegularWith`: **regularity is
+a Laplacian spectral invariant.** The adjacency twin `Cospectral.isRegularWith` says the same thing
+for `Cospectral`, but has to route through the largest eigenvalue — `lambdaMax = k` for a `k`-regular
+graph, and a graph whose `lambdaMax` equals its average degree is regular. On the Laplacian side no
+extremal argument is needed; two moments suffice.
+
 The implication between the two notions runs one way, `Cospectral.lapCospectral`: cospectral
 *regular* graphs are Laplacian cospectral, because there `L = k I - A`. It runs no further than
 that, and the pair from before is the witness: `K₁,₄` and `K₂,₂ ⊔ K₁` are cospectral but have one
