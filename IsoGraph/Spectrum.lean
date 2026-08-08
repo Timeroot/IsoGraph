@@ -213,6 +213,17 @@ Laplacian spectrum computed above gives a value, through `algConn_eq_of_isLeast`
 `lapSpectrum_cycle` lives, `algConn_cycle` (`2 - 2 cos (2 π / n)`, four times the path's value:
 closing the path into a cycle doubles the Fiedler frequency).
 
+`lapLambdaMax` is the other end of the same spectrum, the largest Laplacian eigenvalue, taken as a
+supremum for the same reason `algConn` is an infimum.  It is bounded by
+`lapLambdaMax_le_card` and `lapLambdaMax_le_two_mul_maxDeg` from above and by the average degree
+from below (`two_mul_E_le_card_mul_lapLambdaMax`, since the `n` eigenvalues sum to `2 E`); the
+matching averaging bound at the small end is `card_sub_one_mul_algConn_le_two_mul_E`.  What ties
+the two ends together is the complement: reflecting the spectrum in `n` sends the largest
+eigenvalue to the smallest nonzero one and back, `algConn_compl` (`a (Ḡ) = n - μ_max (G)`) and
+`lapLambdaMax_compl` (`μ_max (Ḡ) = n - a (G)`).  So `lapLambdaMax_complete` and
+`lapLambdaMax_star`, both equal to the order, are `algConn`'s two vanishing values —
+`Kₙ` and the star both have a disconnected complement.
+
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
 `count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
@@ -6077,6 +6088,148 @@ theorem algConn_path (n : ℕ) :
     rw [hfm]
     linarith
 
+/-! ### The largest Laplacian eigenvalue -/
+
+/-- The **largest Laplacian eigenvalue**, the other end of the Laplacian spectrum from `algConn`.
+As with `algConn` the supremum is taken in `ℝ`, so the empty graph gets `sSup ∅ = 0`. -/
+noncomputable def lapLambdaMax (G : CGraph) : ℝ := sSup {x : ℝ | x ∈ G.lapSpectrum}
+
+theorem le_lapLambdaMax {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) : x ≤ G.lapLambdaMax :=
+  le_csSup (Multiset.finite_toSet _).bddAbove hx
+
+theorem lapLambdaMax_mem_lapSpectrum (G : CGraph) [Nonempty G.V] :
+    G.lapLambdaMax ∈ G.lapSpectrum :=
+  Set.Nonempty.csSup_mem ⟨0, G.zero_mem_lapSpectrum⟩ (Multiset.finite_toSet _)
+
+/-- To compute a largest Laplacian eigenvalue it is enough to exhibit a greatest element of the
+Laplacian spectrum. -/
+theorem lapLambdaMax_eq_of_isGreatest {G : CGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum)
+    (hle : ∀ x ∈ G.lapSpectrum, x ≤ a) : G.lapLambdaMax = a :=
+  le_antisymm (csSup_le ⟨a, hmem⟩ hle) (le_lapLambdaMax hmem)
+
+theorem lapLambdaMax_nonneg (G : CGraph) [Nonempty G.V] : 0 ≤ G.lapLambdaMax :=
+  le_lapLambdaMax G.zero_mem_lapSpectrum
+
+theorem algConn_le_lapLambdaMax (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+    G.algConn ≤ G.lapLambdaMax :=
+  le_lapLambdaMax (G.algConn_mem_lapSpectrum h)
+
+/-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
+theorem lapLambdaMax_le_card (G : CGraph) [Nonempty G.V] [DecidableEq G.V] :
+    G.lapLambdaMax ≤ Fintype.card G.V :=
+  G.le_card_of_mem_lapSpectrum G.lapLambdaMax_mem_lapSpectrum
+
+theorem lapLambdaMax_le_two_mul_maxDeg (G : CGraph) [Nonempty G.V] :
+    G.lapLambdaMax ≤ 2 * (G.maxDeg : ℝ) :=
+  le_two_mul_maxDeg_of_mem_lapSpectrum G.lapLambdaMax_mem_lapSpectrum
+
+/-- **The largest Laplacian eigenvalue is at least the average degree**: the `n` eigenvalues sum
+to `2 E`. -/
+theorem two_mul_E_le_card_mul_lapLambdaMax (G : CGraph) :
+    2 * (G.E : ℝ) ≤ Fintype.card G.V * G.lapLambdaMax := by
+  have hsum : G.lapSpectrum.sum ≤ Multiset.card G.lapSpectrum • G.lapLambdaMax :=
+    Multiset.sum_le_card_nsmul _ _ fun x hx ↦ le_lapLambdaMax hx
+  rw [G.sum_lapSpectrum, G.card_lapSpectrum, nsmul_eq_mul] at hsum
+  exact hsum
+
+/-- **The algebraic connectivity is at most the average of the nonzero eigenvalues**: the `n - 1`
+of them left after the erasure still sum to `2 E`. -/
+theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
+    (Fintype.card G.V - 1 : ℕ) * G.algConn ≤ 2 * (G.E : ℝ) := by
+  have hsum : (G.lapSpectrum.erase 0).sum = 2 * (G.E : ℝ) := by
+    have hcons := Multiset.cons_erase G.zero_mem_lapSpectrum
+    have h2 : G.lapSpectrum.sum = 0 + (G.lapSpectrum.erase 0).sum := by
+      conv_lhs => rw [← hcons]
+      rw [Multiset.sum_cons]
+    rw [G.sum_lapSpectrum] at h2
+    linarith
+  have hcard : Multiset.card (G.lapSpectrum.erase 0) = Fintype.card G.V - 1 := by
+    rw [Multiset.card_erase_of_mem G.zero_mem_lapSpectrum, card_lapSpectrum]
+    rfl
+  have h := Multiset.card_nsmul_le_sum (s := G.lapSpectrum.erase 0) (a := G.algConn)
+    fun x hx ↦ algConn_le hx
+  rw [hsum, hcard, nsmul_eq_mul] at h
+  exact h
+
+/-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`. -/
+theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (h : 2 ≤ Fintype.card G.V) :
+    (compl G).lapLambdaMax = Fintype.card G.V - G.algConn := by
+  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_compl]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_map_of_mem _ (G.algConn_mem_erase h))
+  · intro x hx
+    rw [lapSpectrum_compl, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · have := G.algConn_le_card h
+      have hcard : (0 : ℝ) ≤ Fintype.card G.V := by positivity
+      linarith
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have := algConn_le hy
+      linarith
+
+/-- **The complement swaps the two ends of the Laplacian spectrum**: `a (Ḡ) = n - μ_max (G)`. -/
+theorem algConn_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (h : 2 ≤ Fintype.card G.V) :
+    (compl G).algConn = Fintype.card G.V - G.lapLambdaMax := by
+  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+  have herase : (compl G).lapSpectrum.erase 0
+      = (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+    rw [lapSpectrum_compl, Multiset.erase_cons_head]
+  have hmax : G.lapLambdaMax ∈ G.lapSpectrum.erase 0 := by
+    rcases eq_or_ne G.lapLambdaMax 0 with h0 | h0
+    · -- every eigenvalue is squeezed between `0` and `μ_max = 0`, so the spectrum is all zeros
+      have hall : ∀ x ∈ G.lapSpectrum, x = 0 := fun x hx ↦
+        le_antisymm (h0 ▸ le_lapLambdaMax hx) (G.nonneg_of_mem_lapSpectrum hx)
+      have hrep : G.lapSpectrum = Multiset.replicate (Fintype.card G.V) 0 := by
+        rw [Multiset.eq_replicate]
+        exact ⟨G.card_lapSpectrum, hall⟩
+      have hcount : (G.lapSpectrum.erase 0).count 0 = Fintype.card G.V - 1 := by
+        rw [Multiset.count_erase_self, hrep, Multiset.count_replicate_self]
+      rw [h0, ← Multiset.one_le_count_iff_mem, hcount]
+      omega
+    · exact (Multiset.mem_erase_of_ne h0).2 G.lapLambdaMax_mem_lapSpectrum
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    exact Multiset.mem_map_of_mem _ hmax
+  · intro x hx
+    rw [herase] at hx
+    obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+    have := le_lapLambdaMax (Multiset.mem_of_mem_erase hy)
+    linarith
+
+/-- **The largest Laplacian eigenvalue of the complete graph** `K_{n+2}` is its order. -/
+theorem lapLambdaMax_complete (n : ℕ) : (complete (n + 2)).lapLambdaMax = (n : ℝ) + 2 := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [show n + 2 = (n + 1) + 1 from rfl, lapSpectrum_complete]
+    refine Multiset.mem_cons_of_mem (Multiset.mem_replicate.2 ⟨by omega, ?_⟩)
+    push_cast
+    ring
+  · intro x hx
+    rw [show n + 2 = (n + 1) + 1 from rfl, lapSpectrum_complete, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · positivity
+    · rw [Multiset.eq_of_mem_replicate hx]
+      push_cast
+      ring_nf
+      rfl
+
+/-- **The largest Laplacian eigenvalue of the star** `K₁,ₙ₊₁` is its order: the star is a join, and
+a join always attains the bound `lapLambdaMax_le_card`. -/
+theorem lapLambdaMax_star (n : ℕ) : (star (n + 1)).lapLambdaMax = (n : ℝ) + 2 := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_star]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_cons_self _ _)
+  · intro x hx
+    rw [lapSpectrum_star, Multiset.mem_cons, Multiset.mem_cons] at hx
+    have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+    rcases hx with rfl | rfl | hx
+    · linarith
+    · linarith
+    · rw [Multiset.eq_of_mem_replicate hx]
+      linarith
+
 /-! ### Laplacian cospectrality -/
 
 @[simp] theorem natDegree_lapCharpoly (G : CGraph) :
@@ -6198,6 +6351,11 @@ definition. -/
 theorem LapCospectral.algConn_eq {G H : CGraph} (h : LapCospectral G H) :
     G.algConn = H.algConn := by
   rw [algConn, algConn, h.lapSpectrum_eq]
+
+/-- **Laplacian cospectral graphs have the same largest Laplacian eigenvalue**, likewise. -/
+theorem LapCospectral.lapLambdaMax_eq {G H : CGraph} (h : LapCospectral G H) :
+    G.lapLambdaMax = H.lapLambdaMax := by
+  rw [lapLambdaMax, lapLambdaMax, h.lapSpectrum_eq]
 
 /-- For regular graphs the two notions agree in one direction: cospectral regular graphs are
 Laplacian cospectral. -/
@@ -6816,6 +6974,86 @@ theorem algConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
       haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
       exact CGraph.algConn_disjUnion g h'
 
+/-- The **largest Laplacian eigenvalue** of an isomorphism class. -/
+noncomputable def lapLambdaMax (G : IsoGraph) : ℝ := sSup {x : ℝ | x ∈ G.lapSpectrum}
+
+@[simp] theorem lapLambdaMax_mk (G : CGraph) : lapLambdaMax ⟦G⟧ = G.lapLambdaMax := rfl
+
+theorem le_lapLambdaMax {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) :
+    x ≤ G.lapLambdaMax := by
+  induction G using Quotient.inductionOn with
+  | h g => exact CGraph.le_lapLambdaMax hx
+
+theorem lapLambdaMax_mem_lapSpectrum (G : IsoGraph) (h : 0 < G.V) :
+    G.lapLambdaMax ∈ G.lapSpectrum := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
+    exact g.lapLambdaMax_mem_lapSpectrum
+
+theorem lapLambdaMax_nonneg (G : IsoGraph) (h : 0 < G.V) : 0 ≤ G.lapLambdaMax := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
+    exact g.lapLambdaMax_nonneg
+
+theorem algConn_le_lapLambdaMax (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ≤ G.lapLambdaMax :=
+  le_lapLambdaMax (G.algConn_mem_lapSpectrum h)
+
+/-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
+theorem lapLambdaMax_le_V (G : IsoGraph) (h : 0 < G.V) : G.lapLambdaMax ≤ G.V :=
+  le_V_of_mem_lapSpectrum (G.lapLambdaMax_mem_lapSpectrum h)
+
+theorem lapLambdaMax_le_two_mul_maxDeg (G : IsoGraph) (h : 0 < G.V) :
+    G.lapLambdaMax ≤ 2 * (G.maxDeg : ℝ) :=
+  le_two_mul_maxDeg_of_mem_lapSpectrum (G.lapLambdaMax_mem_lapSpectrum h)
+
+/-- **The largest Laplacian eigenvalue is at least the average degree.** -/
+theorem two_mul_E_le_V_mul_lapLambdaMax (G : IsoGraph) :
+    2 * (G.E : ℝ) ≤ G.V * G.lapLambdaMax := by
+  induction G using Quotient.inductionOn with
+  | h g => exact g.two_mul_E_le_card_mul_lapLambdaMax
+
+/-- **The algebraic connectivity is at most the average of the nonzero eigenvalues.** -/
+theorem V_sub_one_mul_algConn_le_two_mul_E (G : IsoGraph) (h : 0 < G.V) :
+    ((G.V - 1 : ℕ) : ℝ) * G.algConn ≤ 2 * (G.E : ℝ) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at h ⊢
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
+    exact g.card_sub_one_mul_algConn_le_two_mul_E
+
+/-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`. -/
+theorem lapLambdaMax_compl {G : IsoGraph} (h : 2 ≤ G.V) :
+    Gᶜ.lapLambdaMax = G.V - G.algConn := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    classical
+    rw [V_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    rw [compl_mk, lapLambdaMax_mk, algConn_mk, V_mk]
+    exact g.lapLambdaMax_compl h
+
+/-- **The complement swaps the two ends of the Laplacian spectrum**: `a (Ḡ) = n - μ_max (G)`. -/
+theorem algConn_compl {G : IsoGraph} (h : 2 ≤ G.V) :
+    Gᶜ.algConn = G.V - G.lapLambdaMax := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    classical
+    rw [V_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    rw [compl_mk, algConn_mk, lapLambdaMax_mk, V_mk]
+    exact g.algConn_compl h
+
+@[simp] theorem lapLambdaMax_complete (n : ℕ) :
+    (complete (n + 2)).lapLambdaMax = (n : ℝ) + 2 :=
+  CGraph.lapLambdaMax_complete n
+
+@[simp] theorem lapLambdaMax_star (n : ℕ) : (star (n + 1)).lapLambdaMax = (n : ℝ) + 2 :=
+  CGraph.lapLambdaMax_star n
+
 /-- Two isomorphism classes are **Laplacian cospectral** when their Laplacian characteristic
 polynomials agree. -/
 def LapCospectral (G H : IsoGraph) : Prop := G.lapCharpoly = H.lapCharpoly
@@ -6859,6 +7097,11 @@ theorem LapCospectral.isRegularWith {G H : IsoGraph} (h : LapCospectral G H) {k 
 theorem LapCospectral.algConn_eq {G H : IsoGraph} (h : LapCospectral G H) :
     G.algConn = H.algConn := by
   rw [algConn, algConn, h.lapSpectrum_eq]
+
+/-- **Laplacian cospectral classes have the same largest Laplacian eigenvalue.** -/
+theorem LapCospectral.lapLambdaMax_eq {G H : IsoGraph} (h : LapCospectral G H) :
+    G.lapLambdaMax = H.lapLambdaMax := by
+  rw [lapLambdaMax, lapLambdaMax, h.lapSpectrum_eq]
 
 /-- Cospectral regular graphs are Laplacian cospectral. -/
 theorem Cospectral.lapCospectral {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}

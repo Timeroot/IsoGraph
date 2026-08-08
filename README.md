@@ -4483,12 +4483,37 @@ has passed `π` and reflects through `Real.cos_two_pi_sub` when it has. The two 
 eigenvalues are the pair `m = 1` and `m = n - 1`, which is the doubled multiplicity that makes
 every cycle's Fiedler eigenvector a rotation of another one.
 
+The other end of the spectrum is `lapLambdaMax`, a supremum where `algConn` is an infimum. Two
+bounds squeeze it from above, `lapLambdaMax_le_card` (`μ_max ≤ n`) and
+`lapLambdaMax_le_two_mul_maxDeg`, and averaging squeezes it from below: the `n` eigenvalues sum to
+`2E`, so `two_mul_E_le_card_mul_lapLambdaMax` says `μ_max` is at least the average degree. The same
+averaging at the small end is `card_sub_one_mul_algConn_le_two_mul_E` — the `n - 1` surviving
+eigenvalues still sum to `2E`, so `a(G) ≤ 2E / (n - 1)`.
+
+The two ends are exchanged by complementation. Reflecting the Laplacian spectrum in `n` — which is
+what `lapSpectrum_compl` does — sends the largest eigenvalue to the smallest nonzero one:
+
+```lean
+theorem algConn_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V] (h : 2 ≤ Fintype.card G.V) :
+    (compl G).algConn = Fintype.card G.V - G.lapLambdaMax
+theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (h : 2 ≤ Fintype.card G.V) :
+    (compl G).lapLambdaMax = Fintype.card G.V - G.algConn
+```
+
+That is why `a(G) ≤ n` and `μ_max ≤ n` are the same bound seen twice, and why the graphs attaining
+`μ_max = n` are exactly those with a disconnected complement: `lapLambdaMax_complete` and
+`lapLambdaMax_star` are the two examples recorded here, and complementing them gives back
+`algConn_disjUnion`'s zero. The one wrinkle in the proof is the all-zero spectrum: if `μ_max = 0`
+then every eigenvalue is `0`, and `μ_max` still survives the erasure only because `n ≥ 2` leaves a
+second copy behind.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
 point of the whole section — the number of components (`LapCospectral.numComponents_eq`), so
 `LapCospectral.isConnected` carries connectedness across with no regularity hypothesis at all, and
-`LapCospectral.algConn_eq` carries the Fiedler value.
+`LapCospectral.algConn_eq` and `LapCospectral.lapLambdaMax_eq` carry the two ends of the spectrum.
 
 The second moment adds one more invariant, and it is a useful one. `LapCospectral.sum_sq_degrees_eq`
 says Laplacian cospectral graphs have the same `∑ d(i)²`, since they already have the same `E`. Two
