@@ -4576,6 +4576,23 @@ adjacent — so `two_mul_algConn_le_degree_add_degree` gives `2 a(G) ≤ d(u) + 
 non-adjacent vertices**. That sharpens Fiedler's `a ≤ δ` whenever the minimum-degree vertex has a
 non-neighbour of small degree, and it says again why `Kₙ` is the exception: there is no such pair.
 
+The test vector that made the Fiedler value famous is the one built from a cut — `|Sᶜ|` on `S` and
+`-|S|` off it:
+
+```lean
+theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (S : Finset G.V) :
+    G.algConn * ((S.card : ℝ) * (Sᶜ.card : ℝ))
+      ≤ Fintype.card G.V * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j
+```
+
+It sums to zero, its squared norm is `n|S||Sᶜ|`, and each crossing edge contributes `n²` to the
+quadratic form — the edges inside `S` and inside `Sᶜ` contribute nothing, since the vector is
+constant on each side. So **`a(G)·|S|·|Sᶜ| ≤ n·e(S, Sᶜ)`**: a spectral gap is a certificate that no
+balanced cut is cheap, which is what makes `algConn` the quantity spectral partitioning optimises.
+The double sum `∑_{i ∈ S} ∑_{j ∉ S} adjMat i j` is the edge count across the cut, written directly
+rather than through a separate boundary definition.
+
 Two structural rules finish the picture. A disjoint union takes the larger of the two values,
 `lapLambdaMax_disjUnion : (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax`, where
 the small end takes *neither* and collapses to `0` — the two components do not interact at the top

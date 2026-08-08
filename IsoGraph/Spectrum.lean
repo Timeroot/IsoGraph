@@ -231,7 +231,11 @@ along it, and what is left are eigenvalues `≥ a (G)`.  A disconnected graph ha
 the statement degenerates to `lap_quadratic_nonneg`.  Feeding it the difference of two basis
 vectors gives `two_mul_algConn_le_degree_add_degree`: **`2 a (G) ≤ d (u) + d (v)` for any two
 non-adjacent `u`, `v`**, which sharpens Fiedler's bound whenever the minimum-degree vertex has a
-non-neighbour of small degree.
+non-neighbour of small degree.  The test vector that made `algConn` famous is the one built from a
+cut: `|Sᶜ|` on `S` and `-|S|` off it, whose quadratic form is `n ²` per crossing edge and whose
+squared norm is `n |S| |Sᶜ|`.  What comes out is `algConn_mul_card_mul_card_compl_le`,
+**`a (G) |S| |Sᶜ| ≤ n · e (S, Sᶜ)`** — the Fiedler value is a lower bound on edge expansion, and
+the reason a spectral gap certifies that a graph cannot be cut cheaply.
 
 `algConn` is the **algebraic connectivity**, the second-smallest Laplacian eigenvalue: the
 infimum of `lapSpectrum.erase 0`, taken in `ℝ` so that the one-vertex graph gets `sInf ∅ = 0` by
@@ -6699,6 +6703,85 @@ theorem two_mul_algConn_le_degree_add_degree (G : CGraph) [Nonempty G.V] {u v : 
   have := G.algConn_mul_le_lap_quadratic x hsum
   rw [hnorm, hquad] at this
   linarith
+
+/-- **The Fiedler value bounds edge expansion from below**: for every set `S` of vertices,
+`a (G) |S| |Sᶜ| ≤ n · e (S, Sᶜ)`, where `e (S, Sᶜ) = ∑_{i ∈ S} ∑_{j ∉ S} A i j` counts the edges
+leaving `S`.  The test vector is `|Sᶜ|` on `S` and `-|S|` off it: it sums to zero, its squared
+norm is `n |S| |Sᶜ|`, and every crossing edge contributes `n ²` to the quadratic form. -/
+theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (S : Finset G.V) :
+    G.algConn * ((S.card : ℝ) * (Sᶜ.card : ℝ))
+      ≤ Fintype.card G.V * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j := by
+  set n : ℝ := (Fintype.card G.V : ℝ) with hn
+  set a : ℝ := (S.card : ℝ) with ha
+  set b : ℝ := (Sᶜ.card : ℝ) with hb
+  set e : ℝ := ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j with he
+  have hab : a + b = n := by
+    rw [ha, hb, hn, ← Nat.cast_add, Finset.card_add_card_compl]
+  set x : G.V → ℝ := fun i ↦ if i ∈ S then b else -a with hx
+  have hxS : ∀ i ∈ S, x i = b := fun i hi ↦ by rw [hx]; exact if_pos hi
+  have hxSc : ∀ i ∈ Sᶜ, x i = -a := fun i hi ↦ by
+    rw [hx]; exact if_neg (Finset.mem_compl.1 hi)
+  -- the test vector sums to zero
+  have hsum : ∑ i, x i = 0 := by
+    rw [← Finset.sum_add_sum_compl S, Finset.sum_congr rfl hxS, Finset.sum_congr rfl hxSc,
+      Finset.sum_const, Finset.sum_const, nsmul_eq_mul, nsmul_eq_mul, ← ha, ← hb]
+    ring
+  -- and has squared norm `n |S| |Sᶜ|`
+  have hnorm : x ⬝ᵥ x = n * (a * b) := by
+    rw [dotProduct, ← Finset.sum_add_sum_compl S,
+      Finset.sum_congr rfl (fun i hi ↦ by rw [hxS i hi] :
+        ∀ i ∈ S, x i * x i = b * b),
+      Finset.sum_congr rfl (fun i hi ↦ by rw [hxSc i hi] :
+        ∀ i ∈ Sᶜ, x i * x i = -a * -a),
+      Finset.sum_const, Finset.sum_const, nsmul_eq_mul, nsmul_eq_mul, ← ha, ← hb, ← hab]
+    ring
+  -- the quadratic form counts the crossing edges
+  set f : G.V → G.V → ℝ := fun i j ↦ G.adjMat i j * (x i - x j) ^ 2 with hf
+  have hS : ∀ i ∈ S, ∑ j, f i j = n ^ 2 * ∑ j ∈ Sᶜ, G.adjMat i j := by
+    intro i hi
+    rw [← Finset.sum_add_sum_compl S]
+    have h1 : ∑ j ∈ S, f i j = 0 :=
+      Finset.sum_eq_zero fun j hj ↦ by rw [hf]; simp only [hxS i hi, hxS j hj]; ring
+    have h2 : ∑ j ∈ Sᶜ, f i j = n ^ 2 * ∑ j ∈ Sᶜ, G.adjMat i j := by
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun j hj ↦ ?_
+      rw [hf]
+      simp only [hxS i hi, hxSc j hj]
+      rw [show b - -a = n by linarith]
+      ring
+    rw [h1, h2, zero_add]
+  have hSc : ∀ i ∈ Sᶜ, ∑ j, f i j = n ^ 2 * ∑ j ∈ S, G.adjMat i j := by
+    intro i hi
+    rw [← Finset.sum_add_sum_compl S]
+    have h1 : ∑ j ∈ S, f i j = n ^ 2 * ∑ j ∈ S, G.adjMat i j := by
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun j hj ↦ ?_
+      rw [hf]
+      simp only [hxSc i hi, hxS j hj]
+      rw [show -a - b = -n by linarith]
+      ring
+    have h2 : ∑ j ∈ Sᶜ, f i j = 0 :=
+      Finset.sum_eq_zero fun j hj ↦ by rw [hf]; simp only [hxSc i hi, hxSc j hj]; ring
+    rw [h1, h2, add_zero]
+  have hsymm : ∑ i ∈ Sᶜ, ∑ j ∈ S, G.adjMat i j = e := by
+    rw [he, Finset.sum_comm]
+    exact Finset.sum_congr rfl fun i _ ↦ Finset.sum_congr rfl fun j _ ↦ G.adjMat_symm j i
+  have htot : ∑ i, ∑ j, f i j = 2 * (n ^ 2 * e) := by
+    rw [← Finset.sum_add_sum_compl S, Finset.sum_congr rfl hS, Finset.sum_congr rfl hSc,
+      ← Finset.mul_sum, ← Finset.mul_sum, hsymm, ← he]
+    ring
+  have hquad : x ⬝ᵥ (G.lapMat *ᵥ x) = n ^ 2 * e := by
+    have h2 : 2 * (x ⬝ᵥ (G.lapMat *ᵥ x)) = ∑ i, ∑ j, f i j := G.two_mul_lap_quadratic x
+    rw [htot] at h2
+    linarith
+  have hkey := G.algConn_mul_le_lap_quadratic x hsum
+  rw [hnorm, hquad] at hkey
+  have hnpos : (0 : ℝ) < n := by
+    rw [hn]
+    exact_mod_cast Fintype.card_pos
+  have hcancel : n * (G.algConn * (a * b)) ≤ n * (n * e) := by nlinarith
+  exact le_of_mul_le_mul_left hcancel hnpos
 
 /-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`.  Read in the
 complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hypothesis is exactly what
