@@ -4363,6 +4363,15 @@ multiplicity `n choose j`, and `lapSpectrum_bipartite_self` gives `0`, `2 (n + 1
 with multiplicity `2 n` for `K_{n+1,n+1}`. In each case `count_zero_lapSpectrum` reads off the
 single component.
 
+The star is the first graph here that regularity does not reach, so `lapSpectrum_star` is done
+from scratch. `lapMat_mulVec_apply` writes `(L v) i` as `deg(i) · v i - Σ_j A(i,j) · v j`, and for
+`K₁,ₙ₊₁` that is two equations: `(1 - x) v(leaf) = v(centre)` at every leaf, and
+`(n + 1) v(centre) - Σ v(leaf) = x v(centre)` at the centre. Eliminating the leaf values between
+them gives `x · v(centre) · (n + 2 - x) = 0`, so the only eigenvalues are `0`, `1` and `n + 2`.
+Three values, three multiplicities, and three linear conditions to pin them down: the order is
+`n + 2`, `sum_lapSpectrum` is `2 (n + 1)`, and `count_zero_lapSpectrum` is `1` because the star is
+connected. The answer is `0`, `n + 2`, and `1` with multiplicity `n`.
+
 The complement is as clean here as it is for the adjacency matrix: `lapMat_compl` says
 `L(G) + L(Ḡ) = n I - J`, and since `J` kills any vector summing to zero — which is where all the
 non-constant Laplacian eigenvectors sit — `lapMat_compl_mulVec` reads that as `μ ↦ n - μ` on

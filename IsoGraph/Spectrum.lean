@@ -162,7 +162,11 @@ does adjacency ones (`lapSpectrum_disjUnion`), which is the component count agai
 at a time.
 
 `lapSpectrum_bipartite_self` adds the balanced complete bipartite graph, whose Laplacian
-eigenvalues are `0`, `2 (n + 1)` and `n + 1` with multiplicity `2 n`.
+eigenvalues are `0`, `2 (n + 1)` and `n + 1` with multiplicity `2 n`.  The star is *not* regular,
+so `lapSpectrum_star` has to be done by hand: `lapMat_mulVec_apply` writes the eigenvector
+equation out coordinate by coordinate, the centre and leaf equations force every eigenvalue to be
+`0`, `1` or `n + 2`, and then the order, `sum_lapSpectrum` and `count_zero_lapSpectrum` pin the
+three multiplicities down to `1`, `n` and `1`.
 
 `lapMat_compl` is the complement identity `L(G) + L(Ḡ) = n I - J`, and on a vector summing to
 zero — where every non-constant Laplacian eigenvector lives — `lapMat_compl_mulVec` turns that
@@ -4932,6 +4936,18 @@ theorem lapMat_apply_of_ne (G : CGraph) {i j : G.V} (hij : i ≠ j) :
   rw [lapMat_eq_diagonal_sub]
   simp [Matrix.diagonal_apply_ne _ hij]
 
+theorem sum_adjMat_row_eq_degree (G : CGraph) (i : G.V) :
+    ∑ j, G.adjMat i j = (G.toSimple.degree i : ℝ) := by
+  have h1 : (G.adjMat *ᵥ (1 : G.V → ℝ)) i = (G.toSimple.degree i : ℝ) := by
+    simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
+  simpa [Matrix.mulVec, dotProduct] using h1
+
+theorem lapMat_mulVec_apply (G : CGraph) (v : G.V → ℝ) (i : G.V) :
+    (G.lapMat *ᵥ v) i = (∑ j, G.adjMat i j) * v i - ∑ j, G.adjMat i j * v j := by
+  rw [lapMat_eq_diagonal_sub, Matrix.sub_mulVec, Pi.sub_apply, Matrix.mulVec_diagonal,
+    sum_adjMat_row_eq_degree]
+  simp [Matrix.mulVec, dotProduct]
+
 theorem isHermitian_lapMat (G : CGraph) : G.lapMat.IsHermitian :=
   Matrix.ext fun i j ↦ by
     have h := G.toSimple.isSymm_lapMatrix (R := ℝ)
@@ -5211,6 +5227,140 @@ theorem lapSpectrum_bipartite_self (n : ℕ) :
     show n + n = 2 * n from by ring]
   norm_num
   ring
+
+private theorem multiset_eq_of_mem_triple {s : Multiset ℝ} {p q r : ℝ}
+    (hpq : p ≠ q) (hpr : p ≠ r) (hqr : q ≠ r) (hs : ∀ x ∈ s, x = p ∨ x = q ∨ x = r) :
+    s = Multiset.replicate (s.count p) p + Multiset.replicate (s.count q) q
+      + Multiset.replicate (s.count r) r := by
+  classical
+  have hsub : s.toFinset ⊆ ({p, q, r} : Finset ℝ) := by
+    intro x hx
+    rcases hs x (Multiset.mem_toFinset.1 hx) with h | h | h <;> simp [h]
+  have hz : ∀ x ∈ ({p, q, r} : Finset ℝ), x ∉ s.toFinset → s.count x • ({x} : Multiset ℝ) = 0 := by
+    intro x _ hx
+    rw [Multiset.count_eq_zero_of_notMem fun h ↦ hx (Multiset.mem_toFinset.2 h), zero_smul]
+  have hkey := Multiset.toFinset_sum_count_nsmul_eq s
+  rw [Finset.sum_subset hsub hz, Finset.sum_insert (by simp [hpq, hpr]),
+    Finset.sum_insert (by simp [hqr]), Finset.sum_singleton] at hkey
+  conv_lhs => rw [← hkey]
+  simp only [Multiset.nsmul_singleton]
+  abel
+
+theorem lapSpectrum_bipartite_one (n : ℕ) :
+    (bipartite 1 (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) := by
+  classical
+  have hsplit : ∀ g : (bipartite 1 (n + 1)).V → ℝ,
+      ∑ j, g j = ∑ a : Fin 1, g (Sum.inl a) + ∑ b : Fin (n + 1), g (Sum.inr b) :=
+    fun g ↦ Fintype.sum_sum_type g
+  -- the row sums of the adjacency matrix, at the centre and at a leaf
+  have hrowz : ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inl (0 : Fin 1)) j = ((n : ℝ) + 1) := by
+    rw [hsplit]
+    simp [adjMat_apply]
+  have hrowb : ∀ b : Fin (n + 1),
+      ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inr b) j = 1 := by
+    intro b
+    rw [hsplit]
+    simp [adjMat_apply]
+  have hdotz : ∀ v : (bipartite 1 (n + 1)).V → ℝ,
+      ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inl (0 : Fin 1)) j * v j
+        = ∑ b : Fin (n + 1), v (Sum.inr b) := by
+    intro v
+    rw [hsplit]
+    simp [adjMat_apply]
+  have hdotb : ∀ (b : Fin (n + 1)) (v : (bipartite 1 (n + 1)).V → ℝ),
+      ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inr b) j * v j = v (Sum.inl (0 : Fin 1)) := by
+    intro b v
+    rw [hsplit]
+    simp [adjMat_apply]
+  -- only `0`, `1` and `n + 2` can be Laplacian eigenvalues
+  have hmem : ∀ x ∈ (bipartite 1 (n + 1)).lapSpectrum, x = 0 ∨ x = 1 ∨ x = (n : ℝ) + 2 := by
+    intro x hx
+    obtain ⟨v, hv0, hv⟩ := ((bipartite 1 (n + 1)).mem_lapSpectrum_iff x).1 hx
+    have hleaf : ∀ b : Fin (n + 1),
+        (1 - x) * v (Sum.inr b) = v (Sum.inl (0 : Fin 1)) := by
+      intro b
+      have h := congrFun hv (Sum.inr b)
+      rw [lapMat_mulVec_apply, hrowb, hdotb] at h
+      simp only [Pi.smul_apply, smul_eq_mul] at h
+      linarith
+    have hcen : ((n : ℝ) + 1) * v (Sum.inl (0 : Fin 1)) - ∑ b : Fin (n + 1), v (Sum.inr b)
+        = x * v (Sum.inl (0 : Fin 1)) := by
+      have h := congrFun hv (Sum.inl (0 : Fin 1))
+      rw [lapMat_mulVec_apply, hrowz, hdotz] at h
+      simpa using h
+    by_cases hx1 : x = 1
+    · exact Or.inr (Or.inl hx1)
+    · have hx1' : (1 : ℝ) - x ≠ 0 := sub_ne_zero.2 (Ne.symm hx1)
+      have hsum : (1 - x) * ∑ b : Fin (n + 1), v (Sum.inr b)
+          = ((n : ℝ) + 1) * v (Sum.inl (0 : Fin 1)) := by
+        rw [Finset.mul_sum]
+        simp only [hleaf, Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+        push_cast
+        ring
+      have hfac : x * v (Sum.inl (0 : Fin 1)) * ((n : ℝ) + 2 - x) = 0 := by
+        linear_combination (x - 1) * hcen - hsum
+      rcases mul_eq_zero.1 hfac with h | h
+      · rcases mul_eq_zero.1 h with h' | h'
+        · exact Or.inl h'
+        · refine absurd (_root_.funext fun i ↦ ?_) hv0
+          rcases i with a | b
+          · have hai : (Sum.inl a : (bipartite 1 (n + 1)).V) = Sum.inl (0 : Fin 1) := by
+              congr 1
+              exact Subsingleton.elim (α := Fin 1) a 0
+            rw [hai]
+            simpa using h'
+          · have hb := hleaf b
+            rw [h'] at hb
+            simpa using (mul_eq_zero.1 hb).resolve_left hx1'
+      · exact Or.inr (Or.inr (by linarith))
+  -- three candidate values, three multiplicities
+  have hnn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  have h01 : (0 : ℝ) ≠ 1 := by norm_num
+  have h0n : (0 : ℝ) ≠ (n : ℝ) + 2 := by intro h; linarith
+  have h1n : (1 : ℝ) ≠ (n : ℝ) + 2 := by intro h; linarith
+  have heq := multiset_eq_of_mem_triple h01 h0n h1n hmem
+  set a := (bipartite 1 (n + 1)).lapSpectrum.count 0 with ha
+  set b := (bipartite 1 (n + 1)).lapSpectrum.count 1 with hb
+  set d := (bipartite 1 (n + 1)).lapSpectrum.count ((n : ℝ) + 2) with hd
+  have hzero : a = 1 := by
+    rw [ha]
+    exact (count_zero_lapSpectrum_eq_one_iff _).2 (isConnected_bipartite 0 n)
+  have hcard : a + b + d = n + 2 := by
+    have h := congrArg Multiset.card heq
+    rw [card_lapSpectrum] at h
+    simp only [Multiset.card_add, Multiset.card_replicate, card_bipartite] at h
+    omega
+  have hsum : (b : ℝ) + ((n : ℝ) + 2) * d = 2 * ((n : ℝ) + 1) := by
+    have h := congrArg Multiset.sum heq
+    rw [sum_lapSpectrum] at h
+    simp only [Multiset.sum_add, Multiset.sum_replicate, nsmul_eq_mul, mul_zero, mul_one,
+      zero_add, E_bipartite] at h
+    push_cast at h ⊢
+    linarith
+  have hcr : (a : ℝ) + (b : ℝ) + (d : ℝ) = (n : ℝ) + 2 := by exact_mod_cast hcard
+  have hd1 : d = 1 := by
+    have hnz : ((n : ℝ) + 1) * ((d : ℝ) - 1) = 0 := by
+      rw [hzero] at hcr
+      push_cast at hcr
+      nlinarith [hsum, hcr]
+    have hd' : (d : ℝ) = 1 := by
+      rcases mul_eq_zero.1 hnz with h | h
+      · exact absurd h (by positivity)
+      · linarith
+    exact_mod_cast hd'
+  have hb1 : b = n := by omega
+  rw [heq, hzero, hd1, hb1]
+  simp only [Multiset.replicate_one, ← Multiset.singleton_add]
+  abel
+
+/-- **The Laplacian spectrum of the star** `K₁,ₙ₊₁`: `0`, `n + 2`, and `1` with multiplicity `n`.
+The star is not regular, so this does not come from `lapSpectrum_of_isRegularWith`; it is read off
+the eigenvector equations, which force every eigenvalue to be `0`, `1` or `n + 2`, and then the
+multiplicities are pinned down by the order, the number of edges and the number of components. -/
+theorem lapSpectrum_star (n : ℕ) :
+    (star (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) := by
+  rw [star]
+  exact lapSpectrum_bipartite_one n
 
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.**  Evaluate the
 eigenvector equation at a coordinate where `|v|` is largest, as for `abs_le_maxDeg_of_mem_spectrum`
@@ -5753,6 +5903,12 @@ theorem lapSpectrum_hypercube (n : ℕ) :
   rw [Finset.mem_range] at hj
   congr 1
   ring
+
+/-- **The Laplacian spectrum of the star** `K₁,ₙ₊₁`: `0`, `n + 2`, and `1` with multiplicity
+`n`.  The star is not regular, so this one is proved from the eigenvector equations directly. -/
+theorem lapSpectrum_star (n : ℕ) :
+    (star (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) :=
+  CGraph.lapSpectrum_star n
 
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.** -/
 theorem le_two_mul_maxDeg_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) :
