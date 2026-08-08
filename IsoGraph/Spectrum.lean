@@ -166,7 +166,10 @@ eigenvalues are `0`, `2 (n + 1)` and `n + 1` with multiplicity `2 n`.
 
 `lapMat_compl` is the complement identity `L(G) + L(Ḡ) = n I - J`, and on a vector summing to
 zero — where every non-constant Laplacian eigenvector lives — `lapMat_compl_mulVec` turns that
-into the eigenvalue statement `μ ↦ n - μ`.
+into the eigenvalue statement `μ ↦ n - μ`.  Two bounds come out of the same picture:
+`le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`, the largest-coordinate argument again) and
+the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
+`n - μ` off the complement and uses that Laplacian eigenvalues are nonnegative.
 
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
@@ -5208,6 +5211,74 @@ theorem lapSpectrum_bipartite_self (n : ℕ) :
   norm_num
   ring
 
+/-- **Every Laplacian eigenvalue is at most twice the maximum degree.**  Evaluate the
+eigenvector equation at a coordinate where `|v|` is largest, as for `abs_le_maxDeg_of_mem_spectrum`
+in the adjacency case. -/
+theorem le_two_mul_maxDeg_of_mem_lapSpectrum {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) :
+    x ≤ 2 * (G.maxDeg : ℝ) := by
+  classical
+  obtain ⟨u, hu0, hu⟩ := (G.mem_lapSpectrum_iff x).1 hx
+  obtain ⟨i₀, hi₀⟩ := Function.ne_iff.1 hu0
+  obtain ⟨p, -, hp⟩ :=
+    Finset.exists_max_image (Finset.univ : Finset G.V) (fun i ↦ |u i|) ⟨i₀, Finset.mem_univ i₀⟩
+  have hup : 0 < |u p| := lt_of_lt_of_le (abs_pos.2 hi₀) (hp i₀ (Finset.mem_univ i₀))
+  set d : ℝ := (G.toSimple.degree p : ℝ) with hd
+  have hrow : ∑ j, G.adjMat p j = d := by
+    have h1 : (G.adjMat *ᵥ (1 : G.V → ℝ)) p = d := by
+      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply, hd]
+    simpa [Matrix.mulVec, dotProduct] using h1
+  have hL : (G.lapMat *ᵥ u) p = d * u p - ∑ j, G.adjMat p j * u j := by
+    rw [lapMat_eq_diagonal_sub, Matrix.sub_mulVec, Pi.sub_apply, Matrix.mulVec_diagonal]
+    simp [Matrix.mulVec, dotProduct, hd]
+  have e : (x - d) * u p = -∑ j, G.adjMat p j * u j := by
+    have h2 : (G.lapMat *ᵥ u) p = x * u p := by rw [hu]; simp
+    rw [hL] at h2
+    linarith
+  have key : |x - d| * |u p| ≤ d * |u p| := by
+    calc |x - d| * |u p| = |(x - d) * u p| := (abs_mul _ _).symm
+      _ = |∑ j, G.adjMat p j * u j| := by rw [e, abs_neg]
+      _ ≤ ∑ j, |G.adjMat p j * u j| := Finset.abs_sum_le_sum_abs _ _
+      _ = ∑ j, G.adjMat p j * |u j| := by
+            refine Finset.sum_congr rfl fun j _ ↦ ?_
+            rw [abs_mul, abs_of_nonneg (G.adjMat_nonneg p j)]
+      _ ≤ ∑ j, G.adjMat p j * |u p| :=
+            Finset.sum_le_sum fun j _ ↦
+              mul_le_mul_of_nonneg_left (hp j (Finset.mem_univ j)) (G.adjMat_nonneg p j)
+      _ = d * |u p| := by rw [← Finset.sum_mul, hrow]
+  have habs : |x - d| ≤ d := le_of_mul_le_mul_right key hup
+  have hdle : d ≤ (G.maxDeg : ℝ) := by
+    rw [hd]
+    exact_mod_cast G.toSimple.degree_le_maxDegree p
+  have := (abs_le.1 habs).2
+  linarith
+
+/-- A Laplacian eigenvector for a nonzero eigenvalue sums to zero: it is orthogonal to the
+all-ones vector, which spans the kernel direction the Laplacian always has. -/
+theorem sum_eq_zero_of_lapMat_mulVec {G : CGraph} {v : G.V → ℝ} {x : ℝ} (hx : x ≠ 0)
+    (h : G.lapMat *ᵥ v = x • v) : ∑ i, v i = 0 := by
+  have hsymm : G.lapMatᵀ = G.lapMat := G.toSimple.isSymm_lapMatrix (R := ℝ)
+  have hvm : (1 : G.V → ℝ) ᵥ* G.lapMat = 0 := by
+    rw [← Matrix.mulVec_transpose, hsymm, G.lapMat_mulVec_one]
+  have h1 : (1 : G.V → ℝ) ⬝ᵥ (G.lapMat *ᵥ v) = 0 := by
+    rw [Matrix.dotProduct_mulVec, hvm, zero_dotProduct]
+  rw [h] at h1
+  have h2 : x * ∑ i, v i = 0 := by simpa [dotProduct, Finset.mul_sum] using h1
+  exact (mul_eq_zero.1 h2).resolve_left hx
+
+/-- **Every Laplacian eigenvalue is at most the number of vertices**, the sharp bound, attained
+by the complete graph.  On an eigenvector for `x ≠ 0` — which sums to zero — the complement's
+Laplacian acts as `n - x`, and that is nonnegative. -/
+theorem le_card_of_mem_lapSpectrum (G : CGraph) [DecidableEq G.V] {x : ℝ}
+    (hx : x ∈ G.lapSpectrum) : x ≤ Fintype.card G.V := by
+  rcases eq_or_ne x 0 with rfl | hx0
+  · positivity
+  obtain ⟨v, hv0, hv⟩ := (G.mem_lapSpectrum_iff x).1 hx
+  have hsum : ∑ i, v i = 0 := sum_eq_zero_of_lapMat_mulVec hx0 hv
+  have hmem : ((Fintype.card G.V : ℝ) - x) ∈ (compl G).lapSpectrum :=
+    ((compl G).mem_lapSpectrum_iff _).2 ⟨v, hv0, G.lapMat_compl_mulVec hsum hv⟩
+  have := (compl G).nonneg_of_mem_lapSpectrum hmem
+  linarith
+
 /-! ### Laplacian cospectrality -/
 
 @[simp] theorem natDegree_lapCharpoly (G : CGraph) :
@@ -5681,6 +5752,17 @@ theorem lapSpectrum_hypercube (n : ℕ) :
   rw [Finset.mem_range] at hj
   congr 1
   ring
+
+/-- **Every Laplacian eigenvalue is at most twice the maximum degree.** -/
+theorem le_two_mul_maxDeg_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) :
+    x ≤ 2 * (G.maxDeg : ℝ) := by
+  induction G using Quotient.inductionOn with
+  | h g => exact CGraph.le_two_mul_maxDeg_of_mem_lapSpectrum hx
+
+/-- **Every Laplacian eigenvalue is at most the number of vertices.** -/
+theorem le_V_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) : x ≤ G.V := by
+  induction G using Quotient.inductionOn with
+  | h g => exact g.le_card_of_mem_lapSpectrum hx
 
 /-! ### Laplacian cospectrality -/
 

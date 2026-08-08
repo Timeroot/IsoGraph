@@ -4366,7 +4366,11 @@ single component.
 The complement is as clean here as it is for the adjacency matrix: `lapMat_compl` says
 `L(G) + L(Ḡ) = n I - J`, and since `J` kills any vector summing to zero — which is where all the
 non-constant Laplacian eigenvectors sit — `lapMat_compl_mulVec` reads that as `μ ↦ n - μ` on
-eigenvectors.
+eigenvectors. That is exactly what bounds the spectrum from above: `n - μ` is a Laplacian
+eigenvalue of the complement, hence nonnegative, so `le_card_of_mem_lapSpectrum` gives the sharp
+`μ ≤ n` — attained by `K_n`, whose Laplacian spectrum is `0, n, …, n`. The cruder
+`le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`) comes from the largest-coordinate argument
+that bounds adjacency eigenvalues by `Δ`.
 
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
