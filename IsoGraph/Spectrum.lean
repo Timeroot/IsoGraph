@@ -222,7 +222,10 @@ the two ends together is the complement: reflecting the spectrum in `n` sends th
 eigenvalue to the smallest nonzero one and back, `algConn_compl` (`a (Ḡ) = n - μ_max (G)`) and
 `lapLambdaMax_compl` (`μ_max (Ḡ) = n - a (G)`).  So `lapLambdaMax_complete` and
 `lapLambdaMax_star`, both equal to the order, are `algConn`'s two vanishing values —
-`Kₙ` and the star both have a disconnected complement.
+`Kₙ` and the star both have a disconnected complement.  `lapSpectrum_wheel` runs the join formula
+on `W_n = K₁ ∇ C_n`, which adds a third: the hub raises every rim eigenvalue by one, so
+`algConn_wheel` is `3 - 2 cos (2 π / n)` — one more than the rim's — and `lapLambdaMax_wheel` is
+the order again.
 
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
@@ -6819,6 +6822,20 @@ theorem lapSpectrum_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
       rw [join_mk, lapSpectrum_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk, V_mk]
       exact CGraph.lapSpectrum_join g h
 
+/-- **The Laplacian spectrum of the wheel** `W_n`: the hub contributes the order `n + 1`, and every
+nonzero eigenvalue of the rim is shifted by one. -/
+theorem lapSpectrum_wheel {n : ℕ} (hn : 0 < n) :
+    (wheel n).lapSpectrum
+      = 0 ::ₘ (((n : ℝ) + 1) ::ₘ ((cycle n).lapSpectrum.erase 0).map (fun x ↦ x + 1)) := by
+  have hV : (complete 1).V = 1 := V_complete 1
+  have hVc : (cycle n).V = n := V_cycle n
+  have h := lapSpectrum_join (G := complete 1) (H := cycle n) (by rw [hV]; omega)
+    (by rw [hVc]; omega)
+  rw [wheel_eq_join, h, hV, hVc]
+  have hone : (complete 1).lapSpectrum = {0} := by simp
+  rw [hone]
+  norm_num [add_comm (1 : ℝ) (n : ℝ)]
+
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.** -/
 theorem le_two_mul_maxDeg_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) :
     x ≤ 2 * (G.maxDeg : ℝ) := by
@@ -6853,6 +6870,15 @@ noncomputable def algConn (G : IsoGraph) : ℝ := sInf {x : ℝ | x ∈ G.lapSpe
 
 theorem algConn_nonneg (G : IsoGraph) : 0 ≤ G.algConn :=
   Quotient.inductionOn G fun g ↦ g.algConn_nonneg
+
+theorem algConn_le {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum.erase 0) : G.algConn ≤ x :=
+  csInf_le (Multiset.finite_toSet _).bddBelow hx
+
+theorem algConn_mem_erase (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ∈ G.lapSpectrum.erase 0 := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at h
+    exact g.algConn_mem_erase h
 
 theorem algConn_mem_lapSpectrum (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ∈ G.lapSpectrum := by
   induction G using Quotient.inductionOn with
@@ -6992,6 +7018,12 @@ theorem lapLambdaMax_mem_lapSpectrum (G : IsoGraph) (h : 0 < G.V) :
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
     exact g.lapLambdaMax_mem_lapSpectrum
 
+/-- To compute a largest Laplacian eigenvalue it is enough to exhibit a greatest element of the
+Laplacian spectrum. -/
+theorem lapLambdaMax_eq_of_isGreatest {G : IsoGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum)
+    (hle : ∀ x ∈ G.lapSpectrum, x ≤ a) : G.lapLambdaMax = a :=
+  le_antisymm (csSup_le ⟨a, hmem⟩ hle) (le_lapLambdaMax hmem)
+
 theorem lapLambdaMax_nonneg (G : IsoGraph) (h : 0 < G.V) : 0 ≤ G.lapLambdaMax := by
   induction G using Quotient.inductionOn with
   | h g =>
@@ -7053,6 +7085,64 @@ theorem algConn_compl {G : IsoGraph} (h : 2 ≤ G.V) :
 
 @[simp] theorem lapLambdaMax_star (n : ℕ) : (star (n + 1)).lapLambdaMax = (n : ℝ) + 2 :=
   CGraph.lapLambdaMax_star n
+
+/-- **The largest Laplacian eigenvalue of the wheel** is its order: the wheel is a join, so its
+complement is disconnected. -/
+theorem lapLambdaMax_wheel {n : ℕ} (hn : 0 < n) : (wheel n).lapLambdaMax = (n : ℝ) + 1 := by
+  have hVc : (cycle n).V = n := V_cycle n
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_wheel hn]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_cons_self _ _)
+  · intro x hx
+    rw [lapSpectrum_wheel hn, Multiset.mem_cons, Multiset.mem_cons] at hx
+    have hn0 : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+    rcases hx with rfl | rfl | hx
+    · linarith
+    · linarith
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have hyle : y ≤ (cycle n).V := le_V_of_mem_lapSpectrum (Multiset.mem_of_mem_erase hy)
+      rw [hVc] at hyle
+      linarith
+
+/-- **The algebraic connectivity of the wheel** `W_n` for `n ≥ 3`: one more than the rim's, since
+the hub is joined to every rim vertex.  At `n = 3` this is `a (K₄) = 4`. -/
+theorem algConn_wheel {n : ℕ} (hn : 3 ≤ n) :
+    (wheel n).algConn = 3 - 2 * Real.cos (2 * Real.pi / (n : ℝ)) := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 3 := ⟨n - 3, by omega⟩
+  have hVc : (cycle (m + 3)).V = m + 3 := V_cycle _
+  have hcyc : (cycle (m + 3)).algConn = 2 - 2 * Real.cos (2 * Real.pi / ((m : ℝ) + 3)) :=
+    algConn_cycle m
+  have hmem : (cycle (m + 3)).algConn ∈ (cycle (m + 3)).lapSpectrum.erase 0 :=
+    algConn_mem_erase _ (by rw [hVc]; omega)
+  have herase : (wheel (m + 3)).lapSpectrum.erase 0
+      = (((m : ℕ) : ℝ) + 3 + 1)
+          ::ₘ ((cycle (m + 3)).lapSpectrum.erase 0).map (fun x ↦ x + 1) := by
+    rw [lapSpectrum_wheel (by omega), Multiset.erase_cons_head]
+    push_cast
+    ring_nf
+  have hval : (3 : ℝ) - 2 * Real.cos (2 * Real.pi / ((m : ℝ) + 3))
+      = (cycle (m + 3)).algConn + 1 := by
+    rw [hcyc]
+    ring
+  have hle : (cycle (m + 3)).algConn ≤ (m : ℝ) + 3 := by
+    have := algConn_le_V (cycle (m + 3)) (by rw [hVc]; omega)
+    rw [hVc] at this
+    push_cast at this
+    linarith
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    push_cast
+    rw [hval]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_map_of_mem _ hmem)
+  · intro x hx
+    rw [herase] at hx
+    push_cast
+    rw [hval]
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · linarith
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have := algConn_le hy
+      linarith
 
 /-- Two isomorphism classes are **Laplacian cospectral** when their Laplacian characteristic
 polynomials agree. -/

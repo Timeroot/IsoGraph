@@ -4508,6 +4508,13 @@ That is why `a(G) ≤ n` and `μ_max ≤ n` are the same bound seen twice, and w
 then every eigenvalue is `0`, and `μ_max` still survives the erasure only because `n ≥ 2` leaves a
 second copy behind.
 
+The wheel is the join formula's own example. `W_n = K₁ ∇ Cₙ`, so `lapSpectrum_wheel` is `0`, the
+order `n + 1`, and every nonzero rim eigenvalue raised by one — a hub joined to everything shifts
+the whole rest of the spectrum. Feeding that back through the minimum and the maximum gives
+`algConn_wheel = 3 - 2 cos (2 π / n)`, exactly one more than the rim's Fiedler value, and
+`lapLambdaMax_wheel = n + 1`. At `n = 3` the wheel is `K₄` and the formula returns `4`, which is
+`algConn_complete` again.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
