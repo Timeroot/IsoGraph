@@ -175,7 +175,8 @@ the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete gra
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
 `count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
 `LapCospectral.isConnected` needs no regularity where `Cospectral.isConnected` does.  For regular
-graphs the adjacency notion is the stronger one: `Cospectral.lapCospectral`.
+graphs the adjacency notion is the stronger one, `Cospectral.lapCospectral`; without regularity
+it is not, and `not_lapCospectral_star_four` is the witness.
 
 ## Line graphs
 
@@ -5816,5 +5817,15 @@ theorem LapCospectral.isConnected {G H : IsoGraph} (h : LapCospectral G H) (hG :
 theorem Cospectral.lapCospectral {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : LapCospectral G H :=
   Quotient.inductionOn₂ G H (fun _ _ h hG ↦ CGraph.Cospectral.lapCospectral h hG) h hG
+
+/-- **The Laplacian spectrum separates the standard cospectral pair.**  `K₁,₄` and `K₂,₂ ⊔ K₁`
+are cospectral (`cospectral_star_four`) but have one and two components, so by
+`LapCospectral.numComponents_eq` they are not Laplacian cospectral.  Regularity really is needed
+in `Cospectral.lapCospectral`. -/
+theorem not_lapCospectral_star_four :
+    ¬ LapCospectral (star 4) (bipartite 2 2 ⊕g empty 1) := by
+  intro h
+  have h1 := h.numComponents_eq
+  simp at h1
 
 end IsoGraph

@@ -4378,7 +4378,10 @@ Laplacian characteristic polynomials, equivalently of Laplacian spectra
 point of the whole section — the number of components (`LapCospectral.numComponents_eq`), so
 `LapCospectral.isConnected` carries connectedness across with no regularity hypothesis at all.
 The implication between the two notions runs one way, `Cospectral.lapCospectral`: cospectral
-*regular* graphs are Laplacian cospectral, because there `L = k I - A`.
+*regular* graphs are Laplacian cospectral, because there `L = k I - A`. It runs no further than
+that, and the pair from before is the witness: `K₁,₄` and `K₂,₂ ⊔ K₁` are cospectral but have one
+component and two, so `not_lapCospectral_star_four`. The Laplacian sees the difference the
+adjacency spectrum misses.
 
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
