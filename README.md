@@ -4445,6 +4445,25 @@ eigenvalue of the complement, hence nonnegative, so `le_card_of_mem_lapSpectrum`
 `le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`) comes from the largest-coordinate argument
 that bounds adjacency eigenvalues by `Δ`.
 
+The Rayleigh machinery from the adjacency side has a Laplacian copy, and it starts from the
+identity that makes the Laplacian what it is:
+
+```lean
+theorem two_mul_lap_quadratic (G : CGraph) (v : G.V → ℝ) :
+    2 * (v ⬝ᵥ (G.lapMat *ᵥ v)) = ∑ i, ∑ j, G.adjMat i j * (v i - v j) ^ 2
+```
+
+**The Laplacian quadratic form is the sum of the squared differences across the edges**, each
+edge counted once from each end. Positive semidefiniteness is immediate from it, and so is the
+variational principle: `exists_rotate_lap_quadratic` rotates the form into a weighted sum of
+squares, `lap_rayleigh_le_lapLambdaMax` reads off `⟪v, L v⟫ ≤ μ_max ⟪v, v⟫`, and then any test
+vector is a lower bound on `μ_max`. The one that matters puts `Δ` at a vertex of maximum degree,
+`-1` at each of its neighbours and `0` elsewhere: the `Δ` edges at the centre each contribute
+`(Δ + 1)²`, every other edge contributes something nonnegative, and the squared norm is
+`Δ(Δ + 1)`, so `maxDeg_add_one_le_lapLambdaMax` gives **`Δ + 1 ≤ μ_max`**. With
+`le_two_mul_maxDeg_of_mem_lapSpectrum` that traps the largest Laplacian eigenvalue between
+`Δ + 1` and `2Δ`, and both ends are attained — the star at the bottom, the hypercube at the top.
+
 The second-smallest Laplacian eigenvalue has a name, the **algebraic connectivity** or Fiedler
 value, and `algConn` is it:
 

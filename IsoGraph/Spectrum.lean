@@ -202,6 +202,18 @@ Two bounds come out of the same picture:
 the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
 `n - μ` off the complement and uses that Laplacian eigenvalues are nonnegative.
 
+The variational side is the Laplacian copy of the Rayleigh section above.  What replaces
+`⟪v, A v⟫` is `two_mul_lap_quadratic`: **`2 ⟪v, L v⟫ = ∑ i ∑ j A i j (v i - v j) ²`**, the sum of
+squared differences across the edges — the identity behind positive semidefiniteness and behind
+every bound that follows.  `exists_rotate_lap_quadratic` rotates the same form into a weighted
+sum of squares, so `lap_rayleigh_le_lapLambdaMax` bounds it by `μ_max ⟪v, v⟫`, and a test vector
+turns that into a lower bound on `μ_max`.  The good one is `Δ` at a vertex of maximum degree,
+`-1` at each of its neighbours and `0` elsewhere: the `Δ` edges at the centre contribute
+`(Δ + 1) ²` each, every other edge contributes something nonnegative, and the norm is `Δ (Δ + 1)`,
+so `maxDeg_add_one_le_lapLambdaMax` gives **`Δ + 1 ≤ μ_max`**.  Together with
+`lapLambdaMax_le_two_mul_maxDeg` that pins `μ_max` between `Δ + 1` and `2 Δ`, both attained: the
+star at the bottom and any bipartite regular graph, `lapLambdaMax_hypercube` say, at the top.
+
 `algConn` is the **algebraic connectivity**, the second-smallest Laplacian eigenvalue: the
 infimum of `lapSpectrum.erase 0`, taken in `ℝ` so that the one-vertex graph gets `sInf ∅ = 0` by
 the usual convention.  On two or more vertices it is attained (`algConn_mem_erase`), and
@@ -6376,6 +6388,186 @@ theorem lapLambdaMax_eq_zero_iff (G : CGraph) [Nonempty G.V] :
     have := Multiset.single_le_sum (fun y hy ↦ nonneg_of_mem_lapSpectrum G hy) x hx
     linarith
 
+theorem lapEigenvalues_mem_lapSpectrum (G : CGraph) (i : G.V) :
+    G.lapEigenvalues i ∈ G.lapSpectrum := by
+  rw [lapSpectrum_eq_map]
+  exact Multiset.mem_map_of_mem _ (Finset.mem_univ_val i)
+
+/-- **The Laplacian quadratic form is the sum of the squared differences across the edges**,
+each edge counted twice: `2 ⟪v, L v⟫ = ∑ i ∑ j A i j (v i - v j) ²`.  This is the identity that
+makes `L` positive semidefinite and is the source of every variational bound below. -/
+theorem two_mul_lap_quadratic (G : CGraph) (v : G.V → ℝ) :
+    2 * (v ⬝ᵥ (G.lapMat *ᵥ v)) = ∑ i, ∑ j, G.adjMat i j * (v i - v j) ^ 2 := by
+  have hexp : ∀ i j : G.V, G.adjMat i j * (v i - v j) ^ 2
+      = G.adjMat i j * v i ^ 2 + G.adjMat i j * v j ^ 2
+        - 2 * (G.adjMat i j * (v i * v j)) := fun i j ↦ by ring
+  have hrow : ∀ i : G.V, ∑ j, G.adjMat i j * v i ^ 2
+      = (G.toSimple.degree i : ℝ) * v i ^ 2 := fun i ↦ by
+    rw [← Finset.sum_mul, sum_adjMat_row_eq_degree]
+  have hcol : ∑ i, ∑ j, G.adjMat i j * v j ^ 2 = ∑ j, (G.toSimple.degree j : ℝ) * v j ^ 2 := by
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun j _ ↦ ?_
+    rw [← Finset.sum_mul]
+    congr 1
+    rw [← sum_adjMat_row_eq_degree]
+    exact Finset.sum_congr rfl fun i _ ↦ G.adjMat_symm i j
+  have hlhs : v ⬝ᵥ (G.lapMat *ᵥ v)
+      = ∑ i, ((G.toSimple.degree i : ℝ) * v i ^ 2 - ∑ j, G.adjMat i j * (v i * v j)) := by
+    rw [dotProduct]
+    refine Finset.sum_congr rfl fun i _ ↦ ?_
+    rw [lapMat_mulVec_apply, sum_adjMat_row_eq_degree, mul_sub, Finset.mul_sum]
+    congr 1
+    · ring
+    · exact Finset.sum_congr rfl fun j _ ↦ by ring
+  have hrowsum : ∀ i : G.V, ∑ j, G.adjMat i j * (v i - v j) ^ 2
+      = (G.toSimple.degree i : ℝ) * v i ^ 2 + (∑ j, G.adjMat i j * v j ^ 2)
+        - 2 * ∑ j, G.adjMat i j * (v i * v j) := fun i ↦ by
+    simp only [hexp]
+    rw [Finset.sum_sub_distrib, Finset.sum_add_distrib, hrow i, ← Finset.mul_sum]
+  have hL2 : ∑ i, ((G.toSimple.degree i : ℝ) * v i ^ 2 - ∑ j, G.adjMat i j * (v i * v j))
+      = (∑ i, (G.toSimple.degree i : ℝ) * v i ^ 2)
+        - ∑ i, ∑ j, G.adjMat i j * (v i * v j) := Finset.sum_sub_distrib _ _
+  have hR2 : ∑ i, ∑ j, G.adjMat i j * (v i - v j) ^ 2
+      = (∑ i, (G.toSimple.degree i : ℝ) * v i ^ 2) + (∑ i, ∑ j, G.adjMat i j * v j ^ 2)
+        - 2 * ∑ i, ∑ j, G.adjMat i j * (v i * v j) := by
+    rw [Finset.sum_congr rfl (fun i _ ↦ hrowsum i), Finset.sum_sub_distrib,
+      Finset.sum_add_distrib, ← Finset.mul_sum]
+  rw [hlhs, hL2, hR2, hcol]
+  ring
+
+/-- The Laplacian analogue of `exists_rotate_quadratic`. -/
+theorem exists_rotate_lap_quadratic (G : CGraph) (v : G.V → ℝ) :
+    ∃ w : G.V → ℝ, v ⬝ᵥ (G.lapMat *ᵥ v) = ∑ i, G.lapEigenvalues i * w i ^ 2 ∧
+      v ⬝ᵥ v = ∑ i, w i ^ 2 := by
+  obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_lap_diagonal
+  refine ⟨Uᵀ *ᵥ v, ?_, ?_⟩
+  · have hL : G.lapMat = U * Matrix.diagonal G.lapEigenvalues * Uᵀ := by
+      rw [← hD]
+      calc G.lapMat = U * Uᵀ * G.lapMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
+        _ = U * (Uᵀ * G.lapMat * U) * Uᵀ := by simp only [mul_assoc]
+    rw [hL, show (U * Matrix.diagonal G.lapEigenvalues * Uᵀ) *ᵥ v
+          = U *ᵥ (Matrix.diagonal G.lapEigenvalues *ᵥ (Uᵀ *ᵥ v)) by
+        simp only [Matrix.mulVec_mulVec, mul_assoc],
+      dotProduct_mulVec, show v ᵥ* U = Uᵀ *ᵥ v by
+        rw [← Matrix.vecMul_transpose, Matrix.transpose_transpose]]
+    simp only [dotProduct, Matrix.mulVec_diagonal]
+    exact Finset.sum_congr rfl fun i _ ↦ by ring
+  · have hn : (Uᵀ *ᵥ v) ⬝ᵥ (Uᵀ *ᵥ v) = v ⬝ᵥ v := by
+      rw [dotProduct_mulVec, show (Uᵀ *ᵥ v) ᵥ* Uᵀ = U *ᵥ (Uᵀ *ᵥ v) by
+        rw [Matrix.vecMul_transpose], Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
+    rw [← hn]
+    exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+
+/-- **The Laplacian Rayleigh quotient is bounded above by the largest Laplacian eigenvalue.** -/
+theorem lap_rayleigh_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (v : G.V → ℝ) :
+    v ⬝ᵥ (G.lapMat *ᵥ v) ≤ G.lapLambdaMax * (v ⬝ᵥ v) := by
+  obtain ⟨w, h1, h2⟩ := G.exists_rotate_lap_quadratic v
+  rw [h1, h2, Finset.mul_sum]
+  exact Finset.sum_le_sum fun i _ ↦
+    mul_le_mul_of_nonneg_right (le_lapLambdaMax (G.lapEigenvalues_mem_lapSpectrum i)) (sq_nonneg _)
+
+/-- **The largest Laplacian eigenvalue exceeds the maximum degree**: `Δ + 1 ≤ μ_max`.  The test
+vector is `Δ` at a vertex of maximum degree, `-1` at each of its neighbours and `0` elsewhere;
+its Rayleigh quotient is already `Δ + 1`, since the `Δ` edges at the centre each contribute
+`(Δ + 1) ²` and every other edge contributes something nonnegative. -/
+theorem maxDeg_add_one_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (h : 0 < G.E) :
+    (G.maxDeg : ℝ) + 1 ≤ G.lapLambdaMax := by
+  classical
+  have hΔ : 0 < G.maxDeg := by
+    rcases Nat.eq_zero_or_pos G.maxDeg with h0 | h0
+    · exfalso
+      have hle := G.two_mul_E_le_card_mul_maxDeg
+      rw [h0, Nat.mul_zero] at hle
+      omega
+    · exact h0
+  obtain ⟨c, hc⟩ := G.exists_degree_eq_maxDeg (Classical.arbitrary G.V)
+  set d : ℝ := (G.maxDeg : ℝ) with hd
+  have hd1 : (1 : ℝ) ≤ d := by
+    rw [hd]
+    exact_mod_cast hΔ
+  set x : G.V → ℝ := fun i ↦ (if i = c then d else 0) - G.adjMat c i with hx
+  have hrow : ∑ j, G.adjMat c j = d := by rw [sum_adjMat_row_eq_degree, hc]
+  have hAsq : ∀ i j : G.V, G.adjMat i j * G.adjMat i j = G.adjMat i j := fun i j ↦ by
+    rw [adjMat_apply]
+    split <;> norm_num
+  have hcc : G.adjMat c c = 0 := by simp [adjMat_apply, G.adj_self]
+  have hxc : x c = d := by rw [hx]; simp [hcc]
+  have hxne : ∀ i, i ≠ c → x i = -G.adjMat c i := fun i hi ↦ by rw [hx]; simp [hi]
+  -- the squared norm of the test vector
+  have hnorm : x ⬝ᵥ x = d ^ 2 + d := by
+    have hterm : ∀ i : G.V, x i * x i
+        = (if i = c then d ^ 2 else 0) + G.adjMat c i
+          - 2 * ((if i = c then d else 0) * G.adjMat c i) := fun i ↦ by
+      rw [hx]
+      simp only
+      rcases eq_or_ne i c with rfl | hi
+      · simp [hcc]
+        ring
+      · simp only [if_neg hi]
+        rw [zero_sub, neg_mul_neg, hAsq c i]
+        ring
+    rw [dotProduct, Finset.sum_congr rfl fun i _ ↦ hterm i]
+    rw [Finset.sum_sub_distrib, Finset.sum_add_distrib, hrow, Finset.sum_ite_eq' Finset.univ c,
+      if_pos (Finset.mem_univ c)]
+    have hzero : ∑ i, 2 * ((if i = c then d else 0) * G.adjMat c i) = 0 := by
+      refine Finset.sum_eq_zero fun i _ ↦ ?_
+      rcases eq_or_ne i c with rfl | hi
+      · simp [hcc]
+      · simp [hi]
+    rw [hzero]
+    ring
+  -- the quadratic form, from below
+  have hquad : d * (d + 1) ^ 2 ≤ x ⬝ᵥ (G.lapMat *ᵥ x) := by
+    set f : G.V → G.V → ℝ := fun i j ↦ G.adjMat i j * (x i - x j) ^ 2 with hf
+    have hfnn : ∀ i j, 0 ≤ f i j := fun i j ↦ by
+      rw [hf]
+      exact mul_nonneg (G.adjMat_nonneg i j) (sq_nonneg _)
+    have hfcc : f c c = 0 := by rw [hf]; simp [hcc]
+    have hrowc : ∑ j, f c j = d * (d + 1) ^ 2 := by
+      have hterm : ∀ j : G.V, f c j = G.adjMat c j * (d + 1) ^ 2 := fun j ↦ by
+        rw [hf]
+        simp only
+        by_cases hadj : G.Adj c j
+        · have hjc : j ≠ c := by
+            rintro rfl
+            simp [G.adj_self] at hadj
+          rw [hxc, hxne j hjc, adjMat_apply, if_pos hadj]
+          ring
+        · rw [adjMat_apply, if_neg hadj]
+          ring
+      rw [Finset.sum_congr rfl fun j _ ↦ hterm j, ← Finset.sum_mul, hrow]
+    have hcolc : ∑ i, f i c = d * (d + 1) ^ 2 := by
+      have hterm : ∀ i : G.V, f i c = f c i := fun i ↦ by
+        rw [hf]
+        simp only [G.adjMat_symm i c]
+        ring_nf
+      rw [Finset.sum_congr rfl fun i _ ↦ hterm i, hrowc]
+    have hsplit : ∑ i, ∑ j, f i j = (∑ j, f c j) + ∑ i ∈ Finset.univ.erase c, ∑ j, f i j :=
+      (Finset.add_sum_erase _ _ (Finset.mem_univ c)).symm
+    have hlow : ∑ i ∈ Finset.univ.erase c, f i c ≤ ∑ i ∈ Finset.univ.erase c, ∑ j, f i j :=
+      Finset.sum_le_sum fun i _ ↦ Finset.single_le_sum (fun j _ ↦ hfnn i j) (Finset.mem_univ c)
+    have herase : ∑ i ∈ Finset.univ.erase c, f i c = d * (d + 1) ^ 2 := by
+      have hb : f c c + ∑ i ∈ Finset.univ.erase c, f i c = ∑ i, f i c :=
+        Finset.add_sum_erase Finset.univ (fun i ↦ f i c) (Finset.mem_univ c)
+      rw [hfcc, zero_add, hcolc] at hb
+      exact hb
+    have h2 : 2 * (x ⬝ᵥ (G.lapMat *ᵥ x)) = ∑ i, ∑ j, f i j := G.two_mul_lap_quadratic x
+    rw [hsplit, hrowc] at h2
+    linarith [herase ▸ hlow]
+  -- and from above
+  have hup : x ⬝ᵥ (G.lapMat *ᵥ x) ≤ G.lapLambdaMax * (d ^ 2 + d) := by
+    have := G.lap_rayleigh_le_lapLambdaMax x
+    rwa [hnorm] at this
+  have hdpos : 0 < d := by linarith
+  have hkey : d * (d + 1) ^ 2 ≤ G.lapLambdaMax * (d * (d + 1)) := by
+    have : d ^ 2 + d = d * (d + 1) := by ring
+    rw [← this]
+    linarith
+  have hpos : 0 < d * (d + 1) := by nlinarith
+  by_contra hcon
+  push_neg at hcon
+  nlinarith [hkey, hpos]
+
 /-- **The largest Laplacian eigenvalue of a join is its order.**  A join has a disconnected
 complement, so this is `algConn_compl` read backwards; here it is read straight off
 `lapSpectrum_join`. -/
@@ -7747,6 +7939,17 @@ theorem algConn_cartesianProduct {G H : IsoGraph} (hG : 2 ≤ G.V) (hH : 2 ≤ H
       rw [V_mk] at hG hH
       rw [cartesianProduct_mk, algConn_mk, algConn_mk, algConn_mk]
       exact CGraph.algConn_cartesianProduct g h' hG hH
+
+/-- **`Δ + 1 ≤ μ_max`**, at the `IsoGraph` level. -/
+theorem maxDeg_add_one_le_lapLambdaMax {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.E) :
+    (G.maxDeg : ℝ) + 1 ≤ G.lapLambdaMax := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at hV
+    rw [E_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 hV
+    rw [maxDeg_mk, lapLambdaMax_mk]
+    exact CGraph.maxDeg_add_one_le_lapLambdaMax g h
 
 theorem lapLambdaMax_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ∇g H).lapLambdaMax = (G.V : ℝ) + H.V := by
