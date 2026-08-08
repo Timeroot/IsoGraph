@@ -4409,6 +4409,18 @@ theorem lapSpectrum_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
 eigenvalues shifted by the order of the other factor.** `K_{m,n} = Eₘ ∇ Eₙ` is the case where both
 factors are edgeless.
 
+The path is the other family regularity does not reach, and `lapSpectrum_path` gives it the
+eigenvalues `2 - 2 cos (π m / n)`, `0 ≤ m < n` — the adjacency answer was
+`2 cos (π (m+1) / (n+1))`, and the two are genuinely different lists, not one shifted by a degree.
+The eigenvectors are the discrete cosines `cos (π m (j + 1/2) / n)`. The half-integer offset is
+the whole point: an endpoint of the path has degree one, so the eigenvector equation there reads
+`v(0) - v(1) = μ v(0)` rather than `2 v(0) - v(-1) - v(1) = μ v(0)`, which is the second
+difference again exactly when the sequence *reflects*, `g 0 = g 1`. `path_lapMat_mulVec` states
+that once and for all, and `path_adjMat_mulVec` — where the boundary condition was vanishing
+rather than reflection — is reused to prove it. From there
+`lapSpectrum_eq_of_card_le`, the Laplacian twin of `spectrum_eq_of_card_le`, turns `n` distinct
+eigenvalues into the whole multiset.
+
 The complement identity is also exactly what bounds the spectrum from above: `n - μ` is a Laplacian
 eigenvalue of the complement, hence nonnegative, so `le_card_of_mem_lapSpectrum` gives the sharp
 `μ ≤ n` — attained by `K_n`, whose Laplacian spectrum is `0, n, …, n`. The cruder

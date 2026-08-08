@@ -180,8 +180,17 @@ of two complete graphs gives every complete bipartite graph at once, `lapSpectru
 `lapSpectrum_star` is its `m = 0` case — worth recording separately because the star is *not*
 regular, so `lapSpectrum_of_isRegularWith` says nothing about it.  Complementing a disjoint union
 in general is `lapSpectrum_join`: **a join has Laplacian spectrum `0`, the order `n + m`, and each
-factor's remaining eigenvalues shifted by the order of the other factor.**  Two bounds come out of
-the same picture:
+factor's remaining eigenvalues shifted by the order of the other factor.**
+
+The other non-regular family worth having is the path, `lapSpectrum_path`: the numbers
+`2 - 2 cos (π m / n)`.  The eigenvectors are the discrete cosines `cos (π m (j + 1/2) / n)`, whose
+half-integer offset is exactly what makes them *reflect* at the two ends — `path_lapMat_mulVec`
+says the Laplacian is the second difference for any `g` with `g 0 = g 1` and `g (n + 1) = g n`,
+which is the boundary condition a degree-one endpoint imposes, where `path_adjMat_mulVec` needed
+`g` to vanish there instead.  `lapSpectrum_eq_of_card_le`, the Laplacian twin of
+`spectrum_eq_of_card_le`, then turns `n` distinct eigenvalues into the whole multiset.
+
+Two bounds come out of the same picture:
 `le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`, the largest-coordinate argument again) and
 the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
 `n - μ` off the complement and uses that Laplacian eigenvalues are nonnegative.
@@ -5001,6 +5010,19 @@ theorem mem_lapSpectrum_iff (G : CGraph) (x : ℝ) :
   · rintro ⟨v, hv, h0⟩
     exact ⟨v, hv, by rw [key, h0, sub_self]⟩
 
+/-- If at least `|V|` distinct reals are all Laplacian eigenvalues, they are exactly the Laplacian
+spectrum. -/
+theorem lapSpectrum_eq_of_card_le (G : CGraph) (s : Finset ℝ)
+    (hcard : Fintype.card G.V ≤ s.card)
+    (hs : ∀ x ∈ s, ∃ v : G.V → ℝ, v ≠ 0 ∧ G.lapMat *ᵥ v = x • v) :
+    G.lapSpectrum = s.val := by
+  refine (Multiset.eq_of_le_of_card_le (Multiset.le_iff_count.2 fun x ↦ ?_)
+    (by simpa using hcard)).symm
+  by_cases hx : x ∈ s
+  · exact le_trans (Multiset.nodup_iff_count_le_one.1 s.nodup x)
+      (Multiset.one_le_count_iff_mem.2 ((mem_lapSpectrum_iff G x).2 (hs x hx)))
+  · simp [Multiset.count_eq_zero_of_notMem (fun h ↦ hx (Finset.mem_def.mpr h))]
+
 /-- **The Laplacian eigenvalues are nonnegative**: `L` is positive semidefinite. -/
 theorem nonneg_of_mem_lapSpectrum (G : CGraph) {x : ℝ} (hx : x ∈ G.lapSpectrum) : 0 ≤ x := by
   rw [lapSpectrum_eq_map, Multiset.mem_map] at hx
@@ -5535,6 +5557,173 @@ theorem lapSpectrum_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   · congr 1
     · exact Multiset.map_congr rfl fun x _ ↦ by push_cast; ring
     · exact Multiset.map_congr rfl fun x _ ↦ by push_cast; ring
+
+/-- The adjacency matrix of the path acting on a vector coming from a function on `ℕ`, with no
+boundary condition: the missing neighbour at each end simply contributes nothing. -/
+theorem path_adjMat_mulVec' (n : ℕ) (g : ℕ → ℝ) (i : Fin n) :
+    ((path n).adjMat *ᵥ fun j : Fin n ↦ g (j.1 + 1)) i
+      = (if i.1 = 0 then 0 else g i.1) + (if i.1 + 2 = n + 1 then 0 else g (i.1 + 2)) := by
+  have hi := i.isLt
+  set f : ℕ → ℝ := fun k ↦ if k = 0 then 0 else if k = n + 1 then 0 else g k with hf
+  have h0 : f 0 = 0 := by simp [hf]
+  have hn : f (n + 1) = 0 := by simp [hf]
+  have hv : (fun j : Fin n ↦ g (j.1 + 1)) = fun j : Fin n ↦ f (j.1 + 1) := by
+    funext j
+    have hj := j.isLt
+    rw [hf]
+    simp only
+    rw [if_neg (by omega), if_neg (by omega)]
+  rw [hv, path_adjMat_mulVec n f h0 hn i]
+  have hleft : f i.1 = if i.1 = 0 then 0 else g i.1 := by
+    rw [hf]
+    simp only
+    split_ifs <;> first | rfl | omega
+  have hright : f (i.1 + 2) = if i.1 + 2 = n + 1 then 0 else g (i.1 + 2) := by
+    rw [hf]
+    simp only
+    rw [if_neg (show i.1 + 2 ≠ 0 by omega)]
+  rw [hleft, hright]
+
+/-- The Laplacian of the path acts as the second difference, provided the function is extended
+past the two ends by reflection: `g 0 = g 1` and `g (n + 1) = g n`. -/
+theorem path_lapMat_mulVec (n : ℕ) (g : ℕ → ℝ) (h0 : g 0 = g 1) (hn : g (n + 1) = g n)
+    (i : Fin n) :
+    ((path n).lapMat *ᵥ fun j : Fin n ↦ g (j.1 + 1)) i
+      = 2 * g (i.1 + 1) - g i.1 - g (i.1 + 2) := by
+  have hi := i.isLt
+  have hrow := path_adjMat_mulVec' n (fun _ ↦ (1 : ℝ)) i
+  have hsum : ∑ j, (path n).adjMat i j
+      = (if i.1 = 0 then 0 else (1 : ℝ)) + (if i.1 + 2 = n + 1 then 0 else 1) := by
+    rw [← hrow]
+    simp [Matrix.mulVec, dotProduct]
+  have hdot : ∑ j, (path n).adjMat i j * g (j.1 + 1)
+      = (if i.1 = 0 then 0 else g i.1) + (if i.1 + 2 = n + 1 then 0 else g (i.1 + 2)) := by
+    rw [← path_adjMat_mulVec' n g i]
+    simp [Matrix.mulVec, dotProduct]
+  rw [lapMat_mulVec_apply, hsum, hdot]
+  rcases Nat.eq_zero_or_pos i.1 with hi0 | hi0
+  · rcases eq_or_ne (i.1 + 2) (n + 1) with h2 | h2
+    · rw [if_pos hi0, if_pos h2, if_pos hi0, if_pos h2]
+      have e1 : g i.1 = g 1 := by rw [hi0, h0]
+      have e2 : g (i.1 + 2) = g (i.1 + 1) := by
+        rw [show i.1 + 2 = n + 1 from h2, hn]
+        congr 1
+        omega
+      rw [e1, e2, show i.1 + 1 = 1 from by omega]
+      ring
+    · rw [if_pos hi0, if_neg h2, if_pos hi0, if_neg h2]
+      have e1 : g i.1 = g (i.1 + 1) := by rw [hi0, h0]
+      rw [e1]
+      ring
+  · rcases eq_or_ne (i.1 + 2) (n + 1) with h2 | h2
+    · rw [if_neg (by omega), if_pos h2, if_neg (by omega), if_pos h2]
+      have e2 : g (i.1 + 2) = g (i.1 + 1) := by
+        rw [show i.1 + 2 = n + 1 from h2, hn]
+        congr 1
+        omega
+      rw [e2]
+      ring
+    · rw [if_neg (by omega), if_neg h2, if_neg (by omega), if_neg h2]
+      ring
+
+open Real in
+/-- The `m`-th Laplacian eigenvector of the path on `n` vertices, `cos (π m (j + 1/2) / n)`, with
+eigenvalue `2 - 2 cos (π m / n)`. -/
+theorem hasLapEigenvector_path (n : ℕ) (m : Fin n) :
+    (fun j : Fin n ↦ Real.cos (π * m.1 / n * ((j.1 : ℝ) + 1 - 1 / 2))) ≠ 0 ∧
+      (path n).lapMat *ᵥ (fun j : Fin n ↦ Real.cos (π * m.1 / n * ((j.1 : ℝ) + 1 - 1 / 2)))
+        = (2 - 2 * Real.cos (π * m.1 / n))
+          • fun j : Fin n ↦ Real.cos (π * m.1 / n * ((j.1 : ℝ) + 1 - 1 / 2)) := by
+  have hn0 : 0 < n := m.pos
+  have hnR : (0 : ℝ) < n := by exact_mod_cast hn0
+  set a : ℝ := π * m.1 / n with ha
+  set g : ℕ → ℝ := fun k ↦ Real.cos (a * ((k : ℝ) - 1 / 2)) with hg
+  have hanonneg : 0 ≤ a := by rw [ha]; positivity
+  have haltpi : a < π := by
+    have h1 : (m.1 : ℝ) < (n : ℝ) := by exact_mod_cast m.isLt
+    rw [ha, div_lt_iff₀ hnR]
+    nlinarith [Real.pi_pos]
+  have hg01 : g 0 = g 1 := by
+    rw [hg]
+    simp only [Nat.cast_zero, Nat.cast_one, zero_sub]
+    rw [show a * -(1 / 2 : ℝ) = -(a * (1 - 1 / 2)) from by ring, Real.cos_neg]
+  have hgn : g (n + 1) = g n := by
+    have hkey : Real.cos (a * ((n : ℝ) + 1 - 1 / 2)) - Real.cos (a * ((n : ℝ) - 1 / 2))
+        = -2 * Real.sin (a * n) * Real.sin (a * (1 / 2)) := by
+      rw [Real.cos_sub_cos]
+      ring_nf
+    have hsin : Real.sin (a * n) = 0 := by
+      have : a * n = (m.1 : ℝ) * π := by rw [ha]; field_simp
+      rw [this, Real.sin_nat_mul_pi]
+    rw [hg]
+    simp only [Nat.cast_add, Nat.cast_one]
+    linarith [hkey, hsin, mul_eq_zero_of_left (mul_eq_zero_of_right (-2 : ℝ) hsin)
+      (Real.sin (a * (1 / 2)))]
+  have hvec : (fun j : Fin n ↦ Real.cos (a * ((j.1 : ℝ) + 1 - 1 / 2)))
+      = fun j : Fin n ↦ g (j.1 + 1) := by
+    funext j
+    rw [hg]
+    push_cast
+    ring_nf
+  constructor
+  · intro h0
+    have hzero := congrFun h0 (⟨0, hn0⟩ : Fin n)
+    simp only [Pi.zero_apply] at hzero
+    rw [show ((⟨0, hn0⟩ : Fin n).1 : ℝ) + 1 - 1 / 2 = 1 / 2 from by norm_num] at hzero
+    have hpos : 0 < Real.cos (a * (1 / 2)) := by
+      refine Real.cos_pos_of_mem_Ioo ⟨by nlinarith [Real.pi_pos], by nlinarith⟩
+    rw [hzero] at hpos
+    exact lt_irrefl 0 hpos
+  · rw [hvec]
+    funext i
+    rw [path_lapMat_mulVec n g hg01 hgn i]
+    have hcos : g i.1 + g (i.1 + 2) = 2 * Real.cos a * g (i.1 + 1) := by
+      rw [hg]
+      simp only
+      push_cast
+      rw [show a * ((i.1 : ℝ) - 1 / 2) = a * ((i.1 : ℝ) + 1 - 1 / 2) - a from by ring,
+        show a * ((i.1 : ℝ) + 2 - 1 / 2) = a * ((i.1 : ℝ) + 1 - 1 / 2) + a from by ring,
+        Real.cos_sub, Real.cos_add]
+      ring
+    simp only [Pi.smul_apply, smul_eq_mul]
+    linarith [hcos]
+
+/-- **The Laplacian spectrum of the path** `P_n`: the `n` numbers `2 - 2 cos (π m / n)`,
+`0 ≤ m < n`.  The path is not regular, so this does not follow from `spectrum_path`; the
+eigenvectors are the discrete cosines `cos (π m (j + 1/2) / n)`, which satisfy the reflecting
+boundary condition the Laplacian imposes at the two ends. -/
+theorem lapSpectrum_path (n : ℕ) :
+    (path n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (Real.pi * m.1 / n)) := by
+  classical
+  set f : Fin n → ℝ := fun m ↦ 2 - 2 * Real.cos (Real.pi * m.1 / n) with hf
+  have hinj : Function.Injective f := by
+    intro m m' h
+    rw [hf] at h
+    simp only [sub_right_inj] at h
+    have hn0 : 0 < n := m.pos
+    have hnR : (0 : ℝ) < n := by exact_mod_cast hn0
+    have hmem : ∀ k : Fin n, Real.pi * k.1 / n ∈ Set.Icc 0 Real.pi := by
+      intro k
+      refine ⟨by positivity, ?_⟩
+      have h1 : (k.1 : ℝ) ≤ (n : ℝ) := by exact_mod_cast k.isLt.le
+      rw [div_le_iff₀ hnR]
+      nlinarith [Real.pi_pos]
+    have hcos := mul_left_cancel₀ (two_ne_zero) h
+    have harg := Real.injOn_cos (hmem m) (hmem m') hcos
+    have h3 : Real.pi * (m.1 : ℝ) = Real.pi * (m'.1 : ℝ) := by
+      have := congrArg (fun t : ℝ ↦ t * (n : ℝ)) harg
+      simpa [div_mul_cancel₀, ne_of_gt hnR] using this
+    exact Fin.ext (by exact_mod_cast mul_left_cancel₀ Real.pi_ne_zero h3)
+  have hcard : Fintype.card (path n).V ≤ (Finset.image f Finset.univ).card := by
+    rw [Finset.card_image_of_injective _ hinj]
+    simp [path, ofRel]
+  have hs : ∀ x ∈ Finset.image f Finset.univ,
+      ∃ v : (path n).V → ℝ, v ≠ 0 ∧ (path n).lapMat *ᵥ v = x • v := by
+    intro x hx
+    obtain ⟨m, -, rfl⟩ := Finset.mem_image.1 hx
+    exact ⟨_, hasLapEigenvector_path n m⟩
+  rw [lapSpectrum_eq_of_card_le _ _ hcard hs, Finset.image_val_of_injOn hinj.injOn]
 
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.**  Evaluate the
 eigenvector equation at a coordinate where `|v|` is largest, as for `abs_le_maxDeg_of_mem_spectrum`
@@ -6099,6 +6288,13 @@ theorem lapSpectrum_bipartite (m n : ℕ) :
 theorem lapSpectrum_star (n : ℕ) :
     (star (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) :=
   CGraph.lapSpectrum_star n
+
+/-- **The Laplacian spectrum of the path** `P_n`: the `n` numbers `2 - 2 cos (π m / n)`,
+`0 ≤ m < n`.  The path is not regular, so this does not follow from `spectrum_path`. -/
+theorem lapSpectrum_path (n : ℕ) :
+    (path n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (Real.pi * m.1 / n)) :=
+  CGraph.lapSpectrum_path n
 
 /-- **The Laplacian spectrum of a join**: `0`, the order `n + m`, and every other eigenvalue of
 each factor shifted by the order of the other factor. -/
