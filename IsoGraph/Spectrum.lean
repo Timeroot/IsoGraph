@@ -153,6 +153,8 @@ not to `0` as the adjacency ones do — and rank-nullity turns the kernel descri
 `count_zero_lapSpectrum_eq_one_iff` reads connectedness straight off the Laplacian spectrum,
 with no regularity hypothesis.  For a `k`-regular graph the two spectra are the same information,
 `mem_lapSpectrum_iff_of_isRegularWith`: `L = k I - A`, so the Laplacian eigenvalues are `k - λ`.
+A disjoint union concatenates Laplacian spectra just as it does adjacency ones
+(`lapSpectrum_disjUnion`), which is the component count again, one summand at a time.
 
 ## Line graphs
 
@@ -5048,6 +5050,50 @@ theorem lapCharpoly_congr {G H : CGraph} (i : G ≃cg H) : G.lapCharpoly = H.lap
 theorem lapSpectrum_congr {G H : CGraph} (i : G ≃cg H) : G.lapSpectrum = H.lapSpectrum := by
   rw [lapSpectrum, lapSpectrum, lapCharpoly_congr i]
 
+theorem monic_lapCharpoly (G : CGraph) : G.lapCharpoly.Monic := Matrix.charpoly_monic _
+
+theorem lapCharpoly_eq_matrix_charpoly (G : CGraph) [inst : DecidableEq G.V] :
+    G.lapCharpoly = G.lapMat.charpoly :=
+  congrArg (fun d ↦ @Matrix.charpoly ℝ _ G.V d _ G.lapMat) (Subsingleton.elim _ _)
+
+theorem degree_empty (n : ℕ) (i : (empty n).V) : (empty n).toSimple.degree i = 0 := by
+  rw [SimpleGraph.degree, Finset.card_eq_zero, Finset.eq_empty_iff_forall_notMem]
+  intro j hj
+  rw [SimpleGraph.mem_neighborFinset, toSimple_adj, empty_adj] at hj
+  exact Bool.false_ne_true hj
+
+@[simp] theorem lapMat_empty (n : ℕ) : (empty n).lapMat = 0 := by
+  ext i j
+  rcases eq_or_ne i j with rfl | hij
+  · rw [lapMat_apply_self, degree_empty]
+    simp
+  · rw [lapMat_apply_of_ne _ hij]
+    simp [adjMat_apply, empty_adj]
+
+@[simp] theorem lapSpectrum_empty (n : ℕ) :
+    (empty n).lapSpectrum = Multiset.replicate n 0 := by
+  simp [lapSpectrum, lapCharpoly, Polynomial.roots_pow, Multiset.nsmul_singleton]
+
+theorem lapMat_disjUnion (G H : CGraph) :
+    (disjUnion G H).lapMat = Matrix.fromBlocks G.lapMat 0 0 H.lapMat := by
+  ext x y
+  simp only [lapMat_eq_diagonal_sub, Matrix.sub_apply, Matrix.diagonal_apply]
+  cases x <;> cases y <;>
+    simp only [degree_disjUnion_inl, degree_disjUnion_inr] <;>
+    simp [adjMat_apply, disjUnion, Matrix.diagonal_apply]
+
+@[simp] theorem lapCharpoly_disjUnion (G H : CGraph) :
+    (disjUnion G H).lapCharpoly = G.lapCharpoly * H.lapCharpoly := by
+  classical
+  rw [lapCharpoly_eq_matrix_charpoly, lapMat_disjUnion, Matrix.charpoly_fromBlocks_zero₁₂,
+    ← lapCharpoly_eq_matrix_charpoly, ← lapCharpoly_eq_matrix_charpoly]
+
+/-- **The Laplacian spectrum of a disjoint union is the sum of the spectra.** -/
+@[simp] theorem lapSpectrum_disjUnion (G H : CGraph) :
+    (disjUnion G H).lapSpectrum = G.lapSpectrum + H.lapSpectrum := by
+  rw [lapSpectrum, lapSpectrum, lapSpectrum, lapCharpoly_disjUnion, Polynomial.roots_mul
+    (mul_ne_zero G.monic_lapCharpoly.ne_zero H.monic_lapCharpoly.ne_zero)]
+
 end CGraph
 
 namespace IsoGraph
@@ -5409,5 +5455,13 @@ theorem sum_lapSpectrum (G : IsoGraph) : G.lapSpectrum.sum = 2 * (G.E : ℝ) :=
 /-- **The multiplicity of `0` in the Laplacian spectrum is the number of components.** -/
 theorem count_zero_lapSpectrum (G : IsoGraph) : G.lapSpectrum.count 0 = G.numComponents :=
   Quotient.inductionOn G fun g ↦ g.count_zero_lapSpectrum
+
+@[simp] theorem lapSpectrum_empty (n : ℕ) : (empty n).lapSpectrum = Multiset.replicate n 0 :=
+  CGraph.lapSpectrum_empty n
+
+/-- **The Laplacian spectrum of a disjoint union is the sum of the spectra.** -/
+@[simp] theorem lapSpectrum_disjUnion (G H : IsoGraph) :
+    (G ⊕g H).lapSpectrum = G.lapSpectrum + H.lapSpectrum :=
+  Quotient.inductionOn₂ G H fun g h ↦ CGraph.lapSpectrum_disjUnion g h
 
 end IsoGraph
