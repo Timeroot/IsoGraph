@@ -214,6 +214,14 @@ so `maxDeg_add_one_le_lapLambdaMax` gives **`Δ + 1 ≤ μ_max`**.  Together wit
 `lapLambdaMax_le_two_mul_maxDeg` that pins `μ_max` between `Δ + 1` and `2 Δ`, both attained: the
 star at the bottom and any bipartite regular graph, `lapLambdaMax_hypercube` say, at the top.
 
+Reflecting `Δ + 1 ≤ μ_max` in the complement turns it into a bound at the *other* end of the
+spectrum, and that bound is **Fiedler's**: `μ_max (Ḡ) = n - a (G)` and `Δ (Ḡ) = n - 1 - δ (G)`,
+so `algConn_le_minDeg` reads `a (G) ≤ δ (G)`.  Its hypothesis is that `Ḡ` has an edge, i.e. that
+`G` is not complete — and it has to be, since `K_n` has `a = n` and `δ = n - 1`.  Weakening the
+conclusion just enough to absorb that one case gives the textbook statement,
+`card_sub_one_mul_algConn_le_card_mul_minDeg` (`(n - 1) a ≤ n δ`), or in its usual divided form
+`algConn_le_div_mul_minDeg` (`a ≤ n / (n - 1) · δ`), an equality exactly at the complete graph.
+
 `algConn` is the **algebraic connectivity**, the second-smallest Laplacian eigenvalue: the
 infimum of `lapSpectrum.erase 0`, taken in `ℝ` so that the one-vertex graph gets `sInf ∅ = 0` by
 the usual convention.  On two or more vertices it is attained (`algConn_mem_erase`), and
@@ -6568,6 +6576,70 @@ theorem maxDeg_add_one_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (h : 0 < G.E)
   push_neg at hcon
   nlinarith [hkey, hpos]
 
+/-! ### Fiedler's bound on the algebraic connectivity -/
+
+/-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`.  Read in the
+complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hypothesis is exactly what
+`Δ + 1 ≤ μ_max` needs, namely that `Ḡ` has an edge. -/
+theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (h : 2 ≤ Fintype.card G.V) (hc : 0 < (compl G).E) :
+    G.algConn ≤ G.minDeg := by
+  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+  have h1 : ((compl G).maxDeg : ℝ) + 1 ≤ (compl G).lapLambdaMax :=
+    (compl G).maxDeg_add_one_le_lapLambdaMax hc
+  rw [G.lapLambdaMax_compl h] at h1
+  have hδ : G.minDeg ≤ Fintype.card G.V - 1 :=
+    le_trans G.minDeg_le_maxDeg (by have := G.maxDeg_lt_card (Classical.arbitrary G.V); omega)
+  have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
+  have h2 : ((compl G).maxDeg : ℝ) = (Fintype.card G.V : ℝ) - 1 - G.minDeg := by
+    rw [maxDeg_compl G (Classical.arbitrary G.V), Nat.cast_sub hδ, Nat.cast_sub h1']
+    push_cast
+    ring
+  rw [h2] at h1
+  linarith
+
+/-- **Fiedler's bound**, in the form that also covers the complete graph: `(n - 1) · a ≤ n · δ`.
+For `K_n` it is an equality, `a = n` and `δ = n - 1`; for every other graph the sharper
+`algConn_le_minDeg` applies. -/
+theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (h : 2 ≤ Fintype.card G.V) :
+    ((Fintype.card G.V : ℝ) - 1) * G.algConn ≤ Fintype.card G.V * G.minDeg := by
+  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+  have hn : (2 : ℝ) ≤ Fintype.card G.V := by exact_mod_cast h
+  have hδ0 : (0 : ℝ) ≤ G.minDeg := Nat.cast_nonneg _
+  rcases Nat.eq_zero_or_pos (compl G).E with h0 | hpos
+  · -- the complement is edgeless, so `G` is complete: `a = n` and `δ = n - 1`
+    have hmax : (compl G).maxDeg = 0 := by
+      have := (compl G).maxDeg_le_two_mul_E (Classical.arbitrary G.V)
+      omega
+    have hδ : Fintype.card G.V - 1 ≤ G.minDeg := by
+      have := maxDeg_compl G (Classical.arbitrary G.V)
+      omega
+    have hδ' : (Fintype.card G.V : ℝ) - 1 ≤ G.minDeg := by
+      have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
+      have hc : ((Fintype.card G.V - 1 : ℕ) : ℝ) ≤ (G.minDeg : ℝ) := by exact_mod_cast hδ
+      rwa [Nat.cast_sub h1', Nat.cast_one] at hc
+    have hlam : (compl G).lapLambdaMax ≤ 0 := by
+      have := (compl G).lapLambdaMax_le_two_mul_maxDeg
+      rw [hmax] at this
+      simpa using this
+    rw [G.lapLambdaMax_compl h] at hlam
+    have hac : G.algConn ≤ Fintype.card G.V := G.algConn_le_card h
+    have haeq : G.algConn = Fintype.card G.V := le_antisymm hac (by linarith)
+    rw [haeq]
+    nlinarith
+  · have := G.algConn_le_minDeg h hpos
+    nlinarith [G.algConn_nonneg]
+
+/-- **Fiedler's bound in its usual form**: `a (G) ≤ n / (n - 1) · δ (G)`. -/
+theorem algConn_le_div_mul_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (h : 2 ≤ Fintype.card G.V) :
+    G.algConn ≤ (Fintype.card G.V : ℝ) / ((Fintype.card G.V : ℝ) - 1) * G.minDeg := by
+  have hn : (2 : ℝ) ≤ Fintype.card G.V := by exact_mod_cast h
+  have hpos : (0 : ℝ) < (Fintype.card G.V : ℝ) - 1 := by linarith
+  rw [div_mul_eq_mul_div, le_div_iff₀ hpos]
+  linarith [G.card_sub_one_mul_algConn_le_card_mul_minDeg h]
+
 /-- **The largest Laplacian eigenvalue of a join is its order.**  A join has a disconnected
 complement, so this is `algConn_compl` read backwards; here it is read straight off
 `lapSpectrum_join`. -/
@@ -7950,6 +8022,40 @@ theorem maxDeg_add_one_le_lapLambdaMax {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 hV
     rw [maxDeg_mk, lapLambdaMax_mk]
     exact CGraph.maxDeg_add_one_le_lapLambdaMax g h
+
+/-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`. -/
+theorem algConn_le_minDeg {G : IsoGraph} (h : 2 ≤ G.V) (hc : 0 < Gᶜ.E) :
+    G.algConn ≤ minDeg G := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    classical
+    rw [V_mk] at h
+    rw [compl_mk, E_mk] at hc
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    rw [algConn_mk, minDeg_mk]
+    exact g.algConn_le_minDeg h hc
+
+/-- **Fiedler's bound**: `(n - 1) · a (G) ≤ n · δ (G)`, an equality for the complete graph. -/
+theorem V_sub_one_mul_algConn_le_V_mul_minDeg {G : IsoGraph} (h : 2 ≤ G.V) :
+    ((G.V : ℝ) - 1) * G.algConn ≤ (G.V : ℝ) * minDeg G := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    classical
+    rw [V_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    rw [algConn_mk, minDeg_mk, V_mk]
+    exact g.card_sub_one_mul_algConn_le_card_mul_minDeg h
+
+/-- **Fiedler's bound in its usual form**: `a (G) ≤ n / (n - 1) · δ (G)`. -/
+theorem algConn_le_div_mul_minDeg {G : IsoGraph} (h : 2 ≤ G.V) :
+    G.algConn ≤ (G.V : ℝ) / ((G.V : ℝ) - 1) * minDeg G := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    classical
+    rw [V_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    rw [algConn_mk, minDeg_mk, V_mk]
+    exact g.algConn_le_div_mul_minDeg h
 
 theorem lapLambdaMax_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ∇g H).lapLambdaMax = (G.V : ℝ) + H.V := by

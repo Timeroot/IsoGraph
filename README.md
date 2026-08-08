@@ -4533,6 +4533,26 @@ the erasure only because `n ≥ 2` leaves a second copy behind. That case is the
 `lapLambdaMax_eq_zero_iff`: since the spectrum is nonnegative and sums to `2E`, `μ_max = 0` says
 exactly that the graph has no edges.
 
+Complementation also transports the `Δ + 1 ≤ μ_max` bound proved above to the other end of the
+spectrum, and what comes out is **Fiedler's inequality**. Run the bound in `Ḡ`: its largest
+Laplacian eigenvalue is `n - a(G)` and its maximum degree is `n - 1 - δ(G)`, so
+`n - 1 - δ(G) + 1 ≤ n - a(G)`, which is
+
+```lean
+theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (h : 2 ≤ Fintype.card G.V) (hc : 0 < (compl G).E) :
+    G.algConn ≤ G.minDeg
+```
+
+**The Fiedler value never exceeds the minimum degree** — one badly attached vertex caps the
+connectivity of the whole graph, however dense the rest is. The hypothesis `0 < (compl G).E` is
+where `Δ + 1 ≤ μ_max` needs an edge to work with, and it says exactly that `G` is not complete.
+That exception is real and not an artefact: `a(Kₙ) = n` while `δ(Kₙ) = n - 1`. Weakening the
+conclusion by just the factor that repairs that one case gives the textbook form, unconditional
+on two or more vertices: `card_sub_one_mul_algConn_le_card_mul_minDeg` states `(n - 1)·a ≤ n·δ`,
+and `algConn_le_div_mul_minDeg` divides it into `a(G) ≤ n/(n - 1) · δ(G)`, with equality precisely
+at the complete graph.
+
 Two structural rules finish the picture. A disjoint union takes the larger of the two values,
 `lapLambdaMax_disjUnion : (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax`, where
 the small end takes *neither* and collapses to `0` — the two components do not interact at the top

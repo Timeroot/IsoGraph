@@ -5386,6 +5386,16 @@ theorem two_mul_E_le_card_mul_maxDeg (G : CGraph) : 2 * G.E ≤ Fintype.card G.V
     _ ≤ ∑ _v : G.V, G.maxDeg := Finset.sum_le_sum fun v _ ↦ G.degree_le_maxDeg v
     _ = Fintype.card G.V * G.maxDeg := by rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
 
+/-- One vertex's degree is at most the whole degree sum, so `Δ ≤ 2|E|`; in particular a graph
+with no edges has no vertex of positive degree. -/
+theorem maxDeg_le_two_mul_E (G : CGraph) (v₀ : G.V) : G.maxDeg ≤ 2 * G.E := by
+  obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
+  calc G.maxDeg = G.toSimple.degree v := hv.symm
+    _ ≤ ∑ u : G.V, G.toSimple.degree u :=
+        Finset.single_le_sum (f := fun u : G.V ↦ G.toSimple.degree u)
+          (fun u _ ↦ Nat.zero_le _) (Finset.mem_univ v)
+    _ = 2 * G.E := SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
+
 /-! ### The disjoint union, the join and the complement -/
 
 theorem maxDeg_disjUnion (G H : CGraph) :
@@ -13773,6 +13783,14 @@ theorem two_mul_E_le_V_mul_maxDeg (G : IsoGraph) : 2 * G.E ≤ G.V * maxDeg G :=
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, V_mk, maxDeg_mk, E_mk]
   exact CGraph.two_mul_E_le_card_mul_maxDeg _
+
+/-- **`Δ ≤ 2|E|`**: an edgeless graph has maximum degree `0`. -/
+theorem maxDeg_le_two_mul_E {G : IsoGraph} (hG : 0 < G.V) : maxDeg G ≤ 2 * G.E := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [V_mk] at hG
+  obtain ⟨v⟩ := Fintype.card_pos_iff.1 hG
+  rw [maxDeg_mk, E_mk]
+  exact g.maxDeg_le_two_mul_E v
 
 theorem ne_of_maxDeg_ne {G H : IsoGraph} (h : maxDeg G ≠ maxDeg H) : G ≠ H :=
   ne_of_apply_ne maxDeg h
