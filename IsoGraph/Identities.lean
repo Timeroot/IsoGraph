@@ -9581,6 +9581,84 @@ theorem crownCol_proper (n : ℕ) (u v w : (tensorProduct (complete (n + 2)) (co
     have p2 := crownIdx_pos (n + 2) (Ne.symm huw1)
     exact h1 (crownIdx_inj_left (n + 2) v.1 w.1 u.1 (by omega))
 
+/-! ### A three-edge-colouring of the prism
+
+`Cₙ □ K₂` is cubic, so three colours is the best possible, and the graph is Hamiltonian: run along
+the top rim, drop down the last rung, come back along the bottom rim and close up through the first
+rung.  Alternating two colours along that cycle leaves the remaining rungs as a perfect matching for
+the third colour.  The formula below does exactly that, in a shape `omega` can reason about. -/
+
+/-- Three colours for the prism `Cₙ □ K₂`, read off a Hamiltonian cycle: go around the top rim,
+drop down, come back along the bottom rim and close up.  Alternating two colours along that cycle
+leaves the remaining perfect matching for the third. -/
+def prismCol (N : ℕ) (p q : Fin N × Fin 2) : Fin 3 :=
+  if p.1.1 = q.1.1 then
+    (if p.1.1 = 0 then 1 else if p.1.1 + 1 = N then (if N % 2 = 0 then 1 else 0) else 2)
+  else if (p.1.1 = 0 ∧ q.1.1 + 1 = N) ∨ (q.1.1 = 0 ∧ p.1.1 + 1 = N) then 2
+  else if min p.1.1 q.1.1 % 2 = 0 then 0 else 1
+
+theorem prismCol_symm (N : ℕ) (p q : Fin N × Fin 2) : prismCol N p q = prismCol N q p := by
+  unfold prismCol
+  rw [Nat.min_comm p.1.1 q.1.1]
+  by_cases h : p.1.1 = q.1.1
+  · rw [if_pos h, if_pos h.symm, h]
+  · rw [if_neg h, if_neg (Ne.symm h)]
+    by_cases h2 : (p.1.1 = 0 ∧ q.1.1 + 1 = N) ∨ (q.1.1 = 0 ∧ p.1.1 + 1 = N)
+    · have h2' : (q.1.1 = 0 ∧ p.1.1 + 1 = N) ∨ (p.1.1 = 0 ∧ q.1.1 + 1 = N) := h2.symm
+      rw [if_pos h2, if_pos h2']
+    · have h2' : ¬((q.1.1 = 0 ∧ p.1.1 + 1 = N) ∨ (p.1.1 = 0 ∧ q.1.1 + 1 = N)) :=
+        fun hh ↦ h2 hh.symm
+      rw [if_neg h2, if_neg h2']
+
+theorem prismCol_proper (n : ℕ) (u v w : (cartesianProduct (cycle (n + 3)) (complete 2)).V)
+    (huv : (cartesianProduct (cycle (n + 3)) (complete 2)).Adj u v = true)
+    (huw : (cartesianProduct (cycle (n + 3)) (complete 2)).Adj u w = true) (hvw : v ≠ w) :
+    prismCol (n + 3) u v ≠ prismCol (n + 3) u w := by
+  rw [cartesianProduct_adj] at huv huw
+  simp only [complete_adj, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+    at huv huw
+  have step : ∀ x y : (cartesianProduct (cycle (n + 3)) (complete 2)).V,
+      (x.1 = y.1 ∧ ¬ x.2 = y.2) ∨ ((cycle (n + 3)).Adj x.1 y.1 = true ∧ x.2 = y.2) →
+      (x.1.1 = y.1.1 ∧ x.2.1 ≠ y.2.1) ∨
+        ((x.1.1 + 1 = y.1.1 ∨ y.1.1 + 1 = x.1.1 ∨ (x.1.1 = 0 ∧ y.1.1 + 1 = n + 3) ∨
+          (y.1.1 = 0 ∧ x.1.1 + 1 = n + 3)) ∧ x.2.1 = y.2.1) := by
+    rintro x y (⟨h1, h2⟩ | ⟨h1, h2⟩)
+    · exact Or.inl ⟨congrArg Fin.val h1, fun hh ↦ h2 (Fin.ext hh)⟩
+    · refine Or.inr ⟨?_, congrArg Fin.val h2⟩
+      have bx := x.1.isLt
+      have by' := y.1.isLt
+      rw [cycle_adj_eq_iff (by omega)] at h1
+      rw [cyc_mod_succ (n + 3) x.1.1 bx, cyc_mod_pred (n + 3) x.1.1 bx] at h1
+      split_ifs at h1 <;> omega
+  have hv := step u v huv
+  have hw := step u w huw
+  have hne : v.1.1 ≠ w.1.1 ∨ v.2.1 ≠ w.2.1 := by
+    by_contra hc
+    push_neg at hc
+    exact hvw (Prod.ext (Fin.ext hc.1) (Fin.ext hc.2))
+  have bu := u.1.isLt
+  have bv := v.1.isLt
+  have bw := w.1.isLt
+  have cu := u.2.isLt
+  have cv := v.2.isLt
+  have cw := w.2.isLt
+  unfold prismCol
+  rcases hv with ⟨hv1, hv2⟩ | ⟨hv1, hv2⟩
+  · rcases hw with ⟨hw1, hw2⟩ | ⟨hw1, hw2⟩
+    · exfalso; omega
+    · have huw' : u.1.1 ≠ w.1.1 := by omega
+      rw [if_pos hv1, if_neg huw']
+      split_ifs <;> first | decide | (exfalso; omega)
+  · rcases hw with ⟨hw1, hw2⟩ | ⟨hw1, hw2⟩
+    · have huv' : u.1.1 ≠ v.1.1 := by omega
+      rw [if_neg huv', if_pos hw1]
+      split_ifs <;> first | decide | (exfalso; omega)
+    · have huv' : u.1.1 ≠ v.1.1 := by omega
+      have huw' : u.1.1 ≠ w.1.1 := by omega
+      have hvw' : v.1.1 ≠ w.1.1 := by omega
+      rw [if_neg huv', if_neg huw']
+      split_ifs <;> first | decide | (exfalso; omega)
+
 end CGraph
 
 namespace IsoGraph
@@ -36020,6 +36098,16 @@ theorem edgeChromNum_crown (n : ℕ) : (crown (n + 2)).edgeChromNum = n + 1 := b
   exact edgeChromNum_mk_le_of_colouring
     (G := CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2))
     (CGraph.crownCol n) (CGraph.crownCol_symm n) (CGraph.crownCol_proper n)
+
+/-- **The chromatic index of a prism is three.**  `Cₙ □ K₂` is cubic, and `CGraph.prismCol`
+three-colours its edges for every `n ≥ 3` and either parity, so the prism is class one. -/
+theorem edgeChromNum_prism (n : ℕ) : (prism (n + 3)).edgeChromNum = 3 := by
+  refine le_antisymm ?_ (le_edgeChromNum_prism n)
+  rw [show (prism (n + 3)) = cycle (n + 3) □g complete 2 from rfl, cycle_def, complete_def 2,
+    cartesianProduct_mk]
+  exact edgeChromNum_mk_le_of_colouring
+    (G := CGraph.cartesianProduct (CGraph.cycle (n + 3)) (CGraph.complete 2))
+    (CGraph.prismCol (n + 3)) (CGraph.prismCol_symm (n + 3)) (CGraph.prismCol_proper n)
 
 theorem le_edgeChromNum_cocktailParty (n : ℕ) :
     2 * n ≤ (cocktailParty (n + 1)).edgeChromNum := by
