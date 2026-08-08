@@ -4361,6 +4361,14 @@ so every regular spectrum computed earlier becomes a Laplacian one for free:
 `lapSpectrum_cycle` gives `2 - 2 cos (2 π m / n)`, and `lapSpectrum_hypercube` gives `2 j` with
 multiplicity `n choose j`. In each case `count_zero_lapSpectrum` reads off the single component.
 
+`LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
+Laplacian characteristic polynomials, equivalently of Laplacian spectra
+(`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
+point of the whole section — the number of components (`LapCospectral.numComponents_eq`), so
+`LapCospectral.isConnected` carries connectedness across with no regularity hypothesis at all.
+The implication between the two notions runs one way, `Cospectral.lapCospectral`: cospectral
+*regular* graphs are Laplacian cospectral, because there `L = k I - A`.
+
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
 

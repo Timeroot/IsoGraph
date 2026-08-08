@@ -161,6 +161,12 @@ multiplicity `n.choose j`).  A disjoint union concatenates Laplacian spectra jus
 does adjacency ones (`lapSpectrum_disjUnion`), which is the component count again, one summand
 at a time.
 
+`LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
+of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
+`count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
+`LapCospectral.isConnected` needs no regularity where `Cospectral.isConnected` does.  For regular
+graphs the adjacency notion is the stronger one: `Cospectral.lapCospectral`.
+
 ## Line graphs
 
 `transpose_mul_incMat` factors the line graph through the incidence matrix `incMat`, as
@@ -5146,6 +5152,76 @@ theorem lapSpectrum_complete (n : ℕ) :
     Multiset.map_cons, Multiset.map_replicate]
   norm_num
 
+/-! ### Laplacian cospectrality -/
+
+@[simp] theorem natDegree_lapCharpoly (G : CGraph) :
+    G.lapCharpoly.natDegree = Fintype.card G.V :=
+  Matrix.charpoly_natDegree_eq_dim _
+
+theorem lapCharpoly_eq_prod (G : CGraph) :
+    G.lapCharpoly = ∏ i, (X - C (G.lapEigenvalues i)) :=
+  G.isHermitian_lapMat.charpoly_eq
+
+theorem lapCharpoly_eq_prod_lapSpectrum (G : CGraph) :
+    G.lapCharpoly = (G.lapSpectrum.map (fun x ↦ X - C x)).prod := by
+  rw [lapSpectrum_eq_map, Multiset.map_map, lapCharpoly_eq_prod]
+  rfl
+
+/-- Two graphs are **Laplacian cospectral** when their Laplacian characteristic polynomials
+agree. -/
+def LapCospectral (G H : CGraph) : Prop := G.lapCharpoly = H.lapCharpoly
+
+theorem LapCospectral.lapSpectrum_eq {G H : CGraph} (h : LapCospectral G H) :
+    G.lapSpectrum = H.lapSpectrum := by
+  rw [lapSpectrum, lapSpectrum, h]
+
+theorem LapCospectral.refl (G : CGraph) : LapCospectral G G := rfl
+
+theorem LapCospectral.symm {G H : CGraph} (h : LapCospectral G H) : LapCospectral H G := Eq.symm h
+
+theorem LapCospectral.trans {G H K : CGraph} (h : LapCospectral G H) (h' : LapCospectral H K) :
+    LapCospectral G K := Eq.trans h h'
+
+theorem LapCospectral.of_iso {G H : CGraph} (i : G ≃cg H) : LapCospectral G H :=
+  lapCharpoly_congr i
+
+theorem lapCospectral_iff_lapSpectrum_eq (G H : CGraph) :
+    G.LapCospectral H ↔ G.lapSpectrum = H.lapSpectrum := by
+  refine ⟨LapCospectral.lapSpectrum_eq, fun h ↦ ?_⟩
+  rw [LapCospectral, lapCharpoly_eq_prod_lapSpectrum, lapCharpoly_eq_prod_lapSpectrum, h]
+
+/-- **Laplacian cospectral graphs have the same number of vertices.** -/
+theorem LapCospectral.card_eq {G H : CGraph} (h : LapCospectral G H) :
+    Fintype.card G.V = Fintype.card H.V := by
+  rw [← natDegree_lapCharpoly, ← natDegree_lapCharpoly, h]
+
+/-- **Laplacian cospectral graphs have the same number of edges**, by the trace. -/
+theorem LapCospectral.E_eq {G H : CGraph} (h : LapCospectral G H) : G.E = H.E := by
+  have h2 : (2 : ℝ) * G.E = 2 * H.E := by
+    rw [← sum_lapSpectrum, ← sum_lapSpectrum, h.lapSpectrum_eq]
+  have : (G.E : ℝ) = H.E := by linarith
+  exact_mod_cast this
+
+/-- **Laplacian cospectral graphs have the same number of connected components** — a statement
+with no analogue for the adjacency spectrum, which needs regularity to see connectedness. -/
+theorem LapCospectral.numComponents_eq {G H : CGraph} (h : LapCospectral G H) :
+    G.numComponents = H.numComponents := by
+  rw [← count_zero_lapSpectrum, ← count_zero_lapSpectrum, h.lapSpectrum_eq]
+
+/-- **Connectedness is a Laplacian spectral invariant.** -/
+theorem LapCospectral.isConnected {G H : CGraph} (h : LapCospectral G H) (hG : G.IsConnected) :
+    H.IsConnected := by
+  rw [← count_zero_lapSpectrum_eq_one_iff] at hG ⊢
+  rw [← h.lapSpectrum_eq]
+  exact hG
+
+/-- For regular graphs the two notions agree in one direction: cospectral regular graphs are
+Laplacian cospectral. -/
+theorem Cospectral.lapCospectral {G H : CGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) : LapCospectral G H := by
+  rw [lapCospectral_iff_lapSpectrum_eq, lapSpectrum_of_isRegularWith hG,
+    lapSpectrum_of_isRegularWith (h.isRegularWith hG), h.spectrum_eq]
+
 end CGraph
 
 namespace IsoGraph
@@ -5549,5 +5625,58 @@ theorem lapSpectrum_hypercube (n : ℕ) :
   rw [Finset.mem_range] at hj
   congr 1
   ring
+
+/-! ### Laplacian cospectrality -/
+
+/-- The Laplacian characteristic polynomial of an isomorphism class. -/
+noncomputable def lapCharpoly (G : IsoGraph) : ℝ[X] :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.lapCharpoly
+    (fun _ _ ⟨i⟩ ↦ CGraph.lapCharpoly_congr i) G
+
+@[simp] theorem lapCharpoly_mk (G : CGraph) : lapCharpoly ⟦G⟧ = G.lapCharpoly := rfl
+
+@[simp] theorem natDegree_lapCharpoly (G : IsoGraph) : G.lapCharpoly.natDegree = G.V :=
+  Quotient.inductionOn G fun g ↦ g.natDegree_lapCharpoly
+
+theorem lapSpectrum_eq_roots_lapCharpoly (G : IsoGraph) : G.lapSpectrum = G.lapCharpoly.roots :=
+  Quotient.inductionOn G fun _ ↦ rfl
+
+/-- Two isomorphism classes are **Laplacian cospectral** when their Laplacian characteristic
+polynomials agree. -/
+def LapCospectral (G H : IsoGraph) : Prop := G.lapCharpoly = H.lapCharpoly
+
+@[simp] theorem lapCospectral_mk (G H : CGraph) :
+    LapCospectral ⟦G⟧ ⟦H⟧ ↔ G.LapCospectral H := Iff.rfl
+
+theorem LapCospectral.lapSpectrum_eq {G H : IsoGraph} (h : LapCospectral G H) :
+    G.lapSpectrum = H.lapSpectrum := by
+  rw [lapSpectrum_eq_roots_lapCharpoly, lapSpectrum_eq_roots_lapCharpoly, h]
+
+theorem lapCospectral_iff_lapSpectrum_eq (G H : IsoGraph) :
+    LapCospectral G H ↔ G.lapSpectrum = H.lapSpectrum :=
+  Quotient.inductionOn₂ G H fun g h ↦ CGraph.lapCospectral_iff_lapSpectrum_eq g h
+
+/-- Laplacian cospectral graphs have the same order. -/
+theorem LapCospectral.V_eq {G H : IsoGraph} (h : LapCospectral G H) : G.V = H.V := by
+  rw [← natDegree_lapCharpoly, ← natDegree_lapCharpoly, h]
+
+/-- Laplacian cospectral graphs have the same number of edges. -/
+theorem LapCospectral.E_eq {G H : IsoGraph} (h : LapCospectral G H) : G.E = H.E :=
+  Quotient.inductionOn₂ G H (fun _ _ h ↦ CGraph.LapCospectral.E_eq h) h
+
+/-- **Laplacian cospectral graphs have the same number of connected components.** -/
+theorem LapCospectral.numComponents_eq {G H : IsoGraph} (h : LapCospectral G H) :
+    G.numComponents = H.numComponents :=
+  Quotient.inductionOn₂ G H (fun _ _ h ↦ CGraph.LapCospectral.numComponents_eq h) h
+
+/-- **Connectedness is a Laplacian spectral invariant**, with no regularity hypothesis. -/
+theorem LapCospectral.isConnected {G H : IsoGraph} (h : LapCospectral G H) (hG : G.IsConnected) :
+    H.IsConnected :=
+  Quotient.inductionOn₂ G H (fun _ _ h hG ↦ CGraph.LapCospectral.isConnected h hG) h hG
+
+/-- Cospectral regular graphs are Laplacian cospectral. -/
+theorem Cospectral.lapCospectral {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}
+    (hG : G.IsRegularWith k) : LapCospectral G H :=
+  Quotient.inductionOn₂ G H (fun _ _ h hG ↦ CGraph.Cospectral.lapCospectral h hG) h hG
 
 end IsoGraph
