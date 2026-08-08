@@ -2460,6 +2460,27 @@ The group is of course the dihedral group `Dₙ`; the library counts it without 
 `n + 3` is again not shyness — `cycle 0`, `cycle 1` and `cycle 2` are the empty graph on that many
 vertices, with `n!` automorphisms rather than `2n`.
 
+The wheel is the third, and it costs almost nothing once the cycle is done, because a cone adds no
+symmetry of its own. What has to be checked is that the hub is recognisable, and it is: a rim
+vertex misses the rim vertex two steps along, which is `exists_cycle_non_adj`, so the hub is the
+only vertex adjacent to all the others (`eq_inl_of_adj_all`) and every automorphism fixes it
+(`wheel_hub`). What is left acts on the rim alone; `wheelRim` extracts that action, `wheelRim_adj`
+says it preserves adjacency and `wheelToCycle` packages it as an automorphism of `Cₙ`. Two
+automorphisms of the wheel that agree on the rim agree on the hub for free, so the packaging is
+injective (`wheelToCycle_injective`) and `autCount_wheel_le` inherits the cycle's bound. The join
+bound `le_autCount_wheel`, which was already there, matches it:
+
+```lean
+theorem autCount_wheel (n : ℕ) : (wheel (n + 4)).autCount = 2 * (n + 4)
+```
+
+The rim length starts at four because `wheel 3` is `K₄`, where the hub is not distinguishable at
+all and the count is `24` rather than `6`. `wheel_adj_inr_inr` and `wheel_adj_inl_inr` are the two
+unfolding lemmas that make the sum type `(complete 1).V ⊕ (cycle n).V` workable; `complete_one_elim`
+stands in for the `Subsingleton (complete 1).V` instance that typeclass search will not find,
+because `join` is defined through a double complement and the hub's type arrives as
+`(complete 1).compl.V`.
+
 The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
 are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
 `V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
@@ -5353,7 +5374,7 @@ The rest are genuinely hard, or at least not cheap: the chromatic number of a Kn
 of a general cycle and of a general tadpole as opposed to the fixed small ones, the automorphism
 count for most families — `autCount` is settled for the empty, complete, path, Kneser, Johnson,
 circulant and lollipop families, for complements and, exactly and not just as a bound, for the
-star (`autCount_star`) and the cycle (`autCount_cycle`), but not for the wheel, Petersen or
-hypercube — and, for the grid and the king graph, everything below the degree and colouring
+star (`autCount_star`), the cycle (`autCount_cycle`) and the wheel (`autCount_wheel`), but not for
+Petersen or the hypercube — and, for the grid and the king graph, everything below the degree and colouring
 entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
 a general `girth_cyclePendant` first.

@@ -7589,6 +7589,131 @@ theorem autCount_cycle (n : ℕ) : (cycle (n + 3)).autCount = 2 * (n + 3) := by
   rw [E_cycle] at hge
   omega
 
+/-! ### The automorphism count of a wheel
+
+A wheel is a cone over a cycle, and once the rim is long enough the hub is recognisable: it is the
+only vertex adjacent to every other one, since a rim vertex misses the rim vertex two steps along.
+Every automorphism therefore fixes the hub and permutes the rim, and what it does to the rim is an
+automorphism of the cycle.  That restriction map is injective, so the wheel has no more symmetry
+than its rim, and the join bound `le_autCount_wheel` says it has no less.
+-/
+
+private theorem cyc_mod_two (N i : ℕ) (hN : 2 ≤ N) (hi : i < N) :
+    (i + 2) % N = if i + 2 = N then 0 else if i + 2 = N + 1 then 1 else i + 2 := by
+  rcases lt_trichotomy (i + 2) N with h | h | h
+  · rw [if_neg (by omega), if_neg (by omega), Nat.mod_eq_of_lt h]
+  · rw [if_pos h, ← h, Nat.mod_self]
+  · have h1 : i + 2 = N + 1 := by omega
+    rw [if_neg (by omega), if_pos h1, h1, Nat.add_mod_left, Nat.mod_eq_of_lt (by omega)]
+
+theorem wheel_adj_inr_inr {N : ℕ} (u v : (cycle N).V) :
+    (wheel N).Adj (Sum.inr u) (Sum.inr v) = (cycle N).Adj u v := by
+  simp [wheel]
+
+theorem wheel_adj_inl_inr {N : ℕ} (a : (complete 1).V) (v : (cycle N).V) :
+    (wheel N).Adj (Sum.inl a) (Sum.inr v) = true := by
+  simp [wheel]
+
+/-- The hub of a wheel is unique: `complete 1` has just one vertex.  Stated as a plain equation
+rather than obtained from a `Subsingleton` instance because typeclass search does not unfold
+`(complete 1).V`. -/
+theorem complete_one_elim {a b : (complete 1).V} : a = b := Subsingleton.elim (α := Fin 1) a b
+
+/-- In a cycle of length at least four, every vertex misses some other vertex: the vertex two
+steps along is neither the vertex itself nor one of its two neighbours. -/
+theorem exists_cycle_non_adj {N : ℕ} (hN : 4 ≤ N) (b : (cycle N).V) :
+    ∃ c : (cycle N).V, c ≠ b ∧ (cycle N).Adj b c = false := by
+  have hb := b.isLt
+  have hlt : (b.1 + 2) % N < N := Nat.mod_lt _ (by omega)
+  have key : (b.1 + 2) % N ≠ b.1 ∧ (b.1 + 2) % N ≠ (b.1 + 1) % N ∧
+      (b.1 + 2) % N ≠ (b.1 + N - 1) % N := by
+    rw [cyc_mod_two N b.1 (by omega) hb, cyc_mod_succ N b.1 hb, cyc_mod_pred N b.1 hb]
+    refine ⟨?_, ?_, ?_⟩ <;> split_ifs <;> omega
+  refine ⟨⟨(b.1 + 2) % N, hlt⟩, Fin.ne_of_val_ne key.1, ?_⟩
+  rw [Bool.eq_false_iff, ne_eq, cycle_adj_eq_iff (by omega)]
+  rintro (h | h)
+  · exact key.2.1 h
+  · exact key.2.2 h
+
+/-- The hub is the only vertex of a wheel adjacent to every other one, once the rim has length at
+least four. -/
+theorem eq_inl_of_adj_all {N : ℕ} (hN : 4 ≤ N) {x : (wheel N).V}
+    (hx : ∀ y : (wheel N).V, y ≠ x → (wheel N).Adj x y = true) :
+    ∃ a : (complete 1).V, x = Sum.inl a := by
+  rcases x with a | b
+  · exact ⟨a, rfl⟩
+  · obtain ⟨c, hcb, hadj⟩ := exists_cycle_non_adj hN b
+    have h := hx (Sum.inr c) fun hi ↦ hcb (Sum.inr.inj hi)
+    rw [wheel_adj_inr_inr, hadj] at h
+    exact absurd h (by simp)
+
+/-- **Every automorphism of a wheel fixes the hub** once the rim has length at least four. -/
+theorem wheel_hub {N : ℕ} (hN : 4 ≤ N) (f : wheel N ≃cg wheel N) (a : (complete 1).V) :
+    f (Sum.inl a) = Sum.inl a := by
+  have hall : ∀ y : (wheel N).V, y ≠ f (Sum.inl a) → (wheel N).Adj (f (Sum.inl a)) y = true := by
+    intro y hy
+    obtain ⟨z, rfl⟩ : ∃ z, f z = y := ⟨f.symm y, f.apply_symm_apply y⟩
+    rw [f.adj_eq]
+    rcases z with a' | c
+    · exact absurd (complete_one_elim (a := a') (b := a)) fun h ↦ hy (by rw [h])
+    · exact wheel_adj_inl_inr a c
+  obtain ⟨a', ha'⟩ := eq_inl_of_adj_all hN hall
+  rw [ha', complete_one_elim (a := a') (b := a)]
+
+/-- The rim component of the image of a rim vertex.  The fallback branch is never taken. -/
+def wheelRim {N : ℕ} (f : wheel N ≃cg wheel N) (b : (cycle N).V) : (cycle N).V :=
+  Sum.elim (fun _ : (complete 1).V ↦ b) (id : (cycle N).V → (cycle N).V) (f (Sum.inr b))
+
+theorem wheel_rim_exists {N : ℕ} (hN : 4 ≤ N) (f : wheel N ≃cg wheel N) (b : (cycle N).V) :
+    ∃ c, f (Sum.inr b) = Sum.inr c := by
+  rcases hb : f (Sum.inr b) with a | c
+  · exact absurd (f.injective (hb.trans (wheel_hub hN f a).symm)) (by simp)
+  · exact ⟨c, rfl⟩
+
+theorem wheelRim_spec {N : ℕ} (hN : 4 ≤ N) (f : wheel N ≃cg wheel N) (b : (cycle N).V) :
+    f (Sum.inr b) = Sum.inr (wheelRim f b) := by
+  obtain ⟨c, hc⟩ := wheel_rim_exists hN f b
+  simp only [wheelRim, hc, Sum.elim_inr, id_eq]
+
+theorem wheelRim_injective {N : ℕ} (hN : 4 ≤ N) (f : wheel N ≃cg wheel N) :
+    Function.Injective (wheelRim f) := by
+  intro b c h
+  have hbc : f (Sum.inr b) = f (Sum.inr c) := by
+    rw [wheelRim_spec hN, wheelRim_spec hN, h]
+  exact Sum.inr.inj (f.injective hbc)
+
+theorem wheelRim_adj {N : ℕ} (hN : 4 ≤ N) (f : wheel N ≃cg wheel N) (b c : (cycle N).V) :
+    (cycle N).Adj (wheelRim f b) (wheelRim f c) = (cycle N).Adj b c := by
+  have h1 : (wheel N).Adj (f (Sum.inr b)) (f (Sum.inr c))
+      = (wheel N).Adj (Sum.inr b) (Sum.inr c) := f.adj_eq _ _
+  rw [wheelRim_spec hN, wheelRim_spec hN, wheel_adj_inr_inr, wheel_adj_inr_inr] at h1
+  exact h1
+
+/-- **Restricting an automorphism of a wheel to its rim** gives an automorphism of the cycle. -/
+noncomputable def wheelToCycle {N : ℕ} (hN : 4 ≤ N) (f : wheel N ≃cg wheel N) :
+    cycle N ≃cg cycle N :=
+  autoOfPerm (G := cycle N)
+    (Equiv.ofBijective (wheelRim f) (Finite.injective_iff_bijective.1 (wheelRim_injective hN f)))
+    fun x y ↦ wheelRim_adj hN f x y
+
+theorem wheelToCycle_injective {N : ℕ} (hN : 4 ≤ N) :
+    Function.Injective (wheelToCycle hN) := by
+  intro f g h
+  refine RelIso.ext fun x ↦ ?_
+  rcases x with a | b
+  · rw [wheel_hub hN f a, wheel_hub hN g a]
+  · have hb : wheelRim f b = wheelRim g b :=
+      congrArg (fun e : cycle N ≃cg cycle N ↦ e b) h
+    rw [wheelRim_spec hN f b, wheelRim_spec hN g b, hb]
+
+/-- **A wheel has at most `2n` automorphisms** once its rim has length at least four: the hub is
+fixed, and what is left is an automorphism of the rim. -/
+theorem autCount_wheel_le {N : ℕ} (hN : 4 ≤ N) : (wheel N).autCount ≤ 2 * N := by
+  haveI : Finite (cycle N ≃cg cycle N) := (cycle N).instFiniteAut
+  have h := Nat.card_le_card_of_injective (wheelToCycle hN) (wheelToCycle_injective hN)
+  have h2 : (wheel N).autCount ≤ (cycle N).autCount := h
+  exact h2.trans (autCount_cycle_le (by omega))
+
 /-! ### The handshaking lemma -/
 
 /-- **Handshaking lemma.**  A graph has evenly many vertices of odd degree. -/
@@ -35545,6 +35670,16 @@ theorem le_autCount_wheel (n : ℕ) : 2 * (n + 3) ≤ (wheel (n + 3)).autCount :
   have h := autCount_mul_le_autCount_join (complete 1) (cycle (n + 3))
   rw [← wheel_eq_join, autCount_complete, Nat.factorial_one, Nat.one_mul] at h
   have h2 := two_mul_le_autCount_cycle n
+  omega
+
+/-- **The wheel `Wₙ` has exactly `2n` automorphisms** once the rim has length at least four: the
+hub is the only vertex adjacent to all the others, so it is fixed, and the wheel inherits the
+dihedral symmetry of its rim and nothing more.  `wheel 3 = K₄` is the exception, with `24`. -/
+theorem autCount_wheel (n : ℕ) : (wheel (n + 4)).autCount = 2 * (n + 4) := by
+  have hle : (wheel (n + 4)).autCount ≤ 2 * (n + 4) := by
+    rw [wheel_def, autCount_mk]
+    exact CGraph.autCount_wheel_le (by omega)
+  have hge : 2 * (n + 4) ≤ (wheel (n + 4)).autCount := le_autCount_wheel (n + 1)
   omega
 
 /-- The book's pages may be permuted arbitrarily, and its spine may be flipped. -/
