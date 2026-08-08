@@ -2335,7 +2335,8 @@ proofs are now cashed in. `two_mul_E_le_autCount_of_isArcTransitive` says an arc
 has at least `2E` automorphisms — one for each image of a fixed arc — and every arc-transitive
 family in the library gets its entry: `thirty_le_autCount_petersen`,
 `two_mul_le_autCount_cycle`, `mul_two_pow_le_autCount_hypercube` (`|Aut(Qₙ)| ≥ n · 2ⁿ`, against
-the true `2ⁿ · n!`), `le_autCount_kneser` and `le_autCount_bipartite_self`. These are lower
+the true `2ⁿ · n!`, which `autCount_hypercube` reaches further down),
+`le_autCount_kneser` and `le_autCount_bipartite_self`. These are lower
 bounds, not values, but they are the first non-trivial ones in the table, and they are exactly the
 inequality that `not_isArcTransitive_of_autCount_lt` reads backwards.
 
@@ -2568,6 +2569,33 @@ theorem autCount_kneser_five_two : (kneser 5 2).autCount = 120
 ```
 
 Both bounds meet, and `autCount_petersen` is the `IsoGraph`-level restatement.
+
+The hypercube's automorphism count comes out the other way round — not by coding an automorphism
+into a small finite object, but by writing the whole group down. `Aut(Qₙ)` is the hyperoctahedral
+group `Sₙ ⋉ (ℤ/2)ⁿ`, and the library already had both of its factors as bundled isomorphisms:
+`CGraph.cubeXor n d` adds a fixed bit-string and `CGraph.cubeCoord n τ` permutes the coordinates.
+`CGraph.cubeAutOf n (τ, d)` composes them, `x ↦ fun i ↦ x (τ⁻¹ i) ^^ d i`, and the theorem is that
+this map from `Sₙ × (ℤ/2)ⁿ` is a bijection onto the automorphism group. Injectivity is two
+evaluations: at the zero string it returns `d`, and at the weight-one string `eⱼ` it returns `eτⱼ`
+translated by `d`. Surjectivity is where the work is. It rests on the **rigidity** statement
+`CGraph.hypercube_aut_eq_id`: an automorphism fixing the zero string and every weight-one string
+is the identity. The proof inducts on the number of set bits. A vertex `x` of weight `k ≥ 2` has
+two neighbours `u`, `v` of weight `k - 1` below it, already fixed by the induction hypothesis, and
+`CGraph.hypercube_common` — two vertices differing in exactly two coordinates have exactly two
+common neighbours — leaves only `x` itself and the weight-`k - 2` vertex below both, which the
+induction hypothesis has also fixed, so injectivity rules it out. No distance function is needed
+anywhere; the whole argument is adjacency and bit-flipping, through the reformulation
+`CGraph.hypercube_adj_iff_update : Adj x y ↔ ∃ i, y = Function.update x i (!x i)`. Given an
+arbitrary automorphism `f`, the coordinate `σ j` in which `f eⱼ` differs from `f 0` is a
+permutation because `f` is injective, and `f` and `cubeAutOf n (σ, f 0)` then agree on the zero
+string and every weight-one string, so rigidity applied to `f ≫ cubeAutOf⁻¹` makes them equal:
+
+```lean
+theorem autCount_hypercube (n : ℕ) : (hypercube n).autCount = n.factorial * 2 ^ n
+```
+
+`Nat.card` of `Sₙ × (ℤ/2)ⁿ` finishes it. This replaces the arc-transitivity bound
+`mul_two_pow_le_autCount_hypercube`, which only gave `n · 2ⁿ`.
 
 The two edge-colouring entries that this file has been calling "blocked on a missing dependency"
 since the prover handed back proofs that quoted König's theorem at them are now closed, and König
@@ -5649,8 +5677,10 @@ The rest are genuinely hard, or at least not cheap: the chromatic number of a Kn
 automorphism count for most families — `autCount` is settled for the empty, complete, path, Kneser,
 Johnson, circulant and lollipop families, for complements and, exactly and not just as a bound, for
 the star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and
-`autCount_bipartite_self`), the cycle (`autCount_cycle`), the wheel (`autCount_wheel`) and the
-Petersen graph (`autCount_petersen`), but not for the hypercube — the domination number of a
+`autCount_bipartite_self`), the cycle (`autCount_cycle`), the wheel (`autCount_wheel`), the
+hypercube (`autCount_hypercube`) and the Petersen graph (`autCount_petersen`), but for nothing
+that is only vertex-transitive, where arc-transitivity gives a lower bound and there is no
+counterpart to the rigidity argument the cube admits — the domination number of a
 grid, whose closed form is a 2011 theorem of Gonçalves, Pinlou, Rao and Thomassé and the only one
 of the grid's and the king graph's eight entries below the colouring row that is not on file — and
 the independence number of a torus with two odd sides, where the value is still

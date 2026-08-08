@@ -11328,6 +11328,272 @@ theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
       _ = n * (m / 2) := by rw [hn2]; ring
   exact hcard ▸ hindep.card_le_indepNum
 
+/-! ### The automorphism group of the hypercube -/
+
+/-- Two hypercube vertices are adjacent exactly when they differ in a single coordinate. -/
+theorem hypercube_adj_iff {n : ℕ} (x y : Fin n → Bool) :
+    (hypercube n).Adj x y = true ↔ ∃ i, x i ≠ y i ∧ ∀ k, k ≠ i → x k = y k := by
+  rw [hypercube_adj, beq_iff_eq, Finset.card_eq_one]
+  constructor
+  · rintro ⟨i, hi⟩
+    refine ⟨i, ?_, fun k hk ↦ ?_⟩
+    · have hmem : i ∈ Finset.univ.filter fun t ↦ x t ≠ y t := by
+        rw [hi]; exact Finset.mem_singleton_self i
+      exact (Finset.mem_filter.1 hmem).2
+    · by_contra hne
+      have hmem : k ∈ Finset.univ.filter fun t ↦ x t ≠ y t :=
+        Finset.mem_filter.2 ⟨Finset.mem_univ _, hne⟩
+      rw [hi, Finset.mem_singleton] at hmem
+      exact hk hmem
+  · rintro ⟨i, hne, hrest⟩
+    refine ⟨i, Finset.ext fun k ↦ ?_⟩
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+    exact ⟨fun h ↦ by by_contra hk; exact h (hrest k hk), fun h ↦ h ▸ hne⟩
+
+/-- The same, phrased as a single flipped bit. -/
+theorem hypercube_adj_iff_update {n : ℕ} (x y : Fin n → Bool) :
+    (hypercube n).Adj x y = true ↔ ∃ i, y = Function.update x i (!x i) := by
+  rw [hypercube_adj_iff]
+  constructor
+  · rintro ⟨i, hne, hrest⟩
+    refine ⟨i, funext fun k ↦ ?_⟩
+    by_cases hk : k = i
+    · subst hk
+      rw [Function.update_self]
+      revert hne; cases x k <;> cases y k <;> simp
+    · rw [Function.update_of_ne hk]
+      exact (hrest k hk).symm
+  · rintro ⟨i, rfl⟩
+    refine ⟨i, ?_, fun k hk ↦ ?_⟩
+    · rw [Function.update_self]; cases x i <;> simp
+    · rw [Function.update_of_ne hk]
+
+/-- Flipping one coordinate moves to a neighbour. -/
+theorem hypercube_adj_update {n : ℕ} (x : Fin n → Bool) (i : Fin n) (b : Bool) (hb : x i ≠ b) :
+    (hypercube n).Adj x (Function.update x i b) = true :=
+  (hypercube_adj_iff x _).2
+    ⟨i, by rwa [Function.update_self], fun k hk ↦ by rw [Function.update_of_ne hk]⟩
+
+/-- **Two vertices of the hypercube at distance two have exactly two common neighbours.**  If `u`
+and `v` differ precisely in the coordinates `i` and `j`, anything adjacent to both is `u` with the
+`i`-th bit changed to `v`'s or `u` with the `j`-th bit changed to `v`'s. -/
+theorem hypercube_common {n : ℕ} (u v y : Fin n → Bool) (i j : Fin n) (hij : i ≠ j)
+    (hi : u i ≠ v i) (hj : u j ≠ v j) (hrest : ∀ k, k ≠ i → k ≠ j → u k = v k)
+    (h1 : (hypercube n).Adj y u = true) (h2 : (hypercube n).Adj y v = true) :
+    y = Function.update u i (v i) ∨ y = Function.update u j (v j) := by
+  obtain ⟨a, hane, harest⟩ := (hypercube_adj_iff y u).1 h1
+  obtain ⟨b, hbne, hbrest⟩ := (hypercube_adj_iff y v).1 h2
+  have key : ∀ c : Fin n, y c ≠ u c → (∀ k, k ≠ c → y k = u k) → u c ≠ v c →
+      y = Function.update u c (v c) := by
+    intro c k1 k2 k3
+    funext k
+    by_cases hk : k = c
+    · subst hk
+      rw [Function.update_self]
+      revert k1 k3; cases y k <;> cases u k <;> cases v k <;> simp
+    · rw [Function.update_of_ne hk]; exact k2 k hk
+  have hab : a = i ∨ a = j := by
+    by_contra hc
+    push_neg at hc
+    have hyi : y i = u i := harest i (Ne.symm hc.1)
+    have hyj : y j = u j := harest j (Ne.symm hc.2)
+    by_cases hb : b = i
+    · exact hj (hyj.symm.trans (hbrest j (by rw [hb]; exact Ne.symm hij)))
+    · exact hi (hyi.symm.trans (hbrest i (Ne.symm hb)))
+  rcases hab with rfl | rfl
+  · exact Or.inl (key _ hane harest hi)
+  · exact Or.inr (key _ hane harest hj)
+
+/-- Clearing a coordinate deletes it from the support. -/
+theorem hypercube_filter_update_false {n : ℕ} (x : Fin n → Bool) (i : Fin n) :
+    (Finset.univ.filter fun t ↦ Function.update x i false t = true)
+      = (Finset.univ.filter fun t ↦ x t = true).erase i := by
+  ext t
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_erase]
+  by_cases ht : t = i
+  · subst ht; simp
+  · simp [ht]
+
+/-- Clearing a set coordinate shrinks the support by one. -/
+theorem hypercube_card_update_false {n : ℕ} (x : Fin n → Bool) (i : Fin n) (hi : x i = true) :
+    (Finset.univ.filter fun t ↦ Function.update x i false t = true).card
+      = (Finset.univ.filter fun t ↦ x t = true).card - 1 := by
+  rw [hypercube_filter_update_false]
+  exact Finset.card_erase_of_mem (Finset.mem_filter.2 ⟨Finset.mem_univ _, hi⟩)
+
+/-- **The hypercube is rigid above the weight-one strings.**  An automorphism fixing the zero
+string and every string of weight one is the identity: induct on the weight, and read a vertex of
+weight `k ≥ 2` off as the common neighbour of two of its weight-`k - 1` neighbours that is not the
+weight-`k - 2` vertex below both, which the induction hypothesis has already pinned down. -/
+theorem hypercube_aut_eq_id {n : ℕ} (f : hypercube n ≃cg hypercube n)
+    (h0 : f (fun _ ↦ false) = fun _ ↦ false)
+    (he : ∀ j : Fin n, f (fun k ↦ decide (k = j)) = fun k ↦ decide (k = j)) (x : Fin n → Bool) :
+    f x = x := by
+  classical
+  suffices H : ∀ m (y : Fin n → Bool),
+      (Finset.univ.filter fun t ↦ y t = true).card ≤ m → f y = y from H _ x le_rfl
+  intro m
+  induction m with
+  | zero =>
+    intro y hy
+    have hy0 : y = fun _ ↦ false := by
+      funext t
+      by_contra ht
+      have hmem : t ∈ Finset.univ.filter fun s ↦ y s = true :=
+        Finset.mem_filter.2 ⟨Finset.mem_univ _, by simpa using ht⟩
+      have := Finset.card_pos.2 ⟨t, hmem⟩
+      omega
+    rw [hy0]; exact h0
+  | succ m ih =>
+    intro y hy
+    by_cases hle : (Finset.univ.filter fun t ↦ y t = true).card ≤ m
+    · exact ih y hle
+    have hcard : (Finset.univ.filter fun t ↦ y t = true).card = m + 1 := by omega
+    rcases Nat.eq_zero_or_pos m with hm | hm
+    · subst hm
+      obtain ⟨j, hj⟩ := Finset.card_eq_one.1 hcard
+      have hy1 : y = fun k ↦ decide (k = j) := by
+        funext t
+        by_cases ht : t = j
+        · subst ht
+          have hmem : t ∈ Finset.univ.filter fun s ↦ y s = true :=
+            hj ▸ Finset.mem_singleton_self t
+          simpa using (Finset.mem_filter.1 hmem).2
+        · have hmem : t ∉ Finset.univ.filter fun s ↦ y s = true := by
+            rw [hj]; simpa using ht
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and, Bool.not_eq_true] at hmem
+          simp [ht, hmem]
+      rw [hy1]; exact he j
+    obtain ⟨i, hi, j, hj, hij⟩ := Finset.one_lt_card.1
+      (by omega : 1 < (Finset.univ.filter fun t ↦ y t = true).card)
+    have hyi : y i = true := (Finset.mem_filter.1 hi).2
+    have hyj : y j = true := (Finset.mem_filter.1 hj).2
+    obtain ⟨u, hu⟩ : ∃ u : Fin n → Bool, u = Function.update y i false := ⟨_, rfl⟩
+    obtain ⟨v, hv⟩ : ∃ v : Fin n → Bool, v = Function.update y j false := ⟨_, rfl⟩
+    obtain ⟨w, hw⟩ : ∃ w : Fin n → Bool, w = Function.update u j false := ⟨_, rfl⟩
+    have hui : u i = false := by rw [hu, Function.update_self]
+    have hvj : v j = false := by rw [hv, Function.update_self]
+    have huk : ∀ k, k ≠ i → u k = y k := fun k hk ↦ by rw [hu, Function.update_of_ne hk]
+    have hvk : ∀ k, k ≠ j → v k = y k := fun k hk ↦ by rw [hv, Function.update_of_ne hk]
+    have huj : u j = true := by rw [huk j (Ne.symm hij)]; exact hyj
+    have hcu : (Finset.univ.filter fun t ↦ u t = true).card ≤ m := by
+      rw [hu, hypercube_card_update_false y i hyi, hcard]
+      omega
+    have hcv : (Finset.univ.filter fun t ↦ v t = true).card ≤ m := by
+      rw [hv, hypercube_card_update_false y j hyj, hcard]
+      omega
+    have hcw : (Finset.univ.filter fun t ↦ w t = true).card ≤ m := by
+      rw [hw, hypercube_card_update_false u j huj]; omega
+    have hfu : f u = u := ih u hcu
+    have hfv : f v = v := ih v hcv
+    have hfw : f w = w := ih w hcw
+    have hA : (hypercube n).Adj (f y) u = true := by
+      rw [← hfu, f.adj_eq, hu]
+      exact hypercube_adj_update y i false (by rw [hyi]; simp)
+    have hB : (hypercube n).Adj (f y) v = true := by
+      rw [← hfv, f.adj_eq, hv]
+      exact hypercube_adj_update y j false (by rw [hyj]; simp)
+    have hci : u i ≠ v i := by rw [hui, hvk i hij, hyi]; simp
+    have hcj : u j ≠ v j := by rw [huj, hvj]; simp
+    have hcr : ∀ k, k ≠ i → k ≠ j → u k = v k := fun k h1 h2 ↦ by rw [huk k h1, hvk k h2]
+    rcases hypercube_common u v (f y) i j hij hci hcj hcr hA hB with hc | hc
+    · rw [hc]
+      funext k
+      by_cases hk : k = i
+      · subst hk; rw [Function.update_self]; exact hvk k hij
+      · rw [Function.update_of_ne hk]; exact huk k hk
+    · exfalso
+      have hfyw : f y = w := by rw [hc, hvj, hw]
+      have hyw : y = w := f.injective (by rw [hfyw, hfw])
+      have hcon : y i = w i := by rw [← hyw]
+      rw [hw, Function.update_of_ne hij, hui, hyi] at hcon
+      simp at hcon
+
+/-- The automorphism of the hypercube built from a coordinate permutation and a translation. -/
+def cubeAutOf (n : ℕ) (p : Equiv.Perm (Fin n) × (Fin n → Bool)) : hypercube n ≃cg hypercube n :=
+  (cubeCoord n p.1).trans (cubeXor n p.2)
+
+theorem cubeAutOf_apply (n : ℕ) (p : Equiv.Perm (Fin n) × (Fin n → Bool)) (x : Fin n → Bool)
+    (i : Fin n) : cubeAutOf n p x i = (x (p.1.symm i) ^^ p.2 i) := rfl
+
+theorem cubeAutOf_zero (n : ℕ) (p : Equiv.Perm (Fin n) × (Fin n → Bool)) :
+    cubeAutOf n p (fun _ ↦ false) = p.2 := by
+  funext i; rw [cubeAutOf_apply]; simp
+
+theorem cubeAutOf_unit (n : ℕ) (p : Equiv.Perm (Fin n) × (Fin n → Bool)) (j : Fin n) :
+    cubeAutOf n p (fun k ↦ decide (k = j)) = fun i ↦ (decide (i = p.1 j) ^^ p.2 i) := by
+  funext i
+  rw [cubeAutOf_apply]
+  congr 1
+  rw [decide_eq_decide]
+  exact Equiv.symm_apply_eq p.1
+
+theorem cubeAutOf_injective (n : ℕ) : Function.Injective (cubeAutOf n) := by
+  rintro ⟨τ, d⟩ ⟨τ', d'⟩ h
+  have h0 : ∀ x : Fin n → Bool, cubeAutOf n (τ, d) x = cubeAutOf n (τ', d') x := fun x ↦ by rw [h]
+  have hd : d = d' := by
+    have := h0 (fun _ ↦ false)
+    rwa [cubeAutOf_zero, cubeAutOf_zero] at this
+  subst hd
+  have hτ : τ = τ' := by
+    refine Equiv.ext fun j ↦ ?_
+    have hj := congrFun (h0 (fun k ↦ decide (k = j))) (τ j)
+    rw [cubeAutOf_unit, cubeAutOf_unit] at hj
+    simp only [decide_true] at hj
+    have hdec : decide (τ j = τ' j) = true := by
+      revert hj; cases d (τ j) <;> cases hq : decide (τ j = τ' j) <;> simp
+    exact of_decide_eq_true hdec
+  rw [hτ]
+
+theorem cubeAutOf_surjective (n : ℕ) : Function.Surjective (cubeAutOf n) := by
+  classical
+  intro f
+  have hzu : ∀ j : Fin n,
+      (hypercube n).Adj (fun _ ↦ false) (fun k ↦ decide (k = j)) = true := fun j ↦
+    (hypercube_adj_iff _ _).2 ⟨j, by simp, fun k hk ↦ by simp [hk]⟩
+  have hstep : ∀ j : Fin n, ∃ i, f (fun k ↦ decide (k = j))
+      = Function.update (f fun _ ↦ false) i (!(f fun _ ↦ false) i) := by
+    intro j
+    rw [← hypercube_adj_iff_update, f.adj_eq]
+    exact hzu j
+  choose σ hσ using hstep
+  have hσinj : Function.Injective σ := by
+    intro j l hjl
+    have hfj : f (fun k ↦ decide (k = j)) = f (fun k ↦ decide (k = l)) := by
+      rw [hσ j, hσ l, hjl]
+    have := f.injective hfj
+    have hj := congrFun this j
+    simpa using hj
+  obtain ⟨τ, hτ⟩ : ∃ τ : Equiv.Perm (Fin n), ∀ j, τ j = σ j :=
+    ⟨Equiv.ofBijective σ (Finite.injective_iff_bijective.1 hσinj), fun _ ↦ rfl⟩
+  refine ⟨(τ, f fun _ ↦ false), ?_⟩
+  have hg0 : cubeAutOf n (τ, f fun _ ↦ false) (fun _ ↦ false) = f (fun _ ↦ false) :=
+    cubeAutOf_zero n _
+  have hgu : ∀ j : Fin n, cubeAutOf n (τ, f fun _ ↦ false) (fun k ↦ decide (k = j))
+      = f (fun k ↦ decide (k = j)) := by
+    intro j
+    rw [cubeAutOf_unit, hσ j, hτ j]
+    funext i
+    by_cases hi : i = σ j
+    · subst hi; rw [Function.update_self]; simp
+    · rw [Function.update_of_ne hi]; simp [hi]
+  set g := cubeAutOf n (τ, f fun _ ↦ false) with hgdef
+  have hk : ∀ x, (f.trans g.symm) x = x := by
+    refine hypercube_aut_eq_id (f.trans g.symm) ?_ ?_
+    · show g.symm (f fun _ ↦ false) = fun _ ↦ false
+      rw [← hg0]
+      exact g.symm_apply_apply _
+    · intro j
+      show g.symm (f fun k ↦ decide (k = j)) = fun k ↦ decide (k = j)
+      rw [← hgu j]
+      exact g.symm_apply_apply _
+  refine DFunLike.ext _ _ fun x ↦ ?_
+  have := hk x
+  show g x = f x
+  have hx : g.symm (f x) = x := this
+  conv_lhs => rw [← hx]
+  exact g.apply_symm_apply _
+
 end CGraph
 
 namespace IsoGraph
@@ -51478,5 +51744,21 @@ theorem indepNum_cartesianProduct_cycle_even' (m n : ℕ) (hev : m % 2 = 0) :
     (cycle m □g cycle (n + 3)).indepNum = m * ((n + 3) / 2) := by
   rw [cartesianProduct_comm]
   exact indepNum_cartesianProduct_cycle_even n m hev
+
+/-! ## The automorphism group of the hypercube -/
+
+/-- **The automorphism group of the hypercube** is the hyperoctahedral group `Sₙ ⋉ (ℤ/2)ⁿ`, of
+order `n! · 2ⁿ`: an automorphism is a coordinate permutation followed by a translation, and no
+two distinct such pairs give the same map. -/
+@[simp] theorem autCount_hypercube (n : ℕ) :
+    (hypercube n).autCount = n.factorial * 2 ^ n := by
+  classical
+  rw [hypercube, autCount_mk, CGraph.autCount]
+  have hbij : Function.Bijective (CGraph.cubeAutOf n) :=
+    ⟨CGraph.cubeAutOf_injective n, CGraph.cubeAutOf_surjective n⟩
+  have hcard : Nat.card (CGraph.hypercube n ≃cg CGraph.hypercube n) = n.factorial * 2 ^ n := by
+    rw [← Nat.card_congr (Equiv.ofBijective _ hbij), Nat.card_eq_fintype_card, Fintype.card_prod,
+      Fintype.card_perm, Fintype.card_fun, Fintype.card_fin, Fintype.card_bool]
+  exact hcard
 
 end IsoGraph
