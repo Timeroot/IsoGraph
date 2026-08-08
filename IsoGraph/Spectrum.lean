@@ -202,6 +202,19 @@ Two bounds come out of the same picture:
 the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
 `n - μ` off the complement and uses that Laplacian eigenvalues are nonnegative.
 
+`algConn` is the **algebraic connectivity**, the second-smallest Laplacian eigenvalue: the
+infimum of `lapSpectrum.erase 0`, taken in `ℝ` so that the one-vertex graph gets `sInf ∅ = 0` by
+the usual convention.  On two or more vertices it is attained (`algConn_mem_erase`), and
+`count_zero_lapSpectrum` turns it into a connectivity test: `algConn_pos_iff` says it is positive
+exactly for a connected graph, because a second `0` survives the erasure precisely when there is
+a second component (`algConn_disjUnion`).  It is squeezed between `0` and the order
+(`algConn_nonneg`, `algConn_le_card`), the upper end attained by `algConn_complete`.  Every
+Laplacian spectrum computed above gives a value, through `algConn_eq_of_isLeast`:
+`algConn_bipartite` (the smaller side of `K_{m,n}`), `algConn_star` (always `1`),
+`algConn_path` (`2 - 2 cos (π / n)`, shrinking like `1 / n ²`) and, at the `IsoGraph` level where
+`lapSpectrum_cycle` lives, `algConn_cycle` (`2 - 2 cos (2 π / n)`, four times the path's value:
+closing the path into a cycle doubles the Fiedler frequency).
+
 The variational side is the Laplacian copy of the Rayleigh section above.  What replaces
 `⟪v, A v⟫` is `two_mul_lap_quadratic`: **`2 ⟪v, L v⟫ = ∑ i ∑ j A i j (v i - v j) ²`**, the sum of
 squared differences across the edges — the identity behind positive semidefiniteness and behind
@@ -235,20 +248,10 @@ non-neighbour of small degree.  The test vector that made `algConn` famous is th
 cut: `|Sᶜ|` on `S` and `-|S|` off it, whose quadratic form is `n ²` per crossing edge and whose
 squared norm is `n |S| |Sᶜ|`.  What comes out is `algConn_mul_card_mul_card_compl_le`,
 **`a (G) |S| |Sᶜ| ≤ n · e (S, Sᶜ)`** — the Fiedler value is a lower bound on edge expansion, and
-the reason a spectral gap certifies that a graph cannot be cut cheaply.
-
-`algConn` is the **algebraic connectivity**, the second-smallest Laplacian eigenvalue: the
-infimum of `lapSpectrum.erase 0`, taken in `ℝ` so that the one-vertex graph gets `sInf ∅ = 0` by
-the usual convention.  On two or more vertices it is attained (`algConn_mem_erase`), and
-`count_zero_lapSpectrum` turns it into a connectivity test: `algConn_pos_iff` says it is positive
-exactly for a connected graph, because a second `0` survives the erasure precisely when there is
-a second component (`algConn_disjUnion`).  It is squeezed between `0` and the order
-(`algConn_nonneg`, `algConn_le_card`), the upper end attained by `algConn_complete`.  Every
-Laplacian spectrum computed above gives a value, through `algConn_eq_of_isLeast`:
-`algConn_bipartite` (the smaller side of `K_{m,n}`), `algConn_star` (always `1`),
-`algConn_path` (`2 - 2 cos (π / n)`, shrinking like `1 / n ²`) and, at the `IsoGraph` level where
-`lapSpectrum_cycle` lives, `algConn_cycle` (`2 - 2 cos (2 π / n)`, four times the path's value:
-closing the path into a cycle doubles the Fiedler frequency).
+the reason a spectral gap certifies that a graph cannot be cut cheaply.  Restricting to the small
+side of the cut, `2 |S| ≤ n`, makes `|Sᶜ| ≥ n / 2` and the order cancels:
+`algConn_mul_card_le_two_mul_cut` is the isoperimetric form **`a (G) |S| ≤ 2 e (S, Sᶜ)`**, a
+lower bound on the cut that does not mention the order at all.
 
 `lapLambdaMax` is the other end of the same spectrum, the largest Laplacian eigenvalue, taken as a
 supremum for the same reason `algConn` is an infimum.  It is bounded by
@@ -6782,6 +6785,25 @@ theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V] [Decidabl
     exact_mod_cast Fintype.card_pos
   have hcancel : n * (G.algConn * (a * b)) ≤ n * (n * e) := by nlinarith
   exact le_of_mul_le_mul_left hcancel hnpos
+
+/-- **A spectral gap forbids a cheap cut**: for a set `S` of at most half the vertices, the number
+of edges leaving `S` is at least `a (G) |S| / 2`.  This is the previous bound with `|Sᶜ| ≥ n / 2`
+substituted and the order cancelled. -/
+theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (S : Finset G.V) (hS : 2 * S.card ≤ Fintype.card G.V) :
+    G.algConn * S.card ≤ 2 * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j := by
+  have hkey := G.algConn_mul_card_mul_card_compl_le S
+  have hb : (Sᶜ.card : ℝ) = (Fintype.card G.V : ℝ) - S.card := by
+    have : (S.card : ℝ) + (Sᶜ.card : ℝ) = Fintype.card G.V := by
+      rw [← Nat.cast_add, Finset.card_add_card_compl]
+    linarith
+  rw [hb] at hkey
+  have hhalf : 2 * (S.card : ℝ) ≤ (Fintype.card G.V : ℝ) := by exact_mod_cast hS
+  have hnpos : (0 : ℝ) < (Fintype.card G.V : ℝ) := by exact_mod_cast Fintype.card_pos
+  have h3 : 0 ≤ G.algConn * (S.card : ℝ) * ((Fintype.card G.V : ℝ) - 2 * S.card) :=
+    mul_nonneg (mul_nonneg G.algConn_nonneg (Nat.cast_nonneg _)) (by linarith)
+  refine le_of_mul_le_mul_left ?_ hnpos
+  nlinarith [hkey, h3]
 
 /-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`.  Read in the
 complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hypothesis is exactly what

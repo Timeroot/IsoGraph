@@ -4593,6 +4593,21 @@ balanced cut is cheap, which is what makes `algConn` the quantity spectral parti
 The double sum `∑_{i ∈ S} ∑_{j ∉ S} adjMat i j` is the edge count across the cut, written directly
 rather than through a separate boundary definition.
 
+The usual isoperimetric reading drops the order from the statement. Restrict to the small side of
+the cut, `2|S| ≤ n`; then `|Sᶜ| = n − |S| ≥ n/2`, and the factor of `n` cancels off both sides:
+
+```lean
+theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+    (S : Finset G.V) (hS : 2 * S.card ≤ Fintype.card G.V) :
+    G.algConn * S.card ≤ 2 * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j
+```
+
+So **every set of at most half the vertices has at least `a(G)|S|/2` edges leaving it** — the
+expansion of the graph is bounded below by the Fiedler value alone, with no reference to `n`. On
+the hypercube, where `algConn_hypercube` is `2` for every dimension, this is the statement that a
+half-sized subcube of `Q_n` cannot be separated by fewer than `|S|` edges, which is exactly the
+truth: the `2ⁿ⁻¹` edges of the matching in the last coordinate.
+
 Two structural rules finish the picture. A disjoint union takes the larger of the two values,
 `lapLambdaMax_disjUnion : (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax`, where
 the small end takes *neither* and collapses to `0` — the two components do not interact at the top
