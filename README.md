@@ -4359,7 +4359,9 @@ theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith
 so every regular spectrum computed earlier becomes a Laplacian one for free:
 `lapSpectrum_complete` turns `n, -1, …, -1` into `0` once and `n + 1` with multiplicity `n`,
 `lapSpectrum_cycle` gives `2 - 2 cos (2 π m / n)`, and `lapSpectrum_hypercube` gives `2 j` with
-multiplicity `n choose j`. In each case `count_zero_lapSpectrum` reads off the single component.
+multiplicity `n choose j`, and `lapSpectrum_bipartite_self` gives `0`, `2 (n + 1)` and `n + 1`
+with multiplicity `2 n` for `K_{n+1,n+1}`. In each case `count_zero_lapSpectrum` reads off the
+single component.
 
 The complement is as clean here as it is for the adjacency matrix: `lapMat_compl` says
 `L(G) + L(Ḡ) = n I - J`, and since `J` kills any vector summing to zero — which is where all the

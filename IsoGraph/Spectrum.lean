@@ -161,6 +161,9 @@ multiplicity `n.choose j`).  A disjoint union concatenates Laplacian spectra jus
 does adjacency ones (`lapSpectrum_disjUnion`), which is the component count again, one summand
 at a time.
 
+`lapSpectrum_bipartite_self` adds the balanced complete bipartite graph, whose Laplacian
+eigenvalues are `0`, `2 (n + 1)` and `n + 1` with multiplicity `2 n`.
+
 `lapMat_compl` is the complement identity `L(G) + L(Ḡ) = n I - J`, and on a vector summing to
 zero — where every non-constant Laplacian eigenvector lives — `lapMat_compl_mulVec` turns that
 into the eigenvalue statement `μ ↦ n - μ`.
@@ -5186,6 +5189,24 @@ theorem lapMat_compl_mulVec (G : CGraph) [DecidableEq G.V] {v : G.V → ℝ} (hv
   rw [lapMat_compl, Matrix.sub_mulVec, Matrix.sub_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec,
     vecMulVec_one_mulVec hv, hmu]
   module
+
+theorem isRegularWith_bipartite_self (n : ℕ) : (bipartite n n).IsRegularWith n := by
+  have h := IsoGraph.isRegularWith_bipartite_self n
+  rwa [IsoGraph.bipartite, IsoGraph.isRegularWith_mk] at h
+
+/-- **The Laplacian spectrum of the complete bipartite graph** `K_{n+1,n+1}`: `0`, `2 (n + 1)`,
+and `n + 1` with multiplicity `2 n`. -/
+theorem lapSpectrum_bipartite_self (n : ℕ) :
+    (bipartite (n + 1) (n + 1)).lapSpectrum
+      = 0 ::ₘ ((2 * (n + 1) : ℝ) ::ₘ Multiset.replicate (2 * n) ((n : ℝ) + 1)) := by
+  have hsq : Real.sqrt (((n : ℝ) + 1) * ((n : ℝ) + 1)) = (n : ℝ) + 1 :=
+    Real.sqrt_mul_self (by positivity)
+  rw [lapSpectrum_of_isRegularWith (isRegularWith_bipartite_self (n + 1)), spectrum_bipartite n n]
+  push_cast
+  rw [hsq, Multiset.map_cons, Multiset.map_cons, Multiset.map_replicate,
+    show n + n = 2 * n from by ring]
+  norm_num
+  ring
 
 /-! ### Laplacian cospectrality -/
 
