@@ -9392,6 +9392,195 @@ theorem card_le_indepNum_add_two_mul_indepNum_lineGraph (G : CGraph) [DecidableE
   have hdefL : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
   omega
 
+/-! ### Edge colourings by hand
+
+An edge colouring is a vertex colouring of the line graph, and the translation between the two is
+pure `Sym2` bookkeeping that has no business being repeated once per graph.  The next theorem does
+it once: hand it a symmetric function on *ordered* pairs of vertices which separates any two edges
+at a common vertex, and it produces the bound on the chromatic number of the line graph.  Values on
+non-adjacent pairs are junk and are never looked at, so the colouring can be written down as a
+plain formula with no side conditions. -/
+
+/-- An explicit proper edge colouring bounds the chromatic number of the line graph, hence the
+edge chromatic number.  The colouring is a symmetric function on ordered pairs; only its values
+on edges matter, so its values elsewhere are unconstrained. -/
+theorem chromNum_lineGraph_le_of_edgeColouring {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (c : G.V → G.V → Fin k) (hsymm : ∀ x y, c x y = c y x)
+    (hproper : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w) :
+    (lineGraph G).chromNum ≤ k := by
+  rw [chromNum_le_iff_colorable]
+  refine ⟨SimpleGraph.Coloring.mk (fun e ↦ Sym2.lift ⟨c, hsymm⟩ e.1) ?_⟩
+  intro e f hef
+  have hadj : (lineGraph G).Adj e f = true := hef
+  rw [lineGraph_adj] at hadj
+  simp only [Bool.and_eq_true, decide_eq_true_eq, ne_eq] at hadj
+  obtain ⟨hne, v, hve, hvf⟩ := hadj
+  obtain ⟨x, hx⟩ := Sym2.mem_iff_exists.1 hve
+  obtain ⟨y, hy⟩ := Sym2.mem_iff_exists.1 hvf
+  have hxy : x ≠ y := fun h ↦ hne (Subtype.ext (by rw [hx, hy, h]))
+  have hvx : G.Adj v x = true := by
+    have h := e.2
+    rw [hx, SimpleGraph.mem_edgeSet] at h
+    exact h
+  have hvy : G.Adj v y = true := by
+    have h := f.2
+    rw [hy, SimpleGraph.mem_edgeSet] at h
+    exact h
+  show Sym2.lift ⟨c, hsymm⟩ e.1 ≠ Sym2.lift ⟨c, hsymm⟩ f.1
+  rw [hx, hy, Sym2.lift_mk, Sym2.lift_mk]
+  exact hproper v x y hvx hvy hxy
+
+/-! ### A three-edge-colouring of the ladder
+
+The ladder `P_N □ K₂` is cubic in the middle, so three colours are the least it can hope for, and
+three suffice: give every rung the third colour and alternate the other two along both rails.  A
+rail edge is determined by the smaller of its two endpoints' indices, and that index's parity is
+the colour. -/
+
+/-- Three colours for the ladder: the rungs take colour `2`, and a rail edge takes the parity of
+the lower of the two rungs it joins. -/
+def ladderCol (N : ℕ) (p q : Fin N × Fin 2) : Fin 3 :=
+  if p.1 = q.1 then 2 else if min p.1.1 q.1.1 % 2 = 0 then 0 else 1
+
+theorem ladderCol_symm (N : ℕ) (p q : Fin N × Fin 2) : ladderCol N p q = ladderCol N q p := by
+  unfold ladderCol
+  rw [Nat.min_comm]
+  by_cases h : p.1 = q.1
+  · rw [if_pos h, if_pos h.symm]
+  · rw [if_neg h, if_neg (Ne.symm h)]
+
+theorem ladderCol_proper (N : ℕ) (u v w : (cartesianProduct (path N) (complete 2)).V)
+    (huv : (cartesianProduct (path N) (complete 2)).Adj u v = true)
+    (huw : (cartesianProduct (path N) (complete 2)).Adj u w = true) (hvw : v ≠ w) :
+    ladderCol N u v ≠ ladderCol N u w := by
+  rw [cartesianProduct_adj] at huv huw
+  simp only [path, complete_adj, ofRel_adj, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq,
+    beq_iff_eq, ne_eq] at huv huw
+  unfold ladderCol
+  rcases huv with ⟨hv1, hv2⟩ | ⟨⟨hv1, hv2⟩, hv3⟩
+  · rcases huw with ⟨hw1, hw2⟩ | ⟨⟨hw1, hw2⟩, hw3⟩
+    · exfalso
+      refine hvw (Prod.ext (hv1.symm.trans hw1) (Fin.ext ?_))
+      have b1 := u.2.isLt
+      have b2 := v.2.isLt
+      have b3 := w.2.isLt
+      have e1 : u.2.1 ≠ v.2.1 := fun hh ↦ hv2 (Fin.ext hh)
+      have e2 : u.2.1 ≠ w.2.1 := fun hh ↦ hw2 (Fin.ext hh)
+      omega
+    · rw [if_pos hv1, if_neg hw1]
+      split_ifs <;> decide
+  · rcases huw with ⟨hw1, hw2⟩ | ⟨⟨hw1, hw2⟩, hw3⟩
+    · rw [if_neg hv1, if_pos hw1]
+      split_ifs <;> decide
+    · rw [if_neg hv1, if_neg hw1]
+      have hne : v.1.1 ≠ w.1.1 := fun h ↦
+        hvw (Prod.ext (Fin.ext h) (hv3.symm.trans hw3))
+      have hu := u.1.isLt
+      have hv := v.1.isLt
+      have hw := w.1.isLt
+      have hpar : min u.1.1 v.1.1 % 2 ≠ min u.1.1 w.1.1 % 2 := by omega
+      by_cases h1 : min u.1.1 v.1.1 % 2 = 0
+      · rw [if_pos h1, if_neg (by omega)]
+        decide
+      · rw [if_neg h1, if_pos (by omega)]
+        decide
+
+/-! ### An `n`-edge-colouring of the crown
+
+The crown `S_{n+2}^0 = K_{n+2} ⊗ K₂` is the complete bipartite graph `K_{n+2,n+2}` with a perfect
+matching deleted, so it is `(n+1)`-regular and needs at least `n+1` colours.  It is also a Cayley
+graph of `ℤ/(n+2)`, and the standard colouring of `K_{m,m}` by the difference of the two indices
+restricts to it: the deleted matching is exactly the pairs of difference `0`, so the differences
+that occur are the `n+1` nonzero ones. -/
+
+/-- The cyclic distance from `c` up to `a`, as a natural number in `[0, N)`. -/
+def crownIdx (N : ℕ) (a c : Fin N) : ℕ := if c.1 ≤ a.1 then a.1 - c.1 else a.1 + N - c.1
+
+theorem crownIdx_lt (N : ℕ) (a c : Fin N) : crownIdx N a c < N := by
+  have ha := a.isLt
+  have hc := c.isLt
+  unfold crownIdx
+  split_ifs <;> omega
+
+theorem crownIdx_pos (N : ℕ) {a c : Fin N} (h : a ≠ c) : 0 < crownIdx N a c := by
+  have ha := a.isLt
+  have hc := c.isLt
+  have h' : (a : ℕ) ≠ (c : ℕ) := fun hh ↦ h (Fin.ext hh)
+  unfold crownIdx
+  split_ifs <;> omega
+
+theorem crownIdx_inj (N : ℕ) (a c c' : Fin N) (h : crownIdx N a c = crownIdx N a c') : c = c' := by
+  have ha := a.isLt
+  have hc := c.isLt
+  have hc' := c'.isLt
+  refine Fin.ext ?_
+  unfold crownIdx at h
+  split_ifs at h <;> omega
+
+theorem crownIdx_inj_left (N : ℕ) (a a' c : Fin N) (h : crownIdx N a c = crownIdx N a' c) :
+    a = a' := by
+  have ha := a.isLt
+  have ha' := a'.isLt
+  have hc := c.isLt
+  refine Fin.ext ?_
+  unfold crownIdx at h
+  split_ifs at h <;> omega
+
+/-- `n + 1` colours for the crown: the edge from `(a, 0)` to `(c, 1)` takes the cyclic difference
+`a - c`, which is never zero because the difference-zero pairs are the deleted matching. -/
+def crownCol (n : ℕ) (p q : Fin (n + 2) × Fin 2) : Fin (n + 1) :=
+  if p.2 = q.2 then 0
+  else if (p.2 : ℕ) = 0 then ⟨crownIdx (n + 2) p.1 q.1 - 1, by
+      have := crownIdx_lt (n + 2) p.1 q.1; omega⟩
+  else ⟨crownIdx (n + 2) q.1 p.1 - 1, by have := crownIdx_lt (n + 2) q.1 p.1; omega⟩
+
+theorem crownCol_symm (n : ℕ) (p q : Fin (n + 2) × Fin 2) : crownCol n p q = crownCol n q p := by
+  unfold crownCol
+  by_cases h : p.2 = q.2
+  · rw [if_pos h, if_pos h.symm]
+  · rw [if_neg h, if_neg (Ne.symm h)]
+    have hp := p.2.isLt
+    have hq := q.2.isLt
+    have h' : (p.2 : ℕ) ≠ (q.2 : ℕ) := fun hh ↦ h (Fin.ext hh)
+    by_cases h0 : (p.2 : ℕ) = 0
+    · rw [if_pos h0, if_neg (by omega)]
+    · rw [if_neg h0, if_pos (by omega)]
+
+theorem crownCol_proper (n : ℕ) (u v w : (tensorProduct (complete (n + 2)) (complete 2)).V)
+    (huv : (tensorProduct (complete (n + 2)) (complete 2)).Adj u v = true)
+    (huw : (tensorProduct (complete (n + 2)) (complete 2)).Adj u w = true) (hvw : v ≠ w) :
+    crownCol n u v ≠ crownCol n u w := by
+  rw [tensorProduct_adj] at huv huw
+  simp only [complete_adj, Bool.and_eq_true, decide_eq_true_eq, ne_eq] at huv huw
+  obtain ⟨huv1, huv2⟩ := huv
+  obtain ⟨huw1, huw2⟩ := huw
+  have hu2 := u.2.isLt
+  have hv2 := v.2.isLt
+  have hw2 := w.2.isLt
+  have h2 : v.2 = w.2 := by
+    refine Fin.ext ?_
+    have e1 : u.2.1 ≠ v.2.1 := fun hh ↦ huv2 (Fin.ext hh)
+    have e2 : u.2.1 ≠ w.2.1 := fun hh ↦ huw2 (Fin.ext hh)
+    omega
+  have h1 : v.1 ≠ w.1 := fun hh ↦ hvw (Prod.ext hh h2)
+  unfold crownCol
+  rw [if_neg huv2, if_neg huw2]
+  by_cases h0 : u.2.1 = 0
+  · rw [if_pos h0, if_pos h0]
+    intro hcol
+    have hce : crownIdx (n + 2) u.1 v.1 - 1 = crownIdx (n + 2) u.1 w.1 - 1 :=
+      congrArg Fin.val hcol
+    have p1 := crownIdx_pos (n + 2) huv1
+    have p2 := crownIdx_pos (n + 2) huw1
+    exact h1 (crownIdx_inj (n + 2) u.1 v.1 w.1 (by omega))
+  · rw [if_neg h0, if_neg h0]
+    intro hcol
+    have hce : crownIdx (n + 2) v.1 u.1 - 1 = crownIdx (n + 2) w.1 u.1 - 1 :=
+      congrArg Fin.val hcol
+    have p1 := crownIdx_pos (n + 2) (Ne.symm huv1)
+    have p2 := crownIdx_pos (n + 2) (Ne.symm huw1)
+    exact h1 (crownIdx_inj_left (n + 2) v.1 w.1 u.1 (by omega))
+
 end CGraph
 
 namespace IsoGraph
@@ -35802,6 +35991,35 @@ theorem edgeChromNum_prism_le (n : ℕ) : (prism (n + 3)).edgeChromNum ≤ 5 := 
 theorem le_edgeChromNum_crown (n : ℕ) : n + 1 ≤ (crown (n + 2)).edgeChromNum := by
   have h := maxDeg_le_edgeChromNum (crown (n + 2))
   rwa [maxDeg_crown] at h
+
+/-- Transporting `CGraph.chromNum_lineGraph_le_of_edgeColouring` to the quotient: an explicit
+symmetric colouring of the ordered pairs, proper on the edges, bounds the chromatic index. -/
+theorem edgeChromNum_mk_le_of_colouring {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (c : G.V → G.V → Fin k) (hsymm : ∀ x y, c x y = c y x)
+    (hproper : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w) :
+    edgeChromNum ⟦G⟧ ≤ k := by
+  rw [edgeChromNum_eq, lineGraph_mk, chromNum_mk]
+  exact CGraph.chromNum_lineGraph_le_of_edgeColouring c hsymm hproper
+
+/-- **The chromatic index of a ladder is three.**  The lower bound is the maximum degree and the
+upper bound is `CGraph.ladderCol`, so Vizing's alternative never has to be ruled out. -/
+theorem edgeChromNum_ladder (n : ℕ) : (ladder (n + 3)).edgeChromNum = 3 := by
+  refine le_antisymm ?_ (le_edgeChromNum_ladder n)
+  rw [show (ladder (n + 3)) = path (n + 3) □g complete 2 from rfl, path_def, complete_def 2,
+    cartesianProduct_mk]
+  exact edgeChromNum_mk_le_of_colouring
+    (G := CGraph.cartesianProduct (CGraph.path (n + 3)) (CGraph.complete 2))
+    (CGraph.ladderCol (n + 3)) (CGraph.ladderCol_symm (n + 3)) (CGraph.ladderCol_proper (n + 3))
+
+/-- **The chromatic index of a crown is its degree.**  `S_{n+2}^0` is `(n+1)`-regular and class
+one, by the difference colouring `CGraph.crownCol`. -/
+theorem edgeChromNum_crown (n : ℕ) : (crown (n + 2)).edgeChromNum = n + 1 := by
+  refine le_antisymm ?_ (le_edgeChromNum_crown n)
+  rw [show (crown (n + 2)) = complete (n + 2) ⊗g complete 2 from rfl, complete_def (n + 2),
+    complete_def 2, tensorProduct_mk]
+  exact edgeChromNum_mk_le_of_colouring
+    (G := CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2))
+    (CGraph.crownCol n) (CGraph.crownCol_symm n) (CGraph.crownCol_proper n)
 
 theorem le_edgeChromNum_cocktailParty (n : ℕ) :
     2 * n ≤ (cocktailParty (n + 1)).edgeChromNum := by

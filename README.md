@@ -2519,6 +2519,45 @@ The `n + 1` is needed only to have a left vertex to test: `bipartite 0 0` is the
 one automorphism is not `2 · (0!)² = 2`. This strengthens `le_autCount_bipartite_self`, which knew
 only `2n² ≤ |Aut|` from arc-transitivity.
 
+The two edge-colouring entries that this file has been calling "blocked on a missing dependency"
+since the prover handed back proofs that quoted König's theorem at them are now closed, and König
+is still absent. The blockage was never really mathematical: the ladder and the crown are both
+small enough to colour by hand. What had made that unattractive was the boilerplate —
+`edgeChromNum_hypercube` and `edgeChromNum_wheel` each spend most of their length turning a
+formula on pairs of vertices into a `SimpleGraph.Coloring` of the line graph, unpacking `Sym2`s and
+edge-set memberships along the way. So the first step was to do that once and for all:
+
+```lean
+theorem CGraph.chromNum_lineGraph_le_of_edgeColouring {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (c : G.V → G.V → Fin k) (hsymm : ∀ x y, c x y = c y x)
+    (hproper : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w) :
+    (lineGraph G).chromNum ≤ k
+```
+
+The colouring is a function on *ordered* pairs, symmetric, and constrained only on actual edges;
+`Sym2.lift ⟨c, hsymm⟩` turns it into a function on the line graph's vertices, and properness is
+exactly what a proper colouring there asks for. Values on non-adjacent pairs are junk, which is
+what lets the two colourings below be written as one-line formulas with no side conditions.
+`IsoGraph.edgeChromNum_mk_le_of_colouring` transports it to the quotient in three rewrites.
+
+With that in place both colourings are short. The ladder `P_N □ K₂` is cubic in the middle, so
+three is the floor; `ladderCol` gives every rung the third colour and colours a rail edge by the
+parity of the smaller of its two endpoints' indices, which alternates along each rail and so
+separates the two rail edges at any interior vertex. The crown `S_{n+2}` is `K_{n+2,n+2}` minus a
+perfect matching, hence `(n+1)`-regular, and it inherits the standard colouring of `K_{m,m}` by the
+cyclic difference of the two indices — the deleted matching is exactly the difference-zero pairs,
+so only `n + 1` of the `n + 2` differences occur. `crownIdx` computes that difference in a form
+`omega` can reason about (`if c ≤ a then a - c else a + N - c` rather than `%`), and
+`crownIdx_inj` and `crownIdx_inj_left` are the injectivity in each argument that properness needs:
+
+```lean
+theorem edgeChromNum_ladder (n : ℕ) : (ladder (n + 3)).edgeChromNum = 3
+theorem edgeChromNum_crown (n : ℕ) : (crown (n + 2)).edgeChromNum = n + 1
+```
+
+Both meet the maximum-degree lower bounds `le_edgeChromNum_ladder` and `le_edgeChromNum_crown` that
+were already in the table, so both families are class one and the brackets collapse to equalities.
+
 The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
 are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
 `V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
@@ -5398,14 +5437,13 @@ a factor of four under load, which is enough to invent a regression that is not 
 The invariant table is dense but not full, and the gaps are worth naming so nobody goes looking
 for entries that were never proved.
 
-The one blocked on a missing dependency is the edge chromatic number of the ladder and of the
-crown. Both are bipartite with a known maximum degree, so both follow in four lines from König's
-edge-colouring theorem — a bipartite graph is `Δ`-edge-colourable — and Mathlib has neither that
-nor Vizing's theorem. Hall's marriage theorem *is* there
-(`SimpleGraph.exists_isMatching_of_forall_ncard_le`), which is the usual route in, so this is a
-matter of work rather than of mathematics. The edge chromatic numbers proved so far — the
-complete graph in both parities, the hypercube, the wheel — each come from a construction rather
-than from a general theorem.
+Nothing in the table is blocked on a missing dependency any more. König's edge-colouring theorem —
+a bipartite graph is `Δ`-edge-colourable — is still absent, as is Vizing's, and Mathlib supplies
+neither; Hall's marriage theorem *is* there (`SimpleGraph.exists_isMatching_of_forall_ncard_le`),
+which is the usual route in. But every edge chromatic number the table wanted turned out to be
+cheaper by hand than by that route: the complete graph in both parities, the hypercube, the wheel,
+the ladder and the crown each come from an explicit colouring. What a general König would buy is
+the *next* family rather than any current entry.
 
 The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
 (Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the girth
@@ -5415,5 +5453,5 @@ circulant and lollipop families, for complements and, exactly and not just as a 
 star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and
 `autCount_bipartite_self`), the cycle (`autCount_cycle`) and the wheel (`autCount_wheel`), but not
 for Petersen or the hypercube — and, for the grid and the king graph, everything below the degree
-and colouring entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
-a general `girth_cyclePendant` first.
+and colouring entries: independence, domination, covering and matching numbers.
+`cliqueNum_cyclePendant` wants a general `girth_cyclePendant` first.
