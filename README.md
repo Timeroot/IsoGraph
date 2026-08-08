@@ -4407,7 +4407,11 @@ theorem lapSpectrum_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
 
 — **a join has Laplacian eigenvalues `0`, the order `n + m`, and each factor's remaining
 eigenvalues shifted by the order of the other factor.** `K_{m,n} = Eₘ ∇ Eₙ` is the case where both
-factors are edgeless.
+factors are edgeless. Reading the two ends off that multiset costs nothing: `lapLambdaMax_join` is
+the order `n + m`, and `algConn_join` is `min (a(G) + m, a(H) + n)` — the order is never itself the
+smallest nonzero eigenvalue, since `a(G) ≤ n` always. Joining to anything therefore makes a graph
+well connected, which is the structural reason `algConn_complete = n` and, at the other end, why
+every join has a disconnected complement.
 
 The path is the other family regularity does not reach, and `lapSpectrum_path` gives it the
 eigenvalues `2 - 2 cos (π m / n)`, `0 ≤ m < n` — the adjacency answer was

@@ -180,7 +180,9 @@ of two complete graphs gives every complete bipartite graph at once, `lapSpectru
 `lapSpectrum_star` is its `m = 0` case — worth recording separately because the star is *not*
 regular, so `lapSpectrum_of_isRegularWith` says nothing about it.  Complementing a disjoint union
 in general is `lapSpectrum_join`: **a join has Laplacian spectrum `0`, the order `n + m`, and each
-factor's remaining eigenvalues shifted by the order of the other factor.**
+factor's remaining eigenvalues shifted by the order of the other factor.**  Both ends of it are
+immediate: `lapLambdaMax_join` is the order, and `algConn_join` is
+`min (a (G) + m, a (H) + n)` — the order itself is never the smallest, because `a (G) ≤ n`.
 
 The other non-regular family worth having is the path, `lapSpectrum_path`: the numbers
 `2 - 2 cos (π m / n)`.  The eigenvectors are the discrete cosines `cos (π m (j + 1/2) / n)`, whose
@@ -6374,6 +6376,72 @@ theorem lapLambdaMax_eq_zero_iff (G : CGraph) [Nonempty G.V] :
     have := Multiset.single_le_sum (fun y hy ↦ nonneg_of_mem_lapSpectrum G hy) x hx
     linarith
 
+/-- **The largest Laplacian eigenvalue of a join is its order.**  A join has a disconnected
+complement, so this is `algConn_compl` read backwards; here it is read straight off
+`lapSpectrum_join`. -/
+theorem lapLambdaMax_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (join G H).lapLambdaMax = (Fintype.card G.V : ℝ) + Fintype.card H.V := by
+  have hG0 : (0 : ℝ) ≤ Fintype.card G.V := Nat.cast_nonneg _
+  have hH0 : (0 : ℝ) ≤ Fintype.card H.V := Nat.cast_nonneg _
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_join]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_cons_self _ _)
+  · intro x hx
+    rw [lapSpectrum_join, Multiset.mem_cons, Multiset.mem_cons] at hx
+    rcases hx with rfl | rfl | hx
+    · linarith
+    · linarith
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have := G.le_card_of_mem_lapSpectrum (Multiset.mem_of_mem_erase hy)
+      linarith
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have := H.le_card_of_mem_lapSpectrum (Multiset.mem_of_mem_erase hy)
+      linarith
+
+/-- **The algebraic connectivity of a join**: each factor's Fiedler value shifted by the order of
+the other factor, whichever is smaller.  The order `n + m` itself is never the smallest, since
+`a (G) ≤ n`. -/
+theorem algConn_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
+    (join G H).algConn
+      = min (G.algConn + Fintype.card H.V) (H.algConn + Fintype.card G.V) := by
+  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
+  haveI : Nonempty H.V := Fintype.card_pos_iff.1 (by omega)
+  have hmemG : G.algConn ∈ G.lapSpectrum.erase 0 := G.algConn_mem_erase hG
+  have hmemH : H.algConn ∈ H.lapSpectrum.erase 0 := H.algConn_mem_erase hH
+  have hGle : G.algConn ≤ Fintype.card G.V := G.algConn_le_card hG
+  have hHle : H.algConn ≤ Fintype.card H.V := H.algConn_le_card hH
+  have herase : (join G H).lapSpectrum.erase 0
+      = ((Fintype.card G.V : ℝ) + Fintype.card H.V)
+          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card H.V : ℝ))
+             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card G.V : ℝ))) := by
+    rw [lapSpectrum_join, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    refine Multiset.mem_cons_of_mem ?_
+    rcases le_total (G.algConn + Fintype.card H.V) (H.algConn + Fintype.card G.V) with hle | hle
+    · rw [min_eq_left hle]
+      exact Multiset.mem_add.2 (Or.inl (Multiset.mem_map_of_mem _ hmemG))
+    · rw [min_eq_right hle]
+      exact Multiset.mem_add.2 (Or.inr (Multiset.mem_map_of_mem _ hmemH))
+  · intro x hx
+    rw [herase, Multiset.mem_cons] at hx
+    have hminG := min_le_left (G.algConn + (Fintype.card H.V : ℝ))
+      (H.algConn + (Fintype.card G.V : ℝ))
+    have hminH := min_le_right (G.algConn + (Fintype.card H.V : ℝ))
+      (H.algConn + (Fintype.card G.V : ℝ))
+    rcases hx with rfl | hx
+    · linarith
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have := G.algConn_le hy
+      linarith
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have := H.algConn_le hy
+      linarith
+
 /-! ### The Laplacian of a cartesian product -/
 
 /-- The Laplacian of a cartesian product is `L G ⊗ I + I ⊗ L H`, the same shape as
@@ -7679,6 +7747,28 @@ theorem algConn_cartesianProduct {G H : IsoGraph} (hG : 2 ≤ G.V) (hH : 2 ≤ H
       rw [V_mk] at hG hH
       rw [cartesianProduct_mk, algConn_mk, algConn_mk, algConn_mk]
       exact CGraph.algConn_cartesianProduct g h' hG hH
+
+theorem lapLambdaMax_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ∇g H).lapLambdaMax = (G.V : ℝ) + H.V := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h' =>
+      rw [V_mk] at hG hH
+      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
+      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
+      rw [join_mk, lapLambdaMax_mk, V_mk, V_mk]
+      exact CGraph.lapLambdaMax_join g h'
+
+theorem algConn_join {G H : IsoGraph} (hG : 2 ≤ G.V) (hH : 2 ≤ H.V) :
+    (G ∇g H).algConn = min (G.algConn + H.V) (H.algConn + G.V) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h' =>
+      rw [V_mk] at hG hH
+      rw [join_mk, algConn_mk, algConn_mk, algConn_mk, V_mk, V_mk]
+      exact CGraph.algConn_join g h' hG hH
 
 /-- **The largest Laplacian eigenvalue of the wheel** is its order: the wheel is a join, so its
 complement is disconnected. -/
