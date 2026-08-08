@@ -206,7 +206,10 @@ the usual convention.  On two or more vertices it is attained (`algConn_mem_eras
 `count_zero_lapSpectrum` turns it into a connectivity test: `algConn_pos_iff` says it is positive
 exactly for a connected graph, because a second `0` survives the erasure precisely when there is
 a second component (`algConn_disjUnion`).  It is squeezed between `0` and the order
-(`algConn_nonneg`, `algConn_le_card`), the upper end attained by `algConn_complete`.
+(`algConn_nonneg`, `algConn_le_card`), the upper end attained by `algConn_complete`.  Every
+Laplacian spectrum computed above gives a value, through `algConn_eq_of_isLeast`:
+`algConn_bipartite` (the smaller side of `K_{m,n}`), `algConn_star` (always `1`) and
+`algConn_path` (`2 - 2 cos (π / n)`, shrinking like `1 / n ²`).
 
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
@@ -5892,6 +5895,12 @@ theorem algConn_mem_lapSpectrum (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
     G.algConn ∈ G.lapSpectrum :=
   Multiset.mem_of_mem_erase (G.algConn_mem_erase h)
 
+/-- To compute an algebraic connectivity it is enough to exhibit a least element of the punctured
+Laplacian spectrum. -/
+theorem algConn_eq_of_isLeast {G : CGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum.erase 0)
+    (hle : ∀ x ∈ G.lapSpectrum.erase 0, a ≤ x) : G.algConn = a :=
+  le_antisymm (algConn_le hmem) (le_csInf ⟨a, hmem⟩ hle)
+
 /-- **The algebraic connectivity is positive exactly for a connected graph** (on at least two
 vertices): the multiplicity of `0` is the number of components, so a second `0` survives the
 erasure precisely when the graph falls apart. -/
@@ -5957,6 +5966,114 @@ theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 
   have hmem := (complete (n + 2)).algConn_mem_erase hcard
   rw [herase] at hmem
   exact Multiset.eq_of_mem_replicate hmem
+
+/-- **The algebraic connectivity of a complete bipartite graph is the size of its smaller side.**
+(The one exception is `K₁,₁ = K₂`, where the smaller side has one vertex but `a = 2`; the
+hypothesis `1 ≤ m + n` rules it out.) -/
+theorem algConn_bipartite (m n : ℕ) (h : 1 ≤ m + n) :
+    (bipartite (m + 1) (n + 1)).algConn = min ((m : ℝ) + 1) ((n : ℝ) + 1) := by
+  have herase : (bipartite (m + 1) (n + 1)).lapSpectrum.erase 0
+      = ((m : ℝ) + (n : ℝ) + 2)
+        ::ₘ (Multiset.replicate m ((n : ℝ) + 1) + Multiset.replicate n ((m : ℝ) + 1)) := by
+    rw [lapSpectrum_bipartite, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    rcases Nat.le_total m n with hmn | hmn
+    · have hmin : min ((m : ℝ) + 1) ((n : ℝ) + 1) = (m : ℝ) + 1 :=
+        min_eq_left (by exact_mod_cast Nat.add_le_add_right hmn 1)
+      rw [hmin]
+      exact Multiset.mem_cons_of_mem
+        (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+    · have hmin : min ((m : ℝ) + 1) ((n : ℝ) + 1) = (n : ℝ) + 1 :=
+        min_eq_right (by exact_mod_cast Nat.add_le_add_right hmn 1)
+      rw [hmin]
+      exact Multiset.mem_cons_of_mem
+        (Multiset.mem_add.2 (Or.inl (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+  · intro x hx
+    rw [herase, Multiset.mem_cons, Multiset.mem_add] at hx
+    have hm1 : min ((m : ℝ) + 1) ((n : ℝ) + 1) ≤ (m : ℝ) + 1 := min_le_left _ _
+    have hn1 : min ((m : ℝ) + 1) ((n : ℝ) + 1) ≤ (n : ℝ) + 1 := min_le_right _ _
+    have hm0 : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+    have hn0 : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+    rcases hx with rfl | hx
+    · linarith
+    rcases hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]
+      exact hn1
+    · rw [Multiset.eq_of_mem_replicate hx]
+      exact hm1
+
+/-- **The star has algebraic connectivity `1`.** -/
+theorem algConn_star (n : ℕ) : (star (n + 2)).algConn = 1 := by
+  have hn0 : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  have h := algConn_bipartite 0 (n + 1) (by omega)
+  norm_num at h
+  rw [min_eq_left (by linarith : (1 : ℝ) ≤ (n : ℝ) + 1 + 1)] at h
+  rw [star]
+  exact h
+
+open Real in
+/-- **The algebraic connectivity of the path** `P_{n+2}` is `2 - 2 cos (π / (n + 2))`: of the
+eigenvalues `2 - 2 cos (π m / (n + 2))` the one at `m = 0` is the erased zero and the cosine is
+decreasing, so `m = 1` gives the smallest of the rest.  It shrinks like `1 / n ²`, which is why
+the path is the connected graph the Fiedler value calls worst-connected. -/
+theorem algConn_path (n : ℕ) :
+    (path (n + 2)).algConn = 2 - 2 * Real.cos (π / ((n : ℝ) + 2)) := by
+  have hpi : 0 < π := Real.pi_pos
+  have hN : (0 : ℝ) < (n : ℝ) + 2 := by positivity
+  set f : Fin (n + 2) → ℝ := fun m ↦ 2 - 2 * Real.cos (π * m.1 / ((n : ℝ) + 2)) with hf
+  have hspec : (path (n + 2)).lapSpectrum = Finset.univ.val.map f := by
+    rw [lapSpectrum_path, hf]
+    push_cast
+    rfl
+  have h0 : f 0 = 0 := by
+    rw [hf]
+    simp
+  have hmem0 : (0 : Fin (n + 2)) ∈ Finset.univ.val := Finset.mem_univ_val _
+  have huniv : (Finset.univ.val : Multiset (Fin (n + 2)))
+      = 0 ::ₘ Finset.univ.val.erase 0 := (Multiset.cons_erase hmem0).symm
+  have herase : (path (n + 2)).lapSpectrum.erase 0
+      = (Finset.univ.val.erase (0 : Fin (n + 2))).map f := by
+    rw [hspec]
+    conv_lhs => rw [huniv]
+    rw [Multiset.map_cons, h0, Multiset.erase_cons_head]
+  have hone : f 1 = 2 - 2 * Real.cos (π / ((n : ℝ) + 2)) := by
+    rw [hf]
+    simp only [Fin.val_one]
+    norm_num
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase, ← hone]
+    refine Multiset.mem_map_of_mem f ?_
+    refine (Multiset.mem_erase_of_ne ?_).2 (Finset.mem_univ_val _)
+    simp
+  · intro x hx
+    rw [herase] at hx
+    obtain ⟨m, hm, rfl⟩ := Multiset.mem_map.1 hx
+    have hm0 : m ≠ 0 := by
+      intro hzero
+      subst hzero
+      rw [← Multiset.one_le_count_iff_mem, Multiset.count_erase_self] at hm
+      have hle1 := Multiset.nodup_iff_count_le_one.1 Finset.univ.nodup (0 : Fin (n + 2))
+      omega
+    have hm1 : 1 ≤ m.1 := by
+      rcases Nat.eq_zero_or_pos m.1 with h | h
+      · exact absurd (Fin.ext h) hm0
+      · exact h
+    have hm1R : (1 : ℝ) ≤ (m.1 : ℝ) := by exact_mod_cast hm1
+    have hmltR : (m.1 : ℝ) ≤ (n : ℝ) + 2 := by
+      have : m.1 ≤ n + 2 := m.isLt.le
+      exact_mod_cast this
+    have hle : π / ((n : ℝ) + 2) ≤ π * m.1 / ((n : ℝ) + 2) := by
+      gcongr
+      nlinarith
+    have hub : π * m.1 / ((n : ℝ) + 2) ≤ π := by
+      rw [div_le_iff₀ hN]
+      nlinarith
+    have hcos : Real.cos (π * m.1 / ((n : ℝ) + 2)) ≤ Real.cos (π / ((n : ℝ) + 2)) :=
+      Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hub hle
+    have hfm : f m = 2 - 2 * Real.cos (π * m.1 / ((n : ℝ) + 2)) := rfl
+    rw [hfm]
+    linarith
 
 /-! ### Laplacian cospectrality -/
 
@@ -6599,6 +6716,20 @@ theorem algConn_le_V (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ≤ G.V := by
 
 @[simp] theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 :=
   CGraph.algConn_complete n
+
+/-- **The algebraic connectivity of a complete bipartite graph is the size of its smaller
+side.** -/
+theorem algConn_bipartite (m n : ℕ) (h : 1 ≤ m + n) :
+    (bipartite (m + 1) (n + 1)).algConn = min ((m : ℝ) + 1) ((n : ℝ) + 1) :=
+  CGraph.algConn_bipartite m n h
+
+@[simp] theorem algConn_star (n : ℕ) : (star (n + 2)).algConn = 1 :=
+  CGraph.algConn_star n
+
+/-- **The algebraic connectivity of the path** `P_{n+2}`. -/
+theorem algConn_path (n : ℕ) :
+    (path (n + 2)).algConn = 2 - 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) :=
+  CGraph.algConn_path n
 
 theorem algConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ⊕g H).algConn = 0 := by

@@ -4458,6 +4458,22 @@ makes it worth naming is `algConn_pos_iff`: **`0 < a(G)` exactly when `G` is con
 extreme case. Between the two ends, `algConn_nonneg` and `algConn_le_card` give `0 ≤ a(G) ≤ n`,
 and the upper bound is attained: `algConn_complete` says `a(Kₙ) = n`.
 
+Every Laplacian spectrum computed above turns into a Fiedler value, via `algConn_eq_of_isLeast`
+(exhibit a least element of `lapSpectrum.erase 0`). `algConn_bipartite` says `a(K_{m,n})` is the
+size of the smaller side — with `K₂` the one exception, where erasing the zero leaves only `2` —
+and `algConn_star` specialises it to `a(K₁,ₙ) = 1`. The interesting one is the path:
+
+```lean
+theorem algConn_path (n : ℕ) :
+    (path (n + 2)).algConn = 2 - 2 * Real.cos (π / ((n : ℝ) + 2))
+```
+
+The eigenvalues are `2 - 2 cos (π m / n)` and the cosine is decreasing on `[0, π]`, so once the
+`m = 0` zero is erased the smallest survivor is at `m = 1`. That value shrinks like `π² / n²`: the
+path is the connected graph that the Fiedler value rates worst-connected, and the rate is the
+reason spectral partitioning of a long thin graph is hard. `a(P₂) = 2` and `a(P₃) = 1` recover
+`algConn_complete` and `algConn_star` at the small end.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
