@@ -4553,6 +4553,29 @@ on two or more vertices: `card_sub_one_mul_algConn_le_card_mul_minDeg` states `(
 and `algConn_le_div_mul_minDeg` divides it into `a(G) ≤ n/(n - 1) · δ(G)`, with equality precisely
 at the complete graph.
 
+The Fiedler value has a variational principle of its own at the small end, and it is what makes it
+usable:
+
+```lean
+theorem algConn_mul_le_lap_quadratic (G : CGraph) [Nonempty G.V] (v : G.V → ℝ)
+    (hv : ∑ i, v i = 0) : G.algConn * (v ⬝ᵥ v) ≤ v ⬝ᵥ (G.lapMat *ᵥ v)
+```
+
+**Every vector orthogonal to the all-ones vector has Rayleigh quotient at least `a(G)`** — so any
+such vector is a certificate for an upper bound on the Fiedler value, the mirror image of the test
+vectors that bounded `μ_max` from below. The proof needs one thing the `μ_max` side did not:
+`exists_rotate_lap_quadratic_of_sum_eq_zero` sharpens the diagonalisation so that the coordinates
+belonging to the eigenvalue `0` vanish. On a connected graph a kernel vector of `L` is constant
+(`lapMat_mulVec_eq_zero_iff`), so `v ⊥ 1` has no component along one, and every surviving
+coordinate carries an eigenvalue `≥ a(G)`. A disconnected graph has `a(G) = 0` and the inequality
+is just positive semidefiniteness, `lap_quadratic_nonneg`.
+
+The cheapest test vector is the difference of two basis vectors, `1` at `u` and `-1` at `v`, which
+sums to zero, has squared norm `2` and quadratic form `d(u) + d(v)` when `u` and `v` are not
+adjacent — so `two_mul_algConn_le_degree_add_degree` gives `2 a(G) ≤ d(u) + d(v)` **for any two
+non-adjacent vertices**. That sharpens Fiedler's `a ≤ δ` whenever the minimum-degree vertex has a
+non-neighbour of small degree, and it says again why `Kₙ` is the exception: there is no such pair.
+
 Two structural rules finish the picture. A disjoint union takes the larger of the two values,
 `lapLambdaMax_disjUnion : (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax`, where
 the small end takes *neither* and collapses to `0` — the two components do not interact at the top

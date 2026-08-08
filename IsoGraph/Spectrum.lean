@@ -222,6 +222,17 @@ conclusion just enough to absorb that one case gives the textbook statement,
 `card_sub_one_mul_algConn_le_card_mul_minDeg` (`(n - 1) a ≤ n δ`), or in its usual divided form
 `algConn_le_div_mul_minDeg` (`a ≤ n / (n - 1) · δ`), an equality exactly at the complete graph.
 
+The small end has a variational principle of its own, and it is the one that makes `algConn` a
+usable quantity: `algConn_mul_le_lap_quadratic` says `a (G) ⟪v, v⟫ ≤ ⟪v, L v⟫` for every `v`
+summing to zero.  The proof is `exists_rotate_lap_quadratic_of_sum_eq_zero`, which sharpens the
+rotation above by killing the kernel coordinates — on a connected graph an eigenvector for `0` is
+constant (`lapMat_mulVec_eq_zero_iff`), so a vector orthogonal to the constants has no component
+along it, and what is left are eigenvalues `≥ a (G)`.  A disconnected graph has `a (G) = 0` and
+the statement degenerates to `lap_quadratic_nonneg`.  Feeding it the difference of two basis
+vectors gives `two_mul_algConn_le_degree_add_degree`: **`2 a (G) ≤ d (u) + d (v)` for any two
+non-adjacent `u`, `v`**, which sharpens Fiedler's bound whenever the minimum-degree vertex has a
+non-neighbour of small degree.
+
 `algConn` is the **algebraic connectivity**, the second-smallest Laplacian eigenvalue: the
 infimum of `lapSpectrum.erase 0`, taken in `ℝ` so that the one-vertex graph gets `sInf ∅ = 0` by
 the usual convention.  On two or more vertices it is attained (`algConn_mem_erase`), and
@@ -6443,6 +6454,14 @@ theorem two_mul_lap_quadratic (G : CGraph) (v : G.V → ℝ) :
   rw [hlhs, hL2, hR2, hcol]
   ring
 
+/-- **The Laplacian is positive semidefinite**, immediately from the sum-of-squares identity. -/
+theorem lap_quadratic_nonneg (G : CGraph) (v : G.V → ℝ) : 0 ≤ v ⬝ᵥ (G.lapMat *ᵥ v) := by
+  have h := G.two_mul_lap_quadratic v
+  have hnn : 0 ≤ ∑ i, ∑ j, G.adjMat i j * (v i - v j) ^ 2 :=
+    Finset.sum_nonneg fun i _ ↦ Finset.sum_nonneg fun j _ ↦
+      mul_nonneg (G.adjMat_nonneg i j) (sq_nonneg _)
+  linarith
+
 /-- The Laplacian analogue of `exists_rotate_quadratic`. -/
 theorem exists_rotate_lap_quadratic (G : CGraph) (v : G.V → ℝ) :
     ∃ w : G.V → ℝ, v ⬝ᵥ (G.lapMat *ᵥ v) = ∑ i, G.lapEigenvalues i * w i ^ 2 ∧
@@ -6465,6 +6484,52 @@ theorem exists_rotate_lap_quadratic (G : CGraph) (v : G.V → ℝ) :
         rw [Matrix.vecMul_transpose], Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
     rw [← hn]
     exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+
+/-- On a connected graph the rotation of `exists_rotate_lap_quadratic` kills the kernel
+direction as well: the columns of the diagonalising matrix belonging to the eigenvalue `0` are
+constant vectors, so a vector summing to zero has no component along any of them. -/
+theorem exists_rotate_lap_quadratic_of_sum_eq_zero (G : CGraph) (hconn : G.IsConnected)
+    (v : G.V → ℝ) (hv : ∑ i, v i = 0) :
+    ∃ w : G.V → ℝ, v ⬝ᵥ (G.lapMat *ᵥ v) = ∑ i, G.lapEigenvalues i * w i ^ 2 ∧
+      v ⬝ᵥ v = ∑ i, w i ^ 2 ∧ ∀ i, G.lapEigenvalues i = 0 → w i = 0 := by
+  haveI : Nonempty G.V := hconn.nonempty
+  obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_lap_diagonal
+  have hL : G.lapMat = U * Matrix.diagonal G.lapEigenvalues * Uᵀ := by
+    rw [← hD]
+    calc G.lapMat = U * Uᵀ * G.lapMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
+      _ = U * (Uᵀ * G.lapMat * U) * Uᵀ := by simp only [mul_assoc]
+  have hLU : G.lapMat * U = U * Matrix.diagonal G.lapEigenvalues := by
+    calc G.lapMat * U = (U * Uᵀ) * (G.lapMat * U) := by rw [hUU', one_mul]
+      _ = U * (Uᵀ * G.lapMat * U) := by simp only [mul_assoc]
+      _ = U * Matrix.diagonal G.lapEigenvalues := by rw [hD]
+  refine ⟨Uᵀ *ᵥ v, ?_, ?_, ?_⟩
+  · rw [hL, show (U * Matrix.diagonal G.lapEigenvalues * Uᵀ) *ᵥ v
+          = U *ᵥ (Matrix.diagonal G.lapEigenvalues *ᵥ (Uᵀ *ᵥ v)) by
+        simp only [Matrix.mulVec_mulVec, mul_assoc],
+      dotProduct_mulVec, show v ᵥ* U = Uᵀ *ᵥ v by
+        rw [← Matrix.vecMul_transpose, Matrix.transpose_transpose]]
+    simp only [dotProduct, Matrix.mulVec_diagonal]
+    exact Finset.sum_congr rfl fun i _ ↦ by ring
+  · have hn : (Uᵀ *ᵥ v) ⬝ᵥ (Uᵀ *ᵥ v) = v ⬝ᵥ v := by
+      rw [dotProduct_mulVec, show (Uᵀ *ᵥ v) ᵥ* Uᵀ = U *ᵥ (Uᵀ *ᵥ v) by
+        rw [Matrix.vecMul_transpose], Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
+    rw [← hn]
+    exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+  · intro i hi
+    have hcol : G.lapMat *ᵥ (Uᵀ i) = 0 := by
+      funext x
+      have h1 : (G.lapMat * U) x i = U x i * G.lapEigenvalues i := by
+        rw [hLU, Matrix.mul_diagonal]
+      rw [hi, mul_zero] at h1
+      simpa [Matrix.mulVec, dotProduct, Matrix.mul_apply, mul_comm] using h1
+    obtain ⟨r₀⟩ := ‹Nonempty G.V›
+    have hconst : ∀ r, U r i = U r₀ i := fun r ↦
+      (G.lapMat_mulVec_eq_zero_iff.1 hcol) r r₀ (hconn.preconnected r r₀)
+    calc (Uᵀ *ᵥ v) i = ∑ r, U r i * v r := by
+          simp [Matrix.mulVec, dotProduct, Matrix.transpose_apply]
+      _ = ∑ r, U r₀ i * v r := Finset.sum_congr rfl fun r _ ↦ by rw [hconst r]
+      _ = U r₀ i * ∑ r, v r := by rw [Finset.mul_sum]
+      _ = 0 := by rw [hv, mul_zero]
 
 /-- **The Laplacian Rayleigh quotient is bounded above by the largest Laplacian eigenvalue.** -/
 theorem lap_rayleigh_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (v : G.V → ℝ) :
@@ -6577,6 +6642,63 @@ theorem maxDeg_add_one_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (h : 0 < G.E)
   nlinarith [hkey, hpos]
 
 /-! ### Fiedler's bound on the algebraic connectivity -/
+
+/-- **The variational characterisation of the Fiedler value**, the lower half: on every vector
+orthogonal to the all-ones vector the Laplacian quadratic form is at least `a (G) ⟪v, v⟫`.  On a
+connected graph this is the eigenvalue expansion with the kernel term removed; on a disconnected
+one `a (G) = 0` and the statement is positive semidefiniteness. -/
+theorem algConn_mul_le_lap_quadratic (G : CGraph) [Nonempty G.V] (v : G.V → ℝ)
+    (hv : ∑ i, v i = 0) : G.algConn * (v ⬝ᵥ v) ≤ v ⬝ᵥ (G.lapMat *ᵥ v) := by
+  by_cases hconn : G.IsConnected
+  · obtain ⟨w, hq, hn, hker⟩ := G.exists_rotate_lap_quadratic_of_sum_eq_zero hconn v hv
+    rw [hq, hn, Finset.mul_sum]
+    refine Finset.sum_le_sum fun i _ ↦ ?_
+    rcases eq_or_ne (G.lapEigenvalues i) 0 with h0 | h0
+    · rw [hker i h0, h0]
+      simp
+    · exact mul_le_mul_of_nonneg_right
+        (algConn_le ((Multiset.mem_erase_of_ne h0).2 (G.lapEigenvalues_mem_lapSpectrum i)))
+        (sq_nonneg _)
+  · have hcard : 2 ≤ Fintype.card G.V := by
+      by_contra hlt
+      push_neg at hlt
+      haveI : Subsingleton G.V := Fintype.card_le_one_iff_subsingleton.1 (by omega)
+      have hpre : G.toSimple.Preconnected := fun x y ↦ by
+        rw [Subsingleton.elim x y]
+      exact hconn ⟨hpre⟩
+    have h0 : G.algConn = 0 :=
+      le_antisymm (not_lt.1 fun hp ↦ hconn ((G.algConn_pos_iff hcard).1 hp)) G.algConn_nonneg
+    rw [h0, zero_mul]
+    exact G.lap_quadratic_nonneg v
+
+/-- **The Fiedler value is at most the average degree of any two non-adjacent vertices.**  The
+test vector is `1` at one of them, `-1` at the other and `0` elsewhere; it sums to zero, has
+squared norm `2`, and the quadratic form on it is `d (u) + d (v)` because `u` and `v` contribute
+no edge between themselves. -/
+theorem two_mul_algConn_le_degree_add_degree (G : CGraph) [Nonempty G.V] {u v : G.V}
+    (huv : u ≠ v) (h : ¬ G.Adj u v) :
+    2 * G.algConn ≤ (G.toSimple.degree u : ℝ) + G.toSimple.degree v := by
+  set x : G.V → ℝ := fun i ↦ (if i = u then 1 else 0) - (if i = v then 1 else 0) with hx
+  have hdot : ∀ y : G.V → ℝ, x ⬝ᵥ y = y u - y v := fun y ↦ by
+    simp [hx, dotProduct, sub_mul, Finset.sum_sub_distrib]
+  have hxu : x u = 1 := by simp [hx, huv]
+  have hxv : x v = -1 := by simp [hx, Ne.symm huv]
+  have hsum : ∑ i, x i = 0 := by
+    simp [hx, Finset.sum_sub_distrib]
+  have hnorm : x ⬝ᵥ x = 2 := by rw [hdot x, hxu, hxv]; ring
+  have hmv : ∀ i : G.V, (G.lapMat *ᵥ x) i = G.lapMat i u - G.lapMat i v := fun i ↦ by
+    rw [show (G.lapMat *ᵥ x) i = x ⬝ᵥ (fun j ↦ G.lapMat i j) from by
+      rw [dotProduct_comm]; rfl, hdot]
+  have hauv : G.lapMat u v = 0 := by
+    rw [lapMat_apply_of_ne G huv, adjMat_apply, if_neg h, neg_zero]
+  have havu : G.lapMat v u = 0 := by
+    rw [lapMat_apply_of_ne G (Ne.symm huv), G.adjMat_symm v u, adjMat_apply, if_neg h, neg_zero]
+  have hquad : x ⬝ᵥ (G.lapMat *ᵥ x) = (G.toSimple.degree u : ℝ) + G.toSimple.degree v := by
+    rw [hdot, hmv, hmv, hauv, havu, lapMat_apply_self, lapMat_apply_self]
+    ring
+  have := G.algConn_mul_le_lap_quadratic x hsum
+  rw [hnorm, hquad] at this
+  linarith
 
 /-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`.  Read in the
 complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hypothesis is exactly what
