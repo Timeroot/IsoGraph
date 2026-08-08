@@ -4474,6 +4474,15 @@ path is the connected graph that the Fiedler value rates worst-connected, and th
 reason spectral partitioning of a long thin graph is hard. `a(P₂) = 2` and `a(P₃) = 1` recover
 `algConn_complete` and `algConn_star` at the small end.
 
+Closing the path into a cycle is worth exactly a factor of four. `algConn_cycle` — stated at the
+`IsoGraph` level, since that is where `lapSpectrum_cycle` lives — gives
+`a(Cₙ) = 2 - 2 cos (2 π / n)`, so the Fiedler value still decays like `1 / n²` but with four times
+the constant. The proof needs one wrinkle the path did not: `m ↦ 2 - 2 cos (2 π m / n)` is not
+monotone in `m`, it is symmetric about `m = n / 2`, so the lower bound splits on whether the angle
+has passed `π` and reflects through `Real.cos_two_pi_sub` when it has. The two smallest nonzero
+eigenvalues are the pair `m = 1` and `m = n - 1`, which is the doubled multiplicity that makes
+every cycle's Fiedler eigenvector a rotation of another one.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the

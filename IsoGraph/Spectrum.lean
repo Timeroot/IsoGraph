@@ -208,8 +208,10 @@ exactly for a connected graph, because a second `0` survives the erasure precise
 a second component (`algConn_disjUnion`).  It is squeezed between `0` and the order
 (`algConn_nonneg`, `algConn_le_card`), the upper end attained by `algConn_complete`.  Every
 Laplacian spectrum computed above gives a value, through `algConn_eq_of_isLeast`:
-`algConn_bipartite` (the smaller side of `K_{m,n}`), `algConn_star` (always `1`) and
-`algConn_path` (`2 - 2 cos (π / n)`, shrinking like `1 / n ²`).
+`algConn_bipartite` (the smaller side of `K_{m,n}`), `algConn_star` (always `1`),
+`algConn_path` (`2 - 2 cos (π / n)`, shrinking like `1 / n ²`) and, at the `IsoGraph` level where
+`lapSpectrum_cycle` lives, `algConn_cycle` (`2 - 2 cos (2 π / n)`, four times the path's value:
+closing the path into a cycle doubles the Fiedler frequency).
 
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
@@ -6730,6 +6732,78 @@ theorem algConn_bipartite (m n : ℕ) (h : 1 ≤ m + n) :
 theorem algConn_path (n : ℕ) :
     (path (n + 2)).algConn = 2 - 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) :=
   CGraph.algConn_path n
+
+/-- To compute an algebraic connectivity it is enough to exhibit a least element of the punctured
+Laplacian spectrum. -/
+theorem algConn_eq_of_isLeast {G : IsoGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum.erase 0)
+    (hle : ∀ x ∈ G.lapSpectrum.erase 0, a ≤ x) : G.algConn = a :=
+  le_antisymm (csInf_le (Multiset.finite_toSet _).bddBelow hmem) (le_csInf ⟨a, hmem⟩ hle)
+
+open Real in
+/-- **The algebraic connectivity of the cycle** `C_{n+3}` is `2 - 2 cos (2 π / (n + 3))`.  The
+eigenvalue at `m` and the one at `n + 3 - m` agree, so the smallest survivor of the erasure sits
+at both ends of the range, `m = 1` and `m = n + 2`. -/
+theorem algConn_cycle (n : ℕ) :
+    (cycle (n + 3)).algConn = 2 - 2 * Real.cos (2 * π / ((n : ℝ) + 3)) := by
+  have hpi : 0 < π := Real.pi_pos
+  have hN : (0 : ℝ) < (n : ℝ) + 3 := by positivity
+  set f : Fin (n + 3) → ℝ := fun m ↦ 2 - 2 * Real.cos (2 * π * m.1 / ((n : ℝ) + 3)) with hf
+  have hspec : (cycle (n + 3)).lapSpectrum = Finset.univ.val.map f := by
+    rw [lapSpectrum_cycle (by omega), hf]
+    push_cast
+    rfl
+  have h0 : f 0 = 0 := by
+    rw [hf]
+    simp
+  have hmem0 : (0 : Fin (n + 3)) ∈ Finset.univ.val := Finset.mem_univ_val _
+  have huniv : (Finset.univ.val : Multiset (Fin (n + 3)))
+      = 0 ::ₘ Finset.univ.val.erase 0 := (Multiset.cons_erase hmem0).symm
+  have herase : (cycle (n + 3)).lapSpectrum.erase 0
+      = (Finset.univ.val.erase (0 : Fin (n + 3))).map f := by
+    rw [hspec]
+    conv_lhs => rw [huniv]
+    rw [Multiset.map_cons, h0, Multiset.erase_cons_head]
+  have hone : f 1 = 2 - 2 * Real.cos (2 * π / ((n : ℝ) + 3)) := by
+    rw [hf]
+    simp only [Fin.val_one]
+    norm_num
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase, ← hone]
+    refine Multiset.mem_map_of_mem f ?_
+    refine (Multiset.mem_erase_of_ne ?_).2 (Finset.mem_univ_val _)
+    simp
+  · intro x hx
+    rw [herase] at hx
+    obtain ⟨m, hm, rfl⟩ := Multiset.mem_map.1 hx
+    have hm0 : m ≠ 0 := by
+      intro hzero
+      subst hzero
+      rw [← Multiset.one_le_count_iff_mem, Multiset.count_erase_self] at hm
+      have hle1 := Multiset.nodup_iff_count_le_one.1 Finset.univ.nodup (0 : Fin (n + 3))
+      omega
+    have hm1 : 1 ≤ m.1 := by
+      rcases Nat.eq_zero_or_pos m.1 with h | h
+      · exact absurd (Fin.ext h) hm0
+      · exact h
+    have hm1R : (1 : ℝ) ≤ (m.1 : ℝ) := by exact_mod_cast hm1
+    have hmR : (m.1 : ℝ) + 1 ≤ (n : ℝ) + 3 := by
+      have : m.1 + 1 ≤ n + 3 := m.isLt
+      exact_mod_cast this
+    -- the angle `2 π m / (n + 3)` lies between `2 π / (n + 3)` and `2 π - 2 π / (n + 3)`
+    have hlow : 2 * π / ((n : ℝ) + 3) ≤ 2 * π * m.1 / ((n : ℝ) + 3) :=
+      div_le_div_of_nonneg_right (by nlinarith) hN.le
+    have hhigh : 2 * π * m.1 / ((n : ℝ) + 3) ≤ 2 * π - 2 * π / ((n : ℝ) + 3) := by
+      rw [le_sub_iff_add_le, ← add_div, div_le_iff₀ hN]
+      nlinarith
+    have hcos : Real.cos (2 * π * m.1 / ((n : ℝ) + 3))
+        ≤ Real.cos (2 * π / ((n : ℝ) + 3)) := by
+      rcases le_total (2 * π * m.1 / ((n : ℝ) + 3)) π with hle | hle
+      · exact Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hle hlow
+      · rw [← Real.cos_two_pi_sub]
+        refine Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) (by linarith) (by linarith)
+    have hfm : f m = 2 - 2 * Real.cos (2 * π * m.1 / ((n : ℝ) + 3)) := rfl
+    rw [hfm]
+    linarith
 
 theorem algConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ⊕g H).algConn = 0 := by
