@@ -7482,6 +7482,179 @@ theorem autCount_bipartite {m n : ℕ} (hmn : m ≠ n) :
   show Nat.card (bipartite m n ≃cg bipartite m n) = m.factorial * n.factorial
   rw [← hcard, hperm]
 
+/-! ### The automorphism count of `K_{n,n}`
+
+When the two sides have the same size the degree argument no longer separates them, but being on
+the same side is still first-order: two distinct vertices are on the same side exactly when they
+are non-adjacent.  So an automorphism either preserves both sides or exchanges them, and the count
+doubles.
+-/
+
+/-- Permuting the two sides of `K_{n,n}` and then exchanging them. -/
+def bipartiteSwapAut (n : ℕ) (σ τ : Equiv.Perm (Fin n)) : bipartite n n ≃cg bipartite n n :=
+  (bipartiteAut n n σ τ).trans (bipartiteSwap n)
+
+@[simp] theorem bipartiteSwapAut_inl (n : ℕ) (σ τ : Equiv.Perm (Fin n)) (a : Fin n) :
+    bipartiteSwapAut n σ τ (.inl a) = .inr (σ a) := rfl
+
+@[simp] theorem bipartiteSwapAut_inr (n : ℕ) (σ τ : Equiv.Perm (Fin n)) (b : Fin n) :
+    bipartiteSwapAut n σ τ (.inr b) = .inl (τ b) := rfl
+
+/-- If one left vertex of `K_{n,n}` goes left then they all do: two left vertices are
+non-adjacent, and a left and a right vertex are adjacent. -/
+theorem bipartite_self_inl_inl {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
+    {a a' c : (complete n).V} (h : f (Sum.inl a) = Sum.inl c) :
+    ∃ c', f (Sum.inl a') = Sum.inl c' := by
+  rcases ha : f (Sum.inl a') with c' | d'
+  · exact ⟨c', rfl⟩
+  · exfalso
+    have hadj : (bipartite n n).Adj (f (Sum.inl a)) (f (Sum.inl a')) = true := by
+      rw [h, ha]; simp
+    rw [f.adj_eq] at hadj
+    simp at hadj
+
+/-- If one left vertex of `K_{n,n}` goes right then they all do. -/
+theorem bipartite_self_inl_inr {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
+    {a a' d : (complete n).V} (h : f (Sum.inl a) = Sum.inr d) :
+    ∃ d', f (Sum.inl a') = Sum.inr d' := by
+  rcases ha : f (Sum.inl a') with c' | d'
+  · exfalso
+    have hadj : (bipartite n n).Adj (f (Sum.inl a)) (f (Sum.inl a')) = true := by
+      rw [h, ha]; simp
+    rw [f.adj_eq] at hadj
+    simp at hadj
+  · exact ⟨d', rfl⟩
+
+theorem bipartite_self_inr_of_inl {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
+    {a c : (complete n).V} (h : f (Sum.inl a) = Sum.inl c) (b : (complete n).V) :
+    ∃ d, f (Sum.inr b) = Sum.inr d := by
+  rcases hb : f (Sum.inr b) with c' | d'
+  · exfalso
+    have hadj : (bipartite n n).Adj (f (Sum.inl a)) (f (Sum.inr b)) = true := by
+      rw [f.adj_eq]; simp
+    rw [h, hb] at hadj
+    simp at hadj
+  · exact ⟨d', rfl⟩
+
+theorem bipartite_self_inl_of_inr {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
+    {a d : (complete n).V} (h : f (Sum.inl a) = Sum.inr d) (b : (complete n).V) :
+    ∃ c, f (Sum.inr b) = Sum.inl c := by
+  rcases hb : f (Sum.inr b) with c' | d'
+  · exact ⟨c', rfl⟩
+  · exfalso
+    have hadj : (bipartite n n).Adj (f (Sum.inl a)) (f (Sum.inr b)) = true := by
+      rw [f.adj_eq]; simp
+    rw [h, hb] at hadj
+    simp at hadj
+
+/-- **Every automorphism of `K_{n,n}` is a pair of permutations of the two sides, possibly
+followed by exchanging them.** -/
+theorem exists_perm_of_aut_bipartite_self {n : ℕ}
+    (f : bipartite (n + 1) (n + 1) ≃cg bipartite (n + 1) (n + 1)) :
+    ∃ σ τ : Equiv.Perm (Fin (n + 1)),
+      f = bipartiteAut (n + 1) (n + 1) σ τ ∨ f = bipartiteSwapAut (n + 1) σ τ := by
+  rcases h0 : f (Sum.inl ⟨0, Nat.succ_pos n⟩) with c | d
+  · have hl : ∀ a, ∃ c', f (Sum.inl a) = Sum.inl c' := fun a ↦ bipartite_self_inl_inl f h0
+    have hr : ∀ b, ∃ d', f (Sum.inr b) = Sum.inr d' := bipartite_self_inr_of_inl f h0
+    choose g hg using hl
+    choose k hk using hr
+    have hginj : Function.Injective g := by
+      intro a b hab
+      have hab' : f (Sum.inl a) = f (Sum.inl b) := by rw [hg a, hg b, hab]
+      exact Sum.inl.inj (f.injective hab')
+    have hkinj : Function.Injective k := by
+      intro a b hab
+      have hab' : f (Sum.inr a) = f (Sum.inr b) := by rw [hk a, hk b, hab]
+      exact Sum.inr.inj (f.injective hab')
+    refine ⟨Equiv.ofBijective g (Finite.injective_iff_bijective.1 hginj),
+      Equiv.ofBijective k (Finite.injective_iff_bijective.1 hkinj), Or.inl ?_⟩
+    ext x
+    rcases x with a | b
+    · rw [hg a, bipartiteAut_inl]
+      rfl
+    · rw [hk b, bipartiteAut_inr]
+      rfl
+  · have hl : ∀ a, ∃ d', f (Sum.inl a) = Sum.inr d' := fun a ↦ bipartite_self_inl_inr f h0
+    have hr : ∀ b, ∃ c', f (Sum.inr b) = Sum.inl c' := bipartite_self_inl_of_inr f h0
+    choose g hg using hl
+    choose k hk using hr
+    have hginj : Function.Injective g := by
+      intro a b hab
+      have hab' : f (Sum.inl a) = f (Sum.inl b) := by rw [hg a, hg b, hab]
+      exact Sum.inl.inj (f.injective hab')
+    have hkinj : Function.Injective k := by
+      intro a b hab
+      have hab' : f (Sum.inr a) = f (Sum.inr b) := by rw [hk a, hk b, hab]
+      exact Sum.inr.inj (f.injective hab')
+    refine ⟨Equiv.ofBijective g (Finite.injective_iff_bijective.1 hginj),
+      Equiv.ofBijective k (Finite.injective_iff_bijective.1 hkinj), Or.inr ?_⟩
+    ext x
+    rcases x with a | b
+    · rw [hg a, bipartiteSwapAut_inl]
+      rfl
+    · rw [hk b, bipartiteSwapAut_inr]
+      rfl
+
+/-- An automorphism of `K_{n,n}` packaged as a `Bool` — whether the sides are exchanged — together
+with a permutation of each side. -/
+def bipartiteSelfAut (n : ℕ) (p : Bool × Equiv.Perm (Fin n) × Equiv.Perm (Fin n)) :
+    bipartite n n ≃cg bipartite n n :=
+  if p.1 then bipartiteSwapAut n p.2.1 p.2.2 else bipartiteAut n n p.2.1 p.2.2
+
+theorem bipartiteSelfAut_injective (n : ℕ) : Function.Injective (bipartiteSelfAut (n + 1)) := by
+  rintro ⟨s, σ, τ⟩ ⟨s', σ', τ'⟩ h
+  have key : ∀ x : (bipartite (n + 1) (n + 1)).V,
+      bipartiteSelfAut (n + 1) (s, σ, τ) x = bipartiteSelfAut (n + 1) (s', σ', τ') x := fun x ↦
+    congrArg (fun e : bipartite (n + 1) (n + 1) ≃cg bipartite (n + 1) (n + 1) ↦ e x) h
+  have hs : s = s' := by
+    cases s <;> cases s' <;>
+      first
+        | rfl
+        | exact absurd (key (Sum.inl ⟨0, Nat.succ_pos n⟩)) (by simp [bipartiteSelfAut])
+  subst hs
+  have hσ : σ = σ' := by
+    refine Equiv.ext fun a ↦ ?_
+    have hx := key (Sum.inl a)
+    cases s with
+    | false =>
+      have h2 : (Sum.inl (σ a) : (bipartite (n + 1) (n + 1)).V) = Sum.inl (σ' a) := hx
+      exact Sum.inl.inj h2
+    | true =>
+      have h2 : (Sum.inr (σ a) : (bipartite (n + 1) (n + 1)).V) = Sum.inr (σ' a) := hx
+      exact Sum.inr.inj h2
+  have hτ : τ = τ' := by
+    refine Equiv.ext fun b ↦ ?_
+    have hx := key (Sum.inr b)
+    cases s with
+    | false =>
+      have h2 : (Sum.inr (τ b) : (bipartite (n + 1) (n + 1)).V) = Sum.inr (τ' b) := hx
+      exact Sum.inr.inj h2
+    | true =>
+      have h2 : (Sum.inl (τ b) : (bipartite (n + 1) (n + 1)).V) = Sum.inl (τ' b) := hx
+      exact Sum.inl.inj h2
+  rw [hσ, hτ]
+
+theorem bipartiteSelfAut_surjective (n : ℕ) : Function.Surjective (bipartiteSelfAut (n + 1)) := by
+  intro f
+  obtain ⟨σ, τ, hf | hf⟩ := exists_perm_of_aut_bipartite_self f
+  · exact ⟨(false, σ, τ), hf.symm⟩
+  · exact ⟨(true, σ, τ), hf.symm⟩
+
+/-- **`K_{n,n}` has exactly `2 · (n!)²` automorphisms**: each side may be permuted freely, and the
+two sides may be exchanged.  This is the case `autCount_bipartite` has to exclude. -/
+theorem autCount_bipartite_self (n : ℕ) :
+    (bipartite (n + 1) (n + 1)).autCount = 2 * ((n + 1).factorial * (n + 1).factorial) := by
+  have hb : Function.Bijective (bipartiteSelfAut (n + 1)) :=
+    ⟨bipartiteSelfAut_injective n, bipartiteSelfAut_surjective n⟩
+  have hcard := Nat.card_eq_of_bijective _ hb
+  have hprod : Nat.card (Bool × Equiv.Perm (Fin (n + 1)) × Equiv.Perm (Fin (n + 1)))
+      = 2 * ((n + 1).factorial * (n + 1).factorial) := by
+    rw [Nat.card_eq_fintype_card, Fintype.card_prod, Fintype.card_prod, Fintype.card_bool,
+      Fintype.card_perm, Fintype.card_fin]
+  show Nat.card (bipartite (n + 1) (n + 1) ≃cg bipartite (n + 1) (n + 1))
+    = 2 * ((n + 1).factorial * (n + 1).factorial)
+  rw [← hcard, hprod]
+
 /-! ### The automorphism count of a cycle
 
 The star was fixed by pinning down one vertex; a cycle is pinned down by pinning down an *arc*.
@@ -35773,6 +35946,12 @@ is permuted within itself.  For `m = n` the swap doubles the count. -/
 theorem autCount_bipartite {m n : ℕ} (hmn : m ≠ n) :
     (bipartite m n).autCount = m.factorial * n.factorial := by
   rw [bipartite_def, autCount_mk, CGraph.autCount_bipartite hmn]
+
+/-- **`K_{n,n}` has exactly `2 · (n!)²` automorphisms**: each side may be permuted freely and the
+two sides may be exchanged.  This strengthens `le_autCount_bipartite_self`. -/
+theorem autCount_bipartite_self (n : ℕ) :
+    (bipartite (n + 1) (n + 1)).autCount = 2 * ((n + 1).factorial * (n + 1).factorial) := by
+  rw [bipartite_def, autCount_mk, CGraph.autCount_bipartite_self]
 
 /-- **The cycle `Cₙ` has exactly `2n` automorphisms** for `n ≥ 3`: every vertex has exactly two
 neighbours, so an automorphism is forced by its effect on one arc, and there are only `2n` arcs

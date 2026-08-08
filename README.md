@@ -2500,6 +2500,25 @@ an automorphism and the true count is `2 · (n!)²`. Taking `m = 1` recovers `au
 better hypothesis — `1 ≠ n` rather than `n ≥ 2`, so `star 0 = K₁` is now covered as `1! · 0! = 1`,
 and only `star 1 = K₂` remains outside.
 
+`K_{n,n}` itself is the excluded case, and it wants a different separating property, since the
+degree is now the same on both sides. Being on the same side is still first-order: two distinct
+vertices share a side exactly when they are non-adjacent. So the four little lemmas
+`bipartite_self_inl_inl`, `bipartite_self_inl_inr`, `bipartite_self_inr_of_inl` and
+`bipartite_self_inl_of_inr` propagate the fate of a single left vertex to every vertex — if one
+left vertex stays left then they all do and the right side is preserved too, and if one crosses
+then they all cross. That is a dichotomy rather than a fixed side, so the parametrisation gains a
+`Bool`: `bipartiteSelfAut` sends `(s, σ, τ)` to `bipartiteAut σ τ` or to `bipartiteSwapAut σ τ`,
+and it is a bijection onto the automorphism group:
+
+```lean
+theorem autCount_bipartite_self (n : ℕ) :
+    (bipartite (n + 1) (n + 1)).autCount = 2 * ((n + 1).factorial * (n + 1).factorial)
+```
+
+The `n + 1` is needed only to have a left vertex to test: `bipartite 0 0` is the empty graph, whose
+one automorphism is not `2 · (0!)² = 2`. This strengthens `le_autCount_bipartite_self`, which knew
+only `2n² ≤ |Aut|` from arc-transitivity.
+
 The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
 are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
 `V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
@@ -5393,8 +5412,8 @@ The rest are genuinely hard, or at least not cheap: the chromatic number of a Kn
 of a general cycle and of a general tadpole as opposed to the fixed small ones, the automorphism
 count for most families — `autCount` is settled for the empty, complete, path, Kneser, Johnson,
 circulant and lollipop families, for complements and, exactly and not just as a bound, for the
-star (`autCount_star`), the complete bipartite graph with unequal sides (`autCount_bipartite`), the
-cycle (`autCount_cycle`) and the wheel (`autCount_wheel`), but not for `K_{n,n}`, Petersen or the
-hypercube — and, for the grid and the king graph, everything below the degree and colouring
-entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
+star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and
+`autCount_bipartite_self`), the cycle (`autCount_cycle`) and the wheel (`autCount_wheel`), but not
+for Petersen or the hypercube — and, for the grid and the king graph, everything below the degree
+and colouring entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
 a general `girth_cyclePendant` first.
