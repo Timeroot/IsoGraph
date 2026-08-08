@@ -1,6 +1,7 @@
 import IsoGraph.Identities
 import IsoGraph.SRG
 import Mathlib.Analysis.Matrix.Spectrum
+import Mathlib.Combinatorics.SimpleGraph.LapMatrix
 import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
 import Mathlib.RingTheory.RootsOfUnity.Complex
@@ -139,6 +140,19 @@ symmetric, so all the columns share their constant and `M = t J`
 `adjMat_sq_apply` reads `A ²` as a count of common neighbours: adjacent pairs have `t + r + s` of
 them and non-adjacent pairs `t`.  Together with `spectrum_isSRGWith` in the other direction,
 strong regularity of a connected regular graph *is* the condition "three distinct eigenvalues".
+
+## The Laplacian
+
+`lapMat` is `L = D - A`, the degree matrix minus the adjacency matrix, and `lapSpectrum` its
+multiset of eigenvalues.  Mathlib supplies the two facts that make it useful: `L` is positive
+semidefinite, so the eigenvalues are nonnegative (`nonneg_of_mem_lapSpectrum`), and `L x = 0`
+exactly when `x` is constant on components.  The all-ones vector is always in the kernel
+(`zero_mem_lapSpectrum`), the trace gives `sum_lapSpectrum` — the eigenvalues add up to `2 |E|`,
+not to `0` as the adjacency ones do — and rank-nullity turns the kernel description into
+`count_zero_lapSpectrum`: **the multiplicity of `0` is the number of components**, so
+`count_zero_lapSpectrum_eq_one_iff` reads connectedness straight off the Laplacian spectrum,
+with no regularity hypothesis.  For a `k`-regular graph the two spectra are the same information,
+`mem_lapSpectrum_iff_of_isRegularWith`: `L = k I - A`, so the Laplacian eigenvalues are `k - λ`.
 
 ## Line graphs
 
@@ -4876,6 +4890,164 @@ theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l 
     exact card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hij hnadj
   exact exists_isSRGWith_of_card_toFinset_spectrum_eq_three hHconn hHreg h3
 
+/-! ## The Laplacian -/
+
+/-- The **Laplacian** of `G`: the degree matrix minus the adjacency matrix. -/
+noncomputable def lapMat (G : CGraph) : Matrix G.V G.V ℝ := G.toSimple.lapMatrix ℝ
+
+theorem lapMat_eq_diagonal_sub (G : CGraph) :
+    G.lapMat = Matrix.diagonal (fun i ↦ (G.toSimple.degree i : ℝ)) - G.adjMat := rfl
+
+theorem lapMat_apply_self (G : CGraph) (i : G.V) :
+    G.lapMat i i = (G.toSimple.degree i : ℝ) := by
+  rw [lapMat_eq_diagonal_sub]
+  simp [adjMat_apply, G.adj_self]
+
+theorem lapMat_apply_of_ne (G : CGraph) {i j : G.V} (hij : i ≠ j) :
+    G.lapMat i j = -G.adjMat i j := by
+  rw [lapMat_eq_diagonal_sub]
+  simp [Matrix.diagonal_apply_ne _ hij]
+
+theorem isHermitian_lapMat (G : CGraph) : G.lapMat.IsHermitian :=
+  Matrix.ext fun i j ↦ by
+    have h := G.toSimple.isSymm_lapMatrix (R := ℝ)
+    exact congrFun (congrFun h i) j
+
+theorem posSemidef_lapMat (G : CGraph) : G.lapMat.PosSemidef :=
+  G.toSimple.posSemidef_lapMatrix ℝ
+
+theorem lapMat_mulVec_one (G : CGraph) : G.lapMat *ᵥ (1 : G.V → ℝ) = 0 :=
+  G.toSimple.lapMatrix_mulVec_const_eq_zero (R := ℝ)
+
+/-- The characteristic polynomial of the Laplacian. -/
+noncomputable def lapCharpoly (G : CGraph) : ℝ[X] := G.lapMat.charpoly
+
+/-- The **Laplacian spectrum**: the multiset of eigenvalues of `L`, with multiplicity. -/
+noncomputable def lapSpectrum (G : CGraph) : Multiset ℝ := G.lapCharpoly.roots
+
+/-- The Laplacian eigenvalues, indexed by the vertices. -/
+noncomputable def lapEigenvalues (G : CGraph) : G.V → ℝ := G.isHermitian_lapMat.eigenvalues
+
+theorem lapSpectrum_eq_map (G : CGraph) :
+    G.lapSpectrum = Finset.univ.val.map G.lapEigenvalues := by
+  simpa [lapSpectrum, lapCharpoly, Function.comp_def]
+    using G.isHermitian_lapMat.roots_charpoly_eq_eigenvalues
+
+@[simp] theorem card_lapSpectrum (G : CGraph) :
+    Multiset.card G.lapSpectrum = Fintype.card G.V := by
+  simp [lapSpectrum_eq_map, Finset.card_univ]
+
+theorem mem_lapSpectrum_iff (G : CGraph) (x : ℝ) :
+    x ∈ G.lapSpectrum ↔ ∃ v : G.V → ℝ, v ≠ 0 ∧ G.lapMat *ᵥ v = x • v := by
+  have key : ∀ v : G.V → ℝ,
+      (Matrix.scalar G.V x - G.lapMat) *ᵥ v = x • v - G.lapMat *ᵥ v := fun v ↦ by
+    rw [Matrix.sub_mulVec, scalar_eq_smul_one, Matrix.smul_mulVec, Matrix.one_mulVec]
+  rw [lapSpectrum, lapCharpoly, Polynomial.mem_roots (Matrix.charpoly_monic _).ne_zero,
+    Polynomial.IsRoot, Matrix.eval_charpoly, ← Matrix.exists_mulVec_eq_zero_iff]
+  constructor
+  · rintro ⟨v, hv, h0⟩
+    exact ⟨v, hv, by rw [key] at h0; linear_combination (norm := module) -h0⟩
+  · rintro ⟨v, hv, h0⟩
+    exact ⟨v, hv, by rw [key, h0, sub_self]⟩
+
+/-- **The Laplacian eigenvalues are nonnegative**: `L` is positive semidefinite. -/
+theorem nonneg_of_mem_lapSpectrum (G : CGraph) {x : ℝ} (hx : x ∈ G.lapSpectrum) : 0 ≤ x := by
+  rw [lapSpectrum_eq_map, Multiset.mem_map] at hx
+  obtain ⟨i, -, rfl⟩ := hx
+  exact G.posSemidef_lapMat.eigenvalues_nonneg i
+
+/-- **Zero is always a Laplacian eigenvalue**, with the all-ones eigenvector. -/
+theorem zero_mem_lapSpectrum (G : CGraph) [Nonempty G.V] : 0 ∈ G.lapSpectrum := by
+  refine (G.mem_lapSpectrum_iff 0).2 ⟨1, ?_, by simpa using G.lapMat_mulVec_one⟩
+  intro h
+  simpa using congrFun h (Classical.arbitrary G.V)
+
+theorem trace_lapMat (G : CGraph) : G.lapMat.trace = ∑ i, (G.toSimple.degree i : ℝ) :=
+  Finset.sum_congr rfl fun i _ ↦ G.lapMat_apply_self i
+
+/-- **The Laplacian eigenvalues sum to twice the number of edges**: the trace of `L` is the sum of
+the degrees. -/
+theorem sum_lapSpectrum (G : CGraph) : G.lapSpectrum.sum = 2 * (G.E : ℝ) := by
+  have h1 : G.lapSpectrum.sum = ∑ i, G.lapEigenvalues i := by rw [lapSpectrum_eq_map]; rfl
+  have h2 : G.lapMat.trace = ∑ i, G.lapEigenvalues i := by
+    simpa [lapEigenvalues] using G.isHermitian_lapMat.trace_eq_sum_eigenvalues
+  have h3 : ∑ i, (G.toSimple.degree i : ℝ) = ((2 * G.E : ℕ) : ℝ) := by
+    rw [← Nat.cast_sum, SimpleGraph.sum_degrees_eq_twice_card_edges]
+    rfl
+  rw [h1, ← h2, trace_lapMat, h3]
+  push_cast
+  ring
+
+theorem lapMat_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.lapMat = (k : ℝ) • 1 - G.adjMat := by
+  have hd : (fun i ↦ (G.toSimple.degree i : ℝ)) = fun _ : G.V ↦ (k : ℝ) :=
+    funext fun i ↦ by rw [h i]
+  rw [lapMat_eq_diagonal_sub, Matrix.smul_one_eq_diagonal, hd]
+
+/-- **For a `k`-regular graph the Laplacian eigenvalues are `k` minus the adjacency
+eigenvalues.** -/
+theorem mem_lapSpectrum_iff_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) (x : ℝ) :
+    x ∈ G.lapSpectrum ↔ ((k : ℝ) - x) ∈ G.spectrum := by
+  rw [mem_lapSpectrum_iff, mem_spectrum_iff]
+  have key : ∀ v : G.V → ℝ, G.lapMat *ᵥ v = x • v ↔ G.adjMat *ᵥ v = ((k : ℝ) - x) • v := by
+    intro v
+    rw [lapMat_of_isRegularWith h, Matrix.sub_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec]
+    constructor <;> intro hv <;> linear_combination (norm := module) -hv
+  exact ⟨fun ⟨v, hv, h0⟩ ↦ ⟨v, hv, (key v).1 h0⟩, fun ⟨v, hv, h0⟩ ↦ ⟨v, hv, (key v).2 h0⟩⟩
+
+/-- The kernel of the Laplacian is the space of functions constant on components. -/
+theorem lapMat_mulVec_eq_zero_iff (G : CGraph) {v : G.V → ℝ} :
+    G.lapMat *ᵥ v = 0 ↔ ∀ i j : G.V, G.toSimple.Reachable i j → v i = v j :=
+  G.toSimple.lapMatrix_mulVec_eq_zero_iff_forall_reachable
+
+/-- **The multiplicity of `0` in the Laplacian spectrum is the number of components.** -/
+theorem count_zero_lapSpectrum (G : CGraph) : G.lapSpectrum.count 0 = G.numComponents := by
+  classical
+  have hnull : Module.finrank ℝ (LinearMap.ker G.lapMat.mulVecLin) = G.numComponents := by
+    rw [numComponents, Nat.card_eq_fintype_card,
+      SimpleGraph.card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix]
+    congr 1
+  have hrank : G.lapMat.rank + Module.finrank ℝ (LinearMap.ker G.lapMat.mulVecLin) =
+      Fintype.card G.V := by
+    rw [Matrix.rank, LinearMap.finrank_range_add_finrank_ker]
+    simp
+  have hne : G.lapMat.rank = (Finset.univ.filter fun i ↦ ¬ G.lapEigenvalues i = 0).card := by
+    rw [G.isHermitian_lapMat.rank_eq_card_non_zero_eigs, Fintype.card_subtype]
+    rfl
+  have hsplit : (Finset.univ.filter fun i ↦ G.lapEigenvalues i = 0).card +
+      (Finset.univ.filter fun i ↦ ¬ G.lapEigenvalues i = 0).card = Fintype.card G.V := by
+    rw [Finset.card_filter_add_card_filter_not, Finset.card_univ]
+  have hcount : G.lapSpectrum.count 0 =
+      (Finset.univ.filter fun i ↦ G.lapEigenvalues i = 0).card := by
+    rw [lapSpectrum_eq_map, Multiset.count_map]
+    simp only [Finset.card, Finset.filter_val, eq_comm]
+  omega
+
+/-- **Connectedness is visible in the Laplacian spectrum**: `0` is a simple eigenvalue exactly
+when the graph is connected. -/
+theorem count_zero_lapSpectrum_eq_one_iff (G : CGraph) :
+    G.lapSpectrum.count 0 = 1 ↔ G.IsConnected := by
+  rw [count_zero_lapSpectrum, numComponents_eq_one_iff]
+
+theorem lapMat_congr {G H : CGraph} (i : G ≃cg H) :
+    G.lapMat = Matrix.reindex i.toEquiv.symm i.toEquiv.symm H.lapMat := by
+  ext x y
+  rcases eq_or_ne x y with rfl | hxy
+  · rw [lapMat_apply_self, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
+      lapMat_apply_self]
+    exact_mod_cast (SimpleGraph.Iso.degree_eq (CGraph.Iso.toSimpleIso i) x).symm
+  · rw [lapMat_apply_of_ne _ hxy, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
+      lapMat_apply_of_ne _ (fun h ↦ hxy (i.toEquiv.injective h))]
+    simp [adjMat_apply, i.adj_eq x y]
+
+theorem lapCharpoly_congr {G H : CGraph} (i : G ≃cg H) : G.lapCharpoly = H.lapCharpoly := by
+  classical
+  rw [lapCharpoly, lapCharpoly, lapMat_congr i]
+  exact Matrix.charpoly_reindex _ _
+
+theorem lapSpectrum_congr {G H : CGraph} (i : G ≃cg H) : G.lapSpectrum = H.lapSpectrum := by
+  rw [lapSpectrum, lapSpectrum, lapCharpoly_congr i]
+
 end CGraph
 
 namespace IsoGraph
@@ -5214,5 +5386,28 @@ theorem Cospectral.exists_isSRGWith {G H : IsoGraph} (hc : Cospectral G H) {n k 
     (Cospectral.isRegularWith hc h.isRegularWith) ?_
   rw [← hc.spectrum_eq]
   exact card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hE
+
+/-! ### The Laplacian -/
+
+/-- The Laplacian spectrum of an isomorphism class. -/
+noncomputable def lapSpectrum (G : IsoGraph) : Multiset ℝ :=
+  Quotient.lift (s := CGraph.isoSetoid) CGraph.lapSpectrum
+    (fun _ _ ⟨i⟩ ↦ CGraph.lapSpectrum_congr i) G
+
+@[simp] theorem lapSpectrum_mk (G : CGraph) : lapSpectrum ⟦G⟧ = G.lapSpectrum := rfl
+
+@[simp] theorem card_lapSpectrum (G : IsoGraph) : Multiset.card G.lapSpectrum = G.V :=
+  Quotient.inductionOn G fun g ↦ g.card_lapSpectrum
+
+theorem nonneg_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) : 0 ≤ x := by
+  induction G using Quotient.inductionOn with
+  | h g => exact g.nonneg_of_mem_lapSpectrum hx
+
+theorem sum_lapSpectrum (G : IsoGraph) : G.lapSpectrum.sum = 2 * (G.E : ℝ) :=
+  Quotient.inductionOn G fun g ↦ g.sum_lapSpectrum
+
+/-- **The multiplicity of `0` in the Laplacian spectrum is the number of components.** -/
+theorem count_zero_lapSpectrum (G : IsoGraph) : G.lapSpectrum.count 0 = G.numComponents :=
+  Quotient.inductionOn G fun g ↦ g.count_zero_lapSpectrum
 
 end IsoGraph

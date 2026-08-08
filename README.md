@@ -4325,6 +4325,31 @@ off-diagonal entry of `A` is then `t`, which has to be `0` or `1`. If it were `0
 matrix would vanish, making `k = 0 = r` and collapsing the two eigenvalues into one — so it is
 `1`, and the graph is complete.
 
+### The Laplacian
+
+Everything above reads the adjacency matrix. The other standard matrix of a graph is the
+Laplacian `L = D - A` (`lapMat`), and it answers a question the adjacency spectrum cannot:
+
+```lean
+theorem count_zero_lapSpectrum (G : CGraph) : G.lapSpectrum.count 0 = G.numComponents
+```
+
+**The multiplicity of `0` in the Laplacian spectrum is the number of connected components.**
+Mathlib supplies the kernel: `L x = 0` exactly when `x` is constant on each component, so the
+nullspace has the indicator functions of the components as a basis. Rank-nullity turns that
+dimension count into a multiplicity count, because for a symmetric matrix the number of zero
+eigenvalues is the corank. Specialised to one component this is
+`count_zero_lapSpectrum_eq_one_iff` — connectedness read straight off the spectrum, and unlike
+`Cospectral.isConnected` it needs no regularity hypothesis.
+
+The rest of the basic theory comes along with it. `L` is positive semidefinite, so all its
+eigenvalues are `≥ 0` (`nonneg_of_mem_lapSpectrum`); the all-ones vector is always in the kernel,
+so `0` is always there (`zero_mem_lapSpectrum`); and the trace is the sum of the degrees rather
+than `0`, so the Laplacian eigenvalues sum to `2 |E|` (`sum_lapSpectrum`) where the adjacency ones
+sum to nothing. For a `k`-regular graph the two matrices are `L = k I - A` and the two spectra
+carry the same information, `x` being a Laplacian eigenvalue exactly when `k - x` is an adjacency
+one (`mem_lapSpectrum_iff_of_isRegularWith`).
+
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
 
