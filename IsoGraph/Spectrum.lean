@@ -239,6 +239,16 @@ cosine ranges that `algConn_path` and `algConn_cycle` read the bottom of: `lapLa
 `2 - 2 cos (π n / (n + 1))`, climbing to `4` without reaching it, and `lapLambdaMax_cycle_even`
 is exactly `4 = 2 Δ`, because `m = n / 2` is an integer only in the even case.
 
+The cartesian product behaves for the Laplacian exactly as it does for the adjacency matrix:
+`lapMat_cartesianProduct` is `L G ⊗ I + I ⊗ L H`, the two summands commute and are diagonalised
+by the Kronecker product of the two eigenbases, and `lapSpectrum_cartesianProduct` is the
+multiset of all sums `μ + ν`.  Both ends follow: `lapLambdaMax_cartesianProduct` adds
+(`μ_max (G □ H) = μ_max (G) + μ_max (H)`) and `algConn_cartesianProduct` takes the minimum
+(`a (G □ H) = min (a (G), a (H))`), because `a (G) + 0` and `0 + a (H)` are both available and
+every other nonzero sum dominates one of them.  No connectivity hypothesis is needed for the
+minimum: a disconnected factor sends both sides to `0`.  Since `Q_n = Q_{n-1} □ K₂`, that
+recovers `algConn_hypercube` and `lapLambdaMax_hypercube` by induction.
+
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
 `count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
@@ -6351,6 +6361,140 @@ theorem lapLambdaMax_eq_zero_iff (G : CGraph) [Nonempty G.V] :
     have := Multiset.single_le_sum (fun y hy ↦ nonneg_of_mem_lapSpectrum G hy) x hx
     linarith
 
+/-! ### The Laplacian of a cartesian product -/
+
+/-- The Laplacian of a cartesian product is `L G ⊗ I + I ⊗ L H`, the same shape as
+`adjMat_cartesianProduct`: the degree of `(g, h)` is `deg g + deg h`. -/
+theorem lapMat_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).lapMat
+      = G.lapMat ⊗ₖ (1 : Matrix H.V H.V ℝ) + (1 : Matrix G.V G.V ℝ) ⊗ₖ H.lapMat := by
+  ext p q
+  rw [lapMat_eq_diagonal_sub, Matrix.sub_apply, adjMat_cartesianProduct]
+  rcases eq_or_ne p q with rfl | hpq
+  · simp only [Matrix.diagonal_apply, Matrix.add_apply, Matrix.kroneckerMap_apply,
+      Matrix.one_apply_eq, lapMat_apply_self, adjMat_apply, G.adj_self, H.adj_self,
+      degree_cartesianProduct]
+    push_cast
+    norm_num
+  · simp only [Matrix.diagonal_apply, if_neg hpq]
+    by_cases h1 : p.1 = q.1
+    · have h2 : p.2 ≠ q.2 := fun h ↦ hpq (Prod.ext h1 h)
+      simp [Matrix.add_apply, Matrix.kroneckerMap_apply, Matrix.one_apply, h1, h2,
+        H.lapMat_apply_of_ne h2]
+    · by_cases h2 : p.2 = q.2
+      · simp [Matrix.add_apply, Matrix.kroneckerMap_apply, Matrix.one_apply, h1, h2,
+          G.lapMat_apply_of_ne h1]
+      · simp [Matrix.add_apply, Matrix.kroneckerMap_apply, h1, h2]
+
+/-- **The Laplacian eigenvalues of a cartesian product are the sums of the Laplacian
+eigenvalues**, exactly as for the adjacency matrix (`spectrum_cartesianProduct`): the two
+Laplacians are simultaneously diagonalised by the Kronecker product of their eigenbases. -/
+theorem lapSpectrum_cartesianProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : DecidableEq H.V] :
+    (cartesianProduct G H).lapSpectrum
+      = Finset.univ.val.map
+          (fun p : G.V × H.V ↦ G.lapEigenvalues p.1 + H.lapEigenvalues p.2) := by
+  have e1 : dG = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  have e2 : dH = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  subst e1; subst e2
+  obtain ⟨U₁, h₁, h₁', e₁⟩ := exists_orthogonal_lap_diagonal G
+  obtain ⟨U₂, h₂, h₂', e₂⟩ := exists_orthogonal_lap_diagonal H
+  have k₁ : G.lapMat * U₁ = U₁ * Matrix.diagonal G.lapEigenvalues := by
+    rw [← e₁, ← Matrix.mul_assoc, ← Matrix.mul_assoc, h₁', Matrix.one_mul]
+  have k₂ : H.lapMat * U₂ = U₂ * Matrix.diagonal H.lapEigenvalues := by
+    rw [← e₂, ← Matrix.mul_assoc, ← Matrix.mul_assoc, h₂', Matrix.one_mul]
+  have hdiag : Matrix.diagonal G.lapEigenvalues ⊗ₖ (1 : Matrix H.V H.V ℝ)
+      + (1 : Matrix G.V G.V ℝ) ⊗ₖ Matrix.diagonal H.lapEigenvalues
+      = Matrix.diagonal
+          (fun p : G.V × H.V ↦ G.lapEigenvalues p.1 + H.lapEigenvalues p.2) := by
+    ext p q
+    by_cases hp1 : p.1 = q.1 <;> by_cases hp2 : p.2 = q.2 <;>
+      simp [Matrix.kroneckerMap, Matrix.one_apply, Matrix.diagonal_apply, Prod.ext_iff, hp1, hp2]
+  have key : (U₁ * Matrix.diagonal G.lapEigenvalues) ⊗ₖ U₂
+      + U₁ ⊗ₖ (U₂ * Matrix.diagonal H.lapEigenvalues)
+      = (U₁ ⊗ₖ U₂) * Matrix.diagonal
+          (fun p : G.V × H.V ↦ G.lapEigenvalues p.1 + H.lapEigenvalues p.2) := by
+    rw [← hdiag, Matrix.mul_add, ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul,
+      Matrix.mul_one, Matrix.mul_one]
+  refine lapSpectrum_eq_of_conj (P := U₁ ⊗ₖ U₂) (Q := U₁ᵀ ⊗ₖ U₂ᵀ) ?_ ?_ ?_
+  · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
+    congr!
+  · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
+    congr!
+  · rw [lapMat_cartesianProduct, Matrix.add_mul, ← Matrix.mul_kronecker_mul,
+      ← Matrix.mul_kronecker_mul, k₁, k₂]
+    simp only [Matrix.one_mul]
+    rw [key]
+    congr!
+
+theorem lapSpectrum_cartesianProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (cartesianProduct G H).lapSpectrum
+      = (G.lapSpectrum ×ˢ H.lapSpectrum).map (fun p ↦ p.1 + p.2) := by
+  rw [lapSpectrum_cartesianProduct, lapSpectrum_eq_map, lapSpectrum_eq_map,
+    ← map_product_apply₂, ← Finset.univ_product_univ, Finset.product_val]
+
+/-- **The largest Laplacian eigenvalue of a cartesian product** is the sum of the two. -/
+theorem lapLambdaMax_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (cartesianProduct G H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_cartesianProduct']
+    refine Multiset.mem_map.2 ⟨(G.lapLambdaMax, H.lapLambdaMax), ?_, rfl⟩
+    exact Multiset.mem_product.2
+      ⟨lapLambdaMax_mem_lapSpectrum G, lapLambdaMax_mem_lapSpectrum H⟩
+  · intro x hx
+    rw [lapSpectrum_cartesianProduct'] at hx
+    obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
+    obtain ⟨hp1, hp2⟩ := Multiset.mem_product.1 hp
+    exact add_le_add (le_lapLambdaMax hp1) (le_lapLambdaMax hp2)
+
+/-- **The algebraic connectivity of a cartesian product** is the smaller of the two: `a (G) + 0`
+and `0 + a (H)` are both eigenvalues of the product, and every other nonzero sum is at least one
+of them.  No connectivity hypothesis is needed — if either factor is disconnected both sides
+are `0`. -/
+theorem algConn_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
+    (cartesianProduct G H).algConn = min G.algConn H.algConn := by
+  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
+  haveI : Nonempty H.V := Fintype.card_pos_iff.1 (by omega)
+  set gs : Multiset ℝ := G.lapSpectrum.erase 0 with hgs
+  set hs : Multiset ℝ := H.lapSpectrum.erase 0 with hhs
+  have hGc : G.lapSpectrum = 0 ::ₘ gs := (Multiset.cons_erase G.zero_mem_lapSpectrum).symm
+  have hHc : H.lapSpectrum = 0 ::ₘ hs := (Multiset.cons_erase H.zero_mem_lapSpectrum).symm
+  have herase : (cartesianProduct G H).lapSpectrum.erase 0
+      = hs + (gs ×ˢ (0 ::ₘ hs)).map (fun p ↦ p.1 + p.2) := by
+    rw [lapSpectrum_cartesianProduct']
+    conv_lhs => rw [hGc, hHc]
+    rw [Multiset.cons_product, Multiset.map_add, Multiset.map_map, Multiset.map_cons]
+    simp only [Function.comp_def, zero_add, add_zero, Multiset.map_id']
+    rw [Multiset.cons_add, Multiset.erase_cons_head]
+  have hmemG : G.algConn ∈ gs := G.algConn_mem_erase hG
+  have hmemH : H.algConn ∈ hs := H.algConn_mem_erase hH
+  have hmem : min G.algConn H.algConn ∈ (cartesianProduct G H).lapSpectrum.erase 0 := by
+    rw [herase]
+    rcases le_total G.algConn H.algConn with hle | hle
+    · rw [min_eq_left hle]
+      refine Multiset.mem_add.2 (Or.inr ?_)
+      refine Multiset.mem_map.2 ⟨(G.algConn, 0), ?_, by ring⟩
+      exact Multiset.mem_product.2 ⟨hmemG, Multiset.mem_cons_self _ _⟩
+    · rw [min_eq_right hle]
+      exact Multiset.mem_add.2 (Or.inl hmemH)
+  refine algConn_eq_of_isLeast hmem ?_
+  intro x hx
+  rw [herase] at hx
+  rcases Multiset.mem_add.1 hx with hx | hx
+  · have := H.algConn_le hx
+    have hmin := min_le_right G.algConn H.algConn
+    linarith
+  · obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
+    obtain ⟨hp1, hp2⟩ := Multiset.mem_product.1 hp
+    have h1 := G.algConn_le hp1
+    have h2 : 0 ≤ p.2 := by
+      rcases Multiset.mem_cons.1 hp2 with heq | hp2
+      · exact le_of_eq heq.symm
+      · exact H.nonneg_of_mem_lapSpectrum (Multiset.mem_of_mem_erase hp2)
+    have hmin := min_le_left G.algConn H.algConn
+    linarith
+
 /-! ### Laplacian cospectrality -/
 
 @[simp] theorem natDegree_lapCharpoly (G : CGraph) :
@@ -7267,6 +7411,38 @@ theorem lapLambdaMax_eq_zero_iff (G : IsoGraph) (h : 0 < G.V) :
     rw [V_mk] at h
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
     exact g.lapLambdaMax_eq_zero_iff
+
+/-- **The Laplacian eigenvalues of a cartesian product are the sums of the Laplacian
+eigenvalues.** -/
+theorem lapSpectrum_cartesianProduct (G H : IsoGraph) :
+    (G □g H).lapSpectrum = (G.lapSpectrum ×ˢ H.lapSpectrum).map (fun p ↦ p.1 + p.2) :=
+  Quotient.inductionOn₂ G H fun g h ↦ by
+    rw [cartesianProduct_mk, lapSpectrum_mk, lapSpectrum_mk, lapSpectrum_mk,
+      CGraph.lapSpectrum_cartesianProduct' g h]
+
+/-- **The largest Laplacian eigenvalue of a cartesian product** is the sum of the two. -/
+theorem lapLambdaMax_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G □g H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h' =>
+      rw [V_mk] at hG hH
+      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
+      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
+      rw [cartesianProduct_mk, lapLambdaMax_mk, lapLambdaMax_mk, lapLambdaMax_mk]
+      exact CGraph.lapLambdaMax_cartesianProduct g h'
+
+/-- **The algebraic connectivity of a cartesian product** is the smaller of the two. -/
+theorem algConn_cartesianProduct {G H : IsoGraph} (hG : 2 ≤ G.V) (hH : 2 ≤ H.V) :
+    (G □g H).algConn = min G.algConn H.algConn := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h' =>
+      rw [V_mk] at hG hH
+      rw [cartesianProduct_mk, algConn_mk, algConn_mk, algConn_mk]
+      exact CGraph.algConn_cartesianProduct g h' hG hH
 
 /-- **The largest Laplacian eigenvalue of the wheel** is its order: the wheel is a join, so its
 complement is disconnected. -/

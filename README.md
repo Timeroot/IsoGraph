@@ -4545,6 +4545,29 @@ eigenvalue `2 - 2 cos (2 π m / n)` peaks at `m = n / 2`, which is only an integ
 That is the same even/odd split as everywhere else in the file: the even cycle is bipartite, and
 attaining `μ_max = 2Δ` is a characterisation of bipartiteness for regular graphs.
 
+The last structural rule is the cartesian product, and it is the one that explains the hypercube.
+`lapMat_cartesianProduct` is `L G ⊗ I + I ⊗ L H` — the same shape as `adjMat_cartesianProduct`,
+proved the same way, and diagonalised by the same Kronecker product of eigenbases — so
+`lapSpectrum_cartesianProduct` is the multiset of all sums `μ + ν`. The two ends then go opposite
+ways:
+
+```lean
+theorem lapLambdaMax_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (cartesianProduct G H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax
+theorem algConn_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
+    (cartesianProduct G H).algConn = min G.algConn H.algConn
+```
+
+The maximum adds because the largest sum is the sum of the largest. The minimum is the minimum
+because the nonzero eigenvalues of the product include `a(G) + 0` and `0 + a(H)` and nothing
+smaller: every other sum has a nonzero coordinate from one factor, hence is at least that
+factor's Fiedler value, and the other coordinate is nonnegative. No connectivity hypothesis is
+needed — if either factor is disconnected, both sides are `0`. Since `Qₙ = Qₙ₋₁ □ K₂`, these two
+recover `algConn_hypercube = 2` and `lapLambdaMax_hypercube = 2n` by induction, which is the
+structural reason the Fiedler value of the cube does not decay.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
