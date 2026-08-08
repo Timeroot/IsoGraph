@@ -234,7 +234,10 @@ the order again.  The hypercube shows the two ends pulling apart: `lapLambdaMax_
 `algConn_hypercube` is `2` for every `n ≥ 1` — the Fiedler value does not degrade as the order
 doubles, in contrast to the cycle's `Θ (1 / n ²)`.  Its proof uses
 `zero_notMem_erase_of_isConnected`, which reads "connected ⇒ the erasure removes the only zero"
-straight off `count_zero_lapSpectrum`.
+straight off `count_zero_lapSpectrum`.  The path and the even cycle read the *top* of the same
+cosine ranges that `algConn_path` and `algConn_cycle` read the bottom of: `lapLambdaMax_path` is
+`2 - 2 cos (π n / (n + 1))`, climbing to `4` without reaching it, and `lapLambdaMax_cycle_even`
+is exactly `4 = 2 Δ`, because `m = n / 2` is an integer only in the even case.
 
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
@@ -6263,6 +6266,41 @@ theorem lapLambdaMax_bipartite (m n : ℕ) :
       have : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
       linarith
 
+open Real in
+/-- **The largest Laplacian eigenvalue of the path** `P_{n+1}` is `2 - 2 cos (π n / (n + 1))`, the
+top of the same cosine range whose bottom is `algConn_path`.  It climbs to `4` as `n → ∞` but never
+reaches it: a path is bipartite but not regular. -/
+theorem lapLambdaMax_path (n : ℕ) :
+    (path (n + 1)).lapLambdaMax = 2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1)) := by
+  have hN : (0 : ℝ) < (n : ℝ) + 1 := by positivity
+  have hpi : 0 < π := Real.pi_pos
+  set f : Fin (n + 1) → ℝ := fun m ↦ 2 - 2 * Real.cos (Real.pi * m.1 / ((n : ℝ) + 1)) with hf
+  have hspec : (path (n + 1)).lapSpectrum = Finset.univ.val.map f := by
+    rw [lapSpectrum_path, hf]
+    push_cast
+    rfl
+  have hlast : f (Fin.last n) = 2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1)) := rfl
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [hspec, ← hlast]
+    exact Multiset.mem_map_of_mem f (Finset.mem_univ_val _)
+  · intro x hx
+    rw [hspec] at hx
+    obtain ⟨m, _, rfl⟩ := Multiset.mem_map.1 hx
+    have hmn : (m.1 : ℝ) ≤ (n : ℝ) := by
+      have : m.1 ≤ n := Nat.lt_succ_iff.1 m.isLt
+      exact_mod_cast this
+    have hle : Real.pi * m.1 / ((n : ℝ) + 1) ≤ Real.pi * n / ((n : ℝ) + 1) :=
+      div_le_div_of_nonneg_right (by nlinarith) hN.le
+    have hpiLe : Real.pi * n / ((n : ℝ) + 1) ≤ π := by
+      rw [div_le_iff₀ hN]
+      nlinarith
+    have hcos : Real.cos (Real.pi * n / ((n : ℝ) + 1))
+        ≤ Real.cos (Real.pi * m.1 / ((n : ℝ) + 1)) :=
+      Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hpiLe hle
+    have hfm : f m = 2 - 2 * Real.cos (Real.pi * m.1 / ((n : ℝ) + 1)) := rfl
+    rw [hfm]
+    linarith
+
 /-- **A disjoint union takes the larger of the two largest eigenvalues**, where `algConn_disjUnion`
 takes neither: the small end collapses to `0` but the large end does not interact. -/
 theorem lapLambdaMax_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
@@ -7171,6 +7209,42 @@ order, like every join. -/
 @[simp] theorem lapLambdaMax_bipartite (m n : ℕ) :
     (bipartite (m + 1) (n + 1)).lapLambdaMax = (m : ℝ) + (n : ℝ) + 2 :=
   CGraph.lapLambdaMax_bipartite m n
+
+/-- **The largest Laplacian eigenvalue of the path** `P_{n+1}`, the top of the cosine range whose
+bottom is `algConn_path`. -/
+theorem lapLambdaMax_path (n : ℕ) :
+    (path (n + 1)).lapLambdaMax = 2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1)) :=
+  CGraph.lapLambdaMax_path n
+
+/-- **The largest Laplacian eigenvalue of an even cycle** is `4 = 2 Δ`, the bound
+`lapLambdaMax_le_two_mul_maxDeg` attained: the eigenvalue `2 - 2 cos (2 π m / n)` reaches its
+ceiling at `m = n / 2`, which is an integer only when `n` is even. -/
+theorem lapLambdaMax_cycle_even {n : ℕ} (hn : 2 ≤ n) : (cycle (2 * n)).lapLambdaMax = 4 := by
+  have hn0 : (n : ℝ) ≠ 0 := by
+    have : 0 < n := by omega
+    positivity
+  set f : Fin (2 * n) → ℝ :=
+    fun m ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / ((2 * n : ℕ) : ℝ)) with hf
+  have hspec : (cycle (2 * n)).lapSpectrum = Finset.univ.val.map f := by
+    rw [lapSpectrum_cycle (by omega)]
+  have hmid : f ⟨n, by omega⟩ = 4 := by
+    have harg : 2 * Real.pi * ((⟨n, by omega⟩ : Fin (2 * n)) : ℕ) / ((2 * n : ℕ) : ℝ)
+        = Real.pi := by
+      push_cast
+      field_simp
+    rw [hf]
+    simp only [harg, Real.cos_pi]
+    ring
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [hspec, ← hmid]
+    exact Multiset.mem_map_of_mem f (Finset.mem_univ_val _)
+  · intro x hx
+    rw [hspec] at hx
+    obtain ⟨m, _, rfl⟩ := Multiset.mem_map.1 hx
+    have hcos := Real.neg_one_le_cos (2 * Real.pi * m.1 / ((2 * n : ℕ) : ℝ))
+    have hfm : f m = 2 - 2 * Real.cos (2 * Real.pi * m.1 / ((2 * n : ℕ) : ℝ)) := rfl
+    rw [hfm]
+    linarith
 
 /-- **A disjoint union takes the larger of the two largest eigenvalues**, where
 `algConn_disjUnion` takes neither. -/

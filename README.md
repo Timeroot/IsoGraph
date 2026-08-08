@@ -4537,6 +4537,14 @@ good expanders. Getting it needs to know that no *other* zero is hiding in the e
 `zero_notMem_erase_of_isConnected` — connectedness plus `count_zero_lapSpectrum` says the single
 `0` is exactly the one that `erase` took away.
 
+The path and the cycle are already fully described by `lapSpectrum_path` and `lapSpectrum_cycle`,
+so reading the top of those cosine ranges costs only a monotonicity argument.
+`lapLambdaMax_path = 2 - 2 cos (π n / (n + 1))` climbs towards `4` and never reaches it, while
+`lapLambdaMax_cycle_even` is exactly `4`, attaining `lapLambdaMax_le_two_mul_maxDeg` — the
+eigenvalue `2 - 2 cos (2 π m / n)` peaks at `m = n / 2`, which is only an integer when `n` is even.
+That is the same even/odd split as everywhere else in the file: the even cycle is bipartite, and
+attaining `μ_max = 2Δ` is a characterisation of bipartiteness for regular graphs.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
