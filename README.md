@@ -4441,11 +4441,29 @@ eigenvalue of the complement, hence nonnegative, so `le_card_of_mem_lapSpectrum`
 `le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`) comes from the largest-coordinate argument
 that bounds adjacency eigenvalues by `Δ`.
 
+The second-smallest Laplacian eigenvalue has a name, the **algebraic connectivity** or Fiedler
+value, and `algConn` is it:
+
+```lean
+noncomputable def algConn (G : CGraph) : ℝ := sInf {x : ℝ | x ∈ G.lapSpectrum.erase 0}
+```
+
+Erasing one copy of `0` — the one every graph has — and taking the smallest of what remains. The
+infimum is taken in `ℝ`, so the one-vertex graph, where nothing remains, gets `sInf ∅ = 0`, which
+is the usual convention. On two or more vertices the infimum is attained (`algConn_mem_erase`: a
+finite nonempty set of reals contains its infimum), so `algConn` is a genuine eigenvalue. What
+makes it worth naming is `algConn_pos_iff`: **`0 < a(G)` exactly when `G` is connected.** That is
+`count_zero_lapSpectrum` again — the multiplicity of `0` is the number of components, so a second
+`0` survives the erasure precisely when the graph falls apart, and `algConn_disjUnion` is the
+extreme case. Between the two ends, `algConn_nonneg` and `algConn_le_card` give `0 ≤ a(G) ≤ n`,
+and the upper bound is attained: `algConn_complete` says `a(Kₙ) = n`.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
 point of the whole section — the number of components (`LapCospectral.numComponents_eq`), so
-`LapCospectral.isConnected` carries connectedness across with no regularity hypothesis at all.
+`LapCospectral.isConnected` carries connectedness across with no regularity hypothesis at all, and
+`LapCospectral.algConn_eq` carries the Fiedler value.
 
 The second moment adds one more invariant, and it is a useful one. `LapCospectral.sum_sq_degrees_eq`
 says Laplacian cospectral graphs have the same `∑ d(i)²`, since they already have the same `E`. Two

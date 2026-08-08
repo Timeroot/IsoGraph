@@ -200,6 +200,14 @@ Two bounds come out of the same picture:
 the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
 `n - μ` off the complement and uses that Laplacian eigenvalues are nonnegative.
 
+`algConn` is the **algebraic connectivity**, the second-smallest Laplacian eigenvalue: the
+infimum of `lapSpectrum.erase 0`, taken in `ℝ` so that the one-vertex graph gets `sInf ∅ = 0` by
+the usual convention.  On two or more vertices it is attained (`algConn_mem_erase`), and
+`count_zero_lapSpectrum` turns it into a connectivity test: `algConn_pos_iff` says it is positive
+exactly for a connected graph, because a second `0` survives the erasure precisely when there is
+a second component (`algConn_disjUnion`).  It is squeezed between `0` and the order
+(`algConn_nonneg`, `algConn_le_card`), the upper end attained by `algConn_complete`.
+
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
 `count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
@@ -5855,6 +5863,101 @@ theorem le_card_of_mem_lapSpectrum (G : CGraph) [DecidableEq G.V] {x : ℝ}
   have := (compl G).nonneg_of_mem_lapSpectrum hmem
   linarith
 
+/-! ### Algebraic connectivity -/
+
+/-- **Algebraic connectivity**, the Fiedler value: the second-smallest Laplacian eigenvalue, that
+is the smallest one left after discarding the copy of `0` that every nonempty graph has.  On the
+empty and the one-vertex graph nothing is left, and `sInf ∅ = 0` gives the usual convention. -/
+noncomputable def algConn (G : CGraph) : ℝ := sInf {x : ℝ | x ∈ G.lapSpectrum.erase 0}
+
+theorem algConn_nonneg (G : CGraph) : 0 ≤ G.algConn :=
+  Real.sInf_nonneg fun _ hx ↦ G.nonneg_of_mem_lapSpectrum (Multiset.mem_of_mem_erase hx)
+
+theorem algConn_le {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum.erase 0) : G.algConn ≤ x :=
+  csInf_le (Multiset.finite_toSet _).bddBelow hx
+
+/-- On two or more vertices the algebraic connectivity really is attained: it is a Laplacian
+eigenvalue. -/
+theorem algConn_mem_erase (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+    G.algConn ∈ G.lapSpectrum.erase 0 := by
+  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
+  have hcard : Multiset.card (G.lapSpectrum.erase 0) = Fintype.card G.V - 1 := by
+    rw [Multiset.card_erase_of_mem G.zero_mem_lapSpectrum, card_lapSpectrum]
+    rfl
+  have hpos : 0 < Multiset.card (G.lapSpectrum.erase 0) := by omega
+  obtain ⟨y, hy⟩ := Multiset.card_pos_iff_exists_mem.1 hpos
+  exact Set.Nonempty.csInf_mem ⟨y, hy⟩ (Multiset.finite_toSet _)
+
+theorem algConn_mem_lapSpectrum (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+    G.algConn ∈ G.lapSpectrum :=
+  Multiset.mem_of_mem_erase (G.algConn_mem_erase h)
+
+/-- **The algebraic connectivity is positive exactly for a connected graph** (on at least two
+vertices): the multiplicity of `0` is the number of components, so a second `0` survives the
+erasure precisely when the graph falls apart. -/
+theorem algConn_pos_iff (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+    0 < G.algConn ↔ G.IsConnected := by
+  constructor
+  · intro hpos
+    by_contra hcon
+    have hne : G.numComponents ≠ 1 := fun hc ↦ hcon (G.numComponents_eq_one_iff.1 hc)
+    have hpos' : 0 < G.numComponents := G.numComponents_pos_iff.2 (by omega)
+    have hcount : 2 ≤ G.lapSpectrum.count 0 := by
+      rw [count_zero_lapSpectrum]
+      omega
+    have h0 : (0 : ℝ) ∈ G.lapSpectrum.erase 0 := by
+      rw [← Multiset.one_le_count_iff_mem, Multiset.count_erase_self]
+      omega
+    exact absurd (algConn_le h0) (not_le.2 hpos)
+  · intro hcon
+    have hmem := G.algConn_mem_erase h
+    have hcount : G.lapSpectrum.count 0 = 1 := G.count_zero_lapSpectrum_eq_one_iff.2 hcon
+    have hne : G.algConn ≠ 0 := by
+      intro h0
+      rw [h0, ← Multiset.one_le_count_iff_mem, Multiset.count_erase_self, hcount] at hmem
+      omega
+    exact lt_of_le_of_ne G.algConn_nonneg (Ne.symm hne)
+
+theorem algConn_eq_zero_of_not_isConnected {G : CGraph} (h : 2 ≤ Fintype.card G.V)
+    (hcon : ¬ G.IsConnected) : G.algConn = 0 :=
+  le_antisymm (not_lt.1 fun hpos ↦ hcon ((G.algConn_pos_iff h).1 hpos)) G.algConn_nonneg
+
+/-- **The algebraic connectivity is at most the order**, with equality for the complete graph. -/
+theorem algConn_le_card (G : CGraph) [DecidableEq G.V] (h : 2 ≤ Fintype.card G.V) :
+    G.algConn ≤ Fintype.card G.V :=
+  G.le_card_of_mem_lapSpectrum (G.algConn_mem_lapSpectrum h)
+
+/-- **A disjoint union has algebraic connectivity `0`** as soon as both pieces are nonempty. -/
+theorem algConn_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
+    (disjUnion G H).algConn = 0 := by
+  have h0G : (0 : ℝ) ∈ G.lapSpectrum := G.zero_mem_lapSpectrum
+  have h0H : (0 : ℝ) ∈ H.lapSpectrum := H.zero_mem_lapSpectrum
+  have hmem : (0 : ℝ) ∈ (disjUnion G H).lapSpectrum.erase 0 := by
+    rw [lapSpectrum_disjUnion]
+    obtain ⟨t, ht⟩ := Multiset.exists_cons_of_mem h0G
+    rw [ht, Multiset.cons_add, Multiset.erase_cons_head]
+    exact Multiset.mem_add.2 (Or.inr h0H)
+  exact le_antisymm (algConn_le hmem) (disjUnion G H).algConn_nonneg
+
+/-- **The algebraic connectivity of the complete graph is its order**, the extreme case of
+`algConn_le_card`. -/
+theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 := by
+  have hspec : (complete (n + 2)).lapSpectrum
+      = 0 ::ₘ Multiset.replicate (n + 1) ((n : ℝ) + 2) := by
+    have h := lapSpectrum_complete (n + 1)
+    push_cast at h ⊢
+    convert h using 3
+    ring
+  have herase : (complete (n + 2)).lapSpectrum.erase 0
+      = Multiset.replicate (n + 1) ((n : ℝ) + 2) := by
+    rw [hspec, Multiset.erase_cons_head]
+  have hcard : 2 ≤ Fintype.card (complete (n + 2)).V := by
+    rw [card_complete]
+    omega
+  have hmem := (complete (n + 2)).algConn_mem_erase hcard
+  rw [herase] at hmem
+  exact Multiset.eq_of_mem_replicate hmem
+
 /-! ### Laplacian cospectrality -/
 
 @[simp] theorem natDegree_lapCharpoly (G : CGraph) :
@@ -5970,6 +6073,12 @@ theorem LapCospectral.isRegularWith {G H : CGraph} (h : LapCospectral G H) {k : 
     have := sq_eq_zero_iff.1 h0
     linarith
   exact_mod_cast h1
+
+/-- **Laplacian cospectral graphs have the same algebraic connectivity**, straight from the
+definition. -/
+theorem LapCospectral.algConn_eq {G H : CGraph} (h : LapCospectral G H) :
+    G.algConn = H.algConn := by
+  rw [algConn, algConn, h.lapSpectrum_eq]
 
 /-- For regular graphs the two notions agree in one direction: cospectral regular graphs are
 Laplacian cospectral. -/
@@ -6459,6 +6568,49 @@ noncomputable def lapCharpoly (G : IsoGraph) : ℝ[X] :=
 theorem lapSpectrum_eq_roots_lapCharpoly (G : IsoGraph) : G.lapSpectrum = G.lapCharpoly.roots :=
   Quotient.inductionOn G fun _ ↦ rfl
 
+/-- **Algebraic connectivity** of an isomorphism class: the second-smallest Laplacian
+eigenvalue. -/
+noncomputable def algConn (G : IsoGraph) : ℝ := sInf {x : ℝ | x ∈ G.lapSpectrum.erase 0}
+
+@[simp] theorem algConn_mk (G : CGraph) : algConn ⟦G⟧ = G.algConn := rfl
+
+theorem algConn_nonneg (G : IsoGraph) : 0 ≤ G.algConn :=
+  Quotient.inductionOn G fun g ↦ g.algConn_nonneg
+
+theorem algConn_mem_lapSpectrum (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ∈ G.lapSpectrum := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at h
+    exact g.algConn_mem_lapSpectrum h
+
+/-- **Positive algebraic connectivity is connectedness**, on two or more vertices. -/
+theorem algConn_pos_iff (G : IsoGraph) (h : 2 ≤ G.V) : 0 < G.algConn ↔ G.IsConnected := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at h
+    exact g.algConn_pos_iff h
+
+theorem algConn_le_V (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ≤ G.V := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    classical
+    rw [V_mk] at h ⊢
+    exact g.algConn_le_card h
+
+@[simp] theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 :=
+  CGraph.algConn_complete n
+
+theorem algConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ⊕g H).algConn = 0 := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h' =>
+      rw [V_mk] at hG hH
+      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
+      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
+      exact CGraph.algConn_disjUnion g h'
+
 /-- Two isomorphism classes are **Laplacian cospectral** when their Laplacian characteristic
 polynomials agree. -/
 def LapCospectral (G H : IsoGraph) : Prop := G.lapCharpoly = H.lapCharpoly
@@ -6497,6 +6649,11 @@ spectrum, where the adjacency twin `Cospectral.isRegularWith` goes through `lamb
 theorem LapCospectral.isRegularWith {G H : IsoGraph} (h : LapCospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : H.IsRegularWith k :=
   Quotient.inductionOn₂ G H (fun _ _ h hG ↦ CGraph.LapCospectral.isRegularWith h hG) h hG
+
+/-- Laplacian cospectral graphs have the same algebraic connectivity. -/
+theorem LapCospectral.algConn_eq {G H : IsoGraph} (h : LapCospectral G H) :
+    G.algConn = H.algConn := by
+  rw [algConn, algConn, h.lapSpectrum_eq]
 
 /-- Cospectral regular graphs are Laplacian cospectral. -/
 theorem Cospectral.lapCospectral {G H : IsoGraph} (h : Cospectral G H) {k : ℕ}
