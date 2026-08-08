@@ -9659,6 +9659,100 @@ theorem prismCol_proper (n : ℕ) (u v w : (cartesianProduct (cycle (n + 3)) (co
       rw [if_neg huv', if_neg huw']
       split_ifs <;> first | decide | (exfalso; omega)
 
+/-! ### The double star and the Grötzsch graph
+
+Two more class-one graphs, by two more explicit colourings.  The double star is a tree, so nothing
+but the pendant edges at each hub can clash; the Grötzsch graph is small enough to hand the
+properness check to the kernel. -/
+
+/-- The colour of the edge between vertices `a` and `b` of `doubleStar m n`, as a natural: the
+central edge gets `0`, the `i`-th pendant of the left hub gets `i + 1`, and the `j`-th pendant of
+the right hub gets `j + 1`.  Off the edge set the value is junk. -/
+def doubleStarIdx (m a b : ℕ) : ℕ :=
+  if a = 0 then b - 1
+  else if b = 0 then a - 1
+  else if a = 1 then b - 1 - m
+  else if b = 1 then a - 1 - m
+  else 0
+
+theorem doubleStarIdx_symm (m a b : ℕ) : doubleStarIdx m a b = doubleStarIdx m b a := by
+  unfold doubleStarIdx
+  split_ifs <;> omega
+
+/-- The pendant colouring of `doubleStar m n`, clamped into `Fin (max m n + 1)`. -/
+def doubleStarCol (m n : ℕ) (p q : (doubleStar m n).V) : Fin (max m n + 1) :=
+  ⟨min (doubleStarIdx m p.1 q.1) (max m n), by omega⟩
+
+theorem doubleStarCol_symm (m n : ℕ) (p q : (doubleStar m n).V) :
+    doubleStarCol m n p q = doubleStarCol m n q p := by
+  refine Fin.ext ?_
+  show min (doubleStarIdx m p.1 q.1) (max m n) = min (doubleStarIdx m q.1 p.1) (max m n)
+  rw [doubleStarIdx_symm]
+
+theorem doubleStarCol_proper (m n : ℕ) (u v w : (doubleStar m n).V)
+    (huv : (doubleStar m n).Adj u v = true) (huw : (doubleStar m n).Adj u w = true) (hvw : v ≠ w) :
+    doubleStarCol m n u v ≠ doubleStarCol m n u w := by
+  rw [doubleStar_adj_val] at huv huw
+  have hvw' : v.1 ≠ w.1 := fun hh ↦ hvw (Fin.ext hh)
+  have bu := u.isLt
+  have bv := v.isLt
+  have bw := w.isLt
+  intro hcol
+  have hval : min (doubleStarIdx m u.1 v.1) (max m n) =
+      min (doubleStarIdx m u.1 w.1) (max m n) := congrArg Fin.val hcol
+  unfold doubleStarIdx at hval
+  split_ifs at hval <;> omega
+
+/-- A proper five-edge-colouring of the Grötzsch graph, as a symmetric table indexed by
+`0–4` (the pentagon), `5–9` (their Mycielski copies) and `10` (the apex).  Off the edge set the
+entries are junk zeroes. -/
+def grotzschColTable : List (List ℕ) :=
+  [[0, 0, 0, 0, 1, 0, 2, 0, 0, 3, 0],
+   [0, 0, 1, 0, 0, 2, 0, 3, 0, 0, 0],
+   [0, 1, 0, 0, 0, 0, 3, 0, 2, 0, 0],
+   [0, 0, 0, 0, 2, 0, 0, 4, 0, 1, 0],
+   [1, 0, 0, 2, 0, 3, 0, 0, 0, 0, 0],
+   [0, 2, 0, 0, 3, 0, 0, 0, 0, 0, 0],
+   [2, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1],
+   [0, 3, 0, 4, 0, 0, 0, 0, 0, 0, 2],
+   [0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3],
+   [3, 0, 0, 1, 0, 0, 0, 0, 0, 0, 4],
+   [0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 0]]
+
+/-- The indexing of `grotzschColTable` as a function on the vertices themselves. -/
+def grotzschIdx : (mycielskian (cycle 5)).V → ℕ
+  | none => 10
+  | some (Sum.inl a) => a.1
+  | some (Sum.inr a) => 5 + a.1
+
+/-- The five-edge-colouring of the Grötzsch graph read off `grotzschColTable`. -/
+def grotzschCol (x y : (mycielskian (cycle 5)).V) : Fin 5 :=
+  ⟨min ((grotzschColTable.getD (grotzschIdx x) []).getD (grotzschIdx y) 0) 4, by omega⟩
+
+theorem grotzschCol_symm : ∀ x y : (mycielskian (cycle 5)).V,
+    grotzschCol x y = grotzschCol y x := by native_decide
+
+theorem grotzschCol_proper : ∀ u v w : (mycielskian (cycle 5)).V,
+    (mycielskian (cycle 5)).Adj u v = true → (mycielskian (cycle 5)).Adj u w = true → v ≠ w →
+    grotzschCol u v ≠ grotzschCol u w := by native_decide
+
+/-- The five Mycielski shadows of the Grötzsch graph.  They are pairwise non-adjacent, and no
+independent set is larger. -/
+def grotzschShadows : Finset (mycielskian (cycle 5)).V :=
+  Finset.image (fun i : Fin 5 => (some (Sum.inr i) : (mycielskian (cycle 5)).V)) Finset.univ
+
+theorem isMaximumIndepSet_grotzschShadows :
+    (mycielskian (cycle 5)).toSimple.IsMaximumIndepSet grotzschShadows := by
+  rw [SimpleGraph.isMaximumIndepSet_iff]
+  native_decide
+
+theorem card_grotzschShadows : grotzschShadows.card = 5 := by decide
+
+theorem indepNum_mycielskian_cycle_five : (mycielskian (cycle 5)).indepNum = 5 := by
+  have h := SimpleGraph.maximumIndepSet_card_eq_indepNum _ isMaximumIndepSet_grotzschShadows
+  rw [show (mycielskian (cycle 5)).indepNum = (mycielskian (cycle 5)).toSimple.indepNum from rfl,
+    ← h, card_grotzschShadows]
+
 end CGraph
 
 namespace IsoGraph
@@ -36109,6 +36203,14 @@ theorem edgeChromNum_prism (n : ℕ) : (prism (n + 3)).edgeChromNum = 3 := by
     (G := CGraph.cartesianProduct (CGraph.cycle (n + 3)) (CGraph.complete 2))
     (CGraph.prismCol (n + 3)) (CGraph.prismCol_symm (n + 3)) (CGraph.prismCol_proper n)
 
+/-- **The chromatic index of the Grötzsch graph is five.**  Its maximum degree is five, and
+`CGraph.grotzschColTable` exhibits a five-colouring, so the Grötzsch graph is class one. -/
+theorem edgeChromNum_grotzsch : grotzsch.edgeChromNum = 5 := by
+  refine le_antisymm ?_ le_edgeChromNum_grotzsch
+  rw [show grotzsch = mycielskian (cycle 5) from rfl, cycle_def, mycielskian_mk]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.mycielskian (CGraph.cycle 5))
+    CGraph.grotzschCol CGraph.grotzschCol_symm CGraph.grotzschCol_proper
+
 theorem le_edgeChromNum_cocktailParty (n : ℕ) :
     2 * n ≤ (cocktailParty (n + 1)).edgeChromNum := by
   have h := maxDeg_le_edgeChromNum (cocktailParty (n + 1))
@@ -36126,6 +36228,15 @@ theorem le_edgeChromNum_doubleStar (m n : ℕ) :
     max m n + 1 ≤ (doubleStar m n).edgeChromNum := by
   have h := maxDeg_le_edgeChromNum (doubleStar m n)
   rwa [maxDeg_doubleStar] at h
+
+/-- **The chromatic index of a double star is its maximum degree.**  A tree is always class one;
+here the colouring is explicit, numbering the pendants at each hub from `1` and giving the central
+edge colour `0`. -/
+theorem edgeChromNum_doubleStar (m n : ℕ) : (doubleStar m n).edgeChromNum = max m n + 1 := by
+  refine le_antisymm ?_ (le_edgeChromNum_doubleStar m n)
+  rw [doubleStar_def]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.doubleStar m n)
+    (CGraph.doubleStarCol m n) (CGraph.doubleStarCol_symm m n) (CGraph.doubleStarCol_proper m n)
 
 theorem le_edgeChromNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
     n - n / r ≤ (turan n r).edgeChromNum := by
@@ -36329,6 +36440,18 @@ theorem coverNum_grotzsch_le : grotzsch.coverNum ≤ 6 := by
   have h := coverNum_add_indepNum grotzsch
   have h2 := five_le_indepNum_grotzsch
   rw [V_grotzsch] at h
+  omega
+
+/-- **The independence number of the Grötzsch graph is five.**  The shadows realise it, and that
+no six vertices are independent is a finite check over the `2¹¹` subsets. -/
+theorem indepNum_grotzsch : grotzsch.indepNum = 5 := by
+  rw [show grotzsch = mycielskian (cycle 5) from rfl, cycle_def, mycielskian_mk, indepNum_mk]
+  exact CGraph.indepNum_mycielskian_cycle_five
+
+/-- **The vertex cover number of the Grötzsch graph is six**, by Gallai's identity. -/
+theorem coverNum_grotzsch : grotzsch.coverNum = 6 := by
+  have h := coverNum_add_indepNum grotzsch
+  rw [V_grotzsch, indepNum_grotzsch] at h
   omega
 
 /-! ### The line graph's matching, covering and dominating numbers

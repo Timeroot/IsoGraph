@@ -2558,13 +2558,67 @@ theorem edgeChromNum_crown (n : ℕ) : (crown (n + 2)).edgeChromNum = n + 1
 Both meet the maximum-degree lower bounds `le_edgeChromNum_ladder` and `le_edgeChromNum_crown` that
 were already in the table, so both families are class one and the brackets collapse to equalities.
 
+Once the plumbing existed the next three brackets went the same way, and none of them needed a new
+idea — only a colouring written down.
+
+The prism `Cₙ □ K₂` is cubic, so three is again the floor, and the graph is Hamiltonian: run along
+the top rim, drop down the last rung, come back along the bottom rim, close through the first rung.
+Alternating two colours around that cycle leaves the remaining rungs as a perfect matching for the
+third, and `prismCol` is that recipe as a formula, valid for either parity of `n`. Two things about
+the proof are worth recording, because both will recur. `omega` treats an `if` as an opaque atom,
+so the cycle's adjacency — which arrives as `j = (i+1) % n ∨ j = (i+n-1) % n` and normalises into
+`if`s — has to be restated as an if-free four-way disjunction before `omega` sees it. And the
+single `split_ifs <;> omega` that closes properness in one gulp exhausts the heartbeat budget; the
+four rung/rim combinations have to be split by hand first, after which each branch is small.
+
+The double star `S(m, n)` is a tree, and every tree is class one. The colouring is the obvious one:
+the central edge gets colour `0`, the `i`-th pendant of the left hub gets `i + 1`, the `j`-th
+pendant of the right hub gets `j + 1`. `doubleStarIdx` writes that as a four-way `if` on the raw
+vertex indices, `doubleStarCol` clamps it into `Fin (max m n + 1)` with a `min`, and both symmetry
+and properness are one `split_ifs <;> omega` each — the clamp costs nothing because every real edge
+already lands below the bound.
+
+The Grötzsch graph has no formula, being a single graph on eleven vertices, so it gets a table
+instead: `grotzschColTable` is an 11 × 11 symmetric array of colours, indexed by the pentagon, its
+five Mycielski copies and the apex, and `grotzschIdx` maps the actual vertex type
+`Option (Fin 5 ⊕ Fin 5)` onto those indices. Symmetry and properness are then closed statements
+over a finite type, and `native_decide` checks all 11³ triples. This is the general escape hatch
+for a named graph: any specific graph small enough to evaluate can have its chromatic index pinned
+by a table plus two decision procedures.
+
+```lean
+theorem edgeChromNum_prism (n : ℕ) : (prism (n + 3)).edgeChromNum = 3
+theorem edgeChromNum_doubleStar (m n : ℕ) : (doubleStar m n).edgeChromNum = max m n + 1
+theorem edgeChromNum_grotzsch : grotzsch.edgeChromNum = 5
+```
+
+All three meet maximum-degree lower bounds that were already in the table, so all three are class
+one. The Grötzsch entry in particular closes a `5 ≤ χ' ≤ 9` bracket that the Vizing-style bound
+`χ' ≤ 2Δ - 1` had left wide open.
+
 The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
 are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
 `V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
 class of a clique cover is an independent set's worth of cliques, so `indepNum_grotzsch_le` reads
 `α ≤ θ = 6` off `cliqueCoverNum_grotzsch`. Feeding both through `τ + α = |V|` gives
 `five_le_coverNum_grotzsch` and `coverNum_grotzsch_le`. Ruling out `α = 6` is the one remaining
-step, and it is still out for automated proof.
+step.
+
+That step turned out not to need the prover either. Mathlib's `IsMaximumIndepSet` bundles "this set
+is independent" with "no independent set is larger", and over eleven vertices the second half is a
+quantifier over `2¹¹` subsets — decidable, and small. So `grotzschShadows` is named as a `Finset`,
+`isMaximumIndepSet_grotzschShadows` is one `native_decide`, and
+`SimpleGraph.maximumIndepSet_card_eq_indepNum` turns its cardinality into the invariant:
+
+```lean
+theorem indepNum_grotzsch : grotzsch.indepNum = 5
+theorem coverNum_grotzsch : grotzsch.coverNum = 6
+```
+
+The cover number is then Gallai's identity, `τ + α = |V|`, with nothing left to bracket. The same
+recipe applies to any named graph small enough to enumerate: exhibit the witness, let the kernel
+rule out the alternatives, and read the invariant off Mathlib's "maximum" API rather than proving a
+bound in each direction separately.
 
 Two whole rows get their first entries from general inequalities that had never been specialised.
 For the line graph, `indepNum_lineGraph` says an independent set of `L(G)` *is* a matching of `G`,
@@ -5442,8 +5496,17 @@ a bipartite graph is `Δ`-edge-colourable — is still absent, as is Vizing's, a
 neither; Hall's marriage theorem *is* there (`SimpleGraph.exists_isMatching_of_forall_ncard_le`),
 which is the usual route in. But every edge chromatic number the table wanted turned out to be
 cheaper by hand than by that route: the complete graph in both parities, the hypercube, the wheel,
-the ladder and the crown each come from an explicit colouring. What a general König would buy is
-the *next* family rather than any current entry.
+the ladder, the crown, the prism, the double star and the Grötzsch graph each come from an explicit
+colouring. What a general König would buy is the *next* family rather than any current entry.
+
+The chromatic indices that are still brackets are the ones where the *lower* bound is the hard
+half. The Petersen graph is the standard example: `3 ≤ χ' ≤ 5` here, the truth is `4`, and getting
+there means showing a cubic graph is not 3-edge-colourable, which is a statement about perfect
+matchings rather than about colouring formulas. The same shape blocks the cocktail party graph
+(whose vertex type, a sigma over `List.replicate n 2`, also makes the round-robin colouring of
+`K_{2n}` expensive to write), and the regular families — `rook`, `triangular`, `paley`, `kneser`,
+`johnson` — where `maxDeg_lt_edgeChromNum_of_isRegularWith_odd` gives `χ' > Δ` on odd orders but
+nothing pins the value.
 
 The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
 (Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the girth
