@@ -153,8 +153,12 @@ not to `0` as the adjacency ones do — and rank-nullity turns the kernel descri
 `count_zero_lapSpectrum_eq_one_iff` reads connectedness straight off the Laplacian spectrum,
 with no regularity hypothesis.  For a `k`-regular graph the two spectra are the same information,
 `mem_lapSpectrum_iff_of_isRegularWith`: `L = k I - A`, so the Laplacian eigenvalues are `k - λ`.
-A disjoint union concatenates Laplacian spectra just as it does adjacency ones
-(`lapSpectrum_disjUnion`), which is the component count again, one summand at a time.
+Conjugating the spectral decomposition of `A` by the same unitary upgrades that to an equality of
+multisets, `lapSpectrum_of_isRegularWith`, which turns every regular spectrum already computed
+here into a Laplacian one — for instance `lapSpectrum_complete`, where `K_{n+1}` has `0` once
+and `n + 1` with multiplicity `n`.  A disjoint union concatenates Laplacian spectra just as it
+does adjacency ones (`lapSpectrum_disjUnion`), which is the component count again, one summand
+at a time.
 
 ## Line graphs
 
@@ -5094,6 +5098,53 @@ theorem lapMat_disjUnion (G H : CGraph) :
   rw [lapSpectrum, lapSpectrum, lapSpectrum, lapCharpoly_disjUnion, Polynomial.roots_mul
     (mul_ne_zero G.monic_lapCharpoly.ne_zero H.monic_lapCharpoly.ne_zero)]
 
+/-- For a `k`-regular graph the Laplacian is `k • 1 - A`, so its characteristic polynomial is
+the adjacency one with every eigenvalue `λ` replaced by `k - λ`. -/
+theorem lapCharpoly_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.lapCharpoly = ∏ i, (X - C ((k : ℝ) - G.eigenvalues i)) := by
+  classical
+  have hA := G.isHermitian_adjMat
+  have hd : (Matrix.diagonal fun i ↦ (k : ℝ) - G.eigenvalues i)
+      = ((k : ℝ) • 1 : Matrix G.V G.V ℝ)
+        - Matrix.diagonal (RCLike.ofReal ∘ hA.eigenvalues) := by
+    ext i j
+    rcases eq_or_ne i j with rfl | hij
+    · simp [eigenvalues]
+    · simp [Matrix.diagonal_apply_ne _ hij, Matrix.one_apply_ne hij]
+  have hL : G.lapMat = Unitary.conjStarAlgAut ℝ _ hA.eigenvectorUnitary
+      (Matrix.diagonal fun i ↦ (k : ℝ) - G.eigenvalues i) := by
+    rw [hd, map_sub, map_smul, map_one, ← hA.spectral_theorem, lapMat_of_isRegularWith h]
+  rw [lapCharpoly_eq_matrix_charpoly, hL, Unitary.conjStarAlgAut_apply, Matrix.charpoly_mul_comm,
+    ← mul_assoc]
+  simp [Matrix.charpoly_diagonal]
+
+/-- **The Laplacian spectrum of a `k`-regular graph is `k` minus its adjacency spectrum**,
+with multiplicities. -/
+theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.lapSpectrum = G.spectrum.map (fun x ↦ (k : ℝ) - x) := by
+  have hroot : ∀ i : G.V, (X - C ((k : ℝ) - G.eigenvalues i)).roots
+      = {(k : ℝ) - G.eigenvalues i} := fun i ↦ Polynomial.roots_X_sub_C _
+  rw [lapSpectrum, lapCharpoly_of_isRegularWith h, Polynomial.roots_prod]
+  · simp only [hroot, Multiset.bind_singleton, spectrum_eq_map, Multiset.map_map,
+      Function.comp_def]
+  · exact Finset.prod_ne_zero_iff.2 fun i _ ↦ Polynomial.X_sub_C_ne_zero _
+
+theorem isRegularWith_complete (n : ℕ) : (complete (n + 1)).IsRegularWith n := by
+  intro i
+  have hnb : (complete (n + 1)).toSimple.neighborFinset i = Finset.univ.erase i := by
+    ext j
+    simp [SimpleGraph.mem_neighborFinset, ne_comm]
+  rw [SimpleGraph.degree, hnb, Finset.card_erase_of_mem (Finset.mem_univ i), Finset.card_univ]
+  simp
+
+/-- **The Laplacian spectrum of the complete graph** `K_{n+1}`: `0` once, and `n + 1` with
+multiplicity `n`. -/
+theorem lapSpectrum_complete (n : ℕ) :
+    (complete (n + 1)).lapSpectrum = (0 : ℝ) ::ₘ Multiset.replicate n ((n : ℝ) + 1) := by
+  rw [lapSpectrum_of_isRegularWith (isRegularWith_complete n), spectrum_complete,
+    Multiset.map_cons, Multiset.map_replicate]
+  norm_num
+
 end CGraph
 
 namespace IsoGraph
@@ -5463,5 +5514,19 @@ theorem count_zero_lapSpectrum (G : IsoGraph) : G.lapSpectrum.count 0 = G.numCom
 @[simp] theorem lapSpectrum_disjUnion (G H : IsoGraph) :
     (G ⊕g H).lapSpectrum = G.lapSpectrum + H.lapSpectrum :=
   Quotient.inductionOn₂ G H fun g h ↦ CGraph.lapSpectrum_disjUnion g h
+
+/-- **The Laplacian spectrum of a `k`-regular graph is `k` minus its adjacency spectrum.** -/
+theorem lapSpectrum_of_isRegularWith {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.lapSpectrum = G.spectrum.map (fun x ↦ (k : ℝ) - x) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [isRegularWith_mk] at h
+    rw [lapSpectrum_mk, spectrum_mk, CGraph.lapSpectrum_of_isRegularWith h]
+
+/-- **The Laplacian spectrum of the complete graph** `K_{n+1}`: `0` once, and `n + 1` with
+multiplicity `n`. -/
+theorem lapSpectrum_complete (n : ℕ) :
+    (complete (n + 1)).lapSpectrum = (0 : ℝ) ::ₘ Multiset.replicate n ((n : ℝ) + 1) :=
+  CGraph.lapSpectrum_complete n
 
 end IsoGraph

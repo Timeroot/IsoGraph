@@ -4348,7 +4348,17 @@ so `0` is always there (`zero_mem_lapSpectrum`); and the trace is the sum of the
 than `0`, so the Laplacian eigenvalues sum to `2 |E|` (`sum_lapSpectrum`) where the adjacency ones
 sum to nothing. For a `k`-regular graph the two matrices are `L = k I - A` and the two spectra
 carry the same information, `x` being a Laplacian eigenvalue exactly when `k - x` is an adjacency
-one (`mem_lapSpectrum_iff_of_isRegularWith`).
+one (`mem_lapSpectrum_iff_of_isRegularWith`). Conjugating the spectral decomposition of `A` by
+its own eigenvector unitary upgrades that membership statement to an equality of multisets,
+
+```lean
+theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.lapSpectrum = G.spectrum.map (fun x ↦ (k : ℝ) - x)
+```
+
+so every regular spectrum computed earlier becomes a Laplacian one for free. The complete graph
+is the sample: `lapSpectrum_complete` turns `n, -1, …, -1` into `0` once and `n + 1` with
+multiplicity `n`, and `count_zero_lapSpectrum` reads off the single component.
 
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation
