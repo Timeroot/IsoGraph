@@ -220,10 +220,14 @@ from below (`two_mul_E_le_card_mul_lapLambdaMax`, since the `n` eigenvalues sum 
 matching averaging bound at the small end is `card_sub_one_mul_algConn_le_two_mul_E`.  What ties
 the two ends together is the complement: reflecting the spectrum in `n` sends the largest
 eigenvalue to the smallest nonzero one and back, `algConn_compl` (`a (Ḡ) = n - μ_max (G)`) and
-`lapLambdaMax_compl` (`μ_max (Ḡ) = n - a (G)`).  So `lapLambdaMax_complete` and
-`lapLambdaMax_star`, both equal to the order, are `algConn`'s two vanishing values —
-`Kₙ` and the star both have a disconnected complement.  `lapSpectrum_wheel` runs the join formula
-on `W_n = K₁ ∇ C_n`, which adds a third: the hub raises every rim eigenvalue by one, so
+`lapLambdaMax_compl` (`μ_max (Ḡ) = n - a (G)`).  It vanishes only in the trivial case
+(`lapLambdaMax_eq_zero_iff`, `μ_max = 0 ↔ E = 0`), a disjoint union takes the larger of the two
+(`lapLambdaMax_disjUnion`, where `algConn_disjUnion` takes neither), and for a `k`-regular graph
+the two spectra are reflections, `lapLambdaMax_of_isRegularWith` (`μ_max = k - λ_min`).
+So `lapLambdaMax_complete`, `lapLambdaMax_star` and `lapLambdaMax_bipartite`, all equal to the
+order, are `algConn`'s vanishing values — each of the three is a join, so each has a disconnected
+complement.  `lapSpectrum_wheel` runs the join formula
+on `W_n = K₁ ∇ C_n`, which adds a fourth: the hub raises every rim eigenvalue by one, so
 `algConn_wheel` is `3 - 2 cos (2 π / n)` — one more than the rim's — and `lapLambdaMax_wheel` is
 the order again.  The hypercube shows the two ends pulling apart: `lapLambdaMax_hypercube` is
 `2 n`, twice the degree and so the extreme case of `lapLambdaMax_le_two_mul_maxDeg`, while
@@ -6238,6 +6242,77 @@ theorem lapLambdaMax_star (n : ℕ) : (star (n + 1)).lapLambdaMax = (n : ℝ) + 
     · rw [Multiset.eq_of_mem_replicate hx]
       linarith
 
+/-- **The largest Laplacian eigenvalue of the complete bipartite graph** `K_{m+1,n+1}` is its
+order, like every join. -/
+theorem lapLambdaMax_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).lapLambdaMax = (m : ℝ) + (n : ℝ) + 2 := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_bipartite]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_cons_self _ _)
+  · intro x hx
+    rw [lapSpectrum_bipartite] at hx
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · positivity
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · exact le_rfl
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]
+      have : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+      linarith
+    · rw [Multiset.eq_of_mem_replicate hx]
+      have : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+      linarith
+
+/-- **A disjoint union takes the larger of the two largest eigenvalues**, where `algConn_disjUnion`
+takes neither: the small end collapses to `0` but the large end does not interact. -/
+theorem lapLambdaMax_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
+    (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_disjUnion, Multiset.mem_add]
+    rcases le_total G.lapLambdaMax H.lapLambdaMax with hle | hle
+    · refine Or.inr ?_
+      rw [max_eq_right hle]
+      exact lapLambdaMax_mem_lapSpectrum H
+    · refine Or.inl ?_
+      rw [max_eq_left hle]
+      exact lapLambdaMax_mem_lapSpectrum G
+  · intro x hx
+    rw [lapSpectrum_disjUnion, Multiset.mem_add] at hx
+    rcases hx with hx | hx
+    · exact le_max_of_le_left (le_lapLambdaMax hx)
+    · exact le_max_of_le_right (le_lapLambdaMax hx)
+
+/-- **A `k`-regular graph's two spectra are reflections of each other**, so the largest Laplacian
+eigenvalue is `k - λ_min`. -/
+theorem lapLambdaMax_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
+    (h : G.IsRegularWith k) : G.lapLambdaMax = (k : ℝ) - G.lambdaMin := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_of_isRegularWith h]
+    exact Multiset.mem_map_of_mem _ (lambdaMin_mem_spectrum G)
+  · intro x hx
+    rw [lapSpectrum_of_isRegularWith h] at hx
+    obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+    have := lambdaMin_le hy
+    linarith
+
+/-- **The largest Laplacian eigenvalue vanishes exactly on the edgeless graph**: the spectrum is
+nonnegative and sums to `2 E`. -/
+theorem lapLambdaMax_eq_zero_iff (G : CGraph) [Nonempty G.V] :
+    G.lapLambdaMax = 0 ↔ G.E = 0 := by
+  constructor
+  · intro h
+    have hall : ∀ x ∈ G.lapSpectrum, x = 0 := fun x hx ↦
+      le_antisymm (h ▸ le_lapLambdaMax hx) (nonneg_of_mem_lapSpectrum G hx)
+    have hsum : G.lapSpectrum.sum = 0 := Multiset.sum_eq_zero hall
+    rw [sum_lapSpectrum] at hsum
+    exact_mod_cast (by linarith : (G.E : ℝ) = 0)
+  · intro h
+    refine lapLambdaMax_eq_of_isGreatest G.zero_mem_lapSpectrum ?_
+    intro x hx
+    have hsum : G.lapSpectrum.sum = 0 := by rw [sum_lapSpectrum, h]; norm_num
+    have := Multiset.single_le_sum (fun y hy ↦ nonneg_of_mem_lapSpectrum G hy) x hx
+    linarith
+
 /-! ### Laplacian cospectrality -/
 
 @[simp] theorem natDegree_lapCharpoly (G : CGraph) :
@@ -7090,6 +7165,34 @@ theorem algConn_compl {G : IsoGraph} (h : 2 ≤ G.V) :
 
 @[simp] theorem lapLambdaMax_star (n : ℕ) : (star (n + 1)).lapLambdaMax = (n : ℝ) + 2 :=
   CGraph.lapLambdaMax_star n
+
+/-- **The largest Laplacian eigenvalue of the complete bipartite graph** `K_{m+1,n+1}` is its
+order, like every join. -/
+@[simp] theorem lapLambdaMax_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).lapLambdaMax = (m : ℝ) + (n : ℝ) + 2 :=
+  CGraph.lapLambdaMax_bipartite m n
+
+/-- **A disjoint union takes the larger of the two largest eigenvalues**, where
+`algConn_disjUnion` takes neither. -/
+theorem lapLambdaMax_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ⊕g H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h' =>
+      rw [V_mk] at hG hH
+      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
+      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
+      exact CGraph.lapLambdaMax_disjUnion g h'
+
+/-- **The largest Laplacian eigenvalue vanishes exactly on the edgeless graph.** -/
+theorem lapLambdaMax_eq_zero_iff (G : IsoGraph) (h : 0 < G.V) :
+    G.lapLambdaMax = 0 ↔ G.E = 0 := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [V_mk] at h
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
+    exact g.lapLambdaMax_eq_zero_iff
 
 /-- **The largest Laplacian eigenvalue of the wheel** is its order: the wheel is a join, so its
 complement is disconnected. -/

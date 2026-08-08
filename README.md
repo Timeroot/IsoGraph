@@ -4502,11 +4502,22 @@ theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
 ```
 
 That is why `a(G) ≤ n` and `μ_max ≤ n` are the same bound seen twice, and why the graphs attaining
-`μ_max = n` are exactly those with a disconnected complement: `lapLambdaMax_complete` and
-`lapLambdaMax_star` are the two examples recorded here, and complementing them gives back
-`algConn_disjUnion`'s zero. The one wrinkle in the proof is the all-zero spectrum: if `μ_max = 0`
-then every eigenvalue is `0`, and `μ_max` still survives the erasure only because `n ≥ 2` leaves a
-second copy behind.
+`μ_max = n` are exactly those with a disconnected complement: `lapLambdaMax_complete`,
+`lapLambdaMax_star` and `lapLambdaMax_bipartite` are the examples recorded here — all three are
+joins — and complementing them gives back `algConn_disjUnion`'s zero. The one wrinkle in the proof
+is the all-zero spectrum: if `μ_max = 0` then every eigenvalue is `0`, and `μ_max` still survives
+the erasure only because `n ≥ 2` leaves a second copy behind. That case is the whole content of
+`lapLambdaMax_eq_zero_iff`: since the spectrum is nonnegative and sums to `2E`, `μ_max = 0` says
+exactly that the graph has no edges.
+
+Two structural rules finish the picture. A disjoint union takes the larger of the two values,
+`lapLambdaMax_disjUnion : (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax`, where
+the small end takes *neither* and collapses to `0` — the two components do not interact at the top
+of the spectrum but always produce a second zero at the bottom. And for a regular graph the
+adjacency and Laplacian spectra are reflections of each other, `L = kI - A`, so
+`lapLambdaMax_of_isRegularWith` reads `μ_max = k - λ_min`: the *smallest* adjacency eigenvalue,
+the one that controls the chromatic and independence bounds earlier in the file, is the *largest*
+Laplacian one.
 
 The wheel is the join formula's own example. `W_n = K₁ ∇ Cₙ`, so `lapSpectrum_wheel` is `0`, the
 order `n + 1`, and every nonzero rim eigenvalue raised by one — a hub joined to everything shifts
