@@ -4363,19 +4363,35 @@ multiplicity `n choose j`, and `lapSpectrum_bipartite_self` gives `0`, `2 (n + 1
 with multiplicity `2 n` for `K_{n+1,n+1}`. In each case `count_zero_lapSpectrum` reads off the
 single component.
 
-The star is the first graph here that regularity does not reach, so `lapSpectrum_star` is done
-from scratch. `lapMat_mulVec_apply` writes `(L v) i` as `deg(i) · v i - Σ_j A(i,j) · v j`, and for
-`K₁,ₙ₊₁` that is two equations: `(1 - x) v(leaf) = v(centre)` at every leaf, and
-`(n + 1) v(centre) - Σ v(leaf) = x v(centre)` at the centre. Eliminating the leaf values between
-them gives `x · v(centre) · (n + 2 - x) = 0`, so the only eigenvalues are `0`, `1` and `n + 2`.
-Three values, three multiplicities, and three linear conditions to pin them down: the order is
-`n + 2`, `sum_lapSpectrum` is `2 (n + 1)`, and `count_zero_lapSpectrum` is `1` because the star is
-connected. The answer is `0`, `n + 2`, and `1` with multiplicity `n`.
-
 The complement is as clean here as it is for the adjacency matrix: `lapMat_compl` says
 `L(G) + L(Ḡ) = n I - J`, and since `J` kills any vector summing to zero — which is where all the
 non-constant Laplacian eigenvectors sit — `lapMat_compl_mulVec` reads that as `μ ↦ n - μ` on
-eigenvectors. That is exactly what bounds the spectrum from above: `n - μ` is a Laplacian
+eigenvectors. Getting from eigenvectors to multiplicities is the content of
+
+```lean
+theorem lapSpectrum_compl_of_isConnected {G : CGraph} [DecidableEq G.V] (hconn : G.IsConnected) :
+    (compl G).lapSpectrum
+      = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x)
+```
+
+**the Laplacian spectrum of the complement of a connected graph is `0` together with `n - μ` for
+every eigenvalue `μ` other than one copy of `0`.** Orthogonally diagonalise `L`
+(`exists_orthogonal_lap_diagonal`, the Laplacian twin of `exists_orthogonal_diagonal`). Since `G`
+is connected, `lapMat_mulVec_eq_zero_iff` says the kernel is spanned by the all-ones vector, so
+exactly one column `u` of the eigenbasis is constant — it is the one whose coordinate sum is
+nonzero, and orthonormality forces that sum to be `±√n`. In those coordinates `J = 1 1ᵀ` becomes
+`n` times the diagonal idempotent at `u`, so `Uᵀ (n I - J - L) U` is diagonal with entries `0` at
+`u` and `n - μ` elsewhere, and `lapSpectrum_eq_of_conj` reads the complement's spectrum straight
+off it.
+
+Complementing a disjoint union of two complete graphs is a complete bipartite graph, so one
+application of that theorem computes them all: `lapSpectrum_bipartite` gives `K_{m+1,n+1}` the
+Laplacian eigenvalues `0`, `m + n + 2`, `n + 1` with multiplicity `m`, and `m + 1` with
+multiplicity `n`. The star is the `m = 0` case, `lapSpectrum_star` (`0`, `n + 2`, and `1` with
+multiplicity `n`) — worth its own name because the star is the first graph here that regularity
+does not reach, so `lapSpectrum_of_isRegularWith` says nothing at all about it.
+
+The complement identity is also exactly what bounds the spectrum from above: `n - μ` is a Laplacian
 eigenvalue of the complement, hence nonnegative, so `le_card_of_mem_lapSpectrum` gives the sharp
 `μ ≤ n` — attained by `K_n`, whose Laplacian spectrum is `0, n, …, n`. The cruder
 `le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`) comes from the largest-coordinate argument

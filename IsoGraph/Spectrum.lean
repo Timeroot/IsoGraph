@@ -162,15 +162,22 @@ does adjacency ones (`lapSpectrum_disjUnion`), which is the component count agai
 at a time.
 
 `lapSpectrum_bipartite_self` adds the balanced complete bipartite graph, whose Laplacian
-eigenvalues are `0`, `2 (n + 1)` and `n + 1` with multiplicity `2 n`.  The star is *not* regular,
-so `lapSpectrum_star` has to be done by hand: `lapMat_mulVec_apply` writes the eigenvector
-equation out coordinate by coordinate, the centre and leaf equations force every eigenvalue to be
-`0`, `1` or `n + 2`, and then the order, `sum_lapSpectrum` and `count_zero_lapSpectrum` pin the
-three multiplicities down to `1`, `n` and `1`.
+eigenvalues are `0`, `2 (n + 1)` and `n + 1` with multiplicity `2 n`.
 
 `lapMat_compl` is the complement identity `L(G) + L(Ḡ) = n I - J`, and on a vector summing to
 zero — where every non-constant Laplacian eigenvector lives — `lapMat_compl_mulVec` turns that
-into the eigenvalue statement `μ ↦ n - μ`.  Two bounds come out of the same picture:
+into the eigenvalue statement `μ ↦ n - μ`.  Upgrading that to multisets is
+`lapSpectrum_compl_of_isConnected`: **the complement of a connected graph has Laplacian spectrum
+`0` together with `n - μ` for every other `μ`.**  The proof orthogonally diagonalises `L`
+(`exists_orthogonal_lap_diagonal`), notes that on a connected graph the kernel is spanned by the
+all-ones vector so exactly one column of the eigenbasis is constant, and computes that in those
+coordinates `J` becomes `n` times the corresponding diagonal idempotent; `lapSpectrum_eq_of_conj`
+then reads the complement's spectrum off the resulting diagonal.  Complementing the disjoint union
+of two complete graphs gives every complete bipartite graph at once, `lapSpectrum_bipartite`
+(`0`, `m + n + 2`, `n + 1` with multiplicity `m` and `m + 1` with multiplicity `n`), and the star
+`lapSpectrum_star` is its `m = 0` case — worth recording separately because the star is *not*
+regular, so `lapSpectrum_of_isRegularWith` says nothing about it.  Two bounds come out of the same
+picture:
 `le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`, the largest-coordinate argument again) and
 the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
 `n - μ` off the complement and uses that Laplacian eigenvalues are nonnegative.
@@ -5179,6 +5186,42 @@ theorem lapSpectrum_complete (n : ℕ) :
     Multiset.map_cons, Multiset.map_replicate]
   norm_num
 
+theorem lapCharpoly_eq_prod_of_conj {G : CGraph} {P Q : Matrix G.V G.V ℝ} {d : G.V → ℝ}
+    (hPQ : P * Q = 1) (hQP : Q * P = 1) (h : G.lapMat * P = P * Matrix.diagonal d) :
+    G.lapCharpoly = ∏ i, (X - C (d i)) := by
+  have hA : G.lapMat = P * Matrix.diagonal d * Q := by
+    calc G.lapMat = G.lapMat * (P * Q) := by rw [hPQ, mul_one]
+      _ = G.lapMat * P * Q := by rw [mul_assoc]
+      _ = P * Matrix.diagonal d * Q := by rw [h]
+  rw [lapCharpoly, hA, mul_assoc, Matrix.charpoly_mul_comm, mul_assoc, hQP, mul_one,
+    Matrix.charpoly_diagonal]
+
+theorem lapSpectrum_eq_of_conj {G : CGraph} {P Q : Matrix G.V G.V ℝ} {d : G.V → ℝ}
+    (hPQ : P * Q = 1) (hQP : Q * P = 1) (h : G.lapMat * P = P * Matrix.diagonal d) :
+    G.lapSpectrum = Finset.univ.val.map d := by
+  rw [lapSpectrum, lapCharpoly_eq_prod_of_conj hPQ hQP h,
+    show (∏ i, (X - C (d i))) = ((Finset.univ.val.map d).map (fun a ↦ X - C a)).prod from by
+      rw [Multiset.map_map]; rfl,
+    Polynomial.roots_multiset_prod_X_sub_C]
+
+/-- The Laplacian, too, is orthogonally diagonalisable. -/
+theorem exists_orthogonal_lap_diagonal (G : CGraph) :
+    ∃ U : Matrix G.V G.V ℝ, Uᵀ * U = 1 ∧ U * Uᵀ = 1 ∧
+      Uᵀ * G.lapMat * U = Matrix.diagonal G.lapEigenvalues := by
+  have hA := G.isHermitian_lapMat
+  set U : Matrix G.V G.V ℝ := ↑hA.eigenvectorUnitary with hUdef
+  have hU : U ∈ unitary (Matrix G.V G.V ℝ) := hA.eigenvectorUnitary.2
+  have hst : Star.star U * G.lapMat * U = Matrix.diagonal G.lapEigenvalues := by
+    have h := hA.conjStarAlgAut_star_eigenvectorUnitary
+    rw [Unitary.conjStarAlgAut_apply, Unitary.coe_star, star_star] at h
+    exact h
+  have hstar : Star.star U = Uᵀ := by
+    rw [Matrix.star_eq_conjTranspose, Matrix.conjTranspose_eq_transpose_of_trivial]
+  rw [hstar] at hst
+  refine ⟨U, ?_, ?_, hst⟩
+  · rw [← hstar]; exact hU.1
+  · rw [← hstar]; exact hU.2
+
 /-- **The Laplacians of a graph and of its complement add up to `n I - J`.** -/
 theorem lapMat_compl (G : CGraph) [DecidableEq G.V] :
     (compl G).lapMat
@@ -5228,139 +5271,224 @@ theorem lapSpectrum_bipartite_self (n : ℕ) :
   norm_num
   ring
 
-private theorem multiset_eq_of_mem_triple {s : Multiset ℝ} {p q r : ℝ}
-    (hpq : p ≠ q) (hpr : p ≠ r) (hqr : q ≠ r) (hs : ∀ x ∈ s, x = p ∨ x = q ∨ x = r) :
-    s = Multiset.replicate (s.count p) p + Multiset.replicate (s.count q) q
-      + Multiset.replicate (s.count r) r := by
-  classical
-  have hsub : s.toFinset ⊆ ({p, q, r} : Finset ℝ) := by
-    intro x hx
-    rcases hs x (Multiset.mem_toFinset.1 hx) with h | h | h <;> simp [h]
-  have hz : ∀ x ∈ ({p, q, r} : Finset ℝ), x ∉ s.toFinset → s.count x • ({x} : Multiset ℝ) = 0 := by
-    intro x _ hx
-    rw [Multiset.count_eq_zero_of_notMem fun h ↦ hx (Multiset.mem_toFinset.2 h), zero_smul]
-  have hkey := Multiset.toFinset_sum_count_nsmul_eq s
-  rw [Finset.sum_subset hsub hz, Finset.sum_insert (by simp [hpq, hpr]),
-    Finset.sum_insert (by simp [hqr]), Finset.sum_singleton] at hkey
-  conv_lhs => rw [← hkey]
-  simp only [Multiset.nsmul_singleton]
-  abel
+/-- **The Laplacian spectrum of the complement of a connected graph.**  The eigenvalue `0` of the
+constant vector stays `0`, and every other eigenvalue `μ` becomes `n - μ`. -/
+theorem lapSpectrum_compl_of_isConnected {G : CGraph} [inst : DecidableEq G.V]
+    (hconn : G.IsConnected) :
+    (compl G).lapSpectrum
+      = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+  obtain rfl : inst = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  haveI : Nonempty G.V := hconn.nonempty
+  have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
+  obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_lap_diagonal G
+  have hAU : G.lapMat * U = U * Matrix.diagonal G.lapEigenvalues := by
+    calc G.lapMat * U = (U * Uᵀ) * (G.lapMat * U) := by rw [hUU', one_mul]
+      _ = U * (Uᵀ * G.lapMat * U) := by simp only [mul_assoc]
+      _ = U * Matrix.diagonal G.lapEigenvalues := by rw [hdiag]
+  -- the columns of `U` are the eigenvectors
+  have hcol : ∀ i, G.lapMat *ᵥ (Uᵀ i) = G.lapEigenvalues i • (Uᵀ i) := by
+    intro i
+    funext x
+    have h1 : (G.lapMat * U) x i = U x i * G.lapEigenvalues i := by
+      rw [hAU, Matrix.mul_diagonal]
+    simpa [Matrix.mulVec, dotProduct, Matrix.mul_apply, mul_comm] using h1
+  have horth : ∀ i j, (Uᵀ i) ⬝ᵥ (Uᵀ j) = if i = j then 1 else 0 := by
+    intro i j
+    have h1 : (Uᵀ * U) i j = (1 : Matrix G.V G.V ℝ) i j := by rw [hUU]
+    rw [Matrix.one_apply] at h1
+    simpa [Matrix.mul_apply, dotProduct] using h1
+  -- on a connected graph a kernel vector of `L` is constant
+  have hconstv : ∀ i, G.lapEigenvalues i = 0 → ∀ x y, U x i = U y i := by
+    intro i hi x y
+    have h0 : G.lapMat *ᵥ (Uᵀ i) = 0 := by rw [hcol i, hi, zero_smul]
+    exact (G.lapMat_mulVec_eq_zero_iff.1 h0) x y (hconn.preconnected x y)
+  set w : G.V → ℝ := fun i ↦ ∑ x, U x i with hw
+  have hone : G.lapMat *ᵥ (fun _ ↦ (1 : ℝ)) = 0 := by simpa using G.lapMat_mulVec_one
+  have hwvec : Uᵀ *ᵥ (fun _ ↦ (1 : ℝ)) = w := by
+    funext i
+    simp [Matrix.mulVec, dotProduct, hw]
+  -- `w` is supported on the eigenvalue `0`
+  have hzero : ∀ i, G.lapEigenvalues i ≠ 0 → w i = 0 := by
+    intro i hi
+    have h1 : Matrix.diagonal G.lapEigenvalues *ᵥ w = 0 := by
+      rw [← hwvec, ← hdiag, Matrix.mulVec_mulVec, mul_assoc, mul_assoc, hUU', mul_one,
+        ← Matrix.mulVec_mulVec, hone, Matrix.mulVec_zero]
+    have h2 := congrFun h1 i
+    simp only [Matrix.mulVec_diagonal, Pi.zero_apply] at h2
+    exact (mul_eq_zero.1 h2).resolve_left hi
+  -- some coordinate of `w` is nonzero
+  have hwne : w ≠ 0 := by
+    intro h0
+    have h1 : U *ᵥ w = (fun _ ↦ (1 : ℝ)) := by
+      rw [← hwvec, Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
+    rw [h0, Matrix.mulVec_zero] at h1
+    have h2 := congrFun h1 (Classical.arbitrary G.V)
+    norm_num at h2
+  obtain ⟨i₀, hi₀⟩ := Function.ne_iff.1 hwne
+  have hi₀0 : w i₀ ≠ 0 := by simpa using hi₀
+  have hlam : G.lapEigenvalues i₀ = 0 := by
+    by_contra hcon
+    exact hi₀0 (hzero i₀ hcon)
+  -- the constant value `c` of the column `i₀`
+  obtain ⟨c, hc⟩ : ∃ c, ∀ x, U x i₀ = c :=
+    ⟨U (Classical.arbitrary G.V) i₀, fun x ↦ hconstv i₀ hlam x _⟩
+  have hwc : w i₀ = c * Fintype.card G.V := by
+    rw [hw]
+    simp [hc, Finset.card_univ, mul_comm]
+  have hcsq : c ^ 2 * Fintype.card G.V = 1 := by
+    have h1 := horth i₀ i₀
+    rw [if_pos rfl] at h1
+    simp only [dotProduct, Matrix.transpose_apply, hc, Finset.sum_const, Finset.card_univ,
+      nsmul_eq_mul] at h1
+    rw [← h1]
+    ring
+  have hwsq : w i₀ ^ 2 = Fintype.card G.V := by
+    rw [hwc, show (c * Fintype.card G.V) ^ 2
+      = (c ^ 2 * Fintype.card G.V) * Fintype.card G.V from by ring, hcsq, one_mul]
+  -- every other coordinate of `w` vanishes
+  have hwvanish : ∀ i, i ≠ i₀ → w i = 0 := by
+    intro i hne
+    by_cases hi : G.lapEigenvalues i = 0
+    · obtain ⟨e, he⟩ : ∃ e, ∀ x, U x i = e :=
+        ⟨U (Classical.arbitrary G.V) i, fun x ↦ hconstv i hi x _⟩
+      have h1 := horth i i₀
+      rw [if_neg hne] at h1
+      simp only [dotProduct, Matrix.transpose_apply, he, hc, Finset.sum_const, Finset.card_univ,
+        nsmul_eq_mul] at h1
+      have hcne : c ≠ 0 := by
+        intro h0
+        rw [h0, zero_mul] at hwc
+        exact hi₀0 hwc
+      have he0 : e = 0 := by
+        rcases mul_eq_zero.1 h1 with h | h
+        · exact absurd h (ne_of_gt hnpos)
+        · rcases mul_eq_zero.1 h with h' | h'
+          · exact h'
+          · exact absurd h' hcne
+      rw [hw]
+      simp [he, he0]
+    · exact hzero i hi
+  -- conjugating the complement
+  set d : G.V → ℝ := fun i ↦ (Fintype.card G.V : ℝ)
+    - (if i = i₀ then (Fintype.card G.V : ℝ) else 0) - G.lapEigenvalues i with hdd
+  have hJ : Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1) * U = Matrix.vecMulVec w w := by
+    ext i j
+    have hrow : ∀ y : G.V, (Uᵀ * Matrix.vecMulVec (1 : G.V → ℝ) 1) i y = w i := fun y ↦ by
+      simp [Matrix.mul_apply, hw]
+    rw [Matrix.mul_apply]
+    simp only [hrow, ← Finset.mul_sum, Matrix.vecMulVec_apply]
+    simp [hw]
+  have hvv : Matrix.vecMulVec w w
+      = Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0) := by
+    ext i j
+    rcases eq_or_ne i i₀ with hi | hi
+    · rcases eq_or_ne j i₀ with hj | hj
+      · subst hi
+        subst hj
+        simp [Matrix.vecMulVec_apply, Matrix.diagonal, ← sq, hwsq]
+      · subst hi
+        simp [Matrix.vecMulVec_apply, Matrix.diagonal, Ne.symm hj, hwvanish j hj]
+    · simp [Matrix.vecMulVec_apply, Matrix.diagonal, hi, hwvanish i hi]
+  have hNd : ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ))
+      = Matrix.diagonal (fun _ ↦ (Fintype.card G.V : ℝ)) := by
+    ext i j
+    rcases eq_or_ne i j with rfl | hij
+    · simp
+    · simp [Matrix.one_apply_ne hij, Matrix.diagonal_apply_ne _ hij]
+  have hdsplit : Matrix.diagonal d
+      = Matrix.diagonal (fun _ ↦ (Fintype.card G.V : ℝ))
+        - Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0)
+        - Matrix.diagonal G.lapEigenvalues := by
+    rw [hdd, ← Matrix.diagonal_sub, ← Matrix.diagonal_sub]
+  have hfinal : Uᵀ * ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+      - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U = Matrix.diagonal d := by
+    rw [Matrix.mul_sub, Matrix.sub_mul, Matrix.mul_sub, Matrix.sub_mul, hJ, hvv, hdiag,
+      Matrix.mul_smul, mul_one, Matrix.smul_mul, hUU, hNd, hdsplit]
+  have hcon2 : ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+      - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U = U * Matrix.diagonal d := by
+    calc ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+          - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U
+        = (U * Uᵀ) * (((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+            - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U) := by rw [hUU', one_mul]
+      _ = U * (Uᵀ * ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+            - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U) := by simp only [mul_assoc]
+      _ = U * Matrix.diagonal d := by rw [hfinal]
+  have hspec : (compl G).lapSpectrum = Finset.univ.val.map d :=
+    lapSpectrum_eq_of_conj (G := compl G) (P := U) (Q := Uᵀ) (d := d) hUU' hUU
+      (by rw [lapMat_compl]; exact hcon2)
+  -- unpacking the two multisets
+  have hmem : i₀ ∈ (Finset.univ : Finset G.V).val := Finset.mem_univ i₀
+  have hsplit : (Finset.univ : Finset G.V).val = i₀ ::ₘ (Finset.univ : Finset G.V).val.erase i₀ :=
+    (Multiset.cons_erase hmem).symm
+  have hnodup : i₀ ∉ (Finset.univ : Finset G.V).val.erase i₀ := fun h ↦ by
+    have hnd := Finset.univ.nodup (α := G.V)
+    rw [hsplit] at hnd
+    exact (Multiset.nodup_cons.1 hnd).1 h
+  have hspecG : G.lapSpectrum.erase 0
+      = ((Finset.univ : Finset G.V).val.erase i₀).map G.lapEigenvalues := by
+    rw [lapSpectrum_eq_map]
+    conv_lhs => rw [hsplit]
+    rw [Multiset.map_cons, hlam, Multiset.erase_cons_head]
+  rw [hspec, hspecG, Multiset.map_map]
+  conv_lhs => rw [hsplit]
+  rw [Multiset.map_cons]
+  congr 1
+  · simp [hdd, hlam]
+  · refine Multiset.map_congr rfl fun i hi ↦ ?_
+    have hne : i ≠ i₀ := fun h ↦ hnodup (h ▸ hi)
+    simp [hdd, hne]
 
-theorem lapSpectrum_bipartite_one (n : ℕ) :
-    (bipartite 1 (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) := by
+/-- The complement identity the other way round: a connected graph's Laplacian spectrum is
+recovered from its complement's. -/
+theorem lapSpectrum_eq_of_compl {G : CGraph} [DecidableEq G.V] (hconn : G.IsConnected) :
+    G.lapSpectrum
+      = 0 ::ₘ ((compl G).lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+  haveI : Nonempty G.V := hconn.nonempty
+  have h := lapSpectrum_compl_of_isConnected (G := G) hconn
+  rw [h, Multiset.erase_cons_head, Multiset.map_map]
+  rw [show ((fun x ↦ (Fintype.card G.V : ℝ) - x) ∘ fun x ↦ (Fintype.card G.V : ℝ) - x) = id from
+    funext fun x ↦ by simp, Multiset.map_id]
+  exact (Multiset.cons_erase G.zero_mem_lapSpectrum).symm
+
+/-- **The Laplacian spectrum of the complete bipartite graph** `K_{m+1,n+1}`: `0`, `m + n + 2`,
+`n + 1` with multiplicity `m`, and `m + 1` with multiplicity `n`. -/
+theorem lapSpectrum_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).lapSpectrum
+      = 0 ::ₘ (((m : ℝ) + (n : ℝ) + 2)
+          ::ₘ (Multiset.replicate m ((n : ℝ) + 1) + Multiset.replicate n ((m : ℝ) + 1))) := by
   classical
-  have hsplit : ∀ g : (bipartite 1 (n + 1)).V → ℝ,
-      ∑ j, g j = ∑ a : Fin 1, g (Sum.inl a) + ∑ b : Fin (n + 1), g (Sum.inr b) :=
-    fun g ↦ Fintype.sum_sum_type g
-  -- the row sums of the adjacency matrix, at the centre and at a leaf
-  have hrowz : ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inl (0 : Fin 1)) j = ((n : ℝ) + 1) := by
-    rw [hsplit]
-    simp [adjMat_apply]
-  have hrowb : ∀ b : Fin (n + 1),
-      ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inr b) j = 1 := by
-    intro b
-    rw [hsplit]
-    simp [adjMat_apply]
-  have hdotz : ∀ v : (bipartite 1 (n + 1)).V → ℝ,
-      ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inl (0 : Fin 1)) j * v j
-        = ∑ b : Fin (n + 1), v (Sum.inr b) := by
-    intro v
-    rw [hsplit]
-    simp [adjMat_apply]
-  have hdotb : ∀ (b : Fin (n + 1)) (v : (bipartite 1 (n + 1)).V → ℝ),
-      ∑ j, (bipartite 1 (n + 1)).adjMat (Sum.inr b) j * v j = v (Sum.inl (0 : Fin 1)) := by
-    intro b v
-    rw [hsplit]
-    simp [adjMat_apply]
-  -- only `0`, `1` and `n + 2` can be Laplacian eigenvalues
-  have hmem : ∀ x ∈ (bipartite 1 (n + 1)).lapSpectrum, x = 0 ∨ x = 1 ∨ x = (n : ℝ) + 2 := by
-    intro x hx
-    obtain ⟨v, hv0, hv⟩ := ((bipartite 1 (n + 1)).mem_lapSpectrum_iff x).1 hx
-    have hleaf : ∀ b : Fin (n + 1),
-        (1 - x) * v (Sum.inr b) = v (Sum.inl (0 : Fin 1)) := by
-      intro b
-      have h := congrFun hv (Sum.inr b)
-      rw [lapMat_mulVec_apply, hrowb, hdotb] at h
-      simp only [Pi.smul_apply, smul_eq_mul] at h
-      linarith
-    have hcen : ((n : ℝ) + 1) * v (Sum.inl (0 : Fin 1)) - ∑ b : Fin (n + 1), v (Sum.inr b)
-        = x * v (Sum.inl (0 : Fin 1)) := by
-      have h := congrFun hv (Sum.inl (0 : Fin 1))
-      rw [lapMat_mulVec_apply, hrowz, hdotz] at h
-      simpa using h
-    by_cases hx1 : x = 1
-    · exact Or.inr (Or.inl hx1)
-    · have hx1' : (1 : ℝ) - x ≠ 0 := sub_ne_zero.2 (Ne.symm hx1)
-      have hsum : (1 - x) * ∑ b : Fin (n + 1), v (Sum.inr b)
-          = ((n : ℝ) + 1) * v (Sum.inl (0 : Fin 1)) := by
-        rw [Finset.mul_sum]
-        simp only [hleaf, Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
-        push_cast
-        ring
-      have hfac : x * v (Sum.inl (0 : Fin 1)) * ((n : ℝ) + 2 - x) = 0 := by
-        linear_combination (x - 1) * hcen - hsum
-      rcases mul_eq_zero.1 hfac with h | h
-      · rcases mul_eq_zero.1 h with h' | h'
-        · exact Or.inl h'
-        · refine absurd (_root_.funext fun i ↦ ?_) hv0
-          rcases i with a | b
-          · have hai : (Sum.inl a : (bipartite 1 (n + 1)).V) = Sum.inl (0 : Fin 1) := by
-              congr 1
-              exact Subsingleton.elim (α := Fin 1) a 0
-            rw [hai]
-            simpa using h'
-          · have hb := hleaf b
-            rw [h'] at hb
-            simpa using (mul_eq_zero.1 hb).resolve_left hx1'
-      · exact Or.inr (Or.inr (by linarith))
-  -- three candidate values, three multiplicities
-  have hnn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
-  have h01 : (0 : ℝ) ≠ 1 := by norm_num
-  have h0n : (0 : ℝ) ≠ (n : ℝ) + 2 := by intro h; linarith
-  have h1n : (1 : ℝ) ≠ (n : ℝ) + 2 := by intro h; linarith
-  have heq := multiset_eq_of_mem_triple h01 h0n h1n hmem
-  set a := (bipartite 1 (n + 1)).lapSpectrum.count 0 with ha
-  set b := (bipartite 1 (n + 1)).lapSpectrum.count 1 with hb
-  set d := (bipartite 1 (n + 1)).lapSpectrum.count ((n : ℝ) + 2) with hd
-  have hzero : a = 1 := by
-    rw [ha]
-    exact (count_zero_lapSpectrum_eq_one_iff _).2 (isConnected_bipartite 0 n)
-  have hcard : a + b + d = n + 2 := by
-    have h := congrArg Multiset.card heq
-    rw [card_lapSpectrum] at h
-    simp only [Multiset.card_add, Multiset.card_replicate, card_bipartite] at h
-    omega
-  have hsum : (b : ℝ) + ((n : ℝ) + 2) * d = 2 * ((n : ℝ) + 1) := by
-    have h := congrArg Multiset.sum heq
-    rw [sum_lapSpectrum] at h
-    simp only [Multiset.sum_add, Multiset.sum_replicate, nsmul_eq_mul, mul_zero, mul_one,
-      zero_add, E_bipartite] at h
-    push_cast at h ⊢
-    linarith
-  have hcr : (a : ℝ) + (b : ℝ) + (d : ℝ) = (n : ℝ) + 2 := by exact_mod_cast hcard
-  have hd1 : d = 1 := by
-    have hnz : ((n : ℝ) + 1) * ((d : ℝ) - 1) = 0 := by
-      rw [hzero] at hcr
-      push_cast at hcr
-      nlinarith [hsum, hcr]
-    have hd' : (d : ℝ) = 1 := by
-      rcases mul_eq_zero.1 hnz with h | h
-      · exact absurd h (by positivity)
-      · linarith
-    exact_mod_cast hd'
-  have hb1 : b = n := by omega
-  rw [heq, hzero, hd1, hb1]
-  simp only [Multiset.replicate_one, ← Multiset.singleton_add]
-  abel
+  have hcompl : compl (bipartite (m + 1) (n + 1))
+      = disjUnion (complete (m + 1)) (complete (n + 1)) := by
+    simp [bipartite]
+  have hcard : Fintype.card (bipartite (m + 1) (n + 1)).V = m + 1 + (n + 1) :=
+    card_bipartite _ _
+  rw [lapSpectrum_eq_of_compl (isConnected_bipartite m n), hcard, hcompl,
+    lapSpectrum_disjUnion, lapSpectrum_complete, lapSpectrum_complete]
+  rw [show (0 : ℝ) ::ₘ Multiset.replicate m ((m : ℝ) + 1)
+      + (0 : ℝ) ::ₘ Multiset.replicate n ((n : ℝ) + 1)
+      = 0 ::ₘ (Multiset.replicate m ((m : ℝ) + 1)
+        + (0 : ℝ) ::ₘ Multiset.replicate n ((n : ℝ) + 1)) from by
+    rw [Multiset.cons_add]]
+  rw [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_cons, Multiset.map_replicate,
+    Multiset.map_replicate, Multiset.add_cons]
+  push_cast
+  congr 2
+  · ring
+  · congr 1
+    · congr 1
+      ring
+    · congr 1
+      ring
 
 /-- **The Laplacian spectrum of the star** `K₁,ₙ₊₁`: `0`, `n + 2`, and `1` with multiplicity `n`.
-The star is not regular, so this does not come from `lapSpectrum_of_isRegularWith`; it is read off
-the eigenvector equations, which force every eigenvalue to be `0`, `1` or `n + 2`, and then the
-multiplicities are pinned down by the order, the number of edges and the number of components. -/
+The star is not regular, so this does not come from `lapSpectrum_of_isRegularWith`; it is the
+`m = 0` case of `lapSpectrum_bipartite`. -/
 theorem lapSpectrum_star (n : ℕ) :
     (star (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) := by
+  have h := lapSpectrum_bipartite 0 n
+  norm_num at h
   rw [star]
-  exact lapSpectrum_bipartite_one n
+  exact h
 
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.**  Evaluate the
 eigenvector equation at a coordinate where `|v|` is largest, as for `abs_le_maxDeg_of_mem_spectrum`
@@ -5374,13 +5502,9 @@ theorem le_two_mul_maxDeg_of_mem_lapSpectrum {G : CGraph} {x : ℝ} (hx : x ∈ 
     Finset.exists_max_image (Finset.univ : Finset G.V) (fun i ↦ |u i|) ⟨i₀, Finset.mem_univ i₀⟩
   have hup : 0 < |u p| := lt_of_lt_of_le (abs_pos.2 hi₀) (hp i₀ (Finset.mem_univ i₀))
   set d : ℝ := (G.toSimple.degree p : ℝ) with hd
-  have hrow : ∑ j, G.adjMat p j = d := by
-    have h1 : (G.adjMat *ᵥ (1 : G.V → ℝ)) p = d := by
-      simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply, hd]
-    simpa [Matrix.mulVec, dotProduct] using h1
+  have hrow : ∑ j, G.adjMat p j = d := G.sum_adjMat_row_eq_degree p
   have hL : (G.lapMat *ᵥ u) p = d * u p - ∑ j, G.adjMat p j * u j := by
-    rw [lapMat_eq_diagonal_sub, Matrix.sub_mulVec, Pi.sub_apply, Matrix.mulVec_diagonal]
-    simp [Matrix.mulVec, dotProduct, hd]
+    rw [G.lapMat_mulVec_apply u p, hrow]
   have e : (x - d) * u p = -∑ j, G.adjMat p j * u j := by
     have h2 : (G.lapMat *ᵥ u) p = x * u p := by rw [hu]; simp
     rw [hL] at h2
@@ -5904,8 +6028,27 @@ theorem lapSpectrum_hypercube (n : ℕ) :
   congr 1
   ring
 
+/-- **The Laplacian spectrum of the complement of a connected graph.**  The eigenvalue `0` of the
+constant vector stays `0`, and every other eigenvalue `μ` becomes `n - μ`. -/
+theorem lapSpectrum_compl_of_isConnected {G : IsoGraph} (hconn : G.IsConnected) :
+    Gᶜ.lapSpectrum = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (G.V : ℝ) - x) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    classical
+    rw [isConnected_mk] at hconn
+    rw [compl_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk]
+    exact CGraph.lapSpectrum_compl_of_isConnected hconn
+
+/-- **The Laplacian spectrum of the complete bipartite graph** `K_{m+1,n+1}`: `0`, `m + n + 2`,
+`n + 1` with multiplicity `m`, and `m + 1` with multiplicity `n`. -/
+theorem lapSpectrum_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).lapSpectrum
+      = 0 ::ₘ (((m : ℝ) + (n : ℝ) + 2)
+          ::ₘ (Multiset.replicate m ((n : ℝ) + 1) + Multiset.replicate n ((m : ℝ) + 1))) :=
+  CGraph.lapSpectrum_bipartite m n
+
 /-- **The Laplacian spectrum of the star** `K₁,ₙ₊₁`: `0`, `n + 2`, and `1` with multiplicity
-`n`.  The star is not regular, so this one is proved from the eigenvector equations directly. -/
+`n`.  The star is not regular; it is the `m = 0` case of `lapSpectrum_bipartite`. -/
 theorem lapSpectrum_star (n : ℕ) :
     (star (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) :=
   CGraph.lapSpectrum_star n
