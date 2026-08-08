@@ -249,6 +249,19 @@ every other nonzero sum dominates one of them.  No connectivity hypothesis is ne
 minimum: a disconnected factor sends both sides to `0`.  Since `Q_n = Q_{n-1} □ K₂`, that
 recovers `algConn_hypercube` and `lapLambdaMax_hypercube` by induction.
 
+The strongly regular graphs come along for free, since they are regular with a three-point
+spectrum `k > r > s`.  `lapSpectrum_of_spectrum_eq` reflects such a spectrum in `k`, and the two
+ends are then immediate: `algConn_of_spectrum_eq` is `k - r` and `lapLambdaMax_of_spectrum_eq` is
+`k - s`, so **on a strongly regular graph both extreme Laplacian eigenvalues are read off the
+two restricted adjacency eigenvalues**, with the larger one governing connectivity.  Every named
+family computed above gets its Laplacian data this way: `lapSpectrum_petersen` (`0`, `2` five
+times, `5` four times, so `algConn_petersen = 2` and `lapLambdaMax_petersen = 5`),
+`lapSpectrum_cocktailParty`, `lapSpectrum_rook`, `lapSpectrum_triangular` and, the irrational
+case, `lapSpectrum_paley` (`(q ∓ √q) / 2`, each with multiplicity `(q - 1) / 2`).  Two of them
+double as checks on the product formulas: `algConn_rook` is `n` and `lapLambdaMax_rook` is `2 n`,
+which is what `algConn_cartesianProduct` and `lapLambdaMax_cartesianProduct` give for
+`K_n □ K_n`.
+
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
 `count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
@@ -6494,6 +6507,229 @@ theorem algConn_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H
       · exact H.nonneg_of_mem_lapSpectrum (Multiset.mem_of_mem_erase hp2)
     have hmin := min_le_left G.algConn H.algConn
     linarith
+
+/-- **The Laplacian spectrum of a regular graph with a two-eigenvalue adjacency spectrum.**
+Every strongly regular graph has this shape, so this is the bridge from `spectrum_isSRGWith`
+to the Laplacian. -/
+theorem lapSpectrum_of_spectrum_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) {f g : ℕ}
+    {d r s : ℝ} (hd : (k : ℝ) = d)
+    (hspec : G.spectrum = d ::ₘ (Multiset.replicate f r + Multiset.replicate g s)) :
+    G.lapSpectrum
+      = 0 ::ₘ (Multiset.replicate f (d - r) + Multiset.replicate g (d - s)) := by
+  subst hd
+  rw [lapSpectrum_of_isRegularWith h, hspec, Multiset.map_cons, Multiset.map_add,
+    Multiset.map_replicate, Multiset.map_replicate, sub_self]
+
+/-- **The largest Laplacian eigenvalue of a strongly regular graph is `k - s`.** -/
+theorem lapLambdaMax_of_spectrum_eq {G : CGraph} [Nonempty G.V] {k : ℕ} (h : G.IsRegularWith k)
+    {f g : ℕ} {d r s : ℝ} (hd : (k : ℝ) = d) (hg : 0 < g) (hsr : s ≤ r) (hsk : s ≤ d)
+    (hspec : G.spectrum = d ::ₘ (Multiset.replicate f r + Multiset.replicate g s)) :
+    G.lapLambdaMax = d - s := by
+  have hlap := lapSpectrum_of_spectrum_eq h hd hspec
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [hlap]
+    refine Multiset.mem_cons_of_mem (Multiset.mem_add.2 (Or.inr ?_))
+    exact Multiset.mem_replicate.2 ⟨hg.ne', rfl⟩
+  · intro x hx
+    rw [hlap] at hx
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · linarith
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+    · rw [Multiset.eq_of_mem_replicate hx]
+
+/-- **The algebraic connectivity of a strongly regular graph is `k - r`.** -/
+theorem algConn_of_spectrum_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k)
+    {f g : ℕ} {d r s : ℝ} (hd : (k : ℝ) = d) (hf : 0 < f) (hsr : s ≤ r)
+    (hspec : G.spectrum = d ::ₘ (Multiset.replicate f r + Multiset.replicate g s)) :
+    G.algConn = d - r := by
+  have hlap := lapSpectrum_of_spectrum_eq h hd hspec
+  have herase : G.lapSpectrum.erase 0
+      = Multiset.replicate f (d - r) + Multiset.replicate g (d - s) := by
+    rw [hlap, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    exact Multiset.mem_add.2 (Or.inl (Multiset.mem_replicate.2 ⟨hf.ne', rfl⟩))
+  · intro x hx
+    rw [herase] at hx
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+
+/-! ### The Laplacian of the named strongly regular graphs -/
+
+/-- **The Laplacian spectrum of the Petersen graph**: `0`, `2` five times, `5` four times. -/
+theorem lapSpectrum_petersen :
+    SRG.petersen.lapSpectrum = 0 ::ₘ (Multiset.replicate 5 2 + Multiset.replicate 4 5) := by
+  have h := lapSpectrum_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (by norm_num)
+    spectrum_petersen
+  rw [h]
+  norm_num
+
+theorem algConn_petersen : SRG.petersen.algConn = 2 := by
+  have h := algConn_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (f := 5) (g := 4)
+    (by norm_num) (by norm_num) (by norm_num) spectrum_petersen
+  rw [h]
+  norm_num
+
+theorem lapLambdaMax_petersen : SRG.petersen.lapLambdaMax = 5 := by
+  haveI : Nonempty SRG.petersen.V :=
+    Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
+  have h := lapLambdaMax_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (f := 5) (g := 4)
+    (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_petersen
+  rw [h]
+  norm_num
+
+/-- The regularity of the cocktail party graph, with the degree in normal form. -/
+theorem isRegularWith_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).IsRegularWith (2 * m + 2) := by
+  have h := (isSRGWith_cocktailParty (m + 2)).regular
+  rwa [show 2 * (m + 2) - 2 = 2 * m + 2 from by omega] at h
+
+/-- **The Laplacian spectrum of the cocktail party graph `K_{n×2}`**: `0` once, `2n - 2` with
+multiplicity `n` and `2n` with multiplicity `n - 1`. -/
+theorem lapSpectrum_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).lapSpectrum
+      = 0 ::ₘ (Multiset.replicate (m + 2) (2 * (m : ℝ) + 2)
+          + Multiset.replicate (m + 1) (2 * (m : ℝ) + 4)) := by
+  have h := lapSpectrum_of_spectrum_eq (isRegularWith_cocktailParty m) (by push_cast; ring)
+    (spectrum_cocktailParty m)
+  rw [h]
+  ring_nf
+
+theorem algConn_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).algConn = 2 * (m : ℝ) + 2 := by
+  have h := algConn_of_spectrum_eq (isRegularWith_cocktailParty m) (f := m + 2) (g := m + 1)
+    (by push_cast; ring) (by omega) (by norm_num) (spectrum_cocktailParty m)
+  rw [h]
+  ring
+
+theorem lapLambdaMax_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).lapLambdaMax = 2 * (m : ℝ) + 4 := by
+  haveI : Nonempty (cocktailParty (m + 2)).V :=
+    Fintype.card_pos_iff.1 (by rw [(isSRGWith_cocktailParty (m + 2)).card]; omega)
+  have h := lapLambdaMax_of_spectrum_eq (isRegularWith_cocktailParty m) (f := m + 2) (g := m + 1)
+    (by push_cast; ring) (by omega) (by norm_num)
+    (by have : (0 : ℝ) ≤ m := Nat.cast_nonneg m; linarith) (spectrum_cocktailParty m)
+  rw [h]
+  ring
+
+theorem isRegularWith_rook (k : ℕ) : (rook (k + 2) (k + 2)).IsRegularWith (2 * k + 2) := by
+  have h := (isSRGWith_rook (k + 2)).regular
+  rwa [show 2 * (k + 2 - 1) = 2 * k + 2 from by omega] at h
+
+/-- **The Laplacian spectrum of the rook's graph `K_n □ K_n`**: `0` once, `n` with multiplicity
+`2 (n - 1)` and `2n` with multiplicity `(n - 1) ²` — exactly what `lapSpectrum_cartesianProduct`
+gives for `K_n □ K_n`. -/
+theorem lapSpectrum_rook (k : ℕ) :
+    (rook (k + 2) (k + 2)).lapSpectrum
+      = 0 ::ₘ (Multiset.replicate (2 * (k + 1)) ((k : ℝ) + 2)
+          + Multiset.replicate ((k + 1) ^ 2) (2 * (k : ℝ) + 4)) := by
+  have h := lapSpectrum_of_spectrum_eq (isRegularWith_rook k) (by push_cast; ring)
+    (spectrum_rook k)
+  rw [h]
+  ring_nf
+
+theorem algConn_rook (k : ℕ) : (rook (k + 2) (k + 2)).algConn = (k : ℝ) + 2 := by
+  have h := algConn_of_spectrum_eq (isRegularWith_rook k) (f := 2 * (k + 1)) (g := (k + 1) ^ 2)
+    (by push_cast; ring) (by omega) (by have : (0 : ℝ) ≤ k := Nat.cast_nonneg k; linarith)
+    (spectrum_rook k)
+  rw [h]
+  ring
+
+theorem lapLambdaMax_rook (k : ℕ) :
+    (rook (k + 2) (k + 2)).lapLambdaMax = 2 * (k : ℝ) + 4 := by
+  haveI : Nonempty (rook (k + 2) (k + 2)).V :=
+    Fintype.card_pos_iff.1 (by rw [(isSRGWith_rook (k + 2)).card]; positivity)
+  have h := lapLambdaMax_of_spectrum_eq (isRegularWith_rook k) (f := 2 * (k + 1))
+    (g := (k + 1) ^ 2) (by push_cast; ring) (by positivity)
+    (by have : (0 : ℝ) ≤ k := Nat.cast_nonneg k; linarith)
+    (by have : (0 : ℝ) ≤ k := Nat.cast_nonneg k; linarith) (spectrum_rook k)
+  rw [h]
+  ring
+
+theorem isRegularWith_triangular (m : ℕ) :
+    (triangular (m + 4)).IsRegularWith (2 * m + 4) := by
+  have h := (isSRGWith_triangular (m + 4) (by omega)).regular
+  rwa [show 2 * (m + 4 - 2) = 2 * m + 4 from by omega] at h
+
+/-- **The Laplacian spectrum of the triangular graph `T(n) = L(Kₙ)`**: `0` once, `n` with
+multiplicity `n - 1`, and `2n - 2` with multiplicity `C(n, 2) - n`. -/
+theorem lapSpectrum_triangular (m : ℕ) :
+    (triangular (m + 4)).lapSpectrum
+      = 0 ::ₘ (Multiset.replicate (m + 3) ((m : ℝ) + 4)
+          + Multiset.replicate ((m + 4).choose 2 - (m + 4)) (2 * (m : ℝ) + 6)) := by
+  have h := lapSpectrum_of_spectrum_eq (isRegularWith_triangular m) (by push_cast; ring)
+    (spectrum_triangular m)
+  rw [h]
+  ring_nf
+
+theorem algConn_triangular (m : ℕ) : (triangular (m + 4)).algConn = (m : ℝ) + 4 := by
+  have h := algConn_of_spectrum_eq (isRegularWith_triangular m) (f := m + 3)
+    (g := (m + 4).choose 2 - (m + 4)) (by push_cast; ring) (by omega)
+    (by have : (0 : ℝ) ≤ m := Nat.cast_nonneg m; linarith) (spectrum_triangular m)
+  rw [h]
+  ring
+
+theorem lapLambdaMax_triangular (m : ℕ) :
+    (triangular (m + 4)).lapLambdaMax = 2 * (m : ℝ) + 6 := by
+  haveI : Nonempty (triangular (m + 4)).V :=
+    Fintype.card_pos_iff.1
+      (by rw [(isSRGWith_triangular (m + 4) (by omega)).card]; exact Nat.choose_pos (by omega))
+  have hch : m + 4 < (m + 4).choose 2 := by
+    have h1 : (m + 4).choose 2 = (m + 3) + ((m + 2) + (m + 2).choose 2) := by
+      rw [Nat.choose_succ_succ (m + 3) 1, Nat.choose_succ_succ (m + 2) 1]
+      simp [Nat.choose_one_right]
+    have h2 : 0 < (m + 2).choose 2 := Nat.choose_pos (by omega)
+    omega
+  have h := lapLambdaMax_of_spectrum_eq (isRegularWith_triangular m) (f := m + 3)
+    (g := (m + 4).choose 2 - (m + 4)) (by push_cast; ring) (by omega)
+    (by have : (0 : ℝ) ≤ m := Nat.cast_nonneg m; linarith)
+    (by have : (0 : ℝ) ≤ m := Nat.cast_nonneg m; linarith) (spectrum_triangular m)
+  rw [h]
+  ring
+
+theorem isRegularWith_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).IsRegularWith (2 * t) := by
+  haveI : NeZero (4 * t + 1) := ⟨by omega⟩
+  have h := (isSRGWith_paley (4 * t + 1) (by omega)).regular
+  rwa [show (4 * t + 1 - 1) / 2 = 2 * t from by omega] at h
+
+/-- **The Laplacian spectrum of the Paley graph** `P(q)`, `q = 4t + 1` prime: `0` once, and
+`(q ∓ √q) / 2` each with multiplicity `(q - 1) / 2`. -/
+theorem lapSpectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).lapSpectrum
+      = 0 ::ₘ
+        (Multiset.replicate (2 * t) ((4 * (t : ℝ) + 1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2)
+          + Multiset.replicate (2 * t)
+              ((4 * (t : ℝ) + 1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2)) := by
+  have h := lapSpectrum_of_spectrum_eq (isRegularWith_paley t ht) (by push_cast; ring)
+    (spectrum_paley t ht)
+  rw [h]
+  ring_nf
+
+theorem algConn_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).algConn
+      = (4 * (t : ℝ) + 1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
+  have hq : 0 < Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_pos.2 (by positivity)
+  have h := algConn_of_spectrum_eq (isRegularWith_paley t ht) (f := 2 * t) (g := 2 * t)
+    (by push_cast; ring) (by omega) (by linarith) (spectrum_paley t ht)
+  rw [h]
+  ring
+
+theorem lapLambdaMax_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).lapLambdaMax
+      = (4 * (t : ℝ) + 1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
+  haveI : NeZero (4 * t + 1) := ⟨by omega⟩
+  haveI : Nonempty (paley (4 * t + 1)).V :=
+    Fintype.card_pos_iff.1 (by rw [(isSRGWith_paley (4 * t + 1) (by omega)).card]; omega)
+  have hq : 0 < Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_pos.2 (by positivity)
+  have hqle : Real.sqrt (4 * (t : ℝ) + 1) ≤ 4 * (t : ℝ) + 1 := by
+    nlinarith [Real.sq_sqrt (show (0 : ℝ) ≤ 4 * (t : ℝ) + 1 by positivity), hq]
+  have h := lapLambdaMax_of_spectrum_eq (isRegularWith_paley t ht) (f := 2 * t) (g := 2 * t)
+    (by push_cast; ring) (by omega) (by linarith) (by linarith) (spectrum_paley t ht)
+  rw [h]
+  ring
 
 /-! ### Laplacian cospectrality -/
 

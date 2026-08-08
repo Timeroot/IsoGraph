@@ -4568,6 +4568,31 @@ needed — if either factor is disconnected, both sides are `0`. Since `Qₙ = Q
 recover `algConn_hypercube = 2` and `lapLambdaMax_hypercube = 2n` by induction, which is the
 structural reason the Fiedler value of the cube does not decay.
 
+That leaves the strongly regular graphs, which are the easiest case of all: a strongly regular
+graph is regular and has only three distinct eigenvalues `k > r > s`, so reflecting in `k` gives
+its whole Laplacian spectrum at once. `lapSpectrum_of_spectrum_eq` does the reflection, and the
+two ends drop out of it — the multiset is `0`, `k - r` with multiplicity `f` and `k - s` with
+multiplicity `g`, so `algConn_of_spectrum_eq` is `k - r` and `lapLambdaMax_of_spectrum_eq` is
+`k - s`:
+
+```lean
+theorem algConn_of_spectrum_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k)
+    {f g : ℕ} {d r s : ℝ} (hd : (k : ℝ) = d) (hf : 0 < f) (hsr : s ≤ r)
+    (hspec : G.spectrum = d ::ₘ (Multiset.replicate f r + Multiset.replicate g s)) :
+    G.algConn = d - r
+```
+
+**Both extreme Laplacian eigenvalues of a strongly regular graph are read off the two restricted
+adjacency eigenvalues**, and it is the larger one, `r`, that controls connectivity. Each named
+family from the spectral table above gets its Laplacian data by one application:
+`lapSpectrum_petersen` is `0`, `2` five times and `5` four times — so `algConn_petersen = 2` and
+`lapLambdaMax_petersen = 5` — and then `lapSpectrum_cocktailParty`, `lapSpectrum_rook`,
+`lapSpectrum_triangular` and `lapSpectrum_paley`, the last still irrational: `(q ∓ √q) / 2`, each
+with multiplicity `(q - 1) / 2`. The rook's graph is a consistency check on the previous
+paragraph rather than new information: `algConn_rook = n` and `lapLambdaMax_rook = 2n` are what
+`algConn_cartesianProduct` and `lapLambdaMax_cartesianProduct` give for `Kₙ □ Kₙ`, arrived at
+from the strongly regular side instead.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
