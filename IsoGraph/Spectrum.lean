@@ -168,7 +168,9 @@ eigenvalues are `0`, `2 (n + 1)` and `n + 1` with multiplicity `2 n`.
 zero — where every non-constant Laplacian eigenvector lives — `lapMat_compl_mulVec` turns that
 into the eigenvalue statement `μ ↦ n - μ`.  Upgrading that to multisets is
 `lapSpectrum_compl_of_isConnected`: **the complement of a connected graph has Laplacian spectrum
-`0` together with `n - μ` for every other `μ`.**  The proof orthogonally diagonalises `L`
+`0` together with `n - μ` for every other `μ`.**  A graph and its complement cannot both be
+disconnected, so applying the theorem to whichever of the two is connected removes the hypothesis
+altogether, `lapSpectrum_compl`.  The proof orthogonally diagonalises `L`
 (`exists_orthogonal_lap_diagonal`), notes that on a connected graph the kernel is spanned by the
 all-ones vector so exactly one column of the eigenbasis is constant, and computes that in those
 coordinates `J` becomes `n` times the corresponding diagonal idempotent; `lapSpectrum_eq_of_conj`
@@ -176,8 +178,10 @@ then reads the complement's spectrum off the resulting diagonal.  Complementing 
 of two complete graphs gives every complete bipartite graph at once, `lapSpectrum_bipartite`
 (`0`, `m + n + 2`, `n + 1` with multiplicity `m` and `m + 1` with multiplicity `n`), and the star
 `lapSpectrum_star` is its `m = 0` case — worth recording separately because the star is *not*
-regular, so `lapSpectrum_of_isRegularWith` says nothing about it.  Two bounds come out of the same
-picture:
+regular, so `lapSpectrum_of_isRegularWith` says nothing about it.  Complementing a disjoint union
+in general is `lapSpectrum_join`: **a join has Laplacian spectrum `0`, the order `n + m`, and each
+factor's remaining eigenvalues shifted by the order of the other factor.**  Two bounds come out of
+the same picture:
 `le_two_mul_maxDeg_of_mem_lapSpectrum` (`μ ≤ 2 Δ`, the largest-coordinate argument again) and
 the sharp `le_card_of_mem_lapSpectrum` (`μ ≤ n`, attained by the complete graph), which reads
 `n - μ` off the complement and uses that Laplacian eigenvalues are nonnegative.
@@ -5450,6 +5454,19 @@ theorem lapSpectrum_eq_of_compl {G : CGraph} [DecidableEq G.V] (hconn : G.IsConn
     funext fun x ↦ by simp, Multiset.map_id]
   exact (Multiset.cons_erase G.zero_mem_lapSpectrum).symm
 
+/-- **The Laplacian spectrum of the complement**, with no hypothesis at all: a graph and its
+complement cannot both be disconnected. -/
+theorem lapSpectrum_compl (G : CGraph) [DecidableEq G.V] [Nonempty G.V] :
+    (compl G).lapSpectrum
+      = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+  by_cases hpre : G.toSimple.Preconnected
+  · exact lapSpectrum_compl_of_isConnected ⟨hpre⟩
+  · haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+    have hc : (compl G).IsConnected := G.isConnected_compl_of_not_preconnected hpre
+    have h := lapSpectrum_eq_of_compl (G := compl G) hc
+    rw [compl_compl, card_compl] at h
+    exact h
+
 /-- **The Laplacian spectrum of the complete bipartite graph** `K_{m+1,n+1}`: `0`, `m + n + 2`,
 `n + 1` with multiplicity `m`, and `m + 1` with multiplicity `n`. -/
 theorem lapSpectrum_bipartite (m n : ℕ) :
@@ -5489,6 +5506,35 @@ theorem lapSpectrum_star (n : ℕ) :
   norm_num at h
   rw [star]
   exact h
+
+/-- **The Laplacian spectrum of a join**: `0`, the order `n + m`, and every other eigenvalue of
+each factor shifted by the order of the other factor. -/
+theorem lapSpectrum_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (join G H).lapSpectrum
+      = 0 ::ₘ (((Fintype.card G.V : ℝ) + Fintype.card H.V)
+          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card H.V : ℝ))
+             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card G.V : ℝ)))) := by
+  haveI : Nonempty (disjUnion (compl G) (compl H)).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
+  have hK := lapSpectrum_compl (disjUnion (compl G) (compl H))
+  rw [lapSpectrum_disjUnion, lapSpectrum_compl G, lapSpectrum_compl H, card_disjUnion, card_compl,
+    card_compl] at hK
+  rw [join, hK]
+  rw [show (0 : ℝ) ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x)
+      + (0 : ℝ) ::ₘ (H.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card H.V : ℝ) - x)
+      = 0 ::ₘ (0 ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x)
+          + (H.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card H.V : ℝ) - x))) from by
+    rw [Multiset.cons_add, Multiset.add_cons]]
+  rw [Multiset.erase_cons_head, Multiset.map_cons, Multiset.map_add, Multiset.map_map,
+    Multiset.map_map]
+  simp only [Function.comp_def]
+  congr 1
+  congr 1
+  · push_cast
+    ring
+  · congr 1
+    · exact Multiset.map_congr rfl fun x _ ↦ by push_cast; ring
+    · exact Multiset.map_congr rfl fun x _ ↦ by push_cast; ring
 
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.**  Evaluate the
 eigenvector equation at a coordinate where `|v|` is largest, as for `abs_le_maxDeg_of_mem_spectrum`
@@ -6028,16 +6074,17 @@ theorem lapSpectrum_hypercube (n : ℕ) :
   congr 1
   ring
 
-/-- **The Laplacian spectrum of the complement of a connected graph.**  The eigenvalue `0` of the
-constant vector stays `0`, and every other eigenvalue `μ` becomes `n - μ`. -/
-theorem lapSpectrum_compl_of_isConnected {G : IsoGraph} (hconn : G.IsConnected) :
+/-- **The Laplacian spectrum of the complement.**  The eigenvalue `0` of the constant vector stays
+`0`, and every other eigenvalue `μ` becomes `n - μ`. -/
+theorem lapSpectrum_compl {G : IsoGraph} (hG : 0 < G.V) :
     Gᶜ.lapSpectrum = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (G.V : ℝ) - x) := by
   induction G using Quotient.inductionOn with
   | h g =>
     classical
-    rw [isConnected_mk] at hconn
+    rw [V_mk] at hG
+    haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
     rw [compl_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk]
-    exact CGraph.lapSpectrum_compl_of_isConnected hconn
+    exact CGraph.lapSpectrum_compl g
 
 /-- **The Laplacian spectrum of the complete bipartite graph** `K_{m+1,n+1}`: `0`, `m + n + 2`,
 `n + 1` with multiplicity `m`, and `m + 1` with multiplicity `n`. -/
@@ -6052,6 +6099,24 @@ theorem lapSpectrum_bipartite (m n : ℕ) :
 theorem lapSpectrum_star (n : ℕ) :
     (star (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) :=
   CGraph.lapSpectrum_star n
+
+/-- **The Laplacian spectrum of a join**: `0`, the order `n + m`, and every other eigenvalue of
+each factor shifted by the order of the other factor. -/
+theorem lapSpectrum_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ∇g H).lapSpectrum
+      = 0 ::ₘ (((G.V : ℝ) + H.V)
+          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (H.V : ℝ))
+             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (G.V : ℝ)))) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      classical
+      rw [V_mk] at hG hH
+      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
+      haveI : Nonempty h.V := Fintype.card_pos_iff.1 hH
+      rw [join_mk, lapSpectrum_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk, V_mk]
+      exact CGraph.lapSpectrum_join g h
 
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.** -/
 theorem le_two_mul_maxDeg_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) :

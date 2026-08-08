@@ -4384,12 +4384,30 @@ nonzero, and orthonormality forces that sum to be `±√n`. In those coordinates
 `u` and `n - μ` elsewhere, and `lapSpectrum_eq_of_conj` reads the complement's spectrum straight
 off it.
 
+The hypothesis then comes off for free. A graph and its complement are never both disconnected
+(`isConnected_compl_of_not_preconnected`), so applying the theorem to whichever of the two is
+connected — in the second case to `Ḡ`, and reading the conclusion backwards through
+`compl_compl` — gives `lapSpectrum_compl` for *every* nonempty graph.
+
 Complementing a disjoint union of two complete graphs is a complete bipartite graph, so one
-application of that theorem computes them all: `lapSpectrum_bipartite` gives `K_{m+1,n+1}` the
-Laplacian eigenvalues `0`, `m + n + 2`, `n + 1` with multiplicity `m`, and `m + 1` with
-multiplicity `n`. The star is the `m = 0` case, `lapSpectrum_star` (`0`, `n + 2`, and `1` with
-multiplicity `n`) — worth its own name because the star is the first graph here that regularity
-does not reach, so `lapSpectrum_of_isRegularWith` says nothing at all about it.
+application computes them all: `lapSpectrum_bipartite` gives `K_{m+1,n+1}` the Laplacian
+eigenvalues `0`, `m + n + 2`, `n + 1` with multiplicity `m`, and `m + 1` with multiplicity `n`.
+The star is the `m = 0` case, `lapSpectrum_star` (`0`, `n + 2`, and `1` with multiplicity `n`) —
+worth its own name because the star is the first graph here that regularity does not reach, so
+`lapSpectrum_of_isRegularWith` says nothing at all about it. Complementing a disjoint union in
+general is the join, and the same computation gives
+
+```lean
+theorem lapSpectrum_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ∇g H).lapSpectrum
+      = 0 ::ₘ (((G.V : ℝ) + H.V)
+          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (H.V : ℝ))
+             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (G.V : ℝ))))
+```
+
+— **a join has Laplacian eigenvalues `0`, the order `n + m`, and each factor's remaining
+eigenvalues shifted by the order of the other factor.** `K_{m,n} = Eₘ ∇ Eₙ` is the case where both
+factors are edgeless.
 
 The complement identity is also exactly what bounds the spectrum from above: `n - μ` is a Laplacian
 eigenvalue of the complement, hence nonnegative, so `le_card_of_mem_lapSpectrum` gives the sharp
