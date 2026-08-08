@@ -4356,9 +4356,10 @@ theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith
     G.lapSpectrum = G.spectrum.map (fun x ↦ (k : ℝ) - x)
 ```
 
-so every regular spectrum computed earlier becomes a Laplacian one for free. The complete graph
-is the sample: `lapSpectrum_complete` turns `n, -1, …, -1` into `0` once and `n + 1` with
-multiplicity `n`, and `count_zero_lapSpectrum` reads off the single component.
+so every regular spectrum computed earlier becomes a Laplacian one for free:
+`lapSpectrum_complete` turns `n, -1, …, -1` into `0` once and `n + 1` with multiplicity `n`,
+`lapSpectrum_cycle` gives `2 - 2 cos (2 π m / n)`, and `lapSpectrum_hypercube` gives `2 j` with
+multiplicity `n choose j`. In each case `count_zero_lapSpectrum` reads off the single component.
 
 Line graphs come with a bound in the other direction. `incMat` is the vertex-by-edge incidence
 matrix and `transpose_mul_incMat` is the factorisation

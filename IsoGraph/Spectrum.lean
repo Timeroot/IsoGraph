@@ -155,8 +155,9 @@ with no regularity hypothesis.  For a `k`-regular graph the two spectra are the 
 `mem_lapSpectrum_iff_of_isRegularWith`: `L = k I - A`, so the Laplacian eigenvalues are `k - λ`.
 Conjugating the spectral decomposition of `A` by the same unitary upgrades that to an equality of
 multisets, `lapSpectrum_of_isRegularWith`, which turns every regular spectrum already computed
-here into a Laplacian one — for instance `lapSpectrum_complete`, where `K_{n+1}` has `0` once
-and `n + 1` with multiplicity `n`.  A disjoint union concatenates Laplacian spectra just as it
+here into a Laplacian one: `lapSpectrum_complete` (`0` once and `n + 1` with multiplicity `n`),
+`lapSpectrum_cycle` (`2 - 2 cos (2 π m / n)`) and `lapSpectrum_hypercube` (`2 j` with
+multiplicity `n.choose j`).  A disjoint union concatenates Laplacian spectra just as it
 does adjacency ones (`lapSpectrum_disjUnion`), which is the component count again, one summand
 at a time.
 
@@ -5528,5 +5529,25 @@ multiplicity `n`. -/
 theorem lapSpectrum_complete (n : ℕ) :
     (complete (n + 1)).lapSpectrum = (0 : ℝ) ::ₘ Multiset.replicate n ((n : ℝ) + 1) :=
   CGraph.lapSpectrum_complete n
+
+/-- **The Laplacian spectrum of the cycle** `C_n`, `n ≥ 3`: the numbers `2 - 2 cos (2 π m / n)`. -/
+theorem lapSpectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
+    (cycle n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 3 := ⟨n - 3, by omega⟩
+  rw [lapSpectrum_of_isRegularWith (isRegularWith_cycle m), spectrum_cycle hn, Multiset.map_map]
+  norm_num [Function.comp_def]
+
+/-- **The Laplacian spectrum of the hypercube** `Q_n`: `2 j` with multiplicity `n.choose j`. -/
+theorem lapSpectrum_hypercube (n : ℕ) :
+    (hypercube n).lapSpectrum
+      = ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) (2 * j : ℝ) := by
+  rw [lapSpectrum_of_isRegularWith (isRegularWith_hypercube n), spectrum_hypercube,
+    ← Multiset.coe_mapAddMonoidHom, map_sum]
+  refine Finset.sum_congr rfl fun j hj ↦ ?_
+  rw [Multiset.coe_mapAddMonoidHom, Multiset.map_replicate]
+  rw [Finset.mem_range] at hj
+  congr 1
+  ring
 
 end IsoGraph
