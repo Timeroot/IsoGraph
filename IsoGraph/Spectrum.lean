@@ -161,6 +161,10 @@ multiplicity `n.choose j`).  A disjoint union concatenates Laplacian spectra jus
 does adjacency ones (`lapSpectrum_disjUnion`), which is the component count again, one summand
 at a time.
 
+`lapMat_compl` is the complement identity `L(G) + L(Ḡ) = n I - J`, and on a vector summing to
+zero — where every non-constant Laplacian eigenvector lives — `lapMat_compl_mulVec` turns that
+into the eigenvalue statement `μ ↦ n - μ`.
+
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
 `count_zero_lapSpectrum` — the number of components (`LapCospectral.numComponents_eq`), so
@@ -5151,6 +5155,37 @@ theorem lapSpectrum_complete (n : ℕ) :
   rw [lapSpectrum_of_isRegularWith (isRegularWith_complete n), spectrum_complete,
     Multiset.map_cons, Multiset.map_replicate]
   norm_num
+
+/-- **The Laplacians of a graph and of its complement add up to `n I - J`.** -/
+theorem lapMat_compl (G : CGraph) [DecidableEq G.V] :
+    (compl G).lapMat
+      = (Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ) - Matrix.vecMulVec 1 1 - G.lapMat := by
+  ext i j
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.vecMulVec_apply, Pi.one_apply, mul_one,
+    smul_eq_mul]
+  rcases eq_or_ne i j with rfl | hij
+  · have hlt : G.toSimple.degree i < Fintype.card G.V := G.toSimple.degree_lt_card_verts i
+    have h1 : 1 + G.toSimple.degree i ≤ Fintype.card G.V := by omega
+    have hcast : ((Fintype.card G.V - 1 - G.toSimple.degree i : ℕ) : ℝ)
+        = (Fintype.card G.V : ℝ) - 1 - G.toSimple.degree i := by
+      rw [Nat.sub_sub, Nat.cast_sub h1]
+      push_cast
+      ring
+    rw [lapMat_apply_self (compl G), lapMat_apply_self G, degree_compl, hcast]
+    simp
+  · rw [lapMat_apply_of_ne (compl G) hij, lapMat_apply_of_ne G hij, adjMat_compl]
+    simp only [Matrix.sub_apply, Matrix.vecMulVec_apply, Pi.one_apply, mul_one,
+      Matrix.one_apply_ne hij]
+    ring
+
+/-- On a vector summing to zero — which is where all the non-constant Laplacian eigenvectors
+live — the complement's Laplacian acts as `n` minus the graph's own. -/
+theorem lapMat_compl_mulVec (G : CGraph) [DecidableEq G.V] {v : G.V → ℝ} (hv : ∑ i, v i = 0)
+    {mu : ℝ} (hmu : G.lapMat *ᵥ v = mu • v) :
+    (compl G).lapMat *ᵥ v = ((Fintype.card G.V : ℝ) - mu) • v := by
+  rw [lapMat_compl, Matrix.sub_mulVec, Matrix.sub_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec,
+    vecMulVec_one_mulVec hv, hmu]
+  module
 
 /-! ### Laplacian cospectrality -/
 

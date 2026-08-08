@@ -4361,6 +4361,11 @@ so every regular spectrum computed earlier becomes a Laplacian one for free:
 `lapSpectrum_cycle` gives `2 - 2 cos (2 π m / n)`, and `lapSpectrum_hypercube` gives `2 j` with
 multiplicity `n choose j`. In each case `count_zero_lapSpectrum` reads off the single component.
 
+The complement is as clean here as it is for the adjacency matrix: `lapMat_compl` says
+`L(G) + L(Ḡ) = n I - J`, and since `J` kills any vector summing to zero — which is where all the
+non-constant Laplacian eigenvectors sit — `lapMat_compl_mulVec` reads that as `μ ↦ n - μ` on
+eigenvectors.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
