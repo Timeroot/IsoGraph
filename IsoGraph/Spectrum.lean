@@ -225,7 +225,12 @@ eigenvalue to the smallest nonzero one and back, `algConn_compl` (`a (Ḡ) = n -
 `Kₙ` and the star both have a disconnected complement.  `lapSpectrum_wheel` runs the join formula
 on `W_n = K₁ ∇ C_n`, which adds a third: the hub raises every rim eigenvalue by one, so
 `algConn_wheel` is `3 - 2 cos (2 π / n)` — one more than the rim's — and `lapLambdaMax_wheel` is
-the order again.
+the order again.  The hypercube shows the two ends pulling apart: `lapLambdaMax_hypercube` is
+`2 n`, twice the degree and so the extreme case of `lapLambdaMax_le_two_mul_maxDeg`, while
+`algConn_hypercube` is `2` for every `n ≥ 1` — the Fiedler value does not degrade as the order
+doubles, in contrast to the cycle's `Θ (1 / n ²)`.  Its proof uses
+`zero_notMem_erase_of_isConnected`, which reads "connected ⇒ the erasure removes the only zero"
+straight off `count_zero_lapSpectrum`.
 
 `LapCospectral` is the Laplacian analogue of `Cospectral`, equality of `lapCharpoly` and hence
 of `lapSpectrum` (`lapCospectral_iff_lapSpectrum_eq`).  It sees the order, the size and — through
@@ -7143,6 +7148,59 @@ theorem algConn_wheel {n : ℕ} (hn : 3 ≤ n) :
     · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
       have := algConn_le hy
       linarith
+
+/-- On a connected graph the erasure removes the only zero. -/
+theorem zero_notMem_erase_of_isConnected {G : IsoGraph} (h : G.IsConnected) :
+    (0 : ℝ) ∉ G.lapSpectrum.erase 0 := by
+  intro hmem
+  have h1 : G.lapSpectrum.count 0 = 1 := by
+    rw [count_zero_lapSpectrum, (numComponents_eq_one_iff G).2 h]
+  have h2 : (G.lapSpectrum.erase 0).count 0 = 0 := by
+    rw [Multiset.count_erase_self, h1]
+  rw [← Multiset.one_le_count_iff_mem, h2] at hmem
+  omega
+
+/-- **The largest Laplacian eigenvalue of the hypercube** `Q_n` is `2 n`, twice its degree — the
+extreme case of `lapLambdaMax_le_two_mul_maxDeg`, as it must be for a bipartite graph. -/
+theorem lapLambdaMax_hypercube (n : ℕ) : (hypercube n).lapLambdaMax = 2 * (n : ℝ) := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_hypercube]
+    refine Multiset.mem_sum.2 ⟨n, Finset.self_mem_range_succ n, ?_⟩
+    exact Multiset.mem_replicate.2 ⟨by simp, rfl⟩
+  · intro x hx
+    rw [lapSpectrum_hypercube] at hx
+    obtain ⟨j, hj, hxj⟩ := Multiset.mem_sum.1 hx
+    rw [Multiset.eq_of_mem_replicate hxj]
+    rw [Finset.mem_range] at hj
+    have hjn : (j : ℝ) ≤ (n : ℝ) := by exact_mod_cast Nat.lt_succ_iff.1 hj
+    linarith
+
+/-- **The algebraic connectivity of the hypercube** `Q_n` is `2`, for every `n ≥ 1`: the Fiedler
+value does not degrade as the cube grows, even though the order doubles each time. -/
+theorem algConn_hypercube {n : ℕ} (hn : 0 < n) : (hypercube n).algConn = 2 := by
+  have hcon : IsConnected (hypercube n) := isConnected_hypercube n
+  refine algConn_eq_of_isLeast ?_ ?_
+  · refine (Multiset.mem_erase_of_ne (by norm_num)).2 ?_
+    rw [lapSpectrum_hypercube]
+    refine Multiset.mem_sum.2 ⟨1, ?_, ?_⟩
+    · rw [Finset.mem_range]
+      omega
+    · refine Multiset.mem_replicate.2 ⟨?_, ?_⟩
+      · rw [Nat.choose_one_right]
+        omega
+      · norm_num
+  · intro x hx
+    have hne : x ≠ 0 := fun h0 ↦ zero_notMem_erase_of_isConnected hcon (h0 ▸ hx)
+    have hmem := Multiset.mem_of_mem_erase hx
+    rw [lapSpectrum_hypercube] at hmem
+    obtain ⟨j, hj, hxj⟩ := Multiset.mem_sum.1 hmem
+    rw [Multiset.eq_of_mem_replicate hxj] at hne ⊢
+    have hj0 : j ≠ 0 := by
+      rintro rfl
+      norm_num at hne
+    have hj1 : (1 : ℝ) ≤ (j : ℝ) := by
+      exact_mod_cast Nat.one_le_iff_ne_zero.2 hj0
+    linarith
 
 /-- Two isomorphism classes are **Laplacian cospectral** when their Laplacian characteristic
 polynomials agree. -/

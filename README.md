@@ -4515,6 +4515,17 @@ the whole rest of the spectrum. Feeding that back through the minimum and the ma
 `lapLambdaMax_wheel = n + 1`. At `n = 3` the wheel is `K₄` and the formula returns `4`, which is
 `algConn_complete` again.
 
+The hypercube is the interesting case, because the two ends of its spectrum go in opposite
+directions. `lapSpectrum_hypercube` is `2 j` with multiplicity `C (n, j)`, so the largest
+eigenvalue is the top of that range, `lapLambdaMax_hypercube = 2 n` — twice the degree, the
+extreme case of `lapLambdaMax_le_two_mul_maxDeg`, as it has to be for a bipartite graph. The
+smallest nonzero one is the *bottom* of the range, `j = 1`, so `algConn_hypercube = 2` for every
+`n ≥ 1`: the order doubles with each dimension and the Fiedler value does not move at all, where
+the cycle's decays like `1 / n²`. That is the spectral statement of the fact that hypercubes are
+good expanders. Getting it needs to know that no *other* zero is hiding in the erasure, which is
+`zero_notMem_erase_of_isConnected` — connectedness plus `count_zero_lapSpectrum` says the single
+`0` is exactly the one that `erase` took away.
+
 `LapCospectral` packages this the way `Cospectral` packages the adjacency spectrum: equality of
 Laplacian characteristic polynomials, equivalently of Laplacian spectra
 (`lapCospectral_iff_lapSpectrum_eq`). It determines the order, the number of edges, and — the
