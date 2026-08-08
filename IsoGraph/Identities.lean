@@ -7374,6 +7374,114 @@ theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial :=
   show Nat.card (bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2)) = (n + 2).factorial
   rw [← hcard, hperm]
 
+/-! ### The automorphism count of a complete bipartite graph
+
+`K_{m,n}` with `m ≠ n` is the star argument with the asymmetry moved from one vertex to one side.
+A vertex of the `m`-side has `n` neighbours and a vertex of the `n`-side has `m`, so as soon as the
+two sides have different sizes no automorphism can exchange them, and the group is `Sₘ × Sₙ`.  When
+`m = n` the swap is available and the count doubles, which is why the hypothesis cannot be dropped.
+-/
+
+/-- Permuting the two sides of `K_{m,n}` separately.  This is `bipartiteCongr` without the
+requirement that the two sides have the same size. -/
+def bipartiteAut (m n : ℕ) (σ : Equiv.Perm (Fin m)) (τ : Equiv.Perm (Fin n)) :
+    bipartite m n ≃cg bipartite m n :=
+  autoOfPerm (G := bipartite m n) (Equiv.sumCongr σ τ) fun x y ↦ by
+    show (bipartite m n).Adj (Sum.map σ τ x) (Sum.map σ τ y) = _
+    rcases x with a | b <;> rcases y with c | d <;> simp
+
+@[simp] theorem bipartiteAut_inl (m n : ℕ) (σ : Equiv.Perm (Fin m)) (τ : Equiv.Perm (Fin n))
+    (a : Fin m) : bipartiteAut m n σ τ (.inl a) = .inl (σ a) := rfl
+
+@[simp] theorem bipartiteAut_inr (m n : ℕ) (σ : Equiv.Perm (Fin m)) (τ : Equiv.Perm (Fin n))
+    (b : Fin n) : bipartiteAut m n σ τ (.inr b) = .inr (τ b) := rfl
+
+theorem card_nbrs_bipartite_inl (m n : ℕ) (a : (complete m).V) :
+    ((bipartite m n).nbrs (Sum.inl a)).card = n := by
+  rw [nbrs_bipartite_inl, Finset.card_map, Finset.card_univ, card_complete]
+
+theorem card_nbrs_bipartite_inr (m n : ℕ) (b : (complete n).V) :
+    ((bipartite m n).nbrs (Sum.inr b)).card = m := by
+  rw [nbrs_bipartite_inr, Finset.card_map, Finset.card_univ, card_complete]
+
+/-- An automorphism cannot change the number of neighbours of a vertex. -/
+theorem card_nbrs_aut {G : CGraph} (f : G ≃cg G) (x : G.V) :
+    (G.nbrs (f x)).card = (G.nbrs x).card := by
+  rw [card_nbrs_eq_degree, card_nbrs_eq_degree]
+  exact SimpleGraph.Iso.degree_eq f.toSimpleIso x
+
+/-- **The two sides of `K_{m,n}` cannot be exchanged when `m ≠ n`**, since they are told apart by
+the degree of their vertices. -/
+theorem bipartite_aut_inl {m n : ℕ} (hmn : m ≠ n) (f : bipartite m n ≃cg bipartite m n)
+    (a : (complete m).V) : ∃ a', f (Sum.inl a) = Sum.inl a' := by
+  rcases h : f (Sum.inl a) with a' | b'
+  · exact ⟨a', rfl⟩
+  · exfalso
+    have h1 := card_nbrs_aut f (Sum.inl a)
+    rw [h, card_nbrs_bipartite_inr, card_nbrs_bipartite_inl] at h1
+    exact hmn h1
+
+theorem bipartite_aut_inr {m n : ℕ} (hmn : m ≠ n) (f : bipartite m n ≃cg bipartite m n)
+    (b : (complete n).V) : ∃ b', f (Sum.inr b) = Sum.inr b' := by
+  rcases h : f (Sum.inr b) with a' | b'
+  · exfalso
+    have h1 := card_nbrs_aut f (Sum.inr b)
+    rw [h, card_nbrs_bipartite_inl, card_nbrs_bipartite_inr] at h1
+    exact hmn h1.symm
+  · exact ⟨b', rfl⟩
+
+/-- With the sides preserved, an automorphism of `K_{m,n}` is a pair of permutations. -/
+theorem exists_perm_of_aut_bipartite {m n : ℕ} (hmn : m ≠ n)
+    (f : bipartite m n ≃cg bipartite m n) :
+    ∃ (σ : Equiv.Perm (Fin m)) (τ : Equiv.Perm (Fin n)), f = bipartiteAut m n σ τ := by
+  choose g hg using bipartite_aut_inl hmn f
+  choose h hh using bipartite_aut_inr hmn f
+  have hginj : Function.Injective g := by
+    intro a b hab
+    have hab' : f (Sum.inl a) = f (Sum.inl b) := by rw [hg a, hg b, hab]
+    exact Sum.inl.inj (f.injective hab')
+  have hhinj : Function.Injective h := by
+    intro a b hab
+    have hab' : f (Sum.inr a) = f (Sum.inr b) := by rw [hh a, hh b, hab]
+    exact Sum.inr.inj (f.injective hab')
+  refine ⟨Equiv.ofBijective g (Finite.injective_iff_bijective.1 hginj),
+    Equiv.ofBijective h (Finite.injective_iff_bijective.1 hhinj), ?_⟩
+  ext x
+  rcases x with a | b
+  · rw [hg a, bipartiteAut_inl]
+    rfl
+  · rw [hh b, bipartiteAut_inr]
+    rfl
+
+/-- **The complete bipartite graph `K_{m,n}` has exactly `m! · n!` automorphisms when `m ≠ n`**:
+the sides are told apart by degree, so each is permuted within itself.  This is the upper bound
+matching `IsoGraph.factorial_mul_factorial_le_autCount_bipartite`, and it generalises
+`autCount_star`, whose `n ≥ 2` hypothesis becomes `1 ≠ n`.  For `m = n` the true count is
+`2 · (n!)²`, by `bipartiteSwap`. -/
+theorem autCount_bipartite {m n : ℕ} (hmn : m ≠ n) :
+    (bipartite m n).autCount = m.factorial * n.factorial := by
+  have hb : Function.Bijective
+      (fun p : Equiv.Perm (Fin m) × Equiv.Perm (Fin n) ↦ bipartiteAut m n p.1 p.2) := by
+    constructor
+    · rintro ⟨σ, τ⟩ ⟨σ', τ'⟩ hst
+      have h1 : ∀ a, (Sum.inl (σ a) : (bipartite m n).V) = Sum.inl (σ' a) := fun a ↦
+        congrArg (fun e : bipartite m n ≃cg bipartite m n ↦ e (.inl a)) hst
+      have h2 : ∀ b, (Sum.inr (τ b) : (bipartite m n).V) = Sum.inr (τ' b) := fun b ↦
+        congrArg (fun e : bipartite m n ≃cg bipartite m n ↦ e (.inr b)) hst
+      have e1 : σ = σ' := Equiv.ext fun a ↦ Sum.inl.inj (h1 a)
+      have e2 : τ = τ' := Equiv.ext fun b ↦ Sum.inr.inj (h2 b)
+      rw [e1, e2]
+    · intro f
+      obtain ⟨σ, τ, hσ⟩ := exists_perm_of_aut_bipartite hmn f
+      exact ⟨(σ, τ), hσ.symm⟩
+  have hcard := Nat.card_eq_of_bijective _ hb
+  have hperm : Nat.card (Equiv.Perm (Fin m) × Equiv.Perm (Fin n))
+      = m.factorial * n.factorial := by
+    rw [Nat.card_eq_fintype_card, Fintype.card_prod, Fintype.card_perm, Fintype.card_perm,
+      Fintype.card_fin, Fintype.card_fin]
+  show Nat.card (bipartite m n ≃cg bipartite m n) = m.factorial * n.factorial
+  rw [← hcard, hperm]
+
 /-! ### The automorphism count of a cycle
 
 The star was fixed by pinning down one vertex; a cycle is pinned down by pinning down an *arc*.
@@ -35658,6 +35766,13 @@ theorem factorial_le_autCount_star (n : ℕ) : n.factorial ≤ (star n).autCount
 vertex with two distinct neighbours, so it is fixed, and the rays may then be permuted freely. -/
 theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial := by
   rw [star_def, autCount_mk, CGraph.autCount_star]
+
+/-- **`K_{m,n}` has exactly `m! · n!` automorphisms when `m ≠ n`**: a vertex of the `m`-side has
+`n` neighbours and a vertex of the `n`-side has `m`, so the two sides cannot be exchanged and each
+is permuted within itself.  For `m = n` the swap doubles the count. -/
+theorem autCount_bipartite {m n : ℕ} (hmn : m ≠ n) :
+    (bipartite m n).autCount = m.factorial * n.factorial := by
+  rw [bipartite_def, autCount_mk, CGraph.autCount_bipartite hmn]
 
 /-- **The cycle `Cₙ` has exactly `2n` automorphisms** for `n ≥ 3`: every vertex has exactly two
 neighbours, so an automorphism is forced by its effect on one arc, and there are only `2n` arcs

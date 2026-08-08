@@ -2481,6 +2481,25 @@ stands in for the `Subsingleton (complete 1).V` instance that typeclass search w
 because `join` is defined through a double complement and the hub's type arrives as
 `(complete 1).compl.V`.
 
+Complete bipartite graphs are the fourth, and they subsume the star. The star argument pinned down
+one vertex by a first-order property; `K_{m,n}` needs only that its two sides have different sizes,
+because a vertex of the `m`-side has `n` neighbours and a vertex of the `n`-side has `m`.
+`card_nbrs_aut` is the general fact that an automorphism preserves the neighbour count — a
+three-line consequence of `card_nbrs_eq_degree` and Mathlib's `SimpleGraph.Iso.degree_eq` that the
+library had been doing without — and `bipartite_aut_inl` and `bipartite_aut_inr` turn it into "the
+sides are preserved". What is left is a pair of permutations, `bipartiteAut` builds an automorphism
+from any such pair, and the two constructions are inverse:
+
+```lean
+theorem autCount_bipartite {m n : ℕ} (hmn : m ≠ n) :
+    (bipartite m n).autCount = m.factorial * n.factorial
+```
+
+The hypothesis is exactly right rather than conservative: for `m = n` the swap `bipartiteSwap` is
+an automorphism and the true count is `2 · (n!)²`. Taking `m = 1` recovers `autCount_star` with a
+better hypothesis — `1 ≠ n` rather than `n ≥ 2`, so `star 0 = K₁` is now covered as `1! · 0! = 1`,
+and only `star 1 = K₂` remains outside.
+
 The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
 are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
 `V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
@@ -5374,7 +5393,8 @@ The rest are genuinely hard, or at least not cheap: the chromatic number of a Kn
 of a general cycle and of a general tadpole as opposed to the fixed small ones, the automorphism
 count for most families — `autCount` is settled for the empty, complete, path, Kneser, Johnson,
 circulant and lollipop families, for complements and, exactly and not just as a bound, for the
-star (`autCount_star`), the cycle (`autCount_cycle`) and the wheel (`autCount_wheel`), but not for
-Petersen or the hypercube — and, for the grid and the king graph, everything below the degree and colouring
+star (`autCount_star`), the complete bipartite graph with unequal sides (`autCount_bipartite`), the
+cycle (`autCount_cycle`) and the wheel (`autCount_wheel`), but not for `K_{n,n}`, Petersen or the
+hypercube — and, for the grid and the king graph, everything below the degree and colouring
 entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
 a general `girth_cyclePendant` first.
