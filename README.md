@@ -2441,6 +2441,25 @@ disguise — `autCount_kneser_one`, `autCount_johnson_one` and `autCount_lollipo
 to `autCount_complete` — and the argument is the general shape the remaining families will need:
 pin down an orbit by a property automorphisms preserve, then count what acts on the rest.
 
+The cycle is the second, and it needs the other half of that shape: there is no orbit to pin down,
+because `Cₙ` is vertex-transitive, so what gets pinned down is an *arc*. Every vertex of a cycle
+has exactly two neighbours — `cycle_adj_eq_iff` names them as the labels `(i + 1) mod n` and
+`(i + n − 1) mod n`, `cycle_nbrs_ne` says they are distinct once `n ≥ 3`, and `cycle_nbr_unique`
+packages the two into "of three neighbours of `y`, two of them coincide". That is enough to walk:
+if two automorphisms agree at `k` and at `k + 1` then they agree at `k + 2`, because `k + 2` is
+the neighbour of `k + 1` that is not `k`, and an isomorphism carries that description along.
+Two-step induction turns agreement on one arc into agreement everywhere, which is `cycle_aut_eq`.
+So `f ↦ (f 0, whether f 1 is the successor or the predecessor of f 0)` is injective into a set of
+size `2n`, giving `autCount_cycle_le`, and arc-transitivity supplies the matching lower bound:
+
+```lean
+theorem autCount_cycle (n : ℕ) : (cycle (n + 3)).autCount = 2 * (n + 3)
+```
+
+The group is of course the dihedral group `Dₙ`; the library counts it without ever naming it. The
+`n + 3` is again not shyness — `cycle 0`, `cycle 1` and `cycle 2` are the empty graph on that many
+vertices, with `n!` automorphisms rather than `2n`.
+
 The Grötzsch graph's independence number is now bracketed rather than open. Its eleven vertices
 are five shadows, five rim vertices and an apex; the shadows are pairwise non-adjacent, so
 `V_le_indepNum_mycielskian` applied to `C₅` gives `five_le_indepNum_grotzsch`, and every colour
@@ -5334,6 +5353,7 @@ The rest are genuinely hard, or at least not cheap: the chromatic number of a Kn
 of a general cycle and of a general tadpole as opposed to the fixed small ones, the automorphism
 count for most families — `autCount` is settled for the empty, complete, path, Kneser, Johnson,
 circulant and lollipop families, for complements and, exactly and not just as a bound, for the
-star (`autCount_star`), but not for the cycle, wheel, Petersen or hypercube — and, for the grid and the king graph, everything below the degree and colouring
+star (`autCount_star`) and the cycle (`autCount_cycle`), but not for the wheel, Petersen or
+hypercube — and, for the grid and the king graph, everything below the degree and colouring
 entries: independence, domination, covering and matching numbers. `cliqueNum_cyclePendant` wants
 a general `girth_cyclePendant` first.

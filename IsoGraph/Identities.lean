@@ -7374,6 +7374,141 @@ theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial :=
   show Nat.card (bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2)) = (n + 2).factorial
   rw [← hcard, hperm]
 
+/-! ### The automorphism count of a cycle
+
+The star was fixed by pinning down one vertex; a cycle is pinned down by pinning down an *arc*.
+Every vertex of `Cₙ` has exactly two neighbours, so once an automorphism is known on two adjacent
+vertices it is forced everywhere: walking around the rim, the next vertex is the unique neighbour
+of the current one other than the previous.  That makes the pair `(f 0, which neighbour of f 0 is
+f 1)` a faithful record of `f`, of which there are only `2n`, and arc-transitivity supplies the
+matching lower bound.
+-/
+
+private theorem cyc_mod_succ (N j : ℕ) (hj : j < N) :
+    (j + 1) % N = if j + 1 = N then 0 else j + 1 := by
+  rcases eq_or_lt_of_le (Nat.succ_le_of_lt hj) with h | h
+  · rw [if_pos (by omega), show j + 1 = N from by omega, Nat.mod_self]
+  · rw [if_neg (by omega), Nat.mod_eq_of_lt h]
+
+private theorem cyc_mod_pred (N i : ℕ) (hi : i < N) :
+    (i + N - 1) % N = if i = 0 then N - 1 else i - 1 := by
+  rcases Nat.eq_zero_or_pos i with rfl | hi0
+  · rw [if_pos rfl, show 0 + N - 1 = N - 1 from by omega, Nat.mod_eq_of_lt (by omega)]
+  · rw [if_neg (by omega), show i + N - 1 = N + (i - 1) from by omega, Nat.add_mod_left,
+      Nat.mod_eq_of_lt (by omega)]
+
+/-- The two neighbours of `i` in a cycle of length at least three, named by their labels. -/
+theorem cycle_adj_eq_iff {N : ℕ} (hN : 3 ≤ N) (i j : (cycle N).V) :
+    (cycle N).Adj i j = true ↔ (j.1 = (i.1 + 1) % N ∨ j.1 = (i.1 + N - 1) % N) := by
+  have hi := i.isLt
+  have hj := j.isLt
+  rw [cycle_adj_val N i j, cyc_mod_succ N i.1 hi, cyc_mod_succ N j.1 hj, cyc_mod_pred N i.1 hi]
+  split_ifs <;> omega
+
+/-- Those two neighbours really are distinct once the cycle has length at least three. -/
+theorem cycle_nbrs_ne {N : ℕ} (hN : 3 ≤ N) (i : (cycle N).V) :
+    (i.1 + 1) % N ≠ (i.1 + N - 1) % N := by
+  have hi := i.isLt
+  rw [cyc_mod_succ N i.1 hi, cyc_mod_pred N i.1 hi]
+  split_ifs <;> omega
+
+/-- Consecutive labels are adjacent, no wraparound involved. -/
+theorem cycle_adj_of_succ {N : ℕ} {u v : (cycle N).V} (h : u.1 + 1 = v.1) :
+    (cycle N).Adj u v = true := by
+  rw [cycle_adj_val]
+  exact ⟨by omega, Or.inl (by rw [h]; exact Nat.mod_eq_of_lt v.isLt)⟩
+
+/-- **A vertex of a cycle has at most two neighbours**: of three neighbours of `y`, if `v` and `w`
+both differ from `u` then they are equal. -/
+theorem cycle_nbr_unique {N : ℕ} (hN : 3 ≤ N) {y u v w : (cycle N).V}
+    (hu : (cycle N).Adj y u = true) (hv : (cycle N).Adj y v = true)
+    (hw : (cycle N).Adj y w = true) (huv : u ≠ v) (huw : u ≠ w) : v = w := by
+  rw [cycle_adj_eq_iff hN] at hu hv hw
+  have hne := cycle_nbrs_ne hN y
+  have huv' : u.1 ≠ v.1 := fun h ↦ huv (Fin.ext h)
+  have huw' : u.1 ≠ w.1 := fun h ↦ huw (Fin.ext h)
+  refine Fin.ext ?_
+  generalize (y.1 + 1) % N = p at hu hv hw hne
+  generalize (y.1 + N - 1) % N = q at hu hv hw hne
+  omega
+
+/-- **An automorphism of a cycle is pinned down by where it sends two adjacent vertices.**  Walk
+around the cycle: each next vertex is the unique neighbour of the current one other than the
+previous, so agreement propagates from the first step to every vertex. -/
+theorem cycle_aut_eq {N : ℕ} (hN : 3 ≤ N) {f g : cycle N ≃cg cycle N}
+    (h0 : f ⟨0, by omega⟩ = g ⟨0, by omega⟩) (h1 : f ⟨1, by omega⟩ = g ⟨1, by omega⟩) :
+    f = g := by
+  have key : ∀ k, ∀ hk : k < N, f ⟨k, hk⟩ = g ⟨k, hk⟩ := by
+    intro k
+    induction k using Nat.strong_induction_on with
+    | _ k ih =>
+      intro hk
+      match k, ih with
+      | 0, _ => exact h0
+      | 1, _ => exact h1
+      | (m + 2), ih =>
+        have hm : m < N := by omega
+        have hm1 : m + 1 < N := by omega
+        have hfa : f ⟨m, hm⟩ = g ⟨m, hm⟩ := ih m (by omega) hm
+        have hfb : f ⟨m + 1, hm1⟩ = g ⟨m + 1, hm1⟩ := ih (m + 1) (by omega) hm1
+        have hba : (cycle N).Adj ⟨m + 1, hm1⟩ ⟨m, hm⟩ = true := by
+          rw [(cycle N).symm]
+          exact cycle_adj_of_succ rfl
+        have hbc : (cycle N).Adj ⟨m + 1, hm1⟩ ⟨m + 2, hk⟩ = true := cycle_adj_of_succ rfl
+        have hac : f ⟨m, hm⟩ ≠ f ⟨m + 2, hk⟩ := fun h ↦ by
+          have h2 : (⟨m, hm⟩ : Fin N) = ⟨m + 2, hk⟩ := f.injective h
+          simp only [Fin.mk.injEq] at h2
+          omega
+        refine cycle_nbr_unique hN (y := f ⟨m + 1, hm1⟩) (u := f ⟨m, hm⟩) ?_ ?_ ?_ hac ?_
+        · rw [f.adj_eq]; exact hba
+        · rw [f.adj_eq]; exact hbc
+        · rw [hfb, g.adj_eq]; exact hbc
+        · rw [hfa]
+          refine fun h ↦ ?_
+          have h2 : (⟨m, hm⟩ : Fin N) = ⟨m + 2, hk⟩ := g.injective h
+          simp only [Fin.mk.injEq] at h2
+          omega
+  refine RelIso.ext fun x ↦ ?_
+  obtain ⟨v, hv⟩ := x
+  exact key v hv
+
+/-- **A cycle has at most `2n` automorphisms.**  An automorphism is determined by the image of
+`0` and the image of `1`, and the latter is one of the two neighbours of the former, so the pair
+`(f 0, which neighbour)` is a complete and faithful record of `f`. -/
+theorem autCount_cycle_le {N : ℕ} (hN : 3 ≤ N) : (cycle N).autCount ≤ 2 * N := by
+  have h0N : 0 < N := by omega
+  have h1N : 1 < N := by omega
+  set code : (cycle N ≃cg cycle N) → (cycle N).V × Bool := fun f ↦
+    (f ⟨0, h0N⟩, decide ((f ⟨1, h1N⟩).1 = ((f ⟨0, h0N⟩).1 + 1) % N)) with hcode
+  have hadj01 : (cycle N).Adj ⟨0, h0N⟩ ⟨1, h1N⟩ = true := cycle_adj_of_succ rfl
+  have hnbr : ∀ f : cycle N ≃cg cycle N,
+      (f ⟨1, h1N⟩).1 = ((f ⟨0, h0N⟩).1 + 1) % N ∨
+        (f ⟨1, h1N⟩).1 = ((f ⟨0, h0N⟩).1 + N - 1) % N := by
+    intro f
+    rw [← cycle_adj_eq_iff hN, f.adj_eq]
+    exact hadj01
+  have hinj : Function.Injective code := by
+    intro f g h
+    rw [hcode] at h
+    simp only [Prod.mk.injEq] at h
+    obtain ⟨he0, heb⟩ := h
+    refine cycle_aut_eq hN he0 ?_
+    refine Fin.ext ?_
+    have hf := hnbr f
+    have hg := hnbr g
+    rw [he0] at hf
+    rw [he0, decide_eq_decide] at heb
+    have hne := cycle_nbrs_ne hN (g ⟨0, h0N⟩)
+    generalize ((g ⟨0, h0N⟩).1 + 1) % N = p at hf hg heb hne
+    generalize ((g ⟨0, h0N⟩).1 + N - 1) % N = q at hf hg hne
+    omega
+  have hcard : Nat.card ((cycle N).V × Bool) = 2 * N := by
+    rw [Nat.card_eq_fintype_card, Fintype.card_prod, card_cycle, Fintype.card_bool]
+    omega
+  have := Nat.card_le_card_of_injective code hinj
+  rw [hcard] at this
+  exact this
+
 /-- The automorphism count is `1` exactly for an asymmetric graph. -/
 theorem autCount_eq_one_iff (G : CGraph) :
     G.autCount = 1 ↔ ∀ a : G.toSimple ≃g G.toSimple, a = RelIso.refl _ := by
@@ -7444,6 +7579,15 @@ theorem not_isVertexTransitive_of_autCount_lt (G : CGraph) [Nonempty G.V]
 theorem not_isArcTransitive_of_autCount_lt (G : CGraph) (h : G.autCount < 2 * G.E) :
     ¬ G.IsArcTransitive := fun hat ↦
   absurd (G.two_mul_E_le_autCount_of_isArcTransitive hat) (by omega)
+
+/-- **The cycle `Cₙ` has exactly `2n` automorphisms** for `n ≥ 3`: its automorphism group is the
+dihedral group of order `2n`.  The lower bound is arc-transitivity together with the edge count,
+and the upper bound is `autCount_cycle_le`. -/
+theorem autCount_cycle (n : ℕ) : (cycle (n + 3)).autCount = 2 * (n + 3) := by
+  have hle := autCount_cycle_le (N := n + 3) (by omega)
+  have hge := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_cycle (n + 3))
+  rw [E_cycle] at hge
+  omega
 
 /-! ### The handshaking lemma -/
 
@@ -35389,6 +35533,12 @@ theorem factorial_le_autCount_star (n : ℕ) : n.factorial ≤ (star n).autCount
 vertex with two distinct neighbours, so it is fixed, and the rays may then be permuted freely. -/
 theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial := by
   rw [star_def, autCount_mk, CGraph.autCount_star]
+
+/-- **The cycle `Cₙ` has exactly `2n` automorphisms** for `n ≥ 3`: every vertex has exactly two
+neighbours, so an automorphism is forced by its effect on one arc, and there are only `2n` arcs
+for it to act on.  The automorphism group is the dihedral group of order `2n`. -/
+theorem autCount_cycle (n : ℕ) : (cycle (n + 3)).autCount = 2 * (n + 3) := by
+  rw [cycle_def, autCount_mk, CGraph.autCount_cycle]
 
 /-- The wheel inherits the dihedral symmetry of its rim. -/
 theorem le_autCount_wheel (n : ℕ) : 2 * (n + 3) ≤ (wheel (n + 3)).autCount := by
