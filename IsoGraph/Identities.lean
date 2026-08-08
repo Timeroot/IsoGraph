@@ -10264,6 +10264,638 @@ theorem pet10Col_proper : ∀ u v w : (kneser 5 2).V, (kneser 5 2).Adj u v = tru
     (kneser 5 2).Adj u w = true → v ≠ w → pet10Col u v ≠ pet10Col u w := by
   native_decide
 
+/-! ## The automorphism group of the Petersen graph -/
+
+/-- The ten vertices of the Petersen graph, indexed in the bitmask order of `pet10Masks`. -/
+def petAt (i : Fin 10) : (kneser 5 2).V := petVerts.getD i.1 petVert0
+
+/-- The index of a vertex of the Petersen graph in `petAt`. -/
+def petIdx (v : (kneser 5 2).V) : Fin 10 := ⟨min (pet10Idx v) 9, by omega⟩
+
+theorem petAt_petIdx : ∀ v : (kneser 5 2).V, petAt (petIdx v) = v := by native_decide
+
+theorem petIdx_petAt : ∀ i : Fin 10, petIdx (petAt i) = i := by native_decide
+
+/-- Adjacency of the Petersen graph as a table on the ten indices: two vertices are adjacent
+exactly when their bitmasks are disjoint. -/
+def petAdjT (i j : Fin 10) : Bool :=
+  (pet10Masks.getD i.1 0 &&& pet10Masks.getD j.1 0) == 0
+
+theorem petAdjT_eq : ∀ i j : Fin 10, (kneser 5 2).Adj (petAt i) (petAt j) = petAdjT i j := by
+  native_decide
+
+theorem petAdjT_map (f : kneser 5 2 ≃cg kneser 5 2) (i j : Fin 10) :
+    petAdjT (petIdx (f (petAt i))) (petIdx (f (petAt j))) = petAdjT i j := by
+  rw [← petAdjT_eq, petAt_petIdx, petAt_petIdx, Iso.adj_eq, petAdjT_eq]
+
+theorem petIdx_map_ne (f : kneser 5 2 ≃cg kneser 5 2) {i j : Fin 10} (hij : i ≠ j) :
+    petIdx (f (petAt i)) ≠ petIdx (f (petAt j)) := by
+  intro heq
+  refine hij ?_
+  have h1 : f (petAt i) = f (petAt j) := by
+    rw [← petAt_petIdx (f (petAt i)), ← petAt_petIdx (f (petAt j)), heq]
+  have h2 : petAt i = petAt j := f.injective h1
+  rw [← petIdx_petAt i, ← petIdx_petAt j, h2]
+
+set_option maxRecDepth 100000 in
+set_option maxHeartbeats 1000000 in
+set_option synthInstance.maxSize 1000000 in
+set_option synthInstance.maxHeartbeats 2000000 in
+/-- **The stabiliser of a `3`-arc in the Petersen graph is trivial**, as a search over the six
+vertices that are not on the arc `petAt 0 – petAt 5 – petAt 6 – petAt 2`.  Twelve of the forty-five
+adjacency constraints already pin the six images down, so the case split is `10 ^ 6` wide and each
+leaf tests at most twelve table lookups. -/
+theorem petStabSearch : ∀ x1 x3 x4 x7 x8 x9 : Fin 10,
+    petAdjT x4 6 = petAdjT 4 6 ∧ petAdjT 5 x7 = petAdjT 5 7 ∧ petAdjT 5 x8 = petAdjT 5 8 ∧
+      petAdjT 0 x9 = petAdjT 0 9 ∧ petAdjT 2 x9 = petAdjT 2 9 ∧ petAdjT x1 x7 = petAdjT 1 7 ∧
+      petAdjT x1 x9 = petAdjT 1 9 ∧ petAdjT x3 x7 = petAdjT 3 7 ∧ petAdjT x3 x8 = petAdjT 3 8 ∧
+      petAdjT x4 x7 = petAdjT 4 7 ∧ petAdjT x4 x8 = petAdjT 4 8 ∧ petAdjT x4 x9 = petAdjT 4 9 →
+    x1 = 1 ∧ x3 = 3 ∧ x4 = 4 ∧ x7 = 7 ∧ x8 = 8 ∧ x9 = 9 := by
+  native_decide
+
+/-- An automorphism of the Petersen graph fixing the `3`-arc `petAt 0 – petAt 5 – petAt 6 –
+petAt 2` pointwise is the identity. -/
+theorem petAut_fix (h : kneser 5 2 ≃cg kneser 5 2)
+    (e0 : h (petAt 0) = petAt 0) (e2 : h (petAt 2) = petAt 2)
+    (e5 : h (petAt 5) = petAt 5) (e6 : h (petAt 6) = petAt 6) :
+    ∀ v, h v = v := by
+  have hx := petAdjT_map h
+  have hx0 : petIdx (h (petAt 0)) = 0 := by rw [e0, petIdx_petAt]
+  have hx2 : petIdx (h (petAt 2)) = 2 := by rw [e2, petIdx_petAt]
+  have hx5 : petIdx (h (petAt 5)) = 5 := by rw [e5, petIdx_petAt]
+  have hx6 : petIdx (h (petAt 6)) = 6 := by rw [e6, petIdx_petAt]
+  have c46 := hx 4 6
+  rw [hx6] at c46
+  have c57 := hx 5 7
+  rw [hx5] at c57
+  have c58 := hx 5 8
+  rw [hx5] at c58
+  have c09 := hx 0 9
+  rw [hx0] at c09
+  have c29 := hx 2 9
+  rw [hx2] at c29
+  have c17 := hx 1 7
+  have c19 := hx 1 9
+  have c37 := hx 3 7
+  have c38 := hx 3 8
+  have c47 := hx 4 7
+  have c48 := hx 4 8
+  have c49 := hx 4 9
+  obtain ⟨k1, k3, k4, k7, k8, k9⟩ := petStabSearch
+    (petIdx (h (petAt 1))) (petIdx (h (petAt 3))) (petIdx (h (petAt 4)))
+    (petIdx (h (petAt 7))) (petIdx (h (petAt 8))) (petIdx (h (petAt 9)))
+    ⟨c46, c57, c58, c09, c29, c17, c19, c37, c38, c47, c48, c49⟩
+  have g : ∀ i : Fin 10, petIdx (h (petAt i)) = i := by
+    intro i
+    fin_cases i
+    exacts [hx0, k1, hx2, k3, k4, hx5, hx6, k7, k8, k9]
+  have hv : ∀ i : Fin 10, h (petAt i) = petAt i := by
+    intro i
+    rw [← petAt_petIdx (h (petAt i)), g i]
+  intro v
+  calc h v = h (petAt (petIdx v)) := by rw [petAt_petIdx]
+    _ = petAt (petIdx v) := hv _
+    _ = v := petAt_petIdx v
+
+/-- **Two automorphisms of the Petersen graph that agree on a `3`-arc are equal.** -/
+theorem petAut_ext {f g : kneser 5 2 ≃cg kneser 5 2}
+    (e0 : f (petAt 0) = g (petAt 0)) (e2 : f (petAt 2) = g (petAt 2))
+    (e5 : f (petAt 5) = g (petAt 5)) (e6 : f (petAt 6) = g (petAt 6)) : f = g := by
+  have hcomp : ∀ v, (f.trans g.symm) v = g.symm (f v) := fun _ ↦ rfl
+  have key : ∀ v, g.symm (f v) = v := by
+    intro v
+    rw [← hcomp]
+    refine petAut_fix (f.trans g.symm) ?_ ?_ ?_ ?_ v
+    · rw [hcomp, e0, RelIso.symm_apply_apply]
+    · rw [hcomp, e2, RelIso.symm_apply_apply]
+    · rw [hcomp, e5, RelIso.symm_apply_apply]
+    · rw [hcomp, e6, RelIso.symm_apply_apply]
+  refine RelIso.ext fun v ↦ ?_
+  have h2 := congrArg g (key v)
+  rwa [RelIso.apply_symm_apply] at h2
+
+/-- The `3`-arcs of the Petersen graph, as index quadruples. -/
+abbrev PetArc : Type :=
+  {q : Fin 10 × Fin 10 × Fin 10 × Fin 10 //
+    petAdjT q.1 q.2.1 = true ∧ petAdjT q.2.1 q.2.2.1 = true ∧
+      petAdjT q.2.2.1 q.2.2.2 = true ∧ q.1 ≠ q.2.2.1 ∧ q.2.1 ≠ q.2.2.2}
+
+theorem card_petArc : Nat.card PetArc = 120 := by
+  rw [Nat.card_eq_fintype_card]
+  native_decide
+
+/-- The `3`-arc that an automorphism sends the base arc to.  This is a faithful record of the
+automorphism, which is what `autCount_kneser_five_two_le` turns into a bound. -/
+def petCode (f : kneser 5 2 ≃cg kneser 5 2) : PetArc :=
+  ⟨(petIdx (f (petAt 0)), petIdx (f (petAt 5)), petIdx (f (petAt 6)), petIdx (f (petAt 2))),
+    (petAdjT_map f 0 5).trans (by decide), (petAdjT_map f 5 6).trans (by decide),
+    (petAdjT_map f 6 2).trans (by decide), petIdx_map_ne f (by decide),
+    petIdx_map_ne f (by decide)⟩
+
+/-- **The Petersen graph has at most `120` automorphisms**: an automorphism is recorded faithfully
+by the image of one fixed `3`-arc, and there are `10 · 3 · 2 · 2 = 120` `3`-arcs. -/
+theorem autCount_kneser_five_two_le : (kneser 5 2).autCount ≤ 120 := by
+  haveI : Finite (kneser 5 2 ≃cg kneser 5 2) := (kneser 5 2).instFiniteAut
+  have hinj : Function.Injective petCode := by
+    intro f g hfg
+    have h1 := congrArg Subtype.val hfg
+    have q0 : petIdx (f (petAt 0)) = petIdx (g (petAt 0)) := congrArg (fun p ↦ p.1) h1
+    have q5 : petIdx (f (petAt 5)) = petIdx (g (petAt 5)) := congrArg (fun p ↦ p.2.1) h1
+    have q6 : petIdx (f (petAt 6)) = petIdx (g (petAt 6)) := congrArg (fun p ↦ p.2.2.1) h1
+    have q2 : petIdx (f (petAt 2)) = petIdx (g (petAt 2)) := congrArg (fun p ↦ p.2.2.2) h1
+    refine petAut_ext ?_ ?_ ?_ ?_
+    · rw [← petAt_petIdx (f (petAt 0)), ← petAt_petIdx (g (petAt 0)), q0]
+    · rw [← petAt_petIdx (f (petAt 2)), ← petAt_petIdx (g (petAt 2)), q2]
+    · rw [← petAt_petIdx (f (petAt 5)), ← petAt_petIdx (g (petAt 5)), q5]
+    · rw [← petAt_petIdx (f (petAt 6)), ← petAt_petIdx (g (petAt 6)), q6]
+  have := Nat.card_le_card_of_injective petCode hinj
+  rwa [card_petArc] at this
+
+/-- Distinct permutations of the five-element ground set give distinct automorphisms of the
+Petersen graph. -/
+theorem kneserAuto_five_two_injective : Function.Injective (kneserAuto 5 2) := by
+  intro π ρ hpr
+  have key : ∀ s : Finset (Fin 5), ∀ hs : s.card = 2, s.image π = s.image ρ := by
+    intro s hs
+    exact congrArg Subtype.val (DFunLike.congr_fun hpr ⟨s, hs⟩)
+  refine Equiv.ext fun a ↦ ?_
+  obtain ⟨b, c, hba, hca, hbc⟩ : ∃ b c : Fin 5, b ≠ a ∧ c ≠ a ∧ b ≠ c := by
+    revert a; decide
+  have h1 := key {a, b} (by rw [Finset.card_pair (Ne.symm hba)])
+  have h2 := key {a, c} (by rw [Finset.card_pair (Ne.symm hca)])
+  simp only [Finset.image_insert, Finset.image_singleton] at h1 h2
+  have m1 : π a ∈ ({ρ a, ρ b} : Finset (Fin 5)) := by
+    rw [← h1]; exact Finset.mem_insert_self _ _
+  have m2 : π a ∈ ({ρ a, ρ c} : Finset (Fin 5)) := by
+    rw [← h2]; exact Finset.mem_insert_self _ _
+  rcases Finset.mem_insert.1 m1 with h | h
+  · exact h
+  · rcases Finset.mem_insert.1 m2 with h' | h'
+    · exact h'
+    · rw [Finset.mem_singleton] at h h'
+      exact absurd (ρ.injective (h.symm.trans h')) hbc
+
+theorem le_autCount_kneser_five_two : 120 ≤ (kneser 5 2).autCount := by
+  haveI : Finite (kneser 5 2 ≃cg kneser 5 2) := (kneser 5 2).instFiniteAut
+  have h := Nat.card_le_card_of_injective _ kneserAuto_five_two_injective
+  have hc : Nat.card (Equiv.Perm (Fin 5)) = 120 := by
+    rw [Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
+    rfl
+  rwa [hc] at h
+
+/-- **The Petersen graph has exactly `120` automorphisms**: its automorphism group is the
+symmetric group `S₅` acting on the five-element ground set of `K(5, 2)`. -/
+theorem autCount_kneser_five_two : (kneser 5 2).autCount = 120 :=
+  le_antisymm autCount_kneser_five_two_le le_autCount_kneser_five_two
+
+/-! ## The girth of a cycle
+
+`Cₙ` has girth `n`.  The upper bound is the general fact that a cycle uses no more vertices than
+the graph has.  For the lower bound, a shorter cycle would miss some vertex `x`; rotating the
+labels so that `x` becomes `n - 1` carries the missed cycle into `path n`, which is acyclic. -/
+
+/-- **A graph with a cycle has girth at most its order**: the support of a cycle, minus its
+repeated endpoint, is a list of distinct vertices as long as the cycle. -/
+theorem girth_le_V {G : CGraph} (h : ¬ G.IsAcyclic) : G.girth ≤ Fintype.card G.V := by
+  simp only [IsAcyclic, SimpleGraph.IsAcyclic, not_forall, not_not] at h
+  obtain ⟨v, c, hc⟩ := h
+  refine le_trans (girth_le_length hc) ?_
+  have hlen : c.support.tail.length = c.length := by
+    rw [List.length_tail, SimpleGraph.Walk.length_support]
+    omega
+  calc c.length = c.support.tail.length := hlen.symm
+    _ ≤ Fintype.card G.V := hc.support_nodup.length_le_card
+
+theorem getLastD_map {α β : Type*} (f : α → β) (l : List α) (d : α) :
+    (l.map f).getLastD (f d) = f (l.getLastD d) := by
+  induction l generalizing d with
+  | nil => rfl
+  | cons a t ih => simp only [List.map_cons, List.getLastD_cons]; exact ih a
+
+/-- Relabelling `cycle N` so that `x` becomes the last label `N - 1`, cutting the cycle open at
+`x`.  Every vertex other than `x` lands strictly below `N - 1`. -/
+def cycRot {N : ℕ} (x y : Fin N) : Fin N :=
+  ⟨if x.1 < y.1 then y.1 - x.1 - 1 else y.1 + N - x.1 - 1, by
+    have := x.isLt; have := y.isLt; split_ifs <;> omega⟩
+
+theorem cycRot_val {N : ℕ} (x y : Fin N) :
+    (cycRot x y).1 = if x.1 < y.1 then y.1 - x.1 - 1 else y.1 + N - x.1 - 1 := rfl
+
+theorem cycRot_injective {N : ℕ} (x : Fin N) : Function.Injective (cycRot x) := by
+  intro y z h
+  have hy := y.isLt
+  have hz := z.isLt
+  have hx := x.isLt
+  have h' : (cycRot x y).1 = (cycRot x z).1 := by rw [h]
+  rw [cycRot_val, cycRot_val] at h'
+  refine Fin.ext ?_
+  split_ifs at h' <;> omega
+
+/-- Only the cut vertex reaches the top label. -/
+theorem cycRot_lt {N : ℕ} {x y : Fin N} (h : y ≠ x) : (cycRot x y).1 + 1 < N := by
+  have hy := y.isLt
+  have hx := x.isLt
+  have h' : y.1 ≠ x.1 := fun hh ↦ h (Fin.ext hh)
+  rw [cycRot_val]
+  split_ifs <;> omega
+
+/-- Away from the cut vertex, a cycle edge becomes a path edge. -/
+theorem path_adj_cycRot {N : ℕ} (hN : 3 ≤ N) {x y z : Fin N} (hy : y ≠ x) (hz : z ≠ x)
+    (h : (cycle N).Adj y z = true) : (path N).Adj (cycRot x y) (cycRot x z) = true := by
+  have hy' := cycRot_lt hy
+  have hz' := cycRot_lt hz
+  have hyl := y.isLt
+  have hzl := z.isLt
+  have hxl := x.isLt
+  have hyx : y.1 ≠ x.1 := fun hh ↦ hy (Fin.ext hh)
+  have hzx : z.1 ≠ x.1 := fun hh ↦ hz (Fin.ext hh)
+  rw [cycle_adj_eq_iff hN] at h
+  have hs : (y.1 + 1) % N = if y.1 + 1 = N then 0 else y.1 + 1 := by
+    rcases eq_or_lt_of_le (Nat.succ_le_of_lt hyl) with hq | hq
+    · rw [if_pos (by omega), show y.1 + 1 = N from by omega, Nat.mod_self]
+    · rw [if_neg (by omega), Nat.mod_eq_of_lt hq]
+  have hp : (y.1 + N - 1) % N = if y.1 = 0 then N - 1 else y.1 - 1 := by
+    rcases Nat.eq_zero_or_pos y.1 with hq | hq
+    · rw [if_pos hq, show y.1 + N - 1 = N - 1 from by omega, Nat.mod_eq_of_lt (by omega)]
+    · rw [if_neg (by omega), show y.1 + N - 1 = N + (y.1 - 1) from by omega, Nat.add_mod_left,
+        Nat.mod_eq_of_lt (by omega)]
+  rw [hs, hp] at h
+  rw [path_adj_val]
+  rw [cycRot_val] at hy' hz'
+  refine ⟨fun hh ↦ ?_, ?_⟩
+  · rw [cycRot_val, cycRot_val] at hh
+    split_ifs at hh h <;> omega
+  · rw [cycRot_val, cycRot_val]
+    split_ifs at h ⊢ <;> omega
+
+/-- **No short cycle in `Cₙ`.**  A closed chain of fewer than `n` distinct vertices misses one,
+and rotating that vertex to the top turns the chain into a cycle in the acyclic `path n`. -/
+theorem cycle_no_short_cycleList {N : ℕ} (hN : 3 ≤ N) (u : (cycle N).V) (vs : List (cycle N).V)
+    (h2 : 2 ≤ vs.length) (hlt : vs.length + 1 < N) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun a b ↦ (cycle N).Adj a b) (u :: vs))
+    (hcl : (cycle N).Adj (vs.getLastD u) u) : False := by
+  classical
+  obtain ⟨x, hx⟩ : ∃ x : Fin N, x ∉ u :: vs := by
+    by_contra hcon
+    push_neg at hcon
+    have hsub : (Finset.univ : Finset (Fin N)) ⊆ (u :: vs).toFinset :=
+      fun a _ ↦ List.mem_toFinset.2 (hcon a)
+    have h1 := Finset.card_le_card hsub
+    have h2' : (u :: vs).toFinset.card ≤ (u :: vs).length := List.toFinset_card_le _
+    simp only [Finset.card_univ, Fintype.card_fin, List.length_cons] at h1 h2'
+    omega
+  have hmem : ∀ a ∈ u :: vs, a ≠ x := fun a ha hax ↦ hx (hax ▸ ha)
+  refine absurd (isAcyclic_path N) ?_
+  refine not_isAcyclic_of_cycleList (G := path N) (cycRot x u) (vs.map (cycRot x)) ?_ ?_ ?_ ?_
+  · simpa using h2
+  · rw [show cycRot x u :: vs.map (cycRot x) = (u :: vs).map (cycRot x) from rfl]
+    exact hnd.map (cycRot_injective x)
+  · rw [show cycRot x u :: vs.map (cycRot x) = (u :: vs).map (cycRot x) from rfl]
+    refine (List.isChain_map (cycRot x)).2 ?_
+    exact hch.imp_of_mem_imp fun a b ha hb hab ↦
+      path_adj_cycRot hN (hmem a ha) (hmem b hb) hab
+  · rw [getLastD_map]
+    exact path_adj_cycRot hN (hmem _ List.getLastD_mem_cons) (hmem u (by simp)) hcl
+
+/-- **The girth of a cycle is its length.** -/
+theorem girth_cycle (n : ℕ) : (cycle (n + 3)).girth = n + 3 := by
+  refine le_antisymm ?_ ?_
+  · have h := girth_le_V (not_isAcyclic_cycle n)
+    rwa [card_cycle] at h
+  · exact le_girth_of_forall_cycleList
+      (fun u vs h2 hlt hnd hch hcl ↦
+        cycle_no_short_cycleList (by omega) u vs h2 hlt hnd hch hcl)
+      (not_isAcyclic_cycle n)
+
+/-! ## The girth of the decorated cycles
+
+`girth_cycle` says a cycle has no shortcut; the tadpole and the cycle-with-pendants say that
+gluing a tree onto a cycle adds no cycle at all.  The two proofs share the same three pieces: a
+general `girth_le_card_of_map` for the upper bound, `cycleList_two_nbrs` (each vertex of a closed
+nodup chain has two distinct neighbours in it) to show every chain vertex lies on the cycle, and
+`no_short_cycleList_of_labels`, which pushes such a chain into `cycle M` and appeals to
+`cycle_no_short_cycleList`.
+-/
+
+/-! ## The girth of the decorated cycles -/
+
+theorem mod_succ_norm {N a : ℕ} (h : a < N) : (a + 1) % N = if a + 1 = N then 0 else a + 1 := by
+  rcases Nat.lt_or_ge (a + 1) N with hq | hq
+  · rw [if_neg (by omega), Nat.mod_eq_of_lt hq]
+  · have hEq : a + 1 = N := by omega
+    rw [if_pos hEq, hEq, Nat.mod_self]
+
+/-- **An injective homomorphism carries cycles to cycles.** -/
+theorem not_isAcyclic_of_map {G H : CGraph} (f : G.V → H.V) (hinj : Function.Injective f)
+    (hadj : ∀ x y, G.Adj x y = true → H.Adj (f x) (f y) = true) (hnac : ¬ G.IsAcyclic) :
+    ¬ H.IsAcyclic := by
+  simp only [IsAcyclic, SimpleGraph.IsAcyclic, not_forall, not_not] at hnac
+  obtain ⟨v, c, hc⟩ := hnac
+  obtain ⟨u, vs, hlen, hnd, hch, hcl⟩ := exists_cycleList_of_isCycle hc
+  have h3 := hc.three_le_length
+  refine not_isAcyclic_of_cycleList (f u) (vs.map f) (by simp only [List.length_map]; omega)
+    ?_ ?_ ?_
+  · rw [show f u :: vs.map f = (u :: vs).map f from rfl]
+    exact hnd.map hinj
+  · rw [show f u :: vs.map f = (u :: vs).map f from rfl]
+    exact (List.isChain_map f).2 (hch.imp_of_mem_imp fun a b _ _ hab ↦ hadj a b hab)
+  · rw [getLastD_map]
+    exact hadj _ _ hcl
+
+/-- **Girth is monotone along an injective homomorphism.**  A cycle of `G` maps to a cycle of `H`,
+so `H` has girth at most the order of `G` as soon as `G` has a cycle at all. -/
+theorem girth_le_card_of_map {G H : CGraph} (f : G.V → H.V) (hinj : Function.Injective f)
+    (hadj : ∀ x y, G.Adj x y = true → H.Adj (f x) (f y) = true) (hnac : ¬ G.IsAcyclic) :
+    H.girth ≤ Fintype.card G.V := by
+  simp only [IsAcyclic, SimpleGraph.IsAcyclic, not_forall, not_not] at hnac
+  obtain ⟨v, c, hc⟩ := hnac
+  obtain ⟨u, vs, hlen, hnd, hch, hcl⟩ := exists_cycleList_of_isCycle hc
+  have h3 := hc.three_le_length
+  have hmap : H.girth ≤ (vs.map f).length + 1 := by
+    refine girth_le_of_cycleList (f u) (vs.map f) (by simp only [List.length_map]; omega) ?_ ?_ ?_
+    · rw [show f u :: vs.map f = (u :: vs).map f from rfl]
+      exact hnd.map hinj
+    · rw [show f u :: vs.map f = (u :: vs).map f from rfl]
+      exact (List.isChain_map f).2 (hch.imp_of_mem_imp fun a b _ _ hab ↦ hadj a b hab)
+    · rw [getLastD_map]
+      exact hadj _ _ hcl
+  rw [List.length_map] at hmap
+  exact le_trans hmap (by simpa using hnd.length_le_card)
+
+theorem getElem_congr_idx {α : Type*} (l : List α) {i j : ℕ} (h : i = j) (hi : i < l.length) :
+    l[i]'hi = l[j]'(h ▸ hi) := by subst h; rfl
+
+theorem getLastD_eq_getElem {α : Type*} (vs : List α) (u : α) :
+    vs.getLastD u = (u :: vs)[vs.length]'(by simp) := by
+  induction vs generalizing u with
+  | nil => rfl
+  | cons a t ih => rw [List.getLastD_cons, ih a]; simp
+
+/-- **Every vertex of a cycle list has two distinct neighbours in the list**: its predecessor and
+its successor around the closed chain. -/
+theorem cycleList_two_nbrs {G : CGraph} {u : G.V} {vs : List G.V}
+    (h2 : 2 ≤ vs.length) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun x y ↦ G.Adj x y) (u :: vs)) (hcl : G.Adj (vs.getLastD u) u)
+    {x : G.V} (hx : x ∈ u :: vs) :
+    ∃ a b, a ∈ u :: vs ∧ b ∈ u :: vs ∧ a ≠ b ∧ G.Adj x a = true ∧ G.Adj x b = true := by
+  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hx
+  have hn : (u :: vs).length = vs.length + 1 := List.length_cons ..
+  have hi' : i < vs.length + 1 := by omega
+  have hlast : (u :: vs)[vs.length]'(by simp) = vs.getLastD u := (getLastD_eq_getElem vs u).symm
+  have hhead : (u :: vs)[0]'(by simp) = u := rfl
+  have hsucc : ∀ j : ℕ, ∀ _ : j < vs.length + 1,
+      G.Adj ((u :: vs)[j]'(by omega)) ((u :: vs)[if j + 1 = vs.length + 1 then 0 else j + 1]'
+        (by split_ifs <;> omega)) = true := by
+    intro j hj
+    by_cases hje : j + 1 = vs.length + 1
+    · have e1 : (u :: vs)[j]'(by omega) = vs.getLastD u :=
+        (getElem_congr_idx (u :: vs) (show j = vs.length from by omega) (by omega)).trans hlast
+      have e2 : (u :: vs)[if j + 1 = vs.length + 1 then 0 else j + 1]'
+          (by split_ifs; omega) = u :=
+        (getElem_congr_idx (u :: vs)
+          (show (if j + 1 = vs.length + 1 then 0 else j + 1) = 0 from if_pos hje)
+          (by split_ifs; omega)).trans hhead
+      rw [e1, e2]
+      exact hcl
+    · have e2 : (u :: vs)[if j + 1 = vs.length + 1 then 0 else j + 1]'
+          (by split_ifs; omega) = (u :: vs)[j + 1]'(by omega) :=
+        getElem_congr_idx (u :: vs) (if_neg hje) (by split_ifs; omega)
+      rw [e2]
+      exact List.isChain_iff_getElem.1 hch j (by omega)
+  refine ⟨(u :: vs)[if i + 1 = vs.length + 1 then 0 else i + 1]'(by split_ifs <;> omega),
+    (u :: vs)[if i = 0 then vs.length else i - 1]'(by split_ifs <;> omega),
+    List.getElem_mem _, List.getElem_mem _, ?_, hsucc i hi', ?_⟩
+  · intro heq
+    have := (List.Nodup.getElem_inj_iff hnd).1 heq
+    split_ifs at this <;> omega
+  · have hprev := hsucc (if i = 0 then vs.length else i - 1) (by split_ifs <;> omega)
+    have e3 : (u :: vs)[if (if i = 0 then vs.length else i - 1) + 1 = vs.length + 1 then 0
+          else (if i = 0 then vs.length else i - 1) + 1]'(by split_ifs <;> omega)
+        = (u :: vs)[i]'(by omega) :=
+      getElem_congr_idx (u :: vs) (by split_ifs <;> omega) (by split_ifs <;> omega)
+    rw [e3] at hprev
+    rw [G.symm]
+    exact hprev
+
+/-- Some element of a nonempty list maximises a given weight. -/
+theorem exists_max_weight {V : Type*} (f : V → ℕ) (u : V) (vs : List V) :
+    ∃ x ∈ u :: vs, ∀ y ∈ u :: vs, f y ≤ f x := by
+  induction vs generalizing u with
+  | nil => exact ⟨u, by simp, by simp⟩
+  | cons a t ih =>
+      obtain ⟨x, hx, hmax⟩ := ih a
+      rcases Nat.lt_or_ge (f u) (f x) with h | h
+      · refine ⟨x, List.mem_cons_of_mem u hx, fun y hy ↦ ?_⟩
+        rcases List.mem_cons.1 hy with rfl | hy'
+        · omega
+        · exact hmax y hy'
+      · refine ⟨u, by simp, fun y hy ↦ ?_⟩
+        rcases List.mem_cons.1 hy with rfl | hy'
+        · exact Nat.le_refl _
+        · exact Nat.le_trans (hmax y hy') h
+
+/-- A closed nodup chain of a graph `H` whose vertices carry distinct labels below `M`, with
+adjacent vertices carrying adjacent labels, is impossible when the chain is shorter than `M`:
+it would be a short cycle in `cycle M`. -/
+theorem no_short_cycleList_of_labels {H : CGraph} {M : ℕ} (hM : 3 ≤ M) (gv : H.V → ℕ)
+    (u : H.V) (vs : List H.V) (hbd : ∀ a ∈ u :: vs, gv a < M)
+    (hginj : ∀ a ∈ u :: vs, ∀ b ∈ u :: vs, gv a = gv b → a = b)
+    (hgadj : ∀ a ∈ u :: vs, ∀ b ∈ u :: vs, H.Adj a b = true →
+      ∀ (ha : gv a < M) (hb : gv b < M), (cycle M).Adj ⟨gv a, ha⟩ ⟨gv b, hb⟩ = true)
+    (h2 : 2 ≤ vs.length) (hlt : vs.length + 1 < M) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun x y ↦ H.Adj x y) (u :: vs)) (hcl : H.Adj (vs.getLastD u) u) :
+    False := by
+  obtain ⟨g, hgval⟩ : ∃ g : H.V → (cycle M).V, ∀ a ∈ u :: vs, (g a).1 = gv a :=
+    ⟨fun v ↦ ⟨min (gv v) (M - 1), by omega⟩,
+      fun a ha ↦ show min (gv a) (M - 1) = gv a from by have := hbd a ha; omega⟩
+  have hmap : ∀ a, a ∈ u :: vs → ∀ b, b ∈ u :: vs → H.Adj a b = true →
+      (cycle M).Adj (g a) (g b) = true := by
+    intro a ha b hb hab
+    have ea : g a = ⟨gv a, hbd a ha⟩ := Fin.ext (hgval a ha)
+    have eb : g b = ⟨gv b, hbd b hb⟩ := Fin.ext (hgval b hb)
+    rw [ea, eb]
+    exact hgadj a ha b hb hab _ _
+  have hlastmem : vs.getLastD u ∈ u :: vs := List.getLastD_mem_cons
+  refine cycle_no_short_cycleList hM (g u) (vs.map g) (by simpa using h2) (by simpa using hlt)
+    ?_ ?_ ?_
+  · rw [show g u :: vs.map g = (u :: vs).map g from rfl]
+    refine hnd.map_on fun a ha b hb hab ↦ ?_
+    exact hginj a ha b hb ((hgval a ha).symm.trans ((congrArg Fin.val hab).trans (hgval b hb)))
+  · rw [show g u :: vs.map g = (u :: vs).map g from rfl]
+    exact (List.isChain_map g).2 (hch.imp_of_mem_imp fun a b ha hb hab ↦ hmap a ha b hb hab)
+  · rw [getLastD_map]
+    exact hmap _ hlastmem u (by simp) hcl
+
+/-! ### The tadpole -/
+
+/-- The cycle part of a tadpole is a copy of `cycle m`. -/
+theorem cycle_adj_of_tadpole_adj {m k : ℕ} {u v : (tadpole m k).V} (hu : u.1 < m) (hv : v.1 < m)
+    (h : (tadpole m k).Adj u v = true) :
+    (cycle m).Adj ⟨u.1, hu⟩ ⟨v.1, hv⟩ = true := by
+  rw [tadpole_adj_val] at h
+  simp only [List.mem_append, mem_cycleEdges, mem_legEdges] at h
+  rw [cycle_adj_val]
+  simp only [mod_succ_norm hu, mod_succ_norm hv]
+  refine ⟨by omega, ?_⟩
+  split_ifs <;> omega
+
+theorem tadpole_adj_of_cycle_adj {m k : ℕ} {u v : (cycle m).V} {u' v' : (tadpole m k).V}
+    (hu : u'.1 = u.1) (hv : v'.1 = v.1) (h : (cycle m).Adj u v = true) :
+    (tadpole m k).Adj u' v' = true := by
+  have hul := u.isLt
+  have hvl := v.isLt
+  rw [cycle_adj_val] at h
+  obtain ⟨hne, h⟩ := h
+  rw [mod_succ_norm hul, mod_succ_norm hvl] at h
+  rw [tadpole_adj_val]
+  refine ⟨by omega, ?_⟩
+  rw [List.mem_append, List.mem_append]
+  simp only [mem_cycleEdges]
+  rcases h with h | h
+  · exact Or.inl (Or.inl (by split_ifs at h <;> omega))
+  · exact Or.inr (Or.inl (by split_ifs at h <;> omega))
+
+/-- A vertex on the leg of a tadpole has at most one neighbour below it. -/
+theorem tadpole_high_nbr_unique {m k : ℕ} {x a b : (tadpole m k).V} (hx : m ≤ x.1)
+    (ha : (tadpole m k).Adj x a = true) (hb : (tadpole m k).Adj x b = true)
+    (hax : a.1 ≤ x.1) (hbx : b.1 ≤ x.1) : a = b := by
+  rw [tadpole_adj_val] at ha hb
+  simp only [List.mem_append, mem_cycleEdges, mem_legEdges] at ha hb
+  exact Fin.ext (by omega)
+
+theorem not_isAcyclic_tadpole (m k : ℕ) : ¬ (tadpole (m + 3) k).IsAcyclic :=
+  not_isAcyclic_of_map (G := cycle (m + 3)) (fun v ↦ ⟨v.1, by have := v.isLt; omega⟩)
+    (fun a b hab ↦ Fin.ext (by simpa using congrArg Fin.val hab))
+    (fun _ _ hxy ↦ tadpole_adj_of_cycle_adj rfl rfl hxy) (not_isAcyclic_cycle m)
+
+/-- **The girth of a tadpole is the length of its cycle**: the leg contributes no cycle. -/
+theorem girth_tadpole (m k : ℕ) : (tadpole (m + 3) k).girth = m + 3 := by
+  refine le_antisymm ?_ ?_
+  · have h := girth_le_card_of_map (G := cycle (m + 3)) (H := tadpole (m + 3) k)
+      (fun v ↦ ⟨v.1, by have := v.isLt; omega⟩)
+      (fun a b hab ↦ Fin.ext (by simpa using congrArg Fin.val hab))
+      (fun _ _ hxy ↦ tadpole_adj_of_cycle_adj rfl rfl hxy) (not_isAcyclic_cycle m)
+    rwa [card_cycle] at h
+  · refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_)
+      (not_isAcyclic_tadpole m k)
+    have hlow : ∀ a ∈ u :: vs, a.1 < m + 3 := by
+      by_contra hcon
+      push_neg at hcon
+      obtain ⟨w, hw, hwM⟩ := hcon
+      obtain ⟨x, hx, hxmax⟩ := exists_max_weight (fun v : (tadpole (m + 3) k).V ↦ v.1) u vs
+      obtain ⟨a, b, ha, hb, hab, hxa, hxb⟩ := cycleList_two_nbrs h2 hnd hch hcl hx
+      exact hab (tadpole_high_nbr_unique (Nat.le_trans hwM (hxmax w hw)) hxa hxb
+        (hxmax a ha) (hxmax b hb))
+    exact no_short_cycleList_of_labels (H := tadpole (m + 3) k) (by omega) (fun v ↦ v.1) u vs
+      hlow (fun a _ b _ hab ↦ Fin.ext hab)
+      (fun a ha b hb hadj _ _ ↦ cycle_adj_of_tadpole_adj (hlow a ha) (hlow b hb) hadj)
+      h2 hlt hnd hch hcl
+
+/-! ### The cycle with pendant vertices -/
+
+/-- A pendant vertex hangs off exactly one vertex of the cycle. -/
+theorem pendantEdges_unique_owner : ∀ (v off : ℕ) (ks : List ℕ) (p p' q : ℕ),
+    (p, q) ∈ pendantEdges v off ks → (p', q) ∈ pendantEdges v off ks → p = p'
+  | _, _, [], _, _, _ => by simp [pendantEdges]
+  | v, off, k :: ks, p, p', q => by
+      intro h h'
+      have hb : ∀ r s : ℕ, (r, s) ∈ (List.range k).map (fun i ↦ (v, off + i)) →
+          r = v ∧ s < off + k := by
+        intro r s hr
+        simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at hr
+        obtain ⟨i, hi, h1, h2⟩ := hr
+        omega
+      rw [pendantEdges, List.mem_append] at h h'
+      rcases h with h | h <;> rcases h' with h' | h'
+      · exact ((hb p q h).1).trans ((hb p' q h').1).symm
+      · have hq := (hb p q h).2
+        have := (mem_pendantEdges_bound (v + 1) (off + k) ks p' q h').2.1
+        omega
+      · have hq := (hb p' q h').2
+        have := (mem_pendantEdges_bound (v + 1) (off + k) ks p q h).2.1
+        omega
+      · exact pendantEdges_unique_owner (v + 1) (off + k) ks p p' q h h'
+
+/-- Every edge at a pendant vertex is a pendant edge. -/
+theorem cyclePendant_pendant_edge {m : ℕ} {ks : List ℕ} (hks : ks.length ≤ m)
+    {x a : (cyclePendant m ks).V} (hx : m ≤ x.1)
+    (ha : (cyclePendant m ks).Adj x a = true) : (a.1, x.1) ∈ pendantEdges 0 m ks := by
+  rw [cyclePendant_adj_val] at ha
+  obtain ⟨hne, h⟩ := ha
+  rw [List.mem_append, List.mem_append] at h
+  rcases h with (hc | hp) | (hc | hp)
+  · rw [mem_cycleEdges] at hc; omega
+  · have := mem_pendantEdges_bound 0 m ks x.1 a.1 hp; omega
+  · rw [mem_cycleEdges] at hc; omega
+  · exact hp
+
+/-- A pendant vertex has exactly one neighbour. -/
+theorem cyclePendant_high_nbr_unique {m : ℕ} {ks : List ℕ} (hks : ks.length ≤ m)
+    {x a b : (cyclePendant m ks).V} (hx : m ≤ x.1)
+    (ha : (cyclePendant m ks).Adj x a = true) (hb : (cyclePendant m ks).Adj x b = true) :
+    a = b :=
+  Fin.ext (pendantEdges_unique_owner 0 m ks a.1 b.1 x.1
+    (cyclePendant_pendant_edge hks hx ha) (cyclePendant_pendant_edge hks hx hb))
+
+theorem cycle_adj_of_cyclePendant_adj {m : ℕ} {ks : List ℕ} {u v : (cyclePendant m ks).V}
+    (hu : u.1 < m) (hv : v.1 < m) (h : (cyclePendant m ks).Adj u v = true) :
+    (cycle m).Adj ⟨u.1, hu⟩ ⟨v.1, hv⟩ = true := by
+  rw [cyclePendant_adj_val] at h
+  obtain ⟨hne, h⟩ := h
+  rw [List.mem_append, List.mem_append] at h
+  rw [cycle_adj_val]
+  simp only [mod_succ_norm hu, mod_succ_norm hv]
+  refine ⟨hne, ?_⟩
+  rcases h with (hc | hp) | (hc | hp)
+  · rw [mem_cycleEdges] at hc; split_ifs <;> omega
+  · exfalso; have := mem_pendantEdges_bound 0 m ks u.1 v.1 hp; omega
+  · rw [mem_cycleEdges] at hc; split_ifs <;> omega
+  · exfalso; have := mem_pendantEdges_bound 0 m ks v.1 u.1 hp; omega
+
+theorem cyclePendant_adj_of_cycle_adj {m : ℕ} {ks : List ℕ} {u v : (cycle m).V}
+    {u' v' : (cyclePendant m ks).V} (hu : u'.1 = u.1) (hv : v'.1 = v.1)
+    (h : (cycle m).Adj u v = true) : (cyclePendant m ks).Adj u' v' = true := by
+  have hul := u.isLt
+  have hvl := v.isLt
+  rw [cycle_adj_val] at h
+  obtain ⟨hne, h⟩ := h
+  simp only [mod_succ_norm hul, mod_succ_norm hvl] at h
+  rw [cyclePendant_adj_val]
+  refine ⟨by omega, ?_⟩
+  rw [List.mem_append, List.mem_append]
+  simp only [mem_cycleEdges]
+  rcases h with h | h
+  · exact Or.inl (Or.inl (by split_ifs at h <;> omega))
+  · exact Or.inr (Or.inl (by split_ifs at h <;> omega))
+
+theorem not_isAcyclic_cyclePendant (m : ℕ) (ks : List ℕ) :
+    ¬ (cyclePendant (m + 3) ks).IsAcyclic :=
+  not_isAcyclic_of_map (G := cycle (m + 3)) (fun v ↦ ⟨v.1, by have := v.isLt; omega⟩)
+    (fun a b hab ↦ Fin.ext (by simpa using congrArg Fin.val hab))
+    (fun _ _ hxy ↦ cyclePendant_adj_of_cycle_adj rfl rfl hxy) (not_isAcyclic_cycle m)
+
+/-- **The girth of a cycle with pendant vertices is the length of the cycle.** -/
+theorem girth_cyclePendant (m : ℕ) (ks : List ℕ) (hks : ks.length ≤ m + 3) :
+    (cyclePendant (m + 3) ks).girth = m + 3 := by
+  refine le_antisymm ?_ ?_
+  · have hle := girth_le_card_of_map (G := cycle (m + 3)) (H := cyclePendant (m + 3) ks)
+      (fun v ↦ ⟨v.1, by have := v.isLt; omega⟩)
+      (fun a b hab ↦ Fin.ext (by simpa using congrArg Fin.val hab))
+      (fun _ _ hxy ↦ cyclePendant_adj_of_cycle_adj rfl rfl hxy) (not_isAcyclic_cycle m)
+    rwa [card_cycle] at hle
+  · refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_)
+      (not_isAcyclic_cyclePendant m ks)
+    have hlow : ∀ a ∈ u :: vs, a.1 < m + 3 := by
+      intro a ha
+      by_contra hcon
+      push_neg at hcon
+      obtain ⟨p, q, hp, hq, hpq, hap, haq⟩ := cycleList_two_nbrs h2 hnd hch hcl ha
+      exact hpq (cyclePendant_high_nbr_unique hks hcon hap haq)
+    exact no_short_cycleList_of_labels (H := cyclePendant (m + 3) ks) (by omega) (fun v ↦ v.1) u vs
+      hlow (fun a _ b _ hab ↦ Fin.ext hab)
+      (fun a ha b hb hadj _ _ ↦ cycle_adj_of_cyclePendant_adj (hlow a ha) (hlow b hb) hadj)
+      h2 hlt hnd hch hcl
+
 end CGraph
 
 namespace IsoGraph
@@ -50287,5 +50919,40 @@ theorem four_le_edgeChromNum_petersen : 4 ≤ petersen.edgeChromNum := by
   rw [show (petersen : IsoGraph) = kneser 5 2 from rfl, kneser_def]
   exact edgeChromNum_mk_le_of_colouring (G := CGraph.kneser 5 2)
     CGraph.pet10Col CGraph.pet10Col_symm CGraph.pet10Col_proper
+
+/-- **The Petersen graph has exactly `120` automorphisms.** -/
+@[simp] theorem autCount_petersen : petersen.autCount = 120 := by
+  rw [show (petersen : IsoGraph) = kneser 5 2 from rfl, kneser_def, autCount_mk]
+  exact CGraph.autCount_kneser_five_two
+
+/-- **The girth of a cycle is its length.** -/
+@[simp] theorem girth_cycle (n : ℕ) : (cycle (n + 3)).girth = n + 3 := by
+  rw [cycle_def, girth_mk]
+  exact CGraph.girth_cycle n
+
+/-- **The girth of a tadpole is the length of its cycle.** -/
+@[simp] theorem girth_tadpole (m k : ℕ) : (tadpole (m + 3) k).girth = m + 3 := by
+  rw [tadpole_def, girth_mk]
+  exact CGraph.girth_tadpole m k
+
+/-- **The girth of a cycle with pendant paths is the length of its cycle.** -/
+@[simp] theorem girth_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
+    (cyclePendant (m + 3) ks).girth = m + 3 := by
+  rw [cyclePendant_def, girth_mk]
+  exact CGraph.girth_cyclePendant m ks h
+
+/-- Once the cycle has four or more vertices there is no triangle, so the clique number of a
+cycle with pendant paths is two. -/
+theorem cliqueNum_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 4) :
+    (cyclePendant (m + 4) ks).cliqueNum = 2 := by
+  have hg : (cyclePendant (m + 4) ks).girth = m + 4 :=
+    girth_cyclePendant (m + 1) ks (by omega)
+  refine le_antisymm ?_ (two_le_cliqueNum_of_E_pos ?_)
+  · by_contra hc
+    push_neg at hc
+    have h3 := girth_eq_three_of_cliqueNum (show 3 ≤ (cyclePendant (m + 4) ks).cliqueNum by omega)
+    omega
+  · rw [E_cyclePendant (m + 1) ks (by omega)]
+    omega
 
 end IsoGraph

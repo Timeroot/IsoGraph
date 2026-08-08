@@ -1082,6 +1082,33 @@ entries, and they are the ones that matter: `C₅`, where triangle- and square-f
 triangles and `μ = 1` forbids squares, since two opposite corners of a square share two neighbours
 — with the outer five-cycle realising the bound.
 
+The cycle itself is the one family where the girth is a theorem rather than a picture, and it
+needed two new pieces.  The upper bound is now the general `girth_le_V`: the support of a cycle,
+minus its repeated endpoint, is a list of distinct vertices as long as the cycle, so any graph that
+is not acyclic has `girth ≤ |V|`.  The lower bound goes through `le_girth_of_forall_cycleList`,
+which asks for a contradiction from a closed nodup chain shorter than the claimed girth.  Such a
+chain in `Cₙ` cannot use every vertex, so it misses some `x`, and `cycRot x` relabels the vertices
+so that `x` becomes the top label `n - 1` — cutting the cycle open.  Every edge of `Cₙ` avoiding
+`x` survives the relabelling as an edge of `path n`, so the chain becomes a cycle in a graph that
+`isAcyclic_path` says has none.  The result, `girth_cycle : girth (cycle (n + 3)) = n + 3`,
+subsumes the three hand-checked small cases.
+
+Hanging a tree off a cycle does not create a shorter one, and that is the content of
+`girth_tadpole : girth (tadpole (m + 3) k) = m + 3` and
+`girth_cyclePendant : girth (cyclePendant (m + 3) ks) = m + 3`.  Both upper bounds are the same
+general fact, `girth_le_card_of_map`: an injective homomorphism carries a cycle of `G` to a cycle
+of `H`, so `H` has girth at most `|V(G)|` as soon as `G` has any cycle at all — here `G` is the
+`Cₘ₊₃` sitting inside as the first `m + 3` vertices.  The lower bounds need to know that no closed
+chain wanders off the cycle, and the tool for that is `cycleList_two_nbrs`: each vertex of a closed
+nodup chain has two *distinct* neighbours in the chain, its predecessor and its successor.  A
+pendant vertex has only one neighbour at all (`pendantEdges_unique_owner` says its owner on the
+cycle is unique), which settles `cyclePendant` outright; a leg vertex of a tadpole has only one
+neighbour of smaller index, so applying the argument to the chain's *largest* index
+(`exists_max_weight`) is what rules the leg out there.  With every chain vertex on the cycle,
+`no_short_cycleList_of_labels` maps the chain into `Cₘ₊₃` by its index and hands it back to
+`cycle_no_short_cycleList`.  `cliqueNum_cyclePendant` follows from the girth through
+`girth_eq_three_iff`, matching the tadpole's entry.
+
 The colouring material gets its two general bounds.  The first is the **greedy bound**
 `χ ≤ Δ + 1`.  Mathlib has no greedy colouring, so `colorable_of_forall_degree_le` builds one:
 rather than deleting vertices and inducting on the type, it inducts on a `Finset` of
@@ -2518,6 +2545,29 @@ theorem autCount_bipartite_self (n : ℕ) :
 The `n + 1` is needed only to have a left vertex to test: `bipartite 0 0` is the empty graph, whose
 one automorphism is not `2 · (0!)² = 2`. This strengthens `le_autCount_bipartite_self`, which knew
 only `2n² ≤ |Aut|` from arc-transitivity.
+
+The Petersen graph is the fifth, and it is the first where neither half was free.  The lower bound
+looks like it should be `le_autCount_kneser`, but that bound counts flags rather than
+automorphisms and gives only `30` at `K(5, 2)`.  What gives the right answer is the obvious action:
+`kneserAuto` turns a permutation of the ground set `Fin 5` into an automorphism, and
+`kneserAuto_five_two_injective` says the action is faithful — if `π` and `ρ` agree on every pair
+then, picking `b, c ≠ a` distinct by `decide`, `π a` lies in both `{ρ a, ρ b}` and `{ρ a, ρ c}`, so
+it is `ρ a`.  That embeds `S₅`, hence `120 ≤ |Aut|`.  The upper bound pins down an arc as the cycle
+did, but three edges' worth of it: an automorphism is recorded by where it sends the `3`-arc
+`0 – 5 – 6 – 2` of the fixed vertex numbering, and `card_petArc` counts the `3`-arcs as exactly
+`120` by `native_decide` on the subtype of quadruples with the right adjacencies and
+non-degeneracies.  What makes the code injective is `petStabSearch`, a `10⁶`-wide `native_decide`
+search saying that the stabiliser of that arc is trivial — and it is stated over just `12` of the
+`45` adjacency constraints, a minimal subset found by a greedy search outside Lean, because the
+cost of the search is the number of conjuncts times the number of leaves.  `petAt`/`petIdx`
+transport between `(kneser 5 2).V` and `Fin 10`, `petAdjT` is the adjacency as a `Bool` on masks,
+and `petAdjT_map` is the one bridge lemma that says an automorphism preserves it:
+
+```lean
+theorem autCount_kneser_five_two : (kneser 5 2).autCount = 120
+```
+
+Both bounds meet, and `autCount_petersen` is the `IsoGraph`-level restatement.
 
 The two edge-colouring entries that this file has been calling "blocked on a missing dependency"
 since the prover handed back proofs that quoted König's theorem at them are now closed, and König
@@ -5553,12 +5603,11 @@ search, but the search does not generalise — the next snark on the list, Blanu
 vertices and `27` edges, and `3²⁷` is not a case split.
 
 The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
-(Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the girth
-of a general cycle and of a general tadpole as opposed to the fixed small ones, the automorphism
-count for most families — `autCount` is settled for the empty, complete, path, Kneser, Johnson,
-circulant and lollipop families, for complements and, exactly and not just as a bound, for the
-star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and
-`autCount_bipartite_self`), the cycle (`autCount_cycle`) and the wheel (`autCount_wheel`), but not
-for Petersen or the hypercube — and, for the grid and the king graph, everything below the degree
-and colouring entries: independence, domination, covering and matching numbers.
-`cliqueNum_cyclePendant` wants a general `girth_cyclePendant` first.
+(Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the
+automorphism count for most families — `autCount` is settled for the empty, complete, path, Kneser,
+Johnson, circulant and lollipop families, for complements and, exactly and not just as a bound, for
+the star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and
+`autCount_bipartite_self`), the cycle (`autCount_cycle`), the wheel (`autCount_wheel`) and the
+Petersen graph (`autCount_petersen`), but not for the hypercube — and, for the grid and the king
+graph, everything below the degree and colouring entries: independence, domination, covering and
+matching numbers.
