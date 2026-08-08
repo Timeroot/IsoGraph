@@ -9753,6 +9753,517 @@ theorem indepNum_mycielskian_cycle_five : (mycielskian (cycle 5)).indepNum = 5 :
   rw [show (mycielskian (cycle 5)).indepNum = (mycielskian (cycle 5)).toSimple.indepNum from rfl,
     ← h, card_grotzschShadows]
 
+/-! ## The cocktail party graph is class one
+
+`K_{(n+2)×2}` is `K_{2n+4}` minus a perfect matching.  Label the vertices of `K_{2n+4}` by
+`ZMod (2n+3) ∪ {∞}` and colour the edge `{a, b}` by `a + b` and the edge `{a, ∞}` by `2a`; that
+is the round-robin `1`-factorisation, whose colour class `0` is the matching
+`{∞, 0}, {1, -1}, …, {n+1, -(n+1)}`.  Choosing the parts of the cocktail party graph to be exactly
+that matching deletes colour `0`, leaving `2n+2` colours. -/
+
+/-- The label of the cocktail party vertex `(i, j)` as a natural number below `2 * n + 3`.  The
+vertex `(0, 0)` is the point at infinity and its label is not used. -/
+def cpCode (n i j : ℕ) : ℕ := if i = 0 then 0 else if j = 0 then i else 2 * n + 3 - i
+
+theorem cpCode_lt (n i j : ℕ) (hi : i < n + 2) : cpCode n i j < 2 * n + 3 := by
+  unfold cpCode; split_ifs <;> omega
+
+theorem cpCode_eq_zero_iff (n i j : ℕ) (hi : i < n + 2) : cpCode n i j = 0 ↔ i = 0 := by
+  unfold cpCode; constructor <;> intro h <;> split_ifs at * <;> omega
+
+theorem cpCode_inj (n i j i' j' : ℕ) (hi : i < n + 2) (hi' : i' < n + 2) (hj : j < 2) (hj' : j' < 2)
+    (h0 : ¬(i = 0 ∧ j = 0)) (h0' : ¬(i' = 0 ∧ j' = 0)) (h : cpCode n i j = cpCode n i' j') :
+    i = i' ∧ j = j' := by
+  unfold cpCode at h; split_ifs at h <;> omega
+
+/-- The label of `(i, j)` in `ZMod (2 * n + 3)`. -/
+def cpVal (n i j : ℕ) : ZMod (2 * n + 3) := ((cpCode n i j : ℕ) : ZMod (2 * n + 3))
+
+/-- The colour of the ordered pair `(i, j), (i', j')` in `ZMod (2 * n + 3)`. -/
+def cpRaw (n i j i' j' : ℕ) : ZMod (2 * n + 3) :=
+  if i = 0 ∧ j = 0 then 2 * cpVal n i' j'
+  else if i' = 0 ∧ j' = 0 then 2 * cpVal n i j
+  else cpVal n i j + cpVal n i' j'
+
+instance cpNeZero (n : ℕ) : NeZero (2 * n + 3) := ⟨by omega⟩
+
+theorem cp_natCast_inj (n a b : ℕ) (ha : a < 2 * n + 3) (hb : b < 2 * n + 3)
+    (h : (a : ZMod (2 * n + 3)) = (b : ZMod (2 * n + 3))) : a = b := by
+  have h2 := congrArg ZMod.val h
+  rwa [ZMod.val_natCast_of_lt ha, ZMod.val_natCast_of_lt hb] at h2
+
+/-- Two is invertible modulo the odd number `2 * n + 3`. -/
+theorem cp_two_mul_inj (n : ℕ) {a b : ZMod (2 * n + 3)} (h : 2 * a = 2 * b) : a = b := by
+  have hz : ((2 * n + 3 : ℕ) : ZMod (2 * n + 3)) = 0 := ZMod.natCast_self _
+  push_cast at hz
+  have key : ((n : ZMod (2 * n + 3)) + 2) * 2 = 1 := by linear_combination hz
+  calc a = ((n : ZMod (2 * n + 3)) + 2) * 2 * a := by rw [key, one_mul]
+    _ = ((n : ZMod (2 * n + 3)) + 2) * (2 * a) := by ring
+    _ = ((n : ZMod (2 * n + 3)) + 2) * (2 * b) := by rw [h]
+    _ = ((n : ZMod (2 * n + 3)) + 2) * 2 * b := by ring
+    _ = b := by rw [key, one_mul]
+
+theorem cpVal_inj (n i j i' j' : ℕ) (hi : i < n + 2) (hi' : i' < n + 2) (hj : j < 2) (hj' : j' < 2)
+    (h0 : ¬(i = 0 ∧ j = 0)) (h0' : ¬(i' = 0 ∧ j' = 0)) (h : cpVal n i j = cpVal n i' j') :
+    i = i' ∧ j = j' :=
+  cpCode_inj n i j i' j' hi hi' hj hj' h0 h0'
+    (cp_natCast_inj n _ _ (cpCode_lt n i j hi) (cpCode_lt n i' j' hi') h)
+
+theorem cpVal_eq_zero_iff (n i j : ℕ) (hi : i < n + 2) : cpVal n i j = 0 ↔ i = 0 := by
+  rw [← cpCode_eq_zero_iff n i j hi]
+  constructor
+  · intro h
+    have h2 : ((cpCode n i j : ℕ) : ZMod (2 * n + 3)) = ((0 : ℕ) : ZMod (2 * n + 3)) := by
+      simpa using h
+    exact cp_natCast_inj n _ _ (cpCode_lt n i j hi) (by omega) h2
+  · intro h; unfold cpVal; rw [h]; simp
+
+theorem cpRaw_comm (n i j i' j' : ℕ) : cpRaw n i j i' j' = cpRaw n i' j' i j := by
+  unfold cpRaw
+  by_cases h : i = 0 ∧ j = 0 <;> by_cases h' : i' = 0 ∧ j' = 0
+  · rw [if_pos h, if_pos h']
+    rw [show cpVal n i' j' = 0 from by unfold cpVal cpCode; rw [if_pos h'.1]; simp,
+      show cpVal n i j = 0 from by unfold cpVal cpCode; rw [if_pos h.1]; simp]
+  · rw [if_pos h, if_neg h', if_pos h]
+  · rw [if_neg h, if_pos h', if_pos h']
+  · rw [if_neg h, if_neg h', if_neg h', if_neg h]
+    exact add_comm _ _
+
+/-- The colour of an edge is never `0`: colour `0` is exactly the deleted perfect matching. -/
+theorem cpRaw_ne_zero (n i j i' j' : ℕ) (hi : i < n + 2) (hi' : i' < n + 2) (hj : j < 2)
+    (hj' : j' < 2) (hne : i ≠ i') : cpRaw n i j i' j' ≠ 0 := by
+  unfold cpRaw
+  split_ifs with h h'
+  · intro hc
+    have h2 : cpVal n i' j' = 0 := cp_two_mul_inj n (by rw [hc]; ring)
+    rw [cpVal_eq_zero_iff n i' j' hi'] at h2
+    omega
+  · intro hc
+    have h2 : cpVal n i j = 0 := cp_two_mul_inj n (by rw [hc]; ring)
+    rw [cpVal_eq_zero_iff n i j hi] at h2
+    omega
+  · intro hc
+    unfold cpVal at hc
+    rw [← Nat.cast_add, ZMod.natCast_eq_zero_iff] at hc
+    obtain ⟨k, hk⟩ := hc
+    have hb := cpCode_lt n i j hi
+    have hb' := cpCode_lt n i' j' hi'
+    have hk2 : k < 2 := by nlinarith
+    interval_cases k
+    · unfold cpCode at hk; split_ifs at hk <;> omega
+    · unfold cpCode at hk; split_ifs at hk <;> omega
+
+/-! ### Transporting the labels to the vertices of `cocktailParty (n + 2)` -/
+
+theorem cp_fst_lt {n : ℕ} (x : (cocktailParty (n + 2)).V) : x.1.1 < n + 2 := by
+  have h := x.1.isLt
+  simpa using h
+
+theorem cp_snd_lt {n : ℕ} (x : (cocktailParty (n + 2)).V) : x.2.1 < 2 := by
+  have h := x.2.isLt
+  simpa using h
+
+theorem cp_vertex_ext {n : ℕ} (x y : (cocktailParty (n + 2)).V) (h1 : x.1.1 = y.1.1)
+    (h2 : x.2.1 = y.2.1) : x = y := by
+  obtain ⟨i, a⟩ := x
+  obtain ⟨i', b⟩ := y
+  have hii : i = i' := Fin.ext h1
+  subst hii
+  simp only at h2
+  rw [show a = b from Fin.ext h2]
+
+/-- The edge colouring of the cocktail party graph. -/
+def cpCol (n : ℕ) (x y : (cocktailParty (n + 2)).V) : Fin (2 * n + 2) :=
+  ⟨min ((cpRaw n x.1.1 x.2.1 y.1.1 y.2.1).val - 1) (2 * n + 1), by omega⟩
+
+theorem cpCol_symm (n : ℕ) (x y : (cocktailParty (n + 2)).V) : cpCol n x y = cpCol n y x := by
+  refine Fin.ext ?_
+  show min ((cpRaw n x.1.1 x.2.1 y.1.1 y.2.1).val - 1) (2 * n + 1)
+    = min ((cpRaw n y.1.1 y.2.1 x.1.1 x.2.1).val - 1) (2 * n + 1)
+  rw [cpRaw_comm]
+
+/-- Adjacent cocktail party vertices lie in different parts. -/
+theorem cp_adj_iff {n : ℕ} (x y : (cocktailParty (n + 2)).V) :
+    (cocktailParty (n + 2)).Adj x y = true ↔ x.1.1 ≠ y.1.1 := by
+  rw [show (cocktailParty (n + 2)).Adj x y
+      = (completeMultipartite (List.replicate (n + 2) 2)).Adj x y from rfl,
+    completeMultipartite_adj]
+  simp [Fin.val_eq_val]
+
+theorem cpCol_proper (n : ℕ) (u v w : (cocktailParty (n + 2)).V)
+    (huv : (cocktailParty (n + 2)).Adj u v = true)
+    (huw : (cocktailParty (n + 2)).Adj u w = true) (hvw : v ≠ w) : cpCol n u v ≠ cpCol n u w := by
+  rw [cp_adj_iff] at huv huw
+  have bu := cp_fst_lt u
+  have bv := cp_fst_lt v
+  have bw := cp_fst_lt w
+  have cu := cp_snd_lt u
+  have cv := cp_snd_lt v
+  have cw := cp_snd_lt w
+  have hnv : cpRaw n u.1.1 u.2.1 v.1.1 v.2.1 ≠ 0 := cpRaw_ne_zero n _ _ _ _ bu bv cu cv huv
+  have hnw : cpRaw n u.1.1 u.2.1 w.1.1 w.2.1 ≠ 0 := cpRaw_ne_zero n _ _ _ _ bu bw cu cw huw
+  have hlv : (cpRaw n u.1.1 u.2.1 v.1.1 v.2.1).val < 2 * n + 3 := ZMod.val_lt _
+  have hlw : (cpRaw n u.1.1 u.2.1 w.1.1 w.2.1).val < 2 * n + 3 := ZMod.val_lt _
+  have hpv : (cpRaw n u.1.1 u.2.1 v.1.1 v.2.1).val ≠ 0 := by
+    intro hc
+    exact hnv (by rw [← ZMod.natCast_zmod_val (cpRaw n u.1.1 u.2.1 v.1.1 v.2.1), hc]; simp)
+  have hpw : (cpRaw n u.1.1 u.2.1 w.1.1 w.2.1).val ≠ 0 := by
+    intro hc
+    exact hnw (by rw [← ZMod.natCast_zmod_val (cpRaw n u.1.1 u.2.1 w.1.1 w.2.1), hc]; simp)
+  intro hcol
+  have hval : (cpRaw n u.1.1 u.2.1 v.1.1 v.2.1).val = (cpRaw n u.1.1 u.2.1 w.1.1 w.2.1).val := by
+    have h3 : min ((cpRaw n u.1.1 u.2.1 v.1.1 v.2.1).val - 1) (2 * n + 1)
+        = min ((cpRaw n u.1.1 u.2.1 w.1.1 w.2.1).val - 1) (2 * n + 1) := congrArg Fin.val hcol
+    omega
+  have hraw : cpRaw n u.1.1 u.2.1 v.1.1 v.2.1 = cpRaw n u.1.1 u.2.1 w.1.1 w.2.1 :=
+    ZMod.val_injective _ hval
+  refine hvw ?_
+  unfold cpRaw at hraw
+  by_cases hu : u.1.1 = 0 ∧ u.2.1 = 0
+  · rw [if_pos hu, if_pos hu] at hraw
+    have hv0 : ¬(v.1.1 = 0 ∧ v.2.1 = 0) := by omega
+    have hw0 : ¬(w.1.1 = 0 ∧ w.2.1 = 0) := by omega
+    have h4 := cpVal_inj n _ _ _ _ bv bw cv cw hv0 hw0 (cp_two_mul_inj n hraw)
+    exact cp_vertex_ext v w h4.1 h4.2
+  · rw [if_neg hu, if_neg hu] at hraw
+    by_cases hv : v.1.1 = 0 ∧ v.2.1 = 0
+    · exfalso
+      have hw0 : ¬(w.1.1 = 0 ∧ w.2.1 = 0) := by
+        rintro ⟨hw1, hw2⟩
+        exact hvw (cp_vertex_ext v w (by omega) (by omega))
+      rw [if_pos hv, if_neg hw0] at hraw
+      have h5 : cpVal n u.1.1 u.2.1 = cpVal n w.1.1 w.2.1 := by
+        have h2 : cpVal n u.1.1 u.2.1 + cpVal n u.1.1 u.2.1
+            = cpVal n u.1.1 u.2.1 + cpVal n w.1.1 w.2.1 := by rw [← hraw]; ring
+        exact add_left_cancel h2
+      have h6 := cpVal_inj n _ _ _ _ bu bw cu cw hu hw0 h5
+      omega
+    · by_cases hw : w.1.1 = 0 ∧ w.2.1 = 0
+      · exfalso
+        rw [if_neg hv, if_pos hw] at hraw
+        have h5 : cpVal n u.1.1 u.2.1 = cpVal n v.1.1 v.2.1 := by
+          have h2 : cpVal n u.1.1 u.2.1 + cpVal n u.1.1 u.2.1
+              = cpVal n u.1.1 u.2.1 + cpVal n v.1.1 v.2.1 := by rw [hraw]; ring
+          exact add_left_cancel h2
+        have h6 := cpVal_inj n _ _ _ _ bu bv cu cv hu hv h5
+        omega
+      · rw [if_neg hv, if_neg hw] at hraw
+        have h4 := cpVal_inj n _ _ _ _ bv bw cv cw hv hw (add_left_cancel hraw)
+        exact cp_vertex_ext v w h4.1 h4.2
+
+/-! ## Explicit edge colourings for the odd-order regular graphs
+
+Each of these graphs is `k`-regular on an odd number of vertices, hence class two, so its
+chromatic index is `k + 1` by Vizing; the tables below are the witnessing colourings, checked by
+`native_decide` on the pairs (symmetry) and on the triples (properness). -/
+
+def tri6Masks : List ℕ :=
+  [3, 5, 6, 9, 10, 12, 17, 18, 20, 24, 33, 34, 36, 40, 48]
+
+def tri6Idx (s : (triangular 6).V) : ℕ :=
+  tri6Masks.findIdx (fun m ↦ m == (s.1.sum fun i ↦ 2 ^ i.1))
+
+def tri6ColTable : List (List ℕ) :=
+  [[0, 0, 3, 4, 6, 0, 8, 1, 0, 0, 5, 2, 0, 0, 0], [0, 0, 7, 6, 0, 1, 3, 0, 8, 0, 4, 0, 2, 0, 0],
+   [3, 7, 0, 0, 1, 4, 0, 8, 2, 0, 0, 6, 0, 0, 0], [4, 6, 0, 0, 3, 2, 7, 0, 0, 8, 1, 0, 0, 5, 0],
+   [6, 0, 1, 3, 0, 8, 0, 5, 0, 4, 0, 0, 0, 7, 0], [0, 1, 4, 2, 8, 0, 0, 0, 5, 7, 0, 0, 3, 0, 0],
+   [8, 3, 0, 7, 0, 0, 0, 4, 0, 1, 6, 0, 0, 0, 5], [1, 0, 8, 0, 5, 0, 4, 0, 7, 0, 0, 3, 0, 0, 6],
+   [0, 8, 2, 0, 0, 5, 0, 7, 0, 6, 0, 0, 1, 0, 3], [0, 0, 0, 8, 4, 7, 1, 0, 6, 0, 0, 0, 0, 3, 2],
+   [5, 4, 0, 1, 0, 0, 6, 0, 0, 0, 0, 8, 7, 2, 0], [2, 0, 6, 0, 0, 0, 0, 3, 0, 0, 8, 0, 5, 4, 7],
+   [0, 2, 0, 0, 0, 3, 0, 0, 1, 0, 7, 5, 0, 6, 4], [0, 0, 0, 5, 7, 0, 0, 0, 0, 3, 2, 4, 6, 0, 8],
+   [0, 0, 0, 0, 0, 0, 5, 6, 3, 2, 0, 7, 4, 8, 0]]
+
+def tri6Col (x y : (triangular 6).V) : Fin 9 :=
+  ⟨min ((tri6ColTable.getD (tri6Idx x) []).getD (tri6Idx y) 0) 8, by omega⟩
+
+theorem tri6Col_symm : ∀ x y : (triangular 6).V, tri6Col x y = tri6Col y x := by
+  native_decide
+
+theorem tri6Col_proper : ∀ u v w : (triangular 6).V, (triangular 6).Adj u v = true →
+    (triangular 6).Adj u w = true → v ≠ w → tri6Col u v ≠ tri6Col u w := by
+  native_decide
+
+def tri7Masks : List ℕ :=
+  [3, 5, 6, 9, 10, 12, 17, 18, 20, 24, 33, 34, 36, 40, 48, 65, 66, 68, 72, 80, 96]
+
+def tri7Idx (s : (triangular 7).V) : ℕ :=
+  tri7Masks.findIdx (fun m ↦ m == (s.1.sum fun i ↦ 2 ^ i.1))
+
+def tri7ColTable : List (List ℕ) :=
+  [[0, 10, 3, 0, 2, 0, 8, 7, 0, 0, 9, 6, 0, 0, 0, 1, 5, 0, 0, 0, 0], [10, 0, 5, 9, 0, 8, 2, 0, 4,
+   0, 0, 0, 1, 0, 0, 3, 0, 7, 0, 0, 0], [3, 5, 0, 0, 8, 9, 0, 6, 0, 0, 0, 1, 7, 0, 0, 0, 4, 2, 0,
+   0, 0], [0, 9, 0, 0, 3, 4, 1, 0, 0, 8, 10, 0, 0, 5, 0, 7, 0, 0, 2, 0, 0], [2, 0, 8, 3, 0, 10, 0,
+   1, 0, 5, 0, 7, 0, 9, 0, 0, 6, 0, 0, 0, 0], [0, 8, 9, 4, 10, 0, 0, 0, 1, 0, 0, 0, 3, 6, 0, 0, 0,
+   5, 7, 0, 0], [8, 2, 0, 1, 0, 0, 0, 0, 9, 7, 5, 0, 0, 0, 3, 6, 0, 0, 0, 4, 0], [7, 0, 6, 0, 1, 0,
+   0, 0, 3, 9, 0, 10, 0, 0, 4, 0, 2, 0, 0, 8, 0], [0, 4, 0, 0, 0, 1, 9, 3, 0, 2, 0, 0, 10, 0, 7, 0,
+   0, 8, 0, 6, 0], [0, 0, 0, 8, 5, 0, 7, 9, 2, 0, 0, 0, 0, 4, 10, 0, 0, 0, 6, 1, 0], [9, 0, 0, 10,
+   0, 0, 5, 0, 0, 0, 0, 4, 6, 7, 8, 2, 0, 0, 0, 0, 3], [6, 0, 1, 0, 7, 0, 0, 10, 0, 0, 4, 0, 2, 8,
+   5, 0, 3, 0, 0, 0, 0], [0, 1, 7, 0, 0, 3, 0, 0, 10, 0, 6, 2, 0, 0, 9, 0, 0, 4, 0, 0, 5], [0, 0,
+   0, 5, 9, 6, 0, 0, 0, 4, 7, 8, 0, 0, 1, 0, 0, 0, 3, 0, 2], [0, 0, 0, 0, 0, 0, 3, 4, 7, 10, 8, 5,
+   9, 1, 0, 0, 0, 0, 0, 2, 6], [1, 3, 0, 7, 0, 0, 6, 0, 0, 0, 2, 0, 0, 0, 0, 0, 8, 0, 9, 10, 4],
+   [5, 0, 4, 0, 6, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 8, 0, 9, 1, 0, 10], [0, 7, 2, 0, 0, 5, 0, 0, 8, 0,
+   0, 0, 4, 0, 0, 0, 9, 0, 10, 3, 1], [0, 0, 0, 2, 0, 7, 0, 0, 0, 6, 0, 0, 0, 3, 0, 9, 1, 10, 0, 5,
+   8], [0, 0, 0, 0, 0, 0, 4, 8, 6, 1, 0, 0, 0, 0, 2, 10, 0, 3, 5, 0, 9], [0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 3, 0, 5, 2, 6, 4, 10, 1, 8, 9, 0]]
+
+def tri7Col (x y : (triangular 7).V) : Fin 11 :=
+  ⟨min ((tri7ColTable.getD (tri7Idx x) []).getD (tri7Idx y) 0) 10, by omega⟩
+
+theorem tri7Col_symm : ∀ x y : (triangular 7).V, tri7Col x y = tri7Col y x := by
+  native_decide
+
+theorem tri7Col_proper : ∀ u v w : (triangular 7).V, (triangular 7).Adj u v = true →
+    (triangular 7).Adj u w = true → v ≠ w → tri7Col u v ≠ tri7Col u w := by
+  native_decide
+
+def triples7Masks : List ℕ :=
+  [7, 11, 13, 14, 19, 21, 22, 25, 26, 28, 35, 37, 38, 41, 42, 44, 49, 50, 52, 56, 67, 69, 70, 73,
+   74, 76, 81, 82, 84, 88, 97, 98, 100, 104, 112]
+
+def kneser73Idx (s : (kneser 7 3).V) : ℕ :=
+  triples7Masks.findIdx (fun m ↦ m == (s.1.sum fun i ↦ 2 ^ i.1))
+
+def kneser73ColTable : List (List ℕ) :=
+  [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+   0, 2, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   2, 0, 0, 0, 3, 0, 4], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 2, 0, 0, 0, 4, 0, 0, 3], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 1, 4, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0], [0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 0, 0],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0,
+   0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 4, 0, 0, 0, 3, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 4, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 4, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 4, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 3, 0, 0, 0, 0, 0, 0, 0],
+   [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 2, 1, 0, 0, 0, 0, 0, 0,
+   0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 3, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 4,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 1,
+   0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+   0, 0, 3, 0, 0, 2, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 4,
+   0, 0, 0, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0,
+   0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+   [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0], [0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2,
+   4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 3, 0,
+   4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 4, 0,
+   0, 2, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+   [0, 3, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0], [2, 0, 0, 0, 4, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0], [0, 4, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+
+def kneser73Col (x y : (kneser 7 3).V) : Fin 5 :=
+  ⟨min ((kneser73ColTable.getD (kneser73Idx x) []).getD (kneser73Idx y) 0) 4, by omega⟩
+
+theorem kneser73Col_symm : ∀ x y : (kneser 7 3).V, kneser73Col x y = kneser73Col y x := by
+  native_decide
+
+theorem kneser73Col_proper : ∀ u v w : (kneser 7 3).V, (kneser 7 3).Adj u v = true →
+    (kneser 7 3).Adj u w = true → v ≠ w → kneser73Col u v ≠ kneser73Col u w := by
+  native_decide
+
+def johnson73Idx (s : (johnson 7 3).V) : ℕ :=
+  triples7Masks.findIdx (fun m ↦ m == (s.1.sum fun i ↦ 2 ^ i.1))
+
+def johnson73ColTable : List (List ℕ) :=
+  [[0, 0, 12, 6, 7, 2, 10, 0, 0, 0, 5, 3, 11, 0, 0, 0, 0, 0, 0, 0, 4, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 0, 0], [0, 0, 8, 3, 1, 0, 0, 5, 7, 0, 10, 0, 0, 12, 4, 0, 0, 0, 0, 0, 6, 0, 0, 11, 2, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0], [12, 8, 0, 2, 0, 3, 0, 0, 0, 7, 0, 10, 0, 4, 0, 1, 0, 0, 0, 0, 0,
+   11, 0, 6, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0], [6, 3, 2, 0, 0, 0, 12, 0, 10, 4, 0, 0, 1, 0, 5, 8,
+   0, 0, 0, 0, 0, 0, 0, 0, 9, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0], [7, 1, 0, 0, 0, 5, 2, 11, 12, 0, 4,
+   0, 0, 0, 0, 0, 9, 6, 0, 0, 3, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0], [2, 0, 3, 0, 5, 0, 1,
+   4, 0, 8, 0, 6, 0, 0, 0, 0, 7, 0, 0, 0, 0, 10, 0, 0, 0, 0, 11, 0, 9, 0, 0, 0, 0, 0, 0], [10, 0,
+   0, 12, 2, 1, 0, 0, 6, 9, 0, 0, 5, 0, 0, 0, 0, 4, 11, 0, 0, 0, 3, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0,
+   0, 0], [0, 5, 0, 0, 11, 4, 0, 0, 8, 10, 0, 0, 0, 3, 0, 0, 6, 0, 0, 1, 0, 0, 0, 12, 0, 0, 9, 0,
+   0, 2, 0, 0, 0, 0, 0], [0, 7, 0, 10, 12, 0, 6, 8, 0, 0, 0, 0, 0, 0, 9, 0, 0, 2, 0, 5, 0, 0, 0, 0,
+   3, 0, 0, 1, 0, 11, 0, 0, 0, 0, 0], [0, 0, 7, 4, 0, 8, 9, 10, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 3,
+   11, 0, 0, 0, 0, 0, 1, 0, 0, 2, 6, 0, 0, 0, 0, 0], [5, 10, 0, 0, 4, 0, 0, 0, 0, 0, 0, 12, 3, 1,
+   2, 0, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 6, 0, 0, 0], [3, 0, 10, 0, 0, 6, 0, 0, 0, 0,
+   12, 0, 8, 9, 0, 11, 5, 0, 7, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 2, 0, 0], [11, 0, 0, 1, 0,
+   0, 5, 0, 0, 0, 3, 8, 0, 0, 6, 2, 0, 0, 9, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 4, 7, 0, 0], [0,
+   12, 4, 0, 0, 0, 0, 3, 0, 0, 1, 9, 0, 0, 10, 7, 11, 0, 0, 6, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 5, 0,
+   0, 0, 0], [0, 4, 0, 5, 0, 0, 0, 0, 9, 0, 2, 0, 6, 10, 0, 0, 0, 12, 0, 8, 0, 0, 0, 0, 7, 0, 0, 0,
+   0, 0, 0, 3, 0, 11, 0], [0, 0, 1, 8, 0, 0, 0, 0, 0, 5, 0, 11, 2, 7, 0, 0, 0, 0, 6, 4, 0, 0, 0, 0,
+   0, 9, 0, 0, 0, 0, 0, 0, 3, 12, 0], [0, 0, 0, 0, 9, 7, 0, 6, 0, 0, 8, 5, 0, 11, 0, 0, 0, 3, 4, 0,
+   0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 10, 0, 0, 0, 1], [0, 0, 0, 0, 6, 0, 4, 0, 2, 0, 9, 0, 0, 0, 12, 0,
+   3, 0, 8, 10, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 5, 0, 0, 11], [0, 0, 0, 0, 0, 0, 11, 0, 0, 3, 0,
+   7, 9, 0, 0, 6, 4, 8, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 12, 0, 5], [0, 0, 0, 0, 0, 0, 0,
+   1, 5, 11, 0, 0, 0, 6, 8, 4, 0, 10, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 3, 12], [4, 6,
+   0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 8, 5, 1, 0, 10, 12, 0, 0, 11, 2, 0,
+   0, 0], [8, 0, 11, 0, 0, 10, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 12, 0, 0, 3, 5, 0,
+   7, 0, 6, 0, 4, 0, 0], [9, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 8, 12, 0, 0,
+   6, 2, 0, 4, 5, 0, 0, 7, 11, 0, 0], [0, 11, 6, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
+   0, 5, 0, 0, 0, 4, 7, 1, 0, 0, 10, 8, 0, 0, 9, 0], [0, 2, 0, 9, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 7,
+   0, 0, 0, 0, 0, 1, 0, 6, 4, 0, 10, 0, 5, 0, 0, 0, 11, 0, 8, 0], [0, 0, 5, 11, 0, 0, 0, 0, 0, 1,
+   0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3, 2, 7, 10, 0, 0, 0, 8, 12, 0, 0, 6, 4, 0], [0, 0, 0, 0, 0,
+   11, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 10, 5, 0, 1, 0, 0, 0, 6, 12, 7, 3, 0, 0, 0, 4],
+   [0, 0, 0, 0, 10, 0, 8, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 12, 0, 4, 0, 5, 0, 6, 0, 11, 3, 0,
+   9, 0, 0, 2], [0, 0, 0, 0, 0, 9, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 7, 5, 0, 0, 8, 12,
+   11, 0, 4, 0, 0, 1, 0, 3], [0, 0, 0, 0, 0, 0, 0, 2, 11, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0,
+   10, 0, 12, 7, 3, 4, 0, 0, 0, 0, 1, 8], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 4, 0, 5, 0, 0, 10, 0,
+   0, 0, 11, 6, 0, 8, 0, 0, 3, 0, 0, 0, 0, 12, 0, 2, 9], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 4, 0,
+   3, 0, 0, 5, 0, 0, 2, 0, 7, 0, 11, 0, 0, 9, 0, 0, 12, 0, 8, 10, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0,
+   0, 0, 2, 7, 0, 0, 3, 0, 0, 12, 0, 0, 4, 11, 0, 0, 6, 0, 0, 1, 0, 0, 8, 0, 5, 10], [0, 0, 0, 0,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 12, 0, 0, 0, 3, 0, 0, 0, 9, 8, 4, 0, 0, 0, 1, 2, 10, 5, 0, 7],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 11, 5, 12, 0, 0, 0, 0, 0, 0, 4, 2, 3, 8, 9,
+   0, 10, 7, 0]]
+
+def johnson73Col (x y : (johnson 7 3).V) : Fin 13 :=
+  ⟨min ((johnson73ColTable.getD (johnson73Idx x) []).getD (johnson73Idx y) 0) 12, by omega⟩
+
+theorem johnson73Col_symm : ∀ x y : (johnson 7 3).V, johnson73Col x y = johnson73Col y x := by
+  native_decide
+
+theorem johnson73Col_proper : ∀ u v w : (johnson 7 3).V, (johnson 7 3).Adj u v = true →
+    (johnson 7 3).Adj u w = true → v ≠ w → johnson73Col u v ≠ johnson73Col u w := by
+  native_decide
+
+def rook33Idx (x : (rook 3 3).V) : ℕ := x.1.1 * 3 + x.2.1
+
+def rook33ColTable : List (List ℕ) :=
+  [[0, 1, 3, 0, 0, 0, 2, 0, 0], [1, 0, 4, 0, 3, 0, 0, 0, 0], [3, 4, 0, 0, 0, 0, 0, 0, 1], [0, 0, 0,
+   0, 2, 3, 4, 0, 0], [0, 3, 0, 2, 0, 4, 0, 1, 0], [0, 0, 0, 3, 4, 0, 0, 0, 2], [2, 0, 0, 4, 0, 0,
+   0, 3, 0], [0, 0, 0, 0, 1, 0, 3, 0, 4], [0, 0, 1, 0, 0, 2, 0, 4, 0]]
+
+def rook33Col (x y : (rook 3 3).V) : Fin 5 :=
+  ⟨min ((rook33ColTable.getD (rook33Idx x) []).getD (rook33Idx y) 0) 4, by omega⟩
+
+theorem rook33Col_symm : ∀ x y : (rook 3 3).V, rook33Col x y = rook33Col y x := by
+  native_decide
+
+theorem rook33Col_proper : ∀ u v w : (rook 3 3).V, (rook 3 3).Adj u v = true →
+    (rook 3 3).Adj u w = true → v ≠ w → rook33Col u v ≠ rook33Col u w := by
+  native_decide
+
+def paley13Idx (x : (paley 13).V) : ℕ := x.1
+
+def paley13ColTable : List (List ℕ) :=
+  [[0, 2, 0, 3, 6, 0, 0, 0, 0, 1, 0, 0, 5], [2, 0, 4, 0, 0, 5, 0, 0, 0, 0, 1, 6, 0], [0, 4, 0, 5,
+   0, 2, 3, 0, 0, 0, 0, 0, 1], [3, 0, 5, 0, 4, 0, 1, 6, 0, 0, 0, 0, 0], [6, 0, 0, 4, 0, 1, 0, 3, 2,
+   0, 0, 0, 0], [0, 5, 2, 0, 1, 0, 6, 0, 0, 4, 0, 0, 0], [0, 0, 3, 1, 0, 6, 0, 5, 0, 0, 4, 0, 0],
+   [0, 0, 0, 6, 3, 0, 5, 0, 4, 0, 2, 1, 0], [0, 0, 0, 0, 2, 0, 0, 4, 0, 5, 0, 3, 6], [1, 0, 0, 0,
+   0, 4, 0, 0, 5, 0, 6, 0, 2], [0, 1, 0, 0, 0, 0, 4, 2, 0, 6, 0, 5, 0], [0, 6, 0, 0, 0, 0, 0, 1, 3,
+   0, 5, 0, 4], [5, 0, 1, 0, 0, 0, 0, 0, 6, 2, 0, 4, 0]]
+
+def paley13Col (x y : (paley 13).V) : Fin 7 :=
+  ⟨min ((paley13ColTable.getD (paley13Idx x) []).getD (paley13Idx y) 0) 6, by omega⟩
+
+theorem paley13Col_symm : ∀ x y : (paley 13).V, paley13Col x y = paley13Col y x := by
+  native_decide
+
+theorem paley13Col_proper : ∀ u v w : (paley 13).V, (paley 13).Adj u v = true →
+    (paley 13).Adj u w = true → v ≠ w → paley13Col u v ≠ paley13Col u w := by
+  native_decide
+
+/-! ## The Petersen graph is class two
+
+The Petersen graph is cubic, so Vizing gives `χ' ≤ 4`; the table `pet10ColTable` realises that
+bound.  For the lower bound the fifteen edges are listed as `petEdge 0, …, petEdge 14` and the
+thirty adjacencies of the line graph between them are checked once, by `native_decide`; then
+`petSearch` — an exhaustive `3 ^ 15` case split, again by `native_decide` — says no assignment of
+three colours to those fifteen edges avoids all thirty conflicts. -/
+
+def petVerts : List (kneser 5 2).V :=
+  (List.range 32).filterMap fun m ↦
+    if h : (Finset.univ.filter fun i : Fin 5 ↦ m / 2 ^ i.1 % 2 = 1).card = 2 then
+      some ⟨_, h⟩
+    else none
+
+def petVert0 : (kneser 5 2).V := ⟨{0, 1}, by decide⟩
+
+def petVert1 : (kneser 5 2).V := ⟨{2, 3}, by decide⟩
+
+def petEdge0 : (lineGraph (kneser 5 2)).V := ⟨s(petVert0, petVert1), by decide⟩
+
+/-- The fifteen edges of the Petersen graph, as vertices of its line graph. -/
+def petEdgeList : List (lineGraph (kneser 5 2)).V :=
+  petVerts.zipIdx.flatMap fun p ↦ petVerts.zipIdx.filterMap fun q ↦
+    if h : p.2 < q.2 ∧ s(p.1, q.1) ∈ (kneser 5 2).toSimple.edgeSet then some ⟨_, h.2⟩ else none
+
+def petEdge (i : ℕ) : (lineGraph (kneser 5 2)).V := petEdgeList.getD i petEdge0
+
+def petPairs : List (ℕ × ℕ) :=
+  [(0, 1), (0, 2), (0, 13), (0, 14), (1, 2), (1, 10), (1, 12), (2, 5), (2, 8), (3, 4), (3, 5),
+   (3, 11), (3, 12), (4, 5), (4, 9), (4, 14), (5, 8), (6, 7), (6, 8), (6, 9), (6, 10), (7, 8),
+   (7, 11), (7, 13), (9, 10), (9, 14), (10, 12), (11, 12), (11, 13), (13, 14)]
+
+theorem petEdgeAdj : ∀ p ∈ petPairs,
+    (lineGraph (kneser 5 2)).Adj (petEdge p.1) (petEdge p.2) = true := by
+  native_decide
+
+set_option maxRecDepth 100000 in
+set_option maxHeartbeats 1000000 in
+set_option synthInstance.maxSize 1000000 in
+set_option synthInstance.maxHeartbeats 2000000 in
+/-- No assignment of three colours to the fifteen edges of the Petersen graph avoids all thirty
+conflicts: an exhaustive `3 ^ 15` case split. -/
+theorem petSearch : ∀ c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 : Fin 3,
+    ¬ (c0 ≠ c1 ∧ c0 ≠ c2 ∧ c0 ≠ c13 ∧ c0 ≠ c14 ∧ c1 ≠ c2 ∧ c1 ≠ c10 ∧ c1 ≠ c12 ∧ c2 ≠ c5 ∧ c2 ≠ c8 ∧
+      c3 ≠ c4 ∧ c3 ≠ c5 ∧ c3 ≠ c11 ∧ c3 ≠ c12 ∧ c4 ≠ c5 ∧ c4 ≠ c9 ∧ c4 ≠ c14 ∧ c5 ≠ c8 ∧ c6 ≠ c7 ∧
+      c6 ≠ c8 ∧ c6 ≠ c9 ∧ c6 ≠ c10 ∧ c7 ≠ c8 ∧ c7 ≠ c11 ∧ c7 ≠ c13 ∧ c9 ≠ c10 ∧ c9 ≠ c14 ∧
+      c10 ≠ c12 ∧ c11 ≠ c12 ∧ c11 ≠ c13 ∧ c13 ≠ c14) := by
+  native_decide
+
+theorem petersen_no_three_colouring (col : (lineGraph (kneser 5 2)).V → Fin 3) :
+    ∃ e f, (lineGraph (kneser 5 2)).Adj e f = true ∧ col e = col f := by
+  by_contra hcon
+  push_neg at hcon
+  exact petSearch (col (petEdge 0)) (col (petEdge 1)) (col (petEdge 2)) (col (petEdge 3))
+    (col (petEdge 4)) (col (petEdge 5)) (col (petEdge 6)) (col (petEdge 7)) (col (petEdge 8))
+    (col (petEdge 9)) (col (petEdge 10)) (col (petEdge 11)) (col (petEdge 12)) (col (petEdge 13))
+    (col (petEdge 14))
+    ⟨hcon _ _ (petEdgeAdj (0, 1) (by decide)), hcon _ _ (petEdgeAdj (0, 2) (by decide)),
+      hcon _ _ (petEdgeAdj (0, 13) (by decide)), hcon _ _ (petEdgeAdj (0, 14) (by decide)),
+      hcon _ _ (petEdgeAdj (1, 2) (by decide)), hcon _ _ (petEdgeAdj (1, 10) (by decide)),
+      hcon _ _ (petEdgeAdj (1, 12) (by decide)), hcon _ _ (petEdgeAdj (2, 5) (by decide)),
+      hcon _ _ (petEdgeAdj (2, 8) (by decide)), hcon _ _ (petEdgeAdj (3, 4) (by decide)),
+      hcon _ _ (petEdgeAdj (3, 5) (by decide)), hcon _ _ (petEdgeAdj (3, 11) (by decide)),
+      hcon _ _ (petEdgeAdj (3, 12) (by decide)), hcon _ _ (petEdgeAdj (4, 5) (by decide)),
+      hcon _ _ (petEdgeAdj (4, 9) (by decide)), hcon _ _ (petEdgeAdj (4, 14) (by decide)),
+      hcon _ _ (petEdgeAdj (5, 8) (by decide)), hcon _ _ (petEdgeAdj (6, 7) (by decide)),
+      hcon _ _ (petEdgeAdj (6, 8) (by decide)), hcon _ _ (petEdgeAdj (6, 9) (by decide)),
+      hcon _ _ (petEdgeAdj (6, 10) (by decide)), hcon _ _ (petEdgeAdj (7, 8) (by decide)),
+      hcon _ _ (petEdgeAdj (7, 11) (by decide)), hcon _ _ (petEdgeAdj (7, 13) (by decide)),
+      hcon _ _ (petEdgeAdj (9, 10) (by decide)), hcon _ _ (petEdgeAdj (9, 14) (by decide)),
+      hcon _ _ (petEdgeAdj (10, 12) (by decide)), hcon _ _ (petEdgeAdj (11, 12) (by decide)),
+      hcon _ _ (petEdgeAdj (11, 13) (by decide)), hcon _ _ (petEdgeAdj (13, 14) (by decide))⟩
+
+/-! ### A four-edge-colouring of the Petersen graph -/
+
+def pet10Masks : List ℕ := [3, 5, 6, 9, 10, 12, 17, 18, 20, 24]
+
+def pet10Idx (s : (kneser 5 2).V) : ℕ :=
+  pet10Masks.findIdx (fun m ↦ m == (s.1.sum fun i ↦ 2 ^ i.1))
+
+def pet10ColTable : List (List ℕ) :=
+  [[0, 0, 0, 0, 0, 0, 0, 0, 1, 2], [0, 0, 0, 0, 0, 0, 0, 1, 0, 3], [0, 0, 0, 0, 0, 0, 2, 0, 0, 1],
+   [0, 0, 0, 0, 0, 0, 0, 2, 3, 0], [0, 0, 0, 0, 0, 0, 3, 0, 2, 0], [0, 0, 0, 0, 0, 0, 1, 3, 0, 0],
+   [0, 0, 2, 0, 3, 1, 0, 0, 0, 0], [0, 1, 0, 2, 0, 3, 0, 0, 0, 0], [1, 0, 0, 3, 2, 0, 0, 0, 0, 0],
+   [2, 3, 1, 0, 0, 0, 0, 0, 0, 0]]
+
+def pet10Col (x y : (kneser 5 2).V) : Fin 4 :=
+  ⟨min ((pet10ColTable.getD (pet10Idx x) []).getD (pet10Idx y) 0) 3, by omega⟩
+
+theorem pet10Col_symm : ∀ x y : (kneser 5 2).V, pet10Col x y = pet10Col y x := by
+  native_decide
+
+theorem pet10Col_proper : ∀ u v w : (kneser 5 2).V, (kneser 5 2).Adj u v = true →
+    (kneser 5 2).Adj u w = true → v ≠ w → pet10Col u v ≠ pet10Col u w := by
+  native_decide
+
 end CGraph
 
 namespace IsoGraph
@@ -36216,6 +36727,26 @@ theorem le_edgeChromNum_cocktailParty (n : ℕ) :
   have h := maxDeg_le_edgeChromNum (cocktailParty (n + 1))
   rwa [maxDeg_cocktailParty] at h
 
+/-- The round-robin colouring `CGraph.cpCol` uses `2n+2` colours on `K_{(n+2)×2}`. -/
+theorem edgeChromNum_cocktailParty_le (n : ℕ) :
+    (cocktailParty (n + 2)).edgeChromNum ≤ 2 * n + 2 := by
+  rw [show (cocktailParty (n + 2) : IsoGraph)
+      = completeMultipartite (List.replicate (n + 2) 2) from rfl, completeMultipartite_def]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.cocktailParty (n + 2))
+    (CGraph.cpCol n) (CGraph.cpCol_symm n) (CGraph.cpCol_proper n)
+
+/-- **The chromatic index of a cocktail party graph is its degree.**  `K_{(n+1)×2}` is
+`K_{2n+2}` minus a perfect matching; deleting one factor of the round-robin `1`-factorisation of
+`K_{2n+2}` leaves exactly that graph, `2n`-coloured, so the cocktail party graph is class one. -/
+theorem edgeChromNum_cocktailParty (n : ℕ) : (cocktailParty (n + 1)).edgeChromNum = 2 * n := by
+  rcases n with _ | k
+  · rw [show (0 : ℕ) + 1 = 1 from rfl, cocktailParty_one, edgeChromNum_empty]
+  · have hle := edgeChromNum_cocktailParty_le k
+    have hge : 2 * (k + 1) ≤ (cocktailParty (k + 2)).edgeChromNum :=
+      le_edgeChromNum_cocktailParty (k + 1)
+    show (cocktailParty (k + 2)).edgeChromNum = 2 * (k + 1)
+    omega
+
 theorem le_edgeChromNum_book (n : ℕ) : n + 2 ≤ (book (n + 1)).edgeChromNum := by
   have h := maxDeg_le_edgeChromNum (book (n + 1))
   rwa [maxDeg_book] at h
@@ -49690,4 +50221,71 @@ theorem not_isBipartite_king (m n : ℕ) : ¬ IsBipartite (path (m + 2) ⊠g pat
   have h : (path (m + 2) ⊠g path (n + 2)).chromNum = 4 := chromNum_king m n
   rw [isBipartite_iff_chromNum_le_two, h]
   omega
+
+/-! ### Chromatic indices of the odd-order regular graphs
+
+Each graph here is `k`-regular on an odd number of vertices, so it cannot be `k`-edge-coloured
+(a colour class is a matching, and a perfect matching needs an even number of vertices); by
+Vizing its chromatic index is therefore exactly `k + 1`.  The lower bounds are already in the
+library; the colourings in `CGraph` above supply the matching upper bounds. -/
+
+theorem edgeChromNum_triangular_six : (triangular 6).edgeChromNum = 9 := by
+  refine le_antisymm ?_ edgeChromNum_triangular_six_ge
+  rw [show (triangular 6 : IsoGraph) = johnson 6 2 from rfl, johnson_def]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.johnson 6 2)
+    CGraph.tri6Col CGraph.tri6Col_symm CGraph.tri6Col_proper
+
+theorem edgeChromNum_triangular_seven : (triangular 7).edgeChromNum = 11 := by
+  refine le_antisymm ?_ edgeChromNum_triangular_seven_ge
+  rw [show (triangular 7 : IsoGraph) = johnson 7 2 from rfl, johnson_def]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.johnson 7 2)
+    CGraph.tri7Col CGraph.tri7Col_symm CGraph.tri7Col_proper
+
+theorem edgeChromNum_kneser_seven_three : (kneser 7 3).edgeChromNum = 5 := by
+  refine le_antisymm ?_ edgeChromNum_kneser_seven_three_ge
+  rw [kneser_def]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.kneser 7 3)
+    CGraph.kneser73Col CGraph.kneser73Col_symm CGraph.kneser73Col_proper
+
+theorem edgeChromNum_johnson_seven_three : (johnson 7 3).edgeChromNum = 13 := by
+  refine le_antisymm ?_ edgeChromNum_johnson_seven_three_ge
+  rw [johnson_def]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.johnson 7 3)
+    CGraph.johnson73Col CGraph.johnson73Col_symm CGraph.johnson73Col_proper
+
+theorem edgeChromNum_rook_three_three : (rook 3 3).edgeChromNum = 5 := by
+  refine le_antisymm ?_ (by simpa using edgeChromNum_rook_odd_ge 0 0)
+  rw [show (rook 3 3 : IsoGraph) = complete 3 □g complete 3 from rfl, complete_def 3,
+    cartesianProduct_mk]
+  exact edgeChromNum_mk_le_of_colouring
+    (G := CGraph.cartesianProduct (CGraph.complete 3) (CGraph.complete 3))
+    CGraph.rook33Col CGraph.rook33Col_symm CGraph.rook33Col_proper
+
+theorem edgeChromNum_paley_thirteen : (paley 13).edgeChromNum = 7 := by
+  refine le_antisymm ?_ ?_
+  · rw [paley_def]
+    exact edgeChromNum_mk_le_of_colouring (G := CGraph.paley 13)
+      CGraph.paley13Col CGraph.paley13Col_symm CGraph.paley13Col_proper
+  · haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
+    have h := edgeChromNum_paley_ge 13 (by norm_num) (by norm_num)
+    norm_num at h
+    exact h
+
+/-- **The Petersen graph is a snark**: it is cubic but not `3`-edge-colourable. -/
+theorem four_le_edgeChromNum_petersen : 4 ≤ petersen.edgeChromNum := by
+  rw [edgeChromNum_eq, show (petersen : IsoGraph) = ⟦CGraph.kneser 5 2⟧ from rfl, lineGraph_mk,
+    chromNum_mk]
+  by_contra hcon
+  push_neg at hcon
+  obtain ⟨C⟩ := CGraph.chromNum_le_iff_colorable.1 (Nat.lt_succ_iff.1 hcon)
+  obtain ⟨e, f, hadj, heq⟩ := CGraph.petersen_no_three_colouring C
+  exact C.valid (by simpa using hadj) heq
+
+/-- **The chromatic index of the Petersen graph is four.** -/
+@[simp] theorem edgeChromNum_petersen : petersen.edgeChromNum = 4 := by
+  refine le_antisymm ?_ four_le_edgeChromNum_petersen
+  rw [show (petersen : IsoGraph) = kneser 5 2 from rfl, kneser_def]
+  exact edgeChromNum_mk_le_of_colouring (G := CGraph.kneser 5 2)
+    CGraph.pet10Col CGraph.pet10Col_symm CGraph.pet10Col_proper
+
 end IsoGraph

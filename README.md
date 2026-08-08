@@ -3821,6 +3821,49 @@ one of them regular, so each statement has to begin one step past the index its 
 Two entries in the bipartite column went with them — a grid is bipartite, being a product of
 paths, and the king graph is not, since its chromatic number is four.
 
+The chromatic-index row closes almost completely, and neither argument that does it is König or
+Vizing.
+
+The first is the round-robin `1`-factorisation, written out for the cocktail party graph.
+`K_{(n+2)×2}` is `K_{2n+4}` with a perfect matching deleted, so label the vertices of `K_{2n+4}`
+by `ZMod (2n+3) ∪ {∞}`, colour the edge `{a, b}` by `a + b` and the edge `{a, ∞}` by `2a`, and
+delete the colour class `0` — which is exactly the matching `{∞, 0}, {1, −1}, …, {n+1, −(n+1)}`.
+What is left is `K_{(n+2)×2}` in `2n + 2` colours, meeting `le_edgeChromNum_cocktailParty`, so
+`edgeChromNum_cocktailParty : χ'(K_{(n+1)×2}) = 2n` for every `n`, the degenerate `n = 0` included
+(`K_{1×2}` is the empty graph on two vertices). The Lean subtlety is that the modulus `2n + 3`
+varies, and `omega` cannot see through `%` or `∣` with a variable modulus. The way round is to
+compute in ℕ first: `cpCode` gives each vertex a natural number below `2n + 3`, injectivity is
+`split_ifs <;> omega`, and only then is the code cast into `ZMod (2n + 3)`, where the only facts
+needed are `ZMod.val_natCast_of_lt`, `ZMod.natCast_eq_zero_iff`, `ZMod.val_lt`,
+`ZMod.val_injective` and a one-line `linear_combination` proof that `n + 2` inverts `2`.
+
+The second is the class-two argument the library already had: a `k`-regular graph of odd order
+needs more than `k` colours, so for such a graph one explicit colouring in `k + 1` colours pins
+`χ'` exactly. Six brackets close that way, each with a machine-found colour table checked by two
+`native_decide` calls — symmetry on pairs, properness on triples: `edgeChromNum_triangular_six`
+(`9`), `edgeChromNum_triangular_seven` (`11`), `edgeChromNum_rook_three_three` (`5`),
+`edgeChromNum_paley_thirteen` (`7`), `edgeChromNum_kneser_seven_three` (`5`) and
+`edgeChromNum_johnson_seven_three` (`13`).
+
+That leaves the Petersen graph, which has even order and genuinely needs the snark argument.
+`edgeChromNum_petersen = 4` is now proved, and its lower bound is the first place in the library
+where a *colouring* lower bound is decided by search rather than by structure. The bridge is
+`CGraph.chromNum_le_iff_colorable`: if `χ(L(P)) ≤ 3` then some function `L(P).V → Fin 3` is a
+proper colouring, so it is enough to refute every such function. The fifteen edges are named
+`petEdge 0, …, petEdge 14` — read off `petEdgeList`, which builds the `Sym2` subtype from the ten
+`2`-subsets of `Fin 5` rather than by hand — the thirty line-graph adjacencies between them are
+checked once by `native_decide`, and `petSearch`, which is
+`∀ c₀ … c₁₄ : Fin 3, ¬(c₀ ≠ c₁ ∧ … ∧ c₁₃ ≠ c₁₄)` and hence an exhaustive `3¹⁵ = 14 348 907` case
+split, does the rest in about thirty seconds of compilation.
+
+Two practical notes came out of that last one. The `Decidable` instance for fifteen nested `Fin 3`
+binders over thirty conjuncts needs `synthInstance.maxSize` raised far above its default of `128`;
+the symptom is a fast "failed to synthesize", which reads like a missing instance rather than an
+exhausted budget, and the threshold moves with the *product* of binders and conjuncts, so eight
+binders work and fifteen do not. And the searched statement has to be a flat conjunction of
+inequalities between variables: anything indexed — a vector lookup, a list of index pairs — pays
+its cost fourteen million times.
+
 ## Enumeration
 
 The first real application. `Enum/All.lean` produces, for each `n`, a list holding **exactly one**
@@ -5500,13 +5543,14 @@ the ladder, the crown, the prism, the double star and the Grötzsch graph each c
 colouring. What a general König would buy is the *next* family rather than any current entry.
 
 The chromatic indices that are still brackets are the ones where the *lower* bound is the hard
-half. The Petersen graph is the standard example: `3 ≤ χ' ≤ 5` here, the truth is `4`, and getting
-there means showing a cubic graph is not 3-edge-colourable, which is a statement about perfect
-matchings rather than about colouring formulas. The same shape blocks the cocktail party graph
-(whose vertex type, a sigma over `List.replicate n 2`, also makes the round-robin colouring of
-`K_{2n}` expensive to write), and the regular families — `rook`, `triangular`, `paley`, `kneser`,
-`johnson` — where `maxDeg_lt_edgeChromNum_of_isRegularWith_odd` gives `χ' > Δ` on odd orders but
-nothing pins the value.
+half at general parameters. For the odd-order regular families — `rook`, `triangular`, `paley`,
+`kneser`, `johnson` — `maxDeg_lt_edgeChromNum_of_isRegularWith_odd` gives `χ' > Δ`, but turning
+`χ' > Δ` into `χ' = Δ + 1` is Vizing, so only the six smallest members, where a colouring was
+found by machine and checked by `native_decide`, are exact. Everything else in the row sits inside
+`Δ ≤ χ' ≤ 2Δ − 1`. The two cases that used to be the awkward ones are gone: the cocktail party
+graph fell to the round-robin `1`-factorisation and the Petersen graph to an exhaustive `3¹⁵`
+search, but the search does not generalise — the next snark on the list, Blanuša's, has `18`
+vertices and `27` edges, and `3²⁷` is not a case split.
 
 The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
 (Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the girth
