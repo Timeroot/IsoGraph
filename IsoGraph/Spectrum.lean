@@ -102,7 +102,11 @@ two ends of the products (`lambdaMax_disjUnion`, `lambdaMax_cartesianProduct`,
 `lambdaMin` counterparts) and of the named families (`lambdaMax_complete`, `lambdaMax_cycle`,
 `lambdaMax_path` and the rest, down to the strongly regular ones — `lambdaMax_petersen`,
 `lambdaMax_rook`, `lambdaMax_paley` — and `lambdaMax_hypercube` at the very end of the file) are
-read off the spectra computed above.
+read off the spectra computed above.  The one family that is not is the cone: no adjacency
+spectrum of a join is on file, so `lambdaMax_join_complete_one` computes the radius of `K₁ ∇ G`
+for `k`-regular `G` directly from an explicit positive eigenvector, `n / λ` at the apex and `1` on
+the base, getting `(k + √(k ² + 4 n)) / 2`, the positive root of `x ² - k x - n`.  At `k = 2` that
+is `lambdaMax_wheel`, `1 + √(n + 1)`.
 
 The *equality* case is `mulVec_eq_of_rayleigh_eq_lambdaMax`: a vector attaining the maximum is an
 eigenvector, since in rotated coordinates the quotient is a weighted average of the eigenvalues.
@@ -3281,72 +3285,93 @@ theorem lambdaMin_star (n : ℕ) : (star (n + 1)).lambdaMin = -Real.sqrt (n + 1)
 
 instance instNonemptyWheelV (n : ℕ) : Nonempty (wheel n).V := ⟨Sum.inl ⟨0, by omega⟩⟩
 
+instance instNonemptyJoinV (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] :
+    Nonempty (join G H).V := inferInstanceAs (Nonempty (G.V ⊕ H.V))
+
 open Matrix in
-/-- **The spectral radius of a wheel** is `1 + √(n + 1)`: the vector that is `√(n+1) - 1` at the
-hub and `1` on the rim is a positive eigenvector, and a positive eigenvector's eigenvalue bounds
-the whole spectrum. -/
-theorem lambdaMax_wheel (m : ℕ) :
-    (wheel (m + 3)).lambdaMax = 1 + Real.sqrt ((m : ℝ) + 4) := by
-  have hs : Real.sqrt ((m : ℝ) + 4) ^ 2 = (m : ℝ) + 4 := Real.sq_sqrt (by positivity)
-  have hs0 : (0 : ℝ) ≤ Real.sqrt ((m : ℝ) + 4) := Real.sqrt_nonneg _
-  have hs1 : 1 < Real.sqrt ((m : ℝ) + 4) := by nlinarith
-  have hcyc : (cycle (m + 3)).IsRegularWith 2 := IsoGraph.isRegularWith_cycle m
-  set w : (wheel (m + 3)).V → ℝ :=
-    Sum.elim (fun _ ↦ Real.sqrt ((m : ℝ) + 4) - 1) (fun _ ↦ 1) with hwdef
+/-- **The spectral radius of a cone over a regular graph.**  Joining a single vertex to every
+vertex of a `k`-regular graph on `n` vertices gives spectral radius `(k + √(k² + 4 n)) / 2`, the
+positive root of `x² - k x - n`: the vector that is `n / λ` at the apex and `1` on the base is a
+positive eigenvector, and a positive eigenvector's eigenvalue bounds the whole spectrum. -/
+theorem lambdaMax_join_complete_one {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {k : ℕ}
+    (h : G.IsRegularWith k) :
+    (join (complete 1) G).lambdaMax
+      = ((k : ℝ) + Real.sqrt ((k : ℝ) ^ 2 + 4 * Fintype.card G.V)) / 2 := by
+  set n : ℕ := Fintype.card G.V with hn
+  have hnpos : 0 < n := Fintype.card_pos
+  have hn0 : (0 : ℝ) < (n : ℝ) := by exact_mod_cast hnpos
+  set r : ℝ := Real.sqrt ((k : ℝ) ^ 2 + 4 * (n : ℝ)) with hr
+  have hr2 : r ^ 2 = (k : ℝ) ^ 2 + 4 * (n : ℝ) := Real.sq_sqrt (by positivity)
+  have hk0 : (0 : ℝ) ≤ (k : ℝ) := by positivity
+  have hrk : (k : ℝ) < r := by nlinarith [Real.sqrt_nonneg ((k : ℝ) ^ 2 + 4 * (n : ℝ))]
+  set lam : ℝ := ((k : ℝ) + r) / 2 with hlam
+  have hlampos : 0 < lam := by rw [hlam]; linarith
+  have hquad : lam ^ 2 - (k : ℝ) * lam - (n : ℝ) = 0 := by
+    rw [hlam]; nlinarith
+  set w : (join (complete 1) G).V → ℝ := Sum.elim (fun _ ↦ (n : ℝ) / lam) (fun _ ↦ 1) with hwdef
   have hwpos : ∀ i, 0 < w i := by
     rintro (a | v)
-    · simpa [hwdef] using hs1
-    · simp [hwdef]
-  have hmul : (wheel (m + 3)).adjMat *ᵥ w = (1 + Real.sqrt ((m : ℝ) + 4)) • w := by
+    · exact div_pos hn0 hlampos
+    · norm_num [hwdef]
+  have hmul : (join (complete 1) G).adjMat *ᵥ w = lam • w := by
     funext i
     rcases i with a | v
-    · have hsplit : ((wheel (m + 3)).adjMat *ᵥ w) (Sum.inl a)
-          = (∑ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inl a')
+    · have hsplit : ((join (complete 1) G).adjMat *ᵥ w) (Sum.inl a)
+          = (∑ a' : (complete 1).V, (join (complete 1) G).adjMat (Sum.inl a) (Sum.inl a')
               * w (Sum.inl a'))
-            + ∑ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inr u)
-              * w (Sum.inr u) :=
-        Fintype.sum_sum_type (f := fun x ↦ (wheel (m + 3)).adjMat (Sum.inl a) x * w x)
-      have h1 : ∀ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inl a')
+            + ∑ u : G.V, (join (complete 1) G).adjMat (Sum.inl a) (Sum.inr u) * w (Sum.inr u) :=
+        Fintype.sum_sum_type (f := fun x ↦ (join (complete 1) G).adjMat (Sum.inl a) x * w x)
+      have h1 : ∀ a' : (complete 1).V, (join (complete 1) G).adjMat (Sum.inl a) (Sum.inl a')
           * w (Sum.inl a') = 0 := by
         intro a'
-        rw [adjMat_apply, show (wheel (m + 3)).Adj (Sum.inl a) (Sum.inl a') = false by
-          simp [wheel, complete_one_elim (a := a) (b := a')]]
+        rw [adjMat_apply, join_adj_inl_inl, show a = a' from complete_one_elim]
         simp
-      have h2 : ∀ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inr u)
+      have h2 : ∀ u : G.V, (join (complete 1) G).adjMat (Sum.inl a) (Sum.inr u)
           * w (Sum.inr u) = 1 := by
         intro u
-        rw [adjMat_apply, wheel_adj_inl_inr]
+        rw [adjMat_apply, join_adj_inl_inr]
         simp [hwdef]
       rw [hsplit, Finset.sum_congr rfl fun a' _ ↦ h1 a', Finset.sum_congr rfl fun u _ ↦ h2 u]
-      simp only [Finset.sum_const, nsmul_eq_mul, mul_one, Finset.card_univ, card_cycle,
-        Pi.smul_apply, smul_eq_mul, hwdef, Sum.elim_inl]
-      push_cast
-      nlinarith
-    · have hsplit : ((wheel (m + 3)).adjMat *ᵥ w) (Sum.inr v)
-          = (∑ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inl a')
+      simp only [Finset.sum_const, nsmul_eq_mul, mul_one, Finset.card_univ, Pi.smul_apply,
+        smul_eq_mul, hwdef, Sum.elim_inl, ← hn]
+      field_simp
+      simp
+    · have hsplit : ((join (complete 1) G).adjMat *ᵥ w) (Sum.inr v)
+          = (∑ a' : (complete 1).V, (join (complete 1) G).adjMat (Sum.inr v) (Sum.inl a')
               * w (Sum.inl a'))
-            + ∑ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inr u)
-              * w (Sum.inr u) :=
-        Fintype.sum_sum_type (f := fun x ↦ (wheel (m + 3)).adjMat (Sum.inr v) x * w x)
-      have h1 : ∀ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inl a')
-          * w (Sum.inl a') = Real.sqrt ((m : ℝ) + 4) - 1 := by
+            + ∑ u : G.V, (join (complete 1) G).adjMat (Sum.inr v) (Sum.inr u) * w (Sum.inr u) :=
+        Fintype.sum_sum_type (f := fun x ↦ (join (complete 1) G).adjMat (Sum.inr v) x * w x)
+      have h1 : ∀ a' : (complete 1).V, (join (complete 1) G).adjMat (Sum.inr v) (Sum.inl a')
+          * w (Sum.inl a') = (n : ℝ) / lam := by
         intro a'
-        rw [adjMat_apply, show (wheel (m + 3)).Adj (Sum.inr v) (Sum.inl a') = true by simp [wheel]]
+        rw [adjMat_apply, join_adj_inr_inl]
         simp [hwdef]
-      have h2 : ∀ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inr u)
-          * w (Sum.inr u) = (cycle (m + 3)).adjMat v u := by
+      have h2 : ∀ u : G.V, (join (complete 1) G).adjMat (Sum.inr v) (Sum.inr u)
+          * w (Sum.inr u) = G.adjMat v u := by
         intro u
-        rw [adjMat_apply, adjMat_apply, wheel_adj_inr_inr]
+        rw [adjMat_apply, adjMat_apply, join_adj_inr_inr]
         simp [hwdef]
       rw [hsplit, Finset.sum_congr rfl fun a' _ ↦ h1 a', Finset.sum_congr rfl fun u _ ↦ h2 u,
-        sum_adjMat_row hcyc]
+        sum_adjMat_row h]
       simp only [Finset.sum_const, nsmul_eq_mul, Finset.card_univ, card_complete, Pi.smul_apply,
-        smul_eq_mul, hwdef, Sum.elim_inr]
-      push_cast
-      ring
+        smul_eq_mul, hwdef, Sum.elim_inr, mul_one, Nat.cast_one, one_mul]
+      field_simp
+      nlinarith
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
   · exact spectrum_le_of_mulVec_le hwpos (fun i ↦ le_of_eq (congrFun hmul i)) hx
   · exact mem_spectrum_of_mulVec_eq hwpos hmul
+
+/-- **The spectral radius of a wheel** is `1 + √(n + 1)`: the wheel is the cone over a `2`-regular
+cycle, so this is the cone formula at `k = 2`. -/
+theorem lambdaMax_wheel (m : ℕ) :
+    (wheel (m + 3)).lambdaMax = 1 + Real.sqrt ((m : ℝ) + 4) := by
+  have h := lambdaMax_join_complete_one (IsoGraph.isRegularWith_cycle m)
+  rw [card_cycle] at h
+  show (join (complete 1) (cycle (m + 3))).lambdaMax = _
+  rw [h, show ((2 : ℕ) : ℝ) ^ 2 + 4 * ((m + 3 : ℕ) : ℝ) = 2 ^ 2 * ((m : ℝ) + 4) by push_cast; ring,
+    Real.sqrt_mul (by positivity), Real.sqrt_sq (by norm_num)]
+  push_cast
+  ring
 
 /-- **The spectral radius of a grid** is the sum of the two paths'. -/
 theorem lambdaMax_grid (m n : ℕ) :

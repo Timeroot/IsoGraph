@@ -5264,12 +5264,15 @@ and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star`
 star is exactly where `√Δ ≤ lambdaMax` is tight.
 
 The wheel is the one entry that does not come off a spectrum, because the adjacency spectrum of a
-join is not on file: `lambdaMax_wheel` is `1 + √(n + 1)`, proved from the Perron machinery
-instead. The vector that is `√(n+1) - 1` at the hub and `1` on the rim satisfies `A w = λ w`
-exactly — the hub equation reads `n = λ (√(n+1) - 1)` and each rim equation reads
-`2 + (√(n+1) - 1) = λ` — so `mem_spectrum_of_mulVec_eq` puts `λ` in the spectrum and
+join is not on file. It comes instead from a cone formula proved with the Perron machinery:
+`lambdaMax_join_complete_one` says that coning a single vertex over a `k`-regular graph on `n`
+vertices gives spectral radius `(k + √(k² + 4n)) / 2`, the positive root of `x² - kx - n`. The
+vector that is `n / λ` at the apex and `1` on the base satisfies `A w = λ w` exactly — the apex
+equation reads `n = λ · (n / λ)` and each base equation reads `n / λ + k = λ`, which is the
+quadratic — so `mem_spectrum_of_mulVec_eq` puts `λ` in the spectrum and
 `spectrum_le_of_mulVec_le`, the positive-subeigenvector bound, keeps everything else below it.
-That is the same pair of lemmas the Smith diagrams use, applied to a graph that is not regular.
+That is the same pair of lemmas the Smith diagrams use, applied to graphs that are not regular.
+At `k = 2` the base is a cycle and the root simplifies, giving `lambdaMax_wheel = 1 + √(n + 1)`.
 The other end of the wheel's spectrum would need the join formula and is not there.
 
 Composing with the product rule,
