@@ -4533,8 +4533,9 @@ off-diagonal part `∑_{i ≠ j} |λᵢ λⱼ|`, the triangle inequality bounds 
 `2 √E ≤ energy`. Together with McClelland the energy of a graph with `E` edges on `n` vertices is
 pinned into `[2 √E, √(2 E n)]`. The same second moment run backwards says the energy vanishes
 exactly on the edgeless graphs (`energy_eq_zero_iff`). Otherwise it behaves as you would expect:
-additive over disjoint unions, and equal for cospectral graphs, since it is a function of the
-spectrum alone. `IsoGraph.energy` is the same number for an isomorphism class. The named values
+additive over disjoint unions, multiplicative over tensor products (`energy_tensorProduct`, since
+the eigenvalues there are the products `λ μ` and `|λ μ| = |λ| |μ|`), and equal for cospectral
+graphs, since it is a function of the spectrum alone. `IsoGraph.energy` is the same number for an isomorphism class. The named values
 come straight off the spectra already computed — `2 (n - 1)` for `Kₙ`, which is exactly where the
 `2 λ_max` bound is tight, `2 √(mn)` for `K_{m,n}`, `2 √n` for the star and `16` for the Petersen
 graph.

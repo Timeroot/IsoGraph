@@ -176,10 +176,10 @@ zero, the positive ones carry exactly half of it (`energy_eq_two_mul_sum_posPart
 `∑ λ ² = 2 |E|` puts `√(2 |E| n)` on top, **McClelland's bound**, `energy_le_sqrt`.  Expanding
 `(∑ |λ|) ²` into its diagonal and off-diagonal halves and using both moments at once puts
 `2 √|E|` underneath as well (`two_mul_sqrt_le_energy`), so the energy is pinned into
-`[2 √|E|, √(2 |E| n)]`.  It is
-additive over disjoint unions, it is a cospectral invariant, and it vanishes exactly on the
-edgeless graphs (`energy_eq_zero_iff`, again by the second moment).  The named values are
-`energy_complete` (`2 (n - 1)`, where the `2 λ_max` bound is tight), `energy_bipartite`
+`[2 √|E|, √(2 |E| n)]`.  It adds over disjoint unions and multiplies over tensor products
+(`energy_disjUnion`, `energy_tensorProduct`), it is a cospectral invariant, and it vanishes
+exactly on the edgeless graphs (`energy_eq_zero_iff`, again by the second moment).  The named
+values are `energy_complete` (`2 (n - 1)`, where the `2 λ_max` bound is tight), `energy_bipartite`
 (`2 √(m n)`), `energy_star` (`2 √n`) and `energy_petersen` (`16`).
 
 ## The Laplacian
@@ -6304,6 +6304,24 @@ theorem two_mul_sqrt_le_energy (G : CGraph) : 2 * Real.sqrt G.E ≤ G.energy := 
     (disjUnion G H).energy = G.energy + H.energy := by
   rw [energy, energy, energy, spectrum_disjUnion, Multiset.map_add, Multiset.sum_add]
 
+/-- **The energy is multiplicative over tensor products**, because the eigenvalues of `G ⊗ H` are
+the products `λ μ` and `|λ μ| = |λ| |μ|`. -/
+@[simp] theorem energy_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (tensorProduct G H).energy = G.energy * H.energy := by
+  have key : ∀ s t : Multiset ℝ, ((s ×ˢ t).map (fun p : ℝ × ℝ ↦ |p.1 * p.2|)).sum
+      = (s.map (|·|)).sum * (t.map (|·|)).sum := by
+    intro s t
+    induction s using Multiset.induction_on with
+    | empty => simp
+    | cons a s ih =>
+      rw [Multiset.cons_product, Multiset.map_add, Multiset.sum_add, ih, Multiset.map_cons,
+        Multiset.sum_cons, Multiset.map_map, add_mul]
+      congr 1
+      simp only [Function.comp_def, abs_mul]
+      rw [Multiset.sum_map_mul_left]
+  rw [energy, energy, energy, spectrum_tensorProduct', Multiset.map_map]
+  exact key G.spectrum H.spectrum
+
 /-- **The energy of a complete graph** is `2 (n - 1)`: the eigenvalues are `n - 1` and `-1`. -/
 theorem energy_complete (n : ℕ) : (complete (n + 1)).energy = 2 * n := by
   rw [energy, spectrum_complete]
@@ -8858,6 +8876,12 @@ theorem energy_le_sqrt (G : IsoGraph) : G.energy ≤ Real.sqrt (2 * G.E * G.V) :
 
 @[simp] theorem energy_disjUnion (G H : IsoGraph) : (G ⊕g H).energy = G.energy + H.energy :=
   Quotient.inductionOn₂ G H fun g h ↦ CGraph.energy_disjUnion g h
+
+/-- **The energy is multiplicative over tensor products.** -/
+@[simp] theorem energy_tensorProduct (G H : IsoGraph) :
+    (G ⊗g H).energy = G.energy * H.energy :=
+  Quotient.inductionOn₂ G H fun g h ↦ by
+    rw [tensorProduct_mk, energy_mk, energy_mk, energy_mk, CGraph.energy_tensorProduct g h]
 
 theorem energy_complete (n : ℕ) : (complete (n + 1)).energy = 2 * n :=
   CGraph.energy_complete n
