@@ -2752,6 +2752,65 @@ theorem exists_rayleigh_eq_lambdaMin (G : CGraph) [Nonempty G.V] :
   obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 (lambdaMin_mem_spectrum G)
   exact ⟨v, hv0, by rw [hv, dotProduct_smul, smul_eq_mul]⟩
 
+/-! ### Monotonicity in the edge set -/
+
+/-- **The spectral radius is monotone in the edge set.**  If `e` embeds the vertices of `H` into
+those of `G` carrying edges to edges, then `λ_max(H) ≤ λ_max(G)`: take an eigenvector for
+`λ_max(H)`, replace it by its absolute value — which cannot decrease the quadratic form, since
+`A` is nonnegative — and read it through `e`, where the extra edges of `G` only add nonnegative
+terms. -/
+theorem lambdaMax_le_lambdaMax_of_adj {G H : CGraph} [Nonempty G.V] [Nonempty H.V]
+    (e : H.V ≃ G.V)
+    (hadj : ∀ x y, H.Adj x y → G.Adj (e x) (e y)) : H.lambdaMax ≤ G.lambdaMax := by
+  obtain ⟨v, hv0, hv⟩ := (H.mem_spectrum_iff _).1 (lambdaMax_mem_spectrum H)
+  set u : H.V → ℝ := fun x ↦ |v x| with hu
+  set w : G.V → ℝ := fun z ↦ u (e.symm z) with hw
+  have hpos : 0 < v ⬝ᵥ v := by
+    obtain ⟨y0, hy0⟩ := Function.ne_iff.1 hv0
+    rw [dotProduct]
+    exact Finset.sum_pos' (fun y _ ↦ mul_self_nonneg _)
+      ⟨y0, Finset.mem_univ _, mul_self_pos.2 hy0⟩
+  have hnorm : u ⬝ᵥ u = v ⬝ᵥ v := by simp [hu, dotProduct, abs_mul_abs_self]
+  have hnormw : w ⬝ᵥ w = v ⬝ᵥ v := by
+    rw [← hnorm, dotProduct, dotProduct, ← Equiv.sum_comp e]
+    simp [hw]
+  -- the quadratic form of `H` at `|v|` is at least `λ_max(H) ‖v‖²`
+  have h1 : H.lambdaMax * (v ⬝ᵥ v) ≤ u ⬝ᵥ (H.adjMat *ᵥ u) := by
+    have h2 := H.abs_dotProduct_mulVec_le v
+    rw [hv, dotProduct_smul, smul_eq_mul, abs_mul, abs_of_pos hpos] at h2
+    refine le_trans ?_ h2
+    exact mul_le_mul_of_nonneg_right (le_abs_self _) hpos.le
+  -- reading it through `e` only adds nonnegative terms
+  have h3 : u ⬝ᵥ (H.adjMat *ᵥ u) ≤ w ⬝ᵥ (G.adjMat *ᵥ w) := by
+    rw [dotProduct_mulVec_eq_sum, dotProduct_mulVec_eq_sum, ← Equiv.sum_comp e]
+    refine Finset.sum_le_sum fun x _ ↦ ?_
+    rw [← Equiv.sum_comp e]
+    refine Finset.sum_le_sum fun y _ ↦ ?_
+    have hnn : 0 ≤ u x * u y := mul_nonneg (abs_nonneg _) (abs_nonneg _)
+    have hwx : w (e x) = u x := by simp [hw]
+    have hwy : w (e y) = u y := by simp [hw]
+    rw [hwx, hwy]
+    by_cases h : H.Adj x y
+    · rw [adjMat_apply, adjMat_apply, if_pos h, if_pos (hadj x y h)]
+    · rw [adjMat_apply, if_neg h, zero_mul]
+      exact mul_nonneg (adjMat_nonneg G _ _) hnn
+  have h4 := G.rayleigh_le_lambdaMax w
+  rw [hnormw] at h4
+  exact le_of_mul_le_mul_right (by linarith) hpos
+
+/-- **The spectral radius is at most `n - 1`**, since no degree exceeds `n - 1`.  The bound is
+attained by `Kₙ`, which is where every graph sits. -/
+theorem lambdaMax_le_card_sub_one (G : CGraph) [Nonempty G.V] :
+    G.lambdaMax ≤ (Fintype.card G.V : ℝ) - 1 := by
+  have h := G.lambdaMax_le_maxDeg
+  have h2 := G.maxDeg_lt_card (Classical.arbitrary G.V)
+  have h3 : ((G.maxDeg : ℝ)) ≤ (Fintype.card G.V : ℝ) - 1 := by
+    have : (G.maxDeg + 1 : ℕ) ≤ Fintype.card G.V := h2
+    have := (Nat.cast_le (α := ℝ)).2 this
+    push_cast at this
+    linarith
+  linarith
+
 /-- **A bipartite graph's least eigenvalue is minus its spectral radius.**  The spectrum is
 symmetric about zero, so `-λ_max` is itself an eigenvalue, and `-lambdaMax ≤ lambdaMin` always. -/
 theorem lambdaMin_eq_neg_lambdaMax_of_isBipartite {G : CGraph} [Nonempty G.V]
@@ -2860,6 +2919,13 @@ theorem lambdaMax_complete (n : ℕ) : (complete (n + 1)).lambdaMax = n := by
       linarith [Nat.cast_nonneg (α := ℝ) n]
   · rw [spectrum_complete]
     exact Multiset.mem_cons_self _ _
+
+/-- The complete graph attains it: `λ_max(Kₙ) = n - 1`. -/
+theorem lambdaMax_complete_eq_card_sub_one (n : ℕ) :
+    (complete (n + 1)).lambdaMax = (Fintype.card (complete (n + 1)).V : ℝ) - 1 := by
+  rw [lambdaMax_complete, card_complete]
+  push_cast
+  ring
 
 /-- **The least eigenvalue of a complete graph** is `-1`, with multiplicity `n - 1`. -/
 theorem lambdaMin_complete (n : ℕ) : (complete (n + 2)).lambdaMin = -1 := by

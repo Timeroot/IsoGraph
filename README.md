@@ -5204,6 +5204,15 @@ vector by its absolute value keeps the norm and cannot decrease the quadratic fo
 eigenvalue *is* the spectral radius (`abs_le_lambdaMax_of_mem_spectrum`), and in particular
 `-lambdaMax ≤ lambdaMin`.
 
+The same absolute-value trick gives monotonicity in the edge set. If `e` matches the vertices of
+`H` with those of `G` and carries edges to edges, then `lambdaMax_le_lambdaMax_of_adj` says
+`λ_max(H) ≤ λ_max(G)`: take an eigenvector for `λ_max(H)`, replace it by its absolute value —
+which cannot decrease the quadratic form — and read it through `e`, where the extra edges of `G`
+contribute only nonnegative terms. That generalises the two bounds above, since an edge and a
+star are both subgraphs, and at the top end `lambdaMax_le_card_sub_one`
+caps the radius at `n - 1` — cheapest through the maximum degree rather than through the
+embedding — and `lambdaMax_complete_eq_card_sub_one` says `Kₙ` attains it.
+
 Bipartite graphs are exactly where that last inequality is tight, and the symmetry of the
 spectrum proved earlier says so in one line: `-lambdaMax` is itself an eigenvalue, so
 `lambdaMin_eq_neg_lambdaMax_of_isBipartite` gives `lambdaMin = -lambdaMax`, and for a regular
