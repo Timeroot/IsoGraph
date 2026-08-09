@@ -577,6 +577,8 @@ def paley (q : ℕ) : CGraph :=
 
 instance (q : ℕ) : DecidableEq (paley q).V := inferInstanceAs (DecidableEq (Fin q))
 
+instance (q : ℕ) : Nonempty (paley (q + 1)).V := inferInstanceAs (Nonempty (Fin (q + 1)))
+
 @[simp] theorem card_paley (q : ℕ) : Fintype.card (paley q).V = q := Fintype.card_fin q
 
 /-! ## Products

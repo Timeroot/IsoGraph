@@ -5247,6 +5247,20 @@ and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star`
 star is exactly where `√Δ ≤ lambdaMax` is tight. Composing with the product rule,
 `lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes.
 
+The strongly regular families are read off their own spectra by the same three-way split.
+`lambdaMax_petersen` is `3` and `lambdaMin_petersen` is `-2`; `lambdaMax_cocktailParty` and
+`lambdaMax_rook` are `2n - 2`, `lambdaMax_triangular` is `2n - 4`, and all three bottom out at
+`-2` again (`lambdaMin_cocktailParty`, `lambdaMin_rook`, `lambdaMin_triangular`). That the four
+integral families share the same least eigenvalue is the classification of graphs with
+`λ_min = -2` showing through: the rook's graph and the triangular graph are the line graphs of
+`K_{n,n}` and `Kₙ`, where `neg_two_le_lambdaMin_lineGraph` forces the bound outright, and the
+cocktail party and Petersen graphs are not line graphs but belong to the exceptional part of the
+same classification. The Paley graph is the one family here with irrational ends:
+`lambdaMax_paley` is the degree `2t` and `lambdaMin_paley` is `(-1 - √(4t+1)) / 2`, the conference
+case of `int_or_conference_of_isSRGWith`. None of the ten proofs uses regularity, though every
+one of these graphs is regular, so the spectral radii could equally have come from
+`lambdaMax_of_isRegularWith`.
+
 Equality in either direction pins the vector down:
 
 ```lean

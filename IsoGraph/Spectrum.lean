@@ -3210,6 +3210,179 @@ theorem lambdaMin_grid (m n : ℕ) :
       = -(2 * Real.cos (Real.pi / ((m : ℝ) + 2))) + -(2 * Real.cos (Real.pi / ((n : ℝ) + 2))) := by
   rw [lambdaMin_cartesianProduct, lambdaMin_path, lambdaMin_path]
 
+/-! ### The extreme eigenvalues of the strongly regular families
+
+Each of these graphs has an explicit spectrum above, with the degree at the top and one other
+eigenvalue at the bottom, so both ends are read off the same three-way case split.  The four
+integral families all bottom out at `-2`, which is no accident: the Petersen graph, the rook's
+graph and the triangular graph are line graphs or complements of them.  Only the Paley graph has
+irrational ends. -/
+
+instance : Nonempty SRG.petersen.V :=
+  Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
+
+instance (m : ℕ) : Nonempty (cocktailParty (m + 2)).V :=
+  Fintype.card_pos_iff.1 (by rw [(isSRGWith_cocktailParty (m + 2)).card]; omega)
+
+instance (m : ℕ) : Nonempty (triangular (m + 4)).V :=
+  Fintype.card_pos_iff.1 (by
+    rw [(isSRGWith_triangular (m + 4) (by omega)).card]; exact Nat.choose_pos (by omega))
+
+/-- **The spectral radius of the Petersen graph** is its degree `3`. -/
+theorem lambdaMax_petersen : SRG.petersen.lambdaMax = 3 := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_petersen, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]; norm_num
+    · rw [Multiset.eq_of_mem_replicate hx]; norm_num
+  · rw [spectrum_petersen]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of the Petersen graph** is `-2`, as for every line graph. -/
+theorem lambdaMin_petersen : SRG.petersen.lambdaMin = -2 := by
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_petersen]
+    exact Multiset.mem_cons_of_mem
+      (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨by norm_num, rfl⟩)))
+  · have hx := lambdaMin_mem_spectrum SRG.petersen
+    rw [spectrum_petersen, Multiset.mem_cons] at hx
+    rcases hx with h | h
+    · rw [h]; norm_num
+    rcases Multiset.mem_add.1 h with h | h
+    · rw [Multiset.eq_of_mem_replicate h]; norm_num
+    · rw [Multiset.eq_of_mem_replicate h]
+
+/-- **The spectral radius of the cocktail party graph** is its degree `2n - 2`. -/
+theorem lambdaMax_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).lambdaMax = 2 * (m : ℝ) + 2 := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_cocktailParty, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]; positivity
+    · rw [Multiset.eq_of_mem_replicate hx]
+      have : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+      linarith
+  · rw [spectrum_cocktailParty]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of the cocktail party graph** is `-2`. -/
+theorem lambdaMin_cocktailParty (m : ℕ) : (cocktailParty (m + 2)).lambdaMin = -2 := by
+  have hm : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_cocktailParty]
+    exact Multiset.mem_cons_of_mem
+      (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+  · have hx := lambdaMin_mem_spectrum (cocktailParty (m + 2))
+    rw [spectrum_cocktailParty, Multiset.mem_cons] at hx
+    rcases hx with h | h
+    · rw [h]; linarith
+    rcases Multiset.mem_add.1 h with h | h
+    · rw [Multiset.eq_of_mem_replicate h]; norm_num
+    · rw [Multiset.eq_of_mem_replicate h]
+
+/-- **The spectral radius of the rook's graph** is its degree `2n - 2`. -/
+theorem lambdaMax_rook (k : ℕ) : (rook (k + 2) (k + 2)).lambdaMax = 2 * (k : ℝ) + 2 := by
+  have hk : (0 : ℝ) ≤ (k : ℝ) := Nat.cast_nonneg k
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_rook, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+  · rw [spectrum_rook]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of the rook's graph** is `-2`. -/
+theorem lambdaMin_rook (k : ℕ) : (rook (k + 2) (k + 2)).lambdaMin = -2 := by
+  have hk : (0 : ℝ) ≤ (k : ℝ) := Nat.cast_nonneg k
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_rook]
+    exact Multiset.mem_cons_of_mem
+      (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨by positivity, rfl⟩)))
+  · have hx := lambdaMin_mem_spectrum (rook (k + 2) (k + 2))
+    rw [spectrum_rook, Multiset.mem_cons] at hx
+    rcases hx with h | h
+    · rw [h]; linarith
+    rcases Multiset.mem_add.1 h with h | h
+    · rw [Multiset.eq_of_mem_replicate h]; linarith
+    · rw [Multiset.eq_of_mem_replicate h]
+
+/-- **The spectral radius of the triangular graph** is its degree `2n - 4`. -/
+theorem lambdaMax_triangular (m : ℕ) : (triangular (m + 4)).lambdaMax = 2 * (m : ℝ) + 4 := by
+  have hm : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_triangular, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+  · rw [spectrum_triangular]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of the triangular graph** is `-2`. -/
+theorem lambdaMin_triangular (m : ℕ) : (triangular (m + 4)).lambdaMin = -2 := by
+  have hm : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+  have hcard : m + 4 < (m + 4).choose 2 := by
+    have h2 : (m + 4).choose 2 = (m + 4) * (m + 3) / 2 := by
+      rw [Nat.choose_two_right, show m + 4 - 1 = m + 3 from by omega]
+    have h3 : m + 5 ≤ (m + 4) * (m + 3) / 2 := by
+      rw [Nat.le_div_iff_mul_le (by norm_num)]; nlinarith
+    omega
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_triangular]
+    exact Multiset.mem_cons_of_mem
+      (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+  · have hx := lambdaMin_mem_spectrum (triangular (m + 4))
+    rw [spectrum_triangular, Multiset.mem_cons] at hx
+    rcases hx with h | h
+    · rw [h]; linarith
+    rcases Multiset.mem_add.1 h with h | h
+    · rw [Multiset.eq_of_mem_replicate h]; linarith
+    · rw [Multiset.eq_of_mem_replicate h]
+
+/-- **The spectral radius of the Paley graph** `P(4t+1)` is its degree `2t`. -/
+theorem lambdaMax_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).lambdaMax = 2 * (t : ℝ) := by
+  have ht0 : (1 : ℝ) ≤ (t : ℝ) := by exact_mod_cast ht
+  have hq0 : (0 : ℝ) ≤ Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_nonneg _
+  have hq2 : Real.sqrt (4 * (t : ℝ) + 1) ^ 2 = 4 * (t : ℝ) + 1 :=
+    Real.sq_sqrt (by positivity)
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_paley t ht, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]
+      nlinarith [sq_nonneg (Real.sqrt (4 * (t : ℝ) + 1) - 1)]
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+  · rw [spectrum_paley t ht]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of the Paley graph** `P(4t+1)` is `(-1 - √(4t+1)) / 2`. -/
+theorem lambdaMin_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).lambdaMin = (-1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
+  have ht0 : (1 : ℝ) ≤ (t : ℝ) := by exact_mod_cast ht
+  have hq0 : (0 : ℝ) ≤ Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_nonneg _
+  have hq2 : Real.sqrt (4 * (t : ℝ) + 1) ^ 2 = 4 * (t : ℝ) + 1 :=
+    Real.sq_sqrt (by positivity)
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_paley t ht]
+    exact Multiset.mem_cons_of_mem
+      (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+  · have hx := lambdaMin_mem_spectrum (paley (4 * t + 1))
+    rw [spectrum_paley t ht, Multiset.mem_cons] at hx
+    rcases hx with h | h
+    · rw [h]; linarith
+    rcases Multiset.mem_add.1 h with h | h
+    · rw [Multiset.eq_of_mem_replicate h]; linarith
+    · rw [Multiset.eq_of_mem_replicate h]
+
 /-! ### The equality case: regularity is spectral -/
 
 /-- **The equality case of the variational principle**: a vector whose Rayleigh quotient attains
