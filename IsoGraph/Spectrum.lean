@@ -7565,6 +7565,35 @@ theorem spectrum_hypercube (n : ℕ) :
       push_cast
       ring_nf
 
+/-- **The spectrum of a grid**: the two paths' eigenvalues add. -/
+theorem spectrum_grid (m n : ℕ) :
+    (path m □g path n).spectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          2 * Real.cos (Real.pi * (p.1.1 + 1) / (m + 1))
+            + 2 * Real.cos (Real.pi * (p.2.1 + 1) / (n + 1))) := by
+  rw [spectrum_cartesianProduct, spectrum_path, spectrum_path,
+    ← CGraph.map_product_apply₂ _ _ (fun a b ↦ a + b), ← Finset.univ_product_univ,
+    Finset.product_val]
+
+/-- **The spectrum of a torus**: the two cycles' eigenvalues add. -/
+theorem spectrum_cartesianProduct_cycle {m n : ℕ} (hm : 3 ≤ m) (hn : 3 ≤ n) :
+    (cycle m □g cycle n).spectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          2 * Real.cos (2 * Real.pi * p.1.1 / m) + 2 * Real.cos (2 * Real.pi * p.2.1 / n)) := by
+  rw [spectrum_cartesianProduct, spectrum_cycle hm, spectrum_cycle hn,
+    ← CGraph.map_product_apply₂ _ _ (fun a b ↦ a + b), ← Finset.univ_product_univ,
+    Finset.product_val]
+
+/-- **The spectrum of a cylinder**: a cycle's eigenvalues plus a path's. -/
+theorem spectrum_cartesianProduct_cycle_path {m : ℕ} (hm : 3 ≤ m) (n : ℕ) :
+    (cycle m □g path n).spectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          2 * Real.cos (2 * Real.pi * p.1.1 / m)
+            + 2 * Real.cos (Real.pi * (p.2.1 + 1) / (n + 1))) := by
+  rw [spectrum_cartesianProduct, spectrum_cycle hm, spectrum_path,
+    ← CGraph.map_product_apply₂ _ _ (fun a b ↦ a + b), ← Finset.univ_product_univ,
+    Finset.product_val]
+
 /-! ### Determined by the spectrum -/
 
 /-- Two isomorphism classes are **cospectral** when they have the same characteristic polynomial. -/
@@ -8238,6 +8267,69 @@ theorem algConn_cartesianProduct {G H : IsoGraph} (hG : 2 ≤ G.V) (hH : 2 ≤ H
       rw [V_mk] at hG hH
       rw [cartesianProduct_mk, algConn_mk, algConn_mk, algConn_mk]
       exact CGraph.algConn_cartesianProduct g h' hG hH
+
+/-! ### The Laplacian of the grid, the torus and the cylinder -/
+
+/-- **The largest Laplacian eigenvalue of a grid** is the sum of the two paths'. -/
+theorem lapLambdaMax_grid (m n : ℕ) :
+    (path (m + 1) □g path (n + 1)).lapLambdaMax
+      = (2 - 2 * Real.cos (Real.pi * m / ((m : ℝ) + 1)))
+        + (2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1))) := by
+  rw [lapLambdaMax_cartesianProduct (by simp) (by simp), lapLambdaMax_path, lapLambdaMax_path]
+
+/-- **The largest Laplacian eigenvalue of an even torus** is `8 = 2 Δ`, the bound
+`lapLambdaMax_le_two_mul_maxDeg` attained. -/
+theorem lapLambdaMax_cartesianProduct_cycle_even {m n : ℕ} (hm : 2 ≤ m) (hn : 2 ≤ n) :
+    (cycle (2 * m) □g cycle (2 * n)).lapLambdaMax = 8 := by
+  rw [lapLambdaMax_cartesianProduct (by simp; omega) (by simp; omega), lapLambdaMax_cycle_even hm,
+    lapLambdaMax_cycle_even hn]
+  norm_num
+
+/-- **The largest Laplacian eigenvalue of a cylinder with an even cycle**. -/
+theorem lapLambdaMax_cartesianProduct_cycle_even_path {m : ℕ} (hm : 2 ≤ m) (n : ℕ) :
+    (cycle (2 * m) □g path (n + 1)).lapLambdaMax
+      = 4 + (2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1))) := by
+  rw [lapLambdaMax_cartesianProduct (by simp; omega) (by simp), lapLambdaMax_cycle_even hm,
+    lapLambdaMax_path]
+
+/-- **The algebraic connectivity of a grid** is the longer side's: `a = 2 - 2 cos (π / (n + 2))`
+for `m ≤ n`.  The cartesian product takes the minimum, and `2 - 2 cos (π / (k + 2))` decreases
+in `k`. -/
+theorem algConn_grid {m n : ℕ} (h : m ≤ n) :
+    (path (m + 2) □g path (n + 2)).algConn = 2 - 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) := by
+  rw [algConn_cartesianProduct (by simp) (by simp), algConn_path, algConn_path, min_eq_right]
+  have h1 : (0 : ℝ) ≤ Real.pi / ((n : ℝ) + 2) := by positivity
+  have h2 : Real.pi / ((n : ℝ) + 2) ≤ Real.pi / ((m : ℝ) + 2) := by
+    apply div_le_div_of_nonneg_left Real.pi_pos.le (by positivity)
+    exact_mod_cast Nat.cast_le.2 (by omega : m + 2 ≤ n + 2)
+  have h3 : Real.pi / ((m : ℝ) + 2) ≤ Real.pi := by
+    rw [div_le_iff₀ (by positivity)]
+    nlinarith [Real.pi_pos, Nat.cast_nonneg (α := ℝ) m]
+  have := Real.cos_le_cos_of_nonneg_of_le_pi h1 h3 h2
+  linarith
+
+/-- **The algebraic connectivity of a torus** is the longer cycle's. -/
+theorem algConn_cartesianProduct_cycle {m n : ℕ} (h : m ≤ n) :
+    (cycle (m + 3) □g cycle (n + 3)).algConn
+      = 2 - 2 * Real.cos (2 * Real.pi / ((n : ℝ) + 3)) := by
+  rw [algConn_cartesianProduct (by simp) (by simp), algConn_cycle, algConn_cycle,
+    min_eq_right]
+  have h1 : (0 : ℝ) ≤ 2 * Real.pi / ((n : ℝ) + 3) := by positivity
+  have h2 : 2 * Real.pi / ((n : ℝ) + 3) ≤ 2 * Real.pi / ((m : ℝ) + 3) := by
+    apply div_le_div_of_nonneg_left (by positivity) (by positivity)
+    exact_mod_cast Nat.cast_le.2 (by omega : m + 3 ≤ n + 3)
+  have h3 : 2 * Real.pi / ((m : ℝ) + 3) ≤ Real.pi := by
+    rw [div_le_iff₀ (by positivity)]
+    nlinarith [Real.pi_pos, Nat.cast_nonneg (α := ℝ) m]
+  have := Real.cos_le_cos_of_nonneg_of_le_pi h1 h3 h2
+  linarith
+
+/-- **The algebraic connectivity of a cylinder** is the smaller of the cycle's and the path's. -/
+theorem algConn_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 3) □g path (n + 2)).algConn
+      = min (2 - 2 * Real.cos (2 * Real.pi / ((m : ℝ) + 3)))
+          (2 - 2 * Real.cos (Real.pi / ((n : ℝ) + 2))) := by
+  rw [algConn_cartesianProduct (by simp) (by simp), algConn_cycle, algConn_path]
 
 /-- **`Δ + 1 ≤ μ_max`**, at the `IsoGraph` level. -/
 theorem maxDeg_add_one_le_lapLambdaMax {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.E) :

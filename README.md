@@ -4394,6 +4394,13 @@ theorem spectrum_hypercube (n : ℕ) :
 
 — the eigenvalues of `K₂` are `±1`, so the step adds `1` to every eigenvalue of `Q n` and
 subtracts `1` from every eigenvalue of `Q n`, and the two copies recombine by Pascal's rule.
+
+The same product rule gives the three boards outright, since the path and the cycle are already
+known: `spectrum_grid` is the multiset of `2 cos (π (i + 1) / (m + 1)) + 2 cos (π (j + 1) / (n + 1))`
+over `Fin m × Fin n`, `spectrum_cartesianProduct_cycle` is the torus' `2 cos (2 π i / m) +
+2 cos (2 π j / n)`, and `spectrum_cartesianProduct_cycle_path` is the cylinder's mixture of the
+two. Each is one `rw` — the product law, the two factor spectra, and a lemma turning a product
+of two `Finset.univ` multisets back into the `univ` of a product type.
 The complement starts from the eigenvector statement: `Gᶜ`'s adjacency matrix is `J - I - A`, so
 an eigenvector orthogonal to the all-ones vector survives with `x` replaced by `-1 - x`. For a
 connected regular graph that determines the whole multiset:
@@ -5063,6 +5070,14 @@ factor's Fiedler value, and the other coordinate is nonnegative. No connectivity
 needed — if either factor is disconnected, both sides are `0`. Since `Qₙ = Qₙ₋₁ □ K₂`, these two
 recover `algConn_hypercube = 2` and `lapLambdaMax_hypercube = 2n` by induction, which is the
 structural reason the Fiedler value of the cube does not decay.
+
+They also settle the Laplacian ends of the three boards. `lapLambdaMax_grid` adds the two paths'
+maxima; `lapLambdaMax_cartesianProduct_cycle_even` is `8` — twice the degree, the even torus being
+bipartite and `4`-regular — and `lapLambdaMax_cartesianProduct_cycle_even_path` is `4` plus the
+path's. At the small end the minimum picks the *longer* side, because `2 - 2 cos (π / (k + 2))`
+decreases in `k`: `algConn_grid` is `2 - 2 cos (π / (n + 2))` for `m ≤ n`, and
+`algConn_cartesianProduct_cycle` is `2 - 2 cos (2 π / (n + 3))`. So a long thin board is exactly
+as hard to disconnect as its long side alone — the short side contributes nothing.
 
 That leaves the strongly regular graphs, which are the easiest case of all: a strongly regular
 graph is regular and has only three distinct eigenvalues `k > r > s`, so reflecting in `k` gives
