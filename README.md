@@ -5250,7 +5250,9 @@ star is exactly where `√Δ ≤ lambdaMax` is tight. Composing with the product
 `lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes, `lambdaMax_torus`
 is `4` and `lambdaMax_prism` is `3` — both of them the degree, as they must be for a regular
 graph — and `lambdaMin_torus_even`, `lambdaMin_prism_even` are their negatives once the cycle is
-long enough to be even. The hypercube is the same story a section later: `lambdaMax_hypercube` is
+long enough to be even. The ladder `Pₙ □ K₂` needs no such hypothesis: `lambdaMax_ladder` is
+`2 cos (π / (n + 2)) + 1` and `lambdaMin_ladder` is its negative, because the path factor is
+bipartite whatever its length. The hypercube is the same story a section later: `lambdaMax_hypercube` is
 `n` and `lambdaMin_hypercube` is `-n`, off the spectrum `n - 2j` with multiplicity `C(n, j)`. That
 one sits at the very end of `IsoGraph/Spectrum.lean`, after `end IsoGraph`, because
 `hypercube_succ` is an isomorphism rather than an equality, so the induction computing `Q n`'s

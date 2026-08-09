@@ -3303,6 +3303,25 @@ theorem lambdaMin_prism_even (n : ℕ) : (prism (2 * n + 4)).lambdaMin = -3 := b
   rw [lambdaMin_cartesianProduct, lambdaMin_cycle_even, h2]
   norm_num
 
+/-- **The spectral radius of a ladder** `Pₙ □ K₂` is the path's, shifted up by `1`. -/
+theorem lambdaMax_ladder (n : ℕ) :
+    (ladder (n + 1)).lambdaMax = 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) + 1 := by
+  have h2 : (complete 2).lambdaMax = 1 := by
+    show (complete (1 + 1)).lambdaMax = 1
+    rw [lambdaMax_complete]; norm_num
+  show (cartesianProduct (path (n + 1)) (complete 2)).lambdaMax = _
+  rw [lambdaMax_cartesianProduct, lambdaMax_path, h2]
+
+/-- **The least eigenvalue of a ladder** is minus its radius: the ladder is bipartite, so unlike
+the prism it needs no parity hypothesis. -/
+theorem lambdaMin_ladder (n : ℕ) :
+    (ladder (n + 1)).lambdaMin = -(2 * Real.cos (Real.pi / ((n : ℝ) + 2))) + -1 := by
+  have h2 : (complete 2).lambdaMin = -1 := by
+    show (complete (0 + 2)).lambdaMin = -1
+    rw [lambdaMin_complete]
+  show (cartesianProduct (path (n + 1)) (complete 2)).lambdaMin = _
+  rw [lambdaMin_cartesianProduct, lambdaMin_path, h2]
+
 /-! ### The extreme eigenvalues of the strongly regular families
 
 Each of these graphs has an explicit spectrum above, with the degree at the top and one other
