@@ -127,6 +127,8 @@ def empty (n : ℕ) : CGraph where
 
 instance (n : ℕ) : DecidableEq (empty n).V := inferInstanceAs (DecidableEq (Fin n))
 
+instance (n : ℕ) : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
+
 @[simp] theorem empty_adj (n : ℕ) (i j : (empty n).V) : (empty n).Adj i j = false := rfl
 
 @[simp] theorem card_empty (n : ℕ) : Fintype.card (empty n).V = n := Fintype.card_fin n
@@ -146,6 +148,9 @@ def compl (G : CGraph) [DecidableEq G.V] : CGraph where
 
 instance (G : CGraph) [DecidableEq G.V] : DecidableEq (compl G).V :=
   inferInstanceAs (DecidableEq G.V)
+
+instance (G : CGraph) [DecidableEq G.V] [Nonempty G.V] : Nonempty (compl G).V :=
+  inferInstanceAs (Nonempty G.V)
 
 theorem compl_eq_ofRel (G : CGraph) [DecidableEq G.V] :
     compl G = ofRel G.V fun x y ↦ !G.Adj x y :=
@@ -267,6 +272,8 @@ def complete (n : ℕ) : CGraph := compl (empty n)
 
 instance (n : ℕ) : DecidableEq (complete n).V := inferInstanceAs (DecidableEq (Fin n))
 
+instance (n : ℕ) : Nonempty (complete (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
+
 @[simp] theorem card_complete (n : ℕ) : Fintype.card (complete n).V = n := Fintype.card_fin n
 
 /-- The join: a disjoint union together with every edge between the two parts. -/
@@ -309,6 +316,9 @@ def bipartite (m n : ℕ) : CGraph := compl (disjUnion (complete m) (complete n)
 instance (m n : ℕ) : DecidableEq (bipartite m n).V :=
   inferInstanceAs (DecidableEq (Fin m ⊕ Fin n))
 
+instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
+  inferInstanceAs (Nonempty (Fin (m + 1) ⊕ Fin n))
+
 @[simp] theorem card_bipartite (m n : ℕ) : Fintype.card (bipartite m n).V = m + n := by
   simp [bipartite]
 
@@ -340,12 +350,16 @@ def star (n : ℕ) : CGraph := bipartite 1 n
 
 instance (n : ℕ) : DecidableEq (star n).V := inferInstanceAs (DecidableEq (bipartite 1 n).V)
 
+instance (n : ℕ) : Nonempty (star n).V := inferInstanceAs (Nonempty (bipartite (0 + 1) n).V)
+
 /-! ## Paths, cycles and theta graphs -/
 
 /-- The path on `n` vertices. -/
 def path (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ i.1 + 1 == j.1
 
 instance (n : ℕ) : DecidableEq (path n).V := inferInstanceAs (DecidableEq (Fin n))
+
+instance (n : ℕ) : Nonempty (path (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
 @[simp] theorem card_path (n : ℕ) : Fintype.card (path n).V = n := Fintype.card_fin n
 
@@ -354,6 +368,8 @@ edgeless, and `cycle 2` is a single edge. -/
 def cycle (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ (i.1 + 1) % n == j.1
 
 instance (n : ℕ) : DecidableEq (cycle n).V := inferInstanceAs (DecidableEq (Fin n))
+
+instance (n : ℕ) : Nonempty (cycle (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
 @[simp] theorem card_cycle (n : ℕ) : Fintype.card (cycle n).V = n := Fintype.card_fin n
 
@@ -714,6 +730,8 @@ def hypercube (n : ℕ) : CGraph where
 
 instance (n : ℕ) : DecidableEq (hypercube n).V :=
   inferInstanceAs (DecidableEq (Fin n → Bool))
+
+instance (n : ℕ) : Nonempty (hypercube n).V := inferInstanceAs (Nonempty (Fin n → Bool))
 
 @[simp] theorem hypercube_adj (n : ℕ) (x y : Fin n → Bool) :
     (hypercube n).Adj x y = ((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) := rfl

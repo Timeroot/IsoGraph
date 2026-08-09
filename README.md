@@ -5214,6 +5214,18 @@ that keeps `|1 + λ|` under `1 + λ_max` so the two negatives cannot multiply th
 top. These are the adjacency counterparts of `lapLambdaMax_cartesianProduct` and
 `algConn_cartesianProduct`, which run the same argument on the Laplacian.
 
+The named families get their two ends the same way, straight off the spectra computed much
+earlier. `lambdaMax_complete` is `n` and `lambdaMin_complete` is `-1`; `lambdaMax_cycle` is `2`,
+attained at the constant eigenvector, and `lambdaMin_cycle_even` is `-2`, the value at the angle
+`π` that only an even cycle reaches. The path is the interesting one: `lambdaMax_path` is
+`2 cos (π / (n + 2))`, just under `2`, because cosine is decreasing on `[0, π]` and the smallest
+of the path's angles is the first, and `lambdaMin_path` is its negative, since the path is
+bipartite and the largest angle `π - π / (n + 2)` is the reflection of the smallest. For the
+complete bipartite graph the spectrum is `±√(mn)` with zeros between, so `lambdaMax_bipartite`
+and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star` are `±√n` — the
+star is exactly where `√Δ ≤ lambdaMax` is tight. Composing with the product rule,
+`lambdaMax_grid` is the sum of the two paths' radii.
+
 Equality in either direction pins the vector down:
 
 ```lean

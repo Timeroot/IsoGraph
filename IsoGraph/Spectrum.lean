@@ -2835,6 +2835,193 @@ theorem lambdaMax_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
     exact Multiset.mem_map.2 ⟨(G.lambdaMax, H.lambdaMax), Multiset.mem_product.2
       ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
 
+/-! ### The extreme eigenvalues of the named families -/
+
+/-- **The spectral radius of a complete graph** is its degree. -/
+theorem lambdaMax_complete (n : ℕ) : (complete (n + 1)).lambdaMax = n := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_complete, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact le_refl _
+    · rw [Multiset.eq_of_mem_replicate hx]
+      linarith [Nat.cast_nonneg (α := ℝ) n]
+  · rw [spectrum_complete]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of a complete graph** is `-1`, with multiplicity `n - 1`. -/
+theorem lambdaMin_complete (n : ℕ) : (complete (n + 2)).lambdaMin = -1 := by
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_complete]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)
+  · have hx := lambdaMin_mem_spectrum (complete (n + 2))
+    rw [spectrum_complete, Multiset.mem_cons] at hx
+    rcases hx with h | h
+    · rw [h]
+      push_cast
+      linarith [Nat.cast_nonneg (α := ℝ) n]
+    · rw [Multiset.eq_of_mem_replicate h]
+
+/-- **The spectral radius of a cycle** is `2`, attained at the constant eigenvector. -/
+theorem lambdaMax_cycle (n : ℕ) : (cycle (n + 3)).lambdaMax = 2 := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_cycle (by omega), Multiset.mem_map] at hx
+    obtain ⟨m, -, rfl⟩ := hx
+    have := Real.cos_le_one (2 * Real.pi * m.1 / ((n + 3 : ℕ) : ℝ))
+    linarith
+  · rw [spectrum_cycle (by omega), Multiset.mem_map]
+    refine ⟨⟨0, by omega⟩, Finset.mem_univ_val _, ?_⟩
+    norm_num
+
+/-- **The least eigenvalue of an even cycle** is `-2`: the even cycle is bipartite, so the
+spectral radius is attained at both ends. -/
+theorem lambdaMin_cycle_even (n : ℕ) : (cycle (2 * n + 4)).lambdaMin = -2 := by
+  have hn0 : ((2 * n + 4 : ℕ) : ℝ) ≠ 0 := by positivity
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_cycle (by omega), Multiset.mem_map]
+    refine ⟨⟨n + 2, by omega⟩, Finset.mem_univ_val _, ?_⟩
+    have harg : 2 * Real.pi * ((⟨n + 2, by omega⟩ : Fin (2 * n + 4)) : ℕ)
+        / ((2 * n + 4 : ℕ) : ℝ) = Real.pi := by
+      push_cast
+      field_simp
+      ring
+    rw [harg, Real.cos_pi]
+    norm_num
+  · have hx := lambdaMin_mem_spectrum (cycle (2 * n + 4))
+    rw [spectrum_cycle (by omega), Multiset.mem_map] at hx
+    obtain ⟨m, -, hm⟩ := hx
+    have := Real.neg_one_le_cos (2 * Real.pi * m.1 / ((2 * n + 4 : ℕ) : ℝ))
+    rw [← hm]
+    linarith
+
+/-- **The spectral radius of a path** is `2 cos (π / (n + 2))`, just under `2`: cosine is
+decreasing, so the largest of the path's eigenvalues is the one at the smallest angle. -/
+theorem lambdaMax_path (n : ℕ) :
+    (path (n + 1)).lambdaMax = 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) := by
+  have hpi := Real.pi_pos
+  have hn0 : (0 : ℝ) < (n : ℝ) + 2 := by positivity
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_path, Multiset.mem_map] at hx
+    obtain ⟨m, -, rfl⟩ := hx
+    have hm : (m.1 : ℝ) ≤ (n : ℝ) := by exact_mod_cast Nat.lt_succ_iff.1 m.isLt
+    have hle : Real.pi / ((n : ℝ) + 2) ≤ Real.pi * ((m.1 : ℝ) + 1) / (((n : ℕ) : ℝ) + 1 + 1) := by
+      rw [div_le_div_iff₀ (by positivity) (by positivity)]
+      have h0 : (0 : ℝ) ≤ Real.pi * (m.1 : ℝ) * ((n : ℝ) + 2) := by positivity
+      nlinarith
+    have hub : Real.pi * ((m.1 : ℝ) + 1) / (((n : ℕ) : ℝ) + 1 + 1) ≤ Real.pi := by
+      rw [div_le_iff₀ (by positivity)]
+      nlinarith
+    have := Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hub hle
+    push_cast
+    push_cast at this
+    linarith
+  · rw [spectrum_path, Multiset.mem_map]
+    refine ⟨⟨0, by omega⟩, Finset.mem_univ_val _, ?_⟩
+    push_cast
+    ring_nf
+
+/-- **The least eigenvalue of a path** is `-2 cos (π / (n + 2))`: the path is bipartite, so its
+spectrum is symmetric about zero, and the extreme angle at the other end is `π - π / (n + 2)`. -/
+theorem lambdaMin_path (n : ℕ) :
+    (path (n + 1)).lambdaMin = -(2 * Real.cos (Real.pi / ((n : ℝ) + 2))) := by
+  have hpi := Real.pi_pos
+  have hn0 : (0 : ℝ) < (n : ℝ) + 2 := by positivity
+  have hlast : Real.pi * ((n : ℝ) + 1) / ((n : ℝ) + 2) = Real.pi - Real.pi / ((n : ℝ) + 2) := by
+    field_simp
+    ring
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_path, Multiset.mem_map]
+    refine ⟨⟨n, by omega⟩, Finset.mem_univ_val _, ?_⟩
+    push_cast
+    rw [show Real.pi * ((n : ℝ) + 1) / ((n : ℝ) + 1 + 1)
+        = Real.pi * ((n : ℝ) + 1) / ((n : ℝ) + 2) by ring_nf, hlast, Real.cos_pi_sub]
+    ring
+  · have hx := lambdaMin_mem_spectrum (path (n + 1))
+    rw [spectrum_path, Multiset.mem_map] at hx
+    obtain ⟨m, -, hm⟩ := hx
+    have hmn : (m.1 : ℝ) ≤ (n : ℝ) := by exact_mod_cast Nat.lt_succ_iff.1 m.isLt
+    have hle : Real.pi * ((m.1 : ℝ) + 1) / (((n : ℕ) : ℝ) + 1 + 1)
+        ≤ Real.pi * ((n : ℝ) + 1) / ((n : ℝ) + 2) := by
+      rw [div_le_div_iff₀ (by positivity) (by positivity)]
+      have h0 : (0 : ℝ) ≤ Real.pi * ((n : ℝ) - (m.1 : ℝ)) * ((n : ℝ) + 2) := by
+        have : (0 : ℝ) ≤ (n : ℝ) - (m.1 : ℝ) := by linarith
+        positivity
+      nlinarith
+    have hnn : (0 : ℝ) ≤ Real.pi * ((m.1 : ℝ) + 1) / (((n : ℕ) : ℝ) + 1 + 1) := by positivity
+    have hub : Real.pi * ((n : ℝ) + 1) / ((n : ℝ) + 2) ≤ Real.pi := by
+      rw [div_le_iff₀ (by positivity)]
+      nlinarith
+    have hcos := Real.cos_le_cos_of_nonneg_of_le_pi hnn hub hle
+    rw [hlast, Real.cos_pi_sub] at hcos
+    rw [← hm]
+    push_cast
+    linarith
+
+/-- **The spectral radius of a complete bipartite graph** is `√(mn)`: its spectrum is
+`±√(mn)` together with zeros. -/
+theorem lambdaMax_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).lambdaMax = Real.sqrt ((m + 1) * (n + 1)) := by
+  have hs : (0 : ℝ) ≤ Real.sqrt (((m : ℝ) + 1) * ((n : ℝ) + 1)) := Real.sqrt_nonneg _
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_bipartite] at hx
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · linarith
+    · rw [Multiset.eq_of_mem_replicate hx]
+      exact hs
+  · rw [spectrum_bipartite]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of a complete bipartite graph** is `-√(mn)`: the graph is bipartite,
+so its spectrum is symmetric. -/
+theorem lambdaMin_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).lambdaMin = -Real.sqrt ((m + 1) * (n + 1)) := by
+  have hs : (0 : ℝ) ≤ Real.sqrt (((m : ℝ) + 1) * ((n : ℝ) + 1)) := Real.sqrt_nonneg _
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_bipartite]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_cons_self _ _)
+  · have hx := lambdaMin_mem_spectrum (bipartite (m + 1) (n + 1))
+    rw [spectrum_bipartite] at hx
+    rcases Multiset.mem_cons.1 hx with h | h
+    · rw [h]; linarith
+    rcases Multiset.mem_cons.1 h with h | h
+    · rw [h]
+    · rw [Multiset.eq_of_mem_replicate h]; linarith
+
+/-- **The spectral radius of a star** is `√n`, the bound `√Δ ≤ λ_max` attained. -/
+theorem lambdaMax_star (n : ℕ) : (star (n + 1)).lambdaMax = Real.sqrt (n + 1) := by
+  have hs : (0 : ℝ) ≤ Real.sqrt ((n : ℝ) + 1) := Real.sqrt_nonneg _
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_star] at hx
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · linarith
+    · rw [Multiset.eq_of_mem_replicate hx]
+      exact hs
+  · rw [spectrum_star]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of a star** is `-√n`. -/
+theorem lambdaMin_star (n : ℕ) : (star (n + 1)).lambdaMin = -Real.sqrt (n + 1) := by
+  have hs : (0 : ℝ) ≤ Real.sqrt ((n : ℝ) + 1) := Real.sqrt_nonneg _
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_star]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_cons_self _ _)
+  · have hx := lambdaMin_mem_spectrum (star (n + 1))
+    rw [spectrum_star] at hx
+    rcases Multiset.mem_cons.1 hx with h | h
+    · rw [h]; linarith
+    rcases Multiset.mem_cons.1 h with h | h
+    · rw [h]
+    · rw [Multiset.eq_of_mem_replicate h]; linarith
+
+/-- **The spectral radius of a grid** is the sum of the two paths'. -/
+theorem lambdaMax_grid (m n : ℕ) :
+    (cartesianProduct (path (m + 1)) (path (n + 1))).lambdaMax
+      = 2 * Real.cos (Real.pi / ((m : ℝ) + 2)) + 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) := by
+  rw [lambdaMax_cartesianProduct, lambdaMax_path, lambdaMax_path]
+
 /-! ### The equality case: regularity is spectral -/
 
 /-- **The equality case of the variational principle**: a vector whose Rayleigh quotient attains
