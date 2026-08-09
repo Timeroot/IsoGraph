@@ -15112,6 +15112,11 @@ theorem not_isBipartite_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E
   rw [E_complete]
   exact Nat.choose_pos (by omega)
 
+@[simp] theorem E_hypercube_pos (n : ℕ) : 0 < (hypercube (n + 1)).E := by
+  have h := E_hypercube (n + 1)
+  have hp : 0 < (n + 1) * 2 ^ (n + 1) := by positivity
+  omega
+
 /-! ### Vertex- and arc-transitivity -/
 
 @[simp] theorem isVertexTransitive_empty (n : ℕ) : IsVertexTransitive (empty n) :=
@@ -43904,14 +43909,70 @@ theorem isRegularWith_cartesianProduct_cycle_hypercube (m n : ℕ) :
 
 theorem girth_cartesianProduct_cycle_hypercube_even (t n : ℕ) :
     (cycle (2 * t + 4) □g hypercube (n + 1)).girth = 4 := by
-  have hE : 0 < (hypercube (n + 1)).E := by
-    have h := E_hypercube (n + 1)
-    have hp : 0 < (n + 1) * 2 ^ (n + 1) := by positivity
-    omega
   have hb : IsBipartite (cycle (2 * t + 4)) := by
     rw [show 2 * t + 4 = 2 * (t + 2) from by ring]
     exact isBipartite_cycle_even (t + 2)
-  exact girth_cartesianProduct (by rw [E_cycle]; omega) hE hb (isBipartite_hypercube (n + 1))
+  exact girth_cartesianProduct (by rw [E_cycle]; omega) (E_hypercube_pos n) hb
+    (isBipartite_hypercube (n + 1))
+
+/-! ### Class-one cartesian products
+
+`χ'(G □ H) ≤ χ'(G) + χ'(H)` meets the maximum degree exactly when both factors do, so a product of
+two class-one graphs is class one.  Every case below has an even complete graph or an even cycle
+on each side, since those are the class-one members of their families. -/
+
+/-- **`K_{2m+2} □ Pₙ` is class one.** -/
+theorem edgeChromNum_cartesianProduct_complete_even_path (m n : ℕ) :
+    (complete (2 * m + 2) □g path (n + 3)).edgeChromNum = 2 * m + 3 := by
+  refine le_antisymm ?_ ?_
+  · have h := edgeChromNum_cartesianProduct_le (G := complete (2 * m + 2)) (H := path (n + 3))
+      (E_complete_pos (2 * m))
+      (by rw [show n + 3 = (n + 2) + 1 from rfl, E_path]; omega)
+    rwa [edgeChromNum_complete_even, edgeChromNum_path, show 2 * m + 1 + 2 = 2 * m + 3 by ring] at h
+  · have h := maxDeg_le_edgeChromNum (complete (2 * m + 2) □g path (n + 3))
+    rwa [show 2 * m + 2 = (2 * m + 1) + 1 by omega, maxDeg_cartesianProduct_complete_path,
+      show 2 * m + 1 + 2 = 2 * m + 3 by ring] at h
+
+/-- **`K_{2m+2} □ C_{2n+4}` is class one.** -/
+theorem edgeChromNum_cartesianProduct_complete_even_cycle_even (m n : ℕ) :
+    (complete (2 * m + 2) □g cycle (2 * n + 4)).edgeChromNum = 2 * m + 3 := by
+  refine le_antisymm ?_ ?_
+  · have h := edgeChromNum_cartesianProduct_le (G := complete (2 * m + 2))
+      (H := cycle (2 * n + 4)) (E_complete_pos (2 * m))
+      (by rw [show 2 * n + 4 = (2 * n + 1) + 3 by omega, E_cycle]; omega)
+    rwa [edgeChromNum_complete_even, edgeChromNum_cycle_even,
+      show 2 * m + 1 + 2 = 2 * m + 3 by ring] at h
+  · have h := maxDeg_le_edgeChromNum (complete (2 * m + 2) □g cycle (2 * n + 4))
+    rwa [show 2 * m + 2 = (2 * m + 1) + 1 by omega, show 2 * n + 4 = (2 * n + 1) + 3 by omega,
+      maxDeg_cartesianProduct_complete_cycle, show 2 * m + 1 + 2 = 2 * m + 3 by ring] at h
+
+/-- **A rook's graph with both sides even is class one.** -/
+theorem edgeChromNum_rook_even (m n : ℕ) :
+    (rook (2 * m + 2) (2 * n + 2)).edgeChromNum = 2 * m + 2 * n + 2 := by
+  rw [show rook (2 * m + 2) (2 * n + 2) = complete (2 * m + 2) □g complete (2 * n + 2) from rfl]
+  refine le_antisymm ?_ ?_
+  · have h := edgeChromNum_cartesianProduct_le (G := complete (2 * m + 2))
+      (H := complete (2 * n + 2)) (E_complete_pos (2 * m)) (E_complete_pos (2 * n))
+    rwa [edgeChromNum_complete_even, edgeChromNum_complete_even,
+      show 2 * m + 1 + (2 * n + 1) = 2 * m + 2 * n + 2 by ring] at h
+  · have hd : maxDeg (complete (2 * m + 2) □g complete (2 * n + 2)) = 2 * m + 2 * n + 2 := by
+      rw [show complete (2 * m + 2) □g complete (2 * n + 2) = rook (2 * m + 2) (2 * n + 2) from rfl,
+        show 2 * m + 2 = (2 * m + 1) + 1 by omega, show 2 * n + 2 = (2 * n + 1) + 1 by omega,
+        maxDeg_rook]
+      omega
+    rw [← hd]
+    exact maxDeg_le_edgeChromNum _
+
+/-- **An even cycle crossed with a hypercube is class one.** -/
+theorem edgeChromNum_cartesianProduct_cycle_even_hypercube (m n : ℕ) :
+    (cycle (2 * m + 4) □g hypercube (n + 1)).edgeChromNum = n + 3 := by
+  refine le_antisymm ?_ ?_
+  · have h := edgeChromNum_cartesianProduct_le (G := cycle (2 * m + 4)) (H := hypercube (n + 1))
+      (by rw [show 2 * m + 4 = (2 * m + 1) + 3 by omega, E_cycle]; omega) (E_hypercube_pos n)
+    rwa [edgeChromNum_cycle_even, edgeChromNum_hypercube, show 2 + (n + 1) = n + 3 by ring] at h
+  · have h := maxDeg_le_edgeChromNum (cycle (2 * m + 4) □g hypercube (n + 1))
+    rwa [show 2 * m + 4 = (2 * m + 1) + 3 by omega, maxDeg_cartesianProduct_cycle_hypercube,
+      show 2 + (n + 1) = n + 3 by ring] at h
 
 /-! ### Colouring the torus and the cylinder -/
 

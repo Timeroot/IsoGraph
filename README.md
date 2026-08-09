@@ -3486,6 +3486,16 @@ factor has a triangle: `girth_cartesianProduct_complete_cycle = 3` once `m ≥ 3
 maximum finally fills the colouring holes in the torus and the cylinder, where
 `chromNum_cartesianProduct_cycle_even_even = 2` and its three odd siblings equal `3`.
 
+Those rows also now carry a chromatic index, since `edgeChromNum_cartesianProduct_le` meets the
+maximum degree exactly when both factors do. A graph is *class one* when `χ' = Δ`, and the class-one
+members of the two basic families are the even complete graphs and the even cycles, so the products
+of those are class one too: `edgeChromNum_cartesianProduct_complete_even_path` and
+`edgeChromNum_cartesianProduct_complete_even_cycle_even` are both `2m + 3` for `K_{2m+2}` crossed
+with a path or an even cycle, `edgeChromNum_cartesianProduct_cycle_even_hypercube = n + 3` for
+`C_even □ Qₙ₊₁`, and `edgeChromNum_rook_even : χ'(K_{2m+2} □ K_{2n+2}) = 2m + 2n + 2` gives the
+rook's graph its first exact value — until now the row had only the odd lower bound
+`edgeChromNum_rook_odd_ge` and the brute-forced `edgeChromNum_rook_three_three = 5`.
+
 Connectivity of the tensor product is the one product law that needs a parity hypothesis:
 `isConnected_tensorProduct` wants a connected non-bipartite left factor and a connected right
 factor with an edge, because otherwise `G ⊗ H` splits into two halves. Three graphs supply the left
