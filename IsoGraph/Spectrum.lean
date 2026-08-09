@@ -103,11 +103,12 @@ two ends of the products (`lambdaMax_disjUnion`, `lambdaMax_cartesianProduct`,
 `lambdaMin` counterparts) and of the named families (`lambdaMax_complete`, `lambdaMax_cycle`,
 `lambdaMax_path` and the rest, down to the strongly regular ones — `lambdaMax_petersen`,
 `lambdaMax_rook`, `lambdaMax_paley` — and `lambdaMax_hypercube` at the very end of the file) are
-read off the spectra computed above.  The one family that is not is the join: no adjacency
-spectrum of a join is on file, so `lambdaMax_join_of_isRegularWith` computes the radius of
-`G ∇ H`, for `k`-regular `G` on `n` vertices and `l`-regular `H` on `m` vertices, directly from an
-explicit positive eigenvector.  `adjMat_mulVec_join` is that eigenvector equation: a vector
-constant on each side is an eigenvector as soon as `k a + m b = λ a` and `n a + l b = λ b`, which
+read off the spectra computed above.  The one family that is not is the join: outside the regular
+case no adjacency spectrum of a join is on file, so `lambdaMax_join_of_isRegularWith` computes the
+radius of `G ∇ H`, for `k`-regular `G` on `n` vertices and `l`-regular `H` on `m` vertices,
+directly from an explicit positive eigenvector.  `adjMat_mulVec_join` is that eigenvector
+equation: a vector constant on each side is an eigenvector as soon as `k a + m b = λ a` and
+`n a + l b = λ b`, which
 happens exactly at the two roots of `(x - k) (x - l) = n m`.  The larger one,
 `(k + l + √((k - l) ² + 4 n m)) / 2`, is the spectral radius, and the smaller one is an eigenvalue
 too, so `lambdaMin_join_of_isRegularWith_le` bounds the *bottom* of the join's spectrum — an
@@ -220,6 +221,13 @@ in general is `lapSpectrum_join`: **a join has Laplacian spectrum `0`, the order
 factor's remaining eigenvalues shifted by the order of the other factor.**  Both ends of it are
 immediate: `lapLambdaMax_join` is the order, and `algConn_join` is
 `min (a (G) + m, a (H) + n)` — the order itself is never the smallest, because `a (G) ≤ n`.
+Read backwards through `spectrum_of_isRegularWith` this also settles the *adjacency* spectrum of a
+join, in the one case where the join is regular: if `k + m = n + l` then `G ∇ H` is regular of
+that degree and `spectrum_join_of_isRegularWith` says its spectrum is that degree, `k - n`, and
+every other eigenvalue of each factor **unchanged** — the shifts of the Laplacian statement cancel
+against the degree.  The two new eigenvalues are the two roots of `(x - k) (x - l) = n m` from
+`adjMat_mulVec_join`, so this is the case where `lambdaMax_join_of_isRegularWith` and
+`lambdaMin_join_of_isRegularWith_le` are both visibly sharp at the ends.
 
 The other non-regular family worth having is the path, `lapSpectrum_path`: the numbers
 `2 - 2 cos (π m / n)`.  The eigenvectors are the discrete cosines `cos (π m (j + 1/2) / n)`, whose
@@ -6560,6 +6568,13 @@ theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith
       Function.comp_def]
   · exact Finset.prod_ne_zero_iff.2 fun i _ ↦ Polynomial.X_sub_C_ne_zero _
 
+/-- The same statement read backwards: **the adjacency spectrum of a `k`-regular graph is `k`
+minus its Laplacian spectrum**. -/
+theorem spectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.spectrum = G.lapSpectrum.map (fun x ↦ (k : ℝ) - x) := by
+  rw [lapSpectrum_of_isRegularWith h, Multiset.map_map]
+  simp
+
 theorem isRegularWith_empty (n : ℕ) : (empty n).IsRegularWith 0 := by
   intro v
   simp [SimpleGraph.degree, SimpleGraph.neighborFinset, SimpleGraph.neighborSet, empty,
@@ -6974,6 +6989,38 @@ theorem lapSpectrum_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   · congr 1
     · exact Multiset.map_congr rfl fun x _ ↦ by push_cast; ring
     · exact Multiset.map_congr rfl fun x _ ↦ by push_cast; ring
+
+/-- **The adjacency spectrum of a regular join**.  If `G` is `k`-regular on `n` vertices and `H`
+is `l`-regular on `m` vertices with `k + m = n + l`, so that `G ∇ H` is regular of that common
+degree, then the join has that degree as an eigenvalue, `k - n` as a second one, and keeps every
+*other* eigenvalue of each factor unchanged. -/
+theorem spectrum_join_of_isRegularWith {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] {k l m : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
+    (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
+    (join G H).spectrum
+      = (m : ℝ) ::ₘ (((k : ℝ) - Fintype.card G.V)
+          ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ))) := by
+  have hinj : Function.Injective (fun x : ℝ ↦ (k : ℝ) - x) := fun a b hab ↦ by
+    simpa using hab
+  have hinj' : Function.Injective (fun x : ℝ ↦ (l : ℝ) - x) := fun a b hab ↦ by
+    simpa using hab
+  have hGe : G.lapSpectrum.erase 0 = (G.spectrum.erase (k : ℝ)).map (fun x ↦ (k : ℝ) - x) := by
+    rw [lapSpectrum_of_isRegularWith hG, Multiset.map_erase _ hinj]
+    simp
+  have hHe : H.lapSpectrum.erase 0 = (H.spectrum.erase (l : ℝ)).map (fun x ↦ (l : ℝ) - x) := by
+    rw [lapSpectrum_of_isRegularWith hH, Multiset.map_erase _ hinj']
+    simp
+  have hhead : (m : ℝ) - ((Fintype.card G.V : ℝ) + Fintype.card H.V)
+      = (k : ℝ) - Fintype.card G.V := by
+    rw [← h1]; push_cast; ring
+  have hk : ∀ x : ℝ, (m : ℝ) - ((k : ℝ) - x + (Fintype.card H.V : ℝ)) = x := fun x ↦ by
+    rw [← h1]; push_cast; ring
+  have hl : ∀ x : ℝ, (m : ℝ) - ((l : ℝ) - x + (Fintype.card G.V : ℝ)) = x := fun x ↦ by
+    rw [← h2]; push_cast; ring
+  rw [spectrum_of_isRegularWith (hG.join hH h1 h2), lapSpectrum_join, hGe, hHe]
+  rw [Multiset.map_cons, Multiset.map_cons, Multiset.map_add, Multiset.map_map, Multiset.map_map,
+    Multiset.map_map, Multiset.map_map]
+  simp only [Function.comp_def, sub_zero, hhead, hk, hl, Multiset.map_id']
 
 /-- The adjacency matrix of the path acting on a vector coming from a function on `ℕ`, with no
 boundary condition: the missing neighbour at each end simply contributes nothing. -/
@@ -9141,6 +9188,14 @@ theorem lapSpectrum_of_isRegularWith {G : IsoGraph} {k : ℕ} (h : G.IsRegularWi
     rw [isRegularWith_mk] at h
     rw [lapSpectrum_mk, spectrum_mk, CGraph.lapSpectrum_of_isRegularWith h]
 
+/-- **The adjacency spectrum of a `k`-regular graph is `k` minus its Laplacian spectrum.** -/
+theorem spectrum_of_isRegularWith {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.spectrum = G.lapSpectrum.map (fun x ↦ (k : ℝ) - x) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    rw [isRegularWith_mk] at h
+    rw [lapSpectrum_mk, spectrum_mk, CGraph.spectrum_of_isRegularWith h]
+
 /-- **The Laplacian spectrum of the complete graph** `K_{n+1}`: `0` once, and `n + 1` with
 multiplicity `n`. -/
 theorem lapSpectrum_complete (n : ℕ) :
@@ -9217,6 +9272,27 @@ theorem lapSpectrum_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
       haveI : Nonempty h.V := Fintype.card_pos_iff.1 hH
       rw [join_mk, lapSpectrum_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk, V_mk]
       exact CGraph.lapSpectrum_join g h
+
+/-- **The adjacency spectrum of a regular join**: if `G` is `k`-regular on `G.V` vertices and `H`
+is `l`-regular on `H.V` vertices with `k + H.V = m = G.V + l`, so that `G ∇g H` is `m`-regular,
+then the join has the eigenvalues `m` and `k - G.V` and keeps every *other* eigenvalue of each
+factor unchanged. -/
+theorem spectrum_join_of_isRegularWith {G H : IsoGraph} (hG0 : 0 < G.V) (hH0 : 0 < H.V) {k l m : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) (h1 : k + H.V = m) (h2 : G.V + l = m) :
+    (G ∇g H).spectrum
+      = (m : ℝ) ::ₘ (((k : ℝ) - G.V)
+          ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ))) := by
+  induction G using Quotient.inductionOn with
+  | h g =>
+    induction H using Quotient.inductionOn with
+    | h h =>
+      classical
+      rw [V_mk] at hG0 hH0 h1 h2
+      rw [isRegularWith_mk] at hG hH
+      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG0
+      haveI : Nonempty h.V := Fintype.card_pos_iff.1 hH0
+      rw [join_mk, spectrum_mk, spectrum_mk, spectrum_mk, V_mk]
+      exact CGraph.spectrum_join_of_isRegularWith hG hH h1 h2
 
 /-- **The Laplacian spectrum of the wheel** `W_n`: the hub contributes the order `n + 1`, and every
 nonzero eigenvalue of the rim is shifted by one. -/

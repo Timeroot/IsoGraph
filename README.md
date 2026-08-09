@@ -4845,6 +4845,27 @@ smallest nonzero eigenvalue, since `a(G) ≤ n` always. Joining to anything ther
 well connected, which is the structural reason `algConn_complete = n` and, at the other end, why
 every join has a disconnected complement.
 
+Read backwards, that theorem also settles the *adjacency* spectrum of a join — in the one case
+where the join is regular, which is the only case where the Laplacian and the adjacency matrix
+determine each other. If `G` is `k`-regular on `n` vertices, `H` is `l`-regular on `m` vertices
+and `k + m = n + l`, then every vertex of `G ∇ H` has that common degree, so `A = d I - L` and
+`spectrum_of_isRegularWith` turns the multiset above into
+
+```lean
+theorem spectrum_join_of_isRegularWith {G H : IsoGraph} (hG0 : 0 < G.V) (hH0 : 0 < H.V)
+    {k l m : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
+    (h1 : k + H.V = m) (h2 : G.V + l = m) :
+    (G ∇g H).spectrum
+      = (m : ℝ) ::ₘ (((k : ℝ) - G.V)
+          ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ)))
+```
+
+— **a regular join has the degree `m` and `k - n` as eigenvalues, and keeps every other eigenvalue
+of each factor unchanged.** The shifts of the Laplacian statement cancel exactly against the
+degree, which is why nothing moves. The two new numbers are the two roots of `(x - k)(x - l) = nm`
+discussed under the spectral radius below, so this is the case where both of those bounds are
+visibly sharp.
+
 The path is the other family regularity does not reach, and `lapSpectrum_path` gives it the
 eigenvalues `2 - 2 cos (π m / n)`, `0 ≤ m < n` — the adjacency answer was
 `2 cos (π (m+1) / (n+1))`, and the two are genuinely different lists, not one shifted by a degree.
@@ -5306,8 +5327,8 @@ complete bipartite graph the spectrum is `±√(mn)` with zeros between, so `lam
 and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star` are `±√n` — the
 star is exactly where `√Δ ≤ lambdaMax` is tight.
 
-The wheel is the one entry that does not come off a spectrum, because the full adjacency spectrum
-of a join is not on file. It comes instead from the two ends of the join, proved with the Perron
+The wheel is the one entry that does not come off a spectrum: the adjacency spectrum of a join is
+only on file when the join is regular, and a wheel is not. It comes instead from the two ends of the join, proved with the Perron
 machinery. If `G` is `k`-regular on `n` vertices and `H` is `l`-regular on `m` vertices, a vector
 that is constant `a` on `G` and constant `b` on `H` is an eigenvector of `G ∇ H` for `λ` as soon
 as `k a + m b = λ a` and `n a + l b = λ b` (`adjMat_mulVec_join`) — each vertex of `G` sees `k`
