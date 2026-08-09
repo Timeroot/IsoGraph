@@ -5238,7 +5238,9 @@ The named families get their two ends the same way, straight off the spectra com
 earlier. `lambdaMax_complete` gives `λ_max(K_{n+1}) = n` and `lambdaMin_complete` gives `-1`;
 `lambdaMax_cycle` is `2`,
 attained at the constant eigenvector, and `lambdaMin_cycle_even` is `-2`, the value at the angle
-`π` that only an even cycle reaches. The path is the interesting one: `lambdaMax_path` is
+`π` that only an even cycle reaches. An odd cycle stops short of it: `lambdaMin_cycle_odd` is
+`-2 cos (π / n)`, the closest its angles come to `π`, and reflecting that through `μ = 2 - λ`
+gives `lapLambdaMax_cycle_odd` in the Laplacian row. The path is the interesting one: `lambdaMax_path` is
 `2 cos (π / (n + 2))`, just under `2`, because cosine is decreasing on `[0, π]` and the smallest
 of the path's angles is the first, and `lambdaMin_path` is its negative, since the path is
 bipartite and the largest angle `π - π / (n + 2)` is the reflection of the smallest. For the

@@ -290,7 +290,8 @@ doubles, in contrast to the cycle's `Θ (1 / n ²)`.  Its proof uses
 straight off `count_zero_lapSpectrum`.  The path and the even cycle read the *top* of the same
 cosine ranges that `algConn_path` and `algConn_cycle` read the bottom of: `lapLambdaMax_path` is
 `2 - 2 cos (π n / (n + 1))`, climbing to `4` without reaching it, and `lapLambdaMax_cycle_even`
-is exactly `4 = 2 Δ`, because `m = n / 2` is an integer only in the even case.
+is exactly `4 = 2 Δ`, because `m = n / 2` is an integer only in the even case.  The odd case is
+`lapLambdaMax_cycle_odd`, `2 + 2 cos (π / n)`, one reflection away from `lambdaMin_cycle_odd`.
 
 The cartesian product behaves for the Laplacian exactly as it does for the adjacency matrix:
 `lapMat_cartesianProduct` is `L G ⊗ I + I ⊗ L H`, the two summands commute and are diagonalised
@@ -3076,6 +3077,66 @@ theorem lambdaMin_cycle_even (n : ℕ) : (cycle (2 * n + 4)).lambdaMin = -2 := b
     have := Real.neg_one_le_cos (2 * Real.pi * m.1 / ((2 * n + 4 : ℕ) : ℝ))
     rw [← hm]
     linarith
+
+/-- **The least eigenvalue of an odd cycle** is `-2 cos (π / n)`: no angle `2 π m / n` lands on
+`π` when `n` is odd, and the closest one misses it by `π / n`. -/
+theorem lambdaMin_cycle_odd (n : ℕ) :
+    (cycle (2 * n + 3)).lambdaMin = -2 * Real.cos (Real.pi / ((2 * n + 3 : ℕ) : ℝ)) := by
+  have hN : (0 : ℝ) < ((2 * n + 3 : ℕ) : ℝ) := by positivity
+  have hpi : 0 < Real.pi := Real.pi_pos
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_cycle (by omega), Multiset.mem_map]
+    refine ⟨⟨n + 1, by omega⟩, Finset.mem_univ_val _, ?_⟩
+    have harg : 2 * Real.pi * ((⟨n + 1, by omega⟩ : Fin (2 * n + 3)) : ℕ) / ((2 * n + 3 : ℕ) : ℝ)
+        = Real.pi - Real.pi / ((2 * n + 3 : ℕ) : ℝ) := by
+      push_cast
+      field_simp
+      ring
+    rw [harg, Real.cos_pi_sub]
+    ring
+  · have hx := lambdaMin_mem_spectrum (cycle (2 * n + 3))
+    rw [spectrum_cycle (by omega), Multiset.mem_map] at hx
+    obtain ⟨m, -, hm⟩ := hx
+    have hmlt : m.1 < 2 * n + 3 := m.isLt
+    have hmR : ((m.1 : ℕ) : ℝ) ≤ ((2 * n + 3 : ℕ) : ℝ) - 1 := by
+      have : (m.1 : ℕ) ≤ 2 * n + 2 := by omega
+      have := (Nat.cast_le (α := ℝ)).2 this
+      push_cast at this ⊢
+      linarith
+    have hm0 : (0 : ℝ) ≤ (m.1 : ℝ) := Nat.cast_nonneg _
+    rw [← hm]
+    by_cases h : 2 * m.1 ≤ 2 * n + 3
+    · have h2m : 2 * (m.1 : ℝ) ≤ ((2 * n + 3 : ℕ) : ℝ) - 1 := by
+        have : 2 * m.1 ≤ 2 * n + 2 := by omega
+        have := (Nat.cast_le (α := ℝ)).2 this
+        push_cast at this ⊢
+        linarith
+      have h1 : Real.pi / ((2 * n + 3 : ℕ) : ℝ)
+          ≤ Real.pi - 2 * Real.pi * m.1 / ((2 * n + 3 : ℕ) : ℝ) := by
+        rw [div_le_iff₀ hN, sub_mul, div_mul_cancel₀ _ (ne_of_gt hN)]
+        nlinarith
+      have h2 : Real.pi - 2 * Real.pi * m.1 / ((2 * n + 3 : ℕ) : ℝ) ≤ Real.pi := by
+        have : 0 ≤ 2 * Real.pi * m.1 / ((2 * n + 3 : ℕ) : ℝ) := by positivity
+        linarith
+      have hcos := Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) h2 h1
+      rw [Real.cos_pi_sub] at hcos
+      linarith
+    · push_neg at h
+      have h1 : Real.pi / ((2 * n + 3 : ℕ) : ℝ)
+          ≤ 2 * Real.pi * m.1 / ((2 * n + 3 : ℕ) : ℝ) - Real.pi := by
+        rw [div_le_iff₀ hN, sub_mul, div_mul_cancel₀ _ (ne_of_gt hN)]
+        have : ((2 * n + 3 : ℕ) : ℝ) + 1 ≤ 2 * (m.1 : ℝ) := by
+          have : 2 * n + 3 + 1 ≤ 2 * m.1 := by omega
+          have := (Nat.cast_le (α := ℝ)).2 this
+          push_cast at this ⊢
+          linarith
+        nlinarith
+      have h2 : 2 * Real.pi * m.1 / ((2 * n + 3 : ℕ) : ℝ) - Real.pi ≤ Real.pi := by
+        rw [sub_le_iff_le_add, div_le_iff₀ hN]
+        nlinarith
+      have hcos := Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) h2 h1
+      rw [Real.cos_sub_pi] at hcos
+      linarith
 
 /-- **The spectral radius of a path** is `2 cos (π / (n + 2))`, just under `2`: cosine is
 decreasing, so the largest of the path's eigenvalues is the one at the smallest angle. -/
@@ -8907,6 +8968,17 @@ theorem lapLambdaMax_cycle_even {n : ℕ} (hn : 2 ≤ n) : (cycle (2 * n)).lapLa
     have hfm : f m = 2 - 2 * Real.cos (2 * Real.pi * m.1 / ((2 * n : ℕ) : ℝ)) := rfl
     rw [hfm]
     linarith
+
+/-- **The largest Laplacian eigenvalue of an odd cycle** is `2 + 2 cos (π / n)`, just short of the
+even cycle's `4`: the closest an odd cycle's angles come to `π` is `π - π / n`, so its adjacency
+spectrum stops at `-2 cos (π / n)` and the reflection `μ_max = 2 - λ_min` stops with it. -/
+theorem lapLambdaMax_cycle_odd (n : ℕ) :
+    (cycle (2 * n + 3)).lapLambdaMax = 2 + 2 * Real.cos (Real.pi / ((2 * n + 3 : ℕ) : ℝ)) := by
+  have hr : (CGraph.cycle (2 * n + 3)).IsRegularWith 2 := isRegularWith_cycle (2 * n)
+  rw [cycle_def, lapLambdaMax_mk, CGraph.lapLambdaMax_of_isRegularWith hr,
+    CGraph.lambdaMin_cycle_odd]
+  push_cast
+  ring
 
 /-- **A disjoint union takes the larger of the two largest eigenvalues**, where
 `algConn_disjUnion` takes neither. -/
