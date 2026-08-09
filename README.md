@@ -5204,6 +5204,16 @@ vector by its absolute value keeps the norm and cannot decrease the quadratic fo
 eigenvalue *is* the spectral radius (`abs_le_lambdaMax_of_mem_spectrum`), and in particular
 `-lambdaMax ≤ lambdaMin`.
 
+That is also what makes the two extremes readable off a product. The spectra of the products are
+already known as multisets, so the two ends follow by picking the extreme member and bounding the
+rest: `lambdaMax_disjUnion` and `lambdaMin_disjUnion` take the larger and the smaller,
+`lambdaMax_cartesianProduct` and `lambdaMin_cartesianProduct` add, and `lambdaMax_strongProduct`
+is `(1 + λ_max(G)) (1 + λ_max(H)) - 1`. Only the last needs the spectral-radius bound rather than
+the eigenvalue bound: `1 + λ` can be negative at the other eigenvalues, and it is `|λ| ≤ λ_max`
+that keeps `|1 + λ|` under `1 + λ_max` so the two negatives cannot multiply their way past the
+top. These are the adjacency counterparts of `lapLambdaMax_cartesianProduct` and
+`algConn_cartesianProduct`, which run the same argument on the Laplacian.
+
 Equality in either direction pins the vector down:
 
 ```lean

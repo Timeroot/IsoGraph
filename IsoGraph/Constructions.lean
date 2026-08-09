@@ -182,6 +182,9 @@ def disjUnion (G H : CGraph) : CGraph where
 instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : DecidableEq (disjUnion G H).V :=
   inferInstanceAs (DecidableEq (G.V ⊕ H.V))
 
+instance (G H : CGraph) [Nonempty G.V] : Nonempty (disjUnion G H).V :=
+  inferInstanceAs (Nonempty (G.V ⊕ H.V))
+
 @[simp] theorem disjUnion_adj_inl_inl (G H : CGraph) (a c : G.V) :
     (disjUnion G H).Adj (.inl a) (.inl c) = G.Adj a c := rfl
 
@@ -619,6 +622,18 @@ instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
 
 instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     DecidableEq (lexProduct G H).V := inferInstanceAs (DecidableEq (G.V × H.V))
+
+instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    Nonempty (cartesianProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
+
+instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    Nonempty (tensorProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
+
+instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    Nonempty (strongProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
+
+instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+    Nonempty (lexProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
 
 @[simp] theorem card_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     Fintype.card (cartesianProduct G H).V = Fintype.card G.V * Fintype.card H.V :=

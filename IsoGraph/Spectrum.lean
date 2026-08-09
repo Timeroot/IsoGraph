@@ -2752,6 +2752,89 @@ theorem exists_rayleigh_eq_lambdaMin (G : CGraph) [Nonempty G.V] :
   obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 (lambdaMin_mem_spectrum G)
   exact ⟨v, hv0, by rw [hv, dotProduct_smul, smul_eq_mul]⟩
 
+/-! ### The extreme eigenvalues of the products -/
+
+/-- **A disjoint union takes the larger of the two spectral radii.** -/
+theorem lambdaMax_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
+    (disjUnion G H).lambdaMax = max G.lambdaMax H.lambdaMax := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) ?_
+  · rw [spectrum_disjUnion, Multiset.mem_add] at hx
+    rcases hx with hx | hx
+    · exact (le_lambdaMax hx).trans (le_max_left _ _)
+    · exact (le_lambdaMax hx).trans (le_max_right _ _)
+  · refine max_le (le_lambdaMax ?_) (le_lambdaMax ?_) <;>
+      rw [spectrum_disjUnion, Multiset.mem_add]
+    · exact Or.inl (lambdaMax_mem_spectrum G)
+    · exact Or.inr (lambdaMax_mem_spectrum H)
+
+/-- **A disjoint union takes the smaller of the two least eigenvalues.** -/
+theorem lambdaMin_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
+    (disjUnion G H).lambdaMin = min G.lambdaMin H.lambdaMin := by
+  refine le_antisymm (le_min (lambdaMin_le ?_) (lambdaMin_le ?_)) ?_
+  · rw [spectrum_disjUnion, Multiset.mem_add]
+    exact Or.inl (lambdaMin_mem_spectrum G)
+  · rw [spectrum_disjUnion, Multiset.mem_add]
+    exact Or.inr (lambdaMin_mem_spectrum H)
+  · have hx := lambdaMin_mem_spectrum (disjUnion G H)
+    rw [spectrum_disjUnion, Multiset.mem_add] at hx
+    rcases hx with hx | hx
+    · exact (min_le_left _ _).trans (lambdaMin_le hx)
+    · exact (min_le_right _ _).trans (lambdaMin_le hx)
+
+/-- **A cartesian product adds the spectral radii**, since it adds the spectra. -/
+theorem lambdaMax_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (cartesianProduct G H).lambdaMax = G.lambdaMax + H.lambdaMax := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_cartesianProduct'] at hx
+    obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
+    obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
+    exact add_le_add (le_lambdaMax h1) (le_lambdaMax h2)
+  · rw [spectrum_cartesianProduct']
+    exact Multiset.mem_map.2 ⟨(G.lambdaMax, H.lambdaMax), Multiset.mem_product.2
+      ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
+
+/-- **A cartesian product adds the least eigenvalues** too. -/
+theorem lambdaMin_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (cartesianProduct G H).lambdaMin = G.lambdaMin + H.lambdaMin := by
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_cartesianProduct']
+    exact Multiset.mem_map.2 ⟨(G.lambdaMin, H.lambdaMin), Multiset.mem_product.2
+      ⟨lambdaMin_mem_spectrum G, lambdaMin_mem_spectrum H⟩, rfl⟩
+  · have hx := lambdaMin_mem_spectrum (cartesianProduct G H)
+    rw [spectrum_cartesianProduct'] at hx
+    obtain ⟨p, hp, hxp⟩ := Multiset.mem_map.1 hx
+    obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
+    rw [← hxp]
+    exact add_le_add (lambdaMin_le h1) (lambdaMin_le h2)
+
+/-- **A strong product multiplies the shifted spectral radii.**  The shift `1 + λ` can be
+negative at other eigenvalues, but never larger in absolute value than `1 + λ_max`, since
+`|λ| ≤ λ_max`. -/
+theorem lambdaMax_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (strongProduct G H).lambdaMax = (1 + G.lambdaMax) * (1 + H.lambdaMax) - 1 := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_strongProduct'] at hx
+    obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
+    obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
+    have ha : |1 + p.1| ≤ 1 + G.lambdaMax := by
+      have := abs_le.1 (abs_le_lambdaMax_of_mem_spectrum h1)
+      rw [abs_le]
+      constructor <;> linarith
+    have hb : |1 + p.2| ≤ 1 + H.lambdaMax := by
+      have := abs_le.1 (abs_le_lambdaMax_of_mem_spectrum h2)
+      rw [abs_le]
+      constructor <;> linarith
+    have := (le_abs_self ((1 + p.1) * (1 + p.2))).trans_eq (abs_mul _ _)
+    have hmul : |1 + p.1| * |1 + p.2| ≤ (1 + G.lambdaMax) * (1 + H.lambdaMax) :=
+      mul_le_mul ha hb (abs_nonneg _) (by linarith [G.lambdaMax_nonneg])
+    linarith
+  · rw [spectrum_strongProduct']
+    exact Multiset.mem_map.2 ⟨(G.lambdaMax, H.lambdaMax), Multiset.mem_product.2
+      ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
+
 /-! ### The equality case: regularity is spectral -/
 
 /-- **The equality case of the variational principle**: a vector whose Rayleigh quotient attains
