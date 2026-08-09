@@ -5245,7 +5245,14 @@ bipartite and the largest angle `π - π / (n + 2)` is the reflection of the sma
 complete bipartite graph the spectrum is `±√(mn)` with zeros between, so `lambdaMax_bipartite`
 and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star` are `±√n` — the
 star is exactly where `√Δ ≤ lambdaMax` is tight. Composing with the product rule,
-`lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes.
+`lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes, `lambdaMax_torus`
+is `4` and `lambdaMax_prism` is `3` — both of them the degree, as they must be for a regular
+graph — and `lambdaMin_torus_even`, `lambdaMin_prism_even` are their negatives once the cycle is
+long enough to be even. The hypercube is the same story a section later: `lambdaMax_hypercube` is
+`n` and `lambdaMin_hypercube` is `-n`, off the spectrum `n - 2j` with multiplicity `C(n, j)`. That
+one sits at the very end of `IsoGraph/Spectrum.lean`, after `end IsoGraph`, because
+`hypercube_succ` is an isomorphism rather than an equality, so the induction computing `Q n`'s
+spectrum has to run at the isomorphism level and be transported back.
 
 The strongly regular families are read off their own spectra by the same three-way split.
 `lambdaMax_petersen` is `3` and `lambdaMin_petersen` is `-2`; `lambdaMax_cocktailParty` and

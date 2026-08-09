@@ -100,7 +100,9 @@ other extreme, `lambdaMin_eq_neg_lambdaMax_of_isBipartite` says a bipartite grap
 two ends of the products (`lambdaMax_disjUnion`, `lambdaMax_cartesianProduct`,
 `lambdaMax_tensorProduct`, `lambdaMax_strongProduct` and their
 `lambdaMin` counterparts) and of the named families (`lambdaMax_complete`, `lambdaMax_cycle`,
-`lambdaMax_path` and the rest) are read off the spectra computed above.
+`lambdaMax_path` and the rest, down to the strongly regular ones — `lambdaMax_petersen`,
+`lambdaMax_rook`, `lambdaMax_paley` — and `lambdaMax_hypercube` at the very end of the file) are
+read off the spectra computed above.
 
 The *equality* case is `mulVec_eq_of_rayleigh_eq_lambdaMax`: a vector attaining the maximum is an
 eigenvector, since in rotated coordinates the quotient is a weighted average of the eigenvalues.
@@ -3209,6 +3211,36 @@ theorem lambdaMin_grid (m n : ℕ) :
     (cartesianProduct (path (m + 1)) (path (n + 1))).lambdaMin
       = -(2 * Real.cos (Real.pi / ((m : ℝ) + 2))) + -(2 * Real.cos (Real.pi / ((n : ℝ) + 2))) := by
   rw [lambdaMin_cartesianProduct, lambdaMin_path, lambdaMin_path]
+
+/-- **The spectral radius of a torus** is `4`, the degree: `Cₘ □ Cₙ` is `4`-regular. -/
+theorem lambdaMax_torus (m n : ℕ) :
+    (cartesianProduct (cycle (m + 3)) (cycle (n + 3))).lambdaMax = 4 := by
+  rw [lambdaMax_cartesianProduct, lambdaMax_cycle, lambdaMax_cycle]
+  norm_num
+
+/-- **The least eigenvalue of a torus with two even sides** is `-4`: both cycles reach `-2`. -/
+theorem lambdaMin_torus_even (m n : ℕ) :
+    (cartesianProduct (cycle (2 * m + 4)) (cycle (2 * n + 4))).lambdaMin = -4 := by
+  rw [lambdaMin_cartesianProduct, lambdaMin_cycle_even, lambdaMin_cycle_even]
+  norm_num
+
+/-- **The spectral radius of a prism** `Cₙ □ K₂` is `3`, its degree. -/
+theorem lambdaMax_prism (n : ℕ) : (prism (n + 3)).lambdaMax = 3 := by
+  have h2 : (complete 2).lambdaMax = 1 := by
+    show (complete (1 + 1)).lambdaMax = 1
+    rw [lambdaMax_complete]; norm_num
+  show (cartesianProduct (cycle (n + 3)) (complete 2)).lambdaMax = 3
+  rw [lambdaMax_cartesianProduct, lambdaMax_cycle, h2]
+  norm_num
+
+/-- **The least eigenvalue of a prism with an even cycle** is `-3`. -/
+theorem lambdaMin_prism_even (n : ℕ) : (prism (2 * n + 4)).lambdaMin = -3 := by
+  have h2 : (complete 2).lambdaMin = -1 := by
+    show (complete (0 + 2)).lambdaMin = -1
+    rw [lambdaMin_complete]
+  show (cartesianProduct (cycle (2 * n + 4)) (complete 2)).lambdaMin = -3
+  rw [lambdaMin_cartesianProduct, lambdaMin_cycle_even, h2]
+  norm_num
 
 /-! ### The extreme eigenvalues of the strongly regular families
 
@@ -9262,3 +9294,49 @@ theorem not_lapCospectral_star_four :
   simp at h1
 
 end IsoGraph
+
+/-! ## The hypercube's extreme eigenvalues
+
+`hypercube_succ` is an isomorphism rather than an equality, so the induction that computes `Q n`'s
+spectrum has to run in `IsoGraph`.  Transporting the answer back across `spectrum_mk` is
+definitional, and the two ends follow as for the other families — which is why this one section
+sits after `end IsoGraph` instead of with the rest. -/
+
+namespace CGraph
+
+/-- **The spectrum of the hypercube** at the level of concrete graphs.  The induction that proves
+it runs on `hypercube_succ`, which is an isomorphism rather than an equality, so the statement
+lives in `IsoGraph` and is transported back here. -/
+theorem spectrum_hypercube (n : ℕ) :
+    (hypercube n).spectrum
+      = ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) ((n : ℝ) - 2 * j) :=
+  IsoGraph.spectrum_hypercube n
+
+/-- **The spectral radius of the hypercube** `Q_n` is `n`, its degree. -/
+theorem lambdaMax_hypercube (n : ℕ) : (hypercube n).lambdaMax = n := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_hypercube, Multiset.mem_sum] at hx
+    obtain ⟨j, hj, hx⟩ := hx
+    rw [Multiset.eq_of_mem_replicate hx]
+    have : (0 : ℝ) ≤ (j : ℝ) := Nat.cast_nonneg j
+    linarith
+  · rw [spectrum_hypercube, Multiset.mem_sum]
+    exact ⟨0, Finset.mem_range.2 (by omega), by simp⟩
+
+/-- **The least eigenvalue of the hypercube** `Q_n` is `-n`: the cube is bipartite, so its
+spectrum is symmetric. -/
+theorem lambdaMin_hypercube (n : ℕ) : (hypercube n).lambdaMin = -n := by
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_hypercube, Multiset.mem_sum]
+    refine ⟨n, Finset.mem_range.2 (by omega), ?_⟩
+    rw [Nat.choose_self]
+    simpa using by ring
+  · have hx := lambdaMin_mem_spectrum (hypercube n)
+    rw [spectrum_hypercube, Multiset.mem_sum] at hx
+    obtain ⟨j, hj, hx⟩ := hx
+    have hj' := Finset.mem_range.1 hj
+    rw [Multiset.eq_of_mem_replicate hx]
+    have hjn : (j : ℝ) ≤ (n : ℝ) := Nat.cast_le.2 (by omega : j ≤ n)
+    linarith
+
+end CGraph
