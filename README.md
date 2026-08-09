@@ -4526,7 +4526,12 @@ theorem energy_le_sqrt (G : CGraph) :
     G.energy ≤ Real.sqrt (2 * G.E * Fintype.card G.V)
 ```
 
-which is **McClelland's bound**. The same second moment run backwards says the energy vanishes
+which is **McClelland's bound**. Both moments together also give a lower end that does not depend
+on any single eigenvalue: expanding `(∑ |λ|)²` into a diagonal part `∑ λ² = 2 E` and an
+off-diagonal part `∑_{i ≠ j} |λᵢ λⱼ|`, the triangle inequality bounds the second below by
+`|∑_{i ≠ j} λᵢ λⱼ| = |(∑ λ)² − ∑ λ²| = 2 E`, so `energy² ≥ 4 E` and `two_mul_sqrt_le_energy` reads
+`2 √E ≤ energy`. Together with McClelland the energy of a graph with `E` edges on `n` vertices is
+pinned into `[2 √E, √(2 E n)]`. The same second moment run backwards says the energy vanishes
 exactly on the edgeless graphs (`energy_eq_zero_iff`). Otherwise it behaves as you would expect:
 additive over disjoint unions, and equal for cospectral graphs, since it is a function of the
 spectrum alone. `IsoGraph.energy` is the same number for an isomorphism class. The named values

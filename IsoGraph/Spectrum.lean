@@ -173,7 +173,10 @@ strong regularity of a connected regular graph *is* the condition "three distinc
 `energy` is `∑ |λ|`, the graph energy of chemical graph theory.  Because the eigenvalues sum to
 zero, the positive ones carry exactly half of it (`energy_eq_two_mul_sum_posPart`), which puts
 `2 λ_max` underneath it (`two_mul_lambdaMax_le_energy`); Cauchy–Schwarz against the second moment
-`∑ λ ² = 2 |E|` puts `√(2 |E| n)` on top, **McClelland's bound**, `energy_le_sqrt`.  It is
+`∑ λ ² = 2 |E|` puts `√(2 |E| n)` on top, **McClelland's bound**, `energy_le_sqrt`.  Expanding
+`(∑ |λ|) ²` into its diagonal and off-diagonal halves and using both moments at once puts
+`2 √|E|` underneath as well (`two_mul_sqrt_le_energy`), so the energy is pinned into
+`[2 √|E|, √(2 |E| n)]`.  It is
 additive over disjoint unions, it is a cospectral invariant, and it vanishes exactly on the
 edgeless graphs (`energy_eq_zero_iff`, again by the second moment).  The named values are
 `energy_complete` (`2 (n - 1)`, where the `2 λ_max` bound is tight), `energy_bipartite`
@@ -6254,6 +6257,49 @@ theorem energy_le_sqrt (G : CGraph) :
     linarith
   exact (Real.le_sqrt (energy_nonneg G) (by positivity)).2 hsq
 
+/-- **The energy is at least `2 √|E|`.**  Expanding `(∑ |λ|) ²` splits into the diagonal
+`∑ λ ² = 2 |E|` and the off-diagonal sum of `|λ i λ j|`, which dominates
+`|∑_{i ≠ j} λ i λ j| = |(∑ λ) ² - ∑ λ ²| = 2 |E|`; so the square of the energy is at least
+`4 |E|`. -/
+theorem two_mul_sqrt_le_energy (G : CGraph) : 2 * Real.sqrt G.E ≤ G.energy := by
+  have hsum0 : ∑ i, G.eigenvalues i = 0 := by
+    have := G.sum_spectrum
+    rwa [spectrum_eq_map, ← Finset.sum_eq_multiset_sum] at this
+  set T : ℝ := ∑ i, ∑ j ∈ Finset.univ.erase i, |G.eigenvalues i * G.eigenvalues j| with hT
+  set A : ℝ := ∑ i, ∑ j ∈ Finset.univ.erase i, G.eigenvalues i * G.eigenvalues j with hA
+  have hsplit : G.energy ^ 2 = ∑ i, G.eigenvalues i ^ 2 + T := by
+    rw [energy_eq_sum, sq, Finset.sum_mul_sum, hT, ← Finset.sum_add_distrib]
+    refine Finset.sum_congr rfl fun i _ ↦ ?_
+    rw [← Finset.add_sum_erase Finset.univ
+      (fun j ↦ |G.eigenvalues i| * |G.eigenvalues j|) (Finset.mem_univ i)]
+    congr 1
+    · rw [abs_mul_abs_self, sq]
+    · exact Finset.sum_congr rfl fun j _ ↦ (abs_mul _ _).symm
+  have hAval : A = -(2 * (G.E : ℝ)) := by
+    have h : ∑ i, ∑ j, G.eigenvalues i * G.eigenvalues j = 0 := by
+      rw [← Finset.sum_mul_sum, hsum0, mul_zero]
+    have h2 : ∑ i, ∑ j, G.eigenvalues i * G.eigenvalues j = ∑ i, G.eigenvalues i ^ 2 + A := by
+      rw [hA, ← Finset.sum_add_distrib]
+      refine Finset.sum_congr rfl fun i _ ↦ ?_
+      rw [← Finset.add_sum_erase Finset.univ
+        (fun j ↦ G.eigenvalues i * G.eigenvalues j) (Finset.mem_univ i), sq]
+    rw [h2, sum_sq_eigenvalues] at h
+    linarith
+  have hTA : |A| ≤ T := by
+    refine (Finset.abs_sum_le_sum_abs _ _).trans ?_
+    exact Finset.sum_le_sum fun i _ ↦ Finset.abs_sum_le_sum_abs _ _
+  have key : 4 * (G.E : ℝ) ≤ G.energy ^ 2 := by
+    rw [hsplit, sum_sq_eigenvalues]
+    have hTge : 2 * (G.E : ℝ) ≤ T := by
+      refine le_trans (le_of_eq ?_) hTA
+      rw [hAval, abs_neg, abs_of_nonneg (by positivity)]
+    linarith
+  have h4 : Real.sqrt (4 * (G.E : ℝ)) = 2 * Real.sqrt G.E := by
+    rw [Real.sqrt_mul (by norm_num), show (4 : ℝ) = 2 ^ 2 by norm_num,
+      Real.sqrt_sq (by norm_num)]
+  have hle := Real.sqrt_le_sqrt key
+  rwa [h4, Real.sqrt_sq (energy_nonneg G)] at hle
+
 @[simp] theorem energy_disjUnion (G H : CGraph) :
     (disjUnion G H).energy = G.energy + H.energy := by
   rw [energy, energy, energy, spectrum_disjUnion, Multiset.map_add, Multiset.sum_add]
@@ -8801,6 +8847,10 @@ noncomputable def energy (G : IsoGraph) : ℝ := (G.spectrum.map (|·|)).sum
 
 theorem energy_nonneg (G : IsoGraph) : 0 ≤ G.energy :=
   Quotient.inductionOn G fun g ↦ g.energy_nonneg
+
+/-- **The energy is at least `2 √|E|`** for an isomorphism class. -/
+theorem two_mul_sqrt_le_energy (G : IsoGraph) : 2 * Real.sqrt G.E ≤ G.energy :=
+  Quotient.inductionOn G fun g ↦ CGraph.two_mul_sqrt_le_energy g
 
 /-- **McClelland's bound** for an isomorphism class. -/
 theorem energy_le_sqrt (G : IsoGraph) : G.energy ≤ Real.sqrt (2 * G.E * G.V) :=
