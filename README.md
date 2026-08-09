@@ -5216,8 +5216,9 @@ embedding — and `lambdaMax_complete_eq_card_sub_one` says `Kₙ` attains it.
 Bipartite graphs are exactly where that last inequality is tight, and the symmetry of the
 spectrum proved earlier says so in one line: `-lambdaMax` is itself an eigenvalue, so
 `lambdaMin_eq_neg_lambdaMax_of_isBipartite` gives `lambdaMin = -lambdaMax`, and for a regular
-bipartite graph `lambdaMin_of_isRegularWith_of_isBipartite` reads it off as `-k`. (The converse
-needs connectivity and Perron–Frobenius, and is not here.)
+bipartite graph `lambdaMin_of_isRegularWith_of_isBipartite` reads it off as `-k`. Neither needs
+connectedness; the converse does, and is `isBipartite_iff_lambdaMin_eq_neg_lambdaMax`, proved
+further down with the Perron vector.
 
 That is also what makes the two extremes readable off a product. The spectra of the products are
 already known as multisets, so the two ends follow by picking the extreme member and bounding the
@@ -5225,7 +5226,9 @@ rest: `lambdaMax_disjUnion` and `lambdaMin_disjUnion` take the larger and the sm
 `lambdaMax_cartesianProduct` and `lambdaMin_cartesianProduct` add, `lambdaMax_tensorProduct`
 multiplies and `lambdaMin_tensorProduct` is the more negative of the two mixed products
 `λ_max(G) λ_min(H)` and `λ_min(G) λ_max(H)`, and `lambdaMax_strongProduct`
-is `(1 + λ_max(G)) (1 + λ_max(H)) - 1`. Only the last needs the spectral-radius bound rather than
+is `(1 + λ_max(G)) (1 + λ_max(H)) - 1`, with `lambdaMin_strongProduct` the smallest of the three
+other shifted corners — the shifted product is bilinear in the pair, so its extremes over the
+box of eigenvalue pairs are corners. Only the last needs the spectral-radius bound rather than
 the eigenvalue bound: `1 + λ` can be negative at the other eigenvalues, and it is `|λ| ≤ λ_max`
 that keeps `|1 + λ|` under `1 + λ_max` so the two negatives cannot multiply their way past the
 top. These are the adjacency counterparts of `lapLambdaMax_cartesianProduct` and

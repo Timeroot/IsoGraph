@@ -95,8 +95,10 @@ The same trick makes the radius monotone in the edge set, `lambdaMax_le_lambdaMa
 the absolute value of an eigenvector through a vertex bijection that carries edges to edges only
 adds nonnegative terms.  `lambdaMax_le_card_sub_one` caps it at `n - 1`, attained by `Kₙ`.  In the
 other extreme, `lambdaMin_eq_neg_lambdaMax_of_isBipartite` says a bipartite graph attains
-`-λ_max ≤ λ_min`, since its spectrum is symmetric about zero.  The two ends of the products
-(`lambdaMax_disjUnion`, `lambdaMax_cartesianProduct`, `lambdaMax_strongProduct` and their
+`-λ_max ≤ λ_min`, since its spectrum is symmetric about zero — the forward half of
+`isBipartite_iff_lambdaMin_eq_neg_lambdaMax` below, which is where the converse is proved.  The
+two ends of the products (`lambdaMax_disjUnion`, `lambdaMax_cartesianProduct`,
+`lambdaMax_tensorProduct`, `lambdaMax_strongProduct` and their
 `lambdaMin` counterparts) and of the named families (`lambdaMax_complete`, `lambdaMax_cycle`,
 `lambdaMax_path` and the rest) are read off the spectra computed above.
 
@@ -2821,7 +2823,8 @@ theorem lambdaMax_le_card_sub_one (G : CGraph) [Nonempty G.V] :
   linarith
 
 /-- **A bipartite graph's least eigenvalue is minus its spectral radius.**  The spectrum is
-symmetric about zero, so `-λ_max` is itself an eigenvalue, and `-lambdaMax ≤ lambdaMin` always. -/
+symmetric about zero, so `-λ_max` is itself an eigenvalue, and `-lambdaMax ≤ lambdaMin` always.
+The converse, `isBipartite_iff_lambdaMin_eq_neg_lambdaMax`, needs connectedness. -/
 theorem lambdaMin_eq_neg_lambdaMax_of_isBipartite {G : CGraph} [Nonempty G.V]
     (h : G.IsBipartite) : G.lambdaMin = -G.lambdaMax := by
   refine le_antisymm (lambdaMin_le ?_) (neg_lambdaMax_le_lambdaMin G)
@@ -2915,6 +2918,47 @@ theorem lambdaMax_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
   · rw [spectrum_strongProduct']
     exact Multiset.mem_map.2 ⟨(G.lambdaMax, H.lambdaMax), Multiset.mem_product.2
       ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
+
+/-- **A strong product's least eigenvalue** is the smallest of the three mixed shifted products:
+`(1 + λ)(1 + μ)` is bilinear in the pair, so its minimum over the box `[λ_min, λ_max] ×
+[μ_min, μ_max]` sits at a corner, and the corner `(λ_max, μ_max)` is the maximum. -/
+theorem lambdaMin_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (strongProduct G H).lambdaMin
+      = min (min ((1 + G.lambdaMin) * (1 + H.lambdaMin)) ((1 + G.lambdaMin) * (1 + H.lambdaMax)))
+          ((1 + G.lambdaMax) * (1 + H.lambdaMin)) - 1 := by
+  have hcorner : ∀ x y : ℝ, x ∈ G.spectrum → y ∈ H.spectrum →
+      (strongProduct G H).lambdaMin ≤ (1 + x) * (1 + y) - 1 := by
+    intro x y hx hy
+    refine lambdaMin_le ?_
+    rw [spectrum_strongProduct']
+    exact Multiset.mem_map.2 ⟨(x, y), Multiset.mem_product.2 ⟨hx, hy⟩, rfl⟩
+  refine le_antisymm ?_ ?_
+  · have h1 := hcorner _ _ (lambdaMin_mem_spectrum G) (lambdaMin_mem_spectrum H)
+    have h2 := hcorner _ _ (lambdaMin_mem_spectrum G) (lambdaMax_mem_spectrum H)
+    have h3 := hcorner _ _ (lambdaMax_mem_spectrum G) (lambdaMin_mem_spectrum H)
+    simp only [le_sub_iff_add_le, le_min_iff]
+    refine ⟨⟨by linarith, by linarith⟩, by linarith⟩
+  · have hx := lambdaMin_mem_spectrum (strongProduct G H)
+    rw [spectrum_strongProduct'] at hx
+    obtain ⟨p, hp, hxp⟩ := Multiset.mem_map.1 hx
+    obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
+    rw [← hxp]
+    have hG1 := lambdaMin_le h1
+    have hG2 := le_lambdaMax h1
+    have hH1 := lambdaMin_le h2
+    have hH2 := le_lambdaMax h2
+    have hGmax : (0 : ℝ) ≤ 1 + G.lambdaMax := by linarith [G.lambdaMax_nonneg]
+    have hHmax : (0 : ℝ) ≤ 1 + H.lambdaMax := by linarith [H.lambdaMax_nonneg]
+    have key : min (min ((1 + G.lambdaMin) * (1 + H.lambdaMin))
+          ((1 + G.lambdaMin) * (1 + H.lambdaMax))) ((1 + G.lambdaMax) * (1 + H.lambdaMin))
+        ≤ (1 + p.1) * (1 + p.2) := by
+      rcases le_total 0 (1 + p.2) with hb | hb
+      · rcases le_total 0 (1 + G.lambdaMin) with ha | ha
+        · exact le_trans (le_trans (min_le_left _ _) (min_le_left _ _)) (by nlinarith)
+        · exact le_trans (le_trans (min_le_left _ _) (min_le_right _ _)) (by nlinarith)
+      · exact le_trans (min_le_right _ _) (by nlinarith)
+    linarith
 
 /-- **A tensor product multiplies the spectral radii.**  Every other product `x y` is smaller,
 since `|x| ≤ λ_max(G)` and `|y| ≤ λ_max(H)`. -/
@@ -5000,11 +5044,8 @@ theorem isBipartite_of_neg_lambdaMax_mem_spectrum {G : CGraph} [Nonempty G.V]
 /-- **A connected graph is bipartite exactly when `λ_min = -λ_max`.** -/
 theorem isBipartite_iff_lambdaMin_eq_neg_lambdaMax {G : CGraph} [Nonempty G.V]
     (hconn : G.IsConnected) : G.IsBipartite ↔ G.lambdaMin = -G.lambdaMax := by
-  refine ⟨fun hb ↦ le_antisymm ?_ (G.neg_lambdaMax_le_lambdaMin), fun hm ↦ ?_⟩
-  · refine lambdaMin_le ?_
-    rw [← spectrum_neg_of_isBipartite hb, Multiset.mem_map]
-    exact ⟨G.lambdaMax, G.lambdaMax_mem_spectrum, rfl⟩
-  · exact isBipartite_of_neg_lambdaMax_mem_spectrum hconn (hm ▸ G.lambdaMin_mem_spectrum)
+  refine ⟨lambdaMin_eq_neg_lambdaMax_of_isBipartite, fun hm ↦ ?_⟩
+  exact isBipartite_of_neg_lambdaMax_mem_spectrum hconn (hm ▸ G.lambdaMin_mem_spectrum)
 
 /-- **A connected regular graph with `-k` in its spectrum is bipartite**, since `k` is its largest
 eigenvalue. -/
