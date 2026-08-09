@@ -5287,22 +5287,35 @@ complete bipartite graph the spectrum is `±√(mn)` with zeros between, so `lam
 and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star` are `±√n` — the
 star is exactly where `√Δ ≤ lambdaMax` is tight.
 
-The wheel is the one entry that does not come off a spectrum, because the adjacency spectrum of a
-join is not on file. It comes instead from a cone formula proved with the Perron machinery:
-`lambdaMax_join_complete_one` says that coning a single vertex over a `k`-regular graph on `n`
-vertices gives spectral radius `(k + √(k² + 4n)) / 2`, the positive root of `x² - kx - n`. The
-vector that is `n / λ` at the apex and `1` on the base satisfies `A w = λ w` exactly — the apex
-equation reads `n = λ · (n / λ)` and each base equation reads `n / λ + k = λ`, which is the
-quadratic — so `mem_spectrum_of_mulVec_eq` puts `λ` in the spectrum and
-`spectrum_le_of_mulVec_le`, the positive-subeigenvector bound, keeps everything else below it.
-That is the same pair of lemmas the Smith diagrams use, applied to graphs that are not regular.
-At `k = 2` the base is a cycle and the root simplifies, giving `lambdaMax_wheel = 1 + √(n + 1)`.
-The *other* root of the same quadratic is an eigenvalue too — the eigenvector equation
-`adjMat_mulVec_cone` only needs `λ ≠ 0`, not positivity — so `lambdaMin_join_complete_one_le` and
-`lambdaMin_wheel_le` bound the least eigenvalue above by `(k - √(k² + 4n)) / 2` and by
-`1 - √(n + 1)`. Those are bounds and not equalities on purpose: a wheel with an even rim inherits
-the rim's `-2`, which is smaller as soon as the rim has more than three vertices. Pinning the
-bottom down would need the join formula, and that is not there.
+The wheel is the one entry that does not come off a spectrum, because the full adjacency spectrum
+of a join is not on file. It comes instead from the two ends of the join, proved with the Perron
+machinery. If `G` is `k`-regular on `n` vertices and `H` is `l`-regular on `m` vertices, a vector
+that is constant `a` on `G` and constant `b` on `H` is an eigenvector of `G ∇ H` for `λ` as soon
+as `k a + m b = λ a` and `n a + l b = λ b` (`adjMat_mulVec_join`) — each vertex of `G` sees `k`
+neighbours inside `G` and all `m` of `H`, and symmetrically. Eliminating `a` and `b` leaves
+`(x - k)(x - l) = n m`, and at the larger root the eigenvector `a = m`, `b = λ - k` is strictly
+positive, so `mem_spectrum_of_mulVec_eq` puts `λ` in the spectrum and `spectrum_le_of_mulVec_le`,
+the positive-subeigenvector bound, keeps everything else below it — the same pair of lemmas the
+Smith diagrams use, applied to graphs that are not regular:
+
+```lean
+theorem lambdaMax_join_of_isRegularWith {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (join G H).lambdaMax
+      = ((k : ℝ) + l
+          + Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * Fintype.card G.V * Fintype.card H.V)) / 2
+```
+
+The *other* root is an eigenvalue too — its eigenvector is no longer positive, but it is still
+nonzero — so `lambdaMin_join_of_isRegularWith_le` bounds the least eigenvalue above by
+`(k + l - √((k - l)² + 4nm)) / 2`. That direction is a bound and not an equality on purpose:
+each factor also keeps its own eigenvalues, on the vectors summing to zero on each side, and one
+of those can be smaller. A cone is the case `l = 0`, `m = 1` — `lambdaMax_join_complete_one` is
+`(k + √(k² + 4n)) / 2`, the positive root of `x² - kx - n` — and a wheel is the cone over a cycle,
+where `k = 2` makes the root collapse to `lambdaMax_wheel = 1 + √(n + 1)` and
+`lambdaMin_wheel_le` reads `1 - √(n + 1)`. The wheel is exactly where the inequality bites: an
+even rim inherits the rim's `-2`, which is smaller as soon as the rim has more than three
+vertices.
 
 Composing with the product rule,
 `lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes, `lambdaMax_torus`
