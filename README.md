@@ -5213,7 +5213,7 @@ star are both subgraphs, and at the top end `lambdaMax_le_card_sub_one`
 caps the radius at `n - 1` — cheapest through the maximum degree rather than through the
 embedding — and `lambdaMax_complete_eq_card_sub_one` says `Kₙ` attains it.
 
-Bipartite graphs are exactly where that last inequality is tight, and the symmetry of the
+Bipartite graphs are exactly where `-lambdaMax ≤ lambdaMin` is tight, and the symmetry of the
 spectrum proved earlier says so in one line: `-lambdaMax` is itself an eigenvalue, so
 `lambdaMin_eq_neg_lambdaMax_of_isBipartite` gives `lambdaMin = -lambdaMax`, and for a regular
 bipartite graph `lambdaMin_of_isRegularWith_of_isBipartite` reads it off as `-k`. Neither needs
@@ -5228,14 +5228,15 @@ multiplies and `lambdaMin_tensorProduct` is the more negative of the two mixed p
 `λ_max(G) λ_min(H)` and `λ_min(G) λ_max(H)`, and `lambdaMax_strongProduct`
 is `(1 + λ_max(G)) (1 + λ_max(H)) - 1`, with `lambdaMin_strongProduct` the smallest of the three
 other shifted corners — the shifted product is bilinear in the pair, so its extremes over the
-box of eigenvalue pairs are corners. Only the last needs the spectral-radius bound rather than
-the eigenvalue bound: `1 + λ` can be negative at the other eigenvalues, and it is `|λ| ≤ λ_max`
-that keeps `|1 + λ|` under `1 + λ_max` so the two negatives cannot multiply their way past the
-top. These are the adjacency counterparts of `lapLambdaMax_cartesianProduct` and
+box of eigenvalue pairs are corners. The two multiplicative rules are the ones that need the
+spectral-radius bound rather than the eigenvalue bound: `λ` and `1 + λ` can be negative at the
+other eigenvalues, and it is `|λ| ≤ λ_max` that keeps their absolute values under `λ_max` and
+`1 + λ_max`, so two negatives cannot multiply their way past the top. These are the adjacency counterparts of `lapLambdaMax_cartesianProduct` and
 `algConn_cartesianProduct`, which run the same argument on the Laplacian.
 
 The named families get their two ends the same way, straight off the spectra computed much
-earlier. `lambdaMax_complete` is `n` and `lambdaMin_complete` is `-1`; `lambdaMax_cycle` is `2`,
+earlier. `lambdaMax_complete` gives `λ_max(K_{n+1}) = n` and `lambdaMin_complete` gives `-1`;
+`lambdaMax_cycle` is `2`,
 attained at the constant eigenvector, and `lambdaMin_cycle_even` is `-2`, the value at the angle
 `π` that only an even cycle reaches. The path is the interesting one: `lambdaMax_path` is
 `2 cos (π / (n + 2))`, just under `2`, because cosine is decreasing on `[0, π]` and the smallest
