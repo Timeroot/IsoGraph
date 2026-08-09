@@ -5717,6 +5717,13 @@ graph fell to the round-robin `1`-factorisation and the Petersen graph to an exh
 search, but the search does not generalise — the next snark on the list, Blanuša's, has `18`
 vertices and `27` edges, and `3²⁷` is not a case split.
 
+The cartesian products join that list at their odd parameters. `edgeChromNum_cartesianProduct_le`
+gives `χ' ≤ χ'(G) + χ'(H)`, which meets `Δ` when both factors are class one and overshoots it by
+one for each odd cycle involved, so a cylinder over an odd cycle and a torus with one odd side are
+bracketed between `4` and `5` rather than settled. Vizing would close both, since both are class
+one; the torus with *two* odd sides is the opposite case, where the parity argument settles the
+lower bound at `5` and it is the upper bound, `6`, that is loose.
+
 The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
 (Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the
 automorphism count for most families — `autCount` is settled for the empty, complete, path, Kneser,
