@@ -4515,6 +4515,22 @@ because `star 4` and `bipartite 2 2 ⊕g empty 1` both have spectrum `2, -2, 0, 
 first is connected and the second is not — `numComponents` separates them where the spectrum
 cannot.
 
+The two moments also bracket the **graph energy**, `energy = ∑ |λ|`, the quantity chemical graph
+theory attaches to a molecular graph. The first moment does the lower end: since `∑ λ = 0`, the
+positive eigenvalues carry exactly half the energy (`energy_eq_two_mul_sum_posPart`, from
+`|x| = 2 max(x, 0) - x`), and `λ_max` is one of them, so `2 λ_max ≤ energy`. The second moment
+does the upper end, by Cauchy–Schwarz — `sq_sum_le_card_mul_sum_sq` against `∑ λ² = 2 E`:
+
+```lean
+theorem energy_le_sqrt (G : CGraph) :
+    G.energy ≤ Real.sqrt (2 * G.E * Fintype.card G.V)
+```
+
+which is **McClelland's bound**. The same second moment run backwards says the energy vanishes
+exactly on the edgeless graphs (`energy_eq_zero_iff`). Otherwise it behaves as you would expect:
+additive over disjoint unions, `2 (n - 1)` for `Kₙ`, and equal for cospectral graphs, since it is
+a function of the spectrum alone. `IsoGraph.energy` is the same number for an isomorphism class.
+
 For a strongly regular graph the identity `A² = k I + ℓ A + μ (J - I - A)`, read off on an
 eigenvector orthogonal to the all-ones vector, says every eigenvalue other than `k` satisfies
 `x² = (ℓ - μ) x + (k - μ)`:

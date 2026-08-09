@@ -6,6 +6,7 @@ import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
 import Mathlib.RingTheory.RootsOfUnity.Complex
 import Mathlib.Algebra.GCDMonoid.IntegrallyClosed
+import Mathlib.Algebra.Order.Chebyshev
 
 /-!
 # Spectral graph theory
@@ -165,6 +166,15 @@ symmetric, so all the columns share their constant and `M = t J`
 `adjMat_sq_apply` reads `A ²` as a count of common neighbours: adjacent pairs have `t + r + s` of
 them and non-adjacent pairs `t`.  Together with `spectrum_isSRGWith` in the other direction,
 strong regularity of a connected regular graph *is* the condition "three distinct eigenvalues".
+
+## The energy
+
+`energy` is `∑ |λ|`, the graph energy of chemical graph theory.  Because the eigenvalues sum to
+zero, the positive ones carry exactly half of it (`energy_eq_two_mul_sum_posPart`), which puts
+`2 λ_max` underneath it (`two_mul_lambdaMax_le_energy`); Cauchy–Schwarz against the second moment
+`∑ λ ² = 2 |E|` puts `√(2 |E| n)` on top, **McClelland's bound**, `energy_le_sqrt`.  It is
+additive over disjoint unions, it is `2 (n - 1)` for `Kₙ`, it is a cospectral invariant, and it
+vanishes exactly on the edgeless graphs (`energy_eq_zero_iff`, again by the second moment).
 
 ## The Laplacian
 
@@ -6177,6 +6187,97 @@ theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l 
     exact card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hij hnadj
   exact exists_isSRGWith_of_card_toFinset_spectrum_eq_three hHconn hHreg h3
 
+/-! ## The energy of a graph -/
+
+/-- The **energy** of a graph: the sum of the absolute values of its adjacency eigenvalues. -/
+noncomputable def energy (G : CGraph) : ℝ := (G.spectrum.map (|·|)).sum
+
+theorem energy_eq_sum (G : CGraph) : G.energy = ∑ i, |G.eigenvalues i| := by
+  rw [energy, spectrum_eq_map, Multiset.map_map]
+  rfl
+
+theorem energy_nonneg (G : CGraph) : 0 ≤ G.energy := by
+  rw [energy_eq_sum]
+  exact Finset.sum_nonneg fun i _ ↦ abs_nonneg _
+
+private theorem sum_sq_eigenvalues (G : CGraph) : ∑ i, G.eigenvalues i ^ 2 = 2 * (G.E : ℝ) := by
+  have h := G.sum_sq_spectrum
+  rwa [spectrum_eq_map, Multiset.map_map, ← Finset.sum_eq_multiset_sum] at h
+
+/-- **The positive eigenvalues carry exactly half the energy**, since all the eigenvalues sum to
+zero. -/
+theorem energy_eq_two_mul_sum_posPart (G : CGraph) :
+    G.energy = 2 * ∑ i, max (G.eigenvalues i) 0 := by
+  have h0 : ∑ i, G.eigenvalues i = 0 := by
+    have := G.sum_spectrum
+    rwa [spectrum_eq_map, ← Finset.sum_eq_multiset_sum] at this
+  have hpt : ∀ i, |G.eigenvalues i| = 2 * max (G.eigenvalues i) 0 - G.eigenvalues i := by
+    intro i
+    rcases le_total 0 (G.eigenvalues i) with h | h
+    · rw [max_eq_left h, abs_of_nonneg h]; ring
+    · rw [max_eq_right h, abs_of_nonpos h]; ring
+  rw [energy_eq_sum, Finset.sum_congr rfl fun i _ ↦ hpt i, Finset.sum_sub_distrib,
+    ← Finset.mul_sum, h0, sub_zero]
+
+/-- **The energy is at least twice the spectral radius**: the largest eigenvalue is one of the
+positive ones, and those carry half the energy. -/
+theorem two_mul_lambdaMax_le_energy (G : CGraph) [Nonempty G.V] : 2 * G.lambdaMax ≤ G.energy := by
+  obtain ⟨i, -, hi⟩ : ∃ i ∈ Finset.univ.val, G.eigenvalues i = G.lambdaMax := by
+    have h := G.lambdaMax_mem_spectrum
+    rwa [spectrum_eq_map, Multiset.mem_map] at h
+  rw [energy_eq_two_mul_sum_posPart]
+  refine mul_le_mul_of_nonneg_left ?_ (by norm_num)
+  calc G.lambdaMax = max (G.eigenvalues i) 0 := by rw [hi, max_eq_left G.lambdaMax_nonneg]
+    _ ≤ ∑ j, max (G.eigenvalues j) 0 :=
+        Finset.single_le_sum (fun j _ ↦ le_max_right _ _) (Finset.mem_univ i)
+
+/-- **McClelland's bound**: by Cauchy–Schwarz against `∑ λ ² = 2 |E|`, the energy is at most
+`√(2 |E| n)`. -/
+theorem energy_le_sqrt (G : CGraph) :
+    G.energy ≤ Real.sqrt (2 * G.E * Fintype.card G.V) := by
+  have hsq : G.energy ^ 2 ≤ 2 * G.E * Fintype.card G.V := by
+    have h := sq_sum_le_card_mul_sum_sq (s := (Finset.univ : Finset G.V))
+      (f := fun i ↦ |G.eigenvalues i|)
+    rw [← energy_eq_sum] at h
+    simp only [sq_abs, Finset.card_univ] at h
+    rw [sum_sq_eigenvalues] at h
+    linarith
+  exact (Real.le_sqrt (energy_nonneg G) (by positivity)).2 hsq
+
+@[simp] theorem energy_disjUnion (G H : CGraph) :
+    (disjUnion G H).energy = G.energy + H.energy := by
+  rw [energy, energy, energy, spectrum_disjUnion, Multiset.map_add, Multiset.sum_add]
+
+/-- **The energy of a complete graph** is `2 (n - 1)`: the eigenvalues are `n - 1` and `-1`. -/
+theorem energy_complete (n : ℕ) : (complete (n + 1)).energy = 2 * n := by
+  rw [energy, spectrum_complete]
+  simp [Multiset.map_replicate, abs_of_nonneg, two_mul]
+
+theorem Cospectral.energy_eq {G H : CGraph} (h : Cospectral G H) : G.energy = H.energy := by
+  rw [energy, energy, h.spectrum_eq]
+
+/-- **A graph has zero energy exactly when it has no edges**, since `∑ λ ² = 2 |E|`. -/
+theorem energy_eq_zero_iff (G : CGraph) : G.energy = 0 ↔ G.E = 0 := by
+  have hsq := G.sum_sq_eigenvalues
+  constructor
+  · intro h
+    rw [energy_eq_sum] at h
+    have hz : ∀ i, G.eigenvalues i = 0 := fun i ↦ abs_eq_zero.1
+      ((Finset.sum_eq_zero_iff_of_nonneg fun j _ ↦ abs_nonneg _).1 h i (Finset.mem_univ i))
+    have h0 : (2 * G.E : ℝ) = 0 := by
+      rw [← hsq]
+      exact Finset.sum_eq_zero fun i _ ↦ by rw [hz i]; ring
+    have : (G.E : ℝ) = 0 := by linarith
+    exact_mod_cast this
+  · intro h
+    rw [h, Nat.cast_zero, mul_zero] at hsq
+    have hz : ∀ i, G.eigenvalues i = 0 := fun i ↦ by
+      have := (Finset.sum_eq_zero_iff_of_nonneg fun j _ ↦ sq_nonneg (G.eigenvalues j)).1 hsq i
+        (Finset.mem_univ i)
+      exact pow_eq_zero_iff (n := 2) (by norm_num) |>.1 this
+    rw [energy_eq_sum]
+    exact Finset.sum_eq_zero fun i _ ↦ by rw [hz i, abs_zero]
+
 /-! ## The Laplacian -/
 
 /-- The **Laplacian** of `G`: the degree matrix minus the adjacency matrix. -/
@@ -8621,6 +8722,27 @@ theorem spectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
 @[simp] theorem spectrum_disjUnion (G H : IsoGraph) :
     (G ⊕g H).spectrum = G.spectrum + H.spectrum :=
   Quotient.inductionOn₂ G H fun g h ↦ CGraph.spectrum_disjUnion g h
+
+/-- The energy of an isomorphism class. -/
+noncomputable def energy (G : IsoGraph) : ℝ := (G.spectrum.map (|·|)).sum
+
+@[simp] theorem energy_mk (G : CGraph) : energy ⟦G⟧ = G.energy := rfl
+
+theorem energy_nonneg (G : IsoGraph) : 0 ≤ G.energy :=
+  Quotient.inductionOn G fun g ↦ g.energy_nonneg
+
+/-- **McClelland's bound** for an isomorphism class. -/
+theorem energy_le_sqrt (G : IsoGraph) : G.energy ≤ Real.sqrt (2 * G.E * G.V) :=
+  Quotient.inductionOn G fun g ↦ g.energy_le_sqrt
+
+@[simp] theorem energy_disjUnion (G H : IsoGraph) : (G ⊕g H).energy = G.energy + H.energy :=
+  Quotient.inductionOn₂ G H fun g h ↦ CGraph.energy_disjUnion g h
+
+theorem energy_complete (n : ℕ) : (complete (n + 1)).energy = 2 * n :=
+  CGraph.energy_complete n
+
+theorem energy_eq_zero_iff (G : IsoGraph) : G.energy = 0 ↔ G.E = 0 :=
+  Quotient.inductionOn G fun g ↦ g.energy_eq_zero_iff
 
 theorem spectrum_tensorProduct (G H : IsoGraph) :
     (G ⊗g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 * p.2) :=
