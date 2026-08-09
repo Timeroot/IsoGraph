@@ -5204,6 +5204,12 @@ vector by its absolute value keeps the norm and cannot decrease the quadratic fo
 eigenvalue *is* the spectral radius (`abs_le_lambdaMax_of_mem_spectrum`), and in particular
 `-lambdaMax ≤ lambdaMin`.
 
+Bipartite graphs are exactly where that last inequality is tight, and the symmetry of the
+spectrum proved earlier says so in one line: `-lambdaMax` is itself an eigenvalue, so
+`lambdaMin_eq_neg_lambdaMax_of_isBipartite` gives `lambdaMin = -lambdaMax`, and for a regular
+bipartite graph `lambdaMin_of_isRegularWith_of_isBipartite` reads it off as `-k`. (The converse
+needs connectivity and Perron–Frobenius, and is not here.)
+
 That is also what makes the two extremes readable off a product. The spectra of the products are
 already known as multisets, so the two ends follow by picking the extreme member and bounding the
 rest: `lambdaMax_disjUnion` and `lambdaMin_disjUnion` take the larger and the smaller,
@@ -5224,7 +5230,7 @@ bipartite and the largest angle `π - π / (n + 2)` is the reflection of the sma
 complete bipartite graph the spectrum is `±√(mn)` with zeros between, so `lambdaMax_bipartite`
 and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star` are `±√n` — the
 star is exactly where `√Δ ≤ lambdaMax` is tight. Composing with the product rule,
-`lambdaMax_grid` is the sum of the two paths' radii.
+`lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes.
 
 Equality in either direction pins the vector down:
 

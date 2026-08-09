@@ -2752,6 +2752,19 @@ theorem exists_rayleigh_eq_lambdaMin (G : CGraph) [Nonempty G.V] :
   obtain ⟨v, hv0, hv⟩ := (G.mem_spectrum_iff _).1 (lambdaMin_mem_spectrum G)
   exact ⟨v, hv0, by rw [hv, dotProduct_smul, smul_eq_mul]⟩
 
+/-- **A bipartite graph's least eigenvalue is minus its spectral radius.**  The spectrum is
+symmetric about zero, so `-λ_max` is itself an eigenvalue, and `-lambdaMax ≤ lambdaMin` always. -/
+theorem lambdaMin_eq_neg_lambdaMax_of_isBipartite {G : CGraph} [Nonempty G.V]
+    (h : G.IsBipartite) : G.lambdaMin = -G.lambdaMax := by
+  refine le_antisymm (lambdaMin_le ?_) (neg_lambdaMax_le_lambdaMin G)
+  rw [← spectrum_neg_of_isBipartite h, Multiset.mem_map]
+  exact ⟨G.lambdaMax, lambdaMax_mem_spectrum G, rfl⟩
+
+/-- **A regular bipartite graph has least eigenvalue `-k`.** -/
+theorem lambdaMin_of_isRegularWith_of_isBipartite {G : CGraph} [Nonempty G.V] {k : ℕ}
+    (hr : G.IsRegularWith k) (hb : G.IsBipartite) : G.lambdaMin = -k := by
+  rw [lambdaMin_eq_neg_lambdaMax_of_isBipartite hb, lambdaMax_of_isRegularWith hr]
+
 /-! ### The extreme eigenvalues of the products -/
 
 /-- **A disjoint union takes the larger of the two spectral radii.** -/
@@ -3021,6 +3034,12 @@ theorem lambdaMax_grid (m n : ℕ) :
     (cartesianProduct (path (m + 1)) (path (n + 1))).lambdaMax
       = 2 * Real.cos (Real.pi / ((m : ℝ) + 2)) + 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) := by
   rw [lambdaMax_cartesianProduct, lambdaMax_path, lambdaMax_path]
+
+/-- **The least eigenvalue of a grid** is minus the sum of the two paths' radii. -/
+theorem lambdaMin_grid (m n : ℕ) :
+    (cartesianProduct (path (m + 1)) (path (n + 1))).lambdaMin
+      = -(2 * Real.cos (Real.pi / ((m : ℝ) + 2))) + -(2 * Real.cos (Real.pi / ((n : ℝ) + 2))) := by
+  rw [lambdaMin_cartesianProduct, lambdaMin_path, lambdaMin_path]
 
 /-! ### The equality case: regularity is spectral -/
 
