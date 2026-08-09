@@ -11362,6 +11362,192 @@ theorem le_indepNum_lineGraph_cylinder (m n : ℕ) :
   · exact Or.inr ⟨(cycle_adj_val m p.1 q.1).2
       ⟨by omega, Or.inl (by rw [h2]; exact Nat.mod_eq_of_lt hq1)⟩, h1⟩
 
+/-! ### The chromatic index of a cycle -/
+
+/-- The index of a cycle edge: the lower of its two endpoints, except for the wrap edge
+`{N - 1, 0}`, which is indexed by `N - 1`. -/
+def cycEdge (y y' : ℕ) : ℕ :=
+  if y + 1 = y' then y else if y' + 1 = y then y' else max y y'
+
+theorem cycEdge_comm (y y' : ℕ) : cycEdge y y' = cycEdge y' y := by
+  unfold cycEdge
+  split_ifs with h1 h2 h3 <;> first | rfl | omega
+
+theorem cycEdge_succ (y : ℕ) : cycEdge y (y + 1) = y := by
+  unfold cycEdge; rw [if_pos rfl]
+
+theorem cycEdge_wrap {N : ℕ} (h : 3 ≤ N) : cycEdge (N - 1) 0 = N - 1 := by
+  unfold cycEdge
+  rw [if_neg (by omega), if_neg (by omega)]
+  omega
+
+/-- The two neighbours of a cycle vertex, written without `%`. -/
+theorem cycle_nbr {N : ℕ} (u v : Fin N) (h : (cycle N).Adj u v = true) :
+    v.1 = u.1 + 1 ∨ u.1 = v.1 + 1 ∨ (u.1 = N - 1 ∧ v.1 = 0) ∨ (v.1 = N - 1 ∧ u.1 = 0) := by
+  rw [cycle_adj_val] at h
+  obtain ⟨hne, h⟩ := h
+  have hu := u.isLt
+  have hv := v.isLt
+  rcases h with h | h
+  · rw [mod_succ_norm hu] at h
+    split_ifs at h with hc
+    · exact Or.inr (Or.inr (Or.inl ⟨by omega, by omega⟩))
+    · exact Or.inl h.symm
+  · rw [mod_succ_norm hv] at h
+    split_ifs at h with hc
+    · exact Or.inr (Or.inr (Or.inr ⟨by omega, by omega⟩))
+    · exact Or.inr (Or.inl h.symm)
+
+/-- The index of the edge from `u` to a neighbour, as a formula in the two endpoints. -/
+theorem cycEdge_of_nbr {N : ℕ} (u x : Fin N)
+    (hx : x.1 = u.1 + 1 ∨ u.1 = x.1 + 1 ∨ (u.1 = N - 1 ∧ x.1 = 0) ∨ (x.1 = N - 1 ∧ u.1 = 0))
+    (hN : 3 ≤ N) :
+    cycEdge u.1 x.1 = if x.1 = u.1 + 1 then u.1 else if u.1 = x.1 + 1 then x.1 else N - 1 := by
+  rcases hx with hx | hx | ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [if_pos hx, hx, cycEdge_succ]
+  · rw [if_neg (by omega), if_pos hx, hx, cycEdge_comm, cycEdge_succ]
+  · rw [if_neg (by omega), if_neg (by omega), h1, h2, cycEdge_wrap hN]
+  · rw [if_neg (by omega), if_neg (by omega), h1, h2, cycEdge_comm, cycEdge_wrap hN]
+
+/-- Two colours for an even cycle: the parity of the edge's index. -/
+def cycleColEven (N : ℕ) (p q : Fin N) : Fin 2 := ⟨cycEdge p.1 q.1 % 2, by omega⟩
+
+theorem cycleColEven_val (N : ℕ) (p q : Fin N) :
+    (cycleColEven N p q).1 = cycEdge p.1 q.1 % 2 := rfl
+
+theorem cycleColEven_symm (N : ℕ) (p q : Fin N) :
+    cycleColEven N p q = cycleColEven N q p :=
+  Fin.ext (by rw [cycleColEven_val, cycleColEven_val, cycEdge_comm])
+
+theorem cycleColEven_proper (N : ℕ) (hN : 3 ≤ N) (hev : N % 2 = 0)
+    (u v w : Fin N) (huv : (cycle N).Adj u v = true) (huw : (cycle N).Adj u w = true)
+    (hvw : v ≠ w) : cycleColEven N u v ≠ cycleColEven N u w := by
+  have hne : v.1 ≠ w.1 := fun h ↦ hvw (Fin.ext h)
+  have hu := u.isLt
+  have hv := v.isLt
+  have hw := w.isLt
+  have hev1 := cycle_nbr u v huv
+  have hew1 := cycle_nbr u w huw
+  intro hc
+  have hc' : cycEdge u.1 v.1 % 2 = cycEdge u.1 w.1 % 2 := by
+    rw [← cycleColEven_val, ← cycleColEven_val, hc]
+  rw [cycEdge_of_nbr u v hev1 hN, cycEdge_of_nbr u w hew1 hN] at hc'
+  split_ifs at hc' <;> omega
+
+/-- Three colours for an odd cycle: the parity of the edge's index, and a colour of its own for
+the wrap edge, which is the one place where the parities would clash. -/
+def cycleColOdd (N : ℕ) (p q : Fin N) : Fin 3 :=
+  if cycEdge p.1 q.1 + 1 = N then 2 else ⟨cycEdge p.1 q.1 % 2, by omega⟩
+
+theorem cycleColOdd_val (N : ℕ) (p q : Fin N) :
+    (cycleColOdd N p q).1 = if cycEdge p.1 q.1 + 1 = N then 2 else cycEdge p.1 q.1 % 2 := by
+  unfold cycleColOdd
+  split_ifs <;> rfl
+
+theorem cycleColOdd_symm (N : ℕ) (p q : Fin N) :
+    cycleColOdd N p q = cycleColOdd N q p :=
+  Fin.ext (by rw [cycleColOdd_val, cycleColOdd_val, cycEdge_comm])
+
+theorem cycleColOdd_proper (N : ℕ) (hN : 3 ≤ N)
+    (u v w : Fin N) (huv : (cycle N).Adj u v = true) (huw : (cycle N).Adj u w = true)
+    (hvw : v ≠ w) : cycleColOdd N u v ≠ cycleColOdd N u w := by
+  have hne : v.1 ≠ w.1 := fun h ↦ hvw (Fin.ext h)
+  have hu := u.isLt
+  have hv := v.isLt
+  have hw := w.isLt
+  have hev1 := cycle_nbr u v huv
+  have hew1 := cycle_nbr u w huw
+  intro hc
+  have hc' : (if cycEdge u.1 v.1 + 1 = N then 2 else cycEdge u.1 v.1 % 2)
+      = (if cycEdge u.1 w.1 + 1 = N then 2 else cycEdge u.1 w.1 % 2) := by
+    rw [← cycleColOdd_val, ← cycleColOdd_val, hc]
+  rw [cycEdge_of_nbr u v hev1 hN, cycEdge_of_nbr u w hew1 hN] at hc'
+  split_ifs at hc' <;> omega
+
+
+/-! ### Two colours for a path -/
+
+/-- Two colours for a path: the parity of the lower of the edge's two endpoints. -/
+def pathCol (N : ℕ) (p q : Fin N) : Fin 2 := ⟨min p.1 q.1 % 2, by omega⟩
+
+theorem pathCol_val (N : ℕ) (p q : Fin N) : (pathCol N p q).1 = min p.1 q.1 % 2 := rfl
+
+theorem pathCol_symm (N : ℕ) (p q : Fin N) : pathCol N p q = pathCol N q p :=
+  Fin.ext (by rw [pathCol_val, pathCol_val, Nat.min_comm])
+
+theorem pathCol_proper (N : ℕ) (u v w : Fin N) (huv : (path N).Adj u v = true)
+    (huw : (path N).Adj u w = true) (hvw : v ≠ w) : pathCol N u v ≠ pathCol N u w := by
+  rw [path_adj_val] at huv huw
+  have hne : v.1 ≠ w.1 := fun h ↦ hvw (Fin.ext h)
+  intro hc
+  have hc' : min u.1 v.1 % 2 = min u.1 w.1 % 2 := by
+    rw [← pathCol_val, ← pathCol_val, hc]
+  omega
+
+/-! ### Edge colourings of a cartesian product
+
+The two factors' edges never meet outside a common vertex, and at a vertex of `G □ H` the edges
+in the `G` direction and the edges in the `H` direction are told apart by whether the first
+coordinate moves.  So the two palettes can simply be laid side by side. -/
+
+/-- Colour an edge of `G □ H` with `H`'s palette if it moves the second coordinate, and with
+`G`'s palette otherwise, the two palettes placed side by side in `Fin (k + l)`. -/
+def prodCol {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+    (c : G.V → G.V → Fin k) (d : H.V → H.V → Fin l) (p q : G.V × H.V) : Fin (k + l) :=
+  if p.1 = q.1 then Fin.natAdd k (d p.2 q.2) else Fin.castAdd l (c p.1 q.1)
+
+theorem prodCol_symm {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+    {c : G.V → G.V → Fin k} {d : H.V → H.V → Fin l}
+    (hc : ∀ x y, c x y = c y x) (hd : ∀ x y, d x y = d y x) (p q : G.V × H.V) :
+    prodCol c d p q = prodCol c d q p := by
+  unfold prodCol
+  by_cases h : p.1 = q.1
+  · rw [if_pos h, if_pos h.symm, hd]
+  · rw [if_neg h, if_neg (fun hh ↦ h hh.symm), hc]
+
+/-- **The chromatic index of a cartesian product is at most the sum of the two factors'.** -/
+theorem chromNum_lineGraph_cartesianProduct_le {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+    {k l : ℕ} (c : G.V → G.V → Fin k) (d : H.V → H.V → Fin l)
+    (hc : ∀ x y, c x y = c y x) (hd : ∀ x y, d x y = d y x)
+    (hcp : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w)
+    (hdp : ∀ u v w : H.V, H.Adj u v = true → H.Adj u w = true → v ≠ w → d u v ≠ d u w) :
+    (lineGraph (cartesianProduct G H)).chromNum ≤ k + l := by
+  refine chromNum_lineGraph_le_of_edgeColouring (G := cartesianProduct G H) (prodCol c d)
+    (prodCol_symm hc hd) ?_
+  intro u v w huv huw hvw
+  rw [cartesianProduct_adj] at huv huw
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at huv huw
+  unfold prodCol
+  have hu1 : ∀ x : G.V × H.V, G.Adj u.1 x.1 = true → ¬ u.1 = x.1 := by
+    intro x hx h
+    rw [← h] at hx
+    exact G.loopless u.1 hx
+  rcases huv with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> rcases huw with ⟨h3, h4⟩ | ⟨h3, h4⟩
+  · rw [if_pos h1, if_pos h3]
+    have hne : v.2 ≠ w.2 := fun h ↦ hvw (Prod.ext (h1 ▸ h3) h)
+    refine fun hh ↦ hdp u.2 v.2 w.2 h2 h4 hne (Fin.ext ?_)
+    have hval := congrArg Fin.val hh
+    simp only [Fin.natAdd] at hval
+    omega
+  · rw [if_pos h1, if_neg (hu1 w h3)]
+    intro hh
+    have hval := congrArg Fin.val hh
+    simp only [Fin.natAdd, Fin.castAdd, Fin.castLE] at hval
+    have := (c u.1 w.1).isLt
+    omega
+  · rw [if_neg (hu1 v h1), if_pos h3]
+    intro hh
+    have hval := congrArg Fin.val hh
+    simp only [Fin.natAdd, Fin.castAdd, Fin.castLE] at hval
+    have := (c u.1 v.1).isLt
+    omega
+  · rw [if_neg (hu1 v h1), if_neg (hu1 w h3)]
+    have hne : v.1 ≠ w.1 := fun h ↦ hvw (Prod.ext h (h2 ▸ h4))
+    refine fun hh ↦ hcp u.1 v.1 w.1 h1 h3 hne (Fin.ext ?_)
+    have hval := congrArg Fin.val hh
+    simp only [Fin.castAdd, Fin.castLE] at hval
+    omega
+
 /-! ### The independence number of a torus with two odd sides -/
 
 /-- With an odd modulus `2a + 3` bigger than both, `2i + 1` and `2i'` are already reduced, so
@@ -40916,6 +41102,105 @@ theorem radius_cartesianProduct_cycle_path (m n : ℕ) :
     (cycle (m + 1) □g path (n + 1)).radius = (m + 1) / 2 + (n + 1) / 2 := by
   rw [radius_cartesianProduct (isConnected_cycle m) (isConnected_path n), radius_cycle,
     radius_path]
+
+/-! ### The chromatic index of a grid, a cylinder and a torus -/
+
+/-- **The chromatic index of a grid is four.**  Colour the horizontal edges by the parity of the
+column they leave and the vertical edges by the parity of the row, in a second palette. -/
+theorem edgeChromNum_grid (m n : ℕ) : (path (m + 3) □g path (n + 3)).edgeChromNum = 4 := by
+  refine le_antisymm ?_ ?_
+  · rw [edgeChromNum_eq, path_def, path_def, cartesianProduct_mk, lineGraph_mk, chromNum_mk]
+    exact CGraph.chromNum_lineGraph_cartesianProduct_le
+      (G := CGraph.path (m + 3)) (H := CGraph.path (n + 3))
+      (CGraph.pathCol (m + 3)) (CGraph.pathCol (n + 3))
+      (CGraph.pathCol_symm _) (CGraph.pathCol_symm _)
+      (CGraph.pathCol_proper _) (CGraph.pathCol_proper _)
+  · rw [← maxDeg_grid m n]
+    exact maxDeg_le_edgeChromNum _
+
+/-- **The chromatic index of a cylinder over an even cycle is four.** -/
+theorem edgeChromNum_cartesianProduct_cycle_even_path (m n : ℕ) :
+    (cycle (2 * m + 4) □g path (n + 3)).edgeChromNum = 4 := by
+  refine le_antisymm ?_ ?_
+  · rw [edgeChromNum_eq, cycle_def, path_def, cartesianProduct_mk, lineGraph_mk, chromNum_mk]
+    exact CGraph.chromNum_lineGraph_cartesianProduct_le
+      (G := CGraph.cycle (2 * m + 4)) (H := CGraph.path (n + 3))
+      (CGraph.cycleColEven (2 * m + 4)) (CGraph.pathCol (n + 3))
+      (CGraph.cycleColEven_symm _) (CGraph.pathCol_symm _)
+      (fun u v w ↦ CGraph.cycleColEven_proper _ (by omega) (by omega) u v w)
+      (CGraph.pathCol_proper _)
+  · have h := maxDeg_le_edgeChromNum (cycle (2 * m + 4) □g path (n + 3))
+    rwa [show 2 * m + 4 = (2 * m + 1) + 3 by omega, maxDeg_cartesianProduct_cycle_path] at h
+
+/-- **The chromatic index of a torus with both sides even is four.** -/
+theorem edgeChromNum_cartesianProduct_cycle_even (m n : ℕ) :
+    (cycle (2 * m + 4) □g cycle (2 * n + 4)).edgeChromNum = 4 := by
+  refine le_antisymm ?_ ?_
+  · rw [edgeChromNum_eq, cycle_def, cycle_def, cartesianProduct_mk, lineGraph_mk, chromNum_mk]
+    exact CGraph.chromNum_lineGraph_cartesianProduct_le
+      (G := CGraph.cycle (2 * m + 4)) (H := CGraph.cycle (2 * n + 4))
+      (CGraph.cycleColEven (2 * m + 4)) (CGraph.cycleColEven (2 * n + 4))
+      (CGraph.cycleColEven_symm _) (CGraph.cycleColEven_symm _)
+      (fun u v w ↦ CGraph.cycleColEven_proper _ (by omega) (by omega) u v w)
+      (fun u v w ↦ CGraph.cycleColEven_proper _ (by omega) (by omega) u v w)
+  · have h := maxDeg_le_edgeChromNum (cycle (2 * m + 4) □g cycle (2 * n + 4))
+    rwa [show 2 * m + 4 = (2 * m + 1) + 3 by omega, show 2 * n + 4 = (2 * n + 1) + 3 by omega,
+      maxDeg_cartesianProduct_cycle] at h
+
+/-! An odd cycle costs a third colour, so the composition only brackets the remaining cases.  A
+cylinder or a torus with an odd side is still `4`-regular where it is regular at all, and Vizing's
+theorem — which is not in the library — would pin every case with an even side down to `4`. -/
+
+/-- A cylinder over an odd cycle needs at least four colours and at most five. -/
+theorem le_edgeChromNum_cartesianProduct_cycle_odd_path (m n : ℕ) :
+    4 ≤ (cycle (2 * m + 3) □g path (n + 3)).edgeChromNum := by
+  have h := maxDeg_le_edgeChromNum (cycle (2 * m + 3) □g path (n + 3))
+  rwa [maxDeg_cartesianProduct_cycle_path] at h
+
+theorem edgeChromNum_cartesianProduct_cycle_odd_path_le (m n : ℕ) :
+    (cycle (2 * m + 3) □g path (n + 3)).edgeChromNum ≤ 5 := by
+  rw [edgeChromNum_eq, cycle_def, path_def, cartesianProduct_mk, lineGraph_mk, chromNum_mk]
+  exact CGraph.chromNum_lineGraph_cartesianProduct_le
+    (G := CGraph.cycle (2 * m + 3)) (H := CGraph.path (n + 3))
+    (CGraph.cycleColOdd (2 * m + 3)) (CGraph.pathCol (n + 3))
+    (CGraph.cycleColOdd_symm _) (CGraph.pathCol_symm _)
+    (fun u v w ↦ CGraph.cycleColOdd_proper _ (by omega) u v w)
+    (CGraph.pathCol_proper _)
+
+/-- A torus with one even side and one odd side needs at least four colours and at most five. -/
+theorem edgeChromNum_cartesianProduct_cycle_even_odd_le (m n : ℕ) :
+    (cycle (2 * m + 4) □g cycle (2 * n + 3)).edgeChromNum ≤ 5 := by
+  rw [edgeChromNum_eq, cycle_def, cycle_def, cartesianProduct_mk, lineGraph_mk, chromNum_mk]
+  exact CGraph.chromNum_lineGraph_cartesianProduct_le
+    (G := CGraph.cycle (2 * m + 4)) (H := CGraph.cycle (2 * n + 3))
+    (CGraph.cycleColEven (2 * m + 4)) (CGraph.cycleColOdd (2 * n + 3))
+    (CGraph.cycleColEven_symm _) (CGraph.cycleColOdd_symm _)
+    (fun u v w ↦ CGraph.cycleColEven_proper _ (by omega) (by omega) u v w)
+    (fun u v w ↦ CGraph.cycleColOdd_proper _ (by omega) u v w)
+
+/-- **A torus with two odd sides needs a fifth colour**: it is `4`-regular on an odd number of
+vertices, so no colour class can be a perfect matching. -/
+theorem le_edgeChromNum_cartesianProduct_cycle_odd (m n : ℕ) :
+    5 ≤ (cycle (2 * m + 3) □g cycle (2 * n + 3)).edgeChromNum := by
+  have hreg : (cycle (2 * m + 3) □g cycle (2 * n + 3)).IsRegularWith 4 :=
+    (isRegularWith_cycle (2 * m)).cartesianProduct (isRegularWith_cycle (2 * n))
+  have hodd : (cycle (2 * m + 3) □g cycle (2 * n + 3)).V % 2 = 1 := by
+    have h1 : (2 * m + 3) % 2 = 1 := by omega
+    have h2 : (2 * n + 3) % 2 = 1 := by omega
+    rw [V_cartesianProduct_cycle, Nat.mul_mod, h1, h2]
+  have h := maxDeg_lt_edgeChromNum_of_isRegularWith_odd hreg (by omega) hodd
+  rwa [maxDeg_cartesianProduct_cycle] at h
+
+theorem edgeChromNum_cartesianProduct_cycle_odd_le (m n : ℕ) :
+    (cycle (2 * m + 3) □g cycle (2 * n + 3)).edgeChromNum ≤ 6 := by
+  rw [edgeChromNum_eq, cycle_def, cycle_def, cartesianProduct_mk, lineGraph_mk, chromNum_mk]
+  exact CGraph.chromNum_lineGraph_cartesianProduct_le
+    (G := CGraph.cycle (2 * m + 3)) (H := CGraph.cycle (2 * n + 3))
+    (CGraph.cycleColOdd (2 * m + 3)) (CGraph.cycleColOdd (2 * n + 3))
+    (CGraph.cycleColOdd_symm _) (CGraph.cycleColOdd_symm _)
+    (fun u v w ↦ CGraph.cycleColOdd_proper _ (by omega) u v w)
+    (fun u v w ↦ CGraph.cycleColOdd_proper _ (by omega) u v w)
+
 
 @[simp] theorem V_king (m n : ℕ) : (path m ⊠g path n).V = m * n := by
   rw [V_strongProduct, V_path, V_path]

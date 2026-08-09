@@ -3145,6 +3145,29 @@ pairs give `matchNum_king = ⌊mn/2⌋`. So do the torus and the cylinder, which
 for edge: `matchNum_cartesianProduct_cycle` and `matchNum_cartesianProduct_cycle_path` are
 `⌊mn/2⌋` too, and `2ν ≤ |V|` says a matching can be no larger.
 
+The chromatic index of the same three boards closes by laying two palettes side by side. An edge
+of `G □ H` moves exactly one coordinate, and the two kinds of edge at a vertex are told apart by
+whether the first coordinate is fixed, so a colouring of each factor can be used unchanged on its
+own direction: `CGraph.prodCol` colours an edge with `H`'s palette when it moves the second
+coordinate and with `G`'s when it moves the first, and
+`chromNum_lineGraph_cartesianProduct_le` reads off `χ'(G □ H) ≤ χ'(G) + χ'(H)`. The factors'
+colourings have to be written down rather than extracted, since the library records `χ'` as a
+number and not as a function: `pathCol` gives a path edge the parity of its lower endpoint, and
+`cycleColEven` does the same on a cycle, with `cycEdge` indexing the wrap edge `{N − 1, 0}` by
+`N − 1` so that every edge has a well-defined index. On an odd cycle that indexing clashes at
+exactly one vertex, so `cycleColOdd` spends a third colour on the wrap edge alone. Since `Δ = 4`
+on all three boards, the sum is tight wherever both factors are class one: `edgeChromNum_grid`,
+`edgeChromNum_cartesianProduct_cycle_even_path` and `edgeChromNum_cartesianProduct_cycle_even` are
+all `4`, the lower bound being `maxDeg_le_edgeChromNum` against `maxDeg_grid` and its two
+siblings. An odd side costs a colour that Vizing's theorem — which the library does not have —
+would give back, so those cases are bracketed rather than settled:
+`edgeChromNum_cartesianProduct_cycle_odd_path_le` and
+`edgeChromNum_cartesianProduct_cycle_even_odd_le` cap the cylinder over an odd cycle and the torus
+with one odd side at `5`, against `4` from the maximum degree. With both sides odd the parity
+argument moves the lower bound instead: the torus is `4`-regular on an odd number of vertices, so
+`le_edgeChromNum_cartesianProduct_cycle_odd` gives `χ' ≥ 5`, against
+`edgeChromNum_cartesianProduct_cycle_odd_le : χ' ≤ 6`.
+
 The king graph's other three entries are blockings of the board. `indepNum_king = ⌈m/2⌉·⌈n/2⌉`:
 two kings in one `2 × 2` block are a single move apart, so rounding both coordinates down to the
 block index is injective on an independent set, and the lower bound is the general
