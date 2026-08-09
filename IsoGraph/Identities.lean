@@ -11328,6 +11328,137 @@ theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
       _ = n * (m / 2) := by rw [hn2]; ring
   exact hcard ▸ hindep.card_le_indepNum
 
+/-! ### The independence number of a torus with two odd sides -/
+
+/-- With an odd modulus `2a + 3` bigger than both, `2i + 1` and `2i'` are already reduced, so
+they are congruent only if they are equal — and they have opposite parities. -/
+theorem two_mul_succ_not_modEq (a i i' : ℕ) (hi : i ≤ a) (hi' : i' ≤ a) :
+    ¬ (2 * i + 1 ≡ 2 * i' [MOD 2 * a + 3]) := by
+  intro h
+  rw [Nat.ModEq, Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at h
+  omega
+
+/-- Two entries of one column of the staircase are never cyclically adjacent. -/
+theorem staircase_same (a c i i' : ℕ) (hi : i ≤ a) (hi' : i' ≤ a) :
+    (c + 2 * i + 1) % (2 * a + 3) ≠ (c + 2 * i') % (2 * a + 3) := by
+  intro he
+  have h1 : c + (2 * i + 1) ≡ c + 2 * i' [MOD 2 * a + 3] := by
+    simpa [Nat.add_assoc] using he
+  exact two_mul_succ_not_modEq a i i' hi hi' (Nat.ModEq.add_left_cancel' _ h1)
+
+/-- Entries of two neighbouring columns never coincide. -/
+theorem staircase_clash (a s t i i' : ℕ) (hi : i ≤ a) (hi' : i' ≤ a)
+    (hst : (s + 1) % (2 * a + 3) = t % (2 * a + 3)) :
+    (s + 2 * i) % (2 * a + 3) ≠ (t + 2 * i') % (2 * a + 3) := by
+  intro he
+  have h1 : s + 2 * i ≡ t + 2 * i' [MOD 2 * a + 3] := he
+  have h2 : t + 2 * i' ≡ s + 1 + 2 * i' [MOD 2 * a + 3] :=
+    Nat.ModEq.add_right _ (Nat.ModEq.symm hst)
+  have h3 : s + 2 * i ≡ s + (1 + 2 * i') [MOD 2 * a + 3] := by
+    simpa [Nat.add_assoc] using h1.trans h2
+  have h4 : 2 * i ≡ 1 + 2 * i' [MOD 2 * a + 3] := Nat.ModEq.add_left_cancel' _ h3
+  exact two_mul_succ_not_modEq a i' i hi' hi (by simpa [Nat.add_comm] using h4.symm)
+
+/-- **The staircase on a torus with two odd sides.** -/
+theorem le_indepNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
+    (2 * b + 3) * (a + 1) ≤
+      (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).indepNum := by
+  classical
+  obtain ⟨w, hw⟩ : ∃ w : ℕ → ℕ,
+      w = fun j ↦ if j ≤ a + b + 3 then j else 2 * (a + b + 3) - j := ⟨_, rfl⟩
+  have hstep : ∀ j j' : ℕ, j < 2 * b + 3 → (j + 1) % (2 * b + 3) = j' →
+      w j + 1 ≡ w j' [MOD 2 * a + 3] ∨ w j' + 1 ≡ w j [MOD 2 * a + 3] := by
+    intro j j' hj hj'
+    rcases lt_or_eq_of_le (Nat.succ_le_of_lt hj) with hlt | heq
+    · have hjj : j' = j + 1 := by rw [← hj']; exact Nat.mod_eq_of_lt hlt
+      subst hjj
+      simp only [hw]
+      split_ifs with h1 h2 h2
+      · exact Or.inl (Nat.ModEq.refl _)
+      · refine Or.inr ?_
+        have he : 2 * (a + b + 3) - (j + 1) + 1 = j := by omega
+        rw [he]
+      · exact absurd h2 (by omega)
+      · refine Or.inr ?_
+        have he : 2 * (a + b + 3) - (j + 1) + 1 = 2 * (a + b + 3) - j := by omega
+        rw [he]
+    · have hj0 : j = 2 * b + 2 := by omega
+      have hj'0 : j' = 0 := by rw [← hj', hj0]; simp
+      subst hj0; subst hj'0
+      simp only [hw]
+      rcases eq_or_lt_of_le hab with rfl | hlt'
+      · refine Or.inl ?_
+        rw [if_pos (by omega), if_pos (by omega)]
+        show (2 * a + 2 + 1) % (2 * a + 3) = 0 % (2 * a + 3)
+        simp
+      · refine Or.inr ?_
+        rw [if_pos (by omega)]
+        have he : (if 2 * b + 2 ≤ a + b + 3 then 2 * b + 2
+            else 2 * (a + b + 3) - (2 * b + 2)) = 2 * a + 3 + 1 := by
+          split_ifs with h <;> omega
+        rw [he]
+        show (0 + 1) % (2 * a + 3) = (2 * a + 3 + 1) % (2 * a + 3)
+        rw [Nat.add_mod_left]
+  obtain ⟨Φ, hΦ⟩ : ∃ Φ : Fin (2 * b + 3) × Fin (a + 1) →
+      (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).V,
+      Φ = fun x ↦ (⟨(w x.1.1 + 2 * x.2.1) % (2 * a + 3), Nat.mod_lt _ (by omega)⟩, x.1) :=
+    ⟨_, rfl⟩
+  have hΦ1 : ∀ x, (Φ x).1.1 = (w x.1.1 + 2 * x.2.1) % (2 * a + 3) := by simp [hΦ]
+  have hΦ2 : ∀ x, (Φ x).2 = x.1 := by simp [hΦ]
+  have hinj : Function.Injective Φ := by
+    intro x y h
+    have h2 : x.1 = y.1 := by rw [← hΦ2 x, ← hΦ2 y, h]
+    have h1 : (Φ x).1.1 = (Φ y).1.1 := by rw [h]
+    rw [hΦ1, hΦ1, h2] at h1
+    have hme : w y.1.1 + 2 * x.2.1 ≡ w y.1.1 + 2 * y.2.1 [MOD 2 * a + 3] := h1
+    have h3 : 2 * x.2.1 ≡ 2 * y.2.1 [MOD 2 * a + 3] := Nat.ModEq.add_left_cancel' _ hme
+    have hx := x.2.isLt
+    have hy := y.2.isLt
+    rw [Nat.ModEq, Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at h3
+    exact Prod.ext h2 (Fin.ext (by omega))
+  set S : Finset (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).V :=
+    Finset.univ.image Φ with hS
+  have hindep : (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).toSimple.IsIndepSet
+      (S : Set (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).V) := by
+    intro P hP Q hQ _
+    simp only [hS, Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ,
+      true_and] at hP hQ
+    obtain ⟨x, rfl⟩ := hP
+    obtain ⟨y, rfl⟩ := hQ
+    have hxi := x.2.isLt
+    have hyi := y.2.isLt
+    have hxj := x.1.isLt
+    have hyj := y.1.isLt
+    rw [toSimple_adj, cartesianProduct_adj]
+    simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, not_or, not_and]
+    refine ⟨fun heq hadj ↦ ?_, fun hadj heq ↦ ?_⟩
+    · have hrow : (w x.1.1 + 2 * x.2.1) % (2 * a + 3)
+          = (w y.1.1 + 2 * y.2.1) % (2 * a + 3) := by
+        rw [← hΦ1, ← hΦ1, heq]
+      have hv := (cycle_adj_val (2 * b + 3) (Φ x).2 (Φ y).2).1 hadj
+      rw [hΦ2, hΦ2] at hv
+      rcases hv.2 with hc | hc
+      · rcases hstep x.1.1 y.1.1 hxj hc with h | h
+        · exact staircase_clash a (w x.1.1) (w y.1.1) x.2.1 y.2.1 (by omega) (by omega) h hrow
+        · exact staircase_clash a (w y.1.1) (w x.1.1) y.2.1 x.2.1 (by omega) (by omega) h
+            hrow.symm
+      · rcases hstep y.1.1 x.1.1 hyj hc with h | h
+        · exact staircase_clash a (w y.1.1) (w x.1.1) y.2.1 x.2.1 (by omega) (by omega) h
+            hrow.symm
+        · exact staircase_clash a (w x.1.1) (w y.1.1) x.2.1 y.2.1 (by omega) (by omega) h hrow
+    · have hcol : x.1 = y.1 := by rw [← hΦ2 x, ← hΦ2 y, heq]
+      have hv := (cycle_adj_val (2 * a + 3) (Φ x).1 (Φ y).1).1 hadj
+      rw [hΦ1, hΦ1, hcol] at hv
+      rcases hv.2 with hr | hr
+      · rw [Nat.mod_add_mod] at hr
+        exact staircase_same a (w y.1.1) x.2.1 y.2.1 (by omega) (by omega) hr
+      · rw [Nat.mod_add_mod] at hr
+        exact staircase_same a (w y.1.1) y.2.1 x.2.1 (by omega) (by omega) hr
+  have hcard : S.card = (2 * b + 3) * (a + 1) := by
+    rw [hS, Finset.card_image_of_injective _ hinj, Finset.card_univ, Fintype.card_prod,
+      Fintype.card_fin, Fintype.card_fin]
+  exact hcard ▸ hindep.card_le_indepNum
+
 /-! ### The automorphism group of the hypercube -/
 
 /-- Two hypercube vertices are adjacent exactly when they differ in a single coordinate. -/
@@ -51723,13 +51854,14 @@ boustrophedon Hamiltonian path. -/
   · rw [matchNum_eq, path_def, path_def, strongProduct_mk, lineGraph_mk, indepNum_mk]
     exact CGraph.le_indepNum_lineGraph_king m n
 
-/-! ## The torus: independence number when a side is even -/
+/-! ## The torus: the independence number -/
 
 /-- **The independence number of a torus with an even side**: `α(Cₘ □ Cₙ) = n · ⌊m/2⌋` as soon as
 `n` is even.  The upper bound is the general `indepNum_cartesianProduct_le'` — at most a maximum
 independent set of `Cₘ` in each of the `n` columns — and the checkerboard of
-`CGraph.le_indepNum_cartesianProduct_cycle` meets it.  When both sides are odd the value drops to
-`min (n⌊m/2⌋) (m⌊n/2⌋) - 1` and only the two bounds are on file. -/
+`CGraph.le_indepNum_cartesianProduct_cycle` meets it.  The checkerboard fails when both sides are
+odd — its last row then neighbours its first with the same parity — and that case is
+`indepNum_cartesianProduct_cycle_odd`, by a staircase instead. -/
 theorem indepNum_cartesianProduct_cycle_even (m n : ℕ) (hev : n % 2 = 0) :
     (cycle (m + 3) □g cycle n).indepNum = n * ((m + 3) / 2) := by
   refine le_antisymm ?_ ?_
@@ -51744,6 +51876,55 @@ theorem indepNum_cartesianProduct_cycle_even' (m n : ℕ) (hev : m % 2 = 0) :
     (cycle m □g cycle (n + 3)).indepNum = m * ((n + 3) / 2) := by
   rw [cartesianProduct_comm]
   exact indepNum_cartesianProduct_cycle_even n m hev
+
+/-- **The independence number of a torus with two odd sides**: with `m = 2a + 3 ≤ n = 2b + 3`,
+`α(Cₘ □ Cₙ) = n · ⌊m/2⌋ = n(a + 1)`.  The upper bound is again `indepNum_cartesianProduct_le'`,
+and `CGraph.le_indepNum_cartesianProduct_cycle_odd` meets it with a staircase: column `j` carries
+the `a + 1` residues `w j, w j + 2, …, w j + 2a` of `ℤ/m`, where `w` walks up from `0` to
+`a + b + 3` and back down, a closed `±1` walk of length `n` because `m` is odd. -/
+theorem indepNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
+    (cycle (2 * a + 3) □g cycle (2 * b + 3)).indepNum = (2 * b + 3) * (a + 1) := by
+  refine le_antisymm ?_ ?_
+  · have h := indepNum_cartesianProduct_le' (cycle (2 * a + 3)) (cycle (2 * b + 3))
+    rw [indepNum_cycle, V_cycle] at h
+    have he : (2 * a + 3) / 2 = a + 1 := by omega
+    rw [he] at h
+    exact h.trans_eq (Nat.mul_comm _ _)
+  · rw [cycle_def, cycle_def, cartesianProduct_mk, indepNum_mk]
+    exact CGraph.le_indepNum_cartesianProduct_cycle_odd a b hab
+
+/-- The mirror of `indepNum_cartesianProduct_cycle_odd`, with the shorter side second. -/
+theorem indepNum_cartesianProduct_cycle_odd' (a b : ℕ) (hab : b ≤ a) :
+    (cycle (2 * a + 3) □g cycle (2 * b + 3)).indepNum = (2 * a + 3) * (b + 1) := by
+  rw [cartesianProduct_comm]
+  exact indepNum_cartesianProduct_cycle_odd b a hab
+
+/-- **The vertex cover number of a torus with an even side**, by Gallai: `τ = n·⌈m/2⌉`. -/
+theorem coverNum_cartesianProduct_cycle_even (m n : ℕ) (hev : n % 2 = 0) :
+    (cycle (m + 3) □g cycle n).coverNum = n * ((m + 4) / 2) := by
+  have h := (cycle (m + 3) □g cycle n).coverNum_add_indepNum
+  rw [V_cartesianProduct_cycle, indepNum_cartesianProduct_cycle_even m n hev] at h
+  rcases Nat.even_or_odd m with hm | hm
+  · obtain ⟨k, rfl⟩ := hm
+    have h1 : (k + k + 3) / 2 = k + 1 := by omega
+    have h2 : (k + k + 4) / 2 = k + 2 := by omega
+    rw [h1] at h
+    rw [h2]
+    nlinarith [h]
+  · obtain ⟨k, rfl⟩ := hm
+    have h1 : (2 * k + 1 + 3) / 2 = k + 2 := by omega
+    have h2 : (2 * k + 1 + 4) / 2 = k + 2 := by omega
+    rw [h1] at h
+    rw [h2]
+    nlinarith [h]
+
+/-- **The vertex cover number of a torus with two odd sides**, by Gallai: `τ = n(a + 2)` when
+`m = 2a + 3 ≤ n`. -/
+theorem coverNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
+    (cycle (2 * a + 3) □g cycle (2 * b + 3)).coverNum = (2 * b + 3) * (a + 2) := by
+  have h := (cycle (2 * a + 3) □g cycle (2 * b + 3)).coverNum_add_indepNum
+  rw [V_cartesianProduct_cycle, indepNum_cartesianProduct_cycle_odd a b hab] at h
+  nlinarith [h]
 
 /-! ## The automorphism group of the hypercube -/
 

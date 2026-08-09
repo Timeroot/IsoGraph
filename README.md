@@ -3102,9 +3102,10 @@ fills the rest of them in. For the grid `Pₘ □ Pₙ` that is `V_grid`, `E_gri
 `minDeg_cartesianProduct_cycle` — both `4`, since the torus is quartic —
 `isConnected_cartesianProduct_cycle`, `radius_cartesianProduct_cycle` and
 `isVertexTransitive_cartesianProduct_cycle`, the last from the product of two vertex-transitive
-factors. The torus's independence number is on file whenever one of its sides is even:
-`indepNum_cartesianProduct_cycle_even : α(Cₘ □ Cₙ) = n·⌊m/2⌋` for even `n`, and
-`indepNum_cartesianProduct_cycle_even'` for even `m`. The upper bound is the general
+factors. The torus's independence number is on file at every pair of sides:
+`indepNum_cartesianProduct_cycle_even : α(Cₘ □ Cₙ) = n·⌊m/2⌋` for even `n`,
+`indepNum_cartesianProduct_cycle_even'` for even `m`, and
+`indepNum_cartesianProduct_cycle_odd` when both are odd. The upper bound is the general
 `indepNum_cartesianProduct_le'` — at most a maximum independent set of `Cₘ` in each of the `n`
 columns — and `CGraph.le_indepNum_cartesianProduct_cycle` meets it with a checkerboard: take the
 first `2⌊m/2⌋` rows and, in row `a`, the columns congruent to `a` mod `2`. Two chosen squares in
@@ -3114,11 +3115,18 @@ is independent; the column wrap is safe because `n` is even, and the row wrap be
 value in general is `min(n⌊m/2⌋, m⌊n/2⌋)`, and an even side is exactly the case where the
 checkerboard reaches it: `n⌊m/2⌋ ≤ m(n/2)` whenever `n` is even, so the bound the construction
 meets is the smaller of the two. With both sides odd the minimum is still `n⌊m/2⌋` for `m ≤ n`,
-but the checkerboard's last row now neighbours its first with the same parity, and closing the
-cycle instead needs a column-by-column staircase whose shift has to be corrected somewhere around
-the wrap; that case keeps only the two bounds `indepNum_cartesianProduct_le` and
-`indepNum_cartesianProduct_le'`. The grid's independence number is also on file, but by a route
-that has nothing to do with the product structure.
+but the checkerboard's last row now neighbours its first with the same parity, so
+`CGraph.le_indepNum_cartesianProduct_cycle_odd` uses a column-by-column staircase instead. Write
+`m = 2a + 3 ≤ n = 2b + 3`; a maximum independent set of `Cₘ` is a block of `a + 1` alternate
+residues `c, c + 2, …, c + 2a`, and two such blocks are compatible — no square of one adjacent to a
+square of the other — exactly when their offsets differ by `±1`. What the columns need is therefore
+a closed `±1` walk of length `n` on `ℤ/m`, which exists because both are odd: walk up from `0` to
+`a + b + 3` and back down, and the wrap closes because the last value is `m − 1` when `m = n` and
+`m + 1 ≡ 1` otherwise. Everything then reduces to `2i + 1 ≢ 2i′ (mod 2a + 3)` for `i, i′ ≤ a`, true
+because both sides are already reduced and have opposite parity. Gallai turns each value into a
+vertex cover number, `coverNum_cartesianProduct_cycle_even : τ = n·⌈m/2⌉` and
+`coverNum_cartesianProduct_cycle_odd`. The grid's independence number is also on file, but by a
+route that has nothing to do with the product structure.
 
 That route is the **boustrophedon numbering** of an `m × n` board: `L(x, y) = xn + y` along the
 even rows and `xn + (n − 1 − y)` along the odd ones. `snake_inj` says it is injective and
@@ -5682,6 +5690,4 @@ hypercube (`autCount_hypercube`) and the Petersen graph (`autCount_petersen`), b
 that is only vertex-transitive, where arc-transitivity gives a lower bound and there is no
 counterpart to the rigidity argument the cube admits — the domination number of a
 grid, whose closed form is a 2011 theorem of Gonçalves, Pinlou, Rao and Thomassé and the only one
-of the grid's and the king graph's eight entries below the colouring row that is not on file — and
-the independence number of a torus with two odd sides, where the value is still
-`min(n⌊m/2⌋, m⌊n/2⌋)` but the checkerboard that proves the even case does not close up.
+of the grid's and the king graph's eight entries below the colouring row that is not on file.
