@@ -7525,6 +7525,13 @@ private theorem sum_replicate_choose_succ (n : ℕ) (v : ℕ → ℝ) :
   rw [hz]
   abel
 
+/-- The spectrum of `K₂`, in the form the products below consume. -/
+private theorem spectrum_complete_two :
+    (complete 2).spectrum = (1 : ℝ) ::ₘ Multiset.replicate 1 (-1) := by
+  have := spectrum_complete 1
+  norm_num at this
+  simpa using this
+
 /-- Multiplying a multiset by the spectrum `{1, -1}` of `K₂`. -/
 private theorem product_pm_one (s : Multiset ℝ) :
     (s ×ˢ ((1 : ℝ) ::ₘ Multiset.replicate 1 (-1))).map (fun p ↦ p.1 + p.2)
@@ -7547,11 +7554,7 @@ theorem spectrum_hypercube (n : ℕ) :
   induction n with
   | zero => simp
   | succ n ih =>
-    have h2 : (complete 2).spectrum = (1 : ℝ) ::ₘ Multiset.replicate 1 (-1) := by
-      have := spectrum_complete 1
-      norm_num at this
-      simpa using this
-    rw [hypercube_succ, spectrum_cartesianProduct, h2, product_pm_one, ih]
+    rw [hypercube_succ, spectrum_cartesianProduct, spectrum_complete_two, product_pm_one, ih]
     push_cast
     rw [sum_replicate_choose_succ n (fun j ↦ (n : ℝ) + 1 - 2 * j)]
     congr 1
@@ -7592,6 +7595,37 @@ theorem spectrum_cartesianProduct_cycle_path {m : ℕ} (hm : 3 ≤ m) (n : ℕ) 
             + 2 * Real.cos (Real.pi * (p.2.1 + 1) / (n + 1))) := by
   rw [spectrum_cartesianProduct, spectrum_cycle hm, spectrum_path,
     ← CGraph.map_product_apply₂ _ _ (fun a b ↦ a + b), ← Finset.univ_product_univ,
+    Finset.product_val]
+
+/-- **The spectrum of a prism**: `Cₙ □ K₂` shifts the cycle's eigenvalues by `±1`. -/
+theorem spectrum_prism {n : ℕ} (hn : 3 ≤ n) :
+    (prism n).spectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (2 * Real.pi * m.1 / n) + 1)
+        + Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (2 * Real.pi * m.1 / n) - 1) := by
+  rw [show prism n = cycle n □g complete 2 from rfl, spectrum_cartesianProduct,
+    spectrum_complete_two, product_pm_one, spectrum_cycle hn, Multiset.map_map,
+    Multiset.map_map]
+  rfl
+
+/-- **The spectrum of a ladder**: `Pₙ □ K₂` shifts the path's eigenvalues by `±1`. -/
+theorem spectrum_ladder (n : ℕ) :
+    (ladder n).spectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) + 1)
+        + Finset.univ.val.map (fun m : Fin n ↦
+            2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) - 1) := by
+  rw [show ladder n = path n □g complete 2 from rfl, spectrum_cartesianProduct,
+    spectrum_complete_two, product_pm_one, spectrum_path, Multiset.map_map, Multiset.map_map]
+  rfl
+
+/-- **The spectrum of a king graph**: the strong product multiplies the shifted eigenvalues of
+the two paths and shifts back. -/
+theorem spectrum_king (m n : ℕ) :
+    (path m ⊠g path n).spectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          (1 + 2 * Real.cos (Real.pi * (p.1.1 + 1) / (m + 1)))
+              * (1 + 2 * Real.cos (Real.pi * (p.2.1 + 1) / (n + 1))) - 1) := by
+  rw [spectrum_strongProduct, spectrum_path, spectrum_path,
+    ← CGraph.map_product_apply₂ _ _ (fun a b ↦ (1 + a) * (1 + b) - 1), ← Finset.univ_product_univ,
     Finset.product_val]
 
 /-! ### Determined by the spectrum -/
@@ -8330,6 +8364,32 @@ theorem algConn_cartesianProduct_cycle_path (m n : ℕ) :
       = min (2 - 2 * Real.cos (2 * Real.pi / ((m : ℝ) + 3)))
           (2 - 2 * Real.cos (Real.pi / ((n : ℝ) + 2))) := by
   rw [algConn_cartesianProduct (by simp) (by simp), algConn_cycle, algConn_path]
+
+/-- **The algebraic connectivity of a prism** is the cycle's, once the cycle is long enough that
+its Fiedler value drops below the rung's `2`. -/
+theorem algConn_prism (n : ℕ) :
+    (prism (n + 4)).algConn = 2 - 2 * Real.cos (2 * Real.pi / ((n : ℝ) + 4)) := by
+  rw [show prism (n + 4) = cycle (n + 1 + 3) □g complete (0 + 2) from by norm_num,
+    algConn_cartesianProduct (by simp) (by simp), algConn_cycle, algConn_complete, min_eq_left]
+  · push_cast
+    ring_nf
+  · have h1 : 2 * Real.pi / ((n : ℝ) + 1 + 3) ≤ Real.pi / 2 := by
+      rw [div_le_div_iff₀ (by positivity) (by norm_num)]
+      nlinarith [Real.pi_pos, Nat.cast_nonneg (α := ℝ) n]
+    have h2 : (0 : ℝ) ≤ Real.cos (2 * Real.pi / ((n : ℝ) + 1 + 3)) := by
+      refine Real.cos_nonneg_of_mem_Icc ⟨?_, h1⟩
+      have : (0 : ℝ) ≤ 2 * Real.pi / ((n : ℝ) + 1 + 3) := by positivity
+      linarith [Real.pi_pos]
+    push_cast
+    linarith
+
+/-- **The largest Laplacian eigenvalue of an even prism** is `6 = 2 Δ`: the even prism is
+bipartite and cubic. -/
+theorem lapLambdaMax_prism_even {n : ℕ} (hn : 2 ≤ n) : (prism (2 * n)).lapLambdaMax = 6 := by
+  rw [show prism (2 * n) = cycle (2 * n) □g complete (0 + 2) from by norm_num,
+    lapLambdaMax_cartesianProduct (by simp; omega) (by simp), lapLambdaMax_cycle_even hn,
+    lapLambdaMax_complete]
+  norm_num
 
 /-- **`Δ + 1 ≤ μ_max`**, at the `IsoGraph` level. -/
 theorem maxDeg_add_one_le_lapLambdaMax {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.E) :

@@ -4401,6 +4401,11 @@ over `Fin m × Fin n`, `spectrum_cartesianProduct_cycle` is the torus' `2 cos (2
 2 cos (2 π j / n)`, and `spectrum_cartesianProduct_cycle_path` is the cylinder's mixture of the
 two. Each is one `rw` — the product law, the two factor spectra, and a lemma turning a product
 of two `Finset.univ` multisets back into the `univ` of a product type.
+
+The `K₂` factor is the same step that built the hypercube, so `spectrum_prism` and
+`spectrum_ladder` are the cycle's and the path's eigenvalues each shifted by `+1` and by `-1`,
+and the strong product gives the king's board the same way: `spectrum_king` is the multiset of
+`(1 + 2 cos (π (i + 1) / (m + 1))) (1 + 2 cos (π (j + 1) / (n + 1))) - 1`.
 The complement starts from the eigenvector statement: `Gᶜ`'s adjacency matrix is `J - I - A`, so
 an eigenvector orthogonal to the all-ones vector survives with `x` replaced by `-1 - x`. For a
 connected regular graph that determines the whole multiset:
@@ -5078,6 +5083,11 @@ path's. At the small end the minimum picks the *longer* side, because `2 - 2 cos
 decreases in `k`: `algConn_grid` is `2 - 2 cos (π / (n + 2))` for `m ≤ n`, and
 `algConn_cartesianProduct_cycle` is `2 - 2 cos (2 π / (n + 3))`. So a long thin board is exactly
 as hard to disconnect as its long side alone — the short side contributes nothing.
+
+The prism is the case where the comparison goes the other way and has to be checked: `a(K₂) = 2`,
+so `algConn_prism` is the cycle's value only once `n ≥ 4`, which is exactly where
+`2 - 2 cos (2 π / n)` drops back below `2`. At the other end
+`lapLambdaMax_prism_even = 6 = 2 Δ`, the even prism being bipartite and cubic.
 
 That leaves the strongly regular graphs, which are the easiest case of all: a strongly regular
 graph is regular and has only three distinct eigenvalues `k > r > s`, so reflecting in `k` gives
