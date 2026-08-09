@@ -91,6 +91,15 @@ Sharper, `λ_max` is the spectral radius: `abs_le_lambdaMax_of_mem_spectrum`, be
 eigenvector by its absolute value keeps the norm and cannot decrease the quadratic form
 (`abs_dotProduct_mulVec_le`, nonnegativity of `A`).
 
+The same trick makes the radius monotone in the edge set, `lambdaMax_le_lambdaMax_of_adj`: reading
+the absolute value of an eigenvector through a vertex bijection that carries edges to edges only
+adds nonnegative terms.  `lambdaMax_le_card_sub_one` caps it at `n - 1`, attained by `Kₙ`.  In the
+other extreme, `lambdaMin_eq_neg_lambdaMax_of_isBipartite` says a bipartite graph attains
+`-λ_max ≤ λ_min`, since its spectrum is symmetric about zero.  The two ends of the products
+(`lambdaMax_disjUnion`, `lambdaMax_cartesianProduct`, `lambdaMax_strongProduct` and their
+`lambdaMin` counterparts) and of the named families (`lambdaMax_complete`, `lambdaMax_cycle`,
+`lambdaMax_path` and the rest) are read off the spectra computed above.
+
 The *equality* case is `mulVec_eq_of_rayleigh_eq_lambdaMax`: a vector attaining the maximum is an
 eigenvector, since in rotated coordinates the quotient is a weighted average of the eigenvalues.
 Applied to the all-ones vector this says that a graph whose largest eigenvalue equals its average
@@ -2906,6 +2915,56 @@ theorem lambdaMax_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
   · rw [spectrum_strongProduct']
     exact Multiset.mem_map.2 ⟨(G.lambdaMax, H.lambdaMax), Multiset.mem_product.2
       ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
+
+/-- **A tensor product multiplies the spectral radii.**  Every other product `x y` is smaller,
+since `|x| ≤ λ_max(G)` and `|y| ≤ λ_max(H)`. -/
+theorem lambdaMax_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (tensorProduct G H).lambdaMax = G.lambdaMax * H.lambdaMax := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_tensorProduct'] at hx
+    obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
+    obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
+    calc p.1 * p.2 ≤ |p.1 * p.2| := le_abs_self _
+      _ = |p.1| * |p.2| := abs_mul _ _
+      _ ≤ G.lambdaMax * H.lambdaMax :=
+          mul_le_mul (abs_le_lambdaMax_of_mem_spectrum h1) (abs_le_lambdaMax_of_mem_spectrum h2)
+            (abs_nonneg _) (lambdaMax_nonneg G)
+  · rw [spectrum_tensorProduct']
+    exact Multiset.mem_map.2 ⟨(G.lambdaMax, H.lambdaMax), Multiset.mem_product.2
+      ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
+
+/-- **A tensor product's least eigenvalue** is the more negative of the two mixed products. -/
+theorem lambdaMin_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+    [Nonempty G.V] [Nonempty H.V] :
+    (tensorProduct G H).lambdaMin
+      = min (G.lambdaMax * H.lambdaMin) (G.lambdaMin * H.lambdaMax) := by
+  refine le_antisymm ?_ ?_
+  · refine le_min (lambdaMin_le ?_) (lambdaMin_le ?_) <;> rw [spectrum_tensorProduct']
+    · exact Multiset.mem_map.2 ⟨(G.lambdaMax, H.lambdaMin), Multiset.mem_product.2
+        ⟨lambdaMax_mem_spectrum G, lambdaMin_mem_spectrum H⟩, rfl⟩
+    · exact Multiset.mem_map.2 ⟨(G.lambdaMin, H.lambdaMax), Multiset.mem_product.2
+        ⟨lambdaMin_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
+  · have hx := lambdaMin_mem_spectrum (tensorProduct G H)
+    rw [spectrum_tensorProduct'] at hx
+    obtain ⟨p, hp, hxp⟩ := Multiset.mem_map.1 hx
+    obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
+    rw [← hxp]
+    have hG1 := (abs_le.1 (abs_le_lambdaMax_of_mem_spectrum h1)).1
+    have hG2 := (abs_le.1 (abs_le_lambdaMax_of_mem_spectrum h1)).2
+    have hH1 := (abs_le.1 (abs_le_lambdaMax_of_mem_spectrum h2)).1
+    have hH2 := (abs_le.1 (abs_le_lambdaMax_of_mem_spectrum h2)).2
+    have hGl := lambdaMin_le h1
+    have hHl := lambdaMin_le h2
+    have hGmin := lambdaMin_nonpos G
+    have hHmin := lambdaMin_nonpos H
+    have hGmax := lambdaMax_nonneg G
+    have hHmax := lambdaMax_nonneg H
+    rcases le_total 0 p.1 with hp1 | hp1 <;> rcases le_total 0 p.2 with hp2 | hp2
+    · exact le_trans (min_le_left _ _) (by nlinarith)
+    · exact le_trans (min_le_left _ _) (by nlinarith)
+    · exact le_trans (min_le_right _ _) (by nlinarith)
+    · exact le_trans (min_le_left _ _) (by nlinarith)
 
 /-! ### The extreme eigenvalues of the named families -/
 
