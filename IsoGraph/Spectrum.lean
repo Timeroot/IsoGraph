@@ -3279,6 +3279,75 @@ theorem lambdaMin_star (n : ℕ) : (star (n + 1)).lambdaMin = -Real.sqrt (n + 1)
     · rw [h]
     · rw [Multiset.eq_of_mem_replicate h]; linarith
 
+instance instNonemptyWheelV (n : ℕ) : Nonempty (wheel n).V := ⟨Sum.inl ⟨0, by omega⟩⟩
+
+open Matrix in
+/-- **The spectral radius of a wheel** is `1 + √(n + 1)`: the vector that is `√(n+1) - 1` at the
+hub and `1` on the rim is a positive eigenvector, and a positive eigenvector's eigenvalue bounds
+the whole spectrum. -/
+theorem lambdaMax_wheel (m : ℕ) :
+    (wheel (m + 3)).lambdaMax = 1 + Real.sqrt ((m : ℝ) + 4) := by
+  have hs : Real.sqrt ((m : ℝ) + 4) ^ 2 = (m : ℝ) + 4 := Real.sq_sqrt (by positivity)
+  have hs0 : (0 : ℝ) ≤ Real.sqrt ((m : ℝ) + 4) := Real.sqrt_nonneg _
+  have hs1 : 1 < Real.sqrt ((m : ℝ) + 4) := by nlinarith
+  have hcyc : (cycle (m + 3)).IsRegularWith 2 := IsoGraph.isRegularWith_cycle m
+  set w : (wheel (m + 3)).V → ℝ :=
+    Sum.elim (fun _ ↦ Real.sqrt ((m : ℝ) + 4) - 1) (fun _ ↦ 1) with hwdef
+  have hwpos : ∀ i, 0 < w i := by
+    rintro (a | v)
+    · simpa [hwdef] using hs1
+    · simp [hwdef]
+  have hmul : (wheel (m + 3)).adjMat *ᵥ w = (1 + Real.sqrt ((m : ℝ) + 4)) • w := by
+    funext i
+    rcases i with a | v
+    · have hsplit : ((wheel (m + 3)).adjMat *ᵥ w) (Sum.inl a)
+          = (∑ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inl a')
+              * w (Sum.inl a'))
+            + ∑ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inr u)
+              * w (Sum.inr u) :=
+        Fintype.sum_sum_type (f := fun x ↦ (wheel (m + 3)).adjMat (Sum.inl a) x * w x)
+      have h1 : ∀ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inl a')
+          * w (Sum.inl a') = 0 := by
+        intro a'
+        rw [adjMat_apply, show (wheel (m + 3)).Adj (Sum.inl a) (Sum.inl a') = false by
+          simp [wheel, complete_one_elim (a := a) (b := a')]]
+        simp
+      have h2 : ∀ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inl a) (Sum.inr u)
+          * w (Sum.inr u) = 1 := by
+        intro u
+        rw [adjMat_apply, wheel_adj_inl_inr]
+        simp [hwdef]
+      rw [hsplit, Finset.sum_congr rfl fun a' _ ↦ h1 a', Finset.sum_congr rfl fun u _ ↦ h2 u]
+      simp only [Finset.sum_const, nsmul_eq_mul, mul_one, Finset.card_univ, card_cycle,
+        Pi.smul_apply, smul_eq_mul, hwdef, Sum.elim_inl]
+      push_cast
+      nlinarith
+    · have hsplit : ((wheel (m + 3)).adjMat *ᵥ w) (Sum.inr v)
+          = (∑ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inl a')
+              * w (Sum.inl a'))
+            + ∑ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inr u)
+              * w (Sum.inr u) :=
+        Fintype.sum_sum_type (f := fun x ↦ (wheel (m + 3)).adjMat (Sum.inr v) x * w x)
+      have h1 : ∀ a' : (complete 1).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inl a')
+          * w (Sum.inl a') = Real.sqrt ((m : ℝ) + 4) - 1 := by
+        intro a'
+        rw [adjMat_apply, show (wheel (m + 3)).Adj (Sum.inr v) (Sum.inl a') = true by simp [wheel]]
+        simp [hwdef]
+      have h2 : ∀ u : (cycle (m + 3)).V, (wheel (m + 3)).adjMat (Sum.inr v) (Sum.inr u)
+          * w (Sum.inr u) = (cycle (m + 3)).adjMat v u := by
+        intro u
+        rw [adjMat_apply, adjMat_apply, wheel_adj_inr_inr]
+        simp [hwdef]
+      rw [hsplit, Finset.sum_congr rfl fun a' _ ↦ h1 a', Finset.sum_congr rfl fun u _ ↦ h2 u,
+        sum_adjMat_row hcyc]
+      simp only [Finset.sum_const, nsmul_eq_mul, Finset.card_univ, card_complete, Pi.smul_apply,
+        smul_eq_mul, hwdef, Sum.elim_inr]
+      push_cast
+      ring
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · exact spectrum_le_of_mulVec_le hwpos (fun i ↦ le_of_eq (congrFun hmul i)) hx
+  · exact mem_spectrum_of_mulVec_eq hwpos hmul
+
 /-- **The spectral radius of a grid** is the sum of the two paths'. -/
 theorem lambdaMax_grid (m n : ℕ) :
     (cartesianProduct (path (m + 1)) (path (n + 1))).lambdaMax

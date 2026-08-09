@@ -5261,7 +5261,18 @@ of the path's angles is the first, and `lambdaMin_path` is its negative, since t
 bipartite and the largest angle `π - π / (n + 2)` is the reflection of the smallest. For the
 complete bipartite graph the spectrum is `±√(mn)` with zeros between, so `lambdaMax_bipartite`
 and `lambdaMin_bipartite` are `±√(mn)` and `lambdaMax_star`, `lambdaMin_star` are `±√n` — the
-star is exactly where `√Δ ≤ lambdaMax` is tight. Composing with the product rule,
+star is exactly where `√Δ ≤ lambdaMax` is tight.
+
+The wheel is the one entry that does not come off a spectrum, because the adjacency spectrum of a
+join is not on file: `lambdaMax_wheel` is `1 + √(n + 1)`, proved from the Perron machinery
+instead. The vector that is `√(n+1) - 1` at the hub and `1` on the rim satisfies `A w = λ w`
+exactly — the hub equation reads `n = λ (√(n+1) - 1)` and each rim equation reads
+`2 + (√(n+1) - 1) = λ` — so `mem_spectrum_of_mulVec_eq` puts `λ` in the spectrum and
+`spectrum_le_of_mulVec_le`, the positive-subeigenvector bound, keeps everything else below it.
+That is the same pair of lemmas the Smith diagrams use, applied to a graph that is not regular.
+The other end of the wheel's spectrum would need the join formula and is not there.
+
+Composing with the product rule,
 `lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes, `lambdaMax_torus`
 is `4` and `lambdaMax_prism` is `3` — both of them the degree, as they must be for a regular
 graph — and `lambdaMin_torus_even`, `lambdaMin_prism_even` are their negatives once the cycle is
