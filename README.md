@@ -3141,7 +3141,9 @@ that gives `indepNum_grid : α(Pₘ □ Pₙ) = ⌈mn/2⌉`, and Gallai turns it
 matching: `le_indepNum_lineGraph_of_pairing` turns `k` disjoint edges into `ν ≥ k` — they are `k`
 pairwise non-adjacent vertices of the line graph — and `le_indepNum_lineGraph_board` feeds it the
 boustrophedon pairs, for `matchNum_grid = ⌊mn/2⌋`. Every grid edge is a king move, so the same
-pairs give `matchNum_king = ⌊mn/2⌋`.
+pairs give `matchNum_king = ⌊mn/2⌋`. So do the torus and the cylinder, which contain the grid edge
+for edge: `matchNum_cartesianProduct_cycle` and `matchNum_cartesianProduct_cycle_path` are
+`⌊mn/2⌋` too, and `2ν ≤ |V|` says a matching can be no larger.
 
 The king graph's other three entries are blockings of the board. `indepNum_king = ⌈m/2⌉·⌈n/2⌉`:
 two kings in one `2 × 2` block are a single move apart, so rounding both coordinates down to the

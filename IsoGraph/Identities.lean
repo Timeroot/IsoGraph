@@ -11328,6 +11328,40 @@ theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
       _ = n * (m / 2) := by rw [hn2]; ring
   exact hcard ▸ hindep.card_le_indepNum
 
+/-- The torus contains `⌊mn/2⌋` disjoint edges: it contains the grid, so the boustrophedon
+matching of `le_indepNum_lineGraph_board` works unchanged. -/
+theorem le_indepNum_lineGraph_torus (m n : ℕ) :
+    m * n / 2 ≤ (lineGraph (cartesianProduct (cycle m) (cycle n))).indepNum := by
+  refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
+  intro p q h
+  rw [cartesianProduct_adj]
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+  have hp1 := p.1.isLt
+  have hq1 := q.1.isLt
+  have hp2 := p.2.isLt
+  have hq2 := q.2.isLt
+  rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · refine Or.inl ⟨h1, (cycle_adj_val n p.2 q.2).2 ⟨by omega, ?_⟩⟩
+    rcases h2 with h2 | h2
+    · exact Or.inl (by rw [h2]; exact Nat.mod_eq_of_lt hq2)
+    · exact Or.inr (by rw [h2]; exact Nat.mod_eq_of_lt hp2)
+  · exact Or.inr ⟨(cycle_adj_val m p.1 q.1).2
+      ⟨by omega, Or.inl (by rw [h2]; exact Nat.mod_eq_of_lt hq1)⟩, h1⟩
+
+/-- The cylinder contains `⌊mn/2⌋` disjoint edges, again by the grid's matching. -/
+theorem le_indepNum_lineGraph_cylinder (m n : ℕ) :
+    m * n / 2 ≤ (lineGraph (cartesianProduct (cycle m) (path n))).indepNum := by
+  refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
+  intro p q h
+  rw [cartesianProduct_adj]
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+  have hp1 := p.1.isLt
+  have hq1 := q.1.isLt
+  rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · exact Or.inl ⟨h1, (path_adj_val n p.2 q.2).2 ⟨by omega, h2⟩⟩
+  · exact Or.inr ⟨(cycle_adj_val m p.1 q.1).2
+      ⟨by omega, Or.inl (by rw [h2]; exact Nat.mod_eq_of_lt hq1)⟩, h1⟩
+
 /-! ### The independence number of a torus with two odd sides -/
 
 /-- With an odd modulus `2a + 3` bigger than both, `2i + 1` and `2i'` are already reduced, so
@@ -51844,6 +51878,27 @@ boustrophedon Hamiltonian path. -/
     omega
   · rw [matchNum_eq, path_def, path_def, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
     exact CGraph.le_indepNum_lineGraph_grid m n
+
+/-- **The matching number of a torus**: `ν(Cₘ □ Cₙ) = ⌊mn/2⌋`.  The torus contains the grid, so
+it inherits the boustrophedon matching, and `2ν ≤ n` is the matching bound. -/
+@[simp] theorem matchNum_cartesianProduct_cycle (m n : ℕ) :
+    (cycle m □g cycle n).matchNum = m * n / 2 := by
+  refine le_antisymm ?_ ?_
+  · have h := (cycle m □g cycle n).two_mul_matchNum_le_V
+    rw [V_cartesianProduct_cycle] at h
+    omega
+  · rw [matchNum_eq, cycle_def, cycle_def, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
+    exact CGraph.le_indepNum_lineGraph_torus m n
+
+/-- **The matching number of a cylinder**: `ν(Cₘ □ Pₙ) = ⌊mn/2⌋`. -/
+@[simp] theorem matchNum_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle m □g path n).matchNum = m * n / 2 := by
+  refine le_antisymm ?_ ?_
+  · have h := (cycle m □g path n).two_mul_matchNum_le_V
+    rw [V_cartesianProduct_cycle_path] at h
+    omega
+  · rw [matchNum_eq, cycle_def, path_def, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
+    exact CGraph.le_indepNum_lineGraph_cylinder m n
 
 /-- **The matching number of a king graph**: `ν(Pₘ ⊠ Pₙ) = ⌊mn/2⌋`, the grid's matching again. -/
 @[simp] theorem matchNum_king (m n : ℕ) : (path m ⊠g path n).matchNum = m * n / 2 := by
