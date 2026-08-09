@@ -5273,7 +5273,12 @@ quadratic — so `mem_spectrum_of_mulVec_eq` puts `λ` in the spectrum and
 `spectrum_le_of_mulVec_le`, the positive-subeigenvector bound, keeps everything else below it.
 That is the same pair of lemmas the Smith diagrams use, applied to graphs that are not regular.
 At `k = 2` the base is a cycle and the root simplifies, giving `lambdaMax_wheel = 1 + √(n + 1)`.
-The other end of the wheel's spectrum would need the join formula and is not there.
+The *other* root of the same quadratic is an eigenvalue too — the eigenvector equation
+`adjMat_mulVec_cone` only needs `λ ≠ 0`, not positivity — so `lambdaMin_join_complete_one_le` and
+`lambdaMin_wheel_le` bound the least eigenvalue above by `(k - √(k² + 4n)) / 2` and by
+`1 - √(n + 1)`. Those are bounds and not equalities on purpose: a wheel with an even rim inherits
+the rim's `-2`, which is smaller as soon as the rim has more than three vertices. Pinning the
+bottom down would need the join formula, and that is not there.
 
 Composing with the product rule,
 `lambdaMax_grid` and `lambdaMin_grid` are the sums of the two paths' extremes, `lambdaMax_torus`
