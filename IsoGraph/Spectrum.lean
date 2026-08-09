@@ -343,6 +343,17 @@ it is not, and `not_lapCospectral_star_four` is the witness.
 half of the reason ADE turns up here.  The bound is attained whenever `B` has a kernel, which it
 does as soon as there are more edges than vertices (`neg_two_mem_spectrum_lineGraph`).
 
+For a `k`-regular graph the two products of `B` with its transpose can be played off against each
+other: `incMat_mul_transpose_of_isRegularWith` is the companion factorisation `B Bᵀ = A + k I`, and
+Sylvester's determinant identity (`Matrix.charpoly_mul_comm_of_le`) equates the two characteristic
+polynomials up to a power of `X`.  Feeding both through `charpoly_adjMat_add_smul_one`, which says
+an identity shift `A + c I` shifts every eigenvalue by `c`, gives the whole spectrum at once in
+`spectrum_lineGraph_of_isRegularWith`: each eigenvalue `λ` of `G` becomes `λ + k - 2`, and the
+`|E| - |V|` leftover eigenvalues are all `-2`.  A cycle has as many edges as vertices and `k = 2`,
+so nothing moves and nothing is left over (`spectrum_lineGraph_cycle`, cospectrality standing in
+for the isomorphism `L(Cₙ) ≅ Cₙ`); `spectrum_lineGraph_petersen` is the other extreme, where the
+five surplus edges of the Petersen graph produce five copies of `-2`.
+
 ## Strongly regular graphs
 
 `sq_eq_of_isSRGWith` is the identity `A ^ 2 = k I + ℓ A + μ (J - I - A)` read off on an
@@ -1258,6 +1269,37 @@ theorem exists_conj_diagonal (G : CGraph) :
   calc G.adjMat * U = U * Star.star U * G.adjMat * U := by rw [hU.2, one_mul]
     _ = U * (Star.star U * G.adjMat * U) := by simp only [mul_assoc]
     _ = U * Matrix.diagonal G.eigenvalues := by rw [hst]
+
+/-- The characteristic polynomial of a conjugate of a diagonal matrix, for a bare matrix rather
+than an adjacency matrix. -/
+theorem charpoly_eq_prod_of_conj' {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {M P Q : Matrix ι ι ℝ} {d : ι → ℝ} (hPQ : P * Q = 1) (hQP : Q * P = 1)
+    (hM : M * P = P * Matrix.diagonal d) : M.charpoly = ∏ i, (X - C (d i)) := by
+  have hA : M = P * Matrix.diagonal d * Q := by
+    calc M = M * (P * Q) := by rw [hPQ, mul_one]
+      _ = M * P * Q := by rw [mul_assoc]
+      _ = P * Matrix.diagonal d * Q := by rw [hM]
+  rw [hA, mul_assoc, Matrix.charpoly_mul_comm, mul_assoc, hQP, mul_one, Matrix.charpoly_diagonal]
+
+/-- **Shifting by the identity shifts every eigenvalue**: `A + c I` has characteristic polynomial
+`∏ (X - (λᵢ + c))`. -/
+theorem charpoly_adjMat_add_smul_one (G : CGraph) [inst : DecidableEq G.V] (c : ℝ) :
+    (G.adjMat + c • (1 : Matrix G.V G.V ℝ)).charpoly = ∏ i, (X - C (G.eigenvalues i + c)) := by
+  obtain rfl : inst = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
+  obtain ⟨P, Q, hPQ, hQP, hd⟩ := G.exists_conj_diagonal
+  have hdiag : Matrix.diagonal (fun i ↦ G.eigenvalues i + c)
+      = Matrix.diagonal G.eigenvalues + c • (1 : Matrix G.V G.V ℝ) := by
+    ext i j
+    by_cases hij : i = j <;> simp [hij]
+  refine charpoly_eq_prod_of_conj' hPQ hQP ?_
+  rw [Matrix.add_mul, hd, Matrix.smul_mul, Matrix.one_mul, hdiag, Matrix.mul_add,
+    Matrix.mul_smul, Matrix.mul_one]
+
+/-- The roots of `∏ (X - f i)`, with multiplicity, are the values of `f`. -/
+private theorem roots_prod_X_sub_C' {ι : Type*} [Fintype ι] (f : ι → ℝ) :
+    (∏ i, (X - C (f i))).roots = Finset.univ.val.map f := by
+  rw [show (∏ i, (X - C (f i))) = ((Finset.univ.val.map f).map (fun a ↦ X - C a)).prod from by
+      rw [Multiset.map_map]; rfl, Polynomial.roots_multiset_prod_X_sub_C]
 
 /-! ## The tensor product -/
 
@@ -4827,6 +4869,116 @@ theorem neg_two_mem_spectrum_lineGraph_complete {n : ℕ} (hn : 4 ≤ n) :
 theorem neg_two_le_lambdaMin_lineGraph (G : CGraph) [DecidableEq G.V]
     [Nonempty (lineGraph G).V] : -2 ≤ (lineGraph G).lambdaMin :=
   (le_lambdaMin_iff _).2 fun _ hx ↦ neg_two_le_of_mem_spectrum_lineGraph G hx
+
+/-- The edges through a fixed vertex, seen as vertices of the line graph, are its incidence set. -/
+theorem card_filter_mem_incMat {G : CGraph} [DecidableEq G.V] (u : G.V) :
+    (Finset.univ.filter fun e : (lineGraph G).V ↦ u ∈ (e.1 : Sym2 G.V)).card
+      = G.toSimple.degree u := by
+  rw [← SimpleGraph.card_incidenceFinset_eq_degree]
+  refine Finset.card_bij (fun e _ ↦ (e.1 : Sym2 G.V)) (fun e he ↦ ?_) (fun e _ f _ hef ↦ ?_)
+    (fun z hz ↦ ?_)
+  · simp only [Finset.mem_filter] at he
+    rw [SimpleGraph.mem_incidenceFinset]
+    exact ⟨e.2, he.2⟩
+  · exact Subtype.ext hef
+  · rw [SimpleGraph.mem_incidenceFinset] at hz
+    exact ⟨⟨z, hz.1⟩, Finset.mem_filter.2 ⟨Finset.mem_univ _, hz.2⟩, rfl⟩
+
+/-- **The incidence matrix factors the graph itself.**  `B Bᵀ = A + k I` for a `k`-regular graph:
+two distinct vertices lie on a common edge exactly when they are adjacent, and every vertex lies
+on `k` edges. -/
+theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (h : G.IsRegularWith k) :
+    G.incMat * G.incMatᵀ = G.adjMat + (k : ℝ) • (1 : Matrix G.V G.V ℝ) := by
+  ext u v
+  have hentry : ∀ e : (lineGraph G).V, G.incMat u e * G.incMatᵀ e v
+      = if u ∈ (e.1 : Sym2 G.V) ∧ v ∈ (e.1 : Sym2 G.V) then (1 : ℝ) else 0 := by
+    intro e
+    rw [Matrix.transpose_apply, incMat_apply, incMat_apply]
+    by_cases h1 : u ∈ (e.1 : Sym2 G.V) <;> by_cases h2 : v ∈ (e.1 : Sym2 G.V) <;> simp [h1, h2]
+  have hsum : (G.incMat * G.incMatᵀ) u v
+      = ((Finset.univ.filter fun e : (lineGraph G).V ↦
+          u ∈ (e.1 : Sym2 G.V) ∧ v ∈ (e.1 : Sym2 G.V)).card : ℝ) := by
+    simp only [Matrix.mul_apply, hentry, Finset.sum_boole]
+  rw [hsum, Matrix.add_apply]
+  by_cases huv : u = v
+  · subst huv
+    rw [adjMat_apply, if_neg (by simp [G.loopless u]), zero_add]
+    simp only [Matrix.smul_apply, Matrix.one_apply_eq, smul_eq_mul, mul_one, and_self]
+    rw [card_filter_mem_incMat u, h u]
+  · rw [Matrix.smul_apply, Matrix.one_apply_ne huv, smul_zero, add_zero, adjMat_apply]
+    by_cases hadj : G.Adj u v
+    · have hmem : s(u, v) ∈ G.toSimple.edgeSet := hadj
+      have hfil : (Finset.univ.filter fun e : (lineGraph G).V ↦
+          u ∈ (e.1 : Sym2 G.V) ∧ v ∈ (e.1 : Sym2 G.V)) = {⟨s(u, v), hmem⟩} := by
+        ext e
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+        exact ⟨fun he ↦ Subtype.ext ((Sym2.mem_and_mem_iff huv).1 he),
+          fun he ↦ by rw [he]; simp⟩
+      rw [hfil, Finset.card_singleton, if_pos hadj, Nat.cast_one]
+    · have hfil : (Finset.univ.filter fun e : (lineGraph G).V ↦
+          u ∈ (e.1 : Sym2 G.V) ∧ v ∈ (e.1 : Sym2 G.V)) = ∅ := by
+        refine Finset.filter_eq_empty_iff.2 fun {e} _ he ↦ hadj ?_
+        have hz := (Sym2.mem_and_mem_iff huv).1 he
+        have h2 := e.2
+        rw [hz] at h2
+        exact h2
+      rw [hfil, Finset.card_empty, if_neg hadj, Nat.cast_zero]
+
+/-- **The spectrum of the line graph of a `k`-regular graph.**  Each eigenvalue `λ` of `G`
+contributes `λ + k - 2` to `L(G)`, and the remaining `|E| - |V|` eigenvalues are all `-2`.  The
+proof is Sylvester's determinant identity applied to `B Bᵀ = A + k I` and `Bᵀ B = A(L G) + 2 I`. -/
+theorem spectrum_lineGraph_of_isRegularWith {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (h : G.IsRegularWith k) (hle : Fintype.card G.V ≤ G.E) :
+    (lineGraph G).spectrum
+      = Multiset.replicate (G.E - Fintype.card G.V) (-2)
+        + G.spectrum.map (fun x ↦ x + ((k : ℝ) - 2)) := by
+  have hcard : Fintype.card G.V ≤ Fintype.card (lineGraph G).V := by
+    rwa [card_lineGraph]
+  have hsyl := Matrix.charpoly_mul_comm_of_le G.incMatᵀ G.incMat hcard
+  rw [transpose_mul_incMat, incMat_mul_transpose_of_isRegularWith h,
+    charpoly_adjMat_add_smul_one (lineGraph G) 2, charpoly_adjMat_add_smul_one G (k : ℝ)] at hsyl
+  have hroots := congrArg Polynomial.roots hsyl
+  rw [roots_prod_X_sub_C', Polynomial.roots_mul (by
+      refine mul_ne_zero (pow_ne_zero _ Polynomial.X_ne_zero) ?_
+      exact Finset.prod_ne_zero_iff.2 fun i _ ↦ Polynomial.X_sub_C_ne_zero _),
+    Polynomial.roots_X_pow, roots_prod_X_sub_C'] at hroots
+  have hL : (lineGraph G).spectrum.map (fun x ↦ x + 2)
+      = Multiset.replicate (Fintype.card (lineGraph G).V - Fintype.card G.V) (0 : ℝ)
+        + G.spectrum.map (fun x ↦ x + (k : ℝ)) := by
+    rw [spectrum_eq_map, spectrum_eq_map, Multiset.map_map, Multiset.map_map]
+    simpa [Function.comp_def, Multiset.nsmul_singleton] using hroots
+  have := congrArg (Multiset.map (fun x : ℝ ↦ x - 2)) hL
+  rw [Multiset.map_map, Multiset.map_add, Multiset.map_replicate, Multiset.map_map,
+    card_lineGraph] at this
+  simpa [Function.comp_def, add_sub_assoc] using this
+/-- **The line graph of a cycle is cospectral with it** (indeed `L(Cₙ) ≅ Cₙ`): there are as many
+edges as vertices, so no `-2` is left over, and the shift `k - 2` is zero. -/
+theorem spectrum_lineGraph_cycle (n : ℕ) :
+    (lineGraph (cycle (n + 3))).spectrum = (cycle (n + 3)).spectrum := by
+  rw [spectrum_lineGraph_of_isRegularWith (IsoGraph.isRegularWith_cycle n)
+    (by rw [E_cycle, card_cycle])]
+  simp
+
+/-- **The spectrum of the line graph of the Petersen graph**, on its `15` edges: `4` once, `2`
+five times, `-1` four times and `-2` five times. -/
+theorem spectrum_lineGraph_petersen :
+    (lineGraph SRG.petersen).spectrum
+      = Multiset.replicate 5 (-2 : ℝ)
+        + (4 ::ₘ (Multiset.replicate 5 2 + Multiset.replicate 4 (-1))) := by
+  have hreg : SRG.petersen.IsRegularWith 3 := SRG.petersen_srg.regular
+  have hcard : Fintype.card SRG.petersen.V = 10 := SRG.petersen_srg.card
+  have hE : SRG.petersen.E = 15 := by
+    have hsum : ∑ i : SRG.petersen.V, SRG.petersen.toSimple.degree i = 30 := by
+      rw [Finset.sum_congr rfl fun i _ ↦ hreg i, Finset.sum_const, Finset.card_univ, hcard]
+      rfl
+    have h2 := SimpleGraph.sum_degrees_eq_twice_card_edges SRG.petersen.toSimple
+    rw [hsum] at h2
+    rw [show SRG.petersen.E = SRG.petersen.toSimple.edgeFinset.card from rfl]
+    omega
+  rw [spectrum_lineGraph_of_isRegularWith hreg (by rw [hE, hcard]; norm_num), hE, hcard,
+    spectrum_petersen]
+  norm_num [Multiset.map_add, Multiset.map_replicate]
 
 /-- **A matching bound out of the ratio bound**: an independent set in the triangular graph
 `T(n) = L(Kₙ)` is a matching of `Kₙ`, so it has at most `n / 2` edges.  Spectrally that is

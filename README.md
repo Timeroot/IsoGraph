@@ -5171,6 +5171,30 @@ it does whenever there are more edges than vertices. That is the other place ADE
 connected graphs with least eigenvalue `-2` are the line graphs together with the exceptional
 root-system graphs.
 
+For a `k`-regular graph the same matrix gives the whole spectrum rather than a bound. Multiplying
+the other way round, `incMat_mul_transpose_of_isRegularWith` says `B Bᵀ = A + k I`: off the
+diagonal the entry at `(u, v)` counts the edges through both, which is `1` exactly when `u` and
+`v` are adjacent, and on the diagonal it is the degree. `B Bᵀ` and `Bᵀ B` have the same nonzero
+spectrum — Sylvester's determinant identity, in Mathlib as
+`Matrix.charpoly_mul_comm_of_le` — so, shifting both sides by the identity with
+`charpoly_adjMat_add_smul_one`,
+
+```lean
+theorem spectrum_lineGraph_of_isRegularWith {G : CGraph} [DecidableEq G.V] {k : ℕ}
+    (h : G.IsRegularWith k) (hle : Fintype.card G.V ≤ G.E) :
+    (lineGraph G).spectrum
+      = Multiset.replicate (G.E - Fintype.card G.V) (-2)
+        + G.spectrum.map (fun x ↦ x + ((k : ℝ) - 2))
+```
+
+Every eigenvalue of `G` shifts by `k - 2` and the `|E| - |V|` surplus edges each contribute a
+`-2`. A cycle is the degenerate case — `k = 2` and `|E| = |V|`, so the line graph is cospectral
+with the cycle itself (`spectrum_lineGraph_cycle`), which is the spectral shadow of
+`L(Cₙ) ≅ Cₙ`. The Petersen graph is the interesting one: its `3, 1⁵, (-2)⁴` becomes
+`4, 2⁵, (-1)⁴` on the `10` shifted eigenvalues, plus `(-2)⁵` for the five edges beyond its ten
+vertices (`spectrum_lineGraph_petersen`). Running the same theorem on `Kₙ` reproduces the
+triangular graph's spectrum, which the strongly-regular machinery above derives independently.
+
 The largest eigenvalue has a name, `lambdaMax`, for nonempty graphs. It is a `Finset.sup'` of
 `eigenvalues`, so `le_lambdaMax` and `lambdaMax_mem_spectrum` characterise it, and
 `lambdaMax_le_iff`/`lambdaMax_lt_iff` convert any statement about the whole spectrum into one
