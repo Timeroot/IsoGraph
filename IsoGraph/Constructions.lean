@@ -13,8 +13,8 @@ every graph in this file can be handed to `CGraph.canonicalize` and actually run
 
 The guiding principle is the one from `isograph_draft.txt`: build the zoo out of a very small
 number of primitives.  `ofRel` symmetrises an arbitrary `Bool`-valued relation and deletes the
-diagonal, which is the only "graph axioms" work anybody has to do; `empty`, `disjUnion` and
-`compl` then generate most of the rest —
+diagonal, so it is the only place where symmetry and irreflexivity have to be arranged by hand;
+`empty`, `disjUnion` and `compl` then generate most of the rest —
 
 ```
 complete n           = compl (empty n)
@@ -41,10 +41,6 @@ instance arguments seemed the smaller price.
 
 The definitions come first; the section after them, `## Invariants of the constructions`, records
 what the invariants of `IsoGraph/Invariants.lean` evaluate to.
-
-Most of those proofs were produced by an automated prover rather than written by hand, which is
-why they are longer and more explicit than a human would write — they have been checked but not
-golfed.
 -/
 
 open Fintype
@@ -55,7 +51,7 @@ namespace CGraph
 
 /-- A `CGraph` from an arbitrary relation: symmetrise it, and delete the diagonal.
 
-This is the only place in the file where the graph axioms have to be checked; every construction
+This is the only place in the file where symmetry and irreflexivity are checked; every construction
 whose vertex type has a `DecidableEq` goes through it, and may pass a relation that is already
 symmetric and irreflexive (in which case `ofRel` changes nothing). -/
 def ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) : CGraph where
@@ -986,10 +982,6 @@ abbrev cocktailParty (n : ℕ) : CGraph := completeMultipartite (List.replicate 
 /-! ## Invariants of the constructions
 
 What the invariants of `IsoGraph/Invariants.lean` come to on the graphs above.
-
-Most of those proofs were produced by an automated prover rather than written by hand, which is
-why they are longer and more explicit than a human would write — they have been checked but not
-golfed.
 -/
 
 section Invariants

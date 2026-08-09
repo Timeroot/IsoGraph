@@ -4,8 +4,8 @@ import IsoGraph.Canon.Orbits
 /-!
 # The search misses nothing
 
-`dfsNode_dom` is the optimality half of the correctness proof: every leaf of the *whole* tree that
-the search skipped was skipped for a reason, so the leaf it finally holds is the best one.
+`dfsNode_dom`: every leaf of the *whole* tree that the search skipped was skipped for a reason,
+so the leaf it finally holds is the best one.
 
 The obstacle is that `pruneNode` may *clear* the incumbent (`st.best := none`) when the node's
 invariant path already beats it.  So "dominated by the incumbent" is not preserved into a recursive

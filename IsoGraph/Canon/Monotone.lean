@@ -4,8 +4,8 @@ import IsoGraph.Canon.Progress
 # The incumbent never gets worse
 
 The search keeps one leaf, `St.best`, and replaces it only when it finds a better one.  This file
-makes that precise and proves it, which is the first half of the optimality argument: whatever the
-search ends up holding is at least as good as anything it held on the way.
+makes that precise: whatever the search ends up holding is at least as good as anything it held
+on the way.
 
 There is one place where the incumbent is *dropped* rather than improved — `pruneNode`, when the
 node's invariant path already beats the incumbent's.  That is still monotone, but only because of

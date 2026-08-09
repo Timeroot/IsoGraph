@@ -8,30 +8,28 @@ import IsoGraph.Canon.Correct
 # From the canonical labelling algorithm to permutations, and its specification
 
 `IsoGraph.Canon.Algorithm` computes with raw `Array Nat`s.  This file wraps that up as an honest
-`Equiv.Perm (Fin n)` and states exactly what remains to be proved about it.
+`Equiv.Perm (Fin n)` and states the two properties that characterise it.
 
 ## The wrapper
 
 `permOfArrays` turns the algorithm's output and its inverse into an `Equiv.Perm (Fin n)` by
 *checking at run time* (in `O(n)`) that the two arrays really are mutually inverse, falling back
-to the identity if not.  That keeps `canonPerm` total and proof-free, and it is what makes
-`exists_relabel_of_canonAdj_eq` below unconditional: **whatever** the algorithm returns,
+to the identity if not.  That keeps `canonPerm` total, and it makes
+`exists_relabel_of_canonAdj_eq` below hold for **whatever** the algorithm returns:
 `canonAdj n adj` is the graph `adj` read through *some* permutation, hence isomorphic to it.
 
-## What is proved
+## The specification
 
-Write `relabel σ adj` for `adj` with its vertices renamed along `σ`.  Two statements matter, and
-both are proved.
+Write `relabel σ adj` for `adj` with its vertices renamed along `σ`.  Two statements matter.
 
-* **Soundness** — `canonAdj n adjG = canonAdj n adjH → adjG ≅ adjH`.  Proved outright
-  (`exists_relabel_of_canonAdj_eq`); the run-time check above is exactly what buys it.  This is
-  the direction that guarantees a canonical-form comparison never conflates non-isomorphic
-  graphs.
+* **Soundness** — `canonAdj n adjG = canonAdj n adjH → adjG ≅ adjH`
+  (`exists_relabel_of_canonAdj_eq`): a canonical-form comparison never conflates non-isomorphic
+  graphs.  The run-time check above is exactly what buys it.
 
-* **Invariance** — `canonAdj n (relabel σ adj) = canonAdj n adj`.  This is `canonAdj_relabel`,
-  the deep half: it is what licenses `Quotient.lift`ing anything defined through the canonical
-  form.  It is reduced below to `LabellingInvariant`, a statement about raw arrays, which is
-  discharged in `IsoGraph/Canon/Correct.lean` from the soundness and optimality of the search.
+* **Invariance** — `canonAdj n (relabel σ adj) = canonAdj n adj` (`canonAdj_relabel`): the
+  canonical form depends only on the isomorphism class, so anything defined through it descends
+  to the quotient.  On raw arrays the same statement is `LabellingInvariant`, which
+  `IsoGraph/Canon/Correct.lean` obtains from the soundness and optimality of the search.
 -/
 
 namespace IsoGraph.Canon
@@ -235,34 +233,33 @@ theorem exists_relabel_of_canonAdj_eq {adjG adjH : Fin n → Fin n → Bool}
 
 /-! ## Invariance
 
-Renaming the vertices of a graph does not change its canonical form.  This is the one deep fact
-about the algorithm, and everything else — that `IsoGraph` may be `Quotient.lift`ed through the
-canonical form, and hence that graph invariants computed from it are well defined — reduces to
-it.
+Renaming the vertices of a graph does not change its canonical form: `canonAdj_relabel` below.
+Consequently the canonical form depends only on the isomorphism class, and `IsoGraph` may be
+`Quotient.lift`ed through it.
 
-It is `canonAdj_relabel` below, and it is *derived* here from two statements about the raw array
-algorithm, `LabellingIsPerm` and `LabellingInvariant`.  That reduction is the point of this
-section: it discharges the whole `Fin`/`Equiv.Perm` wrapper — the `permOfArrays` run-time check,
-the `invArray` inverse, the translation between `Equiv.Perm (Fin n)` and a renaming of
-`{0, …, n-1}` — so that what is left to prove mentions nothing but `Array Nat` and
-`canonicalLabellingOfOracle`.  See `IsoGraph/Canon/Equivariance.lean` for the groundwork on that side.
+The statement is phrased here for `Equiv.Perm (Fin n)`, and comes from two statements about the
+raw array algorithm, `LabellingIsPerm` and `LabellingInvariant`, which mention nothing but
+`Array Nat` and `canonicalLabellingOfOracle`.  The `Fin`/`Equiv.Perm` wrapper in between — the
+`permOfArrays` run-time check, the `invArray` inverse, the translation between
+`Equiv.Perm (Fin n)` and a renaming of `{0, …, n-1}` — is what this section is about; see
+`IsoGraph/Canon/Equivariance.lean` for the groundwork on the other side.
 
 Of the two, `LabellingIsPerm` is cheap: `canonicalLabellingOfOracle` verifies it at run time in
-`O(n)`.  `LabellingInvariant` is where all the work is; it follows from `canonical_cert_relabel`
+`O(n)`.  `LabellingInvariant` is where all the work is; it comes from `canonical_cert_relabel`
 of `IsoGraph/Canon/Correct.lean`. -/
 
 /-- The labelling the search returns for the oracle `f` on `m` vertices: canonical position `i`
 holds the vertex `labelling m f`. -/
 abbrev labelling (m : Nat) (f : Nat → Nat → Bool) : Array Nat := canonicalLabellingOfOracle m f
 
-/-- **The labelling is a permutation of the vertices.**  Proved: `canonicalLabellingOfOracle`
-checks this in `O(n)` and returns the identity if the check fails, so it holds regardless of what
-the search does.  See `labellingIsPerm`. -/
+/-- **The labelling is a permutation of the vertices.**  `canonicalLabellingOfOracle` checks
+this in `O(n)` and returns the identity if the check fails, so it holds regardless of what the
+search does.  See `labellingIsPerm`. -/
 def LabellingIsPerm : Prop :=
   ∀ (m : Nat) (f : Nat → Nat → Bool),
     (labelling m f).size = m ∧ Canon.IsPerm m (fun v => (labelling m f)[v]!)
 
-/-- **The remaining obligation: the labelling the search settles on is equivariant.**
+/-- **The labelling the search settles on is equivariant.**
 
 Renaming the vertices along `s` and canonicalising gives the same adjacency matrix as
 canonicalising and not renaming.  Note this is weaker than "the labelling itself transforms along
@@ -279,10 +276,10 @@ def LabellingInvariant : Prop :=
 theorem labellingIsPerm : LabellingIsPerm :=
   Canon.canonicalLabellingOfOracle_isPerm
 
-/-- The deep half.  The search's answer satisfies the specification `BestKey`
-(`canonSt_bestKey`), which is manifestly an isomorphism invariant, so the certificate it returns
-does not depend on the vertex names (`canonical_cert_relabel`); `certOf_get` reads the adjacency
-matrix back out of that certificate. -/
+/-- The search's answer satisfies the specification `BestKey` (`canonSt_bestKey`), which is
+manifestly an isomorphism invariant, so the certificate it returns does not depend on the vertex
+names (`canonical_cert_relabel`); `certOf_get` reads the adjacency matrix back out of that
+certificate. -/
 theorem labellingInvariant : LabellingInvariant := by
   intro m f s hs i hi j hj
   have h1 : certGet m (canonical (Graph.ofOracle m fun v w => f (s v) (s w))).cert i j
@@ -548,9 +545,9 @@ theorem oracleOfFin_relabel (m : Nat) (σ : Equiv.Perm (Fin m)) (adj : Fin m →
     · simp [oracleOfFin, natOfPerm, hv, hw]
   · simp [oracleOfFin, natOfPerm, hv]
 
-/-! ### The reduction -/
+/-! ### From the array level to `Equiv.Perm` -/
 
-/-- Under obligation A, `canonPerm` is the labelling array read literally. -/
+/-- When the labelling is a permutation, `canonPerm` is the labelling array read literally. -/
 theorem canonPerm_val (hA : LabellingIsPerm) (adj : Fin n → Fin n → Bool) (i : Fin n) :
     (canonPerm n adj i).1 = (labelling n (oracleOfFin n adj))[i.1]! :=
   have h := hA n (oracleOfFin n adj)
@@ -568,8 +565,8 @@ theorem canonAdj_eq_oracle (hA : LabellingIsPerm) (adj : Fin n → Fin n → Boo
     Fin.ext (canonPerm_val hA adj j)
   rw [canonAdj_apply, hi, hj, oracleOfFin_apply adj (h.2.maps _ i.2) (h.2.maps _ j.2)]
 
-/-- **The reduction.**  Invariance of the canonical form follows from the two array-level
-obligations, with nothing else about the algorithm needed. -/
+/-- **Invariance of the canonical form, from the two array-level statements.**  Nothing else
+about the algorithm enters. -/
 theorem canonAdj_relabel_of (hA : LabellingIsPerm) (hB : LabellingInvariant)
     (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
     canonAdj n (relabel σ adj) = canonAdj n adj := by
@@ -579,46 +576,12 @@ theorem canonAdj_relabel_of (hA : LabellingIsPerm) (hB : LabellingInvariant)
   exact hB n (oracleOfFin n adj) (natOfPerm n σ) (natOfPerm_isPerm n σ) i.1 i.2 j.1 j.2
 
 /-- **Invariance of the canonical form.**  Renaming the vertices of a graph does not change its
-canonical form.
+canonical form, so the canonical form depends only on the isomorphism class of the graph and
+anything read off it is a graph invariant.
 
-Everything else in the development — that `IsoGraph` may be `Quotient.lift`ed through the
-canonical form, and hence that graph invariants computed from it are well defined — reduces to
-this.  It in turn reduces, by `canonAdj_relabel_of`, to `LabellingIsPerm` — proved, by a run-time
-check — and `LabellingInvariant`, which is the deep one and decomposes as follows.  Steps 2, 3 and
-4 are done, in `IsoGraph/Canon/Equivariance.lean`, as are the first two of step 1's phases; 5 and 6 are
-not.
-
-Fix `σ` and write `q ≈ p` for "the ordered partitions `q` and `p` have
-the same cell boundaries, and the `i`-th cell of `q` is the `σ`-image of the `i`-th cell of `p`
-*as a set*".  (Only as a set: refinement's counting sort is stable, so the order *within* a cell
-is inherited from the parent cell and so depends on vertex names, which are not invariant.  What
-is invariant is the sequence of cells.)  Then:
-
-1. `refineStep` is `≈`-equivariant: it returns `≈`-related partitions, the same worklist, and the
-   same trace hash, because every quantity it hashes (`s`, cell starts, fragment sizes, neighbour
-   counts) is determined by positions and multiplicities.  Hence so are `refineLoop`, `refine`
-   and `initialRefine` — note `Part.unit n ≈ Part.unit n` for every `σ`, the point being that a
-   one-cell partition carries no order information.  *(Partly done: `Canon.cellCount_equiv` is the
-   "determined by multiplicities" part and `Canon.countFrom_cellCount` says the counting phase
-   computes such a multiplicity, `Canon.countFrom_equiv` combining the two; `Canon.collect_equiv`
-   then says the two runs split the same cells in the same order.  The counting sort of each cell
-   and the worklist rule that follow are not done.)*
-2. `Part.shapeHash` and `Part.targetCell` read only cell boundaries, so they agree on `≈`-related
-   partitions.  *(Done: `Canon.shapeHash_congr`, `Canon.targetCell_congr`.)*
-3. `individualize p v` and `individualize q (σ v)` produce `≈`-related partitions and the same
-   splitter position.  *(Done: `Canon.individualize_partEquiv`, with `Canon.individualize_wf` for
-   the well-formedness the next step needs.)*
-4. On *discrete* partitions `≈` forces `q.lab = σ ∘ p.lab`, and then `certOf` agrees, since it
-   reads the adjacency matrix in exactly that order.  *(Done: `Canon.certOf_relabel`.)*
-5. Therefore the two search trees have the same shape and the same node invariants, and their
-   leaves correspond — except that the children of a node are enumerated in a different order,
-   since the target cell is listed in `lab` order.
-6. So it remains to see that the *maximum* over the leaves does not depend on the order in which
-   children are enumerated.  This is where the three prunings have to be justified: invariant
-   pruning discards only subtrees whose leaves are dominated; orbit pruning discards only
-   children whose subtrees are automorphic images of an already-explored one; and the backjump of
-   `leafUpdate` discards only the remainder of a branch all of whose leaves are automorphic
-   images of leaves already visited. -/
+The *labelling* is not equivariant: the winner is determined only up to an automorphism, and
+which of several equally-good leaves the search reaches does depend on the vertex names.  What
+does not depend on them is the adjacency matrix read off at the winner. -/
 theorem canonAdj_relabel (σ : Equiv.Perm (Fin n)) (adj : Fin n → Fin n → Bool) :
     canonAdj n (relabel σ adj) = canonAdj n adj :=
   canonAdj_relabel_of labellingIsPerm labellingInvariant σ adj
@@ -631,8 +594,7 @@ theorem canonAdj_eq_of_equiv {A B : Fin n → Fin n → Bool} (σ : Equiv.Perm (
   exact canonAdj_relabel σ B
 
 /-- The `ℕ`-indexed form of `canonAdj_eq_of_equiv`: two adjacency functions, on index sets of the
-same size, related by a bijection, have the same canonical adjacency oracle.  This is the shape
-needed to lift the canonical form through a quotient. -/
+same size, related by a bijection, have the same canonical adjacency oracle. -/
 theorem oracleOfFin_canonAdj_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → Bool}
     {B : Fin k → Fin k → Bool} (σ : Fin m ≃ Fin k) (hσ : ∀ a b, B (σ a) (σ b) = A a b) :
     oracleOfFin m (canonAdj m A) = oracleOfFin k (canonAdj k B) := by
@@ -645,9 +607,9 @@ theorem canonMatrix_get_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → B
     (canonMatrix m A).get a b = (canonMatrix k B).get a b :=
   congrFun (congrFun (oracleOfFin_canonAdj_congr h σ hσ) a) b
 
-/-- **The congruence that gets lifted through the quotient in `IsoGraph.Basic`.**  Canonical forms
-of isomorphic graphs, moved onto a common index set, are equal — and `N` is arbitrary, so it can
-be `Fintype.card V`, which is what makes the lift's motive independent of the listing. -/
+/-- Canonical forms of isomorphic graphs, moved onto a common index set, are equal.  `N` is
+arbitrary, so it may be taken to be `Fintype.card V`, independently of any listing of the
+vertices. -/
 theorem canonMatrix_reindex_congr {m k : Nat} (h : m = k) {A : Fin m → Fin m → Bool}
     {B : Fin k → Fin k → Bool} (σ : Fin m ≃ Fin k) (hσ : ∀ a b, B (σ a) (σ b) = A a b) (N : Nat) :
     (canonMatrix m A).reindex N = (canonMatrix k B).reindex N :=

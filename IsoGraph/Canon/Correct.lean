@@ -67,9 +67,8 @@ theorem canonical_get (n : Nat) (f : Nat → Nat → Bool) {i j : Nat} (hi : i <
   exact ofOracle_adj n f _ _ ((canonical_ok n f).lt i (by simpa using hi))
     ((canonical_ok n f).lt j (by simpa using hj))
 
-/-- **The winner's certificate is an isomorphism invariant.**  This is the whole content of the
-correctness proof, packaged: the search on the renamed graph settles on a leaf with the same
-certificate as the search on the original. -/
+/-- **The winner's certificate is an isomorphism invariant.**  The search on the renamed graph
+settles on a leaf with the same certificate as the search on the original. -/
 theorem canonical_cert_relabel (n : Nat) (f : Nat → Nat → Bool) {s : Nat → Nat}
     (hs : IsPerm n s) :
     (canonical (Graph.ofOracle n (fun v w => f (s v) (s w)))).cert

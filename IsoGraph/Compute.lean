@@ -151,9 +151,9 @@ def symmetryChecks : Bool :=
 #guard_msgs in
 #eval symmetryChecks
 
-/-! And the certificates really do discharge the propositions.  `native_decide` runs the search
-in compiled code; the proof it produces is the one `Cert.out` extracts, which was built by the
-search itself and needs no trust beyond the evaluation of `isYes`. -/
+/-! And the certificates really do discharge the propositions: `Cert.out` turns a certificate
+whose `isYes` is `true` into a proof of the proposition it certifies, and `native_decide` performs
+that evaluation in compiled code. -/
 
 example : petersen.IsVertexTransitive :=
   (petersen.vertexTransitiveCertOfEquiv (ofFnEquiv 10 _)).out (by native_decide)

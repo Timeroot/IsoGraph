@@ -10165,9 +10165,9 @@ sits after `end IsoGraph` instead of with the rest. -/
 
 namespace CGraph
 
-/-- **The spectrum of the hypercube** at the level of concrete graphs.  The induction that proves
-it runs on `hypercube_succ`, which is an isomorphism rather than an equality, so the statement
-lives in `IsoGraph` and is transported back here. -/
+/-- **The spectrum of the hypercube** at the level of concrete graphs.  `hypercube_succ` is an
+isomorphism rather than an equality, so the statement is made in `IsoGraph` and transported back
+here. -/
 theorem spectrum_hypercube (n : ℕ) :
     (hypercube n).spectrum
       = ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) ((n : ℝ) - 2 * j) :=

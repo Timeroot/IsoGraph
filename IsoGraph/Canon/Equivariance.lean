@@ -5,42 +5,36 @@ import Mathlib.Tactic.Push
 import Mathlib.Tactic.Linarith
 
 /-!
-# Towards invariance: equivariance of the pieces
+# Equivariance of the pieces of the canonical labelling
 
-`IsoGraph/Canon/Spec.lean` states the one deep obligation of the development,
+This file works at the level of `IsoGraph.Canon.Algorithm`: raw `Array Nat`s, and permutations of
+`{0, …, n-1}` represented as `Nat → Nat`.  The translation to `Equiv.Perm (Fin n)` happens in
+`IsoGraph/Canon/Spec.lean`.
 
-```lean
-canonAdj n (relabel σ adj) = canonAdj n adj
-```
+Fix a renaming `σ` of the vertices and write `q ≈ p` for "the ordered partitions `q` and `p` have
+the same cell boundaries, and the `i`-th cell of `q` is the `σ`-image of the `i`-th cell of `p`
+*as a set*" (`PartEquiv`).  Only as a set: refinement's counting sort is stable, so the order
+*within* a cell is inherited from the parent cell and therefore does depend on the vertex names.
+What is invariant is the sequence of cells.
 
-and its docstring records the six-step decomposition it needs.  This file starts turning that
-prose into Lean.  It works at the level of `IsoGraph.Canon.Algorithm`, i.e. with raw `Array Nat`s and
-permutations of `{0, …, n-1}` represented as `Nat → Nat`, since that is where the algorithm
-lives; the translation to `Equiv.Perm (Fin n)` happens back in `Spec.lean`.
+Each piece of the search respects `≈`:
 
-What is here is the bottom layer and the steps that rest directly on it:
-
-* how `Graph.ofOracle` responds to renaming, and the fact that the labelling really is a
-  permutation (which `canonicalLabellingOfOracle` checks at run time);
-* `Part.WF` and `PartEquiv`, the vocabulary — "well-formed ordered partition" and "the same
-  partition up to renaming" — that the whole decomposition is phrased in;
-* the first two phases of **step 1** — `cellCount_equiv`, that corresponding cells agree on every
-  count, together with `countFrom_cellCount`, that `refineStep`'s counting phase computes exactly
-  such a count (`countFrom_equiv` combines them), and `countFrom_mem_touched`, that the set of
-  vertices the phase records is invariant too; then `collect_equiv`, that the two runs go on to
-  split the very same list of cells, in the very same order;
-* **step 2** — the two readers of a partition, `shapeHash` and `targetCell`, see only cell
-  boundaries, so they agree on partitions related by any renaming;
-* **step 3** — individualising corresponding vertices of related partitions gives related
-  partitions, at the same position (`individualize_partEquiv`), and preserves well-formedness;
-* **step 4** — two runs that reach related *discrete* partitions read off the same certificate
+* `Graph.ofOracle` transforms along a renaming, and the labelling really is a permutation of the
+  vertices (`canonicalLabellingOfOracle` checks that at run time);
+* `Part.WF` and `PartEquiv` are the vocabulary — "well-formed ordered partition" and "the same
+  partition up to renaming" — that everything else is phrased in;
+* `cellCount_equiv`: corresponding cells agree on every count; `countFrom_cellCount`: the
+  counting phase of `refineStep` computes exactly such a count (`countFrom_equiv` combines the
+  two); `countFrom_mem_touched`: the set of vertices that phase records is invariant too;
+  `collect_equiv`: the two runs go on to split the very same list of cells, in the very same
+  order;
+* the two readers of a partition, `shapeHash` and `targetCell`, see only cell boundaries, so they
+  agree on partitions related by any renaming;
+* individualising corresponding vertices of related partitions gives related partitions, at the
+  same position (`individualize_partEquiv`), and preserves well-formedness;
+* two runs that reach related *discrete* partitions read off the same certificate
   (`certOf_of_partEquiv`, via `certOf_relabel`), with `discrete_of_targetCell_none` supplying
   the discreteness at the leaves.
-
-What is *not* here: the rest of `refineStep` after the collection phase — the counting sort of
-each cell, the fragment boundaries and Hopcroft's worklist rule (the rest of step 1) — the
-correspondence of the two search trees (step 5), and the argument that the maximum over the leaves
-does not depend on the order children are enumerated in (step 6).
 -/
 
 namespace IsoGraph
@@ -831,7 +825,7 @@ theorem individualize_partEquiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ :
     · rw [if_pos hwv, if_pos (by rw [hwv])]
     · rw [if_neg hwv, if_neg (fun hh => hwv (hσ.inj w hw v hv hh))]
 
-/-! ## Towards step 1: what `refineStep` counts
+/-! ## What `refineStep` counts
 
 `refineStep` is the one piece of the algorithm whose equivariance is *not* positionwise.  Every
 other loop walks positions, and corresponding positions hold corresponding data; but the counting
@@ -840,9 +834,7 @@ quantity it computes has to be described set-theoretically before it can be show
 that description is `cellCount`: the number of vertices of a given cell satisfying a predicate.
 
 The arithmetic comes first (`cellCount_equiv`: the quantity is invariant), then the first of
-`refineStep`'s loops (`countFrom_cellCount`: the loop computes the quantity).  What is not yet
-proved is the rest of the step — that the counting sort orders the fragments by count, and that
-Hopcroft's rule then picks out the same fragments. -/
+`refineStep`'s loops (`countFrom_cellCount`: the loop computes the quantity). -/
 
 /-- A permutation of a finite initial segment is onto it.  Not part of `IsPerm` because nothing
 before this section needed it — injectivity was always enough. -/
@@ -1028,8 +1020,8 @@ theorem ofOracle_nbr_count (n : Nat) (f : Nat → Nat → Bool) (u v : Nat) (hu 
 position `s`, `countFrom` leaves `cnt[w]` holding the number of vertices of that cell adjacent to
 `w` — that is, exactly `cellCount n p s (· is adjacent to w)`.
 
-This is the missing half of step 1's first loop: `cellCount_equiv` says the quantity is invariant,
-and this says the loop computes the quantity. -/
+With `cellCount_equiv`, which says that quantity is invariant, this says the loop computes an
+invariant. -/
 theorem countFrom_cellCount {n : Nat} (f : Nat → Nat → Bool) {p : Part} (hp : Part.WF n p)
     {s : Nat} (hs : s < n) (hcst : p.cst[s]! = s) {w : Nat} (hw : w < n) :
     (countFrom (Graph.ofOracle n f) p.lab p.cen[s]! (p.cen[s]! - s) s
@@ -2620,10 +2612,10 @@ end Offsets
 
 /-! ### Reading off one step of `splitCell`
 
-`splitCell` has three branches, and the proofs below all start by naming the state each one
-produces.  These equations exist so that the rest of the file never has to unfold `splitCell`
-again: unfolding it in place would leave the trace hash of the branch in the goal, and deciding
-whether two such hashes agree is something the kernel should never be asked to do. -/
+`splitCell` has three branches; these equations name the state each one produces, so that the
+rest of the file never has to unfold `splitCell` again: unfolding it in place would leave the
+trace hash of the branch in the goal, and deciding whether two such hashes agree is something the
+kernel should never be asked to do. -/
 
 theorem part_mk (lab pos cst cen : Array Nat) (inW : Array Bool) (tr : UInt64) (bc : Array Nat) :
     (SplitState.mk lab pos cst cen inW tr bc).part

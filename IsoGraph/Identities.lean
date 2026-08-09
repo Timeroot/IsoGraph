@@ -24,7 +24,7 @@ supply one.  Two ways out:
   `disjUnion_mk` is `rfl`;
 * the rest are applied to `G.canonicalize`, whose vertex type is `Fin (Fintype.card G.V)` — and
   so has a `DecidableEq` — before descending.  The construction stays computable, and the price
-  is that `compl_mk` and friends are proved rather than `rfl`.
+  is that `compl_mk` and friends are not `rfl`.
 
 Either way the side condition of the lift is an isomorphism-congruence: `CGraph.Iso.compl`,
 `CGraph.Iso.cartesianProduct`, … in the first section, each built from `CGraph.isoOfAdj`.
@@ -73,17 +73,14 @@ This is what makes the lifts below computable. -/
 instance instDecidableEqCanonicalizeV (G : CGraph) : DecidableEq G.canonicalize.V :=
   inferInstanceAs (DecidableEq (Fin (Fintype.card G.V)))
 
-/-- Equality of pairs, as a `Bool`.  The associativity proofs below rewrite with this until every
-equality test is between vertices of a single factor, and then hand the resulting Boolean
-tautology to `decide`. -/
+/-- Equality of pairs, as a `Bool`: it splits into the two component tests. -/
 theorem decide_prod_eq {α β : Type} [DecidableEq α] [DecidableEq β] (p q : α × β) :
     decide (p = q) = (decide (p.1 = q.1) && decide (p.2 = q.2)) :=
   (decide_eq_decide.2 Prod.ext_iff).trans (Bool.decide_and _ _)
 
 /-- Injectivity of `Sum.inl`, stated at the vertex type of a `disjUnion` rather than at a bare
 `⊕`.  The two are definitionally equal but not *reducibly* so, and `simp` matches up to reducible
-unfolding only — so `Sum.inl.injEq` does not fire on a goal about `(disjUnion G H).V`.  The
-distributivity proofs below need exactly this. -/
+unfolding only — so `Sum.inl.injEq` does not fire on a goal about `(disjUnion G H).V`. -/
 theorem disjUnion_inl_eq_inl (G H : CGraph) (a b : G.V) :
     (@Eq (disjUnion G H).V (Sum.inl a) (Sum.inl b)) = (a = b) :=
   propext ⟨fun h ↦ Sum.inl_injective h, fun h ↦ h ▸ rfl⟩
@@ -476,10 +473,8 @@ def strongProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Dec
 
 All four products distribute over a disjoint union — the cartesian, tensor and strong products in
 either factor (they are commutative), the lexicographic product only in its first.  On vertices
-this is `Equiv.prodSumDistrib` (resp. `Equiv.sumProdDistrib`); the four `rintro` cases then reduce
-to the four ways of pairing `inl`/`inr`.  Each case needs an explicit `show` first: the equivalence
-is applied to a pair whose second component is *definitionally* but not reducibly a `Sum`, so
-`simp` cannot see through it on its own. -/
+the bijection is `Equiv.prodSumDistrib` (resp. `Equiv.sumProdDistrib`), and adjacency is checked
+on each of the four ways of pairing an `inl` with an `inr`. -/
 
 /-- The cartesian product distributes over disjoint unions. -/
 def cartesianProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
@@ -1611,7 +1606,7 @@ def foldAt (a N : ℕ) (h : a < N) : Equiv.Perm (Fin N) where
 
 /-- The arithmetic heart of `spider_pair`: after folding `[0, a]` back on itself, the two legs
 of the spider `[a, b]` become a single run of consecutive naturals.  Both sides are spelled out
-in the exact shape produced by `mem_legEdges`, so that the graph-level proof can just apply this. -/
+in the shape produced by `mem_legEdges`. -/
 theorem foldAt_pair_iff (a b p q : ℕ) (hp : p < 1 + a + b) (hq : q < 1 + a + b) :
     ((if p ≤ a then a - p else p) ≠ (if q ≤ a then a - q else q) ∧
         ((if p ≤ a then a - p else p) + 1 = (if q ≤ a then a - q else q) ∨
@@ -12107,8 +12102,8 @@ abbrev crown (n : ℕ) : IsoGraph := complete n ⊗g complete 2
 
 /-! ## Bridging to `CGraph`
 
-Each of these is `rfl`; they are stated so that a proof can move an identity down to the level of
-`CGraph` by `rw` without having to unfold a definition. -/
+Each of these is `rfl`, naming the `CGraph` representative of a construction defined on
+`IsoGraph`. -/
 
 theorem empty_def (n : ℕ) : empty n = ⟦CGraph.empty n⟧ := rfl
 theorem complete_def (n : ℕ) : complete n = ⟦CGraph.complete n⟧ := rfl
@@ -12253,9 +12248,8 @@ theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = emp
 
 /-! ## The join, and the constructions built from it
 
-`join_mk` is what makes the rest of this section possible: it says the `IsoGraph`-level `join`,
-defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees with
-`CGraph.join`. -/
+The `IsoGraph`-level `join`, defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees
+with `CGraph.join`; that is `join_mk`. -/
 
 @[simp] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     ⟦G⟧ ∇g ⟦H⟧ = ⟦CGraph.join G H⟧ := by
@@ -12906,8 +12900,8 @@ theorem foldedCube_three : foldedCube 3 = bipartite 4 4 := by
 
 The `ofEdges`-based families — tadpoles, lollipops, spiders and cycles with pendant vertices —
 degenerate into the named families when one of their parameters vanishes.  Every one of these is
-already an equality of `CGraph`s (see the `CGraph` section above), so the proofs here only have to
-move the identity across the quotient. -/
+already an equality of `CGraph`s (see the `CGraph` section above), and so descends to the
+quotient. -/
 
 @[simp] theorem tadpole_zero (m : ℕ) : tadpole m 0 = cycle m := by
   rw [tadpole_def, cycle_def, CGraph.tadpole_zero]
@@ -22026,12 +22020,10 @@ example : (cocktailParty 4).diameter = 2 := by
 example : (completeMultipartite (List.replicate 3 3)).E = 27 := by
   rw [E_completeMultipartite_replicate]; norm_num
 
-/-! ### Matchings, radii and clique covers found by the automated prover
+/-! ### Matchings, radii and clique covers
 
-The four statements below were closed by the automated prover; the proofs are its own, lightly
-reformatted.  They fill the last gaps in the matching-number column for the hypercube and the
-cocktail party graph, give the radius of a path, and record the matching bound on the clique
-cover number. -/
+The four statements below give the matching number of the hypercube and of the cocktail party
+graph, the radius of a path, and the matching bound on the clique cover number. -/
 
 /-- Cover the vertices by the edges of a maximum matching plus the leftover singletons. -/
 theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G.V - G.matchNum := by
@@ -22940,7 +22932,7 @@ example : (path 6).cliqueCoverNum = 3 := by rw [cliqueCoverNum_path]
 example : petersen.matchNum = 5 := matchNum_petersen
 example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
 
-/-! ### Domination, independence and regularity found by the automated prover -/
+/-! ### Domination, independence and regularity -/
 
 /-- The domination number of a path is `⌈n/3⌉`. -/
 @[simp] theorem domNum_path (n : ℕ) : (path (n + 1)).domNum = (n + 3) / 3 := by
@@ -27822,7 +27814,7 @@ theorem crown_three : crown 3 = cycle 6 := by
     (by rw [E_complete]; exact Nat.choose_pos (by omega))
     (by rw [E_complete]; exact Nat.choose_pos (by omega))
 
-/-! ### Harvested ATP proofs -/
+/-! ### The fan's degree sequence, and the radius of a line graph -/
 
 theorem degSequence_fan (n : ℕ) :
     degSequence (fan (n + 3)) = [2, 2] ++ List.replicate (n + 1) 3 ++ [n + 3] := by
@@ -33087,7 +33079,7 @@ theorem cliqueCoverNum_grotzsch : grotzsch.cliqueCoverNum = 6 := by
 
 /-! ### Tadpoles, lollipops, double stars and theta graphs
 
-The four decorated families all reduce to `CGraph.ofEdges` on an explicit edge list, so the
+The four decorated families are all `CGraph.ofEdges` on an explicit edge list, so the
 counting lemmas below are all instances of "the list has no duplicates, no self-loops and no
 reversed pairs, therefore `E` is its length".  The remaining invariants come from the shape:
 a lollipop's clique is its largest, a tadpole's junction is its only degree-three vertex, and a
@@ -37915,8 +37907,8 @@ theorem not_isVertexTransitive_mycielskian_cycle (n : ℕ) :
 
 Arc-transitivity implies vertex-transitivity as soon as there are no isolated vertices, so every
 negative vertex-transitivity entry is also a negative arc-transitivity entry.  The lift of
-`CGraph.isVertexTransitive_of_isArcTransitive` to the quotient replaces "no isolated vertices"
-with the cleaner `0 < δ`.
+`CGraph.isVertexTransitive_of_isArcTransitive` to the quotient states "no isolated vertices" as
+`0 < δ`.
 -/
 
 /-- **Arc-transitive graphs with no isolated vertex are vertex-transitive.**  Given `u` and `v`,
@@ -39141,9 +39133,8 @@ theorem not_isSelfComplementary_mycielskian {G : IsoGraph} (hV : 3 ≤ G.V)
 /-! ### The two-path theta graph and the two-legged spider
 
 `thetaGraph [a, b]` is a cycle and `spider [a, b]` is a path, so every invariant of those two
-families transfers verbatim.  These are the first entries in the theta graph's and the spider's
-rows for matching, domination, covering and eccentricity, all of which are otherwise blocked on
-the maximum degree.
+families transfers verbatim: the matching, domination, covering and eccentricity entries for
+both families in this degenerate case.
 -/
 
 theorem maxDeg_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) : maxDeg (thetaGraph [a, b]) = 2 := by
@@ -39369,8 +39360,7 @@ theorem le_autCount_thetaGraph_replicate_one (n : ℕ) :
 
 A spider all of whose legs have length one is a star, and a theta graph all of whose paths have
 length one is `K₂,ₙ`.  Both identities are already in the file; what follows is the row of
-invariants they carry across, which is the second batch of entries in two families that are
-otherwise blocked on the maximum degree.
+invariants they carry across.
 -/
 
 theorem maxDeg_spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) (hne : ks ≠ []) :

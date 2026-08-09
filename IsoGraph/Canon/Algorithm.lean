@@ -830,8 +830,7 @@ def isPermArray (n : Nat) (a : Array Nat) : Bool :=
 
 The search's output is checked to be a permutation of `{0, …, n-1}` before being returned, and
 the identity is substituted if it is not.  The check costs `O(n)` against an `Ω(n²)` search, and
-it means the "is a permutation" half of the correctness statement is a theorem
-(`Spec.labellingIsPerm`) rather than an assumption. -/
+makes the returned array a permutation whatever the search does (`Spec.labellingIsPerm`). -/
 def canonicalLabellingOfOracle (n : Nat) (f : Nat → Nat → Bool) : Array Nat :=
   let a := (canonical (Graph.ofOracle n f)).lab
   if isPermArray n a then a else Array.range n
