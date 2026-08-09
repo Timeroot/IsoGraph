@@ -3015,6 +3015,24 @@ theorem lambdaMin_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
 
 /-! ### The extreme eigenvalues of the named families -/
 
+/-- **The spectral radius of the empty graph** is `0`: it has no edges at all. -/
+theorem lambdaMax_empty (n : ℕ) : (empty (n + 1)).lambdaMax = 0 := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_empty] at hx
+    rw [Multiset.eq_of_mem_replicate hx]
+  · rw [spectrum_empty]
+    exact Multiset.mem_replicate.2 ⟨by omega, rfl⟩
+
+/-- **The least eigenvalue of the empty graph** is `0` as well, the one graph where the two ends
+coincide. -/
+theorem lambdaMin_empty (n : ℕ) : (empty (n + 1)).lambdaMin = 0 := by
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_empty]
+    exact Multiset.mem_replicate.2 ⟨by omega, rfl⟩
+  · have hx := lambdaMin_mem_spectrum (empty (n + 1))
+    rw [spectrum_empty] at hx
+    rw [Multiset.eq_of_mem_replicate hx]
+
 /-- **The spectral radius of a complete graph** is its degree. -/
 theorem lambdaMax_complete (n : ℕ) : (complete (n + 1)).lambdaMax = n := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
@@ -4905,6 +4923,13 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph} [inst : DecidableEq G.V]
     have hne : i ≠ i₀ := fun h ↦ hnodup (h ▸ hi)
     simp [hdd, hne]
 
+/-- **The spectral radius of the complement of a regular graph** is again its degree,
+`n - 1 - k`: the complement of a regular graph is regular. -/
+theorem lambdaMax_compl_of_isRegularWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {k : ℕ}
+    (h : G.IsRegularWith k) :
+    (compl G).lambdaMax = ((Fintype.card G.V - 1 - k : ℕ) : ℝ) :=
+  lambdaMax_of_isRegularWith h.compl
+
 /-- **The spectrum of the complement of the Petersen graph**: `6` once, `-2` five times and `1`
 four times. -/
 theorem spectrum_compl_petersen :
@@ -4916,6 +4941,33 @@ theorem spectrum_compl_petersen :
   have hcard : Fintype.card SRG.petersen.V = 10 := SRG.petersen_srg.card
   rw [spectrum_compl_of_isRegularWith hconn hreg, hcard, spectrum_petersen]
   norm_num [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate]
+
+/-- **The spectral radius of the complement of the Petersen graph** is its degree `6`. -/
+theorem lambdaMax_compl_petersen : (compl SRG.petersen).lambdaMax = 6 := by
+  refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
+  · rw [spectrum_compl_petersen, Multiset.mem_cons] at hx
+    rcases hx with rfl | hx
+    · exact le_refl _
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+    · rw [Multiset.eq_of_mem_replicate hx]; linarith
+  · rw [spectrum_compl_petersen]
+    exact Multiset.mem_cons_self _ _
+
+/-- **The least eigenvalue of the complement of the Petersen graph** is `-2`, the complement being
+the triangular graph `T (5)` and so a line graph. -/
+theorem lambdaMin_compl_petersen : (compl SRG.petersen).lambdaMin = -2 := by
+  refine le_antisymm (lambdaMin_le ?_) ?_
+  · rw [spectrum_compl_petersen]
+    exact Multiset.mem_cons_of_mem
+      (Multiset.mem_add.2 (Or.inl (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+  · have hx := lambdaMin_mem_spectrum (compl SRG.petersen)
+    rw [spectrum_compl_petersen, Multiset.mem_cons] at hx
+    rcases hx with h | h
+    · rw [h]; linarith
+    rcases Multiset.mem_add.1 h with h | h
+    · rw [Multiset.eq_of_mem_replicate h]
+    · rw [Multiset.eq_of_mem_replicate h]; linarith
 
 /-! ## An orthonormal eigenbasis -/
 
@@ -6048,6 +6100,11 @@ theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith
       Function.comp_def]
   · exact Finset.prod_ne_zero_iff.2 fun i _ ↦ Polynomial.X_sub_C_ne_zero _
 
+theorem isRegularWith_empty (n : ℕ) : (empty n).IsRegularWith 0 := by
+  intro v
+  simp [SimpleGraph.degree, SimpleGraph.neighborFinset, SimpleGraph.neighborSet, empty,
+    CGraph.toSimple]
+
 theorem isRegularWith_complete (n : ℕ) : (complete (n + 1)).IsRegularWith n := by
   intro i
   have hnb : (complete (n + 1)).toSimple.neighborFinset i = Finset.univ.erase i := by
@@ -7135,6 +7192,12 @@ theorem lapLambdaMax_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
     obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
     have := lambdaMin_le hy
     linarith
+
+/-- **The largest Laplacian eigenvalue of the empty graph** is `0`: its Laplacian is the zero
+matrix, so `μ_max = 0 - λ_min` collapses. -/
+theorem lapLambdaMax_empty (n : ℕ) : (empty (n + 1)).lapLambdaMax = 0 := by
+  rw [lapLambdaMax_of_isRegularWith (isRegularWith_empty (n + 1)), lambdaMin_empty]
+  norm_num
 
 /-- **The largest Laplacian eigenvalue vanishes exactly on the edgeless graph**: the spectrum is
 nonnegative and sums to `2 E`. -/
@@ -9028,6 +9091,65 @@ theorem lapSpectrum_cartesianProduct (G H : IsoGraph) :
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [cartesianProduct_mk, lapSpectrum_mk, lapSpectrum_mk, lapSpectrum_mk,
       CGraph.lapSpectrum_cartesianProduct' g h]
+
+/-- Adding the Laplacian spectrum `{0, 2}` of `K₂` to a multiset. -/
+private theorem lap_product_zero_two (s : Multiset ℝ) :
+    (s ×ˢ ((0 : ℝ) ::ₘ Multiset.replicate 1 2)).map (fun p ↦ p.1 + p.2)
+      = s.map (fun x ↦ x + 0) + s.map (fun x ↦ x + 2) := by
+  rw [Multiset.replicate_one, Multiset.product_cons,
+    show ({2} : Multiset ℝ) = (2 : ℝ) ::ₘ 0 from rfl, Multiset.product_cons,
+    Multiset.product_zero, add_zero]
+  simp [Multiset.map_add, Multiset.map_map]
+
+/-- **The Laplacian spectrum of a grid**: the two paths' Laplacian eigenvalues add. -/
+theorem lapSpectrum_grid (m n : ℕ) :
+    (path m □g path n).lapSpectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          (2 - 2 * Real.cos (Real.pi * p.1.1 / m))
+            + (2 - 2 * Real.cos (Real.pi * p.2.1 / n))) := by
+  rw [lapSpectrum_cartesianProduct, lapSpectrum_path, lapSpectrum_path,
+    ← CGraph.map_product_apply₂ _ _ (fun a b ↦ a + b), ← Finset.univ_product_univ,
+    Finset.product_val]
+
+/-- **The Laplacian spectrum of a torus**: the two cycles' Laplacian eigenvalues add. -/
+theorem lapSpectrum_cartesianProduct_cycle {m n : ℕ} (hm : 3 ≤ m) (hn : 3 ≤ n) :
+    (cycle m □g cycle n).lapSpectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          (2 - 2 * Real.cos (2 * Real.pi * p.1.1 / m))
+            + (2 - 2 * Real.cos (2 * Real.pi * p.2.1 / n))) := by
+  rw [lapSpectrum_cartesianProduct, lapSpectrum_cycle hm, lapSpectrum_cycle hn,
+    ← CGraph.map_product_apply₂ _ _ (fun a b ↦ a + b), ← Finset.univ_product_univ,
+    Finset.product_val]
+
+/-- **The Laplacian spectrum of a prism**: `Cₙ □ K₂` keeps the cycle's Laplacian eigenvalues and
+repeats them shifted up by `2`. -/
+theorem lapSpectrum_prism {n : ℕ} (hn : 3 ≤ n) :
+    (prism n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / n))
+        + Finset.univ.val.map (fun m : Fin n ↦ 4 - 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
+  rw [show prism n = cycle n □g complete 2 from rfl, lapSpectrum_cartesianProduct,
+    show (complete 2).lapSpectrum = (0 : ℝ) ::ₘ Multiset.replicate 1 2 from by
+      have := lapSpectrum_complete 1
+      norm_num at this
+      simpa using this,
+    lap_product_zero_two, lapSpectrum_cycle hn, Multiset.map_map, Multiset.map_map]
+  simp only [Function.comp_def]
+  congr 1 <;> exact Multiset.map_congr rfl fun x _ ↦ by ring
+
+/-- **The Laplacian spectrum of a ladder**: `Pₙ □ K₂` keeps the path's Laplacian eigenvalues and
+repeats them shifted up by `2`. -/
+theorem lapSpectrum_ladder (n : ℕ) :
+    (ladder n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (Real.pi * m.1 / n))
+        + Finset.univ.val.map (fun m : Fin n ↦ 4 - 2 * Real.cos (Real.pi * m.1 / n)) := by
+  rw [show ladder n = path n □g complete 2 from rfl, lapSpectrum_cartesianProduct,
+    show (complete 2).lapSpectrum = (0 : ℝ) ::ₘ Multiset.replicate 1 2 from by
+      have := lapSpectrum_complete 1
+      norm_num at this
+      simpa using this,
+    lap_product_zero_two, lapSpectrum_path, Multiset.map_map, Multiset.map_map]
+  simp only [Function.comp_def]
+  congr 1 <;> exact Multiset.map_congr rfl fun x _ ↦ by ring
 
 /-- **The largest Laplacian eigenvalue of a cartesian product** is the sum of the two. -/
 theorem lapLambdaMax_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :

@@ -4433,7 +4433,10 @@ instance for the bound one so that the `1`s coming from `exists_orthogonal_diago
 Petersen is the example: `3, 1⁵, (-2)⁴` becomes `6, (-2)⁵, 1⁴` for `spectrum_compl_petersen`.
 That complement is the triangular graph `T(5) = L(K₅)`, and `spectrum_triangular 1` says the same
 multiset by a completely different route — the strongly regular parameters — which is a useful
-consistency check on both.
+consistency check on both. Both of its ends are on file too, `lambdaMax_compl_petersen = 6` and
+`lambdaMin_compl_petersen = -2`, the second again the line-graph bound. The top end never needs the
+spectrum at all: `lambdaMax_compl_of_isRegularWith` is `n - 1 - k` for any regular graph, since
+`IsRegularWith.compl` makes the complement regular and a regular graph's radius is its degree.
 
 All the moments of the spectrum are available. One conjugation diagonalises every power of `A`
 at once (`trace_adjMat_pow`), so the `n`-th moment is the trace of `Aⁿ`, and `adjMat_pow_apply`
@@ -5076,6 +5079,12 @@ needed — if either factor is disconnected, both sides are `0`. Since `Qₙ = Q
 recover `algConn_hypercube = 2` and `lapLambdaMax_hypercube = 2n` by induction, which is the
 structural reason the Fiedler value of the cube does not decay.
 
+They also give the Laplacian spectra of the boards outright, mirroring the adjacency ones:
+`lapSpectrum_grid` and `lapSpectrum_cartesianProduct_cycle` add the two factors' eigenvalues over
+all pairs, and `lapSpectrum_prism`, `lapSpectrum_ladder` are the factor's Laplacian spectrum
+together with a copy of it shifted up by `2` — the rung `K₂` contributing `{0, 2}` where in the
+adjacency spectrum it contributed `{1, -1}`.
+
 They also settle the Laplacian ends of the three boards. `lapLambdaMax_grid` adds the two paths'
 maxima; `lapLambdaMax_cartesianProduct_cycle_even` is `8` — twice the degree, the even torus being
 bipartite and `4`-regular — and `lapLambdaMax_cartesianProduct_cycle_even_path` is `4` plus the
@@ -5234,11 +5243,14 @@ other shifted corners — the shifted product is bilinear in the pair, so its ex
 box of eigenvalue pairs are corners. The two multiplicative rules are the ones that need the
 spectral-radius bound rather than the eigenvalue bound: `λ` and `1 + λ` can be negative at the
 other eigenvalues, and it is `|λ| ≤ λ_max` that keeps their absolute values under `λ_max` and
-`1 + λ_max`, so two negatives cannot multiply their way past the top. These are the adjacency counterparts of `lapLambdaMax_cartesianProduct` and
-`algConn_cartesianProduct`, which run the same argument on the Laplacian.
+`1 + λ_max`, so two negatives cannot multiply their way past the top. These are the adjacency
+counterparts of `lapLambdaMax_cartesianProduct` and `algConn_cartesianProduct`, which run the same
+argument on the Laplacian.
 
 The named families get their two ends the same way, straight off the spectra computed much
-earlier. `lambdaMax_complete` gives `λ_max(K_{n+1}) = n` and `lambdaMin_complete` gives `-1`;
+earlier. `lambdaMax_empty` and `lambdaMin_empty` are both `0` — the one graph where the two ends
+coincide, and where `lapLambdaMax_empty` is `0` as well.
+`lambdaMax_complete` gives `λ_max(K_{n+1}) = n` and `lambdaMin_complete` gives `-1`;
 `lambdaMax_cycle` is `2`,
 attained at the constant eigenvector, and `lambdaMin_cycle_even` is `-2`, the value at the angle
 `π` that only an even cycle reaches. An odd cycle stops short of it: `lambdaMin_cycle_odd` is
