@@ -173,8 +173,10 @@ strong regularity of a connected regular graph *is* the condition "three distinc
 zero, the positive ones carry exactly half of it (`energy_eq_two_mul_sum_posPart`), which puts
 `2 λ_max` underneath it (`two_mul_lambdaMax_le_energy`); Cauchy–Schwarz against the second moment
 `∑ λ ² = 2 |E|` puts `√(2 |E| n)` on top, **McClelland's bound**, `energy_le_sqrt`.  It is
-additive over disjoint unions, it is `2 (n - 1)` for `Kₙ`, it is a cospectral invariant, and it
-vanishes exactly on the edgeless graphs (`energy_eq_zero_iff`, again by the second moment).
+additive over disjoint unions, it is a cospectral invariant, and it vanishes exactly on the
+edgeless graphs (`energy_eq_zero_iff`, again by the second moment).  The named values are
+`energy_complete` (`2 (n - 1)`, where the `2 λ_max` bound is tight), `energy_bipartite`
+(`2 √(m n)`), `energy_star` (`2 √n`) and `energy_petersen` (`16`).
 
 ## The Laplacian
 
@@ -6277,6 +6279,28 @@ theorem energy_eq_zero_iff (G : CGraph) : G.energy = 0 ↔ G.E = 0 := by
       exact pow_eq_zero_iff (n := 2) (by norm_num) |>.1 this
     rw [energy_eq_sum]
     exact Finset.sum_eq_zero fun i _ ↦ by rw [hz i, abs_zero]
+
+@[simp] theorem energy_empty (n : ℕ) : (empty n).energy = 0 := by
+  rw [energy, spectrum_empty]
+  simp
+
+/-- **The energy of a complete bipartite graph** is `2 √(m n)`. -/
+theorem energy_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).energy = 2 * Real.sqrt ((m + 1) * (n + 1)) := by
+  rw [energy, spectrum_bipartite]
+  simp [abs_of_nonneg (Real.sqrt_nonneg (((m : ℝ) + 1) * ((n : ℝ) + 1)))]
+  ring
+
+/-- **The energy of a star** is `2 √n`. -/
+theorem energy_star (n : ℕ) : (star (n + 1)).energy = 2 * Real.sqrt (n + 1) := by
+  rw [energy, spectrum_star]
+  simp [abs_of_nonneg (Real.sqrt_nonneg ((n : ℝ) + 1))]
+  ring
+
+/-- **The energy of the Petersen graph** is `16`: `3 + 5 · 1 + 4 · 2`. -/
+theorem energy_petersen : SRG.petersen.energy = 16 := by
+  rw [energy, spectrum_petersen]
+  norm_num [Multiset.map_add, Multiset.map_replicate]
 
 /-! ## The Laplacian -/
 
