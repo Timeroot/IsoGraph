@@ -9142,6 +9142,31 @@ theorem lapLambdaMax_prism_even {n : ℕ} (hn : 2 ≤ n) : (prism (2 * n)).lapLa
     lapLambdaMax_complete]
   norm_num
 
+/-- **The largest Laplacian eigenvalue of a ladder** is the path's plus the rung's `2`; unlike the
+prism it never reaches `2 Δ = 6`, because the path factor falls short of `4`. -/
+theorem lapLambdaMax_ladder (n : ℕ) :
+    (ladder (n + 1)).lapLambdaMax = 4 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1)) := by
+  rw [show ladder (n + 1) = path (n + 1) □g complete (0 + 2) from by norm_num,
+    lapLambdaMax_cartesianProduct (by simp) (by simp), lapLambdaMax_path, lapLambdaMax_complete]
+  norm_num
+  ring
+
+/-- **The algebraic connectivity of a ladder** is the path's: the rungs contribute `2`, and
+`2 - 2 cos (π / (n + 2))` never reaches it. -/
+theorem algConn_ladder (n : ℕ) :
+    (ladder (n + 2)).algConn = 2 - 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) := by
+  rw [show ladder (n + 2) = path (n + 2) □g complete (0 + 2) from by norm_num,
+    algConn_cartesianProduct (by simp) (by simp), algConn_path, algConn_complete, min_eq_left]
+  have h1 : Real.pi / ((n : ℝ) + 2) ≤ Real.pi / 2 := by
+    rw [div_le_div_iff₀ (by positivity) (by norm_num)]
+    nlinarith [Real.pi_pos, Nat.cast_nonneg (α := ℝ) n]
+  have h2 : (0 : ℝ) ≤ Real.cos (Real.pi / ((n : ℝ) + 2)) := by
+    refine Real.cos_nonneg_of_mem_Icc ⟨?_, h1⟩
+    have : (0 : ℝ) ≤ Real.pi / ((n : ℝ) + 2) := by positivity
+    linarith [Real.pi_pos]
+  push_cast
+  linarith
+
 /-- **`Δ + 1 ≤ μ_max`**, at the `IsoGraph` level. -/
 theorem maxDeg_add_one_le_lapLambdaMax {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.E) :
     (G.maxDeg : ℝ) + 1 ≤ G.lapLambdaMax := by

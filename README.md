@@ -5087,7 +5087,10 @@ as hard to disconnect as its long side alone — the short side contributes noth
 The prism is the case where the comparison goes the other way and has to be checked: `a(K₂) = 2`,
 so `algConn_prism` is the cycle's value only once `n ≥ 4`, which is exactly where
 `2 - 2 cos (2 π / n)` drops back below `2`. At the other end
-`lapLambdaMax_prism_even = 6 = 2 Δ`, the even prism being bipartite and cubic.
+`lapLambdaMax_prism_even = 6 = 2 Δ`, the even prism being bipartite and cubic. The ladder needs no
+such check: `2 - 2 cos (π / (n + 2))` is below `2` for every `n`, so `algConn_ladder` is the path's
+value outright, and `lapLambdaMax_ladder = 4 - 2 cos (π n / (n + 1))` stays strictly under the
+cubic bound `6` because the path factor never reaches `4`.
 
 That leaves the strongly regular graphs, which are the easiest case of all: a strongly regular
 graph is regular and has only three distinct eigenvalues `k > r > s`, so reflecting in `k` gives
