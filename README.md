@@ -36,6 +36,7 @@ index modules that import their directory.
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
+| `IsoGraph/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
 | `IsoGraph/Identities.lean` | the same constructions on `IsoGraph`, and the equations between them | yes |
 | `IsoGraph/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, tested | yes |
 | `IsoGraph/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
@@ -45,6 +46,10 @@ index modules that import their directory.
 | `IsoGraph/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
 | `IsoGraph/SRG.lean` | a table of strongly regular graphs, parameters checked | yes |
 | `IsoGraph/NamedGraphs.lean` | the cubic cages, generalized Petersen graphs, and other named graphs | yes |
+| `IsoGraph/NamedSolids.lean` | the Archimedean and Catalan solids | yes |
+| `IsoGraph/NamedCages.lean` | the Harries, Harries–Wong, Gray and Foster graphs | yes |
+| `IsoGraph/Balaban11Cage.lean` | the Balaban 11-cage, whose girth is the slowest check here | yes |
+| `IsoGraph/Tutte12Cage.lean` | the Tutte 12-cage, the largest cubic cage with a name | yes |
 | `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |

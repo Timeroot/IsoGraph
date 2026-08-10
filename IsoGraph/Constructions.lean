@@ -979,6 +979,47 @@ abbrev rook (m n : ℕ) : CGraph := cartesianProduct (complete m) (complete n)
 /-- The cocktail party graph `K_{n×2}`: `K_{2n}` minus a perfect matching. -/
 abbrev cocktailParty (n : ℕ) : CGraph := completeMultipartite (List.replicate n 2)
 
+/-! ## Graph codes
+
+Two families given by a code rather than by a formula: an LCF code, and the pair `(n, k)` of a
+generalized Petersen graph.  Both produce a graph on `Fin n`, numbered so that the back-edge
+certificate for connectivity of `IsoGraph/Certificates.lean` holds on the nose. -/
+
+/-- Vertex number `i` of a graph on `Fin n`, for naming the corners of a triangle, square or
+pentagon.  The bound is `Nat.mod_lt`. -/
+abbrev vtx (n : ℕ) [NeZero n] (i : ℕ) : Fin n :=
+  ⟨i % n, Nat.mod_lt _ (Nat.pos_of_ne_zero (NeZero.ne n))⟩
+
+/-- The edges of the LCF code `[ss]^r`: the Hamiltonian cycle `0 - 1 - ⋯ - (n-1) - 0` on
+`n = ss.length * r` vertices, together with the chord from `i` to `i + ss[i mod ss.length]`. -/
+def lcfEdges (ss : List ℤ) (r : ℕ) : List (ℕ × ℕ) :=
+  (List.range (ss.length * r)).flatMap fun i ↦
+    [(i, (i + 1) % (ss.length * r)),
+      (i, ((((i : ℤ) + ss.getD (i % ss.length) 0) % (ss.length * r : ℕ)
+              + (ss.length * r : ℕ)) % (ss.length * r : ℕ)).toNat)]
+
+/-- The cubic graph with LCF code `[ss]^r`, in Lederberg–Coxeter–Frucht notation: a Hamiltonian
+cycle on `ss.length * r` vertices with the chords prescribed by `ss`, repeated `r` times. -/
+def lcf (ss : List ℤ) (r : ℕ) : CGraph := ofEdges (ss.length * r) (lcfEdges ss r)
+
+instance (ss : List ℤ) (r : ℕ) : DecidableEq (lcf ss r).V :=
+  inferInstanceAs (DecidableEq (Fin (ss.length * r)))
+
+@[simp] theorem card_lcf (ss : List ℤ) (r : ℕ) :
+    Fintype.card (lcf ss r).V = ss.length * r := card_ofEdges _ _
+
+/-- The edges of the generalized Petersen graph `GP(n, k)`: an outer `n`-cycle on `0 … n-1`, an
+inner circulant `n + i ~ n + (i + k)` on `n … 2n-1`, and the spokes `i ~ n + i`. -/
+def gpEdges (n k : ℕ) : List (ℕ × ℕ) :=
+  (List.range n).flatMap fun i ↦ [(i, (i + 1) % n), (i, n + i), (n + i, n + (i + k) % n)]
+
+/-- The generalized Petersen graph `GP(n, k)`. -/
+def gp (n k : ℕ) : CGraph := ofEdges (2 * n) (gpEdges n k)
+
+instance (n k : ℕ) : DecidableEq (gp n k).V := inferInstanceAs (DecidableEq (Fin (2 * n)))
+
+@[simp] theorem card_gp (n k : ℕ) : Fintype.card (gp n k).V = 2 * n := card_ofEdges _ _
+
 /-! ## Invariants of the constructions
 
 What the invariants of `IsoGraph/Invariants.lean` come to on the graphs above.

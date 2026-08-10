@@ -3,6 +3,7 @@ import IsoGraph.Basic
 import IsoGraph.Invariants
 import IsoGraph.Symmetry
 import IsoGraph.Constructions
+import IsoGraph.Certificates
 import IsoGraph.Identities
 import IsoGraph.Compute
 import IsoGraph.Enum
@@ -10,4 +11,8 @@ import IsoGraph.CliqueSum
 import IsoGraph.NamedSmallGraphs
 import IsoGraph.SRG
 import IsoGraph.NamedGraphs
+import IsoGraph.NamedSolids
+import IsoGraph.NamedCages
+import IsoGraph.Balaban11Cage
+import IsoGraph.Tutte12Cage
 import IsoGraph.Spectrum
