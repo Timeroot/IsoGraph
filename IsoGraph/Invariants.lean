@@ -1,4 +1,4 @@
-import IsoGraph.Basic
+import IsoGraph.ToIsoGraph
 import Mathlib.Combinatorics.SimpleGraph.Acyclic
 import Mathlib.Combinatorics.SimpleGraph.Diam
 import Mathlib.Combinatorics.SimpleGraph.Girth
@@ -12,12 +12,11 @@ import Mathlib.Combinatorics.SimpleGraph.VertexCover
 # Invariants
 
 An *invariant* here is a quantity attached to a `CGraph` that is unchanged by isomorphism, and so
-descends to `IsoGraph`.  Each one appears twice:
-
-* at the `CGraph` level, as a thin wrapper around the corresponding Mathlib notion for
-  `G.toSimple` — this is the form statements about concrete graphs are proved in;
-* at the `IsoGraph` level, as a `Quotient.lift` of it, whose side condition is exactly
-  isomorphism-invariance.
+descends to `IsoGraph`.  Each one is written once, at the `CGraph` level, as a thin wrapper around
+the corresponding Mathlib notion for `G.toSimple` — this is the form statements about concrete
+graphs are proved in — and is followed by its invariance theorem, tagged `@[toIsoGraph]`.  That
+attribute generates the `IsoGraph`-level copy, a `Quotient.lift` whose side condition is exactly
+the invariance theorem, together with the `@[simp]` lemma saying the two agree on representatives.
 
 The `SimpleGraph.Iso` section below supplies the invariance lemmas that Mathlib does not already
 have.
@@ -247,12 +246,21 @@ variable (G : CGraph)
 /-- Independence number: the size of a largest set of pairwise non-adjacent vertices. -/
 noncomputable def indepNum : ℕ := G.toSimple.indepNum
 
+@[toIsoGraph]
+theorem indepNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.indepNum = H.indepNum :=
+  SimpleGraph.Iso.indepNum_eq (CGraph.Iso.toSimpleIso i)
+
 /-- Clique number: the size of a largest set of pairwise adjacent vertices. -/
 noncomputable def cliqueNum : ℕ := G.toSimple.cliqueNum
+
+@[toIsoGraph]
+theorem cliqueNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.cliqueNum = H.cliqueNum :=
+  SimpleGraph.Iso.cliqueNum_eq (CGraph.Iso.toSimpleIso i)
 
 /-- The number of `n`-cliques, i.e. of `n`-element sets of pairwise adjacent vertices. -/
 noncomputable def cliqueCount (n : ℕ) : ℕ := (G.toSimple.cliqueSet n).ncard
 
+@[toIsoGraph]
 theorem cliqueCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) (n : ℕ) :
     G.cliqueCount n = H.cliqueCount n :=
   SimpleGraph.Iso.cliqueSet_ncard_eq (CGraph.Iso.toSimpleIso i) n
@@ -267,6 +275,7 @@ theorem cliqueCount_eq_card_cliqueFinset [DecidableEq G.V] (n : ℕ) :
 vertices. -/
 noncomputable def indepCount (n : ℕ) : ℕ := (G.toSimple.indepSetSet n).ncard
 
+@[toIsoGraph]
 theorem indepCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) (n : ℕ) :
     G.indepCount n = H.indepCount n :=
   SimpleGraph.Iso.indepSetSet_ncard_eq (CGraph.Iso.toSimpleIso i) n
@@ -283,6 +292,7 @@ theorem indepCount_eq_card_indepSetFinset [DecidableEq G.V] (n : ℕ) :
 /-- The number of connected components. -/
 noncomputable def numComponents : ℕ := Nat.card G.toSimple.ConnectedComponent
 
+@[toIsoGraph]
 theorem numComponents_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
     G.numComponents = H.numComponents :=
   SimpleGraph.Iso.numComponents_eq (CGraph.Iso.toSimpleIso i)
@@ -299,19 +309,32 @@ instance instFiniteAut : Finite (G.toSimple ≃g G.toSimple) :=
   Finite.of_injective (fun a : G.toSimple ≃g G.toSimple ↦ a.toEquiv)
     (fun _ _ h ↦ by ext v; exact congrArg (fun e : G.V ≃ G.V ↦ e v) h)
 
+@[toIsoGraph]
 theorem autCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.autCount = H.autCount :=
   SimpleGraph.Iso.autCount_eq (CGraph.Iso.toSimpleIso i)
 
 /-- Number of edges. -/
 def E : ℕ := G.toSimple.edgeFinset.card
 
+@[toIsoGraph]
+theorem E_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.E = H.E :=
+  SimpleGraph.Iso.card_edgeFinset_eq (CGraph.Iso.toSimpleIso i)
+
 /-- The multiset of vertex degrees.  This is the degree sequence before sorting; the identities
 of `IsoGraph/Identities.lean` are much easier to state and prove for the multiset, and nothing is
 lost, since `degSequence` is exactly its `sort` (`coe_degSequence`). -/
 def degMultiset : Multiset ℕ := Finset.univ.val.map fun v ↦ G.toSimple.degree v
 
+@[toIsoGraph]
+theorem degMultiset_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.degMultiset = H.degMultiset :=
+  SimpleGraph.Iso.degrees_eq (CGraph.Iso.toSimpleIso i)
+
 /-- Sorted degree sequence. -/
 def degSequence : List ℕ := G.degMultiset.sort (· ≤ ·)
+
+@[toIsoGraph]
+theorem degSequence_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.degSequence = H.degSequence :=
+  congrArg (fun m : Multiset ℕ ↦ m.sort (· ≤ ·)) (degMultiset_eq_of_iso i)
 
 theorem degSequence_eq_sort : G.degSequence = G.degMultiset.sort (· ≤ ·) := rfl
 
@@ -321,30 +344,62 @@ theorem degSequence_eq_sort : G.degSequence = G.degMultiset.sort (· ≤ ·) := 
 /-- Maximum degree, `0` on the empty graph. -/
 def maxDeg (G : CGraph) : ℕ := G.toSimple.maxDegree
 
+@[toIsoGraph]
+theorem maxDeg_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.maxDeg = H.maxDeg :=
+  SimpleGraph.Iso.maxDegree_eq (CGraph.Iso.toSimpleIso i)
+
 /-- Minimum degree, `0` on the empty graph. -/
 def minDeg (G : CGraph) : ℕ := G.toSimple.minDegree
+
+@[toIsoGraph]
+theorem minDeg_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.minDeg = H.minDeg :=
+  SimpleGraph.Iso.minDegree_eq (CGraph.Iso.toSimpleIso i)
 
 /-- The graph is connected (in particular, nonempty). -/
 def IsConnected : Prop := G.toSimple.Connected
 
+@[toIsoGraph]
+theorem isConnected_iff_of_iso {G H : CGraph} (i : G ≃cg H) : G.IsConnected ↔ H.IsConnected :=
+  SimpleGraph.Iso.connected_iff (CGraph.Iso.toSimpleIso i)
+
 /-- The graph has no cycles. -/
 def IsAcyclic : Prop := G.toSimple.IsAcyclic
+
+@[toIsoGraph]
+theorem isAcyclic_iff_of_iso {G H : CGraph} (i : G ≃cg H) : G.IsAcyclic ↔ H.IsAcyclic :=
+  SimpleGraph.Iso.isAcyclic_iff (CGraph.Iso.toSimpleIso i)
 
 /-- Girth: the length of a shortest cycle, and `0` for an acyclic graph (Mathlib's convention,
 the same kind of junk value as `diameter` uses for a disconnected graph). -/
 noncomputable def girth : ℕ := G.toSimple.girth
 
+@[toIsoGraph]
+theorem girth_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.girth = H.girth :=
+  SimpleGraph.Iso.girth_eq (CGraph.Iso.toSimpleIso i)
+
 /-- Diameter, i.e. the largest distance between two vertices — `0` if the graph is disconnected
 (this is Mathlib's convention for `SimpleGraph.diam`). -/
 noncomputable def diameter : ℕ := G.toSimple.diam
+
+@[toIsoGraph]
+theorem diameter_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.diameter = H.diameter :=
+  SimpleGraph.Iso.diam_eq (CGraph.Iso.toSimpleIso i)
 
 /-- Radius: the least eccentricity of a vertex, i.e. how far from the rest of the graph the most
 central vertex is.  `0` for an empty or disconnected graph, the same junk convention `diameter`
 uses. -/
 noncomputable def radius : ℕ := G.toSimple.radius.toNat
 
+@[toIsoGraph]
+theorem radius_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.radius = H.radius :=
+  congrArg ENat.toNat (SimpleGraph.Iso.radius_eq (CGraph.Iso.toSimpleIso i))
+
 /-- Vertex cover number: the size of a smallest set of vertices meeting every edge. -/
 noncomputable def coverNum : ℕ := G.toSimple.vertexCoverNum.toNat
+
+@[toIsoGraph]
+theorem coverNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.coverNum = H.coverNum :=
+  congrArg ENat.toNat (SimpleGraph.vertexCoverNum_congr (CGraph.Iso.toSimpleIso i))
 
 /-- A set of vertices *dominates* the graph if every vertex either lies in it or has a
 neighbour in it. -/
@@ -368,6 +423,7 @@ theorem IsDominatingSet.map {G H : CGraph} (i : G ≃cg H) {s : Finset G.V}
     rw [h2]
     exact hadj
 
+@[toIsoGraph]
 theorem domNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.domNum = H.domNum := by
   have hset : {n | ∃ s : Finset G.V, s.card = n ∧ G.IsDominatingSet s}
       = {n | ∃ s : Finset H.V, s.card = n ∧ H.IsDominatingSet s} := by
@@ -389,8 +445,16 @@ theorem chromaticNumber_ne_top : G.toSimple.chromaticNumber ≠ ⊤ :=
 @[simp] theorem coe_chromNum : (G.chromNum : ℕ∞) = G.toSimple.chromaticNumber :=
   ENat.coe_toNat G.chromaticNumber_ne_top
 
+@[toIsoGraph]
+theorem chromNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.chromNum = H.chromNum :=
+  congrArg ENat.toNat (SimpleGraph.Iso.chromaticNumber_eq (CGraph.Iso.toSimpleIso i))
+
 /-- The graph is a tree. -/
 def IsTree : Prop := G.toSimple.IsTree
+
+@[toIsoGraph]
+theorem isTree_iff_of_iso {G H : CGraph} (i : G ≃cg H) : G.IsTree ↔ H.IsTree :=
+  SimpleGraph.Iso.isTree_iff (CGraph.Iso.toSimpleIso i)
 
 /-- The graph is *strongly regular* with parameters `(n, k, ℓ, μ)`: it has `n` vertices, every
 vertex has degree `k`, adjacent vertices have `ℓ` common neighbours, and distinct non-adjacent
@@ -398,9 +462,19 @@ vertices have `μ`.  Unlike the invariants above this one takes the parameters a
 a property, not a number, and `IsoGraph/SRG.lean` is a table of graphs satisfying it. -/
 def IsSRGWith (n k ℓ μ : ℕ) : Prop := G.toSimple.IsSRGWith n k ℓ μ
 
+@[toIsoGraph]
+theorem isSRGWith_iff_of_iso {G H : CGraph} (i : G ≃cg H) (n k ℓ μ : ℕ) :
+    G.IsSRGWith n k ℓ μ ↔ H.IsSRGWith n k ℓ μ :=
+  SimpleGraph.Iso.isSRGWith_iff (CGraph.Iso.toSimpleIso i)
+
 /-- The graph is *`k`-regular*: every vertex has exactly `k` neighbours.  Like `IsSRGWith` this
 takes its parameter as an argument, and it is the first condition of strong regularity. -/
 def IsRegularWith (k : ℕ) : Prop := G.toSimple.IsRegularOfDegree k
+
+@[toIsoGraph]
+theorem isRegularWith_iff_of_iso {G H : CGraph} (i : G ≃cg H) (k : ℕ) :
+    G.IsRegularWith k ↔ H.IsRegularWith k :=
+  SimpleGraph.Iso.isRegularOfDegree_iff (CGraph.Iso.toSimpleIso i)
 
 /-- The neighbours of `v`, as a `Finset`.  Same thing as `G.toSimple.neighborFinset v`
 (`neighborFinset_eq_nbrs`), but phrased with `CGraph.Adj` so that it can be computed with and
@@ -442,6 +516,7 @@ as the splitting criterion for the bipartite double cover in `IsoGraph/Identitie
 def IsBipartite : Prop := ∃ c : G.V → Bool, ∀ x y, G.Adj x y → c x ≠ c y
 
 /-- Bipartiteness transfers along an isomorphism. -/
+@[toIsoGraph]
 theorem isBipartite_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsBipartite) : H.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   refine ⟨fun v ↦ c (i.symm v), fun x y hxy ↦ hc _ _ ?_⟩
@@ -518,12 +593,14 @@ theorem isArcTransitive_iff [DecidableEq G.V] :
     exact ⟨autoOfPerm σ hσ, h₁, h₂⟩
 
 /-- Transitivity transfers along an isomorphism. -/
+@[toIsoGraph]
 theorem isVertexTransitive_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsVertexTransitive) :
     H.IsVertexTransitive := by
   intro u v
   obtain ⟨σ, hσ⟩ := h (i.symm u) (i.symm v)
   exact ⟨(i.symm.trans σ).trans i, by simp [hσ]⟩
 
+@[toIsoGraph]
 theorem isArcTransitive_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsArcTransitive) :
     H.IsArcTransitive := by
   intro u v u' v' huv hu'v'
@@ -576,210 +653,16 @@ end CGraph
 
 /-! ## Invariants of an `IsoGraph`
 
-Each is a `Quotient.lift` of the corresponding `CGraph` invariant; the side condition is exactly
-the isomorphism-invariance lemma above. -/
+Every declaration of the previous section tagged `@[toIsoGraph]` has already produced its
+`IsoGraph`-level counterpart, a `Quotient.lift` together with its `@[simp]` `…_mk` lemma.  What is
+left here is the handful of facts that relate two of them. -/
 
 namespace IsoGraph
-
-/-- Independence number. -/
-noncomputable def indepNum (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.indepNum
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.indepNum_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem indepNum_mk (G : CGraph) :
-    indepNum (Quotient.mk _ G) = G.indepNum := rfl
-
-/-- Clique number. -/
-noncomputable def cliqueNum (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.cliqueNum
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.cliqueNum_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem cliqueNum_mk (G : CGraph) :
-    cliqueNum (Quotient.mk _ G) = G.cliqueNum := rfl
-
-/-- The number of `n`-cliques. -/
-noncomputable def cliqueCount (G : IsoGraph) (n : ℕ) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ CGraph.cliqueCount g n)
-    (fun _ _ ⟨i⟩ ↦ CGraph.cliqueCount_eq_of_iso i n) G
-
-@[simp] theorem cliqueCount_mk (G : CGraph) (n : ℕ) :
-    cliqueCount (Quotient.mk _ G) n = G.cliqueCount n := rfl
-
-/-- The number of independent `n`-sets. -/
-noncomputable def indepCount (G : IsoGraph) (n : ℕ) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ CGraph.indepCount g n)
-    (fun _ _ ⟨i⟩ ↦ CGraph.indepCount_eq_of_iso i n) G
-
-@[simp] theorem indepCount_mk (G : CGraph) (n : ℕ) :
-    indepCount (Quotient.mk _ G) n = G.indepCount n := rfl
-
-/-- The number of connected components. -/
-noncomputable def numComponents (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.numComponents
-    (fun _ _ ⟨i⟩ ↦ CGraph.numComponents_eq_of_iso i) G
-
-@[simp] theorem numComponents_mk (G : CGraph) :
-    numComponents (Quotient.mk _ G) = G.numComponents := rfl
-
-/-- Number of edges. -/
-def E (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.E
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.card_edgeFinset_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem E_mk (G : CGraph) : E (Quotient.mk _ G) = G.E := rfl
-
-/-- The multiset of vertex degrees. -/
-def degMultiset (G : IsoGraph) : Multiset ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.degMultiset
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.degrees_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem degMultiset_mk (G : CGraph) :
-    degMultiset (Quotient.mk _ G) = G.degMultiset := rfl
-
-/-- Sorted degree sequence. -/
-def degSequence (G : IsoGraph) : List ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.degSequence
-    (fun _ _ ⟨i⟩ ↦ congrArg (fun m : Multiset ℕ ↦ m.sort (· ≤ ·))
-      (SimpleGraph.Iso.degrees_eq (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem degSequence_mk (G : CGraph) :
-    degSequence (Quotient.mk _ G) = G.degSequence := rfl
 
 theorem degSequence_eq_sort (G : IsoGraph) : degSequence G = (degMultiset G).sort (· ≤ ·) := by
   induction G using Quotient.inductionOn with | _ g => rfl
 
 @[simp] theorem coe_degSequence (G : IsoGraph) : (degSequence G : Multiset ℕ) = degMultiset G := by
   induction G using Quotient.inductionOn with | _ g => exact Multiset.sort_eq _ _
-
-/-- Maximum degree. -/
-def maxDeg (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.maxDeg
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.maxDegree_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem maxDeg_mk (G : CGraph) : maxDeg (Quotient.mk _ G) = G.maxDeg := rfl
-
-/-- Minimum degree. -/
-def minDeg (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.minDeg
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.minDegree_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem minDeg_mk (G : CGraph) : minDeg (Quotient.mk _ G) = G.minDeg := rfl
-
-/-- Connectivity. -/
-def IsConnected (G : IsoGraph) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsConnected
-    (fun _ _ ⟨i⟩ ↦ propext (SimpleGraph.Iso.connected_iff (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem isConnected_mk (G : CGraph) :
-    IsConnected (Quotient.mk _ G) = G.IsConnected := rfl
-
-/-- Acyclicity. -/
-def IsAcyclic (G : IsoGraph) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsAcyclic
-    (fun _ _ ⟨i⟩ ↦ propext (SimpleGraph.Iso.isAcyclic_iff (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem isAcyclic_mk (G : CGraph) :
-    IsAcyclic (Quotient.mk _ G) = G.IsAcyclic := rfl
-
-/-- Being a tree. -/
-def IsTree (G : IsoGraph) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsTree
-    (fun _ _ ⟨i⟩ ↦ propext (SimpleGraph.Iso.isTree_iff (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem isTree_mk (G : CGraph) : IsTree (Quotient.mk _ G) = G.IsTree := rfl
-
-/-- Strong regularity with given parameters. -/
-def IsSRGWith (G : IsoGraph) (n k ℓ μ : ℕ) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun H ↦ H.IsSRGWith n k ℓ μ)
-    (fun _ _ ⟨i⟩ ↦ propext (SimpleGraph.Iso.isSRGWith_iff (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem isSRGWith_mk (G : CGraph) (n k ℓ μ : ℕ) :
-    IsSRGWith (Quotient.mk _ G) n k ℓ μ = G.IsSRGWith n k ℓ μ := rfl
-
-/-- Regularity of a given degree. -/
-def IsRegularWith (G : IsoGraph) (k : ℕ) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun H ↦ H.IsRegularWith k)
-    (fun _ _ ⟨i⟩ ↦ propext (SimpleGraph.Iso.isRegularOfDegree_iff (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem isRegularWith_mk (G : CGraph) (k : ℕ) :
-    IsRegularWith (Quotient.mk _ G) k = G.IsRegularWith k := rfl
-
-/-- Girth. -/
-noncomputable def girth (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.girth
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.girth_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem girth_mk (G : CGraph) : girth (Quotient.mk _ G) = G.girth := rfl
-
-/-- Diameter. -/
-noncomputable def diameter (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.diameter
-    (fun _ _ ⟨i⟩ ↦ SimpleGraph.Iso.diam_eq (CGraph.Iso.toSimpleIso i)) G
-
-@[simp] theorem diameter_mk (G : CGraph) : diameter (Quotient.mk _ G) = G.diameter := rfl
-
-/-- Radius. -/
-noncomputable def radius (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.radius
-    (fun _ _ ⟨i⟩ ↦ congrArg ENat.toNat
-      (SimpleGraph.Iso.radius_eq (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem radius_mk (G : CGraph) : radius (Quotient.mk _ G) = G.radius := rfl
-
-/-- Vertex cover number. -/
-noncomputable def coverNum (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.coverNum
-    (fun _ _ ⟨i⟩ ↦ congrArg ENat.toNat
-      (SimpleGraph.vertexCoverNum_congr (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem coverNum_mk (G : CGraph) : coverNum (Quotient.mk _ G) = G.coverNum := rfl
-
-/-- Domination number. -/
-noncomputable def domNum (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.domNum
-    (fun _ _ ⟨i⟩ ↦ CGraph.domNum_eq_of_iso i) G
-
-@[simp] theorem domNum_mk (G : CGraph) : domNum (Quotient.mk _ G) = G.domNum := rfl
-
-/-- Chromatic number. -/
-noncomputable def chromNum (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.chromNum
-    (fun _ _ ⟨i⟩ ↦ congrArg ENat.toNat
-      (SimpleGraph.Iso.chromaticNumber_eq (CGraph.Iso.toSimpleIso i))) G
-
-@[simp] theorem chromNum_mk (G : CGraph) : chromNum (Quotient.mk _ G) = G.chromNum := rfl
-
-/-- Bipartiteness. -/
-def IsBipartite (G : IsoGraph) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsBipartite
-    (fun _ _ ⟨i⟩ ↦ propext ⟨CGraph.isBipartite_of_iso i, CGraph.isBipartite_of_iso i.symm⟩) G
-
-@[simp] theorem isBipartite_mk (G : CGraph) :
-    IsBipartite (Quotient.mk _ G) = G.IsBipartite := rfl
-
-/-- Vertex-transitivity. -/
-def IsVertexTransitive (G : IsoGraph) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsVertexTransitive
-    (fun _ _ ⟨i⟩ ↦ propext ⟨CGraph.isVertexTransitive_of_iso i,
-      CGraph.isVertexTransitive_of_iso i.symm⟩) G
-
-@[simp] theorem isVertexTransitive_mk (G : CGraph) :
-    IsVertexTransitive (Quotient.mk _ G) = G.IsVertexTransitive := rfl
-
-/-- Arc-transitivity. -/
-def IsArcTransitive (G : IsoGraph) : Prop :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.IsArcTransitive
-    (fun _ _ ⟨i⟩ ↦ propext ⟨CGraph.isArcTransitive_of_iso i,
-      CGraph.isArcTransitive_of_iso i.symm⟩) G
-
-@[simp] theorem isArcTransitive_mk (G : CGraph) :
-    IsArcTransitive (Quotient.mk _ G) = G.IsArcTransitive := rfl
-
-/-- The number of automorphisms. -/
-noncomputable def autCount (G : IsoGraph) : ℕ :=
-  Quotient.lift (s := CGraph.isoSetoid) CGraph.autCount
-    (fun _ _ ⟨i⟩ ↦ CGraph.autCount_eq_of_iso i) G
-
-@[simp] theorem autCount_mk (G : CGraph) : autCount (Quotient.mk _ G) = G.autCount := rfl
 
 end IsoGraph
