@@ -257,7 +257,10 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
   let thm := mkConst thmName (lvls.map mkLevelParam)
   let rev ← reversedTransfer
   let uCG ← getLevel cgraphE
-  let base := base?.getD thmName.getString!.toName
+  let uIG ← getLevel isographE
+  /- Drop the `CGraph` namespace but keep everything else, so that a fact stated for dot notation,
+  such as `CGraph.IsSRGWith.degSequence`, keeps its dot notation on the other side too. -/
+  let base := base?.getD (thmName.replacePrefix `CGraph Name.anonymous)
   let newName := `IsoGraph ++ base
   if (← getEnv).contains newName then
     throwError "toIsoGraph: {newName} already exists"
@@ -276,8 +279,18 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
           withLocalDecl decl.userName decl.binderInfo ty fun y ↦
             loop (i + 1) (news.push y) (graphs.push false)
       else
+        /- A conclusion `g = h` between two `CGraph`s becomes one between their classes; this is
+        the only step of the translation that is not by `rfl`, and `congrArg` supplies it. -/
+        let isEqCG := body.isAppOfArity ``Eq 3 && body.appFn!.appFn!.appArg! == cgraphE
+        let body := if isEqCG then
+            let mk (x : Expr) := mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, x]
+            mkAppN (mkConst ``Eq [uIG]) #[isographE, mk body.appFn!.appArg!, mk body.appArg!]
+          else body
         let newBody ← translateExpr rev olds news graphs body
         let stmt ← instantiateMVars (← mkForallFVars news newBody)
+        if stmt.getUsedConstants.any (·.getRoot == `CGraph) then
+          throwError "toIsoGraph: cannot state{indentExpr stmt}\nat the level of isomorphism \
+            classes; it still mentions `CGraph`"
         /- The proof: peel the binders off again, inserting a `Quotient.ind` at each graph.  What
         is left is the original theorem, applied to the representatives. -/
         let rec prove (j : Nat) (subst args : Array Expr) : MetaM Expr := do
@@ -298,7 +311,14 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
                 let inner ← prove (j + 1) (subst.push y) (args.push y)
                 mkLambdaFVars #[y] inner
           else
-            return mkAppN thm args
+            let e := mkAppN thm args
+            if isEqCG then
+              withLocalDeclD `g cgraphE fun g ↦ do
+                let q ← mkLambdaFVars #[g]
+                  (mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, g])
+                mkAppM ``congrArg #[q, e]
+            else
+              return e
         let prf ← instantiateMVars (← prove 0 #[] #[])
         addDecl (.thmDecl { name := newName, levelParams := lvls, type := stmt, value := prf })
         if let some doc ← findDocString? (← getEnv) thmName then
