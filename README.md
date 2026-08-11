@@ -53,7 +53,7 @@ the five index modules `Canon.lean`, `Enum.lean`, `Invariants.lean`, `Graphs.lea
 | `IsoGraph/Graphs/NamedCages.lean` | the Harries, Harries–Wong, Gray and Foster graphs | yes |
 | `IsoGraph/Graphs/Balaban11Cage.lean` | the Balaban 11-cage, whose girth is the slowest check here | yes |
 | `IsoGraph/Graphs/Tutte12Cage.lean` | the Tutte 12-cage, the largest cubic cage with a name | yes |
-| `IsoGraph/Values/Identities.lean` | the equations between the constructions, and the tables of their invariants | yes |
+| `IsoGraph/Values/Identities/` | the equations between the constructions, and the tables of their invariants — seventeen modules, indexed by `Identities.lean` | yes |
 | `IsoGraph/Values/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
