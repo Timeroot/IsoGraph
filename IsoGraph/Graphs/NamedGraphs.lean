@@ -1,22 +1,22 @@
-import IsoGraph.Certificates
-import IsoGraph.SRG
+import IsoGraph.Invariants.Certificates
+import IsoGraph.Graphs.SRG
 
 /-!
 # A gallery of named graphs
 
-The graphs that have proper names but are too big for `IsoGraph/NamedSmallGraphs.lean` and are not
-strongly regular, so miss `IsoGraph/SRG.lean` as well: the cubic cages, the generalized Petersen
-graphs, two Platonic solids, and a handful of sporadic graphs.  For each one the gallery records
-the order, the number of edges, the degree, connectivity, whether the graph is bipartite, and the
-girth.
+The graphs that have proper names but are too big for `IsoGraph/Graphs/NamedSmallGraphs.lean` and
+are not strongly regular, so miss `IsoGraph/Graphs/SRG.lean` as well: the cubic cages, the
+generalized Petersen graphs, two Platonic solids, and a handful of sporadic graphs.  For each one
+the gallery records the order, the number of edges, the degree, connectivity, whether the graph is
+bipartite, and the girth.
 
 The gallery is five modules, all of them in the `NamedGraphs` namespace.  This one holds the cages
 up to `balaban10Cage`, the generalized Petersen graphs, the sporadic graphs and four last graphs
-with names; `IsoGraph/NamedSolids.lean` holds the Archimedean and Catalan solids;
-`IsoGraph/NamedCages.lean` the Harries, Harries–Wong, Gray and Foster graphs; and
-`IsoGraph/Balaban11Cage.lean` and `IsoGraph/Tutte12Cage.lean` one graph each.  The split is for
-build time: the girth proofs of the last three dominate it, and as separate modules they are
-checked in parallel.  The table below indexes all five.
+with names; `IsoGraph/Graphs/NamedSolids.lean` holds the Archimedean and Catalan solids;
+`IsoGraph/Graphs/NamedCages.lean` the Harries, Harries–Wong, Gray and Foster graphs; and
+`IsoGraph/Graphs/Balaban11Cage.lean` and `IsoGraph/Graphs/Tutte12Cage.lean` one graph each.  The
+split is for build time: the girth proofs of the last three dominate it, and as separate modules
+they are checked in parallel.  The table below indexes all five.
 
 | graph                    |   n |   E | degree | girth | bipartite |
 |--------------------------|-----|-----|--------|-------|-----------|
@@ -124,8 +124,8 @@ One wrinkle in the girth proofs: the distinctness side conditions of `exists_cyc
 find the `DecidableEq` instance, so they go through `Fin.ne_of_val_ne` instead.
 
 Above girth five those per-length lemmas run out, and the cages go through the cycle lists of
-`IsoGraph/Certificates.lean` instead; see "The girth of the cages" below.  The one thing that
-needs care there is *how* the search for a short cycle is phrased.  Written as a
+`IsoGraph/Invariants/Certificates.lean` instead; see "The girth of the cages" below.  The one thing
+that needs care there is *how* the search for a short cycle is phrased.  Written as a
 nested `∀` over vertices, the decision procedure enumerates the whole vertex type at every level
 — `30⁷` for `tutteCoxeter`, which never finishes.  Written as `∀ b ∈ nb a`, it walks only along
 edges, which is `30 · 3⁶` — but recomputing `nb` from the adjacency function costs a millisecond
@@ -147,7 +147,7 @@ open CGraph CGraph.Enum
 
 `heawood` is the `(3,6)`-cage — the incidence graph of the Fano plane — `mcgee` the `(3,7)`-cage,
 and `tutteCoxeter` the `(3,8)`-cage, also known as the Levi graph of the generalized quadrangle
-`GQ(2,2)`.  The `(3,5)`-cage is the Petersen graph, in `IsoGraph/SRG.lean`. -/
+`GQ(2,2)`.  The `(3,5)`-cage is the Petersen graph, in `IsoGraph/Graphs/SRG.lean`. -/
 
 /-- The Heawood graph: the point–line incidence graph of the Fano plane, and the `(3,6)`-cage. -/
 abbrev heawood : CGraph := lcf [5, -5] 7
@@ -822,7 +822,7 @@ theorem isRegularWith_balaban10Cage : balaban10Cage.IsRegularWith 3 :=
 /-! ## The girth of the cages
 
 Every graph above of girth at most five got it from the hand-written ladder of
-`IsoGraph/Identities.lean`.  The graphs of girth six and beyond go through the cycle-list
+`IsoGraph/Values/Identities.lean`.  The graphs of girth six and beyond go through the cycle-list
 machinery instead: `girth_le_of_cycleList` turns an explicit list of vertices into an upper
 bound, and `six_le_girth_of_nbrList`, `seven_le_girth_of_nbrList`, `eight_le_girth_of_nbrList`
 and `ten_le_girth_of_nbrList` turn an exhaustive search along a neighbour table into a lower

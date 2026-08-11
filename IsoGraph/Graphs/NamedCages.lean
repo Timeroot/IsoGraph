@@ -1,15 +1,16 @@
-import IsoGraph.Certificates
-import IsoGraph.SRG
+import IsoGraph.Invariants.Certificates
+import IsoGraph.Graphs.SRG
 
 /-!
 # Two more `(3, 10)`-cages, and the Gray and Foster graphs
 
 Four cubic graphs on fifty-four to ninety vertices, in a module of their own because their girth
-proofs are slow: together with `IsoGraph/Balaban11Cage.lean` and `IsoGraph/Tutte12Cage.lean` they
-dominate the build of the gallery, and in separate modules they are checked in parallel.
+proofs are slow: together with `IsoGraph/Graphs/Balaban11Cage.lean` and
+`IsoGraph/Graphs/Tutte12Cage.lean` they dominate the build of the gallery, and in separate modules
+they are checked in parallel.
 
-`harries` and `harriesWong` are, with `balaban10Cage` of `IsoGraph/NamedGraphs.lean`, the three
-`(3, 10)`-cages: three different graphs on seventy vertices, told apart by the orders of their
+`harries` and `harriesWong` are, with `balaban10Cage` of `IsoGraph/Graphs/NamedGraphs.lean`, the
+three `(3, 10)`-cages: three different graphs on seventy vertices, told apart by the orders of their
 automorphism groups, 120, 24 and 80.  `gray` and `foster` are not cages but come along for the
 ride, as the standard examples of a cubic semi-symmetric graph and of a large cubic
 distance-transitive graph.

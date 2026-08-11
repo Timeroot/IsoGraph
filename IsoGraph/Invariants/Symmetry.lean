@@ -1,5 +1,5 @@
 import IsoGraph.Canon.Group
-import IsoGraph.Invariants
+import IsoGraph.Invariants.Basic
 
 /-!
 # Automorphisms of a `CGraph`, computed

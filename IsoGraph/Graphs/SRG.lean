@@ -1,4 +1,4 @@
-import IsoGraph.Quotient
+import IsoGraph.Graphs.Quotient
 import IsoGraph.Enum
 import Mathlib.Tactic.NormNum.Prime
 
@@ -7,14 +7,14 @@ import Mathlib.Tactic.NormNum.Prime
 
 A graph is *strongly regular with parameters `(n, k, ℓ, μ)`* when it has `n` vertices, is regular
 of degree `k`, every adjacent pair has `ℓ` common neighbours, and every non-adjacent pair has `μ`.
-The predicate is `CGraph.IsSRGWith` in `IsoGraph/Invariants.lean`, a thin wrapper around Mathlib's
-`SimpleGraph.IsSRGWith`.
+The predicate is `CGraph.IsSRGWith` in `IsoGraph/Invariants/Basic.lean`, a thin wrapper around
+Mathlib's `SimpleGraph.IsSRGWith`.
 
 Seventeen of the twenty-eight parameter checks below are theorems rather than computations: the
 rook, Kneser, triangular, Paley, complete bipartite and cocktail party entries come from the
 infinite families `isSRGWith_rook`, `isSRGWith_kneser_two`, `isSRGWith_triangular`,
 `isSRGWith_paley`, `isSRGWith_bipartite` and `isSRGWith_cocktailParty` of
-`IsoGraph/Constructions.lean`, and `compl clebsch`, `schlafli`, `compl hoffmanSingleton` and
+`IsoGraph/Graphs/Constructions.lean`, and `compl clebsch`, `schlafli`, `compl hoffmanSingleton` and
 `compl higmanSims` from `isSRGWith_compl`.  Of the rest, `cycle 5`, `clebsch` and `shrikhande` are
 checked by kernel `decide`; the eight largest sporadic graphs — `linesOnCubic`, the three Chang
 graphs, `hoffmanSingleton`, `gewirtz`, `m22` and `higmanSims` — need `native_decide`.  The
@@ -101,7 +101,7 @@ open CGraph CGraph.Enum
 /-! ## The graphs
 
 The families — `paley`, `johnson`/`triangular`, `kneser`, `rook`, `cocktailParty`, `foldedCube` —
-live in `IsoGraph/Constructions.lean`.  What is left to define here are the sporadic ones. -/
+live in `IsoGraph/Graphs/Constructions.lean`.  What is left to define here are the sporadic ones. -/
 
 /-- The Petersen graph, `K(5,2)`: the unique strongly regular graph with parameters
 `(10, 3, 0, 1)`. -/
@@ -318,8 +318,8 @@ end SRG
 
 /-! ## The sporadic graphs, on the quotient
 
-The families all have `IsoGraph`-level names already, in `IsoGraph/Quotient.lean`; these are the
-ones that only exist here.  Each comes with the `rfl` bridge that lets `@[toIsoGraph]` state the
+The families all have `IsoGraph`-level names already, in `IsoGraph/Graphs/Quotient.lean`; these are
+the ones that only exist here.  Each comes with the `rfl` bridge that lets `@[toIsoGraph]` state the
 parameters of the graph below in terms of the isomorphism class rather than the representative. -/
 
 namespace IsoGraph
@@ -374,9 +374,9 @@ open CGraph CGraph.Enum
 /-! ## The parameters
 
 Whatever can be, is proved: the rook, Kneser, triangular, Paley, complete bipartite and cocktail
-party entries come from the infinite families of `IsoGraph/Constructions.lean`, and three more
-from `isSRGWith_compl`.  What is left is `cycle 5`, `clebsch` and `shrikhande` by kernel `decide`,
-and five large sporadic graphs by `native_decide`. -/
+party entries come from the infinite families of `IsoGraph/Graphs/Constructions.lean`, and three
+more from `isSRGWith_compl`.  What is left is `cycle 5`, `clebsch` and `shrikhande` by kernel
+`decide`, and five large sporadic graphs by `native_decide`. -/
 
 set_option maxRecDepth 4000 in
 @[toIsoGraph cycle_five_srg]

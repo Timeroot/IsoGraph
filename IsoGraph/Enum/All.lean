@@ -1,4 +1,4 @@
-import IsoGraph.Constructions
+import IsoGraph.Graphs.Constructions
 import Mathlib.Data.List.Sort
 import Mathlib.Data.Fintype.Perm
 

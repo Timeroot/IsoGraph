@@ -1,5 +1,5 @@
 import IsoGraph.Basic
-import IsoGraph.Symmetry
+import IsoGraph.Invariants.Symmetry
 
 /-!
 # The canonical form actually computes

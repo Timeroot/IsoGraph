@@ -10,8 +10,11 @@ canonical representative that is actually computable at useful sizes.
 
 Two engines, each in its own directory — `IsoGraph/Canon/` is the canonical labelling algorithm
 and its correctness proof, `IsoGraph/Enum/` is the enumerator built on top of it — and the graph
-theory proper at the root of `IsoGraph/`. `IsoGraph/Canon.lean` and `IsoGraph/Enum.lean` are
-index modules that import their directory.
+theory proper in three more, one per kind of thing being said: `IsoGraph/Invariants/` *defines*
+the invariants, `IsoGraph/Graphs/` *builds* the graphs, and `IsoGraph/Values/` records what the
+invariants come to on them. Only `Basic.lean` and `Compute.lean` are left at the root, along with
+the five index modules `Canon.lean`, `Enum.lean`, `Invariants.lean`, `Graphs.lean` and
+`Values.lean`, each of which imports its directory.
 
 | file | what it is | Mathlib? |
 | --- | --- | --- |
@@ -34,23 +37,24 @@ index modules that import their directory.
 | `IsoGraph/Canon/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; proves `canonAdj_relabel` | yes |
 | `IsoGraph/Canon/Group.lean` | the automorphism group: generators harvested by the same search | yes |
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
-| `IsoGraph/Invariants.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
-| `IsoGraph/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
-| `IsoGraph/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
-| `IsoGraph/Identities.lean` | the same constructions on `IsoGraph`, and the equations between them | yes |
-| `IsoGraph/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, tested | yes |
-| `IsoGraph/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
 | `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
-| `IsoGraph/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
-| `IsoGraph/SRG.lean` | a table of strongly regular graphs, parameters checked | yes |
-| `IsoGraph/NamedGraphs.lean` | the cubic cages, generalized Petersen graphs, and other named graphs | yes |
-| `IsoGraph/NamedSolids.lean` | the Archimedean and Catalan solids | yes |
-| `IsoGraph/NamedCages.lean` | the Harries, Harries–Wong, Gray and Foster graphs | yes |
-| `IsoGraph/Balaban11Cage.lean` | the Balaban 11-cage, whose girth is the slowest check here | yes |
-| `IsoGraph/Tutte12Cage.lean` | the Tutte 12-cage, the largest cubic cage with a name | yes |
-| `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
+| `IsoGraph/Invariants/Basic.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
+| `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
+| `IsoGraph/Invariants/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, tested | yes |
+| `IsoGraph/Graphs/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
+| `IsoGraph/Graphs/Quotient.lean` | the same constructions on `IsoGraph`, lifted through the quotient | yes |
+| `IsoGraph/Graphs/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
+| `IsoGraph/Graphs/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
+| `IsoGraph/Graphs/SRG.lean` | a table of strongly regular graphs, parameters checked | yes |
+| `IsoGraph/Graphs/NamedGraphs.lean` | the cubic cages, generalized Petersen graphs, and other named graphs | yes |
+| `IsoGraph/Graphs/NamedSolids.lean` | the Archimedean and Catalan solids | yes |
+| `IsoGraph/Graphs/NamedCages.lean` | the Harries, Harries–Wong, Gray and Foster graphs | yes |
+| `IsoGraph/Graphs/Balaban11Cage.lean` | the Balaban 11-cage, whose girth is the slowest check here | yes |
+| `IsoGraph/Graphs/Tutte12Cage.lean` | the Tutte 12-cage, the largest cubic cage with a name | yes |
+| `IsoGraph/Values/Identities.lean` | the equations between the constructions, and the tables of their invariants | yes |
+| `IsoGraph/Values/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
@@ -925,7 +929,7 @@ disconnected.
 Degree sequences are sorted lists, which makes them a poor fit for the binary constructions: the
 degree sequence of a disjoint union is a *merge* of the two sequences, not a concatenation. The
 underlying multiset has no such problem, so `degMultiset` sits alongside `degSequence` in
-`IsoGraph/Invariants.lean` — the latter is literally the `sort` of the former
+`IsoGraph/Invariants/Basic.lean` — the latter is literally the `sort` of the former
 (`coe_degSequence`), so no information is lost. On the multiset the identities are the expected
 ones: `degMultiset_disjUnion` is addition, `degMultiset_compl` replaces every degree `d` by its
 co-degree `V - 1 - d`, and `degMultiset_join` shifts each side's degrees by the order of the other
@@ -1185,10 +1189,10 @@ and each has at most `Δ` of them.  The second is tight on stars, and combined w
 the independence number of a graph with many edges: `|E| + α·Δ ≤ |V|·Δ`.
 
 The **clique–coclique bound** `α·ω ≤ |V|` for vertex-transitive graphs is where the transitivity
-proofs of `IsoGraph/Symmetry.lean` first pay a dividend in the invariant table.  The automorphism
-group is taken as the `Finset` of adjacency-preserving permutations of the vertex type, which
-keeps everything inside `Fintype` land and needs no `Fintype (G ≃cg G)` instance.  Fix a maximum
-clique `C` and a maximum independent set `S` and count the pairs `(σ, c)` with `c ∈ C` and
+proofs of `IsoGraph/Invariants/Symmetry.lean` first pay a dividend in the invariant table.  The
+automorphism group is taken as the `Finset` of adjacency-preserving permutations of the vertex
+type, which keeps everything inside `Fintype` land and needs no `Fintype (G ≃cg G)` instance.  Fix a
+maximum clique `C` and a maximum independent set `S` and count the pairs `(σ, c)` with `c ∈ C` and
 `σ c ∈ S`.  Each automorphism contributes at most one such `c`, because `σ C` is again a clique
 while `S` is independent, so the count is at most `|Aut G|`.  Transitivity makes all the fibres
 `{σ | σ c = v}` the same size `m` — carry one onto another by composing with automorphisms
@@ -5376,7 +5380,7 @@ long enough to be even. The ladder `Pₙ □ K₂` needs no such hypothesis: `la
 `2 cos (π / (n + 2)) + 1` and `lambdaMin_ladder` is its negative, because the path factor is
 bipartite whatever its length. The hypercube is the same story a section later: `lambdaMax_hypercube` is
 `n` and `lambdaMin_hypercube` is `-n`, off the spectrum `n - 2j` with multiplicity `C(n, j)`. That
-one sits at the very end of `IsoGraph/Spectrum.lean`, after `end IsoGraph`, because
+one sits at the very end of `IsoGraph/Values/Spectrum.lean`, after `end IsoGraph`, because
 `hypercube_succ` is an isomorphism rather than an equality, so the induction computing `Q n`'s
 spectrum has to run at the isomorphism level and be transported back.
 

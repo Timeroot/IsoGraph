@@ -1,11 +1,11 @@
-import IsoGraph.Constructions
+import IsoGraph.Graphs.Constructions
 
 /-!
 # The constructions, on isomorphism classes
 
-`IsoGraph/Constructions.lean` builds graphs as `CGraph`s: concrete data, with a concrete vertex
-type.  This file carries each of those constructions across to `IsoGraph`, the quotient by
-isomorphism, so that the tables of `IsoGraph/Identities.lean` can be stated there.
+`IsoGraph/Graphs/Constructions.lean` builds graphs as `CGraph`s: concrete data, with a concrete
+vertex type.  This file carries each of those constructions across to `IsoGraph`, the quotient by
+isomorphism, so that the tables of `IsoGraph/Values/Identities.lean` can be stated there.
 
 ## Lifting a construction
 
@@ -27,7 +27,7 @@ Either way the side condition of the lift is an isomorphism-congruence: `CGraph.
 as on `CGraph`, so well-definedness is inherited.
 
 The first section is more than the congruences the lifts need: it is every isomorphism between
-concrete graphs that `IsoGraph/Identities.lean` goes on to read as an equation of isomorphism
+concrete graphs that `IsoGraph/Values/Identities.lean` goes on to read as an equation of isomorphism
 classes — associativity and distributivity of the products, blow-ups, bipartite double covers,
 the Paley graphs.  They live here because they are constructions, not facts about invariants.
 -/
@@ -1228,10 +1228,10 @@ attribute [isoTransfer] IsoGraph.V_mk IsoGraph.disjUnion_mk IsoGraph.compl_mk Is
 
 /-! ## Two isomorphisms tagged from a distance
 
-`johnsonTwoIso` and `paleyIso` are used inside `IsoGraph/Constructions.lean` itself, so they are
-declared there — before any of the constructions above exist, and so before `@[toIsoGraph]` could
-say what they mean.  They are tagged here instead.  This is the one place in the library where the
-attribute is applied by a command rather than written on the declaration, and the reason is the
+`johnsonTwoIso` and `paleyIso` are used inside `IsoGraph/Graphs/Constructions.lean` itself, so they
+are declared there — before any of the constructions above exist, and so before `@[toIsoGraph]`
+could say what they mean.  They are tagged here instead.  This is the one place in the library where
+the attribute is applied by a command rather than written on the declaration, and the reason is the
 one that justifies it: the statement it generates depends on definitions the declaration cannot
 see. -/
 

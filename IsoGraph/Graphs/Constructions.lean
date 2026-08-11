@@ -1,4 +1,4 @@
-import IsoGraph.Invariants
+import IsoGraph.Invariants.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
 import Mathlib.Algebra.BigOperators.Fin
@@ -40,7 +40,7 @@ instance arguments seemed the smaller price.
 ## Layout
 
 The definitions come first; the section after them, `## Invariants of the constructions`, records
-what the invariants of `IsoGraph/Invariants.lean` evaluate to.
+what the invariants of `IsoGraph/Invariants/Basic.lean` evaluate to.
 -/
 
 open Fintype
@@ -566,7 +566,8 @@ private theorem qrTable_getElem (q d : ℕ) (h : d < q) :
 This is the intended graph only for a *prime* `q ≡ 1 mod 4` — for a prime power one would need the
 field `GF(q)`, and for `q ≡ 3 mod 4` the residues are not closed under negation, so `ofRel`
 symmetrises the Paley *tournament* into the complete graph.  For a prime `q ≡ 1 mod 4` it is
-strongly regular with parameters `(q, (q-1)/2, (q-5)/4, (q-1)/4)`; see `IsoGraph/SRG.lean`. -/
+strongly regular with parameters `(q, (q-1)/2, (q-5)/4, (q-1)/4)`; see
+`IsoGraph/Graphs/SRG.lean`. -/
 def paley (q : ℕ) : CGraph :=
   let t := qrTable q
   ofRel (Fin q) fun x y ↦ t[(y.1 + q - x.1) % q]!
@@ -983,7 +984,7 @@ abbrev cocktailParty (n : ℕ) : CGraph := completeMultipartite (List.replicate 
 
 Two families given by a code rather than by a formula: an LCF code, and the pair `(n, k)` of a
 generalized Petersen graph.  Both produce a graph on `Fin n`, numbered so that the back-edge
-certificate for connectivity of `IsoGraph/Certificates.lean` holds on the nose. -/
+certificate for connectivity of `IsoGraph/Invariants/Certificates.lean` holds on the nose. -/
 
 /-- Vertex number `i` of a graph on `Fin n`, for naming the corners of a triangle, square or
 pentagon.  The bound is `Nat.mod_lt`. -/
@@ -1022,7 +1023,7 @@ instance (n k : ℕ) : DecidableEq (gp n k).V := inferInstanceAs (DecidableEq (F
 
 /-! ## Invariants of the constructions
 
-What the invariants of `IsoGraph/Invariants.lean` come to on the graphs above.
+What the invariants of `IsoGraph/Invariants/Basic.lean` come to on the graphs above.
 -/
 
 section Invariants
@@ -4144,7 +4145,7 @@ end Invariants
 `isSRGWith_compl` above already turns one strongly regular graph into another.  Here are three
 infinite families proved from scratch, via `isSRGWith_of`: the square rook's graphs, the Kneser
 graphs on pairs (`kneser 5 2` is the Petersen graph) and — as the complement of the latter — the
-triangular graphs.  `IsoGraph/SRG.lean` reads the concrete entries of its table off these. -/
+triangular graphs.  `IsoGraph/Graphs/SRG.lean` reads the concrete entries of its table off these. -/
 
 section SRGFamilies
 

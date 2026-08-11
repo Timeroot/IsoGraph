@@ -1,4 +1,4 @@
-import IsoGraph.Constructions
+import IsoGraph.Graphs.Constructions
 
 /-!
 # Clique sums
@@ -30,7 +30,7 @@ so.  (The classes are needed because a `Fintype` is a `Multiset`, from which no 
 
 ## What it is good for
 
-Several of the graphs in `IsoGraph/NamedSmallGraphs.lean` are clique sums, and saying so is
+Several of the graphs in `IsoGraph/Graphs/NamedSmallGraphs.lean` are clique sums, and saying so is
 clearer than the complement-of-a-disjoint-union spellings they had before:
 
     paw       = oneCliqueSum K₃ K₂          butterfly = oneCliqueSum K₃ K₃

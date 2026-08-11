@@ -1,5 +1,5 @@
-import IsoGraph.Identities
-import IsoGraph.SRG
+import IsoGraph.Values.Identities
+import IsoGraph.Graphs.SRG
 import Mathlib.Analysis.Matrix.Spectrum
 import Mathlib.Combinatorics.SimpleGraph.LapMatrix
 import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs

@@ -1,15 +1,15 @@
-import IsoGraph.Certificates
-import IsoGraph.SRG
+import IsoGraph.Invariants.Certificates
+import IsoGraph.Graphs.SRG
 
 /-!
 # The Archimedean and Catalan solids
 
 The one-skeletons of six of the thirteen Archimedean solids — three truncations and the two
 rectifications here, and `truncatedTetrahedron`, the smallest of the thirteen, with the sporadic
-graphs of `IsoGraph/NamedGraphs.lean` — and of their six duals, the Catalan solids that go with
-them.  The five Platonic solids are elsewhere: `complete 4` is the tetrahedron, `hypercube 3` the
-cube, `cocktailParty 3` the octahedron, and `dodecahedron` and `icosahedron` are in
-`IsoGraph/NamedGraphs.lean`.
+graphs of `IsoGraph/Graphs/NamedGraphs.lean` — and of their six duals, the Catalan solids that go
+with them.  The five Platonic solids are elsewhere: `complete 4` is the tetrahedron, `hypercube 3`
+the cube, `cocktailParty 3` the octahedron, and `dodecahedron` and `icosahedron` are in
+`IsoGraph/Graphs/NamedGraphs.lean`.
 
 Each solid is given by the edge list of its one-skeleton, and for each the module records the
 order, the number of edges, the degree or the degree sequence, connectivity, bipartiteness and
@@ -24,7 +24,7 @@ open CGraph CGraph.Enum
 
 /-! ## The Archimedean solids
 
-`truncatedTetrahedron`, in `IsoGraph/NamedGraphs.lean`, is the smallest of the thirteen
+`truncatedTetrahedron`, in `IsoGraph/Graphs/NamedGraphs.lean`, is the smallest of the thirteen
 Archimedean solids.  Five more of them are here: two quasiregular ones, the cuboctahedron and the
 icosidodecahedron, and three truncations, of the cube, the octahedron and the
 icosahedron.  The last is the football, and the carbon skeleton of buckminsterfullerene.

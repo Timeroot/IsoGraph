@@ -1,5 +1,5 @@
 import IsoGraph.Enum.Conn
-import IsoGraph.CliqueSum
+import IsoGraph.Graphs.CliqueSum
 
 /-!
 # Named small graphs

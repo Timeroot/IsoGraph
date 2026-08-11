@@ -1,10 +1,10 @@
-import IsoGraph.Constructions
+import IsoGraph.Graphs.Constructions
 
 /-!
 # Certificates for the invariants of a concrete graph
 
-The invariants of `IsoGraph/Invariants.lean` are defined by quantifying over all of a graph: the
-girth is an infimum over every cycle, regularity is a condition on every vertex, bipartiteness
+The invariants of `IsoGraph/Invariants/Basic.lean` are defined by quantifying over all of a graph:
+the girth is an infimum over every cycle, regularity is a condition on every vertex, bipartiteness
 asks for a two-colouring to exist.  For a graph given by an explicit edge list none of those is
 directly checkable, and this file supplies the bridges that make them so.  Each theorem below
 turns a *finite, checkable witness* into one of those statements:
@@ -360,7 +360,7 @@ adjacent, with the last adjacent back to `u`.  `exists_cycleList_of_isCycle` rea
 cycle, `exists_cycle_of_cycleList` builds the cycle back up, and `le_girth_of_forall_cycleList`
 is the lower bound.  With a precomputed neighbour table (`nbrTable`) the hypotheses of
 `six_le_girth_of_nbrList` and friends are one `native_decide` each, which is how the cubic cages
-of `IsoGraph/NamedGraphs.lean` get their girth. -/
+of `IsoGraph/Graphs/NamedGraphs.lean` get their girth. -/
 
 theorem getLastD_support {V : Type} {G : SimpleGraph V} {u v : V} (p : G.Walk u v) (x : V) :
     p.support.getLastD x = v := by

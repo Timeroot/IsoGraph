@@ -1,5 +1,5 @@
-import IsoGraph.Certificates
-import IsoGraph.Quotient
+import IsoGraph.Invariants.Certificates
+import IsoGraph.Graphs.Quotient
 import Mathlib.Combinatorics.SimpleGraph.ConcreteColorings
 import Mathlib.Combinatorics.SimpleGraph.Sum
 import Mathlib.Combinatorics.SimpleGraph.Circulant
@@ -8,9 +8,9 @@ import Mathlib.Data.Nat.Choose.Bounds
 /-!
 # The identities between the constructions, and the tables of their invariants
 
-`IsoGraph/Quotient.lean` carries every construction of `IsoGraph/Constructions.lean` across to
-`IsoGraph`, the quotient by isomorphism.  Two `CGraph`s are *equal* only when the vertex types are
-equal and the adjacency functions agree on the nose, which is far too fine a relation for
+`IsoGraph/Graphs/Quotient.lean` carries every construction of `IsoGraph/Graphs/Constructions.lean`
+across to `IsoGraph`, the quotient by isomorphism.  Two `CGraph`s are *equal* only when the vertex
+types are equal and the adjacency functions agree on the nose, which is far too fine a relation for
 statements like "the complement of the 5-cycle is the 5-cycle"; on `IsoGraph` that statement is an
 honest equation, and this file collects a hundred or so of them, together with the value of every
 invariant on every family.
@@ -39,7 +39,7 @@ once for `IsoGraph`, where it is used.  The `@[toIsoGraph]` attribute of
 below never appear in the source at all: the `CGraph`-level theorem is tagged where it is
 declared, and the attribute generates its counterpart.  What it rewrites with are the bridging
 `…_mk` and `…_def` lemmas gathered into the `isoTransfer` set at the end of
-`IsoGraph/Quotient.lean`.
+`IsoGraph/Graphs/Quotient.lean`.
 -/
 
 set_option autoImplicit false
@@ -10353,7 +10353,7 @@ theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = emp
 /-! ## The join, and the constructions built from it
 
 The `IsoGraph`-level `join`, defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees
-with `CGraph.join`; that is `join_mk`, in `IsoGraph/Quotient.lean`. -/
+with `CGraph.join`; that is `join_mk`, in `IsoGraph/Graphs/Quotient.lean`. -/
 
 theorem join_def (G H : IsoGraph) : G ∇g H = (Gᶜ ⊕g Hᶜ)ᶜ := rfl
 

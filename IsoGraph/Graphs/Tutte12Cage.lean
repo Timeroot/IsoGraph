@@ -1,5 +1,5 @@
-import IsoGraph.Certificates
-import IsoGraph.SRG
+import IsoGraph.Invariants.Certificates
+import IsoGraph.Graphs.SRG
 
 /-!
 # The Tutte 12-cage
