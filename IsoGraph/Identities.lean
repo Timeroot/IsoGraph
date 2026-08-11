@@ -55,6 +55,7 @@ normalise a connection set: drop a `0`, drop a repeat, and replace `k` by `n - k
 /-- **Only the differences in `(0, n)` matter.**  A circulant only ever asks whether its
 connection set contains a difference of two distinct vertices, so two connection sets agreeing
 there give the same graph — on the nose, not just up to isomorphism. -/
+@[toIsoGraph]
 theorem circulant_congr (n : ℕ) (S T : List ℕ)
     (h : ∀ d, 0 < d → d < n → S.contains d = T.contains d) :
     circulant n S = circulant n T := by
@@ -69,6 +70,7 @@ theorem circulant_congr (n : ℕ) (S T : List ℕ)
 
 /-- A `0` in the connection set contributes nothing: `x` and `y` differ by `0` only when they are
 equal, and a circulant has no loops. -/
+@[toIsoGraph]
 theorem circulant_zero_cons (n : ℕ) (S : List ℕ) :
     circulant n (0 :: S) = circulant n S :=
   circulant_congr n _ _ fun d hd _ ↦ by
@@ -76,6 +78,7 @@ theorem circulant_zero_cons (n : ℕ) (S : List ℕ) :
     simp only [List.contains_cons, h0, Bool.false_or]
 
 /-- A repeated entry in the connection set contributes nothing. -/
+@[toIsoGraph]
 theorem circulant_dup_cons (n k : ℕ) (S : List ℕ) :
     circulant n (k :: k :: S) = circulant n (k :: S) :=
   circulant_congr n _ _ fun d _ _ ↦ by
@@ -84,6 +87,7 @@ theorem circulant_dup_cons (n k : ℕ) (S : List ℕ) :
 
 /-- **The connection set is symmetric.**  A circulant joins `x` to `y` when either difference is
 listed, so replacing an entry `k` by `n - k` does not change the graph. -/
+@[toIsoGraph]
 theorem circulant_neg_cons (n k : ℕ) (hk : k ≤ n) (S : List ℕ) :
     circulant n (k :: S) = circulant n ((n - k) :: S) := by
   refine (eq_ofRel (circulant n (k :: S))
@@ -100,10 +104,12 @@ theorem circulant_neg_cons (n k : ℕ) (hk : k ≤ n) (S : List ℕ) :
   tauto
 
 /-- The connection set of `Paley(13)` is `{±1, ±3, ±4}`. -/
+@[toIsoGraph]
 theorem paley_thirteen_eq_circulant : paley 13 = circulant 13 [1, 3, 4] :=
   eq_ofRel _ _ (by decide)
 
 /-- The connection set of `Paley(17)` is `{±1, ±2, ±4, ±8}`. -/
+@[toIsoGraph]
 theorem paley_seventeen_eq_circulant : paley 17 = circulant 17 [1, 2, 4, 8] :=
   eq_ofRel _ _ (by decide)
 
@@ -193,6 +199,7 @@ theorem IsBipartite.of_cartesianProduct_right {G H : CGraph} [DecidableEq G.V] [
 /-- **Odd cycles are not bipartite.**  Walking around the cycle, the colour alternates with the
 parity of the index; coming back to `0` from the last vertex, which has even index, contradicts
 the edge that closes the cycle. -/
+@[toIsoGraph]
 theorem not_isBipartite_cycle_odd (m : ℕ) : ¬ (CGraph.cycle (2 * m + 3)).IsBipartite := by
   set n := 2 * m + 3 with hn
   rintro ⟨c, hc⟩
@@ -227,6 +234,7 @@ theorem not_isBipartite_cycle_odd (m : ℕ) : ¬ (CGraph.cycle (2 * m + 3)).IsBi
   rw [this] at hclose
   simp at hclose
 
+@[toIsoGraph]
 theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipartite := by
   have hadj : ∀ i j : Fin (n + 3), i.1 ≠ j.1 → (CGraph.complete (n + 3)).Adj i j := by
     intro i j hij
@@ -492,28 +500,28 @@ theorem ofEdges_legEdges_zero (k : ℕ) : ofEdges k (legEdges 0 0 k) = path k :=
   omega
 
 /-- A tadpole with no tail is a cycle. -/
-@[simp] theorem tadpole_zero (m : ℕ) : tadpole m 0 = cycle m := by
+@[simp, toIsoGraph] theorem tadpole_zero (m : ℕ) : tadpole m 0 = cycle m := by
   rw [tadpole, legEdges_zero, List.append_nil, Nat.add_zero, ofEdges_cycleEdges]
 
 /-- A tadpole with no cycle is a path. -/
-@[simp] theorem tadpole_zero_left (k : ℕ) : tadpole 0 k = path k := by
+@[simp, toIsoGraph] theorem tadpole_zero_left (k : ℕ) : tadpole 0 k = path k := by
   rw [tadpole, cycleEdges_zero, List.nil_append, Nat.zero_add, ofEdges_legEdges_zero]
 
 /-- A tadpole whose cycle is a single vertex is a path: the "cycle" is a loop, which `ofEdges`
 discards. -/
-@[simp] theorem tadpole_one (k : ℕ) : tadpole 1 k = path (1 + k) := by
+@[simp, toIsoGraph] theorem tadpole_one (k : ℕ) : tadpole 1 k = path (1 + k) := by
   rw [tadpole, ofEdges_cycleEdges_one_append, ofEdges_legEdges_one]
 
 /-- A lollipop with no stick is a complete graph. -/
-@[simp] theorem lollipop_zero (m : ℕ) : lollipop m 0 = complete m := by
+@[simp, toIsoGraph] theorem lollipop_zero (m : ℕ) : lollipop m 0 = complete m := by
   rw [lollipop, legEdges_zero, List.append_nil, Nat.add_zero, ofEdges_cliqueEdges]
 
 /-- A lollipop with no clique is a path. -/
-@[simp] theorem lollipop_zero_left (k : ℕ) : lollipop 0 k = path k := by
+@[simp, toIsoGraph] theorem lollipop_zero_left (k : ℕ) : lollipop 0 k = path k := by
   rw [lollipop, cliqueEdges_zero, List.nil_append, Nat.zero_add, ofEdges_legEdges_zero]
 
 /-- A lollipop whose clique is a single vertex is a path. -/
-@[simp] theorem lollipop_one (k : ℕ) : lollipop 1 k = path (1 + k) := by
+@[simp, toIsoGraph] theorem lollipop_one (k : ℕ) : lollipop 1 k = path (1 + k) := by
   rw [lollipop, cliqueEdges_one, List.nil_append, ofEdges_legEdges_one]
 
 /-- `K₂` and `C₂` have the same edges, so a lollipop on two vertices is a tadpole. -/
@@ -531,6 +539,7 @@ theorem lollipop_three (k : ℕ) : lollipop 3 k = tadpole 3 k := by
   omega
 
 /-- A spider with an empty leg is the spider without it. -/
+@[toIsoGraph]
 theorem spider_zero_cons (ks : List ℕ) : spider (0 :: ks) = spider ks := by
   rw [spider, spider, List.sum_cons, Nat.zero_add,
     show spiderEdges 1 (0 :: ks) = spiderEdges 1 ks from by
@@ -547,6 +556,7 @@ theorem spiderEdges_append : ∀ (pre post : List ℕ) (off : ℕ),
         show off + k + pre.sum = off + (k + pre.sum) from by omega]
 
 /-- A spider ignores its empty legs wherever they sit in the list, not just at the front. -/
+@[toIsoGraph]
 theorem spider_append_zero_cons (pre post : List ℕ) :
     spider (pre ++ 0 :: post) = spider (pre ++ post) := by
   have hsum : (pre ++ 0 :: post).sum = (pre ++ post).sum := by
@@ -555,7 +565,7 @@ theorem spider_append_zero_cons (pre post : List ℕ) :
     List.nil_append, Nat.add_zero]
 
 /-- A spider with a single leg is a path. -/
-@[simp] theorem spider_singleton (k : ℕ) : spider [k] = path (1 + k) := by
+@[simp, toIsoGraph] theorem spider_singleton (k : ℕ) : spider [k] = path (1 + k) := by
   rw [spider, show spiderEdges 1 [k] = legEdges 0 1 k from by simp [spiderEdges],
     show (1 : ℕ) + [k].sum = 1 + k from by simp, ofEdges_legEdges_one]
 
@@ -566,11 +576,13 @@ theorem spiderEdges_replicate_zero : ∀ (off j : ℕ), spiderEdges off (List.re
         spiderEdges_replicate_zero (off + 0) j]
 
 /-- A spider all of whose legs are empty is a single vertex. -/
-@[simp] theorem spider_replicate_zero (j : ℕ) : spider (List.replicate j 0) = empty 1 := by
+@[simp, toIsoGraph]
+theorem spider_replicate_zero (j : ℕ) :
+    spider (List.replicate j 0) = empty 1 := by
   rw [spider, spiderEdges_replicate_zero,
     show (1 : ℕ) + (List.replicate j 0).sum = 1 from by simp, ofEdges_nil]
 
-@[simp] theorem spider_nil : spider [] = empty 1 := spider_replicate_zero 0
+@[simp, toIsoGraph] theorem spider_nil : spider [] = empty 1 := spider_replicate_zero 0
 
 theorem pendantEdges_replicate_zero : ∀ (v off j : ℕ), pendantEdges v off (List.replicate j 0) = []
   | _, _, 0 => rfl
@@ -579,12 +591,12 @@ theorem pendantEdges_replicate_zero : ∀ (v off j : ℕ), pendantEdges v off (L
         pendantEdges_replicate_zero (v + 1) (off + 0) j]
 
 /-- A cycle carrying no pendant vertices is a cycle. -/
-@[simp] theorem cyclePendant_replicate_zero (m j : ℕ) :
+@[simp, toIsoGraph] theorem cyclePendant_replicate_zero (m j : ℕ) :
     cyclePendant m (List.replicate j 0) = cycle m := by
   rw [cyclePendant, pendantEdges_replicate_zero, List.append_nil,
     show m + (List.replicate j 0).sum = m from by simp, ofEdges_cycleEdges]
 
-@[simp] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
+@[simp, toIsoGraph] theorem cyclePendant_nil (m : ℕ) : cyclePendant m [] = cycle m :=
   cyclePendant_replicate_zero m 0
 
 /-- Pendant vertices attached beyond the end of the cycle are no vertices at all. -/
@@ -595,6 +607,7 @@ theorem pendantEdges_append_zero : ∀ (v off : ℕ) (ks : List ℕ),
       rw [List.cons_append, pendantEdges, pendantEdges, pendantEdges_append_zero (v + 1) (off + k)]
 
 /-- A cycle with a trailing empty block of pendant vertices is the cycle without that block. -/
+@[toIsoGraph]
 theorem cyclePendant_append_zero (m : ℕ) (ks : List ℕ) :
     cyclePendant m (ks ++ [0]) = cyclePendant m ks := by
   have hsum : (ks ++ [0]).sum = ks.sum := by simp
@@ -602,6 +615,7 @@ theorem cyclePendant_append_zero (m : ℕ) (ks : List ℕ) :
 
 /-- Two paths of length one between the poles of a theta graph are the same single edge, so one of
 them can be dropped. -/
+@[toIsoGraph]
 theorem thetaGraph_zero_zero_cons (ks : List ℕ) :
     thetaGraph (0 :: 0 :: ks) = thetaGraph (0 :: ks) := by
   rw [thetaGraph, thetaGraph]
@@ -770,6 +784,7 @@ theorem thetaEdges_replicate_zero : ∀ (off j : ℕ),
   | off, j + 1 => by
       rw [List.replicate_succ, thetaEdges, thetaEdges_replicate_zero off j, List.replicate_succ]
 
+@[toIsoGraph]
 theorem thetaGraph_nil : thetaGraph [] = empty 2 := ofEdges_nil 2
 
 @[simp] theorem mem_thetaEdges_replicate_zero (off j p q : ℕ) :
@@ -783,6 +798,7 @@ theorem thetaGraph_nil : thetaGraph [] = empty 2 := ofEdges_nil 2
     exact ⟨by omega, rfl, rfl⟩
 
 /-- A theta graph all of whose paths are single edges is just that edge. -/
+@[toIsoGraph]
 theorem thetaGraph_replicate_zero (j : ℕ) :
     thetaGraph (List.replicate (j + 1) 0) = complete 2 := by
   have hs : (List.replicate (j + 1) (0 : ℕ)).sum = 0 := by simp
@@ -957,6 +973,7 @@ theorem cyclePendant_one_eq_spider (k : ℕ) :
 /-! ### A cycle with a single pendant vertex -/
 
 /-- A cycle carrying a single pendant vertex is a tadpole with a leg of length one. -/
+@[toIsoGraph]
 theorem cyclePendant_singleton_one (m : ℕ) : cyclePendant m [1] = tadpole m 1 := by
   rw [cyclePendant, tadpole, show ([1] : List ℕ).sum = 1 from rfl,
     show pendantEdges 0 m [1] = legEdges 0 m 1 from by
@@ -1597,6 +1614,7 @@ private theorem kneserBlock_ne {n k a b : ℕ} {ha : a + k ≤ n} {hb : b + k �
   omega
 
 /-- **Kneser graphs with room for three disjoint blocks are not bipartite.** -/
+@[toIsoGraph]
 theorem not_isBipartite_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
     ¬ (CGraph.kneser n k).IsBipartite := by
   refine not_isBipartite_of_triangle
@@ -1642,6 +1660,7 @@ private theorem johnsonTri_inter {n k j j' : ℕ} {h : k + j < n} {h' : k + j' <
   rw [key, Finset.card_attachFin, Finset.card_range]
 
 /-- **Johnson graphs on at least `k + 2` points are not bipartite.** -/
+@[toIsoGraph]
 theorem not_isBipartite_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
     ¬ (CGraph.johnson n k).IsBipartite := by
   obtain ⟨k, rfl⟩ : ∃ m, k = m + 1 := ⟨k - 1, by omega⟩
@@ -1827,11 +1846,14 @@ theorem not_isBipartite_lexProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq
     simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
     tauto
 
-@[simp] theorem length_degSequence (G : CGraph) : G.degSequence.length = Fintype.card G.V := by
+@[simp, toIsoGraph]
+theorem length_degSequence (G : CGraph) :
+    G.degSequence.length = Fintype.card G.V := by
   rw [degSequence, degMultiset, Multiset.length_sort, Multiset.card_map, Finset.card_val,
     Finset.card_univ]
 
 /-- The handshake lemma: the degrees add up to twice the edge count. -/
+@[toIsoGraph]
 theorem sum_degSequence (G : CGraph) : G.degSequence.sum = 2 * G.E := by
   have h : ((G.degSequence : List ℕ) : Multiset ℕ)
       = Finset.univ.val.map fun v ↦ G.toSimple.degree v := Multiset.sort_eq _ _
@@ -1850,6 +1872,7 @@ theorem degSequence_of_regular (G : CGraph) {k : ℕ} (h : G.toSimple.IsRegularO
   exact h v
 
 /-- Strongly regular graphs are regular, so their degree sequence is constant. -/
+@[toIsoGraph]
 theorem IsSRGWith.degSequence {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
     G.degSequence = List.replicate n k := by
   rw [degSequence_of_regular G h.regular, h.card]
@@ -1872,7 +1895,7 @@ theorem degSequence_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v).c
     G.degSequence = List.replicate (Fintype.card G.V) k :=
   degSequence_of_regular G (isRegularOfDegree_of_card_nbrs G h)
 
-@[simp] theorem degSequence_kneser {n k : ℕ} (hk : 1 ≤ k) :
+@[simp, toIsoGraph] theorem degSequence_kneser {n k : ℕ} (hk : 1 ≤ k) :
     (kneser n k).degSequence = List.replicate (n.choose k) ((n - k).choose k) := by
   rw [degSequence_of_card_nbrs _ (card_nbrs_kneser hk), card_kneser]
 
@@ -2009,6 +2032,7 @@ theorem degree_eq_of_isVertexTransitive {G : CGraph} (h : G.IsVertexTransitive) 
   rw [← hσ]
   exact (SimpleGraph.Iso.degree_eq σ.toSimpleIso u).symm
 
+@[toIsoGraph]
 theorem exists_degSequence_replicate_of_isVertexTransitive {G : CGraph}
     (h : G.IsVertexTransitive) : ∃ k, G.degSequence = List.replicate (Fintype.card G.V) k := by
   cases isEmpty_or_nonempty G.V with
@@ -2110,6 +2134,7 @@ theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWit
 
 /-- **A strongly regular graph with `μ > 0` is connected**: any two non-adjacent vertices are
 joined by a path of length two. -/
+@[toIsoGraph]
 theorem IsSRGWith.isConnected {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) (hμ : 0 < μ)
     (hn : 0 < n) : G.IsConnected := by
   have h' : G.toSimple.IsSRGWith n k ℓ μ := h
@@ -2121,6 +2146,7 @@ theorem IsSRGWith.isConnected {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n
   · exact Or.inr (h.exists_common_neighbor hμ huv hadj)
 
 /-- **A strongly regular graph with `μ > 0` that is not complete has diameter two.** -/
+@[toIsoGraph]
 theorem IsSRGWith.diameter_eq_two {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
     (hμ : 0 < μ) (hk : k + 1 < n) : G.diameter = 2 := by
   obtain ⟨u, v, hne, hadj⟩ := h.exists_not_adj hk
@@ -2266,6 +2292,7 @@ theorem degree_disjUnion_inr (G H : CGraph) (b : H.V) :
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inr, Finset.card_map]
 
 /-- **The degree multiset of a disjoint union** is the sum of the two degree multisets. -/
+@[toIsoGraph]
 theorem degMultiset_disjUnion (G H : CGraph) :
     (disjUnion G H).degMultiset = G.degMultiset + H.degMultiset := by
   unfold degMultiset
@@ -2783,7 +2810,7 @@ theorem diameter_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq 
   unfold SimpleGraph.diam
   rw [h, ENat.toNat_add hGtop hHtop]
 
-@[simp] theorem diameter_empty (n : ℕ) : (empty n).diameter = 0 := by
+@[simp, toIsoGraph] theorem diameter_empty (n : ℕ) : (empty n).diameter = 0 := by
   show (empty n).toSimple.diam = 0
   rw [empty_toSimple]
   exact SimpleGraph.diam_bot
@@ -2844,6 +2871,7 @@ theorem chromNum_le_card (G : CGraph) : G.chromNum ≤ Fintype.card G.V := by
   exact SimpleGraph.chromaticNumber_le_card
 
 /-- A clique needs one colour per vertex, so `ω(G) ≤ χ(G)`. -/
+@[toIsoGraph]
 theorem cliqueNum_le_chromNum (G : CGraph) : G.cliqueNum ≤ G.chromNum := by
   rw [← Nat.cast_le (α := ℕ∞), coe_chromNum]
   exact SimpleGraph.cliqueNum_le_chromaticNumber
@@ -2853,37 +2881,40 @@ theorem two_le_chromNum_of_adj {G : CGraph} {a b : G.V} (h : G.Adj a b) : 2 ≤ 
   exact SimpleGraph.two_le_chromaticNumber_of_adj h
 
 /-- Two colours suffice exactly when the graph is bipartite. -/
+@[toIsoGraph]
 theorem isBipartite_iff_chromNum_le_two {G : CGraph} : G.IsBipartite ↔ G.chromNum ≤ 2 :=
   G.isBipartite_iff_colorable.trans chromNum_le_iff_colorable.symm
 
-@[simp] theorem chromNum_empty_zero : (empty 0).chromNum = 0 :=
+@[simp, toIsoGraph] theorem chromNum_empty_zero : (empty 0).chromNum = 0 :=
   chromNum_eq_of_chromaticNumber (by
     haveI : IsEmpty (empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
     rw [empty_toSimple]
     exact SimpleGraph.chromaticNumber_eq_zero_of_isEmpty)
 
-@[simp] theorem chromNum_empty (n : ℕ) : (empty (n + 1)).chromNum = 1 :=
+@[simp, toIsoGraph] theorem chromNum_empty (n : ℕ) : (empty (n + 1)).chromNum = 1 :=
   chromNum_eq_of_chromaticNumber (by
     haveI : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
     rw [empty_toSimple]
     exact SimpleGraph.chromaticNumber_bot (V := (empty (n + 1)).V))
 
 /-- **`K_n` needs `n` colours.** -/
-@[simp] theorem chromNum_complete (n : ℕ) : (complete n).chromNum = n :=
+@[simp, toIsoGraph] theorem chromNum_complete (n : ℕ) : (complete n).chromNum = n :=
   chromNum_eq_of_chromaticNumber (by rw [complete_toSimple, SimpleGraph.chromaticNumber_top,
     card_complete])
 
-@[simp] theorem chromNum_path (n : ℕ) : (path (n + 2)).chromNum = 2 :=
+@[simp, toIsoGraph] theorem chromNum_path (n : ℕ) : (path (n + 2)).chromNum = 2 :=
   chromNum_eq_of_chromaticNumber (by
     rw [path_toSimple]; exact SimpleGraph.chromaticNumber_pathGraph _ (by omega))
 
 /-- **An even cycle is bipartite.** -/
+@[toIsoGraph]
 theorem chromNum_cycle_even (m : ℕ) : (cycle (2 * m + 2)).chromNum = 2 :=
   chromNum_eq_of_chromaticNumber (by
     rw [cycle_toSimple]
     exact SimpleGraph.chromaticNumber_cycleGraph_of_even _ (by omega) ⟨m + 1, by omega⟩)
 
 /-- **An odd cycle needs three colours.** -/
+@[toIsoGraph]
 theorem chromNum_cycle_odd (m : ℕ) : (cycle (2 * m + 3)).chromNum = 3 :=
   chromNum_eq_of_chromaticNumber (by
     rw [cycle_toSimple]
@@ -2896,7 +2927,7 @@ theorem toSimple_disjUnion (G H : CGraph) :
   cases x <;> cases y <;> simp [SimpleGraph.sum_adj, CGraph.toSimple_adj]
 
 /-- **Colouring the two halves of a disjoint union is independent.** -/
-@[simp] theorem chromNum_disjUnion (G H : CGraph) :
+@[simp, toIsoGraph] theorem chromNum_disjUnion (G H : CGraph) :
     (disjUnion G H).chromNum = max G.chromNum H.chromNum := by
   have hmax : ((max G.chromNum H.chromNum : ℕ) : ℕ∞)
       = max (G.chromNum : ℕ∞) (H.chromNum : ℕ∞) := by
@@ -2915,16 +2946,19 @@ theorem chromNum_eq_iff_chromaticNumber {G : CGraph} {n : ℕ} :
   rw [← Nat.cast_inj (R := ℕ∞), coe_chromNum]
 
 /-- **A graph is 2-chromatic exactly when it is bipartite and has an edge.** -/
+@[toIsoGraph]
 theorem chromNum_eq_two_iff {G : CGraph} : G.chromNum = 2 ↔ G.IsBipartite ∧ 0 < G.E := by
   rw [chromNum_eq_iff_chromaticNumber, ← toSimple_ne_bot_iff, isBipartite_iff_colorable]
   exact_mod_cast SimpleGraph.chromaticNumber_eq_two_iff
 
+@[toIsoGraph]
 theorem chromNum_eq_zero_iff {G : CGraph} : G.chromNum = 0 ↔ Fintype.card G.V = 0 := by
   rw [chromNum_eq_iff_chromaticNumber, Fintype.card_eq_zero_iff]
   exact ⟨fun h ↦ SimpleGraph.isEmpty_of_chromaticNumber_eq_zero (by exact_mod_cast h),
     fun h ↦ by exact_mod_cast SimpleGraph.chromaticNumber_eq_zero_of_isEmpty⟩
 
 /-- Anything that is not bipartite needs at least three colours. -/
+@[toIsoGraph]
 theorem three_le_chromNum {G : CGraph} (h : ¬ G.IsBipartite) : 3 ≤ G.chromNum := by
   rw [isBipartite_iff_chromNum_le_two] at h; omega
 
@@ -3157,6 +3191,7 @@ theorem chromNum_lexProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V
       (fun p q h ↦ by simpa using h) colorable_chromNum colorable_chromNum
 
 /-- One colour is enough exactly when there is a vertex but no edge. -/
+@[toIsoGraph]
 theorem chromNum_eq_one_iff {G : CGraph} : G.chromNum = 1 ↔ G.E = 0 ∧ 0 < Fintype.card G.V := by
   have hb : G.toSimple = ⊥ ↔ G.E = 0 := by
     rw [← not_iff_not, ← ne_eq, toSimple_ne_bot_iff]
@@ -3308,6 +3343,7 @@ private theorem kneser_color_ne {n k : ℕ} (hk : 0 < k) {s t : Finset (Fin n)}
 
 /-- **`χ(K(n, k)) ≤ n - 2k + 2`.**  Colour a `k`-set by its smallest element, capped at
 `n - 2k + 1`. -/
+@[toIsoGraph]
 theorem chromNum_kneser_le (n k : ℕ) (hk : 0 < k) :
     (kneser n k).chromNum ≤ n - 2 * k + 2 := by
   classical
@@ -3349,6 +3385,7 @@ theorem girth_cartesianProduct_le_four {G H : CGraph} [DecidableEq G.V] [Decidab
 /-- **Girth three means a triangle**, and a triangle is a three-clique: so a graph has girth
 three exactly when its clique number is at least three.  Every entry of the `cliqueNum` table is
 therefore also a girth-three certificate. -/
+@[toIsoGraph]
 theorem girth_eq_three_iff {G : CGraph} : G.girth = 3 ↔ 3 ≤ G.cliqueNum := by
   classical
   constructor
@@ -3375,11 +3412,13 @@ theorem girth_eq_three_iff {G : CGraph} : G.girth = 3 ↔ 3 ≤ G.cliqueNum := b
     exact girth_eq_three_of_triangle ((toSimple_adj _ _ _).1 hcl.1)
       ((toSimple_adj _ _ _).1 hcl.2.2) ((toSimple_adj _ _ _).1 hcl.2.1.symm)
 
+@[toIsoGraph]
 theorem girth_eq_three_of_cliqueNum {G : CGraph} (h : 3 ≤ G.cliqueNum) : G.girth = 3 :=
   girth_eq_three_iff.2 h
 
 /-- **A triangle-free graph with a cycle has girth at least four**, stated through the clique
 number. -/
+@[toIsoGraph]
 theorem four_le_girth_of_cliqueNum {G : CGraph} (hcl : G.cliqueNum ≤ 2) (hnac : ¬ G.IsAcyclic) :
     4 ≤ G.girth := by
   have h3 := three_le_girth hnac
@@ -3491,6 +3530,7 @@ theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : CGraph} [DecidableEq G
   · exact fun h ↦ hane (congrArg Prod.fst h).symm
 
 /-- **A Kneser graph with room for three disjoint blocks has girth three.** -/
+@[toIsoGraph]
 theorem girth_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) : (kneser n k).girth = 3 := by
   refine girth_eq_three_of_triangle
     (a := kneserBlock n k 0 (by omega)) (b := kneserBlock n k k (by omega))
@@ -3504,6 +3544,7 @@ theorem girth_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) : (kneser n k).g
 
 /-- **A Johnson graph on at least `k + 2` points has girth three**: three `k`-sets sharing a
 common `(k-1)`-set are pairwise adjacent. -/
+@[toIsoGraph]
 theorem girth_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) : (johnson n k).girth = 3 := by
   obtain ⟨k, rfl⟩ : ∃ m, k = m + 1 := ⟨k - 1, by omega⟩
   refine girth_eq_three_of_triangle
@@ -3513,6 +3554,7 @@ theorem girth_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) : (johnson n k)
     exact ⟨johnsonTri_ne (by omega), johnsonTri_inter (by omega)⟩
 
 /-- **The complete bipartite graph `K_{m+2,n+2}` has girth four.** -/
+@[toIsoGraph]
 theorem girth_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).girth = 4 := by
   have hb : (bipartite (m + 2) (n + 2)).IsBipartite :=
     ⟨Sum.elim (fun _ ↦ false) (fun _ ↦ true), by rintro (a | b) (c | d) hadj <;> simp at hadj ⊢⟩
@@ -3533,6 +3575,7 @@ theorem girth_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).girth = 4 := b
 /-! ### Two graphs of girth five -/
 
 /-- **The five-cycle has girth five.** -/
+@[toIsoGraph]
 theorem girth_cycle_five : (cycle 5).girth = 5 := by
   refine le_antisymm ?_ (five_le_girth (by decide) (by decide) (not_isAcyclic_cycle 2))
   exact girth_le_five_of_pentagon (a := (0 : Fin 5)) (b := (1 : Fin 5)) (c := (2 : Fin 5))
@@ -3574,6 +3617,7 @@ theorem one_le_cliqueNum_of_vertex {G : CGraph} (a : G.V) : 1 ≤ G.cliqueNum :=
   have := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
   simpa using this
 
+@[toIsoGraph]
 theorem two_le_cliqueNum_of_E_pos {G : CGraph} (h : 0 < G.E) : 2 ≤ G.cliqueNum := by
   obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos h
   exact two_le_cliqueNum hab
@@ -3609,6 +3653,7 @@ theorem exists_degree_eq_minDeg (G : CGraph) (v₀ : G.V) :
   obtain ⟨v, hv⟩ := SimpleGraph.exists_minimal_degree_vertex G.toSimple
   exact ⟨v, hv.symm⟩
 
+@[toIsoGraph]
 theorem minDeg_le_maxDeg (G : CGraph) : G.minDeg ≤ G.maxDeg :=
   SimpleGraph.minDegree_le_maxDegree _
 
@@ -3627,6 +3672,7 @@ theorem mem_degMultiset {G : CGraph} {d : ℕ} :
     exact ⟨v, Finset.mem_univ_val v, hv⟩
 
 /-- The maximum degree is the largest entry of the degree multiset. -/
+@[toIsoGraph]
 theorem maxDeg_eq_sup (G : CGraph) : G.maxDeg = G.degMultiset.sup := by
   refine le_antisymm ?_ (Multiset.sup_le.2 fun d hd ↦ ?_)
   · rcases isEmpty_or_nonempty G.V with h | h
@@ -3637,12 +3683,14 @@ theorem maxDeg_eq_sup (G : CGraph) : G.maxDeg = G.degMultiset.sup := by
   · obtain ⟨v, hv⟩ := mem_degMultiset.1 hd
     exact hv ▸ G.degree_le_maxDeg v
 
+@[toIsoGraph]
 theorem maxDeg_eq_of_degMultiset {G : CGraph} {k : ℕ} (hmem : k ∈ G.degMultiset)
     (hle : ∀ d ∈ G.degMultiset, d ≤ k) : G.maxDeg = k := by
   obtain ⟨v, hv⟩ := mem_degMultiset.1 hmem
   exact le_antisymm (maxDeg_le_of_forall fun w ↦ hle _ (mem_degMultiset.2 ⟨w, rfl⟩))
     (hv ▸ G.degree_le_maxDeg v)
 
+@[toIsoGraph]
 theorem minDeg_eq_of_degMultiset {G : CGraph} {k : ℕ} (hmem : k ∈ G.degMultiset)
     (hle : ∀ d ∈ G.degMultiset, k ≤ d) : G.minDeg = k := by
   obtain ⟨v, hv⟩ := mem_degMultiset.1 hmem
@@ -3674,6 +3722,7 @@ theorem maxDeg_le_two_mul_E (G : CGraph) (v₀ : G.V) : G.maxDeg ≤ 2 * G.E := 
 
 /-! ### The disjoint union, the join and the complement -/
 
+@[toIsoGraph]
 theorem maxDeg_disjUnion (G H : CGraph) :
     (disjUnion G H).maxDeg = max G.maxDeg H.maxDeg := by
   refine le_antisymm (maxDeg_le_of_forall ?_) (max_le ?_ ?_)
@@ -3910,6 +3959,7 @@ end Greedy
 /-! ### Greedy colouring -/
 
 /-- **The greedy bound** `χ ≤ Δ + 1`. -/
+@[toIsoGraph]
 theorem chromNum_le_maxDeg_add_one (G : CGraph) : G.chromNum ≤ G.maxDeg + 1 := by
   classical
   exact chromNum_le_iff_colorable.2
@@ -4146,6 +4196,7 @@ end Turan
 
 /-- **Turán's theorem**: a graph whose clique number is at most `r` has `2r·|E| ≤ (r - 1)·|V|²`
 edges. -/
+@[toIsoGraph]
 theorem two_mul_mul_E_le (G : CGraph) {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ r) :
     2 * r * G.E ≤ (r - 1) * (Fintype.card G.V) ^ 2 :=
   mul_card_edgeFinset_le_of_cliqueFree hr
@@ -4158,6 +4209,7 @@ theorem four_mul_E_le_card_sq (G : CGraph) (h : G.cliqueNum ≤ 2) :
   omega
 
 /-- **A bipartite graph is triangle-free**, hence has clique number at most two. -/
+@[toIsoGraph]
 theorem cliqueNum_le_two_of_isBipartite {G : CGraph} (hb : G.IsBipartite) : G.cliqueNum ≤ 2 := by
   classical
   by_contra hcon
@@ -4305,6 +4357,7 @@ end Ramsey
 
 /-- **`R(3, 3) ≤ 6`**: any graph on at least six vertices has three mutually adjacent vertices or
 three mutually non-adjacent ones. -/
+@[toIsoGraph]
 theorem three_le_cliqueNum_or_three_le_indepNum (G : CGraph) (h : 6 ≤ Fintype.card G.V) :
     3 ≤ G.cliqueNum ∨ 3 ≤ G.indepNum := by
   classical
@@ -4313,6 +4366,7 @@ theorem three_le_cliqueNum_or_three_le_indepNum (G : CGraph) (h : 6 ≤ Fintype.
 
 /-- Triangle-free form: a triangle-free graph on six or more vertices has three pairwise
 non-adjacent vertices. -/
+@[toIsoGraph]
 theorem three_le_indepNum_of_cliqueNum_le_two (G : CGraph) (h : 6 ≤ Fintype.card G.V)
     (hcl : G.cliqueNum ≤ 2) : 3 ≤ G.indepNum := by
   rcases G.three_le_cliqueNum_or_three_le_indepNum h with h' | h'
@@ -4323,6 +4377,7 @@ theorem three_le_indepNum_of_cliqueNum_le_two (G : CGraph) (h : 6 ≤ Fintype.ca
 
 /-- **Ramsey's theorem**, `R(s, t) ≤ C(s + t, s)`: a graph on at least `C(s + t, s)` vertices has
 a clique on `s` vertices or an independent set on `t` vertices. -/
+@[toIsoGraph]
 theorem le_cliqueNum_or_le_indepNum (G : CGraph) {s t : ℕ}
     (h : (s + t).choose s ≤ Fintype.card G.V) : s ≤ G.cliqueNum ∨ t ≤ G.indepNum := by
   classical
@@ -4426,17 +4481,20 @@ end Gallai
 
 /-- **Gallai's identity**: a set of vertices is a vertex cover exactly when its complement is
 independent, so `τ(G) + α(G) = |V|`. -/
+@[toIsoGraph]
 theorem coverNum_add_indepNum (G : CGraph) :
     G.coverNum + G.indepNum = Fintype.card G.V := by
   classical
   exact vertexCoverNum_toNat_add_indepNum G.toSimple
 
 /-- **`|E| ≤ τ·Δ`**: each of the `τ` cover vertices takes care of at most `Δ` edges. -/
+@[toIsoGraph]
 theorem E_le_coverNum_mul_maxDeg (G : CGraph) : G.E ≤ G.coverNum * G.maxDeg := by
   classical
   exact card_edgeFinset_le_vertexCoverNum_mul_maxDegree G.toSimple
 
 /-- A vertex cover needs at most one vertex per edge. -/
+@[toIsoGraph]
 theorem coverNum_le_E (G : CGraph) : G.coverNum ≤ G.E := by
   classical
   have h := G.toSimple.vertexCoverNum_le_encard_edgeSet
@@ -4637,7 +4695,9 @@ theorem domNum_le_card (G : CGraph) : G.domNum ≤ Fintype.card G.V := by
   have := domNum_le_card_of_isDominatingSet (isDominatingSet_univ G)
   rwa [Finset.card_univ] at this
 
-@[simp] theorem domNum_eq_zero_iff (G : CGraph) : G.domNum = 0 ↔ Fintype.card G.V = 0 := by
+@[simp, toIsoGraph]
+theorem domNum_eq_zero_iff (G : CGraph) :
+    G.domNum = 0 ↔ Fintype.card G.V = 0 := by
   constructor
   · intro h
     obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
@@ -4699,6 +4759,7 @@ theorem card_le_domNum_mul_maxDeg_add_one (G : CGraph) :
 
 /-- **`γ ≤ α`**: a *maximum* independent set is dominating, since a vertex it failed to dominate
 could be added to it. -/
+@[toIsoGraph]
 theorem domNum_le_indepNum (G : CGraph) : G.domNum ≤ G.indepNum := by
   classical
   obtain ⟨S, hS, hScard⟩ := G.toSimple.exists_isNIndepSet_indepNum
@@ -4778,6 +4839,7 @@ theorem domNum_le_coverNum (G : CGraph) (h : 1 ≤ G.minDeg) : G.domNum ≤ G.co
 
 /-! ### The domination number of the small families -/
 
+@[toIsoGraph]
 theorem domNum_empty (n : ℕ) : (empty n).domNum = n := by
   refine le_antisymm ?_ ?_
   · have := (empty n).domNum_le_card
@@ -4791,10 +4853,12 @@ theorem domNum_empty (n : ℕ) : (empty n).domNum = n := by
     rw [huniv, Finset.card_univ, card_empty] at hcard
     omega
 
+@[toIsoGraph]
 theorem domNum_complete (n : ℕ) : (complete (n + 1)).domNum = 1 :=
   domNum_eq_one_of_universal (v := (0 : Fin (n + 1))) fun u hu ↦ by
     simpa using Ne.symm hu
 
+@[toIsoGraph]
 theorem domNum_star (n : ℕ) : (star n).domNum = 1 := by
   haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   refine domNum_eq_one_of_universal (v := (Sum.inl 0 : Fin 1 ⊕ Fin n)) fun u hu ↦ ?_
@@ -4805,6 +4869,7 @@ theorem domNum_star (n : ℕ) : (star n).domNum = 1 := by
 /-! ### The radius -/
 
 /-- The most central vertex is no further from the rest than the least central one. -/
+@[toIsoGraph]
 theorem radius_le_diameter (G : CGraph) : G.radius ≤ G.diameter := by
   by_cases hc : G.toSimple.Connected
   · haveI : Nonempty G.V := hc.nonempty
@@ -4814,6 +4879,7 @@ theorem radius_le_diameter (G : CGraph) : G.radius ≤ G.diameter := by
     simp [radius, h]
 
 /-- Walking through a central vertex crosses the graph in at most `2r` steps. -/
+@[toIsoGraph]
 theorem diameter_le_two_mul_radius (G : CGraph) : G.diameter ≤ 2 * G.radius := by
   by_cases hc : G.toSimple.Connected
   · haveI : Nonempty G.V := hc.nonempty
@@ -4901,6 +4967,7 @@ theorem domNum_join_complete_one (G : CGraph) [DecidableEq G.V] :
   · exact absurd (congrArg Sum.inl (Subsingleton.elim a (0 : Fin 1))) hu
   · exact join_adj_inl_inr (complete 1) G _ b
 
+@[toIsoGraph]
 theorem domNum_wheel (n : ℕ) : (wheel n).domNum = 1 := domNum_join_complete_one (cycle n)
 
 /-- **Radius one and domination number one are the same condition** on a graph with at least two
@@ -4934,13 +5001,13 @@ theorem radius_eq_diameter_of_isVertexTransitive (G : CGraph) (h : G.IsVertexTra
 one empty clique, `|V|` singletons and one clique per edge — and after that the count is tied to
 the clique number: it vanishes exactly when `n` exceeds `ω(G)`. -/
 
-@[simp] theorem cliqueCount_zero (G : CGraph) : G.cliqueCount 0 = 1 := by
+@[simp, toIsoGraph] theorem cliqueCount_zero (G : CGraph) : G.cliqueCount 0 = 1 := by
   have h : G.toSimple.cliqueSet 0 = {∅} := by
     ext s
     simp
   rw [cliqueCount, h, Set.ncard_singleton]
 
-@[simp] theorem cliqueCount_one (G : CGraph) : G.cliqueCount 1 = Fintype.card G.V := by
+@[simp, toIsoGraph] theorem cliqueCount_one (G : CGraph) : G.cliqueCount 1 = Fintype.card G.V := by
   have h : G.toSimple.cliqueSet 1 = (fun a : G.V ↦ ({a} : Finset G.V)) '' Set.univ := by
     ext s
     simp [eq_comm]
@@ -4978,11 +5045,13 @@ the clique number: it vanishes exactly when `n` exceeds `ω(G)`. -/
   rw [cliqueCount, h, hinj.ncard_image, E, SimpleGraph.edgeFinset,
     ← Set.ncard_eq_toFinset_card']
 
+@[toIsoGraph]
 theorem cliqueCount_eq_zero_iff (G : CGraph) (n : ℕ) : G.cliqueCount n = 0 ↔ G.cliqueNum < n := by
   rw [cliqueCount, Set.ncard_eq_zero (Set.toFinite _), SimpleGraph.cliqueSet_eq_empty_iff,
     cliqueFree_iff_cliqueNum_lt]
   rfl
 
+@[toIsoGraph]
 theorem cliqueCount_pos_iff (G : CGraph) (n : ℕ) : 0 < G.cliqueCount n ↔ n ≤ G.cliqueNum := by
   rw [Nat.pos_iff_ne_zero, ne_eq, cliqueCount_eq_zero_iff]
   omega
@@ -4991,6 +5060,7 @@ theorem cliqueCount_eq_zero_of_cliqueNum_lt {G : CGraph} {n : ℕ} (h : G.clique
     G.cliqueCount n = 0 :=
   (cliqueCount_eq_zero_iff G n).2 h
 
+@[toIsoGraph]
 theorem cliqueCount_le_choose (G : CGraph) (n : ℕ) :
     G.cliqueCount n ≤ (Fintype.card G.V).choose n := by
   classical
@@ -5003,6 +5073,7 @@ theorem cliqueCount_eq_zero_of_card_lt {G : CGraph} {n : ℕ} (h : Fintype.card 
 
 /-- A graph has a triangle exactly when its girth is three, so the triangle count vanishes
 exactly when the girth is anything else. -/
+@[toIsoGraph]
 theorem cliqueCount_three_eq_zero_iff (G : CGraph) : G.cliqueCount 3 = 0 ↔ G.girth ≠ 3 := by
   rw [cliqueCount_eq_zero_iff, ne_eq, girth_eq_three_iff]
   omega
@@ -5017,13 +5088,16 @@ theorem cliqueCount_eq_zero_of_chromNum_lt {G : CGraph} {n : ℕ} (h : G.chromNu
   cliqueCount_eq_zero_of_cliqueNum_lt (lt_of_le_of_lt (cliqueNum_le_chromNum G) h)
 
 /-- Bipartite graphs are triangle-free. -/
+@[toIsoGraph]
 theorem cliqueCount_three_eq_zero_of_isBipartite {G : CGraph} (h : G.IsBipartite) :
     G.cliqueCount 3 = 0 :=
   cliqueCount_eq_zero_of_chromNum_lt
     (lt_of_le_of_lt (isBipartite_iff_chromNum_le_two.1 h) (by omega))
 
 /-- Every subset of the complete graph is a clique, so the count is a binomial coefficient. -/
-@[simp] theorem cliqueCount_complete (m n : ℕ) : (complete m).cliqueCount n = m.choose n := by
+@[simp, toIsoGraph]
+theorem cliqueCount_complete (m n : ℕ) :
+    (complete m).cliqueCount n = m.choose n := by
   classical
   rw [cliqueCount_eq_card_cliqueFinset]
   have h : (complete m).toSimple.cliqueFinset n = Finset.univ.powersetCard n := by
@@ -5033,7 +5107,7 @@ theorem cliqueCount_three_eq_zero_of_isBipartite {G : CGraph} (h : G.IsBipartite
     simp [SimpleGraph.IsClique, Set.Pairwise]
   rw [h, Finset.card_powersetCard, Finset.card_univ, card_complete]
 
-@[simp] theorem cliqueCount_empty (m n : ℕ) : (empty m).cliqueCount (n + 2) = 0 := by
+@[simp, toIsoGraph] theorem cliqueCount_empty (m n : ℕ) : (empty m).cliqueCount (n + 2) = 0 := by
   refine cliqueCount_eq_zero_of_cliqueNum_lt ?_
   rw [cliqueNum_empty]
   omega
@@ -5054,20 +5128,22 @@ fact below is its clique-count counterpart read through `compl`. -/
     (compl G).indepCount n = G.cliqueCount n := by
   rw [← cliqueCount_compl (compl G), compl_compl]
 
-@[simp] theorem indepCount_zero (G : CGraph) : G.indepCount 0 = 1 := by
+@[simp, toIsoGraph] theorem indepCount_zero (G : CGraph) : G.indepCount 0 = 1 := by
   classical
   rw [← cliqueCount_compl]
   exact cliqueCount_zero _
 
-@[simp] theorem indepCount_one (G : CGraph) : G.indepCount 1 = Fintype.card G.V := by
+@[simp, toIsoGraph] theorem indepCount_one (G : CGraph) : G.indepCount 1 = Fintype.card G.V := by
   classical
   rw [← cliqueCount_compl, cliqueCount_one, card_compl]
 
+@[toIsoGraph]
 theorem indepCount_eq_zero_iff (G : CGraph) (n : ℕ) :
     G.indepCount n = 0 ↔ G.indepNum < n := by
   classical
   rw [← cliqueCount_compl, cliqueCount_eq_zero_iff, cliqueNum_compl]
 
+@[toIsoGraph]
 theorem indepCount_pos_iff (G : CGraph) (n : ℕ) : 0 < G.indepCount n ↔ n ≤ G.indepNum := by
   rw [Nat.pos_iff_ne_zero, ne_eq, indepCount_eq_zero_iff]
   omega
@@ -5076,6 +5152,7 @@ theorem indepCount_eq_zero_of_indepNum_lt {G : CGraph} {n : ℕ} (h : G.indepNum
     G.indepCount n = 0 :=
   (indepCount_eq_zero_iff G n).2 h
 
+@[toIsoGraph]
 theorem indepCount_le_choose (G : CGraph) (n : ℕ) :
     G.indepCount n ≤ (Fintype.card G.V).choose n := by
   classical
@@ -5094,11 +5171,13 @@ theorem indepCount_two_add_E (G : CGraph) [DecidableEq G.V] :
   exact E_compl G
 
 /-- Every set of vertices of the empty graph is independent. -/
-@[simp] theorem indepCount_empty (m n : ℕ) : (empty m).indepCount n = m.choose n := by
+@[simp, toIsoGraph] theorem indepCount_empty (m n : ℕ) : (empty m).indepCount n = m.choose n := by
   rw [← cliqueCount_compl]
   exact cliqueCount_complete m n
 
-@[simp] theorem indepCount_complete (m n : ℕ) : (complete m).indepCount (n + 2) = 0 := by
+@[simp, toIsoGraph]
+theorem indepCount_complete (m n : ℕ) :
+    (complete m).indepCount (n + 2) = 0 := by
   rw [← cliqueCount_compl, show compl (complete m) = empty m from compl_compl (empty m)]
   exact cliqueCount_empty m n
 
@@ -5169,6 +5248,7 @@ theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
       simpa [CGraph.toSimple_adj] using hcl ha hb this
 
 /-- Cliques never cross between the two sides, so from size one on the counts simply add. -/
+@[toIsoGraph]
 theorem cliqueCount_disjUnion (G H : CGraph) (n : ℕ) :
     (disjUnion G H).cliqueCount (n + 1) = G.cliqueCount (n + 1) + H.cliqueCount (n + 1) := by
   classical
@@ -5213,7 +5293,7 @@ theorem indepCount_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (n : 
   rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
 
 /-- An independent set of `K_{m,n}` is a set of vertices on one side. -/
-@[simp] theorem indepCount_bipartite (m n k : ℕ) :
+@[simp, toIsoGraph] theorem indepCount_bipartite (m n k : ℕ) :
     (bipartite m n).indepCount (k + 1) = m.choose (k + 1) + n.choose (k + 1) := by
   classical
   rw [bipartite, indepCount_compl, cliqueCount_disjUnion, cliqueCount_complete,
@@ -5221,16 +5301,19 @@ theorem indepCount_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (n : 
 
 /-! ### Counting connected components -/
 
+@[toIsoGraph]
 theorem numComponents_eq_zero_iff (G : CGraph) :
     G.numComponents = 0 ↔ Fintype.card G.V = 0 := by
   rw [numComponents, Nat.card_eq_zero, Fintype.card_eq_zero_iff]
   simp only [or_iff_left (not_infinite_iff_finite.2 inferInstance)]
   exact ⟨fun h ↦ ⟨fun v ↦ h.false (G.toSimple.connectedComponentMk v)⟩, fun _ ↦ inferInstance⟩
 
+@[toIsoGraph]
 theorem numComponents_pos_iff (G : CGraph) : 0 < G.numComponents ↔ 0 < Fintype.card G.V := by
   rw [Nat.pos_iff_ne_zero, Nat.pos_iff_ne_zero, ne_eq, ne_eq, numComponents_eq_zero_iff]
 
 /-- A graph is connected exactly when it has one component. -/
+@[toIsoGraph]
 theorem numComponents_eq_one_iff (G : CGraph) : G.numComponents = 1 ↔ G.IsConnected := by
   rw [numComponents, Nat.card_eq_one_iff_unique, IsConnected, SimpleGraph.connected_iff]
   constructor
@@ -5246,14 +5329,14 @@ theorem numComponents_le_card (G : CGraph) : G.numComponents ≤ Fintype.card G.
   rw [numComponents, ← Nat.card_eq_fintype_card]
   exact Nat.card_le_card_of_surjective _ (Quot.mk_surjective)
 
-@[simp] theorem numComponents_empty (n : ℕ) : (empty n).numComponents = n := by
+@[simp, toIsoGraph] theorem numComponents_empty (n : ℕ) : (empty n).numComponents = n := by
   rw [numComponents, empty_toSimple]
   have : Function.Bijective ((⊥ : SimpleGraph (Fin n)).connectedComponentMk) := by
     refine ⟨fun u v h ↦ ?_, Quot.mk_surjective⟩
     exact SimpleGraph.reachable_bot.1 (SimpleGraph.ConnectedComponent.exact h)
   rw [← Nat.card_eq_of_bijective _ this, Nat.card_eq_fintype_card, Fintype.card_fin]
 
-@[simp] theorem numComponents_complete (n : ℕ) : (complete (n + 1)).numComponents = 1 :=
+@[simp, toIsoGraph] theorem numComponents_complete (n : ℕ) : (complete (n + 1)).numComponents = 1 :=
   (numComponents_eq_one_iff _).2 (isConnected_complete n)
 
 /-! ### The components of a disjoint union -/
@@ -5310,7 +5393,7 @@ def disjUnionComponentEquiv (G H : CGraph) :
     · induction c using SimpleGraph.ConnectedComponent.ind with | _ a => rfl
     · induction c using SimpleGraph.ConnectedComponent.ind with | _ b => rfl
 
-@[simp] theorem numComponents_disjUnion (G H : CGraph) :
+@[simp, toIsoGraph] theorem numComponents_disjUnion (G H : CGraph) :
     (disjUnion G H).numComponents = G.numComponents + H.numComponents := by
   rw [numComponents, numComponents, numComponents,
     Nat.card_congr (disjUnionComponentEquiv G H), Nat.card_sum]
@@ -5335,6 +5418,7 @@ theorem surjective_connectedComponentMk (G : CGraph) :
   fun c ↦ Quot.exists_rep c
 
 /-- One vertex from each component is an independent set, so there are at most `α(G)` components. -/
+@[toIsoGraph]
 theorem numComponents_le_indepNum (G : CGraph) : G.numComponents ≤ G.indepNum := by
   classical
   choose f hout using G.surjective_connectedComponentMk
@@ -5358,6 +5442,7 @@ theorem numComponents_le_indepNum (G : CGraph) : G.numComponents ≤ G.indepNum 
     _ ≤ G.indepNum := hindep.card_le_indepNum
 
 /-- A dominating set must meet every component, so there are at most `γ(G)` components. -/
+@[toIsoGraph]
 theorem numComponents_le_domNum (G : CGraph) : G.numComponents ≤ G.domNum := by
   classical
   obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
@@ -5549,9 +5634,11 @@ def _root_.SimpleGraph.autComplEquiv {α : Type*} (S : SimpleGraph α) : (S ≃g
   left_inv a := by ext v; rfl
   right_inv b := by ext v; rfl
 
+@[toIsoGraph]
 theorem autCount_pos (G : CGraph) : 0 < G.autCount := Nat.card_pos
 
 /-- An automorphism is in particular a permutation of the vertices. -/
+@[toIsoGraph]
 theorem autCount_le_factorial (G : CGraph) : G.autCount ≤ Nat.factorial (Fintype.card G.V) := by
   classical
   calc G.autCount ≤ Nat.card (G.V ≃ G.V) :=
@@ -5566,12 +5653,14 @@ theorem autCount_le_factorial (G : CGraph) : G.autCount ≤ Nat.factorial (Finty
   rw [autCount, autCount, compl_toSimple]
   exact (Nat.card_congr (SimpleGraph.autComplEquiv G.toSimple)).symm
 
-@[simp] theorem autCount_empty (n : ℕ) : (empty n).autCount = Nat.factorial n := by
+@[simp, toIsoGraph] theorem autCount_empty (n : ℕ) : (empty n).autCount = Nat.factorial n := by
   classical
   rw [autCount, empty_toSimple, Nat.card_congr (SimpleGraph.autBotEquiv (Fin n)),
     Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
 
-@[simp] theorem autCount_complete (n : ℕ) : (complete n).autCount = Nat.factorial n := by
+@[simp, toIsoGraph]
+theorem autCount_complete (n : ℕ) :
+    (complete n).autCount = Nat.factorial n := by
   classical
   rw [autCount, complete_toSimple, Nat.card_congr (SimpleGraph.autTopEquiv (Fin n)),
     Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
@@ -5631,6 +5720,7 @@ theorem exists_perm_of_aut {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 
 automorphism fixes the centre, and what is left is an arbitrary permutation of the rays.  This is
 the upper bound matching `IsoGraph.factorial_le_autCount_star`; the two smaller stars are
 exceptions, `star 0 = K₁` has one automorphism and `star 1 = K₂` has two. -/
+@[toIsoGraph]
 theorem autCount_star (n : ℕ) : (star (n + 2)).autCount = (n + 2).factorial := by
   have hb : Function.Bijective (starAut (n + 2)) := by
     constructor
@@ -5734,6 +5824,7 @@ the sides are told apart by degree, so each is permuted within itself.  This is 
 matching `IsoGraph.factorial_mul_factorial_le_autCount_bipartite`, and it generalises
 `autCount_star`, whose `n ≥ 2` hypothesis becomes `1 ≠ n`.  For `m = n` the true count is
 `2 · (n!)²`, by `bipartiteSwap`. -/
+@[toIsoGraph]
 theorem autCount_bipartite {m n : ℕ} (hmn : m ≠ n) :
     (bipartite m n).autCount = m.factorial * n.factorial := by
   have hb : Function.Bijective
@@ -5918,6 +6009,7 @@ theorem bipartiteSelfAut_surjective (n : ℕ) : Function.Surjective (bipartiteSe
 
 /-- **`K_{n,n}` has exactly `2 · (n!)²` automorphisms**: each side may be permuted freely, and the
 two sides may be exchanged.  This is the case `autCount_bipartite` has to exclude. -/
+@[toIsoGraph]
 theorem autCount_bipartite_self (n : ℕ) :
     (bipartite (n + 1) (n + 1)).autCount = 2 * ((n + 1).factorial * (n + 1).factorial) := by
   have hb : Function.Bijective (bipartiteSelfAut (n + 1)) :=
@@ -6104,6 +6196,7 @@ theorem card_le_autCount_of_isVertexTransitive (G : CGraph) [Nonempty G.V]
     _ = G.autCount := rfl
 
 /-- An arc-transitive graph has at least `2|E|` automorphisms, one for each arc. -/
+@[toIsoGraph]
 theorem two_mul_E_le_autCount_of_isArcTransitive (G : CGraph) (h : G.IsArcTransitive) :
     2 * G.E ≤ G.autCount := by
   classical
@@ -6133,6 +6226,7 @@ theorem not_isVertexTransitive_of_autCount_lt (G : CGraph) [Nonempty G.V]
   absurd (G.card_le_autCount_of_isVertexTransitive hvt) (by omega)
 
 /-- Too few automorphisms to move a base arc everywhere. -/
+@[toIsoGraph]
 theorem not_isArcTransitive_of_autCount_lt (G : CGraph) (h : G.autCount < 2 * G.E) :
     ¬ G.IsArcTransitive := fun hat ↦
   absurd (G.two_mul_E_le_autCount_of_isArcTransitive hat) (by omega)
@@ -6140,6 +6234,7 @@ theorem not_isArcTransitive_of_autCount_lt (G : CGraph) (h : G.autCount < 2 * G.
 /-- **The cycle `Cₙ` has exactly `2n` automorphisms** for `n ≥ 3`: its automorphism group is the
 dihedral group of order `2n`.  The lower bound is arc-transitivity together with the edge count,
 and the upper bound is `autCount_cycle_le`. -/
+@[toIsoGraph]
 theorem autCount_cycle (n : ℕ) : (cycle (n + 3)).autCount = 2 * (n + 3) := by
   have hle := autCount_cycle_le (N := n + 3) (by omega)
   have hge := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_cycle (n + 3))
@@ -6279,6 +6374,7 @@ theorem even_card_odd_degree (G : CGraph) :
   SimpleGraph.even_card_odd_degree_vertices G.toSimple
 
 /-- The handshaking lemma, read off the degree multiset. -/
+@[toIsoGraph]
 theorem even_countP_odd_degMultiset (G : CGraph) :
     Even (G.degMultiset.countP fun d ↦ Odd d) := by
   have h : (G.degMultiset.countP fun d ↦ Odd d)
@@ -6289,6 +6385,7 @@ theorem even_countP_odd_degMultiset (G : CGraph) :
   exact G.even_card_odd_degree
 
 /-- The handshaking lemma, read off the degree sequence. -/
+@[toIsoGraph]
 theorem even_countP_odd_degSequence (G : CGraph) :
     Even (G.degSequence.countP fun d ↦ decide (Odd d)) := by
   rw [degSequence, ← Multiset.coe_countP, Multiset.sort_eq]
@@ -6355,6 +6452,7 @@ def disjUnionAuto (a : G ≃cg G) (b : H ≃cg H) : disjUnion G H ≃cg disjUnio
 @[simp] theorem disjUnionAuto_inr (a : G ≃cg G) (b : H ≃cg H) (y : H.V) :
     disjUnionAuto a b (.inr y) = .inr (b y) := rfl
 
+@[toIsoGraph]
 theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
     G.autCount * H.autCount ≤ (disjUnion G H).autCount :=
   mul_autCount_le_autCount disjUnionAuto fun a a' b b' h ↦ by
@@ -6787,6 +6885,7 @@ theorem isDominatingSet_disjSum {G H : CGraph} {s : Finset G.V} {t : Finset H.V}
 
 /-- **Domination is additive over components**: the two sides of a disjoint union have to be
 dominated separately, and any two dominating sets can be put side by side. -/
+@[toIsoGraph]
 theorem domNum_disjUnion (G H : CGraph) :
     (disjUnion G H).domNum = G.domNum + H.domNum := by
   apply le_antisymm
@@ -7353,10 +7452,12 @@ theorem three_le_cliqueNum_add_indepNum (G : CGraph) (hV : 2 ≤ Fintype.card G.
 theorem isRegularWith_iff_forall_degree {G : CGraph} {k : ℕ} :
     G.IsRegularWith k ↔ ∀ v : G.V, G.toSimple.degree v = k := Iff.rfl
 
+@[toIsoGraph]
 theorem IsRegularWith.degSequence {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
     G.degSequence = List.replicate (Fintype.card G.V) k := degSequence_of_regular G h
 
 /-- Squeezing the degrees between the two extremes forces regularity. -/
+@[toIsoGraph]
 theorem isRegularWith_of_maxDeg_le_of_le_minDeg {G : CGraph} {k : ℕ}
     (h1 : G.maxDeg ≤ k) (h2 : k ≤ G.minDeg) : G.IsRegularWith k := fun v ↦
   le_antisymm (le_trans (G.degree_le_maxDeg v) h1) (le_trans h2 (G.minDeg_le_degree v))
@@ -7370,6 +7471,7 @@ theorem IsRegularWith.minDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) (
   le_antisymm (h v₀ ▸ G.minDeg_le_degree v₀) (le_minDeg_of_forall v₀ fun v ↦ (h v).ge)
 
 /-- **Strongly regular graphs are regular**, with the same degree parameter. -/
+@[toIsoGraph]
 theorem IsSRGWith.isRegularWith {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
     G.IsRegularWith k := SimpleGraph.IsSRGWith.regular h
 
@@ -7379,6 +7481,7 @@ theorem IsRegularWith.compl {G : CGraph} [DecidableEq G.V] {k : ℕ} (h : G.IsRe
   rw [degree_compl, h v]
 
 /-- A disjoint union of two `k`-regular graphs is `k`-regular. -/
+@[toIsoGraph]
 theorem IsRegularWith.disjUnion {G H : CGraph} {k : ℕ} (hG : G.IsRegularWith k)
     (hH : H.IsRegularWith k) : (disjUnion G H).IsRegularWith k := by
   rintro (a | b)
@@ -7579,6 +7682,7 @@ theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) [DecidableEq G.V] :
 
 /-- **A strongly regular graph with `ℓ > 0` has girth three**: `k > 0` produces an edge, and
 `ℓ > 0` says its two endpoints have a common neighbour, which closes a triangle. -/
+@[toIsoGraph]
 theorem IsSRGWith.girth_eq_three {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
     (hn : 0 < n) (hk : 0 < k) (hℓ : 0 < ℓ) : G.girth = 3 := by
   have h' : G.toSimple.IsSRGWith n k ℓ μ := h
@@ -8824,6 +8928,7 @@ theorem cycle_no_short_cycleList {N : ℕ} (hN : 3 ≤ N) (u : (cycle N).V) (vs 
     exact path_adj_cycRot hN (hmem _ List.getLastD_mem_cons) (hmem u (by simp)) hcl
 
 /-- **The girth of a cycle is its length.** -/
+@[toIsoGraph]
 theorem girth_cycle (n : ℕ) : (cycle (n + 3)).girth = n + 3 := by
   refine le_antisymm ?_ ?_
   · have h := girth_le_V (not_isAcyclic_cycle n)
@@ -9030,12 +9135,14 @@ theorem tadpole_high_nbr_unique {m k : ℕ} {x a b : (tadpole m k).V} (hx : m �
   exact Fin.ext (by omega)
 
 /-- A cycle with a tail has as many edges as vertices, so it cannot be a tree. -/
+@[toIsoGraph]
 theorem not_isAcyclic_tadpole (m k : ℕ) : ¬ (tadpole (m + 3) k).IsAcyclic :=
   not_isAcyclic_of_map (G := cycle (m + 3)) (fun v ↦ ⟨v.1, by have := v.isLt; omega⟩)
     (fun a b hab ↦ Fin.ext (by simpa using congrArg Fin.val hab))
     (fun _ _ hxy ↦ tadpole_adj_of_cycle_adj rfl rfl hxy) (not_isAcyclic_cycle m)
 
 /-- **The girth of a tadpole is the length of its cycle**: the leg contributes no cycle. -/
+@[toIsoGraph]
 theorem girth_tadpole (m k : ℕ) : (tadpole (m + 3) k).girth = m + 3 := by
   refine le_antisymm ?_ ?_
   · have h := girth_le_card_of_map (G := cycle (m + 3)) (H := tadpole (m + 3) k)
@@ -9142,6 +9249,7 @@ theorem not_isAcyclic_cyclePendant (m : ℕ) (ks : List ℕ) :
     (fun _ _ hxy ↦ cyclePendant_adj_of_cycle_adj rfl rfl hxy) (not_isAcyclic_cycle m)
 
 /-- **The girth of a cycle with pendant vertices is the length of the cycle.** -/
+@[toIsoGraph]
 theorem girth_cyclePendant (m : ℕ) (ks : List ℕ) (hks : ks.length ≤ m + 3) :
     (cyclePendant (m + 3) ks).girth = m + 3 := by
   refine le_antisymm ?_ ?_
@@ -10583,8 +10691,6 @@ theorem compl_book (n : ℕ) : (book n)ᶜ = empty 2 ⊕g complete n := by
 @[simp] theorem circulant_one (n : ℕ) : circulant n [1] = cycle n := by
   rw [circulant_def, CGraph.circulant_one_eq_cycle, cycle_def]
 
-attribute [toIsoGraph] CGraph.circulant_zero_cons CGraph.circulant_congr CGraph.circulant_dup_cons
-  CGraph.circulant_neg_cons
 attribute [simp] IsoGraph.circulant_zero_cons IsoGraph.circulant_dup_cons
 
 /-- The step `n - 1` runs around the cycle backwards. -/
@@ -10615,8 +10721,6 @@ theorem paley_five : paley 5 = cycle 5 := by
   rw [paley_def, cycle_def]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.paley 5) (H := CGraph.cycle 5) (Equiv.refl (Fin 5)) (by decide)⟩
-
-attribute [toIsoGraph] CGraph.paley_thirteen_eq_circulant CGraph.paley_seventeen_eq_circulant
 
 /-- **Paley graphs are self-complementary**, because multiplication by a non-residue exchanges
 the squares with the non-squares.  The general statement needs the multiplicative structure of
@@ -10877,9 +10981,6 @@ degenerate into the named families when one of their parameters vanishes.  Every
 already an equality of `CGraph`s (see the `CGraph` section above), and so descends to the
 quotient. -/
 
-attribute [toIsoGraph] CGraph.tadpole_zero CGraph.tadpole_zero_left CGraph.tadpole_one
-  CGraph.lollipop_zero CGraph.lollipop_zero_left CGraph.lollipop_one
-
 /-- On two or three vertices a clique is a cycle, so the lollipop and the tadpole coincide.  Which
 side is the normal form is a matter of taste, so neither of these is a `simp` lemma. -/
 theorem lollipop_two_eq_tadpole (k : ℕ) : lollipop 2 k = tadpole 2 k := by
@@ -10888,8 +10989,6 @@ theorem lollipop_two_eq_tadpole (k : ℕ) : lollipop 2 k = tadpole 2 k := by
 theorem lollipop_three_eq_tadpole (k : ℕ) : lollipop 3 k = tadpole 3 k := by
   rw [lollipop_def, tadpole_def, CGraph.lollipop_three]
 
-attribute [toIsoGraph] CGraph.spider_singleton CGraph.spider_zero_cons
-  CGraph.spider_append_zero_cons
 attribute [simp] IsoGraph.spider_zero_cons
 
 /-- Two adjacent legs of a spider may be exchanged. -/
@@ -10934,9 +11033,6 @@ theorem spider_perm_append {ks ls : List ℕ} (h : ks.Perm ls) :
 theorem spider_perm {ks ls : List ℕ} (h : ks.Perm ls) : spider ks = spider ls := by
   simpa using spider_perm_append h []
 
-attribute [toIsoGraph] CGraph.spider_replicate_zero CGraph.spider_nil
-  CGraph.cyclePendant_replicate_zero CGraph.cyclePendant_nil CGraph.cyclePendant_append_zero
-  CGraph.thetaGraph_zero_zero_cons
 attribute [simp] IsoGraph.cyclePendant_append_zero IsoGraph.thetaGraph_zero_zero_cons
 
 /-! ## Decorated cycles and trees, up to isomorphism
@@ -10965,7 +11061,6 @@ relabelling (`CGraph.foldAt`, `CGraph.rotTail`, `CGraph.swapZeroOne`, `finSumFin
   simp only [List.mem_append, CGraph.mem_legEdges]
   exact CGraph.foldAt_pair_iff a b x.1 y.1 hx hy
 
-attribute [toIsoGraph] CGraph.thetaGraph_nil CGraph.thetaGraph_replicate_zero
 attribute [simp] IsoGraph.thetaGraph_nil IsoGraph.thetaGraph_replicate_zero
 
 /-- A theta graph with a single path is a path. -/
@@ -11158,7 +11253,6 @@ theorem star_two : star 2 = path 3 := by
         omega
   exact key.symm
 
-attribute [toIsoGraph] CGraph.cyclePendant_singleton_one
 attribute [simp] IsoGraph.cyclePendant_singleton_one
 
 /-- A theta graph with two paths is a cycle. -/
@@ -12073,11 +12167,7 @@ theorem isBipartite_thetaGraph_of_parity {xs : List ℕ} (b : ℕ)
     IsBipartite (thetaGraph xs) :=
   isBipartite_thetaGraph_of_parity 0 fun k hk ↦ by have := h k hk; omega
 
-attribute [toIsoGraph] CGraph.not_isBipartite_complete
-
 theorem not_isBipartite_complete_three : ¬ IsBipartite (complete 3) := not_isBipartite_complete 0
-
-attribute [toIsoGraph] CGraph.not_isBipartite_cycle_odd
 
 theorem not_isBipartite_cycle_three : ¬ IsBipartite (cycle 3) := not_isBipartite_cycle_odd 0
 
@@ -12238,7 +12328,6 @@ theorem not_isBipartite_circulant_of_odd {n : ℕ} {S : List ℕ} (hn : n % 2 = 
   rw [isBipartite_cartesianProduct_iff (by simp) (by simp)]
   exact fun h ↦ not_isBipartite_cycle_odd m h.1
 
-attribute [toIsoGraph] CGraph.not_isBipartite_kneser CGraph.not_isBipartite_johnson
 attribute [simp] IsoGraph.not_isBipartite_kneser IsoGraph.not_isBipartite_johnson
 
 /-- Triangular graphs on at least four points contain a triangle. -/
@@ -13216,8 +13305,6 @@ theorem diameter_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   rw [isConnected_mk] at hG hH
   exact CGraph.diameter_cartesianProduct _ _ hG hH
 
-attribute [toIsoGraph] CGraph.diameter_empty
-
 @[simp] theorem diameter_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ⊕g H).diameter = 0 := by
   induction G using Quotient.inductionOn with | _ g =>
@@ -13257,15 +13344,11 @@ theorem diameter_cartesianProduct_cycle (m n : ℕ) :
 
 /-! ### Degree sequences -/
 
-attribute [toIsoGraph] CGraph.length_degSequence CGraph.sum_degSequence
-
 @[simp] theorem degSequence_empty (n : ℕ) : degSequence (empty n) = List.replicate n 0 :=
   CGraph.degSequence_empty n
 
 @[simp] theorem degSequence_complete (n : ℕ) :
     degSequence (complete n) = List.replicate n (n - 1) := CGraph.degSequence_complete n
-
-attribute [toIsoGraph] CGraph.IsSRGWith.degSequence
 
 @[simp] theorem degSequence_petersen : degSequence petersen = List.replicate 10 3 :=
   isSRGWith_petersen.degSequence
@@ -13369,8 +13452,6 @@ theorem two_mul_E_of_degSequence_replicate {G : IsoGraph} {n k : ℕ}
     (h : degSequence G = List.replicate n k) : 2 * G.E = n * k := by
   rw [← sum_degSequence, h, List.sum_replicate, smul_eq_mul]
 
-attribute [toIsoGraph] CGraph.degSequence_kneser
-
 @[simp] theorem degSequence_rook (m n : ℕ) :
     degSequence (rook m n) = List.replicate (m * n) ((n - 1) + (m - 1)) := by
   show degSequence (complete m □g complete n) = _
@@ -13450,8 +13531,6 @@ theorem two_mul_E_hypercube (n : ℕ) : 2 * (hypercube n).E = 2 ^ n * n :=
   two_mul_E_of_degSequence_replicate (degSequence_hypercube n)
 
 /-! ### Vertex-transitive graphs are regular -/
-
-attribute [toIsoGraph] CGraph.exists_degSequence_replicate_of_isVertexTransitive
 
 /-- A vertex-transitive graph is regular, so the vertex and edge counts already pin down its
 degree sequence. -/
@@ -13577,8 +13656,6 @@ theorem hypercube_ne_complete (n k : ℕ) : hypercube (n + 2) ≠ complete (k + 
 theorem isConnected_of_diameter_ne_zero {G : IsoGraph} (h : G.diameter ≠ 0) : IsConnected G := by
   induction G using Quotient.inductionOn with | _ g =>
   exact CGraph.isConnected_of_diameter_ne_zero g h
-
-attribute [toIsoGraph] CGraph.IsSRGWith.diameter_eq_two CGraph.IsSRGWith.isConnected
 
 private theorem lt_choose_two_aux (m : ℕ) : 2 * (m + 2) + 1 < (m + 4).choose 2 := by
   induction m with
@@ -14149,7 +14226,6 @@ theorem degMultiset_of_degSequence {G : IsoGraph} {n k : ℕ}
     (h : degSequence G = List.replicate n k) : degMultiset G = Multiset.replicate n k := by
   rw [← coe_degSequence, h, Multiset.coe_replicate]
 
-attribute [toIsoGraph] CGraph.degMultiset_disjUnion
 attribute [simp] IsoGraph.degMultiset_disjUnion
 
 @[simp] theorem degMultiset_join (G H : IsoGraph) :
@@ -14338,10 +14414,6 @@ theorem chromNum_le_V (G : IsoGraph) : G.chromNum ≤ G.V := by
   rw [← mk_canonicalize g, chromNum_mk, V_mk]
   exact CGraph.chromNum_le_card _
 
-attribute [toIsoGraph] CGraph.cliqueNum_le_chromNum CGraph.isBipartite_iff_chromNum_le_two
-
-attribute [toIsoGraph] CGraph.chromNum_eq_two_iff CGraph.chromNum_eq_zero_iff
-  CGraph.three_le_chromNum
 attribute [simp] IsoGraph.chromNum_eq_zero_iff
 
 /-- Two graphs with different chromatic numbers are different graphs. -/
@@ -14350,9 +14422,6 @@ theorem ne_of_chromNum_ne {G H : IsoGraph} (h : G.chromNum ≠ H.chromNum) : G �
 
 /-! Values. -/
 
-attribute [toIsoGraph] CGraph.chromNum_empty_zero CGraph.chromNum_empty CGraph.chromNum_complete
-  CGraph.chromNum_path CGraph.chromNum_cycle_even CGraph.chromNum_cycle_odd
-  CGraph.chromNum_disjUnion
 attribute [simp] IsoGraph.chromNum_cycle_even IsoGraph.chromNum_cycle_odd
 
 theorem chromNum_tensorProduct_le (G H : IsoGraph) :
@@ -14428,8 +14497,6 @@ theorem V_le_chromNum_mul_indepNum (G : IsoGraph) : G.V ≤ G.chromNum * G.indep
   rw [← mk_canonicalize g, chromNum_mk, indepNum_mk, V_mk]
   exact CGraph.card_le_chromNum_mul_indepNum _
 
-attribute [toIsoGraph] CGraph.chromNum_eq_one_iff
-
 /-! ### Complete multipartite graphs -/
 
 /-- **A complete multipartite graph needs one colour per nonempty part.** -/
@@ -14469,8 +14536,6 @@ attribute [toIsoGraph] CGraph.chromNum_eq_one_iff
   rw [← mk_canonicalize g, mycielskian_mk, chromNum_mk, chromNum_mk]
   exact CGraph.chromNum_mycielskian _
 
-attribute [toIsoGraph] CGraph.chromNum_kneser_le
-
 /-- **The Petersen graph is 3-chromatic**: the Kneser bound gives three colours, and it is not
 bipartite. -/
 @[simp] theorem chromNum_petersen : petersen.chromNum = 3 :=
@@ -14509,15 +14574,10 @@ theorem girth_eq_zero_iff {G : IsoGraph} : G.girth = 0 ↔ IsAcyclic G := by
 theorem three_le_girth {G : IsoGraph} (h : ¬ IsAcyclic G) : 3 ≤ G.girth := by
   induction G using Quotient.inductionOn with | _ G => exact CGraph.three_le_girth h
 
-attribute [toIsoGraph] CGraph.girth_eq_three_iff CGraph.girth_eq_three_of_cliqueNum
-  CGraph.four_le_girth_of_cliqueNum
-
 theorem four_le_girth_of_isBipartite {G : IsoGraph} (hb : IsBipartite G) (h : ¬ IsAcyclic G) :
     4 ≤ G.girth := by
   induction G using Quotient.inductionOn with | _ G =>
   exact CGraph.four_le_girth_of_isBipartite hb h
-
-attribute [toIsoGraph] CGraph.two_le_cliqueNum_of_E_pos
 
 theorem one_le_cliqueNum {G : IsoGraph} (h : 0 < G.V) : 1 ≤ G.cliqueNum := by
   induction G using Quotient.inductionOn with | _ G =>
@@ -14582,7 +14642,6 @@ theorem girth_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E)
   rw [isBipartite_mk] at hbG hbH
   exact CGraph.girth_cartesianProduct hG hH hbG hbH
 
-attribute [toIsoGraph] CGraph.girth_bipartite
 attribute [simp] IsoGraph.girth_bipartite
 
 @[simp] theorem girth_hypercube (n : ℕ) : (hypercube (n + 2)).girth = 4 := by
@@ -14598,7 +14657,6 @@ attribute [simp] IsoGraph.girth_bipartite
 @[simp] theorem girth_ladder (n : ℕ) : (ladder (n + 2)).girth = 4 :=
   girth_cartesianProduct (by simp) (by simp) (isBipartite_path (n + 2)) isBipartite_complete_two
 
-attribute [toIsoGraph] CGraph.girth_cycle_five
 attribute [simp] IsoGraph.girth_cycle_five
 
 theorem girth_rook {m n : ℕ} (hm : 0 < m) (hn : 0 < n) (h : 3 ≤ max m n) :
@@ -14655,8 +14713,6 @@ example : ¬ IsAcyclic (cycle 5) := by
 
 /-! ### Basic API -/
 
-attribute [toIsoGraph] CGraph.minDeg_le_maxDeg
-
 theorem maxDeg_lt_V {G : IsoGraph} (h : 0 < G.V) : maxDeg G < G.V := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g] at *
@@ -14669,8 +14725,6 @@ theorem maxDeg_le_of_degMultiset {G : IsoGraph} {k : ℕ} (h : ∀ d ∈ degMult
   induction G using Quotient.inductionOn with | _ g =>
   exact CGraph.maxDeg_le_of_forall fun v ↦ h _ (CGraph.mem_degMultiset.2 ⟨v, rfl⟩)
 
-attribute [toIsoGraph] CGraph.maxDeg_eq_of_degMultiset CGraph.minDeg_eq_of_degMultiset
-
 /-- A regular graph, read off its degree multiset: both extremes are the common degree. -/
 theorem maxDeg_of_degMultiset_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)
     (h : degMultiset G = Multiset.replicate n k) : maxDeg G = k :=
@@ -14681,8 +14735,6 @@ theorem minDeg_of_degMultiset_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)
     (h : degMultiset G = Multiset.replicate n k) : minDeg G = k :=
   minDeg_eq_of_degMultiset (h ▸ Multiset.mem_replicate.2 ⟨hn.ne', rfl⟩)
     fun _ hd ↦ ge_of_eq (Multiset.eq_of_mem_replicate (h ▸ hd))
-
-attribute [toIsoGraph] CGraph.maxDeg_eq_sup
 
 /-- **The handshake bounds**: `|V|·δ ≤ 2|E| ≤ |V|·Δ`. -/
 theorem V_mul_minDeg_le (G : IsoGraph) : G.V * minDeg G ≤ 2 * G.E := by
@@ -14711,7 +14763,6 @@ theorem ne_of_minDeg_ne {G H : IsoGraph} (h : minDeg G ≠ minDeg H) : G ≠ H :
 
 /-! ### The disjoint union, the join and the complement -/
 
-attribute [toIsoGraph] CGraph.maxDeg_disjUnion
 attribute [simp] IsoGraph.maxDeg_disjUnion
 
 theorem minDeg_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
@@ -14978,8 +15029,6 @@ example : maxDeg (cycle 5)ᶜ = 2 := by
 /-! ### Greedy colouring and Nordhaus–Gaddum -/
 
 /-! ### Greedy colouring -/
-
-attribute [toIsoGraph] CGraph.chromNum_le_maxDeg_add_one
 
 /-- A `k`-chromatic graph has a vertex of degree at least `k - 1`. -/
 theorem chromNum_sub_one_le_maxDeg (G : IsoGraph) : G.chromNum - 1 ≤ G.maxDeg := by
@@ -15555,8 +15604,6 @@ example : (cocktailParty 4).chromNum = 4 := by simp
 
 /-! ### Turán's theorem -/
 
-attribute [toIsoGraph] CGraph.two_mul_mul_E_le
-
 /-- **Mantel's theorem**: `4·|E| ≤ |V|²` for a triangle-free graph. -/
 theorem four_mul_E_le_V_sq (G : IsoGraph) (h : G.cliqueNum ≤ 2) : 4 * G.E ≤ G.V ^ 2 := by
   have := G.two_mul_mul_E_le (r := 2) (by omega) h
@@ -15583,8 +15630,6 @@ theorem four_mul_E_le_V_sq_of_girth_ne_three (G : IsoGraph) (h : G.girth ≠ 3) 
   refine G.four_mul_E_le_V_sq ?_
   by_contra hcon
   exact h (girth_eq_three_iff.2 (by omega))
-
-attribute [toIsoGraph] CGraph.cliqueNum_le_two_of_isBipartite
 
 theorem four_mul_E_le_V_sq_of_isBipartite (G : IsoGraph) (h : IsBipartite G) :
     4 * G.E ≤ G.V ^ 2 :=
@@ -15655,9 +15700,6 @@ example : 2 < (complete 4).cliqueNum := lt_cliqueNum_of_lt _ (by omega) (by simp
 
 /-! ### The Ramsey number `R(3, 3)` -/
 
-attribute [toIsoGraph] CGraph.three_le_cliqueNum_or_three_le_indepNum
-  CGraph.three_le_indepNum_of_cliqueNum_le_two
-
 /-- The same for a graph of girth other than three, in particular any bipartite graph. -/
 theorem three_le_indepNum_of_girth_ne_three (G : IsoGraph) (h : 6 ≤ G.V) (hg : G.girth ≠ 3) :
     3 ≤ G.indepNum := by
@@ -15706,8 +15748,6 @@ example : 3 ≤ (hypercube 3).indepNum :=
 
 /-! ### Ramsey numbers in general -/
 
-attribute [toIsoGraph] CGraph.le_cliqueNum_or_le_indepNum
-
 /-- The diagonal case, in the crude but memorable form `4^s` — since `C(2s, s) ≤ 2^(2s)`. -/
 theorem le_cliqueNum_or_le_indepNum_of_pow (G : IsoGraph) {s : ℕ} (h : 4 ^ s ≤ G.V) :
     s ≤ G.cliqueNum ∨ s ≤ G.indepNum := by
@@ -15721,7 +15761,6 @@ example (G : IsoGraph) (h : 70 ≤ G.V) : 4 ≤ G.cliqueNum ∨ 4 ≤ G.indepNum
 
 /-! ### The vertex cover number -/
 
-attribute [toIsoGraph] CGraph.coverNum_add_indepNum
 attribute [simp] IsoGraph.coverNum_add_indepNum
 
 theorem coverNum_eq (G : IsoGraph) : G.coverNum = G.V - G.indepNum := by
@@ -15775,8 +15814,6 @@ theorem coverNum_compl_add_cliqueNum (G : IsoGraph) :
 
 /-! ### Where the cover number sits among the other invariants -/
 
-attribute [toIsoGraph] CGraph.E_le_coverNum_mul_maxDeg
-
 /-- Turned around, this is a lower bound on the cover number, and via Gallai an upper bound on
 the independence number. -/
 theorem indepNum_mul_maxDeg_le (G : IsoGraph) :
@@ -15788,7 +15825,6 @@ theorem indepNum_mul_maxDeg_le (G : IsoGraph) :
     _ = (G.coverNum + G.indepNum) * G.maxDeg := by ring
     _ = G.V * G.maxDeg := by rw [h2]
 
-attribute [toIsoGraph] CGraph.coverNum_le_E
 attribute [simp] IsoGraph.coverNum_le_E
 
 /-- A graph with an edge has an independent set smaller than its whole vertex set. -/
@@ -16044,8 +16080,6 @@ theorem domNum_le_V (G : IsoGraph) : G.domNum ≤ G.V := by
   rw [← mk_canonicalize g, V_mk, domNum_mk]
   exact CGraph.domNum_le_card _
 
-attribute [toIsoGraph] CGraph.domNum_eq_zero_iff
-
 theorem domNum_pos {G : IsoGraph} (h : 0 < G.V) : 0 < G.domNum := by
   have := (G.domNum_eq_zero_iff).not.2 (by omega : ¬ G.V = 0)
   omega
@@ -16055,8 +16089,6 @@ theorem V_le_domNum_mul_maxDeg_add_one (G : IsoGraph) : G.V ≤ G.domNum * (G.ma
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, V_mk, domNum_mk, maxDeg_mk]
   exact CGraph.card_le_domNum_mul_maxDeg_add_one _
-
-attribute [toIsoGraph] CGraph.domNum_le_indepNum
 
 /-- **`γ + Δ ≤ |V|`**. -/
 theorem domNum_add_maxDeg_le_V (G : IsoGraph) : G.domNum + G.maxDeg ≤ G.V := by
@@ -16079,7 +16111,6 @@ theorem V_le_indepNum_mul_maxDeg_add_one (G : IsoGraph) : G.V ≤ G.indepNum * (
 
 /-! ### The table -/
 
-attribute [toIsoGraph] CGraph.domNum_empty CGraph.domNum_complete CGraph.domNum_star
 attribute [simp] IsoGraph.domNum_empty IsoGraph.domNum_complete IsoGraph.domNum_star
 
 /-- A `k`-regular graph needs at least `|V|/(k + 1)` vertices to dominate it. -/
@@ -16106,8 +16137,6 @@ example : (complete 7).domNum = 1 := by simp
 
 /-! ### The radius -/
 
-attribute [toIsoGraph] CGraph.radius_le_diameter CGraph.diameter_le_two_mul_radius
-
 theorem radius_pos {G : IsoGraph} (hc : IsConnected G) (hV : 1 < G.V) : 0 < G.radius := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, radius_mk]
@@ -16133,7 +16162,6 @@ theorem radius_eq_diameter_of_isVertexTransitive {G : IsoGraph} (h : IsVertexTra
 
 /-! ### The radius table -/
 
-attribute [toIsoGraph] CGraph.domNum_wheel
 attribute [simp] IsoGraph.domNum_wheel
 
 
@@ -16203,20 +16231,13 @@ example (n : ℕ) : (cycle (2 * n + 1)).radius = n := by
 
 /-! ### Counting cliques -/
 
-attribute [toIsoGraph] CGraph.cliqueCount_le_choose CGraph.cliqueCount_zero CGraph.cliqueCount_one
-
 @[simp] theorem cliqueCount_two (G : IsoGraph) : G.cliqueCount 2 = G.E := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, cliqueCount_mk, E_mk]
   classical
   exact CGraph.cliqueCount_two _
 
-attribute [toIsoGraph] CGraph.cliqueCount_eq_zero_iff CGraph.cliqueCount_pos_iff
-  CGraph.cliqueCount_three_eq_zero_iff CGraph.cliqueCount_three_eq_zero_of_isBipartite
-
 /-! ### The clique-count table -/
-
-attribute [toIsoGraph] CGraph.cliqueCount_complete CGraph.cliqueCount_empty
 
 @[simp] theorem cliqueCount_cycle_even (m : ℕ) : (cycle (2 * m)).cliqueCount 3 = 0 :=
   cliqueCount_three_eq_zero_of_isBipartite (isBipartite_cycle_even m)
@@ -16261,14 +16282,9 @@ example : (cycle 6).cliqueCount 3 = 0 := cliqueCount_cycle_even 3
     Gᶜ.indepCount n = G.cliqueCount n := by
   rw [← cliqueCount_compl Gᶜ, compl_compl]
 
-attribute [toIsoGraph] CGraph.indepCount_zero CGraph.indepCount_one CGraph.indepCount_eq_zero_iff
-  CGraph.indepCount_pos_iff CGraph.indepCount_le_choose
-
 theorem indepCount_two_add_E (G : IsoGraph) : G.indepCount 2 + G.E = G.V.choose 2 := by
   rw [← cliqueCount_compl, cliqueCount_two]
   exact E_compl_add G
-
-attribute [toIsoGraph] CGraph.indepCount_empty CGraph.indepCount_complete
 
 example : (empty 6).indepCount 3 = 20 := by rw [indepCount_empty]; decide
 
@@ -16278,13 +16294,9 @@ example : (complete 4).indepCount 2 = 0 := by
 
 /-! ### Counting cliques in a disjoint union -/
 
-attribute [toIsoGraph] CGraph.cliqueCount_disjUnion
-
 theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
     (G ∇g H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
   rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
-
-attribute [toIsoGraph] CGraph.indepCount_bipartite
 
 @[simp] theorem indepCount_star (n k : ℕ) :
     (star n).indepCount (k + 2) = n.choose (k + 2) := by
@@ -16301,9 +16313,6 @@ example : (complete 4 ⊕g complete 5).cliqueCount 3 = 14 := by
 
 /-! ### Counting connected components -/
 
-attribute [toIsoGraph] CGraph.numComponents_eq_zero_iff CGraph.numComponents_pos_iff
-  CGraph.numComponents_eq_one_iff
-
 theorem numComponents_eq_one_of_isConnected {G : IsoGraph} (h : G.IsConnected) :
     G.numComponents = 1 :=
   (numComponents_eq_one_iff G).2 h
@@ -16311,8 +16320,6 @@ theorem numComponents_eq_one_of_isConnected {G : IsoGraph} (h : G.IsConnected) :
 theorem numComponents_le_V (G : IsoGraph) : G.numComponents ≤ G.V := by
   induction G using Quotient.inductionOn with | _ g =>
   exact CGraph.numComponents_le_card g
-
-attribute [toIsoGraph] CGraph.numComponents_disjUnion
 
 /-- **At most one of a graph and its complement is disconnected.** -/
 theorem numComponents_compl_eq_one {G : IsoGraph} (h : 2 ≤ G.numComponents) :
@@ -16323,8 +16330,6 @@ theorem numComponents_compl_eq_one {G : IsoGraph} (h : 2 ≤ G.numComponents) :
   exact CGraph.numComponents_compl_eq_one _ h
 
 /-! ### The component-count table -/
-
-attribute [toIsoGraph] CGraph.numComponents_empty CGraph.numComponents_complete
 
 @[simp] theorem numComponents_path (n : ℕ) : (path (n + 1)).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_path n)
@@ -16359,8 +16364,6 @@ example : (cycle 5 ⊕g path 4).numComponents = 2 := by simp
 example : (empty 7).numComponents = 7 := by simp
 
 /-! ### Components versus the other invariants -/
-
-attribute [toIsoGraph] CGraph.numComponents_le_indepNum CGraph.numComponents_le_domNum
 
 @[simp] theorem numComponents_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ∇g H).numComponents = 1 :=
@@ -16417,15 +16420,11 @@ example : IsConnected (hypercube 2) := by
 
 /-! ### Counting automorphisms -/
 
-attribute [toIsoGraph] CGraph.autCount_pos CGraph.autCount_le_factorial
-
 /-- **A graph and its complement have the same automorphisms.** -/
 @[simp] theorem autCount_compl (G : IsoGraph) : Gᶜ.autCount = G.autCount := by
   induction G using Quotient.inductionOn with | _ g
   rw [← mk_canonicalize g, compl_mk, autCount_mk, autCount_mk]
   exact CGraph.autCount_compl _
-
-attribute [toIsoGraph] CGraph.autCount_empty CGraph.autCount_complete
 
 /-- Two graphs with different automorphism counts are different. -/
 theorem ne_of_autCount_ne {G H : IsoGraph} (h : G.autCount ≠ H.autCount) : G ≠ H :=
@@ -16443,13 +16442,9 @@ theorem V_le_autCount_of_isVertexTransitive (G : IsoGraph) (hV : 0 < G.V)
   haveI : Nonempty g.V := Fintype.card_pos_iff.1 hV
   exact CGraph.card_le_autCount_of_isVertexTransitive g h
 
-attribute [toIsoGraph] CGraph.two_mul_E_le_autCount_of_isArcTransitive
-
 theorem not_isVertexTransitive_of_autCount_lt (G : IsoGraph) (hV : 0 < G.V)
     (h : G.autCount < G.V) : ¬ G.IsVertexTransitive := fun hvt ↦
   absurd (G.V_le_autCount_of_isVertexTransitive hV hvt) (by omega)
-
-attribute [toIsoGraph] CGraph.not_isArcTransitive_of_autCount_lt
 
 example : 5 ≤ (cycle 5).autCount := by
   have := V_le_autCount_of_isVertexTransitive (cycle 5) (by simp) (by simp)
@@ -16468,8 +16463,6 @@ example : 30 ≤ (kneser 5 2).autCount := by
   simpa using this
 
 /-! ### The handshaking lemma -/
-
-attribute [toIsoGraph] CGraph.even_countP_odd_degMultiset CGraph.even_countP_odd_degSequence
 
 /-- A graph all of whose degrees are odd has evenly many vertices. -/
 theorem even_V_of_forall_odd_mem_degSequence (G : IsoGraph)
@@ -16500,8 +16493,6 @@ example (G : IsoGraph) (h : degSequence G = List.replicate 7 3) : False := by
   exact (by decide : ¬ Even 7) this
 
 /-! ### Automorphisms of the constructions -/
-
-attribute [toIsoGraph] CGraph.autCount_mul_le_autCount_disjUnion
 
 theorem autCount_mul_le_autCount_join (G H : IsoGraph) :
     G.autCount * H.autCount ≤ (G ∇g H).autCount := by
@@ -16687,7 +16678,6 @@ example : (paley 9).E = 27 := by
 
 /-! ### Domination in disjoint unions, joins and cartesian products -/
 
-attribute [toIsoGraph] CGraph.domNum_disjUnion
 attribute [simp] IsoGraph.domNum_disjUnion
 
 theorem domNum_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
@@ -17325,8 +17315,6 @@ theorem isRegularWith_of_degSequence {G : IsoGraph} {n k : ℕ}
   rw [degSequence_mk] at h
   exact CGraph.isRegularWith_of_degSequence h
 
-attribute [toIsoGraph] CGraph.IsRegularWith.degSequence
-
 /-- **The handshake lemma for regular graphs**: `2|E| = k|V|`. -/
 theorem IsRegularWith.two_mul_E {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
     2 * G.E = G.V * k := two_mul_E_of_degSequence_replicate h.degSequence
@@ -17349,8 +17337,6 @@ theorem IsRegularWith.minDeg_eq {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k)
   rw [← mk_canonicalize g, minDeg_mk]
   exact CGraph.IsRegularWith.minDeg_eq h v₀
 
-attribute [toIsoGraph] CGraph.isRegularWith_of_maxDeg_le_of_le_minDeg CGraph.IsSRGWith.isRegularWith
-
 /-- **A vertex-transitive graph is regular**, of degree its common vertex degree. -/
 theorem exists_isRegularWith_of_isVertexTransitive {G : IsoGraph} (h : IsVertexTransitive G) :
     ∃ k, G.IsRegularWith k := by
@@ -17365,8 +17351,6 @@ theorem IsRegularWith.compl {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
   rw [← mk_canonicalize g, isRegularWith_mk] at h
   rw [← mk_canonicalize g, V_mk, compl_mk, isRegularWith_mk]
   exact CGraph.IsRegularWith.compl h
-
-attribute [toIsoGraph] CGraph.IsRegularWith.disjUnion
 
 theorem IsRegularWith.join {G H : IsoGraph} {k l m : ℕ} (hG : G.IsRegularWith k)
     (hH : H.IsRegularWith l) (h1 : k + H.V = m) (h2 : G.V + l = m) :
@@ -17939,8 +17923,6 @@ example : (star 4).matchNum + (star 4).indepNum = 5 := by
 
 
 /-! ### Girth three from strong regularity and from line graphs -/
-
-attribute [toIsoGraph] CGraph.IsSRGWith.girth_eq_three
 
 /-- The edges at a vertex of degree three form a triangle in the line graph. -/
 theorem girth_lineGraph_eq_three {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
@@ -23875,8 +23857,6 @@ the square faces are the shortest cycles. -/
     (path (m + 2) □g path (n + 2)).girth = 4 :=
   girth_cartesianProduct (by simp) (by simp) (isBipartite_path (m + 2)) (isBipartite_path (n + 2))
 
-attribute [toIsoGraph] CGraph.girth_johnson
-
 /-- The Johnson graph has a triangle, so a clique of size three. -/
 theorem three_le_cliqueNum_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
     3 ≤ (johnson n k).cliqueNum :=
@@ -23923,8 +23903,6 @@ theorem domNum_hypercube_four : (hypercube 4).domNum = 4 := by
       rw [← hcard]
       apply CGraph.card_le_domNum_mul_maxDeg_add_one
     nlinarith
-
-attribute [toIsoGraph] CGraph.girth_kneser
 
 theorem three_le_cliqueNum_kneser {n k : ℕ} (hk : 0 < k) (h : 3 * k ≤ n) :
     3 ≤ (kneser n k).cliqueNum :=
@@ -35241,8 +35219,6 @@ theorem radius_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).radius = 2 
     exact le_trans (SimpleGraph.radius_le_eccent (u := v0)) hecc0
   exact le_antisymm hup hlow
 
-attribute [toIsoGraph] CGraph.not_isAcyclic_tadpole
-
 /-- A clique on three or more vertices already has more edges than a tree may. -/
 theorem not_isAcyclic_lollipop (m k : ℕ) : ¬ IsAcyclic (lollipop (m + 3) k) := by
   intro hac
@@ -36067,12 +36043,6 @@ theorem factorial_le_autCount_star (n : ℕ) : n.factorial ≤ (star n).autCount
   have h := factorial_mul_factorial_le_autCount_bipartite 1 n
   rw [← star_eq_bipartite] at h
   simpa using h
-
-attribute [toIsoGraph] CGraph.autCount_star
-
-attribute [toIsoGraph] CGraph.autCount_bipartite CGraph.autCount_bipartite_self
-
-attribute [toIsoGraph] CGraph.autCount_cycle
 
 /-- The wheel inherits the dihedral symmetry of its rim. -/
 theorem le_autCount_wheel (n : ℕ) : 2 * (n + 3) ≤ (wheel (n + 3)).autCount := by
@@ -49614,7 +49584,6 @@ theorem four_le_edgeChromNum_petersen : 4 ≤ petersen.edgeChromNum := by
   rw [show (petersen : IsoGraph) = kneser 5 2 from rfl, kneser_def, autCount_mk]
   exact CGraph.autCount_kneser_five_two
 
-attribute [toIsoGraph] CGraph.girth_cycle CGraph.girth_tadpole CGraph.girth_cyclePendant
 attribute [simp] IsoGraph.girth_cycle IsoGraph.girth_tadpole IsoGraph.girth_cyclePendant
 
 /-- Once the cycle has four or more vertices there is no triangle, so the clique number of a

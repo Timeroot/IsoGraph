@@ -336,9 +336,10 @@ def degSequence : List ℕ := G.degMultiset.sort (· ≤ ·)
 theorem degSequence_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.degSequence = H.degSequence :=
   congrArg (fun m : Multiset ℕ ↦ m.sort (· ≤ ·)) (degMultiset_eq_of_iso i)
 
+@[toIsoGraph]
 theorem degSequence_eq_sort : G.degSequence = G.degMultiset.sort (· ≤ ·) := rfl
 
-@[simp] theorem coe_degSequence : (G.degSequence : Multiset ℕ) = G.degMultiset :=
+@[simp, toIsoGraph] theorem coe_degSequence : (G.degSequence : Multiset ℕ) = G.degMultiset :=
   Multiset.sort_eq _ _
 
 /-- Maximum degree, `0` on the empty graph. -/
@@ -650,11 +651,3 @@ instance [DecidableEq G.V] : Decidable G.IsArcTransitive :=
   decidable_of_iff _ (isArcTransitive_iff G).symm
 
 end CGraph
-
-/-! ## Invariants of an `IsoGraph`
-
-Every declaration of the previous section tagged `@[toIsoGraph]` has already produced its
-`IsoGraph`-level counterpart, a `Quotient.lift` together with its `@[simp]` `…_mk` lemma.  The two
-facts relating a pair of them transfer just as well. -/
-
-attribute [toIsoGraph] CGraph.degSequence_eq_sort CGraph.coe_degSequence

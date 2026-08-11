@@ -519,22 +519,45 @@ theorem isHermitian_adjMat (G : CGraph) : G.adjMat.IsHermitian :=
 /-- The characteristic polynomial. -/
 noncomputable def charpoly (G : CGraph) : ℝ[X] := G.adjMat.charpoly
 
+theorem charpoly_eq_matrix_charpoly (G : CGraph) [inst : DecidableEq G.V] :
+    G.charpoly = G.adjMat.charpoly :=
+  congrArg (fun d ↦ @Matrix.charpoly ℝ _ G.V d _ G.adjMat) (Subsingleton.elim _ _)
+
 /-- The eigenvalues, indexed by the vertices. -/
 noncomputable def eigenvalues (G : CGraph) : G.V → ℝ := G.isHermitian_adjMat.eigenvalues
 
 /-- The spectrum: the multiset of eigenvalues, with multiplicity. -/
 noncomputable def spectrum (G : CGraph) : Multiset ℝ := G.charpoly.roots
 
+/-! ## Isomorphism invariance -/
+
+theorem adjMat_congr {G H : CGraph} (i : G ≃cg H) :
+    G.adjMat = Matrix.reindex i.toEquiv.symm i.toEquiv.symm H.adjMat := by
+  ext x y
+  simp [adjMat_apply, Matrix.reindex_apply, Matrix.submatrix_apply, i.adj_eq x y]
+
+@[toIsoGraph]
+theorem charpoly_congr {G H : CGraph} (i : G ≃cg H) : G.charpoly = H.charpoly := by
+  classical
+  rw [charpoly_eq_matrix_charpoly, charpoly_eq_matrix_charpoly, adjMat_congr i,
+    Matrix.charpoly_reindex]
+
+@[toIsoGraph]
+theorem spectrum_congr {G H : CGraph} (i : G ≃cg H) : G.spectrum = H.spectrum := by
+  rw [spectrum, spectrum, charpoly_congr i]
+
+/-! ## The size and the degree of the spectrum -/
+
 theorem spectrum_eq_map (G : CGraph) :
     G.spectrum = Finset.univ.val.map G.eigenvalues := by
   simpa [spectrum, charpoly, Function.comp_def]
     using G.isHermitian_adjMat.roots_charpoly_eq_eigenvalues
 
-@[simp] theorem card_spectrum (G : CGraph) :
+@[simp, toIsoGraph] theorem card_spectrum (G : CGraph) :
     Multiset.card G.spectrum = Fintype.card G.V := by
   simp [spectrum_eq_map, Finset.card_univ]
 
-@[simp] theorem natDegree_charpoly (G : CGraph) :
+@[simp, toIsoGraph] theorem natDegree_charpoly (G : CGraph) :
     G.charpoly.natDegree = Fintype.card G.V :=
   Matrix.charpoly_natDegree_eq_dim _
 
@@ -551,10 +574,6 @@ theorem charpoly_eq_prod_spectrum (G : CGraph) :
 
 theorem monic_charpoly (G : CGraph) : G.charpoly.Monic := Matrix.charpoly_monic _
 
-
-theorem charpoly_eq_matrix_charpoly (G : CGraph) [inst : DecidableEq G.V] :
-    G.charpoly = G.adjMat.charpoly :=
-  congrArg (fun d ↦ @Matrix.charpoly ℝ _ G.V d _ G.adjMat) (Subsingleton.elim _ _)
 
 theorem scalar_eq_smul_one {n : Type} [Fintype n] [DecidableEq n] (x : ℝ) :
     Matrix.scalar n x = x • (1 : Matrix n n ℝ) := by
@@ -634,21 +653,6 @@ theorem exists_intCast_eq_of_ratCast_mem_spectrum (G : CGraph) {q : ℚ}
   obtain ⟨z, hz⟩ := IsIntegrallyClosed.isIntegral_iff.1 h2
   exact ⟨z, by rw [← hz]; norm_cast⟩
 
-/-! ## Isomorphism invariance -/
-
-theorem adjMat_congr {G H : CGraph} (i : G ≃cg H) :
-    G.adjMat = Matrix.reindex i.toEquiv.symm i.toEquiv.symm H.adjMat := by
-  ext x y
-  simp [adjMat_apply, Matrix.reindex_apply, Matrix.submatrix_apply, i.adj_eq x y]
-
-theorem charpoly_congr {G H : CGraph} (i : G ≃cg H) : G.charpoly = H.charpoly := by
-  classical
-  rw [charpoly_eq_matrix_charpoly, charpoly_eq_matrix_charpoly, adjMat_congr i,
-    Matrix.charpoly_reindex]
-
-theorem spectrum_congr {G H : CGraph} (i : G ≃cg H) : G.spectrum = H.spectrum := by
-  rw [spectrum, spectrum, charpoly_congr i]
-
 /-! ## The empty graph and the disjoint union -/
 
 @[simp] theorem adjMat_empty (n : ℕ) : (empty n).adjMat = 0 := by
@@ -657,7 +661,9 @@ theorem spectrum_congr {G H : CGraph} (i : G ≃cg H) : G.spectrum = H.spectrum 
 @[simp] theorem charpoly_empty (n : ℕ) : (empty n).charpoly = X ^ n := by
   simp [charpoly, Matrix.charpoly_zero]
 
-@[simp] theorem spectrum_empty (n : ℕ) : (empty n).spectrum = Multiset.replicate n 0 := by
+@[simp, toIsoGraph]
+theorem spectrum_empty (n : ℕ) :
+    (empty n).spectrum = Multiset.replicate n 0 := by
   simp [spectrum, Polynomial.roots_pow, Multiset.nsmul_singleton]
 
 theorem adjMat_disjUnion (G H : CGraph) :
@@ -665,13 +671,13 @@ theorem adjMat_disjUnion (G H : CGraph) :
   ext x y
   cases x <;> cases y <;> simp [adjMat_apply, disjUnion]
 
-@[simp] theorem charpoly_disjUnion (G H : CGraph) :
+@[simp, toIsoGraph] theorem charpoly_disjUnion (G H : CGraph) :
     (disjUnion G H).charpoly = G.charpoly * H.charpoly := by
   classical
   rw [charpoly_eq_matrix_charpoly, adjMat_disjUnion, Matrix.charpoly_fromBlocks_zero₁₂,
     ← charpoly_eq_matrix_charpoly, ← charpoly_eq_matrix_charpoly]
 
-@[simp] theorem spectrum_disjUnion (G H : CGraph) :
+@[simp, toIsoGraph] theorem spectrum_disjUnion (G H : CGraph) :
     (disjUnion G H).spectrum = G.spectrum + H.spectrum := by
   rw [spectrum, charpoly_disjUnion, Polynomial.roots_mul
     (mul_ne_zero G.monic_charpoly.ne_zero H.monic_charpoly.ne_zero)]
@@ -706,6 +712,7 @@ theorem charpoly_complete (n : ℕ) :
     Polynomial.mul_comp, Polynomial.C_comp, Polynomial.one_comp, Polynomial.C_add, Polynomial.C_1]
   ring
 
+@[toIsoGraph]
 theorem spectrum_complete (n : ℕ) :
     (complete (n + 1)).spectrum = (n : ℝ) ::ₘ Multiset.replicate n (-1) := by
   have h1 : (X + 1 : ℝ[X]) = X - C (-1) := by simp
@@ -1014,6 +1021,7 @@ theorem injective_path_eigenvalue (n : ℕ) :
   exact Fin.ext (by exact_mod_cast this)
 
 /-- **The spectrum of the path** `P_n`: the `n` numbers `2 cos (π m / (n + 1))`, `1 ≤ m ≤ n`. -/
+@[toIsoGraph]
 theorem spectrum_path (n : ℕ) :
     (path n).spectrum
       = Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1))) := by
@@ -1483,7 +1491,7 @@ theorem adjMat_pow_apply (G : CGraph) [DecidableEq G.V] (n : ℕ) (u v : G.V) :
 /-! ## Traces: the order and the size are read off the spectrum -/
 
 /-- **The eigenvalues sum to zero**, because the adjacency matrix has zero diagonal. -/
-@[simp] theorem sum_spectrum (G : CGraph) : G.spectrum.sum = 0 := by
+@[simp, toIsoGraph] theorem sum_spectrum (G : CGraph) : G.spectrum.sum = 0 := by
   classical
   have h1 : G.adjMat.trace = ∑ i, G.eigenvalues i :=
     G.isHermitian_adjMat.trace_eq_sum_eigenvalues
@@ -1536,6 +1544,7 @@ theorem sum_sq_spectrum_eq_sum_degrees (G : CGraph) :
   exact Finset.sum_congr rfl fun i _ ↦ h i
 
 /-- **The sum of the squares of the eigenvalues is twice the number of edges.** -/
+@[toIsoGraph]
 theorem sum_sq_spectrum (G : CGraph) : (G.spectrum.map (· ^ 2)).sum = 2 * (G.E : ℝ) := by
   classical
   have hE : G.E = G.toSimple.edgeFinset.card := rfl
@@ -1633,6 +1642,7 @@ private theorem card_orderedTriangles (G : CGraph) :
 
 /-- **The third moment counts triangles.**  The trace of `A ³` counts closed walks of length
 three, and each triangle contributes six of them, one for each ordering of its vertices. -/
+@[toIsoGraph]
 theorem sum_cube_spectrum (G : CGraph) :
     (G.spectrum.map (· ^ 3)).sum = 6 * (G.cliqueCount 3 : ℝ) := by
   rw [sum_pow_spectrum, trace_adjMat_cube, card_orderedTriangles,
@@ -2108,6 +2118,21 @@ theorem spectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
 the same eigenvalues with the same multiplicities. -/
 def Cospectral (G H : CGraph) : Prop := G.charpoly = H.charpoly
 
+end CGraph
+
+namespace IsoGraph
+
+/-- Two isomorphism classes are **cospectral** when they have the same characteristic polynomial. -/
+def Cospectral (G H : IsoGraph) : Prop := G.charpoly = H.charpoly
+
+@[simp, isoTransfer] theorem cospectral_mk (G H : CGraph) :
+    Cospectral ⟦G⟧ ⟦H⟧ ↔ G.Cospectral H := Iff.rfl
+
+end IsoGraph
+
+namespace CGraph
+
+@[toIsoGraph]
 theorem Cospectral.spectrum_eq {G H : CGraph} (h : Cospectral G H) : G.spectrum = H.spectrum := by
   rw [spectrum, spectrum, h]
 
@@ -2132,6 +2157,7 @@ theorem Cospectral.card_eq {G H : CGraph} (h : Cospectral G H) :
 
 /-- **Cospectral graphs have the same number of edges**, by the sum of the squares of the
 eigenvalues. -/
+@[toIsoGraph]
 theorem Cospectral.E_eq {G H : CGraph} (h : Cospectral G H) : G.E = H.E := by
   have h2 : (2 : ℝ) * G.E = 2 * H.E := by
     rw [← sum_sq_spectrum, ← sum_sq_spectrum, h.spectrum_eq]
@@ -2140,6 +2166,7 @@ theorem Cospectral.E_eq {G H : CGraph} (h : Cospectral G H) : G.E = H.E := by
 
 /-- **Cospectral graphs have the same number of triangles**, by the sum of the cubes of the
 eigenvalues. -/
+@[toIsoGraph]
 theorem Cospectral.cliqueCount_three_eq {G H : CGraph} (h : Cospectral G H) :
     G.cliqueCount 3 = H.cliqueCount 3 := by
   have h6 : (6 : ℝ) * G.cliqueCount 3 = 6 * H.cliqueCount 3 := by
@@ -2369,6 +2396,7 @@ theorem spectrum_star (n : ℕ) :
 
 /-- The star `K₁,₄` and the disjoint union of the four-cycle `K₂,₂` with an isolated vertex are
 cospectral: both spectra are `2, -2, 0, 0, 0`. -/
+@[toIsoGraph]
 theorem cospectral_star_four :
     (star 4).Cospectral (disjUnion (bipartite 2 2) (empty 1)) := by
   have hs := spectrum_star 3
@@ -3849,6 +3877,7 @@ theorem isRegularWith_of_two_mul_E_eq (G : CGraph) [Nonempty G.V] {k : ℕ}
 
 /-- **Regularity is determined by the spectrum**: a graph cospectral with a `k`-regular graph is
 itself `k`-regular, since the order, the size and the largest eigenvalue are all spectral. -/
+@[toIsoGraph]
 theorem Cospectral.isRegularWith {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : H.IsRegularWith k := by
   rcases isEmpty_or_nonempty H.V with hemp | hne
@@ -5664,6 +5693,7 @@ theorem isConnected_iff_count_spectrum_eq_one {G : CGraph} {k : ℕ} (hreg : G.I
   ⟨fun h ↦ count_spectrum_eq_one_of_isConnected h hreg, isConnected_of_count_spectrum_eq_one hreg⟩
 
 /-- **Connectedness is determined by the spectrum, for a regular graph.** -/
+@[toIsoGraph]
 theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) (hconn : G.IsConnected) : H.IsConnected :=
   (isConnected_iff_count_spectrum_eq_one (h.isRegularWith hG)).2
@@ -5774,6 +5804,7 @@ theorem isBipartite_iff_lambdaMin_eq {G : CGraph} [Nonempty G.V] (hconn : G.IsCo
   rwa [hmax] at this
 
 /-- **Bipartiteness of a connected regular graph is determined by the spectrum.** -/
+@[toIsoGraph]
 theorem Cospectral.isBipartite {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) (hconn : G.IsConnected) (hbip : G.IsBipartite) : H.IsBipartite :=
   (isBipartite_iff_neg_mem_spectrum (h.isConnected hG hconn) (h.isRegularWith hG)).2
@@ -6065,6 +6096,7 @@ column of `M = (A - r) (A - s)` is a `k`-eigenvector; as `k` is simple and `M` i
 
 This is the converse of `spectrum_isSRGWith`, and together with it says that strong regularity of
 a connected regular graph is exactly the condition "three distinct eigenvalues". -/
+@[toIsoGraph]
 theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : ℕ}
     (hconn : G.IsConnected) (hreg : G.IsRegularWith k)
     (h3 : G.spectrum.toFinset.card = 3) :
@@ -6153,6 +6185,7 @@ theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : �
 
 /-- **A strongly regular graph has at most three distinct eigenvalues.**  Every eigenvalue other
 than the degree is a root of `X ² - (ℓ - μ) X - (k - μ)`, and a quadratic has at most two. -/
+@[toIsoGraph]
 theorem card_toFinset_spectrum_le_three_of_isSRGWith {G : CGraph} {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) : G.spectrum.toFinset.card ≤ 3 := by
   set p : ℝ[X] := X ^ 2 - C ((l : ℝ) - m) * X - C ((k : ℝ) - m) with hp
@@ -6211,10 +6244,24 @@ theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l 
 /-- The **energy** of a graph: the sum of the absolute values of its adjacency eigenvalues. -/
 noncomputable def energy (G : CGraph) : ℝ := (G.spectrum.map (|·|)).sum
 
+end CGraph
+
+namespace IsoGraph
+
+/-- The energy of an isomorphism class. -/
+noncomputable def energy (G : IsoGraph) : ℝ := (G.spectrum.map (|·|)).sum
+
+@[simp, isoTransfer] theorem energy_mk (G : CGraph) : energy ⟦G⟧ = G.energy := rfl
+
+end IsoGraph
+
+namespace CGraph
+
 theorem energy_eq_sum (G : CGraph) : G.energy = ∑ i, |G.eigenvalues i| := by
   rw [energy, spectrum_eq_map, Multiset.map_map]
   rfl
 
+@[toIsoGraph]
 theorem energy_nonneg (G : CGraph) : 0 ≤ G.energy := by
   rw [energy_eq_sum]
   exact Finset.sum_nonneg fun i _ ↦ abs_nonneg _
@@ -6252,6 +6299,7 @@ theorem two_mul_lambdaMax_le_energy (G : CGraph) [Nonempty G.V] : 2 * G.lambdaMa
 
 /-- **McClelland's bound**: by Cauchy–Schwarz against `∑ λ ² = 2 |E|`, the energy is at most
 `√(2 |E| n)`. -/
+@[toIsoGraph]
 theorem energy_le_sqrt (G : CGraph) :
     G.energy ≤ Real.sqrt (2 * G.E * Fintype.card G.V) := by
   have hsq : G.energy ^ 2 ≤ 2 * G.E * Fintype.card G.V := by
@@ -6267,6 +6315,7 @@ theorem energy_le_sqrt (G : CGraph) :
 `∑ λ ² = 2 |E|` and the off-diagonal sum of `|λ i λ j|`, which dominates
 `|∑_{i ≠ j} λ i λ j| = |(∑ λ) ² - ∑ λ ²| = 2 |E|`; so the square of the energy is at least
 `4 |E|`. -/
+@[toIsoGraph]
 theorem two_mul_sqrt_le_energy (G : CGraph) : 2 * Real.sqrt G.E ≤ G.energy := by
   have hsum0 : ∑ i, G.eigenvalues i = 0 := by
     have := G.sum_spectrum
@@ -6306,7 +6355,7 @@ theorem two_mul_sqrt_le_energy (G : CGraph) : 2 * Real.sqrt G.E ≤ G.energy := 
   have hle := Real.sqrt_le_sqrt key
   rwa [h4, Real.sqrt_sq (energy_nonneg G)] at hle
 
-@[simp] theorem energy_disjUnion (G H : CGraph) :
+@[simp, toIsoGraph] theorem energy_disjUnion (G H : CGraph) :
     (disjUnion G H).energy = G.energy + H.energy := by
   rw [energy, energy, energy, spectrum_disjUnion, Multiset.map_add, Multiset.sum_add]
 
@@ -6329,6 +6378,7 @@ the products `λ μ` and `|λ μ| = |λ| |μ|`. -/
   exact key G.spectrum H.spectrum
 
 /-- **The energy of a complete graph** is `2 (n - 1)`: the eigenvalues are `n - 1` and `-1`. -/
+@[toIsoGraph]
 theorem energy_complete (n : ℕ) : (complete (n + 1)).energy = 2 * n := by
   rw [energy, spectrum_complete]
   simp [Multiset.map_replicate, abs_of_nonneg, two_mul]
@@ -6337,6 +6387,7 @@ theorem Cospectral.energy_eq {G H : CGraph} (h : Cospectral G H) : G.energy = H.
   rw [energy, energy, h.spectrum_eq]
 
 /-- **A graph has zero energy exactly when it has no edges**, since `∑ λ ² = 2 |E|`. -/
+@[toIsoGraph]
 theorem energy_eq_zero_iff (G : CGraph) : G.energy = 0 ↔ G.E = 0 := by
   have hsq := G.sum_sq_eigenvalues
   constructor
@@ -6430,12 +6481,33 @@ noncomputable def lapSpectrum (G : CGraph) : Multiset ℝ := G.lapCharpoly.roots
 /-- The Laplacian eigenvalues, indexed by the vertices. -/
 noncomputable def lapEigenvalues (G : CGraph) : G.V → ℝ := G.isHermitian_lapMat.eigenvalues
 
+theorem lapMat_congr {G H : CGraph} (i : G ≃cg H) :
+    G.lapMat = Matrix.reindex i.toEquiv.symm i.toEquiv.symm H.lapMat := by
+  ext x y
+  rcases eq_or_ne x y with rfl | hxy
+  · rw [lapMat_apply_self, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
+      lapMat_apply_self]
+    exact_mod_cast (SimpleGraph.Iso.degree_eq (CGraph.Iso.toSimpleIso i) x).symm
+  · rw [lapMat_apply_of_ne _ hxy, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
+      lapMat_apply_of_ne _ (fun h ↦ hxy (i.toEquiv.injective h))]
+    simp [adjMat_apply, i.adj_eq x y]
+
+@[toIsoGraph]
+theorem lapCharpoly_congr {G H : CGraph} (i : G ≃cg H) : G.lapCharpoly = H.lapCharpoly := by
+  classical
+  rw [lapCharpoly, lapCharpoly, lapMat_congr i]
+  exact Matrix.charpoly_reindex _ _
+
+@[toIsoGraph]
+theorem lapSpectrum_congr {G H : CGraph} (i : G ≃cg H) : G.lapSpectrum = H.lapSpectrum := by
+  rw [lapSpectrum, lapSpectrum, lapCharpoly_congr i]
+
 theorem lapSpectrum_eq_map (G : CGraph) :
     G.lapSpectrum = Finset.univ.val.map G.lapEigenvalues := by
   simpa [lapSpectrum, lapCharpoly, Function.comp_def]
     using G.isHermitian_lapMat.roots_charpoly_eq_eigenvalues
 
-@[simp] theorem card_lapSpectrum (G : CGraph) :
+@[simp, toIsoGraph] theorem card_lapSpectrum (G : CGraph) :
     Multiset.card G.lapSpectrum = Fintype.card G.V := by
   simp [lapSpectrum_eq_map, Finset.card_univ]
 
@@ -6466,6 +6538,7 @@ theorem lapSpectrum_eq_of_card_le (G : CGraph) (s : Finset ℝ)
   · simp [Multiset.count_eq_zero_of_notMem (fun h ↦ hx (Finset.mem_def.mpr h))]
 
 /-- **The Laplacian eigenvalues are nonnegative**: `L` is positive semidefinite. -/
+@[toIsoGraph]
 theorem nonneg_of_mem_lapSpectrum (G : CGraph) {x : ℝ} (hx : x ∈ G.lapSpectrum) : 0 ≤ x := by
   rw [lapSpectrum_eq_map, Multiset.mem_map] at hx
   obtain ⟨i, -, rfl⟩ := hx
@@ -6482,6 +6555,7 @@ theorem trace_lapMat (G : CGraph) : G.lapMat.trace = ∑ i, (G.toSimple.degree i
 
 /-- **The Laplacian eigenvalues sum to twice the number of edges**: the trace of `L` is the sum of
 the degrees. -/
+@[toIsoGraph]
 theorem sum_lapSpectrum (G : CGraph) : G.lapSpectrum.sum = 2 * (G.E : ℝ) := by
   have h1 : G.lapSpectrum.sum = ∑ i, G.lapEigenvalues i := by rw [lapSpectrum_eq_map]; rfl
   have h2 : G.lapMat.trace = ∑ i, G.lapEigenvalues i := by
@@ -6516,6 +6590,7 @@ theorem lapMat_mulVec_eq_zero_iff (G : CGraph) {v : G.V → ℝ} :
   G.toSimple.lapMatrix_mulVec_eq_zero_iff_forall_reachable
 
 /-- **The multiplicity of `0` in the Laplacian spectrum is the number of components.** -/
+@[toIsoGraph]
 theorem count_zero_lapSpectrum (G : CGraph) : G.lapSpectrum.count 0 = G.numComponents := by
   classical
   have hnull : Module.finrank ℝ (LinearMap.ker G.lapMat.mulVecLin) = G.numComponents := by
@@ -6544,25 +6619,6 @@ theorem count_zero_lapSpectrum_eq_one_iff (G : CGraph) :
     G.lapSpectrum.count 0 = 1 ↔ G.IsConnected := by
   rw [count_zero_lapSpectrum, numComponents_eq_one_iff]
 
-theorem lapMat_congr {G H : CGraph} (i : G ≃cg H) :
-    G.lapMat = Matrix.reindex i.toEquiv.symm i.toEquiv.symm H.lapMat := by
-  ext x y
-  rcases eq_or_ne x y with rfl | hxy
-  · rw [lapMat_apply_self, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
-      lapMat_apply_self]
-    exact_mod_cast (SimpleGraph.Iso.degree_eq (CGraph.Iso.toSimpleIso i) x).symm
-  · rw [lapMat_apply_of_ne _ hxy, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
-      lapMat_apply_of_ne _ (fun h ↦ hxy (i.toEquiv.injective h))]
-    simp [adjMat_apply, i.adj_eq x y]
-
-theorem lapCharpoly_congr {G H : CGraph} (i : G ≃cg H) : G.lapCharpoly = H.lapCharpoly := by
-  classical
-  rw [lapCharpoly, lapCharpoly, lapMat_congr i]
-  exact Matrix.charpoly_reindex _ _
-
-theorem lapSpectrum_congr {G H : CGraph} (i : G ≃cg H) : G.lapSpectrum = H.lapSpectrum := by
-  rw [lapSpectrum, lapSpectrum, lapCharpoly_congr i]
-
 theorem monic_lapCharpoly (G : CGraph) : G.lapCharpoly.Monic := Matrix.charpoly_monic _
 
 theorem lapCharpoly_eq_matrix_charpoly (G : CGraph) [inst : DecidableEq G.V] :
@@ -6583,7 +6639,7 @@ theorem degree_empty (n : ℕ) (i : (empty n).V) : (empty n).toSimple.degree i =
   · rw [lapMat_apply_of_ne _ hij]
     simp [adjMat_apply, empty_adj]
 
-@[simp] theorem lapSpectrum_empty (n : ℕ) :
+@[simp, toIsoGraph] theorem lapSpectrum_empty (n : ℕ) :
     (empty n).lapSpectrum = Multiset.replicate n 0 := by
   simp [lapSpectrum, lapCharpoly, Polynomial.roots_pow, Multiset.nsmul_singleton]
 
@@ -6602,7 +6658,7 @@ theorem lapMat_disjUnion (G H : CGraph) :
     ← lapCharpoly_eq_matrix_charpoly, ← lapCharpoly_eq_matrix_charpoly]
 
 /-- **The Laplacian spectrum of a disjoint union is the sum of the spectra.** -/
-@[simp] theorem lapSpectrum_disjUnion (G H : CGraph) :
+@[simp, toIsoGraph] theorem lapSpectrum_disjUnion (G H : CGraph) :
     (disjUnion G H).lapSpectrum = G.lapSpectrum + H.lapSpectrum := by
   rw [lapSpectrum, lapSpectrum, lapSpectrum, lapCharpoly_disjUnion, Polynomial.roots_mul
     (mul_ne_zero G.monic_lapCharpoly.ne_zero H.monic_lapCharpoly.ne_zero)]
@@ -6629,6 +6685,7 @@ theorem lapCharpoly_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith
 
 /-- **The Laplacian spectrum of a `k`-regular graph is `k` minus its adjacency spectrum**,
 with multiplicities. -/
+@[toIsoGraph]
 theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
     G.lapSpectrum = G.spectrum.map (fun x ↦ (k : ℝ) - x) := by
   have hroot : ∀ i : G.V, (X - C ((k : ℝ) - G.eigenvalues i)).roots
@@ -6640,6 +6697,7 @@ theorem lapSpectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith
 
 /-- The same statement read backwards: **the adjacency spectrum of a `k`-regular graph is `k`
 minus its Laplacian spectrum**. -/
+@[toIsoGraph]
 theorem spectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
     G.spectrum = G.lapSpectrum.map (fun x ↦ (k : ℝ) - x) := by
   rw [lapSpectrum_of_isRegularWith h, Multiset.map_map]
@@ -6652,6 +6710,7 @@ theorem isRegularWith_empty (n : ℕ) : (empty n).IsRegularWith 0 := by
 
 /-- **The Laplacian spectrum of the complete graph** `K_{n+1}`: `0` once, and `n + 1` with
 multiplicity `n`. -/
+@[toIsoGraph]
 theorem lapSpectrum_complete (n : ℕ) :
     (complete (n + 1)).lapSpectrum = (0 : ℝ) ::ₘ Multiset.replicate n ((n : ℝ) + 1) := by
   rw [lapSpectrum_of_isRegularWith (isRegularWith_complete n), spectrum_complete,
@@ -6993,6 +7052,7 @@ theorem lapSpectrum_compl (G : CGraph) [DecidableEq G.V] [Nonempty G.V] :
 
 /-- **The Laplacian spectrum of the complete bipartite graph** `K_{m+1,n+1}`: `0`, `m + n + 2`,
 `n + 1` with multiplicity `m`, and `m + 1` with multiplicity `n`. -/
+@[toIsoGraph]
 theorem lapSpectrum_bipartite (m n : ℕ) :
     (bipartite (m + 1) (n + 1)).lapSpectrum
       = 0 ::ₘ (((m : ℝ) + (n : ℝ) + 2)
@@ -7024,6 +7084,7 @@ theorem lapSpectrum_bipartite (m n : ℕ) :
 /-- **The Laplacian spectrum of the star** `K₁,ₙ₊₁`: `0`, `n + 2`, and `1` with multiplicity `n`.
 The star is not regular, so this does not come from `lapSpectrum_of_isRegularWith`; it is the
 `m = 0` case of `lapSpectrum_bipartite`. -/
+@[toIsoGraph]
 theorem lapSpectrum_star (n : ℕ) :
     (star (n + 1)).lapSpectrum = 0 ::ₘ (((n : ℝ) + 2) ::ₘ Multiset.replicate n 1) := by
   have h := lapSpectrum_bipartite 0 n
@@ -7226,6 +7287,7 @@ theorem hasLapEigenvector_path (n : ℕ) (m : Fin n) :
 `0 ≤ m < n`.  The path is not regular, so this does not follow from `spectrum_path`; the
 eigenvectors are the discrete cosines `cos (π m (j + 1/2) / n)`, which satisfy the reflecting
 boundary condition the Laplacian imposes at the two ends. -/
+@[toIsoGraph]
 theorem lapSpectrum_path (n : ℕ) :
     (path n).lapSpectrum
       = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (Real.pi * m.1 / n)) := by
@@ -7262,6 +7324,7 @@ theorem lapSpectrum_path (n : ℕ) :
 /-- **Every Laplacian eigenvalue is at most twice the maximum degree.**  Evaluate the
 eigenvector equation at a coordinate where `|v|` is largest, as for `abs_le_maxDeg_of_mem_spectrum`
 in the adjacency case. -/
+@[toIsoGraph]
 theorem le_two_mul_maxDeg_of_mem_lapSpectrum {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) :
     x ≤ 2 * (G.maxDeg : ℝ) := by
   classical
@@ -7330,14 +7393,31 @@ is the smallest one left after discarding the copy of `0` that every nonempty gr
 empty and the one-vertex graph nothing is left, and `sInf ∅ = 0` gives the usual convention. -/
 noncomputable def algConn (G : CGraph) : ℝ := sInf {x : ℝ | x ∈ G.lapSpectrum.erase 0}
 
+end CGraph
+
+namespace IsoGraph
+
+/-- **Algebraic connectivity** of an isomorphism class: the second-smallest Laplacian
+eigenvalue. -/
+noncomputable def algConn (G : IsoGraph) : ℝ := sInf {x : ℝ | x ∈ G.lapSpectrum.erase 0}
+
+@[simp, isoTransfer] theorem algConn_mk (G : CGraph) : algConn ⟦G⟧ = G.algConn := rfl
+
+end IsoGraph
+
+namespace CGraph
+
+@[toIsoGraph]
 theorem algConn_nonneg (G : CGraph) : 0 ≤ G.algConn :=
   Real.sInf_nonneg fun _ hx ↦ G.nonneg_of_mem_lapSpectrum (Multiset.mem_of_mem_erase hx)
 
+@[toIsoGraph]
 theorem algConn_le {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum.erase 0) : G.algConn ≤ x :=
   csInf_le (Multiset.finite_toSet _).bddBelow hx
 
 /-- On two or more vertices the algebraic connectivity really is attained: it is a Laplacian
 eigenvalue. -/
+@[toIsoGraph]
 theorem algConn_mem_erase (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
     G.algConn ∈ G.lapSpectrum.erase 0 := by
   haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
@@ -7348,12 +7428,14 @@ theorem algConn_mem_erase (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
   obtain ⟨y, hy⟩ := Multiset.card_pos_iff_exists_mem.1 hpos
   exact Set.Nonempty.csInf_mem ⟨y, hy⟩ (Multiset.finite_toSet _)
 
+@[toIsoGraph]
 theorem algConn_mem_lapSpectrum (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
     G.algConn ∈ G.lapSpectrum :=
   Multiset.mem_of_mem_erase (G.algConn_mem_erase h)
 
 /-- To compute an algebraic connectivity it is enough to exhibit a least element of the punctured
 Laplacian spectrum. -/
+@[toIsoGraph]
 theorem algConn_eq_of_isLeast {G : CGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum.erase 0)
     (hle : ∀ x ∈ G.lapSpectrum.erase 0, a ≤ x) : G.algConn = a :=
   le_antisymm (algConn_le hmem) (le_csInf ⟨a, hmem⟩ hle)
@@ -7361,6 +7443,7 @@ theorem algConn_eq_of_isLeast {G : CGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum
 /-- **The algebraic connectivity is positive exactly for a connected graph** (on at least two
 vertices): the multiplicity of `0` is the number of components, so a second `0` survives the
 erasure precisely when the graph falls apart. -/
+@[toIsoGraph]
 theorem algConn_pos_iff (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
     0 < G.algConn ↔ G.IsConnected := by
   constructor
@@ -7407,6 +7490,7 @@ theorem algConn_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
 
 /-- **The algebraic connectivity of the complete graph is its order**, the extreme case of
 `algConn_le_card`. -/
+@[toIsoGraph]
 theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 := by
   have hspec : (complete (n + 2)).lapSpectrum
       = 0 ::ₘ Multiset.replicate (n + 1) ((n : ℝ) + 2) := by
@@ -7427,6 +7511,7 @@ theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 
 /-- **The algebraic connectivity of a complete bipartite graph is the size of its smaller side.**
 (The one exception is `K₁,₁ = K₂`, where the smaller side has one vertex but `a = 2`; the
 hypothesis `1 ≤ m + n` rules it out.) -/
+@[toIsoGraph]
 theorem algConn_bipartite (m n : ℕ) (h : 1 ≤ m + n) :
     (bipartite (m + 1) (n + 1)).algConn = min ((m : ℝ) + 1) ((n : ℝ) + 1) := by
   have herase : (bipartite (m + 1) (n + 1)).lapSpectrum.erase 0
@@ -7461,6 +7546,7 @@ theorem algConn_bipartite (m n : ℕ) (h : 1 ≤ m + n) :
       exact hm1
 
 /-- **The star has algebraic connectivity `1`.** -/
+@[toIsoGraph]
 theorem algConn_star (n : ℕ) : (star (n + 2)).algConn = 1 := by
   have hn0 : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
   have h := algConn_bipartite 0 (n + 1) (by omega)
@@ -7474,6 +7560,7 @@ open Real in
 eigenvalues `2 - 2 cos (π m / (n + 2))` the one at `m = 0` is the erased zero and the cosine is
 decreasing, so `m = 1` gives the smallest of the rest.  It shrinks like `1 / n ²`, which is why
 the path is the connected graph the Fiedler value calls worst-connected. -/
+@[toIsoGraph]
 theorem algConn_path (n : ℕ) :
     (path (n + 2)).algConn = 2 - 2 * Real.cos (π / ((n : ℝ) + 2)) := by
   have hpi : 0 < π := Real.pi_pos
@@ -7538,6 +7625,21 @@ theorem algConn_path (n : ℕ) :
 As with `algConn` the supremum is taken in `ℝ`, so the empty graph gets `sSup ∅ = 0`. -/
 noncomputable def lapLambdaMax (G : CGraph) : ℝ := sSup {x : ℝ | x ∈ G.lapSpectrum}
 
+end CGraph
+
+namespace IsoGraph
+
+/-- The **largest Laplacian eigenvalue** of an isomorphism class. -/
+noncomputable def lapLambdaMax (G : IsoGraph) : ℝ := sSup {x : ℝ | x ∈ G.lapSpectrum}
+
+@[simp, isoTransfer] theorem lapLambdaMax_mk (G : CGraph) :
+    lapLambdaMax ⟦G⟧ = G.lapLambdaMax := rfl
+
+end IsoGraph
+
+namespace CGraph
+
+@[toIsoGraph]
 theorem le_lapLambdaMax {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) : x ≤ G.lapLambdaMax :=
   le_csSup (Multiset.finite_toSet _).bddAbove hx
 
@@ -7547,6 +7649,7 @@ theorem lapLambdaMax_mem_lapSpectrum (G : CGraph) [Nonempty G.V] :
 
 /-- To compute a largest Laplacian eigenvalue it is enough to exhibit a greatest element of the
 Laplacian spectrum. -/
+@[toIsoGraph]
 theorem lapLambdaMax_eq_of_isGreatest {G : CGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum)
     (hle : ∀ x ∈ G.lapSpectrum, x ≤ a) : G.lapLambdaMax = a :=
   le_antisymm (csSup_le ⟨a, hmem⟩ hle) (le_lapLambdaMax hmem)
@@ -7554,6 +7657,7 @@ theorem lapLambdaMax_eq_of_isGreatest {G : CGraph} {a : ℝ} (hmem : a ∈ G.lap
 theorem lapLambdaMax_nonneg (G : CGraph) [Nonempty G.V] : 0 ≤ G.lapLambdaMax :=
   le_lapLambdaMax G.zero_mem_lapSpectrum
 
+@[toIsoGraph]
 theorem algConn_le_lapLambdaMax (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
     G.algConn ≤ G.lapLambdaMax :=
   le_lapLambdaMax (G.algConn_mem_lapSpectrum h)
@@ -7644,6 +7748,7 @@ theorem algConn_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
     linarith
 
 /-- **The largest Laplacian eigenvalue of the complete graph** `K_{n+2}` is its order. -/
+@[toIsoGraph]
 theorem lapLambdaMax_complete (n : ℕ) : (complete (n + 2)).lapLambdaMax = (n : ℝ) + 2 := by
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [show n + 2 = (n + 1) + 1 from rfl, lapSpectrum_complete]
@@ -7661,6 +7766,7 @@ theorem lapLambdaMax_complete (n : ℕ) : (complete (n + 2)).lapLambdaMax = (n :
 
 /-- **The largest Laplacian eigenvalue of the star** `K₁,ₙ₊₁` is its order: the star is a join, and
 a join always attains the bound `lapLambdaMax_le_card`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_star (n : ℕ) : (star (n + 1)).lapLambdaMax = (n : ℝ) + 2 := by
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [lapSpectrum_star]
@@ -7676,6 +7782,7 @@ theorem lapLambdaMax_star (n : ℕ) : (star (n + 1)).lapLambdaMax = (n : ℝ) + 
 
 /-- **The largest Laplacian eigenvalue of the complete bipartite graph** `K_{m+1,n+1}` is its
 order, like every join. -/
+@[toIsoGraph]
 theorem lapLambdaMax_bipartite (m n : ℕ) :
     (bipartite (m + 1) (n + 1)).lapLambdaMax = (m : ℝ) + (n : ℝ) + 2 := by
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
@@ -7699,6 +7806,7 @@ open Real in
 /-- **The largest Laplacian eigenvalue of the path** `P_{n+1}` is `2 - 2 cos (π n / (n + 1))`, the
 top of the same cosine range whose bottom is `algConn_path`.  It climbs to `4` as `n → ∞` but never
 reaches it: a path is bipartite but not regular. -/
+@[toIsoGraph]
 theorem lapLambdaMax_path (n : ℕ) :
     (path (n + 1)).lapLambdaMax = 2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1)) := by
   have hN : (0 : ℝ) < (n : ℝ) + 1 := by positivity
@@ -8664,7 +8772,7 @@ theorem lapLambdaMax_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))]
 
 /-! ### Laplacian cospectrality -/
 
-@[simp] theorem natDegree_lapCharpoly (G : CGraph) :
+@[simp, toIsoGraph] theorem natDegree_lapCharpoly (G : CGraph) :
     G.lapCharpoly.natDegree = Fintype.card G.V :=
   Matrix.charpoly_natDegree_eq_dim _
 
@@ -8681,6 +8789,22 @@ theorem lapCharpoly_eq_prod_lapSpectrum (G : CGraph) :
 agree. -/
 def LapCospectral (G H : CGraph) : Prop := G.lapCharpoly = H.lapCharpoly
 
+end CGraph
+
+namespace IsoGraph
+
+/-- Two isomorphism classes are **Laplacian cospectral** when their Laplacian characteristic
+polynomials agree. -/
+def LapCospectral (G H : IsoGraph) : Prop := G.lapCharpoly = H.lapCharpoly
+
+@[simp, isoTransfer] theorem lapCospectral_mk (G H : CGraph) :
+    LapCospectral ⟦G⟧ ⟦H⟧ ↔ G.LapCospectral H := Iff.rfl
+
+end IsoGraph
+
+namespace CGraph
+
+@[toIsoGraph]
 theorem LapCospectral.lapSpectrum_eq {G H : CGraph} (h : LapCospectral G H) :
     G.lapSpectrum = H.lapSpectrum := by
   rw [lapSpectrum, lapSpectrum, h]
@@ -8695,6 +8819,7 @@ theorem LapCospectral.trans {G H K : CGraph} (h : LapCospectral G H) (h' : LapCo
 theorem LapCospectral.of_iso {G H : CGraph} (i : G ≃cg H) : LapCospectral G H :=
   lapCharpoly_congr i
 
+@[toIsoGraph]
 theorem lapCospectral_iff_lapSpectrum_eq (G H : CGraph) :
     G.LapCospectral H ↔ G.lapSpectrum = H.lapSpectrum := by
   refine ⟨LapCospectral.lapSpectrum_eq, fun h ↦ ?_⟩
@@ -8706,6 +8831,7 @@ theorem LapCospectral.card_eq {G H : CGraph} (h : LapCospectral G H) :
   rw [← natDegree_lapCharpoly, ← natDegree_lapCharpoly, h]
 
 /-- **Laplacian cospectral graphs have the same number of edges**, by the trace. -/
+@[toIsoGraph]
 theorem LapCospectral.E_eq {G H : CGraph} (h : LapCospectral G H) : G.E = H.E := by
   have h2 : (2 : ℝ) * G.E = 2 * H.E := by
     rw [← sum_lapSpectrum, ← sum_lapSpectrum, h.lapSpectrum_eq]
@@ -8714,11 +8840,13 @@ theorem LapCospectral.E_eq {G H : CGraph} (h : LapCospectral G H) : G.E = H.E :=
 
 /-- **Laplacian cospectral graphs have the same number of connected components** — a statement
 with no analogue for the adjacency spectrum, which needs regularity to see connectedness. -/
+@[toIsoGraph]
 theorem LapCospectral.numComponents_eq {G H : CGraph} (h : LapCospectral G H) :
     G.numComponents = H.numComponents := by
   rw [← count_zero_lapSpectrum, ← count_zero_lapSpectrum, h.lapSpectrum_eq]
 
 /-- **Connectedness is a Laplacian spectral invariant.** -/
+@[toIsoGraph]
 theorem LapCospectral.isConnected {G H : CGraph} (h : LapCospectral G H) (hG : G.IsConnected) :
     H.IsConnected := by
   rw [← count_zero_lapSpectrum_eq_one_iff] at hG ⊢
@@ -8738,6 +8866,7 @@ theorem LapCospectral.sum_sq_degrees_eq {G H : CGraph} (h : LapCospectral G H) :
 sequence of a Laplacian cospectral partner of a `k`-regular graph: its degrees sum to `n k` and
 its squared degrees to `n k ²`, so `∑ (d (i) - k) ² = 0` and every degree is `k`.  The adjacency
 twin `Cospectral.isRegularWith` needs the extremal eigenvalue instead. -/
+@[toIsoGraph]
 theorem LapCospectral.isRegularWith {G H : CGraph} (h : LapCospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : H.IsRegularWith k := by
   classical
@@ -8780,17 +8909,20 @@ theorem LapCospectral.isRegularWith {G H : CGraph} (h : LapCospectral G H) {k : 
 
 /-- **Laplacian cospectral graphs have the same algebraic connectivity**, straight from the
 definition. -/
+@[toIsoGraph]
 theorem LapCospectral.algConn_eq {G H : CGraph} (h : LapCospectral G H) :
     G.algConn = H.algConn := by
   rw [algConn, algConn, h.lapSpectrum_eq]
 
 /-- **Laplacian cospectral graphs have the same largest Laplacian eigenvalue**, likewise. -/
+@[toIsoGraph]
 theorem LapCospectral.lapLambdaMax_eq {G H : CGraph} (h : LapCospectral G H) :
     G.lapLambdaMax = H.lapLambdaMax := by
   rw [lapLambdaMax, lapLambdaMax, h.lapSpectrum_eq]
 
 /-- For regular graphs the two notions agree in one direction: cospectral regular graphs are
 Laplacian cospectral. -/
+@[toIsoGraph]
 theorem Cospectral.lapCospectral {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : LapCospectral G H := by
   rw [lapCospectral_iff_lapSpectrum_eq, lapSpectrum_of_isRegularWith hG,
@@ -8808,37 +8940,19 @@ The characteristic polynomial and the spectrum are isomorphism invariants, so th
 that evaluate them on a representative.  The rest of the section is transferred the same way, and
 `IsoGraph/ToIsoGraph.lean` explains how. -/
 
-attribute [toIsoGraph] CGraph.charpoly_congr CGraph.spectrum_congr
-
 theorem spectrum_eq_roots_charpoly (G : IsoGraph) : G.spectrum = G.charpoly.roots :=
   Quotient.inductionOn G fun _ ↦ rfl
-
-attribute [toIsoGraph] CGraph.card_spectrum CGraph.natDegree_charpoly CGraph.sum_spectrum
-  CGraph.sum_sq_spectrum CGraph.sum_cube_spectrum CGraph.spectrum_empty CGraph.spectrum_complete
-  CGraph.spectrum_path
 
 theorem spectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
     (cycle n).spectrum
       = Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (2 * Real.pi * m.1 / n)) :=
   CGraph.spectrum_cycle hn
 
-attribute [toIsoGraph] CGraph.charpoly_disjUnion CGraph.spectrum_disjUnion
-
-/-- The energy of an isomorphism class. -/
-noncomputable def energy (G : IsoGraph) : ℝ := (G.spectrum.map (|·|)).sum
-
-@[simp, isoTransfer] theorem energy_mk (G : CGraph) : energy ⟦G⟧ = G.energy := rfl
-
-attribute [toIsoGraph] CGraph.energy_nonneg CGraph.two_mul_sqrt_le_energy CGraph.energy_le_sqrt
-  CGraph.energy_disjUnion
-
 /-- **The energy is multiplicative over tensor products.** -/
 @[simp] theorem energy_tensorProduct (G H : IsoGraph) :
     (G ⊗g H).energy = G.energy * H.energy :=
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [tensorProduct_mk, energy_mk, energy_mk, energy_mk, CGraph.energy_tensorProduct g h]
-
-attribute [toIsoGraph] CGraph.energy_complete CGraph.energy_eq_zero_iff
 
 theorem spectrum_tensorProduct (G H : IsoGraph) :
     (G ⊗g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 * p.2) :=
@@ -8978,20 +9092,9 @@ theorem spectrum_king (m n : ℕ) :
 
 /-! ### Determined by the spectrum -/
 
-/-- Two isomorphism classes are **cospectral** when they have the same characteristic polynomial. -/
-def Cospectral (G H : IsoGraph) : Prop := G.charpoly = H.charpoly
-
-@[simp, isoTransfer] theorem cospectral_mk (G H : CGraph) :
-    Cospectral ⟦G⟧ ⟦H⟧ ↔ G.Cospectral H := Iff.rfl
-
-attribute [toIsoGraph] CGraph.Cospectral.spectrum_eq
-
 /-- Cospectral graphs have the same order. -/
 theorem Cospectral.V_eq {G H : IsoGraph} (h : Cospectral G H) : G.V = H.V := by
   rw [← natDegree_charpoly, ← natDegree_charpoly, h]
-
-attribute [toIsoGraph] CGraph.Cospectral.E_eq CGraph.Cospectral.cliqueCount_three_eq
-  CGraph.Cospectral.isRegularWith CGraph.Cospectral.isConnected CGraph.Cospectral.isBipartite
 
 /-- A graph is **determined by its spectrum** when no other isomorphism class is cospectral. -/
 def IsDS (G : IsoGraph) : Prop := ∀ H : IsoGraph, Cospectral G H → G = H
@@ -9007,8 +9110,6 @@ theorem isDS_mk_iff (G : CGraph) : IsDS ⟦G⟧ ↔ G.IsDS := by
 theorem isDS_empty (n : ℕ) : IsDS (empty n) := (isDS_mk_iff _).2 (CGraph.isDS_empty n)
 
 theorem isDS_complete (n : ℕ) : IsDS (complete n) := (isDS_mk_iff _).2 (CGraph.isDS_complete n)
-
-attribute [toIsoGraph] CGraph.cospectral_star_four
 
 /-- **Not every graph is determined by its spectrum.**  The star `K₁,₄` is cospectral with
 `K₂,₂ ⊔ K₁`, which is disconnected. -/
@@ -9103,8 +9204,6 @@ theorem card_toFinset_spectrum_eq_two_iff {G : IsoGraph} {k : ℕ} (hconn : G.Is
   obtain ⟨n, hn⟩ : ∃ n, G.V = n + 2 := ⟨G.V - 2, by omega⟩
   rw [h, hn, card_toFinset_spectrum_complete]
 
-attribute [toIsoGraph] CGraph.card_toFinset_spectrum_le_three_of_isSRGWith
-
 /-- **A connected strongly regular graph that is not complete has exactly three distinct
 eigenvalues.** -/
 theorem card_toFinset_spectrum_eq_three_of_isSRGWith {G : IsoGraph} {n k l m : ℕ}
@@ -9119,8 +9218,6 @@ theorem card_toFinset_spectrum_eq_three_of_isSRGWith {G : IsoGraph} {n k l m : �
     obtain ⟨i, j, hij, hnadj⟩ := CGraph.exists_not_adj_of_E_lt g hE
     exact CGraph.card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hij hnadj
 
-attribute [toIsoGraph] CGraph.exists_isSRGWith_of_card_toFinset_spectrum_eq_three
-
 /-- **Strong regularity is determined by the spectrum.** -/
 theorem Cospectral.exists_isSRGWith {G H : IsoGraph} (hc : Cospectral G H) {n k l m : ℕ}
     (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) (hE : G.E < G.V.choose 2) :
@@ -9132,13 +9229,6 @@ theorem Cospectral.exists_isSRGWith {G H : IsoGraph} (hc : Cospectral G H) {n k 
   exact card_toFinset_spectrum_eq_three_of_isSRGWith hconn h hE
 
 /-! ### The Laplacian -/
-
-attribute [toIsoGraph] CGraph.lapSpectrum_congr
-
-attribute [toIsoGraph] CGraph.card_lapSpectrum CGraph.nonneg_of_mem_lapSpectrum
-  CGraph.sum_lapSpectrum CGraph.count_zero_lapSpectrum CGraph.lapSpectrum_empty
-  CGraph.lapSpectrum_disjUnion CGraph.lapSpectrum_of_isRegularWith CGraph.spectrum_of_isRegularWith
-  CGraph.lapSpectrum_complete
 
 /-- **The Laplacian spectrum of the cycle** `C_n`, `n ≥ 3`: the numbers `2 - 2 cos (2 π m / n)`. -/
 theorem lapSpectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
@@ -9171,8 +9261,6 @@ theorem lapSpectrum_compl {G : IsoGraph} (hG : 0 < G.V) :
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
     rw [compl_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk]
     exact CGraph.lapSpectrum_compl g
-
-attribute [toIsoGraph] CGraph.lapSpectrum_bipartite CGraph.lapSpectrum_star CGraph.lapSpectrum_path
 
 /-- **The Laplacian spectrum of a join**: `0`, the order `n + m`, and every other eigenvalue of
 each factor shifted by the order of the other factor. -/
@@ -9227,8 +9315,6 @@ theorem lapSpectrum_wheel {n : ℕ} (hn : 0 < n) :
   rw [hone]
   norm_num [add_comm (1 : ℝ) (n : ℝ)]
 
-attribute [toIsoGraph] CGraph.le_two_mul_maxDeg_of_mem_lapSpectrum
-
 /-- **Every Laplacian eigenvalue is at most the number of vertices.** -/
 theorem le_V_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) : x ≤ G.V := by
   induction G using Quotient.inductionOn with
@@ -9236,21 +9322,8 @@ theorem le_V_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectr
 
 /-! ### Laplacian cospectrality -/
 
-attribute [toIsoGraph] CGraph.lapCharpoly_congr
-
-attribute [toIsoGraph] CGraph.natDegree_lapCharpoly
-
 theorem lapSpectrum_eq_roots_lapCharpoly (G : IsoGraph) : G.lapSpectrum = G.lapCharpoly.roots :=
   Quotient.inductionOn G fun _ ↦ rfl
-
-/-- **Algebraic connectivity** of an isomorphism class: the second-smallest Laplacian
-eigenvalue. -/
-noncomputable def algConn (G : IsoGraph) : ℝ := sInf {x : ℝ | x ∈ G.lapSpectrum.erase 0}
-
-@[simp, isoTransfer] theorem algConn_mk (G : CGraph) : algConn ⟦G⟧ = G.algConn := rfl
-
-attribute [toIsoGraph] CGraph.algConn_nonneg CGraph.algConn_le CGraph.algConn_mem_erase
-  CGraph.algConn_mem_lapSpectrum CGraph.algConn_pos_iff
 
 theorem algConn_le_V (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ≤ G.V := by
   induction G using Quotient.inductionOn with
@@ -9259,8 +9332,6 @@ theorem algConn_le_V (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ≤ G.V := by
     rw [V_mk] at h ⊢
     exact g.algConn_le_card h
 
-attribute [toIsoGraph] CGraph.algConn_complete CGraph.algConn_bipartite CGraph.algConn_star
-  CGraph.algConn_path CGraph.algConn_eq_of_isLeast
 attribute [simp] IsoGraph.algConn_complete IsoGraph.algConn_star
 
 open Real in
@@ -9340,14 +9411,6 @@ theorem algConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
       haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
       exact CGraph.algConn_disjUnion g h'
 
-/-- The **largest Laplacian eigenvalue** of an isomorphism class. -/
-noncomputable def lapLambdaMax (G : IsoGraph) : ℝ := sSup {x : ℝ | x ∈ G.lapSpectrum}
-
-@[simp, isoTransfer] theorem lapLambdaMax_mk (G : CGraph) :
-    lapLambdaMax ⟦G⟧ = G.lapLambdaMax := rfl
-
-attribute [toIsoGraph] CGraph.le_lapLambdaMax
-
 theorem lapLambdaMax_mem_lapSpectrum (G : IsoGraph) (h : 0 < G.V) :
     G.lapLambdaMax ∈ G.lapSpectrum := by
   induction G using Quotient.inductionOn with
@@ -9356,16 +9419,12 @@ theorem lapLambdaMax_mem_lapSpectrum (G : IsoGraph) (h : 0 < G.V) :
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
     exact g.lapLambdaMax_mem_lapSpectrum
 
-attribute [toIsoGraph] CGraph.lapLambdaMax_eq_of_isGreatest
-
 theorem lapLambdaMax_nonneg (G : IsoGraph) (h : 0 < G.V) : 0 ≤ G.lapLambdaMax := by
   induction G using Quotient.inductionOn with
   | h g =>
     rw [V_mk] at h
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
     exact g.lapLambdaMax_nonneg
-
-attribute [toIsoGraph] CGraph.algConn_le_lapLambdaMax
 
 /-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
 theorem lapLambdaMax_le_V (G : IsoGraph) (h : 0 < G.V) : G.lapLambdaMax ≤ G.V :=
@@ -9412,8 +9471,6 @@ theorem algConn_compl {G : IsoGraph} (h : 2 ≤ G.V) :
     rw [compl_mk, algConn_mk, lapLambdaMax_mk, V_mk]
     exact g.algConn_compl h
 
-attribute [toIsoGraph] CGraph.lapLambdaMax_complete CGraph.lapLambdaMax_star
-  CGraph.lapLambdaMax_bipartite CGraph.lapLambdaMax_path
 attribute [simp] IsoGraph.lapLambdaMax_complete IsoGraph.lapLambdaMax_star
   IsoGraph.lapLambdaMax_bipartite
 
@@ -9863,23 +9920,9 @@ theorem algConn_hypercube {n : ℕ} (hn : 0 < n) : (hypercube n).algConn = 2 := 
       exact_mod_cast Nat.one_le_iff_ne_zero.2 hj0
     linarith
 
-/-- Two isomorphism classes are **Laplacian cospectral** when their Laplacian characteristic
-polynomials agree. -/
-def LapCospectral (G H : IsoGraph) : Prop := G.lapCharpoly = H.lapCharpoly
-
-@[simp, isoTransfer] theorem lapCospectral_mk (G H : CGraph) :
-    LapCospectral ⟦G⟧ ⟦H⟧ ↔ G.LapCospectral H := Iff.rfl
-
-attribute [toIsoGraph] CGraph.LapCospectral.lapSpectrum_eq CGraph.lapCospectral_iff_lapSpectrum_eq
-
 /-- Laplacian cospectral graphs have the same order. -/
 theorem LapCospectral.V_eq {G H : IsoGraph} (h : LapCospectral G H) : G.V = H.V := by
   rw [← natDegree_lapCharpoly, ← natDegree_lapCharpoly, h]
-
-attribute [toIsoGraph] CGraph.LapCospectral.E_eq CGraph.LapCospectral.numComponents_eq
-  CGraph.LapCospectral.isConnected CGraph.LapCospectral.isRegularWith
-  CGraph.LapCospectral.algConn_eq CGraph.LapCospectral.lapLambdaMax_eq
-  CGraph.Cospectral.lapCospectral
 
 /-- **The Laplacian spectrum separates the standard cospectral pair.**  `K₁,₄` and `K₂,₂ ⊔ K₁`
 are cospectral (`cospectral_star_four`) but have one and two components, so by
