@@ -3,11 +3,62 @@ import IsoGraph.Basic
 /-!
 # The `@[toIsoGraph]` attribute
 
-Every quantity in this library is defined twice: once on `CGraph`, where a concrete graph can be
-computed with, and once on `IsoGraph`, where it is the `Quotient.lift` of the first along a proof
-of isomorphism invariance.  The second copy is mechanical, and this file makes it automatic.
+Every construction and every quantity in this library is defined twice: once on `CGraph`, where a
+concrete graph can be computed with, and once on `IsoGraph`, where it is the image of the first
+under the quotient by isomorphism.  The second copy is mechanical, and this file makes it
+automatic.  The attribute has four modes, chosen by the shape of the declaration it is put on.
 
-Tagging an invariance theorem
+## A construction
+
+On a `CGraph`-valued definition that takes no graph of its own,
+
+```
+@[toIsoGraph]
+def CGraph.paley (q : ℕ) : CGraph := ...
+```
+
+generates
+
+```
+def IsoGraph.paley (q : ℕ) : IsoGraph := ⟦CGraph.paley q⟧
+
+theorem IsoGraph.paley_def (q : ℕ) : IsoGraph.paley q = ⟦CGraph.paley q⟧ := rfl
+```
+
+with any number of arguments.  The bridge is tagged `@[isoTransfer]`, the simp set that mediates
+between the two levels; it is used from right to left, so `⟦CGraph.paley q⟧` is rewritten to
+`IsoGraph.paley q` whenever a `CGraph`-level fact is restated one level up.
+
+## A construction that takes a graph
+
+A construction with a `CGraph` argument does not descend to the quotient by itself: it has to be
+shown to respect isomorphism first.  The attribute goes on that congruence,
+
+```
+@[toIsoGraph]
+def CGraph.Iso.lineGraph [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
+    CGraph.lineGraph G ≃cg CGraph.lineGraph G' := ...
+```
+
+and generates the `Quotient.lift` along it, together with the simp lemma that the lift agrees with
+the construction on representatives:
+
+```
+def IsoGraph.lineGraph (G : IsoGraph) : IsoGraph := Quotient.lift ... G
+
+@[simp] theorem IsoGraph.lineGraph_mk (G : CGraph) [DecidableEq G.V] :
+    IsoGraph.lineGraph ⟦G⟧ = ⟦CGraph.lineGraph G⟧ := ...
+```
+
+One and two graph arguments are supported.  Most of these constructions ask for a `DecidableEq` on
+the vertex type, which a bare `CGraph` does not supply; when that happens the lift is taken of
+`G.canonicalize`, whose vertex type is a `Fin n`, and the `_mk` lemma is a `Quotient.sound` rather
+than an `rfl`.  When no instance is needed — `disjUnion` — the graph is used as it stands and the
+`_mk` lemma is `rfl`.
+
+## An invariant
+
+On an invariance theorem for a quantity,
 
 ```
 @[toIsoGraph]
@@ -26,11 +77,9 @@ noncomputable def IsoGraph.girth (G : IsoGraph) : ℕ :=
 The invariance theorem may take extra arguments after the isomorphism, which become extra
 arguments of the lifted function (`IsRegularWith k`, `cliqueCount n`, …); it may conclude with an
 equation, with an `Iff`, or — for a `Prop`-valued quantity, where the converse follows by symmetry
-— with a one-way implication.  The name of the generated function is read off the statement, and
-can be overridden by writing it after the attribute, as `@[toIsoGraph V]`.
+— with a one-way implication.
 
-The `_mk` lemma is also tagged `@[isoTransfer]`, which is the simp set used to rewrite a
-`CGraph`-level statement into its `IsoGraph`-level counterpart.
+## A fact
 
 On any other `CGraph`-level declaration the attribute states the same fact one level up.  Two
 conclusions are read as equations of isomorphism classes: an equation `g = h` of graphs, and an
@@ -42,11 +91,28 @@ def CGraph.paleyFiveIso : CGraph.paley 5 ≃cg CGraph.cycle 5 := ...
 ```
 
 generates `IsoGraph.paley_five : IsoGraph.paley 5 = IsoGraph.cycle 5`, by `Quotient.sound`.
+
+## Names, the dictionary, and the debug flag
+
+The name of what is generated is read off the declaration and can be overridden by writing it
+after the attribute, as `@[toIsoGraph V]`.
+
+Every generated pair is recorded in a dictionary of correspondences — `CGraph.paley ↔
+IsoGraph.paley`, `CGraph.compl ↔ IsoGraph.compl`, `CGraph.chromNum ↔ IsoGraph.chromNum` — which
+`#isograph_dict` prints, optionally filtered by a substring of either name.  It is also what the
+error message reaches for when a fact cannot be stated on the quotient because some construction
+in it has no counterpart yet.  The handful of pairs that are written by hand rather than generated
+put themselves in the dictionary with `isograph_bridge`.
+
+`set_option trace.toIsoGraph true` prints every definition and theorem the attribute generates,
+with its statement.
 -/
 
 open Lean Meta Elab
 
 namespace IsoGraph.Attr
+
+initialize registerTraceClass `toIsoGraph
 
 /-- The simp set that translates between the two levels: each lemma states that an `IsoGraph`-level
 term applied to `⟦G⟧` is a `CGraph`-level term, and is used from right to left. -/
@@ -63,6 +129,19 @@ private def isographE : Expr := mkConst ``IsoGraph
 /-- The setoid `IsoGraph` is a quotient by, as an expression. -/
 private def setoidE : Expr := mkConst ``CGraph.isoSetoid
 
+/-- The isomorphism class of a graph, as an expression. -/
+private def mkRep (uCG : Level) (g : Expr) : Expr :=
+  mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, g]
+
+/-- `Quotient.sound` applied to an isomorphism `iso : a ≃cg b`, giving `⟦a⟧ = ⟦b⟧`.  The two
+graphs are passed explicitly: `a ≈ b` is `Nonempty (a ≃cg b)` only after the setoid instance is
+unfolded, which is more than unification will do on its own. -/
+private def mkSound (uCG : Level) (a b iso : Expr) : MetaM Expr := do
+  let isoTy := mkAppN (mkConst ``CGraph.Iso) #[a, b]
+  let u ← getLevel isoTy
+  let ne := mkAppN (mkConst ``Nonempty.intro [u]) #[isoTy, iso]
+  return mkAppN (mkConst ``Quotient.sound [uCG]) #[cgraphE, setoidE, a, b, ne]
+
 /-- Lower-case the leading capital of a `CamelCase` name, so that `IsRegularWith` becomes
 `isRegularWith`.  An all-capitals prefix is left alone: `E` stays `E` and `SRG` stays `SRG`, since
 those are acronyms rather than words. -/
@@ -70,6 +149,265 @@ private def lowerFirst (s : String) : String :=
   match s.toList with
   | c :: d :: cs => if d.isLower then String.ofList (c.toLower :: d :: cs) else s
   | _ => s
+
+/-! ## The dictionary
+
+What the attribute knows about the two levels, kept in an environment extension so that it
+survives into the next module: which `IsoGraph`-level constant each `CGraph`-level one corresponds
+to, and which lemma bridges them. -/
+
+/-- The four things the attribute generates. -/
+inductive Kind
+  /-- A construction with no graph arguments, lifted by taking its class. -/
+  | construction
+  /-- A construction with graph arguments, lifted through an isomorphism congruence. -/
+  | operation
+  /-- A quantity, lifted through an invariance theorem. -/
+  | invariant
+  /-- A fact, restated on the quotient. -/
+  | fact
+  deriving Inhabited, BEq, DecidableEq
+
+/-- One entry of the dictionary: a `CGraph`-level constant, its `IsoGraph`-level counterpart, and
+the lemma that connects them (`Name.anonymous` when the two are a statement and its restatement,
+which need no bridge). -/
+structure Correspondence where
+  /-- Which of the four generators produced this entry. -/
+  kind : Kind
+  /-- The `CGraph`-level constant. -/
+  cgraph : Name
+  /-- The `IsoGraph`-level constant. -/
+  isograph : Name
+  /-- The lemma bridging the two, if there is one. -/
+  bridge : Name
+  /-- The declaration the attribute was written on. -/
+  source : Name
+  deriving Inhabited
+
+/-- The dictionary of correspondences between the two levels. -/
+initialize corrExt : SimplePersistentEnvExtension Correspondence (Array Correspondence) ←
+  registerSimplePersistentEnvExtension
+    { addEntryFn := Array.push
+      addImportedFn := Array.flatten }
+
+/-- Every correspondence the attribute has recorded, in this module and in its imports. -/
+def correspondences : CoreM (Array Correspondence) := return corrExt.getState (← getEnv)
+
+/-- Record a correspondence between the two levels. -/
+def addCorrespondence (c : Correspondence) : CoreM Unit :=
+  modifyEnv (corrExt.addEntry · c)
+
+/-- The `IsoGraph`-level counterpart of a `CGraph`-level constant, if the attribute knows one. -/
+def counterpart? (n : Name) : CoreM (Option Name) := do
+  return ((← correspondences).find? fun c ↦ c.cgraph == n).map (·.isograph)
+
+/-- Print what has just been generated, under `set_option trace.toIsoGraph true`. -/
+private def traceGenerated (what : String) (n : Name) : MetaM Unit := do
+  if ← isTracingEnabledFor `toIsoGraph then
+    trace[toIsoGraph] "{what} {n} :{indentExpr (← getConstInfo n).type}"
+
+/-! ## A construction
+
+The simplest mode: a `CGraph`-valued definition whose arguments are not graphs is carried across
+by taking the class of its value. -/
+
+/-- Generate `IsoGraph.f` and `IsoGraph.f_def` from a `CGraph`-valued definition `CGraph.f`. -/
+def generateConstruction (declName : Name) (base? : Option Name) : MetaM Unit := do
+  let info ← getConstInfo declName
+  let lvls := info.levelParams
+  let uCG ← getLevel cgraphE
+  forallTelescope info.type fun xs _ => do
+    for x in xs do
+      if (← inferType x) == cgraphE then
+        throwError "toIsoGraph: {declName} takes the graph `{x}` as an argument, so it does not \
+          descend to the quotient by itself; tag its isomorphism congruence instead"
+    let base := base?.getD (declName.replacePrefix `CGraph Name.anonymous)
+    let defName := `IsoGraph ++ base
+    if (← getEnv).contains defName then
+      throwError "toIsoGraph: {defName} already exists"
+    let rep := mkRep uCG (mkAppN (mkConst declName (lvls.map mkLevelParam)) xs)
+    let value ← instantiateMVars (← mkLambdaFVars xs rep)
+    let type ← instantiateMVars (← mkForallFVars xs isographE)
+    let decl := Declaration.defnDecl
+      { name := defName, levelParams := lvls, type := type, value := value,
+        hints := .regular (getMaxHeight (← getEnv) value + 1), safety := .safe }
+    addDecl decl
+    addDocStringCore defName
+      ((← findDocString? (← getEnv) declName).getD s!"`{base}`, as an isomorphism class.")
+    if value.getUsedConstants.any (isNoncomputable (← getEnv)) then
+      modifyEnv (addNoncomputable · defName)
+    else
+      compileDecl decl
+    -- The bridge, saying that the class of the construction is the construction on classes.
+    let defLemma := `IsoGraph ++ (lowerFirst base.getString! ++ "_def").toName
+    let lhs := mkAppN (mkConst defName (lvls.map mkLevelParam)) xs
+    let stmt ← instantiateMVars (← mkForallFVars xs (← mkEq lhs rep))
+    let prf ← instantiateMVars (← mkLambdaFVars xs (← mkEqRefl rep))
+    addDecl (.thmDecl { name := defLemma, levelParams := lvls, type := stmt, value := prf })
+    inferDefEqAttr defLemma
+    addDocStringCore defLemma s!"`IsoGraph.{base}` is the isomorphism class of `{base}`."
+    addSimpTheorem (ext := isoTransferExt) (declName := defLemma) (post := true) (inv := false)
+      (attrKind := .global) (prio := eval_prio default)
+    addCorrespondence
+      { kind := .construction, cgraph := declName, isograph := defName,
+        bridge := defLemma, source := declName }
+    traceGenerated "def" defName
+    traceGenerated "theorem" defLemma
+
+/-! ## A construction that takes a graph
+
+Here the attribute goes on the isomorphism congruence rather than on the construction, and builds
+the `Quotient.lift` along it.  Most of these constructions ask for a `DecidableEq` on the vertex
+type; when the instance cannot be found for a bare graph variable the lift is taken of
+`G.canonicalize`, which has one. -/
+
+/-- Generate `IsoGraph.f` and `IsoGraph.f_mk` from an isomorphism congruence for a `CGraph`-valued
+construction `CGraph.f` of one or two graphs. -/
+def generateConstructionLift (declName : Name) (base? : Option Name) : MetaM Unit := do
+  let info ← getConstInfo declName
+  let lvls := info.levelParams
+  let uCG ← getLevel cgraphE
+  let uIG ← getLevel isographE
+  forallTelescope info.type fun xs concl => do
+    unless concl.isAppOfArity ``CGraph.Iso 2 do
+      throwError "toIsoGraph: {declName} does not conclude with an isomorphism of constructions"
+    let lhs := concl.appFn!.appArg!
+    let rhs := concl.appArg!
+    -- The graphs, in the order their isomorphisms are bound.
+    let mut pairs : Array (Expr × Expr) := #[]
+    for x in xs do
+      let t ← inferType x
+      if t.isAppOfArity ``CGraph.Iso 2 then
+        pairs := pairs.push (t.appFn!.appArg!, t.appArg!)
+    let n := pairs.size
+    unless n == 1 || n == 2 do
+      throwError "toIsoGraph: {declName} relates {n} pairs of graphs; only one and two are lifted"
+    let some cname := lhs.getAppFn.constName? |
+      throwError "toIsoGraph: the conclusion of {declName} is not an isomorphism between two \
+        applications of a construction"
+    unless rhs.getAppFn.constName? == some cname do
+      throwError "toIsoGraph: the two sides of {declName} are not the same construction"
+    let base := base?.getD (cname.replacePrefix `CGraph Name.anonymous)
+    let defName := `IsoGraph ++ base
+    if (← getEnv).contains defName then
+      throwError "toIsoGraph: {defName} already exists"
+    let names ← pairs.mapM fun (a, _) ↦ return (← a.fvarId!.getDecl).userName
+    withLocalDeclsD (names.map fun nm ↦ (nm, fun _ ↦ pure cgraphE)) fun gs => do
+      /- Apply the construction to the graphs — as they stand if its instance arguments can be
+      found for them, and to their canonical representatives if not. -/
+      let build (canon : Bool) : MetaM (Option Expr) := do
+        let gvals ← if canon then gs.mapM fun g ↦ mkAppM ``CGraph.canonicalize #[g] else pure gs
+        let mut vals : Array Expr := #[]
+        for k in [0:xs.size] do
+          let x := xs[k]!
+          if let some j := pairs.findIdx? (·.1 == x) then
+            vals := vals.push gvals[j]!
+          else
+            let d ← x.fvarId!.getDecl
+            if d.binderInfo == .instImplicit then
+              match ← synthInstance? (d.type.replaceFVars (xs.extract 0 k) vals) with
+              | some inst => vals := vals.push inst
+              | none => return none
+            else
+              vals := vals.push x
+        return some (lhs.replaceFVars xs vals)
+      let (canon, body) ← match ← build false with
+        | some b => pure (false, b)
+        | none => match ← build true with
+          | some b => pure (true, b)
+          | none => throwError "toIsoGraph: cannot apply `{cname}` to a canonical representative"
+      if xs.any fun x ↦ body.containsFVar x.fvarId! then
+        throwError "toIsoGraph: `{cname}` takes an argument that is not a graph, so it does not \
+          lift by itself"
+      -- The lift, and its side condition.
+      let f ← mkLambdaFVars gs (mkRep uCG body)
+      let liftApp := if n == 1 then
+          mkAppN (mkConst ``Quotient.lift [uCG, uIG]) #[cgraphE, isographE, setoidE, f]
+        else
+          mkAppN (mkConst ``Quotient.lift₂ [uCG, uCG, uIG])
+            #[cgraphE, cgraphE, isographE, setoidE, setoidE, f]
+      let cTy := (← whnf (← inferType liftApp)).bindingDomain!
+      let cond ← forallTelescope cTy fun args tgt => do
+        /- The last `n` arguments are the hypotheses `a ≈ b`, one for each graph, and they name the
+        two graphs they are about. -/
+        let hs := args.extract (2 * n) (3 * n)
+        let sides ← hs.mapM fun h ↦ do
+          let t ← whnf (← inferType h)
+          return (t.appArg!.appFn!.appArg!, t.appArg!.appArg!)
+        let rec go (j : Nat) (isos : Array Expr) : MetaM Expr := do
+          if j < n then
+            let (a, b) := sides[j]!
+            let isoTy := mkAppN (mkConst ``CGraph.Iso) #[a, b]
+            let u ← getLevel isoTy
+            withLocalDeclD `i isoTy fun i => do
+              let inner ← go (j + 1) (isos.push i)
+              return mkAppN (mkConst ``Nonempty.elim [u])
+                #[isoTy, tgt, hs[j]!, ← mkLambdaFVars #[i] inner]
+          else
+            /- `canonicalize` is inserted on both sides, so the isomorphism has to be conjugated
+            by `isoCanonicalize` before the congruence will take it. -/
+            let isoArgs ← (Array.range n).mapM fun j => do
+              if canon then
+                let (a, b) := sides[j]!
+                let ca ← mkAppM ``CGraph.isoCanonicalize #[a]
+                let cb ← mkAppM ``CGraph.isoCanonicalize #[b]
+                mkAppM ``RelIso.trans
+                  #[← mkAppM ``RelIso.symm #[ca], ← mkAppM ``RelIso.trans #[isos[j]!, cb]]
+              else pure isos[j]!
+            mkSound uCG (body.replaceFVars gs (sides.map (·.1)))
+              (body.replaceFVars gs (sides.map (·.2))) (← mkAppM declName isoArgs)
+        mkLambdaFVars args (← go 0 #[])
+      withLocalDeclsD (names.map fun nm ↦ (nm, fun _ ↦ pure isographE)) fun qs => do
+        let value ← instantiateMVars (← mkLambdaFVars qs (mkAppN liftApp (#[cond] ++ qs)))
+        let type ← instantiateMVars (← mkForallFVars qs isographE)
+        let decl := Declaration.defnDecl
+          { name := defName, levelParams := lvls, type := type, value := value,
+            hints := .regular (getMaxHeight (← getEnv) value + 1), safety := .safe }
+        addDecl decl
+        addDocStringCore defName
+          ((← findDocString? (← getEnv) cname).getD s!"`{base}`, on isomorphism classes.")
+        if f.getUsedConstants.any (isNoncomputable (← getEnv)) then
+          modifyEnv (addNoncomputable · defName)
+        else
+          compileDecl decl
+      /- The `_mk` lemma, saying that the lift agrees with the construction on representatives.
+      Its binders are those of the construction itself, so that it carries the `DecidableEq`
+      instances the construction asks for. -/
+      let cInfo ← getConstInfo cname
+      let mkName := `IsoGraph ++ (lowerFirst base.getString! ++ "_mk").toName
+      forallTelescope cInfo.type fun ys _ => do
+        let ygraphs ← ys.filterM fun y ↦ return (← inferType y) == cgraphE
+        unless ygraphs.size == n do
+          throwError "toIsoGraph: {cname} takes {ygraphs.size} graphs but {declName} relates {n}"
+        let lhs' := mkAppN (mkConst defName (lvls.map mkLevelParam)) (ygraphs.map (mkRep uCG))
+        let cApp := mkAppN (mkConst cname (cInfo.levelParams.map mkLevelParam)) ys
+        let rhs' := mkRep uCG cApp
+        let prf ← if canon then
+            let isoArgs ← ygraphs.mapM fun y ↦ do
+              mkAppM ``RelIso.symm #[← mkAppM ``CGraph.isoCanonicalize #[y]]
+            mkSound uCG (body.replaceFVars gs ygraphs) cApp (← mkAppM declName isoArgs)
+          else mkEqRefl rhs'
+        let stmt ← instantiateMVars (← mkForallFVars ys (← mkEq lhs' rhs'))
+        let prf ← instantiateMVars (← mkLambdaFVars ys prf)
+        addDecl (.thmDecl
+          { name := mkName, levelParams := (lvls ++ cInfo.levelParams).eraseDups,
+            type := stmt, value := prf })
+        inferDefEqAttr mkName
+      addDocStringCore mkName s!"`IsoGraph.{base}` agrees with `{base}` on representatives."
+      addSimpTheorem (ext := simpExtension) (declName := mkName) (post := true) (inv := false)
+        (attrKind := .global) (prio := eval_prio default)
+      addSimpTheorem (ext := isoTransferExt) (declName := mkName) (post := true) (inv := false)
+        (attrKind := .global) (prio := eval_prio default)
+      addCorrespondence
+        { kind := .operation, cgraph := cname, isograph := defName,
+          bridge := mkName, source := declName }
+      traceGenerated "def" defName
+      traceGenerated "theorem" mkName
+
+/-! ## An invariant
+
+The original mode: a quantity that respects isomorphism descends to the quotient, and the
+invariance theorem is the side condition of the `Quotient.lift`. -/
 
 /-- The three shapes an invariance statement can take: `f G … = f H …`, `f G … ↔ f H …`, and
 `f G … → f H …`. -/
@@ -203,27 +541,34 @@ def generateLift (thmName : Name) (base? : Option Name) : MetaM Unit := do
       -- The `_mk` lemma, saying that the lift agrees with the original on representatives.
       let mkName := `IsoGraph ++ (lowerFirst base.getString! ++ "_mk").toName
       withLocalDeclD `G cgraphE fun g => do
-        let rep := mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, g]
+        let rep := mkRep uCG g
         let lifted := mkAppN (mkConst defName (lvls.map mkLevelParam)) (#[rep] ++ extras)
         let rhs' := lhs.replaceFVar gv g
         let stmt ← instantiateMVars (← mkForallFVars (#[g] ++ extras) (← mkEq lifted rhs'))
         let prf ← instantiateMVars (← mkLambdaFVars (#[g] ++ extras) (← mkEqRefl rhs'))
         addDecl (.thmDecl { name := mkName, levelParams := lvls, type := stmt, value := prf })
+        inferDefEqAttr mkName
       addDocStringCore mkName s!"`IsoGraph.{base}` agrees with `{base}` on representatives."
       addSimpTheorem (ext := simpExtension) (declName := mkName) (post := true) (inv := false)
         (attrKind := .global) (prio := eval_prio default)
       addSimpTheorem (ext := isoTransferExt) (declName := mkName) (post := true) (inv := false)
         (attrKind := .global) (prio := eval_prio default)
+      if let .const c _ := lhs.getAppFn then
+        addCorrespondence
+          { kind := .invariant, cgraph := c, isograph := defName,
+            bridge := mkName, source := thmName }
+      traceGenerated "def" defName
+      traceGenerated "theorem" mkName
     pure ()
 
-/-! ## Transferring a fact
+/-! ## A fact
 
-The second job of the attribute.  A `CGraph`-level statement is turned into an `IsoGraph`-level
-one by rewriting with the `@[isoTransfer]` lemmas backwards, which leaves every graph appearing
-only as `⟦G⟧`, and then reading `⟦G⟧` as a variable of type `IsoGraph`.  The original theorem
-proves the result after a `Quotient.ind` for each graph variable, transported along the very
-rewrite that produced the statement — a transport that is `rfl` for the bridges that are `rfl`,
-and a real cast for the ones, like `compl_mk`, that are not. -/
+The last mode.  A `CGraph`-level statement is turned into an `IsoGraph`-level one by rewriting
+with the `@[isoTransfer]` lemmas backwards, which leaves every graph appearing only as `⟦G⟧`, and
+then reading `⟦G⟧` as a variable of type `IsoGraph`.  The original theorem proves the result after
+a `Quotient.ind` for each graph variable, transported along the very rewrite that produced the
+statement — a transport that is `rfl` for the bridges that are `rfl`, and a real cast for the ones,
+like `compl_mk`, that are not. -/
 
 /-- The transfer simp set, turned around: these rewrite a `CGraph`-level term into the
 `IsoGraph`-level term that reduces to it. -/
@@ -246,6 +591,19 @@ private def transport (rev : SimpTheorems) (e : Expr) : MetaM Expr := do
   match r.1.proof? with
   | some h => mkEqMP h e
   | none => return e
+
+/-- Complain that a statement is still about `CGraph`s, naming the constructions that have no
+counterpart on the quotient — which is almost always what has gone wrong. -/
+private def throwStillCGraph {α} (stmt : Expr) : MetaM α := do
+  let mut missing : Array Name := #[]
+  for c in stmt.getUsedConstants do
+    if c.getRoot == `CGraph && (← counterpart? c).isNone && !missing.contains c then
+      missing := missing.push c
+  let hint := if missing.isEmpty then m!"" else
+    m!"\nthe dictionary has no `IsoGraph`-level counterpart for \
+      {MessageData.joinSep (missing.toList.map (m!"`{·}`")) ", "}"
+  throwError "toIsoGraph: cannot state{indentExpr stmt}\nat the level of isomorphism classes; it \
+    still mentions `CGraph`{hint}"
 
 /-- Rewrite a `CGraph`-level expression to `IsoGraph` level: rewrite backwards with the transfer
 lemmas, then read each `⟦gᵢ⟧` as the corresponding `IsoGraph` variable.  Fails if a graph is left
@@ -308,14 +666,13 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
         let isEqCG := body.isAppOfArity ``Eq 3 && body.appFn!.appFn!.appArg! == cgraphE
         let isIsoCG := body.isAppOfArity ``CGraph.Iso 2
         let body := if isEqCG || isIsoCG then
-            let mk (x : Expr) := mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, x]
-            mkAppN (mkConst ``Eq [uIG]) #[isographE, mk body.appFn!.appArg!, mk body.appArg!]
+            mkAppN (mkConst ``Eq [uIG])
+              #[isographE, mkRep uCG body.appFn!.appArg!, mkRep uCG body.appArg!]
           else body
         let newBody ← translateExpr rev olds news graphs body
         let stmt ← instantiateMVars (← mkForallFVars news newBody)
         if stmt.getUsedConstants.any (·.getRoot == `CGraph) then
-          throwError "toIsoGraph: cannot state{indentExpr stmt}\nat the level of isomorphism \
-            classes; it still mentions `CGraph`"
+          throwStillCGraph stmt
         /- The proof: peel the binders off again, inserting a `Quotient.ind` at each graph.  What
         is left is the original theorem, applied to the representatives. -/
         let rec prove (j : Nat) (subst args : Array Expr) : MetaM Expr := do
@@ -325,8 +682,7 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
               let motive := (← mkLambdaFVars #[news[j]] tail).replaceFVars
                 (news.extract 0 j) subst
               withLocalDeclD `g cgraphE fun g ↦ do
-                let q := mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, g]
-                let inner ← prove (j + 1) (subst.push q) (args.push g)
+                let inner ← prove (j + 1) (subst.push (mkRep uCG g)) (args.push g)
                 return mkAppN (mkConst ``Quotient.ind [uCG])
                   #[cgraphE, setoidE, motive, ← mkLambdaFVars #[g] inner]
             else
@@ -339,8 +695,7 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
             let e := mkAppN thm args
             let base ← if isEqCG then
                 withLocalDeclD `g cgraphE fun g ↦ do
-                  let q ← mkLambdaFVars #[g]
-                    (mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, g])
+                  let q ← mkLambdaFVars #[g] (mkRep uCG g)
                   mkAppM ``congrArg #[q, e]
               else if isIsoCG then do
                 let isoTy ← inferType e
@@ -352,17 +707,30 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
             transport rev base
         let prf ← instantiateMVars (← prove 0 #[] #[])
         addDecl (.thmDecl { name := newName, levelParams := lvls, type := stmt, value := prf })
+        inferDefEqAttr newName
         if let some doc ← findDocString? (← getEnv) thmName then
           addDocStringCore newName doc
         if (← getSimpTheorems).isLemma (.decl thmName) then
           addSimpTheorem (ext := simpExtension) (declName := newName) (post := true)
             (inv := false) (attrKind := .global) (prio := eval_prio default)
+        addCorrespondence
+          { kind := .fact, cgraph := thmName, isograph := newName,
+            bridge := Name.anonymous, source := thmName }
+        traceGenerated "theorem" newName
     loop 0 #[] #[]
 
-/-- `@[toIsoGraph]` on an isomorphism-invariance theorem for a `CGraph`-level quantity generates
-the corresponding `IsoGraph`-level quantity, as a `Quotient.lift`, together with the `simp` lemma
-saying that the two agree on representatives.  The name of the generated function is read off the
-statement; `@[toIsoGraph f]` overrides it.
+/-! ## The attribute -/
+
+/-- `@[toIsoGraph]` carries a `CGraph`-level declaration across to `IsoGraph`, the quotient by
+isomorphism.
+
+On a `CGraph`-valued definition with no graph arguments it generates the same construction on
+isomorphism classes, together with the lemma bridging the two.  On an isomorphism congruence for a
+construction that does take graphs it generates the `Quotient.lift` along the congruence, and the
+simp lemma that the lift agrees with the construction on representatives.  On an
+isomorphism-invariance theorem for a quantity it generates the quantity on isomorphism classes, in
+the same way.  The name of what is generated is read off the statement; `@[toIsoGraph f]`
+overrides it.
 
 On any other `CGraph`-level declaration it generates the `IsoGraph`-level statement of the same
 fact, proved from the original; an equation of graphs and an isomorphism both become an equation
@@ -375,9 +743,17 @@ private def isInvariance (type : Expr) : MetaM Bool :=
   forallTelescope type fun xs _ ↦
     xs.anyM fun x ↦ return (← inferType x).isAppOfArity ``CGraph.Iso 2
 
+/-- Is this a `CGraph`-valued definition, and so a construction to be carried across? -/
+private def isConstruction (type : Expr) : MetaM Bool :=
+  forallTelescope type fun _ body ↦ return body == cgraphE
+
+/-- Does this statement conclude with an isomorphism between two constructions? -/
+private def isCongruence (type : Expr) : MetaM Bool :=
+  forallTelescope type fun _ body ↦ return body.isAppOfArity ``CGraph.Iso 2
+
 initialize registerBuiltinAttribute {
   name := `toIsoGraph
-  descr := "generate the `IsoGraph`-level counterpart of a `CGraph`-level fact"
+  descr := "generate the `IsoGraph`-level counterpart of a `CGraph`-level declaration"
   applicationTime := .afterCompilation
   add := fun decl stx kind => do
     unless kind == .global do
@@ -387,10 +763,67 @@ initialize registerBuiltinAttribute {
       | `(attr| toIsoGraph $i:ident) => pure (some i.getId)
       | _ => throwError "toIsoGraph: unexpected syntax"
     MetaM.run' do
-      if ← isInvariance (← getConstInfo decl).type then
-        generateLift decl base?
+      let type := (← getConstInfo decl).type
+      if ← isConstruction type then
+        generateConstruction decl base?
+      else if ← isInvariance type then
+        if ← isCongruence type then
+          generateConstructionLift decl base?
+        else
+          generateLift decl base?
       else
         generateFact decl base?
 }
+
+/-! ## The dictionary by hand
+
+Two pairs are written out rather than generated — `V`, whose `CGraph`-level side is a `Fintype.card`
+and not a constant of its own, and `compl`, which carries the `Compl` instance and so has to be
+stated with `ᶜ`.  This command puts them in the dictionary all the same. -/
+
+open Lean.Elab.Command in
+/-- `isograph_bridge CGraph.compl ↦ IsoGraph.compl via IsoGraph.compl_mk` records a
+correspondence between the two levels that is written by hand rather than generated by
+`@[toIsoGraph]`, so that `#isograph_dict` and the attribute's error messages know about it. -/
+elab "isograph_bridge " c:ident " ↦ " i:ident " via " b:ident : command => do
+  let cn ← liftCoreM <| realizeGlobalConstNoOverload c
+  let inm ← liftCoreM <| realizeGlobalConstNoOverload i
+  let bn ← liftCoreM <| realizeGlobalConstNoOverload b
+  let kind ← liftTermElabM <| MetaM.run' do
+    forallTelescope (← getConstInfo cn).type fun xs body => do
+      if body != cgraphE then return Kind.invariant
+      if ← xs.anyM fun x ↦ return (← inferType x) == cgraphE then
+        return Kind.operation
+      return Kind.construction
+  liftCoreM <| addCorrespondence
+    { kind := kind, cgraph := cn, isograph := inm, bridge := bn, source := bn }
+
+/-! ## Inspecting the dictionary -/
+
+open Lean.Elab.Command in
+/-- `#isograph_dict` lists every correspondence between the two levels that `@[toIsoGraph]` has
+recorded: the constructions, the operations, the invariants and the facts, each with the lemma
+that bridges them.  `#isograph_dict compl` keeps only the entries whose name contains `compl`. -/
+elab "#isograph_dict" filter:(ppSpace ident)? : command => do
+  let sel := filter.map (·.getId.toString)
+  let keep (c : Correspondence) : Bool := match sel with
+    | none => true
+    | some s => ((c.cgraph.toString ++ " " ++ c.isograph.toString).splitOn s).length > 1
+  let all := (corrExt.getState (← getEnv)).filter keep
+  let mut msg : MessageData := m!""
+  let mut total := 0
+  for (kind, title) in [(Kind.construction, "constructions"), (Kind.operation, "operations"),
+      (Kind.invariant, "invariants"), (Kind.fact, "facts")] do
+    let cs := (all.filter (·.kind == kind)).qsort fun a b ↦ a.cgraph.toString < b.cgraph.toString
+    if cs.isEmpty then continue
+    total := total + cs.size
+    msg := msg ++ m!"{title} ({cs.size})\n"
+    for c in cs do
+      let bridge := if c.bridge.isAnonymous then m!"" else m!"    via {c.bridge}"
+      msg := msg ++ m!"  {c.cgraph} ↦ {c.isograph}{bridge}\n"
+  if total == 0 then
+    logInfo m!"no correspondences"
+  else
+    logInfo msg
 
 end IsoGraph.Attr

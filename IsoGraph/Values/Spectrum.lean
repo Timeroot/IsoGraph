@@ -18,9 +18,8 @@ polynomial `CGraph.charpoly` splits over `ℝ` and the *spectrum* `CGraph.spectr
 of roots, equivalently the multiset of `Matrix.IsHermitian.eigenvalues` — has exactly `V` entries.
 Both are isomorphism invariants (`charpoly_congr`, `spectrum_congr`), so both descend to
 `IsoGraph` at the end of the file.  That last section is mostly written by the `@[toIsoGraph]`
-attribute of `IsoGraph/ToIsoGraph.lean`: the four quantities it lifts are named by an
-`attribute [toIsoGraph]` line on their congruence, and the facts about them by one on the
-`CGraph`-level statement.  What is still written out by hand there is what the attribute cannot
+attribute of `IsoGraph/ToIsoGraph.lean`: the four quantities it lifts are tagged on their
+congruence, and the facts about them on the `CGraph`-level statement.  What is still written out by hand there is what the attribute cannot
 reach — the statements about the products and the complement, and those whose `CGraph` form asks
 for a `Nonempty G.V` instance where the quotient wants `0 < G.V`.
 

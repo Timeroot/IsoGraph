@@ -42,6 +42,14 @@ Putting `DecidableEq` into the `CGraph` structure itself would avoid the boilerp
 of making the type no longer a bare `Fintype`-bundled graph (and of breaking `simpleEquiv`); the
 instance arguments seemed the smaller price.
 
+## Isomorphism classes
+
+Every construction with no graph arguments is tagged `@[toIsoGraph]`, which generates the same
+construction on `IsoGraph`, the quotient by isomorphism, and the lemma bridging the two:
+`IsoGraph.paley q = ⟦CGraph.paley q⟧`.  The ones that do take a graph are carried across in
+`IsoGraph/Graphs/Quotient.lean`, along an isomorphism congruence; the complement is the exception,
+and is written out below, right after `compl` itself.
+
 ## Layout
 
 The definitions come first; the section after them, `## Invariants of the constructions`, records
@@ -51,6 +59,26 @@ what the invariants of `IsoGraph/Invariants/Basic.lean` evaluate to.
 open Fintype
 
 namespace CGraph
+
+/-! ## Isomorphisms
+
+Every construction below that takes a graph has to be shown to respect isomorphism before it
+descends to `IsoGraph`; all of those congruences are the same shape — a bijection of vertices that
+carries adjacency to adjacency — and they are all built from `isoOfAdj`.  They live in
+`IsoGraph/Graphs/Quotient.lean`, next to the lifts they justify; only the tool is here. -/
+
+/-- Build an isomorphism out of a bijection of vertices that carries adjacency to adjacency on
+the nose.  For two concrete small graphs the hypothesis is a `decide`. -/
+def isoOfAdj {G H : CGraph} (e : G.V ≃ H.V) (h : ∀ x y, H.Adj (e x) (e y) = G.Adj x y) :
+    G ≃cg H := ⟨e, fun {a b} ↦ by rw [h]⟩
+
+@[simp] theorem isoOfAdj_apply {G H : CGraph} (e : G.V ≃ H.V)
+    (h : ∀ x y, H.Adj (e x) (e y) = G.Adj x y) (x : G.V) : isoOfAdj e h x = e x := rfl
+
+/-- The canonical representative has `Fin n` for its vertex type, so it has a `DecidableEq`.
+This is what makes the lifts to `IsoGraph` computable. -/
+instance instDecidableEqCanonicalizeV (G : CGraph) : DecidableEq G.canonicalize.V :=
+  inferInstanceAs (DecidableEq (Fin (Fintype.card G.V)))
 
 /-! ## The primitives -/
 
@@ -105,6 +133,7 @@ instance (n : ℕ) (es : List (ℕ × ℕ)) : DecidableEq (ofEdges n es).V :=
     Fintype.card (ofEdges n es).V = n := Fintype.card_fin n
 
 /-- The edgeless graph on `n` vertices. -/
+@[toIsoGraph]
 def empty (n : ℕ) : CGraph where
   V := Fin n
   Adj _ _ := false
@@ -147,6 +176,58 @@ theorem compl_eq_ofRel (G : CGraph) [DecidableEq G.V] :
 
 @[simp] theorem card_compl (G : CGraph) [DecidableEq G.V] :
     Fintype.card (compl G).V = Fintype.card G.V := rfl
+
+/-- Complementation respects isomorphism. -/
+def Iso.compl {G G' : CGraph} [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
+    CGraph.compl G ≃cg CGraph.compl G' :=
+  isoOfAdj (G := CGraph.compl G) (H := CGraph.compl G') i.toEquiv fun x y ↦ by
+    show (decide (i x ≠ i y) && !G'.Adj (i x) (i y)) = (decide (x ≠ y) && !G.Adj x y)
+    rw [i.adj_eq, show decide (i x ≠ i y) = decide (x ≠ y) from by simp]
+
+end CGraph
+
+/-! ## Complementation, on isomorphism classes
+
+Every other construction that takes a graph is carried across to `IsoGraph` in
+`IsoGraph/Graphs/Quotient.lean`, by `@[toIsoGraph]` on its congruence.  The complement is written
+out by hand, and it is written out here, for two reasons:
+
+* it carries the `Compl` instance, so that `Gᶜ` elaborates to `Compl.compl G` — which `simp` does
+  not match against a bridge stated with `IsoGraph.compl`.  The bridge has to be stated in the
+  notation the rest of the library uses, and the attribute has no way to know that;
+* `johnsonTwoIso` and `paleyIso`, further down this file, are tagged `@[toIsoGraph]` where they
+  stand, and the equations that generates are about complements.
+-/
+
+namespace IsoGraph
+
+/-- The complement of an isomorphism class. -/
+def compl (G : IsoGraph) : IsoGraph :=
+  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.compl g.canonicalize⟧)
+    (by
+      rintro g h ⟨i⟩
+      exact Quotient.sound
+        ⟨CGraph.Iso.compl (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
+
+/-- Complementation is written `Gᶜ`.  There is no such instance for `CGraph`, whose complement
+needs a `DecidableEq` on the vertex type and so cannot be a bare `α → α`.
+
+Note that `⟦g⟧ᶜ` does not elaborate — instance search sees the type `Quotient CGraph.isoSetoid`
+and will not unfold `IsoGraph` to reach it.  Write `(show IsoGraph from ⟦g⟧)ᶜ`; a type ascription
+is *not* enough, since it leaves the inferred type unchanged. -/
+instance : Compl IsoGraph := ⟨compl⟩
+
+theorem compl_eq (G : IsoGraph) : Gᶜ = compl G := rfl
+
+@[simp, isoTransfer] theorem compl_mk (G : CGraph) [DecidableEq G.V] :
+    (show IsoGraph from ⟦G⟧)ᶜ = ⟦CGraph.compl G⟧ :=
+  Quotient.sound ⟨CGraph.Iso.compl G.isoCanonicalize.symm⟩
+
+isograph_bridge CGraph.compl ↦ IsoGraph.compl via IsoGraph.compl_mk
+
+end IsoGraph
+
+namespace CGraph
 
 /-- The disjoint union, on `G.V ⊕ H.V`.
 
@@ -254,6 +335,7 @@ theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι �
 /-! ## Built out of the primitives -/
 
 /-- The complete graph on `n` vertices. -/
+@[toIsoGraph]
 def complete (n : ℕ) : CGraph := compl (empty n)
 
 instance (n : ℕ) : DecidableEq (complete n).V := inferInstanceAs (DecidableEq (Fin n))
@@ -297,6 +379,7 @@ instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : DecidableEq (join 
   simp [join]
 
 /-- The complete bipartite graph `K_{m,n}`. -/
+@[toIsoGraph]
 def bipartite (m n : ℕ) : CGraph := compl (disjUnion (complete m) (complete n))
 
 instance (m n : ℕ) : DecidableEq (bipartite m n).V :=
@@ -325,6 +408,7 @@ instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
   simp [bipartite, compl]
 
 /-- The complete multipartite graph with parts of sizes `ds`. -/
+@[toIsoGraph]
 def completeMultipartite (ds : List ℕ) : CGraph :=
   compl (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))
 
@@ -332,6 +416,7 @@ instance (ds : List ℕ) : DecidableEq (completeMultipartite ds).V :=
   inferInstanceAs (DecidableEq (Σ i : Fin ds.length, (complete (ds.get i)).V))
 
 /-- The star with `n` leaves. -/
+@[toIsoGraph]
 def star (n : ℕ) : CGraph := bipartite 1 n
 
 instance (n : ℕ) : DecidableEq (star n).V := inferInstanceAs (DecidableEq (bipartite 1 n).V)
@@ -341,6 +426,7 @@ instance (n : ℕ) : Nonempty (star n).V := inferInstanceAs (Nonempty (bipartite
 /-! ## Paths, cycles and theta graphs -/
 
 /-- The path on `n` vertices. -/
+@[toIsoGraph]
 def path (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ i.1 + 1 == j.1
 
 instance (n : ℕ) : DecidableEq (path n).V := inferInstanceAs (DecidableEq (Fin n))
@@ -351,6 +437,7 @@ instance (n : ℕ) : Nonempty (path (n + 1)).V := inferInstanceAs (Nonempty (Fin
 
 /-- The cycle on `n` vertices.  For `n ≤ 2` this degenerates: `cycle 0` and `cycle 1` are
 edgeless, and `cycle 2` is a single edge. -/
+@[toIsoGraph]
 def cycle (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ (i.1 + 1) % n == j.1
 
 instance (n : ℕ) : DecidableEq (cycle n).V := inferInstanceAs (DecidableEq (Fin n))
@@ -360,6 +447,7 @@ instance (n : ℕ) : Nonempty (cycle (n + 1)).V := inferInstanceAs (Nonempty (Fi
 @[simp] theorem card_cycle (n : ℕ) : Fintype.card (cycle n).V = n := Fintype.card_fin n
 
 /-- The wheel: a cycle plus a hub joined to all of it. -/
+@[toIsoGraph]
 def wheel (n : ℕ) : CGraph := join (complete 1) (cycle n)
 
 instance (n : ℕ) : DecidableEq (wheel n).V :=
@@ -378,6 +466,7 @@ def thetaEdges : ℕ → List ℕ → List (ℕ × ℕ)
 which has `xs[i]` internal vertices (so `Θ(a,b,c)` in the usual notation is
 `thetaGraph [a-1, b-1, c-1]`).  A `0` in the list contributes the single edge between the two
 poles, so at most one `0` is meaningful. -/
+@[toIsoGraph]
 def thetaGraph (xs : List ℕ) : CGraph := ofEdges (2 + xs.sum) (thetaEdges 2 xs)
 
 instance (xs : List ℕ) : DecidableEq (thetaGraph xs).V :=
@@ -408,6 +497,7 @@ def legEdges (v off k : ℕ) : List (ℕ × ℕ) := pathEdges (v :: (List.range 
 
 /-- The tadpole (or pan) graph `T(m,k)`: the cycle on `m` vertices with a path of `k` further
 vertices attached to it.  `tadpole m 0` is `cycle m` and `tadpole 4 1` is the banner. -/
+@[toIsoGraph]
 def tadpole (m k : ℕ) : CGraph := ofEdges (m + k) (cycleEdges m ++ legEdges 0 m k)
 
 instance (m k : ℕ) : DecidableEq (tadpole m k).V := inferInstanceAs (DecidableEq (Fin (m + k)))
@@ -415,6 +505,7 @@ instance (m k : ℕ) : DecidableEq (tadpole m k).V := inferInstanceAs (Decidable
 @[simp] theorem card_tadpole (m k : ℕ) : Fintype.card (tadpole m k).V = m + k := Fintype.card_fin _
 
 /-- The lollipop graph `L(m,k)`: `Kₘ` with a path of `k` further vertices attached to it. -/
+@[toIsoGraph]
 def lollipop (m k : ℕ) : CGraph := ofEdges (m + k) (cliqueEdges m ++ legEdges 0 m k)
 
 instance (m k : ℕ) : DecidableEq (lollipop m k).V := inferInstanceAs (DecidableEq (Fin (m + k)))
@@ -430,6 +521,7 @@ def spiderEdges : ℕ → List ℕ → List (ℕ × ℕ)
 
 /-- The spider (or generalised star) `S(legs)`: a centre with paths of the given lengths hanging
 off it.  `spider [1, 1, …, 1]` is a star and `spider [a, b]` is a path. -/
+@[toIsoGraph]
 def spider (legs : List ℕ) : CGraph := ofEdges (1 + legs.sum) (spiderEdges 1 legs)
 
 instance (legs : List ℕ) : DecidableEq (spider legs).V :=
@@ -440,6 +532,7 @@ instance (legs : List ℕ) : DecidableEq (spider legs).V :=
 
 /-- The double star `S(m,n)`: an edge with `m` pendant vertices on one end and `n` on the
 other. -/
+@[toIsoGraph]
 def doubleStar (m n : ℕ) : CGraph :=
   ofEdges (2 + m + n) ((0, 1) :: (((List.range m).map fun i ↦ (0, 2 + i)) ++
     ((List.range n).map fun i ↦ (1, 2 + m + i))))
@@ -459,6 +552,7 @@ def pendantEdges : ℕ → ℕ → List ℕ → List (ℕ × ℕ)
 /-- The cycle on `m` vertices with `ks[i]` pendant vertices attached to vertex `i`.  The paw is
 `cyclePendant 3 [1]`, the bull is `cyclePendant 3 [1, 1]` and the net is
 `cyclePendant 3 [1, 1, 1]`. -/
+@[toIsoGraph]
 def cyclePendant (m : ℕ) (ks : List ℕ) : CGraph :=
   ofEdges (m + ks.sum) (cycleEdges m ++ pendantEdges 0 m ks)
 
@@ -490,6 +584,7 @@ instance (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) :
 
 /-- The circulant on `Fin n` with connection set `S`, taken mod `n`: the Cayley graph of `ℤ/n`,
 written on `Fin n` so that no `NeZero` instance is needed.  `cycle n = circulant n [1]`. -/
+@[toIsoGraph]
 def circulant (n : ℕ) (S : List ℕ) : CGraph :=
   ofRel (Fin n) fun x y ↦ S.contains ((y.1 + n - x.1) % n)
 
@@ -558,6 +653,7 @@ field `GF(q)`, and for `q ≡ 3 mod 4` the residues are not closed under negatio
 symmetrises the Paley *tournament* into the complete graph.  For a prime `q ≡ 1 mod 4` it is
 strongly regular with parameters `(q, (q-1)/2, (q-5)/4, (q-1)/4)`; see
 `IsoGraph/Graphs/SRG.lean`. -/
+@[toIsoGraph]
 def paley (q : ℕ) : CGraph :=
   let t := qrTable q
   ofRel (Fin q) fun x y ↦ t[(y.1 + q - x.1) % q]!
@@ -709,6 +805,7 @@ theorem lexProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
 place.  This is the `n`-fold cartesian product of `complete 2`, but written directly: threading a
 `DecidableEq` instance through that recursion costs more than it saves, since
 `cartesianProduct` needs the instance for the graph it is about to build. -/
+@[toIsoGraph]
 def hypercube (n : ℕ) : CGraph where
   V := Fin n → Bool
   Adj x y := (Finset.univ.filter fun i ↦ x i ≠ y i).card == 1
@@ -740,6 +837,7 @@ theorem hypercube_eq_ofRel (n : ℕ) :
 
 The disjointness test is reflexive when `k = 0` (the empty set is disjoint from itself), so the
 diagonal is deleted explicitly; it is symmetric already. -/
+@[toIsoGraph]
 def kneser (n k : ℕ) : CGraph where
   V := {s : Finset (Fin n) // s.card = k}
   Adj s t := decide (s ≠ t) && decide (s.1 ∩ t.1 = ∅)
@@ -869,6 +967,7 @@ the complement of `kneser n 2`.
 Every set meets itself in `k` points, so for `k ≥ 1` the diagonal is already excluded; it is
 deleted explicitly anyway, since at `k = 0` the condition `|s ∩ t| = k - 1` degenerates to `0 = 0`
 and would put a loop at the one vertex. -/
+@[toIsoGraph]
 def johnson (n k : ℕ) : CGraph where
   V := {s : Finset (Fin n) // s.card = k}
   Adj s t := decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)
@@ -894,6 +993,7 @@ theorem johnson_eq_ofRel (n k : ℕ) :
 `n` adjacent when they differ in exactly one place *or* in all `n` of them.  Identifying antipodes
 instead would halve the vertex count; this is the double cover of that, and is the folded
 `(n+1)`-cube.  `foldedCube 4` is the Clebsch graph. -/
+@[toIsoGraph]
 def foldedCube (n : ℕ) : CGraph where
   V := Fin n → Bool
   Adj x y := decide (x ≠ y) && (((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) ||
@@ -991,6 +1091,7 @@ def lcfEdges (ss : List ℤ) (r : ℕ) : List (ℕ × ℕ) :=
 
 /-- The cubic graph with LCF code `[ss]^r`, in Lederberg–Coxeter–Frucht notation: a Hamiltonian
 cycle on `ss.length * r` vertices with the chords prescribed by `ss`, repeated `r` times. -/
+@[toIsoGraph]
 def lcf (ss : List ℤ) (r : ℕ) : CGraph := ofEdges (ss.length * r) (lcfEdges ss r)
 
 instance (ss : List ℤ) (r : ℕ) : DecidableEq (lcf ss r).V :=
@@ -1005,6 +1106,7 @@ def gpEdges (n k : ℕ) : List (ℕ × ℕ) :=
   (List.range n).flatMap fun i ↦ [(i, (i + 1) % n), (i, n + i), (n + i, n + (i + k) % n)]
 
 /-- The generalized Petersen graph `GP(n, k)`. -/
+@[toIsoGraph]
 def gp (n k : ℕ) : CGraph := ofEdges (2 * n) (gpEdges n k)
 
 instance (n k : ℕ) : DecidableEq (gp n k).V := inferInstanceAs (DecidableEq (Fin (2 * n)))
@@ -4353,6 +4455,7 @@ theorem isSRGWith_kneser_two (n : ℕ) :
 
 /-- `johnson n 2` — the triangular graph `T(n)` — is the complement of `kneser n 2`: two distinct
 pairs either meet in a point or are disjoint, and never both. -/
+@[toIsoGraph johnson_two_eq_compl_kneser]
 def johnsonTwoIso (n : ℕ) : johnson n 2 ≃cg compl (kneser n 2) :=
   ⟨Equiv.refl {s : Finset (Fin n) // s.card = 2}, by
     intro s t
@@ -4564,6 +4667,7 @@ is exactly `isSRGWith_of`.  The last step, `paleyIso`, identifies `paley q` — 
 
 /-- The **Paley graph** of a finite field: `x ~ y` when `y - x` is a nonzero square.  For
 `Fintype.card F % 4 = 1` this is `paley (Fintype.card F)` up to isomorphism; see `paleyIso`. -/
+@[toIsoGraph]
 def paleyField (F : Type) [Field F] [Fintype F] [DecidableEq F] : CGraph :=
   cayleyAdd F fun z ↦ decide (quadraticChar F z = 1)
 
@@ -4701,6 +4805,7 @@ theorem paley_adj_eq (q : ℕ) [NeZero q] [Fact q.Prime] (a b : ZMod q) :
   simp [EmbeddingLike.apply_eq_iff_eq]
 
 /-- For a prime `q`, `paley q` is the Paley graph of the field `ZMod q`. -/
+@[toIsoGraph paleyField_zmod]
 def paleyIso (q : ℕ) [NeZero q] [Fact q.Prime] : paleyField (ZMod q) ≃cg paley q :=
   ⟨zmodEquivFin q, fun {a b} ↦
     iff_of_eq (congrArg (fun x : Bool ↦ x = true) (paley_adj_eq q a b))⟩

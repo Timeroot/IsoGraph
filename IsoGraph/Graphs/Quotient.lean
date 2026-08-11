@@ -11,27 +11,33 @@ isomorphism, so that the tables of `IsoGraph/Values/Identities.lean` can be stat
 
 ## Lifting a construction
 
-Every construction with no arguments — `empty`, `complete`, `kneser`, … — lifts by definition:
-`IsoGraph.complete n` is just `⟦CGraph.complete n⟧`.  The unary and binary ones need more care,
-because most of them ask for a `DecidableEq` on the vertex type and a bare `CGraph` does not
-supply one.  Two ways out:
+A construction with no graph arguments — `empty`, `complete`, `kneser`, … — lifts by definition,
+and `@[toIsoGraph]` on the construction itself, back in `Constructions.lean`, is all it takes:
+`IsoGraph.complete n` is just `⟦CGraph.complete n⟧`.
+
+The ones that take a graph need more care, because most of them ask for a `DecidableEq` on the
+vertex type and a bare `CGraph` does not supply one.  Two ways out, and the attribute picks
+between them by trying to synthesise the instance:
 
 * `disjUnion` needs no `DecidableEq`, so it lifts through `Quotient.lift₂` directly, and
   `disjUnion_mk` is `rfl`;
 * the rest are applied to `G.canonicalize`, whose vertex type is `Fin (Fintype.card G.V)` — and
   so has a `DecidableEq` — before descending.  The construction stays computable, and the price
-  is that `compl_mk` and friends are not `rfl`.
+  is that `cartesianProduct_mk` and friends are not `rfl`.
 
-Either way the side condition of the lift is an isomorphism-congruence: `CGraph.Iso.compl`,
-`CGraph.Iso.cartesianProduct`, … in the first section, each built from `CGraph.isoOfAdj`.
-
-`join` needs no lift of its own: it is `compl (disjUnion (compl G) (compl H))` on `IsoGraph` just
-as on `CGraph`, so well-definedness is inherited.
+Either way the side condition of the lift is an isomorphism-congruence, and it is the congruence
+that carries the `@[toIsoGraph]`: the whole of `IsoGraph.cartesianProduct`, `□g`'s `_mk` lemma and
+the dictionary entry come out of the attribute on `CGraph.Iso.cartesianProduct` below.  All the
+congruences are built from `CGraph.isoOfAdj`.  The complement and the join are the two exceptions,
+written out by hand — the first in `Constructions.lean`, the second at the bottom of this file;
+the comment at each says why.
 
 The first section is more than the congruences the lifts need: it is every isomorphism between
 concrete graphs that `IsoGraph/Values/Identities.lean` goes on to read as an equation of isomorphism
 classes — associativity and distributivity of the products, blow-ups, bipartite double covers,
 the Paley graphs.  They live here because they are constructions, not facts about invariants.
+
+What is left at the bottom of the file is only notation, the abbreviations, and two odds and ends.
 -/
 
 set_option autoImplicit false
@@ -42,21 +48,10 @@ namespace CGraph
 
 Each construction below has to be shown to respect isomorphism before it can be lifted to the
 quotient.  All of them are the same shape — a bijection of vertices that carries adjacency to
-adjacency — so they are all built from `isoOfAdj`.
+adjacency — so they are all built from `isoOfAdj`.  The ones that are tagged `@[toIsoGraph]` are
+exactly the ones a construction is lifted along; the rest are isomorphisms between concrete
+graphs, which the attribute reads as equations of isomorphism classes elsewhere.
 -/
-
-/-- Build an isomorphism out of a bijection of vertices that carries adjacency to adjacency on
-the nose.  For two concrete small graphs the hypothesis is a `decide`. -/
-def isoOfAdj {G H : CGraph} (e : G.V ≃ H.V) (h : ∀ x y, H.Adj (e x) (e y) = G.Adj x y) :
-    G ≃cg H := ⟨e, fun {a b} ↦ by rw [h]⟩
-
-@[simp] theorem isoOfAdj_apply {G H : CGraph} (e : G.V ≃ H.V)
-    (h : ∀ x y, H.Adj (e x) (e y) = G.Adj x y) (x : G.V) : isoOfAdj e h x = e x := rfl
-
-/-- The canonical representative has `Fin n` for its vertex type, so it has a `DecidableEq`.
-This is what makes the lifts below computable. -/
-instance instDecidableEqCanonicalizeV (G : CGraph) : DecidableEq G.canonicalize.V :=
-  inferInstanceAs (DecidableEq (Fin (Fintype.card G.V)))
 
 /-- Injectivity of `Sum.inl`, stated at the vertex type of a `disjUnion` rather than at a bare
 `⊕`.  The two are definitionally equal but not *reducibly* so, and `simp` matches up to reducible
@@ -162,14 +157,8 @@ namespace Iso
 
 variable {G G' H H' : CGraph}
 
-/-- Complementation respects isomorphism. -/
-def compl [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
-    CGraph.compl G ≃cg CGraph.compl G' :=
-  isoOfAdj (G := CGraph.compl G) (H := CGraph.compl G') i.toEquiv fun x y ↦ by
-    show (decide (i x ≠ i y) && !G'.Adj (i x) (i y)) = (decide (x ≠ y) && !G.Adj x y)
-    rw [i.adj_eq, show decide (i x ≠ i y) = decide (x ≠ y) from by simp]
-
 /-- Disjoint union respects isomorphism. -/
+@[toIsoGraph]
 def disjUnion (i : G ≃cg G') (j : H ≃cg H') :
     CGraph.disjUnion G H ≃cg CGraph.disjUnion G' H' :=
   isoOfAdj (G := CGraph.disjUnion G H) (H := CGraph.disjUnion G' H')
@@ -190,6 +179,7 @@ def join [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [DecidableEq H'.
   Iso.compl (Iso.disjUnion (Iso.compl i) (Iso.compl j))
 
 /-- The cartesian product respects isomorphism. -/
+@[toIsoGraph]
 def cartesianProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [DecidableEq H'.V]
     (i : G ≃cg G') (j : H ≃cg H') :
     CGraph.cartesianProduct G H ≃cg CGraph.cartesianProduct G' H' :=
@@ -202,6 +192,7 @@ def cartesianProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [Dec
       rfl
 
 /-- The tensor product respects isomorphism. -/
+@[toIsoGraph]
 def tensorProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [DecidableEq H'.V]
     (i : G ≃cg G') (j : H ≃cg H') :
     CGraph.tensorProduct G H ≃cg CGraph.tensorProduct G' H' :=
@@ -212,6 +203,7 @@ def tensorProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [Decida
       rfl
 
 /-- The strong product respects isomorphism. -/
+@[toIsoGraph]
 def strongProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [DecidableEq H'.V]
     (i : G ≃cg G') (j : H ≃cg H') :
     CGraph.strongProduct G H ≃cg CGraph.strongProduct G' H' :=
@@ -229,6 +221,7 @@ def strongProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [Decida
       rfl
 
 /-- The lexicographic product respects isomorphism. -/
+@[toIsoGraph]
 def lexProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [DecidableEq H'.V]
     (i : G ≃cg G') (j : H ≃cg H') :
     CGraph.lexProduct G H ≃cg CGraph.lexProduct G' H' :=
@@ -468,6 +461,7 @@ the Mycielskian along the same bijection applied to the original vertices, their
 apex. -/
 
 /-- The Mycielskian respects isomorphism. -/
+@[toIsoGraph]
 def mycielskian [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
     CGraph.mycielskian G ≃cg CGraph.mycielskian G' :=
   isoOfAdj (G := CGraph.mycielskian G) (H := CGraph.mycielskian G')
@@ -479,6 +473,7 @@ def mycielskian [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
 
 /-- The line graph respects isomorphism: an isomorphism carries edges to edges, and two edges
 meet exactly when their images do. -/
+@[toIsoGraph]
 def lineGraph [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
     CGraph.lineGraph G ≃cg CGraph.lineGraph G' :=
   isoOfAdj (G := CGraph.lineGraph G) (H := CGraph.lineGraph G')
@@ -866,164 +861,33 @@ end CGraph
 
 namespace IsoGraph
 
-/-! ## The constructions, on the quotient
+/-! ## The join
 
-Each of these is the corresponding `CGraph` construction, read as an isomorphism class.  The
-ones taking a graph as an argument are the interesting cases; see the module docstring. -/
-
-/-- The edgeless graph on `n` vertices. -/
-def empty (n : ℕ) : IsoGraph := ⟦CGraph.empty n⟧
-
-/-- The complete graph on `n` vertices. -/
-def complete (n : ℕ) : IsoGraph := ⟦CGraph.complete n⟧
-
-/-- The path on `n` vertices. -/
-def path (n : ℕ) : IsoGraph := ⟦CGraph.path n⟧
-
-/-- The cycle on `n` vertices. -/
-def cycle (n : ℕ) : IsoGraph := ⟦CGraph.cycle n⟧
-
-/-- The complete bipartite graph `K_{m,n}`. -/
-def bipartite (m n : ℕ) : IsoGraph := ⟦CGraph.bipartite m n⟧
-
-/-- The complete multipartite graph with parts of the given sizes. -/
-def completeMultipartite (ds : List ℕ) : IsoGraph := ⟦CGraph.completeMultipartite ds⟧
-
-/-- The star with `n` leaves. -/
-def star (n : ℕ) : IsoGraph := ⟦CGraph.star n⟧
-
-/-- The wheel with an `n`-cycle rim. -/
-def wheel (n : ℕ) : IsoGraph := ⟦CGraph.wheel n⟧
-
-/-- The Kneser graph `K(n, k)`. -/
-def kneser (n k : ℕ) : IsoGraph := ⟦CGraph.kneser n k⟧
-
-/-- The Johnson graph `J(n, k)`. -/
-def johnson (n k : ℕ) : IsoGraph := ⟦CGraph.johnson n k⟧
-
-/-- The `n`-dimensional hypercube `Q_n`. -/
-def hypercube (n : ℕ) : IsoGraph := ⟦CGraph.hypercube n⟧
-
-/-- The folded `n`-cube. -/
-def foldedCube (n : ℕ) : IsoGraph := ⟦CGraph.foldedCube n⟧
-
-/-- The circulant graph on `n` vertices with connection set `S`. -/
-def circulant (n : ℕ) (S : List ℕ) : IsoGraph := ⟦CGraph.circulant n S⟧
-
-/-- The Paley graph on `q` vertices. -/
-def paley (q : ℕ) : IsoGraph := ⟦CGraph.paley q⟧
-
-/-- The Paley graph of a finite field. -/
-def paleyField (F : Type) [Field F] [Fintype F] [DecidableEq F] : IsoGraph :=
-  ⟦CGraph.paleyField F⟧
-
-/-- The theta graph with the given path lengths. -/
-def thetaGraph (xs : List ℕ) : IsoGraph := ⟦CGraph.thetaGraph xs⟧
-
-/-- The `(m, k)`-tadpole. -/
-def tadpole (m k : ℕ) : IsoGraph := ⟦CGraph.tadpole m k⟧
-
-/-- The `(m, k)`-lollipop. -/
-def lollipop (m k : ℕ) : IsoGraph := ⟦CGraph.lollipop m k⟧
-
-/-- The spider with the given leg lengths. -/
-def spider (legs : List ℕ) : IsoGraph := ⟦CGraph.spider legs⟧
-
-/-- The double star `S_{m,n}`. -/
-def doubleStar (m n : ℕ) : IsoGraph := ⟦CGraph.doubleStar m n⟧
-
-/-- The `m`-cycle with pendant paths of the given lengths. -/
-def cyclePendant (m : ℕ) (ks : List ℕ) : IsoGraph := ⟦CGraph.cyclePendant m ks⟧
-
-/-- The generalized Petersen graph `GP(n, k)`. -/
-def gp (n k : ℕ) : IsoGraph := ⟦CGraph.gp n k⟧
-
-/-- The LCF graph: an `ss.length * r`-cycle with the chords given by repeating the jump sequence
-`ss` `r` times. -/
-def lcf (ss : List ℤ) (r : ℕ) : IsoGraph := ⟦CGraph.lcf ss r⟧
-
-/-! ### Operations -/
-
-/-- The complement of an isomorphism class. -/
-def compl (G : IsoGraph) : IsoGraph :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.compl g.canonicalize⟧)
-    (by
-      rintro g h ⟨i⟩
-      exact Quotient.sound
-        ⟨CGraph.Iso.compl (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
-
-/-- Complementation is written `Gᶜ`.  There is no such instance for `CGraph`, whose complement
-needs a `DecidableEq` on the vertex type and so cannot be a bare `α → α`.
-
-Note that `⟦g⟧ᶜ` does not elaborate — instance search sees the type `Quotient CGraph.isoSetoid`
-and will not unfold `IsoGraph` to reach it.  Write `(show IsoGraph from ⟦g⟧)ᶜ`; a type ascription
-is *not* enough, since it leaves the inferred type unchanged. -/
-instance : Compl IsoGraph := ⟨compl⟩
-
-theorem compl_eq (G : IsoGraph) : Gᶜ = compl G := rfl
-
-@[simp] theorem compl_mk (G : CGraph) [DecidableEq G.V] :
-    (show IsoGraph from ⟦G⟧)ᶜ = ⟦CGraph.compl G⟧ :=
-  Quotient.sound ⟨CGraph.Iso.compl G.isoCanonicalize.symm⟩
-
-/-- The disjoint union of two isomorphism classes. -/
-def disjUnion (G H : IsoGraph) : IsoGraph :=
-  Quotient.lift₂ (s₁ := CGraph.isoSetoid) (s₂ := CGraph.isoSetoid)
-    (fun g h ↦ ⟦CGraph.disjUnion g h⟧)
-    (by
-      rintro g₁ h₁ g₂ h₂ ⟨i⟩ ⟨j⟩
-      exact Quotient.sound ⟨CGraph.Iso.disjUnion i j⟩) G H
+The one operation here that is not generated.  On both levels the join is a complement of a
+disjoint union of complements, so it inherits its well-definedness from the two of them and needs
+no `Quotient.lift` of its own — and, more to the point, the identities of
+`IsoGraph/Values/Identities/Identifications.lean` are proved from that definition by `rfl`, which a
+lift would not give them. -/
 
 /-- The join of two isomorphism classes: a disjoint union with all edges across. -/
 def join (G H : IsoGraph) : IsoGraph := (disjUnion Gᶜ Hᶜ)ᶜ
 
-/-- The cartesian product of two isomorphism classes. -/
-def cartesianProduct (G H : IsoGraph) : IsoGraph :=
-  Quotient.lift₂ (s₁ := CGraph.isoSetoid) (s₂ := CGraph.isoSetoid)
-    (fun g h ↦ ⟦CGraph.cartesianProduct g.canonicalize h.canonicalize⟧)
-    (by
-      rintro g₁ h₁ g₂ h₂ ⟨i⟩ ⟨j⟩
-      exact Quotient.sound ⟨CGraph.Iso.cartesianProduct
-        (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
-        (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
+/-- The join is a complement of a disjoint union of complements on both levels, so its bridge is
+the two others put together. -/
+@[simp, isoTransfer] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+  rw [join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
+  rfl
 
-/-- The tensor product of two isomorphism classes. -/
-def tensorProduct (G H : IsoGraph) : IsoGraph :=
-  Quotient.lift₂ (s₁ := CGraph.isoSetoid) (s₂ := CGraph.isoSetoid)
-    (fun g h ↦ ⟦CGraph.tensorProduct g.canonicalize h.canonicalize⟧)
-    (by
-      rintro g₁ h₁ g₂ h₂ ⟨i⟩ ⟨j⟩
-      exact Quotient.sound ⟨CGraph.Iso.tensorProduct
-        (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
-        (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
+isograph_bridge CGraph.join ↦ IsoGraph.join via IsoGraph.join_mk
 
-/-- The strong product of two isomorphism classes. -/
-def strongProduct (G H : IsoGraph) : IsoGraph :=
-  Quotient.lift₂ (s₁ := CGraph.isoSetoid) (s₂ := CGraph.isoSetoid)
-    (fun g h ↦ ⟦CGraph.strongProduct g.canonicalize h.canonicalize⟧)
-    (by
-      rintro g₁ h₁ g₂ h₂ ⟨i⟩ ⟨j⟩
-      exact Quotient.sound ⟨CGraph.Iso.strongProduct
-        (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
-        (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
-
-/-- The lexicographic product of two isomorphism classes. -/
-def lexProduct (G H : IsoGraph) : IsoGraph :=
-  Quotient.lift₂ (s₁ := CGraph.isoSetoid) (s₂ := CGraph.isoSetoid)
-    (fun g h ↦ ⟦CGraph.lexProduct g.canonicalize h.canonicalize⟧)
-    (by
-      rintro g₁ h₁ g₂ h₂ ⟨i⟩ ⟨j⟩
-      exact Quotient.sound ⟨CGraph.Iso.lexProduct
-        (g₁.isoCanonicalize.symm.trans (i.trans g₂.isoCanonicalize))
-        (h₁.isoCanonicalize.symm.trans (j.trans h₂.isoCanonicalize))⟩) G H
-
-/-! ### Notation
+/-! ## Notation
 
 One symbol per binary operation, each suffixed with `g` in the style of Mathlib's `⊕g` for
 `SimpleGraph.sum` — which stays in scope, and which the overload resolves against by type.  The
 squared symbols follow Mathlib's `□` for `SimpleGraph.boxProd`; of the alternative box characters
-only `□` (`\square`) has a Lean input abbreviation.  Complementation is the `Compl` instance
-above rather than a notation of its own.
+only `□` (`\square`) has a Lean input abbreviation.  Complementation is the `Compl` instance of
+`IsoGraph/Graphs/Constructions.lean` rather than a notation of its own.
 
 The four products bind more tightly than the two sums, so `G ⊕g H □g K` is `G ⊕g (H □g K)`. -/
 
@@ -1034,57 +898,7 @@ The four products bind more tightly than the two sums, so `G ⊕g H □g K` is `
 @[inherit_doc] infixl:70 " ⊠g " => IsoGraph.strongProduct
 @[inherit_doc] infixl:70 " ·g " => IsoGraph.lexProduct
 
-@[simp] theorem disjUnion_mk (G H : CGraph) :
-    ⟦G⟧ ⊕g ⟦H⟧ = ⟦CGraph.disjUnion G H⟧ := rfl
-
-@[simp] theorem cartesianProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    ⟦G⟧ □g ⟦H⟧ = ⟦CGraph.cartesianProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.cartesianProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
-
-@[simp] theorem tensorProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    ⟦G⟧ ⊗g ⟦H⟧ = ⟦CGraph.tensorProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.tensorProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
-
-@[simp] theorem strongProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    ⟦G⟧ ⊠g ⟦H⟧ = ⟦CGraph.strongProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.strongProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
-
-@[simp] theorem lexProduct_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    ⟦G⟧ ·g ⟦H⟧ = ⟦CGraph.lexProduct G H⟧ :=
-  Quotient.sound ⟨CGraph.Iso.lexProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
-
-/-- The join is a complement of a disjoint union of complements on both levels, so its bridge is
-the two others put together. -/
-@[simp] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    (⟦G⟧ : IsoGraph) ∇g ⟦H⟧ = ⟦CGraph.join G H⟧ := by
-  rw [join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
-  rfl
-
-/-- The line graph of an isomorphism class: its vertices are the edges, adjacent when they meet. -/
-def lineGraph (G : IsoGraph) : IsoGraph :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.lineGraph g.canonicalize⟧)
-    (by
-      rintro g h ⟨i⟩
-      exact Quotient.sound
-        ⟨CGraph.Iso.lineGraph (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
-
-@[simp] theorem lineGraph_mk (G : CGraph) [DecidableEq G.V] :
-    lineGraph ⟦G⟧ = ⟦CGraph.lineGraph G⟧ :=
-  Quotient.sound ⟨CGraph.Iso.lineGraph G.isoCanonicalize.symm⟩
-
-/-- The Mycielskian of an isomorphism class. -/
-def mycielskian (G : IsoGraph) : IsoGraph :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.mycielskian g.canonicalize⟧)
-    (by
-      rintro g h ⟨i⟩
-      exact Quotient.sound
-        ⟨CGraph.Iso.mycielskian (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
-
-@[simp] theorem mycielskian_mk (G : CGraph) [DecidableEq G.V] :
-    mycielskian ⟦G⟧ = ⟦CGraph.mycielskian G⟧ :=
-  Quotient.sound ⟨CGraph.Iso.mycielskian G.isoCanonicalize.symm⟩
-
-/-! ### Abbreviations
+/-! ## Abbreviations
 
 Exactly as on `CGraph`: these are notation for the constructions above, not new definitions. -/
 
@@ -1125,78 +939,20 @@ abbrev friendship (n : ℕ) : IsoGraph :=
 removed, equivalently the bipartite double cover of `K_n`. -/
 abbrev crown (n : ℕ) : IsoGraph := complete n ⊗g complete 2
 
-/-! ## Bridging to `CGraph`
+/-! ## Two odds and ends
 
-Each of these is `rfl`, naming the `CGraph` representative of a construction defined on
-`IsoGraph`. -/
+Everything else on this page is generated: `@[toIsoGraph]` on a construction produces the
+construction on classes and the bridge to it, and `@[toIsoGraph]` on one of the congruences above
+produces the `Quotient.lift` along it.  These two are what is left over — the vertex count, whose
+`CGraph`-level side is a `Fintype.card` rather than a construction, and the fact that
+canonicalising does not change the class. -/
 
-theorem empty_def (n : ℕ) : empty n = ⟦CGraph.empty n⟧ := rfl
-theorem complete_def (n : ℕ) : complete n = ⟦CGraph.complete n⟧ := rfl
-theorem path_def (n : ℕ) : path n = ⟦CGraph.path n⟧ := rfl
-theorem cycle_def (n : ℕ) : cycle n = ⟦CGraph.cycle n⟧ := rfl
-theorem bipartite_def (m n : ℕ) : bipartite m n = ⟦CGraph.bipartite m n⟧ := rfl
-theorem completeMultipartite_def (ds : List ℕ) :
-    completeMultipartite ds = ⟦CGraph.completeMultipartite ds⟧ := rfl
-theorem star_def (n : ℕ) : star n = ⟦CGraph.star n⟧ := rfl
-theorem wheel_def (n : ℕ) : wheel n = ⟦CGraph.wheel n⟧ := rfl
-theorem kneser_def (n k : ℕ) : kneser n k = ⟦CGraph.kneser n k⟧ := rfl
-theorem johnson_def (n k : ℕ) : johnson n k = ⟦CGraph.johnson n k⟧ := rfl
-theorem hypercube_def (n : ℕ) : hypercube n = ⟦CGraph.hypercube n⟧ := rfl
-theorem foldedCube_def (n : ℕ) : foldedCube n = ⟦CGraph.foldedCube n⟧ := rfl
-theorem circulant_def (n : ℕ) (S : List ℕ) : circulant n S = ⟦CGraph.circulant n S⟧ := rfl
-theorem paley_def (q : ℕ) : paley q = ⟦CGraph.paley q⟧ := rfl
-theorem paleyField_def (F : Type) [Field F] [Fintype F] [DecidableEq F] :
-    paleyField F = ⟦CGraph.paleyField F⟧ := rfl
-theorem thetaGraph_def (xs : List ℕ) : thetaGraph xs = ⟦CGraph.thetaGraph xs⟧ := rfl
-theorem tadpole_def (m k : ℕ) : tadpole m k = ⟦CGraph.tadpole m k⟧ := rfl
-theorem lollipop_def (m k : ℕ) : lollipop m k = ⟦CGraph.lollipop m k⟧ := rfl
-theorem spider_def (legs : List ℕ) : spider legs = ⟦CGraph.spider legs⟧ := rfl
-theorem doubleStar_def (m n : ℕ) : doubleStar m n = ⟦CGraph.doubleStar m n⟧ := rfl
-theorem cyclePendant_def (m : ℕ) (ks : List ℕ) :
-    cyclePendant m ks = ⟦CGraph.cyclePendant m ks⟧ := rfl
-theorem gp_def (n k : ℕ) : gp n k = ⟦CGraph.gp n k⟧ := rfl
-theorem lcf_def (ss : List ℤ) (r : ℕ) : lcf ss r = ⟦CGraph.lcf ss r⟧ := rfl
+@[simp, isoTransfer] theorem V_mk (G : CGraph) : IsoGraph.V ⟦G⟧ = Fintype.card G.V := rfl
+
+isograph_bridge CGraph.V ↦ IsoGraph.V via IsoGraph.V_mk
 
 /-- A graph and its canonical representative are the same isomorphism class. -/
 theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G⟧ :=
   Quotient.sound ⟨G.isoCanonicalize.symm⟩
-
-/-! ## Vertex counts -/
-
-@[simp] theorem V_mk (G : CGraph) : IsoGraph.V ⟦G⟧ = Fintype.card G.V := rfl
-
-/-! ## The transfer set
-
-These are the lemmas the `@[toIsoGraph]` attribute rewrites with, backwards, to turn a
-`CGraph`-level statement into its `IsoGraph`-level counterpart.  Most hold by `rfl`; the products,
-the complement, the line graph and the Mycielskian do not, because the `IsoGraph`-level operation
-canonicalises its arguments first, and the attribute transports the proof along the rewrite rather
-than relying on the two statements being definitionally equal.
-
-Each of the non-`rfl` ones asks for a `DecidableEq` on the vertex type, so a fact about `Gᶜ` for a
-*variable* `G` only transfers if it carries that instance; for the concrete graphs of the tables
-it is always found. -/
-
-attribute [isoTransfer] IsoGraph.V_mk IsoGraph.disjUnion_mk IsoGraph.compl_mk IsoGraph.join_mk
-  IsoGraph.cartesianProduct_mk IsoGraph.tensorProduct_mk IsoGraph.strongProduct_mk
-  IsoGraph.lexProduct_mk IsoGraph.lineGraph_mk IsoGraph.mycielskian_mk
-  IsoGraph.empty_def IsoGraph.complete_def IsoGraph.path_def IsoGraph.cycle_def
-  IsoGraph.bipartite_def IsoGraph.completeMultipartite_def IsoGraph.star_def IsoGraph.wheel_def
-  IsoGraph.kneser_def IsoGraph.johnson_def IsoGraph.hypercube_def IsoGraph.foldedCube_def
-  IsoGraph.circulant_def IsoGraph.paley_def IsoGraph.paleyField_def IsoGraph.thetaGraph_def
-  IsoGraph.tadpole_def IsoGraph.lollipop_def IsoGraph.spider_def IsoGraph.doubleStar_def
-  IsoGraph.cyclePendant_def IsoGraph.gp_def IsoGraph.lcf_def
-
-/-! ## Two isomorphisms tagged from a distance
-
-`johnsonTwoIso` and `paleyIso` are used inside `IsoGraph/Graphs/Constructions.lean` itself, so they
-are declared there — before any of the constructions above exist, and so before `@[toIsoGraph]`
-could say what they mean.  They are tagged here instead.  This is the one place in the library where
-the attribute is applied by a command rather than written on the declaration, and the reason is the
-one that justifies it: the statement it generates depends on definitions the declaration cannot
-see. -/
-
-attribute [toIsoGraph johnson_two_eq_compl_kneser] CGraph.johnsonTwoIso
-attribute [toIsoGraph paleyField_zmod] CGraph.paleyIso
 
 end IsoGraph
