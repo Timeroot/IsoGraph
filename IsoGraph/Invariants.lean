@@ -654,15 +654,7 @@ end CGraph
 /-! ## Invariants of an `IsoGraph`
 
 Every declaration of the previous section tagged `@[toIsoGraph]` has already produced its
-`IsoGraph`-level counterpart, a `Quotient.lift` together with its `@[simp]` `…_mk` lemma.  What is
-left here is the handful of facts that relate two of them. -/
+`IsoGraph`-level counterpart, a `Quotient.lift` together with its `@[simp]` `…_mk` lemma.  The two
+facts relating a pair of them transfer just as well. -/
 
-namespace IsoGraph
-
-theorem degSequence_eq_sort (G : IsoGraph) : degSequence G = (degMultiset G).sort (· ≤ ·) := by
-  induction G using Quotient.inductionOn with | _ g => rfl
-
-@[simp] theorem coe_degSequence (G : IsoGraph) : (degSequence G : Multiset ℕ) = degMultiset G := by
-  induction G using Quotient.inductionOn with | _ g => exact Multiset.sort_eq _ _
-
-end IsoGraph
+attribute [toIsoGraph] CGraph.degSequence_eq_sort CGraph.coe_degSequence
