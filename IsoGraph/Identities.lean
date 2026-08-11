@@ -36,11 +36,10 @@ Three tools cover almost everything.
 Each entry of the invariant tables is wanted twice: once for `CGraph`, where it is proved, and
 once for `IsoGraph`, where it is used.  The `@[toIsoGraph]` attribute of
 `IsoGraph/ToIsoGraph.lean` writes the second copy, so most of the `IsoGraph`-level statements
-below appear only as a name in an `attribute [toIsoGraph] …` line.  The attribute needs the
-bridging `…_mk` and `…_def` lemmas that hold by `rfl`, which are gathered into the `isoTransfer`
-set at the end of `IsoGraph/Quotient.lean`; the ones that need `Quotient.sound` — the products and
-the complement, whose `IsoGraph`-level operations canonicalise their arguments — are out of its
-reach, and those statements are still written by hand.
+below never appear in the source at all: the `CGraph`-level theorem is tagged where it is
+declared, and the attribute generates its counterpart.  What it rewrites with are the bridging
+`…_mk` and `…_def` lemmas gathered into the `isoTransfer` set at the end of
+`IsoGraph/Quotient.lean`.
 -/
 
 set_option autoImplicit false
@@ -10354,13 +10353,7 @@ theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = emp
 /-! ## The join, and the constructions built from it
 
 The `IsoGraph`-level `join`, defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees
-with `CGraph.join`; that is `join_mk`. -/
-
-@[simp] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    ⟦G⟧ ∇g ⟦H⟧ = ⟦CGraph.join G H⟧ := by
-  show ((show IsoGraph from ⟦G⟧)ᶜ ⊕g (show IsoGraph from ⟦H⟧)ᶜ)ᶜ = _
-  rw [compl_mk, compl_mk, disjUnion_mk, compl_mk]
-  rfl
+with `CGraph.join`; that is `join_mk`, in `IsoGraph/Quotient.lean`. -/
 
 theorem join_def (G H : IsoGraph) : G ∇g H = (Gᶜ ⊕g Hᶜ)ᶜ := rfl
 
@@ -10714,13 +10707,6 @@ theorem circulant_two_one : circulant 2 [1] = complete 2 := by
   rw [circulant_one, cycle_two]
 
 /-! ## Paley graphs -/
-
-/-- The nonzero squares mod `5` are `{1, 4} = {±1}`, so `Paley(5)` is the pentagon — and the
-identity map on `Fin 5` is already the isomorphism. -/
-theorem paley_five : paley 5 = cycle 5 := by
-  rw [paley_def, cycle_def]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.paley 5) (H := CGraph.cycle 5) (Equiv.refl (Fin 5)) (by decide)⟩
 
 /-- **Paley graphs are self-complementary**, because multiplication by a non-residue exchanges
 the squares with the non-squares.  The general statement needs the multiplicative structure of

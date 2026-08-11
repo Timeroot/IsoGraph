@@ -410,6 +410,12 @@ labelling each, rather than a search over bijections. -/
 instance decidableNonemptyIso (G H : CGraph) : Decidable (Nonempty (G ≃cg H)) :=
   decidable_of_iff (key G = key H) key_eq_iff
 
+/-- An isomorphism, from a computation that the two keys agree.  Deciding *whether* two graphs are
+isomorphic is a comparison of two canonical labellings; picking one of the maps that witnesses it
+is not part of that answer, so this is noncomputable. -/
+noncomputable def isoOfKeyEq {G H : CGraph} (h : key G = key H) : G ≃cg H :=
+  Classical.choice (key_eq_iff.1 h)
+
 /-- The key of an isomorphism class: `key` is an isomorphism invariant, so it descends to the
 quotient. -/
 def _root_.IsoGraph.key : IsoGraph → ℕ × ℕ :=

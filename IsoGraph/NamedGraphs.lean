@@ -307,14 +307,18 @@ abbrev desargues : CGraph := gp 10 3
 /-- The Nauru graph `GP(12, 5)`, the Levi graph of the Möbius–Kantor configuration `12₃`. -/
 abbrev nauru : CGraph := gp 12 5
 
-theorem gp_five_two_iso_petersen : Nonempty (gp 5 2 ≃cg SRG.petersen) := by
-  rw [← key_eq_iff]; native_decide
+/-- `GP(5, 2)` is the Petersen graph, the graph the family is named after. -/
+@[toIsoGraph gp_five_two_iso_petersen]
+noncomputable def gpFiveTwoIso : gp 5 2 ≃cg SRG.petersen := isoOfKeyEq (by native_decide)
 
-theorem gp_six_one_iso_prism : Nonempty (gp 6 1 ≃cg prism 6) := by
-  rw [← key_eq_iff]; native_decide
+/-- `GP(6, 1)` is the hexagonal prism: the spokes are the rungs and `k = 1` makes the inner cycle a
+copy of the outer one. -/
+@[toIsoGraph gp_six_one_iso_prism]
+noncomputable def gpSixOneIso : gp 6 1 ≃cg prism 6 := isoOfKeyEq (by native_decide)
 
-theorem gp_four_one_iso_hypercube : Nonempty (gp 4 1 ≃cg hypercube 3) := by
-  rw [← key_eq_iff]; native_decide
+/-- `GP(4, 1)` is the cube. -/
+@[toIsoGraph gp_four_one_iso_hypercube]
+noncomputable def gpFourOneIso : gp 4 1 ≃cg hypercube 3 := isoOfKeyEq (by native_decide)
 
 @[simp] theorem card_durer : Fintype.card durer.V = 12 := card_ofEdges _ _
 
@@ -603,18 +607,25 @@ and the apex degree five. -/
 Several of the graphs above have a second standard description; the canonical keys of
 `IsoGraph/Enum` decide the isomorphisms. -/
 
-theorem mobiusKantor_lcf : Nonempty (lcf [5, -5] 8 ≃cg mobiusKantor) := by
-  rw [← key_eq_iff]; native_decide
+/-- The Möbius–Kantor graph in LCF notation. -/
+@[toIsoGraph mobiusKantor_lcf]
+noncomputable def mobiusKantorLcfIso : lcf [5, -5] 8 ≃cg mobiusKantor :=
+  isoOfKeyEq (by native_decide)
 
-theorem desargues_lcf : Nonempty (lcf [5, -5, 9, -9] 5 ≃cg desargues) := by
-  rw [← key_eq_iff]; native_decide
+/-- The Desargues graph in LCF notation. -/
+@[toIsoGraph desargues_lcf]
+noncomputable def desarguesLcfIso : lcf [5, -5, 9, -9] 5 ≃cg desargues :=
+  isoOfKeyEq (by native_decide)
 
-theorem dodecahedron_lcf :
-    Nonempty (lcf [10, 7, 4, -4, -7, 10, -4, 7, -7, 4] 2 ≃cg dodecahedron) := by
-  rw [← key_eq_iff]; native_decide
+/-- The dodecahedron in LCF notation. -/
+@[toIsoGraph dodecahedron_lcf]
+noncomputable def dodecahedronLcfIso :
+    lcf [10, 7, 4, -4, -7, 10, -4, 7, -7, 4] 2 ≃cg dodecahedron := isoOfKeyEq (by native_decide)
 
-theorem nauru_lcf : Nonempty (lcf [5, -9, 7, -7, 9, -5] 4 ≃cg nauru) := by
-  rw [← key_eq_iff]; native_decide
+/-- The Nauru graph in LCF notation. -/
+@[toIsoGraph nauru_lcf]
+noncomputable def nauruLcfIso : lcf [5, -9, 7, -7, 9, -5] 4 ≃cg nauru :=
+  isoOfKeyEq (by native_decide)
 
 /-! ## More named graphs
 

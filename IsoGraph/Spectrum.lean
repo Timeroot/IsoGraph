@@ -4827,12 +4827,12 @@ theorem isSubcritical_dynkinD (m : ℕ) : IsSubcritical (dynkinD m) :=
   fun _ hx ↦ lt_two_of_mem_spectrum_dynkinD m hx
 
 /-- `D₄` in the parametric family is the claw. -/
-theorem dynkinD_zero_iso : Nonempty (dynkinD 0 ≃cg dynkinD4) :=
-  ⟨isoOfAdj (finSumFinEquiv : Fin 1 ⊕ Fin 3 ≃ Fin 4) (by decide)⟩
+def dynkinDZeroIso : dynkinD 0 ≃cg dynkinD4 :=
+  isoOfAdj (finSumFinEquiv : Fin 1 ⊕ Fin 3 ≃ Fin 4) (by decide)
 
 /-- `D̃₄` in the parametric family is the star with four edges. -/
-theorem affineD_zero_iso : Nonempty (affineD 0 ≃cg affineD4) :=
-  ⟨isoOfAdj (finSumFinEquiv : Fin 1 ⊕ Fin 4 ≃ Fin 5) (by decide)⟩
+def affineDZeroIso : affineD 0 ≃cg affineD4 :=
+  isoOfAdj (finSumFinEquiv : Fin 1 ⊕ Fin 4 ≃ Fin 5) (by decide)
 
 /-! ### Line graphs -/
 

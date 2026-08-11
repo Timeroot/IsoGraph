@@ -952,6 +952,10 @@ def circulant (n : ℕ) (S : List ℕ) : IsoGraph := ⟦CGraph.circulant n S⟧
 /-- The Paley graph on `q` vertices. -/
 def paley (q : ℕ) : IsoGraph := ⟦CGraph.paley q⟧
 
+/-- The Paley graph of a finite field. -/
+def paleyField (F : Type) [Field F] [Fintype F] [DecidableEq F] : IsoGraph :=
+  ⟦CGraph.paleyField F⟧
+
 /-- The theta graph with the given path lengths. -/
 def thetaGraph (xs : List ℕ) : IsoGraph := ⟦CGraph.thetaGraph xs⟧
 
@@ -969,6 +973,13 @@ def doubleStar (m n : ℕ) : IsoGraph := ⟦CGraph.doubleStar m n⟧
 
 /-- The `m`-cycle with pendant paths of the given lengths. -/
 def cyclePendant (m : ℕ) (ks : List ℕ) : IsoGraph := ⟦CGraph.cyclePendant m ks⟧
+
+/-- The generalized Petersen graph `GP(n, k)`. -/
+def gp (n k : ℕ) : IsoGraph := ⟦CGraph.gp n k⟧
+
+/-- The LCF graph: an `ss.length * r`-cycle with the chords given by repeating the jump sequence
+`ss` `r` times. -/
+def lcf (ss : List ℤ) (r : ℕ) : IsoGraph := ⟦CGraph.lcf ss r⟧
 
 /-! ### Operations -/
 
@@ -1081,6 +1092,13 @@ The four products bind more tightly than the two sums, so `G ⊕g H □g K` is `
     ⟦G⟧ ·g ⟦H⟧ = ⟦CGraph.lexProduct G H⟧ :=
   Quotient.sound ⟨CGraph.Iso.lexProduct G.isoCanonicalize.symm H.isoCanonicalize.symm⟩
 
+/-- The join is a complement of a disjoint union of complements on both levels, so its bridge is
+the two others put together. -/
+@[simp] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    (⟦G⟧ : IsoGraph) ∇g ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+  rw [join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
+  rfl
+
 /-- The line graph of an isomorphism class: its vertices are the edges, adjacent when they meet. -/
 def lineGraph (G : IsoGraph) : IsoGraph :=
   Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.lineGraph g.canonicalize⟧)
@@ -1166,6 +1184,8 @@ theorem hypercube_def (n : ℕ) : hypercube n = ⟦CGraph.hypercube n⟧ := rfl
 theorem foldedCube_def (n : ℕ) : foldedCube n = ⟦CGraph.foldedCube n⟧ := rfl
 theorem circulant_def (n : ℕ) (S : List ℕ) : circulant n S = ⟦CGraph.circulant n S⟧ := rfl
 theorem paley_def (q : ℕ) : paley q = ⟦CGraph.paley q⟧ := rfl
+theorem paleyField_def (F : Type) [Field F] [Fintype F] [DecidableEq F] :
+    paleyField F = ⟦CGraph.paleyField F⟧ := rfl
 theorem thetaGraph_def (xs : List ℕ) : thetaGraph xs = ⟦CGraph.thetaGraph xs⟧ := rfl
 theorem tadpole_def (m k : ℕ) : tadpole m k = ⟦CGraph.tadpole m k⟧ := rfl
 theorem lollipop_def (m k : ℕ) : lollipop m k = ⟦CGraph.lollipop m k⟧ := rfl
@@ -1173,6 +1193,8 @@ theorem spider_def (legs : List ℕ) : spider legs = ⟦CGraph.spider legs⟧ :=
 theorem doubleStar_def (m n : ℕ) : doubleStar m n = ⟦CGraph.doubleStar m n⟧ := rfl
 theorem cyclePendant_def (m : ℕ) (ks : List ℕ) :
     cyclePendant m ks = ⟦CGraph.cyclePendant m ks⟧ := rfl
+theorem gp_def (n k : ℕ) : gp n k = ⟦CGraph.gp n k⟧ := rfl
+theorem lcf_def (ss : List ℤ) (r : ℕ) : lcf ss r = ⟦CGraph.lcf ss r⟧ := rfl
 
 /-- A graph and its canonical representative are the same isomorphism class. -/
 theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G⟧ :=
@@ -1185,16 +1207,35 @@ theorem mk_canonicalize (G : CGraph) : (⟦G.canonicalize⟧ : IsoGraph) = ⟦G�
 /-! ## The transfer set
 
 These are the lemmas the `@[toIsoGraph]` attribute rewrites with, backwards, to turn a
-`CGraph`-level statement into its `IsoGraph`-level counterpart.  Only the ones that hold by `rfl`
-belong here: the attribute proves the translated statement by `Quotient.ind` and definitional
-unfolding, so the products and the complement — whose bridging lemmas need `Quotient.sound`,
-because the `IsoGraph`-level operation canonicalises its arguments — are deliberately left out. -/
+`CGraph`-level statement into its `IsoGraph`-level counterpart.  Most hold by `rfl`; the products,
+the complement, the line graph and the Mycielskian do not, because the `IsoGraph`-level operation
+canonicalises its arguments first, and the attribute transports the proof along the rewrite rather
+than relying on the two statements being definitionally equal.
 
-attribute [isoTransfer] IsoGraph.V_mk IsoGraph.disjUnion_mk
+Each of the non-`rfl` ones asks for a `DecidableEq` on the vertex type, so a fact about `Gᶜ` for a
+*variable* `G` only transfers if it carries that instance; for the concrete graphs of the tables
+it is always found. -/
+
+attribute [isoTransfer] IsoGraph.V_mk IsoGraph.disjUnion_mk IsoGraph.compl_mk IsoGraph.join_mk
+  IsoGraph.cartesianProduct_mk IsoGraph.tensorProduct_mk IsoGraph.strongProduct_mk
+  IsoGraph.lexProduct_mk IsoGraph.lineGraph_mk IsoGraph.mycielskian_mk
   IsoGraph.empty_def IsoGraph.complete_def IsoGraph.path_def IsoGraph.cycle_def
   IsoGraph.bipartite_def IsoGraph.completeMultipartite_def IsoGraph.star_def IsoGraph.wheel_def
   IsoGraph.kneser_def IsoGraph.johnson_def IsoGraph.hypercube_def IsoGraph.foldedCube_def
-  IsoGraph.circulant_def IsoGraph.paley_def IsoGraph.thetaGraph_def IsoGraph.tadpole_def
-  IsoGraph.lollipop_def IsoGraph.spider_def IsoGraph.doubleStar_def IsoGraph.cyclePendant_def
+  IsoGraph.circulant_def IsoGraph.paley_def IsoGraph.paleyField_def IsoGraph.thetaGraph_def
+  IsoGraph.tadpole_def IsoGraph.lollipop_def IsoGraph.spider_def IsoGraph.doubleStar_def
+  IsoGraph.cyclePendant_def IsoGraph.gp_def IsoGraph.lcf_def
+
+/-! ## Two isomorphisms tagged from a distance
+
+`johnsonTwoIso` and `paleyIso` are used inside `IsoGraph/Constructions.lean` itself, so they are
+declared there — before any of the constructions above exist, and so before `@[toIsoGraph]` could
+say what they mean.  They are tagged here instead.  This is the one place in the library where the
+attribute is applied by a command rather than written on the declaration, and the reason is the
+one that justifies it: the statement it generates depends on definitions the declaration cannot
+see. -/
+
+attribute [toIsoGraph johnson_two_eq_compl_kneser] CGraph.johnsonTwoIso
+attribute [toIsoGraph paleyField_zmod] CGraph.paleyIso
 
 end IsoGraph

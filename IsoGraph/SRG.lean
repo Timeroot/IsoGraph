@@ -1,4 +1,4 @@
-import IsoGraph.Constructions
+import IsoGraph.Quotient
 import IsoGraph.Enum
 import Mathlib.Tactic.NormNum.Prime
 
@@ -68,6 +68,11 @@ Both facts are proved by computing canonical keys, i.e. by `CGraph.Enum.key_eq_i
 | `paley 101`              | 101 |  50 |  24 |  25 |
 
 `SRG.table` collects them as data: each row carries the graph, the parameters and the proof.
+
+Strong regularity is an isomorphism invariant, so every row is tagged `@[toIsoGraph]` and appears
+a second time as a statement about the isomorphism class — `IsoGraph.shrikhande_srg`,
+`IsoGraph.petersen_srg`, and so on.  The families are named on the quotient already; the ten
+sporadic graphs are given their `IsoGraph` names below.
 
 ## Evaluation cost
 
@@ -309,6 +314,63 @@ def higmanSims : CGraph := ofRel (Fin 100) fun x y ↦ higmanSimsAdj x.1 y.1
 
 instance : DecidableEq higmanSims.V := inferInstanceAs (DecidableEq (Fin 100))
 
+end SRG
+
+/-! ## The sporadic graphs, on the quotient
+
+The families all have `IsoGraph`-level names already, in `IsoGraph/Quotient.lean`; these are the
+ones that only exist here.  Each comes with the `rfl` bridge that lets `@[toIsoGraph]` state the
+parameters of the graph below in terms of the isomorphism class rather than the representative. -/
+
+namespace IsoGraph
+
+/-- The Shrikhande graph, as an isomorphism class. -/
+def shrikhande : IsoGraph := ⟦SRG.shrikhande⟧
+
+/-- The graph of the 27 lines on a cubic surface, as an isomorphism class. -/
+def linesOnCubic : IsoGraph := ⟦SRG.linesOnCubic⟧
+
+/-- The Schläfli graph, as an isomorphism class. -/
+def schlafli : IsoGraph := ⟦SRG.schlafli⟧
+
+/-- The Hoffman–Singleton graph, as an isomorphism class. -/
+def hoffmanSingleton : IsoGraph := ⟦SRG.hoffmanSingleton⟧
+
+/-- The first Chang graph, as an isomorphism class. -/
+def chang₁ : IsoGraph := ⟦SRG.chang₁⟧
+
+/-- The second Chang graph, as an isomorphism class. -/
+def chang₂ : IsoGraph := ⟦SRG.chang₂⟧
+
+/-- The third Chang graph, as an isomorphism class. -/
+def chang₃ : IsoGraph := ⟦SRG.chang₃⟧
+
+/-- The Gewirtz graph, as an isomorphism class. -/
+def gewirtz : IsoGraph := ⟦SRG.gewirtz⟧
+
+/-- The `M₂₂` graph, as an isomorphism class. -/
+def m22 : IsoGraph := ⟦SRG.m22⟧
+
+/-- The Higman–Sims graph, as an isomorphism class. -/
+def higmanSims : IsoGraph := ⟦SRG.higmanSims⟧
+
+@[isoTransfer] theorem shrikhande_def : shrikhande = ⟦SRG.shrikhande⟧ := rfl
+@[isoTransfer] theorem linesOnCubic_def : linesOnCubic = ⟦SRG.linesOnCubic⟧ := rfl
+@[isoTransfer] theorem schlafli_def : schlafli = ⟦SRG.schlafli⟧ := rfl
+@[isoTransfer] theorem hoffmanSingleton_def : hoffmanSingleton = ⟦SRG.hoffmanSingleton⟧ := rfl
+@[isoTransfer] theorem chang₁_def : chang₁ = ⟦SRG.chang₁⟧ := rfl
+@[isoTransfer] theorem chang₂_def : chang₂ = ⟦SRG.chang₂⟧ := rfl
+@[isoTransfer] theorem chang₃_def : chang₃ = ⟦SRG.chang₃⟧ := rfl
+@[isoTransfer] theorem gewirtz_def : gewirtz = ⟦SRG.gewirtz⟧ := rfl
+@[isoTransfer] theorem m22_def : m22 = ⟦SRG.m22⟧ := rfl
+@[isoTransfer] theorem higmanSims_def : higmanSims = ⟦SRG.higmanSims⟧ := rfl
+
+end IsoGraph
+
+namespace SRG
+
+open CGraph CGraph.Enum
+
 /-! ## The parameters
 
 Whatever can be, is proved: the rook, Kneser, triangular, Paley, complete bipartite and cocktail
@@ -317,79 +379,104 @@ from `isSRGWith_compl`.  What is left is `cycle 5`, `clebsch` and `shrikhande` b
 and five large sporadic graphs by `native_decide`. -/
 
 set_option maxRecDepth 4000 in
+@[toIsoGraph cycle_five_srg]
 theorem cycle_five_srg : (cycle 5).IsSRGWith 5 2 0 1 := by decide
 
+@[toIsoGraph bipartite_srg]
 theorem bipartite_srg : (bipartite 3 3).IsSRGWith 6 3 0 3 := isSRGWith_bipartite 3
 
+@[toIsoGraph cocktailParty_srg]
 theorem cocktailParty_srg : (cocktailParty 4).IsSRGWith 8 6 4 6 := isSRGWith_cocktailParty 4
 
+@[toIsoGraph rook_three_srg]
 theorem rook_three_srg : (rook 3 3).IsSRGWith 9 4 1 2 := isSRGWith_rook 3
 
+@[toIsoGraph petersen_srg]
 theorem petersen_srg : petersen.IsSRGWith 10 3 0 1 := isSRGWith_kneser_two 5
 
+@[toIsoGraph triangular_five_srg]
 theorem triangular_five_srg : (triangular 5).IsSRGWith 10 6 3 4 :=
   isSRGWith_triangular 5 (by norm_num)
 
+@[toIsoGraph paley_thirteen_srg]
 theorem paley_thirteen_srg : (paley 13).IsSRGWith 13 6 2 3 :=
   haveI : Fact (Nat.Prime 13) := ⟨by norm_num⟩
   isSRGWith_paley 13 (by norm_num)
 
+@[toIsoGraph kneser_six_srg]
 theorem kneser_six_srg : (kneser 6 2).IsSRGWith 15 6 1 3 := isSRGWith_kneser_two 6
 
+@[toIsoGraph triangular_six_srg]
 theorem triangular_six_srg : (triangular 6).IsSRGWith 15 8 4 4 :=
   isSRGWith_triangular 6 (by norm_num)
 
 set_option maxRecDepth 100000 in
+@[toIsoGraph clebsch_srg]
 theorem clebsch_srg : clebsch.IsSRGWith 16 5 0 2 := by decide
 
+@[toIsoGraph rook_four_srg]
 theorem rook_four_srg : (rook 4 4).IsSRGWith 16 6 2 2 := isSRGWith_rook 4
 
 set_option maxRecDepth 100000 in
+@[toIsoGraph shrikhande_srg]
 theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by decide
 
+@[toIsoGraph compl_clebsch_srg]
 theorem compl_clebsch_srg : (compl clebsch).IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
 
+@[toIsoGraph paley_seventeen_srg]
 theorem paley_seventeen_srg : (paley 17).IsSRGWith 17 8 3 4 :=
   haveI : Fact (Nat.Prime 17) := ⟨by norm_num⟩
   isSRGWith_paley 17 (by norm_num)
 
+@[toIsoGraph linesOnCubic_srg]
 theorem linesOnCubic_srg : linesOnCubic.IsSRGWith 27 10 1 5 := by native_decide
 
+@[toIsoGraph schlafli_srg]
 theorem schlafli_srg : schlafli.IsSRGWith 27 16 10 8 := isSRGWith_compl _ linesOnCubic_srg
 
+@[toIsoGraph triangular_eight_srg]
 theorem triangular_eight_srg : (triangular 8).IsSRGWith 28 12 6 4 :=
   isSRGWith_triangular 8 (by norm_num)
 
+@[toIsoGraph chang₁_srg]
 theorem chang₁_srg : chang₁.IsSRGWith 28 12 6 4 := by native_decide
 
+@[toIsoGraph chang₂_srg]
 theorem chang₂_srg : chang₂.IsSRGWith 28 12 6 4 := by native_decide
 
+@[toIsoGraph chang₃_srg]
 theorem chang₃_srg : chang₃.IsSRGWith 28 12 6 4 := by native_decide
 
+@[toIsoGraph paley_twentynine_srg]
 theorem paley_twentynine_srg : (paley 29).IsSRGWith 29 14 6 7 :=
   haveI : Fact (Nat.Prime 29) := ⟨by norm_num⟩
   isSRGWith_paley 29 (by norm_num)
 
+@[toIsoGraph hoffmanSingleton_srg]
 theorem hoffmanSingleton_srg : hoffmanSingleton.IsSRGWith 50 7 0 1 := by native_decide
 
+@[toIsoGraph compl_hoffmanSingleton_srg]
 theorem compl_hoffmanSingleton_srg : (compl hoffmanSingleton).IsSRGWith 50 42 35 36 :=
   isSRGWith_compl _ hoffmanSingleton_srg
 
+@[toIsoGraph gewirtz_srg]
 theorem gewirtz_srg : gewirtz.IsSRGWith 56 10 0 2 := by native_decide
 
+@[toIsoGraph m22_srg]
 theorem m22_srg : m22.IsSRGWith 77 16 0 4 := by native_decide
 
+@[toIsoGraph higmanSims_srg]
 theorem higmanSims_srg : higmanSims.IsSRGWith 100 22 0 6 := by native_decide
 
+@[toIsoGraph compl_higmanSims_srg]
 theorem compl_higmanSims_srg : (compl higmanSims).IsSRGWith 100 77 60 56 :=
   isSRGWith_compl _ higmanSims_srg
 
+@[toIsoGraph paley_hundredone_srg]
 theorem paley_hundredone_srg : (paley 101).IsSRGWith 101 50 24 25 :=
   haveI : Fact (Nat.Prime 101) := ⟨by norm_num⟩
   isSRGWith_paley 101 (by norm_num)
-
-/-- Strong regularity descends to `IsoGraph`, being an isomorphism invariant. -/
-theorem petersen_srg_iso : IsoGraph.IsSRGWith (Quotient.mk _ petersen) 10 3 0 1 := petersen_srg
 
 /-! ## Identifications and separations
 
@@ -400,17 +487,20 @@ the question is decided by the canonical key. -/
 /-- `Paley(5)` is the 5-cycle.  Both are circulants on `Fin 5` — the nonzero squares mod `5` are
 `{1, 4}`, which is `{±1}` — so the identity is already an isomorphism and the twenty-five
 adjacency comparisons fit inside kernel `decide`. -/
-theorem paley_five_eq_cycle : Nonempty (paley 5 ≃cg cycle 5) :=
-  ⟨⟨Equiv.refl (Fin 5), fun {a b} ↦ by revert a b; decide⟩⟩
+@[toIsoGraph paley_five]
+def paleyFiveIso : paley 5 ≃cg cycle 5 :=
+  ⟨Equiv.refl (Fin 5), fun {a b} ↦ by revert a b; decide⟩
 
 /-- `T(5)` is the complement of the Petersen graph — a special case of `johnsonTwoIso`, which
 identifies `johnson n 2` with `compl (kneser n 2)` for every `n`. -/
-theorem triangular_five_eq_compl_petersen : Nonempty (triangular 5 ≃cg compl petersen) :=
-  ⟨johnsonTwoIso 5⟩
+@[toIsoGraph triangular_five_eq_compl_petersen]
+def triangularFiveIso : triangular 5 ≃cg compl petersen := johnsonTwoIso 5
 
-/-- `T(4)` is the octahedron `K_{2,2,2}`. -/
-theorem triangular_four_eq_octahedron : Nonempty (triangular 4 ≃cg cocktailParty 3) := by
-  rw [← key_eq_iff]; native_decide
+/-- `T(4)` is the octahedron `K_{2,2,2}`.  Nothing identifies the two vertex sets by hand here;
+the canonical keys agree, and `isoOfKeyEq` extracts a witness from that. -/
+@[toIsoGraph triangular_four_eq_octahedron]
+noncomputable def triangularFourIso : triangular 4 ≃cg cocktailParty 3 :=
+  isoOfKeyEq (by native_decide)
 
 /-- The Shrikhande graph is *not* the `4 × 4` rook's graph, though the two share the parameters
 `(16, 6, 2, 2)`.  Together they are all the strongly regular graphs with those parameters. -/

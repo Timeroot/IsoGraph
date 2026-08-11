@@ -31,6 +31,17 @@ can be overridden by writing it after the attribute, as `@[toIsoGraph V]`.
 
 The `_mk` lemma is also tagged `@[isoTransfer]`, which is the simp set used to rewrite a
 `CGraph`-level statement into its `IsoGraph`-level counterpart.
+
+On any other `CGraph`-level declaration the attribute states the same fact one level up.  Two
+conclusions are read as equations of isomorphism classes: an equation `g = h` of graphs, and an
+isomorphism `g ≃cg h`.  So
+
+```
+@[toIsoGraph paley_five]
+def CGraph.paleyFiveIso : CGraph.paley 5 ≃cg CGraph.cycle 5 := ...
+```
+
+generates `IsoGraph.paley_five : IsoGraph.paley 5 = IsoGraph.cycle 5`, by `Quotient.sound`.
 -/
 
 open Lean Meta Elab
@@ -209,9 +220,10 @@ def generateLift (thmName : Name) (base? : Option Name) : MetaM Unit := do
 
 The second job of the attribute.  A `CGraph`-level statement is turned into an `IsoGraph`-level
 one by rewriting with the `@[isoTransfer]` lemmas backwards, which leaves every graph appearing
-only as `⟦G⟧`, and then reading `⟦G⟧` as a variable of type `IsoGraph`.  Because each of those
-lemmas holds by `rfl`, the translated statement is definitionally the original, and the original
-theorem proves it after a `Quotient.ind` for each graph variable. -/
+only as `⟦G⟧`, and then reading `⟦G⟧` as a variable of type `IsoGraph`.  The original theorem
+proves the result after a `Quotient.ind` for each graph variable, transported along the very
+rewrite that produced the statement — a transport that is `rfl` for the bridges that are `rfl`,
+and a real cast for the ones, like `compl_mk`, that are not. -/
 
 /-- The transfer simp set, turned around: these rewrite a `CGraph`-level term into the
 `IsoGraph`-level term that reduces to it. -/
@@ -222,15 +234,26 @@ private def reversedTransfer : MetaM SimpTheorems := do
       rev ← rev.addConst n (inv := true)
   return rev
 
+/-- The simp context the translation runs in. -/
+private def transferCtx (rev : SimpTheorems) : MetaM Simp.Context := do
+  Simp.mkContext (config := { decide := false }) (simpTheorems := #[rev])
+    (congrTheorems := ← getSimpCongrTheorems)
+
+/-- Cast a proof of a `CGraph`-level statement to the `IsoGraph`-level statement that the transfer
+set rewrites it to. -/
+private def transport (rev : SimpTheorems) (e : Expr) : MetaM Expr := do
+  let r ← simp (← instantiateMVars (← inferType e)) (← transferCtx rev)
+  match r.1.proof? with
+  | some h => mkEqMP h e
+  | none => return e
+
 /-- Rewrite a `CGraph`-level expression to `IsoGraph` level: rewrite backwards with the transfer
 lemmas, then read each `⟦gᵢ⟧` as the corresponding `IsoGraph` variable.  Fails if a graph is left
 over, which is what happens when the statement uses a graph in a way that does not descend to the
 quotient. -/
 private def translateExpr (rev : SimpTheorems) (olds news : Array Expr)
     (graphs : Array Bool) (e : Expr) : MetaM Expr := do
-  let ctx ← Simp.mkContext (config := { decide := false }) (simpTheorems := #[rev])
-    (congrTheorems := ← getSimpCongrTheorems)
-  let e ← instantiateMVars (← simp (← instantiateMVars e) ctx).1.expr
+  let e ← instantiateMVars (← simp (← instantiateMVars e) (← transferCtx rev)).1.expr
   -- `⟦gᵢ⟧ ↦ Gᵢ`
   let e := e.replace fun sub ↦ do
     guard (sub.isAppOfArity ``Quotient.mk 3 && sub.appFn!.appArg! == setoidE)
@@ -279,10 +302,12 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
           withLocalDecl decl.userName decl.binderInfo ty fun y ↦
             loop (i + 1) (news.push y) (graphs.push false)
       else
-        /- A conclusion `g = h` between two `CGraph`s becomes one between their classes; this is
-        the only step of the translation that is not by `rfl`, and `congrArg` supplies it. -/
+        /- A conclusion `g = h` between two `CGraph`s becomes one between their classes, and so
+        does an isomorphism `g ≃cg h`; `congrArg` and `Quotient.sound` supply the two.  Everything
+        else about the statement is rewriting. -/
         let isEqCG := body.isAppOfArity ``Eq 3 && body.appFn!.appFn!.appArg! == cgraphE
-        let body := if isEqCG then
+        let isIsoCG := body.isAppOfArity ``CGraph.Iso 2
+        let body := if isEqCG || isIsoCG then
             let mk (x : Expr) := mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, x]
             mkAppN (mkConst ``Eq [uIG]) #[isographE, mk body.appFn!.appArg!, mk body.appArg!]
           else body
@@ -312,13 +337,19 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
                 mkLambdaFVars #[y] inner
           else
             let e := mkAppN thm args
-            if isEqCG then
-              withLocalDeclD `g cgraphE fun g ↦ do
-                let q ← mkLambdaFVars #[g]
-                  (mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, g])
-                mkAppM ``congrArg #[q, e]
-            else
-              return e
+            let base ← if isEqCG then
+                withLocalDeclD `g cgraphE fun g ↦ do
+                  let q ← mkLambdaFVars #[g]
+                    (mkAppN (mkConst ``Quotient.mk [uCG]) #[cgraphE, setoidE, g])
+                  mkAppM ``congrArg #[q, e]
+              else if isIsoCG then do
+                let isoTy ← inferType e
+                let u ← getLevel isoTy
+                let ne := mkAppN (mkConst ``Nonempty.intro [u]) #[isoTy, e]
+                pure (mkAppN (mkConst ``Quotient.sound [uCG])
+                  #[cgraphE, setoidE, isoTy.appFn!.appArg!, isoTy.appArg!, ne])
+              else pure e
+            transport rev base
         let prf ← instantiateMVars (← prove 0 #[] #[])
         addDecl (.thmDecl { name := newName, levelParams := lvls, type := stmt, value := prf })
         if let some doc ← findDocString? (← getEnv) thmName then
@@ -333,8 +364,9 @@ the corresponding `IsoGraph`-level quantity, as a `Quotient.lift`, together with
 saying that the two agree on representatives.  The name of the generated function is read off the
 statement; `@[toIsoGraph f]` overrides it.
 
-On any other `CGraph`-level theorem it generates the `IsoGraph`-level statement of the same fact,
-proved from the original.  It is `@[simp]` exactly when the original is, so write `@[simp,
+On any other `CGraph`-level declaration it generates the `IsoGraph`-level statement of the same
+fact, proved from the original; an equation of graphs and an isomorphism both become an equation
+of isomorphism classes.  It is `@[simp]` exactly when the original is, so write `@[simp,
 toIsoGraph]` and not the other way round. -/
 syntax (name := toIsoGraph) "toIsoGraph" (ppSpace ident)? : attr
 
