@@ -1,4 +1,6 @@
 import IsoGraph.Graphs.Constructions
+import IsoGraph.ForMathlib.List
+import IsoGraph.ForMathlib.SimpleGraph
 
 /-!
 # Certificates for the invariants of a concrete graph
@@ -362,12 +364,6 @@ is the lower bound.  With a precomputed neighbour table (`nbrTable`) the hypothe
 `six_le_girth_of_nbrList` and friends are one `native_decide` each, which is how the cubic cages
 of `IsoGraph/Graphs/NamedGraphs.lean` get their girth. -/
 
-theorem getLastD_support {V : Type} {G : SimpleGraph V} {u v : V} (p : G.Walk u v) (x : V) :
-    p.support.getLastD x = v := by
-  induction p generalizing x with
-  | nil => rfl
-  | cons h q ih => rw [SimpleGraph.Walk.support_cons, List.getLastD_cons]; exact ih _
-
 theorem exists_cycleList_of_isCycle {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a}
     (hw : w.IsCycle) :
     ∃ (u : G.V) (vs : List G.V), vs.length + 1 = w.length ∧ (u :: vs).Nodup ∧
@@ -400,26 +396,6 @@ theorem exists_walk_of_isChain {G : CGraph} : ∀ (u : G.V) (vs : List G.V),
     rw [List.getLastD_cons]
     refine ⟨.cons ((toSimple_adj G u b).2 hub) q, ?_⟩
     rw [SimpleGraph.Walk.support_cons, hq]
-
-/-- In a path of length at least two, the two endpoints are not joined by an edge of the path. -/
-theorem not_mem_edges_of_isPath {V : Type} {G : SimpleGraph V} {u v : V} :
-    ∀ (p : G.Walk u v), p.IsPath → 2 ≤ p.length → s(u, v) ∉ p.edges := by
-  intro p
-  induction p with
-  | nil => simp
-  | @cons a b c h q ih =>
-    intro hp hlen hmem
-    rw [SimpleGraph.Walk.cons_isPath_iff] at hp
-    rw [SimpleGraph.Walk.edges_cons, List.mem_cons] at hmem
-    rcases hmem with heq | hmem
-    · have hbc : b = c := by
-        rcases Sym2.eq_iff.1 heq with ⟨_, hbc⟩ | ⟨hac, _⟩
-        · exact hbc.symm
-        · exact absurd hac h.ne
-      subst hbc
-      rw [SimpleGraph.Walk.isPath_iff_eq_nil] at hp
-      simp [hp.1] at hlen
-    · exact hp.2 (q.fst_mem_support_of_mem_edges hmem)
 
 /-- **A list of vertices, read back as a cycle.** -/
 theorem exists_cycle_of_cycleList {G : CGraph} (u : G.V) (vs : List G.V)
@@ -469,18 +445,6 @@ theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
       exact absurd (h u vs (by omega) (by omega) hnd hch hcl) not_false
     · exact_mod_cast hge
   exact ENat.toNat_le_toNat hle (SimpleGraph.egirth_eq_top.not.2 hnac)
-
-/-- The third entry of a list without duplicates differs from the first. -/
-theorem ne_of_nodup_cons₂ {α : Type*} {x y z : α} {l : List α}
-    (h : (x :: y :: z :: l).Nodup) : z ≠ x := by
-  rintro rfl
-  exact (List.nodup_cons.1 h).1 (by simp)
-
-/-- A member of a list that differs from `y` is still a member after `y` is erased.  This is
-`List.mem_erase_of_ne` with the arguments in the order the girth wrappers below need them. -/
-theorem mem_erase_of_ne_of_mem {α : Type*} [DecidableEq α] {x y : α} {l : List α} (hne : x ≠ y)
-    (hx : x ∈ l) : x ∈ l.erase y :=
-  (List.mem_erase_of_ne hne).2 hx
 
 /-- **Girth at least five** from a neighbour list, as `six_le_girth_of_nbrList` at length
 five. -/

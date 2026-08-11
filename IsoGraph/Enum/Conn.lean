@@ -1,4 +1,5 @@
 import IsoGraph.Enum.All
+import IsoGraph.ForMathlib.Bits
 
 /-!
 # Enumerating connected graphs up to isomorphism
@@ -241,25 +242,6 @@ theorem fullMask_lt (n : ℕ) : fullMask n < 2 ^ n :=
 
 @[simp] theorem testBit_fullMask (n k : ℕ) : (fullMask n).testBit k = decide (k < n) :=
   Nat.testBit_two_pow_sub_one n k
-
-theorem le_of_testBit_imp {a b : ℕ} (h : ∀ k, a.testBit k = true → b.testBit k = true) : a ≤ b := by
-  have hab : a &&& b = a := Nat.eq_of_testBit_eq fun k ↦ by
-    rw [Nat.testBit_and]
-    cases ha : a.testBit k with
-    | false => rw [Bool.false_and]
-    | true => rw [h k ha, Bool.and_self]
-  exact hab ▸ Nat.and_le_right
-
-theorem testBit_foldl_lor {α : Type} (f : α → ℕ) (p : α → Bool) (k : ℕ) (l : List α) (c : ℕ) :
-    (l.foldl (fun c a ↦ if p a then c ||| f a else c) c).testBit k
-      = (c.testBit k || l.any fun a ↦ p a && (f a).testBit k) := by
-  induction l generalizing c with
-  | nil => simp
-  | cons a t ih =>
-      simp only [List.foldl_cons, List.any_cons, ih]
-      by_cases hp : p a
-      · simp [hp, Nat.testBit_or, Bool.or_assoc]
-      · simp [hp]
 
 /-- One round of the search: add the neighbours of everything reached so far.  The result is
 masked down to `n` bits, so nothing has to be assumed about `nbr`. -/
@@ -612,13 +594,6 @@ theorem conn_graphOfCode_canonCode {n : ℕ} {adj : Fin n → Fin n → Bool}
   rw [h, conn_canonAdj_iff]
 
 /-! ## Small arithmetic helpers -/
-
-theorem exists_testBit {n s : ℕ} (hs : s < 2 ^ n) (h0 : s ≠ 0) :
-    ∃ i : Fin n, s.testBit i.1 = true := by
-  by_contra h
-  simp only [not_exists, Bool.not_eq_true] at h
-  exact h0 (eq_of_testBit_lt hs (Nat.two_pow_pos n) fun k hk ↦ by
-    rw [Nat.zero_testBit]; exact h ⟨k, hk⟩)
 
 theorem maskCard_zero (n : ℕ) : maskCard n 0 = 0 := by simp [maskCard]
 

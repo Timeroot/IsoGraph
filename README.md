@@ -12,12 +12,15 @@ Two engines, each in its own directory — `IsoGraph/Canon/` is the canonical la
 and its correctness proof, `IsoGraph/Enum/` is the enumerator built on top of it — and the graph
 theory proper in three more, one per kind of thing being said: `IsoGraph/Invariants/` *defines*
 the invariants, `IsoGraph/Graphs/` *builds* the graphs, and `IsoGraph/Values/` records what the
-invariants come to on them. Only `Basic.lean` and `Compute.lean` are left at the root, along with
-the five index modules `Canon.lean`, `Enum.lean`, `Invariants.lean`, `Graphs.lean` and
-`Values.lean`, each of which imports its directory.
+invariants come to on them. Underneath them all is `IsoGraph/ForMathlib/`, which holds the lemmas
+that mention nothing from this development and could be contributed upstream. Only `Basic.lean`
+and `Compute.lean` are left at the root, along with the six index modules `ForMathlib.lean`,
+`Canon.lean`, `Enum.lean`, `Invariants.lean`, `Graphs.lean` and `Values.lean`, each of which
+imports its directory.
 
 | file | what it is | Mathlib? |
 | --- | --- | --- |
+| `IsoGraph/ForMathlib/` | lemmas about lists, arrays, bits, arithmetic, characters, matrices and `SimpleGraph` that belong upstream — eleven modules, indexed by `ForMathlib.lean` | yes |
 | `IsoGraph/Canon/Algorithm.lean` | the canonical labelling algorithm — a mini-nauty | no |
 | `IsoGraph/Canon/Equivariance.lean` | how the pieces of the algorithm respond to renaming vertices | yes |
 | `IsoGraph/Canon/Search.lean` | the search tree, and the specification `BestKey` it must meet | yes |

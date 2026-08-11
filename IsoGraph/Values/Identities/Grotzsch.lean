@@ -203,7 +203,7 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
         ext x; by_cases hx : x = 0 <;> simp [hx]
         exact h x hx
       rw [this, Finset.card_erase_of_mem (Finset.mem_univ 0), Finset.card_univ]
-    have hcard := @CGraph.card_quadraticChar_eq_one F _ _ _ hqF
+    have hcard := @card_quadraticChar_eq_one F _ _ _ hqF
     rw [hcard_eq] at hcard
     have hq_gt : 1 < Fintype.card F := by
       rw [hcardF]

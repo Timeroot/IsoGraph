@@ -1,4 +1,5 @@
 import IsoGraph.Canon.Dominate
+import IsoGraph.ForMathlib.Array
 
 /-!
 # The running invariants of the optimality induction
@@ -25,17 +26,6 @@ namespace IsoGraph
 namespace Canon
 
 /-! ## Prefixes -/
-
-theorem take_getElem!_self {c : Array Nat} {j i : Nat} (hi : i < j) (hic : i < c.size) :
-    (c.toList.take j)[i]! = c[i]! := by
-  rw [getElem!_pos (c.toList.take j) i (by simp; omega), List.getElem_take, getElem!_pos c i hic]
-  simp
-
-theorem take_getElem! {a b : Array Nat} {j : Nat} (h : a.toList.take j = b.toList.take j)
-    {i : Nat} (hi : i < j) (hia : i < a.size) : a[i]! = b[i]! := by
-  have hlen : min j a.size = min j b.size := by simpa using congrArg List.length h
-  have hib : i < b.size := by omega
-  rw [← take_getElem!_self hi hia, ← take_getElem!_self hi hib, h]
 
 theorem pathPre_of_take {a b : Array Nat} (hab : a.size ≤ b.size)
     (h : a.toList.take a.size = b.toList.take a.size) : PathPre a b :=

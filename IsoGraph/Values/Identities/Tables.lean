@@ -1,4 +1,5 @@
 import IsoGraph.Values.Identities.Identifications
+import IsoGraph.ForMathlib.Nat
 
 /-!
 # Line graphs, Mycielskians, and the first of the tables
@@ -200,18 +201,6 @@ theorem E_compl_add (G : IsoGraph) : Gᶜ.E + G.E = G.V.choose 2 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, mycielskian_mk, E_mk, E_mk, V_mk]
   exact CGraph.E_mycielskian _
-
-/-- One more point adds one pair for each old point. -/
-theorem choose_two_succ (n : ℕ) : (n + 1).choose 2 = n.choose 2 + n := by
-  rw [Nat.choose_succ_succ, Nat.choose_one_right, Nat.add_comm]
-
-/-- Splitting `a + b` points into two groups splits the pairs into three kinds. -/
-theorem choose_two_add (a b : ℕ) : (a + b).choose 2 = a.choose 2 + b.choose 2 + a * b := by
-  induction b with
-  | zero => simp
-  | succ b ih =>
-    rw [show a + (b + 1) = (a + b) + 1 by omega, choose_two_succ, choose_two_succ, ih]
-    ring
 
 /-! Derived edge counts. -/
 

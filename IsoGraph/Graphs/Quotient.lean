@@ -1,4 +1,6 @@
 import IsoGraph.Graphs.Constructions
+import IsoGraph.ForMathlib.Decide
+import IsoGraph.ForMathlib.Nat
 
 /-!
 # The constructions, on isomorphism classes
@@ -56,11 +58,6 @@ This is what makes the lifts below computable. -/
 instance instDecidableEqCanonicalizeV (G : CGraph) : DecidableEq G.canonicalize.V :=
   inferInstanceAs (DecidableEq (Fin (Fintype.card G.V)))
 
-/-- Equality of pairs, as a `Bool`: it splits into the two component tests. -/
-theorem decide_prod_eq {α β : Type} [DecidableEq α] [DecidableEq β] (p q : α × β) :
-    decide (p = q) = (decide (p.1 = q.1) && decide (p.2 = q.2)) :=
-  (decide_eq_decide.2 Prod.ext_iff).trans (Bool.decide_and _ _)
-
 /-- Injectivity of `Sum.inl`, stated at the vertex type of a `disjUnion` rather than at a bare
 `⊕`.  The two are definitionally equal but not *reducibly* so, and `simp` matches up to reducible
 unfolding only — so `Sum.inl.injEq` does not fire on a goal about `(disjUnion G H).V`. -/
@@ -92,42 +89,6 @@ def complSubsets (n k : ℕ) (hk : k ≤ n) :
 @[simp] theorem complSubsets_coe (n k : ℕ) (hk : k ≤ n) (s : {s : Finset (Fin n) // s.card = k}) :
     ((complSubsets n k hk s : {s : Finset (Fin n) // s.card = n - k}) : Finset (Fin n)) = s.1ᶜ :=
   rfl
-
-/-- The successor relation of a cycle, with the wrap-around split off.  `omega` cannot see through
-a `%` whose modulus is a variable, so every step around a `cycle n` is turned into this
-disjunction before the arithmetic starts. -/
-theorem succ_mod_eq_iff {d x y : ℕ} (hx : x < d) :
-    (x + 1) % d = y ↔ (x + 1 = d ∧ y = 0) ∨ (x + 1 < d ∧ y = x + 1) := by
-  rcases Nat.lt_or_ge (x + 1) d with h | h
-  · rw [Nat.mod_eq_of_lt h]
-    constructor
-    · rintro rfl; exact Or.inr ⟨h, rfl⟩
-    · rintro (⟨h1, h2⟩ | ⟨-, h2⟩) <;> omega
-  · have hd : x + 1 = d := by omega
-    rw [hd, Nat.mod_self]
-    constructor
-    · rintro rfl; exact Or.inl ⟨rfl, rfl⟩
-    · rintro (⟨-, h2⟩ | ⟨h1, -⟩) <;> omega
-
-/-- Reduction mod `d` below `2 * d`, again as a disjunction `omega` can use. -/
-theorem mod_of_lt_two_mul {d x : ℕ} (hx : x < 2 * d) :
-    (x < d ∧ x % d = x) ∨ (d ≤ x ∧ x % d = x - d) := by
-  rcases Nat.lt_or_ge x d with h | h
-  · exact Or.inl ⟨h, Nat.mod_eq_of_lt h⟩
-  · refine Or.inr ⟨h, ?_⟩
-    rw [Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]
-
-/-- The difference `y - x` around a cycle of length `d`, again as a disjunction: `(y + d - x) % d`
-is `y - x` going forwards and `d - (x - y)` going backwards.  This is the third member of the
-`succ_mod_eq_iff` / `mod_of_lt_two_mul` family of "`omega` cannot divide" workarounds, and it is
-what makes circulant differences tractable. -/
-theorem sub_mod_cases {d x y : ℕ} (hx : x < d) (hy : y < d) :
-    (x ≤ y ∧ (y + d - x) % d = y - x) ∨ (y < x ∧ (y + d - x) % d = d - (x - y)) := by
-  rcases Nat.lt_or_ge y x with h | h
-  · refine Or.inr ⟨h, ?_⟩
-    rw [show y + d - x = d - (x - y) by omega, Nat.mod_eq_of_lt (by omega)]
-  · refine Or.inl ⟨h, ?_⟩
-    rw [show y + d - x = (y - x) + d by omega, Nat.add_mod_right, Nat.mod_eq_of_lt (by omega)]
 
 /-- The two differences between distinct vertices of `circulant n S` are both nonzero and sum to
 `n`: one goes forwards around the cycle, the other backwards. -/

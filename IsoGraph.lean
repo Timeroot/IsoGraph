@@ -1,3 +1,4 @@
+import IsoGraph.ForMathlib
 import IsoGraph.Canon
 import IsoGraph.Basic
 import IsoGraph.Compute

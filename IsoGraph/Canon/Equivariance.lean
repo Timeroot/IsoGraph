@@ -3,6 +3,8 @@ import Mathlib.Data.Finset.Card
 import Mathlib.Algebra.BigOperators.Intervals
 import Mathlib.Tactic.Push
 import Mathlib.Tactic.Linarith
+import IsoGraph.ForMathlib.Array
+import IsoGraph.ForMathlib.Bits
 
 /-!
 # Equivariance of the pieces of the canonical labelling
@@ -465,16 +467,6 @@ name-dependent — so the arrays are genuinely different.  What survives is exac
 records: the cell boundaries move the same way, and a vertex other than the individualised one
 lands in the second fragment of the old cell precisely when it was in that cell to begin with. -/
 
-/-- Reading one entry of `Array.set!`, the only fact about it these proofs need. -/
-theorem getElem!_set! {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {x : α}
-    (hi : i < a.size) (k : Nat) :
-    (a.set! i x)[k]! = if k = i then x else a[k]! := by
-  by_cases hk : k < a.size
-  · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
-    simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk, eq_comm (a := i)]
-  · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk,
-      if_neg (by omega)]
-
 theorem setCstFrom_size (c ec : Nat) :
     ∀ (fuel j : Nat) (cst : Array Nat), (setCstFrom c ec fuel j cst).size = cst.size
   | 0, _, _ => rfl
@@ -907,17 +899,6 @@ The bridge to `cellCount` is `List.count`: the inner loop bumps `cnt[w]` once pe
 `w` in a neighbour list, and `Graph.ofOracle`'s neighbour lists are filtered ranges, hence
 duplicate-free, so each cell member contributes at most one. -/
 
-/-- Companion to `getElem!_set!` for the off-diagonal case, where no bound on `i` is needed:
-writing at `i` never disturbs another index, in bounds or not. -/
-theorem getElem!_set!_ne {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {x : α} {k : Nat}
-    (h : k ≠ i) :
-    (a.set! i x)[k]! = a[k]! := by
-  by_cases hk : k < a.size
-  · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
-    simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk,
-      if_neg (Ne.symm h)]
-  · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk]
-
 /-- The inner loop only writes, never resizes. -/
 theorem bumpFrom_size (nbrs : Array Nat) : ∀ (fuel j : Nat) (cnt touched : Array Nat),
     (bumpFrom nbrs fuel j cnt touched).1.size = cnt.size
@@ -1100,11 +1081,6 @@ structure Touched (cnt touched : Array Nat) : Prop where
 theorem touched_empty (cnt : Array Nat) (h : ∀ w, w < cnt.size → cnt[w]! = 0) :
     Touched cnt #[] :=
   ⟨by simp, by simp, fun w hw => by simp [h w hw]⟩
-
-/-- An in-bounds `getElem!` is a member. -/
-theorem getElem!_mem {a : Array Nat} {j : Nat} (h : j < a.size) : a[j]! ∈ a := by
-  rw [getElem!_pos a j h]
-  exact Array.getElem_mem h
 
 /-- The inner loop maintains the scratch invariant: it pushes a vertex exactly when it is raising
 that vertex's count off zero.  The hypothesis on `nbrs` is needed — a neighbour outside `cnt`
@@ -1590,13 +1566,6 @@ theorem bucketSize_cellCount {n : Nat} {p : Part} (hp : Part.WF n p) {c : Nat} (
     rw [hcst] at hmem
     exact ⟨⟨hmem.1, hmem.2⟩, by rw [hp.labPos u hu.1]; simpa using hu.2.2⟩
 
-/-- Distinct positions of a duplicate-free array hold distinct values. -/
-theorem nodup_getElem!_ne {a : Array Nat} (h : a.toList.Nodup) {i j : Nat} (hi : i < a.size)
-    (hj : j < a.size) (hij : i ≠ j) : a[i]! ≠ a[j]! := by
-  rw [getElem!_pos a i hi, getElem!_pos a j hj]
-  intro he
-  exact hij ((List.Nodup.getElem_inj_iff h).mp (by simpa using he))
-
 theorem offsetFrom_size1 (ks : Array Nat) :
     ∀ (fuel j : Nat) (sizes bc : Array Nat) (acc : Nat),
       (offsetFrom ks fuel j sizes bc acc).1.size = sizes.size
@@ -2068,21 +2037,6 @@ theorem boundsFrom_getElem! (ks sizes : Array Nat) :
 
 /-! ### Odds and ends: array extensionality, the leftover bucket counters, clearing scratch -/
 
-theorem array_ext! {α : Type _} [Inhabited α] {a b : Array α} (hs : a.size = b.size)
-    (h : ∀ i, i < a.size → a[i]! = b[i]!) : a = b := by
-  refine Array.ext hs fun i hi hi' => ?_
-  have := h i hi
-  rwa [getElem!_pos a i hi, getElem!_pos b i hi'] at this
-
-theorem mem_iff_getElem! {a : Array Nat} {v : Nat} : v ∈ a ↔ ∃ i, i < a.size ∧ a[i]! = v := by
-  constructor
-  · intro h
-    obtain ⟨i, hi, rfl⟩ := Array.mem_iff_getElem.1 h
-    exact ⟨i, hi, by rw [getElem!_pos a i hi]⟩
-  · rintro ⟨i, hi, rfl⟩
-    rw [getElem!_pos a i hi]
-    exact Array.getElem_mem hi
-
 /-- Counters the scatter never advances keep their value. -/
 theorem scatterFrom_bc_ne (lab cnt : Array Nat) (ec : Nat) :
     ∀ (fuel k : Nat) (block bc : Array Nat) (t : Nat),
@@ -2278,22 +2232,6 @@ theorem sum_bucketSize (lab cnt ks : Array Nat) {c ec : Nat} (hnd : ks.toList.No
   rw [Finset.sum_image (by intro j hj j' hj' h; exact hinj j (by simpa using hj) j' (by simpa using hj') h)] at hcard
   simp only [bucketSize_card]
   rw [← hcard, Nat.card_Ico]
-
-theorem pairwise_getElem!_lt {a : Array Nat} (hp : a.toList.Pairwise (· ≤ ·))
-    (hnd : a.toList.Nodup) {i j : Nat} (hj : j < a.size) (hij : i < j) : a[i]! < a[j]! := by
-  have hi : i < a.size := by omega
-  have hle : a[i]! ≤ a[j]! := by
-    have := List.pairwise_iff_getElem.1 hp i j (by simpa using hi) (by simpa using hj) hij
-    rwa [getElem!_pos a i hi, getElem!_pos a j hj, ← Array.getElem_toList, ← Array.getElem_toList]
-  exact lt_of_le_of_ne hle (nodup_getElem!_ne hnd hi hj (by omega))
-
-theorem pairwise_getElem!_le {a : Array Nat} (hp : a.toList.Pairwise (· ≤ ·)) {i j : Nat}
-    (hj : j < a.size) (hij : i ≤ j) : a[i]! ≤ a[j]! := by
-  rcases Nat.eq_or_lt_of_le hij with h | h
-  · subst h; exact le_refl _
-  · have hi : i < a.size := by omega
-    have := List.pairwise_iff_getElem.1 hp i j (by simpa using hi) (by simpa using hj) h
-    rwa [getElem!_pos a i hi, getElem!_pos a j hj, ← Array.getElem_toList, ← Array.getElem_toList]
 
 /-- Where the fragment of neighbour count `t` starts: after every vertex of the cell with a
 smaller count.  The point of this description is that it never mentions the bucket list, so two
@@ -2707,16 +2645,6 @@ theorem splitCell_part_general {cnt : Array Nat} {c : Nat} {st : SplitState} {bc
     (splitCell cnt c st).part = { lab := lab, pos := pos, cst := cst, cen := cen } := by
   rw [splitCell_eq_general hb h1 h2 ho hsc hw hbd]
   exact part_mk _ _ _ _ _ _ _
-
-/-- An array whose entries at distinct indices differ has no duplicates. -/
-theorem nodup_of_getElem!_ne {a : Array Nat}
-    (h : ∀ i j, i < a.size → j < a.size → i < j → a[i]! ≠ a[j]!) : a.toList.Nodup := by
-  rw [List.Nodup, List.pairwise_iff_getElem]
-  intro i j hi hj hij
-  have hi' : i < a.size := by simpa using hi
-  have hj' : j < a.size := by simpa using hj
-  have := h i j hi' hj' hij
-  rwa [getElem!_pos a i hi', getElem!_pos a j hj'] at this
 
 /-- Every offset below the total is inside exactly one fragment. -/
 theorem sizesSum_exists (sizes : Array Nat) : ∀ (K x : Nat), x < sizesSum sizes 0 K →
@@ -3908,15 +3836,6 @@ theorem refineStep_wf {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp : Part
 
 /-! ### One refinement step is equivariant -/
 
-theorem arr_isEmpty_iff (a : Array Nat) : a.isEmpty = true ↔ ∀ x, x ∉ a := by
-  rw [Array.isEmpty_iff]
-  constructor
-  · intro h x hx
-    rw [h] at hx
-    simp at hx
-  · intro h
-    exact Array.ext' (List.eq_nil_iff_forall_not_mem.2 fun x hx => h x (by simpa using hx))
-
 /-- **Step 1.**  One refinement pass commutes with relabelling: run on corresponding partitions
 with corresponding adjacency oracles it produces corresponding partitions, the same worklist and
 the same trace. -/
@@ -4156,23 +4075,6 @@ theorem initialRefine_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bo
 
 The search compares packed certificates; `certOf_get` below turns an equality of certificates
 back into an equality of adjacency entries, which is what `Spec.LabellingInvariant` asks for. -/
-
-theorem shl_bit (acc : UInt64) (c : Bool) (t : Nat) (ht : t < 64) :
-    (acc <<< 1 ||| (if c then 1 else 0)).toBitVec.getLsbD t
-      = if t = 0 then c else acc.toBitVec.getLsbD (t - 1) := by
-  have h : (acc <<< 1).toBitVec = acc.toBitVec <<< (1:Nat) := rfl
-  simp only [UInt64.toBitVec_or, h, BitVec.getLsbD_or, BitVec.getLsbD_shiftLeft]
-  rcases Nat.eq_zero_or_pos t with rfl | hpos
-  · cases c <;> simp
-  · cases c <;> simp [ht, Nat.not_lt.2 hpos, Nat.ne_of_gt hpos]
-
-theorem shl_natshift (acc : UInt64) (m : Nat) (hm : m < 64) :
-    (acc <<< UInt64.ofNat m).toBitVec = acc.toBitVec <<< m := by
-  show acc.toBitVec <<< (((UInt64.ofNat m).toBitVec % 64).toNat) = acc.toBitVec <<< m
-  congr 1
-  rw [BitVec.toNat_umod]
-  simp [BitVec.toNat_ofNat, Nat.mod_eq_of_lt hm,
-    Nat.mod_eq_of_lt (show m < 18446744073709551616 by omega)]
 
 /-- Bit `j` of row `i` of a certificate packed by `certBits`. -/
 def certGet (n : Nat) (c : Array UInt64) (i j : Nat) : Bool :=

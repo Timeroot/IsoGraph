@@ -1,4 +1,5 @@
 import IsoGraph.Values.Identities.Extremal
+import IsoGraph.ForMathlib.SimpleGraph
 
 /-!
 # Automorphism counts, regularity, and matchings
@@ -983,33 +984,6 @@ theorem domNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq
   rwa [Finset.card_product, Finset.card_univ, hs] at h
 
 /-! ### The radius of a cartesian product -/
-
-/-- The eccentricity of a vertex of a box product is the sum of the eccentricities of its
-coordinates: a farthest vertex can be chosen coordinatewise. -/
-theorem eccent_boxProd {α β : Type} [Fintype α] [Fintype β]
-    (S : SimpleGraph α) (T : SimpleGraph β) (p : α × β) :
-    (S.boxProd T).eccent p = S.eccent p.1 + T.eccent p.2 := by
-  refine le_antisymm ((SimpleGraph.eccent_le_iff _ _).2 fun q ↦ ?_) ?_
-  · rw [SimpleGraph.edist_boxProd]
-    exact add_le_add SimpleGraph.edist_le_eccent SimpleGraph.edist_le_eccent
-  · obtain ⟨x, hx⟩ := S.exists_edist_eq_eccent_of_finite p.1
-    obtain ⟨y, hy⟩ := T.exists_edist_eq_eccent_of_finite p.2
-    rw [← hx, ← hy, ← SimpleGraph.edist_boxProd (x := p) (y := (x, y))]
-    exact SimpleGraph.edist_le_eccent
-
-/-- **The radius of a box product is the sum of the radii**: a central vertex can be chosen
-coordinatewise. -/
-theorem radius_boxProd {α β : Type} [Fintype α] [Fintype β] [Nonempty α] [Nonempty β]
-    (S : SimpleGraph α) (T : SimpleGraph β) :
-    (S.boxProd T).radius = S.radius + T.radius := by
-  refine le_antisymm ?_ ?_
-  · obtain ⟨a, ha⟩ := S.exists_eccent_eq_radius
-    obtain ⟨b, hb⟩ := T.exists_eccent_eq_radius
-    rw [← ha, ← hb, ← eccent_boxProd S T (a, b)]
-    exact SimpleGraph.radius_le_eccent
-  · obtain ⟨p, hp⟩ := (S.boxProd T).exists_eccent_eq_radius
-    rw [← hp, eccent_boxProd]
-    exact add_le_add SimpleGraph.radius_le_eccent SimpleGraph.radius_le_eccent
 
 /-- **The radius of a cartesian product is the sum of the radii.**  Both factors have to be
 connected: the radius of a disconnected graph is the junk value `0`. -/

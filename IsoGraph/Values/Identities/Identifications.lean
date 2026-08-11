@@ -2037,8 +2037,8 @@ theorem isBipartite_circulant {n : ℕ} {S : List ℕ} (hn : n % 2 = 0) (hS : �
   have hadj : (decide (x ≠ y) && (S.contains ((y.1 + n - x.1) % n) ||
       S.contains ((x.1 + n - y.1) % n))) = true := hxy
   rw [Bool.and_eq_true, Bool.or_eq_true] at hadj
-  have h1 := CGraph.sub_mod_cases x.isLt y.isLt
-  have h2 := CGraph.sub_mod_cases y.isLt x.isLt
+  have h1 := sub_mod_cases x.isLt y.isLt
+  have h2 := sub_mod_cases y.isLt x.isLt
   simp only [ne_eq, decide_eq_decide]
   rcases hadj.2 with h | h
   · have := hS _ (List.mem_of_elem_eq_true h)

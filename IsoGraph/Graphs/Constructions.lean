@@ -4,6 +4,11 @@ import Mathlib.Tactic.Ring
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Combinatorics.SimpleGraph.Hasse
 import Mathlib.NumberTheory.LegendreSymbol.QuadraticChar.Basic
+import IsoGraph.ForMathlib.Decide
+import IsoGraph.ForMathlib.Nat
+import IsoGraph.ForMathlib.Perm
+import IsoGraph.ForMathlib.QuadraticChar
+import IsoGraph.ForMathlib.ZMod
 
 /-!
 # Constructions
@@ -71,21 +76,6 @@ instance instDecidableEqOfRel (V : Type) [Fintype V] [DecidableEq V] (r : V → 
 
 @[simp] theorem card_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) :
     Fintype.card (ofRel V r).V = Fintype.card V := rfl
-
-/-- `decide` of an equality is symmetric.  Stated as a `Bool` equation rather than reached
-through `eq_comm`, so that `rw` can use it inside a `decide` without a motive problem. -/
-theorem decide_eq_comm {α : Type} [DecidableEq α] (a b : α) :
-    decide (a = b) = decide (b = a) := by
-  by_cases h : a = b
-  · subst h; rfl
-  · simp [h, Ne.symm h]
-
-/-- `decide` of a disequality is symmetric; the companion of `decide_eq_comm`. -/
-theorem decide_ne_comm {α : Type} [DecidableEq α] (a b : α) :
-    decide (a ≠ b) = decide (b ≠ a) := by
-  by_cases h : a = b
-  · subst h; rfl
-  · simp [h, Ne.symm h]
 
 /-- **How to recognise an `ofRel`.**  A graph *is* `ofRel V r` as soon as its adjacency agrees
 with the symmetrisation of `r` off the diagonal.
@@ -4378,9 +4368,6 @@ def johnsonTwoIso (n : ℕ) : johnson n 2 ≃cg compl (kneser n 2) :=
       rw [he, Finset.card_empty] at hc
       exact absurd hc (by norm_num)⟩
 
-theorem choose_two_succ (j : ℕ) : (j + 1).choose 2 = j.choose 2 + j := by
-  rw [Nat.choose_succ_succ, Nat.choose_one_right, Nat.add_comm]
-
 /-- **Triangular graphs are strongly regular**: `T(n) = J(n, 2)` has parameters
 `(C(n,2), 2(n-2), n-2, 4)`.
 
@@ -4573,162 +4560,6 @@ Translating by `x` turns those two counts into the degree and the common-neighbo
 is exactly `isSRGWith_of`.  The last step, `paleyIso`, identifies `paley q` — which is written on
 `Fin q` and reads its adjacency out of `qrTable` — with the field version over `ZMod q`. -/
 
-section Paley
-
-variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
-
-/-- For `a ≠ 0`, the quadratic character sum `∑ u, χ (u * (u - a))` is `-1`.
-
-`u ↦ 1 - a * u⁻¹` is a bijection from the nonzero elements to the elements other than `1`, and
-`χ (u * (u - a)) = χ (u²) * χ (1 - a * u⁻¹) = χ (1 - a * u⁻¹)`, so the sum is `∑_{w ≠ 1} χ w`. -/
-theorem quadraticChar_sum_mul_sub (hF : ringChar F ≠ 2) {a : F} (ha : a ≠ 0) :
-    ∑ u : F, quadraticChar F (u * (u - a)) = -1 := by
-  have h0 : ∑ u : F, quadraticChar F (u * (u - a))
-      = ∑ u ∈ Finset.univ.erase (0 : F), quadraticChar F (u * (u - a)) := by
-    rw [Finset.sum_erase]
-    simp
-  have key : ∑ u ∈ Finset.univ.erase (0 : F), quadraticChar F (u * (u - a))
-      = ∑ w ∈ Finset.univ.erase (1 : F), quadraticChar F w := by
-    refine Finset.sum_nbij' (i := fun u ↦ 1 - a * u⁻¹) (j := fun w ↦ a * (1 - w)⁻¹)
-      ?_ ?_ ?_ ?_ ?_
-    · intro u hu
-      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hu ⊢
-      intro h
-      rcases mul_eq_zero.mp (sub_eq_self.mp h) with h3 | h3
-      · exact ha h3
-      · exact hu (inv_eq_zero.mp h3)
-    · intro w hw
-      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hw ⊢
-      exact mul_ne_zero ha (inv_ne_zero (sub_ne_zero.2 (Ne.symm hw)))
-    · intro u hu
-      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hu
-      show a * (1 - (1 - a * u⁻¹))⁻¹ = u
-      rw [sub_sub_cancel, mul_inv, inv_inv, ← mul_assoc, mul_inv_cancel₀ ha, one_mul]
-    · intro w hw
-      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hw
-      have h1 : (1 : F) - w ≠ 0 := sub_ne_zero.2 (Ne.symm hw)
-      show 1 - a * (a * (1 - w)⁻¹)⁻¹ = w
-      rw [mul_inv, inv_inv, ← mul_assoc, mul_inv_cancel₀ ha, one_mul, sub_sub_cancel]
-    · intro u hu
-      simp only [Finset.mem_erase, Finset.mem_univ, and_true] at hu
-      have : u * (u - a) = u ^ 2 * (1 - a * u⁻¹) := by field_simp
-      rw [this, map_mul, quadraticChar_sq_one' hu, one_mul]
-  rw [h0, key, Finset.sum_erase_eq_sub (Finset.mem_univ _), quadraticChar_sum_zero hF]
-  simp
-
-variable (hq : Fintype.card F % 4 = 1)
-include hq
-
-omit [DecidableEq F] in
-theorem ringChar_ne_two_of_card_mod_four : ringChar F ≠ 2 := fun h ↦ by
-  have := FiniteField.even_card_iff_char_two.1 h
-  omega
-
-theorem quadraticChar_neg_one_eq_one : quadraticChar F (-1) = 1 :=
-  (quadraticChar_one_iff_isSquare (by simp)).2 (FiniteField.isSquare_neg_one_iff.2 (by omega))
-
-/-- Over a field with `q ≡ 1 mod 4` elements the quadratic character is even, which is why the
-Paley graph is a graph and not a tournament. -/
-theorem quadraticChar_neg' (a : F) : quadraticChar F (-a) = quadraticChar F a := by
-  rw [show -a = -1 * a by ring, map_mul, quadraticChar_neg_one_eq_one hq, one_mul]
-
-omit hq in
-theorem quadraticChar_sum_sub_zero (hF : ringChar F ≠ 2) (a : F) :
-    ∑ u : F, quadraticChar F (u - a) = 0 := by
-  rw [Fintype.sum_equiv (Equiv.subRight a) (fun u ↦ quadraticChar F (u - a))
-    (fun w ↦ quadraticChar F w) (fun u ↦ rfl)]
-  exact quadraticChar_sum_zero hF
-
-/-- **The degree count**: exactly half of the nonzero elements are squares. -/
-theorem card_quadraticChar_eq_one :
-    2 * ((Finset.univ.filter fun u : F ↦ quadraticChar F u = 1).card : ℤ)
-      = Fintype.card F - 1 := by
-  have hF := ringChar_ne_two_of_card_mod_four hq
-  have hsplit : ∑ u ∈ Finset.univ.erase (0 : F), (1 + quadraticChar F u)
-      = 2 * (((Finset.univ.erase (0 : F)).filter fun u ↦ quadraticChar F u = 1).card : ℤ) := by
-    rw [← Finset.sum_filter_add_sum_filter_not (Finset.univ.erase (0 : F))
-      (fun u ↦ quadraticChar F u = 1)]
-    rw [Finset.sum_congr rfl (g := fun _ ↦ (2 : ℤ)) fun u hu ↦ by
-        simp only [Finset.mem_filter] at hu; rw [hu.2]; norm_num,
-      Finset.sum_eq_zero
-        (s := (Finset.univ.erase (0 : F)).filter fun u ↦ ¬ quadraticChar F u = 1) fun u hu ↦ by
-          simp only [Finset.mem_filter, Finset.mem_erase] at hu
-          rcases quadraticChar_dichotomy hu.1.1 with h | h
-          · exact absurd h hu.2
-          · rw [h]; ring]
-    simp [mul_comm]
-  have hfe : ((Finset.univ.erase (0 : F)).filter fun u ↦ quadraticChar F u = 1)
-      = Finset.univ.filter fun u : F ↦ quadraticChar F u = 1 := by
-    refine Finset.ext fun u ↦ ?_
-    simp only [Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true]
-    exact ⟨fun h ↦ h.2, fun h ↦ ⟨fun h0 ↦ by rw [h0] at h; simp at h, h⟩⟩
-  rw [hfe] at hsplit
-  rw [← hsplit, Finset.sum_add_distrib, Finset.sum_const,
-    Finset.sum_erase_eq_sub (Finset.mem_univ _), quadraticChar_sum_zero hF,
-    Finset.card_erase_of_mem (Finset.mem_univ (0 : F)), Finset.card_univ]
-  have h2 : 1 ≤ Fintype.card F := Fintype.card_pos
-  simp only [nsmul_eq_mul, mul_one, quadraticChar_zero, sub_zero]
-  omega
-
-/-- **The common-neighbour count**: for `a ≠ 0` the number of `u` with both `u` and `u - a`
-nonzero squares is `(q - 3 - 2 * χ a) / 4`. -/
-theorem card_common_quadraticChar {a : F} (ha : a ≠ 0) :
-    4 * ((Finset.univ.filter fun u : F ↦
-          quadraticChar F u = 1 ∧ quadraticChar F (u - a) = 1).card : ℤ)
-      = Fintype.card F - 3 - 2 * quadraticChar F a := by
-  have hF := ringChar_ne_two_of_card_mod_four hq
-  have ha' : a ∈ Finset.univ.erase (0 : F) := Finset.mem_erase.2 ⟨ha, Finset.mem_univ _⟩
-  set S : Finset F := (Finset.univ.erase (0 : F)).erase a with hS
-  set P : F → Prop := fun u ↦ quadraticChar F u = 1 ∧ quadraticChar F (u - a) = 1 with hP
-  have hfe : S.filter P = Finset.univ.filter P := by
-    refine Finset.ext fun u ↦ ?_
-    simp only [hS, hP, Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true]
-    refine ⟨fun h ↦ h.2, fun h ↦ ⟨⟨fun h0 ↦ ?_, fun h0 ↦ ?_⟩, h⟩⟩
-    · rw [h0, sub_self] at h; simp at h
-    · rw [h0] at h; simp at h
-  have hsplit : ∑ u ∈ S, (1 + quadraticChar F u) * (1 + quadraticChar F (u - a))
-      = 4 * ((S.filter P).card : ℤ) := by
-    rw [← Finset.sum_filter_add_sum_filter_not S P]
-    rw [Finset.sum_congr rfl (g := fun _ ↦ (4 : ℤ)) fun u hu ↦ by
-        simp only [Finset.mem_filter, hP] at hu; rw [hu.2.1, hu.2.2]; norm_num,
-      Finset.sum_eq_zero (s := S.filter fun u ↦ ¬ P u) fun u hu ↦ by
-        simp only [Finset.mem_filter, hS, Finset.mem_erase, hP, not_and] at hu
-        rcases quadraticChar_dichotomy hu.1.2.1 with h | h
-        · rcases quadraticChar_dichotomy (sub_ne_zero.2 hu.1.1) with h' | h'
-          · exact absurd h' (hu.2 h)
-          · rw [h']; ring
-        · rw [h]; ring]
-    simp [mul_comm]
-  have hexp : ∑ u ∈ S, (1 + quadraticChar F u) * (1 + quadraticChar F (u - a))
-      = (∑ _u ∈ S, (1 : ℤ)) + (∑ u ∈ S, quadraticChar F u)
-        + (∑ u ∈ S, quadraticChar F (u - a)) + ∑ u ∈ S, quadraticChar F (u * (u - a)) := by
-    rw [← Finset.sum_add_distrib, ← Finset.sum_add_distrib, ← Finset.sum_add_distrib]
-    refine Finset.sum_congr rfl fun u _ ↦ ?_
-    rw [map_mul]
-    ring
-  have e1 : (∑ _u ∈ S, (1 : ℤ)) = (Fintype.card F : ℤ) - 2 := by
-    rw [Finset.sum_const, hS, Finset.card_erase_of_mem ha',
-      Finset.card_erase_of_mem (Finset.mem_univ (0 : F)), Finset.card_univ]
-    have h2 : 2 ≤ Fintype.card F := Fintype.one_lt_card
-    simp only [nsmul_eq_mul, mul_one]
-    omega
-  have e2 : (∑ u ∈ S, quadraticChar F u) = -quadraticChar F a := by
-    rw [hS, Finset.sum_erase_eq_sub ha', Finset.sum_erase_eq_sub (Finset.mem_univ (0 : F)),
-      quadraticChar_sum_zero hF]
-    simp
-  have e3 : (∑ u ∈ S, quadraticChar F (u - a)) = -quadraticChar F a := by
-    rw [hS, Finset.sum_erase_eq_sub ha', Finset.sum_erase_eq_sub (Finset.mem_univ (0 : F)),
-      quadraticChar_sum_sub_zero hF]
-    simp [quadraticChar_neg' hq]
-  have e4 : (∑ u ∈ S, quadraticChar F (u * (u - a))) = -1 := by
-    rw [hS, Finset.sum_erase_eq_sub ha', Finset.sum_erase_eq_sub (Finset.mem_univ (0 : F)),
-      quadraticChar_sum_mul_sub hF ha]
-    simp
-  rw [← hfe, ← hsplit, hexp, e1, e2, e3, e4]
-  ring
-
-end Paley
-
 /-! ### The Paley graph of a finite field -/
 
 /-- The **Paley graph** of a finite field: `x ~ y` when `y - x` is a nonzero square.  For
@@ -4851,29 +4682,6 @@ def zmodEquivFin (q : ℕ) [NeZero q] : ZMod q ≃ Fin q where
   left_inv a := ZMod.natCast_rightInverse a
   right_inv i := Fin.ext (ZMod.val_cast_of_lt i.2)
 
-/-- The `Fin q` arithmetic `paley` does to find the offset of `y` from `x` is subtraction in
-`ZMod q`. -/
-theorem zmod_val_sub {q : ℕ} [NeZero q] (x y : ZMod q) :
-    (y.val + q - x.val) % q = (y - x).val := by
-  rw [show y.val + q - x.val = y.val + (q - x.val) from by
-    have := ZMod.val_lt x; omega, ← ZMod.val_natCast]
-  congr 1
-  rw [Nat.cast_add, Nat.cast_sub (le_of_lt (ZMod.val_lt x)), ZMod.natCast_self,
-    ZMod.natCast_rightInverse x, ZMod.natCast_rightInverse y, zero_sub, ← sub_eq_add_neg]
-
-/-- The lookup table records exactly the nonzero squares of `ZMod q`. -/
-theorem exists_sq_iff_val {q : ℕ} [NeZero q] (a : ZMod q) :
-    (∃ i : Fin q, i.1 ≠ 0 ∧ i.1 * i.1 % q = a.val) ↔ ∃ r : ZMod q, r ≠ 0 ∧ r * r = a := by
-  constructor
-  · rintro ⟨i, hi, hia⟩
-    have hr : ((i.1 : ℕ) : ZMod q).val = i.1 := ZMod.val_cast_of_lt i.2
-    refine ⟨(i.1 : ℕ), fun h0 ↦ hi (by rw [← hr, h0, ZMod.val_zero]), ZMod.val_injective q ?_⟩
-    rw [ZMod.val_mul, hr, hia]
-  · rintro ⟨r, hr0, rfl⟩
-    refine ⟨⟨r.val, ZMod.val_lt r⟩, ?_, ?_⟩
-    · simpa using fun h ↦ hr0 ((ZMod.val_eq_zero r).1 h)
-    · rw [ZMod.val_mul]
-
 theorem paley_adj_eq (q : ℕ) [NeZero q] [Fact q.Prime] (a b : ZMod q) :
     (paley q).Adj (zmodEquivFin q a) (zmodEquivFin q b) = (paleyField (ZMod q)).Adj a b := by
   have key : ∀ u v : ZMod q,
@@ -4972,19 +4780,6 @@ theorem isVertexTransitive_compl [DecidableEq G.V] (h : G.IsVertexTransitive) :
   show (decide (σ x ≠ σ y) && !G.Adj (σ x) (σ y)) = (decide (x ≠ y) && !G.Adj x y)
   rw [σ.adj_eq]
   simp [(RelIso.injective σ).eq_iff]
-
-/-- Any two ordered pairs of distinct points are matched by some permutation: swap `u` with `u'`,
-then swap the image of `v` with `v'`.  (On a *complete* graph every such permutation is an
-automorphism, which is why this gives arc-transitivity there.) -/
-theorem exists_perm_apply_apply {α : Type} [DecidableEq α] {u v u' v' : α} (h : u ≠ v)
-    (h' : u' ≠ v') : ∃ σ : Equiv.Perm α, σ u = u' ∧ σ v = v' := by
-  have key : Equiv.swap u u' v ≠ u' := by
-    intro e
-    exact h ((Equiv.swap u u').injective (by rw [e, Equiv.swap_apply_left])).symm
-  refine ⟨(Equiv.swap u u').trans (Equiv.swap (Equiv.swap u u' v) v'), ?_, ?_⟩
-  · simp only [Equiv.trans_apply, Equiv.swap_apply_left]
-    exact Equiv.swap_apply_of_ne_of_ne (Ne.symm key) h'
-  · simp
 
 theorem empty_eq_ofRel (n : ℕ) : empty n = ofRel (Fin n) fun _ _ ↦ false :=
   eq_ofRel _ _ fun _ _ _ ↦ rfl
@@ -5377,79 +5172,6 @@ end LineGraph
 Permutations of the ground set act on the `k`-subsets, and any two *disjoint pairs* of `k`-subsets
 are matched by one of them — which is precisely arc-transitivity, an arc of `kneser n k` being a
 pair of disjoint `k`-sets. -/
-
-/-- Two disjoint pairs of finsets of matching sizes are related by a permutation of the whole
-(finite) type: match up the two parts, and the two complements with each other. -/
-theorem exists_perm_image₂ {α : Type} [Fintype α] [DecidableEq α] {A B A' B' : Finset α}
-    (hAB : Disjoint A B) (hA'B' : Disjoint A' B') (hA : A.card = A'.card)
-    (hB : B.card = B'.card) : ∃ π : Equiv.Perm α, A.image π = A' ∧ B.image π = B' := by
-  classical
-  set C : Finset α := (A ∪ B)ᶜ with hC
-  set C' : Finset α := (A' ∪ B')ᶜ with hC'
-  have hCcard : C.card = C'.card := by
-    rw [hC, hC', Finset.card_compl, Finset.card_compl, Finset.card_union_of_disjoint hAB,
-      Finset.card_union_of_disjoint hA'B', hA, hB]
-  let eA := Finset.equivOfCardEq hA
-  let eB := Finset.equivOfCardEq hB
-  let eC := Finset.equivOfCardEq hCcard
-  set f : α → α := fun x ↦
-      if h : x ∈ A then (eA ⟨x, h⟩ : α)
-      else if h' : x ∈ B then (eB ⟨x, h'⟩ : α)
-      else (eC ⟨x, by simp [hC, h, h']⟩ : α) with hf
-  have hfA : ∀ x (h : x ∈ A), f x = eA ⟨x, h⟩ := fun x h ↦ by simp [hf, h]
-  have hfB : ∀ x (h : x ∉ A) (h' : x ∈ B), f x = eB ⟨x, h'⟩ := fun x h h' ↦ by simp [hf, h, h']
-  have hfC : ∀ x (h : x ∉ A) (h' : x ∉ B), f x ∈ C' := fun x h h' ↦ by
-    rw [hf]; simp only [h, h', dite_false]
-    exact (eC ⟨x, by simp [hC, h, h']⟩).2
-  have hmemA : ∀ x, x ∈ A → f x ∈ A' := fun x h ↦ by rw [hfA x h]; exact (eA ⟨x, h⟩).2
-  have hmemB : ∀ x, x ∈ B → f x ∈ B' := fun x h ↦ by
-    have hxA : x ∉ A := Finset.disjoint_right.1 hAB h
-    rw [hfB x hxA h]; exact (eB ⟨x, h⟩).2
-  have hC'mem : ∀ x, x ∈ C' → x ∉ A' ∧ x ∉ B' := by
-    intro x hx
-    rw [hC', Finset.mem_compl, Finset.mem_union] at hx
-    exact ⟨fun h ↦ hx (Or.inl h), fun h ↦ hx (Or.inr h)⟩
-  have hinj : Function.Injective f := by
-    intro x y hxy
-    by_cases hxA : x ∈ A <;> by_cases hyA : y ∈ A
-    · have : (eA ⟨x, hxA⟩ : α) = eA ⟨y, hyA⟩ := by rw [← hfA x hxA, ← hfA y hyA, hxy]
-      simpa using congrArg Subtype.val (eA.injective (Subtype.ext this))
-    · by_cases hyB : y ∈ B
-      · have h1 : f y ∈ A' := by rw [← hxy]; exact hmemA x hxA
-        exact absurd (hmemB y hyB) (Finset.disjoint_left.1 hA'B' h1)
-      · have h1 : f y ∈ A' := by rw [← hxy]; exact hmemA x hxA
-        exact absurd h1 (hC'mem _ (hfC y hyA hyB)).1
-    · by_cases hxB : x ∈ B
-      · have h1 : f x ∈ A' := by rw [hxy]; exact hmemA y hyA
-        exact absurd (hmemB x hxB) (Finset.disjoint_left.1 hA'B' h1)
-      · have h1 : f x ∈ A' := by rw [hxy]; exact hmemA y hyA
-        exact absurd h1 (hC'mem _ (hfC x hxA hxB)).1
-    · by_cases hxB : x ∈ B <;> by_cases hyB : y ∈ B
-      · have : (eB ⟨x, hxB⟩ : α) = eB ⟨y, hyB⟩ := by
-          rw [← hfB x hxA hxB, ← hfB y hyA hyB, hxy]
-        simpa using congrArg Subtype.val (eB.injective (Subtype.ext this))
-      · have h1 : f y ∈ B' := by rw [← hxy]; exact hmemB x hxB
-        exact absurd h1 (hC'mem _ (hfC y hyA hyB)).2
-      · have h1 : f x ∈ B' := by rw [hxy]; exact hmemB y hyB
-        exact absurd h1 (hC'mem _ (hfC x hxA hxB)).2
-      · have hx : f x = eC ⟨x, by simp [hC, hxA, hxB]⟩ := by
-          rw [hf]; simp only [hxA, hxB, dite_false]
-        have hy : f y = eC ⟨y, by simp [hC, hyA, hyB]⟩ := by
-          rw [hf]; simp only [hyA, hyB, dite_false]
-        have : (eC ⟨x, by simp [hC, hxA, hxB]⟩ : α) = eC ⟨y, by simp [hC, hyA, hyB]⟩ := by
-          rw [← hx, ← hy, hxy]
-        simpa using congrArg Subtype.val (eC.injective (Subtype.ext this))
-  refine ⟨Equiv.ofBijective f (Finite.injective_iff_bijective.1 hinj), ?_, ?_⟩
-  · show A.image f = A'
-    refine Finset.eq_of_subset_of_card_le (fun y hy ↦ ?_) ?_
-    · obtain ⟨x, hx, rfl⟩ := Finset.mem_image.1 hy
-      exact hmemA x hx
-    · rw [Finset.card_image_of_injective _ hinj, hA]
-  · show B.image f = B'
-    refine Finset.eq_of_subset_of_card_le (fun y hy ↦ ?_) ?_
-    · obtain ⟨x, hx, rfl⟩ := Finset.mem_image.1 hy
-      exact hmemB x hx
-    · rw [Finset.card_image_of_injective _ hinj, hB]
 
 /-- A permutation of `Fin n` permutes the `k`-subsets. -/
 def kneserPerm (n k : ℕ) (π : Equiv.Perm (Fin n)) :

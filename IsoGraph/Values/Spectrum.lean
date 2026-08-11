@@ -7,6 +7,8 @@ import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
 import Mathlib.RingTheory.RootsOfUnity.Complex
 import Mathlib.Algebra.GCDMonoid.IntegrallyClosed
 import Mathlib.Algebra.Order.Chebyshev
+import IsoGraph.ForMathlib.Analysis
+import IsoGraph.ForMathlib.Matrix
 
 /-!
 # Spectral graph theory
@@ -575,10 +577,6 @@ theorem charpoly_eq_prod_spectrum (G : CGraph) :
 theorem monic_charpoly (G : CGraph) : G.charpoly.Monic := Matrix.charpoly_monic _
 
 
-theorem scalar_eq_smul_one {n : Type} [Fintype n] [DecidableEq n] (x : ℝ) :
-    Matrix.scalar n x = x • (1 : Matrix n n ℝ) := by
-  rw [Matrix.smul_one_eq_diagonal, Matrix.scalar_apply]
-
 /-! ## Eigenvalues and eigenvectors -/
 
 /-- `v` is an eigenvector of `G` for the eigenvalue `x`. -/
@@ -684,15 +682,6 @@ theorem adjMat_disjUnion (G H : CGraph) :
   rfl
 
 /-! ## The complete graph -/
-
-theorem charpoly_sub_one {m : Type} [Fintype m] [DecidableEq m] (M : Matrix m m ℝ) :
-    (M - 1).charpoly = M.charpoly.comp (X + 1) := by
-  refine Polynomial.funext fun t ↦ ?_
-  rw [Matrix.eval_charpoly, Polynomial.eval_comp, Polynomial.eval_add, Polynomial.eval_X,
-    Polynomial.eval_one, Matrix.eval_charpoly]
-  congr 1
-  rw [scalar_eq_smul_one, scalar_eq_smul_one]
-  module
 
 theorem adjMat_complete (n : ℕ) :
     (complete n).adjMat = Matrix.vecMulVec 1 1 - 1 := by
@@ -901,31 +890,6 @@ theorem path_adj_iff (n : ℕ) (i j : (path n).V) :
     ne_eq, Fin.ext_iff]
   omega
 
-theorem sum_ite_eq_fin (n : ℕ) (g : ℕ → ℝ) (k : ℕ) (hk : n ≤ k → g k = 0) :
-    ∑ j : Fin n, (if k = j.1 then g j.1 else 0) = g k := by
-  rcases lt_or_ge k n with hkn | hkn
-  · rw [Finset.sum_eq_single (⟨k, hkn⟩ : Fin n)]
-    · simp
-    · intro b _ hb
-      exact if_neg fun h ↦ hb (Fin.ext h.symm)
-    · intro h; exact absurd (Finset.mem_univ _) h
-  · rw [hk hkn]
-    refine Finset.sum_eq_zero fun j _ ↦ ?_
-    have := j.isLt
-    exact if_neg (by omega)
-
-theorem sum_ite_succ_fin (n : ℕ) (c : ℝ) (k : ℕ) (hk : k = 0 → c = 0) (hkn : k < n) :
-    ∑ j : Fin n, (if j.1 + 1 = k then c else 0) = c := by
-  rcases Nat.eq_zero_or_pos k with hk0 | hk0
-  · rw [hk hk0]
-    refine Finset.sum_eq_zero fun j _ ↦ if_neg (by omega)
-  · have hk1 : k - 1 < n := by omega
-    rw [Finset.sum_eq_single (⟨k - 1, hk1⟩ : Fin n)]
-    · exact if_pos (by show k - 1 + 1 = k; omega)
-    · intro b _ hb
-      exact if_neg fun h ↦ hb (Fin.ext (by show b.1 = k - 1; omega))
-    · intro h; exact absurd (Finset.mem_univ _) h
-
 /-- The adjacency matrix of the path acts on a vector coming from a function on `ℕ` by shifting
 one step each way; the two ends are handled by the boundary conditions `f 0 = 0` and
 `f (n + 1) = 0`. -/
@@ -951,10 +915,6 @@ theorem path_adjMat_mulVec (n : ℕ) (f : ℕ → ℝ) (h0 : f 0 = 0) (hn : f (n
             rw [hh]; exact hn),
           sum_ite_succ_fin n (f i.1) i.1 (fun h ↦ by rw [h]; exact h0) hi]
         ring
-
-theorem sin_sub_add_sin_add (a t : ℝ) :
-    Real.sin (t - a) + Real.sin (t + a) = 2 * Real.cos a * Real.sin t := by
-  rw [Real.sin_sub, Real.sin_add]; ring
 
 open Real in
 /-- The `m`-th eigenvector of the path on `n` vertices, `sin (π (m+1) (j+1) / (n+1))`, with
@@ -1310,17 +1270,6 @@ theorem exists_conj_diagonal (G : CGraph) :
   calc G.adjMat * U = U * Star.star U * G.adjMat * U := by rw [hU.2, one_mul]
     _ = U * (Star.star U * G.adjMat * U) := by simp only [mul_assoc]
     _ = U * Matrix.diagonal G.eigenvalues := by rw [hst]
-
-/-- The characteristic polynomial of a conjugate of a diagonal matrix, for a bare matrix rather
-than an adjacency matrix. -/
-theorem charpoly_eq_prod_of_conj' {ι : Type*} [Fintype ι] [DecidableEq ι]
-    {M P Q : Matrix ι ι ℝ} {d : ι → ℝ} (hPQ : P * Q = 1) (hQP : Q * P = 1)
-    (hM : M * P = P * Matrix.diagonal d) : M.charpoly = ∏ i, (X - C (d i)) := by
-  have hA : M = P * Matrix.diagonal d * Q := by
-    calc M = M * (P * Q) := by rw [hPQ, mul_one]
-      _ = M * P * Q := by rw [mul_assoc]
-      _ = P * Matrix.diagonal d * Q := by rw [hM]
-  rw [hA, mul_assoc, Matrix.charpoly_mul_comm, mul_assoc, hQP, mul_one, Matrix.charpoly_diagonal]
 
 /-- **Shifting by the identity shifts every eigenvalue**: `A + c I` has characteristic polynomial
 `∏ (X - (λᵢ + c))`. -/

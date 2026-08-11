@@ -1,4 +1,5 @@
 import IsoGraph.Values.Identities.Bounds
+import IsoGraph.ForMathlib.Nat
 
 /-!
 # The named families, column by column
@@ -385,14 +386,6 @@ example : (cocktailParty 3).coverNum = 4 := coverNum_cocktailParty 2
 
 
 /-! ### Two binomial coefficients -/
-
-theorem choose_two_two_mul (n : ℕ) : (2 * n).choose 2 = n * (2 * n - 1) := by
-  rw [Nat.choose_two_right, Nat.mul_assoc, Nat.mul_div_cancel_left _ (by norm_num : 0 < 2)]
-
-theorem choose_two_two_mul_add_one (n : ℕ) : (2 * n + 1).choose 2 = n * (2 * n + 1) := by
-  rw [Nat.choose_two_right, show 2 * n + 1 - 1 = 2 * n from rfl,
-    show (2 * n + 1) * (2 * n) = 2 * (n * (2 * n + 1)) by ring,
-    Nat.mul_div_cancel_left _ (by norm_num : 0 < 2)]
 
 /-! ### The matching number of a complete graph -/
 
@@ -2862,11 +2855,11 @@ theorem isVertexTransitive_circulant (n : ℕ) (S : List ℕ) :
         rw [h1]
         let x' : ZMod n := equiv.symm x + d
         let y' : ZMod n := equiv.symm y + d
-        have key : (y'.val + n - x'.val) % n = (y' - x').val := CGraph.zmod_val_sub x' y'
+        have key : (y'.val + n - x'.val) % n = (y' - x').val := zmod_val_sub x' y'
         have hcancel : (y' - x' : ZMod n) = equiv.symm y - equiv.symm x := by
           simp [x', y']
         rw [hcancel] at key
-        rw [key, ← CGraph.zmod_val_sub (equiv.symm x) (equiv.symm y), hsymm_val y, hsymm_val x]
+        rw [key, ← zmod_val_sub (equiv.symm x) (equiv.symm y), hsymm_val y, hsymm_val x]
       -- ≠ is preserved
       have hne' : σ_perm x ≠ σ_perm y ↔ x ≠ y := σ_perm.injective.ne_iff
       -- Now rewrite using hdiff and hne'

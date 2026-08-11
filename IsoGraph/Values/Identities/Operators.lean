@@ -1,4 +1,5 @@
 import IsoGraph.Values.Identities.Mycielskians
+import IsoGraph.ForMathlib.Nat
 
 /-!
 # The folded cube, and the last of the columns
@@ -1404,19 +1405,6 @@ theorem not_isArcTransitive_king (m n : ℕ) :
 `T(n, r)` has parts of sizes `⌈n/r⌉` and `⌊n/r⌋`, so its degrees are `n - ⌊n/r⌋` and `n - ⌈n/r⌉`.
 These agree exactly when `r ∣ n`, and in that case the graph is a balanced complete multipartite
 graph, which is vertex-transitive.  When `r ∤ n` the two degrees differ by one. -/
-
-theorem div_pred_of_not_dvd {k r : ℕ} (h : ¬ r ∣ (k + 1)) : k / r = (k + 1) / r := by
-  rw [Nat.succ_div, if_neg h, Nat.add_zero]
-
-theorem ceilDiv_of_not_dvd {n r : ℕ} (hr : 0 < r) (h : ¬ r ∣ n) :
-    (n + r - 1) / r = n / r + 1 := by
-  obtain ⟨k, rfl⟩ : ∃ k, n = k + 1 := by
-    rcases Nat.eq_zero_or_pos n with rfl | hn
-    · exact absurd (dvd_zero r) h
-    · exact ⟨n - 1, by omega⟩
-  have he : k + 1 + r - 1 = k + r := by omega
-  have h2 : (k + r) / r = k / r + 1 := Nat.add_div_right k hr
-  rw [he, h2, div_pred_of_not_dvd h]
 
 theorem not_isVertexTransitive_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) (h : ¬ r ∣ n) :
     ¬ IsVertexTransitive (turan n r) := by

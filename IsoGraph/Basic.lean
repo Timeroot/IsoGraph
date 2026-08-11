@@ -5,6 +5,7 @@ import Mathlib.Data.Finset.Sort
 import Mathlib.Data.List.NodupEquivFin
 import Mathlib.Logic.Equiv.Fin.Basic
 import IsoGraph.Canon.Spec
+import IsoGraph.ForMathlib.List
 
 /-!
 # Graphs up to isomorphism
@@ -154,42 +155,6 @@ vertices gives the same answer, which is precisely invariance of the algorithm u
 
 Nothing here chooses an equivalence `G.V ≃ Fin n` by choice, so `CGraph.canonicalize` is
 **computable**. -/
-
-/-- Extend a bijection of index sets to lists with one more element in front. -/
-def List.consFinEquiv {m n : ℕ} (σ : Fin m ≃ Fin n) : Fin (m + 1) ≃ Fin (n + 1) where
-  toFun := Fin.cases 0 fun i ↦ (σ i).succ
-  invFun := Fin.cases 0 fun j ↦ (σ.symm j).succ
-  left_inv i := by induction i using Fin.cases <;> simp
-  right_inv j := by induction j using Fin.cases <;> simp
-
-/-- Two lists that are permutations of one another admit a bijection of index sets matching their
-entries.  There is no `Nodup` hypothesis: the bijection is read off the derivation of the
-permutation, not off the elements. -/
-theorem List.Perm.exists_finEquiv {α : Type*} {l₁ l₂ : List α} (h : List.Perm l₁ l₂) :
-    ∃ σ : Fin l₁.length ≃ Fin l₂.length, ∀ i, l₂.get (σ i) = l₁.get i := by
-  induction h with
-  | nil => exact ⟨Equiv.refl _, fun i ↦ i.elim0⟩
-  | cons x _ ih =>
-      obtain ⟨σ, hσ⟩ := ih
-      refine ⟨List.consFinEquiv σ, fun i ↦ ?_⟩
-      induction i using Fin.cases with
-      | zero => rfl
-      | succ i => simpa [List.consFinEquiv] using hσ i
-  | swap x y l =>
-      refine ⟨Equiv.swap 0 1, fun i ↦ ?_⟩
-      induction i using Fin.cases with
-      | zero => simp
-      | succ i =>
-          induction i using Fin.cases with
-          | zero => simp
-          | succ i =>
-              have h : (Equiv.swap (0 : Fin (l.length + 1 + 1)) 1) i.succ.succ = i.succ.succ := by
-                apply Equiv.swap_apply_of_ne_of_ne <;> simp [Fin.ext_iff]
-              exact congrArg (List.get (x :: y :: l)) h
-  | trans _ _ ih₁ ih₂ =>
-      obtain ⟨σ₁, h₁⟩ := ih₁
-      obtain ⟨σ₂, h₂⟩ := ih₂
-      exact ⟨σ₁.trans σ₂, fun i ↦ by rw [Equiv.trans_apply, h₂, h₁]⟩
 
 namespace CGraph
 

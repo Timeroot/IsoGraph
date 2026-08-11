@@ -1,6 +1,8 @@
 import IsoGraph.Graphs.Constructions
 import Mathlib.Data.List.Sort
 import Mathlib.Data.Fintype.Perm
+import IsoGraph.ForMathlib.Bits
+import IsoGraph.ForMathlib.Nat
 
 /-!
 # Enumerating graphs up to isomorphism
@@ -83,11 +85,6 @@ theorem pairIdx_comm (i j : ℕ) : pairIdx i j = pairIdx j i := by
   · subst h; rfl
   · rw [if_neg (by omega), if_pos h]
 
-theorem choose_two_succ (j : ℕ) : (j + 1).choose 2 = j.choose 2 + j := by
-  rw [Nat.choose_succ_succ]
-  show j.choose 1 + j.choose 2 = j.choose 2 + j
-  rw [Nat.choose_one_right, Nat.add_comm]
-
 theorem pairIdx_lt {i j n : ℕ} (hi : i < n) (hj : j < n) (hij : i ≠ j) :
     pairIdx i j < n.choose 2 := by
   rcases Nat.lt_or_ge i j with h | h
@@ -127,31 +124,6 @@ def pairsBelow (n : ℕ) : List (ℕ × ℕ) :=
   constructor
   · rintro ⟨j', hj', i', hi', rfl, rfl⟩; exact ⟨hi', hj'⟩
   · rintro ⟨hij, hj⟩; exact ⟨j, hj, i, hij, rfl, rfl⟩
-
-theorem testBit_foldl_or {α : Type} (f : α → ℕ) (p : α → Bool) (k : ℕ) (l : List α) (c : ℕ) :
-    (l.foldl (fun c a ↦ if p a then c ||| 2 ^ f a else c) c).testBit k
-      = (c.testBit k || l.any fun a ↦ p a && decide (f a = k)) := by
-  induction l generalizing c with
-  | nil => simp
-  | cons a t ih =>
-      simp only [List.foldl_cons, List.any_cons, ih]
-      by_cases hp : p a
-      · simp [hp, Nat.testBit_or, Nat.testBit_two_pow, Bool.or_assoc]
-      · simp [hp]
-
-theorem foldl_or_lt {α : Type} (f : α → ℕ) (p : α → Bool) (m : ℕ) (l : List α)
-    (hf : ∀ a ∈ l, f a < m) (c : ℕ) (hc : c < 2 ^ m) :
-    l.foldl (fun c a ↦ if p a then c ||| 2 ^ f a else c) c < 2 ^ m := by
-  induction l generalizing c with
-  | nil => simpa using hc
-  | cons a t ih =>
-      simp only [List.foldl_cons]
-      refine ih (fun b hb ↦ hf b (List.mem_cons_of_mem _ hb)) _ ?_
-      by_cases hp : p a
-      · simp only [hp, if_true]
-        exact Nat.or_lt_two_pow hc
-          (Nat.pow_lt_pow_right Nat.one_lt_two (hf a List.mem_cons_self))
-      · simpa [hp] using hc
 
 /-- The code of an adjacency oracle: bit `pairIdx i j` is set exactly when `i` and `j` are
 adjacent, for `i < j < n`. -/
@@ -787,15 +759,6 @@ theorem enumCodesExt_eq (n : ℕ) : enumCodesExt n = enumCodes n :=
   enumCodesOf_eq allMasks_complete n
 
 /-! ## Masks are determined by their low bits -/
-
-theorem eq_of_testBit_lt {n a b : ℕ} (ha : a < 2 ^ n) (hb : b < 2 ^ n)
-    (h : ∀ k, k < n → a.testBit k = b.testBit k) : a = b := by
-  refine Nat.eq_of_testBit_eq fun k ↦ ?_
-  by_cases hk : k < n
-  · exact h k hk
-  · rw [Nat.testBit_lt_two_pow (lt_of_lt_of_le ha (Nat.pow_le_pow_right (by norm_num)
-      (not_lt.1 hk))), Nat.testBit_lt_two_pow (lt_of_lt_of_le hb (Nat.pow_le_pow_right
-      (by norm_num) (not_lt.1 hk)))]
 
 theorem rowMask_testBit {n s : ℕ} (hs : s < 2 ^ n) : rowMask n s.testBit = s :=
   eq_of_testBit_lt (rowMask_lt _ _) hs fun _ hk ↦ testBit_rowMask _ hk

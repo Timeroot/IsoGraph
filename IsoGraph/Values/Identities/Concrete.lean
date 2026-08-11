@@ -4,6 +4,8 @@ import Mathlib.Combinatorics.SimpleGraph.ConcreteColorings
 import Mathlib.Combinatorics.SimpleGraph.Sum
 import Mathlib.Combinatorics.SimpleGraph.Circulant
 import Mathlib.Data.Nat.Choose.Bounds
+import IsoGraph.ForMathlib.Nat
+import IsoGraph.ForMathlib.SimpleGraph
 
 /-!
 # The concrete families, and the invariants of the products
@@ -1003,12 +1005,6 @@ theorem cycle_adj_val (n : ℕ) (u v : (cycle n).V) :
   have huv : (u = v) ↔ (u.1 = v.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
   simp only [cycle, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq,
     ne_eq, huv]
-
-/-- A step around a cycle of length at least two never stands still. -/
-theorem succ_mod_ne {d x : ℕ} (h2 : 2 ≤ d) (hx : x < d) : (x + 1) % d ≠ x := by
-  by_cases h : x + 1 = d
-  · rw [h, Nat.mod_self]; omega
-  · rw [Nat.mod_eq_of_lt (by omega)]; omega
 
 /-- One path of a theta graph splits off the front of the edge list. -/
 theorem thetaEdges_cons (off k : ℕ) (rest : List ℕ) :
@@ -2757,19 +2753,6 @@ theorem cliqueNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] 
         decide_eq_true_eq]
 
 /-! ### The diameter of a Cartesian product -/
-
-/-- Distances in a box product add, so extremal distances do too: the box product of two nonempty
-finite graphs has the sum of the two extended diameters. -/
-theorem ediam_boxProd {α β : Type} [Fintype α] [Fintype β] [Nonempty α] [Nonempty β]
-    (S : SimpleGraph α) (T : SimpleGraph β) :
-    (S.boxProd T).ediam = S.ediam + T.ediam := by
-  refine le_antisymm (SimpleGraph.ediam_le_of_edist_le fun p q ↦ ?_) ?_
-  · rw [SimpleGraph.edist_boxProd]
-    exact add_le_add SimpleGraph.edist_le_ediam SimpleGraph.edist_le_ediam
-  · obtain ⟨a, a', ha⟩ := SimpleGraph.exists_edist_eq_ediam_of_finite (G := S)
-    obtain ⟨b, b', hb⟩ := SimpleGraph.exists_edist_eq_ediam_of_finite (G := T)
-    rw [← ha, ← hb, ← SimpleGraph.edist_boxProd (x := (a, b)) (y := (a', b'))]
-    exact SimpleGraph.edist_le_ediam
 
 /-- **The diameter of a Cartesian product is the sum of the diameters.**  Both factors have to be
 connected: the diameter of a disconnected graph is the junk value `0`. -/

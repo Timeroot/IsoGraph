@@ -1,4 +1,5 @@
 import IsoGraph.Canon.Autos
+import IsoGraph.ForMathlib.Array
 
 /-!
 # Nodes of the search tree
@@ -24,16 +25,6 @@ namespace IsoGraph
 namespace Canon
 
 /-! ### Nodes of the search tree -/
-
-theorem push_getElem!_lt {α : Type} [Inhabited α] (a : Array α) (v : α) {i : Nat}
-    (hi : i < a.size) : (a.push v)[i]! = a[i]! := by
-  rw [getElem!_pos (a.push v) i (by rw [Array.size_push]; omega), getElem!_pos a i hi,
-    Array.getElem_push_lt hi]
-
-theorem push_getElem!_eq {α : Type} [Inhabited α] (a : Array α) (v : α) :
-    (a.push v)[a.size]! = v := by
-  rw [getElem!_pos (a.push v) a.size (by rw [Array.size_push]; omega)]
-  simp
 
 /-- `Node n f path invPath p` says that the search reaches the node `(invPath, p)` by
 individualising the vertices of `path`, in order.  It is the ghost information that ties together

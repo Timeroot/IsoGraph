@@ -1,4 +1,5 @@
 import IsoGraph.Canon.Node
+import IsoGraph.ForMathlib.Array
 
 /-!
 # Refinement splits cells, so the search terminates with a leaf in hand
@@ -252,11 +253,6 @@ theorem numCells_child {n : Nat} {f : Nat → Nat → Bool} {p : Part} {c v : Na
     omega
 
 /-! ### The search always finishes with a leaf in hand -/
-
-theorem replicate_getElem!_false {n w : Nat} : (Array.replicate n false)[w]! = false := by
-  by_cases h : w < n
-  · rw [getElem!_pos (Array.replicate n false) w (by simpa using h)]; simp
-  · rw [getElem!_neg (Array.replicate n false) w (by simpa using h)]; rfl
 
 theorem pruneNode_abortTo {invPath : Array UInt64} {st st' : St}
     (h : pruneNode invPath st = some st') : st'.abortTo = st.abortTo := by

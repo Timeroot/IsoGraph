@@ -1,4 +1,6 @@
 import IsoGraph.Values.Identities.Automorphisms
+import IsoGraph.ForMathlib.List
+import IsoGraph.ForMathlib.Nat
 
 /-!
 # Edge colourings, the Petersen graph, and the girth of the cycles
@@ -825,12 +827,6 @@ theorem girth_le_V {G : CGraph} (h : ¬ G.IsAcyclic) : G.girth ≤ Fintype.card 
   calc c.length = c.support.tail.length := hlen.symm
     _ ≤ Fintype.card G.V := hc.support_nodup.length_le_card
 
-theorem getLastD_map {α β : Type*} (f : α → β) (l : List α) (d : α) :
-    (l.map f).getLastD (f d) = f (l.getLastD d) := by
-  induction l generalizing d with
-  | nil => rfl
-  | cons a t ih => simp only [List.map_cons, List.getLastD_cons]; exact ih a
-
 /-- Relabelling `cycle N` so that `x` becomes the last label `N - 1`, cutting the cycle open at
 `x`.  Every vertex other than `x` lands strictly below `N - 1`. -/
 def cycRot {N : ℕ} (x y : Fin N) : Fin N :=
@@ -939,12 +935,6 @@ nodup chain has two distinct neighbours in it) to show every chain vertex lies o
 
 /-! ## The girth of the decorated cycles -/
 
-theorem mod_succ_norm {N a : ℕ} (h : a < N) : (a + 1) % N = if a + 1 = N then 0 else a + 1 := by
-  rcases Nat.lt_or_ge (a + 1) N with hq | hq
-  · rw [if_neg (by omega), Nat.mod_eq_of_lt hq]
-  · have hEq : a + 1 = N := by omega
-    rw [if_pos hEq, hEq, Nat.mod_self]
-
 /-- **An injective homomorphism carries cycles to cycles.** -/
 theorem not_isAcyclic_of_map {G H : CGraph} (f : G.V → H.V) (hinj : Function.Injective f)
     (hadj : ∀ x y, G.Adj x y = true → H.Adj (f x) (f y) = true) (hnac : ¬ G.IsAcyclic) :
@@ -961,6 +951,12 @@ theorem not_isAcyclic_of_map {G H : CGraph} (f : G.V → H.V) (hinj : Function.I
     exact (List.isChain_map f).2 (hch.imp_of_mem_imp fun a b _ _ hab ↦ hadj a b hab)
   · rw [getLastD_map]
     exact hadj _ _ hcl
+
+/-- Rewriting the index of a list lookup.  Mathlib's `getElem_congr_idx` is stated for a general
+`GetElem` with the index implicit; this specialisation to lists, with the list explicit, is what
+the cycle-list manipulations below can apply directly. -/
+theorem getElem_congr_idx {α : Type*} (l : List α) {i j : ℕ} (h : i = j) (hi : i < l.length) :
+    l[i]'hi = l[j]'(h ▸ hi) := by subst h; rfl
 
 /-- **Girth is monotone along an injective homomorphism.**  A cycle of `G` maps to a cycle of `H`,
 so `H` has girth at most the order of `G` as soon as `G` has a cycle at all. -/
@@ -981,15 +977,6 @@ theorem girth_le_card_of_map {G H : CGraph} (f : G.V → H.V) (hinj : Function.I
       exact hadj _ _ hcl
   rw [List.length_map] at hmap
   exact le_trans hmap (by simpa using hnd.length_le_card)
-
-theorem getElem_congr_idx {α : Type*} (l : List α) {i j : ℕ} (h : i = j) (hi : i < l.length) :
-    l[i]'hi = l[j]'(h ▸ hi) := by subst h; rfl
-
-theorem getLastD_eq_getElem {α : Type*} (vs : List α) (u : α) :
-    vs.getLastD u = (u :: vs)[vs.length]'(by simp) := by
-  induction vs generalizing u with
-  | nil => rfl
-  | cons a t ih => rw [List.getLastD_cons, ih a]; simp
 
 /-- **Every vertex of a cycle list has two distinct neighbours in the list**: its predecessor and
 its successor around the closed chain. -/
@@ -1036,23 +1023,6 @@ theorem cycleList_two_nbrs {G : CGraph} {u : G.V} {vs : List G.V}
     rw [e3] at hprev
     rw [G.symm]
     exact hprev
-
-/-- Some element of a nonempty list maximises a given weight. -/
-theorem exists_max_weight {V : Type*} (f : V → ℕ) (u : V) (vs : List V) :
-    ∃ x ∈ u :: vs, ∀ y ∈ u :: vs, f y ≤ f x := by
-  induction vs generalizing u with
-  | nil => exact ⟨u, by simp, by simp⟩
-  | cons a t ih =>
-      obtain ⟨x, hx, hmax⟩ := ih a
-      rcases Nat.lt_or_ge (f u) (f x) with h | h
-      · refine ⟨x, List.mem_cons_of_mem u hx, fun y hy ↦ ?_⟩
-        rcases List.mem_cons.1 hy with rfl | hy'
-        · omega
-        · exact hmax y hy'
-      · refine ⟨u, by simp, fun y hy ↦ ?_⟩
-        rcases List.mem_cons.1 hy with rfl | hy'
-        · exact Nat.le_refl _
-        · exact Nat.le_trans (hmax y hy') h
 
 /-- A closed nodup chain of a graph `H` whose vertices carry distinct labels below `M`, with
 adjacent vertices carrying adjacent labels, is impossible when the chain is shorter than `M`:
@@ -1394,32 +1364,6 @@ theorem le_domNum_strongProduct_path (m n : ℕ) :
     _ ≤ s.card := Finset.card_le_card_of_surjOn _ hsurj
 
 /-! ### The boustrophedon numbering of a board -/
-
-/-- Division with remainder, read off a pair of digits: `x * n + y` determines `x` and `y` once
-`y < n`. -/
-theorem row_col_eq {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
-    (h : x * n + y = x' * n + y') : x = x' ∧ y = y' := by
-  rcases Nat.lt_trichotomy x x' with hx | hx | hx
-  · exact absurd h (by
-      have h1 : (x + 1) * n ≤ x' * n := Nat.mul_le_mul_right n hx
-      have h2 : (x + 1) * n = x * n + n := by ring
-      omega)
-  · exact ⟨hx, by rw [hx] at h; omega⟩
-  · exact absurd h (by
-      have h1 : (x' + 1) * n ≤ x * n := Nat.mul_le_mul_right n hx
-      have h2 : (x' + 1) * n = x' * n + n := by ring
-      omega)
-
-/-- Stepping the row-major numbering by one either moves along a row or wraps to the next one. -/
-theorem row_col_step {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
-    (h : x * n + y + 1 = x' * n + y') :
-    (x = x' ∧ y + 1 = y') ∨ (x + 1 = x' ∧ y + 1 = n ∧ y' = 0) := by
-  rcases Nat.lt_or_ge (y + 1) n with hlt | hge
-  · exact Or.inl (row_col_eq hlt hy' (by omega))
-  · have hxn : (x + 1) * n = x * n + n := by ring
-    obtain ⟨h1, h2⟩ := row_col_eq (show (0 : ℕ) < n by omega) hy'
-      (show (x + 1) * n + 0 = x' * n + y' by omega)
-    exact Or.inr ⟨h1, by omega, h2.symm⟩
 
 /-- **Consecutive squares of the boustrophedon numbering are adjacent.**  Numbering an `m × n`
 board row by row, left to right along the even rows and right to left along the odd ones, two
@@ -1828,14 +1772,6 @@ theorem chromNum_lineGraph_cartesianProduct_le_add {G H : CGraph} [DecidableEq G
   exact chromNum_lineGraph_cartesianProduct_le c d hc hd hcp hdp
 
 /-! ### The independence number of a torus with two odd sides -/
-
-/-- With an odd modulus `2a + 3` bigger than both, `2i + 1` and `2i'` are already reduced, so
-they are congruent only if they are equal — and they have opposite parities. -/
-theorem two_mul_succ_not_modEq (a i i' : ℕ) (hi : i ≤ a) (hi' : i' ≤ a) :
-    ¬ (2 * i + 1 ≡ 2 * i' [MOD 2 * a + 3]) := by
-  intro h
-  rw [Nat.ModEq, Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at h
-  omega
 
 /-- Two entries of one column of the staircase are never cyclically adjacent. -/
 theorem staircase_same (a c i i' : ℕ) (hi : i ≤ a) (hi' : i' ≤ a) :

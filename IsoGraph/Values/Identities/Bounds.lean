@@ -1,4 +1,5 @@
 import IsoGraph.Values.Identities.Tables
+import IsoGraph.ForMathlib.Nat
 
 /-!
 # The simp set at work: the bounds, on the quotient
@@ -3494,16 +3495,6 @@ theorem IsSelfComplementary.isConnected {G : IsoGraph} (h : IsSelfComplementary 
   have hd := diameter_compl hc (h.E_pos hV)
   rw [h.compl_eq] at hd
   exact hc (isConnected_of_diameter_ne_zero (by omega))
-
-/-- An arithmetic helper: `n.choose 2` is even exactly when `n` is `0` or `1` mod `4`. -/
-theorem choose_two_mod_two_eq_zero_iff (n : ℕ) :
-    n.choose 2 % 2 = 0 ↔ n % 4 = 0 ∨ n % 4 = 1 := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    have hc : (n + 1).choose 2 = n + n.choose 2 := by
-      rw [Nat.choose_succ_succ n 1, Nat.choose_one_right]
-    omega
 
 /-- A self-complementary graph has `0` or `1` vertices mod `4`, since it has half of all
 `V.choose 2` possible edges. -/

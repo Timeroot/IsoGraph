@@ -1,4 +1,5 @@
 import IsoGraph.Canon.Pinned
+import IsoGraph.ForMathlib.Array
 
 /-!
 # Backjumping is sound
@@ -91,17 +92,6 @@ theorem commonPrefix_ne {a b : Array Nat} (h : commonPrefix a b < min a.size b.s
     a[commonPrefix a b]! ≠ b[commonPrefix a b]! :=
   commonPrefixFrom_ne a b _ _ 0 (Nat.zero_le _) (by omega) h
 
-theorem take_toList_eq {a b : Array Nat} {j : Nat} (hja : j ≤ a.size) (hjb : j ≤ b.size)
-    (h : ∀ k, k < j → a[k]! = b[k]!) : a.toList.take j = b.toList.take j := by
-  refine List.ext_getElem (by simp; omega) fun k hk1 hk2 => ?_
-  simp only [List.length_take, Array.length_toList, Nat.lt_min] at hk1
-  have hka : k < a.toList.length := by simp; omega
-  have hkb : k < b.toList.length := by simp; omega
-  rw [List.getElem_take, List.getElem_take,
-    show a.toList[k] = a[k]! by rw [getElem!_pos a k (by simpa using hka)]; simp,
-    show b.toList[k] = b[k]! by rw [getElem!_pos b k (by simpa using hkb)]; simp]
-  exact h k hk1.1
-
 /-- The paths of two leaves agree strictly before their longest common prefix. -/
 theorem commonPrefix_take (a b : Array Nat) :
     a.toList.take (commonPrefix a b) = b.toList.take (commonPrefix a b) := by
@@ -131,26 +121,6 @@ theorem auto_path {n : Nat} {f : Nat → Nat → Bool} {path1 path2 : Array Nat}
   rw [← hq1.lab, autoOf_get h1.wf.lab_permArr hq1.lt, hq2.lab]
 
 /-! ## Ancestors -/
-
-theorem extract_getElem! {a : Array Nat} {j i : Nat} (hi : i < j) :
-    (a.extract 0 j)[i]! = a[i]! := by
-  rcases Nat.lt_or_ge i a.size with h | h
-  · rw [getElem!_pos (a.extract 0 j) i (by simp; omega), getElem!_pos a i h]
-    simp
-  · rw [getElem!_neg (a.extract 0 j) i (by simp; omega), getElem!_neg a i (by omega)]
-
-theorem extract_size {a : Array Nat} {j : Nat} (hj : j ≤ a.size) : (a.extract 0 j).size = j := by
-  simp; omega
-
-theorem push_extract {a : Array Nat} {v j : Nat} (hj : j ≤ a.size) :
-    (a.push v).extract 0 j = a.extract 0 j := by
-  apply Array.ext'
-  simp only [Array.toList_extract, Array.toList_push, List.extract_eq_drop_take, Nat.sub_zero,
-    List.drop_zero]
-  rw [List.take_append_of_le_length (by simpa using hj)]
-
-theorem extract_self (a : Array Nat) : a.extract 0 a.size = a := by
-  apply Array.ext'; simp
 
 /-- Every prefix of a node's path is itself a node. -/
 theorem Node.ancestor {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {ip : Array UInt64}
