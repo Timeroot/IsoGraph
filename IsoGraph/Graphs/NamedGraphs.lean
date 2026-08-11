@@ -1,5 +1,6 @@
 import IsoGraph.Invariants.Certificates
 import IsoGraph.Graphs.SRG
+import IsoGraph.Graphs.Polyhedra
 
 /-!
 # A gallery of named graphs
@@ -94,9 +95,11 @@ Three remarks on what is and is not here.
   properties named in this paragraph is proved here — they are what the graphs are *for* — but
   the order, size, degree, connectivity, bipartiteness and girth of each are.
 * Of the five Platonic solids, `complete 4` is the tetrahedron, `hypercube 3` the cube,
-  `cocktailParty 3` the octahedron, and `dodecahedron` and `icosahedron` are defined here.
+  `cocktailParty 3` the octahedron, and `dodecahedron` and `icosahedron` are defined here — the
+  first as `gp 10 2` and the second from the face list of `IsoGraph/Graphs/Polyhedra.lean`.
   `gp_four_one_iso_hypercube` identifies the cube as a generalized Petersen graph too.  Six of
-  the thirteen Archimedean solids follow: the four truncations `truncatedTetrahedron`,
+  the thirteen Archimedean solids follow, `truncatedTetrahedron` here and the rest in
+  `IsoGraph/Graphs/NamedSolids.lean`: the four truncations `truncatedTetrahedron`,
   `truncatedCube`, `truncatedOctahedron` and `truncatedIcosahedron` — the last being the football
   — and the two rectifications `cuboctahedron` and `icosidodecahedron`.  Their six duals, the
   Catalan solids `triakisTetrahedron`, `triakisOctahedron`, `tetrakisHexahedron`,
@@ -320,6 +323,12 @@ noncomputable def gpSixOneIso : gp 6 1 ≃cg prism 6 := isoOfKeyEq (by native_de
 @[toIsoGraph gp_four_one_iso_hypercube]
 noncomputable def gpFourOneIso : gp 4 1 ≃cg hypercube 3 := isoOfKeyEq (by native_decide)
 
+/-- The face list `dodecahedronFaces` really does describe the dodecahedron.  The icosahedron
+below is *defined* from its faces and so needs no such check, and the other three Platonic face
+lists are checked in `IsoGraph/Graphs/Polyhedra.lean`. -/
+noncomputable def dodecahedronFacesIso :
+    ofEdges 20 (faceEdges dodecahedronFaces) ≃cg dodecahedron := isoOfKeyEq (by native_decide)
+
 @[simp] theorem card_durer : Fintype.card durer.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_durer : durer.E = 18 := by native_decide
@@ -428,14 +437,10 @@ def chvatalEdges : List (ℕ × ℕ) :=
 /-- The Chvátal graph: the smallest triangle-free four-regular graph with chromatic number four. -/
 abbrev chvatal : CGraph := ofEdges 12 chvatalEdges
 
-/-- The edges of the icosahedron. -/
-def icosahedronEdges : List (ℕ × ℕ) :=
-  [(0, 1), (0, 5), (0, 7), (0, 8), (0, 11), (1, 2), (1, 5), (1, 6), (1, 8), (2, 3), (2, 6),
-    (2, 8), (2, 9), (3, 4), (3, 6), (3, 9), (3, 10), (4, 5), (4, 6), (4, 10), (4, 11), (5, 6),
-    (5, 11), (7, 8), (7, 9), (7, 10), (7, 11), (8, 9), (9, 10), (10, 11)]
-
-/-- The icosahedron, the skeleton of the Platonic solid: five-regular on twelve vertices. -/
-abbrev icosahedron : CGraph := ofEdges 12 icosahedronEdges
+/-- The icosahedron, the skeleton of the Platonic solid: five-regular on twelve vertices.  Its
+twenty faces are `icosahedronFaces`, so `0` is the north pole, `1, …, 5` the northern ring,
+`6, …, 10` the southern one and `11` the south pole. -/
+abbrev icosahedron : CGraph := ofEdges 12 (faceEdges icosahedronFaces)
 
 /-- The edges of the Tutte graph. -/
 def tutteEdges : List (ℕ × ℕ) :=
@@ -531,13 +536,16 @@ theorem isRegularWith_icosahedron : icosahedron.IsRegularWith 5 :=
 @[simp] theorem isConnected_icosahedron : icosahedron.IsConnected :=
   isConnected_of_backEdge (Equiv.refl (Fin 12)) (by norm_num) (by native_decide)
 
+/-- The icosahedron has triangular faces. -/
 @[simp] theorem not_isBipartite_icosahedron : ¬ icosahedron.IsBipartite :=
-  not_isBipartite_of_triangle (a := vtx 12 0) (b := vtx 12 1) (d := vtx 12 5)
-    (by decide) (by decide) (by decide)
+  not_isBipartite_of_triangle (a := vtx 12 0) (b := vtx 12 1) (d := vtx 12 2)
+    (by native_decide) (by native_decide) (by native_decide)
 
+/-- The icosahedron has girth three: `0 - 1 - 2 - 0` is the first of the faces round the north
+pole. -/
 @[simp] theorem girth_icosahedron : icosahedron.girth = 3 :=
-  girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 1) (c := vtx 12 5)
-    (by decide) (by decide) (by decide)
+  girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 1) (c := vtx 12 2)
+    (by native_decide) (by native_decide) (by native_decide)
 
 @[simp] theorem card_tutte : Fintype.card tutte.V = 46 := card_ofEdges _ _
 
@@ -650,14 +658,10 @@ def tietzeEdges : List (ℕ × ℕ) :=
 mutually adjacent regions. -/
 abbrev tietze : CGraph := ofEdges 12 tietzeEdges
 
-/-- The edges of the truncated tetrahedron. -/
-def truncatedTetrahedronEdges : List (ℕ × ℕ) :=
-  [(0, 1), (0, 2), (0, 3), (1, 2), (1, 4), (2, 5), (3, 6), (3, 7), (4, 8), (4, 9), (5, 10),
-   (5, 11), (6, 7), (6, 9), (7, 11), (8, 9), (8, 10), (10, 11)]
-
 /-- The truncated tetrahedron: the Archimedean solid with four hexagonal and four triangular
-faces. -/
-abbrev truncatedTetrahedron : CGraph := ofEdges 12 truncatedTetrahedronEdges
+faces, and the smallest of the thirteen.  It is the tetrahedron with its corners cut off, so its
+twelve vertices are the twelve arcs of `tetrahedronFaces`. -/
+abbrev truncatedTetrahedron : CGraph := ofEdges 12 (truncEdges tetrahedronFaces)
 
 /-- The edges of the Robertson graph, numbered so that the back-edge certificate holds. -/
 def robertsonEdges : List (ℕ × ℕ) :=
@@ -741,13 +745,16 @@ theorem isRegularWith_truncatedTetrahedron : truncatedTetrahedron.IsRegularWith 
 @[simp] theorem isConnected_truncatedTetrahedron : truncatedTetrahedron.IsConnected :=
   isConnected_of_backEdge (Equiv.refl (Fin 12)) (by norm_num) (by native_decide)
 
+/-- The truncated tetrahedron has triangular faces. -/
 @[simp] theorem not_isBipartite_truncatedTetrahedron : ¬ truncatedTetrahedron.IsBipartite :=
-  not_isBipartite_of_triangle (a := vtx 12 0) (b := vtx 12 1) (d := vtx 12 2)
-    (by decide) (by decide) (by decide)
+  not_isBipartite_of_triangle (a := vtx 12 0) (b := vtx 12 4) (d := vtx 12 8)
+    (by native_decide) (by native_decide) (by native_decide)
 
+/-- The truncated tetrahedron has girth three: `0 - 4 - 8 - 0` is one of the triangles cut off the
+corners. -/
 @[simp] theorem girth_truncatedTetrahedron : truncatedTetrahedron.girth = 3 :=
-  girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 1) (c := vtx 12 2)
-    (by decide) (by decide) (by decide)
+  girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 4) (c := vtx 12 8)
+    (by native_decide) (by native_decide) (by native_decide)
 
 @[simp] theorem card_robertson : Fintype.card robertson.V = 19 := card_ofEdges _ _
 
@@ -1117,25 +1124,23 @@ for which the cage itself has no name.  The flower snark `J₅` is the smallest 
 flower snarks: bridgeless, cubic, and needing four colours on its edges, like the Petersen
 graph, which is the smallest snark of all. -/
 
-/-- The edges of the Holt graph. -/
+/-- The edges of the Holt graph: the vertex set is `ℤ/9 × ℤ/3`, the pair `(x, y)` numbered
+`3x + y`, and `(x, y)` is joined to `(4x ± 1, y - 1)`. -/
 def holtEdges : List (ℕ × ℕ) :=
-  [(0, 1), (0, 2), (0, 3), (0, 4), (1, 5), (1, 6), (1, 7), (2, 8), (2, 9), (2, 10), (3, 11),
-   (3, 12), (3, 13), (4, 14), (4, 15), (4, 16), (5, 11), (5, 14), (5, 17), (6, 8), (6, 16), (6, 18),
-   (7, 13), (7, 19), (7, 20), (8, 15), (8, 19), (9, 12), (9, 16), (9, 21), (10, 11), (10, 22),
-   (10, 23), (11, 21), (12, 20), (12, 22), (13, 14), (13, 24), (14, 25), (15, 23), (15, 24),
-   (16, 26), (17, 18), (17, 19), (17, 23), (18, 20), (18, 21), (19, 22), (20, 26), (21, 25),
-   (22, 24), (23, 25), (24, 26), (25, 26)]
+  (List.range 9).flatMap fun x ↦ (List.range 3).flatMap fun y ↦
+    [1, 8].map fun s ↦ (3 * x + y, 3 * ((4 * x + s) % 9) + (y + 2) % 3)
 
 /-- The Holt graph, also called the Doyle graph: the smallest half-transitive graph, on
 twenty-seven vertices.  It is vertex- and edge-transitive, but its automorphism group has
 order fifty-four and so is too small to reverse an edge. -/
 abbrev holt : CGraph := ofEdges 27 holtEdges
 
-/-- The edges of the flower snark `J₅`. -/
+/-- The edges of the flower snark `J₅`: the five-cycle on `0, …, 4`, the claw centres `5, …, 9`
+joined to it and to the ten-cycle on `10, …, 19`. -/
 def flowerSnarkEdges : List (ℕ × ℕ) :=
-  [(0, 1), (0, 2), (0, 3), (1, 4), (1, 5), (2, 6), (2, 7), (3, 8), (3, 9), (4, 6), (4, 10), (5, 11),
-   (5, 12), (6, 13), (7, 14), (7, 15), (8, 11), (8, 15), (9, 12), (9, 14), (10, 16), (10, 17),
-   (11, 16), (12, 17), (13, 18), (13, 19), (14, 18), (15, 19), (16, 18), (17, 19)]
+  ((List.range 5).flatMap fun i ↦
+      [(i, (i + 1) % 5), (i, 5 + i), (5 + i, 10 + i), (5 + i, 15 + i)]) ++
+    (List.range 10).map fun j ↦ (10 + j, 10 + (j + 1) % 10)
 
 /-- The flower snark `J₅`: five copies of a claw, their centres left alone, their first leaves
 joined in a five-cycle and their other leaves in a ten-cycle. -/
@@ -1170,12 +1175,16 @@ abbrev ljubljana : CGraph := ofEdges 112 (lcfEdges ljubljanaCode 2)
 theorem isRegularWith_holt : holt.IsRegularWith 4 :=
   isRegularWith_of_degSequence (n := 27) (by native_decide)
 
+/-- The numbering `3x + y` has no back edge at `1` or `2`, so connectivity is certified by the
+order a breadth-first search from `0` finds the vertices in. -/
 @[simp] theorem isConnected_holt : holt.IsConnected :=
-  isConnected_of_backEdge (Equiv.refl (Fin 27)) (by norm_num) (by native_decide)
+  isConnected_of_bfsOrder (holt.bfsOrder (List.finRange 27) (vtx 27 0)) (vtx 27 0)
+    (by native_decide)
 
 /-- The Holt graph has an odd cycle, so it is not bipartite. -/
 @[simp] theorem not_isBipartite_holt : ¬ holt.IsBipartite :=
-  not_isBipartite_of_odd_walk (walkOn 27 (by norm_num) [0, 3, 13, 7, 1]) 5 rfl (by decide) rfl
+  not_isBipartite_of_odd_walk (walkOn 27 (by norm_num) [0, 5, 10, 6, 22]) 5 rfl
+    (by native_decide) rfl
 
 /-- The neighbour table of the Holt graph. -/
 def holtTbl : List (List holt.V) := holt.nbrTable (List.finRange 27)
@@ -1190,11 +1199,11 @@ theorem holt_nb : ∀ a b : holt.V, b ∈ holtNb a ↔ holt.Adj a b := by
 @[simp] theorem girth_holt : holt.girth = 5 := by
   have hcyc : holt.girth ≤ 5 :=
     girth_le_of_cycleList
-      (vtx 27 0) [vtx 27 3, vtx 27 13, vtx 27 7, vtx 27 1]
+      (vtx 27 0) [vtx 27 5, vtx 27 10, vtx 27 6, vtx 27 22]
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   have hnac : ¬ holt.IsAcyclic :=
     not_isAcyclic_of_cycleList
-      (vtx 27 0) [vtx 27 3, vtx 27 13, vtx 27 7, vtx 27 1]
+      (vtx 27 0) [vtx 27 5, vtx 27 10, vtx 27 6, vtx 27 22]
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (five_le_girth_of_nbrList holt_nb
       (by native_decide)
@@ -1210,9 +1219,10 @@ theorem isRegularWith_flowerSnark : flowerSnark.IsRegularWith 3 :=
 @[simp] theorem isConnected_flowerSnark : flowerSnark.IsConnected :=
   isConnected_of_backEdge (Equiv.refl (Fin 20)) (by norm_num) (by native_decide)
 
-/-- The flower snark `J₅` has an odd cycle, so it is not bipartite. -/
+/-- The five-cycle on the first leaves is odd, so the flower snark is not bipartite. -/
 @[simp] theorem not_isBipartite_flowerSnark : ¬ flowerSnark.IsBipartite :=
-  not_isBipartite_of_odd_walk (walkOn 20 (by norm_num) [0, 2, 6, 4, 1]) 5 rfl (by decide) rfl
+  not_isBipartite_of_odd_walk (walkOn 20 (by norm_num) [0, 1, 2, 3, 4]) 5 rfl
+    (by native_decide) rfl
 
 /-- The neighbour table of the flower snark `J₅`. -/
 def flowerSnarkTbl : List (List flowerSnark.V) := flowerSnark.nbrTable (List.finRange 20)
@@ -1223,15 +1233,15 @@ def flowerSnarkNb (a : flowerSnark.V) : List flowerSnark.V := flowerSnarkTbl.get
 theorem flowerSnark_nb : ∀ a b : flowerSnark.V, b ∈ flowerSnarkNb a ↔ flowerSnark.Adj a b := by
   native_decide
 
-/-- The flower snark `J₅` has girth five. -/
+/-- The flower snark `J₅` has girth five: the five-cycle on the first leaves is shortest. -/
 @[simp] theorem girth_flowerSnark : flowerSnark.girth = 5 := by
   have hcyc : flowerSnark.girth ≤ 5 :=
     girth_le_of_cycleList
-      (vtx 20 0) [vtx 20 2, vtx 20 6, vtx 20 4, vtx 20 1]
+      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 4]
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   have hnac : ¬ flowerSnark.IsAcyclic :=
     not_isAcyclic_of_cycleList
-      (vtx 20 0) [vtx 20 2, vtx 20 6, vtx 20 4, vtx 20 1]
+      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 4]
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (five_le_girth_of_nbrList flowerSnark_nb
       (by native_decide)

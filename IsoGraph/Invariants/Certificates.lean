@@ -20,7 +20,9 @@ turns a *finite, checkable witness* into one of those statements:
   (`not_isBipartite_of_odd_walk`, `not_isBipartite_of_triangle`);
 * a constant degree sequence is regularity (`isRegularWith_of_degSequence`);
 * a numbering of the vertices in which every vertex but the first has a neighbour of smaller
-  number is connectivity (`isConnected_of_backEdge`).
+  number is connectivity (`isConnected_of_backEdge`), and for a graph whose numbering does not
+  oblige, the order a breadth-first search finds the vertices in does just as well
+  (`isConnected_of_bfsOrder`); both are the same descent argument (`isConnected_of_rank`).
 
 The witnesses themselves are small — a list of ten vertices, a table of neighbour lists — so the
 side conditions are decidable statements about concrete data.
@@ -70,28 +72,69 @@ theorem isRegularWith_of_degSequence {G : CGraph} {n k : ℕ}
 
 /-! ## Connectivity -/
 
-/-- **A back edge from every vertex but the first gives connectivity.**  If the vertices are
-numbered by `e` so that each vertex other than number zero has a neighbour with a strictly smaller
-number, then the graph is connected: induction on the number walks any vertex down to the first.
+/-- **Descent to a root gives connectivity.**  If every vertex but one has a neighbour of strictly
+smaller rank, then the graph is connected: strong induction on the rank walks any vertex down to
+the root, and two vertices meet there.
 
-The hypothesis is decidable and cheap — `n²` adjacency queries — whereas deciding
-`SimpleGraph.Connected` directly is not usable at these sizes. -/
-theorem isConnected_of_backEdge {n : ℕ} {G : CGraph} (e : G.V ≃ Fin n) (hn : 0 < n)
-    (h : ∀ v : G.V, 0 < (e v).1 → ∃ w : G.V, (e w).1 < (e v).1 ∧ G.Adj v w) : G.IsConnected := by
-  have key : ∀ m : ℕ, ∀ x : G.V, (e x).1 = m → G.toSimple.Reachable x (e.symm ⟨0, hn⟩) := by
+Nothing is asked of the rank function beyond the descent itself, so any computable function will
+do — the numbering of the vertices in `isConnected_of_backEdge`, or the order a search finds them
+in as in `isConnected_of_bfsOrder`. -/
+theorem isConnected_of_rank {G : CGraph} (r : G.V → ℕ) (v₀ : G.V)
+    (h : ∀ v : G.V, v ≠ v₀ → ∃ w : G.V, r w < r v ∧ G.Adj v w) : G.IsConnected := by
+  have key : ∀ m : ℕ, ∀ x : G.V, r x = m → G.toSimple.Reachable x v₀ := by
     intro m
     induction m using Nat.strong_induction_on with
     | _ m ih =>
       intro x hx
-      rcases Nat.eq_zero_or_pos m with rfl | hm
-      · have hxe : x = e.symm ⟨0, hn⟩ := by
-          rw [← e.symm_apply_apply x]; congr 1; exact Fin.ext hx
-        exact hxe ▸ SimpleGraph.Reachable.refl _
-      · obtain ⟨w, hlt, hadj⟩ := h x (by omega)
+      by_cases hx0 : x = v₀
+      · exact hx0 ▸ SimpleGraph.Reachable.refl _
+      · obtain ⟨w, hlt, hadj⟩ := h x hx0
         exact (SimpleGraph.Adj.reachable ((toSimple_adj _ _ _).2 hadj)).trans
-          (ih (e w).1 (by omega) w rfl)
-  have : Nonempty G.V := ⟨e.symm ⟨0, hn⟩⟩
+          (ih (r w) (hx ▸ hlt) w rfl)
+  have : Nonempty G.V := ⟨v₀⟩
   exact ⟨fun u v ↦ (key _ u rfl).trans (key _ v rfl).symm⟩
+
+/-- **A back edge from every vertex but the first gives connectivity.**  If the vertices are
+numbered by `e` so that each vertex other than number zero has a neighbour with a strictly smaller
+number, then the graph is connected: the number is a rank in the sense of `isConnected_of_rank`.
+
+The hypothesis is decidable and cheap — `n²` adjacency queries — whereas deciding
+`SimpleGraph.Connected` directly is not usable at these sizes. -/
+theorem isConnected_of_backEdge {n : ℕ} {G : CGraph} (e : G.V ≃ Fin n) (hn : 0 < n)
+    (h : ∀ v : G.V, 0 < (e v).1 → ∃ w : G.V, (e w).1 < (e v).1 ∧ G.Adj v w) : G.IsConnected :=
+  isConnected_of_rank (fun v ↦ (e v).1) (e.symm ⟨0, hn⟩) fun v hv ↦ h v <| by
+    rcases Nat.eq_zero_or_pos (e v).1 with h0 | h0
+    · refine absurd ?_ hv
+      rw [← e.symm_apply_apply v]
+      congr 1
+      exact Fin.ext h0
+    · exact h0
+
+/-- One round of a breadth-first search through `vs`: the vertices already seen, followed by those
+not yet seen that have a seen neighbour.  The search stops when a round finds nothing new, so the
+`k` rounds allowed are only an upper bound. -/
+def bfsAux (G : CGraph) [DecidableEq G.V] (vs : List G.V) : ℕ → List G.V → List G.V
+  | 0, seen => seen
+  | k + 1, seen =>
+    let new := vs.filter fun v ↦ !seen.contains v && seen.any fun u ↦ G.Adj u v
+    if new.isEmpty then seen else bfsAux G vs k (seen ++ new)
+
+/-- The vertices of `vs` in the order a breadth-first search from `v₀` reaches them.  Vertices in
+another component are simply absent from the list. -/
+def bfsOrder (G : CGraph) [DecidableEq G.V] (vs : List G.V) (v₀ : G.V) : List G.V :=
+  bfsAux G vs vs.length [v₀]
+
+/-- **Search order is a certificate of connectivity.**  If every vertex but `v₀` has a neighbour
+that comes earlier in the list `l`, the graph is connected — position in `l` is a rank.
+
+The list to pass is `G.bfsOrder`, which is exactly the order a breadth-first search from `v₀`
+finds the vertices in, and which therefore satisfies the hypothesis as soon as the graph is
+connected at all.  Unlike `isConnected_of_backEdge` this asks nothing of how the vertices are
+numbered, which matters for the graphs that are *built* rather than tabulated: a construction
+numbers its vertices as the construction goes, not as a search would. -/
+theorem isConnected_of_bfsOrder {G : CGraph} [DecidableEq G.V] (l : List G.V) (v₀ : G.V)
+    (h : ∀ v : G.V, v ≠ v₀ → ∃ w : G.V, l.idxOf w < l.idxOf v ∧ G.Adj v w) : G.IsConnected :=
+  isConnected_of_rank (fun v ↦ l.idxOf v) v₀ h
 
 /-! ## Bipartiteness -/
 

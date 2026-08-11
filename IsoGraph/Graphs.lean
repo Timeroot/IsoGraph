@@ -2,6 +2,7 @@ import IsoGraph.Graphs.Constructions
 import IsoGraph.Graphs.Quotient
 import IsoGraph.Graphs.CliqueSum
 import IsoGraph.Graphs.SRG
+import IsoGraph.Graphs.Polyhedra
 import IsoGraph.Graphs.NamedSmallGraphs
 import IsoGraph.Graphs.NamedGraphs
 import IsoGraph.Graphs.NamedSolids
@@ -17,6 +18,8 @@ Everything that builds a graph.  `Graphs/Constructions.lean` has the families an
 `CGraph`s, with a concrete vertex type; `Graphs/Quotient.lean` carries each of them across to
 `IsoGraph`, the quotient by isomorphism, so that the equations between them can be stated as
 equations; `Graphs/CliqueSum.lean` glues two graphs along a shared vertex or edge.
+`Graphs/Polyhedra.lean` describes a polyhedron by its faces and builds its truncation,
+rectification, kis and vertex–face incidence graph from that list alone.
 
 The rest is the gallery: individual graphs with proper names.  `Graphs/NamedSmallGraphs.lean`
 names all 143 connected graphs on at most six vertices, `Graphs/SRG.lean` collects the strongly
