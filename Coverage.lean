@@ -158,11 +158,11 @@ def Dict.canonical (d : Dict) (n : Name) : Name := d.canon.getD n n
 
 /-- How well a theorem covers a cell: the higher the better. -/
 inductive Mark
-  | none | specific | specificSimp | generic | genericSimp
+  | none | bound | specific | specificSimp | generic | genericSimp
   deriving Inhabited, BEq, Ord
 
 def Mark.toString : Mark → String
-  | .none => "." | .specific => "t" | .specificSimp => "s"
+  | .none => "." | .bound => "b" | .specific => "t" | .specificSimp => "s"
   | .generic => "T" | .genericSimp => "S"
 
 /-- The conclusion's candidate left-hand sides: `a` in `a = b` and `a ↔ b`, `p` in `¬ p`, and the
@@ -176,6 +176,18 @@ partial def lhsCandidates (body : Expr) (fuel : Nat := 3) : Array Expr :=
     | (``Iff, #[a, _]) => lhsCandidates a fuel
     | (``Not, #[a]) => lhsCandidates a fuel
     | _ => #[body]
+
+/-- Every application appearing in `e`, outermost first. -/
+partial def subterms (e : Expr) : Array Expr :=
+  match e with
+  | .app .. => e.getAppArgs.foldl (fun acc a ↦ acc ++ subterms a) #[e]
+  | _ => #[]
+
+/-- Is the conclusion an inequality?  Then any occurrence of `invariant (construction ...)` in it
+is a bound rather than a rewrite. -/
+def isBound (body : Expr) : Bool :=
+  [``LE.le, ``LT.lt, ``GE.ge, ``GT.gt, ``Multiset.Subset, ``HasSubset.Subset].contains
+    (body.getAppFn.constName?.getD .anonymous)
 
 /-- Notation such as `Gᶜ`, `G + H` and `G * H` goes through a type class, so the head of the
 elaborated term is `Compl.compl` rather than `IsoGraph.compl`.  Unfold instances until the head is
@@ -231,22 +243,35 @@ def scan (d : Dict) : MetaM (Std.HashMap (Name × Name) Hit) := do
     | none => continue
     let isSimp := sthms.isLemma (.decl nm)
     let hits ← forallTelescope ci.type fun _ body ↦ do
-      let mut hits : Array (Name × Name × Bool × Mark) := #[]
-      for lhs in lhsCandidates body do
-        let inv := lhs.getAppFn
-        unless inv.isConst && d.invNames.contains inv.constName! do continue
-        for g₀ in ← graphArgs lhs do
+      -- an application of an invariant to a construction, and how good a match it is
+      let entry (e : Expr) (bound : Bool) : MetaM (Array (Name × Name × Bool × Mark)) := do
+        let inv := e.getAppFn
+        unless inv.isConst && d.invNames.contains inv.constName! do return #[]
+        let mut out := #[]
+        for g₀ in ← graphArgs e do
           let g ← resolveHead d g₀
           let c := g.getAppFn
           unless c.isConst && d.constrNames.contains c.constName! do continue
-          let mark := match ← isGeneric g, isSimp with
+          let gen ← isGeneric g
+          let mark := if bound then Mark.bound else match gen, isSimp with
             | true, true => Mark.genericSimp
             | true, false => Mark.generic
             | false, true => Mark.specificSimp
             | false, false => Mark.specific
-          hits := hits.push (d.canonical inv.constName!, d.canonical c.constName!,
+          out := out.push (d.canonical inv.constName!, d.canonical c.constName!,
             inv.constName!.getRoot == `IsoGraph, mark)
-      return hits
+        return out
+      if isBound body then
+        -- record every occurrence anywhere in the inequality, as a bound
+        let mut hits := #[]
+        for e in (body.getAppArgs.foldl (fun acc a ↦ acc ++ subterms a) #[]) do
+          hits := hits ++ (← entry e true)
+        return hits
+      else
+        let mut hits := #[]
+        for lhs in lhsCandidates body do
+          hits := hits ++ (← entry lhs false)
+        return hits
     for (inv, c, iso, mark) in hits do
       let h := table.getD (inv, c) {}
       let h := if iso then (if compare h.iso mark == .lt then { h with iso := mark, isoName := nm }
@@ -301,6 +326,7 @@ Each cell answers: is there a theorem rewriting `invariant (construction ...)`?
   T   a theorem for general arguments, not tagged @[simp]
   s   a @[simp] theorem, but only about particular arguments (e.g. `girth (cycle 5)`)
   t   likewise, not tagged @[simp]
+  b   no equation, only a bound (`domNum (G □g H)` has Vizing's inequality and nothing more)
   ~   the theorem is only stated about `CGraph`, not about `IsoGraph`
   .   nothing
 
@@ -314,8 +340,12 @@ be nonempty.  See the list of names at the end for what each filled cell actuall
   out := out ++ "## Missing operator entries\n\n"
   for c in d.operators do
     let missing := d.invariants.filter fun inv ↦ (table.getD (inv, c) {}).mark == "."
+    let bounded := d.invariants.filter fun inv ↦ (table.getD (inv, c) {}).mark == "b"
     out := out ++ s!"{shortName c} ({missing.size}/{d.invariants.size} missing)\n"
-    out := out ++ s!"  {String.intercalate ", " (missing.map shortName).toList}\n\n"
+    out := out ++ s!"  {String.intercalate ", " (missing.map shortName).toList}\n"
+    unless bounded.isEmpty do
+      out := out ++ s!"  bounds only: {String.intercalate ", " (bounded.map shortName).toList}\n"
+    out := out ++ "\n"
   -- how well covered each family is
   out := out ++ "## Family coverage\n\n"
   for c in d.families do
