@@ -1338,7 +1338,7 @@ theorem not_isVertexTransitive_grid (m n : ℕ) :
   have hmin : minDeg (path (m + 3) □g path (n + 3)) = 2 := minDeg_grid (m + 1) (n + 1)
   have hmax : maxDeg (path (m + 3) □g path (n + 3)) = 4 := maxDeg_grid m n
   refine not_isVertexTransitive_of_minDeg_ne_maxDeg ?_ (by omega)
-  rw [V_grid]
+  rw [V_cartesianProduct, V_path, V_path]
   positivity
 
 theorem not_isArcTransitive_grid (m n : ℕ) :
@@ -1352,7 +1352,7 @@ theorem not_isVertexTransitive_king (m n : ℕ) :
   have hmin : minDeg (path (m + 3) ⊠g path (n + 3)) = 3 := minDeg_king (m + 1) (n + 1)
   have hmax : maxDeg (path (m + 3) ⊠g path (n + 3)) = 8 := maxDeg_king m n
   refine not_isVertexTransitive_of_minDeg_ne_maxDeg ?_ (by omega)
-  rw [V_king]
+  rw [V_strongProduct, V_path, V_path]
   positivity
 
 theorem not_isArcTransitive_king (m n : ℕ) :
@@ -1591,7 +1591,7 @@ theorem not_isRegularWith_grid (m n k : ℕ) :
   have hmin : minDeg (path (m + 3) □g path (n + 3)) = 2 := minDeg_grid (m + 1) (n + 1)
   have hmax : maxDeg (path (m + 3) □g path (n + 3)) = 4 := maxDeg_grid m n
   refine not_isRegularWith_of_minDeg_ne_maxDeg ?_ (by omega) k
-  rw [V_grid]
+  rw [V_cartesianProduct, V_path, V_path]
   positivity
 
 theorem not_isRegularWith_king (m n k : ℕ) :
@@ -1599,7 +1599,7 @@ theorem not_isRegularWith_king (m n k : ℕ) :
   have hmin : minDeg (path (m + 3) ⊠g path (n + 3)) = 3 := minDeg_king (m + 1) (n + 1)
   have hmax : maxDeg (path (m + 3) ⊠g path (n + 3)) = 8 := maxDeg_king m n
   refine not_isRegularWith_of_minDeg_ne_maxDeg ?_ (by omega) k
-  rw [V_king]
+  rw [V_strongProduct, V_path, V_path]
   positivity
 
 theorem not_isRegularWith_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) (h : ¬ r ∣ n) (k : ℕ) :
@@ -1748,7 +1748,7 @@ boustrophedon pairing of the board. -/
   · have hb : IsBipartite (path m □g path n) :=
       isBipartite_cartesianProduct (isBipartite_path m) (isBipartite_path n)
     have h := V_le_chromNum_mul_indepNum (path m □g path n)
-    rw [V_grid] at h
+    rw [V_cartesianProduct, V_path, V_path] at h
     have h2 : (path m □g path n).chromNum * (path m □g path n).indepNum
         ≤ 2 * (path m □g path n).indepNum :=
       Nat.mul_le_mul_right _ (isBipartite_iff_chromNum_le_two.1 hb)
@@ -1758,7 +1758,7 @@ boustrophedon pairing of the board. -/
 @[simp] theorem coverNum_grid (m n : ℕ) :
     (path m □g path n).coverNum = m * n / 2 := by
   have h := (path m □g path n).coverNum_add_indepNum
-  rw [V_grid, indepNum_grid] at h
+  rw [V_cartesianProduct, V_path, V_path, indepNum_grid] at h
   omega
 
 /-- **The matching number of a grid**: `ν(Pₘ □ Pₙ) = ⌊mn/2⌋`, a near-perfect matching along the
@@ -1766,7 +1766,7 @@ boustrophedon Hamiltonian path. -/
 @[simp] theorem matchNum_grid (m n : ℕ) : (path m □g path n).matchNum = m * n / 2 := by
   refine le_antisymm ?_ ?_
   · have h := (path m □g path n).two_mul_matchNum_le_V
-    rw [V_grid] at h
+    rw [V_cartesianProduct, V_path, V_path] at h
     omega
   · rw [matchNum_eq, path_def, path_def, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
     exact CGraph.le_indepNum_lineGraph_grid m n

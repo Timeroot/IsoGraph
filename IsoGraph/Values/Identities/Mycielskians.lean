@@ -19,10 +19,6 @@ namespace IsoGraph
   rw [V_join, V_star, V_star]
   omega
 
-theorem cliqueNum_join_star (m n : ℕ) :
-    (star (m + 1) ∇g star (n + 1)).cliqueNum = 4 := by
-  rw [cliqueNum_join, cliqueNum_star, cliqueNum_star]
-
 theorem maxDeg_join_star (m n : ℕ) :
     maxDeg (star (m + 1) ∇g star (n + 1)) = m + n + 3 := by
   have h := maxDeg_join (G := star (m + 1)) (H := star (n + 1))
@@ -50,7 +46,7 @@ theorem diameter_join_star (m n : ℕ) : (star (m + 2) ∇g star n).diameter = 2
   omega
 
 theorem girth_join_star (m n : ℕ) : (star (m + 1) ∇g star (n + 1)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_star]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join, cliqueNum_star, cliqueNum_star]; omega)
 
 /-! ### Joining a complete graph and a star -/
 
@@ -58,10 +54,6 @@ theorem girth_join_star (m n : ℕ) : (star (m + 1) ∇g star (n + 1)).girth = 3
     (complete m ∇g star n).V = m + n + 1 := by
   rw [V_join, V_complete, V_star]
   omega
-
-theorem cliqueNum_join_complete_star (m n : ℕ) :
-    (complete m ∇g star (n + 1)).cliqueNum = m + 2 := by
-  rw [cliqueNum_join, cliqueNum_complete, cliqueNum_star]
 
 theorem maxDeg_join_complete_star (m n : ℕ) :
     maxDeg (complete (m + 1) ∇g star (n + 1)) = m + n + 2 := by
@@ -92,7 +84,7 @@ theorem diameter_join_complete_star (m n : ℕ) :
 
 theorem girth_join_complete_star (m n : ℕ) :
     (complete (m + 1) ∇g star (n + 1)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_complete_star]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join, cliqueNum_complete, cliqueNum_star]; omega)
 
 /-! ### Joining a cycle and a star -/
 
@@ -100,10 +92,6 @@ theorem girth_join_complete_star (m n : ℕ) :
     (cycle m ∇g star n).V = m + n + 1 := by
   rw [V_join, V_cycle, V_star]
   omega
-
-theorem cliqueNum_join_cycle_star (m n : ℕ) :
-    (cycle (m + 4) ∇g star (n + 1)).cliqueNum = 4 := by
-  rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_star]
 
 theorem maxDeg_join_cycle_star (m n : ℕ) :
     maxDeg (cycle (m + 3) ∇g star (n + 1)) = m + n + 4 := by
@@ -133,7 +121,7 @@ theorem diameter_join_cycle_star (m n : ℕ) :
 
 theorem girth_join_cycle_star (m n : ℕ) :
     (cycle (m + 4) ∇g star (n + 1)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle_star]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_star]; omega)
 
 /-! ### The disjoint union of two stars -/
 
@@ -934,7 +922,7 @@ theorem V_le_indepNum_mycielskian_grotzsch : 11 ≤ (mycielskian grotzsch).indep
 theorem cliqueNum_mycielskian_grid (m n : ℕ) :
     (mycielskian (path (m + 2) □g path (n + 2))).cliqueNum = 2 := by
   have h := cliqueNum_mycielskian (path (m + 2) □g path (n + 2))
-    (by rw [V_grid]; positivity)
+    (by rw [V_cartesianProduct, V_path, V_path]; positivity)
   rw [cliqueNum_grid] at h
   omega
 
@@ -942,15 +930,15 @@ theorem maxDeg_mycielskian_grid (m n : ℕ) :
     maxDeg (mycielskian (path (m + 3) □g path (n + 3)))
       = max 8 ((m + 3) * (n + 3)) := by
   have h := maxDeg_mycielskian (path (m + 3) □g path (n + 3))
-  rw [maxDeg_grid, V_grid] at h
+  rw [maxDeg_grid, V_cartesianProduct, V_path, V_path] at h
   omega
 
 theorem minDeg_mycielskian_grid (m n : ℕ) :
     minDeg (mycielskian (path (m + 2) □g path (n + 2)))
       = min 3 ((m + 2) * (n + 2)) := by
   have h := minDeg_mycielskian (path (m + 2) □g path (n + 2))
-    (by rw [V_grid]; positivity)
-  rw [minDeg_grid, V_grid] at h
+    (by rw [V_cartesianProduct, V_path, V_path]; positivity)
+  rw [minDeg_grid, V_cartesianProduct, V_path, V_path] at h
   omega
 
 theorem isConnected_mycielskian_grid (m n : ℕ) :
@@ -967,12 +955,13 @@ theorem radius_mycielskian_grid (m n : ℕ) :
 
 theorem four_le_girth_mycielskian_grid (m n : ℕ) :
     4 ≤ (mycielskian (path (m + 2) □g path (n + 2))).girth :=
-  four_le_girth_mycielskian _ (by rw [cliqueNum_grid]) (by rw [E_grid]; positivity)
+  four_le_girth_mycielskian _ (by rw [cliqueNum_grid])
+    (by rw [E_cartesianProduct, E_path, E_path, V_path, V_path]; positivity)
 
 theorem coverNum_mycielskian_grid_le (m n : ℕ) :
     (mycielskian (path m □g path n)).coverNum ≤ m * n + 1 := by
   have h := coverNum_mycielskian_le (path m □g path n)
-  rw [V_grid] at h
+  rw [V_cartesianProduct, V_path, V_path] at h
   omega
 
 /-! ### The Mycielskian of a king graph -/
@@ -986,23 +975,23 @@ theorem chromNum_mycielskian_king (m n : ℕ) :
 theorem cliqueNum_mycielskian_king (m n : ℕ) :
     (mycielskian (path (m + 2) ⊠g path (n + 2))).cliqueNum = 4 := by
   have h := cliqueNum_mycielskian (path (m + 2) ⊠g path (n + 2))
-    (by rw [V_king]; positivity)
-  rw [cliqueNum_king] at h
+    (by rw [V_strongProduct, V_path, V_path]; positivity)
+  rw [cliqueNum_strongProduct, cliqueNum_path, cliqueNum_path] at h
   omega
 
 theorem maxDeg_mycielskian_king (m n : ℕ) :
     maxDeg (mycielskian (path (m + 3) ⊠g path (n + 3)))
       = max 16 ((m + 3) * (n + 3)) := by
   have h := maxDeg_mycielskian (path (m + 3) ⊠g path (n + 3))
-  rw [maxDeg_king, V_king] at h
+  rw [maxDeg_king, V_strongProduct, V_path, V_path] at h
   omega
 
 theorem minDeg_mycielskian_king (m n : ℕ) :
     minDeg (mycielskian (path (m + 2) ⊠g path (n + 2)))
       = min 4 ((m + 2) * (n + 2)) := by
   have h := minDeg_mycielskian (path (m + 2) ⊠g path (n + 2))
-    (by rw [V_king]; positivity)
-  rw [minDeg_king, V_king] at h
+    (by rw [V_strongProduct, V_path, V_path]; positivity)
+  rw [minDeg_king, V_strongProduct, V_path, V_path] at h
   omega
 
 theorem isConnected_mycielskian_king (m n : ℕ) :
@@ -1026,7 +1015,7 @@ theorem girth_mycielskian_king (m n : ℕ) :
 theorem coverNum_mycielskian_king_le (m n : ℕ) :
     (mycielskian (path m ⊠g path n)).coverNum ≤ m * n + 1 := by
   have h := coverNum_mycielskian_le (path m ⊠g path n)
-  rw [V_king] at h
+  rw [V_strongProduct, V_path, V_path] at h
   omega
 
 /-! ### The Mycielskian of a tadpole graph -/
@@ -2435,31 +2424,27 @@ theorem degSequence_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
 
 /-! ### The line graph of a grid graph -/
 
-theorem E_pos_grid (m n : ℕ) : 0 < (path (m + 2) □g path (n + 2)).E := by
-  rw [E_grid]
-  positivity
-
 theorem isConnected_lineGraph_grid (m n : ℕ) :
     IsConnected (lineGraph (path (m + 2) □g path (n + 2))) :=
-  isConnected_lineGraph (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
+  isConnected_lineGraph (by simp) (by simp)
 
 theorem le_minDeg_lineGraph_grid (m n : ℕ) :
     2 ≤ minDeg (lineGraph (path (m + 2) □g path (n + 2))) := by
-  have h := le_minDeg_lineGraph (G := path (m + 2) □g path (n + 2)) (E_pos_grid m n)
+  have h := le_minDeg_lineGraph (G := path (m + 2) □g path (n + 2)) (by simp)
   rw [minDeg_grid] at h
   omega
 
 theorem radius_lineGraph_grid_le (m n : ℕ) :
     (lineGraph (path (m + 2) □g path (n + 2))).radius ≤ (m + 2) / 2 + (n + 2) / 2 + 1 := by
   have h := radius_lineGraph_le (G := path (m + 2) □g path (n + 2))
-    (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
+    (by simp) (by simp)
   rw [radius_grid] at h
   omega
 
 theorem diameter_lineGraph_grid_le (m n : ℕ) :
     (lineGraph (path (m + 2) □g path (n + 2))).diameter ≤ m + n + 3 := by
   have h := diameter_lineGraph_le (G := path (m + 2) □g path (n + 2))
-    (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
+    (by simp) (by simp)
   rw [diameter_grid] at h
   omega
 
@@ -2494,24 +2479,20 @@ theorem maxDeg_lineGraph_grid_le (m n : ℕ) :
 
 /-! ### The line graph of a king graph -/
 
-theorem E_pos_king (m n : ℕ) : 0 < (path (m + 2) ⊠g path (n + 2)).E := by
-  rw [E_king]
-  positivity
-
 theorem isConnected_lineGraph_king (m n : ℕ) :
     IsConnected (lineGraph (path (m + 2) ⊠g path (n + 2))) :=
-  isConnected_lineGraph (isConnected_king (m + 1) (n + 1)) (E_pos_king m n)
+  isConnected_lineGraph (isConnected_king (m + 1) (n + 1)) (by simp)
 
 theorem le_minDeg_lineGraph_king (m n : ℕ) :
     4 ≤ minDeg (lineGraph (path (m + 2) ⊠g path (n + 2))) := by
-  have h := le_minDeg_lineGraph (G := path (m + 2) ⊠g path (n + 2)) (E_pos_king m n)
+  have h := le_minDeg_lineGraph (G := path (m + 2) ⊠g path (n + 2)) (by simp)
   rw [minDeg_king] at h
   omega
 
 theorem diameter_lineGraph_king_le (m n : ℕ) :
     (lineGraph (path (m + 2) ⊠g path (n + 2))).diameter ≤ max (m + 1) (n + 1) + 1 := by
   have h := diameter_lineGraph_le (G := path (m + 2) ⊠g path (n + 2))
-    (isConnected_king (m + 1) (n + 1)) (E_pos_king m n)
+    (isConnected_king (m + 1) (n + 1)) (by simp)
   rw [diameter_king] at h
   omega
 

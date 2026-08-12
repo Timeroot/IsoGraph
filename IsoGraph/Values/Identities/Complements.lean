@@ -24,9 +24,6 @@ identities that gives a complement column for every family whose four counting i
 known, even when the complement itself has no name.
 -/
 
-theorem cliqueNum_compl_cycle (n : ℕ) : ((cycle (n + 3))ᶜ).cliqueNum = (n + 3) / 2 := by
-  rw [cliqueNum_compl, indepNum_cycle]
-
 theorem chromNum_compl_cycle (n : ℕ) : ((cycle (n + 4))ᶜ).chromNum = (n + 5) / 2 := by
   rw [chromNum_compl, cliqueCoverNum_cycle]
 
@@ -50,9 +47,6 @@ theorem two_mul_le_autCount_compl_cycle (n : ℕ) :
   rw [autCount_compl]
   exact two_mul_le_autCount_cycle n
 
-theorem cliqueNum_compl_path (n : ℕ) : ((path n)ᶜ).cliqueNum = (n + 1) / 2 := by
-  rw [cliqueNum_compl, indepNum_path]
-
 theorem chromNum_compl_path (n : ℕ) : ((path n)ᶜ).chromNum = (n + 1) / 2 := by
   rw [chromNum_compl, cliqueCoverNum_path]
 
@@ -73,9 +67,6 @@ theorem E_compl_path (n : ℕ) : ((path (n + 1))ᶜ).E = (n + 1).choose 2 - n :=
   rw [E_path, V_path] at h
   omega
 
-theorem cliqueNum_compl_hypercube (n : ℕ) : ((hypercube (n + 1))ᶜ).cliqueNum = 2 ^ n := by
-  rw [cliqueNum_compl, indepNum_hypercube]
-
 theorem chromNum_compl_hypercube (n : ℕ) : ((hypercube (n + 1))ᶜ).chromNum = 2 ^ n := by
   rw [chromNum_compl, cliqueCoverNum_hypercube]
 
@@ -94,9 +85,6 @@ theorem two_mul_E_le_autCount_compl_hypercube (n : ℕ) :
   rw [autCount_compl]
   exact two_mul_E_le_autCount_hypercube n
 
-theorem cliqueNum_compl_crown (n : ℕ) : ((crown (n + 2))ᶜ).cliqueNum = n + 2 := by
-  rw [cliqueNum_compl, indepNum_crown]
-
 theorem maxDeg_compl_crown (n : ℕ) : maxDeg ((crown (n + 2))ᶜ) = n + 2 := by
   have h := maxDeg_compl (G := crown (n + 2)) (by rw [V_crown]; omega)
   rw [V_crown, minDeg_crown] at h
@@ -113,9 +101,6 @@ theorem E_compl_crown (n : ℕ) : ((crown n)ᶜ).E = (2 * n).choose 2 - 2 * n.ch
   omega
 
 /-! ### Complements of the wheel, the ladder and the prism -/
-
-theorem cliqueNum_compl_wheel (n : ℕ) : ((wheel (n + 3))ᶜ).cliqueNum = (n + 3) / 2 := by
-  rw [cliqueNum_compl, indepNum_wheel]
 
 theorem chromNum_compl_wheel (n : ℕ) : ((wheel (n + 4))ᶜ).chromNum = (n + 5) / 2 := by
   rw [chromNum_compl, cliqueCoverNum_wheel]
@@ -134,9 +119,6 @@ theorem E_compl_wheel (n : ℕ) : ((wheel (n + 3))ᶜ).E = (n + 4).choose 2 - 2 
   have h := E_compl (wheel (n + 3))
   rw [E_wheel, V_wheel, show 1 + (n + 3) = n + 4 from by ring] at h
   omega
-
-theorem cliqueNum_compl_ladder (n : ℕ) : ((ladder n)ᶜ).cliqueNum = n := by
-  rw [cliqueNum_compl, indepNum_ladder]
 
 theorem chromNum_compl_ladder (n : ℕ) : ((ladder n)ᶜ).chromNum = n := by
   rw [chromNum_compl, cliqueCoverNum_ladder]
@@ -158,14 +140,6 @@ theorem E_compl_ladder (n : ℕ) :
   have h := E_compl (ladder (n + 1))
   rw [E_ladder, V_ladder] at h
   omega
-
-theorem cliqueNum_compl_prism_even (m : ℕ) :
-    ((prism (2 * m + 4))ᶜ).cliqueNum = 2 * m + 4 := by
-  rw [cliqueNum_compl, indepNum_prism_even]
-
-theorem cliqueNum_compl_prism_odd (m : ℕ) :
-    ((prism (2 * m + 3))ᶜ).cliqueNum = 2 * m + 2 := by
-  rw [cliqueNum_compl, indepNum_prism_odd]
 
 theorem chromNum_compl_prism (n : ℕ) : ((prism (n + 4))ᶜ).chromNum = n + 4 := by
   rw [chromNum_compl, cliqueCoverNum_prism]
@@ -428,9 +402,6 @@ theorem cliqueCoverNum_compl_foldedCube_odd {n : ℕ} (hn : n % 2 = 1) :
 
 /-! ### Complements of line graphs -/
 
-theorem cliqueNum_compl_lineGraph (G : IsoGraph) : ((lineGraph G)ᶜ).cliqueNum = G.matchNum := by
-  rw [cliqueNum_compl, indepNum_lineGraph]
-
 theorem maxDeg_compl_lineGraph {G : IsoGraph} {n k : ℕ} (hE : 0 < G.E)
     (h : degSequence G = List.replicate n k) :
     maxDeg ((lineGraph G)ᶜ) = G.E - 1 - (2 * k - 2) := by
@@ -453,12 +424,6 @@ theorem E_compl_lineGraph (G : IsoGraph) :
 
 /-! ### The grid and the torus -/
 
-@[simp] theorem V_grid (m n : ℕ) : (path m □g path n).V = m * n := by
-  rw [V_cartesianProduct, V_path, V_path]
-
-theorem E_grid (m n : ℕ) : (path (m + 1) □g path (n + 1)).E = (m + 1) * n + (n + 1) * m := by
-  rw [E_cartesianProduct, E_path, E_path, V_path, V_path]
-
 theorem cliqueNum_grid (m n : ℕ) : (path (m + 2) □g path (n + 2)).cliqueNum = 2 := by
   have h := cliqueNum_cartesianProduct (G := path (m + 2)) (H := path (n + 2))
     (by rw [V_path]; omega) (by rw [V_path]; omega)
@@ -476,9 +441,6 @@ theorem minDeg_grid (m n : ℕ) : minDeg (path (m + 2) □g path (n + 2)) = 2 :=
     (by rw [V_path]; omega) (by rw [V_path]; omega)
   rw [minDeg_path, minDeg_path] at h
   omega
-
-@[simp] theorem isConnected_grid (m n : ℕ) : IsConnected (path (m + 1) □g path (n + 1)) :=
-  isConnected_cartesianProduct.2 ⟨isConnected_path m, isConnected_path n⟩
 
 theorem diameter_grid (m n : ℕ) : (path (m + 1) □g path (n + 1)).diameter = m + n := by
   rw [diameter_cartesianProduct (isConnected_path m) (isConnected_path n), diameter_path,
@@ -524,10 +486,6 @@ theorem radius_cartesianProduct_cycle (m n : ℕ) :
     radius_cycle]
 
 /-! ### The cylinder and the king graph -/
-
-theorem E_cartesianProduct_cycle_path (m n : ℕ) :
-    (cycle (m + 3) □g path (n + 1)).E = (m + 3) * n + (n + 1) * (m + 3) := by
-  rw [E_cartesianProduct, E_cycle, E_path, V_cycle, V_path]
 
 theorem cliqueNum_cartesianProduct_cycle_path (m n : ℕ) :
     (cycle (m + 4) □g path (n + 2)).cliqueNum = 2 := by
@@ -660,18 +618,6 @@ theorem edgeChromNum_cartesianProduct_cycle_odd_le (m n : ℕ) :
     (by rw [E_cycle]; omega) (by rw [E_cycle]; omega)
   rwa [edgeChromNum_cycle_odd, edgeChromNum_cycle_odd] at h
 
-@[simp] theorem V_king (m n : ℕ) : (path m ⊠g path n).V = m * n := by
-  rw [V_strongProduct, V_path, V_path]
-
-theorem E_king (m n : ℕ) :
-    (path (m + 1) ⊠g path (n + 1)).E = (m + 1) * n + (n + 1) * m + 2 * m * n := by
-  rw [E_strongProduct, E_path, E_path, V_path, V_path]
-
-theorem cliqueNum_king (m n : ℕ) : (path (m + 2) ⊠g path (n + 2)).cliqueNum = 4 := by
-  have h := cliqueNum_strongProduct (path (m + 2)) (path (n + 2))
-  rw [cliqueNum_path, cliqueNum_path] at h
-  omega
-
 theorem maxDeg_king (m n : ℕ) : maxDeg (path (m + 3) ⊠g path (n + 3)) = 8 := by
   have h := maxDeg_strongProduct (G := path (m + 3)) (H := path (n + 3))
     (by rw [V_path]; omega) (by rw [V_path]; omega)
@@ -692,16 +638,6 @@ theorem minDeg_king (m n : ℕ) : minDeg (path (m + 2) ⊠g path (n + 2)) = 3 :=
 
 /-! ### The tensor and strong products of two cycles -/
 
-theorem E_tensorProduct_cycle (m n : ℕ) :
-    (cycle (m + 3) ⊗g cycle (n + 3)).E = 2 * (m + 3) * (n + 3) := by
-  rw [E_tensorProduct, E_cycle, E_cycle]
-
-theorem cliqueNum_tensorProduct_cycle (m n : ℕ) :
-    (cycle (m + 4) ⊗g cycle (n + 4)).cliqueNum = 2 := by
-  have h := cliqueNum_tensorProduct (cycle (m + 4)) (cycle (n + 4))
-  rw [cliqueNum_cycle, cliqueNum_cycle] at h
-  omega
-
 theorem maxDeg_tensorProduct_cycle (m n : ℕ) :
     maxDeg (cycle (m + 3) ⊗g cycle (n + 3)) = 4 := by
   have h := maxDeg_tensorProduct (G := cycle (m + 3)) (H := cycle (n + 3))
@@ -719,17 +655,6 @@ theorem minDeg_tensorProduct_cycle (m n : ℕ) :
 @[simp] theorem isVertexTransitive_tensorProduct_cycle (m n : ℕ) :
     IsVertexTransitive (cycle m ⊗g cycle n) :=
   (isVertexTransitive_cycle m).tensorProduct (isVertexTransitive_cycle n)
-
-theorem E_strongProduct_cycle (m n : ℕ) :
-    (cycle (m + 3) ⊠g cycle (n + 3)).E
-      = (m + 3) * (n + 3) + (n + 3) * (m + 3) + 2 * (m + 3) * (n + 3) := by
-  rw [E_strongProduct, E_cycle, E_cycle, V_cycle, V_cycle]
-
-theorem cliqueNum_strongProduct_cycle (m n : ℕ) :
-    (cycle (m + 4) ⊠g cycle (n + 4)).cliqueNum = 4 := by
-  have h := cliqueNum_strongProduct (cycle (m + 4)) (cycle (n + 4))
-  rw [cliqueNum_cycle, cliqueNum_cycle] at h
-  omega
 
 theorem maxDeg_strongProduct_cycle (m n : ℕ) :
     maxDeg (cycle (m + 3) ⊠g cycle (n + 3)) = 8 := by
@@ -759,21 +684,6 @@ theorem minDeg_strongProduct_cycle (m n : ℕ) :
 
 /-! ### The lexicographic product of two cycles -/
 
-theorem E_lexProduct_cycle (m n : ℕ) :
-    (cycle (m + 3) ·g cycle (n + 3)).E
-      = (n + 3) * (n + 3) * (m + 3) + (m + 3) * (n + 3) := by
-  rw [E_lexProduct, E_cycle, E_cycle, V_cycle, V_cycle]
-
-theorem cliqueNum_lexProduct_cycle (m n : ℕ) :
-    (cycle (m + 4) ·g cycle (n + 4)).cliqueNum = 4 := by
-  have h := cliqueNum_lexProduct (cycle (m + 4)) (cycle (n + 4))
-  rw [cliqueNum_cycle, cliqueNum_cycle] at h
-  omega
-
-theorem indepNum_lexProduct_cycle (m n : ℕ) :
-    (cycle (m + 3) ·g cycle (n + 3)).indepNum = (m + 3) / 2 * ((n + 3) / 2) := by
-  rw [indepNum_lexProduct, indepNum_cycle, indepNum_cycle]
-
 theorem maxDeg_lexProduct_cycle (m n : ℕ) :
     maxDeg (cycle (m + 3) ·g cycle (n + 3)) = 2 * (n + 3) + 2 := by
   have h := maxDeg_lexProduct (G := cycle (m + 3)) (H := cycle (n + 3))
@@ -802,15 +712,6 @@ theorem minDeg_lexProduct_cycle (m n : ℕ) :
 
 /-! ### The tensor and lexicographic products of two paths -/
 
-theorem E_tensorProduct_path (m n : ℕ) : (path (m + 1) ⊗g path (n + 1)).E = 2 * m * n := by
-  rw [E_tensorProduct, E_path, E_path]
-
-theorem cliqueNum_tensorProduct_path (m n : ℕ) :
-    (path (m + 2) ⊗g path (n + 2)).cliqueNum = 2 := by
-  have h := cliqueNum_tensorProduct (path (m + 2)) (path (n + 2))
-  rw [cliqueNum_path, cliqueNum_path] at h
-  omega
-
 theorem maxDeg_tensorProduct_path (m n : ℕ) :
     maxDeg (path (m + 3) ⊗g path (n + 3)) = 4 := by
   have h := maxDeg_tensorProduct (G := path (m + 3)) (H := path (n + 3))
@@ -833,20 +734,6 @@ theorem minDeg_tensorProduct_path (m n : ℕ) :
     (path (m + 2) ⊗g path (n + 2)).chromNum = 2 :=
   chromNum_eq_two_iff.2 ⟨isBipartite_tensorProduct_path _ _,
     by rw [E_tensorProduct, E_path, E_path]; positivity⟩
-
-theorem E_lexProduct_path (m n : ℕ) :
-    (path (m + 1) ·g path (n + 1)).E = (n + 1) * (n + 1) * m + (m + 1) * n := by
-  rw [E_lexProduct, E_path, E_path, V_path, V_path]
-
-theorem cliqueNum_lexProduct_path (m n : ℕ) :
-    (path (m + 2) ·g path (n + 2)).cliqueNum = 4 := by
-  have h := cliqueNum_lexProduct (path (m + 2)) (path (n + 2))
-  rw [cliqueNum_path, cliqueNum_path] at h
-  omega
-
-theorem indepNum_lexProduct_path (m n : ℕ) :
-    (path m ·g path n).indepNum = (m + 1) / 2 * ((n + 1) / 2) := by
-  rw [indepNum_lexProduct, indepNum_path, indepNum_path]
 
 theorem maxDeg_lexProduct_path (m n : ℕ) :
     maxDeg (path (m + 3) ·g path (n + 3)) = 2 * (n + 3) + 2 := by
@@ -879,14 +766,10 @@ theorem chromNum_lexProduct_path (m n : ℕ) :
   have h1 := chromNum_lexProduct_le (path (m + 2)) (path (n + 2))
   have h2 := cliqueNum_le_chromNum (path (m + 2) ·g path (n + 2))
   rw [chromNum_path, chromNum_path] at h1
-  rw [cliqueNum_lexProduct_path] at h2
+  rw [cliqueNum_lexProduct, cliqueNum_path, cliqueNum_path] at h2
   omega
 
 /-! ### The tensor, strong and lexicographic products of two complete graphs -/
-
-theorem E_tensorProduct_complete (m n : ℕ) :
-    (complete m ⊗g complete n).E = 2 * m.choose 2 * n.choose 2 := by
-  rw [E_tensorProduct, E_complete, E_complete]
 
 theorem maxDeg_tensorProduct_complete (m n : ℕ) :
     maxDeg (complete (m + 1) ⊗g complete (n + 1)) = m * n := by
@@ -954,24 +837,6 @@ theorem isConnected_lexProduct_complete (m n : ℕ) :
 
 /-! ### The join of two cycles -/
 
-theorem E_join_cycle (m n : ℕ) :
-    (cycle (m + 3) ∇g cycle (n + 3)).E = (m + 3) + (n + 3) + (m + 3) * (n + 3) := by
-  rw [E_join, E_cycle, E_cycle, V_cycle, V_cycle]
-
-theorem cliqueNum_join_cycle (m n : ℕ) :
-    (cycle (m + 4) ∇g cycle (n + 4)).cliqueNum = 4 := by
-  have h := cliqueNum_join (cycle (m + 4)) (cycle (n + 4))
-  rw [cliqueNum_cycle, cliqueNum_cycle] at h
-  omega
-
-theorem indepNum_join_cycle (m n : ℕ) :
-    (cycle (m + 3) ∇g cycle (n + 3)).indepNum = max ((m + 3) / 2) ((n + 3) / 2) := by
-  rw [indepNum_join, indepNum_cycle, indepNum_cycle]
-
-theorem cliqueCoverNum_join_cycle (m n : ℕ) :
-    (cycle (m + 4) ∇g cycle (n + 4)).cliqueCoverNum = max ((m + 5) / 2) ((n + 5) / 2) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_cycle, cliqueCoverNum_cycle]
-
 theorem maxDeg_join_cycle (m n : ℕ) :
     maxDeg (cycle (m + 3) ∇g cycle (n + 3)) = max (n + 5) (m + 5) := by
   have h := maxDeg_join (G := cycle (m + 3)) (H := cycle (n + 3))
@@ -988,25 +853,7 @@ theorem minDeg_join_cycle (m n : ℕ) :
 
 @[simp] theorem girth_join_cycle (m n : ℕ) :
     (cycle (m + 4) ∇g cycle (n + 4)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle]; omega)
-
-theorem chromNum_join_cycle_even (m n : ℕ) :
-    (cycle (2 * m + 2) ∇g cycle (2 * n + 2)).chromNum = 4 := by
-  have h := chromNum_join (cycle (2 * m + 2)) (cycle (2 * n + 2))
-  rw [chromNum_cycle_even, chromNum_cycle_even] at h
-  omega
-
-theorem chromNum_join_cycle_odd (m n : ℕ) :
-    (cycle (2 * m + 3) ∇g cycle (2 * n + 3)).chromNum = 6 := by
-  have h := chromNum_join (cycle (2 * m + 3)) (cycle (2 * n + 3))
-  rw [chromNum_cycle_odd, chromNum_cycle_odd] at h
-  omega
-
-theorem chromNum_join_cycle_even_odd (m n : ℕ) :
-    (cycle (2 * m + 2) ∇g cycle (2 * n + 3)).chromNum = 5 := by
-  have h := chromNum_join (cycle (2 * m + 2)) (cycle (2 * n + 3))
-  rw [chromNum_cycle_even, chromNum_cycle_odd] at h
-  omega
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_cycle]; omega)
 
 theorem diameter_join_cycle (m n : ℕ) :
     (cycle (m + 4) ∇g cycle (n + 4)).diameter = 2 := by
@@ -1021,30 +868,6 @@ theorem diameter_join_cycle (m n : ℕ) :
   omega
 
 /-! ### The join of two paths -/
-
-theorem E_join_path (m n : ℕ) :
-    (path (m + 1) ∇g path (n + 1)).E = m + n + (m + 1) * (n + 1) := by
-  rw [E_join, E_path, E_path, V_path, V_path]
-
-theorem cliqueNum_join_path (m n : ℕ) :
-    (path (m + 2) ∇g path (n + 2)).cliqueNum = 4 := by
-  have h := cliqueNum_join (path (m + 2)) (path (n + 2))
-  rw [cliqueNum_path, cliqueNum_path] at h
-  omega
-
-theorem indepNum_join_path (m n : ℕ) :
-    (path m ∇g path n).indepNum = max ((m + 1) / 2) ((n + 1) / 2) := by
-  rw [indepNum_join, indepNum_path, indepNum_path]
-
-theorem cliqueCoverNum_join_path (m n : ℕ) :
-    (path m ∇g path n).cliqueCoverNum = max ((m + 1) / 2) ((n + 1) / 2) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_path, cliqueCoverNum_path]
-
-theorem chromNum_join_path (m n : ℕ) :
-    (path (m + 2) ∇g path (n + 2)).chromNum = 4 := by
-  have h := chromNum_join (path (m + 2)) (path (n + 2))
-  rw [chromNum_path, chromNum_path] at h
-  omega
 
 theorem maxDeg_join_path (m n : ℕ) :
     maxDeg (path (m + 3) ∇g path (n + 3)) = max (n + 5) (m + 5) := by
@@ -1062,7 +885,7 @@ theorem minDeg_join_path (m n : ℕ) :
 
 @[simp] theorem girth_join_path (m n : ℕ) :
     (path (m + 2) ∇g path (n + 2)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_path]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join, cliqueNum_path, cliqueNum_path]; omega)
 
 theorem diameter_join_path (m n : ℕ) :
     (path (m + 3) ∇g path (n + 3)).diameter = 2 := by
@@ -1078,24 +901,6 @@ theorem diameter_join_path (m n : ℕ) :
 
 /-! ### The disjoint union of two cycles -/
 
-theorem E_disjUnion_cycle (m n : ℕ) :
-    (cycle (m + 3) ⊕g cycle (n + 3)).E = (m + 3) + (n + 3) := by
-  rw [E_disjUnion, E_cycle, E_cycle]
-
-theorem cliqueNum_disjUnion_cycle (m n : ℕ) :
-    (cycle (m + 4) ⊕g cycle (n + 4)).cliqueNum = 2 := by
-  have h := cliqueNum_disjUnion (cycle (m + 4)) (cycle (n + 4))
-  rw [cliqueNum_cycle, cliqueNum_cycle] at h
-  omega
-
-theorem indepNum_disjUnion_cycle (m n : ℕ) :
-    (cycle (m + 3) ⊕g cycle (n + 3)).indepNum = (m + 3) / 2 + (n + 3) / 2 := by
-  rw [indepNum_disjUnion, indepNum_cycle, indepNum_cycle]
-
-theorem cliqueCoverNum_disjUnion_cycle (m n : ℕ) :
-    (cycle (m + 4) ⊕g cycle (n + 4)).cliqueCoverNum = (m + 5) / 2 + (n + 5) / 2 := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_cycle, cliqueCoverNum_cycle]
-
 @[simp] theorem minDeg_disjUnion_cycle (m n : ℕ) :
     minDeg (cycle (m + 3) ⊕g cycle (n + 3)) = 2 := by
   have h := minDeg_disjUnion (G := cycle (m + 3)) (H := cycle (n + 3))
@@ -1107,18 +912,6 @@ theorem not_isConnected_disjUnion_cycle (m n : ℕ) :
     ¬ IsConnected (cycle (m + 1) ⊕g cycle (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_cycle]; omega)
 
-theorem chromNum_disjUnion_cycle_even (m n : ℕ) :
-    (cycle (2 * m + 2) ⊕g cycle (2 * n + 2)).chromNum = 2 := by
-  have h := chromNum_disjUnion (cycle (2 * m + 2)) (cycle (2 * n + 2))
-  rw [chromNum_cycle_even, chromNum_cycle_even] at h
-  omega
-
-theorem chromNum_disjUnion_cycle_odd (m n : ℕ) :
-    (cycle (2 * m + 3) ⊕g cycle (2 * n + 3)).chromNum = 3 := by
-  have h := chromNum_disjUnion (cycle (2 * m + 3)) (cycle (2 * n + 3))
-  rw [chromNum_cycle_odd, chromNum_cycle_odd] at h
-  omega
-
 theorem chromNum_disjUnion_cycle_even_odd (m n : ℕ) :
     (cycle (2 * m + 2) ⊕g cycle (2 * n + 3)).chromNum = 3 := by
   have h := chromNum_disjUnion (cycle (2 * m + 2)) (cycle (2 * n + 3))
@@ -1127,22 +920,6 @@ theorem chromNum_disjUnion_cycle_even_odd (m n : ℕ) :
 
 /-! ### The disjoint union of two paths -/
 
-theorem E_disjUnion_path (m n : ℕ) : (path (m + 1) ⊕g path (n + 1)).E = m + n := by
-  rw [E_disjUnion, E_path, E_path]
-
-theorem cliqueNum_disjUnion_path (m n : ℕ) :
-    (path (m + 2) ⊕g path (n + 2)).cliqueNum = 2 := by
-  rw [cliqueNum_disjUnion, cliqueNum_path, cliqueNum_path]
-  omega
-
-theorem indepNum_disjUnion_path (m n : ℕ) :
-    (path m ⊕g path n).indepNum = (m + 1) / 2 + (n + 1) / 2 := by
-  rw [indepNum_disjUnion, indepNum_path, indepNum_path]
-
-theorem cliqueCoverNum_disjUnion_path (m n : ℕ) :
-    (path m ⊕g path n).cliqueCoverNum = (m + 1) / 2 + (n + 1) / 2 := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_path]
-
 @[simp] theorem minDeg_disjUnion_path (m n : ℕ) :
     minDeg (path (m + 2) ⊕g path (n + 2)) = 1 := by
   have h := minDeg_disjUnion (G := path (m + 2)) (H := path (n + 2))
@@ -1150,38 +927,11 @@ theorem cliqueCoverNum_disjUnion_path (m n : ℕ) :
   rw [minDeg_path, minDeg_path] at h
   omega
 
-theorem chromNum_disjUnion_path (m n : ℕ) :
-    (path (m + 2) ⊕g path (n + 2)).chromNum = 2 := by
-  rw [chromNum_disjUnion, chromNum_path, chromNum_path]
-  omega
-
 theorem not_isConnected_disjUnion_path (m n : ℕ) :
     ¬ IsConnected (path (m + 1) ⊕g path (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_path]; omega)
 
 /-! ### The disjoint union of two complete graphs -/
-
-theorem E_disjUnion_complete (m n : ℕ) :
-    (complete m ⊕g complete n).E = m.choose 2 + n.choose 2 := by
-  rw [E_disjUnion, E_complete, E_complete]
-
-theorem cliqueNum_disjUnion_complete (m n : ℕ) :
-    (complete m ⊕g complete n).cliqueNum = max m n := by
-  rw [cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_complete]
-
-theorem chromNum_disjUnion_complete (m n : ℕ) :
-    (complete m ⊕g complete n).chromNum = max m n := by
-  rw [chromNum_disjUnion, chromNum_complete, chromNum_complete]
-
-theorem indepNum_disjUnion_complete (m n : ℕ) :
-    (complete (m + 1) ⊕g complete (n + 1)).indepNum = 2 := by
-  have h := indepNum_disjUnion (complete (m + 1)) (complete (n + 1))
-  rw [indepNum_complete, indepNum_complete] at h
-  omega
-
-theorem cliqueCoverNum_disjUnion_complete (m n : ℕ) :
-    (complete (m + 1) ⊕g complete (n + 1)).cliqueCoverNum = 2 := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_complete, cliqueCoverNum_complete]
 
 @[simp] theorem minDeg_disjUnion_complete (m n : ℕ) :
     minDeg (complete (m + 1) ⊕g complete (n + 1)) = min m n := by
@@ -1192,7 +942,8 @@ theorem cliqueCoverNum_disjUnion_complete (m n : ℕ) :
 
 @[simp] theorem girth_disjUnion_complete (m n : ℕ) :
     (complete (m + 3) ⊕g complete (n + 3)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_disjUnion_complete]; omega)
+  girth_eq_three_of_cliqueNum
+    (by rw [cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_complete]; omega)
 
 theorem not_isConnected_disjUnion_complete (m n : ℕ) :
     ¬ IsConnected (complete (m + 1) ⊕g complete (n + 1)) :=
@@ -1204,19 +955,21 @@ theorem E_compl_grid (m n : ℕ) :
     ((path (m + 1) □g path (n + 1))ᶜ).E
       = ((m + 1) * (n + 1)).choose 2 - ((m + 1) * n + (n + 1) * m) := by
   have h := E_compl (path (m + 1) □g path (n + 1))
-  rw [E_grid, V_grid] at h
+  rw [E_cartesianProduct, E_path, E_path, V_path, V_path, V_cartesianProduct, V_path, V_path] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_grid (m n : ℕ) :
     maxDeg ((path (m + 3) □g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 3 := by
-  have h := maxDeg_compl (G := path (m + 3) □g path (n + 3)) (by rw [V_grid]; positivity)
-  rw [V_grid, minDeg_grid] at h
+  have h := maxDeg_compl (G := path (m + 3) □g path (n + 3))
+    (by rw [V_cartesianProduct, V_path, V_path]; positivity)
+  rw [V_cartesianProduct, V_path, V_path, minDeg_grid] at h
   omega
 
 theorem minDeg_compl_grid (m n : ℕ) :
     minDeg ((path (m + 3) □g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 5 := by
-  have h := minDeg_compl (G := path (m + 3) □g path (n + 3)) (by rw [V_grid]; positivity)
-  rw [V_grid, maxDeg_grid] at h
+  have h := minDeg_compl (G := path (m + 3) □g path (n + 3))
+    (by rw [V_cartesianProduct, V_path, V_path]; positivity)
+  rw [V_cartesianProduct, V_path, V_path, maxDeg_grid] at h
   omega
 
 theorem indepNum_compl_grid (m n : ℕ) :
@@ -1252,7 +1005,8 @@ theorem E_compl_cartesianProduct_cycle_path (m n : ℕ) :
     ((cycle (m + 3) □g path (n + 1))ᶜ).E
       = ((m + 3) * (n + 1)).choose 2 - ((m + 3) * n + (n + 1) * (m + 3)) := by
   have h := E_compl (cycle (m + 3) □g path (n + 1))
-  rw [E_cartesianProduct_cycle_path, V_cartesianProduct, V_cycle, V_path] at h
+  rw [E_cartesianProduct, E_cycle, E_path, V_cycle, V_path, V_cartesianProduct, V_cycle,
+      V_path] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_cartesianProduct_cycle_path (m n : ℕ) :
@@ -1277,19 +1031,21 @@ theorem E_compl_king (m n : ℕ) :
     ((path (m + 1) ⊠g path (n + 1))ᶜ).E
       = ((m + 1) * (n + 1)).choose 2 - ((m + 1) * n + (n + 1) * m + 2 * m * n) := by
   have h := E_compl (path (m + 1) ⊠g path (n + 1))
-  rw [E_king, V_king] at h
+  rw [E_strongProduct, E_path, E_path, V_path, V_path, V_strongProduct, V_path, V_path] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_king (m n : ℕ) :
     maxDeg ((path (m + 2) ⊠g path (n + 2))ᶜ) = (m + 2) * (n + 2) - 4 := by
-  have h := maxDeg_compl (G := path (m + 2) ⊠g path (n + 2)) (by rw [V_king]; positivity)
-  rw [V_king, minDeg_king] at h
+  have h := maxDeg_compl (G := path (m + 2) ⊠g path (n + 2))
+    (by rw [V_strongProduct, V_path, V_path]; positivity)
+  rw [V_strongProduct, V_path, V_path, minDeg_king] at h
   omega
 
 theorem minDeg_compl_king (m n : ℕ) :
     minDeg ((path (m + 3) ⊠g path (n + 3))ᶜ) = (m + 3) * (n + 3) - 9 := by
-  have h := minDeg_compl (G := path (m + 3) ⊠g path (n + 3)) (by rw [V_king]; positivity)
-  rw [V_king, maxDeg_king] at h
+  have h := minDeg_compl (G := path (m + 3) ⊠g path (n + 3))
+    (by rw [V_strongProduct, V_path, V_path]; positivity)
+  rw [V_strongProduct, V_path, V_path, maxDeg_king] at h
   omega
 
 /-! ### Complements of the tensor, strong and lexicographic products of two cycles -/
@@ -1298,7 +1054,7 @@ theorem E_compl_tensorProduct_cycle (m n : ℕ) :
     ((cycle (m + 3) ⊗g cycle (n + 3))ᶜ).E
       = ((m + 3) * (n + 3)).choose 2 - 2 * (m + 3) * (n + 3) := by
   have h := E_compl (cycle (m + 3) ⊗g cycle (n + 3))
-  rw [E_tensorProduct_cycle, V_tensorProduct, V_cycle, V_cycle] at h
+  rw [E_tensorProduct, E_cycle, E_cycle, V_tensorProduct, V_cycle, V_cycle] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_tensorProduct_cycle (m n : ℕ) :
@@ -1320,7 +1076,7 @@ theorem E_compl_strongProduct_cycle (m n : ℕ) :
       = ((m + 3) * (n + 3)).choose 2
           - ((m + 3) * (n + 3) + (n + 3) * (m + 3) + 2 * (m + 3) * (n + 3)) := by
   have h := E_compl (cycle (m + 3) ⊠g cycle (n + 3))
-  rw [E_strongProduct_cycle, V_strongProduct, V_cycle, V_cycle] at h
+  rw [E_strongProduct, E_cycle, E_cycle, V_cycle, V_cycle, V_strongProduct, V_cycle, V_cycle] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_strongProduct_cycle (m n : ℕ) :
@@ -1341,7 +1097,7 @@ theorem E_compl_lexProduct_cycle (m n : ℕ) :
     ((cycle (m + 3) ·g cycle (n + 3))ᶜ).E
       = ((m + 3) * (n + 3)).choose 2 - ((n + 3) * (n + 3) * (m + 3) + (m + 3) * (n + 3)) := by
   have h := E_compl (cycle (m + 3) ·g cycle (n + 3))
-  rw [E_lexProduct_cycle, V_lexProduct, V_cycle, V_cycle] at h
+  rw [E_lexProduct, E_cycle, E_cycle, V_cycle, V_cycle, V_lexProduct, V_cycle, V_cycle] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_lexProduct_cycle (m n : ℕ) :
@@ -1363,7 +1119,7 @@ theorem minDeg_compl_lexProduct_cycle (m n : ℕ) :
 theorem E_compl_tensorProduct_path (m n : ℕ) :
     ((path (m + 1) ⊗g path (n + 1))ᶜ).E = ((m + 1) * (n + 1)).choose 2 - 2 * m * n := by
   have h := E_compl (path (m + 1) ⊗g path (n + 1))
-  rw [E_tensorProduct_path, V_tensorProduct, V_path, V_path] at h
+  rw [E_tensorProduct, E_path, E_path, V_tensorProduct, V_path, V_path] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_tensorProduct_path (m n : ℕ) :
@@ -1384,7 +1140,7 @@ theorem E_compl_lexProduct_path (m n : ℕ) :
     ((path (m + 1) ·g path (n + 1))ᶜ).E
       = ((m + 1) * (n + 1)).choose 2 - ((n + 1) * (n + 1) * m + (m + 1) * n) := by
   have h := E_compl (path (m + 1) ·g path (n + 1))
-  rw [E_lexProduct_path, V_lexProduct, V_path, V_path] at h
+  rw [E_lexProduct, E_path, E_path, V_path, V_path, V_lexProduct, V_path, V_path] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_lexProduct_path (m n : ℕ) :
@@ -1404,7 +1160,7 @@ theorem minDeg_compl_lexProduct_path (m n : ℕ) :
 theorem E_compl_tensorProduct_complete (m n : ℕ) :
     ((complete m ⊗g complete n)ᶜ).E = (m * n).choose 2 - 2 * m.choose 2 * n.choose 2 := by
   have h := E_compl (complete m ⊗g complete n)
-  rw [E_tensorProduct_complete, V_tensorProduct, V_complete, V_complete] at h
+  rw [E_tensorProduct, E_complete, E_complete, V_tensorProduct, V_complete, V_complete] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_tensorProduct_complete (m n : ℕ) :
@@ -1426,7 +1182,7 @@ theorem minDeg_compl_tensorProduct_complete (m n : ℕ) :
 theorem E_compl_disjUnion_cycle (m n : ℕ) :
     ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ).E = ((m + 3) + (n + 3)).choose 2 - ((m + 3) + (n + 3)) := by
   have h := E_compl (cycle (m + 3) ⊕g cycle (n + 3))
-  rw [E_disjUnion_cycle, V_disjUnion, V_cycle, V_cycle] at h
+  rw [E_disjUnion, E_cycle, E_cycle, V_disjUnion, V_cycle, V_cycle] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_disjUnion_cycle (m n : ℕ) :
@@ -1443,14 +1199,10 @@ theorem minDeg_compl_disjUnion_cycle (m n : ℕ) :
   rw [V_disjUnion, V_cycle, V_cycle, maxDeg_disjUnion, maxDeg_cycle, maxDeg_cycle, max_self] at h
   omega
 
-theorem cliqueNum_compl_disjUnion_cycle (m n : ℕ) :
-    ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ).cliqueNum = (m + 3) / 2 + (n + 3) / 2 := by
-  rw [cliqueNum_compl, indepNum_disjUnion_cycle]
-
 theorem E_compl_disjUnion_path (m n : ℕ) :
     ((path (m + 1) ⊕g path (n + 1))ᶜ).E = ((m + 1) + (n + 1)).choose 2 - (m + n) := by
   have h := E_compl (path (m + 1) ⊕g path (n + 1))
-  rw [E_disjUnion_path, V_disjUnion, V_path, V_path] at h
+  rw [E_disjUnion, E_path, E_path, V_disjUnion, V_path, V_path] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_disjUnion_path (m n : ℕ) :
@@ -1467,14 +1219,10 @@ theorem minDeg_compl_disjUnion_path (m n : ℕ) :
   rw [V_disjUnion, V_path, V_path, maxDeg_disjUnion, maxDeg_path, maxDeg_path, max_self] at h
   omega
 
-theorem cliqueNum_compl_disjUnion_path (m n : ℕ) :
-    ((path m ⊕g path n)ᶜ).cliqueNum = (m + 1) / 2 + (n + 1) / 2 := by
-  rw [cliqueNum_compl, indepNum_disjUnion_path]
-
 theorem E_compl_disjUnion_complete (m n : ℕ) :
     ((complete m ⊕g complete n)ᶜ).E = (m + n).choose 2 - (m.choose 2 + n.choose 2) := by
   have h := E_compl (complete m ⊕g complete n)
-  rw [E_disjUnion_complete, V_disjUnion, V_complete, V_complete] at h
+  rw [E_disjUnion, E_complete, E_complete, V_disjUnion, V_complete, V_complete] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_disjUnion_complete (m n : ℕ) :
@@ -1495,7 +1243,7 @@ theorem E_compl_join_cycle (m n : ℕ) :
     ((cycle (m + 3) ∇g cycle (n + 3))ᶜ).E
       = ((m + 3) + (n + 3)).choose 2 - ((m + 3) + (n + 3) + (m + 3) * (n + 3)) := by
   have h := E_compl (cycle (m + 3) ∇g cycle (n + 3))
-  rw [E_join_cycle, V_join, V_cycle, V_cycle] at h
+  rw [E_join, E_cycle, E_cycle, V_cycle, V_cycle, V_join, V_cycle, V_cycle] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_join_cycle (m n : ℕ) :
@@ -1512,15 +1260,11 @@ theorem minDeg_compl_join_cycle (m n : ℕ) :
   rw [V_join, V_cycle, V_cycle, maxDeg_join_cycle] at h
   omega
 
-theorem cliqueNum_compl_join_cycle (m n : ℕ) :
-    ((cycle (m + 3) ∇g cycle (n + 3))ᶜ).cliqueNum = max ((m + 3) / 2) ((n + 3) / 2) := by
-  rw [cliqueNum_compl, indepNum_join_cycle]
-
 theorem E_compl_join_path (m n : ℕ) :
     ((path (m + 1) ∇g path (n + 1))ᶜ).E
       = ((m + 1) + (n + 1)).choose 2 - (m + n + (m + 1) * (n + 1)) := by
   have h := E_compl (path (m + 1) ∇g path (n + 1))
-  rw [E_join_path, V_join, V_path, V_path] at h
+  rw [E_join, E_path, E_path, V_path, V_path, V_join, V_path, V_path] at h
   rw [← h, Nat.add_sub_cancel]
 
 theorem maxDeg_compl_join_path (m n : ℕ) :
@@ -1534,10 +1278,6 @@ theorem minDeg_compl_join_path (m n : ℕ) :
   have h := minDeg_compl (G := path (m + 3) ∇g path (n + 3)) (by rw [V_join, V_path, V_path]; omega)
   rw [V_join, V_path, V_path, maxDeg_join_path] at h
   omega
-
-theorem cliqueNum_compl_join_path (m n : ℕ) :
-    ((path m ∇g path n)ᶜ).cliqueNum = max ((m + 1) / 2) ((n + 1) / 2) := by
-  rw [cliqueNum_compl, indepNum_join_path]
 
 /-! ### Chromatic and clique cover numbers of complements -/
 
@@ -1589,19 +1329,19 @@ theorem chromNum_compl_cyclePendant_replicate_zero (m j : ℕ) :
 
 theorem chromNum_compl_join_cycle (m n : ℕ) :
     ((cycle (m + 4) ∇g cycle (n + 4))ᶜ).chromNum = max ((m + 5) / 2) ((n + 5) / 2) := by
-  rw [chromNum_compl, cliqueCoverNum_join_cycle]
+  rw [chromNum_compl, cliqueCoverNum_join, cliqueCoverNum_cycle, cliqueCoverNum_cycle]
 
 theorem chromNum_compl_join_path (m n : ℕ) :
     ((path m ∇g path n)ᶜ).chromNum = max ((m + 1) / 2) ((n + 1) / 2) := by
-  rw [chromNum_compl, cliqueCoverNum_join_path]
+  rw [chromNum_compl, cliqueCoverNum_join, cliqueCoverNum_path, cliqueCoverNum_path]
 
 theorem chromNum_compl_disjUnion_cycle (m n : ℕ) :
     ((cycle (m + 4) ⊕g cycle (n + 4))ᶜ).chromNum = (m + 5) / 2 + (n + 5) / 2 := by
-  rw [chromNum_compl, cliqueCoverNum_disjUnion_cycle]
+  rw [chromNum_compl, cliqueCoverNum_disjUnion, cliqueCoverNum_cycle, cliqueCoverNum_cycle]
 
 theorem chromNum_compl_disjUnion_path (m n : ℕ) :
     ((path m ⊕g path n)ᶜ).chromNum = (m + 1) / 2 + (n + 1) / 2 := by
-  rw [chromNum_compl, cliqueCoverNum_disjUnion_path]
+  rw [chromNum_compl, cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_path]
 
 theorem cliqueCoverNum_compl_friendship (n : ℕ) :
     ((friendship (n + 1))ᶜ).cliqueCoverNum = 3 := by
@@ -1640,21 +1380,8 @@ theorem indepNum_compl_tadpole_one (k : ℕ) : ((tadpole 1 (k + 1))ᶜ).indepNum
 theorem indepNum_compl_lollipop_one (k : ℕ) : ((lollipop 1 (k + 1))ᶜ).indepNum = 2 := by
   rw [indepNum_compl, cliqueNum_lollipop_one]
 
-theorem cliqueNum_compl_book (n : ℕ) : ((book n)ᶜ).cliqueNum = max 1 n := by
-  rw [cliqueNum_compl, indepNum_book]
-
-theorem cliqueNum_compl_rook (m n : ℕ) :
-    ((rook (m + 1) (n + 1))ᶜ).cliqueNum = min (m + 1) (n + 1) := by
-  rw [cliqueNum_compl, indepNum_rook]
-
 theorem cliqueNum_compl_fan (n : ℕ) : ((fan (n + 1))ᶜ).cliqueNum = (n + 2) / 2 := by
   rw [cliqueNum_compl, indepNum_fan]
-
-theorem cliqueNum_compl_johnson_two (n : ℕ) : ((johnson n 2)ᶜ).cliqueNum = n / 2 := by
-  rw [cliqueNum_compl, indepNum_johnson_two]
-
-theorem cliqueNum_compl_kneser_two (n : ℕ) : ((kneser (n + 4) 2)ᶜ).cliqueNum = n + 3 := by
-  rw [cliqueNum_compl, indepNum_kneser_two]
 
 theorem cliqueNum_compl_friendship (n : ℕ) : ((friendship n)ᶜ).cliqueNum = max n 1 := by
   rw [cliqueNum_compl, indepNum_friendship]
@@ -1662,26 +1389,8 @@ theorem cliqueNum_compl_friendship (n : ℕ) : ((friendship n)ᶜ).cliqueNum = m
 theorem cliqueNum_compl_spider_pair (a b : ℕ) : ((spider [a, b])ᶜ).cliqueNum = (a + b + 2) / 2 := by
   rw [cliqueNum_compl, indepNum_spider_pair]
 
-theorem cliqueNum_compl_cyclePendant_replicate_zero (m j : ℕ) :
-    ((cyclePendant (m + 3) (List.replicate j 0))ᶜ).cliqueNum = (m + 3) / 2 := by
-  rw [cliqueNum_compl, indepNum_cyclePendant_replicate_zero]
-
-theorem cliqueNum_compl_tadpole_zero (m : ℕ) : ((tadpole (m + 3) 0)ᶜ).cliqueNum = (m + 3) / 2 := by
-  rw [cliqueNum_compl, indepNum_tadpole_zero]
-
-theorem cliqueNum_compl_thetaGraph_singleton (k : ℕ) :
-    ((thetaGraph [k])ᶜ).cliqueNum = (k + 3) / 2 := by
-  rw [cliqueNum_compl, indepNum_thetaGraph_singleton]
-
 theorem cliqueNum_compl_spider_singleton (k : ℕ) : ((spider [k])ᶜ).cliqueNum = (k + 2) / 2 := by
   rw [cliqueNum_compl, indepNum_spider_singleton]
-
-theorem cliqueNum_compl_circulant_one (n : ℕ) :
-    ((circulant (n + 3) [1])ᶜ).cliqueNum = (n + 3) / 2 := by
-  rw [cliqueNum_compl, indepNum_circulant_one]
-
-theorem cliqueNum_compl_circulant_nil (n : ℕ) : ((circulant n [])ᶜ).cliqueNum = n := by
-  rw [cliqueNum_compl, indepNum_circulant_nil]
 
 theorem cliqueNum_compl_tadpole_one (k : ℕ) : ((tadpole 1 k)ᶜ).cliqueNum = (k + 2) / 2 := by
   rw [cliqueNum_compl, indepNum_tadpole_one]
@@ -1881,26 +1590,27 @@ theorem minDeg_compl_completeMultipartite_replicate {m d : ℕ} (hm : 0 < m) (hd
 /-! ### Girth and connectivity of complements -/
 
 theorem girth_compl_cycle (n : ℕ) : ((cycle (n + 6))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_cycle]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_cycle]; omega)
 
 theorem girth_compl_path (n : ℕ) : ((path (n + 5))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_path]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_path]; omega)
 
 theorem girth_compl_wheel (n : ℕ) : ((wheel (n + 6))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_wheel]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_wheel]; omega)
 
 theorem girth_compl_crown (n : ℕ) : ((crown (n + 3))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_crown]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_crown]; omega)
 
 theorem girth_compl_ladder (n : ℕ) : ((ladder (n + 3))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_ladder]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_ladder]; omega)
 
 theorem girth_compl_prism_even (m : ℕ) : ((prism (2 * m + 4))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_prism_even]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_prism_even]; omega)
 
 theorem girth_compl_prism_odd (m : ℕ) : ((prism (2 * m + 5))ᶜ).girth = 3 := by
-  have h := cliqueNum_compl_prism_odd (m + 1)
-  rw [show 2 * (m + 1) + 3 = 2 * m + 5 from by omega] at h
+  have h : ((prism (2 * m + 5))ᶜ).cliqueNum = 2 * m + 4 := by
+    rw [cliqueNum_compl, show 2 * m + 5 = 2 * (m + 1) + 3 from by omega, indepNum_prism_odd]
+    omega
   exact girth_eq_three_of_cliqueNum (by omega)
 
 theorem girth_compl_doubleStar (m n : ℕ) : ((doubleStar (m + 2) (n + 1))ᶜ).girth = 3 :=
@@ -1909,12 +1619,12 @@ theorem girth_compl_doubleStar (m n : ℕ) : ((doubleStar (m + 2) (n + 1))ᶜ).g
 theorem girth_compl_hypercube (n : ℕ) : ((hypercube (n + 3))ᶜ).girth = 3 := by
   have h2 : 2 ^ 2 ≤ 2 ^ (n + 2) := Nat.pow_le_pow_right (by norm_num) (by omega)
   refine girth_eq_three_of_cliqueNum ?_
-  rw [cliqueNum_compl_hypercube]
+  rw [cliqueNum_compl, indepNum_hypercube]
   norm_num at h2 ⊢
   omega
 
 theorem girth_compl_rook (m n : ℕ) : ((rook (m + 3) (n + 3))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_rook]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_rook]; omega)
 
 theorem girth_compl_fan (n : ℕ) : ((fan (n + 5))ᶜ).girth = 3 :=
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_fan]; omega)
@@ -1923,43 +1633,47 @@ theorem girth_compl_friendship (n : ℕ) : ((friendship (n + 3))ᶜ).girth = 3 :
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_friendship]; omega)
 
 theorem girth_compl_book (n : ℕ) : ((book (n + 3))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_book]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_book]; omega)
 
 theorem girth_compl_circulant_one (n : ℕ) : ((circulant (n + 6) [1])ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_circulant_one]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_circulant_one]; omega)
 
 theorem girth_compl_spider_singleton (k : ℕ) : ((spider [k + 4])ᶜ).girth = 3 :=
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_spider_singleton]; omega)
 
 theorem girth_compl_thetaGraph_singleton (k : ℕ) : ((thetaGraph [k + 3])ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_thetaGraph_singleton]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_thetaGraph_singleton]; omega)
 
 theorem girth_compl_tadpole_zero (m : ℕ) : ((tadpole (m + 6) 0)ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_tadpole_zero]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_tadpole_zero]; omega)
 
 theorem girth_compl_cyclePendant_replicate_zero (m j : ℕ) :
     ((cyclePendant (m + 6) (List.replicate j 0))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_cyclePendant_replicate_zero]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_cyclePendant_replicate_zero]; omega)
 
 theorem girth_compl_disjUnion_cycle (m n : ℕ) :
     ((cycle (m + 4) ⊕g cycle (n + 4))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_disjUnion_cycle]; omega)
+  girth_eq_three_of_cliqueNum
+    (by rw [cliqueNum_compl, indepNum_disjUnion, indepNum_cycle, indepNum_cycle]; omega)
 
 theorem girth_compl_disjUnion_path (m n : ℕ) :
     ((path (m + 4) ⊕g path (n + 4))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_disjUnion_path]; omega)
+  girth_eq_three_of_cliqueNum
+    (by rw [cliqueNum_compl, indepNum_disjUnion, indepNum_path, indepNum_path]; omega)
 
 theorem girth_compl_join_cycle (m n : ℕ) :
     ((cycle (m + 6) ∇g cycle (n + 3))ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_join_cycle]; omega)
+  girth_eq_three_of_cliqueNum
+    (by rw [cliqueNum_compl, indepNum_join, indepNum_cycle, indepNum_cycle]; omega)
 
 theorem girth_compl_join_path (m n : ℕ) :
     ((path (m + 5) ∇g path n)ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_join_path]; omega)
+  girth_eq_three_of_cliqueNum
+    (by rw [cliqueNum_compl, indepNum_join, indepNum_path, indepNum_path]; omega)
 
 theorem girth_compl_lineGraph (G : IsoGraph) (h : 3 ≤ G.matchNum) :
     ((lineGraph G)ᶜ).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl_lineGraph]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_compl, indepNum_lineGraph]; omega)
 
 theorem diameter_compl_disjUnion_cycle (m n : ℕ) :
     ((cycle (m + 3) ⊕g cycle (n + 3))ᶜ).diameter = 2 :=
@@ -2163,13 +1877,13 @@ theorem coverNum_compl_turan {n r : ℕ} (hr : 0 < r) (hrn : r ≤ n) :
 theorem coverNum_compl_grid (m n : ℕ) :
     ((path (m + 2) □g path (n + 2))ᶜ).coverNum = (m + 2) * (n + 2) - 2 := by
   have h := coverNum_compl_add_cliqueNum (path (m + 2) □g path (n + 2))
-  rw [cliqueNum_grid, V_grid] at h
+  rw [cliqueNum_grid, V_cartesianProduct, V_path, V_path] at h
   omega
 
 theorem coverNum_compl_king (m n : ℕ) :
     ((path (m + 2) ⊠g path (n + 2))ᶜ).coverNum = (m + 2) * (n + 2) - 4 := by
   have h := coverNum_compl_add_cliqueNum (path (m + 2) ⊠g path (n + 2))
-  rw [cliqueNum_king, V_king] at h
+  rw [cliqueNum_strongProduct, cliqueNum_path, cliqueNum_path, V_strongProduct, V_path, V_path] at h
   omega
 
 theorem coverNum_compl_cartesianProduct_cycle (m n : ℕ) :
@@ -2187,43 +1901,45 @@ theorem coverNum_compl_cartesianProduct_cycle_path (m n : ℕ) :
 theorem coverNum_compl_tensorProduct_cycle (m n : ℕ) :
     ((cycle (m + 4) ⊗g cycle (n + 4))ᶜ).coverNum = (m + 4) * (n + 4) - 2 := by
   have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ⊗g cycle (n + 4))
-  rw [cliqueNum_tensorProduct_cycle, V_tensorProduct, V_cycle, V_cycle] at h
+  rw [cliqueNum_tensorProduct, cliqueNum_cycle, cliqueNum_cycle, V_tensorProduct, V_cycle,
+      V_cycle] at h
   omega
 
 theorem coverNum_compl_tensorProduct_path (m n : ℕ) :
     ((path (m + 2) ⊗g path (n + 2))ᶜ).coverNum = (m + 2) * (n + 2) - 2 := by
   have h := coverNum_compl_add_cliqueNum (path (m + 2) ⊗g path (n + 2))
-  rw [cliqueNum_tensorProduct_path, V_tensorProduct, V_path, V_path] at h
+  rw [cliqueNum_tensorProduct, cliqueNum_path, cliqueNum_path, V_tensorProduct, V_path, V_path] at h
   omega
 
 theorem coverNum_compl_strongProduct_cycle (m n : ℕ) :
     ((cycle (m + 4) ⊠g cycle (n + 4))ᶜ).coverNum = (m + 4) * (n + 4) - 4 := by
   have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ⊠g cycle (n + 4))
-  rw [cliqueNum_strongProduct_cycle, V_strongProduct, V_cycle, V_cycle] at h
+  rw [cliqueNum_strongProduct, cliqueNum_cycle, cliqueNum_cycle, V_strongProduct, V_cycle,
+      V_cycle] at h
   omega
 
 theorem coverNum_compl_disjUnion_cycle (m n : ℕ) :
     ((cycle (m + 4) ⊕g cycle (n + 4))ᶜ).coverNum = m + n + 6 := by
   have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ⊕g cycle (n + 4))
-  rw [cliqueNum_disjUnion_cycle, V_disjUnion, V_cycle, V_cycle] at h
+  rw [cliqueNum_disjUnion, cliqueNum_cycle, cliqueNum_cycle, V_disjUnion, V_cycle, V_cycle] at h
   omega
 
 theorem coverNum_compl_disjUnion_path (m n : ℕ) :
     ((path (m + 2) ⊕g path (n + 2))ᶜ).coverNum = m + n + 2 := by
   have h := coverNum_compl_add_cliqueNum (path (m + 2) ⊕g path (n + 2))
-  rw [cliqueNum_disjUnion_path, V_disjUnion, V_path, V_path] at h
+  rw [cliqueNum_disjUnion, cliqueNum_path, cliqueNum_path, V_disjUnion, V_path, V_path] at h
   omega
 
 theorem coverNum_compl_join_cycle (m n : ℕ) :
     ((cycle (m + 4) ∇g cycle (n + 4))ᶜ).coverNum = m + n + 4 := by
   have h := coverNum_compl_add_cliqueNum (cycle (m + 4) ∇g cycle (n + 4))
-  rw [cliqueNum_join_cycle, V_join, V_cycle, V_cycle] at h
+  rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_cycle, V_join, V_cycle, V_cycle] at h
   omega
 
 theorem coverNum_compl_join_path (m n : ℕ) :
     ((path (m + 2) ∇g path (n + 2))ᶜ).coverNum = m + n := by
   have h := coverNum_compl_add_cliqueNum (path (m + 2) ∇g path (n + 2))
-  rw [cliqueNum_join_path, V_join, V_path, V_path] at h
+  rw [cliqueNum_join, cliqueNum_path, cliqueNum_path, V_join, V_path, V_path] at h
   omega
 
 theorem coverNum_compl_lineGraph_petersen : ((lineGraph petersen)ᶜ).coverNum = 12 := by

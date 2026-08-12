@@ -1169,10 +1169,6 @@ theorem domNum_lexProduct_friendship (G : IsoGraph) (n : ℕ) :
 
 /-! ### The join of a path with a cycle -/
 
-theorem cliqueNum_join_path_cycle (m n : ℕ) :
-    (path (m + 2) ∇g cycle (n + 4)).cliqueNum = 4 := by
-  rw [cliqueNum_join, cliqueNum_path, cliqueNum_cycle]
-
 theorem maxDeg_join_path_cycle (m n : ℕ) :
     maxDeg (path (m + 3) ∇g cycle (n + 3)) = max (n + 5) (m + 5) := by
   have h := maxDeg_join (G := path (m + 3)) (H := cycle (n + 3))
@@ -1191,7 +1187,7 @@ theorem minDeg_join_path_cycle (m n : ℕ) :
 
 @[simp] theorem girth_join_path_cycle (m n : ℕ) :
     (path (m + 2) ∇g cycle (n + 4)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_path_cycle]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join, cliqueNum_path, cliqueNum_cycle]; omega)
 
 theorem diameter_join_path_cycle (m n : ℕ) :
     (path (m + 3) ∇g cycle (n + 1)).diameter = 2 := by
@@ -1215,10 +1211,6 @@ theorem E_join_hypercube (m n : ℕ) :
     show 2 * ((hypercube m).E + (hypercube n).E + 2 ^ m * 2 ^ n)
       = 2 * (hypercube m).E + 2 * (hypercube n).E + 2 * (2 ^ m * 2 ^ n) from by ring, h1, h2]
 
-theorem cliqueNum_join_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ∇g hypercube (n + 1)).cliqueNum = 4 := by
-  rw [cliqueNum_join, cliqueNum_hypercube, cliqueNum_hypercube]
-
 theorem maxDeg_join_hypercube (m n : ℕ) :
     maxDeg (hypercube m ∇g hypercube n) = max (m + 2 ^ n) (2 ^ m + n) := by
   have h := maxDeg_join (G := hypercube m) (H := hypercube n)
@@ -1233,7 +1225,8 @@ theorem minDeg_join_hypercube (m n : ℕ) :
 
 @[simp] theorem girth_join_hypercube (m n : ℕ) :
     (hypercube (m + 1) ∇g hypercube (n + 1)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_hypercube]; omega)
+  girth_eq_three_of_cliqueNum
+    (by rw [cliqueNum_join, cliqueNum_hypercube, cliqueNum_hypercube]; omega)
 
 /-! ### The disjoint union of two hypercubes -/
 
@@ -1268,10 +1261,6 @@ theorem E_join_complete_hypercube (m n : ℕ) :
     show 2 * (m.choose 2 + (hypercube n).E + m * 2 ^ n)
       = 2 * m.choose 2 + 2 * (hypercube n).E + 2 * (m * 2 ^ n) from by ring, h]
 
-theorem cliqueNum_join_complete_hypercube (m n : ℕ) :
-    (complete m ∇g hypercube (n + 1)).cliqueNum = m + 2 := by
-  rw [cliqueNum_join, cliqueNum_complete, cliqueNum_hypercube]
-
 theorem maxDeg_join_complete_hypercube (m n : ℕ) :
     maxDeg (complete (m + 1) ∇g hypercube n) = max (m + 2 ^ n) (m + 1 + n) := by
   have h := maxDeg_join (G := complete (m + 1)) (H := hypercube n)
@@ -1288,7 +1277,8 @@ theorem minDeg_join_complete_hypercube (m n : ℕ) :
 
 @[simp] theorem girth_join_complete_hypercube (m n : ℕ) :
     (complete (m + 1) ∇g hypercube (n + 1)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_complete_hypercube]; omega)
+  girth_eq_three_of_cliqueNum
+    (by rw [cliqueNum_join, cliqueNum_complete, cliqueNum_hypercube]; omega)
 
 /-! ### The join of a cycle with a hypercube -/
 
@@ -1299,10 +1289,6 @@ theorem E_join_cycle_hypercube (m n : ℕ) :
   rw [E_join, E_cycle, V_cycle, V_hypercube,
     show 2 * ((m + 3) + (hypercube n).E + (m + 3) * 2 ^ n)
       = 2 * (m + 3) + 2 * (hypercube n).E + 2 * ((m + 3) * 2 ^ n) from by ring, h]
-
-theorem cliqueNum_join_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 4) ∇g hypercube (n + 1)).cliqueNum = 4 := by
-  rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_hypercube]
 
 theorem maxDeg_join_cycle_hypercube (m n : ℕ) :
     maxDeg (cycle (m + 3) ∇g hypercube n) = max (2 + 2 ^ n) (m + 3 + n) := by
@@ -1318,7 +1304,7 @@ theorem minDeg_join_cycle_hypercube (m n : ℕ) :
 
 @[simp] theorem girth_join_cycle_hypercube (m n : ℕ) :
     (cycle (m + 4) ∇g hypercube (n + 1)).girth = 3 :=
-  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle_hypercube]; omega)
+  girth_eq_three_of_cliqueNum (by rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_hypercube]; omega)
 
 theorem diameter_join_cycle_hypercube (m n : ℕ) :
     (cycle (m + 4) ∇g hypercube n).diameter = 2 := by
