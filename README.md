@@ -39,13 +39,16 @@ imports its directory.
 | `IsoGraph/Canon/Correct.lean` | soundness and optimality meet: the search satisfies `BestKey` | yes |
 | `IsoGraph/Canon/Spec.lean` | wraps it as an `Equiv.Perm (Fin n)`; proves `canonAdj_relabel` | yes |
 | `IsoGraph/Canon/Group.lean` | the automorphism group: generators harvested by the same search | yes |
+| `IsoGraph/Canon/Subtree.lean` | the search from an arbitrary node, and the orbit test it decides | yes |
+| `IsoGraph/Canon/Chain.lean` | the stabiliser chain: generators *proved* to generate the whole group | yes |
+| `IsoGraph/Canon/Transitive.lean` | orbits from those generators; vertex- and arc-transitivity decided | yes |
 | `IsoGraph/Basic.lean` | `CGraph`, isomorphisms, the quotient `IsoGraph`, `canon`/`canonicalize` | yes |
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
 | `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
 | `IsoGraph/Invariants/Basic.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
-| `IsoGraph/Invariants/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, tested | yes |
+| `IsoGraph/Invariants/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, decided | yes |
 | `IsoGraph/Graphs/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
 | `IsoGraph/Graphs/Quotient.lean` | the same constructions on `IsoGraph`, lifted through the quotient | yes |
 | `IsoGraph/Graphs/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
@@ -5678,30 +5681,9 @@ says exactly that everything the search puts in `St.autos` is an automorphism. S
 run-time check here and nothing new to prove — the generators arrive verified.
 
 What is *not* proved is that *these* generators generate the whole group — the search prunes, and
-it stops recording after `maxGens` of them. (A generating set that provably is complete is below.)
-Nothing downstream depends on it, and it is why the transitivity tests hand back a
-
-```lean
-inductive Cert (P : Prop) : Type | yes (h : P) : Cert P | no : Cert P
-```
-
-— a proof of `P`, or nothing — rather than a `Decidable P`. `Cert P` is data, so the search runs
-in compiled code and the proof comes back out:
-
-```lean
-example : petersen.IsVertexTransitive :=
-  (petersen.vertexTransitiveCertOfEquiv (ofFnEquiv 10 _)).out (by native_decide)
-```
-
-Inside, `vertexTransitiveCert` breadth-first searches the orbit of vertex `0` under the
-generators and returns, for each vertex reached, a *word* in the generators taking `0` to it.
-Words rather than permutations: a product of generators is in the subgroup by `mul_mem`, so
-membership is free, and the only thing left to check is that the word lands where it claims to —
-one `Fin n` equality per vertex, decided by `decide`. `arcTransitiveCert` is the same search on
-the `n²` ordered pairs. A bug in the breadth-first search can therefore only cost a `Cert.no`; it
-can never produce a wrong proof. (`Cert.no` is not a disproof either. In practice the harvested
-generators do generate the full group, so it means "not transitive", but that direction is not
-proved.)
+it stops recording after `maxGens` of them. Nothing downstream depends on that: the transitivity
+tests run on a different generating set, one that is proved complete, and the two are compared
+against each other in `Compute.lean`.
 
 ### Generators that provably generate everything
 
@@ -5736,6 +5718,51 @@ subtree search from scratch, with no pruning by previously found automorphisms, 
 reference implementation and the proof, not the fast path; `autGens` remains what one actually
 runs.
 
+### Transitivity, decided
+
+Given a complete generating set the orbit of a point is computable, and a point outside it is
+outside the orbit of the *whole* group — so transitivity becomes a decision rather than a search
+for a witness, and `false` means as much as `true`. `Canon/Transitive.lean` saturates `{a}` one
+round at a time under a list of permutations closed under inverses, stopping when a round adds
+nothing:
+
+```lean
+def orbitFin (L : List G) (a : α) : Finset α := saturate L (Fintype.card α) {a}
+```
+
+with the two halves that matter proved of it: everything in the orbit is reached by the group
+(`exists_smul_eq_of_mem_orbitFin`, by `saturate_subset` into the set of points the group reaches),
+and the group never leaves it (`smul_mem_orbitFin_of_mem_closure`, by `Subgroup.closure_induction`
+on the statement "the orbit is invariant under this element *and* its inverse" — the inverse half
+carried along because closure induction hands you no inverses otherwise). Termination is by fuel,
+with `Fintype.card α ≤ S.card + fuel` as the invariant: either a round is a fixpoint, or it adds a
+point, and running out of fuel means the set is already everything.
+
+Vertex-transitivity is then "is the orbit of vertex `0` everything?" and arc-transitivity "is
+every arc in the orbit of the first arc?", each with an iff that says exactly what the answer
+means:
+
+```lean
+theorem vertexTransitiveB_iff (n : Nat) (adj : Fin n → Fin n → Bool) :
+    vertexTransitiveB n adj = true ↔ ∀ i j : Fin n, ∃ σ ∈ autGroup n adj, σ i = j
+```
+
+At the `CGraph` level `isVertexTransitive_iff_fin` turns that into `G.IsVertexTransitive` in both
+directions — `autoOfFin` one way, `finAuto` the other — so a single idiom proves transitivity and
+refutes it:
+
+```lean
+example : petersen.IsVertexTransitive := by
+  rw [← petersen.vertexTransitiveBOfEquiv_iff (ofFnEquiv 10 _)]; native_decide
+
+example : ¬ prism.IsArcTransitive := by
+  rw [← prism.arcTransitiveBOfEquiv_iff (ofFnEquiv 6 _)]; native_decide
+```
+
+`CGraph.IsVertexTransitive` still carries the `Decidable` instance that enumerates all `n!`
+permutations, which is what `decide` uses and which is the better choice below about seven
+vertices.
+
 `Symmetry.lean` lifts all of this to `CGraph`, whose vertex type is arbitrary. Everything there
 needs a computable indexing `e : G.V ≃ Fin n`, which cannot be manufactured — `Fintype.equivFin`
 is noncomputable and the computable `Fintype.truncEquivFin` lands in `Trunc`, out of which no
@@ -5744,7 +5771,7 @@ indexing, and a plain version that runs on `G.canonicalize`, whose vertex type *
 `Fin (Fintype.card G.V)`, and transports the answer back. The second is always available and
 costs a second run of the search. For the same reason there is no `IsoGraph`-level generator set:
 generators live on the vertex set, and a set of them is not invariant under renaming. Transitivity
-is invariant, and `IsoGraph.vertexTransitiveCert` tests it on the canonical representative.
+is invariant, and `IsoGraph.vertexTransitiveB` tests it on the canonical representative.
 
 `autGroupOrder?` is a diagnostic and unverified: it enumerates the group generated by the
 harvested permutations outright, capped at a `limit`, which is exponentially worse than the

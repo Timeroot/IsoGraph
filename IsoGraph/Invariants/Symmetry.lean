@@ -1,12 +1,13 @@
 import IsoGraph.Canon.Group
+import IsoGraph.Canon.Transitive
 import IsoGraph.Invariants.Basic
 
 /-!
 # Automorphisms of a `CGraph`, computed
 
-`IsoGraph.Canon.Group` computes generators of the automorphism group of a graph on `Fin n`.  This
-file moves that to `CGraph`, whose vertex type is arbitrary, and uses it to *prove* vertex- and
-arc-transitivity.
+`IsoGraph.Canon.Group` computes generators of the automorphism group of a graph on `Fin n`, and
+`IsoGraph.Canon.Transitive` decides transitivity from a complete set of them.  This file moves
+both to `CGraph`, whose vertex type is arbitrary.
 
 ## Getting to `Fin n`
 
@@ -21,20 +22,22 @@ point:
   `Fin (Fintype.card G.V)`) and transports the answer back along `nonempty_iso_canonicalize`.
   Always available, at the cost of a second run of the canonical labelling.
 
-## Certificates
+## Deciding transitivity
 
-The transitivity entry points return `Canon.Cert P`: a proof of `P`, or nothing.  Use them as
+`Canon/Transitive.lean` decides vertex- and arc-transitivity of a graph on `Fin n` from a
+generating set that is *proved* to generate the whole automorphism group, so a `false` is a
+disproof and not just a failure to find a witness.  This file transports both directions to
+`CGraph`, giving `vertexTransitiveB` and `arcTransitiveB` and the two iffs that say what they
+mean.  One idiom covers both answers:
 
 ```
-example : G.IsVertexTransitive := (G.vertexTransitiveCert).out (by native_decide)
+example : G.IsVertexTransitive := by rw [← CGraph.vertexTransitiveB_iff]; native_decide
+example : ¬ H.IsArcTransitive := by rw [← CGraph.arcTransitiveB_iff]; native_decide
 ```
 
-A `Cert.no` means the automorphisms found were not enough — which, since the search's generators
-generate the whole group in practice, means the graph really is not transitive; but that
-direction is not proved, so a `Cert.no` is not a disproof.  For the (exponentially slower)
-complete decision procedure, `CGraph.IsVertexTransitive` also has a `Decidable` instance, which
-enumerates all `n!` permutations.  (`Canon/Chain.lean` does compute a generating set that is
-*proved* complete, but it is not wired up here: it costs a subtree search per candidate point.)
+`CGraph.IsVertexTransitive` also has a `Decidable` instance (in `Invariants/Basic.lean`) which
+enumerates all `n!` permutations; that is the one `decide` uses, and it is the right choice only
+for very small graphs.
 -/
 
 set_option autoImplicit false
@@ -79,7 +82,11 @@ theorem canonMatrixAndAutos_fst (e : G.V ≃ Fin n) :
 theorem canonMatrixAndAutos_snd (e : G.V ≃ Fin n) :
     (G.canonMatrixAndAutos e).2 = G.autGens e := rfl
 
-/-! ## Transitivity -/
+/-! ## Transitivity
+
+The tests below come from `Canon/Transitive.lean`, which saturates the orbit of a point under a
+generating set that is proved complete.  So each of them decides: `true` gives the proposition and
+`false` refutes it. -/
 
 theorem isVertexTransitive_of_fin (e : G.V ≃ Fin n)
     (h : ∀ i j : Fin n, ∃ σ ∈ autGroup n (G.finAdj e), σ i = j) : G.IsVertexTransitive := by
@@ -94,27 +101,80 @@ theorem isArcTransitive_of_fin (e : G.V ≃ Fin n)
   obtain ⟨σ, hσ, h₁, h₂⟩ := h (e u) (e v) (e u') (e v') (by simpa using huv) (by simpa using hu'v')
   exact ⟨G.autoOfFin e ⟨σ, hσ⟩, by simp [h₁], by simp [h₂]⟩
 
-/-- **Vertex-transitivity of `G`**, via the automorphisms the canonical labelling search finds. -/
-def vertexTransitiveCertOfEquiv (e : G.V ≃ Fin n) : Cert G.IsVertexTransitive :=
-  (_root_.IsoGraph.Canon.vertexTransitiveCert n (G.finAdj e)).map (G.isVertexTransitive_of_fin e)
+/-- An automorphism of `G`, read as a permutation of the `Fin n` model.  The converse direction of
+`autoOfFin`. -/
+def finAuto (e : G.V ≃ Fin n) (φ : G ≃cg G) : Equiv.Perm (Fin n) := (e.symm.trans φ.toEquiv).trans e
 
-/-- **Arc-transitivity of `G`**, via the automorphisms the canonical labelling search finds. -/
-def arcTransitiveCertOfEquiv (e : G.V ≃ Fin n) : Cert G.IsArcTransitive :=
-  (_root_.IsoGraph.Canon.arcTransitiveCert n (G.finAdj e)).map (G.isArcTransitive_of_fin e)
+@[simp] theorem finAuto_apply (e : G.V ≃ Fin n) (φ : G ≃cg G) (i : Fin n) :
+    G.finAuto e φ i = e (φ (e.symm i)) := rfl
+
+theorem finAuto_mem (e : G.V ≃ Fin n) (φ : G ≃cg G) :
+    G.finAuto e φ ∈ autGroup n (G.finAdj e) := by
+  intro i j
+  simp [finAdj, φ.adj_eq]
+
+/-- **Vertex-transitivity, in the `Fin n` model.**  The direction that matters for a *dis*proof is
+the forward one: an automorphism of `G` is a permutation of `Fin n` in `autGroup`. -/
+theorem isVertexTransitive_iff_fin (e : G.V ≃ Fin n) :
+    G.IsVertexTransitive ↔ ∀ i j : Fin n, ∃ σ ∈ autGroup n (G.finAdj e), σ i = j := by
+  refine ⟨fun h i j => ?_, G.isVertexTransitive_of_fin e⟩
+  obtain ⟨φ, hφ⟩ := h (e.symm i) (e.symm j)
+  exact ⟨G.finAuto e φ, G.finAuto_mem e φ, by simp [hφ]⟩
+
+/-- **Arc-transitivity, in the `Fin n` model.** -/
+theorem isArcTransitive_iff_fin (e : G.V ≃ Fin n) :
+    G.IsArcTransitive ↔ ∀ i j k l : Fin n, G.finAdj e i j = true → G.finAdj e k l = true →
+      ∃ σ ∈ autGroup n (G.finAdj e), σ i = k ∧ σ j = l := by
+  refine ⟨fun h i j k l hij hkl => ?_, G.isArcTransitive_of_fin e⟩
+  obtain ⟨φ, h₁, h₂⟩ := h (e.symm i) (e.symm j) (e.symm k) (e.symm l) hij hkl
+  exact ⟨G.finAuto e φ, G.finAuto_mem e φ, by simp [h₁], by simp [h₂]⟩
+
+/-- **Is `G` vertex-transitive?** -/
+def vertexTransitiveBOfEquiv (e : G.V ≃ Fin n) : Bool :=
+  _root_.IsoGraph.Canon.vertexTransitiveB n (G.finAdj e)
+
+theorem vertexTransitiveBOfEquiv_iff (e : G.V ≃ Fin n) :
+    G.vertexTransitiveBOfEquiv e = true ↔ G.IsVertexTransitive :=
+  (_root_.IsoGraph.Canon.vertexTransitiveB_iff n (G.finAdj e)).trans
+    (G.isVertexTransitive_iff_fin e).symm
+
+/-- **Is `G` arc-transitive?** -/
+def arcTransitiveBOfEquiv (e : G.V ≃ Fin n) : Bool :=
+  _root_.IsoGraph.Canon.arcTransitiveB n (G.finAdj e)
+
+theorem arcTransitiveBOfEquiv_iff (e : G.V ≃ Fin n) :
+    G.arcTransitiveBOfEquiv e = true ↔ G.IsArcTransitive :=
+  (_root_.IsoGraph.Canon.arcTransitiveB_iff n (G.finAdj e)).trans
+    (G.isArcTransitive_iff_fin e).symm
 
 /-- The canonical representative of `G`, indexed by `Fin (Fintype.card G.V)` on the nose. -/
 def canonicalizeEquiv : G.canonicalize.V ≃ Fin (Fintype.card G.V) := Equiv.refl _
 
-/-- **Vertex-transitivity of `G`**, with no indexing of `G.V` supplied: run the test on the
-canonical representative, which is indexed by `Fin (Fintype.card G.V)`, and transport back. -/
-def vertexTransitiveCert : Cert G.IsVertexTransitive :=
-  (G.canonicalize.vertexTransitiveCertOfEquiv G.canonicalizeEquiv).map fun h ↦
-    isVertexTransitive_of_iso G.nonempty_iso_canonicalize.some.symm h
+/-- Transitivity of `G` and of its canonical representative are the same question. -/
+theorem isVertexTransitive_canonicalize :
+    G.canonicalize.IsVertexTransitive ↔ G.IsVertexTransitive :=
+  ⟨isVertexTransitive_of_iso G.nonempty_iso_canonicalize.some.symm,
+    isVertexTransitive_of_iso G.nonempty_iso_canonicalize.some⟩
 
-/-- **Arc-transitivity of `G`**, with no indexing of `G.V` supplied. -/
-def arcTransitiveCert : Cert G.IsArcTransitive :=
-  (G.canonicalize.arcTransitiveCertOfEquiv G.canonicalizeEquiv).map fun h ↦
-    isArcTransitive_of_iso G.nonempty_iso_canonicalize.some.symm h
+theorem isArcTransitive_canonicalize :
+    G.canonicalize.IsArcTransitive ↔ G.IsArcTransitive :=
+  ⟨isArcTransitive_of_iso G.nonempty_iso_canonicalize.some.symm,
+    isArcTransitive_of_iso G.nonempty_iso_canonicalize.some⟩
+
+/-- **Is `G` vertex-transitive?**, with no indexing of `G.V` supplied: ask of the canonical
+representative, which is indexed by `Fin (Fintype.card G.V)`, and transport back. -/
+def vertexTransitiveB : Bool := G.canonicalize.vertexTransitiveBOfEquiv G.canonicalizeEquiv
+
+theorem vertexTransitiveB_iff : G.vertexTransitiveB = true ↔ G.IsVertexTransitive :=
+  (G.canonicalize.vertexTransitiveBOfEquiv_iff G.canonicalizeEquiv).trans
+    G.isVertexTransitive_canonicalize
+
+/-- **Is `G` arc-transitive?**, with no indexing of `G.V` supplied. -/
+def arcTransitiveB : Bool := G.canonicalize.arcTransitiveBOfEquiv G.canonicalizeEquiv
+
+theorem arcTransitiveB_iff : G.arcTransitiveB = true ↔ G.IsArcTransitive :=
+  (G.canonicalize.arcTransitiveBOfEquiv_iff G.canonicalizeEquiv).trans
+    G.isArcTransitive_canonicalize
 
 /-- The order of the automorphism group of `G`, or `none` if it exceeds `limit`.  Unverified: a
 diagnostic, see `Canon.groupOrder?`. -/
@@ -126,8 +186,8 @@ end CGraph
 /-! ## The quotient
 
 Generators of the automorphism group are not an isomorphism invariant — they live on the vertex
-set — so there is nothing to lift to `IsoGraph`.  Transitivity *is* invariant, and its
-certificates transport through `IsoGraph.toCGraph`. -/
+set — so there is nothing to lift to `IsoGraph`.  Transitivity *is* invariant, and its test
+transports through `IsoGraph.toCGraph`. -/
 
 namespace IsoGraph
 
@@ -145,12 +205,18 @@ theorem isArcTransitive_toCGraph (G : IsoGraph) :
     exact ⟨CGraph.isArcTransitive_of_iso g.nonempty_iso_canonicalize.some.symm,
       CGraph.isArcTransitive_of_iso g.nonempty_iso_canonicalize.some⟩
 
-/-- Vertex-transitivity of an isomorphism class, tested on its canonical representative. -/
-def vertexTransitiveCert (G : IsoGraph) : Cert G.IsVertexTransitive :=
-  G.toCGraph.vertexTransitiveCert.map G.isVertexTransitive_toCGraph.1
+/-- **Is this isomorphism class vertex-transitive?**, tested on its canonical representative. -/
+def vertexTransitiveB (G : IsoGraph) : Bool := G.toCGraph.vertexTransitiveB
 
-/-- Arc-transitivity of an isomorphism class, tested on its canonical representative. -/
-def arcTransitiveCert (G : IsoGraph) : Cert G.IsArcTransitive :=
-  G.toCGraph.arcTransitiveCert.map G.isArcTransitive_toCGraph.1
+theorem vertexTransitiveB_iff (G : IsoGraph) :
+    G.vertexTransitiveB = true ↔ G.IsVertexTransitive :=
+  G.toCGraph.vertexTransitiveB_iff.trans G.isVertexTransitive_toCGraph
+
+/-- **Is this isomorphism class arc-transitive?** -/
+def arcTransitiveB (G : IsoGraph) : Bool := G.toCGraph.arcTransitiveB
+
+theorem arcTransitiveB_iff (G : IsoGraph) :
+    G.arcTransitiveB = true ↔ G.IsArcTransitive :=
+  G.toCGraph.arcTransitiveB_iff.trans G.isArcTransitive_toCGraph
 
 end IsoGraph
