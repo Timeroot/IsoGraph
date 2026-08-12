@@ -5677,8 +5677,9 @@ attached: `Canon/Leaves.lean`'s `StGood` invariant, which the correctness proof 
 says exactly that everything the search puts in `St.autos` is an automorphism. So there is no
 run-time check here and nothing new to prove — the generators arrive verified.
 
-What is *not* proved is that they generate the whole group. Nothing depends on it, and it is why
-the transitivity tests hand back a
+What is *not* proved is that *these* generators generate the whole group — the search prunes, and
+it stops recording after `maxGens` of them. (A generating set that provably is complete is below.)
+Nothing downstream depends on it, and it is why the transitivity tests hand back a
 
 ```lean
 inductive Cert (P : Prop) : Type | yes (h : P) : Cert P | no : Cert P
@@ -5702,6 +5703,39 @@ can never produce a wrong proof. (`Cert.no` is not a disproof either. In practic
 generators do generate the full group, so it means "not transitive", but that direction is not
 proved.)
 
+### Generators that provably generate everything
+
+The gap above is closed separately, at a price. `Canon/Subtree.lean` runs the same search from an
+arbitrary node of the tree instead of from the root, and proves it *equivariant*: if some
+automorphism carries one path to another, then it carries the whole node structure with it — same
+invariant path, equivalent partitions, same target cells all the way down (`Node.map_equiv`). So
+the two subtrees have the same set of leaf keys, hence the same best leaf, hence certificates that
+agree; and then `autoOf` of the two canonical labellings *is* an automorphism relating the two
+nodes, reconstructed without ever having seen the one we assumed. That is a decision procedure:
+
+```lean
+def sameOrbit (n : Nat) (f : Nat → Nat → Bool) (P Q : Array Nat) : Bool
+```
+
+sound (`sameOrbit_spec` returns an automorphism taking `P` to `Q` position by position) and
+complete (`sameOrbit_of_auto`: if any automorphism does that, the test says so).
+
+`Canon/Chain.lean` runs orbit–stabiliser on top of it. At the node reached by `path`, take the
+cell the refinement is about to split, fix its first vertex `v₀`, recurse below `path.push v₀` for
+the stabiliser of one more point, then add one coset representative for every vertex of the cell
+the orbit test finds in the orbit of `v₀`. The invariant is the textbook one, and it is proved:
+
+```lean
+theorem autGroup_eq_closure (n : Nat) (adj : Fin n → Fin n → Bool) :
+    autGroup n adj = Subgroup.closure (permsOf n (chainArrays n adj))
+```
+
+an equality, not an inclusion — `closure_fullGens` says the same thing with the generators
+packaged as elements of `autGroup n adj`. The price is that each candidate point costs a full
+subtree search from scratch, with no pruning by previously found automorphisms, so this is the
+reference implementation and the proof, not the fast path; `autGens` remains what one actually
+runs.
+
 `Symmetry.lean` lifts all of this to `CGraph`, whose vertex type is arbitrary. Everything there
 needs a computable indexing `e : G.V ≃ Fin n`, which cannot be manufactured — `Fintype.equivFin`
 is noncomputable and the computable `Fintype.truncEquivFin` lands in `Trunc`, out of which no
@@ -5717,7 +5751,10 @@ harvested permutations outright, capped at a `limit`, which is exponentially wor
 Schreier–Sims algorithm one would normally use but is obviously correct. `Compute.lean` checks it
 against the graphs it already has — 10 for `C5`, 12 for the prism, 72 for two disjoint triangles,
 120 for Petersen — along with the transitivity of each and the fact that the prism is
-vertex-transitive but not arc-transitive.
+vertex-transitive but not arc-transitive. It gets the same numbers from `chainArrays`, whose
+generators are the proved-complete ones, on all of those but Petersen: ten vertices of subtree
+search per candidate point is twenty seconds of elaboration, which is the cost of completeness in
+one number.
 
 ## Writing it so it can be proved
 

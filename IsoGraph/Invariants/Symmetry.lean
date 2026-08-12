@@ -33,7 +33,8 @@ A `Cert.no` means the automorphisms found were not enough — which, since the s
 generate the whole group in practice, means the graph really is not transitive; but that
 direction is not proved, so a `Cert.no` is not a disproof.  For the (exponentially slower)
 complete decision procedure, `CGraph.IsVertexTransitive` also has a `Decidable` instance, which
-enumerates all `n!` permutations.
+enumerates all `n!` permutations.  (`Canon/Chain.lean` does compute a generating set that is
+*proved* complete, but it is not wired up here: it costs a subtree search per candidate point.)
 -/
 
 set_option autoImplicit false

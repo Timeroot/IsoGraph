@@ -1,5 +1,6 @@
 import IsoGraph.Basic
 import IsoGraph.Invariants.Symmetry
+import IsoGraph.Canon.Chain
 
 /-!
 # The canonical form actually computes
@@ -141,6 +142,17 @@ def symmetryChecks : Bool :=
   (petersen.autGroupOrder? (ofFnEquiv 10 _) == some 120) &&
   (prism.autGroupOrder? (ofFnEquiv 6 _) == some 12) &&
   (twoTriangles.autGroupOrder? (ofFnEquiv 6 _) == some 72) &&
+  -- and the same orders from the stabiliser chain, whose generators are *proved* to generate the
+  -- whole group (`Canon.autGroup_eq_closure`).  Petersen is left out: the chain searches a whole
+  -- subtree per candidate point, and at ten vertices that is twenty seconds of elaboration.
+  (IsoGraph.Canon.groupOrder? 5
+    (IsoGraph.Canon.chainArrays 5 (c5.finAdj (ofFnEquiv 5 _))) 1000 == some 10) &&
+  (IsoGraph.Canon.groupOrder? 5
+    (IsoGraph.Canon.chainArrays 5 (p5.finAdj (ofFnEquiv 5 _))) 1000 == some 2) &&
+  (IsoGraph.Canon.groupOrder? 6
+    (IsoGraph.Canon.chainArrays 6 (prism.finAdj (ofFnEquiv 6 _))) 1000 == some 12) &&
+  (IsoGraph.Canon.groupOrder? 6
+    (IsoGraph.Canon.chainArrays 6 (twoTriangles.finAdj (ofFnEquiv 6 _))) 1000 == some 72) &&
   -- one search, both halves
   ((petersen.canonMatrixAndAutos (ofFnEquiv 10 _)).1.adj ==
     (IsoGraph.Canon.canonMatrix 10 (petersen.finAdj (ofFnEquiv 10 _))).adj) &&
