@@ -232,7 +232,71 @@ def lexProduct [DecidableEq G.V] [DecidableEq G'.V] [DecidableEq H.V] [Decidable
       rw [i.adj_eq, j.adj_eq, show decide (i x.1 = i y.1) = decide (x.1 = y.1) from by simp]
       rfl
 
+end Iso
+
+end CGraph
+
+namespace IsoGraph
+
+/-! ## The join
+
+The one operation here that is not generated.  On both levels the join is a complement of a
+disjoint union of complements, so it inherits its well-definedness from the two of them and needs
+no `Quotient.lift` of its own — and, more to the point, the identities of
+`IsoGraph/Values/Identities/Identifications.lean` are proved from that definition by `rfl`, which a
+lift would not give them.
+
+It comes here, in the middle of the congruences, because the isomorphisms below are transported to
+`IsoGraph` by `@[toIsoGraph]`, which can only see through `CGraph.join` once its bridge is in the
+`isoTransfer` set. -/
+
+/-- The join of two isomorphism classes: a disjoint union with all edges across. -/
+def join (G H : IsoGraph) : IsoGraph := (disjUnion Gᶜ Hᶜ)ᶜ
+
+/-- The join is a complement of a disjoint union of complements on both levels, so its bridge is
+the two others put together. -/
+@[simp, isoTransfer] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+  rw [join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
+  rfl
+
+isograph_bridge CGraph.join ↦ IsoGraph.join via IsoGraph.join_mk
+
+end IsoGraph
+
+namespace CGraph
+
+namespace Iso
+
+variable {G G' H H' : CGraph}
+
+/-- The disjoint union is commutative. -/
+@[toIsoGraph disjUnion_comm]
+def disjUnionComm (G H : CGraph) :
+    _root_.CGraph.disjUnion G H ≃cg _root_.CGraph.disjUnion H G :=
+  isoOfAdj (G := _root_.CGraph.disjUnion G H) (H := _root_.CGraph.disjUnion H G)
+    (Equiv.sumComm G.V H.V) (by rintro (a | a) (b | b) <;> rfl)
+
+/-- The join is commutative.  Unlike the disjoint union this needs a case analysis rather than
+`rfl`: the vertex type of `join G H` is `Gᶜ.V ⊕ Hᶜ.V`, which is only definitionally `G.V ⊕ H.V`,
+so `simp` cannot see through `Equiv.sumComm` and each case has to name its image. -/
+@[toIsoGraph join_comm]
+def joinComm (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+    _root_.CGraph.join G H ≃cg _root_.CGraph.join H G :=
+  isoOfAdj (G := _root_.CGraph.join G H) (H := _root_.CGraph.join H G)
+    (Equiv.sumComm G.V H.V) (by
+      rintro (a | a) (b | b)
+      · show (_root_.CGraph.join H G).Adj (.inr a) (.inr b) = _
+        simp
+      · show (_root_.CGraph.join H G).Adj (.inr a) (.inl b) = _
+        simp
+      · show (_root_.CGraph.join H G).Adj (.inl a) (.inr b) = _
+        simp
+      · show (_root_.CGraph.join H G).Adj (.inl a) (.inl b) = _
+        simp)
+
 /-- The cartesian product is commutative. -/
+@[toIsoGraph cartesianProduct_comm]
 def cartesianProductComm (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     CGraph.cartesianProduct G H ≃cg CGraph.cartesianProduct H G :=
   isoOfAdj (G := CGraph.cartesianProduct G H) (H := CGraph.cartesianProduct H G)
@@ -247,6 +311,7 @@ def cartesianProductComm (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
       decide
 
 /-- The tensor product is commutative. -/
+@[toIsoGraph tensorProduct_comm]
 def tensorProductComm (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     CGraph.tensorProduct G H ≃cg CGraph.tensorProduct H G :=
   isoOfAdj (G := CGraph.tensorProduct G H) (H := CGraph.tensorProduct H G)
@@ -259,6 +324,7 @@ def tensorProductComm (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
       decide
 
 /-- The strong product is commutative. -/
+@[toIsoGraph strongProduct_comm]
 def strongProductComm (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     CGraph.strongProduct G H ≃cg CGraph.strongProduct H G :=
   isoOfAdj (G := CGraph.strongProduct G H) (H := CGraph.strongProduct H G)
@@ -284,7 +350,49 @@ All four products are associative, and all four proofs are the same: `Equiv.prod
 vertices, `decide_prod_eq` to break the equality tests on pairs apart, and `decide` on the
 resulting identity between two Boolean expressions in six variables. -/
 
+/-- The disjoint union is associative. -/
+@[toIsoGraph disjUnion_assoc]
+def disjUnionAssoc (G H K : CGraph) :
+    _root_.CGraph.disjUnion (_root_.CGraph.disjUnion G H) K ≃cg
+      _root_.CGraph.disjUnion G (_root_.CGraph.disjUnion H K) :=
+  isoOfAdj (G := _root_.CGraph.disjUnion (_root_.CGraph.disjUnion G H) K)
+    (H := _root_.CGraph.disjUnion G (_root_.CGraph.disjUnion H K))
+    (Equiv.sumAssoc G.V H.V K.V) (by rintro ((a | a) | a) ((b | b) | b) <;> rfl)
+
+/-- The join is associative. -/
+@[toIsoGraph join_assoc]
+def joinAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [DecidableEq K.V] :
+    _root_.CGraph.join (_root_.CGraph.join G H) K ≃cg
+      _root_.CGraph.join G (_root_.CGraph.join H K) :=
+  isoOfAdj (G := _root_.CGraph.join (_root_.CGraph.join G H) K)
+    (H := _root_.CGraph.join G (_root_.CGraph.join H K))
+    (Equiv.sumAssoc G.V H.V K.V) (by
+      rintro ((a | a) | a) ((b | b) | b)
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inl a) (.inl b) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inl a) (.inr (.inl b)) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inl a) (.inr (.inr b)) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inr (.inl a)) (.inl b) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+          (.inr (.inl a)) (.inr (.inl b)) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+          (.inr (.inl a)) (.inr (.inr b)) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inr (.inr a)) (.inl b) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+          (.inr (.inr a)) (.inr (.inl b)) = _
+        simp
+      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+          (.inr (.inr a)) (.inr (.inr b)) = _
+        simp)
+
 /-- The cartesian product is associative. -/
+@[toIsoGraph cartesianProduct_assoc]
 def cartesianProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
     [DecidableEq K.V] :
     CGraph.cartesianProduct (CGraph.cartesianProduct G H) K ≃cg
@@ -307,6 +415,7 @@ def cartesianProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
       decide
 
 /-- The tensor product is associative. -/
+@[toIsoGraph tensorProduct_assoc]
 def tensorProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [DecidableEq K.V] :
     CGraph.tensorProduct (CGraph.tensorProduct G H) K ≃cg
       CGraph.tensorProduct G (CGraph.tensorProduct H K) :=
@@ -318,6 +427,7 @@ def tensorProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Dec
       exact (Bool.and_assoc _ _ _).symm
 
 /-- The lexicographic product is associative. -/
+@[toIsoGraph lexProduct_assoc]
 def lexProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [DecidableEq K.V] :
     CGraph.lexProduct (CGraph.lexProduct G H) K ≃cg
       CGraph.lexProduct G (CGraph.lexProduct H K) :=
@@ -337,6 +447,7 @@ def lexProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Decida
       decide
 
 /-- The strong product is associative. -/
+@[toIsoGraph strongProduct_assoc]
 def strongProductAssoc (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [DecidableEq K.V] :
     CGraph.strongProduct (CGraph.strongProduct G H) K ≃cg
       CGraph.strongProduct G (CGraph.strongProduct H K) :=
@@ -367,6 +478,7 @@ the bijection is `Equiv.prodSumDistrib` (resp. `Equiv.sumProdDistrib`), and adja
 on each of the four ways of pairing an `inl` with an `inr`. -/
 
 /-- The cartesian product distributes over disjoint unions. -/
+@[toIsoGraph simp cartesianProduct_disjUnion]
 def cartesianProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
     [DecidableEq K.V] :
     CGraph.cartesianProduct G (_root_.CGraph.disjUnion H K) ≃cg
@@ -389,6 +501,7 @@ def cartesianProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.
         simp [disjUnion_inr_eq_inr])
 
 /-- The tensor product distributes over disjoint unions. -/
+@[toIsoGraph simp tensorProduct_disjUnion]
 def tensorProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
     [DecidableEq K.V] :
     CGraph.tensorProduct G (_root_.CGraph.disjUnion H K) ≃cg
@@ -411,6 +524,7 @@ def tensorProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
         simp)
 
 /-- The strong product distributes over disjoint unions. -/
+@[toIsoGraph simp strongProduct_disjUnion]
 def strongProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
     [DecidableEq K.V] :
     CGraph.strongProduct G (_root_.CGraph.disjUnion H K) ≃cg
@@ -434,6 +548,7 @@ def strongProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V]
 
 /-- The lexicographic product distributes over disjoint unions in its *first* factor.  It does not
 distribute in the second: `K₂[K₁ + K₁]` is `K₄`, not `K₂[K₁] + K₂[K₁] = K₂ + K₂`. -/
+@[toIsoGraph simp disjUnion_lexProduct]
 def lexProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [DecidableEq K.V] :
     CGraph.lexProduct (_root_.CGraph.disjUnion G H) K ≃cg
       _root_.CGraph.disjUnion (CGraph.lexProduct G K) (CGraph.lexProduct H K) :=
@@ -453,6 +568,89 @@ def lexProductDisjUnion (G H K : CGraph) [DecidableEq G.V] [DecidableEq H.V] [De
       · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
           (CGraph.lexProduct H K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
         simp [disjUnion_inr_eq_inr])
+
+/-! ### Units
+
+The graph with no vertices is a unit for the disjoint union and for the join, and the graph with
+one vertex is a unit for the cartesian, strong and lexicographic products.  `empty 0` and `empty 1`
+rather than `complete 0` and `complete 1`: the two agree, and `complete_zero` and `complete_one`
+put the `empty` form in `simp` normal form.  The tensor product has no unit — `G ⊗ K₁` is edgeless
+— and the lexicographic product, alone among these, needs both sides. -/
+
+/-- Adding no vertices at all changes nothing. -/
+@[toIsoGraph simp disjUnion_empty_zero]
+def disjUnionEmptyZero (G : CGraph) : _root_.CGraph.disjUnion G (_root_.CGraph.empty 0) ≃cg G :=
+  letI : IsEmpty (_root_.CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+  isoOfAdj (G := _root_.CGraph.disjUnion G (_root_.CGraph.empty 0)) (H := G)
+    (Equiv.sumEmpty G.V (_root_.CGraph.empty 0).V) (by
+      rintro (a | a) (b | b)
+      · rfl
+      · exact (show Fin 0 from b).elim0
+      · exact (show Fin 0 from a).elim0
+      · exact (show Fin 0 from a).elim0)
+
+/-- Joining no vertices at all changes nothing. -/
+@[toIsoGraph simp join_empty_zero]
+def joinEmptyZero (G : CGraph) [DecidableEq G.V] :
+    _root_.CGraph.join G (_root_.CGraph.empty 0) ≃cg G :=
+  letI : IsEmpty (_root_.CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+  isoOfAdj (G := _root_.CGraph.join G (_root_.CGraph.empty 0)) (H := G)
+    (Equiv.sumEmpty G.V (_root_.CGraph.empty 0).V) (by
+      rintro (a | a) (b | b)
+      · show G.Adj a b = _
+        simp
+      · exact (show Fin 0 from b).elim0
+      · exact (show Fin 0 from a).elim0
+      · exact (show Fin 0 from a).elim0)
+
+/-- The one-vertex graph is a unit for the cartesian product. -/
+@[toIsoGraph simp cartesianProduct_empty_one]
+def cartesianProductEmptyOne (G : CGraph) [DecidableEq G.V] :
+    CGraph.cartesianProduct G (_root_.CGraph.empty 1) ≃cg G :=
+  letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
+  isoOfAdj (G := CGraph.cartesianProduct G (_root_.CGraph.empty 1)) (H := G)
+    (Equiv.prodUnique G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
+      show G.Adj x.1 y.1 = _
+      rw [CGraph.cartesianProduct_adj, Subsingleton.elim x.2 y.2]
+      simp
+
+/-- The one-vertex graph is a unit for the strong product. -/
+@[toIsoGraph simp strongProduct_empty_one]
+def strongProductEmptyOne (G : CGraph) [DecidableEq G.V] :
+    CGraph.strongProduct G (_root_.CGraph.empty 1) ≃cg G :=
+  letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
+  isoOfAdj (G := CGraph.strongProduct G (_root_.CGraph.empty 1)) (H := G)
+    (Equiv.prodUnique G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
+      show G.Adj x.1 y.1 = _
+      rw [CGraph.strongProduct_adj]
+      by_cases hx : x.1 = y.1
+      · have hxy : x = y := Prod.ext hx (Subsingleton.elim _ _)
+        cases hxy
+        simp [(Bool.not_eq_true _).mp (G.loopless x.1)]
+      · have hxy : x ≠ y := fun hh ↦ hx (congrArg Prod.fst hh)
+        simp [hx, hxy, Subsingleton.elim x.2 y.2]
+
+/-- The one-vertex graph is a right unit for the lexicographic product. -/
+@[toIsoGraph simp lexProduct_empty_one]
+def lexProductEmptyOne (G : CGraph) [DecidableEq G.V] :
+    CGraph.lexProduct G (_root_.CGraph.empty 1) ≃cg G :=
+  letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
+  isoOfAdj (G := CGraph.lexProduct G (_root_.CGraph.empty 1)) (H := G)
+    (Equiv.prodUnique G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
+      show G.Adj x.1 y.1 = _
+      rw [CGraph.lexProduct_adj]
+      simp
+
+/-- The one-vertex graph is a left unit for the lexicographic product. -/
+@[toIsoGraph simp empty_one_lexProduct]
+def emptyOneLexProduct (G : CGraph) [DecidableEq G.V] :
+    CGraph.lexProduct (_root_.CGraph.empty 1) G ≃cg G :=
+  letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
+  isoOfAdj (G := CGraph.lexProduct (_root_.CGraph.empty 1) G) (H := G)
+    (Equiv.uniqueProd G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
+      show G.Adj x.2 y.2 = _
+      rw [CGraph.lexProduct_adj, Subsingleton.elim x.1 y.1]
+      simp
 
 /-! ### Line graphs and Mycielskians
 
@@ -860,26 +1058,6 @@ end Iso
 end CGraph
 
 namespace IsoGraph
-
-/-! ## The join
-
-The one operation here that is not generated.  On both levels the join is a complement of a
-disjoint union of complements, so it inherits its well-definedness from the two of them and needs
-no `Quotient.lift` of its own — and, more to the point, the identities of
-`IsoGraph/Values/Identities/Identifications.lean` are proved from that definition by `rfl`, which a
-lift would not give them. -/
-
-/-- The join of two isomorphism classes: a disjoint union with all edges across. -/
-def join (G H : IsoGraph) : IsoGraph := (disjUnion Gᶜ Hᶜ)ᶜ
-
-/-- The join is a complement of a disjoint union of complements on both levels, so its bridge is
-the two others put together. -/
-@[simp, isoTransfer] theorem join_mk (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
-  rw [join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
-  rfl
-
-isograph_bridge CGraph.join ↦ IsoGraph.join via IsoGraph.join_mk
 
 /-! ## Notation
 

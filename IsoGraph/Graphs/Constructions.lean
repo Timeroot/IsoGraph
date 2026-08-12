@@ -1271,7 +1271,7 @@ variable (G H : CGraph)
   ext x y
   simp [compl, G.symm x y, SimpleGraph.compl_adj]
 
-@[simp] theorem compl_compl [DecidableEq G.V] : compl (compl G) = G := by
+@[simp, toIsoGraph] theorem compl_compl [DecidableEq G.V] : compl (compl G) = G := by
   refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
   rcases eq_or_ne x y with rfl | h
   · simp [compl, G.loopless x]

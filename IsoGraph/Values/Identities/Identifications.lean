@@ -145,14 +145,11 @@ theorem wheel_eq_join (n : ℕ) : wheel n = complete 1 ∇g cycle n := by
   rw [complete_def, cycle_def, join_mk]
   rfl
 
-/-! ## Complementation -/
+/-! ## Complementation
 
-@[simp] theorem compl_compl (G : IsoGraph) : Gᶜᶜ = G := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    show (show IsoGraph from ⟦CGraph.compl g.canonicalize⟧)ᶜ = ⟦g⟧
-    rw [compl_mk, CGraph.compl_compl]
-    exact mk_canonicalize g
+`compl_compl` itself is generated from `CGraph.compl_compl` by `@[toIsoGraph]`, as are the
+commutativity, associativity, unit and distributivity laws below; what is left here is the handful
+of consequences that mix constructions. -/
 
 @[simp] theorem compl_empty (n : ℕ) : (empty n)ᶜ = complete n := by
   rw [empty_def, compl_mk]
@@ -177,34 +174,6 @@ theorem wheel_eq_join (n : ℕ) : wheel n = complete 1 ∇g cycle n := by
 
 /-! ## Disjoint unions -/
 
-theorem disjUnion_comm (G H : IsoGraph) : G ⊕g H = H ⊕g G := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h => exact Quotient.sound (CGraph.disjUnion_comm g h)
-
-theorem disjUnion_assoc (G H K : IsoGraph) :
-    (G ⊕g H) ⊕g K = G ⊕g (H ⊕g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k => exact Quotient.sound (CGraph.disjUnion_assoc g h k)
-
-@[simp] theorem disjUnion_empty_zero (G : IsoGraph) : G ⊕g empty 0 = G := by
-  haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [empty_def, disjUnion_mk]
-    exact Quotient.sound ⟨CGraph.isoOfAdj
-      (G := CGraph.disjUnion g (CGraph.empty 0)) (H := g)
-      (Equiv.sumEmpty g.V (CGraph.empty 0).V)
-      (by rintro (a | a) (b | b) <;> first
-            | rfl
-            | exact (IsEmpty.false a).elim
-            | exact (IsEmpty.false b).elim)⟩
-
 @[simp] theorem empty_zero_disjUnion (G : IsoGraph) : empty 0 ⊕g G = G := by
   rw [disjUnion_comm, disjUnion_empty_zero]
 
@@ -213,19 +182,6 @@ theorem disjUnion_assoc (G H K : IsoGraph) :
     mk_eq_empty (G := CGraph.disjUnion (CGraph.empty m) (CGraph.empty n))
       (by rintro (a | a) (b | b) <;> rfl)]
   simp
-
-/-! ## Joins -/
-
-theorem join_comm (G H : IsoGraph) : G ∇g H = H ∇g G := by
-  show (Gᶜ ⊕g Hᶜ)ᶜ = (Hᶜ ⊕g Gᶜ)ᶜ
-  rw [disjUnion_comm]
-
-theorem join_assoc (G H K : IsoGraph) : (G ∇g H) ∇g K = G ∇g (H ∇g K) := by
-  show ((G ∇g H)ᶜ ⊕g Kᶜ)ᶜ
-    = (Gᶜ ⊕g (H ∇g K)ᶜ)ᶜ
-  show ((Gᶜ ⊕g Hᶜ)ᶜᶜ ⊕g Kᶜ)ᶜ
-    = (Gᶜ ⊕g (Hᶜ ⊕g Kᶜ)ᶜᶜ)ᶜ
-  rw [compl_compl, compl_compl, disjUnion_assoc]
 
 /-! ## Small graphs
 
@@ -279,9 +235,6 @@ theorem cycle_three : cycle 3 = complete 3 :=
 
 theorem bipartite_eq_join (m n : ℕ) : bipartite m n = empty m ∇g empty n := by
   rw [join_def, compl_empty, compl_empty, bipartite_eq_compl]
-
-@[simp] theorem join_empty_zero (G : IsoGraph) : G ∇g empty 0 = G := by
-  rw [join_def, compl_empty, complete_zero, disjUnion_empty_zero, compl_compl]
 
 @[simp] theorem empty_zero_join (G : IsoGraph) : empty 0 ∇g G = G := by
   rw [join_comm, join_empty_zero]
@@ -1178,96 +1131,15 @@ vertices of the cycle, so that the tail leaves from the far end. -/
 
 /-! ## Products
 
-The one-vertex graph is a unit for the cartesian, strong and lexicographic products and an
-absorbing element for the tensor product, which has no edges as soon as one factor has none.
-`empty 1` rather than `complete 1` throughout: the two are equal, and `complete_one` puts
-`empty 1` in `simp` normal form. -/
-
-theorem cartesianProduct_comm (G H : IsoGraph) : G □g H = H □g G := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      show (⟦CGraph.cartesianProduct g.canonicalize h.canonicalize⟧ : IsoGraph)
-        = ⟦CGraph.cartesianProduct h.canonicalize g.canonicalize⟧
-      exact Quotient.sound ⟨CGraph.Iso.cartesianProductComm _ _⟩
-
-theorem tensorProduct_comm (G H : IsoGraph) : G ⊗g H = H ⊗g G := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      show (⟦CGraph.tensorProduct g.canonicalize h.canonicalize⟧ : IsoGraph)
-        = ⟦CGraph.tensorProduct h.canonicalize g.canonicalize⟧
-      exact Quotient.sound ⟨CGraph.Iso.tensorProductComm _ _⟩
-
-theorem strongProduct_comm (G H : IsoGraph) : G ⊠g H = H ⊠g G := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      show (⟦CGraph.strongProduct g.canonicalize h.canonicalize⟧ : IsoGraph)
-        = ⟦CGraph.strongProduct h.canonicalize g.canonicalize⟧
-      exact Quotient.sound ⟨CGraph.Iso.strongProductComm _ _⟩
-
-@[simp] theorem cartesianProduct_empty_one (G : IsoGraph) : G □g empty 1 = G := by
-  haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [← mk_canonicalize g, empty_def, cartesianProduct_mk]
-    refine Quotient.sound ⟨CGraph.isoOfAdj
-      (G := CGraph.cartesianProduct g.canonicalize (CGraph.empty 1)) (H := g.canonicalize)
-      (Equiv.prodUnique g.canonicalize.V (CGraph.empty 1).V) fun x y ↦ ?_⟩
-    show g.canonicalize.Adj x.1 y.1 = _
-    rw [CGraph.cartesianProduct_adj, Subsingleton.elim x.2 y.2]
-    simp
+Commutativity, associativity, the units and distributivity over `disjUnion` are generated from the
+isomorphisms in `IsoGraph/Graphs/Quotient.lean`.  What is proved here is the rest: the mirror image
+of each one-sided law, and what the products do to `empty` and `complete`. -/
 
 @[simp] theorem empty_one_cartesianProduct (G : IsoGraph) : empty 1 □g G = G := by
   rw [cartesianProduct_comm, cartesianProduct_empty_one]
 
-@[simp] theorem strongProduct_empty_one (G : IsoGraph) : G ⊠g empty 1 = G := by
-  haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [← mk_canonicalize g, empty_def, strongProduct_mk]
-    refine Quotient.sound ⟨CGraph.isoOfAdj
-      (G := CGraph.strongProduct g.canonicalize (CGraph.empty 1)) (H := g.canonicalize)
-      (Equiv.prodUnique g.canonicalize.V (CGraph.empty 1).V) fun x y ↦ ?_⟩
-    show g.canonicalize.Adj x.1 y.1 = _
-    rw [CGraph.strongProduct_adj]
-    by_cases hx : x.1 = y.1
-    · have hxy : x = y := Prod.ext hx (Subsingleton.elim _ _)
-      cases hxy
-      simp [CGraph.adj_self]
-    · have hxy : x ≠ y := fun hh ↦ hx (congrArg Prod.fst hh)
-      simp [hx, hxy, Subsingleton.elim x.2 y.2]
-
 @[simp] theorem empty_one_strongProduct (G : IsoGraph) : empty 1 ⊠g G = G := by
   rw [strongProduct_comm, strongProduct_empty_one]
-
-@[simp] theorem lexProduct_empty_one (G : IsoGraph) : G ·g empty 1 = G := by
-  haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [← mk_canonicalize g, empty_def, lexProduct_mk]
-    refine Quotient.sound ⟨CGraph.isoOfAdj
-      (G := CGraph.lexProduct g.canonicalize (CGraph.empty 1)) (H := g.canonicalize)
-      (Equiv.prodUnique g.canonicalize.V (CGraph.empty 1).V) fun x y ↦ ?_⟩
-    show g.canonicalize.Adj x.1 y.1 = _
-    rw [CGraph.lexProduct_adj]
-    simp
-
-@[simp] theorem empty_one_lexProduct (G : IsoGraph) : empty 1 ·g G = G := by
-  haveI : Unique (CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [← mk_canonicalize g, empty_def, lexProduct_mk]
-    refine Quotient.sound ⟨CGraph.isoOfAdj
-      (G := CGraph.lexProduct (CGraph.empty 1) g.canonicalize) (H := g.canonicalize)
-      (Equiv.uniqueProd g.canonicalize.V (CGraph.empty 1).V) fun x y ↦ ?_⟩
-    show g.canonicalize.Adj x.2 y.2 = _
-    rw [CGraph.lexProduct_adj, Subsingleton.elim x.1 y.1]
-    simp
 
 /-- A Cartesian product of edgeless graphs is edgeless. -/
 @[simp] theorem cartesianProduct_empty (m n : ℕ) :
@@ -1312,9 +1184,9 @@ theorem strongProduct_comm (G H : IsoGraph) : G ⊠g H = H ⊠g G := by
   rw [complete_def, complete_def, lexProduct_mk, mk_eq_complete h]
   simp
 
-/-! ### Zero vertices, and associativity
+/-! ### Zero vertices
 
-A factor with no vertices annihilates every product, and all four products are associative. -/
+A factor with no vertices annihilates every product. -/
 
 @[simp] theorem cartesianProduct_empty_zero (G : IsoGraph) :
     G □g empty 0 = empty 0 := by
@@ -1362,73 +1234,12 @@ A factor with no vertices annihilates every product, and all four products are a
       inferInstanceAs (IsEmpty ((CGraph.empty 0).V × g.canonicalize.V))
     exact mk_eq_empty_zero
 
-theorem cartesianProduct_assoc (G H K : IsoGraph) :
-    (G □g H) □g K = G □g (H □g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          cartesianProduct_mk, cartesianProduct_mk, cartesianProduct_mk, cartesianProduct_mk]
-        exact Quotient.sound ⟨CGraph.Iso.cartesianProductAssoc _ _ _⟩
-
-theorem tensorProduct_assoc (G H K : IsoGraph) :
-    (G ⊗g H) ⊗g K = G ⊗g (H ⊗g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          tensorProduct_mk, tensorProduct_mk, tensorProduct_mk, tensorProduct_mk]
-        exact Quotient.sound ⟨CGraph.Iso.tensorProductAssoc _ _ _⟩
-
-theorem strongProduct_assoc (G H K : IsoGraph) :
-    (G ⊠g H) ⊠g K = G ⊠g (H ⊠g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          strongProduct_mk, strongProduct_mk, strongProduct_mk, strongProduct_mk]
-        exact Quotient.sound ⟨CGraph.Iso.strongProductAssoc _ _ _⟩
-
-theorem lexProduct_assoc (G H K : IsoGraph) :
-    (G ·g H) ·g K = G ·g (H ·g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          lexProduct_mk, lexProduct_mk, lexProduct_mk, lexProduct_mk]
-        exact Quotient.sound ⟨CGraph.Iso.lexProductAssoc _ _ _⟩
-
 /-! ### Distributivity over disjoint unions
 
 Every product distributes over `disjUnion`: on the left and the right for the three commutative
 products, and on the left only for the lexicographic one.  These are good `simp` lemmas — they push
-`disjUnion` outwards, so a product of unions normalises to a union of products. -/
-
-@[simp] theorem cartesianProduct_disjUnion (G H K : IsoGraph) :
-    G □g (H ⊕g K)
-      = (G □g H) ⊕g (G □g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          disjUnion_mk, cartesianProduct_mk, cartesianProduct_mk, cartesianProduct_mk,
-          disjUnion_mk]
-        exact Quotient.sound ⟨CGraph.Iso.cartesianProductDisjUnion _ _ _⟩
+`disjUnion` outwards, so a product of unions normalises to a union of products.  The left-hand
+forms are generated; the right-hand ones follow by commutativity. -/
 
 @[simp] theorem disjUnion_cartesianProduct (G H K : IsoGraph) :
     (G ⊕g H) □g K
@@ -1436,50 +1247,13 @@ products, and on the left only for the lexicographic one.  These are good `simp`
   rw [cartesianProduct_comm, cartesianProduct_disjUnion, cartesianProduct_comm,
     cartesianProduct_comm K H]
 
-@[simp] theorem tensorProduct_disjUnion (G H K : IsoGraph) :
-    G ⊗g (H ⊕g K) = (G ⊗g H) ⊕g (G ⊗g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          disjUnion_mk, tensorProduct_mk, tensorProduct_mk, tensorProduct_mk, disjUnion_mk]
-        exact Quotient.sound ⟨CGraph.Iso.tensorProductDisjUnion _ _ _⟩
-
 @[simp] theorem disjUnion_tensorProduct (G H K : IsoGraph) :
     (G ⊕g H) ⊗g K = (G ⊗g K) ⊕g (H ⊗g K) := by
   rw [tensorProduct_comm, tensorProduct_disjUnion, tensorProduct_comm, tensorProduct_comm K H]
 
-@[simp] theorem strongProduct_disjUnion (G H K : IsoGraph) :
-    G ⊠g (H ⊕g K) = (G ⊠g H) ⊕g (G ⊠g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          disjUnion_mk, strongProduct_mk, strongProduct_mk, strongProduct_mk, disjUnion_mk]
-        exact Quotient.sound ⟨CGraph.Iso.strongProductDisjUnion _ _ _⟩
-
 @[simp] theorem disjUnion_strongProduct (G H K : IsoGraph) :
     (G ⊕g H) ⊠g K = (G ⊠g K) ⊕g (H ⊠g K) := by
   rw [strongProduct_comm, strongProduct_disjUnion, strongProduct_comm, strongProduct_comm K H]
-
-/-- The lexicographic product distributes over `disjUnion` in its first factor only. -/
-@[simp] theorem disjUnion_lexProduct (G H K : IsoGraph) :
-    (G ⊕g H) ·g K = (G ·g K) ⊕g (H ·g K) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      induction K using Quotient.inductionOn with
-      | h k =>
-        rw [← mk_canonicalize g, ← mk_canonicalize h, ← mk_canonicalize k,
-          disjUnion_mk, lexProduct_mk, lexProduct_mk, lexProduct_mk, disjUnion_mk]
-        exact Quotient.sound ⟨CGraph.Iso.lexProductDisjUnion _ _ _⟩
 
 /-- Multiplying by two independent vertices doubles the graph.  The same holds for the strong and
 lexicographic products, but not for the tensor product, which is edgeless here. -/

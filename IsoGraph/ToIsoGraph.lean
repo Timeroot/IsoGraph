@@ -608,14 +608,17 @@ private def throwStillCGraph {α} (stmt : Expr) : MetaM α := do
 /-- Rewrite a `CGraph`-level expression to `IsoGraph` level: rewrite backwards with the transfer
 lemmas, then read each `⟦gᵢ⟧` as the corresponding `IsoGraph` variable.  Fails if a graph is left
 over, which is what happens when the statement uses a graph in a way that does not descend to the
-quotient. -/
-private def translateExpr (rev : SimpTheorems) (olds news : Array Expr)
+quotient.
+
+`olds` are the binders of the original statement and `reps` what each of them stands for in it —
+itself, or, in canonical mode, its `canonicalize`. -/
+private def translateExpr (rev : SimpTheorems) (olds reps news : Array Expr)
     (graphs : Array Bool) (e : Expr) : MetaM Expr := do
   let e ← instantiateMVars (← simp (← instantiateMVars e) (← transferCtx rev)).1.expr
   -- `⟦gᵢ⟧ ↦ Gᵢ`
   let e := e.replace fun sub ↦ do
     guard (sub.isAppOfArity ``Quotient.mk 3 && sub.appFn!.appArg! == setoidE)
-    let some j := olds.idxOf? sub.appArg! | none
+    let some j := reps.idxOf? sub.appArg! | none
     guard (j < news.size && graphs[j]!)
     some news[j]!
   -- every other variable keeps its meaning
@@ -631,8 +634,9 @@ private def translateExpr (rev : SimpTheorems) (olds news : Array Expr)
       keepNew := keepNew.push news[j]!
   return e.replaceFVars keepOld keepNew
 
-/-- Generate the `IsoGraph`-level counterpart of a `CGraph`-level fact. -/
-def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
+/-- Generate the `IsoGraph`-level counterpart of a `CGraph`-level fact.  `forceSimp` makes the
+result a `simp` lemma even when the original is not one. -/
+def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : MetaM Unit := do
   let info ← getConstInfo thmName
   let lvls := info.levelParams
   let thm := mkConst thmName (lvls.map mkLevelParam)
@@ -645,79 +649,119 @@ def generateFact (thmName : Name) (base? : Option Name) : MetaM Unit := do
   let newName := `IsoGraph ++ base
   if (← getEnv).contains newName then
     throwError "toIsoGraph: {newName} already exists"
-  forallTelescope info.type fun olds body => do
-    /- Introduce the translated binders, one at a time: a graph becomes an `IsoGraph`, and every
-    other binder keeps its name and its binder info, with its type translated. -/
-    let rec loop (i : Nat) (news : Array Expr) (graphs : Array Bool) :
-        MetaM Unit := do
-      if h : i < olds.size then
-        let decl ← olds[i].fvarId!.getDecl
-        if decl.type == cgraphE then
-          withLocalDecl decl.userName decl.binderInfo isographE fun q ↦
-            loop (i + 1) (news.push q) (graphs.push true)
-        else
-          let ty ← translateExpr rev olds news graphs decl.type
-          withLocalDecl decl.userName decl.binderInfo ty fun y ↦
-            loop (i + 1) (news.push y) (graphs.push false)
+  /- Facts about products and complements ask for `[DecidableEq G.V]`, which a bare graph variable
+  has no way to supply.  When some instance binder mentions a graph, run in *canonical mode*: each
+  graph binder `G` is instantiated at `G.canonicalize`, whose vertex type is a `Fin n` and so has
+  every instance, the instance binders are then synthesised and dropped, and the `⟦G.canonicalize⟧`
+  that results is turned back into `⟦G⟧` by `mk_canonicalize` on the way out. -/
+  let canon ← forallTelescope info.type fun xs _ ↦ do
+    let mut gs : Array FVarId := #[]
+    for x in xs do
+      if (← inferType x) == cgraphE then gs := gs.push x.fvarId!
+    xs.anyM fun x ↦ do
+      let d ← x.fvarId!.getDecl
+      return d.binderInfo == .instImplicit && gs.any d.type.containsFVar
+  /- Walk the binders of the original statement.  `olds` are the ones that survive the translation
+  and `reps` what each of them stands for in the statement — itself, or its canonicalisation;
+  `args` are all of them, in order, ready to be fed back to the original theorem. -/
+  let rec tele (fuel : Nat) (ty : Expr) (args olds reps : Array Expr) (graphs : Array Bool) :
+      MetaM Unit := do
+    match fuel, ty with
+    | 0, _ => throwError "toIsoGraph: {thmName} has too many binders"
+    | fuel + 1, .forallE nm dom bd bi =>
+      if dom == cgraphE then
+        withLocalDecl nm bi cgraphE fun g ↦ do
+          let rep ← if canon then mkAppM ``CGraph.canonicalize #[g] else pure g
+          tele fuel (bd.instantiate1 rep) (args.push rep) (olds.push g) (reps.push rep)
+            (graphs.push true)
+      else if bi == .instImplicit &&
+          (olds.zip graphs).any (fun (v, isGraph) ↦ isGraph && dom.containsFVar v.fvarId!) then
+        let some inst ← synthInstance? dom |
+          throwError "toIsoGraph: cannot synthesise{indentExpr dom}\nfor a canonical representative"
+        tele fuel (bd.instantiate1 inst) (args.push inst) olds reps graphs
       else
-        /- A conclusion `g = h` between two `CGraph`s becomes one between their classes, and so
-        does an isomorphism `g ≃cg h`; `congrArg` and `Quotient.sound` supply the two.  Everything
-        else about the statement is rewriting. -/
-        let isEqCG := body.isAppOfArity ``Eq 3 && body.appFn!.appFn!.appArg! == cgraphE
-        let isIsoCG := body.isAppOfArity ``CGraph.Iso 2
-        let body := if isEqCG || isIsoCG then
-            mkAppN (mkConst ``Eq [uIG])
-              #[isographE, mkRep uCG body.appFn!.appArg!, mkRep uCG body.appArg!]
-          else body
-        let newBody ← translateExpr rev olds news graphs body
-        let stmt ← instantiateMVars (← mkForallFVars news newBody)
-        if stmt.getUsedConstants.any (·.getRoot == `CGraph) then
-          throwStillCGraph stmt
-        /- The proof: peel the binders off again, inserting a `Quotient.ind` at each graph.  What
-        is left is the original theorem, applied to the representatives. -/
-        let rec prove (j : Nat) (subst args : Array Expr) : MetaM Expr := do
-          if hj : j < news.size then
-            if graphs[j]! then
-              let tail ← mkForallFVars (news.extract (j + 1) news.size) newBody
-              let motive := (← mkLambdaFVars #[news[j]] tail).replaceFVars
-                (news.extract 0 j) subst
-              withLocalDeclD `g cgraphE fun g ↦ do
-                let inner ← prove (j + 1) (subst.push (mkRep uCG g)) (args.push g)
-                return mkAppN (mkConst ``Quotient.ind [uCG])
-                  #[cgraphE, setoidE, motive, ← mkLambdaFVars #[g] inner]
-            else
-              let decl ← news[j].fvarId!.getDecl
-              let ty := decl.type.replaceFVars (news.extract 0 j) subst
-              withLocalDecl decl.userName decl.binderInfo ty fun y ↦ do
-                let inner ← prove (j + 1) (subst.push y) (args.push y)
-                mkLambdaFVars #[y] inner
+        withLocalDecl nm bi dom fun y ↦
+          tele fuel (bd.instantiate1 y) (args.push y) (olds.push y) (reps.push y)
+            (graphs.push false)
+    | _, body =>
+      /- A conclusion `g = h` between two `CGraph`s becomes one between their classes, and so does
+      an isomorphism `g ≃cg h`; `congrArg` and `Quotient.sound` supply the two.  Everything else
+      about the statement is rewriting. -/
+      let isEqCG := body.isAppOfArity ``Eq 3 && body.appFn!.appFn!.appArg! == cgraphE
+      let isIsoCG := body.isAppOfArity ``CGraph.Iso 2
+      let body := if isEqCG || isIsoCG then
+          mkAppN (mkConst ``Eq [uIG])
+            #[isographE, mkRep uCG body.appFn!.appArg!, mkRep uCG body.appArg!]
+        else body
+      /- Introduce the translated binders, one at a time: a graph becomes an `IsoGraph`, and every
+      other binder keeps its name and its binder info, with its type translated. -/
+      let rec loop (i : Nat) (news : Array Expr) : MetaM Unit := do
+        if h : i < olds.size then
+          let decl ← olds[i].fvarId!.getDecl
+          if graphs[i]! then
+            withLocalDecl decl.userName decl.binderInfo isographE fun q ↦
+              loop (i + 1) (news.push q)
           else
-            let e := mkAppN thm args
-            let base ← if isEqCG then
+            let ty ← translateExpr rev olds reps news graphs decl.type
+            withLocalDecl decl.userName decl.binderInfo ty fun y ↦
+              loop (i + 1) (news.push y)
+        else
+          let newBody ← translateExpr rev olds reps news graphs body
+          let stmt ← instantiateMVars (← mkForallFVars news newBody)
+          if stmt.getUsedConstants.any (·.getRoot == `CGraph) then
+            throwStillCGraph stmt
+          /- The proof: peel the binders off again, inserting a `Quotient.ind` at each graph.  What
+          is left is the original theorem, applied to the representatives.  In canonical mode the
+          `Quotient.ind` lands on `⟦g.canonicalize⟧` and `mk_canonicalize` moves it to `⟦g⟧`. -/
+          let rec prove (j : Nat) (subst substOld : Array Expr) : MetaM Expr := do
+            if hj : j < olds.size then
+              if graphs[j]! then
+                let tail ← mkForallFVars (news.extract (j + 1) news.size) newBody
+                let motive := (← mkLambdaFVars #[news[j]!] tail).replaceFVars
+                  (news.extract 0 j) subst
                 withLocalDeclD `g cgraphE fun g ↦ do
-                  let q ← mkLambdaFVars #[g] (mkRep uCG g)
-                  mkAppM ``congrArg #[q, e]
-              else if isIsoCG then do
-                let isoTy ← inferType e
-                let u ← getLevel isoTy
-                let ne := mkAppN (mkConst ``Nonempty.intro [u]) #[isoTy, e]
-                pure (mkAppN (mkConst ``Quotient.sound [uCG])
-                  #[cgraphE, setoidE, isoTy.appFn!.appArg!, isoTy.appArg!, ne])
-              else pure e
-            transport rev base
-        let prf ← instantiateMVars (← prove 0 #[] #[])
-        addDecl (.thmDecl { name := newName, levelParams := lvls, type := stmt, value := prf })
-        inferDefEqAttr newName
-        if let some doc ← findDocString? (← getEnv) thmName then
-          addDocStringCore newName doc
-        if (← getSimpTheorems).isLemma (.decl thmName) then
-          addSimpTheorem (ext := simpExtension) (declName := newName) (post := true)
-            (inv := false) (attrKind := .global) (prio := eval_prio default)
-        addCorrespondence
-          { kind := .fact, cgraph := thmName, isograph := newName,
-            bridge := Name.anonymous, source := thmName }
-        traceGenerated "theorem" newName
-    loop 0 #[] #[]
+                  let rep := reps[j]!.replaceFVars #[olds[j]!] #[g]
+                  let inner ← prove (j + 1) (subst.push (mkRep uCG rep)) (substOld.push g)
+                  let inner ← if canon then do
+                      let iso ← mkAppM ``RelIso.symm #[← mkAppM ``CGraph.isoCanonicalize #[g]]
+                      mkEqMP (← mkAppM ``congrArg #[motive, ← mkSound uCG rep g iso]) inner
+                    else pure inner
+                  return mkAppN (mkConst ``Quotient.ind [uCG])
+                    #[cgraphE, setoidE, motive, ← mkLambdaFVars #[g] inner]
+              else
+                let decl ← news[j]!.fvarId!.getDecl
+                let ty := decl.type.replaceFVars (news.extract 0 j) subst
+                withLocalDecl decl.userName decl.binderInfo ty fun y ↦ do
+                  let inner ← prove (j + 1) (subst.push y) (substOld.push y)
+                  mkLambdaFVars #[y] inner
+            else
+              let e := mkAppN thm (args.map (·.replaceFVars olds substOld))
+              let base ← if isEqCG then
+                  withLocalDeclD `g cgraphE fun g ↦ do
+                    let q ← mkLambdaFVars #[g] (mkRep uCG g)
+                    mkAppM ``congrArg #[q, e]
+                else if isIsoCG then do
+                  let isoTy ← inferType e
+                  let u ← getLevel isoTy
+                  let ne := mkAppN (mkConst ``Nonempty.intro [u]) #[isoTy, e]
+                  pure (mkAppN (mkConst ``Quotient.sound [uCG])
+                    #[cgraphE, setoidE, isoTy.appFn!.appArg!, isoTy.appArg!, ne])
+                else pure e
+              transport rev base
+          let prf ← instantiateMVars (← prove 0 #[] #[])
+          addDecl (.thmDecl { name := newName, levelParams := lvls, type := stmt, value := prf })
+          inferDefEqAttr newName
+          if let some doc ← findDocString? (← getEnv) thmName then
+            addDocStringCore newName doc
+          if forceSimp || (← getSimpTheorems).isLemma (.decl thmName) then
+            addSimpTheorem (ext := simpExtension) (declName := newName) (post := true)
+              (inv := false) (attrKind := .global) (prio := eval_prio default)
+          addCorrespondence
+            { kind := .fact, cgraph := thmName, isograph := newName,
+              bridge := Name.anonymous, source := thmName }
+          traceGenerated "theorem" newName
+      loop 0 #[]
+  tele 1000 info.type #[] #[] #[] #[]
 
 /-! ## The attribute -/
 
@@ -735,8 +779,11 @@ overrides it.
 On any other `CGraph`-level declaration it generates the `IsoGraph`-level statement of the same
 fact, proved from the original; an equation of graphs and an isomorphism both become an equation
 of isomorphism classes.  It is `@[simp]` exactly when the original is, so write `@[simp,
-toIsoGraph]` and not the other way round. -/
-syntax (name := toIsoGraph) "toIsoGraph" (ppSpace ident)? : attr
+toIsoGraph]` and not the other way round — or `@[toIsoGraph simp]`, which makes the generated
+statement a `simp` lemma without making the `CGraph`-level one into one.  That is what an
+isomorphism wants: `CGraph.Iso.cartesianProductEmptyOne` is a definition and cannot be `simp`,
+while `G □g empty 1 = G` should be. -/
+syntax (name := toIsoGraph) "toIsoGraph" (ppSpace &"simp")? (ppSpace ident)? : attr
 
 /-- Does this statement bind an isomorphism, and so ask for a `Quotient.lift`? -/
 private def isInvariance (type : Expr) : MetaM Bool :=
@@ -758,21 +805,29 @@ initialize registerBuiltinAttribute {
   add := fun decl stx kind => do
     unless kind == .global do
       throwError "toIsoGraph: only a global attribute"
-    let base? : Option Name ← match stx with
-      | `(attr| toIsoGraph) => pure none
-      | `(attr| toIsoGraph $i:ident) => pure (some i.getId)
+    let (forceSimp, base?) ← show CoreM (Bool × Option Name) from match stx with
+      | `(attr| toIsoGraph) => pure (false, none)
+      | `(attr| toIsoGraph simp) => pure (true, none)
+      | `(attr| toIsoGraph $i:ident) => pure (false, some i.getId)
+      | `(attr| toIsoGraph simp $i:ident) => pure (true, some i.getId)
       | _ => throwError "toIsoGraph: unexpected syntax"
     MetaM.run' do
       let type := (← getConstInfo decl).type
       if ← isConstruction type then
+        /- The other three modes generate a lift and its bridge lemma, and the bridge lemma is
+        `simp` already; there is nothing left for `simp` to name. -/
+        if forceSimp then
+          throwError "toIsoGraph: `simp` applies to a fact, and {decl} is a construction"
         generateConstruction decl base?
       else if ← isInvariance type then
+        if forceSimp then
+          throwError "toIsoGraph: `simp` applies to a fact, and {decl} is an isomorphism lift"
         if ← isCongruence type then
           generateConstructionLift decl base?
         else
           generateLift decl base?
       else
-        generateFact decl base?
+        generateFact decl base? forceSimp
 }
 
 /-! ## The dictionary by hand
