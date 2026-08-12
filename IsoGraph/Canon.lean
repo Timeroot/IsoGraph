@@ -16,6 +16,8 @@ import IsoGraph.Canon.Optimal
 import IsoGraph.Canon.Correct
 import IsoGraph.Canon.Spec
 import IsoGraph.Canon.Group
+import IsoGraph.Canon.Subtree
+import IsoGraph.Canon.Chain
 
 /-!
 # The canonical labelling engine
