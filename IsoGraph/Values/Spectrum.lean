@@ -8902,19 +8902,19 @@ theorem spectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [tensorProduct_mk, energy_mk, energy_mk, energy_mk, CGraph.energy_tensorProduct g h]
 
-theorem spectrum_tensorProduct (G H : IsoGraph) :
+@[simp] theorem spectrum_tensorProduct (G H : IsoGraph) :
     (G ⊗g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 * p.2) :=
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [tensorProduct_mk, spectrum_mk, spectrum_mk, spectrum_mk,
       CGraph.spectrum_tensorProduct' g h]
 
-theorem spectrum_cartesianProduct (G H : IsoGraph) :
+@[simp] theorem spectrum_cartesianProduct (G H : IsoGraph) :
     (G □g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 + p.2) :=
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [cartesianProduct_mk, spectrum_mk, spectrum_mk, spectrum_mk,
       CGraph.spectrum_cartesianProduct' g h]
 
-theorem spectrum_strongProduct (G H : IsoGraph) :
+@[simp] theorem spectrum_strongProduct (G H : IsoGraph) :
     (G ⊠g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ (1 + p.1) * (1 + p.2) - 1) :=
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [strongProduct_mk, spectrum_mk, spectrum_mk, spectrum_mk,
@@ -9487,7 +9487,7 @@ theorem lapLambdaMax_eq_zero_iff (G : IsoGraph) (h : 0 < G.V) :
 
 /-- **The Laplacian eigenvalues of a cartesian product are the sums of the Laplacian
 eigenvalues.** -/
-theorem lapSpectrum_cartesianProduct (G H : IsoGraph) :
+@[simp] theorem lapSpectrum_cartesianProduct (G H : IsoGraph) :
     (G □g H).lapSpectrum = (G.lapSpectrum ×ˢ H.lapSpectrum).map (fun p ↦ p.1 + p.2) :=
   Quotient.inductionOn₂ G H fun g h ↦ by
     rw [cartesianProduct_mk, lapSpectrum_mk, lapSpectrum_mk, lapSpectrum_mk,

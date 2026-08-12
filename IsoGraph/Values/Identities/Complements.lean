@@ -1694,7 +1694,7 @@ theorem diameter_compl_disjUnion_complete (m n : ℕ) :
 
 /-! ### Vertex cover numbers of complements -/
 
-theorem coverNum_compl_eq (G : IsoGraph) : Gᶜ.coverNum = G.V - G.cliqueNum := by
+@[simp] theorem coverNum_compl_eq (G : IsoGraph) : Gᶜ.coverNum = G.V - G.cliqueNum := by
   have h := coverNum_compl_add_cliqueNum G
   omega
 

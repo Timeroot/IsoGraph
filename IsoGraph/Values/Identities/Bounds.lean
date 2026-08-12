@@ -1210,7 +1210,7 @@ example : (complete 4).indepCount 2 = 0 := by
 
 /-! ### Counting cliques in a disjoint union -/
 
-theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
+@[simp] theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
     (G ∇g H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
   rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
 
@@ -2897,7 +2897,7 @@ theorem cliqueCoverNum_eq (G : IsoGraph) : G.cliqueCoverNum = chromNum Gᶜ := r
     Gᶜ.cliqueCoverNum = G.chromNum := by
   rw [cliqueCoverNum_eq, compl_compl]
 
-theorem chromNum_compl (G : IsoGraph) :
+@[simp] theorem chromNum_compl (G : IsoGraph) :
     Gᶜ.chromNum = G.cliqueCoverNum := rfl
 
 /-- `α ≤ θ`, the complement of `ω ≤ χ`: a clique cover needs a separate clique for each vertex

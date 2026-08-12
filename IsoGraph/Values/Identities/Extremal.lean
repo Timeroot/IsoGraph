@@ -1694,7 +1694,7 @@ theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
       simpa [CGraph.toSimple_adj] using hcl ha hb this
 
 /-- Cliques never cross between the two sides, so from size one on the counts simply add. -/
-@[toIsoGraph]
+@[toIsoGraph simp]
 theorem cliqueCount_disjUnion (G H : CGraph) (n : ℕ) :
     (disjUnion G H).cliqueCount (n + 1) = G.cliqueCount (n + 1) + H.cliqueCount (n + 1) := by
   classical

@@ -906,7 +906,7 @@ theorem E_compl (G : IsoGraph) : Gᶜ.E + G.E = G.V.choose 2 := by
   rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
   exact CGraph.E_compl _
 
-theorem E_compl_eq (G : IsoGraph) : Gᶜ.E = G.V.choose 2 - G.E := by
+@[simp] theorem E_compl_eq (G : IsoGraph) : Gᶜ.E = G.V.choose 2 - G.E := by
   have := G.E_compl
   omega
 

@@ -1282,7 +1282,7 @@ theorem E_le_E_turan {G : IsoGraph} {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ 
 
 /-- Each original vertex of `μ(G)` has its degree doubled, each shadow gains the apex, and the
 apex sees every shadow. -/
-theorem degMultiset_mycielskian (G : IsoGraph) :
+@[simp] theorem degMultiset_mycielskian (G : IsoGraph) :
     (mycielskian G).degMultiset
       = G.degMultiset.map (fun d ↦ 2 * d) + G.degMultiset.map (fun d ↦ d + 1) + {G.V} := by
   induction G using Quotient.inductionOn with | _ g =>
@@ -1488,7 +1488,7 @@ theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
 
 /-- In the Mycielskian each original vertex has its degree doubled, each shadow vertex has one
 more neighbour than its original, and the apex sees every shadow. -/
-theorem maxDeg_mycielskian (G : IsoGraph) :
+@[simp] theorem maxDeg_mycielskian (G : IsoGraph) :
     maxDeg (mycielskian G) = max (2 * maxDeg G) G.V := by
   induction G using Quotient.inductionOn with
   | h g =>

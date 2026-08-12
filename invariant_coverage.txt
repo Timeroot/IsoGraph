@@ -30,7 +30,7 @@ be nonempty.  See the list of names at the end for what each filled cell actuall
   9.  tensorProduct
 
                     1    2    3    4    5    6    7    8    9    
-E                   S    T    S    S    S    T    S    S    S    
+E                   S    S    S    S    S    T    S    S    S    
 IsAcyclic           T    .    .    T    T    T    T    T    T    
 IsArcTransitive     t    .    .    .    .    .    T    t    .    
 IsBipartite         S    .    S    T    T    T    T    T    T    
@@ -45,29 +45,29 @@ V                   S    S    S    S    S    S    S    S    S
 algConn             T    T    T    T    .    .    .    .    .    
 autCount            b    S    b    b    b    b    .    b    b    
 charpoly            .    .    S    .    .    .    .    .    .    
-chromNum            T    T    S    S    T    S    S    T    T    
-cliqueCount         .    S    T    .    .    .    T    .    .    
+chromNum            T    S    S    S    T    S    S    T    T    
+cliqueCount         .    S    S    .    .    .    T    .    .    
 cliqueCoverNum      .    S    S    S    T    b    T    .    .    
 cliqueNum           T    S    S    S    S    T    T    S    S    
-coverNum            s    T    S    S    S    S    b    s    b    
-degMultiset         S    S    S    S    S    .    T    S    S    
+coverNum            s    S    S    S    S    S    b    s    b    
+degMultiset         S    S    S    S    S    .    S    S    S    
 degSequence         T    s    .    .    T    s    ~s   T    T    
 diameter            T    T    S    T    b    b    b    T    .    
 domNum              b    b    S    S    T    b    T    T    .    
 edgeChromNum        t    .    S    .    .    b    b    .    .    
 energy              .    .    S    .    .    .    .    .    S    
 girth               T    t    s    T    T    T    t    T    T    
-indepCount          .    S    .    T    .    .    .    .    .    
+indepCount          .    S    .    S    .    .    .    .    .    
 indepNum            s    S    S    S    S    S    b    s    b    
 lapCharpoly         .    .    ~S   .    .    .    .    .    .    
 lapLambdaMax        T    T    T    T    .    .    .    .    .    
-lapSpectrum         T    T    S    T    .    .    .    .    .    
+lapSpectrum         S    T    S    T    .    .    .    .    .    
 matchNum            s    .    S    .    .    b    T    s    .    
-maxDeg              T    T    S    T    T    T    T    T    T    
+maxDeg              T    T    S    T    T    T    S    T    T    
 minDeg              T    T    T    T    T    T    T    T    T    
 numComponents       S    T    S    S    S    S    T    S    T    
 radius              T    b    S    T    T    b    T    T    .    
-spectrum            T    ~T   S    T    .    ~T   .    T    T    
+spectrum            S    ~T   S    T    .    ~T   .    S    S    
 
 ## Families
 
@@ -369,7 +369,7 @@ tensorProduct (18/38 missing)
 ## Theorems found
 
   S   E                   cartesianProduct      E_cartesianProduct
-  T   E                   compl                 E_compl_eq
+  S   E                   compl                 E_compl_eq
   S   E                   disjUnion             E_disjUnion
   S   E                   join                  E_join
   S   E                   lexProduct            E_lexProduct
@@ -832,7 +832,7 @@ tensorProduct (18/38 missing)
   ~T  charpoly            cycle                 charpoly_cycle
   ~S  charpoly            empty                 charpoly_empty
   T   chromNum            cartesianProduct      chromNum_cartesianProduct
-  T   chromNum            compl                 chromNum_compl
+  S   chromNum            compl                 chromNum_compl
   S   chromNum            disjUnion             chromNum_disjUnion
   S   chromNum            join                  chromNum_join
   T   chromNum            lexProduct            chromNum_lexProduct_of_chromNum_eq_cliqueNum
@@ -873,7 +873,7 @@ tensorProduct (18/38 missing)
   S   chromNum            turan                 chromNum_turan
   S   chromNum            wheel                 chromNum_wheel_even
   S   cliqueCount         compl                 cliqueCount_compl
-  T   cliqueCount         disjUnion             cliqueCount_disjUnion
+  S   cliqueCount         disjUnion             cliqueCount_disjUnion
   T   cliqueCount         mycielskian           cliqueCount_mycielskian
   S   cliqueCount         bipartite             cliqueCount_bipartite
   T   cliqueCount         circulant             cliqueCount_circulant
@@ -975,7 +975,7 @@ tensorProduct (18/38 missing)
   S   cliqueNum           turan                 cliqueNum_turan
   S   cliqueNum           wheel                 cliqueNum_wheel
   s   coverNum            cartesianProduct      coverNum_grid
-  T   coverNum            compl                 coverNum_compl_eq
+  S   coverNum            compl                 coverNum_compl_eq
   S   coverNum            disjUnion             coverNum_disjUnion
   S   coverNum            join                  coverNum_join
   S   coverNum            lexProduct            coverNum_lexProduct
@@ -1020,7 +1020,7 @@ tensorProduct (18/38 missing)
   S   degMultiset         disjUnion             degMultiset_disjUnion
   S   degMultiset         join                  degMultiset_join
   S   degMultiset         lexProduct            degMultiset_lexProduct
-  T   degMultiset         mycielskian           degMultiset_mycielskian
+  S   degMultiset         mycielskian           degMultiset_mycielskian
   S   degMultiset         strongProduct         degMultiset_strongProduct
   S   degMultiset         tensorProduct         degMultiset_tensorProduct
   S   degMultiset         bipartite             degMultiset_bipartite
@@ -1235,7 +1235,7 @@ tensorProduct (18/38 missing)
   S   girth               turan                 girth_turan
   S   girth               wheel                 girth_wheel
   S   indepCount          compl                 indepCount_compl
-  T   indepCount          join                  indepCount_join
+  S   indepCount          join                  indepCount_join
   S   indepCount          bipartite             indepCount_bipartite
   S   indepCount          complete              indepCount_complete
   S   indepCount          empty                 indepCount_empty
@@ -1301,7 +1301,7 @@ tensorProduct (18/38 missing)
   S   lapLambdaMax        star                  lapLambdaMax_star
   ~T  lapLambdaMax        triangular            lapLambdaMax_triangular
   T   lapLambdaMax        wheel                 lapLambdaMax_wheel
-  T   lapSpectrum         cartesianProduct      lapSpectrum_cartesianProduct
+  S   lapSpectrum         cartesianProduct      lapSpectrum_cartesianProduct
   T   lapSpectrum         compl                 lapSpectrum_compl
   S   lapSpectrum         disjUnion             lapSpectrum_disjUnion
   T   lapSpectrum         join                  lapSpectrum_join
@@ -1363,7 +1363,7 @@ tensorProduct (18/38 missing)
   T   maxDeg              join                  maxDeg_join
   T   maxDeg              lexProduct            maxDeg_lexProduct
   T   maxDeg              lineGraph             maxDeg_lineGraph
-  T   maxDeg              mycielskian           maxDeg_mycielskian
+  S   maxDeg              mycielskian           maxDeg_mycielskian
   T   maxDeg              strongProduct         maxDeg_strongProduct
   T   maxDeg              tensorProduct         maxDeg_tensorProduct
   S   maxDeg              bipartite             maxDeg_bipartite
@@ -1520,13 +1520,13 @@ tensorProduct (18/38 missing)
   T   radius              triangular            radius_triangular
   S   radius              turan                 radius_turan
   S   radius              wheel                 radius_wheel
-  T   spectrum            cartesianProduct      spectrum_cartesianProduct
+  S   spectrum            cartesianProduct      spectrum_cartesianProduct
   ~T  spectrum            compl                 spectrum_compl_of_isRegularWith
   S   spectrum            disjUnion             spectrum_disjUnion
   T   spectrum            join                  spectrum_join_of_isRegularWith
   ~T  spectrum            lineGraph             spectrum_lineGraph_of_isRegularWith
-  T   spectrum            strongProduct         spectrum_strongProduct
-  T   spectrum            tensorProduct         spectrum_tensorProduct
+  S   spectrum            strongProduct         spectrum_strongProduct
+  S   spectrum            tensorProduct         spectrum_tensorProduct
   ~T  spectrum            bipartite             spectrum_bipartite
   ~T  spectrum            cocktailParty         spectrum_cocktailParty
   T   spectrum            complete              spectrum_complete
