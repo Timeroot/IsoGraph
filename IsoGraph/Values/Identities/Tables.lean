@@ -1339,11 +1339,6 @@ theorem diameter_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
 theorem compl_petersen : petersenᶜ = triangular 5 := by
   rw [triangular_eq_compl_kneser]
 
-/-- **The Petersen graph is the complement of the line graph of `K₅`** — Kneser's original
-description of it. -/
-theorem petersen_eq_compl_lineGraph : petersen = (lineGraph (complete 5))ᶜ := by
-  rw [lineGraph_complete_eq_triangular, ← compl_petersen, compl_compl]
-
 /-- `L(K₃) = K₃`. -/
 theorem lineGraph_complete_three : lineGraph (complete 3) = complete 3 := by
   rw [lineGraph_complete_eq_triangular, triangular_three]
@@ -1351,10 +1346,6 @@ theorem lineGraph_complete_three : lineGraph (complete 3) = complete 3 := by
 /-- `L(K₄) = T(4)` is the octahedron. -/
 @[simp] theorem lineGraph_complete_four : lineGraph (complete 4) = cocktailParty 3 := by
   rw [lineGraph_complete_eq_triangular, triangular_four]
-
-/-- `L(C₃) = C₃`, the triangle being its own line graph. -/
-theorem lineGraph_cycle_three : lineGraph (cycle 3) = cycle 3 := by
-  rw [cycle_three, lineGraph_complete_three]
 
 /-- Successor mod `n + 3`, the "next vertex" map along the cycle. -/
 private def cyc (n : ℕ) (i : Fin (n + 3)) : Fin (n + 3) :=
@@ -1460,13 +1451,6 @@ is where `n ≥ 3` enters: for `n = 2` the two "edges" `{0, 1}` and `{1, 0}` coi
   rw [cycle_def, lineGraph_mk]
   exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (cycEdge n) hbij) hadj).symm⟩
 
-/-- `L(C₄) = C₄`. -/
-theorem lineGraph_cycle_four : lineGraph (cycle 4) = cycle 4 := lineGraph_cycle 1
-
-/-- `L(C₅) = C₅`.  Together with `compl_cycle_five`, the pentagon is both self-complementary and
-its own line graph. -/
-theorem lineGraph_cycle_five : lineGraph (cycle 5) = cycle 5 := lineGraph_cycle 2
-
 /-- Path adjacency at the level of the underlying naturals.  Note that `i ≠ j` is implied by
 either disjunct, so it drops out. -/
 private theorem path_adj_val (n : ℕ) (i j : Fin n) :
@@ -1531,10 +1515,6 @@ no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
             (mem_pathEdge n _ j).2 (Or.inr (Fin.ext (by simpa using h.symm)))⟩
   rw [path_def, lineGraph_mk]
   exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (pathEdge n) hbij) hadj).symm⟩
-
-/-- `L(P₃) = P₂ = K₂`. -/
-theorem lineGraph_path_three : lineGraph (path 3) = complete 2 := by
-  rw [show (3 : ℕ) = 2 + 1 from rfl, lineGraph_path, path_two]
 
 private theorem bipartiteEdge_adj (m n : ℕ) (p : Fin m × Fin n) :
     s(Sum.inl p.1, Sum.inr p.2) ∈ (CGraph.bipartite m n).toSimple.edgeSet := by

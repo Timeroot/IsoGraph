@@ -1800,9 +1800,6 @@ theorem isBipartite_cyclePendant_one (k : ℕ) : IsBipartite (cyclePendant 1 [k]
   rw [cyclePendant_one]
   exact isBipartite_star k
 
-theorem lineGraph_cyclePendant_one (k : ℕ) : lineGraph (cyclePendant 1 [k]) = complete k := by
-  rw [cyclePendant_one, lineGraph_star]
-
 theorem compl_cyclePendant_one (k : ℕ) : (cyclePendant 1 [k])ᶜ = empty 1 ⊕g complete k := by
   rw [cyclePendant_one, compl_star]
 
@@ -1934,12 +1931,6 @@ theorem isArcTransitive_lollipop_zero (m : ℕ) : IsArcTransitive (lollipop m 0)
   rw [lollipop_zero]
   exact isArcTransitive_complete m
 
-theorem compl_lollipop_zero (m : ℕ) : (lollipop m 0)ᶜ = empty m := by
-  rw [lollipop_zero, compl_complete]
-
-theorem lineGraph_lollipop_zero (m : ℕ) : lineGraph (lollipop m 0) = johnson m 2 := by
-  rw [lollipop_zero, lineGraph_complete]
-
 /-! ### One-path theta graphs and one-legged spiders
 
 A theta graph with a single path and a spider with a single leg are both paths, so the path row
@@ -2013,9 +2004,6 @@ theorem isConnected_thetaGraph_singleton (k : ℕ) : IsConnected (thetaGraph [k]
 
 theorem numComponents_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).numComponents = 1 := by
   rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring, numComponents_path]
-
-theorem lineGraph_thetaGraph_singleton (k : ℕ) : lineGraph (thetaGraph [k]) = path (k + 1) := by
-  rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring, lineGraph_path]
 
 theorem not_isVertexTransitive_thetaGraph_singleton (k : ℕ) :
     ¬ IsVertexTransitive (thetaGraph [k + 1]) := by
@@ -2185,12 +2173,6 @@ theorem diameter_kneser_one (n : ℕ) : (kneser (n + 2) 1).diameter = 1 := by
 theorem autCount_kneser_one (n : ℕ) : (kneser n 1).autCount = Nat.factorial n := by
   rw [kneser_one, autCount_complete]
 
-theorem compl_kneser_one (n : ℕ) : (kneser n 1)ᶜ = empty n := by
-  rw [kneser_one, compl_complete]
-
-theorem lineGraph_kneser_one (n : ℕ) : lineGraph (kneser n 1) = johnson n 2 := by
-  rw [kneser_one, lineGraph_complete]
-
 theorem girth_kneser_one (n : ℕ) : (kneser (n + 3) 1).girth = 3 := by
   rw [kneser_one, girth_complete]
 
@@ -2233,12 +2215,6 @@ theorem autCount_johnson_one (n : ℕ) : (johnson n 1).autCount = Nat.factorial 
 theorem isArcTransitive_johnson_one (n : ℕ) : IsArcTransitive (johnson n 1) := by
   rw [johnson_one]
   exact isArcTransitive_complete n
-
-theorem compl_johnson_one (n : ℕ) : (johnson n 1)ᶜ = empty n := by
-  rw [johnson_one, compl_complete]
-
-theorem lineGraph_johnson_one (n : ℕ) : lineGraph (johnson n 1) = johnson n 2 := by
-  rw [johnson_one, lineGraph_complete]
 
 @[simp] theorem not_isSelfComplementary_johnson_one (n : ℕ) :
     ¬ IsSelfComplementary (johnson (n + 2) 1) := by
@@ -2318,12 +2294,6 @@ theorem not_isConnected_circulant_nil (n : ℕ) : ¬ IsConnected (circulant (n +
     ¬ IsSelfComplementary (circulant (n + 2) []) := by
   rw [circulant_nil]
   exact not_isSelfComplementary_empty n
-
-theorem compl_circulant_nil (n : ℕ) : (circulant n [])ᶜ = complete n := by
-  rw [circulant_nil, compl_empty]
-
-theorem lineGraph_circulant_nil (n : ℕ) : lineGraph (circulant n []) = empty 0 := by
-  rw [circulant_nil, lineGraph_empty]
 
 /-! ### Tadpoles and lollipops on a one-vertex head
 

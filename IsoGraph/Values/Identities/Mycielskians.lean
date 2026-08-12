@@ -19,29 +19,9 @@ namespace IsoGraph
   rw [V_join, V_star, V_star]
   omega
 
-theorem E_join_star (m n : ℕ) :
-    (star m ∇g star n).E = m + n + (1 + m) * (1 + n) := by
-  rw [E_join, E_star, E_star, V_star, V_star]
-
 theorem cliqueNum_join_star (m n : ℕ) :
     (star (m + 1) ∇g star (n + 1)).cliqueNum = 4 := by
   rw [cliqueNum_join, cliqueNum_star, cliqueNum_star]
-
-theorem chromNum_join_star (m n : ℕ) :
-    (star (m + 1) ∇g star (n + 1)).chromNum = 4 := by
-  rw [chromNum_join, chromNum_star, chromNum_star]
-
-theorem indepNum_join_star (m n : ℕ) :
-    (star m ∇g star n).indepNum = max (max 1 m) (max 1 n) := by
-  rw [indepNum_join, indepNum_star, indepNum_star]
-
-theorem coverNum_join_star (m n : ℕ) :
-    (star m ∇g star n).coverNum = min (min 1 m + (1 + n)) (1 + m + min 1 n) := by
-  rw [coverNum_join, coverNum_star, coverNum_star, V_star, V_star]
-
-theorem cliqueCoverNum_join_star (m n : ℕ) :
-    (star m ∇g star n).cliqueCoverNum = max (max 1 m) (max 1 n) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_star, cliqueCoverNum_star]
 
 theorem maxDeg_join_star (m n : ℕ) :
     maxDeg (star (m + 1) ∇g star (n + 1)) = m + n + 3 := by
@@ -56,12 +36,6 @@ theorem minDeg_join_star (m n : ℕ) :
     (by rw [V_star]; omega) (by rw [V_star]; omega)
   rw [minDeg_star, minDeg_star, V_star, V_star] at h
   omega
-
-theorem isConnected_join_star (m n : ℕ) : IsConnected (star m ∇g star n) :=
-  isConnected_join (by rw [V_star]; omega) (by rw [V_star]; omega)
-
-theorem numComponents_join_star (m n : ℕ) : (star m ∇g star n).numComponents = 1 :=
-  numComponents_join (by rw [V_star]; omega) (by rw [V_star]; omega)
 
 theorem diameter_join_star (m n : ℕ) : (star (m + 2) ∇g star n).diameter = 2 := by
   have h : (1 + (m + 2)).choose 2 = (m + 3) * (m + 2) / 2 := by
@@ -85,30 +59,9 @@ theorem girth_join_star (m n : ℕ) : (star (m + 1) ∇g star (n + 1)).girth = 3
   rw [V_join, V_complete, V_star]
   omega
 
-theorem E_join_complete_star (m n : ℕ) :
-    (complete m ∇g star n).E = m.choose 2 + n + m * (1 + n) := by
-  rw [E_join, E_complete, E_star, V_complete, V_star]
-
 theorem cliqueNum_join_complete_star (m n : ℕ) :
     (complete m ∇g star (n + 1)).cliqueNum = m + 2 := by
   rw [cliqueNum_join, cliqueNum_complete, cliqueNum_star]
-
-theorem chromNum_join_complete_star (m n : ℕ) :
-    (complete m ∇g star (n + 1)).chromNum = m + 2 := by
-  rw [chromNum_join, chromNum_complete, chromNum_star]
-
-theorem indepNum_join_complete_star (m n : ℕ) :
-    (complete m ∇g star n).indepNum = max (min m 1) (max 1 n) := by
-  rw [indepNum_join, indepNum_complete, indepNum_star]
-
-theorem coverNum_join_complete_star (m n : ℕ) :
-    (complete m ∇g star n).coverNum = min (m - 1 + (1 + n)) (m + min 1 n) := by
-  rw [coverNum_join, coverNum_complete, coverNum_star, V_complete, V_star]
-
-theorem cliqueCoverNum_join_complete_star (m n : ℕ) :
-    (complete (m + 1) ∇g star n).cliqueCoverNum = max 1 n := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_complete, cliqueCoverNum_star]
-  omega
 
 theorem maxDeg_join_complete_star (m n : ℕ) :
     maxDeg (complete (m + 1) ∇g star (n + 1)) = m + n + 2 := by
@@ -123,14 +76,6 @@ theorem minDeg_join_complete_star (m n : ℕ) :
     (by rw [V_complete]; omega) (by rw [V_star]; omega)
   rw [minDeg_complete, minDeg_star, V_complete, V_star] at h
   omega
-
-theorem isConnected_join_complete_star (m n : ℕ) :
-    IsConnected (complete (m + 1) ∇g star n) :=
-  isConnected_join (by rw [V_complete]; omega) (by rw [V_star]; omega)
-
-theorem numComponents_join_complete_star (m n : ℕ) :
-    (complete (m + 1) ∇g star n).numComponents = 1 :=
-  numComponents_join (by rw [V_complete]; omega) (by rw [V_star]; omega)
 
 theorem diameter_join_complete_star (m n : ℕ) :
     (complete (m + 1) ∇g star (n + 2)).diameter = 2 := by
@@ -156,34 +101,9 @@ theorem girth_join_complete_star (m n : ℕ) :
   rw [V_join, V_cycle, V_star]
   omega
 
-theorem E_join_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ∇g star n).E = m + 3 + n + (m + 3) * (1 + n) := by
-  rw [E_join, E_cycle, E_star, V_cycle, V_star]
-
 theorem cliqueNum_join_cycle_star (m n : ℕ) :
     (cycle (m + 4) ∇g star (n + 1)).cliqueNum = 4 := by
   rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_star]
-
-theorem chromNum_join_cycle_star_even (m n : ℕ) :
-    (cycle (2 * m + 2) ∇g star (n + 1)).chromNum = 4 := by
-  rw [chromNum_join, chromNum_cycle_even, chromNum_star]
-
-theorem chromNum_join_cycle_star_odd (m n : ℕ) :
-    (cycle (2 * m + 3) ∇g star (n + 1)).chromNum = 5 := by
-  rw [chromNum_join, chromNum_cycle_odd, chromNum_star]
-
-theorem indepNum_join_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ∇g star n).indepNum = max ((m + 3) / 2) (max 1 n) := by
-  rw [indepNum_join, indepNum_cycle, indepNum_star]
-
-theorem coverNum_join_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ∇g star n).coverNum
-      = min (m + 3 - (m + 3) / 2 + (1 + n)) (m + 3 + min 1 n) := by
-  rw [coverNum_join, coverNum_cycle, coverNum_star, V_cycle, V_star]
-
-theorem cliqueCoverNum_join_cycle_star (m n : ℕ) :
-    (cycle (m + 4) ∇g star n).cliqueCoverNum = max ((m + 5) / 2) (max 1 n) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_cycle, cliqueCoverNum_star]
 
 theorem maxDeg_join_cycle_star (m n : ℕ) :
     maxDeg (cycle (m + 3) ∇g star (n + 1)) = m + n + 4 := by
@@ -198,14 +118,6 @@ theorem minDeg_join_cycle_star (m n : ℕ) :
     (by rw [V_cycle]; omega) (by rw [V_star]; omega)
   rw [minDeg_cycle, minDeg_star, V_cycle, V_star] at h
   omega
-
-theorem isConnected_join_cycle_star (m n : ℕ) :
-    IsConnected (cycle (m + 3) ∇g star n) :=
-  isConnected_join (by rw [V_cycle]; omega) (by rw [V_star]; omega)
-
-theorem numComponents_join_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ∇g star n).numComponents = 1 :=
-  numComponents_join (by rw [V_cycle]; omega) (by rw [V_star]; omega)
 
 theorem diameter_join_cycle_star (m n : ℕ) :
     (cycle (m + 4) ∇g star n).diameter = 2 := by
@@ -229,47 +141,6 @@ theorem girth_join_cycle_star (m n : ℕ) :
   rw [V_disjUnion, V_star, V_star]
   omega
 
-theorem cliqueNum_disjUnion_star (m n : ℕ) :
-    (star (m + 1) ⊕g star (n + 1)).cliqueNum = 2 := by
-  have h := cliqueNum_disjUnion (star (m + 1)) (star (n + 1))
-  rw [cliqueNum_star, cliqueNum_star] at h
-  omega
-
-theorem chromNum_disjUnion_star (m n : ℕ) :
-    (star (m + 1) ⊕g star (n + 1)).chromNum = 2 := by
-  have h := chromNum_disjUnion (star (m + 1)) (star (n + 1))
-  rw [chromNum_star, chromNum_star] at h
-  omega
-
-theorem indepNum_disjUnion_star (m n : ℕ) :
-    (star m ⊕g star n).indepNum = max 1 m + max 1 n := by
-  rw [indepNum_disjUnion, indepNum_star, indepNum_star]
-
-theorem coverNum_disjUnion_star (m n : ℕ) :
-    (star m ⊕g star n).coverNum = min 1 m + min 1 n := by
-  rw [coverNum_disjUnion, coverNum_star, coverNum_star]
-
-theorem cliqueCoverNum_disjUnion_star (m n : ℕ) :
-    (star m ⊕g star n).cliqueCoverNum = max 1 m + max 1 n := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_star, cliqueCoverNum_star]
-
-theorem matchNum_disjUnion_star (m n : ℕ) :
-    (star m ⊕g star n).matchNum = min m 1 + min n 1 := by
-  rw [matchNum_disjUnion, matchNum_star, matchNum_star]
-
-theorem domNum_disjUnion_star (m n : ℕ) : (star m ⊕g star n).domNum = 2 := by
-  have h := domNum_disjUnion (star m) (star n)
-  rw [domNum_star, domNum_star] at h
-  omega
-
-theorem edgeChromNum_disjUnion_star (m n : ℕ) :
-    (star m ⊕g star n).edgeChromNum = max m n := by
-  rw [edgeChromNum_disjUnion, edgeChromNum_star, edgeChromNum_star]
-
-theorem maxDeg_disjUnion_star (m n : ℕ) :
-    maxDeg (star (m + 1) ⊕g star (n + 1)) = max (m + 1) (n + 1) := by
-  rw [maxDeg_disjUnion, maxDeg_star, maxDeg_star]
-
 theorem minDeg_disjUnion_star (m n : ℕ) :
     minDeg (star (m + 1) ⊕g star (n + 1)) = 1 := by
   have h := minDeg_disjUnion (G := star (m + 1)) (H := star (n + 1))
@@ -280,52 +151,12 @@ theorem minDeg_disjUnion_star (m n : ℕ) :
 theorem not_isConnected_disjUnion_star (m n : ℕ) : ¬ IsConnected (star m ⊕g star n) :=
   not_isConnected_disjUnion (by rw [V_star]; omega) (by rw [V_star]; omega)
 
-theorem diameter_disjUnion_star (m n : ℕ) : (star m ⊕g star n).diameter = 0 :=
-  diameter_disjUnion (by rw [V_star]; omega) (by rw [V_star]; omega)
-
-theorem radius_disjUnion_star (m n : ℕ) : (star m ⊕g star n).radius = 0 :=
-  radius_disjUnion (by rw [V_star]; omega) (by rw [V_star]; omega)
-
 /-! ### The disjoint union of a complete graph and a star -/
 
 @[simp] theorem V_disjUnion_complete_star (m n : ℕ) :
     (complete m ⊕g star n).V = m + n + 1 := by
   rw [V_disjUnion, V_complete, V_star]
   omega
-
-theorem cliqueNum_disjUnion_complete_star (m n : ℕ) :
-    (complete m ⊕g star (n + 1)).cliqueNum = max m 2 := by
-  rw [cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_star]
-
-theorem chromNum_disjUnion_complete_star (m n : ℕ) :
-    (complete m ⊕g star (n + 1)).chromNum = max m 2 := by
-  rw [chromNum_disjUnion, chromNum_complete, chromNum_star]
-
-theorem indepNum_disjUnion_complete_star (m n : ℕ) :
-    (complete m ⊕g star n).indepNum = min m 1 + max 1 n := by
-  rw [indepNum_disjUnion, indepNum_complete, indepNum_star]
-
-theorem coverNum_disjUnion_complete_star (m n : ℕ) :
-    (complete m ⊕g star n).coverNum = m - 1 + min 1 n := by
-  rw [coverNum_disjUnion, coverNum_complete, coverNum_star]
-
-theorem cliqueCoverNum_disjUnion_complete_star (m n : ℕ) :
-    (complete (m + 1) ⊕g star n).cliqueCoverNum = 1 + max 1 n := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_complete, cliqueCoverNum_star]
-
-theorem matchNum_disjUnion_complete_star (m n : ℕ) :
-    (complete m ⊕g star n).matchNum = m / 2 + min n 1 := by
-  rw [matchNum_disjUnion, matchNum_complete, matchNum_star]
-
-theorem domNum_disjUnion_complete_star (m n : ℕ) :
-    (complete (m + 1) ⊕g star n).domNum = 2 := by
-  have h := domNum_disjUnion (complete (m + 1)) (star n)
-  rw [domNum_complete, domNum_star] at h
-  omega
-
-theorem maxDeg_disjUnion_complete_star (m n : ℕ) :
-    maxDeg (complete m ⊕g star (n + 1)) = max (m - 1) (n + 1) := by
-  rw [maxDeg_disjUnion, maxDeg_complete, maxDeg_star]
 
 theorem minDeg_disjUnion_complete_star (m n : ℕ) :
     minDeg (complete (m + 1) ⊕g star (n + 1)) = min m 1 := by
@@ -338,14 +169,6 @@ theorem not_isConnected_disjUnion_complete_star (m n : ℕ) :
     ¬ IsConnected (complete (m + 1) ⊕g star n) :=
   not_isConnected_disjUnion (by rw [V_complete]; omega) (by rw [V_star]; omega)
 
-theorem diameter_disjUnion_complete_star (m n : ℕ) :
-    (complete (m + 1) ⊕g star n).diameter = 0 :=
-  diameter_disjUnion (by rw [V_complete]; omega) (by rw [V_star]; omega)
-
-theorem radius_disjUnion_complete_star (m n : ℕ) :
-    (complete (m + 1) ⊕g star n).radius = 0 :=
-  radius_disjUnion (by rw [V_complete]; omega) (by rw [V_star]; omega)
-
 /-! ### The disjoint union of a cycle and a star -/
 
 @[simp] theorem V_disjUnion_cycle_star (m n : ℕ) :
@@ -353,47 +176,11 @@ theorem radius_disjUnion_complete_star (m n : ℕ) :
   rw [V_disjUnion, V_cycle, V_star]
   omega
 
-theorem cliqueNum_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 4) ⊕g star (n + 1)).cliqueNum = 2 := by
-  have h := cliqueNum_disjUnion (cycle (m + 4)) (star (n + 1))
-  rw [cliqueNum_cycle, cliqueNum_star] at h
-  omega
-
-theorem chromNum_disjUnion_cycle_star_even (m n : ℕ) :
-    (cycle (2 * m + 2) ⊕g star (n + 1)).chromNum = 2 := by
-  have h := chromNum_disjUnion (cycle (2 * m + 2)) (star (n + 1))
-  rw [chromNum_cycle_even, chromNum_star] at h
-  omega
-
 theorem chromNum_disjUnion_cycle_star_odd (m n : ℕ) :
     (cycle (2 * m + 3) ⊕g star (n + 1)).chromNum = 3 := by
   have h := chromNum_disjUnion (cycle (2 * m + 3)) (star (n + 1))
   rw [chromNum_cycle_odd, chromNum_star] at h
   omega
-
-theorem indepNum_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ⊕g star n).indepNum = (m + 3) / 2 + max 1 n := by
-  rw [indepNum_disjUnion, indepNum_cycle, indepNum_star]
-
-theorem coverNum_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ⊕g star n).coverNum = m + 3 - (m + 3) / 2 + min 1 n := by
-  rw [coverNum_disjUnion, coverNum_cycle, coverNum_star]
-
-theorem cliqueCoverNum_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 4) ⊕g star n).cliqueCoverNum = (m + 5) / 2 + max 1 n := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_cycle, cliqueCoverNum_star]
-
-theorem matchNum_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ⊕g star n).matchNum = (m + 3) / 2 + min n 1 := by
-  rw [matchNum_disjUnion, matchNum_cycle, matchNum_star]
-
-theorem domNum_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ⊕g star n).domNum = (m + 5) / 3 + 1 := by
-  rw [domNum_disjUnion, domNum_cycle, domNum_star]
-
-theorem maxDeg_disjUnion_cycle_star (m n : ℕ) :
-    maxDeg (cycle (m + 3) ⊕g star (n + 1)) = max 2 (n + 1) := by
-  rw [maxDeg_disjUnion, maxDeg_cycle, maxDeg_star]
 
 theorem minDeg_disjUnion_cycle_star (m n : ℕ) :
     minDeg (cycle (m + 3) ⊕g star (n + 1)) = 1 := by
@@ -406,31 +193,7 @@ theorem not_isConnected_disjUnion_cycle_star (m n : ℕ) :
     ¬ IsConnected (cycle (m + 1) ⊕g star n) :=
   not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
 
-theorem diameter_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 1) ⊕g star n).diameter = 0 :=
-  diameter_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
-
-theorem radius_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 1) ⊕g star n).radius = 0 :=
-  radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
-
 /-! ### The join of a path and a complete graph -/
-
-theorem cliqueNum_join_path_complete (m n : ℕ) :
-    (path (m + 2) ∇g complete n).cliqueNum = 2 + n := by
-  rw [cliqueNum_join, cliqueNum_path, cliqueNum_complete]
-
-theorem chromNum_join_path_complete (m n : ℕ) :
-    (path (m + 2) ∇g complete n).chromNum = 2 + n := by
-  rw [chromNum_join, chromNum_path, chromNum_complete]
-
-theorem indepNum_join_path_complete (m n : ℕ) :
-    (path m ∇g complete n).indepNum = max ((m + 1) / 2) (min n 1) := by
-  rw [indepNum_join, indepNum_path, indepNum_complete]
-
-theorem coverNum_join_path_complete (m n : ℕ) :
-    (path m ∇g complete n).coverNum = min (m / 2 + n) (m + (n - 1)) := by
-  rw [coverNum_join, coverNum_path, coverNum_complete, V_path, V_complete]
 
 theorem cliqueCoverNum_join_path_complete (m n : ℕ) :
     (path (m + 1) ∇g complete (n + 1)).cliqueCoverNum = (m + 2) / 2 := by
@@ -452,14 +215,6 @@ theorem minDeg_join_path_complete (m n : ℕ) :
   rw [minDeg_path, minDeg_complete, V_path, V_complete] at h
   omega
 
-theorem isConnected_join_path_complete (m n : ℕ) :
-    IsConnected (path (m + 1) ∇g complete (n + 1)) :=
-  isConnected_join (by rw [V_path]; omega) (by rw [V_complete]; omega)
-
-theorem numComponents_join_path_complete (m n : ℕ) :
-    (path (m + 1) ∇g complete (n + 1)).numComponents = 1 :=
-  numComponents_join (by rw [V_path]; omega) (by rw [V_complete]; omega)
-
 theorem diameter_join_path_complete (m n : ℕ) :
     (path (m + 3) ∇g complete (n + 1)).diameter = 2 := by
   have h : (m + 3).choose 2 = (m + 3) * (m + 2) / 2 := by
@@ -473,27 +228,6 @@ theorem diameter_join_path_complete (m n : ℕ) :
   omega
 
 /-! ### The join of a cycle and a complete graph -/
-
-theorem cliqueNum_join_cycle_complete (m n : ℕ) :
-    (cycle (m + 4) ∇g complete n).cliqueNum = 2 + n := by
-  rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_complete]
-
-theorem chromNum_join_cycle_complete_even (m n : ℕ) :
-    (cycle (2 * m + 2) ∇g complete n).chromNum = 2 + n := by
-  rw [chromNum_join, chromNum_cycle_even, chromNum_complete]
-
-theorem chromNum_join_cycle_complete_odd (m n : ℕ) :
-    (cycle (2 * m + 3) ∇g complete n).chromNum = 3 + n := by
-  rw [chromNum_join, chromNum_cycle_odd, chromNum_complete]
-
-theorem indepNum_join_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ∇g complete n).indepNum = max ((m + 3) / 2) (min n 1) := by
-  rw [indepNum_join, indepNum_cycle, indepNum_complete]
-
-theorem coverNum_join_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ∇g complete n).coverNum =
-      min (m + 3 - (m + 3) / 2 + n) (m + 3 + (n - 1)) := by
-  rw [coverNum_join, coverNum_cycle, coverNum_complete, V_cycle, V_complete]
 
 theorem cliqueCoverNum_join_cycle_complete (m n : ℕ) :
     (cycle (m + 4) ∇g complete (n + 1)).cliqueCoverNum = (m + 5) / 2 := by
@@ -514,14 +248,6 @@ theorem minDeg_join_cycle_complete (m n : ℕ) :
     (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
   rw [minDeg_cycle, minDeg_complete, V_cycle, V_complete] at h
   omega
-
-theorem isConnected_join_cycle_complete (m n : ℕ) :
-    IsConnected (cycle (m + 1) ∇g complete (n + 1)) :=
-  isConnected_join (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
-
-theorem numComponents_join_cycle_complete (m n : ℕ) :
-    (cycle (m + 1) ∇g complete (n + 1)).numComponents = 1 :=
-  numComponents_join (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
 
 theorem diameter_join_cycle_complete (m n : ℕ) :
     (cycle (m + 4) ∇g complete (n + 1)).diameter = 2 := by
@@ -546,30 +272,10 @@ theorem diameter_join_cycle_complete (m n : ℕ) :
   rw [E_join, E_path, E_star, V_path, V_star,
     show 1 + n = n + 1 from by omega]
 
-theorem cliqueNum_join_path_star (m n : ℕ) :
-    (path (m + 2) ∇g star (n + 1)).cliqueNum = 4 := by
-  have h := cliqueNum_join (path (m + 2)) (star (n + 1))
-  rw [cliqueNum_path, cliqueNum_star] at h
-  omega
-
-theorem chromNum_join_path_star (m n : ℕ) :
-    (path (m + 2) ∇g star (n + 1)).chromNum = 4 := by
-  have h := chromNum_join (path (m + 2)) (star (n + 1))
-  rw [chromNum_path, chromNum_star] at h
-  omega
-
-theorem indepNum_join_path_star (m n : ℕ) :
-    (path m ∇g star n).indepNum = max ((m + 1) / 2) (max 1 n) := by
-  rw [indepNum_join, indepNum_path, indepNum_star]
-
 theorem coverNum_join_path_star (m n : ℕ) :
     (path m ∇g star n).coverNum = min (m / 2 + (n + 1)) (m + min 1 n) := by
   rw [coverNum_join, coverNum_path, coverNum_star, V_path, V_star,
     show 1 + n = n + 1 from by omega]
-
-theorem cliqueCoverNum_join_path_star (m n : ℕ) :
-    (path m ∇g star n).cliqueCoverNum = max ((m + 1) / 2) (max 1 n) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_path, cliqueCoverNum_star]
 
 theorem maxDeg_join_path_star (m n : ℕ) :
     maxDeg (path (m + 3) ∇g star (n + 1)) = m + n + 4 := by
@@ -585,13 +291,6 @@ theorem minDeg_join_path_star (m n : ℕ) :
   rw [minDeg_path, minDeg_star, V_path, V_star] at h
   omega
 
-theorem isConnected_join_path_star (m n : ℕ) : IsConnected (path (m + 1) ∇g star n) :=
-  isConnected_join (by rw [V_path]; omega) (by rw [V_star]; omega)
-
-theorem numComponents_join_path_star (m n : ℕ) :
-    (path (m + 1) ∇g star n).numComponents = 1 :=
-  numComponents_join (by rw [V_path]; omega) (by rw [V_star]; omega)
-
 theorem diameter_join_path_star (m n : ℕ) : (path (m + 3) ∇g star n).diameter = 2 := by
   have h : (m + 3).choose 2 = (m + 3) * (m + 2) / 2 := by
     rw [Nat.choose_two_right, show m + 3 - 1 = m + 2 from by omega]
@@ -605,60 +304,16 @@ theorem diameter_join_path_star (m n : ℕ) : (path (m + 3) ∇g star n).diamete
 
 /-! ### The disjoint union of a path and a cycle -/
 
-theorem cliqueNum_disjUnion_path_cycle (m n : ℕ) :
-    (path (m + 2) ⊕g cycle (n + 4)).cliqueNum = 2 := by
-  have h := cliqueNum_disjUnion (path (m + 2)) (cycle (n + 4))
-  rw [cliqueNum_path, cliqueNum_cycle] at h
-  omega
-
-theorem chromNum_disjUnion_path_cycle_even (m n : ℕ) :
-    (path (m + 2) ⊕g cycle (2 * n + 2)).chromNum = 2 := by
-  have h := chromNum_disjUnion (path (m + 2)) (cycle (2 * n + 2))
-  rw [chromNum_path, chromNum_cycle_even] at h
-  omega
-
 theorem chromNum_disjUnion_path_cycle_odd (m n : ℕ) :
     (path (m + 2) ⊕g cycle (2 * n + 3)).chromNum = 3 := by
   have h := chromNum_disjUnion (path (m + 2)) (cycle (2 * n + 3))
   rw [chromNum_path, chromNum_cycle_odd] at h
   omega
 
-theorem indepNum_disjUnion_path_cycle (m n : ℕ) :
-    (path m ⊕g cycle (n + 3)).indepNum = (m + 1) / 2 + (n + 3) / 2 := by
-  rw [indepNum_disjUnion, indepNum_path, indepNum_cycle]
-
-theorem coverNum_disjUnion_path_cycle (m n : ℕ) :
-    (path m ⊕g cycle (n + 3)).coverNum = m / 2 + (n + 3 - (n + 3) / 2) := by
-  rw [coverNum_disjUnion, coverNum_path, coverNum_cycle]
-
-theorem cliqueCoverNum_disjUnion_path_cycle (m n : ℕ) :
-    (path m ⊕g cycle (n + 4)).cliqueCoverNum = (m + 1) / 2 + (n + 5) / 2 := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_cycle]
-
-theorem matchNum_disjUnion_path_cycle (m n : ℕ) :
-    (path m ⊕g cycle (n + 3)).matchNum = m / 2 + (n + 3) / 2 := by
-  rw [matchNum_disjUnion, matchNum_path, matchNum_cycle]
-
-theorem domNum_disjUnion_path_cycle (m n : ℕ) :
-    (path (m + 1) ⊕g cycle (n + 3)).domNum = (m + 3) / 3 + (n + 5) / 3 := by
-  rw [domNum_disjUnion, domNum_path, domNum_cycle]
-
-theorem edgeChromNum_disjUnion_path_cycle_even (m n : ℕ) :
-    (path (m + 3) ⊕g cycle (2 * n + 4)).edgeChromNum = 2 := by
-  have h := edgeChromNum_disjUnion (path (m + 3)) (cycle (2 * n + 4))
-  rw [edgeChromNum_path, edgeChromNum_cycle_even] at h
-  omega
-
 theorem edgeChromNum_disjUnion_path_cycle_odd (m n : ℕ) :
     (path (m + 3) ⊕g cycle (2 * n + 3)).edgeChromNum = 3 := by
   have h := edgeChromNum_disjUnion (path (m + 3)) (cycle (2 * n + 3))
   rw [edgeChromNum_path, edgeChromNum_cycle_odd] at h
-  omega
-
-theorem maxDeg_disjUnion_path_cycle (m n : ℕ) :
-    maxDeg (path (m + 3) ⊕g cycle (n + 3)) = 2 := by
-  have h := maxDeg_disjUnion (path (m + 3)) (cycle (n + 3))
-  rw [maxDeg_path, maxDeg_cycle] at h
   omega
 
 theorem minDeg_disjUnion_path_cycle (m n : ℕ) :
@@ -672,53 +327,13 @@ theorem not_isConnected_disjUnion_path_cycle (m n : ℕ) :
     ¬ IsConnected (path (m + 1) ⊕g cycle (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
 
-theorem diameter_disjUnion_path_cycle (m n : ℕ) :
-    (path (m + 1) ⊕g cycle (n + 1)).diameter = 0 :=
-  diameter_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
-
-theorem radius_disjUnion_path_cycle (m n : ℕ) :
-    (path (m + 1) ⊕g cycle (n + 1)).radius = 0 :=
-  radius_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
-
 /-! ### The disjoint union of a path and a complete graph -/
-
-theorem cliqueNum_disjUnion_path_complete (m n : ℕ) :
-    (path (m + 2) ⊕g complete n).cliqueNum = max 2 n := by
-  rw [cliqueNum_disjUnion, cliqueNum_path, cliqueNum_complete]
-
-theorem chromNum_disjUnion_path_complete (m n : ℕ) :
-    (path (m + 2) ⊕g complete n).chromNum = max 2 n := by
-  rw [chromNum_disjUnion, chromNum_path, chromNum_complete]
-
-theorem indepNum_disjUnion_path_complete (m n : ℕ) :
-    (path m ⊕g complete n).indepNum = (m + 1) / 2 + min n 1 := by
-  rw [indepNum_disjUnion, indepNum_path, indepNum_complete]
-
-theorem coverNum_disjUnion_path_complete (m n : ℕ) :
-    (path m ⊕g complete n).coverNum = m / 2 + (n - 1) := by
-  rw [coverNum_disjUnion, coverNum_path, coverNum_complete]
-
-theorem cliqueCoverNum_disjUnion_path_complete (m n : ℕ) :
-    (path m ⊕g complete (n + 1)).cliqueCoverNum = (m + 1) / 2 + 1 := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_complete]
-
-theorem matchNum_disjUnion_path_complete (m n : ℕ) :
-    (path m ⊕g complete n).matchNum = m / 2 + n / 2 := by
-  rw [matchNum_disjUnion, matchNum_path, matchNum_complete]
-
-theorem domNum_disjUnion_path_complete (m n : ℕ) :
-    (path (m + 1) ⊕g complete (n + 1)).domNum = (m + 3) / 3 + 1 := by
-  rw [domNum_disjUnion, domNum_path, domNum_complete]
 
 theorem edgeChromNum_disjUnion_path_complete_odd (m n : ℕ) :
     (path (m + 3) ⊕g complete (2 * n + 3)).edgeChromNum = 2 * n + 3 := by
   have h := edgeChromNum_disjUnion (path (m + 3)) (complete (2 * n + 3))
   rw [edgeChromNum_path, edgeChromNum_complete_odd] at h
   omega
-
-theorem maxDeg_disjUnion_path_complete (m n : ℕ) :
-    maxDeg (path (m + 3) ⊕g complete n) = max 2 (n - 1) := by
-  rw [maxDeg_disjUnion, maxDeg_path, maxDeg_complete]
 
 theorem minDeg_disjUnion_path_complete (m n : ℕ) :
     minDeg (path (m + 2) ⊕g complete (n + 1)) = min 1 n := by
@@ -731,59 +346,11 @@ theorem not_isConnected_disjUnion_path_complete (m n : ℕ) :
     ¬ IsConnected (path (m + 1) ⊕g complete (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_complete]; omega)
 
-theorem diameter_disjUnion_path_complete (m n : ℕ) :
-    (path (m + 1) ⊕g complete (n + 1)).diameter = 0 :=
-  diameter_disjUnion (by rw [V_path]; omega) (by rw [V_complete]; omega)
-
-theorem radius_disjUnion_path_complete (m n : ℕ) :
-    (path (m + 1) ⊕g complete (n + 1)).radius = 0 :=
-  radius_disjUnion (by rw [V_path]; omega) (by rw [V_complete]; omega)
-
 /-! ### The disjoint union of a path and a star -/
 
 @[simp] theorem V_disjUnion_path_star (m n : ℕ) : (path m ⊕g star n).V = m + n + 1 := by
   rw [V_disjUnion, V_path, V_star]
   omega
-
-theorem cliqueNum_disjUnion_path_star (m n : ℕ) :
-    (path (m + 2) ⊕g star (n + 1)).cliqueNum = 2 := by
-  have h := cliqueNum_disjUnion (path (m + 2)) (star (n + 1))
-  rw [cliqueNum_path, cliqueNum_star] at h
-  omega
-
-theorem chromNum_disjUnion_path_star (m n : ℕ) :
-    (path (m + 2) ⊕g star (n + 1)).chromNum = 2 := by
-  have h := chromNum_disjUnion (path (m + 2)) (star (n + 1))
-  rw [chromNum_path, chromNum_star] at h
-  omega
-
-theorem indepNum_disjUnion_path_star (m n : ℕ) :
-    (path m ⊕g star n).indepNum = (m + 1) / 2 + max 1 n := by
-  rw [indepNum_disjUnion, indepNum_path, indepNum_star]
-
-theorem coverNum_disjUnion_path_star (m n : ℕ) :
-    (path m ⊕g star n).coverNum = m / 2 + min 1 n := by
-  rw [coverNum_disjUnion, coverNum_path, coverNum_star]
-
-theorem cliqueCoverNum_disjUnion_path_star (m n : ℕ) :
-    (path m ⊕g star n).cliqueCoverNum = (m + 1) / 2 + max 1 n := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_path, cliqueCoverNum_star]
-
-theorem matchNum_disjUnion_path_star (m n : ℕ) :
-    (path m ⊕g star n).matchNum = m / 2 + min n 1 := by
-  rw [matchNum_disjUnion, matchNum_path, matchNum_star]
-
-theorem domNum_disjUnion_path_star (m n : ℕ) :
-    (path (m + 1) ⊕g star n).domNum = (m + 3) / 3 + 1 := by
-  rw [domNum_disjUnion, domNum_path, domNum_star]
-
-theorem edgeChromNum_disjUnion_path_star (m n : ℕ) :
-    (path (m + 3) ⊕g star n).edgeChromNum = max 2 n := by
-  rw [edgeChromNum_disjUnion, edgeChromNum_path, edgeChromNum_star]
-
-theorem maxDeg_disjUnion_path_star (m n : ℕ) :
-    maxDeg (path (m + 3) ⊕g star (n + 1)) = max 2 (n + 1) := by
-  rw [maxDeg_disjUnion, maxDeg_path, maxDeg_star]
 
 theorem minDeg_disjUnion_path_star (m n : ℕ) :
     minDeg (path (m + 2) ⊕g star (n + 1)) = 1 := by
@@ -795,14 +362,6 @@ theorem minDeg_disjUnion_path_star (m n : ℕ) :
 theorem not_isConnected_disjUnion_path_star (m n : ℕ) :
     ¬ IsConnected (path (m + 1) ⊕g star n) :=
   not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_star]; omega)
-
-theorem diameter_disjUnion_path_star (m n : ℕ) :
-    (path (m + 1) ⊕g star n).diameter = 0 :=
-  diameter_disjUnion (by rw [V_path]; omega) (by rw [V_star]; omega)
-
-theorem radius_disjUnion_path_star (m n : ℕ) :
-    (path (m + 1) ⊕g star n).radius = 0 :=
-  radius_disjUnion (by rw [V_path]; omega) (by rw [V_star]; omega)
 
 /-! ### The Mycielskian of a double star -/
 
@@ -890,10 +449,6 @@ theorem V_le_indepNum_mycielskian_doubleStar (m n : ℕ) :
 
 /-! ### The Mycielskian of a rook's graph -/
 
-theorem chromNum_mycielskian_rook (m n : ℕ) :
-    (mycielskian (rook (m + 1) (n + 1))).chromNum = max (m + 1) (n + 1) + 1 := by
-  rw [chromNum_mycielskian, chromNum_rook]
-
 theorem cliqueNum_mycielskian_rook (m n : ℕ) :
     (mycielskian (rook (m + 1) (n + 1))).cliqueNum = max (max (m + 1) (n + 1)) 2 := by
   have h := cliqueNum_mycielskian (rook (m + 1) (n + 1)) (by rw [V_rook]; positivity)
@@ -962,47 +517,11 @@ theorem girth_mycielskian_rook (m n : ℕ) :
 
 /-! ### The disjoint union of a cycle and a complete graph -/
 
-theorem cliqueNum_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 4) ⊕g complete n).cliqueNum = max 2 n := by
-  rw [cliqueNum_disjUnion, cliqueNum_cycle, cliqueNum_complete]
-
-theorem chromNum_disjUnion_cycle_complete_even (m n : ℕ) :
-    (cycle (2 * m + 2) ⊕g complete n).chromNum = max 2 n := by
-  rw [chromNum_disjUnion, chromNum_cycle_even, chromNum_complete]
-
-theorem chromNum_disjUnion_cycle_complete_odd (m n : ℕ) :
-    (cycle (2 * m + 3) ⊕g complete n).chromNum = max 3 n := by
-  rw [chromNum_disjUnion, chromNum_cycle_odd, chromNum_complete]
-
-theorem indepNum_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ⊕g complete n).indepNum = (m + 3) / 2 + min n 1 := by
-  rw [indepNum_disjUnion, indepNum_cycle, indepNum_complete]
-
-theorem coverNum_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ⊕g complete n).coverNum = m + 3 - (m + 3) / 2 + (n - 1) := by
-  rw [coverNum_disjUnion, coverNum_cycle, coverNum_complete]
-
-theorem cliqueCoverNum_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 4) ⊕g complete (n + 1)).cliqueCoverNum = (m + 5) / 2 + 1 := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_cycle, cliqueCoverNum_complete]
-
-theorem matchNum_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ⊕g complete n).matchNum = (m + 3) / 2 + n / 2 := by
-  rw [matchNum_disjUnion, matchNum_cycle, matchNum_complete]
-
-theorem domNum_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ⊕g complete (n + 1)).domNum = (m + 5) / 3 + 1 := by
-  rw [domNum_disjUnion, domNum_cycle, domNum_complete]
-
 theorem edgeChromNum_disjUnion_cycle_complete_odd (m n : ℕ) :
     (cycle (2 * m + 4) ⊕g complete (2 * n + 3)).edgeChromNum = 2 * n + 3 := by
   have h := edgeChromNum_disjUnion (cycle (2 * m + 4)) (complete (2 * n + 3))
   rw [edgeChromNum_cycle_even, edgeChromNum_complete_odd] at h
   omega
-
-theorem maxDeg_disjUnion_cycle_complete (m n : ℕ) :
-    maxDeg (cycle (m + 3) ⊕g complete n) = max 2 (n - 1) := by
-  rw [maxDeg_disjUnion, maxDeg_cycle, maxDeg_complete]
 
 theorem minDeg_disjUnion_cycle_complete (m n : ℕ) :
     minDeg (cycle (m + 3) ⊕g complete (n + 1)) = min 2 n := by
@@ -1014,14 +533,6 @@ theorem minDeg_disjUnion_cycle_complete (m n : ℕ) :
 theorem not_isConnected_disjUnion_cycle_complete (m n : ℕ) :
     ¬ IsConnected (cycle (m + 1) ⊕g complete (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
-
-theorem diameter_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 1) ⊕g complete (n + 1)).diameter = 0 :=
-  diameter_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
-
-theorem radius_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 1) ⊕g complete (n + 1)).radius = 0 :=
-  radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
 
 /-! ### The Mycielskian of a triangular graph -/
 
@@ -1336,11 +847,6 @@ theorem E_mycielskian_completeMultipartite (ds : List ℕ) :
   rw [E_mycielskian, V_completeMultipartite]
   omega
 
-theorem chromNum_mycielskian_completeMultipartite (ds : List ℕ) :
-    (mycielskian (completeMultipartite ds)).chromNum
-      = (ds.map fun d ↦ min d 1).sum + 1 := by
-  rw [chromNum_mycielskian, chromNum_completeMultipartite]
-
 theorem cliqueNum_mycielskian_completeMultipartite (ds : List ℕ) (hs : 0 < ds.sum) :
     (mycielskian (completeMultipartite ds)).cliqueNum
       = max (ds.map (min · 1)).sum 2 := by
@@ -1424,12 +930,6 @@ theorem V_le_indepNum_mycielskian_grotzsch : 11 ≤ (mycielskian grotzsch).indep
   omega
 
 /-! ### The Mycielskian of a grid graph -/
-
-theorem chromNum_mycielskian_grid (m n : ℕ) :
-    (mycielskian (path (m + 2) □g path (n + 2))).chromNum = 3 := by
-  have h := chromNum_mycielskian (path (m + 2) □g path (n + 2))
-  rw [chromNum_grid] at h
-  omega
 
 theorem cliqueNum_mycielskian_grid (m n : ℕ) :
     (mycielskian (path (m + 2) □g path (n + 2))).cliqueNum = 2 := by
@@ -1698,10 +1198,6 @@ theorem not_isTree_lineGraph_wheel (n : ℕ) : ¬ IsTree (lineGraph (wheel (n + 
 theorem isConnected_lineGraph_wheel (n : ℕ) : IsConnected (lineGraph (wheel (n + 3))) :=
   isConnected_lineGraph (isConnected_wheel _) (by rw [E_wheel]; omega)
 
-theorem numComponents_lineGraph_wheel (n : ℕ) :
-    (lineGraph (wheel (n + 3))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_wheel _) (by rw [E_wheel]; omega)
-
 theorem radius_lineGraph_wheel_le (n : ℕ) : (lineGraph (wheel (n + 3))).radius ≤ 2 := by
   have h := radius_lineGraph_le (G := wheel (n + 3)) (isConnected_wheel _)
     (by rw [E_wheel]; omega)
@@ -1734,10 +1230,6 @@ theorem le_chromNum_lineGraph_fan (n : ℕ) :
   rw [chromNum_lineGraph]
   exact le_edgeChromNum_fan n
 
-theorem indepNum_lineGraph_fan (n : ℕ) :
-    (lineGraph (fan (n + 1))).indepNum = (n + 2) / 2 := by
-  rw [indepNum_lineGraph, matchNum_fan]
-
 theorem coverNum_lineGraph_fan (n : ℕ) :
     (lineGraph (fan (n + 1))).coverNum = 2 * n + 1 - (n + 2) / 2 := by
   rw [coverNum_lineGraph, E_fan, matchNum_fan]
@@ -1765,10 +1257,6 @@ theorem not_isTree_lineGraph_fan (n : ℕ) : ¬ IsTree (lineGraph (fan (n + 3)))
 
 theorem isConnected_lineGraph_fan (n : ℕ) : IsConnected (lineGraph (fan (n + 1))) :=
   isConnected_lineGraph (isConnected_fan _) (by rw [E_fan]; omega)
-
-theorem numComponents_lineGraph_fan (n : ℕ) :
-    (lineGraph (fan (n + 1))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_fan _) (by rw [E_fan]; omega)
 
 theorem radius_lineGraph_fan_le (n : ℕ) : (lineGraph (fan (n + 1))).radius ≤ 2 := by
   have h := radius_lineGraph_le (G := fan (n + 1)) (isConnected_fan _) (by rw [E_fan]; omega)
@@ -1834,10 +1322,6 @@ theorem isConnected_lineGraph_friendship (n : ℕ) :
     IsConnected (lineGraph (friendship (n + 1))) :=
   isConnected_lineGraph (isConnected_friendship n) (by rw [E_friendship]; omega)
 
-theorem numComponents_lineGraph_friendship (n : ℕ) :
-    (lineGraph (friendship (n + 1))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_friendship n) (by rw [E_friendship]; omega)
-
 theorem radius_lineGraph_friendship_le (n : ℕ) :
     (lineGraph (friendship (n + 1))).radius ≤ 2 := by
   have h := radius_lineGraph_le (G := friendship (n + 1)) (isConnected_friendship n)
@@ -1897,9 +1381,6 @@ theorem not_isTree_lineGraph_book (n : ℕ) : ¬ IsTree (lineGraph (book (n + 2)
 
 theorem isConnected_lineGraph_book (n : ℕ) : IsConnected (lineGraph (book n)) :=
   isConnected_lineGraph (isConnected_book n) (by rw [E_book]; omega)
-
-theorem numComponents_lineGraph_book (n : ℕ) : (lineGraph (book n)).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_book n) (by rw [E_book]; omega)
 
 theorem radius_lineGraph_book_le (n : ℕ) : (lineGraph (book n)).radius ≤ 2 := by
   have h := radius_lineGraph_le (G := book n) (isConnected_book n) (by rw [E_book]; omega)
@@ -1998,15 +1479,6 @@ theorem minDeg_lineGraph_crown (n : ℕ) :
     (lineGraph (ladder (n + 1))).V = 3 * n + 1 := by
   rw [V_lineGraph, E_ladder]
 
-theorem indepNum_lineGraph_ladder (n : ℕ) : (lineGraph (ladder n)).indepNum = n := by
-  rw [indepNum_lineGraph, matchNum_ladder]
-
-theorem coverNum_lineGraph_ladder (n : ℕ) :
-    (lineGraph (ladder (n + 1))).coverNum = 2 * n := by
-  have h := coverNum_lineGraph (ladder (n + 1))
-  rw [E_ladder, matchNum_ladder] at h
-  omega
-
 theorem cliqueNum_lineGraph_ladder (n : ℕ) :
     (lineGraph (ladder (n + 3))).cliqueNum = 3 := by
   have h := cliqueNum_lineGraph_of_three_le_maxDeg (G := ladder (n + 3))
@@ -2030,10 +1502,6 @@ theorem not_isTree_lineGraph_ladder (n : ℕ) : ¬ IsTree (lineGraph (ladder (n 
 
 theorem isConnected_lineGraph_ladder (n : ℕ) : IsConnected (lineGraph (ladder (n + 1))) :=
   isConnected_lineGraph (isConnected_ladder n) (by rw [E_ladder]; omega)
-
-theorem numComponents_lineGraph_ladder (n : ℕ) :
-    (lineGraph (ladder (n + 1))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_ladder n) (by rw [E_ladder]; omega)
 
 theorem radius_lineGraph_ladder_le (n : ℕ) :
     (lineGraph (ladder (n + 1))).radius ≤ (n + 1) / 2 + 2 := by
@@ -2224,10 +1692,6 @@ theorem chromNum_lineGraph_hypercube (n : ℕ) :
     (lineGraph (hypercube (n + 1))).chromNum = n + 1 := by
   rw [chromNum_lineGraph, edgeChromNum_hypercube]
 
-theorem indepNum_lineGraph_hypercube (n : ℕ) :
-    (lineGraph (hypercube (n + 1))).indepNum = 2 ^ n := by
-  rw [indepNum_lineGraph, matchNum_hypercube]
-
 theorem coverNum_lineGraph_hypercube (n : ℕ) :
     (lineGraph (hypercube (n + 1))).coverNum = n * 2 ^ n := by
   have h := coverNum_lineGraph (hypercube (n + 1))
@@ -2238,10 +1702,6 @@ theorem coverNum_lineGraph_hypercube (n : ℕ) :
 theorem isConnected_lineGraph_hypercube (n : ℕ) :
     IsConnected (lineGraph (hypercube (n + 1))) :=
   isConnected_lineGraph (isConnected_hypercube _) (by rw [E_hypercube_succ]; positivity)
-
-theorem numComponents_lineGraph_hypercube (n : ℕ) :
-    (lineGraph (hypercube (n + 1))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_hypercube _) (by rw [E_hypercube_succ]; positivity)
 
 theorem radius_lineGraph_hypercube_le (n : ℕ) :
     (lineGraph (hypercube (n + 1))).radius ≤ n + 2 := by
@@ -2339,9 +1799,6 @@ theorem le_chromNum_lineGraph_prism (n : ℕ) :
   rw [chromNum_lineGraph]
   exact le_edgeChromNum_prism n
 
-theorem indepNum_lineGraph_prism (n : ℕ) : (lineGraph (prism n)).indepNum = n := by
-  rw [indepNum_lineGraph, matchNum_prism]
-
 theorem coverNum_lineGraph_prism (n : ℕ) :
     (lineGraph (prism (n + 3))).coverNum = 2 * n + 6 := by
   have h := coverNum_lineGraph (prism (n + 3))
@@ -2371,10 +1828,6 @@ theorem not_isTree_lineGraph_prism (n : ℕ) : ¬ IsTree (lineGraph (prism (n + 
 
 theorem isConnected_lineGraph_prism (n : ℕ) : IsConnected (lineGraph (prism (n + 3))) :=
   isConnected_lineGraph (isConnected_prism _) (by rw [E_prism]; omega)
-
-theorem numComponents_lineGraph_prism (n : ℕ) :
-    (lineGraph (prism (n + 3))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_prism _) (by rw [E_prism]; omega)
 
 theorem radius_lineGraph_prism_le (n : ℕ) :
     (lineGraph (prism (n + 3))).radius ≤ (n + 3) / 2 + 2 := by
@@ -2420,10 +1873,6 @@ theorem le_chromNum_lineGraph_cocktailParty (n : ℕ) :
     2 * n ≤ (lineGraph (cocktailParty (n + 1))).chromNum := by
   rw [chromNum_lineGraph]
   exact le_edgeChromNum_cocktailParty n
-
-theorem indepNum_lineGraph_cocktailParty (n : ℕ) :
-    (lineGraph (cocktailParty (n + 2))).indepNum = n + 2 := by
-  rw [indepNum_lineGraph, matchNum_cocktailParty]
 
 theorem coverNum_lineGraph_cocktailParty (n : ℕ) :
     (lineGraph (cocktailParty (n + 2))).coverNum = (n + 2) * (2 * n + 1) := by
@@ -2994,10 +2443,6 @@ theorem isConnected_lineGraph_grid (m n : ℕ) :
     IsConnected (lineGraph (path (m + 2) □g path (n + 2))) :=
   isConnected_lineGraph (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
 
-theorem numComponents_lineGraph_grid (m n : ℕ) :
-    (lineGraph (path (m + 2) □g path (n + 2))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_grid (m + 1) (n + 1)) (E_pos_grid m n)
-
 theorem le_minDeg_lineGraph_grid (m n : ℕ) :
     2 ≤ minDeg (lineGraph (path (m + 2) □g path (n + 2))) := by
   have h := le_minDeg_lineGraph (G := path (m + 2) □g path (n + 2)) (E_pos_grid m n)
@@ -3056,10 +2501,6 @@ theorem E_pos_king (m n : ℕ) : 0 < (path (m + 2) ⊠g path (n + 2)).E := by
 theorem isConnected_lineGraph_king (m n : ℕ) :
     IsConnected (lineGraph (path (m + 2) ⊠g path (n + 2))) :=
   isConnected_lineGraph (isConnected_king (m + 1) (n + 1)) (E_pos_king m n)
-
-theorem numComponents_lineGraph_king (m n : ℕ) :
-    (lineGraph (path (m + 2) ⊠g path (n + 2))).numComponents = 1 :=
-  numComponents_lineGraph (isConnected_king (m + 1) (n + 1)) (E_pos_king m n)
 
 theorem le_minDeg_lineGraph_king (m n : ℕ) :
     4 ≤ minDeg (lineGraph (path (m + 2) ⊠g path (n + 2))) := by
@@ -3286,19 +2727,7 @@ theorem le_minDeg_lineGraph_mycielskian {G : IsoGraph} (hV : 0 < G.V) :
   have hm := le_minDeg_lineGraph (G := mycielskian G) (E_pos_mycielskian hV)
   rwa [minDeg_mycielskian G hV] at hm
 
-theorem coverNum_lineGraph_mycielskian (G : IsoGraph) :
-    (lineGraph (mycielskian G)).coverNum = 3 * G.E + G.V - (mycielskian G).matchNum := by
-  rw [coverNum_lineGraph, E_mycielskian]
-
 /-! ### The Mycielskian of a line graph -/
-
-theorem E_mycielskian_lineGraph (G : IsoGraph) :
-    (mycielskian (lineGraph G)).E = 3 * (lineGraph G).E + G.E := by
-  rw [E_mycielskian, V_lineGraph]
-
-theorem chromNum_mycielskian_lineGraph (G : IsoGraph) :
-    (mycielskian (lineGraph G)).chromNum = G.edgeChromNum + 1 := by
-  rw [chromNum_mycielskian, chromNum_lineGraph]
 
 theorem cliqueNum_mycielskian_lineGraph {G : IsoGraph} (hE : 0 < G.E) (h : 3 ≤ G.maxDeg) :
     (mycielskian (lineGraph G)).cliqueNum = G.maxDeg := by
@@ -3509,10 +2938,6 @@ theorem E_pos_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
 
 /-! ### The line graph of a Cartesian product -/
 
-theorem V_lineGraph_cartesianProduct (G H : IsoGraph) :
-    (lineGraph (G □g H)).V = G.V * H.E + H.V * G.E := by
-  rw [V_lineGraph, E_cartesianProduct]
-
 theorem maxDeg_lineGraph_cartesianProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     maxDeg (lineGraph (G □g H)) ≤ 2 * (maxDeg G + maxDeg H) - 2 := by
   have h := maxDeg_lineGraph_le (G □g H)
@@ -3563,10 +2988,6 @@ theorem not_isBipartite_lineGraph_cartesianProduct {G H : IsoGraph} (hG : 0 < G.
 
 /-! ### The line graph of a join -/
 
-theorem V_lineGraph_join (G H : IsoGraph) :
-    (lineGraph (G ∇g H)).V = G.E + H.E + G.V * H.V := by
-  rw [V_lineGraph, E_join]
-
 theorem maxDeg_lineGraph_join_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     maxDeg (lineGraph (G ∇g H)) ≤ 2 * max (maxDeg G + H.V) (G.V + maxDeg H) - 2 := by
   have h := maxDeg_lineGraph_le (G ∇g H)
@@ -3604,9 +3025,6 @@ theorem girth_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
 
 /-! ### The line graph of a disjoint union -/
 
-theorem V_lineGraph_disjUnion (G H : IsoGraph) : (lineGraph (G ⊕g H)).V = G.E + H.E := by
-  rw [V_lineGraph, E_disjUnion]
-
 theorem maxDeg_lineGraph_disjUnion_le (G H : IsoGraph) :
     maxDeg (lineGraph (G ⊕g H)) ≤ 2 * max (maxDeg G) (maxDeg H) - 2 := by
   have h := maxDeg_lineGraph_le (G ⊕g H)
@@ -3633,10 +3051,6 @@ theorem not_isConnected_lineGraph_disjUnion {G H : IsoGraph} (hG : IsConnected G
   omega
 
 /-! ### The line graph of a strong product -/
-
-theorem V_lineGraph_strongProduct (G H : IsoGraph) :
-    (lineGraph (G ⊠g H)).V = G.V * H.E + H.V * G.E + 2 * G.E * H.E := by
-  rw [V_lineGraph, E_strongProduct]
 
 theorem maxDeg_lineGraph_strongProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     maxDeg (lineGraph (G ⊠g H)) ≤ 2 * ((maxDeg G + 1) * (maxDeg H + 1) - 1) - 2 := by
@@ -3815,10 +3229,6 @@ theorem E_pos_lexProduct_right {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.E) :
 
 /-! ### The line graph of a tensor product -/
 
-theorem V_lineGraph_tensorProduct (G H : IsoGraph) :
-    (lineGraph (G ⊗g H)).V = 2 * G.E * H.E := by
-  rw [V_lineGraph, E_tensorProduct]
-
 theorem maxDeg_lineGraph_tensorProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     maxDeg (lineGraph (G ⊗g H)) ≤ 2 * (maxDeg G * maxDeg H) - 2 := by
   have h := maxDeg_lineGraph_le (G ⊗g H)
@@ -3856,10 +3266,6 @@ theorem not_isBipartite_lineGraph_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) 
   not_isBipartite_lineGraph (by rw [maxDeg_tensorProduct hG hH]; exact h3)
 
 /-! ### The line graph of a lexicographic product -/
-
-theorem V_lineGraph_lexProduct (G H : IsoGraph) :
-    (lineGraph (G ·g H)).V = H.V * H.V * G.E + G.V * H.E := by
-  rw [V_lineGraph, E_lexProduct]
 
 theorem maxDeg_lineGraph_lexProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     maxDeg (lineGraph (G ·g H)) ≤ 2 * (maxDeg G * H.V + maxDeg H) - 2 := by

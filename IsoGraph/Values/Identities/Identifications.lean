@@ -291,11 +291,6 @@ theorem wheel_three : wheel 3 = complete 4 := by
 theorem compl_wheel (n : ℕ) : (wheel n)ᶜ = empty 1 ⊕g (cycle n)ᶜ := by
   rw [wheel_eq_join, compl_join, compl_complete]
 
-/-- Likewise for the fan, which is a hub joined to a path rather than a cycle. -/
-theorem compl_fan (n : ℕ) : (fan n)ᶜ = empty 1 ⊕g (path n)ᶜ := by
-  show (complete 1 ∇g path n)ᶜ = _
-  rw [compl_join, compl_complete]
-
 /-! ## Complete multipartite graphs
 
 A single part is an independent set, and `cocktailParty 1` is that case; two singleton parts and

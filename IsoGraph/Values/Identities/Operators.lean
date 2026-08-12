@@ -45,11 +45,6 @@ theorem E_pos_completeMultipartite_replicate (m d : ℕ) :
 
 /-! ### The line graph of a balanced complete multipartite graph -/
 
-theorem V_lineGraph_completeMultipartite_replicate (m d : ℕ) :
-    (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))).V
-      = (m + 2).choose 2 * ((d + 1) * (d + 1)) := by
-  rw [V_lineGraph, E_completeMultipartite_replicate]
-
 theorem isRegularWith_lineGraph_completeMultipartite_replicate (m d : ℕ) :
     (lineGraph (completeMultipartite (List.replicate (m + 2) (d + 1)))).IsRegularWith
       (2 * ((m + 1) * (d + 1)) - 2) :=
@@ -1623,9 +1618,6 @@ theorem not_isRegularWith_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) (h : ¬ 
   exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_turan]; omega) (by omega) k
 
 /-! ### Bipartiteness of the grid and the king graph -/
-
-@[simp] theorem isBipartite_grid (m n : ℕ) : IsBipartite (path (m + 2) □g path (n + 2)) :=
-  isBipartite_cartesianProduct (isBipartite_path _) (isBipartite_path _)
 
 theorem not_isBipartite_king (m n : ℕ) : ¬ IsBipartite (path (m + 2) ⊠g path (n + 2)) := by
   have h : (path (m + 2) ⊠g path (n + 2)).chromNum = 4 := chromNum_king m n

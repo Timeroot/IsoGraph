@@ -44,20 +44,6 @@ theorem chromNum_king (m n : ℕ) : (path (m + 2) ⊠g path (n + 2)).chromNum = 
   rw [cliqueNum_path, cliqueNum_path] at h
   omega
 
-theorem chromNum_strongProduct_complete (m n : ℕ) :
-    (complete m ⊠g complete n).chromNum = m * n := by
-  have h := chromNum_strongProduct_of_chromNum_eq_cliqueNum (G := complete m) (H := complete n)
-    (by rw [chromNum_complete, cliqueNum_complete])
-    (by rw [chromNum_complete, cliqueNum_complete])
-  rwa [cliqueNum_complete, cliqueNum_complete] at h
-
-theorem chromNum_lexProduct_complete (m n : ℕ) :
-    (complete m ·g complete n).chromNum = m * n := by
-  have h := chromNum_lexProduct_of_chromNum_eq_cliqueNum (G := complete m) (H := complete n)
-    (by rw [chromNum_complete, cliqueNum_complete])
-    (by rw [chromNum_complete, cliqueNum_complete])
-  rwa [cliqueNum_complete, cliqueNum_complete] at h
-
 theorem chromNum_eq_cliqueNum_cycle_even (m : ℕ) :
     (cycle (2 * m + 4)).chromNum = (cycle (2 * m + 4)).cliqueNum := by
   rw [cliqueNum_cycle, show 2 * m + 4 = 2 * (m + 1) + 2 from by ring, chromNum_cycle_even]
@@ -127,60 +113,13 @@ theorem radius_strongProduct_complete (m n : ℕ) :
   rw [radius_strongProduct (isConnected_complete (m + 1)) (isConnected_complete (n + 1)),
     radius_complete, radius_complete, max_self]
 
-theorem numComponents_king (m n : ℕ) :
-    (path (m + 1) ⊠g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_king m n)
-
-theorem numComponents_grid (m n : ℕ) :
-    (path (m + 1) □g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_grid m n)
-
-theorem numComponents_cartesianProduct_cycle (m n : ℕ) :
-    (cycle (m + 1) □g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected
-    (isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_cycle n⟩)
-
-theorem numComponents_cartesianProduct_cycle_path (m n : ℕ) :
-    (cycle (m + 1) □g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected
-    (isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_path n⟩)
-
-theorem numComponents_strongProduct_cycle (m n : ℕ) :
-    (cycle (m + 1) ⊠g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_strongProduct_cycle m n)
-
 theorem numComponents_strongProduct_complete (m n : ℕ) :
     (complete (m + 1) ⊠g complete (n + 1)).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_strongProduct_complete m n)
 
-theorem numComponents_lexProduct_cycle (m n : ℕ) :
-    (cycle (m + 1) ·g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_lexProduct_cycle m n)
-
 theorem numComponents_lexProduct_complete (m n : ℕ) :
     (complete (m + 1) ·g complete (n + 1)).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_lexProduct_complete m n)
-
-theorem numComponents_strongProduct_hypercube (m n : ℕ) :
-    (hypercube m ⊠g hypercube n).numComponents = 1 :=
-  numComponents_strongProduct (isConnected_hypercube m) (isConnected_hypercube n)
-
-theorem numComponents_lexProduct_hypercube (m n : ℕ) :
-    (hypercube m ·g hypercube n).numComponents = 1 :=
-  numComponents_lexProduct (isConnected_hypercube m) (isConnected_hypercube n)
-
-theorem coverNum_lexProduct_cycle (m n : ℕ) :
-    (cycle (m + 3) ·g cycle (n + 3)).coverNum
-      = (m + 3) * (n + 3) - (m + 3) / 2 * ((n + 3) / 2) := by
-  rw [coverNum_lexProduct, V_cycle, V_cycle, indepNum_cycle, indepNum_cycle]
-
-theorem coverNum_lexProduct_path (m n : ℕ) :
-    (path m ·g path n).coverNum = m * n - (m + 1) / 2 * ((n + 1) / 2) := by
-  rw [coverNum_lexProduct, V_path, V_path, indepNum_path, indepNum_path]
-
-theorem coverNum_lexProduct_complete (m n : ℕ) :
-    (complete (m + 1) ·g complete (n + 1)).coverNum = (m + 1) * (n + 1) - 1 := by
-  rw [coverNum_eq, V_lexProduct, V_complete, V_complete, indepNum_lexProduct_complete]
 
 /-- A dominating vertex of the second factor makes the lexicographic product dominated exactly as
 its first factor is. -/
@@ -441,85 +380,20 @@ theorem isVertexTransitive_lineGraph_kneser (n k : ℕ) :
 theorem isVertexTransitive_lineGraph_petersen :
     IsVertexTransitive (lineGraph petersen) := isArcTransitive_petersen.lineGraph
 
-theorem isVertexTransitive_lineGraph_bipartite_self (n : ℕ) :
-    IsVertexTransitive (lineGraph (bipartite n n)) := (isArcTransitive_bipartite_self n).lineGraph
-
-theorem isVertexTransitive_lineGraph_empty (n : ℕ) :
-    IsVertexTransitive (lineGraph (empty n)) := (isArcTransitive_empty n).lineGraph
-
-theorem isVertexTransitive_lineGraph_circulant_one (n : ℕ) :
-    IsVertexTransitive (lineGraph (circulant n [1])) := (isArcTransitive_circulant_one n).lineGraph
-
-theorem isVertexTransitive_lineGraph_circulant_nil (n : ℕ) :
-    IsVertexTransitive (lineGraph (circulant n [])) := (isArcTransitive_circulant_nil n).lineGraph
-
-theorem isVertexTransitive_lineGraph_johnson_one (n : ℕ) :
-    IsVertexTransitive (lineGraph (johnson n 1)) := (isArcTransitive_johnson_one n).lineGraph
-
-theorem isVertexTransitive_lineGraph_thetaGraph_pair (a b : ℕ) :
-    IsVertexTransitive (lineGraph (thetaGraph [a, b])) :=
-  (isArcTransitive_thetaGraph_pair a b).lineGraph
-
-theorem isVertexTransitive_lineGraph_tadpole_zero (m : ℕ) :
-    IsVertexTransitive (lineGraph (tadpole m 0)) := (isArcTransitive_tadpole_zero m).lineGraph
-
-theorem isVertexTransitive_lineGraph_lollipop_zero (m : ℕ) :
-    IsVertexTransitive (lineGraph (lollipop m 0)) := (isArcTransitive_lollipop_zero m).lineGraph
-
-theorem isVertexTransitive_lineGraph_cyclePendant_replicate_zero (m j : ℕ) :
-    IsVertexTransitive (lineGraph (cyclePendant m (List.replicate j 0))) :=
-  (isArcTransitive_cyclePendant_replicate_zero m j).lineGraph
-
 /-! Complements of vertex-transitive graphs. -/
-
-theorem isVertexTransitive_compl_complete (n : ℕ) : IsVertexTransitive ((complete n)ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_complete n)
-
-theorem isVertexTransitive_compl_empty (n : ℕ) : IsVertexTransitive ((empty n)ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_empty n)
 
 theorem isVertexTransitive_compl_petersen : IsVertexTransitive (petersenᶜ) :=
   (isVertexTransitive_compl _).2 isVertexTransitive_petersen
 
-theorem isVertexTransitive_compl_triangular (n : ℕ) : IsVertexTransitive ((triangular n)ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_triangular n)
-
-theorem isVertexTransitive_compl_rook (m n : ℕ) : IsVertexTransitive ((rook m n)ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_rook m n)
-
-theorem isVertexTransitive_compl_cocktailParty (n : ℕ) :
-    IsVertexTransitive ((cocktailParty n)ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_cocktailParty n)
-
-theorem isVertexTransitive_compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] :
-    IsVertexTransitive ((paley q)ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_paley q)
-
-theorem isVertexTransitive_compl_completeMultipartite_replicate (m d : ℕ) :
-    IsVertexTransitive ((completeMultipartite (List.replicate m d))ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_completeMultipartite_replicate m d)
-
 theorem isVertexTransitive_compl_bipartite_self (n : ℕ) :
     IsVertexTransitive ((bipartite n n)ᶜ) :=
   (isVertexTransitive_compl _).2 (isVertexTransitive_bipartite_self n)
-
-theorem isVertexTransitive_compl_lineGraph_complete (n : ℕ) :
-    IsVertexTransitive ((lineGraph (complete n))ᶜ) :=
-  (isVertexTransitive_compl _).2 ((isArcTransitive_complete n).lineGraph)
-
-theorem isVertexTransitive_compl_lineGraph_cycle (n : ℕ) :
-    IsVertexTransitive ((lineGraph (cycle n))ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_lineGraph_cycle n)
 
 theorem isVertexTransitive_compl_lineGraph_petersen :
     IsVertexTransitive ((lineGraph petersen)ᶜ) :=
   (isVertexTransitive_compl _).2 isVertexTransitive_lineGraph_petersen
 
 /-! ### The cartesian product of a complete graph with a cycle -/
-
-theorem E_cartesianProduct_complete_cycle (m n : ℕ) :
-    (complete m □g cycle (n + 3)).E = m * (n + 3) + (n + 3) * m.choose 2 := by
-  rw [E_cartesianProduct, E_complete, E_cycle, V_complete, V_cycle]
 
 theorem cliqueNum_cartesianProduct_complete_cycle (m n : ℕ) :
     (complete (m + 2) □g cycle (n + 4)).cliqueNum = m + 2 := by
@@ -541,11 +415,6 @@ theorem chromNum_cartesianProduct_complete_cycle_odd (m t : ℕ) :
     (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
   rw [chromNum_complete, chromNum_cycle_odd] at h
   omega
-
-theorem numComponents_cartesianProduct_complete_cycle (m n : ℕ) :
-    (complete (m + 1) □g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected
-    (isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_cycle n⟩)
 
 theorem diameter_cartesianProduct_complete_cycle (m n : ℕ) :
     (complete (m + 2) □g cycle (n + 1)).diameter = 1 + (n + 1) / 2 := by
@@ -586,10 +455,6 @@ theorem girth_cartesianProduct_complete_cycle (m n : ℕ) :
 
 /-! ### The cartesian product of a complete graph with a path -/
 
-theorem E_cartesianProduct_complete_path (m n : ℕ) :
-    (complete m □g path (n + 1)).E = m * n + (n + 1) * m.choose 2 := by
-  rw [E_cartesianProduct, E_complete, E_path, V_complete, V_path]
-
 theorem cliqueNum_cartesianProduct_complete_path (m n : ℕ) :
     (complete (m + 2) □g path (n + 2)).cliqueNum = m + 2 := by
   have h := cliqueNum_cartesianProduct (G := complete (m + 2)) (H := path (n + 2))
@@ -603,11 +468,6 @@ theorem chromNum_cartesianProduct_complete_path (m n : ℕ) :
     (by rw [V_complete]; omega) (by rw [V_path]; omega)
   rw [chromNum_complete, chromNum_path] at h
   omega
-
-theorem numComponents_cartesianProduct_complete_path (m n : ℕ) :
-    (complete (m + 1) □g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected
-    (isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_path n⟩)
 
 theorem diameter_cartesianProduct_complete_path (m n : ℕ) :
     (complete (m + 2) □g path (n + 1)).diameter = 1 + n := by
@@ -663,11 +523,6 @@ theorem chromNum_cartesianProduct_cycle_hypercube_odd (t n : ℕ) :
     (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
   rw [chromNum_cycle_odd, chromNum_hypercube] at h
   omega
-
-theorem numComponents_cartesianProduct_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 1) □g hypercube n).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected
-    (isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_hypercube n⟩)
 
 theorem diameter_cartesianProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 1) □g hypercube n).diameter = (m + 1) / 2 + n := by
@@ -1003,22 +858,9 @@ theorem girth_tensorProduct_friendship_friendship (m n : ℕ) :
 
 /-! ### The strong product of a complete graph with a cycle -/
 
-theorem E_strongProduct_complete_cycle (m n : ℕ) :
-    (complete m ⊠g cycle (n + 3)).E
-      = m * (n + 3) + (n + 3) * m.choose 2 + 2 * m.choose 2 * (n + 3) := by
-  rw [E_strongProduct, E_complete, E_cycle, V_complete, V_cycle]
-
-theorem cliqueNum_strongProduct_complete_cycle (m n : ℕ) :
-    (complete m ⊠g cycle (n + 4)).cliqueNum = m * 2 := by
-  rw [cliqueNum_strongProduct, cliqueNum_complete, cliqueNum_cycle]
-
 theorem isConnected_strongProduct_complete_cycle (m n : ℕ) :
     IsConnected (complete (m + 1) ⊠g cycle (n + 1)) :=
   isConnected_strongProduct (isConnected_complete m) (isConnected_cycle n)
-
-theorem numComponents_strongProduct_complete_cycle (m n : ℕ) :
-    (complete (m + 1) ⊠g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_strongProduct_complete_cycle m n)
 
 theorem diameter_strongProduct_complete_cycle (m n : ℕ) :
     (complete (m + 2) ⊠g cycle (n + 1)).diameter = max 1 ((n + 1) / 2) := by
@@ -1055,17 +897,9 @@ theorem girth_strongProduct_complete_cycle (m n : ℕ) :
 
 /-! ### The strong product of a cycle with a hypercube -/
 
-theorem cliqueNum_strongProduct_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 4) ⊠g hypercube (n + 1)).cliqueNum = 4 := by
-  rw [cliqueNum_strongProduct, cliqueNum_cycle, cliqueNum_hypercube]
-
 theorem isConnected_strongProduct_cycle_hypercube (m n : ℕ) :
     IsConnected (cycle (m + 1) ⊠g hypercube n) :=
   isConnected_strongProduct (isConnected_cycle m) (isConnected_hypercube n)
-
-theorem numComponents_strongProduct_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 1) ⊠g hypercube n).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_strongProduct_cycle_hypercube m n)
 
 theorem diameter_strongProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 1) ⊠g hypercube n).diameter = max ((m + 1) / 2) n := by
@@ -1102,31 +936,9 @@ theorem girth_strongProduct_cycle_hypercube (m n : ℕ) :
 
 /-! ### The lexicographic product of a complete graph with a cycle -/
 
-theorem E_lexProduct_complete_cycle (m n : ℕ) :
-    (complete m ·g cycle (n + 3)).E = (n + 3) * (n + 3) * m.choose 2 + m * (n + 3) := by
-  rw [E_lexProduct, E_complete, E_cycle, V_complete, V_cycle]
-
-theorem cliqueNum_lexProduct_complete_cycle (m n : ℕ) :
-    (complete m ·g cycle (n + 4)).cliqueNum = m * 2 := by
-  rw [cliqueNum_lexProduct, cliqueNum_complete, cliqueNum_cycle]
-
-theorem indepNum_lexProduct_complete_cycle (m n : ℕ) :
-    (complete (m + 1) ·g cycle (n + 3)).indepNum = (n + 3) / 2 := by
-  rw [indepNum_lexProduct, indepNum_complete, indepNum_cycle,
-    Nat.min_eq_right (by omega : 1 ≤ m + 1), Nat.one_mul]
-
-theorem coverNum_lexProduct_complete_cycle (m n : ℕ) :
-    (complete (m + 1) ·g cycle (n + 3)).coverNum = (m + 1) * (n + 3) - (n + 3) / 2 := by
-  rw [coverNum_lexProduct, V_complete, V_cycle, indepNum_complete, indepNum_cycle,
-    Nat.min_eq_right (by omega : 1 ≤ m + 1), Nat.one_mul]
-
 theorem isConnected_lexProduct_complete_cycle (m n : ℕ) :
     IsConnected (complete (m + 1) ·g cycle (n + 1)) :=
   isConnected_lexProduct (isConnected_complete m) (isConnected_cycle n)
-
-theorem numComponents_lexProduct_complete_cycle (m n : ℕ) :
-    (complete (m + 1) ·g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_lexProduct_complete_cycle m n)
 
 theorem maxDeg_lexProduct_complete_cycle (m n : ℕ) :
     maxDeg (complete (m + 1) ·g cycle (n + 3)) = m * (n + 3) + 2 := by
@@ -1196,22 +1008,9 @@ theorem cliqueCoverNum_lexProduct_complete_cycle_even (m n : ℕ) :
 
 /-! ### The strong product of a complete graph with a path -/
 
-theorem E_strongProduct_complete_path (m n : ℕ) :
-    (complete m ⊠g path (n + 1)).E
-      = m * n + (n + 1) * m.choose 2 + 2 * m.choose 2 * n := by
-  rw [E_strongProduct, E_complete, E_path, V_complete, V_path]
-
-theorem cliqueNum_strongProduct_complete_path (m n : ℕ) :
-    (complete m ⊠g path (n + 2)).cliqueNum = m * 2 := by
-  rw [cliqueNum_strongProduct, cliqueNum_complete, cliqueNum_path]
-
 theorem isConnected_strongProduct_complete_path (m n : ℕ) :
     IsConnected (complete (m + 1) ⊠g path (n + 1)) :=
   isConnected_strongProduct (isConnected_complete m) (isConnected_path n)
-
-theorem numComponents_strongProduct_complete_path (m n : ℕ) :
-    (complete (m + 1) ⊠g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_strongProduct_complete_path m n)
 
 theorem diameter_strongProduct_complete_path (m n : ℕ) :
     (complete (m + 2) ⊠g path (n + 1)).diameter = max 1 n := by
@@ -1243,31 +1042,9 @@ theorem girth_strongProduct_complete_path (m n : ℕ) :
 
 /-! ### The lexicographic product of a complete graph with a path -/
 
-theorem E_lexProduct_complete_path (m n : ℕ) :
-    (complete m ·g path (n + 1)).E = (n + 1) * (n + 1) * m.choose 2 + m * n := by
-  rw [E_lexProduct, E_complete, E_path, V_complete, V_path]
-
-theorem cliqueNum_lexProduct_complete_path (m n : ℕ) :
-    (complete m ·g path (n + 2)).cliqueNum = m * 2 := by
-  rw [cliqueNum_lexProduct, cliqueNum_complete, cliqueNum_path]
-
-theorem indepNum_lexProduct_complete_path (m n : ℕ) :
-    (complete (m + 1) ·g path n).indepNum = (n + 1) / 2 := by
-  rw [indepNum_lexProduct, indepNum_complete, indepNum_path,
-    Nat.min_eq_right (by omega : 1 ≤ m + 1), Nat.one_mul]
-
-theorem coverNum_lexProduct_complete_path (m n : ℕ) :
-    (complete (m + 1) ·g path n).coverNum = (m + 1) * n - (n + 1) / 2 := by
-  rw [coverNum_lexProduct, V_complete, V_path, indepNum_complete, indepNum_path,
-    Nat.min_eq_right (by omega : 1 ≤ m + 1), Nat.one_mul]
-
 theorem isConnected_lexProduct_complete_path (m n : ℕ) :
     IsConnected (complete (m + 1) ·g path (n + 1)) :=
   isConnected_lexProduct (isConnected_complete m) (isConnected_path n)
-
-theorem numComponents_lexProduct_complete_path (m n : ℕ) :
-    (complete (m + 1) ·g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_lexProduct_complete_path m n)
 
 theorem maxDeg_lexProduct_complete_path (m n : ℕ) :
     maxDeg (complete (m + 1) ·g path (n + 3)) = m * (n + 3) + 2 := by
@@ -1289,17 +1066,9 @@ theorem girth_lexProduct_complete_path (m n : ℕ) :
 
 /-! ### The strong product of a path with a hypercube -/
 
-theorem cliqueNum_strongProduct_path_hypercube (m n : ℕ) :
-    (path (m + 2) ⊠g hypercube (n + 1)).cliqueNum = 4 := by
-  rw [cliqueNum_strongProduct, cliqueNum_path, cliqueNum_hypercube]
-
 theorem isConnected_strongProduct_path_hypercube (m n : ℕ) :
     IsConnected (path (m + 1) ⊠g hypercube n) :=
   isConnected_strongProduct (isConnected_path m) (isConnected_hypercube n)
-
-theorem numComponents_strongProduct_path_hypercube (m n : ℕ) :
-    (path (m + 1) ⊠g hypercube n).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_strongProduct_path_hypercube m n)
 
 theorem diameter_strongProduct_path_hypercube (m n : ℕ) :
     (path (m + 1) ⊠g hypercube n).diameter = max m n := by
@@ -1351,26 +1120,9 @@ theorem E_lexProduct_cycle_hypercube (m n : ℕ) :
     show 2 * (2 ^ n * 2 ^ n * (m + 3) + (m + 3) * (hypercube n).E)
       = 2 * (2 ^ n * 2 ^ n * (m + 3)) + (m + 3) * (2 * (hypercube n).E) from by ring, h]
 
-theorem cliqueNum_lexProduct_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 4) ·g hypercube (n + 1)).cliqueNum = 4 := by
-  rw [cliqueNum_lexProduct, cliqueNum_cycle, cliqueNum_hypercube]
-
-theorem indepNum_lexProduct_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 3) ·g hypercube (n + 1)).indepNum = (m + 3) / 2 * 2 ^ n := by
-  rw [indepNum_lexProduct, indepNum_cycle, indepNum_hypercube]
-
-theorem coverNum_lexProduct_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 3) ·g hypercube (n + 1)).coverNum
-      = (m + 3) * 2 ^ (n + 1) - (m + 3) / 2 * 2 ^ n := by
-  rw [coverNum_lexProduct, V_cycle, V_hypercube, indepNum_cycle, indepNum_hypercube]
-
 theorem isConnected_lexProduct_cycle_hypercube (m n : ℕ) :
     IsConnected (cycle (m + 1) ·g hypercube n) :=
   isConnected_lexProduct (isConnected_cycle m) (isConnected_hypercube n)
-
-theorem numComponents_lexProduct_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 1) ·g hypercube n).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_lexProduct_cycle_hypercube m n)
 
 theorem maxDeg_lexProduct_cycle_hypercube (m n : ℕ) :
     maxDeg (cycle (m + 3) ·g hypercube n) = 2 * 2 ^ n + n := by
@@ -1417,34 +1169,9 @@ theorem domNum_lexProduct_friendship (G : IsoGraph) (n : ℕ) :
 
 /-! ### The join of a path with a cycle -/
 
-theorem E_join_path_cycle (m n : ℕ) :
-    (path (m + 1) ∇g cycle (n + 3)).E = m + (n + 3) + (m + 1) * (n + 3) := by
-  rw [E_join, E_path, E_cycle, V_path, V_cycle]
-
 theorem cliqueNum_join_path_cycle (m n : ℕ) :
     (path (m + 2) ∇g cycle (n + 4)).cliqueNum = 4 := by
   rw [cliqueNum_join, cliqueNum_path, cliqueNum_cycle]
-
-theorem indepNum_join_path_cycle (m n : ℕ) :
-    (path m ∇g cycle (n + 3)).indepNum = max ((m + 1) / 2) ((n + 3) / 2) := by
-  rw [indepNum_join, indepNum_path, indepNum_cycle]
-
-theorem cliqueCoverNum_join_path_cycle (m n : ℕ) :
-    (path m ∇g cycle (n + 4)).cliqueCoverNum = max ((m + 1) / 2) ((n + 5) / 2) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_path, cliqueCoverNum_cycle]
-
-theorem coverNum_join_path_cycle (m n : ℕ) :
-    (path m ∇g cycle (n + 3)).coverNum
-      = min (m / 2 + (n + 3)) (m + ((n + 3) - (n + 3) / 2)) := by
-  rw [coverNum_join, coverNum_path, coverNum_cycle, V_path, V_cycle]
-
-theorem chromNum_join_path_cycle_even (m n : ℕ) :
-    (path (m + 2) ∇g cycle (2 * n + 2)).chromNum = 4 := by
-  rw [chromNum_join, chromNum_path, chromNum_cycle_even]
-
-theorem chromNum_join_path_cycle_odd (m n : ℕ) :
-    (path (m + 2) ∇g cycle (2 * n + 3)).chromNum = 5 := by
-  rw [chromNum_join, chromNum_path, chromNum_cycle_odd]
 
 theorem maxDeg_join_path_cycle (m n : ℕ) :
     maxDeg (path (m + 3) ∇g cycle (n + 3)) = max (n + 5) (m + 5) := by
@@ -1492,23 +1219,6 @@ theorem cliqueNum_join_hypercube (m n : ℕ) :
     (hypercube (m + 1) ∇g hypercube (n + 1)).cliqueNum = 4 := by
   rw [cliqueNum_join, cliqueNum_hypercube, cliqueNum_hypercube]
 
-theorem indepNum_join_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ∇g hypercube (n + 1)).indepNum = max (2 ^ m) (2 ^ n) := by
-  rw [indepNum_join, indepNum_hypercube, indepNum_hypercube]
-
-theorem cliqueCoverNum_join_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ∇g hypercube (n + 1)).cliqueCoverNum = max (2 ^ m) (2 ^ n) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_hypercube, cliqueCoverNum_hypercube]
-
-theorem coverNum_join_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ∇g hypercube (n + 1)).coverNum
-      = min (2 ^ m + 2 ^ (n + 1)) (2 ^ (m + 1) + 2 ^ n) := by
-  rw [coverNum_join, coverNum_hypercube, coverNum_hypercube, V_hypercube, V_hypercube]
-
-theorem chromNum_join_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ∇g hypercube (n + 1)).chromNum = 4 := by
-  rw [chromNum_join, chromNum_hypercube, chromNum_hypercube]
-
 theorem maxDeg_join_hypercube (m n : ℕ) :
     maxDeg (hypercube m ∇g hypercube n) = max (m + 2 ^ n) (2 ^ m + n) := by
   have h := maxDeg_join (G := hypercube m) (H := hypercube n)
@@ -1535,34 +1245,6 @@ theorem E_disjUnion_hypercube (m n : ℕ) :
     show 2 * ((hypercube m).E + (hypercube n).E)
       = 2 * (hypercube m).E + 2 * (hypercube n).E from by ring, h1, h2]
 
-theorem cliqueNum_disjUnion_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ⊕g hypercube (n + 1)).cliqueNum = 2 := by
-  have h := cliqueNum_disjUnion (hypercube (m + 1)) (hypercube (n + 1))
-  rw [cliqueNum_hypercube, cliqueNum_hypercube] at h
-  omega
-
-theorem chromNum_disjUnion_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ⊕g hypercube (n + 1)).chromNum = 2 := by
-  have h := chromNum_disjUnion (hypercube (m + 1)) (hypercube (n + 1))
-  rw [chromNum_hypercube, chromNum_hypercube] at h
-  omega
-
-theorem indepNum_disjUnion_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ⊕g hypercube (n + 1)).indepNum = 2 ^ m + 2 ^ n := by
-  rw [indepNum_disjUnion, indepNum_hypercube, indepNum_hypercube]
-
-theorem matchNum_disjUnion_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ⊕g hypercube (n + 1)).matchNum = 2 ^ m + 2 ^ n := by
-  rw [matchNum_disjUnion, matchNum_hypercube, matchNum_hypercube]
-
-theorem coverNum_disjUnion_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ⊕g hypercube (n + 1)).coverNum = 2 ^ m + 2 ^ n := by
-  rw [coverNum_disjUnion, coverNum_hypercube, coverNum_hypercube]
-
-theorem cliqueCoverNum_disjUnion_hypercube (m n : ℕ) :
-    (hypercube (m + 1) ⊕g hypercube (n + 1)).cliqueCoverNum = 2 ^ m + 2 ^ n := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_hypercube, cliqueCoverNum_hypercube]
-
 theorem edgeChromNum_disjUnion_hypercube (m n : ℕ) :
     (hypercube (m + 1) ⊕g hypercube (n + 1)).edgeChromNum = max (m + 1) (n + 1) := by
   rw [edgeChromNum_disjUnion, edgeChromNum_hypercube, edgeChromNum_hypercube]
@@ -1577,14 +1259,6 @@ theorem not_isConnected_disjUnion_hypercube (m n : ℕ) :
   not_isConnected_disjUnion (by rw [V_hypercube]; positivity)
     (by rw [V_hypercube]; positivity)
 
-theorem diameter_disjUnion_hypercube (m n : ℕ) :
-    (hypercube m ⊕g hypercube n).diameter = 0 :=
-  diameter_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity)
-
-theorem radius_disjUnion_hypercube (m n : ℕ) :
-    (hypercube m ⊕g hypercube n).radius = 0 :=
-  radius_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity)
-
 /-! ### The join of a complete graph with a hypercube -/
 
 theorem E_join_complete_hypercube (m n : ℕ) :
@@ -1597,23 +1271,6 @@ theorem E_join_complete_hypercube (m n : ℕ) :
 theorem cliqueNum_join_complete_hypercube (m n : ℕ) :
     (complete m ∇g hypercube (n + 1)).cliqueNum = m + 2 := by
   rw [cliqueNum_join, cliqueNum_complete, cliqueNum_hypercube]
-
-theorem chromNum_join_complete_hypercube (m n : ℕ) :
-    (complete m ∇g hypercube (n + 1)).chromNum = m + 2 := by
-  rw [chromNum_join, chromNum_complete, chromNum_hypercube]
-
-theorem indepNum_join_complete_hypercube (m n : ℕ) :
-    (complete m ∇g hypercube (n + 1)).indepNum = max (min m 1) (2 ^ n) := by
-  rw [indepNum_join, indepNum_complete, indepNum_hypercube]
-
-theorem cliqueCoverNum_join_complete_hypercube (m n : ℕ) :
-    (complete (m + 1) ∇g hypercube (n + 1)).cliqueCoverNum = max 1 (2 ^ n) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_complete, cliqueCoverNum_hypercube]
-
-theorem coverNum_join_complete_hypercube (m n : ℕ) :
-    (complete m ∇g hypercube (n + 1)).coverNum
-      = min (m - 1 + 2 ^ (n + 1)) (m + 2 ^ n) := by
-  rw [coverNum_join, coverNum_complete, coverNum_hypercube, V_complete, V_hypercube]
 
 theorem maxDeg_join_complete_hypercube (m n : ℕ) :
     maxDeg (complete (m + 1) ∇g hypercube n) = max (m + 2 ^ n) (m + 1 + n) := by
@@ -1646,27 +1303,6 @@ theorem E_join_cycle_hypercube (m n : ℕ) :
 theorem cliqueNum_join_cycle_hypercube (m n : ℕ) :
     (cycle (m + 4) ∇g hypercube (n + 1)).cliqueNum = 4 := by
   rw [cliqueNum_join, cliqueNum_cycle, cliqueNum_hypercube]
-
-theorem chromNum_join_cycle_even_hypercube (m n : ℕ) :
-    (cycle (2 * m + 2) ∇g hypercube (n + 1)).chromNum = 4 := by
-  rw [chromNum_join, chromNum_cycle_even, chromNum_hypercube]
-
-theorem chromNum_join_cycle_odd_hypercube (m n : ℕ) :
-    (cycle (2 * m + 3) ∇g hypercube (n + 1)).chromNum = 5 := by
-  rw [chromNum_join, chromNum_cycle_odd, chromNum_hypercube]
-
-theorem indepNum_join_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 3) ∇g hypercube (n + 1)).indepNum = max ((m + 3) / 2) (2 ^ n) := by
-  rw [indepNum_join, indepNum_cycle, indepNum_hypercube]
-
-theorem cliqueCoverNum_join_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 4) ∇g hypercube (n + 1)).cliqueCoverNum = max ((m + 5) / 2) (2 ^ n) := by
-  rw [cliqueCoverNum_join, cliqueCoverNum_cycle, cliqueCoverNum_hypercube]
-
-theorem coverNum_join_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 3) ∇g hypercube (n + 1)).coverNum
-      = min ((m + 3) - (m + 3) / 2 + 2 ^ (n + 1)) (m + 3 + 2 ^ n) := by
-  rw [coverNum_join, coverNum_cycle, coverNum_hypercube, V_cycle, V_hypercube]
 
 theorem maxDeg_join_cycle_hypercube (m n : ℕ) :
     maxDeg (cycle (m + 3) ∇g hypercube n) = max (2 + 2 ^ n) (m + 3 + n) := by
@@ -1704,34 +1340,6 @@ theorem E_disjUnion_hypercube_complete (m n : ℕ) :
   rw [E_disjUnion, E_complete,
     show 2 * ((hypercube m).E + n.choose 2) = 2 * (hypercube m).E + 2 * n.choose 2 from by ring, h]
 
-theorem cliqueNum_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube (m + 1) ⊕g complete n).cliqueNum = max 2 n := by
-  rw [cliqueNum_disjUnion, cliqueNum_hypercube, cliqueNum_complete]
-
-theorem chromNum_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube (m + 1) ⊕g complete n).chromNum = max 2 n := by
-  rw [chromNum_disjUnion, chromNum_hypercube, chromNum_complete]
-
-theorem indepNum_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube (m + 1) ⊕g complete n).indepNum = 2 ^ m + min n 1 := by
-  rw [indepNum_disjUnion, indepNum_hypercube, indepNum_complete]
-
-theorem matchNum_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube (m + 1) ⊕g complete n).matchNum = 2 ^ m + n / 2 := by
-  rw [matchNum_disjUnion, matchNum_hypercube, matchNum_complete]
-
-theorem coverNum_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube (m + 1) ⊕g complete n).coverNum = 2 ^ m + (n - 1) := by
-  rw [coverNum_disjUnion, coverNum_hypercube, coverNum_complete]
-
-theorem cliqueCoverNum_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube (m + 1) ⊕g complete (n + 1)).cliqueCoverNum = 2 ^ m + 1 := by
-  rw [cliqueCoverNum_disjUnion, cliqueCoverNum_hypercube, cliqueCoverNum_complete]
-
-theorem domNum_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube m ⊕g complete (n + 1)).domNum = (hypercube m).domNum + 1 := by
-  rw [domNum_disjUnion, domNum_complete]
-
 theorem minDeg_disjUnion_hypercube_complete (m n : ℕ) :
     minDeg (hypercube m ⊕g complete (n + 1)) = min m n := by
   have h := minDeg_disjUnion (G := hypercube m) (H := complete (n + 1))
@@ -1743,27 +1351,11 @@ theorem not_isConnected_disjUnion_hypercube_complete (m n : ℕ) :
     ¬ IsConnected (hypercube m ⊕g complete (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
 
-theorem diameter_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube m ⊕g complete (n + 1)).diameter = 0 :=
-  diameter_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
-
-theorem radius_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube m ⊕g complete (n + 1)).radius = 0 :=
-  radius_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
-
 /-! ### The Mycielskian of a cycle -/
 
 theorem E_mycielskian_cycle (m : ℕ) : (mycielskian (cycle (m + 3))).E = 4 * (m + 3) := by
   rw [E_mycielskian, E_cycle, V_cycle]
   omega
-
-theorem chromNum_mycielskian_cycle_even (m : ℕ) :
-    (mycielskian (cycle (2 * m + 2))).chromNum = 3 := by
-  rw [chromNum_mycielskian, chromNum_cycle_even]
-
-theorem chromNum_mycielskian_cycle_odd (m : ℕ) :
-    (mycielskian (cycle (2 * m + 3))).chromNum = 4 := by
-  rw [chromNum_mycielskian, chromNum_cycle_odd]
 
 theorem cliqueNum_mycielskian_cycle (m : ℕ) :
     (mycielskian (cycle (m + 4))).cliqueNum = 2 := by
@@ -1822,10 +1414,6 @@ theorem E_mycielskian_path (m : ℕ) : (mycielskian (path (m + 1))).E = 4 * m + 
   rw [E_mycielskian, E_path, V_path]
   omega
 
-theorem chromNum_mycielskian_path (m : ℕ) :
-    (mycielskian (path (m + 2))).chromNum = 3 := by
-  rw [chromNum_mycielskian, chromNum_path]
-
 theorem cliqueNum_mycielskian_path (m : ℕ) :
     (mycielskian (path (m + 2))).cliqueNum = 2 := by
   have h := cliqueNum_mycielskian (path (m + 2)) (by rw [V_path]; omega)
@@ -1878,14 +1466,6 @@ theorem cliqueCoverNum_mycielskian_path_even (m : ℕ) :
   omega
 
 /-! ### The Mycielskian of a complete graph -/
-
-theorem E_mycielskian_complete (m : ℕ) :
-    (mycielskian (complete m)).E = 3 * m.choose 2 + m := by
-  rw [E_mycielskian, E_complete, V_complete]
-
-theorem chromNum_mycielskian_complete (m : ℕ) :
-    (mycielskian (complete m)).chromNum = m + 1 := by
-  rw [chromNum_mycielskian, chromNum_complete]
 
 theorem cliqueNum_mycielskian_complete (m : ℕ) :
     (mycielskian (complete (m + 1))).cliqueNum = max (m + 1) 2 := by
@@ -1942,10 +1522,6 @@ theorem E_mycielskian_hypercube (n : ℕ) :
   have h := E_hypercube n
   rw [E_mycielskian, V_hypercube,
     show 2 * (3 * (hypercube n).E + 2 ^ n) = 3 * (2 * (hypercube n).E) + 2 * 2 ^ n from by ring, h]
-
-theorem chromNum_mycielskian_hypercube (n : ℕ) :
-    (mycielskian (hypercube (n + 1))).chromNum = 3 := by
-  rw [chromNum_mycielskian, chromNum_hypercube]
 
 theorem cliqueNum_mycielskian_hypercube (n : ℕ) :
     (mycielskian (hypercube (n + 1))).cliqueNum = 2 := by
@@ -2052,10 +1628,6 @@ theorem E_mycielskian_star (n : ℕ) : (mycielskian (star n)).E = 4 * n + 1 := b
   rw [E_mycielskian, E_star, V_star]
   omega
 
-theorem chromNum_mycielskian_star (n : ℕ) :
-    (mycielskian (star (n + 1))).chromNum = 3 := by
-  rw [chromNum_mycielskian, chromNum_star]
-
 theorem cliqueNum_mycielskian_star (n : ℕ) :
     (mycielskian (star (n + 1))).cliqueNum = 2 := by
   have h := cliqueNum_mycielskian (star (n + 1)) (by rw [V_star]; omega)
@@ -2096,10 +1668,6 @@ theorem four_le_girth_mycielskian_star (n : ℕ) :
   four_le_girth_mycielskian _ (by rw [cliqueNum_star]) (by rw [E_star]; omega)
 
 /-! ### The Mycielskian of a complete bipartite graph -/
-
-theorem chromNum_mycielskian_bipartite (m n : ℕ) :
-    (mycielskian (bipartite (m + 1) (n + 1))).chromNum = 3 := by
-  rw [chromNum_mycielskian, chromNum_bipartite]
 
 theorem cliqueNum_mycielskian_bipartite (m n : ℕ) :
     (mycielskian (bipartite (m + 1) (n + 1))).cliqueNum = 2 := by
@@ -2187,10 +1755,6 @@ theorem E_mycielskian_cocktailParty (n : ℕ) :
     show 2 * (n + 1) - 2 = 2 * n from by omega]
   ring
 
-theorem chromNum_mycielskian_cocktailParty (n : ℕ) :
-    (mycielskian (cocktailParty n)).chromNum = n + 1 := by
-  rw [chromNum_mycielskian, chromNum_cocktailParty]
-
 theorem cliqueNum_mycielskian_cocktailParty (n : ℕ) :
     (mycielskian (cocktailParty (n + 2))).cliqueNum = n + 2 := by
   have h := cliqueNum_mycielskian (cocktailParty (n + 2)) (by rw [V_cocktailParty]; omega)
@@ -2269,14 +1833,6 @@ theorem E_mycielskian_wheel (n : ℕ) :
   rw [E_mycielskian, E_wheel, V_wheel]
   omega
 
-theorem chromNum_mycielskian_wheel_even (m : ℕ) :
-    (mycielskian (wheel (2 * m + 4))).chromNum = 4 := by
-  rw [chromNum_mycielskian, chromNum_wheel_even]
-
-theorem chromNum_mycielskian_wheel_odd (m : ℕ) :
-    (mycielskian (wheel (2 * m + 3))).chromNum = 5 := by
-  rw [chromNum_mycielskian, chromNum_wheel_odd]
-
 theorem cliqueNum_mycielskian_wheel (n : ℕ) :
     (mycielskian (wheel (n + 4))).cliqueNum = 3 := by
   have h := cliqueNum_mycielskian (wheel (n + 4)) (by rw [V_wheel]; omega)
@@ -2353,10 +1909,6 @@ theorem E_mycielskian_fan (n : ℕ) : (mycielskian (fan (n + 1))).E = 7 * n + 5 
   rw [E_mycielskian, E_fan, V_fan]
   omega
 
-theorem chromNum_mycielskian_fan (n : ℕ) :
-    (mycielskian (fan (n + 2))).chromNum = 4 := by
-  rw [chromNum_mycielskian, chromNum_fan]
-
 theorem cliqueNum_mycielskian_fan (n : ℕ) :
     (mycielskian (fan (n + 2))).cliqueNum = 3 := by
   have h := cliqueNum_mycielskian (fan (n + 2)) (by rw [V_fan]; omega)
@@ -2431,10 +1983,6 @@ theorem coverNum_mycielskian_fan_le (n : ℕ) :
 theorem E_mycielskian_book (n : ℕ) : (mycielskian (book n)).E = 7 * n + 5 := by
   rw [E_mycielskian, E_book, V_book]
   omega
-
-theorem chromNum_mycielskian_book (n : ℕ) :
-    (mycielskian (book (n + 1))).chromNum = 4 := by
-  rw [chromNum_mycielskian, chromNum_book]
 
 theorem cliqueNum_mycielskian_book (n : ℕ) :
     (mycielskian (book (n + 1))).cliqueNum = 3 := by
@@ -2579,10 +2127,6 @@ theorem coverNum_mycielskian_friendship_le (n : ℕ) :
 theorem E_mycielskian_ladder (n : ℕ) : (mycielskian (ladder (n + 1))).E = 11 * n + 5 := by
   rw [E_mycielskian, E_ladder, V_ladder]
   omega
-
-theorem chromNum_mycielskian_ladder (n : ℕ) :
-    (mycielskian (ladder (n + 1))).chromNum = 3 := by
-  rw [chromNum_mycielskian, chromNum_ladder]
 
 theorem cliqueNum_mycielskian_ladder (n : ℕ) :
     (mycielskian (ladder (n + 2))).cliqueNum = 2 := by
@@ -2732,10 +2276,6 @@ theorem E_mycielskian_crown (n : ℕ) :
     (mycielskian (crown n)).E = 6 * n.choose 2 + 2 * n := by
   rw [E_mycielskian, E_crown, V_crown]
   omega
-
-theorem chromNum_mycielskian_crown (n : ℕ) :
-    (mycielskian (crown (n + 2))).chromNum = 3 := by
-  rw [chromNum_mycielskian, chromNum_crown]
 
 theorem cliqueNum_mycielskian_crown (n : ℕ) :
     (mycielskian (crown (n + 2))).cliqueNum = 2 := by
