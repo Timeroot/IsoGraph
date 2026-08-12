@@ -118,19 +118,6 @@ theorem not_isBipartite_lineGraph_completeMultipartite_replicate {m d : ℕ}
 
 /-! ### The Mycielskian of a balanced complete multipartite graph -/
 
-@[simp] theorem V_mycielskian_completeMultipartite_replicate (m d : ℕ) :
-    (mycielskian (completeMultipartite (List.replicate m d))).V = 2 * (m * d) + 1 := by
-  rw [V_mycielskian, V_completeMultipartite_replicate]
-
-@[simp] theorem E_mycielskian_completeMultipartite_replicate (m d : ℕ) :
-    (mycielskian (completeMultipartite (List.replicate m d))).E
-      = 3 * (m.choose 2 * (d * d)) + m * d := by
-  rw [E_mycielskian, E_completeMultipartite_replicate, V_completeMultipartite_replicate]
-
-@[simp] theorem chromNum_mycielskian_completeMultipartite_replicate (m d : ℕ) :
-    (mycielskian (completeMultipartite (List.replicate m (d + 1)))).chromNum = m + 1 := by
-  rw [chromNum_mycielskian, chromNum_completeMultipartite_replicate]
-
 theorem cliqueNum_mycielskian_completeMultipartite_replicate (m d : ℕ) :
     (mycielskian (completeMultipartite (List.replicate (m + 1) (d + 1)))).cliqueNum
       = max (m + 1) 2 := by
@@ -208,18 +195,10 @@ theorem not_isTree_lineGraph_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n) (
 
 /-! ### The Mycielskian of a circulant graph -/
 
-@[simp] theorem V_mycielskian_circulant (n : ℕ) (S : List ℕ) :
-    (mycielskian (circulant n S)).V = 2 * n + 1 := by
-  rw [V_mycielskian, V_circulant]
-
-@[simp] theorem E_mycielskian_circulant (n : ℕ) (S : List ℕ) :
-    (mycielskian (circulant n S)).E = 3 * (circulant n S).E + n := by
-  rw [E_mycielskian, V_circulant]
-
 theorem two_mul_E_mycielskian_circulant {n k : ℕ} {S : List ℕ}
     (hk : n * k = 2 * (circulant n S).E) :
     2 * (mycielskian (circulant n S)).E = 3 * (n * k) + 2 * n := by
-  rw [E_mycielskian_circulant]
+  rw [E_mycielskian, V_circulant]
   omega
 
 theorem maxDeg_mycielskian_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
@@ -322,9 +301,6 @@ theorem not_isTree_lineGraph_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q %
   not_isTree_lineGraph (by rw [maxDeg_paley q hq]; omega)
 
 /-! ### The Mycielskian of a Paley graph -/
-
-@[simp] theorem V_mycielskian_paley (q : ℕ) : (mycielskian (paley q)).V = 2 * q + 1 := by
-  rw [V_mycielskian, V_paley]
 
 theorem two_mul_E_mycielskian_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     2 * (mycielskian (paley q)).E = 3 * (q * ((q - 1) / 2)) + 2 * q := by
@@ -1088,7 +1064,6 @@ theorem diameter_foldedCube (n : ℕ) : (foldedCube (n + 1)).diameter = (n + 2) 
   rw [SimpleGraph.diam, h_ediam_eq_nn]
   rfl
 
-
 /-- Vertex-transitive graphs have radius equal to diameter. -/
 theorem radius_foldedCube (n : ℕ) : (foldedCube (n + 1)).radius = (n + 2) / 2 := by
   rw [radius_eq_diameter_of_isVertexTransitive (by simp), diameter_foldedCube]
@@ -1150,7 +1125,6 @@ theorem edgeChromNum_foldedCube_le (n : ℕ) :
 
 @[simp] theorem cliqueCount_foldedCube (n : ℕ) : (foldedCube (n + 3)).cliqueCount 3 = 0 :=
   (cliqueCount_eq_zero_iff _ 3).2 (by rw [cliqueNum_foldedCube]; omega)
-
 
 /-! ### Complements of the folded cube -/
 
@@ -1251,10 +1225,6 @@ theorem not_isTree_lineGraph_foldedCube (n : ℕ) : ¬ IsTree (lineGraph (folded
 
 /-! ### The Mycielskian of the folded cube -/
 
-@[simp] theorem V_mycielskian_foldedCube (n : ℕ) :
-    (mycielskian (foldedCube n)).V = 2 * 2 ^ n + 1 := by
-  rw [V_mycielskian, V_foldedCube]
-
 theorem E_mycielskian_foldedCube (n : ℕ) :
     (mycielskian (foldedCube (n + 2))).E = 3 * (2 ^ (n + 1) * (n + 3)) + 2 ^ (n + 2) := by
   rw [E_mycielskian, E_foldedCube, V_foldedCube]
@@ -1306,10 +1276,6 @@ theorem le_indepNum_mycielskian_foldedCube (n : ℕ) :
   have h := V_le_indepNum_mycielskian (foldedCube n)
   rwa [V_foldedCube] at h
 /-! ### The Mycielskian of a theta graph -/
-
-@[simp] theorem V_mycielskian_thetaGraph (xs : List ℕ) :
-    (mycielskian (thetaGraph xs)).V = 2 * (2 + xs.sum) + 1 := by
-  rw [V_mycielskian, V_thetaGraph]
 
 theorem E_mycielskian_thetaGraph (xs : List ℕ) (h : ∀ k ∈ xs, 0 < k) :
     (mycielskian (thetaGraph xs)).E = 3 * (xs.sum + xs.length) + (2 + xs.sum) := by
@@ -1753,7 +1719,6 @@ theorem cliqueNum_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 
   · rw [E_cyclePendant (m + 1) ks (by omega)]
     omega
 
-
 /-- **The independence number of a king graph**: `α(Pₘ ⊠ Pₙ) = ⌈m/2⌉ · ⌈n/2⌉`, the kings placed
 on every other rank and every other file.  The lower bound is the general
 `indepNum_mul_indepNum_le_indepNum_strongProduct` and the upper bound is the `2 × 2` blocking. -/
@@ -1820,7 +1785,7 @@ it inherits the boustrophedon matching, and `2ν ≤ n` is the matching bound. -
     (cycle m □g cycle n).matchNum = m * n / 2 := by
   refine le_antisymm ?_ ?_
   · have h := (cycle m □g cycle n).two_mul_matchNum_le_V
-    rw [V_cartesianProduct_cycle] at h
+    rw [V_cartesianProduct, V_cycle, V_cycle] at h
     omega
   · rw [matchNum_eq, cycle_def, cycle_def, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
     exact CGraph.le_indepNum_lineGraph_torus m n
@@ -1830,7 +1795,7 @@ it inherits the boustrophedon matching, and `2ν ≤ n` is the matching bound. -
     (cycle m □g path n).matchNum = m * n / 2 := by
   refine le_antisymm ?_ ?_
   · have h := (cycle m □g path n).two_mul_matchNum_le_V
-    rw [V_cartesianProduct_cycle_path] at h
+    rw [V_cartesianProduct, V_cycle, V_path] at h
     omega
   · rw [matchNum_eq, cycle_def, path_def, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
     exact CGraph.le_indepNum_lineGraph_cylinder m n
@@ -1893,7 +1858,7 @@ theorem indepNum_cartesianProduct_cycle_odd' (a b : ℕ) (hab : b ≤ a) :
 theorem coverNum_cartesianProduct_cycle_even (m n : ℕ) (hev : n % 2 = 0) :
     (cycle (m + 3) □g cycle n).coverNum = n * ((m + 4) / 2) := by
   have h := (cycle (m + 3) □g cycle n).coverNum_add_indepNum
-  rw [V_cartesianProduct_cycle, indepNum_cartesianProduct_cycle_even m n hev] at h
+  rw [V_cartesianProduct, V_cycle, V_cycle, indepNum_cartesianProduct_cycle_even m n hev] at h
   rcases Nat.even_or_odd m with hm | hm
   · obtain ⟨k, rfl⟩ := hm
     have h1 : (k + k + 3) / 2 = k + 1 := by omega
@@ -1913,7 +1878,7 @@ theorem coverNum_cartesianProduct_cycle_even (m n : ℕ) (hev : n % 2 = 0) :
 theorem coverNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
     (cycle (2 * a + 3) □g cycle (2 * b + 3)).coverNum = (2 * b + 3) * (a + 2) := by
   have h := (cycle (2 * a + 3) □g cycle (2 * b + 3)).coverNum_add_indepNum
-  rw [V_cartesianProduct_cycle, indepNum_cartesianProduct_cycle_odd a b hab] at h
+  rw [V_cartesianProduct, V_cycle, V_cycle, indepNum_cartesianProduct_cycle_odd a b hab] at h
   nlinarith [h]
 
 /-! ## The automorphism group of the hypercube -/

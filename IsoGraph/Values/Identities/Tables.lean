@@ -766,9 +766,6 @@ theorem IsArcTransitive.lineGraph {G : IsoGraph} (h : IsArcTransitive G) :
   rw [cocktailParty_eq_lexProduct]
   exact (isVertexTransitive_complete n).lexProduct (isVertexTransitive_empty 2)
 
-@[simp] theorem isVertexTransitive_lineGraph_complete (n : ℕ) :
-    IsVertexTransitive (lineGraph (complete n)) := (isArcTransitive_complete n).lineGraph
-
 @[simp] theorem isVertexTransitive_lineGraph_cycle (n : ℕ) :
     IsVertexTransitive (lineGraph (cycle n)) := (isArcTransitive_cycle n).lineGraph
 
@@ -930,16 +927,9 @@ theorem IsSRGWith.E_lineGraph {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G
     (lineGraph G).E = n * k.choose 2 := by
   rw [IsoGraph.E_lineGraph, h.degSequence, List.map_replicate, List.sum_replicate, smul_eq_mul]
 
-@[simp] theorem E_lineGraph_complete (n : ℕ) :
-    (lineGraph (complete n)).E = n * (n - 1).choose 2 := by
-  rw [E_lineGraph, degSequence_complete, List.map_replicate, List.sum_replicate, smul_eq_mul]
-
-@[simp] theorem E_lineGraph_empty (n : ℕ) : (lineGraph (empty n)).E = 0 := by
-  rw [E_lineGraph, degSequence_empty, List.map_replicate, List.sum_replicate, smul_eq_mul]
-  rfl
-
 @[simp] theorem E_triangular (n : ℕ) : (triangular n).E = n * (n - 1).choose 2 := by
-  rw [← lineGraph_complete_eq_triangular, E_lineGraph_complete]
+  rw [← lineGraph_complete_eq_triangular, E_lineGraph, degSequence_complete, List.map_replicate,
+    List.sum_replicate, smul_eq_mul]
 
 /-! ### More vertex counts -/
 
@@ -1078,10 +1068,6 @@ theorem degSequence_of_isVertexTransitive {G : IsoGraph} {k : ℕ} (h : IsVertex
     degSequence (prism (n + 3)) = List.replicate ((n + 3) * 2) 3 := by
   show degSequence (cycle (n + 3) □g complete 2) = _
   rw [degSequence_cartesianProduct (degSequence_cycle n) (degSequence_complete 2)]
-
-@[simp] theorem E_lineGraph_cycle (n : ℕ) : (lineGraph (cycle (n + 3))).E = n + 3 := by
-  rw [E_lineGraph, degSequence_cycle, List.map_replicate, List.sum_replicate, smul_eq_mul,
-    show (2 : ℕ).choose 2 = 1 from rfl, mul_one]
 
 theorem two_mul_E_prism (n : ℕ) : 2 * (prism (n + 3)).E = (n + 3) * 2 * 3 :=
   two_mul_E_of_degSequence_replicate (degSequence_prism n)

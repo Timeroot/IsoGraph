@@ -1066,7 +1066,6 @@ theorem two_mul_E_ladder (n : ℕ) : 2 * (ladder (n + 2)).E = 8 + 6 * n := by
     smul_eq_mul, smul_eq_mul] at h
   omega
 
-
 /-- The radius of a strong product is the maximum of the radii. -/
 theorem radius_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
     (G ⊠g H).radius = max G.radius H.radius := by
@@ -1583,7 +1582,6 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
       -- Conclude
       exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
 
-
 /-- The line graph of a connected graph with at least one edge is connected. -/
 theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     IsConnected (lineGraph G) := by
@@ -1679,7 +1677,6 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
     exact hswept_all v f hv
   letI : Nonempty (CGraph.lineGraph G.toCGraph).V := ⟨e₀'⟩
   exact SimpleGraph.Connected.mk (fun e f => (hreach_all_edges e).symm.trans (hreach_all_edges f))
-
 
 /-! ### Consequences of the strong-product radius and of line-graph connectivity -/
 
@@ -1954,13 +1951,9 @@ theorem two_mul_indepNum_le_johnson {n k : ℕ} (hE : 0 < (johnson n k).E) :
   have h := two_mul_indepNum_le_V (isVertexTransitive_johnson n k) hE
   rwa [V_johnson] at h
 
-@[simp] theorem isVertexTransitive_compl_johnson (n k : ℕ) :
-    IsVertexTransitive (johnson n k)ᶜ := (isVertexTransitive_johnson n k).compl
-
 theorem coverNum_johnson (n k : ℕ) :
     (johnson n k).coverNum = n.choose k - (johnson n k).indepNum := by
   rw [coverNum_eq, V_johnson]
-
 
 /-! ### Graphs that are not vertex transitive, by an irregular degree
 

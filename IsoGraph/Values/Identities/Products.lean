@@ -137,11 +137,13 @@ theorem numComponents_grid (m n : ℕ) :
 
 theorem numComponents_cartesianProduct_cycle (m n : ℕ) :
     (cycle (m + 1) □g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_cycle m n)
+  numComponents_eq_one_of_isConnected
+    (isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_cycle n⟩)
 
 theorem numComponents_cartesianProduct_cycle_path (m n : ℕ) :
     (cycle (m + 1) □g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_cycle_path m n)
+  numComponents_eq_one_of_isConnected
+    (isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_path n⟩)
 
 theorem numComponents_strongProduct_cycle (m n : ℕ) :
     (cycle (m + 1) ⊠g cycle (n + 1)).numComponents = 1 :=
@@ -503,7 +505,7 @@ theorem isVertexTransitive_compl_bipartite_self (n : ℕ) :
 
 theorem isVertexTransitive_compl_lineGraph_complete (n : ℕ) :
     IsVertexTransitive ((lineGraph (complete n))ᶜ) :=
-  (isVertexTransitive_compl _).2 (isVertexTransitive_lineGraph_complete n)
+  (isVertexTransitive_compl _).2 ((isArcTransitive_complete n).lineGraph)
 
 theorem isVertexTransitive_compl_lineGraph_cycle (n : ℕ) :
     IsVertexTransitive ((lineGraph (cycle n))ᶜ) :=
@@ -514,10 +516,6 @@ theorem isVertexTransitive_compl_lineGraph_petersen :
   (isVertexTransitive_compl _).2 isVertexTransitive_lineGraph_petersen
 
 /-! ### The cartesian product of a complete graph with a cycle -/
-
-@[simp] theorem V_cartesianProduct_complete_cycle (m n : ℕ) :
-    (complete m □g cycle n).V = m * n := by
-  rw [V_cartesianProduct, V_complete, V_cycle]
 
 theorem E_cartesianProduct_complete_cycle (m n : ℕ) :
     (complete m □g cycle (n + 3)).E = m * (n + 3) + (n + 3) * m.choose 2 := by
@@ -544,13 +542,10 @@ theorem chromNum_cartesianProduct_complete_cycle_odd (m t : ℕ) :
   rw [chromNum_complete, chromNum_cycle_odd] at h
   omega
 
-@[simp] theorem isConnected_cartesianProduct_complete_cycle (m n : ℕ) :
-    IsConnected (complete (m + 1) □g cycle (n + 1)) :=
-  isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_cycle n⟩
-
 theorem numComponents_cartesianProduct_complete_cycle (m n : ℕ) :
     (complete (m + 1) □g cycle (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_complete_cycle m n)
+  numComponents_eq_one_of_isConnected
+    (isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_cycle n⟩)
 
 theorem diameter_cartesianProduct_complete_cycle (m n : ℕ) :
     (complete (m + 2) □g cycle (n + 1)).diameter = 1 + (n + 1) / 2 := by
@@ -591,10 +586,6 @@ theorem girth_cartesianProduct_complete_cycle (m n : ℕ) :
 
 /-! ### The cartesian product of a complete graph with a path -/
 
-@[simp] theorem V_cartesianProduct_complete_path (m n : ℕ) :
-    (complete m □g path n).V = m * n := by
-  rw [V_cartesianProduct, V_complete, V_path]
-
 theorem E_cartesianProduct_complete_path (m n : ℕ) :
     (complete m □g path (n + 1)).E = m * n + (n + 1) * m.choose 2 := by
   rw [E_cartesianProduct, E_complete, E_path, V_complete, V_path]
@@ -613,13 +604,10 @@ theorem chromNum_cartesianProduct_complete_path (m n : ℕ) :
   rw [chromNum_complete, chromNum_path] at h
   omega
 
-@[simp] theorem isConnected_cartesianProduct_complete_path (m n : ℕ) :
-    IsConnected (complete (m + 1) □g path (n + 1)) :=
-  isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_path n⟩
-
 theorem numComponents_cartesianProduct_complete_path (m n : ℕ) :
     (complete (m + 1) □g path (n + 1)).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_complete_path m n)
+  numComponents_eq_one_of_isConnected
+    (isConnected_cartesianProduct.2 ⟨isConnected_complete m, isConnected_path n⟩)
 
 theorem diameter_cartesianProduct_complete_path (m n : ℕ) :
     (complete (m + 2) □g path (n + 1)).diameter = 1 + n := by
@@ -655,10 +643,6 @@ theorem girth_cartesianProduct_complete_path (m n : ℕ) :
 
 /-! ### The cartesian product of a cycle with a hypercube -/
 
-@[simp] theorem V_cartesianProduct_cycle_hypercube (m n : ℕ) :
-    (cycle m □g hypercube n).V = m * 2 ^ n := by
-  rw [V_cartesianProduct, V_cycle, V_hypercube]
-
 theorem cliqueNum_cartesianProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 4) □g hypercube (n + 1)).cliqueNum = 2 := by
   have h := cliqueNum_cartesianProduct (G := cycle (m + 4)) (H := hypercube (n + 1))
@@ -680,13 +664,10 @@ theorem chromNum_cartesianProduct_cycle_hypercube_odd (t n : ℕ) :
   rw [chromNum_cycle_odd, chromNum_hypercube] at h
   omega
 
-@[simp] theorem isConnected_cartesianProduct_cycle_hypercube (m n : ℕ) :
-    IsConnected (cycle (m + 1) □g hypercube n) :=
-  isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_hypercube n⟩
-
 theorem numComponents_cartesianProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 1) □g hypercube n).numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (isConnected_cartesianProduct_cycle_hypercube m n)
+  numComponents_eq_one_of_isConnected
+    (isConnected_cartesianProduct.2 ⟨isConnected_cycle m, isConnected_hypercube n⟩)
 
 theorem diameter_cartesianProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 1) □g hypercube n).diameter = (m + 1) / 2 + n := by
@@ -1022,10 +1003,6 @@ theorem girth_tensorProduct_friendship_friendship (m n : ℕ) :
 
 /-! ### The strong product of a complete graph with a cycle -/
 
-@[simp] theorem V_strongProduct_complete_cycle (m n : ℕ) :
-    (complete m ⊠g cycle n).V = m * n := by
-  rw [V_strongProduct, V_complete, V_cycle]
-
 theorem E_strongProduct_complete_cycle (m n : ℕ) :
     (complete m ⊠g cycle (n + 3)).E
       = m * (n + 3) + (n + 3) * m.choose 2 + 2 * m.choose 2 * (n + 3) := by
@@ -1078,10 +1055,6 @@ theorem girth_strongProduct_complete_cycle (m n : ℕ) :
 
 /-! ### The strong product of a cycle with a hypercube -/
 
-@[simp] theorem V_strongProduct_cycle_hypercube (m n : ℕ) :
-    (cycle m ⊠g hypercube n).V = m * 2 ^ n := by
-  rw [V_strongProduct, V_cycle, V_hypercube]
-
 theorem cliqueNum_strongProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 4) ⊠g hypercube (n + 1)).cliqueNum = 4 := by
   rw [cliqueNum_strongProduct, cliqueNum_cycle, cliqueNum_hypercube]
@@ -1128,10 +1101,6 @@ theorem girth_strongProduct_cycle_hypercube (m n : ℕ) :
   girth_strongProduct (by rw [E_cycle]; omega) (E_pos_hypercube n)
 
 /-! ### The lexicographic product of a complete graph with a cycle -/
-
-@[simp] theorem V_lexProduct_complete_cycle (m n : ℕ) :
-    (complete m ·g cycle n).V = m * n := by
-  rw [V_lexProduct, V_complete, V_cycle]
 
 theorem E_lexProduct_complete_cycle (m n : ℕ) :
     (complete m ·g cycle (n + 3)).E = (n + 3) * (n + 3) * m.choose 2 + m * (n + 3) := by
@@ -1227,10 +1196,6 @@ theorem cliqueCoverNum_lexProduct_complete_cycle_even (m n : ℕ) :
 
 /-! ### The strong product of a complete graph with a path -/
 
-@[simp] theorem V_strongProduct_complete_path (m n : ℕ) :
-    (complete m ⊠g path n).V = m * n := by
-  rw [V_strongProduct, V_complete, V_path]
-
 theorem E_strongProduct_complete_path (m n : ℕ) :
     (complete m ⊠g path (n + 1)).E
       = m * n + (n + 1) * m.choose 2 + 2 * m.choose 2 * n := by
@@ -1278,10 +1243,6 @@ theorem girth_strongProduct_complete_path (m n : ℕ) :
 
 /-! ### The lexicographic product of a complete graph with a path -/
 
-@[simp] theorem V_lexProduct_complete_path (m n : ℕ) :
-    (complete m ·g path n).V = m * n := by
-  rw [V_lexProduct, V_complete, V_path]
-
 theorem E_lexProduct_complete_path (m n : ℕ) :
     (complete m ·g path (n + 1)).E = (n + 1) * (n + 1) * m.choose 2 + m * n := by
   rw [E_lexProduct, E_complete, E_path, V_complete, V_path]
@@ -1327,10 +1288,6 @@ theorem girth_lexProduct_complete_path (m n : ℕ) :
   girth_lexProduct (E_complete_pos m) (by rw [E_path]; omega)
 
 /-! ### The strong product of a path with a hypercube -/
-
-@[simp] theorem V_strongProduct_path_hypercube (m n : ℕ) :
-    (path m ⊠g hypercube n).V = m * 2 ^ n := by
-  rw [V_strongProduct, V_path, V_hypercube]
 
 theorem cliqueNum_strongProduct_path_hypercube (m n : ℕ) :
     (path (m + 2) ⊠g hypercube (n + 1)).cliqueNum = 4 := by
@@ -1385,10 +1342,6 @@ theorem chromNum_lexProduct_path_hypercube (m n : ℕ) :
   rwa [cliqueNum_path, cliqueNum_hypercube] at h
 
 /-! ### The lexicographic product of a cycle with a hypercube -/
-
-@[simp] theorem V_lexProduct_cycle_hypercube (m n : ℕ) :
-    (cycle m ·g hypercube n).V = m * 2 ^ n := by
-  rw [V_lexProduct, V_cycle, V_hypercube]
 
 theorem E_lexProduct_cycle_hypercube (m n : ℕ) :
     2 * (cycle (m + 3) ·g hypercube n).E
@@ -1464,9 +1417,6 @@ theorem domNum_lexProduct_friendship (G : IsoGraph) (n : ℕ) :
 
 /-! ### The join of a path with a cycle -/
 
-@[simp] theorem V_join_path_cycle (m n : ℕ) : (path m ∇g cycle n).V = m + n := by
-  rw [V_join, V_path, V_cycle]
-
 theorem E_join_path_cycle (m n : ℕ) :
     (path (m + 1) ∇g cycle (n + 3)).E = m + (n + 3) + (m + 1) * (n + 3) := by
   rw [E_join, E_path, E_cycle, V_path, V_cycle]
@@ -1512,14 +1462,6 @@ theorem minDeg_join_path_cycle (m n : ℕ) :
   rw [h]
   omega
 
-@[simp] theorem isConnected_join_path_cycle (m n : ℕ) :
-    IsConnected (path (m + 1) ∇g cycle (n + 1)) :=
-  isConnected_join (by rw [V_path]; omega) (by rw [V_cycle]; omega)
-
-@[simp] theorem numComponents_join_path_cycle (m n : ℕ) :
-    (path (m + 1) ∇g cycle (n + 1)).numComponents = 1 :=
-  numComponents_join (by rw [V_path]; omega) (by rw [V_cycle]; omega)
-
 @[simp] theorem girth_join_path_cycle (m n : ℕ) :
     (path (m + 2) ∇g cycle (n + 4)).girth = 3 :=
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_path_cycle]; omega)
@@ -1537,10 +1479,6 @@ theorem diameter_join_path_cycle (m n : ℕ) :
   omega
 
 /-! ### The join of two hypercubes -/
-
-@[simp] theorem V_join_hypercube (m n : ℕ) :
-    (hypercube m ∇g hypercube n).V = 2 ^ m + 2 ^ n := by
-  rw [V_join, V_hypercube, V_hypercube]
 
 theorem E_join_hypercube (m n : ℕ) :
     2 * (hypercube m ∇g hypercube n).E = m * 2 ^ m + n * 2 ^ n + 2 * (2 ^ m * 2 ^ n) := by
@@ -1583,23 +1521,11 @@ theorem minDeg_join_hypercube (m n : ℕ) :
     (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity)
   rwa [minDeg_hypercube, minDeg_hypercube, V_hypercube, V_hypercube] at h
 
-@[simp] theorem isConnected_join_hypercube (m n : ℕ) :
-    IsConnected (hypercube m ∇g hypercube n) :=
-  isConnected_join (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity)
-
-@[simp] theorem numComponents_join_hypercube (m n : ℕ) :
-    (hypercube m ∇g hypercube n).numComponents = 1 :=
-  numComponents_join (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity)
-
 @[simp] theorem girth_join_hypercube (m n : ℕ) :
     (hypercube (m + 1) ∇g hypercube (n + 1)).girth = 3 :=
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_hypercube]; omega)
 
 /-! ### The disjoint union of two hypercubes -/
-
-@[simp] theorem V_disjUnion_hypercube (m n : ℕ) :
-    (hypercube m ⊕g hypercube n).V = 2 ^ m + 2 ^ n := by
-  rw [V_disjUnion, V_hypercube, V_hypercube]
 
 theorem E_disjUnion_hypercube (m n : ℕ) :
     2 * (hypercube m ⊕g hypercube n).E = m * 2 ^ m + n * 2 ^ n := by
@@ -1641,18 +1567,10 @@ theorem edgeChromNum_disjUnion_hypercube (m n : ℕ) :
     (hypercube (m + 1) ⊕g hypercube (n + 1)).edgeChromNum = max (m + 1) (n + 1) := by
   rw [edgeChromNum_disjUnion, edgeChromNum_hypercube, edgeChromNum_hypercube]
 
-@[simp] theorem maxDeg_disjUnion_hypercube (m n : ℕ) :
-    maxDeg (hypercube m ⊕g hypercube n) = max m n := by
-  rw [maxDeg_disjUnion, maxDeg_hypercube, maxDeg_hypercube]
-
 theorem minDeg_disjUnion_hypercube (m n : ℕ) :
     minDeg (hypercube m ⊕g hypercube n) = min m n := by
   rw [minDeg_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity),
     minDeg_hypercube, minDeg_hypercube]
-
-@[simp] theorem numComponents_disjUnion_hypercube (m n : ℕ) :
-    (hypercube m ⊕g hypercube n).numComponents = 2 := by
-  rw [numComponents_disjUnion, numComponents_hypercube, numComponents_hypercube]
 
 theorem not_isConnected_disjUnion_hypercube (m n : ℕ) :
     ¬ IsConnected (hypercube m ⊕g hypercube n) :=
@@ -1668,10 +1586,6 @@ theorem radius_disjUnion_hypercube (m n : ℕ) :
   radius_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_hypercube]; positivity)
 
 /-! ### The join of a complete graph with a hypercube -/
-
-@[simp] theorem V_join_complete_hypercube (m n : ℕ) :
-    (complete m ∇g hypercube n).V = m + 2 ^ n := by
-  rw [V_join, V_complete, V_hypercube]
 
 theorem E_join_complete_hypercube (m n : ℕ) :
     2 * (complete m ∇g hypercube n).E = 2 * m.choose 2 + n * 2 ^ n + 2 * (m * 2 ^ n) := by
@@ -1715,23 +1629,11 @@ theorem minDeg_join_complete_hypercube (m n : ℕ) :
   rw [minDeg_complete, minDeg_hypercube, V_complete, V_hypercube] at h
   simpa using h
 
-@[simp] theorem isConnected_join_complete_hypercube (m n : ℕ) :
-    IsConnected (complete (m + 1) ∇g hypercube n) :=
-  isConnected_join (by rw [V_complete]; omega) (by rw [V_hypercube]; positivity)
-
-@[simp] theorem numComponents_join_complete_hypercube (m n : ℕ) :
-    (complete (m + 1) ∇g hypercube n).numComponents = 1 :=
-  numComponents_join (by rw [V_complete]; omega) (by rw [V_hypercube]; positivity)
-
 @[simp] theorem girth_join_complete_hypercube (m n : ℕ) :
     (complete (m + 1) ∇g hypercube (n + 1)).girth = 3 :=
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_complete_hypercube]; omega)
 
 /-! ### The join of a cycle with a hypercube -/
-
-@[simp] theorem V_join_cycle_hypercube (m n : ℕ) :
-    (cycle m ∇g hypercube n).V = m + 2 ^ n := by
-  rw [V_join, V_cycle, V_hypercube]
 
 theorem E_join_cycle_hypercube (m n : ℕ) :
     2 * (cycle (m + 3) ∇g hypercube n).E
@@ -1778,14 +1680,6 @@ theorem minDeg_join_cycle_hypercube (m n : ℕ) :
     (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
   rwa [minDeg_cycle, minDeg_hypercube, V_cycle, V_hypercube] at h
 
-@[simp] theorem isConnected_join_cycle_hypercube (m n : ℕ) :
-    IsConnected (cycle (m + 1) ∇g hypercube n) :=
-  isConnected_join (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
-
-@[simp] theorem numComponents_join_cycle_hypercube (m n : ℕ) :
-    (cycle (m + 1) ∇g hypercube n).numComponents = 1 :=
-  numComponents_join (by rw [V_cycle]; omega) (by rw [V_hypercube]; positivity)
-
 @[simp] theorem girth_join_cycle_hypercube (m n : ℕ) :
     (cycle (m + 4) ∇g hypercube (n + 1)).girth = 3 :=
   girth_eq_three_of_cliqueNum (by rw [cliqueNum_join_cycle_hypercube]; omega)
@@ -1803,10 +1697,6 @@ theorem diameter_join_cycle_hypercube (m n : ℕ) :
   omega
 
 /-! ### The disjoint union of a hypercube with a complete graph -/
-
-@[simp] theorem V_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube m ⊕g complete n).V = 2 ^ m + n := by
-  rw [V_disjUnion, V_hypercube, V_complete]
 
 theorem E_disjUnion_hypercube_complete (m n : ℕ) :
     2 * (hypercube m ⊕g complete n).E = m * 2 ^ m + 2 * n.choose 2 := by
@@ -1842,20 +1732,12 @@ theorem domNum_disjUnion_hypercube_complete (m n : ℕ) :
     (hypercube m ⊕g complete (n + 1)).domNum = (hypercube m).domNum + 1 := by
   rw [domNum_disjUnion, domNum_complete]
 
-@[simp] theorem maxDeg_disjUnion_hypercube_complete (m n : ℕ) :
-    maxDeg (hypercube m ⊕g complete n) = max m (n - 1) := by
-  rw [maxDeg_disjUnion, maxDeg_hypercube, maxDeg_complete]
-
 theorem minDeg_disjUnion_hypercube_complete (m n : ℕ) :
     minDeg (hypercube m ⊕g complete (n + 1)) = min m n := by
   have h := minDeg_disjUnion (G := hypercube m) (H := complete (n + 1))
     (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
   rw [minDeg_hypercube, minDeg_complete] at h
   simpa using h
-
-@[simp] theorem numComponents_disjUnion_hypercube_complete (m n : ℕ) :
-    (hypercube m ⊕g complete (n + 1)).numComponents = 2 := by
-  rw [numComponents_disjUnion, numComponents_hypercube, numComponents_complete]
 
 theorem not_isConnected_disjUnion_hypercube_complete (m n : ℕ) :
     ¬ IsConnected (hypercube m ⊕g complete (n + 1)) :=
@@ -1870,9 +1752,6 @@ theorem radius_disjUnion_hypercube_complete (m n : ℕ) :
   radius_disjUnion (by rw [V_hypercube]; positivity) (by rw [V_complete]; omega)
 
 /-! ### The Mycielskian of a cycle -/
-
-@[simp] theorem V_mycielskian_cycle (m : ℕ) : (mycielskian (cycle m)).V = 2 * m + 1 := by
-  rw [V_mycielskian, V_cycle]
 
 theorem E_mycielskian_cycle (m : ℕ) : (mycielskian (cycle (m + 3))).E = 4 * (m + 3) := by
   rw [E_mycielskian, E_cycle, V_cycle]
@@ -1939,9 +1818,6 @@ theorem cliqueCoverNum_mycielskian_cycle_even (m : ℕ) :
 
 /-! ### The Mycielskian of a path -/
 
-@[simp] theorem V_mycielskian_path (m : ℕ) : (mycielskian (path m)).V = 2 * m + 1 := by
-  rw [V_mycielskian, V_path]
-
 theorem E_mycielskian_path (m : ℕ) : (mycielskian (path (m + 1))).E = 4 * m + 1 := by
   rw [E_mycielskian, E_path, V_path]
   omega
@@ -2003,10 +1879,6 @@ theorem cliqueCoverNum_mycielskian_path_even (m : ℕ) :
 
 /-! ### The Mycielskian of a complete graph -/
 
-@[simp] theorem V_mycielskian_complete (m : ℕ) :
-    (mycielskian (complete m)).V = 2 * m + 1 := by
-  rw [V_mycielskian, V_complete]
-
 theorem E_mycielskian_complete (m : ℕ) :
     (mycielskian (complete m)).E = 3 * m.choose 2 + m := by
   rw [E_mycielskian, E_complete, V_complete]
@@ -2064,10 +1936,6 @@ theorem matchNum_mycielskian_complete_even (m : ℕ) :
   rwa [V_complete] at h
 
 /-! ### The Mycielskian of a hypercube -/
-
-@[simp] theorem V_mycielskian_hypercube (n : ℕ) :
-    (mycielskian (hypercube n)).V = 2 * 2 ^ n + 1 := by
-  rw [V_mycielskian, V_hypercube]
 
 theorem E_mycielskian_hypercube (n : ℕ) :
     2 * (mycielskian (hypercube n)).E = 3 * (n * 2 ^ n) + 2 * 2 ^ n := by
@@ -2131,9 +1999,6 @@ theorem cliqueCoverNum_mycielskian_hypercube (n : ℕ) :
 
 @[simp] theorem E_mycielskian_petersen : (mycielskian petersen).E = 55 := by
   rw [E_mycielskian, E_petersen, V_petersen]
-
-@[simp] theorem chromNum_mycielskian_petersen : (mycielskian petersen).chromNum = 4 := by
-  rw [chromNum_mycielskian, chromNum_petersen]
 
 theorem cliqueNum_mycielskian_petersen : (mycielskian petersen).cliqueNum = 2 := by
   have h := cliqueNum_mycielskian petersen (by rw [V_petersen]; omega)
@@ -2231,14 +2096,6 @@ theorem four_le_girth_mycielskian_star (n : ℕ) :
   four_le_girth_mycielskian _ (by rw [cliqueNum_star]) (by rw [E_star]; omega)
 
 /-! ### The Mycielskian of a complete bipartite graph -/
-
-@[simp] theorem V_mycielskian_bipartite (m n : ℕ) :
-    (mycielskian (bipartite m n)).V = 2 * (m + n) + 1 := by
-  rw [V_mycielskian, V_bipartite]
-
-@[simp] theorem E_mycielskian_bipartite (m n : ℕ) :
-    (mycielskian (bipartite m n)).E = 3 * (m * n) + (m + n) := by
-  rw [E_mycielskian, E_bipartite, V_bipartite]
 
 theorem chromNum_mycielskian_bipartite (m n : ℕ) :
     (mycielskian (bipartite (m + 1) (n + 1))).chromNum = 3 := by

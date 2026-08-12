@@ -229,9 +229,6 @@ theorem girth_join_cycle_star (m n : ℕ) :
   rw [V_disjUnion, V_star, V_star]
   omega
 
-@[simp] theorem E_disjUnion_star (m n : ℕ) : (star m ⊕g star n).E = m + n := by
-  rw [E_disjUnion, E_star, E_star]
-
 theorem cliqueNum_disjUnion_star (m n : ℕ) :
     (star (m + 1) ⊕g star (n + 1)).cliqueNum = 2 := by
   have h := cliqueNum_disjUnion (star (m + 1)) (star (n + 1))
@@ -280,12 +277,6 @@ theorem minDeg_disjUnion_star (m n : ℕ) :
   rw [minDeg_star, minDeg_star] at h
   omega
 
-@[simp] theorem numComponents_disjUnion_star (m n : ℕ) :
-    (star m ⊕g star n).numComponents = 2 := by
-  have h := numComponents_disjUnion (star m) (star n)
-  rw [numComponents_star, numComponents_star] at h
-  omega
-
 theorem not_isConnected_disjUnion_star (m n : ℕ) : ¬ IsConnected (star m ⊕g star n) :=
   not_isConnected_disjUnion (by rw [V_star]; omega) (by rw [V_star]; omega)
 
@@ -301,10 +292,6 @@ theorem radius_disjUnion_star (m n : ℕ) : (star m ⊕g star n).radius = 0 :=
     (complete m ⊕g star n).V = m + n + 1 := by
   rw [V_disjUnion, V_complete, V_star]
   omega
-
-@[simp] theorem E_disjUnion_complete_star (m n : ℕ) :
-    (complete m ⊕g star n).E = m.choose 2 + n := by
-  rw [E_disjUnion, E_complete, E_star]
 
 theorem cliqueNum_disjUnion_complete_star (m n : ℕ) :
     (complete m ⊕g star (n + 1)).cliqueNum = max m 2 := by
@@ -347,12 +334,6 @@ theorem minDeg_disjUnion_complete_star (m n : ℕ) :
   rw [minDeg_complete, minDeg_star] at h
   omega
 
-@[simp] theorem numComponents_disjUnion_complete_star (m n : ℕ) :
-    (complete (m + 1) ⊕g star n).numComponents = 2 := by
-  have h := numComponents_disjUnion (complete (m + 1)) (star n)
-  rw [numComponents_complete, numComponents_star] at h
-  omega
-
 theorem not_isConnected_disjUnion_complete_star (m n : ℕ) :
     ¬ IsConnected (complete (m + 1) ⊕g star n) :=
   not_isConnected_disjUnion (by rw [V_complete]; omega) (by rw [V_star]; omega)
@@ -371,10 +352,6 @@ theorem radius_disjUnion_complete_star (m n : ℕ) :
     (cycle m ⊕g star n).V = m + n + 1 := by
   rw [V_disjUnion, V_cycle, V_star]
   omega
-
-@[simp] theorem E_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 3) ⊕g star n).E = m + 3 + n := by
-  rw [E_disjUnion, E_cycle, E_star]
 
 theorem cliqueNum_disjUnion_cycle_star (m n : ℕ) :
     (cycle (m + 4) ⊕g star (n + 1)).cliqueNum = 2 := by
@@ -425,12 +402,6 @@ theorem minDeg_disjUnion_cycle_star (m n : ℕ) :
   rw [minDeg_cycle, minDeg_star] at h
   omega
 
-@[simp] theorem numComponents_disjUnion_cycle_star (m n : ℕ) :
-    (cycle (m + 1) ⊕g star n).numComponents = 2 := by
-  have h := numComponents_disjUnion (cycle (m + 1)) (star n)
-  rw [numComponents_cycle, numComponents_star] at h
-  omega
-
 theorem not_isConnected_disjUnion_cycle_star (m n : ℕ) :
     ¬ IsConnected (cycle (m + 1) ⊕g star n) :=
   not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
@@ -444,13 +415,6 @@ theorem radius_disjUnion_cycle_star (m n : ℕ) :
   radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_star]; omega)
 
 /-! ### The join of a path and a complete graph -/
-
-@[simp] theorem V_join_path_complete (m n : ℕ) : (path m ∇g complete n).V = m + n := by
-  rw [V_join, V_path, V_complete]
-
-@[simp] theorem E_join_path_complete (m n : ℕ) :
-    (path (m + 1) ∇g complete n).E = m + n.choose 2 + (m + 1) * n := by
-  rw [E_join, E_path, E_complete, V_path, V_complete]
 
 theorem cliqueNum_join_path_complete (m n : ℕ) :
     (path (m + 2) ∇g complete n).cliqueNum = 2 + n := by
@@ -509,13 +473,6 @@ theorem diameter_join_path_complete (m n : ℕ) :
   omega
 
 /-! ### The join of a cycle and a complete graph -/
-
-@[simp] theorem V_join_cycle_complete (m n : ℕ) : (cycle m ∇g complete n).V = m + n := by
-  rw [V_join, V_cycle, V_complete]
-
-@[simp] theorem E_join_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ∇g complete n).E = m + 3 + n.choose 2 + (m + 3) * n := by
-  rw [E_join, E_cycle, E_complete, V_cycle, V_complete]
 
 theorem cliqueNum_join_cycle_complete (m n : ℕ) :
     (cycle (m + 4) ∇g complete n).cliqueNum = 2 + n := by
@@ -648,13 +605,6 @@ theorem diameter_join_path_star (m n : ℕ) : (path (m + 3) ∇g star n).diamete
 
 /-! ### The disjoint union of a path and a cycle -/
 
-@[simp] theorem V_disjUnion_path_cycle (m n : ℕ) : (path m ⊕g cycle n).V = m + n := by
-  rw [V_disjUnion, V_path, V_cycle]
-
-@[simp] theorem E_disjUnion_path_cycle (m n : ℕ) :
-    (path (m + 1) ⊕g cycle (n + 3)).E = m + (n + 3) := by
-  rw [E_disjUnion, E_path, E_cycle]
-
 theorem cliqueNum_disjUnion_path_cycle (m n : ℕ) :
     (path (m + 2) ⊕g cycle (n + 4)).cliqueNum = 2 := by
   have h := cliqueNum_disjUnion (path (m + 2)) (cycle (n + 4))
@@ -718,12 +668,6 @@ theorem minDeg_disjUnion_path_cycle (m n : ℕ) :
   rw [minDeg_path, minDeg_cycle] at h
   omega
 
-@[simp] theorem numComponents_disjUnion_path_cycle (m n : ℕ) :
-    (path (m + 1) ⊕g cycle (n + 1)).numComponents = 2 := by
-  have h := numComponents_disjUnion (path (m + 1)) (cycle (n + 1))
-  rw [numComponents_path, numComponents_cycle] at h
-  omega
-
 theorem not_isConnected_disjUnion_path_cycle (m n : ℕ) :
     ¬ IsConnected (path (m + 1) ⊕g cycle (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
@@ -737,13 +681,6 @@ theorem radius_disjUnion_path_cycle (m n : ℕ) :
   radius_disjUnion (by rw [V_path]; omega) (by rw [V_cycle]; omega)
 
 /-! ### The disjoint union of a path and a complete graph -/
-
-@[simp] theorem V_disjUnion_path_complete (m n : ℕ) : (path m ⊕g complete n).V = m + n := by
-  rw [V_disjUnion, V_path, V_complete]
-
-@[simp] theorem E_disjUnion_path_complete (m n : ℕ) :
-    (path (m + 1) ⊕g complete n).E = m + n.choose 2 := by
-  rw [E_disjUnion, E_path, E_complete]
 
 theorem cliqueNum_disjUnion_path_complete (m n : ℕ) :
     (path (m + 2) ⊕g complete n).cliqueNum = max 2 n := by
@@ -790,12 +727,6 @@ theorem minDeg_disjUnion_path_complete (m n : ℕ) :
   rw [minDeg_path, minDeg_complete] at h
   omega
 
-@[simp] theorem numComponents_disjUnion_path_complete (m n : ℕ) :
-    (path (m + 1) ⊕g complete (n + 1)).numComponents = 2 := by
-  have h := numComponents_disjUnion (path (m + 1)) (complete (n + 1))
-  rw [numComponents_path, numComponents_complete] at h
-  omega
-
 theorem not_isConnected_disjUnion_path_complete (m n : ℕ) :
     ¬ IsConnected (path (m + 1) ⊕g complete (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_path]; omega) (by rw [V_complete]; omega)
@@ -813,10 +744,6 @@ theorem radius_disjUnion_path_complete (m n : ℕ) :
 @[simp] theorem V_disjUnion_path_star (m n : ℕ) : (path m ⊕g star n).V = m + n + 1 := by
   rw [V_disjUnion, V_path, V_star]
   omega
-
-@[simp] theorem E_disjUnion_path_star (m n : ℕ) :
-    (path (m + 1) ⊕g star n).E = m + n := by
-  rw [E_disjUnion, E_path, E_star]
 
 theorem cliqueNum_disjUnion_path_star (m n : ℕ) :
     (path (m + 2) ⊕g star (n + 1)).cliqueNum = 2 := by
@@ -863,12 +790,6 @@ theorem minDeg_disjUnion_path_star (m n : ℕ) :
   have h := minDeg_disjUnion (G := path (m + 2)) (H := star (n + 1))
     (by rw [V_path]; omega) (by rw [V_star]; omega)
   rw [minDeg_path, minDeg_star] at h
-  omega
-
-@[simp] theorem numComponents_disjUnion_path_star (m n : ℕ) :
-    (path (m + 1) ⊕g star n).numComponents = 2 := by
-  have h := numComponents_disjUnion (path (m + 1)) (star n)
-  rw [numComponents_path, numComponents_star] at h
   omega
 
 theorem not_isConnected_disjUnion_path_star (m n : ℕ) :
@@ -969,14 +890,6 @@ theorem V_le_indepNum_mycielskian_doubleStar (m n : ℕ) :
 
 /-! ### The Mycielskian of a rook's graph -/
 
-@[simp] theorem V_mycielskian_rook (m n : ℕ) :
-    (mycielskian (rook m n)).V = 2 * (m * n) + 1 := by
-  rw [V_mycielskian, V_rook]
-
-@[simp] theorem E_mycielskian_rook (m n : ℕ) :
-    (mycielskian (rook m n)).E = 3 * (m * n.choose 2 + n * m.choose 2) + m * n := by
-  rw [E_mycielskian, E_rook, V_rook]
-
 theorem chromNum_mycielskian_rook (m n : ℕ) :
     (mycielskian (rook (m + 1) (n + 1))).chromNum = max (m + 1) (n + 1) + 1 := by
   rw [chromNum_mycielskian, chromNum_rook]
@@ -1049,13 +962,6 @@ theorem girth_mycielskian_rook (m n : ℕ) :
 
 /-! ### The disjoint union of a cycle and a complete graph -/
 
-@[simp] theorem V_disjUnion_cycle_complete (m n : ℕ) : (cycle m ⊕g complete n).V = m + n := by
-  rw [V_disjUnion, V_cycle, V_complete]
-
-@[simp] theorem E_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 3) ⊕g complete n).E = m + 3 + n.choose 2 := by
-  rw [E_disjUnion, E_cycle, E_complete]
-
 theorem cliqueNum_disjUnion_cycle_complete (m n : ℕ) :
     (cycle (m + 4) ⊕g complete n).cliqueNum = max 2 n := by
   rw [cliqueNum_disjUnion, cliqueNum_cycle, cliqueNum_complete]
@@ -1105,12 +1011,6 @@ theorem minDeg_disjUnion_cycle_complete (m n : ℕ) :
   rw [minDeg_cycle, minDeg_complete] at h
   omega
 
-@[simp] theorem numComponents_disjUnion_cycle_complete (m n : ℕ) :
-    (cycle (m + 1) ⊕g complete (n + 1)).numComponents = 2 := by
-  have h := numComponents_disjUnion (cycle (m + 1)) (complete (n + 1))
-  rw [numComponents_cycle, numComponents_complete] at h
-  omega
-
 theorem not_isConnected_disjUnion_cycle_complete (m n : ℕ) :
     ¬ IsConnected (cycle (m + 1) ⊕g complete (n + 1)) :=
   not_isConnected_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
@@ -1124,14 +1024,6 @@ theorem radius_disjUnion_cycle_complete (m n : ℕ) :
   radius_disjUnion (by rw [V_cycle]; omega) (by rw [V_complete]; omega)
 
 /-! ### The Mycielskian of a triangular graph -/
-
-@[simp] theorem V_mycielskian_triangular (n : ℕ) :
-    (mycielskian (triangular n)).V = 2 * n.choose 2 + 1 := by
-  rw [V_mycielskian, V_triangular]
-
-@[simp] theorem E_mycielskian_triangular (n : ℕ) :
-    (mycielskian (triangular n)).E = 3 * (n * (n - 1).choose 2) + n.choose 2 := by
-  rw [E_mycielskian, E_triangular, V_triangular]
 
 theorem chromNum_mycielskian_triangular (n : ℕ) :
     (mycielskian (triangular n)).chromNum = (complete n).edgeChromNum + 1 := by
@@ -1212,10 +1104,6 @@ theorem girth_mycielskian_triangular (n : ℕ) :
 
 /-! ### The Mycielskian of a Kneser graph -/
 
-@[simp] theorem V_mycielskian_kneser (n k : ℕ) :
-    (mycielskian (kneser n k)).V = 2 * n.choose k + 1 := by
-  rw [V_mycielskian, V_kneser]
-
 @[simp] theorem E_mycielskian_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
     (mycielskian (kneser n k)).E
       = 3 * (n.choose k * (n - k).choose k / 2) + n.choose k := by
@@ -1273,10 +1161,6 @@ theorem V_le_indepNum_mycielskian_kneser (n k : ℕ) :
   omega
 
 /-! ### The Mycielskian of a Johnson graph -/
-
-@[simp] theorem V_mycielskian_johnson (n k : ℕ) :
-    (mycielskian (johnson n k)).V = 2 * n.choose k + 1 := by
-  rw [V_mycielskian, V_johnson]
 
 @[simp] theorem E_mycielskian_johnson {n k : ℕ} (hk : k ≤ n) :
     (mycielskian (johnson n k)).E
@@ -1445,10 +1329,6 @@ theorem girth_mycielskian_turan {n r : ℕ} (hr : 3 ≤ r) (hn : r ≤ n) :
 
 /-! ### The Mycielskian of a complete multipartite graph -/
 
-@[simp] theorem V_mycielskian_completeMultipartite (ds : List ℕ) :
-    (mycielskian (completeMultipartite ds)).V = 2 * ds.sum + 1 := by
-  rw [V_mycielskian, V_completeMultipartite]
-
 theorem E_mycielskian_completeMultipartite (ds : List ℕ) :
     (mycielskian (completeMultipartite ds)).E + 3 * (ds.map (·.choose 2)).sum
       = 3 * ds.sum.choose 2 + ds.sum := by
@@ -1489,12 +1369,6 @@ theorem V_le_indepNum_mycielskian_completeMultipartite (ds : List ℕ) :
   omega
 
 /-! ### The Mycielskian of the Grötzsch graph -/
-
-@[simp] theorem V_mycielskian_grotzsch : (mycielskian grotzsch).V = 23 := by
-  rw [V_mycielskian, V_grotzsch]
-
-@[simp] theorem E_mycielskian_grotzsch : (mycielskian grotzsch).E = 71 := by
-  rw [E_mycielskian, E_grotzsch, V_grotzsch]
 
 theorem chromNum_mycielskian_grotzsch : (mycielskian grotzsch).chromNum = 5 := by
   have h := chromNum_mycielskian grotzsch
@@ -1551,15 +1425,6 @@ theorem V_le_indepNum_mycielskian_grotzsch : 11 ≤ (mycielskian grotzsch).indep
 
 /-! ### The Mycielskian of a grid graph -/
 
-@[simp] theorem V_mycielskian_grid (m n : ℕ) :
-    (mycielskian (path m □g path n)).V = 2 * (m * n) + 1 := by
-  rw [V_mycielskian, V_grid]
-
-@[simp] theorem E_mycielskian_grid (m n : ℕ) :
-    (mycielskian (path (m + 1) □g path (n + 1))).E
-      = 3 * ((m + 1) * n + (n + 1) * m) + (m + 1) * (n + 1) := by
-  rw [E_mycielskian, E_grid, V_grid]
-
 theorem chromNum_mycielskian_grid (m n : ℕ) :
     (mycielskian (path (m + 2) □g path (n + 2))).chromNum = 3 := by
   have h := chromNum_mycielskian (path (m + 2) □g path (n + 2))
@@ -1611,15 +1476,6 @@ theorem coverNum_mycielskian_grid_le (m n : ℕ) :
   omega
 
 /-! ### The Mycielskian of a king graph -/
-
-@[simp] theorem V_mycielskian_king (m n : ℕ) :
-    (mycielskian (path m ⊠g path n)).V = 2 * (m * n) + 1 := by
-  rw [V_mycielskian, V_king]
-
-@[simp] theorem E_mycielskian_king (m n : ℕ) :
-    (mycielskian (path (m + 1) ⊠g path (n + 1))).E
-      = 3 * ((m + 1) * n + (n + 1) * m + 2 * m * n) + (m + 1) * (n + 1) := by
-  rw [E_mycielskian, E_king, V_king]
 
 theorem chromNum_mycielskian_king (m n : ℕ) :
     (mycielskian (path (m + 2) ⊠g path (n + 2))).chromNum = 5 := by
@@ -1674,10 +1530,6 @@ theorem coverNum_mycielskian_king_le (m n : ℕ) :
   omega
 
 /-! ### The Mycielskian of a tadpole graph -/
-
-@[simp] theorem V_mycielskian_tadpole (m k : ℕ) :
-    (mycielskian (tadpole m k)).V = 2 * (m + k) + 1 := by
-  rw [V_mycielskian, V_tadpole]
 
 theorem E_mycielskian_tadpole (m k : ℕ) :
     (mycielskian (tadpole (m + 3) k)).E = 4 * (m + k) + 12 := by
@@ -1740,10 +1592,6 @@ theorem V_le_indepNum_mycielskian_tadpole (m k : ℕ) :
   omega
 
 /-! ### The Mycielskian of a lollipop graph -/
-
-@[simp] theorem V_mycielskian_lollipop (m k : ℕ) :
-    (mycielskian (lollipop m k)).V = 2 * (m + k) + 1 := by
-  rw [V_mycielskian, V_lollipop]
 
 @[simp] theorem E_mycielskian_lollipop (m k : ℕ) :
     (mycielskian (lollipop (m + 1) k)).E
@@ -1813,10 +1661,6 @@ theorem V_le_indepNum_mycielskian_lollipop (m k : ℕ) :
   omega
 
 /-! ### The line graph of a wheel -/
-
-@[simp] theorem V_lineGraph_wheel (n : ℕ) :
-    (lineGraph (wheel (n + 3))).V = 2 * (n + 3) := by
-  rw [V_lineGraph, E_wheel]
 
 theorem chromNum_lineGraph_wheel (n : ℕ) :
     (lineGraph (wheel (n + 4))).chromNum = n + 4 := by
@@ -2022,9 +1866,6 @@ theorem le_minDeg_lineGraph_friendship (n : ℕ) :
 
 /-! ### The line graph of a book -/
 
-@[simp] theorem V_lineGraph_book (n : ℕ) : (lineGraph (book n)).V = 2 * n + 1 := by
-  rw [V_lineGraph, E_book]
-
 theorem indepNum_lineGraph_book (n : ℕ) : (lineGraph (book (n + 2))).indepNum = 2 := by
   rw [indepNum_lineGraph, matchNum_book]
 
@@ -2082,10 +1923,6 @@ theorem le_minDeg_lineGraph_book (n : ℕ) : 2 ≤ minDeg (lineGraph (book (n + 
   omega
 
 /-! ### The line graph of a crown graph -/
-
-@[simp] theorem V_lineGraph_crown (n : ℕ) :
-    (lineGraph (crown n)).V = 2 * n.choose 2 := by
-  rw [V_lineGraph, E_crown]
 
 theorem indepNum_lineGraph_crown (n : ℕ) :
     (lineGraph (crown (n + 2))).indepNum = n + 2 := by
@@ -2290,10 +2127,6 @@ theorem maxDeg_lineGraph_doubleStar_le (m n : ℕ) :
   omega
 
 /-! ### The line graph of a rook's graph -/
-
-@[simp] theorem V_lineGraph_rook (m n : ℕ) :
-    (lineGraph (rook m n)).V = m * n.choose 2 + n * m.choose 2 := by
-  rw [V_lineGraph, E_rook]
 
 theorem E_pos_rook (m n : ℕ) : 0 < (rook (m + 2) (n + 2)).E := by
   have h : 0 < (m + 2) * ((n + 2).choose 2) :=
@@ -2671,10 +2504,6 @@ theorem le_chromNum_lineGraph_book (n : ℕ) :
 
 /-! ### The line graph of a triangular graph -/
 
-@[simp] theorem V_lineGraph_triangular (n : ℕ) :
-    (lineGraph (triangular n)).V = n * (n - 1).choose 2 := by
-  rw [V_lineGraph, E_triangular]
-
 theorem E_pos_triangular (n : ℕ) : 0 < (triangular (n + 4)).E := by
   have h : 0 < (n + 4) * ((n + 4 - 1).choose 2) :=
     Nat.mul_pos (by omega) (Nat.choose_pos (by omega))
@@ -2744,9 +2573,6 @@ theorem minDeg_lineGraph_triangular (n : ℕ) :
   omega
 
 /-! ### The line graph of the Grötzsch graph -/
-
-@[simp] theorem V_lineGraph_grotzsch : (lineGraph grotzsch).V = 20 := by
-  rw [V_lineGraph, E_grotzsch]
 
 theorem le_chromNum_lineGraph_grotzsch : 5 ≤ (lineGraph grotzsch).chromNum := by
   rw [chromNum_lineGraph]
@@ -3160,10 +2986,6 @@ theorem degSequence_lineGraph_johnson {n k : ℕ} (hk : 0 < k) (h : k < n) :
 
 /-! ### The line graph of a grid graph -/
 
-@[simp] theorem V_lineGraph_grid (m n : ℕ) :
-    (lineGraph (path (m + 1) □g path (n + 1))).V = (m + 1) * n + (n + 1) * m := by
-  rw [V_lineGraph, E_grid]
-
 theorem E_pos_grid (m n : ℕ) : 0 < (path (m + 2) □g path (n + 2)).E := by
   rw [E_grid]
   positivity
@@ -3226,10 +3048,6 @@ theorem maxDeg_lineGraph_grid_le (m n : ℕ) :
   omega
 
 /-! ### The line graph of a king graph -/
-
-@[simp] theorem V_lineGraph_king (m n : ℕ) :
-    (lineGraph (path (m + 1) ⊠g path (n + 1))).V = (m + 1) * n + (n + 1) * m + 2 * m * n := by
-  rw [V_lineGraph, E_king]
 
 theorem E_pos_king (m n : ℕ) : 0 < (path (m + 2) ⊠g path (n + 2)).E := by
   rw [E_king]
@@ -3356,10 +3174,6 @@ theorem V_le_indepNum_mycielskian_spider (legs : List ℕ) :
 
 /-! ### The Mycielskian of a cycle with pendant paths -/
 
-@[simp] theorem V_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) :
-    (mycielskian (cyclePendant m ks)).V = 2 * (m + ks.sum) + 1 := by
-  rw [V_mycielskian, V_cyclePendant]
-
 theorem E_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
     (mycielskian (cyclePendant (m + 3) ks)).E = 4 * (m + 3 + ks.sum) := by
   rw [E_mycielskian, E_cyclePendant m ks h, V_cyclePendant]
@@ -3416,10 +3230,6 @@ theorem V_le_indepNum_mycielskian_cyclePendant (m : ℕ) (ks : List ℕ) :
 theorem E_pos_mycielskian {G : IsoGraph} (h : 0 < G.V) : 0 < (mycielskian G).E := by
   rw [E_mycielskian]
   omega
-
-@[simp] theorem V_lineGraph_mycielskian (G : IsoGraph) :
-    (lineGraph (mycielskian G)).V = 3 * G.E + G.V := by
-  rw [V_lineGraph, E_mycielskian]
 
 theorem isConnected_lineGraph_mycielskian {G : IsoGraph} (h : 0 < G.minDeg) (hV : 0 < G.V) :
     IsConnected (lineGraph (mycielskian G)) :=
@@ -3481,10 +3291,6 @@ theorem coverNum_lineGraph_mycielskian (G : IsoGraph) :
   rw [coverNum_lineGraph, E_mycielskian]
 
 /-! ### The Mycielskian of a line graph -/
-
-@[simp] theorem V_mycielskian_lineGraph (G : IsoGraph) :
-    (mycielskian (lineGraph G)).V = 2 * G.E + 1 := by
-  rw [V_mycielskian, V_lineGraph]
 
 theorem E_mycielskian_lineGraph (G : IsoGraph) :
     (mycielskian (lineGraph G)).E = 3 * (lineGraph G).E + G.E := by
@@ -3623,12 +3429,6 @@ theorem minDeg_mycielskian_of_pos {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.minDe
 @[simp] theorem E_mycielskian_mycielskian (G : IsoGraph) :
     (mycielskian (mycielskian G)).E = 9 * G.E + 5 * G.V + 1 := by
   rw [E_mycielskian, E_mycielskian, V_mycielskian]
-  omega
-
-@[simp] theorem chromNum_mycielskian_mycielskian (G : IsoGraph) :
-    (mycielskian (mycielskian G)).chromNum = G.chromNum + 2 := by
-  have h1 := chromNum_mycielskian (mycielskian G)
-  have h2 := chromNum_mycielskian G
   omega
 
 theorem cliqueNum_mycielskian_mycielskian {G : IsoGraph} (hV : 0 < G.V) :
@@ -3901,10 +3701,6 @@ theorem cliqueNum_lineGraph_compl {G : IsoGraph} (hG : 0 < G.V) (h3 : 3 ≤ G.V 
   rw [E_mycielskian, E_join, V_join]
   omega
 
-@[simp] theorem chromNum_mycielskian_join (G H : IsoGraph) :
-    (mycielskian (G ∇g H)).chromNum = G.chromNum + H.chromNum + 1 := by
-  rw [chromNum_mycielskian, chromNum_join]
-
 theorem cliqueNum_mycielskian_join {G H : IsoGraph} (hG : 0 < G.V) :
     (mycielskian (G ∇g H)).cliqueNum = max (G.cliqueNum + H.cliqueNum) 2 := by
   have hm := cliqueNum_mycielskian (G ∇g H) (by rw [V_join]; omega)
@@ -3928,10 +3724,6 @@ theorem radius_mycielskian_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   omega
 
 /-! ### The Mycielskian of a Cartesian product -/
-
-@[simp] theorem V_mycielskian_cartesianProduct (G H : IsoGraph) :
-    (mycielskian (G □g H)).V = 2 * (G.V * H.V) + 1 := by
-  rw [V_mycielskian, V_cartesianProduct]
 
 @[simp] theorem E_mycielskian_cartesianProduct (G H : IsoGraph) :
     (mycielskian (G □g H)).E = 3 * (G.V * H.E) + 3 * (H.V * G.E) + G.V * H.V := by
@@ -3966,10 +3758,6 @@ theorem radius_mycielskian_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH 
   rw [E_mycielskian, E_disjUnion, V_disjUnion]
   omega
 
-@[simp] theorem chromNum_mycielskian_disjUnion (G H : IsoGraph) :
-    (mycielskian (G ⊕g H)).chromNum = max G.chromNum H.chromNum + 1 := by
-  rw [chromNum_mycielskian, chromNum_disjUnion]
-
 theorem matchNum_mycielskian_disjUnion {G H : IsoGraph}
     (h : 2 * (G.matchNum + H.matchNum) = G.V + H.V) :
     (mycielskian (G ⊕g H)).matchNum = G.V + H.V := by
@@ -3982,9 +3770,6 @@ theorem domNum_mycielskian_disjUnion {G H : IsoGraph} (hG : 0 < G.V) :
   rwa [domNum_disjUnion] at hm
 
 /-! ### The Mycielskian of a complement -/
-
-@[simp] theorem V_mycielskian_compl (G : IsoGraph) : (mycielskian Gᶜ).V = 2 * G.V + 1 := by
-  rw [V_mycielskian, V_compl]
 
 theorem E_mycielskian_compl (G : IsoGraph) :
     (mycielskian Gᶜ).E + 3 * G.E = 3 * (G.V.choose 2) + G.V := by
@@ -4002,10 +3787,6 @@ theorem cliqueNum_mycielskian_compl {G : IsoGraph} (hG : 0 < G.V) :
   rwa [cliqueNum_compl] at hm
 
 /-! ### The Mycielskian of a strong product -/
-
-@[simp] theorem V_mycielskian_strongProduct (G H : IsoGraph) :
-    (mycielskian (G ⊠g H)).V = 2 * (G.V * H.V) + 1 := by
-  rw [V_mycielskian, V_strongProduct]
 
 @[simp] theorem E_mycielskian_strongProduct (G H : IsoGraph) :
     (mycielskian (G ⊠g H)).E
@@ -4123,14 +3904,6 @@ theorem not_isBipartite_lineGraph_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH
 
 /-! ### The Mycielskian of a tensor product -/
 
-@[simp] theorem V_mycielskian_tensorProduct (G H : IsoGraph) :
-    (mycielskian (G ⊗g H)).V = 2 * (G.V * H.V) + 1 := by
-  rw [V_mycielskian, V_tensorProduct]
-
-@[simp] theorem E_mycielskian_tensorProduct (G H : IsoGraph) :
-    (mycielskian (G ⊗g H)).E = 3 * (2 * G.E * H.E) + G.V * H.V := by
-  rw [E_mycielskian, E_tensorProduct, V_tensorProduct]
-
 theorem maxDeg_mycielskian_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     maxDeg (mycielskian (G ⊗g H)) = max (2 * (maxDeg G * maxDeg H)) (G.V * H.V) := by
   rw [maxDeg_mycielskian, maxDeg_tensorProduct hG hH, V_tensorProduct]
@@ -4153,10 +3926,6 @@ theorem radius_mycielskian_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0
   exact Nat.mul_pos h h2
 
 /-! ### The Mycielskian of a lexicographic product -/
-
-@[simp] theorem V_mycielskian_lexProduct (G H : IsoGraph) :
-    (mycielskian (G ·g H)).V = 2 * (G.V * H.V) + 1 := by
-  rw [V_mycielskian, V_lexProduct]
 
 @[simp] theorem E_mycielskian_lexProduct (G H : IsoGraph) :
     (mycielskian (G ·g H)).E = 3 * (H.V * H.V * G.E) + 3 * (G.V * H.E) + G.V * H.V := by

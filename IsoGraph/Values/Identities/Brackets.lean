@@ -249,7 +249,7 @@ theorem le_autCount_lineGraph_complete (n : ℕ) :
   have hE : (complete (n + 2)).E = (n + 2).choose 2 := E_complete (n + 2)
   have h := V_le_autCount_of_isVertexTransitive (lineGraph (complete (n + 2)))
     (by rw [V_lineGraph, hE]; exact Nat.choose_pos (by omega))
-    (isVertexTransitive_lineGraph_complete (n + 2))
+    ((isArcTransitive_complete (n + 2)).lineGraph)
   rwa [V_lineGraph, hE] at h
 
 theorem le_autCount_lineGraph_cycle (n : ℕ) :
