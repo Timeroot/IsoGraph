@@ -2642,7 +2642,7 @@ theorem domNum_kneser_two (n : ℕ) : (kneser (n + 5) 2).domNum = 3 := by
   exact le_antisymm hupp hlow
 /-- **A fan has a near-perfect matching**: pair the hub with one end of the path and match
 the rest of the path in pairs. -/
-theorem matchNum_fan (n : ℕ) : (fan (n + 1)).matchNum = (n + 2) / 2 := by
+@[simp] theorem matchNum_fan (n : ℕ) : (fan (n + 1)).matchNum = (n + 2) / 2 := by
   apply le_antisymm
   · have h1 := (fan (n + 1)).two_mul_matchNum_le_V
     rw [V_fan] at h1

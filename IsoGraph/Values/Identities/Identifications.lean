@@ -1713,7 +1713,7 @@ theorem not_isBipartite_cycle_five : ¬ IsBipartite (cycle 5) := not_isBipartite
 
 /-- Two paths of different parity close up into an odd cycle, and then the graph is not
 bipartite. -/
-theorem not_isBipartite_thetaGraph_pair {a b : ℕ} (h : (a + b) % 2 = 1) :
+@[simp] theorem not_isBipartite_thetaGraph_pair {a b : ℕ} (h : (a + b) % 2 = 1) :
     ¬ IsBipartite (thetaGraph [a, b]) := by
   obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 3 := ⟨(a + b) / 2, by omega⟩
   rw [thetaGraph_pair, hm]

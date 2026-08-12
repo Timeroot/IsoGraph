@@ -1370,7 +1370,7 @@ theorem V_le_indepNum_mycielskian_completeMultipartite (ds : List ℕ) :
 
 /-! ### The Mycielskian of the Grötzsch graph -/
 
-theorem chromNum_mycielskian_grotzsch : (mycielskian grotzsch).chromNum = 5 := by
+@[simp] theorem chromNum_mycielskian_grotzsch : (mycielskian grotzsch).chromNum = 5 := by
   have h := chromNum_mycielskian grotzsch
   rw [chromNum_grotzsch] at h
   omega
@@ -2281,7 +2281,7 @@ theorem le_chromNum_lineGraph_petersen : 3 ≤ (lineGraph petersen).chromNum := 
 theorem indepNum_lineGraph_petersen : (lineGraph petersen).indepNum = 5 := by
   rw [indepNum_lineGraph, matchNum_petersen]
 
-theorem coverNum_lineGraph_petersen : (lineGraph petersen).coverNum = 10 := by
+@[simp] theorem coverNum_lineGraph_petersen : (lineGraph petersen).coverNum = 10 := by
   have h := coverNum_lineGraph petersen
   rw [E_petersen, matchNum_petersen] at h
   omega
@@ -2578,10 +2578,10 @@ theorem le_chromNum_lineGraph_grotzsch : 5 ≤ (lineGraph grotzsch).chromNum := 
   rw [chromNum_lineGraph]
   exact le_edgeChromNum_grotzsch
 
-theorem indepNum_lineGraph_grotzsch : (lineGraph grotzsch).indepNum = 5 := by
+@[simp] theorem indepNum_lineGraph_grotzsch : (lineGraph grotzsch).indepNum = 5 := by
   rw [indepNum_lineGraph, matchNum_grotzsch]
 
-theorem coverNum_lineGraph_grotzsch : (lineGraph grotzsch).coverNum = 15 := by
+@[simp] theorem coverNum_lineGraph_grotzsch : (lineGraph grotzsch).coverNum = 15 := by
   have h := coverNum_lineGraph grotzsch
   rw [E_grotzsch, matchNum_grotzsch] at h
   omega

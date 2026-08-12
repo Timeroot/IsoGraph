@@ -34,7 +34,7 @@ theorem maxDeg_completeMultipartite_replicate_succ (m d : ℕ) :
     maxDeg (completeMultipartite (List.replicate (m + 2) (d + 1))) = (m + 1) * (d + 1) :=
   maxDeg_completeMultipartite_replicate (by omega) (by omega)
 
-theorem minDeg_completeMultipartite_replicate_succ (m d : ℕ) :
+@[simp] theorem minDeg_completeMultipartite_replicate_succ (m d : ℕ) :
     minDeg (completeMultipartite (List.replicate (m + 2) (d + 1))) = (m + 1) * (d + 1) :=
   minDeg_completeMultipartite_replicate (by omega) (by omega)
 
@@ -447,7 +447,7 @@ theorem isRegularWith_foldedCube (n : ℕ) : (foldedCube (n + 2)).IsRegularWith 
     rw [hnbrs_eq, Finset.card_union_of_disjoint hdj, hcard_hyper, Finset.card_singleton]
   CGraph.isRegularWith_of_card_nbrs _ hcard
 
-theorem minDeg_foldedCube (n : ℕ) : minDeg (foldedCube (n + 2)) = n + 3 :=
+@[simp] theorem minDeg_foldedCube (n : ℕ) : minDeg (foldedCube (n + 2)) = n + 3 :=
   IsRegularWith.minDeg_eq (isRegularWith_foldedCube n) (by simp [V_foldedCube])
 
 /-- Regularity again, this time through `IsRegularWith.maxDeg_eq`. -/
@@ -677,7 +677,7 @@ theorem not_isAcyclic_foldedCube (n : ℕ) : ¬ IsAcyclic (foldedCube (n + 3)) :
 
 /-- A vertex at Hamming distance `d` is reachable in `d` coordinate steps, or in one antipodal
 step followed by `n - d` coordinate steps; the worst `d` gives `⌈n / 2⌉`. -/
-theorem diameter_foldedCube (n : ℕ) : (foldedCube (n + 1)).diameter = (n + 2) / 2 := by
+@[simp] theorem diameter_foldedCube (n : ℕ) : (foldedCube (n + 1)).diameter = (n + 2) / 2 := by
   simp only [IsoGraph.foldedCube]
   rw [IsoGraph.diameter_mk]
   set m := n + 1
@@ -1065,7 +1065,7 @@ theorem diameter_foldedCube (n : ℕ) : (foldedCube (n + 1)).diameter = (n + 2) 
   rfl
 
 /-- Vertex-transitive graphs have radius equal to diameter. -/
-theorem radius_foldedCube (n : ℕ) : (foldedCube (n + 1)).radius = (n + 2) / 2 := by
+@[simp] theorem radius_foldedCube (n : ℕ) : (foldedCube (n + 1)).radius = (n + 2) / 2 := by
   rw [radius_eq_diameter_of_isVertexTransitive (by simp), diameter_foldedCube]
 
 /-- The odd folded cube is bipartite with a perfect matching, so half its vertices' worth of

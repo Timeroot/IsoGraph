@@ -2602,7 +2602,7 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
   numComponents_eq_one_of_isConnected (isConnected_lexProduct hG hH)
 
 /-- A rook graph is dominated by one full row or one full column, whichever is shorter. -/
-theorem domNum_rook (m n : ℕ) : (rook (m + 1) (n + 1)).domNum = min (m + 1) (n + 1) := by
+@[simp] theorem domNum_rook (m n : ℕ) : (rook (m + 1) (n + 1)).domNum = min (m + 1) (n + 1) := by
   simp (config := { decide := true }) only [IsoGraph.rook, IsoGraph.domNum_mk,
     IsoGraph.cartesianProduct_mk, IsoGraph.complete]
   apply le_antisymm
@@ -2877,7 +2877,7 @@ theorem isVertexTransitive_circulant (n : ℕ) (S : List ℕ) :
       exact Fin.ext (Nat.mod_eq_of_lt v.isLt)
 
 /-- The rows of a rook graph are cliques, and the independence number matches. -/
-theorem cliqueCoverNum_rook (m n : ℕ) :
+@[simp] theorem cliqueCoverNum_rook (m n : ℕ) :
     (rook (m + 1) (n + 1)).cliqueCoverNum = min (m + 1) (n + 1) := by
   rw [cliqueCoverNum_eq, compl_rook]
   exact le_antisymm

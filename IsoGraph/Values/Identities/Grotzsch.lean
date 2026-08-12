@@ -2572,14 +2572,16 @@ theorem cliqueCoverNum_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 
   omega
 
 /-- Every vertex of `K_{m,n}` sees the whole of the other side. -/
-theorem maxDeg_bipartite (m n : ℕ) : maxDeg (bipartite (m + 1) (n + 1)) = max (m + 1) (n + 1) := by
+@[simp] theorem maxDeg_bipartite (m n : ℕ) :
+    maxDeg (bipartite (m + 1) (n + 1)) = max (m + 1) (n + 1) := by
   rw [bipartite_eq_join, maxDeg_join (by simp) (by simp), maxDeg_empty, maxDeg_empty, V_empty,
     V_empty]
   omega
 
 /-- The smaller side is the one whose vertices have the larger degree, so the minimum is the
 smaller of the two sizes. -/
-theorem minDeg_bipartite (m n : ℕ) : minDeg (bipartite (m + 1) (n + 1)) = min (m + 1) (n + 1) := by
+@[simp] theorem minDeg_bipartite (m n : ℕ) :
+    minDeg (bipartite (m + 1) (n + 1)) = min (m + 1) (n + 1) := by
   rw [bipartite_eq_join, minDeg_join (by simp) (by simp), minDeg_empty, minDeg_empty, V_empty,
     V_empty]
   omega
@@ -2678,7 +2680,7 @@ These need the general Mycielskian invariants proved above, so they sit here rat
 with the other Grötzsch facts. -/
 
 /-- The apex has degree `5`, the pentagon vertices `2 · 2 = 4`, the shadows `2 + 1 = 3`. -/
-theorem degMultiset_grotzsch :
+@[simp] theorem degMultiset_grotzsch :
     grotzsch.degMultiset
       = Multiset.replicate 5 4 + Multiset.replicate 5 3 + {5} := by
     unfold grotzsch

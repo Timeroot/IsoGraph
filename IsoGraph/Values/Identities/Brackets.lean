@@ -1317,78 +1317,82 @@ families transfers verbatim: the matching, domination, covering and eccentricity
 both families in this degenerate case.
 -/
 
-theorem maxDeg_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) : maxDeg (thetaGraph [a, b]) = 2 := by
+@[simp] theorem maxDeg_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    maxDeg (thetaGraph [a, b]) = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
   rw [thetaGraph_pair, hc, maxDeg_cycle]
 
-theorem minDeg_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) : minDeg (thetaGraph [a, b]) = 2 := by
+@[simp] theorem minDeg_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    minDeg (thetaGraph [a, b]) = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
   rw [thetaGraph_pair, hc, minDeg_cycle]
 
-theorem domNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+@[simp] theorem domNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
     (thetaGraph [a, b]).domNum = (a + b + 4) / 3 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
   rw [thetaGraph_pair, hc, domNum_cycle]
   omega
 
-theorem matchNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+@[simp] theorem matchNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
     (thetaGraph [a, b]).matchNum = (a + b + 2) / 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
   rw [thetaGraph_pair, hc, matchNum_cycle]
   omega
 
-theorem coverNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+@[simp] theorem coverNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
     (thetaGraph [a, b]).coverNum = (a + b + 3) / 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
   rw [thetaGraph_pair, hc, coverNum_cycle]
   omega
 
-theorem radius_thetaGraph_pair (a b : ℕ) : (thetaGraph [a, b]).radius = (a + b + 2) / 2 := by
+@[simp] theorem radius_thetaGraph_pair (a b : ℕ) :
+    (thetaGraph [a, b]).radius = (a + b + 2) / 2 := by
   rw [thetaGraph_pair, show 2 + a + b = 1 + a + b + 1 from by ring, radius_cycle]
   omega
 
-theorem diameter_thetaGraph_pair (a b : ℕ) : (thetaGraph [a, b]).diameter = (a + b + 2) / 2 := by
+@[simp] theorem diameter_thetaGraph_pair (a b : ℕ) :
+    (thetaGraph [a, b]).diameter = (a + b + 2) / 2 := by
   rw [thetaGraph_pair, show 2 + a + b = 1 + a + b + 1 from by ring, diameter_cycle]
   omega
 
-theorem isConnected_thetaGraph_pair (a b : ℕ) : IsConnected (thetaGraph [a, b]) := by
+@[simp] theorem isConnected_thetaGraph_pair (a b : ℕ) : IsConnected (thetaGraph [a, b]) := by
   rw [thetaGraph_pair, show 2 + a + b = 1 + a + b + 1 from by ring]
   exact isConnected_cycle _
 
-theorem numComponents_thetaGraph_pair (a b : ℕ) : (thetaGraph [a, b]).numComponents = 1 :=
+@[simp] theorem numComponents_thetaGraph_pair (a b : ℕ) : (thetaGraph [a, b]).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_thetaGraph_pair a b)
 
-theorem matchNum_spider_pair (a b : ℕ) : (spider [a, b]).matchNum = (a + b + 1) / 2 := by
+@[simp] theorem matchNum_spider_pair (a b : ℕ) : (spider [a, b]).matchNum = (a + b + 1) / 2 := by
   rw [spider_pair, matchNum_path]
   omega
 
-theorem coverNum_spider_pair (a b : ℕ) : (spider [a, b]).coverNum = (a + b + 1) / 2 := by
+@[simp] theorem coverNum_spider_pair (a b : ℕ) : (spider [a, b]).coverNum = (a + b + 1) / 2 := by
   rw [spider_pair, coverNum_path]
   omega
 
-theorem cliqueCoverNum_spider_pair (a b : ℕ) :
+@[simp] theorem cliqueCoverNum_spider_pair (a b : ℕ) :
     (spider [a, b]).cliqueCoverNum = (a + b + 2) / 2 := by
   rw [spider_pair, cliqueCoverNum_path]
   omega
 
-theorem domNum_spider_pair (a b : ℕ) : (spider [a, b]).domNum = (a + b + 3) / 3 := by
+@[simp] theorem domNum_spider_pair (a b : ℕ) : (spider [a, b]).domNum = (a + b + 3) / 3 := by
   rw [spider_pair, show 1 + a + b = a + b + 1 from by ring, domNum_path]
 
-theorem radius_spider_pair (a b : ℕ) : (spider [a, b]).radius = (a + b + 1) / 2 := by
+@[simp] theorem radius_spider_pair (a b : ℕ) : (spider [a, b]).radius = (a + b + 1) / 2 := by
   rw [spider_pair, show 1 + a + b = a + b + 1 from by ring, radius_path]
 
-theorem diameter_spider_pair (a b : ℕ) : (spider [a, b]).diameter = a + b := by
+@[simp] theorem diameter_spider_pair (a b : ℕ) : (spider [a, b]).diameter = a + b := by
   rw [spider_pair, show 1 + a + b = a + b + 1 from by ring, diameter_path]
 
-theorem maxDeg_spider_pair (a b : ℕ) (h : 2 ≤ a + b) : maxDeg (spider [a, b]) = 2 := by
+@[simp] theorem maxDeg_spider_pair (a b : ℕ) (h : 2 ≤ a + b) : maxDeg (spider [a, b]) = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 3 := ⟨a + b - 2, by omega⟩
   rw [spider_pair, hc, maxDeg_path]
 
-theorem minDeg_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : minDeg (spider [a, b]) = 1 := by
+@[simp] theorem minDeg_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : minDeg (spider [a, b]) = 1 := by
   obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
   rw [spider_pair, hc, minDeg_path]
 
-theorem edgeChromNum_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
+@[simp] theorem edgeChromNum_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
     (spider [a, b]).edgeChromNum = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 3 := ⟨a + b - 2, by omega⟩
   rw [spider_pair, hc, edgeChromNum_path]
@@ -1398,11 +1402,11 @@ theorem edgeChromNum_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
 `cyclePendant m [1]` is the tadpole `T(m, 1)`, which fills the first cells of the
 `cyclePendant` row for the degree invariants. -/
 
-theorem maxDeg_cyclePendant_singleton_one (m : ℕ) :
+@[simp] theorem maxDeg_cyclePendant_singleton_one (m : ℕ) :
     maxDeg (cyclePendant (m + 3) [1]) = 3 := by
   rw [cyclePendant_singleton_one, maxDeg_tadpole]
 
-theorem minDeg_cyclePendant_singleton_one (m : ℕ) :
+@[simp] theorem minDeg_cyclePendant_singleton_one (m : ℕ) :
     minDeg (cyclePendant (m + 3) [1]) = 1 := by
   rw [cyclePendant_singleton_one, minDeg_tadpole]
 
@@ -1413,46 +1417,47 @@ The rest of the cycle's and the path's rows, transferred along `thetaGraph_pair`
 cycle, hence arc-transitive, while a two-legged spider is a path, hence not even vertex-transitive.
 -/
 
-theorem cliqueNum_thetaGraph_pair (a b : ℕ) (h : 2 ≤ a + b) :
+@[simp] theorem cliqueNum_thetaGraph_pair (a b : ℕ) (h : 2 ≤ a + b) :
     (thetaGraph [a, b]).cliqueNum = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 4 := ⟨a + b - 2, by omega⟩
   rw [thetaGraph_pair, hc, cliqueNum_cycle]
 
-theorem indepNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+@[simp] theorem indepNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
     (thetaGraph [a, b]).indepNum = (a + b + 2) / 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
   rw [thetaGraph_pair, hc, indepNum_cycle]
   omega
 
-theorem chromNum_thetaGraph_pair_even (a b : ℕ) (h : (a + b) % 2 = 0) :
+@[simp] theorem chromNum_thetaGraph_pair_even (a b : ℕ) (h : (a + b) % 2 = 0) :
     (thetaGraph [a, b]).chromNum = 2 := by
   obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 2 := ⟨(a + b) / 2, by omega⟩
   rw [thetaGraph_pair, hm, chromNum_cycle_even]
 
-theorem chromNum_thetaGraph_pair_odd (a b : ℕ) (h : (a + b) % 2 = 1) :
+@[simp] theorem chromNum_thetaGraph_pair_odd (a b : ℕ) (h : (a + b) % 2 = 1) :
     (thetaGraph [a, b]).chromNum = 3 := by
   obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 3 := ⟨(a + b - 1) / 2, by omega⟩
   rw [thetaGraph_pair, hm, chromNum_cycle_odd]
 
-theorem edgeChromNum_thetaGraph_pair_even (a b : ℕ) (h : (a + b) % 2 = 0) (h2 : 2 ≤ a + b) :
+@[simp] theorem edgeChromNum_thetaGraph_pair_even (a b : ℕ) (h : (a + b) % 2 = 0) (h2 : 2 ≤ a + b) :
     (thetaGraph [a, b]).edgeChromNum = 2 := by
   obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 4 := ⟨(a + b - 2) / 2, by omega⟩
   rw [thetaGraph_pair, hm, edgeChromNum_cycle_even]
 
-theorem edgeChromNum_thetaGraph_pair_odd (a b : ℕ) (h : (a + b) % 2 = 1) :
+@[simp] theorem edgeChromNum_thetaGraph_pair_odd (a b : ℕ) (h : (a + b) % 2 = 1) :
     (thetaGraph [a, b]).edgeChromNum = 3 := by
   obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = 2 * m + 3 := ⟨(a + b - 1) / 2, by omega⟩
   rw [thetaGraph_pair, hm, edgeChromNum_cycle_odd]
 
-theorem cliqueNum_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : (spider [a, b]).cliqueNum = 2 := by
+@[simp] theorem cliqueNum_spider_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    (spider [a, b]).cliqueNum = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
   rw [spider_pair, hc, cliqueNum_path]
 
-theorem chromNum_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : (spider [a, b]).chromNum = 2 := by
+@[simp] theorem chromNum_spider_pair (a b : ℕ) (h : 1 ≤ a + b) : (spider [a, b]).chromNum = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
   rw [spider_pair, hc, chromNum_path]
 
-theorem indepNum_spider_pair (a b : ℕ) : (spider [a, b]).indepNum = (a + b + 2) / 2 := by
+@[simp] theorem indepNum_spider_pair (a b : ℕ) : (spider [a, b]).indepNum = (a + b + 2) / 2 := by
   rw [spider_pair, indepNum_path]
   omega
 
@@ -1475,13 +1480,13 @@ theorem two_mul_le_autCount_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
   rw [thetaGraph_pair, hc]
   omega
 
-theorem not_isVertexTransitive_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
+@[simp] theorem not_isVertexTransitive_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
     ¬ IsVertexTransitive (spider [a, b]) := by
   obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 3 := ⟨a + b - 2, by omega⟩
   rw [spider_pair, hc]
   exact not_isVertexTransitive_path c
 
-theorem not_isArcTransitive_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
+@[simp] theorem not_isArcTransitive_spider_pair (a b : ℕ) (h : 2 ≤ a + b) :
     ¬ IsArcTransitive (spider [a, b]) :=
   not_isArcTransitive_of_not_isVertexTransitive
     (by rw [minDeg_spider_pair a b (by omega)]; omega)
@@ -1906,7 +1911,7 @@ theorem radius_lollipop_zero (m : ℕ) : (lollipop (m + 2) 0).radius = 1 := by
 theorem diameter_lollipop_zero (m : ℕ) : (lollipop (m + 2) 0).diameter = 1 := by
   rw [lollipop_zero, diameter_complete]
 
-theorem edgeChromNum_lollipop_zero (m : ℕ) :
+@[simp] theorem edgeChromNum_lollipop_zero (m : ℕ) :
     (lollipop (m + 2) 0).edgeChromNum = if m % 2 = 0 then m + 1 else m + 2 := by
   rw [lollipop_zero, edgeChromNum_complete]
 
@@ -1973,12 +1978,12 @@ theorem cliqueNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).cliqueNum = 
 theorem chromNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).chromNum = 2 := by
   rw [thetaGraph_singleton, chromNum_path]
 
-theorem domNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).domNum = (k + 4) / 3 := by
+@[simp] theorem domNum_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).domNum = (k + 4) / 3 := by
   have h := domNum_path (k + 1)
   rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring]
   omega
 
-theorem radius_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).radius = (k + 2) / 2 := by
+@[simp] theorem radius_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).radius = (k + 2) / 2 := by
   have h := radius_path (k + 1)
   rw [thetaGraph_singleton, show k + 2 = k + 1 + 1 from by ring]
   omega
@@ -2027,51 +2032,52 @@ theorem not_isSelfComplementary_thetaGraph_singleton (k : ℕ) :
   rw [thetaGraph_singleton, show k + 3 + 2 = k + 5 from by ring]
   exact not_isSelfComplementary_path k
 
-theorem maxDeg_spider_singleton (k : ℕ) : maxDeg (spider [k + 2]) = 2 := by
+@[simp] theorem maxDeg_spider_singleton (k : ℕ) : maxDeg (spider [k + 2]) = 2 := by
   rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring, maxDeg_path]
 
-theorem matchNum_spider_singleton (k : ℕ) : (spider [k]).matchNum = (k + 1) / 2 := by
+@[simp] theorem matchNum_spider_singleton (k : ℕ) : (spider [k]).matchNum = (k + 1) / 2 := by
   rw [spider_singleton, show 1 + k = k + 1 from by ring, matchNum_path]
 
-theorem indepNum_spider_singleton (k : ℕ) : (spider [k]).indepNum = (k + 2) / 2 := by
+@[simp] theorem indepNum_spider_singleton (k : ℕ) : (spider [k]).indepNum = (k + 2) / 2 := by
   have h := indepNum_path (k + 1)
   rw [spider_singleton, show 1 + k = k + 1 from by ring]
   omega
 
-theorem coverNum_spider_singleton (k : ℕ) : (spider [k]).coverNum = (k + 1) / 2 := by
+@[simp] theorem coverNum_spider_singleton (k : ℕ) : (spider [k]).coverNum = (k + 1) / 2 := by
   rw [spider_singleton, show 1 + k = k + 1 from by ring, coverNum_path]
 
-theorem cliqueCoverNum_spider_singleton (k : ℕ) :
+@[simp] theorem cliqueCoverNum_spider_singleton (k : ℕ) :
     (spider [k]).cliqueCoverNum = (k + 2) / 2 := by
   have h := cliqueCoverNum_path (k + 1)
   rw [spider_singleton, show 1 + k = k + 1 from by ring]
   omega
 
-theorem domNum_spider_singleton (k : ℕ) : (spider [k]).domNum = (k + 3) / 3 := by
+@[simp] theorem domNum_spider_singleton (k : ℕ) : (spider [k]).domNum = (k + 3) / 3 := by
   have h := domNum_path k
   rw [spider_singleton, show 1 + k = k + 1 from by ring]
   omega
 
-theorem radius_spider_singleton (k : ℕ) : (spider [k]).radius = (k + 1) / 2 := by
+@[simp] theorem radius_spider_singleton (k : ℕ) : (spider [k]).radius = (k + 1) / 2 := by
   have h := radius_path k
   rw [spider_singleton, show 1 + k = k + 1 from by ring]
   omega
 
-theorem diameter_spider_singleton (k : ℕ) : (spider [k]).diameter = k := by
+@[simp] theorem diameter_spider_singleton (k : ℕ) : (spider [k]).diameter = k := by
   rw [spider_singleton, show 1 + k = k + 1 from by ring, diameter_path]
 
-theorem edgeChromNum_spider_singleton (k : ℕ) : (spider [k + 2]).edgeChromNum = 2 := by
+@[simp] theorem edgeChromNum_spider_singleton (k : ℕ) : (spider [k + 2]).edgeChromNum = 2 := by
   rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring, edgeChromNum_path]
 
-theorem lineGraph_spider_singleton (k : ℕ) : lineGraph (spider [k]) = path k := by
+@[simp] theorem lineGraph_spider_singleton (k : ℕ) : lineGraph (spider [k]) = path k := by
   rw [spider_singleton, show 1 + k = k + 1 from by ring, lineGraph_path]
 
-theorem not_isVertexTransitive_spider_singleton (k : ℕ) :
+@[simp] theorem not_isVertexTransitive_spider_singleton (k : ℕ) :
     ¬ IsVertexTransitive (spider [k + 2]) := by
   rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring]
   exact not_isVertexTransitive_path k
 
-theorem not_isArcTransitive_spider_singleton (k : ℕ) : ¬ IsArcTransitive (spider [k + 2]) := by
+@[simp] theorem not_isArcTransitive_spider_singleton (k : ℕ) :
+    ¬ IsArcTransitive (spider [k + 2]) := by
   rw [spider_singleton, show 1 + (k + 2) = k + 3 from by ring]
   exact not_isArcTransitive_path k
 
@@ -2172,7 +2178,7 @@ theorem radius_kneser_one (n : ℕ) : (kneser (n + 2) 1).radius = 1 := by
 theorem diameter_kneser_one (n : ℕ) : (kneser (n + 2) 1).diameter = 1 := by
   rw [kneser_one, diameter_complete]
 
-theorem edgeChromNum_kneser_one (n : ℕ) :
+@[simp] theorem edgeChromNum_kneser_one (n : ℕ) :
     (kneser (n + 2) 1).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
   rw [kneser_one, edgeChromNum_complete]
 
@@ -2188,7 +2194,7 @@ theorem lineGraph_kneser_one (n : ℕ) : lineGraph (kneser n 1) = johnson n 2 :=
 theorem girth_kneser_one (n : ℕ) : (kneser (n + 3) 1).girth = 3 := by
   rw [kneser_one, girth_complete]
 
-theorem not_isSelfComplementary_kneser_one (n : ℕ) :
+@[simp] theorem not_isSelfComplementary_kneser_one (n : ℕ) :
     ¬ IsSelfComplementary (kneser (n + 2) 1) := by
   rw [kneser_one]
   exact not_isSelfComplementary_complete n
@@ -2217,7 +2223,7 @@ theorem cliqueCoverNum_johnson_one (n : ℕ) : (johnson (n + 1) 1).cliqueCoverNu
 theorem domNum_johnson_one (n : ℕ) : (johnson (n + 1) 1).domNum = 1 := by
   rw [johnson_one, domNum_complete]
 
-theorem edgeChromNum_johnson_one (n : ℕ) :
+@[simp] theorem edgeChromNum_johnson_one (n : ℕ) :
     (johnson (n + 2) 1).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
   rw [johnson_one, edgeChromNum_complete]
 
@@ -2234,7 +2240,7 @@ theorem compl_johnson_one (n : ℕ) : (johnson n 1)ᶜ = empty n := by
 theorem lineGraph_johnson_one (n : ℕ) : lineGraph (johnson n 1) = johnson n 2 := by
   rw [johnson_one, lineGraph_complete]
 
-theorem not_isSelfComplementary_johnson_one (n : ℕ) :
+@[simp] theorem not_isSelfComplementary_johnson_one (n : ℕ) :
     ¬ IsSelfComplementary (johnson (n + 2) 1) := by
   rw [johnson_one]
   exact not_isSelfComplementary_complete n
@@ -2308,7 +2314,7 @@ theorem not_isConnected_circulant_nil (n : ℕ) : ¬ IsConnected (circulant (n +
   rw [circulant_nil]
   exact not_isConnected_empty n
 
-theorem not_isSelfComplementary_circulant_nil (n : ℕ) :
+@[simp] theorem not_isSelfComplementary_circulant_nil (n : ℕ) :
     ¬ IsSelfComplementary (circulant (n + 2) []) := by
   rw [circulant_nil]
   exact not_isSelfComplementary_empty n
@@ -2325,48 +2331,49 @@ A tadpole whose cycle is a single vertex and a lollipop whose clique is a single
 paths, which fills the `m = 1` column of the two rows whose general entries all need `m ≥ 3`.
 -/
 
-theorem maxDeg_tadpole_one (k : ℕ) : maxDeg (tadpole 1 (k + 2)) = 2 := by
+@[simp] theorem maxDeg_tadpole_one (k : ℕ) : maxDeg (tadpole 1 (k + 2)) = 2 := by
   rw [tadpole_one, show 1 + (k + 2) = k + 3 from by ring, maxDeg_path]
 
-theorem minDeg_tadpole_one (k : ℕ) : minDeg (tadpole 1 (k + 1)) = 1 := by
+@[simp] theorem minDeg_tadpole_one (k : ℕ) : minDeg (tadpole 1 (k + 1)) = 1 := by
   rw [tadpole_one, show 1 + (k + 1) = k + 2 from by ring, minDeg_path]
 
-theorem matchNum_tadpole_one (k : ℕ) : (tadpole 1 k).matchNum = (k + 1) / 2 := by
+@[simp] theorem matchNum_tadpole_one (k : ℕ) : (tadpole 1 k).matchNum = (k + 1) / 2 := by
   rw [tadpole_one, show 1 + k = k + 1 from by ring, matchNum_path]
 
-theorem indepNum_tadpole_one (k : ℕ) : (tadpole 1 k).indepNum = (k + 2) / 2 := by
+@[simp] theorem indepNum_tadpole_one (k : ℕ) : (tadpole 1 k).indepNum = (k + 2) / 2 := by
   have h := indepNum_path (k + 1)
   rw [tadpole_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem coverNum_tadpole_one (k : ℕ) : (tadpole 1 k).coverNum = (k + 1) / 2 := by
+@[simp] theorem coverNum_tadpole_one (k : ℕ) : (tadpole 1 k).coverNum = (k + 1) / 2 := by
   rw [tadpole_one, show 1 + k = k + 1 from by ring, coverNum_path]
 
-theorem cliqueCoverNum_tadpole_one (k : ℕ) : (tadpole 1 k).cliqueCoverNum = (k + 2) / 2 := by
+@[simp] theorem cliqueCoverNum_tadpole_one (k : ℕ) :
+    (tadpole 1 k).cliqueCoverNum = (k + 2) / 2 := by
   have h := cliqueCoverNum_path (k + 1)
   rw [tadpole_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem cliqueNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 1)).cliqueNum = 2 := by
+@[simp] theorem cliqueNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 1)).cliqueNum = 2 := by
   rw [tadpole_one, show 1 + (k + 1) = k + 2 from by ring, cliqueNum_path]
 
-theorem chromNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 1)).chromNum = 2 := by
+@[simp] theorem chromNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 1)).chromNum = 2 := by
   rw [tadpole_one, show 1 + (k + 1) = k + 2 from by ring, chromNum_path]
 
-theorem domNum_tadpole_one (k : ℕ) : (tadpole 1 k).domNum = (k + 3) / 3 := by
+@[simp] theorem domNum_tadpole_one (k : ℕ) : (tadpole 1 k).domNum = (k + 3) / 3 := by
   have h := domNum_path k
   rw [tadpole_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem radius_tadpole_one (k : ℕ) : (tadpole 1 k).radius = (k + 1) / 2 := by
+@[simp] theorem radius_tadpole_one (k : ℕ) : (tadpole 1 k).radius = (k + 1) / 2 := by
   have h := radius_path k
   rw [tadpole_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem diameter_tadpole_one (k : ℕ) : (tadpole 1 k).diameter = k := by
+@[simp] theorem diameter_tadpole_one (k : ℕ) : (tadpole 1 k).diameter = k := by
   rw [tadpole_one, show 1 + k = k + 1 from by ring, diameter_path]
 
-theorem edgeChromNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 2)).edgeChromNum = 2 := by
+@[simp] theorem edgeChromNum_tadpole_one (k : ℕ) : (tadpole 1 (k + 2)).edgeChromNum = 2 := by
   rw [tadpole_one, show 1 + (k + 2) = k + 3 from by ring, edgeChromNum_path]
 
 theorem girth_tadpole_one (k : ℕ) : (tadpole 1 k).girth = 0 := by
@@ -2376,62 +2383,63 @@ theorem isAcyclic_tadpole_one (k : ℕ) : IsAcyclic (tadpole 1 k) := by
   rw [tadpole_one]
   exact isAcyclic_path _
 
-theorem isTree_tadpole_one (k : ℕ) : IsTree (tadpole 1 k) := by
+@[simp] theorem isTree_tadpole_one (k : ℕ) : IsTree (tadpole 1 k) := by
   rw [tadpole_one, show 1 + k = k + 1 from by ring]
   exact isTree_path k
 
-theorem isConnected_tadpole_one (k : ℕ) : IsConnected (tadpole 1 k) := by
+@[simp] theorem isConnected_tadpole_one (k : ℕ) : IsConnected (tadpole 1 k) := by
   rw [tadpole_one, show 1 + k = k + 1 from by ring]
   exact isConnected_path k
 
-theorem numComponents_tadpole_one (k : ℕ) : (tadpole 1 k).numComponents = 1 := by
+@[simp] theorem numComponents_tadpole_one (k : ℕ) : (tadpole 1 k).numComponents = 1 := by
   rw [tadpole_one, show 1 + k = k + 1 from by ring, numComponents_path]
 
-theorem lineGraph_tadpole_one (k : ℕ) : lineGraph (tadpole 1 k) = path k := by
+@[simp] theorem lineGraph_tadpole_one (k : ℕ) : lineGraph (tadpole 1 k) = path k := by
   rw [tadpole_one, show 1 + k = k + 1 from by ring, lineGraph_path]
 
-theorem maxDeg_lollipop_one (k : ℕ) : maxDeg (lollipop 1 (k + 2)) = 2 := by
+@[simp] theorem maxDeg_lollipop_one (k : ℕ) : maxDeg (lollipop 1 (k + 2)) = 2 := by
   rw [lollipop_one, show 1 + (k + 2) = k + 3 from by ring, maxDeg_path]
 
-theorem minDeg_lollipop_one (k : ℕ) : minDeg (lollipop 1 (k + 1)) = 1 := by
+@[simp] theorem minDeg_lollipop_one (k : ℕ) : minDeg (lollipop 1 (k + 1)) = 1 := by
   rw [lollipop_one, show 1 + (k + 1) = k + 2 from by ring, minDeg_path]
 
-theorem matchNum_lollipop_one (k : ℕ) : (lollipop 1 k).matchNum = (k + 1) / 2 := by
+@[simp] theorem matchNum_lollipop_one (k : ℕ) : (lollipop 1 k).matchNum = (k + 1) / 2 := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring, matchNum_path]
 
-theorem indepNum_lollipop_one (k : ℕ) : (lollipop 1 k).indepNum = (k + 2) / 2 := by
+@[simp] theorem indepNum_lollipop_one (k : ℕ) : (lollipop 1 k).indepNum = (k + 2) / 2 := by
   have h := indepNum_path (k + 1)
   rw [lollipop_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem coverNum_lollipop_one (k : ℕ) : (lollipop 1 k).coverNum = (k + 1) / 2 := by
+@[simp] theorem coverNum_lollipop_one (k : ℕ) : (lollipop 1 k).coverNum = (k + 1) / 2 := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring, coverNum_path]
 
-theorem cliqueCoverNum_lollipop_one (k : ℕ) : (lollipop 1 k).cliqueCoverNum = (k + 2) / 2 := by
+@[simp] theorem cliqueCoverNum_lollipop_one (k : ℕ) :
+    (lollipop 1 k).cliqueCoverNum = (k + 2) / 2 := by
   have h := cliqueCoverNum_path (k + 1)
   rw [lollipop_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem cliqueNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 1)).cliqueNum = 2 := by
+@[simp] theorem cliqueNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 1)).cliqueNum = 2 := by
   rw [lollipop_one, show 1 + (k + 1) = k + 2 from by ring, cliqueNum_path]
 
-theorem chromNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 1)).chromNum = 2 := by
+@[simp] theorem chromNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 1)).chromNum = 2 := by
   rw [lollipop_one, show 1 + (k + 1) = k + 2 from by ring, chromNum_path]
 
-theorem domNum_lollipop_one (k : ℕ) : (lollipop 1 k).domNum = (k + 3) / 3 := by
+@[simp] theorem domNum_lollipop_one (k : ℕ) : (lollipop 1 k).domNum = (k + 3) / 3 := by
   have h := domNum_path k
   rw [lollipop_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem radius_lollipop_one (k : ℕ) : (lollipop 1 k).radius = (k + 1) / 2 := by
+@[simp] theorem radius_lollipop_one (k : ℕ) : (lollipop 1 k).radius = (k + 1) / 2 := by
   have h := radius_path k
   rw [lollipop_one, show 1 + k = k + 1 from by ring]
   omega
 
-theorem diameter_lollipop_one (k : ℕ) : (lollipop 1 k).diameter = k := by
+@[simp] theorem diameter_lollipop_one (k : ℕ) : (lollipop 1 k).diameter = k := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring, diameter_path]
 
-theorem edgeChromNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 2)).edgeChromNum = 2 := by
+@[simp] theorem edgeChromNum_lollipop_one (k : ℕ) : (lollipop 1 (k + 2)).edgeChromNum = 2 := by
   rw [lollipop_one, show 1 + (k + 2) = k + 3 from by ring, edgeChromNum_path]
 
 theorem girth_lollipop_one (k : ℕ) : (lollipop 1 k).girth = 0 := by
@@ -2441,18 +2449,18 @@ theorem isAcyclic_lollipop_one (k : ℕ) : IsAcyclic (lollipop 1 k) := by
   rw [lollipop_one]
   exact isAcyclic_path _
 
-theorem isTree_lollipop_one (k : ℕ) : IsTree (lollipop 1 k) := by
+@[simp] theorem isTree_lollipop_one (k : ℕ) : IsTree (lollipop 1 k) := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring]
   exact isTree_path k
 
-theorem isConnected_lollipop_one (k : ℕ) : IsConnected (lollipop 1 k) := by
+@[simp] theorem isConnected_lollipop_one (k : ℕ) : IsConnected (lollipop 1 k) := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring]
   exact isConnected_path k
 
-theorem numComponents_lollipop_one (k : ℕ) : (lollipop 1 k).numComponents = 1 := by
+@[simp] theorem numComponents_lollipop_one (k : ℕ) : (lollipop 1 k).numComponents = 1 := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring, numComponents_path]
 
-theorem lineGraph_lollipop_one (k : ℕ) : lineGraph (lollipop 1 k) = path k := by
+@[simp] theorem lineGraph_lollipop_one (k : ℕ) : lineGraph (lollipop 1 k) = path k := by
   rw [lollipop_one, show 1 + k = k + 1 from by ring, lineGraph_path]
 
 /-! ### Kneser graphs below the packing threshold
@@ -2468,10 +2476,10 @@ theorem maxDeg_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : maxDeg (kneser n k) = 
 theorem minDeg_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : minDeg (kneser n k) = 0 := by
   rw [kneser_eq_empty n k h, minDeg_empty]
 
-theorem matchNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).matchNum = 0 := by
+@[simp] theorem matchNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).matchNum = 0 := by
   rw [kneser_eq_empty n k h, matchNum_empty]
 
-theorem coverNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).coverNum = 0 := by
+@[simp] theorem coverNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).coverNum = 0 := by
   rw [kneser_eq_empty n k h, coverNum_empty]
 
 theorem indepNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
@@ -2502,7 +2510,7 @@ theorem diameter_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).diamete
 theorem girth_kneser_of_lt (n k : ℕ) (h : n < 2 * k) : (kneser n k).girth = 0 := by
   rw [kneser_eq_empty n k h, girth_empty]
 
-theorem edgeChromNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
+@[simp] theorem edgeChromNum_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
     (kneser n k).edgeChromNum = 0 := by
   rw [kneser_eq_empty n k h, edgeChromNum_empty]
 

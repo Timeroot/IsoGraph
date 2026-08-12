@@ -63,7 +63,7 @@ theorem turan_two (n : ℕ) : turan n 2 = bipartite ((n + 1) / 2) (n / 2) := by
     e2, List.sum_append, List.sum_replicate, List.sum_replicate, smul_eq_mul, smul_eq_mul]
   omega
 
-theorem cliqueNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) : (turan n r).cliqueNum = r := by
+@[simp] theorem cliqueNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) : (turan n r).cliqueNum = r := by
   have hq : 1 ≤ n / r := (Nat.one_le_div_iff hr).2 h
   have hle : n % r ≤ r := (Nat.mod_lt n hr).le
   have e1 : min (n / r + 1) 1 = 1 := by omega
@@ -91,7 +91,7 @@ theorem friendship_eq_join_compl_cocktailParty (n : ℕ) :
     cliqueNum_cocktailParty, indepNum_complete]
   omega
 
-theorem friendship_zero : friendship 0 = complete 1 := by
+@[simp] theorem friendship_zero : friendship 0 = complete 1 := by
   rw [friendship, cartesianProduct_comm, cartesianProduct_empty_zero, join_empty_zero]
 
 theorem friendship_one : friendship 1 = complete 3 := by
@@ -206,7 +206,7 @@ theorem crown_three : crown 3 = cycle 6 := by
 
 /-! ### The fan's degree sequence, and the radius of a line graph -/
 
-theorem degSequence_fan (n : ℕ) :
+@[simp] theorem degSequence_fan (n : ℕ) :
     degSequence (fan (n + 3)) = [2, 2] ++ List.replicate (n + 1) 3 ++ [n + 3] := by
   rw [degSequence_eq_sort, fan, degMultiset_join, degMultiset_complete, degMultiset_path]
   simp [V_path]
@@ -411,7 +411,7 @@ theorem indepNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
   rw [turan_of_dvd h, indepNum_completeMultipartite, List.max?_replicate]
   simp
 
-theorem coverNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
+@[simp] theorem coverNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
     (turan n r).coverNum = n - n / r := by
   have hc := coverNum_add_indepNum (turan n r)
   rw [indepNum_turan_of_dvd h hr, V_turan] at hc
@@ -607,7 +607,7 @@ theorem matchNum_friendship (n : ℕ) : (friendship n).matchNum = n := by
     exact this
 
 
-theorem indepNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+@[simp] theorem indepNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
     (turan n r).indepNum = (n + r - 1) / r := by
   unfold turan
   simp [indepNum_completeMultipartite]
@@ -1209,7 +1209,7 @@ theorem diameter_crown (n : ℕ) : (crown (n + 3)).diameter = 3 := by
 
 /-- Cliques of a complete multipartite graph meet each part at most once, so covering a Turán
 graph by cliques takes as many cliques as its largest part has vertices. -/
-theorem cliqueCoverNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
+@[simp] theorem cliqueCoverNum_turan {n r : ℕ} (hr : 0 < r) (h : r ≤ n) :
     (turan n r).cliqueCoverNum = (n + r - 1) / r := by
   rw [← indepNum_eq_cliqueCoverNum_completeMultipartite, indepNum_turan hr h]
 
@@ -2131,7 +2131,7 @@ theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
 
 
 
-theorem cliqueCoverNum_cycle_odd (m : ℕ) : (cycle (2 * m + 5)).cliqueCoverNum = m + 3 := by
+@[simp] theorem cliqueCoverNum_cycle_odd (m : ℕ) : (cycle (2 * m + 5)).cliqueCoverNum = m + 3 := by
   rw [show 2 * m + 5 = (2 * m + 1) + 4 from by omega, cliqueCoverNum_cycle]
   omega
 

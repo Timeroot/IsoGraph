@@ -1349,7 +1349,7 @@ theorem lineGraph_complete_three : lineGraph (complete 3) = complete 3 := by
   rw [lineGraph_complete_eq_triangular, triangular_three]
 
 /-- `L(K₄) = T(4)` is the octahedron. -/
-theorem lineGraph_complete_four : lineGraph (complete 4) = cocktailParty 3 := by
+@[simp] theorem lineGraph_complete_four : lineGraph (complete 4) = cocktailParty 3 := by
   rw [lineGraph_complete_eq_triangular, triangular_four]
 
 /-- `L(C₃) = C₃`, the triangle being its own line graph. -/

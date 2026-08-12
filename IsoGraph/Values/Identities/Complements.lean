@@ -477,7 +477,7 @@ theorem indepNum_compl_grotzsch : (grotzschᶜ).indepNum = 2 := by
 theorem chromNum_compl_grotzsch : (grotzschᶜ).chromNum = 6 := by
   rw [chromNum_compl, cliqueCoverNum_grotzsch]
 
-theorem cliqueCoverNum_compl_grotzsch : (grotzschᶜ).cliqueCoverNum = 4 := by
+@[simp] theorem cliqueCoverNum_compl_grotzsch : (grotzschᶜ).cliqueCoverNum = 4 := by
   rw [cliqueCoverNum_compl, chromNum_grotzsch]
 
 theorem cliqueNum_compl_grotzsch_le : (grotzschᶜ).cliqueNum ≤ 6 := by
@@ -1770,7 +1770,7 @@ theorem chromNum_compl_kneser_two_even (m : ℕ) :
     ((kneser (2 * m + 4) 2)ᶜ).chromNum = 2 * m + 3 := by
   rw [chromNum_compl, cliqueCoverNum_kneser_two_even]
 
-theorem chromNum_compl_petersen : (petersenᶜ).chromNum = 5 := by
+@[simp] theorem chromNum_compl_petersen : (petersenᶜ).chromNum = 5 := by
   rw [chromNum_compl, cliqueCoverNum_petersen]
 
 theorem chromNum_compl_spider_pair (a b : ℕ) :
@@ -1841,7 +1841,7 @@ theorem cliqueCoverNum_compl_friendship (n : ℕ) :
     ((friendship (n + 1))ᶜ).cliqueCoverNum = 3 := by
   rw [cliqueCoverNum_compl, chromNum_friendship]
 
-theorem cliqueCoverNum_compl_petersen : (petersenᶜ).cliqueCoverNum = 3 := by
+@[simp] theorem cliqueCoverNum_compl_petersen : (petersenᶜ).cliqueCoverNum = 3 := by
   rw [cliqueCoverNum_compl, chromNum_petersen]
 
 theorem cliqueCoverNum_compl_grid (m n : ℕ) :
@@ -2518,7 +2518,7 @@ theorem coverNum_compl_grotzsch : (grotzschᶜ).coverNum = 9 := by
   rw [cliqueNum_grotzsch, V_grotzsch] at h
   omega
 
-theorem coverNum_compl_petersen : (petersenᶜ).coverNum = 8 := by
+@[simp] theorem coverNum_compl_petersen : (petersenᶜ).coverNum = 8 := by
   have h := coverNum_compl_add_cliqueNum petersen
   rw [cliqueNum_petersen, V_petersen] at h
   omega
