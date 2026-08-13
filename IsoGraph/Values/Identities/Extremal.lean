@@ -1671,6 +1671,7 @@ theorem indepCount_eq_zero_of_card_lt {G : CGraph} {n : ℕ} (h : Fintype.card G
   Nat.le_zero.1 ((indepCount_le_choose G n).trans (Nat.choose_eq_zero_of_lt h).le)
 
 /-- The independent pairs are exactly the non-edges. -/
+@[toIsoGraph]
 theorem indepCount_two_add_E (G : CGraph) :
     G.indepCount 2 + G.E = (Fintype.card G.V).choose 2 := by
   rw [← cliqueCount_compl, cliqueCount_two]

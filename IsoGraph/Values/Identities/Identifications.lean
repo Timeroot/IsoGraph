@@ -1875,24 +1875,6 @@ theorem not_isBipartite_triangular {n : ℕ} (h : 4 ≤ n) : ¬ IsBipartite (tri
   rw [kneser_def, isBipartite_mk]
   exact CGraph.not_isBipartite_kneser_five_two
 
-/-- A side of a bipartite join is bipartite. -/
-theorem IsBipartite.of_join_left {G H : IsoGraph} (h : IsBipartite (G ∇g H)) : IsBipartite G := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
-  rw [join_mk, isBipartite_mk] at h
-  rw [isBipartite_mk]
-  exact h.of_join_left
-
-theorem IsBipartite.of_join_right {G H : IsoGraph} (h : IsBipartite (G ∇g H)) :
-    IsBipartite H := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
-  rw [join_mk, isBipartite_mk] at h
-  rw [isBipartite_mk]
-  exact h.of_join_right
-
 theorem not_isBipartite_join_left {G H : IsoGraph} (hG : ¬ IsBipartite G) :
     ¬ IsBipartite (G ∇g H) := fun h ↦ hG h.of_join_left
 

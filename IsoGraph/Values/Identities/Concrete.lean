@@ -224,11 +224,13 @@ theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipa
     (hadj _ _ (by simp))
 
 /-- A side of a bipartite join is bipartite: restrict the colouring. -/
+@[toIsoGraph]
 theorem IsBipartite.of_join_left {G H : CGraph}
     (h : (CGraph.join G H).IsBipartite) : G.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   exact ⟨fun a ↦ c (.inl a), fun x y hxy ↦ hc _ _ (by rwa [join_adj_inl_inl])⟩
 
+@[toIsoGraph]
 theorem IsBipartite.of_join_right {G H : CGraph}
     (h : (CGraph.join G H).IsBipartite) : H.IsBipartite := by
   obtain ⟨c, hc⟩ := h

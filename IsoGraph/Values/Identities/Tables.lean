@@ -17,7 +17,7 @@ namespace IsoGraph
 
 `@[toIsoGraph]` can only state a fact once every constant in it has a bridge, and
 `Constructions.lean` runs before `Quotient.lean`: the order and the products have none there yet.
-These five are tagged here instead, which lifts them exactly as the attribute would have. -/
+These six are tagged here instead, which lifts them exactly as the attribute would have. -/
 
 attribute [toIsoGraph] CGraph.E_compl
 attribute [toIsoGraph] CGraph.not_isConnected_disjUnion
@@ -25,6 +25,7 @@ attribute [toIsoGraph IsVertexTransitive.cartesianProduct]
   CGraph.isVertexTransitive_cartesianProduct
 attribute [toIsoGraph IsVertexTransitive.tensorProduct] CGraph.isVertexTransitive_tensorProduct
 attribute [toIsoGraph IsVertexTransitive.strongProduct] CGraph.isVertexTransitive_strongProduct
+attribute [toIsoGraph] CGraph.isSRGWith_triangular
 
 /-! ## Line graphs and Mycielskians
 
@@ -671,10 +672,6 @@ theorem IsArcTransitive.lineGraph {G : IsoGraph} (h : IsArcTransitive G) :
     IsVertexTransitive (lineGraph (cycle n)) := (isArcTransitive_cycle n).lineGraph
 
 /-! ### Strong regularity -/
-
-theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
-    IsSRGWith (triangular n) (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
-  isSRGWith_johnson_two n hn
 
 theorem isSRGWith_petersen : IsSRGWith petersen 10 3 0 1 := isSRGWith_kneser_two 5
 

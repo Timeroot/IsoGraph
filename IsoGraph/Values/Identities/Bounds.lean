@@ -1131,10 +1131,6 @@ example : (cycle 6).cliqueCount 3 = 0 := cliqueCount_cycle_even 3
     Gᶜ.indepCount n = G.cliqueCount n := by
   rw [← cliqueCount_compl Gᶜ, compl_compl]
 
-theorem indepCount_two_add_E (G : IsoGraph) : G.indepCount 2 + G.E = G.V.choose 2 := by
-  rw [← cliqueCount_compl, cliqueCount_two]
-  exact E_compl G
-
 example : (empty 6).indepCount 3 = 20 := by rw [indepCount_empty]; decide
 
 example : (complete 4).indepCount 2 = 0 := by
