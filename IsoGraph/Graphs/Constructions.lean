@@ -1177,11 +1177,13 @@ variable (G H : CGraph)
 
 /-- The complement of a strongly regular graph is strongly regular, with the parameters Mathlib
 computes for `SimpleGraph`s. -/
+@[toIsoGraph IsSRGWith.compl]
 theorem isSRGWith_compl {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
     Gᶜ.IsSRGWith n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) :=
   SimpleGraph.Iso.isSRGWith_of_iso (G := G.toSimpleᶜ) (G' := Gᶜ.toSimple)
     ⟨Equiv.refl G.V, by simp; intro a b _; rfl⟩ (SimpleGraph.IsSRGWith.compl h)
 
+/-- A graph and its complement share out all the pairs between them. -/
 theorem E_compl :
     Gᶜ.E + G.E = (Fintype.card G.V).choose 2 := by
   simp only [CGraph.E]
@@ -2754,6 +2756,7 @@ theorem disjUnion_assoc (K : CGraph) :
     | inl y => cases y with | inl c => simp | inr d => simp
     | inr y => simp)⟩
 
+/-- A disjoint union of two nonempty graphs is disconnected. -/
 theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) :
     ¬(disjUnion G H).IsConnected := by
   simp only [CGraph.IsConnected]
@@ -4329,6 +4332,7 @@ theorem card_inter_eq_one_of_ne (s t : (kneser n 2).V) (hne : s ≠ t) (hd : s.1
 /-- **Kneser graphs on pairs are strongly regular**, with parameters
 `(C(n,2), C(n-2,2), C(n-4,2), C(n-3,2))`.  For `n = 5` this is the Petersen graph, `(10,3,0,1)`.
 -/
+@[toIsoGraph]
 theorem isSRGWith_kneser_two (n : ℕ) :
     (kneser n 2).IsSRGWith (n.choose 2) ((n - 2).choose 2) ((n - 4).choose 2)
       ((n - 3).choose 2) := by
@@ -4368,6 +4372,7 @@ def johnsonTwoIso (n : ℕ) : johnson n 2 ≃cg (kneser n 2)ᶜ :=
 
 The bound `4 ≤ n` is only needed for `μ`, which is vacuous below it: `T(3) = K₃` and
 `T(n)` is empty for `n < 3`, so those graphs have no non-adjacent pair to constrain. -/
+@[toIsoGraph]
 theorem isSRGWith_johnson_two (n : ℕ) (hn : 4 ≤ n) :
     (johnson n 2).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4 := by
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
@@ -4413,6 +4418,7 @@ the counts are more direct read off the graph itself: a vertex on one side sees 
 side, two vertices on the same side see all of the other side in common, and two adjacent
 vertices see nothing in common.  Doing it directly also avoids the `2 ≤ n` side condition that
 the truncated subtraction in `isSRGWith_compl`'s parameters would force. -/
+@[toIsoGraph]
 theorem isSRGWith_bipartite (n : ℕ) : (bipartite n n).IsSRGWith (2 * n) n 0 n := by
   have hnbrs : ∀ x : (complete n).V ⊕ (complete n).V, ((bipartite n n).nbrs x).card = n := by
     rintro (a | b)
@@ -4534,6 +4540,7 @@ theorem isSRGWith_completeMultipartite_replicate (n a : ℕ) :
 
 /-- **The cocktail party graph `K_{n×2}` is strongly regular** with parameters
 `(2n, 2n-2, 2n-4, 2n-2)`: it is `n` parts of size two. -/
+@[toIsoGraph]
 theorem isSRGWith_cocktailParty (n : ℕ) :
     (cocktailParty n).IsSRGWith (2 * n) (2 * n - 2) (2 * n - 4) (2 * n - 2) := by
   have h := isSRGWith_completeMultipartite_replicate n 2
@@ -4701,6 +4708,7 @@ def paleyIso (q : ℕ) [NeZero q] [Fact q.Prime] : paleyField (ZMod q) ≃cg pal
     iff_of_eq (congrArg (fun x : Bool ↦ x = true) (paley_adj_eq q a b))⟩
 
 /-- **`paley q` is strongly regular** for every prime `q ≡ 1 mod 4`. -/
+@[toIsoGraph]
 theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     (paley q).IsSRGWith q ((q - 1) / 2) ((q - 5) / 4) ((q - 1) / 4) := by
   have hcard : Fintype.card (ZMod q) = q := ZMod.card q
@@ -4767,6 +4775,7 @@ theorem isVertexTransitive_of_isArcTransitive
   exact ⟨σ, h₁⟩
 
 /-- The complement has the same automorphisms, so it is vertex-transitive whenever `G` is. -/
+@[toIsoGraph IsVertexTransitive.compl]
 theorem isVertexTransitive_compl (h : G.IsVertexTransitive) :
     Gᶜ.IsVertexTransitive := by
   intro u v

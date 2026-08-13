@@ -92,7 +92,7 @@ IsBipartite         S    S    .    .    .    T    S    T    S    S    S    S
 IsConnected         S    S    .    .    .    t    S    S    T    T    S    T    
 IsDS                .    .    .    .    .    .    .    T    .    .    .    .    
 IsRegularWith       S    T    .    .    .    t    S    S    S    S    S    T    
-IsSRGWith           T    .    T    T    T    .    T    .    t    .    t    .    
+IsSRGWith           T    .    T    T    T    .    ~T   .    T    .    t    .    
 IsSelfComplementary T    T    .    .    .    s    T    T    .    S    T    .    
 IsTree              S    S    .    .    .    t    S    S    S    S    S    T    
 IsVertexTransitive  S    S    .    .    .    T    S    S    S    S    S    T    
@@ -611,8 +611,8 @@ tensorProduct (18/38 missing)
   T   IsSRGWith           chang₁                chang₁_srg
   T   IsSRGWith           chang₂                chang₂_srg
   T   IsSRGWith           chang₃                chang₃_srg
-  T   IsSRGWith           cocktailParty         isSRGWith_cocktailParty
-  t   IsSRGWith           completeMultipartite  cocktailParty_srg
+  ~T  IsSRGWith           cocktailParty         isSRGWith_cocktailParty
+  T   IsSRGWith           completeMultipartite  isSRGWith_cocktailParty
   t   IsSRGWith           cycle                 cycle_five_srg
   t   IsSRGWith           foldedCube            clebsch_srg
   T   IsSRGWith           gewirtz               gewirtz_srg

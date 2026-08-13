@@ -149,12 +149,14 @@ theorem minDeg_eq_of_degMultiset {G : CGraph} {k : ℕ} (hmem : k ∈ G.degMulti
     (le_minDeg_of_forall v fun w ↦ hle _ (mem_degMultiset.2 ⟨w, rfl⟩))
 
 /-- Half the handshake lemma: the degree sum is squeezed between `|V|·δ` and `|V|·Δ`. -/
+@[toIsoGraph V_mul_minDeg_le]
 theorem card_mul_minDeg_le (G : CGraph) : Fintype.card G.V * G.minDeg ≤ 2 * G.E := by
   calc Fintype.card G.V * G.minDeg = ∑ _v : G.V, G.minDeg := by
         rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
     _ ≤ ∑ v : G.V, G.toSimple.degree v := Finset.sum_le_sum fun v _ ↦ G.minDeg_le_degree v
     _ = 2 * G.E := SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
 
+@[toIsoGraph two_mul_E_le_V_mul_maxDeg]
 theorem two_mul_E_le_card_mul_maxDeg (G : CGraph) : 2 * G.E ≤ Fintype.card G.V * G.maxDeg := by
   calc 2 * G.E = ∑ v : G.V, G.toSimple.degree v :=
         (SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple).symm
@@ -422,6 +424,7 @@ theorem chromNum_le_maxDeg (G : CGraph) (h : 2 ≤ G.chromNum) : G.chromNum - 1 
   omega
 
 /-- Independence version of the greedy bound: `|V| ≤ (Δ + 1)·α`. -/
+@[toIsoGraph V_le_maxDeg_add_one_mul_indepNum]
 theorem card_le_maxDeg_add_one_mul_indepNum (G : CGraph) :
     Fintype.card G.V ≤ (G.maxDeg + 1) * G.indepNum :=
   le_trans G.card_le_chromNum_mul_indepNum
@@ -431,6 +434,7 @@ theorem card_le_maxDeg_add_one_mul_indepNum (G : CGraph) :
 
 /-- Colour a maximum independent set with a single colour and every other vertex with its own:
 `χ ≤ |V| - α + 1`. -/
+@[toIsoGraph chromNum_le_V_sub_indepNum_add_one]
 theorem chromNum_le_card_sub_indepNum_add_one (G : CGraph) :
     G.chromNum ≤ Fintype.card G.V - G.indepNum + 1 := by
   classical
@@ -459,6 +463,7 @@ theorem chromNum_le_card_sub_indepNum_add_one (G : CGraph) :
       omega
 
 /-- The same bound in additive form. -/
+@[toIsoGraph chromNum_add_indepNum_le_V_add_one]
 theorem chromNum_add_indepNum_le_card_add_one (G : CGraph) :
     G.chromNum + G.indepNum ≤ Fintype.card G.V + 1 := by
   have h := G.chromNum_le_card_sub_indepNum_add_one
@@ -599,6 +604,7 @@ private theorem chromNum_eq_chromOn_univ (G : CGraph) :
       (fun x _ y _ hxy ↦ C.valid hxy)
 
 /-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
+@[toIsoGraph chromNum_add_chromNum_compl_le_V_add_one]
 theorem chromNum_add_chromNum_compl_le_card_add_one (G : CGraph) :
     G.chromNum + Gᶜ.chromNum ≤ Fintype.card G.V + 1 := by
   have h := chromOn_add_chromOn_compl_le G.toSimple (Finset.univ : Finset G.V)
@@ -956,6 +962,7 @@ theorem coverNum_le_E (G : CGraph) : G.coverNum ≤ G.E := by
   simpa using ENat.toNat_le_toNat h (by simp)
 
 /-- A graph with an edge is not independent as a whole. -/
+@[toIsoGraph indepNum_lt_V_of_E_pos]
 theorem indepNum_lt_card_of_E_pos (G : CGraph) (h : 0 < G.E) :
     G.indepNum < Fintype.card G.V := by
   classical
@@ -1053,6 +1060,7 @@ fixed maximum clique `C`, and `σ c` in a fixed maximum independent set `S`.  Fo
 is at most one such `c`, since `σ C` is a clique and `S` is independent; on the other hand each
 of the `|C| · |S|` pairs `(c, v)` is realised by exactly `|Aut G| / |V|` automorphisms, because
 the action is transitive. -/
+@[toIsoGraph indepNum_mul_cliqueNum_le_V]
 theorem indepNum_mul_cliqueNum_le_card (G : CGraph) (hvt : G.IsVertexTransitive) :
     G.indepNum * G.cliqueNum ≤ Fintype.card G.V := by
   classical
@@ -1142,6 +1150,7 @@ theorem exists_isDominatingSet_domNum (G : CGraph) :
   obtain ⟨s, hcard, hs⟩ := Nat.sInf_mem hne
   exact ⟨s, hcard, hs⟩
 
+@[toIsoGraph domNum_le_V]
 theorem domNum_le_card (G : CGraph) : G.domNum ≤ Fintype.card G.V := by
   have := domNum_le_card_of_isDominatingSet (isDominatingSet_univ G)
   rwa [Finset.card_univ] at this
@@ -1163,6 +1172,7 @@ theorem domNum_eq_zero_iff (G : CGraph) :
     have := G.domNum_le_card
     omega
 
+@[toIsoGraph]
 theorem domNum_pos (G : CGraph) (h : 0 < Fintype.card G.V) : 0 < G.domNum := by
   have := (G.domNum_eq_zero_iff).not.2 (by omega : ¬ Fintype.card G.V = 0)
   omega
@@ -1182,6 +1192,7 @@ theorem domNum_eq_one_of_universal {v : G.V} (h : ∀ u, u ≠ v → G.Adj v u) 
 
 /-- **The degree bound** `|V| ≤ γ·(Δ + 1)`: each vertex of a dominating set covers itself and at
 most `Δ` neighbours. -/
+@[toIsoGraph V_le_domNum_mul_maxDeg_add_one]
 theorem card_le_domNum_mul_maxDeg_add_one (G : CGraph) :
     Fintype.card G.V ≤ G.domNum * (G.maxDeg + 1) := by
   classical
@@ -1238,6 +1249,7 @@ theorem domNum_le_indepNum (G : CGraph) : G.domNum ≤ G.indepNum := by
 
 /-- **`γ + Δ ≤ |V|`**: the complement of the neighbourhood of a vertex of maximum degree is
 dominating. -/
+@[toIsoGraph domNum_add_maxDeg_le_V]
 theorem domNum_add_maxDeg_le_card (G : CGraph) : G.domNum + G.maxDeg ≤ Fintype.card G.V := by
   classical
   rcases isEmpty_or_nonempty G.V with hemp | hne
@@ -1268,6 +1280,7 @@ theorem domNum_add_maxDeg_le_card (G : CGraph) : G.domNum + G.maxDeg ≤ Fintype
 
 /-- **`γ ≤ τ`** for a graph with no isolated vertex: a vertex cover dominates, since every vertex
 has an edge and the far end of it is in the cover. -/
+@[toIsoGraph]
 theorem domNum_le_coverNum (G : CGraph) (h : 1 ≤ G.minDeg) : G.domNum ≤ G.coverNum := by
   classical
   obtain ⟨C, hC, hCcard⟩ := exists_cover_finset G.toSimple
@@ -1344,6 +1357,7 @@ theorem diameter_le_two_mul_radius (G : CGraph) : G.diameter ≤ 2 * G.radius :=
   · have h : G.toSimple.diam = 0 := SimpleGraph.diam_eq_zero_of_not_connected hc
     simp [diameter, h]
 
+@[toIsoGraph]
 theorem radius_pos (G : CGraph) (hc : G.IsConnected) (hV : 1 < Fintype.card G.V) :
     0 < G.radius := by
   haveI : Nonempty G.V := hc.nonempty
@@ -1423,6 +1437,7 @@ theorem domNum_wheel (n : ℕ) : (wheel n).domNum = 1 := domNum_join_complete_on
 
 /-- **Radius one and domination number one are the same condition** on a graph with at least two
 vertices: both say that some vertex sees the whole graph. -/
+@[toIsoGraph]
 theorem radius_eq_one_iff_domNum_eq_one (G : CGraph) (hV : 1 < Fintype.card G.V) :
     G.radius = 1 ↔ G.domNum = 1 := by
   rw [domNum_eq_one_iff]
@@ -1430,6 +1445,7 @@ theorem radius_eq_one_iff_domNum_eq_one (G : CGraph) (hV : 1 < Fintype.card G.V)
 
 /-- **A vertex-transitive graph has radius equal to its diameter**: every vertex is as central as
 every other, so the least and the greatest eccentricity agree. -/
+@[toIsoGraph]
 theorem radius_eq_diameter_of_isVertexTransitive (G : CGraph) (h : G.IsVertexTransitive) :
     G.radius = G.diameter := by
   rcases isEmpty_or_nonempty G.V with hemp | hne
@@ -1776,6 +1792,7 @@ theorem numComponents_eq_one_iff (G : CGraph) : G.numComponents = 1 ↔ G.IsConn
     exact ⟨hpre.subsingleton_connectedComponent, inferInstance⟩
 
 /-- Each component contains at least one vertex. -/
+@[toIsoGraph numComponents_le_V]
 theorem numComponents_le_card (G : CGraph) : G.numComponents ≤ Fintype.card G.V := by
   rw [numComponents, ← Nat.card_eq_fintype_card]
   exact Nat.card_le_card_of_surjective _ (Quot.mk_surjective)
@@ -1850,6 +1867,7 @@ def disjUnionComponentEquiv (G H : CGraph) :
     Nat.card_congr (disjUnionComponentEquiv G H), Nat.card_sum]
 
 /-- **At most one of a graph and its complement is disconnected.** -/
+@[toIsoGraph]
 theorem numComponents_compl_eq_one (G : CGraph) (h : 2 ≤ G.numComponents) :
     Gᶜ.numComponents = 1 := by
   have hne : Nonempty G.V := Fintype.card_pos_iff.1
@@ -1922,6 +1940,7 @@ theorem E_pos_of_adj {G : CGraph} {a b : G.V} (h : G.toSimple.Adj a b) : 0 < G.E
   Finset.card_pos.2 ⟨s(a, b), SimpleGraph.mem_edgeFinset.2 h⟩
 
 /-- A graph has as many components as vertices exactly when it has no edges. -/
+@[toIsoGraph numComponents_eq_V_iff]
 theorem numComponents_eq_card_iff (G : CGraph) :
     G.numComponents = Fintype.card G.V ↔ G.E = 0 := by
   classical

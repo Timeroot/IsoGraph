@@ -2619,7 +2619,7 @@ theorem four_le_girth_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 2
 its girth is at least four. -/
 theorem four_le_girth_mycielskian (G : IsoGraph) (hc : G.cliqueNum ≤ 2) (hE : 0 < G.E) :
     4 ≤ (mycielskian G).girth := by
-  have hV : 0 < G.V := by have := indepNum_lt_V_of_E_pos G hE; omega
+  have hV : 0 < G.V := by have := indepNum_lt_V_of_E_pos hE; omega
   exact four_le_girth_of_cliqueNum_le_two (cliqueNum_mycielskian_eq_two hV hc).le
     (not_isAcyclic_mycielskian G hE)
 
@@ -2627,8 +2627,8 @@ theorem four_le_girth_mycielskian (G : IsoGraph) (hc : G.cliqueNum ≤ 2) (hE : 
 a triangle the product inherits it. -/
 theorem not_isAcyclic_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
     ¬ IsAcyclic (G □g H) := by
-  have hVG : 0 < G.V := by have := indepNum_lt_V_of_E_pos G hG; omega
-  have hVH : 0 < H.V := by have := indepNum_lt_V_of_E_pos H hH; omega
+  have hVG : 0 < G.V := by have := indepNum_lt_V_of_E_pos hG; omega
+  have hVH : 0 < H.V := by have := indepNum_lt_V_of_E_pos hH; omega
   rcases Nat.lt_or_ge G.cliqueNum 3 with h1 | h1
   · rcases Nat.lt_or_ge H.cliqueNum 3 with h2 | h2
     · exact not_isAcyclic_of_girth_pos

@@ -2167,18 +2167,6 @@ theorem domNum_triangular (n : ℕ) : (triangular (n + 2)).domNum = (n + 2) / 2 
 @[simp] theorem domNum_johnson_two (n : ℕ) : (johnson (n + 2) 2).domNum = (n + 2) / 2 :=
   domNum_triangular n
 
-/-- **A Cartesian product of two triangle-free graphs with an edge each has girth four**: the
-two edges span a square, and a triangle in the product would project to one in a factor. -/
-theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E)
-    (hcG : G.cliqueNum ≤ 2) (hcH : H.cliqueNum ≤ 2) : (G □g H).girth = 4 := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
-  rw [cartesianProduct_mk, girth_mk]
-  rw [E_mk] at hG hH
-  rw [cliqueNum_mk] at hcG hcH
-  exact CGraph.girth_cartesianProduct_of_cliqueNum_le_two hG hH hcG hcH
-
 /-- **A prism over a cycle of length at least four has girth four**, the odd case included:
 the square faces are the shortest cycles. -/
 @[simp] theorem girth_prism (n : ℕ) : (prism (n + 4)).girth = 4 := by

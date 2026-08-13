@@ -2725,7 +2725,7 @@ theorem radius_join_eq_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
     · exact h1 h
     · exact h2 h
   have hle := radius_le_diameter (G ∇g H)
-  have hd := diameter_join_le_two hG hH
+  have hd := diameter_join_le_two _ _ hG hH
   have hpos := radius_pos (isConnected_join hG hH) hV
   omega
 

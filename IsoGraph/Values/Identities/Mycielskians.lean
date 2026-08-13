@@ -2990,7 +2990,7 @@ theorem numComponents_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H
 theorem diameter_lineGraph_join_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (lineGraph (G ∇g H)).diameter ≤ 3 := by
   have h := diameter_lineGraph_le (isConnected_join hG hH) (E_pos_join hG hH)
-  have h2 := diameter_join_le_two hG hH
+  have h2 := diameter_join_le_two _ _ hG hH
   omega
 
 theorem cliqueNum_lineGraph_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)

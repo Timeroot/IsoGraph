@@ -2085,7 +2085,7 @@ theorem cliqueNum_tadpole (m k : ℕ) : (tadpole (m + 4) k).cliqueNum = 2 := by
     have hg : (CGraph.tadpole (m + 4) k).girth = 3 :=
       CGraph.girth_eq_three_of_cliqueNum hcon2
     have hnac : ¬ (CGraph.tadpole (m + 4) k).IsAcyclic := by
-      intro hac; rw [(CGraph.girth_eq_zero_iff _).mpr hac] at hg; omega
+      intro hac; rw [CGraph.girth_eq_zero_iff.mpr hac] at hg; omega
     have := CGraph.four_le_girth htri2 hnac
     omega
   omega

@@ -564,7 +564,7 @@ theorem two_mul_mul_E_compl_le (G : IsoGraph) {r : ℕ} (hr : 0 < r) (h : G.inde
 turns into a lower bound on `G.E` through `|E(G)| + |EGᶜ| = C(|V|, 2)`. -/
 theorem two_mul_mul_choose_le (G : IsoGraph) {r : ℕ} (hr : 0 < r) (h : G.indepNum ≤ r) :
     2 * r * G.V.choose 2 ≤ (r - 1) * G.V ^ 2 + 2 * r * G.E := by
-  have hsum := G.E_compl_add
+  have hsum := G.E_compl
   have hb := G.two_mul_mul_E_compl_le hr h
   calc 2 * r * G.V.choose 2 = 2 * r * Gᶜ.E + 2 * r * G.E := by
         rw [← Nat.mul_add, hsum]
@@ -743,13 +743,6 @@ theorem indepNum_mul_maxDeg_le (G : IsoGraph) :
 
 attribute [simp] IsoGraph.coverNum_le_E
 
-/-- A graph with an edge has an independent set smaller than its whole vertex set. -/
-theorem indepNum_lt_V_of_E_pos (G : IsoGraph) (h : 0 < G.E) : G.indepNum < G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, E_mk] at h
-  rw [← mk_canonicalize g, indepNum_mk, V_mk]
-  exact CGraph.indepNum_lt_card_of_E_pos _ h
-
 /-- A vertex cover meets every edge, so a graph with an edge needs one, and conversely a graph
 with no edges needs none. -/
 theorem coverNum_pos (G : IsoGraph) (h : 0 < G.E) : 0 < G.coverNum := by
@@ -780,15 +773,6 @@ example (n : ℕ) :
   rw [E_star, maxDeg_star, coverNum_star, Nat.min_eq_left (by omega), one_mul]
 
 /-! ### The clique–coclique bound -/
-
-/-- **The clique–coclique bound**: `α · ω ≤ |V|` for a vertex-transitive graph.  Both factors are
-maximised by the same graph only in very rigid cases; see the examples below. -/
-theorem indepNum_mul_cliqueNum_le_V {G : IsoGraph} (h : IsVertexTransitive G) :
-    G.indepNum * G.cliqueNum ≤ G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, indepNum_mk, cliqueNum_mk]
-  rw [← mk_canonicalize g, isVertexTransitive_mk] at h
-  exact CGraph.indepNum_mul_cliqueNum_le_card _ h
 
 /-- Contrapositive: `α · ω > |V|` is a certificate of *non*-vertex-transitivity, and one that is
 independent of the usual degree-sequence obstruction. -/
@@ -991,34 +975,6 @@ example (G : IsoGraph) (h : G.V = 6) : Gᶜ ≠ G := fun hc ↦ by
 
 /-! ### The domination number -/
 
-theorem domNum_le_V (G : IsoGraph) : G.domNum ≤ G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, domNum_mk]
-  exact CGraph.domNum_le_card _
-
-theorem domNum_pos {G : IsoGraph} (h : 0 < G.V) : 0 < G.domNum := by
-  have := (G.domNum_eq_zero_iff).not.2 (by omega : ¬ G.V = 0)
-  omega
-
-/-- **The degree bound** `|V| ≤ γ·(Δ + 1)`. -/
-theorem V_le_domNum_mul_maxDeg_add_one (G : IsoGraph) : G.V ≤ G.domNum * (G.maxDeg + 1) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, domNum_mk, maxDeg_mk]
-  exact CGraph.card_le_domNum_mul_maxDeg_add_one _
-
-/-- **`γ + Δ ≤ |V|`**. -/
-theorem domNum_add_maxDeg_le_V (G : IsoGraph) : G.domNum + G.maxDeg ≤ G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, domNum_mk, maxDeg_mk]
-  exact CGraph.domNum_add_maxDeg_le_card _
-
-/-- **`γ ≤ τ`** for a graph with no isolated vertex. -/
-theorem domNum_le_coverNum {G : IsoGraph} (h : 1 ≤ G.minDeg) : G.domNum ≤ G.coverNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, domNum_mk, coverNum_mk]
-  rw [← mk_canonicalize g, minDeg_mk] at h
-  exact CGraph.domNum_le_coverNum _ h
-
 /-- With Gallai's identity, the degree bound reads `τ ≥ |V|·Δ/(Δ+1) - ...`; more usefully it
 bounds the independence number from below, since `γ ≤ α`. -/
 theorem V_le_indepNum_mul_maxDeg_add_one (G : IsoGraph) : G.V ≤ G.indepNum * (G.maxDeg + 1) :=
@@ -1052,29 +1008,6 @@ example : (empty 4).domNum = 4 := by simp
 example : (complete 7).domNum = 1 := by simp
 
 /-! ### The radius -/
-
-theorem radius_pos {G : IsoGraph} (hc : IsConnected G) (hV : 1 < G.V) : 0 < G.radius := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, radius_mk]
-  rw [← mk_canonicalize g, isConnected_mk] at hc
-  rw [← mk_canonicalize g, V_mk] at hV
-  exact CGraph.radius_pos _ hc hV
-
-/-- **`r = 1 ↔ γ = 1`** on a graph with at least two vertices. -/
-theorem radius_eq_one_iff_domNum_eq_one {G : IsoGraph} (hV : 1 < G.V) :
-    G.radius = 1 ↔ G.domNum = 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, radius_mk, domNum_mk]
-  rw [← mk_canonicalize g, V_mk] at hV
-  exact CGraph.radius_eq_one_iff_domNum_eq_one _ hV
-
-/-- **A vertex-transitive graph has `r = d`.** -/
-theorem radius_eq_diameter_of_isVertexTransitive {G : IsoGraph} (h : IsVertexTransitive G) :
-    G.radius = G.diameter := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, radius_mk, diameter_mk]
-  rw [← mk_canonicalize g, isVertexTransitive_mk] at h
-  exact CGraph.radius_eq_diameter_of_isVertexTransitive _ h
 
 /-! ### The radius table -/
 
@@ -1200,7 +1133,7 @@ example : (cycle 6).cliqueCount 3 = 0 := cliqueCount_cycle_even 3
 
 theorem indepCount_two_add_E (G : IsoGraph) : G.indepCount 2 + G.E = G.V.choose 2 := by
   rw [← cliqueCount_compl, cliqueCount_two]
-  exact E_compl_add G
+  exact E_compl G
 
 example : (empty 6).indepCount 3 = 20 := by rw [indepCount_empty]; decide
 
@@ -1232,18 +1165,6 @@ example : (complete 4 ⊕g complete 5).cliqueCount 3 = 14 := by
 theorem numComponents_eq_one_of_isConnected {G : IsoGraph} (h : G.IsConnected) :
     G.numComponents = 1 :=
   (numComponents_eq_one_iff G).2 h
-
-theorem numComponents_le_V (G : IsoGraph) : G.numComponents ≤ G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  exact CGraph.numComponents_le_card g
-
-/-- **At most one of a graph and its complement is disconnected.** -/
-theorem numComponents_compl_eq_one {G : IsoGraph} (h : 2 ≤ G.numComponents) :
-    Gᶜ.numComponents = 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, compl_mk, numComponents_mk]
-  rw [← mk_canonicalize g, numComponents_mk] at h
-  exact CGraph.numComponents_compl_eq_one _ h
 
 /-! ### The component-count table -/
 
@@ -1284,12 +1205,6 @@ example : (empty 7).numComponents = 7 := by simp
 @[simp] theorem numComponents_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ∇g H).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_join hG hH)
-
-/-- A graph has as many components as vertices exactly when it has no edges. -/
-theorem numComponents_eq_V_iff (G : IsoGraph) : G.numComponents = G.V ↔ G.E = 0 := by
-  induction G using Quotient.inductionOn with | _ g
-  rw [← mk_canonicalize g, V_mk, E_mk, numComponents_mk]
-  exact CGraph.numComponents_eq_card_iff _
 
 theorem numComponents_lt_V_of_E_pos {G : IsoGraph} (h : 0 < G.E) : G.numComponents < G.V := by
   have hle := G.numComponents_le_V
@@ -1358,24 +1273,20 @@ theorem V_le_autCount_of_isVertexTransitive (G : IsoGraph) (hV : 0 < G.V)
   haveI : Nonempty g.V := Fintype.card_pos_iff.1 hV
   exact CGraph.card_le_autCount_of_isVertexTransitive g h
 
-theorem not_isVertexTransitive_of_autCount_lt (G : IsoGraph) (hV : 0 < G.V)
-    (h : G.autCount < G.V) : ¬ G.IsVertexTransitive := fun hvt ↦
-  absurd (G.V_le_autCount_of_isVertexTransitive hV hvt) (by omega)
-
 example : 5 ≤ (cycle 5).autCount := by
   have := V_le_autCount_of_isVertexTransitive (cycle 5) (by simp) (by simp)
   simpa using this
 
 example : 10 ≤ (cycle 5).autCount := by
-  have := two_mul_E_le_autCount_of_isArcTransitive (cycle 5) (by simp)
+  have := two_mul_E_le_autCount_of_isArcTransitive (G := cycle 5) (by simp)
   simpa using this
 
 example : 24 ≤ (hypercube 3).autCount := by
-  have := two_mul_E_le_autCount_of_isArcTransitive (hypercube 3) (by simp)
+  have := two_mul_E_le_autCount_of_isArcTransitive (G := hypercube 3) (by simp)
   simpa using this
 
 example : 30 ≤ (kneser 5 2).autCount := by
-  have := two_mul_E_le_autCount_of_isArcTransitive (kneser 5 2) (by simp)
+  have := two_mul_E_le_autCount_of_isArcTransitive (G := kneser 5 2) (by simp)
   simpa using this
 
 /-! ### The handshaking lemma -/
@@ -1410,80 +1321,12 @@ example (G : IsoGraph) (h : degSequence G = List.replicate 7 3) : False := by
 
 /-! ### Automorphisms of the constructions -/
 
-theorem autCount_mul_le_autCount_join (G H : IsoGraph) :
-    G.autCount * H.autCount ≤ (G ∇g H).autCount := by
-  induction G using Quotient.inductionOn with | _ g
-  induction H using Quotient.inductionOn with | _ h
-  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, autCount_mk, autCount_mk, autCount_mk]
-  exact CGraph.autCount_mul_le_autCount_join _ _
-
-theorem autCount_mul_le_autCount_cartesianProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G □g H).autCount := by
-  induction G using Quotient.inductionOn with | _ g
-  induction H using Quotient.inductionOn with | _ h
-  rw [← mk_canonicalize g, V_mk] at hG
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, autCount_mk, autCount_mk,
-    autCount_mk]
-  exact CGraph.autCount_mul_le_autCount_cartesianProduct _ _
-
-theorem autCount_mul_le_autCount_tensorProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G ⊗g H).autCount := by
-  induction G using Quotient.inductionOn with | _ g
-  induction H using Quotient.inductionOn with | _ h
-  rw [← mk_canonicalize g, V_mk] at hG
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, autCount_mk, autCount_mk,
-    autCount_mk]
-  exact CGraph.autCount_mul_le_autCount_tensorProduct _ _
-
-theorem autCount_mul_le_autCount_strongProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G ⊠g H).autCount := by
-  induction G using Quotient.inductionOn with | _ g
-  induction H using Quotient.inductionOn with | _ h
-  rw [← mk_canonicalize g, V_mk] at hG
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, autCount_mk, autCount_mk,
-    autCount_mk]
-  exact CGraph.autCount_mul_le_autCount_strongProduct _ _
-
-theorem autCount_mul_le_autCount_lexProduct (G H : IsoGraph) (hG : 0 < G.V)
-    (hH : 0 < H.V) : G.autCount * H.autCount ≤ (G ·g H).autCount := by
-  induction G using Quotient.inductionOn with | _ g
-  induction H using Quotient.inductionOn with | _ h
-  rw [← mk_canonicalize g, V_mk] at hG
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, autCount_mk, autCount_mk,
-    autCount_mk]
-  exact CGraph.autCount_mul_le_autCount_lexProduct _ _
-
-theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : IsoGraph) (hV : 0 < G.V) :
-    2 * (G.autCount * G.autCount) ≤ (G ⊕g G).autCount := by
-  induction G using Quotient.inductionOn with | _ g
-  rw [← mk_canonicalize g, V_mk] at hV
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
-  rw [← mk_canonicalize g, disjUnion_mk, autCount_mk, autCount_mk]
-  exact CGraph.two_mul_autCount_mul_le_autCount_disjUnion_self _
-
 example : 12 ≤ (complete 3 ⊕g complete 4).autCount := by
   have := autCount_mul_le_autCount_disjUnion (complete 3) (complete 4)
   simp [Nat.factorial] at this
   omega
 
 /-! ### Vertices, edges and components -/
-
-/-- `|V| ≤ |E| + c(G)`: a spanning forest has `|V| - c(G)` edges. -/
-theorem V_le_E_add_numComponents (G : IsoGraph) : G.V ≤ G.E + G.numComponents := by
-  induction G using Quotient.inductionOn with | _ g
-  exact CGraph.card_le_E_add_numComponents g
 
 theorem V_le_E_add_one_of_isConnected {G : IsoGraph} (h : G.IsConnected) : G.V ≤ G.E + 1 := by
   have := G.V_le_E_add_numComponents
@@ -1516,19 +1359,6 @@ example : ¬ (complete 1 ⊕g complete 1).IsConnected := by
   simp
 
 /-! ### The clique number of the Mycielskian -/
-
-theorem cliqueNum_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
-    (mycielskian G).cliqueNum = max G.cliqueNum 2 := by
-  induction G using Quotient.inductionOn with | _ g
-  rw [← mk_canonicalize g, V_mk] at hV
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
-  rw [← mk_canonicalize g, mycielskian_mk, cliqueNum_mk, cliqueNum_mk]
-  exact CGraph.cliqueNum_mycielskian _
-
-theorem cliqueNum_mycielskian_eq_two {G : IsoGraph} (hV : 0 < G.V) (h : G.cliqueNum ≤ 2) :
-    (mycielskian G).cliqueNum = 2 := by
-  rw [cliqueNum_mycielskian G hV]
-  omega
 
 /-- **Mycielski's theorem**: there are triangle-free graphs of arbitrarily large chromatic
 number.  Iterating the Mycielskian from `K₁` keeps the clique number at most two while raising
@@ -1596,40 +1426,12 @@ example : (paley 9).E = 27 := by
 
 attribute [simp] IsoGraph.domNum_disjUnion
 
-theorem domNum_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G ∇g H).domNum ≤ 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, V_mk] at hG
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hG
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, domNum_mk]
-  exact CGraph.domNum_join_le_two _ _
-
 @[simp] theorem domNum_join_eq_one_iff (G H : IsoGraph) :
     (G ∇g H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, domNum_mk, domNum_mk, domNum_mk]
   exact CGraph.domNum_join_eq_one_iff _ _
-
-theorem domNum_join_eq_two {G H : IsoGraph} (hGV : 0 < G.V) (hHV : 0 < H.V)
-    (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) : (G ∇g H).domNum = 2 := by
-  have h1 := domNum_join_le_two hGV hHV
-  have h2 : 0 < (G ∇g H).domNum := domNum_pos (by rw [V_join]; omega)
-  have h3 : (G ∇g H).domNum ≠ 1 := fun h ↦ by
-    rcases (domNum_join_eq_one_iff G H).1 h with h | h
-    · exact hG h
-    · exact hH h
-  omega
-
-theorem domNum_cartesianProduct_le (G H : IsoGraph) :
-    (G □g H).domNum ≤ G.domNum * H.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, domNum_mk, domNum_mk, V_mk]
-  exact CGraph.domNum_cartesianProduct_le _ _
 
 theorem domNum_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).domNum = 2 := by
   rw [bipartite_eq_join]
@@ -1647,16 +1449,6 @@ example : (complete 4 □g complete 4).domNum ≤ 4 := by
 
 /-! ### The radius of a cartesian product -/
 
-theorem radius_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (G □g H).radius = G.radius + H.radius := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, isConnected_mk] at hG
-  rw [← mk_canonicalize h, isConnected_mk] at hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, radius_mk, radius_mk,
-    radius_mk]
-  exact CGraph.radius_cartesianProduct _ _ hG hH
-
 example : (cycle 5 □g cycle 5).radius = 4 := by
   rw [radius_cartesianProduct (by simp) (by simp)]
   simp
@@ -1664,26 +1456,6 @@ example : (cycle 5 □g cycle 5).radius = 4 := by
 example : (rook 4 4).radius = 2 := by
   rw [rook, radius_cartesianProduct (by simp) (by simp)]
   simp
-
-theorem diameter_strongProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (G ⊠g H).diameter ≤ G.diameter + H.diameter := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, isConnected_mk] at hG
-  rw [← mk_canonicalize h, isConnected_mk] at hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, diameter_mk, diameter_mk,
-    diameter_mk]
-  exact CGraph.diameter_strongProduct_le _ _ hG hH
-
-theorem diameter_lexProduct_le {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (G ·g H).diameter ≤ G.diameter + H.diameter := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, isConnected_mk] at hG
-  rw [← mk_canonicalize h, isConnected_mk] at hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, diameter_mk, diameter_mk,
-    diameter_mk]
-  exact CGraph.diameter_lexProduct_le _ _ hG hH
 
 theorem radius_cartesianProduct_self {G : IsoGraph} (hG : IsConnected G) :
     (G □g G).radius = 2 * G.radius := by
@@ -1694,30 +1466,6 @@ example : (cycle 5 ⊠g cycle 5).diameter ≤ 4 := by
   simpa using this
 
 /-! ### Domination in the graph products -/
-
-theorem domNum_strongProduct_le (G H : IsoGraph) :
-    (G ⊠g H).domNum ≤ G.domNum * H.domNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, domNum_mk, domNum_mk, domNum_mk]
-  exact CGraph.domNum_strongProduct_le _ _
-
-theorem domNum_le_domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
-    G.domNum ≤ (G ·g H).domNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, domNum_mk, domNum_mk]
-  exact CGraph.domNum_le_domNum_lexProduct _ _
-
-theorem domNum_lexProduct (G : IsoGraph) {H : IsoGraph} (hH : H.domNum = 1) :
-    (G ·g H).domNum = G.domNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize h, domNum_mk] at hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, domNum_mk, domNum_mk]
-  exact CGraph.domNum_lexProduct _ _ hH
 
 /-- Two universal vertices give a universal vertex of the strong product. -/
 theorem domNum_strongProduct_eq_one {G H : IsoGraph} (hG : G.domNum = 1) (hH : H.domNum = 1) :
@@ -1745,60 +1493,15 @@ example : (star 3 ⊠g star 4).domNum = 1 :=
 example : (cycle 5 ·g complete 4).domNum = (cycle 5).domNum :=
   domNum_lexProduct _ (by simp)
 
-theorem domNum_le_domNum_cartesianProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
-    G.domNum ≤ (G □g H).domNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, domNum_mk, domNum_mk]
-  exact CGraph.domNum_le_domNum_cartesianProduct _ _
-
-theorem domNum_le_domNum_strongProduct (G : IsoGraph) {H : IsoGraph} (hH : 0 < H.V) :
-    G.domNum ≤ (G ⊠g H).domNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize h, V_mk] at hH
-  haveI : Nonempty h.canonicalize.V := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, domNum_mk, domNum_mk]
-  exact CGraph.domNum_le_domNum_strongProduct _ _
-
 /-- The domination number of a strong product sits between the larger factor value and the
 product of the two. -/
 theorem max_domNum_le_domNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     max G.domNum H.domNum ≤ (G ⊠g H).domNum := by
-  refine max_le (domNum_le_domNum_strongProduct G hH) ?_
+  refine max_le (domNum_le_domNum_strongProduct G _ hH) ?_
   rw [strongProduct_comm]
-  exact domNum_le_domNum_strongProduct H hG
+  exact domNum_le_domNum_strongProduct H _ hG
 
 /-! ### Independence numbers of the graph products -/
-
-/-- `α(G) · α(H) ≤ α(G ⊠ H)`: the Shannon-capacity lower bound. -/
-theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : IsoGraph) :
-    G.indepNum * H.indepNum ≤ (G ⊠g H).indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, indepNum_mk, indepNum_mk,
-    indepNum_mk]
-  exact CGraph.indepNum_mul_indepNum_le_indepNum_strongProduct _ _
-
-/-- `α(G) · α(H) ≤ α(G □ H)`. -/
-theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : IsoGraph) :
-    G.indepNum * H.indepNum ≤ (G □g H).indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, indepNum_mk, indepNum_mk,
-    indepNum_mk]
-  exact CGraph.indepNum_mul_indepNum_le_indepNum_cartesianProduct _ _
-
-/-- `α(G) · |V(H)| ≤ α(G × H)`, since no tensor edge stays inside a slab. -/
-theorem indepNum_mul_V_le_indepNum_tensorProduct (G H : IsoGraph) :
-    G.indepNum * H.V ≤ (G ⊗g H).indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, indepNum_mk, indepNum_mk,
-    V_mk]
-  exact CGraph.indepNum_mul_card_le_indepNum_tensorProduct _ _
 
 /-- `α(G × H)` is also at least `|V(G)| · α(H)`, by symmetry. -/
 theorem V_mul_indepNum_le_indepNum_tensorProduct (G H : IsoGraph) :
@@ -1806,29 +1509,11 @@ theorem V_mul_indepNum_le_indepNum_tensorProduct (G H : IsoGraph) :
   rw [tensorProduct_comm, mul_comm]
   exact indepNum_mul_V_le_indepNum_tensorProduct H G
 
-/-- `α(G □ H) ≤ |V(G)| · α(H)`, by counting fibrewise. -/
-theorem indepNum_cartesianProduct_le (G H : IsoGraph) :
-    (G □g H).indepNum ≤ G.V * H.indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, cartesianProduct_mk, indepNum_mk, indepNum_mk,
-    V_mk]
-  exact CGraph.indepNum_cartesianProduct_le _ _
-
 /-- The mirror bound `α(G □ H) ≤ α(G) · |V(H)|`. -/
 theorem indepNum_cartesianProduct_le' (G H : IsoGraph) :
     (G □g H).indepNum ≤ G.indepNum * H.V := by
   rw [cartesianProduct_comm, mul_comm]
   exact indepNum_cartesianProduct_le H G
-
-/-- `α(G ⊠ H) ≤ |V(G)| · α(H)`. -/
-theorem indepNum_strongProduct_le (G H : IsoGraph) :
-    (G ⊠g H).indepNum ≤ G.V * H.indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, indepNum_mk, indepNum_mk,
-    V_mk]
-  exact CGraph.indepNum_strongProduct_le _ _
 
 /-- The mirror bound `α(G ⊠ H) ≤ α(G) · |V(H)|`. -/
 theorem indepNum_strongProduct_le' (G H : IsoGraph) :
@@ -1856,15 +1541,6 @@ example : 3 ≤ (complete 3 ⊗g complete 3).indepNum := by
 
 /-! ### Colouring the strong product -/
 
-/-- **`χ(G ⊠ H) ≤ χ(G)·χ(H)`.** -/
-theorem chromNum_strongProduct_le (G H : IsoGraph) :
-    (G ⊠g H).chromNum ≤ G.chromNum * H.chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, chromNum_mk,
-    chromNum_mk]
-  exact CGraph.chromNum_strongProduct_le _ _
-
 /-- `max χ(G) χ(H) ≤ χ(G ⊠ H)`, once both factors have a vertex. -/
 theorem max_chromNum_le_chromNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     max G.chromNum H.chromNum ≤ (G ⊠g H).chromNum := by
@@ -1890,36 +1566,6 @@ theorem max_chromNum_le_chromNum_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH 
   rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, chromNum_mk, chromNum_mk,
     chromNum_mk]
   exact CGraph.max_chromNum_le_chromNum_lexProduct _ _ a b
-
-/-- `ω(G)·ω(H) ≤ χ(G ⊠ H)`. -/
-theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : IsoGraph) :
-    G.cliqueNum * H.cliqueNum ≤ (G ⊠g H).chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, cliqueNum_mk,
-    cliqueNum_mk]
-  exact CGraph.cliqueNum_mul_cliqueNum_le_chromNum_strongProduct _ _
-
-/-- Two edges make a tensor edge: `2 ≤ χ(G × H)`. -/
-theorem two_le_chromNum_tensorProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    2 ≤ (G ⊗g H).chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, E_mk] at hG
-  rw [← mk_canonicalize h, E_mk] at hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, chromNum_mk]
-  exact CGraph.two_le_chromNum_tensorProduct hG hH
-
-/-- A bipartite factor and edges on both sides force `χ(G × H) = 2`. -/
-theorem chromNum_tensorProduct_eq_two {G H : IsoGraph} (hG : IsBipartite G)
-    (hGE : 0 < G.E) (hHE : 0 < H.E) : (G ⊗g H).chromNum = 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, isBipartite_mk] at hG
-  rw [← mk_canonicalize g, E_mk] at hGE
-  rw [← mk_canonicalize h, E_mk] at hHE
-  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, chromNum_mk]
-  exact CGraph.chromNum_tensorProduct_eq_two hG hGE hHE
 
 /-- The strong product of complete graphs shows the upper bound is attained. -/
 example : (complete 3 ⊠g complete 4).chromNum = 12 := by
@@ -2046,31 +1692,6 @@ example : 6 ≤ (complete 3 □g complete 3).coverNum := by
 
 /-! ### Nordhaus–Gaddum for the domination number -/
 
-/-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.** -/
-theorem domNum_add_domNum_compl_le_V_add_one (G : IsoGraph) :
-    G.domNum + Gᶜ.domNum ≤ G.V + 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, compl_mk, domNum_mk, domNum_mk, V_mk]
-  exact CGraph.domNum_add_domNum_compl_le_card_add_one _
-
-/-- Two vertices dominate the complement of a disconnected graph. -/
-theorem domNum_compl_le_two_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
-    (h : ¬ IsConnected G) : Gᶜ.domNum ≤ 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk] at hV
-  rw [← mk_canonicalize g, isConnected_mk] at h
-  haveI : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
-  rw [← mk_canonicalize g, compl_mk, domNum_mk]
-  exact CGraph.domNum_compl_le_two_of_not_isConnected _ h
-
-/-- `3 ≤ γ(G) + γ(Gᶜ)` on at least two vertices. -/
-theorem three_le_domNum_add_domNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
-    3 ≤ G.domNum + Gᶜ.domNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk] at hV
-  rw [← mk_canonicalize g, compl_mk, domNum_mk, domNum_mk]
-  exact CGraph.three_le_domNum_add_domNum_compl _ hV
-
 /-- The two Nordhaus–Gaddum bounds together. -/
 theorem domNum_add_domNum_compl_mem_Icc {G : IsoGraph} (hV : 2 ≤ G.V) :
     3 ≤ G.domNum + Gᶜ.domNum ∧ G.domNum + Gᶜ.domNum ≤ G.V + 1 :=
@@ -2101,21 +1722,6 @@ theorem one_le_indepNum {G : IsoGraph} (h : 0 < G.V) : 1 ≤ G.indepNum := by
   obtain ⟨a⟩ := Fintype.card_pos_iff.1 h
   rw [← mk_canonicalize g, indepNum_mk]
   exact CGraph.one_le_indepNum_of_vertex a
-
-/-- **Nordhaus–Gaddum for the clique number**: `ω(G) + α(G) ≤ |V| + 1`. -/
-theorem cliqueNum_add_indepNum_le_V_add_one (G : IsoGraph) :
-    G.cliqueNum + G.indepNum ≤ G.V + 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk, V_mk]
-  exact CGraph.cliqueNum_add_indepNum_le_card_add_one _
-
-/-- On two or more vertices, `3 ≤ ω(G) + α(G)`. -/
-theorem three_le_cliqueNum_add_indepNum {G : IsoGraph} (hV : 2 ≤ G.V) :
-    3 ≤ G.cliqueNum + G.indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk] at hV
-  rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk]
-  exact CGraph.three_le_cliqueNum_add_indepNum _ hV
 
 /-- The independence numbers of a graph and its complement: `α(G) + α(Gᶜ) ≤ |V| + 1`. -/
 theorem indepNum_add_indepNum_compl_le_V_add_one (G : IsoGraph) :
@@ -2224,13 +1830,6 @@ example : (cycle 5).chromNum ≤ 4 := by
 
 /-! ### Regular graphs -/
 
-/-- A constant degree sequence is exactly regularity. -/
-theorem isRegularWith_of_degSequence {G : IsoGraph} {n k : ℕ}
-    (h : degSequence G = List.replicate n k) : G.IsRegularWith k := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [degSequence_mk] at h
-  exact CGraph.isRegularWith_of_degSequence h
-
 /-- **The handshake lemma for regular graphs**: `2|E| = k|V|`. -/
 theorem IsRegularWith.two_mul_E {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
     2 * G.E = G.V * k := two_mul_E_of_degSequence_replicate h.degSequence
@@ -2260,24 +1859,6 @@ theorem exists_isRegularWith_of_isVertexTransitive {G : IsoGraph} (h : IsVertexT
   exact ⟨k, isRegularWith_of_degSequence hk⟩
 
 /-! #### Regularity of the constructions -/
-
-theorem IsRegularWith.compl {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
-    Gᶜ.IsRegularWith (G.V - 1 - k) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, isRegularWith_mk] at h
-  rw [← mk_canonicalize g, V_mk, compl_mk, isRegularWith_mk]
-  exact CGraph.IsRegularWith.compl h
-
-theorem IsRegularWith.join {G H : IsoGraph} {k l m : ℕ} (hG : G.IsRegularWith k)
-    (hH : H.IsRegularWith l) (h1 : k + H.V = m) (h2 : G.V + l = m) :
-    (G ∇g H).IsRegularWith m := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [join_mk, isRegularWith_mk]
-  rw [isRegularWith_mk] at hG hH
-  rw [V_mk] at h1 h2
-  exact CGraph.IsRegularWith.join hG hH h1 h2
 
 /-- **The Cartesian product of a `k`-regular and an `l`-regular graph is `(k + l)`-regular.** -/
 theorem IsRegularWith.cartesianProduct {G H : IsoGraph} {k l : ℕ} (hG : G.IsRegularWith k)
@@ -2361,16 +1942,6 @@ example : (hypercube 3).E = 12 := by
 
 /-! ### Degrees in the line graph -/
 
-/-- The line graph of a `k`-regular graph is `(2k - 2)`-regular: an edge `uv` meets the `k - 1`
-other edges at `u` and the `k - 1` other edges at `v`. -/
-theorem IsRegularWith.lineGraph {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
-    (IsoGraph.lineGraph G).IsRegularWith (2 * k - 2) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g] at h ⊢
-  rw [isRegularWith_mk] at h
-  rw [lineGraph_mk, isRegularWith_mk]
-  exact CGraph.IsRegularWith.lineGraph h
-
 /-- Two edge counts of a regular graph: `L(G)` is `(2k - 2)`-regular on `|E|` vertices. -/
 theorem IsRegularWith.two_mul_E_lineGraph {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
     2 * (IsoGraph.lineGraph G).E = G.E * (2 * k - 2) := by
@@ -2382,11 +1953,6 @@ graph on `n` vertices.  This drops the strong regularity hypothesis of `IsSRGWit
 theorem IsRegularWith.E_lineGraph {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
     (IsoGraph.lineGraph G).E = G.V * k.choose 2 := by
   rw [IsoGraph.E_lineGraph, h.degSequence, List.map_replicate, List.sum_replicate, smul_eq_mul]
-
-theorem maxDeg_lineGraph_le (G : IsoGraph) : (lineGraph G).maxDeg ≤ 2 * G.maxDeg - 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, lineGraph_mk, maxDeg_mk, maxDeg_mk]
-  exact CGraph.maxDeg_lineGraph_le _
 
 theorem le_minDeg_lineGraph {G : IsoGraph} (h : 0 < G.E) :
     2 * G.minDeg - 2 ≤ (lineGraph G).minDeg := by
@@ -2610,12 +2176,6 @@ theorem edgeChromNum_eq (G : IsoGraph) : G.edgeChromNum = chromNum (lineGraph G)
   induction G using Quotient.inductionOn with | _ g =>
   rw [edgeChromNum_mk, lineGraph_mk, chromNum_mk]
   rfl
-
-theorem maxDeg_le_cliqueNum_lineGraph (G : IsoGraph) :
-    G.maxDeg ≤ (lineGraph G).cliqueNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, lineGraph_mk, maxDeg_mk, cliqueNum_mk]
-  exact CGraph.maxDeg_le_cliqueNum_lineGraph _
 
 /-- Every edge colouring uses at least `Δ` colours, since the edges at a vertex of maximum
 degree pairwise conflict. -/
@@ -3458,7 +3018,7 @@ theorem isSelfComplementary_compl {G : IsoGraph} (h : IsSelfComplementary G) :
 /-- A self-complementary graph has exactly half of all possible edges. -/
 theorem IsSelfComplementary.two_mul_E {G : IsoGraph} (h : IsSelfComplementary G) :
     2 * G.E = G.V.choose 2 := by
-  have h2 := E_compl_add G
+  have h2 := E_compl G
   rw [h.compl_eq] at h2
   omega
 

@@ -1738,6 +1738,7 @@ theorem isConnected_cartesianProduct_iff (G H : CGraph) :
 
 /-- Euler's count for trees, on `CGraph`: a graph is a tree exactly when it is connected and has
 one fewer edge than it has vertices. -/
+@[toIsoGraph isTree_iff]
 theorem isTree_iff_isConnected_and_E (G : CGraph) :
     G.IsTree ↔ G.IsConnected ∧ G.E + 1 = Fintype.card G.V := by
   show G.toSimple.IsTree ↔ _
@@ -1746,6 +1747,7 @@ theorem isTree_iff_isConnected_and_E (G : CGraph) :
   rfl
 
 /-- A connected graph has at least one fewer edge than it has vertices. -/
+@[toIsoGraph IsConnected.V_le_E_add_one]
 theorem IsConnected.card_le_E_add_one {G : CGraph} (h : G.IsConnected) :
     Fintype.card G.V ≤ G.E + 1 := by
   have := SimpleGraph.Connected.card_vert_le_card_edgeSet_add_one h
@@ -1783,11 +1785,13 @@ theorem cartesianProduct_le_lexProduct (G H : CGraph) :
   simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hpq ⊢
   tauto
 
+@[toIsoGraph]
 theorem isConnected_strongProduct {G H : CGraph}
     (hG : G.IsConnected) (hH : H.IsConnected) : (strongProduct G H).IsConnected :=
   SimpleGraph.Connected.mono (cartesianProduct_le_strongProduct G H)
     ((isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩)
 
+@[toIsoGraph]
 theorem isConnected_lexProduct {G H : CGraph}
     (hG : G.IsConnected) (hH : H.IsConnected) : (lexProduct G H).IsConnected :=
   SimpleGraph.Connected.mono (cartesianProduct_le_lexProduct G H)
@@ -2065,6 +2069,7 @@ theorem diameter_eq_two (G : CGraph)
 
 /-- A graph with a nonzero diameter is connected: the diameter of a disconnected graph is `0` by
 convention. -/
+@[toIsoGraph]
 theorem isConnected_of_diameter_ne_zero (G : CGraph) (h : G.diameter ≠ 0) : G.IsConnected := by
   have hnt : Nontrivial G.V := SimpleGraph.nontrivial_of_diam_ne_zero h
   exact SimpleGraph.connected_of_ediam_ne_top (SimpleGraph.ediam_ne_top_of_diam_ne_zero h)
@@ -2173,6 +2178,7 @@ theorem two_step_join (G H : CGraph) [Nonempty G.V]
   · exact Or.inl (by simp)
   · exact Or.inr ⟨Sum.inl a₀, by simp, by simp⟩
 
+@[toIsoGraph]
 theorem diameter_join_le_two (G H : CGraph) [Nonempty G.V]
     [Nonempty H.V] : (join G H).diameter ≤ 2 :=
   diameter_le_two _ (two_step_join G H)
@@ -2395,6 +2401,7 @@ private theorem univ_val_map_val (n : ℕ) :
 
 /-- The degrees of the path, listed vertex by vertex: the two ends have degree one and everything
 in between has degree two. -/
+@[toIsoGraph degMultiset_path_eq]
 theorem degMultiset_path (n : ℕ) :
     (path n).degMultiset
       = (Multiset.range n).map fun k ↦ (if k + 1 < n then 1 else 0) + (if 0 < k then 1 else 0) := by
@@ -2756,6 +2763,7 @@ theorem cliqueNum_lexProduct (G H : CGraph) :
 
 /-- **The diameter of a Cartesian product is the sum of the diameters.**  Both factors have to be
 connected: the diameter of a disconnected graph is the junk value `0`. -/
+@[toIsoGraph]
 theorem diameter_cartesianProduct (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (cartesianProduct G H).diameter = G.diameter + H.diameter := by
@@ -2826,6 +2834,7 @@ theorem chromNum_eq_of_chromaticNumber {G : CGraph} {n : ℕ}
     (h : G.toSimple.chromaticNumber = n) : G.chromNum = n := by
   rw [← Nat.cast_inj (R := ℕ∞), coe_chromNum, h]
 
+@[toIsoGraph chromNum_le_V]
 theorem chromNum_le_card (G : CGraph) : G.chromNum ≤ Fintype.card G.V := by
   rw [← Nat.cast_le (α := ℕ∞), coe_chromNum]
   exact SimpleGraph.chromaticNumber_le_card
@@ -2935,6 +2944,7 @@ private theorem chromaticNumber_le_of_hom_snd {X Y : Type} {T : SimpleGraph Y}
   SimpleGraph.chromaticNumber_mono_of_hom ⟨Prod.snd, fun {a b} h ↦ hadj a b h⟩
 
 /-- **A tensor product is no harder to colour than either factor.** -/
+@[toIsoGraph]
 theorem chromNum_tensorProduct_le (G H : CGraph) :
     (tensorProduct G H).chromNum ≤ min G.chromNum H.chromNum := by
   rw [le_min_iff, ← Nat.cast_le (α := ℕ∞), ← Nat.cast_le (α := ℕ∞), coe_chromNum, coe_chromNum,
@@ -3144,6 +3154,7 @@ theorem chromNum_cartesianProduct (G H : CGraph)
       (P := (cartesianProduct G H).toSimple) (fun p q h ↦ hge p q (Or.inl h)) a
 
 /-- **The lexicographic product multiplies chromatic numbers, at worst.** -/
+@[toIsoGraph]
 theorem chromNum_lexProduct_le (G H : CGraph) :
     (lexProduct G H).chromNum ≤ G.chromNum * H.chromNum :=
   chromNum_le_iff_colorable.2 <|
@@ -3160,6 +3171,7 @@ theorem chromNum_eq_one_iff {G : CGraph} : G.chromNum = 1 ↔ G.E = 0 ∧ 0 < Fi
     Fintype.card_pos_iff]
 
 /-- **Every colour class is an independent set**, so `|V| ≤ χ·α`. -/
+@[toIsoGraph V_le_chromNum_mul_indepNum]
 theorem card_le_chromNum_mul_indepNum (G : CGraph) :
     Fintype.card G.V ≤ G.chromNum * G.indepNum := by
   classical
@@ -3352,7 +3364,7 @@ theorem girth_eq_three_iff {G : CGraph} : G.girth = 3 ↔ 3 ≤ G.cliqueNum := b
   · intro h
     have hnac : ¬ G.IsAcyclic := by
       intro hac
-      rw [(girth_eq_zero_iff G).2 hac] at h
+      rw [girth_eq_zero_iff.2 hac] at h
       omega
     obtain ⟨a, w, hw, hlen⟩ := SimpleGraph.exists_girth_eq_length.2 hnac
     obtain ⟨x, y, z, h1, h2, h3⟩ := exists_triangle_of_girth_eq_three hw (hlen.symm.trans h)
@@ -3425,6 +3437,7 @@ theorem girth_eq_four_of_square_of_isBipartite {G : CGraph} (hb : G.IsBipartite)
 
 /-- **A Cartesian product of two bipartite graphs with an edge each has girth four**: the two
 edges span a square, and the product is bipartite so there is no triangle. -/
+@[toIsoGraph]
 theorem girth_cartesianProduct {G H : CGraph}
     (hG : 0 < G.E) (hH : 0 < H.E) (hbG : G.IsBipartite) (hbH : H.IsBipartite) :
     (cartesianProduct G H).girth = 4 := by
@@ -3466,6 +3479,7 @@ theorem triangle_cartesianProduct {G H : CGraph}
     | simp_all
 
 /-- **A Cartesian product of two triangle-free graphs with an edge each has girth four.** -/
+@[toIsoGraph]
 theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : CGraph}
  (hG : 0 < G.E) (hH : 0 < H.E) (hcG : G.cliqueNum ≤ 2)
     (hcH : H.cliqueNum ≤ 2) : (cartesianProduct G H).girth = 4 := by

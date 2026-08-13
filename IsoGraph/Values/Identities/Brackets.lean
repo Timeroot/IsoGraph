@@ -26,33 +26,33 @@ group is at least as large as its arc count `2E`.  These are the first entries i
 
 /-- The Petersen graph is arc-transitive with `15` edges. -/
 theorem thirty_le_autCount_petersen : 30 ≤ petersen.autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive petersen isArcTransitive_petersen
+  have h := two_mul_E_le_autCount_of_isArcTransitive isArcTransitive_petersen
   rw [E_petersen] at h
   omega
 
 /-- The cycle is arc-transitive with `n` edges; its automorphism group is in fact exactly the
 dihedral group of that order. -/
 theorem two_mul_le_autCount_cycle (n : ℕ) : 2 * (n + 3) ≤ (cycle (n + 3)).autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_cycle (n + 3))
+  have h := two_mul_E_le_autCount_of_isArcTransitive (isArcTransitive_cycle (n + 3))
   rw [E_cycle] at h
   omega
 
 /-- The hypercube is arc-transitive with `n · 2ⁿ⁻¹` edges. -/
 theorem mul_two_pow_le_autCount_hypercube (n : ℕ) : n * 2 ^ n ≤ (hypercube n).autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_hypercube n)
+  have h := two_mul_E_le_autCount_of_isArcTransitive (isArcTransitive_hypercube n)
   rw [E_hypercube] at h
   exact h
 
 /-- Kneser graphs are arc-transitive, so `|Aut|` is at least the number of arcs. -/
 theorem le_autCount_kneser (n : ℕ) {k : ℕ} (hk : 1 ≤ k) :
     n.choose k * (n - k).choose k ≤ (kneser n k).autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_kneser n k)
+  have h := two_mul_E_le_autCount_of_isArcTransitive (isArcTransitive_kneser n k)
   rw [two_mul_E_kneser n hk] at h
   exact h
 
 /-- `K_{n,n}` is arc-transitive with `n²` edges. -/
 theorem le_autCount_bipartite_self (n : ℕ) : 2 * (n * n) ≤ (bipartite n n).autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive _ (isArcTransitive_bipartite_self n)
+  have h := two_mul_E_le_autCount_of_isArcTransitive (isArcTransitive_bipartite_self n)
   rw [E_bipartite] at h
   exact h
 
@@ -1521,18 +1521,17 @@ families whose edge count is known beats the vertex-transitive bound `|V| ≤ |A
 margin. -/
 
 theorem two_mul_E_le_autCount_hypercube (n : ℕ) : 2 ^ n * n ≤ (hypercube n).autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive (hypercube n) (isArcTransitive_hypercube n)
+  have h := two_mul_E_le_autCount_of_isArcTransitive (isArcTransitive_hypercube n)
   rwa [two_mul_E_hypercube] at h
 
 theorem two_mul_E_le_autCount_kneser (n k : ℕ) (hk : 1 ≤ k) :
     n.choose k * (n - k).choose k ≤ (kneser n k).autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive (kneser n k) (isArcTransitive_kneser n k)
+  have h := two_mul_E_le_autCount_of_isArcTransitive (isArcTransitive_kneser n k)
   rwa [two_mul_E_kneser n hk] at h
 
 theorem two_mul_E_le_autCount_bipartite_self (n : ℕ) :
     2 * (n * n) ≤ (bipartite n n).autCount := by
-  have h := two_mul_E_le_autCount_of_isArcTransitive (bipartite n n)
-    (isArcTransitive_bipartite_self n)
+  have h := two_mul_E_le_autCount_of_isArcTransitive (isArcTransitive_bipartite_self n)
   rwa [E_bipartite] at h
 
 theorem le_autCount_thetaGraph_replicate_one (n : ℕ) :

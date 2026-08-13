@@ -13,6 +13,19 @@ set_option autoImplicit false
 
 namespace IsoGraph
 
+/-! ## Lifts held over from `Constructions.lean`
+
+`@[toIsoGraph]` can only state a fact once every constant in it has a bridge, and
+`Constructions.lean` runs before `Quotient.lean`: the order and the products have none there yet.
+These five are tagged here instead, which lifts them exactly as the attribute would have. -/
+
+attribute [toIsoGraph] CGraph.E_compl
+attribute [toIsoGraph] CGraph.not_isConnected_disjUnion
+attribute [toIsoGraph IsVertexTransitive.cartesianProduct]
+  CGraph.isVertexTransitive_cartesianProduct
+attribute [toIsoGraph IsVertexTransitive.tensorProduct] CGraph.isVertexTransitive_tensorProduct
+attribute [toIsoGraph IsVertexTransitive.strongProduct] CGraph.isVertexTransitive_strongProduct
+
 /-! ## Line graphs and Mycielskians
 
 The line graph turns a graph's edges into vertices, so the identities here are counted by `E`
@@ -172,12 +185,6 @@ the edge count.  The operations all follow the same script: push the quotient th
   induction H using Quotient.inductionOn with | _ h =>
   exact CGraph.E_disjUnion g h
 
-/-- A graph and its complement share out all the pairs between them. -/
-theorem E_compl_add (G : IsoGraph) : Gᶜ.E + G.E = G.V.choose 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
-  exact CGraph.E_compl _
-
 @[simp] theorem E_join (G H : IsoGraph) : (G ∇g H).E = G.E + H.E + G.V * H.V := by
   induction G using Quotient.inductionOn with | _ g =>
   induction H using Quotient.inductionOn with | _ h =>
@@ -274,15 +281,6 @@ theorem E_hypercube (n : ℕ) : 2 * (hypercube n).E = n * 2 ^ n := by
   | zero => rw [star_zero]; exact isConnected_empty_one
   | succ n => exact isConnected_bipartite 0 n
 
-/-- A disjoint union of two nonempty graphs is disconnected. -/
-theorem not_isConnected_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    ¬ IsConnected (G ⊕g H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [disjUnion_mk, isConnected_mk]
-  rw [V_mk] at hG hH
-  exact CGraph.not_isConnected_disjUnion _ _ hG hH
-
 /-- A join of two nonempty graphs is connected, whatever the two graphs are. -/
 @[simp] theorem isConnected_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     IsConnected (G ∇g H) := by
@@ -335,18 +333,8 @@ theorem isTree_iff_isConnected_and_isAcyclic (G : IsoGraph) :
   induction G using Quotient.inductionOn with | _ g =>
   exact SimpleGraph.isTree_iff _
 
-/-- A graph is a tree exactly when it is connected and has one fewer edge than vertices. -/
-theorem isTree_iff (G : IsoGraph) : IsTree G ↔ IsConnected G ∧ G.E + 1 = G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  exact CGraph.isTree_iff_isConnected_and_E g
-
 theorem IsTree.E_add_one {G : IsoGraph} (h : IsTree G) : G.E + 1 = G.V :=
   ((isTree_iff G).1 h).2
-
-/-- A connected graph has at least one fewer edge than it has vertices. -/
-theorem IsConnected.V_le_E_add_one {G : IsoGraph} (h : IsConnected G) : G.V ≤ G.E + 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  exact CGraph.IsConnected.card_le_E_add_one h
 
 /-- Too few edges to be connected. -/
 theorem not_isConnected_of_E_add_one_lt {G : IsoGraph} (h : G.E + 1 < G.V) : ¬ IsConnected G :=
@@ -596,24 +584,6 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
 
 /-! ### Connectivity and triangles in the strong and lexicographic products -/
 
-theorem isConnected_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    IsConnected (G ⊠g H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [strongProduct_mk, isConnected_mk]
-  rw [isConnected_mk] at hG hH
-  exact CGraph.isConnected_strongProduct hG hH
-
-theorem isConnected_lexProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    IsConnected (G ·g H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [lexProduct_mk, isConnected_mk]
-  rw [isConnected_mk] at hG hH
-  exact CGraph.isConnected_lexProduct hG hH
-
 theorem not_isBipartite_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
     ¬ IsBipartite (G ⊠g H) := by
   induction G using Quotient.inductionOn with | _ g =>
@@ -686,45 +656,9 @@ theorem not_isBipartite_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E
 @[simp] theorem isVertexTransitive_kneser (n k : ℕ) : IsVertexTransitive (kneser n k) :=
   CGraph.isVertexTransitive_kneser n k
 
-/-- The complement has the same automorphisms. -/
-theorem IsVertexTransitive.compl {G : IsoGraph} (h : IsVertexTransitive G) :
-    IsVertexTransitive Gᶜ := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g] at *
-  rw [compl_mk, isVertexTransitive_mk]
-  rw [isVertexTransitive_mk] at h
-  exact CGraph.isVertexTransitive_compl _ h
-
 @[simp] theorem isVertexTransitive_compl (G : IsoGraph) :
     IsVertexTransitive Gᶜ ↔ IsVertexTransitive G :=
   ⟨fun h ↦ by simpa using h.compl, IsVertexTransitive.compl⟩
-
-theorem IsVertexTransitive.cartesianProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
-    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.cartesianProduct G H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [cartesianProduct_mk, isVertexTransitive_mk]
-  rw [isVertexTransitive_mk] at hG hH
-  exact CGraph.isVertexTransitive_cartesianProduct _ _ hG hH
-
-theorem IsVertexTransitive.tensorProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
-    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.tensorProduct G H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [tensorProduct_mk, isVertexTransitive_mk]
-  rw [isVertexTransitive_mk] at hG hH
-  exact CGraph.isVertexTransitive_tensorProduct _ _ hG hH
-
-theorem IsVertexTransitive.strongProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
-    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.strongProduct G H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [strongProduct_mk, isVertexTransitive_mk]
-  rw [isVertexTransitive_mk] at hG hH
-  exact CGraph.isVertexTransitive_strongProduct _ _ hG hH
 
 theorem IsVertexTransitive.lexProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
     (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.lexProduct G H) := by
@@ -771,63 +705,21 @@ theorem IsArcTransitive.lineGraph {G : IsoGraph} (h : IsArcTransitive G) :
 
 /-! ### Strong regularity -/
 
-/-- The complement of a strongly regular graph is strongly regular. -/
-theorem IsSRGWith.compl {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
-    IsSRGWith Gᶜ n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g] at *
-  rw [compl_mk, isSRGWith_mk]
-  rw [isSRGWith_mk] at h
-  exact CGraph.isSRGWith_compl _ h
+theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
+    IsSRGWith (triangular n) (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
+  isSRGWith_johnson_two n hn
 
+theorem isSRGWith_petersen : IsSRGWith petersen 10 3 0 1 := isSRGWith_kneser_two 5
+
+/-- **The rook's graph is strongly regular.**  This one is written out rather than generated:
+`rook` is an abbreviation for a Cartesian product, and `@[toIsoGraph]` would state it for the
+product and leave the later `rook` calculations with nothing to match. -/
 theorem isSRGWith_rook (k : ℕ) : IsSRGWith (rook k k) (k * k) (2 * (k - 1)) (k - 2) 2 := by
   show IsSRGWith (complete k □g complete k) _ _ _ _
   rw [complete_def, cartesianProduct_mk, isSRGWith_mk]
   exact CGraph.isSRGWith_rook k
 
-theorem isSRGWith_kneser_two (n : ℕ) :
-    IsSRGWith (kneser n 2) (n.choose 2) ((n - 2).choose 2) ((n - 4).choose 2)
-      ((n - 3).choose 2) := by
-  rw [kneser_def, isSRGWith_mk]
-  exact CGraph.isSRGWith_kneser_two n
-
-theorem isSRGWith_johnson_two (n : ℕ) (hn : 4 ≤ n) :
-    IsSRGWith (johnson n 2) (n.choose 2) (2 * (n - 2)) (n - 2) 4 := by
-  rw [johnson_def, isSRGWith_mk]
-  exact CGraph.isSRGWith_johnson_two n hn
-
-theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
-    IsSRGWith (triangular n) (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
-  isSRGWith_johnson_two n hn
-
-theorem isSRGWith_bipartite (n : ℕ) : IsSRGWith (bipartite n n) (2 * n) n 0 n := by
-  rw [bipartite_def, isSRGWith_mk]
-  exact CGraph.isSRGWith_bipartite n
-
-theorem isSRGWith_cocktailParty (n : ℕ) :
-    IsSRGWith (cocktailParty n) (2 * n) (2 * n - 2) (2 * n - 4) (2 * n - 2) := by
-  show IsSRGWith (completeMultipartite (List.replicate n 2)) _ _ _ _
-  rw [completeMultipartite_def, isSRGWith_mk]
-  exact CGraph.isSRGWith_cocktailParty n
-
-theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
-    IsSRGWith (paley q) q ((q - 1) / 2) ((q - 5) / 4) ((q - 1) / 4) := by
-  rw [paley_def, isSRGWith_mk]
-  exact CGraph.isSRGWith_paley q hq
-
-theorem isSRGWith_petersen : IsSRGWith petersen 10 3 0 1 := isSRGWith_kneser_two 5
-
 /-! ### The diameter of a Cartesian product -/
-
-/-- **The diameter of a Cartesian product is the sum of the diameters.** -/
-theorem diameter_cartesianProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H) :
-    (G □g H).diameter = G.diameter + H.diameter := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [cartesianProduct_mk, diameter_mk, diameter_mk, diameter_mk]
-  rw [isConnected_mk] at hG hH
-  exact CGraph.diameter_cartesianProduct _ _ hG hH
 
 @[simp] theorem diameter_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
     (G ⊕g H).diameter = 0 := by
@@ -900,11 +792,6 @@ theorem degSequence_triangular (n : ℕ) (hn : 4 ≤ n) :
   (isSRGWith_triangular n hn).degSequence
 
 /-! ### Edge counts of the complement and the line graph -/
-
-theorem E_compl (G : IsoGraph) : Gᶜ.E + G.E = G.V.choose 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, compl_mk, E_mk, E_mk, V_mk]
-  exact CGraph.E_compl _
 
 @[simp] theorem E_compl_eq (G : IsoGraph) : Gᶜ.E = G.V.choose 2 - G.E := by
   have := G.E_compl
@@ -1166,10 +1053,6 @@ theorem hypercube_ne_complete (n k : ℕ) : hypercube (n + 2) ≠ complete (k + 
 
 /-! ### Diameter two, connectivity and strong regularity -/
 
-theorem isConnected_of_diameter_ne_zero {G : IsoGraph} (h : G.diameter ≠ 0) : IsConnected G := by
-  induction G using Quotient.inductionOn with | _ g =>
-  exact CGraph.isConnected_of_diameter_ne_zero g h
-
 private theorem lt_choose_two_aux (m : ℕ) : 2 * (m + 2) + 1 < (m + 4).choose 2 := by
   induction m with
   | zero => decide
@@ -1214,17 +1097,6 @@ theorem isConnected_bipartite_self (n : ℕ) : IsConnected (bipartite (n + 1) (n
   (isSRGWith_bipartite (n + 1)).isConnected (by omega) (by omega)
 
 /-! ### The diameter of a join -/
-
-theorem diameter_join_le_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G ∇g H).diameter ≤ 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [V_mk] at hG hH
-  haveI := Fintype.card_pos_iff.1 hG
-  haveI := Fintype.card_pos_iff.1 hH
-  rw [join_mk, diameter_mk]
-  exact CGraph.diameter_join_le_two _ _
 
 /-- A join whose left factor is not complete has diameter two. -/
 theorem diameter_join_left {G H : IsoGraph} (hH : 0 < H.V) (h : G.E < G.V.choose 2) :
@@ -1780,11 +1652,6 @@ The path is the first named graph whose degrees are not all equal, so it is the 
 multiset needs `degMultiset_path` rather than the strong-regularity machinery.  Sorting the
 resulting multiset is easy enough that the degree *sequence* comes out too. -/
 
-theorem degMultiset_path_eq (n : ℕ) :
-    degMultiset (path n)
-      = (Multiset.range n).map fun k ↦ (if k + 1 < n then 1 else 0) + (if 0 < k then 1 else 0) :=
-  CGraph.degMultiset_path n
-
 @[simp] theorem degMultiset_path (n : ℕ) :
     degMultiset (path (n + 2)) = 1 ::ₘ 1 ::ₘ Multiset.replicate n 2 := by
   rw [degMultiset_path_eq]
@@ -1902,11 +1769,6 @@ whatever the product does to a pair of degrees. -/
 
 /-! ### The chromatic number of an `IsoGraph` -/
 
-theorem chromNum_le_V (G : IsoGraph) : G.chromNum ≤ G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, chromNum_mk, V_mk]
-  exact CGraph.chromNum_le_card _
-
 attribute [simp] IsoGraph.chromNum_eq_zero_iff
 
 /-- Two graphs with different chromatic numbers are different graphs. -/
@@ -1916,14 +1778,6 @@ theorem ne_of_chromNum_ne {G H : IsoGraph} (h : G.chromNum ≠ H.chromNum) : G �
 /-! Values. -/
 
 attribute [simp] IsoGraph.chromNum_cycle_even IsoGraph.chromNum_cycle_odd
-
-theorem chromNum_tensorProduct_le (G H : IsoGraph) :
-    (G ⊗g H).chromNum ≤ min G.chromNum H.chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, tensorProduct_mk, chromNum_mk, chromNum_mk,
-    chromNum_mk]
-  exact CGraph.chromNum_tensorProduct_le _ _
 
 /-! Derived chromatic numbers: everything bipartite with an edge. -/
 
@@ -1974,21 +1828,6 @@ theorem chromNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
   obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
   obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
   exact CGraph.chromNum_cartesianProduct _ _ a b
-
-/-- **The lexicographic product multiplies chromatic numbers, at worst.** -/
-theorem chromNum_lexProduct_le (G H : IsoGraph) :
-    (G ·g H).chromNum ≤ G.chromNum * H.chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, chromNum_mk, chromNum_mk,
-    chromNum_mk]
-  exact CGraph.chromNum_lexProduct_le _ _
-
-/-- **`|V| ≤ χ·α`**: the colour classes are independent sets and they cover the graph. -/
-theorem V_le_chromNum_mul_indepNum (G : IsoGraph) : G.V ≤ G.chromNum * G.indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, chromNum_mk, indepNum_mk, V_mk]
-  exact CGraph.card_le_chromNum_mul_indepNum _
 
 /-! ### Complete multipartite graphs -/
 
@@ -2061,17 +1900,6 @@ example : 10 ≤ 3 * petersenᶜ.chromNum := by
 
 /-! ### Girth -/
 
-theorem girth_eq_zero_iff {G : IsoGraph} : G.girth = 0 ↔ IsAcyclic G := by
-  induction G using Quotient.inductionOn with | _ G => exact CGraph.girth_eq_zero_iff G
-
-theorem three_le_girth {G : IsoGraph} (h : ¬ IsAcyclic G) : 3 ≤ G.girth := by
-  induction G using Quotient.inductionOn with | _ G => exact CGraph.three_le_girth h
-
-theorem four_le_girth_of_isBipartite {G : IsoGraph} (hb : IsBipartite G) (h : ¬ IsAcyclic G) :
-    4 ≤ G.girth := by
-  induction G using Quotient.inductionOn with | _ G =>
-  exact CGraph.four_le_girth_of_isBipartite hb h
-
 theorem one_le_cliqueNum {G : IsoGraph} (h : 0 < G.V) : 1 ≤ G.cliqueNum := by
   induction G using Quotient.inductionOn with | _ G =>
   rw [V_mk] at h
@@ -2123,17 +1951,6 @@ theorem girth_join_right {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.E) :
   have h1 : 1 ≤ G.cliqueNum := one_le_cliqueNum hG
   have h2 : 2 ≤ H.cliqueNum := two_le_cliqueNum_of_E_pos hH
   omega
-
-/-- **A Cartesian product of two bipartite graphs with an edge each has girth four.** -/
-theorem girth_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E)
-    (hbG : IsBipartite G) (hbH : IsBipartite H) : (G □g H).girth = 4 := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
-  rw [cartesianProduct_mk, girth_mk]
-  rw [E_mk] at hG hH
-  rw [isBipartite_mk] at hbG hbH
-  exact CGraph.girth_cartesianProduct hG hH hbG hbH
 
 attribute [simp] IsoGraph.girth_bipartite
 
@@ -2228,17 +2045,6 @@ theorem minDeg_of_degMultiset_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)
     (h : degMultiset G = Multiset.replicate n k) : minDeg G = k :=
   minDeg_eq_of_degMultiset (h ▸ Multiset.mem_replicate.2 ⟨hn.ne', rfl⟩)
     fun _ hd ↦ ge_of_eq (Multiset.eq_of_mem_replicate (h ▸ hd))
-
-/-- **The handshake bounds**: `|V|·δ ≤ 2|E| ≤ |V|·Δ`. -/
-theorem V_mul_minDeg_le (G : IsoGraph) : G.V * minDeg G ≤ 2 * G.E := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, minDeg_mk, E_mk]
-  exact CGraph.card_mul_minDeg_le _
-
-theorem two_mul_E_le_V_mul_maxDeg (G : IsoGraph) : 2 * G.E ≤ G.V * maxDeg G := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, maxDeg_mk, E_mk]
-  exact CGraph.two_mul_E_le_card_mul_maxDeg _
 
 /-- **`Δ ≤ 2|E|`**: an edgeless graph has maximum degree `0`. -/
 theorem maxDeg_le_two_mul_E {G : IsoGraph} (hG : 0 < G.V) : maxDeg G ≤ 2 * G.E := by
@@ -2528,39 +2334,12 @@ theorem chromNum_sub_one_le_maxDeg (G : IsoGraph) : G.chromNum - 1 ≤ G.maxDeg 
   have := G.chromNum_le_maxDeg_add_one
   omega
 
-/-- `|V| ≤ (Δ + 1)·α`: the independence number of a graph of bounded degree cannot be small. -/
-theorem V_le_maxDeg_add_one_mul_indepNum (G : IsoGraph) :
-    G.V ≤ (G.maxDeg + 1) * G.indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, maxDeg_mk, indepNum_mk]
-  exact CGraph.card_le_maxDeg_add_one_mul_indepNum _
-
-/-- `χ ≤ |V| - α + 1`. -/
-theorem chromNum_le_V_sub_indepNum_add_one (G : IsoGraph) :
-    G.chromNum ≤ G.V - G.indepNum + 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, chromNum_mk, indepNum_mk]
-  exact CGraph.chromNum_le_card_sub_indepNum_add_one _
-
-theorem chromNum_add_indepNum_le_V_add_one (G : IsoGraph) :
-    G.chromNum + G.indepNum ≤ G.V + 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, chromNum_mk, indepNum_mk]
-  exact CGraph.chromNum_add_indepNum_le_card_add_one _
-
 /-- **Nordhaus–Gaddum, sum form**: `4·|V| ≤ (χ(G) + χ(Gᶜ))²`, i.e. `χ(G) + χ(Gᶜ) ≥ 2√|V|`.
 This is the product form together with `4ab ≤ (a + b)²`. -/
 theorem four_mul_V_le_chromNum_add_chromNum_compl_sq (G : IsoGraph) :
     4 * G.V ≤ (G.chromNum + Gᶜ.chromNum) ^ 2 := by
   have h := V_le_chromNum_mul_chromNum_compl G
   nlinarith [sq_nonneg (G.chromNum - Gᶜ.chromNum : ℤ)]
-
-/-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
-theorem chromNum_add_chromNum_compl_le_V_add_one (G : IsoGraph) :
-    G.chromNum + Gᶜ.chromNum ≤ G.V + 1 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, compl_mk, chromNum_mk, chromNum_mk, V_mk]
-  exact CGraph.chromNum_add_chromNum_compl_le_card_add_one _
 
 /-- The product counterpart of the sum bound, by AM–GM: `4·χ(G)·χ(Gᶜ) ≤ (|V| + 1)²`. -/
 theorem four_mul_chromNum_mul_chromNum_compl_le (G : IsoGraph) :

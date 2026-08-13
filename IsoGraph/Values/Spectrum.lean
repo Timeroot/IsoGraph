@@ -4841,6 +4841,7 @@ theorem transpose_mul_incMat (G : CGraph) :
 /-- **No eigenvalue of a line graph is below `-2`.**  This is the factorisation
 `A(L G) + 2 I = Bᵀ B` together with `⟪v, Bᵀ B v⟫ = ‖B v‖² ≥ 0`; it is the spectral half of the
 reason the ADE diagrams classify the graphs with least eigenvalue `-2`. -/
+@[toIsoGraph]
 theorem neg_two_le_of_mem_spectrum_lineGraph (G : CGraph) {x : ℝ}
     (hx : x ∈ (lineGraph G).spectrum) : -2 ≤ x := by
   obtain ⟨v, hv0, hv⟩ := ((lineGraph G).mem_spectrum_iff x).1 hx
@@ -5869,6 +5870,7 @@ theorem dist_lt_card_toFinset_spectrum (G : CGraph) (u v : G.V) :
     rw [G.adjMat_pow_apply_eq_zero_of_lt_dist (by omega), mul_zero]
 
 /-- **The number of distinct eigenvalues exceeds the diameter.** -/
+@[toIsoGraph]
 theorem diameter_lt_card_toFinset_spectrum (G : CGraph) [Nonempty G.V] :
     G.diameter < G.spectrum.toFinset.card := by
   classical
@@ -6966,6 +6968,7 @@ theorem lapSpectrum_eq_of_compl {G : CGraph} (hconn : G.IsConnected) :
 
 /-- **The Laplacian spectrum of the complement**, with no hypothesis at all: a graph and its
 complement cannot both be disconnected. -/
+@[toIsoGraph]
 theorem lapSpectrum_compl (G : CGraph) [Nonempty G.V] :
     Gᶜ.lapSpectrum
       = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
@@ -7021,6 +7024,7 @@ theorem lapSpectrum_star (n : ℕ) :
 
 /-- **The Laplacian spectrum of a join**: `0`, the order `n + m`, and every other eigenvalue of
 each factor shifted by the order of the other factor. -/
+@[toIsoGraph]
 theorem lapSpectrum_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (join G H).lapSpectrum
@@ -7052,6 +7056,7 @@ theorem lapSpectrum_join (G H : CGraph)
 is `l`-regular on `m` vertices with `k + m = n + l`, so that `G ∇ H` is regular of that common
 degree, then the join has that degree as an eigenvalue, `k - n` as a second one, and keeps every
 *other* eigenvalue of each factor unchanged. -/
+@[toIsoGraph]
 theorem spectrum_join_of_isRegularWith {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l m : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
     (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
@@ -7404,6 +7409,7 @@ theorem algConn_le_card (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
   G.le_card_of_mem_lapSpectrum (G.algConn_mem_lapSpectrum h)
 
 /-- **A disjoint union has algebraic connectivity `0`** as soon as both pieces are nonempty. -/
+@[toIsoGraph]
 theorem algConn_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     (disjUnion G H).algConn = 0 := by
   have h0G : (0 : ℝ) ∈ G.lapSpectrum := G.zero_mem_lapSpectrum
@@ -7570,6 +7576,7 @@ namespace CGraph
 theorem le_lapLambdaMax {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) : x ≤ G.lapLambdaMax :=
   le_csSup (Multiset.finite_toSet _).bddAbove hx
 
+@[toIsoGraph]
 theorem lapLambdaMax_mem_lapSpectrum (G : CGraph) [Nonempty G.V] :
     G.lapLambdaMax ∈ G.lapSpectrum :=
   Set.Nonempty.csSup_mem ⟨0, G.zero_mem_lapSpectrum⟩ (Multiset.finite_toSet _)
@@ -7581,6 +7588,7 @@ theorem lapLambdaMax_eq_of_isGreatest {G : CGraph} {a : ℝ} (hmem : a ∈ G.lap
     (hle : ∀ x ∈ G.lapSpectrum, x ≤ a) : G.lapLambdaMax = a :=
   le_antisymm (csSup_le ⟨a, hmem⟩ hle) (le_lapLambdaMax hmem)
 
+@[toIsoGraph]
 theorem lapLambdaMax_nonneg (G : CGraph) [Nonempty G.V] : 0 ≤ G.lapLambdaMax :=
   le_lapLambdaMax G.zero_mem_lapSpectrum
 
@@ -7594,6 +7602,7 @@ theorem lapLambdaMax_le_card (G : CGraph) [Nonempty G.V] :
     G.lapLambdaMax ≤ Fintype.card G.V :=
   G.le_card_of_mem_lapSpectrum G.lapLambdaMax_mem_lapSpectrum
 
+@[toIsoGraph]
 theorem lapLambdaMax_le_two_mul_maxDeg (G : CGraph) [Nonempty G.V] :
     G.lapLambdaMax ≤ 2 * (G.maxDeg : ℝ) :=
   le_two_mul_maxDeg_of_mem_lapSpectrum G.lapLambdaMax_mem_lapSpectrum
@@ -7767,6 +7776,7 @@ theorem lapLambdaMax_path (n : ℕ) :
 
 /-- **A disjoint union takes the larger of the two largest eigenvalues**, where `algConn_disjUnion`
 takes neither: the small end collapses to `0` but the large end does not interact. -/
+@[toIsoGraph]
 theorem lapLambdaMax_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax := by
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
@@ -7805,6 +7815,7 @@ theorem lapLambdaMax_empty (n : ℕ) : (empty (n + 1)).lapLambdaMax = 0 := by
 
 /-- **The largest Laplacian eigenvalue vanishes exactly on the edgeless graph**: the spectrum is
 nonnegative and sums to `2 E`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_eq_zero_iff (G : CGraph) [Nonempty G.V] :
     G.lapLambdaMax = 0 ↔ G.E = 0 := by
   constructor
@@ -7957,6 +7968,7 @@ theorem lap_rayleigh_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (v : G.V → �
 vector is `Δ` at a vertex of maximum degree, `-1` at each of its neighbours and `0` elsewhere;
 its Rayleigh quotient is already `Δ + 1`, since the `Δ` edges at the centre each contribute
 `(Δ + 1) ²` and every other edge contributes something nonnegative. -/
+@[toIsoGraph]
 theorem maxDeg_add_one_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (h : 0 < G.E) :
     (G.maxDeg : ℝ) + 1 ≤ G.lapLambdaMax := by
   classical
@@ -8277,6 +8289,7 @@ theorem algConn_le_div_mul_minDeg (G : CGraph) [Nonempty G.V]
 /-- **The largest Laplacian eigenvalue of a join is its order.**  A join has a disconnected
 complement, so this is `algConn_compl` read backwards; here it is read straight off
 `lapSpectrum_join`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (join G H).lapLambdaMax = (Fintype.card G.V : ℝ) + Fintype.card H.V := by
@@ -8301,6 +8314,7 @@ theorem lapLambdaMax_join (G H : CGraph)
 /-- **The algebraic connectivity of a join**: each factor's Fiedler value shifted by the order of
 the other factor, whichever is smaller.  The order `n + m` itself is never the smallest, since
 `a (G) ≤ n`. -/
+@[toIsoGraph]
 theorem algConn_join (G H : CGraph)
     (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
     (join G H).algConn
@@ -8406,6 +8420,7 @@ theorem lapSpectrum_cartesianProduct' (G H : CGraph) :
     ← map_product_apply₂, ← Finset.univ_product_univ, Finset.product_val]
 
 /-- **The largest Laplacian eigenvalue of a cartesian product** is the sum of the two. -/
+@[toIsoGraph]
 theorem lapLambdaMax_cartesianProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax := by
@@ -8424,6 +8439,7 @@ theorem lapLambdaMax_cartesianProduct (G H : CGraph)
 and `0 + a (H)` are both eigenvalues of the product, and every other nonzero sum is at least one
 of them.  No connectivity hypothesis is needed — if either factor is disconnected both sides
 are `0`. -/
+@[toIsoGraph]
 theorem algConn_cartesianProduct (G H : CGraph)
     (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
     (cartesianProduct G H).algConn = min G.algConn H.algConn := by
@@ -9042,23 +9058,7 @@ theorem not_isDS_star_four : ¬ IsDS (star 4) := by
 
 /-! ### Line graphs -/
 
-theorem neg_two_le_of_mem_spectrum_lineGraph (G : IsoGraph) {x : ℝ} :
-    x ∈ G.lineGraph.spectrum → -2 ≤ x := by
-  classical
-  refine Quotient.inductionOn G fun g hx ↦ ?_
-  rw [lineGraph_mk, spectrum_mk] at hx
-  exact CGraph.neg_two_le_of_mem_spectrum_lineGraph g hx
-
 /-! ### The diameter -/
-
-/-- **The number of distinct eigenvalues exceeds the diameter.** -/
-theorem diameter_lt_card_toFinset_spectrum (G : IsoGraph) (hG : 0 < G.V) :
-    G.diameter < G.spectrum.toFinset.card := by
-  classical
-  induction G using Quotient.inductionOn with
-  | h g =>
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
-    exact g.diameter_lt_card_toFinset_spectrum
 
 /-! ### Few distinct eigenvalues -/
 
@@ -9171,57 +9171,6 @@ theorem lapSpectrum_hypercube (n : ℕ) :
   congr 1
   ring
 
-/-- **The Laplacian spectrum of the complement.**  The eigenvalue `0` of the constant vector stays
-`0`, and every other eigenvalue `μ` becomes `n - μ`. -/
-theorem lapSpectrum_compl {G : IsoGraph} (hG : 0 < G.V) :
-    Gᶜ.lapSpectrum = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (G.V : ℝ) - x) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    classical
-    rw [V_mk] at hG
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
-    rw [compl_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk]
-    exact CGraph.lapSpectrum_compl g
-
-/-- **The Laplacian spectrum of a join**: `0`, the order `n + m`, and every other eigenvalue of
-each factor shifted by the order of the other factor. -/
-theorem lapSpectrum_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G ∇g H).lapSpectrum
-      = 0 ::ₘ (((G.V : ℝ) + H.V)
-          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (H.V : ℝ))
-             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (G.V : ℝ)))) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      classical
-      rw [V_mk] at hG hH
-      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
-      haveI : Nonempty h.V := Fintype.card_pos_iff.1 hH
-      rw [join_mk, lapSpectrum_mk, lapSpectrum_mk, lapSpectrum_mk, V_mk, V_mk]
-      exact CGraph.lapSpectrum_join g h
-
-/-- **The adjacency spectrum of a regular join**: if `G` is `k`-regular on `G.V` vertices and `H`
-is `l`-regular on `H.V` vertices with `k + H.V = m = G.V + l`, so that `G ∇g H` is `m`-regular,
-then the join has the eigenvalues `m` and `k - G.V` and keeps every *other* eigenvalue of each
-factor unchanged. -/
-theorem spectrum_join_of_isRegularWith {G H : IsoGraph} (hG0 : 0 < G.V) (hH0 : 0 < H.V) {k l m : ℕ}
-    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) (h1 : k + H.V = m) (h2 : G.V + l = m) :
-    (G ∇g H).spectrum
-      = (m : ℝ) ::ₘ (((k : ℝ) - G.V)
-          ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ))) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      classical
-      rw [V_mk] at hG0 hH0 h1 h2
-      rw [isRegularWith_mk] at hG hH
-      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG0
-      haveI : Nonempty h.V := Fintype.card_pos_iff.1 hH0
-      rw [join_mk, spectrum_mk, spectrum_mk, spectrum_mk, V_mk]
-      exact CGraph.spectrum_join_of_isRegularWith hG hH h1 h2
-
 /-- **The Laplacian spectrum of the wheel** `W_n`: the hub contributes the order `n + 1`, and every
 nonzero eigenvalue of the rim is shifted by one. -/
 theorem lapSpectrum_wheel {n : ℕ} (hn : 0 < n) :
@@ -9321,39 +9270,9 @@ theorem algConn_cycle (n : ℕ) :
     rw [hfm]
     linarith
 
-theorem algConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G ⊕g H).algConn = 0 := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h' =>
-      rw [V_mk] at hG hH
-      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
-      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
-      exact CGraph.algConn_disjUnion g h'
-
-theorem lapLambdaMax_mem_lapSpectrum (G : IsoGraph) (h : 0 < G.V) :
-    G.lapLambdaMax ∈ G.lapSpectrum := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [V_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
-    exact g.lapLambdaMax_mem_lapSpectrum
-
-theorem lapLambdaMax_nonneg (G : IsoGraph) (h : 0 < G.V) : 0 ≤ G.lapLambdaMax := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [V_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
-    exact g.lapLambdaMax_nonneg
-
 /-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
 theorem lapLambdaMax_le_V (G : IsoGraph) (h : 0 < G.V) : G.lapLambdaMax ≤ G.V :=
   le_V_of_mem_lapSpectrum (G.lapLambdaMax_mem_lapSpectrum h)
-
-theorem lapLambdaMax_le_two_mul_maxDeg (G : IsoGraph) (h : 0 < G.V) :
-    G.lapLambdaMax ≤ 2 * (G.maxDeg : ℝ) :=
-  le_two_mul_maxDeg_of_mem_lapSpectrum (G.lapLambdaMax_mem_lapSpectrum h)
 
 /-- **The largest Laplacian eigenvalue is at least the average degree.** -/
 theorem two_mul_E_le_V_mul_lapLambdaMax (G : IsoGraph) :
@@ -9370,7 +9289,9 @@ theorem V_sub_one_mul_algConn_le_two_mul_E (G : IsoGraph) (h : 0 < G.V) :
     haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
     exact g.card_sub_one_mul_algConn_le_two_mul_E
 
-/-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`. -/
+/-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`.
+Written out rather than generated: `2 ≤ G.V` already gives `Nonempty`, so the generated form
+would carry a redundant `0 < G.V` alongside it. -/
 theorem lapLambdaMax_compl {G : IsoGraph} (h : 2 ≤ G.V) :
     Gᶜ.lapLambdaMax = G.V - G.algConn := by
   induction G using Quotient.inductionOn with
@@ -9435,28 +9356,6 @@ theorem lapLambdaMax_cycle_odd (n : ℕ) :
     CGraph.lambdaMin_cycle_odd]
   push_cast
   ring
-
-/-- **A disjoint union takes the larger of the two largest eigenvalues**, where
-`algConn_disjUnion` takes neither. -/
-theorem lapLambdaMax_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G ⊕g H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h' =>
-      rw [V_mk] at hG hH
-      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
-      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
-      exact CGraph.lapLambdaMax_disjUnion g h'
-
-/-- **The largest Laplacian eigenvalue vanishes exactly on the edgeless graph.** -/
-theorem lapLambdaMax_eq_zero_iff (G : IsoGraph) (h : 0 < G.V) :
-    G.lapLambdaMax = 0 ↔ G.E = 0 := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [V_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
-    exact g.lapLambdaMax_eq_zero_iff
 
 /-- **The Laplacian eigenvalues of a cartesian product are the sums of the Laplacian
 eigenvalues.** -/
@@ -9525,30 +9424,6 @@ theorem lapSpectrum_ladder (n : ℕ) :
   simp only [Function.comp_def]
   congr 1 <;> exact Multiset.map_congr rfl fun x _ ↦ by ring
 
-/-- **The largest Laplacian eigenvalue of a cartesian product** is the sum of the two. -/
-theorem lapLambdaMax_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G □g H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h' =>
-      rw [V_mk] at hG hH
-      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
-      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
-      rw [cartesianProduct_mk, lapLambdaMax_mk, lapLambdaMax_mk, lapLambdaMax_mk]
-      exact CGraph.lapLambdaMax_cartesianProduct g h'
-
-/-- **The algebraic connectivity of a cartesian product** is the smaller of the two. -/
-theorem algConn_cartesianProduct {G H : IsoGraph} (hG : 2 ≤ G.V) (hH : 2 ≤ H.V) :
-    (G □g H).algConn = min G.algConn H.algConn := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h' =>
-      rw [V_mk] at hG hH
-      rw [cartesianProduct_mk, algConn_mk, algConn_mk, algConn_mk]
-      exact CGraph.algConn_cartesianProduct g h' hG hH
-
 /-! ### The Laplacian of the grid, the torus and the cylinder -/
 
 /-- **The largest Laplacian eigenvalue of a grid** is the sum of the two paths'. -/
@@ -9556,13 +9431,13 @@ theorem lapLambdaMax_grid (m n : ℕ) :
     (path (m + 1) □g path (n + 1)).lapLambdaMax
       = (2 - 2 * Real.cos (Real.pi * m / ((m : ℝ) + 1)))
         + (2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1))) := by
-  rw [lapLambdaMax_cartesianProduct (by simp) (by simp), lapLambdaMax_path, lapLambdaMax_path]
+  rw [lapLambdaMax_cartesianProduct _ _ (by simp) (by simp), lapLambdaMax_path, lapLambdaMax_path]
 
 /-- **The largest Laplacian eigenvalue of an even torus** is `8 = 2 Δ`, the bound
 `lapLambdaMax_le_two_mul_maxDeg` attained. -/
 theorem lapLambdaMax_cartesianProduct_cycle_even {m n : ℕ} (hm : 2 ≤ m) (hn : 2 ≤ n) :
     (cycle (2 * m) □g cycle (2 * n)).lapLambdaMax = 8 := by
-  rw [lapLambdaMax_cartesianProduct (by simp; omega) (by simp; omega), lapLambdaMax_cycle_even hm,
+  rw [lapLambdaMax_cartesianProduct _ _ (by simp; omega) (by simp; omega), lapLambdaMax_cycle_even hm,
     lapLambdaMax_cycle_even hn]
   norm_num
 
@@ -9570,7 +9445,7 @@ theorem lapLambdaMax_cartesianProduct_cycle_even {m n : ℕ} (hm : 2 ≤ m) (hn 
 theorem lapLambdaMax_cartesianProduct_cycle_even_path {m : ℕ} (hm : 2 ≤ m) (n : ℕ) :
     (cycle (2 * m) □g path (n + 1)).lapLambdaMax
       = 4 + (2 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1))) := by
-  rw [lapLambdaMax_cartesianProduct (by simp; omega) (by simp), lapLambdaMax_cycle_even hm,
+  rw [lapLambdaMax_cartesianProduct _ _ (by simp; omega) (by simp), lapLambdaMax_cycle_even hm,
     lapLambdaMax_path]
 
 /-- **The algebraic connectivity of a grid** is the longer side's: `a = 2 - 2 cos (π / (n + 2))`
@@ -9634,7 +9509,7 @@ theorem algConn_prism (n : ℕ) :
 bipartite and cubic. -/
 theorem lapLambdaMax_prism_even {n : ℕ} (hn : 2 ≤ n) : (prism (2 * n)).lapLambdaMax = 6 := by
   rw [show prism (2 * n) = cycle (2 * n) □g complete (0 + 2) from by norm_num,
-    lapLambdaMax_cartesianProduct (by simp; omega) (by simp), lapLambdaMax_cycle_even hn,
+    lapLambdaMax_cartesianProduct _ _ (by simp; omega) (by simp), lapLambdaMax_cycle_even hn,
     lapLambdaMax_complete]
   norm_num
 
@@ -9643,7 +9518,7 @@ prism it never reaches `2 Δ = 6`, because the path factor falls short of `4`. -
 theorem lapLambdaMax_ladder (n : ℕ) :
     (ladder (n + 1)).lapLambdaMax = 4 - 2 * Real.cos (Real.pi * n / ((n : ℝ) + 1)) := by
   rw [show ladder (n + 1) = path (n + 1) □g complete (0 + 2) from by norm_num,
-    lapLambdaMax_cartesianProduct (by simp) (by simp), lapLambdaMax_path, lapLambdaMax_complete]
+    lapLambdaMax_cartesianProduct _ _ (by simp) (by simp), lapLambdaMax_path, lapLambdaMax_complete]
   norm_num
   ring
 
@@ -9663,18 +9538,8 @@ theorem algConn_ladder (n : ℕ) :
   push_cast
   linarith
 
-/-- **`Δ + 1 ≤ μ_max`**, at the `IsoGraph` level. -/
-theorem maxDeg_add_one_le_lapLambdaMax {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.E) :
-    (G.maxDeg : ℝ) + 1 ≤ G.lapLambdaMax := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [V_mk] at hV
-    rw [E_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 hV
-    rw [maxDeg_mk, lapLambdaMax_mk]
-    exact CGraph.maxDeg_add_one_le_lapLambdaMax g h
-
-/-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`. -/
+/-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`.  Written out
+rather than generated, since `2 ≤ G.V` already supplies the nonemptiness. -/
 theorem algConn_le_minDeg {G : IsoGraph} (h : 2 ≤ G.V) (hc : 0 < Gᶜ.E) :
     G.algConn ≤ minDeg G := by
   induction G using Quotient.inductionOn with
@@ -9708,28 +9573,6 @@ theorem algConn_le_div_mul_minDeg {G : IsoGraph} (h : 2 ≤ G.V) :
     rw [algConn_mk, minDeg_mk, V_mk]
     exact g.algConn_le_div_mul_minDeg h
 
-theorem lapLambdaMax_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G ∇g H).lapLambdaMax = (G.V : ℝ) + H.V := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h' =>
-      rw [V_mk] at hG hH
-      haveI : Nonempty g.V := Fintype.card_pos_iff.1 hG
-      haveI : Nonempty h'.V := Fintype.card_pos_iff.1 hH
-      rw [join_mk, lapLambdaMax_mk, V_mk, V_mk]
-      exact CGraph.lapLambdaMax_join g h'
-
-theorem algConn_join {G H : IsoGraph} (hG : 2 ≤ G.V) (hH : 2 ≤ H.V) :
-    (G ∇g H).algConn = min (G.algConn + H.V) (H.algConn + G.V) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h' =>
-      rw [V_mk] at hG hH
-      rw [join_mk, algConn_mk, algConn_mk, algConn_mk, V_mk, V_mk]
-      exact CGraph.algConn_join g h' hG hH
-
 /-- **The largest Laplacian eigenvalue of the wheel** is its order: the wheel is a join, so its
 complement is disconnected. -/
 theorem lapLambdaMax_wheel {n : ℕ} (hn : 0 < n) : (wheel n).lapLambdaMax = (n : ℝ) + 1 := by
@@ -9757,7 +9600,7 @@ theorem algConn_wheel {n : ℕ} (hn : 3 ≤ n) :
   have hcyc : (cycle (m + 3)).algConn = 2 - 2 * Real.cos (2 * Real.pi / ((m : ℝ) + 3)) :=
     algConn_cycle m
   have hmem : (cycle (m + 3)).algConn ∈ (cycle (m + 3)).lapSpectrum.erase 0 :=
-    algConn_mem_erase _ (by rw [hVc]; omega)
+    algConn_mem_erase (by rw [hVc]; omega)
   have herase : (wheel (m + 3)).lapSpectrum.erase 0
       = (((m : ℕ) : ℝ) + 3 + 1)
           ::ₘ ((cycle (m + 3)).lapSpectrum.erase 0).map (fun x ↦ x + 1) := by

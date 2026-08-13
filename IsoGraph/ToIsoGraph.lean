@@ -653,7 +653,8 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
   supply.  When some instance binder mentions a graph, run in *canonical mode*: each
   graph binder `G` is instantiated at `G.canonicalize`, whose vertex type is a `Fin n` and so has
   every instance, the instance binders are then synthesised and dropped, and the `⟦G.canonicalize⟧`
-  that results is turned back into `⟦G⟧` by `mk_canonicalize` on the way out. -/
+  that results is turned back into `⟦G⟧` by `mk_canonicalize` on the way out.  `Nonempty G.V` is
+  the exception, since `Fin n` is not nonempty for every `n`: it becomes a hypothesis `0 < G.V`. -/
   let canon ← forallTelescope info.type fun xs _ ↦ do
     let mut gs : Array FVarId := #[]
     for x in xs do
@@ -664,8 +665,8 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
   /- Walk the binders of the original statement.  `olds` are the ones that survive the translation
   and `reps` what each of them stands for in the statement — itself, or its canonicalisation;
   `args` are all of them, in order, ready to be fed back to the original theorem. -/
-  let rec tele (fuel : Nat) (ty : Expr) (args olds reps : Array Expr) (graphs : Array Bool) :
-      MetaM Unit := do
+  let rec tele (fuel : Nat) (ty : Expr) (args olds reps : Array Expr)
+      (graphs derived : Array Bool) : MetaM Unit := do
     match fuel, ty with
     | 0, _ => throwError "toIsoGraph: {thmName} has too many binders"
     | fuel + 1, .forallE nm dom bd bi =>
@@ -673,16 +674,39 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
         withLocalDecl nm bi cgraphE fun g ↦ do
           let rep ← if canon then mkAppM ``CGraph.canonicalize #[g] else pure g
           tele fuel (bd.instantiate1 rep) (args.push rep) (olds.push g) (reps.push rep)
-            (graphs.push true)
+            (graphs.push true) (derived.push false)
       else if bi == .instImplicit &&
           (olds.zip graphs).any (fun (v, isGraph) ↦ isGraph && dom.containsFVar v.fvarId!) then
-        let some inst ← synthInstance? dom |
+        if let some inst ← synthInstance? dom then
+          tele fuel (bd.instantiate1 inst) (args.push inst) olds reps graphs derived
+        else if let some α := dom.app1? ``Nonempty then
+          /- `Nonempty G.V` is the one instance a canonical representative cannot supply: its
+          vertex type is a `Fin n`, which is nonempty exactly when `n` is positive.  That is a
+          statement about the order, and the order descends to the quotient, so ask for it as an
+          ordinary hypothesis `0 < Fintype.card G.V` and hand the instance it carries back to the
+          original theorem. -/
+          let ty ← mkAppM ``LT.lt #[mkNatLit 0, ← mkAppOptM ``Fintype.card #[α, none]]
+          let g? := ((olds.zip graphs).find? fun (v, isGraph) ↦
+            isGraph && dom.containsFVar v.fvarId!).map Prod.fst
+          let rec names (e : Expr) (acc : Array Name) : Array Name :=
+            match e with
+            | .forallE n _ b _ => names b (acc.push n)
+            | _ => acc
+          let later := names bd #[]
+          let mut nm ← match g? with
+            | some v => do pure ((`h).appendAfter (toString (← v.fvarId!.getUserName)))
+            | none => pure `hV
+          while later.contains nm do nm := nm.appendAfter "0"
+          withLocalDeclD nm ty fun h ↦ do
+            let inst ← mkAppM ``Iff.mp #[← mkAppOptM ``Fintype.card_pos_iff #[α, none], h]
+            tele fuel (bd.instantiate1 inst) (args.push inst) (olds.push h) (reps.push h)
+              (graphs.push false) (derived.push true)
+        else
           throwError "toIsoGraph: cannot synthesise{indentExpr dom}\nfor a canonical representative"
-        tele fuel (bd.instantiate1 inst) (args.push inst) olds reps graphs
       else
         withLocalDecl nm bi dom fun y ↦
           tele fuel (bd.instantiate1 y) (args.push y) (olds.push y) (reps.push y)
-            (graphs.push false)
+            (graphs.push false) (derived.push false)
     | _, body =>
       /- A conclusion `g = h` between two `CGraph`s becomes one between their classes, and so does
       an isomorphism `g ≃cg h`; `congrArg` and `Quotient.sound` supply the two.  Everything else
@@ -699,7 +723,19 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
         if h : i < olds.size then
           let decl ← olds[i].fvarId!.getDecl
           if graphs[i]! then
-            withLocalDecl decl.userName decl.binderInfo isographE fun q ↦
+            /- A graph that some later explicit hypothesis mentions is already determined by that
+            hypothesis, so bind it implicitly: `diameter_cartesianProduct hG hH` rather than
+            `diameter_cartesianProduct _ _ hG hH`.  A graph that nothing else mentions stays
+            explicit, since only the caller can say which one is meant — and an order hypothesis
+            `0 < G.V` standing in for `Nonempty G.V` does not count, since it is proved from the
+            goal rather than read off an argument the caller already has. -/
+            let mut used := false
+            for j in [i + 1 : olds.size] do
+              let d ← olds[j]!.fvarId!.getDecl
+              if d.binderInfo == .default && !derived[j]! &&
+                  d.type.containsFVar olds[i].fvarId! then used := true
+            let bi := if used && decl.binderInfo == .default then .implicit else decl.binderInfo
+            withLocalDecl decl.userName bi isographE fun q ↦
               loop (i + 1) (news.push q)
           else
             let ty ← translateExpr rev olds reps news graphs decl.type
@@ -761,7 +797,7 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
               bridge := Name.anonymous, source := thmName }
           traceGenerated "theorem" newName
       loop 0 #[]
-  tele 1000 info.type #[] #[] #[] #[]
+  tele 1000 info.type #[] #[] #[] #[] #[]
 
 /-! ## The attribute -/
 

@@ -66,6 +66,7 @@ theorem isRegularWith_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v)
 
 /-- A constant degree sequence is exactly regularity; this is the bridge that turns the whole
 `degSequence` table into a table of regular graphs. -/
+@[toIsoGraph]
 theorem isRegularWith_of_degSequence {G : CGraph} {n k : ℕ}
     (h : G.degSequence = List.replicate n k) : G.IsRegularWith k :=
   isRegularWith_of_card_nbrs G fun v ↦ card_nbrs_of_degSequence h v
@@ -217,9 +218,11 @@ theorem isConnected_mycielskian {G : CGraph} (h : ∀ v : G.V, ∃ w, G.Adj v w)
 
 /-! ## Girth -/
 
-theorem girth_eq_zero_iff (G : CGraph) : G.girth = 0 ↔ G.IsAcyclic :=
+@[toIsoGraph]
+theorem girth_eq_zero_iff {G : CGraph} : G.girth = 0 ↔ G.IsAcyclic :=
   SimpleGraph.girth_eq_zero
 
+@[toIsoGraph]
 theorem three_le_girth {G : CGraph} (h : ¬ G.IsAcyclic) : 3 ≤ G.girth :=
   SimpleGraph.three_le_girth h
 
@@ -359,6 +362,7 @@ theorem five_le_girth {G : CGraph}
   exact ENat.toNat_le_toNat hle (SimpleGraph.egirth_eq_top.not.2 hnac)
 
 /-- **A bipartite graph with a cycle has girth at least four.** -/
+@[toIsoGraph]
 theorem four_le_girth_of_isBipartite {G : CGraph} (hb : G.IsBipartite) (hnac : ¬ G.IsAcyclic) :
     4 ≤ G.girth :=
   four_le_girth (fun x _ z h1 h2 h3 ↦

@@ -1433,8 +1433,10 @@ theorem rook_two_two : rook 2 2 = cycle 4 := by
       ![(0, 0), (0, 1), (1, 1), (1, 0)], by decide, by decide⟩ : (Fin 2 × Fin 2) ≃ Fin 4)
     (by decide)⟩
 
-/-- The complement of the rook's graph is the tensor product of the two complete graphs — the
-`CGraph`-level `CGraph.compl_rook`, transported to the quotient. -/
+/-- The complement of the rook's graph is the tensor product of the two complete graphs.  This one
+is written out rather than generated: `rook` is an abbreviation for a cartesian product, and
+`@[toIsoGraph]` would state it for the product and leave the later rewrites with no `rook` to
+find. -/
 theorem compl_rook (m n : ℕ) :
     (rook m n)ᶜ = complete m ⊗g complete n := by
   have hrook : (rook m n : IsoGraph) = ⟦CGraph.rook m n⟧ := by

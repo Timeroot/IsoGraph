@@ -218,6 +218,7 @@ theorem two_mul_E_le_autCount_of_isArcTransitive (G : CGraph) (h : G.IsArcTransi
     _ = G.autCount := rfl
 
 /-- Too few automorphisms to move a base vertex everywhere. -/
+@[toIsoGraph]
 theorem not_isVertexTransitive_of_autCount_lt (G : CGraph) [Nonempty G.V]
     (h : G.autCount < Fintype.card G.V) : ¬ G.IsVertexTransitive := fun hvt ↦
   absurd (G.card_le_autCount_of_isVertexTransitive hvt) (by omega)
@@ -461,6 +462,7 @@ theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
       exact Sum.inr_injective
         (congrArg (fun σ : disjUnion G H ≃cg disjUnion G H ↦ σ (.inr y)) h)
 
+@[toIsoGraph]
 theorem autCount_mul_le_autCount_join (G H : CGraph) :
     G.autCount * H.autCount ≤ (join G H).autCount := by
   have h := autCount_mul_le_autCount_disjUnion Gᶜ Hᶜ
@@ -478,6 +480,7 @@ def disjUnionSwapAuto (G : CGraph) : disjUnion G G ≃cg disjUnion G G :=
     disjUnionSwapAuto G (.inr x) = .inl x := rfl
 
 /-- Two copies of the same graph can also be exchanged, which doubles the bound. -/
+@[toIsoGraph]
 theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : CGraph) [Nonempty G.V] :
     2 * (G.autCount * G.autCount) ≤ (disjUnion G G).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
@@ -554,6 +557,7 @@ def lexProductAuto (a : G ≃cg G) (b : H ≃cg H) :
 @[simp] theorem lexProductAuto_apply (a : G ≃cg G)
     (b : H ≃cg H) (x : G.V × H.V) : lexProductAuto a b x = (a x.1, b x.2) := rfl
 
+@[toIsoGraph]
 theorem autCount_mul_le_autCount_cartesianProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (cartesianProduct G H).autCount := by
@@ -569,6 +573,7 @@ theorem autCount_mul_le_autCount_cartesianProduct (G H : CGraph)
       (fun σ : cartesianProduct G H ≃cg cartesianProduct G H ↦ (σ (x₀, y)).2) h
     simpa using this
 
+@[toIsoGraph]
 theorem autCount_mul_le_autCount_tensorProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (tensorProduct G H).autCount := by
@@ -582,6 +587,7 @@ theorem autCount_mul_le_autCount_tensorProduct (G H : CGraph)
     have := congrArg (fun σ : tensorProduct G H ≃cg tensorProduct G H ↦ (σ (x₀, y)).2) h
     simpa using this
 
+@[toIsoGraph]
 theorem autCount_mul_le_autCount_strongProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (strongProduct G H).autCount := by
@@ -595,6 +601,7 @@ theorem autCount_mul_le_autCount_strongProduct (G H : CGraph)
     have := congrArg (fun σ : strongProduct G H ≃cg strongProduct G H ↦ (σ (x₀, y)).2) h
     simpa using this
 
+@[toIsoGraph]
 theorem autCount_mul_le_autCount_lexProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (lexProduct G H).autCount := by
@@ -627,6 +634,7 @@ theorem exists_adj_dist_lt (G : CGraph) {v r : G.V} (hr : G.toSimple.Reachable v
 /-- Choosing, in every component, one vertex to be the root, and sending every other vertex to the
 edge joining it to a neighbour closer to that root, embeds `V` minus the roots into `E`:
 `|V| ≤ |E| + c(G)`. -/
+@[toIsoGraph V_le_E_add_numComponents]
 theorem card_le_E_add_numComponents (G : CGraph) :
     Fintype.card G.V ≤ G.E + G.numComponents := by
   classical
@@ -708,6 +716,7 @@ theorem E_pos_of_numComponents_lt_card (G : CGraph) (h : G.numComponents < Finty
 
 /-- The Mycielskian creates no new cliques: apart from the edges at the apex, every clique is a
 clique of `G` in disguise. -/
+@[toIsoGraph]
 theorem cliqueNum_mycielskian (G : CGraph) [Nonempty G.V] :
     (mycielskian G).cliqueNum = max G.cliqueNum 2 := by
   classical
@@ -799,6 +808,7 @@ theorem cliqueNum_mycielskian (G : CGraph) [Nonempty G.V] :
         _ ≤ (mycielskian G).cliqueNum := hclique.card_le_cliqueNum
 
 /-- Mycielski's construction preserves triangle-freeness. -/
+@[toIsoGraph]
 theorem cliqueNum_mycielskian_eq_two (G : CGraph) [Nonempty G.V]
     (h : G.cliqueNum ≤ 2) : (mycielskian G).cliqueNum = 2 := by
   rw [cliqueNum_mycielskian]
@@ -912,6 +922,7 @@ theorem domNum_disjUnion (G H : CGraph) :
     omega
 
 /-- One vertex from each side dominates a join. -/
+@[toIsoGraph]
 theorem domNum_join_le_two (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] : (join G H).domNum ≤ 2 := by
   obtain ⟨a⟩ := ‹Nonempty G.V›
@@ -957,6 +968,7 @@ theorem domNum_join_eq_one_iff (G H : CGraph) :
         exact hb d fun h ↦ hu (congrArg Sum.inr h)
 
 /-- Without a universal vertex on either side, a join needs exactly two dominating vertices. -/
+@[toIsoGraph]
 theorem domNum_join_eq_two (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) :
     (join G H).domNum = 2 := by
@@ -970,6 +982,7 @@ theorem domNum_join_eq_two (G H : CGraph)
   omega
 
 /-- A dominating set of `G`, spread over every fibre, dominates `G □ H`. -/
+@[toIsoGraph]
 theorem domNum_cartesianProduct_le (G H : CGraph) :
     (cartesianProduct G H).domNum ≤ G.domNum * Fintype.card H.V := by
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
@@ -987,6 +1000,7 @@ theorem domNum_cartesianProduct_le (G H : CGraph) :
 
 /-- **The radius of a cartesian product is the sum of the radii.**  Both factors have to be
 connected: the radius of a disconnected graph is the junk value `0`. -/
+@[toIsoGraph]
 theorem radius_cartesianProduct (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (cartesianProduct G H).radius = G.radius + H.radius := by
@@ -1003,6 +1017,7 @@ theorem radius_cartesianProduct (G H : CGraph)
 
 /-- Adding edges cannot increase the diameter: the strong product is at most as wide as the
 cartesian product living inside it. -/
+@[toIsoGraph]
 theorem diameter_strongProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (strongProduct G H).diameter ≤ G.diameter + H.diameter := by
@@ -1018,6 +1033,7 @@ theorem diameter_strongProduct_le (G H : CGraph)
   exact h
 
 /-- The same bound for the lexicographic product. -/
+@[toIsoGraph]
 theorem diameter_lexProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (lexProduct G H).diameter ≤ G.diameter + H.diameter := by
@@ -1036,6 +1052,7 @@ theorem diameter_lexProduct_le (G H : CGraph)
 
 /-- **Vizing's bound for the strong product**: a product of dominating sets dominates, because a
 vertex of `G ⊠ H` is either equal or adjacent to a dominator in each coordinate. -/
+@[toIsoGraph]
 theorem domNum_strongProduct_le (G H : CGraph) :
     (strongProduct G H).domNum ≤ G.domNum * H.domNum := by
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
@@ -1062,6 +1079,7 @@ theorem domNum_strongProduct_le (G H : CGraph) :
   rwa [Finset.card_product, hs, ht] at h
 
 /-- Forgetting the second coordinate turns a dominating set of `G[H]` into one of `G`. -/
+@[toIsoGraph]
 theorem domNum_le_domNum_lexProduct (G H : CGraph)
     [Nonempty H.V] : G.domNum ≤ (lexProduct G H).domNum := by
   obtain ⟨s, hs, hsdom⟩ := (lexProduct G H).exists_isDominatingSet_domNum
@@ -1079,6 +1097,7 @@ theorem domNum_le_domNum_lexProduct (G H : CGraph)
 
 /-- **A blow-up by a dominated graph does not change the domination number**: if some vertex of `H`
 sees all of `H`, then a dominating set of `G` lifted into that vertex's fibre dominates `G[H]`. -/
+@[toIsoGraph]
 theorem domNum_lexProduct (G H : CGraph)
     (hH : H.domNum = 1) : (lexProduct G H).domNum = G.domNum := by
   obtain ⟨x, hx⟩ := (domNum_eq_one_iff H).1 hH
@@ -1100,6 +1119,7 @@ theorem domNum_lexProduct (G H : CGraph)
   rw [Finset.card_image_of_injective _ fun a b hab ↦ congrArg Prod.fst hab, hs]
 
 /-- Forgetting the second coordinate turns a dominating set of `G □ H` into one of `G`. -/
+@[toIsoGraph]
 theorem domNum_le_domNum_cartesianProduct (G H : CGraph)
     [Nonempty H.V] : G.domNum ≤ (cartesianProduct G H).domNum := by
   obtain ⟨s, hs, hsdom⟩ := (cartesianProduct G H).exists_isDominatingSet_domNum
@@ -1116,6 +1136,7 @@ theorem domNum_le_domNum_cartesianProduct (G H : CGraph)
   exact le_trans (domNum_le_card_of_isDominatingSet hdom) (hs ▸ Finset.card_image_le)
 
 /-- Forgetting the second coordinate turns a dominating set of `G ⊠ H` into one of `G`. -/
+@[toIsoGraph]
 theorem domNum_le_domNum_strongProduct (G H : CGraph)
     [Nonempty H.V] : G.domNum ≤ (strongProduct G H).domNum := by
   obtain ⟨s, hs, hsdom⟩ := (strongProduct G H).exists_isDominatingSet_domNum
@@ -1159,6 +1180,7 @@ theorem strongProduct_le_lexProduct (G H : CGraph) :
 
 /-- **A product of independent sets is independent in the strong product**, so
 `α(G) · α(H) ≤ α(G ⊠ H)`.  This is the inequality behind the Shannon capacity of a graph. -/
+@[toIsoGraph]
 theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : CGraph)
  :
     G.indepNum * H.indepNum ≤ (strongProduct G H).indepNum := by
@@ -1167,6 +1189,7 @@ theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : CGraph)
     indepNum_lexProduct G H] at h
 
 /-- The same product set is independent in the (sparser) cartesian product. -/
+@[toIsoGraph]
 theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : CGraph)
  :
     G.indepNum * H.indepNum ≤ (cartesianProduct G H).indepNum :=
@@ -1175,6 +1198,7 @@ theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : CGraph)
 
 /-- In the tensor product a whole slab `S ×ˢ univ` over an independent set `S` is independent,
 because every tensor edge moves in *both* coordinates: `α(G) · |V(H)| ≤ α(G × H)`. -/
+@[toIsoGraph indepNum_mul_V_le_indepNum_tensorProduct]
 theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
  :
     G.indepNum * Fintype.card H.V ≤ (tensorProduct G H).indepNum := by
@@ -1195,6 +1219,7 @@ theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
 
 /-- Fibrewise counting: an independent set of `G □ H` meets each fibre `{a} × V(H)` in an
 independent set of `H`, so `α(G □ H) ≤ |V(G)| · α(H)`. -/
+@[toIsoGraph]
 theorem indepNum_cartesianProduct_le (G H : CGraph) :
     (cartesianProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum := by
   classical
@@ -1226,6 +1251,7 @@ theorem indepNum_cartesianProduct_le (G H : CGraph) :
         rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
 
 /-- The strong product has at least as many edges as the cartesian one, so the same bound holds. -/
+@[toIsoGraph]
 theorem indepNum_strongProduct_le (G H : CGraph) :
     (strongProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum :=
   le_trans (indepNum_anti (cartesianProduct_le_strongProduct G H))
@@ -1236,6 +1262,7 @@ theorem indepNum_strongProduct_le (G H : CGraph) :
 /-- **The strong product multiplies chromatic numbers, at worst**: it sits inside the
 lexicographic product, which is already known to satisfy `χ ≤ χ(G)·χ(H)`, and colourings pull
 back along subgraph inclusions. -/
+@[toIsoGraph]
 theorem chromNum_strongProduct_le (G H : CGraph) :
     (strongProduct G H).chromNum ≤ G.chromNum * H.chromNum :=
   chromNum_le_iff_colorable.2
@@ -1259,6 +1286,7 @@ theorem max_chromNum_le_chromNum_lexProduct (G H : CGraph)
 
 /-- Cliques multiply in the strong product, so `ω(G)·ω(H) ≤ χ(G ⊠ H)`: the lower bound coming
 from cliques is itself multiplicative. -/
+@[toIsoGraph]
 theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : CGraph)
  :
     G.cliqueNum * H.cliqueNum ≤ (strongProduct G H).chromNum := by
@@ -1269,6 +1297,7 @@ theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : CGraph)
 with `chromNum_tensorProduct_le` this pins `χ(G × H) = 2` as soon as one factor is bipartite and
 both have an edge.  In general the lower bound is the hard direction: Hedetniemi's conjecture that
 `χ(G × H) = min χ(G) χ(H)` is false. -/
+@[toIsoGraph]
 theorem two_le_chromNum_tensorProduct {G H : CGraph}
     (hG : 0 < G.E) (hH : 0 < H.E) : 2 ≤ (tensorProduct G H).chromNum := by
   obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
@@ -1279,6 +1308,7 @@ theorem two_le_chromNum_tensorProduct {G H : CGraph}
 
 /-- One bipartite factor is enough: if `G` is bipartite and both factors have an edge then
 `χ(G × H) = 2`. -/
+@[toIsoGraph]
 theorem chromNum_tensorProduct_eq_two {G H : CGraph}
     (hG : G.IsBipartite) (hGE : 0 < G.E) (hHE : 0 < H.E) :
     (tensorProduct G H).chromNum = 2 :=
@@ -1292,6 +1322,7 @@ theorem chromNum_tensorProduct_eq_two {G H : CGraph}
 
 /-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.**  Each graph satisfies `γ + Δ ≤ |V|`, and complementation turns
 the maximum degree into `|V| - 1 - δ`, so the two bounds add up with `δ ≤ Δ` to spare. -/
+@[toIsoGraph domNum_add_domNum_compl_le_V_add_one]
 theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
     G.domNum + Gᶜ.domNum ≤ Fintype.card G.V + 1 := by
   rcases isEmpty_or_nonempty G.V with hemp | hne
@@ -1328,6 +1359,7 @@ theorem domNum_compl_le_two_of_not_reachable (G : CGraph) {a b : G.V}
   exact le_trans (Finset.card_insert_le _ _) (by simp)
 
 /-- A disconnected graph has a complement that two vertices dominate. -/
+@[toIsoGraph]
 theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [Nonempty G.V]
     (h : ¬ G.IsConnected) : Gᶜ.domNum ≤ 2 := by
   rw [IsConnected, SimpleGraph.connected_iff] at h
@@ -1340,6 +1372,7 @@ theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [Nonempty G.V]
 
 /-- A graph and its complement cannot both have a universal vertex once there are two vertices,
 so `3 ≤ γ(G) + γ(Gᶜ)`. -/
+@[toIsoGraph]
 theorem three_le_domNum_add_domNum_compl (G : CGraph)
     (hV : 2 ≤ Fintype.card G.V) : 3 ≤ G.domNum + Gᶜ.domNum := by
   have hG : 0 < G.domNum := G.domNum_pos (by omega)
@@ -1398,6 +1431,7 @@ theorem two_le_indepNum {G : CGraph} {a b : G.V} (hab : a ≠ b) (h : ¬ G.Adj a
 
 /-- **Nordhaus–Gaddum for the clique number**: `ω(G) + α(G) ≤ |V| + 1`, since `ω ≤ χ` and
 `χ(G) + α(G) ≤ |V| + 1`.  Equality holds for both the complete and the edgeless graph. -/
+@[toIsoGraph cliqueNum_add_indepNum_le_V_add_one]
 theorem cliqueNum_add_indepNum_le_card_add_one (G : CGraph) :
     G.cliqueNum + G.indepNum ≤ Fintype.card G.V + 1 :=
   le_trans (Nat.add_le_add_right G.cliqueNum_le_chromNum _)
@@ -1405,6 +1439,7 @@ theorem cliqueNum_add_indepNum_le_card_add_one (G : CGraph) :
 
 /-- On two or more vertices, `3 ≤ ω(G) + α(G)`: any two distinct vertices are either adjacent,
 giving a two-clique, or non-adjacent, giving a two-element independent set. -/
+@[toIsoGraph]
 theorem three_le_cliqueNum_add_indepNum (G : CGraph) (hV : 2 ≤ Fintype.card G.V) :
     3 ≤ G.cliqueNum + G.indepNum := by
   obtain ⟨a, b, hab⟩ := Fintype.exists_pair_of_one_lt_card (α := G.V) (by omega)
@@ -1446,6 +1481,7 @@ theorem IsSRGWith.isRegularWith {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith
     G.IsRegularWith k := SimpleGraph.IsSRGWith.regular h
 
 /-- **The complement of a `k`-regular graph is `(n - 1 - k)`-regular.** -/
+@[toIsoGraph]
 theorem IsRegularWith.compl {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
     Gᶜ.IsRegularWith (Fintype.card G.V - 1 - k) := fun v ↦ by
   rw [degree_compl, h v]
@@ -1460,6 +1496,7 @@ theorem IsRegularWith.disjUnion {G H : CGraph} {k : ℕ} (hG : G.IsRegularWith k
 
 /-- A join is regular exactly when the two sides end up with the same total degree: each vertex
 of `G` picks up all of `H` and vice versa. -/
+@[toIsoGraph]
 theorem IsRegularWith.join {G H : CGraph} {k l m : ℕ}
     (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
     (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
@@ -1498,12 +1535,14 @@ theorem lineGraph_vertex_cases {G : CGraph}
   exact h u v he
 
 /-- The line graph of a `k`-regular graph is `(2k - 2)`-regular. -/
+@[toIsoGraph]
 theorem IsRegularWith.lineGraph {G : CGraph} {k : ℕ}
     (h : G.IsRegularWith k) : (CGraph.lineGraph G).IsRegularWith (2 * k - 2) := by
   refine lineGraph_vertex_cases fun u v huv ↦ ?_
   rw [degree_lineGraph_mk G huv, h u, h v]
   omega
 
+@[toIsoGraph]
 theorem maxDeg_lineGraph_le (G : CGraph) :
     (lineGraph G).maxDeg ≤ 2 * G.maxDeg - 2 := by
   refine maxDeg_le_of_forall (lineGraph_vertex_cases fun u v huv ↦ ?_)
@@ -1563,6 +1602,7 @@ theorem degree_le_cliqueNum_lineGraph (G : CGraph) (v : G.V) :
   rw [← hcard]
   exact hle
 
+@[toIsoGraph]
 theorem maxDeg_le_cliqueNum_lineGraph (G : CGraph) :
     G.maxDeg ≤ (lineGraph G).cliqueNum :=
   maxDeg_le_of_forall fun v ↦ degree_le_cliqueNum_lineGraph G v
