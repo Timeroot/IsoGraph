@@ -237,8 +237,7 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
     · subst hxy; simp
     · have hdiff_ne : y - x ≠ 0 := sub_ne_zero.mpr (Ne.symm hxy)
       have hgxgy : g * x ≠ g * y := mt (heq.mp) hxy
-      have hd_dec : decide (g * x = g * y) = false := by simp [hgxgy]
-      rw [hd_dec]; simp
+      simp [hgxgy]
       -- Goal has quadraticCharFun; unfold to connect with hχ_mul
       dsimp only [quadraticCharFun] at hχ_mul ⊢
       -- For nonzero a in F (q ≡ 1 mod 4): quadraticChar F a = 1 ↔ IsSquare a
@@ -1412,7 +1411,6 @@ theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
     (mycielskian G).minDeg = min (min (2 * G.minDeg) (G.minDeg + 1)) G.V := by
   induction G using Quotient.inductionOn' with | _ G0
   let H := G0.canonicalize
-  have hdec : DecidableEq H.V := inferInstance
   have hG : (⟦G0⟧ : IsoGraph) = ⟦H⟧ := (mk_canonicalize G0).symm
   have hmyci : mycielskian (⟦G0⟧ : IsoGraph) = ⟦H.mycielskian⟧ := by
     rw [hG, IsoGraph.mycielskian_mk]
@@ -1492,7 +1490,6 @@ more neighbour than its original, and the apex sees every shadow. -/
     maxDeg (mycielskian G) = max (2 * maxDeg G) G.V := by
   induction G using Quotient.inductionOn with
   | h g =>
-    letI : DecidableEq g.V := Classical.decEq _
     simp [maxDeg_mk, mycielskian_mk, IsoGraph.V]
     set H : CGraph := g.mycielskian
     set Hs := H.toSimple
@@ -1628,7 +1625,6 @@ theorem isConnected_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) :
     IsConnected (mycielskian G) := by
   induction G using Quotient.inductionOn with | _ H =>
   classical
-  haveI : DecidableEq H.V := inferInstance
   have hH : 0 < H.minDeg := by rwa [minDeg_mk] at h
   rw [mycielskian_mk, isConnected_mk]
   -- Goal: H.mycielskian.IsConnected
@@ -1704,9 +1700,9 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g]
   simp only [IsoGraph.domNum_mk, IsoGraph.V_mk, mycielskian_mk] at h ⊢
-  have hlower : ∀ (H : CGraph) [DecidableEq H.V] [Fintype H.V], 0 < Fintype.card H.V →
+  have hlower : ∀ (H : CGraph) [Fintype H.V], 0 < Fintype.card H.V →
       H.domNum + 1 ≤ H.mycielskian.domNum := by
-    intro H _ _ hH
+    intro H _ hH
     -- For any DS D of μ(H), |D| ≥ domNum(H) + 1
     have hlbound : ∀ (D : Finset (Option (H.V ⊕ H.V))),
         (CGraph.mycielskian H).IsDominatingSet D → H.domNum + 1 ≤ D.card := by
@@ -1843,9 +1839,9 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
         omega
     obtain ⟨D, hDcard, hDDom⟩ := H.mycielskian.exists_isDominatingSet_domNum
     exact le_trans (hlbound D hDDom) hDcard.le
-  have hupper : ∀ (H : CGraph) [DecidableEq H.V] [Fintype H.V], 0 < Fintype.card H.V →
+  have hupper : ∀ (H : CGraph) [Fintype H.V], 0 < Fintype.card H.V →
       H.mycielskian.domNum ≤ H.domNum + 1 := by
-    intro H _ _ hH
+    intro H _ hH
     obtain ⟨S, hScard, hSDS⟩ := H.exists_isDominatingSet_domNum
     let D : Finset (Option (H.V ⊕ H.V)) := {none} ∪ Finset.image (fun v => some (Sum.inl v)) S
     have h_inj :
@@ -1890,7 +1886,6 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
   have lower : G.V ≤ (mycielskian G).matchNum := by
     rw [matchNum_eq (mycielskian G)]
     induction G using Quotient.inductionOn with | _ g =>
-    letI : DecidableEq g.V := Classical.decEq _
     simp only [IsoGraph.V, IsoGraph.indepNum, IsoGraph.matchNum] at h ⊢
     rw [lineGraph_mk] at h
     simp at h ⊢
@@ -2188,28 +2183,26 @@ theorem V_le_indepNum_mycielskian (G : IsoGraph) : G.V ≤ (mycielskian G).indep
   induction G using Quotient.inductionOn with
   | h g =>
     simp [V, indepNum, mycielskian]
-    -- Goal: Fintype.card g.V ≤ g.canonicalize.mycielskian.indepNum
+    -- Goal: Fintype.card g.V ≤ g.mycielskian.indepNum
     -- The shadows form an independent set of size Fintype.card g.V
     let n := Fintype.card g.V
-    let shadows : Finset (CGraph.mycielskian g.canonicalize).V := Finset.image (some ∘
+    let shadows : Finset (CGraph.mycielskian g).V := Finset.image (some ∘
         Sum.inr) Finset.univ
-    have hind : (CGraph.mycielskian g.canonicalize).toSimple.IsIndepSet (shadows : Set _) := by
+    have hind : (CGraph.mycielskian g).toSimple.IsIndepSet (shadows : Set _) := by
       intro x hx y hy hne hadj
       simp [shadows] at hx hy
       obtain ⟨i, hi⟩ := hx
       obtain ⟨j, hj⟩ := hy
       subst hi hj
       simp [CGraph.toSimple_adj] at hadj
-      rw [CGraph.mycielskian_adj_inr_inr] at hadj
-      exact absurd hadj (by simp)
     have hcard : shadows.card = n := by
-      have hinj : Function.Injective (some ∘ Sum.inr : Fin n → (CGraph.mycielskian
-          g.canonicalize).V) := by
+      have hinj : Function.Injective (some ∘ Sum.inr : g.V → (CGraph.mycielskian g).V) := by
         intro a b h
         have := Option.some_injective _ h
         exact Sum.inr_injective this
       simp [shadows, Finset.card_image_of_injective _ hinj]
-    show n ≤ (CGraph.mycielskian g.canonicalize).indepNum
+      rfl
+    show n ≤ (CGraph.mycielskian g).indepNum
     exact hcard ▸ hind.card_le_indepNum
 
 /-- An independent set of `μ G` meets the shadows in at most everything and the original copy in
@@ -2366,7 +2359,6 @@ theorem indepNum_mycielskian_le (G : IsoGraph) (hV : 0 < G.V) :
 theorem radius_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) : (mycielskian G).radius = 2 := by
   have hGV : 0 < G.V := by
     induction G using Quotient.inductionOn with | _ g =>
-    haveI : DecidableEq g.V := Classical.decEq _
     rw [IsoGraph.minDeg_mk] at h
     rw [IsoGraph.V_mk]
     by_contra hp
@@ -2382,7 +2374,7 @@ theorem radius_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) : (mycielskian G).r
       simp [Finset.image_empty]
     omega
   -- Helper: for any CGraph H with 0 < H.minDeg, eccent none of mycielskian H ≤ 2
-  have hecc_mycielskian_apex (H : CGraph) [DecidableEq H.V] (hH : 0 < H.minDeg) :
+  have hecc_mycielskian_apex (H : CGraph) (hH : 0 < H.minDeg) :
       (CGraph.mycielskian H).toSimple.eccent none ≤ 2 := by
     rw [SimpleGraph.eccent_le_iff]
     intro u
@@ -2422,7 +2414,6 @@ theorem radius_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) : (mycielskian G).r
   have hradius_le : (mycielskian G).radius ≤ 2 := by
     induction G using Quotient.inductionOn with | _ g =>
     show (mycielskian (Quotient.mk _ g)).radius ≤ 2
-    haveI : DecidableEq g.V := Classical.decEq _
     rw [IsoGraph.mycielskian_mk, IsoGraph.radius_mk]
     have hcg_minDeg : 0 < g.minDeg := by rwa [IsoGraph.minDeg_mk] at h
     have hecc_le : (CGraph.mycielskian g).toSimple.eccent none ≤ 2 :=
@@ -2724,7 +2715,7 @@ theorem diameter_grotzsch : grotzsch.diameter = 2 := by
   rw [grotzsch, show cycle 5 = (⟦CGraph.cycle 5⟧ : IsoGraph) from rfl, IsoGraph.mycielskian_mk,
       IsoGraph.diameter_mk]
   exact @CGraph.diameter_eq_two (CGraph.mycielskian (CGraph.cycle 5)) (by decide) none (some
-      (Sum.inl (0 : Fin 5))) (by decide) (by decide)
+      (Sum.inl (0 : Fin 5))) (Ne.symm (Option.some_ne_none _)) (by decide)
 
 theorem radius_grotzsch : grotzsch.radius = 2 := by
   set G : CGraph := CGraph.mycielskian (CGraph.cycle 5)
@@ -2780,8 +2771,9 @@ theorem girth_grotzsch : grotzsch.girth = 4 := by
   have hbc : M.Adj b c := by decide
   have hcd : M.Adj c d := by decide
   have hda : M.Adj d a := by decide
-  have hac : a ≠ c := by decide
-  have hbd : b ≠ d := by decide
+  have hac : a ≠ c := Option.some_ne_none _
+  have hbd : b ≠ d :=
+    fun h ↦ absurd (Sum.inr.inj (Option.some.inj h)) (Fin.ne_of_val_ne (by decide))
   have hle : M.girth ≤ 4 := CGraph.girth_le_four_of_square hab hbc hcd hda hac hbd
   have hnac : ¬ M.IsAcyclic := CGraph.not_isAcyclic_of_square hab hbc hcd hda hac hbd
   have htri : ∀ x y z : M.V, M.Adj x y → M.Adj y z → M.Adj z x → False := by

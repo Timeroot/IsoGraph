@@ -244,7 +244,6 @@ theorem crown_three : crown 3 = cycle 6 := by
 theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     (lineGraph G).radius ≤ G.radius + 1 := by
   induction G using Quotient.inductionOn with | h g =>
-  haveI : DecidableEq g.V := Classical.decEq _
   haveI : Nonempty g.V := hG.nonempty
   simp [radius_mk, lineGraph_mk]
   rw [isConnected_mk] at hG
@@ -512,13 +511,14 @@ theorem matchNum_crown (n : ℕ) : (crown (n + 2)).matchNum = n + 2 := by
       rcases hv1 with rfl | hv1
       · rcases hv2 with hv2 | hv2
         · exfalso; apply hij; exact congr_arg Prod.fst hv2
-        · exfalso; have := congr_arg Prod.snd hv2; simp at this; exact absurd this (by decide)
+        · exfalso; have := congr_arg Prod.snd hv2; simp at this
+          exact absurd this (Fin.ne_of_val_ne (by decide))
       · rcases hv2 with hv2 | hv2
         · exfalso
           have h := hv1.symm.trans hv2
           have := congr_arg Prod.snd h
           simp at this
-          exact absurd this (by decide)
+          exact absurd this (Fin.ne_of_val_ne (by decide))
         · exfalso; apply hij
           have h1 : (i + 1 : Fin m) = j + 1 := congr_arg Prod.fst (hv1.symm.trans hv2)
           simp at h1
@@ -547,9 +547,9 @@ theorem matchNum_friendship (n : ℕ) : (friendship n).matchNum = n := by
   · -- Lower bound: exhibit n pairwise disjoint edges (one from each triangle)
     rw [matchNum_eq]
     rw [friendship]
-    have join_mk : ∀ (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V],
+    have join_mk : ∀ (G H : CGraph),
           IsoGraph.join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
-      intro G H _ _
+      intro G H
       rw [IsoGraph.join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
       rfl
     simp only [IsoGraph.complete, IsoGraph.empty]
@@ -902,7 +902,7 @@ bipartition and between them see every other vertex, while no vertex is universa
       have hb_cases : b = (⟨0, by omega⟩ : Fin 2) ∨ b = (⟨1, by omega⟩ : Fin 2) :=
         Fin.exists_fin_two.mp ⟨b, rfl⟩
       rcases hb_cases with h | h <;> simp [b', h]
-      decide
+      exact Fin.ne_of_val_ne (by decide)
     have hne : w ≠ vv := fun h =>
       hbne (by have := congr_arg Prod.snd h; dsimp [w, b'] at this; exact this)
     have hadj := hv w hne
@@ -1899,8 +1899,6 @@ theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   -- Lift to CGraph level
   have hG_iso : Quotient.mk _ G.toCGraph = G := IsoGraph.mk_toCGraph G
   have hH_iso : Quotient.mk _ H.toCGraph = H := IsoGraph.mk_toCGraph H
-  haveI : DecidableEq G.toCGraph.V := Classical.decEq _
-  haveI : DecidableEq H.toCGraph.V := Classical.decEq _
   have htensor : G ⊗g H = ⟦CGraph.tensorProduct G.toCGraph H.toCGraph⟧ := by
     conv_lhs => rw [← hG_iso, ← hH_iso]
     exact tensorProduct_mk _ _

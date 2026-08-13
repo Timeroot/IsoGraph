@@ -27,7 +27,8 @@ theorem girth_cycle_five : (cycle 5).girth = 5 := by
   exact girth_le_five_of_pentagon (a := (0 : Fin 5)) (b := (1 : Fin 5)) (c := (2 : Fin 5))
     (d := (3 : Fin 5)) (e := (4 : Fin 5))
     (by decide) (by decide) (by decide) (by decide) (by decide)
-    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (Fin.ne_of_val_ne (by decide)) (Fin.ne_of_val_ne (by decide)) (Fin.ne_of_val_ne (by decide))
+    (Fin.ne_of_val_ne (by decide)) (Fin.ne_of_val_ne (by decide))
 
 /-- **The Petersen graph has girth five**: it is strongly regular with `ℓ = 0` and `μ = 1`, so it
 has neither a triangle nor a square, and its outer five-cycle realises the bound. -/
@@ -37,13 +38,17 @@ theorem girth_kneser_five_two : (kneser 5 2).girth = 5 := by
     (b := ⟨{2, 3}, by decide⟩) (c := ⟨{4, 0}, by decide⟩)
     (d := ⟨{1, 2}, by decide⟩) (e := ⟨{3, 4}, by decide⟩)
     (by decide) (by decide) (by decide) (by decide) (by decide)
-    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (Subtype.coe_ne_coe.mp (by decide)) (Subtype.coe_ne_coe.mp (by decide))
+    (Subtype.coe_ne_coe.mp (by decide)) (Subtype.coe_ne_coe.mp (by decide))
+    (Subtype.coe_ne_coe.mp (by decide))
   have hnac := not_isAcyclic_of_pentagon (G := kneser 5 2)
     (a := (⟨{0, 1}, by decide⟩ : {s : Finset (Fin 5) // s.card = 2}))
     (b := ⟨{2, 3}, by decide⟩) (c := ⟨{4, 0}, by decide⟩)
     (d := ⟨{1, 2}, by decide⟩) (e := ⟨{3, 4}, by decide⟩)
     (by decide) (by decide) (by decide) (by decide) (by decide)
-    (by decide) (by decide) (by decide) (by decide) (by decide)
+    (Subtype.coe_ne_coe.mp (by decide)) (Subtype.coe_ne_coe.mp (by decide))
+    (Subtype.coe_ne_coe.mp (by decide)) (Subtype.coe_ne_coe.mp (by decide))
+    (Subtype.coe_ne_coe.mp (by decide))
   exact le_antisymm hpent ((isSRGWith_kneser_two 5).five_le_girth hnac)
 
 /-- An edge is a two-clique. -/
@@ -195,7 +200,7 @@ theorem minDeg_disjUnion (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
     · rw [degree_disjUnion_inl]; exact le_trans (min_le_left _ _) (G.minDeg_le_degree a)
     · rw [degree_disjUnion_inr]; exact le_trans (min_le_right _ _) (H.minDeg_le_degree b)
 
-theorem maxDeg_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a₀ : G.V) (b₀ : H.V) :
+theorem maxDeg_join (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
     (join G H).maxDeg
       = max (G.maxDeg + Fintype.card H.V) (Fintype.card G.V + H.maxDeg) := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
@@ -211,7 +216,7 @@ theorem maxDeg_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a₀ : G
   · rw [← hb, ← degree_join_inr G H b]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a₀ : G.V) (b₀ : H.V) :
+theorem minDeg_join (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
     (join G H).minDeg
       = min (G.minDeg + Fintype.card H.V) (Fintype.card G.V + H.minDeg) := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
@@ -228,7 +233,7 @@ theorem minDeg_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a₀ : G
       exact le_trans (min_le_right _ _) (Nat.add_le_add_left (H.minDeg_le_degree b') _)
 
 /-- **Complementation swaps the two extreme degrees.** -/
-theorem maxDeg_compl (G : CGraph) [DecidableEq G.V] (v₀ : G.V) :
+theorem maxDeg_compl (G : CGraph) (v₀ : G.V) :
     (compl G).maxDeg = Fintype.card G.V - 1 - G.minDeg := by
   obtain ⟨v, hv⟩ := G.exists_degree_eq_minDeg v₀
   refine le_antisymm (maxDeg_le_of_forall fun w ↦ ?_) ?_
@@ -237,7 +242,7 @@ theorem maxDeg_compl (G : CGraph) [DecidableEq G.V] (v₀ : G.V) :
   · rw [← hv, ← degree_compl]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_compl (G : CGraph) [DecidableEq G.V] (v₀ : G.V) :
+theorem minDeg_compl (G : CGraph) (v₀ : G.V) :
     (compl G).minDeg = Fintype.card G.V - 1 - G.maxDeg := by
   obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
   refine le_antisymm ?_ (le_minDeg_of_forall v₀ fun w ↦ ?_)
@@ -248,7 +253,7 @@ theorem minDeg_compl (G : CGraph) [DecidableEq G.V] (v₀ : G.V) :
 
 /-! ### The four products -/
 
-theorem maxDeg_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem maxDeg_cartesianProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (cartesianProduct G H).maxDeg = G.maxDeg + H.maxDeg := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
@@ -261,7 +266,7 @@ theorem maxDeg_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem minDeg_cartesianProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (cartesianProduct G H).minDeg = G.minDeg + H.minDeg := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
@@ -274,7 +279,7 @@ theorem minDeg_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
   · rw [degree_cartesianProduct]
     exact Nat.add_le_add (G.minDeg_le_degree _) (H.minDeg_le_degree _)
 
-theorem maxDeg_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem maxDeg_tensorProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (tensorProduct G H).maxDeg = G.maxDeg * H.maxDeg := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
@@ -287,7 +292,7 @@ theorem maxDeg_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem minDeg_tensorProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (tensorProduct G H).minDeg = G.minDeg * H.minDeg := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
@@ -300,7 +305,7 @@ theorem minDeg_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   · rw [degree_tensorProduct]
     exact Nat.mul_le_mul (G.minDeg_le_degree _) (H.minDeg_le_degree _)
 
-theorem maxDeg_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem maxDeg_lexProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (lexProduct G H).maxDeg = G.maxDeg * Fintype.card H.V + H.maxDeg := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
@@ -313,7 +318,7 @@ theorem maxDeg_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem minDeg_lexProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (lexProduct G H).minDeg = G.minDeg * Fintype.card H.V + H.minDeg := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
@@ -326,7 +331,7 @@ theorem minDeg_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   · rw [degree_lexProduct]
     exact Nat.add_le_add (Nat.mul_le_mul_right _ (G.minDeg_le_degree _)) (H.minDeg_le_degree _)
 
-theorem maxDeg_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem maxDeg_strongProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (strongProduct G H).maxDeg = (G.maxDeg + 1) * (H.maxDeg + 1) - 1 := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
@@ -340,7 +345,7 @@ theorem maxDeg_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem minDeg_strongProduct (G H : CGraph)
     (a₀ : G.V) (b₀ : H.V) :
     (strongProduct G H).minDeg = (G.minDeg + 1) * (H.minDeg + 1) - 1 := by
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
@@ -582,7 +587,7 @@ private theorem chromOn_add_chromOn_compl_le (S : SimpleGraph X) (s : Finset X) 
 
 end NordhausGaddum
 
-private theorem chromNum_eq_chromOn_univ (G : CGraph) [DecidableEq G.V] :
+private theorem chromNum_eq_chromOn_univ (G : CGraph) :
     G.chromNum = chromOn G.toSimple Finset.univ := by
   refine le_antisymm ?_ ?_
   · obtain ⟨c, hb, hp⟩ := exists_chromOn_coloring G.toSimple Finset.univ
@@ -594,7 +599,7 @@ private theorem chromNum_eq_chromOn_univ (G : CGraph) [DecidableEq G.V] :
       (fun x _ y _ hxy ↦ C.valid hxy)
 
 /-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
-theorem chromNum_add_chromNum_compl_le_card_add_one (G : CGraph) [DecidableEq G.V] :
+theorem chromNum_add_chromNum_compl_le_card_add_one (G : CGraph) :
     G.chromNum + (compl G).chromNum ≤ Fintype.card G.V + 1 := by
   have h := chromOn_add_chromOn_compl_le G.toSimple (Finset.univ : Finset G.V)
   rw [Finset.card_univ] at h
@@ -973,11 +978,11 @@ theorem indepNum_lt_card_of_E_pos (G : CGraph) (h : 0 < G.E) :
 
 section CliqueCoclique
 
-variable {G : CGraph} [DecidableEq G.V]
+variable {G : CGraph}
 
 /-- The automorphism group of `G`, as a `Finset` of permutations of the vertex type.  Working
 with permutations rather than with `G ≃cg G` keeps everything inside `Fintype` land. -/
-private def autFinset (G : CGraph) [DecidableEq G.V] : Finset (Equiv.Perm G.V) :=
+private def autFinset (G : CGraph) : Finset (Equiv.Perm G.V) :=
   Finset.univ.filter fun σ ↦ ∀ x y, G.Adj (σ x) (σ y) = G.Adj x y
 
 private theorem mem_autFinset {σ : Equiv.Perm G.V} :
@@ -1403,7 +1408,7 @@ theorem domNum_eq_one_iff (G : CGraph) :
     exact domNum_eq_one_of_universal hv
 
 /-- The apex of a join with a single vertex sees the whole graph, so it dominates it. -/
-theorem domNum_join_complete_one (G : CGraph) [DecidableEq G.V] :
+theorem domNum_join_complete_one (G : CGraph) :
     (join (complete 1) G).domNum = 1 := by
   haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   haveI : Subsingleton (compl (complete 1)).V := inferInstanceAs (Subsingleton (Fin 1))
@@ -1461,7 +1466,7 @@ the clique number: it vanishes exactly when `n` exceeds `ω(G)`. -/
     Set.ncard_univ, Nat.card_eq_fintype_card]
 
 /-- The `2`-cliques are exactly the edges. -/
-@[simp] theorem cliqueCount_two (G : CGraph) [DecidableEq G.V] : G.cliqueCount 2 = G.E := by
+@[simp] theorem cliqueCount_two (G : CGraph) : G.cliqueCount 2 = G.E := by
   have h : G.toSimple.cliqueSet 2 = Sym2.toFinset '' G.toSimple.edgeSet := by
     ext s
     simp only [SimpleGraph.mem_cliqueSet_iff, Set.mem_image]
@@ -1563,14 +1568,14 @@ theorem cliqueCount_complete (m n : ℕ) :
 Independent sets are cliques of the complement, so the whole clique-count API transfers: each
 fact below is its clique-count counterpart read through `compl`. -/
 
-@[simp] theorem cliqueCount_compl (G : CGraph) [DecidableEq G.V] (n : ℕ) :
+@[simp] theorem cliqueCount_compl (G : CGraph) (n : ℕ) :
     (compl G).cliqueCount n = G.indepCount n := by
   rw [cliqueCount, indepCount]
   congr 1
   ext s
   simp [compl_toSimple]
 
-@[simp] theorem indepCount_compl (G : CGraph) [DecidableEq G.V] (n : ℕ) :
+@[simp] theorem indepCount_compl (G : CGraph) (n : ℕ) :
     (compl G).indepCount n = G.cliqueCount n := by
   rw [← cliqueCount_compl (compl G), compl_compl]
 
@@ -1611,7 +1616,7 @@ theorem indepCount_eq_zero_of_card_lt {G : CGraph} {n : ℕ} (h : Fintype.card G
   Nat.le_zero.1 ((indepCount_le_choose G n).trans (Nat.choose_eq_zero_of_lt h).le)
 
 /-- The independent pairs are exactly the non-edges. -/
-theorem indepCount_two_add_E (G : CGraph) [DecidableEq G.V] :
+theorem indepCount_two_add_E (G : CGraph) :
     G.indepCount 2 + G.E = (Fintype.card G.V).choose 2 := by
   rw [← cliqueCount_compl, cliqueCount_two]
   exact E_compl G
@@ -1733,7 +1738,7 @@ theorem cliqueCount_disjUnion (G H : CGraph) (n : ℕ) :
   rw [hset, Finset.card_union_of_disjoint hdisj, Finset.card_map, Finset.card_map]
 
 /-- Dually, independent sets never cross a join. -/
-theorem indepCount_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (n : ℕ) :
+theorem indepCount_join (G H : CGraph) (n : ℕ) :
     (join G H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
   classical
   rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
@@ -1845,7 +1850,7 @@ def disjUnionComponentEquiv (G H : CGraph) :
     Nat.card_congr (disjUnionComponentEquiv G H), Nat.card_sum]
 
 /-- **At most one of a graph and its complement is disconnected.** -/
-theorem numComponents_compl_eq_one (G : CGraph) [DecidableEq G.V] (h : 2 ≤ G.numComponents) :
+theorem numComponents_compl_eq_one (G : CGraph) (h : 2 ≤ G.numComponents) :
     (compl G).numComponents = 1 := by
   have hne : Nonempty G.V := Fintype.card_pos_iff.1
     ((numComponents_pos_iff G).1 (by omega))
@@ -1908,7 +1913,7 @@ theorem numComponents_le_domNum (G : CGraph) : G.numComponents ≤ G.domNum := b
     _ = G.domNum := hcard
 
 /-- The join of two nonempty graphs is connected, hence has one component. -/
-theorem numComponents_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem numComponents_join (G H : CGraph)
     (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) :
     (join G H).numComponents = 1 :=
   (numComponents_eq_one_iff _).2 (isConnected_join G H hG hH)
@@ -1986,7 +1991,7 @@ private theorem card_connectedComponent_boxProd {α β : Type*} (S : SimpleGraph
   rw [Nat.card_eq_of_bijective φ hbij, Nat.card_prod]
 
 /-- **The components of a Cartesian product are the pairs of components.** -/
-theorem numComponents_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem numComponents_cartesianProduct (G H : CGraph) :
     (cartesianProduct G H).numComponents = G.numComponents * H.numComponents := by
   rw [numComponents, numComponents, numComponents, toSimple_cartesianProduct]
   exact card_connectedComponent_boxProd _ _
@@ -2094,7 +2099,7 @@ theorem autCount_le_factorial (G : CGraph) : G.autCount ≤ Nat.factorial (Finty
         rw [Nat.card_eq_fintype_card, Fintype.card_perm]
 
 /-- **A graph and its complement have the same automorphisms.** -/
-@[simp] theorem autCount_compl (G : CGraph) [DecidableEq G.V] :
+@[simp] theorem autCount_compl (G : CGraph) :
     (compl G).autCount = G.autCount := by
   rw [autCount, autCount, compl_toSimple]
   exact (Nat.card_congr (SimpleGraph.autComplEquiv G.toSimple)).symm

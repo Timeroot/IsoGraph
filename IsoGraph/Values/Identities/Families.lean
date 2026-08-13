@@ -2169,14 +2169,14 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
           simp at hb hc
           rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
           · exfalso; exact Finset.disjoint_left.mp hdisjoint_I hj (hij ▸ hi)
-          · exfalso; rw [hb, hc] at h2; exact absurd h2 (by decide)
+          · exfalso; rw [hb, hc] at h2; exact absurd h2 (Fin.ne_of_val_ne (by decide))
       · rcases w with h | h
         · rw [Finset.mem_product, Finset.mem_singleton] at h h'
           obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
           simp at hb hc
           rcases huv_adj with ⟨hij, hne⟩ | ⟨h1, h2⟩
           · exfalso; exact Finset.disjoint_left.mp hdisjoint_I (hij ▸ hi) hj
-          · exfalso; rw [hb, hc] at h2; exact absurd h2 (by decide)
+          · exfalso; rw [hb, hc] at h2; exact absurd h2 (Fin.ne_of_val_ne (by decide))
         · rw [Finset.mem_product, Finset.mem_singleton] at h h'
           obtain ⟨hi, hb⟩ := h; obtain ⟨hj, hc⟩ := h'
           simp at hb hc

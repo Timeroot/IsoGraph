@@ -1071,8 +1071,6 @@ theorem radius_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConne
     (G ⊠g H).radius = max G.radius H.radius := by
   induction G using Quotient.inductionOn with | _ G
   induction H using Quotient.inductionOn with | _ H
-  have hdG : DecidableEq G.V := Classical.decEq _
-  have hdH : DecidableEq H.V := Classical.decEq _
   rw [strongProduct_mk, radius_mk, radius_mk, radius_mk]
   simp [isConnected_mk] at hG hH
   haveI : Nonempty G.V := hG.nonempty
@@ -1585,7 +1583,6 @@ theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
 /-- The line graph of a connected graph with at least one edge is connected. -/
 theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     IsConnected (lineGraph G) := by
-  have hDec : DecidableEq G.toCGraph.V := Classical.decEq _
   set H := G.toCGraph with hH_def
   rw [← IsoGraph.mk_toCGraph G]
   rw [lineGraph_mk H]
@@ -1715,8 +1712,6 @@ theorem diameter_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsCon
   rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, diameter_mk, diameter_mk,
     diameter_mk]
   rw [isConnected_mk] at hG hH
-  have hdG : DecidableEq g.V := Classical.decEq _
-  have hdH : DecidableEq h.V := Classical.decEq _
   haveI : Nonempty g.V := hG.nonempty
   haveI : Nonempty h.V := hH.nonempty
   set Gs := g.toSimple
@@ -2232,15 +2227,16 @@ and four suffice. -/
 theorem domNum_hypercube_four : (hypercube 4).domNum = 4 := by
   apply Nat.le_antisymm
   · -- Upper bound: exhibit a dominating set of size 4
-    let c0 : Fin 4 → Bool := fun _ => false
-    let c1 : Fin 4 → Bool := fun i => (i = 3)
-    let c2 : Fin 4 → Bool := fun i => (i ≠ 3)
-    let c3 : Fin 4 → Bool := fun _ => true
-    let S : Finset (Fin 4 → Bool) :=
+    let c0 : (CGraph.hypercube 4).V := fun _ => false
+    let c1 : (CGraph.hypercube 4).V := fun i => (i = 3)
+    let c2 : (CGraph.hypercube 4).V := fun i => (i ≠ 3)
+    let c3 : (CGraph.hypercube 4).V := fun _ => true
+    let S : Finset (CGraph.hypercube 4).V :=
       (insert c0 (insert c1 (insert c2 (singleton c3))))
     have hdom : (CGraph.hypercube 4).IsDominatingSet S := by
       intro v
-      fin_cases v <;> simp [S, CGraph.hypercube_adj] <;> decide
+      revert v
+      decide
     have hcard : S.card = 4 := by decide
     show CGraph.domNum (CGraph.hypercube 4) ≤ 4
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet hdom) hcard.le
@@ -2650,9 +2646,9 @@ the rest of the path in pairs. -/
   · -- Lower bound: exhibit a matching of size (n+2)/2 in fan (n+1)
     rw [matchNum_eq]
     rcases Nat.even_or_odd' n with ⟨k, rfl | rfl⟩
-    · have join_mk : ∀ (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V],
+    · have join_mk : ∀ (G H : CGraph),
           IsoGraph.join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
-        intro G H _ _
+        intro G H
         rw [IsoGraph.join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
         rfl
       have hconvert : (fan (2 * k + 1)).lineGraph.indepNum =
@@ -3156,7 +3152,6 @@ theorem edgeChromNum_complete_odd (m : ℕ) :
 theorem diameter_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     (lineGraph G).diameter ≤ G.diameter + 1 := by
   induction G using Quotient.inductionOn with | h g =>
-  haveI : DecidableEq g.V := Classical.decEq _
   haveI : Nonempty g.V := hG.nonempty
   simp [diameter_mk, lineGraph_mk]
   rw [isConnected_mk] at hG

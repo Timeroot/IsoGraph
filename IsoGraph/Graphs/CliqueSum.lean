@@ -45,7 +45,7 @@ namespace CGraph
 /-- Glue `H` to `G` by identifying the vertex `w` of `H` with the vertex `u` of `G`: the vertices
 are those of `G` together with those of `H` other than `w`, and a leftover vertex of `H` is joined
 to `u` exactly when it was joined to `w`. -/
-def vertexSum (G : CGraph) [DecidableEq G.V] (u : G.V) (H : CGraph) [DecidableEq H.V] (w : H.V) :
+def vertexSum (G : CGraph) (u : G.V) (H : CGraph) (w : H.V) :
     CGraph where
   V := G.V ⊕ {v : H.V // v ≠ w}
   Adj x y :=
@@ -59,18 +59,14 @@ def vertexSum (G : CGraph) [DecidableEq G.V] (u : G.V) (H : CGraph) [DecidableEq
   loopless x := by
     cases x <;> simp [G.loopless, H.loopless]
 
-instance (G : CGraph) [DecidableEq G.V] (u : G.V) (H : CGraph) [DecidableEq H.V] (w : H.V) :
-    DecidableEq (vertexSum G u H w).V :=
-  inferInstanceAs (DecidableEq (G.V ⊕ {v : H.V // v ≠ w}))
-
-@[simp] theorem card_vertexSum (G : CGraph) [DecidableEq G.V] (u : G.V) (H : CGraph)
-    [DecidableEq H.V] (w : H.V) :
+@[simp] theorem card_vertexSum (G : CGraph) (u : G.V) (H : CGraph)
+ (w : H.V) :
     Fintype.card (vertexSum G u H w).V = Fintype.card G.V + (Fintype.card H.V - 1) := by
   show Fintype.card (G.V ⊕ {v : H.V // v ≠ w}) = _
   rw [Fintype.card_sum, Fintype.card_subtype_compl fun v ↦ v = w, Fintype.card_subtype_eq]
 
 /-- Glue `H` to `G` by identifying the edge `w₁w₂` of `H` with the edge `u₁u₂` of `G`. -/
-def edgeSum (G : CGraph) [DecidableEq G.V] (u₁ u₂ : G.V) (H : CGraph) [DecidableEq H.V]
+def edgeSum (G : CGraph) (u₁ u₂ : G.V) (H : CGraph)
     (w₁ w₂ : H.V) : CGraph where
   V := G.V ⊕ {v : H.V // v ≠ w₁ ∧ v ≠ w₂}
   Adj x y :=
@@ -84,11 +80,7 @@ def edgeSum (G : CGraph) [DecidableEq G.V] (u₁ u₂ : G.V) (H : CGraph) [Decid
   loopless x := by
     cases x <;> simp [G.loopless, H.loopless]
 
-instance (G : CGraph) [DecidableEq G.V] (u₁ u₂ : G.V) (H : CGraph) [DecidableEq H.V]
-    (w₁ w₂ : H.V) : DecidableEq (edgeSum G u₁ u₂ H w₁ w₂).V :=
-  inferInstanceAs (DecidableEq (G.V ⊕ {v : H.V // v ≠ w₁ ∧ v ≠ w₂}))
-
-theorem card_edgeSum (G : CGraph) [DecidableEq G.V] (u₁ u₂ : G.V) (H : CGraph) [DecidableEq H.V]
+theorem card_edgeSum (G : CGraph) (u₁ u₂ : G.V) (H : CGraph)
     {w₁ w₂ : H.V} (h : w₁ ≠ w₂) :
     Fintype.card (edgeSum G u₁ u₂ H w₁ w₂).V = Fintype.card G.V + (Fintype.card H.V - 2) := by
   show Fintype.card (G.V ⊕ {v : H.V // v ≠ w₁ ∧ v ≠ w₂}) = _
@@ -106,7 +98,7 @@ theorem card_edgeSum (G : CGraph) [DecidableEq G.V] (u₁ u₂ : G.V) (H : CGrap
 /-- Gluing at any pair of vertices gives the same graph up to isomorphism, provided both sides are
 vertex-transitive: move `u` to `u'` and `w` to `w'` by automorphisms, and the two sums correspond
 vertex by vertex. -/
-theorem vertexSum_iso (G : CGraph) [DecidableEq G.V] (H : CGraph) [DecidableEq H.V]
+theorem vertexSum_iso (G : CGraph) (H : CGraph)
     (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) (u u' : G.V) (w w' : H.V) :
     Nonempty (vertexSum G u H w ≃cg vertexSum G u' H w') := by
   obtain ⟨σ, hσ⟩ := hG u u'
@@ -139,7 +131,7 @@ theorem vertexSum_iso (G : CGraph) [DecidableEq G.V] (H : CGraph) [DecidableEq H
 /-- Gluing along any pair of edges gives the same graph up to isomorphism, provided both sides are
 arc-transitive.  Arc- rather than merely edge-transitivity is what is needed: the two endpoints
 have to be matched up in a prescribed order. -/
-theorem edgeSum_iso (G : CGraph) [DecidableEq G.V] (H : CGraph) [DecidableEq H.V]
+theorem edgeSum_iso (G : CGraph) (H : CGraph)
     (hG : G.IsArcTransitive) (hH : H.IsArcTransitive) {u₁ u₂ u₁' u₂' : G.V}
     {w₁ w₂ w₁' w₂' : H.V} (hu : G.Adj u₁ u₂) (hu' : G.Adj u₁' u₂') (hw : H.Adj w₁ w₂)
     (hw' : H.Adj w₁' w₂') :
@@ -212,43 +204,34 @@ instance (n : ℕ) : EdgePointed (cycle (n + 2)) where
 /-! ## The clique sums -/
 
 /-- The **one-clique sum**: `G` and `H` glued at a single vertex. -/
-def oneCliqueSum (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Pointed G] [Pointed H] :
+def oneCliqueSum (G H : CGraph) [Pointed G] [Pointed H] :
     CGraph :=
   vertexSum G Pointed.pt H Pointed.pt
 
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Pointed G] [Pointed H] :
-    DecidableEq (oneCliqueSum G H).V :=
-  inferInstanceAs (DecidableEq (vertexSum G Pointed.pt H Pointed.pt).V)
-
 /-- The **two-clique sum**: `G` and `H` glued along a single edge. -/
-def twoCliqueSum (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [EdgePointed G]
+def twoCliqueSum (G H : CGraph) [EdgePointed G]
     [EdgePointed H] : CGraph :=
   edgeSum G EdgePointed.fst EdgePointed.snd H EdgePointed.fst EdgePointed.snd
 
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [EdgePointed G] [EdgePointed H] :
-    DecidableEq (twoCliqueSum G H).V :=
-  inferInstanceAs (DecidableEq (edgeSum G EdgePointed.fst EdgePointed.snd H EdgePointed.fst
-    EdgePointed.snd).V)
-
-@[simp] theorem card_oneCliqueSum (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Pointed G]
+@[simp] theorem card_oneCliqueSum (G H : CGraph) [Pointed G]
     [Pointed H] :
     Fintype.card (oneCliqueSum G H).V = Fintype.card G.V + (Fintype.card H.V - 1) :=
   card_vertexSum _ _ _ _
 
-theorem card_twoCliqueSum (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [EdgePointed G]
+theorem card_twoCliqueSum (G H : CGraph) [EdgePointed G]
     [EdgePointed H] (h : (EdgePointed.fst : H.V) ≠ EdgePointed.snd) :
     Fintype.card (twoCliqueSum G H).V = Fintype.card G.V + (Fintype.card H.V - 2) :=
   card_edgeSum _ _ _ _ h
 
 /-- The one-clique sum of vertex-transitive graphs really is *the* one-clique sum: gluing at the
 distinguished vertices gives the same graph as gluing anywhere else. -/
-theorem oneCliqueSum_iso (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Pointed G] [Pointed H]
+theorem oneCliqueSum_iso (G H : CGraph) [Pointed G] [Pointed H]
     (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) (u : G.V) (w : H.V) :
     Nonempty (oneCliqueSum G H ≃cg vertexSum G u H w) :=
   vertexSum_iso G H hG hH _ u _ w
 
 /-- The two-clique sum of arc-transitive graphs really is *the* two-clique sum. -/
-theorem twoCliqueSum_iso (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [EdgePointed G]
+theorem twoCliqueSum_iso (G H : CGraph) [EdgePointed G]
     [EdgePointed H] (hG : G.IsArcTransitive) (hH : H.IsArcTransitive) {u₁ u₂ : G.V} {w₁ w₂ : H.V}
     (hu : G.Adj u₁ u₂) (hw : H.Adj w₁ w₂) :
     Nonempty (twoCliqueSum G H ≃cg edgeSum G u₁ u₂ H w₁ w₂) :=

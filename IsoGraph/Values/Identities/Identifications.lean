@@ -47,7 +47,7 @@ namespace IsoGraph
 
 @[simp] theorem V_compl (G : IsoGraph) : Gᶜ.V = G.V := by
   induction G using Quotient.inductionOn with
-  | h g => show Fintype.card (CGraph.compl g.canonicalize).V = _; simp
+  | h g => show Fintype.card (CGraph.compl g).V = _; simp
 
 @[simp] theorem V_disjUnion (G H : IsoGraph) : (G ⊕g H).V = G.V + H.V := by
   induction G using Quotient.inductionOn with
@@ -63,40 +63,40 @@ namespace IsoGraph
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.cartesianProduct g.canonicalize h.canonicalize).V = _
+      show Fintype.card (CGraph.cartesianProduct g h).V = _
       simp
 
 @[simp] theorem V_tensorProduct (G H : IsoGraph) : (G ⊗g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.tensorProduct g.canonicalize h.canonicalize).V = _
+      show Fintype.card (CGraph.tensorProduct g h).V = _
       simp
 
 @[simp] theorem V_strongProduct (G H : IsoGraph) : (G ⊠g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.strongProduct g.canonicalize h.canonicalize).V = _
+      show Fintype.card (CGraph.strongProduct g h).V = _
       simp
 
 @[simp] theorem V_lexProduct (G H : IsoGraph) : (G ·g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.lexProduct g.canonicalize h.canonicalize).V = _
+      show Fintype.card (CGraph.lexProduct g h).V = _
       simp
 
 @[simp] theorem V_lineGraph (G : IsoGraph) : (lineGraph G).V = G.E := by
   induction G using Quotient.inductionOn with
   | h g =>
-    show Fintype.card (CGraph.lineGraph g.canonicalize).V = _
-    rw [CGraph.card_lineGraph, ← E_mk, mk_canonicalize]
+    show Fintype.card (CGraph.lineGraph g).V = _
+    rw [CGraph.card_lineGraph, ← E_mk]
 
 @[simp] theorem V_mycielskian (G : IsoGraph) : (mycielskian G).V = 2 * G.V + 1 := by
   induction G using Quotient.inductionOn with
   | h g =>
-    show Fintype.card (CGraph.mycielskian g.canonicalize).V = _
+    show Fintype.card (CGraph.mycielskian g).V = _
     simp
 
 /-! ## Recognising `empty` and `complete`
@@ -1944,7 +1944,7 @@ and over an odd cycle it does not, giving the cycle of twice the length instead.
 /-- **A double cover splits whenever the graph is 2-coloured**, for a graph presented as a
 `CGraph` together with a colouring.  `tensorProduct_complete_two_of_isBipartite` is the same
 statement with the colouring existentially quantified. -/
-theorem tensorProduct_complete_two_of_colouring (G : CGraph) [DecidableEq G.V] (c : G.V → Bool)
+theorem tensorProduct_complete_two_of_colouring (G : CGraph) (c : G.V → Bool)
     (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
     complete 2 ⊗g ⟦G⟧ = ⟦G⟧ ⊕g ⟦G⟧ := by
   rw [← empty_two_cartesianProduct ⟦G⟧, complete_def, tensorProduct_mk, empty_def,

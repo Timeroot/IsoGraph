@@ -1451,7 +1451,7 @@ theorem indepNum_cartesianProduct_path_le (m n : ℕ) :
 
 /-- **`k` pairwise disjoint edges give `ν ≥ k`.**  Each edge is a vertex of the line graph, and
 disjointness is exactly non-adjacency there. -/
-theorem le_indepNum_lineGraph_of_pairing {G : CGraph} [DecidableEq G.V] {k : ℕ}
+theorem le_indepNum_lineGraph_of_pairing {G : CGraph} {k : ℕ}
     (a b : Fin k → G.V) (hadj : ∀ i, G.Adj (a i) (b i) = true)
     (hdisj : ∀ i j : Fin k, i ≠ j → a i ≠ a j ∧ a i ≠ b j ∧ b i ≠ a j ∧ b i ≠ b j) :
     k ≤ (lineGraph G).indepNum := by
@@ -1490,7 +1490,7 @@ theorem le_indepNum_lineGraph_of_pairing {G : CGraph} [DecidableEq G.V] {k : ℕ
 /-- **The boustrophedon matching of a board.**  Pairing the square numbered `2i` with the one
 numbered `2i + 1` gives `⌊mn/2⌋` disjoint edges in any graph on the board that contains the grid
 adjacencies. -/
-theorem le_indepNum_lineGraph_board {m n : ℕ} (G : CGraph) [DecidableEq G.V]
+theorem le_indepNum_lineGraph_board {m n : ℕ} (G : CGraph)
     (φ : (path m).V × (path n).V → G.V) (hφ : Function.Injective φ)
     (hadj : ∀ p q : (path m).V × (path n).V,
       ((p.1 = q.1 ∧ (p.2.1 + 1 = q.2.1 ∨ q.2.1 + 1 = p.2.1)) ∨ (p.2 = q.2 ∧ p.1.1 + 1 = q.1.1)) →
@@ -1678,11 +1678,11 @@ coordinate moves.  So the two palettes can simply be laid side by side. -/
 
 /-- Colour an edge of `G □ H` with `H`'s palette if it moves the second coordinate, and with
 `G`'s palette otherwise, the two palettes placed side by side in `Fin (k + l)`. -/
-def prodCol {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+def prodCol {G H : CGraph} {k l : ℕ}
     (c : G.V → G.V → Fin k) (d : H.V → H.V → Fin l) (p q : G.V × H.V) : Fin (k + l) :=
   if p.1 = q.1 then Fin.natAdd k (d p.2 q.2) else Fin.castAdd l (c p.1 q.1)
 
-theorem prodCol_symm {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+theorem prodCol_symm {G H : CGraph} {k l : ℕ}
     {c : G.V → G.V → Fin k} {d : H.V → H.V → Fin l}
     (hc : ∀ x y, c x y = c y x) (hd : ∀ x y, d x y = d y x) (p q : G.V × H.V) :
     prodCol c d p q = prodCol c d q p := by
@@ -1692,7 +1692,7 @@ theorem prodCol_symm {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l : �
   · rw [if_neg h, if_neg (fun hh ↦ h hh.symm), hc]
 
 /-- **The chromatic index of a cartesian product is at most the sum of the two factors'.** -/
-theorem chromNum_lineGraph_cartesianProduct_le {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+theorem chromNum_lineGraph_cartesianProduct_le {G H : CGraph}
     {k l : ℕ} (c : G.V → G.V → Fin k) (d : H.V → H.V → Fin l)
     (hc : ∀ x y, c x y = c y x) (hd : ∀ x y, d x y = d y x)
     (hcp : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w)
@@ -1737,7 +1737,7 @@ theorem chromNum_lineGraph_cartesianProduct_le {G H : CGraph} [DecidableEq G.V] 
 /-- A proper colouring of the line graph *is* an edge colouring: read it back as a symmetric
 function on ordered pairs, with a fixed junk value off the edges.  This is the converse of
 `chromNum_lineGraph_le_of_edgeColouring`, and it needs a colour to spare for the junk. -/
-theorem exists_edgeColouring {G : CGraph} [DecidableEq G.V] {k : ℕ}
+theorem exists_edgeColouring {G : CGraph} {k : ℕ}
     (h : (lineGraph G).chromNum ≤ k) (j : Fin k) :
     ∃ c : G.V → G.V → Fin k, (∀ x y, c x y = c y x) ∧
       ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w := by
@@ -1763,8 +1763,8 @@ theorem exists_edgeColouring {G : CGraph} [DecidableEq G.V] {k : ℕ}
 
 /-- **The chromatic index of a cartesian product is at most the sum of the two factors'**, with
 no explicit colouring in sight: read one back out of each factor's line-graph colouring. -/
-theorem chromNum_lineGraph_cartesianProduct_le_add {G H : CGraph} [DecidableEq G.V]
-    [DecidableEq H.V] (hG : 0 < (lineGraph G).chromNum) (hH : 0 < (lineGraph H).chromNum) :
+theorem chromNum_lineGraph_cartesianProduct_le_add {G H : CGraph}
+ (hG : 0 < (lineGraph G).chromNum) (hH : 0 < (lineGraph H).chromNum) :
     (lineGraph (cartesianProduct G H)).chromNum
       ≤ (lineGraph G).chromNum + (lineGraph H).chromNum := by
   obtain ⟨c, hc, hcp⟩ := exists_edgeColouring (G := G) le_rfl ⟨0, hG⟩

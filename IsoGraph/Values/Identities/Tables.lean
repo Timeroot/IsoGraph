@@ -1656,7 +1656,7 @@ theorem mycielskian_complete_two : mycielskian (complete 2) = cycle 5 := by
 The Mycielskian raises the chromatic number by one, so the only way for it to be bipartite is for
 it to start from nothing at all. -/
 
-theorem not_isBipartite_mycielskian_mk {G : CGraph} [DecidableEq G.V] {a b : G.V}
+theorem not_isBipartite_mycielskian_mk {G : CGraph} {a b : G.V}
     (hab : G.Adj a b) : ¬ IsBipartite (mycielskian ⟦G⟧) := by
   rw [mycielskian_mk, isBipartite_mk]
   exact CGraph.not_isBipartite_mycielskian hab

@@ -36,7 +36,7 @@ shown to respect isomorphism first.  The attribute goes on that congruence,
 
 ```
 @[toIsoGraph]
-def CGraph.Iso.lineGraph [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
+def CGraph.Iso.lineGraph (i : G ≃cg G') :
     CGraph.lineGraph G ≃cg CGraph.lineGraph G' := ...
 ```
 
@@ -46,15 +46,15 @@ the construction on representatives:
 ```
 def IsoGraph.lineGraph (G : IsoGraph) : IsoGraph := Quotient.lift ... G
 
-@[simp] theorem IsoGraph.lineGraph_mk (G : CGraph) [DecidableEq G.V] :
+@[simp] theorem IsoGraph.lineGraph_mk (G : CGraph) :
     IsoGraph.lineGraph ⟦G⟧ = ⟦CGraph.lineGraph G⟧ := ...
 ```
 
-One and two graph arguments are supported.  Most of these constructions ask for a `DecidableEq` on
-the vertex type, which a bare `CGraph` does not supply; when that happens the lift is taken of
-`G.canonicalize`, whose vertex type is a `Fin n`, and the `_mk` lemma is a `Quotient.sound` rather
-than an `rfl`.  When no instance is needed — `disjUnion` — the graph is used as it stands and the
-`_mk` lemma is `rfl`.
+One and two graph arguments are supported.  A `CGraph` bundles a `Fintype` and a `DecidableEq` on
+its vertex type, so a construction that asks for nothing more is lifted as it stands and its `_mk`
+lemma is an `rfl`.  Should a construction ask for an instance a bare `CGraph` cannot supply, the
+lift is taken of `G.canonicalize` instead, whose vertex type is a `Fin n` and so has every
+instance, and the `_mk` lemma is a `Quotient.sound` rather than an `rfl`.
 
 ## An invariant
 
@@ -257,9 +257,9 @@ def generateConstruction (declName : Name) (base? : Option Name) : MetaM Unit :=
 /-! ## A construction that takes a graph
 
 Here the attribute goes on the isomorphism congruence rather than on the construction, and builds
-the `Quotient.lift` along it.  Most of these constructions ask for a `DecidableEq` on the vertex
-type; when the instance cannot be found for a bare graph variable the lift is taken of
-`G.canonicalize`, which has one. -/
+the `Quotient.lift` along it.  When a construction asks for an instance that cannot be found for a
+bare graph variable, the lift is taken of `G.canonicalize`, whose vertex type is a `Fin n` and so
+has every instance. -/
 
 /-- Generate `IsoGraph.f` and `IsoGraph.f_mk` from an isomorphism congruence for a `CGraph`-valued
 construction `CGraph.f` of one or two graphs. -/
@@ -371,8 +371,8 @@ def generateConstructionLift (declName : Name) (base? : Option Name) : MetaM Uni
         else
           compileDecl decl
       /- The `_mk` lemma, saying that the lift agrees with the construction on representatives.
-      Its binders are those of the construction itself, so that it carries the `DecidableEq`
-      instances the construction asks for. -/
+      Its binders are those of the construction itself, so that it carries whatever instances the
+      construction asks for. -/
       let cInfo ← getConstInfo cname
       let mkName := `IsoGraph ++ (lowerFirst base.getString! ++ "_mk").toName
       forallTelescope cInfo.type fun ys _ => do
@@ -649,8 +649,8 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
   let newName := `IsoGraph ++ base
   if (← getEnv).contains newName then
     throwError "toIsoGraph: {newName} already exists"
-  /- Facts about products and complements ask for `[DecidableEq G.V]`, which a bare graph variable
-  has no way to supply.  When some instance binder mentions a graph, run in *canonical mode*: each
+  /- A fact may ask for an instance on a vertex type that a bare graph variable has no way to
+  supply.  When some instance binder mentions a graph, run in *canonical mode*: each
   graph binder `G` is instantiated at `G.canonicalize`, whose vertex type is a `Fin n` and so has
   every instance, the instance binders are then synthesised and dropped, and the `⟦G.canonicalize⟧`
   that results is turned back into `⟦G⟧` by `mk_canonicalize` on the way out. -/

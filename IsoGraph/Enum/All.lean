@@ -183,8 +183,6 @@ def graphOfCode (n c : ℕ) : CGraph where
 @[simp] theorem graphOfCode_adj (n c : ℕ) (i j : Fin n) :
     (graphOfCode n c).Adj i j = (decide (i ≠ j) && c.testBit (pairIdx i.1 j.1)) := rfl
 
-instance (n c : ℕ) : DecidableEq (graphOfCode n c).V := inferInstanceAs (DecidableEq (Fin n))
-
 /-- **Decoding undoes encoding.**  For a genuine adjacency function — symmetric and loopless —
 the graph read off its code is the graph itself. -/
 theorem adj_graphOfCode_codeOf {n : ℕ} {adj : Fin n → Fin n → Bool}

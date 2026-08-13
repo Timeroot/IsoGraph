@@ -2594,13 +2594,22 @@ example : maxDeg (kneser 5 2) = 3 := by
 /-! ### The edge chromatic number
 
 An edge colouring of `G` is a vertex colouring of `L(G)`, so the chromatic index is the
-chromatic number of the line graph and needs no separate well-definedness argument. -/
+chromatic number of the line graph and needs no separate well-definedness argument.  It is
+defined on `CGraph` and lifted, like every other invariant. -/
 
 /-- The *edge chromatic number* (chromatic index) `χ'(G)`: the least number of colours needed
 to colour the edges of `G` so that edges meeting at a vertex get different colours. -/
-noncomputable def edgeChromNum (G : IsoGraph) : ℕ := chromNum (lineGraph G)
+noncomputable def _root_.CGraph.edgeChromNum (G : CGraph) : ℕ := G.lineGraph.chromNum
 
-theorem edgeChromNum_eq (G : IsoGraph) : G.edgeChromNum = chromNum (lineGraph G) := rfl
+@[toIsoGraph]
+theorem _root_.CGraph.edgeChromNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
+    G.edgeChromNum = H.edgeChromNum :=
+  CGraph.chromNum_eq_of_iso (CGraph.Iso.lineGraph i)
+
+theorem edgeChromNum_eq (G : IsoGraph) : G.edgeChromNum = chromNum (lineGraph G) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [edgeChromNum_mk, lineGraph_mk, chromNum_mk]
+  rfl
 
 theorem maxDeg_le_cliqueNum_lineGraph (G : IsoGraph) :
     G.maxDeg ≤ (lineGraph G).cliqueNum := by
@@ -2610,8 +2619,9 @@ theorem maxDeg_le_cliqueNum_lineGraph (G : IsoGraph) :
 
 /-- Every edge colouring uses at least `Δ` colours, since the edges at a vertex of maximum
 degree pairwise conflict. -/
-theorem maxDeg_le_edgeChromNum (G : IsoGraph) : G.maxDeg ≤ G.edgeChromNum :=
-  le_trans G.maxDeg_le_cliqueNum_lineGraph (cliqueNum_le_chromNum _)
+theorem maxDeg_le_edgeChromNum (G : IsoGraph) : G.maxDeg ≤ G.edgeChromNum := by
+  rw [edgeChromNum_eq]
+  exact le_trans G.maxDeg_le_cliqueNum_lineGraph (cliqueNum_le_chromNum _)
 
 /-- Greedy colouring of the line graph: `χ'(G) ≤ 2Δ - 1`.  Vizing's theorem improves this to
 `Δ + 1`, but that is a much deeper fact. -/
@@ -2691,6 +2701,7 @@ theorem coverNum_lineGraph_add_matchNum (G : IsoGraph) :
 theorem E_le_edgeChromNum_mul_matchNum (G : IsoGraph) :
     G.E ≤ G.edgeChromNum * G.matchNum := by
   have h := V_le_chromNum_mul_indepNum (lineGraph G)
+  rw [edgeChromNum_eq, matchNum_eq]
   rwa [V_lineGraph] at h
 
 theorem matchNum_pos (G : IsoGraph) (h : 0 < G.E) : 0 < G.matchNum := by
@@ -2884,21 +2895,30 @@ example : (paley 13).girth = 3 := by
 /-! ### The clique cover number
 
 A partition of the vertices into cliques of `G` is a proper colouring of the complement, so
-`θ(G) = χ(Ḡ)`.  As with the chromatic index this is a definition on `IsoGraph` built from
-existing pieces, and every statement about it is a statement about `chromNum` in disguise. -/
+`θ(G) = χ(Ḡ)`.  As with the chromatic index it is defined on `CGraph` and lifted, and every
+statement about it is a statement about `chromNum` in disguise. -/
 
 /-- The *clique cover number* `θ(G)`: the least number of cliques needed to cover the
 vertices. -/
-noncomputable def cliqueCoverNum (G : IsoGraph) : ℕ := chromNum Gᶜ
+noncomputable def _root_.CGraph.cliqueCoverNum (G : CGraph) : ℕ := G.compl.chromNum
 
-theorem cliqueCoverNum_eq (G : IsoGraph) : G.cliqueCoverNum = chromNum Gᶜ := rfl
+@[toIsoGraph]
+theorem _root_.CGraph.cliqueCoverNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
+    G.cliqueCoverNum = H.cliqueCoverNum :=
+  CGraph.chromNum_eq_of_iso (CGraph.Iso.compl i)
+
+theorem cliqueCoverNum_eq (G : IsoGraph) : G.cliqueCoverNum = chromNum Gᶜ := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [cliqueCoverNum_mk, compl_mk, chromNum_mk]
+  rfl
 
 @[simp] theorem cliqueCoverNum_compl (G : IsoGraph) :
     Gᶜ.cliqueCoverNum = G.chromNum := by
   rw [cliqueCoverNum_eq, compl_compl]
 
 @[simp] theorem chromNum_compl (G : IsoGraph) :
-    Gᶜ.chromNum = G.cliqueCoverNum := rfl
+    Gᶜ.chromNum = G.cliqueCoverNum := by
+  rw [cliqueCoverNum_eq]
 
 /-- `α ≤ θ`, the complement of `ω ≤ χ`: a clique cover needs a separate clique for each vertex
 of an independent set. -/
@@ -2908,17 +2928,20 @@ theorem indepNum_le_cliqueCoverNum (G : IsoGraph) : G.indepNum ≤ G.cliqueCover
 
 theorem cliqueCoverNum_le_V (G : IsoGraph) : G.cliqueCoverNum ≤ G.V := by
   have h := chromNum_le_V Gᶜ
+  rw [cliqueCoverNum_eq]
   rwa [V_compl] at h
 
 /-- `n ≤ θ ω`, the complement of `n ≤ χ α`: each of the `θ` cliques has at most `ω` vertices. -/
 theorem V_le_cliqueCoverNum_mul_cliqueNum (G : IsoGraph) :
     G.V ≤ G.cliqueCoverNum * G.cliqueNum := by
   have h := V_le_chromNum_mul_indepNum Gᶜ
+  rw [cliqueCoverNum_eq]
   rwa [V_compl, indepNum_compl] at h
 
 theorem cliqueCoverNum_le_V_sub_cliqueNum_add_one (G : IsoGraph) :
     G.cliqueCoverNum ≤ G.V - G.cliqueNum + 1 := by
   have h := chromNum_le_V_sub_indepNum_add_one Gᶜ
+  rw [cliqueCoverNum_eq]
   rwa [V_compl, indepNum_compl] at h
 
 @[simp] theorem cliqueCoverNum_eq_zero_iff {G : IsoGraph} : G.cliqueCoverNum = 0 ↔ G.V = 0 := by
@@ -2972,17 +2995,17 @@ number to the clique cover number. -/
 
 /-- `n ≤ χ θ`: the `χ` colour classes are independent sets, so `θ` of them cover `G`. -/
 theorem V_le_chromNum_mul_cliqueCoverNum (G : IsoGraph) :
-    G.V ≤ G.chromNum * G.cliqueCoverNum :=
-  G.V_le_chromNum_mul_chromNum_compl
+    G.V ≤ G.chromNum * G.cliqueCoverNum := by
+  rw [cliqueCoverNum_eq]; exact G.V_le_chromNum_mul_chromNum_compl
 
 /-- The Nordhaus–Gaddum upper bound, in clique cover form. -/
 theorem chromNum_add_cliqueCoverNum_le_V_add_one (G : IsoGraph) :
-    G.chromNum + G.cliqueCoverNum ≤ G.V + 1 :=
-  G.chromNum_add_chromNum_compl_le_V_add_one
+    G.chromNum + G.cliqueCoverNum ≤ G.V + 1 := by
+  rw [cliqueCoverNum_eq]; exact G.chromNum_add_chromNum_compl_le_V_add_one
 
 theorem four_mul_V_le_chromNum_add_cliqueCoverNum_sq (G : IsoGraph) :
-    4 * G.V ≤ (G.chromNum + G.cliqueCoverNum) ^ 2 :=
-  G.four_mul_V_le_chromNum_add_chromNum_compl_sq
+    4 * G.V ≤ (G.chromNum + G.cliqueCoverNum) ^ 2 := by
+  rw [cliqueCoverNum_eq]; exact G.four_mul_V_le_chromNum_add_chromNum_compl_sq
 
 /-- Each connected component needs a clique of its own. -/
 theorem numComponents_le_cliqueCoverNum (G : IsoGraph) :

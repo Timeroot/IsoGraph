@@ -113,7 +113,7 @@ theorem isConnected_of_backEdge {n : ℕ} {G : CGraph} (e : G.V ≃ Fin n) (hn :
 /-- One round of a breadth-first search through `vs`: the vertices already seen, followed by those
 not yet seen that have a seen neighbour.  The search stops when a round finds nothing new, so the
 `k` rounds allowed are only an upper bound. -/
-def bfsAux (G : CGraph) [DecidableEq G.V] (vs : List G.V) : ℕ → List G.V → List G.V
+def bfsAux (G : CGraph) (vs : List G.V) : ℕ → List G.V → List G.V
   | 0, seen => seen
   | k + 1, seen =>
     let new := vs.filter fun v ↦ !seen.contains v && seen.any fun u ↦ G.Adj u v
@@ -121,7 +121,7 @@ def bfsAux (G : CGraph) [DecidableEq G.V] (vs : List G.V) : ℕ → List G.V →
 
 /-- The vertices of `vs` in the order a breadth-first search from `v₀` reaches them.  Vertices in
 another component are simply absent from the list. -/
-def bfsOrder (G : CGraph) [DecidableEq G.V] (vs : List G.V) (v₀ : G.V) : List G.V :=
+def bfsOrder (G : CGraph) (vs : List G.V) (v₀ : G.V) : List G.V :=
   bfsAux G vs vs.length [v₀]
 
 /-- **Search order is a certificate of connectivity.**  If every vertex but `v₀` has a neighbour
@@ -132,7 +132,7 @@ finds the vertices in, and which therefore satisfies the hypothesis as soon as t
 connected at all.  Unlike `isConnected_of_backEdge` this asks nothing of how the vertices are
 numbered, which matters for the graphs that are *built* rather than tabulated: a construction
 numbers its vertices as the construction goes, not as a search would. -/
-theorem isConnected_of_bfsOrder {G : CGraph} [DecidableEq G.V] (l : List G.V) (v₀ : G.V)
+theorem isConnected_of_bfsOrder {G : CGraph} (l : List G.V) (v₀ : G.V)
     (h : ∀ v : G.V, v ≠ v₀ → ∃ w : G.V, l.idxOf w < l.idxOf v ∧ G.Adj v w) : G.IsConnected :=
   isConnected_of_rank (fun v ↦ l.idxOf v) v₀ h
 
@@ -185,7 +185,7 @@ def walkOn (N : ℕ) (hN : 0 < N) (vs : List ℕ) (k : ℕ) : Fin N :=
 into a pentagon `a – b – a' – w – b' – a` through the two shadows and the apex.  Concretely: `a'`
 and `b'` are forced to copy the colours of `a` and `b`, which differ, and the apex is adjacent to
 both. -/
-theorem not_isBipartite_mycielskian {G : CGraph} [DecidableEq G.V] {a b : G.V} (hab : G.Adj a b) :
+theorem not_isBipartite_mycielskian {G : CGraph} {a b : G.V} (hab : G.Adj a b) :
     ¬ (mycielskian G).IsBipartite := by
   rintro ⟨c, hc⟩
   have h1 := hc (some (.inl a)) (some (.inl b)) hab
@@ -199,7 +199,7 @@ theorem not_isBipartite_mycielskian {G : CGraph} [DecidableEq G.V] {a b : G.V} (
 
 /-- **The Mycielskian of a graph without isolated vertices is connected.**  The apex sees every
 shadow, and every shadow sees the neighbours of the vertex it shadows. -/
-theorem isConnected_mycielskian {G : CGraph} [DecidableEq G.V] (h : ∀ v : G.V, ∃ w, G.Adj v w) :
+theorem isConnected_mycielskian {G : CGraph} (h : ∀ v : G.V, ∃ w, G.Adj v w) :
     (mycielskian G).IsConnected := by
   have hapex : ∀ a : G.V, (mycielskian G).toSimple.Adj none (some (Sum.inr a)) := fun a ↦
     (toSimple_adj (mycielskian G) none (some (Sum.inr a))).2 rfl
@@ -491,7 +491,7 @@ theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
 
 /-- **Girth at least five** from a neighbour list, as `six_le_girth_of_nbrList` at length
 five. -/
-theorem five_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem five_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
@@ -521,7 +521,7 @@ Each step after the first erases the previous vertex from the neighbour list, wh
 because the walk is required to have distinct vertices and cuts the branching factor of the search
 from the degree to the degree minus one — a factor of two per step on a cubic graph, which is the
 difference between minutes and hours at the lengths the cages below need. -/
-theorem six_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem six_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
@@ -551,7 +551,7 @@ theorem six_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
 
 /-- **Girth at least seven** from a neighbour list, as `six_le_girth_of_nbrList` at length
 seven. -/
-theorem seven_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem seven_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
@@ -590,7 +590,7 @@ theorem seven_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
 
 /-- **Girth at least eight** from a neighbour list, as `six_le_girth_of_nbrList` at length
 eight. -/
-theorem eight_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem eight_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
@@ -639,7 +639,7 @@ theorem eight_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
 
 /-- **Girth at least nine** from a neighbour list, as `six_le_girth_of_nbrList` at length
 nine. -/
-theorem nine_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem nine_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
@@ -700,7 +700,7 @@ theorem nine_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
 
 /-- **Girth at least ten** from a neighbour list, as `six_le_girth_of_nbrList` at length
 ten. -/
-theorem ten_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem ten_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
@@ -775,7 +775,7 @@ theorem ten_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
 
 /-- **Girth at least eleven** from a neighbour list, as `six_le_girth_of_nbrList` at length
 eleven. -/
-theorem eleven_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem eleven_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
@@ -868,7 +868,7 @@ theorem eleven_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
 
 /-- **Girth at least twelve** from a neighbour list, as `six_le_girth_of_nbrList` at length
 twelve. -/
-theorem twelve_le_girth_of_nbrList {G : CGraph} [DecidableEq G.V]
+theorem twelve_le_girth_of_nbrList {G : CGraph}
     {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
     (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
       ¬ (a ∈ nb c ∧ [a, b, c].Nodup))

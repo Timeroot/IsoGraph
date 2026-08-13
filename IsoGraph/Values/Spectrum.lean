@@ -520,7 +520,7 @@ theorem isHermitian_adjMat (G : CGraph) : G.adjMat.IsHermitian :=
 /-- The characteristic polynomial. -/
 noncomputable def charpoly (G : CGraph) : ℝ[X] := G.adjMat.charpoly
 
-theorem charpoly_eq_matrix_charpoly (G : CGraph) [inst : DecidableEq G.V] :
+theorem charpoly_eq_matrix_charpoly (G : CGraph) :
     G.charpoly = G.adjMat.charpoly :=
   congrArg (fun d ↦ @Matrix.charpoly ℝ _ G.V d _ G.adjMat) (Subsingleton.elim _ _)
 
@@ -718,7 +718,7 @@ theorem hasEigenvector_one_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ
   · simpa [adjMat] using
       SimpleGraph.adjMatrix_mulVec_const_apply_of_regular (α := ℝ) (a := (1 : ℝ)) h (v := i)
 
-theorem adjMat_compl (G : CGraph) [DecidableEq G.V] :
+theorem adjMat_compl (G : CGraph) :
     (compl G).adjMat = Matrix.vecMulVec 1 1 - 1 - G.adjMat := by
   ext i j
   rcases eq_or_ne i j with h | h
@@ -727,7 +727,7 @@ theorem adjMat_compl (G : CGraph) [DecidableEq G.V] :
   · cases hb : G.Adj i j <;>
       simp [adjMat_apply, compl, Matrix.vecMulVec, h, hb]
 
-theorem compl_adjMatrix_eq (G : CGraph) [DecidableEq G.V] :
+theorem compl_adjMatrix_eq (G : CGraph) :
     G.toSimpleᶜ.adjMatrix ℝ = Matrix.vecMulVec 1 1 - 1 - G.adjMat := by
   ext i j
   rcases eq_or_ne i j with h | h
@@ -740,7 +740,7 @@ theorem vecMulVec_one_mulVec {G : CGraph} {v : G.V → ℝ} (hsum : ∑ i, v i =
     Matrix.vecMulVec (1 : G.V → ℝ) 1 *ᵥ v = 0 := by
   funext i; simp [Matrix.mulVec, dotProduct, Matrix.vecMulVec, hsum]
 
-theorem compl_adjMatrix_mulVec {G : CGraph} [DecidableEq G.V] {x : ℝ} {v : G.V → ℝ}
+theorem compl_adjMatrix_mulVec {G : CGraph} {x : ℝ} {v : G.V → ℝ}
     (hsum : ∑ i, v i = 0) (h : G.adjMat *ᵥ v = x • v) :
     G.toSimpleᶜ.adjMatrix ℝ *ᵥ v = (-1 - x) • v := by
   rw [compl_adjMatrix_eq, Matrix.sub_mulVec, Matrix.sub_mulVec, h, Matrix.one_mulVec,
@@ -749,7 +749,7 @@ theorem compl_adjMatrix_mulVec {G : CGraph} [DecidableEq G.V] {x : ℝ} {v : G.V
 
 /-- An eigenvector orthogonal to the all-ones vector is an eigenvector of the complement, with
 eigenvalue `-1 - x`. -/
-theorem hasEigenvector_compl {G : CGraph} [DecidableEq G.V] {x : ℝ} {v : G.V → ℝ}
+theorem hasEigenvector_compl {G : CGraph} {x : ℝ} {v : G.V → ℝ}
     (hsum : ∑ i, v i = 0) (h : G.HasEigenvector x v) :
     (compl G).HasEigenvector (-1 - x) v := by
   refine ⟨h.1, ?_⟩
@@ -758,7 +758,7 @@ theorem hasEigenvector_compl {G : CGraph} [DecidableEq G.V] {x : ℝ} {v : G.V �
   module
 
 /-- Eigenvalues of a tensor product multiply. -/
-theorem hasEigenvector_tensorProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+theorem hasEigenvector_tensorProduct {G H : CGraph}
     {x y : ℝ} {u : G.V → ℝ} {w : H.V → ℝ} (hu : G.HasEigenvector x u)
     (hw : H.HasEigenvector y w) :
     (tensorProduct G H).HasEigenvector (x * y) (fun p ↦ u p.1 * w p.2) := by
@@ -788,7 +788,7 @@ theorem hasEigenvector_tensorProduct {G H : CGraph} [DecidableEq G.V] [Decidable
 
 /-- Every eigenvalue of a strongly regular graph other than the degree satisfies the quadratic
 `x² = (ℓ - μ) x + (k - μ)`. -/
-theorem sq_eq_of_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ}
+theorem sq_eq_of_isSRGWith {G : CGraph} {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) {x : ℝ} {v : G.V → ℝ} (hsum : ∑ i, v i = 0)
     (hv : G.HasEigenvector x v) : x ^ 2 = ((l : ℝ) - m) * x + ((k : ℝ) - m) := by
   obtain ⟨hv0, hv1⟩ := hv
@@ -847,7 +847,7 @@ theorem mem_spectrum_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
   (mem_spectrum_iff G k).2 ⟨1, hasEigenvector_one_of_isRegularWith h⟩
 
 /-- Every eigenvalue of a strongly regular graph other than the degree satisfies the quadratic. -/
-theorem sq_eq_of_isSRGWith_of_ne {G : CGraph} [DecidableEq G.V] {n k l m : ℕ}
+theorem sq_eq_of_isSRGWith_of_ne {G : CGraph} {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) {x : ℝ} (hx : x ≠ k) (hev : G.IsEigenvalue x) :
     x ^ 2 = ((l : ℝ) - m) * x + ((k : ℝ) - m) := by
   obtain ⟨v, hv⟩ := hev
@@ -867,7 +867,7 @@ private theorem eq_of_sq_eq (b c x : ℝ) (h : x ^ 2 = b * x + c) :
 /-- **The spectrum of a strongly regular graph.**  Every eigenvalue is either the degree `k` or one
 of the two roots `r, s = ½ ((ℓ - μ) ± √((ℓ - μ)² + 4 (k - μ)))` of the quadratic
 `x² = (ℓ - μ) x + (k - μ)`; so an `srg(n, k, ℓ, μ)` has at most three distinct eigenvalues. -/
-theorem eigenvalue_eq_of_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ}
+theorem eigenvalue_eq_of_isSRGWith {G : CGraph} {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) {x : ℝ} (hev : G.IsEigenvalue x) :
     x = k ∨ x = (((l : ℝ) - m) + Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2
       ∨ x = (((l : ℝ) - m) - Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2 := by
@@ -875,7 +875,7 @@ theorem eigenvalue_eq_of_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ
   · exact Or.inl hx
   · exact Or.inr (eq_of_sq_eq _ _ _ (sq_eq_of_isSRGWith_of_ne h hx hev))
 
-theorem mem_spectrum_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ}
+theorem mem_spectrum_isSRGWith {G : CGraph} {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) {x : ℝ} (hx : x ∈ G.spectrum) :
     x = k ∨ x = (((l : ℝ) - m) + Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2
       ∨ x = (((l : ℝ) - m) - Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2 :=
@@ -1272,9 +1272,8 @@ theorem exists_conj_diagonal (G : CGraph) :
 
 /-- **Shifting by the identity shifts every eigenvalue**: `A + c I` has characteristic polynomial
 `∏ (X - (λᵢ + c))`. -/
-theorem charpoly_adjMat_add_smul_one (G : CGraph) [inst : DecidableEq G.V] (c : ℝ) :
+theorem charpoly_adjMat_add_smul_one (G : CGraph) (c : ℝ) :
     (G.adjMat + c • (1 : Matrix G.V G.V ℝ)).charpoly = ∏ i, (X - C (G.eigenvalues i + c)) := by
-  obtain rfl : inst = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
   obtain ⟨P, Q, hPQ, hQP, hd⟩ := G.exists_conj_diagonal
   have hdiag : Matrix.diagonal (fun i ↦ G.eigenvalues i + c)
       = Matrix.diagonal G.eigenvalues + c • (1 : Matrix G.V G.V ℝ) := by
@@ -1292,29 +1291,23 @@ private theorem roots_prod_X_sub_C' {ι : Type*} [Fintype ι] (f : ι → ℝ) :
 
 /-! ## The tensor product -/
 
-theorem adjMat_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem adjMat_tensorProduct (G H : CGraph) :
     (tensorProduct G H).adjMat = G.adjMat ⊗ₖ H.adjMat := by
   ext p q
   by_cases h1 : G.Adj p.1 q.1 <;> by_cases h2 : H.Adj p.2 q.2 <;>
     simp [adjMat_apply, tensorProduct, Matrix.kroneckerMap, h1, h2]
 
 /-- **The eigenvalues of a tensor product are the products of the eigenvalues.** -/
-theorem spectrum_tensorProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : DecidableEq H.V] :
+theorem spectrum_tensorProduct (G H : CGraph) :
     (tensorProduct G H).spectrum
       = Finset.univ.val.map (fun p : G.V × H.V ↦ G.eigenvalues p.1 * H.eigenvalues p.2) := by
-  have e1 : dG = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  have e2 : dH = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  subst e1; subst e2
   obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
   obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
   refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
-    congr!
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
-    congr!
   · rw [adjMat_tensorProduct, ← Matrix.mul_kronecker_mul, e₁, e₂, Matrix.mul_kronecker_mul,
       Matrix.diagonal_kronecker_diagonal]
-    congr!
 
 private theorem map_product_apply₂ {α β : Type} (f : α → ℝ) (g : β → ℝ) (F : ℝ → ℝ → ℝ)
     (s : Multiset α) (t : Multiset β) :
@@ -1325,13 +1318,13 @@ private theorem map_product_apply₂ {α β : Type} (f : α → ℝ) (g : β →
   | cons a s ih =>
       simp [Multiset.cons_product, Multiset.map_map, ih]
 
-theorem spectrum_tensorProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem spectrum_tensorProduct' (G H : CGraph) :
     (tensorProduct G H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 * p.2) := by
   rw [spectrum_tensorProduct, spectrum_eq_map, spectrum_eq_map, ← map_product_apply₂,
     ← Finset.univ_product_univ, Finset.product_val]
 
 /-- The adjacency matrix of a cartesian product is `I ⊗ A H + A G ⊗ I`. -/
-theorem adjMat_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem adjMat_cartesianProduct (G H : CGraph) :
     (cartesianProduct G H).adjMat
       = (1 : Matrix G.V G.V ℝ) ⊗ₖ H.adjMat + G.adjMat ⊗ₖ (1 : Matrix H.V H.V ℝ) := by
   ext p q
@@ -1340,12 +1333,9 @@ theorem adjMat_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
       G.loopless, H.loopless]
 
 /-- **The eigenvalues of a cartesian product are the sums of the eigenvalues.** -/
-theorem spectrum_cartesianProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : DecidableEq H.V] :
+theorem spectrum_cartesianProduct (G H : CGraph) :
     (cartesianProduct G H).spectrum
       = Finset.univ.val.map (fun p : G.V × H.V ↦ G.eigenvalues p.1 + H.eigenvalues p.2) := by
-  have e1 : dG = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  have e2 : dH = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  subst e1; subst e2
   obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
   obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
   have hdiag : (1 : Matrix G.V G.V ℝ) ⊗ₖ Matrix.diagonal H.eigenvalues
@@ -1363,22 +1353,19 @@ theorem spectrum_cartesianProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : De
       Matrix.mul_one, Matrix.mul_one]
   refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
-    congr!
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
-    congr!
   · rw [adjMat_cartesianProduct, Matrix.add_mul, ← Matrix.mul_kronecker_mul,
       ← Matrix.mul_kronecker_mul, e₁, e₂]
     simp only [Matrix.one_mul]
     rw [key]
-    congr!
 
-theorem spectrum_cartesianProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem spectrum_cartesianProduct' (G H : CGraph) :
     (cartesianProduct G H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 + p.2) := by
   rw [spectrum_cartesianProduct, spectrum_eq_map, spectrum_eq_map, ← map_product_apply₂,
     ← Finset.univ_product_univ, Finset.product_val]
 
 /-- The adjacency matrix of a strong product is `(A G + I) ⊗ (A H + I) - I`. -/
-theorem adjMat_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem adjMat_strongProduct (G H : CGraph) :
     (strongProduct G H).adjMat = (G.adjMat + 1) ⊗ₖ (H.adjMat + 1) - 1 := by
   ext p q
   by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
@@ -1387,13 +1374,10 @@ theorem adjMat_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] 
       Matrix.add_apply, Matrix.sub_apply, h1, h2, hA1, hA2, G.loopless, H.loopless]
 
 /-- **The eigenvalues of a strong product** are `(1 + λ) (1 + μ) - 1`. -/
-theorem spectrum_strongProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : DecidableEq H.V] :
+theorem spectrum_strongProduct (G H : CGraph) :
     (strongProduct G H).spectrum
       = Finset.univ.val.map (fun p : G.V × H.V ↦
           (1 + G.eigenvalues p.1) * (1 + H.eigenvalues p.2) - 1) := by
-  have e1 : dG = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  have e2 : dH = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  subst e1; subst e2
   obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
   obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
   set D₁ : Matrix G.V G.V ℝ := Matrix.diagonal G.eigenvalues with hD₁
@@ -1414,16 +1398,13 @@ theorem spectrum_strongProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : Decid
       ← hdiag, Matrix.mul_sub, ← Matrix.mul_kronecker_mul, Matrix.mul_one]
   refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
-    congr!
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
-    congr!
   · rw [adjMat_strongProduct, Matrix.sub_mul, ← Matrix.mul_kronecker_mul, Matrix.add_mul,
       Matrix.add_mul, e₁, e₂]
     simp only [Matrix.one_mul]
     rw [key]
-    congr!
 
-theorem spectrum_strongProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem spectrum_strongProduct' (G H : CGraph) :
     (strongProduct G H).spectrum
       = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ (1 + p.1) * (1 + p.2) - 1) := by
   rw [spectrum_strongProduct, spectrum_eq_map, spectrum_eq_map,
@@ -1431,7 +1412,7 @@ theorem spectrum_strongProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
     ← Finset.univ_product_univ, Finset.product_val]
 
 /-- **Powers of the adjacency matrix count walks.** -/
-theorem adjMat_pow_apply (G : CGraph) [DecidableEq G.V] (n : ℕ) (u v : G.V) :
+theorem adjMat_pow_apply (G : CGraph) (n : ℕ) (u v : G.V) :
     (G.adjMat ^ n) u v = (Fintype.card {w : G.toSimple.Walk u v // w.length = n} : ℝ) := by
   rw [adjMat, SimpleGraph.adjMatrix_pow_apply_eq_card_walk]
   rfl
@@ -1647,7 +1628,7 @@ theorem spectrum_neg_of_isBipartite {G : CGraph} (h : G.IsBipartite) :
 /-- **The parameter identity of a strongly regular graph**, `k (k - ℓ - 1) = (n - k - 1) μ`, in
 the form the spectrum needs it: apply `A ^ 2 = k I + ℓ A + μ (J - I - A)` to the all-ones
 vector. -/
-theorem sq_degree_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {n k l m : ℕ}
+theorem sq_degree_of_isSRGWith {G : CGraph} [Nonempty G.V] {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) : (k : ℝ) ^ 2 = k + l * k + m * ((n : ℝ) - 1 - k) := by
   obtain ⟨i₀⟩ := ‹Nonempty G.V›
   have hone : G.adjMat *ᵥ (fun _ ↦ (1 : ℝ)) = (k : ℝ) • (fun _ ↦ (1 : ℝ)) :=
@@ -1677,7 +1658,7 @@ and `s` of `x ^ 2 = (ℓ - μ) x + (k - μ)`, an `srg(n, k, ℓ, μ)` with `μ >
 and `r`, `s` with multiplicities `f` and `g` determined by `f + g + 1 = n` and `k + f r + g s = 0`
 (the trace conditions).  That the degree occurs exactly once is `(k - r) (k - s) = n μ`, the
 parameter identity. -/
-theorem spectrum_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {n k l m : ℕ}
+theorem spectrum_isSRGWith {G : CGraph} [Nonempty G.V] {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) (hm : 0 < m) {r s : ℝ} (hrs : r + s = (l : ℝ) - m)
     (hprod : r * s = -((k : ℝ) - m)) (hne : r ≠ s) :
     ∃ f g : ℕ, f + g + 1 = n ∧ (k : ℝ) + f * r + g * s = 0 ∧
@@ -1770,7 +1751,7 @@ eigenvalues are integers, or `2 k + (n - 1) (ℓ - μ) = 0` — the *conference 
 and `s` are irrational conjugates.  The multiplicities `f` and `g` decide which: eliminating `s`
 from `k + f r + g s = 0` gives `(f - g) r = -(k + g (ℓ - μ))`, so if `f ≠ g` then `r` is rational
 and hence an integer, while if `f = g` the same equation is the conference identity. -/
-theorem int_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V]
+theorem int_or_conference_of_isSRGWith {G : CGraph} [Nonempty G.V]
     {n k l m : ℕ} (h : G.IsSRGWith n k l m) (hm : 0 < m) {r s : ℝ}
     (hrs : r + s = (l : ℝ) - m) (hprod : r * s = -((k : ℝ) - m)) (hne : r ≠ s) :
     (∃ a b : ℤ, r = a ∧ s = b) ∨ 2 * (k : ℝ) + ((n : ℝ) - 1) * ((l : ℝ) - m) = 0 := by
@@ -1810,7 +1791,7 @@ theorem int_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty 
 
 /-- The integrality condition in its textbook form: for a strongly regular graph the discriminant
 `(ℓ - μ) ² + 4 (k - μ)` is a perfect square, unless `2 k + (n - 1) (ℓ - μ) = 0`. -/
-theorem isSquare_discrim_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V]
+theorem isSquare_discrim_or_conference_of_isSRGWith {G : CGraph} [Nonempty G.V]
     {n k l m : ℕ} (h : G.IsSRGWith n k l m) (hm : 0 < m)
     (hD : 0 < ((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m)) :
     (∃ d : ℤ, ((l : ℤ) - m) ^ 2 + 4 * ((k : ℤ) - m) = d ^ 2)
@@ -1856,7 +1837,7 @@ conference case `2 k + k ^ 2 * (0 - 1) = 0` forces `k = 2`. Otherwise `√(4 k -
 integer `c`, the multiplicity equation reads `(f - g) c = k ^ 2 - 2 k`, and eliminating `k` via
 `c ^ 2 = 4 k - 3` turns it into `16 (f - g) c = c ^ 4 - 2 c ^ 2 - 15`; hence `c ∣ 15`, so
 `c ∈ {1, 3, 5, 15}` and `k = (c ^ 2 + 3) / 4 ∈ {1, 3, 7, 57}`. -/
-theorem degree_of_isSRGWith_moore {G : CGraph} [DecidableEq G.V] {k : ℕ} (hk : 2 ≤ k)
+theorem degree_of_isSRGWith_moore {G : CGraph} {k : ℕ} (hk : 2 ≤ k)
     (h : G.IsSRGWith (k ^ 2 + 1) k 0 1) : k = 2 ∨ k = 3 ∨ k = 7 ∨ k = 57 := by
   haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by rw [h.card]; positivity)
   have hk0 : (2 : ℝ) ≤ (k : ℝ) := by exact_mod_cast hk
@@ -2927,7 +2908,7 @@ theorem lambdaMin_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     · exact (min_le_right _ _).trans (lambdaMin_le hx)
 
 /-- **A cartesian product adds the spectral radii**, since it adds the spectra. -/
-theorem lambdaMax_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMax_cartesianProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).lambdaMax = G.lambdaMax + H.lambdaMax := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
@@ -2940,7 +2921,7 @@ theorem lambdaMax_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq
       ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
 
 /-- **A cartesian product adds the least eigenvalues** too. -/
-theorem lambdaMin_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMin_cartesianProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).lambdaMin = G.lambdaMin + H.lambdaMin := by
   refine le_antisymm (lambdaMin_le ?_) ?_
@@ -2957,7 +2938,7 @@ theorem lambdaMin_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq
 /-- **A strong product multiplies the shifted spectral radii.**  The shift `1 + λ` can be
 negative at other eigenvalues, but never larger in absolute value than `1 + λ_max`, since
 `|λ| ≤ λ_max`. -/
-theorem lambdaMax_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMax_strongProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (strongProduct G H).lambdaMax = (1 + G.lambdaMax) * (1 + H.lambdaMax) - 1 := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
@@ -2983,7 +2964,7 @@ theorem lambdaMax_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
 /-- **A strong product's least eigenvalue** is the smallest of the three mixed shifted products:
 `(1 + λ)(1 + μ)` is bilinear in the pair, so its minimum over the box `[λ_min, λ_max] ×
 [μ_min, μ_max]` sits at a corner, and the corner `(λ_max, μ_max)` is the maximum. -/
-theorem lambdaMin_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMin_strongProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (strongProduct G H).lambdaMin
       = min (min ((1 + G.lambdaMin) * (1 + H.lambdaMin)) ((1 + G.lambdaMin) * (1 + H.lambdaMax)))
@@ -3023,7 +3004,7 @@ theorem lambdaMin_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
 
 /-- **A tensor product multiplies the spectral radii.**  Every other product `x y` is smaller,
 since `|x| ≤ λ_max(G)` and `|y| ≤ λ_max(H)`. -/
-theorem lambdaMax_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMax_tensorProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (tensorProduct G H).lambdaMax = G.lambdaMax * H.lambdaMax := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
@@ -3040,7 +3021,7 @@ theorem lambdaMax_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
       ⟨lambdaMax_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
 
 /-- **A tensor product's least eigenvalue** is the more negative of the two mixed products. -/
-theorem lambdaMin_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMin_tensorProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (tensorProduct G H).lambdaMin
       = min (G.lambdaMax * H.lambdaMin) (G.lambdaMin * H.lambdaMax) := by
@@ -3348,7 +3329,7 @@ theorem isRegularWith_complete (n : ℕ) : (complete (n + 1)).IsRegularWith n :=
 
 instance instNonemptyWheelV (n : ℕ) : Nonempty (wheel n).V := ⟨Sum.inl ⟨0, by omega⟩⟩
 
-instance instNonemptyJoinV (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] :
+instance instNonemptyJoinV (G H : CGraph) [Nonempty G.V] :
     Nonempty (join G H).V := inferInstanceAs (Nonempty (G.V ⊕ H.V))
 
 open Matrix in
@@ -3356,7 +3337,7 @@ open Matrix in
 `l`-regular on `m` vertices, then a vector that is constant `a` on `G` and constant `b` on `H` is
 an eigenvector of `G ∇ H` for `λ` as soon as the two scalar equations `k a + m b = λ a` and
 `n a + l b = λ b` hold. -/
-theorem adjMat_mulVec_join {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l : ℕ}
+theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
     (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) {a b lam : ℝ}
     (h1 : (k : ℝ) * a + Fintype.card H.V * b = lam * a)
     (h2 : Fintype.card G.V * a + (l : ℝ) * b = lam * b) :
@@ -3405,7 +3386,7 @@ theorem adjMat_mulVec_join {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k
 /-- **The spectral radius of the join of two regular graphs** is the larger root of
 `(x - k) (x - l) = n m`: the eigenvector above is positive there, and a positive eigenvector's
 eigenvalue bounds the whole spectrum. -/
-theorem lambdaMax_join_of_isRegularWith {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMax_join_of_isRegularWith {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
     (join G H).lambdaMax
       = ((k : ℝ) + l
@@ -3438,7 +3419,7 @@ theorem lambdaMax_join_of_isRegularWith {G H : CGraph} [DecidableEq G.V] [Decida
 /-- **The smaller root of the join quadratic is an eigenvalue too**, so it bounds the least
 eigenvalue of `G ∇ H` from above.  It need not *be* the least one: the two factors keep their own
 eigenvalues on the vectors that sum to zero on each side. -/
-theorem lambdaMin_join_of_isRegularWith_le {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+theorem lambdaMin_join_of_isRegularWith_le {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
     (join G H).lambdaMin
       ≤ ((k : ℝ) + l
@@ -3463,7 +3444,7 @@ theorem lambdaMin_join_of_isRegularWith_le {G H : CGraph} [DecidableEq G.V] [Dec
 vertex of a `k`-regular graph on `n` vertices gives spectral radius `(k + √(k² + 4 n)) / 2`, the
 positive root of `x² - k x - n`: the apex eigenvector above is positive at this root, and a
 positive eigenvector's eigenvalue bounds the whole spectrum. -/
-theorem lambdaMax_join_complete_one {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {k : ℕ}
+theorem lambdaMax_join_complete_one {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
     (join (complete 1) G).lambdaMax
       = ((k : ℝ) + Real.sqrt ((k : ℝ) ^ 2 + 4 * Fintype.card G.V)) / 2 := by
@@ -3485,7 +3466,7 @@ theorem lambdaMax_wheel (m : ℕ) :
 /-- **The negative root of the cone quadratic is an eigenvalue too**, so it bounds the least
 eigenvalue of `K₁ ∇ G` from above.  It need not *be* the least one: for a wheel with an even rim
 the rim's own `-2` is smaller. -/
-theorem lambdaMin_join_complete_one_le {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {k : ℕ}
+theorem lambdaMin_join_complete_one_le {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
     (join (complete 1) G).lambdaMin
       ≤ ((k : ℝ) - Real.sqrt ((k : ℝ) ^ 2 + 4 * Fintype.card G.V)) / 2 := by
@@ -4786,13 +4767,13 @@ def affineDZeroIso : affineD 0 ≃cg affineD4 :=
 
 /-- The incidence matrix: rows indexed by vertices, columns by edges (the vertices of the line
 graph), with a `1` exactly when the vertex lies on the edge. -/
-def incMat (G : CGraph) [DecidableEq G.V] : Matrix G.V (lineGraph G).V ℝ :=
+def incMat (G : CGraph) : Matrix G.V (lineGraph G).V ℝ :=
   Matrix.of fun v e ↦ if v ∈ (e.1 : Sym2 G.V) then 1 else 0
 
-theorem incMat_apply (G : CGraph) [DecidableEq G.V] (v : G.V) (e : (lineGraph G).V) :
+theorem incMat_apply (G : CGraph) (v : G.V) (e : (lineGraph G).V) :
     G.incMat v e = if v ∈ (e.1 : Sym2 G.V) then 1 else 0 := rfl
 
-private theorem card_filter_mem {G : CGraph} [DecidableEq G.V] (z : Sym2 G.V) :
+private theorem card_filter_mem {G : CGraph} (z : Sym2 G.V) :
     z ∈ G.toSimple.edgeSet → (Finset.univ.filter fun v : G.V ↦ v ∈ z).card = 2 := by
   induction z using Sym2.ind with
   | _ a b =>
@@ -4803,7 +4784,7 @@ private theorem card_filter_mem {G : CGraph} [DecidableEq G.V] (z : Sym2 G.V) :
     ext v
     simp [Sym2.mem_iff]
 
-private theorem card_filter_mem_inter {G : CGraph} [DecidableEq G.V] {z w : Sym2 G.V}
+private theorem card_filter_mem_inter {G : CGraph} {z w : Sym2 G.V}
     (h : z ≠ w) :
     ((Finset.univ.filter fun v : G.V ↦ v ∈ z ∧ v ∈ w).card : ℝ)
       = if ∃ v, v ∈ z ∧ v ∈ w then 1 else 0 := by
@@ -4827,7 +4808,7 @@ private theorem card_filter_mem_inter {G : CGraph} [DecidableEq G.V] {z w : Sym2
 
 /-- **The incidence matrix factors the line graph.**  `Bᵀ B = A(L G) + 2 I`: two distinct edges
 contribute a `1` when they meet and an edge meets itself in its two endpoints. -/
-theorem transpose_mul_incMat (G : CGraph) [DecidableEq G.V] :
+theorem transpose_mul_incMat (G : CGraph) :
     G.incMatᵀ * G.incMat
       = (lineGraph G).adjMat + (2 : ℝ) • (1 : Matrix (lineGraph G).V (lineGraph G).V ℝ) := by
   ext e f
@@ -4860,7 +4841,7 @@ theorem transpose_mul_incMat (G : CGraph) [DecidableEq G.V] :
 /-- **No eigenvalue of a line graph is below `-2`.**  This is the factorisation
 `A(L G) + 2 I = Bᵀ B` together with `⟪v, Bᵀ B v⟫ = ‖B v‖² ≥ 0`; it is the spectral half of the
 reason the ADE diagrams classify the graphs with least eigenvalue `-2`. -/
-theorem neg_two_le_of_mem_spectrum_lineGraph (G : CGraph) [DecidableEq G.V] {x : ℝ}
+theorem neg_two_le_of_mem_spectrum_lineGraph (G : CGraph) {x : ℝ}
     (hx : x ∈ (lineGraph G).spectrum) : -2 ≤ x := by
   obtain ⟨v, hv0, hv⟩ := ((lineGraph G).mem_spectrum_iff x).1 hx
   have hBB : v ⬝ᵥ ((G.incMatᵀ * G.incMat) *ᵥ v) = (G.incMat *ᵥ v) ⬝ᵥ (G.incMat *ᵥ v) := by
@@ -4880,7 +4861,7 @@ theorem neg_two_le_of_mem_spectrum_lineGraph (G : CGraph) [DecidableEq G.V] {x :
 
 /-- **`-2` really is an eigenvalue** as soon as `G` has more edges than vertices: the incidence
 matrix then has a kernel, and a vector killed by `B` is an eigenvector of `Bᵀ B - 2 I`. -/
-theorem neg_two_mem_spectrum_lineGraph (G : CGraph) [DecidableEq G.V]
+theorem neg_two_mem_spectrum_lineGraph (G : CGraph)
     (h : Fintype.card G.V < G.E) : (-2 : ℝ) ∈ (lineGraph G).spectrum := by
   have hinj : ¬ Function.Injective (Matrix.mulVecLin G.incMat) := by
     intro hinj
@@ -4912,12 +4893,12 @@ theorem neg_two_mem_spectrum_lineGraph_complete {n : ℕ} (hn : 4 ≤ n) :
   simpa using lt_choose_two hn
 
 /-- The line-graph bound, stated for the smallest eigenvalue. -/
-theorem neg_two_le_lambdaMin_lineGraph (G : CGraph) [DecidableEq G.V]
+theorem neg_two_le_lambdaMin_lineGraph (G : CGraph)
     [Nonempty (lineGraph G).V] : -2 ≤ (lineGraph G).lambdaMin :=
   (le_lambdaMin_iff _).2 fun _ hx ↦ neg_two_le_of_mem_spectrum_lineGraph G hx
 
 /-- The edges through a fixed vertex, seen as vertices of the line graph, are its incidence set. -/
-theorem card_filter_mem_incMat {G : CGraph} [DecidableEq G.V] (u : G.V) :
+theorem card_filter_mem_incMat {G : CGraph} (u : G.V) :
     (Finset.univ.filter fun e : (lineGraph G).V ↦ u ∈ (e.1 : Sym2 G.V)).card
       = G.toSimple.degree u := by
   rw [← SimpleGraph.card_incidenceFinset_eq_degree]
@@ -4933,7 +4914,7 @@ theorem card_filter_mem_incMat {G : CGraph} [DecidableEq G.V] (u : G.V) :
 /-- **The incidence matrix factors the graph itself.**  `B Bᵀ = A + k I` for a `k`-regular graph:
 two distinct vertices lie on a common edge exactly when they are adjacent, and every vertex lies
 on `k` edges. -/
-theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} [DecidableEq G.V] {k : ℕ}
+theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} {k : ℕ}
     (h : G.IsRegularWith k) :
     G.incMat * G.incMatᵀ = G.adjMat + (k : ℝ) • (1 : Matrix G.V G.V ℝ) := by
   ext u v
@@ -4974,7 +4955,7 @@ theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} [DecidableEq G.V] {k 
 /-- **The spectrum of the line graph of a `k`-regular graph.**  Each eigenvalue `λ` of `G`
 contributes `λ + k - 2` to `L(G)`, and the remaining `|E| - |V|` eigenvalues are all `-2`.  The
 proof is Sylvester's determinant identity applied to `B Bᵀ = A + k I` and `Bᵀ B = A(L G) + 2 I`. -/
-theorem spectrum_lineGraph_of_isRegularWith {G : CGraph} [DecidableEq G.V] {k : ℕ}
+theorem spectrum_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
     (h : G.IsRegularWith k) (hle : Fintype.card G.V ≤ G.E) :
     (lineGraph G).spectrum
       = Multiset.replicate (G.E - Fintype.card G.V) (-2)
@@ -5105,11 +5086,10 @@ theorem eq_of_mulVec_eq_of_isRegularWith {G : CGraph} (hconn : G.IsConnected) {k
 
 /-- **The spectrum of the complement of a connected regular graph.**  The degree `k` is replaced
 by `n - 1 - k` and every other eigenvalue `x` by `-1 - x`. -/
-theorem spectrum_compl_of_isRegularWith {G : CGraph} [inst : DecidableEq G.V]
+theorem spectrum_compl_of_isRegularWith {G : CGraph}
     (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
     (compl G).spectrum = ((Fintype.card G.V : ℝ) - 1 - k)
       ::ₘ (G.spectrum.erase (k : ℝ)).map (fun x ↦ -1 - x) := by
-  obtain rfl : inst = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
   haveI : Nonempty G.V := hconn.nonempty
   have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
   obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_diagonal G
@@ -5265,7 +5245,7 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph} [inst : DecidableEq G.V]
 
 /-- **The spectral radius of the complement of a regular graph** is again its degree,
 `n - 1 - k`: the complement of a regular graph is regular. -/
-theorem lambdaMax_compl_of_isRegularWith {G : CGraph} [DecidableEq G.V] [Nonempty G.V] {k : ℕ}
+theorem lambdaMax_compl_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
     (compl G).lambdaMax = ((Fintype.card G.V - 1 - k : ℕ) : ℝ) :=
   lambdaMax_of_isRegularWith h.compl
@@ -6309,7 +6289,7 @@ theorem two_mul_sqrt_le_energy (G : CGraph) : 2 * Real.sqrt G.E ≤ G.energy := 
 
 /-- **The energy is multiplicative over tensor products**, because the eigenvalues of `G ⊗ H` are
 the products `λ μ` and `|λ μ| = |λ| |μ|`. -/
-@[simp] theorem energy_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem energy_tensorProduct (G H : CGraph) :
     (tensorProduct G H).energy = G.energy * H.energy := by
   have key : ∀ s t : Multiset ℝ, ((s ×ˢ t).map (fun p : ℝ × ℝ ↦ |p.1 * p.2|)).sum
       = (s.map (|·|)).sum * (t.map (|·|)).sum := by
@@ -6569,7 +6549,7 @@ theorem count_zero_lapSpectrum_eq_one_iff (G : CGraph) :
 
 theorem monic_lapCharpoly (G : CGraph) : G.lapCharpoly.Monic := Matrix.charpoly_monic _
 
-theorem lapCharpoly_eq_matrix_charpoly (G : CGraph) [inst : DecidableEq G.V] :
+theorem lapCharpoly_eq_matrix_charpoly (G : CGraph) :
     G.lapCharpoly = G.lapMat.charpoly :=
   congrArg (fun d ↦ @Matrix.charpoly ℝ _ G.V d _ G.lapMat) (Subsingleton.elim _ _)
 
@@ -6758,7 +6738,7 @@ theorem sum_sq_lapSpectrum (G : CGraph) :
   ring
 
 /-- **The Laplacians of a graph and of its complement add up to `n I - J`.** -/
-theorem lapMat_compl (G : CGraph) [DecidableEq G.V] :
+theorem lapMat_compl (G : CGraph) :
     (compl G).lapMat
       = (Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ) - Matrix.vecMulVec 1 1 - G.lapMat := by
   ext i j
@@ -6781,7 +6761,7 @@ theorem lapMat_compl (G : CGraph) [DecidableEq G.V] :
 
 /-- On a vector summing to zero — which is where all the non-constant Laplacian eigenvectors
 live — the complement's Laplacian acts as `n` minus the graph's own. -/
-theorem lapMat_compl_mulVec (G : CGraph) [DecidableEq G.V] {v : G.V → ℝ} (hv : ∑ i, v i = 0)
+theorem lapMat_compl_mulVec (G : CGraph) {v : G.V → ℝ} (hv : ∑ i, v i = 0)
     {mu : ℝ} (hmu : G.lapMat *ᵥ v = mu • v) :
     (compl G).lapMat *ᵥ v = ((Fintype.card G.V : ℝ) - mu) • v := by
   rw [lapMat_compl, Matrix.sub_mulVec, Matrix.sub_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec,
@@ -6808,11 +6788,10 @@ theorem lapSpectrum_bipartite_self (n : ℕ) :
 
 /-- **The Laplacian spectrum of the complement of a connected graph.**  The eigenvalue `0` of the
 constant vector stays `0`, and every other eigenvalue `μ` becomes `n - μ`. -/
-theorem lapSpectrum_compl_of_isConnected {G : CGraph} [inst : DecidableEq G.V]
+theorem lapSpectrum_compl_of_isConnected {G : CGraph}
     (hconn : G.IsConnected) :
     (compl G).lapSpectrum
       = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
-  obtain rfl : inst = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
   haveI : Nonempty G.V := hconn.nonempty
   have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
   obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_lap_diagonal G
@@ -6975,7 +6954,7 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph} [inst : DecidableEq G.V]
 
 /-- The complement identity the other way round: a connected graph's Laplacian spectrum is
 recovered from its complement's. -/
-theorem lapSpectrum_eq_of_compl {G : CGraph} [DecidableEq G.V] (hconn : G.IsConnected) :
+theorem lapSpectrum_eq_of_compl {G : CGraph} (hconn : G.IsConnected) :
     G.lapSpectrum
       = 0 ::ₘ ((compl G).lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
   haveI : Nonempty G.V := hconn.nonempty
@@ -6987,7 +6966,7 @@ theorem lapSpectrum_eq_of_compl {G : CGraph} [DecidableEq G.V] (hconn : G.IsConn
 
 /-- **The Laplacian spectrum of the complement**, with no hypothesis at all: a graph and its
 complement cannot both be disconnected. -/
-theorem lapSpectrum_compl (G : CGraph) [DecidableEq G.V] [Nonempty G.V] :
+theorem lapSpectrum_compl (G : CGraph) [Nonempty G.V] :
     (compl G).lapSpectrum
       = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
   by_cases hpre : G.toSimple.Preconnected
@@ -7042,7 +7021,7 @@ theorem lapSpectrum_star (n : ℕ) :
 
 /-- **The Laplacian spectrum of a join**: `0`, the order `n + m`, and every other eigenvalue of
 each factor shifted by the order of the other factor. -/
-theorem lapSpectrum_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lapSpectrum_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (join G H).lapSpectrum
       = 0 ::ₘ (((Fintype.card G.V : ℝ) + Fintype.card H.V)
@@ -7073,7 +7052,7 @@ theorem lapSpectrum_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
 is `l`-regular on `m` vertices with `k + m = n + l`, so that `G ∇ H` is regular of that common
 degree, then the join has that degree as an eigenvalue, `k - n` as a second one, and keeps every
 *other* eigenvalue of each factor unchanged. -/
-theorem spectrum_join_of_isRegularWith {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+theorem spectrum_join_of_isRegularWith {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l m : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
     (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
     (join G H).spectrum
@@ -7323,7 +7302,7 @@ theorem sum_eq_zero_of_lapMat_mulVec {G : CGraph} {v : G.V → ℝ} {x : ℝ} (h
 /-- **Every Laplacian eigenvalue is at most the number of vertices**, the sharp bound, attained
 by the complete graph.  On an eigenvector for `x ≠ 0` — which sums to zero — the complement's
 Laplacian acts as `n - x`, and that is nonnegative. -/
-theorem le_card_of_mem_lapSpectrum (G : CGraph) [DecidableEq G.V] {x : ℝ}
+theorem le_card_of_mem_lapSpectrum (G : CGraph) {x : ℝ}
     (hx : x ∈ G.lapSpectrum) : x ≤ Fintype.card G.V := by
   rcases eq_or_ne x 0 with rfl | hx0
   · positivity
@@ -7420,7 +7399,7 @@ theorem algConn_eq_zero_of_not_isConnected {G : CGraph} (h : 2 ≤ Fintype.card 
   le_antisymm (not_lt.1 fun hpos ↦ hcon ((G.algConn_pos_iff h).1 hpos)) G.algConn_nonneg
 
 /-- **The algebraic connectivity is at most the order**, with equality for the complete graph. -/
-theorem algConn_le_card (G : CGraph) [DecidableEq G.V] (h : 2 ≤ Fintype.card G.V) :
+theorem algConn_le_card (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
     G.algConn ≤ Fintype.card G.V :=
   G.le_card_of_mem_lapSpectrum (G.algConn_mem_lapSpectrum h)
 
@@ -7611,7 +7590,7 @@ theorem algConn_le_lapLambdaMax (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
   le_lapLambdaMax (G.algConn_mem_lapSpectrum h)
 
 /-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
-theorem lapLambdaMax_le_card (G : CGraph) [Nonempty G.V] [DecidableEq G.V] :
+theorem lapLambdaMax_le_card (G : CGraph) [Nonempty G.V] :
     G.lapLambdaMax ≤ Fintype.card G.V :=
   G.le_card_of_mem_lapSpectrum G.lapLambdaMax_mem_lapSpectrum
 
@@ -7648,7 +7627,7 @@ theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
   exact h
 
 /-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`. -/
-theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) :
     (compl G).lapLambdaMax = Fintype.card G.V - G.algConn := by
   haveI : Nonempty (compl G).V := ‹Nonempty G.V›
@@ -7666,7 +7645,7 @@ theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
       linarith
 
 /-- **The complement swaps the two ends of the Laplacian spectrum**: `a (Ḡ) = n - μ_max (G)`. -/
-theorem algConn_compl (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+theorem algConn_compl (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) :
     (compl G).algConn = Fintype.card G.V - G.lapLambdaMax := by
   haveI : Nonempty (compl G).V := ‹Nonempty G.V›
@@ -8139,7 +8118,7 @@ theorem two_mul_algConn_le_degree_add_degree (G : CGraph) [Nonempty G.V] {u v : 
 `a (G) |S| |Sᶜ| ≤ n · e (S, Sᶜ)`, where `e (S, Sᶜ) = ∑_{i ∈ S} ∑_{j ∉ S} A i j` counts the edges
 leaving `S`.  The test vector is `|Sᶜ|` on `S` and `-|S|` off it: it sums to zero, its squared
 norm is `n |S| |Sᶜ|`, and every crossing edge contributes `n ²` to the quadratic form. -/
-theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V]
     (S : Finset G.V) :
     G.algConn * ((S.card : ℝ) * (Sᶜ.card : ℝ))
       ≤ Fintype.card G.V * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j := by
@@ -8217,7 +8196,7 @@ theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V] [Decidabl
 /-- **A spectral gap forbids a cheap cut**: for a set `S` of at most half the vertices, the number
 of edges leaving `S` is at least `a (G) |S| / 2`.  This is the previous bound with `|Sᶜ| ≥ n / 2`
 substituted and the order cancelled. -/
-theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V]
     (S : Finset G.V) (hS : 2 * S.card ≤ Fintype.card G.V) :
     G.algConn * S.card ≤ 2 * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j := by
   have hkey := G.algConn_mul_card_mul_card_compl_le S
@@ -8236,7 +8215,7 @@ theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V] [DecidableEq
 /-- **Fiedler's inequality for a graph that is not complete**: `a (G) ≤ δ (G)`.  Read in the
 complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hypothesis is exactly what
 `Δ + 1 ≤ μ_max` needs, namely that `Ḡ` has an edge. -/
-theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) (hc : 0 < (compl G).E) :
     G.algConn ≤ G.minDeg := by
   haveI : Nonempty (compl G).V := ‹Nonempty G.V›
@@ -8256,7 +8235,7 @@ theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
 /-- **Fiedler's bound**, in the form that also covers the complete graph: `(n - 1) · a ≤ n · δ`.
 For `K_n` it is an equality, `a = n` and `δ = n - 1`; for every other graph the sharper
 `algConn_le_minDeg` applies. -/
-theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) :
     ((Fintype.card G.V : ℝ) - 1) * G.algConn ≤ Fintype.card G.V * G.minDeg := by
   haveI : Nonempty (compl G).V := ‹Nonempty G.V›
@@ -8287,7 +8266,7 @@ theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V] 
     nlinarith [G.algConn_nonneg]
 
 /-- **Fiedler's bound in its usual form**: `a (G) ≤ n / (n - 1) · δ (G)`. -/
-theorem algConn_le_div_mul_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
+theorem algConn_le_div_mul_minDeg (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) :
     G.algConn ≤ (Fintype.card G.V : ℝ) / ((Fintype.card G.V : ℝ) - 1) * G.minDeg := by
   have hn : (2 : ℝ) ≤ Fintype.card G.V := by exact_mod_cast h
@@ -8298,7 +8277,7 @@ theorem algConn_le_div_mul_minDeg (G : CGraph) [Nonempty G.V] [DecidableEq G.V]
 /-- **The largest Laplacian eigenvalue of a join is its order.**  A join has a disconnected
 complement, so this is `algConn_compl` read backwards; here it is read straight off
 `lapSpectrum_join`. -/
-theorem lapLambdaMax_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lapLambdaMax_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (join G H).lapLambdaMax = (Fintype.card G.V : ℝ) + Fintype.card H.V := by
   have hG0 : (0 : ℝ) ≤ Fintype.card G.V := Nat.cast_nonneg _
@@ -8322,7 +8301,7 @@ theorem lapLambdaMax_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
 /-- **The algebraic connectivity of a join**: each factor's Fiedler value shifted by the order of
 the other factor, whichever is smaller.  The order `n + m` itself is never the smallest, since
 `a (G) ≤ n`. -/
-theorem algConn_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem algConn_join (G H : CGraph)
     (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
     (join G H).algConn
       = min (G.algConn + Fintype.card H.V) (H.algConn + Fintype.card G.V) := by
@@ -8365,7 +8344,7 @@ theorem algConn_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
 
 /-- The Laplacian of a cartesian product is `L G ⊗ I + I ⊗ L H`, the same shape as
 `adjMat_cartesianProduct`: the degree of `(g, h)` is `deg g + deg h`. -/
-theorem lapMat_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem lapMat_cartesianProduct (G H : CGraph) :
     (cartesianProduct G H).lapMat
       = G.lapMat ⊗ₖ (1 : Matrix H.V H.V ℝ) + (1 : Matrix G.V G.V ℝ) ⊗ₖ H.lapMat := by
   ext p q
@@ -8389,13 +8368,10 @@ theorem lapMat_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
 /-- **The Laplacian eigenvalues of a cartesian product are the sums of the Laplacian
 eigenvalues**, exactly as for the adjacency matrix (`spectrum_cartesianProduct`): the two
 Laplacians are simultaneously diagonalised by the Kronecker product of their eigenbases. -/
-theorem lapSpectrum_cartesianProduct (G H : CGraph) [dG : DecidableEq G.V] [dH : DecidableEq H.V] :
+theorem lapSpectrum_cartesianProduct (G H : CGraph) :
     (cartesianProduct G H).lapSpectrum
       = Finset.univ.val.map
           (fun p : G.V × H.V ↦ G.lapEigenvalues p.1 + H.lapEigenvalues p.2) := by
-  have e1 : dG = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  have e2 : dH = fun a b ↦ Classical.propDecidable (a = b) := Subsingleton.elim _ _
-  subst e1; subst e2
   obtain ⟨U₁, h₁, h₁', e₁⟩ := exists_orthogonal_lap_diagonal G
   obtain ⟨U₂, h₂, h₂', e₂⟩ := exists_orthogonal_lap_diagonal H
   have k₁ : G.lapMat * U₁ = U₁ * Matrix.diagonal G.lapEigenvalues := by
@@ -8417,23 +8393,20 @@ theorem lapSpectrum_cartesianProduct (G H : CGraph) [dG : DecidableEq G.V] [dH :
       Matrix.mul_one, Matrix.mul_one]
   refine lapSpectrum_eq_of_conj (P := U₁ ⊗ₖ U₂) (Q := U₁ᵀ ⊗ₖ U₂ᵀ) ?_ ?_ ?_
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
-    congr!
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
-    congr!
   · rw [lapMat_cartesianProduct, Matrix.add_mul, ← Matrix.mul_kronecker_mul,
       ← Matrix.mul_kronecker_mul, k₁, k₂]
     simp only [Matrix.one_mul]
     rw [key]
-    congr!
 
-theorem lapSpectrum_cartesianProduct' (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem lapSpectrum_cartesianProduct' (G H : CGraph) :
     (cartesianProduct G H).lapSpectrum
       = (G.lapSpectrum ×ˢ H.lapSpectrum).map (fun p ↦ p.1 + p.2) := by
   rw [lapSpectrum_cartesianProduct, lapSpectrum_eq_map, lapSpectrum_eq_map,
     ← map_product_apply₂, ← Finset.univ_product_univ, Finset.product_val]
 
 /-- **The largest Laplacian eigenvalue of a cartesian product** is the sum of the two. -/
-theorem lapLambdaMax_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem lapLambdaMax_cartesianProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax := by
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
@@ -8451,7 +8424,7 @@ theorem lapLambdaMax_cartesianProduct (G H : CGraph) [DecidableEq G.V] [Decidabl
 and `0 + a (H)` are both eigenvalues of the product, and every other nonzero sum is at least one
 of them.  No connectivity hypothesis is needed — if either factor is disconnected both sides
 are `0`. -/
-theorem algConn_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem algConn_cartesianProduct (G H : CGraph)
     (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
     (cartesianProduct G H).algConn = min G.algConn H.algConn := by
   haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)

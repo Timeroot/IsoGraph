@@ -32,15 +32,11 @@ wheel n              = join (complete 1) (cycle n)
 
 ## `DecidableEq`
 
-A `CGraph` carries a `Fintype` instance but no `DecidableEq`, and the latter does *not* follow
-from the former.  Any construction that has to ask "is this the same vertex?" — the complement,
-the cartesian/strong/lexicographic products, the line graph — therefore takes `[DecidableEq G.V]`
-as an instance argument.  Each construction then exports the instance for *its* vertex type, so
-the derived definitions above compose without the caller ever seeing it.
-
-Putting `DecidableEq` into the `CGraph` structure itself would avoid the boilerplate, at the cost
-of making the type no longer a bare `Fintype`-bundled graph (and of breaking `simpleEquiv`); the
-instance arguments seemed the smaller price.
+Every construction that has to ask "is this the same vertex?" — the complement, the
+cartesian/strong/lexicographic products, the line graph — needs a `DecidableEq` on the vertex
+type, and a `Fintype` does not supply one.  A `CGraph` therefore bundles `DecidableEq V`
+alongside `Fintype V` (`CGraph.decEqV`, an instance).  Nothing here takes it as an argument, and
+no construction has to re-export it for its own vertex type: it comes back out of the structure.
 
 ## Isomorphism classes
 
@@ -75,18 +71,13 @@ def isoOfAdj {G H : CGraph} (e : G.V ≃ H.V) (h : ∀ x y, H.Adj (e x) (e y) = 
 @[simp] theorem isoOfAdj_apply {G H : CGraph} (e : G.V ≃ H.V)
     (h : ∀ x y, H.Adj (e x) (e y) = G.Adj x y) (x : G.V) : isoOfAdj e h x = e x := rfl
 
-/-- The canonical representative has `Fin n` for its vertex type, so it has a `DecidableEq`.
-This is what makes the lifts to `IsoGraph` computable. -/
-instance instDecidableEqCanonicalizeV (G : CGraph) : DecidableEq G.canonicalize.V :=
-  inferInstanceAs (DecidableEq (Fin (Fintype.card G.V)))
-
 /-! ## The primitives -/
 
 /-- A `CGraph` from an arbitrary relation: symmetrise it, and delete the diagonal.
 
-This is the only place in the file where symmetry and irreflexivity are checked; every construction
-whose vertex type has a `DecidableEq` goes through it, and may pass a relation that is already
-symmetric and irreflexive (in which case `ofRel` changes nothing). -/
+This is the only place in the file where symmetry and irreflexivity are checked; nearly every
+construction goes through it, and may pass a relation that is already symmetric and irreflexive
+(in which case `ofRel` changes nothing). -/
 def ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) : CGraph where
   V := V
   Adj x y := decide (x ≠ y) && (r x y || r y x)
@@ -95,9 +86,6 @@ def ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) : CGraph
     · subst h; simp
     · cases r x y <;> cases r y x <;> simp [h, Ne.symm h]
   loopless x := by simp
-
-instance instDecidableEqOfRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) :
-    DecidableEq (ofRel V r).V := inferInstanceAs (DecidableEq V)
 
 @[simp] theorem ofRel_adj {V : Type} [Fintype V] [DecidableEq V] (r : V → V → Bool) (x y : V) :
     (ofRel V r).Adj x y = (decide (x ≠ y) && (r x y || r y x)) := rfl
@@ -112,7 +100,7 @@ Most constructions below are defined directly rather than through `ofRel`, becau
 `r` twice on every query and that factor of two compounds through nested constructions.  This
 lemma is what lets each of them still be *described* by an `ofRel`, so that proofs may reason
 with the symmetrised relation even though the compiled code never evaluates it. -/
-theorem eq_ofRel (G : CGraph) [DecidableEq G.V] (r : G.V → G.V → Bool)
+theorem eq_ofRel (G : CGraph) (r : G.V → G.V → Bool)
     (h : ∀ x y, x ≠ y → G.Adj x y = (r x y || r y x)) : G = ofRel G.V r := by
   refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
   show G.Adj x y = (decide (x ≠ y) && (r x y || r y x))
@@ -126,9 +114,6 @@ theorem eq_ofRel (G : CGraph) [DecidableEq G.V] (r : G.V → G.V → Bool)
 def ofEdges (n : ℕ) (es : List (ℕ × ℕ)) : CGraph :=
   ofRel (Fin n) fun i j ↦ es.contains (i.1, j.1)
 
-instance (n : ℕ) (es : List (ℕ × ℕ)) : DecidableEq (ofEdges n es).V :=
-  inferInstanceAs (DecidableEq (Fin n))
-
 @[simp] theorem card_ofEdges (n : ℕ) (es : List (ℕ × ℕ)) :
     Fintype.card (ofEdges n es).V = n := Fintype.card_fin n
 
@@ -140,8 +125,6 @@ def empty (n : ℕ) : CGraph where
   symm _ _ := rfl
   loopless _ := by simp
 
-instance (n : ℕ) : DecidableEq (empty n).V := inferInstanceAs (DecidableEq (Fin n))
-
 instance (n : ℕ) : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
 @[simp] theorem empty_adj (n : ℕ) (i j : (empty n).V) : (empty n).Adj i j = false := rfl
@@ -152,7 +135,7 @@ instance (n : ℕ) : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fi
 
 Written directly rather than as `ofRel G.V (!G.Adj · ·)`, which would query `G.Adj` twice per
 edge; `compl_eq_ofRel` says the two agree. -/
-def compl (G : CGraph) [DecidableEq G.V] : CGraph where
+def compl (G : CGraph) : CGraph where
   V := G.V
   Adj x y := decide (x ≠ y) && !G.Adj x y
   symm x y := by
@@ -161,24 +144,21 @@ def compl (G : CGraph) [DecidableEq G.V] : CGraph where
     · simp [h, Ne.symm h, G.symm x y]
   loopless x := by simp
 
-instance (G : CGraph) [DecidableEq G.V] : DecidableEq (compl G).V :=
-  inferInstanceAs (DecidableEq G.V)
-
-instance (G : CGraph) [DecidableEq G.V] [Nonempty G.V] : Nonempty (compl G).V :=
+instance (G : CGraph) [Nonempty G.V] : Nonempty (compl G).V :=
   inferInstanceAs (Nonempty G.V)
 
-theorem compl_eq_ofRel (G : CGraph) [DecidableEq G.V] :
+theorem compl_eq_ofRel (G : CGraph) :
     compl G = ofRel G.V fun x y ↦ !G.Adj x y :=
   eq_ofRel _ _ fun x y hxy => by simp [compl, hxy, G.symm x y]
 
-@[simp] theorem compl_adj (G : CGraph) [DecidableEq G.V] (x y : G.V) :
+@[simp] theorem compl_adj (G : CGraph) (x y : G.V) :
     (compl G).Adj x y = (decide (x ≠ y) && !G.Adj x y) := rfl
 
-@[simp] theorem card_compl (G : CGraph) [DecidableEq G.V] :
+@[simp] theorem card_compl (G : CGraph) :
     Fintype.card (compl G).V = Fintype.card G.V := rfl
 
 /-- Complementation respects isomorphism. -/
-def Iso.compl {G G' : CGraph} [DecidableEq G.V] [DecidableEq G'.V] (i : G ≃cg G') :
+def Iso.compl {G G' : CGraph} (i : G ≃cg G') :
     CGraph.compl G ≃cg CGraph.compl G' :=
   isoOfAdj (G := CGraph.compl G) (H := CGraph.compl G') i.toEquiv fun x y ↦ by
     show (decide (i x ≠ i y) && !G'.Adj (i x) (i y)) = (decide (x ≠ y) && !G.Adj x y)
@@ -189,8 +169,9 @@ end CGraph
 /-! ## Complementation, on isomorphism classes
 
 Every other construction that takes a graph is carried across to `IsoGraph` in
-`IsoGraph/Graphs/Quotient.lean`, by `@[toIsoGraph]` on its congruence.  The complement is written
-out by hand, and it is written out here, for two reasons:
+`IsoGraph/Graphs/Quotient.lean`, by `@[toIsoGraph]` on its congruence.  The complement is the same
+lift — `Quotient.map CGraph.compl`, with `compl_mk` true by `rfl` — but written out by hand, and
+written out here, for two reasons:
 
 * it carries the `Compl` instance, so that `Gᶜ` elaborates to `Compl.compl G` — which `simp` does
   not match against a bridge stated with `IsoGraph.compl`.  The bridge has to be stated in the
@@ -201,16 +182,13 @@ out by hand, and it is written out here, for two reasons:
 
 namespace IsoGraph
 
-/-- The complement of an isomorphism class. -/
+/-- The complement of an isomorphism class: the complement of any representative. -/
 def compl (G : IsoGraph) : IsoGraph :=
-  Quotient.lift (s := CGraph.isoSetoid) (fun g ↦ ⟦CGraph.compl g.canonicalize⟧)
-    (by
-      rintro g h ⟨i⟩
-      exact Quotient.sound
-        ⟨CGraph.Iso.compl (g.isoCanonicalize.symm.trans (i.trans h.isoCanonicalize))⟩) G
+  Quotient.map (sa := CGraph.isoSetoid) (sb := CGraph.isoSetoid) CGraph.compl
+    (fun _ _ ⟨i⟩ ↦ ⟨CGraph.Iso.compl i⟩) G
 
 /-- Complementation is written `Gᶜ`.  There is no such instance for `CGraph`, whose complement
-needs a `DecidableEq` on the vertex type and so cannot be a bare `α → α`.
+would have to be a bare `α → α` on the graph itself, not on its vertex type.
 
 Note that `⟦g⟧ᶜ` does not elaborate — instance search sees the type `Quotient CGraph.isoSetoid`
 and will not unfold `IsoGraph` to reach it.  Write `(show IsoGraph from ⟦g⟧)ᶜ`; a type ascription
@@ -219,9 +197,8 @@ instance : Compl IsoGraph := ⟨compl⟩
 
 theorem compl_eq (G : IsoGraph) : Gᶜ = compl G := rfl
 
-@[simp, isoTransfer] theorem compl_mk (G : CGraph) [DecidableEq G.V] :
-    (show IsoGraph from ⟦G⟧)ᶜ = ⟦CGraph.compl G⟧ :=
-  Quotient.sound ⟨CGraph.Iso.compl G.isoCanonicalize.symm⟩
+@[simp, isoTransfer] theorem compl_mk (G : CGraph) :
+    (show IsoGraph from ⟦G⟧)ᶜ = ⟦CGraph.compl G⟧ := rfl
 
 isograph_bridge CGraph.compl ↦ IsoGraph.compl via IsoGraph.compl_mk
 
@@ -231,8 +208,8 @@ namespace CGraph
 
 /-- The disjoint union, on `G.V ⊕ H.V`.
 
-This is the one construction that needs no `DecidableEq`: the two sides are kept apart by the
-`Sum` constructors rather than by an equality test. -/
+This is the one construction that tests no vertex equality at all: the two sides are kept apart
+by the `Sum` constructors, so it is built directly rather than through `ofRel`. -/
 def disjUnion (G H : CGraph) : CGraph where
   V := G.V ⊕ H.V
   Adj x y :=
@@ -250,9 +227,6 @@ def disjUnion (G H : CGraph) : CGraph where
     cases x with
     | inl a => exact G.loopless a
     | inr b => exact H.loopless b
-
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : DecidableEq (disjUnion G H).V :=
-  inferInstanceAs (DecidableEq (G.V ⊕ H.V))
 
 instance (G H : CGraph) [Nonempty G.V] : Nonempty (disjUnion G H).V :=
   inferInstanceAs (Nonempty (G.V ⊕ H.V))
@@ -278,7 +252,7 @@ The relation is already symmetric and loopless — two vertices in the same fibr
 exactly when they are adjacent in that fibre's graph — so it is used as-is rather than run
 through `ofRel`; see `sigmaUnion_eq_ofRel`. -/
 def sigmaUnion {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
-    [∀ i, DecidableEq (F i).V] : CGraph where
+ : CGraph where
   V := Σ i, (F i).V
   Adj x y := if h : x.1 = y.1 then (F y.1).Adj (h ▸ x.2) y.2 else false
   symm x y := by
@@ -294,28 +268,25 @@ def sigmaUnion {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
     rw [dif_pos (rfl : i = i)]
     exact (F i).loopless a
 
-instance {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph) [∀ i, DecidableEq (F i).V] :
-    DecidableEq (sigmaUnion F).V := inferInstanceAs (DecidableEq (Σ i, (F i).V))
-
 @[simp] theorem sigmaUnion_adj_mk {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
-    [∀ i, DecidableEq (F i).V] (i : ι) (a b : (F i).V) :
+ (i : ι) (a b : (F i).V) :
     (sigmaUnion F).Adj ⟨i, a⟩ ⟨i, b⟩ = (F i).Adj a b := by
   show (if h : i = i then (F i).Adj (h ▸ a) b else false) = _
   rw [dif_pos (rfl : i = i)]
 
 theorem sigmaUnion_adj_of_fst_ne {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
-    [∀ i, DecidableEq (F i).V] (x y : (sigmaUnion F).V) (h : x.1 ≠ y.1) :
+ (x y : (sigmaUnion F).V) (h : x.1 ≠ y.1) :
     (sigmaUnion F).Adj x y = false := by
   show (if h : x.1 = y.1 then (F y.1).Adj (h ▸ x.2) y.2 else false) = _
   rw [dif_neg h]
 
 @[simp] theorem sigmaUnion_adj_ne {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
-    [∀ i, DecidableEq (F i).V] (i j : ι) (a : (F i).V) (b : (F j).V) (h : i ≠ j) :
+ (i j : ι) (a : (F i).V) (b : (F j).V) (h : i ≠ j) :
     (sigmaUnion F).Adj ⟨i, a⟩ ⟨j, b⟩ = false :=
   sigmaUnion_adj_of_fst_ne F ⟨i, a⟩ ⟨j, b⟩ h
 
 theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
-    [∀ i, DecidableEq (F i).V] :
+ :
     sigmaUnion F = ofRel (Σ i, (F i).V) fun x y ↦
       if h : x.1 = y.1 then (F y.1).Adj (h ▸ x.2) y.2 else false := by
   refine eq_ofRel _ _ fun x y _ => ?_
@@ -329,7 +300,7 @@ theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι �
   · simp only [sigmaUnion_adj_ne F i j a b h, dif_neg h, dif_neg (Ne.symm h), Bool.or_self]
 
 @[simp] theorem card_sigmaUnion {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
-    [∀ i, DecidableEq (F i).V] :
+ :
     Fintype.card (sigmaUnion F).V = ∑ i, Fintype.card (F i).V := Fintype.card_sigma
 
 /-! ## Built out of the primitives -/
@@ -338,23 +309,18 @@ theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι �
 @[toIsoGraph]
 def complete (n : ℕ) : CGraph := compl (empty n)
 
-instance (n : ℕ) : DecidableEq (complete n).V := inferInstanceAs (DecidableEq (Fin n))
-
 instance (n : ℕ) : Nonempty (complete (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
 @[simp] theorem card_complete (n : ℕ) : Fintype.card (complete n).V = n := Fintype.card_fin n
 
 /-- The join: a disjoint union together with every edge between the two parts. -/
-def join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph :=
+def join (G H : CGraph) : CGraph :=
   compl (disjUnion (compl G) (compl H))
 
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : DecidableEq (join G H).V :=
-  inferInstanceAs (DecidableEq (G.V ⊕ H.V))
-
-@[simp] theorem card_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem card_join (G H : CGraph) :
     Fintype.card (join G H).V = Fintype.card G.V + Fintype.card H.V := Fintype.card_sum
 
-@[simp] theorem join_adj_inl_inl (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (a c : G.V) :
+@[simp] theorem join_adj_inl_inl (G H : CGraph) (a c : G.V) :
     (join G H).Adj (.inl a) (.inl c) = G.Adj a c := by
   by_cases h : a = c
   · subst h
@@ -362,7 +328,7 @@ instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : DecidableEq (join 
   · have hne : (Sum.inl a : G.V ⊕ H.V) ≠ Sum.inl c := fun h' ↦ h (Sum.inl.inj h')
     simp [join, h, hne]
 
-@[simp] theorem join_adj_inr_inr (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] (b d : H.V) :
+@[simp] theorem join_adj_inr_inr (G H : CGraph) (b d : H.V) :
     (join G H).Adj (.inr b) (.inr d) = H.Adj b d := by
   by_cases h : b = d
   · subst h
@@ -370,20 +336,17 @@ instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : DecidableEq (join 
   · have hne : (Sum.inr b : G.V ⊕ H.V) ≠ Sum.inr d := fun h' ↦ h (Sum.inr.inj h')
     simp [join, h, hne]
 
-@[simp] theorem join_adj_inl_inr (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+@[simp] theorem join_adj_inl_inr (G H : CGraph)
     (a : G.V) (d : H.V) : (join G H).Adj (.inl a) (.inr d) = true := by
   simp [join]
 
-@[simp] theorem join_adj_inr_inl (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+@[simp] theorem join_adj_inr_inl (G H : CGraph)
     (b : H.V) (c : G.V) : (join G H).Adj (.inr b) (.inl c) = true := by
   simp [join]
 
 /-- The complete bipartite graph `K_{m,n}`. -/
 @[toIsoGraph]
 def bipartite (m n : ℕ) : CGraph := compl (disjUnion (complete m) (complete n))
-
-instance (m n : ℕ) : DecidableEq (bipartite m n).V :=
-  inferInstanceAs (DecidableEq (Fin m ⊕ Fin n))
 
 instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
   inferInstanceAs (Nonempty (Fin (m + 1) ⊕ Fin n))
@@ -412,14 +375,9 @@ instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
 def completeMultipartite (ds : List ℕ) : CGraph :=
   compl (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))
 
-instance (ds : List ℕ) : DecidableEq (completeMultipartite ds).V :=
-  inferInstanceAs (DecidableEq (Σ i : Fin ds.length, (complete (ds.get i)).V))
-
 /-- The star with `n` leaves. -/
 @[toIsoGraph]
 def star (n : ℕ) : CGraph := bipartite 1 n
-
-instance (n : ℕ) : DecidableEq (star n).V := inferInstanceAs (DecidableEq (bipartite 1 n).V)
 
 instance (n : ℕ) : Nonempty (star n).V := inferInstanceAs (Nonempty (bipartite (0 + 1) n).V)
 
@@ -428,8 +386,6 @@ instance (n : ℕ) : Nonempty (star n).V := inferInstanceAs (Nonempty (bipartite
 /-- The path on `n` vertices. -/
 @[toIsoGraph]
 def path (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ i.1 + 1 == j.1
-
-instance (n : ℕ) : DecidableEq (path n).V := inferInstanceAs (DecidableEq (Fin n))
 
 instance (n : ℕ) : Nonempty (path (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
@@ -440,8 +396,6 @@ edgeless, and `cycle 2` is a single edge. -/
 @[toIsoGraph]
 def cycle (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ (i.1 + 1) % n == j.1
 
-instance (n : ℕ) : DecidableEq (cycle n).V := inferInstanceAs (DecidableEq (Fin n))
-
 instance (n : ℕ) : Nonempty (cycle (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
 @[simp] theorem card_cycle (n : ℕ) : Fintype.card (cycle n).V = n := Fintype.card_fin n
@@ -449,9 +403,6 @@ instance (n : ℕ) : Nonempty (cycle (n + 1)).V := inferInstanceAs (Nonempty (Fi
 /-- The wheel: a cycle plus a hub joined to all of it. -/
 @[toIsoGraph]
 def wheel (n : ℕ) : CGraph := join (complete 1) (cycle n)
-
-instance (n : ℕ) : DecidableEq (wheel n).V :=
-  inferInstanceAs (DecidableEq (join (complete 1) (cycle n)).V)
 
 /-- The edges of the theta graph: vertex `0` and vertex `1` are the poles, and the `i`-th path
 uses `xs[i]` fresh internal vertices starting at `off`. -/
@@ -468,9 +419,6 @@ which has `xs[i]` internal vertices (so `Θ(a,b,c)` in the usual notation is
 poles, so at most one `0` is meaningful. -/
 @[toIsoGraph]
 def thetaGraph (xs : List ℕ) : CGraph := ofEdges (2 + xs.sum) (thetaEdges 2 xs)
-
-instance (xs : List ℕ) : DecidableEq (thetaGraph xs).V :=
-  inferInstanceAs (DecidableEq (Fin (2 + xs.sum)))
 
 @[simp] theorem card_thetaGraph (xs : List ℕ) :
     Fintype.card (thetaGraph xs).V = 2 + xs.sum := Fintype.card_fin _
@@ -500,15 +448,11 @@ vertices attached to it.  `tadpole m 0` is `cycle m` and `tadpole 4 1` is the ba
 @[toIsoGraph]
 def tadpole (m k : ℕ) : CGraph := ofEdges (m + k) (cycleEdges m ++ legEdges 0 m k)
 
-instance (m k : ℕ) : DecidableEq (tadpole m k).V := inferInstanceAs (DecidableEq (Fin (m + k)))
-
 @[simp] theorem card_tadpole (m k : ℕ) : Fintype.card (tadpole m k).V = m + k := Fintype.card_fin _
 
 /-- The lollipop graph `L(m,k)`: `Kₘ` with a path of `k` further vertices attached to it. -/
 @[toIsoGraph]
 def lollipop (m k : ℕ) : CGraph := ofEdges (m + k) (cliqueEdges m ++ legEdges 0 m k)
-
-instance (m k : ℕ) : DecidableEq (lollipop m k).V := inferInstanceAs (DecidableEq (Fin (m + k)))
 
 @[simp] theorem card_lollipop (m k : ℕ) :
     Fintype.card (lollipop m k).V = m + k := Fintype.card_fin _
@@ -524,9 +468,6 @@ off it.  `spider [1, 1, …, 1]` is a star and `spider [a, b]` is a path. -/
 @[toIsoGraph]
 def spider (legs : List ℕ) : CGraph := ofEdges (1 + legs.sum) (spiderEdges 1 legs)
 
-instance (legs : List ℕ) : DecidableEq (spider legs).V :=
-  inferInstanceAs (DecidableEq (Fin (1 + legs.sum)))
-
 @[simp] theorem card_spider (legs : List ℕ) :
     Fintype.card (spider legs).V = 1 + legs.sum := Fintype.card_fin _
 
@@ -536,9 +477,6 @@ other. -/
 def doubleStar (m n : ℕ) : CGraph :=
   ofEdges (2 + m + n) ((0, 1) :: (((List.range m).map fun i ↦ (0, 2 + i)) ++
     ((List.range n).map fun i ↦ (1, 2 + m + i))))
-
-instance (m n : ℕ) : DecidableEq (doubleStar m n).V :=
-  inferInstanceAs (DecidableEq (Fin (2 + m + n)))
 
 @[simp] theorem card_doubleStar (m n : ℕ) :
     Fintype.card (doubleStar m n).V = 2 + m + n := Fintype.card_fin _
@@ -556,9 +494,6 @@ def pendantEdges : ℕ → ℕ → List ℕ → List (ℕ × ℕ)
 def cyclePendant (m : ℕ) (ks : List ℕ) : CGraph :=
   ofEdges (m + ks.sum) (cycleEdges m ++ pendantEdges 0 m ks)
 
-instance (m : ℕ) (ks : List ℕ) : DecidableEq (cyclePendant m ks).V :=
-  inferInstanceAs (DecidableEq (Fin (m + ks.sum)))
-
 @[simp] theorem card_cyclePendant (m : ℕ) (ks : List ℕ) :
     Fintype.card (cyclePendant m ks).V = m + ks.sum := Fintype.card_fin _
 
@@ -573,9 +508,6 @@ no harm either, since `ofRel` deletes the diagonal. -/
 def cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) : CGraph :=
   ofRel A fun x y ↦ S (y - x)
 
-instance (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) :
-    DecidableEq (cayleyAdd A S).V := inferInstanceAs (DecidableEq A)
-
 @[simp] theorem cayleyAdd_adj (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool)
     (x y : A) : (cayleyAdd A S).Adj x y = (decide (x ≠ y) && (S (y - x) || S (x - y))) := rfl
 
@@ -587,9 +519,6 @@ written on `Fin n` so that no `NeZero` instance is needed.  `cycle n = circulant
 @[toIsoGraph]
 def circulant (n : ℕ) (S : List ℕ) : CGraph :=
   ofRel (Fin n) fun x y ↦ S.contains ((y.1 + n - x.1) % n)
-
-instance (n : ℕ) (S : List ℕ) : DecidableEq (circulant n S).V :=
-  inferInstanceAs (DecidableEq (Fin n))
 
 @[simp] theorem card_circulant (n : ℕ) (S : List ℕ) :
     Fintype.card (circulant n S).V = n := Fintype.card_fin n
@@ -658,8 +587,6 @@ def paley (q : ℕ) : CGraph :=
   let t := qrTable q
   ofRel (Fin q) fun x y ↦ t[(y.1 + q - x.1) % q]!
 
-instance (q : ℕ) : DecidableEq (paley q).V := inferInstanceAs (DecidableEq (Fin q))
-
 instance (q : ℕ) : Nonempty (paley (q + 1)).V := inferInstanceAs (Nonempty (Fin (q + 1)))
 
 @[simp] theorem card_paley (q : ℕ) : Fintype.card (paley q).V = q := Fintype.card_fin q
@@ -677,7 +604,7 @@ relation twice, so an `n`-fold product built through `ofRel` would query the inn
 `ofRel` description for proofs. -/
 
 /-- The cartesian product `G □ H`: move in one coordinate, stay put in the other. -/
-def cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph where
+def cartesianProduct (G H : CGraph) : CGraph where
   V := G.V × H.V
   Adj p q := (decide (p.1 = q.1) && H.Adj p.2 q.2) || (G.Adj p.1 q.1 && decide (p.2 = q.2))
   symm p q := by
@@ -685,7 +612,7 @@ def cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph
   loopless p := by simp [G.loopless p.1, H.loopless p.2]
 
 /-- The tensor (categorical) product `G × H`: move in both coordinates. -/
-def tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph where
+def tensorProduct (G H : CGraph) : CGraph where
   V := G.V × H.V
   Adj p q := G.Adj p.1 q.1 && H.Adj p.2 q.2
   symm p q := by rw [G.symm p.1 q.1, H.symm p.2 q.2]
@@ -695,7 +622,7 @@ def tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph wh
 
 This is the one product whose relation holds on the diagonal, so the definition tests `p ≠ q`.
 That test is on the vertex type, not the graphs: neither `G.Adj` nor `H.Adj` is queried twice. -/
-def strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph where
+def strongProduct (G H : CGraph) : CGraph where
   V := G.V × H.V
   Adj p q :=
     decide (p ≠ q) && ((decide (p.1 = q.1) || G.Adj p.1 q.1) && (decide (p.2 = q.2) || H.Adj p.2 q.2))
@@ -706,72 +633,60 @@ def strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph wh
 
 /-- The lexicographic product `G[H]`: `G` on the first coordinate, and a copy of `H` inside each
 fibre. -/
-def lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] : CGraph where
+def lexProduct (G H : CGraph) : CGraph where
   V := G.V × H.V
   Adj p q := G.Adj p.1 q.1 || (decide (p.1 = q.1) && H.Adj p.2 q.2)
   symm p q := by rw [G.symm p.1 q.1, H.symm p.2 q.2, decide_eq_comm p.1 q.1]
   loopless p := by simp [G.loopless p.1, H.loopless p.2]
 
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    DecidableEq (cartesianProduct G H).V := inferInstanceAs (DecidableEq (G.V × H.V))
-
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    DecidableEq (tensorProduct G H).V := inferInstanceAs (DecidableEq (G.V × H.V))
-
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    DecidableEq (strongProduct G H).V := inferInstanceAs (DecidableEq (G.V × H.V))
-
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
-    DecidableEq (lexProduct G H).V := inferInstanceAs (DecidableEq (G.V × H.V))
-
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+instance (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     Nonempty (cartesianProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
 
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+instance (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     Nonempty (tensorProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
 
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+instance (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     Nonempty (strongProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
 
-instance (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+instance (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     Nonempty (lexProduct G H).V := inferInstanceAs (Nonempty (G.V × H.V))
 
-@[simp] theorem card_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem card_cartesianProduct (G H : CGraph) :
     Fintype.card (cartesianProduct G H).V = Fintype.card G.V * Fintype.card H.V :=
   Fintype.card_prod _ _
 
-@[simp] theorem card_tensorProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem card_tensorProduct (G H : CGraph) :
     Fintype.card (tensorProduct G H).V = Fintype.card G.V * Fintype.card H.V :=
   Fintype.card_prod _ _
 
-@[simp] theorem card_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem card_strongProduct (G H : CGraph) :
     Fintype.card (strongProduct G H).V = Fintype.card G.V * Fintype.card H.V :=
   Fintype.card_prod _ _
 
-@[simp] theorem card_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem card_lexProduct (G H : CGraph) :
     Fintype.card (lexProduct G H).V = Fintype.card G.V * Fintype.card H.V :=
   Fintype.card_prod _ _
 
-@[simp] theorem cartesianProduct_adj (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+@[simp] theorem cartesianProduct_adj (G H : CGraph)
     (p q : G.V × H.V) :
     (cartesianProduct G H).Adj p q
       = ((decide (p.1 = q.1) && H.Adj p.2 q.2) || (G.Adj p.1 q.1 && decide (p.2 = q.2))) := rfl
 
-@[simp] theorem tensorProduct_adj (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+@[simp] theorem tensorProduct_adj (G H : CGraph)
     (p q : G.V × H.V) :
     (tensorProduct G H).Adj p q = (G.Adj p.1 q.1 && H.Adj p.2 q.2) := rfl
 
-@[simp] theorem strongProduct_adj (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+@[simp] theorem strongProduct_adj (G H : CGraph)
     (p q : G.V × H.V) :
     (strongProduct G H).Adj p q
       = (decide (p ≠ q) &&
           ((decide (p.1 = q.1) || G.Adj p.1 q.1) && (decide (p.2 = q.2) || H.Adj p.2 q.2))) := rfl
 
-@[simp] theorem lexProduct_adj (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+@[simp] theorem lexProduct_adj (G H : CGraph)
     (p q : G.V × H.V) :
     (lexProduct G H).Adj p q = (G.Adj p.1 q.1 || (decide (p.1 = q.1) && H.Adj p.2 q.2)) := rfl
 
-theorem cartesianProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem cartesianProduct_eq_ofRel (G H : CGraph) :
     cartesianProduct G H = ofRel (G.V × H.V) fun p q ↦
       (decide (p.1 = q.1) && H.Adj p.2 q.2) || (G.Adj p.1 q.1 && decide (p.2 = q.2)) :=
   eq_ofRel _ _ fun p q _ => by
@@ -779,13 +694,13 @@ theorem cartesianProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq 
     rw [G.symm q.1 p.1, H.symm q.2 p.2, decide_eq_comm q.1 p.1, decide_eq_comm q.2 p.2,
       Bool.or_self]
 
-theorem tensorProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem tensorProduct_eq_ofRel (G H : CGraph) :
     tensorProduct G H = ofRel (G.V × H.V) fun p q ↦ G.Adj p.1 q.1 && H.Adj p.2 q.2 :=
   eq_ofRel _ _ fun p q _ => by
     simp only [tensorProduct_adj]
     rw [G.symm q.1 p.1, H.symm q.2 p.2, Bool.or_self]
 
-theorem strongProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem strongProduct_eq_ofRel (G H : CGraph) :
     strongProduct G H = ofRel (G.V × H.V) fun p q ↦
       (decide (p.1 = q.1) || G.Adj p.1 q.1) && (decide (p.2 = q.2) || H.Adj p.2 q.2) :=
   eq_ofRel _ _ fun p q hpq => by
@@ -794,7 +709,7 @@ theorem strongProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V
     rw [G.symm q.1 p.1, H.symm q.2 p.2, decide_eq_comm q.1 p.1, decide_eq_comm q.2 p.2,
       Bool.or_self]
 
-theorem lexProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem lexProduct_eq_ofRel (G H : CGraph) :
     lexProduct G H = ofRel (G.V × H.V) fun p q ↦
       G.Adj p.1 q.1 || (decide (p.1 = q.1) && H.Adj p.2 q.2) :=
   eq_ofRel _ _ fun p q _ => by
@@ -802,9 +717,8 @@ theorem lexProduct_eq_ofRel (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
     rw [G.symm q.1 p.1, H.symm q.2 p.2, decide_eq_comm q.1 p.1, Bool.or_self]
 
 /-- The hypercube `Q_n`: bit-strings of length `n`, adjacent when they differ in exactly one
-place.  This is the `n`-fold cartesian product of `complete 2`, but written directly: threading a
-`DecidableEq` instance through that recursion costs more than it saves, since
-`cartesianProduct` needs the instance for the graph it is about to build. -/
+place.  This is the `n`-fold cartesian product of `complete 2`, but written directly, so that a
+vertex is a bit-string rather than the nested pair the recursion would give. -/
 @[toIsoGraph]
 def hypercube (n : ℕ) : CGraph where
   V := Fin n → Bool
@@ -813,9 +727,6 @@ def hypercube (n : ℕ) : CGraph where
     congr 1
     exact congrArg Finset.card (Finset.filter_congr fun i _ => by exact ne_comm)
   loopless x := by simp
-
-instance (n : ℕ) : DecidableEq (hypercube n).V :=
-  inferInstanceAs (DecidableEq (Fin n → Bool))
 
 instance (n : ℕ) : Nonempty (hypercube n).V := inferInstanceAs (Nonempty (Fin n → Bool))
 
@@ -844,9 +755,6 @@ def kneser (n k : ℕ) : CGraph where
   symm s t := by rw [decide_ne_comm s t, Finset.inter_comm]
   loopless s := by simp
 
-instance (n k : ℕ) : DecidableEq (kneser n k).V :=
-  inferInstanceAs (DecidableEq {s : Finset (Fin n) // s.card = k})
-
 @[simp] theorem kneser_adj (n k : ℕ) (s t : {s : Finset (Fin n) // s.card = k}) :
     (kneser n k).Adj s t = (decide (s ≠ t) && decide (s.1 ∩ t.1 = ∅)) := rfl
 
@@ -860,7 +768,7 @@ theorem kneser_eq_ofRel (n k : ℕ) :
 
 Every edge meets itself, so the diagonal has to go; the meeting relation is symmetric as it
 stands. -/
-def lineGraph (G : CGraph) [DecidableEq G.V] : CGraph where
+def lineGraph (G : CGraph) : CGraph where
   V := {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}
   Adj e f := decide (e ≠ f) && decide (∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V))
   symm e f := by
@@ -869,15 +777,12 @@ def lineGraph (G : CGraph) [DecidableEq G.V] : CGraph where
     exact decide_eq_decide.2 ⟨fun ⟨v, h1, h2⟩ => ⟨v, h2, h1⟩, fun ⟨v, h1, h2⟩ => ⟨v, h2, h1⟩⟩
   loopless e := by simp
 
-instance (G : CGraph) [DecidableEq G.V] : DecidableEq (lineGraph G).V :=
-  inferInstanceAs (DecidableEq {e : Sym2 G.V // e ∈ G.toSimple.edgeSet})
-
-@[simp] theorem lineGraph_adj (G : CGraph) [DecidableEq G.V]
+@[simp] theorem lineGraph_adj (G : CGraph)
     (e f : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) :
     (lineGraph G).Adj e f
       = (decide (e ≠ f) && decide (∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V))) := rfl
 
-theorem lineGraph_eq_ofRel (G : CGraph) [DecidableEq G.V] :
+theorem lineGraph_eq_ofRel (G : CGraph) :
     lineGraph G = ofRel {e : Sym2 G.V // e ∈ G.toSimple.edgeSet} fun e f ↦
       decide (∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V)) :=
   eq_ofRel _ _ fun e f hef => by
@@ -890,7 +795,7 @@ theorem lineGraph_eq_ofRel (G : CGraph) [DecidableEq G.V] :
 /-- The Mycielskian of `G`: a copy of `G`, a *shadow* `v'` of each vertex `v` joined to the
 neighbours of `v`, and one apex joined to every shadow.  It raises the chromatic number by one
 without creating a triangle. -/
-def mycielskian (G : CGraph) [DecidableEq G.V] : CGraph where
+def mycielskian (G : CGraph) : CGraph where
   V := Option (G.V ⊕ G.V)
   Adj x y :=
     match x, y with
@@ -911,37 +816,34 @@ def mycielskian (G : CGraph) [DecidableEq G.V] : CGraph where
     · exact G.loopless a
     · simp
 
-instance (G : CGraph) [DecidableEq G.V] : DecidableEq (mycielskian G).V :=
-  inferInstanceAs (DecidableEq (Option (G.V ⊕ G.V)))
-
-@[simp] theorem mycielskian_adj_inl_inl (G : CGraph) [DecidableEq G.V] (a b : G.V) :
+@[simp] theorem mycielskian_adj_inl_inl (G : CGraph) (a b : G.V) :
     (mycielskian G).Adj (some (.inl a)) (some (.inl b)) = G.Adj a b := rfl
 
-@[simp] theorem mycielskian_adj_inl_inr (G : CGraph) [DecidableEq G.V] (a b : G.V) :
+@[simp] theorem mycielskian_adj_inl_inr (G : CGraph) (a b : G.V) :
     (mycielskian G).Adj (some (.inl a)) (some (.inr b)) = G.Adj a b := rfl
 
-@[simp] theorem mycielskian_adj_inr_inl (G : CGraph) [DecidableEq G.V] (a b : G.V) :
+@[simp] theorem mycielskian_adj_inr_inl (G : CGraph) (a b : G.V) :
     (mycielskian G).Adj (some (.inr a)) (some (.inl b)) = G.Adj a b := rfl
 
-@[simp] theorem mycielskian_adj_inr_inr (G : CGraph) [DecidableEq G.V] (a b : G.V) :
+@[simp] theorem mycielskian_adj_inr_inr (G : CGraph) (a b : G.V) :
     (mycielskian G).Adj (some (.inr a)) (some (.inr b)) = false := rfl
 
-@[simp] theorem mycielskian_adj_none_inl (G : CGraph) [DecidableEq G.V] (b : G.V) :
+@[simp] theorem mycielskian_adj_none_inl (G : CGraph) (b : G.V) :
     (mycielskian G).Adj none (some (.inl b)) = false := rfl
 
-@[simp] theorem mycielskian_adj_none_inr (G : CGraph) [DecidableEq G.V] (b : G.V) :
+@[simp] theorem mycielskian_adj_none_inr (G : CGraph) (b : G.V) :
     (mycielskian G).Adj none (some (.inr b)) = true := rfl
 
-@[simp] theorem mycielskian_adj_inl_none (G : CGraph) [DecidableEq G.V] (a : G.V) :
+@[simp] theorem mycielskian_adj_inl_none (G : CGraph) (a : G.V) :
     (mycielskian G).Adj (some (.inl a)) none = false := rfl
 
-@[simp] theorem mycielskian_adj_inr_none (G : CGraph) [DecidableEq G.V] (a : G.V) :
+@[simp] theorem mycielskian_adj_inr_none (G : CGraph) (a : G.V) :
     (mycielskian G).Adj (some (.inr a)) none = true := rfl
 
-@[simp] theorem mycielskian_adj_none_none (G : CGraph) [DecidableEq G.V] :
+@[simp] theorem mycielskian_adj_none_none (G : CGraph) :
     (mycielskian G).Adj none none = false := rfl
 
-theorem mycielskian_eq_ofRel (G : CGraph) [DecidableEq G.V] :
+theorem mycielskian_eq_ofRel (G : CGraph) :
     mycielskian G = ofRel (Option (G.V ⊕ G.V)) fun x y ↦
       match x, y with
       | some (.inl a), some (.inl b) => G.Adj a b
@@ -974,9 +876,6 @@ def johnson (n k : ℕ) : CGraph where
   symm s t := by rw [decide_ne_comm s t, Finset.inter_comm]
   loopless s := by simp
 
-instance (n k : ℕ) : DecidableEq (johnson n k).V :=
-  inferInstanceAs (DecidableEq {s : Finset (Fin n) // s.card = k})
-
 @[simp] theorem johnson_adj (n k : ℕ) (s t : {s : Finset (Fin n) // s.card = k}) :
     (johnson n k).Adj s t = (decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)) := rfl
 
@@ -1004,8 +903,6 @@ def foldedCube (n : ℕ) : CGraph where
     rw [decide_ne_comm x y, h]
   loopless x := by simp
 
-instance (n : ℕ) : DecidableEq (foldedCube n).V := inferInstanceAs (DecidableEq (Fin n → Bool))
-
 @[simp] theorem foldedCube_adj (n : ℕ) (x y : Fin n → Bool) :
     (foldedCube n).Adj x y = (decide (x ≠ y) &&
       (((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) ||
@@ -1025,9 +922,6 @@ def seidelSwitch (G : CGraph) (S : G.V → Bool) : CGraph where
   Adj x y := G.Adj x y ^^ (S x ^^ S y)
   symm x y := by rw [G.symm x y, Bool.xor_comm (S x) (S y)]
   loopless x := by simp [G.loopless x]
-
-instance (G : CGraph) [DecidableEq G.V] (S : G.V → Bool) : DecidableEq (seidelSwitch G S).V :=
-  inferInstanceAs (DecidableEq G.V)
 
 @[simp] theorem seidelSwitch_adj (G : CGraph) (S : G.V → Bool) (x y : G.V) :
     (seidelSwitch G S).Adj x y = (G.Adj x y ^^ (S x ^^ S y)) := rfl
@@ -1094,9 +988,6 @@ cycle on `ss.length * r` vertices with the chords prescribed by `ss`, repeated `
 @[toIsoGraph]
 def lcf (ss : List ℤ) (r : ℕ) : CGraph := ofEdges (ss.length * r) (lcfEdges ss r)
 
-instance (ss : List ℤ) (r : ℕ) : DecidableEq (lcf ss r).V :=
-  inferInstanceAs (DecidableEq (Fin (ss.length * r)))
-
 @[simp] theorem card_lcf (ss : List ℤ) (r : ℕ) :
     Fintype.card (lcf ss r).V = ss.length * r := card_ofEdges _ _
 
@@ -1108,8 +999,6 @@ def gpEdges (n k : ℕ) : List (ℕ × ℕ) :=
 /-- The generalized Petersen graph `GP(n, k)`. -/
 @[toIsoGraph]
 def gp (n k : ℕ) : CGraph := ofEdges (2 * n) (gpEdges n k)
-
-instance (n k : ℕ) : DecidableEq (gp n k).V := inferInstanceAs (DecidableEq (Fin (2 * n)))
 
 @[simp] theorem card_gp (n k : ℕ) : Fintype.card (gp n k).V = 2 * n := card_ofEdges _ _
 
@@ -1267,30 +1156,30 @@ variable (G H : CGraph)
 
 /-! ### The complement -/
 
-@[simp] theorem compl_toSimple [DecidableEq G.V] : (compl G).toSimple = G.toSimpleᶜ := by
+@[simp] theorem compl_toSimple : (compl G).toSimple = G.toSimpleᶜ := by
   ext x y
   simp [compl, G.symm x y, SimpleGraph.compl_adj]
 
-@[simp, toIsoGraph] theorem compl_compl [DecidableEq G.V] : compl (compl G) = G := by
+@[simp, toIsoGraph] theorem compl_compl : compl (compl G) = G := by
   refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
   rcases eq_or_ne x y with rfl | h
   · simp [compl, G.loopless x]
   · simp [compl, h, G.symm x y]
 
-@[simp] theorem indepNum_compl [DecidableEq G.V] : (compl G).indepNum = G.cliqueNum := by
+@[simp] theorem indepNum_compl : (compl G).indepNum = G.cliqueNum := by
   simp [indepNum, cliqueNum, compl_toSimple, SimpleGraph.indepNum_compl]
 
-@[simp] theorem cliqueNum_compl [DecidableEq G.V] : (compl G).cliqueNum = G.indepNum := by
+@[simp] theorem cliqueNum_compl : (compl G).cliqueNum = G.indepNum := by
   rw [← indepNum_compl (compl G), compl_compl]
 
 /-- The complement of a strongly regular graph is strongly regular, with the parameters Mathlib
 computes for `SimpleGraph`s. -/
-theorem isSRGWith_compl [DecidableEq G.V] {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+theorem isSRGWith_compl {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
     (compl G).IsSRGWith n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) :=
   SimpleGraph.Iso.isSRGWith_of_iso (G := G.toSimpleᶜ) (G' := (compl G).toSimple)
     ⟨Equiv.refl G.V, by simp; intro a b _; rfl⟩ (SimpleGraph.IsSRGWith.compl h)
 
-theorem E_compl [DecidableEq G.V] :
+theorem E_compl :
     (compl G).E + G.E = (Fintype.card G.V).choose 2 := by
   simp only [CGraph.E]
   have h1 : G.compl.toSimple.edgeFinset = (G.toSimpleᶜ).edgeFinset := by
@@ -2899,7 +2788,7 @@ theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.
   have := keep_side hr
   simp [hside, hside2] at this
 
-@[simp] theorem E_join [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem E_join :
     (join G H).E = G.E + H.E + Fintype.card G.V * Fintype.card H.V := by
   have h1 : (join G H).E + (disjUnion (compl G) (compl H)).E = (Fintype.card (join G H).V).choose 2 := by
     rw [join]
@@ -2925,7 +2814,7 @@ theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.
   rw [h_choose] at h1
   linarith [h3, h4]
 
-theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
+theorem isConnected_join
     (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) : (join G H).IsConnected := by
   simp only [IsConnected, join, compl, CGraph.toSimple]
   have hcross : ∀ (a : G.V) (b : H.V),
@@ -2950,11 +2839,11 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   have hne : Nonempty (G.join H).V := ⟨Sum.inl a0⟩
   exact ⟨fun u v => ⟨(SimpleGraph.Reachable.symm (hreach u)).some.append ((hreach v).some)⟩⟩
 
-@[simp] theorem cliqueNum_join [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem cliqueNum_join :
     (join G H).cliqueNum = G.cliqueNum + H.cliqueNum := by
   simp only [join, cliqueNum_compl, indepNum_disjUnion, indepNum_compl]
 
-@[simp] theorem indepNum_join [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem indepNum_join :
     (join G H).indepNum = max G.indepNum H.indepNum := by
   -- The goal: (join G H).toSimple.indepNum = max G.toSimple.indepNum H.toSimple.indepNum
   -- Join has all cross edges, so indep sets don't span both sides.
@@ -3515,7 +3404,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
 
 /-! ### Products -/
 
-@[simp] theorem E_cartesianProduct [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem E_cartesianProduct :
     (cartesianProduct G H).E = Fintype.card G.V * H.E + Fintype.card H.V * G.E := by
   dsimp only [CGraph.E]
   -- Step 1: Show that toSimple of cartesianProduct equals SimpleGraph.prodCartesian
@@ -3578,7 +3467,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   rw [hhand_G, hhand_H] at hhand
   linarith
 
-@[simp] theorem E_tensorProduct [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem E_tensorProduct :
     (tensorProduct G H).E = 2 * G.E * H.E := by
   simp only [CGraph.E]
   have hadj : ∀ (p q : G.V × H.V), (G.tensorProduct H).toSimple.Adj p q ↔ G.Adj p.1 q.1 = true ∧ H.Adj p.2 q.2 = true := by
@@ -3625,7 +3514,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
   -- Now: 2 * |E(tensor)| = 2 * |E(G)| * (2 * |E(H)|), so |E(tensor)| = 2 * |E(G)| * |E(H)|
   linarith
 
-@[simp] theorem indepNum_lexProduct [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem indepNum_lexProduct :
     (lexProduct G H).indepNum = G.indepNum * H.indepNum := by
   simp only [CGraph.indepNum]
   unfold SimpleGraph.indepNum
@@ -3761,7 +3650,7 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
     apply le_csSup hSGH_bdd hmem_GH
   exact le_antisymm (csSup_le hSGH_ne hupper) hlower
 
-@[simp] theorem cliqueNum_strongProduct [DecidableEq G.V] [DecidableEq H.V] :
+@[simp] theorem cliqueNum_strongProduct :
     (strongProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum := by
   unfold CGraph.cliqueNum
   -- cliqueNum G = G.toSimple.cliqueNum = sSup {n | ∃ s, G.toSimple.IsNClique n s}
@@ -3943,14 +3832,14 @@ theorem isConnected_join [DecidableEq G.V] [DecidableEq H.V]
 @[simp] theorem card_kneser (n k : ℕ) : Fintype.card (kneser n k).V = n.choose k := by
   simp [kneser, Fintype.card_finset_len]
 
-@[simp] theorem card_lineGraph [DecidableEq G.V] : Fintype.card (lineGraph G).V = G.E := by
+@[simp] theorem card_lineGraph : Fintype.card (lineGraph G).V = G.E := by
   rw [E, SimpleGraph.edgeFinset_card]
   exact Fintype.card_congr' rfl
 
 /-- The degree of an edge `e` in `lineGraph G`: each endpoint `v` of `e` contributes the
 `G.degree v - 1` other edges incident to `v`, and no edge is counted twice because two
 distinct endpoints cannot both lie on a third edge. -/
-theorem degree_lineGraph [DecidableEq G.V] (e : (lineGraph G).V) :
+theorem degree_lineGraph (e : (lineGraph G).V) :
     (lineGraph G).toSimple.degree e = ∑ v ∈ e.1.toFinset, (G.toSimple.degree v - 1) := by
   set S := G.toSimple
   have hhadj : ∀ x y : (lineGraph G).V,
@@ -4060,7 +3949,7 @@ theorem degree_lineGraph [DecidableEq G.V] (e : (lineGraph G).V) :
         · exact absurd rfl hvw
     exact hfv_ne (hsyeq f hvf_mem hwf_mem hvw ▸ hsyeq ee (Sym2.mem_toFinset.mp hv) (Sym2.mem_toFinset.mp hw) hvw ▸ rfl)
 
-@[simp] theorem E_lineGraph [DecidableEq G.V] :
+@[simp] theorem E_lineGraph :
     (lineGraph G).E = (∑ v : G.V, (G.toSimple.degree v).choose 2) := by
   set S := G.toSimple
   show (lineGraph G).toSimple.edgeFinset.card = ∑ v, (S.degree v).choose 2
@@ -4136,11 +4025,11 @@ theorem degree_lineGraph [DecidableEq G.V] (e : (lineGraph G).V) :
     rw [hhand, hsum_deg, hdouble, Finset.sum_congr rfl fun v _ => hinner v, Halle]
   exact mul_left_cancel₀ two_ne_zero hchain
 
-@[simp] theorem card_mycielskian [DecidableEq G.V] :
+@[simp] theorem card_mycielskian :
     Fintype.card (mycielskian G).V = 2 * Fintype.card G.V + 1 := by
   simp [mycielskian, Fintype.card_option, Fintype.card_sum, two_mul]
 
-@[simp] theorem E_mycielskian [DecidableEq G.V] :
+@[simp] theorem E_mycielskian :
     (mycielskian G).E = 3 * G.E + Fintype.card G.V := by
   unfold CGraph.E
   let H := (mycielskian G).toSimple
@@ -4675,8 +4564,6 @@ section PaleyField
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
 
-instance : DecidableEq (paleyField F).V := inferInstanceAs (DecidableEq F)
-
 @[simp] theorem card_paleyField : Fintype.card (paleyField F).V = Fintype.card F := rfl
 
 theorem paleyField_adj (hq : Fintype.card F % 4 = 1) (x y : F) :
@@ -4877,7 +4764,7 @@ theorem isVertexTransitive_of_isArcTransitive
   exact ⟨σ, h₁⟩
 
 /-- The complement has the same automorphisms, so it is vertex-transitive whenever `G` is. -/
-theorem isVertexTransitive_compl [DecidableEq G.V] (h : G.IsVertexTransitive) :
+theorem isVertexTransitive_compl (h : G.IsVertexTransitive) :
     (compl G).IsVertexTransitive := by
   intro u v
   obtain ⟨σ, hσ⟩ := h u v
@@ -5103,7 +4990,7 @@ theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransit
 An automorphism of each factor gives an automorphism of any of the four products, acting
 coordinatewise. -/
 
-theorem isVertexTransitive_cartesianProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem isVertexTransitive_cartesianProduct (H : CGraph)
     (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
     (cartesianProduct G H).IsVertexTransitive := by
   rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
@@ -5115,7 +5002,7 @@ theorem isVertexTransitive_cartesianProduct (H : CGraph) [DecidableEq G.V] [Deci
   simp only [cartesianProduct_adj, σ.adj_eq, τ.adj_eq, (RelIso.injective σ).eq_iff,
     (RelIso.injective τ).eq_iff]
 
-theorem isVertexTransitive_tensorProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem isVertexTransitive_tensorProduct (H : CGraph)
     (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
     (tensorProduct G H).IsVertexTransitive := by
   rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
@@ -5126,7 +5013,7 @@ theorem isVertexTransitive_tensorProduct (H : CGraph) [DecidableEq G.V] [Decidab
   show (tensorProduct G H).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
   simp only [tensorProduct_adj, σ.adj_eq, τ.adj_eq]
 
-theorem isVertexTransitive_strongProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem isVertexTransitive_strongProduct (H : CGraph)
     (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
     (strongProduct G H).IsVertexTransitive := by
   rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
@@ -5138,7 +5025,7 @@ theorem isVertexTransitive_strongProduct (H : CGraph) [DecidableEq G.V] [Decidab
   simp only [strongProduct_adj, σ.adj_eq, τ.adj_eq, (RelIso.injective σ).eq_iff,
     (RelIso.injective τ).eq_iff, ne_eq, Prod.ext_iff]
 
-theorem isVertexTransitive_lexProduct (H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem isVertexTransitive_lexProduct (H : CGraph)
     (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
     (lexProduct G H).IsVertexTransitive := by
   rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩
@@ -5223,8 +5110,6 @@ automorphism carrying one arc to another carries one edge to the other. -/
 
 section LineGraph
 
-variable [DecidableEq G.V]
-
 /-- An automorphism of `G` maps edges to edges, bijectively. -/
 def edgePerm (σ : G ≃cg G) : Equiv.Perm {e : Sym2 G.V // e ∈ G.toSimple.edgeSet} where
   toFun e := ⟨Sym2.map σ e.1, σ.toSimpleIso.toHom.map_mem_edgeSet e.2⟩
@@ -5232,7 +5117,6 @@ def edgePerm (σ : G ≃cg G) : Equiv.Perm {e : Sym2 G.V // e ∈ G.toSimple.edg
   left_inv e := by ext : 1; simp [Sym2.map_map]
   right_inv e := by ext : 1; simp [Sym2.map_map]
 
-omit [DecidableEq G.V] in
 @[simp] theorem edgePerm_coe (σ : G ≃cg G) (x : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) :
     ((G.edgePerm σ x : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) : Sym2 G.V)
       = Sym2.map σ (x : Sym2 G.V) := rfl

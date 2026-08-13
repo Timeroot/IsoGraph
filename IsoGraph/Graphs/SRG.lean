@@ -120,8 +120,6 @@ def shrikhande : CGraph :=
   cayleyAdd (ZMod 4 × ZMod 4) fun d ↦
     [((1 : ZMod 4), (0 : ZMod 4)), (3, 0), (0, 1), (0, 3), (1, 1), (3, 3)].contains d
 
-instance : DecidableEq shrikhande.V := inferInstanceAs (DecidableEq (ZMod 4 × ZMod 4))
-
 /-- The 27 lines on a smooth cubic surface, adjacent when they meet: `a₁ … a₆`, `b₁ … b₆` and
 `c_{ij}` for `i < j`, with `aᵢ · b_j = 1` for `i ≠ j`, `aᵢ · c_{jk} = b_i · c_{jk} = 1` when
 `i ∈ {j, k}`, and `c_{ij} · c_{kl} = 1` when `{i,j}` and `{k,l}` are disjoint.
@@ -136,14 +134,9 @@ def linesOnCubic : CGraph :=
     | .inr (.inr s), .inr (.inr t) => decide (s.1 ∩ t.1 = ∅)
     | _, _ => false
 
-instance : DecidableEq linesOnCubic.V :=
-  inferInstanceAs (DecidableEq (Fin 6 ⊕ Fin 6 ⊕ {s : Finset (Fin 6) // s.card = 2}))
-
 /-- The Schläfli graph: 27 lines on a cubic surface, adjacent when they are *skew*.  The unique
 strongly regular graph with parameters `(27, 16, 10, 8)`. -/
 def schlafli : CGraph := compl linesOnCubic
-
-instance : DecidableEq schlafli.V := inferInstanceAs (DecidableEq linesOnCubic.V)
 
 /-- Adjacency of the Hoffman–Singleton graph in Robertson's model, on vertices numbered `0 … 49`:
 `5h + j` for vertex `j` of pentagon `Pₕ`, and `25 + 5i + k` for vertex `k` of pentagram `Qᵢ`.
@@ -164,8 +157,6 @@ private def hsAdj (x y : ℕ) : Bool :=
 /-- The Hoffman–Singleton graph: 50 vertices, 7-regular, girth 5, diameter 2 — the unique Moore
 graph of degree 7, and the unique strongly regular graph with parameters `(50, 7, 0, 1)`. -/
 def hoffmanSingleton : CGraph := ofRel (Fin 50) fun x y ↦ hsAdj x.1 y.1
-
-instance : DecidableEq hoffmanSingleton.V := inferInstanceAs (DecidableEq (Fin 50))
 
 /-! ### The Chang graphs
 
@@ -192,10 +183,6 @@ def chang₃ : CGraph :=
   seidelSwitch (triangular 8) fun s ↦
     ([{0, 1}, {1, 2}, {2, 0}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 3}] :
       List (Finset (Fin 8))).contains s.1
-
-instance : DecidableEq chang₁.V := inferInstanceAs (DecidableEq (triangular 8).V)
-instance : DecidableEq chang₂.V := inferInstanceAs (DecidableEq (triangular 8).V)
-instance : DecidableEq chang₃.V := inferInstanceAs (DecidableEq (triangular 8).V)
 
 /-! ### The Steiner system `S(3, 6, 22)`
 
@@ -284,14 +271,10 @@ theorem witt_steiner (a b c : Fin 22) (hab : a ≠ b) (hac : a ≠ c) (hbc : b �
 a fixed point, adjacent when disjoint.  The unique `(56, 10, 0, 2)` graph. -/
 def gewirtz : CGraph := ofRel (Fin 56) fun x y ↦ disjBlocks x.1 y.1
 
-instance : DecidableEq gewirtz.V := inferInstanceAs (DecidableEq (Fin 56))
-
 /-- The `M₂₂` graph: all 77 blocks of `S(3, 6, 22)`, adjacent when disjoint.  The unique
 `(77, 16, 0, 4)` graph; its automorphism group is the Mathieu group `M₂₂` extended by an outer
 automorphism. -/
 def m22 : CGraph := ofRel (Fin 77) fun x y ↦ disjBlocks x.1 y.1
-
-instance : DecidableEq m22.V := inferInstanceAs (DecidableEq (Fin 77))
 
 /-- Adjacency of the Higman–Sims graph on `0 … 99`: the 22 points `0 … 21` of `S(3, 6, 22)`, its
 77 blocks `22 … 98`, and one extra vertex `99`.
@@ -311,8 +294,6 @@ private def higmanSimsAdj (x y : ℕ) : Bool :=
 /-- The Higman–Sims graph: 100 vertices, the unique `(100, 22, 0, 6)` graph.  Its automorphism
 group contains the sporadic simple Higman–Sims group with index two. -/
 def higmanSims : CGraph := ofRel (Fin 100) fun x y ↦ higmanSimsAdj x.1 y.1
-
-instance : DecidableEq higmanSims.V := inferInstanceAs (DecidableEq (Fin 100))
 
 end SRG
 

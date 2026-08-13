@@ -606,7 +606,9 @@ and the apex degree five. -/
   obtain ⟨_, w, hw, hl⟩ := exists_cycle_of_square (G := grotzsch) (a := none)
     (b := some (Sum.inr (vtx 5 0))) (c := some (Sum.inl (vtx 5 1)))
     (d := some (Sum.inr (vtx 5 2)))
-    (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide) (by decide) (by decide)
+    (Ne.symm (Option.some_ne_none _))
+    (fun h ↦ absurd (Sum.inr.inj (Option.some.inj h)) (Fin.ne_of_val_ne (by decide)))
   exact le_antisymm (hl ▸ girth_le_length hw)
     (four_le_girth (by native_decide) (not_isAcyclic_of_isCycle hw))
 

@@ -106,8 +106,6 @@ abbrev K2_3 : CGraph := bipartite 2 3
 with two disjoint chords, or `K₅` minus a path and a disjoint edge. -/
 def k23PlusEdge : CGraph := compl (disjUnion P3 K2)
 
-instance : DecidableEq k23PlusEdge.V := inferInstanceAs (DecidableEq (compl (disjUnion P3 K2)).V)
-
 /-- The fork, also called the chair: the claw with one edge subdivided. -/
 abbrev fork : CGraph := spider [1, 1, 2]
 
@@ -154,14 +152,8 @@ abbrev book3 : CGraph := book 3
 /-- `K₅` with the two edges of a path removed. -/
 def K5MinusP3 : CGraph := compl (disjUnion P3 (empty 2))
 
-instance : DecidableEq K5MinusP3.V :=
-  inferInstanceAs (DecidableEq (compl (disjUnion P3 (empty 2))).V)
-
 /-- `K₅` with one edge removed. -/
 def K5MinusEdge : CGraph := compl (disjUnion K2 (empty 3))
-
-instance : DecidableEq K5MinusEdge.V :=
-  inferInstanceAs (DecidableEq (compl (disjUnion K2 (empty 3))).V)
 
 /-- The complete graph on five vertices. -/
 abbrev K5 : CGraph := complete 5

@@ -461,7 +461,7 @@ theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
       exact Sum.inr_injective
         (congrArg (fun σ : disjUnion G H ≃cg disjUnion G H ↦ σ (.inr y)) h)
 
-theorem autCount_mul_le_autCount_join (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem autCount_mul_le_autCount_join (G H : CGraph) :
     G.autCount * H.autCount ≤ (join G H).autCount := by
   have h := autCount_mul_le_autCount_disjUnion (compl G) (compl H)
   rwa [autCount_compl, autCount_compl, ← autCount_compl (disjUnion (compl G) (compl H))] at h
@@ -513,49 +513,49 @@ theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : CGraph) [Nonempty G
     _ = (disjUnion G G).autCount := rfl
 
 /-- An automorphism of each factor, acting coordinatewise on the Cartesian product. -/
-def cartesianProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+def cartesianProductAuto (a : G ≃cg G) (b : H ≃cg H) :
     cartesianProduct G H ≃cg cartesianProduct G H :=
   autoOfPerm (G := cartesianProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
     show (cartesianProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [cartesianProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff,
       (RelIso.injective b).eq_iff]
 
-@[simp] theorem cartesianProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+@[simp] theorem cartesianProductAuto_apply (a : G ≃cg G)
     (b : H ≃cg H) (x : G.V × H.V) : cartesianProductAuto a b x = (a x.1, b x.2) := rfl
 
 /-- An automorphism of each factor, acting coordinatewise on the tensor product. -/
-def tensorProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+def tensorProductAuto (a : G ≃cg G) (b : H ≃cg H) :
     tensorProduct G H ≃cg tensorProduct G H :=
   autoOfPerm (G := tensorProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
     show (tensorProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [tensorProduct_adj, a.adj_eq, b.adj_eq]
 
-@[simp] theorem tensorProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+@[simp] theorem tensorProductAuto_apply (a : G ≃cg G)
     (b : H ≃cg H) (x : G.V × H.V) : tensorProductAuto a b x = (a x.1, b x.2) := rfl
 
 /-- An automorphism of each factor, acting coordinatewise on the strong product. -/
-def strongProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+def strongProductAuto (a : G ≃cg G) (b : H ≃cg H) :
     strongProduct G H ≃cg strongProduct G H :=
   autoOfPerm (G := strongProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
     show (strongProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [strongProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff,
       (RelIso.injective b).eq_iff, ne_eq, Prod.ext_iff]
 
-@[simp] theorem strongProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+@[simp] theorem strongProductAuto_apply (a : G ≃cg G)
     (b : H ≃cg H) (x : G.V × H.V) : strongProductAuto a b x = (a x.1, b x.2) := rfl
 
 /-- An automorphism of each factor, acting coordinatewise on the lexicographic product. -/
-def lexProductAuto [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G) (b : H ≃cg H) :
+def lexProductAuto (a : G ≃cg G) (b : H ≃cg H) :
     lexProduct G H ≃cg lexProduct G H :=
   autoOfPerm (G := lexProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
     show (lexProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [lexProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff]
 
-@[simp] theorem lexProductAuto_apply [DecidableEq G.V] [DecidableEq H.V] (a : G ≃cg G)
+@[simp] theorem lexProductAuto_apply (a : G ≃cg G)
     (b : H ≃cg H) (x : G.V × H.V) : lexProductAuto a b x = (a x.1, b x.2) := rfl
 
-theorem autCount_mul_le_autCount_cartesianProduct (G H : CGraph) [DecidableEq G.V]
-    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+theorem autCount_mul_le_autCount_cartesianProduct (G H : CGraph)
+ [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (cartesianProduct G H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
@@ -569,8 +569,8 @@ theorem autCount_mul_le_autCount_cartesianProduct (G H : CGraph) [DecidableEq G.
       (fun σ : cartesianProduct G H ≃cg cartesianProduct G H ↦ (σ (x₀, y)).2) h
     simpa using this
 
-theorem autCount_mul_le_autCount_tensorProduct (G H : CGraph) [DecidableEq G.V]
-    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+theorem autCount_mul_le_autCount_tensorProduct (G H : CGraph)
+ [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (tensorProduct G H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
@@ -582,8 +582,8 @@ theorem autCount_mul_le_autCount_tensorProduct (G H : CGraph) [DecidableEq G.V]
     have := congrArg (fun σ : tensorProduct G H ≃cg tensorProduct G H ↦ (σ (x₀, y)).2) h
     simpa using this
 
-theorem autCount_mul_le_autCount_strongProduct (G H : CGraph) [DecidableEq G.V]
-    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+theorem autCount_mul_le_autCount_strongProduct (G H : CGraph)
+ [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (strongProduct G H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
@@ -595,8 +595,8 @@ theorem autCount_mul_le_autCount_strongProduct (G H : CGraph) [DecidableEq G.V]
     have := congrArg (fun σ : strongProduct G H ≃cg strongProduct G H ↦ (σ (x₀, y)).2) h
     simpa using this
 
-theorem autCount_mul_le_autCount_lexProduct (G H : CGraph) [DecidableEq G.V]
-    [DecidableEq H.V] [Nonempty G.V] [Nonempty H.V] :
+theorem autCount_mul_le_autCount_lexProduct (G H : CGraph)
+ [Nonempty G.V] [Nonempty H.V] :
     G.autCount * H.autCount ≤ (lexProduct G H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
@@ -708,7 +708,7 @@ theorem E_pos_of_numComponents_lt_card (G : CGraph) (h : G.numComponents < Finty
 
 /-- The Mycielskian creates no new cliques: apart from the edges at the apex, every clique is a
 clique of `G` in disguise. -/
-theorem cliqueNum_mycielskian (G : CGraph) [DecidableEq G.V] [Nonempty G.V] :
+theorem cliqueNum_mycielskian (G : CGraph) [Nonempty G.V] :
     (mycielskian G).cliqueNum = max G.cliqueNum 2 := by
   classical
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
@@ -799,7 +799,7 @@ theorem cliqueNum_mycielskian (G : CGraph) [DecidableEq G.V] [Nonempty G.V] :
         _ ≤ (mycielskian G).cliqueNum := hclique.card_le_cliqueNum
 
 /-- Mycielski's construction preserves triangle-freeness. -/
-theorem cliqueNum_mycielskian_eq_two (G : CGraph) [DecidableEq G.V] [Nonempty G.V]
+theorem cliqueNum_mycielskian_eq_two (G : CGraph) [Nonempty G.V]
     (h : G.cliqueNum ≤ 2) : (mycielskian G).cliqueNum = 2 := by
   rw [cliqueNum_mycielskian]
   omega
@@ -812,7 +812,7 @@ private theorem sum_degree_add_one (K : CGraph) :
     Finset.card_univ, smul_eq_mul, mul_one]
   rfl
 
-theorem E_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem E_strongProduct (G H : CGraph) :
     (strongProduct G H).E
       = Fintype.card G.V * H.E + Fintype.card H.V * G.E + 2 * G.E * H.E := by
   have hdeg : ∀ p : G.V × H.V, (strongProduct G H).toSimple.degree p + 1
@@ -839,7 +839,7 @@ theorem E_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
   rw [expand] at key
   exact Nat.eq_of_mul_eq_mul_left (by norm_num) (Nat.add_right_cancel key)
 
-theorem E_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem E_lexProduct (G H : CGraph) :
     (lexProduct G H).E
       = Fintype.card H.V * Fintype.card H.V * G.E + Fintype.card G.V * H.E := by
   have hdeg : ∀ p : G.V × H.V, (lexProduct G H).toSimple.degree p
@@ -912,7 +912,7 @@ theorem domNum_disjUnion (G H : CGraph) :
     omega
 
 /-- One vertex from each side dominates a join. -/
-theorem domNum_join_le_two (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem domNum_join_le_two (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] : (join G H).domNum ≤ 2 := by
   obtain ⟨a⟩ := ‹Nonempty G.V›
   obtain ⟨b⟩ := ‹Nonempty H.V›
@@ -932,7 +932,7 @@ theorem domNum_join_le_two (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
 
 /-- A single vertex dominates a join exactly when it is universal on its own side: the other side
 is seen for free. -/
-theorem domNum_join_eq_one_iff (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem domNum_join_eq_one_iff (G H : CGraph) :
     (join G H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
   rw [domNum_eq_one_iff, domNum_eq_one_iff, domNum_eq_one_iff]
   constructor
@@ -957,7 +957,7 @@ theorem domNum_join_eq_one_iff (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V
         exact hb d fun h ↦ hu (congrArg Sum.inr h)
 
 /-- Without a universal vertex on either side, a join needs exactly two dominating vertices. -/
-theorem domNum_join_eq_two (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem domNum_join_eq_two (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) :
     (join G H).domNum = 2 := by
   haveI : Nonempty (join G H).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
@@ -970,7 +970,7 @@ theorem domNum_join_eq_two (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   omega
 
 /-- A dominating set of `G`, spread over every fibre, dominates `G □ H`. -/
-theorem domNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem domNum_cartesianProduct_le (G H : CGraph) :
     (cartesianProduct G H).domNum ≤ G.domNum * Fintype.card H.V := by
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
   have hdom : (cartesianProduct G H).IsDominatingSet (s ×ˢ Finset.univ) := by
@@ -987,7 +987,7 @@ theorem domNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq
 
 /-- **The radius of a cartesian product is the sum of the radii.**  Both factors have to be
 connected: the radius of a disconnected graph is the junk value `0`. -/
-theorem radius_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem radius_cartesianProduct (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (cartesianProduct G H).radius = G.radius + H.radius := by
   haveI : Nonempty G.V := hG.nonempty
@@ -1003,7 +1003,7 @@ theorem radius_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
 
 /-- Adding edges cannot increase the diameter: the strong product is at most as wide as the
 cartesian product living inside it. -/
-theorem diameter_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem diameter_strongProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (strongProduct G H).diameter ≤ G.diameter + H.diameter := by
   haveI : Nonempty G.V := hG.nonempty
@@ -1018,7 +1018,7 @@ theorem diameter_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq 
   exact h
 
 /-- The same bound for the lexicographic product. -/
-theorem diameter_lexProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem diameter_lexProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (lexProduct G H).diameter ≤ G.diameter + H.diameter := by
   haveI : Nonempty G.V := hG.nonempty
@@ -1036,7 +1036,7 @@ theorem diameter_lexProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V
 
 /-- **Vizing's bound for the strong product**: a product of dominating sets dominates, because a
 vertex of `G ⊠ H` is either equal or adjacent to a dominator in each coordinate. -/
-theorem domNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem domNum_strongProduct_le (G H : CGraph) :
     (strongProduct G H).domNum ≤ G.domNum * H.domNum := by
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
   obtain ⟨t, ht, htdom⟩ := H.exists_isDominatingSet_domNum
@@ -1062,7 +1062,7 @@ theorem domNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.
   rwa [Finset.card_product, hs, ht] at h
 
 /-- Forgetting the second coordinate turns a dominating set of `G[H]` into one of `G`. -/
-theorem domNum_le_domNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem domNum_le_domNum_lexProduct (G H : CGraph)
     [Nonempty H.V] : G.domNum ≤ (lexProduct G H).domNum := by
   obtain ⟨s, hs, hsdom⟩ := (lexProduct G H).exists_isDominatingSet_domNum
   obtain ⟨y⟩ := ‹Nonempty H.V›
@@ -1079,7 +1079,7 @@ theorem domNum_le_domNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableE
 
 /-- **A blow-up by a dominated graph does not change the domination number**: if some vertex of `H`
 sees all of `H`, then a dominating set of `G` lifted into that vertex's fibre dominates `G[H]`. -/
-theorem domNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem domNum_lexProduct (G H : CGraph)
     (hH : H.domNum = 1) : (lexProduct G H).domNum = G.domNum := by
   obtain ⟨x, hx⟩ := (domNum_eq_one_iff H).1 hH
   haveI : Nonempty H.V := ⟨x⟩
@@ -1100,7 +1100,7 @@ theorem domNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
   rw [Finset.card_image_of_injective _ fun a b hab ↦ congrArg Prod.fst hab, hs]
 
 /-- Forgetting the second coordinate turns a dominating set of `G □ H` into one of `G`. -/
-theorem domNum_le_domNum_cartesianProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem domNum_le_domNum_cartesianProduct (G H : CGraph)
     [Nonempty H.V] : G.domNum ≤ (cartesianProduct G H).domNum := by
   obtain ⟨s, hs, hsdom⟩ := (cartesianProduct G H).exists_isDominatingSet_domNum
   obtain ⟨y⟩ := ‹Nonempty H.V›
@@ -1116,7 +1116,7 @@ theorem domNum_le_domNum_cartesianProduct (G H : CGraph) [DecidableEq G.V] [Deci
   exact le_trans (domNum_le_card_of_isDominatingSet hdom) (hs ▸ Finset.card_image_le)
 
 /-- Forgetting the second coordinate turns a dominating set of `G ⊠ H` into one of `G`. -/
-theorem domNum_le_domNum_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem domNum_le_domNum_strongProduct (G H : CGraph)
     [Nonempty H.V] : G.domNum ≤ (strongProduct G H).domNum := by
   obtain ⟨s, hs, hsdom⟩ := (strongProduct G H).exists_isDominatingSet_domNum
   obtain ⟨y⟩ := ‹Nonempty H.V›
@@ -1143,7 +1143,7 @@ private theorem indepNum_anti {α : Type} [Fintype α] {S T : SimpleGraph α} (h
   exact hcard ▸ hind.card_le_indepNum
 
 /-- The strong product is a subgraph of the lexicographic product. -/
-theorem strongProduct_le_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem strongProduct_le_lexProduct (G H : CGraph) :
     (strongProduct G H).toSimple ≤ (lexProduct G H).toSimple := by
   intro p q hpq
   rw [CGraph.toSimple_adj, strongProduct_adj] at hpq
@@ -1160,7 +1160,7 @@ theorem strongProduct_le_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableE
 /-- **A product of independent sets is independent in the strong product**, so
 `α(G) · α(H) ≤ α(G ⊠ H)`.  This is the inequality behind the Shannon capacity of a graph. -/
 theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : CGraph)
-    [DecidableEq G.V] [DecidableEq H.V] :
+ :
     G.indepNum * H.indepNum ≤ (strongProduct G H).indepNum := by
   have h := indepNum_anti (strongProduct_le_lexProduct G H)
   rwa [show (lexProduct G H).toSimple.indepNum = G.indepNum * H.indepNum from
@@ -1168,7 +1168,7 @@ theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : CGraph)
 
 /-- The same product set is independent in the (sparser) cartesian product. -/
 theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : CGraph)
-    [DecidableEq G.V] [DecidableEq H.V] :
+ :
     G.indepNum * H.indepNum ≤ (cartesianProduct G H).indepNum :=
   le_trans (indepNum_mul_indepNum_le_indepNum_strongProduct G H)
     (indepNum_anti (cartesianProduct_le_strongProduct G H))
@@ -1176,7 +1176,7 @@ theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : CGraph)
 /-- In the tensor product a whole slab `S ×ˢ univ` over an independent set `S` is independent,
 because every tensor edge moves in *both* coordinates: `α(G) · |V(H)| ≤ α(G × H)`. -/
 theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
-    [DecidableEq G.V] [DecidableEq H.V] :
+ :
     G.indepNum * Fintype.card H.V ≤ (tensorProduct G H).indepNum := by
   classical
   obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
@@ -1195,7 +1195,7 @@ theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
 
 /-- Fibrewise counting: an independent set of `G □ H` meets each fibre `{a} × V(H)` in an
 independent set of `H`, so `α(G □ H) ≤ |V(G)| · α(H)`. -/
-theorem indepNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem indepNum_cartesianProduct_le (G H : CGraph) :
     (cartesianProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum := by
   classical
   obtain ⟨s, hs, hcard⟩ := (cartesianProduct G H).toSimple.exists_isNIndepSet_indepNum
@@ -1226,7 +1226,7 @@ theorem indepNum_cartesianProduct_le (G H : CGraph) [DecidableEq G.V] [Decidable
         rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
 
 /-- The strong product has at least as many edges as the cartesian one, so the same bound holds. -/
-theorem indepNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem indepNum_strongProduct_le (G H : CGraph) :
     (strongProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum :=
   le_trans (indepNum_anti (cartesianProduct_le_strongProduct G H))
     (indepNum_cartesianProduct_le G H)
@@ -1236,7 +1236,7 @@ theorem indepNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq 
 /-- **The strong product multiplies chromatic numbers, at worst**: it sits inside the
 lexicographic product, which is already known to satisfy `χ ≤ χ(G)·χ(H)`, and colourings pull
 back along subgraph inclusions. -/
-theorem chromNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V] :
+theorem chromNum_strongProduct_le (G H : CGraph) :
     (strongProduct G H).chromNum ≤ G.chromNum * H.chromNum :=
   chromNum_le_iff_colorable.2
     ((chromNum_le_iff_colorable.1 (chromNum_lexProduct_le G H)).mono_left
@@ -1244,14 +1244,14 @@ theorem chromNum_strongProduct_le (G H : CGraph) [DecidableEq G.V] [DecidableEq 
 
 /-- Both factors appear as fibres of the cartesian product, which the strong product contains,
 so `max χ(G) χ(H) ≤ χ(G ⊠ H)`. -/
-theorem max_chromNum_le_chromNum_strongProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem max_chromNum_le_chromNum_strongProduct (G H : CGraph)
     (a : G.V) (b : H.V) : max G.chromNum H.chromNum ≤ (strongProduct G H).chromNum := by
   rw [← chromNum_cartesianProduct G H a b]
   exact chromNum_le_iff_colorable.2
     (colorable_chromNum.mono_left (cartesianProduct_le_strongProduct G H))
 
 /-- The same sandwich for the lexicographic product. -/
-theorem max_chromNum_le_chromNum_lexProduct (G H : CGraph) [DecidableEq G.V] [DecidableEq H.V]
+theorem max_chromNum_le_chromNum_lexProduct (G H : CGraph)
     (a : G.V) (b : H.V) : max G.chromNum H.chromNum ≤ (lexProduct G H).chromNum := by
   rw [← chromNum_cartesianProduct G H a b]
   exact chromNum_le_iff_colorable.2
@@ -1260,7 +1260,7 @@ theorem max_chromNum_le_chromNum_lexProduct (G H : CGraph) [DecidableEq G.V] [De
 /-- Cliques multiply in the strong product, so `ω(G)·ω(H) ≤ χ(G ⊠ H)`: the lower bound coming
 from cliques is itself multiplicative. -/
 theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : CGraph)
-    [DecidableEq G.V] [DecidableEq H.V] :
+ :
     G.cliqueNum * H.cliqueNum ≤ (strongProduct G H).chromNum := by
   have h := (strongProduct G H).cliqueNum_le_chromNum
   rwa [cliqueNum_strongProduct] at h
@@ -1269,7 +1269,7 @@ theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : CGraph)
 with `chromNum_tensorProduct_le` this pins `χ(G × H) = 2` as soon as one factor is bipartite and
 both have an edge.  In general the lower bound is the hard direction: Hedetniemi's conjecture that
 `χ(G × H) = min χ(G) χ(H)` is false. -/
-theorem two_le_chromNum_tensorProduct {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+theorem two_le_chromNum_tensorProduct {G H : CGraph}
     (hG : 0 < G.E) (hH : 0 < H.E) : 2 ≤ (tensorProduct G H).chromNum := by
   obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
   obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
@@ -1279,7 +1279,7 @@ theorem two_le_chromNum_tensorProduct {G H : CGraph} [DecidableEq G.V] [Decidabl
 
 /-- One bipartite factor is enough: if `G` is bipartite and both factors have an edge then
 `χ(G × H) = 2`. -/
-theorem chromNum_tensorProduct_eq_two {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V]
+theorem chromNum_tensorProduct_eq_two {G H : CGraph}
     (hG : G.IsBipartite) (hGE : 0 < G.E) (hHE : 0 < H.E) :
     (tensorProduct G H).chromNum = 2 :=
   le_antisymm
@@ -1292,7 +1292,7 @@ theorem chromNum_tensorProduct_eq_two {G H : CGraph} [DecidableEq G.V] [Decidabl
 
 /-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.**  Each graph satisfies `γ + Δ ≤ |V|`, and complementation turns
 the maximum degree into `|V| - 1 - δ`, so the two bounds add up with `δ ≤ Δ` to spare. -/
-theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) [DecidableEq G.V] :
+theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
     G.domNum + (compl G).domNum ≤ Fintype.card G.V + 1 := by
   rcases isEmpty_or_nonempty G.V with hemp | hne
   · have h1 : Fintype.card G.V = 0 := Fintype.card_eq_zero
@@ -1310,7 +1310,7 @@ theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) [DecidableEq G.V] :
 
 /-- Two vertices in different components dominate the complement: whatever `x` is, it is
 unreachable from one of them, hence adjacent to it in `Gᶜ`. -/
-theorem domNum_compl_le_two_of_not_reachable (G : CGraph) [DecidableEq G.V] {a b : G.V}
+theorem domNum_compl_le_two_of_not_reachable (G : CGraph) {a b : G.V}
     (h : ¬ G.toSimple.Reachable a b) : (compl G).domNum ≤ 2 := by
   classical
   have hdom : (compl G).IsDominatingSet ({a, b} : Finset G.V) := by
@@ -1328,7 +1328,7 @@ theorem domNum_compl_le_two_of_not_reachable (G : CGraph) [DecidableEq G.V] {a b
   exact le_trans (Finset.card_insert_le _ _) (by simp)
 
 /-- A disconnected graph has a complement that two vertices dominate. -/
-theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [DecidableEq G.V] [Nonempty G.V]
+theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [Nonempty G.V]
     (h : ¬ G.IsConnected) : (compl G).domNum ≤ 2 := by
   rw [IsConnected, SimpleGraph.connected_iff] at h
   push_neg at h
@@ -1340,7 +1340,7 @@ theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [DecidableEq G.V] [N
 
 /-- A graph and its complement cannot both have a universal vertex once there are two vertices,
 so `3 ≤ γ(G) + γ(Gᶜ)`. -/
-theorem three_le_domNum_add_domNum_compl (G : CGraph) [DecidableEq G.V]
+theorem three_le_domNum_add_domNum_compl (G : CGraph)
     (hV : 2 ≤ Fintype.card G.V) : 3 ≤ G.domNum + (compl G).domNum := by
   have hG : 0 < G.domNum := G.domNum_pos (by omega)
   have hGc : 0 < (compl G).domNum :=
@@ -1446,7 +1446,7 @@ theorem IsSRGWith.isRegularWith {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith
     G.IsRegularWith k := SimpleGraph.IsSRGWith.regular h
 
 /-- **The complement of a `k`-regular graph is `(n - 1 - k)`-regular.** -/
-theorem IsRegularWith.compl {G : CGraph} [DecidableEq G.V] {k : ℕ} (h : G.IsRegularWith k) :
+theorem IsRegularWith.compl {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
     (compl G).IsRegularWith (Fintype.card G.V - 1 - k) := fun v ↦ by
   rw [degree_compl, h v]
 
@@ -1460,7 +1460,7 @@ theorem IsRegularWith.disjUnion {G H : CGraph} {k : ℕ} (hG : G.IsRegularWith k
 
 /-- A join is regular exactly when the two sides end up with the same total degree: each vertex
 of `G` picks up all of `H` and vice versa. -/
-theorem IsRegularWith.join {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k l m : ℕ}
+theorem IsRegularWith.join {G H : CGraph} {k l m : ℕ}
     (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
     (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
     (join G H).IsRegularWith m := by
@@ -1473,7 +1473,7 @@ theorem IsRegularWith.join {G H : CGraph} [DecidableEq G.V] [DecidableEq H.V] {k
 
 /-- The degree of the edge `s(u, v)` as a vertex of the line graph: the other edges at `u`
 and the other edges at `v`, with no overlap. -/
-theorem degree_lineGraph_mk (G : CGraph) [DecidableEq G.V] {u v : G.V}
+theorem degree_lineGraph_mk (G : CGraph) {u v : G.V}
     (h : s(u, v) ∈ G.toSimple.edgeSet) :
     (lineGraph G).toSimple.degree ⟨s(u, v), h⟩
       = G.toSimple.degree u + G.toSimple.degree v - 2 := by
@@ -1489,7 +1489,7 @@ theorem degree_lineGraph_mk (G : CGraph) [DecidableEq G.V] {u v : G.V}
   omega
 
 /-- Every vertex of the line graph is an edge `s(u, v)` of `G`. -/
-theorem lineGraph_vertex_cases {G : CGraph} [DecidableEq G.V]
+theorem lineGraph_vertex_cases {G : CGraph}
     {motive : (lineGraph G).V → Prop}
     (h : ∀ (u v : G.V) (huv : s(u, v) ∈ G.toSimple.edgeSet), motive ⟨s(u, v), huv⟩)
     (e : (lineGraph G).V) : motive e := by
@@ -1498,13 +1498,13 @@ theorem lineGraph_vertex_cases {G : CGraph} [DecidableEq G.V]
   exact h u v he
 
 /-- The line graph of a `k`-regular graph is `(2k - 2)`-regular. -/
-theorem IsRegularWith.lineGraph {G : CGraph} [DecidableEq G.V] {k : ℕ}
+theorem IsRegularWith.lineGraph {G : CGraph} {k : ℕ}
     (h : G.IsRegularWith k) : (CGraph.lineGraph G).IsRegularWith (2 * k - 2) := by
   refine lineGraph_vertex_cases fun u v huv ↦ ?_
   rw [degree_lineGraph_mk G huv, h u, h v]
   omega
 
-theorem maxDeg_lineGraph_le (G : CGraph) [DecidableEq G.V] :
+theorem maxDeg_lineGraph_le (G : CGraph) :
     (lineGraph G).maxDeg ≤ 2 * G.maxDeg - 2 := by
   refine maxDeg_le_of_forall (lineGraph_vertex_cases fun u v huv ↦ ?_)
   rw [degree_lineGraph_mk G huv]
@@ -1512,7 +1512,7 @@ theorem maxDeg_lineGraph_le (G : CGraph) [DecidableEq G.V] :
   have h2 := G.degree_le_maxDeg v
   omega
 
-theorem le_minDeg_lineGraph (G : CGraph) [DecidableEq G.V] (e₀ : (lineGraph G).V) :
+theorem le_minDeg_lineGraph (G : CGraph) (e₀ : (lineGraph G).V) :
     2 * G.minDeg - 2 ≤ (lineGraph G).minDeg := by
   refine le_minDeg_of_forall e₀ (lineGraph_vertex_cases fun u v huv ↦ ?_)
   rw [degree_lineGraph_mk G huv]
@@ -1536,7 +1536,7 @@ theorem adj_eq_false_of_isRegularWith_zero {G : CGraph} (h : G.IsRegularWith 0) 
 
 /-- The edges at a fixed vertex are pairwise adjacent in the line graph, so they form a clique
 of size `deg v`. -/
-theorem degree_le_cliqueNum_lineGraph (G : CGraph) [DecidableEq G.V] (v : G.V) :
+theorem degree_le_cliqueNum_lineGraph (G : CGraph) (v : G.V) :
     G.toSimple.degree v ≤ (lineGraph G).cliqueNum := by
   classical
   set T : Finset (lineGraph G).V := {e | v ∈ e.1} with hT
@@ -1563,14 +1563,14 @@ theorem degree_le_cliqueNum_lineGraph (G : CGraph) [DecidableEq G.V] (v : G.V) :
   rw [← hcard]
   exact hle
 
-theorem maxDeg_le_cliqueNum_lineGraph (G : CGraph) [DecidableEq G.V] :
+theorem maxDeg_le_cliqueNum_lineGraph (G : CGraph) :
     G.maxDeg ≤ (lineGraph G).cliqueNum :=
   maxDeg_le_of_forall fun v ↦ degree_le_cliqueNum_lineGraph G v
 
 /-! ### Matchings -/
 
 /-- Distinct non-adjacent vertices of the line graph are vertex-disjoint edges of `G`. -/
-theorem disjoint_of_not_adj_lineGraph (G : CGraph) [DecidableEq G.V]
+theorem disjoint_of_not_adj_lineGraph (G : CGraph)
     {e f : (lineGraph G).V} (hef : e ≠ f) (h : ¬ (lineGraph G).toSimple.Adj e f) :
     Disjoint e.1.toFinset f.1.toFinset := by
   rw [Finset.disjoint_left]
@@ -1582,7 +1582,7 @@ theorem disjoint_of_not_adj_lineGraph (G : CGraph) [DecidableEq G.V]
 
 /-- A matching is an independent set in the line graph, and its edges use `2ν` distinct
 vertices, so `2ν ≤ n`. -/
-theorem two_mul_indepNum_lineGraph_le_card (G : CGraph) [DecidableEq G.V] :
+theorem two_mul_indepNum_lineGraph_le_card (G : CGraph) :
     2 * (lineGraph G).indepNum ≤ Fintype.card G.V := by
   classical
   obtain ⟨S, hS, hcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
@@ -1602,7 +1602,7 @@ theorem two_mul_indepNum_lineGraph_le_card (G : CGraph) [DecidableEq G.V] :
 /-! ### Matchings versus independent sets -/
 
 /-- Every edge of `G` has an endpoint outside a given independent set. -/
-theorem one_le_card_sdiff_of_isIndepSet (G : CGraph) [DecidableEq G.V] {I : Finset G.V}
+theorem one_le_card_sdiff_of_isIndepSet (G : CGraph) {I : Finset G.V}
     (hI : G.toSimple.IsIndepSet (I : Set G.V)) (e : (lineGraph G).V) :
     1 ≤ (e.1.toFinset \ I).card := by
   classical
@@ -1617,7 +1617,7 @@ theorem one_le_card_sdiff_of_isIndepSet (G : CGraph) [DecidableEq G.V] {I : Fins
 
 /-- `ν + α ≤ n`: the edges of a matching are disjoint, and each one contributes a vertex
 outside a maximum independent set. -/
-theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) [DecidableEq G.V] :
+theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) :
     (lineGraph G).indepNum + G.indepNum ≤ Fintype.card G.V := by
   classical
   obtain ⟨M, hM, hMcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
@@ -1670,7 +1670,7 @@ theorem IsSRGWith.girth_eq_three {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWit
 
 /-- If `M` is a maximum independent set of the line graph — a maximum matching of `G` — then the
 vertices it misses are pairwise non-adjacent: an edge between two of them could be added to `M`. -/
-theorem isIndepSet_sdiff_biUnion {G : CGraph} [DecidableEq G.V]
+theorem isIndepSet_sdiff_biUnion {G : CGraph}
     {M : Finset (lineGraph G).V} (hM : (lineGraph G).toSimple.IsIndepSet (M : Set (lineGraph G).V))
     (hMcard : M.card = (lineGraph G).indepNum) :
     G.toSimple.IsIndepSet ((Finset.univ \ M.biUnion fun e ↦ e.1.toFinset : Finset G.V) :
@@ -1711,7 +1711,7 @@ theorem isIndepSet_sdiff_biUnion {G : CGraph} [DecidableEq G.V]
 
 /-- **Every graph has a maximum matching whose vertices dominate all the edges**, in the counting
 form `|V| ≤ α(G) + 2ν(G)`. -/
-theorem card_le_indepNum_add_two_mul_indepNum_lineGraph (G : CGraph) [DecidableEq G.V] :
+theorem card_le_indepNum_add_two_mul_indepNum_lineGraph (G : CGraph) :
     Fintype.card G.V ≤ G.indepNum + 2 * (lineGraph G).indepNum := by
   classical
   obtain ⟨M, hM, hMcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
@@ -1744,7 +1744,7 @@ plain formula with no side conditions. -/
 /-- An explicit proper edge colouring bounds the chromatic number of the line graph, hence the
 edge chromatic number.  The colouring is a symmetric function on ordered pairs; only its values
 on edges matter, so its values elsewhere are unconstrained. -/
-theorem chromNum_lineGraph_le_of_edgeColouring {G : CGraph} [DecidableEq G.V] {k : ℕ}
+theorem chromNum_lineGraph_le_of_edgeColouring {G : CGraph} {k : ℕ}
     (c : G.V → G.V → Fin k) (hsymm : ∀ x y, c x y = c y x)
     (hproper : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w) :
     (lineGraph G).chromNum ≤ k := by

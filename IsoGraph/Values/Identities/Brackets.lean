@@ -474,7 +474,7 @@ theorem le_edgeChromNum_crown (n : ℕ) : n + 1 ≤ (crown (n + 2)).edgeChromNum
 
 /-- Transporting `CGraph.chromNum_lineGraph_le_of_edgeColouring` to the quotient: an explicit
 symmetric colouring of the ordered pairs, proper on the edges, bounds the chromatic index. -/
-theorem edgeChromNum_mk_le_of_colouring {G : CGraph} [DecidableEq G.V] {k : ℕ}
+theorem edgeChromNum_mk_le_of_colouring {G : CGraph} {k : ℕ}
     (c : G.V → G.V → Fin k) (hsymm : ∀ x y, c x y = c y x)
     (hproper : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w) :
     edgeChromNum ⟦G⟧ ≤ k := by

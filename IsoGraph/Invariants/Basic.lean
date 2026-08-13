@@ -55,7 +55,7 @@ theorem cliqueCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) (n : ℕ) :
 
 /-- With decidable equality on the vertices the clique count is the cardinality of Mathlib's
 `cliqueFinset`; this is the bridge that makes it computable. -/
-theorem cliqueCount_eq_card_cliqueFinset [DecidableEq G.V] (n : ℕ) :
+theorem cliqueCount_eq_card_cliqueFinset (n : ℕ) :
     G.cliqueCount n = (G.toSimple.cliqueFinset n).card := by
   rw [cliqueCount, ← SimpleGraph.coe_cliqueFinset, Set.ncard_coe_finset]
 
@@ -70,7 +70,7 @@ theorem indepCount_eq_of_iso {G H : CGraph} (i : G ≃cg H) (n : ℕ) :
 
 /-- With decidable equality on the vertices the count is the cardinality of Mathlib's
 `indepSetFinset`. -/
-theorem indepCount_eq_card_indepSetFinset [DecidableEq G.V] (n : ℕ) :
+theorem indepCount_eq_card_indepSetFinset (n : ℕ) :
     G.indepCount n = (G.toSimple.indepSetFinset n).card := by
   rw [indepCount, ← Set.ncard_coe_finset]
   congr 1
@@ -86,7 +86,7 @@ theorem numComponents_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
   SimpleGraph.Iso.numComponents_eq (CGraph.Iso.toSimpleIso i)
 
 /-- With decidable equality on the vertices the components form a `Fintype`. -/
-theorem numComponents_eq_card [DecidableEq G.V] :
+theorem numComponents_eq_card :
     G.numComponents = Fintype.card G.toSimple.ConnectedComponent :=
   Nat.card_eq_fintype_card
 
@@ -275,7 +275,7 @@ def nbrs (v : G.V) : Finset G.V := Finset.univ.filter fun w ↦ G.Adj v w = true
 theorem neighborFinset_eq_nbrs (v : G.V) : G.toSimple.neighborFinset v = G.nbrs v := by
   ext w; simp
 
-theorem card_commonNeighbors [DecidableEq G.V] (v w : G.V) :
+theorem card_commonNeighbors (v w : G.V) :
     Fintype.card (G.toSimple.commonNeighbors v w) = (G.nbrs v ∩ G.nbrs w).card := by
   rw [← Set.toFinset_card]
   congr 1
@@ -285,7 +285,7 @@ theorem card_commonNeighbors [DecidableEq G.V] (v w : G.V) :
 /-- **Strong regularity, spelled out in `Finset` terms.**  No `SimpleGraph`, no `Fintype.card` of
 a subtype and no `Sym2`: just the neighbour sets of `nbrs` and their intersections, which is the
 form in which the families of `IsoGraph/Graphs/SRG.lean` are proved. -/
-theorem isSRGWith_of [DecidableEq G.V] {n k ℓ μ : ℕ} (hn : Fintype.card G.V = n)
+theorem isSRGWith_of {n k ℓ μ : ℕ} (hn : Fintype.card G.V = n)
     (hk : ∀ v, (G.nbrs v).card = k)
     (hℓ : ∀ v w, G.Adj v w = true → (G.nbrs v ∩ G.nbrs w).card = ℓ)
     (hμ : ∀ v w, v ≠ w → G.Adj v w = false → (G.nbrs v ∩ G.nbrs w).card = μ) :
@@ -331,7 +331,7 @@ theorem isBipartite_iff_colorable : G.IsBipartite ↔ G.toSimple.Colorable 2 := 
 
 /-- Bipartiteness is decidable: there are only `2 ^ n` colourings to try.  Like the transitivity
 instances below this is exponential, and meant for small graphs only. -/
-instance [DecidableEq G.V] : Decidable G.IsBipartite :=
+instance : Decidable G.IsBipartite :=
   decidable_of_iff (∃ c : G.V → Bool, ∀ x y, G.Adj x y → c x ≠ c y) Iff.rfl
 
 /-! ### Transitivity
@@ -358,7 +358,7 @@ def autoOfPerm {G : CGraph} (σ : Equiv.Perm G.V) (h : ∀ x y, G.Adj (σ x) (σ
 @[simp] theorem autoOfPerm_apply {G : CGraph} (σ : Equiv.Perm G.V)
     (h : ∀ x y, G.Adj (σ x) (σ y) = G.Adj x y) (x : G.V) : autoOfPerm σ h x = σ x := rfl
 
-theorem isVertexTransitive_iff [DecidableEq G.V] :
+theorem isVertexTransitive_iff :
     G.IsVertexTransitive ↔
       ∀ u v : G.V, ∃ σ : Equiv.Perm G.V, (∀ x y, G.Adj (σ x) (σ y) = G.Adj x y) ∧ σ u = v := by
   constructor
@@ -369,7 +369,7 @@ theorem isVertexTransitive_iff [DecidableEq G.V] :
     obtain ⟨σ, hσ, huv⟩ := h u v
     exact ⟨autoOfPerm σ hσ, huv⟩
 
-theorem isArcTransitive_iff [DecidableEq G.V] :
+theorem isArcTransitive_iff :
     G.IsArcTransitive ↔
       ∀ u v u' v' : G.V, G.Adj u v → G.Adj u' v' →
         ∃ σ : Equiv.Perm G.V, (∀ x y, G.Adj (σ x) (σ y) = G.Adj x y) ∧ σ u = u' ∧ σ v = v' := by
@@ -404,14 +404,14 @@ theorem isArcTransitive_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsArcTransi
 `DecidableEq`, which a `Fintype` alone does not give.  Constructions that produce a concrete
 vertex type supply it; see `IsoGraph/Graphs/Constructions.lean`. -/
 
-instance [DecidableEq G.V] : Decidable G.IsConnected :=
+instance : Decidable G.IsConnected :=
   inferInstanceAs (Decidable G.toSimple.Connected)
 
-instance [DecidableEq G.V] : Decidable G.IsAcyclic :=
+instance : Decidable G.IsAcyclic :=
   decidable_of_iff (∀ (v w : G.V) (p q : G.toSimple.Path v w), p = q)
     SimpleGraph.isAcyclic_iff_path_unique.symm
 
-instance [DecidableEq G.V] : Decidable G.IsTree :=
+instance : Decidable G.IsTree :=
   decidable_of_iff (G.IsConnected ∧ G.IsAcyclic)
     ⟨fun ⟨h₁, h₂⟩ ↦ ⟨h₁, h₂⟩, fun ⟨h₁, h₂⟩ ↦ ⟨h₁, h₂⟩⟩
 
@@ -420,7 +420,7 @@ instance [DecidableEq G.V] : Decidable G.IsTree :=
 
 This runs in time `O(n³)`, so `native_decide` settles it for the graphs of
 `IsoGraph/Graphs/SRG.lean`; the kernel would not get far. -/
-instance [DecidableEq G.V] (n k ℓ μ : ℕ) : Decidable (G.IsSRGWith n k ℓ μ) :=
+instance (n k ℓ μ : ℕ) : Decidable (G.IsSRGWith n k ℓ μ) :=
   decidable_of_iff
     (Fintype.card G.V = n ∧ (∀ v, G.toSimple.degree v = k) ∧
       (∀ v w, G.toSimple.Adj v w → Fintype.card (G.toSimple.commonNeighbors v w) = ℓ) ∧
@@ -431,11 +431,11 @@ instance [DecidableEq G.V] (n k ℓ μ : ℕ) : Decidable (G.IsSRGWith n k ℓ �
 /-- Vertex-transitivity is decidable by enumerating the `n!` permutations of the vertex type — so
 this is for tiny graphs only, and the structural lemmas of `IsoGraph/Graphs/Constructions.lean` are
 the way to settle anything larger.  Even `native_decide` starts to labour at eight vertices. -/
-instance [DecidableEq G.V] : Decidable G.IsVertexTransitive :=
+instance : Decidable G.IsVertexTransitive :=
   decidable_of_iff _ (isVertexTransitive_iff G).symm
 
 /-- Arc-transitivity is decidable, with the same `n!` caveat as `IsVertexTransitive`. -/
-instance [DecidableEq G.V] : Decidable G.IsArcTransitive :=
+instance : Decidable G.IsArcTransitive :=
   decidable_of_iff _ (isArcTransitive_iff G).symm
 
 end CGraph

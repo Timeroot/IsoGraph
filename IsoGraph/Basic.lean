@@ -26,6 +26,10 @@ structure CGraph where
   /-- The vertex type. -/
   V : Type
   [fin : Fintype V]
+  /-- Vertices can be compared.  Bundled rather than asked for as an instance argument: every
+  construction that has to ask "is this the same vertex?" — the complement, the products, the
+  line graph — needs it, and a `Fintype` does not supply it. -/
+  [decEqV : DecidableEq V]
   /-- The adjacency relation, as a decidable predicate. -/
   Adj : V → V → Bool
   /-- Adjacency is symmetric. -/
@@ -33,10 +37,10 @@ structure CGraph where
   /-- There are no loops. -/
   loopless x : ¬Adj x x
 
-attribute [instance] CGraph.fin
+attribute [instance] CGraph.fin CGraph.decEqV
 
 /-- Two `CGraph`s with the same vertex type and the same adjacency function are equal: the
-`Fintype` field is a subsingleton and the remaining fields are propositions. -/
+`Fintype` and `DecidableEq` fields are subsingletons and the remaining fields are propositions. -/
 theorem CGraph.ext' {G H : CGraph} (hV : G.V = H.V) (hA : HEq G.Adj H.Adj) : G = H := by
   obtain ⟨V₁, A₁, s₁, l₁⟩ := G
   obtain ⟨V₂, A₂, s₂, l₂⟩ := H
@@ -44,7 +48,8 @@ theorem CGraph.ext' {G H : CGraph} (hV : G.V = H.V) (hA : HEq G.Adj H.Adj) : G =
   subst hV
   cases hA
   congr 1
-  exact Subsingleton.elim _ _
+  · exact Subsingleton.elim _ _
+  · exact Subsingleton.elim _ _
 
 /-! ## `CGraph` is equivalent to `SimpleGraph` -/
 
@@ -61,7 +66,8 @@ instance (G : CGraph) : DecidableRel G.toSimple.Adj :=
   fun x y => decidable_of_iff (G.Adj x y = true) Iff.rfl
 
 /-- A decidable `SimpleGraph` as a `CGraph`. -/
-def SimpleGraph.toCGraph {V : Type} [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj] :
+def SimpleGraph.toCGraph {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
+    [DecidableRel G.Adj] :
     CGraph where
   V := V
   Adj x y := decide (G.Adj x y)
