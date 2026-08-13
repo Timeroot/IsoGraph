@@ -1541,32 +1541,6 @@ example : 3 ≤ (complete 3 ⊗g complete 3).indepNum := by
 
 /-! ### Colouring the strong product -/
 
-/-- `max χ(G) χ(H) ≤ χ(G ⊠ H)`, once both factors have a vertex. -/
-theorem max_chromNum_le_chromNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    max G.chromNum H.chromNum ≤ (G ⊠g H).chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, V_mk] at hG
-  rw [← mk_canonicalize h, V_mk] at hH
-  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
-  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, strongProduct_mk, chromNum_mk, chromNum_mk,
-    chromNum_mk]
-  exact CGraph.max_chromNum_le_chromNum_strongProduct _ _ a b
-
-/-- `max χ(G) χ(H) ≤ χ(G[H])`, once both factors have a vertex. -/
-theorem max_chromNum_le_chromNum_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    max G.chromNum H.chromNum ≤ (G ·g H).chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, V_mk] at hG
-  rw [← mk_canonicalize h, V_mk] at hH
-  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
-  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
-  rw [← mk_canonicalize g, ← mk_canonicalize h, lexProduct_mk, chromNum_mk, chromNum_mk,
-    chromNum_mk]
-  exact CGraph.max_chromNum_le_chromNum_lexProduct _ _ a b
-
 /-- The strong product of complete graphs shows the upper bound is attained. -/
 example : (complete 3 ⊠g complete 4).chromNum = 12 := by
   rw [strongProduct_complete, chromNum_complete]
@@ -1833,24 +1807,6 @@ example : (cycle 5).chromNum ≤ 4 := by
 /-- **The handshake lemma for regular graphs**: `2|E| = k|V|`. -/
 theorem IsRegularWith.two_mul_E {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) :
     2 * G.E = G.V * k := two_mul_E_of_degSequence_replicate h.degSequence
-
-theorem IsRegularWith.maxDeg_eq {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) (hV : 0 < G.V) :
-    G.maxDeg = k := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, isRegularWith_mk] at h
-  rw [← mk_canonicalize g, V_mk] at hV
-  obtain ⟨v₀⟩ := Fintype.card_pos_iff.1 hV
-  rw [← mk_canonicalize g, maxDeg_mk]
-  exact CGraph.IsRegularWith.maxDeg_eq h v₀
-
-theorem IsRegularWith.minDeg_eq {G : IsoGraph} {k : ℕ} (h : G.IsRegularWith k) (hV : 0 < G.V) :
-    G.minDeg = k := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, isRegularWith_mk] at h
-  rw [← mk_canonicalize g, V_mk] at hV
-  obtain ⟨v₀⟩ := Fintype.card_pos_iff.1 hV
-  rw [← mk_canonicalize g, minDeg_mk]
-  exact CGraph.IsRegularWith.minDeg_eq h v₀
 
 /-- **A vertex-transitive graph is regular**, of degree its common vertex degree. -/
 theorem exists_isRegularWith_of_isVertexTransitive {G : IsoGraph} (h : IsVertexTransitive G) :

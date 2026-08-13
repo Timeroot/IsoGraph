@@ -246,10 +246,14 @@ theorem not_isBipartite_join_of_adj_right {G H : CGraph}
     (by rwa [join_adj_inr_inr]) (join_adj_inr_inl G H a c) (join_adj_inr_inl G H b c)
 
 /-- Three nonempty sides give a triangle, whatever the graphs on them are. -/
+@[toIsoGraph]
 theorem not_isBipartite_join_join {G H K : CGraph}
- (a : G.V) (b : H.V) (c : K.V) :
-    ¬ (CGraph.join G (CGraph.join H K)).IsBipartite :=
-  not_isBipartite_of_triangle (a := .inl a) (b := .inr (.inl b)) (d := .inr (.inr c))
+    [Nonempty G.V] [Nonempty H.V] [Nonempty K.V] :
+    ¬ (CGraph.join G (CGraph.join H K)).IsBipartite := by
+  obtain ⟨a⟩ := ‹Nonempty G.V›
+  obtain ⟨b⟩ := ‹Nonempty H.V›
+  obtain ⟨c⟩ := ‹Nonempty K.V›
+  exact not_isBipartite_of_triangle (a := .inl a) (b := .inr (.inl b)) (d := .inr (.inr c))
     (join_adj_inl_inr _ _ _ _) (join_adj_inl_inr _ _ _ _)
     (by rw [join_adj_inr_inr, join_adj_inl_inr])
 
@@ -1799,9 +1803,11 @@ theorem isConnected_lexProduct {G H : CGraph}
 
 /-! ### Triangles in the strong and lexicographic products -/
 
-theorem not_isBipartite_strongProduct {G H : CGraph}
-    {a b : G.V} {c d : H.V} (hab : G.Adj a b) (hcd : H.Adj c d) :
+@[toIsoGraph]
+theorem not_isBipartite_strongProduct {G H : CGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
     ¬ (strongProduct G H).IsBipartite := by
+  obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos hG
+  obtain ⟨c, d, hcd⟩ := exists_adj_of_E_pos hH
   have hba : G.Adj b a := by rwa [G.symm]
   have hdc : H.Adj d c := by rwa [H.symm]
   refine not_isBipartite_of_triangle (a := (a, c)) (b := (b, d)) (d := (a, d)) ?_ ?_ ?_ <;>
@@ -1814,9 +1820,11 @@ theorem not_isBipartite_strongProduct {G H : CGraph}
       | (rw [h2, adj_self] at hcd; exact Bool.noConfusion hcd)
       | (rw [h1, adj_self] at hab; exact Bool.noConfusion hab)
 
-theorem not_isBipartite_lexProduct {G H : CGraph}
-    {a b : G.V} {c d : H.V} (hab : G.Adj a b) (hcd : H.Adj c d) :
+@[toIsoGraph]
+theorem not_isBipartite_lexProduct {G H : CGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
     ¬ (lexProduct G H).IsBipartite := by
+  obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos hG
+  obtain ⟨c, d, hcd⟩ := exists_adj_of_E_pos hH
   have hba : G.Adj b a := by rwa [G.symm]
   refine not_isBipartite_of_triangle (a := (a, c)) (b := (a, d)) (d := (b, c)) ?_ ?_ ?_ <;>
   · rw [lexProduct_adj]
@@ -2736,11 +2744,12 @@ end CliqueProducts
 /-- A clique of `G □ H` lives in a single row or a single column, so the cartesian product has the
 larger of the two clique numbers.  Both factors have to be nonempty: otherwise the product is the
 empty graph, whose clique number is `0`. -/
-theorem cliqueNum_cartesianProduct (G H : CGraph)
-    (a : G.V) (b : H.V) :
+@[toIsoGraph]
+theorem cliqueNum_cartesianProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).cliqueNum = max G.cliqueNum H.cliqueNum :=
   cliqueNum_of_cartesian_adj (S := G.toSimple) (T := H.toSimple)
-    (P := (cartesianProduct G H).toSimple) a b fun p q ↦ by
+    (P := (cartesianProduct G H).toSimple) (Classical.arbitrary G.V)
+      (Classical.arbitrary H.V) fun p q ↦ by
       simp only [CGraph.toSimple_adj, cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true,
         decide_eq_true_eq]
 
@@ -3124,9 +3133,11 @@ theorem chromNum_join (G H : CGraph) :
 
 /-- **Sabidussi's theorem**: the chromatic number of a cartesian product is the larger of the two.
 Both factors have to be nonempty — the product of anything with the empty graph is empty. -/
-theorem chromNum_cartesianProduct (G H : CGraph)
-    (a : G.V) (b : H.V) :
+@[toIsoGraph]
+theorem chromNum_cartesianProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).chromNum = max G.chromNum H.chromNum := by
+  obtain ⟨a⟩ := ‹Nonempty G.V›
+  obtain ⟨b⟩ := ‹Nonempty H.V›
   have hle : ∀ p q : G.V × H.V,
       (cartesianProduct G H).toSimple.Adj p q →
         (p.1 = q.1 ∧ H.toSimple.Adj p.2 q.2) ∨ (G.toSimple.Adj p.1 q.1 ∧ p.2 = q.2) := by

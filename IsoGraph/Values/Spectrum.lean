@@ -5726,7 +5726,7 @@ theorem isBipartite_iff_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k
 `-Δ ≤ λ_min` is the other half: for a regular graph `-k` is as small as an eigenvalue can be. -/
 theorem isBipartite_iff_lambdaMin_eq {G : CGraph} [Nonempty G.V] (hconn : G.IsConnected) {k : ℕ}
     (hreg : G.IsRegularWith k) : G.IsBipartite ↔ G.lambdaMin = -(k : ℝ) := by
-  have hmax : G.maxDeg = k := hreg.maxDeg_eq (Classical.arbitrary G.V)
+  have hmax : G.maxDeg = k := hreg.maxDeg_eq
   rw [isBipartite_iff_neg_mem_spectrum hconn hreg]
   refine ⟨fun h ↦ le_antisymm (lambdaMin_le h) ?_, fun h ↦ h ▸ G.lambdaMin_mem_spectrum⟩
   have := G.neg_maxDeg_le_lambdaMin

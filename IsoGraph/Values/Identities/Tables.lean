@@ -507,17 +507,6 @@ theorem isConnected_completeMultipartite (a b : ℕ) (ds : List ℕ) :
 
 /-! ### Clique numbers of the cartesian, tensor and lexicographic products -/
 
-theorem cliqueNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G □g H).cliqueNum = max G.cliqueNum H.cliqueNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [cartesianProduct_mk, cliqueNum_mk, cliqueNum_mk, cliqueNum_mk]
-  rw [V_mk] at hG hH
-  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
-  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
-  exact CGraph.cliqueNum_cartesianProduct _ _ a b
-
 @[simp] theorem cliqueNum_tensorProduct (G H : IsoGraph) :
     (G ⊗g H).cliqueNum = min G.cliqueNum H.cliqueNum := by
   induction G using Quotient.inductionOn with | _ g =>
@@ -583,28 +572,6 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
   simp
 
 /-! ### Connectivity and triangles in the strong and lexicographic products -/
-
-theorem not_isBipartite_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    ¬ IsBipartite (G ⊠g H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [strongProduct_mk, isBipartite_mk]
-  rw [E_mk] at hG hH
-  obtain ⟨a, b, hab⟩ := CGraph.exists_adj_of_E_pos hG
-  obtain ⟨c, d, hcd⟩ := CGraph.exists_adj_of_E_pos hH
-  exact CGraph.not_isBipartite_strongProduct hab hcd
-
-theorem not_isBipartite_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    ¬ IsBipartite (G ·g H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [lexProduct_mk, isBipartite_mk]
-  rw [E_mk] at hG hH
-  obtain ⟨a, b, hab⟩ := CGraph.exists_adj_of_E_pos hG
-  obtain ⟨c, d, hcd⟩ := CGraph.exists_adj_of_E_pos hH
-  exact CGraph.not_isBipartite_lexProduct hab hcd
 
 @[simp] theorem E_complete_pos (n : ℕ) : 0 < (complete (n + 2)).E := by
   rw [E_complete]
@@ -1816,18 +1783,6 @@ attribute [simp] IsoGraph.chromNum_cycle_even IsoGraph.chromNum_cycle_odd
   induction H using Quotient.inductionOn with | _ h =>
   rw [← mk_canonicalize g, ← mk_canonicalize h, join_mk, chromNum_mk, chromNum_mk, chromNum_mk]
   exact CGraph.chromNum_join _ _
-
-/-- **Sabidussi's theorem** for the cartesian product. -/
-theorem chromNum_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    (G □g H).chromNum = max G.chromNum H.chromNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [cartesianProduct_mk, chromNum_mk, chromNum_mk, chromNum_mk]
-  rw [V_mk] at hG hH
-  obtain ⟨a⟩ := Fintype.card_pos_iff.1 hG
-  obtain ⟨b⟩ := Fintype.card_pos_iff.1 hH
-  exact CGraph.chromNum_cartesianProduct _ _ a b
 
 /-! ### Complete multipartite graphs -/
 

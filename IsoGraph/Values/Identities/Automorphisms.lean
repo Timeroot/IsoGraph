@@ -1271,16 +1271,18 @@ theorem chromNum_strongProduct_le (G H : CGraph) :
 
 /-- Both factors appear as fibres of the cartesian product, which the strong product contains,
 so `max χ(G) χ(H) ≤ χ(G ⊠ H)`. -/
-theorem max_chromNum_le_chromNum_strongProduct (G H : CGraph)
-    (a : G.V) (b : H.V) : max G.chromNum H.chromNum ≤ (strongProduct G H).chromNum := by
-  rw [← chromNum_cartesianProduct G H a b]
+@[toIsoGraph]
+theorem max_chromNum_le_chromNum_strongProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
+    max G.chromNum H.chromNum ≤ (strongProduct G H).chromNum := by
+  rw [← chromNum_cartesianProduct (G := G) (H := H)]
   exact chromNum_le_iff_colorable.2
     (colorable_chromNum.mono_left (cartesianProduct_le_strongProduct G H))
 
 /-- The same sandwich for the lexicographic product. -/
-theorem max_chromNum_le_chromNum_lexProduct (G H : CGraph)
-    (a : G.V) (b : H.V) : max G.chromNum H.chromNum ≤ (lexProduct G H).chromNum := by
-  rw [← chromNum_cartesianProduct G H a b]
+@[toIsoGraph]
+theorem max_chromNum_le_chromNum_lexProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
+    max G.chromNum H.chromNum ≤ (lexProduct G H).chromNum := by
+  rw [← chromNum_cartesianProduct (G := G) (H := H)]
   exact chromNum_le_iff_colorable.2
     (colorable_chromNum.mono_left (cartesianProduct_le_lexProduct G H))
 
@@ -1468,13 +1470,17 @@ theorem isRegularWith_of_maxDeg_le_of_le_minDeg {G : CGraph} {k : ℕ}
     (h1 : G.maxDeg ≤ k) (h2 : k ≤ G.minDeg) : G.IsRegularWith k := fun v ↦
   le_antisymm (le_trans (G.degree_le_maxDeg v) h1) (le_trans h2 (G.minDeg_le_degree v))
 
-theorem IsRegularWith.maxDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) (v₀ : G.V) :
-    G.maxDeg = k :=
-  le_antisymm (maxDeg_le_of_forall fun v ↦ (h v).le) (h v₀ ▸ G.degree_le_maxDeg v₀)
+@[toIsoGraph]
+theorem IsRegularWith.maxDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) [Nonempty G.V] :
+    G.maxDeg = k := by
+  obtain ⟨v₀⟩ := ‹Nonempty G.V›
+  exact le_antisymm (maxDeg_le_of_forall fun v ↦ (h v).le) (h v₀ ▸ G.degree_le_maxDeg v₀)
 
-theorem IsRegularWith.minDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) (v₀ : G.V) :
-    G.minDeg = k :=
-  le_antisymm (h v₀ ▸ G.minDeg_le_degree v₀) (le_minDeg_of_forall v₀ fun v ↦ (h v).ge)
+@[toIsoGraph]
+theorem IsRegularWith.minDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) [Nonempty G.V] :
+    G.minDeg = k := by
+  obtain ⟨v₀⟩ := ‹Nonempty G.V›
+  exact le_antisymm (h v₀ ▸ G.minDeg_le_degree v₀) (le_minDeg_of_forall v₀ fun v ↦ (h v).ge)
 
 /-- **Strongly regular graphs are regular**, with the same degree parameter. -/
 @[toIsoGraph]

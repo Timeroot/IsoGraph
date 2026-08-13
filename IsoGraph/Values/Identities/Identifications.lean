@@ -1899,19 +1899,6 @@ theorem not_isBipartite_join_left {G H : IsoGraph} (hG : ¬ IsBipartite G) :
 theorem not_isBipartite_join_right {G H : IsoGraph} (hH : ¬ IsBipartite H) :
     ¬ IsBipartite (G ∇g H) := fun h ↦ hH h.of_join_right
 
-/-- **A join of three nonempty graphs is never bipartite.** -/
-theorem not_isBipartite_join_join {G H K : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
-    (hK : 0 < K.V) : ¬ IsBipartite (G ∇g (H ∇g K)) := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  induction K using Quotient.inductionOn with | _ K =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H, ← mk_canonicalize K] at *
-  rw [join_mk, join_mk, isBipartite_mk]
-  obtain ⟨a⟩ : Nonempty G.canonicalize.V := Fintype.card_pos_iff.1 hG
-  obtain ⟨b⟩ : Nonempty H.canonicalize.V := Fintype.card_pos_iff.1 hH
-  obtain ⟨c⟩ : Nonempty K.canonicalize.V := Fintype.card_pos_iff.1 hK
-  exact CGraph.not_isBipartite_join_join a b c
-
 /-- **Complete multipartite graphs with three nonempty parts are not bipartite.** -/
 @[simp] theorem not_isBipartite_completeMultipartite (a b c : ℕ) (ds : List ℕ) :
     ¬ IsBipartite (completeMultipartite ((a + 1) :: (b + 1) :: (c + 1) :: ds)) := by
