@@ -892,7 +892,7 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
     rw [this, hmatched_card, hcard]
   -- Build coloring
   rw [CGraph.chromNum_le_iff_colorable]
-  -- Coloring of g.compl.toSimple with (V - S.card) colors.
+  -- Coloring of gᶜ.toSimple with (V - S.card) colors.
   -- Matched vertices (in edges of S) get colors 0..S.card-1, the same colour for both
   -- endpoints of an edge.
   -- Unmatched vertices get colors S.card..V-S.card-1 (each unique).
@@ -923,7 +923,7 @@ theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G
       equivS' (edgeOf ⟨v, hv⟩)
     else
       S.card + (unmatchedEmb ⟨v, hv⟩ : ℕ)
-  -- Show f is a valid coloring of g.compl.toSimple
+  -- Show f is a valid coloring of gᶜ.toSimple
   refine SimpleGraph.colorable_iff_exists_bdd_nat_coloring _ |>.2 ?_
   refine ⟨SimpleGraph.Coloring.mk f ?_, fun v => ?_⟩
   · -- Adjacent in the complement → different colors
@@ -1435,10 +1435,10 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
   unfold IsoGraph.petersen IsoGraph.indepNum IsoGraph.kneser
   rw [Quotient.lift_mk]
   rw [← CGraph.cliqueNum_compl]
-  have heq : (CGraph.compl (CGraph.kneser 5 2)) ≃cg CGraph.johnson 5 2 :=
+  have heq : ((CGraph.kneser 5 2)ᶜ) ≃cg CGraph.johnson 5 2 :=
     CGraph.johnsonTwoIso 5 |>.symm
   have hclique_iso :
-      (CGraph.compl (CGraph.kneser 5 2)).cliqueNum = (CGraph.johnson 5 2).cliqueNum := by
+      ((CGraph.kneser 5 2)ᶜ).cliqueNum = (CGraph.johnson 5 2).cliqueNum := by
     unfold CGraph.cliqueNum
     exact SimpleGraph.Iso.cliqueNum_eq (CGraph.Iso.toSimpleIso heq)
   rw [hclique_iso]
@@ -1713,7 +1713,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
       have : (i : ℕ) < n := i.is_lt
       omega
     let color : (CGraph.path n).V → Fin k := fun i => ⟨i.val / 2, hcoloring i⟩
-    have hvalid : ∀ i j, (CGraph.path n).compl.toSimple.Adj i j → color i ≠ color j := by
+    have hvalid : ∀ i j, (CGraph.path n)ᶜ.toSimple.Adj i j → color i ≠ color j := by
       intro i j hij
       simp [CGraph.compl_toSimple] at hij
       -- hij : ¬i = j ∧ ¬(SimpleGraph.pathGraph n).Adj i j

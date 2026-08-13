@@ -463,8 +463,8 @@ theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
 
 theorem autCount_mul_le_autCount_join (G H : CGraph) :
     G.autCount * H.autCount ≤ (join G H).autCount := by
-  have h := autCount_mul_le_autCount_disjUnion (compl G) (compl H)
-  rwa [autCount_compl, autCount_compl, ← autCount_compl (disjUnion (compl G) (compl H))] at h
+  have h := autCount_mul_le_autCount_disjUnion Gᶜ Hᶜ
+  rwa [autCount_compl, autCount_compl, ← autCount_compl (disjUnion Gᶜ Hᶜ)] at h
 
 /-- Swapping the two copies of a graph in a disjoint union with itself. -/
 def disjUnionSwapAuto (G : CGraph) : disjUnion G G ≃cg disjUnion G G :=
@@ -1293,17 +1293,17 @@ theorem chromNum_tensorProduct_eq_two {G H : CGraph}
 /-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.**  Each graph satisfies `γ + Δ ≤ |V|`, and complementation turns
 the maximum degree into `|V| - 1 - δ`, so the two bounds add up with `δ ≤ Δ` to spare. -/
 theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
-    G.domNum + (compl G).domNum ≤ Fintype.card G.V + 1 := by
+    G.domNum + Gᶜ.domNum ≤ Fintype.card G.V + 1 := by
   rcases isEmpty_or_nonempty G.V with hemp | hne
   · have h1 : Fintype.card G.V = 0 := Fintype.card_eq_zero
     have h2 := G.domNum_le_card
-    have h3 := (compl G).domNum_le_card
-    have h4 : Fintype.card (compl G).V = Fintype.card G.V := rfl
+    have h3 := Gᶜ.domNum_le_card
+    have h4 : Fintype.card Gᶜ.V = Fintype.card G.V := rfl
     omega
   obtain ⟨v₀⟩ := hne
   have h1 := G.domNum_add_maxDeg_le_card
-  have h2 := (compl G).domNum_add_maxDeg_le_card
-  rw [maxDeg_compl G v₀, show Fintype.card (compl G).V = Fintype.card G.V from rfl] at h2
+  have h2 := Gᶜ.domNum_add_maxDeg_le_card
+  rw [maxDeg_compl G v₀, show Fintype.card Gᶜ.V = Fintype.card G.V from rfl] at h2
   have h3 := G.minDeg_le_maxDeg
   have h4 := G.maxDeg_lt_card v₀
   omega
@@ -1311,9 +1311,9 @@ theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
 /-- Two vertices in different components dominate the complement: whatever `x` is, it is
 unreachable from one of them, hence adjacent to it in `Gᶜ`. -/
 theorem domNum_compl_le_two_of_not_reachable (G : CGraph) {a b : G.V}
-    (h : ¬ G.toSimple.Reachable a b) : (compl G).domNum ≤ 2 := by
+    (h : ¬ G.toSimple.Reachable a b) : Gᶜ.domNum ≤ 2 := by
   classical
-  have hdom : (compl G).IsDominatingSet ({a, b} : Finset G.V) := by
+  have hdom : Gᶜ.IsDominatingSet ({a, b} : Finset G.V) := by
     intro x
     by_cases hxa : x = a
     · exact Or.inl (by simp [hxa])
@@ -1329,7 +1329,7 @@ theorem domNum_compl_le_two_of_not_reachable (G : CGraph) {a b : G.V}
 
 /-- A disconnected graph has a complement that two vertices dominate. -/
 theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [Nonempty G.V]
-    (h : ¬ G.IsConnected) : (compl G).domNum ≤ 2 := by
+    (h : ¬ G.IsConnected) : Gᶜ.domNum ≤ 2 := by
   rw [IsConnected, SimpleGraph.connected_iff] at h
   push_neg at h
   obtain ⟨a, b, hab⟩ : ∃ a b, ¬ G.toSimple.Reachable a b := by
@@ -1341,15 +1341,15 @@ theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [Nonempty G.V]
 /-- A graph and its complement cannot both have a universal vertex once there are two vertices,
 so `3 ≤ γ(G) + γ(Gᶜ)`. -/
 theorem three_le_domNum_add_domNum_compl (G : CGraph)
-    (hV : 2 ≤ Fintype.card G.V) : 3 ≤ G.domNum + (compl G).domNum := by
+    (hV : 2 ≤ Fintype.card G.V) : 3 ≤ G.domNum + Gᶜ.domNum := by
   have hG : 0 < G.domNum := G.domNum_pos (by omega)
-  have hGc : 0 < (compl G).domNum :=
-    (compl G).domNum_pos (by rw [show Fintype.card (compl G).V = Fintype.card G.V from rfl]; omega)
+  have hGc : 0 < Gᶜ.domNum :=
+    Gᶜ.domNum_pos (by rw [show Fintype.card Gᶜ.V = Fintype.card G.V from rfl]; omega)
   by_contra hc
   have h1 : G.domNum = 1 := by omega
-  have h2 : (compl G).domNum = 1 := by omega
+  have h2 : Gᶜ.domNum = 1 := by omega
   obtain ⟨v, hv⟩ := (domNum_eq_one_iff G).1 h1
-  obtain ⟨w, hw⟩ := (domNum_eq_one_iff (compl G)).1 h2
+  obtain ⟨w, hw⟩ := (domNum_eq_one_iff Gᶜ).1 h2
   by_cases hvw : w = v
   · subst hvw
     obtain ⟨u, hu⟩ : ∃ u : G.V, u ≠ w := by
@@ -1447,7 +1447,7 @@ theorem IsSRGWith.isRegularWith {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith
 
 /-- **The complement of a `k`-regular graph is `(n - 1 - k)`-regular.** -/
 theorem IsRegularWith.compl {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
-    (compl G).IsRegularWith (Fintype.card G.V - 1 - k) := fun v ↦ by
+    Gᶜ.IsRegularWith (Fintype.card G.V - 1 - k) := fun v ↦ by
   rw [degree_compl, h v]
 
 /-- A disjoint union of two `k`-regular graphs is `k`-regular. -/

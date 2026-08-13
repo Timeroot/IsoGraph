@@ -188,7 +188,7 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
     IsSelfComplementary (paley q) := by
   unfold IsSelfComplementary
   rw [paley_def, compl_mk]
-  -- Goal: ⟦CGraph.compl (CGraph.paley q)⟧ = ⟦CGraph.paley q⟧
+  -- Goal: ⟦(CGraph.paley q)ᶜ⟧ = ⟦CGraph.paley q⟧
   -- Strategy: Build CGraph iso, then use Quotient.sound
   -- Build iso at paleyField level, then transport via paleyIso
   let F := ZMod q
@@ -213,17 +213,17 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
     apply this _ hq_gt
     convert hcard using 1
     · rw [Nat.cast_sub (by omega : 1 ≤ Fintype.card F)] ; push_cast; ring
-  -- Step 2: Build iso paleyField F ≃cg CGraph.compl (paleyField F) using x ↦ g * x
+  -- Step 2: Build iso paleyField F ≃cg (paleyField F)ᶜ using x ↦ g * x
   let e : F ≃ F := {
     toFun := fun x ↦ g * x
     invFun := fun x ↦ g⁻¹ * x
     left_inv := fun x ↦ by simp [hg0]
     right_inv := fun x ↦ by simp [hg0]
   }
-  have he_adj : ∀ x y : F, (CGraph.compl (CGraph.paleyField F)).Adj (e x) (e y)
+  have he_adj : ∀ x y : F, ((CGraph.paleyField F)ᶜ).Adj (e x) (e y)
       = (CGraph.paleyField F).Adj x y := by
     intro x y
-    change (CGraph.compl (CGraph.paleyField F)).Adj (g * x) (g * y) = (CGraph.paleyField F).Adj x y
+    change ((CGraph.paleyField F)ᶜ).Adj (g * x) (g * y) = (CGraph.paleyField F).Adj x y
     simp [CGraph.compl_adj, CGraph.paleyField_adj hqF]
     have heq : g * x = g * y ↔ x = y := by
       exact ⟨fun h ↦ mul_left_cancel₀ hg0 h, fun h ↦ by rw [h]⟩
@@ -270,12 +270,12 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
       have hiso : IsSquare (g * (y - x)) ↔ ¬IsSquare (y - x) := by
         rw [← (isSquare_iff _ hgdiff_ne), hchi_gd]
       by_cases hid : IsSquare (y - x) <;> simp [hid, hiso]
-  -- Step 3: Build iso paley q ≃cg CGraph.compl (paley q) by transporting
-  let iso_field : CGraph.paleyField F ≃cg CGraph.compl (CGraph.paleyField F) :=
+  -- Step 3: Build iso paley q ≃cg (paley q)ᶜ by transporting
+  let iso_field : CGraph.paleyField F ≃cg (CGraph.paleyField F)ᶜ :=
     CGraph.isoOfAdj e he_adj
   -- `paleyIso q : paleyField F ≃cg paley q` transports the witness across the two models of the
   -- Paley graph, and `Iso.compl` transports it into the complement.
-  let iso_paley : CGraph.paley q ≃cg CGraph.compl (CGraph.paley q) :=
+  let iso_paley : CGraph.paley q ≃cg (CGraph.paley q)ᶜ :=
     (CGraph.paleyIso q).symm.trans (iso_field.trans (CGraph.Iso.compl (CGraph.paleyIso q)))
   exact Quotient.sound ⟨iso_paley.symm⟩
 
@@ -292,7 +292,7 @@ theorem circulant_six_one_two : circulant 6 [1, 2] = cocktailParty 3 := by
   have h2 : circulant 6 [1, 2] = (circulant 6 [3])ᶜ := by
     rw [circulant_def, circulant_def, compl_mk]
     exact Quotient.sound ⟨CGraph.isoOfAdj
-      (G := CGraph.circulant 6 [1, 2]) (H := CGraph.compl (CGraph.circulant 6 [3]))
+      (G := CGraph.circulant 6 [1, 2]) (H := (CGraph.circulant 6 [3])ᶜ)
       (Equiv.refl (Fin 6)) (by decide)⟩
   rw [h2, ← h, compl_compl]
 

@@ -364,30 +364,30 @@ theorem E_compl_mycielskian (G : IsoGraph) :
   rw [E_mycielskian, V_mycielskian] at h
   omega
 
-theorem indepNum_compl_grotzsch : (grotzschᶜ).indepNum = 2 := by
+theorem indepNum_compl_grotzsch : grotzschᶜ.indepNum = 2 := by
   rw [indepNum_compl, cliqueNum_grotzsch]
 
-theorem chromNum_compl_grotzsch : (grotzschᶜ).chromNum = 6 := by
+theorem chromNum_compl_grotzsch : grotzschᶜ.chromNum = 6 := by
   rw [chromNum_compl, cliqueCoverNum_grotzsch]
 
-@[simp] theorem cliqueCoverNum_compl_grotzsch : (grotzschᶜ).cliqueCoverNum = 4 := by
+@[simp] theorem cliqueCoverNum_compl_grotzsch : grotzschᶜ.cliqueCoverNum = 4 := by
   rw [cliqueCoverNum_compl, chromNum_grotzsch]
 
-theorem cliqueNum_compl_grotzsch_le : (grotzschᶜ).cliqueNum ≤ 6 := by
+theorem cliqueNum_compl_grotzsch_le : grotzschᶜ.cliqueNum ≤ 6 := by
   rw [cliqueNum_compl]
   exact indepNum_grotzsch_le
 
-theorem maxDeg_compl_grotzsch : maxDeg (grotzschᶜ) = 7 := by
+theorem maxDeg_compl_grotzsch : maxDeg grotzschᶜ = 7 := by
   have h := maxDeg_compl (G := grotzsch) (by rw [V_grotzsch]; omega)
   rw [V_grotzsch, minDeg_grotzsch] at h
   omega
 
-theorem minDeg_compl_grotzsch : minDeg (grotzschᶜ) = 5 := by
+theorem minDeg_compl_grotzsch : minDeg grotzschᶜ = 5 := by
   have h := minDeg_compl (G := grotzsch) (by rw [V_grotzsch]; omega)
   rw [V_grotzsch, maxDeg_grotzsch] at h
   omega
 
-theorem E_compl_grotzsch : (grotzschᶜ).E = 35 := by
+theorem E_compl_grotzsch : grotzschᶜ.E = 35 := by
   have h := E_compl grotzsch
   rw [E_grotzsch, V_grotzsch, show (11 : ℕ).choose 2 = 55 from rfl] at h
   omega
@@ -1294,7 +1294,7 @@ theorem chromNum_compl_rook (m n : ℕ) :
 theorem chromNum_compl_friendship (n : ℕ) : ((friendship (n + 1))ᶜ).chromNum = n + 1 := by
   rw [chromNum_compl, cliqueCoverNum_friendship]
 
-@[simp] theorem chromNum_compl_petersen : (petersenᶜ).chromNum = 5 := by
+@[simp] theorem chromNum_compl_petersen : petersenᶜ.chromNum = 5 := by
   rw [chromNum_compl, cliqueCoverNum_petersen]
 
 theorem chromNum_compl_spider_pair (a b : ℕ) :
@@ -1347,7 +1347,7 @@ theorem cliqueCoverNum_compl_friendship (n : ℕ) :
     ((friendship (n + 1))ᶜ).cliqueCoverNum = 3 := by
   rw [cliqueCoverNum_compl, chromNum_friendship]
 
-@[simp] theorem cliqueCoverNum_compl_petersen : (petersenᶜ).cliqueCoverNum = 3 := by
+@[simp] theorem cliqueCoverNum_compl_petersen : petersenᶜ.cliqueCoverNum = 3 := by
   rw [cliqueCoverNum_compl, chromNum_petersen]
 
 theorem cliqueCoverNum_compl_triangular_even (m : ℕ) :
@@ -1545,12 +1545,12 @@ theorem minDeg_compl_triangular (n : ℕ) :
   rw [V_triangular, maxDeg_triangular] at h
   omega
 
-theorem maxDeg_compl_petersen : maxDeg (petersenᶜ) = 6 := by
+theorem maxDeg_compl_petersen : maxDeg petersenᶜ = 6 := by
   have h := maxDeg_compl (G := petersen) (by rw [V_petersen]; omega)
   rw [V_petersen, minDeg_petersen] at h
   omega
 
-theorem minDeg_compl_petersen : minDeg (petersenᶜ) = 6 := by
+theorem minDeg_compl_petersen : minDeg petersenᶜ = 6 := by
   have h := minDeg_compl (G := petersen) (by rw [V_petersen]; omega)
   rw [V_petersen, maxDeg_petersen] at h
   omega
@@ -1801,12 +1801,12 @@ theorem coverNum_compl_friendship (n : ℕ) : ((friendship (n + 1))ᶜ).coverNum
   rw [cliqueNum_friendship, V_friendship] at h
   omega
 
-theorem coverNum_compl_grotzsch : (grotzschᶜ).coverNum = 9 := by
+theorem coverNum_compl_grotzsch : grotzschᶜ.coverNum = 9 := by
   have h := coverNum_compl_add_cliqueNum grotzsch
   rw [cliqueNum_grotzsch, V_grotzsch] at h
   omega
 
-@[simp] theorem coverNum_compl_petersen : (petersenᶜ).coverNum = 8 := by
+@[simp] theorem coverNum_compl_petersen : petersenᶜ.coverNum = 8 := by
   have h := coverNum_compl_add_cliqueNum petersen
   rw [cliqueNum_petersen, V_petersen] at h
   omega

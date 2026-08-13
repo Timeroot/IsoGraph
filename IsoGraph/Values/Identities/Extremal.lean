@@ -234,7 +234,7 @@ theorem minDeg_join (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
 
 /-- **Complementation swaps the two extreme degrees.** -/
 theorem maxDeg_compl (G : CGraph) (v₀ : G.V) :
-    (compl G).maxDeg = Fintype.card G.V - 1 - G.minDeg := by
+    Gᶜ.maxDeg = Fintype.card G.V - 1 - G.minDeg := by
   obtain ⟨v, hv⟩ := G.exists_degree_eq_minDeg v₀
   refine le_antisymm (maxDeg_le_of_forall fun w ↦ ?_) ?_
   · rw [degree_compl]
@@ -243,7 +243,7 @@ theorem maxDeg_compl (G : CGraph) (v₀ : G.V) :
     exact degree_le_maxDeg _ _
 
 theorem minDeg_compl (G : CGraph) (v₀ : G.V) :
-    (compl G).minDeg = Fintype.card G.V - 1 - G.maxDeg := by
+    Gᶜ.minDeg = Fintype.card G.V - 1 - G.maxDeg := by
   obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
   refine le_antisymm ?_ (le_minDeg_of_forall v₀ fun w ↦ ?_)
   · rw [← hv, ← degree_compl]
@@ -600,11 +600,11 @@ private theorem chromNum_eq_chromOn_univ (G : CGraph) :
 
 /-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
 theorem chromNum_add_chromNum_compl_le_card_add_one (G : CGraph) :
-    G.chromNum + (compl G).chromNum ≤ Fintype.card G.V + 1 := by
+    G.chromNum + Gᶜ.chromNum ≤ Fintype.card G.V + 1 := by
   have h := chromOn_add_chromOn_compl_le G.toSimple (Finset.univ : Finset G.V)
   rw [Finset.card_univ] at h
-  rwa [G.chromNum_eq_chromOn_univ, show (compl G).chromNum = chromOn G.toSimpleᶜ Finset.univ from
-    by rw [(compl G).chromNum_eq_chromOn_univ, compl_toSimple]]
+  rwa [G.chromNum_eq_chromOn_univ, show Gᶜ.chromNum = chromOn G.toSimpleᶜ Finset.univ from
+    by rw [Gᶜ.chromNum_eq_chromOn_univ, compl_toSimple]]
 
 section Turan
 
@@ -1411,7 +1411,7 @@ theorem domNum_eq_one_iff (G : CGraph) :
 theorem domNum_join_complete_one (G : CGraph) :
     (join (complete 1) G).domNum = 1 := by
   haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
-  haveI : Subsingleton (compl (complete 1)).V := inferInstanceAs (Subsingleton (Fin 1))
+  haveI : Subsingleton ((complete 1)ᶜ).V := inferInstanceAs (Subsingleton (Fin 1))
   refine domNum_eq_one_of_universal
     (v := (Sum.inl (0 : Fin 1) : (join (complete 1) G).V)) fun u hu ↦ ?_
   rcases u with a | b
@@ -1569,15 +1569,15 @@ Independent sets are cliques of the complement, so the whole clique-count API tr
 fact below is its clique-count counterpart read through `compl`. -/
 
 @[simp] theorem cliqueCount_compl (G : CGraph) (n : ℕ) :
-    (compl G).cliqueCount n = G.indepCount n := by
+    Gᶜ.cliqueCount n = G.indepCount n := by
   rw [cliqueCount, indepCount]
   congr 1
   ext s
   simp [compl_toSimple]
 
 @[simp] theorem indepCount_compl (G : CGraph) (n : ℕ) :
-    (compl G).indepCount n = G.cliqueCount n := by
-  rw [← cliqueCount_compl (compl G), compl_compl]
+    Gᶜ.indepCount n = G.cliqueCount n := by
+  rw [← cliqueCount_compl Gᶜ, compl_compl]
 
 @[simp, toIsoGraph] theorem indepCount_zero (G : CGraph) : G.indepCount 0 = 1 := by
   classical
@@ -1608,7 +1608,7 @@ theorem indepCount_le_choose (G : CGraph) (n : ℕ) :
     G.indepCount n ≤ (Fintype.card G.V).choose n := by
   classical
   rw [← cliqueCount_compl]
-  have h := cliqueCount_le_choose (compl G) n
+  have h := cliqueCount_le_choose Gᶜ n
   rwa [card_compl] at h
 
 theorem indepCount_eq_zero_of_card_lt {G : CGraph} {n : ℕ} (h : Fintype.card G.V < n) :
@@ -1629,7 +1629,7 @@ theorem indepCount_two_add_E (G : CGraph) :
 @[simp, toIsoGraph]
 theorem indepCount_complete (m n : ℕ) :
     (complete m).indepCount (n + 2) = 0 := by
-  rw [← cliqueCount_compl, show compl (complete m) = empty m from compl_compl (empty m)]
+  rw [← cliqueCount_compl, show (complete m)ᶜ = empty m from compl_compl (empty m)]
   exact cliqueCount_empty m n
 
 /-! ### Counting cliques in a disjoint union -/
@@ -1851,7 +1851,7 @@ def disjUnionComponentEquiv (G H : CGraph) :
 
 /-- **At most one of a graph and its complement is disconnected.** -/
 theorem numComponents_compl_eq_one (G : CGraph) (h : 2 ≤ G.numComponents) :
-    (compl G).numComponents = 1 := by
+    Gᶜ.numComponents = 1 := by
   have hne : Nonempty G.V := Fintype.card_pos_iff.1
     ((numComponents_pos_iff G).1 (by omega))
   rw [numComponents_eq_one_iff]
@@ -2100,7 +2100,7 @@ theorem autCount_le_factorial (G : CGraph) : G.autCount ≤ Nat.factorial (Finty
 
 /-- **A graph and its complement have the same automorphisms.** -/
 @[simp] theorem autCount_compl (G : CGraph) :
-    (compl G).autCount = G.autCount := by
+    Gᶜ.autCount = G.autCount := by
   rw [autCount, autCount, compl_toSimple]
   exact (Nat.card_congr (SimpleGraph.autComplEquiv G.toSimple)).symm
 

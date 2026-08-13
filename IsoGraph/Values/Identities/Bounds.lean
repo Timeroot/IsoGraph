@@ -2046,7 +2046,7 @@ example : 6 ≤ (complete 3 □g complete 3).coverNum := by
 
 /-! ### Nordhaus–Gaddum for the domination number -/
 
-/-- **`γ(G) + γGᶜ ≤ |V| + 1`.** -/
+/-- **`γ(G) + γ(Gᶜ) ≤ |V| + 1`.** -/
 theorem domNum_add_domNum_compl_le_V_add_one (G : IsoGraph) :
     G.domNum + Gᶜ.domNum ≤ G.V + 1 := by
   induction G using Quotient.inductionOn with | _ g =>
@@ -2063,7 +2063,7 @@ theorem domNum_compl_le_two_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
   rw [← mk_canonicalize g, compl_mk, domNum_mk]
   exact CGraph.domNum_compl_le_two_of_not_isConnected _ h
 
-/-- `3 ≤ γ(G) + γGᶜ` on at least two vertices. -/
+/-- `3 ≤ γ(G) + γ(Gᶜ)` on at least two vertices. -/
 theorem three_le_domNum_add_domNum_compl {G : IsoGraph} (hV : 2 ≤ G.V) :
     3 ≤ G.domNum + Gᶜ.domNum := by
   induction G using Quotient.inductionOn with | _ g =>
@@ -2117,13 +2117,13 @@ theorem three_le_cliqueNum_add_indepNum {G : IsoGraph} (hV : 2 ≤ G.V) :
   rw [← mk_canonicalize g, cliqueNum_mk, indepNum_mk]
   exact CGraph.three_le_cliqueNum_add_indepNum _ hV
 
-/-- The independence numbers of a graph and its complement: `α(G) + αGᶜ ≤ |V| + 1`. -/
+/-- The independence numbers of a graph and its complement: `α(G) + α(Gᶜ) ≤ |V| + 1`. -/
 theorem indepNum_add_indepNum_compl_le_V_add_one (G : IsoGraph) :
     G.indepNum + Gᶜ.indepNum ≤ G.V + 1 := by
   rw [indepNum_compl, Nat.add_comm]
   exact G.cliqueNum_add_indepNum_le_V_add_one
 
-/-- The clique numbers of a graph and its complement: `ω(G) + ωGᶜ ≤ |V| + 1`. -/
+/-- The clique numbers of a graph and its complement: `ω(G) + ω(Gᶜ) ≤ |V| + 1`. -/
 theorem cliqueNum_add_cliqueNum_compl_le_V_add_one (G : IsoGraph) :
     G.cliqueNum + Gᶜ.cliqueNum ≤ G.V + 1 := by
   rw [cliqueNum_compl]
@@ -3472,7 +3472,7 @@ theorem IsSelfComplementary.chromNum_eq_cliqueCoverNum {G : IsoGraph}
   have h2 := chromNum_compl G
   rwa [h.compl_eq] at h2
 
-/-- Since `V ≤ χ(G) * χGᶜ`, a self-complementary graph needs at least `√V` colours. -/
+/-- Since `V ≤ χ(G) * χ(Gᶜ)`, a self-complementary graph needs at least `√V` colours. -/
 theorem IsSelfComplementary.V_le_chromNum_sq {G : IsoGraph} (h : IsSelfComplementary G) :
     G.V ≤ G.chromNum * G.chromNum := by
   have h2 := V_le_chromNum_mul_chromNum_compl G

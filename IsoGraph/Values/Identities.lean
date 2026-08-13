@@ -35,7 +35,7 @@ Three tools cover almost everything.
   case — `kneser n 0`, `hypercube 1`, `lexProduct (complete m) (complete n)`, … — with no
   bijection to write down, since `Fintype.equivFin` supplies one.
 * `CGraph.isoOfAdj e (by decide)` for the small sporadic identities: `cycle 3 = complete 3`,
-  `compl (cycle 5) = cycle 5`, `hypercube 2 = cycle 4`.  The permutation is written out as a
+  `(cycle 5)ᶜ = cycle 5`, `hypercube 2 = cycle 4`.  The permutation is written out as a
   vector and the kernel checks all `n²` adjacencies.
 * Rewriting with the identities already proved.  `join`, `bipartite`, `star`, `wheel`, `rook`, …
   are all built from `compl`, `disjUnion` and the products, so their identities follow from

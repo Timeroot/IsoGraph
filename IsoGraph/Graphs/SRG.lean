@@ -14,8 +14,8 @@ Seventeen of the twenty-eight parameter checks below are theorems rather than co
 rook, Kneser, triangular, Paley, complete bipartite and cocktail party entries come from the
 infinite families `isSRGWith_rook`, `isSRGWith_kneser_two`, `isSRGWith_triangular`,
 `isSRGWith_paley`, `isSRGWith_bipartite` and `isSRGWith_cocktailParty` of
-`IsoGraph/Graphs/Constructions.lean`, and `compl clebsch`, `schlafli`, `compl hoffmanSingleton` and
-`compl higmanSims` from `isSRGWith_compl`.  Of the rest, `cycle 5`, `clebsch` and `shrikhande` are
+`IsoGraph/Graphs/Constructions.lean`, and `clebschᶜ`, `schlafli`, `hoffmanSingletonᶜ` and
+`higmanSimsᶜ` from `isSRGWith_compl`.  Of the rest, `cycle 5`, `clebsch` and `shrikhande` are
 checked by kernel `decide`; the eight largest sporadic graphs — `linesOnCubic`, the three Chang
 graphs, `hoffmanSingleton`, `gewirtz`, `m22` and `higmanSims` — need `native_decide`.  The
 predicate is decidable in `O(n³)` adjacency queries and the kernel does manage the smaller ones:
@@ -52,7 +52,7 @@ Both facts are proved by computing canonical keys, i.e. by `CGraph.Enum.key_eq_i
 | `clebsch`                |  16 |   5 |   0 |   2 |
 | `rook 4 4`               |  16 |   6 |   2 |   2 |
 | `shrikhande`             |  16 |   6 |   2 |   2 |
-| `compl clebsch`          |  16 |  10 |   6 |   6 |
+| `clebschᶜ`               |  16 |  10 |   6 |   6 |
 | `paley 17`               |  17 |   8 |   3 |   4 |
 | `linesOnCubic`           |  27 |  10 |   1 |   5 |
 | `schlafli`               |  27 |  16 |  10 |   8 |
@@ -60,11 +60,11 @@ Both facts are proved by computing canonical keys, i.e. by `CGraph.Enum.key_eq_i
 | `chang₁`, `chang₂`, `chang₃` | 28 | 12 | 6 | 4 |
 | `paley 29`               |  29 |  14 |   6 |   7 |
 | `hoffmanSingleton`       |  50 |   7 |   0 |   1 |
-| `compl hoffmanSingleton` |  50 |  42 |  35 |  36 |
+| `hoffmanSingletonᶜ`      |  50 |  42 |  35 |  36 |
 | `gewirtz`                |  56 |  10 |   0 |   2 |
 | `m22`                    |  77 |  16 |   0 |   4 |
 | `higmanSims`             | 100 |  22 |   0 |   6 |
-| `compl higmanSims`       | 100 |  77 |  60 |  56 |
+| `higmanSimsᶜ`            | 100 |  77 |  60 |  56 |
 | `paley 101`              | 101 |  50 |  24 |  25 |
 
 `SRG.table` collects them as data: each row carries the graph, the parameters and the proof.
@@ -136,7 +136,7 @@ def linesOnCubic : CGraph :=
 
 /-- The Schläfli graph: 27 lines on a cubic surface, adjacent when they are *skew*.  The unique
 strongly regular graph with parameters `(27, 16, 10, 8)`. -/
-def schlafli : CGraph := compl linesOnCubic
+def schlafli : CGraph := linesOnCubicᶜ
 
 /-- Adjacency of the Hoffman–Singleton graph in Robertson's model, on vertices numbered `0 … 49`:
 `5h + j` for vertex `j` of pentagon `Pₕ`, and `25 + 5i + k` for vertex `k` of pentagram `Qᵢ`.
@@ -403,7 +403,7 @@ set_option maxRecDepth 100000 in
 theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by decide
 
 @[toIsoGraph compl_clebsch_srg]
-theorem compl_clebsch_srg : (compl clebsch).IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
+theorem compl_clebsch_srg : clebschᶜ.IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
 
 @[toIsoGraph paley_seventeen_srg]
 theorem paley_seventeen_srg : (paley 17).IsSRGWith 17 8 3 4 :=
@@ -438,7 +438,7 @@ theorem paley_twentynine_srg : (paley 29).IsSRGWith 29 14 6 7 :=
 theorem hoffmanSingleton_srg : hoffmanSingleton.IsSRGWith 50 7 0 1 := by native_decide
 
 @[toIsoGraph compl_hoffmanSingleton_srg]
-theorem compl_hoffmanSingleton_srg : (compl hoffmanSingleton).IsSRGWith 50 42 35 36 :=
+theorem compl_hoffmanSingleton_srg : hoffmanSingletonᶜ.IsSRGWith 50 42 35 36 :=
   isSRGWith_compl _ hoffmanSingleton_srg
 
 @[toIsoGraph gewirtz_srg]
@@ -451,7 +451,7 @@ theorem m22_srg : m22.IsSRGWith 77 16 0 4 := by native_decide
 theorem higmanSims_srg : higmanSims.IsSRGWith 100 22 0 6 := by native_decide
 
 @[toIsoGraph compl_higmanSims_srg]
-theorem compl_higmanSims_srg : (compl higmanSims).IsSRGWith 100 77 60 56 :=
+theorem compl_higmanSims_srg : higmanSimsᶜ.IsSRGWith 100 77 60 56 :=
   isSRGWith_compl _ higmanSims_srg
 
 @[toIsoGraph paley_hundredone_srg]
@@ -473,9 +473,9 @@ def paleyFiveIso : paley 5 ≃cg cycle 5 :=
   ⟨Equiv.refl (Fin 5), fun {a b} ↦ by revert a b; decide⟩
 
 /-- `T(5)` is the complement of the Petersen graph — a special case of `johnsonTwoIso`, which
-identifies `johnson n 2` with `compl (kneser n 2)` for every `n`. -/
+identifies `johnson n 2` with `(kneser n 2)ᶜ` for every `n`. -/
 @[toIsoGraph triangular_five_eq_compl_petersen]
-def triangularFiveIso : triangular 5 ≃cg compl petersen := johnsonTwoIso 5
+def triangularFiveIso : triangular 5 ≃cg petersenᶜ := johnsonTwoIso 5
 
 /-- `T(4)` is the octahedron `K_{2,2,2}`.  Nothing identifies the two vertex sets by hand here;
 the canonical keys agree, and `isoOfKeyEq` extracts a witness from that. -/
@@ -531,7 +531,7 @@ def table : List Entry :=
     ⟨"Clebsch", clebsch, 16, 5, 0, 2, clebsch_srg⟩,
     ⟨"4×4 rook", rook 4 4, 16, 6, 2, 2, rook_four_srg⟩,
     ⟨"Shrikhande", shrikhande, 16, 6, 2, 2, shrikhande_srg⟩,
-    ⟨"complement of Clebsch", compl clebsch, 16, 10, 6, 6, compl_clebsch_srg⟩,
+    ⟨"complement of Clebsch", clebschᶜ, 16, 10, 6, 6, compl_clebsch_srg⟩,
     ⟨"Paley(17)", paley 17, 17, 8, 3, 4, paley_seventeen_srg⟩,
     ⟨"27 lines on a cubic", linesOnCubic, 27, 10, 1, 5, linesOnCubic_srg⟩,
     ⟨"Schläfli", schlafli, 27, 16, 10, 8, schlafli_srg⟩,
@@ -541,12 +541,12 @@ def table : List Entry :=
     ⟨"Chang 3 (C₃ ∪ C₅)", chang₃, 28, 12, 6, 4, chang₃_srg⟩,
     ⟨"Paley(29)", paley 29, 29, 14, 6, 7, paley_twentynine_srg⟩,
     ⟨"Hoffman–Singleton", hoffmanSingleton, 50, 7, 0, 1, hoffmanSingleton_srg⟩,
-    ⟨"complement of Hoffman–Singleton", compl hoffmanSingleton, 50, 42, 35, 36,
+    ⟨"complement of Hoffman–Singleton", hoffmanSingletonᶜ, 50, 42, 35, 36,
       compl_hoffmanSingleton_srg⟩,
     ⟨"Gewirtz", gewirtz, 56, 10, 0, 2, gewirtz_srg⟩,
     ⟨"M₂₂", m22, 77, 16, 0, 4, m22_srg⟩,
     ⟨"Higman–Sims", higmanSims, 100, 22, 0, 6, higmanSims_srg⟩,
-    ⟨"complement of Higman–Sims", compl higmanSims, 100, 77, 60, 56, compl_higmanSims_srg⟩,
+    ⟨"complement of Higman–Sims", higmanSimsᶜ, 100, 77, 60, 56, compl_higmanSims_srg⟩,
     ⟨"Paley(101)", paley 101, 101, 50, 24, 25, paley_hundredone_srg⟩ ]
 
 #guard table.length = 28

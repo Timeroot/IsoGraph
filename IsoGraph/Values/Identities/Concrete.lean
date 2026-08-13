@@ -2190,7 +2190,7 @@ theorem diameter_join_of_not_adj (G H : CGraph)
 
 /-- Unreachable vertices are adjacent in the complement. -/
 theorem compl_adj_of_not_reachable (G : CGraph) {u w : G.V}
-    (h : ¬ G.toSimple.Reachable u w) : (compl G).toSimple.Adj u w := by
+    (h : ¬ G.toSimple.Reachable u w) : Gᶜ.toSimple.Adj u w := by
   have hne : u ≠ w := by rintro rfl; exact h (SimpleGraph.Reachable.refl u)
   have hadj : G.Adj u w = false := by
     by_contra hc
@@ -2202,15 +2202,15 @@ components are already adjacent in the complement; two vertices in the same comp
 non-adjacent to anything in another component. -/
 theorem two_step_compl (G : CGraph) (h : ¬ G.toSimple.Preconnected)
     (u v : G.V) (_huv : u ≠ v) :
-    (compl G).toSimple.Adj u v ∨
-      ∃ w, (compl G).toSimple.Adj u w ∧ (compl G).toSimple.Adj w v := by
+    Gᶜ.toSimple.Adj u v ∨
+      ∃ w, Gᶜ.toSimple.Adj u w ∧ Gᶜ.toSimple.Adj w v := by
   by_cases hr : G.toSimple.Reachable u v
   · obtain ⟨x, y, hxy⟩ : ∃ x y, ¬ G.toSimple.Reachable x y := by
       unfold SimpleGraph.Preconnected at h
       push_neg at h
       exact h
     have key : ∀ w : G.V, ¬ G.toSimple.Reachable u w →
-        (compl G).toSimple.Adj u w ∧ (compl G).toSimple.Adj w v := fun w hw ↦
+        Gᶜ.toSimple.Adj u w ∧ Gᶜ.toSimple.Adj w v := fun w hw ↦
       ⟨G.compl_adj_of_not_reachable hw,
         (G.compl_adj_of_not_reachable fun hvw ↦ hw (hr.trans hvw)).symm⟩
     by_cases hux : G.toSimple.Reachable u x
@@ -2219,23 +2219,23 @@ theorem two_step_compl (G : CGraph) (h : ¬ G.toSimple.Preconnected)
   · exact Or.inl (G.compl_adj_of_not_reachable hr)
 
 theorem diameter_compl_le_two (G : CGraph) (h : ¬ G.toSimple.Preconnected) :
-    (compl G).diameter ≤ 2 :=
+    Gᶜ.diameter ≤ 2 :=
   diameter_le_two _ (two_step_compl G h)
 
 /-- **The complement of a disconnected graph is connected.** -/
 theorem isConnected_compl_of_not_preconnected (G : CGraph) [Nonempty G.V]
-    (h : ¬ G.toSimple.Preconnected) : (compl G).IsConnected := by
-  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+    (h : ¬ G.toSimple.Preconnected) : Gᶜ.IsConnected := by
+  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
   exact SimpleGraph.connected_of_ediam_ne_top
     (ne_top_of_le_ne_top (by simp) (ediam_le_two _ (two_step_compl G h)))
 
 /-- If the graph is disconnected and has an edge, its complement has diameter exactly two. -/
 theorem diameter_compl_eq_two (G : CGraph) (h : ¬ G.toSimple.Preconnected)
-    (hE : 0 < G.E) : (compl G).diameter = 2 := by
-  obtain ⟨u, v, hne, hadj⟩ := exists_not_adj_of_E_lt (compl G)
-    (show (compl G).E < (Fintype.card G.V).choose 2 by have hc := G.E_compl; omega)
+    (hE : 0 < G.E) : Gᶜ.diameter = 2 := by
+  obtain ⟨u, v, hne, hadj⟩ := exists_not_adj_of_E_lt Gᶜ
+    (show Gᶜ.E < (Fintype.card G.V).choose 2 by have hc := G.E_compl; omega)
   refine diameter_eq_two _ (two_step_compl G h) hne fun hc ↦ ?_
-  have hc' : (compl G).Adj u v = true := by simpa using hc
+  have hc' : Gᶜ.Adj u v = true := by simpa using hc
   rw [hc'] at hadj
   exact Bool.noConfusion hadj
 
@@ -2275,7 +2275,7 @@ theorem degMultiset_disjUnion (G H : CGraph) :
   · exact Multiset.map_congr rfl fun v _ ↦ degree_disjUnion_inr G H v
 
 theorem nbrs_compl (G : CGraph) (v : G.V) :
-    (compl G).nbrs v = (G.nbrs v)ᶜ.erase v := by
+    Gᶜ.nbrs v = (G.nbrs v)ᶜ.erase v := by
   ext w
   simp only [mem_nbrs, compl_adj, Bool.and_eq_true, decide_eq_true_eq, ne_eq, Bool.not_eq_true',
     Finset.mem_erase, Finset.mem_compl, Bool.not_eq_true]
@@ -2286,7 +2286,7 @@ theorem nbrs_compl (G : CGraph) (v : G.V) :
     exact ⟨fun he ↦ h1 he.symm, h2⟩
 
 theorem degree_compl (G : CGraph) (v : G.V) :
-    (compl G).toSimple.degree v = Fintype.card G.V - 1 - G.toSimple.degree v := by
+    Gᶜ.toSimple.degree v = Fintype.card G.V - 1 - G.toSimple.degree v := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_compl]
   have hv : v ∈ (G.nbrs v)ᶜ := by simp [adj_self]
   rw [Finset.card_erase_of_mem hv, Finset.card_compl]
@@ -2303,14 +2303,14 @@ theorem degree_le (G : CGraph) (v : G.V) :
 theorem degree_join_inl (G H : CGraph) (a : G.V) :
     (join G H).toSimple.degree (Sum.inl a) = G.toSimple.degree a + Fintype.card H.V := by
   have hd := G.degree_le a
-  show (compl (disjUnion (compl G) (compl H))).toSimple.degree (Sum.inl a) = _
+  show ((disjUnion Gᶜ Hᶜ)ᶜ).toSimple.degree (Sum.inl a) = _
   rw [degree_compl, degree_disjUnion_inl, degree_compl, card_disjUnion, card_compl, card_compl]
   omega
 
 theorem degree_join_inr (G H : CGraph) (b : H.V) :
     (join G H).toSimple.degree (Sum.inr b) = Fintype.card G.V + H.toSimple.degree b := by
   have hd := H.degree_le b
-  show (compl (disjUnion (compl G) (compl H))).toSimple.degree (Sum.inr b) = _
+  show ((disjUnion Gᶜ Hᶜ)ᶜ).toSimple.degree (Sum.inr b) = _
   rw [degree_compl, degree_disjUnion_inr, degree_compl, card_disjUnion, card_compl, card_compl]
   omega
 
@@ -2329,7 +2329,7 @@ theorem degMultiset_join (G H : CGraph) :
 
 /-- **The degree multiset of the complement**: every degree is replaced by its "co-degree". -/
 theorem degMultiset_compl (G : CGraph) :
-    (compl G).degMultiset = G.degMultiset.map (fun d ↦ Fintype.card G.V - 1 - d) := by
+    Gᶜ.degMultiset = G.degMultiset.map (fun d ↦ Fintype.card G.V - 1 - d) := by
   unfold degMultiset
   rw [Multiset.map_map]
   exact Multiset.map_congr rfl fun v _ ↦ degree_compl G v

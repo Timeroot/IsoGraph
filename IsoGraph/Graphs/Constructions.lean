@@ -22,10 +22,10 @@ diagonal, so it is the only place where symmetry and irreflexivity have to be ar
 `empty`, `disjUnion` and `compl` then generate most of the rest —
 
 ```
-complete n           = compl (empty n)
-join G H             = compl (disjUnion (compl G) (compl H))
-bipartite m n        = compl (disjUnion (complete m) (complete n))
-completeMultipartite = compl (sigmaUnion of completes)
+complete n           = (empty n)ᶜ
+join G H             = (disjUnion Gᶜ Hᶜ)ᶜ
+bipartite m n        = (disjUnion (complete m) (complete n))ᶜ
+completeMultipartite = (sigmaUnion of completes)ᶜ
 star n               = bipartite 1 n
 wheel n              = join (complete 1) (cycle n)
 ```
@@ -144,23 +144,27 @@ def compl (G : CGraph) : CGraph where
     · simp [h, Ne.symm h, G.symm x y]
   loopless x := by simp
 
-instance (G : CGraph) [Nonempty G.V] : Nonempty (compl G).V :=
+/-- Complementation is written `Gᶜ`, on graphs as on isomorphism classes. -/
+instance : Compl CGraph := ⟨compl⟩
+
+theorem compl_eq (G : CGraph) : Gᶜ = compl G := rfl
+
+instance (G : CGraph) [Nonempty G.V] : Nonempty Gᶜ.V :=
   inferInstanceAs (Nonempty G.V)
 
 theorem compl_eq_ofRel (G : CGraph) :
-    compl G = ofRel G.V fun x y ↦ !G.Adj x y :=
-  eq_ofRel _ _ fun x y hxy => by simp [compl, hxy, G.symm x y]
+    Gᶜ = ofRel G.V fun x y ↦ !G.Adj x y :=
+  eq_ofRel _ _ fun x y hxy => by simp [compl_eq, compl, hxy, G.symm x y]
 
 @[simp] theorem compl_adj (G : CGraph) (x y : G.V) :
-    (compl G).Adj x y = (decide (x ≠ y) && !G.Adj x y) := rfl
+    Gᶜ.Adj x y = (decide (x ≠ y) && !G.Adj x y) := rfl
 
 @[simp] theorem card_compl (G : CGraph) :
-    Fintype.card (compl G).V = Fintype.card G.V := rfl
+    Fintype.card Gᶜ.V = Fintype.card G.V := rfl
 
 /-- Complementation respects isomorphism. -/
-def Iso.compl {G G' : CGraph} (i : G ≃cg G') :
-    CGraph.compl G ≃cg CGraph.compl G' :=
-  isoOfAdj (G := CGraph.compl G) (H := CGraph.compl G') i.toEquiv fun x y ↦ by
+def Iso.compl {G G' : CGraph} (i : G ≃cg G') : Gᶜ ≃cg G'ᶜ :=
+  isoOfAdj (G := Gᶜ) (H := G'ᶜ) i.toEquiv fun x y ↦ by
     show (decide (i x ≠ i y) && !G'.Adj (i x) (i y)) = (decide (x ≠ y) && !G.Adj x y)
     rw [i.adj_eq, show decide (i x ≠ i y) = decide (x ≠ y) from by simp]
 
@@ -173,9 +177,9 @@ Every other construction that takes a graph is carried across to `IsoGraph` in
 lift — `Quotient.map CGraph.compl`, with `compl_mk` true by `rfl` — but written out by hand, and
 written out here, for two reasons:
 
-* it carries the `Compl` instance, so that `Gᶜ` elaborates to `Compl.compl G` — which `simp` does
-  not match against a bridge stated with `IsoGraph.compl`.  The bridge has to be stated in the
-  notation the rest of the library uses, and the attribute has no way to know that;
+* it carries the `Compl IsoGraph` instance, so that `Gᶜ` elaborates to `Compl.compl G` — which
+  `simp` does not match against a bridge stated with `IsoGraph.compl`.  The bridge has to be
+  stated in the notation the rest of the library uses, and the attribute has no way to know that;
 * `johnsonTwoIso` and `paleyIso`, further down this file, are tagged `@[toIsoGraph]` where they
   stand, and the equations that generates are about complements.
 -/
@@ -187,8 +191,7 @@ def compl (G : IsoGraph) : IsoGraph :=
   Quotient.map (sa := CGraph.isoSetoid) (sb := CGraph.isoSetoid) CGraph.compl
     (fun _ _ ⟨i⟩ ↦ ⟨CGraph.Iso.compl i⟩) G
 
-/-- Complementation is written `Gᶜ`.  There is no such instance for `CGraph`, whose complement
-would have to be a bare `α → α` on the graph itself, not on its vertex type.
+/-- Complementation is written `Gᶜ`, matching `Compl CGraph` on representatives.
 
 Note that `⟦g⟧ᶜ` does not elaborate — instance search sees the type `Quotient CGraph.isoSetoid`
 and will not unfold `IsoGraph` to reach it.  Write `(show IsoGraph from ⟦g⟧)ᶜ`; a type ascription
@@ -198,7 +201,7 @@ instance : Compl IsoGraph := ⟨compl⟩
 theorem compl_eq (G : IsoGraph) : Gᶜ = compl G := rfl
 
 @[simp, isoTransfer] theorem compl_mk (G : CGraph) :
-    (show IsoGraph from ⟦G⟧)ᶜ = ⟦CGraph.compl G⟧ := rfl
+    (show IsoGraph from ⟦G⟧)ᶜ = ⟦Gᶜ⟧ := rfl
 
 isograph_bridge CGraph.compl ↦ IsoGraph.compl via IsoGraph.compl_mk
 
@@ -307,7 +310,7 @@ theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι �
 
 /-- The complete graph on `n` vertices. -/
 @[toIsoGraph]
-def complete (n : ℕ) : CGraph := compl (empty n)
+def complete (n : ℕ) : CGraph := (empty n)ᶜ
 
 instance (n : ℕ) : Nonempty (complete (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
@@ -315,7 +318,7 @@ instance (n : ℕ) : Nonempty (complete (n + 1)).V := inferInstanceAs (Nonempty 
 
 /-- The join: a disjoint union together with every edge between the two parts. -/
 def join (G H : CGraph) : CGraph :=
-  compl (disjUnion (compl G) (compl H))
+  (disjUnion Gᶜ Hᶜ)ᶜ
 
 @[simp] theorem card_join (G H : CGraph) :
     Fintype.card (join G H).V = Fintype.card G.V + Fintype.card H.V := Fintype.card_sum
@@ -346,7 +349,7 @@ def join (G H : CGraph) : CGraph :=
 
 /-- The complete bipartite graph `K_{m,n}`. -/
 @[toIsoGraph]
-def bipartite (m n : ℕ) : CGraph := compl (disjUnion (complete m) (complete n))
+def bipartite (m n : ℕ) : CGraph := (disjUnion (complete m) (complete n))ᶜ
 
 instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
   inferInstanceAs (Nonempty (Fin (m + 1) ⊕ Fin n))
@@ -356,24 +359,24 @@ instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
 
 @[simp] theorem bipartite_adj_inl_inl (m n : ℕ) (a c : Fin m) :
     (bipartite m n).Adj (.inl a) (.inl c) = false := by
-  by_cases h : a = c <;> simp [bipartite, complete, compl, h]
+  by_cases h : a = c <;> simp [bipartite, complete, h]
 
 @[simp] theorem bipartite_adj_inr_inr (m n : ℕ) (b d : Fin n) :
     (bipartite m n).Adj (.inr b) (.inr d) = false := by
-  by_cases h : b = d <;> simp [bipartite, complete, compl, h]
+  by_cases h : b = d <;> simp [bipartite, complete, h]
 
 @[simp] theorem bipartite_adj_inl_inr (m n : ℕ) (a : Fin m) (d : Fin n) :
     (bipartite m n).Adj (.inl a) (.inr d) = true := by
-  simp [bipartite, compl]
+  simp [bipartite]
 
 @[simp] theorem bipartite_adj_inr_inl (m n : ℕ) (b : Fin n) (c : Fin m) :
     (bipartite m n).Adj (.inr b) (.inl c) = true := by
-  simp [bipartite, compl]
+  simp [bipartite]
 
 /-- The complete multipartite graph with parts of sizes `ds`. -/
 @[toIsoGraph]
 def completeMultipartite (ds : List ℕ) : CGraph :=
-  compl (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))
+  (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))ᶜ
 
 /-- The star with `n` leaves. -/
 @[toIsoGraph]
@@ -1156,36 +1159,36 @@ variable (G H : CGraph)
 
 /-! ### The complement -/
 
-@[simp] theorem compl_toSimple : (compl G).toSimple = G.toSimpleᶜ := by
+@[simp] theorem compl_toSimple : Gᶜ.toSimple = G.toSimpleᶜ := by
   ext x y
-  simp [compl, G.symm x y, SimpleGraph.compl_adj]
+  simp [G.symm x y, SimpleGraph.compl_adj]
 
-@[simp, toIsoGraph] theorem compl_compl : compl (compl G) = G := by
+@[simp, toIsoGraph] theorem compl_compl : Gᶜᶜ = G := by
   refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
   rcases eq_or_ne x y with rfl | h
-  · simp [compl, G.loopless x]
-  · simp [compl, h, G.symm x y]
+  · simp [G.loopless x]
+  · simp [h, G.symm x y]
 
-@[simp] theorem indepNum_compl : (compl G).indepNum = G.cliqueNum := by
+@[simp] theorem indepNum_compl : Gᶜ.indepNum = G.cliqueNum := by
   simp [indepNum, cliqueNum, compl_toSimple, SimpleGraph.indepNum_compl]
 
-@[simp] theorem cliqueNum_compl : (compl G).cliqueNum = G.indepNum := by
-  rw [← indepNum_compl (compl G), compl_compl]
+@[simp] theorem cliqueNum_compl : Gᶜ.cliqueNum = G.indepNum := by
+  rw [← indepNum_compl Gᶜ, compl_compl]
 
 /-- The complement of a strongly regular graph is strongly regular, with the parameters Mathlib
 computes for `SimpleGraph`s. -/
 theorem isSRGWith_compl {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
-    (compl G).IsSRGWith n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) :=
-  SimpleGraph.Iso.isSRGWith_of_iso (G := G.toSimpleᶜ) (G' := (compl G).toSimple)
+    Gᶜ.IsSRGWith n (n - k - 1) (n - (2 * k - μ) - 2) (n - (2 * k - ℓ)) :=
+  SimpleGraph.Iso.isSRGWith_of_iso (G := G.toSimpleᶜ) (G' := Gᶜ.toSimple)
     ⟨Equiv.refl G.V, by simp; intro a b _; rfl⟩ (SimpleGraph.IsSRGWith.compl h)
 
 theorem E_compl :
-    (compl G).E + G.E = (Fintype.card G.V).choose 2 := by
+    Gᶜ.E + G.E = (Fintype.card G.V).choose 2 := by
   simp only [CGraph.E]
-  have h1 : G.compl.toSimple.edgeFinset = (G.toSimpleᶜ).edgeFinset := by
+  have h1 : Gᶜ.toSimple.edgeFinset = G.toSimpleᶜ.edgeFinset := by
     simp [compl_toSimple]
   rw [h1]
-  have h_disj : Disjoint G.toSimple.edgeFinset (G.toSimpleᶜ).edgeFinset := by
+  have h_disj : Disjoint G.toSimple.edgeFinset G.toSimpleᶜ.edgeFinset := by
     rw [Finset.disjoint_left]
     intro x hx hxc
     rw [SimpleGraph.mem_edgeFinset] at hx hxc
@@ -1194,7 +1197,7 @@ theorem E_compl :
       rw [SimpleGraph.mem_edgeSet] at hx hxc
       rw [SimpleGraph.compl_adj] at hxc
       exact absurd hx hxc.2
-  have h_union : G.toSimple.edgeFinset ∪ (G.toSimpleᶜ).edgeFinset = (⊤ : SimpleGraph G.V).edgeFinset := by
+  have h_union : G.toSimple.edgeFinset ∪ G.toSimpleᶜ.edgeFinset = (⊤ : SimpleGraph G.V).edgeFinset := by
     ext e
     simp only [Finset.mem_union, SimpleGraph.mem_edgeFinset]
     show (e ∈ G.toSimple.edgeSet ∨ e ∈ G.toSimpleᶜ.edgeSet) ↔ e ∈ (⊤ : SimpleGraph G.V).edgeSet
@@ -1215,7 +1218,7 @@ theorem E_compl :
               rw [h'] at h
               simp at h
             exact ⟨hvne, he⟩)
-  have h_card : (G.toSimpleᶜ).edgeFinset.card + G.toSimple.edgeFinset.card =
+  have h_card : G.toSimpleᶜ.edgeFinset.card + G.toSimple.edgeFinset.card =
     (⊤ : SimpleGraph G.V).edgeFinset.card := by
     have := Finset.card_union_of_disjoint (h_disj.symm)
     rw [Finset.union_comm] at this
@@ -1225,13 +1228,13 @@ theorem E_compl :
 /-! ### The complete graph -/
 
 @[simp] theorem complete_adj (n : ℕ) (i j : Fin n) : (complete n).Adj i j = decide (i ≠ j) := by
-  simp [complete, compl]
+  simp [complete]
 
 /-- **The complement of the rook's graph is the tensor product of complete graphs**: two squares
 of the board are non-adjacent in `Kₘ □ Kₙ` exactly when they agree in neither coordinate.  Both
 sides are literally on `Fin m × Fin n`, so this is an equality of `CGraph`s. -/
 theorem compl_rook (m n : ℕ) :
-    compl (rook m n) = tensorProduct (complete m) (complete n) := by
+    (rook m n)ᶜ = tensorProduct (complete m) (complete n) := by
   refine CGraph.ext' rfl (heq_of_eq (funext fun p ↦ funext fun q ↦ ?_))
   rw [compl_adj, cartesianProduct_adj, tensorProduct_adj, complete_adj, complete_adj]
   have hpq : (p = q) ↔ (p.1 = q.1 ∧ p.2 = q.2) := Prod.ext_iff
@@ -1349,7 +1352,7 @@ theorem compl_rook (m n : ℕ) :
     (complete n).degSequence = List.replicate n (n - 1) := by
   have htosimple : (complete n).toSimple = SimpleGraph.completeGraph (Fin n) := by
     ext x y
-    simp [CGraph.toSimple, complete, compl, empty_adj]
+    simp [CGraph.toSimple, complete, empty_adj]
   show (complete n).degSequence = _
   have hdeg : ∀ v : (complete n).V, (complete n).toSimple.degree v = n - 1 := by
     intro v
@@ -2790,12 +2793,12 @@ theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.
 
 @[simp] theorem E_join :
     (join G H).E = G.E + H.E + Fintype.card G.V * Fintype.card H.V := by
-  have h1 : (join G H).E + (disjUnion (compl G) (compl H)).E = (Fintype.card (join G H).V).choose 2 := by
+  have h1 : (join G H).E + (disjUnion Gᶜ Hᶜ).E = (Fintype.card (join G H).V).choose 2 := by
     rw [join]
     exact E_compl _
-  have h2 : (disjUnion (compl G) (compl H)).E = (compl G).E + (compl H).E := E_disjUnion _ _
-  have h3 : (compl G).E + G.E = (Fintype.card G.V).choose 2 := E_compl G
-  have h4 : (compl H).E + H.E = (Fintype.card H.V).choose 2 := E_compl H
+  have h2 : (disjUnion Gᶜ Hᶜ).E = Gᶜ.E + Hᶜ.E := E_disjUnion _ _
+  have h3 : Gᶜ.E + G.E = (Fintype.card G.V).choose 2 := E_compl G
+  have h4 : Hᶜ.E + H.E = (Fintype.card H.V).choose 2 := E_compl H
   have h5 : Fintype.card (join G H).V = Fintype.card G.V + Fintype.card H.V := card_join G H
   rw [h5] at h1
   rw [h2] at h1
@@ -2816,13 +2819,13 @@ theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.
 
 theorem isConnected_join
     (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) : (join G H).IsConnected := by
-  simp only [IsConnected, join, compl, CGraph.toSimple]
+  simp only [IsConnected, join, CGraph.toSimple]
   have hcross : ∀ (a : G.V) (b : H.V),
       ((join G H).toSimple.Adj (Sum.inl a) (Sum.inr b) = true) := by
-    simp [join, compl, CGraph.toSimple, disjUnion_adj_inl_inr]
+    simp [join, CGraph.toSimple, disjUnion_adj_inl_inr]
   have hcross' : ∀ (a : G.V) (b : H.V),
       ((join G H).toSimple.Adj (Sum.inr b) (Sum.inl a) = true) := by
-    simp [join, compl, CGraph.toSimple, disjUnion_adj_inr_inl]
+    simp [join, CGraph.toSimple, disjUnion_adj_inr_inl]
   set J := (join G H).toSimple
   obtain ⟨a0⟩ := Fintype.card_pos_iff.mp hG
   obtain ⟨b0⟩ := Fintype.card_pos_iff.mp hH
@@ -2870,24 +2873,24 @@ theorem isConnected_join
         ext y; simp
       rw [heq] at hclique
       exact ⟨_, SimpleGraph.IsNClique.mk hclique hcard⟩
-  -- Embed compl G and compl H into disjUnion (compl G) (compl H)
-  have hge_left : cliqueNum (compl G) ≤ cliqueNum (disjUnion (compl G) (compl H)) := by
+  -- Embed Gᶜ and Hᶜ into disjUnion Gᶜ Hᶜ
+  have hge_left : cliqueNum Gᶜ ≤ cliqueNum (disjUnion Gᶜ Hᶜ) := by
     apply cliqueNum_le_of_emb
     exact { toFun := Sum.inl, inj' := Sum.inl_injective,
-            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
-  have hge_right : cliqueNum (compl H) ≤ cliqueNum (disjUnion (compl G) (compl H)) := by
+            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion] }
+  have hge_right : cliqueNum Hᶜ ≤ cliqueNum (disjUnion Gᶜ Hᶜ) := by
     apply cliqueNum_le_of_emb
     exact { toFun := Sum.inr, inj' := Sum.inr_injective,
-            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
-  have hge : max (cliqueNum (compl G)) (cliqueNum (compl H)) ≤ cliqueNum (disjUnion (compl G) (compl H)) :=
+            map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion] }
+  have hge : max (cliqueNum Gᶜ) (cliqueNum Hᶜ) ≤ cliqueNum (disjUnion Gᶜ Hᶜ) :=
     max_le hge_left hge_right
   -- Cross pairs are not adjacent in disjUnion
-  have hno_cross : ∀ (a : G.compl.V) (b : H.compl.V),
-      ¬(disjUnion G.compl H.compl).toSimple.Adj (Sum.inl a) (Sum.inr b) := by
-    simp [CGraph.toSimple, disjUnion, compl]
+  have hno_cross : ∀ (a : Gᶜ.V) (b : Hᶜ.V),
+      ¬(disjUnion Gᶜ Hᶜ).toSimple.Adj (Sum.inl a) (Sum.inr b) := by
+    simp [CGraph.toSimple, disjUnion]
   -- Any clique in disjUnion is in one side
-  have clique_one_side : ∀ (C : Finset (G.compl.V ⊕ H.compl.V))
-      (hC : (disjUnion G.compl H.compl).toSimple.IsNClique C.card C),
+  have clique_one_side : ∀ (C : Finset (Gᶜ.V ⊕ Hᶜ.V))
+      (hC : (disjUnion Gᶜ Hᶜ).toSimple.IsNClique C.card C),
       (∀ x ∈ C, x.isLeft = true) ∨ (∀ x ∈ C, x.isRight = true) := by
     intro C hC
     by_contra h
@@ -2904,20 +2907,20 @@ theorem isConnected_join
       | Sum.inl c => exact ⟨c, rfl⟩
       | Sum.inr d => simp at hy'
     exact hno_cross c b (hC.isClique hpx hpy (by intro h; cases h))
-  have hle : cliqueNum (disjUnion (compl G) (compl H)) ≤
-      max (cliqueNum (compl G)) (cliqueNum (compl H)) := by
-    let embL : (compl G).toSimple ↪g (disjUnion (compl G) (compl H)).toSimple :=
+  have hle : cliqueNum (disjUnion Gᶜ Hᶜ) ≤
+      max (cliqueNum Gᶜ) (cliqueNum Hᶜ) := by
+    let embL : Gᶜ.toSimple ↪g (disjUnion Gᶜ Hᶜ).toSimple :=
       { toFun := Sum.inl, inj' := Sum.inl_injective,
-        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
-    let embR : (compl H).toSimple ↪g (disjUnion (compl G) (compl H)).toSimple :=
+        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion] }
+    let embR : Hᶜ.toSimple ↪g (disjUnion Gᶜ Hᶜ).toSimple :=
       { toFun := Sum.inr, inj' := Sum.inr_injective,
-        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion, compl] }
+        map_rel_iff' := @fun a b => by simp [CGraph.toSimple, disjUnion] }
     simp only [CGraph.cliqueNum, SimpleGraph.cliqueNum]
     apply csSup_le
     · exact ⟨0, ⟨∅, by simp [SimpleGraph.isNClique_empty]⟩⟩
     · intro n hn
       obtain ⟨C, hC⟩ := hn
-      have hside : (∀ x ∈ C, ∃ a : G.compl.V, x = Sum.inl a) ∨ (∀ x ∈ C, ∃ b : H.compl.V, x = Sum.inr b) := by
+      have hside : (∀ x ∈ C, ∃ a : Gᶜ.V, x = Sum.inl a) ∨ (∀ x ∈ C, ∃ b : Hᶜ.V, x = Sum.inr b) := by
         by_contra h
         push_neg at h
         obtain ⟨hx, hy⟩ := h
@@ -2933,8 +2936,8 @@ theorem isConnected_join
           | Sum.inr d => exfalso; exact hy' d rfl
         exact hno_cross c b (hC.isClique hpx hpy (by intro h; cases h))
       rcases hside with hleft | hright
-      · -- All inl: Dav = {a | inl a ∈ C} is an n-clique in compl G
-        let Dav : Finset (compl G).V := Finset.univ.filter (fun a => Sum.inl a ∈ C)
+      · -- All inl: Dav = {a | inl a ∈ C} is an n-clique in Gᶜ
+        let Dav : Finset Gᶜ.V := Finset.univ.filter (fun a => Sum.inl a ∈ C)
         have hinl_mem : ∀ x ∈ C, ∃ a, x = Sum.inl a := hleft
         have hDav_eq : Dav.map ⟨Sum.inl, Sum.inl_injective⟩ = C := by
           ext x; simp [Dav, Finset.mem_map]
@@ -2946,19 +2949,19 @@ theorem isConnected_join
           have h1 := congr_arg Finset.card hDav_eq
           simp [Finset.card_map] at h1
           exact h1.trans hC.card_eq
-        have hdav_clique : (compl G).toSimple.IsClique (Dav : Set (compl G).V) := by
+        have hdav_clique : Gᶜ.toSimple.IsClique (Dav : Set Gᶜ.V) := by
           intro a1 ha1 a2 ha2 ha12
           have ha1C : Sum.inl a1 ∈ C := Finset.mem_filter.mp ha1 |>.2
           have ha2C : Sum.inl a2 ∈ C := Finset.mem_filter.mp ha2 |>.2
-          have hadj' : (disjUnion G.compl H.compl).toSimple.Adj (Sum.inl a1) (Sum.inl a2) :=
+          have hadj' : (disjUnion Gᶜ Hᶜ).toSimple.Adj (Sum.inl a1) (Sum.inl a2) :=
             hC.isClique (by exact ha1C) (by exact ha2C) (by intro h; exact ha12 (embL.injective h))
           exact embL.map_adj_iff.mp hadj'
-        have hbddG : BddAbove {m | ∃ s : Finset (compl G).V, (compl G).toSimple.IsNClique m s} :=
-          ⟨Fintype.card (compl G).V, fun m ⟨s, hs⟩ => hs.card_eq ▸ Finset.card_le_univ s⟩
-        have hnG : n ∈ {m | ∃ s : Finset (compl G).V, (compl G).toSimple.IsNClique m s} :=
+        have hbddG : BddAbove {m | ∃ s : Finset Gᶜ.V, Gᶜ.toSimple.IsNClique m s} :=
+          ⟨Fintype.card Gᶜ.V, fun m ⟨s, hs⟩ => hs.card_eq ▸ Finset.card_le_univ s⟩
+        have hnG : n ∈ {m | ∃ s : Finset Gᶜ.V, Gᶜ.toSimple.IsNClique m s} :=
           ⟨Dav, SimpleGraph.IsNClique.mk hdav_clique hdav_card⟩
         exact le_max_of_le_left (le_csSup hbddG hnG)
-      · let Dav : Finset (compl H).V := Finset.univ.filter (fun b => Sum.inr b ∈ C)
+      · let Dav : Finset Hᶜ.V := Finset.univ.filter (fun b => Sum.inr b ∈ C)
         have hinr_mem : ∀ x ∈ C, ∃ b, x = Sum.inr b := hright
         have hDav_eq : Dav.map ⟨Sum.inr, Sum.inr_injective⟩ = C := by
           ext x; simp [Dav, Finset.mem_map]
@@ -2970,21 +2973,21 @@ theorem isConnected_join
           have h1 := congr_arg Finset.card hDav_eq
           simp [Finset.card_map] at h1
           exact h1.trans hC.card_eq
-        have hdav_clique : (compl H).toSimple.IsClique (Dav : Set (compl H).V) := by
+        have hdav_clique : Hᶜ.toSimple.IsClique (Dav : Set Hᶜ.V) := by
           intro b1 hb1 b2 hb2 hb12
           have h1 : Sum.inr b1 ∈ C := Finset.mem_filter.mp hb1 |>.2
           have h2 : Sum.inr b2 ∈ C := Finset.mem_filter.mp hb2 |>.2
-          have hadj' : (disjUnion G.compl H.compl).toSimple.Adj (Sum.inr b1) (Sum.inr b2) :=
+          have hadj' : (disjUnion Gᶜ Hᶜ).toSimple.Adj (Sum.inr b1) (Sum.inr b2) :=
             hC.isClique h1 h2 (by intro h; exact hb12 (embR.injective h))
           exact embR.map_adj_iff.mp hadj'
-        have hbddH : BddAbove {m | ∃ s : Finset (compl H).V, (compl H).toSimple.IsNClique m s} :=
-          ⟨Fintype.card (compl H).V, fun m ⟨s, hs⟩ => hs.card_eq ▸ Finset.card_le_univ s⟩
-        have hnH : n ∈ {m | ∃ s : Finset (compl H).V, (compl H).toSimple.IsNClique m s} :=
+        have hbddH : BddAbove {m | ∃ s : Finset Hᶜ.V, Hᶜ.toSimple.IsNClique m s} :=
+          ⟨Fintype.card Hᶜ.V, fun m ⟨s, hs⟩ => hs.card_eq ▸ Finset.card_le_univ s⟩
+        have hnH : n ∈ {m | ∃ s : Finset Hᶜ.V, Hᶜ.toSimple.IsNClique m s} :=
           ⟨Dav, SimpleGraph.IsNClique.mk hdav_clique hdav_card⟩
         exact le_max_of_le_right (le_csSup hbddH hnH)
-  have hle' : (G.compl.disjUnion H.compl).cliqueNum ≤ max G.indepNum H.indepNum := by
+  have hle' : (Gᶜ.disjUnion Hᶜ).cliqueNum ≤ max G.indepNum H.indepNum := by
     rw [cliqueNum_compl, cliqueNum_compl] at hle; exact hle
-  have hge' : max G.indepNum H.indepNum ≤ (G.compl.disjUnion H.compl).cliqueNum := by
+  have hge' : max G.indepNum H.indepNum ≤ (Gᶜ.disjUnion Hᶜ).cliqueNum := by
     rw [cliqueNum_compl, cliqueNum_compl] at hge; exact hge
   exact le_antisymm hle' hge'
 
@@ -2999,8 +3002,8 @@ theorem isConnected_join
   rw [h3, h4] at h2
   rw [h2] at h1
   rw [card_disjUnion, card_complete, card_complete] at h1
-  -- bipartite m n = compl G
-  have hbip : bipartite m n = compl G := rfl
+  -- bipartite m n = Gᶜ
+  have hbip : bipartite m n = Gᶜ := rfl
   rw [hbip]
   have hdiv (k : ℕ) : 2 ∣ k * (k - 1) := by
     rcases k with _ | _ | k <;> simp [Nat.mul_succ, parity_simps]
@@ -3011,10 +3014,10 @@ theorem isConnected_join
     rw [Nat.choose_two_right, Nat.mul_div_cancel' (hdiv _)]
   have h4' : 2 * (Nat.choose n 2) = n * (n - 1) := by
     rw [Nat.choose_two_right, Nat.mul_div_cancel' (hdiv _)]
-  have h1' : 2 * G.compl.E + 2 * m.choose 2 + 2 * n.choose 2 = 2 * (m + n).choose 2 := by
+  have h1' : 2 * Gᶜ.E + 2 * m.choose 2 + 2 * n.choose 2 = 2 * (m + n).choose 2 := by
     linarith
   rw [h2', h3', h4'] at h1'
-  generalize G.compl.E = e at h1'
+  generalize Gᶜ.E = e at h1'
   clear h1 h2 h3 h4 h2' h3' h4' hbip hdiv G
   have hgoal : e = m * n := by
     rcases m with _ | m <;> rcases n with _ | n
@@ -3113,7 +3116,7 @@ theorem isConnected_join
   -- All pairs in different parts are adjacent
   have h_adj_cross : ∀ a : V₁, ∀ d : V₂, G.Adj (.inl a) (.inr d) := by
     intro a d
-    simp only [G, bipartite, CGraph.toSimple_adj, compl]
+    simp only [G, bipartite, CGraph.toSimple_adj, compl_adj]
     rw [disjUnion_adj_inl_inr]
     simp
   have h_adj_cross' : ∀ b : V₂, ∀ c : V₁, G.Adj (.inr b) (.inl c) := by
@@ -3285,7 +3288,7 @@ theorem isConnected_join
       show (complete ((h :: tl).get i)).Adj a b
       show (complete ((h :: tl).get i)).Adj a b
       show (complete ((h :: tl).get i)).Adj a b
-      show (CGraph.compl (empty ((h :: tl).get i))).Adj a b
+      show ((empty ((h :: tl).get i))ᶜ).Adj a b
       dsimp [CGraph.compl]
       simp [empty]
       exact hab
@@ -4345,10 +4348,10 @@ theorem isSRGWith_kneser_two (n : ℕ) :
 /-- `johnson n 2` — the triangular graph `T(n)` — is the complement of `kneser n 2`: two distinct
 pairs either meet in a point or are disjoint, and never both. -/
 @[toIsoGraph johnson_two_eq_compl_kneser]
-def johnsonTwoIso (n : ℕ) : johnson n 2 ≃cg compl (kneser n 2) :=
+def johnsonTwoIso (n : ℕ) : johnson n 2 ≃cg (kneser n 2)ᶜ :=
   ⟨Equiv.refl {s : Finset (Fin n) // s.card = 2}, by
     intro s t
-    show (compl (kneser n 2)).Adj s t = true ↔ (johnson n 2).Adj s t = true
+    show ((kneser n 2)ᶜ).Adj s t = true ↔ (johnson n 2).Adj s t = true
     simp only [compl_adj, kneser_adj, johnson_adj, Bool.and_eq_true, Bool.not_eq_true',
       Bool.and_eq_false_iff, decide_eq_true_eq, decide_eq_false_iff_not, not_not, beq_iff_eq,
       ne_eq]
@@ -4438,7 +4441,7 @@ parts. -/
 theorem completeMultipartite_adj (ds : List ℕ)
     (x y : Σ i : Fin ds.length, (complete (ds.get i)).V) :
     (completeMultipartite ds).Adj x y = decide (x.1 ≠ y.1) := by
-  show (compl (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))).Adj x y = _
+  show ((sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))ᶜ).Adj x y = _
   rw [compl_adj]
   obtain ⟨i, a⟩ := x
   obtain ⟨j, b⟩ := y
@@ -4765,10 +4768,10 @@ theorem isVertexTransitive_of_isArcTransitive
 
 /-- The complement has the same automorphisms, so it is vertex-transitive whenever `G` is. -/
 theorem isVertexTransitive_compl (h : G.IsVertexTransitive) :
-    (compl G).IsVertexTransitive := by
+    Gᶜ.IsVertexTransitive := by
   intro u v
   obtain ⟨σ, hσ⟩ := h u v
-  refine ⟨autoOfPerm (G := compl G) σ.toEquiv fun x y ↦ ?_, hσ⟩
+  refine ⟨autoOfPerm (G := Gᶜ) σ.toEquiv fun x y ↦ ?_, hσ⟩
   show (decide (σ x ≠ σ y) && !G.Adj (σ x) (σ y)) = (decide (x ≠ y) && !G.Adj x y)
   rw [σ.adj_eq]
   simp [(RelIso.injective σ).eq_iff]
@@ -5245,7 +5248,7 @@ example : (lineGraph (cycle 4)).IsVertexTransitive :=
 example : (cartesianProduct (cycle 4) (complete 2)).IsVertexTransitive :=
   isVertexTransitive_cartesianProduct _ _ (isVertexTransitive_cycle 4)
     (isVertexTransitive_complete 2)
-example : (compl (kneser 4 2)).IsVertexTransitive :=
+example : ((kneser 4 2)ᶜ).IsVertexTransitive :=
   isVertexTransitive_compl _ (isVertexTransitive_kneser 4 2)
 
 end Transitivity

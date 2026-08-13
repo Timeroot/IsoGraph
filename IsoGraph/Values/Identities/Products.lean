@@ -382,7 +382,7 @@ theorem isVertexTransitive_lineGraph_petersen :
 
 /-! Complements of vertex-transitive graphs. -/
 
-theorem isVertexTransitive_compl_petersen : IsVertexTransitive (petersenᶜ) :=
+theorem isVertexTransitive_compl_petersen : IsVertexTransitive petersenᶜ :=
   (isVertexTransitive_compl _).2 isVertexTransitive_petersen
 
 theorem isVertexTransitive_compl_bipartite_self (n : ℕ) :

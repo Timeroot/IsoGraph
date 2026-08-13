@@ -686,7 +686,7 @@ theorem adjMat_complete (n : ℕ) :
     (complete n).adjMat = Matrix.vecMulVec 1 1 - 1 := by
   ext i j
   by_cases h : i = j <;>
-    simp [adjMat_apply, complete, compl, Matrix.vecMulVec, h]
+    simp [adjMat_apply, complete, Matrix.vecMulVec, h]
 
 theorem charpoly_complete (n : ℕ) :
     (complete (n + 1)).charpoly = (X - C (n : ℝ)) * (X + 1) ^ n := by
@@ -719,13 +719,13 @@ theorem hasEigenvector_one_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ
       SimpleGraph.adjMatrix_mulVec_const_apply_of_regular (α := ℝ) (a := (1 : ℝ)) h (v := i)
 
 theorem adjMat_compl (G : CGraph) :
-    (compl G).adjMat = Matrix.vecMulVec 1 1 - 1 - G.adjMat := by
+    Gᶜ.adjMat = Matrix.vecMulVec 1 1 - 1 - G.adjMat := by
   ext i j
   rcases eq_or_ne i j with h | h
   · subst h
-    simp [adjMat_apply, compl, Matrix.vecMulVec, adj_self]
+    simp [adjMat_apply, Matrix.vecMulVec, adj_self]
   · cases hb : G.Adj i j <;>
-      simp [adjMat_apply, compl, Matrix.vecMulVec, h, hb]
+      simp [adjMat_apply, Matrix.vecMulVec, h, hb]
 
 theorem compl_adjMatrix_eq (G : CGraph) :
     G.toSimpleᶜ.adjMatrix ℝ = Matrix.vecMulVec 1 1 - 1 - G.adjMat := by
@@ -751,7 +751,7 @@ theorem compl_adjMatrix_mulVec {G : CGraph} {x : ℝ} {v : G.V → ℝ}
 eigenvalue `-1 - x`. -/
 theorem hasEigenvector_compl {G : CGraph} {x : ℝ} {v : G.V → ℝ}
     (hsum : ∑ i, v i = 0) (h : G.HasEigenvector x v) :
-    (compl G).HasEigenvector (-1 - x) v := by
+    Gᶜ.HasEigenvector (-1 - x) v := by
   refine ⟨h.1, ?_⟩
   rw [adjMat_compl, Matrix.sub_mulVec, Matrix.sub_mulVec, h.2, Matrix.one_mulVec,
     vecMulVec_one_mulVec hsum]
@@ -5088,7 +5088,7 @@ theorem eq_of_mulVec_eq_of_isRegularWith {G : CGraph} (hconn : G.IsConnected) {k
 by `n - 1 - k` and every other eigenvalue `x` by `-1 - x`. -/
 theorem spectrum_compl_of_isRegularWith {G : CGraph}
     (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
-    (compl G).spectrum = ((Fintype.card G.V : ℝ) - 1 - k)
+    Gᶜ.spectrum = ((Fintype.card G.V : ℝ) - 1 - k)
       ::ₘ (G.spectrum.erase (k : ℝ)).map (fun x ↦ -1 - x) := by
   haveI : Nonempty G.V := hconn.nonempty
   have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
@@ -5218,8 +5218,8 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
       _ = U * (Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1 - 1 - G.adjMat) * U) := by
           simp only [mul_assoc]
       _ = U * Matrix.diagonal d := by rw [hfinal]
-  have hspec : (compl G).spectrum = Finset.univ.val.map d :=
-    spectrum_eq_of_conj (G := compl G) (P := U) (Q := Uᵀ) (d := d) hUU' hUU
+  have hspec : Gᶜ.spectrum = Finset.univ.val.map d :=
+    spectrum_eq_of_conj (G := Gᶜ) (P := U) (Q := Uᵀ) (d := d) hUU' hUU
       (by rw [adjMat_compl]; exact hcon2)
   -- unpacking the two multisets
   have hmem : i₀ ∈ (Finset.univ : Finset G.V).val := Finset.mem_univ i₀
@@ -5247,13 +5247,13 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
 `n - 1 - k`: the complement of a regular graph is regular. -/
 theorem lambdaMax_compl_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
-    (compl G).lambdaMax = ((Fintype.card G.V - 1 - k : ℕ) : ℝ) :=
+    Gᶜ.lambdaMax = ((Fintype.card G.V - 1 - k : ℕ) : ℝ) :=
   lambdaMax_of_isRegularWith h.compl
 
 /-- **The spectrum of the complement of the Petersen graph**: `6` once, `-2` five times and `1`
 four times. -/
 theorem spectrum_compl_petersen :
-    (compl SRG.petersen).spectrum
+    SRG.petersenᶜ.spectrum
       = 6 ::ₘ (Multiset.replicate 5 (-2 : ℝ) + Multiset.replicate 4 1) := by
   have hconn : SRG.petersen.IsConnected :=
     SRG.petersen_srg.isConnected (by norm_num) (by norm_num)
@@ -5263,7 +5263,7 @@ theorem spectrum_compl_petersen :
   norm_num [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate]
 
 /-- **The spectral radius of the complement of the Petersen graph** is its degree `6`. -/
-theorem lambdaMax_compl_petersen : (compl SRG.petersen).lambdaMax = 6 := by
+theorem lambdaMax_compl_petersen : SRG.petersenᶜ.lambdaMax = 6 := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
   · rw [spectrum_compl_petersen, Multiset.mem_cons] at hx
     rcases hx with rfl | hx
@@ -5276,12 +5276,12 @@ theorem lambdaMax_compl_petersen : (compl SRG.petersen).lambdaMax = 6 := by
 
 /-- **The least eigenvalue of the complement of the Petersen graph** is `-2`, the complement being
 the triangular graph `T (5)` and so a line graph. -/
-theorem lambdaMin_compl_petersen : (compl SRG.petersen).lambdaMin = -2 := by
+theorem lambdaMin_compl_petersen : SRG.petersenᶜ.lambdaMin = -2 := by
   refine le_antisymm (lambdaMin_le ?_) ?_
   · rw [spectrum_compl_petersen]
     exact Multiset.mem_cons_of_mem
       (Multiset.mem_add.2 (Or.inl (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
-  · have hx := lambdaMin_mem_spectrum (compl SRG.petersen)
+  · have hx := lambdaMin_mem_spectrum SRG.petersenᶜ
     rw [spectrum_compl_petersen, Multiset.mem_cons] at hx
     rcases hx with h | h
     · rw [h]; linarith
@@ -6739,7 +6739,7 @@ theorem sum_sq_lapSpectrum (G : CGraph) :
 
 /-- **The Laplacians of a graph and of its complement add up to `n I - J`.** -/
 theorem lapMat_compl (G : CGraph) :
-    (compl G).lapMat
+    Gᶜ.lapMat
       = (Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ) - Matrix.vecMulVec 1 1 - G.lapMat := by
   ext i j
   simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.vecMulVec_apply, Pi.one_apply, mul_one,
@@ -6752,9 +6752,9 @@ theorem lapMat_compl (G : CGraph) :
       rw [Nat.sub_sub, Nat.cast_sub h1]
       push_cast
       ring
-    rw [lapMat_apply_self (compl G), lapMat_apply_self G, degree_compl, hcast]
+    rw [lapMat_apply_self Gᶜ, lapMat_apply_self G, degree_compl, hcast]
     simp
-  · rw [lapMat_apply_of_ne (compl G) hij, lapMat_apply_of_ne G hij, adjMat_compl]
+  · rw [lapMat_apply_of_ne Gᶜ hij, lapMat_apply_of_ne G hij, adjMat_compl]
     simp only [Matrix.sub_apply, Matrix.vecMulVec_apply, Pi.one_apply, mul_one,
       Matrix.one_apply_ne hij]
     ring
@@ -6763,7 +6763,7 @@ theorem lapMat_compl (G : CGraph) :
 live — the complement's Laplacian acts as `n` minus the graph's own. -/
 theorem lapMat_compl_mulVec (G : CGraph) {v : G.V → ℝ} (hv : ∑ i, v i = 0)
     {mu : ℝ} (hmu : G.lapMat *ᵥ v = mu • v) :
-    (compl G).lapMat *ᵥ v = ((Fintype.card G.V : ℝ) - mu) • v := by
+    Gᶜ.lapMat *ᵥ v = ((Fintype.card G.V : ℝ) - mu) • v := by
   rw [lapMat_compl, Matrix.sub_mulVec, Matrix.sub_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec,
     vecMulVec_one_mulVec hv, hmu]
   module
@@ -6790,7 +6790,7 @@ theorem lapSpectrum_bipartite_self (n : ℕ) :
 constant vector stays `0`, and every other eigenvalue `μ` becomes `n - μ`. -/
 theorem lapSpectrum_compl_of_isConnected {G : CGraph}
     (hconn : G.IsConnected) :
-    (compl G).lapSpectrum
+    Gᶜ.lapSpectrum
       = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
   haveI : Nonempty G.V := hconn.nonempty
   have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
@@ -6927,8 +6927,8 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
       _ = U * (Uᵀ * ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
             - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U) := by simp only [mul_assoc]
       _ = U * Matrix.diagonal d := by rw [hfinal]
-  have hspec : (compl G).lapSpectrum = Finset.univ.val.map d :=
-    lapSpectrum_eq_of_conj (G := compl G) (P := U) (Q := Uᵀ) (d := d) hUU' hUU
+  have hspec : Gᶜ.lapSpectrum = Finset.univ.val.map d :=
+    lapSpectrum_eq_of_conj (G := Gᶜ) (P := U) (Q := Uᵀ) (d := d) hUU' hUU
       (by rw [lapMat_compl]; exact hcon2)
   -- unpacking the two multisets
   have hmem : i₀ ∈ (Finset.univ : Finset G.V).val := Finset.mem_univ i₀
@@ -6956,7 +6956,7 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
 recovered from its complement's. -/
 theorem lapSpectrum_eq_of_compl {G : CGraph} (hconn : G.IsConnected) :
     G.lapSpectrum
-      = 0 ::ₘ ((compl G).lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+      = 0 ::ₘ (Gᶜ.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
   haveI : Nonempty G.V := hconn.nonempty
   have h := lapSpectrum_compl_of_isConnected (G := G) hconn
   rw [h, Multiset.erase_cons_head, Multiset.map_map]
@@ -6967,13 +6967,13 @@ theorem lapSpectrum_eq_of_compl {G : CGraph} (hconn : G.IsConnected) :
 /-- **The Laplacian spectrum of the complement**, with no hypothesis at all: a graph and its
 complement cannot both be disconnected. -/
 theorem lapSpectrum_compl (G : CGraph) [Nonempty G.V] :
-    (compl G).lapSpectrum
+    Gᶜ.lapSpectrum
       = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
   by_cases hpre : G.toSimple.Preconnected
   · exact lapSpectrum_compl_of_isConnected ⟨hpre⟩
-  · haveI : Nonempty (compl G).V := ‹Nonempty G.V›
-    have hc : (compl G).IsConnected := G.isConnected_compl_of_not_preconnected hpre
-    have h := lapSpectrum_eq_of_compl (G := compl G) hc
+  · haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+    have hc : Gᶜ.IsConnected := G.isConnected_compl_of_not_preconnected hpre
+    have h := lapSpectrum_eq_of_compl (G := Gᶜ) hc
     rw [compl_compl, card_compl] at h
     exact h
 
@@ -6985,7 +6985,7 @@ theorem lapSpectrum_bipartite (m n : ℕ) :
       = 0 ::ₘ (((m : ℝ) + (n : ℝ) + 2)
           ::ₘ (Multiset.replicate m ((n : ℝ) + 1) + Multiset.replicate n ((m : ℝ) + 1))) := by
   classical
-  have hcompl : compl (bipartite (m + 1) (n + 1))
+  have hcompl : (bipartite (m + 1) (n + 1))ᶜ
       = disjUnion (complete (m + 1)) (complete (n + 1)) := by
     simp [bipartite]
   have hcard : Fintype.card (bipartite (m + 1) (n + 1)).V = m + 1 + (n + 1) :=
@@ -7027,8 +7027,8 @@ theorem lapSpectrum_join (G H : CGraph)
       = 0 ::ₘ (((Fintype.card G.V : ℝ) + Fintype.card H.V)
           ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card H.V : ℝ))
              + (H.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card G.V : ℝ)))) := by
-  haveI : Nonempty (disjUnion (compl G) (compl H)).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
-  have hK := lapSpectrum_compl (disjUnion (compl G) (compl H))
+  haveI : Nonempty (disjUnion Gᶜ Hᶜ).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
+  have hK := lapSpectrum_compl (disjUnion Gᶜ Hᶜ)
   rw [lapSpectrum_disjUnion, lapSpectrum_compl G, lapSpectrum_compl H, card_disjUnion, card_compl,
     card_compl] at hK
   rw [join, hK]
@@ -7308,9 +7308,9 @@ theorem le_card_of_mem_lapSpectrum (G : CGraph) {x : ℝ}
   · positivity
   obtain ⟨v, hv0, hv⟩ := (G.mem_lapSpectrum_iff x).1 hx
   have hsum : ∑ i, v i = 0 := sum_eq_zero_of_lapMat_mulVec hx0 hv
-  have hmem : ((Fintype.card G.V : ℝ) - x) ∈ (compl G).lapSpectrum :=
-    ((compl G).mem_lapSpectrum_iff _).2 ⟨v, hv0, G.lapMat_compl_mulVec hsum hv⟩
-  have := (compl G).nonneg_of_mem_lapSpectrum hmem
+  have hmem : ((Fintype.card G.V : ℝ) - x) ∈ Gᶜ.lapSpectrum :=
+    (Gᶜ.mem_lapSpectrum_iff _).2 ⟨v, hv0, G.lapMat_compl_mulVec hsum hv⟩
+  have := Gᶜ.nonneg_of_mem_lapSpectrum hmem
   linarith
 
 /-! ### Algebraic connectivity -/
@@ -7629,8 +7629,8 @@ theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
 /-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`. -/
 theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) :
-    (compl G).lapLambdaMax = Fintype.card G.V - G.algConn := by
-  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+    Gᶜ.lapLambdaMax = Fintype.card G.V - G.algConn := by
+  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [lapSpectrum_compl]
     exact Multiset.mem_cons_of_mem (Multiset.mem_map_of_mem _ (G.algConn_mem_erase h))
@@ -7647,9 +7647,9 @@ theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
 /-- **The complement swaps the two ends of the Laplacian spectrum**: `a (Ḡ) = n - μ_max (G)`. -/
 theorem algConn_compl (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) :
-    (compl G).algConn = Fintype.card G.V - G.lapLambdaMax := by
-  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
-  have herase : (compl G).lapSpectrum.erase 0
+    Gᶜ.algConn = Fintype.card G.V - G.lapLambdaMax := by
+  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  have herase : Gᶜ.lapSpectrum.erase 0
       = (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
     rw [lapSpectrum_compl, Multiset.erase_cons_head]
   have hmax : G.lapLambdaMax ∈ G.lapSpectrum.erase 0 := by
@@ -8216,16 +8216,16 @@ theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V]
 complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hypothesis is exactly what
 `Δ + 1 ≤ μ_max` needs, namely that `Ḡ` has an edge. -/
 theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V]
-    (h : 2 ≤ Fintype.card G.V) (hc : 0 < (compl G).E) :
+    (h : 2 ≤ Fintype.card G.V) (hc : 0 < Gᶜ.E) :
     G.algConn ≤ G.minDeg := by
-  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
-  have h1 : ((compl G).maxDeg : ℝ) + 1 ≤ (compl G).lapLambdaMax :=
-    (compl G).maxDeg_add_one_le_lapLambdaMax hc
+  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  have h1 : (Gᶜ.maxDeg : ℝ) + 1 ≤ Gᶜ.lapLambdaMax :=
+    Gᶜ.maxDeg_add_one_le_lapLambdaMax hc
   rw [G.lapLambdaMax_compl h] at h1
   have hδ : G.minDeg ≤ Fintype.card G.V - 1 :=
     le_trans G.minDeg_le_maxDeg (by have := G.maxDeg_lt_card (Classical.arbitrary G.V); omega)
   have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
-  have h2 : ((compl G).maxDeg : ℝ) = (Fintype.card G.V : ℝ) - 1 - G.minDeg := by
+  have h2 : (Gᶜ.maxDeg : ℝ) = (Fintype.card G.V : ℝ) - 1 - G.minDeg := by
     rw [maxDeg_compl G (Classical.arbitrary G.V), Nat.cast_sub hδ, Nat.cast_sub h1']
     push_cast
     ring
@@ -8238,13 +8238,13 @@ For `K_n` it is an equality, `a = n` and `δ = n - 1`; for every other graph the
 theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ Fintype.card G.V) :
     ((Fintype.card G.V : ℝ) - 1) * G.algConn ≤ Fintype.card G.V * G.minDeg := by
-  haveI : Nonempty (compl G).V := ‹Nonempty G.V›
+  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
   have hn : (2 : ℝ) ≤ Fintype.card G.V := by exact_mod_cast h
   have hδ0 : (0 : ℝ) ≤ G.minDeg := Nat.cast_nonneg _
-  rcases Nat.eq_zero_or_pos (compl G).E with h0 | hpos
+  rcases Nat.eq_zero_or_pos Gᶜ.E with h0 | hpos
   · -- the complement is edgeless, so `G` is complete: `a = n` and `δ = n - 1`
-    have hmax : (compl G).maxDeg = 0 := by
-      have := (compl G).maxDeg_le_two_mul_E (Classical.arbitrary G.V)
+    have hmax : Gᶜ.maxDeg = 0 := by
+      have := Gᶜ.maxDeg_le_two_mul_E (Classical.arbitrary G.V)
       omega
     have hδ : Fintype.card G.V - 1 ≤ G.minDeg := by
       have := maxDeg_compl G (Classical.arbitrary G.V)
@@ -8253,8 +8253,8 @@ theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V]
       have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
       have hc : ((Fintype.card G.V - 1 : ℕ) : ℝ) ≤ (G.minDeg : ℝ) := by exact_mod_cast hδ
       rwa [Nat.cast_sub h1', Nat.cast_one] at hc
-    have hlam : (compl G).lapLambdaMax ≤ 0 := by
-      have := (compl G).lapLambdaMax_le_two_mul_maxDeg
+    have hlam : Gᶜ.lapLambdaMax ≤ 0 := by
+      have := Gᶜ.lapLambdaMax_le_two_mul_maxDeg
       rw [hmax] at this
       simpa using this
     rw [G.lapLambdaMax_compl h] at hlam

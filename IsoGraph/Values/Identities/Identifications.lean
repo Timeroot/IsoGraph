@@ -47,7 +47,7 @@ namespace IsoGraph
 
 @[simp] theorem V_compl (G : IsoGraph) : Gᶜ.V = G.V := by
   induction G using Quotient.inductionOn with
-  | h g => show Fintype.card (CGraph.compl g).V = _; simp
+  | h g => show Fintype.card gᶜ.V = _; simp
 
 @[simp] theorem V_disjUnion (G H : IsoGraph) : (G ⊕g H).V = G.V + H.V := by
   induction G using Quotient.inductionOn with
@@ -313,8 +313,8 @@ The workhorse is `completeMultipartite_cons`: peeling the first part off turns t
     haveI : Subsingleton (Fin [n].length) := inferInstanceAs (Subsingleton (Fin 1))
     rintro ⟨i, a⟩ ⟨j, b⟩
     obtain rfl : i = j := Subsingleton.elim i j
-    show (CGraph.compl (CGraph.sigmaUnion
-      fun i : Fin [n].length ↦ CGraph.complete ([n].get i))).Adj ⟨i, a⟩ ⟨i, b⟩ = false
+    show ((CGraph.sigmaUnion
+      fun i : Fin [n].length ↦ CGraph.complete ([n].get i))ᶜ).Adj ⟨i, a⟩ ⟨i, b⟩ = false
     rw [CGraph.compl_adj, CGraph.sigmaUnion_adj_mk, CGraph.complete_adj]
     by_cases hab : a = b <;> simp [hab]
   rw [completeMultipartite_def, mk_eq_empty h]
@@ -346,8 +346,8 @@ theorem completeMultipartite_cons (d : ℕ) (ds : List ℕ) :
     rw [disjUnion_mk]
     exact Quotient.sound
       ⟨CGraph.Iso.sigmaUnionSucc fun i : Fin (d :: ds).length ↦ CGraph.complete ((d :: ds).get i)⟩
-  show (⟦CGraph.compl (CGraph.sigmaUnion
-      fun i : Fin (d :: ds).length ↦ CGraph.complete ((d :: ds).get i))⟧ : IsoGraph) = _
+  show (⟦(CGraph.sigmaUnion
+      fun i : Fin (d :: ds).length ↦ CGraph.complete ((d :: ds).get i))ᶜ⟧ : IsoGraph) = _
   rw [← compl_mk, h, compl_disjUnion, ← complete_def, compl_complete, compl_mk]
   rfl
 
@@ -1482,7 +1482,7 @@ theorem compl_cycle_six : (cycle 6)ᶜ = prism 3 := by
   show (cycle 6)ᶜ = cycle 3 □g complete 2
   rw [cycle_def, compl_mk, cycle_def, complete_def, cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.compl (CGraph.cycle 6))
+    (G := (CGraph.cycle 6)ᶜ)
     (H := CGraph.cartesianProduct (CGraph.cycle 3) (CGraph.complete 2))
     (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
       fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :

@@ -791,18 +791,17 @@ def sigmaUnionSucc {n : ℕ} (F : Fin (n + 1) → CGraph) :
 
 /-! ### Blow-ups, and Johnson duality -/
 
-/-- **`compl (G[H]) = (compl G)[compl H]`**: of the four products, the lexicographic one is the
-only whose complement is again a product — of the complements.  Two pairs are non-adjacent in
+/-- **`(G[H])ᶜ = Gᶜ[Hᶜ]`**: of the four products, the lexicographic one is the only whose
+complement is again a product — of the complements.  Two pairs are non-adjacent in
 `G[H]` exactly when the first coordinates are non-adjacent, or equal with the second coordinates
 non-adjacent. -/
 def complLexProduct (G H : CGraph) :
-    CGraph.compl (CGraph.lexProduct G H) ≃cg
-      CGraph.lexProduct (CGraph.compl G) (CGraph.compl H) :=
-  isoOfAdj (G := CGraph.compl (CGraph.lexProduct G H))
-    (H := CGraph.lexProduct (CGraph.compl G) (CGraph.compl H)) (Equiv.refl (G.V × H.V)) (by
+    (CGraph.lexProduct G H)ᶜ ≃cg CGraph.lexProduct Gᶜ Hᶜ :=
+  isoOfAdj (G := (CGraph.lexProduct G H)ᶜ)
+    (H := CGraph.lexProduct Gᶜ Hᶜ) (Equiv.refl (G.V × H.V)) (by
       rintro ⟨a, b⟩ ⟨c, d⟩
-      show (CGraph.lexProduct (CGraph.compl G) (CGraph.compl H)).Adj (a, b) (c, d)
-        = (CGraph.compl (CGraph.lexProduct G H)).Adj (a, b) (c, d)
+      show (CGraph.lexProduct Gᶜ Hᶜ).Adj (a, b) (c, d)
+        = ((CGraph.lexProduct G H)ᶜ).Adj (a, b) (c, d)
       rcases eq_or_ne a c with rfl | hac
       · simp [Bool.eq_false_iff.2 (G.loopless a), lexProduct_pair_eq]
       · simp [hac, lexProduct_pair_eq])
@@ -1040,16 +1039,16 @@ private def paleyNineMap : Fin 3 ⊕ Fin 3 ⊕ Fin 3 → (CGraph.paley 9).V
 noncomputable def paleyNineIso :
     CGraph.disjUnion (CGraph.complete 3)
         (CGraph.disjUnion (CGraph.complete 3) (CGraph.complete 3)) ≃cg
-      CGraph.compl (CGraph.paley 9) :=
+      (CGraph.paley 9)ᶜ :=
   isoOfAdj (Equiv.ofBijective paleyNineMap (by decide)) (by decide)
 
 /-- Multiplication by the non-residue `2` mod `13` exchanges edges with non-edges. -/
-noncomputable def paleyThirteenIso : CGraph.paley 13 ≃cg CGraph.compl (CGraph.paley 13) :=
+noncomputable def paleyThirteenIso : CGraph.paley 13 ≃cg (CGraph.paley 13)ᶜ :=
   isoOfAdj (Equiv.ofBijective (fun x : Fin 13 ↦ (⟨2 * x.1 % 13, by omega⟩ : Fin 13))
     (by decide)) (by decide)
 
 /-- Multiplication by the non-residue `3` mod `17`. -/
-noncomputable def paleySeventeenIso : CGraph.paley 17 ≃cg CGraph.compl (CGraph.paley 17) :=
+noncomputable def paleySeventeenIso : CGraph.paley 17 ≃cg (CGraph.paley 17)ᶜ :=
   isoOfAdj (Equiv.ofBijective (fun x : Fin 17 ↦ (⟨3 * x.1 % 17, by omega⟩ : Fin 17))
     (by decide)) (by decide)
 

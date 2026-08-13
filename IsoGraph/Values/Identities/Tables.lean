@@ -2034,7 +2034,7 @@ bipartite. -/
 @[simp] theorem chromNum_petersen : petersen.chromNum = 3 :=
   le_antisymm (chromNum_kneser_le 5 2 (by norm_num)) (three_le_chromNum not_isBipartite_petersen)
 
-/-- **Nordhaus–Gaddum, product form**: `|V| ≤ χ(G)·χGᶜ`, since an independent set of `G` is a
+/-- **Nordhaus–Gaddum, product form**: `|V| ≤ χ(G)·χ(Gᶜ)`, since an independent set of `G` is a
 clique of `Gᶜ`. -/
 theorem V_le_chromNum_mul_chromNum_compl (G : IsoGraph) :
     G.V ≤ G.chromNum * Gᶜ.chromNum :=
@@ -2548,21 +2548,21 @@ theorem chromNum_add_indepNum_le_V_add_one (G : IsoGraph) :
   rw [← mk_canonicalize g, V_mk, chromNum_mk, indepNum_mk]
   exact CGraph.chromNum_add_indepNum_le_card_add_one _
 
-/-- **Nordhaus–Gaddum, sum form**: `4·|V| ≤ (χ(G) + χGᶜ)²`, i.e. `χ(G) + χGᶜ ≥ 2√|V|`.
+/-- **Nordhaus–Gaddum, sum form**: `4·|V| ≤ (χ(G) + χ(Gᶜ))²`, i.e. `χ(G) + χ(Gᶜ) ≥ 2√|V|`.
 This is the product form together with `4ab ≤ (a + b)²`. -/
 theorem four_mul_V_le_chromNum_add_chromNum_compl_sq (G : IsoGraph) :
     4 * G.V ≤ (G.chromNum + Gᶜ.chromNum) ^ 2 := by
   have h := V_le_chromNum_mul_chromNum_compl G
   nlinarith [sq_nonneg (G.chromNum - Gᶜ.chromNum : ℤ)]
 
-/-- **Nordhaus–Gaddum, sum form**: `χ(G) + χGᶜ ≤ |V| + 1`. -/
+/-- **Nordhaus–Gaddum, sum form**: `χ(G) + χ(Gᶜ) ≤ |V| + 1`. -/
 theorem chromNum_add_chromNum_compl_le_V_add_one (G : IsoGraph) :
     G.chromNum + Gᶜ.chromNum ≤ G.V + 1 := by
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g, compl_mk, chromNum_mk, chromNum_mk, V_mk]
   exact CGraph.chromNum_add_chromNum_compl_le_card_add_one _
 
-/-- The product counterpart of the sum bound, by AM–GM: `4·χ(G)·χGᶜ ≤ (|V| + 1)²`. -/
+/-- The product counterpart of the sum bound, by AM–GM: `4·χ(G)·χ(Gᶜ) ≤ (|V| + 1)²`. -/
 theorem four_mul_chromNum_mul_chromNum_compl_le (G : IsoGraph) :
     4 * (G.chromNum * Gᶜ.chromNum) ≤ (G.V + 1) ^ 2 := by
   have h := G.chromNum_add_chromNum_compl_le_V_add_one

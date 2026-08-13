@@ -104,7 +104,7 @@ abbrev K2_3 : CGraph := bipartite 2 3
 
 /-- The graph `K₂,₃` with an edge added inside its two-element side; equivalently the five-cycle
 with two disjoint chords, or `K₅` minus a path and a disjoint edge. -/
-def k23PlusEdge : CGraph := compl (disjUnion P3 K2)
+def k23PlusEdge : CGraph := (disjUnion P3 K2)ᶜ
 
 /-- The fork, also called the chair: the claw with one edge subdivided. -/
 abbrev fork : CGraph := spider [1, 1, 2]
@@ -150,10 +150,10 @@ abbrev lollipop41 : CGraph := lollipop 4 1
 abbrev book3 : CGraph := book 3
 
 /-- `K₅` with the two edges of a path removed. -/
-def K5MinusP3 : CGraph := compl (disjUnion P3 (empty 2))
+def K5MinusP3 : CGraph := (disjUnion P3 (empty 2))ᶜ
 
 /-- `K₅` with one edge removed. -/
-def K5MinusEdge : CGraph := compl (disjUnion K2 (empty 3))
+def K5MinusEdge : CGraph := (disjUnion K2 (empty 3))ᶜ
 
 /-- The complete graph on five vertices. -/
 abbrev K5 : CGraph := complete 5
@@ -289,103 +289,103 @@ abbrev prism3 : CGraph := prism 3
 
 /-- The 3-sun: a triangle whose three edges each carry a further vertex, i.e. the complement of
 the net. -/
-def sun3 : CGraph := compl net
+def sun3 : CGraph := netᶜ
 
 /-- The (4,2)-lollipop: `K₄` with a path of two attached; the complement of `k23PendantDeg3`. -/
 abbrev lollipop42 : CGraph := lollipop 4 2
 
 /-- The complement of the path on six vertices. -/
-def coP6 : CGraph := compl P6
+def coP6 : CGraph := P6ᶜ
 
 /-- The complement of the spider `S(1,1,3)`. -/
-def coSpider113 : CGraph := compl spider113
+def coSpider113 : CGraph := spider113ᶜ
 
 /-- The complement of the spider `S(1,2,2)`. -/
-def coSpider122 : CGraph := compl spider122
+def coSpider122 : CGraph := spider122ᶜ
 
 /-- The complement of the cross. -/
-def coCross : CGraph := compl cross
+def coCross : CGraph := crossᶜ
 
 /-- The complement of the H graph; also the line graph of the butterfly. -/
-def coH : CGraph := compl H
+def coH : CGraph := Hᶜ
 
 /-- The complement of the (3,3)-tadpole. -/
-def coTadpole33 : CGraph := compl tadpole33
+def coTadpole33 : CGraph := tadpole33ᶜ
 
 /-- The complement of the (4,2)-tadpole. -/
-def coTadpole42 : CGraph := compl tadpole42
+def coTadpole42 : CGraph := tadpole42ᶜ
 
 /-- The complement of the (5,1)-tadpole. -/
-def coTadpole51 : CGraph := compl tadpole51
+def coTadpole51 : CGraph := tadpole51ᶜ
 
 /-- The complement of `c3Pendants210`. -/
-def coC3Pendants210 : CGraph := compl c3Pendants210
+def coC3Pendants210 : CGraph := c3Pendants210ᶜ
 
 /-- The complement of `c3Legs12`. -/
-def coC3Legs12 : CGraph := compl c3Legs12
+def coC3Legs12 : CGraph := c3Legs12ᶜ
 
 /-- The complement of `c3Legs12Same`. -/
-def coC3Legs12Same : CGraph := compl c3Legs12Same
+def coC3Legs12Same : CGraph := c3Legs12Sameᶜ
 
 /-- The complement of `c3Fork`. -/
-def coC3Fork : CGraph := compl c3Fork
+def coC3Fork : CGraph := c3Forkᶜ
 
 /-- The complement of `c4Pendants1010`. -/
-def coC4Pendants1010 : CGraph := compl c4Pendants1010
+def coC4Pendants1010 : CGraph := c4Pendants1010ᶜ
 
 /-- The complement of `c4Pendants1100`. -/
-def coC4Pendants1100 : CGraph := compl c4Pendants1100
+def coC4Pendants1100 : CGraph := c4Pendants1100ᶜ
 
 /-- The complement of `c4Pendants2000`. -/
-def coC4Pendants2000 : CGraph := compl c4Pendants2000
+def coC4Pendants2000 : CGraph := c4Pendants2000ᶜ
 
 /-- The complement of `Θ(2,2,3)`. -/
-def coTheta223 : CGraph := compl theta223
+def coTheta223 : CGraph := theta223ᶜ
 
 /-- The complement of `Θ(1,2,4)`. -/
-def coTheta124 : CGraph := compl theta124
+def coTheta124 : CGraph := theta124ᶜ
 
 /-- The co-domino: the complement of the domino. -/
-def coDomino : CGraph := compl domino
+def coDomino : CGraph := dominoᶜ
 
 /-- The complement of the barbell. -/
-def coBarbell : CGraph := compl barbell
+def coBarbell : CGraph := barbellᶜ
 
 /-- The co-fish: the complement of the fish. -/
-def coFish : CGraph := compl fish
+def coFish : CGraph := fishᶜ
 
 /-- The complement of `housePendantApex`. -/
-def coHousePendantApex : CGraph := compl housePendantApex
+def coHousePendantApex : CGraph := housePendantApexᶜ
 
 /-- The complement of `housePendantRoof`. -/
-def coHousePendantRoof : CGraph := compl housePendantRoof
+def coHousePendantRoof : CGraph := housePendantRoofᶜ
 
 /-- The complement of `housePendantBase`. -/
-def coHousePendantBase : CGraph := compl housePendantBase
+def coHousePendantBase : CGraph := housePendantBaseᶜ
 
 /-- The complement of `diamondPendantsTips`. -/
-def coDiamondPendantsTips : CGraph := compl diamondPendantsTips
+def coDiamondPendantsTips : CGraph := diamondPendantsTipsᶜ
 
 /-- The complement of `diamondPendantsHubs`. -/
-def coDiamondPendantsHubs : CGraph := compl diamondPendantsHubs
+def coDiamondPendantsHubs : CGraph := diamondPendantsHubsᶜ
 
 /-- The complement of `diamondPendantsTipHub`. -/
-def coDiamondPendantsTipHub : CGraph := compl diamondPendantsTipHub
+def coDiamondPendantsTipHub : CGraph := diamondPendantsTipHubᶜ
 
 /-- The complement of `diamondPendantsSameTip`. -/
-def coDiamondPendantsSameTip : CGraph := compl diamondPendantsSameTip
+def coDiamondPendantsSameTip : CGraph := diamondPendantsSameTipᶜ
 
 /-- The complement of `diamondTailTip`. -/
-def coDiamondTailTip : CGraph := compl diamondTailTip
+def coDiamondTailTip : CGraph := diamondTailTipᶜ
 
 /-- The complement of `diamondTailHub`. -/
-def coDiamondTailHub : CGraph := compl diamondTailHub
+def coDiamondTailHub : CGraph := diamondTailHubᶜ
 
 /-- The complement of `k23PendantDeg2`. -/
-def coK23PendantDeg2 : CGraph := compl k23PendantDeg2
+def coK23PendantDeg2 : CGraph := k23PendantDeg2ᶜ
 
 /-- The complement of `butterflyPendant`. -/
-def coButterflyPendant : CGraph := compl butterflyPendant
+def coButterflyPendant : CGraph := butterflyPendantᶜ
 
 /-! ## Six vertices: a universal vertex, i.e. `K₆` minus a graph on five vertices -/
 
@@ -414,70 +414,70 @@ abbrev K1_2_3 : CGraph := completeMultipartite [1, 2, 3]
 abbrev K1_1_2_2 : CGraph := completeMultipartite [1, 1, 2, 2]
 
 /-- `K₆` with one edge removed. -/
-def K6MinusEdge : CGraph := compl (disjUnion K2 (empty 4))
+def K6MinusEdge : CGraph := (disjUnion K2 (empty 4))ᶜ
 
 /-- `K₆` with the edges of a path of three removed. -/
-def K6MinusP3 : CGraph := compl (disjUnion P3 (empty 3))
+def K6MinusP3 : CGraph := (disjUnion P3 (empty 3))ᶜ
 
 /-- `K₆` with the edges of a path of four removed. -/
-def K6MinusP4 : CGraph := compl (disjUnion P4 (empty 2))
+def K6MinusP4 : CGraph := (disjUnion P4 (empty 2))ᶜ
 
 /-- `K₆` with the edges of a four-cycle removed. -/
-def K6MinusC4 : CGraph := compl (disjUnion C4 (empty 2))
+def K6MinusC4 : CGraph := (disjUnion C4 (empty 2))ᶜ
 
 /-- `K₆` with the edges of a claw removed. -/
-def K6MinusClaw : CGraph := compl (disjUnion claw (empty 2))
+def K6MinusClaw : CGraph := (disjUnion claw (empty 2))ᶜ
 
 /-- `K₆` with the edges of a paw removed. -/
-def K6MinusPaw : CGraph := compl (disjUnion paw (empty 2))
+def K6MinusPaw : CGraph := (disjUnion paw (empty 2))ᶜ
 
 /-- `K₆` with the edges of a diamond removed. -/
-def K6MinusDiamond : CGraph := compl (disjUnion diamond (empty 2))
+def K6MinusDiamond : CGraph := (disjUnion diamond (empty 2))ᶜ
 
 /-- `K₆` with the edges of an edge and a disjoint path of three removed. -/
-def K6MinusK2P3 : CGraph := compl (disjUnion K2 (disjUnion P3 (empty 1)))
+def K6MinusK2P3 : CGraph := (disjUnion K2 (disjUnion P3 (empty 1)))ᶜ
 
 /-- `K₆` with the edges of a path of five removed. -/
-def K6MinusP5 : CGraph := compl (disjUnion P5 (empty 1))
+def K6MinusP5 : CGraph := (disjUnion P5 (empty 1))ᶜ
 
 /-- `K₆` with the edges of a fork removed. -/
-def K6MinusFork : CGraph := compl (disjUnion fork (empty 1))
+def K6MinusFork : CGraph := (disjUnion fork (empty 1))ᶜ
 
 /-- `K₆` with the edges of `K₂,₃` removed. -/
-def K6MinusK23 : CGraph := compl (disjUnion K2_3 (empty 1))
+def K6MinusK23 : CGraph := (disjUnion K2_3 (empty 1))ᶜ
 
 /-- `K₆` with the edges of `k23PlusEdge` removed. -/
-def K6MinusK23PlusEdge : CGraph := compl (disjUnion k23PlusEdge (empty 1))
+def K6MinusK23PlusEdge : CGraph := (disjUnion k23PlusEdge (empty 1))ᶜ
 
 /-- `K₆` with the edges of a banner removed. -/
-def K6MinusBanner : CGraph := compl (disjUnion banner (empty 1))
+def K6MinusBanner : CGraph := (disjUnion banner (empty 1))ᶜ
 
 /-- `K₆` with the edges of a bull removed. -/
-def K6MinusBull : CGraph := compl (disjUnion bull (empty 1))
+def K6MinusBull : CGraph := (disjUnion bull (empty 1))ᶜ
 
 /-- `K₆` with the edges of a kite removed. -/
-def K6MinusKite : CGraph := compl (disjUnion kite (empty 1))
+def K6MinusKite : CGraph := (disjUnion kite (empty 1))ᶜ
 
 /-- `K₆` with the edges of the (3,2)-tadpole removed. -/
-def K6MinusTadpole32 : CGraph := compl (disjUnion tadpole32 (empty 1))
+def K6MinusTadpole32 : CGraph := (disjUnion tadpole32 (empty 1))ᶜ
 
 /-- `K₆` with the edges of a butterfly removed. -/
-def K6MinusButterfly : CGraph := compl (disjUnion butterfly (empty 1))
+def K6MinusButterfly : CGraph := (disjUnion butterfly (empty 1))ᶜ
 
 /-- `K₆` with the edges of a cricket removed. -/
-def K6MinusCricket : CGraph := compl (disjUnion cricket (empty 1))
+def K6MinusCricket : CGraph := (disjUnion cricket (empty 1))ᶜ
 
 /-- `K₆` with the edges of a gem removed. -/
-def K6MinusGem : CGraph := compl (disjUnion gem (empty 1))
+def K6MinusGem : CGraph := (disjUnion gem (empty 1))ᶜ
 
 /-- `K₆` with the edges of a dart removed. -/
-def K6MinusDart : CGraph := compl (disjUnion dart (empty 1))
+def K6MinusDart : CGraph := (disjUnion dart (empty 1))ᶜ
 
 /-- `K₆` with the edges of the 4-lollipop removed. -/
-def K6MinusLollipop41 : CGraph := compl (disjUnion lollipop41 (empty 1))
+def K6MinusLollipop41 : CGraph := (disjUnion lollipop41 (empty 1))ᶜ
 
 /-- `K₆` with the edges of the book `B₃` removed. -/
-def K6MinusBook3 : CGraph := compl (disjUnion book3 (empty 1))
+def K6MinusBook3 : CGraph := (disjUnion book3 (empty 1))ᶜ
 
 /-! ## Six vertices: the remaining joins -/
 
@@ -491,25 +491,25 @@ abbrev K2_4 : CGraph := bipartite 2 4
 abbrev octahedron : CGraph := completeMultipartite [2, 2, 2]
 
 /-- The complement of `K₂` and a disjoint four-cycle. -/
-def coK2C4 : CGraph := compl (disjUnion K2 C4)
+def coK2C4 : CGraph := (disjUnion K2 C4)ᶜ
 
 /-- The complement of `K₂` and a disjoint path of four. -/
-def coK2P4 : CGraph := compl (disjUnion K2 P4)
+def coK2P4 : CGraph := (disjUnion K2 P4)ᶜ
 
 /-- The complement of `K₂` and a disjoint claw. -/
-def coK2Claw : CGraph := compl (disjUnion K2 claw)
+def coK2Claw : CGraph := (disjUnion K2 claw)ᶜ
 
 /-- The complement of `K₂` and a disjoint paw. -/
-def coK2Paw : CGraph := compl (disjUnion K2 paw)
+def coK2Paw : CGraph := (disjUnion K2 paw)ᶜ
 
 /-- The complement of `K₂` and a disjoint diamond. -/
-def coK2Diamond : CGraph := compl (disjUnion K2 diamond)
+def coK2Diamond : CGraph := (disjUnion K2 diamond)ᶜ
 
 /-- The complement of two disjoint paths of three. -/
-def coP3P3 : CGraph := compl (disjUnion P3 P3)
+def coP3P3 : CGraph := (disjUnion P3 P3)ᶜ
 
 /-- The complement of a path of three and a disjoint triangle. -/
-def coP3K3 : CGraph := compl (disjUnion P3 K3)
+def coP3K3 : CGraph := (disjUnion P3 K3)ᶜ
 
 /-! ## The clique sums are unambiguous
 
