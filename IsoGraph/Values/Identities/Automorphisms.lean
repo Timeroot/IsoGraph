@@ -1331,10 +1331,11 @@ theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
     have h3 := Gᶜ.domNum_le_card
     have h4 : Fintype.card Gᶜ.V = Fintype.card G.V := rfl
     omega
+  haveI := hne
   obtain ⟨v₀⟩ := hne
   have h1 := G.domNum_add_maxDeg_le_card
   have h2 := Gᶜ.domNum_add_maxDeg_le_card
-  rw [maxDeg_compl G v₀, show Fintype.card Gᶜ.V = Fintype.card G.V from rfl] at h2
+  rw [maxDeg_compl (G := G), show Fintype.card Gᶜ.V = Fintype.card G.V from rfl] at h2
   have h3 := G.minDeg_le_maxDeg
   have h4 := G.maxDeg_lt_card v₀
   omega

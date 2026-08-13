@@ -165,7 +165,9 @@ theorem two_mul_E_le_card_mul_maxDeg (G : CGraph) : 2 * G.E ≤ Fintype.card G.V
 
 /-- One vertex's degree is at most the whole degree sum, so `Δ ≤ 2|E|`; in particular a graph
 with no edges has no vertex of positive degree. -/
-theorem maxDeg_le_two_mul_E (G : CGraph) (v₀ : G.V) : G.maxDeg ≤ 2 * G.E := by
+@[toIsoGraph]
+theorem maxDeg_le_two_mul_E {G : CGraph} [Nonempty G.V] : G.maxDeg ≤ 2 * G.E := by
+  obtain ⟨v₀⟩ := ‹Nonempty G.V›
   obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
   calc G.maxDeg = G.toSimple.degree v := hv.symm
     _ ≤ ∑ u : G.V, G.toSimple.degree u :=
@@ -189,8 +191,11 @@ theorem maxDeg_disjUnion (G H : CGraph) :
     rw [← degree_disjUnion_inr G H b]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_disjUnion (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem minDeg_disjUnion {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
     (disjUnion G H).minDeg = min G.minDeg H.minDeg := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
   refine le_antisymm (le_min ?_ ?_) (le_minDeg_of_forall (Sum.inl a₀) ?_)
@@ -202,9 +207,12 @@ theorem minDeg_disjUnion (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
     · rw [degree_disjUnion_inl]; exact le_trans (min_le_left _ _) (G.minDeg_le_degree a)
     · rw [degree_disjUnion_inr]; exact le_trans (min_le_right _ _) (H.minDeg_le_degree b)
 
-theorem maxDeg_join (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem maxDeg_join {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
     (join G H).maxDeg
       = max (G.maxDeg + Fintype.card H.V) (Fintype.card G.V + H.maxDeg) := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
   refine le_antisymm (maxDeg_le_of_forall ?_) (max_le ?_ ?_)
@@ -218,9 +226,12 @@ theorem maxDeg_join (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
   · rw [← hb, ← degree_join_inr G H b]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_join (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem minDeg_join {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
     (join G H).minDeg
       = min (G.minDeg + Fintype.card H.V) (Fintype.card G.V + H.minDeg) := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
   refine le_antisymm (le_min ?_ ?_) (le_minDeg_of_forall (Sum.inl a₀) ?_)
@@ -235,8 +246,10 @@ theorem minDeg_join (G H : CGraph) (a₀ : G.V) (b₀ : H.V) :
       exact le_trans (min_le_right _ _) (Nat.add_le_add_left (H.minDeg_le_degree b') _)
 
 /-- **Complementation swaps the two extreme degrees.** -/
-theorem maxDeg_compl (G : CGraph) (v₀ : G.V) :
+@[toIsoGraph]
+theorem maxDeg_compl {G : CGraph} [Nonempty G.V] :
     Gᶜ.maxDeg = Fintype.card G.V - 1 - G.minDeg := by
+  obtain ⟨v₀⟩ := ‹Nonempty G.V›
   obtain ⟨v, hv⟩ := G.exists_degree_eq_minDeg v₀
   refine le_antisymm (maxDeg_le_of_forall fun w ↦ ?_) ?_
   · rw [degree_compl]
@@ -244,8 +257,10 @@ theorem maxDeg_compl (G : CGraph) (v₀ : G.V) :
   · rw [← hv, ← degree_compl]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_compl (G : CGraph) (v₀ : G.V) :
+@[toIsoGraph]
+theorem minDeg_compl {G : CGraph} [Nonempty G.V] :
     Gᶜ.minDeg = Fintype.card G.V - 1 - G.maxDeg := by
+  obtain ⟨v₀⟩ := ‹Nonempty G.V›
   obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
   refine le_antisymm ?_ (le_minDeg_of_forall v₀ fun w ↦ ?_)
   · rw [← hv, ← degree_compl]
@@ -255,9 +270,12 @@ theorem minDeg_compl (G : CGraph) (v₀ : G.V) :
 
 /-! ### The four products -/
 
-theorem maxDeg_cartesianProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem maxDeg_cartesianProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).maxDeg = G.maxDeg + H.maxDeg := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
   have h := degree_cartesianProduct G H ((a, b) : (cartesianProduct G H).V)
@@ -268,9 +286,12 @@ theorem maxDeg_cartesianProduct (G H : CGraph)
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_cartesianProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem minDeg_cartesianProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (cartesianProduct G H).minDeg = G.minDeg + H.minDeg := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
   have h := degree_cartesianProduct G H ((a, b) : (cartesianProduct G H).V)
@@ -281,9 +302,12 @@ theorem minDeg_cartesianProduct (G H : CGraph)
   · rw [degree_cartesianProduct]
     exact Nat.add_le_add (G.minDeg_le_degree _) (H.minDeg_le_degree _)
 
-theorem maxDeg_tensorProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem maxDeg_tensorProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (tensorProduct G H).maxDeg = G.maxDeg * H.maxDeg := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
   have h := degree_tensorProduct G H ((a, b) : (tensorProduct G H).V)
@@ -294,9 +318,12 @@ theorem maxDeg_tensorProduct (G H : CGraph)
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_tensorProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem minDeg_tensorProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (tensorProduct G H).minDeg = G.minDeg * H.minDeg := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
   have h := degree_tensorProduct G H ((a, b) : (tensorProduct G H).V)
@@ -307,9 +334,12 @@ theorem minDeg_tensorProduct (G H : CGraph)
   · rw [degree_tensorProduct]
     exact Nat.mul_le_mul (G.minDeg_le_degree _) (H.minDeg_le_degree _)
 
-theorem maxDeg_lexProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem maxDeg_lexProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (lexProduct G H).maxDeg = G.maxDeg * Fintype.card H.V + H.maxDeg := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
   have h := degree_lexProduct G H ((a, b) : (lexProduct G H).V)
@@ -320,9 +350,12 @@ theorem maxDeg_lexProduct (G H : CGraph)
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_lexProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem minDeg_lexProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (lexProduct G H).minDeg = G.minDeg * Fintype.card H.V + H.minDeg := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
   have h := degree_lexProduct G H ((a, b) : (lexProduct G H).V)
@@ -333,9 +366,12 @@ theorem minDeg_lexProduct (G H : CGraph)
   · rw [degree_lexProduct]
     exact Nat.add_le_add (Nat.mul_le_mul_right _ (G.minDeg_le_degree _)) (H.minDeg_le_degree _)
 
-theorem maxDeg_strongProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem maxDeg_strongProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (strongProduct G H).maxDeg = (G.maxDeg + 1) * (H.maxDeg + 1) - 1 := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
   have h := degree_strongProduct G H ((a, b) : (strongProduct G H).V)
@@ -347,9 +383,12 @@ theorem maxDeg_strongProduct (G H : CGraph)
   · rw [← ha, ← hb, ← h]
     exact degree_le_maxDeg _ _
 
-theorem minDeg_strongProduct (G H : CGraph)
-    (a₀ : G.V) (b₀ : H.V) :
+@[toIsoGraph]
+theorem minDeg_strongProduct {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] :
     (strongProduct G H).minDeg = (G.minDeg + 1) * (H.minDeg + 1) - 1 := by
+  obtain ⟨a₀⟩ := ‹Nonempty G.V›
+  obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
   have h := degree_strongProduct G H ((a, b) : (strongProduct G H).V)

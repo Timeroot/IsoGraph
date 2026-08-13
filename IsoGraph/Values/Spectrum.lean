@@ -8238,7 +8238,7 @@ theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V]
     le_trans G.minDeg_le_maxDeg (by have := G.maxDeg_lt_card (Classical.arbitrary G.V); omega)
   have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
   have h2 : (Gᶜ.maxDeg : ℝ) = (Fintype.card G.V : ℝ) - 1 - G.minDeg := by
-    rw [maxDeg_compl G (Classical.arbitrary G.V), Nat.cast_sub hδ, Nat.cast_sub h1']
+    rw [maxDeg_compl (G := G), Nat.cast_sub hδ, Nat.cast_sub h1']
     push_cast
     ring
   rw [h2] at h1
@@ -8256,10 +8256,10 @@ theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V]
   rcases Nat.eq_zero_or_pos Gᶜ.E with h0 | hpos
   · -- the complement is edgeless, so `G` is complete: `a = n` and `δ = n - 1`
     have hmax : Gᶜ.maxDeg = 0 := by
-      have := Gᶜ.maxDeg_le_two_mul_E (Classical.arbitrary G.V)
+      have := CGraph.maxDeg_le_two_mul_E (G := Gᶜ)
       omega
     have hδ : Fintype.card G.V - 1 ≤ G.minDeg := by
-      have := maxDeg_compl G (Classical.arbitrary G.V)
+      have := maxDeg_compl (G := G)
       omega
     have hδ' : (Fintype.card G.V : ℝ) - 1 ≤ G.minDeg := by
       have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
