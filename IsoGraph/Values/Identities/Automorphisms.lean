@@ -178,6 +178,7 @@ theorem autCount_eq_one_of_degree_injective (G : CGraph)
 
 /-- A vertex-transitive graph has at least `|V|` automorphisms: the automorphisms carrying a fixed
 base vertex to each vertex in turn are already pairwise distinct. -/
+@[toIsoGraph V_le_autCount_of_isVertexTransitive]
 theorem card_le_autCount_of_isVertexTransitive (G : CGraph) [Nonempty G.V]
     (h : G.IsVertexTransitive) : Fintype.card G.V ≤ G.autCount := by
   obtain ⟨v₀⟩ := ‹Nonempty G.V›
@@ -1339,7 +1340,7 @@ theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
   have h2 := Gᶜ.domNum_add_maxDeg_le_card
   rw [maxDeg_compl (G := G), show Fintype.card Gᶜ.V = Fintype.card G.V from rfl] at h2
   have h3 := G.minDeg_le_maxDeg
-  have h4 := G.maxDeg_lt_card v₀
+  have h4 := @CGraph.maxDeg_lt_card G ⟨v₀⟩
   omega
 
 /-- Two vertices in different components dominate the complement: whatever `x` is, it is
@@ -1414,6 +1415,11 @@ theorem one_le_indepNum_of_vertex {G : CGraph} (a : G.V) : 1 ≤ G.indepNum := b
     simp only [Finset.coe_singleton, Set.mem_singleton_iff] at hx hy
     exact absurd (hx.trans hy.symm) hxy
   simpa using hind.card_le_indepNum
+
+/-- **A nonempty graph has an independent vertex**: a single vertex is an independent set. -/
+@[toIsoGraph]
+theorem one_le_indepNum {G : CGraph} [Nonempty G.V] : 1 ≤ G.indepNum :=
+  one_le_indepNum_of_vertex (Classical.arbitrary G.V)
 
 /-- Two distinct non-adjacent vertices form a two-element independent set. -/
 theorem two_le_indepNum {G : CGraph} {a b : G.V} (hab : a ≠ b) (h : ¬ G.Adj a b) :

@@ -17,7 +17,7 @@ namespace IsoGraph
 
 `@[toIsoGraph]` can only state a fact once every constant in it has a bridge, and
 `Constructions.lean` runs before `Quotient.lean`: the order and the products have none there yet.
-These six are tagged here instead, which lifts them exactly as the attribute would have. -/
+These eight are tagged here instead, which lifts them exactly as the attribute would have. -/
 
 attribute [toIsoGraph] CGraph.E_compl
 attribute [toIsoGraph] CGraph.not_isConnected_disjUnion
@@ -25,6 +25,8 @@ attribute [toIsoGraph IsVertexTransitive.cartesianProduct]
   CGraph.isVertexTransitive_cartesianProduct
 attribute [toIsoGraph IsVertexTransitive.tensorProduct] CGraph.isVertexTransitive_tensorProduct
 attribute [toIsoGraph IsVertexTransitive.strongProduct] CGraph.isVertexTransitive_strongProduct
+attribute [toIsoGraph IsVertexTransitive.lexProduct] CGraph.isVertexTransitive_lexProduct
+attribute [toIsoGraph IsArcTransitive.lineGraph] CGraph.isVertexTransitive_lineGraph
 attribute [toIsoGraph] CGraph.isSRGWith_triangular
 
 /-! ## Line graphs and Mycielskians
@@ -329,11 +331,6 @@ theorem E_hypercube (n : ℕ) : 2 * (hypercube n).E = n * 2 ^ n := by
 
 /-! ### Trees, and Euler's count -/
 
-theorem isTree_iff_isConnected_and_isAcyclic (G : IsoGraph) :
-    IsTree G ↔ IsConnected G ∧ IsAcyclic G := by
-  induction G using Quotient.inductionOn with | _ g =>
-  exact SimpleGraph.isTree_iff _
-
 theorem IsTree.E_add_one {G : IsoGraph} (h : IsTree G) : G.E + 1 = G.V :=
   ((isTree_iff G).1 h).2
 
@@ -628,24 +625,6 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
     IsVertexTransitive Gᶜ ↔ IsVertexTransitive G :=
   ⟨fun h ↦ by simpa using h.compl, IsVertexTransitive.compl⟩
 
-theorem IsVertexTransitive.lexProduct {G H : IsoGraph} (hG : IsVertexTransitive G)
-    (hH : IsVertexTransitive H) : IsVertexTransitive (IsoGraph.lexProduct G H) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [lexProduct_mk, isVertexTransitive_mk]
-  rw [isVertexTransitive_mk] at hG hH
-  exact CGraph.isVertexTransitive_lexProduct _ _ hG hH
-
-/-- Arcs of `G` are vertices of its line graph, so arc-transitivity becomes vertex-transitivity. -/
-theorem IsArcTransitive.lineGraph {G : IsoGraph} (h : IsArcTransitive G) :
-    IsVertexTransitive (IsoGraph.lineGraph G) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g] at *
-  rw [lineGraph_mk, isVertexTransitive_mk]
-  rw [isArcTransitive_mk] at h
-  exact CGraph.isVertexTransitive_lineGraph _ h
-
 /-! Derived transitivity. -/
 
 @[simp] theorem isVertexTransitive_petersen : IsVertexTransitive petersen :=
@@ -764,14 +743,6 @@ theorem degSequence_triangular (n : ℕ) (hn : 4 ≤ n) :
 theorem E_le_choose_two (G : IsoGraph) : G.E ≤ G.V.choose 2 := by
   have := G.E_compl
   omega
-
-/-- The line graph has one vertex per edge, and one edge per pair of edges meeting at a vertex:
-`∑ v, C(deg v, 2)`, written over the degree sequence so as not to name a vertex. -/
-theorem E_lineGraph (G : IsoGraph) :
-    (lineGraph G).E = ((degSequence G).map fun d ↦ d.choose 2).sum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, lineGraph_mk, E_mk, degSequence_mk]
-  exact CGraph.E_lineGraph_eq_sum_degSequence _
 
 /-- A regular graph's line graph has `n * C(k, 2)` edges. -/
 theorem IsSRGWith.E_lineGraph {G : IsoGraph} {n k ℓ μ : ℕ} (h : IsSRGWith G n k ℓ μ) :
@@ -1107,17 +1078,6 @@ theorem diameter_join_right {G H : IsoGraph} (hG : 0 < G.V) (h : H.E < H.V.choos
   omega
 
 /-! ### Complements of disconnected graphs -/
-
-/-- **The complement of a disconnected graph is connected.** -/
-theorem isConnected_compl_of_not_isConnected {G : IsoGraph} (hV : 0 < G.V)
-    (h : ¬ IsConnected G) : IsConnected Gᶜ := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g] at *
-  rw [V_mk] at hV
-  rw [isConnected_mk] at h
-  rw [compl_mk, isConnected_mk]
-  haveI := Fintype.card_pos_iff.1 hV
-  exact CGraph.isConnected_compl_of_not_preconnected _ fun hp ↦ h ⟨hp⟩
 
 /-- At least one of a graph and its complement is connected. -/
 theorem isConnected_or_isConnected_compl {G : IsoGraph} (hV : 0 < G.V) :
@@ -1852,12 +1812,6 @@ example : 10 ≤ 3 * petersenᶜ.chromNum := by
 
 /-! ### Girth -/
 
-theorem one_le_cliqueNum {G : IsoGraph} (h : 0 < G.V) : 1 ≤ G.cliqueNum := by
-  induction G using Quotient.inductionOn with | _ G =>
-  rw [V_mk] at h
-  obtain ⟨a⟩ := Fintype.card_pos_iff.1 h
-  exact CGraph.one_le_cliqueNum_of_vertex a
-
 theorem ne_of_girth_ne {G H : IsoGraph} (h : G.girth ≠ H.girth) : G ≠ H := fun hgh ↦ h (hgh ▸ rfl)
 
 /-! ### Girth of the named graphs -/
@@ -1974,18 +1928,6 @@ example : ¬ IsAcyclic (cycle 5) := by
 /-! ### Maximum and minimum degree -/
 
 /-! ### Basic API -/
-
-theorem maxDeg_lt_V {G : IsoGraph} (h : 0 < G.V) : maxDeg G < G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g] at *
-  rw [V_mk] at h ⊢
-  obtain ⟨v⟩ := Fintype.card_pos_iff.1 h
-  exact CGraph.maxDeg_lt_card _ v
-
-theorem maxDeg_le_of_degMultiset {G : IsoGraph} {k : ℕ} (h : ∀ d ∈ degMultiset G, d ≤ k) :
-    maxDeg G ≤ k := by
-  induction G using Quotient.inductionOn with | _ g =>
-  exact CGraph.maxDeg_le_of_forall fun v ↦ h _ (CGraph.mem_degMultiset.2 ⟨v, rfl⟩)
 
 /-- A regular graph, read off its degree multiset: both extremes are the common degree. -/
 theorem maxDeg_of_degMultiset_replicate {G : IsoGraph} {n k : ℕ} (hn : 0 < n)

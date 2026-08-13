@@ -188,56 +188,56 @@ theorem not_isArcTransitive_grotzsch : ¬ IsArcTransitive grotzsch :=
 
 /-- A vertex-transitive graph has at least `|V|` automorphisms. -/
 theorem le_autCount_foldedCube (n : ℕ) : 2 ^ n ≤ (foldedCube n).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (foldedCube n)
+  have h := V_le_autCount_of_isVertexTransitive (G := foldedCube n)
     (by rw [V_foldedCube]; positivity) (isVertexTransitive_foldedCube n)
   rwa [V_foldedCube] at h
 
 theorem le_autCount_triangular (n : ℕ) : (n + 2).choose 2 ≤ (triangular (n + 2)).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (triangular (n + 2))
+  have h := V_le_autCount_of_isVertexTransitive (G := triangular (n + 2))
     (by rw [V_triangular]; exact Nat.choose_pos (by omega)) (isVertexTransitive_triangular (n + 2))
   rwa [V_triangular] at h
 
 theorem le_autCount_johnson {n k : ℕ} (hk : k ≤ n) : n.choose k ≤ (johnson n k).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (johnson n k)
+  have h := V_le_autCount_of_isVertexTransitive (G := johnson n k)
     (by rw [V_johnson]; exact Nat.choose_pos hk) (isVertexTransitive_johnson n k)
   rwa [V_johnson] at h
 
 theorem le_autCount_rook (m n : ℕ) :
     (m + 1) * (n + 1) ≤ (rook (m + 1) (n + 1)).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (rook (m + 1) (n + 1))
+  have h := V_le_autCount_of_isVertexTransitive (G := rook (m + 1) (n + 1))
     (by rw [V_rook]; positivity) (isVertexTransitive_rook (m + 1) (n + 1))
   rwa [V_rook] at h
 
 theorem le_autCount_prism (n : ℕ) : (n + 1) * 2 ≤ (prism (n + 1)).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (prism (n + 1))
+  have h := V_le_autCount_of_isVertexTransitive (G := prism (n + 1))
     (by rw [V_prism]; positivity) (isVertexTransitive_prism (n + 1))
   rwa [V_prism] at h
 
 theorem le_autCount_cocktailParty (n : ℕ) : 2 * (n + 1) ≤ (cocktailParty (n + 1)).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (cocktailParty (n + 1))
+  have h := V_le_autCount_of_isVertexTransitive (G := cocktailParty (n + 1))
     (by rw [V_cocktailParty]; positivity) (isVertexTransitive_cocktailParty (n + 1))
   rwa [V_cocktailParty] at h
 
 theorem le_autCount_crown (n : ℕ) : 2 * (n + 1) ≤ (crown (n + 1)).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (crown (n + 1))
+  have h := V_le_autCount_of_isVertexTransitive (G := crown (n + 1))
     (by rw [V_crown]; positivity) (isVertexTransitive_crown (n + 1))
   rwa [V_crown] at h
 
 theorem le_autCount_paley (q : ℕ) [NeZero q] [Fact q.Prime] : q ≤ (paley q).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (paley q)
+  have h := V_le_autCount_of_isVertexTransitive (G := paley q)
     (by rw [V_paley]; exact Nat.pos_of_ne_zero (NeZero.ne q)) (isVertexTransitive_paley q)
   rwa [V_paley] at h
 
 theorem le_autCount_circulant (n : ℕ) (S : List ℕ) :
     n + 1 ≤ (circulant (n + 1) S).autCount := by
-  have h := V_le_autCount_of_isVertexTransitive (circulant (n + 1) S)
+  have h := V_le_autCount_of_isVertexTransitive (G := circulant (n + 1) S)
     (by rw [V_circulant]; omega) (isVertexTransitive_circulant (n + 1) S)
   rwa [V_circulant] at h
 
 theorem le_autCount_completeMultipartite_replicate (m d : ℕ) :
     (m + 1) * (d + 1) ≤ (completeMultipartite (List.replicate (m + 1) (d + 1))).autCount := by
   have h := V_le_autCount_of_isVertexTransitive
-    (completeMultipartite (List.replicate (m + 1) (d + 1)))
+    (G := completeMultipartite (List.replicate (m + 1) (d + 1)))
     (by rw [V_completeMultipartite_replicate]; positivity)
     (isVertexTransitive_completeMultipartite_replicate (m + 1) (d + 1))
   rwa [V_completeMultipartite_replicate] at h
@@ -247,7 +247,7 @@ arc-transitivity of `Kₙ`. -/
 theorem le_autCount_lineGraph_complete (n : ℕ) :
     (n + 2).choose 2 ≤ (lineGraph (complete (n + 2))).autCount := by
   have hE : (complete (n + 2)).E = (n + 2).choose 2 := E_complete (n + 2)
-  have h := V_le_autCount_of_isVertexTransitive (lineGraph (complete (n + 2)))
+  have h := V_le_autCount_of_isVertexTransitive (G := lineGraph (complete (n + 2)))
     (by rw [V_lineGraph, hE]; exact Nat.choose_pos (by omega))
     ((isArcTransitive_complete (n + 2)).lineGraph)
   rwa [V_lineGraph, hE] at h
@@ -255,7 +255,7 @@ theorem le_autCount_lineGraph_complete (n : ℕ) :
 theorem le_autCount_lineGraph_cycle (n : ℕ) :
     n + 3 ≤ (lineGraph (cycle (n + 3))).autCount := by
   have hE : (cycle (n + 3)).E = n + 3 := E_cycle n
-  have h := V_le_autCount_of_isVertexTransitive (lineGraph (cycle (n + 3)))
+  have h := V_le_autCount_of_isVertexTransitive (G := lineGraph (cycle (n + 3)))
     (by rw [V_lineGraph, hE]; omega) (isVertexTransitive_lineGraph_cycle (n + 3))
   rwa [V_lineGraph, hE] at h
 

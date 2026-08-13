@@ -128,6 +128,7 @@ theorem IsBipartite.cartesianProduct {G H : CGraph}
     simpa using fun h ↦ this (by simpa using h)
 
 /-- A tensor product is bipartite as soon as one factor is: colour by that factor. -/
+@[toIsoGraph isBipartite_tensorProduct_left]
 theorem IsBipartite.tensorProduct_left {G H : CGraph}
     (hG : G.IsBipartite) : (CGraph.tensorProduct G H).IsBipartite := by
   obtain ⟨c, hc⟩ := hG
@@ -137,6 +138,7 @@ theorem IsBipartite.tensorProduct_left {G H : CGraph}
   simp only [Bool.and_eq_true] at hxy
   exact hc x x' hxy.1
 
+@[toIsoGraph isBipartite_tensorProduct_right]
 theorem IsBipartite.tensorProduct_right {G H : CGraph}
     (hH : H.IsBipartite) : (CGraph.tensorProduct G H).IsBipartite := by
   obtain ⟨c, hc⟩ := hH
@@ -174,6 +176,26 @@ theorem IsBipartite.of_cartesianProduct_right {G H : CGraph}
   refine ⟨fun b ↦ c (a, b), fun x y hxy ↦ hc (a, x) (a, y) ?_⟩
   rw [cartesianProduct_adj]
   simp [hxy]
+
+
+/-- **A Cartesian product of nonempty graphs is bipartite exactly when both factors are.** -/
+@[toIsoGraph]
+theorem isBipartite_cartesianProduct_iff {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
+    (CGraph.cartesianProduct G H).IsBipartite ↔ G.IsBipartite ∧ H.IsBipartite :=
+  ⟨fun h ↦ ⟨h.of_cartesianProduct_left ‹Nonempty H.V›, h.of_cartesianProduct_right ‹Nonempty G.V›⟩,
+    fun h ↦ IsBipartite.cartesianProduct h.1 h.2⟩
+
+/-- **Every acyclic graph is bipartite**: a forest two-colours. -/
+@[toIsoGraph]
+theorem isBipartite_of_isAcyclic {G : CGraph} (h : G.IsAcyclic) : G.IsBipartite := by
+  rw [isBipartite_iff_colorable]
+  exact h.isBipartite
+
+/-- **A tree is exactly a connected acyclic graph.** -/
+@[toIsoGraph]
+theorem isTree_iff_isConnected_and_isAcyclic (G : CGraph) :
+    G.IsTree ↔ G.IsConnected ∧ G.IsAcyclic :=
+  SimpleGraph.isTree_iff _
 
 /-- **Odd cycles are not bipartite.**  Walking around the cycle, the colour alternates with the
 parity of the index; coming back to `0` from the last vertex, which has even index, contradicts
@@ -1874,6 +1896,7 @@ theorem sum_degSequence_map (G : CGraph) (f : ℕ → ℕ) :
   rfl
 
 /-- The line graph's edge count, phrased so that it only mentions the degree sequence. -/
+@[toIsoGraph E_lineGraph]
 theorem E_lineGraph_eq_sum_degSequence (G : CGraph) :
     (lineGraph G).E = (G.degSequence.map fun d ↦ d.choose 2).sum := by
   rw [sum_degSequence_map, E_lineGraph]
@@ -2245,6 +2268,13 @@ theorem isConnected_compl_of_not_preconnected (G : CGraph) [Nonempty G.V]
   exact SimpleGraph.connected_of_ediam_ne_top
     (ne_top_of_le_ne_top (by simp) (ediam_le_two _ (two_step_compl G h)))
 
+/-- **The complement of a disconnected graph is connected**, phrased with `IsConnected` rather
+than `Preconnected` so that it transfers to `IsoGraph`. -/
+@[toIsoGraph]
+theorem isConnected_compl_of_not_isConnected {G : CGraph} [Nonempty G.V] (h : ¬ G.IsConnected) :
+    Gᶜ.IsConnected :=
+  isConnected_compl_of_not_preconnected G fun hp ↦ h ⟨hp⟩
+
 /-- If the graph is disconnected and has an edge, its complement has diameter exactly two. -/
 theorem diameter_compl_eq_two (G : CGraph) (h : ¬ G.toSimple.Preconnected)
     (hE : 0 < G.E) : Gᶜ.diameter = 2 := by
@@ -2542,7 +2572,7 @@ private theorem exists_isClique_card {S : SimpleGraph X} {n : ℕ} (h : n ≤ S.
   exact ⟨u, ht.subset (by exact_mod_cast hu), hucard⟩
 
 omit [DecidableEq X] in
-private theorem one_le_cliqueNum {S : SimpleGraph X} (a : X) : 1 ≤ S.cliqueNum := by
+private theorem one_le_cliqueNum_simple {S : SimpleGraph X} (a : X) : 1 ≤ S.cliqueNum := by
   have h : S.IsClique (({a} : Finset X) : Set X) := by simp
   simpa using clique_card_le h
 
@@ -2576,7 +2606,7 @@ private theorem cliqueNum_of_cartesian_adj {S : SimpleGraph X} {T : SimpleGraph 
     P.cliqueNum = max S.cliqueNum T.cliqueNum := by
   refine le_antisymm (cliqueNum_le_of_forall fun s hs ↦ ?_) (max_le ?_ ?_)
   · by_cases hcard : s.card ≤ 1
-    · exact hcard.trans (le_max_of_le_left (one_le_cliqueNum a₀))
+    · exact hcard.trans (le_max_of_le_left (one_le_cliqueNum_simple a₀))
     · obtain ⟨p, hp, q, hq, hpq⟩ := Finset.one_lt_card.mp (by omega : 1 < s.card)
       rcases (hadj p q).1 (hs (Finset.mem_coe.2 hp) (Finset.mem_coe.2 hq) hpq) with
         ⟨h1, -⟩ | ⟨-, h1⟩

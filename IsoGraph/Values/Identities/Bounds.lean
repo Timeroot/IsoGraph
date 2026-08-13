@@ -1225,24 +1225,14 @@ example : (cycle 5).numComponents < (cycle 5).V := numComponents_lt_V_of_E_pos (
 
 /-! ### A minimum-degree condition for connectedness -/
 
-/-- **A graph with `2δ(G) + 1 ≥ |V|` is connected.** -/
-theorem isConnected_of_V_le_two_mul_minDeg (G : IsoGraph) (hV : 0 < G.V)
-    (h : G.V ≤ 2 * minDeg G + 1) : IsConnected G := by
-  induction G using Quotient.inductionOn with | _ g
-  rw [← mk_canonicalize g, V_mk] at hV
-  rw [← mk_canonicalize g, V_mk, minDeg_mk] at h
-  rw [← mk_canonicalize g, isConnected_mk]
-  have : Nonempty g.canonicalize.V := Fintype.card_pos_iff.1 hV
-  exact CGraph.isConnected_of_card_le_two_mul_minDeg _ h
-
 theorem numComponents_eq_one_of_V_le_two_mul_minDeg (G : IsoGraph) (hV : 0 < G.V)
     (h : G.V ≤ 2 * minDeg G + 1) : G.numComponents = 1 :=
-  numComponents_eq_one_of_isConnected (G.isConnected_of_V_le_two_mul_minDeg hV h)
+  numComponents_eq_one_of_isConnected (isConnected_of_V_le_two_mul_minDeg (G := G) hV h)
 
 example : (empty 3 □g empty 4).numComponents = 12 := by simp
 
 example : IsConnected (hypercube 2) := by
-  refine (hypercube 2).isConnected_of_V_le_two_mul_minDeg (by simp) ?_
+  refine isConnected_of_V_le_two_mul_minDeg (G := hypercube 2) (by simp) ?_
   simp
 
 /-! ### Counting automorphisms -/
@@ -1263,14 +1253,8 @@ example : (empty 3).autCount = 6 := by simp [Nat.factorial]
 
 /-! ### Automorphisms versus symmetry -/
 
-theorem V_le_autCount_of_isVertexTransitive (G : IsoGraph) (hV : 0 < G.V)
-    (h : G.IsVertexTransitive) : G.V ≤ G.autCount := by
-  induction G using Quotient.inductionOn with | _ g =>
-  haveI : Nonempty g.V := Fintype.card_pos_iff.1 hV
-  exact CGraph.card_le_autCount_of_isVertexTransitive g h
-
 example : 5 ≤ (cycle 5).autCount := by
-  have := V_le_autCount_of_isVertexTransitive (cycle 5) (by simp) (by simp)
+  have := V_le_autCount_of_isVertexTransitive (G := cycle 5) (by simp) (by simp)
   simpa using this
 
 example : 10 ≤ (cycle 5).autCount := by
@@ -1684,14 +1668,6 @@ example : (complete 3 ⊕g complete 3)ᶜ.domNum ≤ 2 :=
 
 
 /-! ### Nordhaus–Gaddum for the clique and independence numbers -/
-
-/-- A single vertex is a one-element independent set. -/
-theorem one_le_indepNum {G : IsoGraph} (h : 0 < G.V) : 1 ≤ G.indepNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk] at h
-  obtain ⟨a⟩ := Fintype.card_pos_iff.1 h
-  rw [← mk_canonicalize g, indepNum_mk]
-  exact CGraph.one_le_indepNum_of_vertex a
 
 /-- The independence numbers of a graph and its complement: `α(G) + α(Gᶜ) ≤ |V| + 1`. -/
 theorem indepNum_add_indepNum_compl_le_V_add_one (G : IsoGraph) :

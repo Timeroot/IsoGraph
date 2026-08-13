@@ -68,6 +68,11 @@ theorem one_le_cliqueNum_of_vertex {G : CGraph} (a : G.V) : 1 ≤ G.cliqueNum :=
   have := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
   simpa using this
 
+/-- **A nonempty graph has a clique**: a single vertex is one. -/
+@[toIsoGraph]
+theorem one_le_cliqueNum {G : CGraph} [Nonempty G.V] : 1 ≤ G.cliqueNum :=
+  one_le_cliqueNum_of_vertex (Classical.arbitrary G.V)
+
 @[toIsoGraph]
 theorem two_le_cliqueNum_of_E_pos {G : CGraph} (h : 0 < G.E) : 2 ≤ G.cliqueNum := by
   obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos h
@@ -108,8 +113,8 @@ theorem exists_degree_eq_minDeg (G : CGraph) (v₀ : G.V) :
 theorem minDeg_le_maxDeg (G : CGraph) : G.minDeg ≤ G.maxDeg :=
   SimpleGraph.minDegree_le_maxDegree _
 
-theorem maxDeg_lt_card (G : CGraph) (v₀ : G.V) : G.maxDeg < Fintype.card G.V :=
-  haveI : Nonempty G.V := ⟨v₀⟩
+@[toIsoGraph maxDeg_lt_V]
+theorem maxDeg_lt_card {G : CGraph} [Nonempty G.V] : G.maxDeg < Fintype.card G.V :=
   SimpleGraph.maxDegree_lt_card_verts _
 
 theorem mem_degMultiset {G : CGraph} {d : ℕ} :
@@ -121,6 +126,12 @@ theorem mem_degMultiset {G : CGraph} {d : ℕ} :
     exact ⟨v, hv⟩
   · rintro ⟨v, hv⟩
     exact ⟨v, Finset.mem_univ_val v, hv⟩
+
+/-- **A bound on every entry of the degree multiset bounds the maximum degree.** -/
+@[toIsoGraph]
+theorem maxDeg_le_of_degMultiset {G : CGraph} {k : ℕ} (h : ∀ d ∈ G.degMultiset, d ≤ k) :
+    G.maxDeg ≤ k :=
+  maxDeg_le_of_forall fun v ↦ h _ (mem_degMultiset.2 ⟨v, rfl⟩)
 
 /-- The maximum degree is the largest entry of the degree multiset. -/
 @[toIsoGraph]
@@ -1314,7 +1325,7 @@ theorem domNum_add_maxDeg_le_card (G : CGraph) : G.domNum + G.maxDeg ≤ Fintype
   have hcardT : T.card = Fintype.card G.V - G.maxDeg := by
     rw [hT, Finset.card_univ_diff, SimpleGraph.card_neighborFinset_eq_degree, hv]
   have h1 := domNum_le_card_of_isDominatingSet hdom
-  have h2 : G.maxDeg < Fintype.card G.V := G.maxDeg_lt_card v₀
+  have h2 : G.maxDeg < Fintype.card G.V := @maxDeg_lt_card G ⟨v₀⟩
   omega
 
 /-- **`γ ≤ τ`** for a graph with no isolated vertex: a vertex cover dominates, since every vertex
@@ -2059,6 +2070,7 @@ theorem numComponents_cartesianProduct (G H : CGraph) :
 
 /-- **A graph with `2δ(G) + 1 ≥ |V|` is connected**: two nonadjacent vertices have too many
 neighbours between them to avoid sharing one. -/
+@[toIsoGraph isConnected_of_V_le_two_mul_minDeg]
 theorem isConnected_of_card_le_two_mul_minDeg (G : CGraph) [Nonempty G.V]
     (h : Fintype.card G.V ≤ 2 * G.minDeg + 1) : G.IsConnected := by
   classical

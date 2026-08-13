@@ -1606,7 +1606,7 @@ more neighbour than its original, and the apex sees every shadow. -/
         exact le_max_of_le_left (by linarith [CGraph.degree_le_maxDeg g v])
       · rw [hdeg_inr]
         have h1 : g.toSimple.degree v + 1 ≤ Fintype.card g.V := by
-          linarith [CGraph.degree_le_maxDeg g v, CGraph.maxDeg_lt_card g v]
+          linarith [CGraph.degree_le_maxDeg g v, @CGraph.maxDeg_lt_card g ⟨v⟩]
         exact le_max_of_le_right h1
     · -- Reverse: max (2 * maxDeg g) |V(g)| ≤ maxDeg H
       have hnone : Fintype.card g.V ≤ H.maxDeg := by
@@ -2464,13 +2464,6 @@ theorem coverNum_lt_coverNum_mycielskian (G : IsoGraph) (hV : 0 < G.V) :
   have h3 := indepNum_mycielskian_le G hV
   rw [V_mycielskian] at h1
   omega
-
-/-- A forest has no odd cycle at all, so two colours always suffice. -/
-theorem isBipartite_of_isAcyclic {G : IsoGraph} (h : IsAcyclic G) : IsBipartite G := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [IsoGraph.isAcyclic_mk] at h
-  rw [IsoGraph.isBipartite_mk, CGraph.isBipartite_iff_colorable]
-  exact h.isBipartite
 
 /-- The contrapositive: an odd cycle somewhere means a cycle somewhere. -/
 theorem not_isAcyclic_of_not_isBipartite {G : IsoGraph} (h : ¬ IsBipartite G) : ¬ IsAcyclic G :=

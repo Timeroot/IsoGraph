@@ -1527,34 +1527,6 @@ split, so the two belong together: the colourings are built here and cashed in t
   exact ⟨fun h ↦ ⟨h.of_disjUnion_left, h.of_disjUnion_right⟩,
     fun h ↦ CGraph.IsBipartite.disjUnion h.1 h.2⟩
 
-/-- A Cartesian product of nonempty graphs is bipartite exactly when both factors are. -/
-theorem isBipartite_cartesianProduct_iff {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
-    IsBipartite (G □g H) ↔ IsBipartite G ∧ IsBipartite H := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
-  rw [cartesianProduct_mk, isBipartite_mk, isBipartite_mk, isBipartite_mk]
-  have hG' : Nonempty G.canonicalize.V := Fintype.card_pos_iff.1 hG
-  have hH' : Nonempty H.canonicalize.V := Fintype.card_pos_iff.1 hH
-  exact ⟨fun h ↦ ⟨h.of_cartesianProduct_left hH', h.of_cartesianProduct_right hG'⟩,
-    fun h ↦ CGraph.IsBipartite.cartesianProduct h.1 h.2⟩
-
-theorem isBipartite_tensorProduct_left {G H : IsoGraph} (hG : IsBipartite G) :
-    IsBipartite (G ⊗g H) := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
-  rw [tensorProduct_mk]
-  exact CGraph.IsBipartite.tensorProduct_left hG
-
-theorem isBipartite_tensorProduct_right {G H : IsoGraph} (hH : IsBipartite H) :
-    IsBipartite (G ⊗g H) := by
-  induction G using Quotient.inductionOn with | _ G =>
-  induction H using Quotient.inductionOn with | _ H =>
-  rw [← mk_canonicalize G, ← mk_canonicalize H] at *
-  rw [tensorProduct_mk]
-  exact CGraph.IsBipartite.tensorProduct_right hH
-
 @[simp] theorem isBipartite_empty (n : ℕ) : IsBipartite (empty n) := by
   rw [empty_def, isBipartite_mk]
   exact ⟨fun _ ↦ false, by simp⟩

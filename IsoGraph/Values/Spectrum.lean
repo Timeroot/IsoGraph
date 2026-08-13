@@ -2856,7 +2856,7 @@ attained by `Kₙ`, which is where every graph sits. -/
 theorem lambdaMax_le_card_sub_one (G : CGraph) [Nonempty G.V] :
     G.lambdaMax ≤ (Fintype.card G.V : ℝ) - 1 := by
   have h := G.lambdaMax_le_maxDeg
-  have h2 := G.maxDeg_lt_card (Classical.arbitrary G.V)
+  have h2 := maxDeg_lt_card (G := G)
   have h3 : ((G.maxDeg : ℝ)) ≤ (Fintype.card G.V : ℝ) - 1 := by
     have : (G.maxDeg + 1 : ℕ) ≤ Fintype.card G.V := h2
     have := (Nat.cast_le (α := ℝ)).2 this
@@ -7307,6 +7307,7 @@ theorem sum_eq_zero_of_lapMat_mulVec {G : CGraph} {v : G.V → ℝ} {x : ℝ} (h
 /-- **Every Laplacian eigenvalue is at most the number of vertices**, the sharp bound, attained
 by the complete graph.  On an eigenvector for `x ≠ 0` — which sums to zero — the complement's
 Laplacian acts as `n - x`, and that is nonnegative. -/
+@[toIsoGraph le_V_of_mem_lapSpectrum]
 theorem le_card_of_mem_lapSpectrum (G : CGraph) {x : ℝ}
     (hx : x ∈ G.lapSpectrum) : x ≤ Fintype.card G.V := by
   rcases eq_or_ne x 0 with rfl | hx0
@@ -7404,6 +7405,7 @@ theorem algConn_eq_zero_of_not_isConnected {G : CGraph} (h : 2 ≤ Fintype.card 
   le_antisymm (not_lt.1 fun hpos ↦ hcon ((G.algConn_pos_iff h).1 hpos)) G.algConn_nonneg
 
 /-- **The algebraic connectivity is at most the order**, with equality for the complete graph. -/
+@[toIsoGraph algConn_le_V]
 theorem algConn_le_card (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
     G.algConn ≤ Fintype.card G.V :=
   G.le_card_of_mem_lapSpectrum (G.algConn_mem_lapSpectrum h)
@@ -7609,6 +7611,7 @@ theorem lapLambdaMax_le_two_mul_maxDeg (G : CGraph) [Nonempty G.V] :
 
 /-- **The largest Laplacian eigenvalue is at least the average degree**: the `n` eigenvalues sum
 to `2 E`. -/
+@[toIsoGraph two_mul_E_le_V_mul_lapLambdaMax]
 theorem two_mul_E_le_card_mul_lapLambdaMax (G : CGraph) :
     2 * (G.E : ℝ) ≤ Fintype.card G.V * G.lapLambdaMax := by
   have hsum : G.lapSpectrum.sum ≤ Multiset.card G.lapSpectrum • G.lapLambdaMax :=
@@ -7618,6 +7621,7 @@ theorem two_mul_E_le_card_mul_lapLambdaMax (G : CGraph) :
 
 /-- **The algebraic connectivity is at most the average of the nonzero eigenvalues**: the `n - 1`
 of them left after the erasure still sum to `2 E`. -/
+@[toIsoGraph V_sub_one_mul_algConn_le_two_mul_E]
 theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
     (Fintype.card G.V - 1 : ℕ) * G.algConn ≤ 2 * (G.E : ℝ) := by
   have hsum : (G.lapSpectrum.erase 0).sum = 2 * (G.E : ℝ) := by
@@ -8235,7 +8239,7 @@ theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V]
     Gᶜ.maxDeg_add_one_le_lapLambdaMax hc
   rw [G.lapLambdaMax_compl h] at h1
   have hδ : G.minDeg ≤ Fintype.card G.V - 1 :=
-    le_trans G.minDeg_le_maxDeg (by have := G.maxDeg_lt_card (Classical.arbitrary G.V); omega)
+    le_trans G.minDeg_le_maxDeg (by have := maxDeg_lt_card (G := G); omega)
   have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
   have h2 : (Gᶜ.maxDeg : ℝ) = (Fintype.card G.V : ℝ) - 1 - G.minDeg := by
     rw [maxDeg_compl (G := G), Nat.cast_sub hδ, Nat.cast_sub h1']
@@ -9185,22 +9189,10 @@ theorem lapSpectrum_wheel {n : ℕ} (hn : 0 < n) :
   rw [hone]
   norm_num [add_comm (1 : ℝ) (n : ℝ)]
 
-/-- **Every Laplacian eigenvalue is at most the number of vertices.** -/
-theorem le_V_of_mem_lapSpectrum {G : IsoGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum) : x ≤ G.V := by
-  induction G using Quotient.inductionOn with
-  | h g => exact g.le_card_of_mem_lapSpectrum hx
-
 /-! ### Laplacian cospectrality -/
 
 theorem lapSpectrum_eq_roots_lapCharpoly (G : IsoGraph) : G.lapSpectrum = G.lapCharpoly.roots :=
   Quotient.inductionOn G fun _ ↦ rfl
-
-theorem algConn_le_V (G : IsoGraph) (h : 2 ≤ G.V) : G.algConn ≤ G.V := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    classical
-    rw [V_mk] at h ⊢
-    exact g.algConn_le_card h
 
 attribute [simp] IsoGraph.algConn_complete IsoGraph.algConn_star
 
@@ -9273,21 +9265,6 @@ theorem algConn_cycle (n : ℕ) :
 /-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
 theorem lapLambdaMax_le_V (G : IsoGraph) (h : 0 < G.V) : G.lapLambdaMax ≤ G.V :=
   le_V_of_mem_lapSpectrum (G.lapLambdaMax_mem_lapSpectrum h)
-
-/-- **The largest Laplacian eigenvalue is at least the average degree.** -/
-theorem two_mul_E_le_V_mul_lapLambdaMax (G : IsoGraph) :
-    2 * (G.E : ℝ) ≤ G.V * G.lapLambdaMax := by
-  induction G using Quotient.inductionOn with
-  | h g => exact g.two_mul_E_le_card_mul_lapLambdaMax
-
-/-- **The algebraic connectivity is at most the average of the nonzero eigenvalues.** -/
-theorem V_sub_one_mul_algConn_le_two_mul_E (G : IsoGraph) (h : 0 < G.V) :
-    ((G.V - 1 : ℕ) : ℝ) * G.algConn ≤ 2 * (G.E : ℝ) := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    rw [V_mk] at h ⊢
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 h
-    exact g.card_sub_one_mul_algConn_le_two_mul_E
 
 /-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`.
 Written out rather than generated: `2 ≤ G.V` already gives `Nonempty`, so the generated form
@@ -9612,7 +9589,7 @@ theorem algConn_wheel {n : ℕ} (hn : 3 ≤ n) :
     rw [hcyc]
     ring
   have hle : (cycle (m + 3)).algConn ≤ (m : ℝ) + 3 := by
-    have := algConn_le_V (cycle (m + 3)) (by rw [hVc]; omega)
+    have := algConn_le_V (G := cycle (m + 3)) (by rw [hVc]; omega)
     rw [hVc] at this
     push_cast at this
     linarith
