@@ -191,107 +191,17 @@ theorem degSequence_turan {n r : ℕ} (hr : 0 < r) :
   exact List.Perm.eq_of_pairwise (fun x y _ _ hxy hyx => le_antisymm hxy hyx)
     hsort_pairwise hl_sorted hperm4
 
-/-- **Paley graphs are self-complementary**: multiplying by a fixed non-residue is a bijection
-that swaps the squares with the non-squares, so it is an isomorphism onto the complement. -/
-theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
-    IsSelfComplementary (paley q) := by
-  unfold IsSelfComplementary
-  rw [paley_def, compl_mk]
-  -- Goal: ⟦(CGraph.paley q)ᶜ⟧ = ⟦CGraph.paley q⟧
-  -- Strategy: Build CGraph iso, then use Quotient.sound
-  -- Build iso at paleyField level, then transport via paleyIso
-  let F := ZMod q
-  have hcardF : Fintype.card F = q := ZMod.card q
-  have hqF : Fintype.card F % 4 = 1 := by rw [hcardF]; exact hq
-  -- Step 1: Get a quadratic non-residue g in F
-  obtain ⟨g, hg0, hgχ⟩ : ∃ g : F, g ≠ 0 ∧ ¬(quadraticChar F g = 1) := by
-    by_contra! h
-    have hcard_eq : (Finset.univ.filter (fun u : F ↦ quadraticChar F u = 1)).card
-        = Fintype.card F - 1 := by
-      have : Finset.univ.filter (fun u : F ↦ quadraticChar F u = 1) = Finset.univ.erase 0 := by
-        ext x; by_cases hx : x = 0 <;> simp [hx]
-        exact h x hx
-      rw [this, Finset.card_erase_of_mem (Finset.mem_univ 0), Finset.card_univ]
-    have hcard := @card_quadraticChar_eq_one F _ _ _ hqF
-    rw [hcard_eq] at hcard
-    have hq_gt : 1 < Fintype.card F := by
-      rw [hcardF]
-      exact (Fact.out : Nat.Prime q).one_lt
-    have : ∀ (n : ℕ), 1 < n → (2 : ℤ) * ((n : ℤ) - 1) = (n : ℤ) - 1 → False := by
-      intros n hn h; linarith
-    apply this _ hq_gt
-    convert hcard using 1
-    · rw [Nat.cast_sub (by omega : 1 ≤ Fintype.card F)] ; push_cast; ring
-  -- Step 2: Build iso paleyField F ≃cg (paleyField F)ᶜ using x ↦ g * x
-  let e : F ≃ F := {
-    toFun := fun x ↦ g * x
-    invFun := fun x ↦ g⁻¹ * x
-    left_inv := fun x ↦ by simp [hg0]
-    right_inv := fun x ↦ by simp [hg0]
-  }
-  have he_adj : ∀ x y : F, ((CGraph.paleyField F)ᶜ).Adj (e x) (e y)
-      = (CGraph.paleyField F).Adj x y := by
-    intro x y
-    change ((CGraph.paleyField F)ᶜ).Adj (g * x) (g * y) = (CGraph.paleyField F).Adj x y
-    simp [CGraph.compl_adj, CGraph.paleyField_adj hqF]
-    have heq : g * x = g * y ↔ x = y := by
-      exact ⟨fun h ↦ mul_left_cancel₀ hg0 h, fun h ↦ by rw [h]⟩
-    have hfact : g * y - g * x = g * (y - x) := by ring
-    rw [hfact]
-    have hχg2 : quadraticChar F g = -1 := by
-      rcases quadraticChar_dichotomy hg0 with h | h <;> tauto
-    have hχ_mul : quadraticChar F (g * (y - x)) = -quadraticChar F (y - x) := by
-      rw [map_mul, hχg2]; ring
-    by_cases hxy : x = y
-    · subst hxy; simp
-    · have hdiff_ne : y - x ≠ 0 := sub_ne_zero.mpr (Ne.symm hxy)
-      have hgxgy : g * x ≠ g * y := mt (heq.mp) hxy
-      simp [hgxgy]
-      -- Goal has quadraticCharFun; unfold to connect with hχ_mul
-      dsimp only [quadraticCharFun] at hχ_mul ⊢
-      -- For nonzero a in F (q ≡ 1 mod 4): quadraticChar F a = 1 ↔ IsSquare a
-      have isSquare_iff : ∀ a : F, a ≠ 0 → (quadraticChar F a = 1 ↔ IsSquare a) := by
-        intro a ha
-        exact quadraticChar_one_iff_isSquare ha
-      -- Simplify the decide expressions for nonzero arguments
-      have hgdiff_ne : g * (y - x) ≠ 0 := mul_ne_zero hg0 hdiff_ne
-      -- The decide expressions simplify: for nonzero a, the if-then-else = 1 ↔ IsSquare a
-      have decide_simp : ∀ a : F, a ≠ 0 →
-          decide ((if a = 0 then 0 else if IsSquare a then 1 else -1) = 1)
-            = decide (IsSquare a) := by
-        intro a ha; simp [ha]
-      rw [decide_simp _ hgdiff_ne, decide_simp _ hdiff_ne]
-      -- Now: decide (IsSquare (g*(y-x))) = !decide (IsSquare (y-x))
-      -- Use hχ_mul and isSquare_iff
-      have χneg_iff : ∀ a : F, a ≠ 0 → (quadraticChar F a = -1 ↔ ¬IsSquare a) := by
-        intro a ha
-        constructor
-        · intro h hi; have := (isSquare_iff a ha).mpr hi; simp [h] at this
-        · intro h
-          exact (quadraticChar_dichotomy ha).resolve_left
-            (fun h' ↦ h (isSquare_iff a ha |>.mp h'))
-      have hchi_gd : quadraticChar F (g * (y - x)) = 1 ↔ ¬IsSquare (y - x) := by
-        rw [hχ_mul]
-        have hchi1 := χneg_iff (y - x) hdiff_ne
-        constructor
-        · intro h; exact hchi1.mp (by linarith)
-        · intro h; exact hchi1.mpr h ▸ by linarith
-      have hiso : IsSquare (g * (y - x)) ↔ ¬IsSquare (y - x) := by
-        rw [← (isSquare_iff _ hgdiff_ne), hchi_gd]
-      by_cases hid : IsSquare (y - x) <;> simp [hid, hiso]
-  -- Step 3: Build iso paley q ≃cg (paley q)ᶜ by transporting
-  let iso_field : CGraph.paleyField F ≃cg (CGraph.paleyField F)ᶜ :=
-    CGraph.isoOfAdj e he_adj
-  -- `paleyIso q : paleyField F ≃cg paley q` transports the witness across the two models of the
-  -- Paley graph, and `Iso.compl` transports it into the complement.
-  let iso_paley : CGraph.paley q ≃cg (CGraph.paley q)ᶜ :=
-    (CGraph.paleyIso q).symm.trans (iso_field.trans (CGraph.Iso.compl (CGraph.paleyIso q)))
-  exact Quotient.sound ⟨iso_paley.symm⟩
+/-! ### Paley graphs
 
+**Paley graphs are self-complementary**: multiplying by a fixed non-residue is a bijection that
+swaps the squares with the non-squares, so it is an isomorphism onto the complement.  The
+isomorphism itself is `CGraph.Iso.complPaley`; here it is only lifted to `IsoGraph`. -/
+
+attribute [toIsoGraph simp compl_paley] CGraph.Iso.complPaley
 
 /-- The complement of a Paley graph of prime order is itself. -/
-@[simp] theorem compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
-    (paley q)ᶜ = paley q := isSelfComplementary_paley q hq
+theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    IsSelfComplementary (paley q) := compl_paley q hq
 
 end IsoGraph
 

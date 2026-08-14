@@ -89,7 +89,7 @@ namespace CGraph
 two-element subset of `Fin n`, and two distinct such subsets meet exactly when they meet in
 *one* point — which is the adjacency of `J(n, 2)`. -/
 @[toIsoGraph simp lineGraph_complete]
-noncomputable def lineGraphComplete (n : ℕ) : lineGraph (complete n) ≃cg johnson n 2 := by
+def lineGraphComplete (n : ℕ) : lineGraph (complete n) ≃cg johnson n 2 := by
   have hcard : ∀ e : (CGraph.lineGraph (CGraph.complete n)).V,
       (e.1 : Sym2 (Fin n)).toFinset.card = 2 := by
     rintro ⟨e, he⟩
@@ -163,7 +163,7 @@ noncomputable def lineGraphComplete (n : ℕ) : lineGraph (complete n) ≃cg joh
             Finset.eq_of_subset_of_card_le Finset.inter_subset_right (by rw [htwo, (F f).2])
           exact hef (hinj (Subtype.ext (h1.symm.trans h2)))
         omega
-  exact isoOfAdj (Equiv.ofBijective F ⟨hinj, hsurj⟩) hadj
+  exact isoOfAdj (equivOfBijective ⟨hinj, hsurj⟩) hadj
 
 end CGraph
 
@@ -1222,7 +1222,7 @@ private theorem cycEdge_inj (n : ℕ) : Function.Injective (cycEdge n) := by
 `{i, i+1}`, and two of them share a vertex exactly when their indices are consecutive.  Injectivity
 is where `n ≥ 3` enters: for `n = 2` the two "edges" `{0, 1}` and `{1, 0}` coincide. -/
 @[toIsoGraph simp lineGraph_cycle]
-noncomputable def lineGraphCycle (n : ℕ) : lineGraph (cycle (n + 3)) ≃cg cycle (n + 3) := by
+def lineGraphCycle (n : ℕ) : lineGraph (cycle (n + 3)) ≃cg cycle (n + 3) := by
   have hcard : Fintype.card (Fin (n + 3))
       = Fintype.card (CGraph.lineGraph (CGraph.cycle (n + 3))).V := by
     rw [CGraph.card_lineGraph, CGraph.E_cycle, Fintype.card_fin]
@@ -1248,7 +1248,7 @@ noncomputable def lineGraphCycle (n : ℕ) : lineGraph (cycle (n + 3)) ≃cg cyc
       · rintro (h | h)
         · exact ⟨j, (mem_cycEdge n j i).2 (Or.inr h.symm), (mem_cycEdge n j j).2 (Or.inl rfl)⟩
         · exact ⟨i, (mem_cycEdge n i i).2 (Or.inl rfl), (mem_cycEdge n i j).2 (Or.inr h.symm)⟩
-  exact (isoOfAdj (Equiv.ofBijective (cycEdge n) hbij) hadj).symm
+  exact (isoOfAdj (equivOfBijective hbij) hadj).symm
 
 /-- Path adjacency at the level of the underlying naturals.  Note that `i ≠ j` is implied by
 either disjunct, so it drops out. -/
@@ -1285,7 +1285,7 @@ private theorem pathEdge_inj (n : ℕ) : Function.Injective (pathEdge n) := by
 /-- **The line graph of a path is the shorter path**: `L(Pₙ₊₁) = Pₙ`.  Unlike the cycle this needs
 no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
 @[toIsoGraph simp lineGraph_path]
-noncomputable def lineGraphPath (n : ℕ) : lineGraph (path (n + 1)) ≃cg path n := by
+def lineGraphPath (n : ℕ) : lineGraph (path (n + 1)) ≃cg path n := by
   have hcard : Fintype.card (Fin n)
       = Fintype.card (CGraph.lineGraph (CGraph.path (n + 1))).V := by
     rw [CGraph.card_lineGraph, CGraph.E_path, Fintype.card_fin]
@@ -1313,7 +1313,7 @@ noncomputable def lineGraphPath (n : ℕ) : lineGraph (path (n + 1)) ≃cg path 
             (mem_pathEdge n _ j).2 (Or.inl (Fin.ext (by simpa using h)))⟩
         · exact ⟨i.castSucc, (mem_pathEdge n _ i).2 (Or.inl rfl),
             (mem_pathEdge n _ j).2 (Or.inr (Fin.ext (by simpa using h.symm)))⟩
-  exact (isoOfAdj (Equiv.ofBijective (pathEdge n) hbij) hadj).symm
+  exact (isoOfAdj (equivOfBijective hbij) hadj).symm
 
 private theorem bipartiteEdge_adj (m n : ℕ) (p : Fin m × Fin n) :
     s(Sum.inl p.1, Sum.inr p.2) ∈ (CGraph.bipartite m n).toSimple.edgeSet := by
@@ -1340,7 +1340,7 @@ private theorem bipartiteEdge_inj (m n : ℕ) : Function.Injective (bipartiteEdg
 /-- **The line graph of a complete bipartite graph is the rook's graph**: `L(K_{m,n}) = Kₘ □ Kₙ`.
 An edge of `K_{m,n}` *is* a square `(i, j)` of the `m × n` board, and two squares share a vertex
 exactly when they share a row or a column. -/
-noncomputable def lineGraphBipartite (m n : ℕ) : lineGraph (bipartite m n) ≃cg rook m n := by
+def lineGraphBipartite (m n : ℕ) : lineGraph (bipartite m n) ≃cg rook m n := by
   have hcard : Fintype.card (Fin m × Fin n)
       = Fintype.card (CGraph.lineGraph (CGraph.bipartite m n)).V := by
     rw [CGraph.card_lineGraph, CGraph.E_bipartite, Fintype.card_prod, Fintype.card_fin,
@@ -1373,7 +1373,7 @@ noncomputable def lineGraphBipartite (m n : ℕ) : lineGraph (bipartite m n) ≃
             (mem_bipartiteEdge m n _ q).2 (Or.inl (by rw [h]))⟩
         · exact ⟨Sum.inr p.2, (mem_bipartiteEdge m n _ p).2 (Or.inr rfl),
             (mem_bipartiteEdge m n _ q).2 (Or.inr (by rw [h]))⟩
-  exact (isoOfAdj (Equiv.ofBijective (bipartiteEdge m n) hbij) hadj).symm
+  exact (isoOfAdj (equivOfBijective hbij) hadj).symm
 
 end CGraph
 

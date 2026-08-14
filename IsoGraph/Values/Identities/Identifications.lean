@@ -477,19 +477,28 @@ theorem circulant_two_one : circulant 2 [1] = complete 2 := by
 /-! ### Paley graphs
 
 **Paley graphs are self-complementary**, because multiplication by a non-residue exchanges the
-squares with the non-squares.  The general statement needs the multiplicative structure of
-`GF(q)`; these two are the witnesses `x ↦ 2x` mod `13` and `x ↦ 3x` mod `17`. -/
+squares with the non-squares: that is `Iso.complPaleyOfNotIsSquare`, and all it needs is the
+non-residue, here `2` mod `13` and `3` mod `17`.  Nine is not prime, and the degenerate `paley 9`
+is handled separately. -/
+
+theorem not_isSquare_two_zmod_thirteen : ¬ IsSquare (2 : ZMod 13) := by decide
+
+theorem not_isSquare_three_zmod_seventeen : ¬ IsSquare (3 : ZMod 17) := by decide
 
 @[toIsoGraph simp compl_paley_thirteen]
-noncomputable def complPaleyThirteen : (paley 13)ᶜ ≃cg paley 13 := Iso.paleyThirteenIso.symm
+def complPaleyThirteen : (paley 13)ᶜ ≃cg paley 13 :=
+  haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
+  Iso.complPaleyOfNotIsSquare 13 rfl not_isSquare_two_zmod_thirteen
 
 @[toIsoGraph simp compl_paley_seventeen]
-noncomputable def complPaleySeventeen : (paley 17)ᶜ ≃cg paley 17 := Iso.paleySeventeenIso.symm
+def complPaleySeventeen : (paley 17)ᶜ ≃cg paley 17 :=
+  haveI : Fact (Nat.Prime 17) := ⟨by decide⟩
+  Iso.complPaleyOfNotIsSquare 17 rfl not_isSquare_three_zmod_seventeen
 
 @[toIsoGraph compl_paley_nine]
-noncomputable def complPaleyNine :
+def complPaleyNine :
     (paley 9)ᶜ ≃cg complete 3 ⊕g (complete 3 ⊕g complete 3) :=
-  Iso.paleyNineIso.symm
+  Iso.complPaleyNine
 
 /-- The complement of a three-part complete multipartite graph is three cliques. -/
 noncomputable def complCompleteMultipartiteTriple (a b c : ℕ) :

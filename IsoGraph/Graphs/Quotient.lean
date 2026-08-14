@@ -706,9 +706,9 @@ def lineGraph (i : G ≃cg G') :
 `G + H` lies wholly in `G` or wholly in `H`, and two edges on opposite sides never meet.
 
 The forward map `sumEdge` is injective, and both sides have `E G + E H` vertices, so
-`Fintype.bijective_iff_injective_and_card` supplies the inverse — which is why this is
-`noncomputable`. -/
-noncomputable def lineGraphDisjUnion (G H : CGraph) :
+`Fintype.bijective_iff_injective_and_card` makes it a bijection and `equivOfBijective` inverts
+it by search. -/
+def lineGraphDisjUnion (G H : CGraph) :
     CGraph.lineGraph (G ⊕g H) ≃cg
       CGraph.lineGraph G ⊕g CGraph.lineGraph H := by
   have hcard : Fintype.card ((CGraph.lineGraph G).V ⊕ (CGraph.lineGraph H).V)
@@ -718,18 +718,16 @@ noncomputable def lineGraphDisjUnion (G H : CGraph) :
   have hbij : Function.Bijective (sumEdge G H) :=
     Fintype.bijective_iff_injective_and_card _ |>.2 ⟨sumEdge_inj G H, hcard⟩
   have hmem : ∀ (e : (CGraph.lineGraph G).V) (v : (G ⊕g H).V),
-      v ∈ (((Equiv.ofBijective (sumEdge G H) hbij) (.inl e)).1 :
-            Sym2 (G ⊕g H).V)
+      v ∈ (((equivOfBijective hbij) (.inl e)).1 : Sym2 (G ⊕g H).V)
         ↔ ∃ a ∈ (e.1 : Sym2 G.V), Sum.inl a = v :=
     fun _ _ ↦ Sym2.mem_map
   have hmem' : ∀ (e : (CGraph.lineGraph H).V) (v : (G ⊕g H).V),
-      v ∈ (((Equiv.ofBijective (sumEdge G H) hbij) (.inr e)).1 :
-            Sym2 (G ⊕g H).V)
+      v ∈ (((equivOfBijective hbij) (.inr e)).1 : Sym2 (G ⊕g H).V)
         ↔ ∃ a ∈ (e.1 : Sym2 H.V), Sum.inr a = v :=
     fun _ _ ↦ Sym2.mem_map
   refine (isoOfAdj (G := CGraph.lineGraph G ⊕g CGraph.lineGraph H)
     (H := CGraph.lineGraph (G ⊕g H))
-    (Equiv.ofBijective _ hbij) ?_).symm
+    (equivOfBijective hbij) ?_).symm
   rintro (e | e) (f | f) <;> rw [CGraph.lineGraph_adj]
   · show _ = (CGraph.lineGraph G).Adj e f
     rw [CGraph.lineGraph_adj]
@@ -1045,21 +1043,24 @@ private def paleyNineMap : Fin 3 ⊕ Fin 3 ⊕ Fin 3 → (CGraph.paley 9).V
   | .inr (.inl i) => ⟨3 * i.1 + 1, by omega⟩
   | .inr (.inr i) => ⟨3 * i.1 + 2, by omega⟩
 
-/-- `paley 9` is `K₃,₃,₃`: its complement is three triangles, the residue classes mod `3`. -/
-noncomputable def paleyNineIso :
-    CGraph.complete 3 ⊕g (CGraph.complete 3 ⊕g CGraph.complete 3) ≃cg
-      (CGraph.paley 9)ᶜ :=
-  isoOfAdj (Equiv.ofBijective paleyNineMap (by decide)) (by decide)
+/-- Which residue class mod `3` a vertex of `paley 9` lies in: the inverse of `paleyNineMap`. -/
+private def paleyNineClass : (CGraph.paley 9).V → Fin 3 ⊕ Fin 3 ⊕ Fin 3 :=
+  ![.inl 0, .inr (.inl 0), .inr (.inr 0), .inl 1, .inr (.inl 1), .inr (.inr 1),
+    .inl 2, .inr (.inl 2), .inr (.inr 2)]
 
-/-- Multiplication by the non-residue `2` mod `13` exchanges edges with non-edges. -/
-noncomputable def paleyThirteenIso : CGraph.paley 13 ≃cg (CGraph.paley 13)ᶜ :=
-  isoOfAdj (Equiv.ofBijective (fun x : Fin 13 ↦ (⟨2 * x.1 % 13, by omega⟩ : Fin 13))
-    (by decide)) (by decide)
+private def paleyNineEquiv : (CGraph.paley 9).V ≃ (Fin 3 ⊕ Fin 3 ⊕ Fin 3) where
+  toFun := paleyNineClass
+  invFun := paleyNineMap
+  left_inv := by decide
+  right_inv := by decide
 
-/-- Multiplication by the non-residue `3` mod `17`. -/
-noncomputable def paleySeventeenIso : CGraph.paley 17 ≃cg (CGraph.paley 17)ᶜ :=
-  isoOfAdj (Equiv.ofBijective (fun x : Fin 17 ↦ (⟨3 * x.1 % 17, by omega⟩ : Fin 17))
-    (by decide)) (by decide)
+/-- `paley 9` is `K₃,₃,₃`: its complement is three triangles, the residue classes mod `3`.
+(Nine is not prime, so this is not an instance of `Iso.complPaleyOfNotIsSquare`.) -/
+def complPaleyNine :
+    (CGraph.paley 9)ᶜ ≃cg CGraph.complete 3 ⊕g (CGraph.complete 3 ⊕g CGraph.complete 3) :=
+  isoOfAdj (G := (CGraph.paley 9)ᶜ)
+    (H := CGraph.complete 3 ⊕g (CGraph.complete 3 ⊕g CGraph.complete 3))
+    paleyNineEquiv (by decide)
 
 end Iso
 

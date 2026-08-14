@@ -71,6 +71,19 @@ def isoOfAdj {G H : CGraph} (e : G.V ≃ H.V) (h : ∀ x y, H.Adj (e x) (e y) = 
 @[simp] theorem isoOfAdj_apply {G H : CGraph} (e : G.V ≃ H.V)
     (h : ∀ x y, H.Adj (e x) (e y) = G.Adj x y) (x : G.V) : isoOfAdj e h x = e x := rfl
 
+/-- `Equiv.ofBijective`, computably: between finite types the inverse of a bijection can be found
+by search, so an isomorphism built from one is data rather than a classical choice.  Vertex types
+are finite with decidable equality, so this is the version to use on graphs. -/
+def equivOfBijective {α β : Type} [Fintype α] [DecidableEq β] {f : α → β}
+    (hf : Function.Bijective f) : α ≃ β where
+  toFun := f
+  invFun := Fintype.bijInv hf
+  left_inv := Fintype.leftInverse_bijInv hf
+  right_inv := Fintype.rightInverse_bijInv hf
+
+@[simp] theorem equivOfBijective_apply {α β : Type} [Fintype α] [DecidableEq β] {f : α → β}
+    (hf : Function.Bijective f) (x : α) : equivOfBijective hf x = f x := rfl
+
 /-! ## The primitives -/
 
 /-- A `CGraph` from an arbitrary relation: symmetrise it, and delete the diagonal.
@@ -4700,6 +4713,37 @@ theorem quadraticChar_eq_one_iff (a : F) :
   · rintro ⟨r, hr0, rfl⟩
     exact (quadraticChar_one_iff_isSquare (mul_ne_zero hr0 hr0)).2 ⟨r, rfl⟩
 
+/-! #### Self-complementarity
+
+Zero is a square, so a non-square is nonzero, and multiplying by it is a bijection of `F` that
+exchanges the squares with the non-squares — that is, edges of `paleyField F` with non-edges. -/
+
+omit [Fintype F] [DecidableEq F] in
+theorem ne_zero_of_not_isSquare {g : F} (hg : ¬ IsSquare g) : g ≠ 0 := by
+  rintro rfl; exact hg ⟨0, by simp⟩
+
+/-- Multiplying by a non-square turns adjacency in a Paley graph into adjacency in its
+complement: `χ (g * (y - x)) = -χ (y - x)`. -/
+theorem paleyField_adj_mul (hq : Fintype.card F % 4 = 1) {g : F} (hg : ¬ IsSquare g) (x y : F) :
+    (paleyField F).Adj (g * x) (g * y) = ((paleyField F)ᶜ).Adj x y := by
+  have hg0 : g ≠ 0 := ne_zero_of_not_isSquare hg
+  have hχg : quadraticChar F g = -1 :=
+    (quadraticChar_dichotomy hg0).resolve_left fun h ↦
+      hg ((quadraticChar_one_iff_isSquare hg0).1 h)
+  rw [paleyField_adj hq, compl_adj, paleyField_adj hq,
+    show g * y - g * x = g * (y - x) from by ring, map_mul, hχg]
+  by_cases hxy : x = y
+  · subst hxy; simp
+  · have hne : y - x ≠ 0 := sub_ne_zero.mpr (Ne.symm hxy)
+    rcases quadraticChar_dichotomy hne with h | h <;> rw [h] <;> simp [hxy]
+
+/-- **Paley graphs of fields are self-complementary**: multiplication by a fixed non-square is an
+isomorphism from the complement onto the graph. -/
+def Iso.complPaleyField (hq : Fintype.card F % 4 = 1) {g : F} (hg : ¬ IsSquare g) :
+    (paleyField F)ᶜ ≃cg paleyField F :=
+  isoOfAdj (G := (paleyField F)ᶜ) (H := paleyField F)
+    (show F ≃ F from Equiv.mulLeft₀ g (ne_zero_of_not_isSquare hg)) (paleyField_adj_mul hq hg)
+
 end PaleyField
 
 /-! ### `paley q` is the field version over `ZMod q` -/
@@ -4734,6 +4778,23 @@ theorem paley_adj_eq (q : ℕ) [NeZero q] [Fact q.Prime] (a b : ZMod q) :
 def paleyIso (q : ℕ) [NeZero q] [Fact q.Prime] : paleyField (ZMod q) ≃cg paley q :=
   ⟨zmodEquivFin q, fun {a b} ↦
     iff_of_eq (congrArg (fun x : Bool ↦ x = true) (paley_adj_eq q a b))⟩
+
+/-- **`paley q` is self-complementary**, as data: transport `Iso.complPaleyField` — multiplication
+by the non-residue `g` — along `paleyIso q`.  Naming the non-residue keeps this computable; for
+the bare existence statement see `Iso.complPaley`. -/
+def Iso.complPaleyOfNotIsSquare (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) {g : ZMod q}
+    (hg : ¬ IsSquare g) : (paley q)ᶜ ≃cg paley q :=
+  (Iso.compl (paleyIso q)).symm.trans
+    ((Iso.complPaleyField (F := ZMod q) (by rw [ZMod.card]; exact hq) hg).trans (paleyIso q))
+
+/-- Every prime `q ≡ 1 mod 4` has a non-residue, so `paley q` is self-complementary.  Choosing
+one is the only classical step, and `Iso.complPaleyOfNotIsSquare` avoids it when a witness is
+known. -/
+noncomputable def Iso.complPaley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q)ᶜ ≃cg paley q :=
+  Iso.complPaleyOfNotIsSquare q hq
+    (Classical.choose_spec (FiniteField.exists_nonsquare (F := ZMod q) (by
+      rw [ZMod.ringChar_zmod_n]; omega)))
 
 /-- **`paley q` is strongly regular** for every prime `q ≡ 1 mod 4`. -/
 @[toIsoGraph]
