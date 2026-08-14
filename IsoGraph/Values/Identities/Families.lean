@@ -853,11 +853,11 @@ The four statements below give the matching number of the hypercube and of the c
 graph, the radius of a path, and the matching bound on the clique cover number. -/
 
 /-- Cover the vertices by the edges of a maximum matching plus the leftover singletons. -/
-theorem cliqueCoverNum_le_V_sub_matchNum (G : IsoGraph) : G.cliqueCoverNum ≤ G.V - G.matchNum := by
-  rw [cliqueCoverNum_eq]
-  induction G using Quotient.inductionOn with | _ g =>
+@[toIsoGraph cliqueCoverNum_le_V_sub_matchNum]
+theorem _root_.CGraph.cliqueCoverNum_le_card_sub_matchNum (g : CGraph) :
+    g.cliqueCoverNum ≤ Fintype.card g.V - g.matchNum := by
   classical
-  rw [compl_mk, V_mk, matchNum_eq, lineGraph_mk, indepNum_mk, chromNum_mk]
+  show CGraph.chromNum gᶜ ≤ Fintype.card g.V - (CGraph.lineGraph g).indepNum
   -- Get a max independent set in CGraph.lineGraph g (a max matching)
   obtain ⟨S, hS_indep, hS_card⟩ := (CGraph.lineGraph g).toSimple.exists_isNIndepSet_indepNum
   have hcard : S.card = (CGraph.lineGraph g).indepNum := hS_card

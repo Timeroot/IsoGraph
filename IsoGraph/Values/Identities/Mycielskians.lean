@@ -789,7 +789,7 @@ theorem diameter_mycielskian_turan_le_four {n r : ℕ} (hr : 2 ≤ r) (hn : r �
 
 theorem matchNum_mycielskian_turan {m r : ℕ} (hr : 2 ≤ r) (hn : r ≤ 2 * m) :
     (mycielskian (turan (2 * m) r)).matchNum = 2 * m := by
-  have h := matchNum_mycielskian (turan (2 * m) r)
+  have h := matchNum_mycielskian (G := turan (2 * m) r)
     (by rw [matchNum_turan hr hn, V_turan]; omega)
   rw [V_turan] at h
   omega
@@ -2756,7 +2756,7 @@ theorem domNum_mycielskian_lineGraph {G : IsoGraph} (hE : 0 < G.E) :
 
 theorem matchNum_mycielskian_lineGraph {G : IsoGraph} (h : 2 * (lineGraph G).matchNum = G.E) :
     (mycielskian (lineGraph G)).matchNum = G.E := by
-  have hm := matchNum_mycielskian (lineGraph G) (by rw [V_lineGraph]; exact h)
+  have hm := matchNum_mycielskian (G := lineGraph G) (by rw [V_lineGraph]; exact h)
   rwa [V_lineGraph] at hm
 
 /-! ### The iterated line graph -/
@@ -3156,7 +3156,7 @@ theorem radius_mycielskian_cartesianProduct {G H : IsoGraph} (hG : 0 < G.V) (hH 
 theorem matchNum_mycielskian_disjUnion {G H : IsoGraph}
     (h : 2 * (G.matchNum + H.matchNum) = G.V + H.V) :
     (mycielskian (G ⊕g H)).matchNum = G.V + H.V := by
-  have hm := matchNum_mycielskian (G ⊕g H) (by rw [matchNum_disjUnion, V_disjUnion]; exact h)
+  have hm := matchNum_mycielskian (G := G ⊕g H) (by rw [matchNum_disjUnion, V_disjUnion]; exact h)
   rwa [V_disjUnion] at hm
 
 theorem domNum_mycielskian_disjUnion {G H : IsoGraph} (hG : 0 < G.V) :

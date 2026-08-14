@@ -2225,6 +2225,13 @@ theorem diameter_join_of_not_adj (G H : CGraph)
   · exact fun h ↦ hne (Sum.inl.inj h)
   · simp [hadj]
 
+/-- **A join whose left factor is not complete has diameter two.** -/
+@[toIsoGraph]
+theorem diameter_join_left {G H : CGraph} [Nonempty H.V]
+    (h : G.E < (Fintype.card G.V).choose 2) : (join G H).diameter = 2 := by
+  obtain ⟨a, c, hne, hadj⟩ := exists_not_adj_of_E_lt G h
+  exact diameter_join_of_not_adj G H hne hadj
+
 /-! ### The complement of a disconnected graph -/
 
 /-- Unreachable vertices are adjacent in the complement. -/

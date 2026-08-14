@@ -1384,7 +1384,7 @@ theorem four_le_girth_mycielskian_cycle (m : ℕ) :
 
 theorem matchNum_mycielskian_cycle_even (m : ℕ) :
     (mycielskian (cycle (2 * m + 4))).matchNum = 2 * m + 4 := by
-  have h := matchNum_mycielskian (cycle (2 * m + 4)) (by rw [matchNum_cycle, V_cycle]; omega)
+  have h := matchNum_mycielskian (G := cycle (2 * m + 4)) (by rw [matchNum_cycle, V_cycle]; omega)
   rwa [V_cycle] at h
 
 theorem cliqueCoverNum_mycielskian_cycle_even (m : ℕ) :
@@ -1441,7 +1441,7 @@ theorem four_le_girth_mycielskian_path (m : ℕ) :
 
 theorem matchNum_mycielskian_path_even (m : ℕ) :
     (mycielskian (path (2 * m + 2))).matchNum = 2 * m + 2 := by
-  have h := matchNum_mycielskian (path (2 * m + 2)) (by rw [matchNum_path, V_path]; omega)
+  have h := matchNum_mycielskian (G := path (2 * m + 2)) (by rw [matchNum_path, V_path]; omega)
   rwa [V_path] at h
 
 theorem cliqueCoverNum_mycielskian_path_even (m : ℕ) :
@@ -1498,7 +1498,8 @@ theorem girth_mycielskian_complete (m : ℕ) :
 
 theorem matchNum_mycielskian_complete_even (m : ℕ) :
     (mycielskian (complete (2 * m))).matchNum = 2 * m := by
-  have h := matchNum_mycielskian (complete (2 * m)) (by rw [matchNum_complete, V_complete]; omega)
+  have h := matchNum_mycielskian (G := complete (2 * m))
+    (by rw [matchNum_complete, V_complete]; omega)
   rwa [V_complete] at h
 
 /-! ### The Mycielskian of a hypercube -/
@@ -1544,7 +1545,7 @@ theorem four_le_girth_mycielskian_hypercube (n : ℕ) :
 
 theorem matchNum_mycielskian_hypercube (n : ℕ) :
     (mycielskian (hypercube (n + 1))).matchNum = 2 ^ (n + 1) := by
-  have h := matchNum_mycielskian (hypercube (n + 1))
+  have h := matchNum_mycielskian (G := hypercube (n + 1))
     (by rw [matchNum_hypercube, V_hypercube]; ring)
   rwa [V_hypercube] at h
 
@@ -1595,7 +1596,7 @@ theorem four_le_girth_mycielskian_petersen : 4 ≤ (mycielskian petersen).girth 
   four_le_girth_mycielskian _ (by rw [cliqueNum_petersen]) (by rw [E_petersen]; omega)
 
 theorem matchNum_mycielskian_petersen : (mycielskian petersen).matchNum = 10 := by
-  have h := matchNum_mycielskian petersen (by rw [matchNum_petersen, V_petersen])
+  have h := matchNum_mycielskian (G := petersen) (by rw [matchNum_petersen, V_petersen])
   rwa [V_petersen] at h
 
 theorem cliqueCoverNum_mycielskian_petersen : (mycielskian petersen).cliqueCoverNum = 11 := by
@@ -1705,7 +1706,7 @@ theorem four_le_girth_mycielskian_bipartite (m n : ℕ) :
 
 theorem matchNum_mycielskian_bipartite (n : ℕ) :
     (mycielskian (bipartite (n + 1) (n + 1))).matchNum = 2 * n + 2 := by
-  have h := matchNum_mycielskian (bipartite (n + 1) (n + 1))
+  have h := matchNum_mycielskian (G := bipartite (n + 1) (n + 1))
     (by rw [matchNum_bipartite, V_bipartite]; omega)
   rw [V_bipartite] at h
   omega
@@ -1791,7 +1792,7 @@ theorem girth_mycielskian_cocktailParty (n : ℕ) :
 
 theorem matchNum_mycielskian_cocktailParty (n : ℕ) :
     (mycielskian (cocktailParty (n + 2))).matchNum = 2 * n + 4 := by
-  have h := matchNum_mycielskian (cocktailParty (n + 2))
+  have h := matchNum_mycielskian (G := cocktailParty (n + 2))
     (by rw [matchNum_cocktailParty, V_cocktailParty])
   rw [V_cocktailParty] at h
   omega
@@ -1869,7 +1870,7 @@ theorem girth_mycielskian_wheel (n : ℕ) :
 
 theorem matchNum_mycielskian_wheel (m : ℕ) :
     (mycielskian (wheel (2 * m + 3))).matchNum = 2 * m + 4 := by
-  have h := matchNum_mycielskian (wheel (2 * m + 3))
+  have h := matchNum_mycielskian (G := wheel (2 * m + 3))
     (by rw [matchNum_wheel, V_wheel]; omega)
   rw [V_wheel] at h
   omega
@@ -1945,7 +1946,7 @@ theorem girth_mycielskian_fan (n : ℕ) :
 
 theorem matchNum_mycielskian_fan (m : ℕ) :
     (mycielskian (fan (2 * m + 1))).matchNum = 2 * m + 2 := by
-  have h := matchNum_mycielskian (fan (2 * m + 1)) (by rw [matchNum_fan, V_fan]; omega)
+  have h := matchNum_mycielskian (G := fan (2 * m + 1)) (by rw [matchNum_fan, V_fan]; omega)
   rw [V_fan] at h
   omega
 
@@ -2158,7 +2159,7 @@ theorem four_le_girth_mycielskian_ladder (n : ℕ) :
 
 theorem matchNum_mycielskian_ladder (n : ℕ) :
     (mycielskian (ladder n)).matchNum = 2 * n := by
-  have h := matchNum_mycielskian (ladder n) (by rw [matchNum_ladder, V_ladder]; omega)
+  have h := matchNum_mycielskian (G := ladder n) (by rw [matchNum_ladder, V_ladder]; omega)
   rw [V_ladder] at h
   omega
 
@@ -2235,7 +2236,7 @@ theorem four_le_girth_mycielskian_prism (n : ℕ) :
 
 theorem matchNum_mycielskian_prism (n : ℕ) :
     (mycielskian (prism n)).matchNum = 2 * n := by
-  have h := matchNum_mycielskian (prism n) (by rw [matchNum_prism, V_prism]; omega)
+  have h := matchNum_mycielskian (G := prism n) (by rw [matchNum_prism, V_prism]; omega)
   rw [V_prism] at h
   omega
 
@@ -2316,7 +2317,7 @@ theorem four_le_girth_mycielskian_crown (n : ℕ) :
 
 theorem matchNum_mycielskian_crown (n : ℕ) :
     (mycielskian (crown (n + 2))).matchNum = 2 * n + 4 := by
-  have h := matchNum_mycielskian (crown (n + 2)) (by rw [matchNum_crown, V_crown])
+  have h := matchNum_mycielskian (G := crown (n + 2)) (by rw [matchNum_crown, V_crown])
   rw [V_crown] at h
   omega
 

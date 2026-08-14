@@ -1033,19 +1033,6 @@ theorem isConnected_bipartite_self (n : ℕ) : IsConnected (bipartite (n + 1) (n
 
 /-! ### The diameter of a join -/
 
-/-- A join whose left factor is not complete has diameter two. -/
-theorem diameter_join_left {G H : IsoGraph} (hH : 0 < H.V) (h : G.E < G.V.choose 2) :
-    (G ∇g H).diameter = 2 := by
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h' =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h'] at *
-  rw [V_mk] at hH
-  rw [E_mk, V_mk] at h
-  haveI := Fintype.card_pos_iff.1 hH
-  rw [join_mk, diameter_mk]
-  obtain ⟨a, c, hne, hadj⟩ := CGraph.exists_not_adj_of_E_lt _ h
-  exact CGraph.diameter_join_of_not_adj _ _ hne hadj
-
 /-- A join whose right factor is not complete has diameter two. -/
 theorem diameter_join_right {G H : IsoGraph} (hG : 0 < G.V) (h : H.E < H.V.choose 2) :
     (G ∇g H).diameter = 2 := by

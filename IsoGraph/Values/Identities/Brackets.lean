@@ -111,24 +111,9 @@ theorem not_isVertexTransitive_mycielskian_cycle (n : ℕ) :
 
 Arc-transitivity implies vertex-transitivity as soon as there are no isolated vertices, so every
 negative vertex-transitivity entry is also a negative arc-transitivity entry.  The lift of
-`CGraph.isVertexTransitive_of_isArcTransitive` to the quotient states "no isolated vertices" as
-`0 < δ`.
+`CGraph.isVertexTransitive_of_isArcTransitive_of_minDeg_pos` to the quotient states "no isolated
+vertices" as `0 < δ`.
 -/
-
-/-- **Arc-transitive graphs with no isolated vertex are vertex-transitive.**  Given `u` and `v`,
-pick any neighbours `u'` and `v'` and carry the arc `u → u'` to the arc `v → v'`. -/
-theorem IsArcTransitive.isVertexTransitive {G : IsoGraph} (h : IsArcTransitive G)
-    (hδ : 0 < G.minDeg) : IsVertexTransitive G := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g] at *
-  rw [isVertexTransitive_mk]
-  rw [isArcTransitive_mk] at h
-  rw [minDeg_mk] at hδ
-  refine CGraph.isVertexTransitive_of_isArcTransitive _ (fun u ↦ ?_) h
-  have hd : 0 < g.canonicalize.toSimple.degree u :=
-    lt_of_lt_of_le hδ (CGraph.minDeg_le_degree g.canonicalize u)
-  obtain ⟨v, hv⟩ := (SimpleGraph.degree_pos_iff_exists_adj g.canonicalize.toSimple u).1 hd
-  exact ⟨v, hv⟩
 
 /-- The contrapositive, which is how the whole column below is filled. -/
 theorem not_isArcTransitive_of_not_isVertexTransitive {G : IsoGraph} (hδ : 0 < G.minDeg)

@@ -2163,9 +2163,17 @@ A matching is a set of pairwise disjoint edges, that is, an independent set in t
 graph, so like the chromatic index the matching number needs no separate construction. -/
 
 /-- The *matching number* `ν(G)`: the largest number of pairwise disjoint edges. -/
-noncomputable def matchNum (G : IsoGraph) : ℕ := indepNum (lineGraph G)
+noncomputable def _root_.CGraph.matchNum (G : CGraph) : ℕ := G.lineGraph.indepNum
 
-theorem matchNum_eq (G : IsoGraph) : G.matchNum = indepNum (lineGraph G) := rfl
+@[toIsoGraph]
+theorem _root_.CGraph.matchNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
+    G.matchNum = H.matchNum :=
+  CGraph.indepNum_eq_of_iso (CGraph.Iso.lineGraph i)
+
+theorem matchNum_eq (G : IsoGraph) : G.matchNum = indepNum (lineGraph G) := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [matchNum_mk, lineGraph_mk, indepNum_mk]
+  rfl
 
 theorem matchNum_le_E (G : IsoGraph) : G.matchNum ≤ G.E := by
   have h := (lineGraph G).coverNum_add_indepNum
@@ -2174,15 +2182,15 @@ theorem matchNum_le_E (G : IsoGraph) : G.matchNum ≤ G.E := by
   omega
 
 /-- Each of the `ν` edges of a maximum matching uses two private vertices. -/
-theorem two_mul_matchNum_le_V (G : IsoGraph) : 2 * G.matchNum ≤ G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, matchNum_eq, lineGraph_mk, indepNum_mk, V_mk]
-  exact CGraph.two_mul_indepNum_lineGraph_le_card _
+@[toIsoGraph two_mul_matchNum_le_V]
+theorem _root_.CGraph.two_mul_matchNum_le_card (G : CGraph) : 2 * G.matchNum ≤ Fintype.card G.V :=
+  CGraph.two_mul_indepNum_lineGraph_le_card G
 
 /-- Gallai's identity in the line graph: an edge cover of `L(G)` complements a matching. -/
 theorem coverNum_lineGraph_add_matchNum (G : IsoGraph) :
     coverNum (lineGraph G) + G.matchNum = G.E := by
   have h := (lineGraph G).coverNum_add_indepNum
+  rw [matchNum_eq]
   rwa [V_lineGraph] at h
 
 /-- Every colour class of an edge colouring is a matching, so `|E| ≤ χ' ν`. -/
@@ -2237,12 +2245,15 @@ Whenever the line graph of a family is itself a named graph, the matching number
 chromatic index of that family are read off from the independence and chromatic numbers of
 the line graph, which are already known. -/
 
-@[simp] theorem edgeChromNum_eq_zero_iff {G : IsoGraph} : G.edgeChromNum = 0 ↔ G.E = 0 := by
-  rw [edgeChromNum_eq, chromNum_eq_zero_iff, V_lineGraph]
+@[toIsoGraph simp]
+theorem _root_.CGraph.edgeChromNum_eq_zero_iff {G : CGraph} : G.edgeChromNum = 0 ↔ G.E = 0 := by
+  show G.lineGraph.chromNum = 0 ↔ G.E = 0
+  rw [CGraph.chromNum_eq_zero_iff, CGraph.card_lineGraph]
 
-theorem edgeChromNum_pos {G : IsoGraph} (h : 0 < G.E) : 0 < G.edgeChromNum := by
+@[toIsoGraph]
+theorem _root_.CGraph.edgeChromNum_pos {G : CGraph} (h : 0 < G.E) : 0 < G.edgeChromNum := by
   rcases Nat.eq_zero_or_pos G.edgeChromNum with h0 | h0
-  · rw [edgeChromNum_eq_zero_iff] at h0; omega
+  · rw [CGraph.edgeChromNum_eq_zero_iff] at h0; omega
   · exact h0
 
 /-- Combining `|E| ≤ χ' ν` with `χ' ≤ 2Δ - 1`. -/
@@ -2305,10 +2316,10 @@ example : (cycle 5).edgeChromNum = 3 := by
 /-! ### Matchings versus independent sets and covers -/
 
 /-- Since an independent set meets each edge of a matching at most once, `ν + α ≤ n`. -/
-theorem matchNum_add_indepNum_le_V (G : IsoGraph) : G.matchNum + G.indepNum ≤ G.V := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, matchNum_eq, lineGraph_mk, indepNum_mk, indepNum_mk, V_mk]
-  exact CGraph.indepNum_lineGraph_add_indepNum_le_card _
+@[toIsoGraph matchNum_add_indepNum_le_V]
+theorem _root_.CGraph.matchNum_add_indepNum_le_card (G : CGraph) :
+    G.matchNum + G.indepNum ≤ Fintype.card G.V :=
+  CGraph.indepNum_lineGraph_add_indepNum_le_card G
 
 /-- `ν ≤ τ`: distinct edges of a matching need distinct vertices of a vertex cover.  Here it
 falls out of `ν + α ≤ n` and Gallai's identity `τ + α = n`. -/
@@ -2871,11 +2882,10 @@ A maximum matching leaves an independent set behind, so `|V| ≤ α + 2ν`; with
 `α + τ = |V|` this is the classical `τ ≤ 2ν`.  Together with `ν ≤ τ` it says that a maximum
 matching always determines the vertex cover number to within a factor of two. -/
 
-theorem V_le_indepNum_add_two_mul_matchNum (G : IsoGraph) :
-    G.V ≤ G.indepNum + 2 * G.matchNum := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [← mk_canonicalize g, V_mk, indepNum_mk, matchNum_eq, lineGraph_mk, indepNum_mk]
-  exact CGraph.card_le_indepNum_add_two_mul_indepNum_lineGraph _
+@[toIsoGraph V_le_indepNum_add_two_mul_matchNum]
+theorem _root_.CGraph.card_le_indepNum_add_two_mul_matchNum (G : CGraph) :
+    Fintype.card G.V ≤ G.indepNum + 2 * G.matchNum :=
+  CGraph.card_le_indepNum_add_two_mul_indepNum_lineGraph G
 
 /-- **The vertex cover number is at most twice the matching number.**  This is the guarantee
 behind the greedy two-approximation algorithm for minimum vertex cover. -/

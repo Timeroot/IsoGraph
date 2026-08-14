@@ -523,19 +523,12 @@ theorem radius_cartesianProduct_cycle_path (m n : ℕ) :
 /-- **`χ'(G □ H) ≤ χ'(G) + χ'(H)`.**  An edge of a product moves exactly one coordinate, so the
 two factors' edge colourings can be laid side by side.  Each factor needs an edge, since a
 colouring with no colours has nowhere to send the values it is never asked for. -/
-theorem edgeChromNum_cartesianProduct_le {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    (G □g H).edgeChromNum ≤ G.edgeChromNum + H.edgeChromNum := by
-  have hG' : 0 < G.edgeChromNum := Nat.pos_of_ne_zero fun h ↦ by
-    rw [edgeChromNum_eq_zero_iff] at h; omega
-  have hH' : 0 < H.edgeChromNum := Nat.pos_of_ne_zero fun h ↦ by
-    rw [edgeChromNum_eq_zero_iff] at h; omega
-  simp only [edgeChromNum_eq] at hG' hH' ⊢
-  induction G using Quotient.inductionOn with | _ g =>
-  induction H using Quotient.inductionOn with | _ h =>
-  rw [← mk_canonicalize g, ← mk_canonicalize h] at *
-  rw [cartesianProduct_mk, lineGraph_mk, lineGraph_mk, lineGraph_mk, chromNum_mk, chromNum_mk,
-    chromNum_mk] at *
-  exact CGraph.chromNum_lineGraph_cartesianProduct_le_add hG' hH'
+@[toIsoGraph]
+theorem _root_.CGraph.edgeChromNum_cartesianProduct_le {G H : CGraph} (hG : 0 < G.E)
+    (hH : 0 < H.E) :
+    (CGraph.cartesianProduct G H).edgeChromNum ≤ G.edgeChromNum + H.edgeChromNum :=
+  CGraph.chromNum_lineGraph_cartesianProduct_le_add (CGraph.edgeChromNum_pos hG)
+    (CGraph.edgeChromNum_pos hH)
 
 /-- **The chromatic index of a grid is four**, two colours for each direction. -/
 theorem edgeChromNum_grid (m n : ℕ) : (path (m + 3) □g path (n + 3)).edgeChromNum = 4 := by

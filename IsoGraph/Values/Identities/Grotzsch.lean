@@ -1877,119 +1877,119 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
 
 /-- If `G` has a perfect matching then `μ(G)` has a near-perfect one: match each vertex with the
 shadow of its partner and leave the apex out. -/
-theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
-    (mycielskian G).matchNum = G.V := by
-  have upper : (mycielskian G).matchNum ≤ G.V := by
-    have := two_mul_matchNum_le_V (mycielskian G)
-    rw [V_mycielskian] at this
+@[toIsoGraph matchNum_mycielskian]
+theorem _root_.CGraph.matchNum_mycielskian (G : CGraph)
+    (h : 2 * G.matchNum = Fintype.card G.V) :
+    (CGraph.mycielskian G).matchNum = Fintype.card G.V := by
+  classical
+  have upper : (CGraph.mycielskian G).matchNum ≤ Fintype.card G.V := by
+    have := CGraph.two_mul_matchNum_le_card (CGraph.mycielskian G)
+    rw [CGraph.card_mycielskian] at this
     omega
-  have lower : G.V ≤ (mycielskian G).matchNum := by
-    rw [matchNum_eq (mycielskian G)]
-    induction G using Quotient.inductionOn with | _ g =>
-    simp only [IsoGraph.V, IsoGraph.indepNum, IsoGraph.matchNum] at h ⊢
-    rw [lineGraph_mk] at h
-    simp at h ⊢
+  have lower : Fintype.card G.V ≤ (CGraph.mycielskian G).matchNum := by
+    show Fintype.card G.V ≤ (CGraph.lineGraph (CGraph.mycielskian G)).indepNum
+    replace h : 2 * (CGraph.lineGraph G).indepNum = Fintype.card G.V := h
     rw [← h]
-    obtain ⟨S, hS_indep, hS_card⟩ := (CGraph.lineGraph g).toSimple.exists_isNIndepSet_indepNum
+    obtain ⟨S, hS_indep, hS_card⟩ := (CGraph.lineGraph G).toSimple.exists_isNIndepSet_indepNum
     -- Key idea: for each edge e={u,v} in S (a matching), add edges (inl u, inr v) and (inl v, inr
     -- u)
-    -- to lineGraph(mycielskian g). These 2*|S| edges are pairwise disjoint, forming an indep set of
+    -- to lineGraph(mycielskian G). These 2*|S| edges are pairwise disjoint, forming an indep set of
     -- size 2*|S|.
-    -- Build a function from S to lineGraph(mycielskian g).V
-    -- For e = ⟨s(u,v), huv⟩ ∈ lineGraph g with s(u,v) ∈ g.toSimple.edgeSet:
+    -- Build a function from S to lineGraph(mycielskian G).V
+    -- For e = ⟨s(u,v), huv⟩ ∈ lineGraph G with s(u,v) ∈ G.toSimple.edgeSet:
     --   f1 e = ⟨s(some (inl u), some (inr v)), edge_mem_cross_inl_inr u v huv.2⟩
     --   f2 e = ⟨s(some (inl v), some (inr u)), edge_mem_cross_inl_inr_symm u v huv.2⟩
     -- T = S.bind (fun e => {f1 e, f2 e})
     -- Need: T.card = 2 * S.card, T.IsIndepSet, then card_le_indepNum.
-    have edge_mem_cross_inl_inr : ∀ a b : g.V, g.Adj a b = true →
-        Sym2.mk (some (Sum.inl a), some (Sum.inr b)) ∈ (CGraph.mycielskian g).toSimple.edgeSet := by
+    have edge_mem_cross_inl_inr : ∀ a b : G.V, G.Adj a b = true →
+        Sym2.mk (some (Sum.inl a), some (Sum.inr b)) ∈ (CGraph.mycielskian G).toSimple.edgeSet := by
       intro a b hab
-      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.mycielskian_adj_inl_inr g]
+      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.mycielskian_adj_inl_inr G]
       exact hab
-    have edge_mem_cross_inl_inr_symm : ∀ a b : g.V, g.Adj a b = true →
-        Sym2.mk (some (Sum.inl b), some (Sum.inr a)) ∈ (CGraph.mycielskian g).toSimple.edgeSet := by
+    have edge_mem_cross_inl_inr_symm : ∀ a b : G.V, G.Adj a b = true →
+        Sym2.mk (some (Sum.inl b), some (Sum.inr a)) ∈ (CGraph.mycielskian G).toSimple.edgeSet := by
       intro a b hab
-      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.mycielskian_adj_inl_inr g b a]
-      have := SimpleGraph.Adj.symm (G := g.toSimple) (CGraph.toSimple_adj g a b |>.mp hab)
-      exact (CGraph.toSimple_adj g b a).mp this
+      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.mycielskian_adj_inl_inr G b a]
+      have := SimpleGraph.Adj.symm (G := G.toSimple) (CGraph.toSimple_adj G a b |>.mp hab)
+      exact (CGraph.toSimple_adj G b a).mp this
     -- For each e ∈ S, pick endpoints (u_e, v_e) with e.1 = s(u_e, v_e)
-    choose pep hpep using fun e : (CGraph.lineGraph g).V => Sym2.mk_surjective e.1
-    let ue : (CGraph.lineGraph g).V → g.V := fun e => (pep e).1
-    let ve : (CGraph.lineGraph g).V → g.V := fun e => (pep e).2
-    have hueve : ∀ e : (CGraph.lineGraph g).V, e.1 = Sym2.mk (pep e) := fun e => (hpep e).symm
-    have hueve' : ∀ e : (CGraph.lineGraph g).V, e.1 = Sym2.mk (ue e, ve e) := fun e => by
+    choose pep hpep using fun e : (CGraph.lineGraph G).V => Sym2.mk_surjective e.1
+    let ue : (CGraph.lineGraph G).V → G.V := fun e => (pep e).1
+    let ve : (CGraph.lineGraph G).V → G.V := fun e => (pep e).2
+    have hueve : ∀ e : (CGraph.lineGraph G).V, e.1 = Sym2.mk (pep e) := fun e => (hpep e).symm
+    have hueve' : ∀ e : (CGraph.lineGraph G).V, e.1 = Sym2.mk (ue e, ve e) := fun e => by
       rw [hueve e]
     -- Build T = biUnion S (fun e => {v1 e, v2 e})
-    let v1 : (CGraph.lineGraph g).V → (CGraph.lineGraph (CGraph.mycielskian g)).V := fun e =>
+    let v1 : (CGraph.lineGraph G).V → (CGraph.lineGraph (CGraph.mycielskian G)).V := fun e =>
       ⟨Sym2.mk (some (Sum.inl (ue e)), some (Sum.inr (ve e))),
        edge_mem_cross_inl_inr (ue e) (ve e) (by
-  have he : e.1 ∈ g.toSimple.edgeSet := e.2
+  have he : e.1 ∈ G.toSimple.edgeSet := e.2
   simp [hueve' e] at he
   exact he)⟩
-    let v2 : (CGraph.lineGraph g).V → (CGraph.lineGraph (CGraph.mycielskian g)).V := fun e =>
+    let v2 : (CGraph.lineGraph G).V → (CGraph.lineGraph (CGraph.mycielskian G)).V := fun e =>
       ⟨Sym2.mk (some (Sum.inl (ve e)), some (Sum.inr (ue e))),
        edge_mem_cross_inl_inr_symm (ue e) (ve e) (by
-  have he : e.1 ∈ g.toSimple.edgeSet := e.2
+  have he : e.1 ∈ G.toSimple.edgeSet := e.2
   simp [hueve' e, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at he
   exact he)⟩
-    let T : Finset (CGraph.lineGraph (CGraph.mycielskian g)).V := S.biUnion (fun e => {v1 e, v2 e})
+    let T : Finset (CGraph.lineGraph (CGraph.mycielskian G)).V := S.biUnion (fun e => {v1 e, v2 e})
     -- Step 1: Show T.card = 2 * S.card
-    have hue_ne_ve : ∀ e : (CGraph.lineGraph g).V, ue e ≠ ve e := by
+    have hue_ne_ve : ∀ e : (CGraph.lineGraph G).V, ue e ≠ ve e := by
       intro e hne
       have hered : Sym2.IsDiag e.1 := by
         rw [hueve' e, hne]
         simp [Sym2.IsDiag]
-      exact SimpleGraph.not_isDiag_of_mem_edgeSet g.toSimple e.2 hered
+      exact SimpleGraph.not_isDiag_of_mem_edgeSet G.toSimple e.2 hered
     have hv1ne_v2 : ∀ e ∈ S, v1 e ≠ v2 e := by
       intro e he heq
       have := Subtype.ext_iff.mp heq
       simp [v1, v2] at this
       rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩
-      · exact hue_ne_ve e (Sum.inl_injective (Option.some_injective (Sum g.V g.V) h1))
-      · have := Option.some_injective (Sum g.V g.V) h1
+      · exact hue_ne_ve e (Sum.inl_injective (Option.some_injective (Sum G.V G.V) h1))
+      · have := Option.some_injective (Sum G.V G.V) h1
         exact absurd this Sum.inl_ne_inr
     -- Pairwise disjointness of {v1 e, v2 e} over e ∈ S
     -- e.1 and f.1 are disjoint for e ≠ f in S (edges in a matching)
     have hdisco : ∀ e ∈ S, ∀ f ∈ S, e ≠ f → Disjoint e.1.toFinset f.1.toFinset := by
       intro e he f hf hef
-      exact CGraph.disjoint_of_not_adj_lineGraph g hef (hS_indep (by simpa using he)
+      exact CGraph.disjoint_of_not_adj_lineGraph G hef (hS_indep (by simpa using he)
           (by simpa using hf) hef)
     have he1_ne_he2 := hue_ne_ve
     -- Helper: if Sym2.mk (some (inl a), some (inr b)) = Sym2.mk (some (inl a'), some (inr b')),
     -- then a = a' and b = b'
-    have sym2_inl_inr_inj : ∀ a b a' b' : g.V,
+    have sym2_inl_inr_inj : ∀ a b a' b' : G.V,
         Sym2.mk (some (Sum.inl a), some (Sum.inr b)) = Sym2.mk (some (Sum.inl a'), some (Sum.inr
             b')) →
         a = a' ∧ b = b' := by
       intro a b a' b' h
       simp only [Sym2.eq, Sym2.rel_iff', Prod.mk.injEq, Prod.swap_prod_mk] at h
       rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
-      · exact ⟨Sum.inl_injective (Option.some_injective (Sum g.V g.V) h1), Sum.inr_injective
-          (Option.some_injective (Sum g.V g.V) h2)⟩
-      · exact absurd (Option.some_injective (Sum g.V g.V) h1) Sum.inl_ne_inr
+      · exact ⟨Sum.inl_injective (Option.some_injective (Sum G.V G.V) h1), Sum.inr_injective
+          (Option.some_injective (Sum G.V G.V) h2)⟩
+      · exact absurd (Option.some_injective (Sum G.V G.V) h1) Sum.inl_ne_inr
     -- Extract component equalities from v1/v2 equalities via sym2_inl_inr_inj
-    have eq_v1_v1 : ∀ e f : (CGraph.lineGraph g).V, v1 e = v1 f → ue e = ue f ∧ ve e = ve f := by
+    have eq_v1_v1 : ∀ e f : (CGraph.lineGraph G).V, v1 e = v1 f → ue e = ue f ∧ ve e = ve f := by
       intro e f heq
       have h1 : Sym2.mk (some (Sum.inl (ue e)), some (Sum.inr (ve e))) =
           Sym2.mk (some (Sum.inl (ue f)), some (Sum.inr (ve f))) := congrArg Subtype.val heq
       exact sym2_inl_inr_inj _ _ _ _ h1
-    have eq_v2_v2 : ∀ e f : (CGraph.lineGraph g).V, v2 e = v2 f → ve e = ve f ∧ ue e = ue f := by
+    have eq_v2_v2 : ∀ e f : (CGraph.lineGraph G).V, v2 e = v2 f → ve e = ve f ∧ ue e = ue f := by
       intro e f heq
       have h1 : Sym2.mk (some (Sum.inl (ve e)), some (Sum.inr (ue e))) =
           Sym2.mk (some (Sum.inl (ve f)), some (Sum.inr (ue f))) := congrArg Subtype.val heq
       exact sym2_inl_inr_inj _ _ _ _ h1
-    have eq_v1_v2 : ∀ e f : (CGraph.lineGraph g).V, v1 e = v2 f → ue e = ve f ∧ ve e = ue f := by
+    have eq_v1_v2 : ∀ e f : (CGraph.lineGraph G).V, v1 e = v2 f → ue e = ve f ∧ ve e = ue f := by
       intro e f heq
       have h1 : Sym2.mk (some (Sum.inl (ue e)), some (Sum.inr (ve e))) =
           Sym2.mk (some (Sum.inl (ve f)), some (Sum.inr (ue f))) := congrArg Subtype.val heq
       exact sym2_inl_inr_inj _ _ _ _ h1
-    have eq_v2_v1 : ∀ e f : (CGraph.lineGraph g).V, v2 e = v1 f → ve e = ue f ∧ ue e = ve f := by
+    have eq_v2_v1 : ∀ e f : (CGraph.lineGraph G).V, v2 e = v1 f → ve e = ue f ∧ ue e = ve f := by
       intro e f heq
       have h1 : Sym2.mk (some (Sum.inl (ve e)), some (Sum.inr (ue e))) =
           Sym2.mk (some (Sum.inl (ue f)), some (Sum.inr (ve f))) := congrArg Subtype.val heq
       exact sym2_inl_inr_inj _ _ _ _ h1
     have edge_eq_of_val_eq : ∀ e f : (CGraph.lineGraph
-        g).V, e.1 = f.1 → e = f := fun e f h => Subtype.ext h
+        G).V, e.1 = f.1 → e = f := fun e f h => Subtype.ext h
     have hv1_ne_v1 : ∀ e ∈ S, ∀ f ∈ S, e ≠ f → v1 e ≠ v1 f := by
       intro e he f hf hef heq
       have ⟨heu, hev⟩ := eq_v1_v1 e f heq
@@ -2015,8 +2015,8 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
       have : e.1 = f.1 := by rw [hueve' e, hueve' f, heu, hev]
       exact hef (edge_eq_of_val_eq e f this)
     have hdisj : ∀ e ∈ S, ∀ f ∈ S, e ≠ f → Disjoint ({v1 e, v2 e} : Finset (CGraph.lineGraph
-        (CGraph.mycielskian g)).V) ({v1 f, v2 f} : Finset (CGraph.lineGraph (CGraph.mycielskian
-            g)).V) := by
+        (CGraph.mycielskian G)).V) ({v1 f, v2 f} : Finset (CGraph.lineGraph (CGraph.mycielskian
+            G)).V) := by
       intro e he f hf hef
       rw [Finset.disjoint_left]
       intro x hx hy
@@ -2030,18 +2030,18 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
         · exact absurd (hx2.symm.trans hy2) (hv2_ne_v2 e he f hf hef)
     have hT_card : T.card = 2 * S.card := by
       have hcard_pair : ∀ e ∈ S, ({v1 e, v2 e} : Finset (CGraph.lineGraph (CGraph.mycielskian
-          g)).V).card = 2 := by
+          G)).V).card = 2 := by
         intro e he
         rw [Finset.card_pair (hv1ne_v2 e he)]
       rw [Finset.card_biUnion (fun e he f hf hef => hdisj e he f hf hef)]
       rw [Finset.sum_congr rfl hcard_pair, Finset.sum_const, smul_eq_mul, mul_comm]
-    -- Step 3: Show T is independent in lineGraph(mycielskian g)
-    have hT_mem : ∀ x, x ∈ (T : Set (CGraph.lineGraph (CGraph.mycielskian g)).V) →
+    -- Step 3: Show T is independent in lineGraph(mycielskian G)
+    have hT_mem : ∀ x, x ∈ (T : Set (CGraph.lineGraph (CGraph.mycielskian G)).V) →
         ∃ e ∈ S, x = v1 e ∨ x = v2 e := by
       simp [T, Finset.coe_biUnion]
     -- Endpoint disjointness helpers
     have hnd_same : ∀ e ∈ S,
-        ∀ w : Option (g.V ⊕ g.V), w ∉ (v1 e).1 ∨ w ∉ (v2 e).1 := by
+        ∀ w : Option (G.V ⊕ G.V), w ∉ (v1 e).1 ∨ w ∉ (v2 e).1 := by
       intro e heS w
       unfold v1 v2
       simp only []
@@ -2050,25 +2050,25 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
       obtain ⟨hw1, hw2⟩ := h
       rcases Sym2.mem_iff.mp hw1 with h1 | h1 <;> rcases Sym2.mem_iff.mp hw2 with h2 | h2
       · -- h1: w = some (inl (ue e)), h2: w = some (inl (ve e))
-        have := Option.some_injective (Sum g.V g.V) (h1.symm.trans h2)
+        have := Option.some_injective (Sum G.V G.V) (h1.symm.trans h2)
         exact he1_ne_he2 e (Sum.inl_injective this)
       · -- h1: inl (ue e), h2: inr (ue e)
-        have heq : Sum.inl (ue e) = Sum.inr (ue e) := Option.some_injective (Sum g.V
-            g.V) (h1.symm.trans h2)
+        have heq : Sum.inl (ue e) = Sum.inr (ue e) := Option.some_injective (Sum G.V
+            G.V) (h1.symm.trans h2)
         exact Sum.inl_ne_inr heq
       · -- h1: inr (ve e), h2: inl (ve e)
-        have heq : Sum.inl (ve e) = Sum.inr (ve e) := Option.some_injective (Sum g.V
-            g.V) (h2.symm.trans h1)
+        have heq : Sum.inl (ve e) = Sum.inr (ve e) := Option.some_injective (Sum G.V
+            G.V) (h2.symm.trans h1)
         exact absurd heq Sum.inl_ne_inr
       · -- h1: inr (ve e), h2: inr (ue e)
-        have := Option.some_injective (Sum g.V g.V) (h1.symm.trans h2)
+        have := Option.some_injective (Sum G.V G.V) (h1.symm.trans h2)
         exact he1_ne_he2 e (Sum.inr_injective this).symm
     -- Endpoint elements of v1/v2
     have hve1 : ∀ e ∈ S, (v1 e).1 = Sym2.mk (some (Sum.inl (ue e)), some (Sum.inr (ve e))) := by
       intro e he; simp [v1]
     have hve2 : ∀ e ∈ S, (v2 e).1 = Sym2.mk (some (Sum.inl (ve e)), some (Sum.inr (ue e))) := by
       intro e he; simp [v2]
-    -- Disjointness of endpoint Finsets in g.V
+    -- Disjointness of endpoint Finsets in G.V
     have hdisco_finset : ∀ e ∈ S, ∀ f ∈ S, e ≠ f →
         ue e ≠ ue f ∧ ue e ≠ ve f ∧ ve e ≠ ue f ∧ ve e ≠ ve f := by
       intro e heS f hfS hef
@@ -2089,62 +2089,62 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
              fun h => Finset.disjoint_left.mp hd hm2 (h ▸ hm4)⟩
     -- Cross endpoint disjointness for Option level
     -- Helper for inl=inr contradictions
-    have h_inl_inr_absurd : ∀ {a b : g.V}, Sum.inl a = Sum.inr b → False :=
+    have h_inl_inr_absurd : ∀ {a b : G.V}, Sum.inl a = Sum.inr b → False :=
       Sum.inl_ne_inr
     have hnd_cross : ∀ e ∈ S, ∀ f ∈ S, e ≠ f →
-        ∀ w : Option (g.V ⊕ g.V), w ∉ (v1 e).1 ∨ w ∉ (v1 f).1 := by
+        ∀ w : Option (G.V ⊕ G.V), w ∉ (v1 e).1 ∨ w ∉ (v1 f).1 := by
       intro e heS f hfS hef w
       rw [hve1 e heS, hve1 f hfS]
       by_contra h; push_neg at h
       obtain ⟨hw1, hw2⟩ := h
       rcases Sym2.mem_iff.mp hw1 with h1 | h1 <;> rcases Sym2.mem_iff.mp hw2 with h2 | h2
-      · exact hdisco_finset e heS f hfS hef |>.1 (Sum.inl_injective (Option.some_injective (Sum g.V
-          g.V) (h1.symm.trans h2)))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h1.symm.trans h2))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h2.symm.trans h1))
+      · exact hdisco_finset e heS f hfS hef |>.1 (Sum.inl_injective (Option.some_injective (Sum G.V
+          G.V) (h1.symm.trans h2)))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h1.symm.trans h2))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h2.symm.trans h1))
       · exact hdisco_finset e heS f hfS hef |>.2.2.2 (Sum.inr_injective (Option.some_injective (Sum
-          g.V g.V) (h1.symm.trans h2)))
+          G.V G.V) (h1.symm.trans h2)))
     have hnd_cross2 : ∀ e ∈ S, ∀ f ∈ S, e ≠ f →
-        ∀ w : Option (g.V ⊕ g.V), w ∉ (v1 e).1 ∨ w ∉ (v2 f).1 := by
+        ∀ w : Option (G.V ⊕ G.V), w ∉ (v1 e).1 ∨ w ∉ (v2 f).1 := by
       intro e heS f hfS hef w
       rw [hve1 e heS, hve2 f hfS]
       by_contra h; push_neg at h
       obtain ⟨hw1, hw2⟩ := h
       rcases Sym2.mem_iff.mp hw1 with h1 | h1 <;> rcases Sym2.mem_iff.mp hw2 with h2 | h2
       · exact hdisco_finset e heS f hfS hef |>.2.1 (Sum.inl_injective (Option.some_injective (Sum
-          g.V g.V) (h1.symm.trans h2)))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h1.symm.trans h2))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h2.symm.trans h1))
+          G.V G.V) (h1.symm.trans h2)))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h1.symm.trans h2))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h2.symm.trans h1))
       · exact hdisco_finset e heS f hfS hef |>.2.2.1 (Sum.inr_injective (Option.some_injective (Sum
-          g.V g.V) (h1.symm.trans h2)))
+          G.V G.V) (h1.symm.trans h2)))
     have hnd_cross3 : ∀ e ∈ S, ∀ f ∈ S, e ≠ f →
-        ∀ w : Option (g.V ⊕ g.V), w ∉ (v2 e).1 ∨ w ∉ (v1 f).1 := by
+        ∀ w : Option (G.V ⊕ G.V), w ∉ (v2 e).1 ∨ w ∉ (v1 f).1 := by
       intro e heS f hfS hef w
       rw [hve2 e heS, hve1 f hfS]
       by_contra h; push_neg at h
       obtain ⟨hw1, hw2⟩ := h
       rcases Sym2.mem_iff.mp hw1 with h1 | h1 <;> rcases Sym2.mem_iff.mp hw2 with h2 | h2
       · exact hdisco_finset e heS f hfS hef |>.2.2.1 (Sum.inl_injective (Option.some_injective (Sum
-          g.V g.V) (h1.symm.trans h2)))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h1.symm.trans h2))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h2.symm.trans h1))
+          G.V G.V) (h1.symm.trans h2)))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h1.symm.trans h2))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h2.symm.trans h1))
       · exact hdisco_finset e heS f hfS hef |>.2.1 (Sum.inr_injective (Option.some_injective (Sum
-          g.V g.V) (h1.symm.trans h2)))
+          G.V G.V) (h1.symm.trans h2)))
     have hnd_cross4 : ∀ e ∈ S, ∀ f ∈ S, e ≠ f →
-        ∀ w : Option (g.V ⊕ g.V), w ∉ (v2 e).1 ∨ w ∉ (v2 f).1 := by
+        ∀ w : Option (G.V ⊕ G.V), w ∉ (v2 e).1 ∨ w ∉ (v2 f).1 := by
       intro e heS f hfS hef w
       rw [hve2 e heS, hve2 f hfS]
       by_contra h; push_neg at h
       obtain ⟨hw1, hw2⟩ := h
       rcases Sym2.mem_iff.mp hw1 with h1 | h1 <;> rcases Sym2.mem_iff.mp hw2 with h2 | h2
       · exact hdisco_finset e heS f hfS hef |>.2.2.2 (Sum.inl_injective (Option.some_injective (Sum
-          g.V g.V) (h1.symm.trans h2)))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h1.symm.trans h2))
-      · exact h_inl_inr_absurd (Option.some_injective (Sum g.V g.V) (h2.symm.trans h1))
-      · exact hdisco_finset e heS f hfS hef |>.1 (Sum.inr_injective (Option.some_injective (Sum g.V
-          g.V) (h1.symm.trans h2)))
-    have hT_indep : (CGraph.lineGraph (CGraph.mycielskian g)).toSimple.IsIndepSet (T : Set
-        (CGraph.lineGraph (CGraph.mycielskian g)).V) := by
+          G.V G.V) (h1.symm.trans h2)))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h1.symm.trans h2))
+      · exact h_inl_inr_absurd (Option.some_injective (Sum G.V G.V) (h2.symm.trans h1))
+      · exact hdisco_finset e heS f hfS hef |>.1 (Sum.inr_injective (Option.some_injective (Sum G.V
+          G.V) (h1.symm.trans h2)))
+    have hT_indep : (CGraph.lineGraph (CGraph.mycielskian G)).toSimple.IsIndepSet (T : Set
+        (CGraph.lineGraph (CGraph.mycielskian G)).V) := by
       intro x hx y hy hxy
       rw [CGraph.toSimple_adj, CGraph.lineGraph_adj]
       simp [hxy]
@@ -2170,9 +2170,9 @@ theorem matchNum_mycielskian (G : IsoGraph) (h : 2 * G.matchNum = G.V) :
           · subst hef; exact absurd rfl hxy
           · rcases hnd_cross4 e heS f hfS hef w with h | h <;> [exact absurd hw h; exact h]
     have hle : T.card ≤ (CGraph.lineGraph (CGraph.mycielskian
-        g)).indepNum := hT_indep.card_le_indepNum
+        G)).indepNum := hT_indep.card_le_indepNum
     rw [hT_card] at hle
-    have hLG : g.lineGraph.indepNum = g.lineGraph.toSimple.indepNum := by rfl
+    have hLG : G.lineGraph.indepNum = G.lineGraph.toSimple.indepNum := by rfl
     rw [hLG] at ⊢
     rw [hS_card] at hle
     exact hle
@@ -2490,7 +2490,7 @@ theorem cliqueCoverNum_mycielskian (G : IsoGraph) (hV : 0 < G.V) (hc : G.cliqueN
   have hlb := V_le_cliqueCoverNum_mul_cliqueNum (mycielskian G)
   rw [V_mycielskian, cliqueNum_mycielskian_eq_two hV hc] at hlb
   have hub := cliqueCoverNum_le_V_sub_matchNum (mycielskian G)
-  rw [V_mycielskian, matchNum_mycielskian G hm] at hub
+  rw [V_mycielskian, matchNum_mycielskian (G := G) hm] at hub
   omega
 
 /-- The apex reaches every shadow and every shadow reaches its original. -/

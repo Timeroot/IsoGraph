@@ -1218,15 +1218,21 @@ theorem charpoly_cycle {n : ℕ} (hn : 3 ≤ n) :
   rw [key, Polynomial.map_prod]
   exact Finset.prod_congr rfl fun m _ ↦ by simp [cycEig]
 
-/-- **The spectrum of the cycle** `C_n`, `n ≥ 3`: the numbers `2 cos (2 π m / n)`. -/
+/-- **The spectrum of the cycle** `C_n`, `n ≥ 3`: the numbers `2 cos (2 π m / n)`.  The index runs
+over `Fin n` rather than the definitionally equal `(cycle n).V`, so that the statement mentions no
+vertex type and transfers to `IsoGraph`. -/
+@[toIsoGraph]
 theorem spectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
     (cycle n).spectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
+  have key : (cycle n).spectrum
       = Finset.univ.val.map (fun m : (cycle n).V ↦ 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
-  rw [spectrum, charpoly_cycle hn,
-    show (∏ m : (cycle n).V, (X - C (2 * Real.cos (2 * Real.pi * m.1 / n))))
-      = ((Finset.univ.val.map (fun m : (cycle n).V ↦ 2 * Real.cos (2 * Real.pi * m.1 / n))).map
-        (fun a ↦ X - C a)).prod from by rw [Multiset.map_map]; rfl,
-    Polynomial.roots_multiset_prod_X_sub_C]
+    rw [spectrum, charpoly_cycle hn,
+      show (∏ m : (cycle n).V, (X - C (2 * Real.cos (2 * Real.pi * m.1 / n))))
+        = ((Finset.univ.val.map (fun m : (cycle n).V ↦ 2 * Real.cos (2 * Real.pi * m.1 / n))).map
+          (fun a ↦ X - C a)).prod from by rw [Multiset.map_map]; rfl,
+      Polynomial.roots_multiset_prod_X_sub_C]
+  exact key
 
 
 /-! ## Diagonalisation
@@ -8883,11 +8889,6 @@ that evaluate them on a representative.  The rest of the section is transferred 
 
 theorem spectrum_eq_roots_charpoly (G : IsoGraph) : G.spectrum = G.charpoly.roots :=
   Quotient.inductionOn G fun _ ↦ rfl
-
-theorem spectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
-    (cycle n).spectrum
-      = Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (2 * Real.pi * m.1 / n)) :=
-  CGraph.spectrum_cycle hn
 
 /-- **The energy is multiplicative over tensor products.** -/
 @[simp] theorem energy_tensorProduct (G H : IsoGraph) :

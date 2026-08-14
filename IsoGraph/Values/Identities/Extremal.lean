@@ -88,6 +88,17 @@ theorem degree_le_maxDeg (G : CGraph) (v : G.V) : G.toSimple.degree v ≤ G.maxD
 theorem minDeg_le_degree (G : CGraph) (v : G.V) : G.minDeg ≤ G.toSimple.degree v :=
   SimpleGraph.minDegree_le_degree _ v
 
+/-- **Arc-transitive graphs with no isolated vertex are vertex-transitive.**  Given `u` and `v`,
+pick any neighbours `u'` and `v'` and carry the arc `u → u'` to the arc `v → v'`.  Phrased with
+`0 < δ` rather than "no isolated vertices" so that it transfers to `IsoGraph`. -/
+@[toIsoGraph IsArcTransitive.isVertexTransitive]
+theorem isVertexTransitive_of_isArcTransitive_of_minDeg_pos {G : CGraph} (h : G.IsArcTransitive)
+    (hδ : 0 < G.minDeg) : G.IsVertexTransitive := by
+  refine isVertexTransitive_of_isArcTransitive G (fun u ↦ ?_) h
+  have hd : 0 < G.toSimple.degree u := lt_of_lt_of_le hδ (minDeg_le_degree G u)
+  obtain ⟨v, hv⟩ := (SimpleGraph.degree_pos_iff_exists_adj G.toSimple u).1 hd
+  exact ⟨v, hv⟩
+
 theorem maxDeg_le_of_forall {G : CGraph} {k : ℕ} (h : ∀ v, G.toSimple.degree v ≤ k) :
     G.maxDeg ≤ k :=
   SimpleGraph.maxDegree_le_of_forall_degree_le _ k h
