@@ -15,6 +15,7 @@ import IsoGraph.Values.Identities.Complements
 import IsoGraph.Values.Identities.Products
 import IsoGraph.Values.Identities.Mycielskians
 import IsoGraph.Values.Identities.Operators
+import IsoGraph.Values.Identities.Semiring
 
 /-!
 # The identities between the constructions, and the tables of their invariants
@@ -76,4 +77,5 @@ are the tables themselves, on the quotient.
 | `Identities/Products.lean` | the four products applied to pairs of families |
 | `Identities/Mycielskians.lean` | the Mycielskian and the line graph of everything, and of each other |
 | `Identities/Operators.lean` | the folded cube, and the transitivity and regularity columns |
+| `Identities/Semiring.lean` | the connected components, and the scoped algebra of the six operations |
 -/

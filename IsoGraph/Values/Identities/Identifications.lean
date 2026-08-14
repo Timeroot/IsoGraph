@@ -8,8 +8,9 @@ equation, and this module collects the hundred or so of them.  Vertex counts fir
 recognition lemmas `mk_eq_empty` and `mk_eq_complete` that settle every degenerate case, then
 family by family — the join and what is built from it, the complement, disjoint unions, the small
 sporadic identities, the complete multipartite graphs, the circulants, Paley, Kneser and Johnson,
-the hypercubes and folded cubes, the decorated cycles and trees, and the four products, which
-close the module by making the graphs a commutative semiring.
+the hypercubes and folded cubes, the decorated cycles and trees, and the four products, whose
+units, zeroes and distributive laws close the module — and are assembled into algebraic structures
+in `Identities/Semiring.lean`.
 
 Almost all of them are proved on `CGraph` and carried up by `@[toIsoGraph]`: an identity whose two
 sides have the same vertex type is an equality of `CGraph`s, and one whose sides do not is a
@@ -131,6 +132,17 @@ theorem mk_eq_complete {G : CGraph} (h : ∀ x y, x ≠ y → G.Adj x y = true) 
 /-- A graph with no vertices is the empty graph on `0` vertices. -/
 theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = empty 0 := by
   rw [mk_eq_empty (G := G) fun x _ ↦ isEmptyElim x, Fintype.card_eq_zero]
+
+/-- A graph is the empty graph on `0` vertices exactly when it has no vertices. -/
+@[simp] theorem V_eq_zero_iff {G : IsoGraph} : G.V = 0 ↔ G = empty 0 := by
+  constructor
+  · induction G using Quotient.inductionOn with
+    | h g =>
+      intro h
+      have : IsEmpty g.V := Fintype.card_eq_zero_iff.1 h
+      exact mk_eq_empty_zero
+  · rintro rfl
+    exact V_empty 0
 
 /-! ## The join, and the constructions built from it
 
@@ -1300,6 +1312,16 @@ noncomputable def emptyZeroCartesianProduct (G : CGraph) :
     empty 0 □g G ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ x.1.elim0) (by simp)
 
+@[toIsoGraph simp tensorProduct_empty_zero]
+noncomputable def tensorProductEmptyZero (G : CGraph) :
+    G ⊗g empty 0 ≃cg empty 0 :=
+  isoEmptyOfCard (fun x _ ↦ x.2.elim0) (by simp)
+
+@[toIsoGraph simp empty_zero_tensorProduct]
+noncomputable def emptyZeroTensorProduct (G : CGraph) :
+    empty 0 ⊗g G ≃cg empty 0 :=
+  isoEmptyOfCard (fun x _ ↦ x.1.elim0) (by simp)
+
 @[toIsoGraph simp strongProduct_empty_zero]
 noncomputable def strongProductEmptyZero (G : CGraph) :
     G ⊠g empty 0 ≃cg empty 0 :=
@@ -2096,85 +2118,6 @@ theorem tensorProduct_complete_two_cycle_five :
     complete 2 ⊗g cycle 5 = cycle 10 :=
   tensorProduct_complete_two_cycle_odd 1
 
-/-! ## The semiring of graphs
-
-The disjoint union and the cartesian product make `IsoGraph` a commutative semiring: `⊕g` is
-associative and commutative with unit `empty 0`, `□g` is associative and commutative with unit
-`empty 1`, the product distributes over the union, and `empty 0` annihilates it.  Every one of
-those laws is proved above, so the instance is a list of names.
-
-It is scoped, and in a scope of its own rather than in `IsoGraph`, because `+`, `*`, `0` and `1`
-on graphs are notation to be opted into: after `open scoped IsoGraph.Semiring`, `ring` proves
-identities like `(G ⊕g H) □g (G ⊕g H) = G □g G ⊕g empty 2 □g (G □g H) ⊕g H □g H`.  The other three
-products are not candidates — the tensor product has no unit and the lexicographic product is not
-commutative — although the strong product obeys the same laws with the same `0` and `1`.
-
-The numerals are the empty graphs: `Nat.cast` unfolds to `1 + ⋯ + 1`, which is `empty n`. -/
-
-namespace Semiring
-
-/-- Addition is the disjoint union. -/
-scoped instance instAdd : Add IsoGraph := ⟨disjUnion⟩
-
-/-- Zero is the graph on no vertices. -/
-scoped instance instZero : Zero IsoGraph := ⟨empty 0⟩
-
-/-- Multiplication is the cartesian product. -/
-scoped instance instMul : Mul IsoGraph := ⟨cartesianProduct⟩
-
-/-- One is the graph on a single vertex. -/
-scoped instance instOne : One IsoGraph := ⟨empty 1⟩
-
-/-- **The graphs form a commutative semiring** under the disjoint union and the cartesian product,
-with the graph on no vertices for zero and the graph on one vertex for one.  The four operations
-are the instances above, so `+` and `*` are the graph constructions themselves and not a copy of
-them: `add_eq` and `mul_eq` hold by `rfl`. -/
-scoped instance instCommSemiring : CommSemiring IsoGraph where
-  add_assoc := disjUnion_assoc
-  zero_add := empty_zero_disjUnion
-  add_zero := disjUnion_empty_zero
-  add_comm := disjUnion_comm
-  left_distrib := cartesianProduct_disjUnion
-  right_distrib := disjUnion_cartesianProduct
-  zero_mul := empty_zero_cartesianProduct
-  mul_zero := cartesianProduct_empty_zero
-  mul_assoc := cartesianProduct_assoc
-  one_mul := empty_one_cartesianProduct
-  mul_one := cartesianProduct_empty_one
-  mul_comm := cartesianProduct_comm
-  nsmul := nsmulRec
-  npow := npowRec
-
-@[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ⊕g H := rfl
-@[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G □g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
-
-/-- The numeral `n` is the graph on `n` vertices with no edges. -/
-@[scoped simp] theorem natCast_eq (n : ℕ) : (n : IsoGraph) = empty n := by
-  induction n with
-  | zero => rfl
-  | succ n ih =>
-    rw [Nat.cast_succ, ih]
-    exact disjUnion_empty n 1
-
-/-- The literal `n` is the graph on `n` vertices with no edges. -/
-@[scoped simp] theorem ofNat_eq (n : ℕ) [n.AtLeastTwo] :
-    (OfNat.ofNat n : IsoGraph) = empty (OfNat.ofNat n) := by
-  rw [← Nat.cast_ofNat (n := n), natCast_eq]
-
-/-- **The order of a graph is a semiring homomorphism** to `ℕ`: the disjoint union adds vertex
-counts and the cartesian product multiplies them. -/
-def VHom : IsoGraph →+* ℕ where
-  toFun G := G.V
-  map_one' := V_empty 1
-  map_mul' := V_cartesianProduct
-  map_zero' := V_empty 0
-  map_add' := V_disjUnion
-
-@[scoped simp] theorem coe_VHom : ⇑VHom = IsoGraph.V := rfl
-
-end Semiring
 
 end IsoGraph
 
