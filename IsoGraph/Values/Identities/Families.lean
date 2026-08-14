@@ -1634,7 +1634,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
       have hmem_i0 : (i, (0 : Fin 2)) ∈ e := by
         rw [← hval]
         exact Sym2.mem_iff.mpr (Or.inl rfl)
-      rcases Sym2.mem_iff.mp hmem_i0 with h | h <;> simp at h <;> exact h
+      rcases Sym2.mem_iff.mp hmem_i0 with h | h <;> simp_all
     have hrung_card : rungSet.card = n := by
       rw [Finset.card_image_of_injective _ hrung_inj, Finset.card_univ, Fintype.card_fin]
     have hrung_not_adj :
