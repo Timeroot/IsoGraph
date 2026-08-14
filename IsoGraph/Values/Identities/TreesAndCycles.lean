@@ -4207,7 +4207,8 @@ theorem isTree_spider (legs : List ℕ) : IsTree (spider legs) := by
       have hleg_lt : ∀ p ∈ CGraph.legEdges 0 offs k, p.1 < p.2 := by
         intro p hp
         rw [CGraph.mem_legEdges] at hp
-        rcases hp with ⟨h1, h2, hk⟩ | ⟨h1, h2, h3⟩ <;> simp [h1, h2] <;> omega
+        rcases hp with ⟨h1, h2, hk⟩ | ⟨h1, h2, h3⟩ <;> simp [h1, h2]
+        omega
       have hleg_bound : ∀ p ∈ CGraph.legEdges 0 offs k, p.2 < offs + k := by
         intro p hp
         rw [CGraph.mem_legEdges] at hp
