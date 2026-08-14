@@ -795,6 +795,7 @@ def sigmaUnionSucc {n : ℕ} (F : Fin (n + 1) → CGraph) :
 complement is again a product — of the complements.  Two pairs are non-adjacent in
 `G[H]` exactly when the first coordinates are non-adjacent, or equal with the second coordinates
 non-adjacent. -/
+@[toIsoGraph simp compl_lexProduct]
 def complLexProduct (G H : CGraph) :
     (CGraph.lexProduct G H)ᶜ ≃cg CGraph.lexProduct Gᶜ Hᶜ :=
   isoOfAdj (G := (CGraph.lexProduct G H)ᶜ)
@@ -808,6 +809,7 @@ def complLexProduct (G H : CGraph) :
 
 /-- **`(empty n)[G] = (empty n) □ G`**: with an edgeless first factor, both products are `n`
 disjoint copies of `G`. -/
+@[toIsoGraph empty_lexProduct]
 def emptyLexProduct (n : ℕ) (G : CGraph) :
     CGraph.lexProduct (CGraph.empty n) G ≃cg CGraph.cartesianProduct (CGraph.empty n) G :=
   isoOfAdj (G := CGraph.lexProduct (CGraph.empty n) G)
@@ -819,6 +821,7 @@ def emptyLexProduct (n : ℕ) (G : CGraph) :
 
 /-- **`(empty n) ⊠ G = (empty n) □ G`**: likewise for the strong product.  Only the tensor
 product breaks ranks here — with an edgeless factor it is edgeless. -/
+@[toIsoGraph empty_strongProduct]
 def emptyStrongProduct (n : ℕ) (G : CGraph) :
     CGraph.strongProduct (CGraph.empty n) G ≃cg CGraph.cartesianProduct (CGraph.empty n) G :=
   isoOfAdj (G := CGraph.strongProduct (CGraph.empty n) G)
@@ -838,6 +841,7 @@ into one of size `(n - k) - 1`, since `|sᶜ ∩ tᶜ| = n - |s ∪ t|` and `|s 
 The arithmetic is truncated subtraction throughout, which is why the two sets have to be distinct
 before `omega` will believe it: `s = t` forces `|s ∩ t| = k`, and then both `k - 1` tests fail for
 the wrong reason. -/
+@[toIsoGraph johnson_compl]
 def johnsonCompl (n k : ℕ) (hk : k ≤ n) :
     CGraph.johnson n k ≃cg CGraph.johnson n (n - k) :=
   isoOfAdj (G := CGraph.johnson n k) (H := CGraph.johnson n (n - k)) (complSubsets n k hk) (by

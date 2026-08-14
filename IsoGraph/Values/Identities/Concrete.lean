@@ -532,6 +532,7 @@ discards. -/
   rw [lollipop, cliqueEdges_one, List.nil_append, ofEdges_legEdges_one]
 
 /-- `K₂` and `C₂` have the same edges, so a lollipop on two vertices is a tadpole. -/
+@[toIsoGraph lollipop_two_eq_tadpole]
 theorem lollipop_two (k : ℕ) : lollipop 2 k = tadpole 2 k := by
   rw [lollipop, tadpole]
   refine ofEdges_append_congr _ _ _ _ fun p q _ ↦ ?_
@@ -539,6 +540,7 @@ theorem lollipop_two (k : ℕ) : lollipop 2 k = tadpole 2 k := by
   omega
 
 /-- `K₃` and `C₃` have the same edges, so a lollipop on three vertices is a tadpole. -/
+@[toIsoGraph lollipop_three_eq_tadpole]
 theorem lollipop_three (k : ℕ) : lollipop 3 k = tadpole 3 k := by
   rw [lollipop, tadpole]
   refine ofEdges_append_congr _ _ _ _ fun p q _ ↦ ?_

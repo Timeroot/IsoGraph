@@ -526,7 +526,7 @@ def circulant (n : ℕ) (S : List ℕ) : CGraph :=
 @[simp] theorem card_circulant (n : ℕ) (S : List ℕ) :
     Fintype.card (circulant n S).V = n := Fintype.card_fin n
 
-@[simp] theorem circulant_nil (n : ℕ) : circulant n [] = empty n :=
+@[toIsoGraph simp, simp] theorem circulant_nil (n : ℕ) : circulant n [] = empty n :=
   (eq_ofRel (empty n) (fun _ _ ↦ false) fun _ _ _ ↦ rfl).symm
 
 /-- The arithmetic behind `circulant_one_eq_cycle`: for distinct `a, b < n`, the difference
@@ -549,6 +549,7 @@ private theorem mod_add_sub_eq_one_iff {n a b : ℕ} (ha : a < n) (hb : b < n) (
 
 /-- **The cycle is the circulant with connection set `{1}`** — an equality of `CGraph`s, not just
 of isomorphism classes, since both are `ofRel` on `Fin n`. -/
+@[toIsoGraph simp circulant_one]
 theorem circulant_one_eq_cycle (n : ℕ) : circulant n [1] = cycle n := by
   refine (eq_ofRel (circulant n [1]) (fun i j ↦ (i.1 + 1) % n == j.1) fun x y hxy ↦ ?_).trans rfl
   have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
@@ -966,6 +967,22 @@ abbrev rook (m n : ℕ) : CGraph := cartesianProduct (complete m) (complete n)
 
 /-- The cocktail party graph `K_{n×2}`: `K_{2n}` minus a perfect matching. -/
 abbrev cocktailParty (n : ℕ) : CGraph := completeMultipartite (List.replicate n 2)
+
+/-- The Petersen graph, as the Kneser graph on the 2-subsets of a 5-set. -/
+abbrev petersen : CGraph := kneser 5 2
+
+/-- The Turán graph `T(n, r)`: the complete multipartite graph whose `r` parts are as equal as
+possible and hold `n` vertices in total. -/
+abbrev turan (n r : ℕ) : CGraph :=
+  completeMultipartite (List.replicate (n % r) (n / r + 1) ++ List.replicate (r - n % r) (n / r))
+
+/-- The friendship (windmill) graph `Fₙ`: `n` triangles glued at a common vertex. -/
+abbrev friendship (n : ℕ) : CGraph :=
+  join (complete 1) (cartesianProduct (empty n) (complete 2))
+
+/-- The crown graph `Sₙ`: the complete bipartite graph `K_{n,n}` with a perfect matching removed,
+equivalently the bipartite double cover of `Kₙ`. -/
+abbrev crown (n : ℕ) : CGraph := tensorProduct (complete n) (complete 2)
 
 /-! ## Graph codes
 
