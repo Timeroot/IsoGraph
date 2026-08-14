@@ -1660,7 +1660,7 @@ theorem edgeChromNum_rook_three_three : (rook 3 3).edgeChromNum = 5 := by
   rw [show (rook 3 3 : IsoGraph) = complete 3 □g complete 3 from rfl, complete_def 3,
     cartesianProduct_mk]
   exact edgeChromNum_mk_le_of_colouring
-    (G := CGraph.cartesianProduct (CGraph.complete 3) (CGraph.complete 3))
+    (G := CGraph.complete 3 □g CGraph.complete 3)
     CGraph.rook33Col CGraph.rook33Col_symm CGraph.rook33Col_proper
 
 theorem edgeChromNum_paley_thirteen : (paley 13).edgeChromNum = 7 := by

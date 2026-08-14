@@ -1235,10 +1235,10 @@ theorem girth_cyclePendant (m : ℕ) (ks : List ℕ) (hks : ks.length ≤ m + 3)
 /-- Two kings in the same `2 × 2` block of the board are a single move apart, so rounding both
 coordinates down to the block index is injective on an independent set. -/
 theorem indepNum_strongProduct_path_le (m n : ℕ) :
-    (strongProduct (path m) (path n)).indepNum ≤ ((m + 1) / 2) * ((n + 1) / 2) := by
+    (path m ⊠g path n).indepNum ≤ ((m + 1) / 2) * ((n + 1) / 2) := by
   classical
   obtain ⟨s, hs, hcard⟩ :=
-    (strongProduct (path m) (path n)).toSimple.exists_isNIndepSet_indepNum
+    (path m ⊠g path n).toSimple.exists_isNIndepSet_indepNum
   have hmaps : ∀ p ∈ s, ((p.1.1 / 2, p.2.1 / 2) : ℕ × ℕ) ∈
       (Finset.range ((m + 1) / 2)) ×ˢ (Finset.range ((n + 1) / 2)) := by
     intro p _
@@ -1246,8 +1246,7 @@ theorem indepNum_strongProduct_path_le (m n : ℕ) :
     have h2 := p.2.isLt
     simp only [Finset.mem_product, Finset.mem_range]
     omega
-  have hinj : ∀ p ∈ (s : Set (strongProduct (path m) (path n)).V),
-      ∀ q ∈ (s : Set (strongProduct (path m) (path n)).V),
+  have hinj : ∀ p ∈ (s : Set (path m ⊠g path n).V), ∀ q ∈ (s : Set (path m ⊠g path n).V),
       ((p.1.1 / 2, p.2.1 / 2) : ℕ × ℕ) = (q.1.1 / 2, q.2.1 / 2) → p = q := by
     intro p hp q hq heq
     by_contra hpq
@@ -1263,7 +1262,7 @@ theorem indepNum_strongProduct_path_le (m n : ℕ) :
     · by_cases he : p.2.1 = q.2.1
       · exact Or.inl (Fin.ext he)
       · exact Or.inr ((path_adj_val n p.2 q.2).2 ⟨he, by omega⟩)
-  calc (strongProduct (path m) (path n)).indepNum
+  calc (path m ⊠g path n).indepNum
       = s.card := hcard.symm
     _ ≤ ((Finset.range ((m + 1) / 2)) ×ˢ (Finset.range ((n + 1) / 2))).card :=
         Finset.card_le_card_of_injOn _ hmaps hinj
@@ -1293,18 +1292,17 @@ theorem val_step_or_eq_of_path_step {k : ℕ} {p q : (path k).V}
 square `(3a + 1, 3b + 1)`, pushed back to the last rank or file when that would fall off the
 board, and covers the whole `3 × 3` block. -/
 theorem domNum_strongProduct_path_le (m n : ℕ) :
-    (strongProduct (path m) (path n)).domNum ≤ ((m + 2) / 3) * ((n + 2) / 3) := by
+    (path m ⊠g path n).domNum ≤ ((m + 2) / 3) * ((n + 2) / 3) := by
   classical
   rcases Nat.eq_zero_or_pos m with hm | hm
   · subst hm; simp
   rcases Nat.eq_zero_or_pos n with hn | hn
   · subst hn; simp
-  let f : ℕ × ℕ → (strongProduct (path m) (path n)).V := fun ab ↦
+  let f : ℕ × ℕ → (path m ⊠g path n).V := fun ab ↦
     (⟨min (3 * ab.1 + 1) (m - 1), by omega⟩, ⟨min (3 * ab.2 + 1) (n - 1), by omega⟩)
   have hf1 : ∀ ab : ℕ × ℕ, (f ab).1.1 = min (3 * ab.1 + 1) (m - 1) := fun _ ↦ rfl
   have hf2 : ∀ ab : ℕ × ℕ, (f ab).2.1 = min (3 * ab.2 + 1) (n - 1) := fun _ ↦ rfl
-  have hmem : ∀ v : (strongProduct (path m) (path n)).V,
-      f (v.1.1 / 3, v.2.1 / 3) ∈
+  have hmem : ∀ v : (path m ⊠g path n).V, f (v.1.1 / 3, v.2.1 / 3) ∈
         (Finset.range ((m + 2) / 3) ×ˢ Finset.range ((n + 2) / 3)).image f := by
     intro v
     refine Finset.mem_image_of_mem f ?_
@@ -1312,7 +1310,7 @@ theorem domNum_strongProduct_path_le (m n : ℕ) :
     have h2 := v.2.isLt
     simp only [Finset.mem_product, Finset.mem_range]
     omega
-  have hdom : (strongProduct (path m) (path n)).IsDominatingSet
+  have hdom : (path m ⊠g path n).IsDominatingSet
       ((Finset.range ((m + 2) / 3) ×ˢ Finset.range ((n + 2) / 3)).image f) := by
     intro v
     have h1 := v.1.isLt
@@ -1332,11 +1330,11 @@ theorem domNum_strongProduct_path_le (m n : ℕ) :
 coordinates divisible by `3` have pairwise disjoint closed neighbourhoods, so every dominating set
 has at least that many kings — rounding a king's coordinates to the block it covers is onto. -/
 theorem le_domNum_strongProduct_path (m n : ℕ) :
-    ((m + 2) / 3) * ((n + 2) / 3) ≤ (strongProduct (path m) (path n)).domNum := by
+    ((m + 2) / 3) * ((n + 2) / 3) ≤ (path m ⊠g path n).domNum := by
   classical
-  obtain ⟨s, hcard, hs⟩ := (strongProduct (path m) (path n)).exists_isDominatingSet_domNum
+  obtain ⟨s, hcard, hs⟩ := (path m ⊠g path n).exists_isDominatingSet_domNum
   rw [← hcard]
-  have hsurj : Set.SurjOn (fun p : (strongProduct (path m) (path n)).V ↦
+  have hsurj : Set.SurjOn (fun p : (path m ⊠g path n).V ↦
       (((p.1.1 + 1) / 3, (p.2.1 + 1) / 3) : ℕ × ℕ)) ↑s
       ↑(Finset.range ((m + 2) / 3) ×ˢ Finset.range ((n + 2) / 3)) := by
     rintro ⟨a, b⟩ hab
@@ -1344,7 +1342,7 @@ theorem le_domNum_strongProduct_path (m n : ℕ) :
     obtain ⟨ha, hb⟩ := hab
     have ha3 : 3 * a < m := by omega
     have hb3 : 3 * b < n := by omega
-    have hkey : ∀ u : (strongProduct (path m) (path n)).V,
+    have hkey : ∀ u : (path m ⊠g path n).V,
         (u.1.1 = 3 * a ∨ u.1.1 + 1 = 3 * a ∨ 3 * a + 1 = u.1.1) →
         (u.2.1 = 3 * b ∨ u.2.1 + 1 = 3 * b ∨ 3 * b + 1 = u.2.1) →
         (((u.1.1 + 1) / 3, (u.2.1 + 1) / 3) : ℕ × ℕ) = (a, b) := by
@@ -1352,7 +1350,7 @@ theorem le_domNum_strongProduct_path (m n : ℕ) :
       simp only [Prod.mk.injEq]
       exact ⟨by omega, by omega⟩
     rcases hs ((⟨3 * a, ha3⟩, ⟨3 * b, hb3⟩) :
-        (strongProduct (path m) (path n)).V) with hv | ⟨u, hu, hadj⟩
+        (path m ⊠g path n).V) with hv | ⟨u, hu, hadj⟩
     · exact ⟨_, hv, hkey _ (Or.inl rfl) (Or.inl rfl)⟩
     · rw [strongProduct_adj] at hadj
       simp only [Bool.and_eq_true] at hadj
@@ -1394,15 +1392,15 @@ theorem snake_inj {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
 Hamiltonian path, so pairing up the squares numbered `2i` and `2i + 1` partitions the board into
 `⌈mn/2⌉` edges and single squares, and an independent set meets each of them once. -/
 theorem indepNum_cartesianProduct_path_le (m n : ℕ) :
-    (cartesianProduct (path m) (path n)).indepNum ≤ (m * n + 1) / 2 := by
+    (path m □g path n).indepNum ≤ (m * n + 1) / 2 := by
   classical
   obtain ⟨s, hs, hcard⟩ :=
-    (cartesianProduct (path m) (path n)).toSimple.exists_isNIndepSet_indepNum
-  let L : (cartesianProduct (path m) (path n)).V → ℕ := fun p ↦
+    (path m □g path n).toSimple.exists_isNIndepSet_indepNum
+  let L : (path m □g path n).V → ℕ := fun p ↦
     p.1.1 * n + (if p.1.1 % 2 = 0 then p.2.1 else n - 1 - p.2.1)
-  have hLval : ∀ p : (cartesianProduct (path m) (path n)).V,
+  have hLval : ∀ p : (path m □g path n).V,
       L p = p.1.1 * n + (if p.1.1 % 2 = 0 then p.2.1 else n - 1 - p.2.1) := fun _ ↦ rfl
-  have hLlt : ∀ p : (cartesianProduct (path m) (path n)).V, L p < m * n := by
+  have hLlt : ∀ p : (path m □g path n).V, L p < m * n := by
     intro p
     have h1 := p.1.isLt
     have h2 := p.2.isLt
@@ -1411,8 +1409,7 @@ theorem indepNum_cartesianProduct_path_le (m n : ℕ) :
     have h5 : (if p.1.1 % 2 = 0 then p.2.1 else n - 1 - p.2.1) < n := by split; omega; omega
     rw [hLval]
     omega
-  have hstep : ∀ p q : (cartesianProduct (path m) (path n)).V, L p + 1 = L q →
-      (cartesianProduct (path m) (path n)).Adj p q = true := by
+  have hstep : ∀ p q : (path m □g path n).V, L p + 1 = L q → (path m □g path n).Adj p q = true := by
     intro p q h
     have h1 := p.2.isLt
     have h2 := q.2.isLt
@@ -1427,8 +1424,8 @@ theorem indepNum_cartesianProduct_path_le (m n : ℕ) :
     have := hLlt p
     simp only [Finset.mem_range]
     omega
-  have hinj : ∀ p ∈ (s : Set (cartesianProduct (path m) (path n)).V),
-      ∀ q ∈ (s : Set (cartesianProduct (path m) (path n)).V), L p / 2 = L q / 2 → p = q := by
+  have hinj : ∀ p ∈ (s : Set (path m □g path n).V),
+      ∀ q ∈ (s : Set (path m □g path n).V), L p / 2 = L q / 2 → p = q := by
     intro p hp q hq heq
     by_contra hpq
     have hne : L p ≠ L q := by
@@ -1436,13 +1433,13 @@ theorem indepNum_cartesianProduct_path_le (m n : ℕ) :
       rw [hLval, hLval] at he
       obtain ⟨h1, h2⟩ := snake_inj p.2.isLt q.2.isLt he
       exact hpq (Prod.ext (Fin.ext h1) (Fin.ext h2))
-    have hadj : (cartesianProduct (path m) (path n)).Adj p q = true := by
+    have hadj : (path m □g path n).Adj p q = true := by
       rcases (by omega : L p + 1 = L q ∨ L q + 1 = L p) with h | h
       · exact hstep p q h
-      · rw [(cartesianProduct (path m) (path n)).symm]
+      · rw [(path m □g path n).symm]
         exact hstep q p h
     exact hs hp hq hpq (by rw [CGraph.toSimple_adj]; exact hadj)
-  calc (cartesianProduct (path m) (path n)).indepNum
+  calc (path m □g path n).indepNum
       = s.card := hcard.symm
     _ ≤ (Finset.range ((m * n + 1) / 2)).card := Finset.card_le_card_of_injOn _ hmaps hinj
     _ = (m * n + 1) / 2 := Finset.card_range _
@@ -1550,7 +1547,7 @@ theorem le_indepNum_lineGraph_board {m n : ℕ} (G : CGraph)
 
 /-- The grid contains `⌊mn/2⌋` disjoint edges. -/
 theorem le_indepNum_lineGraph_grid (m n : ℕ) :
-    m * n / 2 ≤ (lineGraph (cartesianProduct (path m) (path n))).indepNum := by
+    m * n / 2 ≤ (lineGraph (path m □g path n)).indepNum := by
   refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
   intro p q h
   rw [cartesianProduct_adj]
@@ -1561,7 +1558,7 @@ theorem le_indepNum_lineGraph_grid (m n : ℕ) :
 
 /-- The king graph contains `⌊mn/2⌋` disjoint edges: the grid's own matching. -/
 theorem le_indepNum_lineGraph_king (m n : ℕ) :
-    m * n / 2 ≤ (lineGraph (strongProduct (path m) (path n))).indepNum := by
+    m * n / 2 ≤ (lineGraph (path m ⊠g path n)).indepNum := by
   refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
   intro p q h
   rw [strongProduct_adj]
@@ -1584,9 +1581,9 @@ independent; the wrap-around is safe in the column direction because `n` is even
 direction because the last row used is `2⌊m/2⌋ - 1`, which is adjacent to row `0` only when `m`
 is even, when it has the opposite parity. -/
 theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
-    n * (m / 2) ≤ (cartesianProduct (cycle m) (cycle n)).indepNum := by
+    n * (m / 2) ≤ (cycle m □g cycle n).indepNum := by
   classical
-  let Φ : Fin (2 * (m / 2)) × Fin (n / 2) → (cartesianProduct (cycle m) (cycle n)).V := fun ab ↦
+  let Φ : Fin (2 * (m / 2)) × Fin (n / 2) → (cycle m □g cycle n).V := fun ab ↦
     (⟨ab.1.1, by have := ab.1.isLt; omega⟩, ⟨2 * ab.2.1 + ab.1.1 % 2, by have := ab.2.isLt; omega⟩)
   have hΦ1 : ∀ ab, (Φ ab).1.1 = ab.1.1 := fun _ ↦ rfl
   have hΦ2 : ∀ ab, (Φ ab).2.1 = 2 * ab.2.1 + ab.1.1 % 2 := fun _ ↦ rfl
@@ -1601,9 +1598,9 @@ theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
     simp only [hΦ1] at h1
     simp only [hΦ2] at h2
     exact Prod.ext (Fin.ext h1) (Fin.ext (by omega))
-  set S : Finset (cartesianProduct (cycle m) (cycle n)).V := Finset.univ.image Φ with hS
-  have hindep : (cartesianProduct (cycle m) (cycle n)).toSimple.IsIndepSet
-      (S : Set (cartesianProduct (cycle m) (cycle n)).V) := by
+  set S : Finset (cycle m □g cycle n).V := Finset.univ.image Φ with hS
+  have hindep : (cycle m □g cycle n).toSimple.IsIndepSet
+      (S : Set (cycle m □g cycle n).V) := by
     intro p hp q hq _
     simp only [hS, Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ,
       true_and] at hp hq
@@ -1639,7 +1636,7 @@ theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
 /-- The torus contains `⌊mn/2⌋` disjoint edges: it contains the grid, so the boustrophedon
 matching of `le_indepNum_lineGraph_board` works unchanged. -/
 theorem le_indepNum_lineGraph_torus (m n : ℕ) :
-    m * n / 2 ≤ (lineGraph (cartesianProduct (cycle m) (cycle n))).indepNum := by
+    m * n / 2 ≤ (lineGraph (cycle m □g cycle n)).indepNum := by
   refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
   intro p q h
   rw [cartesianProduct_adj]
@@ -1658,7 +1655,7 @@ theorem le_indepNum_lineGraph_torus (m n : ℕ) :
 
 /-- The cylinder contains `⌊mn/2⌋` disjoint edges, again by the grid's matching. -/
 theorem le_indepNum_lineGraph_cylinder (m n : ℕ) :
-    m * n / 2 ≤ (lineGraph (cartesianProduct (cycle m) (path n))).indepNum := by
+    m * n / 2 ≤ (lineGraph (cycle m □g path n)).indepNum := by
   refine le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
   intro p q h
   rw [cartesianProduct_adj]
@@ -1697,8 +1694,8 @@ theorem chromNum_lineGraph_cartesianProduct_le {G H : CGraph}
     (hc : ∀ x y, c x y = c y x) (hd : ∀ x y, d x y = d y x)
     (hcp : ∀ u v w : G.V, G.Adj u v = true → G.Adj u w = true → v ≠ w → c u v ≠ c u w)
     (hdp : ∀ u v w : H.V, H.Adj u v = true → H.Adj u w = true → v ≠ w → d u v ≠ d u w) :
-    (lineGraph (cartesianProduct G H)).chromNum ≤ k + l := by
-  refine chromNum_lineGraph_le_of_edgeColouring (G := cartesianProduct G H) (prodCol c d)
+    (lineGraph (G □g H)).chromNum ≤ k + l := by
+  refine chromNum_lineGraph_le_of_edgeColouring (G := G □g H) (prodCol c d)
     (prodCol_symm hc hd) ?_
   intro u v w huv huw hvw
   rw [cartesianProduct_adj] at huv huw
@@ -1765,7 +1762,7 @@ theorem exists_edgeColouring {G : CGraph} {k : ℕ}
 no explicit colouring in sight: read one back out of each factor's line-graph colouring. -/
 theorem chromNum_lineGraph_cartesianProduct_le_add {G H : CGraph}
  (hG : 0 < (lineGraph G).chromNum) (hH : 0 < (lineGraph H).chromNum) :
-    (lineGraph (cartesianProduct G H)).chromNum
+    (lineGraph (G □g H)).chromNum
       ≤ (lineGraph G).chromNum + (lineGraph H).chromNum := by
   obtain ⟨c, hc, hcp⟩ := exists_edgeColouring (G := G) le_rfl ⟨0, hG⟩
   obtain ⟨d, hd, hdp⟩ := exists_edgeColouring (G := H) le_rfl ⟨0, hH⟩
@@ -1797,7 +1794,7 @@ theorem staircase_clash (a s t i i' : ℕ) (hi : i ≤ a) (hi' : i' ≤ a)
 /-- **The staircase on a torus with two odd sides.** -/
 theorem le_indepNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
     (2 * b + 3) * (a + 1) ≤
-      (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).indepNum := by
+      (cycle (2 * a + 3) □g cycle (2 * b + 3)).indepNum := by
   classical
   obtain ⟨w, hw⟩ : ∃ w : ℕ → ℕ,
       w = fun j ↦ if j ≤ a + b + 3 then j else 2 * (a + b + 3) - j := ⟨_, rfl⟩
@@ -1835,7 +1832,7 @@ theorem le_indepNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
         show (0 + 1) % (2 * a + 3) = (2 * a + 3 + 1) % (2 * a + 3)
         rw [Nat.add_mod_left]
   obtain ⟨Φ, hΦ⟩ : ∃ Φ : Fin (2 * b + 3) × Fin (a + 1) →
-      (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).V,
+      (cycle (2 * a + 3) □g cycle (2 * b + 3)).V,
       Φ = fun x ↦ (⟨(w x.1.1 + 2 * x.2.1) % (2 * a + 3), Nat.mod_lt _ (by omega)⟩, x.1) :=
     ⟨_, rfl⟩
   have hΦ1 : ∀ x, (Φ x).1.1 = (w x.1.1 + 2 * x.2.1) % (2 * a + 3) := by simp [hΦ]
@@ -1851,10 +1848,9 @@ theorem le_indepNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
     have hy := y.2.isLt
     rw [Nat.ModEq, Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at h3
     exact Prod.ext h2 (Fin.ext (by omega))
-  set S : Finset (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).V :=
-    Finset.univ.image Φ with hS
-  have hindep : (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).toSimple.IsIndepSet
-      (S : Set (cartesianProduct (cycle (2 * a + 3)) (cycle (2 * b + 3))).V) := by
+  set S : Finset (cycle (2 * a + 3) □g cycle (2 * b + 3)).V := Finset.univ.image Φ with hS
+  have hindep : (cycle (2 * a + 3) □g cycle (2 * b + 3)).toSimple.IsIndepSet
+      (S : Set (cycle (2 * a + 3) □g cycle (2 * b + 3)).V) := by
     intro P hP Q hQ _
     simp only [hS, Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ,
       true_and] at hP hQ

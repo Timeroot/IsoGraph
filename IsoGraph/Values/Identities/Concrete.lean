@@ -100,7 +100,7 @@ constructions carry colourings around in the obvious way, and a colouring is exa
 
 /-- A disjoint union of bipartite graphs is bipartite. -/
 theorem IsBipartite.disjUnion {G H : CGraph} (hG : G.IsBipartite) (hH : H.IsBipartite) :
-    (CGraph.disjUnion G H).IsBipartite := by
+    (G ⊕g H).IsBipartite := by
   obtain ⟨c, hc⟩ := hG
   obtain ⟨d, hd⟩ := hH
   refine ⟨Sum.elim c d, ?_⟩
@@ -112,7 +112,7 @@ theorem IsBipartite.disjUnion {G H : CGraph} (hG : G.IsBipartite) (hH : H.IsBipa
 
 /-- A Cartesian product of bipartite graphs is bipartite: take the `xor` of the two colourings. -/
 theorem IsBipartite.cartesianProduct {G H : CGraph}
-    (hG : G.IsBipartite) (hH : H.IsBipartite) : (CGraph.cartesianProduct G H).IsBipartite := by
+    (hG : G.IsBipartite) (hH : H.IsBipartite) : (G □g H).IsBipartite := by
   obtain ⟨c, hc⟩ := hG
   obtain ⟨d, hd⟩ := hH
   refine ⟨fun p ↦ xor (c p.1) (d p.2), ?_⟩
@@ -130,7 +130,7 @@ theorem IsBipartite.cartesianProduct {G H : CGraph}
 /-- A tensor product is bipartite as soon as one factor is: colour by that factor. -/
 @[toIsoGraph isBipartite_tensorProduct_left]
 theorem IsBipartite.tensorProduct_left {G H : CGraph}
-    (hG : G.IsBipartite) : (CGraph.tensorProduct G H).IsBipartite := by
+    (hG : G.IsBipartite) : (G ⊗g H).IsBipartite := by
   obtain ⟨c, hc⟩ := hG
   refine ⟨fun p ↦ c p.1, ?_⟩
   rintro ⟨x, y⟩ ⟨x', y'⟩ hxy
@@ -140,7 +140,7 @@ theorem IsBipartite.tensorProduct_left {G H : CGraph}
 
 @[toIsoGraph isBipartite_tensorProduct_right]
 theorem IsBipartite.tensorProduct_right {G H : CGraph}
-    (hH : H.IsBipartite) : (CGraph.tensorProduct G H).IsBipartite := by
+    (hH : H.IsBipartite) : (G ⊗g H).IsBipartite := by
   obtain ⟨c, hc⟩ := hH
   refine ⟨fun p ↦ c p.2, ?_⟩
   rintro ⟨x, y⟩ ⟨x', y'⟩ hxy
@@ -149,12 +149,12 @@ theorem IsBipartite.tensorProduct_right {G H : CGraph}
   exact hc y y' hxy.2
 
 /-- A summand of a bipartite disjoint union is bipartite: restrict the colouring. -/
-theorem IsBipartite.of_disjUnion_left {G H : CGraph} (h : (CGraph.disjUnion G H).IsBipartite) :
+theorem IsBipartite.of_disjUnion_left {G H : CGraph} (h : (G ⊕g H).IsBipartite) :
     G.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   exact ⟨fun a ↦ c (.inl a), fun x y hxy ↦ hc _ _ (by rwa [disjUnion_adj_inl_inl])⟩
 
-theorem IsBipartite.of_disjUnion_right {G H : CGraph} (h : (CGraph.disjUnion G H).IsBipartite) :
+theorem IsBipartite.of_disjUnion_right {G H : CGraph} (h : (G ⊕g H).IsBipartite) :
     H.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   exact ⟨fun b ↦ c (.inr b), fun x y hxy ↦ hc _ _ (by rwa [disjUnion_adj_inr_inr])⟩
@@ -162,7 +162,7 @@ theorem IsBipartite.of_disjUnion_right {G H : CGraph} (h : (CGraph.disjUnion G H
 /-- A factor of a bipartite Cartesian product is bipartite: a fixed vertex of the other factor
 cuts out a copy of it. -/
 theorem IsBipartite.of_cartesianProduct_left {G H : CGraph}
-    (hH : Nonempty H.V) (h : (CGraph.cartesianProduct G H).IsBipartite) : G.IsBipartite := by
+    (hH : Nonempty H.V) (h : (G □g H).IsBipartite) : G.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   obtain ⟨b⟩ := hH
   refine ⟨fun a ↦ c (a, b), fun x y hxy ↦ hc (x, b) (y, b) ?_⟩
@@ -170,7 +170,7 @@ theorem IsBipartite.of_cartesianProduct_left {G H : CGraph}
   simp [hxy]
 
 theorem IsBipartite.of_cartesianProduct_right {G H : CGraph}
-    (hG : Nonempty G.V) (h : (CGraph.cartesianProduct G H).IsBipartite) : H.IsBipartite := by
+    (hG : Nonempty G.V) (h : (G □g H).IsBipartite) : H.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   obtain ⟨a⟩ := hG
   refine ⟨fun b ↦ c (a, b), fun x y hxy ↦ hc (a, x) (a, y) ?_⟩
@@ -181,7 +181,7 @@ theorem IsBipartite.of_cartesianProduct_right {G H : CGraph}
 /-- **A Cartesian product of nonempty graphs is bipartite exactly when both factors are.** -/
 @[toIsoGraph]
 theorem isBipartite_cartesianProduct_iff {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    (CGraph.cartesianProduct G H).IsBipartite ↔ G.IsBipartite ∧ H.IsBipartite :=
+    (G □g H).IsBipartite ↔ G.IsBipartite ∧ H.IsBipartite :=
   ⟨fun h ↦ ⟨h.of_cartesianProduct_left ‹Nonempty H.V›, h.of_cartesianProduct_right ‹Nonempty G.V›⟩,
     fun h ↦ IsBipartite.cartesianProduct h.1 h.2⟩
 
@@ -248,24 +248,24 @@ theorem not_isBipartite_complete (n : ℕ) : ¬ (CGraph.complete (n + 3)).IsBipa
 /-- A side of a bipartite join is bipartite: restrict the colouring. -/
 @[toIsoGraph]
 theorem IsBipartite.of_join_left {G H : CGraph}
-    (h : (CGraph.join G H).IsBipartite) : G.IsBipartite := by
+    (h : (G ∇g H).IsBipartite) : G.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   exact ⟨fun a ↦ c (.inl a), fun x y hxy ↦ hc _ _ (by rwa [join_adj_inl_inl])⟩
 
 @[toIsoGraph]
 theorem IsBipartite.of_join_right {G H : CGraph}
-    (h : (CGraph.join G H).IsBipartite) : H.IsBipartite := by
+    (h : (G ∇g H).IsBipartite) : H.IsBipartite := by
   obtain ⟨c, hc⟩ := h
   exact ⟨fun b ↦ c (.inr b), fun x y hxy ↦ hc _ _ (by rwa [join_adj_inr_inr])⟩
 
 /-- An edge on one side of a join, together with any vertex on the other side, is a triangle. -/
 theorem not_isBipartite_join_of_adj_left {G H : CGraph}
-    {a b : G.V} (hab : G.Adj a b) (c : H.V) : ¬ (CGraph.join G H).IsBipartite :=
+    {a b : G.V} (hab : G.Adj a b) (c : H.V) : ¬ (G ∇g H).IsBipartite :=
   not_isBipartite_of_triangle (a := .inl a) (b := .inl b) (d := .inr c)
     (by rwa [join_adj_inl_inl]) (join_adj_inl_inr G H a c) (join_adj_inl_inr G H b c)
 
 theorem not_isBipartite_join_of_adj_right {G H : CGraph}
-    {a b : H.V} (hab : H.Adj a b) (c : G.V) : ¬ (CGraph.join G H).IsBipartite :=
+    {a b : H.V} (hab : H.Adj a b) (c : G.V) : ¬ (G ∇g H).IsBipartite :=
   not_isBipartite_of_triangle (a := .inr a) (b := .inr b) (d := .inl c)
     (by rwa [join_adj_inr_inr]) (join_adj_inr_inl G H a c) (join_adj_inr_inl G H b c)
 
@@ -273,7 +273,7 @@ theorem not_isBipartite_join_of_adj_right {G H : CGraph}
 @[toIsoGraph]
 theorem not_isBipartite_join_join {G H K : CGraph}
     [Nonempty G.V] [Nonempty H.V] [Nonempty K.V] :
-    ¬ (CGraph.join G (CGraph.join H K)).IsBipartite := by
+    ¬ (G ∇g (H ∇g K)).IsBipartite := by
   obtain ⟨a⟩ := ‹Nonempty G.V›
   obtain ⟨b⟩ := ‹Nonempty H.V›
   obtain ⟨c⟩ := ‹Nonempty K.V›
@@ -1754,15 +1754,15 @@ theorem card_ne_succ (n : ℕ) (x y : Fin (n + 1) → Bool) :
 
 /-- The Cartesian product is Mathlib's box product on the underlying simple graphs. -/
 theorem toSimple_cartesianProduct (G H : CGraph) :
-    (cartesianProduct G H).toSimple = SimpleGraph.boxProd G.toSimple H.toSimple := by
+    (G □g H).toSimple = SimpleGraph.boxProd G.toSimple H.toSimple := by
   ext p q
   simp only [CGraph.toSimple_adj, cartesianProduct_adj, SimpleGraph.boxProd_adj,
     Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
   tauto
 
 theorem isConnected_cartesianProduct_iff (G H : CGraph) :
-    (cartesianProduct G H).IsConnected ↔ G.IsConnected ∧ H.IsConnected := by
-  show (cartesianProduct G H).toSimple.Connected ↔ _
+    (G □g H).IsConnected ↔ G.IsConnected ∧ H.IsConnected := by
+  show (G □g H).toSimple.Connected ↔ _
   rw [toSimple_cartesianProduct]
   exact SimpleGraph.connected_boxProd
 
@@ -1794,7 +1794,7 @@ theorem exists_adj_of_E_pos {G : CGraph} (h : 0 < G.E) : ∃ a b, G.Adj a b := b
 /-! ### The strong and lexicographic products contain the Cartesian one -/
 
 theorem cartesianProduct_le_strongProduct (G H : CGraph) :
-    (cartesianProduct G H).toSimple ≤ (strongProduct G H).toSimple := by
+    (G □g H).toSimple ≤ (G ⊠g H).toSimple := by
   intro p q hpq
   rw [CGraph.toSimple_adj, cartesianProduct_adj] at hpq
   rw [CGraph.toSimple_adj, strongProduct_adj]
@@ -1808,7 +1808,7 @@ theorem cartesianProduct_le_strongProduct (G H : CGraph) :
     exact Bool.noConfusion h1
 
 theorem cartesianProduct_le_lexProduct (G H : CGraph) :
-    (cartesianProduct G H).toSimple ≤ (lexProduct G H).toSimple := by
+    (G □g H).toSimple ≤ (G ·g H).toSimple := by
   intro p q hpq
   rw [CGraph.toSimple_adj, cartesianProduct_adj] at hpq
   rw [CGraph.toSimple_adj, lexProduct_adj]
@@ -1817,13 +1817,13 @@ theorem cartesianProduct_le_lexProduct (G H : CGraph) :
 
 @[toIsoGraph]
 theorem isConnected_strongProduct {G H : CGraph}
-    (hG : G.IsConnected) (hH : H.IsConnected) : (strongProduct G H).IsConnected :=
+    (hG : G.IsConnected) (hH : H.IsConnected) : (G ⊠g H).IsConnected :=
   SimpleGraph.Connected.mono (cartesianProduct_le_strongProduct G H)
     ((isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩)
 
 @[toIsoGraph]
 theorem isConnected_lexProduct {G H : CGraph}
-    (hG : G.IsConnected) (hH : H.IsConnected) : (lexProduct G H).IsConnected :=
+    (hG : G.IsConnected) (hH : H.IsConnected) : (G ·g H).IsConnected :=
   SimpleGraph.Connected.mono (cartesianProduct_le_lexProduct G H)
     ((isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩)
 
@@ -1831,7 +1831,7 @@ theorem isConnected_lexProduct {G H : CGraph}
 
 @[toIsoGraph]
 theorem not_isBipartite_strongProduct {G H : CGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    ¬ (strongProduct G H).IsBipartite := by
+    ¬ (G ⊠g H).IsBipartite := by
   obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos hG
   obtain ⟨c, d, hcd⟩ := exists_adj_of_E_pos hH
   have hba : G.Adj b a := by rwa [G.symm]
@@ -1848,7 +1848,7 @@ theorem not_isBipartite_strongProduct {G H : CGraph} (hG : 0 < G.E) (hH : 0 < H.
 
 @[toIsoGraph]
 theorem not_isBipartite_lexProduct {G H : CGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
-    ¬ (lexProduct G H).IsBipartite := by
+    ¬ (G ·g H).IsBipartite := by
   obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos hG
   obtain ⟨c, d, hcd⟩ := exists_adj_of_E_pos hH
   have hba : G.Adj b a := by rwa [G.symm]
@@ -1921,8 +1921,8 @@ variable {G H : CGraph}
 
 /-! ### Neighbours in the four products -/
 
-theorem nbrs_cartesianProduct (p : (cartesianProduct G H).V) :
-    (cartesianProduct G H).nbrs p
+theorem nbrs_cartesianProduct (p : (G □g H).V) :
+    (G □g H).nbrs p
       = (({p.1} : Finset G.V) ×ˢ H.nbrs p.2) ∪ (G.nbrs p.1 ×ˢ ({p.2} : Finset H.V)) := by
   refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
   rw [mem_nbrs, cartesianProduct_adj]
@@ -1932,7 +1932,7 @@ theorem nbrs_cartesianProduct (p : (cartesianProduct G H).V) :
 
 theorem card_nbrs_cartesianProduct {k l : ℕ}
     (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
-    (p : (cartesianProduct G H).V) : ((cartesianProduct G H).nbrs p).card = k + l := by
+    (p : (G □g H).V) : ((G □g H).nbrs p).card = k + l := by
   rw [nbrs_cartesianProduct, Finset.card_union_of_disjoint, Finset.card_product,
     Finset.card_product, Finset.card_singleton, Finset.card_singleton, hG, hH, one_mul, mul_one,
     Nat.add_comm]
@@ -1940,19 +1940,19 @@ theorem card_nbrs_cartesianProduct {k l : ℕ}
   rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
   exact Bool.noConfusion
 
-theorem nbrs_tensorProduct (p : (tensorProduct G H).V) :
-    (tensorProduct G H).nbrs p = G.nbrs p.1 ×ˢ H.nbrs p.2 := by
+theorem nbrs_tensorProduct (p : (G ⊗g H).V) :
+    (G ⊗g H).nbrs p = G.nbrs p.1 ×ˢ H.nbrs p.2 := by
   refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
   rw [mem_nbrs, tensorProduct_adj]
   simp only [Finset.mem_product, mem_nbrs, Bool.and_eq_true]
 
 theorem card_nbrs_tensorProduct {k l : ℕ}
     (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
-    (p : (tensorProduct G H).V) : ((tensorProduct G H).nbrs p).card = k * l := by
+    (p : (G ⊗g H).V) : ((G ⊗g H).nbrs p).card = k * l := by
   rw [nbrs_tensorProduct, Finset.card_product, hG, hH]
 
-theorem nbrs_lexProduct (p : (lexProduct G H).V) :
-    (lexProduct G H).nbrs p
+theorem nbrs_lexProduct (p : (G ·g H).V) :
+    (G ·g H).nbrs p
       = (G.nbrs p.1 ×ˢ (Finset.univ : Finset H.V)) ∪ (({p.1} : Finset G.V) ×ˢ H.nbrs p.2) := by
   refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
   rw [mem_nbrs, lexProduct_adj]
@@ -1963,16 +1963,16 @@ theorem nbrs_lexProduct (p : (lexProduct G H).V) :
 
 theorem card_nbrs_lexProduct {k l : ℕ}
     (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
-    (p : (lexProduct G H).V) :
-    ((lexProduct G H).nbrs p).card = k * Fintype.card H.V + l := by
+    (p : (G ·g H).V) :
+    ((G ·g H).nbrs p).card = k * Fintype.card H.V + l := by
   rw [nbrs_lexProduct, Finset.card_union_of_disjoint, Finset.card_product, Finset.card_product,
     Finset.card_singleton, Finset.card_univ, hG, hH, one_mul]
   refine Finset.disjoint_product.2 (Or.inl ?_)
   rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
   exact Bool.noConfusion
 
-theorem nbrs_strongProduct (p : (strongProduct G H).V) :
-    (strongProduct G H).nbrs p
+theorem nbrs_strongProduct (p : (G ⊠g H).V) :
+    (G ⊠g H).nbrs p
       = ((G.nbrs p.1 ∪ {p.1}) ×ˢ (H.nbrs p.2 ∪ {p.2})) \ {p} := by
   refine Finset.ext (α := G.V × H.V) fun q ↦ ?_
   rw [mem_nbrs, strongProduct_adj]
@@ -1986,8 +1986,8 @@ theorem nbrs_strongProduct (p : (strongProduct G H).V) :
 
 theorem card_nbrs_strongProduct {k l : ℕ}
     (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
-    (p : (strongProduct G H).V) :
-    ((strongProduct G H).nbrs p).card = (k + 1) * (l + 1) - 1 := by
+    (p : (G ⊠g H).V) :
+    ((G ⊠g H).nbrs p).card = (k + 1) * (l + 1) - 1 := by
   have hdG : ((G.nbrs p.1 ∪ {p.1}) : Finset G.V).card = k + 1 := by
     rw [Finset.card_union_of_disjoint, Finset.card_singleton, hG]
     rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
@@ -2007,7 +2007,7 @@ theorem card_nbrs_strongProduct {k l : ℕ}
 
 theorem degSequence_cartesianProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
-    (cartesianProduct G H).degSequence
+    (G □g H).degSequence
       = List.replicate (Fintype.card G.V * Fintype.card H.V) (k + l) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_cartesianProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
@@ -2015,7 +2015,7 @@ theorem degSequence_cartesianProduct {m k n l : ℕ}
 
 theorem degSequence_tensorProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
-    (tensorProduct G H).degSequence
+    (G ⊗g H).degSequence
       = List.replicate (Fintype.card G.V * Fintype.card H.V) (k * l) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_tensorProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
@@ -2023,7 +2023,7 @@ theorem degSequence_tensorProduct {m k n l : ℕ}
 
 theorem degSequence_lexProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
-    (lexProduct G H).degSequence
+    (G ·g H).degSequence
       = List.replicate (Fintype.card G.V * Fintype.card H.V) (k * Fintype.card H.V + l) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_lexProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
@@ -2031,7 +2031,7 @@ theorem degSequence_lexProduct {m k n l : ℕ}
 
 theorem degSequence_strongProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
-    (strongProduct G H).degSequence
+    (G ⊠g H).degSequence
       = List.replicate (Fintype.card G.V * Fintype.card H.V) ((k + 1) * (l + 1) - 1) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_strongProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
@@ -2202,9 +2202,8 @@ theorem exists_not_adj_of_E_lt (G : CGraph) (h : G.E < (Fintype.card G.V).choose
 /-- In a join, two vertices on the same side have a common neighbour on the other side, and two
 vertices on opposite sides are adjacent. -/
 theorem two_step_join (G H : CGraph) [Nonempty G.V]
-    [Nonempty H.V] (u v : (join G H).V) (huv : u ≠ v) :
-    (join G H).toSimple.Adj u v ∨
-      ∃ w, (join G H).toSimple.Adj u w ∧ (join G H).toSimple.Adj w v := by
+    [Nonempty H.V] (u v : (G ∇g H).V) (huv : u ≠ v) :
+    (G ∇g H).toSimple.Adj u v ∨ ∃ w, (G ∇g H).toSimple.Adj u w ∧ (G ∇g H).toSimple.Adj w v := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   rcases u with a | b <;> rcases v with c | d
@@ -2215,13 +2214,13 @@ theorem two_step_join (G H : CGraph) [Nonempty G.V]
 
 @[toIsoGraph]
 theorem diameter_join_le_two (G H : CGraph) [Nonempty G.V]
-    [Nonempty H.V] : (join G H).diameter ≤ 2 :=
+    [Nonempty H.V] : (G ∇g H).diameter ≤ 2 :=
   diameter_le_two _ (two_step_join G H)
 
 /-- A join is of diameter exactly two as soon as one side has a non-adjacent pair. -/
 theorem diameter_join_of_not_adj (G H : CGraph)
     [Nonempty H.V] {a c : G.V} (hne : a ≠ c) (hadj : G.Adj a c = false) :
-    (join G H).diameter = 2 := by
+    (G ∇g H).diameter = 2 := by
   haveI : Nonempty G.V := ⟨a⟩
   refine diameter_eq_two _ (two_step_join G H) (u := Sum.inl a) (v := Sum.inl c) ?_ ?_
   · exact fun h ↦ hne (Sum.inl.inj h)
@@ -2230,7 +2229,7 @@ theorem diameter_join_of_not_adj (G H : CGraph)
 /-- **A join whose left factor is not complete has diameter two.** -/
 @[toIsoGraph]
 theorem diameter_join_left {G H : CGraph} [Nonempty H.V]
-    (h : G.E < (Fintype.card G.V).choose 2) : (join G H).diameter = 2 := by
+    (h : G.E < (Fintype.card G.V).choose 2) : (G ∇g H).diameter = 2 := by
   obtain ⟨a, c, hne, hadj⟩ := exists_not_adj_of_E_lt G h
   exact diameter_join_of_not_adj G H hne hadj
 
@@ -2302,27 +2301,27 @@ private theorem univ_val_sum (α β : Type*) [Fintype α] [Fintype β] :
   rfl
 
 theorem nbrs_disjUnion_inl (G H : CGraph) (a : G.V) :
-    (disjUnion G H).nbrs (Sum.inl a) = (G.nbrs a).map ⟨Sum.inl, Sum.inl_injective⟩ := by
+    (G ⊕g H).nbrs (Sum.inl a) = (G.nbrs a).map ⟨Sum.inl, Sum.inl_injective⟩ := by
   ext w
   rcases w with c | d <;> simp
 
 theorem nbrs_disjUnion_inr (G H : CGraph) (b : H.V) :
-    (disjUnion G H).nbrs (Sum.inr b) = (H.nbrs b).map ⟨Sum.inr, Sum.inr_injective⟩ := by
+    (G ⊕g H).nbrs (Sum.inr b) = (H.nbrs b).map ⟨Sum.inr, Sum.inr_injective⟩ := by
   ext w
   rcases w with c | d <;> simp
 
 theorem degree_disjUnion_inl (G H : CGraph) (a : G.V) :
-    (disjUnion G H).toSimple.degree (Sum.inl a) = G.toSimple.degree a := by
+    (G ⊕g H).toSimple.degree (Sum.inl a) = G.toSimple.degree a := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inl, Finset.card_map]
 
 theorem degree_disjUnion_inr (G H : CGraph) (b : H.V) :
-    (disjUnion G H).toSimple.degree (Sum.inr b) = H.toSimple.degree b := by
+    (G ⊕g H).toSimple.degree (Sum.inr b) = H.toSimple.degree b := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inr, Finset.card_map]
 
 /-- **The degree multiset of a disjoint union** is the sum of the two degree multisets. -/
 @[toIsoGraph]
 theorem degMultiset_disjUnion (G H : CGraph) :
-    (disjUnion G H).degMultiset = G.degMultiset + H.degMultiset := by
+    (G ⊕g H).degMultiset = G.degMultiset + H.degMultiset := by
   unfold degMultiset
   rw [univ_val_sum, Multiset.map_add, Multiset.map_map, Multiset.map_map]
   congr 1
@@ -2356,22 +2355,22 @@ theorem degree_le (G : CGraph) (v : G.V) :
   omega
 
 theorem degree_join_inl (G H : CGraph) (a : G.V) :
-    (join G H).toSimple.degree (Sum.inl a) = G.toSimple.degree a + Fintype.card H.V := by
+    (G ∇g H).toSimple.degree (Sum.inl a) = G.toSimple.degree a + Fintype.card H.V := by
   have hd := G.degree_le a
-  show ((disjUnion Gᶜ Hᶜ)ᶜ).toSimple.degree (Sum.inl a) = _
+  show ((Gᶜ ⊕g Hᶜ)ᶜ).toSimple.degree (Sum.inl a) = _
   rw [degree_compl, degree_disjUnion_inl, degree_compl, card_disjUnion, card_compl, card_compl]
   omega
 
 theorem degree_join_inr (G H : CGraph) (b : H.V) :
-    (join G H).toSimple.degree (Sum.inr b) = Fintype.card G.V + H.toSimple.degree b := by
+    (G ∇g H).toSimple.degree (Sum.inr b) = Fintype.card G.V + H.toSimple.degree b := by
   have hd := H.degree_le b
-  show ((disjUnion Gᶜ Hᶜ)ᶜ).toSimple.degree (Sum.inr b) = _
+  show ((Gᶜ ⊕g Hᶜ)ᶜ).toSimple.degree (Sum.inr b) = _
   rw [degree_compl, degree_disjUnion_inr, degree_compl, card_disjUnion, card_compl, card_compl]
   omega
 
 /-- **The degree multiset of a join**: every vertex picks up all the vertices on the other side. -/
 theorem degMultiset_join (G H : CGraph) :
-    (join G H).degMultiset = G.degMultiset.map (· + Fintype.card H.V)
+    (G ∇g H).degMultiset = G.degMultiset.map (· + Fintype.card H.V)
       + H.degMultiset.map (· + Fintype.card G.V) := by
   unfold degMultiset
   rw [univ_val_sum, Multiset.map_add, Multiset.map_map, Multiset.map_map, Multiset.map_map,
@@ -2379,7 +2378,7 @@ theorem degMultiset_join (G H : CGraph) :
   congr 1
   · exact Multiset.map_congr rfl fun v _ ↦ degree_join_inl G H v
   · refine Multiset.map_congr rfl fun v _ ↦ ?_
-    show (join G H).toSimple.degree (Sum.inr v) = H.toSimple.degree v + Fintype.card G.V
+    show (G ∇g H).toSimple.degree (Sum.inr v) = H.toSimple.degree v + Fintype.card G.V
     rw [degree_join_inr, Nat.add_comm]
 
 /-- **The degree multiset of the complement**: every degree is replaced by its "co-degree". -/
@@ -2469,8 +2468,8 @@ private theorem univ_val_map_prod {α β : Type} [Fintype α] [Fintype β] (f : 
   exact Multiset.bind_congr fun a _ ↦ Multiset.map_map _ _ _
 
 theorem degree_cartesianProduct (G H : CGraph)
-    (p : (cartesianProduct G H).V) :
-    (cartesianProduct G H).toSimple.degree p
+    (p : (G □g H).V) :
+    (G □g H).toSimple.degree p
       = G.toSimple.degree p.1 + H.toSimple.degree p.2 := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, ← card_nbrs_eq_degree,
     nbrs_cartesianProduct, Finset.card_union_of_disjoint, Finset.card_product,
@@ -2481,14 +2480,14 @@ theorem degree_cartesianProduct (G H : CGraph)
   exact Bool.noConfusion
 
 theorem degree_tensorProduct (G H : CGraph)
-    (p : (tensorProduct G H).V) :
-    (tensorProduct G H).toSimple.degree p = G.toSimple.degree p.1 * H.toSimple.degree p.2 := by
+    (p : (G ⊗g H).V) :
+    (G ⊗g H).toSimple.degree p = G.toSimple.degree p.1 * H.toSimple.degree p.2 := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, ← card_nbrs_eq_degree,
     nbrs_tensorProduct, Finset.card_product]
 
 theorem degree_lexProduct (G H : CGraph)
-    (p : (lexProduct G H).V) :
-    (lexProduct G H).toSimple.degree p
+    (p : (G ·g H).V) :
+    (G ·g H).toSimple.degree p
       = G.toSimple.degree p.1 * Fintype.card H.V + H.toSimple.degree p.2 := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, ← card_nbrs_eq_degree,
     nbrs_lexProduct, Finset.card_union_of_disjoint, Finset.card_product, Finset.card_product,
@@ -2498,8 +2497,8 @@ theorem degree_lexProduct (G H : CGraph)
   exact Bool.noConfusion
 
 theorem degree_strongProduct (G H : CGraph)
-    (p : (strongProduct G H).V) :
-    (strongProduct G H).toSimple.degree p
+    (p : (G ⊠g H).V) :
+    (G ⊠g H).toSimple.degree p
       = (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) - 1 := by
   have hdG : ((G.nbrs p.1 ∪ {p.1}) : Finset G.V).card = G.toSimple.degree p.1 + 1 := by
     rw [Finset.card_union_of_disjoint, Finset.card_singleton, card_nbrs_eq_degree]
@@ -2517,7 +2516,7 @@ theorem degree_strongProduct (G H : CGraph)
     Finset.inter_eq_left.2 hmem, Finset.card_product, hdG, hdH, Finset.card_singleton]
 
 theorem degMultiset_cartesianProduct (G H : CGraph) :
-    (cartesianProduct G H).degMultiset
+    (G □g H).degMultiset
       = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d + e := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_cartesianProduct G H p]
@@ -2526,7 +2525,7 @@ theorem degMultiset_cartesianProduct (G H : CGraph) :
   exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
 
 theorem degMultiset_tensorProduct (G H : CGraph) :
-    (tensorProduct G H).degMultiset
+    (G ⊗g H).degMultiset
       = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d * e := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_tensorProduct G H p]
@@ -2535,7 +2534,7 @@ theorem degMultiset_tensorProduct (G H : CGraph) :
   exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
 
 theorem degMultiset_lexProduct (G H : CGraph) :
-    (lexProduct G H).degMultiset
+    (G ·g H).degMultiset
       = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d * Fintype.card H.V + e := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_lexProduct G H p]
@@ -2545,7 +2544,7 @@ theorem degMultiset_lexProduct (G H : CGraph) :
   exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
 
 theorem degMultiset_strongProduct (G H : CGraph) :
-    (strongProduct G H).degMultiset
+    (G ⊠g H).degMultiset
       = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ (d + 1) * (e + 1) - 1 := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_strongProduct G H p]
@@ -2787,25 +2786,25 @@ larger of the two clique numbers.  Both factors have to be nonempty: otherwise t
 empty graph, whose clique number is `0`. -/
 @[toIsoGraph]
 theorem cliqueNum_cartesianProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    (cartesianProduct G H).cliqueNum = max G.cliqueNum H.cliqueNum :=
+    (G □g H).cliqueNum = max G.cliqueNum H.cliqueNum :=
   cliqueNum_of_cartesian_adj (S := G.toSimple) (T := H.toSimple)
-    (P := (cartesianProduct G H).toSimple) (Classical.arbitrary G.V)
+    (P := (G □g H).toSimple) (Classical.arbitrary G.V)
       (Classical.arbitrary H.V) fun p q ↦ by
       simp only [CGraph.toSimple_adj, cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true,
         decide_eq_true_eq]
 
 /-- The tensor product has the smaller of the two clique numbers. -/
 theorem cliqueNum_tensorProduct (G H : CGraph) :
-    (tensorProduct G H).cliqueNum = min G.cliqueNum H.cliqueNum :=
+    (G ⊗g H).cliqueNum = min G.cliqueNum H.cliqueNum :=
   cliqueNum_of_tensor_adj (S := G.toSimple) (T := H.toSimple)
-    (P := (tensorProduct G H).toSimple) fun p q ↦ by
+    (P := (G ⊗g H).toSimple) fun p q ↦ by
       simp only [CGraph.toSimple_adj, tensorProduct_adj, Bool.and_eq_true]
 
 /-- The lexicographic product multiplies clique numbers, just like the strong product. -/
 theorem cliqueNum_lexProduct (G H : CGraph) :
-    (lexProduct G H).cliqueNum = G.cliqueNum * H.cliqueNum :=
+    (G ·g H).cliqueNum = G.cliqueNum * H.cliqueNum :=
   cliqueNum_of_lex_adj (S := G.toSimple) (T := H.toSimple)
-    (P := (lexProduct G H).toSimple) fun p q ↦ by
+    (P := (G ·g H).toSimple) fun p q ↦ by
       simp only [CGraph.toSimple_adj, lexProduct_adj, Bool.or_eq_true, Bool.and_eq_true,
         decide_eq_true_eq]
 
@@ -2816,15 +2815,15 @@ connected: the diameter of a disconnected graph is the junk value `0`. -/
 @[toIsoGraph]
 theorem diameter_cartesianProduct (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
-    (cartesianProduct G H).diameter = G.diameter + H.diameter := by
+    (G □g H).diameter = G.diameter + H.diameter := by
   haveI : Nonempty G.V := hG.nonempty
   haveI : Nonempty H.V := hH.nonempty
   have hGtop : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hG
   have hHtop : H.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hH
-  have h : (cartesianProduct G H).toSimple.ediam = G.toSimple.ediam + H.toSimple.ediam := by
+  have h : (G □g H).toSimple.ediam = G.toSimple.ediam + H.toSimple.ediam := by
     rw [toSimple_cartesianProduct]
     exact ediam_boxProd _ _
-  show (cartesianProduct G H).toSimple.diam = G.toSimple.diam + H.toSimple.diam
+  show (G □g H).toSimple.diam = G.toSimple.diam + H.toSimple.diam
   unfold SimpleGraph.diam
   rw [h, ENat.toNat_add hGtop hHtop]
 
@@ -2834,7 +2833,7 @@ theorem diameter_cartesianProduct (G H : CGraph)
   exact SimpleGraph.diam_bot
 
 theorem diameter_disjUnion (G H : CGraph) (hG : 0 < Fintype.card G.V)
-    (hH : 0 < Fintype.card H.V) : (disjUnion G H).diameter = 0 :=
+    (hH : 0 < Fintype.card H.V) : (G ⊕g H).diameter = 0 :=
   SimpleGraph.diam_eq_zero_of_not_connected (not_isConnected_disjUnion G H hG hH)
 
 theorem chromNum_le_iff_colorable {G : CGraph} {n : ℕ} : G.chromNum ≤ n ↔ G.toSimple.Colorable n := by
@@ -2941,13 +2940,13 @@ theorem chromNum_cycle_odd (m : ℕ) : (cycle (2 * m + 3)).chromNum = 3 :=
 
 /-- The underlying simple graph of a disjoint union is Mathlib's `SimpleGraph.sum`. -/
 theorem toSimple_disjUnion (G H : CGraph) :
-    (disjUnion G H).toSimple = G.toSimple.sum H.toSimple := by
+    (G ⊕g H).toSimple = G.toSimple.sum H.toSimple := by
   ext x y
   cases x <;> cases y <;> simp [SimpleGraph.sum_adj, CGraph.toSimple_adj]
 
 /-- **Colouring the two halves of a disjoint union is independent.** -/
 @[simp, toIsoGraph] theorem chromNum_disjUnion (G H : CGraph) :
-    (disjUnion G H).chromNum = max G.chromNum H.chromNum := by
+    (G ⊕g H).chromNum = max G.chromNum H.chromNum := by
   have hmax : ((max G.chromNum H.chromNum : ℕ) : ℕ∞)
       = max (G.chromNum : ℕ∞) (H.chromNum : ℕ∞) := by
     rcases le_total G.chromNum H.chromNum with h | h
@@ -2996,12 +2995,12 @@ private theorem chromaticNumber_le_of_hom_snd {X Y : Type} {T : SimpleGraph Y}
 /-- **A tensor product is no harder to colour than either factor.** -/
 @[toIsoGraph]
 theorem chromNum_tensorProduct_le (G H : CGraph) :
-    (tensorProduct G H).chromNum ≤ min G.chromNum H.chromNum := by
+    (G ⊗g H).chromNum ≤ min G.chromNum H.chromNum := by
   rw [le_min_iff, ← Nat.cast_le (α := ℕ∞), ← Nat.cast_le (α := ℕ∞), coe_chromNum, coe_chromNum,
     coe_chromNum]
-  refine ⟨chromaticNumber_le_of_hom_fst (S := G.toSimple) (P := (tensorProduct G H).toSimple)
+  refine ⟨chromaticNumber_le_of_hom_fst (S := G.toSimple) (P := (G ⊗g H).toSimple)
       fun p q h ↦ ?_,
-    chromaticNumber_le_of_hom_snd (T := H.toSimple) (P := (tensorProduct G H).toSimple)
+    chromaticNumber_le_of_hom_snd (T := H.toSimple) (P := (G ⊗g H).toSimple)
       fun p q h ↦ ?_⟩
   · have h' : G.Adj p.1 q.1 = true ∧ H.Adj p.2 q.2 = true := by simpa using h
     exact h'.1
@@ -3152,23 +3151,23 @@ end ChromProducts
 
 /-- **The chromatic numbers of a join add.** -/
 theorem chromNum_join (G H : CGraph) :
-    (join G H).chromNum = G.chromNum + H.chromNum := by
-  have hll : ∀ x y : G.V, (join G H).toSimple.Adj (.inl x) (.inl y) ↔ G.toSimple.Adj x y := by
+    (G ∇g H).chromNum = G.chromNum + H.chromNum := by
+  have hll : ∀ x y : G.V, (G ∇g H).toSimple.Adj (.inl x) (.inl y) ↔ G.toSimple.Adj x y := by
     intro x y
     rw [CGraph.toSimple_adj, CGraph.toSimple_adj, join_adj_inl_inl]
-  have hrr : ∀ x y : H.V, (join G H).toSimple.Adj (.inr x) (.inr y) ↔ H.toSimple.Adj x y := by
+  have hrr : ∀ x y : H.V, (G ∇g H).toSimple.Adj (.inr x) (.inr y) ↔ H.toSimple.Adj x y := by
     intro x y
     rw [CGraph.toSimple_adj, CGraph.toSimple_adj, join_adj_inr_inr]
-  have hlr : ∀ (x : G.V) (y : H.V), (join G H).toSimple.Adj (.inl x) (.inr y) := by
+  have hlr : ∀ (x : G.V) (y : H.V), (G ∇g H).toSimple.Adj (.inl x) (.inr y) := by
     intro x y
     rw [CGraph.toSimple_adj, join_adj_inl_inr]
   refine le_antisymm (chromNum_le_iff_colorable.2 ?_) ?_
   · exact colorable_of_join_adj (S := G.toSimple) (T := H.toSimple)
-      (J := (join G H).toSimple) (fun x y h ↦ (hll x y).1 h) (fun x y h ↦ (hrr x y).1 h)
+      (J := (G ∇g H).toSimple) (fun x y h ↦ (hll x y).1 h) (fun x y h ↦ (hrr x y).1 h)
       colorable_chromNum colorable_chromNum
   · refine le_chromNum_iff.2 fun m hm ↦ ?_
     have h := chromaticNumber_add_le_of_join_adj (S := G.toSimple) (T := H.toSimple)
-      (J := (join G H).toSimple) (fun x y h ↦ (hll x y).2 h) (fun x y h ↦ (hrr x y).2 h) hlr hm
+      (J := (G ∇g H).toSimple) (fun x y h ↦ (hll x y).2 h) (fun x y h ↦ (hrr x y).2 h) hlr hm
     rw [← coe_chromNum, ← coe_chromNum, ← Nat.cast_add, Nat.cast_le] at h
     exact h
 
@@ -3176,17 +3175,17 @@ theorem chromNum_join (G H : CGraph) :
 Both factors have to be nonempty — the product of anything with the empty graph is empty. -/
 @[toIsoGraph]
 theorem chromNum_cartesianProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    (cartesianProduct G H).chromNum = max G.chromNum H.chromNum := by
+    (G □g H).chromNum = max G.chromNum H.chromNum := by
   obtain ⟨a⟩ := ‹Nonempty G.V›
   obtain ⟨b⟩ := ‹Nonempty H.V›
   have hle : ∀ p q : G.V × H.V,
-      (cartesianProduct G H).toSimple.Adj p q →
+      (G □g H).toSimple.Adj p q →
         (p.1 = q.1 ∧ H.toSimple.Adj p.2 q.2) ∨ (G.toSimple.Adj p.1 q.1 ∧ p.2 = q.2) := by
     intro p q h
     simpa using h
   have hge : ∀ p q : G.V × H.V,
       ((p.1 = q.1 ∧ H.toSimple.Adj p.2 q.2) ∨ (G.toSimple.Adj p.1 q.1 ∧ p.2 = q.2)) →
-        (cartesianProduct G H).toSimple.Adj p q := by
+        (G □g H).toSimple.Adj p q := by
     intro p q h
     rw [CGraph.toSimple_adj, cartesianProduct_adj]
     rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
@@ -3196,21 +3195,21 @@ theorem chromNum_cartesianProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
       simp [h1, h2]
   refine le_antisymm (chromNum_le_iff_colorable.2 ?_) (max_le ?_ ?_)
   · exact colorable_of_cartesian_adj (S := G.toSimple) (T := H.toSimple)
-      (P := (cartesianProduct G H).toSimple) hle
+      (P := (G □g H).toSimple) hle
       (colorable_chromNum.mono (le_max_left _ _)) (colorable_chromNum.mono (le_max_right _ _))
   · rw [← Nat.cast_le (α := ℕ∞), coe_chromNum, coe_chromNum]
     exact chromaticNumber_le_of_cartesian_left (S := G.toSimple)
-      (P := (cartesianProduct G H).toSimple) (fun p q h ↦ hge p q (Or.inr h)) b
+      (P := (G □g H).toSimple) (fun p q h ↦ hge p q (Or.inr h)) b
   · rw [← Nat.cast_le (α := ℕ∞), coe_chromNum, coe_chromNum]
     exact chromaticNumber_le_of_cartesian_right (T := H.toSimple)
-      (P := (cartesianProduct G H).toSimple) (fun p q h ↦ hge p q (Or.inl h)) a
+      (P := (G □g H).toSimple) (fun p q h ↦ hge p q (Or.inl h)) a
 
 /-- **The lexicographic product multiplies chromatic numbers, at worst.** -/
 @[toIsoGraph]
 theorem chromNum_lexProduct_le (G H : CGraph) :
-    (lexProduct G H).chromNum ≤ G.chromNum * H.chromNum :=
+    (G ·g H).chromNum ≤ G.chromNum * H.chromNum :=
   chromNum_le_iff_colorable.2 <|
-    colorable_of_lex_adj (S := G.toSimple) (T := H.toSimple) (P := (lexProduct G H).toSimple)
+    colorable_of_lex_adj (S := G.toSimple) (T := H.toSimple) (P := (G ·g H).toSimple)
       (fun p q h ↦ by simpa using h) colorable_chromNum colorable_chromNum
 
 /-- One colour is enough exactly when there is a vertex but no edge. -/
@@ -3390,12 +3389,12 @@ theorem chromNum_kneser_le (n k : ℕ) (hk : 0 < k) :
 
 /-- A product of two graphs with an edge each contains a square. -/
 theorem girth_cartesianProduct_le_four {G H : CGraph}
-    (hG : 0 < G.E) (hH : 0 < H.E) : (cartesianProduct G H).girth ≤ 4 := by
+    (hG : 0 < G.E) (hH : 0 < H.E) : (G □g H).girth ≤ 4 := by
   obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
   obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
   have hane : a ≠ a' := by rintro rfl; exact absurd ha (by simp [G.loopless])
   have hbne : b ≠ b' := by rintro rfl; exact absurd hb (by simp [H.loopless])
-  refine girth_le_four_of_square (a := ((a, b) : (cartesianProduct G H).V)) (b := (a', b))
+  refine girth_le_four_of_square (a := ((a, b) : (G □g H).V)) (b := (a', b))
     (c := (a', b')) (d := (a, b')) ?_ ?_ ?_ ?_ ?_ ?_
   · rw [cartesianProduct_adj]; simp [ha]
   · rw [cartesianProduct_adj]; simp [hb]
@@ -3492,12 +3491,12 @@ edges span a square, and the product is bipartite so there is no triangle. -/
 @[toIsoGraph]
 theorem girth_cartesianProduct {G H : CGraph}
     (hG : 0 < G.E) (hH : 0 < H.E) (hbG : G.IsBipartite) (hbH : H.IsBipartite) :
-    (cartesianProduct G H).girth = 4 := by
+    (G □g H).girth = 4 := by
   obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
   obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
   have hane : a ≠ a' := by rintro rfl; exact absurd ha (by simp [G.loopless])
   refine girth_eq_four_of_square_of_isBipartite (hbG.cartesianProduct hbH)
-    (a := ((a, b) : (cartesianProduct G H).V)) (b := (a', b)) (c := (a', b')) (d := (a, b'))
+    (a := ((a, b) : (G □g H).V)) (b := (a', b)) (c := (a', b')) (d := (a, b'))
     ?_ ?_ ?_ ?_ ?_ ?_
   · rw [cartesianProduct_adj]; simp [ha]
   · rw [cartesianProduct_adj]; simp [hb]
@@ -3512,9 +3511,9 @@ need an edge moving both. -/
 theorem triangle_cartesianProduct {G H : CGraph}
     (hG : ∀ x y z : G.V, G.Adj x y → G.Adj y z → G.Adj z x → False)
     (hH : ∀ x y z : H.V, H.Adj x y → H.Adj y z → H.Adj z x → False)
-    (x y z : (cartesianProduct G H).V) (h1 : (cartesianProduct G H).Adj x y)
-    (h2 : (cartesianProduct G H).Adj y z) (h3 : (cartesianProduct G H).Adj z x) : False := by
-  have hne : ∀ a b : (cartesianProduct G H).V, (cartesianProduct G H).Adj a b →
+    (x y z : (G □g H).V) (h1 : (G □g H).Adj x y)
+    (h2 : (G □g H).Adj y z) (h3 : (G □g H).Adj z x) : False := by
+  have hne : ∀ a b : (G □g H).V, (G □g H).Adj a b →
       (G.Adj a.1 b.1 ∧ a.2 = b.2 ∧ a.1 ≠ b.1) ∨ (H.Adj a.2 b.2 ∧ a.1 = b.1 ∧ a.2 ≠ b.2) := by
     intro a b hab
     rw [cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true, Bool.and_eq_true,
@@ -3534,7 +3533,7 @@ theorem triangle_cartesianProduct {G H : CGraph}
 @[toIsoGraph]
 theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : CGraph}
  (hG : 0 < G.E) (hH : 0 < H.E) (hcG : G.cliqueNum ≤ 2)
-    (hcH : H.cliqueNum ≤ 2) : (cartesianProduct G H).girth = 4 := by
+    (hcH : H.cliqueNum ≤ 2) : (G □g H).girth = 4 := by
   have tri : ∀ (K : CGraph), K.cliqueNum ≤ 2 →
       ∀ x y z : K.V, K.Adj x y → K.Adj y z → K.Adj z x → False := by
     intro K hK x y z h1 h2 h3
@@ -3546,7 +3545,7 @@ theorem girth_cartesianProduct_of_cliqueNum_le_two {G H : CGraph}
   have hbne : b ≠ b' := by rintro rfl; exact absurd hb (by simp [H.loopless])
   refine le_antisymm (girth_cartesianProduct_le_four hG hH)
     (four_le_girth (triangle_cartesianProduct (tri G hcG) (tri H hcH)) ?_)
-  refine not_isAcyclic_of_square (a := ((a, b) : (cartesianProduct G H).V)) (b := (a', b))
+  refine not_isAcyclic_of_square (a := ((a, b) : (G □g H).V)) (b := (a', b))
     (c := (a', b')) (d := (a, b')) ?_ ?_ ?_ ?_ ?_ ?_
   · rw [cartesianProduct_adj]; simp [ha]
   · rw [cartesianProduct_adj]; simp [hb]

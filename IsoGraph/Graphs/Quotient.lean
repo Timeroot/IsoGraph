@@ -57,12 +57,12 @@ graphs, which the attribute reads as equations of isomorphism classes elsewhere.
 `⊕`.  The two are definitionally equal but not *reducibly* so, and `simp` matches up to reducible
 unfolding only — so `Sum.inl.injEq` does not fire on a goal about `(disjUnion G H).V`. -/
 theorem disjUnion_inl_eq_inl (G H : CGraph) (a b : G.V) :
-    (@Eq (disjUnion G H).V (Sum.inl a) (Sum.inl b)) = (a = b) :=
+    (@Eq (G ⊕g H).V (Sum.inl a) (Sum.inl b)) = (a = b) :=
   propext ⟨fun h ↦ Sum.inl_injective h, fun h ↦ h ▸ rfl⟩
 
 /-- Injectivity of `Sum.inr` at the vertex type of a `disjUnion`; see `disjUnion_inl_eq_inl`. -/
 theorem disjUnion_inr_eq_inr (G H : CGraph) (a b : H.V) :
-    (@Eq (disjUnion G H).V (Sum.inr a) (Sum.inr b)) = (a = b) :=
+    (@Eq (G ⊕g H).V (Sum.inr a) (Sum.inr b)) = (a = b) :=
   propext ⟨fun h ↦ Sum.inr_injective h, fun h ↦ h ▸ rfl⟩
 
 /-- `Prod.mk.injEq`, restated at the vertex type of a `lexProduct`.  Same reducibility gap as
@@ -70,7 +70,7 @@ theorem disjUnion_inr_eq_inr (G H : CGraph) (a b : H.V) :
 at `(lexProduct G H).V`, and `simp` will not see it as an equality of pairs. -/
 theorem lexProduct_pair_eq (G H : CGraph)
     (a c : G.V) (b d : H.V) :
-    (@Eq (lexProduct G H).V (a, b) (c, d)) = (a = c ∧ b = d) :=
+    (@Eq (G ·g H).V (a, b) (c, d)) = (a = c ∧ b = d) :=
   Prod.mk.injEq a b c d
 
 /-- Complementation, as a bijection from the `k`-subsets of `Fin n` to the `(n - k)`-subsets. -/
@@ -110,7 +110,7 @@ def sigmaFinSuccEquiv {n : ℕ} (α : Fin (n + 1) → Type) :
 /-- Pushing an edge of `G` forward into `G + H` gives an edge of `G + H`. -/
 private theorem mem_edgeSet_map_inl (G H : CGraph) (e : Sym2 G.V)
     (he : e ∈ G.toSimple.edgeSet) :
-    Sym2.map Sum.inl e ∈ (disjUnion G H).toSimple.edgeSet := by
+    Sym2.map Sum.inl e ∈ (G ⊕g H).toSimple.edgeSet := by
   induction e using Sym2.ind with
   | _ a b =>
     rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at he
@@ -120,7 +120,7 @@ private theorem mem_edgeSet_map_inl (G H : CGraph) (e : Sym2 G.V)
 /-- Pushing an edge of `H` forward into `G + H` gives an edge of `G + H`. -/
 private theorem mem_edgeSet_map_inr (G H : CGraph) (e : Sym2 H.V)
     (he : e ∈ H.toSimple.edgeSet) :
-    Sym2.map Sum.inr e ∈ (disjUnion G H).toSimple.edgeSet := by
+    Sym2.map Sum.inr e ∈ (G ⊕g H).toSimple.edgeSet := by
   induction e using Sym2.ind with
   | _ a b =>
     rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at he
@@ -130,7 +130,7 @@ private theorem mem_edgeSet_map_inr (G H : CGraph) (e : Sym2 H.V)
 /-- An edge of `G` or an edge of `H`, read as an edge of `G + H`.  It is onto because the two
 sides have the same number of edges, so `lineGraphDisjUnion` never has to name an inverse. -/
 private def sumEdge (G H : CGraph) :
-    (lineGraph G).V ⊕ (lineGraph H).V → (lineGraph (disjUnion G H)).V
+    (lineGraph G).V ⊕ (lineGraph H).V → (lineGraph (G ⊕g H)).V
   | .inl e => ⟨Sym2.map Sum.inl e.1, mem_edgeSet_map_inl G H e.1 e.2⟩
   | .inr e => ⟨Sym2.map Sum.inr e.1, mem_edgeSet_map_inr G H e.1 e.2⟩
 
@@ -160,30 +160,30 @@ variable {G G' H H' : CGraph}
 /-- Disjoint union respects isomorphism. -/
 @[toIsoGraph]
 def disjUnion (i : G ≃cg G') (j : H ≃cg H') :
-    CGraph.disjUnion G H ≃cg CGraph.disjUnion G' H' :=
-  isoOfAdj (G := CGraph.disjUnion G H) (H := CGraph.disjUnion G' H')
+    G ⊕g H ≃cg G' ⊕g H' :=
+  isoOfAdj (G := G ⊕g H) (H := G' ⊕g H')
     (Equiv.sumCongr i.toEquiv j.toEquiv) fun x y ↦ by
       rcases x with a | b <;> rcases y with c | d
-      · show (CGraph.disjUnion G' H').Adj (.inl (i a)) (.inl (i c)) = _
+      · show (G' ⊕g H').Adj (.inl (i a)) (.inl (i c)) = _
         rw [disjUnion_adj_inl_inl, i.adj_eq]; rfl
-      · show (CGraph.disjUnion G' H').Adj (.inl (i a)) (.inr (j d)) = _
+      · show (G' ⊕g H').Adj (.inl (i a)) (.inr (j d)) = _
         rfl
-      · show (CGraph.disjUnion G' H').Adj (.inr (j b)) (.inl (i c)) = _
+      · show (G' ⊕g H').Adj (.inr (j b)) (.inl (i c)) = _
         rfl
-      · show (CGraph.disjUnion G' H').Adj (.inr (j b)) (.inr (j d)) = _
+      · show (G' ⊕g H').Adj (.inr (j b)) (.inr (j d)) = _
         rw [disjUnion_adj_inr_inr, j.adj_eq]; rfl
 
 /-- The join respects isomorphism; it is a complement of a disjoint union of complements. -/
 def join
-    (i : G ≃cg G') (j : H ≃cg H') : CGraph.join G H ≃cg CGraph.join G' H' :=
+    (i : G ≃cg G') (j : H ≃cg H') : G ∇g H ≃cg G' ∇g H' :=
   Iso.compl (Iso.disjUnion (Iso.compl i) (Iso.compl j))
 
 /-- The cartesian product respects isomorphism. -/
 @[toIsoGraph]
 def cartesianProduct
     (i : G ≃cg G') (j : H ≃cg H') :
-    CGraph.cartesianProduct G H ≃cg CGraph.cartesianProduct G' H' :=
-  isoOfAdj (G := CGraph.cartesianProduct G H) (H := CGraph.cartesianProduct G' H')
+    G □g H ≃cg G' □g H' :=
+  isoOfAdj (G := G □g H) (H := G' □g H')
     (Equiv.prodCongr i.toEquiv j.toEquiv) fun x y ↦ by
       show ((decide (i x.1 = i y.1) && H'.Adj (j x.2) (j y.2)) ||
         (G'.Adj (i x.1) (i y.1) && decide (j x.2 = j y.2))) = _
@@ -195,8 +195,8 @@ def cartesianProduct
 @[toIsoGraph]
 def tensorProduct
     (i : G ≃cg G') (j : H ≃cg H') :
-    CGraph.tensorProduct G H ≃cg CGraph.tensorProduct G' H' :=
-  isoOfAdj (G := CGraph.tensorProduct G H) (H := CGraph.tensorProduct G' H')
+    G ⊗g H ≃cg G' ⊗g H' :=
+  isoOfAdj (G := G ⊗g H) (H := G' ⊗g H')
     (Equiv.prodCongr i.toEquiv j.toEquiv) fun x y ↦ by
       show (G'.Adj (i x.1) (i y.1) && H'.Adj (j x.2) (j y.2)) = _
       rw [i.adj_eq, j.adj_eq]
@@ -206,8 +206,8 @@ def tensorProduct
 @[toIsoGraph]
 def strongProduct
     (i : G ≃cg G') (j : H ≃cg H') :
-    CGraph.strongProduct G H ≃cg CGraph.strongProduct G' H' :=
-  isoOfAdj (G := CGraph.strongProduct G H) (H := CGraph.strongProduct G' H')
+    G ⊠g H ≃cg G' ⊠g H' :=
+  isoOfAdj (G := G ⊠g H) (H := G' ⊠g H')
     (Equiv.prodCongr i.toEquiv j.toEquiv) fun x y ↦ by
       show (decide ((i x.1, j x.2) ≠ (i y.1, j y.2)) &&
         ((decide (i x.1 = i y.1) || G'.Adj (i x.1) (i y.1)) &&
@@ -224,8 +224,8 @@ def strongProduct
 @[toIsoGraph]
 def lexProduct
     (i : G ≃cg G') (j : H ≃cg H') :
-    CGraph.lexProduct G H ≃cg CGraph.lexProduct G' H' :=
-  isoOfAdj (G := CGraph.lexProduct G H) (H := CGraph.lexProduct G' H')
+    G ·g H ≃cg G' ·g H' :=
+  isoOfAdj (G := G ·g H) (H := G' ·g H')
     (Equiv.prodCongr i.toEquiv j.toEquiv) fun x y ↦ by
       show (G'.Adj (i x.1) (i y.1) ||
         (decide (i x.1 = i y.1) && H'.Adj (j x.2) (j y.2))) = _
@@ -237,6 +237,26 @@ end Iso
 end CGraph
 
 namespace IsoGraph
+
+/-! ## Notation
+
+One symbol per binary operation, each suffixed with `g` in the style of Mathlib's `⊕g` for
+`SimpleGraph.sum` — which stays in scope, and which the overload resolves against by type.  The
+same six tokens already stand for the operations on `CGraph`, and are overloaded again here: `G ⊕g
+H` is the disjoint union of graphs or of classes according to what `G` and `H` are.  The squared
+symbols follow Mathlib's `□` for `SimpleGraph.boxProd`; of the alternative box characters only `□`
+(`\square`) has a Lean input abbreviation.  Complementation is the `Compl` instance of
+`IsoGraph/Graphs/Constructions.lean` rather than a notation of its own.
+
+The four products bind more tightly than the two sums, so `G ⊕g H □g K` is `G ⊕g (H □g K)`.  Five
+of the six operations on classes are generated by the `@[toIsoGraph]` attributes above, so their
+tokens can be declared here; the join is defined a few lines below, and takes its token there. -/
+
+@[inherit_doc] infixl:60 " ⊕g " => IsoGraph.disjUnion
+@[inherit_doc] infixl:70 " □g " => IsoGraph.cartesianProduct
+@[inherit_doc] infixl:70 " ⊗g " => IsoGraph.tensorProduct
+@[inherit_doc] infixl:70 " ⊠g " => IsoGraph.strongProduct
+@[inherit_doc] infixl:70 " ·g " => IsoGraph.lexProduct
 
 /-! ## The join
 
@@ -251,12 +271,14 @@ It comes here, in the middle of the congruences, because the isomorphisms below 
 `isoTransfer` set. -/
 
 /-- The join of two isomorphism classes: a disjoint union with all edges across. -/
-def join (G H : IsoGraph) : IsoGraph := (disjUnion Gᶜ Hᶜ)ᶜ
+def join (G H : IsoGraph) : IsoGraph := (Gᶜ ⊕g Hᶜ)ᶜ
+
+@[inherit_doc] infixl:60 " ∇g " => IsoGraph.join
 
 /-- The join is a complement of a disjoint union of complements on both levels, so its bridge is
 the two others put together. -/
 @[simp, isoTransfer] theorem join_mk (G H : CGraph) :
-    join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+    ⟦G⟧ ∇g ⟦H⟧ = ⟦G ∇g H⟧ := by
   rw [join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
   rfl
 
@@ -273,8 +295,8 @@ variable {G G' H H' : CGraph}
 /-- The disjoint union is commutative. -/
 @[toIsoGraph disjUnion_comm]
 def disjUnionComm (G H : CGraph) :
-    _root_.CGraph.disjUnion G H ≃cg _root_.CGraph.disjUnion H G :=
-  isoOfAdj (G := _root_.CGraph.disjUnion G H) (H := _root_.CGraph.disjUnion H G)
+    G ⊕g H ≃cg H ⊕g G :=
+  isoOfAdj (G := G ⊕g H) (H := H ⊕g G)
     (Equiv.sumComm G.V H.V) (by rintro (a | a) (b | b) <;> rfl)
 
 /-- The join is commutative.  Unlike the disjoint union this needs a case analysis rather than
@@ -282,24 +304,24 @@ def disjUnionComm (G H : CGraph) :
 so `simp` cannot see through `Equiv.sumComm` and each case has to name its image. -/
 @[toIsoGraph join_comm]
 def joinComm (G H : CGraph) :
-    _root_.CGraph.join G H ≃cg _root_.CGraph.join H G :=
-  isoOfAdj (G := _root_.CGraph.join G H) (H := _root_.CGraph.join H G)
+    G ∇g H ≃cg H ∇g G :=
+  isoOfAdj (G := G ∇g H) (H := H ∇g G)
     (Equiv.sumComm G.V H.V) (by
       rintro (a | a) (b | b)
-      · show (_root_.CGraph.join H G).Adj (.inr a) (.inr b) = _
+      · show (H ∇g G).Adj (.inr a) (.inr b) = _
         simp
-      · show (_root_.CGraph.join H G).Adj (.inr a) (.inl b) = _
+      · show (H ∇g G).Adj (.inr a) (.inl b) = _
         simp
-      · show (_root_.CGraph.join H G).Adj (.inl a) (.inr b) = _
+      · show (H ∇g G).Adj (.inl a) (.inr b) = _
         simp
-      · show (_root_.CGraph.join H G).Adj (.inl a) (.inl b) = _
+      · show (H ∇g G).Adj (.inl a) (.inl b) = _
         simp)
 
 /-- The cartesian product is commutative. -/
 @[toIsoGraph cartesianProduct_comm]
 def cartesianProductComm (G H : CGraph) :
-    CGraph.cartesianProduct G H ≃cg CGraph.cartesianProduct H G :=
-  isoOfAdj (G := CGraph.cartesianProduct G H) (H := CGraph.cartesianProduct H G)
+    G □g H ≃cg H □g G :=
+  isoOfAdj (G := G □g H) (H := H □g G)
     (Equiv.prodComm G.V H.V) fun x y ↦ by
       show ((decide (x.2 = y.2) && G.Adj x.1 y.1) || (H.Adj x.2 y.2 && decide (x.1 = y.1))) = _
       rw [CGraph.cartesianProduct_adj]
@@ -313,8 +335,8 @@ def cartesianProductComm (G H : CGraph) :
 /-- The tensor product is commutative. -/
 @[toIsoGraph tensorProduct_comm]
 def tensorProductComm (G H : CGraph) :
-    CGraph.tensorProduct G H ≃cg CGraph.tensorProduct H G :=
-  isoOfAdj (G := CGraph.tensorProduct G H) (H := CGraph.tensorProduct H G)
+    G ⊗g H ≃cg H ⊗g G :=
+  isoOfAdj (G := G ⊗g H) (H := H ⊗g G)
     (Equiv.prodComm G.V H.V) fun x y ↦ by
       show (H.Adj x.2 y.2 && G.Adj x.1 y.1) = _
       rw [CGraph.tensorProduct_adj]
@@ -326,8 +348,8 @@ def tensorProductComm (G H : CGraph) :
 /-- The strong product is commutative. -/
 @[toIsoGraph strongProduct_comm]
 def strongProductComm (G H : CGraph) :
-    CGraph.strongProduct G H ≃cg CGraph.strongProduct H G :=
-  isoOfAdj (G := CGraph.strongProduct G H) (H := CGraph.strongProduct H G)
+    G ⊠g H ≃cg H ⊠g G :=
+  isoOfAdj (G := G ⊠g H) (H := H ⊠g G)
     (Equiv.prodComm G.V H.V) fun x y ↦ by
       show (decide ((x.2, x.1) ≠ (y.2, y.1)) &&
         ((decide (x.2 = y.2) || H.Adj x.2 y.2) && (decide (x.1 = y.1) || G.Adj x.1 y.1))) = _
@@ -353,41 +375,41 @@ resulting identity between two Boolean expressions in six variables. -/
 /-- The disjoint union is associative. -/
 @[toIsoGraph disjUnion_assoc]
 def disjUnionAssoc (G H K : CGraph) :
-    _root_.CGraph.disjUnion (_root_.CGraph.disjUnion G H) K ≃cg
-      _root_.CGraph.disjUnion G (_root_.CGraph.disjUnion H K) :=
-  isoOfAdj (G := _root_.CGraph.disjUnion (_root_.CGraph.disjUnion G H) K)
-    (H := _root_.CGraph.disjUnion G (_root_.CGraph.disjUnion H K))
+    G ⊕g H ⊕g K ≃cg
+      G ⊕g (H ⊕g K) :=
+  isoOfAdj (G := G ⊕g H ⊕g K)
+    (H := G ⊕g (H ⊕g K))
     (Equiv.sumAssoc G.V H.V K.V) (by rintro ((a | a) | a) ((b | b) | b) <;> rfl)
 
 /-- The join is associative. -/
 @[toIsoGraph join_assoc]
 def joinAssoc (G H K : CGraph) :
-    _root_.CGraph.join (_root_.CGraph.join G H) K ≃cg
-      _root_.CGraph.join G (_root_.CGraph.join H K) :=
-  isoOfAdj (G := _root_.CGraph.join (_root_.CGraph.join G H) K)
-    (H := _root_.CGraph.join G (_root_.CGraph.join H K))
+    G ∇g H ∇g K ≃cg
+      G ∇g (H ∇g K) :=
+  isoOfAdj (G := G ∇g H ∇g K)
+    (H := G ∇g (H ∇g K))
     (Equiv.sumAssoc G.V H.V K.V) (by
       rintro ((a | a) | a) ((b | b) | b)
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inl a) (.inl b) = _
+      · show (G ∇g (H ∇g K)).Adj (.inl a) (.inl b) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inl a) (.inr (.inl b)) = _
+      · show (G ∇g (H ∇g K)).Adj (.inl a) (.inr (.inl b)) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inl a) (.inr (.inr b)) = _
+      · show (G ∇g (H ∇g K)).Adj (.inl a) (.inr (.inr b)) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inr (.inl a)) (.inl b) = _
+      · show (G ∇g (H ∇g K)).Adj (.inr (.inl a)) (.inl b) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+      · show (G ∇g (H ∇g K)).Adj
           (.inr (.inl a)) (.inr (.inl b)) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+      · show (G ∇g (H ∇g K)).Adj
           (.inr (.inl a)) (.inr (.inr b)) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj (.inr (.inr a)) (.inl b) = _
+      · show (G ∇g (H ∇g K)).Adj (.inr (.inr a)) (.inl b) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+      · show (G ∇g (H ∇g K)).Adj
           (.inr (.inr a)) (.inr (.inl b)) = _
         simp
-      · show (_root_.CGraph.join G (_root_.CGraph.join H K)).Adj
+      · show (G ∇g (H ∇g K)).Adj
           (.inr (.inr a)) (.inr (.inr b)) = _
         simp)
 
@@ -395,13 +417,13 @@ def joinAssoc (G H K : CGraph) :
 @[toIsoGraph cartesianProduct_assoc]
 def cartesianProductAssoc (G H K : CGraph)
  :
-    CGraph.cartesianProduct (CGraph.cartesianProduct G H) K ≃cg
-      CGraph.cartesianProduct G (CGraph.cartesianProduct H K) :=
-  isoOfAdj (G := CGraph.cartesianProduct (CGraph.cartesianProduct G H) K)
-    (H := CGraph.cartesianProduct G (CGraph.cartesianProduct H K))
+    G □g H □g K ≃cg
+      G □g (H □g K) :=
+  isoOfAdj (G := G □g H □g K)
+    (H := G □g (H □g K))
     (Equiv.prodAssoc G.V H.V K.V) fun x y ↦ by
       show ((decide (x.1.1 = y.1.1) &&
-          (CGraph.cartesianProduct H K).Adj (x.1.2, x.2) (y.1.2, y.2)) ||
+          (H □g K).Adj (x.1.2, x.2) (y.1.2, y.2)) ||
         (G.Adj x.1.1 y.1.1 && decide (((x.1.2, x.2) : H.V × K.V) = (y.1.2, y.2)))) = _
       rw [CGraph.cartesianProduct_adj, CGraph.cartesianProduct_adj, CGraph.cartesianProduct_adj,
         decide_prod_eq ((x.1.2, x.2) : H.V × K.V), decide_prod_eq x.1 y.1]
@@ -417,25 +439,25 @@ def cartesianProductAssoc (G H K : CGraph)
 /-- The tensor product is associative. -/
 @[toIsoGraph tensorProduct_assoc]
 def tensorProductAssoc (G H K : CGraph) :
-    CGraph.tensorProduct (CGraph.tensorProduct G H) K ≃cg
-      CGraph.tensorProduct G (CGraph.tensorProduct H K) :=
-  isoOfAdj (G := CGraph.tensorProduct (CGraph.tensorProduct G H) K)
-    (H := CGraph.tensorProduct G (CGraph.tensorProduct H K))
+    G ⊗g H ⊗g K ≃cg
+      G ⊗g (H ⊗g K) :=
+  isoOfAdj (G := G ⊗g H ⊗g K)
+    (H := G ⊗g (H ⊗g K))
     (Equiv.prodAssoc G.V H.V K.V) fun x y ↦ by
-      show (G.Adj x.1.1 y.1.1 && (CGraph.tensorProduct H K).Adj (x.1.2, x.2) (y.1.2, y.2)) = _
+      show (G.Adj x.1.1 y.1.1 && (H ⊗g K).Adj (x.1.2, x.2) (y.1.2, y.2)) = _
       rw [CGraph.tensorProduct_adj, CGraph.tensorProduct_adj, CGraph.tensorProduct_adj]
       exact (Bool.and_assoc _ _ _).symm
 
 /-- The lexicographic product is associative. -/
 @[toIsoGraph lexProduct_assoc]
 def lexProductAssoc (G H K : CGraph) :
-    CGraph.lexProduct (CGraph.lexProduct G H) K ≃cg
-      CGraph.lexProduct G (CGraph.lexProduct H K) :=
-  isoOfAdj (G := CGraph.lexProduct (CGraph.lexProduct G H) K)
-    (H := CGraph.lexProduct G (CGraph.lexProduct H K))
+    G ·g H ·g K ≃cg
+      G ·g (H ·g K) :=
+  isoOfAdj (G := G ·g H ·g K)
+    (H := G ·g (H ·g K))
     (Equiv.prodAssoc G.V H.V K.V) fun x y ↦ by
       show (G.Adj x.1.1 y.1.1 || (decide (x.1.1 = y.1.1) &&
-        (CGraph.lexProduct H K).Adj (x.1.2, x.2) (y.1.2, y.2))) = _
+        (H ·g K).Adj (x.1.2, x.2) (y.1.2, y.2))) = _
       rw [CGraph.lexProduct_adj, CGraph.lexProduct_adj, CGraph.lexProduct_adj,
         decide_prod_eq x.1 y.1]
       generalize G.Adj x.1.1 y.1.1 = p
@@ -449,15 +471,15 @@ def lexProductAssoc (G H K : CGraph) :
 /-- The strong product is associative. -/
 @[toIsoGraph strongProduct_assoc]
 def strongProductAssoc (G H K : CGraph) :
-    CGraph.strongProduct (CGraph.strongProduct G H) K ≃cg
-      CGraph.strongProduct G (CGraph.strongProduct H K) :=
-  isoOfAdj (G := CGraph.strongProduct (CGraph.strongProduct G H) K)
-    (H := CGraph.strongProduct G (CGraph.strongProduct H K))
+    G ⊠g H ⊠g K ≃cg
+      G ⊠g (H ⊠g K) :=
+  isoOfAdj (G := G ⊠g H ⊠g K)
+    (H := G ⊠g (H ⊠g K))
     (Equiv.prodAssoc G.V H.V K.V) fun x y ↦ by
       show (decide (((x.1.1, x.1.2, x.2) : G.V × H.V × K.V) ≠ (y.1.1, y.1.2, y.2)) &&
         ((decide (x.1.1 = y.1.1) || G.Adj x.1.1 y.1.1) &&
           (decide (((x.1.2, x.2) : H.V × K.V) = (y.1.2, y.2)) ||
-            (CGraph.strongProduct H K).Adj (x.1.2, x.2) (y.1.2, y.2)))) = _
+            (H ⊠g K).Adj (x.1.2, x.2) (y.1.2, y.2)))) = _
       simp only [CGraph.strongProduct_adj, decide_not, decide_prod_eq]
       rw [show decide (x.1 = y.1)
           = (decide (x.1.1 = y.1.1) && decide (x.1.2 = y.1.2)) from decide_prod_eq _ _]
@@ -481,92 +503,76 @@ on each of the four ways of pairing an `inl` with an `inr`. -/
 @[toIsoGraph simp cartesianProduct_disjUnion]
 def cartesianProductDisjUnion (G H K : CGraph)
  :
-    CGraph.cartesianProduct G (_root_.CGraph.disjUnion H K) ≃cg
-      _root_.CGraph.disjUnion (CGraph.cartesianProduct G H) (CGraph.cartesianProduct G K) :=
-  isoOfAdj (G := CGraph.cartesianProduct G (_root_.CGraph.disjUnion H K))
-    (H := _root_.CGraph.disjUnion (CGraph.cartesianProduct G H) (CGraph.cartesianProduct G K))
+    G □g (H ⊕g K) ≃cg
+      G □g H ⊕g G □g K :=
+  isoOfAdj (G := G □g (H ⊕g K))
+    (H := G □g H ⊕g G □g K)
     (Equiv.prodSumDistrib G.V H.V K.V) (by
       rintro ⟨a, (b | b)⟩ ⟨c, (d | d)⟩
-      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
-          (CGraph.cartesianProduct G K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+      · show (G □g H ⊕g G □g K).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
         simp [disjUnion_inl_eq_inl]
-      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
-          (CGraph.cartesianProduct G K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+      · show (G □g H ⊕g G □g K).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
-          (CGraph.cartesianProduct G K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+      · show (G □g H ⊕g G □g K).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.cartesianProduct G H)
-          (CGraph.cartesianProduct G K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+      · show (G □g H ⊕g G □g K).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
         simp [disjUnion_inr_eq_inr])
 
 /-- The tensor product distributes over disjoint unions. -/
 @[toIsoGraph simp tensorProduct_disjUnion]
 def tensorProductDisjUnion (G H K : CGraph)
  :
-    CGraph.tensorProduct G (_root_.CGraph.disjUnion H K) ≃cg
-      _root_.CGraph.disjUnion (CGraph.tensorProduct G H) (CGraph.tensorProduct G K) :=
-  isoOfAdj (G := CGraph.tensorProduct G (_root_.CGraph.disjUnion H K))
-    (H := _root_.CGraph.disjUnion (CGraph.tensorProduct G H) (CGraph.tensorProduct G K))
+    G ⊗g (H ⊕g K) ≃cg
+      G ⊗g H ⊕g G ⊗g K :=
+  isoOfAdj (G := G ⊗g (H ⊕g K))
+    (H := G ⊗g H ⊕g G ⊗g K)
     (Equiv.prodSumDistrib G.V H.V K.V) (by
       rintro ⟨a, (b | b)⟩ ⟨c, (d | d)⟩
-      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
-          (CGraph.tensorProduct G K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+      · show (G ⊗g H ⊕g G ⊗g K).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
-          (CGraph.tensorProduct G K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+      · show (G ⊗g H ⊕g G ⊗g K).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
-          (CGraph.tensorProduct G K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+      · show (G ⊗g H ⊕g G ⊗g K).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.tensorProduct G H)
-          (CGraph.tensorProduct G K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+      · show (G ⊗g H ⊕g G ⊗g K).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
         simp)
 
 /-- The strong product distributes over disjoint unions. -/
 @[toIsoGraph simp strongProduct_disjUnion]
 def strongProductDisjUnion (G H K : CGraph)
  :
-    CGraph.strongProduct G (_root_.CGraph.disjUnion H K) ≃cg
-      _root_.CGraph.disjUnion (CGraph.strongProduct G H) (CGraph.strongProduct G K) :=
-  isoOfAdj (G := CGraph.strongProduct G (_root_.CGraph.disjUnion H K))
-    (H := _root_.CGraph.disjUnion (CGraph.strongProduct G H) (CGraph.strongProduct G K))
+    G ⊠g (H ⊕g K) ≃cg
+      G ⊠g H ⊕g G ⊠g K :=
+  isoOfAdj (G := G ⊠g (H ⊕g K))
+    (H := G ⊠g H ⊕g G ⊠g K)
     (Equiv.prodSumDistrib G.V H.V K.V) (by
       rintro ⟨a, (b | b)⟩ ⟨c, (d | d)⟩
-      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
-          (CGraph.strongProduct G K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+      · show (G ⊠g H ⊕g G ⊠g K).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
         simp [disjUnion_inl_eq_inl, Prod.ext_iff]
-      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
-          (CGraph.strongProduct G K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+      · show (G ⊠g H ⊕g G ⊠g K).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
-          (CGraph.strongProduct G K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+      · show (G ⊠g H ⊕g G ⊠g K).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.strongProduct G H)
-          (CGraph.strongProduct G K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+      · show (G ⊠g H ⊕g G ⊠g K).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
         simp [disjUnion_inr_eq_inr, Prod.ext_iff])
 
 /-- The lexicographic product distributes over disjoint unions in its *first* factor.  It does not
 distribute in the second: `K₂[K₁ + K₁]` is `K₄`, not `K₂[K₁] + K₂[K₁] = K₂ + K₂`. -/
 @[toIsoGraph simp disjUnion_lexProduct]
 def lexProductDisjUnion (G H K : CGraph) :
-    CGraph.lexProduct (_root_.CGraph.disjUnion G H) K ≃cg
-      _root_.CGraph.disjUnion (CGraph.lexProduct G K) (CGraph.lexProduct H K) :=
-  isoOfAdj (G := CGraph.lexProduct (_root_.CGraph.disjUnion G H) K)
-    (H := _root_.CGraph.disjUnion (CGraph.lexProduct G K) (CGraph.lexProduct H K))
+    (G ⊕g H) ·g K ≃cg
+      G ·g K ⊕g H ·g K :=
+  isoOfAdj (G := (G ⊕g H) ·g K)
+    (H := G ·g K ⊕g H ·g K)
     (Equiv.sumProdDistrib G.V H.V K.V) (by
       rintro ⟨(a | a), b⟩ ⟨(c | c), d⟩
-      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
-          (CGraph.lexProduct H K)).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
+      · show (G ·g K ⊕g H ·g K).Adj (Sum.inl (a, b)) (Sum.inl (c, d)) = _
         simp [disjUnion_inl_eq_inl]
-      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
-          (CGraph.lexProduct H K)).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
+      · show (G ·g K ⊕g H ·g K).Adj (Sum.inl (a, b)) (Sum.inr (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
-          (CGraph.lexProduct H K)).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
+      · show (G ·g K ⊕g H ·g K).Adj (Sum.inr (a, b)) (Sum.inl (c, d)) = _
         simp
-      · show (_root_.CGraph.disjUnion (CGraph.lexProduct G K)
-          (CGraph.lexProduct H K)).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
+      · show (G ·g K ⊕g H ·g K).Adj (Sum.inr (a, b)) (Sum.inr (c, d)) = _
         simp [disjUnion_inr_eq_inr])
 
 /-! ### Units
@@ -579,9 +585,9 @@ put the `empty` form in `simp` normal form.  The tensor product has no unit — 
 
 /-- Adding no vertices at all changes nothing. -/
 @[toIsoGraph simp disjUnion_empty_zero]
-def disjUnionEmptyZero (G : CGraph) : _root_.CGraph.disjUnion G (_root_.CGraph.empty 0) ≃cg G :=
+def disjUnionEmptyZero (G : CGraph) : G ⊕g _root_.CGraph.empty 0 ≃cg G :=
   letI : IsEmpty (_root_.CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
-  isoOfAdj (G := _root_.CGraph.disjUnion G (_root_.CGraph.empty 0)) (H := G)
+  isoOfAdj (G := G ⊕g _root_.CGraph.empty 0) (H := G)
     (Equiv.sumEmpty G.V (_root_.CGraph.empty 0).V) (by
       rintro (a | a) (b | b)
       · rfl
@@ -592,9 +598,9 @@ def disjUnionEmptyZero (G : CGraph) : _root_.CGraph.disjUnion G (_root_.CGraph.e
 /-- Joining no vertices at all changes nothing. -/
 @[toIsoGraph simp join_empty_zero]
 def joinEmptyZero (G : CGraph) :
-    _root_.CGraph.join G (_root_.CGraph.empty 0) ≃cg G :=
+    G ∇g _root_.CGraph.empty 0 ≃cg G :=
   letI : IsEmpty (_root_.CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
-  isoOfAdj (G := _root_.CGraph.join G (_root_.CGraph.empty 0)) (H := G)
+  isoOfAdj (G := G ∇g _root_.CGraph.empty 0) (H := G)
     (Equiv.sumEmpty G.V (_root_.CGraph.empty 0).V) (by
       rintro (a | a) (b | b)
       · show G.Adj a b = _
@@ -606,9 +612,9 @@ def joinEmptyZero (G : CGraph) :
 /-- The one-vertex graph is a unit for the cartesian product. -/
 @[toIsoGraph simp cartesianProduct_empty_one]
 def cartesianProductEmptyOne (G : CGraph) :
-    CGraph.cartesianProduct G (_root_.CGraph.empty 1) ≃cg G :=
+    G □g _root_.CGraph.empty 1 ≃cg G :=
   letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  isoOfAdj (G := CGraph.cartesianProduct G (_root_.CGraph.empty 1)) (H := G)
+  isoOfAdj (G := G □g _root_.CGraph.empty 1) (H := G)
     (Equiv.prodUnique G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
       show G.Adj x.1 y.1 = _
       rw [CGraph.cartesianProduct_adj, Subsingleton.elim x.2 y.2]
@@ -617,9 +623,9 @@ def cartesianProductEmptyOne (G : CGraph) :
 /-- The one-vertex graph is a unit for the strong product. -/
 @[toIsoGraph simp strongProduct_empty_one]
 def strongProductEmptyOne (G : CGraph) :
-    CGraph.strongProduct G (_root_.CGraph.empty 1) ≃cg G :=
+    G ⊠g _root_.CGraph.empty 1 ≃cg G :=
   letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  isoOfAdj (G := CGraph.strongProduct G (_root_.CGraph.empty 1)) (H := G)
+  isoOfAdj (G := G ⊠g _root_.CGraph.empty 1) (H := G)
     (Equiv.prodUnique G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
       show G.Adj x.1 y.1 = _
       rw [CGraph.strongProduct_adj]
@@ -633,9 +639,9 @@ def strongProductEmptyOne (G : CGraph) :
 /-- The one-vertex graph is a right unit for the lexicographic product. -/
 @[toIsoGraph simp lexProduct_empty_one]
 def lexProductEmptyOne (G : CGraph) :
-    CGraph.lexProduct G (_root_.CGraph.empty 1) ≃cg G :=
+    G ·g _root_.CGraph.empty 1 ≃cg G :=
   letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  isoOfAdj (G := CGraph.lexProduct G (_root_.CGraph.empty 1)) (H := G)
+  isoOfAdj (G := G ·g _root_.CGraph.empty 1) (H := G)
     (Equiv.prodUnique G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
       show G.Adj x.1 y.1 = _
       rw [CGraph.lexProduct_adj]
@@ -644,9 +650,9 @@ def lexProductEmptyOne (G : CGraph) :
 /-- The one-vertex graph is a left unit for the lexicographic product. -/
 @[toIsoGraph simp empty_one_lexProduct]
 def emptyOneLexProduct (G : CGraph) :
-    CGraph.lexProduct (_root_.CGraph.empty 1) G ≃cg G :=
+    _root_.CGraph.empty 1 ·g G ≃cg G :=
   letI : Unique (_root_.CGraph.empty 1).V := inferInstanceAs (Unique (Fin 1))
-  isoOfAdj (G := CGraph.lexProduct (_root_.CGraph.empty 1) G) (H := G)
+  isoOfAdj (G := _root_.CGraph.empty 1 ·g G) (H := G)
     (Equiv.uniqueProd G.V (_root_.CGraph.empty 1).V) fun x y ↦ by
       show G.Adj x.2 y.2 = _
       rw [CGraph.lexProduct_adj, Subsingleton.elim x.1 y.1]
@@ -703,26 +709,26 @@ The forward map `sumEdge` is injective, and both sides have `E G + E H` vertices
 `Fintype.bijective_iff_injective_and_card` supplies the inverse — which is why this is
 `noncomputable`. -/
 noncomputable def lineGraphDisjUnion (G H : CGraph) :
-    CGraph.lineGraph (_root_.CGraph.disjUnion G H) ≃cg
-      _root_.CGraph.disjUnion (CGraph.lineGraph G) (CGraph.lineGraph H) := by
+    CGraph.lineGraph (G ⊕g H) ≃cg
+      CGraph.lineGraph G ⊕g CGraph.lineGraph H := by
   have hcard : Fintype.card ((CGraph.lineGraph G).V ⊕ (CGraph.lineGraph H).V)
-      = Fintype.card (CGraph.lineGraph (_root_.CGraph.disjUnion G H)).V := by
+      = Fintype.card (CGraph.lineGraph (G ⊕g H)).V := by
     rw [Fintype.card_sum, CGraph.card_lineGraph, CGraph.card_lineGraph, CGraph.card_lineGraph,
       CGraph.E_disjUnion]
   have hbij : Function.Bijective (sumEdge G H) :=
     Fintype.bijective_iff_injective_and_card _ |>.2 ⟨sumEdge_inj G H, hcard⟩
-  have hmem : ∀ (e : (CGraph.lineGraph G).V) (v : (_root_.CGraph.disjUnion G H).V),
+  have hmem : ∀ (e : (CGraph.lineGraph G).V) (v : (G ⊕g H).V),
       v ∈ (((Equiv.ofBijective (sumEdge G H) hbij) (.inl e)).1 :
-            Sym2 (_root_.CGraph.disjUnion G H).V)
+            Sym2 (G ⊕g H).V)
         ↔ ∃ a ∈ (e.1 : Sym2 G.V), Sum.inl a = v :=
     fun _ _ ↦ Sym2.mem_map
-  have hmem' : ∀ (e : (CGraph.lineGraph H).V) (v : (_root_.CGraph.disjUnion G H).V),
+  have hmem' : ∀ (e : (CGraph.lineGraph H).V) (v : (G ⊕g H).V),
       v ∈ (((Equiv.ofBijective (sumEdge G H) hbij) (.inr e)).1 :
-            Sym2 (_root_.CGraph.disjUnion G H).V)
+            Sym2 (G ⊕g H).V)
         ↔ ∃ a ∈ (e.1 : Sym2 H.V), Sum.inr a = v :=
     fun _ _ ↦ Sym2.mem_map
-  refine (isoOfAdj (G := _root_.CGraph.disjUnion (CGraph.lineGraph G) (CGraph.lineGraph H))
-    (H := CGraph.lineGraph (_root_.CGraph.disjUnion G H))
+  refine (isoOfAdj (G := CGraph.lineGraph G ⊕g CGraph.lineGraph H)
+    (H := CGraph.lineGraph (G ⊕g H))
     (Equiv.ofBijective _ hbij) ?_).symm
   rintro (e | e) (f | f) <;> rw [CGraph.lineGraph_adj]
   · show _ = (CGraph.lineGraph G).Adj e f
@@ -767,9 +773,9 @@ noncomputable def lineGraphDisjUnion (G H : CGraph) :
 /-- A `sigmaUnion` over `Fin (n + 1)` is the disjoint union of its first fibre with the
 `sigmaUnion` of the rest. -/
 def sigmaUnionSucc {n : ℕ} (F : Fin (n + 1) → CGraph) :
-    sigmaUnion F ≃cg _root_.CGraph.disjUnion (F 0) (sigmaUnion fun i : Fin n ↦ F i.succ) :=
+    sigmaUnion F ≃cg F 0 ⊕g (sigmaUnion fun i : Fin n ↦ F i.succ) :=
   isoOfAdj (G := sigmaUnion F)
-    (H := _root_.CGraph.disjUnion (F 0) (sigmaUnion fun i : Fin n ↦ F i.succ))
+    (H := F 0 ⊕g (sigmaUnion fun i : Fin n ↦ F i.succ))
     (sigmaFinSuccEquiv fun i ↦ (F i).V) (by
       rintro ⟨i, a⟩ ⟨j, b⟩
       induction i using Fin.cases with
@@ -797,12 +803,12 @@ complement is again a product — of the complements.  Two pairs are non-adjacen
 non-adjacent. -/
 @[toIsoGraph simp compl_lexProduct]
 def complLexProduct (G H : CGraph) :
-    (CGraph.lexProduct G H)ᶜ ≃cg CGraph.lexProduct Gᶜ Hᶜ :=
-  isoOfAdj (G := (CGraph.lexProduct G H)ᶜ)
-    (H := CGraph.lexProduct Gᶜ Hᶜ) (Equiv.refl (G.V × H.V)) (by
+    (G ·g H)ᶜ ≃cg Gᶜ ·g Hᶜ :=
+  isoOfAdj (G := (G ·g H)ᶜ)
+    (H := Gᶜ ·g Hᶜ) (Equiv.refl (G.V × H.V)) (by
       rintro ⟨a, b⟩ ⟨c, d⟩
-      show (CGraph.lexProduct Gᶜ Hᶜ).Adj (a, b) (c, d)
-        = ((CGraph.lexProduct G H)ᶜ).Adj (a, b) (c, d)
+      show (Gᶜ ·g Hᶜ).Adj (a, b) (c, d)
+        = ((G ·g H)ᶜ).Adj (a, b) (c, d)
       rcases eq_or_ne a c with rfl | hac
       · simp [Bool.eq_false_iff.2 (G.loopless a), lexProduct_pair_eq]
       · simp [hac, lexProduct_pair_eq])
@@ -811,24 +817,24 @@ def complLexProduct (G H : CGraph) :
 disjoint copies of `G`. -/
 @[toIsoGraph empty_lexProduct]
 def emptyLexProduct (n : ℕ) (G : CGraph) :
-    CGraph.lexProduct (CGraph.empty n) G ≃cg CGraph.cartesianProduct (CGraph.empty n) G :=
-  isoOfAdj (G := CGraph.lexProduct (CGraph.empty n) G)
-    (H := CGraph.cartesianProduct (CGraph.empty n) G) (Equiv.refl ((CGraph.empty n).V × G.V)) (by
+    CGraph.empty n ·g G ≃cg CGraph.empty n □g G :=
+  isoOfAdj (G := CGraph.empty n ·g G)
+    (H := CGraph.empty n □g G) (Equiv.refl ((CGraph.empty n).V × G.V)) (by
       rintro ⟨a, b⟩ ⟨c, d⟩
-      show (CGraph.cartesianProduct (CGraph.empty n) G).Adj (a, b) (c, d)
-        = (CGraph.lexProduct (CGraph.empty n) G).Adj (a, b) (c, d)
+      show (CGraph.empty n □g G).Adj (a, b) (c, d)
+        = (CGraph.empty n ·g G).Adj (a, b) (c, d)
       simp)
 
 /-- **`(empty n) ⊠ G = (empty n) □ G`**: likewise for the strong product.  Only the tensor
 product breaks ranks here — with an edgeless factor it is edgeless. -/
 @[toIsoGraph empty_strongProduct]
 def emptyStrongProduct (n : ℕ) (G : CGraph) :
-    CGraph.strongProduct (CGraph.empty n) G ≃cg CGraph.cartesianProduct (CGraph.empty n) G :=
-  isoOfAdj (G := CGraph.strongProduct (CGraph.empty n) G)
-    (H := CGraph.cartesianProduct (CGraph.empty n) G) (Equiv.refl ((CGraph.empty n).V × G.V)) (by
+    CGraph.empty n ⊠g G ≃cg CGraph.empty n □g G :=
+  isoOfAdj (G := CGraph.empty n ⊠g G)
+    (H := CGraph.empty n □g G) (Equiv.refl ((CGraph.empty n).V × G.V)) (by
       rintro ⟨a, b⟩ ⟨c, d⟩
-      show (CGraph.cartesianProduct (CGraph.empty n) G).Adj (a, b) (c, d)
-        = (CGraph.strongProduct (CGraph.empty n) G).Adj (a, b) (c, d)
+      show (CGraph.empty n □g G).Adj (a, b) (c, d)
+        = (CGraph.empty n ⊠g G).Adj (a, b) (c, d)
       rcases eq_or_ne a c with rfl | hac
       · rcases eq_or_ne b d with rfl | hbd
         · simp [Bool.eq_false_iff.2 (G.loopless b)]
@@ -904,14 +910,14 @@ def colourTwist (G : CGraph) (c : G.V → Bool) : (Fin 2 × G.V) ≃ (Fin 2 × G
 tensor product onto the Cartesian one, which is two disjoint copies. -/
 def tensorTwoOfColouring (G : CGraph) (c : G.V → Bool)
     (h : ∀ x y, G.Adj x y = true → c x ≠ c y) :
-    CGraph.tensorProduct (CGraph.complete 2) G ≃cg CGraph.cartesianProduct (CGraph.empty 2) G :=
-  isoOfAdj (G := CGraph.tensorProduct (CGraph.complete 2) G)
-    (H := CGraph.cartesianProduct (CGraph.empty 2) G) (colourTwist G c) (by
+    CGraph.complete 2 ⊗g G ≃cg CGraph.empty 2 □g G :=
+  isoOfAdj (G := CGraph.complete 2 ⊗g G)
+    (H := CGraph.empty 2 □g G) (colourTwist G c) (by
       rintro ⟨a, x⟩ ⟨b, y⟩
-      show (CGraph.cartesianProduct (CGraph.empty 2) G).Adj
+      show (CGraph.empty 2 □g G).Adj
           (⟨(a.1 + (if c x then 1 else 0)) % 2, _⟩, x)
           (⟨(b.1 + (if c y then 1 else 0)) % 2, _⟩, y)
-        = (CGraph.tensorProduct (CGraph.complete 2) G).Adj (a, x) (b, y)
+        = (CGraph.complete 2 ⊗g G).Adj (a, x) (b, y)
       rw [CGraph.cartesianProduct_adj, CGraph.tensorProduct_adj]
       simp only [CGraph.empty_adj, CGraph.complete_adj, Bool.false_and, Bool.or_false]
       rcases hxy : G.Adj x y with _ | _
@@ -954,11 +960,11 @@ remainder bijection, stepping once around `C_{2n}` changes the parity *and* step
 `C_n` — which is exactly an edge of `K₂ × C_n`. -/
 noncomputable def cycleTensorTwo (m : ℕ) :
     CGraph.cycle (2 * (2 * m + 3)) ≃cg
-      CGraph.tensorProduct (CGraph.complete 2) (CGraph.cycle (2 * m + 3)) :=
+      CGraph.complete 2 ⊗g CGraph.cycle (2 * m + 3) :=
   isoOfAdj (G := CGraph.cycle (2 * (2 * m + 3)))
-    (H := CGraph.tensorProduct (CGraph.complete 2) (CGraph.cycle (2 * m + 3))) (crtEquiv m) (by
+    (H := CGraph.complete 2 ⊗g CGraph.cycle (2 * m + 3)) (crtEquiv m) (by
       intro k l
-      show (CGraph.tensorProduct (CGraph.complete 2) (CGraph.cycle (2 * m + 3))).Adj
+      show (CGraph.complete 2 ⊗g CGraph.cycle (2 * m + 3)).Adj
           (⟨k.1 % 2, _⟩, ⟨k.1 % (2 * m + 3), _⟩) (⟨l.1 % 2, _⟩, ⟨l.1 % (2 * m + 3), _⟩)
         = (CGraph.cycle (2 * (2 * m + 3))).Adj k l
       have hn : 0 < 2 * m + 3 := by omega
@@ -1001,9 +1007,9 @@ noncomputable def finTwoMul (m : ℕ) : (Fin (m + 1) × Fin 2) ≃ Fin (2 * (m +
 /-- **A perfect matching, as a circulant.**  `circulant (2m) {m}` joins `i` to `i + m`, so it is
 `m` disjoint edges. -/
 noncomputable def circulantMatching (m : ℕ) :
-    CGraph.cartesianProduct (CGraph.empty (m + 1)) (CGraph.complete 2) ≃cg
+    CGraph.empty (m + 1) □g CGraph.complete 2 ≃cg
       CGraph.circulant (2 * (m + 1)) [m + 1] :=
-  isoOfAdj (G := CGraph.cartesianProduct (CGraph.empty (m + 1)) (CGraph.complete 2))
+  isoOfAdj (G := CGraph.empty (m + 1) □g CGraph.complete 2)
     (H := CGraph.circulant (2 * (m + 1)) [m + 1]) (finTwoMul m) (by
       rintro ⟨i, a⟩ ⟨j, b⟩
       have hi := i.isLt
@@ -1018,7 +1024,7 @@ noncomputable def circulantMatching (m : ℕ) :
       show (CGraph.circulant (2 * (m + 1)) [m + 1]).Adj
           (⟨i.1 + (m + 1) * a.1, hx⟩ : Fin (2 * (m + 1)))
           (⟨j.1 + (m + 1) * b.1, hy⟩ : Fin (2 * (m + 1)))
-        = (CGraph.cartesianProduct (CGraph.empty (m + 1)) (CGraph.complete 2)).Adj (i, a) (j, b)
+        = (CGraph.empty (m + 1) □g CGraph.complete 2).Adj (i, a) (j, b)
       rw [CGraph.cartesianProduct_adj]
       simp only [CGraph.circulant, CGraph.ofRel_adj, CGraph.empty_adj, CGraph.complete_adj,
         Bool.false_and, Bool.or_false, List.contains_cons, List.contains_nil]
@@ -1041,8 +1047,7 @@ private def paleyNineMap : Fin 3 ⊕ Fin 3 ⊕ Fin 3 → (CGraph.paley 9).V
 
 /-- `paley 9` is `K₃,₃,₃`: its complement is three triangles, the residue classes mod `3`. -/
 noncomputable def paleyNineIso :
-    CGraph.disjUnion (CGraph.complete 3)
-        (CGraph.disjUnion (CGraph.complete 3) (CGraph.complete 3)) ≃cg
+    CGraph.complete 3 ⊕g (CGraph.complete 3 ⊕g CGraph.complete 3) ≃cg
       (CGraph.paley 9)ᶜ :=
   isoOfAdj (Equiv.ofBijective paleyNineMap (by decide)) (by decide)
 
@@ -1061,23 +1066,6 @@ end Iso
 end CGraph
 
 namespace IsoGraph
-
-/-! ## Notation
-
-One symbol per binary operation, each suffixed with `g` in the style of Mathlib's `⊕g` for
-`SimpleGraph.sum` — which stays in scope, and which the overload resolves against by type.  The
-squared symbols follow Mathlib's `□` for `SimpleGraph.boxProd`; of the alternative box characters
-only `□` (`\square`) has a Lean input abbreviation.  Complementation is the `Compl` instance of
-`IsoGraph/Graphs/Constructions.lean` rather than a notation of its own.
-
-The four products bind more tightly than the two sums, so `G ⊕g H □g K` is `G ⊕g (H □g K)`. -/
-
-@[inherit_doc] infixl:60 " ⊕g " => IsoGraph.disjUnion
-@[inherit_doc] infixl:60 " ∇g " => IsoGraph.join
-@[inherit_doc] infixl:70 " □g " => IsoGraph.cartesianProduct
-@[inherit_doc] infixl:70 " ⊗g " => IsoGraph.tensorProduct
-@[inherit_doc] infixl:70 " ⊠g " => IsoGraph.strongProduct
-@[inherit_doc] infixl:70 " ·g " => IsoGraph.lexProduct
 
 /-! ## Abbreviations
 

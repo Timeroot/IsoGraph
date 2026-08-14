@@ -473,7 +473,7 @@ theorem edgeChromNum_ladder (n : ℕ) : (ladder (n + 3)).edgeChromNum = 3 := by
   rw [show (ladder (n + 3)) = path (n + 3) □g complete 2 from rfl, path_def, complete_def 2,
     cartesianProduct_mk]
   exact edgeChromNum_mk_le_of_colouring
-    (G := CGraph.cartesianProduct (CGraph.path (n + 3)) (CGraph.complete 2))
+    (G := CGraph.path (n + 3) □g CGraph.complete 2)
     (CGraph.ladderCol (n + 3)) (CGraph.ladderCol_symm (n + 3)) (CGraph.ladderCol_proper (n + 3))
 
 /-- **The chromatic index of a crown is its degree.**  `S_{n+2}^0` is `(n+1)`-regular and class
@@ -483,7 +483,7 @@ theorem edgeChromNum_crown (n : ℕ) : (crown (n + 2)).edgeChromNum = n + 1 := b
   rw [show (crown (n + 2)) = complete (n + 2) ⊗g complete 2 from rfl, complete_def (n + 2),
     complete_def 2, tensorProduct_mk]
   exact edgeChromNum_mk_le_of_colouring
-    (G := CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2))
+    (G := CGraph.complete (n + 2) ⊗g CGraph.complete 2)
     (CGraph.crownCol n) (CGraph.crownCol_symm n) (CGraph.crownCol_proper n)
 
 /-- **The chromatic index of a prism is three.**  `Cₙ □ K₂` is cubic, and `CGraph.prismCol`
@@ -493,7 +493,7 @@ theorem edgeChromNum_prism (n : ℕ) : (prism (n + 3)).edgeChromNum = 3 := by
   rw [show (prism (n + 3)) = cycle (n + 3) □g complete 2 from rfl, cycle_def, complete_def 2,
     cartesianProduct_mk]
   exact edgeChromNum_mk_le_of_colouring
-    (G := CGraph.cartesianProduct (CGraph.cycle (n + 3)) (CGraph.complete 2))
+    (G := CGraph.cycle (n + 3) □g CGraph.complete 2)
     (CGraph.prismCol (n + 3)) (CGraph.prismCol_symm (n + 3)) (CGraph.prismCol_proper n)
 
 /-- **The chromatic index of the Grötzsch graph is five.**  Its maximum degree is five, and

@@ -102,19 +102,18 @@ theorem matchNum_rook (m n : ℕ) :
       let v1 : Fin (m + 1) × Fin k → Fin (m + 1) × Fin (2 * k) := fun ⟨i, j⟩ => (i,
         ⟨2 * (j : ℕ) + 1, by omega⟩)
       have huv_adj : ∀ p : Fin (m + 1) × Fin k,
-          (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (2 * k))).Adj (v0 p)
+          (CGraph.complete (m + 1) □g CGraph.complete (2 * k)).Adj (v0 p)
             (v1 p) := by
         intro ⟨i, j⟩
         rw [CGraph.cartesianProduct_adj]
         simp [v0, v1, CGraph.complete_adj]
       -- edgeVertex for horizontal edges
-      let edgeVertex : Fin (m + 1) × Fin k → (CGraph.lineGraph (CGraph.cartesianProduct
-        (CGraph.complete (m + 1)) (CGraph.complete (2 * k)))).V :=
+      let edgeVertex : Fin (m + 1) × Fin k → (CGraph.lineGraph (
+        CGraph.complete (m + 1) □g CGraph.complete (2 * k))).V :=
         fun p => ⟨Sym2.mk (v0 p, v1 p), by
           rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
           exact huv_adj p⟩
-      let S : Finset ((CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
-        (CGraph.complete (2 * k)))).V) :=
+      let S : Finset ((CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2 * k))).V) :=
         Finset.univ.image edgeVertex
       -- Disjointness
       have hv0_fst : ∀ p : Fin (m + 1) × Fin k, (v0 p).1 = p.1 := by simp [v0]
@@ -164,8 +163,8 @@ theorem matchNum_rook (m n : ℕ) :
             have h2 : (p.2 : ℕ) = (q.2 : ℕ) := by simpa using congr_arg Prod.snd hx
             exact hpq (Prod.ext h1 (Fin.ext h2))
       -- Independence
-      have hS_indep : (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
-        (CGraph.complete (2 * k)))).toSimple.IsIndepSet S := by
+      have hS_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
+        CGraph.complete (2 * k))).toSimple.IsIndepSet S := by
         intro e he f hf haf
         simp only [S] at he hf
         rw [Finset.mem_coe, Finset.mem_image] at he hf
@@ -224,29 +223,27 @@ theorem matchNum_rook (m n : ℕ) :
         fun t => (⟨2 * (t : ℕ) + 1, by omega⟩, last_col)
       -- Adjacency for horizontal edges
       have hh_adj : ∀ p : Fin (m + 1) × Fin k,
-          (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (2 * k + 1))).Adj (hv0
+          (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1)).Adj (hv0
             p) (hv1 p) := by
         intro ⟨i, j⟩
         rw [CGraph.cartesianProduct_adj]
         simp [hv0, hv1, CGraph.complete_adj]
       -- Adjacency for vertical edges
       have hvv_adj : ∀ t : Fin mv2,
-          (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (2 * k + 1))).Adj
+          (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1)).Adj
             (hv0v t) (hv1v t) := by
         intro t
         rw [CGraph.cartesianProduct_adj]
         simp [hv0v, hv1v, last_col, CGraph.complete_adj]
       -- edgeVertex for horizontal edges
       let hEdgeVertex : Fin (m + 1) × Fin k →
-          (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (2 *
-            k + 1)))).V :=
+          (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1))).V :=
         fun p => ⟨Sym2.mk (hv0 p, hv1 p), by
           rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
           exact hh_adj p⟩
       -- edgeVertex for vertical edges
       let vEdgeVertex : Fin mv2 →
-          (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (2 *
-            k + 1)))).V :=
+          (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1))).V :=
         fun t => ⟨Sym2.mk (hv0v t, hv1v t), by
           rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
           exact hvv_adj t⟩
@@ -358,8 +355,8 @@ theorem matchNum_rook (m n : ℕ) :
         have hsym2 : Sym2.mk (hv0 p, hv1 p) = Sym2.mk (hv0v t, hv1v t) := Subtype.ext_iff.mp heq
         exact hHV_disjoint p t ⟨hv0 p, Sym2.mem_mk_left _ _, hsym2 ▸ Sym2.mem_mk_left _ _⟩
       -- H-image is independent
-      have hhS_indep : (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
-        (CGraph.complete (2 * k + 1)))).toSimple.IsIndepSet (Finset.univ.image hEdgeVertex) := by
+      have hhS_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
+        CGraph.complete (2 * k + 1))).toSimple.IsIndepSet (Finset.univ.image hEdgeVertex) := by
         intro e he f hf haf
         simp only [Finset.coe_image, Set.mem_image] at he hf
         obtain ⟨x, _, rfl⟩ := he
@@ -398,8 +395,8 @@ theorem matchNum_rook (m n : ℕ) :
               exact hpq (Prod.ext h1 (Fin.ext h2))
         exact this x y hne ⟨v, hv, hx1v⟩
       -- V-image is independent
-      have hvS_indep : (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
-        (CGraph.complete (2 * k + 1)))).toSimple.IsIndepSet (Finset.univ.image vEdgeVertex) := by
+      have hvS_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
+        CGraph.complete (2 * k + 1))).toSimple.IsIndepSet (Finset.univ.image vEdgeVertex) := by
         intro e he f hf haf
         simp only [Finset.coe_image, Set.mem_image] at he hf
         obtain ⟨t, _, rfl⟩ := he
@@ -416,8 +413,8 @@ theorem matchNum_rook (m n : ℕ) :
       -- No edges between H and V in lineGraph means H edges and V edges don't share endpoints,
       -- which is hHV_disjoint.
       have h_cross : ∀ p : Fin (m + 1) × Fin k, ∀ t : Fin mv2,
-          ¬(CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (2
-            * k + 1)))).Adj (hEdgeVertex p) (vEdgeVertex t) := by
+          ¬(CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2
+            * k + 1))).Adj (hEdgeVertex p) (vEdgeVertex t) := by
         intro p t
         simp [CGraph.lineGraph_adj, hEdgeVertex, vEdgeVertex]
         have hne0 : hv0 p ≠ hv0v t := by
@@ -454,26 +451,26 @@ theorem matchNum_rook (m n : ℕ) :
           omega
         intro _ _
         exact ⟨⟨hne0, hne1⟩, hne2, hne3⟩
-      have h_union_indep : (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
-        (CGraph.complete (2 * k + 1)))).toSimple.IsIndepSet
+      have h_union_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
+        CGraph.complete (2 * k + 1))).toSimple.IsIndepSet
           (↑(Finset.univ.image hEdgeVertex ∪ Finset.univ.image vEdgeVertex)) := by
         have h_cross_toSimple : ∀ p : Fin (m + 1) × Fin k, ∀ t : Fin mv2,
-            ¬(CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete
-              (2 * k + 1)))).toSimple.Adj (hEdgeVertex p) (vEdgeVertex t) := by
+            ¬(CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
+              (2 * k + 1))).toSimple.Adj (hEdgeVertex p) (vEdgeVertex t) := by
           intro p t hadj
           rw [CGraph.toSimple_adj] at hadj
           exact h_cross p t hadj
         have h_cross_toSimple' : ∀ p : Fin (m + 1) × Fin k, ∀ t : Fin mv2,
-            ¬(CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete
-              (2 * k + 1)))).toSimple.Adj (vEdgeVertex t) (hEdgeVertex p) := by
+            ¬(CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
+              (2 * k + 1))).toSimple.Adj (vEdgeVertex t) (hEdgeVertex p) := by
           intro p t hadj
           rw [CGraph.toSimple_adj] at hadj
-          have hsymm : ∀ e f : (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1))
-            (CGraph.complete (2 * k + 1)))).V,
-              (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete
-                (2 * k + 1)))).Adj e f =
-              (CGraph.lineGraph (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete
-                (2 * k + 1)))).Adj f e := by
+          have hsymm : ∀ e f : (CGraph.lineGraph (CGraph.complete (m + 1) □g
+            CGraph.complete (2 * k + 1))).V,
+              (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
+                (2 * k + 1))).Adj e f =
+              (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
+                (2 * k + 1))).Adj f e := by
             intro e f
             rw [CGraph.lineGraph_adj, CGraph.lineGraph_adj]
             simp [and_comm, eq_comm]
@@ -2635,12 +2632,12 @@ the rest of the path in pairs. -/
     rw [matchNum_eq]
     rcases Nat.even_or_odd' n with ⟨k, rfl | rfl⟩
     · have join_mk : ∀ (G H : CGraph),
-          IsoGraph.join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+          ⟦G⟧ ∇g ⟦H⟧ = ⟦G ∇g H⟧ := by
         intro G H
         rw [IsoGraph.join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
         rfl
       have hconvert : (fan (2 * k + 1)).lineGraph.indepNum =
-          (CGraph.join (CGraph.complete 1) (CGraph.path (2 * k + 1))).lineGraph.indepNum := by
+          (CGraph.complete 1 ∇g CGraph.path (2 * k + 1)).lineGraph.indepNum := by
         rw [fan_eq_join, IsoGraph.complete, IsoGraph.path, join_mk, lineGraph_mk, indepNum_mk]
       rw [hconvert]
       have harith : (2 * k + 2) / 2 = k + 1 := by omega
@@ -2658,17 +2655,16 @@ the rest of the path in pairs. -/
       let epath : Fin k → Sym2 (Fin 1 ⊕ Fin m) :=
         fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 2, by omega⟩)
       -- Show e0 is an edge
-      have he0 : e0 ∈ (CGraph.join (CGraph.complete 1) (CGraph.path m)).toSimple.edgeSet := by
+      have he0 : e0 ∈ (CGraph.complete 1 ∇g CGraph.path m).toSimple.edgeSet := by
         rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inl_inr]
       -- Show each epath j is an edge
-      have hepath : ∀ j : Fin k, epath j ∈ (CGraph.join (CGraph.complete 1) (CGraph.path
-        m)).toSimple.edgeSet := by
+      have hepath : ∀ j : Fin k, epath j ∈ (CGraph.complete 1 ∇g CGraph.path
+        m).toSimple.edgeSet := by
         intro j
         rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inr_inr, CGraph.path_adj]
         simp [Fin.ext_iff]
-      let spokeV : (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V :=
-        ⟨e0, he0⟩
-      let rimV : Fin k → (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V :=
+      let spokeV : (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V := ⟨e0, he0⟩
+      let rimV : Fin k → (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V :=
         fun j => ⟨epath j, hepath j⟩
       -- inl 0 is in e0 but not in any epath j
       have hinl0_in_e0 : (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ e0 := by
@@ -2713,12 +2709,12 @@ the rest of the path in pairs. -/
         rw [hval] at hm1
         rcases hmemRim_char j' _ |>.mp hm1 with h | h <;> simp [Fin.ext_iff] at h <;> omega
       -- vertices finset
-      let vertices : Finset (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V
+      let vertices : Finset (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V
         :=
         {spokeV} ∪ Finset.univ.image rimV
       -- Independence
-      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.join (CGraph.complete 1)
-        (CGraph.path m))).toSimple
+      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.complete 1 ∇g
+        CGraph.path m)).toSimple
           (vertices : Set _) := by
         unfold SimpleGraph.IsIndepSet
         intro v hv w hw hvw
@@ -2766,7 +2762,7 @@ the rest of the path in pairs. -/
       exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
     · -- Odd case: n = 2*k+1, fan(n+1) = fan(2*k+2)
       have hconvert : (fan (2 * k + 1 + 1)).lineGraph.indepNum =
-          (CGraph.join (CGraph.complete 1) (CGraph.path (2 * k + 2))).lineGraph.indepNum := by
+          (CGraph.complete 1 ∇g CGraph.path (2 * k + 2)).lineGraph.indepNum := by
         rw [fan_eq_join, IsoGraph.complete, IsoGraph.path, join_mk, lineGraph_mk, indepNum_mk]
       rw [hconvert]
       have harith : (2 * k + 1 + 2) / 2 = k + 1 := by omega
@@ -2776,13 +2772,13 @@ the rest of the path in pairs. -/
       let epath : Fin (k + 1) → Sym2 (Fin 1 ⊕ Fin m) :=
         fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ), by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩)
       -- Show each epath j is an edge (rim-rim, path edges)
-      have hepath : ∀ j : Fin (k + 1), epath j ∈ (CGraph.join (CGraph.complete 1) (CGraph.path
-        m)).toSimple.edgeSet := by
+      have hepath : ∀ j : Fin (k + 1), epath j ∈ (CGraph.complete 1 ∇g CGraph.path
+        m).toSimple.edgeSet := by
         intro j
         rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inr_inr, CGraph.path_adj]
         simp [Fin.ext_iff]
-      let rimV : Fin (k + 1) → (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path
-        m))).V :=
+      let rimV : Fin (k + 1) → (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path
+        m)).V :=
         fun j => ⟨epath j, hepath j⟩
       -- rim edge membership char
       have hmemRim_char : ∀ j : Fin (k + 1), ∀ y : Fin 1 ⊕ Fin m,
@@ -2798,12 +2794,12 @@ the rest of the path in pairs. -/
         rw [hval] at hm1
         rcases hmemRim_char j' _ |>.mp hm1 with h | h <;> simp [Fin.ext_iff] at h <;> omega
       -- vertices finset
-      let vertices : Finset (CGraph.lineGraph (CGraph.join (CGraph.complete 1) (CGraph.path m))).V
+      let vertices : Finset (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V
         :=
         Finset.univ.image rimV
       -- Independence: no two epath edges share a vertex
-      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.join (CGraph.complete 1)
-        (CGraph.path m))).toSimple
+      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.complete 1 ∇g
+        CGraph.path m)).toSimple
           (vertices : Set _) := by
         unfold SimpleGraph.IsIndepSet
         intro v hv w hw hvw

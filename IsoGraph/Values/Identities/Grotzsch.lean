@@ -88,8 +88,8 @@ theorem degSequence_turan {n r : ℕ} (hr : 0 < r) :
   have hm_lt : m < r := Nat.mod_lt n hr
   have hsum_n : n = r * k + m := by rw [hk_def, hm_def, Nat.div_add_mod]
   -- turan = join of two completeMultipartite(replicate ...) graphs
-  have hturan : turan n r = join (completeMultipartite (List.replicate m (k + 1)))
-      (completeMultipartite (List.replicate (r - m) k)) := by
+  have hturan : turan n r = completeMultipartite (List.replicate m (k + 1)) ∇g
+      completeMultipartite (List.replicate (r - m) k) := by
     rw [turan, completeMultipartite_append]
   rw [hturan, degSequence_eq_sort, degMultiset_join]
   -- Compute degMultiset of each chunk via degMultiset_of_degSequence
@@ -302,7 +302,7 @@ theorem circulant_six_two_three : circulant 6 [2, 3] = prism 3 := by
   rw [circulant_def, prism, cycle_def, complete_def, cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := CGraph.circulant 6 [2, 3])
-    (H := CGraph.cartesianProduct (CGraph.cycle 3) (CGraph.complete 2))
+    (H := CGraph.cycle 3 □g CGraph.complete 2)
     (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
       fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :
         Fin 6 ≃ (Fin 3 × Fin 2))
@@ -314,8 +314,8 @@ theorem fan_three : fan 3 = book 2 := by
   show complete 1 ∇g path 3 = complete 2 ∇g empty 2
   rw [complete_def, path_def, join_mk, complete_def, empty_def, join_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.join (CGraph.complete 1) (CGraph.path 3))
-    (H := CGraph.join (CGraph.complete 2) (CGraph.empty 2))
+    (G := CGraph.complete 1 ∇g CGraph.path 3)
+    (H := CGraph.complete 2 ∇g CGraph.empty 2)
     (⟨Sum.elim ![.inl 0] ![.inr 0, .inl 1, .inr 1],
       Sum.elim ![.inl 0, .inr 1] ![.inr 0, .inr 2], by decide, by decide⟩ :
         (Fin 1 ⊕ Fin 3) ≃ (Fin 2 ⊕ Fin 2))

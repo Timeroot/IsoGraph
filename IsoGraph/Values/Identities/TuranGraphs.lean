@@ -178,8 +178,7 @@ theorem isRegularWith_compl_cocktailParty (n : ℕ) :
   rw [E_tensorProduct, E_complete, E_complete]
   simp
 
-theorem crown_two : crown 2 = complete 2 ⊕g complete 2 :=
-  tensorProduct_complete_two_two
+theorem crown_two : crown 2 = complete 2 ⊕g complete 2 := tensorProduct_complete_two_two
 
 theorem crown_three : crown 3 = cycle 6 := by
   rw [crown, tensorProduct_comm, ← cycle_three, tensorProduct_complete_two_cycle_three]
@@ -475,7 +474,7 @@ theorem matchNum_crown (n : ℕ) : (crown (n + 2)).matchNum = n + 2 := by
     -- indepNum for CGraph = toSimple.indepNum
     -- We exhibit n+2 pairwise disjoint edges of the tensorProduct graph.
     set m := n + 2
-    set H := CGraph.tensorProduct (CGraph.complete m) (CGraph.complete 2)
+    set H := CGraph.complete m ⊗g CGraph.complete 2
     -- Vertex type of H: Fin m × Fin 2
     -- Edge i: between (i, 0) and (i+1, 1) in Fin m × Fin 2
     -- These are edges since i ≠ i+1 (mod m, and m ≥ 2) and 0 ≠ 1.
@@ -548,7 +547,7 @@ theorem matchNum_friendship (n : ℕ) : (friendship n).matchNum = n := by
     rw [matchNum_eq]
     rw [friendship]
     have join_mk : ∀ (G H : CGraph),
-          IsoGraph.join ⟦G⟧ ⟦H⟧ = ⟦CGraph.join G H⟧ := by
+          ⟦G⟧ ∇g ⟦H⟧ = ⟦G ∇g H⟧ := by
       intro G H
       rw [IsoGraph.join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
       rfl
@@ -557,7 +556,7 @@ theorem matchNum_friendship (n : ℕ) : (friendship n).matchNum = n := by
     rw [join_mk, IsoGraph.lineGraph_mk, IsoGraph.indepNum_mk]
     -- Goal: n ≤ the line graph's independence number
     set G' : CGraph :=
-      CGraph.join (CGraph.complete 1) (CGraph.cartesianProduct (CGraph.empty n) (CGraph.complete 2))
+      CGraph.complete 1 ∇g CGraph.empty n □g CGraph.complete 2
     let mkEdge : Fin n → Sym2 G'.V :=
       fun i => Sym2.mk (Sum.inr (i, (0 : Fin 2)), Sum.inr (i, (1 : Fin 2)))
     have hedge : ∀ i : Fin n, mkEdge i ∈ G'.toSimple.edgeSet := by
@@ -869,7 +868,7 @@ bipartition and between them see every other vertex, while no vertex is universa
   dsimp only [IsoGraph.complete]
   rw [tensorProduct_mk, IsoGraph.domNum_mk]
   -- Upper bound: {(0,0), (0,1)} dominates
-  have hdom : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).IsDominatingSet
+  have hdom : (CGraph.complete (n + 2) ⊗g CGraph.complete 2).IsDominatingSet
       {((0 : Fin (n+2)), (0 : Fin 2)), ((0 : Fin (n+2)), (1 : Fin 2))} := by
     intro ⟨a, b⟩
     simp only [CGraph.tensorProduct_adj, Finset.mem_insert, Finset.mem_singleton,
@@ -886,18 +885,17 @@ bipartition and between them see every other vertex, while no vertex is universa
       · left; right; exact Prod.ext ha (by rfl)
       · right; exact fun h => ha h.symm
   -- Upper bound: domNum ≤ 2
-  have hle : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).domNum ≤ 2 :=
+  have hle : (CGraph.complete (n + 2) ⊗g CGraph.complete 2).domNum ≤ 2 :=
     CGraph.domNum_le_card_of_isDominatingSet hdom
   -- Lower bound: no universal vertex, so domNum ≠ 1
-  have hno_univ : ¬ ∃ v : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).V,
-      ∀ u, u ≠ v →
-        (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).Adj v u := by
+  have hno_univ : ¬ ∃ v : (CGraph.complete (n + 2) ⊗g CGraph.complete 2).V, ∀ u, u ≠ v →
+        (CGraph.complete (n + 2) ⊗g CGraph.complete 2).Adj v u := by
     rintro ⟨vv, hv⟩
     set a := vv.1
     set b := vv.2
     set b' : Fin 2 :=
       if b = (⟨0, by omega⟩ : Fin 2) then (⟨1, by omega⟩ : Fin 2) else (⟨0, by omega⟩ : Fin 2)
-    set w : (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).V := (a, b')
+    set w : (CGraph.complete (n + 2) ⊗g CGraph.complete 2).V := (a, b')
     have hbne : b' ≠ b := by
       have hb_cases : b = (⟨0, by omega⟩ : Fin 2) ∨ b = (⟨1, by omega⟩ : Fin 2) :=
         Fin.exists_fin_two.mp ⟨b, rfl⟩
@@ -909,15 +907,15 @@ bipartition and between them see every other vertex, while no vertex is universa
     simp [CGraph.tensorProduct_adj, CGraph.complete_adj, w, b'] at hadj
     exact absurd hadj.1 (by simp [a])
   have hnot1 :
-      ¬ (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)).domNum = 1 := by
+      ¬ (CGraph.complete (n + 2) ⊗g CGraph.complete 2).domNum = 1 := by
     rw [CGraph.domNum_eq_one_iff]; exact hno_univ
   -- domNum > 0
-  let G'' : CGraph := CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)
+  let G'' : CGraph := CGraph.complete (n + 2) ⊗g CGraph.complete 2
   have hpos : 0 < G''.domNum :=
     @CGraph.domNum_pos G'' (by
       show 0 < Fintype.card G''.V
       simp [G'', CGraph.card_complete])
-  rw [show (CGraph.tensorProduct (CGraph.complete (n + 2)) (CGraph.complete 2)) = G'' from rfl]
+  rw [show (CGraph.complete (n + 2) ⊗g CGraph.complete 2) = G'' from rfl]
     at hle hnot1 ⊢
   omega
 
@@ -932,7 +930,7 @@ removed matching edge realise that bound. -/
 theorem diameter_crown (n : ℕ) : (crown (n + 3)).diameter = 3 := by
   rw [crown, complete_def, complete_def, tensorProduct_mk, diameter_mk]
   let G : SimpleGraph (Fin (n + 3) × Fin 2) :=
-    (CGraph.tensorProduct (CGraph.complete (n + 3)) (CGraph.complete 2)).toSimple
+    (CGraph.complete (n + 3) ⊗g CGraph.complete 2).toSimple
   have h_adj : ∀ p q : Fin (n + 3) × Fin 2, G.Adj p q ↔ p.1 ≠ q.1 ∧ p.2 ≠ q.2 := by
     intro p q
     simp [G, CGraph.toSimple_adj, CGraph.tensorProduct_adj, CGraph.complete_adj]
@@ -1266,8 +1264,8 @@ theorem domNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r).
     exact domNum_turan_of_dvd hdvd hr hdiv
   · -- General case: turan n r = join G H with G, H nonempty and domNum ≠ 1 for both
     have hturan : turan n r =
-        join (completeMultipartite (List.replicate (n % r) (n / r + 1)))
-          (completeMultipartite (List.replicate (r - n % r) (n / r))) := by
+        completeMultipartite (List.replicate (n % r) (n / r + 1)) ∇g
+          completeMultipartite (List.replicate (r - n % r) (n / r)) := by
       rw [turan, completeMultipartite_append]
     rw [hturan]
     have hr0 : 0 < r := by omega
@@ -1622,8 +1620,8 @@ a largest part. -/
       rw [show n + r - 1 = r * (n / r + 1) + (k - 1) from by omega,
         div_helper (n / r + 1) (k - 1) (by omega)]
     have hturan : turan n r =
-        join (completeMultipartite (List.replicate k (n / r + 1)))
-          (completeMultipartite (List.replicate (r - k) (n / r))) := by
+        completeMultipartite (List.replicate k (n / r + 1)) ∇g
+          completeMultipartite (List.replicate (r - k) (n / r)) := by
       rw [turan, completeMultipartite_append]
     rw [hturan]
     have hndiv_pos : 0 < n / r := Nat.div_pos h hr
@@ -1841,8 +1839,8 @@ theorem diameter_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r
     have hk1 : 1 ≤ k := hk0
     have hrk_pos : 0 < r - k := by omega
     -- Rewrite turan using cons on the list
-    have hdet : turan n r = join (empty (a + 1))
-        (completeMultipartite (List.replicate (k - 1) (a + 1) ++ List.replicate (r - k) a)) := by
+    have hdet : turan n r = empty (a + 1) ∇g
+        completeMultipartite (List.replicate (k - 1) (a + 1) ++ List.replicate (r - k) a) := by
       unfold turan
       rw [show List.replicate k (a + 1) = (a + 1) :: List.replicate (k - 1) (a + 1) from by
         rw [show k = (k - 1) + 1 from (Nat.sub_add_cancel hk1).symm, List.replicate_succ]
@@ -1899,7 +1897,7 @@ theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   -- Lift to CGraph level
   have hG_iso : Quotient.mk _ G.toCGraph = G := IsoGraph.mk_toCGraph G
   have hH_iso : Quotient.mk _ H.toCGraph = H := IsoGraph.mk_toCGraph H
-  have htensor : G ⊗g H = ⟦CGraph.tensorProduct G.toCGraph H.toCGraph⟧ := by
+  have htensor : G ⊗g H = ⟦G.toCGraph ⊗g H.toCGraph⟧ := by
     conv_lhs => rw [← hG_iso, ← hH_iso]
     exact tensorProduct_mk _ _
   rw [htensor, isConnected_mk]
@@ -1929,7 +1927,7 @@ theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   -- Step 1: Get an edge in H.toSimple
   have hHne : Nonempty H.toCGraph.V := hHC.nonempty
   have hGne : Nonempty G.toCGraph.V := hGC.nonempty
-  have hVne : Nonempty ((CGraph.tensorProduct G.toCGraph H.toCGraph).V) := 
+  have hVne : Nonempty ((G.toCGraph ⊗g H.toCGraph).V) := 
     ⟨(Classical.choice hGne, Classical.choice hHne)⟩
   -- Step 2: Work at SimpleGraph level
   set Gs := G.toCGraph.toSimple
@@ -2462,8 +2460,7 @@ cocktail party graph. -/
 than the others. -/
 theorem compl_turan (n r : ℕ) :
     (turan n r)ᶜ
-      = disjUnion (empty (n % r) □g complete (n / r + 1))
-          (empty (r - n % r) □g complete (n / r)) := by
+      = empty (n % r) □g complete (n / r + 1) ⊕g empty (r - n % r) □g complete (n / r) := by
   rw [turan, completeMultipartite_append, compl_join, compl_completeMultipartite_replicate,
     compl_completeMultipartite_replicate]
 
@@ -2639,8 +2636,8 @@ theorem crown_four : crown 4 = hypercube 3 := by
   show complete 4 ⊗g complete 2 = cycle 4 □g complete 2
   rw [complete_def, complete_def, tensorProduct_mk, cycle_def, cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.tensorProduct (CGraph.complete 4) (CGraph.complete 2))
-    (H := CGraph.cartesianProduct (CGraph.cycle 4) (CGraph.complete 2))
+    (G := CGraph.complete 4 ⊗g CGraph.complete 2)
+    (H := CGraph.cycle 4 □g CGraph.complete 2)
     (⟨fun p ↦ ![![(0, 0), (2, 1)], ![(2, 0), (0, 1)], ![(1, 1), (3, 0)], ![(3, 1), (1, 0)]]
         p.1 p.2,
       fun p ↦ ![![(0, 0), (1, 1)], ![(3, 1), (2, 0)], ![(1, 0), (0, 1)], ![(2, 1), (3, 0)]]

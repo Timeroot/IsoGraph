@@ -201,7 +201,7 @@ theorem maxDeg_le_two_mul_E {G : CGraph} [Nonempty G.V] : G.maxDeg ≤ 2 * G.E :
 
 @[toIsoGraph]
 theorem maxDeg_disjUnion (G H : CGraph) :
-    (disjUnion G H).maxDeg = max G.maxDeg H.maxDeg := by
+    (G ⊕g H).maxDeg = max G.maxDeg H.maxDeg := by
   refine le_antisymm (maxDeg_le_of_forall ?_) (max_le ?_ ?_)
   · rintro (a | b)
     · rw [degree_disjUnion_inl]; exact le_max_of_le_left (G.degree_le_maxDeg a)
@@ -215,7 +215,7 @@ theorem maxDeg_disjUnion (G H : CGraph) :
 
 @[toIsoGraph]
 theorem minDeg_disjUnion {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    (disjUnion G H).minDeg = min G.minDeg H.minDeg := by
+    (G ⊕g H).minDeg = min G.minDeg H.minDeg := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
@@ -231,7 +231,7 @@ theorem minDeg_disjUnion {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
 
 @[toIsoGraph]
 theorem maxDeg_join {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    (join G H).maxDeg
+    (G ∇g H).maxDeg
       = max (G.maxDeg + Fintype.card H.V) (Fintype.card G.V + H.maxDeg) := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
@@ -250,7 +250,7 @@ theorem maxDeg_join {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
 
 @[toIsoGraph]
 theorem minDeg_join {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    (join G H).minDeg
+    (G ∇g H).minDeg
       = min (G.minDeg + Fintype.card H.V) (Fintype.card G.V + H.minDeg) := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
@@ -295,12 +295,12 @@ theorem minDeg_compl {G : CGraph} [Nonempty G.V] :
 @[toIsoGraph]
 theorem maxDeg_cartesianProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (cartesianProduct G H).maxDeg = G.maxDeg + H.maxDeg := by
+    (G □g H).maxDeg = G.maxDeg + H.maxDeg := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
-  have h := degree_cartesianProduct G H ((a, b) : (cartesianProduct G H).V)
+  have h := degree_cartesianProduct G H ((a, b) : (G □g H).V)
   dsimp only at h
   refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
   · rw [degree_cartesianProduct]
@@ -311,14 +311,14 @@ theorem maxDeg_cartesianProduct {G H : CGraph}
 @[toIsoGraph]
 theorem minDeg_cartesianProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (cartesianProduct G H).minDeg = G.minDeg + H.minDeg := by
+    (G □g H).minDeg = G.minDeg + H.minDeg := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
-  have h := degree_cartesianProduct G H ((a, b) : (cartesianProduct G H).V)
+  have h := degree_cartesianProduct G H ((a, b) : (G □g H).V)
   dsimp only at h
-  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (cartesianProduct G H).V) fun p ↦ ?_)
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (G □g H).V) fun p ↦ ?_)
   · rw [← ha, ← hb, ← h]
     exact minDeg_le_degree _ _
   · rw [degree_cartesianProduct]
@@ -327,12 +327,12 @@ theorem minDeg_cartesianProduct {G H : CGraph}
 @[toIsoGraph]
 theorem maxDeg_tensorProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (tensorProduct G H).maxDeg = G.maxDeg * H.maxDeg := by
+    (G ⊗g H).maxDeg = G.maxDeg * H.maxDeg := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
-  have h := degree_tensorProduct G H ((a, b) : (tensorProduct G H).V)
+  have h := degree_tensorProduct G H ((a, b) : (G ⊗g H).V)
   dsimp only at h
   refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
   · rw [degree_tensorProduct]
@@ -343,14 +343,14 @@ theorem maxDeg_tensorProduct {G H : CGraph}
 @[toIsoGraph]
 theorem minDeg_tensorProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (tensorProduct G H).minDeg = G.minDeg * H.minDeg := by
+    (G ⊗g H).minDeg = G.minDeg * H.minDeg := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
-  have h := degree_tensorProduct G H ((a, b) : (tensorProduct G H).V)
+  have h := degree_tensorProduct G H ((a, b) : (G ⊗g H).V)
   dsimp only at h
-  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (tensorProduct G H).V) fun p ↦ ?_)
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (G ⊗g H).V) fun p ↦ ?_)
   · rw [← ha, ← hb, ← h]
     exact minDeg_le_degree _ _
   · rw [degree_tensorProduct]
@@ -359,12 +359,12 @@ theorem minDeg_tensorProduct {G H : CGraph}
 @[toIsoGraph]
 theorem maxDeg_lexProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (lexProduct G H).maxDeg = G.maxDeg * Fintype.card H.V + H.maxDeg := by
+    (G ·g H).maxDeg = G.maxDeg * Fintype.card H.V + H.maxDeg := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
-  have h := degree_lexProduct G H ((a, b) : (lexProduct G H).V)
+  have h := degree_lexProduct G H ((a, b) : (G ·g H).V)
   dsimp only at h
   refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
   · rw [degree_lexProduct]
@@ -375,14 +375,14 @@ theorem maxDeg_lexProduct {G H : CGraph}
 @[toIsoGraph]
 theorem minDeg_lexProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (lexProduct G H).minDeg = G.minDeg * Fintype.card H.V + H.minDeg := by
+    (G ·g H).minDeg = G.minDeg * Fintype.card H.V + H.minDeg := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
-  have h := degree_lexProduct G H ((a, b) : (lexProduct G H).V)
+  have h := degree_lexProduct G H ((a, b) : (G ·g H).V)
   dsimp only at h
-  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (lexProduct G H).V) fun p ↦ ?_)
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (G ·g H).V) fun p ↦ ?_)
   · rw [← ha, ← hb, ← h]
     exact minDeg_le_degree _ _
   · rw [degree_lexProduct]
@@ -391,12 +391,12 @@ theorem minDeg_lexProduct {G H : CGraph}
 @[toIsoGraph]
 theorem maxDeg_strongProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (strongProduct G H).maxDeg = (G.maxDeg + 1) * (H.maxDeg + 1) - 1 := by
+    (G ⊠g H).maxDeg = (G.maxDeg + 1) * (H.maxDeg + 1) - 1 := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_maxDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_maxDeg b₀
-  have h := degree_strongProduct G H ((a, b) : (strongProduct G H).V)
+  have h := degree_strongProduct G H ((a, b) : (G ⊠g H).V)
   dsimp only at h
   refine le_antisymm (maxDeg_le_of_forall fun p ↦ ?_) ?_
   · rw [degree_strongProduct]
@@ -408,14 +408,14 @@ theorem maxDeg_strongProduct {G H : CGraph}
 @[toIsoGraph]
 theorem minDeg_strongProduct {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] :
-    (strongProduct G H).minDeg = (G.minDeg + 1) * (H.minDeg + 1) - 1 := by
+    (G ⊠g H).minDeg = (G.minDeg + 1) * (H.minDeg + 1) - 1 := by
   obtain ⟨a₀⟩ := ‹Nonempty G.V›
   obtain ⟨b₀⟩ := ‹Nonempty H.V›
   obtain ⟨a, ha⟩ := G.exists_degree_eq_minDeg a₀
   obtain ⟨b, hb⟩ := H.exists_degree_eq_minDeg b₀
-  have h := degree_strongProduct G H ((a, b) : (strongProduct G H).V)
+  have h := degree_strongProduct G H ((a, b) : (G ⊠g H).V)
   dsimp only at h
-  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (strongProduct G H).V) fun p ↦ ?_)
+  refine le_antisymm ?_ (le_minDeg_of_forall ((a₀, b₀) : (G ⊠g H).V) fun p ↦ ?_)
   · rw [← ha, ← hb, ← h]
     exact minDeg_le_degree _ _
   · rw [degree_strongProduct]
@@ -1484,11 +1484,11 @@ theorem domNum_eq_one_iff (G : CGraph) :
 
 /-- The apex of a join with a single vertex sees the whole graph, so it dominates it. -/
 theorem domNum_join_complete_one (G : CGraph) :
-    (join (complete 1) G).domNum = 1 := by
+    (complete 1 ∇g G).domNum = 1 := by
   haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   haveI : Subsingleton ((complete 1)ᶜ).V := inferInstanceAs (Subsingleton (Fin 1))
   refine domNum_eq_one_of_universal
-    (v := (Sum.inl (0 : Fin 1) : (join (complete 1) G).V)) fun u hu ↦ ?_
+    (v := (Sum.inl (0 : Fin 1) : (complete 1 ∇g G).V)) fun u hu ↦ ?_
   rcases u with a | b
   · exact absurd (congrArg Sum.inl (Subsingleton.elim a (0 : Fin 1))) hu
   · exact join_adj_inl_inr (complete 1) G _ b
@@ -1714,9 +1714,8 @@ theorem indepCount_complete (m n : ℕ) :
 
 /-- A clique of a disjoint union that has at least one vertex lies wholly on one of the two
 sides, because no edge crosses between them. -/
-theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
-    (disjUnion G H).toSimple.IsNClique (n + 1) s ↔
-      (∃ t : Finset G.V, G.toSimple.IsNClique (n + 1) t ∧
+theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (G ⊕g H).V} :
+    (G ⊕g H).toSimple.IsNClique (n + 1) s ↔ (∃ t : Finset G.V, G.toSimple.IsNClique (n + 1) t ∧
           s = t.map ⟨Sum.inl, Sum.inl_injective⟩) ∨
       (∃ t : Finset H.V, H.toSimple.IsNClique (n + 1) t ∧
           s = t.map ⟨Sum.inr, Sum.inr_injective⟩) := by
@@ -1726,7 +1725,7 @@ theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
     match x, hx with
     | .inl a, ha =>
       have hsub : s ⊆ Finset.univ.map
-          (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (disjUnion G H).V) := by
+          (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (G ⊕g H).V) := by
         intro y hy
         match y, hy with
         | .inl b, _ => simp
@@ -1737,14 +1736,14 @@ theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
       refine Or.inl ⟨t, ⟨?_, by simpa using hcard⟩, rfl⟩
       intro b hb c hc hbc
       have hb' := Finset.mem_coe.2 (Finset.mem_map_of_mem
-        (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hb))
+        (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (G ⊕g H).V) (Finset.mem_coe.1 hb))
       have hc' := Finset.mem_coe.2 (Finset.mem_map_of_mem
-        (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hc))
+        (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ (G ⊕g H).V) (Finset.mem_coe.1 hc))
       have := hcl hb' hc' (Sum.inl_injective.ne hbc)
       simpa [CGraph.toSimple_adj] using this
     | .inr b, hb =>
       have hsub : s ⊆ Finset.univ.map
-          (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (disjUnion G H).V) := by
+          (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (G ⊕g H).V) := by
         intro y hy
         match y, hy with
         | .inr d, _ => simp
@@ -1755,9 +1754,9 @@ theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
       refine Or.inr ⟨t, ⟨?_, by simpa using hcard⟩, rfl⟩
       intro c hc d hd hcd
       have hc' := Finset.mem_coe.2 (Finset.mem_map_of_mem
-        (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hc))
+        (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (G ⊕g H).V) (Finset.mem_coe.1 hc))
       have hd' := Finset.mem_coe.2 (Finset.mem_map_of_mem
-        (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (disjUnion G H).V) (Finset.mem_coe.1 hd))
+        (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ (G ⊕g H).V) (Finset.mem_coe.1 hd))
       have := hcl hc' hd' (Sum.inr_injective.ne hcd)
       simpa [CGraph.toSimple_adj] using this
   · rintro (⟨t, ⟨hcl, hcard⟩, rfl⟩ | ⟨t, ⟨hcl, hcard⟩, rfl⟩)
@@ -1779,15 +1778,15 @@ theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (disjUnion G H).V} :
 /-- Cliques never cross between the two sides, so from size one on the counts simply add. -/
 @[toIsoGraph simp]
 theorem cliqueCount_disjUnion (G H : CGraph) (n : ℕ) :
-    (disjUnion G H).cliqueCount (n + 1) = G.cliqueCount (n + 1) + H.cliqueCount (n + 1) := by
+    (G ⊕g H).cliqueCount (n + 1) = G.cliqueCount (n + 1) + H.cliqueCount (n + 1) := by
   classical
   rw [cliqueCount_eq_card_cliqueFinset, cliqueCount_eq_card_cliqueFinset,
     cliqueCount_eq_card_cliqueFinset]
-  set fl : Finset G.V ↪ Finset (disjUnion G H).V :=
+  set fl : Finset G.V ↪ Finset (G ⊕g H).V :=
     ⟨Finset.map ⟨Sum.inl, Sum.inl_injective⟩, Finset.map_injective _⟩ with hfl
-  set fr : Finset H.V ↪ Finset (disjUnion G H).V :=
+  set fr : Finset H.V ↪ Finset (G ⊕g H).V :=
     ⟨Finset.map ⟨Sum.inr, Sum.inr_injective⟩, Finset.map_injective _⟩ with hfr
-  have hset : (disjUnion G H).toSimple.cliqueFinset (n + 1)
+  have hset : (G ⊕g H).toSimple.cliqueFinset (n + 1)
       = (G.toSimple.cliqueFinset (n + 1)).map fl
         ∪ (H.toSimple.cliqueFinset (n + 1)).map fr := by
     ext s
@@ -1810,14 +1809,14 @@ theorem cliqueCount_disjUnion (G H : CGraph) (n : ℕ) :
     obtain ⟨t, ht, rfl⟩ := hs
     obtain ⟨u, -, hu⟩ := hs'
     obtain ⟨a, ha⟩ : t.Nonempty := Finset.card_pos.1 (by rw [ht.card_eq]; omega)
-    have : (Sum.inl a : (disjUnion G H).V) ∈ u.map ⟨Sum.inr, Sum.inr_injective⟩ := by
+    have : (Sum.inl a : (G ⊕g H).V) ∈ u.map ⟨Sum.inr, Sum.inr_injective⟩ := by
       rw [hu]; simpa using ha
     simp at this
   rw [hset, Finset.card_union_of_disjoint hdisj, Finset.card_map, Finset.card_map]
 
 /-- Dually, independent sets never cross a join. -/
 theorem indepCount_join (G H : CGraph) (n : ℕ) :
-    (join G H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
+    (G ∇g H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
   classical
   rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
 
@@ -1872,22 +1871,22 @@ theorem numComponents_le_card (G : CGraph) : G.numComponents ≤ Fintype.card G.
 /-! ### The components of a disjoint union -/
 
 /-- The inclusion of the left factor of a disjoint union, as a graph homomorphism. -/
-def disjUnionInl (G H : CGraph) : G.toSimple →g (disjUnion G H).toSimple where
+def disjUnionInl (G H : CGraph) : G.toSimple →g (G ⊕g H).toSimple where
   toFun := Sum.inl
   map_rel' {a b} h := by simpa [CGraph.toSimple_adj] using h
 
 /-- The inclusion of the right factor of a disjoint union, as a graph homomorphism. -/
-def disjUnionInr (G H : CGraph) : H.toSimple →g (disjUnion G H).toSimple where
+def disjUnionInr (G H : CGraph) : H.toSimple →g (G ⊕g H).toSimple where
   toFun := Sum.inr
   map_rel' {a b} h := by simpa [CGraph.toSimple_adj] using h
 
 /-- Send a vertex of a disjoint union to its component on whichever side it lives. -/
 private def duSplit (G H : CGraph) :
-    (disjUnion G H).V → G.toSimple.ConnectedComponent ⊕ H.toSimple.ConnectedComponent :=
+    (G ⊕g H).V → G.toSimple.ConnectedComponent ⊕ H.toSimple.ConnectedComponent :=
   Sum.map G.toSimple.connectedComponentMk H.toSimple.connectedComponentMk
 
-private theorem duSplit_eq_of_adj {u v : (disjUnion G H).V}
-    (h : (disjUnion G H).toSimple.Adj u v) : duSplit G H u = duSplit G H v := by
+private theorem duSplit_eq_of_adj {u v : (G ⊕g H).V}
+    (h : (G ⊕g H).toSimple.Adj u v) : duSplit G H u = duSplit G H v := by
   match u, v with
   | Sum.inl a, Sum.inl c =>
     have : G.toSimple.Adj a c := by simpa [CGraph.toSimple_adj] using h
@@ -1898,8 +1897,8 @@ private theorem duSplit_eq_of_adj {u v : (disjUnion G H).V}
     have : H.toSimple.Adj c d := by simpa [CGraph.toSimple_adj] using h
     simp [duSplit, SimpleGraph.ConnectedComponent.eq, this.reachable]
 
-private theorem duSplit_eq_of_reachable {u v : (disjUnion G H).V}
-    (h : (disjUnion G H).toSimple.Reachable u v) : duSplit G H u = duSplit G H v := by
+private theorem duSplit_eq_of_reachable {u v : (G ⊕g H).V}
+    (h : (G ⊕g H).toSimple.Reachable u v) : duSplit G H u = duSplit G H v := by
   obtain ⟨p⟩ := h
   induction p with
   | nil => rfl
@@ -1907,7 +1906,7 @@ private theorem duSplit_eq_of_reachable {u v : (disjUnion G H).V}
 
 /-- **The components of a disjoint union are those of the two factors.** -/
 def disjUnionComponentEquiv (G H : CGraph) :
-    (disjUnion G H).toSimple.ConnectedComponent ≃
+    (G ⊕g H).toSimple.ConnectedComponent ≃
       G.toSimple.ConnectedComponent ⊕ H.toSimple.ConnectedComponent where
   toFun := SimpleGraph.ConnectedComponent.lift (duSplit G H)
     (fun _ _ p _ ↦ duSplit_eq_of_reachable ⟨p⟩)
@@ -1924,7 +1923,7 @@ def disjUnionComponentEquiv (G H : CGraph) :
     · induction c using SimpleGraph.ConnectedComponent.ind with | _ b => rfl
 
 @[simp, toIsoGraph] theorem numComponents_disjUnion (G H : CGraph) :
-    (disjUnion G H).numComponents = G.numComponents + H.numComponents := by
+    (G ⊕g H).numComponents = G.numComponents + H.numComponents := by
   rw [numComponents, numComponents, numComponents,
     Nat.card_congr (disjUnionComponentEquiv G H), Nat.card_sum]
 
@@ -1995,7 +1994,7 @@ theorem numComponents_le_domNum (G : CGraph) : G.numComponents ≤ G.domNum := b
 /-- The join of two nonempty graphs is connected, hence has one component. -/
 theorem numComponents_join (G H : CGraph)
     (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) :
-    (join G H).numComponents = 1 :=
+    (G ∇g H).numComponents = 1 :=
   (numComponents_eq_one_iff _).2 (isConnected_join G H hG hH)
 
 theorem E_pos_of_adj {G : CGraph} {a b : G.V} (h : G.toSimple.Adj a b) : 0 < G.E :=
@@ -2073,7 +2072,7 @@ private theorem card_connectedComponent_boxProd {α β : Type*} (S : SimpleGraph
 
 /-- **The components of a Cartesian product are the pairs of components.** -/
 theorem numComponents_cartesianProduct (G H : CGraph) :
-    (cartesianProduct G H).numComponents = G.numComponents * H.numComponents := by
+    (G □g H).numComponents = G.numComponents * H.numComponents := by
   rw [numComponents, numComponents, numComponents, toSimple_cartesianProduct]
   exact card_connectedComponent_boxProd _ _
 

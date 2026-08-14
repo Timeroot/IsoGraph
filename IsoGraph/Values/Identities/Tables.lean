@@ -1396,7 +1396,7 @@ theorem mycielskian_empty (n : ℕ) :
     mycielskian (empty n) = star n ⊕g empty n := by
   rw [empty_def, mycielskian_mk, star_def, disjUnion_mk]
   refine Quotient.sound ⟨(CGraph.isoOfAdj
-    (G := CGraph.disjUnion (CGraph.star n) (CGraph.empty n))
+    (G := CGraph.star n ⊕g CGraph.empty n)
     (H := CGraph.mycielskian (CGraph.empty n))
     (mycielskianEmptyEquiv n)
     (by

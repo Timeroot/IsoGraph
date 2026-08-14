@@ -526,7 +526,7 @@ colouring with no colours has nowhere to send the values it is never asked for. 
 @[toIsoGraph]
 theorem _root_.CGraph.edgeChromNum_cartesianProduct_le {G H : CGraph} (hG : 0 < G.E)
     (hH : 0 < H.E) :
-    (CGraph.cartesianProduct G H).edgeChromNum ≤ G.edgeChromNum + H.edgeChromNum :=
+    (G □g H).edgeChromNum ≤ G.edgeChromNum + H.edgeChromNum :=
   CGraph.chromNum_lineGraph_cartesianProduct_le_add (CGraph.edgeChromNum_pos hG)
     (CGraph.edgeChromNum_pos hH)
 

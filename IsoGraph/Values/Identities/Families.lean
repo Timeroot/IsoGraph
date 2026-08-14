@@ -2607,28 +2607,26 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
     IsoGraph.cartesianProduct_mk, IsoGraph.complete]
   apply le_antisymm
   · -- Upper bound: domNum ≤ min(m+1, n+1)
-    have h1 : (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1))).domNum ≤
-      n + 1 := by
-      calc (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1))).domNum
+    have h1 : (CGraph.complete (m + 1) □g CGraph.complete (n + 1)).domNum ≤ n + 1 := by
+      calc (CGraph.complete (m + 1) □g CGraph.complete (n + 1)).domNum
           ≤ (CGraph.complete (m + 1)).domNum * Fintype.card (CGraph.complete (n + 1)).V :=
             CGraph.domNum_cartesianProduct_le _ _
         _ = 1 * (n + 1) := by rw [CGraph.domNum_complete, CGraph.card_complete]
         _ = n + 1 := one_mul _
-    have h2 : (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1))).domNum ≤
-      m + 1 := by
-      have hiso : CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete (n + 1)) ≃cg
-          CGraph.cartesianProduct (CGraph.complete (n + 1)) (CGraph.complete (m + 1)) :=
+    have h2 : (CGraph.complete (m + 1) □g CGraph.complete (n + 1)).domNum ≤ m + 1 := by
+      have hiso : CGraph.complete (m + 1) □g CGraph.complete (n + 1) ≃cg
+          CGraph.complete (n + 1) □g CGraph.complete (m + 1) :=
         CGraph.Iso.cartesianProductComm _ _
       rw [CGraph.domNum_eq_of_iso hiso]
-      calc (CGraph.cartesianProduct (CGraph.complete (n + 1)) (CGraph.complete (m + 1))).domNum
+      calc (CGraph.complete (n + 1) □g CGraph.complete (m + 1)).domNum
           ≤ (CGraph.complete (n + 1)).domNum * Fintype.card (CGraph.complete (m + 1)).V :=
             CGraph.domNum_cartesianProduct_le _ _
         _ = 1 * (m + 1) := by rw [CGraph.domNum_complete, CGraph.card_complete]
         _ = m + 1 := one_mul _
     omega
   · -- Lower bound: min(m+1, n+1) ≤ domNum
-    obtain ⟨S, hScard, hSdom⟩ := (CGraph.cartesianProduct (CGraph.complete (m + 1)) (CGraph.complete
-      (n + 1))).exists_isDominatingSet_domNum
+    obtain ⟨S, hScard, hSdom⟩ := (CGraph.complete (m + 1) □g CGraph.complete
+      (n + 1)).exists_isDominatingSet_domNum
     rw [← hScard]
     set V1 := (CGraph.complete (m + 1)).V
     set V2 := (CGraph.complete (n + 1)).V

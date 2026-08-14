@@ -67,28 +67,28 @@ namespace IsoGraph
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.cartesianProduct g h).V = _
+      show Fintype.card (g □g h).V = _
       simp
 
 @[simp] theorem V_tensorProduct (G H : IsoGraph) : (G ⊗g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.tensorProduct g h).V = _
+      show Fintype.card (g ⊗g h).V = _
       simp
 
 @[simp] theorem V_strongProduct (G H : IsoGraph) : (G ⊠g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.strongProduct g h).V = _
+      show Fintype.card (g ⊠g h).V = _
       simp
 
 @[simp] theorem V_lexProduct (G H : IsoGraph) : (G ·g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (CGraph.lexProduct g h).V = _
+      show Fintype.card (g ·g h).V = _
       simp
 
 @[simp] theorem V_lineGraph (G : IsoGraph) : (lineGraph G).V = G.E := by
@@ -152,13 +152,13 @@ namespace CGraph
 
 @[toIsoGraph]
 theorem bipartite_eq_compl (m n : ℕ) :
-    bipartite m n = (disjUnion (complete m) (complete n))ᶜ := rfl
+    bipartite m n = (complete m ⊕g complete n)ᶜ := rfl
 
 @[toIsoGraph]
 theorem star_eq_bipartite (n : ℕ) : star n = bipartite 1 n := rfl
 
 @[toIsoGraph]
-theorem wheel_eq_join (n : ℕ) : wheel n = join (complete 1) (cycle n) := rfl
+theorem wheel_eq_join (n : ℕ) : wheel n = complete 1 ∇g cycle n := rfl
 
 @[toIsoGraph simp]
 theorem compl_empty (n : ℕ) : (empty n)ᶜ = complete n := rfl
@@ -168,24 +168,24 @@ theorem compl_complete (n : ℕ) : (complete n)ᶜ = empty n := by
   rw [← compl_empty, compl_compl]
 
 @[toIsoGraph simp]
-theorem compl_join (G H : CGraph) : (join G H)ᶜ = disjUnion Gᶜ Hᶜ := by
+theorem compl_join (G H : CGraph) : (G ∇g H)ᶜ = Gᶜ ⊕g Hᶜ := by
   rw [join, compl_compl]
 
 @[toIsoGraph simp]
-theorem compl_disjUnion (G H : CGraph) : (disjUnion G H)ᶜ = join Gᶜ Hᶜ := by
+theorem compl_disjUnion (G H : CGraph) : (G ⊕g H)ᶜ = Gᶜ ∇g Hᶜ := by
   rw [join, compl_compl, compl_compl]
 
 @[toIsoGraph simp]
 theorem compl_bipartite (m n : ℕ) :
-    (bipartite m n)ᶜ = disjUnion (complete m) (complete n) := by
+    (bipartite m n)ᶜ = complete m ⊕g complete n := by
   rw [bipartite_eq_compl, compl_compl]
 
 @[toIsoGraph simp empty_zero_disjUnion]
-def emptyZeroDisjUnion (G : CGraph) : disjUnion (empty 0) G ≃cg G :=
+def emptyZeroDisjUnion (G : CGraph) : empty 0 ⊕g G ≃cg G :=
   (Iso.disjUnionComm _ _).trans (Iso.disjUnionEmptyZero G)
 
 @[toIsoGraph simp disjUnion_empty]
-def disjUnionEmpty (m n : ℕ) : disjUnion (empty m) (empty n) ≃cg empty (m + n) :=
+def disjUnionEmpty (m n : ℕ) : empty m ⊕g empty n ≃cg empty (m + n) :=
   isoOfAdj finSumFinEquiv fun x y ↦ by cases x <;> cases y <;> rfl
 
 @[toIsoGraph simp]
@@ -226,25 +226,25 @@ def complPathFour : (path 4)ᶜ ≃cg path 4 :=
     (by decide)
 
 @[toIsoGraph]
-theorem bipartite_eq_join (m n : ℕ) : bipartite m n = join (empty m) (empty n) := by
+theorem bipartite_eq_join (m n : ℕ) : bipartite m n = empty m ∇g empty n := by
   rw [join, compl_empty, compl_empty, bipartite_eq_compl]
 
 @[toIsoGraph simp empty_zero_join]
-def emptyZeroJoin (G : CGraph) : join (empty 0) G ≃cg G :=
+def emptyZeroJoin (G : CGraph) : empty 0 ∇g G ≃cg G :=
   (Iso.joinComm _ _).trans (Iso.joinEmptyZero G)
 
 theorem join_complete_eq_compl (m n : ℕ) :
-    join (complete m) (complete n) = (disjUnion (empty m) (empty n))ᶜ := by
+    complete m ∇g complete n = (empty m ⊕g empty n)ᶜ := by
   rw [join, compl_complete, compl_complete]
 
 @[toIsoGraph simp join_complete]
-def joinComplete (m n : ℕ) : join (complete m) (complete n) ≃cg complete (m + n) := by
+def joinComplete (m n : ℕ) : complete m ∇g complete n ≃cg complete (m + n) := by
   rw [join_complete_eq_compl]
   exact Iso.compl (disjUnionEmpty m n)
 
 @[toIsoGraph simp bipartite_zero_right]
 def bipartiteZeroRight (m : ℕ) : bipartite m 0 ≃cg empty m := by
-  rw [show bipartite m 0 = (disjUnion (complete m) (empty 0))ᶜ from by
+  rw [show bipartite m 0 = (complete m ⊕g empty 0)ᶜ from by
         rw [bipartite_eq_compl, complete_zero],
     show empty m = (complete m)ᶜ from (compl_complete m).symm]
   exact Iso.compl (Iso.disjUnionEmptyZero (complete m))
@@ -293,7 +293,7 @@ def starOne : star 1 ≃cg complete 2 := by
 
 /-- The complement of a star is its centre, isolated, next to a clique on the leaves. -/
 @[toIsoGraph]
-theorem compl_star (n : ℕ) : (star n)ᶜ = disjUnion (empty 1) (complete n) := by
+theorem compl_star (n : ℕ) : (star n)ᶜ = empty 1 ⊕g complete n := by
   rw [star_eq_bipartite, compl_bipartite, complete_one]
 
 /-- `K_{2,2}` is the square. -/
@@ -306,7 +306,7 @@ def bipartiteTwoTwo : bipartite 2 2 ≃cg cycle 4 :=
 
 /-- The complement of the square is a perfect matching. -/
 @[toIsoGraph simp compl_cycle_four]
-def complCycleFour : (cycle 4)ᶜ ≃cg disjUnion (complete 2) (complete 2) := by
+def complCycleFour : (cycle 4)ᶜ ≃cg complete 2 ⊕g complete 2 := by
   rw [← compl_bipartite]
   exact (Iso.compl bipartiteTwoTwo).symm
 
@@ -332,7 +332,7 @@ def wheelThree : wheel 3 ≃cg complete 4 := by
 
 /-- The hub of a wheel is joined to everything, so it is isolated in the complement. -/
 @[toIsoGraph]
-theorem compl_wheel (n : ℕ) : (wheel n)ᶜ = disjUnion (empty 1) (cycle n)ᶜ := by
+theorem compl_wheel (n : ℕ) : (wheel n)ᶜ = empty 1 ⊕g (cycle n)ᶜ := by
   rw [wheel_eq_join, compl_join, compl_complete]
 
 /-! ### Complete multipartite graphs
@@ -371,15 +371,15 @@ noncomputable def bookOne : book 1 ≃cg complete 3 :=
   isoCompleteOfCard (G := completeMultipartite [1, 1, 1]) (by decide) (by simp)
 
 theorem join_empty_completeMultipartite (d : ℕ) (ds : List ℕ) :
-    join (empty d) (completeMultipartite ds)
-      = (disjUnion (complete d) (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i)))ᶜ := by
+    empty d ∇g completeMultipartite ds
+      = (complete d ⊕g (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i)))ᶜ := by
   rw [join, compl_empty, completeMultipartite, compl_compl]
 
 /-- Peeling off the first part: the rest of the multipartite graph, joined to an independent
 set of the first part's size. -/
 @[toIsoGraph completeMultipartite_cons]
 def completeMultipartiteCons (d : ℕ) (ds : List ℕ) :
-    completeMultipartite (d :: ds) ≃cg join (empty d) (completeMultipartite ds) := by
+    completeMultipartite (d :: ds) ≃cg empty d ∇g completeMultipartite ds := by
   rw [join_empty_completeMultipartite]
   exact Iso.compl (Iso.sigmaUnionSucc fun i : Fin (d :: ds).length ↦ complete ((d :: ds).get i))
 
@@ -391,7 +391,7 @@ def completeMultipartiteZeroCons (ds : List ℕ) :
 @[toIsoGraph completeMultipartite_append]
 noncomputable def completeMultipartiteAppend (ds es : List ℕ) :
     completeMultipartite (ds ++ es)
-      ≃cg join (completeMultipartite ds) (completeMultipartite es) := by
+      ≃cg completeMultipartite ds ∇g completeMultipartite es := by
   induction ds with
   | nil =>
     exact ((Iso.join completeMultipartiteNil (RelIso.refl _)).trans
@@ -403,9 +403,9 @@ noncomputable def completeMultipartiteAppend (ds es : List ℕ) :
 
 @[toIsoGraph compl_completeMultipartite_cons]
 def complCompleteMultipartiteCons (d : ℕ) (ds : List ℕ) :
-    (completeMultipartite (d :: ds))ᶜ ≃cg disjUnion (complete d) (completeMultipartite ds)ᶜ := by
-  rw [show disjUnion (complete d) (completeMultipartite ds)ᶜ
-      = (join (empty d) (completeMultipartite ds))ᶜ from by rw [compl_join, compl_empty]]
+    (completeMultipartite (d :: ds))ᶜ ≃cg complete d ⊕g (completeMultipartite ds)ᶜ := by
+  rw [show complete d ⊕g (completeMultipartite ds)ᶜ
+      = (empty d ∇g completeMultipartite ds)ᶜ from by rw [compl_join, compl_empty]]
   exact Iso.compl (completeMultipartiteCons d ds)
 
 @[toIsoGraph completeMultipartite_pair]
@@ -435,7 +435,7 @@ noncomputable def completeMultipartiteReplicateOne (n : ℕ) :
 noncomputable def cocktailPartyTwo : cocktailParty 2 ≃cg cycle 4 :=
   (completeMultipartitePair 2 2).trans bipartiteTwoTwo
 
-noncomputable def bookEqJoin (n : ℕ) : book n ≃cg join (complete 2) (empty n) :=
+noncomputable def bookEqJoin (n : ℕ) : book n ≃cg complete 2 ∇g empty n :=
   ((completeMultipartiteCons 1 [1, n]).trans
     (Iso.join (RelIso.refl _) ((completeMultipartitePair 1 n).trans
       (by rw [bipartite_eq_join])))).trans
@@ -443,8 +443,8 @@ noncomputable def bookEqJoin (n : ℕ) : book n ≃cg join (complete 2) (empty n
       (Iso.join (by rw [← bipartite_eq_join]; exact bipartiteOneOne) (RelIso.refl _)))
 
 /-- The complement of the book `B_n` is its spine, edgeless, next to a clique on the pages. -/
-noncomputable def complBook (n : ℕ) : (book n)ᶜ ≃cg disjUnion (empty 2) (complete n) := by
-  rw [show disjUnion (empty 2) (complete n) = (join (complete 2) (empty n))ᶜ from by
+noncomputable def complBook (n : ℕ) : (book n)ᶜ ≃cg empty 2 ⊕g complete n := by
+  rw [show empty 2 ⊕g complete n = (complete 2 ∇g empty n)ᶜ from by
     rw [compl_join, compl_complete, compl_empty]]
   exact Iso.compl (bookEqJoin n)
 
@@ -466,7 +466,7 @@ theorem circulant_one_pred (n : ℕ) (hn : 1 ≤ n) : circulant n [1, n - 1] = c
 /-- **A perfect matching, as a circulant.** -/
 @[toIsoGraph circulant_matching]
 noncomputable def circulantMatching (m : ℕ) :
-    circulant (2 * (m + 1)) [m + 1] ≃cg cartesianProduct (empty (m + 1)) (complete 2) :=
+    circulant (2 * (m + 1)) [m + 1] ≃cg empty (m + 1) □g complete 2 :=
   (Iso.circulantMatching m).symm
 
 /-- The `m = 0` case of both readings: one edge. -/
@@ -488,13 +488,13 @@ noncomputable def complPaleySeventeen : (paley 17)ᶜ ≃cg paley 17 := Iso.pale
 
 @[toIsoGraph compl_paley_nine]
 noncomputable def complPaleyNine :
-    (paley 9)ᶜ ≃cg disjUnion (complete 3) (disjUnion (complete 3) (complete 3)) :=
+    (paley 9)ᶜ ≃cg complete 3 ⊕g (complete 3 ⊕g complete 3) :=
   Iso.paleyNineIso.symm
 
 /-- The complement of a three-part complete multipartite graph is three cliques. -/
 noncomputable def complCompleteMultipartiteTriple (a b c : ℕ) :
     (completeMultipartite [a, b, c])ᶜ ≃cg
-      disjUnion (complete a) (disjUnion (complete b) (complete c)) :=
+      complete a ⊕g (complete b ⊕g complete c) :=
   (complCompleteMultipartiteCons a [b, c]).trans
     (Iso.disjUnion (RelIso.refl _)
       ((complCompleteMultipartiteCons b [c]).trans
@@ -607,8 +607,8 @@ private def kneserFourTwoMap : Fin 2 ⊕ Fin 2 ⊕ Fin 2 → (kneser 4 2).V
 
 @[toIsoGraph kneser_four_two]
 noncomputable def kneserFourTwo :
-    kneser 4 2 ≃cg disjUnion (complete 2) (disjUnion (complete 2) (complete 2)) :=
-  (isoOfAdj (G := disjUnion (complete 2) (disjUnion (complete 2) (complete 2)))
+    kneser 4 2 ≃cg complete 2 ⊕g (complete 2 ⊕g complete 2) :=
+  (isoOfAdj (G := complete 2 ⊕g (complete 2 ⊕g complete 2))
     (H := kneser 4 2) (Equiv.ofBijective kneserFourTwoMap (by decide)) (by decide)).symm
 
 noncomputable def triangularFour : triangular 4 ≃cg cocktailParty 3 := by
@@ -640,8 +640,8 @@ rest turns "differ in exactly one place" into the cartesian product's "agree on 
 differ on the other". -/
 @[toIsoGraph hypercube_succ]
 def hypercubeSucc (n : ℕ) :
-    hypercube (n + 1) ≃cg cartesianProduct (hypercube n) (complete 2) := by
-  refine isoOfAdj (G := hypercube (n + 1)) (H := cartesianProduct (hypercube n) (complete 2))
+    hypercube (n + 1) ≃cg hypercube n □g complete 2 := by
+  refine isoOfAdj (G := hypercube (n + 1)) (H := hypercube n □g complete 2)
     (⟨fun x ↦ (fun i ↦ x i.succ, if x 0 then 1 else 0),
       fun p ↦ Fin.cons (decide (p.2 = 1)) p.1,
       fun x ↦ by
@@ -1198,34 +1198,34 @@ of each one-sided law, and what the products do to `empty` and `complete`. -/
 namespace CGraph
 
 @[toIsoGraph simp empty_one_cartesianProduct]
-def emptyOneCartesianProduct (G : CGraph) : cartesianProduct (empty 1) G ≃cg G :=
+def emptyOneCartesianProduct (G : CGraph) : empty 1 □g G ≃cg G :=
   (Iso.cartesianProductComm _ _).trans (Iso.cartesianProductEmptyOne G)
 
 @[toIsoGraph simp empty_one_strongProduct]
-def emptyOneStrongProduct (G : CGraph) : strongProduct (empty 1) G ≃cg G :=
+def emptyOneStrongProduct (G : CGraph) : empty 1 ⊠g G ≃cg G :=
   (Iso.strongProductComm _ _).trans (Iso.strongProductEmptyOne G)
 
 /-- A Cartesian product of edgeless graphs is edgeless. -/
 @[toIsoGraph simp cartesianProduct_empty]
 noncomputable def cartesianProductEmpty (m n : ℕ) :
-    cartesianProduct (empty m) (empty n) ≃cg empty (m * n) :=
+    empty m □g empty n ≃cg empty (m * n) :=
   isoEmptyOfCard (by simp) (by simp)
 
 /-- The tensor product with an edgeless graph is edgeless. -/
 @[toIsoGraph simp tensorProduct_empty]
 noncomputable def tensorProductEmpty (G : CGraph) (n : ℕ) :
-    tensorProduct G (empty n) ≃cg empty (Fintype.card G.V * n) :=
+    G ⊗g empty n ≃cg empty (Fintype.card G.V * n) :=
   isoEmptyOfCard (by simp) (by simp)
 
 @[toIsoGraph simp empty_tensorProduct]
 noncomputable def emptyTensorProduct (n : ℕ) (G : CGraph) :
-    tensorProduct (empty n) G ≃cg empty (n * Fintype.card G.V) :=
+    empty n ⊗g G ≃cg empty (n * Fintype.card G.V) :=
   isoEmptyOfCard (by simp) (by simp)
 
 /-- The strong product of complete graphs is complete. -/
 @[toIsoGraph simp strongProduct_complete]
 noncomputable def strongProductComplete (m n : ℕ) :
-    strongProduct (complete m) (complete n) ≃cg complete (m * n) := by
+    complete m ⊠g complete n ≃cg complete (m * n) := by
   refine isoCompleteOfCard ?_ (by simp)
   intro x y hxy
   simp [strongProduct_adj, hxy]
@@ -1233,7 +1233,7 @@ noncomputable def strongProductComplete (m n : ℕ) :
 /-- The lexicographic product of complete graphs is complete. -/
 @[toIsoGraph simp lexProduct_complete]
 noncomputable def lexProductComplete (m n : ℕ) :
-    lexProduct (complete m) (complete n) ≃cg complete (m * n) := by
+    complete m ·g complete n ≃cg complete (m * n) := by
   refine isoCompleteOfCard ?_ (by simp)
   intro x y hxy
   by_cases hx : x.1 = y.1
@@ -1247,30 +1247,30 @@ A factor with no vertices annihilates every product. -/
 
 @[toIsoGraph simp cartesianProduct_empty_zero]
 noncomputable def cartesianProductEmptyZero (G : CGraph) :
-    cartesianProduct G (empty 0) ≃cg empty 0 :=
+    G □g empty 0 ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ x.2.elim0) (by simp)
 
 @[toIsoGraph simp empty_zero_cartesianProduct]
 noncomputable def emptyZeroCartesianProduct (G : CGraph) :
-    cartesianProduct (empty 0) G ≃cg empty 0 :=
+    empty 0 □g G ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ x.1.elim0) (by simp)
 
 @[toIsoGraph simp strongProduct_empty_zero]
 noncomputable def strongProductEmptyZero (G : CGraph) :
-    strongProduct G (empty 0) ≃cg empty 0 :=
+    G ⊠g empty 0 ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ x.2.elim0) (by simp)
 
 @[toIsoGraph simp empty_zero_strongProduct]
 noncomputable def emptyZeroStrongProduct (G : CGraph) :
-    strongProduct (empty 0) G ≃cg empty 0 :=
+    empty 0 ⊠g G ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ x.1.elim0) (by simp)
 
 @[toIsoGraph simp lexProduct_empty_zero]
-noncomputable def lexProductEmptyZero (G : CGraph) : lexProduct G (empty 0) ≃cg empty 0 :=
+noncomputable def lexProductEmptyZero (G : CGraph) : G ·g empty 0 ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ x.2.elim0) (by simp)
 
 @[toIsoGraph simp empty_zero_lexProduct]
-noncomputable def emptyZeroLexProduct (G : CGraph) : lexProduct (empty 0) G ≃cg empty 0 :=
+noncomputable def emptyZeroLexProduct (G : CGraph) : empty 0 ·g G ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ x.1.elim0) (by simp)
 
 /-! ### Distributivity over disjoint unions
@@ -1282,22 +1282,22 @@ forms are in `IsoGraph/Graphs/Quotient.lean`; the right-hand ones follow by comm
 
 @[toIsoGraph simp disjUnion_cartesianProduct]
 def disjUnionCartesianProduct (G H K : CGraph) :
-    cartesianProduct (disjUnion G H) K
-      ≃cg disjUnion (cartesianProduct G K) (cartesianProduct H K) :=
+    (G ⊕g H) □g K
+      ≃cg G □g K ⊕g H □g K :=
   (Iso.cartesianProductComm _ _).trans
     ((Iso.cartesianProductDisjUnion K G H).trans
       (Iso.disjUnion (Iso.cartesianProductComm _ _) (Iso.cartesianProductComm _ _)))
 
 @[toIsoGraph simp disjUnion_tensorProduct]
 def disjUnionTensorProduct (G H K : CGraph) :
-    tensorProduct (disjUnion G H) K ≃cg disjUnion (tensorProduct G K) (tensorProduct H K) :=
+    (G ⊕g H) ⊗g K ≃cg G ⊗g K ⊕g H ⊗g K :=
   (Iso.tensorProductComm _ _).trans
     ((Iso.tensorProductDisjUnion K G H).trans
       (Iso.disjUnion (Iso.tensorProductComm _ _) (Iso.tensorProductComm _ _)))
 
 @[toIsoGraph simp disjUnion_strongProduct]
 def disjUnionStrongProduct (G H K : CGraph) :
-    strongProduct (disjUnion G H) K ≃cg disjUnion (strongProduct G K) (strongProduct H K) :=
+    (G ⊕g H) ⊠g K ≃cg G ⊠g K ⊕g H ⊠g K :=
   (Iso.strongProductComm _ _).trans
     ((Iso.strongProductDisjUnion K G H).trans
       (Iso.disjUnion (Iso.strongProductComm _ _) (Iso.strongProductComm _ _)))
@@ -1306,30 +1306,30 @@ def disjUnionStrongProduct (G H K : CGraph) :
 lexicographic products, but not for the tensor product, which is edgeless here. -/
 @[toIsoGraph empty_two_cartesianProduct]
 noncomputable def emptyTwoCartesianProduct (G : CGraph) :
-    cartesianProduct (empty 2) G ≃cg disjUnion G G :=
+    empty 2 □g G ≃cg G ⊕g G :=
   (Iso.cartesianProduct (disjUnionEmpty 1 1).symm (RelIso.refl _)).trans
     ((disjUnionCartesianProduct (empty 1) (empty 1) G).trans
       (Iso.disjUnion (emptyOneCartesianProduct G) (emptyOneCartesianProduct G)))
 
 @[toIsoGraph cartesianProduct_empty_two]
 noncomputable def cartesianProductEmptyTwo (G : CGraph) :
-    cartesianProduct G (empty 2) ≃cg disjUnion G G :=
+    G □g empty 2 ≃cg G ⊕g G :=
   (Iso.cartesianProductComm _ _).trans (emptyTwoCartesianProduct G)
 
 @[toIsoGraph empty_two_strongProduct]
 noncomputable def emptyTwoStrongProduct (G : CGraph) :
-    strongProduct (empty 2) G ≃cg disjUnion G G :=
+    empty 2 ⊠g G ≃cg G ⊕g G :=
   (Iso.strongProduct (disjUnionEmpty 1 1).symm (RelIso.refl _)).trans
     ((disjUnionStrongProduct (empty 1) (empty 1) G).trans
       (Iso.disjUnion (emptyOneStrongProduct G) (emptyOneStrongProduct G)))
 
 @[toIsoGraph strongProduct_empty_two]
 noncomputable def strongProductEmptyTwo (G : CGraph) :
-    strongProduct G (empty 2) ≃cg disjUnion G G :=
+    G ⊠g empty 2 ≃cg G ⊕g G :=
   (Iso.strongProductComm _ _).trans (emptyTwoStrongProduct G)
 
 @[toIsoGraph empty_two_lexProduct]
-noncomputable def emptyTwoLexProduct (G : CGraph) : lexProduct (empty 2) G ≃cg disjUnion G G :=
+noncomputable def emptyTwoLexProduct (G : CGraph) : empty 2 ·g G ≃cg G ⊕g G :=
   (Iso.lexProduct (disjUnionEmpty 1 1).symm (RelIso.refl _)).trans
     ((Iso.lexProductDisjUnion (empty 1) (empty 1) G).trans
       (Iso.disjUnion (Iso.emptyOneLexProduct G) (Iso.emptyOneLexProduct G)))
@@ -1343,7 +1343,7 @@ are exactly the blow-ups of a clique by an independent set. -/
 /-- Peeling one copy off `empty (n+1) □ G`. -/
 @[toIsoGraph empty_succ_cartesianProduct]
 noncomputable def emptySuccCartesianProduct (n : ℕ) (G : CGraph) :
-    cartesianProduct (empty (n + 1)) G ≃cg disjUnion G (cartesianProduct (empty n) G) := by
+    empty (n + 1) □g G ≃cg G ⊕g empty n □g G := by
   rw [show n + 1 = 1 + n from Nat.add_comm n 1]
   exact (Iso.cartesianProduct (disjUnionEmpty 1 n).symm (RelIso.refl _)).trans
     ((disjUnionCartesianProduct (empty 1) (empty n) G).trans
@@ -1353,15 +1353,15 @@ noncomputable def emptySuccCartesianProduct (n : ℕ) (G : CGraph) :
 copies of `Gᶜ`. -/
 @[toIsoGraph complete_lexProduct]
 def completeLexProduct (m : ℕ) (G : CGraph) :
-    lexProduct (complete m) G ≃cg (cartesianProduct (empty m) Gᶜ)ᶜ := by
-  rw [show lexProduct (complete m) G = ((lexProduct (complete m) G)ᶜ)ᶜ from (compl_compl _).symm]
+    complete m ·g G ≃cg (empty m □g Gᶜ)ᶜ := by
+  rw [show complete m ·g G = ((complete m ·g G)ᶜ)ᶜ from (compl_compl _).symm]
   exact Iso.compl ((Iso.complLexProduct (complete m) G).trans
     (by rw [compl_complete]; exact Iso.emptyLexProduct m Gᶜ))
 
 /-- The complement of a complete multipartite graph with `m` equal parts is `m` disjoint cliques. -/
 @[toIsoGraph compl_completeMultipartite_replicate]
 noncomputable def complCompleteMultipartiteReplicate (m d : ℕ) :
-    (completeMultipartite (List.replicate m d))ᶜ ≃cg cartesianProduct (empty m) (complete d) := by
+    (completeMultipartite (List.replicate m d))ᶜ ≃cg empty m □g complete d := by
   induction m with
   | zero =>
     rw [List.replicate_zero]
@@ -1377,7 +1377,7 @@ noncomputable def complCompleteMultipartiteReplicate (m d : ℕ) :
 independent ones. -/
 @[toIsoGraph completeMultipartite_replicate]
 noncomputable def completeMultipartiteReplicate (m d : ℕ) :
-    completeMultipartite (List.replicate m d) ≃cg lexProduct (complete m) (empty d) := by
+    completeMultipartite (List.replicate m d) ≃cg complete m ·g empty d := by
   rw [show completeMultipartite (List.replicate m d)
       = ((completeMultipartite (List.replicate m d))ᶜ)ᶜ from (compl_compl _).symm]
   exact (Iso.compl (complCompleteMultipartiteReplicate m d)).trans
@@ -1385,12 +1385,12 @@ noncomputable def completeMultipartiteReplicate (m d : ℕ) :
 
 /-- `paley 9` is `K₃` with every vertex blown up to three. -/
 @[toIsoGraph paley_nine_eq_lexProduct]
-noncomputable def paleyNineEqLexProduct : paley 9 ≃cg lexProduct (complete 3) (empty 3) :=
+noncomputable def paleyNineEqLexProduct : paley 9 ≃cg complete 3 ·g empty 3 :=
   paleyNine.trans (completeMultipartiteReplicate 3 3)
 
 /-- The complement of the cocktail-party graph is a perfect matching. -/
 noncomputable def complCocktailParty (n : ℕ) :
-    (cocktailParty n)ᶜ ≃cg cartesianProduct (empty n) (complete 2) :=
+    (cocktailParty n)ᶜ ≃cg empty n □g complete 2 :=
   complCompleteMultipartiteReplicate n 2
 
 /-- The cocktail party graph is the complement of a perfect matching, and the matching is a
@@ -1400,42 +1400,41 @@ noncomputable def complCocktailPartyEqCirculant (m : ℕ) :
   (complCocktailParty (m + 1)).trans (circulantMatching m).symm
 
 noncomputable def cocktailPartyEqLexProduct (m : ℕ) :
-    cocktailParty m ≃cg lexProduct (complete m) (empty 2) :=
+    cocktailParty m ≃cg complete m ·g empty 2 :=
   completeMultipartiteReplicate m 2
 
 /-- The balanced complete bipartite graph is the two-part blow-up. -/
 @[toIsoGraph bipartite_self_eq_lexProduct]
 noncomputable def bipartiteSelfEqLexProduct (n : ℕ) :
-    bipartite n n ≃cg lexProduct (complete 2) (empty n) :=
+    bipartite n n ≃cg complete 2 ·g empty n :=
   (completeMultipartitePair n n).symm.trans (completeMultipartiteReplicate 2 n)
 
 /-- The lexicographic product distributes over `join` in its first factor, for the same reason it
 distributes over `disjUnion`: the two are exchanged by complementation. -/
 @[toIsoGraph join_lexProduct]
 def joinLexProduct (G H K : CGraph) :
-    lexProduct (join G H) K ≃cg join (lexProduct G K) (lexProduct H K) := by
-  rw [show lexProduct (join G H) K = ((lexProduct (join G H) K)ᶜ)ᶜ from (compl_compl _).symm,
-    show join (lexProduct G K) (lexProduct H K)
-      = (disjUnion (lexProduct G K)ᶜ (lexProduct H K)ᶜ)ᶜ from rfl]
-  refine Iso.compl ((Iso.complLexProduct (join G H) K).trans ?_)
+    (G ∇g H) ·g K ≃cg G ·g K ∇g H ·g K := by
+  rw [show (G ∇g H) ·g K = (((G ∇g H) ·g K)ᶜ)ᶜ from (compl_compl _).symm, show G ·g K ∇g H ·g K
+      = ((G ·g K)ᶜ ⊕g (H ·g K)ᶜ)ᶜ from rfl]
+  refine Iso.compl ((Iso.complLexProduct (G ∇g H) K).trans ?_)
   rw [compl_join]
   exact (Iso.lexProductDisjUnion Gᶜ Hᶜ Kᶜ).trans
     (Iso.disjUnion (Iso.complLexProduct G K).symm (Iso.complLexProduct H K).symm)
 
 @[toIsoGraph simp lexProduct_empty]
-noncomputable def lexProductEmpty (m n : ℕ) : lexProduct (empty m) (empty n) ≃cg empty (m * n) :=
+noncomputable def lexProductEmpty (m n : ℕ) : empty m ·g empty n ≃cg empty (m * n) :=
   (Iso.emptyLexProduct m (empty n)).trans (cartesianProductEmpty m n)
 
 @[toIsoGraph simp strongProduct_empty]
 noncomputable def strongProductEmpty (m n : ℕ) :
-    strongProduct (empty m) (empty n) ≃cg empty (m * n) :=
+    empty m ⊠g empty n ≃cg empty (m * n) :=
   (Iso.emptyStrongProduct m (empty n)).trans (cartesianProductEmpty m n)
 
 /-- **Blowing up a complete multipartite graph multiplies its parts.**  Replacing every vertex by
 `d` independent ones keeps the graph complete multipartite, with each part `d` times as large. -/
 @[toIsoGraph lexProduct_completeMultipartite_empty]
 noncomputable def lexProductCompleteMultipartiteEmpty (ds : List ℕ) (d : ℕ) :
-    lexProduct (completeMultipartite ds) (empty d) ≃cg completeMultipartite (ds.map (· * d)) := by
+    completeMultipartite ds ·g empty d ≃cg completeMultipartite (ds.map (· * d)) := by
   induction ds with
   | nil =>
     rw [List.map_nil]
@@ -1451,7 +1450,7 @@ noncomputable def lexProductCompleteMultipartiteEmpty (ds : List ℕ) (d : ℕ) 
 /-- The two-part case: blowing up `K_{a,b}` gives `K_{ad,bd}`. -/
 @[toIsoGraph bipartite_mul]
 noncomputable def bipartiteMul (a b d : ℕ) :
-    bipartite (a * d) (b * d) ≃cg lexProduct (bipartite a b) (empty d) :=
+    bipartite (a * d) (b * d) ≃cg bipartite a b ·g empty d :=
   (completeMultipartitePair (a * d) (b * d)).symm.trans
     ((lexProductCompleteMultipartiteEmpty [a, b] d).symm.trans
       (Iso.lexProduct (completeMultipartitePair a b) (RelIso.refl _)))
@@ -1508,7 +1507,7 @@ theorem rook_two_two : rook 2 2 = cycle 4 := by
   show complete 2 □g complete 2 = cycle 4
   rw [complete_def, cartesianProduct_mk, cycle_def]
   exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.cartesianProduct (CGraph.complete 2) (CGraph.complete 2))
+    (G := CGraph.complete 2 □g CGraph.complete 2)
     (H := CGraph.cycle 4)
     (⟨fun p ↦ if p.1 = 0 then (if p.2 = 0 then 0 else 1) else (if p.2 = 0 then 3 else 2),
       ![(0, 0), (0, 1), (1, 1), (1, 0)], by decide, by decide⟩ : (Fin 2 × Fin 2) ≃ Fin 4)
@@ -1566,7 +1565,7 @@ theorem compl_cycle_six : (cycle 6)ᶜ = prism 3 := by
   rw [cycle_def, compl_mk, cycle_def, complete_def, cartesianProduct_mk]
   exact Quotient.sound ⟨CGraph.isoOfAdj
     (G := (CGraph.cycle 6)ᶜ)
-    (H := CGraph.cartesianProduct (CGraph.cycle 3) (CGraph.complete 2))
+    (H := CGraph.cycle 3 □g CGraph.complete 2)
     (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
       fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :
         Fin 6 ≃ (Fin 3 × Fin 2))
@@ -1799,7 +1798,7 @@ theorem not_isBipartite_wheel (n : ℕ) : ¬ IsBipartite (wheel (n + 3)) := by
   refine CGraph.not_isBipartite_of_triangle (a := Sum.inl (0 : Fin 1))
     (b := Sum.inr ⟨0, by omega⟩) (d := Sum.inr ⟨1, by omega⟩)
     (by simp [CGraph.wheel]) (by simp [CGraph.wheel]) ?_
-  show (CGraph.join (CGraph.complete 1) (CGraph.cycle (n + 3))).Adj _ _ = true
+  show (CGraph.complete 1 ∇g CGraph.cycle (n + 3)).Adj _ _ = true
   rw [CGraph.join_adj_inr_inr, CGraph.cycle_adj_val]
   show (0 : ℕ) ≠ 1 ∧ ((0 + 1) % (n + 3) = 1 ∨ (1 + 1) % (n + 3) = 0)
   exact ⟨by omega, Or.inl (Nat.mod_eq_of_lt (by omega))⟩

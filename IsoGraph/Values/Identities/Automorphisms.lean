@@ -437,8 +437,8 @@ private theorem mul_autCount_le_autCount {K : CGraph}
     _ = K.autCount := rfl
 
 /-- An automorphism of each side, acting on the disjoint union. -/
-def disjUnionAuto (a : G ≃cg G) (b : H ≃cg H) : disjUnion G H ≃cg disjUnion G H :=
-  autoOfPerm (G := disjUnion G H) (Equiv.sumCongr a.toEquiv b.toEquiv) (by
+def disjUnionAuto (a : G ≃cg G) (b : H ≃cg H) : G ⊕g H ≃cg G ⊕g H :=
+  autoOfPerm (G := G ⊕g H) (Equiv.sumCongr a.toEquiv b.toEquiv) (by
     rintro (x | x) (y | y)
     · exact a.adj_eq x y
     · rfl
@@ -453,25 +453,25 @@ def disjUnionAuto (a : G ≃cg G) (b : H ≃cg H) : disjUnion G H ≃cg disjUnio
 
 @[toIsoGraph]
 theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
-    G.autCount * H.autCount ≤ (disjUnion G H).autCount :=
+    G.autCount * H.autCount ≤ (G ⊕g H).autCount :=
   mul_autCount_le_autCount disjUnionAuto fun a a' b b' h ↦ by
     refine ⟨?_, ?_⟩
     · ext x
       exact Sum.inl_injective
-        (congrArg (fun σ : disjUnion G H ≃cg disjUnion G H ↦ σ (.inl x)) h)
+        (congrArg (fun σ : G ⊕g H ≃cg G ⊕g H ↦ σ (.inl x)) h)
     · ext y
       exact Sum.inr_injective
-        (congrArg (fun σ : disjUnion G H ≃cg disjUnion G H ↦ σ (.inr y)) h)
+        (congrArg (fun σ : G ⊕g H ≃cg G ⊕g H ↦ σ (.inr y)) h)
 
 @[toIsoGraph]
 theorem autCount_mul_le_autCount_join (G H : CGraph) :
-    G.autCount * H.autCount ≤ (join G H).autCount := by
+    G.autCount * H.autCount ≤ (G ∇g H).autCount := by
   have h := autCount_mul_le_autCount_disjUnion Gᶜ Hᶜ
-  rwa [autCount_compl, autCount_compl, ← autCount_compl (disjUnion Gᶜ Hᶜ)] at h
+  rwa [autCount_compl, autCount_compl, ← autCount_compl (Gᶜ ⊕g Hᶜ)] at h
 
 /-- Swapping the two copies of a graph in a disjoint union with itself. -/
-def disjUnionSwapAuto (G : CGraph) : disjUnion G G ≃cg disjUnion G G :=
-  autoOfPerm (G := disjUnion G G) (Equiv.sumComm G.V G.V) (by
+def disjUnionSwapAuto (G : CGraph) : G ⊕g G ≃cg G ⊕g G :=
+  autoOfPerm (G := G ⊕g G) (Equiv.sumComm G.V G.V) (by
     rintro (x | x) (y | y) <;> rfl)
 
 @[simp] theorem disjUnionSwapAuto_inl (G : CGraph) (x : G.V) :
@@ -483,10 +483,10 @@ def disjUnionSwapAuto (G : CGraph) : disjUnion G G ≃cg disjUnion G G :=
 /-- Two copies of the same graph can also be exchanged, which doubles the bound. -/
 @[toIsoGraph]
 theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : CGraph) [Nonempty G.V] :
-    2 * (G.autCount * G.autCount) ≤ (disjUnion G G).autCount := by
+    2 * (G.autCount * G.autCount) ≤ (G ⊕g G).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
-  haveI : Finite (disjUnion G G ≃cg disjUnion G G) := (disjUnion G G).instFiniteAut
-  set f : Bool × (G ≃cg G) × (G ≃cg G) → (disjUnion G G ≃cg disjUnion G G) :=
+  haveI : Finite (G ⊕g G ≃cg G ⊕g G) := (G ⊕g G).instFiniteAut
+  set f : Bool × (G ≃cg G) × (G ≃cg G) → (G ⊕g G ≃cg G ⊕g G) :=
     fun p ↦ if p.1 then (disjUnionAuto p.2.1 p.2.2).trans (disjUnionSwapAuto G)
       else disjUnionAuto p.2.1 p.2.2 with hfdef
   -- The two copies are told apart by which side `inl x₀` lands in, and each factor is read back
@@ -513,14 +513,14 @@ theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : CGraph) [Nonempty G
   calc 2 * (G.autCount * G.autCount) = Nat.card (Bool × (G ≃cg G) × (G ≃cg G)) := by
         rw [Nat.card_prod, Nat.card_prod, Nat.card_eq_fintype_card, Fintype.card_bool]
         rfl
-    _ ≤ Nat.card (disjUnion G G ≃cg disjUnion G G) := Nat.card_le_card_of_injective f hinj
-    _ = (disjUnion G G).autCount := rfl
+    _ ≤ Nat.card (G ⊕g G ≃cg G ⊕g G) := Nat.card_le_card_of_injective f hinj
+    _ = (G ⊕g G).autCount := rfl
 
 /-- An automorphism of each factor, acting coordinatewise on the Cartesian product. -/
 def cartesianProductAuto (a : G ≃cg G) (b : H ≃cg H) :
-    cartesianProduct G H ≃cg cartesianProduct G H :=
-  autoOfPerm (G := cartesianProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
-    show (cartesianProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    G □g H ≃cg G □g H :=
+  autoOfPerm (G := G □g H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (G □g H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [cartesianProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff,
       (RelIso.injective b).eq_iff]
 
@@ -529,9 +529,9 @@ def cartesianProductAuto (a : G ≃cg G) (b : H ≃cg H) :
 
 /-- An automorphism of each factor, acting coordinatewise on the tensor product. -/
 def tensorProductAuto (a : G ≃cg G) (b : H ≃cg H) :
-    tensorProduct G H ≃cg tensorProduct G H :=
-  autoOfPerm (G := tensorProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
-    show (tensorProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    G ⊗g H ≃cg G ⊗g H :=
+  autoOfPerm (G := G ⊗g H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (G ⊗g H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [tensorProduct_adj, a.adj_eq, b.adj_eq]
 
 @[simp] theorem tensorProductAuto_apply (a : G ≃cg G)
@@ -539,9 +539,9 @@ def tensorProductAuto (a : G ≃cg G) (b : H ≃cg H) :
 
 /-- An automorphism of each factor, acting coordinatewise on the strong product. -/
 def strongProductAuto (a : G ≃cg G) (b : H ≃cg H) :
-    strongProduct G H ≃cg strongProduct G H :=
-  autoOfPerm (G := strongProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
-    show (strongProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    G ⊠g H ≃cg G ⊠g H :=
+  autoOfPerm (G := G ⊠g H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (G ⊠g H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [strongProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff,
       (RelIso.injective b).eq_iff, ne_eq, Prod.ext_iff]
 
@@ -550,9 +550,9 @@ def strongProductAuto (a : G ≃cg G) (b : H ≃cg H) :
 
 /-- An automorphism of each factor, acting coordinatewise on the lexicographic product. -/
 def lexProductAuto (a : G ≃cg G) (b : H ≃cg H) :
-    lexProduct G H ≃cg lexProduct G H :=
-  autoOfPerm (G := lexProduct G H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
-    show (lexProduct G H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
+    G ·g H ≃cg G ·g H :=
+  autoOfPerm (G := G ·g H) (Equiv.prodCongr a.toEquiv b.toEquiv) fun x y ↦ by
+    show (G ·g H).Adj (a x.1, b x.2) (a y.1, b y.2) = _
     simp only [lexProduct_adj, a.adj_eq, b.adj_eq, (RelIso.injective a).eq_iff]
 
 @[simp] theorem lexProductAuto_apply (a : G ≃cg G)
@@ -561,59 +561,59 @@ def lexProductAuto (a : G ≃cg G) (b : H ≃cg H) :
 @[toIsoGraph]
 theorem autCount_mul_le_autCount_cartesianProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
-    G.autCount * H.autCount ≤ (cartesianProduct G H).autCount := by
+    G.autCount * H.autCount ≤ (G □g H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
   refine mul_autCount_le_autCount cartesianProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
   · ext x
     have := congrArg
-      (fun σ : cartesianProduct G H ≃cg cartesianProduct G H ↦ (σ (x, y₀)).1) h
+      (fun σ : G □g H ≃cg G □g H ↦ (σ (x, y₀)).1) h
     simpa using this
   · ext y
     have := congrArg
-      (fun σ : cartesianProduct G H ≃cg cartesianProduct G H ↦ (σ (x₀, y)).2) h
+      (fun σ : G □g H ≃cg G □g H ↦ (σ (x₀, y)).2) h
     simpa using this
 
 @[toIsoGraph]
 theorem autCount_mul_le_autCount_tensorProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
-    G.autCount * H.autCount ≤ (tensorProduct G H).autCount := by
+    G.autCount * H.autCount ≤ (G ⊗g H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
   refine mul_autCount_le_autCount tensorProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
   · ext x
-    have := congrArg (fun σ : tensorProduct G H ≃cg tensorProduct G H ↦ (σ (x, y₀)).1) h
+    have := congrArg (fun σ : G ⊗g H ≃cg G ⊗g H ↦ (σ (x, y₀)).1) h
     simpa using this
   · ext y
-    have := congrArg (fun σ : tensorProduct G H ≃cg tensorProduct G H ↦ (σ (x₀, y)).2) h
+    have := congrArg (fun σ : G ⊗g H ≃cg G ⊗g H ↦ (σ (x₀, y)).2) h
     simpa using this
 
 @[toIsoGraph]
 theorem autCount_mul_le_autCount_strongProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
-    G.autCount * H.autCount ≤ (strongProduct G H).autCount := by
+    G.autCount * H.autCount ≤ (G ⊠g H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
   refine mul_autCount_le_autCount strongProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
   · ext x
-    have := congrArg (fun σ : strongProduct G H ≃cg strongProduct G H ↦ (σ (x, y₀)).1) h
+    have := congrArg (fun σ : G ⊠g H ≃cg G ⊠g H ↦ (σ (x, y₀)).1) h
     simpa using this
   · ext y
-    have := congrArg (fun σ : strongProduct G H ≃cg strongProduct G H ↦ (σ (x₀, y)).2) h
+    have := congrArg (fun σ : G ⊠g H ≃cg G ⊠g H ↦ (σ (x₀, y)).2) h
     simpa using this
 
 @[toIsoGraph]
 theorem autCount_mul_le_autCount_lexProduct (G H : CGraph)
  [Nonempty G.V] [Nonempty H.V] :
-    G.autCount * H.autCount ≤ (lexProduct G H).autCount := by
+    G.autCount * H.autCount ≤ (G ·g H).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
   obtain ⟨y₀⟩ := ‹Nonempty H.V›
   refine mul_autCount_le_autCount lexProductAuto fun a a' b b' h ↦ ⟨?_, ?_⟩
   · ext x
-    have := congrArg (fun σ : lexProduct G H ≃cg lexProduct G H ↦ (σ (x, y₀)).1) h
+    have := congrArg (fun σ : G ·g H ≃cg G ·g H ↦ (σ (x, y₀)).1) h
     simpa using this
   · ext y
-    have := congrArg (fun σ : lexProduct G H ≃cg lexProduct G H ↦ (σ (x₀, y)).2) h
+    have := congrArg (fun σ : G ·g H ≃cg G ·g H ↦ (σ (x₀, y)).2) h
     simpa using this
 
 /-! ### Vertices, edges and components -/
@@ -824,22 +824,22 @@ private theorem sum_degree_add_one (K : CGraph) :
   rfl
 
 theorem E_strongProduct (G H : CGraph) :
-    (strongProduct G H).E
+    (G ⊠g H).E
       = Fintype.card G.V * H.E + Fintype.card H.V * G.E + 2 * G.E * H.E := by
-  have hdeg : ∀ p : G.V × H.V, (strongProduct G H).toSimple.degree p + 1
+  have hdeg : ∀ p : G.V × H.V, (G ⊠g H).toSimple.degree p + 1
       = (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) := by
     intro p
     have h := degree_strongProduct G H p
     have hpos : 1 ≤ (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) :=
       Nat.one_le_iff_ne_zero.2 (by positivity)
     omega
-  have hdegsum : ∑ p : G.V × H.V, (strongProduct G H).toSimple.degree p
-      = 2 * (strongProduct G H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
-  have hstrong : ∑ p : G.V × H.V, ((strongProduct G H).toSimple.degree p + 1)
-      = 2 * (strongProduct G H).E + Fintype.card G.V * Fintype.card H.V := by
+  have hdegsum : ∑ p : G.V × H.V, (G ⊠g H).toSimple.degree p
+      = 2 * (G ⊠g H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hstrong : ∑ p : G.V × H.V, ((G ⊠g H).toSimple.degree p + 1)
+      = 2 * (G ⊠g H).E + Fintype.card G.V * Fintype.card H.V := by
     rw [Finset.sum_add_distrib, hdegsum, Finset.sum_const, Finset.card_univ, smul_eq_mul, mul_one,
       Fintype.card_prod]
-  have key : 2 * (strongProduct G H).E + Fintype.card G.V * Fintype.card H.V
+  have key : 2 * (G ⊠g H).E + Fintype.card G.V * Fintype.card H.V
       = (2 * G.E + Fintype.card G.V) * (2 * H.E + Fintype.card H.V) := by
     rw [← hstrong, ← sum_degree_add_one G, ← sum_degree_add_one H, Finset.sum_mul_sum,
       Fintype.sum_prod_type]
@@ -851,24 +851,24 @@ theorem E_strongProduct (G H : CGraph) :
   exact Nat.eq_of_mul_eq_mul_left (by norm_num) (Nat.add_right_cancel key)
 
 theorem E_lexProduct (G H : CGraph) :
-    (lexProduct G H).E
+    (G ·g H).E
       = Fintype.card H.V * Fintype.card H.V * G.E + Fintype.card G.V * H.E := by
-  have hdeg : ∀ p : G.V × H.V, (lexProduct G H).toSimple.degree p
+  have hdeg : ∀ p : G.V × H.V, (G ·g H).toSimple.degree p
       = G.toSimple.degree p.1 * Fintype.card H.V + H.toSimple.degree p.2 :=
     fun p ↦ degree_lexProduct G H p
   have hG : ∑ a : G.V, G.toSimple.degree a = 2 * G.E :=
     SimpleGraph.sum_degrees_eq_twice_card_edges _
   have hH : ∑ b : H.V, H.toSimple.degree b = 2 * H.E :=
     SimpleGraph.sum_degrees_eq_twice_card_edges _
-  have hlex : ∑ p : G.V × H.V, (lexProduct G H).toSimple.degree p
-      = 2 * (lexProduct G H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hlex : ∑ p : G.V × H.V, (G ·g H).toSimple.degree p
+      = 2 * (G ·g H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
   have hfibre : ∀ a : G.V,
       ∑ b : H.V, (G.toSimple.degree a * Fintype.card H.V + H.toSimple.degree b)
         = G.toSimple.degree a * (Fintype.card H.V * Fintype.card H.V) + 2 * H.E := by
     intro a
     rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, smul_eq_mul, hH]
     ring
-  have key : 2 * (lexProduct G H).E
+  have key : 2 * (G ·g H).E
       = 2 * (Fintype.card H.V * Fintype.card H.V * G.E + Fintype.card G.V * H.E) := by
     rw [← hlex, Fintype.sum_prod_type,
       Finset.sum_congr rfl fun a _ ↦ Finset.sum_congr rfl fun b _ ↦ hdeg (a, b),
@@ -881,7 +881,7 @@ theorem E_lexProduct (G H : CGraph) :
 
 theorem isDominatingSet_disjSum {G H : CGraph} {s : Finset G.V} {t : Finset H.V}
     (hs : G.IsDominatingSet s) (ht : H.IsDominatingSet t) :
-    (disjUnion G H).IsDominatingSet (s.disjSum t) := by
+    (G ⊕g H).IsDominatingSet (s.disjSum t) := by
   intro v
   rcases v with a | b
   · rcases hs a with h | ⟨u, hu, hadj⟩
@@ -895,13 +895,13 @@ theorem isDominatingSet_disjSum {G H : CGraph} {s : Finset G.V} {t : Finset H.V}
 dominated separately, and any two dominating sets can be put side by side. -/
 @[toIsoGraph]
 theorem domNum_disjUnion (G H : CGraph) :
-    (disjUnion G H).domNum = G.domNum + H.domNum := by
+    (G ⊕g H).domNum = G.domNum + H.domNum := by
   apply le_antisymm
   · obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
     obtain ⟨t, ht, htdom⟩ := H.exists_isDominatingSet_domNum
     have h := domNum_le_card_of_isDominatingSet (isDominatingSet_disjSum hsdom htdom)
     rwa [Finset.card_disjSum, hs, ht] at h
-  · obtain ⟨u, hu, hudom⟩ := (disjUnion G H).exists_isDominatingSet_domNum
+  · obtain ⟨u, hu, hudom⟩ := (G ⊕g H).exists_isDominatingSet_domNum
     have hG : G.IsDominatingSet u.toLeft := by
       intro v
       rcases hudom (Sum.inl v) with h | ⟨w, hw, hadj⟩
@@ -925,10 +925,10 @@ theorem domNum_disjUnion (G H : CGraph) :
 /-- One vertex from each side dominates a join. -/
 @[toIsoGraph]
 theorem domNum_join_le_two (G H : CGraph)
-    [Nonempty G.V] [Nonempty H.V] : (join G H).domNum ≤ 2 := by
+    [Nonempty G.V] [Nonempty H.V] : (G ∇g H).domNum ≤ 2 := by
   obtain ⟨a⟩ := ‹Nonempty G.V›
   obtain ⟨b⟩ := ‹Nonempty H.V›
-  have hdom : (join G H).IsDominatingSet {Sum.inl a, Sum.inr b} := by
+  have hdom : (G ∇g H).IsDominatingSet {Sum.inl a, Sum.inr b} := by
     intro v
     rcases v with x | y
     · by_cases h : x = a
@@ -938,14 +938,14 @@ theorem domNum_join_le_two (G H : CGraph)
       · exact Or.inl (by simp [h])
       · exact Or.inr ⟨Sum.inl a, by simp, join_adj_inl_inr G H a y⟩
   have h := domNum_le_card_of_isDominatingSet hdom
-  have hcard : ({Sum.inl a, Sum.inr b} : Finset (join G H).V).card ≤ 2 :=
+  have hcard : ({Sum.inl a, Sum.inr b} : Finset (G ∇g H).V).card ≤ 2 :=
     le_trans (Finset.card_insert_le _ _) (by simp)
   omega
 
 /-- A single vertex dominates a join exactly when it is universal on its own side: the other side
 is seen for free. -/
 theorem domNum_join_eq_one_iff (G H : CGraph) :
-    (join G H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
+    (G ∇g H).domNum = 1 ↔ G.domNum = 1 ∨ H.domNum = 1 := by
   rw [domNum_eq_one_iff, domNum_eq_one_iff, domNum_eq_one_iff]
   constructor
   · rintro ⟨v, hv⟩
@@ -972,11 +972,11 @@ theorem domNum_join_eq_one_iff (G H : CGraph) :
 @[toIsoGraph]
 theorem domNum_join_eq_two (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) :
-    (join G H).domNum = 2 := by
-  haveI : Nonempty (join G H).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
+    (G ∇g H).domNum = 2 := by
+  haveI : Nonempty (G ∇g H).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
   have h1 := domNum_join_le_two G H
-  have h2 := (join G H).domNum_pos (Fintype.card_pos_iff.2 ‹Nonempty (join G H).V›)
-  have h3 : (join G H).domNum ≠ 1 := fun h ↦ by
+  have h2 := (G ∇g H).domNum_pos (Fintype.card_pos_iff.2 ‹Nonempty (G ∇g H).V›)
+  have h3 : (G ∇g H).domNum ≠ 1 := fun h ↦ by
     rcases (domNum_join_eq_one_iff G H).1 h with h | h
     · exact hG h
     · exact hH h
@@ -985,9 +985,9 @@ theorem domNum_join_eq_two (G H : CGraph)
 /-- A dominating set of `G`, spread over every fibre, dominates `G □ H`. -/
 @[toIsoGraph]
 theorem domNum_cartesianProduct_le (G H : CGraph) :
-    (cartesianProduct G H).domNum ≤ G.domNum * Fintype.card H.V := by
+    (G □g H).domNum ≤ G.domNum * Fintype.card H.V := by
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
-  have hdom : (cartesianProduct G H).IsDominatingSet (s ×ˢ Finset.univ) := by
+  have hdom : (G □g H).IsDominatingSet (s ×ˢ Finset.univ) := by
     rintro ⟨x, y⟩
     rcases hsdom x with h | ⟨u, hu, hadj⟩
     · exact Or.inl (Finset.mem_product.2 ⟨h, Finset.mem_univ _⟩)
@@ -1004,15 +1004,15 @@ connected: the radius of a disconnected graph is the junk value `0`. -/
 @[toIsoGraph]
 theorem radius_cartesianProduct (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
-    (cartesianProduct G H).radius = G.radius + H.radius := by
+    (G □g H).radius = G.radius + H.radius := by
   haveI : Nonempty G.V := hG.nonempty
   haveI : Nonempty H.V := hH.nonempty
   have hGtop : G.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hG
   have hHtop : H.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hH
-  have h : (cartesianProduct G H).toSimple.radius = G.toSimple.radius + H.toSimple.radius := by
+  have h : (G □g H).toSimple.radius = G.toSimple.radius + H.toSimple.radius := by
     rw [toSimple_cartesianProduct]
     exact radius_boxProd _ _
-  show (cartesianProduct G H).toSimple.radius.toNat = _
+  show (G □g H).toSimple.radius.toNat = _
   rw [h, ENat.toNat_add hGtop hHtop]
   rfl
 
@@ -1021,14 +1021,12 @@ cartesian product living inside it. -/
 @[toIsoGraph]
 theorem diameter_strongProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
-    (strongProduct G H).diameter ≤ G.diameter + H.diameter := by
+    (G ⊠g H).diameter ≤ G.diameter + H.diameter := by
   haveI : Nonempty G.V := hG.nonempty
   haveI : Nonempty H.V := hH.nonempty
-  have hcp : (cartesianProduct G H).IsConnected :=
-    (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
-  haveI : Nonempty (cartesianProduct G H).V := hcp.nonempty
-  have hne : (cartesianProduct G H).toSimple.ediam ≠ ⊤ :=
-    SimpleGraph.connected_iff_ediam_ne_top.1 hcp
+  have hcp : (G □g H).IsConnected := (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
+  haveI : Nonempty (G □g H).V := hcp.nonempty
+  have hne : (G □g H).toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hcp
   have h := SimpleGraph.diam_anti_of_ediam_ne_top (cartesianProduct_le_strongProduct G H) hne
   rw [← diameter_cartesianProduct G H hG hH]
   exact h
@@ -1037,14 +1035,12 @@ theorem diameter_strongProduct_le (G H : CGraph)
 @[toIsoGraph]
 theorem diameter_lexProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
-    (lexProduct G H).diameter ≤ G.diameter + H.diameter := by
+    (G ·g H).diameter ≤ G.diameter + H.diameter := by
   haveI : Nonempty G.V := hG.nonempty
   haveI : Nonempty H.V := hH.nonempty
-  have hcp : (cartesianProduct G H).IsConnected :=
-    (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
-  haveI : Nonempty (cartesianProduct G H).V := hcp.nonempty
-  have hne : (cartesianProduct G H).toSimple.ediam ≠ ⊤ :=
-    SimpleGraph.connected_iff_ediam_ne_top.1 hcp
+  have hcp : (G □g H).IsConnected := (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
+  haveI : Nonempty (G □g H).V := hcp.nonempty
+  have hne : (G □g H).toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hcp
   have h := SimpleGraph.diam_anti_of_ediam_ne_top (cartesianProduct_le_lexProduct G H) hne
   rw [← diameter_cartesianProduct G H hG hH]
   exact h
@@ -1055,10 +1051,10 @@ theorem diameter_lexProduct_le (G H : CGraph)
 vertex of `G ⊠ H` is either equal or adjacent to a dominator in each coordinate. -/
 @[toIsoGraph]
 theorem domNum_strongProduct_le (G H : CGraph) :
-    (strongProduct G H).domNum ≤ G.domNum * H.domNum := by
+    (G ⊠g H).domNum ≤ G.domNum * H.domNum := by
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
   obtain ⟨t, ht, htdom⟩ := H.exists_isDominatingSet_domNum
-  have hdom : (strongProduct G H).IsDominatingSet (s ×ˢ t) := by
+  have hdom : (G ⊠g H).IsDominatingSet (s ×ˢ t) := by
     rintro ⟨x, y⟩
     have hx : ∃ u ∈ s, u = x ∨ G.Adj u x = true := by
       rcases hsdom x with h | ⟨u, hu, hadj⟩
@@ -1070,7 +1066,7 @@ theorem domNum_strongProduct_le (G H : CGraph) :
       · exact ⟨v, hv, Or.inr hadj⟩
     obtain ⟨u, hu, hux⟩ := hx
     obtain ⟨v, hv, hvy⟩ := hy
-    by_cases hpq : ((u, v) : (strongProduct G H).V) = (x, y)
+    by_cases hpq : ((u, v) : (G ⊠g H).V) = (x, y)
     · exact Or.inl (hpq ▸ Finset.mem_product.2 ⟨hu, hv⟩)
     · refine Or.inr ⟨(u, v), Finset.mem_product.2 ⟨hu, hv⟩, ?_⟩
       rw [strongProduct_adj]
@@ -1082,12 +1078,12 @@ theorem domNum_strongProduct_le (G H : CGraph) :
 /-- Forgetting the second coordinate turns a dominating set of `G[H]` into one of `G`. -/
 @[toIsoGraph]
 theorem domNum_le_domNum_lexProduct (G H : CGraph)
-    [Nonempty H.V] : G.domNum ≤ (lexProduct G H).domNum := by
-  obtain ⟨s, hs, hsdom⟩ := (lexProduct G H).exists_isDominatingSet_domNum
+    [Nonempty H.V] : G.domNum ≤ (G ·g H).domNum := by
+  obtain ⟨s, hs, hsdom⟩ := (G ·g H).exists_isDominatingSet_domNum
   obtain ⟨y⟩ := ‹Nonempty H.V›
   have hdom : G.IsDominatingSet (s.image Prod.fst) := by
     intro u
-    rcases hsdom ((u, y) : (lexProduct G H).V) with h | ⟨w, hw, hadj⟩
+    rcases hsdom ((u, y) : (G ·g H).V) with h | ⟨w, hw, hadj⟩
     · exact Or.inl (Finset.mem_image.2 ⟨(u, y), h, rfl⟩)
     · rw [lexProduct_adj] at hadj
       simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hadj
@@ -1100,12 +1096,12 @@ theorem domNum_le_domNum_lexProduct (G H : CGraph)
 sees all of `H`, then a dominating set of `G` lifted into that vertex's fibre dominates `G[H]`. -/
 @[toIsoGraph]
 theorem domNum_lexProduct (G H : CGraph)
-    (hH : H.domNum = 1) : (lexProduct G H).domNum = G.domNum := by
+    (hH : H.domNum = 1) : (G ·g H).domNum = G.domNum := by
   obtain ⟨x, hx⟩ := (domNum_eq_one_iff H).1 hH
   haveI : Nonempty H.V := ⟨x⟩
   refine le_antisymm ?_ (domNum_le_domNum_lexProduct G H)
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
-  have hdom : (lexProduct G H).IsDominatingSet (s.image fun v ↦ (v, x)) := by
+  have hdom : (G ·g H).IsDominatingSet (s.image fun v ↦ (v, x)) := by
     rintro ⟨u, y⟩
     rcases hsdom u with h | ⟨v, hv, hadj⟩
     · by_cases hy : y = x
@@ -1122,12 +1118,12 @@ theorem domNum_lexProduct (G H : CGraph)
 /-- Forgetting the second coordinate turns a dominating set of `G □ H` into one of `G`. -/
 @[toIsoGraph]
 theorem domNum_le_domNum_cartesianProduct (G H : CGraph)
-    [Nonempty H.V] : G.domNum ≤ (cartesianProduct G H).domNum := by
-  obtain ⟨s, hs, hsdom⟩ := (cartesianProduct G H).exists_isDominatingSet_domNum
+    [Nonempty H.V] : G.domNum ≤ (G □g H).domNum := by
+  obtain ⟨s, hs, hsdom⟩ := (G □g H).exists_isDominatingSet_domNum
   obtain ⟨y⟩ := ‹Nonempty H.V›
   have hdom : G.IsDominatingSet (s.image Prod.fst) := by
     intro u
-    rcases hsdom ((u, y) : (cartesianProduct G H).V) with h | ⟨w, hw, hadj⟩
+    rcases hsdom ((u, y) : (G □g H).V) with h | ⟨w, hw, hadj⟩
     · exact Or.inl (Finset.mem_image.2 ⟨(u, y), h, rfl⟩)
     · rw [cartesianProduct_adj] at hadj
       simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hadj
@@ -1139,12 +1135,12 @@ theorem domNum_le_domNum_cartesianProduct (G H : CGraph)
 /-- Forgetting the second coordinate turns a dominating set of `G ⊠ H` into one of `G`. -/
 @[toIsoGraph]
 theorem domNum_le_domNum_strongProduct (G H : CGraph)
-    [Nonempty H.V] : G.domNum ≤ (strongProduct G H).domNum := by
-  obtain ⟨s, hs, hsdom⟩ := (strongProduct G H).exists_isDominatingSet_domNum
+    [Nonempty H.V] : G.domNum ≤ (G ⊠g H).domNum := by
+  obtain ⟨s, hs, hsdom⟩ := (G ⊠g H).exists_isDominatingSet_domNum
   obtain ⟨y⟩ := ‹Nonempty H.V›
   have hdom : G.IsDominatingSet (s.image Prod.fst) := by
     intro u
-    rcases hsdom ((u, y) : (strongProduct G H).V) with h | ⟨w, hw, hadj⟩
+    rcases hsdom ((u, y) : (G ⊠g H).V) with h | ⟨w, hw, hadj⟩
     · exact Or.inl (Finset.mem_image.2 ⟨(u, y), h, rfl⟩)
     · rw [strongProduct_adj] at hadj
       simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq] at hadj
@@ -1166,7 +1162,7 @@ private theorem indepNum_anti {α : Type} [Fintype α] {S T : SimpleGraph α} (h
 
 /-- The strong product is a subgraph of the lexicographic product. -/
 theorem strongProduct_le_lexProduct (G H : CGraph) :
-    (strongProduct G H).toSimple ≤ (lexProduct G H).toSimple := by
+    (G ⊠g H).toSimple ≤ (G ·g H).toSimple := by
   intro p q hpq
   rw [CGraph.toSimple_adj, strongProduct_adj] at hpq
   rw [CGraph.toSimple_adj, lexProduct_adj]
@@ -1184,16 +1180,16 @@ theorem strongProduct_le_lexProduct (G H : CGraph) :
 @[toIsoGraph]
 theorem indepNum_mul_indepNum_le_indepNum_strongProduct (G H : CGraph)
  :
-    G.indepNum * H.indepNum ≤ (strongProduct G H).indepNum := by
+    G.indepNum * H.indepNum ≤ (G ⊠g H).indepNum := by
   have h := indepNum_anti (strongProduct_le_lexProduct G H)
-  rwa [show (lexProduct G H).toSimple.indepNum = G.indepNum * H.indepNum from
+  rwa [show (G ·g H).toSimple.indepNum = G.indepNum * H.indepNum from
     indepNum_lexProduct G H] at h
 
 /-- The same product set is independent in the (sparser) cartesian product. -/
 @[toIsoGraph]
 theorem indepNum_mul_indepNum_le_indepNum_cartesianProduct (G H : CGraph)
  :
-    G.indepNum * H.indepNum ≤ (cartesianProduct G H).indepNum :=
+    G.indepNum * H.indepNum ≤ (G □g H).indepNum :=
   le_trans (indepNum_mul_indepNum_le_indepNum_strongProduct G H)
     (indepNum_anti (cartesianProduct_le_strongProduct G H))
 
@@ -1202,10 +1198,10 @@ because every tensor edge moves in *both* coordinates: `α(G) · |V(H)| ≤ α(G
 @[toIsoGraph indepNum_mul_V_le_indepNum_tensorProduct]
 theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
  :
-    G.indepNum * Fintype.card H.V ≤ (tensorProduct G H).indepNum := by
+    G.indepNum * Fintype.card H.V ≤ (G ⊗g H).indepNum := by
   classical
   obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
-  have hind : (tensorProduct G H).toSimple.IsIndepSet
+  have hind : (G ⊗g H).toSimple.IsIndepSet
       ((s ×ˢ (Finset.univ : Finset H.V) : Finset (G.V × H.V)) : Set (G.V × H.V)) := by
     intro p hp q hq hpq hadj
     rw [Finset.mem_coe, Finset.mem_product] at hp hq
@@ -1222,9 +1218,9 @@ theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
 independent set of `H`, so `α(G □ H) ≤ |V(G)| · α(H)`. -/
 @[toIsoGraph]
 theorem indepNum_cartesianProduct_le (G H : CGraph) :
-    (cartesianProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum := by
+    (G □g H).indepNum ≤ Fintype.card G.V * H.indepNum := by
   classical
-  obtain ⟨s, hs, hcard⟩ := (cartesianProduct G H).toSimple.exists_isNIndepSet_indepNum
+  obtain ⟨s, hs, hcard⟩ := (G □g H).toSimple.exists_isNIndepSet_indepNum
   have hfib : ∀ a : G.V, (s.filter fun p ↦ p.1 = a).card ≤ H.indepNum := by
     intro a
     have hindH : H.toSimple.IsIndepSet
@@ -1245,7 +1241,7 @@ theorem indepNum_cartesianProduct_le (G H : CGraph) :
     exact Prod.ext (hp.2.trans hq.2.symm) hpq
   have hsum : s.card = ∑ a : G.V, (s.filter fun p ↦ p.1 = a).card :=
     Finset.card_eq_sum_card_fiberwise fun p _ ↦ Finset.mem_univ p.1
-  calc (cartesianProduct G H).indepNum = s.card := hcard.symm
+  calc (G □g H).indepNum = s.card := hcard.symm
     _ = ∑ a : G.V, (s.filter fun p ↦ p.1 = a).card := hsum
     _ ≤ ∑ _a : G.V, H.indepNum := Finset.sum_le_sum fun a _ ↦ hfib a
     _ = Fintype.card G.V * H.indepNum := by
@@ -1254,7 +1250,7 @@ theorem indepNum_cartesianProduct_le (G H : CGraph) :
 /-- The strong product has at least as many edges as the cartesian one, so the same bound holds. -/
 @[toIsoGraph]
 theorem indepNum_strongProduct_le (G H : CGraph) :
-    (strongProduct G H).indepNum ≤ Fintype.card G.V * H.indepNum :=
+    (G ⊠g H).indepNum ≤ Fintype.card G.V * H.indepNum :=
   le_trans (indepNum_anti (cartesianProduct_le_strongProduct G H))
     (indepNum_cartesianProduct_le G H)
 
@@ -1265,7 +1261,7 @@ lexicographic product, which is already known to satisfy `χ ≤ χ(G)·χ(H)`, 
 back along subgraph inclusions. -/
 @[toIsoGraph]
 theorem chromNum_strongProduct_le (G H : CGraph) :
-    (strongProduct G H).chromNum ≤ G.chromNum * H.chromNum :=
+    (G ⊠g H).chromNum ≤ G.chromNum * H.chromNum :=
   chromNum_le_iff_colorable.2
     ((chromNum_le_iff_colorable.1 (chromNum_lexProduct_le G H)).mono_left
       (strongProduct_le_lexProduct G H))
@@ -1274,7 +1270,7 @@ theorem chromNum_strongProduct_le (G H : CGraph) :
 so `max χ(G) χ(H) ≤ χ(G ⊠ H)`. -/
 @[toIsoGraph]
 theorem max_chromNum_le_chromNum_strongProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    max G.chromNum H.chromNum ≤ (strongProduct G H).chromNum := by
+    max G.chromNum H.chromNum ≤ (G ⊠g H).chromNum := by
   rw [← chromNum_cartesianProduct (G := G) (H := H)]
   exact chromNum_le_iff_colorable.2
     (colorable_chromNum.mono_left (cartesianProduct_le_strongProduct G H))
@@ -1282,7 +1278,7 @@ theorem max_chromNum_le_chromNum_strongProduct {G H : CGraph} [Nonempty G.V] [No
 /-- The same sandwich for the lexicographic product. -/
 @[toIsoGraph]
 theorem max_chromNum_le_chromNum_lexProduct {G H : CGraph} [Nonempty G.V] [Nonempty H.V] :
-    max G.chromNum H.chromNum ≤ (lexProduct G H).chromNum := by
+    max G.chromNum H.chromNum ≤ (G ·g H).chromNum := by
   rw [← chromNum_cartesianProduct (G := G) (H := H)]
   exact chromNum_le_iff_colorable.2
     (colorable_chromNum.mono_left (cartesianProduct_le_lexProduct G H))
@@ -1292,8 +1288,8 @@ from cliques is itself multiplicative. -/
 @[toIsoGraph]
 theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : CGraph)
  :
-    G.cliqueNum * H.cliqueNum ≤ (strongProduct G H).chromNum := by
-  have h := (strongProduct G H).cliqueNum_le_chromNum
+    G.cliqueNum * H.cliqueNum ≤ (G ⊠g H).chromNum := by
+  have h := (G ⊠g H).cliqueNum_le_chromNum
   rwa [cliqueNum_strongProduct] at h
 
 /-- The tensor product of two graphs with an edge has an edge, hence needs two colours.  Together
@@ -1302,10 +1298,10 @@ both have an edge.  In general the lower bound is the hard direction: Hedetniemi
 `χ(G × H) = min χ(G) χ(H)` is false. -/
 @[toIsoGraph]
 theorem two_le_chromNum_tensorProduct {G H : CGraph}
-    (hG : 0 < G.E) (hH : 0 < H.E) : 2 ≤ (tensorProduct G H).chromNum := by
+    (hG : 0 < G.E) (hH : 0 < H.E) : 2 ≤ (G ⊗g H).chromNum := by
   obtain ⟨a, a', ha⟩ := exists_adj_of_E_pos hG
   obtain ⟨b, b', hb⟩ := exists_adj_of_E_pos hH
-  refine two_le_chromNum_of_adj (a := ((a, b) : (tensorProduct G H).V)) (b := (a', b')) ?_
+  refine two_le_chromNum_of_adj (a := ((a, b) : (G ⊗g H).V)) (b := (a', b')) ?_
   rw [tensorProduct_adj]
   simp [ha, hb]
 
@@ -1314,7 +1310,7 @@ theorem two_le_chromNum_tensorProduct {G H : CGraph}
 @[toIsoGraph]
 theorem chromNum_tensorProduct_eq_two {G H : CGraph}
     (hG : G.IsBipartite) (hGE : 0 < G.E) (hHE : 0 < H.E) :
-    (tensorProduct G H).chromNum = 2 :=
+    (G ⊗g H).chromNum = 2 :=
   le_antisymm
     (le_trans (chromNum_tensorProduct_le G H)
       (le_trans (min_le_left _ _) (isBipartite_iff_chromNum_le_two.1 hG)))
@@ -1502,7 +1498,7 @@ theorem IsRegularWith.compl {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
 /-- A disjoint union of two `k`-regular graphs is `k`-regular. -/
 @[toIsoGraph]
 theorem IsRegularWith.disjUnion {G H : CGraph} {k : ℕ} (hG : G.IsRegularWith k)
-    (hH : H.IsRegularWith k) : (disjUnion G H).IsRegularWith k := by
+    (hH : H.IsRegularWith k) : (G ⊕g H).IsRegularWith k := by
   rintro (a | b)
   · rw [degree_disjUnion_inl]; exact hG a
   · rw [degree_disjUnion_inr]; exact hH b
@@ -1513,7 +1509,7 @@ of `G` picks up all of `H` and vice versa. -/
 theorem IsRegularWith.join {G H : CGraph} {k l m : ℕ}
     (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
     (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
-    (join G H).IsRegularWith m := by
+    (G ∇g H).IsRegularWith m := by
   rintro (a | b)
   · rw [degree_join_inl, hG a]; exact h1
   · rw [degree_join_inr, hH b]; exact h2
@@ -1842,9 +1838,9 @@ theorem ladderCol_symm (N : ℕ) (p q : Fin N × Fin 2) : ladderCol N p q = ladd
   · rw [if_pos h, if_pos h.symm]
   · rw [if_neg h, if_neg (Ne.symm h)]
 
-theorem ladderCol_proper (N : ℕ) (u v w : (cartesianProduct (path N) (complete 2)).V)
-    (huv : (cartesianProduct (path N) (complete 2)).Adj u v = true)
-    (huw : (cartesianProduct (path N) (complete 2)).Adj u w = true) (hvw : v ≠ w) :
+theorem ladderCol_proper (N : ℕ) (u v w : (path N □g complete 2).V)
+    (huv : (path N □g complete 2).Adj u v = true)
+    (huw : (path N □g complete 2).Adj u w = true) (hvw : v ≠ w) :
     ladderCol N u v ≠ ladderCol N u w := by
   rw [cartesianProduct_adj] at huv huw
   simp only [path, complete_adj, ofRel_adj, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq,
@@ -1939,9 +1935,9 @@ theorem crownCol_symm (n : ℕ) (p q : Fin (n + 2) × Fin 2) : crownCol n p q = 
     · rw [if_pos h0, if_neg (by omega)]
     · rw [if_neg h0, if_pos (by omega)]
 
-theorem crownCol_proper (n : ℕ) (u v w : (tensorProduct (complete (n + 2)) (complete 2)).V)
-    (huv : (tensorProduct (complete (n + 2)) (complete 2)).Adj u v = true)
-    (huw : (tensorProduct (complete (n + 2)) (complete 2)).Adj u w = true) (hvw : v ≠ w) :
+theorem crownCol_proper (n : ℕ) (u v w : (complete (n + 2) ⊗g complete 2).V)
+    (huv : (complete (n + 2) ⊗g complete 2).Adj u v = true)
+    (huw : (complete (n + 2) ⊗g complete 2).Adj u w = true) (hvw : v ≠ w) :
     crownCol n u v ≠ crownCol n u w := by
   rw [tensorProduct_adj] at huv huw
   simp only [complete_adj, Bool.and_eq_true, decide_eq_true_eq, ne_eq] at huv huw
@@ -2003,14 +1999,14 @@ theorem prismCol_symm (N : ℕ) (p q : Fin N × Fin 2) : prismCol N p q = prismC
         fun hh ↦ h2 hh.symm
       rw [if_neg h2, if_neg h2']
 
-theorem prismCol_proper (n : ℕ) (u v w : (cartesianProduct (cycle (n + 3)) (complete 2)).V)
-    (huv : (cartesianProduct (cycle (n + 3)) (complete 2)).Adj u v = true)
-    (huw : (cartesianProduct (cycle (n + 3)) (complete 2)).Adj u w = true) (hvw : v ≠ w) :
+theorem prismCol_proper (n : ℕ) (u v w : (cycle (n + 3) □g complete 2).V)
+    (huv : (cycle (n + 3) □g complete 2).Adj u v = true)
+    (huw : (cycle (n + 3) □g complete 2).Adj u w = true) (hvw : v ≠ w) :
     prismCol (n + 3) u v ≠ prismCol (n + 3) u w := by
   rw [cartesianProduct_adj] at huv huw
   simp only [complete_adj, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, ne_eq]
     at huv huw
-  have step : ∀ x y : (cartesianProduct (cycle (n + 3)) (complete 2)).V,
+  have step : ∀ x y : (cycle (n + 3) □g complete 2).V,
       (x.1 = y.1 ∧ ¬ x.2 = y.2) ∨ ((cycle (n + 3)).Adj x.1 y.1 = true ∧ x.2 = y.2) →
       (x.1.1 = y.1.1 ∧ x.2.1 ≠ y.2.1) ∨
         ((x.1.1 + 1 = y.1.1 ∨ y.1.1 + 1 = x.1.1 ∨ (x.1.1 = 0 ∧ y.1.1 + 1 = n + 3) ∨

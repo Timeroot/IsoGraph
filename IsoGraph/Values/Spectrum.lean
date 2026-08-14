@@ -664,18 +664,18 @@ theorem spectrum_empty (n : ℕ) :
   simp [spectrum, Polynomial.roots_pow, Multiset.nsmul_singleton]
 
 theorem adjMat_disjUnion (G H : CGraph) :
-    (disjUnion G H).adjMat = Matrix.fromBlocks G.adjMat 0 0 H.adjMat := by
+    (G ⊕g H).adjMat = Matrix.fromBlocks G.adjMat 0 0 H.adjMat := by
   ext x y
   cases x <;> cases y <;> simp [adjMat_apply, disjUnion]
 
 @[simp, toIsoGraph] theorem charpoly_disjUnion (G H : CGraph) :
-    (disjUnion G H).charpoly = G.charpoly * H.charpoly := by
+    (G ⊕g H).charpoly = G.charpoly * H.charpoly := by
   classical
   rw [charpoly_eq_matrix_charpoly, adjMat_disjUnion, Matrix.charpoly_fromBlocks_zero₁₂,
     ← charpoly_eq_matrix_charpoly, ← charpoly_eq_matrix_charpoly]
 
 @[simp, toIsoGraph] theorem spectrum_disjUnion (G H : CGraph) :
-    (disjUnion G H).spectrum = G.spectrum + H.spectrum := by
+    (G ⊕g H).spectrum = G.spectrum + H.spectrum := by
   rw [spectrum, charpoly_disjUnion, Polynomial.roots_mul
     (mul_ne_zero G.monic_charpoly.ne_zero H.monic_charpoly.ne_zero)]
   rfl
@@ -761,7 +761,7 @@ theorem hasEigenvector_compl {G : CGraph} {x : ℝ} {v : G.V → ℝ}
 theorem hasEigenvector_tensorProduct {G H : CGraph}
     {x y : ℝ} {u : G.V → ℝ} {w : H.V → ℝ} (hu : G.HasEigenvector x u)
     (hw : H.HasEigenvector y w) :
-    (tensorProduct G H).HasEigenvector (x * y) (fun p ↦ u p.1 * w p.2) := by
+    (G ⊗g H).HasEigenvector (x * y) (fun p ↦ u p.1 * w p.2) := by
   obtain ⟨hu0, hu1⟩ := hu
   obtain ⟨hw0, hw1⟩ := hw
   obtain ⟨a₀, ha₀⟩ := Function.ne_iff.1 hu0
@@ -772,12 +772,12 @@ theorem hasEigenvector_tensorProduct {G H : CGraph}
   have hhb := congrFun hw1 b
   simp only [Matrix.mulVec, dotProduct, Pi.smul_apply, smul_eq_mul] at hga hhb ⊢
   have hsplit : ∀ (c : G.V) (d : H.V),
-      (tensorProduct G H).adjMat (a, b) (c, d) * (u c * w d)
+      (G ⊗g H).adjMat (a, b) (c, d) * (u c * w d)
         = G.adjMat a c * u c * (H.adjMat b d * w d) := by
     intro c d
     by_cases h1 : G.Adj a c <;> by_cases h2 : H.Adj b d <;>
       simp [adjMat_apply, tensorProduct, h1, h2]
-  calc ∑ q : G.V × H.V, (tensorProduct G H).adjMat (a, b) q * (u q.1 * w q.2)
+  calc ∑ q : G.V × H.V, (G ⊗g H).adjMat (a, b) q * (u q.1 * w q.2)
       = ∑ c : G.V, ∑ d : H.V, G.adjMat a c * u c * (H.adjMat b d * w d) := by
         rw [Fintype.sum_prod_type]
         exact Finset.sum_congr rfl fun c _ ↦ Finset.sum_congr rfl fun d _ ↦ hsplit c d
@@ -1298,14 +1298,14 @@ private theorem roots_prod_X_sub_C' {ι : Type*} [Fintype ι] (f : ι → ℝ) :
 /-! ## The tensor product -/
 
 theorem adjMat_tensorProduct (G H : CGraph) :
-    (tensorProduct G H).adjMat = G.adjMat ⊗ₖ H.adjMat := by
+    (G ⊗g H).adjMat = G.adjMat ⊗ₖ H.adjMat := by
   ext p q
   by_cases h1 : G.Adj p.1 q.1 <;> by_cases h2 : H.Adj p.2 q.2 <;>
     simp [adjMat_apply, tensorProduct, Matrix.kroneckerMap, h1, h2]
 
 /-- **The eigenvalues of a tensor product are the products of the eigenvalues.** -/
 theorem spectrum_tensorProduct (G H : CGraph) :
-    (tensorProduct G H).spectrum
+    (G ⊗g H).spectrum
       = Finset.univ.val.map (fun p : G.V × H.V ↦ G.eigenvalues p.1 * H.eigenvalues p.2) := by
   obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
   obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
@@ -1325,13 +1325,13 @@ private theorem map_product_apply₂ {α β : Type} (f : α → ℝ) (g : β →
       simp [Multiset.cons_product, Multiset.map_map, ih]
 
 theorem spectrum_tensorProduct' (G H : CGraph) :
-    (tensorProduct G H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 * p.2) := by
+    (G ⊗g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 * p.2) := by
   rw [spectrum_tensorProduct, spectrum_eq_map, spectrum_eq_map, ← map_product_apply₂,
     ← Finset.univ_product_univ, Finset.product_val]
 
 /-- The adjacency matrix of a cartesian product is `I ⊗ A H + A G ⊗ I`. -/
 theorem adjMat_cartesianProduct (G H : CGraph) :
-    (cartesianProduct G H).adjMat
+    (G □g H).adjMat
       = (1 : Matrix G.V G.V ℝ) ⊗ₖ H.adjMat + G.adjMat ⊗ₖ (1 : Matrix H.V H.V ℝ) := by
   ext p q
   by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
@@ -1340,7 +1340,7 @@ theorem adjMat_cartesianProduct (G H : CGraph) :
 
 /-- **The eigenvalues of a cartesian product are the sums of the eigenvalues.** -/
 theorem spectrum_cartesianProduct (G H : CGraph) :
-    (cartesianProduct G H).spectrum
+    (G □g H).spectrum
       = Finset.univ.val.map (fun p : G.V × H.V ↦ G.eigenvalues p.1 + H.eigenvalues p.2) := by
   obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
   obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
@@ -1366,13 +1366,13 @@ theorem spectrum_cartesianProduct (G H : CGraph) :
     rw [key]
 
 theorem spectrum_cartesianProduct' (G H : CGraph) :
-    (cartesianProduct G H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 + p.2) := by
+    (G □g H).spectrum = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ p.1 + p.2) := by
   rw [spectrum_cartesianProduct, spectrum_eq_map, spectrum_eq_map, ← map_product_apply₂,
     ← Finset.univ_product_univ, Finset.product_val]
 
 /-- The adjacency matrix of a strong product is `(A G + I) ⊗ (A H + I) - I`. -/
 theorem adjMat_strongProduct (G H : CGraph) :
-    (strongProduct G H).adjMat = (G.adjMat + 1) ⊗ₖ (H.adjMat + 1) - 1 := by
+    (G ⊠g H).adjMat = (G.adjMat + 1) ⊗ₖ (H.adjMat + 1) - 1 := by
   ext p q
   by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
     by_cases hA1 : G.Adj p.1 q.1 <;> by_cases hA2 : H.Adj p.2 q.2 <;>
@@ -1381,7 +1381,7 @@ theorem adjMat_strongProduct (G H : CGraph) :
 
 /-- **The eigenvalues of a strong product** are `(1 + λ) (1 + μ) - 1`. -/
 theorem spectrum_strongProduct (G H : CGraph) :
-    (strongProduct G H).spectrum
+    (G ⊠g H).spectrum
       = Finset.univ.val.map (fun p : G.V × H.V ↦
           (1 + G.eigenvalues p.1) * (1 + H.eigenvalues p.2) - 1) := by
   obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
@@ -1411,7 +1411,7 @@ theorem spectrum_strongProduct (G H : CGraph) :
     rw [key]
 
 theorem spectrum_strongProduct' (G H : CGraph) :
-    (strongProduct G H).spectrum
+    (G ⊠g H).spectrum
       = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ (1 + p.1) * (1 + p.2) - 1) := by
   rw [spectrum_strongProduct, spectrum_eq_map, spectrum_eq_map,
     ← map_product_apply₂ G.eigenvalues H.eigenvalues (fun a b ↦ (1 + a) * (1 + b) - 1),
@@ -2333,7 +2333,7 @@ theorem spectrum_star (n : ℕ) :
 cospectral: both spectra are `2, -2, 0, 0, 0`. -/
 @[toIsoGraph]
 theorem cospectral_star_four :
-    (star 4).Cospectral (disjUnion (bipartite 2 2) (empty 1)) := by
+    (star 4).Cospectral (bipartite 2 2 ⊕g empty 1) := by
   have hs := spectrum_star 3
   have hb := spectrum_bipartite 1 1
   norm_num at hs hb
@@ -2888,7 +2888,7 @@ theorem lambdaMin_of_isRegularWith_of_isBipartite {G : CGraph} [Nonempty G.V] {k
 
 /-- **A disjoint union takes the larger of the two spectral radii.** -/
 theorem lambdaMax_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
-    (disjUnion G H).lambdaMax = max G.lambdaMax H.lambdaMax := by
+    (G ⊕g H).lambdaMax = max G.lambdaMax H.lambdaMax := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) ?_
   · rw [spectrum_disjUnion, Multiset.mem_add] at hx
     rcases hx with hx | hx
@@ -2901,13 +2901,13 @@ theorem lambdaMax_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
 
 /-- **A disjoint union takes the smaller of the two least eigenvalues.** -/
 theorem lambdaMin_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
-    (disjUnion G H).lambdaMin = min G.lambdaMin H.lambdaMin := by
+    (G ⊕g H).lambdaMin = min G.lambdaMin H.lambdaMin := by
   refine le_antisymm (le_min (lambdaMin_le ?_) (lambdaMin_le ?_)) ?_
   · rw [spectrum_disjUnion, Multiset.mem_add]
     exact Or.inl (lambdaMin_mem_spectrum G)
   · rw [spectrum_disjUnion, Multiset.mem_add]
     exact Or.inr (lambdaMin_mem_spectrum H)
-  · have hx := lambdaMin_mem_spectrum (disjUnion G H)
+  · have hx := lambdaMin_mem_spectrum (G ⊕g H)
     rw [spectrum_disjUnion, Multiset.mem_add] at hx
     rcases hx with hx | hx
     · exact (min_le_left _ _).trans (lambdaMin_le hx)
@@ -2916,7 +2916,7 @@ theorem lambdaMin_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
 /-- **A cartesian product adds the spectral radii**, since it adds the spectra. -/
 theorem lambdaMax_cartesianProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (cartesianProduct G H).lambdaMax = G.lambdaMax + H.lambdaMax := by
+    (G □g H).lambdaMax = G.lambdaMax + H.lambdaMax := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
   · rw [spectrum_cartesianProduct'] at hx
     obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
@@ -2929,12 +2929,12 @@ theorem lambdaMax_cartesianProduct (G H : CGraph)
 /-- **A cartesian product adds the least eigenvalues** too. -/
 theorem lambdaMin_cartesianProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (cartesianProduct G H).lambdaMin = G.lambdaMin + H.lambdaMin := by
+    (G □g H).lambdaMin = G.lambdaMin + H.lambdaMin := by
   refine le_antisymm (lambdaMin_le ?_) ?_
   · rw [spectrum_cartesianProduct']
     exact Multiset.mem_map.2 ⟨(G.lambdaMin, H.lambdaMin), Multiset.mem_product.2
       ⟨lambdaMin_mem_spectrum G, lambdaMin_mem_spectrum H⟩, rfl⟩
-  · have hx := lambdaMin_mem_spectrum (cartesianProduct G H)
+  · have hx := lambdaMin_mem_spectrum (G □g H)
     rw [spectrum_cartesianProduct'] at hx
     obtain ⟨p, hp, hxp⟩ := Multiset.mem_map.1 hx
     obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
@@ -2946,7 +2946,7 @@ negative at other eigenvalues, but never larger in absolute value than `1 + λ_m
 `|λ| ≤ λ_max`. -/
 theorem lambdaMax_strongProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (strongProduct G H).lambdaMax = (1 + G.lambdaMax) * (1 + H.lambdaMax) - 1 := by
+    (G ⊠g H).lambdaMax = (1 + G.lambdaMax) * (1 + H.lambdaMax) - 1 := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
   · rw [spectrum_strongProduct'] at hx
     obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
@@ -2972,11 +2972,11 @@ theorem lambdaMax_strongProduct (G H : CGraph)
 [μ_min, μ_max]` sits at a corner, and the corner `(λ_max, μ_max)` is the maximum. -/
 theorem lambdaMin_strongProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (strongProduct G H).lambdaMin
+    (G ⊠g H).lambdaMin
       = min (min ((1 + G.lambdaMin) * (1 + H.lambdaMin)) ((1 + G.lambdaMin) * (1 + H.lambdaMax)))
           ((1 + G.lambdaMax) * (1 + H.lambdaMin)) - 1 := by
   have hcorner : ∀ x y : ℝ, x ∈ G.spectrum → y ∈ H.spectrum →
-      (strongProduct G H).lambdaMin ≤ (1 + x) * (1 + y) - 1 := by
+      (G ⊠g H).lambdaMin ≤ (1 + x) * (1 + y) - 1 := by
     intro x y hx hy
     refine lambdaMin_le ?_
     rw [spectrum_strongProduct']
@@ -2987,7 +2987,7 @@ theorem lambdaMin_strongProduct (G H : CGraph)
     have h3 := hcorner _ _ (lambdaMax_mem_spectrum G) (lambdaMin_mem_spectrum H)
     simp only [le_sub_iff_add_le, le_min_iff]
     refine ⟨⟨by linarith, by linarith⟩, by linarith⟩
-  · have hx := lambdaMin_mem_spectrum (strongProduct G H)
+  · have hx := lambdaMin_mem_spectrum (G ⊠g H)
     rw [spectrum_strongProduct'] at hx
     obtain ⟨p, hp, hxp⟩ := Multiset.mem_map.1 hx
     obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
@@ -3012,7 +3012,7 @@ theorem lambdaMin_strongProduct (G H : CGraph)
 since `|x| ≤ λ_max(G)` and `|y| ≤ λ_max(H)`. -/
 theorem lambdaMax_tensorProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (tensorProduct G H).lambdaMax = G.lambdaMax * H.lambdaMax := by
+    (G ⊗g H).lambdaMax = G.lambdaMax * H.lambdaMax := by
   refine le_antisymm ((lambdaMax_le_iff _).2 fun x hx ↦ ?_) (le_lambdaMax ?_)
   · rw [spectrum_tensorProduct'] at hx
     obtain ⟨p, hp, rfl⟩ := Multiset.mem_map.1 hx
@@ -3029,7 +3029,7 @@ theorem lambdaMax_tensorProduct (G H : CGraph)
 /-- **A tensor product's least eigenvalue** is the more negative of the two mixed products. -/
 theorem lambdaMin_tensorProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (tensorProduct G H).lambdaMin
+    (G ⊗g H).lambdaMin
       = min (G.lambdaMax * H.lambdaMin) (G.lambdaMin * H.lambdaMax) := by
   refine le_antisymm ?_ ?_
   · refine le_min (lambdaMin_le ?_) (lambdaMin_le ?_) <;> rw [spectrum_tensorProduct']
@@ -3037,7 +3037,7 @@ theorem lambdaMin_tensorProduct (G H : CGraph)
         ⟨lambdaMax_mem_spectrum G, lambdaMin_mem_spectrum H⟩, rfl⟩
     · exact Multiset.mem_map.2 ⟨(G.lambdaMin, H.lambdaMax), Multiset.mem_product.2
         ⟨lambdaMin_mem_spectrum G, lambdaMax_mem_spectrum H⟩, rfl⟩
-  · have hx := lambdaMin_mem_spectrum (tensorProduct G H)
+  · have hx := lambdaMin_mem_spectrum (G ⊗g H)
     rw [spectrum_tensorProduct'] at hx
     obtain ⟨p, hp, hxp⟩ := Multiset.mem_map.1 hx
     obtain ⟨h1, h2⟩ := Multiset.mem_product.1 hp
@@ -3336,7 +3336,7 @@ theorem isRegularWith_complete (n : ℕ) : (complete (n + 1)).IsRegularWith n :=
 instance instNonemptyWheelV (n : ℕ) : Nonempty (wheel n).V := ⟨Sum.inl ⟨0, by omega⟩⟩
 
 instance instNonemptyJoinV (G H : CGraph) [Nonempty G.V] :
-    Nonempty (join G H).V := inferInstanceAs (Nonempty (G.V ⊕ H.V))
+    Nonempty (G ∇g H).V := inferInstanceAs (Nonempty (G.V ⊕ H.V))
 
 open Matrix in
 /-- **The join's eigenvector equation.**  If `G` is `k`-regular on `n` vertices and `H` is
@@ -3347,21 +3347,21 @@ theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
     (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) {a b lam : ℝ}
     (h1 : (k : ℝ) * a + Fintype.card H.V * b = lam * a)
     (h2 : Fintype.card G.V * a + (l : ℝ) * b = lam * b) :
-    (join G H).adjMat *ᵥ Sum.elim (fun _ ↦ a) (fun _ ↦ b)
+    (G ∇g H).adjMat *ᵥ Sum.elim (fun _ ↦ a) (fun _ ↦ b)
       = lam • Sum.elim (fun _ ↦ a) (fun _ ↦ b) := by
-  set w : (join G H).V → ℝ := Sum.elim (fun _ ↦ a) (fun _ ↦ b) with hwdef
+  set w : (G ∇g H).V → ℝ := Sum.elim (fun _ ↦ a) (fun _ ↦ b) with hwdef
   funext i
   rcases i with u | v
-  · have hsplit : ((join G H).adjMat *ᵥ w) (Sum.inl u)
-        = (∑ u' : G.V, (join G H).adjMat (Sum.inl u) (Sum.inl u') * w (Sum.inl u'))
-          + ∑ v' : H.V, (join G H).adjMat (Sum.inl u) (Sum.inr v') * w (Sum.inr v') :=
-      Fintype.sum_sum_type (f := fun x ↦ (join G H).adjMat (Sum.inl u) x * w x)
-    have e1 : ∀ u' : G.V, (join G H).adjMat (Sum.inl u) (Sum.inl u') * w (Sum.inl u')
+  · have hsplit : ((G ∇g H).adjMat *ᵥ w) (Sum.inl u)
+        = (∑ u' : G.V, (G ∇g H).adjMat (Sum.inl u) (Sum.inl u') * w (Sum.inl u'))
+          + ∑ v' : H.V, (G ∇g H).adjMat (Sum.inl u) (Sum.inr v') * w (Sum.inr v') :=
+      Fintype.sum_sum_type (f := fun x ↦ (G ∇g H).adjMat (Sum.inl u) x * w x)
+    have e1 : ∀ u' : G.V, (G ∇g H).adjMat (Sum.inl u) (Sum.inl u') * w (Sum.inl u')
         = G.adjMat u u' * a := by
       intro u'
       rw [adjMat_apply, adjMat_apply, join_adj_inl_inl]
       simp [hwdef]
-    have e2 : ∀ v' : H.V, (join G H).adjMat (Sum.inl u) (Sum.inr v') * w (Sum.inr v') = b := by
+    have e2 : ∀ v' : H.V, (G ∇g H).adjMat (Sum.inl u) (Sum.inr v') * w (Sum.inr v') = b := by
       intro v'
       rw [adjMat_apply, join_adj_inl_inr]
       simp [hwdef]
@@ -3370,15 +3370,15 @@ theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
     simp only [Finset.sum_const, nsmul_eq_mul, Finset.card_univ, Pi.smul_apply, smul_eq_mul,
       hwdef, Sum.elim_inl]
     linarith
-  · have hsplit : ((join G H).adjMat *ᵥ w) (Sum.inr v)
-        = (∑ u' : G.V, (join G H).adjMat (Sum.inr v) (Sum.inl u') * w (Sum.inl u'))
-          + ∑ v' : H.V, (join G H).adjMat (Sum.inr v) (Sum.inr v') * w (Sum.inr v') :=
-      Fintype.sum_sum_type (f := fun x ↦ (join G H).adjMat (Sum.inr v) x * w x)
-    have e1 : ∀ u' : G.V, (join G H).adjMat (Sum.inr v) (Sum.inl u') * w (Sum.inl u') = a := by
+  · have hsplit : ((G ∇g H).adjMat *ᵥ w) (Sum.inr v)
+        = (∑ u' : G.V, (G ∇g H).adjMat (Sum.inr v) (Sum.inl u') * w (Sum.inl u'))
+          + ∑ v' : H.V, (G ∇g H).adjMat (Sum.inr v) (Sum.inr v') * w (Sum.inr v') :=
+      Fintype.sum_sum_type (f := fun x ↦ (G ∇g H).adjMat (Sum.inr v) x * w x)
+    have e1 : ∀ u' : G.V, (G ∇g H).adjMat (Sum.inr v) (Sum.inl u') * w (Sum.inl u') = a := by
       intro u'
       rw [adjMat_apply, join_adj_inr_inl]
       simp [hwdef]
-    have e2 : ∀ v' : H.V, (join G H).adjMat (Sum.inr v) (Sum.inr v') * w (Sum.inr v')
+    have e2 : ∀ v' : H.V, (G ∇g H).adjMat (Sum.inr v) (Sum.inr v') * w (Sum.inr v')
         = H.adjMat v v' * b := by
       intro v'
       rw [adjMat_apply, adjMat_apply, join_adj_inr_inr]
@@ -3394,7 +3394,7 @@ theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
 eigenvalue bounds the whole spectrum. -/
 theorem lambdaMax_join_of_isRegularWith {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
-    (join G H).lambdaMax
+    (G ∇g H).lambdaMax
       = ((k : ℝ) + l
           + Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * Fintype.card G.V * Fintype.card H.V)) / 2 := by
   set n : ℕ := Fintype.card G.V with hn
@@ -3414,7 +3414,7 @@ theorem lambdaMax_join_of_isRegularWith {G H : CGraph}
   have h2 : (n : ℝ) * (m : ℝ) + (l : ℝ) * (lam - k) = lam * (lam - k) := by
     rw [hlam]; nlinarith
   have hmul := adjMat_mulVec_join hG hH h1 h2
-  have hwpos : ∀ i : (join G H).V, 0 < Sum.elim (fun _ ↦ (m : ℝ)) (fun _ ↦ lam - k) i := by
+  have hwpos : ∀ i : (G ∇g H).V, 0 < Sum.elim (fun _ ↦ (m : ℝ)) (fun _ ↦ lam - k) i := by
     rintro (u | v)
     · exact hm0
     · exact hbpos
@@ -3427,7 +3427,7 @@ eigenvalue of `G ∇ H` from above.  It need not *be* the least one: the two fac
 eigenvalues on the vectors that sum to zero on each side. -/
 theorem lambdaMin_join_of_isRegularWith_le {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
-    (join G H).lambdaMin
+    (G ∇g H).lambdaMin
       ≤ ((k : ℝ) + l
           - Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * Fintype.card G.V * Fintype.card H.V)) / 2 := by
   set n : ℕ := Fintype.card G.V with hn
@@ -3452,7 +3452,7 @@ positive root of `x² - k x - n`: the apex eigenvector above is positive at this
 positive eigenvector's eigenvalue bounds the whole spectrum. -/
 theorem lambdaMax_join_complete_one {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
-    (join (complete 1) G).lambdaMax
+    (complete 1 ∇g G).lambdaMax
       = ((k : ℝ) + Real.sqrt ((k : ℝ) ^ 2 + 4 * Fintype.card G.V)) / 2 := by
   rw [lambdaMax_join_of_isRegularWith (isRegularWith_complete 0) h, card_complete]
   norm_num
@@ -3463,7 +3463,7 @@ theorem lambdaMax_wheel (m : ℕ) :
     (wheel (m + 3)).lambdaMax = 1 + Real.sqrt ((m : ℝ) + 4) := by
   have h := lambdaMax_join_complete_one (IsoGraph.isRegularWith_cycle m)
   rw [card_cycle] at h
-  show (join (complete 1) (cycle (m + 3))).lambdaMax = _
+  show (complete 1 ∇g cycle (m + 3)).lambdaMax = _
   rw [h, show ((2 : ℕ) : ℝ) ^ 2 + 4 * ((m + 3 : ℕ) : ℝ) = 2 ^ 2 * ((m : ℝ) + 4) by push_cast; ring,
     Real.sqrt_mul (by positivity), Real.sqrt_sq (by norm_num)]
   push_cast
@@ -3474,7 +3474,7 @@ eigenvalue of `K₁ ∇ G` from above.  It need not *be* the least one: for a wh
 the rim's own `-2` is smaller. -/
 theorem lambdaMin_join_complete_one_le {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
-    (join (complete 1) G).lambdaMin
+    (complete 1 ∇g G).lambdaMin
       ≤ ((k : ℝ) - Real.sqrt ((k : ℝ) ^ 2 + 4 * Fintype.card G.V)) / 2 := by
   have h1 := lambdaMin_join_of_isRegularWith_le (isRegularWith_complete 0) h
   rw [card_complete] at h1
@@ -3488,7 +3488,7 @@ theorem lambdaMin_wheel_le (m : ℕ) :
     (wheel (m + 3)).lambdaMin ≤ 1 - Real.sqrt ((m : ℝ) + 4) := by
   have h := lambdaMin_join_complete_one_le (IsoGraph.isRegularWith_cycle m)
   rw [card_cycle] at h
-  show (join (complete 1) (cycle (m + 3))).lambdaMin ≤ _
+  show (complete 1 ∇g cycle (m + 3)).lambdaMin ≤ _
   refine h.trans (le_of_eq ?_)
   rw [show ((2 : ℕ) : ℝ) ^ 2 + 4 * ((m + 3 : ℕ) : ℝ) = 2 ^ 2 * ((m : ℝ) + 4) by push_cast; ring,
     Real.sqrt_mul (by positivity), Real.sqrt_sq (by norm_num)]
@@ -3497,25 +3497,25 @@ theorem lambdaMin_wheel_le (m : ℕ) :
 
 /-- **The spectral radius of a grid** is the sum of the two paths'. -/
 theorem lambdaMax_grid (m n : ℕ) :
-    (cartesianProduct (path (m + 1)) (path (n + 1))).lambdaMax
+    (path (m + 1) □g path (n + 1)).lambdaMax
       = 2 * Real.cos (Real.pi / ((m : ℝ) + 2)) + 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) := by
   rw [lambdaMax_cartesianProduct, lambdaMax_path, lambdaMax_path]
 
 /-- **The least eigenvalue of a grid** is minus the sum of the two paths' radii. -/
 theorem lambdaMin_grid (m n : ℕ) :
-    (cartesianProduct (path (m + 1)) (path (n + 1))).lambdaMin
+    (path (m + 1) □g path (n + 1)).lambdaMin
       = -(2 * Real.cos (Real.pi / ((m : ℝ) + 2))) + -(2 * Real.cos (Real.pi / ((n : ℝ) + 2))) := by
   rw [lambdaMin_cartesianProduct, lambdaMin_path, lambdaMin_path]
 
 /-- **The spectral radius of a torus** is `4`, the degree: `Cₘ □ Cₙ` is `4`-regular. -/
 theorem lambdaMax_torus (m n : ℕ) :
-    (cartesianProduct (cycle (m + 3)) (cycle (n + 3))).lambdaMax = 4 := by
+    (cycle (m + 3) □g cycle (n + 3)).lambdaMax = 4 := by
   rw [lambdaMax_cartesianProduct, lambdaMax_cycle, lambdaMax_cycle]
   norm_num
 
 /-- **The least eigenvalue of a torus with two even sides** is `-4`: both cycles reach `-2`. -/
 theorem lambdaMin_torus_even (m n : ℕ) :
-    (cartesianProduct (cycle (2 * m + 4)) (cycle (2 * n + 4))).lambdaMin = -4 := by
+    (cycle (2 * m + 4) □g cycle (2 * n + 4)).lambdaMin = -4 := by
   rw [lambdaMin_cartesianProduct, lambdaMin_cycle_even, lambdaMin_cycle_even]
   norm_num
 
@@ -3524,7 +3524,7 @@ theorem lambdaMax_prism (n : ℕ) : (prism (n + 3)).lambdaMax = 3 := by
   have h2 : (complete 2).lambdaMax = 1 := by
     show (complete (1 + 1)).lambdaMax = 1
     rw [lambdaMax_complete]; norm_num
-  show (cartesianProduct (cycle (n + 3)) (complete 2)).lambdaMax = 3
+  show (cycle (n + 3) □g complete 2).lambdaMax = 3
   rw [lambdaMax_cartesianProduct, lambdaMax_cycle, h2]
   norm_num
 
@@ -3533,7 +3533,7 @@ theorem lambdaMin_prism_even (n : ℕ) : (prism (2 * n + 4)).lambdaMin = -3 := b
   have h2 : (complete 2).lambdaMin = -1 := by
     show (complete (0 + 2)).lambdaMin = -1
     rw [lambdaMin_complete]
-  show (cartesianProduct (cycle (2 * n + 4)) (complete 2)).lambdaMin = -3
+  show (cycle (2 * n + 4) □g complete 2).lambdaMin = -3
   rw [lambdaMin_cartesianProduct, lambdaMin_cycle_even, h2]
   norm_num
 
@@ -3543,7 +3543,7 @@ theorem lambdaMax_ladder (n : ℕ) :
   have h2 : (complete 2).lambdaMax = 1 := by
     show (complete (1 + 1)).lambdaMax = 1
     rw [lambdaMax_complete]; norm_num
-  show (cartesianProduct (path (n + 1)) (complete 2)).lambdaMax = _
+  show (path (n + 1) □g complete 2).lambdaMax = _
   rw [lambdaMax_cartesianProduct, lambdaMax_path, h2]
 
 /-- **The least eigenvalue of a ladder** is minus its radius: the ladder is bipartite, so unlike
@@ -3553,7 +3553,7 @@ theorem lambdaMin_ladder (n : ℕ) :
   have h2 : (complete 2).lambdaMin = -1 := by
     show (complete (0 + 2)).lambdaMin = -1
     rw [lambdaMin_complete]
-  show (cartesianProduct (path (n + 1)) (complete 2)).lambdaMin = _
+  show (path (n + 1) □g complete 2).lambdaMin = _
   rw [lambdaMin_cartesianProduct, lambdaMin_path, h2]
 
 /-! ### The extreme eigenvalues of the strongly regular families
@@ -6292,13 +6292,13 @@ theorem two_mul_sqrt_le_energy (G : CGraph) : 2 * Real.sqrt G.E ≤ G.energy := 
   rwa [h4, Real.sqrt_sq (energy_nonneg G)] at hle
 
 @[simp, toIsoGraph] theorem energy_disjUnion (G H : CGraph) :
-    (disjUnion G H).energy = G.energy + H.energy := by
+    (G ⊕g H).energy = G.energy + H.energy := by
   rw [energy, energy, energy, spectrum_disjUnion, Multiset.map_add, Multiset.sum_add]
 
 /-- **The energy is multiplicative over tensor products**, because the eigenvalues of `G ⊗ H` are
 the products `λ μ` and `|λ μ| = |λ| |μ|`. -/
 @[simp] theorem energy_tensorProduct (G H : CGraph) :
-    (tensorProduct G H).energy = G.energy * H.energy := by
+    (G ⊗g H).energy = G.energy * H.energy := by
   have key : ∀ s t : Multiset ℝ, ((s ×ˢ t).map (fun p : ℝ × ℝ ↦ |p.1 * p.2|)).sum
       = (s.map (|·|)).sum * (t.map (|·|)).sum := by
     intro s t
@@ -6580,7 +6580,7 @@ theorem degree_empty (n : ℕ) (i : (empty n).V) : (empty n).toSimple.degree i =
   simp [lapSpectrum, lapCharpoly, Polynomial.roots_pow, Multiset.nsmul_singleton]
 
 theorem lapMat_disjUnion (G H : CGraph) :
-    (disjUnion G H).lapMat = Matrix.fromBlocks G.lapMat 0 0 H.lapMat := by
+    (G ⊕g H).lapMat = Matrix.fromBlocks G.lapMat 0 0 H.lapMat := by
   ext x y
   simp only [lapMat_eq_diagonal_sub, Matrix.sub_apply, Matrix.diagonal_apply]
   cases x <;> cases y <;>
@@ -6588,14 +6588,14 @@ theorem lapMat_disjUnion (G H : CGraph) :
     simp [adjMat_apply, disjUnion, Matrix.diagonal_apply]
 
 @[simp] theorem lapCharpoly_disjUnion (G H : CGraph) :
-    (disjUnion G H).lapCharpoly = G.lapCharpoly * H.lapCharpoly := by
+    (G ⊕g H).lapCharpoly = G.lapCharpoly * H.lapCharpoly := by
   classical
   rw [lapCharpoly_eq_matrix_charpoly, lapMat_disjUnion, Matrix.charpoly_fromBlocks_zero₁₂,
     ← lapCharpoly_eq_matrix_charpoly, ← lapCharpoly_eq_matrix_charpoly]
 
 /-- **The Laplacian spectrum of a disjoint union is the sum of the spectra.** -/
 @[simp, toIsoGraph] theorem lapSpectrum_disjUnion (G H : CGraph) :
-    (disjUnion G H).lapSpectrum = G.lapSpectrum + H.lapSpectrum := by
+    (G ⊕g H).lapSpectrum = G.lapSpectrum + H.lapSpectrum := by
   rw [lapSpectrum, lapSpectrum, lapSpectrum, lapCharpoly_disjUnion, Polynomial.roots_mul
     (mul_ne_zero G.monic_lapCharpoly.ne_zero H.monic_lapCharpoly.ne_zero)]
 
@@ -6995,7 +6995,7 @@ theorem lapSpectrum_bipartite (m n : ℕ) :
           ::ₘ (Multiset.replicate m ((n : ℝ) + 1) + Multiset.replicate n ((m : ℝ) + 1))) := by
   classical
   have hcompl : (bipartite (m + 1) (n + 1))ᶜ
-      = disjUnion (complete (m + 1)) (complete (n + 1)) := by
+      = complete (m + 1) ⊕g complete (n + 1) := by
     simp [bipartite]
   have hcard : Fintype.card (bipartite (m + 1) (n + 1)).V = m + 1 + (n + 1) :=
     card_bipartite _ _
@@ -7033,12 +7033,12 @@ each factor shifted by the order of the other factor. -/
 @[toIsoGraph]
 theorem lapSpectrum_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (join G H).lapSpectrum
+    (G ∇g H).lapSpectrum
       = 0 ::ₘ (((Fintype.card G.V : ℝ) + Fintype.card H.V)
           ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card H.V : ℝ))
              + (H.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card G.V : ℝ)))) := by
-  haveI : Nonempty (disjUnion Gᶜ Hᶜ).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
-  have hK := lapSpectrum_compl (disjUnion Gᶜ Hᶜ)
+  haveI : Nonempty (Gᶜ ⊕g Hᶜ).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
+  have hK := lapSpectrum_compl (Gᶜ ⊕g Hᶜ)
   rw [lapSpectrum_disjUnion, lapSpectrum_compl G, lapSpectrum_compl H, card_disjUnion, card_compl,
     card_compl] at hK
   rw [join, hK]
@@ -7066,7 +7066,7 @@ degree, then the join has that degree as an eigenvalue, `k - n` as a second one,
 theorem spectrum_join_of_isRegularWith {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l m : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
     (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
-    (join G H).spectrum
+    (G ∇g H).spectrum
       = (m : ℝ) ::ₘ (((k : ℝ) - Fintype.card G.V)
           ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ))) := by
   have hinj : Function.Injective (fun x : ℝ ↦ (k : ℝ) - x) := fun a b hab ↦ by
@@ -7419,15 +7419,15 @@ theorem algConn_le_card (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
 /-- **A disjoint union has algebraic connectivity `0`** as soon as both pieces are nonempty. -/
 @[toIsoGraph]
 theorem algConn_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
-    (disjUnion G H).algConn = 0 := by
+    (G ⊕g H).algConn = 0 := by
   have h0G : (0 : ℝ) ∈ G.lapSpectrum := G.zero_mem_lapSpectrum
   have h0H : (0 : ℝ) ∈ H.lapSpectrum := H.zero_mem_lapSpectrum
-  have hmem : (0 : ℝ) ∈ (disjUnion G H).lapSpectrum.erase 0 := by
+  have hmem : (0 : ℝ) ∈ (G ⊕g H).lapSpectrum.erase 0 := by
     rw [lapSpectrum_disjUnion]
     obtain ⟨t, ht⟩ := Multiset.exists_cons_of_mem h0G
     rw [ht, Multiset.cons_add, Multiset.erase_cons_head]
     exact Multiset.mem_add.2 (Or.inr h0H)
-  exact le_antisymm (algConn_le hmem) (disjUnion G H).algConn_nonneg
+  exact le_antisymm (algConn_le hmem) (G ⊕g H).algConn_nonneg
 
 /-- **The algebraic connectivity of the complete graph is its order**, the extreme case of
 `algConn_le_card`. -/
@@ -7788,7 +7788,7 @@ theorem lapLambdaMax_path (n : ℕ) :
 takes neither: the small end collapses to `0` but the large end does not interact. -/
 @[toIsoGraph]
 theorem lapLambdaMax_disjUnion (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
-    (disjUnion G H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax := by
+    (G ⊕g H).lapLambdaMax = max G.lapLambdaMax H.lapLambdaMax := by
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [lapSpectrum_disjUnion, Multiset.mem_add]
     rcases le_total G.lapLambdaMax H.lapLambdaMax with hle | hle
@@ -8302,7 +8302,7 @@ complement, so this is `algConn_compl` read backwards; here it is read straight 
 @[toIsoGraph]
 theorem lapLambdaMax_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (join G H).lapLambdaMax = (Fintype.card G.V : ℝ) + Fintype.card H.V := by
+    (G ∇g H).lapLambdaMax = (Fintype.card G.V : ℝ) + Fintype.card H.V := by
   have hG0 : (0 : ℝ) ≤ Fintype.card G.V := Nat.cast_nonneg _
   have hH0 : (0 : ℝ) ≤ Fintype.card H.V := Nat.cast_nonneg _
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
@@ -8327,7 +8327,7 @@ the other factor, whichever is smaller.  The order `n + m` itself is never the s
 @[toIsoGraph]
 theorem algConn_join (G H : CGraph)
     (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
-    (join G H).algConn
+    (G ∇g H).algConn
       = min (G.algConn + Fintype.card H.V) (H.algConn + Fintype.card G.V) := by
   haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
   haveI : Nonempty H.V := Fintype.card_pos_iff.1 (by omega)
@@ -8335,7 +8335,7 @@ theorem algConn_join (G H : CGraph)
   have hmemH : H.algConn ∈ H.lapSpectrum.erase 0 := H.algConn_mem_erase hH
   have hGle : G.algConn ≤ Fintype.card G.V := G.algConn_le_card hG
   have hHle : H.algConn ≤ Fintype.card H.V := H.algConn_le_card hH
-  have herase : (join G H).lapSpectrum.erase 0
+  have herase : (G ∇g H).lapSpectrum.erase 0
       = ((Fintype.card G.V : ℝ) + Fintype.card H.V)
           ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card H.V : ℝ))
              + (H.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card G.V : ℝ))) := by
@@ -8369,7 +8369,7 @@ theorem algConn_join (G H : CGraph)
 /-- The Laplacian of a cartesian product is `L G ⊗ I + I ⊗ L H`, the same shape as
 `adjMat_cartesianProduct`: the degree of `(g, h)` is `deg g + deg h`. -/
 theorem lapMat_cartesianProduct (G H : CGraph) :
-    (cartesianProduct G H).lapMat
+    (G □g H).lapMat
       = G.lapMat ⊗ₖ (1 : Matrix H.V H.V ℝ) + (1 : Matrix G.V G.V ℝ) ⊗ₖ H.lapMat := by
   ext p q
   rw [lapMat_eq_diagonal_sub, Matrix.sub_apply, adjMat_cartesianProduct]
@@ -8393,7 +8393,7 @@ theorem lapMat_cartesianProduct (G H : CGraph) :
 eigenvalues**, exactly as for the adjacency matrix (`spectrum_cartesianProduct`): the two
 Laplacians are simultaneously diagonalised by the Kronecker product of their eigenbases. -/
 theorem lapSpectrum_cartesianProduct (G H : CGraph) :
-    (cartesianProduct G H).lapSpectrum
+    (G □g H).lapSpectrum
       = Finset.univ.val.map
           (fun p : G.V × H.V ↦ G.lapEigenvalues p.1 + H.lapEigenvalues p.2) := by
   obtain ⟨U₁, h₁, h₁', e₁⟩ := exists_orthogonal_lap_diagonal G
@@ -8424,7 +8424,7 @@ theorem lapSpectrum_cartesianProduct (G H : CGraph) :
     rw [key]
 
 theorem lapSpectrum_cartesianProduct' (G H : CGraph) :
-    (cartesianProduct G H).lapSpectrum
+    (G □g H).lapSpectrum
       = (G.lapSpectrum ×ˢ H.lapSpectrum).map (fun p ↦ p.1 + p.2) := by
   rw [lapSpectrum_cartesianProduct, lapSpectrum_eq_map, lapSpectrum_eq_map,
     ← map_product_apply₂, ← Finset.univ_product_univ, Finset.product_val]
@@ -8433,7 +8433,7 @@ theorem lapSpectrum_cartesianProduct' (G H : CGraph) :
 @[toIsoGraph]
 theorem lapLambdaMax_cartesianProduct (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (cartesianProduct G H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax := by
+    (G □g H).lapLambdaMax = G.lapLambdaMax + H.lapLambdaMax := by
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [lapSpectrum_cartesianProduct']
     refine Multiset.mem_map.2 ⟨(G.lapLambdaMax, H.lapLambdaMax), ?_, rfl⟩
@@ -8452,14 +8452,14 @@ are `0`. -/
 @[toIsoGraph]
 theorem algConn_cartesianProduct (G H : CGraph)
     (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
-    (cartesianProduct G H).algConn = min G.algConn H.algConn := by
+    (G □g H).algConn = min G.algConn H.algConn := by
   haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
   haveI : Nonempty H.V := Fintype.card_pos_iff.1 (by omega)
   set gs : Multiset ℝ := G.lapSpectrum.erase 0 with hgs
   set hs : Multiset ℝ := H.lapSpectrum.erase 0 with hhs
   have hGc : G.lapSpectrum = 0 ::ₘ gs := (Multiset.cons_erase G.zero_mem_lapSpectrum).symm
   have hHc : H.lapSpectrum = 0 ::ₘ hs := (Multiset.cons_erase H.zero_mem_lapSpectrum).symm
-  have herase : (cartesianProduct G H).lapSpectrum.erase 0
+  have herase : (G □g H).lapSpectrum.erase 0
       = hs + (gs ×ˢ (0 ::ₘ hs)).map (fun p ↦ p.1 + p.2) := by
     rw [lapSpectrum_cartesianProduct']
     conv_lhs => rw [hGc, hHc]
@@ -8468,7 +8468,7 @@ theorem algConn_cartesianProduct (G H : CGraph)
     rw [Multiset.cons_add, Multiset.erase_cons_head]
   have hmemG : G.algConn ∈ gs := G.algConn_mem_erase hG
   have hmemH : H.algConn ∈ hs := H.algConn_mem_erase hH
-  have hmem : min G.algConn H.algConn ∈ (cartesianProduct G H).lapSpectrum.erase 0 := by
+  have hmem : min G.algConn H.algConn ∈ (G □g H).lapSpectrum.erase 0 := by
     rw [herase]
     rcases le_total G.algConn H.algConn with hle | hle
     · rw [min_eq_left hle]

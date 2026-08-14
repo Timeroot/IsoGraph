@@ -104,7 +104,7 @@ abbrev K2_3 : CGraph := bipartite 2 3
 
 /-- The graph `K₂,₃` with an edge added inside its two-element side; equivalently the five-cycle
 with two disjoint chords, or `K₅` minus a path and a disjoint edge. -/
-def k23PlusEdge : CGraph := (disjUnion P3 K2)ᶜ
+def k23PlusEdge : CGraph := (P3 ⊕g K2)ᶜ
 
 /-- The fork, also called the chair: the claw with one edge subdivided. -/
 abbrev fork : CGraph := spider [1, 1, 2]
@@ -150,10 +150,10 @@ abbrev lollipop41 : CGraph := lollipop 4 1
 abbrev book3 : CGraph := book 3
 
 /-- `K₅` with the two edges of a path removed. -/
-def K5MinusP3 : CGraph := (disjUnion P3 (empty 2))ᶜ
+def K5MinusP3 : CGraph := (P3 ⊕g empty 2)ᶜ
 
 /-- `K₅` with one edge removed. -/
-def K5MinusEdge : CGraph := (disjUnion K2 (empty 3))ᶜ
+def K5MinusEdge : CGraph := (K2 ⊕g empty 3)ᶜ
 
 /-- The complete graph on five vertices. -/
 abbrev K5 : CGraph := complete 5
@@ -414,70 +414,70 @@ abbrev K1_2_3 : CGraph := completeMultipartite [1, 2, 3]
 abbrev K1_1_2_2 : CGraph := completeMultipartite [1, 1, 2, 2]
 
 /-- `K₆` with one edge removed. -/
-def K6MinusEdge : CGraph := (disjUnion K2 (empty 4))ᶜ
+def K6MinusEdge : CGraph := (K2 ⊕g empty 4)ᶜ
 
 /-- `K₆` with the edges of a path of three removed. -/
-def K6MinusP3 : CGraph := (disjUnion P3 (empty 3))ᶜ
+def K6MinusP3 : CGraph := (P3 ⊕g empty 3)ᶜ
 
 /-- `K₆` with the edges of a path of four removed. -/
-def K6MinusP4 : CGraph := (disjUnion P4 (empty 2))ᶜ
+def K6MinusP4 : CGraph := (P4 ⊕g empty 2)ᶜ
 
 /-- `K₆` with the edges of a four-cycle removed. -/
-def K6MinusC4 : CGraph := (disjUnion C4 (empty 2))ᶜ
+def K6MinusC4 : CGraph := (C4 ⊕g empty 2)ᶜ
 
 /-- `K₆` with the edges of a claw removed. -/
-def K6MinusClaw : CGraph := (disjUnion claw (empty 2))ᶜ
+def K6MinusClaw : CGraph := (claw ⊕g empty 2)ᶜ
 
 /-- `K₆` with the edges of a paw removed. -/
-def K6MinusPaw : CGraph := (disjUnion paw (empty 2))ᶜ
+def K6MinusPaw : CGraph := (paw ⊕g empty 2)ᶜ
 
 /-- `K₆` with the edges of a diamond removed. -/
-def K6MinusDiamond : CGraph := (disjUnion diamond (empty 2))ᶜ
+def K6MinusDiamond : CGraph := (diamond ⊕g empty 2)ᶜ
 
 /-- `K₆` with the edges of an edge and a disjoint path of three removed. -/
-def K6MinusK2P3 : CGraph := (disjUnion K2 (disjUnion P3 (empty 1)))ᶜ
+def K6MinusK2P3 : CGraph := (K2 ⊕g (P3 ⊕g empty 1))ᶜ
 
 /-- `K₆` with the edges of a path of five removed. -/
-def K6MinusP5 : CGraph := (disjUnion P5 (empty 1))ᶜ
+def K6MinusP5 : CGraph := (P5 ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a fork removed. -/
-def K6MinusFork : CGraph := (disjUnion fork (empty 1))ᶜ
+def K6MinusFork : CGraph := (fork ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of `K₂,₃` removed. -/
-def K6MinusK23 : CGraph := (disjUnion K2_3 (empty 1))ᶜ
+def K6MinusK23 : CGraph := (K2_3 ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of `k23PlusEdge` removed. -/
-def K6MinusK23PlusEdge : CGraph := (disjUnion k23PlusEdge (empty 1))ᶜ
+def K6MinusK23PlusEdge : CGraph := (k23PlusEdge ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a banner removed. -/
-def K6MinusBanner : CGraph := (disjUnion banner (empty 1))ᶜ
+def K6MinusBanner : CGraph := (banner ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a bull removed. -/
-def K6MinusBull : CGraph := (disjUnion bull (empty 1))ᶜ
+def K6MinusBull : CGraph := (bull ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a kite removed. -/
-def K6MinusKite : CGraph := (disjUnion kite (empty 1))ᶜ
+def K6MinusKite : CGraph := (kite ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of the (3,2)-tadpole removed. -/
-def K6MinusTadpole32 : CGraph := (disjUnion tadpole32 (empty 1))ᶜ
+def K6MinusTadpole32 : CGraph := (tadpole32 ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a butterfly removed. -/
-def K6MinusButterfly : CGraph := (disjUnion butterfly (empty 1))ᶜ
+def K6MinusButterfly : CGraph := (butterfly ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a cricket removed. -/
-def K6MinusCricket : CGraph := (disjUnion cricket (empty 1))ᶜ
+def K6MinusCricket : CGraph := (cricket ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a gem removed. -/
-def K6MinusGem : CGraph := (disjUnion gem (empty 1))ᶜ
+def K6MinusGem : CGraph := (gem ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of a dart removed. -/
-def K6MinusDart : CGraph := (disjUnion dart (empty 1))ᶜ
+def K6MinusDart : CGraph := (dart ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of the 4-lollipop removed. -/
-def K6MinusLollipop41 : CGraph := (disjUnion lollipop41 (empty 1))ᶜ
+def K6MinusLollipop41 : CGraph := (lollipop41 ⊕g empty 1)ᶜ
 
 /-- `K₆` with the edges of the book `B₃` removed. -/
-def K6MinusBook3 : CGraph := (disjUnion book3 (empty 1))ᶜ
+def K6MinusBook3 : CGraph := (book3 ⊕g empty 1)ᶜ
 
 /-! ## Six vertices: the remaining joins -/
 
@@ -491,25 +491,25 @@ abbrev K2_4 : CGraph := bipartite 2 4
 abbrev octahedron : CGraph := completeMultipartite [2, 2, 2]
 
 /-- The complement of `K₂` and a disjoint four-cycle. -/
-def coK2C4 : CGraph := (disjUnion K2 C4)ᶜ
+def coK2C4 : CGraph := (K2 ⊕g C4)ᶜ
 
 /-- The complement of `K₂` and a disjoint path of four. -/
-def coK2P4 : CGraph := (disjUnion K2 P4)ᶜ
+def coK2P4 : CGraph := (K2 ⊕g P4)ᶜ
 
 /-- The complement of `K₂` and a disjoint claw. -/
-def coK2Claw : CGraph := (disjUnion K2 claw)ᶜ
+def coK2Claw : CGraph := (K2 ⊕g claw)ᶜ
 
 /-- The complement of `K₂` and a disjoint paw. -/
-def coK2Paw : CGraph := (disjUnion K2 paw)ᶜ
+def coK2Paw : CGraph := (K2 ⊕g paw)ᶜ
 
 /-- The complement of `K₂` and a disjoint diamond. -/
-def coK2Diamond : CGraph := (disjUnion K2 diamond)ᶜ
+def coK2Diamond : CGraph := (K2 ⊕g diamond)ᶜ
 
 /-- The complement of two disjoint paths of three. -/
-def coP3P3 : CGraph := (disjUnion P3 P3)ᶜ
+def coP3P3 : CGraph := (P3 ⊕g P3)ᶜ
 
 /-- The complement of a path of three and a disjoint triangle. -/
-def coP3K3 : CGraph := (disjUnion P3 K3)ᶜ
+def coP3K3 : CGraph := (P3 ⊕g K3)ᶜ
 
 /-! ## The clique sums are unambiguous
 
