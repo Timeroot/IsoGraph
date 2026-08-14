@@ -813,17 +813,25 @@ attribute [simp] IsoGraph.cyclePendant_append_zero IsoGraph.thetaGraph_zero_zero
 
 Unlike the identities just above, these are not equalities of `CGraph`s: both sides are the same
 graph drawn with a different numbering of the vertices, so each one carries an explicit
-relabelling (`CGraph.foldAt`, `CGraph.rotTail`, `CGraph.swapZeroOne`, `finSumFinEquiv`). -/
+relabelling (`CGraph.foldAt`, `CGraph.rotTail`, `CGraph.swapZeroOne`, `finSumFinEquiv`).  The
+relabelling is a `def` on `CGraph`, so that it can be computed with, and `@[toIsoGraph]` turns each
+one into the equation of isomorphism classes. -/
 
-@[simp] theorem spider_pair (a b : ℕ) : spider [a, b] = path (1 + a + b) := by
-  rw [spider_def, path_def]
+end IsoGraph
+
+namespace CGraph
+
+/-- A spider with two legs is a path: fold the graph at the centre, so that one leg is numbered
+backwards from the far end. -/
+@[toIsoGraph simp spider_pair]
+def spiderPair (a b : ℕ) : spider [a, b] ≃cg path (1 + a + b) := by
   have hN : (1 : ℕ) + ([a, b] : List ℕ).sum = 1 + a + b := by simp [Nat.add_assoc]
   have hes : CGraph.spiderEdges 1 [a, b]
       = CGraph.legEdges 0 1 a ++ CGraph.legEdges 0 (1 + a) b := by
     simp [CGraph.spiderEdges]
   set E : (CGraph.spider [a, b]).V ≃ (CGraph.path (1 + a + b)).V :=
     (finCongr hN).trans (CGraph.foldAt a (1 + a + b) (by omega)) with hE
-  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  refine CGraph.isoOfAdj E ?_
   intro x y
   have hEz : ∀ z : (CGraph.spider [a, b]).V, (E z).1 = if z.1 ≤ a then a - z.1 else z.1 := by
     intro z; rw [hE]; rfl
@@ -837,15 +845,16 @@ relabelling (`CGraph.foldAt`, `CGraph.rotTail`, `CGraph.swapZeroOne`, `finSumFin
 
 attribute [simp] IsoGraph.thetaGraph_nil IsoGraph.thetaGraph_replicate_zero
 
-/-- A theta graph with a single path is a path. -/
-@[simp] theorem thetaGraph_singleton (k : ℕ) : thetaGraph [k] = path (k + 2) := by
+/-- A theta graph with a single path is a path: rotate the second pole to the far end. -/
+@[toIsoGraph simp thetaGraph_singleton]
+def thetaGraphSingleton (k : ℕ) : thetaGraph [k] ≃cg path (k + 2) := by
   rcases k with _ | k
-  · exact thetaGraph_replicate_zero 0 |>.trans (path_two).symm
-  rw [thetaGraph_def, path_def]
+  · show thetaGraph (List.replicate (0 + 1) 0) ≃cg path 2
+    rw [thetaGraph_replicate_zero, path_two]
   have hN : 2 + ([k + 1] : List ℕ).sum = k + 3 := by simp; omega
   set E : (CGraph.thetaGraph [k + 1]).V ≃ (CGraph.path (k + 1 + 2)).V :=
     (finCongr hN).trans (CGraph.rotTail (k + 3)) with hE
-  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  refine CGraph.isoOfAdj E ?_
   intro x y
   have hEz : ∀ z : (CGraph.thetaGraph [k + 1]).V,
       (E z).1 = if z.1 = 0 then 0 else if z.1 = 1 then k + 2 else z.1 - 1 := fun _ ↦ rfl
@@ -857,13 +866,15 @@ attribute [simp] IsoGraph.thetaGraph_nil IsoGraph.thetaGraph_replicate_zero
   simp only [CGraph.mem_thetaEdges_singleton]
   exact CGraph.rotTail_pair_iff k x.1 y.1 hx hy
 
-@[simp] theorem spider_replicate_one (n : ℕ) : spider (List.replicate n 1) = star n := by
-  rw [spider_def, star_def]
+/-- A spider all of whose legs have length one is a star: the centre keeps its number and the
+leaves follow it. -/
+@[toIsoGraph simp spider_replicate_one]
+def spiderReplicateOne (n : ℕ) : spider (List.replicate n 1) ≃cg star n := by
   have hN : (1 : ℕ) + (List.replicate n 1).sum = 1 + n := by simp
-  have key : (⟦CGraph.star n⟧ : IsoGraph) = ⟦CGraph.spider (List.replicate n 1)⟧ := by
-    set E : (CGraph.star n).V ≃ (CGraph.spider (List.replicate n 1)).V :=
+  refine RelIso.symm ?_
+  · set E : (CGraph.star n).V ≃ (CGraph.spider (List.replicate n 1)).V :=
       (finSumFinEquiv (m := 1) (n := n)).trans (finCongr hN.symm) with hE
-    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    refine CGraph.isoOfAdj E ?_
     have hl : ∀ a : (CGraph.complete 1).V, (E (Sum.inl a)).1 = a.1 := fun _ ↦ rfl
     have hr : ∀ b : (CGraph.complete n).V, (E (Sum.inr b)).1 = 1 + b.1 := fun _ ↦ rfl
     have hsp : ∀ u v : (CGraph.spider (List.replicate n 1)).V,
@@ -896,7 +907,10 @@ attribute [simp] IsoGraph.thetaGraph_nil IsoGraph.thetaGraph_replicate_zero
       have hb : b.1 < n := b.isLt
       simp only [CGraph.star, CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
       omega
-  exact key.symm
+
+end CGraph
+
+namespace IsoGraph
 
 /-- Every spider all of whose legs have length one is a star. -/
 theorem spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) : spider ks = star ks.length := by
@@ -911,14 +925,18 @@ theorem spider_of_all_one {ks : List ℕ} (h : ∀ k ∈ ks, k = 1) : spider ks 
 theorem star_two : star 2 = path 3 := by
   rw [← spider_replicate_one 2, show List.replicate 2 1 = [1, 1] from rfl, spider_pair]
 
+end IsoGraph
+
+namespace CGraph
+
 /-- A double star with no leaves on the second centre is a star. -/
-@[simp] theorem doubleStar_right_zero (m : ℕ) : doubleStar m 0 = star (m + 1) := by
-  rw [doubleStar_def, star_def]
+@[toIsoGraph simp doubleStar_right_zero]
+def doubleStarRightZero (m : ℕ) : doubleStar m 0 ≃cg star (m + 1) := by
   have hN : 1 + (m + 1) = 2 + m + 0 := by omega
-  have key : (⟦CGraph.star (m + 1)⟧ : IsoGraph) = ⟦CGraph.doubleStar m 0⟧ := by
-    set E : (CGraph.star (m + 1)).V ≃ (CGraph.doubleStar m 0).V :=
+  refine RelIso.symm ?_
+  · set E : (CGraph.star (m + 1)).V ≃ (CGraph.doubleStar m 0).V :=
       (finSumFinEquiv (m := 1) (n := m + 1)).trans (finCongr hN) with hE
-    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    refine CGraph.isoOfAdj E ?_
     have hl : ∀ a : (CGraph.complete 1).V, (E (Sum.inl a)).1 = a.1 := fun _ ↦ rfl
     have hr : ∀ b : (CGraph.complete (m + 1)).V, (E (Sum.inr b)).1 = 1 + b.1 := fun _ ↦ rfl
     have hds : ∀ u v : (CGraph.doubleStar m 0).V,
@@ -953,17 +971,17 @@ theorem star_two : star 2 = path 3 := by
       have hb : b.1 < m + 1 := b.isLt
       simp only [CGraph.star, CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
       omega
-  exact key.symm
 
-/-- A double star with no leaves on the first centre is a star. -/
-@[simp] theorem doubleStar_left_zero (n : ℕ) : doubleStar 0 n = star (n + 1) := by
-  rw [doubleStar_def, star_def]
+/-- A double star with no leaves on the first centre is a star: the two centres change places, so
+that the one carrying the leaves is numbered first. -/
+@[toIsoGraph simp doubleStar_left_zero]
+def doubleStarLeftZero (n : ℕ) : doubleStar 0 n ≃cg star (n + 1) := by
   have hN : 1 + (n + 1) = 2 + 0 + n := by omega
-  have key : (⟦CGraph.star (n + 1)⟧ : IsoGraph) = ⟦CGraph.doubleStar 0 n⟧ := by
-    set E : (CGraph.star (n + 1)).V ≃ (CGraph.doubleStar 0 n).V :=
+  refine RelIso.symm ?_
+  · set E : (CGraph.star (n + 1)).V ≃ (CGraph.doubleStar 0 n).V :=
       ((finSumFinEquiv (m := 1) (n := n + 1)).trans (finCongr hN)).trans
         (CGraph.swapZeroOne (2 + 0 + n) (by omega)) with hE
-    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    refine CGraph.isoOfAdj E ?_
     have hl : ∀ a : (CGraph.complete 1).V, (E (Sum.inl a)).1 = 1 := by
       intro a
       have ha : a.1 = 0 := Nat.lt_one_iff.mp a.isLt
@@ -1025,17 +1043,16 @@ theorem star_two : star 2 = path 3 := by
         omega
       · rw [if_neg (by omega : ¬ a.1 = 0), if_neg (by omega : ¬ b.1 = 0)]
         omega
-  exact key.symm
 
 attribute [simp] IsoGraph.cyclePendant_singleton_one
 
-/-- A theta graph with two paths is a cycle. -/
-@[simp] theorem thetaGraph_pair (a b : ℕ) : thetaGraph [a, b] = cycle (2 + a + b) := by
-  rw [thetaGraph_def, cycle_def]
+/-- A theta graph with two paths is a cycle: the two paths are laid end to end. -/
+@[toIsoGraph simp thetaGraph_pair]
+def thetaGraphPair (a b : ℕ) : thetaGraph [a, b] ≃cg cycle (2 + a + b) := by
   have hN : 2 + ([a, b] : List ℕ).sum = 2 + a + b := by simp; omega
   set E : (CGraph.thetaGraph [a, b]).V ≃ (CGraph.cycle (2 + a + b)).V :=
     (finCongr hN).trans (CGraph.thetaCyclePerm a b) with hE
-  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  refine CGraph.isoOfAdj E ?_
   intro x y
   have hEz : ∀ z : (CGraph.thetaGraph [a, b]).V,
       (E z).1 = CGraph.thetaCycleFwd a b z.1 := fun _ ↦ rfl
@@ -1050,11 +1067,11 @@ attribute [simp] IsoGraph.cyclePendant_singleton_one
   exact CGraph.thetaCycle_adj_iff a b x.1 y.1 hx hy
 
 /-- The two ends of a double star can be exchanged. -/
-theorem doubleStar_comm (m n : ℕ) : doubleStar m n = doubleStar n m := by
-  rw [doubleStar_def, doubleStar_def]
+@[toIsoGraph doubleStar_comm]
+def doubleStarComm (m n : ℕ) : doubleStar m n ≃cg doubleStar n m := by
   set E : (CGraph.doubleStar m n).V ≃ (CGraph.doubleStar n m).V :=
     CGraph.doubleStarSwap m n with hE
-  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  refine CGraph.isoOfAdj E ?_
   intro x y
   have hx : x.1 < 2 + m + n := x.isLt
   have hy : y.1 < 2 + m + n := y.isLt
@@ -1065,6 +1082,10 @@ theorem doubleStar_comm (m n : ℕ) : doubleStar m n = doubleStar n m := by
   split_ifs <;>
     (try simp only [false_and, false_or, true_and, and_true, or_false, true_or, or_true,
       or_self]) <;> omega
+
+end CGraph
+
+namespace IsoGraph
 
 /-- Two adjacent paths of a theta graph may be exchanged. -/
 theorem thetaGraph_swap (pre post : List ℕ) (a b : ℕ) :
@@ -1114,16 +1135,20 @@ theorem thetaGraph_perm {xs ys : List ℕ} (h : xs.Perm ys) : thetaGraph xs = th
 theorem thetaGraph_pair_comm (a b : ℕ) : thetaGraph [a, b] = thetaGraph [b, a] :=
   thetaGraph_perm (List.Perm.swap b a [])
 
+end IsoGraph
+
+namespace CGraph
+
 /-- A theta graph all of whose paths have a single internal vertex is the complete bipartite
 graph `K_{2,n}`: the two poles on one side, the `n` midpoints on the other. -/
-@[simp] theorem thetaGraph_replicate_one (n : ℕ) :
-    thetaGraph (List.replicate n 1) = bipartite 2 n := by
-  rw [thetaGraph_def, bipartite_def]
+@[toIsoGraph simp thetaGraph_replicate_one]
+def thetaGraphReplicateOne (n : ℕ) :
+    thetaGraph (List.replicate n 1) ≃cg bipartite 2 n := by
   have hN : (2 : ℕ) + (List.replicate n 1).sum = 2 + n := by simp
-  have key : (⟦CGraph.bipartite 2 n⟧ : IsoGraph) = ⟦CGraph.thetaGraph (List.replicate n 1)⟧ := by
-    set E : (CGraph.bipartite 2 n).V ≃ (CGraph.thetaGraph (List.replicate n 1)).V :=
+  refine RelIso.symm ?_
+  · set E : (CGraph.bipartite 2 n).V ≃ (CGraph.thetaGraph (List.replicate n 1)).V :=
       (finSumFinEquiv (m := 2) (n := n)).trans (finCongr hN.symm) with hE
-    refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+    refine CGraph.isoOfAdj E ?_
     have hl : ∀ a : (CGraph.complete 2).V, (E (Sum.inl a)).1 = a.1 := fun _ ↦ rfl
     have hr : ∀ b : (CGraph.complete n).V, (E (Sum.inr b)).1 = 2 + b.1 := fun _ ↦ rfl
     have hth : ∀ u v : (CGraph.thetaGraph (List.replicate n 1)).V,
@@ -1155,7 +1180,10 @@ graph `K_{2,n}`: the two poles on one side, the `n` midpoints on the other. -/
       have hb : b.1 < n := b.isLt
       simp only [CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
       omega
-  exact key.symm
+
+end CGraph
+
+namespace IsoGraph
 
 /-- Every theta graph whose paths all have a single internal vertex is complete bipartite. -/
 theorem thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) :
@@ -1163,13 +1191,17 @@ theorem thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) :
   obtain ⟨n, rfl⟩ : ∃ n, xs = List.replicate n 1 := ⟨xs.length, List.eq_replicate_iff.2 ⟨rfl, h⟩⟩
   rw [thetaGraph_replicate_one, List.length_replicate]
 
+end IsoGraph
+
+namespace CGraph
+
 /-- A tadpole whose cycle is `C₂` — a single edge — is a path.  The relabelling swaps the two
 vertices of the cycle, so that the tail leaves from the far end. -/
-@[simp] theorem tadpole_two (k : ℕ) : tadpole 2 k = path (2 + k) := by
-  rw [tadpole_def, path_def]
+@[toIsoGraph simp tadpole_two]
+def tadpoleTwo (k : ℕ) : tadpole 2 k ≃cg path (2 + k) := by
   set E : (CGraph.tadpole 2 k).V ≃ (CGraph.path (2 + k)).V :=
     CGraph.swapZeroOne (2 + k) (by omega) with hE
-  refine Quotient.sound ⟨CGraph.isoOfAdj E ?_⟩
+  refine CGraph.isoOfAdj E ?_
   intro x y
   have hx : x.1 < 2 + k := x.isLt
   have hy : y.1 < 2 + k := y.isLt
@@ -1182,6 +1214,10 @@ vertices of the cycle, so that the tail leaves from the far end. -/
   -- `simp_all` substitutes the branch hypotheses `x.1 = 0`, `x.1 = 1`, … into the membership
   -- disjunctions, which prunes most of them before `omega` has to case on them.
   split_ifs <;> (try simp_all) <;> omega
+
+end CGraph
+
+namespace IsoGraph
 
 /-- A lollipop whose clique is `K₂` is a path. -/
 @[simp] theorem lollipop_two (k : ℕ) : lollipop 2 k = path (2 + k) := by
@@ -1502,16 +1538,27 @@ theorem rook_one_right (m : ℕ) : rook m 1 = complete m := by
 
 theorem rook_comm (m n : ℕ) : rook m n = rook n m := cartesianProduct_comm _ _
 
+end IsoGraph
+
+namespace CGraph
+
+/-- The `2 × 2` rook's graph is the square: read the four squares of the board off in cyclic
+order. -/
+def rookTwoTwo : rook 2 2 ≃cg cycle 4 :=
+  isoOfAdj
+    (⟨fun p ↦ if p.1 = 0 then (if p.2 = 0 then 0 else 1) else (if p.2 = 0 then 3 else 2),
+      ![(0, 0), (0, 1), (1, 1), (1, 0)], by decide, by decide⟩ : (Fin 2 × Fin 2) ≃ Fin 4)
+    (by decide)
+
+end CGraph
+
+namespace IsoGraph
+
 /-- The `2 × 2` rook's graph is the square. -/
 theorem rook_two_two : rook 2 2 = cycle 4 := by
   show complete 2 □g complete 2 = cycle 4
-  rw [complete_def, cartesianProduct_mk, cycle_def]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.complete 2 □g CGraph.complete 2)
-    (H := CGraph.cycle 4)
-    (⟨fun p ↦ if p.1 = 0 then (if p.2 = 0 then 0 else 1) else (if p.2 = 0 then 3 else 2),
-      ![(0, 0), (0, 1), (1, 1), (1, 0)], by decide, by decide⟩ : (Fin 2 × Fin 2) ≃ Fin 4)
-    (by decide)⟩
+  simp only [isoTransfer]
+  exact Quotient.sound ⟨CGraph.rookTwoTwo⟩
 
 /-- The complement of the rook's graph is the tensor product of the two complete graphs.  This one
 is written out rather than generated: `rook` is an abbreviation for a cartesian product, and
@@ -1558,18 +1605,28 @@ theorem rook_two_three : rook 2 3 = prism 3 := by
   show complete 2 □g complete 3 = cycle 3 □g complete 2
   rw [cycle_three, cartesianProduct_comm]
 
+end IsoGraph
+
+namespace CGraph
+
 /-- The complement of the hexagon is the triangular prism: `i ~ i + 2` gives the two triangles and
 `i ~ i + 3` the matching between them. -/
-theorem compl_cycle_six : (cycle 6)ᶜ = prism 3 := by
-  show (cycle 6)ᶜ = cycle 3 □g complete 2
-  rw [cycle_def, compl_mk, cycle_def, complete_def, cartesianProduct_mk]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := (CGraph.cycle 6)ᶜ)
-    (H := CGraph.cycle 3 □g CGraph.complete 2)
+def complCycleSix : (cycle 6)ᶜ ≃cg prism 3 :=
+  isoOfAdj
     (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
       fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :
         Fin 6 ≃ (Fin 3 × Fin 2))
-    (by decide)⟩
+    (by decide)
+
+end CGraph
+
+namespace IsoGraph
+
+/-- The complement of the hexagon is the triangular prism. -/
+theorem compl_cycle_six : (cycle 6)ᶜ = prism 3 := by
+  show (cycle 6)ᶜ = cycle 3 □g complete 2
+  simp only [isoTransfer]
+  exact Quotient.sound ⟨CGraph.complCycleSix⟩
 
 theorem compl_prism_three : (prism 3)ᶜ = cycle 6 := by
   rw [← compl_cycle_six, compl_compl]
@@ -2111,3 +2168,4 @@ def VHom : IsoGraph →+* ℕ where
 end Semiring
 
 end IsoGraph
+

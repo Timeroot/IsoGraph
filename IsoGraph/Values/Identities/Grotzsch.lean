@@ -54,23 +54,32 @@ theorem grotzsch_ne_petersen : grotzsch ≠ petersen := by
 /-! ### Möbius ladders
 
 `circulant (2 * m) [1, m]` is the Möbius ladder: a `2m`-cycle with every pair of opposite
-vertices joined.  The two smallest ones are graphs we already know. -/
+vertices joined.  The two smallest ones are graphs we already know.
+
+Both live on `CGraph` first: the four-vertex one is an equality of graphs, since the two sides
+carry the same adjacency on the same `Fin 4`, and the six-vertex one is a genuine relabelling. -/
+
+end IsoGraph
+
+namespace CGraph
 
 /-- The two-rung Möbius ladder is `K₄`: the square plus both diagonals. -/
-theorem circulant_four_one_two : circulant 4 [1, 2] = complete 4 := by
-  rw [circulant_def, complete_def]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.circulant 4 [1, 2]) (H := CGraph.complete 4) (Equiv.refl (Fin 4)) (by decide)⟩
+@[toIsoGraph]
+theorem circulant_four_one_two : circulant 4 [1, 2] = complete 4 :=
+  ext' rfl (heq_of_eq (by decide))
 
 /-- The three-rung Möbius ladder is `K_{3,3}`: the hexagon's odd differences are exactly `1`,
 `3` and `5`, so every even vertex meets every odd one. -/
-theorem circulant_six_one_three : circulant 6 [1, 3] = bipartite 3 3 := by
-  rw [circulant_def, bipartite_def]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.circulant 6 [1, 3]) (H := CGraph.bipartite 3 3)
+@[toIsoGraph circulant_six_one_three]
+def circulantSixOneThree : circulant 6 [1, 3] ≃cg bipartite 3 3 :=
+  isoOfAdj
     (⟨![.inl 0, .inr 0, .inl 1, .inr 1, .inl 2, .inr 2],
       Sum.elim ![0, 2, 4] ![1, 3, 5], by decide, by decide⟩ : Fin 6 ≃ (Fin 3 ⊕ Fin 3))
-    (by decide)⟩
+    (by decide)
+
+end CGraph
+
+namespace IsoGraph
 
 /-- The three-rung Möbius ladder is bipartite, unlike every other one. -/
 @[simp] theorem isBipartite_circulant_six_one_three : IsBipartite (circulant 6 [1, 3]) := by
@@ -284,42 +293,54 @@ theorem isSelfComplementary_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 
 @[simp] theorem compl_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     (paley q)ᶜ = paley q := isSelfComplementary_paley q hq
 
+end IsoGraph
+
+namespace CGraph
+
+/-- Dropping the diameters from `C₆` leaves the complement of a perfect matching. -/
+theorem circulant_six_one_two_eq_compl : circulant 6 [1, 2] = (circulant 6 [3])ᶜ :=
+  ext' rfl (heq_of_eq (by decide))
+
+/-- The octahedron as a circulant: the complement of a perfect matching is the three-pair cocktail
+party graph. -/
+noncomputable def circulantSixOneTwo : circulant 6 [1, 2] ≃cg cocktailParty 3 := by
+  rw [circulant_six_one_two_eq_compl, ← compl_compl (cocktailParty 3)]
+  exact Iso.compl (complCocktailPartyEqCirculant 2).symm
+
+/-- The triangular prism as a circulant: the even and odd residues each span a triangle and the
+diameters match them up. -/
+def circulantSixTwoThree : circulant 6 [2, 3] ≃cg prism 3 :=
+  isoOfAdj
+    (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
+      fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :
+        Fin 6 ≃ (Fin 3 × Fin 2))
+    (by decide)
+
+/-- The three-vertex fan is the two-page book: both are `K₄` with one edge removed. -/
+noncomputable def fanThree : fan 3 ≃cg book 2 :=
+  (isoOfAdj
+    (⟨Sum.elim ![.inl 0] ![.inr 0, .inl 1, .inr 1],
+      Sum.elim ![.inl 0, .inr 1] ![.inr 0, .inr 2], by decide, by decide⟩ :
+        (Fin 1 ⊕ Fin 3) ≃ (Fin 2 ⊕ Fin 2))
+    (by decide) : fan 3 ≃cg complete 2 ∇g empty 2).trans (bookEqJoin 2).symm
+
+end CGraph
+
+namespace IsoGraph
+
 /-- The octahedron as a circulant: dropping the diameters from `C₆` leaves the complement of a
 perfect matching, which is the three-pair cocktail party graph. -/
 theorem circulant_six_one_two : circulant 6 [1, 2] = cocktailParty 3 := by
-  have h : (cocktailParty 3)ᶜ = circulant 6 [3] := by
-    simpa using compl_cocktailParty_eq_circulant 2
-  have h2 : circulant 6 [1, 2] = (circulant 6 [3])ᶜ := by
-    rw [circulant_def, circulant_def, compl_mk]
-    exact Quotient.sound ⟨CGraph.isoOfAdj
-      (G := CGraph.circulant 6 [1, 2]) (H := (CGraph.circulant 6 [3])ᶜ)
-      (Equiv.refl (Fin 6)) (by decide)⟩
-  rw [h2, ← h, compl_compl]
+  simp only [isoTransfer]; exact Quotient.sound ⟨CGraph.circulantSixOneTwo⟩
 
 /-- The triangular prism as a circulant: the even and odd residues each span a triangle and the
 diameters match them up. -/
 theorem circulant_six_two_three : circulant 6 [2, 3] = prism 3 := by
-  rw [circulant_def, prism, cycle_def, complete_def, cartesianProduct_mk]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.circulant 6 [2, 3])
-    (H := CGraph.cycle 3 □g CGraph.complete 2)
-    (⟨![(0, 0), (2, 1), (1, 0), (0, 1), (2, 0), (1, 1)],
-      fun p ↦ ![![0, 3], ![2, 5], ![4, 1]] p.1 p.2, by decide, by decide⟩ :
-        Fin 6 ≃ (Fin 3 × Fin 2))
-    (by decide)⟩
+  simp only [isoTransfer]; exact Quotient.sound ⟨CGraph.circulantSixTwoThree⟩
 
 /-- The three-vertex fan is the two-page book: both are `K₄` with one edge removed. -/
 theorem fan_three : fan 3 = book 2 := by
-  rw [book_eq_join]
-  show complete 1 ∇g path 3 = complete 2 ∇g empty 2
-  rw [complete_def, path_def, join_mk, complete_def, empty_def, join_mk]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.complete 1 ∇g CGraph.path 3)
-    (H := CGraph.complete 2 ∇g CGraph.empty 2)
-    (⟨Sum.elim ![.inl 0] ![.inr 0, .inl 1, .inr 1],
-      Sum.elim ![.inl 0, .inr 1] ![.inr 0, .inr 2], by decide, by decide⟩ :
-        (Fin 1 ⊕ Fin 3) ≃ (Fin 2 ⊕ Fin 2))
-    (by decide)⟩
+  simp only [isoTransfer]; exact Quotient.sound ⟨CGraph.fanThree⟩
 
 /-- **A complete graph of even order is class one.**  Label the vertices by `ℤ/(2m+3)` together
 with an extra point; colour the edge `{i, j}` by `i + j` and the edge from the extra point to `i`

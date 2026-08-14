@@ -81,10 +81,15 @@ is complete. -/
     exact ⟨c, hcentre e, hcentre f⟩
   rw [star_def, lineGraph_mk, mk_eq_complete h, CGraph.card_lineGraph, CGraph.E_star]
 
+end IsoGraph
+
+namespace CGraph
+
 /-- **The line graph of a complete graph is the triangular graph.**  An edge of `Kₙ` is a
 two-element subset of `Fin n`, and two distinct such subsets meet exactly when they meet in
 *one* point — which is the adjacency of `J(n, 2)`. -/
-@[simp] theorem lineGraph_complete (n : ℕ) : lineGraph (complete n) = johnson n 2 := by
+@[toIsoGraph simp lineGraph_complete]
+noncomputable def lineGraphComplete (n : ℕ) : lineGraph (complete n) ≃cg johnson n 2 := by
   have hcard : ∀ e : (CGraph.lineGraph (CGraph.complete n)).V,
       (e.1 : Sym2 (Fin n)).toFinset.card = 2 := by
     rintro ⟨e, he⟩
@@ -158,8 +163,11 @@ two-element subset of `Fin n`, and two distinct such subsets meet exactly when t
             Finset.eq_of_subset_of_card_le Finset.inter_subset_right (by rw [htwo, (F f).2])
           exact hef (hinj (Subtype.ext (h1.symm.trans h2)))
         omega
-  rw [complete_def, lineGraph_mk, johnson_def]
-  exact Quotient.sound ⟨CGraph.isoOfAdj (Equiv.ofBijective F ⟨hinj, hsurj⟩) hadj⟩
+  exact isoOfAdj (Equiv.ofBijective F ⟨hinj, hsurj⟩) hadj
+
+end CGraph
+
+namespace IsoGraph
 
 /-- The same statement under the other name for `J(n, 2)`. -/
 theorem lineGraph_complete_eq_triangular (n : ℕ) : lineGraph (complete n) = triangular n :=
@@ -1130,6 +1138,14 @@ theorem lineGraph_complete_three : lineGraph (complete 3) = complete 3 := by
 @[simp] theorem lineGraph_complete_four : lineGraph (complete 4) = cocktailParty 3 := by
   rw [lineGraph_complete_eq_triangular, triangular_four]
 
+end IsoGraph
+
+namespace CGraph
+
+/-! The line graphs of the cycle, the path and the complete bipartite graph are all read off an
+explicit bijection between the edges of the one graph and the vertices of the other, so they are
+`def`s here and `@[toIsoGraph]` states them on the quotient. -/
+
 /-- Successor mod `n + 3`, the "next vertex" map along the cycle. -/
 private def cyc (n : ℕ) (i : Fin (n + 3)) : Fin (n + 3) :=
   ⟨(i.1 + 1) % (n + 3), Nat.mod_lt _ (by omega)⟩
@@ -1205,7 +1221,8 @@ private theorem cycEdge_inj (n : ℕ) : Function.Injective (cycEdge n) := by
 /-- **The cycle is its own line graph**, for `n ≥ 3`.  The edges of `Cₙ` are the consecutive pairs
 `{i, i+1}`, and two of them share a vertex exactly when their indices are consecutive.  Injectivity
 is where `n ≥ 3` enters: for `n = 2` the two "edges" `{0, 1}` and `{1, 0}` coincide. -/
-@[simp] theorem lineGraph_cycle (n : ℕ) : lineGraph (cycle (n + 3)) = cycle (n + 3) := by
+@[toIsoGraph simp lineGraph_cycle]
+noncomputable def lineGraphCycle (n : ℕ) : lineGraph (cycle (n + 3)) ≃cg cycle (n + 3) := by
   have hcard : Fintype.card (Fin (n + 3))
       = Fintype.card (CGraph.lineGraph (CGraph.cycle (n + 3))).V := by
     rw [CGraph.card_lineGraph, CGraph.E_cycle, Fintype.card_fin]
@@ -1231,12 +1248,11 @@ is where `n ≥ 3` enters: for `n = 2` the two "edges" `{0, 1}` and `{1, 0}` coi
       · rintro (h | h)
         · exact ⟨j, (mem_cycEdge n j i).2 (Or.inr h.symm), (mem_cycEdge n j j).2 (Or.inl rfl)⟩
         · exact ⟨i, (mem_cycEdge n i i).2 (Or.inl rfl), (mem_cycEdge n i j).2 (Or.inr h.symm)⟩
-  rw [cycle_def, lineGraph_mk]
-  exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (cycEdge n) hbij) hadj).symm⟩
+  exact (isoOfAdj (Equiv.ofBijective (cycEdge n) hbij) hadj).symm
 
 /-- Path adjacency at the level of the underlying naturals.  Note that `i ≠ j` is implied by
 either disjunct, so it drops out. -/
-private theorem path_adj_val (n : ℕ) (i j : Fin n) :
+private theorem path_adj_nat (n : ℕ) (i j : Fin n) :
     (CGraph.path n).Adj i j = decide (i.1 + 1 = j.1 ∨ j.1 + 1 = i.1) := by
   show (decide (i ≠ j) && ((i.1 + 1 == j.1) || (j.1 + 1 == i.1))) = _
   by_cases h : i = j
@@ -1246,7 +1262,7 @@ private theorem path_adj_val (n : ℕ) (i j : Fin n) :
 
 private theorem pathEdge_adj (n : ℕ) (i : Fin n) :
     s(i.castSucc, i.succ) ∈ (CGraph.path (n + 1)).toSimple.edgeSet := by
-  rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, path_adj_val]
+  rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, path_adj_nat]
   exact decide_eq_true (Or.inl (by simp))
 
 /-- The `i`-th edge of the path `0 — 1 — ⋯ — n`. -/
@@ -1268,7 +1284,8 @@ private theorem pathEdge_inj (n : ℕ) : Function.Injective (pathEdge n) := by
 
 /-- **The line graph of a path is the shorter path**: `L(Pₙ₊₁) = Pₙ`.  Unlike the cycle this needs
 no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
-@[simp] theorem lineGraph_path (n : ℕ) : lineGraph (path (n + 1)) = path n := by
+@[toIsoGraph simp lineGraph_path]
+noncomputable def lineGraphPath (n : ℕ) : lineGraph (path (n + 1)) ≃cg path n := by
   have hcard : Fintype.card (Fin n)
       = Fintype.card (CGraph.lineGraph (CGraph.path (n + 1))).V := by
     rw [CGraph.card_lineGraph, CGraph.E_path, Fintype.card_fin]
@@ -1278,7 +1295,7 @@ no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
       (CGraph.lineGraph (CGraph.path (n + 1))).Adj (pathEdge n i) (pathEdge n j)
         = (CGraph.path n).Adj i j := by
     intro i j
-    rw [CGraph.lineGraph_adj, path_adj_val]
+    rw [CGraph.lineGraph_adj, path_adj_nat]
     by_cases hij : i = j
     · subst hij; simp
     · have hval : i.1 ≠ j.1 := fun h ↦ hij (Fin.ext h)
@@ -1296,8 +1313,7 @@ no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
             (mem_pathEdge n _ j).2 (Or.inl (Fin.ext (by simpa using h)))⟩
         · exact ⟨i.castSucc, (mem_pathEdge n _ i).2 (Or.inl rfl),
             (mem_pathEdge n _ j).2 (Or.inr (Fin.ext (by simpa using h.symm)))⟩
-  rw [path_def, lineGraph_mk]
-  exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (pathEdge n) hbij) hadj).symm⟩
+  exact (isoOfAdj (Equiv.ofBijective (pathEdge n) hbij) hadj).symm
 
 private theorem bipartiteEdge_adj (m n : ℕ) (p : Fin m × Fin n) :
     s(Sum.inl p.1, Sum.inr p.2) ∈ (CGraph.bipartite m n).toSimple.edgeSet := by
@@ -1324,7 +1340,7 @@ private theorem bipartiteEdge_inj (m n : ℕ) : Function.Injective (bipartiteEdg
 /-- **The line graph of a complete bipartite graph is the rook's graph**: `L(K_{m,n}) = Kₘ □ Kₙ`.
 An edge of `K_{m,n}` *is* a square `(i, j)` of the `m × n` board, and two squares share a vertex
 exactly when they share a row or a column. -/
-@[simp] theorem lineGraph_bipartite (m n : ℕ) : lineGraph (bipartite m n) = rook m n := by
+noncomputable def lineGraphBipartite (m n : ℕ) : lineGraph (bipartite m n) ≃cg rook m n := by
   have hcard : Fintype.card (Fin m × Fin n)
       = Fintype.card (CGraph.lineGraph (CGraph.bipartite m n)).V := by
     rw [CGraph.card_lineGraph, CGraph.E_bipartite, Fintype.card_prod, Fintype.card_fin,
@@ -1357,11 +1373,20 @@ exactly when they share a row or a column. -/
             (mem_bipartiteEdge m n _ q).2 (Or.inl (by rw [h]))⟩
         · exact ⟨Sum.inr p.2, (mem_bipartiteEdge m n _ p).2 (Or.inr rfl),
             (mem_bipartiteEdge m n _ q).2 (Or.inr (by rw [h]))⟩
-  have hrook : (rook m n : IsoGraph) = ⟦CGraph.rook m n⟧ := by
-    rw [show (rook m n : IsoGraph) = complete m □g complete n from rfl,
-      complete_def, complete_def, cartesianProduct_mk]
-  rw [bipartite_def, lineGraph_mk, hrook]
-  exact Quotient.sound ⟨(CGraph.isoOfAdj (Equiv.ofBijective (bipartiteEdge m n) hbij) hadj).symm⟩
+  exact (isoOfAdj (Equiv.ofBijective (bipartiteEdge m n) hbij) hadj).symm
+
+end CGraph
+
+namespace IsoGraph
+
+/-- **The line graph of a complete bipartite graph is the rook's graph**: `L(K_{m,n}) = Kₘ □ Kₙ`.
+This one is restated by hand: `rook` is an abbreviation for a cartesian product, and
+`@[toIsoGraph]` would state it for the product and leave the later rewrites with no `rook` to
+find. -/
+@[simp] theorem lineGraph_bipartite (m n : ℕ) : lineGraph (bipartite m n) = rook m n := by
+  show lineGraph (bipartite m n) = complete m □g complete n
+  simp only [isoTransfer]
+  exact Quotient.sound ⟨CGraph.lineGraphBipartite m n⟩
 
 @[simp] theorem mycielskian_empty_zero : mycielskian (empty 0) = empty 1 := by
   have h : ∀ x y : (CGraph.mycielskian (CGraph.empty 0)).V,
@@ -1371,7 +1396,11 @@ exactly when they share a row or a column. -/
   rw [empty_def, mycielskian_mk, mk_eq_empty h]
   simp
 
-/-- Relabelling for `mycielskian_empty`: the apex becomes the centre of the star, the shadow
+end IsoGraph
+
+namespace CGraph
+
+/-- Relabelling for `mycielskianEmpty`: the apex becomes the centre of the star, the shadow
 vertices become its leaves, and the original vertices are the isolated part. -/
 private def mycielskianEmptyEquiv (n : ℕ) :
     (Fin 1 ⊕ Fin n) ⊕ Fin n ≃ Option (Fin n ⊕ Fin n) where
@@ -1392,10 +1421,10 @@ private def mycielskianEmptyEquiv (n : ℕ) :
 
 /-- The Mycielskian of an edgeless graph: the apex together with the `n` shadow vertices forms a
 star, and the `n` original vertices stay isolated. -/
-theorem mycielskian_empty (n : ℕ) :
-    mycielskian (empty n) = star n ⊕g empty n := by
-  rw [empty_def, mycielskian_mk, star_def, disjUnion_mk]
-  refine Quotient.sound ⟨(CGraph.isoOfAdj
+@[toIsoGraph mycielskian_empty]
+def mycielskianEmpty (n : ℕ) :
+    mycielskian (empty n) ≃cg star n ⊕g empty n :=
+  (CGraph.isoOfAdj
     (G := CGraph.star n ⊕g CGraph.empty n)
     (H := CGraph.mycielskian (CGraph.empty n))
     (mycielskianEmptyEquiv n)
@@ -1418,21 +1447,24 @@ theorem mycielskian_empty (n : ℕ) :
       · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inl i)) (some (.inr i')) = _
         simp [CGraph.star]
       · show (CGraph.mycielskian (CGraph.empty n)).Adj (some (.inl i)) (some (.inl i')) = _
-        simp [CGraph.star])).symm⟩
+        simp [CGraph.star])).symm
 
 /-- **The Mycielskian of `K₂` is the 5-cycle**: two vertices, their two shadows and the apex,
 strung together as `u₀ — u₁ — w₀ — z — w₁ — u₀`. -/
-theorem mycielskian_complete_two : mycielskian (complete 2) = cycle 5 := by
-  rw [complete_def, mycielskian_mk, cycle_def]
-  exact Quotient.sound ⟨CGraph.isoOfAdj
-    (G := CGraph.mycielskian (CGraph.complete 2)) (H := CGraph.cycle 5)
+@[toIsoGraph mycielskian_complete_two]
+def mycielskianCompleteTwo : mycielskian (complete 2) ≃cg cycle 5 :=
+  isoOfAdj
     (⟨fun x ↦ match x with
         | none => 3
         | some (.inl a) => if a = 0 then 0 else 1
         | some (.inr a) => if a = 0 then 2 else 4,
       ![some (.inl 0), some (.inl 1), some (.inr 0), none, some (.inr 1)],
       by decide, by decide⟩ : Option (Fin 2 ⊕ Fin 2) ≃ Fin 5)
-    (by decide)⟩
+    (by decide)
+
+end CGraph
+
+namespace IsoGraph
 
 /-! ### Bipartiteness of the Mycielskian
 
