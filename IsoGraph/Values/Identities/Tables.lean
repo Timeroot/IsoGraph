@@ -35,17 +35,6 @@ The line graph turns a graph's edges into vertices, so the identities here are c
 rather than `V`: `lineGraph (star n)` is complete on `E (star n) = n` vertices, and
 `lineGraph (complete n)` is the triangular graph `T(n) = J(n, 2)` on `C(n, 2)` of them. -/
 
-/-- **The line graph of a disjoint union is the disjoint union of the line graphs.** -/
-@[simp] theorem lineGraph_disjUnion (G H : IsoGraph) :
-    lineGraph (G ⊕g H) = lineGraph G ⊕g lineGraph H := by
-  induction G using Quotient.inductionOn with
-  | h g =>
-    induction H using Quotient.inductionOn with
-    | h h =>
-      rw [← mk_canonicalize g, ← mk_canonicalize h, disjUnion_mk, lineGraph_mk, lineGraph_mk,
-        lineGraph_mk, disjUnion_mk]
-      exact Quotient.sound ⟨CGraph.Iso.lineGraphDisjUnion _ _⟩
-
 @[simp] theorem lineGraph_empty (n : ℕ) : lineGraph (empty n) = empty 0 := by
   have hbot : (CGraph.empty n).toSimple = ⊥ := by
     ext a b

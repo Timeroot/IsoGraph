@@ -708,6 +708,7 @@ def lineGraph (i : G ≃cg G') :
 The forward map `sumEdge` is injective, and both sides have `E G + E H` vertices, so
 `Fintype.bijective_iff_injective_and_card` makes it a bijection and `equivOfBijective` inverts
 it by search. -/
+@[toIsoGraph simp lineGraph_disjUnion]
 def lineGraphDisjUnion (G H : CGraph) :
     CGraph.lineGraph (G ⊕g H) ≃cg
       CGraph.lineGraph G ⊕g CGraph.lineGraph H := by
