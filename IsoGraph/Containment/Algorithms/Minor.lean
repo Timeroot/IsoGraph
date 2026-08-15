@@ -29,17 +29,31 @@ being built, the sets already finished, and the vertices of `G` still unused.  T
   it and must come in the canonical order described below, or start the next set with `v`;
 * `stop` — declare the current set finished.
 
-`stop` is where the pruning lives, because a finished set is the last chance to reject it:
+`stop` is where most of the pruning lives, because a finished set is the last chance to reject it:
 
 * every finished set that `H` requires to be adjacent to this one must actually have an edge to
   it — the sets are complete, so this test is final;
-* if the vertex just finished still has `H`-neighbours waiting for sets, the set must have an edge
-  to *some* still-unused vertex, since that is where those sets have to come from;
 * there must be at least as many unused vertices left as there are vertices of `H` left, since the
-  branch sets are disjoint and nonempty.
+  branch sets are disjoint and nonempty;
+* each vertex of `H` still waiting for a set and adjacent to the one just finished must put a
+  vertex of its own set next to this one, and those vertices are all different because the branch
+  sets are (`MinorSearch.countP_le_flatMap`).  So the finished set needs at least that many unused
+  neighbours.  In a host of maximum degree `d` this alone rules out every set of size `k` with
+  fewer than `deg_H x` boundary vertices, which is what makes `K5` in a cubic graph cheap.
+
+Starting a set is pruned too:
+
+* `MinorSearch.attOf` — the seed must be adjacent to the branch set of the last-placed neighbour
+  of its vertex, if there is one.  The seed is the least vertex of the set, so it can be pinned
+  down only up to which finished set it has to touch, and this is the one the search knows about;
+* `MinorSearch.feasibleSeed` — a set that must touch the new one is confined to the component of
+  the seed in what is left (`CGraph.seedReach`), so if from there it cannot reach the finished sets
+  it is also required to touch, the seed is hopeless.  This is what stops the search from starting
+  a set in a corner of the host it can never get back from.
 
 Two counting tests, `card H.V ≤ card G.V` and `H.E ≤ G.E`, reject hopeless pairs before the search
-starts.
+starts, and `CGraph.hsOrder` places the vertices of `H` in an order that keeps them connected as
+they go, so that the seed rules above have something to bite on as early as possible.
 
 The whole thing runs on `Backtrack.dfs` with `α = Unit` and the state itself for the value, over a
 `todo` of fixed length `card G.V + card H.V` — the largest number of moves a successful run can
@@ -57,21 +71,31 @@ A set of size `k` has `k!` orders, so enumerating orders rather than sets would 
 `rank v` of a vertex in the roster as a tie-break: a vertex may be added to `u :: T` only when
 
 * it is adjacent to something already there — the connectivity requirement;
-* it does not come before the vertex `T.getLastD u` the set was seeded at, which forces the seed
-  to be the least vertex of the finished set;
+* if it could have been the seed at all, it does not come before the vertex `T.getLastD u` the set
+  actually was seeded at — this forces the seed to be the least vertex that the seed rule allows,
+  not the least vertex outright, which is what lets `MinorSearch.attOf` restrict the seed to the
+  neighbourhood of an already-placed set;
 * it does not come before the previous pick `u`, unless `u` is the only reason it is adjacent to
   the set at all — the exception is what lets the order follow a growing frontier.
 
 `CGraph.exists_pickChain` proves nothing is lost: greedily taking the least vertex on the frontier,
-starting from the least vertex of the set, always produces a legal order.  This needs no
-assumption on `rank` whatsoever, so the search is free to choose it; it uses the roster order.
+starting from the least *admissible* vertex of the set, always produces a legal order.  This needs
+no assumption on `rank` or on the seed predicate whatsoever, so the search is free to choose them;
+it uses the roster order, and admissibility is `attOf`.
 
 ## What it costs
 
-The search is still exponential — the problem is NP-hard — but the two cases it is meant for stay
-cheap.  Both `K5` and `K3,3` in a graph of a dozen-odd vertices, and a `C3` in a tree, are found or
-ruled out at once.  What can be slow is a *negative* answer on a dense host, where every family of
-disjoint connected sets has to be looked at.
+The search is exponential — the problem is NP-hard — and what it costs depends much more on the
+*answer* than on the size.  Finding a model is quick, because the pruning above leaves few ways to
+start: `K5` in the Heawood graph takes 9 ms, `K3,3` in it 15 ms, `K5` in the 24-vertex McGee graph
+23 ms, `C100` gives up a `C3` in 150 ms.  Ruling one out is the expensive direction, since every
+family of disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes about three
+minutes and `K3,3` in it thirteen.  A long thin host is the other bad case — a `C3` in a path of `n` vertices costs about
+`n⁴`, half a second at `n = 40` — and so is a host with a high-degree vertex, where the connected
+sets through it are exponentially many: a `C3` in a 13-vertex star takes half a second.
+
+The obvious thing still missing is symmetry breaking.  Nothing stops the search from trying all
+`5!` orders of the five branch sets of a `K5`, and for a negative answer it does try them all.
 -/
 
 set_option autoImplicit false
@@ -81,6 +105,119 @@ open Backtrack
 namespace CGraph
 
 variable {G : CGraph}
+
+/-! ## Reachability -/
+
+/-- One round of `reach` per unit of fuel: everything next to the newest arrivals joins them.
+Only the newest are looked at — everything else has had its neighbours taken already — so a round
+costs one pass over the pool rather than one per vertex in hand. -/
+def reachAux (G : CGraph) : ℕ → List G.V → List G.V → List G.V → List G.V
+  | 0, S, _, _ => S
+  | n + 1, S, front, pool =>
+    if (pool.filter fun v ↦ front.any (G.Adj v)).isEmpty then S
+    else reachAux G n ((pool.filter fun v ↦ front.any (G.Adj v)) ++ S)
+      (pool.filter fun v ↦ front.any (G.Adj v)) (pool.filter fun v ↦ !front.any (G.Adj v))
+
+/-- The vertices that `S` can reach without leaving `S ∪ pool`: the component of `S` in the
+subgraph induced on those vertices.  Each round takes at least one vertex out of the pool, so
+`pool.length` rounds are enough. -/
+def reach (G : CGraph) (S pool : List G.V) : List G.V := reachAux G pool.length S S pool
+
+theorem mem_reachAux_of_mem : ∀ (n : ℕ) (S front pool : List G.V) {v : G.V}, v ∈ S →
+    v ∈ reachAux G n S front pool
+  | 0, _, _, _, _, h => h
+  | n + 1, S, front, pool, v, h => by
+    rw [reachAux]
+    split
+    · exact h
+    · exact mem_reachAux_of_mem n _ _ _ (List.mem_append_right _ h)
+
+theorem mem_reach_of_mem {S pool : List G.V} {v : G.V} (h : v ∈ S) : v ∈ reach G S pool :=
+  mem_reachAux_of_mem _ _ _ _ h
+
+/-- Nothing outside the component is next to it: this is what makes `reach` a *whole* component,
+and it is the only thing the search needs from it.  The invariant is what makes the frontier
+enough: a vertex still in the pool can only be next to the newest arrivals. -/
+theorem mem_reachAux_of_adj : ∀ (n : ℕ) (S front pool : List G.V), pool.length ≤ n →
+    (∀ v ∈ pool, ∀ u ∈ S, G.Adj v u = true → u ∈ front) →
+    ∀ {v u : G.V}, v ∈ pool → u ∈ reachAux G n S front pool → G.Adj v u = true →
+      v ∈ reachAux G n S front pool
+  | 0, _, _, pool, hlen, _, v, _, hv, _, _ => by
+    rw [List.eq_nil_of_length_eq_zero (Nat.le_zero.mp hlen)] at hv
+    simp at hv
+  | n + 1, S, front, pool, hlen, hinv, v, u, hv, hu, hadj => by
+    rw [reachAux] at hu ⊢
+    split at hu
+    · rename_i hnil
+      exact absurd (List.mem_filter.mpr ⟨hv, List.any_eq_true.mpr ⟨u, hinv v hv u hu hadj, hadj⟩⟩)
+        (by rw [List.isEmpty_iff.mp hnil]; simp)
+    · rename_i hnil
+      rw [if_neg hnil]
+      cases hva : front.any (G.Adj v)
+      · refine mem_reachAux_of_adj n _ _ _ ?_ ?_
+          (List.mem_filter.mpr ⟨hv, by simp [hva]⟩) hu hadj
+        · obtain ⟨w, hw⟩ := List.exists_mem_of_ne_nil (pool.filter fun v ↦ front.any (G.Adj v))
+            fun hn ↦ hnil (by rw [hn]; rfl)
+          obtain ⟨hwp, hwa⟩ := List.mem_filter.mp hw
+          have := List.length_filter_lt_length_iff_exists (l := pool)
+            (p := fun v ↦ !front.any (G.Adj v)) |>.mpr ⟨w, hwp, by simpa using hwa⟩
+          omega
+        · intro w hw z hz hwz
+          rcases List.mem_append.mp hz with hz | hz
+          · exact hz
+          · obtain ⟨-, hwf⟩ := List.mem_filter.mp hw
+            simp only [Bool.not_eq_eq_eq_not, Bool.not_true, List.any_eq_false] at hwf
+            exact absurd hwz (by simpa using hwf z (hinv w (List.mem_filter.mp hw).1 z hz hwz))
+      · exact mem_reachAux_of_mem n _ _ _ (List.mem_append_left _
+          (List.mem_filter.mpr ⟨hv, hva⟩))
+
+theorem mem_reach_of_adj {S pool : List G.V} {v u : G.V} (hv : v ∈ pool)
+    (hu : u ∈ reach G S pool) (hadj : G.Adj v u = true) : v ∈ reach G S pool :=
+  mem_reachAux_of_adj _ _ _ _ le_rfl (fun _ _ _ h _ ↦ h) hv hu hadj
+
+/-- **A connected set that meets the component is inside it.**  If the search has a foothold in a
+connected set and the rest of the set is still available, the whole set is in what it can reach. -/
+theorem subset_reach {s : Set G.V} (hs : G.ConnectedOn s) {S pool : List G.V}
+    (hsub : ∀ v ∈ s, v ∈ S ∨ v ∈ pool) (hmeet : ∃ u ∈ s, u ∈ reach G S pool) :
+    ∀ v ∈ s, v ∈ reach G S pool := by
+  intro w hw
+  by_contra hwR
+  obtain ⟨u, hus, huR⟩ := hmeet
+  obtain ⟨a, ha, b, hb, hbt, hab⟩ :=
+    hs.exists_adj_of_ssubset (t := {z | z ∈ reach G S pool ∧ z ∈ s})
+      (fun z hz ↦ hz.2) ⟨huR, hus⟩ hw (fun h ↦ hwR h.1)
+  have hbR : b ∉ reach G S pool := fun h ↦ hbt ⟨h, hb⟩
+  have hbp : b ∈ pool := ((hsub b hb).resolve_left fun h ↦ hbR (mem_reach_of_mem h))
+  exact hbR (mem_reach_of_adj hbp ha.1 (by rw [G.symm b a]; exact hab))
+
+/-- What a branch set started at `v` leaves for the sets that come after it: the component of `v`
+in what is left of the host, with `v` itself dropped.  A set that has to touch `v`'s own set is
+joined to `v` through vertices that are still available, so it lies in here. -/
+def seedReach (G : CGraph) (v : G.V) (avail : List G.V) : List G.V :=
+  (reach G [v] (avail.erase v)).filter fun u ↦ decide (u ≠ v)
+
+/-- **A set that must touch the seed's set stays within `seedReach`.**  `sx` is the set being
+started at `v`, `sz` one that has to touch it; both are still to be built out of `avail`. -/
+theorem subset_seedReach {sx sz : Set G.V} (hx : G.ConnectedOn sx) (hz : G.ConnectedOn sz)
+    {v : G.V} {avail : List G.V} (hnd : avail.Nodup) (hv : v ∈ sx)
+    (hxa : ∀ u ∈ sx, u ∈ avail) (hza : ∀ u ∈ sz, u ∈ avail) (hvz : v ∉ sz)
+    {a b : G.V} (ha : a ∈ sz) (hb : b ∈ sx) (hab : G.Adj a b) :
+    ∀ u ∈ sz, u ∈ seedReach G v avail := by
+  have herase : ∀ u, u ∈ avail → u ≠ v → u ∈ avail.erase v :=
+    fun u hu hne ↦ (hnd.mem_erase_iff).mpr ⟨hne, hu⟩
+  have hxR : ∀ u ∈ sx, u ∈ reach G [v] (avail.erase v) := by
+    refine subset_reach hx (fun u hu ↦ ?_) ⟨v, hv, mem_reach_of_mem (by simp)⟩
+    by_cases huv : u = v
+    · exact Or.inl (by simp [huv])
+    · exact Or.inr (herase u (hxa u hu) huv)
+  have haR : a ∈ reach G [v] (avail.erase v) :=
+    mem_reach_of_adj (herase a (hza a ha) fun h ↦ hvz (h ▸ ha)) (hxR b hb) hab
+  have hzR : ∀ u ∈ sz, u ∈ reach G [v] (avail.erase v) :=
+    subset_reach hz (fun u hu ↦ Or.inr (herase u (hza u hu) fun h ↦ hvz (h ▸ hu))) ⟨a, ha, haR⟩
+  refine fun u hu ↦ List.mem_filter.mpr ⟨hzR u hu, ?_⟩
+  simp only [decide_eq_true_eq]
+  rintro rfl
+  exact hvz hu
 
 /-- A list is chain-connected when every vertex after the first is adjacent to one of the later
 ones — that is, when reading it from the right builds a connected set one vertex at a time. -/
@@ -112,20 +249,24 @@ theorem connectedOn_of_chainConn : ∀ {l : List G.V}, ChainConn G l = true →
 vertex at a time: each vertex is adjacent to the ones after it, and — this is the part that keeps
 the same set from being built in all `k!` of its orders — it comes no earlier in the search order
 `rank` than the vertex added just before it, unless that vertex is what made it adjacent to the
-set at all. -/
-def PickChain (G : CGraph) (rank : G.V → ℕ) : List G.V → Bool
-  | [] => false
-  | [_] => true
-  | v :: u :: T =>
-    (u :: T).any (G.Adj v) && decide (rank (T.getLastD u) ≤ rank v) &&
-      (decide (rank u ≤ rank v) || !T.any (G.Adj v)) && PickChain G rank (u :: T)
+set at all.
 
-theorem pickChain_ne_nil {rank : G.V → ℕ} {l : List G.V} (h : PickChain G rank l = true) :
-    l ≠ [] := by
+`att` marks the vertices the set is *allowed to start at*: the seed must be one of them, and the
+seed is the least-ranked of them in the set.  Vertices outside `att` are unconstrained by the seed
+rule, since making them the seed was never an option. -/
+def PickChain (G : CGraph) (rank : G.V → ℕ) (att : G.V → Bool) : List G.V → Bool
+  | [] => false
+  | [v] => att v
+  | v :: u :: T =>
+    (u :: T).any (G.Adj v) && (!att v || decide (rank (T.getLastD u) ≤ rank v)) &&
+      (decide (rank u ≤ rank v) || !T.any (G.Adj v)) && PickChain G rank att (u :: T)
+
+theorem pickChain_ne_nil {rank : G.V → ℕ} {att : G.V → Bool} {l : List G.V}
+    (h : PickChain G rank att l = true) : l ≠ [] := by
   rintro rfl; simp [PickChain] at h
 
-theorem chainConn_of_pickChain {rank : G.V → ℕ} :
-    ∀ {l : List G.V}, PickChain G rank l = true → ChainConn G l = true
+theorem chainConn_of_pickChain {rank : G.V → ℕ} {att : G.V → Bool} :
+    ∀ {l : List G.V}, PickChain G rank att l = true → ChainConn G l = true
   | [], h => by simp [PickChain] at h
   | [_], _ => by simp [ChainConn]
   | _ :: u :: T, h => by
@@ -137,12 +278,13 @@ theorem chainConn_of_pickChain {rank : G.V → ℕ} :
 /-- The greedy step: taking always the frontier vertex of least `rank` keeps the order legal.
 `u :: T` is what has been picked so far, `R` what is left of the graph. -/
 theorem exists_pickChain_aux {s : Set G.V} (hs : G.ConnectedOn s) [DecidablePred (· ∈ s)]
-    (rank : G.V → ℕ) :
+    (rank : G.V → ℕ) (att : G.V → Bool) :
     ∀ (n : ℕ) (u : G.V) (T R : List G.V), (u :: T).Nodup → (∀ v ∈ u :: T, v ∈ s) →
-      PickChain G rank (u :: T) = true → (∀ v ∈ s, v ∈ u :: T ∨ v ∈ R) →
-      (∀ v ∈ R, v ∉ u :: T) → R.length ≤ n → (∀ w ∈ s, rank (T.getLastD u) ≤ rank w) →
+      PickChain G rank att (u :: T) = true → (∀ v ∈ s, v ∈ u :: T ∨ v ∈ R) →
+      (∀ v ∈ R, v ∉ u :: T) → R.length ≤ n →
+      (∀ w ∈ s, att w = true → rank (T.getLastD u) ≤ rank w) →
       (∀ w ∈ s, w ∉ u :: T → T.any (G.Adj w) = true → rank u ≤ rank w) →
-      ∃ l : List G.V, l.Nodup ∧ (∀ v, v ∈ l ↔ v ∈ s) ∧ PickChain G rank l = true := by
+      ∃ l : List G.V, l.Nodup ∧ (∀ v, v ∈ l ↔ v ∈ s) ∧ PickChain G rank att l = true := by
   intro n
   induction n with
   | zero =>
@@ -180,10 +322,13 @@ theorem exists_pickChain_aux {s : Set G.V} (hs : G.ConnectedOn s) [DecidablePred
       · exact hbs
       · exact hsub v hv
     · rw [PickChain, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true]
-      refine ⟨⟨⟨hbadj, by simpa using hseed b hbs⟩, ?_⟩, hpc⟩
-      cases hT : T.any (G.Adj b)
-      · simp
-      · simp [hmin b hbs hbl hT]
+      refine ⟨⟨⟨hbadj, ?_⟩, ?_⟩, hpc⟩
+      · cases hatt : att b
+        · simp
+        · simpa using hseed b hbs hatt
+      · cases hT : T.any (G.Adj b)
+        · simp
+        · simp [hmin b hbs hbl hT]
     · intro v hv
       rcases hcov v hv with hvl | hvR
       · exact Or.inl (List.mem_cons_of_mem _ hvl)
@@ -206,26 +351,29 @@ theorem exists_pickChain_aux {s : Set G.V} (hs : G.ConnectedOn s) [DecidablePred
 
 /-- **A connected set can be enumerated in a legal pick order.**  This is what makes the search's
 canonicalisation of the order lose nothing: whatever the branch sets of a minor are, there is a
-run of the search that builds them. -/
+run of the search that builds them.  The one thing asked of `att` is that the set contains a
+vertex the search would let it start at. -/
 theorem exists_pickChain {s : Set G.V} [DecidablePred (· ∈ s)] (hs : G.ConnectedOn s)
-    (rank : G.V → ℕ) (gs : List G.V) (hgs : ∀ v, v ∈ gs) :
-    ∃ l : List G.V, l.Nodup ∧ (∀ v, v ∈ l ↔ v ∈ s) ∧ PickChain G rank l = true := by
-  obtain ⟨u₀, hu₀⟩ := hs.nonempty
-  have hne : gs.filter (fun z ↦ decide (z ∈ s)) ≠ [] := by
+    (rank : G.V → ℕ) (att : G.V → Bool) (gs : List G.V) (hgs : ∀ v, v ∈ gs)
+    (hatt : ∃ v ∈ s, att v = true) :
+    ∃ l : List G.V, l.Nodup ∧ (∀ v, v ∈ l ↔ v ∈ s) ∧ PickChain G rank att l = true := by
+  obtain ⟨u₀, hu₀, hu₀a⟩ := hatt
+  have hne : gs.filter (fun z ↦ decide (z ∈ s) && att z) ≠ [] := by
     intro hnil
-    have : u₀ ∈ gs.filter fun z ↦ decide (z ∈ s) :=
-      List.mem_filter.mpr ⟨hgs u₀, by simpa using hu₀⟩
+    have : u₀ ∈ gs.filter fun z ↦ decide (z ∈ s) && att z :=
+      List.mem_filter.mpr ⟨hgs u₀, by simp [hu₀, hu₀a]⟩
     rw [hnil] at this
     simp at this
-  obtain ⟨u, hu⟩ : ∃ u, (gs.filter fun z ↦ decide (z ∈ s)).argmin rank = some u := by
-    cases hA : (gs.filter fun z ↦ decide (z ∈ s)).argmin rank with
+  obtain ⟨u, hu⟩ : ∃ u, (gs.filter fun z ↦ decide (z ∈ s) && att z).argmin rank = some u := by
+    cases hA : (gs.filter fun z ↦ decide (z ∈ s) && att z).argmin rank with
     | none => exact absurd (List.argmin_eq_none.mp hA) hne
     | some u => exact ⟨u, rfl⟩
-  have hus : u ∈ s := by simpa using (List.mem_filter.mp (List.argmin_mem hu)).2
-  have hmin : ∀ w ∈ s, rank u ≤ rank w := fun w hw ↦
-    List.le_of_mem_argmin (List.mem_filter.mpr ⟨hgs w, by simpa using hw⟩) hu
-  refine exists_pickChain_aux hs rank (gs.filter fun v ↦ decide (v ≠ u)).length u []
-    (gs.filter fun v ↦ decide (v ≠ u)) (by simp) ?_ rfl ?_ ?_ le_rfl hmin (by simp)
+  obtain ⟨hus, hua⟩ : u ∈ s ∧ att u = true := by
+    simpa using (List.mem_filter.mp (List.argmin_mem hu)).2
+  have hmin : ∀ w ∈ s, att w = true → rank u ≤ rank w := fun w hw hwa ↦
+    List.le_of_mem_argmin (List.mem_filter.mpr ⟨hgs w, by simp [hw, hwa]⟩) hu
+  refine exists_pickChain_aux hs rank att (gs.filter fun v ↦ decide (v ≠ u)).length u []
+    (gs.filter fun v ↦ decide (v ≠ u)) (by simp) ?_ hua ?_ ?_ le_rfl hmin (by simp)
   · intro v hv; rw [List.mem_singleton] at hv; exact hv ▸ hus
   · intro v _
     by_cases hvu : v = u
@@ -266,6 +414,27 @@ def linked (S T : List G.V) : Bool := S.any fun u ↦ T.any fun w ↦ G.Adj u w
 theorem linked_iff {S T : List G.V} : linked G S T = true ↔ ∃ u ∈ S, ∃ w ∈ T, G.Adj u w := by
   simp [linked]
 
+/-- The vertices `x`'s branch set is allowed to start at.  If a vertex of `H` next to `x` already
+has a branch set, the set for `x` will have to touch the most recent of those, so the search makes
+it *start* there: this replaces "any vertex of `G`" by "a vertex on the border of one set", and is
+what keeps the search from wandering over the whole host once it has a foothold. -/
+def attOf (x : H.V) (done : List (H.V × List G.V)) (v : G.V) : Bool :=
+  match done.find? fun q ↦ H.Adj x q.1 with
+  | none => true
+  | some q => q.2.any (G.Adj v)
+
+/-- Can the vertices still waiting for a branch set be reached from a set started at `v`?  One
+that has to touch `x`'s set is confined to `seedReach`, so if from there it cannot also touch the
+sets it is required to touch, starting `x` at `v` is hopeless.  This is what stops the search from
+starting a set in a corner of the host it can never get back from; the guard in front keeps the
+component computation out of the way when nothing is constrained. -/
+def feasibleSeed (x : H.V) (v : G.V) (rest : List H.V) (done : List (H.V × List G.V))
+    (avail : List G.V) : Bool :=
+  let need := rest.filter fun z ↦ H.Adj x z && done.any fun q ↦ H.Adj z q.1
+  need.isEmpty ||
+    (let R := seedReach G v avail
+     need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
+
 /-- Make a move, or report that it is illegal. -/
 def step (m : Move G) (st : State H G) : Option (State H G) :=
   match m with
@@ -274,21 +443,25 @@ def step (m : Move G) (st : State H G) : Option (State H G) :=
       match st.cur with
       | some (_, []) => none
       | some (x, u :: T) =>
-        if (u :: T).any (G.Adj v) && decide (rank (T.getLastD u) ≤ rank v) &&
+        if (u :: T).any (G.Adj v) &&
+            (!attOf H G x st.done v || decide (rank (T.getLastD u) ≤ rank v)) &&
             (decide (rank u ≤ rank v) || !T.any (G.Adj v)) then
           some ⟨st.todo, some (x, v :: u :: T), st.done, st.avail.erase v⟩
         else none
       | none =>
         match st.todo with
         | [] => none
-        | x :: rest => some ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩
+        | x :: rest =>
+          if attOf H G x st.done v && feasibleSeed H G x v rest st.done st.avail then
+            some ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩
+          else none
     else none
   | .stop =>
     match st.cur with
     | some (x, S) =>
       if st.done.all (fun p ↦ !H.Adj x p.1 || linked G S p.2) &&
-          (!st.todo.any (H.Adj x) || linked G S st.avail) &&
-          decide (st.todo.length ≤ st.avail.length) then
+          decide (st.todo.length ≤ st.avail.length) &&
+          decide (st.todo.countP (H.Adj x) ≤ st.avail.countP fun u ↦ S.any (G.Adj u)) then
         some ⟨st.todo, none, (x, S) :: st.done, st.avail⟩
       else none
     | none => if st.todo.isEmpty then some st else none
@@ -534,6 +707,47 @@ section Complete
 
 variable {H G} (l : H.V → List G.V)
 
+/-- The vertex of `H` whose branch set the search will make `x`'s set start next to: the last one
+before `x` in the placement order `hs` that is adjacent to it. -/
+def refOf (hs : List H.V) (x : H.V) : Option H.V :=
+  (hs.takeWhile fun y ↦ decide (y ≠ x)).reverse.find? fun y ↦ H.Adj x y
+
+/-- `attOf` read off the minor instead of off the search.  Unlike `attOf` it does not mention the
+branch sets, so a model can be built one vertex of `H` at a time without looking back at the ones
+already built. -/
+def attMinor (f : H.MinorOf G) (hs : List H.V) (x : H.V) (v : G.V) : Bool :=
+  match refOf hs x with
+  | none => true
+  | some y => decide (∃ w, f.branch w = some y ∧ G.Adj v w = true)
+
+theorem takeWhile_ne {α : Type*} [DecidableEq α] (x : α) : ∀ (pre t : List α), x ∉ pre →
+    (pre ++ x :: t).takeWhile (fun y ↦ decide (y ≠ x)) = pre
+  | [], _, _ => by simp
+  | a :: pre, t, h => by
+    simp only [List.mem_cons, not_or] at h
+    rw [List.cons_append, List.takeWhile_cons_of_pos (by simpa using fun e ↦ h.1 e.symm),
+      takeWhile_ne x pre t h.2]
+
+/-- The two readings of the seed rule agree, at the point of the run where `x` is placed. -/
+theorem attOf_eq {f : H.MinorOf G} (hl : ∀ (x : H.V) (v : G.V), v ∈ l x ↔ f.branch v = some x)
+    {hs : List H.V} (hhsnd : hs.Nodup) {x : H.V} {xs p : List H.V}
+    (hpre : hs = p.reverse ++ x :: xs) :
+    attOf H G x (p.map fun y ↦ (y, l y)) = attMinor f hs x := by
+  have hxp : x ∉ p.reverse := fun h ↦ by
+    rw [hpre, List.nodup_append] at hhsnd
+    exact hhsnd.2.2 x h x (List.mem_cons_self ..) rfl
+  have htw : hs.takeWhile (fun y ↦ decide (y ≠ x)) = p.reverse := by
+    rw [hpre]; exact takeWhile_ne x p.reverse xs hxp
+  funext v
+  simp only [attOf, attMinor, refOf, htw, List.reverse_reverse, List.find?_map, Function.comp_def]
+  cases hfind : p.find? fun y ↦ H.Adj x y with
+  | none => simp
+  | some y =>
+    simp only [Option.map_some]
+    rw [Bool.eq_iff_iff, List.any_eq_true, decide_eq_true_eq]
+    exact ⟨fun ⟨w, hw, hvw⟩ ↦ ⟨w, (hl y w).mp hw, hvw⟩,
+      fun ⟨w, hw, hvw⟩ ↦ ⟨w, (hl y w).mpr hw, hvw⟩⟩
+
 /-- The moves that give `x` its branch set: pick its vertices, then close the set. -/
 def blockOf (x : H.V) : List (Move G) := Move.stop :: (l x).map Move.pick
 
@@ -558,25 +772,31 @@ structure Ok (st : State H G) (xs p : List H.V) : Prop where
 /-- Picking the vertices of a chain-connected list, from the right, builds it as a branch set. -/
 theorem trace_picks {x : H.V} {rest : List H.V} :
     ∀ (L : List G.V) (st : State H G), st.cur = none → st.todo = x :: rest →
-      PickChain G rank L = true → L.Nodup → (∀ v ∈ L, v ∈ st.avail) → st.avail.Nodup →
+      PickChain G rank (attOf H G x st.done) L = true →
+      (∀ u, L.getLast? = some u → feasibleSeed H G x u rest st.done st.avail = true) →
+      L.Nodup → (∀ v ∈ L, v ∈ st.avail) → st.avail.Nodup →
       ∃ r, trace H G rank st (L.map Move.pick) = some r ∧ r.length = L.length ∧
         headSt H G st r = ⟨rest, some (x, L), st.done, eraseAll G st.avail L⟩ := by
   intro L
   induction L with
-  | nil => intro st _ _ hL _ _ _; simp [PickChain] at hL
+  | nil => intro st _ _ hL _ _ _ _; simp [PickChain] at hL
   | cons v L ih =>
-    intro st hcur htodo hL hnd hsub hav
+    intro st hcur htodo hL hfeas hnd hsub hav
     have hvL : v ∉ L := (List.nodup_cons.mp hnd).1
     have hvav : v ∈ st.avail := hsub v (List.mem_cons_self ..)
     rcases L with _ | ⟨w, L⟩
-    · refine ⟨[((), ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩)], ?_, rfl, rfl⟩
+    · rw [PickChain] at hL
+      have hfv : feasibleSeed H G x v rest st.done st.avail = true := hfeas v rfl
+      refine ⟨[((), ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩)], ?_, rfl, rfl⟩
       rw [List.map_cons, List.map_nil, trace, trace, Option.bind_some]
-      simp only [headSt, step, List.contains_iff_mem, hvav, if_pos, hcur, htodo]
+      simp only [headSt, step, List.contains_iff_mem, hvav, if_pos, hcur, htodo, hL, hfv,
+        Bool.and_self]
       rfl
     · rw [PickChain] at hL
       simp only [Bool.and_eq_true] at hL
       obtain ⟨⟨⟨hadj, hseed⟩, hrank⟩, hLc⟩ := hL
-      obtain ⟨r, hr, hlen, hhead⟩ := ih st hcur htodo hLc (List.Nodup.of_cons hnd)
+      obtain ⟨r, hr, hlen, hhead⟩ := ih st hcur htodo hLc
+        (fun u hu ↦ hfeas u (by simpa using hu)) (List.Nodup.of_cons hnd)
         (fun u hu ↦ hsub u (List.mem_cons_of_mem _ hu)) hav
       refine ⟨((), ⟨rest, some (x, v :: w :: L), st.done, eraseAll G st.avail (v :: w :: L)⟩) :: r,
         ?_, by simp [hlen], rfl⟩
@@ -586,7 +806,8 @@ theorem trace_picks {x : H.V} {rest : List H.V} :
       rfl
 
 variable (f : H.MinorOf G) (hl : ∀ (x : H.V) (v : G.V), v ∈ l x ↔ f.branch v = some x)
-  (hnd : ∀ x, (l x).Nodup) (hch : ∀ x, PickChain G rank (l x) = true)
+  (hnd : ∀ x, (l x).Nodup) (hcc : ∀ x, ChainConn G (l x) = true) (hs : List H.V)
+  (hhsnd : hs.Nodup) (hch : ∀ x, PickChain G rank (attMinor f hs x) (l x) = true)
 
 include hl in
 /-- Distinct vertices of `H` have disjoint branch sets. -/
@@ -598,6 +819,24 @@ include f hl in
 theorem linked_l {x y : H.V} (hxy : H.Adj x y = true) : linked G (l x) (l y) = true := by
   obtain ⟨u, w, hu, hw, huw⟩ := f.map_adj hxy
   exact (linked_iff G).mpr ⟨u, (hl x u).mpr hu, w, (hl y w).mpr hw, huw⟩
+
+include f hl in
+/-- Every vertex of `H` next to `x` has a vertex of its own branch set next to `x`'s, and those
+vertices are all different because the branch sets are. -/
+theorem countP_le_flatMap (x : H.V) : ∀ xs : List H.V,
+    xs.countP (H.Adj x) ≤ (xs.flatMap l).countP (fun u ↦ (l x).any (G.Adj u))
+  | [] => le_rfl
+  | y :: ys => by
+    have hys := countP_le_flatMap x ys
+    rw [List.flatMap_cons, List.countP_append, List.countP_cons]
+    cases hadj : H.Adj x y
+    · simp only [Bool.false_eq_true, if_false]
+      omega
+    · obtain ⟨u, hu, w, hw, huw⟩ := (linked_iff G).mp (linked_l l f hl hadj)
+      have hpos : 0 < (l y).countP fun u ↦ (l x).any (G.Adj u) :=
+        List.countP_pos_iff.mpr ⟨w, hw, List.any_eq_true.mpr ⟨u, hu, by rw [G.symm]; exact huw⟩⟩
+      simp only [if_true]
+      omega
 
 include hl hnd in
 theorem nodup_flatMap : ∀ {xs : List H.V}, xs.Nodup → (xs.flatMap l).Nodup
@@ -616,24 +855,46 @@ theorem length_flatMap_add (xs : List H.V) :
   | cons x xs ih => rw [List.map_cons, List.sum_cons, ih, List.flatMap_cons, List.length_append,
       List.length_cons]; omega
 
-include hch in
+include hcc in
 theorem length_le_flatMap : ∀ xs : List H.V, xs.length ≤ (xs.flatMap l).length
   | [] => le_rfl
   | x :: xs => by
     have h1 := length_le_flatMap xs
-    have h2 : 0 < (l x).length := List.length_pos_of_ne_nil (pickChain_ne_nil (hch x))
+    have h2 : 0 < (l x).length := List.length_pos_of_ne_nil (chainConn_ne_nil (hcc x))
     rw [List.flatMap_cons, List.length_append, List.length_cons]
     omega
 
-include f hl hnd hch in
+include f hl hnd hcc hhsnd hch in
 /-- One block of moves gives `x` its branch set. -/
 theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st (x :: xs) p)
-    (hxs : (x :: xs).Nodup) :
+    (hxs : (x :: xs).Nodup) (hpre : hs = p.reverse ++ x :: xs) :
     ∃ r, trace H G rank st (blockOf l x) = some r ∧ r.length = (l x).length + 1 ∧
       Ok l (headSt H G st r) xs (x :: p) := by
   obtain ⟨hcur, htodo, hdone, hsub, hav⟩ := hok
-  obtain ⟨r, hr, hlen, hhead⟩ := trace_picks rank (l x) st hcur htodo (hch x) (hnd x)
-    (hsub x (List.mem_cons_self ..)) hav
+  have hfeas : ∀ u, (l x).getLast? = some u →
+      feasibleSeed H G x u xs st.done st.avail = true := by
+    intro u hu
+    obtain ⟨ys, hys⟩ := List.getLast?_eq_some_iff.mp hu
+    have hux : u ∈ l x := by rw [hys]; simp
+    rw [feasibleSeed, Bool.or_eq_true]
+    refine Or.inr ?_
+    simp only [List.all_eq_true, Bool.or_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true,
+      List.mem_filter, Bool.and_eq_true]
+    rintro z ⟨hz, hxz, -⟩ q hq
+    obtain ⟨y, -, rfl⟩ := List.mem_map.mp (hdone ▸ hq)
+    cases hzy : H.Adj z y
+    · exact Or.inl rfl
+    refine Or.inr ?_
+    obtain ⟨c, hc, w, hw, hcw⟩ := (linked_iff G).mp (linked_l l f hl hzy)
+    obtain ⟨d, hd, e, he, hde⟩ := (linked_iff G).mp (linked_l l f hl hxz)
+    refine (linked_iff G).mpr ⟨c, ?_, w, hw, hcw⟩
+    refine subset_seedReach (connectedOn_of_chainConn (hcc x)) (connectedOn_of_chainConn (hcc z))
+      hav hux (hsub x (List.mem_cons_self ..)) (hsub z (List.mem_cons_of_mem _ hz)) ?_ he hd
+      (by rw [G.symm]; exact hde) c hc
+    exact not_mem_l l f hl (by rintro rfl; exact (List.nodup_cons.mp hxs).1 hz) hux
+  obtain ⟨r, hr, hlen, hhead⟩ := trace_picks rank (l x) st hcur htodo
+    (by rw [hdone, attOf_eq l hl hhsnd hpre]; exact hch x) hfeas
+    (hnd x) (hsub x (List.mem_cons_self ..)) hav
   have havail : ∀ y ∈ xs, ∀ v ∈ l y, v ∈ eraseAll G st.avail (l x) := by
     intro y hy v hv
     refine (mem_eraseAll G hav _ v).mpr ⟨hsub y (List.mem_cons_of_mem _ hy) v hv, ?_⟩
@@ -645,35 +906,37 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
     cases hadj : H.Adj x y
     · simp
     · simp [linked_l l f hl hadj]
-  have hc2 : (!xs.any (H.Adj x) || linked G (l x) (eraseAll G st.avail (l x))) = true := by
-    cases hany : xs.any (H.Adj x)
-    · simp
-    · simp only [Bool.not_true, Bool.false_or]
-      obtain ⟨y, hy, hadj⟩ := List.any_eq_true.mp hany
-      obtain ⟨u, hu, w, hw, huw⟩ := (linked_iff G).mp (linked_l l f hl hadj)
-      exact (linked_iff G).mpr ⟨u, hu, w, havail y hy w hw, huw⟩
-  have hc3 : xs.length ≤ (eraseAll G st.avail (l x)).length := by
-    refine le_trans (length_le_flatMap rank l hch xs) ?_
-    refine ((nodup_flatMap l f hl hnd (List.Nodup.of_cons hxs)).subperm ?_).length_le
+  have hsubperm : (xs.flatMap l).Subperm (eraseAll G st.avail (l x)) := by
+    refine (nodup_flatMap l f hl hnd (List.Nodup.of_cons hxs)).subperm ?_
     intro v hv
     obtain ⟨y, hy, hv⟩ := List.mem_flatMap.mp hv
     exact havail y hy v hv
+  have hc2 : xs.length ≤ (eraseAll G st.avail (l x)).length :=
+    le_trans (length_le_flatMap l hcc xs) hsubperm.length_le
+  -- Each vertex of `H` still to come that is next to `x` puts a *different* vertex of its own
+  -- branch set next to `x`'s, so there must be at least that many left over to go round.
+  have hc3 : xs.countP (H.Adj x) ≤
+      (eraseAll G st.avail (l x)).countP (fun u ↦ (l x).any (G.Adj u)) :=
+    le_trans (countP_le_flatMap l f hl x xs) (List.Subperm.countP_le _ hsubperm)
   refine ⟨((), ⟨xs, none, (x, l x) :: st.done, eraseAll G st.avail (l x)⟩) :: r, ?_,
     by simp [hlen], ⟨rfl, rfl, by rw [hdone]; rfl, havail, nodup_eraseAll G hav _⟩⟩
   rw [blockOf, trace, hr, Option.bind_some, hhead, step]
   simp only [hc1, hc2, hc3, decide_true, Bool.and_true, if_pos]
   rfl
 
-include f hl hnd hch in
+include f hl hnd hcc hhsnd hch in
 /-- The whole run: every vertex of `xs` gets its branch set. -/
 theorem trace_blocks : ∀ (xs p : List H.V) (st : State H G), Ok l st xs p → xs.Nodup →
+    hs = p.reverse ++ xs →
     ∃ r, trace H G rank st (blocks l xs) = some r ∧
       r.length = (xs.map fun y ↦ (l y).length + 1).sum ∧
       Ok l (headSt H G st r) [] (xs.reverse ++ p)
-  | [], p, st, hok, _ => ⟨[], rfl, rfl, by simpa using hok⟩
-  | x :: xs, p, st, hok, hxs => by
-    obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ := trace_block rank l f hl hnd hch x xs p st hok hxs
+  | [], p, st, hok, _, _ => ⟨[], rfl, rfl, by simpa using hok⟩
+  | x :: xs, p, st, hok, hxs, hpre => by
+    obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ :=
+      trace_block rank l f hl hnd hcc hs hhsnd hch x xs p st hok hxs hpre
     obtain ⟨r₂, hr₂, hlen₂, hok₂⟩ := trace_blocks xs (x :: p) _ hok₁ (List.Nodup.of_cons hxs)
+      (by rw [hpre]; simp)
     refine ⟨r₂ ++ r₁, ?_, ?_, ?_⟩
     · rw [blocks, trace_append H G rank hr₁, hr₂]; rfl
     · rw [List.length_append, hlen₁, hlen₂, List.map_cons, List.sum_cons]; omega
@@ -689,10 +952,10 @@ theorem getSet_map {ys : List H.V} {x : H.V} (h : x ∈ ys) :
     · rename_i hy; rw [hy]
     · rename_i hy; exact ih ((List.mem_cons.mp h).resolve_left fun e ↦ hy e.symm)
 
-include f hl hnd hch in
+include f hl hnd hcc hhsnd in
 /-- A finished run passes every test. -/
-theorem finalOk_of_ok {st : State H G} {hs : List H.V} (hhsnd : hs.Nodup)
-    (hok : Ok l st [] hs.reverse) : finalOk H G hs st = true := by
+theorem finalOk_of_ok {st : State H G} (hok : Ok l st [] hs.reverse) :
+    finalOk H G hs st = true := by
   obtain ⟨hcur, htodo, hdone, -, -⟩ := hok
   have e1 : ((hs.reverse.map fun y ↦ (y, l y)).map Prod.fst) = hs.reverse := by
     simp [Function.comp_def]
@@ -706,7 +969,7 @@ theorem finalOk_of_ok {st : State H G} {hs : List H.V} (hhsnd : hs.Nodup)
   have h4 : ∀ q ∈ hs.reverse.map fun y ↦ (y, l y), ChainConn G q.2 = true := by
     intro q hq
     obtain ⟨y, -, rfl⟩ := List.mem_map.mp hq
-    exact chainConn_of_pickChain (hch y)
+    exact hcc y
   have h5 : ∀ x ∈ hs, ∀ y ∈ hs, (!H.Adj x y ||
       linked G (getSet H G (hs.reverse.map fun z ↦ (z, l z)) x)
         (getSet H G (hs.reverse.map fun z ↦ (z, l z)) y)) = true := by
@@ -719,14 +982,28 @@ theorem finalOk_of_ok {st : State H G} {hs : List H.V} (hhsnd : hs.Nodup)
   exact ⟨⟨⟨⟨⟨⟨rfl, rfl⟩, h1⟩, h2⟩, h3⟩, h4⟩, h5⟩
 
 /-- **Every minor is described by a chain-ordered model**, which is what the search looks for. -/
-theorem exists_chain_model (f : H.MinorOf G) (rank : G.V → ℕ) {gs : List G.V}
+theorem exists_chain_model (f : H.MinorOf G) (rank : G.V → ℕ) (hs : List H.V) {gs : List G.V}
     (hgs : ∀ v, v ∈ gs) :
     ∃ L : H.V → List G.V, (∀ (x : H.V) (v : G.V), v ∈ L x ↔ f.branch v = some x) ∧
-      (∀ x, (L x).Nodup) ∧ (∀ x, PickChain G rank (L x) = true) := by
+      (∀ x, (L x).Nodup) ∧ (∀ x, ChainConn G (L x) = true) ∧
+      (∀ x, PickChain G rank (attMinor f hs x) (L x) = true) := by
   haveI : ∀ x : H.V, DecidablePred (· ∈ {v : G.V | f.branch v = some x}) :=
     fun x v ↦ inferInstanceAs (Decidable (f.branch v = some x))
-  choose L h1 h2 h3 using fun x ↦ exists_pickChain (f.connectedOn x) rank gs hgs
-  exact ⟨L, fun x v ↦ h2 x v, h1, h3⟩
+  have key : ∀ x : H.V, ∃ L : List G.V, L.Nodup ∧
+      (∀ v, v ∈ L ↔ v ∈ {v : G.V | f.branch v = some x}) ∧
+      PickChain G rank (attMinor f hs x) L = true := by
+    intro x
+    refine exists_pickChain (f.connectedOn x) rank (attMinor f hs x) gs hgs ?_
+    cases href : refOf hs x with
+    | none =>
+      obtain ⟨v, hv⟩ := (f.connectedOn x).nonempty
+      exact ⟨v, hv, by simp [attMinor, href]⟩
+    | some y =>
+      have hadj : H.Adj x y = true := by rw [refOf] at href; exact List.find?_some href
+      obtain ⟨u, w, hu, hw, huw⟩ := f.map_adj hadj
+      exact ⟨u, hu, by simp only [attMinor, href, decide_eq_true_eq]; exact ⟨w, hw, huw⟩⟩
+  choose L h1 h2 h3 using key
+  exact ⟨L, fun x v ↦ h2 x v, h1, fun x ↦ chainConn_of_pickChain (h3 x), h3⟩
 
 end Complete
 
@@ -737,9 +1014,10 @@ theorem isEmpty_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀
     (hhsnd : hs.Nodup) (hgsnd : gs.Nodup) (h : searchFrom H G rank hs gs = none) :
     IsEmpty (H.MinorOf G) := by
   refine ⟨fun f ↦ ?_⟩
-  obtain ⟨l, hl, hnd, hch⟩ := exists_chain_model f rank hgs
+  obtain ⟨l, hl, hnd, hcc, hch⟩ := exists_chain_model f rank hs hgs
   have hok : Ok l (initState H G hs gs) hs [] := ⟨rfl, rfl, rfl, fun _ _ v _ ↦ hgs v, hgsnd⟩
-  obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ := trace_blocks rank l f hl hnd hch hs [] _ hok hhsnd
+  obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ :=
+    trace_blocks rank l f hl hnd hcc hs hhsnd hch hs [] _ hok hhsnd rfl
   have hbound : r₁.length ≤ gs.length + hs.length := by
     have : (hs.flatMap l).length ≤ gs.length :=
       ((nodup_flatMap l f hl hnd hhsnd).subperm fun v _ ↦ hgs v).length_le
@@ -753,7 +1031,7 @@ theorem isEmpty_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀
   obtain ⟨hchain, -⟩ := trace_chainOk H G rank htr
   have hgoal : goal H G rank hs (initState H G hs gs) (r₂ ++ r₁) = true := by
     rw [goal, Bool.and_eq_true, headSt_append, hhead₂]
-    exact ⟨hchain, finalOk_of_ok rank l f hl hnd hch hhsnd (by simpa using hok₁)⟩
+    exact ⟨hchain, finalOk_of_ok l f hl hnd hcc hs hhsnd (by simpa using hok₁)⟩
   have hcand : ∀ (a : Unit) (pre : List (Unit × State H G)) (b : State H G)
       (u : List (Unit × State H G)),
       goal H G rank hs (initState H G hs gs) (u ++ (a, b) :: pre) = true →
@@ -783,17 +1061,69 @@ open MinorSearch
 
 variable (H G : CGraph)
 
+/-- The vertex of `b :: rest` with the most neighbours among `chosen`, earliest one winning. -/
+def bestNext (chosen : List H.V) : H.V → List H.V → H.V
+  | b, [] => b
+  | b, z :: rest =>
+    bestNext chosen (if chosen.countP (H.Adj b) < chosen.countP (H.Adj z) then z else b) rest
+
+theorem mem_bestNext (chosen : List H.V) : ∀ (b : H.V) (rest : List H.V),
+    bestNext H chosen b rest ∈ b :: rest
+  | b, [] => List.mem_cons_self ..
+  | b, z :: rest => by
+    rw [bestNext]
+    split
+    · exact List.mem_cons_of_mem _ (mem_bestNext chosen z rest)
+    · rcases List.mem_cons.mp (mem_bestNext chosen b rest) with h | h
+      · rw [h]; exact List.mem_cons_self ..
+      · exact List.mem_cons_of_mem _ (List.mem_cons_of_mem _ h)
+
+/-- Order the vertices of `H` so that each one is next to as many earlier ones as possible.  The
+search prunes hardest when a new branch set has to attach to one that is already placed, so an
+order that keeps `H` connected as it goes is worth much more than the order it came in. -/
+def connOrder : ℕ → List H.V → List H.V → List H.V
+  | 0, rest, _ => rest
+  | _ + 1, [], _ => []
+  | n + 1, z :: rest, chosen =>
+    let b := bestNext H chosen z rest
+    b :: connOrder n ((z :: rest).erase b) (b :: chosen)
+
+theorem connOrder_perm : ∀ (n : ℕ) (rest chosen : List H.V), rest.length ≤ n →
+    (connOrder H n rest chosen).Perm rest
+  | 0, rest, _, h => by rw [List.eq_nil_of_length_eq_zero (Nat.le_zero.mp h)]; rfl
+  | _ + 1, [], _, _ => .refl _
+  | n + 1, z :: rest, chosen, h => by
+    have hb := mem_bestNext H chosen z rest
+    have hlen : ((z :: rest).erase (bestNext H chosen z rest)).length ≤ n := by
+      rw [List.length_erase_of_mem hb]
+      rw [List.length_cons] at h ⊢
+      omega
+    exact .trans (.cons _ (connOrder_perm n _ _ hlen)) (List.perm_cons_erase hb).symm
+
+/-- The vertices of `H`, in the order the search places them. -/
+def hsOrder (rH : Roster H.V) : List H.V :=
+  connOrder H rH.toList.dedup.length rH.toList.dedup []
+
+theorem hsOrder_perm (rH : Roster H.V) : (hsOrder H rH).Perm rH.toList.dedup :=
+  connOrder_perm H _ _ _ le_rfl
+
+theorem hsOrder_nodup (rH : Roster H.V) : (hsOrder H rH).Nodup :=
+  (hsOrder_perm H rH).nodup_iff.mpr (List.nodup_dedup _)
+
+theorem mem_hsOrder (rH : Roster H.V) (x : H.V) : x ∈ hsOrder H rH :=
+  (hsOrder_perm H rH).mem_iff.mpr (List.mem_dedup.mpr (rH.mem_toList x))
+
 /-- The finished state the search finds, before it is turned into a `MinorOf`.
 
 The guard in front is the cheap necessary condition: a minor has no more vertices and no more
 edges than its host, so a search that cannot possibly succeed is not started. -/
 def searchMinor (rH : Roster H.V) (rG : Roster G.V) : Option (State H G) :=
   if Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E then
-    searchFrom H G (fun v ↦ rG.toList.idxOf v) rH.toList.dedup rG.toList.dedup
+    searchFrom H G (fun v ↦ rG.toList.idxOf v) (hsOrder H rH) rG.toList.dedup
   else none
 
 theorem finalOk_of_searchMinor {rH : Roster H.V} {rG : Roster G.V} {st : State H G}
-    (h : searchMinor H G rH rG = some st) : finalOk H G rH.toList.dedup st = true := by
+    (h : searchMinor H G rH rG = some st) : finalOk H G (hsOrder H rH) st = true := by
   rw [searchMinor] at h
   split at h
   · exact finalOk_of_searchFrom H G _ h
@@ -802,9 +1132,8 @@ theorem finalOk_of_searchMinor {rH : Roster H.V} {rG : Roster G.V} {st : State H
 /-- **Is `H` a minor of `G`?**  Returns a witness if so.  See
 `isEmpty_minorOf_of_findMinor_eq_none` for the other half of the answer. -/
 def findMinor (rH : Roster H.V) (rG : Roster G.V) : Option (H.MinorOf G) :=
-  Option.pmap (p := fun st ↦ finalOk H G rH.toList.dedup st = true)
-    (fun st hst ↦ ofFinal H G rH.toList.dedup st
-      (fun x ↦ List.mem_dedup.mpr (rH.mem_toList x)) hst)
+  Option.pmap (p := fun st ↦ finalOk H G (hsOrder H rH) st = true)
+    (fun st hst ↦ ofFinal H G (hsOrder H rH) st (mem_hsOrder H rH) hst)
     (searchMinor H G rH rG) (fun _ hst ↦ finalOk_of_searchMinor H G hst)
 
 theorem findMinor_eq_none_iff (rH : Roster H.V) (rG : Roster G.V) :
@@ -819,7 +1148,7 @@ theorem isEmpty_minorOf_of_findMinor_eq_none {rH : Roster H.V} {rG : Roster G.V}
   rw [findMinor_eq_none_iff, searchMinor] at h
   split at h
   · exact isEmpty_minorOf_of_searchFrom _ (fun v ↦ List.mem_dedup.mpr (rG.mem_toList v))
-      (List.nodup_dedup _) (List.nodup_dedup _) h
+      (hsOrder_nodup H rH) (List.nodup_dedup _) h
   · exact ⟨fun f ↦ absurd (show Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E from
       ⟨f.card_le, f.E_le⟩) ‹_›⟩
 
