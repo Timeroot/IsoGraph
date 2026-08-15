@@ -1,4 +1,5 @@
 import IsoGraph.Containment.Defs
+import IsoGraph.Containment.Minors
 
 /-!
 # The containment relations
@@ -13,4 +14,8 @@ map — `H.SubgraphOf G` is the *type* of ways `H` is a subgraph of `G` — with
 extending one another so that the implications between the relations are projections, and with
 `ofIso`, `refl` and `trans` for each.  On `IsoGraph` it is the `Prop` that such a structure exists,
 and each of those becomes a scoped order instance, with `empty 0` at the bottom.
+
+`Containment/Minors.lean` finishes the two minor relations: a minor with as many vertices as its
+host is a subgraph of it, which makes both minor orders antisymmetric and so partial orders, and
+a minor has no more edges than its host.  It also composes immersions.
 -/

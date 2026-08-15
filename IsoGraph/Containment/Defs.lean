@@ -19,8 +19,9 @@ other with some property.  Each one is written here twice.
 
 Each relation that has `refl` and `trans` then becomes a scoped order instance on `IsoGraph`,
 with `empty 0` as the bottom element where it is one.  The scopes are `IsoGraph.Subgraph`,
-`IsoGraph.InducedSubgraph`, `IsoGraph.Hom`, `IsoGraph.Quotient`, `IsoGraph.Minor` and
-`IsoGraph.InducedMinor`; only one should be open at a time, since they all use `≤`.
+`IsoGraph.InducedSubgraph`, `IsoGraph.Hom` and `IsoGraph.Quotient` here, and `IsoGraph.Minor` and
+`IsoGraph.InducedMinor` in `Containment/Minors.lean`; only one should be open at a time, since they
+all use `≤`.
 
 ## The relations
 
@@ -39,15 +40,15 @@ The hom order is only a preorder, and not by omission: `K₂` and `K₂ ⊕g K�
 are not isomorphic.  The subgraph, induced subgraph and quotient orders are partial orders, because
 the two maps of an antisymmetry are forced to be bijections and then to reflect adjacency;
 `isoOfInjective` is the lemma that does it, by counting edges.  The two minor relations are
-antisymmetric as well, but the proof is a different one — a minor of a minor of `H` with the same
-vertex and edge counts has all its branch sets singletons — and is not carried out here, so they
-are left as preorders.
+antisymmetric as well, by an argument that lives in `Containment/Minors.lean`.
 
 `TopMinorOf` and `ImmersionOf` are the two whose transitivity is not proved here.  Both hold — the
-proof substitutes a path or trail of `G` for each edge of the paths in `K` — but the bookkeeping of
-internal disjointness across a substitution is a development of its own, and nothing else in this
-file needs it, so what is proved for them is `ofIso`, `refl`, the weakening of a `SubgraphOf` and
-(for immersions) of a `TopMinorOf`, and the descent to `IsoGraph` as a reflexive relation.
+proof substitutes a path or trail of `G` for each edge of the paths in `K` — but the substitution
+is a development of its own.  `Containment/Minors.lean` carries it out for immersions, where
+edge-disjointness survives it; for topological minors, where internal *vertex* disjointness has to
+be maintained too, it is still open.  What is proved for both here is `ofIso`, `refl`, the
+weakening of a `SubgraphOf` and (for immersions) of a `TopMinorOf`, and the descent to `IsoGraph`
+as a reflexive relation.
 
 ## Branch sets
 
@@ -1151,37 +1152,9 @@ theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsQuotientOf G := Iff.rfl
 
 end Quotient
 
-namespace Minor
-
-/-- The minor order. -/
-scoped instance : Preorder IsoGraph where
-  le := IsMinorOf
-  le_refl := isMinorOf_refl
-  le_trans _ _ _ := isMinorOf_trans
-
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsMinorOf G := Iff.rfl
-
-scoped instance : OrderBot IsoGraph where
-  bot := empty 0
-  bot_le := empty_zero_isMinorOf
-
-end Minor
-
-namespace InducedMinor
-
-/-- The induced minor order. -/
-scoped instance : Preorder IsoGraph where
-  le := IsInducedMinorOf
-  le_refl := isInducedMinorOf_refl
-  le_trans _ _ _ := isInducedMinorOf_trans
-
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsInducedMinorOf G := Iff.rfl
-
-scoped instance : OrderBot IsoGraph where
-  bot := empty 0
-  bot_le := empty_zero_isInducedMinorOf
-
-end InducedMinor
+/-! The two minor relations are partial orders as well, but their antisymmetry needs an argument of
+its own; `Containment/Minors.lean` gives it, and declares the `IsoGraph.Minor` and
+`IsoGraph.InducedMinor` scopes there. -/
 
 /-! ## The orders in use
 
@@ -1200,11 +1173,10 @@ end Examples
 
 section Examples
 
-open scoped IsoGraph.Minor
+open scoped IsoGraph.Hom
 
 example (G : IsoGraph) : (⊥ : IsoGraph) ≤ G := bot_le
-example {H G : IsoGraph} (h : H.IsInducedSubgraphOf G) : H ≤ G :=
-  h.isInducedMinorOf.isMinorOf
+example {H G : IsoGraph} (h : H.IsInducedSubgraphOf G) : H ≤ G := h.isSubgraphOf.hasHomInto
 
 end Examples
 
