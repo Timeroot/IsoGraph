@@ -753,7 +753,8 @@ where `Gᴴ` has the maps `H.V → G.V` for vertices and a loop at every homomor
 loopless, so `G ^g H` is that graph with its diagonal deleted, and the deletion is what breaks the
 laws: none of `(Gᴴ)ᴷ = G ^ (H ⊗ K)`, `G ^ (H ⊕ K) = Gᴴ ⊗ Gᴷ` or `(G ⊗ H)ᴷ = Gᴷ ⊗ Hᴷ` survives it —
 see `IsoGraph/Values/Identities/Exponential.lean`, where the degenerate cases that do survive are
-proved and the failures are witnessed. -/
+proved and the failures are witnessed.  The section after this one puts the loops back and gets
+all three laws, over the strong product. -/
 
 /-- The exponential graph `G ^g H`: the vertices are the maps `H.V → G.V`, and two distinct maps
 `f`, `f'` are adjacent when every edge `u ~ v` of `H` is carried to an edge `f u ~ f' v` of `G`. -/
@@ -781,6 +782,114 @@ instance (G H : CGraph) [Nonempty G.V] : Nonempty (G ^g H).V :=
 @[simp] theorem exponential_adj (G H : CGraph) (f f' : H.V → G.V) :
     (G ^g H).Adj f f'
       = (decide (f ≠ f') && decide (∀ u v, H.Adj u v → G.Adj (f u) (f' v))) := rfl
+
+/-! ## The reflexive exponential
+
+What breaks the exponent laws is that a `CGraph` has no loops.  The repair is to put them back:
+work with `adjR`, the adjacency of the graph with a loop added at every vertex, and take for
+vertices not all the maps but the *homomorphisms* for that relation — the maps that send an edge
+of the exponent to an edge or a fixed point of the base.  Every such map is `adjR`-adjacent to
+itself, which is exactly the loop the plain exponential is missing, and deleting the diagonal then
+costs nothing: `adjR_homExponential` says reflexive adjacency in `G ^hg H` is the defining
+condition, on and off the diagonal alike.
+
+This is the exponential of the category of *reflexive* graphs (Hell–Nešetřil, *Graphs and
+Homomorphisms*, §2.6), where the categorical product of two reflexive graphs is the strong product
+of their loopless shadows.  So the right adjoint here is the strong product, not the tensor
+product, and the laws that fail for `^g` hold for `^hg` with `⊠g` throughout — see
+`IsoGraph/Values/Identities/Exponential.lean`. -/
+
+/-- `G.adjR x y`: `x` and `y` are equal or adjacent.  This is the adjacency of `G` with a loop
+added at every vertex, and it is what the reflexive exponential `^hg` is built from. -/
+def adjR (G : CGraph) (x y : G.V) : Bool := decide (x = y) || G.Adj x y
+
+@[simp] theorem adjR_self (G : CGraph) (x : G.V) : G.adjR x x = true := by simp [adjR]
+
+theorem adjR_comm (G : CGraph) (x y : G.V) : G.adjR x y = G.adjR y x := by
+  rw [adjR, adjR, G.symm, decide_eq_comm]
+
+theorem adjR_of_adj {G : CGraph} {x y : G.V} (h : G.Adj x y) : G.adjR x y := by simp [adjR, h]
+
+/-- Adjacency is reflexive adjacency off the diagonal: the two determine each other. -/
+theorem adj_eq_adjR (G : CGraph) (x y : G.V) : G.Adj x y = (decide (x ≠ y) && G.adjR x y) := by
+  by_cases h : x = y
+  · subst h; simp [(Bool.not_eq_true _).mp (G.loopless x)]
+  · simp [adjR, h]
+
+/-- `isoOfAdj` for reflexive adjacency: a bijection that carries `adjR` to `adjR` is an
+isomorphism, since `adj_eq_adjR` recovers `Adj` from `adjR` and injectivity. -/
+def isoOfAdjR {G H : CGraph} (e : G.V ≃ H.V) (h : ∀ x y, H.adjR (e x) (e y) = G.adjR x y) :
+    G ≃cg H :=
+  isoOfAdj e fun x y ↦ by
+    rw [adj_eq_adjR, adj_eq_adjR, h]
+    congr 1
+    exact decide_eq_decide.2 (not_congr e.apply_eq_iff_eq)
+
+theorem Iso.adjR_eq {G H : CGraph} (i : G ≃cg H) (x y : G.V) :
+    H.adjR (i x) (i y) = G.adjR x y := by
+  rw [adjR, adjR, i.adj_eq]
+  congr 1
+  exact decide_eq_decide.2 (RelIso.injective i).eq_iff
+
+theorem Iso.adjR_symm_eq {G H : CGraph} (i : G ≃cg H) (x y : H.V) :
+    G.adjR (i.symm x) (i.symm y) = H.adjR x y := by
+  rw [← i.adjR_eq, i.apply_symm_apply, i.apply_symm_apply]
+
+@[simp] theorem adjR_empty (n : ℕ) (x y : (empty n).V) : (empty n).adjR x y = decide (x = y) := by
+  simp [adjR]
+
+theorem adjR_disjUnion_inl (G H : CGraph) (x y : G.V) :
+    (G ⊕g H).adjR (Sum.inl x) (Sum.inl y) = G.adjR x y := by simp [adjR, disjUnion]
+
+theorem adjR_disjUnion_inr (G H : CGraph) (x y : H.V) :
+    (G ⊕g H).adjR (Sum.inr x) (Sum.inr y) = H.adjR x y := by simp [adjR, disjUnion]
+
+@[simp] theorem adjR_disjUnion_inl_inr (G H : CGraph) (x : G.V) (y : H.V) :
+    (G ⊕g H).adjR (Sum.inl x) (Sum.inr y) = false := by simp [adjR, disjUnion]
+
+@[simp] theorem adjR_disjUnion_inr_inl (G H : CGraph) (x : H.V) (y : G.V) :
+    (G ⊕g H).adjR (Sum.inr x) (Sum.inl y) = false := by simp [adjR, disjUnion]
+
+/-- **The strong product is the product of the reflexive adjacencies.**  This is the whole reason
+the strong product is the one the reflexive exponential is adjoint to. -/
+@[simp] theorem adjR_strongProduct (G H : CGraph) (p q : (G ⊠g H).V) :
+    (G ⊠g H).adjR p q = (G.adjR p.1 q.1 && H.adjR p.2 q.2) := by
+  by_cases h : p = q
+  · subst h; simp
+  · simp [adjR, h, strongProduct_adj]
+
+/-- The reflexive exponential `G ^hg H`: the vertices are the homomorphisms `H → G` for the
+reflexive adjacencies, and two distinct ones `f`, `f'` are adjacent when `f u` and `f' v` are
+equal or adjacent for every `u`, `v` equal or adjacent in `H`. -/
+def homExponential (G H : CGraph) : CGraph where
+  V := {f : H.V → G.V // ∀ u v, H.adjR u v → G.adjR (f u) (f v)}
+  Adj f f' := decide (f ≠ f') && decide (∀ u v, H.adjR u v → G.adjR (f.1 u) (f'.1 v))
+  symm f f' := by
+    have h1 : decide (f ≠ f') = decide (f' ≠ f) := decide_eq_decide.2 ne_comm
+    have h2 : decide (∀ u v, H.adjR u v → G.adjR (f.1 u) (f'.1 v))
+        = decide (∀ u v, H.adjR u v → G.adjR (f'.1 u) (f.1 v)) :=
+      decide_eq_decide.2
+        ⟨fun h u v huv ↦ by rw [G.adjR_comm]; exact h v u (by rw [H.adjR_comm]; exact huv),
+          fun h u v huv ↦ by rw [G.adjR_comm]; exact h v u (by rw [H.adjR_comm]; exact huv)⟩
+    rw [h1, h2]
+  loopless f := by simp
+
+@[inherit_doc] infixr:75 " ^hg " => CGraph.homExponential
+
+@[simp] theorem homExponential_adj (G H : CGraph) (f f' : (G ^hg H).V) :
+    (G ^hg H).Adj f f'
+      = (decide (f ≠ f') && decide (∀ u v, H.adjR u v → G.adjR (f.1 u) (f'.1 v))) := rfl
+
+/-- **Reflexive adjacency in `G ^hg H` is the defining condition**, with no diagonal test left
+over: on the diagonal it is the property that makes a map a vertex in the first place.  Every
+identity about `^hg` is this lemma plus a reindexing. -/
+@[simp] theorem adjR_homExponential (G H : CGraph) (f f' : (G ^hg H).V) :
+    (G ^hg H).adjR f f' = decide (∀ u v, H.adjR u v → G.adjR (f.1 u) (f'.1 v)) := by
+  by_cases h : f = f'
+  · subst h
+    simp only [adjR, decide_true, Bool.true_or]
+    exact (decide_eq_true f.2).symm
+  · simp [adjR, h]
 
 /-- The hypercube `Q_n`: bit-strings of length `n`, adjacent when they differ in exactly one
 place.  This is the `n`-fold cartesian product of `complete 2`, but written directly, so that a
@@ -1310,6 +1419,11 @@ theorem E_compl :
 
 @[simp] theorem complete_adj (n : ℕ) (i j : Fin n) : (complete n).Adj i j = decide (i ≠ j) := by
   simp [complete]
+
+/-- Everything is reflexively adjacent in a complete graph; this is `adjR` (see the reflexive
+exponential, above) but it has to wait for `complete_adj`. -/
+@[simp] theorem adjR_complete (n : ℕ) (x y : (complete n).V) : (complete n).adjR x y = true := by
+  by_cases h : x = y <;> simp [adjR, h]
 
 /-- **The complement of the rook's graph is the tensor product of complete graphs**: two squares
 of the board are non-adjacent in `Kₘ □ Kₙ` exactly when they agree in neither coordinate.  Both

@@ -151,6 +151,15 @@ def IsConnected : Prop := G.toSimple.Connected
 theorem isConnected_iff_of_iso {G H : CGraph} (i : G ≃cg H) : G.IsConnected ↔ H.IsConnected :=
   SimpleGraph.Iso.connected_iff (CGraph.Iso.toSimpleIso i)
 
+/-- **A function that is constant along the edges of a connected graph is constant.**  Walk
+induction, once, so that the constructions that need it do not each redo it. -/
+theorem eq_of_forall_adj {G : CGraph} (hG : G.IsConnected) {α : Type} {φ : G.V → α}
+    (h : ∀ x y, G.Adj x y → φ x = φ y) (x y : G.V) : φ x = φ y := by
+  obtain ⟨w⟩ := hG.preconnected x y
+  induction w with
+  | nil => rfl
+  | cons hadj _ ih => exact (h _ _ hadj).trans ih
+
 /-- The graph has no cycles. -/
 def IsAcyclic : Prop := G.toSimple.IsAcyclic
 
