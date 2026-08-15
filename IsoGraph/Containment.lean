@@ -1,5 +1,6 @@
 import IsoGraph.Containment.Algorithms.Backtrack
 import IsoGraph.Containment.Algorithms.InducedSubgraph
+import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Defs
 import IsoGraph.Containment.Minors
 
@@ -26,5 +27,7 @@ returns the containment *itself* when it succeeds — not a `Bool` — and a the
 empty when it fails, so a successful answer needs no further proof and a failed one is still a
 complete answer.  `Backtrack.lean` has the search skeleton, which is graph-agnostic: all the
 pruning is discharged by a single implication, so making a search cleverer cannot make it wrong.
-`Algorithms/InducedSubgraph.lean` is the induced subgraph relation.
+`Algorithms/InducedSubgraph.lean` is the induced subgraph relation, and `Algorithms/Minor.lean`
+the minor relation, whose search builds the branch sets in an order that keeps them connected as
+it goes.
 -/

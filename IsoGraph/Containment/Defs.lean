@@ -96,6 +96,49 @@ theorem connectedOn_singleton (G : CGraph) (x : G.V) : G.ConnectedOn {x} where
     rintro u rfl v rfl
     exact ⟨.nil, by simp⟩
 
+/-- **Adding a vertex adjacent to a connected set keeps it connected.**  This is how a search
+grows a branch set: one vertex at a time, each attached to what is already there. -/
+theorem ConnectedOn.insert {G : CGraph} {s : Set G.V} {v u : G.V} (hs : G.ConnectedOn s)
+    (hu : u ∈ s) (hadj : G.Adj v u) : G.ConnectedOn (Insert.insert v s) where
+  nonempty := ⟨v, Set.mem_insert _ _⟩
+  walk := by
+    have key : ∀ b ∈ s, ∃ w : G.toSimple.Walk v b, ∀ z ∈ w.support, z ∈ Insert.insert v s := by
+      intro b hb
+      obtain ⟨p, hp⟩ := hs.walk hu hb
+      refine ⟨.cons (show G.toSimple.Adj v u from hadj) p, ?_⟩
+      intro z hz
+      rw [SimpleGraph.Walk.support_cons, List.mem_cons] at hz
+      rcases hz with rfl | hz
+      · exact Set.mem_insert _ _
+      · exact Set.mem_insert_of_mem _ (hp z hz)
+    rintro a ha b hb
+    rcases ha with rfl | ha
+    · rcases hb with rfl | hb
+      · exact ⟨.nil, fun z hz ↦ by
+          rw [SimpleGraph.Walk.support_nil, List.mem_singleton] at hz
+          exact hz ▸ Set.mem_insert _ _⟩
+      · exact key b hb
+    · rcases hb with rfl | hb
+      · obtain ⟨w, hw⟩ := key a ha
+        exact ⟨w.reverse, by simpa using hw⟩
+      · obtain ⟨w, hw⟩ := hs.walk ha hb
+        exact ⟨w, fun z hz ↦ Set.mem_insert_of_mem _ (hw z hz)⟩
+
+/-- **Any nonempty proper subset of a connected set has an edge leaving it.**  Dually to
+`ConnectedOn.insert`, this is why growing a branch set one adjacent vertex at a time can reach
+all of it. -/
+theorem ConnectedOn.exists_adj_of_ssubset {G : CGraph} {s t : Set G.V} (hs : G.ConnectedOn s)
+    (hts : t ⊆ s) {u : G.V} (hu : u ∈ t) {w : G.V} (hw : w ∈ s) (hwt : w ∉ t) :
+    ∃ a ∈ t, ∃ b ∈ s, b ∉ t ∧ G.Adj a b := by
+  obtain ⟨p, hp⟩ := hs.walk (hts hu) hw
+  clear hw
+  induction p with
+  | @nil a => exact absurd hu hwt
+  | @cons a m c hadj p ih =>
+    by_cases hm : m ∈ t
+    · exact ih hm hwt fun z hz ↦ hp z (by simp [hz])
+    · exact ⟨a, hu, m, hp m (by simp [SimpleGraph.Walk.start_mem_support]), hm, hadj⟩
+
 /-- **A union of connected sets indexed by a connected set is connected**, provided every edge of
 the index graph is realised by an edge between the corresponding sets.  This is the one lemma the
 transitivity of the minor relation needs: the branch sets of a minor of a minor are unions of
