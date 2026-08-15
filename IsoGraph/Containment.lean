@@ -1,3 +1,5 @@
+import IsoGraph.Containment.Algorithms.Backtrack
+import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Defs
 import IsoGraph.Containment.Minors
 
@@ -18,4 +20,11 @@ and each of those becomes a scoped order instance, with `empty 0` at the bottom.
 `Containment/Minors.lean` finishes the two minor relations: a minor with as many vertices as its
 host is a subgraph of it, which makes both minor orders antisymmetric and so partial orders, and
 a minor has no more edges than its host.  It also composes immersions.
+
+`Containment/Algorithms/` decides some of these relations, on `CGraph`, by search.  Each search
+returns the containment *itself* when it succeeds — not a `Bool` — and a theorem that the type is
+empty when it fails, so a successful answer needs no further proof and a failed one is still a
+complete answer.  `Backtrack.lean` has the search skeleton, which is graph-agnostic: all the
+pruning is discharged by a single implication, so making a search cleverer cannot make it wrong.
+`Algorithms/InducedSubgraph.lean` is the induced subgraph relation.
 -/

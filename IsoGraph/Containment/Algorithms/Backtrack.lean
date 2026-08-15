@@ -1,0 +1,166 @@
+import Mathlib.Data.Finset.Sort
+import Mathlib.Data.List.Pairwise
+import Mathlib.Data.List.Sublists
+import Mathlib.Logic.Equiv.Fin.Basic
+
+/-!
+# A verified backtracking search
+
+Deciding whether one graph sits inside another is NP-hard, so any algorithm for it is a
+backtracking search: extend a partial assignment one element at a time, and abandon a branch as
+soon as it cannot be completed.  What makes such a search *fast* is the pruning, and what makes it
+*correct* is that the pruning throws nothing away.  This file separates the two.
+
+`Backtrack.dfs` assigns a value to each element of a list `todo` in turn, in the order given.  It
+takes two callbacks:
+
+* `goal` decides whether a *complete* assignment is a solution;
+* `cand a pre` lists the values worth trying for `a`, given the assignments `pre` already made
+  (most recent first).
+
+`dfs` returns the first complete assignment `goal` accepts, and `dfs_eq_none` says that when it
+returns `none` there is none to be found — under the single hypothesis that `cand` is *sound*:
+whenever `l ++ (a, b) :: pre` is a solution, `b` is among the candidates `cand` offers for `a`
+after `pre`.  Every pruning rule is therefore discharged by one implication, from a global
+property of a solution to a locally computable test, and a caller is free to make `cand` as clever
+as it likes: dropping a candidate is only ever a *speed* question, never a correctness one, as
+long as that implication still goes through.
+
+The idiom this suggests, and the one both callers use, is to put every necessary condition into
+`goal` — including ones that are not local, like a degree bound — and then to have `cand` re-check
+the ones it can see.  `goal` is evaluated once per leaf, so the redundancy is free, and the
+soundness of the pruning becomes a projection out of `goal`.
+
+`Backtrack.Roster` is here too: the list of candidates has to come from somewhere, and a `Fintype`
+instance cannot computably produce one.
+-/
+
+set_option autoImplicit false
+
+namespace Backtrack
+
+universe u v
+
+variable {α : Type u} {β : Type v}
+
+/-- A computable list of all the elements of a type.
+
+A `Fintype` instance is not enough for a search: it gives a `Finset`, whose underlying `Multiset`
+is a quotient of lists by permutation, and there is no well-defined — hence no computable — way to
+pick a list out of it again.  `Finset.toList` exists but is noncomputable.  A search has to try
+the candidates in *some* order, so it has to be handed one. -/
+structure Roster (α : Type u) where
+  /-- The elements, in the order a search should try them. -/
+  toList : List α
+  /-- Every element occurs. -/
+  mem_toList : ∀ a, a ∈ toList
+
+/-- The roster of `Fin n`.  This covers essentially every graph in practice: a `CGraph` built by
+one of the constructions has `Fin n`, or something equivalent to it, for its vertex type. -/
+def Roster.fin (n : ℕ) : Roster (Fin n) := ⟨List.finRange n, by simp⟩
+
+/-- A roster transported along an equivalence. -/
+def Roster.ofEquiv {α : Type u} {β : Type v} (r : Roster β) (e : α ≃ β) : Roster α :=
+  ⟨r.toList.map e.symm, fun a ↦ List.mem_map.mpr ⟨e a, r.mem_toList (e a), e.symm_apply_apply a⟩⟩
+
+/-- The roster of a product. -/
+def Roster.prod (r : Roster α) (s : Roster β) : Roster (α × β) :=
+  ⟨r.toList.flatMap fun a ↦ s.toList.map fun b ↦ (a, b), fun p ↦ by
+    simp only [List.mem_flatMap, List.mem_map]
+    exact ⟨p.1, r.mem_toList p.1, p.2, s.mem_toList p.2, rfl⟩⟩
+
+/-- The roster of a sum. -/
+def Roster.sum (r : Roster α) (s : Roster β) : Roster (α ⊕ β) :=
+  ⟨r.toList.map Sum.inl ++ s.toList.map Sum.inr, fun x ↦ by
+    cases x <;> simp [r.mem_toList, s.mem_toList]⟩
+
+/-- The roster of `Bool`. -/
+def Roster.bool : Roster Bool := ⟨[false, true], by decide⟩
+
+/-- The roster of the functions out of `Fin n`, in lexicographic order. -/
+def Roster.finArrow : (n : ℕ) → Roster β → Roster (Fin n → β)
+  | 0, _ => ⟨[Fin.elim0], fun _ ↦ List.mem_singleton.mpr (funext fun i ↦ i.elim0)⟩
+  | n + 1, r => (r.prod (Roster.finArrow n r)).ofEquiv (Fin.consEquiv fun _ ↦ β).symm
+
+/-- The roster of a subtype. -/
+def Roster.subtype (r : Roster α) (p : α → Prop) [DecidablePred p] : Roster {x // p x} :=
+  ⟨r.toList.filterMap fun a ↦ if h : p a then some ⟨a, h⟩ else none, fun x ↦
+    List.mem_filterMap.mpr ⟨x.1, r.mem_toList x.1, by rw [dif_pos x.2]⟩⟩
+
+/-- The roster of the finite subsets of a rostered type. -/
+def Roster.finset [DecidableEq α] (r : Roster α) : Roster (Finset α) :=
+  ⟨r.toList.sublists.map List.toFinset, fun s ↦
+    List.mem_map.mpr ⟨r.toList.filter fun a ↦ decide (a ∈ s),
+      List.mem_sublists.mpr (List.filter_sublist ..), by
+        ext a; simp [r.mem_toList a]⟩⟩
+
+/-- Depth-first search over assignments of values in `β` to the elements of `todo`, taken in
+order.  `pre` is the assignment made so far, most recent first; `cand a pre` are the values to try
+for `a`; `goal` decides a complete assignment. -/
+def dfs (cand : α → List (α × β) → List β) (goal : List (α × β) → Bool) :
+    List α → List (α × β) → Option (List (α × β))
+  | [], pre => if goal pre then some pre else none
+  | a :: todo, pre => (cand a pre).findSome? fun b ↦ dfs cand goal todo ((a, b) :: pre)
+
+variable {cand : α → List (α × β) → List β} {goal : List (α × β) → Bool}
+
+/-- **Soundness**: what the search returns satisfies `goal`. -/
+theorem goal_of_dfs_eq_some {todo : List α} {pre r : List (α × β)}
+    (h : dfs cand goal todo pre = some r) : goal r = true := by
+  induction todo generalizing pre r with
+  | nil =>
+    rw [dfs] at h
+    split at h
+    · rename_i hg; rw [Option.some_inj] at h; exact h ▸ hg
+    · exact absurd h (by simp)
+  | cons a todo ih =>
+    rw [dfs] at h
+    obtain ⟨_, _, hb⟩ := List.exists_of_findSome?_eq_some h
+    exact ih hb
+
+/-- What the search returns assigns a value to every element of `todo`, and to nothing else. -/
+theorem keys_of_dfs_eq_some {todo : List α} {pre r : List (α × β)}
+    (h : dfs cand goal todo pre = some r) :
+    r.map Prod.fst = todo.reverse ++ pre.map Prod.fst := by
+  induction todo generalizing pre r with
+  | nil =>
+    rw [dfs] at h
+    split at h
+    · rw [Option.some_inj] at h; subst h; simp
+    · exact absurd h (by simp)
+  | cons a todo ih =>
+    rw [dfs] at h
+    obtain ⟨_, _, hb⟩ := List.exists_of_findSome?_eq_some h
+    rw [ih hb]; simp
+
+/-- **Completeness**: if the search comes back empty then nothing satisfies `goal`.  The one thing
+asked of the pruning is `hcand`: a value that occurs in a solution is offered as a candidate. -/
+theorem dfs_eq_none
+    (hcand : ∀ (a : α) (pre : List (α × β)) (b : β) (l : List (α × β)),
+      goal (l ++ (a, b) :: pre) = true → b ∈ cand a pre)
+    {todo : List α} {pre sol : List (α × β)} (h : dfs cand goal todo pre = none)
+    (hsol : sol.map Prod.fst = todo) : goal (sol.reverse ++ pre) = false := by
+  induction todo generalizing pre sol with
+  | nil =>
+    obtain rfl : sol = [] := List.map_eq_nil_iff.mp hsol
+    rw [dfs] at h
+    simp only [List.reverse_nil, List.nil_append]
+    split at h
+    · exact absurd h (by simp)
+    · rename_i hg; simpa using hg
+  | cons a todo ih =>
+    rw [dfs] at h
+    cases sol with
+    | nil => simp at hsol
+    | cons p sol =>
+      obtain ⟨a', b⟩ := p
+      simp only [List.map_cons, List.cons.injEq] at hsol
+      obtain ⟨rfl, hsol⟩ := hsol
+      have hrw : ((a', b) :: sol).reverse ++ pre = sol.reverse ++ (a', b) :: pre := by simp
+      rw [hrw]
+      by_contra hg
+      rw [Bool.not_eq_false] at hg
+      have hb : b ∈ cand a' pre := hcand a' pre b sol.reverse hg
+      exact absurd hg (by simp [ih (List.findSome?_eq_none_iff.mp h b hb) hsol])
+
+end Backtrack
