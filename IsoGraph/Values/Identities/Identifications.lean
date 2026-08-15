@@ -92,6 +92,13 @@ namespace IsoGraph
       show Fintype.card (g ·g h).V = _
       simp
 
+@[simp] theorem V_exponential (G H : IsoGraph) : (G ^g H).V = G.V ^ H.V := by
+  induction G using Quotient.inductionOn with
+  | h g => induction H using Quotient.inductionOn with
+    | h h =>
+      show Fintype.card (g ^g h).V = _
+      simp
+
 @[simp] theorem V_lineGraph (G : IsoGraph) : (lineGraph G).V = G.E := by
   induction G using Quotient.inductionOn with
   | h g =>
@@ -128,6 +135,19 @@ theorem mk_eq_complete {G : CGraph} (h : ∀ x y, x ≠ y → G.Adj x y = true) 
       simp
     · rw [h x y hxy]
       exact decide_eq_true fun hh ↦ hxy ((Fintype.equivFin G.V).injective hh)⟩
+
+/-- The converse of `mk_eq_complete`: a graph whose class is `complete` has every edge. -/
+theorem adj_of_mk_eq_complete {G : CGraph} {n : ℕ} (h : (⟦G⟧ : IsoGraph) = complete n)
+    {x y : G.V} (hxy : x ≠ y) : G.Adj x y = true := by
+  obtain ⟨i⟩ := Quotient.exact h
+  rw [← i.adj_eq x y, CGraph.complete_adj]
+  exact decide_eq_true fun hc ↦ hxy (i.injective hc)
+
+/-- The converse of `mk_eq_empty`: a graph whose class is `empty` has no edge. -/
+theorem adj_eq_false_of_mk_eq_empty {G : CGraph} {n : ℕ} (h : (⟦G⟧ : IsoGraph) = empty n)
+    (x y : G.V) : G.Adj x y = false := by
+  obtain ⟨i⟩ := Quotient.exact h
+  rw [← i.adj_eq x y, CGraph.empty_adj]
 
 /-- A graph with no vertices is the empty graph on `0` vertices. -/
 theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = empty 0 := by

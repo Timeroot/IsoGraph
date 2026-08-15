@@ -746,6 +746,42 @@ theorem lexProduct_eq_ofRel (G H : CGraph) :
     simp only [lexProduct_adj]
     rw [G.symm q.1 p.1, H.symm q.2 p.2, decide_eq_comm q.1 p.1, Bool.or_self]
 
+/-! ## The exponential
+
+The exponential is the internal hom of the tensor product in the category of graphs *with* loops,
+where `Gᴴ` has the maps `H.V → G.V` for vertices and a loop at every homomorphism.  A `CGraph` is
+loopless, so `G ^g H` is that graph with its diagonal deleted, and the deletion is what breaks the
+laws: none of `(Gᴴ)ᴷ = G ^ (H ⊗ K)`, `G ^ (H ⊕ K) = Gᴴ ⊗ Gᴷ` or `(G ⊗ H)ᴷ = Gᴷ ⊗ Hᴷ` survives it —
+see `IsoGraph/Values/Identities/Exponential.lean`, where the degenerate cases that do survive are
+proved and the failures are witnessed. -/
+
+/-- The exponential graph `G ^g H`: the vertices are the maps `H.V → G.V`, and two distinct maps
+`f`, `f'` are adjacent when every edge `u ~ v` of `H` is carried to an edge `f u ~ f' v` of `G`. -/
+def exponential (G H : CGraph) : CGraph where
+  V := H.V → G.V
+  Adj f f' := decide (f ≠ f') && decide (∀ u v, H.Adj u v → G.Adj (f u) (f' v))
+  symm f f' := by
+    have h1 : decide (f ≠ f') = decide (f' ≠ f) := decide_eq_decide.2 ne_comm
+    have h2 : decide (∀ u v, H.Adj u v → G.Adj (f u) (f' v))
+        = decide (∀ u v, H.Adj u v → G.Adj (f' u) (f v)) := by
+      refine decide_eq_decide.2 ⟨fun h u v huv ↦ ?_, fun h u v huv ↦ ?_⟩
+      · rw [G.symm]; exact h v u (by rw [H.symm]; exact huv)
+      · rw [G.symm]; exact h v u (by rw [H.symm]; exact huv)
+    rw [h1, h2]
+  loopless f := by simp
+
+@[inherit_doc] infixr:75 " ^g " => CGraph.exponential
+
+instance (G H : CGraph) [Nonempty G.V] : Nonempty (G ^g H).V :=
+  inferInstanceAs (Nonempty (H.V → G.V))
+
+@[simp] theorem card_exponential (G H : CGraph) :
+    Fintype.card (G ^g H).V = Fintype.card G.V ^ Fintype.card H.V := Fintype.card_fun
+
+@[simp] theorem exponential_adj (G H : CGraph) (f f' : H.V → G.V) :
+    (G ^g H).Adj f f'
+      = (decide (f ≠ f') && decide (∀ u v, H.Adj u v → G.Adj (f u) (f' v))) := rfl
+
 /-- The hypercube `Q_n`: bit-strings of length `n`, adjacent when they differ in exactly one
 place.  This is the `n`-fold cartesian product of `complete 2`, but written directly, so that a
 vertex is a bit-string rather than the nested pair the recursion would give. -/
