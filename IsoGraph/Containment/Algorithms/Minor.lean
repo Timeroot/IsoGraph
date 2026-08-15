@@ -55,6 +55,20 @@ Two counting tests, `card H.V ≤ card G.V` and `H.E ≤ G.E`, reject hopeless p
 starts, and `CGraph.hsOrder` places the vertices of `H` in an order that keeps them connected as
 they go, so that the seed rules above have something to bite on as early as possible.
 
+## Shrinking the host
+
+`CGraph.hostPool` throws away, before the search starts, the vertices of `G` that no branch set
+could use.  When every vertex of `H` has two neighbours — `CGraph.minDegTwo`, which is the case for
+every `H` one asks about in practice — a vertex of `G` with at most one neighbour left is in no
+branch set at all: a set containing it and something else has it as a leaf that nothing needs, and
+a set consisting of it alone would force the branch sets of two different neighbours of its vertex
+to meet its one neighbour.  Deleting such a vertex can create another, so the peeling runs to a
+fixed point and leaves the *two-core* (`CGraph.twoCore`); `CGraph.exists_model_twoCore` proves that
+no model is lost.
+
+A forest peels away completely, so asking whether a graph is a forest by asking for a `C₃` minor
+costs no search at all.
+
 The whole thing runs on `Backtrack.dfs` with `α = Unit` and the state itself for the value, over a
 `todo` of fixed length `card G.V + card H.V` — the largest number of moves a successful run can
 take, padded out with `stop`s once everything is placed.  A leaf of the search is therefore always
@@ -87,12 +101,14 @@ it uses the roster order, and admissibility is `attOf`.
 
 The search is exponential — the problem is NP-hard — and what it costs depends much more on the
 *answer* than on the size.  Finding a model is quick, because the pruning above leaves few ways to
-start: `K5` in the Heawood graph takes 9 ms, `K3,3` in it 15 ms, `K5` in the 24-vertex McGee graph
-23 ms, `C100` gives up a `C3` in 150 ms.  Ruling one out is the expensive direction, since every
-family of disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes about three
-minutes and `K3,3` in it thirteen.  A long thin host is the other bad case — a `C3` in a path of `n` vertices costs about
-`n⁴`, half a second at `n = 40` — and so is a host with a high-degree vertex, where the connected
-sets through it are exponentially many: a `C3` in a 13-vertex star takes half a second.
+start: `K5` in the Heawood graph takes 15 ms, `K3,3` in it 2 ms, `K5` in the 24-vertex McGee graph
+35 ms, `C100` gives up a `C3` in 200 ms.  Trees and near-trees are answered by the peeling above
+rather than by search: a `C3` in a path of 120 vertices, in a 13-vertex star or in a spider takes
+no measurable time, and in a 40-cycle with a 40-vertex tail 0.8 s.
+
+Ruling a minor out of a host with no vertices to peel is the expensive direction, since every
+family of disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes about four
+minutes and `K3,3` in it three times that.
 
 The obvious thing still missing is symmetry breaking.  Nothing stops the search from trying all
 `5!` orders of the five branch sets of a `K5`, and for a negative answer it does try them all.
@@ -354,14 +370,14 @@ canonicalisation of the order lose nothing: whatever the branch sets of a minor 
 run of the search that builds them.  The one thing asked of `att` is that the set contains a
 vertex the search would let it start at. -/
 theorem exists_pickChain {s : Set G.V} [DecidablePred (· ∈ s)] (hs : G.ConnectedOn s)
-    (rank : G.V → ℕ) (att : G.V → Bool) (gs : List G.V) (hgs : ∀ v, v ∈ gs)
+    (rank : G.V → ℕ) (att : G.V → Bool) (gs : List G.V) (hgs : ∀ v ∈ s, v ∈ gs)
     (hatt : ∃ v ∈ s, att v = true) :
     ∃ l : List G.V, l.Nodup ∧ (∀ v, v ∈ l ↔ v ∈ s) ∧ PickChain G rank att l = true := by
   obtain ⟨u₀, hu₀, hu₀a⟩ := hatt
   have hne : gs.filter (fun z ↦ decide (z ∈ s) && att z) ≠ [] := by
     intro hnil
     have : u₀ ∈ gs.filter fun z ↦ decide (z ∈ s) && att z :=
-      List.mem_filter.mpr ⟨hgs u₀, by simp [hu₀, hu₀a]⟩
+      List.mem_filter.mpr ⟨hgs u₀ hu₀, by simp [hu₀, hu₀a]⟩
     rw [hnil] at this
     simp at this
   obtain ⟨u, hu⟩ : ∃ u, (gs.filter fun z ↦ decide (z ∈ s) && att z).argmin rank = some u := by
@@ -371,18 +387,274 @@ theorem exists_pickChain {s : Set G.V} [DecidablePred (· ∈ s)] (hs : G.Connec
   obtain ⟨hus, hua⟩ : u ∈ s ∧ att u = true := by
     simpa using (List.mem_filter.mp (List.argmin_mem hu)).2
   have hmin : ∀ w ∈ s, att w = true → rank u ≤ rank w := fun w hw hwa ↦
-    List.le_of_mem_argmin (List.mem_filter.mpr ⟨hgs w, by simp [hw, hwa]⟩) hu
+    List.le_of_mem_argmin (List.mem_filter.mpr ⟨hgs w hw, by simp [hw, hwa]⟩) hu
   refine exists_pickChain_aux hs rank att (gs.filter fun v ↦ decide (v ≠ u)).length u []
     (gs.filter fun v ↦ decide (v ≠ u)) (by simp) ?_ hua ?_ ?_ le_rfl hmin (by simp)
   · intro v hv; rw [List.mem_singleton] at hv; exact hv ▸ hus
-  · intro v _
+  · intro v hv
     by_cases hvu : v = u
     · exact Or.inl (by simp [hvu])
-    · exact Or.inr (List.mem_filter.mpr ⟨hgs v, by simpa using hvu⟩)
+    · exact Or.inr (List.mem_filter.mpr ⟨hgs v hv, by simpa using hvu⟩)
   · intro v hv
     have := (List.mem_filter.mp hv).2
     simp only [decide_eq_true_eq] at this
     simpa using this
+
+/-- A legal pick order records the vertex the set was seeded at as its last entry, and the seed
+satisfies `att`. -/
+theorem att_getLast_of_pickChain {rank : G.V → ℕ} {att : G.V → Bool} :
+    ∀ {l : List G.V}, PickChain G rank att l = true → ∀ u, l.getLast? = some u → att u = true
+  | [], h, _, _ => by simp [PickChain] at h
+  | [v], h, u, hu => by
+    rw [PickChain] at h
+    rw [List.getLast?_singleton] at hu
+    exact Option.some_inj.mp hu ▸ h
+  | _ :: w :: T, h, u, hu => by
+    rw [PickChain, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
+    exact att_getLast_of_pickChain h.2 u (by rwa [List.getLast?_cons_cons] at hu)
+
+/-- **Deleting a leaf of a chain keeps it a chain.**  If `v` is not the vertex the list was seeded
+at, and the only vertex of the list it is adjacent to is that seed — which comes after it — then
+nothing in the list was relying on `v`, so dropping it leaves the rest connected. -/
+theorem chainConn_filter_ne (v : G.V) : ∀ {l : List G.V} {u : G.V}, ChainConn G l = true →
+    l.Nodup → l.getLast? = some u → v ≠ u → (∀ w ∈ l, G.Adj v w = true → w = u) →
+      ChainConn G (l.filter fun z ↦ decide (z ≠ v)) = true
+  | [], _, h, _, _, _, _ => by simp [ChainConn] at h
+  | [a], u, _, _, hlast, hvu, _ => by
+    rw [List.getLast?_singleton, Option.some_inj] at hlast
+    subst hlast
+    rw [List.filter_cons_of_pos (by simpa using fun e ↦ hvu e.symm)]
+    simp [ChainConn]
+  | a :: b :: T, u, h, hnd, hlast, hvu, honly => by
+    rw [ChainConn, List.isEmpty_cons, Bool.false_or, Bool.and_eq_true] at h
+    rw [List.getLast?_cons_cons] at hlast
+    have hu : u ∈ b :: T := List.mem_of_getLast? hlast
+    have ih := chainConn_filter_ne v h.2 (List.Nodup.of_cons hnd) hlast hvu
+      (fun w hw ↦ honly w (List.mem_cons_of_mem _ hw))
+    by_cases hav : a = v
+    · rw [List.filter_cons_of_neg (by simpa using hav)]
+      exact ih
+    · rw [List.filter_cons_of_pos (by simpa using hav)]
+      obtain ⟨w, hw, haw⟩ := List.any_eq_true.mp h.1
+      have hwv : w ≠ v := by
+        rintro rfl
+        have : a = u := honly a (List.mem_cons_self ..) (by rw [G.symm]; exact haw)
+        exact (List.nodup_cons.mp hnd).1 (this ▸ hu)
+      rw [ChainConn, Bool.or_eq_true, Bool.and_eq_true]
+      exact Or.inr ⟨List.any_eq_true.mpr
+        ⟨w, List.mem_filter.mpr ⟨hw, by simpa using hwv⟩, haw⟩, ih⟩
+
+/-! ## Shrinking the host
+
+A vertex of the host with at most one neighbour left in the pool cannot be used by a model of a
+graph whose every vertex has two neighbours of its own, so it — and then whatever it was propping
+up — can be deleted before the search starts.  For a forest this deletes everything, which is what
+makes "is this graph a forest?", asked as "is `C₃` a minor of it?", cheap. -/
+
+section Shrink
+
+/-- Two different vertices of a list satisfying a predicate make its count at least two. -/
+theorem two_le_countP {l : List G.V} {p : G.V → Bool} {a b : G.V} (hab : a ≠ b)
+    (ha : a ∈ l) (hb : b ∈ l) (hpa : p a = true) (hpb : p b = true) : 2 ≤ l.countP p := by
+  have hsub : ([a, b] : List G.V).Subperm (l.filter p) := by
+    refine List.Nodup.subperm (by simp [hab]) ?_
+    intro c hc
+    rcases List.mem_cons.mp hc with rfl | hc
+    · exact List.mem_filter.mpr ⟨ha, hpa⟩
+    · rw [List.mem_singleton] at hc
+      exact hc ▸ List.mem_filter.mpr ⟨hb, hpb⟩
+  simpa [List.countP_eq_length_filter] using hsub.length_le
+
+variable (G) in
+/-- A vertex of the pool with at most one neighbour in it, if there is one. -/
+def lowDeg (gs : List G.V) : Option G.V :=
+  gs.find? fun v ↦ decide (gs.countP (G.Adj v) ≤ 1)
+
+variable (G) in
+/-- The *two-core* of the pool: peel vertices of pool-degree at most one, one per unit of fuel,
+until none is left.  Fuel of `gs.length` is always enough, since each round removes a vertex. -/
+def twoCore : ℕ → List G.V → List G.V
+  | 0, gs => gs
+  | n + 1, gs =>
+    match lowDeg G gs with
+    | none => gs
+    | some v => twoCore n (gs.erase v)
+
+theorem twoCore_nodup : ∀ (n : ℕ) {gs : List G.V}, gs.Nodup → (twoCore G n gs).Nodup
+  | 0, _, h => h
+  | n + 1, gs, h => by
+    rw [twoCore]
+    cases hlow : lowDeg G gs with
+    | none => exact h
+    | some v => exact twoCore_nodup n (h.erase v)
+
+theorem twoCore_subset : ∀ (n : ℕ) {gs : List G.V} {v : G.V}, v ∈ twoCore G n gs → v ∈ gs
+  | 0, _, _, h => h
+  | n + 1, gs, v, h => by
+    rw [twoCore] at h
+    cases hlow : lowDeg G gs with
+    | none => rwa [hlow] at h
+    | some w =>
+      rw [hlow] at h
+      exact List.mem_of_mem_erase (twoCore_subset n h)
+
+variable {H : CGraph}
+
+/-- **A vertex with at most one neighbour left is of no use.**  If every vertex of `H` has two
+neighbours, then a model of `H` inside `gs` can be pushed off any vertex `v` of pool-degree at
+most one: `v`'s branch set, if it has one, has another vertex, so `v` is a leaf of it and no edge
+of `H` runs through `v`. -/
+theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = true ∧ H.Adj x z = true)
+    (f : H.MinorOf G) {gs : List G.V}
+    (hsupp : ∀ (w : G.V) (x : H.V), f.branch w = some x → w ∈ gs)
+    {v : G.V} (hv : gs.countP (G.Adj v) ≤ 1) :
+    ∃ g : H.MinorOf G, ∀ (w : G.V) (x : H.V), g.branch w = some x → w ∈ gs.erase v := by
+  have huniq : ∀ w ∈ gs, ∀ w' ∈ gs, G.Adj v w = true → G.Adj v w' = true → w = w' := by
+    intro w hw w' hw' hvw hvw'
+    by_contra hne
+    exact absurd hv (by have := two_le_countP hne hw hw' hvw hvw'; omega)
+  cases hbv : f.branch v with
+  | none =>
+    refine ⟨f, fun w x hw ↦ ?_⟩
+    have hwv : w ≠ v := by rintro rfl; rw [hbv] at hw; exact absurd hw (by simp)
+    exact (List.mem_erase_of_ne hwv).mpr (hsupp w x hw)
+  | some x =>
+    -- `v`'s branch set has a second vertex, since otherwise `v` alone would have to meet the two
+    -- branch sets of `x`'s two neighbours.
+    obtain ⟨q, hqs, hqv⟩ : ∃ q, f.branch q = some x ∧ q ≠ v := by
+      by_contra hcon
+      push_neg at hcon
+      obtain ⟨y, z, hyz, hxy, hxz⟩ := hH x
+      obtain ⟨a, b, ha, hb, hab⟩ := f.map_adj hxy
+      obtain ⟨a', b', ha', hb', hab'⟩ := f.map_adj hxz
+      have hbb' : b ≠ b' := by
+        rintro rfl
+        exact hyz (Option.some_inj.mp (hb.symm.trans hb'))
+      rw [hcon a ha] at hab
+      rw [hcon a' ha'] at hab'
+      exact absurd hv (by
+        have := two_le_countP hbb' (hsupp b y hb) (hsupp b' z hb') hab hab'; omega)
+    -- so `v` has a neighbour `u` inside its own branch set, and that is its only neighbour left.
+    obtain ⟨p, hp, u, hus, hut, hpu⟩ := (f.connectedOn x).exists_adj_of_ssubset
+      (t := {v}) (fun w hw ↦ by rw [Set.mem_singleton_iff] at hw; exact hw ▸ hbv)
+      (Set.mem_singleton v) hqs hqv
+    rw [Set.mem_singleton_iff] at hp
+    rw [hp] at hpu
+    have hun : u ∈ gs := hsupp u x hus
+    have hvu : v ≠ u := fun e ↦ hut (Set.mem_singleton_iff.mpr e.symm)
+    haveI : DecidablePred (· ∈ {w : G.V | f.branch w = some x}) :=
+      fun w ↦ inferInstanceAs (Decidable (f.branch w = some x))
+    obtain ⟨l, hlnd, hlmem, hlpc⟩ := exists_pickChain (f.connectedOn x)
+      (fun z ↦ if z = u then 0 else 1) (fun z ↦ decide (z = u)) gs
+      (fun w hw ↦ hsupp w x hw) ⟨u, hus, by simp⟩
+    obtain ⟨w₀, hw₀⟩ : ∃ w₀, l.getLast? = some w₀ := by
+      cases hg : l.getLast? with
+      | none => exact absurd (List.getLast?_eq_none_iff.mp hg) (pickChain_ne_nil hlpc)
+      | some w₀ => exact ⟨w₀, rfl⟩
+    have hw₀u : w₀ = u := by simpa using att_getLast_of_pickChain hlpc w₀ hw₀
+    subst hw₀u
+    have honly : ∀ w ∈ l, G.Adj v w = true → w = w₀ :=
+      fun w hw hvw ↦ huniq w (hsupp w x ((hlmem w).mp hw)) w₀ hun hvw hpu
+    have hcc := chainConn_filter_ne v (chainConn_of_pickChain hlpc) hlnd hw₀ hvu honly
+    have hmemf : ∀ w : G.V, w ∈ l.filter (fun z ↦ decide (z ≠ v)) ↔
+        (f.branch w = some x ∧ w ≠ v) := by
+      intro w
+      rw [List.mem_filter, hlmem]
+      simp [Set.mem_setOf_eq]
+    refine ⟨⟨fun w ↦ if w = v then none else f.branch w, fun x' ↦ ?_, fun x₁ x₂ hadj ↦ ?_⟩,
+      fun w x' hw ↦ ?_⟩
+    · by_cases hx' : x' = x
+      · subst hx'
+        have hset : {w : G.V | (if w = v then none else f.branch w) = some x'} =
+            {w : G.V | w ∈ l.filter fun z ↦ decide (z ≠ v)} := by
+          ext w
+          rw [Set.mem_setOf_eq, Set.mem_setOf_eq, hmemf]
+          by_cases hwv : w = v
+          · simp [hwv]
+          · simp [hwv]
+        rw [hset]
+        exact connectedOn_of_chainConn hcc
+      · have hset : {w : G.V | (if w = v then none else f.branch w) = some x'} =
+            {w : G.V | f.branch w = some x'} := by
+          ext w
+          rw [Set.mem_setOf_eq, Set.mem_setOf_eq]
+          by_cases hwv : w = v
+          · subst hwv
+            rw [if_pos rfl, hbv]
+            constructor
+            · intro h; exact absurd h (by simp)
+            · intro h; exact absurd (Option.some_inj.mp h).symm hx'
+          · rw [if_neg hwv]
+        rw [hset]
+        exact f.connectedOn x'
+    · obtain ⟨a, b, ha, hb, hab⟩ := f.map_adj hadj
+      have hne : x₁ ≠ x₂ := fun e ↦ H.loopless x₁ (e ▸ hadj)
+      have hav : a ≠ v := by
+        rintro rfl
+        rw [hbv, Option.some_inj] at ha
+        subst ha
+        have : b = w₀ := huniq b (hsupp b x₂ hb) w₀ hun hab hpu
+        subst this
+        exact hne (Option.some_inj.mp (hus.symm.trans hb))
+      have hbv' : b ≠ v := by
+        rintro rfl
+        rw [hbv, Option.some_inj] at hb
+        subst hb
+        have : a = w₀ := huniq a (hsupp a x₁ ha) w₀ hun (by rw [G.symm]; exact hab) hpu
+        subst this
+        exact hne (Option.some_inj.mp (ha.symm.trans hus))
+      exact ⟨a, b, by simp only [if_neg hav]; exact ha, by simp only [if_neg hbv']; exact hb, hab⟩
+    · by_cases hwv : w = v
+      · simp only [if_pos hwv] at hw; exact absurd hw (by simp)
+      · simp only [if_neg hwv] at hw
+        exact (List.mem_erase_of_ne hwv).mpr (hsupp w x' hw)
+
+/-- **Peeling loses no model**: if every vertex of `H` has two neighbours, a model of `H` inside
+`gs` can be moved into the two-core of `gs`. -/
+theorem exists_model_twoCore (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = true ∧ H.Adj x z = true) :
+    ∀ (n : ℕ) {gs : List G.V} (f : H.MinorOf G),
+      (∀ (w : G.V) (x : H.V), f.branch w = some x → w ∈ gs) →
+      ∃ g : H.MinorOf G, ∀ (w : G.V) (x : H.V), g.branch w = some x → w ∈ twoCore G n gs
+  | 0, _, f, hsupp => ⟨f, hsupp⟩
+  | n + 1, gs, f, hsupp => by
+    rw [twoCore]
+    cases hlow : lowDeg G gs with
+    | none => exact ⟨f, hsupp⟩
+    | some v =>
+      have hv : gs.countP (G.Adj v) ≤ 1 := by
+        simpa using (List.find?_eq_some_iff_getElem.mp hlow).1
+      obtain ⟨g, hg⟩ := exists_model_erase hH f hsupp hv
+      exact exists_model_twoCore hH n g hg
+
+/-- Does every vertex of `H` have two neighbours?  This is the side condition on `H` that lets the
+host be shrunk to its two-core. -/
+def minDegTwo (H : CGraph) (hs : List H.V) : Bool :=
+  hs.all fun x ↦ decide (2 ≤ hs.countP (H.Adj x))
+
+/-- The converse of `two_le_countP` for a list without repeats. -/
+theorem exists_two_of_two_le_countP {l : List H.V} {p : H.V → Bool} (hnd : l.Nodup)
+    (h : 2 ≤ l.countP p) : ∃ a b, a ≠ b ∧ p a = true ∧ p b = true := by
+  rw [List.countP_eq_length_filter] at h
+  have hnd' : (l.filter p).Nodup := hnd.filter p
+  cases hf : l.filter p with
+  | nil => rw [hf] at h; simp at h
+  | cons a t =>
+    cases t with
+    | nil => rw [hf] at h; simp at h
+    | cons b t =>
+      rw [hf] at hnd'
+      have ha : a ∈ l.filter p := by rw [hf]; simp
+      have hb : b ∈ l.filter p := by rw [hf]; simp
+      exact ⟨a, b, fun e ↦ (List.nodup_cons.mp hnd').1 (e ▸ List.mem_cons_self ..),
+        (List.mem_filter.mp ha).2, (List.mem_filter.mp hb).2⟩
+
+/-- What `minDegTwo` is checking. -/
+theorem exists_two_adj_of_minDegTwo {hs : List H.V} (hnd : hs.Nodup) (hhs : ∀ x : H.V, x ∈ hs)
+    (h : minDegTwo H hs = true) (x : H.V) :
+    ∃ y z, y ≠ z ∧ H.Adj x y = true ∧ H.Adj x z = true :=
+  exists_two_of_two_le_countP hnd (by simpa using List.all_eq_true.mp h x (hhs x))
+
+end Shrink
 
 namespace MinorSearch
 
@@ -983,7 +1255,7 @@ theorem finalOk_of_ok {st : State H G} (hok : Ok l st [] hs.reverse) :
 
 /-- **Every minor is described by a chain-ordered model**, which is what the search looks for. -/
 theorem exists_chain_model (f : H.MinorOf G) (rank : G.V → ℕ) (hs : List H.V) {gs : List G.V}
-    (hgs : ∀ v, v ∈ gs) :
+    (hgs : ∀ (v : G.V) (x : H.V), f.branch v = some x → v ∈ gs) :
     ∃ L : H.V → List G.V, (∀ (x : H.V) (v : G.V), v ∈ L x ↔ f.branch v = some x) ∧
       (∀ x, (L x).Nodup) ∧ (∀ x, ChainConn G (L x) = true) ∧
       (∀ x, PickChain G rank (attMinor f hs x) (L x) = true) := by
@@ -993,7 +1265,7 @@ theorem exists_chain_model (f : H.MinorOf G) (rank : G.V → ℕ) (hs : List H.V
       (∀ v, v ∈ L ↔ v ∈ {v : G.V | f.branch v = some x}) ∧
       PickChain G rank (attMinor f hs x) L = true := by
     intro x
-    refine exists_pickChain (f.connectedOn x) rank (attMinor f hs x) gs hgs ?_
+    refine exists_pickChain (f.connectedOn x) rank (attMinor f hs x) gs (fun v hv ↦ hgs v x hv) ?_
     cases href : refOf hs x with
     | none =>
       obtain ⟨v, hv⟩ := (f.connectedOn x).nonempty
@@ -1009,18 +1281,23 @@ end Complete
 
 variable {H G}
 
-/-- **Completeness**: a search that comes back empty has ruled out every minor. -/
-theorem isEmpty_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀ v, v ∈ gs)
-    (hhsnd : hs.Nodup) (hgsnd : gs.Nodup) (h : searchFrom H G rank hs gs = none) :
-    IsEmpty (H.MinorOf G) := by
-  refine ⟨fun f ↦ ?_⟩
+/-- **Completeness**: a search that comes back empty has ruled out every minor whose branch sets
+lie inside the pool it searched.  The pool need not be all of `G`: it is legitimate to shrink it
+first, as long as no model is lost — see `exists_model_core`. -/
+theorem not_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V}
+    (hhsnd : hs.Nodup) (hgsnd : gs.Nodup) (h : searchFrom H G rank hs gs = none)
+    (f : H.MinorOf G) (hgs : ∀ (v : G.V) (x : H.V), f.branch v = some x → v ∈ gs) : False := by
   obtain ⟨l, hl, hnd, hcc, hch⟩ := exists_chain_model f rank hs hgs
-  have hok : Ok l (initState H G hs gs) hs [] := ⟨rfl, rfl, rfl, fun _ _ v _ ↦ hgs v, hgsnd⟩
+  have hsupp : ∀ (y : H.V), ∀ v ∈ l y, v ∈ gs := fun y v hv ↦ hgs v y ((hl y v).mp hv)
+  have hok : Ok l (initState H G hs gs) hs [] :=
+    ⟨rfl, rfl, rfl, fun y _ v hv ↦ hsupp y v hv, hgsnd⟩
   obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ :=
     trace_blocks rank l f hl hnd hcc hs hhsnd hch hs [] _ hok hhsnd rfl
   have hbound : r₁.length ≤ gs.length + hs.length := by
     have : (hs.flatMap l).length ≤ gs.length :=
-      ((nodup_flatMap l f hl hnd hhsnd).subperm fun v _ ↦ hgs v).length_le
+      ((nodup_flatMap l f hl hnd hhsnd).subperm fun v hv ↦ by
+        obtain ⟨y, -, hv⟩ := List.mem_flatMap.mp hv
+        exact hsupp y v hv).length_le
     rw [hlen₁, length_flatMap_add l hs]
     omega
   obtain ⟨r₂, hr₂, hlen₂, hhead₂⟩ :=
@@ -1050,6 +1327,13 @@ theorem isEmpty_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀
   have := Backtrack.dfs_eq_none hcand h hsol
   rw [List.reverse_reverse, List.append_nil, hgoal] at this
   exact absurd this (by simp)
+
+/-- **Completeness** over the whole of `G`: a search that comes back empty has ruled out every
+minor. -/
+theorem isEmpty_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀ v, v ∈ gs)
+    (hhsnd : hs.Nodup) (hgsnd : gs.Nodup) (h : searchFrom H G rank hs gs = none) :
+    IsEmpty (H.MinorOf G) :=
+  ⟨fun f ↦ not_minorOf_of_searchFrom rank hhsnd hgsnd h f fun v _ _ ↦ hgs v⟩
 
 end MinorSearch
 
@@ -1113,13 +1397,21 @@ theorem hsOrder_nodup (rH : Roster H.V) : (hsOrder H rH).Nodup :=
 theorem mem_hsOrder (rH : Roster H.V) (x : H.V) : x ∈ hsOrder H rH :=
   (hsOrder_perm H rH).mem_iff.mpr (List.mem_dedup.mpr (rH.mem_toList x))
 
+/-- The vertices of `G` the search may use.  When every vertex of `H` has two neighbours, a vertex
+of `G` with at most one neighbour left is in no branch set (`exists_model_twoCore`), so the host is
+peeled down to its two-core first — which for a forest, and `H = C₃`, leaves nothing at all. -/
+def hostPool (rH : Roster H.V) (rG : Roster G.V) : List G.V :=
+  if minDegTwo H (hsOrder H rH) then
+    twoCore G rG.toList.dedup.length rG.toList.dedup
+  else rG.toList.dedup
+
 /-- The finished state the search finds, before it is turned into a `MinorOf`.
 
 The guard in front is the cheap necessary condition: a minor has no more vertices and no more
 edges than its host, so a search that cannot possibly succeed is not started. -/
 def searchMinor (rH : Roster H.V) (rG : Roster G.V) : Option (State H G) :=
   if Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E then
-    searchFrom H G (fun v ↦ rG.toList.idxOf v) (hsOrder H rH) rG.toList.dedup
+    searchFrom H G (fun v ↦ rG.toList.idxOf v) (hsOrder H rH) (hostPool H G rH rG)
   else none
 
 theorem finalOk_of_searchMinor {rH : Roster H.V} {rG : Roster G.V} {st : State H G}
@@ -1147,8 +1439,16 @@ theorem isEmpty_minorOf_of_findMinor_eq_none {rH : Roster H.V} {rG : Roster G.V}
     (h : findMinor H G rH rG = none) : IsEmpty (H.MinorOf G) := by
   rw [findMinor_eq_none_iff, searchMinor] at h
   split at h
-  · exact isEmpty_minorOf_of_searchFrom _ (fun v ↦ List.mem_dedup.mpr (rG.mem_toList v))
-      (hsOrder_nodup H rH) (List.nodup_dedup _) h
+  · refine ⟨fun f ↦ ?_⟩
+    have hall : ∀ (w : G.V) (x : H.V), f.branch w = some x → w ∈ rG.toList.dedup :=
+      fun w _ _ ↦ List.mem_dedup.mpr (rG.mem_toList w)
+    rw [hostPool] at h
+    split at h
+    · obtain ⟨g, hg⟩ := exists_model_twoCore
+        (exists_two_adj_of_minDegTwo (hsOrder_nodup H rH) (mem_hsOrder H rH) ‹_›) _ f hall
+      exact not_minorOf_of_searchFrom _ (hsOrder_nodup H rH)
+        (twoCore_nodup _ (List.nodup_dedup _)) h g hg
+    · exact not_minorOf_of_searchFrom _ (hsOrder_nodup H rH) (List.nodup_dedup _) h f hall
   · exact ⟨fun f ↦ absurd (show Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E from
       ⟨f.card_le, f.E_le⟩) ‹_›⟩
 
