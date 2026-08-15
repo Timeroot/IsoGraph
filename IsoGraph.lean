@@ -6,3 +6,4 @@ import IsoGraph.Enum
 import IsoGraph.Invariants
 import IsoGraph.Graphs
 import IsoGraph.Values
+import IsoGraph.Containment
