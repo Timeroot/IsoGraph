@@ -1,5 +1,6 @@
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.InducedSubgraph
+import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Graphs.NamedGraphs
 
 /-! Timing driver for the minor search: one case per invocation, named by the first argument,
@@ -27,6 +28,11 @@ def reportInd (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
   | some _ => "found"
   | none => "none "
 
+def reportSub (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
+  match findSubgraph H G rH rG with
+  | some _ => "found"
+  | none => "none "
+
 /-- Every node of the induced-subgraph search tree, with no early exit: what the pruning is
 actually worth, independently of how fast a node is. -/
 partial def dfsCount {α β : Type} (cand : α → List (α × β) → List β) :
@@ -34,10 +40,10 @@ partial def dfsCount {α β : Type} (cand : α → List (α × β) → List β) 
   | [], _ => 1
   | a :: todo, pre => 1 + ((cand a pre).map fun b => dfsCount cand todo ((a, b) :: pre)).sum
 
-def nodes (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) (sym : Bool) : String :=
+def nodes (H G : CGraph) (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) (sym : Bool) : String :=
   let hs := searchOrder H rH.toList
   let prs := if sym then symPairs H hs else []
-  toString (dfsCount (candList H G (hostRank G rG) rG.toList.length prs (rowList G rG.toList)
+  toString (dfsCount (candList H G ind (hostRank G rG) rG.toList.length prs (rowList G rG.toList)
     (adjTable G rG.toList)) hs [])
 
 /-- Every node of the minor search tree.  For a case that comes back `none` this is exactly the
@@ -127,23 +133,51 @@ def main (args : List String) : IO Unit := do
     let m := size 1 3
     bench s!"K{m},{m} ⊑ mcgee" fun _ =>
       reportInd (bipartite m m) mcgee ((Roster.fin m).sum (Roster.fin m)) (Roster.fin 24)
+  | "sub-cycle-mcgee" =>
+    let m := size 1 8
+    bench s!"C{m} ⊆ mcgee" fun _ => reportSub (cycle m) mcgee (Roster.fin m) (Roster.fin 24)
+  | "sub-km-mcgee" =>
+    let m := size 1 4
+    bench s!"K{m} ⊆ mcgee" fun _ => reportSub (complete m) mcgee (Roster.fin m) (Roster.fin 24)
+  | "sub-kmm-heawood" =>
+    let m := size 1 3
+    bench s!"K{m},{m} ⊆ heawood" fun _ =>
+      reportSub (bipartite m m) heawood ((Roster.fin m).sum (Roster.fin m)) (Roster.fin 14)
+  | "sub-cycle-grid" =>
+    let m := size 1 8
+    let n := size 2 5
+    bench s!"C{m} ⊆ grid {n}x{n}" fun _ =>
+      reportSub (cycle m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
+  | "sub-grid-grid" =>
+    let a := size 1 3
+    let n := size 2 5
+    bench s!"grid {a}x{a} ⊆ grid {n}x{n}" fun _ =>
+      reportSub (path a □g path a) (path n □g path n) ((Roster.fin a).prod (Roster.fin a))
+        ((Roster.fin n).prod (Roster.fin n))
+  | "sub-petersen-mcgee" =>
+    bench "petersen ⊆ mcgee" fun _ => reportSub (gp 5 2) mcgee (Roster.fin 10) (Roster.fin 24)
+  | "nodes-sub-cycle-mcgee" =>
+    let m := size 1 8
+    let s := size 2 1
+    bench s!"nodes C{m} ⊆ mcgee (sym {s})" fun _ =>
+      nodes (cycle m) mcgee false (Roster.fin m) (Roster.fin 24) (s != 0)
   | "nodes-empty-mcgee" =>
     let m := size 1 8
     let s := size 2 1
     bench s!"nodes E{m} ⊑ mcgee (sym {s})" fun _ =>
-      nodes (empty m) mcgee (Roster.fin m) (Roster.fin 24) (s != 0)
+      nodes (empty m) mcgee true (Roster.fin m) (Roster.fin 24) (s != 0)
   | "nodes-empty-heawood" =>
     let m := size 1 8
     let s := size 2 1
     bench s!"nodes E{m} ⊑ heawood (sym {s})" fun _ =>
-      nodes (empty m) heawood (Roster.fin m) (Roster.fin 14) (s != 0)
+      nodes (empty m) heawood true (Roster.fin m) (Roster.fin 14) (s != 0)
   | "nodes-empty-grid" =>
     let m := size 1 8
     let n := size 2 5
     let s := size 3 1
     bench s!"nodes E{m} ⊑ grid {n}x{n} (sym {s})" fun _ =>
-      nodes (empty m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
-        (s != 0)
+      nodes (empty m) (path n □g path n) true (Roster.fin m)
+        ((Roster.fin n).prod (Roster.fin n)) (s != 0)
   | "nodes-km-grid" =>
     let m := size 1 5
     let n := size 2 4
@@ -190,7 +224,7 @@ def main (args : List String) : IO Unit := do
       let work := List.replicate k (a, pre)
       bench s!"{k} × candList |pre|={pre.length}" fun _ =>
         toString (work.foldl (fun acc p =>
-          acc + (candList H G (hostRank G rG) gs.length prs rs nb p.1 p.2).length) 0)
+          acc + (candList H G true (hostRank G rG) gs.length prs rs nb p.1 p.2).length) 0)
   | "sym-empty" =>
     let m := size 1 8
     let H := empty m
@@ -202,5 +236,7 @@ def main (args : List String) : IO Unit := do
     IO.println "               km-grid, kmm-grid, km-cube"
     IO.println "induced cases: ind-empty-heawood, ind-empty-mcgee, ind-empty-grid,"
     IO.println "               ind-cycle-mcgee, ind-path-grid, ind-kmm-mcgee"
+    IO.println "subgraph:      sub-cycle-mcgee, sub-km-mcgee, sub-kmm-heawood, sub-cycle-grid,"
+    IO.println "               sub-grid-grid, sub-petersen-mcgee"
     IO.println "node counts:   nodes-empty-mcgee, nodes-empty-heawood, nodes-empty-grid,"
-    IO.println "               nodes-km-grid, nodes-kmm-grid"
+    IO.println "               nodes-km-grid, nodes-kmm-grid, nodes-sub-cycle-mcgee"

@@ -1,6 +1,8 @@
 import IsoGraph.Containment.Algorithms.Backtrack
+import IsoGraph.Containment.Algorithms.Embedding
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
+import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.Twins
 import IsoGraph.Containment.Defs
 import IsoGraph.Containment.Minors
@@ -28,8 +30,10 @@ returns the containment *itself* when it succeeds — not a `Bool` — and a the
 empty when it fails, so a successful answer needs no further proof and a failed one is still a
 complete answer.  `Backtrack.lean` has the search skeleton, which is graph-agnostic: all the
 pruning is discharged by a single implication, so making a search cleverer cannot make it wrong.
-`Algorithms/InducedSubgraph.lean` is the induced subgraph relation, and `Algorithms/Minor.lean`
-the minor relation, whose search builds the branch sets in an order that keeps them connected as
-it goes.  `Algorithms/Twins.lean` is shared between them: it finds the classes of interchangeable
-vertices of the pattern, so that neither search looks at a solution and its relabellings.
+`Algorithms/Embedding.lean` searches for an injection of the pattern into the host and is run two
+ways, by `Algorithms/Subgraph.lean` and `Algorithms/InducedSubgraph.lean`, which differ only in
+whether a non-edge of the pattern has to stay a non-edge; `Algorithms/Minor.lean` is the minor
+relation, whose search builds the branch sets in an order that keeps them connected as it goes.
+`Algorithms/Twins.lean` is shared between them all: it finds the classes of interchangeable
+vertices of the pattern, so that no search looks at a solution and its relabellings.
 -/
