@@ -111,28 +111,37 @@ a branch set: `MinorSearch.exists_sorted_model` composes an arbitrary model with
 that sorts a class by that number, which is an automorphism of `H` by `CGraph.adj_perm`, so the
 sorted model is the only one the search needs to look for.
 
-The search-side test is `MinorSearch.symOk`, run when a set is finished: if `x` follows `y` in its
-class, the set of `y` — if it is already among the finished ones — must have started at a smaller
-`rank` than the set just built.  Nothing is required when `y` is still unplaced, which is what
-keeps the test local.
+The search-side test is `MinorSearch.symOk`: if `x` follows `y` in its class, the set of `y` — if
+it is already among the finished ones — must have started at a smaller `rank` than the set of `x`.
+Nothing is required when `y` is still unplaced, which is what keeps the test local.
+
+The test is applied twice over.  A finished set has to pass it, which is where it is final; but a
+set only ever *lowers* its least rank as it grows, so every vertex the set will contain has to
+clear the same floor, and the search therefore also applies `symOk` to the singleton `[v]` at each
+`pick`.  That turns the rule from one that rejects a set after building it into one that refuses
+to seed it, which is most of what it is worth.
 
 ## What it costs
 
 The search is exponential — the problem is NP-hard — and what it costs depends much more on the
 *answer* than on the size.  Finding a model is quick, because the pruning above leaves few ways to
-start: `K5` in the Heawood graph takes 2 ms, `K3,3` in it 3 ms, `K5` in the 24-vertex McGee graph
-7 ms, and `C100` gives up a `C3` in 85 ms.  Forests are answered by the peeling rather than by
-search, so a `C3` in a 13-vertex star takes no measurable time at all.
+start: `K5` in the Heawood graph takes 3 ms, `K3,3` in it 3 ms, `K5` in the 24-vertex McGee graph
+4 ms, `K5` in the 4-cube 13 ms, and `C100` gives up a `C3` in 48 ms.  Forests are answered by the
+peeling rather than by search, so a `C3` in a 13-vertex star takes no measurable time at all.
 
 Ruling a minor out of a host that does not peel is the expensive direction, since every family of
-disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes 38 s, and `K3,3` in it
-about three minutes.
+disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes 9 s, and `K3,3` in it 66 s.
+Those two are the honest picture of the limit — a planar host of about twenty vertices is where
+ruling `K5` out stops being interactive.
 
-Symmetry breaking is worth a factor of 2.6 on the first of those and 1.9 on the second — much less
-than the `5!` and `2·(3!)²` relabellings the classes admit, because the canonical pick order and
-the seed rules had already ruled out most of them, and on a host where a model exists it makes no
-measurable difference either way.  (The numbers above are from one idle machine, taken as the best
-of three runs of `MinorBench`; treat them as ratios rather than absolutes.)
+Symmetry breaking is what makes even that possible, though for less than one might hope: checked
+only at a finished set it was worth a factor of 2.6 on the first of those and 1.9 on the second,
+far less than the `5!` and `2·(3!)²` relabellings the classes admit, because the canonical pick
+order and the seed rules had already ruled out most of them.  Checking it at every `pick` as well
+is worth a further 1.6 and 1.3 (14.7 s → 9.0 s and 84 s → 66 s, interleaved runs of both binaries).
+On a host where a model exists none of it makes a measurable difference either way.  (The numbers
+above are from one idle machine running `MinorBench`; this one is shared, and the same binary has
+been seen to vary fourfold with load, so treat them as ratios rather than absolutes.)
 -/
 
 set_option autoImplicit false
@@ -709,6 +718,14 @@ theorem minRank_congr {rank : G.V → ℕ} {A B : List G.V} (h : ∀ v, v ∈ A 
     rw [ha, Option.getD_some, Option.getD_some]
     exact (List.min?_eq_some_iff.mp ha).2 b hbX
 
+/-- A set's least rank is at most the rank of each of its members. -/
+theorem minRank_le {rank : G.V → ℕ} {S : List G.V} {v : G.V} (hv : v ∈ S) :
+    minRank rank S ≤ rank v := by
+  obtain ⟨a, ha⟩ := Option.isSome_iff_exists.mp
+    (List.isSome_min?_of_mem (List.mem_map_of_mem (f := rank) hv))
+  rw [minRank, ha, Option.getD_some]
+  exact (List.min?_eq_some_iff.mp ha).2 _ (List.mem_map_of_mem hv)
+
 /-- **Relabelling a model along an automorphism.** -/
 theorem exists_reindex (f : H.MinorOf G) {σ : H.V → H.V} (hinj : Function.Injective σ)
     (hadj : ∀ x y, H.Adj (σ x) (σ y) = H.Adj x y) :
@@ -791,7 +808,12 @@ theorem exists_sorted_pairs {hs : List H.V} {gs : List G.V} {rank : G.V → ℕ}
   · exact ⟨f, hf, by simp⟩
 
 /-- The symmetry test a finished branch set must pass: if `x` is the next member of a class of
-interchangeable vertices, the set of the previous member must have started earlier. -/
+interchangeable vertices, the set of the previous member must have started earlier.
+
+Adding vertices to a set only lowers its `minRank`, so a set that will pass this test passes it
+*already*, one vertex at a time: `symOk rank pairs x [v] done` is a necessary condition on every
+vertex `v` the set will ever contain.  The search checks it at each `pick` for exactly that reason
+— a set seeded below the floor is hopeless, and there is no point building it out first. -/
 def symOk (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (x : H.V) (S : List G.V)
     (done : List (H.V × List G.V)) : Bool :=
   pairs.all fun p ↦ !decide (p.2 = x) ||
@@ -858,14 +880,16 @@ def step (m : Move G) (st : State H G) : Option (State H G) :=
       | some (x, u :: T) =>
         if (u :: T).any (G.Adj v) &&
             (!attOf H G x st.done v || decide (rank (T.getLastD u) ≤ rank v)) &&
-            (decide (rank u ≤ rank v) || !T.any (G.Adj v)) then
+            (decide (rank u ≤ rank v) || !T.any (G.Adj v)) &&
+            symOk rank pairs x [v] st.done then
           some ⟨st.todo, some (x, v :: u :: T), st.done, st.avail.erase v⟩
         else none
       | none =>
         match st.todo with
         | [] => none
         | x :: rest =>
-          if attOf H G x st.done v && feasibleSeed H G x v rest st.done st.avail then
+          if attOf H G x st.done v && feasibleSeed H G x v rest st.done st.avail &&
+              symOk rank pairs x [v] st.done then
             some ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩
           else none
     else none
@@ -1188,14 +1212,15 @@ theorem trace_picks {x : H.V} {rest : List H.V} :
     ∀ (L : List G.V) (st : State H G), st.cur = none → st.todo = x :: rest →
       PickChain G rank (attOf H G x st.done) L = true →
       (∀ u, L.getLast? = some u → feasibleSeed H G x u rest st.done st.avail = true) →
+      (∀ v ∈ L, symOk rank pairs x [v] st.done = true) →
       L.Nodup → (∀ v ∈ L, v ∈ st.avail) → st.avail.Nodup →
       ∃ r, trace H G rank pairs st (L.map Move.pick) = some r ∧ r.length = L.length ∧
         headSt H G st r = ⟨rest, some (x, L), st.done, eraseAll G st.avail L⟩ := by
   intro L
   induction L with
-  | nil => intro st _ _ hL _ _ _ _; simp [PickChain] at hL
+  | nil => intro st _ _ hL _ _ _ _ _; simp [PickChain] at hL
   | cons v L ih =>
-    intro st hcur htodo hL hfeas hnd hsub hav
+    intro st hcur htodo hL hfeas hsymv hnd hsub hav
     have hvL : v ∉ L := (List.nodup_cons.mp hnd).1
     have hvav : v ∈ st.avail := hsub v (List.mem_cons_self ..)
     rcases L with _ | ⟨w, L⟩
@@ -1204,19 +1229,21 @@ theorem trace_picks {x : H.V} {rest : List H.V} :
       refine ⟨[((), ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩)], ?_, rfl, rfl⟩
       rw [List.map_cons, List.map_nil, trace, trace, Option.bind_some]
       simp only [headSt, step, List.contains_iff_mem, hvav, if_pos, hcur, htodo, hL, hfv,
-        Bool.and_self]
+        hsymv v (List.mem_cons_self ..), Bool.and_self]
       rfl
     · rw [PickChain] at hL
       simp only [Bool.and_eq_true] at hL
       obtain ⟨⟨⟨hadj, hseed⟩, hrank⟩, hLc⟩ := hL
       obtain ⟨r, hr, hlen, hhead⟩ := ih st hcur htodo hLc
-        (fun u hu ↦ hfeas u (by simpa using hu)) (List.Nodup.of_cons hnd)
+        (fun u hu ↦ hfeas u (by simpa using hu))
+        (fun u hu ↦ hsymv u (List.mem_cons_of_mem _ hu)) (List.Nodup.of_cons hnd)
         (fun u hu ↦ hsub u (List.mem_cons_of_mem _ hu)) hav
       refine ⟨((), ⟨rest, some (x, v :: w :: L), st.done, eraseAll G st.avail (v :: w :: L)⟩) :: r,
         ?_, by simp [hlen], rfl⟩
       have hmem : v ∈ eraseAll G st.avail (w :: L) := (mem_eraseAll G hav _ v).mpr ⟨hvav, hvL⟩
       rw [List.map_cons, trace, hr, Option.bind_some, hhead, step]
-      simp only [List.contains_iff_mem, hmem, if_pos, hadj, hseed, hrank, Bool.and_self]
+      simp only [List.contains_iff_mem, hmem, if_pos, hadj, hseed, hrank,
+        hsymv v (List.mem_cons_self ..), Bool.and_self]
       rfl
 
 variable (f : H.MinorOf G) (hl : ∀ (x : H.V) (v : G.V), v ∈ l x ↔ f.branch v = some x)
@@ -1307,8 +1334,25 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
       hav hux (hsub x (List.mem_cons_self ..)) (hsub z (List.mem_cons_of_mem _ hz)) ?_ he hd
       (by rw [G.symm]; exact hde) c hc
     exact not_mem_l l f hl (by rintro rfl; exact (List.nodup_cons.mp hxs).1 hz) hux
+  have hsymv : ∀ v ∈ l x, symOk rank pairs x [v] st.done = true := by
+    intro v hv
+    rw [symOk, List.all_eq_true]
+    intro q hq
+    simp only [Bool.or_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not,
+      List.all_eq_true, decide_eq_true_eq]
+    by_cases hqx : q.2 = x
+    · refine Or.inr fun r hr ↦ ?_
+      obtain ⟨y, -, rfl⟩ := List.mem_map.mp (hdone ▸ hr)
+      by_cases hy : y = q.1
+      · refine Or.inr ?_
+        have h1 := hsym q hq
+        rw [hqx] at h1
+        rw [hy, show minRank rank [v] = rank v from by simp [minRank]]
+        exact h1.trans (minRank_le hv)
+      · exact Or.inl hy
+    · exact Or.inl hqx
   obtain ⟨r, hr, hlen, hhead⟩ := trace_picks rank pairs (l x) st hcur htodo
-    (by rw [hdone, attOf_eq l hl hhsnd hpre]; exact hch x) hfeas
+    (by rw [hdone, attOf_eq l hl hhsnd hpre]; exact hch x) hfeas hsymv
     (hnd x) (hsub x (List.mem_cons_self ..)) hav
   have havail : ∀ y ∈ xs, ∀ v ∈ l y, v ∈ eraseAll G st.avail (l x) := by
     intro y hy v hv

@@ -40,6 +40,17 @@ def nodes (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) (sym : Bool) : Stri
   toString (dfsCount (candList H G (hostRank G rG) rG.toList.length prs (rowList G rG.toList)
     (adjTable G rG.toList)) hs [])
 
+/-- Every node of the minor search tree.  For a case that comes back `none` this is exactly the
+tree the real search walks, so `ms / nodes` separates "too many nodes" from "each node is slow". -/
+def nodesMinor (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
+  let hs := hsOrder H rH
+  let gs := hostPool H G rH rG
+  let init := MinorSearch.initState H G hs gs
+  let cand := fun (_ : Unit) (pre : List (Unit × MinorSearch.State H G)) =>
+    MinorSearch.candList H G (fun v => rG.toList.idxOf v) (symPairs H hs)
+      (MinorSearch.headSt H G init pre)
+  toString (dfsCount cand (List.replicate (gs.length + hs.length) ()) [])
+
 def bench (name : String) (act : Unit → String) : IO Unit := do
   let t0 ← IO.monoMsNow
   IO.print s!"{name}: {act ()}"
@@ -133,6 +144,17 @@ def main (args : List String) : IO Unit := do
     bench s!"nodes E{m} ⊑ grid {n}x{n} (sym {s})" fun _ =>
       nodes (empty m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
         (s != 0)
+  | "nodes-km-grid" =>
+    let m := size 1 5
+    let n := size 2 4
+    bench s!"nodes K{m} ≼ grid {n}x{n}" fun _ =>
+      nodesMinor (complete m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
+  | "nodes-kmm-grid" =>
+    let m := size 1 3
+    let n := size 2 4
+    bench s!"nodes K{m},{m} ≼ grid {n}x{n}" fun _ =>
+      nodesMinor (bipartite m m) (path n □g path n) ((Roster.fin m).sum (Roster.fin m))
+        ((Roster.fin n).prod (Roster.fin n))
   | "setup-grid" =>
     let n := size 1 5
     let G := path n □g path n
@@ -180,3 +202,5 @@ def main (args : List String) : IO Unit := do
     IO.println "               km-grid, kmm-grid, km-cube"
     IO.println "induced cases: ind-empty-heawood, ind-empty-mcgee, ind-empty-grid,"
     IO.println "               ind-cycle-mcgee, ind-path-grid, ind-kmm-mcgee"
+    IO.println "node counts:   nodes-empty-mcgee, nodes-empty-heawood, nodes-empty-grid,"
+    IO.println "               nodes-km-grid, nodes-kmm-grid"
