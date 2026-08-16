@@ -37,8 +37,8 @@ partial def dfsCount {α β : Type} (cand : α → List (α × β) → List β) 
 def nodes (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) (sym : Bool) : String :=
   let hs := searchOrder H rH.toList
   let prs := if sym then symPairs H hs else []
-  toString (dfsCount (candList H G (hostRank G rG) prs (rowList G rG.toList) (adjTable G rG.toList))
-    hs [])
+  toString (dfsCount (candList H G (hostRank G rG) rG.toList.length prs (rowList G rG.toList)
+    (adjTable G rG.toList)) hs [])
 
 def bench (name : String) (act : Unit → String) : IO Unit := do
   let t0 ← IO.monoMsNow
@@ -126,6 +126,49 @@ def main (args : List String) : IO Unit := do
     let s := size 2 1
     bench s!"nodes E{m} ⊑ heawood (sym {s})" fun _ =>
       nodes (empty m) heawood (Roster.fin m) (Roster.fin 14) (s != 0)
+  | "nodes-empty-grid" =>
+    let m := size 1 8
+    let n := size 2 5
+    let s := size 3 1
+    bench s!"nodes E{m} ⊑ grid {n}x{n} (sym {s})" fun _ =>
+      nodes (empty m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
+        (s != 0)
+  | "setup-grid" =>
+    let n := size 1 5
+    let G := path n □g path n
+    let rG : Roster G.V := (Roster.fin n).prod (Roster.fin n)
+    bench s!"setup grid {n}x{n}" fun _ =>
+      toString ((rowList G rG.toList).length + (adjTable G rG.toList).length + G.E)
+  | "micro-degree" =>
+    let m := size 1 14
+    let k := size 2 55447
+    let H := empty m
+    let vs : List H.V := (List.replicate (k / m + 1) (Roster.fin m).toList).flatten
+    bench s!"{vs.length} × degree in E{m}" fun _ =>
+      toString (vs.foldl (fun acc v => acc + H.toSimple.degree v) 0)
+  | "micro-cand" =>
+    let n := size 1 5
+    let d := size 2 7
+    let k := size 3 55447
+    let m := size 4 14
+    let H := empty m
+    let G := path n □g path n
+    let rG : Roster G.V := (Roster.fin n).prod (Roster.fin n)
+    let gs := rG.toList
+    let hs := searchOrder H (Roster.fin m).toList
+    -- the even-indexed cells of an odd-side grid are an independent set
+    let ev := gs.zipIdx.filterMap fun p => if p.2 % 2 == 0 then some p.1 else none
+    let pre : List (H.V × G.V) := (hs.take d).zip ev
+    let rs := rowList G gs
+    let nb := adjTable G gs
+    let prs := symPairs H hs
+    match hs.drop d with
+    | [] => IO.println "micro-cand: d past the end of the pattern"
+    | a :: _ =>
+      let work := List.replicate k (a, pre)
+      bench s!"{k} × candList |pre|={pre.length}" fun _ =>
+        toString (work.foldl (fun acc p =>
+          acc + (candList H G (hostRank G rG) gs.length prs rs nb p.1 p.2).length) 0)
   | "sym-empty" =>
     let m := size 1 8
     let H := empty m

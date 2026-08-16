@@ -44,6 +44,16 @@ theorem consecPairs_of_isChain {α : Type} {R : α → α → Prop} :
     · exact h.1
     · exact consecPairs_of_isChain h.2 p hp
 
+theorem consecPairs_ne {α : Type} :
+    ∀ {l : List α}, l.Nodup → ∀ p ∈ consecPairs l, p.1 ≠ p.2
+  | [], _, p, hp => by simp [consecPairs] at hp
+  | [_], _, p, hp => by simp [consecPairs] at hp
+  | x :: y :: T, h, p, hp => by
+    rw [List.nodup_cons] at h
+    rcases List.mem_cons.mp hp with rfl | hp
+    · exact fun hxy ↦ h.1 (List.mem_cons.mpr (Or.inl hxy))
+    · exact consecPairs_ne h.2 p hp
+
 variable (H)
 
 /-- The vertices of `hs` that can take `x`'s place: those with the same neighbours as `x`, apart
@@ -80,6 +90,20 @@ def symPairs (hs : List H.V) : List (H.V × H.V) :=
   else []
 
 variable {H}
+
+/-- A vertex is never paired with itself: a class is a `Nodup` list, and the pairs are its
+consecutive entries. -/
+theorem symPairs_ne {hs : List H.V} : ∀ p ∈ symPairs H hs, p.1 ≠ p.2 := by
+  intro p hp
+  rw [symPairs] at hp
+  split at hp
+  · rename_i hok
+    rw [Bool.and_eq_true] at hok
+    obtain ⟨C, hC, hpC⟩ := List.mem_flatMap.mp hp
+    have hcl := List.all_eq_true.mp hok.1 C hC
+    rw [classOk, Bool.and_eq_true, Bool.and_eq_true] at hcl
+    exact consecPairs_ne (of_decide_eq_true hcl.1.1) p hpC
+  · exact absurd hp (by simp)
 
 theorem pairwise_of_disjOk : ∀ {cs : List (List H.V)}, disjOk H cs = true →
     List.Pairwise (fun A B ↦ ∀ x ∈ A, x ∉ B) cs
