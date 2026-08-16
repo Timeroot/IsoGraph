@@ -23,3 +23,8 @@ root = "Bench"
 [[lean_exe]]
 name = "enumbench"
 root = "EnumBench"
+
+# Timing driver for the minor search.
+[[lean_exe]]
+name = "minorbench"
+root = "MinorBench"
