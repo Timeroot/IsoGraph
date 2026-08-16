@@ -1,5 +1,6 @@
 import IsoGraph.Containment.Defs
 import IsoGraph.Containment.Algorithms.Backtrack
+import IsoGraph.Containment.Algorithms.Twins
 
 /-!
 # Searching for an induced subgraph
@@ -12,7 +13,7 @@ subgraph.  It does not return a `Bool`: when it succeeds it returns the witness 
 `rH` and `rG` are `Backtrack.Roster`s — lists of the vertices, which a `Fintype` instance cannot
 computably supply.  For a graph on `Fin n`, `Backtrack.Roster.fin n` is the one to use.
 
-The problem is NP-hard, so the search is a backtracking one, over `Backtrack.dfs`.  Three things
+The problem is NP-hard, so the search is a backtracking one, over `Backtrack.dfs`.  Four things
 keep it from being the naive enumeration of all `card G.V ^ card H.V` maps.
 
 * **The order.**  `CGraph.searchOrder` picks the vertices of `H` greedily: at each step the vertex
@@ -29,6 +30,11 @@ keep it from being the naive enumeration of all `card G.V ^ card H.V` maps.
 * **Degrees.**  A vertex of `H` of degree `d` can only go to a vertex of `G` of degree at least
   `d`.  This one is not a property of the partial assignment but of the whole embedding, so it
   lives in `goalAsg` and is projected out of it in `mem_candList`.
+* **Symmetry.**  Interchangeable vertices of `H` — `Algorithms/Twins.lean` — are made to take
+  their images in increasing order of `CGraph.hostRank`, so that of the `|C|!` embeddings a class
+  of size `|C|` admits, exactly one is looked for.  Like the degree test this is a condition on
+  the whole embedding, `CGraph.sortedAsg` in `goalAsg`, and `mem_candList` projects it out as the
+  interval `CGraph.symLo`–`CGraph.symHi` the next image has to fall in.
 
 The candidates a node even looks at are cut down before either test runs: if `a` has a neighbour
 already placed, `CGraph.pivot` finds its image `u`, and the candidates are read straight off `u`'s
@@ -51,6 +57,20 @@ search starts, which matters because injectivity alone would only make the searc
 The same `Backtrack.dfs` with `compat` weakened to "different, and edges go to edges" would search
 for an ordinary subgraph; only the induced version is set up here, because the induced one is the
 one whose pruning is strong enough to be worth the trouble.
+
+## What it costs
+
+A pattern with edges is cheap, because the pivot confines every vertex after the first to one
+neighbourhood: an 8-vertex path in the 5×5 grid takes 1 ms, an 8-cycle in the 24-vertex McGee
+graph 3 ms, and ruling `K3,3` out of McGee 3 ms.
+
+The expensive pattern is the one with *no* edges — asking for an independent set of a given size,
+which is where the symmetry breaking earns its keep, since a pattern with no edges is one single
+class of interchangeable vertices.  On the Heawood graph the tree for `E8` goes from 31487 nodes
+to 458, and 457 ms to 12 ms; `E11` in McGee (there is no such set) goes from over twenty minutes
+to 1.5 s, and `E14` in the 5×5 grid, which had not finished in fifty, takes 5.6 s.  Finding a set
+that does exist stays quick either way — `E13` in the 5×5 grid is 6 ms.  (Best of a few runs on a
+loaded shared machine; treat them as ratios.)
 -/
 
 set_option autoImplicit false
@@ -125,11 +145,27 @@ theorem validAsg_of_append {l m : List (H.V × G.V)} (h : validAsg H G (l ++ m) 
   | nil => simpa using h
   | cons p l ih => rw [List.cons_append, validAsg, Bool.and_eq_true] at h; exact ih h.2
 
-/-- What the search is looking for: a consistent assignment that also respects degrees.  The
-degree condition is not local to a pair, which is why it is stated here rather than in `compat`;
-`mem_candList` projects it back out for use as a filter. -/
-def goalAsg (asg : List (H.V × G.V)) : Bool :=
-  validAsg H G asg && asg.all fun p ↦ decide (H.toSimple.degree p.1 ≤ G.toSimple.degree p.2)
+/-- The order symmetry breaking imposes: whenever both members of a pair of interchangeable
+vertices are placed, their images come in increasing order of `rank`.  Only solutions in that
+order are looked for, and `exists_sorted_pairs` says that costs nothing. -/
+def sortedAsg (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (asg : List (H.V × G.V)) : Bool :=
+  pairs.all fun p ↦ asg.all fun q ↦ asg.all fun r ↦
+    !decide (q.1 = p.1) || !decide (r.1 = p.2) || decide (rank q.2 ≤ rank r.2)
+
+theorem sortedAsg_le {rank : G.V → ℕ} {pairs : List (H.V × H.V)} {asg : List (H.V × G.V)}
+    (h : sortedAsg H G rank pairs asg = true) {p : H.V × H.V} (hp : p ∈ pairs)
+    {q r : H.V × G.V} (hq : q ∈ asg) (hr : r ∈ asg) (hq1 : q.1 = p.1) (hr1 : r.1 = p.2) :
+    rank q.2 ≤ rank r.2 := by
+  rw [sortedAsg, List.all_eq_true] at h
+  have hqr := List.all_eq_true.mp (List.all_eq_true.mp (h p hp) q hq) r hr
+  simpa [hq1, hr1] using hqr
+
+/-- What the search is looking for: a consistent assignment that also respects degrees and the
+symmetry-breaking order.  Neither of those is local to a pair, which is why they are stated here
+rather than in `compat`; `mem_candList` projects them back out for use as a filter. -/
+def goalAsg (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (asg : List (H.V × G.V)) : Bool :=
+  validAsg H G asg && asg.all (fun p ↦ decide (H.toSimple.degree p.1 ≤ G.toSimple.degree p.2)) &&
+    sortedAsg H G rank pairs asg
 
 /-- The image of some already-placed neighbour of `a`, if `a` has one.  Every candidate for `a`
 then has to be a neighbour of that vertex, which is a far shorter list than all of `G`. -/
@@ -210,39 +246,78 @@ theorem mem_adjRow {gs : List G.V} (hgs : ∀ v, v ∈ gs) {u b : G.V} {l : List
 
 /-! ## The candidates at a node -/
 
-/-- The test a candidate has to pass to be worth trying as the image of `a`: it must be compatible
-with everything already placed, and its degree must be at least `da = H.toSimple.degree a`, which
-is passed in so that the list is scanned with it fixed.  This is `compat` against all of `pre`,
-except that adjacency in `G` is read off the candidate's own neighbour list. -/
-def candKeep (a : H.V) (pre : List (H.V × G.V)) (da : ℕ) (p : Row G) : Bool :=
-  pre.all (fun q ↦ decide (p.vert ≠ q.2) && (H.Adj a q.1 == p.nbrs.contains q.2)) &&
-    decide (da ≤ p.deg)
+/-- The ranks symmetry breaking makes `a`'s image rank at or above: the images of the vertices
+already placed that come just before `a` in a class of interchangeable vertices.  Computed once at
+a node, since it does not depend on the candidate. -/
+def symLo (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × G.V)) :
+    List ℕ :=
+  pre.filterMap fun q ↦ if pairs.contains (q.1, a) then some (rank q.2) else none
 
-theorem candKeep_row {gs : List G.V} (hgs : ∀ v, v ∈ gs) {a : H.V} {pre : List (H.V × G.V)}
-    {da : ℕ} {b : G.V} (hc : pre.all (compat H G (a, b)) = true) (hd : da ≤ G.toSimple.degree b) :
-    candKeep H G a pre da (row G gs b) = true := by
-  rw [candKeep, Bool.and_eq_true]
-  refine ⟨?_, by simpa [row] using hd⟩
-  rw [List.all_eq_true] at hc ⊢
-  intro q hq
-  rw [row_nbrs_contains G hgs]
-  exact hc q hq
+/-- And the ranks it must stay at or below: the images of those that come just after. -/
+def symHi (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × G.V)) :
+    List ℕ :=
+  pre.filterMap fun q ↦ if pairs.contains (a, q.1) then some (rank q.2) else none
+
+/-- The test a candidate has to pass to be worth trying as the image of `a`: it must be compatible
+with everything already placed, its degree must be at least `da = H.toSimple.degree a`, and its
+rank must lie between `lo` and `hi`.  All three are passed in so that the list is scanned with
+them fixed.  This is `compat` against all of `pre`, except that adjacency in `G` is read off the
+candidate's own neighbour list. -/
+def candKeep (rank : G.V → ℕ) (a : H.V) (pre : List (H.V × G.V)) (da : ℕ) (lo hi : List ℕ)
+    (p : Row G) : Bool :=
+  pre.all (fun q ↦ decide (p.vert ≠ q.2) && (H.Adj a q.1 == p.nbrs.contains q.2)) &&
+    decide (da ≤ p.deg) && lo.all (fun m ↦ decide (m ≤ rank p.vert)) &&
+    hi.all fun m ↦ decide (rank p.vert ≤ m)
+
+theorem candKeep_row {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ} {a : H.V}
+    {pre : List (H.V × G.V)} {da : ℕ} {lo hi : List ℕ} {b : G.V}
+    (hc : pre.all (compat H G (a, b)) = true) (hd : da ≤ G.toSimple.degree b)
+    (hlo : ∀ m ∈ lo, m ≤ rank b) (hhi : ∀ m ∈ hi, rank b ≤ m) :
+    candKeep H G rank a pre da lo hi (row G gs b) = true := by
+  rw [candKeep, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true]
+  refine ⟨⟨⟨?_, by simpa [row] using hd⟩, ?_⟩, ?_⟩
+  · rw [List.all_eq_true] at hc ⊢
+    intro q hq
+    rw [row_nbrs_contains G hgs]
+    exact hc q hq
+  · simpa [row] using hlo
+  · simpa [row] using hhi
 
 /-- The vertices of `G` worth trying as the image of `a`, given the assignments `pre` already
 made: those in the neighbourhood of the pivot, if there is one, that pass `candKeep`. -/
-def candList (rs : List (Row G)) (nb : List (G.V × List (Row G)))
-    (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
+def candList (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (rs : List (Row G))
+    (nb : List (G.V × List (Row G))) (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
   let pool := match pivot H G a pre with
     | some u => (adjRow G u nb).getD rs
     | none => rs
-  (pool.filter (candKeep H G a pre (H.toSimple.degree a))).map Row.vert
+  (pool.filter (candKeep H G rank a pre (H.toSimple.degree a)
+    (symLo H G rank pairs a pre) (symHi H G rank pairs a pre))).map Row.vert
 
 /-- **The pruning is sound**: a vertex that occurs in a solution is offered as a candidate. -/
-theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) (a : H.V) (pre : List (H.V × G.V))
-    (b : G.V) (l : List (H.V × G.V)) (h : goalAsg H G (l ++ (a, b) :: pre) = true) :
-    b ∈ candList H G (rowList G gs) (adjTable G gs) a pre := by
-  rw [goalAsg, Bool.and_eq_true] at h
-  obtain ⟨hv, hd⟩ := h
+theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) (rank : G.V → ℕ)
+    (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × G.V))
+    (b : G.V) (l : List (H.V × G.V)) (h : goalAsg H G rank pairs (l ++ (a, b) :: pre) = true) :
+    b ∈ candList H G rank pairs (rowList G gs) (adjTable G gs) a pre := by
+  rw [goalAsg, Bool.and_eq_true, Bool.and_eq_true] at h
+  obtain ⟨⟨hv, hd⟩, hsort⟩ := h
+  have hab : (a, b) ∈ l ++ (a, b) :: pre := by simp
+  have hpre : ∀ q ∈ pre, q ∈ l ++ (a, b) :: pre := fun q hq ↦ by simp [hq]
+  have hlo : ∀ m ∈ symLo H G rank pairs a pre, m ≤ rank b := by
+    intro m hm
+    obtain ⟨q, hq, hmq⟩ := List.mem_filterMap.mp hm
+    split at hmq
+    · rename_i hc
+      cases hmq
+      exact sortedAsg_le H G hsort (List.contains_iff_mem.mp hc) (hpre q hq) hab rfl rfl
+    · exact absurd hmq (by simp)
+  have hhi : ∀ m ∈ symHi H G rank pairs a pre, rank b ≤ m := by
+    intro m hm
+    obtain ⟨q, hq, hmq⟩ := List.mem_filterMap.mp hm
+    split at hmq
+    · rename_i hc
+      cases hmq
+      exact sortedAsg_le H G hsort (List.contains_iff_mem.mp hc) hab (hpre q hq) rfl rfl
+    · exact absurd hmq (by simp)
   have hcompat : pre.all (compat H G (a, b)) = true := by
     have hv' := validAsg_of_append H G hv
     rw [validAsg, Bool.and_eq_true] at hv'
@@ -263,7 +338,7 @@ theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) (a : H.V) (pre : Li
       | none => simpa only [hn, Option.getD_none] using hrs
       | some m => simpa only [hn, Option.getD_some] using mem_adjRow G hgs hn hub
     · exact hrs
-  · exact candKeep_row H G hgs hcompat hdeg
+  · exact candKeep_row H G hgs hcompat hdeg hlo hhi
 
 /-! ## Reading an induced subgraph off a complete assignment -/
 
@@ -306,17 +381,19 @@ theorem asgFun_mem (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod
 
 variable {H G}
 
+variable {rank : G.V → ℕ} {pairs : List (H.V × H.V)}
+
 theorem compat_asgFun {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hg : goalAsg H G r = true) {x y : H.V} (hxy : x ≠ y) :
+    (hg : goalAsg H G rank pairs r = true) {x y : H.V} (hxy : x ≠ y) :
     compat H G (x, asgFun H G r hcov x) (y, asgFun H G r hcov y) = true := by
-  rw [goalAsg, Bool.and_eq_true] at hg
-  refine ((validAsg_iff H G r).mp hg.1).forall ?_ (asgFun_mem H G r hcov x)
+  rw [goalAsg, Bool.and_eq_true, Bool.and_eq_true] at hg
+  refine ((validAsg_iff H G r).mp hg.1.1).forall ?_ (asgFun_mem H G r hcov x)
     (asgFun_mem H G r hcov y) ?_
   · intro p q h; rw [compat_comm]; exact h
   · simp [hxy]
 
 theorem asgFun_adj_eq {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hg : goalAsg H G r = true) (x y : H.V) :
+    (hg : goalAsg H G rank pairs r = true) (x y : H.V) :
     G.Adj (asgFun H G r hcov x) (asgFun H G r hcov y) = H.Adj x y := by
   by_cases hxy : x = y
   · subst hxy
@@ -329,7 +406,7 @@ theorem asgFun_adj_eq {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map P
     exact h.2.symm
 
 theorem asgFun_injective {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hg : goalAsg H G r = true) : Function.Injective (asgFun H G r hcov) := by
+    (hg : goalAsg H G rank pairs r = true) : Function.Injective (asgFun H G r hcov) := by
   intro x y h
   by_contra hxy
   have hc := compat_asgFun (hcov := hcov) hg hxy
@@ -338,27 +415,91 @@ theorem asgFun_injective {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.ma
 
 /-- The induced subgraph a complete, consistent assignment describes. -/
 def ofAsg (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod.fst)
-    (hg : goalAsg H G r = true) : H.InducedSubgraphOf G where
+    (hg : goalAsg H G rank pairs r = true) : H.InducedSubgraphOf G where
   toFun := asgFun H G r hcov
   injective' := asgFun_injective hg
   map_adj' x y h := by rw [asgFun_adj_eq hg]; exact h
   adj_map' x y h := by rwa [asgFun_adj_eq hg] at h
 
+/-! ## Symmetry breaking
+
+A class of interchangeable vertices of `H` — see `Algorithms/Twins.lean` — turns one embedding
+into `|C|!` of them, all found and rejected separately.  `sortedAsg` keeps only the one whose
+images come in increasing order of rank, and the two theorems here say that loses nothing: an
+embedding composed with an automorphism of `H` is again an embedding, and the permutation that
+sorts a class is such an automorphism.  For a pattern with no edges, where every vertex is
+interchangeable with every other, this is the difference between choosing a sequence and choosing
+a set. -/
+
+/-- **Relabelling an embedding along an automorphism of the pattern.** -/
+def reindex (f : H.InducedSubgraphOf G) {σ : H.V → H.V} (hinj : Function.Injective σ)
+    (hadj : ∀ x y, H.Adj (σ x) (σ y) = H.Adj x y) : H.InducedSubgraphOf G where
+  toFun x := f (σ x)
+  injective' := f.injective.comp hinj
+  map_adj' _ _ h := f.map_adj (by rw [hadj]; exact h)
+  adj_map' _ _ h := by rw [← hadj]; exact f.adj_map h
+
+/-- **Every embedding can be relabelled so that each class of interchangeable vertices gets its
+images in increasing order of rank.** -/
+theorem exists_sorted_classes {hs : List H.V} (rank : G.V → ℕ) (hcov : ∀ x : H.V, x ∈ hs) :
+    ∀ (cs : List (List H.V)), (∀ C ∈ cs, classOk H hs C = true) →
+      List.Pairwise (fun A B ↦ ∀ x ∈ A, x ∉ B) cs → H.InducedSubgraphOf G →
+      ∃ g : H.InducedSubgraphOf G, ∀ C ∈ cs,
+        List.IsChain (fun a b ↦ rank (g a) ≤ rank (g b)) C
+  | [], _, _, f => ⟨f, by simp⟩
+  | C :: rest, hok, hdisj, f => by
+    obtain ⟨hCrest, hrest⟩ := List.pairwise_cons.mp hdisj
+    obtain ⟨g₁, hs₁⟩ :=
+      exists_sorted_classes rank hcov rest (fun D hD ↦ hok D (List.mem_cons_of_mem _ hD)) hrest f
+    have hCok := hok C (List.mem_cons_self ..)
+    have hCnd : C.Nodup := by
+      rw [classOk, Bool.and_eq_true, Bool.and_eq_true] at hCok
+      exact of_decide_eq_true hCok.1.1
+    obtain ⟨σ, hσC, hσout, hinj, hchain⟩ := exists_sort_perm C hCnd fun x ↦ rank (g₁ x)
+    refine ⟨reindex g₁ hinj (adj_perm hCok hcov hσC hσout hinj), fun D hD ↦ ?_⟩
+    rcases List.mem_cons.mp hD with rfl | hD
+    · exact hchain
+    · refine (hs₁ D hD).imp_of_mem_imp fun a b ha hb h ↦ ?_
+      show rank (g₁ (σ a)) ≤ rank (g₁ (σ b))
+      rw [hσout a fun hac ↦ hCrest D hD a hac ha, hσout b fun hbc ↦ hCrest D hD b hbc hb]
+      exact h
+
+/-- **The pairs the search keeps in order lose no embedding.** -/
+theorem exists_sorted_pairs {hs : List H.V} (rank : G.V → ℕ) (hcov : ∀ x : H.V, x ∈ hs)
+    (f : H.InducedSubgraphOf G) :
+    ∃ g : H.InducedSubgraphOf G, ∀ p ∈ symPairs H hs, rank (g p.1) ≤ rank (g p.2) := by
+  rw [symPairs]
+  split
+  · rename_i hchk
+    rw [Bool.and_eq_true, List.all_eq_true] at hchk
+    obtain ⟨g, hsorted⟩ := exists_sorted_classes rank hcov _ hchk.1 (pairwise_of_disjOk hchk.2) f
+    refine ⟨g, fun p hp ↦ ?_⟩
+    obtain ⟨C, hC, hp⟩ := List.mem_flatMap.mp hp
+    exact consecPairs_of_isChain (hsorted C hC) p hp
+  · exact ⟨f, by simp⟩
+
 /-! ## The search -/
 
 variable (H G)
 
+/-- The rank the symmetry breaking orders the vertices of `G` by: where the roster lists them. -/
+def hostRank (rG : Roster G.V) (v : G.V) : ℕ := rG.toList.idxOf v
+
 /-- The assignment the search finds, before it is turned into an `InducedSubgraphOf`. -/
 def searchAsg (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
   if Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E then
-    Backtrack.dfs (candList H G (rowList G rG.toList) (adjTable G rG.toList)) (goalAsg H G)
+    Backtrack.dfs
+      (candList H G (hostRank G rG) (symPairs H (searchOrder H rH.toList))
+        (rowList G rG.toList) (adjTable G rG.toList))
+      (goalAsg H G (hostRank G rG) (symPairs H (searchOrder H rH.toList)))
       (searchOrder H rH.toList) []
   else none
 
 variable {H G}
 
 theorem searchAsg_goal {rH : Roster H.V} {rG : Roster G.V} {r : List (H.V × G.V)}
-    (h : searchAsg H G rH rG = some r) : goalAsg H G r = true := by
+    (h : searchAsg H G rH rG = some r) :
+    goalAsg H G (hostRank G rG) (symPairs H (searchOrder H rH.toList)) r = true := by
   rw [searchAsg] at h
   split at h
   · exact Backtrack.goal_of_dfs_eq_some h
@@ -377,7 +518,8 @@ variable (H G)
 /-- **Is `H` an induced subgraph of `G`?**  Returns a witness if so.  See
 `isEmpty_inducedSubgraphOf_of_eq_none` for the other half of the answer. -/
 def findInducedSubgraph (rH : Roster H.V) (rG : Roster G.V) : Option (H.InducedSubgraphOf G) :=
-  Option.pmap (p := fun r ↦ (∀ x : H.V, x ∈ r.map Prod.fst) ∧ goalAsg H G r = true)
+  Option.pmap (p := fun r ↦ (∀ x : H.V, x ∈ r.map Prod.fst) ∧
+      goalAsg H G (hostRank G rG) (symPairs H (searchOrder H rH.toList)) r = true)
     (fun r hr ↦ ofAsg r hr.1 hr.2) (searchAsg H G rH rG)
     (fun _ hr ↦ ⟨searchAsg_cov hr, searchAsg_goal hr⟩)
 
@@ -398,11 +540,14 @@ theorem degree_le_of_inducedSubgraphOf (f : H.InducedSubgraphOf G) (x : H.V) :
     exact f.map_adj hy
   · intro a _ b _ hab; exact f.injective hab
 
-/-- An induced subgraph really does satisfy the search's `goalAsg`, degree condition and all. -/
-theorem goalAsg_of_inducedSubgraphOf (f : H.InducedSubgraphOf G) (hs : List H.V)
-    (hnd : hs.Nodup) : goalAsg H G ((hs.map fun x ↦ (x, f x)).reverse) = true := by
-  rw [goalAsg, Bool.and_eq_true]
-  constructor
+/-- An induced subgraph whose classes are in order really does satisfy the search's `goalAsg`,
+degree condition and all. -/
+theorem goalAsg_of_inducedSubgraphOf (rank : G.V → ℕ) (pairs : List (H.V × H.V))
+    (f : H.InducedSubgraphOf G) (hs : List H.V) (hnd : hs.Nodup)
+    (hsort : ∀ p ∈ pairs, rank (f p.1) ≤ rank (f p.2)) :
+    goalAsg H G rank pairs ((hs.map fun x ↦ (x, f x)).reverse) = true := by
+  rw [goalAsg, Bool.and_eq_true, Bool.and_eq_true]
+  refine ⟨⟨?_, ?_⟩, ?_⟩
   · rw [validAsg_iff, List.pairwise_reverse, List.pairwise_map]
     refine hnd.imp ?_
     intro x y hxy
@@ -415,6 +560,20 @@ theorem goalAsg_of_inducedSubgraphOf (f : H.InducedSubgraphOf G) (hs : List H.V)
     simp only [List.mem_reverse, List.mem_map] at hp
     obtain ⟨x, _, rfl⟩ := hp
     simpa using degree_le_of_inducedSubgraphOf f x
+  · rw [sortedAsg, List.all_eq_true]
+    intro p hp
+    rw [List.all_eq_true]
+    rintro q hq
+    rw [List.all_eq_true]
+    rintro r hr
+    simp only [List.mem_reverse, List.mem_map] at hq hr
+    obtain ⟨x, -, rfl⟩ := hq
+    obtain ⟨y, -, rfl⟩ := hr
+    by_cases hx : x = p.1
+    · by_cases hy : y = p.2
+      · subst hx; subst hy; simp [hsort p hp]
+      · simp [hy]
+    · simp [hx]
 
 /-- **Completeness**: when the search comes back empty, `H` is not an induced subgraph of `G`. -/
 theorem isEmpty_inducedSubgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
@@ -422,12 +581,15 @@ theorem isEmpty_inducedSubgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
   rw [findInducedSubgraph_eq_none_iff, searchAsg] at h
   refine ⟨fun f ↦ ?_⟩
   split at h
-  · have hsol : ((searchOrder H rH.toList).map fun x ↦ (x, f x)).map Prod.fst =
+  · -- the embedding is first relabelled to one the symmetry test accepts
+    obtain ⟨g, hg⟩ := exists_sorted_pairs (hs := searchOrder H rH.toList) (hostRank G rG)
+      (mem_searchOrder H rH.mem_toList) f
+    have hsol : ((searchOrder H rH.toList).map fun x ↦ (x, g x)).map Prod.fst =
         searchOrder H rH.toList := by
       simp [Function.comp_def]
-    have hn := Backtrack.dfs_eq_none (mem_candList H G rG.mem_toList) h hsol
+    have hn := Backtrack.dfs_eq_none (mem_candList H G rG.mem_toList _ _) h hsol
     rw [List.append_nil,
-      goalAsg_of_inducedSubgraphOf f _ (searchOrder_nodup H rH.toList)] at hn
+      goalAsg_of_inducedSubgraphOf _ _ g _ (searchOrder_nodup H rH.toList) hg] at hn
     exact absurd hn (by simp)
   · exact absurd (show Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E from
       ⟨f.toSubgraphOf.card_le, f.toSubgraphOf.E_le⟩) ‹_›

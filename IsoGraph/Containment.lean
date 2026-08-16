@@ -1,6 +1,7 @@
 import IsoGraph.Containment.Algorithms.Backtrack
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
+import IsoGraph.Containment.Algorithms.Twins
 import IsoGraph.Containment.Defs
 import IsoGraph.Containment.Minors
 
@@ -29,5 +30,6 @@ complete answer.  `Backtrack.lean` has the search skeleton, which is graph-agnos
 pruning is discharged by a single implication, so making a search cleverer cannot make it wrong.
 `Algorithms/InducedSubgraph.lean` is the induced subgraph relation, and `Algorithms/Minor.lean`
 the minor relation, whose search builds the branch sets in an order that keeps them connected as
-it goes.
+it goes.  `Algorithms/Twins.lean` is shared between them: it finds the classes of interchangeable
+vertices of the pattern, so that neither search looks at a solution and its relabellings.
 -/
