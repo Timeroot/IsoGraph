@@ -1,4 +1,5 @@
 import IsoGraph.Containment.Algorithms.Backtrack
+import IsoGraph.Containment.Algorithms.Contraction
 import IsoGraph.Containment.Algorithms.Embedding
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
@@ -12,8 +13,9 @@ import IsoGraph.Containment.Minors
 
 When a graph theorist says that `H` "sits inside" `G` they mean one of about eight things, and all
 eight are a map between the two graphs with some property attached: an injection for a subgraph, a
-surjection for a quotient, a partial map with connected fibres for a minor, a family of disjoint
-paths for a topological minor, a family of edge-disjoint trails for an immersion.
+surjection for a quotient, a partial map with connected fibres for a minor, a total one for a
+contraction, a family of disjoint paths for a topological minor, a family of edge-disjoint trails
+for an immersion.
 
 `Containment/Defs.lean` defines each of them twice.  On `CGraph` it is a structure carrying that
 map — `H.SubgraphOf G` is the *type* of ways `H` is a subgraph of `G` — with the structures
@@ -21,12 +23,13 @@ extending one another so that the implications between the relations are project
 `ofIso`, `refl` and `trans` for each.  On `IsoGraph` it is the `Prop` that such a structure exists,
 and each of those becomes a scoped order instance, with `empty 0` at the bottom.
 
-`Containment/Minors.lean` finishes the four relations `Defs.lean` leaves open.  A minor with as
-many vertices as its host is a subgraph of it, which makes both minor orders antisymmetric, and a
-minor has no more edges than its host.  Topological minors and immersions compose there, by
-substituting a path or a trail of `G` for each edge of one in `K`; a topological minor is then
-shown to be a minor and an immersion to have no more edges than its host, which gives those two
-their antisymmetry in turn.  All four are partial orders by the end of the file.
+`Containment/Minors.lean` finishes the five relations `Defs.lean` leaves open.  A minor with as
+many vertices as its host is a subgraph of it, which makes the minor, induced minor and contraction
+orders antisymmetric, and a minor has no more edges than its host.  Topological minors and
+immersions compose there, by substituting a path or a trail of `G` for each edge of one in `K`; a
+topological minor is then shown to be a minor and an immersion to have no more edges than its host,
+which gives those two their antisymmetry in turn.  All five are partial orders by the end of the
+file — the contraction order alone without a bottom element, since a contraction deletes nothing.
 
 `Containment/Algorithms/` decides some of these relations, on `CGraph`, by search.  Each search
 returns the containment *itself* when it succeeds — not a `Bool` — and a theorem that the type is
@@ -37,6 +40,8 @@ pruning is discharged by a single implication, so making a search cleverer canno
 ways, by `Algorithms/Subgraph.lean` and `Algorithms/InducedSubgraph.lean`, which differ only in
 whether a non-edge of the pattern has to stay a non-edge; `Algorithms/Minor.lean` is the minor
 relation, whose search builds the branch sets in an order that keeps them connected as it goes.
-`Algorithms/Twins.lean` is shared between them all: it finds the classes of interchangeable
-vertices of the pattern, so that no search looks at a solution and its relabellings.
+`Algorithms/Contraction.lean` runs the opposite way round, labelling every vertex of the host with
+the block it goes into, because a contraction may throw nothing away.  `Algorithms/Twins.lean` is
+shared between them all: it finds the classes of interchangeable vertices of the pattern, so that
+no search looks at a solution and its relabellings.
 -/

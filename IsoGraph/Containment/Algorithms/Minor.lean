@@ -106,10 +106,11 @@ finds the classes of interchangeable vertices — all five vertices for `K5`, th
 `K3,3`, nothing for a path — and returns as `CGraph.symPairs` the consecutive pairs of each, whose
 images a search may keep in a fixed order.
 
-What "in order" means is up to the caller.  Here it is `MinorSearch.modelMin`, the least `rank` in
-a branch set: `MinorSearch.exists_sorted_model` composes an arbitrary model with the permutation
-that sorts a class by that number, which is an automorphism of `H` by `CGraph.adj_perm`, so the
-sorted model is the only one the search needs to look for.
+What "in order" means is up to the caller.  Here it is `CGraph.modelMin`, the least `rank` in a
+branch set: `CGraph.exists_sorted_model` composes an arbitrary model with the permutation that
+sorts a class by that number, which is an automorphism of `H` by `CGraph.adj_perm`, so the sorted
+model is the only one the search needs to look for.  It is stated for an abstract type of models
+given only their branch maps, so that `Algorithms/Contraction.lean` can reuse it.
 
 The search-side test is `MinorSearch.symOk`: if `x` follows `y` in its class, the set of `y` — if
 it is already among the finished ones — must have started at a smaller `rank` than the set of `x`.
@@ -235,6 +236,57 @@ theorem subset_reach {s : Set G.V} (hs : G.ConnectedOn s) {S pool : List G.V}
   have hbR : b ∉ reach G S pool := fun h ↦ hbt ⟨h, hb⟩
   have hbp : b ∈ pool := ((hsub b hb).resolve_left fun h ↦ hbR (mem_reach_of_mem h))
   exact hbR (mem_reach_of_adj hbp ha.1 (by rw [G.symm b a]; exact hab))
+
+/-- **`reach` finds nothing it was not given.**  Together with `connectedOn_reach` this says the
+result really is the component of `S` inside `S ∪ pool`, which is what a test for "these vertices
+can still be joined up" needs. -/
+theorem mem_or_mem_of_mem_reachAux : ∀ (n : ℕ) (S front pool : List G.V) {v : G.V},
+    v ∈ reachAux G n S front pool → v ∈ S ∨ v ∈ pool
+  | 0, _, _, _, _, h => Or.inl h
+  | n + 1, S, front, pool, v, h => by
+    rw [reachAux] at h
+    split at h
+    · exact Or.inl h
+    · rcases mem_or_mem_of_mem_reachAux n _ _ _ h with h | h
+      · rcases List.mem_append.mp h with h | h
+        · exact Or.inr (List.mem_filter.mp h).1
+        · exact Or.inl h
+      · exact Or.inr (List.mem_filter.mp h).1
+
+theorem mem_or_mem_of_mem_reach {S pool : List G.V} {v : G.V} (h : v ∈ reach G S pool) :
+    v ∈ S ∨ v ∈ pool := mem_or_mem_of_mem_reachAux _ _ _ _ h
+
+/-- Attaching vertices to a connected set one at a time, each next to something already there,
+keeps it connected. -/
+theorem connectedOn_append : ∀ (L S : List G.V), G.ConnectedOn {u | u ∈ S} →
+    (∀ v ∈ L, ∃ u ∈ S, G.Adj v u = true) → G.ConnectedOn {u | u ∈ L ++ S}
+  | [], _, hS, _ => by simpa using hS
+  | a :: L, S, hS, hadj => by
+    obtain ⟨u, hu, hau⟩ := hadj a (by simp)
+    have h : {z : G.V | z ∈ a :: L ++ S} = Insert.insert a {z : G.V | z ∈ L ++ S} := by
+      ext z; simp
+    rw [h]
+    exact (connectedOn_append L S hS fun v hv ↦ hadj v (List.mem_cons_of_mem _ hv)).insert
+      (show u ∈ {z : G.V | z ∈ L ++ S} from List.mem_append_right _ hu) hau
+
+theorem connectedOn_reachAux : ∀ (n : ℕ) (S front pool : List G.V),
+    G.ConnectedOn {u | u ∈ S} → (∀ v ∈ front, v ∈ S) →
+    G.ConnectedOn {u | u ∈ reachAux G n S front pool}
+  | 0, _, _, _, hS, _ => hS
+  | n + 1, S, front, pool, hS, hfront => by
+    rw [reachAux]
+    split
+    · exact hS
+    · refine connectedOn_reachAux n _ _ _ (connectedOn_append _ _ hS fun v hv ↦ ?_)
+        (fun v hv ↦ List.mem_append_left _ hv)
+      obtain ⟨-, hva⟩ := List.mem_filter.mp hv
+      obtain ⟨u, hu, hvu⟩ := List.any_eq_true.mp hva
+      exact ⟨u, hfront u hu, hvu⟩
+
+/-- **What `reach` finds is connected**, as long as it started from a connected set. -/
+theorem connectedOn_reach {S pool : List G.V} (hS : G.ConnectedOn {u | u ∈ S}) :
+    G.ConnectedOn {u | u ∈ reach G S pool} :=
+  connectedOn_reachAux _ _ _ _ hS fun _ h ↦ h
 
 /-- What a branch set started at `v` leaves for the sets that come after it: the component of `v`
 in what is left of the host, with `v` itself dropped.  A set that has to touch `v`'s own set is
@@ -474,6 +526,13 @@ theorem chainConn_filter_ne (v : G.V) : ∀ {l : List G.V} {u : G.V}, ChainConn 
       exact Or.inr ⟨List.any_eq_true.mpr
         ⟨w, List.mem_filter.mpr ⟨hw, by simpa using hwv⟩, haw⟩, ih⟩
 
+variable (G) in
+/-- Is there an edge of `G` between these two sets of vertices? -/
+def linked (S T : List G.V) : Bool := S.any fun u ↦ T.any fun w ↦ G.Adj u w
+
+theorem linked_iff {S T : List G.V} : linked G S T = true ↔ ∃ u ∈ S, ∃ w ∈ T, G.Adj u w := by
+  simp [linked]
+
 /-! ## Shrinking the host
 
 A vertex of the host with at most one neighbour left in the pool cannot be used by a model of a
@@ -686,9 +745,11 @@ theorem exists_two_adj_of_minDegTwo {hs : List H.V} (hnd : hs.Nodup) (hhs : ∀ 
 
 end Shrink
 
-namespace MinorSearch
+/-! ## Symmetry breaking
 
-/-! ## Symmetry breaking -/
+Stated for an abstract type `E` of models, given only the branch map each one induces and the fact
+that relabelling along an automorphism of `H` gives another one, so that the minor search and the
+contraction search share the argument. -/
 
 section Symmetry
 
@@ -726,8 +787,17 @@ theorem minRank_le {rank : G.V → ℕ} {S : List G.V} {v : G.V} (hv : v ∈ S) 
   rw [minRank, ha, Option.getD_some]
   exact (List.min?_eq_some_iff.mp ha).2 _ (List.mem_map_of_mem hv)
 
+/-- A nonempty set attains its least rank. -/
+theorem exists_minRank_eq {rank : G.V → ℕ} {S : List G.V} (hne : S ≠ []) :
+    ∃ u ∈ S, minRank rank S = rank u := by
+  rcases hm : (S.map rank).min? with _ | m
+  · rw [List.min?_eq_none_iff, List.map_eq_nil_iff] at hm
+    exact absurd hm hne
+  · obtain ⟨u, hu, hum⟩ := List.mem_map.mp (List.min?_eq_some_iff.mp hm).1
+    exact ⟨u, hu, by rw [minRank, hm, Option.getD_some, hum]⟩
+
 /-- **Relabelling a model along an automorphism.** -/
-theorem exists_reindex (f : H.MinorOf G) {σ : H.V → H.V} (hinj : Function.Injective σ)
+theorem MinorOf.exists_reindex (f : H.MinorOf G) {σ : H.V → H.V} (hinj : Function.Injective σ)
     (hadj : ∀ x y, H.Adj (σ x) (σ y) = H.Adj x y) :
     ∃ g : H.MinorOf G, ∀ (v : G.V) (x : H.V), g.branch v = some x ↔ f.branch v = some (σ x) := by
   classical
@@ -751,33 +821,36 @@ theorem exists_reindex (f : H.MinorOf G) {σ : H.V → H.V} (hinj : Function.Inj
   · obtain ⟨u, w, hu, hw, huw⟩ := f.map_adj (show H.Adj (σ x) (σ y) = true by rw [hadj]; exact hxy)
     exact ⟨u, w, (hkey u x).mpr hu, (hkey w y).mpr hw, huw⟩
 
-/-- The least rank in `x`'s branch set, read off the model. -/
-def modelMin (f : H.MinorOf G) (rank : G.V → ℕ) (gs : List G.V) (x : H.V) : ℕ :=
-  minRank rank (gs.filter fun v ↦ decide (f.branch v = some x))
+/-- The least rank in `x`'s branch set, read off a branch map. -/
+def modelMin (br : G.V → Option H.V) (rank : G.V → ℕ) (gs : List G.V) (x : H.V) : ℕ :=
+  minRank rank (gs.filter fun v ↦ decide (br v = some x))
 
 /-- **Every model can be relabelled so that interchangeable vertices get their branch sets in
 increasing order.**  This is the symmetry breaking: of the `|C|!` relabellings of a class of
 interchangeable vertices, only one survives. -/
-theorem exists_sorted_model {hs : List H.V} {gs : List G.V} {rank : G.V → ℕ}
-    (hcov : ∀ x : H.V, x ∈ hs) :
+theorem exists_sorted_model {E : Type} (br : E → G.V → Option H.V)
+    (hre : ∀ (f : E) {σ : H.V → H.V}, Function.Injective σ →
+      (∀ x y, H.Adj (σ x) (σ y) = H.Adj x y) →
+      ∃ g : E, ∀ (v : G.V) (x : H.V), br g v = some x ↔ br f v = some (σ x))
+    {hs : List H.V} {gs : List G.V} {rank : G.V → ℕ} (hcov : ∀ x : H.V, x ∈ hs) :
     ∀ (cs : List (List H.V)), (∀ C ∈ cs, classOk H hs C = true) →
-      List.Pairwise (fun A B ↦ ∀ x ∈ A, x ∉ B) cs → ∀ f : H.MinorOf G,
-      (∀ (v : G.V) (x : H.V), f.branch v = some x → v ∈ gs) →
-      ∃ g : H.MinorOf G, (∀ (v : G.V) (x : H.V), g.branch v = some x → v ∈ gs) ∧
-        ∀ C ∈ cs, List.IsChain (fun a b ↦ modelMin g rank gs a ≤ modelMin g rank gs b) C
+      List.Pairwise (fun A B ↦ ∀ x ∈ A, x ∉ B) cs → ∀ f : E,
+      (∀ (v : G.V) (x : H.V), br f v = some x → v ∈ gs) →
+      ∃ g : E, (∀ (v : G.V) (x : H.V), br g v = some x → v ∈ gs) ∧
+        ∀ C ∈ cs, List.IsChain (fun a b ↦ modelMin (br g) rank gs a ≤ modelMin (br g) rank gs b) C
   | [], _, _, f, hf => ⟨f, hf, by simp⟩
   | C :: rest, hok, hdisj, f, hf => by
     obtain ⟨hCrest, hrest⟩ := List.pairwise_cons.mp hdisj
     obtain ⟨g₁, hg₁, hs₁⟩ :=
-      exists_sorted_model hcov rest (fun D hD ↦ hok D (List.mem_cons_of_mem _ hD)) hrest f hf
+      exists_sorted_model br hre hcov rest (fun D hD ↦ hok D (List.mem_cons_of_mem _ hD)) hrest f hf
     have hCok := hok C (List.mem_cons_self ..)
     have hCnd : C.Nodup := by
       rw [classOk, Bool.and_eq_true, Bool.and_eq_true] at hCok
       exact of_decide_eq_true hCok.1.1
     obtain ⟨σ, hσC, hσout, hinj, hchain⟩ :=
-      exists_sort_perm C hCnd (modelMin g₁ rank gs)
-    obtain ⟨g₂, hg₂⟩ := exists_reindex g₁ hinj (adj_perm hCok hcov hσC hσout hinj)
-    have hmin : ∀ x : H.V, modelMin g₂ rank gs x = modelMin g₁ rank gs (σ x) := by
+      exists_sort_perm C hCnd (modelMin (br g₁) rank gs)
+    obtain ⟨g₂, hg₂⟩ := hre g₁ hinj (adj_perm hCok hcov hσC hσout hinj)
+    have hmin : ∀ x : H.V, modelMin (br g₂) rank gs x = modelMin (br g₁) rank gs (σ x) := by
       intro x
       rw [modelMin, modelMin]
       congr 1
@@ -792,16 +865,21 @@ theorem exists_sorted_model {hs : List H.V} {gs : List G.V} {rank : G.V → ℕ}
       exact h
 
 /-- **The pairs the search keeps in order lose no model.** -/
-theorem exists_sorted_pairs {hs : List H.V} {gs : List G.V} {rank : G.V → ℕ}
-    (hcov : ∀ x : H.V, x ∈ hs) (f : H.MinorOf G)
-    (hf : ∀ (v : G.V) (x : H.V), f.branch v = some x → v ∈ gs) :
-    ∃ g : H.MinorOf G, (∀ (v : G.V) (x : H.V), g.branch v = some x → v ∈ gs) ∧
-      ∀ p ∈ symPairs H hs, modelMin g rank gs p.1 ≤ modelMin g rank gs p.2 := by
+theorem exists_sorted_model_pairs {E : Type} (br : E → G.V → Option H.V)
+    (hre : ∀ (f : E) {σ : H.V → H.V}, Function.Injective σ →
+      (∀ x y, H.Adj (σ x) (σ y) = H.Adj x y) →
+      ∃ g : E, ∀ (v : G.V) (x : H.V), br g v = some x ↔ br f v = some (σ x))
+    {hs : List H.V} {gs : List G.V} {rank : G.V → ℕ}
+    (hcov : ∀ x : H.V, x ∈ hs) (f : E)
+    (hf : ∀ (v : G.V) (x : H.V), br f v = some x → v ∈ gs) :
+    ∃ g : E, (∀ (v : G.V) (x : H.V), br g v = some x → v ∈ gs) ∧
+      ∀ p ∈ symPairs H hs, modelMin (br g) rank gs p.1 ≤ modelMin (br g) rank gs p.2 := by
   rw [symPairs]
   split
   · rename_i hchk
     rw [Bool.and_eq_true, List.all_eq_true] at hchk
-    obtain ⟨g, hg, hsorted⟩ := exists_sorted_model hcov _ hchk.1 (pairwise_of_disjOk hchk.2) f hf
+    obtain ⟨g, hg, hsorted⟩ :=
+      exists_sorted_model br hre hcov _ hchk.1 (pairwise_of_disjOk hchk.2) f hf
     refine ⟨g, hg, fun p hp ↦ ?_⟩
     obtain ⟨C, hC, hp⟩ := List.mem_flatMap.mp hp
     exact consecPairs_of_isChain (hsorted C hC) p hp
@@ -820,6 +898,8 @@ def symOk (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (x : H.V) (S : List G
     done.all fun q ↦ !decide (q.1 = p.1) || decide (minRank rank q.2 ≤ minRank rank S)
 
 end Symmetry
+
+namespace MinorSearch
 
 variable (H G : CGraph) (rank : G.V → ℕ) (pairs : List (H.V × H.V))
 
@@ -842,12 +922,6 @@ structure State (H G : CGraph) where
   /-- The vertices of `G` that no branch set uses. -/
   avail : List G.V
   deriving DecidableEq
-
-/-- Is there an edge of `G` between these two sets of vertices? -/
-def linked (S T : List G.V) : Bool := S.any fun u ↦ T.any fun w ↦ G.Adj u w
-
-theorem linked_iff {S T : List G.V} : linked G S T = true ↔ ∃ u ∈ S, ∃ w ∈ T, G.Adj u w := by
-  simp [linked]
 
 /-- The vertices `x`'s branch set is allowed to start at.  If a vertex of `H` next to `x` already
 has a branch set, the set for `x` will have to touch the most recent of those, so the search makes
@@ -1260,7 +1334,7 @@ include f hl in
 /-- Adjacent vertices of `H` have branch sets joined by an edge. -/
 theorem linked_l {x y : H.V} (hxy : H.Adj x y = true) : linked G (l x) (l y) = true := by
   obtain ⟨u, w, hu, hw, huw⟩ := f.map_adj hxy
-  exact (linked_iff G).mpr ⟨u, (hl x u).mpr hu, w, (hl y w).mpr hw, huw⟩
+  exact linked_iff.mpr ⟨u, (hl x u).mpr hu, w, (hl y w).mpr hw, huw⟩
 
 include f hl in
 /-- Every vertex of `H` next to `x` has a vertex of its own branch set next to `x`'s, and those
@@ -1274,7 +1348,7 @@ theorem countP_le_flatMap (x : H.V) : ∀ xs : List H.V,
     cases hadj : H.Adj x y
     · simp only [Bool.false_eq_true, if_false]
       omega
-    · obtain ⟨u, hu, w, hw, huw⟩ := (linked_iff G).mp (linked_l l f hl hadj)
+    · obtain ⟨u, hu, w, hw, huw⟩ := linked_iff.mp (linked_l l f hl hadj)
       have hpos : 0 < (l y).countP fun u ↦ (l x).any (G.Adj u) :=
         List.countP_pos_iff.mpr ⟨w, hw, List.any_eq_true.mpr ⟨u, hu, by rw [G.symm]; exact huw⟩⟩
       simp only [if_true]
@@ -1327,9 +1401,9 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
     cases hzy : H.Adj z y
     · exact Or.inl rfl
     refine Or.inr ?_
-    obtain ⟨c, hc, w, hw, hcw⟩ := (linked_iff G).mp (linked_l l f hl hzy)
-    obtain ⟨d, hd, e, he, hde⟩ := (linked_iff G).mp (linked_l l f hl hxz)
-    refine (linked_iff G).mpr ⟨c, ?_, w, hw, hcw⟩
+    obtain ⟨c, hc, w, hw, hcw⟩ := linked_iff.mp (linked_l l f hl hzy)
+    obtain ⟨d, hd, e, he, hde⟩ := linked_iff.mp (linked_l l f hl hxz)
+    refine linked_iff.mpr ⟨c, ?_, w, hw, hcw⟩
     refine subset_seedReach (connectedOn_of_chainConn (hcc x)) (connectedOn_of_chainConn (hcc z))
       hav hux (hsub x (List.mem_cons_self ..)) (hsub z (List.mem_cons_of_mem _ hz)) ?_ he hd
       (by rw [G.symm]; exact hde) c hc
@@ -1488,10 +1562,11 @@ first, as long as no model is lost — see `exists_model_core`. -/
 theorem not_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V}
     (hhsnd : hs.Nodup) (hgsnd : gs.Nodup) (h : searchFrom H G rank pairs hs gs = none)
     (f : H.MinorOf G) (hgs : ∀ (v : G.V) (x : H.V), f.branch v = some x → v ∈ gs)
-    (hfsym : ∀ p ∈ pairs, modelMin f rank gs p.1 ≤ modelMin f rank gs p.2) : False := by
+    (hfsym : ∀ p ∈ pairs, modelMin f.branch rank gs p.1 ≤ modelMin f.branch rank gs p.2) :
+    False := by
   obtain ⟨l, hl, hnd, hcc, hch⟩ := exists_chain_model f rank hs hgs
   have hsupp : ∀ (y : H.V), ∀ v ∈ l y, v ∈ gs := fun y v hv ↦ hgs v y ((hl y v).mp hv)
-  have hmin : ∀ x : H.V, minRank rank (l x) = modelMin f rank gs x := by
+  have hmin : ∀ x : H.V, minRank rank (l x) = modelMin f.branch rank gs x := by
     intro x
     rw [modelMin]
     refine minRank_congr fun v ↦ ?_
@@ -1548,7 +1623,9 @@ theorem isEmpty_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀
     (h : searchFrom H G rank (symPairs H hs) hs gs = none) : IsEmpty (H.MinorOf G) := by
   refine ⟨fun f ↦ ?_⟩
   obtain ⟨g, hg, hgsym⟩ :=
-    exists_sorted_pairs (rank := rank) (gs := gs) hcov f fun v _ _ ↦ hgs v
+    exists_sorted_model_pairs MinorOf.branch
+      (fun f {_σ} hinj hadj ↦ MinorOf.exists_reindex f hinj hadj)
+      (rank := rank) (gs := gs) hcov f fun v _ _ ↦ hgs v
   exact not_minorOf_of_searchFrom rank _ hhsnd hgsnd h g hg hgsym
 
 end MinorSearch
@@ -1666,8 +1743,9 @@ theorem isEmpty_minorOf_of_findMinor_eq_none {rH : Roster H.V} {rG : Roster G.V}
         searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) (hsOrder H rH) gs
           = none → False := by
       intro gs hgsnd f' hf' hnone
-      obtain ⟨g, hg, hgsym⟩ := exists_sorted_pairs (rank := fun v ↦ rG.toList.idxOf v) (gs := gs)
-        (mem_hsOrder H rH) f' hf'
+      obtain ⟨g, hg, hgsym⟩ := exists_sorted_model_pairs MinorOf.branch
+        (fun f {_σ} hinj hadj ↦ MinorOf.exists_reindex f hinj hadj)
+        (rank := fun v ↦ rG.toList.idxOf v) (gs := gs) (mem_hsOrder H rH) f' hf'
       exact not_minorOf_of_searchFrom _ _ (hsOrder_nodup H rH) hgsnd hnone g hg hgsym
     rw [hostPool] at h
     split at h

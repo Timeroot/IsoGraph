@@ -1,3 +1,4 @@
+import IsoGraph.Containment.Algorithms.Contraction
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Subgraph
@@ -30,6 +31,11 @@ def reportInd (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
 
 def reportSub (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
   match findSubgraph H G rH rG with
+  | some _ => "found"
+  | none => "none "
+
+def reportCon (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
+  match findContraction H G rH rG with
   | some _ => "found"
   | none => "none "
 
@@ -225,6 +231,37 @@ def main (args : List String) : IO Unit := do
       bench s!"{k} × candList |pre|={pre.length}" fun _ =>
         toString (work.foldl (fun acc p =>
           acc + (candList H G true (hostRank G rG) gs.length prs rs nb p.1 p.2).length) 0)
+  | "con-km-grid" =>
+    let m := size 1 4
+    let n := size 2 4
+    bench s!"K{m} ⋏ grid {n}x{n}" fun _ =>
+      reportCon (complete m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
+  | "con-path-grid" =>
+    let m := size 1 4
+    let n := size 2 4
+    bench s!"P{m} ⋏ grid {n}x{n}" fun _ =>
+      reportCon (path m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
+  | "con-cycle-grid" =>
+    let m := size 1 4
+    let n := size 2 4
+    bench s!"C{m} ⋏ grid {n}x{n}" fun _ =>
+      reportCon (cycle m) (path n □g path n) (Roster.fin m) ((Roster.fin n).prod (Roster.fin n))
+  | "con-km-mcgee" =>
+    let m := size 1 5
+    bench s!"K{m} ⋏ mcgee" fun _ => reportCon (complete m) mcgee (Roster.fin m) (Roster.fin 24)
+  | "con-cycle-mcgee" =>
+    let m := size 1 6
+    bench s!"C{m} ⋏ mcgee" fun _ => reportCon (cycle m) mcgee (Roster.fin m) (Roster.fin 24)
+  | "con-cycle-heawood" =>
+    let m := size 1 6
+    bench s!"C{m} ⋏ heawood" fun _ => reportCon (cycle m) heawood (Roster.fin m) (Roster.fin 14)
+  | "con-km-cube" =>
+    let m := size 1 4
+    let n := size 2 4
+    bench s!"K{m} ⋏ Q{n}" fun _ =>
+      reportCon (complete m) (hypercube n) (Roster.fin m) (Roster.finArrow n Roster.bool)
+  | "con-self-mcgee" =>
+    bench "mcgee ⋏ mcgee" fun _ => reportCon mcgee mcgee (Roster.fin 24) (Roster.fin 24)
   | "sym-empty" =>
     let m := size 1 8
     let H := empty m
@@ -236,6 +273,8 @@ def main (args : List String) : IO Unit := do
     IO.println "               km-grid, kmm-grid, km-cube"
     IO.println "induced cases: ind-empty-heawood, ind-empty-mcgee, ind-empty-grid,"
     IO.println "               ind-cycle-mcgee, ind-path-grid, ind-kmm-mcgee"
+    IO.println "contraction:   con-km-grid, con-path-grid, con-cycle-grid, con-km-mcgee,"
+    IO.println "               con-cycle-mcgee, con-cycle-heawood, con-km-cube, con-self-mcgee"
     IO.println "subgraph:      sub-cycle-mcgee, sub-km-mcgee, sub-kmm-heawood, sub-cycle-grid,"
     IO.println "               sub-grid-grid, sub-petersen-mcgee"
     IO.println "node counts:   nodes-empty-mcgee, nodes-empty-heawood, nodes-empty-grid,"
