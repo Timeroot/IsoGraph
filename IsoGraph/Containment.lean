@@ -21,9 +21,12 @@ extending one another so that the implications between the relations are project
 `ofIso`, `refl` and `trans` for each.  On `IsoGraph` it is the `Prop` that such a structure exists,
 and each of those becomes a scoped order instance, with `empty 0` at the bottom.
 
-`Containment/Minors.lean` finishes the two minor relations: a minor with as many vertices as its
-host is a subgraph of it, which makes both minor orders antisymmetric and so partial orders, and
-a minor has no more edges than its host.  It also composes immersions.
+`Containment/Minors.lean` finishes the four relations `Defs.lean` leaves open.  A minor with as
+many vertices as its host is a subgraph of it, which makes both minor orders antisymmetric, and a
+minor has no more edges than its host.  Topological minors and immersions compose there, by
+substituting a path or a trail of `G` for each edge of one in `K`; a topological minor is then
+shown to be a minor and an immersion to have no more edges than its host, which gives those two
+their antisymmetry in turn.  All four are partial orders by the end of the file.
 
 `Containment/Algorithms/` decides some of these relations, on `CGraph`, by search.  Each search
 returns the containment *itself* when it succeeds — not a `Bool` — and a theorem that the type is

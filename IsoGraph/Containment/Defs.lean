@@ -19,9 +19,9 @@ other with some property.  Each one is written here twice.
 
 Each relation that has `refl` and `trans` then becomes a scoped order instance on `IsoGraph`,
 with `empty 0` as the bottom element where it is one.  The scopes are `IsoGraph.Subgraph`,
-`IsoGraph.InducedSubgraph`, `IsoGraph.Hom` and `IsoGraph.Quotient` here, and `IsoGraph.Minor` and
-`IsoGraph.InducedMinor` in `Containment/Minors.lean`; only one should be open at a time, since they
-all use `≤`.
+`IsoGraph.InducedSubgraph`, `IsoGraph.Hom` and `IsoGraph.Quotient` here, and `IsoGraph.Minor`,
+`IsoGraph.InducedMinor`, `IsoGraph.TopMinor` and `IsoGraph.Immersion` in
+`Containment/Minors.lean`; only one should be open at a time, since they all use `≤`.
 
 ## The relations
 
@@ -30,7 +30,7 @@ all use `≤`.
 | `Hom` (Mathlib's, as `→cg`) | a map carrying edges to edges | `HasHomInto`, a preorder |
 | `SubgraphOf` | an injective such map | `IsSubgraphOf`, a partial order |
 | `InducedSubgraphOf` | injective, and reflecting edges | `IsInducedSubgraphOf`, a partial order |
-| `QuotientOf` | a surjective such map, the other way | `IsQuotientOf`, a partial order |
+| `QuotientOf` | a surjective such map, the other way | `HasQuotient`, a partial order |
 | `MinorOf` | connected branch sets, one per vertex | `IsMinorOf`, a preorder |
 | `InducedMinorOf` | branch sets that reflect edges too | `IsInducedMinorOf`, a preorder |
 | `TopMinorOf` | branch vertices and internally disjoint paths | `IsTopMinorOf` |
@@ -39,16 +39,14 @@ all use `≤`.
 The hom order is only a preorder, and not by omission: `K₂` and `K₂ ⊕g K₁` map into each other and
 are not isomorphic.  The subgraph, induced subgraph and quotient orders are partial orders, because
 the two maps of an antisymmetry are forced to be bijections and then to reflect adjacency;
-`isoOfInjective` is the lemma that does it, by counting edges.  The two minor relations are
-antisymmetric as well, by an argument that lives in `Containment/Minors.lean`.
+`isoOfInjective` is the lemma that does it, by counting edges.  The other four relations are
+antisymmetric as well, by arguments that live in `Containment/Minors.lean`.
 
-`TopMinorOf` and `ImmersionOf` are the two whose transitivity is not proved here.  Both hold — the
-proof substitutes a path or trail of `G` for each edge of the paths in `K` — but the substitution
-is a development of its own.  `Containment/Minors.lean` carries it out for immersions, where
-edge-disjointness survives it; for topological minors, where internal *vertex* disjointness has to
-be maintained too, it is still open.  What is proved for both here is `ofIso`, `refl`, the
-weakening of a `SubgraphOf` and (for immersions) of a `TopMinorOf`, and the descent to `IsoGraph`
-as a reflexive relation.
+`TopMinorOf` and `ImmersionOf` are the two whose transitivity is not proved *here*.  Both hold —
+the proof substitutes a path or trail of `G` for each edge of the paths in `K` — but the
+substitution is a development of its own, and `Containment/Minors.lean` carries it out.  What is
+proved for both here is `ofIso`, `refl`, the weakening of a `SubgraphOf` and (for immersions) of a
+`TopMinorOf`, and the descent to `IsoGraph` as a reflexive relation.
 
 ## Branch sets
 
@@ -859,14 +857,16 @@ def IsInducedSubgraphOf : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem isInducedSubgraphOf_mk (H G : CGraph) :
     IsInducedSubgraphOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.InducedSubgraphOf G) := Iff.rfl
 
-/-- `H.IsQuotientOf G`: `H` is a homomorphic image of `G` under a surjection. -/
-def IsQuotientOf : IsoGraph → IsoGraph → Prop :=
-  Quotient.lift₂ (fun H G ↦ Nonempty (H.QuotientOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
-    ⟨fun ⟨f⟩ ↦ ⟨((QuotientOf.ofIso i.symm).trans f).trans (QuotientOf.ofIso j)⟩,
-      fun ⟨f⟩ ↦ ⟨((QuotientOf.ofIso i).trans f).trans (QuotientOf.ofIso j.symm)⟩⟩
+/-- `G.HasQuotient H`: `H` is a homomorphic image of `G` under a surjection.  The map runs from
+the left argument to the right one, as in `HasHomInto`; the order it induces runs the other way,
+since a quotient is *below* what it is a quotient of. -/
+def HasQuotient : IsoGraph → IsoGraph → Prop :=
+  Quotient.lift₂ (fun G H ↦ Nonempty (H.QuotientOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
+    ⟨fun ⟨f⟩ ↦ ⟨((QuotientOf.ofIso j.symm).trans f).trans (QuotientOf.ofIso i)⟩,
+      fun ⟨f⟩ ↦ ⟨((QuotientOf.ofIso j).trans f).trans (QuotientOf.ofIso i.symm)⟩⟩
 
-@[simp, isoTransfer] theorem isQuotientOf_mk (H G : CGraph) :
-    IsQuotientOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.QuotientOf G) := Iff.rfl
+@[simp, isoTransfer] theorem hasQuotient_mk (G H : CGraph) :
+    HasQuotient ⟦G⟧ ⟦H⟧ ↔ Nonempty (H.QuotientOf G) := Iff.rfl
 
 /-- `H.IsMinorOf G`: `H` is a minor of `G`. -/
 def IsMinorOf : IsoGraph → IsoGraph → Prop :=
@@ -954,23 +954,23 @@ theorem isInducedSubgraphOf_antisymm {H G : IsoGraph} (h₁ : H.IsInducedSubgrap
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
-theorem isQuotientOf_refl (G : IsoGraph) : G.IsQuotientOf G := by
+theorem hasQuotient_refl (G : IsoGraph) : G.HasQuotient G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨QuotientOf.refl g⟩
 
-theorem isQuotientOf_trans {H G K : IsoGraph} (h₁ : H.IsQuotientOf G) (h₂ : G.IsQuotientOf K) :
-    H.IsQuotientOf K := by
+theorem hasQuotient_trans {G K L : IsoGraph} (h₁ : G.HasQuotient K) (h₂ : K.HasQuotient L) :
+    G.HasQuotient L := by
   revert h₁ h₂
-  refine Quotient.inductionOn₃ H G K ?_
+  refine Quotient.inductionOn₃ G K L ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
-  exact ⟨f.trans g⟩
+  exact ⟨g.trans f⟩
 
-theorem isQuotientOf_antisymm {H G : IsoGraph} (h₁ : H.IsQuotientOf G) (h₂ : G.IsQuotientOf H) :
-    H = G := by
+theorem hasQuotient_antisymm {G H : IsoGraph} (h₁ : G.HasQuotient H) (h₂ : H.HasQuotient G) :
+    G = H := by
   revert h₁ h₂
-  refine Quotient.inductionOn₂ H G ?_
+  refine Quotient.inductionOn₂ G H ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
-  exact Quotient.sound ⟨f.antisymm g⟩
+  exact Quotient.sound ⟨(f.antisymm g).symm⟩
 
 theorem isMinorOf_refl (G : IsoGraph) : G.IsMinorOf G := by
   induction G using Quotient.inductionOn with
@@ -1017,9 +1017,9 @@ theorem IsSubgraphOf.hasHomInto {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.HasH
   rintro _ _ ⟨f⟩
   exact ⟨f.toHom⟩
 
-theorem IsQuotientOf.hasHomInto {H G : IsoGraph} (h : H.IsQuotientOf G) : G.HasHomInto H := by
+theorem HasQuotient.hasHomInto {G H : IsoGraph} (h : G.HasQuotient H) : G.HasHomInto H := by
   revert h
-  refine Quotient.inductionOn₂ H G ?_
+  refine Quotient.inductionOn₂ G H ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toHom⟩
 
@@ -1069,9 +1069,9 @@ theorem IsSubgraphOf.E_le {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.E ≤ G.E 
   rintro _ _ ⟨f⟩
   exact f.E_le
 
-theorem IsQuotientOf.V_le {H G : IsoGraph} (h : H.IsQuotientOf G) : H.V ≤ G.V := by
+theorem HasQuotient.V_le {G H : IsoGraph} (h : G.HasQuotient H) : H.V ≤ G.V := by
   revert h
-  refine Quotient.inductionOn₂ H G ?_
+  refine Quotient.inductionOn₂ G H ?_
   rintro _ _ ⟨f⟩
   exact f.card_le
 
@@ -1183,15 +1183,16 @@ end InducedSubgraph
 
 namespace Quotient
 
-/-- The order by homomorphic images.  It has no bottom element: a surjection onto the empty graph
-has to start from the empty graph. -/
+/-- The order by homomorphic images: `H ≤ G` when `H` is a quotient of `G`, so the surjection runs
+downwards.  It has no bottom element: a surjection onto the empty graph has to start from the empty
+graph. -/
 scoped instance : PartialOrder IsoGraph where
-  le := IsQuotientOf
-  le_refl := isQuotientOf_refl
-  le_trans _ _ _ := isQuotientOf_trans
-  le_antisymm _ _ := isQuotientOf_antisymm
+  le H G := G.HasQuotient H
+  le_refl := hasQuotient_refl
+  le_trans _ _ _ h₁ h₂ := hasQuotient_trans h₂ h₁
+  le_antisymm _ _ h₁ h₂ := hasQuotient_antisymm h₂ h₁
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsQuotientOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ G.HasQuotient H := Iff.rfl
 
 end Quotient
 
