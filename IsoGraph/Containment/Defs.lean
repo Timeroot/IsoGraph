@@ -20,7 +20,7 @@ other with some property.  Each one is written here twice.
 Each relation that has `refl` and `trans` then becomes a scoped order instance on `IsoGraph`,
 with `empty 0` as the bottom element where it is one.  The scopes are `IsoGraph.Subgraph`,
 `IsoGraph.InducedSubgraph`, `IsoGraph.Hom` and `IsoGraph.Quotient` here, and `IsoGraph.Minor`,
-`IsoGraph.InducedMinor`, `IsoGraph.TopMinor` and `IsoGraph.Immersion` in
+`IsoGraph.InducedMinor`, `IsoGraph.Contraction`, `IsoGraph.TopMinor` and `IsoGraph.Immersion` in
 `Containment/Minors.lean`; only one should be open at a time, since they all use `≤`.
 
 ## The relations
@@ -33,13 +33,14 @@ with `empty 0` as the bottom element where it is one.  The scopes are `IsoGraph.
 | `QuotientOf` | a surjective such map, the other way | `HasQuotient`, a partial order |
 | `MinorOf` | connected branch sets, one per vertex | `IsMinorOf`, a preorder |
 | `InducedMinorOf` | branch sets that reflect edges too | `IsInducedMinorOf`, a preorder |
+| `ContractionOf` | induced, and no vertex deleted | `IsContractionOf`, a preorder |
 | `TopMinorOf` | branch vertices and internally disjoint paths | `IsTopMinorOf` |
 | `ImmersionOf` | branch vertices and edge-disjoint trails | `IsImmersionMinorOf` |
 
 The hom order is only a preorder, and not by omission: `K₂` and `K₂ ⊕g K₁` map into each other and
 are not isomorphic.  The subgraph, induced subgraph and quotient orders are partial orders, because
 the two maps of an antisymmetry are forced to be bijections and then to reflect adjacency;
-`isoOfInjective` is the lemma that does it, by counting edges.  The other four relations are
+`isoOfInjective` is the lemma that does it, by counting edges.  The other five relations are
 antisymmetric as well, by arguments that live in `Containment/Minors.lean`.
 
 `TopMinorOf` and `ImmersionOf` are the two whose transitivity is not proved *here*.  Both hold —
@@ -423,6 +424,19 @@ structure InducedMinorOf (H G : CGraph) extends MinorOf H G where
   adj_map' : ∀ x y : H.V, x ≠ y →
     (∃ u v, branch u = some x ∧ branch v = some y ∧ G.Adj u v) → H.Adj x y
 
+/-- `H.ContractionOf G`: `H` is a *contraction* of `G` — an induced minor that deletes nothing.
+The branch sets then partition the vertices of `G` into connected blocks, one per vertex of `H`,
+with two blocks joined in `H` exactly when an edge of `G` runs between them: `H` is `G` with each
+block shrunk to a point.
+
+Deleting nothing is the one extra field.  It is a `Prop` on the partial branch map rather than a
+total map `G.V → H.V`, so that a contraction *is* an induced minor by the inherited projection and
+inherits its transitivity, its antisymmetry and its edge count; `ContractionOf.toFun` reads the
+total map back off, and is what to compute with. -/
+structure ContractionOf (H G : CGraph) extends InducedMinorOf H G where
+  /-- No vertex of `G` is deleted. -/
+  total' : ∀ u : G.V, (branch u).isSome
+
 namespace MinorOf
 
 variable {H G K : CGraph}
@@ -532,6 +546,88 @@ def trans (f : H.InducedMinorOf K) (g : K.InducedMinorOf G) : H.InducedMinorOf G
         · exact f.adj_map hxy ⟨k, k', hu, hv, g.adj_map hkk' ⟨u, v, hk, hk', huv⟩⟩
 
 end InducedMinorOf
+
+namespace ContractionOf
+
+variable {H G K : CGraph}
+
+theorem total (f : H.ContractionOf G) (u : G.V) : (f.branch u).isSome := f.total' u
+
+/-- The vertex of `H` a vertex of `G` is contracted into.  A contraction deletes nothing, so this
+is defined everywhere, and it is the map a computation should use. -/
+def toFun (f : H.ContractionOf G) (u : G.V) : H.V := (f.branch u).get (f.total u)
+
+theorem branch_injective : Function.Injective fun f : H.ContractionOf G ↦ f.branch := by
+  rintro ⟨⟨⟨bf, _, _⟩, _⟩, _⟩ ⟨⟨⟨bg, _, _⟩, _⟩, _⟩ h
+  have hb : bf = bg := h
+  subst hb
+  rfl
+
+instance : FunLike (H.ContractionOf G) G.V H.V where
+  coe := toFun
+  coe_injective' f g h := branch_injective (funext fun u ↦
+    (Option.some_get (f.total u)).symm.trans
+      ((congrArg some (congrFun h u)).trans (Option.some_get (g.total u))))
+
+theorem branch_eq (f : H.ContractionOf G) (u : G.V) : f.branch u = some (f u) :=
+  (Option.some_get (f.total u)).symm
+
+@[simp] theorem branch_eq_some_iff (f : H.ContractionOf G) {u : G.V} {x : H.V} :
+    f.branch u = some x ↔ f u = x := by
+  rw [f.branch_eq u, Option.some_inj]
+
+/-- The blocks are the fibres of `toFun`, and each of them is connected. -/
+theorem connectedOn (f : H.ContractionOf G) (x : H.V) : G.ConnectedOn {v | f v = x} := by
+  have h : {v : G.V | f v = x} = {v | f.branch v = some x} :=
+    Set.ext fun v ↦ (f.branch_eq_some_iff).symm
+  rw [h]
+  exact f.connectedOn' x
+
+/-- Every block is nonempty, so a contraction hits every vertex of `H`. -/
+theorem surjective (f : H.ContractionOf G) : Function.Surjective f := fun x ↦
+  (f.connectedOn x).nonempty
+
+theorem map_adj (f : H.ContractionOf G) {x y : H.V} (h : H.Adj x y) :
+    ∃ u v, f u = x ∧ f v = y ∧ G.Adj u v := by
+  obtain ⟨u, v, hu, hv, huv⟩ := f.toInducedMinorOf.toMinorOf.map_adj h
+  exact ⟨u, v, f.branch_eq_some_iff.mp hu, f.branch_eq_some_iff.mp hv, huv⟩
+
+/-- An edge of `G` between two different blocks is an edge of `H`. -/
+theorem adj_map (f : H.ContractionOf G) {u v : G.V} (h : G.Adj u v) (huv : f u ≠ f v) :
+    H.Adj (f u) (f v) :=
+  f.toInducedMinorOf.adj_map huv ⟨u, v, f.branch_eq u, f.branch_eq v, h⟩
+
+/-- An isomorphism contracts nothing at all. -/
+def ofIso (i : H ≃cg G) : H.ContractionOf G where
+  toInducedMinorOf := InducedMinorOf.ofIso i
+  total' _ := rfl
+
+@[simp] theorem ofIso_apply (i : H ≃cg G) (u : G.V) : ofIso i u = i.symm u := rfl
+
+/-- Every graph is a contraction of itself. -/
+def refl (G : CGraph) : G.ContractionOf G := ofIso (RelIso.refl _)
+
+/-- **A contraction of a contraction is a contraction**: composing two total branch maps leaves
+nothing deleted. -/
+def trans (f : H.ContractionOf K) (g : K.ContractionOf G) : H.ContractionOf G where
+  toInducedMinorOf := f.toInducedMinorOf.trans g.toInducedMinorOf
+  total' u := by
+    show ((g.branch u).bind f.branch).isSome
+    rw [g.branch_eq u, Option.bind_some, f.branch_eq]
+    rfl
+
+@[simp] theorem trans_apply (f : H.ContractionOf K) (g : K.ContractionOf G) (u : G.V) :
+    (f.trans g) u = f (g u) := by
+  have h : (f.trans g).branch u = some (f (g u)) := by
+    show ((g.branch u).bind f.branch) = _
+    rw [g.branch_eq u, Option.bind_some, f.branch_eq]
+  exact (f.trans g).branch_eq_some_iff.mp h
+
+/-- The blocks are nonempty and disjoint, so a contraction has no more vertices. -/
+theorem card_le (f : H.ContractionOf G) : Fintype.card H.V ≤ Fintype.card G.V :=
+  f.toInducedMinorOf.toMinorOf.card_le
+
+end ContractionOf
 
 /-! ## Topological minors and immersions
 
@@ -782,8 +878,8 @@ def QuotientOf.toHom (f : H.QuotientOf G) : G →cg H := ⟨f, fun h ↦ f.map_a
 
 /-! ## The empty graph
 
-`empty 0` sits below everything in all of these orders but the quotient one, where a surjection
-onto no vertices needs no vertices to start from. -/
+`empty 0` sits below everything in all of these orders but the quotient and contraction ones,
+where a map *onto* no vertices needs no vertices to start from. -/
 
 /-- The homomorphism out of the empty graph. -/
 def homEmptyZero (G : CGraph) : empty 0 →cg G := ⟨fun x ↦ x.elim0, fun {a} _ ↦ a.elim0⟩
@@ -885,6 +981,16 @@ def IsInducedMinorOf : IsoGraph → IsoGraph → Prop :=
 
 @[simp, isoTransfer] theorem isInducedMinorOf_mk (H G : CGraph) :
     IsInducedMinorOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.InducedMinorOf G) := Iff.rfl
+
+/-- `H.IsContractionOf G`: `H` is a contraction of `G` — the result of partitioning `G` into
+connected blocks and shrinking each to a point. -/
+def IsContractionOf : IsoGraph → IsoGraph → Prop :=
+  Quotient.lift₂ (fun H G ↦ Nonempty (H.ContractionOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
+    ⟨fun ⟨f⟩ ↦ ⟨((ContractionOf.ofIso i.symm).trans f).trans (ContractionOf.ofIso j)⟩,
+      fun ⟨f⟩ ↦ ⟨((ContractionOf.ofIso i).trans f).trans (ContractionOf.ofIso j.symm)⟩⟩
+
+@[simp, isoTransfer] theorem isContractionOf_mk (H G : CGraph) :
+    IsContractionOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.ContractionOf G) := Iff.rfl
 
 /-! The last two have no `trans`, so their invariance is proved instead by transporting a single
 model along isomorphisms of both sides: `TopMinorOf.congr` and `ImmersionOf.congr`. -/
@@ -994,6 +1100,17 @@ theorem isInducedMinorOf_trans {H G K : IsoGraph} (h₁ : H.IsInducedMinorOf G)
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
+theorem isContractionOf_refl (G : IsoGraph) : G.IsContractionOf G := by
+  induction G using Quotient.inductionOn with
+  | h g => exact ⟨ContractionOf.refl g⟩
+
+theorem isContractionOf_trans {H G K : IsoGraph} (h₁ : H.IsContractionOf G)
+    (h₂ : G.IsContractionOf K) : H.IsContractionOf K := by
+  revert h₁ h₂
+  refine Quotient.inductionOn₃ H G K ?_
+  rintro _ _ _ ⟨f⟩ ⟨g⟩
+  exact ⟨f.trans g⟩
+
 theorem isTopMinorOf_refl (G : IsoGraph) : G.IsTopMinorOf G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨TopMinorOf.refl g⟩
@@ -1041,6 +1158,19 @@ theorem IsInducedMinorOf.isMinorOf {H G : IsoGraph} (h : H.IsInducedMinorOf G) :
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toMinorOf⟩
+
+/-- A contraction is an induced minor: it is one that happens to delete nothing.  It is *not* a
+quotient, though the map runs the same way — the blocks of a quotient are independent sets and the
+blocks of a contraction are connected, so neither relation implies the other. -/
+theorem IsContractionOf.isInducedMinorOf {H G : IsoGraph} (h : H.IsContractionOf G) :
+    H.IsInducedMinorOf G := by
+  revert h
+  refine Quotient.inductionOn₂ H G ?_
+  rintro _ _ ⟨f⟩
+  exact ⟨f.toInducedMinorOf⟩
+
+theorem IsContractionOf.isMinorOf {H G : IsoGraph} (h : H.IsContractionOf G) : H.IsMinorOf G :=
+  h.isInducedMinorOf.isMinorOf
 
 theorem IsSubgraphOf.isTopMinorOf {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.IsTopMinorOf G := by
   revert h
@@ -1092,6 +1222,9 @@ theorem IsTopMinorOf.V_le {H G : IsoGraph} (h : H.IsTopMinorOf G) : H.V ≤ G.V 
 
 theorem IsInducedSubgraphOf.V_le {H G : IsoGraph} (h : H.IsInducedSubgraphOf G) : H.V ≤ G.V :=
   h.isSubgraphOf.V_le
+
+theorem IsContractionOf.V_le {H G : IsoGraph} (h : H.IsContractionOf G) : H.V ≤ G.V :=
+  h.isMinorOf.V_le
 
 theorem IsInducedMinorOf.V_le {H G : IsoGraph} (h : H.IsInducedMinorOf G) : H.V ≤ G.V :=
   h.isMinorOf.V_le

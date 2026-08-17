@@ -3,16 +3,18 @@ import IsoGraph.Containment.Defs
 /-!
 # More about minors
 
-`Containment/Defs.lean` leaves the two minor relations as preorders, because their antisymmetry
-needs an argument the subgraph relations do not.  It is supplied here, and with it the two orders
-become partial orders — which is why the `IsoGraph.Minor` and `IsoGraph.InducedMinor` scopes are
-declared in this file and not in `Defs.lean`.
+`Containment/Defs.lean` leaves the minor relations as preorders, because their antisymmetry needs
+an argument the subgraph relations do not.  It is supplied here, and with it the orders become
+partial orders — which is why the `IsoGraph.Minor`, `IsoGraph.InducedMinor` and
+`IsoGraph.Contraction` scopes are declared in this file and not in `Defs.lean`.
 
 The argument goes through one observation, `MinorOf.toSubgraphOf`: **a minor with as many vertices
 as the graph it is a minor of is a subgraph of it.**  The branch sets are nonempty and disjoint, so
 if there are as many of them as there are vertices then each is a singleton and none is left over;
 picking the representatives is then an injective map that carries edges to edges.  Antisymmetry is
-that observation applied twice, followed by `SubgraphOf.antisymm`.
+that observation applied twice, followed by `SubgraphOf.antisymm`.  A contraction gets its
+antisymmetry the same way, and its order has no bottom element: a contraction keeps every vertex,
+so nothing but `empty 0` is a contraction of `empty 0`.
 
 Also here: `MinorOf.E_le`, that a minor has no more edges than its host.  Each edge of `H` is
 realised by an edge of `G` between the two branch sets, and the branch map recovers which edge of
@@ -23,8 +25,8 @@ The other half of the file is transitivity for the two relations that replace an
 `TopMinorOf.trans` substitutes a path of `G` for each edge of a path of `K`, `ImmersionOf.trans`
 does the same with trails, and both descend to orders on `IsoGraph`.  Antisymmetry comes with them
 — for topological minors by way of `TopMinorOf.toMinorOf`, **a topological minor is a minor**, and
-for immersions by counting edges — so all four of `IsoGraph.Minor`, `IsoGraph.InducedMinor`,
-`IsoGraph.TopMinor` and `IsoGraph.Immersion` are partial orders.
+for immersions by counting edges — so all five of `IsoGraph.Minor`, `IsoGraph.InducedMinor`,
+`IsoGraph.Contraction`, `IsoGraph.TopMinor` and `IsoGraph.Immersion` are partial orders.
 -/
 
 set_option autoImplicit false
@@ -145,6 +147,24 @@ noncomputable def antisymm (f : H.InducedMinorOf G) (g : G.InducedMinorOf H) : H
 theorem E_le (f : H.InducedMinorOf G) : H.E ≤ G.E := f.toMinorOf.E_le
 
 end InducedMinorOf
+
+namespace ContractionOf
+
+variable {H G : CGraph}
+
+/-- A contraction with as many vertices as its host contracts nothing: every block is a single
+vertex, and the contraction is an induced subgraph inclusion the other way. -/
+noncomputable def toInducedSubgraphOf (f : H.ContractionOf G)
+    (hcard : Fintype.card G.V ≤ Fintype.card H.V) : H.InducedSubgraphOf G :=
+  f.toInducedMinorOf.toInducedSubgraphOf hcard
+
+/-- **Two graphs each a contraction of the other are isomorphic.** -/
+noncomputable def antisymm (f : H.ContractionOf G) (g : G.ContractionOf H) : H ≃cg G :=
+  f.toInducedMinorOf.antisymm g.toInducedMinorOf
+
+theorem E_le (f : H.ContractionOf G) : H.E ≤ G.E := f.toInducedMinorOf.E_le
+
+end ContractionOf
 
 /-! ## Topological minors compose
 
@@ -671,6 +691,13 @@ theorem isInducedMinorOf_antisymm {H G : IsoGraph} (h₁ : H.IsInducedMinorOf G)
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
+theorem isContractionOf_antisymm {H G : IsoGraph} (h₁ : H.IsContractionOf G)
+    (h₂ : G.IsContractionOf H) : H = G := by
+  revert h₁ h₂
+  refine Quotient.inductionOn₂ H G ?_
+  rintro _ _ ⟨f⟩ ⟨g⟩
+  exact Quotient.sound ⟨f.antisymm g⟩
+
 theorem IsMinorOf.E_le {H G : IsoGraph} (h : H.IsMinorOf G) : H.E ≤ G.E := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
@@ -679,6 +706,20 @@ theorem IsMinorOf.E_le {H G : IsoGraph} (h : H.IsMinorOf G) : H.E ≤ G.E := by
 
 theorem IsInducedMinorOf.E_le {H G : IsoGraph} (h : H.IsInducedMinorOf G) : H.E ≤ G.E :=
   h.isMinorOf.E_le
+
+theorem IsContractionOf.E_le {H G : IsoGraph} (h : H.IsContractionOf G) : H.E ≤ G.E :=
+  h.isMinorOf.E_le
+
+/-- A contraction of a graph with no vertices has no vertices: this is why the contraction order
+has no bottom element. -/
+theorem eq_empty_zero_of_isContractionOf {H : IsoGraph} (h : H.IsContractionOf (empty 0)) :
+    H = empty 0 := by
+  revert h
+  refine Quotient.inductionOn H ?_
+  rintro K ⟨f⟩
+  have hK : IsEmpty K.V := ⟨fun x ↦ (f.surjective x).elim fun v _ ↦ v.elim0⟩
+  haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+  exact Quotient.sound ⟨⟨Equiv.equivOfIsEmpty K.V (CGraph.empty 0).V, fun {a} ↦ hK.elim a⟩⟩
 
 theorem IsSubgraphOf.of_isMinorOf {H G : IsoGraph} (h : H.IsMinorOf G) (hV : G.V ≤ H.V) :
     H.IsSubgraphOf G := by
@@ -762,6 +803,22 @@ scoped instance : OrderBot IsoGraph where
   bot_le := empty_zero_isInducedMinorOf
 
 end InducedMinor
+
+namespace Contraction
+
+/-- The contraction order: `H ≤ G` when `H` is `G` with a partition into connected blocks shrunk
+to points.  Like the quotient order and unlike the other minor orders it has no bottom element —
+a contraction of `empty 0` is `empty 0`, since every vertex of the host has to go somewhere and
+every vertex of the image has to come from somewhere. -/
+scoped instance : PartialOrder IsoGraph where
+  le := IsContractionOf
+  le_refl := isContractionOf_refl
+  le_trans _ _ _ := isContractionOf_trans
+  le_antisymm _ _ := isContractionOf_antisymm
+
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsContractionOf G := Iff.rfl
+
+end Contraction
 
 namespace TopMinor
 
