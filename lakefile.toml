@@ -28,3 +28,8 @@ root = "EnumBench"
 [[lean_exe]]
 name = "minorbench"
 root = "MinorBench"
+
+# Head-to-head driver for the tabulated adjacency of `CGraph.cache`.
+[[lean_exe]]
+name = "cachebench"
+root = "CacheBench"
