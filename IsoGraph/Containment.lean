@@ -6,6 +6,7 @@ import IsoGraph.Containment.Algorithms.Hom
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
+import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Containment.Algorithms.Twins
 import IsoGraph.Containment.Defs
 import IsoGraph.Containment.Minors
@@ -44,15 +45,17 @@ whether a non-edge of the pattern has to stay a non-edge; `Algorithms/Minor.lean
 relation, whose search builds the branch sets in an order that keeps them connected as it goes, and
 is run twice over: with its induced test switched on it decides the induced minor relation too.
 `Algorithms/Contraction.lean` runs the opposite way round, labelling every vertex of the host with
-the block it goes into, because a contraction may throw nothing away.  `Algorithms/Hom.lean` drops
-injectivity altogether, which decides both the homomorphism order — `k`-colourability, against
-`complete k` — and the quotient one.  `Algorithms/Twins.lean` is shared between them all: it finds
-the classes of interchangeable vertices of the pattern, so that no search looks at a solution and
-its relabellings.
+the block it goes into, because a contraction may throw nothing away.  `Algorithms/TopMinor.lean`
+places the branch vertices and the subdivided paths in one interleaved search, so that each path is
+routed as soon as both of its ends are down.  `Algorithms/Hom.lean` drops injectivity altogether,
+which decides both the homomorphism order — `k`-colourability, against `complete k` — and the
+quotient one.  `Algorithms/Twins.lean` is shared between them all: it finds the classes of
+interchangeable vertices of the pattern, so that no search looks at a solution and its
+relabellings.
 
-`Algorithms/Cached.lean` is the layer to call.  Each of the seven searches there runs on adjacency
+`Algorithms/Cached.lean` is the layer to call.  Each of the eight searches there runs on adjacency
 matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of
 magnitude on anything out of the gallery, and transports the answer back.
 
-Two relations still have no search: **topological minor** and **immersion**.
+One relation still has no search: **immersion**.
 -/

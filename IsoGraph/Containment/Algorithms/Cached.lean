@@ -3,6 +3,7 @@ import IsoGraph.Containment.Algorithms.Hom
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
+import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Graphs.Cache
 
 /-!
@@ -10,7 +11,7 @@ import IsoGraph.Graphs.Cache
 
 `Algorithms/Subgraph.lean` and its siblings take the two graphs as they are, and each asks
 `H.Adj` and `G.Adj` a few million times.  For a graph out of the gallery that is a few million
-scans of an edge list.  This file wraps each of the seven searches so that it runs on `cacheFin`
+scans of an edge list.  This file wraps each of the eight searches so that it runs on `cacheFin`
 copies of the pattern *and* the host — adjacency matrices on `Fin n`, filled once — and transports
 the answer back along `CGraph.isoCacheFin`.
 
@@ -86,6 +87,11 @@ theorem isEmpty_hom_cacheFin :
   ⟨fun h ↦ ⟨fun f ↦ h.false (homCongr f H.isoCacheFin G.isoCacheFin)⟩,
     fun h ↦ ⟨fun f ↦ h.false (homCongr f H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
 
+theorem isEmpty_topMinorOf_cacheFin :
+    IsEmpty (H.cacheFin.TopMinorOf G.cacheFin) ↔ IsEmpty (H.TopMinorOf G) :=
+  ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
+    fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
+
 theorem isEmpty_quotientOf_cacheFin :
     IsEmpty (H.cacheFin.QuotientOf G.cacheFin) ↔ IsEmpty (H.QuotientOf G) :=
   ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
@@ -115,6 +121,12 @@ def minorOf? : Option (H.MinorOf G) :=
 edge of `G` between two of them that `H` does not have. -/
 def inducedMinorOf? : Option (H.InducedMinorOf G) :=
   (findInducedMinor H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
+    (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
+
+/-- **Is `H` a topological minor of `G`?**  Returns a subdivision of `H` inside `G` if so: the
+branch vertices, and the path each edge of `H` runs along. -/
+def topMinorOf? : Option (H.TopMinorOf G) :=
+  (findTopMinor H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
     (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
 
 /-- **Is `H` a contraction of `G`?**  Returns the partition of `G` into blocks if so. -/
@@ -154,6 +166,9 @@ theorem inducedMinorOf?_eq_none_iff :
   rw [inducedMinorOf?, Option.map_eq_none_iff, ← isEmpty_inducedMinorOf_iff,
     isEmpty_inducedMinorOf_cacheFin]
 
+theorem topMinorOf?_eq_none_iff : H.topMinorOf? G = none ↔ IsEmpty (H.TopMinorOf G) := by
+  rw [topMinorOf?, Option.map_eq_none_iff, ← isEmpty_topMinorOf_iff, isEmpty_topMinorOf_cacheFin]
+
 theorem contractionOf?_eq_none_iff : H.contractionOf? G = none ↔ IsEmpty (H.ContractionOf G) := by
   rw [contractionOf?, Option.map_eq_none_iff, ← isEmpty_contractionOf_iff,
     isEmpty_contractionOf_cacheFin]
@@ -182,6 +197,9 @@ def minorB : Bool := (H.minorOf? G).isSome
 /-- **Is `H` an induced minor of `G`?**, as a `Bool`. -/
 def inducedMinorB : Bool := (H.inducedMinorOf? G).isSome
 
+/-- **Is `H` a topological minor of `G`?**, as a `Bool`. -/
+def topMinorB : Bool := (H.topMinorOf? G).isSome
+
 /-- **Is `H` a contraction of `G`?**, as a `Bool`. -/
 def contractionB : Bool := (H.contractionOf? G).isSome
 
@@ -206,6 +224,10 @@ theorem minorB_iff : H.minorB G = true ↔ Nonempty (H.MinorOf G) := by
 theorem inducedMinorB_iff : H.inducedMinorB G = true ↔ Nonempty (H.InducedMinorOf G) := by
   rw [inducedMinorB, ← not_isEmpty_iff, ← inducedMinorOf?_eq_none_iff]
   cases H.inducedMinorOf? G <;> simp
+
+theorem topMinorB_iff : H.topMinorB G = true ↔ Nonempty (H.TopMinorOf G) := by
+  rw [topMinorB, ← not_isEmpty_iff, ← topMinorOf?_eq_none_iff]
+  cases H.topMinorOf? G <;> simp
 
 theorem contractionB_iff : H.contractionB G = true ↔ Nonempty (H.ContractionOf G) := by
   rw [contractionB, ← not_isEmpty_iff, ← contractionOf?_eq_none_iff]
