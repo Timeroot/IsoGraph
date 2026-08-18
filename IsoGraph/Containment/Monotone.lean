@@ -373,7 +373,8 @@ only when both of its coordinates survive. -/
 def prodBranch (f : A.MinorOf B) (f' : A'.MinorOf B') : B.V × B'.V → Option (A.V × A'.V) :=
   fun p ↦ (f.branch p.1).bind fun x ↦ (f'.branch p.2).map fun y ↦ (x, y)
 
-theorem prodBranch_eq_some (f : A.MinorOf B) (f' : A'.MinorOf B') {p : B.V × B'.V} {q : A.V × A'.V} :
+theorem prodBranch_eq_some (f : A.MinorOf B) (f' : A'.MinorOf B')
+    {p : B.V × B'.V} {q : A.V × A'.V} :
     prodBranch f f' p = some q ↔ f.branch p.1 = some q.1 ∧ f'.branch p.2 = some q.2 := by
   obtain ⟨u, v⟩ := p
   obtain ⟨x, y⟩ := q
@@ -727,7 +728,9 @@ def join (f : A.InducedSubgraphOf B) (f' : A'.InducedSubgraphOf B') :
 def cartesianProduct (f : A.InducedSubgraphOf B) (f' : A'.InducedSubgraphOf B') :
     (A □g A').InducedSubgraphOf (B □g B') where
   toSubgraphOf := f.toSubgraphOf.cartesianProduct f'.toSubgraphOf
-  adj_map' := cartesianProduct_adj_map f.injective f'.injective (fun _ _ ↦ f.adj_map) (fun _ _ ↦ f'.adj_map)
+  adj_map' :=
+    cartesianProduct_adj_map f.injective f'.injective (fun _ _ ↦ f.adj_map)
+      (fun _ _ ↦ f'.adj_map)
 
 def tensorProduct (f : A.InducedSubgraphOf B) (f' : A'.InducedSubgraphOf B') :
     (A ⊗g A').InducedSubgraphOf (B ⊗g B') where
@@ -737,7 +740,9 @@ def tensorProduct (f : A.InducedSubgraphOf B) (f' : A'.InducedSubgraphOf B') :
 def strongProduct (f : A.InducedSubgraphOf B) (f' : A'.InducedSubgraphOf B') :
     (A ⊠g A').InducedSubgraphOf (B ⊠g B') where
   toSubgraphOf := f.toSubgraphOf.strongProduct f'.toSubgraphOf
-  adj_map' := strongProduct_adj_map f.injective f'.injective (fun _ _ ↦ f.adj_map) (fun _ _ ↦ f'.adj_map)
+  adj_map' :=
+    strongProduct_adj_map f.injective f'.injective (fun _ _ ↦ f.adj_map)
+      (fun _ _ ↦ f'.adj_map)
 
 def lexProduct (f : A.InducedSubgraphOf B) (f' : A'.InducedSubgraphOf B') :
     (A ·g A').InducedSubgraphOf (B ·g B') where
