@@ -36,6 +36,11 @@ What each pair gets:
   the subgraph, induced subgraph, minor, induced minor, topological minor and immersion orders,
   and over `IsoGraph.StrongSemiring` (`⊕g`, `⊠g`) the first four of them.
 
+The last section needs no operation at all: none of the nine orders has a greatest element, so
+seven of them are `NoMaxOrder` and the quotient and contraction orders — where `empty 0` is
+maximal — are `NoTopOrder`.  Those two are also the two with no least element, `NoBotOrder`; the
+other seven have `⊥ = empty 0`, so no order here is `NoMinOrder`.
+
 `IsStrictOrderedRing` and the cancellative classes `IsOrderedCancelAddMonoid` and
 `IsOrderedCancelMonoid` are *not* here.  They ask for the converse implications — that
 `H ⊕g K ≤ G ⊕g K` forces `H ≤ G` — which is a cancellation theorem about the containment relations
@@ -638,6 +643,196 @@ end Semiring
 
 end Immersion
 
+/-! ## Nothing at the top, and what there is at the bottom
+
+None of the nine orders has a greatest element: a graph always sits inside a bigger one.  For the
+seven that are relations of *inclusion* the witness is `G ⊕g empty 1`, one more isolated vertex,
+which contains `G` and is not `G` — so those get `NoMaxOrder`, which is the stronger of the pair
+(`NoMaxOrder → NoTopOrder` in any preorder).  The homomorphism order is only a preorder, and an
+isolated vertex is no obstacle there — `G ⊕g empty 1` maps back into `G` as soon as `G` has a
+vertex — so its witness is a disjoint clique `complete (G.V + 1)`, too big to map back by
+`le_V_of_hasHomInto_complete`.
+
+For the quotient and contraction orders `NoMaxOrder` is *false*: `empty 0` is a maximal element,
+being a quotient — or a contraction — of nothing but itself.  It is a minimal element too, so it
+is isolated, and those two orders get the weaker `NoTopOrder` instead.  What they do have, and the
+other seven do not, is `NoBotOrder`: they have no bottom element at all, since a surjection onto
+`empty 0` has to start there, whereas the seven inclusion orders have `⊥ = empty 0`.  `NoMinOrder`
+is therefore false for all nine. -/
+
+theorem ne_disjUnion_empty_one (G : IsoGraph) : G ≠ G ⊕g empty 1 := by
+  intro h
+  have hV := congrArg IsoGraph.V h
+  simp at hV
+
+theorem isSubgraphOf_disjUnion_empty_one (G : IsoGraph) : G ≤ₛ G ⊕g empty 1 := by
+  simpa using IsSubgraphOf.disjUnion (isSubgraphOf_refl G) (empty_zero_isSubgraphOf (empty 1))
+
+theorem isInducedSubgraphOf_disjUnion_empty_one (G : IsoGraph) : G ≤ᵢₛ G ⊕g empty 1 := by
+  simpa using IsInducedSubgraphOf.disjUnion (isInducedSubgraphOf_refl G)
+    (empty_zero_isInducedSubgraphOf (empty 1))
+
+theorem isMinorOf_disjUnion_empty_one (G : IsoGraph) : G ≤ₘ G ⊕g empty 1 := by
+  simpa using IsMinorOf.disjUnion (isMinorOf_refl G) (empty_zero_isMinorOf (empty 1))
+
+theorem isInducedMinorOf_disjUnion_empty_one (G : IsoGraph) : G ≤ᵢₘ G ⊕g empty 1 := by
+  simpa using IsInducedMinorOf.disjUnion (isInducedMinorOf_refl G)
+    (empty_zero_isInducedMinorOf (empty 1))
+
+theorem isTopMinorOf_disjUnion_empty_one (G : IsoGraph) : G ≤ₜₘ G ⊕g empty 1 := by
+  simpa using IsTopMinorOf.disjUnion (isTopMinorOf_refl G) (empty_zero_isTopMinorOf (empty 1))
+
+theorem isImmersionMinorOf_disjUnion_empty_one (G : IsoGraph) : G ≤ₑ G ⊕g empty 1 := by
+  simpa using IsImmersionMinorOf.disjUnion (isImmersionMinorOf_refl G)
+    (empty_zero_isImmersionMinorOf (empty 1))
+
+theorem hasHomInto_disjUnion_left (G K : IsoGraph) : G ≤ₕ G ⊕g K := by
+  simpa using HasHomInto.disjUnion (hasHomInto_refl G) (empty_zero_hasHomInto K)
+
+theorem hasHomInto_disjUnion_right (G K : IsoGraph) : K ≤ₕ G ⊕g K := by
+  simpa using HasHomInto.disjUnion (empty_zero_hasHomInto G) (hasHomInto_refl K)
+
+/-- A disjoint clique on more vertices than `G` has cannot map back into `G`: a homomorphism out
+of a clique is an inclusion. -/
+theorem not_disjUnion_complete_hasHomInto (G : IsoGraph) :
+    ¬G ⊕g complete (G.V + 1) ≤ₕ G := fun h ↦ by
+  have hV := le_V_of_hasHomInto_complete
+    (hasHomInto_trans (hasHomInto_disjUnion_right G (complete (G.V + 1))) h)
+  omega
+
+/-- **`empty 0` is a quotient of nothing but itself**, which is why the quotient order has a
+maximal element and only `NoTopOrder`. -/
+theorem eq_empty_zero_of_empty_zero_hasQuotient {G : IsoGraph} (h : empty 0 ≤/ G) :
+    G = empty 0 := by
+  by_contra hG
+  exact absurd (HasQuotient.V_pos h (Nat.pos_of_ne_zero fun hV ↦ hG (V_eq_zero_iff.1 hV))) (by simp)
+
+/-- **`empty 0` is a contraction of nothing but itself**; `eq_empty_zero_of_isContractionOf` is
+the other half, that it contracts to nothing but itself. -/
+theorem eq_empty_zero_of_empty_zero_isContractionOf {G : IsoGraph} (h : empty 0 ≤ₚ G) :
+    G = empty 0 := by
+  by_contra hG
+  exact absurd (IsContractionOf.V_pos h (Nat.pos_of_ne_zero fun hV ↦ hG (V_eq_zero_iff.1 hV)))
+    (by simp)
+
+namespace Hom
+
+/-- **No greatest graph**, witnessed by a disjoint clique. -/
+scoped instance instNoMaxOrder : NoMaxOrder IsoGraph where
+  exists_gt a := ⟨a ⊕g complete (a.V + 1), lt_iff_le_not_ge.2
+    ⟨hasHomInto_disjUnion_left a _, not_disjUnion_complete_hasHomInto a⟩⟩
+
+end Hom
+
+namespace Subgraph
+
+/-- **No greatest graph**, witnessed by one more isolated vertex. -/
+scoped instance instNoMaxOrder : NoMaxOrder IsoGraph where
+  exists_gt a :=
+    ⟨a ⊕g empty 1, lt_of_le_of_ne (isSubgraphOf_disjUnion_empty_one a) (ne_disjUnion_empty_one a)⟩
+
+end Subgraph
+
+namespace InducedSubgraph
+
+/-- **No greatest graph**, witnessed by one more isolated vertex. -/
+scoped instance instNoMaxOrder : NoMaxOrder IsoGraph where
+  exists_gt a := ⟨a ⊕g empty 1,
+    lt_of_le_of_ne (isInducedSubgraphOf_disjUnion_empty_one a) (ne_disjUnion_empty_one a)⟩
+
+end InducedSubgraph
+
+namespace Minor
+
+/-- **No greatest graph**, witnessed by one more isolated vertex. -/
+scoped instance instNoMaxOrder : NoMaxOrder IsoGraph where
+  exists_gt a :=
+    ⟨a ⊕g empty 1, lt_of_le_of_ne (isMinorOf_disjUnion_empty_one a) (ne_disjUnion_empty_one a)⟩
+
+end Minor
+
+namespace InducedMinor
+
+/-- **No greatest graph**, witnessed by one more isolated vertex. -/
+scoped instance instNoMaxOrder : NoMaxOrder IsoGraph where
+  exists_gt a := ⟨a ⊕g empty 1,
+    lt_of_le_of_ne (isInducedMinorOf_disjUnion_empty_one a) (ne_disjUnion_empty_one a)⟩
+
+end InducedMinor
+
+namespace TopMinor
+
+/-- **No greatest graph**, witnessed by one more isolated vertex. -/
+scoped instance instNoMaxOrder : NoMaxOrder IsoGraph where
+  exists_gt a :=
+    ⟨a ⊕g empty 1, lt_of_le_of_ne (isTopMinorOf_disjUnion_empty_one a) (ne_disjUnion_empty_one a)⟩
+
+end TopMinor
+
+namespace Immersion
+
+/-- **No greatest graph**, witnessed by one more isolated vertex. -/
+scoped instance instNoMaxOrder : NoMaxOrder IsoGraph where
+  exists_gt a := ⟨a ⊕g empty 1,
+    lt_of_le_of_ne (isImmersionMinorOf_disjUnion_empty_one a) (ne_disjUnion_empty_one a)⟩
+
+end Immersion
+
+namespace Quotient
+
+/-- **Nothing is above everything**: a graph with one more vertex is not a quotient of `a`.  Not
+`NoMaxOrder`: `empty 0` is maximal, by `isMax_empty_zero`. -/
+scoped instance instNoTopOrder : NoTopOrder IsoGraph where
+  exists_not_le a := ⟨a ⊕g empty 1, fun h ↦ by have hV := HasQuotient.V_le h; simp at hV⟩
+
+/-- **Nothing is below everything**: `a` is a quotient neither of `empty 0`, if it has a vertex,
+nor of `empty 1`, if it has not.  Not `NoMinOrder`: `empty 0` is minimal, by `isMin_empty_zero`. -/
+scoped instance instNoBotOrder : NoBotOrder IsoGraph where
+  exists_not_ge a := by
+    rcases Nat.eq_zero_or_pos a.V with h | h
+    · exact ⟨empty 1, fun hle ↦ by have := HasQuotient.V_pos hle (by simp); omega⟩
+    · refine ⟨empty 0, fun hle ↦ ?_⟩
+      have hV := HasQuotient.V_le hle
+      rw [V_empty] at hV
+      omega
+
+theorem isMax_empty_zero : IsMax (empty 0 : IsoGraph) := fun _ hb ↦ by
+  rw [eq_empty_zero_of_empty_zero_hasQuotient hb]
+
+theorem isMin_empty_zero : IsMin (empty 0 : IsoGraph) := fun _ hb ↦ by
+  have hV := HasQuotient.V_le hb
+  rw [V_empty, Nat.le_zero, V_eq_zero_iff] at hV
+  subst hV
+  exact hasQuotient_refl _
+
+end Quotient
+
+namespace Contraction
+
+/-- **Nothing is above everything**: a graph with one more vertex is not a contraction of `a`.
+Not `NoMaxOrder`: `empty 0` is maximal, by `isMax_empty_zero`. -/
+scoped instance instNoTopOrder : NoTopOrder IsoGraph where
+  exists_not_le a := ⟨a ⊕g empty 1, fun h ↦ by have hV := IsContractionOf.V_le h; simp at hV⟩
+
+/-- **Nothing is below everything**: `a` contracts neither to `empty 0`, if it has a vertex, nor
+to `empty 1`, if it has not.  Not `NoMinOrder`: `empty 0` is minimal, by `isMin_empty_zero`. -/
+scoped instance instNoBotOrder : NoBotOrder IsoGraph where
+  exists_not_ge a := by
+    rcases Nat.eq_zero_or_pos a.V with h | h
+    · exact ⟨empty 1, fun hle ↦ by have := IsContractionOf.V_pos hle (by simp); omega⟩
+    · refine ⟨empty 0, fun hle ↦ ?_⟩
+      have hV := IsContractionOf.V_le hle
+      rw [V_empty] at hV
+      omega
+
+theorem isMax_empty_zero : IsMax (empty 0 : IsoGraph) := fun _ hb ↦ by
+  rw [eq_empty_zero_of_empty_zero_isContractionOf hb]
+
+theorem isMin_empty_zero : IsMin (empty 0 : IsoGraph) := fun _ hb ↦ by
+  rw [eq_empty_zero_of_isContractionOf hb]
+
+end Contraction
+
 /-! ## The instances in use
 
 One order scope and one algebra scope at a time, and the `Mathlib` order lemmas apply to graphs. -/
@@ -688,6 +883,29 @@ open scoped IsoGraph.TopMinor IsoGraph.Semiring
 example (a b c d : IsoGraph) (h : a ≤ b) (h' : c ≤ d) : a * c ≤ b * d := mul_le_mul' h h'
 example (a b c : IsoGraph) (h : a ≤ b) : c * a ≤ c * b := mul_le_mul_of_nonneg_left h bot_le
 example : (0 : IsoGraph) ≤ 1 := zero_le_one
+
+end Examples
+
+section Examples
+
+open scoped IsoGraph.Minor
+
+example (a : IsoGraph) : ∃ b, a < b := exists_gt a
+example (a : IsoGraph) : ¬IsMax a := not_isMax a
+/-- The other half fails: this order has a least element, so it is not `NoMinOrder`. -/
+example : ¬NoMinOrder IsoGraph := fun _ ↦ @not_isMin IsoGraph _ ‹_› ⊥ isMin_bot
+
+end Examples
+
+section Examples
+
+open scoped IsoGraph.Quotient
+
+example (a : IsoGraph) : ∃ b, ¬b ≤ a := exists_not_le a
+example (a : IsoGraph) : ∃ b, ¬a ≤ b := exists_not_ge a
+/-- Neither strengthening holds: `empty 0` is both maximal and minimal here. -/
+example : ¬NoMaxOrder IsoGraph := fun _ ↦ @not_isMax IsoGraph _ ‹_› _ IsoGraph.Quotient.isMax_empty_zero
+example : ¬NoMinOrder IsoGraph := fun _ ↦ @not_isMin IsoGraph _ ‹_› _ IsoGraph.Quotient.isMin_empty_zero
 
 end Examples
 

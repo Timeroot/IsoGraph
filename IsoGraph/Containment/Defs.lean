@@ -301,6 +301,18 @@ def congr {H' G' : CGraph} (f : H.SubgraphOf G) (i : H ≃cg H') (j : G ≃cg G'
 /-- A subgraph inclusion is in particular a homomorphism. -/
 def toHom (f : H.SubgraphOf G) : H →cg G := ⟨f, fun h ↦ f.map_adj h⟩
 
+/-- Out of a *complete* graph the converse holds: a homomorphism is an inclusion.  Two vertices of
+`complete n` with the same image are adjacent, so their common image would be a loop. -/
+def ofHomComplete {n : ℕ} (f : complete n →cg G) : (complete n).SubgraphOf G where
+  toFun := f
+  injective' x y hxy := by
+    by_contra hne
+    have hadj : (complete n).Adj x y := by simp [hne]
+    have hloop : G.Adj (f x) (f y) := f.map_rel hadj
+    rw [hxy] at hloop
+    exact G.loopless (f y) hloop
+  map_adj' _ _ h := f.map_rel h
+
 theorem E_le (f : H.SubgraphOf G) : H.E ≤ G.E :=
   E_le_of_injective f f.injective f.map_adj'
 
@@ -1313,6 +1325,35 @@ theorem IsContractionOf.V_le {H G : IsoGraph} (h : H ≤ₚ G) : H.V ≤ G.V :=
 
 theorem IsInducedMinorOf.V_le {H G : IsoGraph} (h : H ≤ᵢₘ G) : H.V ≤ G.V :=
   h.isMinorOf.V_le
+
+/-- A quotient and a contraction both map the vertices of the larger graph *onto* those of the
+smaller, so neither can shrink a nonempty graph to the empty one. -/
+theorem HasQuotient.V_pos {G H : IsoGraph} (h : H ≤/ G) (hG : 0 < G.V) : 0 < H.V := by
+  revert h hG
+  refine Quotient.inductionOn₂ G H ?_
+  rintro _ _ ⟨f⟩ hg
+  exact FinEnum.card_pos_iff.2 ⟨f (FinEnum.card_pos_iff.1 hg).some⟩
+
+@[inherit_doc HasQuotient.V_pos]
+theorem IsContractionOf.V_pos {H G : IsoGraph} (h : H ≤ₚ G) (hG : 0 < G.V) : 0 < H.V := by
+  revert h hG
+  refine Quotient.inductionOn₂ H G ?_
+  rintro _ _ ⟨f⟩ hg
+  exact FinEnum.card_pos_iff.2 ⟨f (FinEnum.card_pos_iff.1 hg).some⟩
+
+/-- A homomorphism out of a complete graph is an inclusion, so the homomorphism order sees a
+clique as exactly what it is: `complete n ≤ₕ G` is `complete n ≤ₛ G`, an `n`-clique in `G`. -/
+theorem IsSubgraphOf.of_hasHomInto_complete {n : ℕ} {G : IsoGraph} (h : complete n ≤ₕ G) :
+    complete n ≤ₛ G := by
+  revert h
+  refine Quotient.inductionOn G ?_
+  rintro _ ⟨f⟩
+  exact ⟨CGraph.SubgraphOf.ofHomComplete f⟩
+
+/-- In particular a graph on fewer vertices cannot receive a clique. -/
+theorem le_V_of_hasHomInto_complete {n : ℕ} {G : IsoGraph} (h : complete n ≤ₕ G) : n ≤ G.V := by
+  have hle := (IsSubgraphOf.of_hasHomInto_complete h).V_le
+  rwa [show (complete n : IsoGraph).V = n from CGraph.card_complete n] at hle
 
 /-! ## The empty graph at the bottom -/
 
