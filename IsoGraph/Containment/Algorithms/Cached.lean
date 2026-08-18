@@ -1,4 +1,5 @@
 import IsoGraph.Containment.Algorithms.Contraction
+import IsoGraph.Containment.Algorithms.Hom
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
@@ -7,23 +8,26 @@ import IsoGraph.Graphs.Cache
 /-!
 # The containment searches, on tabulated copies of both graphs
 
-`Algorithms/Subgraph.lean` and its three siblings take the two graphs as they are, and each asks
+`Algorithms/Subgraph.lean` and its siblings take the two graphs as they are, and each asks
 `H.Adj` and `G.Adj` a few million times.  For a graph out of the gallery that is a few million
-scans of an edge list.  This file wraps each of the four searches so that it runs on `cacheFin`
+scans of an edge list.  This file wraps each of the six searches so that it runs on `cacheFin`
 copies of the pattern *and* the host — adjacency matrices on `Fin n`, filled once — and transports
 the answer back along `CGraph.isoCacheFin`.
 
 Both sides are worth caching, and the effect multiplies: caching the pattern alone or the host
 alone each recovers about half of the following, and the numbers below are the two together.
-`CacheBench.lean`, cases `api-sub`, `api-minor`, `api-con`, `api-con-self`, `api-sub-kneser`; best
-of three interleaved rounds, in milliseconds; the cost of filling both arrays is included in the
-right-hand column:
+`CacheBench.lean`, cases `api-sub`, `api-minor`, `api-con`, `api-con-self`, `api-sub-kneser`,
+`api-hom`, `api-quot`; best of three interleaved rounds, in milliseconds; the cost of filling both
+arrays is included in the right-hand column:
 
 | job                        | `find…` | `…Of?` |
 | -------------------------- | ------- | ------ |
 | `C₄ ⋏ tutte` (contraction) | 5957    | 478    |
+| `C₄` a quotient of `tutte` | 5981    | 599    |
+| `tutte → K₃` (3-colouring) | 3232    | 385    |
 | `mcgee ⋏ mcgee`            | 353     | 63     |
 | `C₆ ⊆ K(10,5)`             | 403     | 120    |
+| `mcgee → K₂`               | 183     | 29     |
 | `K₄ ≼ tutte` (minor)       | 31      | 7      |
 | `C₈ ⊆ tutte`               | 7       | 3      |
 
@@ -71,6 +75,16 @@ theorem isEmpty_contractionOf_cacheFin :
   ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
     fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
 
+theorem isEmpty_hom_cacheFin :
+    IsEmpty (H.cacheFin →cg G.cacheFin) ↔ IsEmpty (H →cg G) :=
+  ⟨fun h ↦ ⟨fun f ↦ h.false (homCongr f H.isoCacheFin G.isoCacheFin)⟩,
+    fun h ↦ ⟨fun f ↦ h.false (homCongr f H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
+
+theorem isEmpty_quotientOf_cacheFin :
+    IsEmpty (H.cacheFin.QuotientOf G.cacheFin) ↔ IsEmpty (H.QuotientOf G) :=
+  ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
+    fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
+
 /-! ## The entry points -/
 
 /-- **Is `H` a subgraph of `G`?**  Returns a witness if so — not necessarily an induced one.
@@ -96,6 +110,17 @@ def contractionOf? : Option (H.ContractionOf G) :=
   (findContraction H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
     (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
 
+/-- **Is there a homomorphism `H → G`?**  Returns one if so.  Against `complete k` this is
+`k`-colourability of `H`, with the colouring. -/
+def homOf? : Option (H →cg G) :=
+  (findHom H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
+    (homCongr · H.isoCacheFin.symm G.isoCacheFin.symm)
+
+/-- **Is `H` a quotient of `G`?**  Returns the surjection if so. -/
+def quotientOf? : Option (H.QuotientOf G) :=
+  (findQuotient H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
+    (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
+
 /-! ## Completeness
 
 `none` is not "the search gave up": it is a proof that there is no such containment at all. -/
@@ -116,6 +141,12 @@ theorem contractionOf?_eq_none_iff : H.contractionOf? G = none ↔ IsEmpty (H.Co
   rw [contractionOf?, Option.map_eq_none_iff, ← isEmpty_contractionOf_iff,
     isEmpty_contractionOf_cacheFin]
 
+theorem homOf?_eq_none_iff : H.homOf? G = none ↔ IsEmpty (H →cg G) := by
+  rw [homOf?, Option.map_eq_none_iff, ← isEmpty_hom_iff, isEmpty_hom_cacheFin]
+
+theorem quotientOf?_eq_none_iff : H.quotientOf? G = none ↔ IsEmpty (H.QuotientOf G) := by
+  rw [quotientOf?, Option.map_eq_none_iff, ← isEmpty_quotientOf_iff, isEmpty_quotientOf_cacheFin]
+
 /-! ## The `Bool` versions
 
 `Option.isSome` of the above.  These are what `native_decide` wants: the statement to prove is a
@@ -134,6 +165,12 @@ def minorB : Bool := (H.minorOf? G).isSome
 /-- **Is `H` a contraction of `G`?**, as a `Bool`. -/
 def contractionB : Bool := (H.contractionOf? G).isSome
 
+/-- **Is there a homomorphism `H → G`?**, as a `Bool`. -/
+def homB : Bool := (H.homOf? G).isSome
+
+/-- **Is `H` a quotient of `G`?**, as a `Bool`. -/
+def quotientB : Bool := (H.quotientOf? G).isSome
+
 theorem subgraphB_iff : H.subgraphB G = true ↔ Nonempty (H.SubgraphOf G) := by
   rw [subgraphB, ← not_isEmpty_iff, ← subgraphOf?_eq_none_iff]
   cases H.subgraphOf? G <;> simp
@@ -149,5 +186,13 @@ theorem minorB_iff : H.minorB G = true ↔ Nonempty (H.MinorOf G) := by
 theorem contractionB_iff : H.contractionB G = true ↔ Nonempty (H.ContractionOf G) := by
   rw [contractionB, ← not_isEmpty_iff, ← contractionOf?_eq_none_iff]
   cases H.contractionOf? G <;> simp
+
+theorem homB_iff : H.homB G = true ↔ Nonempty (H →cg G) := by
+  rw [homB, ← not_isEmpty_iff, ← homOf?_eq_none_iff]
+  cases H.homOf? G <;> simp
+
+theorem quotientB_iff : H.quotientB G = true ↔ Nonempty (H.QuotientOf G) := by
+  rw [quotientB, ← not_isEmpty_iff, ← quotientOf?_eq_none_iff]
+  cases H.quotientOf? G <;> simp
 
 end CGraph

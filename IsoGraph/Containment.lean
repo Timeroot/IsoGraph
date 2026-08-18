@@ -2,6 +2,7 @@ import IsoGraph.Containment.Algorithms.Backtrack
 import IsoGraph.Containment.Algorithms.Cached
 import IsoGraph.Containment.Algorithms.Contraction
 import IsoGraph.Containment.Algorithms.Embedding
+import IsoGraph.Containment.Algorithms.Hom
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
@@ -42,7 +43,15 @@ ways, by `Algorithms/Subgraph.lean` and `Algorithms/InducedSubgraph.lean`, which
 whether a non-edge of the pattern has to stay a non-edge; `Algorithms/Minor.lean` is the minor
 relation, whose search builds the branch sets in an order that keeps them connected as it goes.
 `Algorithms/Contraction.lean` runs the opposite way round, labelling every vertex of the host with
-the block it goes into, because a contraction may throw nothing away.  `Algorithms/Twins.lean` is
-shared between them all: it finds the classes of interchangeable vertices of the pattern, so that
-no search looks at a solution and its relabellings.
+the block it goes into, because a contraction may throw nothing away.  `Algorithms/Hom.lean` drops
+injectivity altogether, which decides both the homomorphism order — `k`-colourability, against
+`complete k` — and the quotient one.  `Algorithms/Twins.lean` is shared between them all: it finds
+the classes of interchangeable vertices of the pattern, so that no search looks at a solution and
+its relabellings.
+
+`Algorithms/Cached.lean` is the layer to call.  Each of the six searches there runs on adjacency
+matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of
+magnitude on anything out of the gallery, and transports the answer back.
+
+Three relations still have no search: **induced minor**, **topological minor** and **immersion**.
 -/

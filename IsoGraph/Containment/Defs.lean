@@ -921,6 +921,15 @@ noncomputable def InducedSubgraphOf.toInducedMinorOf (f : H.InducedSubgraphOf G)
 back as a plain homomorphism. -/
 def QuotientOf.toHom (f : H.QuotientOf G) : G →cg H := ⟨f, fun h ↦ f.map_adj h⟩
 
+/-- Move a homomorphism along an isomorphism of either side.  This is `congr` of the containment
+structures, but `→cg` is an `abbrev` for `RelHom`, so it cannot be `Hom.congr` without dot
+notation reaching for `RelHom.congr`. -/
+def homCongr {H' G' : CGraph} (f : H →cg G) (i : H ≃cg H') (j : G ≃cg G') : H' →cg G' :=
+  (j.toRelEmbedding.toRelHom.comp f).comp i.symm.toRelEmbedding.toRelHom
+
+@[simp] theorem homCongr_apply {H' G' : CGraph} (f : H →cg G) (i : H ≃cg H') (j : G ≃cg G')
+    (x : H'.V) : homCongr f i j x = j (f (i.symm x)) := rfl
+
 /-! ## The empty graph
 
 `empty 0` sits below everything in all of these orders but the quotient and contraction ones,
