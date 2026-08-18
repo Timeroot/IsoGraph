@@ -100,7 +100,7 @@ namespace CGraph.Iso
 /-- With an edgeless exponent every pair of distinct maps is adjacent. -/
 @[toIsoGraph simp exponential_empty]
 noncomputable def exponentialEmpty (G : CGraph) (n : ℕ) :
-    G ^g empty n ≃cg complete (Fintype.card G.V ^ n) := by
+    G ^g empty n ≃cg complete (FinEnum.card G.V ^ n) := by
   refine isoCompleteOfCard ?_ (by simp)
   intro f f' hff'
   simp [exponential_adj, hff']
@@ -117,7 +117,7 @@ noncomputable def emptyOneExponential (G : CGraph) : empty 1 ^g G ≃cg empty 1 
 /-- No vertices to any power: `0 ^ n` vertices, and no edges. -/
 @[toIsoGraph simp empty_zero_exponential]
 noncomputable def emptyZeroExponential (G : CGraph) :
-    empty 0 ^g G ≃cg empty (0 ^ Fintype.card G.V) := by
+    empty 0 ^g G ≃cg empty (0 ^ FinEnum.card G.V) := by
   refine isoEmptyOfCard ?_ (by simp)
   intro f f'
   by_cases h : Nonempty G.V
@@ -129,7 +129,7 @@ noncomputable def emptyZeroExponential (G : CGraph) :
 /-- With an edgeless base and an exponent that has an edge, nothing is adjacent: the one edge of
 the exponent has to go somewhere, and there is nowhere for it to go. -/
 noncomputable def emptyExponential (m : ℕ) (G : CGraph) {x y : G.V} (hxy : G.Adj x y) :
-    empty m ^g G ≃cg empty (m ^ Fintype.card G.V) := by
+    empty m ^g G ≃cg empty (m ^ FinEnum.card G.V) := by
   refine isoEmptyOfCard ?_ (by simp)
   intro f f'
   simp only [exponential_adj]
@@ -334,7 +334,8 @@ noncomputable def emptyOneHomExponential (G : CGraph) : empty 1 ^hg G ≃cg empt
   · intro f f'
     have h : f = f' := Subtype.ext (funext fun _ ↦ Subsingleton.elim _ _)
     simp [h]
-  · refine Fintype.card_eq_one_iff.2 ⟨⟨fun _ ↦ default, fun u v _ ↦ by simp⟩, fun f ↦ ?_⟩
+  · rw [FinEnum.card_eq_fintypeCard]
+    refine Fintype.card_eq_one_iff.2 ⟨⟨fun _ ↦ default, fun u v _ ↦ by simp⟩, fun f ↦ ?_⟩
     exact Subtype.ext (funext fun _ ↦ Subsingleton.elim _ _)
 
 /-- The zeroth power is one vertex: there is exactly one map out of the empty graph. -/
@@ -344,7 +345,8 @@ noncomputable def homExponentialEmptyZero (G : CGraph) : G ^hg empty 0 ≃cg emp
   · intro f f'
     have h : f = f' := Subtype.ext (funext fun u ↦ u.elim0)
     simp [h]
-  · exact Fintype.card_eq_one_iff.2
+  · rw [FinEnum.card_eq_fintypeCard]
+    exact Fintype.card_eq_one_iff.2
       ⟨⟨fun u ↦ u.elim0, fun u _ _ ↦ u.elim0⟩, fun f ↦ Subtype.ext (funext fun u ↦ u.elim0)⟩
 
 /-- **The first power is the graph itself**: the vertices of `G ^hg empty 1` are the vertices of
@@ -367,17 +369,18 @@ def homExponentialEmptyOne (G : CGraph) : G ^hg empty 1 ≃cg G := by
 /-- Every map into a complete graph is a homomorphism, and any two distinct ones are adjacent. -/
 @[toIsoGraph simp complete_homExponential]
 noncomputable def completeHomExponential (m : ℕ) (G : CGraph) :
-    complete m ^hg G ≃cg complete (m ^ Fintype.card G.V) := by
+    complete m ^hg G ≃cg complete (m ^ FinEnum.card G.V) := by
   refine isoCompleteOfCard (fun f f' hff' ↦ by simp [hff']) ?_
-  have h : Fintype.card (complete m ^hg G).V = Fintype.card (G.V → (complete m).V) :=
-    Fintype.card_congr (Equiv.subtypeUnivEquiv fun f u v _ ↦ adjR_complete m (f u) (f v))
+  have h : FinEnum.card (complete m ^hg G).V = Fintype.card (G.V → (complete m).V) :=
+    FinEnum.card_eq_fintypeCard.trans
+      (Fintype.card_congr (Equiv.subtypeUnivEquiv fun f u v _ ↦ adjR_complete m (f u) (f v)))
   rw [h]
   simp
 
 /-- No vertices to any power: no maps at all, unless the exponent is empty too. -/
 @[toIsoGraph simp empty_zero_homExponential]
 noncomputable def emptyZeroHomExponential (G : CGraph) :
-    empty 0 ^hg G ≃cg empty (0 ^ Fintype.card G.V) := by
+    empty 0 ^hg G ≃cg empty (0 ^ FinEnum.card G.V) := by
   refine isoEmptyOfCard (fun f f' ↦ ?_) ?_
   · by_cases h : Nonempty G.V
     · exact (f.1 h.some).elim0
@@ -386,10 +389,10 @@ noncomputable def emptyZeroHomExponential (G : CGraph) :
   · by_cases h : Nonempty G.V
     · obtain ⟨x⟩ := h
       haveI : Nonempty G.V := ⟨x⟩
-      rw [zero_pow (Fintype.card_ne_zero (α := G.V))]
-      exact Fintype.card_eq_zero_iff.2 ⟨fun f ↦ (f.1 x).elim0⟩
-    · have hcard : Fintype.card G.V = 0 := Fintype.card_eq_zero_iff.2 ⟨fun x ↦ h ⟨x⟩⟩
-      rw [hcard, pow_zero]
+      rw [zero_pow (FinEnum.card_pos_iff.2 ⟨x⟩).ne']
+      exact FinEnum.card_eq_zero_iff.2 ⟨fun f ↦ (f.1 x).elim0⟩
+    · have hcard : FinEnum.card G.V = 0 := FinEnum.card_eq_zero_iff.2 ⟨fun x ↦ h ⟨x⟩⟩
+      rw [hcard, pow_zero, FinEnum.card_eq_fintypeCard]
       exact Fintype.card_eq_one_iff.2
         ⟨⟨fun x ↦ absurd ⟨x⟩ h, fun u _ _ ↦ absurd ⟨u⟩ h⟩,
           fun f ↦ Subtype.ext (funext fun x ↦ absurd ⟨x⟩ h)⟩
@@ -495,7 +498,7 @@ noncomputable def emptyHomExponentialConnected (m : ℕ) {G : CGraph} (hG : G.Is
     rw [Bool.not_eq_false, homExponential_adj, Bool.and_eq_true, decide_eq_true_eq,
       decide_eq_true_eq] at hc
     exact hc.1 (Subtype.ext (funext fun u ↦ by simpa using hc.2 u u (by simp)))
-  · rw [Fintype.card_congr (α := (empty m ^hg G).V) (β := (empty m).V)
+  · rw [FinEnum.card_eq_fintypeCard, Fintype.card_congr (α := (empty m ^hg G).V) (β := (empty m).V)
       { toFun := fun f ↦ f.1 x₀
         invFun := fun b ↦ ⟨fun _ ↦ b, fun u v _ ↦ by simp⟩
         left_inv := fun f ↦ Subtype.ext (funext fun u ↦

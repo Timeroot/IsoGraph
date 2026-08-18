@@ -97,7 +97,7 @@ theorem isEmpty_inducedSubgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
       (fun x y _ ↦ edgeOk_of_eq (g.adj_eq x y).symm) _ (searchOrder_nodup H rH.toList)
       hri hrn symPairs_ne hg] at hn
     exact absurd hn (by simp)
-  · exact absurd (show Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E from
+  · exact absurd (show FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E from
       ⟨f.toSubgraphOf.card_le, f.toSubgraphOf.E_le⟩) ‹_›
 
 /-- `H` is an induced subgraph of `G` exactly when the search fails to find one. -/

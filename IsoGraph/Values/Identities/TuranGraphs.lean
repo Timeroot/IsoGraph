@@ -329,8 +329,8 @@ theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     -- eccent LG(e0) ≤ S.radius + 1
     have hecc_e0 : LG_def.eccent e0 ≤ ↑S.radius.toNat + 1 := by
       haveI : Nonempty g.lineGraph.V := by
-        have hcard : 0 < Fintype.card (g.lineGraph).V := by rw [CGraph.card_lineGraph]; exact hE
-        exact Fintype.card_pos_iff.mp hcard
+        have hcard : 0 < FinEnum.card (g.lineGraph).V := by rw [CGraph.card_lineGraph]; exact hE
+        exact FinEnum.card_pos_iff.mp hcard
       unfold SimpleGraph.eccent
       apply ciSup_le
       intro f
@@ -849,7 +849,9 @@ theorem girth_crown (n : ℕ) : (crown (n + 4)).girth = 4 := by
         ⟨fun i => if i.val = 0 then false else true,
         fun i j hij => by
           rw [CGraph.complete_adj] at hij
-          fin_cases i <;> fin_cases j <;> simp_all⟩)
+          -- `fin_cases` names the vertices through the graph's own `FinEnum`, as
+          -- `equiv.symm 0` and `equiv.symm 1`; `decide` finishes what `simp_all` cannot see
+          fin_cases i <;> fin_cases j <;> simp_all <;> decide⟩)
       (CGraph.not_isAcyclic_of_square hv0v1 hv1v2 hv2v3 hv3v0 hv0v2 hv1v3)
 
 
@@ -913,7 +915,7 @@ bipartition and between them see every other vertex, while no vertex is universa
   let G'' : CGraph := CGraph.complete (n + 2) ⊗g CGraph.complete 2
   have hpos : 0 < G''.domNum :=
     @CGraph.domNum_pos G'' (by
-      show 0 < Fintype.card G''.V
+      show 0 < FinEnum.card G''.V
       simp [G'', CGraph.card_complete])
   rw [show (CGraph.complete (n + 2) ⊗g CGraph.complete 2) = G'' from rfl]
     at hle hnot1 ⊢
@@ -1461,10 +1463,10 @@ belongs to a vertex of a smallest part. -/
       have h1 : Fintype.card (Σ i : Fin ds.length, Fin (ds.get i))
           = ∑ i : Fin ds.length, ds.get i := by
         simp [Fintype.card_sigma, Fintype.card_fin]
-      have h2 : Fintype.card (CGraph.completeMultipartite ds).V = ds.sum :=
+      have h2 : FinEnum.card (CGraph.completeMultipartite ds).V = ds.sum :=
         CGraph.card_completeMultipartite ds
-      rw [← h2, ← h1]
-      rfl
+      rw [← h2, ← h1, FinEnum.card_eq_fintypeCard']
+      exact Fintype.card_congr' rfl
     have h_eq : ∑ j ∈ (Finset.univ \ {v.1} : Finset (Fin ds.length)), ds.get j
         + ∑ j ∈ ({v.1} : Finset (Fin ds.length)), ds.get j = ds.sum := by
       rw [← h_sum_univ, ← Finset.sum_sdiff
@@ -1717,21 +1719,19 @@ edges, since `1` is always a square. -/
         simp [a, ZMod.val_mul, hval2, hiq_val, Nat.mod_eq_of_lt (h2i_lt i)]
       have hb_val : b.val = 2 * (i : ℕ) + 1 := by
         simp [b, ZMod.val_mul, hval2, hiq_val, ZMod.val_add, hval1, Nat.mod_eq_of_lt (h2i1_lt i)]
-      have h1 : (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) = CGraph.zmodEquivFin q a := by
-        ext; simp [CGraph.zmodEquivFin, ha_val]
-      have h2 : (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q) = CGraph.zmodEquivFin q b := by
-        ext; simp [CGraph.zmodEquivFin, hb_val]
+      have h1 : (⟨2 * (i : ℕ), h2i_lt i⟩ : Fin q) = zmodEquivFin q a := by
+        ext; simp [zmodEquivFin, ha_val]
+      have h2 : (⟨2 * (i : ℕ) + 1, h2i1_lt i⟩ : Fin q) = zmodEquivFin q b := by
+        ext; simp [zmodEquivFin, hb_val]
       rw [h1, h2, CGraph.paley_adj_eq, CGraph.paleyField_adj]
       · have hba : b - a = (1 : ZMod q) := by simp [a, b]
         rw [hba]
-        have : quadraticChar (ZMod q) (1 : ZMod q) = 1 := by
-          rw [CGraph.quadraticChar_eq_one_iff]
-          exact ⟨1, by exact one_ne_zero, by ring⟩
-        exact decide_eq_true this
-      · have : Fintype.card (ZMod q) % 4 = 1 := by
-          rw [ZMod.card]
-          exact hq
-        exact this
+        -- `paleyField` counts and compares with the instances its `FinEnum` induces, so the
+        -- character here is not the one ambient typeclass search would find for `ZMod q`
+        exact decide_eq_true
+          ((CGraph.quadraticChar_eq_one_iff (F := ZMod q) 1).2 ⟨1, one_ne_zero, by ring⟩)
+      · rw [← @FinEnum.card_eq_fintypeCard (ZMod q) _ FinEnum.instFintype]
+        exact hq
     let edgeVer : Fin k → (CGraph.lineGraph G').V := fun i =>
       ⟨mkEdge i, by
         rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
@@ -2131,6 +2131,12 @@ theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   rw [show 2 * m + 5 = (2 * m + 1) + 4 from by omega, cliqueCoverNum_cycle]
   omega
 
+/-- `fin_cases` enumerates a vertex type through the `Fintype` its `FinEnum` induces, which names
+the elements `equiv.symm 0`, `equiv.symm 1`, … rather than as numerals; a `match` on `0`/`1` then
+never reduces.  Stating the dichotomy on `Fin 2` itself sidesteps that: it applies to any vertex
+type definitionally equal to `Fin 2`, and hands back the numerals. -/
+private theorem fin_two_cases (x : Fin 2) : x = 0 ∨ x = 1 := by decide +revert
+
 /-- The friendship graph is class one: colour the spokes at the hub with `2n` colours and each
 triangle edge with a colour missing at both of its ends. -/
 theorem edgeChromNum_friendship (n : ℕ) :
@@ -2186,7 +2192,7 @@ theorem edgeChromNum_friendship (n : ℕ) :
       · simp [colorPair, fin1_zero y]
       · simp only [colorPair]
         by_cases hij : i = j
-        · subst hij; fin_cases b0 <;> fin_cases c0 <;> simp
+        · subst hij; rcases fin_two_cases b0 with rfl | rfl <;> rcases fin_two_cases c0 with rfl | rfl <;> simp
         · have : ¬(j = i) := fun h => hij h.symm
           simp [hij, this]
     -- Lift colorPair to Sym2
@@ -2214,10 +2220,9 @@ theorem edgeChromNum_friendship (n : ℕ) :
       · -- inl-inl: impossible, complete 1 has no edges
         rw [CGraph.join_adj_inl_inl] at hea
         simp [CGraph.complete] at hea
-        fin_cases a; fin_cases b; simp at hea
+        obtain rfl := Fin.eq_zero a; obtain rfl := Fin.eq_zero b; simp at hea
       · -- inl-inr: spoke
-        fin_cases a
-        simp at hea
+        obtain rfl := Fin.eq_zero a
         -- ea = s(inl 0, inr (j, c0)), a spoke, color = spokeColor j c0
         induction eb using Sym2.ind with
         | h a' b' =>
@@ -2226,25 +2231,25 @@ theorem edgeChromNum_friendship (n : ℕ) :
           · -- eb inl-inl: impossible
             rw [CGraph.join_adj_inl_inl] at heb
             simp [CGraph.complete] at heb
-            fin_cases a''; fin_cases b'''; simp at heb
+            obtain rfl := Fin.eq_zero a''; obtain rfl := Fin.eq_zero b'''; simp at heb
           · -- eb inl-inr: spoke
-            fin_cases a''
+            obtain rfl := Fin.eq_zero a''
             simp [colorPair, spokeColor] at *
             intro h
             apply hef_ne
             have hj : j = j' := by
               apply Fin.ext; omega
-            subst hj; fin_cases c0 <;> fin_cases c'' <;> simp_all
+            subst hj; rcases fin_two_cases c0 with rfl | rfl <;> rcases fin_two_cases c'' with rfl | rfl <;> simp_all
           · -- eb inr-inl: spoke
             rw [CGraph.join_adj_inr_inl] at heb
             simp at heb
-            fin_cases b'''
+            obtain rfl := Fin.eq_zero b'''
             simp [colorPair, spokeColor] at *
             intro h
             apply hef_ne
             have hj : j = i' := by
               apply Fin.ext; omega
-            subst hj; fin_cases c0 <;> fin_cases b'' <;> simp_all
+            subst hj; rcases fin_two_cases c0 with rfl | rfl <;> rcases fin_two_cases b'' with rfl | rfl <;> simp_all
           · -- eb inr-inr: rail
             rw [CGraph.join_adj_inr_inr] at heb
             rw [CGraph.cartesianProduct_adj] at heb
@@ -2266,14 +2271,14 @@ theorem edgeChromNum_friendship (n : ℕ) :
               · exact (Prod.ext_iff.mp (Sum.inr_injective h)).1
             subst hj
             simp at *
-            fin_cases b'' <;> fin_cases c'' <;> simp at hbc_ne ⊢ <;>
+            rcases fin_two_cases b'' with rfl | rfl <;> rcases fin_two_cases c'' with rfl | rfl <;> simp at hbc_ne ⊢ <;>
               all_goals (
                 let jj := (j : Fin m).val
                 have hjlt : jj < m := j.isLt
                 unfold Lean.Internal.coeM at *
                 intro h
                 have hle : 2 * jj + 2 ≤ 2 * m := by omega
-                fin_cases c0 <;> simp at *
+                rcases fin_two_cases c0 with rfl | rfl <;> simp at *
                 · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
                     by_cases hlt : 2 * jj + 2 < 2 * m
                     · rw [Nat.mod_eq_of_lt hlt]; omega
@@ -2286,8 +2291,7 @@ theorem edgeChromNum_friendship (n : ℕ) :
                   have h1 : (2 * (j : Fin m).val + 1) % 2 = 1 := by omega
                   omega)
       · -- inr-inl: spoke
-        fin_cases b
-        simp at hea
+        obtain rfl := Fin.eq_zero b
         induction eb using Sym2.ind with
         | h a' b' =>
           simp [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at heb
@@ -2295,26 +2299,26 @@ theorem edgeChromNum_friendship (n : ℕ) :
           · -- eb inl-inl: impossible
             rw [CGraph.join_adj_inl_inl] at heb
             simp [CGraph.complete] at heb
-            fin_cases a''; fin_cases b'''; simp at heb
+            obtain rfl := Fin.eq_zero a''; obtain rfl := Fin.eq_zero b'''; simp at heb
           · -- eb inl-inr: spoke, both spokes sharing inl 0
-            fin_cases a''
+            obtain rfl := Fin.eq_zero a''
             simp [colorPair, spokeColor] at *
             intro h
             apply hef_ne
             have hij : i = j' := by
               apply Fin.ext; omega
             subst hij
-            fin_cases b0 <;> fin_cases c'' <;> simp_all
+            rcases fin_two_cases b0 with rfl | rfl <;> rcases fin_two_cases c'' with rfl | rfl <;> simp_all
           · -- eb inr-inl: spoke, same vertex must match
             rw [CGraph.join_adj_inr_inl] at heb
             simp at heb
-            fin_cases b'''
+            obtain rfl := Fin.eq_zero b'''
             simp [colorPair, spokeColor] at *
             intro h
             apply hef_ne
             have hij : i = i' := by
               apply Fin.ext; omega
-            subst hij; fin_cases b0 <;> fin_cases b'' <;> simp_all
+            subst hij; rcases fin_two_cases b0 with rfl | rfl <;> rcases fin_two_cases b'' with rfl | rfl <;> simp_all
           · -- eb inr-inr: rail, spoke vs rail
             rw [CGraph.join_adj_inr_inr] at heb
             rw [CGraph.cartesianProduct_adj] at heb
@@ -2330,14 +2334,14 @@ theorem edgeChromNum_friendship (n : ℕ) :
               · exact (Prod.ext_iff.mp (Sum.inr_injective h)).1
             subst hij
             simp at *
-            fin_cases b'' <;> fin_cases c'' <;> simp at hbc_ne ⊢ <;>
+            rcases fin_two_cases b'' with rfl | rfl <;> rcases fin_two_cases c'' with rfl | rfl <;> simp at hbc_ne ⊢ <;>
               all_goals (
                 let jj := (i : Fin m).val
                 have hjlt : jj < m := i.isLt
                 unfold Lean.Internal.coeM at *
                 intro h
                 have hle : 2 * jj + 2 ≤ 2 * m := by omega
-                fin_cases b0 <;> simp at *
+                rcases fin_two_cases b0 with rfl | rfl <;> simp at *
                 · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
                     by_cases hlt : 2 * jj + 2 < 2 * m
                     · rw [Nat.mod_eq_of_lt hlt]; omega
@@ -2365,10 +2369,9 @@ theorem edgeChromNum_friendship (n : ℕ) :
           · -- eb inl-inl: impossible
             rw [CGraph.join_adj_inl_inl] at heb
             simp [CGraph.complete] at heb
-            fin_cases a''; fin_cases b'''; simp at heb
+            obtain rfl := Fin.eq_zero a''; obtain rfl := Fin.eq_zero b'''; simp at heb
           · -- eb inl-inr: spoke, rail vs spoke
-            fin_cases a''
-            simp at heb
+            obtain rfl := Fin.eq_zero a''
             simp at *
             have hv_eq : v = Sum.inr (j', c'') := by
               rcases hv_f with hv_f | hv_f
@@ -2382,9 +2385,9 @@ theorem edgeChromNum_friendship (n : ℕ) :
             simp at *
             unfold Lean.Internal.coeM at *
             intro h
-            fin_cases b0 <;> fin_cases c0 <;> simp at hbc_ne ⊢ <;>
+            rcases fin_two_cases b0 with rfl | rfl <;> rcases fin_two_cases c0 with rfl | rfl <;> simp at hbc_ne ⊢ <;>
               all_goals (
-                fin_cases c'' <;> simp at *
+                rcases fin_two_cases c'' with rfl | rfl <;> simp at *
                 · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
                     by_cases hlt : 2 * jj + 2 < 2 * m
                     · rw [Nat.mod_eq_of_lt hlt]; omega
@@ -2399,7 +2402,7 @@ theorem edgeChromNum_friendship (n : ℕ) :
           · -- eb inr-inl: spoke, rail vs spoke
             rw [CGraph.join_adj_inr_inl] at heb
             simp at heb
-            fin_cases b'''
+            obtain rfl := Fin.eq_zero b'''
             simp at *
             have hv_eq : v = Sum.inr (i', b'') := by
               rcases hv_f with hv_f | hv_f <;>
@@ -2413,9 +2416,9 @@ theorem edgeChromNum_friendship (n : ℕ) :
             unfold Lean.Internal.coeM at *
             intro h
             have hle : 2 * jj + 2 ≤ 2 * m := by omega
-            fin_cases b0 <;> fin_cases c0 <;> simp at hbc_ne ⊢ <;>
+            rcases fin_two_cases b0 with rfl | rfl <;> rcases fin_two_cases c0 with rfl | rfl <;> simp at hbc_ne ⊢ <;>
               all_goals (
-                fin_cases b'' <;> simp at *
+                rcases fin_two_cases b'' with rfl | rfl <;> simp at *
                 · have key : (2 * jj + 2) % (2 * m) ≠ 2 * jj := by
                     by_cases hlt : 2 * jj + 2 < 2 * m
                     · rw [Nat.mod_eq_of_lt hlt]; omega
@@ -2441,7 +2444,7 @@ theorem edgeChromNum_friendship (n : ℕ) :
               · exact (Prod.ext_iff.mp (Sum.inr_injective (hv_f.symm.trans hv_e))).1
             subst hij
             simp at *
-            fin_cases b0 <;> fin_cases c0 <;> fin_cases b'' <;> fin_cases c'' <;> simp_all
+            rcases fin_two_cases b0 with rfl | rfl <;> rcases fin_two_cases c0 with rfl | rfl <;> rcases fin_two_cases b'' with rfl | rfl <;> rcases fin_two_cases c'' with rfl | rfl <;> simp_all
   · -- Lower bound: 2*n+4 ≤ chromNum (lineGraph (friendship (n+2)))
     have h1 := maxDeg_le_edgeChromNum (friendship (n + 2))
     rw [edgeChromNum_eq] at h1

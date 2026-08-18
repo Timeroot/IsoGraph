@@ -245,9 +245,9 @@ def enumCodes (n : ℕ) : List ℕ :=
 def enumerate (n : ℕ) : List CGraph := (enumCodes n).map (graphOfCode n)
 
 @[simp] theorem card_of_mem_enumerate {n : ℕ} {H : CGraph} (h : H ∈ enumerate n) :
-    Fintype.card H.V = n := by
+    FinEnum.card H.V = n := by
   obtain ⟨c, -, rfl⟩ := List.mem_map.1 h
-  exact Fintype.card_fin n
+  rfl
 
 /-- The codes come out strictly increasing, so the enumeration is canonically *ordered* as well as
 canonically chosen: the code is the promised sort key. -/
@@ -266,9 +266,9 @@ theorem mem_enumCodes {n : ℕ} {adj : Fin n → Fin n → Bool} (hs : ∀ i j, 
   · simp [canonCode_graphOfCode_canonCode hs hl]
 
 /-- **Completeness.**  Every graph on `n` vertices is isomorphic to one in `enumerate n`. -/
-theorem exists_mem_enumerate (G : CGraph) {n : ℕ} (hn : Fintype.card G.V = n) :
+theorem exists_mem_enumerate (G : CGraph) {n : ℕ} (hn : FinEnum.card G.V = n) :
     ∃ H ∈ enumerate n, Nonempty (G ≃cg H) := by
-  set e : G.V ≃ Fin n := Fintype.equivFinOfCardEq hn with he
+  set e : G.V ≃ Fin n := FinEnum.equiv.trans (finCongr hn) with he
   set adj : Fin n → Fin n → Bool := fun i j ↦ G.Adj (e.symm i) (e.symm j) with hadj
   have hs : ∀ i j, adj i j = adj j i := fun i j ↦ G.symm _ _
   have hl : ∀ i, adj i i = false := fun i ↦ Bool.eq_false_iff.2 (G.loopless _)
@@ -337,14 +337,14 @@ theorem enumerateIso_nodup (n : ℕ) : (enumerateIso n).Nodup := by
 /-- The **key** of a graph: its vertex count together with the code of its canonical form.  Two
 graphs have the same key exactly when they are isomorphic (`key_eq_iff`), so this is the promised
 total ordering on graphs up to isomorphism. -/
-def key (G : CGraph) : ℕ × ℕ := (Fintype.card G.V, codeOfAdj (Fintype.card G.V) G.canon.get)
+def key (G : CGraph) : ℕ × ℕ := (FinEnum.card G.V, codeOfAdj (FinEnum.card G.V) G.canon.get)
 
 /-- The canonical representative, read off the key. -/
 theorem canonicalize_eq_graphOfCode (G : CGraph) :
     G.canonicalize
-      = graphOfCode (Fintype.card G.V) (codeOfAdj (Fintype.card G.V) G.canon.get) := by
-  refine CGraph.ext' rfl (heq_of_eq (funext fun (i : Fin (Fintype.card G.V)) ↦
-    funext fun (j : Fin (Fintype.card G.V)) ↦ ?_))
+      = graphOfCode (FinEnum.card G.V) (codeOfAdj (FinEnum.card G.V) G.canon.get) := by
+  refine CGraph.ext' rfl (heq_of_eq (funext fun (i : Fin (FinEnum.card G.V)) ↦
+    funext fun (j : Fin (FinEnum.card G.V)) ↦ ?_))
   rw [CGraph.canonicalize_adj, graphOfCode_adj]
   by_cases h : i = j
   · subst h; simp
@@ -363,7 +363,7 @@ theorem canon_get_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.canon.get = H.can
 theorem key_eq_of_iso {G H : CGraph} (i : G ≃cg H) : key G = key H := by
   have aux : ∀ (a a' : ℕ) (f g : ℕ → ℕ → Bool), a = a' → f = g → codeOfAdj a f = codeOfAdj a' g := by
     rintro a a' f g rfl rfl; rfl
-  have hc : Fintype.card G.V = Fintype.card H.V := CGraph.Iso.card_eq G H i
+  have hc : FinEnum.card G.V = FinEnum.card H.V := CGraph.Iso.card_eq G H i
   simp only [key, Prod.mk.injEq]
   exact ⟨hc, aux _ _ _ _ hc (canon_get_eq_of_iso i)⟩
 
@@ -1015,7 +1015,7 @@ def enumerateFast (n : ℕ) : List CGraph := (enumCodesFast n).map (graphOfCode 
 theorem enumerateFast_eq (n : ℕ) : enumerateFast n = enumerate n := by
   rw [enumerateFast, enumerate, enumCodesFast_eq]
 
-theorem exists_mem_enumerateFast (G : CGraph) {n : ℕ} (hn : Fintype.card G.V = n) :
+theorem exists_mem_enumerateFast (G : CGraph) {n : ℕ} (hn : FinEnum.card G.V = n) :
     ∃ H ∈ enumerateFast n, Nonempty (G ≃cg H) := by
   rw [enumerateFast_eq]; exact exists_mem_enumerate G hn
 

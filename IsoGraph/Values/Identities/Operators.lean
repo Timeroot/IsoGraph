@@ -410,6 +410,12 @@ theorem isRegularWith_foldedCube (n : ℕ) : (foldedCube (n + 2)).IsRegularWith 
         show Nat.card {i : Fin (n + 2) // x i ≠ w i} = F w
         rw [Nat.card_eq_fintype_card]
         exact goal_card w
+      -- `decide (x ≠ y)` in the goal was elaborated with the `DecidableEq` of a Pi type, where
+      -- `x ≠ y` written here picks the one the graph's `FinEnum` carries; the two are equal only
+      -- propositionally.  Decidability instances are subsingletons, so swap it and then say what
+      -- the goal is.
+      rw [show (Fintype.decidablePiFintype x y : Decidable (x = y)) = FinEnum.decEq x y from
+        Subsingleton.elim _ _]
       show (decide (x ≠ y) && (F y == 1 || F y == n + 2)) = true ↔ (F y == 1) = true ∨ y = xc
       have beq_to_eq : ∀ (a b : ℕ), ((a == b) = true ↔ a = b) := by simp [beq_iff_eq]
       set Fy := F y with hFy_def

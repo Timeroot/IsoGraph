@@ -18,6 +18,10 @@ the same graph.
 -/
 
 set_option maxRecDepth 4000
+-- the girth conditions nest bounded quantifiers over the graph's vertex type, and each level costs
+-- a `Fintype` and a `DecidableEq` that now come through the graph's `FinEnum`; the default
+-- instance-search budget runs out around the sixth
+set_option synthInstance.maxSize 512
 
 namespace NamedGraphs
 
@@ -31,7 +35,7 @@ def tutte12CageCode : List ℤ :=
 graph of the generalized hexagon `GH(2, 2)`. -/
 abbrev tutte12Cage : CGraph := ofEdges 126 (lcfEdges tutte12CageCode 7)
 
-@[simp] theorem card_tutte12Cage : Fintype.card tutte12Cage.V = 126 := card_ofEdges _ _
+@[simp] theorem card_tutte12Cage : FinEnum.card tutte12Cage.V = 126 := card_ofEdges _ _
 
 @[simp] theorem E_tutte12Cage : tutte12Cage.E = 189 := by native_decide
 

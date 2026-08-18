@@ -1889,9 +1889,9 @@ theorem le_minDeg_lineGraph {G : IsoGraph} (h : 0 < G.E) :
   rw [E_mk] at h
   rw [lineGraph_mk, minDeg_mk, minDeg_mk]
   refine CGraph.le_minDeg_lineGraph _ ?_
-  have hcard : 0 < Fintype.card (CGraph.lineGraph g.canonicalize).V := by
+  have hcard : 0 < FinEnum.card (CGraph.lineGraph g.canonicalize).V := by
     rwa [CGraph.card_lineGraph]
-  exact (Fintype.card_pos_iff.1 hcard).some
+  exact (FinEnum.card_pos_iff.1 hcard).some
 
 /-- The triangular graph is the line graph of a complete graph, hence `(2n - 4)`-regular.
 Unlike `isSRGWith_triangular` this needs no lower bound on `n`. -/
@@ -2183,7 +2183,7 @@ theorem matchNum_le_E (G : IsoGraph) : G.matchNum ≤ G.E := by
 
 /-- Each of the `ν` edges of a maximum matching uses two private vertices. -/
 @[toIsoGraph two_mul_matchNum_le_V]
-theorem _root_.CGraph.two_mul_matchNum_le_card (G : CGraph) : 2 * G.matchNum ≤ Fintype.card G.V :=
+theorem _root_.CGraph.two_mul_matchNum_le_card (G : CGraph) : 2 * G.matchNum ≤ FinEnum.card G.V :=
   CGraph.two_mul_indepNum_lineGraph_le_card G
 
 /-- Gallai's identity in the line graph: an edge cover of `L(G)` complements a matching. -/
@@ -2318,7 +2318,7 @@ example : (cycle 5).edgeChromNum = 3 := by
 /-- Since an independent set meets each edge of a matching at most once, `ν + α ≤ n`. -/
 @[toIsoGraph matchNum_add_indepNum_le_V]
 theorem _root_.CGraph.matchNum_add_indepNum_le_card (G : CGraph) :
-    G.matchNum + G.indepNum ≤ Fintype.card G.V :=
+    G.matchNum + G.indepNum ≤ FinEnum.card G.V :=
   CGraph.indepNum_lineGraph_add_indepNum_le_card G
 
 /-- `ν ≤ τ`: distinct edges of a matching need distinct vertices of a vertex cover.  Here it
@@ -2884,7 +2884,7 @@ matching always determines the vertex cover number to within a factor of two. -/
 
 @[toIsoGraph V_le_indepNum_add_two_mul_matchNum]
 theorem _root_.CGraph.card_le_indepNum_add_two_mul_matchNum (G : CGraph) :
-    Fintype.card G.V ≤ G.indepNum + 2 * G.matchNum :=
+    FinEnum.card G.V ≤ G.indepNum + 2 * G.matchNum :=
   CGraph.card_le_indepNum_add_two_mul_indepNum_lineGraph G
 
 /-- **The vertex cover number is at most twice the matching number.**  This is the guarantee

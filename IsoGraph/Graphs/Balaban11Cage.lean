@@ -19,6 +19,10 @@ are the same graph.
 -/
 
 set_option maxRecDepth 4000
+-- the girth conditions nest eight bounded quantifiers over `balaban11Cage.V`, and each level costs
+-- a `Fintype` and a `DecidableEq` that now come through the graph's `FinEnum`; the default
+-- instance-search budget runs out at the sixth
+set_option synthInstance.maxSize 512
 
 namespace NamedGraphs
 
@@ -36,7 +40,7 @@ def balaban11CageCode : List ℤ :=
 /-- The Balaban 11-cage: the unique `(3, 11)`-cage, on a hundred and twelve vertices. -/
 abbrev balaban11Cage : CGraph := ofEdges 112 (lcfEdges balaban11CageCode 1)
 
-@[simp] theorem card_balaban11Cage : Fintype.card balaban11Cage.V = 112 := card_ofEdges _ _
+@[simp] theorem card_balaban11Cage : FinEnum.card balaban11Cage.V = 112 := card_ofEdges _ _
 
 @[simp] theorem E_balaban11Cage : balaban11Cage.E = 168 := by native_decide
 

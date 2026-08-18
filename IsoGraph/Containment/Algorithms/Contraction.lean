@@ -670,7 +670,7 @@ variable (H G)
 
 /-- The assignment the search finds, if there is one. -/
 def searchLab (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V)) :=
-  if Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E then
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     Backtrack.dfs
       (candLab H G (searchOrder H rH.toList) (searchOrder G rG.toList)
         (symPairs H (searchOrder H rH.toList)))
@@ -725,7 +725,7 @@ theorem isEmpty_contractionOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
       (keys_asgOf g (searchOrder G rG.toList))
     rw [List.append_nil, finalOk_asgOf g (mem_searchOrder G rG.mem_toList) hgsym] at hn
     exact absurd hn (by simp)
-  · exact absurd (show Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E from
+  · exact absurd (show FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E from
       ⟨f.card_le, f.E_le⟩) ‹_›
 
 /-- `H` is a contraction of `G` exactly when the search finds one. -/

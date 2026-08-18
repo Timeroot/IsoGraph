@@ -896,9 +896,9 @@ theorem isConnected_graphOfCode_iff {n c : ℕ} (hn : 0 < n) :
 def enumerateConn (n : ℕ) : List CGraph := (enumConnCodes n).map (graphOfCode n)
 
 @[simp] theorem card_of_mem_enumerateConn {n : ℕ} {H : CGraph} (h : H ∈ enumerateConn n) :
-    Fintype.card H.V = n := by
+    FinEnum.card H.V = n := by
   obtain ⟨c, -, rfl⟩ := List.mem_map.1 h
-  exact Fintype.card_fin n
+  rfl
 
 /-- **Soundness, part one.**  Everything listed really is connected. -/
 theorem isConnected_of_mem_enumerateConn {n : ℕ} {H : CGraph} (h : H ∈ enumerateConn n) :
@@ -909,11 +909,11 @@ theorem isConnected_of_mem_enumerateConn {n : ℕ} {H : CGraph} (h : H ∈ enume
 
 /-- **Completeness.**  Every connected graph on `n` vertices is isomorphic to one in
 `enumerateConn n`. -/
-theorem exists_mem_enumerateConn (G : CGraph) {n : ℕ} (hn : Fintype.card G.V = n)
+theorem exists_mem_enumerateConn (G : CGraph) {n : ℕ} (hn : FinEnum.card G.V = n)
     (hG : G.IsConnected) : ∃ H ∈ enumerateConn n, Nonempty (G ≃cg H) := by
   obtain ⟨H, hH, ⟨i⟩⟩ := exists_mem_enumerate G hn
   obtain ⟨c, hc, rfl⟩ := List.mem_map.1 hH
-  have hn0 : 0 < n := hn ▸ Fintype.card_pos_iff.2 hG.nonempty
+  have hn0 : 0 < n := hn ▸ FinEnum.card_pos_iff.2 hG.nonempty
   have hconn : Conn (graphOfCode n c).Adj :=
     conn_of_isConnected ((SimpleGraph.Iso.connected_iff (CGraph.Iso.toSimpleIso i)).1 hG)
   exact ⟨_, List.mem_map_of_mem

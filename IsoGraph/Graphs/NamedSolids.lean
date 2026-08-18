@@ -58,7 +58,7 @@ abbrev icosidodecahedron : CGraph := ofEdges 30 (rectEdges dodecahedronFaces)
 the carbon skeleton of buckminsterfullerene. -/
 abbrev truncatedIcosahedron : CGraph := ofEdges 60 (truncEdges icosahedronFaces)
 
-@[simp] theorem card_cuboctahedron : Fintype.card cuboctahedron.V = 12 := card_ofEdges _ _
+@[simp] theorem card_cuboctahedron : FinEnum.card cuboctahedron.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_cuboctahedron : cuboctahedron.E = 24 := by native_decide
 
@@ -79,7 +79,7 @@ theorem isRegularWith_cuboctahedron : cuboctahedron.IsRegularWith 4 :=
   girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 1) (c := vtx 12 10)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_truncatedCube : Fintype.card truncatedCube.V = 24 := card_ofEdges _ _
+@[simp] theorem card_truncatedCube : FinEnum.card truncatedCube.V = 24 := card_ofEdges _ _
 
 @[simp] theorem E_truncatedCube : truncatedCube.E = 36 := by native_decide
 
@@ -101,7 +101,7 @@ corners of the cube. -/
   girth_eq_three_of_triangle (a := vtx 24 0) (b := vtx 24 8) (c := vtx 24 16)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_truncatedOctahedron : Fintype.card truncatedOctahedron.V = 24 :=
+@[simp] theorem card_truncatedOctahedron : FinEnum.card truncatedOctahedron.V = 24 :=
   card_ofEdges _ _
 
 @[simp] theorem E_truncatedOctahedron : truncatedOctahedron.E = 36 := by native_decide
@@ -128,7 +128,7 @@ theorem isRegularWith_truncatedOctahedron : truncatedOctahedron.IsRegularWith 3 
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
-@[simp] theorem card_icosidodecahedron : Fintype.card icosidodecahedron.V = 30 := card_ofEdges _ _
+@[simp] theorem card_icosidodecahedron : FinEnum.card icosidodecahedron.V = 30 := card_ofEdges _ _
 
 @[simp] theorem E_icosidodecahedron : icosidodecahedron.E = 60 := by native_decide
 
@@ -149,7 +149,7 @@ theorem isRegularWith_icosidodecahedron : icosidodecahedron.IsRegularWith 4 :=
   girth_eq_three_of_triangle (a := vtx 30 0) (b := vtx 30 1) (c := vtx 30 7)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_truncatedIcosahedron : Fintype.card truncatedIcosahedron.V = 60 :=
+@[simp] theorem card_truncatedIcosahedron : FinEnum.card truncatedIcosahedron.V = 60 :=
   card_ofEdges _ _
 
 @[simp] theorem E_truncatedIcosahedron : truncatedIcosahedron.E = 90 := by native_decide
@@ -233,7 +233,7 @@ abbrev rhombicTriacontahedron : CGraph := ofEdges 32 (incidenceEdges 20 dodecahe
 pyramid raised on each face. -/
 abbrev pentakisDodecahedron : CGraph := ofEdges 32 (kisEdges 20 dodecahedronFaces)
 
-@[simp] theorem card_triakisTetrahedron : Fintype.card triakisTetrahedron.V = 8 := card_ofEdges _ _
+@[simp] theorem card_triakisTetrahedron : FinEnum.card triakisTetrahedron.V = 8 := card_ofEdges _ _
 
 @[simp] theorem E_triakisTetrahedron : triakisTetrahedron.E = 18 := by native_decide
 
@@ -254,7 +254,7 @@ it. -/
   girth_eq_three_of_triangle (a := vtx 8 0) (b := vtx 8 1) (c := vtx 8 2)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_rhombicDodecahedron : Fintype.card rhombicDodecahedron.V = 14 :=
+@[simp] theorem card_rhombicDodecahedron : FinEnum.card rhombicDodecahedron.V = 14 :=
   card_ofEdges _ _
 
 @[simp] theorem E_rhombicDodecahedron : rhombicDodecahedron.E = 24 := by native_decide
@@ -282,7 +282,7 @@ it. -/
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
-@[simp] theorem card_triakisOctahedron : Fintype.card triakisOctahedron.V = 14 := card_ofEdges _ _
+@[simp] theorem card_triakisOctahedron : FinEnum.card triakisOctahedron.V = 14 := card_ofEdges _ _
 
 @[simp] theorem E_triakisOctahedron : triakisOctahedron.E = 36 := by native_decide
 
@@ -303,7 +303,7 @@ it. -/
   girth_eq_three_of_triangle (a := vtx 14 0) (b := vtx 14 1) (c := vtx 14 2)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_tetrakisHexahedron : Fintype.card tetrakisHexahedron.V = 14 := card_ofEdges _ _
+@[simp] theorem card_tetrakisHexahedron : FinEnum.card tetrakisHexahedron.V = 14 := card_ofEdges _ _
 
 @[simp] theorem E_tetrakisHexahedron : tetrakisHexahedron.E = 36 := by native_decide
 
@@ -324,7 +324,7 @@ the pyramid raised on it. -/
   girth_eq_three_of_triangle (a := vtx 14 0) (b := vtx 14 1) (c := vtx 14 8)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_rhombicTriacontahedron : Fintype.card rhombicTriacontahedron.V = 32 :=
+@[simp] theorem card_rhombicTriacontahedron : FinEnum.card rhombicTriacontahedron.V = 32 :=
   card_ofEdges _ _
 
 @[simp] theorem E_rhombicTriacontahedron : rhombicTriacontahedron.E = 60 := by native_decide
@@ -354,7 +354,7 @@ icosahedron — are the other. -/
       (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
-@[simp] theorem card_pentakisDodecahedron : Fintype.card pentakisDodecahedron.V = 32 :=
+@[simp] theorem card_pentakisDodecahedron : FinEnum.card pentakisDodecahedron.V = 32 :=
   card_ofEdges _ _
 
 @[simp] theorem E_pentakisDodecahedron : pentakisDodecahedron.E = 90 := by native_decide

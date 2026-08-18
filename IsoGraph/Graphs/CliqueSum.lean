@@ -61,9 +61,11 @@ def vertexSum (G : CGraph) (u : G.V) (H : CGraph) (w : H.V) :
 
 @[simp] theorem card_vertexSum (G : CGraph) (u : G.V) (H : CGraph)
  (w : H.V) :
-    Fintype.card (vertexSum G u H w).V = Fintype.card G.V + (Fintype.card H.V - 1) := by
-  show Fintype.card (G.V ⊕ {v : H.V // v ≠ w}) = _
-  rw [Fintype.card_sum, Fintype.card_subtype_compl fun v ↦ v = w, Fintype.card_subtype_eq]
+    FinEnum.card (vertexSum G u H w).V = FinEnum.card G.V + (FinEnum.card H.V - 1) := by
+  rw [show FinEnum.card (vertexSum G u H w).V = Fintype.card (G.V ⊕ {v : H.V // v ≠ w}) from
+      FinEnum.card_eq_fintypeCard.trans (Fintype.card_congr' rfl),
+    Fintype.card_sum, Fintype.card_subtype_compl fun v ↦ v = w, Fintype.card_subtype_eq,
+    ← FinEnum.card_eq_fintypeCard (α := G.V), ← FinEnum.card_eq_fintypeCard (α := H.V)]
 
 /-- Glue `H` to `G` by identifying the edge `w₁w₂` of `H` with the edge `u₁u₂` of `G`. -/
 def edgeSum (G : CGraph) (u₁ u₂ : G.V) (H : CGraph)
@@ -82,8 +84,10 @@ def edgeSum (G : CGraph) (u₁ u₂ : G.V) (H : CGraph)
 
 theorem card_edgeSum (G : CGraph) (u₁ u₂ : G.V) (H : CGraph)
     {w₁ w₂ : H.V} (h : w₁ ≠ w₂) :
-    Fintype.card (edgeSum G u₁ u₂ H w₁ w₂).V = Fintype.card G.V + (Fintype.card H.V - 2) := by
-  show Fintype.card (G.V ⊕ {v : H.V // v ≠ w₁ ∧ v ≠ w₂}) = _
+    FinEnum.card (edgeSum G u₁ u₂ H w₁ w₂).V = FinEnum.card G.V + (FinEnum.card H.V - 2) := by
+  rw [show FinEnum.card (edgeSum G u₁ u₂ H w₁ w₂).V
+      = Fintype.card (G.V ⊕ {v : H.V // v ≠ w₁ ∧ v ≠ w₂}) from
+    FinEnum.card_eq_fintypeCard.trans (Fintype.card_congr' rfl)]
   have e : Fintype.card {v : H.V // v ≠ w₁ ∧ v ≠ w₂} =
       Fintype.card {v : H.V // ¬(v = w₁ ∨ v = w₂)} :=
     Fintype.card_congr (Equiv.subtypeEquivRight fun v ↦ by simp [not_or])
@@ -91,7 +95,8 @@ theorem card_edgeSum (G : CGraph) (u₁ u₂ : G.V) (H : CGraph)
     rw [Fintype.card_subtype,
       show (Finset.univ.filter fun v : H.V ↦ v = w₁ ∨ v = w₂) = {w₁, w₂} by ext v; simp,
       Finset.card_insert_of_notMem (by simpa using h), Finset.card_singleton]
-  rw [Fintype.card_sum, e, Fintype.card_subtype_compl, h2]
+  rw [Fintype.card_sum, e, Fintype.card_subtype_compl, h2,
+    ← FinEnum.card_eq_fintypeCard (α := G.V), ← FinEnum.card_eq_fintypeCard (α := H.V)]
 
 /-! ## Independence of the choice -/
 
@@ -215,12 +220,12 @@ def twoCliqueSum (G H : CGraph) [EdgePointed G]
 
 @[simp] theorem card_oneCliqueSum (G H : CGraph) [Pointed G]
     [Pointed H] :
-    Fintype.card (oneCliqueSum G H).V = Fintype.card G.V + (Fintype.card H.V - 1) :=
+    FinEnum.card (oneCliqueSum G H).V = FinEnum.card G.V + (FinEnum.card H.V - 1) :=
   card_vertexSum _ _ _ _
 
 theorem card_twoCliqueSum (G H : CGraph) [EdgePointed G]
     [EdgePointed H] (h : (EdgePointed.fst : H.V) ≠ EdgePointed.snd) :
-    Fintype.card (twoCliqueSum G H).V = Fintype.card G.V + (Fintype.card H.V - 2) :=
+    FinEnum.card (twoCliqueSum G H).V = FinEnum.card G.V + (FinEnum.card H.V - 2) :=
   card_edgeSum _ _ _ _ h
 
 /-- The one-clique sum of vertex-transitive graphs really is *the* one-clique sum: gluing at the

@@ -1092,10 +1092,10 @@ theorem E_le_E_turan {G : IsoGraph} {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ 
   -- Step 4: H ≅ turanGraph, so same edge count
   have hiso := (SimpleGraph.isTuranMaximal_iff_nonempty_iso_turanGraph hr).mp maxH
   obtain ⟨i⟩ := hiso
-  have hle2 : H.edgeFinset.card = (SimpleGraph.turanGraph (Fintype.card g.V) r).edgeFinset.card :=
-    i.card_edgeFinset_eq
-  -- Step 5: relate (turan (Fintype.card g.V) r).E to turanGraph
-  set n := Fintype.card g.V
+  have hle2 : H.edgeFinset.card = (SimpleGraph.turanGraph (FinEnum.card g.V) r).edgeFinset.card := by
+    rw [FinEnum.card_eq_fintypeCard]; exact i.card_edgeFinset_eq
+  -- Step 5: relate (turan (FinEnum.card g.V) r).E to turanGraph
+  set n := FinEnum.card g.V
   -- Both turanGraph n r and turan n r have the same edge count.
   have key : (SimpleGraph.turanGraph n r).edgeFinset.card = (turan n r).E := by
     have hturanGraph_E := @SimpleGraph.card_edgeFinset_turanGraph n r
@@ -1251,10 +1251,16 @@ apex sees every shadow. -/
     rw [SimpleGraph.degree, h_neighborFinset_inr, Finset.card_union_of_disjoint]
     · rw [Finset.card_image_of_injective _ hinjl]; rfl
     · simp [Finset.disjoint_singleton_right]
-  have hdeg_none : H.degree none = Fintype.card F.V := by
+  have hdeg_none : H.degree none = FinEnum.card F.V := by
     rw [SimpleGraph.degree, h_neighborFinset_none, Finset.card_image_of_injective _ hinjr]; simp
-  -- Now compute degMultiset
+  -- Now compute degMultiset.  Unfolding leaves the goal talking about
+  -- `(CGraph.mycielskian F).toSimple` and counting with the `Fintype` the graph's own `FinEnum`
+  -- induces; the `show` folds the graph back to `H`, and the rewrite moves to Mathlib's `Fintype`
+  -- on `Option`, which is the instance the split below is `rfl` for.
   unfold CGraph.degMultiset
+  show Multiset.map (fun v => H.degree v) (Finset.univ : Finset (CGraph.mycielskian F).V).val = _
+  rw [show (Finset.univ : Finset (CGraph.mycielskian F).V) =
+      (Finset.univ : Finset (Option (F.V ⊕ F.V))) from Finset.univ_inst_eq _ _]
   have option_split_FV_FV :
       Multiset.map (fun v => H.degree v) (Finset.univ : Finset (Option (F.V ⊕ F.V))).val =
         [(fun v => H.degree v) none] +
@@ -1317,25 +1323,10 @@ apex sees every shadow. -/
   rw [hmap_inl, hmap_inr]
   rw [Multiset.map_congr rfl fun x _ => hdeg_inl x, Multiset.map_congr rfl fun x _ => hdeg_inr x]
   simp only [F]
-  simp [Fintype.card_fin]
-  have h1 : (fun x => 2 * x) ∘ (fun x => g.canonicalize.toSimple.degree
-      x) = fun x => 2 * g.canonicalize.toSimple.degree x := rfl
-  have h2 : (fun x => x + 1) ∘ (fun x => g.canonicalize.toSimple.degree
-      x) = fun x => g.canonicalize.toSimple.degree x + 1 := rfl
-  rw [show (List.ofFn ((fun x => 2 * x) ∘ fun x => g.canonicalize.toSimple.degree x)) = List.ofFn
-      (fun x => 2 * g.canonicalize.toSimple.degree x) from h1 ▸ rfl,
-      show (List.ofFn ((fun x => x + 1) ∘ fun x => g.canonicalize.toSimple.degree
-          x)) = List.ofFn (fun x => g.canonicalize.toSimple.degree x + 1) from h2 ▸ rfl]
-  show (↑(Fintype.card g.V :: ((List.ofFn fun x => 2 * g.canonicalize.toSimple.degree x) ++
-      List.ofFn fun x => g.canonicalize.toSimple.degree x + 1)) : Multiset ℕ) =
-    ↑((List.ofFn fun x => 2 * g.canonicalize.toSimple.degree x) ++ List.ofFn fun x =>
-        g.canonicalize.toSimple.degree x + 1) + {Fintype.card g.V}
-  have goal : ∀ (n : ℕ) (L : List ℕ), (↑(n :: L) : Multiset ℕ) = ↑L + {n} := by
-    intro n L
-    change Multiset.ofList (n :: L) = Multiset.ofList L + {n}
-    show n ::ₘ Multiset.ofList L = Multiset.ofList L + {n}
-    rw [← Multiset.singleton_add, Multiset.add_comm]
-  exact goal _ _
+  simp
+  -- What is left is the apex's degree, on the left as the head of the multiset and on the right
+  -- as a singleton summand.
+  rw [add_comm _ ({FinEnum.card g.V} : Multiset ℕ), Multiset.singleton_add]
 
 /-- The minimum degree of a Mycielskian: the three kinds of vertex give `2δ`, `δ + 1` and `n`. -/
 theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
@@ -1347,10 +1338,8 @@ theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
     rw [hG, IsoGraph.mycielskian_mk]
   have hmindeg : (mycielskian (⟦G0⟧ : IsoGraph)).minDeg = H.mycielskian.minDeg := by
     rw [hmyci, minDeg_mk]
-  have hv : IsoGraph.V ⟦G0⟧ = Fintype.card H.V := by
-    simp [V_mk]
-    show Fintype.card G0.V = Fintype.card (Fin (Fintype.card G0.V))
-    simp
+  have hv : IsoGraph.V ⟦G0⟧ = FinEnum.card H.V := by
+    simp [V_mk, H, CGraph.canonicalize_V]
   rw [hmindeg, hv, minDeg_mk]
   have hmindeg_eq : G0.minDeg = H.minDeg := by
     unfold CGraph.minDeg H
@@ -1361,10 +1350,10 @@ theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
   -- `degMultiset_mk` again, to read `(mycielskian ⟦H⟧).degMultiset` as
   -- `H.mycielskian.degMultiset`
   rw [IsoGraph.mycielskian_mk, degMultiset_mk] at hDM_iso
-  have hVH : V ⟦H⟧ = Fintype.card H.V := by simp [IsoGraph.V]
+  have hVH : V ⟦H⟧ = FinEnum.card H.V := by simp [IsoGraph.V]
   have hVH_pos : 0 < V ⟦H⟧ := hG.symm ▸ h
-  have hHpos : 0 < Fintype.card H.V := hVH.symm ▸ hVH_pos
-  haveI : Nonempty H.V := Fintype.card_pos_iff.mp hHpos
+  have hHpos : 0 < FinEnum.card H.V := hVH.symm ▸ hVH_pos
+  haveI : Nonempty H.V := FinEnum.card_pos_iff.mp hHpos
   have hmin_mem : H.minDeg ∈ H.degMultiset := by
     obtain ⟨v, hv⟩ := H.exists_degree_eq_minDeg (Classical.choice ‹Nonempty H.V›)
     exact CGraph.mem_degMultiset.2 ⟨v, hv⟩
@@ -1380,24 +1369,24 @@ theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
     rw [hDM_iso]
     exact Multiset.mem_add.mpr (Or.inl (Multiset.mem_add.mpr (Or.inr (Multiset.mem_map.mpr
         ⟨H.minDeg, hmin_mem, rfl⟩))))
-  have hcard_mem : Fintype.card H.V ∈ H.mycielskian.degMultiset := by
+  have hcard_mem : FinEnum.card H.V ∈ H.mycielskian.degMultiset := by
     rw [hDM_iso, hVH]
     exact Multiset.mem_add.mpr (Or.inr (Multiset.mem_singleton.mpr rfl))
   have hkmem :
-      min (min (2 * H.minDeg) (H.minDeg + 1)) (Fintype.card H.V) ∈ H.mycielskian.degMultiset := by
+      min (min (2 * H.minDeg) (H.minDeg + 1)) (FinEnum.card H.V) ∈ H.mycielskian.degMultiset := by
     have : min (2 * H.minDeg) (H.minDeg + 1) ∈ H.mycielskian.degMultiset := by
       rcases le_total (2 * H.minDeg) (H.minDeg + 1) with h | h
       · rw [min_eq_left h]
         exact h2min_mem
       · rw [min_eq_right h]
         exact hmin1_mem
-    rcases le_total (min (2 * H.minDeg) (H.minDeg + 1)) (Fintype.card H.V) with h | h
+    rcases le_total (min (2 * H.minDeg) (H.minDeg + 1)) (FinEnum.card H.V) with h | h
     · rw [min_eq_left h]
       exact this
     · rw [min_eq_right h]
       exact hcard_mem
   have hlower : ∀ d ∈ H.mycielskian.degMultiset, min (min (2 * H.minDeg) (H.minDeg +
-      1)) (Fintype.card H.V) ≤ d := by
+      1)) (FinEnum.card H.V) ≤ d := by
     intro d hd
     rw [hDM_iso] at hd
     simp only [Multiset.mem_add, Multiset.mem_map, Multiset.mem_singleton] at hd
@@ -1521,7 +1510,7 @@ more neighbour than its original, and the apex sees every shadow. -/
       · rw [Finset.card_image_of_injective _ hinjl]
         rfl
       · simp [Finset.disjoint_singleton_right]
-    have hdeg_none : Hs.degree none = Fintype.card g.V := by
+    have hdeg_none : Hs.degree none = FinEnum.card g.V := by
       rw [SimpleGraph.degree, h_neighborFinset_none]
       rw [Finset.card_image_of_injective _ hinjr]
       simp
@@ -1536,11 +1525,11 @@ more neighbour than its original, and the apex sees every shadow. -/
       · rw [hdeg_inl]
         exact le_max_of_le_left (by linarith [CGraph.degree_le_maxDeg g v])
       · rw [hdeg_inr]
-        have h1 : g.toSimple.degree v + 1 ≤ Fintype.card g.V := by
+        have h1 : g.toSimple.degree v + 1 ≤ FinEnum.card g.V := by
           linarith [CGraph.degree_le_maxDeg g v, @CGraph.maxDeg_lt_card g ⟨v⟩]
         exact le_max_of_le_right h1
     · -- Reverse: max (2 * maxDeg g) |V(g)| ≤ maxDeg H
-      have hnone : Fintype.card g.V ≤ H.maxDeg := by
+      have hnone : FinEnum.card g.V ≤ H.maxDeg := by
         rw [← hdeg_none]
         exact CGraph.degree_le_maxDeg H none
       have hinl_maxdeg : 2 * g.maxDeg ≤ H.maxDeg := by
@@ -1631,7 +1620,7 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g]
   simp only [IsoGraph.domNum_mk, IsoGraph.V_mk, mycielskian_mk] at h ⊢
-  have hlower : ∀ (H : CGraph) [Fintype H.V], 0 < Fintype.card H.V →
+  have hlower : ∀ (H : CGraph) [Fintype H.V], 0 < FinEnum.card H.V →
       H.domNum + 1 ≤ H.mycielskian.domNum := by
     intro H _ hH
     -- For any DS D of μ(H), |D| ≥ domNum(H) + 1
@@ -1641,7 +1630,7 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
       -- Helper: project Option (H.V ⊕ H.V) to H.V, sending none to an arbitrary vertex
       let decode : Option (H.V ⊕ H.V) → H.V := fun x =>
         match x with
-        | none => Classical.choice (Fintype.card_pos_iff.mp hH)
+        | none => Classical.choice (FinEnum.card_pos_iff.mp hH)
         | some (Sum.inl v) => v
         | some (Sum.inr v) => v
       have hdecode_inl : ∀ v, decode (some (Sum.inl v)) = v := fun v => rfl
@@ -1770,7 +1759,7 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
         omega
     obtain ⟨D, hDcard, hDDom⟩ := H.mycielskian.exists_isDominatingSet_domNum
     exact le_trans (hlbound D hDDom) hDcard.le
-  have hupper : ∀ (H : CGraph) [Fintype H.V], 0 < Fintype.card H.V →
+  have hupper : ∀ (H : CGraph) [Fintype H.V], 0 < FinEnum.card H.V →
       H.mycielskian.domNum ≤ H.domNum + 1 := by
     intro H _ hH
     obtain ⟨S, hScard, hSDS⟩ := H.exists_isDominatingSet_domNum
@@ -1800,8 +1789,8 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
     calc H.mycielskian.domNum ≤ D.card := CGraph.domNum_le_card_of_isDominatingSet hDdom
       _ = S.card + 1 := hDsize
       _ = H.domNum + 1 := by rw [hScard]
-  have h' : 0 < Fintype.card g.canonicalize.V := by
-    simp [CGraph.canonicalize_V, Fintype.card_fin]
+  have h' : 0 < FinEnum.card g.canonicalize.V := by
+    simp [CGraph.canonicalize_V]
     exact h
   exact le_antisymm (hupper _ h') (hlower _ h')
 
@@ -1810,16 +1799,16 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
 shadow of its partner and leave the apex out. -/
 @[toIsoGraph matchNum_mycielskian]
 theorem _root_.CGraph.matchNum_mycielskian (G : CGraph)
-    (h : 2 * G.matchNum = Fintype.card G.V) :
-    (CGraph.mycielskian G).matchNum = Fintype.card G.V := by
+    (h : 2 * G.matchNum = FinEnum.card G.V) :
+    (CGraph.mycielskian G).matchNum = FinEnum.card G.V := by
   classical
-  have upper : (CGraph.mycielskian G).matchNum ≤ Fintype.card G.V := by
+  have upper : (CGraph.mycielskian G).matchNum ≤ FinEnum.card G.V := by
     have := CGraph.two_mul_matchNum_le_card (CGraph.mycielskian G)
     rw [CGraph.card_mycielskian] at this
     omega
-  have lower : Fintype.card G.V ≤ (CGraph.mycielskian G).matchNum := by
-    show Fintype.card G.V ≤ (CGraph.lineGraph (CGraph.mycielskian G)).indepNum
-    replace h : 2 * (CGraph.lineGraph G).indepNum = Fintype.card G.V := h
+  have lower : FinEnum.card G.V ≤ (CGraph.mycielskian G).matchNum := by
+    show FinEnum.card G.V ≤ (CGraph.lineGraph (CGraph.mycielskian G)).indepNum
+    replace h : 2 * (CGraph.lineGraph G).indepNum = FinEnum.card G.V := h
     rw [← h]
     obtain ⟨S, hS_indep, hS_card⟩ := (CGraph.lineGraph G).toSimple.exists_isNIndepSet_indepNum
     -- Key idea: for each edge e={u,v} in S (a matching), add edges (inl u, inr v) and (inl v, inr
@@ -2114,9 +2103,9 @@ theorem V_le_indepNum_mycielskian (G : IsoGraph) : G.V ≤ (mycielskian G).indep
   induction G using Quotient.inductionOn with
   | h g =>
     simp [V, indepNum, mycielskian]
-    -- Goal: Fintype.card g.V ≤ g.mycielskian.indepNum
-    -- The shadows form an independent set of size Fintype.card g.V
-    let n := Fintype.card g.V
+    -- Goal: FinEnum.card g.V ≤ g.mycielskian.indepNum
+    -- The shadows form an independent set of size FinEnum.card g.V
+    let n := FinEnum.card g.V
     let shadows : Finset (CGraph.mycielskian g).V := Finset.image (some ∘
         Sum.inr) Finset.univ
     have hind : (CGraph.mycielskian g).toSimple.IsIndepSet (shadows : Set _) := by
@@ -2146,7 +2135,7 @@ theorem indepNum_mycielskian_le (G : IsoGraph) (hV : 0 < G.V) :
     simp only [indepNum_mk, V_mk]
     rw [mycielskian_mk, indepNum_mk]
     set G' := g.canonicalize
-    set n := Fintype.card G'.V
+    set n := FinEnum.card G'.V
 
     -- Helper embeddings
     let inlEmb : G'.V → (G'.mycielskian).V := fun a => some (Sum.inl a)
@@ -2184,7 +2173,7 @@ theorem indepNum_mycielskian_le (G : IsoGraph) (hV : 0 < G.V) :
       have hA_card : A.card ≤ G'.indepNum := hA_indep.card_le_indepNum
       -- B.card ≤ n
       have hB_card : B.card ≤ n := by
-        have : B.card ≤ Fintype.card G'.V := Finset.card_le_univ B
+        have : B.card ≤ FinEnum.card G'.V := FinEnum.card_le B
         exact this
       -- The inlEmb image of A has size |A|
       have himage_inl : (Finset.image inlEmb
@@ -2294,11 +2283,11 @@ theorem radius_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) : (mycielskian G).r
     rw [IsoGraph.V_mk]
     by_contra hp
     push_neg at hp
-    have hc : Fintype.card g.V = 0 := by omega
+    have hc : FinEnum.card g.V = 0 := by omega
     have : g.minDeg = 0 := by
       show g.minDeg = 0
       haveI : IsEmpty g.V := by
-        rw [Fintype.card_eq_zero_iff] at hc; exact hc
+        rw [FinEnum.card_eq_zero_iff] at hc; exact hc
       show g.minDeg = 0
       show g.toSimple.minDegree = 0
       rw [SimpleGraph.minDegree]
@@ -2648,7 +2637,7 @@ theorem radius_grotzsch : grotzsch.radius = 2 := by
   -- Transfer IsoGraph facts to CGraph level
   have hG_maxDeg : G.maxDeg = 5 := by
     rw [← maxDeg_grotzsch, hgrotzsch, maxDeg_mk]
-  have hG_V : Fintype.card G.V = 11 := by
+  have hG_V : FinEnum.card G.V = 11 := by
     rw [← V_grotzsch, hgrotzsch, V_mk]
   -- No universal vertex in G (degree ≤ 5 < 10)
   have hno_univ_G : ¬ ∃ v : G.V, ∀ u : G.V, u ≠ v → G.Adj v u := by
@@ -2672,10 +2661,10 @@ theorem radius_grotzsch : grotzsch.radius = 2 := by
       intro h
       rw [CGraph.domNum_eq_one_iff G] at h
       exact hno_univ_G h
-    have hpos_G : 0 < G.radius := CGraph.radius_pos G hG_connected (by omega : 1 < Fintype.card G.V)
+    have hpos_G : 0 < G.radius := CGraph.radius_pos G hG_connected (by omega : 1 < FinEnum.card G.V)
     have hne1_G : G.radius ≠ 1 := by
       intro h
-      rw [CGraph.radius_eq_one_iff_domNum_eq_one G (by omega : 1 < Fintype.card G.V)] at h
+      rw [CGraph.radius_eq_one_iff_domNum_eq_one G (by omega : 1 < FinEnum.card G.V)] at h
       exact hdom_ne_one_G h
     omega
   rw [hgrotzsch, IsoGraph.radius_mk, h_radius_G]

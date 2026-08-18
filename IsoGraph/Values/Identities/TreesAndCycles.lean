@@ -75,7 +75,7 @@ theorem E_doubleStar (m n : ℕ) : (doubleStar m n).E = m + n + 1 := by
     exact (hreach u).symm.trans (hreach v)
   have hlower : m + n + 1 ≤ G.E := by
     have h1 := hconn.card_le_E_add_one
-    have hcard : Fintype.card G.V = 2 + m + n := by simp [G]
+    have hcard : FinEnum.card G.V = 2 + m + n := by simp [G]
     rw [hcard] at h1; omega
   have hdeg_bound : ∀ v : G.V,
       G.toSimple.degree v ≤
@@ -1566,9 +1566,9 @@ theorem cliqueNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).cliqueNum = m + 2 
   let G : CGraph := CGraph.lollipop (m + 2) k
   -- Helper: bound all clique sizes
   let bdd : BddAbove {n : ℕ | ∃ s : Finset G.V, G.toSimple.IsNClique n s} :=
-    ⟨Fintype.card G.V, fun n hn => by
+    ⟨FinEnum.card G.V, fun n hn => by
       obtain ⟨s, hs⟩ := hn
-      exact hs.card_eq ▸ s.card_le_univ⟩
+      exact hs.card_eq ▸ FinEnum.card_le s⟩
   have hnonempty : ({n : ℕ | ∃ s : Finset G.V, G.toSimple.IsNClique n s}).Nonempty :=
     ⟨0, ∅, by simp⟩
   have hlower : (m + 2 : ℕ) ≤ G.cliqueNum := by
@@ -1766,7 +1766,7 @@ theorem chromNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).chromNum = m + 2 :=
         exact ⟨hne2, Or.elim hclique (fun h => Or.inl (List.mem_append_left _ h)) (fun h => Or.inr
             (List.mem_append_left _ h))⟩
       rw [CGraph.complete_toSimple, SimpleGraph.chromaticNumber_top,
-          CGraph.card_complete] at hchrom_le
+          ← FinEnum.card_eq_fintypeCard, CGraph.card_complete] at hchrom_le
       rw [CGraph.chromNum]
       exact ENat.toNat_le_toNat hchrom_le (CGraph.chromaticNumber_ne_top _)
     intro m_1 hm_1
@@ -1778,7 +1778,7 @@ theorem indepNum_doubleStar (m n : ℕ) :
   -- Work at CGraph level
   set G := CGraph.doubleStar (m + 1) (n + 1)
   -- V = m + n + 4
-  have hV : Fintype.card G.V = m + n + 4 := by
+  have hV : FinEnum.card G.V = m + n + 4 := by
     simp [G, CGraph.card_doubleStar]; omega
   -- Two disjoint edges: (0,2) and (1, m+3)
   -- Any vertex cover needs ≥ 2 vertices, so coverNum ≥ 2, so indepNum ≤ V - 2 = m+n+2
@@ -1866,7 +1866,7 @@ theorem indepNum_doubleStar (m n : ℕ) :
     apply ENat.toNat_le_toNat hcover_ge_enat hfin
   
   -- Step C: Combine
-  have hadd : G.coverNum + G.indepNum = Fintype.card G.V :=
+  have hadd : G.coverNum + G.indepNum = FinEnum.card G.V :=
     CGraph.coverNum_add_indepNum G
   rw [hV] at hadd
   show G.indepNum = m + n + 2
@@ -2364,7 +2364,7 @@ theorem domNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).domNum = 2 
   -- Combine
   have hpos : 0 < G.domNum := by
     apply CGraph.domNum_pos
-    exact Fintype.card_pos_iff.mpr ⟨⟨0, by omega⟩⟩
+    exact FinEnum.card_pos_iff.mpr ⟨⟨0, by omega⟩⟩
   have h1 : 1 < G.domNum := by omega
   change G.domNum = 2
   omega

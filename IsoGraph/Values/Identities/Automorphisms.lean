@@ -149,7 +149,8 @@ theorem autCount_cycle_le {N : ℕ} (hN : 3 ≤ N) : (cycle N).autCount ≤ 2 * 
     generalize ((g ⟨0, h0N⟩).1 + N - 1) % N = q at hf hg hne
     omega
   have hcard : Nat.card ((cycle N).V × Bool) = 2 * N := by
-    rw [Nat.card_eq_fintype_card, Fintype.card_prod, card_cycle, Fintype.card_bool]
+    rw [Nat.card_eq_fintype_card, Fintype.card_prod,
+      ← FinEnum.card_eq_fintypeCard' (α := (cycle N).V), card_cycle, Fintype.card_bool]
     omega
   have := Nat.card_le_card_of_injective code hinj
   rw [hcard] at this
@@ -180,7 +181,7 @@ theorem autCount_eq_one_of_degree_injective (G : CGraph)
 base vertex to each vertex in turn are already pairwise distinct. -/
 @[toIsoGraph V_le_autCount_of_isVertexTransitive]
 theorem card_le_autCount_of_isVertexTransitive (G : CGraph) [Nonempty G.V]
-    (h : G.IsVertexTransitive) : Fintype.card G.V ≤ G.autCount := by
+    (h : G.IsVertexTransitive) : FinEnum.card G.V ≤ G.autCount := by
   obtain ⟨v₀⟩ := ‹Nonempty G.V›
   choose f hf using h v₀
   haveI : Finite (G ≃cg G) := G.instFiniteAut
@@ -189,7 +190,8 @@ theorem card_le_autCount_of_isVertexTransitive (G : CGraph) [Nonempty G.V]
     have h1 : (f u) v₀ = (f v) v₀ := by rw [huv]
     rw [hf u, hf v] at h1
     exact h1
-  calc Fintype.card G.V = Nat.card G.V := Nat.card_eq_fintype_card.symm
+  calc FinEnum.card G.V = Nat.card G.V := by
+        rw [FinEnum.card_eq_fintypeCard', Nat.card_eq_fintype_card]
     _ ≤ Nat.card (G ≃cg G) := Nat.card_le_card_of_injective f hinj
     _ = G.autCount := rfl
 
@@ -221,7 +223,7 @@ theorem two_mul_E_le_autCount_of_isArcTransitive (G : CGraph) (h : G.IsArcTransi
 /-- Too few automorphisms to move a base vertex everywhere. -/
 @[toIsoGraph]
 theorem not_isVertexTransitive_of_autCount_lt (G : CGraph) [Nonempty G.V]
-    (h : G.autCount < Fintype.card G.V) : ¬ G.IsVertexTransitive := fun hvt ↦
+    (h : G.autCount < FinEnum.card G.V) : ¬ G.IsVertexTransitive := fun hvt ↦
   absurd (G.card_le_autCount_of_isVertexTransitive hvt) (by omega)
 
 /-- Too few automorphisms to move a base arc everywhere. -/
@@ -397,18 +399,18 @@ theorem exists_ne_odd_degree (G : CGraph) {v : G.V} (h : Odd (G.toSimple.degree 
 
 /-- A graph all of whose degrees are odd has evenly many vertices. -/
 theorem even_card_of_forall_odd_degree (G : CGraph) (h : ∀ v, Odd (G.toSimple.degree v)) :
-    Even (Fintype.card G.V) := by
+    Even (FinEnum.card G.V) := by
   have hc := G.even_card_odd_degree
-  rwa [Finset.filter_true_of_mem fun v _ ↦ h v, Finset.card_univ] at hc
+  rwa [Finset.filter_true_of_mem fun v _ ↦ h v, FinEnum.card_univ] at hc
 
 /-- **An odd-regular graph has evenly many vertices.**  There is no cubic graph on five
 vertices. -/
 theorem even_card_of_isRegularOfDegree_odd (G : CGraph) {k : ℕ} (hk : Odd k)
-    (h : G.toSimple.IsRegularOfDegree k) : Even (Fintype.card G.V) :=
+    (h : G.toSimple.IsRegularOfDegree k) : Even (FinEnum.card G.V) :=
   G.even_card_of_forall_odd_degree fun v ↦ by rw [h v]; exact hk
 
 /-- On an odd number of vertices, some vertex has even degree. -/
-theorem exists_even_degree_of_odd_card (G : CGraph) (h : Odd (Fintype.card G.V)) :
+theorem exists_even_degree_of_odd_card (G : CGraph) (h : Odd (FinEnum.card G.V)) :
     ∃ v, Even (G.toSimple.degree v) := by
   by_contra hc
   push_neg at hc
@@ -637,10 +639,10 @@ edge joining it to a neighbour closer to that root, embeds `V` minus the roots i
 `|V| ≤ |E| + c(G)`. -/
 @[toIsoGraph V_le_E_add_numComponents]
 theorem card_le_E_add_numComponents (G : CGraph) :
-    Fintype.card G.V ≤ G.E + G.numComponents := by
+    FinEnum.card G.V ≤ G.E + G.numComponents := by
   classical
   rcases isEmpty_or_nonempty G.V with hV | hV
-  · simp [Fintype.card_eq_zero]
+  · simp [FinEnum.card_eq_zero_iff.2 hV]
   choose r hr using G.surjective_connectedComponentMk
   set root : G.V → G.V := fun v ↦ r (G.toSimple.connectedComponentMk v) with hroot
   have hreach : ∀ v, G.toSimple.Reachable v (root v) := by
@@ -690,25 +692,25 @@ theorem card_le_E_add_numComponents (G : CGraph) :
     (s := (Finset.univ : Finset G.V)) (p := fun v ↦ v = root v)
   have hle : (Finset.univ.filter (fun v ↦ ¬ v = root v)).card ≤ G.E :=
     Finset.card_le_card_of_injOn _ hmaps hinjOn
-  rw [Finset.card_univ] at hcards
+  rw [FinEnum.card_univ] at hcards
   omega
 
 /-- A connected graph has at least `|V| - 1` edges. -/
 theorem card_le_E_add_one_of_isConnected (G : CGraph) (h : G.IsConnected) :
-    Fintype.card G.V ≤ G.E + 1 := by
+    FinEnum.card G.V ≤ G.E + 1 := by
   have := G.card_le_E_add_numComponents
   rw [(numComponents_eq_one_iff G).2 h] at this
   exact this
 
 /-- Each edge can merge at most two components, so a graph with few edges has many components. -/
 theorem card_sub_E_le_numComponents (G : CGraph) :
-    Fintype.card G.V - G.E ≤ G.numComponents := by
+    FinEnum.card G.V - G.E ≤ G.numComponents := by
   have := G.card_le_E_add_numComponents
   omega
 
 /-- More components than vertices is impossible, so a graph with fewer components than vertices
 has an edge. -/
-theorem E_pos_of_numComponents_lt_card (G : CGraph) (h : G.numComponents < Fintype.card G.V) :
+theorem E_pos_of_numComponents_lt_card (G : CGraph) (h : G.numComponents < FinEnum.card G.V) :
     0 < G.E := by
   have := G.card_le_E_add_numComponents
   omega
@@ -818,14 +820,14 @@ theorem cliqueNum_mycielskian_eq_two (G : CGraph) [Nonempty G.V]
 /-! ### Edge counts of the strong and lexicographic products -/
 
 private theorem sum_degree_add_one (K : CGraph) :
-    ∑ v : K.V, (K.toSimple.degree v + 1) = 2 * K.E + Fintype.card K.V := by
+    ∑ v : K.V, (K.toSimple.degree v + 1) = 2 * K.E + FinEnum.card K.V := by
   rw [Finset.sum_add_distrib, SimpleGraph.sum_degrees_eq_twice_card_edges, Finset.sum_const,
-    Finset.card_univ, smul_eq_mul, mul_one]
+    FinEnum.card_univ, smul_eq_mul, mul_one]
   rfl
 
 theorem E_strongProduct (G H : CGraph) :
     (G ⊠g H).E
-      = Fintype.card G.V * H.E + Fintype.card H.V * G.E + 2 * G.E * H.E := by
+      = FinEnum.card G.V * H.E + FinEnum.card H.V * G.E + 2 * G.E * H.E := by
   have hdeg : ∀ p : G.V × H.V, (G ⊠g H).toSimple.degree p + 1
       = (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) := by
     intro p
@@ -833,47 +835,55 @@ theorem E_strongProduct (G H : CGraph) :
     have hpos : 1 ≤ (G.toSimple.degree p.1 + 1) * (H.toSimple.degree p.2 + 1) :=
       Nat.one_le_iff_ne_zero.2 (by positivity)
     omega
-  have hdegsum : ∑ p : G.V × H.V, (G ⊠g H).toSimple.degree p
-      = 2 * (G ⊠g H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
+  -- The binder `p : G.V × H.V` picks Mathlib's product `Fintype`, while `(G ⊠g H).E` counts with
+  -- the one the product graph's own `FinEnum` induces; the two agree, but only propositionally.
+  have hdegsum' : ∑ p : (G ⊠g H).V, (G ⊠g H).toSimple.degree p = 2 * (G ⊠g H).E :=
+    SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hdegsum : ∑ p : G.V × H.V, (G ⊠g H).toSimple.degree p = 2 * (G ⊠g H).E :=
+    (Finset.sum_univ_inst_eq _ _ _).trans hdegsum'
   have hstrong : ∑ p : G.V × H.V, ((G ⊠g H).toSimple.degree p + 1)
-      = 2 * (G ⊠g H).E + Fintype.card G.V * Fintype.card H.V := by
+      = 2 * (G ⊠g H).E + FinEnum.card G.V * FinEnum.card H.V := by
     rw [Finset.sum_add_distrib, hdegsum, Finset.sum_const, Finset.card_univ, smul_eq_mul, mul_one,
-      Fintype.card_prod]
-  have key : 2 * (G ⊠g H).E + Fintype.card G.V * Fintype.card H.V
-      = (2 * G.E + Fintype.card G.V) * (2 * H.E + Fintype.card H.V) := by
+      Fintype.card_prod, ← FinEnum.card_eq_fintypeCard' (α := G.V),
+      ← FinEnum.card_eq_fintypeCard' (α := H.V)]
+  have key : 2 * (G ⊠g H).E + FinEnum.card G.V * FinEnum.card H.V
+      = (2 * G.E + FinEnum.card G.V) * (2 * H.E + FinEnum.card H.V) := by
     rw [← hstrong, ← sum_degree_add_one G, ← sum_degree_add_one H, Finset.sum_mul_sum,
       Fintype.sum_prod_type]
     exact Finset.sum_congr rfl fun a _ ↦ Finset.sum_congr rfl fun b _ ↦ hdeg (a, b)
-  have expand : (2 * G.E + Fintype.card G.V) * (2 * H.E + Fintype.card H.V)
-      = 2 * (Fintype.card G.V * H.E + Fintype.card H.V * G.E + 2 * G.E * H.E)
-        + Fintype.card G.V * Fintype.card H.V := by ring
+  have expand : (2 * G.E + FinEnum.card G.V) * (2 * H.E + FinEnum.card H.V)
+      = 2 * (FinEnum.card G.V * H.E + FinEnum.card H.V * G.E + 2 * G.E * H.E)
+        + FinEnum.card G.V * FinEnum.card H.V := by ring
   rw [expand] at key
   exact Nat.eq_of_mul_eq_mul_left (by norm_num) (Nat.add_right_cancel key)
 
 theorem E_lexProduct (G H : CGraph) :
     (G ·g H).E
-      = Fintype.card H.V * Fintype.card H.V * G.E + Fintype.card G.V * H.E := by
+      = FinEnum.card H.V * FinEnum.card H.V * G.E + FinEnum.card G.V * H.E := by
   have hdeg : ∀ p : G.V × H.V, (G ·g H).toSimple.degree p
-      = G.toSimple.degree p.1 * Fintype.card H.V + H.toSimple.degree p.2 :=
+      = G.toSimple.degree p.1 * FinEnum.card H.V + H.toSimple.degree p.2 :=
     fun p ↦ degree_lexProduct G H p
   have hG : ∑ a : G.V, G.toSimple.degree a = 2 * G.E :=
     SimpleGraph.sum_degrees_eq_twice_card_edges _
   have hH : ∑ b : H.V, H.toSimple.degree b = 2 * H.E :=
     SimpleGraph.sum_degrees_eq_twice_card_edges _
-  have hlex : ∑ p : G.V × H.V, (G ·g H).toSimple.degree p
-      = 2 * (G ·g H).E := SimpleGraph.sum_degrees_eq_twice_card_edges _
+  -- as in `E_strongProduct`, the product binder's `Fintype` is not the product graph's own
+  have hlex' : ∑ p : (G ·g H).V, (G ·g H).toSimple.degree p = 2 * (G ·g H).E :=
+    SimpleGraph.sum_degrees_eq_twice_card_edges _
+  have hlex : ∑ p : G.V × H.V, (G ·g H).toSimple.degree p = 2 * (G ·g H).E :=
+    (Finset.sum_univ_inst_eq _ _ _).trans hlex'
   have hfibre : ∀ a : G.V,
-      ∑ b : H.V, (G.toSimple.degree a * Fintype.card H.V + H.toSimple.degree b)
-        = G.toSimple.degree a * (Fintype.card H.V * Fintype.card H.V) + 2 * H.E := by
+      ∑ b : H.V, (G.toSimple.degree a * FinEnum.card H.V + H.toSimple.degree b)
+        = G.toSimple.degree a * (FinEnum.card H.V * FinEnum.card H.V) + 2 * H.E := by
     intro a
-    rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, smul_eq_mul, hH]
+    rw [Finset.sum_add_distrib, Finset.sum_const, FinEnum.card_univ, smul_eq_mul, hH]
     ring
   have key : 2 * (G ·g H).E
-      = 2 * (Fintype.card H.V * Fintype.card H.V * G.E + Fintype.card G.V * H.E) := by
+      = 2 * (FinEnum.card H.V * FinEnum.card H.V * G.E + FinEnum.card G.V * H.E) := by
     rw [← hlex, Fintype.sum_prod_type,
       Finset.sum_congr rfl fun a _ ↦ Finset.sum_congr rfl fun b _ ↦ hdeg (a, b),
       Finset.sum_congr rfl fun a _ ↦ hfibre a, Finset.sum_add_distrib, ← Finset.sum_mul, hG,
-      Finset.sum_const, Finset.card_univ, smul_eq_mul]
+      Finset.sum_const, FinEnum.card_univ, smul_eq_mul]
     ring
   exact Nat.eq_of_mul_eq_mul_left (by norm_num) key
 
@@ -975,7 +985,7 @@ theorem domNum_join_eq_two (G H : CGraph)
     (G ∇g H).domNum = 2 := by
   haveI : Nonempty (G ∇g H).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
   have h1 := domNum_join_le_two G H
-  have h2 := (G ∇g H).domNum_pos (Fintype.card_pos_iff.2 ‹Nonempty (G ∇g H).V›)
+  have h2 := (G ∇g H).domNum_pos (FinEnum.card_pos_iff.2 ‹Nonempty (G ∇g H).V›)
   have h3 : (G ∇g H).domNum ≠ 1 := fun h ↦ by
     rcases (domNum_join_eq_one_iff G H).1 h with h | h
     · exact hG h
@@ -985,7 +995,7 @@ theorem domNum_join_eq_two (G H : CGraph)
 /-- A dominating set of `G`, spread over every fibre, dominates `G □ H`. -/
 @[toIsoGraph]
 theorem domNum_cartesianProduct_le (G H : CGraph) :
-    (G □g H).domNum ≤ G.domNum * Fintype.card H.V := by
+    (G □g H).domNum ≤ G.domNum * FinEnum.card H.V := by
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
   have hdom : (G □g H).IsDominatingSet (s ×ˢ Finset.univ) := by
     rintro ⟨x, y⟩
@@ -995,7 +1005,7 @@ theorem domNum_cartesianProduct_le (G H : CGraph) :
       rw [cartesianProduct_adj]
       simp [hadj]
   have h := domNum_le_card_of_isDominatingSet hdom
-  rwa [Finset.card_product, Finset.card_univ, hs] at h
+  rwa [Finset.card_product, FinEnum.card_univ, hs] at h
 
 /-! ### The radius of a cartesian product -/
 
@@ -1198,7 +1208,7 @@ because every tensor edge moves in *both* coordinates: `α(G) · |V(H)| ≤ α(G
 @[toIsoGraph indepNum_mul_V_le_indepNum_tensorProduct]
 theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
  :
-    G.indepNum * Fintype.card H.V ≤ (G ⊗g H).indepNum := by
+    G.indepNum * FinEnum.card H.V ≤ (G ⊗g H).indepNum := by
   classical
   obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
   have hind : (G ⊗g H).toSimple.IsIndepSet
@@ -1208,9 +1218,9 @@ theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
     rw [CGraph.toSimple_adj, tensorProduct_adj, Bool.and_eq_true] at hadj
     have hne : p.1 ≠ q.1 := fun h ↦ G.loopless q.1 (h ▸ hadj.1)
     exact hs hp.1 hq.1 hne hadj.1
-  calc G.indepNum * Fintype.card H.V
+  calc G.indepNum * FinEnum.card H.V
       = (s ×ˢ (Finset.univ : Finset H.V)).card := by
-        rw [Finset.card_product, hcard, Finset.card_univ]
+        rw [Finset.card_product, hcard, FinEnum.card_univ]
         rfl
     _ ≤ _ := hind.card_le_indepNum
 
@@ -1218,7 +1228,7 @@ theorem indepNum_mul_card_le_indepNum_tensorProduct (G H : CGraph)
 independent set of `H`, so `α(G □ H) ≤ |V(G)| · α(H)`. -/
 @[toIsoGraph]
 theorem indepNum_cartesianProduct_le (G H : CGraph) :
-    (G □g H).indepNum ≤ Fintype.card G.V * H.indepNum := by
+    (G □g H).indepNum ≤ FinEnum.card G.V * H.indepNum := by
   classical
   obtain ⟨s, hs, hcard⟩ := (G □g H).toSimple.exists_isNIndepSet_indepNum
   have hfib : ∀ a : G.V, (s.filter fun p ↦ p.1 = a).card ≤ H.indepNum := by
@@ -1244,13 +1254,13 @@ theorem indepNum_cartesianProduct_le (G H : CGraph) :
   calc (G □g H).indepNum = s.card := hcard.symm
     _ = ∑ a : G.V, (s.filter fun p ↦ p.1 = a).card := hsum
     _ ≤ ∑ _a : G.V, H.indepNum := Finset.sum_le_sum fun a _ ↦ hfib a
-    _ = Fintype.card G.V * H.indepNum := by
-        rw [Finset.sum_const, Finset.card_univ, smul_eq_mul]
+    _ = FinEnum.card G.V * H.indepNum := by
+        rw [Finset.sum_const, FinEnum.card_univ, smul_eq_mul]
 
 /-- The strong product has at least as many edges as the cartesian one, so the same bound holds. -/
 @[toIsoGraph]
 theorem indepNum_strongProduct_le (G H : CGraph) :
-    (G ⊠g H).indepNum ≤ Fintype.card G.V * H.indepNum :=
+    (G ⊠g H).indepNum ≤ FinEnum.card G.V * H.indepNum :=
   le_trans (indepNum_anti (cartesianProduct_le_strongProduct G H))
     (indepNum_cartesianProduct_le G H)
 
@@ -1323,18 +1333,18 @@ theorem chromNum_tensorProduct_eq_two {G H : CGraph}
 the maximum degree into `|V| - 1 - δ`, so the two bounds add up with `δ ≤ Δ` to spare. -/
 @[toIsoGraph domNum_add_domNum_compl_le_V_add_one]
 theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
-    G.domNum + Gᶜ.domNum ≤ Fintype.card G.V + 1 := by
+    G.domNum + Gᶜ.domNum ≤ FinEnum.card G.V + 1 := by
   rcases isEmpty_or_nonempty G.V with hemp | hne
-  · have h1 : Fintype.card G.V = 0 := Fintype.card_eq_zero
+  · have h1 : FinEnum.card G.V = 0 := FinEnum.card_eq_zero_iff.2 hemp
     have h2 := G.domNum_le_card
     have h3 := Gᶜ.domNum_le_card
-    have h4 : Fintype.card Gᶜ.V = Fintype.card G.V := rfl
+    have h4 : FinEnum.card Gᶜ.V = FinEnum.card G.V := rfl
     omega
   haveI := hne
   obtain ⟨v₀⟩ := hne
   have h1 := G.domNum_add_maxDeg_le_card
   have h2 := Gᶜ.domNum_add_maxDeg_le_card
-  rw [maxDeg_compl (G := G), show Fintype.card Gᶜ.V = Fintype.card G.V from rfl] at h2
+  rw [maxDeg_compl (G := G), show FinEnum.card Gᶜ.V = FinEnum.card G.V from rfl] at h2
   have h3 := G.minDeg_le_maxDeg
   have h4 := @CGraph.maxDeg_lt_card G ⟨v₀⟩
   omega
@@ -1374,10 +1384,10 @@ theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [Nonempty G.V]
 so `3 ≤ γ(G) + γ(Gᶜ)`. -/
 @[toIsoGraph]
 theorem three_le_domNum_add_domNum_compl (G : CGraph)
-    (hV : 2 ≤ Fintype.card G.V) : 3 ≤ G.domNum + Gᶜ.domNum := by
+    (hV : 2 ≤ FinEnum.card G.V) : 3 ≤ G.domNum + Gᶜ.domNum := by
   have hG : 0 < G.domNum := G.domNum_pos (by omega)
   have hGc : 0 < Gᶜ.domNum :=
-    Gᶜ.domNum_pos (by rw [show Fintype.card Gᶜ.V = Fintype.card G.V from rfl]; omega)
+    Gᶜ.domNum_pos (by rw [show FinEnum.card Gᶜ.V = FinEnum.card G.V from rfl]; omega)
   by_contra hc
   have h1 : G.domNum = 1 := by omega
   have h2 : Gᶜ.domNum = 1 := by omega
@@ -1388,7 +1398,9 @@ theorem three_le_domNum_add_domNum_compl (G : CGraph)
     obtain ⟨u, hu⟩ : ∃ u : G.V, u ≠ w := by
       by_contra hc'
       push_neg at hc'
-      have : Fintype.card G.V ≤ 1 := Fintype.card_le_one_iff.2 fun a b ↦ (hc' a).trans (hc' b).symm
+      have : FinEnum.card G.V ≤ 1 := by
+        rw [FinEnum.card_eq_fintypeCard']
+        exact Fintype.card_le_one_iff.2 fun a b ↦ (hc' a).trans (hc' b).symm
       omega
     have h3 := hv u hu
     have h4 := hw u hu
@@ -1438,16 +1450,17 @@ theorem two_le_indepNum {G : CGraph} {a b : G.V} (hab : a ≠ b) (h : ¬ G.Adj a
 `χ(G) + α(G) ≤ |V| + 1`.  Equality holds for both the complete and the edgeless graph. -/
 @[toIsoGraph cliqueNum_add_indepNum_le_V_add_one]
 theorem cliqueNum_add_indepNum_le_card_add_one (G : CGraph) :
-    G.cliqueNum + G.indepNum ≤ Fintype.card G.V + 1 :=
+    G.cliqueNum + G.indepNum ≤ FinEnum.card G.V + 1 :=
   le_trans (Nat.add_le_add_right G.cliqueNum_le_chromNum _)
     G.chromNum_add_indepNum_le_card_add_one
 
 /-- On two or more vertices, `3 ≤ ω(G) + α(G)`: any two distinct vertices are either adjacent,
 giving a two-clique, or non-adjacent, giving a two-element independent set. -/
 @[toIsoGraph]
-theorem three_le_cliqueNum_add_indepNum (G : CGraph) (hV : 2 ≤ Fintype.card G.V) :
+theorem three_le_cliqueNum_add_indepNum (G : CGraph) (hV : 2 ≤ FinEnum.card G.V) :
     3 ≤ G.cliqueNum + G.indepNum := by
-  obtain ⟨a, b, hab⟩ := Fintype.exists_pair_of_one_lt_card (α := G.V) (by omega)
+  obtain ⟨a, b, hab⟩ := Fintype.exists_pair_of_one_lt_card (α := G.V)
+    (by rw [← FinEnum.card_eq_fintypeCard']; omega)
   by_cases h : G.Adj a b
   · have h1 := two_le_cliqueNum h
     have h2 := one_le_indepNum_of_vertex a
@@ -1464,7 +1477,7 @@ theorem isRegularWith_iff_forall_degree {G : CGraph} {k : ℕ} :
 
 @[toIsoGraph]
 theorem IsRegularWith.degSequence {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
-    G.degSequence = List.replicate (Fintype.card G.V) k := degSequence_of_regular G h
+    G.degSequence = List.replicate (FinEnum.card G.V) k := degSequence_of_regular G h
 
 /-- Squeezing the degrees between the two extremes forces regularity. -/
 @[toIsoGraph]
@@ -1492,7 +1505,7 @@ theorem IsSRGWith.isRegularWith {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith
 /-- **The complement of a `k`-regular graph is `(n - 1 - k)`-regular.** -/
 @[toIsoGraph]
 theorem IsRegularWith.compl {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
-    Gᶜ.IsRegularWith (Fintype.card G.V - 1 - k) := fun v ↦ by
+    Gᶜ.IsRegularWith (FinEnum.card G.V - 1 - k) := fun v ↦ by
   rw [degree_compl, h v]
 
 /-- A disjoint union of two `k`-regular graphs is `k`-regular. -/
@@ -1508,7 +1521,7 @@ of `G` picks up all of `H` and vice versa. -/
 @[toIsoGraph]
 theorem IsRegularWith.join {G H : CGraph} {k l m : ℕ}
     (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
-    (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
+    (h1 : k + FinEnum.card H.V = m) (h2 : FinEnum.card G.V + l = m) :
     (G ∇g H).IsRegularWith m := by
   rintro (a | b)
   · rw [degree_join_inl, hG a]; exact h1
@@ -1632,7 +1645,7 @@ theorem disjoint_of_not_adj_lineGraph (G : CGraph)
 /-- A matching is an independent set in the line graph, and its edges use `2ν` distinct
 vertices, so `2ν ≤ n`. -/
 theorem two_mul_indepNum_lineGraph_le_card (G : CGraph) :
-    2 * (lineGraph G).indepNum ≤ Fintype.card G.V := by
+    2 * (lineGraph G).indepNum ≤ FinEnum.card G.V := by
   classical
   obtain ⟨S, hS, hcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
   have hb : (S.biUnion fun e ↦ e.1.toFinset).card = ∑ e ∈ S, e.1.toFinset.card := by
@@ -1642,8 +1655,8 @@ theorem two_mul_indepNum_lineGraph_le_card (G : CGraph) :
     rw [Finset.sum_congr rfl fun e _ ↦
       Sym2.card_toFinset_of_not_isDiag e.1 (SimpleGraph.not_isDiag_of_mem_edgeSet _ e.2)]
     rw [Finset.sum_const, smul_eq_mul, Nat.mul_comm]
-  have hle : (S.biUnion fun e ↦ e.1.toFinset).card ≤ Fintype.card G.V :=
-    le_trans (Finset.card_le_card (Finset.subset_univ _)) (le_of_eq Finset.card_univ)
+  have hle : (S.biUnion fun e ↦ e.1.toFinset).card ≤ FinEnum.card G.V :=
+    le_trans (Finset.card_le_card (Finset.subset_univ _)) (le_of_eq FinEnum.card_univ)
   have hdef : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
   omega
 
@@ -1667,7 +1680,7 @@ theorem one_le_card_sdiff_of_isIndepSet (G : CGraph) {I : Finset G.V}
 /-- `ν + α ≤ n`: the edges of a matching are disjoint, and each one contributes a vertex
 outside a maximum independent set. -/
 theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) :
-    (lineGraph G).indepNum + G.indepNum ≤ Fintype.card G.V := by
+    (lineGraph G).indepNum + G.indepNum ≤ FinEnum.card G.V := by
   classical
   obtain ⟨M, hM, hMcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
   obtain ⟨I, hI, hIcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
@@ -1688,10 +1701,11 @@ theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) :
     obtain ⟨e, _, hve⟩ := hv
     rw [Finset.mem_sdiff] at hve ⊢
     exact ⟨Finset.mem_univ v, hve.2⟩
-  have h3 : (Finset.univ \ I).card = Fintype.card G.V - I.card := by
-    rw [Finset.card_sdiff, Finset.card_univ, Finset.inter_univ]
+  have h3 : (Finset.univ \ I).card = FinEnum.card G.V - I.card := by
+    rw [Finset.card_sdiff, FinEnum.card_univ, Finset.inter_univ]
   have h4 := Finset.card_le_card h2
-  have h5 : I.card ≤ Fintype.card G.V := Finset.card_le_univ I
+  have h5 : I.card ≤ FinEnum.card G.V := by
+    rw [FinEnum.card_eq_fintypeCard']; exact Finset.card_le_univ I
   have hdefM : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
   have hdefI : G.indepNum = G.toSimple.indepNum := rfl
   omega
@@ -1705,8 +1719,9 @@ theorem indepNum_lineGraph_add_indepNum_le_card (G : CGraph) :
 theorem IsSRGWith.girth_eq_three {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
     (hn : 0 < n) (hk : 0 < k) (hℓ : 0 < ℓ) : G.girth = 3 := by
   have h' : G.toSimple.IsSRGWith n k ℓ μ := h
-  have hcard : Fintype.card G.V = n := h'.card
-  obtain ⟨u⟩ := Fintype.card_pos_iff.1 (show 0 < Fintype.card G.V by omega)
+  have hcard : FinEnum.card G.V = n := by
+    rw [FinEnum.card_eq_fintypeCard']; exact h'.card
+  obtain ⟨u⟩ := FinEnum.card_pos_iff.1 (show 0 < FinEnum.card G.V by omega)
   have hdeg : G.toSimple.degree u = k := h'.regular u
   obtain ⟨v, hv⟩ := (G.toSimple.degree_pos_iff_exists_adj u).1 (by omega)
   have hpos : 0 < Fintype.card (G.toSimple.commonNeighbors u v) := by
@@ -1761,7 +1776,7 @@ theorem isIndepSet_sdiff_biUnion {G : CGraph}
 /-- **Every graph has a maximum matching whose vertices dominate all the edges**, in the counting
 form `|V| ≤ α(G) + 2ν(G)`. -/
 theorem card_le_indepNum_add_two_mul_indepNum_lineGraph (G : CGraph) :
-    Fintype.card G.V ≤ G.indepNum + 2 * (lineGraph G).indepNum := by
+    FinEnum.card G.V ≤ G.indepNum + 2 * (lineGraph G).indepNum := by
   classical
   obtain ⟨M, hM, hMcard⟩ := (lineGraph G).toSimple.exists_isNIndepSet_indepNum
   have hb : (M.biUnion fun e ↦ e.1.toFinset).card = ∑ e ∈ M, e.1.toFinset.card := by
@@ -1773,10 +1788,10 @@ theorem card_le_indepNum_add_two_mul_indepNum_lineGraph (G : CGraph) :
     rw [Finset.sum_const, smul_eq_mul, Nat.mul_comm]
   have hle := (isIndepSet_sdiff_biUnion hM hMcard).card_le_indepNum
   have hsdiff : (Finset.univ \ M.biUnion fun e ↦ e.1.toFinset).card
-      = Fintype.card G.V - (M.biUnion fun e ↦ e.1.toFinset).card := by
-    rw [Finset.card_sdiff, Finset.card_univ, Finset.inter_univ]
-  have hsub : (M.biUnion fun e ↦ e.1.toFinset).card ≤ Fintype.card G.V :=
-    le_trans (Finset.card_le_card (Finset.subset_univ _)) (le_of_eq Finset.card_univ)
+      = FinEnum.card G.V - (M.biUnion fun e ↦ e.1.toFinset).card := by
+    rw [Finset.card_sdiff, FinEnum.card_univ, Finset.inter_univ]
+  have hsub : (M.biUnion fun e ↦ e.1.toFinset).card ≤ FinEnum.card G.V :=
+    le_trans (Finset.card_le_card (Finset.subset_univ _)) (le_of_eq FinEnum.card_univ)
   have hdef : G.indepNum = G.toSimple.indepNum := rfl
   have hdefL : (lineGraph G).indepNum = (lineGraph G).toSimple.indepNum := rfl
   omega

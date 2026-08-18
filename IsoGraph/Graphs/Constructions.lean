@@ -91,7 +91,7 @@ def equivOfBijective {α β : Type} [Fintype α] [DecidableEq β] {f : α → β
 This is the only place in the file where symmetry and irreflexivity are checked; nearly every
 construction goes through it, and may pass a relation that is already symmetric and irreflexive
 (in which case `ofRel` changes nothing). -/
-def ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) : CGraph where
+def ofRel (V : Type) [FinEnum V] (r : V → V → Bool) : CGraph where
   V := V
   Adj x y := decide (x ≠ y) && (r x y || r y x)
   symm x y := by
@@ -100,11 +100,11 @@ def ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) : CGraph
     · cases r x y <;> cases r y x <;> simp [h, Ne.symm h]
   loopless x := by simp
 
-@[simp] theorem ofRel_adj {V : Type} [Fintype V] [DecidableEq V] (r : V → V → Bool) (x y : V) :
+@[simp] theorem ofRel_adj {V : Type} [FinEnum V] (r : V → V → Bool) (x y : V) :
     (ofRel V r).Adj x y = (decide (x ≠ y) && (r x y || r y x)) := rfl
 
-@[simp] theorem card_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool) :
-    Fintype.card (ofRel V r).V = Fintype.card V := rfl
+@[simp] theorem card_ofRel (V : Type) [FinEnum V] (r : V → V → Bool) :
+    FinEnum.card (ofRel V r).V = FinEnum.card V := rfl
 
 /-- **How to recognise an `ofRel`.**  A graph *is* `ofRel V r` as soon as its adjacency agrees
 with the symmetrisation of `r` off the diagonal.
@@ -128,7 +128,7 @@ def ofEdges (n : ℕ) (es : List (ℕ × ℕ)) : CGraph :=
   ofRel (Fin n) fun i j ↦ es.contains (i.1, j.1)
 
 @[simp] theorem card_ofEdges (n : ℕ) (es : List (ℕ × ℕ)) :
-    Fintype.card (ofEdges n es).V = n := Fintype.card_fin n
+    FinEnum.card (ofEdges n es).V = n := rfl
 
 /-- The edgeless graph on `n` vertices. -/
 @[toIsoGraph]
@@ -142,7 +142,15 @@ instance (n : ℕ) : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fi
 
 @[simp] theorem empty_adj (n : ℕ) (i j : (empty n).V) : (empty n).Adj i j = false := rfl
 
-@[simp] theorem card_empty (n : ℕ) : Fintype.card (empty n).V = n := Fintype.card_fin n
+@[simp] theorem card_empty (n : ℕ) : FinEnum.card (empty n).V = n := rfl
+
+/-- The vertices of `empty n` are enumerated by themselves.  Tactics that take a vertex apart —
+`fin_cases`, `decide` through `Finset.univ` — hand back `equiv.symm i` rather than `i`, and the
+`Fin n` lemma cannot fire because the vertex type is not syntactically `Fin n`. -/
+@[simp] theorem equiv_empty (n : ℕ) (i : (empty n).V) : FinEnum.equiv i = i := rfl
+
+@[simp] theorem equiv_empty_symm (n : ℕ) (i : Fin n) :
+    (FinEnum.equiv (α := (empty n).V)).symm i = i := rfl
 
 /-- The complement: same vertices, edges exactly where there were none.
 
@@ -173,7 +181,7 @@ theorem compl_eq_ofRel (G : CGraph) :
     Gᶜ.Adj x y = (decide (x ≠ y) && !G.Adj x y) := rfl
 
 @[simp] theorem card_compl (G : CGraph) :
-    Fintype.card Gᶜ.V = Fintype.card G.V := rfl
+    FinEnum.card Gᶜ.V = FinEnum.card G.V := rfl
 
 /-- Complementation respects isomorphism. -/
 def Iso.compl {G G' : CGraph} (i : G ≃cg G') : Gᶜ ≃cg G'ᶜ :=
@@ -266,14 +274,14 @@ instance (G H : CGraph) [Nonempty G.V] : Nonempty (G ⊕g H).V :=
     (G ⊕g H).Adj (.inr b) (.inl c) = false := rfl
 
 @[simp] theorem card_disjUnion (G H : CGraph) :
-    Fintype.card (G ⊕g H).V = Fintype.card G.V + Fintype.card H.V := Fintype.card_sum
+    FinEnum.card (G ⊕g H).V = FinEnum.card G.V + FinEnum.card H.V := rfl
 
 /-- The disjoint union of a finite family of graphs, on the sigma type.
 
 The relation is already symmetric and loopless — two vertices in the same fibre are adjacent
 exactly when they are adjacent in that fibre's graph — so it is used as-is rather than run
 through `ofRel`; see `sigmaUnion_eq_ofRel`. -/
-def sigmaUnion {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
+def sigmaUnion {ι : Type} [FinEnum ι] (F : ι → CGraph)
  : CGraph where
   V := Σ i, (F i).V
   Adj x y := if h : x.1 = y.1 then (F y.1).Adj (h ▸ x.2) y.2 else false
@@ -290,24 +298,24 @@ def sigmaUnion {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
     rw [dif_pos (rfl : i = i)]
     exact (F i).loopless a
 
-@[simp] theorem sigmaUnion_adj_mk {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
+@[simp] theorem sigmaUnion_adj_mk {ι : Type} [FinEnum ι] (F : ι → CGraph)
  (i : ι) (a b : (F i).V) :
     (sigmaUnion F).Adj ⟨i, a⟩ ⟨i, b⟩ = (F i).Adj a b := by
   show (if h : i = i then (F i).Adj (h ▸ a) b else false) = _
   rw [dif_pos (rfl : i = i)]
 
-theorem sigmaUnion_adj_of_fst_ne {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
+theorem sigmaUnion_adj_of_fst_ne {ι : Type} [FinEnum ι] (F : ι → CGraph)
  (x y : (sigmaUnion F).V) (h : x.1 ≠ y.1) :
     (sigmaUnion F).Adj x y = false := by
   show (if h : x.1 = y.1 then (F y.1).Adj (h ▸ x.2) y.2 else false) = _
   rw [dif_neg h]
 
-@[simp] theorem sigmaUnion_adj_ne {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
+@[simp] theorem sigmaUnion_adj_ne {ι : Type} [FinEnum ι] (F : ι → CGraph)
  (i j : ι) (a : (F i).V) (b : (F j).V) (h : i ≠ j) :
     (sigmaUnion F).Adj ⟨i, a⟩ ⟨j, b⟩ = false :=
   sigmaUnion_adj_of_fst_ne F ⟨i, a⟩ ⟨j, b⟩ h
 
-theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
+theorem sigmaUnion_eq_ofRel {ι : Type} [FinEnum ι] (F : ι → CGraph)
  :
     sigmaUnion F = ofRel (Σ i, (F i).V) fun x y ↦
       if h : x.1 = y.1 then (F y.1).Adj (h ▸ x.2) y.2 else false := by
@@ -321,9 +329,9 @@ theorem sigmaUnion_eq_ofRel {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι �
     rw [(F i).symm b a, Bool.or_self]
   · simp only [sigmaUnion_adj_ne F i j a b h, dif_neg h, dif_neg (Ne.symm h), Bool.or_self]
 
-@[simp] theorem card_sigmaUnion {ι : Type} [Fintype ι] [DecidableEq ι] (F : ι → CGraph)
+@[simp] theorem card_sigmaUnion {ι : Type} [FinEnum ι] (F : ι → CGraph)
  :
-    Fintype.card (sigmaUnion F).V = ∑ i, Fintype.card (F i).V := Fintype.card_sigma
+    FinEnum.card (sigmaUnion F).V = ∑ i, FinEnum.card (F i).V := FinEnum.card_sigma _
 
 /-! ## Built out of the primitives -/
 
@@ -333,7 +341,13 @@ def complete (n : ℕ) : CGraph := (empty n)ᶜ
 
 instance (n : ℕ) : Nonempty (complete (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
-@[simp] theorem card_complete (n : ℕ) : Fintype.card (complete n).V = n := Fintype.card_fin n
+@[simp] theorem card_complete (n : ℕ) : FinEnum.card (complete n).V = n := rfl
+
+/-- As `equiv_empty`: complementation keeps the enumeration, so this is the identity too. -/
+@[simp] theorem equiv_complete (n : ℕ) (i : (complete n).V) : FinEnum.equiv i = i := rfl
+
+@[simp] theorem equiv_complete_symm (n : ℕ) (i : Fin n) :
+    (FinEnum.equiv (α := (complete n).V)).symm i = i := rfl
 
 /-- The join: a disjoint union together with every edge between the two parts. -/
 def join (G H : CGraph) : CGraph :=
@@ -342,7 +356,7 @@ def join (G H : CGraph) : CGraph :=
 @[inherit_doc] infixl:60 " ∇g " => CGraph.join
 
 @[simp] theorem card_join (G H : CGraph) :
-    Fintype.card (G ∇g H).V = Fintype.card G.V + Fintype.card H.V := Fintype.card_sum
+    FinEnum.card (G ∇g H).V = FinEnum.card G.V + FinEnum.card H.V := rfl
 
 @[simp] theorem join_adj_inl_inl (G H : CGraph) (a c : G.V) :
     (G ∇g H).Adj (.inl a) (.inl c) = G.Adj a c := by
@@ -375,7 +389,7 @@ def bipartite (m n : ℕ) : CGraph := (complete m ⊕g complete n)ᶜ
 instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
   inferInstanceAs (Nonempty (Fin (m + 1) ⊕ Fin n))
 
-@[simp] theorem card_bipartite (m n : ℕ) : Fintype.card (bipartite m n).V = m + n := by
+@[simp] theorem card_bipartite (m n : ℕ) : FinEnum.card (bipartite m n).V = m + n := by
   simp [bipartite]
 
 @[simp] theorem bipartite_adj_inl_inl (m n : ℕ) (a c : Fin m) :
@@ -413,7 +427,7 @@ def path (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ i.1 + 1 == j.1
 
 instance (n : ℕ) : Nonempty (path (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
-@[simp] theorem card_path (n : ℕ) : Fintype.card (path n).V = n := Fintype.card_fin n
+@[simp] theorem card_path (n : ℕ) : FinEnum.card (path n).V = n := rfl
 
 /-- The cycle on `n` vertices.  For `n ≤ 2` this degenerates: `cycle 0` and `cycle 1` are
 edgeless, and `cycle 2` is a single edge. -/
@@ -422,7 +436,7 @@ def cycle (n : ℕ) : CGraph := ofRel (Fin n) fun i j ↦ (i.1 + 1) % n == j.1
 
 instance (n : ℕ) : Nonempty (cycle (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
 
-@[simp] theorem card_cycle (n : ℕ) : Fintype.card (cycle n).V = n := Fintype.card_fin n
+@[simp] theorem card_cycle (n : ℕ) : FinEnum.card (cycle n).V = n := rfl
 
 /-- The wheel: a cycle plus a hub joined to all of it. -/
 @[toIsoGraph]
@@ -445,7 +459,7 @@ poles, so at most one `0` is meaningful. -/
 def thetaGraph (xs : List ℕ) : CGraph := ofEdges (2 + xs.sum) (thetaEdges 2 xs)
 
 @[simp] theorem card_thetaGraph (xs : List ℕ) :
-    Fintype.card (thetaGraph xs).V = 2 + xs.sum := Fintype.card_fin _
+    FinEnum.card (thetaGraph xs).V = 2 + xs.sum := rfl
 
 /-! ## Trees, tadpoles and other decorated cycles
 
@@ -472,14 +486,14 @@ vertices attached to it.  `tadpole m 0` is `cycle m` and `tadpole 4 1` is the ba
 @[toIsoGraph]
 def tadpole (m k : ℕ) : CGraph := ofEdges (m + k) (cycleEdges m ++ legEdges 0 m k)
 
-@[simp] theorem card_tadpole (m k : ℕ) : Fintype.card (tadpole m k).V = m + k := Fintype.card_fin _
+@[simp] theorem card_tadpole (m k : ℕ) : FinEnum.card (tadpole m k).V = m + k := rfl
 
 /-- The lollipop graph `L(m,k)`: `Kₘ` with a path of `k` further vertices attached to it. -/
 @[toIsoGraph]
 def lollipop (m k : ℕ) : CGraph := ofEdges (m + k) (cliqueEdges m ++ legEdges 0 m k)
 
 @[simp] theorem card_lollipop (m k : ℕ) :
-    Fintype.card (lollipop m k).V = m + k := Fintype.card_fin _
+    FinEnum.card (lollipop m k).V = m + k := rfl
 
 /-- The legs of a spider: paths of the given lengths, all hanging off vertex `0`, using fresh
 vertices from `off` on. -/
@@ -493,7 +507,7 @@ off it.  `spider [1, 1, …, 1]` is a star and `spider [a, b]` is a path. -/
 def spider (legs : List ℕ) : CGraph := ofEdges (1 + legs.sum) (spiderEdges 1 legs)
 
 @[simp] theorem card_spider (legs : List ℕ) :
-    Fintype.card (spider legs).V = 1 + legs.sum := Fintype.card_fin _
+    FinEnum.card (spider legs).V = 1 + legs.sum := rfl
 
 /-- The double star `S(m,n)`: an edge with `m` pendant vertices on one end and `n` on the
 other. -/
@@ -503,7 +517,7 @@ def doubleStar (m n : ℕ) : CGraph :=
     ((List.range n).map fun i ↦ (1, 2 + m + i))))
 
 @[simp] theorem card_doubleStar (m n : ℕ) :
-    Fintype.card (doubleStar m n).V = 2 + m + n := Fintype.card_fin _
+    FinEnum.card (doubleStar m n).V = 2 + m + n := rfl
 
 /-- Pendant vertices: `ks[i]` fresh vertices attached to vertex `v + i`, taken from `off` on. -/
 def pendantEdges : ℕ → ℕ → List ℕ → List (ℕ × ℕ)
@@ -519,7 +533,7 @@ def cyclePendant (m : ℕ) (ks : List ℕ) : CGraph :=
   ofEdges (m + ks.sum) (cycleEdges m ++ pendantEdges 0 m ks)
 
 @[simp] theorem card_cyclePendant (m : ℕ) (ks : List ℕ) :
-    Fintype.card (cyclePendant m ks).V = m + ks.sum := Fintype.card_fin _
+    FinEnum.card (cyclePendant m ks).V = m + ks.sum := rfl
 
 /-! ## Cayley graphs
 
@@ -529,14 +543,14 @@ no harm either, since `ofRel` deletes the diagonal. -/
 
 /-- The Cayley graph of a finite additive group `A` with connection set `S`: `x ~ y` when
 `y - x ∈ S`.  Left translation is an automorphism, so this is always vertex-transitive. -/
-def cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) : CGraph :=
+def cayleyAdd (A : Type) [FinEnum A] [AddGroup A] (S : A → Bool) : CGraph :=
   ofRel A fun x y ↦ S (y - x)
 
-@[simp] theorem cayleyAdd_adj (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool)
+@[simp] theorem cayleyAdd_adj (A : Type) [FinEnum A] [AddGroup A] (S : A → Bool)
     (x y : A) : (cayleyAdd A S).Adj x y = (decide (x ≠ y) && (S (y - x) || S (x - y))) := rfl
 
-@[simp] theorem card_cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [AddGroup A] (S : A → Bool) :
-    Fintype.card (cayleyAdd A S).V = Fintype.card A := rfl
+@[simp] theorem card_cayleyAdd (A : Type) [FinEnum A] [AddGroup A] (S : A → Bool) :
+    FinEnum.card (cayleyAdd A S).V = FinEnum.card A := rfl
 
 /-- The circulant on `Fin n` with connection set `S`, taken mod `n`: the Cayley graph of `ℤ/n`,
 written on `Fin n` so that no `NeZero` instance is needed.  `cycle n = circulant n [1]`. -/
@@ -545,7 +559,7 @@ def circulant (n : ℕ) (S : List ℕ) : CGraph :=
   ofRel (Fin n) fun x y ↦ S.contains ((y.1 + n - x.1) % n)
 
 @[simp] theorem card_circulant (n : ℕ) (S : List ℕ) :
-    Fintype.card (circulant n S).V = n := Fintype.card_fin n
+    FinEnum.card (circulant n S).V = n := rfl
 
 @[toIsoGraph simp, simp] theorem circulant_nil (n : ℕ) : circulant n [] = empty n :=
   (eq_ofRel (empty n) (fun _ _ ↦ false) fun _ _ _ ↦ rfl).symm
@@ -614,7 +628,7 @@ def paley (q : ℕ) : CGraph :=
 
 instance (q : ℕ) : Nonempty (paley (q + 1)).V := inferInstanceAs (Nonempty (Fin (q + 1)))
 
-@[simp] theorem card_paley (q : ℕ) : Fintype.card (paley q).V = q := Fintype.card_fin q
+@[simp] theorem card_paley (q : ℕ) : FinEnum.card (paley q).V = q := rfl
 
 /-! ## Products
 
@@ -682,20 +696,20 @@ instance (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
     Nonempty (G ·g H).V := inferInstanceAs (Nonempty (G.V × H.V))
 
 @[simp] theorem card_cartesianProduct (G H : CGraph) :
-    Fintype.card (G □g H).V = Fintype.card G.V * Fintype.card H.V :=
-  Fintype.card_prod _ _
+    FinEnum.card (G □g H).V = FinEnum.card G.V * FinEnum.card H.V :=
+  rfl
 
 @[simp] theorem card_tensorProduct (G H : CGraph) :
-    Fintype.card (G ⊗g H).V = Fintype.card G.V * Fintype.card H.V :=
-  Fintype.card_prod _ _
+    FinEnum.card (G ⊗g H).V = FinEnum.card G.V * FinEnum.card H.V :=
+  rfl
 
 @[simp] theorem card_strongProduct (G H : CGraph) :
-    Fintype.card (G ⊠g H).V = Fintype.card G.V * Fintype.card H.V :=
-  Fintype.card_prod _ _
+    FinEnum.card (G ⊠g H).V = FinEnum.card G.V * FinEnum.card H.V :=
+  rfl
 
 @[simp] theorem card_lexProduct (G H : CGraph) :
-    Fintype.card (G ·g H).V = Fintype.card G.V * Fintype.card H.V :=
-  Fintype.card_prod _ _
+    FinEnum.card (G ·g H).V = FinEnum.card G.V * FinEnum.card H.V :=
+  rfl
 
 @[simp] theorem cartesianProduct_adj (G H : CGraph)
     (p q : G.V × H.V) :
@@ -777,7 +791,7 @@ instance (G H : CGraph) [Nonempty G.V] : Nonempty (G ^g H).V :=
   inferInstanceAs (Nonempty (H.V → G.V))
 
 @[simp] theorem card_exponential (G H : CGraph) :
-    Fintype.card (G ^g H).V = Fintype.card G.V ^ Fintype.card H.V := Fintype.card_fun
+    FinEnum.card (G ^g H).V = FinEnum.card G.V ^ FinEnum.card H.V := FinEnum.card_fun
 
 @[simp] theorem exponential_adj (G H : CGraph) (f f' : H.V → G.V) :
     (G ^g H).Adj f f'
@@ -1060,7 +1074,8 @@ theorem johnson_eq_ofRel (n k : ℕ) :
     rw [johnson_adj, decide_eq_true (by simpa using hst : s ≠ t), Bool.true_and,
       Finset.inter_comm t.1 s.1, Bool.or_self]
 
-@[simp] theorem card_johnson (n k : ℕ) : Fintype.card (johnson n k).V = n.choose k := by
+@[simp] theorem card_johnson (n k : ℕ) : FinEnum.card (johnson n k).V = n.choose k := by
+  rw [FinEnum.card_eq_fintypeCard']
   simp [johnson, Fintype.card_finset_len]
 
 /-- The folded cube: `Qₙ` with each pair of antipodal vertices joined, i.e. bit-strings of length
@@ -1083,8 +1098,8 @@ def foldedCube (n : ℕ) : CGraph where
       (((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) ||
         ((Finset.univ.filter fun i ↦ x i ≠ y i).card == n))) := rfl
 
-@[simp] theorem card_foldedCube (n : ℕ) : Fintype.card (foldedCube n).V = 2 ^ n := by
-  simp [foldedCube]
+@[simp] theorem card_foldedCube (n : ℕ) : FinEnum.card (foldedCube n).V = 2 ^ n := by
+  simp [foldedCube, FinEnum.card_fun]
 
 /-- **Seidel switching** with respect to a set `S` of vertices: complement every edge between `S`
 and its complement, leaving the edges inside `S` and inside its complement alone.
@@ -1102,7 +1117,7 @@ def seidelSwitch (G : CGraph) (S : G.V → Bool) : CGraph where
     (seidelSwitch G S).Adj x y = (G.Adj x y ^^ (S x ^^ S y)) := rfl
 
 @[simp] theorem card_seidelSwitch (G : CGraph) (S : G.V → Bool) :
-    Fintype.card (seidelSwitch G S).V = Fintype.card G.V := rfl
+    FinEnum.card (seidelSwitch G S).V = FinEnum.card G.V := rfl
 
 /-- Switching twice with the same set is the identity. -/
 @[simp] theorem seidelSwitch_seidelSwitch (G : CGraph) (S : G.V → Bool) :
@@ -1180,7 +1195,7 @@ cycle on `ss.length * r` vertices with the chords prescribed by `ss`, repeated `
 def lcf (ss : List ℤ) (r : ℕ) : CGraph := ofEdges (ss.length * r) (lcfEdges ss r)
 
 @[simp] theorem card_lcf (ss : List ℤ) (r : ℕ) :
-    Fintype.card (lcf ss r).V = ss.length * r := card_ofEdges _ _
+    FinEnum.card (lcf ss r).V = ss.length * r := card_ofEdges _ _
 
 /-- The edges of the generalized Petersen graph `GP(n, k)`: an outer `n`-cycle on `0 … n-1`, an
 inner circulant `n + i ~ n + (i + k)` on `n … 2n-1`, and the spokes `i ~ n + i`. -/
@@ -1191,7 +1206,7 @@ def gpEdges (n k : ℕ) : List (ℕ × ℕ) :=
 @[toIsoGraph]
 def gp (n k : ℕ) : CGraph := ofEdges (2 * n) (gpEdges n k)
 
-@[simp] theorem card_gp (n k : ℕ) : Fintype.card (gp n k).V = 2 * n := card_ofEdges _ _
+@[simp] theorem card_gp (n k : ℕ) : FinEnum.card (gp n k).V = 2 * n := card_ofEdges _ _
 
 /-! ## Invariants of the constructions
 
@@ -1258,7 +1273,7 @@ variable (G H : CGraph)
     have hk := hs.1
     have hpadj := hs.2
     have hkn : s.card ≤ n := by
-      calc s.card ≤ Fintype.card (empty n).V := s.card_le_univ
+      calc s.card ≤ FinEnum.card (empty n).V := FinEnum.card_le s
         _ = n := card_empty n
     have hk1 : s.card ≤ 1 := by
       rw [Finset.card_le_one]
@@ -1272,7 +1287,7 @@ variable (G H : CGraph)
       exact ⟨n, fun k ⟨s, hs⟩ => by
         have := hs.2
         rw [← this]
-        calc s.card ≤ Fintype.card (empty n).V := s.card_le_univ
+        calc s.card ≤ FinEnum.card (empty n).V := FinEnum.card_le s
           _ = n := card_empty n⟩
     · -- min n 1 is in the set
       rcases n.eq_zero_or_pos with rfl | hn
@@ -1339,7 +1354,9 @@ variable (G H : CGraph)
         rw [ihl htllen hsort_tl, hdal, h1]
         simp [List.length_replicate]
     rw [huv s hall hsorted_s, hlength]
-  exact hgoal.trans (goal 0 n)
+  refine Eq.trans ?_ (hgoal.trans (goal 0 n))
+  exact congrArg (fun s : Finset (Fin n) ↦ (Multiset.map (fun _ ↦ (0 : ℕ)) s.val).sort (· ≤ ·))
+    (Finset.univ_inst_eq _ _)
 
 @[simp] theorem isConnected_empty_one : (empty 1).IsConnected := by
   simp only [IsConnected]
@@ -1373,7 +1390,7 @@ theorem isSRGWith_compl {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
 
 /-- A graph and its complement share out all the pairs between them. -/
 theorem E_compl :
-    Gᶜ.E + G.E = (Fintype.card G.V).choose 2 := by
+    Gᶜ.E + G.E = (FinEnum.card G.V).choose 2 := by
   simp only [CGraph.E]
   have h1 : Gᶜ.toSimple.edgeFinset = G.toSimpleᶜ.edgeFinset := by
     simp [compl_toSimple]
@@ -1413,7 +1430,8 @@ theorem E_compl :
     have := Finset.card_union_of_disjoint (h_disj.symm)
     rw [Finset.union_comm] at this
     rw [← this, h_union]
-  rw [h_card, SimpleGraph.card_edgeFinset_top_eq_card_choose_two]
+  rw [h_card, SimpleGraph.card_edgeFinset_top_eq_card_choose_two,
+    ← FinEnum.card_eq_fintypeCard]
 
 /-! ### The complete graph -/
 
@@ -1441,6 +1459,7 @@ theorem compl_rook (m n : ℕ) :
 @[simp] theorem E_complete (n : ℕ) : (complete n).E = n.choose 2 := by
   have h : (complete n).E = Fintype.card ↥(⊤ : SimpleGraph (Fin n)).edgeSet := by
     simp [E, SimpleGraph.edgeFinset_card]
+    congr!
   rw [h, ← SimpleGraph.edgeFinset_card,
     SimpleGraph.card_edgeFinset_top_eq_card_choose_two, Fintype.card_fin]
 
@@ -1507,18 +1526,14 @@ theorem compl_rook (m n : ℕ) :
     rintro k ⟨s, hs⟩
     have hinfo := h_indep s k |>.mp hs
     have hk1 : k ≤ 1 := hinfo.1 ▸ hinfo.2
-    have hkn : k ≤ n := hinfo.1 ▸ (show s.card ≤ n from by
-      calc s.card ≤ Fintype.card (Fin n) := Finset.card_le_univ s
-        _ = n := Fintype.card_fin n)
+    have hkn : k ≤ n := hinfo.1 ▸ (show s.card ≤ n from FinEnum.card_le s)
     exact le_min hkn hk1
   · -- min n 1 ≤ sSup
     have hbdd : BddAbove {n_1 : ℕ | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊤ : SimpleGraph (Fin n))) n_1 s} := by
       exact ⟨n, fun k ⟨s, hs⟩ => by
         have := h_indep s k |>.mp hs
         have h1 := this.1
-        have h2 : s.card ≤ n := by
-          calc s.card ≤ Fintype.card (Fin n) := Finset.card_le_univ s
-            _ = n := Fintype.card_fin n
+        have h2 : s.card ≤ n := FinEnum.card_le s
         rw [h1] at h2
         exact h2⟩
     -- Show min n 1 is in the set
@@ -1559,7 +1574,8 @@ theorem compl_rook (m n : ℕ) :
   unfold CGraph.degSequence CGraph.degMultiset
   rw [show (fun v : (complete n).V => (complete n).toSimple.degree v) = fun _ => n - 1 from funext hdeg]
   have hcard : Multiset.card (Finset.univ : Finset (complete n).V).val = n := by
-    have h1 : (Finset.univ : Finset (complete n).V).card = Fintype.card (complete n).V := Finset.card_univ
+    have h1 : (Finset.univ : Finset (complete n).V).card = FinEnum.card (complete n).V :=
+      FinEnum.card_univ
     rw [Finset.card_val, h1, card_complete]
   have h1 : Multiset.map (fun x : (complete n).V => n - 1) (Finset.univ : Finset (complete n).V).val = Multiset.replicate n (n - 1) := by
     have hmap : ∀ (s : Multiset (complete n).V) (a : ℕ),
@@ -2070,14 +2086,14 @@ theorem compl_rook (m n : ℕ) :
   -- Need: for a tree, edgeFinset.card = card V - 1
   have h1 : (cycle (n + 3)).toSimple.IsTree := htree_simple
   -- A tree on V vertices has |V|-1 edges. We know |V| = n+3 and |E| = n+3, contradiction.
-  have hV : Fintype.card (cycle (n + 3)).V = n + 3 := card_cycle (n + 3)
+  have hV : FinEnum.card (cycle (n + 3)).V = n + 3 := card_cycle (n + 3)
   -- A tree is a minimal connected graph: removing any edge disconnects it.
   -- Also, a tree on V vertices has |V|-1 edges. Let me find/search for this.
   -- Alternative: use that G.toSimple is a tree, so it has a unique path between any two vertices,
   -- and use rank of graphic matroid... too complex.
   -- Let me try to prove |E| = |V|-1 for a tree by using SimpleGraph's tree lemmas.
   have h_edges := SimpleGraph.IsTree.card_edgeFinset h1
-  rw [hV] at h_edges
+  rw [← FinEnum.card_eq_fintypeCard, hV] at h_edges
   -- h_edges : edgeFinset.card + 1 = n + 3
   -- hE : edgeFinset.card = n + 3 (via CGraph.E)
   have : (cycle (n + 3)).toSimple.edgeFinset.card = (cycle (n + 3)).E := by
@@ -2447,7 +2463,7 @@ theorem compl_rook (m n : ℕ) :
       rcases hs with ⟨hs_indep, hs_card⟩
       rw [hs_card.symm]
       show s.card ≤ m
-      exact le_trans (Finset.card_le_univ s) (card_cycle m |> le_of_eq)⟩
+      exact le_trans (FinEnum.card_le s) (card_cycle m |> le_of_eq)⟩
   have hnonempty : ({n | ∃ s : Finset (Fin m), (cycle m).toSimple.IsNIndepSet n s}).Nonempty := by
     exact ⟨0, (∅ : Finset (Fin m)), SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) rfl⟩
   apply le_antisymm
@@ -2590,9 +2606,9 @@ theorem compl_rook (m n : ℕ) :
   set SH := {n : ℕ | ∃ s : Finset H.V, H'.IsNIndepSet n s} with SH_def
   set SL := {n : ℕ | ∃ s : Finset (G.V ⊕ H.V), (G' ⊕g H').IsNIndepSet n s} with SL_def
   --SG, SH bounded above
-  have hSG_bdd : BddAbove SG := ⟨Fintype.card G.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ s.card_le_univ⟩
-  have hSH_bdd : BddAbove SH := ⟨Fintype.card H.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ s.card_le_univ⟩
-  have hSL_bdd : BddAbove SL := ⟨Fintype.card G.V + Fintype.card H.V, fun n ⟨s, hs⟩ => by
+  have hSG_bdd : BddAbove SG := ⟨FinEnum.card G.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ FinEnum.card_le s⟩
+  have hSH_bdd : BddAbove SH := ⟨FinEnum.card H.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ FinEnum.card_le s⟩
+  have hSL_bdd : BddAbove SL := ⟨FinEnum.card G.V + FinEnum.card H.V, fun n ⟨s, hs⟩ => by
     rw [← hs.card_eq]
     exact s.card_le_univ.trans (by simp [Fintype.card_sum])⟩
   -- Step: SG + SH ⊆ SL (construct indep set in sum from indep sets in each side)
@@ -2766,11 +2782,11 @@ theorem compl_rook (m n : ℕ) :
     · rw [Finset.card_map]
       exact hs.card_eq
   -- SSG is bounded above
-  have hSSG_bdd : BddAbove SSG := ⟨Fintype.card G.V, fun n ⟨s, hs⟩ => by
-    rw [← hs.card_eq]; exact s.card_le_univ⟩
+  have hSSG_bdd : BddAbove SSG := ⟨FinEnum.card G.V, fun n ⟨s, hs⟩ => by
+    rw [← hs.card_eq]; exact FinEnum.card_le s⟩
   -- SSH is bounded above
-  have hSSH_bdd : BddAbove SSH := ⟨Fintype.card H.V, fun n ⟨s, hs⟩ => by
-    rw [← hs.card_eq]; exact s.card_le_univ⟩
+  have hSSH_bdd : BddAbove SSH := ⟨FinEnum.card H.V, fun n ⟨s, hs⟩ => by
+    rw [← hs.card_eq]; exact FinEnum.card_le s⟩
   -- Lower bound from G: SG.cliqueNum ≤ SD.cliqueNum
   have hle_G : sSup SSG ≤ sSup SC := by
     apply csSup_le _ hSSG
@@ -2950,12 +2966,12 @@ theorem disjUnion_assoc (K : CGraph) :
     | inr y => simp)⟩
 
 /-- A disjoint union of two nonempty graphs is disconnected. -/
-theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) :
+theorem not_isConnected_disjUnion (hG : 0 < FinEnum.card G.V) (hH : 0 < FinEnum.card H.V) :
     ¬(G ⊕g H).IsConnected := by
   simp only [CGraph.IsConnected]
   intro h
-  have hGne : Nonempty G.V := Fintype.card_pos_iff.mp hG
-  have hHne : Nonempty H.V := Fintype.card_pos_iff.mp hH
+  have hGne : Nonempty G.V := FinEnum.card_pos_iff.mp hG
+  have hHne : Nonempty H.V := FinEnum.card_pos_iff.mp hH
   let a := hGne.some
   let b := hHne.some
   have hr : (G ⊕g H).toSimple.Reachable (.inl a) (.inr b) := h (Sum.inl a) (.inr b)
@@ -2988,14 +3004,14 @@ theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.
   simp [hside, hside2] at this
 
 @[simp] theorem E_join :
-    (G ∇g H).E = G.E + H.E + Fintype.card G.V * Fintype.card H.V := by
-  have h1 : (G ∇g H).E + (Gᶜ ⊕g Hᶜ).E = (Fintype.card (G ∇g H).V).choose 2 := by
+    (G ∇g H).E = G.E + H.E + FinEnum.card G.V * FinEnum.card H.V := by
+  have h1 : (G ∇g H).E + (Gᶜ ⊕g Hᶜ).E = (FinEnum.card (G ∇g H).V).choose 2 := by
     rw [join]
     exact E_compl _
   have h2 : (Gᶜ ⊕g Hᶜ).E = Gᶜ.E + Hᶜ.E := E_disjUnion _ _
-  have h3 : Gᶜ.E + G.E = (Fintype.card G.V).choose 2 := E_compl G
-  have h4 : Hᶜ.E + H.E = (Fintype.card H.V).choose 2 := E_compl H
-  have h5 : Fintype.card (G ∇g H).V = Fintype.card G.V + Fintype.card H.V := card_join G H
+  have h3 : Gᶜ.E + G.E = (FinEnum.card G.V).choose 2 := E_compl G
+  have h4 : Hᶜ.E + H.E = (FinEnum.card H.V).choose 2 := E_compl H
+  have h5 : FinEnum.card (G ∇g H).V = FinEnum.card G.V + FinEnum.card H.V := card_join G H
   rw [h5] at h1
   rw [h2] at h1
   have h_choose : ∀ (m n : ℕ), (m + n).choose 2 = m.choose 2 + n.choose 2 + m * n := by
@@ -3014,7 +3030,7 @@ theorem not_isConnected_disjUnion (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.
   linarith [h3, h4]
 
 theorem isConnected_join
-    (hG : 0 < Fintype.card G.V) (hH : 0 < Fintype.card H.V) : (G ∇g H).IsConnected := by
+    (hG : 0 < FinEnum.card G.V) (hH : 0 < FinEnum.card H.V) : (G ∇g H).IsConnected := by
   simp only [IsConnected, join, CGraph.toSimple]
   have hcross : ∀ (a : G.V) (b : H.V),
       ((G ∇g H).toSimple.Adj (Sum.inl a) (Sum.inr b) = true) := by
@@ -3023,8 +3039,8 @@ theorem isConnected_join
       ((G ∇g H).toSimple.Adj (Sum.inr b) (Sum.inl a) = true) := by
     simp [join, CGraph.toSimple, disjUnion_adj_inr_inl]
   set J := (G ∇g H).toSimple
-  obtain ⟨a0⟩ := Fintype.card_pos_iff.mp hG
-  obtain ⟨b0⟩ := Fintype.card_pos_iff.mp hH
+  obtain ⟨a0⟩ := FinEnum.card_pos_iff.mp hG
+  obtain ⟨b0⟩ := FinEnum.card_pos_iff.mp hH
   let walk_inl_inr (a : G.V) (b : H.V) : J.Walk (Sum.inl a) (Sum.inr b) :=
     SimpleGraph.Walk.cons (by rw [hcross a b]) SimpleGraph.Walk.nil
   let walk_inr_inl (b : H.V) (a : G.V) : J.Walk (Sum.inr b) (Sum.inl a) :=
@@ -3145,8 +3161,8 @@ theorem isConnected_join
           exact h1.trans hC.card_eq
         have hdav_clique : Gᶜ.toSimple.IsClique (Dav : Set Gᶜ.V) := by
           intro a1 ha1 a2 ha2 ha12
-          have ha1C : Sum.inl a1 ∈ C := Finset.mem_filter.mp ha1 |>.2
-          have ha2C : Sum.inl a2 ∈ C := Finset.mem_filter.mp ha2 |>.2
+          have ha1C : Sum.inl a1 ∈ C := Finset.mem_filter.mp (Finset.mem_coe.mp ha1) |>.2
+          have ha2C : Sum.inl a2 ∈ C := Finset.mem_filter.mp (Finset.mem_coe.mp ha2) |>.2
           have hadj' : (Gᶜ ⊕g Hᶜ).toSimple.Adj (Sum.inl a1) (Sum.inl a2) :=
             hC.isClique (by exact ha1C) (by exact ha2C) (by intro h; exact ha12 (embL.injective h))
           exact embL.map_adj_iff.mp hadj'
@@ -3169,8 +3185,8 @@ theorem isConnected_join
           exact h1.trans hC.card_eq
         have hdav_clique : Hᶜ.toSimple.IsClique (Dav : Set Hᶜ.V) := by
           intro b1 hb1 b2 hb2 hb12
-          have h1 : Sum.inr b1 ∈ C := Finset.mem_filter.mp hb1 |>.2
-          have h2 : Sum.inr b2 ∈ C := Finset.mem_filter.mp hb2 |>.2
+          have h1 : Sum.inr b1 ∈ C := Finset.mem_filter.mp (Finset.mem_coe.mp hb1) |>.2
+          have h2 : Sum.inr b2 ∈ C := Finset.mem_filter.mp (Finset.mem_coe.mp hb2) |>.2
           have hadj' : (Gᶜ ⊕g Hᶜ).toSimple.Adj (Sum.inr b1) (Sum.inr b2) :=
             hC.isClique h1 h2 (by intro h; exact hb12 (embR.injective h))
           exact embR.map_adj_iff.mp hadj'
@@ -3429,9 +3445,9 @@ theorem isConnected_join
   rfl
 
 @[simp] theorem card_completeMultipartite (ds : List ℕ) :
-    Fintype.card (completeMultipartite ds).V = ds.sum := by
+    FinEnum.card (completeMultipartite ds).V = ds.sum := by
   simp only [completeMultipartite, card_compl, card_sigmaUnion, card_complete]
-  rw [← Fin.sum_ofFn, List.ofFn_get]
+  rw [Finset.sum_univ_inst_eq _ (Fin.fintype ds.length), ← Fin.sum_ofFn, List.ofFn_get]
 
 @[simp] theorem indepNum_completeMultipartite (ds : List ℕ) :
     (completeMultipartite ds).indepNum = (ds.max?).getD 0 := by
@@ -3497,8 +3513,9 @@ theorem isConnected_join
        fun p => (show (Fi p.val.1).V = (Fi i).V from by rw [p.property]) ▸ p.val.2,
        fun _ => rfl,
        fun ⟨⟨j, v⟩, hj⟩ => by subst hj; rfl⟩
-    have hfiber_card_equiv : ∀ i, Fintype.card {v : (sigmaUnion Fi).V // v.1 = i} = Fintype.card (Fi i).V :=
-      fun i => Fintype.card_congr (fiberEquiv i).symm
+    have hfiber_card_equiv : ∀ i, Fintype.card {v : (sigmaUnion Fi).V // v.1 = i} = FinEnum.card (Fi i).V :=
+      fun i => (Fintype.card_congr (fiberEquiv i).symm).trans
+        FinEnum.card_eq_fintypeCard.symm
     -- Step 1: cliqueNum (sigmaUnion Fi) = Finset.sup Finset.univ (fun i => (Fi i).cliqueNum)
     have hsigma : (sigmaUnion Fi).cliqueNum = Finset.sup Finset.univ (fun i => (Fi i).cliqueNum) := by
       apply le_antisymm
@@ -3520,9 +3537,9 @@ theorem isConnected_join
             have hcard_eq_n : s.card = n := SimpleGraph.IsNClique.card_eq hs
             have hsub : s ⊆ Finset.univ.filter (fun v : (sigmaUnion Fi).V => v.1 = i) := by
               intro v hv; simp [hall v hv]
-            have hfilter_card : (Finset.univ.filter (fun v : (sigmaUnion Fi).V => v.1 = i)).card = Fintype.card (Fi i).V := by
+            have hfilter_card : (Finset.univ.filter (fun v : (sigmaUnion Fi).V => v.1 = i)).card = FinEnum.card (Fi i).V := by
               rw [← Fintype.card_subtype, hfiber_card_equiv]
-            have hcard_eq_clique : Fintype.card (Fi i).V = (Fi i).cliqueNum := by
+            have hcard_eq_clique : FinEnum.card (Fi i).V = (Fi i).cliqueNum := by
               rw [card_complete, hcliqueNum_Fi i]
             rw [hcard_eq_clique] at hfilter_card
             have hcard_le : n ≤ (Fi i).cliqueNum := by
@@ -3533,11 +3550,11 @@ theorem isConnected_join
         apply Finset.sup_le
         intro i _
         apply le_csSup
-        · exact ⟨Fintype.card (sigmaUnion Fi).V, fun m ⟨t, ht⟩ => by
+        · exact ⟨FinEnum.card (sigmaUnion Fi).V, fun m ⟨t, ht⟩ => by
             rw [← ht.card_eq]
-            exact Finset.card_le_univ t⟩
+            exact FinEnum.card_le t⟩
         · let s_i := Finset.univ.image (embed i)
-          have hc : (Fi i).cliqueNum = Fintype.card (Fi i).V := by
+          have hc : (Fi i).cliqueNum = FinEnum.card (Fi i).V := by
             rw [hcliqueNum_Fi i, card_complete]
           have hs_i_clique : (sigmaUnion Fi).toSimple.IsNClique (Fi i).cliqueNum s_i := by
             rw [hc] at *
@@ -3593,7 +3610,7 @@ theorem isConnected_join
     dsimp only [Fi] at hsigma ⊢
     rw [hsigma, Finset.sup_congr rfl (fun i _ => hcliqueNum_Fi i), hsup']
 
-@[simp] theorem card_star (n : ℕ) : Fintype.card (star n).V = 1 + n := by
+@[simp] theorem card_star (n : ℕ) : FinEnum.card (star n).V = 1 + n := by
   simp [star]
 
 @[simp] theorem E_star (n : ℕ) : (star n).E = n := by
@@ -3602,7 +3619,7 @@ theorem isConnected_join
 /-! ### Products -/
 
 @[simp] theorem E_cartesianProduct :
-    (G □g H).E = Fintype.card G.V * H.E + Fintype.card H.V * G.E := by
+    (G □g H).E = FinEnum.card G.V * H.E + FinEnum.card H.V * G.E := by
   dsimp only [CGraph.E]
   -- Step 1: Show that toSimple of cartesianProduct equals SimpleGraph.prodCartesian
   have huv : ∀ p q : G.V × H.V, (G □g H).toSimple.Adj p q ↔
@@ -3612,7 +3629,7 @@ theorem isConnected_join
     simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
   -- Handshaking lemma for cartesianProduct
   have hhand_CP : ∑ v : G.V × H.V, (G □g H).toSimple.degree v =
-      Fintype.card H.V * ∑ g : G.V, G.toSimple.degree g + Fintype.card G.V * ∑ h : H.V, H.toSimple.degree h := by
+      FinEnum.card H.V * ∑ g : G.V, G.toSimple.degree g + FinEnum.card G.V * ∑ h : H.V, H.toSimple.degree h := by
     have hdeg : ∀ g : G.V, ∀ h : H.V,
         (G □g H).toSimple.degree (g, h) = G.toSimple.degree g + H.toSimple.degree h := by
       intro g h
@@ -3655,7 +3672,8 @@ theorem isConnected_join
   -- Use handshaking lemma
   have hhand : 2 * (G □g H).toSimple.edgeFinset.card =
       ∑ v : G.V × H.V, (G □g H).toSimple.degree v :=
-    (SimpleGraph.sum_degrees_eq_twice_card_edges (G := (G □g H).toSimple)).symm
+    ((SimpleGraph.sum_degrees_eq_twice_card_edges (G := (G □g H).toSimple)).symm).trans
+      (Finset.sum_univ_inst_eq _ _ _)
   have hhand_G : ∑ g : G.V, G.toSimple.degree g = 2 * G.toSimple.edgeFinset.card :=
     SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
   have hhand_H : ∑ h : H.V, H.toSimple.degree h = 2 * H.toSimple.edgeFinset.card :=
@@ -3694,7 +3712,7 @@ theorem isConnected_join
       rintro ⟨g, h⟩
       exact hdeg g h
     rw [Finset.sum_congr rfl (fun p _ => this p)]
-    rfl
+    exact Finset.sum_univ_inst_eq _ _ _
   -- Factor the double sum using Finset.sum_product'
   have hfactor : ∑ p : G.V × H.V, G.toSimple.degree p.1 * H.toSimple.degree p.2 =
     (∑ g : G.V, G.toSimple.degree g) * (∑ h : H.V, H.toSimple.degree h) := by
@@ -3745,10 +3763,10 @@ theorem isConnected_join
   have hSG_ne : SG.Nonempty := ⟨0, ⟨∅, by intro x; simp, rfl⟩⟩
   have hSH_ne : SH.Nonempty := ⟨0, ⟨∅, by intro x; simp, rfl⟩⟩
   have hSGH_ne : SGH.Nonempty := ⟨0, ⟨∅, by intro x; simp, rfl⟩⟩
-  have hSG_bdd : BddAbove SG := ⟨Fintype.card G.V, fun n ⟨s, hs⟩ ↦ hs.card_eq.symm ▸ s.card_le_univ⟩
-  have hSH_bdd : BddAbove SH := ⟨Fintype.card H.V, fun n ⟨s, hs⟩ ↦ hs.card_eq.symm ▸ s.card_le_univ⟩
+  have hSG_bdd : BddAbove SG := ⟨FinEnum.card G.V, fun n ⟨s, hs⟩ ↦ hs.card_eq.symm ▸ FinEnum.card_le s⟩
+  have hSH_bdd : BddAbove SH := ⟨FinEnum.card H.V, fun n ⟨s, hs⟩ ↦ hs.card_eq.symm ▸ FinEnum.card_le s⟩
   have hSGH_bdd : BddAbove SGH :=
-    ⟨Fintype.card G.V * Fintype.card H.V, fun n ⟨s, hs⟩ ↦
+    ⟨FinEnum.card G.V * FinEnum.card H.V, fun n ⟨s, hs⟩ ↦
       hs.card_eq.symm ▸ le_trans s.card_le_univ (by simp [Fintype.card_prod])⟩
   -- Key: indepNum is attained. Use that {n | ...} is a set of naturals that is nonempty and
   -- bounded above, and for ℕ, sSup is attained when the set is "compact" (finite). 
@@ -3868,10 +3886,10 @@ theorem isConnected_join
   have h0H : ∃ s : Finset H.V, sH.IsNClique 0 s := ⟨∅, by simp⟩
   have hωG_nonempty : {n | ∃ s : Finset G.V, sG.IsNClique n s}.Nonempty := ⟨0, h0G⟩
   have hωG_bdd : BddAbove {n | ∃ s : Finset G.V, sG.IsNClique n s} := by
-    exact ⟨Fintype.card G.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact Finset.card_le_univ s⟩
+    exact ⟨FinEnum.card G.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact FinEnum.card_le s⟩
   have hωH_nonempty : {n | ∃ s : Finset H.V, sH.IsNClique n s}.Nonempty := ⟨0, h0H⟩
   have hωH_bdd : BddAbove {n | ∃ s : Finset H.V, sH.IsNClique n s} := by
-    exact ⟨Fintype.card H.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact Finset.card_le_univ s⟩
+    exact ⟨FinEnum.card H.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact FinEnum.card_le s⟩
   -- cliqueNum = sSup of clique sizes (already unfolded)
   -- Helper: clique sizes are ≤ cliqueNum
   have card_le_cliqueNum {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
@@ -4021,16 +4039,17 @@ theorem isConnected_join
     exact card_le_cliqueNum sGH hu_clique'
   exact le_antisymm upper_sSup hlower
 
-@[simp] theorem card_hypercube (n : ℕ) : Fintype.card (hypercube n).V = 2 ^ n := by
-  simp [hypercube]
+@[simp] theorem card_hypercube (n : ℕ) : FinEnum.card (hypercube n).V = 2 ^ n := by
+  simp [hypercube, FinEnum.card_fun]
 
 /-! ### Kneser, line and Mycielskian -/
 
-@[simp] theorem card_kneser (n k : ℕ) : Fintype.card (kneser n k).V = n.choose k := by
-  simp [kneser, Fintype.card_finset_len]
+@[simp] theorem card_kneser (n k : ℕ) : FinEnum.card (kneser n k).V = n.choose k := by
+  show FinEnum.card {s : Finset (Fin n) // s.card = k} = n.choose k
+  rw [FinEnum.card_eq_fintypeCard', Fintype.card_finset_len, Fintype.card_fin]
 
-@[simp] theorem card_lineGraph : Fintype.card (lineGraph G).V = G.E := by
-  rw [E, SimpleGraph.edgeFinset_card]
+@[simp] theorem card_lineGraph : FinEnum.card (lineGraph G).V = G.E := by
+  rw [E, SimpleGraph.edgeFinset_card, FinEnum.card_eq_fintypeCard]
   exact Fintype.card_congr' rfl
 
 /-- The degree of an edge `e` in `lineGraph G`: each endpoint `v` of `e` contributes the
@@ -4223,19 +4242,19 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
   exact mul_left_cancel₀ two_ne_zero hchain
 
 @[simp] theorem card_mycielskian :
-    Fintype.card (mycielskian G).V = 2 * Fintype.card G.V + 1 := by
-  simp [mycielskian, Fintype.card_option, Fintype.card_sum, two_mul]
+    FinEnum.card (mycielskian G).V = 2 * FinEnum.card G.V + 1 := by
+  simp [mycielskian, two_mul]
 
 @[simp] theorem E_mycielskian :
-    (mycielskian G).E = 3 * G.E + Fintype.card G.V := by
+    (mycielskian G).E = 3 * G.E + FinEnum.card G.V := by
   unfold CGraph.E
   let H := (mycielskian G).toSimple
   have hhand_myc := H.sum_degrees_eq_twice_card_edges
   have hhand_G := G.toSimple.sum_degrees_eq_twice_card_edges
-  -- Goal: H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + Fintype.card G.V
+  -- Goal: H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + FinEnum.card G.V
   -- From handshaking: 2 * H.edgeFinset.card = ∑ v, H.degree v
   -- and 2 * G.toSimple.edgeFinset.card = ∑ v, G.toSimple.degree v
-  -- So it suffices to show ∑ v, H.degree v = 3 * ∑ v, G.toSimple.degree v + 2 * Fintype.card G.V
+  -- So it suffices to show ∑ v, H.degree v = 3 * ∑ v, G.toSimple.degree v + 2 * FinEnum.card G.V
   -- Helper: describe neighbors of each vertex type in H
   have h_neighborFinset_inl : ∀ a : G.V,
       H.neighborFinset (some (Sum.inl a)) =
@@ -4257,7 +4276,7 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
     ext y
     simp [H, mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
     rcases y with _ | y | y <;> simp
-  have target : ∑ v : Option (G.V ⊕ G.V), H.degree v = 3 * ∑ v : G.V, G.toSimple.degree v + 2 * Fintype.card G.V := by
+  have target : ∑ v : Option (G.V ⊕ G.V), H.degree v = 3 * ∑ v : G.V, G.toSimple.degree v + 2 * FinEnum.card G.V := by
     have hinjl : Function.Injective (fun b : G.V => some (Sum.inl b) : G.V → Option (G.V ⊕ G.V)) :=
       fun x y h => Sum.inl_injective (Option.some_injective (G.V ⊕ G.V) h)
     have hinjr : Function.Injective (fun b : G.V => some (Sum.inr b) : G.V → Option (G.V ⊕ G.V)) :=
@@ -4276,7 +4295,7 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
       · rw [Finset.card_image_of_injective _ hinjl]
         · rfl
       · simp [Finset.disjoint_singleton_right]
-    have hdeg_none : H.degree none = Fintype.card G.V := by
+    have hdeg_none : H.degree none = FinEnum.card G.V := by
       rw [SimpleGraph.degree, h_neighborFinset_none]
       rw [Finset.card_image_of_injective _ hinjr]
       simp
@@ -4301,19 +4320,20 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
     simp only [hdeg_inl, hdeg_inr]
     have h1 : ∑ x : G.V, 2 * G.toSimple.degree x = 2 * ∑ x : G.V, G.toSimple.degree x := by
       rw [Finset.mul_sum]
-    have h2 : ∑ x : G.V, (G.toSimple.degree x + 1) = ∑ x : G.V, G.toSimple.degree x + Fintype.card G.V := by
+    have h2 : ∑ x : G.V, (G.toSimple.degree x + 1) = ∑ x : G.V, G.toSimple.degree x + FinEnum.card G.V := by
       rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ]
       simp
     rw [h1, h2]
     ring
-  rw [show (∑ v : Option (G.V ⊕ G.V), H.degree v) = 2 * H.edgeFinset.card from hhand_myc] at target
+  rw [show (∑ v : Option (G.V ⊕ G.V), H.degree v) = 2 * H.edgeFinset.card from
+    (Finset.sum_univ_inst_eq _ _ _).trans hhand_myc] at target
   rw [show (∑ v : G.V, G.toSimple.degree v) = 2 * G.toSimple.edgeFinset.card from hhand_G] at target
-  have h2 : 2 * H.edgeFinset.card = 6 * G.toSimple.edgeFinset.card + 2 * Fintype.card G.V := by linarith
-  have h3 : H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + Fintype.card G.V := by omega
+  have h2 : 2 * H.edgeFinset.card = 6 * G.toSimple.edgeFinset.card + 2 * FinEnum.card G.V := by linarith
+  have h3 : H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + FinEnum.card G.V := by omega
   exact h3
 
 /-- The Petersen graph, as `K(5,2)`. -/
-theorem card_petersen : Fintype.card (kneser 5 2).V = 10 := by
+theorem card_petersen : FinEnum.card (kneser 5 2).V = 10 := by
   rw [card_kneser]; rfl
 
 end Invariants
@@ -4399,12 +4419,14 @@ theorem nbrs_inter_rook_diag (a c : (complete m).V) (b d : (complete n).V) (h1 :
 theorem card_nbrs_inter_rook_row (a : (complete m).V) (b d : (complete n).V) (h : b ≠ d) :
     ((rook m n).nbrs (a, b) ∩ (rook m n).nbrs (a, d)).card = n - 2 := by
   rw [nbrs_inter_rook_row a b d h, Finset.card_product, Finset.card_compl,
-    Finset.card_singleton, Finset.card_pair h, card_complete, one_mul]
+    Finset.card_singleton, Finset.card_pair h, ← FinEnum.card_eq_fintypeCard, card_complete,
+    one_mul]
 
 theorem card_nbrs_inter_rook_col (a c : (complete m).V) (b : (complete n).V) (h : a ≠ c) :
     ((rook m n).nbrs (a, b) ∩ (rook m n).nbrs (c, b)).card = m - 2 := by
   rw [nbrs_inter_rook_col a c b h, Finset.card_product, Finset.card_compl,
-    Finset.card_singleton, Finset.card_pair h, card_complete, mul_one]
+    Finset.card_singleton, Finset.card_pair h, ← FinEnum.card_eq_fintypeCard, card_complete,
+    mul_one]
 
 theorem card_nbrs_inter_rook_diag (a c : (complete m).V) (b d : (complete n).V) (h1 : a ≠ c)
     (h2 : b ≠ d) : ((rook m n).nbrs (a, b) ∩ (rook m n).nbrs (c, d)).card = 2 := by
@@ -4416,8 +4438,8 @@ Only the *square* rook's graphs qualify: in `rook m n` two squares in a row have
 neighbours and two in a column have `m - 2`, so `ℓ` is well defined exactly when `m = n`. -/
 theorem isSRGWith_rook (k : ℕ) : (rook k k).IsSRGWith (k * k) (2 * (k - 1)) (k - 2) 2 := by
   refine isSRGWith_of _ ?_ ?_ ?_ ?_
-  · show Fintype.card ((complete k).V × (complete k).V) = k * k
-    rw [Fintype.card_prod, card_complete]
+  · show FinEnum.card (complete k).V * FinEnum.card (complete k).V = k * k
+    rw [card_complete]
   · rintro ⟨a, b⟩
     rw [card_nbrs_rook]
     omega
@@ -4617,8 +4639,8 @@ theorem isSRGWith_bipartite (n : ℕ) : (bipartite n n).IsSRGWith (2 * n) n 0 n 
     · rw [nbrs_bipartite_inr]; simp
   refine isSRGWith_of _ ?_ hnbrs (fun (x y : (complete n).V ⊕ (complete n).V) hadj ↦ ?_)
     (fun (x y : (complete n).V ⊕ (complete n).V) hne _ ↦ ?_)
-  · show Fintype.card ((complete n).V ⊕ (complete n).V) = 2 * n
-    simp [two_mul]
+  · show FinEnum.card (complete n).V + FinEnum.card (complete n).V = 2 * n
+    rw [card_complete, two_mul]
   · -- adjacent: one vertex on each side, and the two neighbourhoods are the two sides
     rcases x with a | b <;> rcases y with c | d <;> simp_all [nbrs_bipartite_inl,
       nbrs_bipartite_inr, Finset.eq_empty_iff_forall_notMem]
@@ -4758,14 +4780,15 @@ is exactly `isSRGWith_of`.  The last step, `paleyIso`, identifies `paley q` — 
 /-- The **Paley graph** of a finite field: `x ~ y` when `y - x` is a nonzero square.  For
 `Fintype.card F % 4 = 1` this is `paley (Fintype.card F)` up to isomorphism; see `paleyIso`. -/
 @[toIsoGraph]
-def paleyField (F : Type) [Field F] [Fintype F] [DecidableEq F] : CGraph :=
+def paleyField (F : Type) [Field F] [FinEnum F] : CGraph :=
   cayleyAdd F fun z ↦ decide (quadraticChar F z = 1)
 
 section PaleyField
 
-variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
+variable {F : Type} [Field F] [FinEnum F]
 
-@[simp] theorem card_paleyField : Fintype.card (paleyField F).V = Fintype.card F := rfl
+@[simp] theorem card_paleyField : FinEnum.card (paleyField F).V = Fintype.card F :=
+  FinEnum.card_eq_fintypeCard
 
 theorem paleyField_adj (hq : Fintype.card F % 4 = 1) (x y : F) :
     (paleyField F).Adj x y = decide (quadraticChar F (y - x) = 1) := by
@@ -4832,7 +4855,7 @@ theorem isSRGWith_paleyField (hq : Fintype.card F % 4 = 1) :
     (paleyField F).IsSRGWith (Fintype.card F) ((Fintype.card F - 1) / 2)
       ((Fintype.card F - 5) / 4) ((Fintype.card F - 1) / 4) := by
   have h2 : 2 ≤ Fintype.card F := Fintype.one_lt_card
-  refine isSRGWith_of _ rfl (fun (x : F) ↦ card_nbrs_paleyField hq x)
+  refine isSRGWith_of _ card_paleyField (fun (x : F) ↦ card_nbrs_paleyField hq x)
     (fun (x y : F) hadj ↦ ?_) (fun (x y : F) hxy hadj ↦ ?_)
   · -- adjacent: `χ (y - x) = 1`
     rw [paleyField_adj hq] at hadj
@@ -4868,7 +4891,7 @@ theorem quadraticChar_eq_one_iff (a : F) :
 Zero is a square, so a non-square is nonzero, and multiplying by it is a bijection of `F` that
 exchanges the squares with the non-squares — that is, edges of `paleyField F` with non-edges. -/
 
-omit [Fintype F] [DecidableEq F] in
+omit [FinEnum F] in
 theorem ne_zero_of_not_isSquare {g : F} (hg : ¬ IsSquare g) : g ≠ 0 := by
   rintro rfl; exact hg ⟨0, by simp⟩
 
@@ -4898,30 +4921,30 @@ end PaleyField
 
 /-! ### `paley q` is the field version over `ZMod q` -/
 
-/-- `ZMod q` and `Fin q`, matched up by `ZMod.val`. -/
-def zmodEquivFin (q : ℕ) [NeZero q] : ZMod q ≃ Fin q where
-  toFun a := ⟨a.val, ZMod.val_lt a⟩
-  invFun i := (i.1 : ZMod q)
-  left_inv a := ZMod.natCast_rightInverse a
-  right_inv i := Fin.ext (ZMod.val_cast_of_lt i.2)
-
 theorem paley_adj_eq (q : ℕ) [NeZero q] [Fact q.Prime] (a b : ZMod q) :
     (paley q).Adj (zmodEquivFin q a) (zmodEquivFin q b) = (paleyField (ZMod q)).Adj a b := by
   have key : ∀ u v : ZMod q,
       (qrTable q)[((zmodEquivFin q v).1 + q - (zmodEquivFin q u).1) % q]!
-        = decide (quadraticChar (ZMod q) (v - u) = 1) := by
+        = decide (∃ r : ZMod q, r ≠ 0 ∧ r * r = v - u) := by
     intro u v
     show (qrTable q)[(v.val + q - u.val) % q]! = _
     rw [zmod_val_sub u v, qrTable_getElem q _ (ZMod.val_lt (v - u))]
-    simp only [exists_sq_iff_val, quadraticChar_eq_one_iff]
+    simp only [exists_sq_iff_val]
   show (ofRel (Fin q) _).Adj _ _ = (cayleyAdd (ZMod q) _).Adj a b
   rw [ofRel_adj, cayleyAdd_adj]
   show (decide ((zmodEquivFin q a) ≠ (zmodEquivFin q b)) &&
       ((qrTable q)[((zmodEquivFin q b).1 + q - (zmodEquivFin q a).1) % q]! ||
        (qrTable q)[((zmodEquivFin q a).1 + q - (zmodEquivFin q b).1) % q]!)) = _
-  rw [key a b, key b a]
-  congr 1
-  simp [EmbeddingLike.apply_eq_iff_eq]
+  rw [key a b, key b a,
+    show decide ((zmodEquivFin q a) ≠ (zmodEquivFin q b)) = decide (a ≠ b) from by
+      simp [EmbeddingLike.apply_eq_iff_eq]]
+  -- both sides are now `decide (a ≠ b) && (· || ·)`; the two disjuncts differ only in how they
+  -- say "is a nonzero square", and `simp` must not be let near them — it unfolds the character
+  -- to `quadraticCharFun` and then the `Fintype` instance in `quadraticChar_eq_one_iff` no longer
+  -- matches the one `paleyField` was elaborated with
+  exact congrArg₂ (· && ·) rfl (congrArg₂ (· || ·)
+    (decide_eq_decide.2 (quadraticChar_eq_one_iff _).symm)
+    (decide_eq_decide.2 (quadraticChar_eq_one_iff _).symm))
 
 /-- For a prime `q`, `paley q` is the Paley graph of the field `ZMod q`. -/
 @[toIsoGraph paleyField_zmod]
@@ -4935,7 +4958,9 @@ the bare existence statement see `Iso.complPaley`. -/
 def Iso.complPaleyOfNotIsSquare (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) {g : ZMod q}
     (hg : ¬ IsSquare g) : (paley q)ᶜ ≃cg paley q :=
   (Iso.compl (paleyIso q)).symm.trans
-    ((Iso.complPaleyField (F := ZMod q) (by rw [ZMod.card]; exact hq) hg).trans (paleyIso q))
+    ((Iso.complPaleyField (F := ZMod q)
+      (by rw [← @FinEnum.card_eq_fintypeCard (ZMod q) _ FinEnum.instFintype]; exact hq)
+      hg).trans (paleyIso q))
 
 /-- Every prime `q ≡ 1 mod 4` has a non-residue, so `paley q` is self-complementary.  Choosing
 one is the only classical step, and `Iso.complPaleyOfNotIsSquare` avoids it when a witness is
@@ -4950,9 +4975,9 @@ noncomputable def Iso.complPaley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4
 @[toIsoGraph]
 theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     (paley q).IsSRGWith q ((q - 1) / 2) ((q - 5) / 4) ((q - 1) / 4) := by
-  have hcard : Fintype.card (ZMod q) = q := ZMod.card q
-  have h := isSRGWith_paleyField (F := ZMod q) (by rw [hcard]; exact hq)
-  rw [hcard] at h
+  have h := isSRGWith_paleyField (F := ZMod q) (by
+    rw [← @FinEnum.card_eq_fintypeCard (ZMod q) _ FinEnum.instFintype]; exact hq)
+  rw [← @FinEnum.card_eq_fintypeCard (ZMod q) _ FinEnum.instFintype] at h
   exact SimpleGraph.Iso.isSRGWith_of_iso (CGraph.Iso.toSimpleIso (paleyIso q)) h
 
 end SRGFamilies
@@ -4974,7 +4999,7 @@ variable (G : CGraph)
 
 /-- To see that `ofRel V r` is vertex-transitive it is enough to move `u` to `v` by a permutation
 preserving the symmetrisation of `r`. -/
-theorem isVertexTransitive_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool)
+theorem isVertexTransitive_ofRel (V : Type) [FinEnum V] (r : V → V → Bool)
     (h : ∀ u v : V, ∃ σ : Equiv.Perm V,
       (∀ x y, (r (σ x) (σ y) || r (σ y) (σ x)) = (r x y || r y x)) ∧ σ u = v) :
     (ofRel V r).IsVertexTransitive := by
@@ -4988,7 +5013,7 @@ theorem isVertexTransitive_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V �
 
 /-- To see that `ofRel V r` is arc-transitive it is enough to match up any two pairs of distinct,
 symmetrically-related points. -/
-theorem isArcTransitive_ofRel (V : Type) [Fintype V] [DecidableEq V] (r : V → V → Bool)
+theorem isArcTransitive_ofRel (V : Type) [FinEnum V] (r : V → V → Bool)
     (h : ∀ u v u' v' : V, u ≠ v → u' ≠ v' → (r u v || r v u) → (r u' v' || r v' u') →
       ∃ σ : Equiv.Perm V, (∀ x y, (r (σ x) (σ y) || r (σ y) (σ x)) = (r x y || r y x)) ∧
         σ u = u' ∧ σ v = v') :
@@ -5051,13 +5076,13 @@ theorem isArcTransitive_complete (n : ℕ) : (complete n).IsArcTransitive := by
   exact ⟨σ, fun _ _ ↦ rfl, h₁, h₂⟩
 
 /-- Right translation is an automorphism of a Cayley graph. -/
-theorem isVertexTransitive_cayleyAdd (A : Type) [Fintype A] [DecidableEq A] [AddGroup A]
+theorem isVertexTransitive_cayleyAdd (A : Type) [FinEnum A] [AddGroup A]
     (S : A → Bool) : (cayleyAdd A S).IsVertexTransitive :=
   isVertexTransitive_ofRel A _ fun u v ↦
     ⟨Equiv.addRight (-u + v), fun x y ↦ by simp [add_sub_add_right_eq_sub], by simp⟩
 
 /-- The Paley graph of a finite field is a Cayley graph, hence vertex-transitive. -/
-theorem isVertexTransitive_paleyField (F : Type) [Field F] [Fintype F] [DecidableEq F] :
+theorem isVertexTransitive_paleyField (F : Type) [Field F] [FinEnum F] :
     (paleyField F).IsVertexTransitive :=
   isVertexTransitive_cayleyAdd F _
 

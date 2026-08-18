@@ -1,5 +1,6 @@
 import Mathlib.Data.ZMod.Basic
 import Mathlib.Tactic.Common
+import IsoGraph.ForMathlib.FinEnum
 
 /-!
 # Lemmas about `ZMod`
@@ -10,6 +11,20 @@ can be contributed upstream, or deleted when Mathlib grows its own.
 -/
 
 set_option autoImplicit false
+
+/-- `ZMod q` and `Fin q`, matched up by `ZMod.val`. -/
+def zmodEquivFin (q : ℕ) [NeZero q] : ZMod q ≃ Fin q where
+  toFun a := ⟨a.val, ZMod.val_lt a⟩
+  invFun i := (i.1 : ZMod q)
+  left_inv a := ZMod.natCast_rightInverse a
+  right_inv i := Fin.ext (ZMod.val_cast_of_lt i.2)
+
+/-- `ZMod q` is enumerated by `ZMod.val`, with `FinEnum.card (ZMod q)` *definitionally* `q`.
+Mathlib has no `FinEnum (ZMod q)` at all; the `Fintype` it does have goes through `Fin q` for
+`q ≠ 0` and `ℤ`'s (empty) one otherwise, so it cannot be reused here. -/
+instance (priority := 2000) instFinEnumZMod (q : ℕ) [NeZero q] : FinEnum (ZMod q) where
+  card := q
+  equiv := zmodEquivFin q
 
 /-- The `Fin q` arithmetic `paley` does to find the offset of `y` from `x` is subtraction in
 `ZMod q`. -/

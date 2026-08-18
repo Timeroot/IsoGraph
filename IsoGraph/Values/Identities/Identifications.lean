@@ -37,7 +37,7 @@ namespace IsoGraph
   CGraph.card_circulant n S
 @[simp] theorem V_foldedCube (n : ℕ) : (foldedCube n).V = 2 ^ n := CGraph.card_foldedCube n
 @[simp] theorem V_wheel (n : ℕ) : (wheel n).V = 1 + n := by
-  show Fintype.card (CGraph.wheel n).V = _
+  show FinEnum.card (CGraph.wheel n).V = _
   simp [CGraph.wheel]
 @[simp] theorem V_thetaGraph (xs : List ℕ) : (thetaGraph xs).V = 2 + xs.sum :=
   CGraph.card_thetaGraph xs
@@ -52,7 +52,7 @@ namespace IsoGraph
 
 @[simp] theorem V_compl (G : IsoGraph) : Gᶜ.V = G.V := by
   induction G using Quotient.inductionOn with
-  | h g => show Fintype.card gᶜ.V = _; simp
+  | h g => show FinEnum.card gᶜ.V = _; simp
 
 @[simp] theorem V_disjUnion (G H : IsoGraph) : (G ⊕g H).V = G.V + H.V := by
   induction G using Quotient.inductionOn with
@@ -68,73 +68,72 @@ namespace IsoGraph
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (g □g h).V = _
+      show FinEnum.card (g □g h).V = _
       simp
 
 @[simp] theorem V_tensorProduct (G H : IsoGraph) : (G ⊗g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (g ⊗g h).V = _
+      show FinEnum.card (g ⊗g h).V = _
       simp
 
 @[simp] theorem V_strongProduct (G H : IsoGraph) : (G ⊠g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (g ⊠g h).V = _
+      show FinEnum.card (g ⊠g h).V = _
       simp
 
 @[simp] theorem V_lexProduct (G H : IsoGraph) : (G ·g H).V = G.V * H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (g ·g h).V = _
+      show FinEnum.card (g ·g h).V = _
       simp
 
 @[simp] theorem V_exponential (G H : IsoGraph) : (G ^g H).V = G.V ^ H.V := by
   induction G using Quotient.inductionOn with
   | h g => induction H using Quotient.inductionOn with
     | h h =>
-      show Fintype.card (g ^g h).V = _
+      show FinEnum.card (g ^g h).V = _
       simp
 
 @[simp] theorem V_lineGraph (G : IsoGraph) : (lineGraph G).V = G.E := by
   induction G using Quotient.inductionOn with
   | h g =>
-    show Fintype.card (CGraph.lineGraph g).V = _
+    show FinEnum.card (CGraph.lineGraph g).V = _
     rw [CGraph.card_lineGraph, ← E_mk]
 
 @[simp] theorem V_mycielskian (G : IsoGraph) : (mycielskian G).V = 2 * G.V + 1 := by
   induction G using Quotient.inductionOn with
   | h g =>
-    show Fintype.card (CGraph.mycielskian g).V = _
+    show FinEnum.card (CGraph.mycielskian g).V = _
     simp
 
 /-! ## Recognising `empty` and `complete`
 
 Every degenerate identity in this file goes through one of these two: a graph with no edges is
 `empty` on its vertex count, and a graph with all of them is `complete`.  Neither needs an
-explicit bijection — `Fintype.equivFin` supplies one, and it is used only inside a proof, so its
-noncomputability costs nothing. -/
+explicit bijection — the vertex type's own `FinEnum.equiv` supplies one. -/
 
 /-- A graph with no edges is the edgeless graph on its vertex count. -/
 theorem mk_eq_empty {G : CGraph} (h : ∀ x y, G.Adj x y = false) :
-    (⟦G⟧ : IsoGraph) = empty (Fintype.card G.V) :=
-  Quotient.sound ⟨CGraph.isoOfAdj (Fintype.equivFin G.V) fun x y ↦ (h x y).symm⟩
+    (⟦G⟧ : IsoGraph) = empty (FinEnum.card G.V) :=
+  Quotient.sound ⟨CGraph.isoOfAdj (FinEnum.equiv (α := G.V)) fun x y ↦ (h x y).symm⟩
 
 /-- A graph in which every two distinct vertices are adjacent is the complete graph on its vertex
 count. -/
 theorem mk_eq_complete {G : CGraph} (h : ∀ x y, x ≠ y → G.Adj x y = true) :
-    (⟦G⟧ : IsoGraph) = complete (Fintype.card G.V) :=
-  Quotient.sound ⟨CGraph.isoOfAdj (Fintype.equivFin G.V) fun x y ↦ by
+    (⟦G⟧ : IsoGraph) = complete (FinEnum.card G.V) :=
+  Quotient.sound ⟨CGraph.isoOfAdj (FinEnum.equiv (α := G.V)) fun x y ↦ by
     rw [CGraph.complete_adj]
     by_cases hxy : x = y
     · cases hxy
       rw [(Bool.not_eq_true _).mp (G.loopless x)]
       simp
     · rw [h x y hxy]
-      exact decide_eq_true fun hh ↦ hxy ((Fintype.equivFin G.V).injective hh)⟩
+      exact decide_eq_true fun hh ↦ hxy ((FinEnum.equiv (α := G.V)).injective hh)⟩
 
 /-- The converse of `mk_eq_complete`: a graph whose class is `complete` has every edge. -/
 theorem adj_of_mk_eq_complete {G : CGraph} {n : ℕ} (h : (⟦G⟧ : IsoGraph) = complete n)
@@ -151,7 +150,7 @@ theorem adj_eq_false_of_mk_eq_empty {G : CGraph} {n : ℕ} (h : (⟦G⟧ : IsoGr
 
 /-- A graph with no vertices is the empty graph on `0` vertices. -/
 theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = empty 0 := by
-  rw [mk_eq_empty (G := G) fun x _ ↦ isEmptyElim x, Fintype.card_eq_zero]
+  rw [mk_eq_empty (G := G) fun x _ ↦ isEmptyElim x, FinEnum.card_eq_zero_iff.2 ‹IsEmpty G.V›]
 
 /-- A graph is the empty graph on `0` vertices exactly when it has no vertices. -/
 @[simp] theorem V_eq_zero_iff {G : IsoGraph} : G.V = 0 ↔ G = empty 0 := by
@@ -159,7 +158,7 @@ theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = emp
   · induction G using Quotient.inductionOn with
     | h g =>
       intro h
-      have : IsEmpty g.V := Fintype.card_eq_zero_iff.1 h
+      have : IsEmpty g.V := FinEnum.card_eq_zero_iff.1 h
       exact mk_eq_empty_zero
   · rintro rfl
     exact V_empty 0
@@ -286,14 +285,14 @@ def bipartiteZeroRight (m : ℕ) : bipartite m 0 ≃cg empty m := by
 
 /-- A graph with no edges is the edgeless graph on its vertex count. -/
 noncomputable def isoEmptyOfCard {G : CGraph} {n : ℕ} (h : ∀ x y, G.Adj x y = false)
-    (hn : Fintype.card G.V = n) : G ≃cg empty n :=
-  isoOfAdj ((Fintype.equivFin G.V).trans (finCongr hn)) fun x y ↦ (h x y).symm
+    (hn : FinEnum.card G.V = n) : G ≃cg empty n :=
+  isoOfAdj ((FinEnum.equiv (α := G.V)).trans (finCongr hn)) fun x y ↦ (h x y).symm
 
 /-- A graph in which every two distinct vertices are adjacent is the complete graph on its
 vertex count. -/
 noncomputable def isoCompleteOfCard {G : CGraph} {n : ℕ} (h : ∀ x y, x ≠ y → G.Adj x y = true)
-    (hn : Fintype.card G.V = n) : G ≃cg complete n :=
-  isoOfAdj ((Fintype.equivFin G.V).trans (finCongr hn)) fun x y ↦ by
+    (hn : FinEnum.card G.V = n) : G ≃cg complete n :=
+  isoOfAdj ((FinEnum.equiv (α := G.V)).trans (finCongr hn)) fun x y ↦ by
     rw [complete_adj]
     by_cases hxy : x = y
     · cases hxy
@@ -301,7 +300,7 @@ noncomputable def isoCompleteOfCard {G : CGraph} {n : ℕ} (h : ∀ x y, x ≠ y
       simp
     · rw [h x y hxy]
       exact decide_eq_true fun hh ↦ hxy
-        (((Fintype.equivFin G.V).trans (finCongr hn)).injective hh)
+        (((FinEnum.equiv (α := G.V)).trans (finCongr hn)).injective hh)
 
 @[toIsoGraph simp bipartite_zero_left]
 def bipartiteZeroLeft (n : ℕ) : bipartite 0 n ≃cg empty n := by
@@ -612,7 +611,7 @@ noncomputable def kneserSelf : ∀ n : ℕ, kneser n n ≃cg empty 1
 
 @[toIsoGraph simp johnson_self]
 noncomputable def johnsonSelf (n : ℕ) : johnson n n ≃cg empty 1 := by
-  refine (isoEmptyOfCard ?_ (by simp : Fintype.card (johnson n n).V = n.choose n)).trans
+  refine (isoEmptyOfCard ?_ (by simp : FinEnum.card (johnson n n).V = n.choose n)).trans
     (by rw [Nat.choose_self])
   rintro ⟨s, hs⟩ ⟨t, ht⟩
   have hst : s = t := by
@@ -696,20 +695,21 @@ def hypercubeSucc (n : ℕ) :
         · funext i; simp
         · fin_cases k <;> simp⟩ : (Fin (n + 1) → Bool) ≃ ((Fin n → Bool) × Fin 2))
     fun x y ↦ ?_
-  show ((decide ((fun i : Fin n ↦ x i.succ) = fun i : Fin n ↦ y i.succ) &&
-      (complete 2).Adj ((if x 0 then 1 else 0 : Fin 2)) ((if y 0 then 1 else 0 : Fin 2))) ||
-      ((hypercube n).Adj (fun i : Fin n ↦ x i.succ) (fun i : Fin n ↦ y i.succ) &&
-        decide (((if x 0 then 1 else 0 : Fin 2)) = (if y 0 then 1 else 0 : Fin 2)))) =
-    (hypercube (n + 1)).Adj x y
-  rw [hypercube_adj, hypercube_adj, complete_adj, card_ne_succ]
-  have hfun : decide ((fun i : Fin n ↦ x i.succ) = fun i : Fin n ↦ y i.succ)
-      = decide ((Finset.univ.filter fun i : Fin n ↦ x i.succ ≠ y i.succ).card = 0) :=
-    decide_eq_decide.2 (by
+  -- only `β`-reduction here: the two `decide`s below are the product graph's own, taken from the
+  -- factors' `FinEnum`s, so they must come out of `cartesianProduct_adj` rather than be written
+  show (hypercube n □g complete 2).Adj
+      ((fun i : Fin n ↦ x i.succ), (if x 0 then 1 else 0 : Fin 2))
+      ((fun i : Fin n ↦ y i.succ), (if y 0 then 1 else 0 : Fin 2))
+    = (hypercube (n + 1)).Adj x y
+  rw [cartesianProduct_adj, hypercube_adj, hypercube_adj, complete_adj, card_ne_succ,
+    Bool.eq_iff_iff]
+  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq, ne_eq]
+  rw [show ((fun i : Fin n ↦ x i.succ) = fun i : Fin n ↦ y i.succ)
+        ↔ (Finset.univ.filter fun i : Fin n ↦ x i.succ ≠ y i.succ).card = 0 from by
       rw [Finset.card_eq_zero, Finset.filter_eq_empty_iff, funext_iff]
-      simp)
-  rw [hfun]
+      simp]
   generalize (Finset.univ.filter fun i : Fin n ↦ x i.succ ≠ y i.succ).card = s
-  cases hx0 : x 0 <;> cases hy0 : y 0 <;> cases s <;> simp
+  cases hx0 : x 0 <;> cases hy0 : y 0 <;> cases s <;> simp <;> intro _ <;> decide
 
 /-! ### Folded cubes
 
@@ -1291,12 +1291,12 @@ noncomputable def cartesianProductEmpty (m n : ℕ) :
 /-- The tensor product with an edgeless graph is edgeless. -/
 @[toIsoGraph simp tensorProduct_empty]
 noncomputable def tensorProductEmpty (G : CGraph) (n : ℕ) :
-    G ⊗g empty n ≃cg empty (Fintype.card G.V * n) :=
+    G ⊗g empty n ≃cg empty (FinEnum.card G.V * n) :=
   isoEmptyOfCard (by simp) (by simp)
 
 @[toIsoGraph simp empty_tensorProduct]
 noncomputable def emptyTensorProduct (n : ℕ) (G : CGraph) :
-    empty n ⊗g G ≃cg empty (n * Fintype.card G.V) :=
+    empty n ⊗g G ≃cg empty (n * FinEnum.card G.V) :=
   isoEmptyOfCard (by simp) (by simp)
 
 /-- The strong product of complete graphs is complete. -/

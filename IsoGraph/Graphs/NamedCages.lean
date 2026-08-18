@@ -20,6 +20,10 @@ All four are given by LCF codes, spelled out as `ofEdges n (lcfEdges code r)` ra
 -/
 
 set_option maxRecDepth 4000
+-- the girth conditions nest bounded quantifiers over the graph's vertex type, and each level costs
+-- a `Fintype` and a `DecidableEq` that now come through the graph's `FinEnum`; the default
+-- instance-search budget runs out around the sixth
+set_option synthInstance.maxSize 512
 
 namespace NamedGraphs
 
@@ -61,7 +65,7 @@ def fosterCode : List ℤ :=
 twelve. -/
 abbrev foster : CGraph := ofEdges 90 (lcfEdges fosterCode 15)
 
-@[simp] theorem card_harries : Fintype.card harries.V = 70 := card_ofEdges _ _
+@[simp] theorem card_harries : FinEnum.card harries.V = 70 := card_ofEdges _ _
 
 @[simp] theorem E_harries : harries.E = 105 := by native_decide
 
@@ -104,7 +108,7 @@ theorem harries_nb : ∀ a b : harries.V, b ∈ harriesNb a ↔ harries.Adj a b 
       (by native_decide)
       (by native_decide) hnac)
 
-@[simp] theorem card_harriesWong : Fintype.card harriesWong.V = 70 := card_ofEdges _ _
+@[simp] theorem card_harriesWong : FinEnum.card harriesWong.V = 70 := card_ofEdges _ _
 
 @[simp] theorem E_harriesWong : harriesWong.E = 105 := by native_decide
 
@@ -147,7 +151,7 @@ theorem harriesWong_nb : ∀ a b : harriesWong.V, b ∈ harriesWongNb a ↔ harr
       (by native_decide)
       (by native_decide) hnac)
 
-@[simp] theorem card_gray : Fintype.card gray.V = 54 := card_ofEdges _ _
+@[simp] theorem card_gray : FinEnum.card gray.V = 54 := card_ofEdges _ _
 
 @[simp] theorem E_gray : gray.E = 81 := by native_decide
 
@@ -186,7 +190,7 @@ theorem gray_nb : ∀ a b : gray.V, b ∈ grayNb a ↔ gray.Adj a b := by
       (by native_decide)
       (by native_decide) hnac)
 
-@[simp] theorem card_foster : Fintype.card foster.V = 90 := card_ofEdges _ _
+@[simp] theorem card_foster : FinEnum.card foster.V = 90 := card_ofEdges _ _
 
 @[simp] theorem E_foster : foster.E = 135 := by native_decide
 

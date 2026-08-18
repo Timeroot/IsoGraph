@@ -102,7 +102,7 @@ def restrictUniv (G : CGraph) : G.restrict (fun _ ↦ True) ≃cg G :=
 noncomputable def restrictOfIsEmpty (G : CGraph) (p : G.V → Prop) [DecidablePred p]
     (h : ∀ v, ¬ p v) : G.restrict p ≃cg empty 0 :=
   isoEmptyOfCard (fun x _ ↦ absurd x.2 (h x.1))
-    (Fintype.card_eq_zero_iff.2 ⟨fun x ↦ h x.1 x.2⟩)
+    (FinEnum.card_eq_zero_iff.2 ⟨fun x ↦ h x.1 x.2⟩)
 
 /-- **A graph splits along any set of vertices closed under adjacency**: no edge crosses, so it is
 the disjoint union of the two induced subgraphs. -/
@@ -116,6 +116,15 @@ def splitIso (G : CGraph) (p : G.V → Prop) [DecidablePred p]
       · exact Bool.eq_false_iff.2 (fun h ↦ hb (hp a b h ha))
       · exact Bool.eq_false_iff.2 (fun h ↦ ha (hp b a (by rw [G.symm]; exact h) hb))
       · rfl)).symm
+
+/-- The components of a graph, enumerated.  Reachability is decidable on a finite graph, so the
+components are a quotient by a decidable relation; `ofSurjective` lists the vertices' components
+and deduplicates. -/
+instance instFinEnumConnectedComponent (G : CGraph) : FinEnum G.toSimple.ConnectedComponent :=
+  letI : DecidableEq G.toSimple.ConnectedComponent :=
+    @Quotient.decidableEq _ G.toSimple.reachableSetoid
+      (inferInstance : DecidableRel G.toSimple.Reachable)
+  FinEnum.ofSurjective G.toSimple.connectedComponentMk fun c ↦ Quot.exists_rep c
 
 /-- The subgraph induced on a single connected component. -/
 def component (G : CGraph) (c : G.toSimple.ConnectedComponent) : CGraph :=

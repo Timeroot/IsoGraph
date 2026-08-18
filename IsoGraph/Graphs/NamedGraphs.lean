@@ -141,6 +141,10 @@ default heartbeat budget.
 -/
 
 set_option maxRecDepth 4000
+-- the girth conditions nest bounded quantifiers over the graph's vertex type, and each level costs
+-- a `Fintype` and a `DecidableEq` that now come through the graph's `FinEnum`; the default
+-- instance-search budget runs out around the sixth
+set_option synthInstance.maxSize 512
 
 namespace NamedGraphs
 
@@ -161,7 +165,7 @@ abbrev mcgee : CGraph := lcf [12, 7, -7] 8
 /-- The Tutte–Coxeter graph, or Levi graph of `GQ(2,2)`: the `(3,8)`-cage. -/
 abbrev tutteCoxeter : CGraph := lcf [-13, -9, 7, -7, 9, 13] 5
 
-@[simp] theorem card_heawood : Fintype.card heawood.V = 14 := card_ofEdges _ _
+@[simp] theorem card_heawood : FinEnum.card heawood.V = 14 := card_ofEdges _ _
 
 @[simp] theorem E_heawood : heawood.E = 21 := by native_decide
 
@@ -174,7 +178,7 @@ theorem isRegularWith_heawood : heawood.IsRegularWith 3 :=
 @[simp] theorem isBipartite_heawood : heawood.IsBipartite :=
   ⟨fun v ↦ decide (v.1 % 2 = 1), by native_decide⟩
 
-@[simp] theorem card_mcgee : Fintype.card mcgee.V = 24 := card_ofEdges _ _
+@[simp] theorem card_mcgee : FinEnum.card mcgee.V = 24 := card_ofEdges _ _
 
 @[simp] theorem E_mcgee : mcgee.E = 36 := by native_decide
 
@@ -189,7 +193,7 @@ theorem isRegularWith_mcgee : mcgee.IsRegularWith 3 :=
   not_isBipartite_of_odd_walk (walkOn 24 (by norm_num) [0, 12, 11, 4, 3, 2, 1]) 7 rfl
     (by decide) rfl
 
-@[simp] theorem card_tutteCoxeter : Fintype.card tutteCoxeter.V = 30 := card_ofEdges _ _
+@[simp] theorem card_tutteCoxeter : FinEnum.card tutteCoxeter.V = 30 := card_ofEdges _ _
 
 @[simp] theorem E_tutteCoxeter : tutteCoxeter.E = 45 := by native_decide
 
@@ -218,7 +222,7 @@ abbrev folkman : CGraph := lcf [5, -7, -7, 5] 5
 /-- The Frucht graph: a cubic graph whose only automorphism is the identity. -/
 abbrev frucht : CGraph := lcf [-5, -2, -4, 2, 5, -2, 2, 5, -2, -5, 4, 2] 1
 
-@[simp] theorem card_franklin : Fintype.card franklin.V = 12 := card_ofEdges _ _
+@[simp] theorem card_franklin : FinEnum.card franklin.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_franklin : franklin.E = 18 := by native_decide
 
@@ -238,7 +242,7 @@ theorem isRegularWith_franklin : franklin.IsRegularWith 3 :=
   exact le_antisymm (hl ▸ girth_le_length hw)
     (four_le_girth (by native_decide) (not_isAcyclic_of_isCycle hw))
 
-@[simp] theorem card_pappus : Fintype.card pappus.V = 18 := card_ofEdges _ _
+@[simp] theorem card_pappus : FinEnum.card pappus.V = 18 := card_ofEdges _ _
 
 @[simp] theorem E_pappus : pappus.E = 27 := by native_decide
 
@@ -251,7 +255,7 @@ theorem isRegularWith_pappus : pappus.IsRegularWith 3 :=
 @[simp] theorem isBipartite_pappus : pappus.IsBipartite :=
   ⟨fun v ↦ decide (v.1 % 2 = 1), by native_decide⟩
 
-@[simp] theorem card_folkman : Fintype.card folkman.V = 20 := card_ofEdges _ _
+@[simp] theorem card_folkman : FinEnum.card folkman.V = 20 := card_ofEdges _ _
 
 @[simp] theorem E_folkman : folkman.E = 40 := by native_decide
 
@@ -271,7 +275,7 @@ theorem isRegularWith_folkman : folkman.IsRegularWith 4 :=
   exact le_antisymm (hl ▸ girth_le_length hw)
     (four_le_girth (by native_decide) (not_isAcyclic_of_isCycle hw))
 
-@[simp] theorem card_frucht : Fintype.card frucht.V = 12 := card_ofEdges _ _
+@[simp] theorem card_frucht : FinEnum.card frucht.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_frucht : frucht.E = 18 := by native_decide
 
@@ -329,7 +333,7 @@ lists are checked in `IsoGraph/Graphs/Polyhedra.lean`. -/
 noncomputable def dodecahedronFacesIso :
     ofEdges 20 (faceEdges dodecahedronFaces) ≃cg dodecahedron := isoOfKeyEq (by native_decide)
 
-@[simp] theorem card_durer : Fintype.card durer.V = 12 := card_ofEdges _ _
+@[simp] theorem card_durer : FinEnum.card durer.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_durer : durer.E = 18 := by native_decide
 
@@ -348,7 +352,7 @@ theorem isRegularWith_durer : durer.IsRegularWith 3 :=
   girth_eq_three_of_triangle (a := vtx 12 6) (b := vtx 12 8) (c := vtx 12 10)
     (by decide) (by decide) (by decide)
 
-@[simp] theorem card_mobiusKantor : Fintype.card mobiusKantor.V = 16 := card_ofEdges _ _
+@[simp] theorem card_mobiusKantor : FinEnum.card mobiusKantor.V = 16 := card_ofEdges _ _
 
 @[simp] theorem E_mobiusKantor : mobiusKantor.E = 24 := by native_decide
 
@@ -361,7 +365,7 @@ theorem isRegularWith_mobiusKantor : mobiusKantor.IsRegularWith 3 :=
 @[simp] theorem isBipartite_mobiusKantor : mobiusKantor.IsBipartite :=
   ⟨fun v ↦ decide ((v.1 + v.1 / 8) % 2 = 1), by native_decide⟩
 
-@[simp] theorem card_dodecahedron : Fintype.card dodecahedron.V = 20 := card_ofEdges _ _
+@[simp] theorem card_dodecahedron : FinEnum.card dodecahedron.V = 20 := card_ofEdges _ _
 
 @[simp] theorem E_dodecahedron : dodecahedron.E = 30 := by native_decide
 
@@ -384,7 +388,7 @@ theorem isRegularWith_dodecahedron : dodecahedron.IsRegularWith 3 :=
   exact le_antisymm (hl ▸ girth_le_length hw)
     (five_le_girth (by native_decide) (by native_decide) (not_isAcyclic_of_isCycle hw))
 
-@[simp] theorem card_desargues : Fintype.card desargues.V = 20 := card_ofEdges _ _
+@[simp] theorem card_desargues : FinEnum.card desargues.V = 20 := card_ofEdges _ _
 
 @[simp] theorem E_desargues : desargues.E = 30 := by native_decide
 
@@ -397,7 +401,7 @@ theorem isRegularWith_desargues : desargues.IsRegularWith 3 :=
 @[simp] theorem isBipartite_desargues : desargues.IsBipartite :=
   ⟨fun v ↦ decide ((v.1 + v.1 / 10) % 2 = 1), by native_decide⟩
 
-@[simp] theorem card_nauru : Fintype.card nauru.V = 24 := card_ofEdges _ _
+@[simp] theorem card_nauru : FinEnum.card nauru.V = 24 := card_ofEdges _ _
 
 @[simp] theorem E_nauru : nauru.E = 36 := by native_decide
 
@@ -470,7 +474,7 @@ abbrev moserSpindle : CGraph := ofEdges 7 moserSpindleEdges
 four, and the smallest such graph. -/
 abbrev grotzsch : CGraph := mycielskian (cycle 5)
 
-@[simp] theorem card_coxeter : Fintype.card coxeter.V = 28 := card_ofEdges _ _
+@[simp] theorem card_coxeter : FinEnum.card coxeter.V = 28 := card_ofEdges _ _
 
 @[simp] theorem E_coxeter : coxeter.E = 42 := by native_decide
 
@@ -485,7 +489,7 @@ theorem isRegularWith_coxeter : coxeter.IsRegularWith 3 :=
   not_isBipartite_of_odd_walk (walkOn 28 (by norm_num) [0, 1, 2, 3, 4, 5, 6]) 7 rfl
     (by decide) rfl
 
-@[simp] theorem card_wagner : Fintype.card wagner.V = 8 := card_circulant _ _
+@[simp] theorem card_wagner : FinEnum.card wagner.V = 8 := card_circulant _ _
 
 @[simp] theorem E_wagner : wagner.E = 12 := by native_decide
 
@@ -505,7 +509,7 @@ theorem isRegularWith_wagner : wagner.IsRegularWith 3 :=
   exact le_antisymm (hl ▸ girth_le_length hw)
     (four_le_girth (by native_decide) (not_isAcyclic_of_isCycle hw))
 
-@[simp] theorem card_chvatal : Fintype.card chvatal.V = 12 := card_ofEdges _ _
+@[simp] theorem card_chvatal : FinEnum.card chvatal.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_chvatal : chvatal.E = 24 := by native_decide
 
@@ -526,7 +530,7 @@ theorem isRegularWith_chvatal : chvatal.IsRegularWith 4 :=
   exact le_antisymm (hl ▸ girth_le_length hw)
     (four_le_girth (by native_decide) (not_isAcyclic_of_isCycle hw))
 
-@[simp] theorem card_icosahedron : Fintype.card icosahedron.V = 12 := card_ofEdges _ _
+@[simp] theorem card_icosahedron : FinEnum.card icosahedron.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_icosahedron : icosahedron.E = 30 := by native_decide
 
@@ -547,7 +551,7 @@ pole. -/
   girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 1) (c := vtx 12 2)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_tutte : Fintype.card tutte.V = 46 := card_ofEdges _ _
+@[simp] theorem card_tutte : FinEnum.card tutte.V = 46 := card_ofEdges _ _
 
 @[simp] theorem E_tutte : tutte.E = 69 := by native_decide
 
@@ -567,7 +571,7 @@ theorem isRegularWith_tutte : tutte.IsRegularWith 3 :=
   exact le_antisymm (hl ▸ girth_le_length hw)
     (four_le_girth (by native_decide) (not_isAcyclic_of_isCycle hw))
 
-@[simp] theorem card_moserSpindle : Fintype.card moserSpindle.V = 7 := card_ofEdges _ _
+@[simp] theorem card_moserSpindle : FinEnum.card moserSpindle.V = 7 := card_ofEdges _ _
 
 @[simp] theorem E_moserSpindle : moserSpindle.E = 11 := by native_decide
 
@@ -585,7 +589,7 @@ theorem isRegularWith_tutte : tutte.IsRegularWith 3 :=
   girth_eq_three_of_triangle (a := vtx 7 0) (b := vtx 7 1) (c := vtx 7 2)
     (by decide) (by decide) (by decide)
 
-@[simp] theorem card_grotzsch : Fintype.card grotzsch.V = 11 := by native_decide
+@[simp] theorem card_grotzsch : FinEnum.card grotzsch.V = 11 := by native_decide
 
 @[simp] theorem E_grotzsch : grotzsch.E = 20 := by native_decide
 
@@ -695,7 +699,7 @@ than as `lcf balabanCode 1` so that the vertex type is literally `Fin 70`; the t
 graph. -/
 abbrev balaban10Cage : CGraph := ofEdges 70 (lcfEdges balabanCode 1)
 
-@[simp] theorem card_herschel : Fintype.card herschel.V = 11 := card_ofEdges _ _
+@[simp] theorem card_herschel : FinEnum.card herschel.V = 11 := card_ofEdges _ _
 
 @[simp] theorem E_herschel : herschel.E = 18 := by native_decide
 
@@ -718,7 +722,7 @@ abbrev balaban10Cage : CGraph := ofEdges 70 (lcfEdges balabanCode 1)
   exact girth_le_of_cycleList (vtx 11 0) [vtx 11 1, vtx 11 5, vtx 11 2]
     (by norm_num) (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_tietze : Fintype.card tietze.V = 12 := card_ofEdges _ _
+@[simp] theorem card_tietze : FinEnum.card tietze.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_tietze : tietze.E = 18 := by native_decide
 
@@ -736,7 +740,7 @@ theorem isRegularWith_tietze : tietze.IsRegularWith 3 :=
   girth_eq_three_of_triangle (a := vtx 12 3) (b := vtx 12 8) (c := vtx 12 9)
     (by decide) (by decide) (by decide)
 
-@[simp] theorem card_truncatedTetrahedron : Fintype.card truncatedTetrahedron.V = 12 :=
+@[simp] theorem card_truncatedTetrahedron : FinEnum.card truncatedTetrahedron.V = 12 :=
   card_ofEdges _ _
 
 @[simp] theorem E_truncatedTetrahedron : truncatedTetrahedron.E = 18 := by native_decide
@@ -758,7 +762,7 @@ corners. -/
   girth_eq_three_of_triangle (a := vtx 12 0) (b := vtx 12 4) (c := vtx 12 8)
     (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_robertson : Fintype.card robertson.V = 19 := card_ofEdges _ _
+@[simp] theorem card_robertson : FinEnum.card robertson.V = 19 := card_ofEdges _ _
 
 @[simp] theorem E_robertson : robertson.E = 38 := by native_decide
 
@@ -780,7 +784,7 @@ theorem isRegularWith_robertson : robertson.IsRegularWith 4 :=
   exact girth_le_of_cycleList (vtx 19 0) [vtx 19 1, vtx 19 2, vtx 19 3, vtx 19 4]
     (by norm_num) (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_bidiakisCube : Fintype.card bidiakisCube.V = 12 := card_ofEdges _ _
+@[simp] theorem card_bidiakisCube : FinEnum.card bidiakisCube.V = 12 := card_ofEdges _ _
 
 @[simp] theorem E_bidiakisCube : bidiakisCube.E = 18 := by native_decide
 
@@ -802,7 +806,7 @@ theorem isRegularWith_bidiakisCube : bidiakisCube.IsRegularWith 3 :=
   exact girth_le_of_cycleList (vtx 12 0) [vtx 12 1, vtx 12 5, vtx 12 6]
     (by norm_num) (by native_decide) (by native_decide) (by native_decide)
 
-@[simp] theorem card_dyck : Fintype.card dyck.V = 32 := card_ofEdges _ _
+@[simp] theorem card_dyck : FinEnum.card dyck.V = 32 := card_ofEdges _ _
 
 @[simp] theorem E_dyck : dyck.E = 48 := by native_decide
 
@@ -815,7 +819,7 @@ theorem isRegularWith_dyck : dyck.IsRegularWith 3 :=
 @[simp] theorem isBipartite_dyck : dyck.IsBipartite :=
   ⟨fun v ↦ decide (v.1 % 2 = 1), by native_decide⟩
 
-@[simp] theorem card_balaban10Cage : Fintype.card balaban10Cage.V = 70 := card_ofEdges _ _
+@[simp] theorem card_balaban10Cage : FinEnum.card balaban10Cage.V = 70 := card_ofEdges _ _
 
 @[simp] theorem E_balaban10Cage : balaban10Cage.E = 105 := by native_decide
 
@@ -1170,7 +1174,7 @@ def ljubljanaCode : List ℤ :=
 incidence graph of the Ljubljana configuration `56₃`. -/
 abbrev ljubljana : CGraph := ofEdges 112 (lcfEdges ljubljanaCode 2)
 
-@[simp] theorem card_holt : Fintype.card holt.V = 27 := card_ofEdges _ _
+@[simp] theorem card_holt : FinEnum.card holt.V = 27 := card_ofEdges _ _
 
 @[simp] theorem E_holt : holt.E = 54 := by native_decide
 
@@ -1211,7 +1215,7 @@ theorem holt_nb : ∀ a b : holt.V, b ∈ holtNb a ↔ holt.Adj a b := by
       (by native_decide)
       (by native_decide) hnac)
 
-@[simp] theorem card_flowerSnark : Fintype.card flowerSnark.V = 20 := card_ofEdges _ _
+@[simp] theorem card_flowerSnark : FinEnum.card flowerSnark.V = 20 := card_ofEdges _ _
 
 @[simp] theorem E_flowerSnark : flowerSnark.E = 30 := by native_decide
 
@@ -1249,7 +1253,7 @@ theorem flowerSnark_nb : ∀ a b : flowerSnark.V, b ∈ flowerSnarkNb a ↔ flow
       (by native_decide)
       (by native_decide) hnac)
 
-@[simp] theorem card_biggsSmith : Fintype.card biggsSmith.V = 102 := card_ofEdges _ _
+@[simp] theorem card_biggsSmith : FinEnum.card biggsSmith.V = 102 := card_ofEdges _ _
 
 @[simp] theorem E_biggsSmith : biggsSmith.E = 153 := by native_decide
 
@@ -1293,7 +1297,7 @@ theorem biggsSmith_nb : ∀ a b : biggsSmith.V, b ∈ biggsSmithNb a ↔ biggsSm
       (by native_decide)
       (by native_decide) hnac)
 
-@[simp] theorem card_ljubljana : Fintype.card ljubljana.V = 112 := card_ofEdges _ _
+@[simp] theorem card_ljubljana : FinEnum.card ljubljana.V = 112 := card_ofEdges _ _
 
 @[simp] theorem E_ljubljana : ljubljana.E = 168 := by native_decide
 

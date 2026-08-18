@@ -817,7 +817,7 @@ labels so that `x` becomes `n - 1` carries the missed cycle into `path n`, which
 
 /-- **A graph with a cycle has girth at most its order**: the support of a cycle, minus its
 repeated endpoint, is a list of distinct vertices as long as the cycle. -/
-theorem girth_le_V {G : CGraph} (h : ¬ G.IsAcyclic) : G.girth ≤ Fintype.card G.V := by
+theorem girth_le_V {G : CGraph} (h : ¬ G.IsAcyclic) : G.girth ≤ FinEnum.card G.V := by
   simp only [IsAcyclic, SimpleGraph.IsAcyclic, not_forall, not_not] at h
   obtain ⟨v, c, hc⟩ := h
   refine le_trans (girth_le_length hc) ?_
@@ -825,7 +825,8 @@ theorem girth_le_V {G : CGraph} (h : ¬ G.IsAcyclic) : G.girth ≤ Fintype.card 
     rw [List.length_tail, SimpleGraph.Walk.length_support]
     omega
   calc c.length = c.support.tail.length := hlen.symm
-    _ ≤ Fintype.card G.V := hc.support_nodup.length_le_card
+    _ ≤ FinEnum.card G.V := by
+        rw [FinEnum.card_eq_fintypeCard']; exact hc.support_nodup.length_le_card
 
 /-- Relabelling `cycle N` so that `x` becomes the last label `N - 1`, cutting the cycle open at
 `x`.  Every vertex other than `x` lands strictly below `N - 1`. -/
@@ -962,7 +963,7 @@ theorem getElem_congr_idx {α : Type*} (l : List α) {i j : ℕ} (h : i = j) (hi
 so `H` has girth at most the order of `G` as soon as `G` has a cycle at all. -/
 theorem girth_le_card_of_map {G H : CGraph} (f : G.V → H.V) (hinj : Function.Injective f)
     (hadj : ∀ x y, G.Adj x y = true → H.Adj (f x) (f y) = true) (hnac : ¬ G.IsAcyclic) :
-    H.girth ≤ Fintype.card G.V := by
+    H.girth ≤ FinEnum.card G.V := by
   simp only [IsAcyclic, SimpleGraph.IsAcyclic, not_forall, not_not] at hnac
   obtain ⟨v, c, hc⟩ := hnac
   obtain ⟨u, vs, hlen, hnd, hch, hcl⟩ := exists_cycleList_of_isCycle hc

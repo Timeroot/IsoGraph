@@ -50,8 +50,8 @@ def IsoGraph.lineGraph (G : IsoGraph) : IsoGraph := Quotient.lift ... G
     IsoGraph.lineGraph ⟦G⟧ = ⟦CGraph.lineGraph G⟧ := ...
 ```
 
-One and two graph arguments are supported.  A `CGraph` bundles a `Fintype` and a `DecidableEq` on
-its vertex type, so a construction that asks for nothing more is lifted as it stands and its `_mk`
+One and two graph arguments are supported.  A `CGraph` bundles a `FinEnum` on
+its vertex type (and so, through it, a `Fintype` and a `DecidableEq`), so a construction that asks for nothing more is lifted as it stands and its `_mk`
 lemma is an `rfl`.  Should a construction ask for an instance a bare `CGraph` cannot supply, the
 lift is taken of `G.canonicalize` instead, whose vertex type is a `Fin n` and so has every
 instance, and the `_mk` lemma is a `Quotient.sound` rather than an `rfl`.
@@ -683,9 +683,9 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
           /- `Nonempty G.V` is the one instance a canonical representative cannot supply: its
           vertex type is a `Fin n`, which is nonempty exactly when `n` is positive.  That is a
           statement about the order, and the order descends to the quotient, so ask for it as an
-          ordinary hypothesis `0 < Fintype.card G.V` and hand the instance it carries back to the
+          ordinary hypothesis `0 < FinEnum.card G.V` and hand the instance it carries back to the
           original theorem. -/
-          let ty ← mkAppM ``LT.lt #[mkNatLit 0, ← mkAppOptM ``Fintype.card #[α, none]]
+          let ty ← mkAppM ``LT.lt #[mkNatLit 0, ← mkAppOptM ``FinEnum.card #[α, none]]
           let g? := ((olds.zip graphs).find? fun (v, isGraph) ↦
             isGraph && dom.containsFVar v.fvarId!).map Prod.fst
           let rec names (e : Expr) (acc : Array Name) : Array Name :=
@@ -698,7 +698,7 @@ def generateFact (thmName : Name) (base? : Option Name) (forceSimp : Bool) : Met
             | none => pure `hV
           while later.contains nm do nm := nm.appendAfter "0"
           withLocalDeclD nm ty fun h ↦ do
-            let inst ← mkAppM ``Iff.mp #[← mkAppOptM ``Fintype.card_pos_iff #[α, none], h]
+            let inst ← mkAppM ``Iff.mp #[← mkAppOptM ``FinEnum.card_pos_iff #[α, none], h]
             tele fuel (bd.instantiate1 inst) (args.push inst) (olds.push h) (reps.push h)
               (graphs.push false) (derived.push true)
         else
@@ -868,7 +868,7 @@ initialize registerBuiltinAttribute {
 
 /-! ## The dictionary by hand
 
-Two pairs are written out rather than generated — `V`, whose `CGraph`-level side is a `Fintype.card`
+Two pairs are written out rather than generated — `V`, whose `CGraph`-level side is a `FinEnum.card`
 and not a constant of its own, and `compl`, which carries the `Compl` instance and so has to be
 stated with `ᶜ`.  This command puts them in the dictionary all the same. -/
 

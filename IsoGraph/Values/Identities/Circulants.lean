@@ -2228,7 +2228,7 @@ theorem domNum_hypercube_four : (hypercube 4).domNum = 4 := by
   · -- Lower bound: 16 ≤ domNum * 5
     show 4 ≤ (hypercube 4).domNum
     simp only [hypercube, domNum_mk]
-    have hcard : Fintype.card (CGraph.hypercube 4).V = 16 := by decide
+    have hcard : FinEnum.card (CGraph.hypercube 4).V = 16 := by decide
     have hdeg : CGraph.maxDeg (CGraph.hypercube 4) ≤ 4 := by
       apply CGraph.maxDeg_le_of_forall
       intro v

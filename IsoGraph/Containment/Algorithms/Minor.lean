@@ -1703,7 +1703,7 @@ def hostPool (rH : Roster H.V) (rG : Roster G.V) : List G.V :=
 The guard in front is the cheap necessary condition: a minor has no more vertices and no more
 edges than its host, so a search that cannot possibly succeed is not started. -/
 def searchMinor (rH : Roster H.V) (rG : Roster G.V) : Option (State H G) :=
-  if Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E then
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) (hsOrder H rH)
       (hostPool H G rH rG)
   else none
@@ -1753,7 +1753,7 @@ theorem isEmpty_minorOf_of_findMinor_eq_none {rH : Roster H.V} {rG : Roster G.V}
         (exists_two_adj_of_minDegTwo (hsOrder_nodup H rH) (mem_hsOrder H rH) ‹_›) _ f hall
       exact key _ (twoCore_nodup _ (List.nodup_dedup _)) g hg h
     · exact key _ (List.nodup_dedup _) f hall h
-  · exact ⟨fun f ↦ absurd (show Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E from
+  · exact ⟨fun f ↦ absurd (show FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E from
       ⟨f.card_le, f.E_le⟩) ‹_›⟩
 
 /-- `H` is a minor of `G` exactly when the search finds one. -/

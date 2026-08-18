@@ -504,6 +504,38 @@ set_option autoImplicit false
 open Polynomial Matrix
 open scoped Classical Kronecker
 
+/-! ## Two `Fintype` instances
+
+A `CGraph` counts its vertices with the `Fintype` that its `FinEnum` induces, and Mathlib's lemmas
+about `Fin n`, about products and about sums count with the structural instance.  The two are
+equal — `Fintype` is a subsingleton — but not definitionally, so a goal that mentions a graph's
+instance matches no such lemma until it is rewritten.  These bridge the gap, and one rewrite is
+enough: the instance handed in is a closed term, so `rw` has no metavariable to guess and fires at
+every occurrence in the goal at once — under a `Finset.univ`, under a `mulVec`, under a matrix
+product, under a `charpoly`. -/
+
+theorem fintype_eq_sum {α β : Type} [Fintype α] [Fintype β] (i : Fintype (α ⊕ β)) :
+    i = instFintypeSum α β := Subsingleton.elim _ _
+
+theorem fintype_eq_prod {α β : Type} [Fintype α] [Fintype β] (i : Fintype (α × β)) :
+    i = instFintypeProd α β := Subsingleton.elim _ _
+
+theorem fintype_eq_fin {n : ℕ} (i : Fintype (Fin n)) : i = Fin.fintype n := Subsingleton.elim _ _
+
+theorem decEq_eq_sum {α β : Type} [DecidableEq α] [DecidableEq β] (d : DecidableEq (α ⊕ β)) :
+    d = instDecidableEqSum := Subsingleton.elim _ _
+
+theorem decEq_eq_prod {α β : Type} [DecidableEq α] [DecidableEq β] (d : DecidableEq (α × β)) :
+    d = instDecidableEqProd := Subsingleton.elim _ _
+
+/-- `Fintype.sum_sum_type` against a sum type's own instance rather than the structural one. -/
+theorem Fintype.sum_sum_type' {α β : Type} [Fintype α] [Fintype β] (i : Fintype (α ⊕ β))
+    {M : Type*} [AddCommMonoid M] (f : α ⊕ β → M) :
+    ∑ x ∈ @Finset.univ _ i, f x = (∑ a, f (Sum.inl a)) + ∑ b, f (Sum.inr b) := by
+  rw [fintype_eq_sum i]
+  exact Fintype.sum_sum_type f
+
+
 namespace CGraph
 
 /-- The adjacency matrix of `G`, over `ℝ`. -/
@@ -555,12 +587,13 @@ theorem spectrum_eq_map (G : CGraph) :
     using G.isHermitian_adjMat.roots_charpoly_eq_eigenvalues
 
 @[simp, toIsoGraph] theorem card_spectrum (G : CGraph) :
-    Multiset.card G.spectrum = Fintype.card G.V := by
+    Multiset.card G.spectrum = FinEnum.card G.V := by
   simp [spectrum_eq_map, Finset.card_univ]
 
 @[simp, toIsoGraph] theorem natDegree_charpoly (G : CGraph) :
-    G.charpoly.natDegree = Fintype.card G.V :=
-  Matrix.charpoly_natDegree_eq_dim _
+    G.charpoly.natDegree = FinEnum.card G.V := by
+  rw [← G.fintypeCard]
+  exact Matrix.charpoly_natDegree_eq_dim _
 
 theorem charpoly_eq_prod (G : CGraph) :
     G.charpoly = ∏ i, (X - C (G.eigenvalues i)) :=
@@ -603,7 +636,7 @@ theorem mem_spectrum_iff (G : CGraph) (x : ℝ) :
 
 /-- If at least `|V|` distinct reals are all eigenvalues of `G`, they are exactly the spectrum. -/
 theorem spectrum_eq_of_card_le (G : CGraph) (s : Finset ℝ)
-    (hcard : Fintype.card G.V ≤ s.card) (hs : ∀ x ∈ s, G.IsEigenvalue x) :
+    (hcard : FinEnum.card G.V ≤ s.card) (hs : ∀ x ∈ s, G.IsEigenvalue x) :
     G.spectrum = s.val := by
   refine (Multiset.eq_of_le_of_card_le (Multiset.le_iff_count.2 fun x ↦ ?_)
     (by simpa using hcard)).symm
@@ -671,7 +704,10 @@ theorem adjMat_disjUnion (G H : CGraph) :
 @[simp, toIsoGraph] theorem charpoly_disjUnion (G H : CGraph) :
     (G ⊕g H).charpoly = G.charpoly * H.charpoly := by
   classical
-  rw [charpoly_eq_matrix_charpoly, adjMat_disjUnion, Matrix.charpoly_fromBlocks_zero₁₂,
+  rw [charpoly_eq_matrix_charpoly, adjMat_disjUnion,
+    fintype_eq_sum (FinEnum.instFintype : Fintype (G ⊕g H).V),
+    decEq_eq_sum (FinEnum.decEq : DecidableEq (G ⊕g H).V),
+    Matrix.charpoly_fromBlocks_zero₁₂,
     ← charpoly_eq_matrix_charpoly, ← charpoly_eq_matrix_charpoly]
 
 @[simp, toIsoGraph] theorem spectrum_disjUnion (G H : CGraph) :
@@ -692,10 +728,11 @@ theorem charpoly_complete (n : ℕ) :
     (complete (n + 1)).charpoly = (X - C (n : ℝ)) * (X + 1) ^ n := by
   classical
   rw [charpoly_eq_matrix_charpoly, adjMat_complete, charpoly_sub_one, Matrix.charpoly_vecMulVec]
-  have hd : (1 : Fin (n + 1) → ℝ) ⬝ᵥ 1 = (n : ℝ) + 1 := by
-    simp [dotProduct]
+  have hd : (1 : (complete (n + 1)).V → ℝ) ⬝ᵥ 1 = (n : ℝ) + 1 := by
+    simp [dotProduct, CGraph.fintypeCard]
   rw [hd]
-  simp only [card_complete, Nat.add_sub_cancel, Polynomial.smul_eq_C_mul]
+  simp only [CGraph.fintypeCard, card_complete, Nat.add_sub_cancel,
+    Polynomial.smul_eq_C_mul]
   simp only [Polynomial.sub_comp, Polynomial.pow_comp, Polynomial.add_comp, Polynomial.X_comp,
     Polynomial.mul_comp, Polynomial.C_comp, Polynomial.one_comp, Polynomial.C_add, Polynomial.C_1]
   ring
@@ -777,6 +814,7 @@ theorem hasEigenvector_tensorProduct {G H : CGraph}
     intro c d
     by_cases h1 : G.Adj a c <;> by_cases h2 : H.Adj b d <;>
       simp [adjMat_apply, tensorProduct, h1, h2]
+  rw [fintype_eq_prod (FinEnum.instFintype : Fintype (G ⊗g H).V)]
   calc ∑ q : G.V × H.V, (G ⊗g H).adjMat (a, b) q * (u q.1 * w q.2)
       = ∑ c : G.V, ∑ d : H.V, G.adjMat a c * u c * (H.adjMat b d * w d) := by
         rw [Fintype.sum_prod_type]
@@ -904,6 +942,7 @@ theorem path_adjMat_mulVec (n : ℕ) (f : ℕ → ℝ) (h0 : f 0 = 0) (hn : f (n
       · rw [if_pos ((path_adj_iff n i j).2 (Or.inr h2)), if_neg h1, if_pos h2, h2]; ring
       · rw [if_neg (fun h ↦ (path_adj_iff n i j).1 h |>.elim h1 h2), if_neg h1, if_neg h2]; ring
   simp only [Matrix.mulVec, dotProduct, adjMat_apply]
+  rw [fintype_eq_fin (FinEnum.instFintype : Fintype (path n).V)]
   calc ∑ j : Fin n, (if (path n).Adj i j = true then (1 : ℝ) else 0) * f (j.1 + 1)
       = ∑ j : Fin n, ((if i.1 + 1 = j.1 then f (j.1 + 1) else 0)
           + (if j.1 + 1 = i.1 then f i.1 else 0)) := Finset.sum_congr rfl fun j _ ↦ step j
@@ -987,7 +1026,7 @@ theorem spectrum_path (n : ℕ) :
   classical
   set f : Fin n → ℝ := fun m ↦ 2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) with hf
   have hinj : Function.Injective f := injective_path_eigenvalue n
-  have hcard : Fintype.card (path n).V ≤ (Finset.image f Finset.univ).card := by
+  have hcard : FinEnum.card (path n).V ≤ (Finset.image f Finset.univ).card := by
     rw [Finset.card_image_of_injective _ hinj]
     simp [path, ofRel]
   have hs : ∀ x ∈ Finset.image f Finset.univ, (path n).IsEigenvalue x := by
@@ -1111,7 +1150,7 @@ private theorem cycP_mul_cycQ {n : ℕ} (hn : 0 < n) : cycP n * cycQ n = 1 := by
     rw [Finset.mul_sum]
     rw [← Fin.sum_univ_eq_sum_range
       (fun i ↦ (n : ℂ)⁻¹ * (cycZeta n ^ j.1 * (cycZeta n ^ l.1)⁻¹) ^ i) n]
-    exact Finset.sum_congr rfl fun m _ ↦ hterm m
+    exact Finset.sum_congr (Finset.univ_inst_eq _ _) fun m _ ↦ hterm m
   simp only [Matrix.mul_apply, cycP, cycQ, Matrix.of_apply]
   rw [hsum]
   by_cases hjl : j = l
@@ -1232,7 +1271,7 @@ theorem spectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
         = ((Finset.univ.val.map (fun m : (cycle n).V ↦ 2 * Real.cos (2 * Real.pi * m.1 / n))).map
           (fun a ↦ X - C a)).prod from by rw [Multiset.map_map]; rfl,
       Polynomial.roots_multiset_prod_X_sub_C]
-  exact key
+  exact key.trans (congrArg (Multiset.map _) (Finset.univ_val_inst_eq _ _))
 
 
 /-! ## Diagonalisation
@@ -1309,7 +1348,10 @@ theorem spectrum_tensorProduct (G H : CGraph) :
       = Finset.univ.val.map (fun p : G.V × H.V ↦ G.eigenvalues p.1 * H.eigenvalues p.2) := by
   obtain ⟨P₁, Q₁, h₁, h₁', e₁⟩ := exists_conj_diagonal G
   obtain ⟨P₂, Q₂, h₂, h₂', e₂⟩ := exists_conj_diagonal H
-  refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  rw [← fintype_eq_prod (FinEnum.instFintype : Fintype (G ⊗g H).V)]
+  refine spectrum_eq_of_conj (G := G ⊗g H) (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  all_goals rw [fintype_eq_prod (FinEnum.instFintype : Fintype (G ⊗g H).V)]
+  all_goals try rw [decEq_eq_prod (FinEnum.decEq : DecidableEq (G ⊗g H).V)]
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
   · rw [adjMat_tensorProduct, ← Matrix.mul_kronecker_mul, e₁, e₂, Matrix.mul_kronecker_mul,
@@ -1357,7 +1399,10 @@ theorem spectrum_cartesianProduct (G H : CGraph) :
           (fun p : G.V × H.V ↦ G.eigenvalues p.1 + H.eigenvalues p.2) := by
     rw [← hdiag, Matrix.mul_add, ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul,
       Matrix.mul_one, Matrix.mul_one]
-  refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  rw [← fintype_eq_prod (FinEnum.instFintype : Fintype (G □g H).V)]
+  refine spectrum_eq_of_conj (G := G □g H) (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  all_goals rw [fintype_eq_prod (FinEnum.instFintype : Fintype (G □g H).V)]
+  all_goals try rw [decEq_eq_prod (FinEnum.decEq : DecidableEq (G □g H).V)]
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
   · rw [adjMat_cartesianProduct, Matrix.add_mul, ← Matrix.mul_kronecker_mul,
@@ -1402,7 +1447,10 @@ theorem spectrum_strongProduct (G H : CGraph) :
     rw [show P₁ * D₁ + P₁ = P₁ * (D₁ + 1) by rw [Matrix.mul_add, Matrix.mul_one],
       show P₂ * D₂ + P₂ = P₂ * (D₂ + 1) by rw [Matrix.mul_add, Matrix.mul_one],
       ← hdiag, Matrix.mul_sub, ← Matrix.mul_kronecker_mul, Matrix.mul_one]
-  refine spectrum_eq_of_conj (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  rw [← fintype_eq_prod (FinEnum.instFintype : Fintype (G ⊠g H).V)]
+  refine spectrum_eq_of_conj (G := G ⊠g H) (P := P₁ ⊗ₖ P₂) (Q := Q₁ ⊗ₖ Q₂) ?_ ?_ ?_
+  all_goals rw [fintype_eq_prod (FinEnum.instFintype : Fintype (G ⊠g H).V)]
+  all_goals try rw [decEq_eq_prod (FinEnum.decEq : DecidableEq (G ⊠g H).V)]
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
   · rw [adjMat_strongProduct, Matrix.sub_mul, ← Matrix.mul_kronecker_mul, Matrix.add_mul,
@@ -1648,7 +1696,7 @@ theorem sq_degree_of_isSRGWith {G : CGraph} [Nonempty G.V] {n k l m : ℕ}
       = ((n : ℝ) - 1 - k) • (fun _ ↦ (1 : ℝ)) := by
     rw [compl_adjMatrix_eq, Matrix.sub_mulVec, Matrix.sub_mulVec, hone, Matrix.one_mulVec]
     funext i
-    have hcard : (Fintype.card G.V : ℝ) = n := by rw [h.card]
+    have hcard : (FinEnum.card G.V : ℝ) = n := by rw [← G.fintypeCard, h.card]
     simp [Matrix.mulVec, dotProduct, Matrix.vecMulVec, Finset.card_univ, hcard]
   have hsq : (G.adjMat * G.adjMat) *ᵥ (fun _ ↦ (1 : ℝ)) = ((k : ℝ) ^ 2) • (fun _ ↦ (1 : ℝ)) := by
     rw [← Matrix.mulVec_mulVec, hone, Matrix.mulVec_smul, hone, smul_smul, ← pow_two]
@@ -1716,7 +1764,7 @@ theorem spectrum_isSRGWith {G : CGraph} [Nonempty G.V] {n k l m : ℕ}
   -- the three moment equations
   have hcard : (e : ℝ) + f + g = n := by
     have h1 := congrArg Multiset.card hdec
-    rw [card_spectrum, h.card] at h1
+    rw [card_spectrum, ← CGraph.fintypeCard, h.card] at h1
     simp only [Multiset.card_add, Multiset.card_replicate] at h1
     exact_mod_cast h1.symm
   have hsum0 : (e : ℝ) * k + f * r + g * s = 0 := by
@@ -2087,7 +2135,7 @@ theorem cospectral_iff_spectrum_eq {G H : CGraph} :
 
 /-- **Cospectral graphs have the same number of vertices.** -/
 theorem Cospectral.card_eq {G H : CGraph} (h : Cospectral G H) :
-    Fintype.card G.V = Fintype.card H.V := by
+    FinEnum.card G.V = FinEnum.card H.V := by
   rw [← natDegree_charpoly, ← natDegree_charpoly, h]
 
 /-- **Cospectral graphs have the same number of edges**, by the sum of the squares of the
@@ -2139,7 +2187,7 @@ theorem adj_eq_false_of_E_eq_zero {G : CGraph} (h : G.E = 0) (x y : G.V) : G.Adj
 theorem isDS_empty (n : ℕ) : IsDS (empty n) := by
   intro H h
   have hcard : Fintype.card H.V = n := by
-    rw [← h.card_eq, card_empty]
+    rw [H.fintypeCard, ← h.card_eq, card_empty]
   have hE : H.E = 0 := by rw [← h.E_eq, E_empty]
   refine ⟨isoOfAdj (Fintype.equivFinOfCardEq hcard).symm fun x y ↦ ?_⟩
   rw [empty_adj, adj_eq_false_of_E_eq_zero hE]
@@ -2150,7 +2198,7 @@ degree is exactly `n - 1`. -/
 theorem isDS_complete (n : ℕ) : IsDS (complete n) := by
   classical
   intro H h
-  have hcard : Fintype.card H.V = n := by rw [← h.card_eq, card_complete]
+  have hcard : Fintype.card H.V = n := by rw [H.fintypeCard, ← h.card_eq, card_complete]
   set e : (complete n).V ≃ H.V := (Fintype.equivFinOfCardEq hcard).symm with he
   rcases n with _ | m
   · exact ⟨isoOfAdj e fun x y ↦ absurd x.isLt (Nat.not_lt_zero _)⟩
@@ -2202,7 +2250,7 @@ theorem isDS_complete (n : ℕ) : IsDS (complete n) := by
 theorem spectrum_eq_of_cube_eq_smul {G : CGraph} {c : ℝ} (hc : 0 < c)
     (hcube : G.adjMat * G.adjMat * G.adjMat = c • G.adjMat) (hE : (G.E : ℝ) = c) :
     G.spectrum = Real.sqrt c ::ₘ (-Real.sqrt c) ::ₘ
-      Multiset.replicate (Fintype.card G.V - 2) 0 := by
+      Multiset.replicate (FinEnum.card G.V - 2) 0 := by
   classical
   set r := Real.sqrt c with hrdef
   have hr : 0 < r := Real.sqrt_pos.2 hc
@@ -2279,7 +2327,7 @@ theorem spectrum_eq_of_cube_eq_smul {G : CGraph} {c : ℝ} (hc : 0 < c)
   have hb1 : b = 1 := by
     have : (b : ℝ) = 1 := by linarith
     exact_mod_cast this
-  have hzc : z = Fintype.card G.V - 2 := by
+  have hzc : z = FinEnum.card G.V - 2 := by
     have h := hcard
     rw [card_spectrum, ha1, hb1] at h
     omega
@@ -2304,7 +2352,8 @@ theorem adjMat_bipartite (m n : ℕ) :
 theorem adjMat_bipartite_cube (m n : ℕ) :
     (bipartite m n).adjMat * (bipartite m n).adjMat * (bipartite m n).adjMat =
       ((m * n : ℕ) : ℝ) • (bipartite m n).adjMat := by
-  rw [adjMat_bipartite, Matrix.fromBlocks_multiply, Matrix.fromBlocks_multiply,
+  rw [adjMat_bipartite, fintype_eq_sum (FinEnum.instFintype : Fintype (bipartite m n).V),
+    Matrix.fromBlocks_multiply, Matrix.fromBlocks_multiply,
     Matrix.fromBlocks_smul]
   simp only [Matrix.mul_zero, Matrix.zero_mul, add_zero, zero_add, smul_zero]
   congr 1 <;> ext i j <;> simp [Matrix.mul_apply, mul_comm]
@@ -2664,7 +2713,7 @@ theorem lambdaMin_le_neg_one {G : CGraph} [Nonempty G.V] {u v : G.V} (h : G.Adj 
 
 /-- **The largest eigenvalue is at least the average degree.** -/
 theorem avg_degree_le_lambdaMax (G : CGraph) [Nonempty G.V] :
-    2 * (G.E : ℝ) ≤ G.lambdaMax * Fintype.card G.V := by
+    2 * (G.E : ℝ) ≤ G.lambdaMax * FinEnum.card G.V := by
   classical
   have hone : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (G.adjMat *ᵥ fun _ ↦ (1 : ℝ)) = 2 * (G.E : ℝ) := by
     have hdeg : ∀ i, (G.adjMat *ᵥ fun _ : G.V ↦ (1 : ℝ)) i = (G.toSimple.degree i : ℝ) :=
@@ -2674,7 +2723,7 @@ theorem avg_degree_le_lambdaMax (G : CGraph) [Nonempty G.V] :
     rw [← Nat.cast_sum, SimpleGraph.sum_degrees_eq_twice_card_edges, hE]
     push_cast
     ring
-  have hnorm : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (fun _ ↦ (1 : ℝ)) = (Fintype.card G.V : ℝ) := by
+  have hnorm : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (fun _ ↦ (1 : ℝ)) = (FinEnum.card G.V : ℝ) := by
     simp [dotProduct, Finset.card_univ]
   have := G.rayleigh_le_lambdaMax fun _ ↦ (1 : ℝ)
   rwa [hone, hnorm] at this
@@ -2860,11 +2909,11 @@ theorem lambdaMax_le_lambdaMax_of_adj {G H : CGraph} [Nonempty G.V] [Nonempty H.
 /-- **The spectral radius is at most `n - 1`**, since no degree exceeds `n - 1`.  The bound is
 attained by `Kₙ`, which is where every graph sits. -/
 theorem lambdaMax_le_card_sub_one (G : CGraph) [Nonempty G.V] :
-    G.lambdaMax ≤ (Fintype.card G.V : ℝ) - 1 := by
+    G.lambdaMax ≤ (FinEnum.card G.V : ℝ) - 1 := by
   have h := G.lambdaMax_le_maxDeg
   have h2 := maxDeg_lt_card (G := G)
-  have h3 : ((G.maxDeg : ℝ)) ≤ (Fintype.card G.V : ℝ) - 1 := by
-    have : (G.maxDeg + 1 : ℕ) ≤ Fintype.card G.V := h2
+  have h3 : ((G.maxDeg : ℝ)) ≤ (FinEnum.card G.V : ℝ) - 1 := by
+    have : (G.maxDeg + 1 : ℕ) ≤ FinEnum.card G.V := h2
     have := (Nat.cast_le (α := ℝ)).2 this
     push_cast at this
     linarith
@@ -3091,7 +3140,7 @@ theorem lambdaMax_complete (n : ℕ) : (complete (n + 1)).lambdaMax = n := by
 
 /-- The complete graph attains it: `λ_max(Kₙ) = n - 1`. -/
 theorem lambdaMax_complete_eq_card_sub_one (n : ℕ) :
-    (complete (n + 1)).lambdaMax = (Fintype.card (complete (n + 1)).V : ℝ) - 1 := by
+    (complete (n + 1)).lambdaMax = (FinEnum.card (complete (n + 1)).V : ℝ) - 1 := by
   rw [lambdaMax_complete, card_complete]
   push_cast
   ring
@@ -3345,8 +3394,8 @@ an eigenvector of `G ∇ H` for `λ` as soon as the two scalar equations `k a + 
 `n a + l b = λ b` hold. -/
 theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
     (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) {a b lam : ℝ}
-    (h1 : (k : ℝ) * a + Fintype.card H.V * b = lam * a)
-    (h2 : Fintype.card G.V * a + (l : ℝ) * b = lam * b) :
+    (h1 : (k : ℝ) * a + FinEnum.card H.V * b = lam * a)
+    (h2 : FinEnum.card G.V * a + (l : ℝ) * b = lam * b) :
     (G ∇g H).adjMat *ᵥ Sum.elim (fun _ ↦ a) (fun _ ↦ b)
       = lam • Sum.elim (fun _ ↦ a) (fun _ ↦ b) := by
   set w : (G ∇g H).V → ℝ := Sum.elim (fun _ ↦ a) (fun _ ↦ b) with hwdef
@@ -3355,7 +3404,9 @@ theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
   · have hsplit : ((G ∇g H).adjMat *ᵥ w) (Sum.inl u)
         = (∑ u' : G.V, (G ∇g H).adjMat (Sum.inl u) (Sum.inl u') * w (Sum.inl u'))
           + ∑ v' : H.V, (G ∇g H).adjMat (Sum.inl u) (Sum.inr v') * w (Sum.inr v') :=
-      Fintype.sum_sum_type (f := fun x ↦ (G ∇g H).adjMat (Sum.inl u) x * w x)
+      by simp only [Matrix.mulVec, dotProduct]
+         rw [fintype_eq_sum (FinEnum.instFintype : Fintype (G ∇g H).V)]
+         exact Fintype.sum_sum_type _
     have e1 : ∀ u' : G.V, (G ∇g H).adjMat (Sum.inl u) (Sum.inl u') * w (Sum.inl u')
         = G.adjMat u u' * a := by
       intro u'
@@ -3367,13 +3418,15 @@ theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
       simp [hwdef]
     rw [hsplit, Finset.sum_congr rfl fun u' _ ↦ e1 u', Finset.sum_congr rfl fun v' _ ↦ e2 v',
       ← Finset.sum_mul, sum_adjMat_row hG]
-    simp only [Finset.sum_const, nsmul_eq_mul, Finset.card_univ, Pi.smul_apply, smul_eq_mul,
-      hwdef, Sum.elim_inl]
+    simp only [Finset.sum_const, nsmul_eq_mul, Finset.card_univ, CGraph.fintypeCard,
+      Pi.smul_apply, smul_eq_mul, hwdef, Sum.elim_inl]
     linarith
   · have hsplit : ((G ∇g H).adjMat *ᵥ w) (Sum.inr v)
         = (∑ u' : G.V, (G ∇g H).adjMat (Sum.inr v) (Sum.inl u') * w (Sum.inl u'))
           + ∑ v' : H.V, (G ∇g H).adjMat (Sum.inr v) (Sum.inr v') * w (Sum.inr v') :=
-      Fintype.sum_sum_type (f := fun x ↦ (G ∇g H).adjMat (Sum.inr v) x * w x)
+      by simp only [Matrix.mulVec, dotProduct]
+         rw [fintype_eq_sum (FinEnum.instFintype : Fintype (G ∇g H).V)]
+         exact Fintype.sum_sum_type _
     have e1 : ∀ u' : G.V, (G ∇g H).adjMat (Sum.inr v) (Sum.inl u') * w (Sum.inl u') = a := by
       intro u'
       rw [adjMat_apply, join_adj_inr_inl]
@@ -3385,8 +3438,8 @@ theorem adjMat_mulVec_join {G H : CGraph} {k l : ℕ}
       simp [hwdef]
     rw [hsplit, Finset.sum_congr rfl fun u' _ ↦ e1 u', Finset.sum_congr rfl fun v' _ ↦ e2 v',
       ← Finset.sum_mul, sum_adjMat_row hH]
-    simp only [Finset.sum_const, nsmul_eq_mul, Finset.card_univ, Pi.smul_apply, smul_eq_mul,
-      hwdef, Sum.elim_inr]
+    simp only [Finset.sum_const, nsmul_eq_mul, Finset.card_univ, CGraph.fintypeCard,
+      Pi.smul_apply, smul_eq_mul, hwdef, Sum.elim_inr]
     linarith
 
 /-- **The spectral radius of the join of two regular graphs** is the larger root of
@@ -3396,11 +3449,11 @@ theorem lambdaMax_join_of_isRegularWith {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
     (G ∇g H).lambdaMax
       = ((k : ℝ) + l
-          + Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * Fintype.card G.V * Fintype.card H.V)) / 2 := by
-  set n : ℕ := Fintype.card G.V with hn
-  set m : ℕ := Fintype.card H.V with hm
-  have hn0 : (0 : ℝ) < (n : ℝ) := by exact_mod_cast Fintype.card_pos (α := G.V)
-  have hm0 : (0 : ℝ) < (m : ℝ) := by exact_mod_cast Fintype.card_pos (α := H.V)
+          + Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2 := by
+  set n : ℕ := FinEnum.card G.V with hn
+  set m : ℕ := FinEnum.card H.V with hm
+  have hn0 : (0 : ℝ) < (n : ℝ) := by exact_mod_cast FinEnum.card_pos (α := G.V)
+  have hm0 : (0 : ℝ) < (m : ℝ) := by exact_mod_cast FinEnum.card_pos (α := H.V)
   set r : ℝ := Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * (n : ℝ) * (m : ℝ)) with hr
   have hr2 : r ^ 2 = ((k : ℝ) - l) ^ 2 + 4 * (n : ℝ) * (m : ℝ) := Real.sq_sqrt (by positivity)
   have hrk : |(k : ℝ) - l| < r := by
@@ -3429,11 +3482,11 @@ theorem lambdaMin_join_of_isRegularWith_le {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
     (G ∇g H).lambdaMin
       ≤ ((k : ℝ) + l
-          - Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * Fintype.card G.V * Fintype.card H.V)) / 2 := by
-  set n : ℕ := Fintype.card G.V with hn
-  set m : ℕ := Fintype.card H.V with hm
-  have hn0 : (0 : ℝ) < (n : ℝ) := by exact_mod_cast Fintype.card_pos (α := G.V)
-  have hm0 : (0 : ℝ) < (m : ℝ) := by exact_mod_cast Fintype.card_pos (α := H.V)
+          - Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2 := by
+  set n : ℕ := FinEnum.card G.V with hn
+  set m : ℕ := FinEnum.card H.V with hm
+  have hn0 : (0 : ℝ) < (n : ℝ) := by exact_mod_cast FinEnum.card_pos (α := G.V)
+  have hm0 : (0 : ℝ) < (m : ℝ) := by exact_mod_cast FinEnum.card_pos (α := H.V)
   set r : ℝ := Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * (n : ℝ) * (m : ℝ)) with hr
   have hr2 : r ^ 2 = ((k : ℝ) - l) ^ 2 + 4 * (n : ℝ) * (m : ℝ) := Real.sq_sqrt (by positivity)
   set lam : ℝ := ((k : ℝ) + l - r) / 2 with hlam
@@ -3453,7 +3506,7 @@ positive eigenvector's eigenvalue bounds the whole spectrum. -/
 theorem lambdaMax_join_complete_one {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
     (complete 1 ∇g G).lambdaMax
-      = ((k : ℝ) + Real.sqrt ((k : ℝ) ^ 2 + 4 * Fintype.card G.V)) / 2 := by
+      = ((k : ℝ) + Real.sqrt ((k : ℝ) ^ 2 + 4 * FinEnum.card G.V)) / 2 := by
   rw [lambdaMax_join_of_isRegularWith (isRegularWith_complete 0) h, card_complete]
   norm_num
 
@@ -3475,7 +3528,7 @@ the rim's own `-2` is smaller. -/
 theorem lambdaMin_join_complete_one_le {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
     (complete 1 ∇g G).lambdaMin
-      ≤ ((k : ℝ) - Real.sqrt ((k : ℝ) ^ 2 + 4 * Fintype.card G.V)) / 2 := by
+      ≤ ((k : ℝ) - Real.sqrt ((k : ℝ) ^ 2 + 4 * FinEnum.card G.V)) / 2 := by
   have h1 := lambdaMin_join_of_isRegularWith_le (isRegularWith_complete 0) h
   rw [card_complete] at h1
   refine h1.trans (le_of_eq ?_)
@@ -3786,7 +3839,7 @@ theorem mulVec_eq_of_rayleigh_eq_lambdaMax (G : CGraph) [Nonempty G.V] {v : G.V 
 attains the Rayleigh maximum, so it is an eigenvector, and its eigenvalue equation at a vertex
 says that the vertex has degree `λ_max`. -/
 theorem isRegularWith_of_two_mul_E_eq (G : CGraph) [Nonempty G.V] {k : ℕ}
-    (hlam : G.lambdaMax = k) (hE : 2 * G.E = Fintype.card G.V * k) : G.IsRegularWith k := by
+    (hlam : G.lambdaMax = k) (hE : 2 * G.E = FinEnum.card G.V * k) : G.IsRegularWith k := by
   have hdeg : ∀ i, (G.adjMat *ᵥ fun _ : G.V ↦ (1 : ℝ)) i = (G.toSimple.degree i : ℝ) :=
     fun i ↦ by simp [adjMat, SimpleGraph.adjMatrix_mulVec_apply]
   have hone : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (G.adjMat *ᵥ fun _ ↦ (1 : ℝ)) = 2 * (G.E : ℝ) := by
@@ -3795,9 +3848,9 @@ theorem isRegularWith_of_two_mul_E_eq (G : CGraph) [Nonempty G.V] {k : ℕ}
     rw [← Nat.cast_sum, SimpleGraph.sum_degrees_eq_twice_card_edges, hEd]
     push_cast
     ring
-  have hnorm : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (fun _ ↦ (1 : ℝ)) = (Fintype.card G.V : ℝ) := by
+  have hnorm : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (fun _ ↦ (1 : ℝ)) = (FinEnum.card G.V : ℝ) := by
     simp [dotProduct, Finset.card_univ]
-  have hcast : (2 * G.E : ℝ) = (Fintype.card G.V : ℝ) * k := by exact_mod_cast hE
+  have hcast : (2 * G.E : ℝ) = (FinEnum.card G.V : ℝ) * k := by exact_mod_cast hE
   have heq : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (G.adjMat *ᵥ fun _ ↦ (1 : ℝ))
       = G.lambdaMax * ((fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ fun _ ↦ (1 : ℝ)) := by
     rw [hone, hnorm, hlam]
@@ -3818,7 +3871,7 @@ theorem Cospectral.isRegularWith {G H : CGraph} (h : Cospectral G H) {k : ℕ}
   rcases isEmpty_or_nonempty H.V with hemp | hne
   · exact fun i ↦ (hemp.false i).elim
   haveI : Nonempty G.V := by
-    rw [← Fintype.card_pos_iff] at hne ⊢
+    rw [← FinEnum.card_pos_iff] at hne ⊢
     rw [h.card_eq]
     exact hne
   have hspec : G.spectrum = H.spectrum := h.spectrum_eq
@@ -3828,9 +3881,9 @@ theorem Cospectral.isRegularWith {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     · rw [← hlamG]
       exact le_lambdaMax (by rw [hspec]; exact hx)
     · exact le_lambdaMax (by rw [← hspec, ← hlamG]; exact lambdaMax_mem_spectrum G)
-  have hEG : 2 * G.E = Fintype.card G.V * k := by
-    have hsum : ∑ i : G.V, G.toSimple.degree i = Fintype.card G.V * k := by
-      rw [Finset.sum_congr rfl fun i _ ↦ hG i, Finset.sum_const, Finset.card_univ, smul_eq_mul]
+  have hEG : 2 * G.E = FinEnum.card G.V * k := by
+    have hsum : ∑ i : G.V, G.toSimple.degree i = FinEnum.card G.V * k := by
+      rw [Finset.sum_congr rfl fun i _ ↦ hG i, Finset.sum_const, Finset.card_univ, smul_eq_mul, G.fintypeCard]
     rw [show G.E = G.toSimple.edgeFinset.card from rfl,
       ← SimpleGraph.sum_degrees_eq_twice_card_edges, hsum]
   exact H.isRegularWith_of_two_mul_E_eq hlam (by rw [← h.E_eq, ← h.card_eq]; exact hEG)
@@ -3843,11 +3896,11 @@ zero; it spans no edge, so its Rayleigh quotient is `-k |S| ² / n`. -/
 theorem card_mul_sub_lambdaMin_le {G : CGraph} [Nonempty G.V] {k : ℕ} (hk : G.IsRegularWith k)
     {S : Finset G.V} (hS : G.toSimple.IsIndepSet (S : Set G.V)) :
     (S.card : ℝ) * ((k : ℝ) - G.lambdaMin)
-      ≤ (Fintype.card G.V : ℝ) * (-G.lambdaMin) := by
-  set n : ℝ := (Fintype.card G.V : ℝ) with hn_def
+      ≤ (FinEnum.card G.V : ℝ) * (-G.lambdaMin) := by
+  set n : ℝ := (FinEnum.card G.V : ℝ) with hn_def
   set s : ℝ := (S.card : ℝ) with hs_def
   set lm : ℝ := G.lambdaMin with hlm_def
-  have hn : 0 < n := by rw [hn_def]; exact_mod_cast Fintype.card_pos
+  have hn : 0 < n := by rw [hn_def]; exact_mod_cast FinEnum.card_pos
   have hs0 : 0 ≤ s := by positivity
   set ind : G.V → ℝ := fun i ↦ if i ∈ S then 1 else 0 with hind_def
   -- the transpose is the matrix itself, and the all-ones vector is a `k`-eigenvector
@@ -3917,7 +3970,7 @@ theorem card_mul_sub_lambdaMin_le {G : CGraph} [Nonempty G.V] {k : ℕ} (hk : G.
 theorem indepNum_mul_sub_lambdaMin_le {G : CGraph} [Nonempty G.V] {k : ℕ}
     (hk : G.IsRegularWith k) :
     (G.indepNum : ℝ) * ((k : ℝ) - G.lambdaMin)
-      ≤ (Fintype.card G.V : ℝ) * (-G.lambdaMin) := by
+      ≤ (FinEnum.card G.V : ℝ) * (-G.lambdaMin) := by
   obtain ⟨S, hS, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
   have := card_mul_sub_lambdaMin_le hk hS
   rwa [hcard] at this
@@ -3928,20 +3981,20 @@ independent set, so `n ≤ χ α`, and the ratio bound `indepNum_mul_sub_lambdaM
 theorem sub_lambdaMin_le_chromNum_mul {G : CGraph} [Nonempty G.V] {k : ℕ}
     (hk : G.IsRegularWith k) :
     (k : ℝ) - G.lambdaMin ≤ G.chromNum * (-G.lambdaMin) := by
-  have hn : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
+  have hn : (0 : ℝ) < FinEnum.card G.V := by exact_mod_cast FinEnum.card_pos
   have hα := indepNum_mul_sub_lambdaMin_le hk
-  have hχ : (Fintype.card G.V : ℝ) ≤ (G.chromNum : ℝ) * G.indepNum := by
+  have hχ : (FinEnum.card G.V : ℝ) ≤ (G.chromNum : ℝ) * G.indepNum := by
     exact_mod_cast G.card_le_chromNum_mul_indepNum
   have hlm : G.lambdaMin ≤ 0 := G.lambdaMin_nonpos
   have hk0 : (0 : ℝ) ≤ k := Nat.cast_nonneg k
   have hχ0 : (0 : ℝ) ≤ (G.chromNum : ℝ) := Nat.cast_nonneg _
   have hkL : (0 : ℝ) ≤ (k : ℝ) - G.lambdaMin := by linarith
-  have h1 : (Fintype.card G.V : ℝ) * ((k : ℝ) - G.lambdaMin)
+  have h1 : (FinEnum.card G.V : ℝ) * ((k : ℝ) - G.lambdaMin)
       ≤ (G.chromNum : ℝ) * ((G.indepNum : ℝ) * ((k : ℝ) - G.lambdaMin)) := by
     rw [← mul_assoc]
     exact mul_le_mul_of_nonneg_right hχ hkL
   have h2 : (G.chromNum : ℝ) * ((G.indepNum : ℝ) * ((k : ℝ) - G.lambdaMin))
-      ≤ (G.chromNum : ℝ) * ((Fintype.card G.V : ℝ) * (-G.lambdaMin)) :=
+      ≤ (G.chromNum : ℝ) * ((FinEnum.card G.V : ℝ) * (-G.lambdaMin)) :=
     mul_le_mul_of_nonneg_left hα hχ0
   exact le_of_mul_le_mul_left (h1.trans (h2.trans (le_of_eq (by ring)))) hn
 
@@ -4083,7 +4136,8 @@ theorem marksAffineD4_pos (i : Fin 5) : 0 < marksAffineD4 i := by
 
 set_option linter.unnecessarySeqFocus false in
 theorem mulVec_affineD4 : affineD4.adjMat *ᵥ marksAffineD4 = (2 : ℝ) • marksAffineD4 := by
-  funext i
+  rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineD4.V)]
+  refine funext fun i : Fin 5 ↦ ?_
   fin_cases i <;>
     simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineD4, ofEdges, ofRel,
       marksAffineD4] <;> norm_num
@@ -4149,7 +4203,8 @@ def marksAffineE6 : Fin 7 → ℝ := ![3, 2, 1, 2, 1, 2, 1]
 theorem marksAffineE6_pos (i : Fin 7) : 0 < marksAffineE6 i := by
   fin_cases i <;> norm_num [marksAffineE6]
 theorem mulVec_affineE6 : affineE6.adjMat *ᵥ marksAffineE6 = (2 : ℝ) • marksAffineE6 := by
-  funext i
+  rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineE6.V)]
+  refine funext fun i : Fin 7 ↦ ?_
   fin_cases i <;>
     simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE6, ofEdges, ofRel,
       marksAffineE6] <;> norm_num
@@ -4217,7 +4272,8 @@ def marksAffineE7 : Fin 8 → ℝ := ![4, 2, 3, 2, 1, 3, 2, 1]
 theorem marksAffineE7_pos (i : Fin 8) : 0 < marksAffineE7 i := by
   fin_cases i <;> norm_num [marksAffineE7]
 theorem mulVec_affineE7 : affineE7.adjMat *ᵥ marksAffineE7 = (2 : ℝ) • marksAffineE7 := by
-  funext i
+  rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineE7.V)]
+  refine funext fun i : Fin 8 ↦ ?_
   fin_cases i <;>
     simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE7, ofEdges, ofRel,
       marksAffineE7] <;> norm_num
@@ -4287,7 +4343,8 @@ def marksAffineE8 : Fin 9 → ℝ := ![6, 3, 4, 2, 5, 4, 3, 2, 1]
 theorem marksAffineE8_pos (i : Fin 9) : 0 < marksAffineE8 i := by
   fin_cases i <;> norm_num [marksAffineE8]
 theorem mulVec_affineE8 : affineE8.adjMat *ᵥ marksAffineE8 = (2 : ℝ) • marksAffineE8 := by
-  funext i
+  rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineE8.V)]
+  refine funext fun i : Fin 9 ↦ ?_
   fin_cases i <;>
     simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE8, ofEdges, ofRel,
       marksAffineE8] <;> norm_num
@@ -4405,7 +4462,9 @@ theorem affineD_mulVec_inl (m : ℕ) (v : (affineD m).V → ℝ) (i : Fin (m + 1
   have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inl i)
       = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j))
         + ∑ k : Fin 4, (affineD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k) :=
-    Fintype.sum_sum_type (f := fun x ↦ (affineD m).adjMat (Sum.inl i) x * v x)
+    by simp only [Matrix.mulVec, dotProduct]
+       rw [fintype_eq_sum (FinEnum.instFintype : Fintype (affineD m).V)]
+       exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf]
   rw [chain_split]
@@ -4432,7 +4491,9 @@ theorem affineD_mulVec_inr_le (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) 
   have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
-    Fintype.sum_sum_type (f := fun x ↦ (affineD m).adjMat (Sum.inr k) x * v x)
+    by simp only [Matrix.mulVec, dotProduct]
+       rw [fintype_eq_sum (FinEnum.instFintype : Fintype (affineD m).V)]
+       exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
     Finset.mem_univ, if_true]
@@ -4455,7 +4516,9 @@ theorem affineD_mulVec_inr_ge (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) 
   have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
-    Fintype.sum_sum_type (f := fun x ↦ (affineD m).adjMat (Sum.inr k) x * v x)
+    by simp only [Matrix.mulVec, dotProduct]
+       rw [fintype_eq_sum (FinEnum.instFintype : Fintype (affineD m).V)]
+       exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
     Finset.mem_univ, if_true]
@@ -4491,8 +4554,10 @@ theorem mulVec_affineD (m : ℕ) :
 
 
 
-theorem card_affineD (m : ℕ) : Fintype.card (affineD m).V = m + 5 := by
-  show Fintype.card (Fin (m + 1) ⊕ Fin 4) = m + 5
+theorem card_affineD (m : ℕ) : FinEnum.card (affineD m).V = m + 5 := by
+  have h : FinEnum.card (affineD m).V = Fintype.card (Fin (m + 1) ⊕ Fin 4) :=
+    @FinEnum.card_eq_fintypeCard' _ _ (instFintypeSum _ _)
+  rw [h]
   simp
 
 theorem two_mem_spectrum_affineD (m : ℕ) : (2 : ℝ) ∈ (affineD m).spectrum := by
@@ -4564,7 +4629,9 @@ theorem dynkinD_mulVec_inl (m : ℕ) (v : (dynkinD m).V → ℝ) (i : Fin (m + 1
   have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inl i)
       = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j))
         + ∑ k : Fin 3, (dynkinD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k) :=
-    Fintype.sum_sum_type (f := fun x ↦ (dynkinD m).adjMat (Sum.inl i) x * v x)
+    by simp only [Matrix.mulVec, dotProduct]
+       rw [fintype_eq_sum (FinEnum.instFintype : Fintype (dynkinD m).V)]
+       exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf]
   rw [chain_split]
@@ -4591,7 +4658,9 @@ theorem dynkinD_mulVec_inr_le (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3) 
   have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
-    Fintype.sum_sum_type (f := fun x ↦ (dynkinD m).adjMat (Sum.inr k) x * v x)
+    by simp only [Matrix.mulVec, dotProduct]
+       rw [fintype_eq_sum (FinEnum.instFintype : Fintype (dynkinD m).V)]
+       exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
     Finset.mem_univ, if_true]
@@ -4614,7 +4683,9 @@ theorem dynkinD_mulVec_inr_two (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3)
   have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
-    Fintype.sum_sum_type (f := fun x ↦ (dynkinD m).adjMat (Sum.inr k) x * v x)
+    by simp only [Matrix.mulVec, dotProduct]
+       rw [fintype_eq_sum (FinEnum.instFintype : Fintype (dynkinD m).V)]
+       exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
     Finset.mem_univ, if_true]
@@ -4625,8 +4696,10 @@ def marksDynkinD (m : ℕ) : (dynkinD m).V → ℝ := Sum.elim (fun _ ↦ 2) (fu
 theorem marksDynkinD_pos (m : ℕ) (x : (dynkinD m).V) : 0 < marksDynkinD m x := by
   rcases x with i | k <;> norm_num [marksDynkinD]
 
-theorem card_dynkinD (m : ℕ) : Fintype.card (dynkinD m).V = m + 4 := by
-  show Fintype.card (Fin (m + 1) ⊕ Fin 3) = m + 4
+theorem card_dynkinD (m : ℕ) : FinEnum.card (dynkinD m).V = m + 4 := by
+  have h : FinEnum.card (dynkinD m).V = Fintype.card (Fin (m + 1) ⊕ Fin 3) :=
+    @FinEnum.card_eq_fintypeCard' _ _ (instFintypeSum _ _)
+  rw [h]
   simp
 
 theorem mulVec_le_dynkinD (m : ℕ) (x : (dynkinD m).V) :
@@ -4869,12 +4942,12 @@ theorem neg_two_le_of_mem_spectrum_lineGraph (G : CGraph) {x : ℝ}
 /-- **`-2` really is an eigenvalue** as soon as `G` has more edges than vertices: the incidence
 matrix then has a kernel, and a vector killed by `B` is an eigenvector of `Bᵀ B - 2 I`. -/
 theorem neg_two_mem_spectrum_lineGraph (G : CGraph)
-    (h : Fintype.card G.V < G.E) : (-2 : ℝ) ∈ (lineGraph G).spectrum := by
+    (h : FinEnum.card G.V < G.E) : (-2 : ℝ) ∈ (lineGraph G).spectrum := by
   have hinj : ¬ Function.Injective (Matrix.mulVecLin G.incMat) := by
     intro hinj
     have hle := LinearMap.finrank_le_finrank_of_injective (R := ℝ) hinj
     rw [Module.finrank_fintype_fun_eq_card, Module.finrank_fintype_fun_eq_card,
-      card_lineGraph] at hle
+    CGraph.fintypeCard, CGraph.fintypeCard, card_lineGraph] at hle
     omega
   obtain ⟨v, hmem, hne⟩ := Submodule.ne_bot_iff _ |>.1
     fun hbot ↦ hinj (LinearMap.ker_eq_bot.1 hbot)
@@ -4963,12 +5036,13 @@ theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} {k : ℕ}
 contributes `λ + k - 2` to `L(G)`, and the remaining `|E| - |V|` eigenvalues are all `-2`.  The
 proof is Sylvester's determinant identity applied to `B Bᵀ = A + k I` and `Bᵀ B = A(L G) + 2 I`. -/
 theorem spectrum_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
-    (h : G.IsRegularWith k) (hle : Fintype.card G.V ≤ G.E) :
+    (h : G.IsRegularWith k) (hle : FinEnum.card G.V ≤ G.E) :
     (lineGraph G).spectrum
-      = Multiset.replicate (G.E - Fintype.card G.V) (-2)
+      = Multiset.replicate (G.E - FinEnum.card G.V) (-2)
         + G.spectrum.map (fun x ↦ x + ((k : ℝ) - 2)) := by
   have hcard : Fintype.card G.V ≤ Fintype.card (lineGraph G).V := by
-    rwa [card_lineGraph]
+    rw [CGraph.fintypeCard, CGraph.fintypeCard, card_lineGraph]
+    exact hle
   have hsyl := Matrix.charpoly_mul_comm_of_le G.incMatᵀ G.incMat hcard
   rw [transpose_mul_incMat, incMat_mul_transpose_of_isRegularWith h,
     charpoly_adjMat_add_smul_one (lineGraph G) 2, charpoly_adjMat_add_smul_one G (k : ℝ)] at hsyl
@@ -4978,7 +5052,7 @@ theorem spectrum_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
       exact Finset.prod_ne_zero_iff.2 fun i _ ↦ Polynomial.X_sub_C_ne_zero _),
     Polynomial.roots_X_pow, roots_prod_X_sub_C'] at hroots
   have hL : (lineGraph G).spectrum.map (fun x ↦ x + 2)
-      = Multiset.replicate (Fintype.card (lineGraph G).V - Fintype.card G.V) (0 : ℝ)
+      = Multiset.replicate (FinEnum.card (lineGraph G).V - FinEnum.card G.V) (0 : ℝ)
         + G.spectrum.map (fun x ↦ x + (k : ℝ)) := by
     rw [spectrum_eq_map, spectrum_eq_map, Multiset.map_map, Multiset.map_map]
     simpa [Function.comp_def, Multiset.nsmul_singleton] using hroots
@@ -5001,10 +5075,10 @@ theorem spectrum_lineGraph_petersen :
       = Multiset.replicate 5 (-2 : ℝ)
         + (4 ::ₘ (Multiset.replicate 5 2 + Multiset.replicate 4 (-1))) := by
   have hreg : SRG.petersen.IsRegularWith 3 := SRG.petersen_srg.regular
-  have hcard : Fintype.card SRG.petersen.V = 10 := SRG.petersen_srg.card
+  have hcard : FinEnum.card SRG.petersen.V = 10 := SRG.petersen_srg.card
   have hE : SRG.petersen.E = 15 := by
     have hsum : ∑ i : SRG.petersen.V, SRG.petersen.toSimple.degree i = 30 := by
-      rw [Finset.sum_congr rfl fun i _ ↦ hreg i, Finset.sum_const, Finset.card_univ, hcard]
+      rw [Finset.sum_congr rfl fun i _ ↦ hreg i, Finset.sum_const, Finset.card_univ, CGraph.fintypeCard, hcard]
       rfl
     have h2 := SimpleGraph.sum_degrees_eq_twice_card_edges SRG.petersen.toSimple
     rw [hsum] at h2
@@ -5041,7 +5115,7 @@ theorem two_mul_indepNum_triangular_le (m : ℕ) :
       · linarith
       · exact le_rfl
   have h := indepNum_mul_sub_lambdaMin_le hsrg.regular
-  rw [hlm, hsrg.card, Nat.cast_choose_two] at h
+  rw [hlm, ← CGraph.fintypeCard, hsrg.card, Nat.cast_choose_two] at h
   push_cast at h
   have h2 : (2 * ((triangular (m + 4)).indepNum : ℝ)) * ((m : ℝ) + 3)
       ≤ ((m : ℝ) + 4) * ((m : ℝ) + 3) := by nlinarith [h]
@@ -5095,10 +5169,10 @@ theorem eq_of_mulVec_eq_of_isRegularWith {G : CGraph} (hconn : G.IsConnected) {k
 by `n - 1 - k` and every other eigenvalue `x` by `-1 - x`. -/
 theorem spectrum_compl_of_isRegularWith {G : CGraph}
     (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
-    Gᶜ.spectrum = ((Fintype.card G.V : ℝ) - 1 - k)
+    Gᶜ.spectrum = ((FinEnum.card G.V : ℝ) - 1 - k)
       ::ₘ (G.spectrum.erase (k : ℝ)).map (fun x ↦ -1 - x) := by
   haveI : Nonempty G.V := hconn.nonempty
-  have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
+  have hnpos : (0 : ℝ) < FinEnum.card G.V := by exact_mod_cast FinEnum.card_pos
   obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_diagonal G
   have hAU : G.adjMat * U = U * Matrix.diagonal G.eigenvalues := by
     calc G.adjMat * U = (U * Uᵀ) * (G.adjMat * U) := by rw [hUU', one_mul]
@@ -5153,19 +5227,19 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
   -- the constant value `c` of the column `i₀`
   obtain ⟨c, hc⟩ : ∃ c, ∀ x, U x i₀ = c :=
     ⟨U (Classical.arbitrary G.V) i₀, fun x ↦ hconstv i₀ hlam x _⟩
-  have hwc : w i₀ = c * Fintype.card G.V := by
+  have hwc : w i₀ = c * FinEnum.card G.V := by
     rw [hw]
     simp [hc, Finset.card_univ, mul_comm]
-  have hcsq : c ^ 2 * Fintype.card G.V = 1 := by
+  have hcsq : c ^ 2 * FinEnum.card G.V = 1 := by
     have h1 := horth i₀ i₀
     rw [if_pos rfl] at h1
-    simp only [dotProduct, Matrix.transpose_apply, hc, Finset.sum_const, Finset.card_univ,
+    simp only [dotProduct, Matrix.transpose_apply, hc, Finset.sum_const, Finset.card_univ, CGraph.fintypeCard,
       nsmul_eq_mul] at h1
     rw [← h1]
     ring
-  have hwsq : w i₀ ^ 2 = Fintype.card G.V := by
-    rw [hwc, show (c * Fintype.card G.V) ^ 2
-      = (c ^ 2 * Fintype.card G.V) * Fintype.card G.V from by ring, hcsq, one_mul]
+  have hwsq : w i₀ ^ 2 = FinEnum.card G.V := by
+    rw [hwc, show (c * FinEnum.card G.V) ^ 2
+      = (c ^ 2 * FinEnum.card G.V) * FinEnum.card G.V from by ring, hcsq, one_mul]
   -- every other coordinate of `w` vanishes
   have hwvanish : ∀ i, i ≠ i₀ → w i = 0 := by
     intro i hne
@@ -5174,7 +5248,7 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
         ⟨U (Classical.arbitrary G.V) i, fun x ↦ hconstv i hi x _⟩
       have h1 := horth i i₀
       rw [if_neg hne] at h1
-      simp only [dotProduct, Matrix.transpose_apply, he, hc, Finset.sum_const, Finset.card_univ,
+      simp only [dotProduct, Matrix.transpose_apply, he, hc, Finset.sum_const, Finset.card_univ, CGraph.fintypeCard,
         nsmul_eq_mul] at h1
       have hcne : c ≠ 0 := by
         intro h0
@@ -5190,7 +5264,7 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
       simp [he, he0]
     · exact hzero i hi
   -- conjugating the complement
-  set d : G.V → ℝ := fun i ↦ (if i = i₀ then (Fintype.card G.V : ℝ) else 0) - 1
+  set d : G.V → ℝ := fun i ↦ (if i = i₀ then (FinEnum.card G.V : ℝ) else 0) - 1
     - G.eigenvalues i with hdd
   have hJ : Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1) * U = Matrix.vecMulVec w w := by
     ext i j
@@ -5200,7 +5274,7 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
     simp only [hrow, ← Finset.mul_sum, Matrix.vecMulVec_apply]
     simp [hw]
   have hvv : Matrix.vecMulVec w w
-      = Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0) := by
+      = Matrix.diagonal (fun i ↦ if i = i₀ then (FinEnum.card G.V : ℝ) else 0) := by
     ext i j
     rcases eq_or_ne i i₀ with hi | hi
     · rcases eq_or_ne j i₀ with hj | hj
@@ -5211,7 +5285,7 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
         simp [Matrix.vecMulVec_apply, Matrix.diagonal, Ne.symm hj, hwvanish j hj]
     · simp [Matrix.vecMulVec_apply, Matrix.diagonal, hi, hwvanish i hi]
   have hdsplit : Matrix.diagonal d
-      = Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0) - 1
+      = Matrix.diagonal (fun i ↦ if i = i₀ then (FinEnum.card G.V : ℝ) else 0) - 1
         - Matrix.diagonal G.eigenvalues := by
     rw [hdd, ← Matrix.diagonal_one, ← Matrix.diagonal_sub, ← Matrix.diagonal_sub]
   have hfinal : Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1 - 1 - G.adjMat) * U
@@ -5254,7 +5328,7 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
 `n - 1 - k`: the complement of a regular graph is regular. -/
 theorem lambdaMax_compl_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) :
-    Gᶜ.lambdaMax = ((Fintype.card G.V - 1 - k : ℕ) : ℝ) :=
+    Gᶜ.lambdaMax = ((FinEnum.card G.V - 1 - k : ℕ) : ℝ) :=
   lambdaMax_of_isRegularWith h.compl
 
 /-- **The spectrum of the complement of the Petersen graph**: `6` once, `-2` five times and `1`
@@ -5265,7 +5339,7 @@ theorem spectrum_compl_petersen :
   have hconn : SRG.petersen.IsConnected :=
     SRG.petersen_srg.isConnected (by norm_num) (by norm_num)
   have hreg : SRG.petersen.IsRegularWith 3 := SRG.petersen_srg.regular
-  have hcard : Fintype.card SRG.petersen.V = 10 := SRG.petersen_srg.card
+  have hcard : FinEnum.card SRG.petersen.V = 10 := SRG.petersen_srg.card
   rw [spectrum_compl_of_isRegularWith hconn hreg, hcard, spectrum_petersen]
   norm_num [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate]
 
@@ -5584,7 +5658,7 @@ indicator of a connected component is a second, non-constant eigenvector for `k`
 theorem isConnected_of_count_spectrum_eq_one {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k)
     (hc : G.spectrum.count (k : ℝ) = 1) : G.IsConnected := by
   haveI : Nonempty G.V := by
-    rw [← Fintype.card_pos_iff, ← card_spectrum]
+    rw [← FinEnum.card_pos_iff, ← card_spectrum]
     have h1 : 0 < Multiset.count (k : ℝ) G.spectrum := by omega
     exact lt_of_lt_of_le h1 (Multiset.count_le_card _ _)
   have hone : G.adjMat *ᵥ (1 : G.V → ℝ) = (k : ℝ) • (1 : G.V → ℝ) :=
@@ -6036,7 +6110,7 @@ a connected regular graph is exactly the condition "three distinct eigenvalues".
 theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : ℕ}
     (hconn : G.IsConnected) (hreg : G.IsRegularWith k)
     (h3 : G.spectrum.toFinset.card = 3) :
-    ∃ l m : ℕ, G.IsSRGWith (Fintype.card G.V) k l m := by
+    ∃ l m : ℕ, G.IsSRGWith (FinEnum.card G.V) k l m := by
   haveI : Nonempty G.V := hconn.nonempty
   obtain ⟨a, b, c, hab, hac, hbc, hset⟩ := Finset.card_eq_three.1 h3
   have hk : (k : ℝ) ∈ G.spectrum.toFinset := by
@@ -6117,7 +6191,7 @@ theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : �
       exact_mod_cast (hnadj v w hvw hn).trans (hnadj v0 w0 h0 h0').symm
     · push_neg at hex
       exact ⟨0, fun v w hvw hn ↦ absurd (hex v w hvw) (by simpa using hn)⟩
-  exact ⟨l, m, rfl, hreg, hl, fun v w hne hnadj ↦ hm v w hne hnadj⟩
+  exact ⟨l, m, G.fintypeCard, hreg, hl, fun v w hne hnadj ↦ hm v w hne hnadj⟩
 
 /-- **A strongly regular graph has at most three distinct eigenvalues.**  Every eigenvalue other
 than the degree is a root of `X ² - (ℓ - μ) X - (k - μ)`, and a quadratic has at most two. -/
@@ -6166,7 +6240,7 @@ non-complete strongly regular graph is itself strongly regular, of the same degr
 theorem Cospectral.exists_isSRGWith {G H : CGraph} (hc : G.Cospectral H) {n k l m : ℕ}
     (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) {i j : G.V} (hij : i ≠ j)
     (hnadj : G.Adj i j = false) :
-    ∃ l' m' : ℕ, H.IsSRGWith (Fintype.card H.V) k l' m' := by
+    ∃ l' m' : ℕ, H.IsSRGWith (FinEnum.card H.V) k l' m' := by
   have hreg : G.IsRegularWith k := h.regular
   have hHreg : H.IsRegularWith k := CGraph.Cospectral.isRegularWith hc hreg
   have hHconn : H.IsConnected := CGraph.Cospectral.isConnected hc hreg hconn
@@ -6237,12 +6311,12 @@ theorem two_mul_lambdaMax_le_energy (G : CGraph) [Nonempty G.V] : 2 * G.lambdaMa
 `√(2 |E| n)`. -/
 @[toIsoGraph]
 theorem energy_le_sqrt (G : CGraph) :
-    G.energy ≤ Real.sqrt (2 * G.E * Fintype.card G.V) := by
-  have hsq : G.energy ^ 2 ≤ 2 * G.E * Fintype.card G.V := by
+    G.energy ≤ Real.sqrt (2 * G.E * FinEnum.card G.V) := by
+  have hsq : G.energy ^ 2 ≤ 2 * G.E * FinEnum.card G.V := by
     have h := sq_sum_le_card_mul_sum_sq (s := (Finset.univ : Finset G.V))
       (f := fun i ↦ |G.eigenvalues i|)
     rw [← energy_eq_sum] at h
-    simp only [sq_abs, Finset.card_univ] at h
+    simp only [sq_abs, Finset.card_univ, CGraph.fintypeCard] at h
     rw [sum_sq_eigenvalues] at h
     linarith
   exact (Real.le_sqrt (energy_nonneg G) (by positivity)).2 hsq
@@ -6444,7 +6518,7 @@ theorem lapSpectrum_eq_map (G : CGraph) :
     using G.isHermitian_lapMat.roots_charpoly_eq_eigenvalues
 
 @[simp, toIsoGraph] theorem card_lapSpectrum (G : CGraph) :
-    Multiset.card G.lapSpectrum = Fintype.card G.V := by
+    Multiset.card G.lapSpectrum = FinEnum.card G.V := by
   simp [lapSpectrum_eq_map, Finset.card_univ]
 
 theorem mem_lapSpectrum_iff (G : CGraph) (x : ℝ) :
@@ -6463,7 +6537,7 @@ theorem mem_lapSpectrum_iff (G : CGraph) (x : ℝ) :
 /-- If at least `|V|` distinct reals are all Laplacian eigenvalues, they are exactly the Laplacian
 spectrum. -/
 theorem lapSpectrum_eq_of_card_le (G : CGraph) (s : Finset ℝ)
-    (hcard : Fintype.card G.V ≤ s.card)
+    (hcard : FinEnum.card G.V ≤ s.card)
     (hs : ∀ x ∈ s, ∃ v : G.V → ℝ, v ≠ 0 ∧ G.lapMat *ᵥ v = x • v) :
     G.lapSpectrum = s.val := by
   refine (Multiset.eq_of_le_of_card_le (Multiset.le_iff_count.2 fun x ↦ ?_)
@@ -6534,15 +6608,15 @@ theorem count_zero_lapSpectrum (G : CGraph) : G.lapSpectrum.count 0 = G.numCompo
       SimpleGraph.card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix]
     congr 1
   have hrank : G.lapMat.rank + Module.finrank ℝ (LinearMap.ker G.lapMat.mulVecLin) =
-      Fintype.card G.V := by
+      FinEnum.card G.V := by
     rw [Matrix.rank, LinearMap.finrank_range_add_finrank_ker]
     simp
   have hne : G.lapMat.rank = (Finset.univ.filter fun i ↦ ¬ G.lapEigenvalues i = 0).card := by
     rw [G.isHermitian_lapMat.rank_eq_card_non_zero_eigs, Fintype.card_subtype]
     rfl
   have hsplit : (Finset.univ.filter fun i ↦ G.lapEigenvalues i = 0).card +
-      (Finset.univ.filter fun i ↦ ¬ G.lapEigenvalues i = 0).card = Fintype.card G.V := by
-    rw [Finset.card_filter_add_card_filter_not, Finset.card_univ]
+      (Finset.univ.filter fun i ↦ ¬ G.lapEigenvalues i = 0).card = FinEnum.card G.V := by
+    rw [Finset.card_filter_add_card_filter_not, Finset.card_univ, G.fintypeCard]
   have hcount : G.lapSpectrum.count 0 =
       (Finset.univ.filter fun i ↦ G.lapEigenvalues i = 0).card := by
     rw [lapSpectrum_eq_map, Multiset.count_map]
@@ -6590,7 +6664,10 @@ theorem lapMat_disjUnion (G H : CGraph) :
 @[simp] theorem lapCharpoly_disjUnion (G H : CGraph) :
     (G ⊕g H).lapCharpoly = G.lapCharpoly * H.lapCharpoly := by
   classical
-  rw [lapCharpoly_eq_matrix_charpoly, lapMat_disjUnion, Matrix.charpoly_fromBlocks_zero₁₂,
+  rw [lapCharpoly_eq_matrix_charpoly, lapMat_disjUnion,
+    fintype_eq_sum (FinEnum.instFintype : Fintype (G ⊕g H).V),
+    decEq_eq_sum (FinEnum.decEq : DecidableEq (G ⊕g H).V),
+    Matrix.charpoly_fromBlocks_zero₁₂,
     ← lapCharpoly_eq_matrix_charpoly, ← lapCharpoly_eq_matrix_charpoly]
 
 /-- **The Laplacian spectrum of a disjoint union is the sum of the spectra.** -/
@@ -6748,15 +6825,16 @@ theorem sum_sq_lapSpectrum (G : CGraph) :
 /-- **The Laplacians of a graph and of its complement add up to `n I - J`.** -/
 theorem lapMat_compl (G : CGraph) :
     Gᶜ.lapMat
-      = (Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ) - Matrix.vecMulVec 1 1 - G.lapMat := by
+      = (FinEnum.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ) - Matrix.vecMulVec 1 1 - G.lapMat := by
   ext i j
   simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.vecMulVec_apply, Pi.one_apply, mul_one,
     smul_eq_mul]
   rcases eq_or_ne i j with rfl | hij
-  · have hlt : G.toSimple.degree i < Fintype.card G.V := G.toSimple.degree_lt_card_verts i
-    have h1 : 1 + G.toSimple.degree i ≤ Fintype.card G.V := by omega
-    have hcast : ((Fintype.card G.V - 1 - G.toSimple.degree i : ℕ) : ℝ)
-        = (Fintype.card G.V : ℝ) - 1 - G.toSimple.degree i := by
+  · have hlt : G.toSimple.degree i < FinEnum.card G.V := by
+      rw [← G.fintypeCard]; exact G.toSimple.degree_lt_card_verts i
+    have h1 : 1 + G.toSimple.degree i ≤ FinEnum.card G.V := by omega
+    have hcast : ((FinEnum.card G.V - 1 - G.toSimple.degree i : ℕ) : ℝ)
+        = (FinEnum.card G.V : ℝ) - 1 - G.toSimple.degree i := by
       rw [Nat.sub_sub, Nat.cast_sub h1]
       push_cast
       ring
@@ -6771,7 +6849,7 @@ theorem lapMat_compl (G : CGraph) :
 live — the complement's Laplacian acts as `n` minus the graph's own. -/
 theorem lapMat_compl_mulVec (G : CGraph) {v : G.V → ℝ} (hv : ∑ i, v i = 0)
     {mu : ℝ} (hmu : G.lapMat *ᵥ v = mu • v) :
-    Gᶜ.lapMat *ᵥ v = ((Fintype.card G.V : ℝ) - mu) • v := by
+    Gᶜ.lapMat *ᵥ v = ((FinEnum.card G.V : ℝ) - mu) • v := by
   rw [lapMat_compl, Matrix.sub_mulVec, Matrix.sub_mulVec, Matrix.smul_mulVec, Matrix.one_mulVec,
     vecMulVec_one_mulVec hv, hmu]
   module
@@ -6799,9 +6877,9 @@ constant vector stays `0`, and every other eigenvalue `μ` becomes `n - μ`. -/
 theorem lapSpectrum_compl_of_isConnected {G : CGraph}
     (hconn : G.IsConnected) :
     Gᶜ.lapSpectrum
-      = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+      = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
   haveI : Nonempty G.V := hconn.nonempty
-  have hnpos : (0 : ℝ) < Fintype.card G.V := by exact_mod_cast Fintype.card_pos
+  have hnpos : (0 : ℝ) < FinEnum.card G.V := by exact_mod_cast FinEnum.card_pos
   obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_lap_diagonal G
   have hAU : G.lapMat * U = U * Matrix.diagonal G.lapEigenvalues := by
     calc G.lapMat * U = (U * Uᵀ) * (G.lapMat * U) := by rw [hUU', one_mul]
@@ -6854,19 +6932,19 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
   -- the constant value `c` of the column `i₀`
   obtain ⟨c, hc⟩ : ∃ c, ∀ x, U x i₀ = c :=
     ⟨U (Classical.arbitrary G.V) i₀, fun x ↦ hconstv i₀ hlam x _⟩
-  have hwc : w i₀ = c * Fintype.card G.V := by
+  have hwc : w i₀ = c * FinEnum.card G.V := by
     rw [hw]
     simp [hc, Finset.card_univ, mul_comm]
-  have hcsq : c ^ 2 * Fintype.card G.V = 1 := by
+  have hcsq : c ^ 2 * FinEnum.card G.V = 1 := by
     have h1 := horth i₀ i₀
     rw [if_pos rfl] at h1
-    simp only [dotProduct, Matrix.transpose_apply, hc, Finset.sum_const, Finset.card_univ,
+    simp only [dotProduct, Matrix.transpose_apply, hc, Finset.sum_const, Finset.card_univ, CGraph.fintypeCard,
       nsmul_eq_mul] at h1
     rw [← h1]
     ring
-  have hwsq : w i₀ ^ 2 = Fintype.card G.V := by
-    rw [hwc, show (c * Fintype.card G.V) ^ 2
-      = (c ^ 2 * Fintype.card G.V) * Fintype.card G.V from by ring, hcsq, one_mul]
+  have hwsq : w i₀ ^ 2 = FinEnum.card G.V := by
+    rw [hwc, show (c * FinEnum.card G.V) ^ 2
+      = (c ^ 2 * FinEnum.card G.V) * FinEnum.card G.V from by ring, hcsq, one_mul]
   -- every other coordinate of `w` vanishes
   have hwvanish : ∀ i, i ≠ i₀ → w i = 0 := by
     intro i hne
@@ -6875,7 +6953,7 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
         ⟨U (Classical.arbitrary G.V) i, fun x ↦ hconstv i hi x _⟩
       have h1 := horth i i₀
       rw [if_neg hne] at h1
-      simp only [dotProduct, Matrix.transpose_apply, he, hc, Finset.sum_const, Finset.card_univ,
+      simp only [dotProduct, Matrix.transpose_apply, he, hc, Finset.sum_const, Finset.card_univ, CGraph.fintypeCard,
         nsmul_eq_mul] at h1
       have hcne : c ≠ 0 := by
         intro h0
@@ -6891,8 +6969,8 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
       simp [he, he0]
     · exact hzero i hi
   -- conjugating the complement
-  set d : G.V → ℝ := fun i ↦ (Fintype.card G.V : ℝ)
-    - (if i = i₀ then (Fintype.card G.V : ℝ) else 0) - G.lapEigenvalues i with hdd
+  set d : G.V → ℝ := fun i ↦ (FinEnum.card G.V : ℝ)
+    - (if i = i₀ then (FinEnum.card G.V : ℝ) else 0) - G.lapEigenvalues i with hdd
   have hJ : Uᵀ * (Matrix.vecMulVec (1 : G.V → ℝ) 1) * U = Matrix.vecMulVec w w := by
     ext i j
     have hrow : ∀ y : G.V, (Uᵀ * Matrix.vecMulVec (1 : G.V → ℝ) 1) i y = w i := fun y ↦ by
@@ -6901,7 +6979,7 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
     simp only [hrow, ← Finset.mul_sum, Matrix.vecMulVec_apply]
     simp [hw]
   have hvv : Matrix.vecMulVec w w
-      = Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0) := by
+      = Matrix.diagonal (fun i ↦ if i = i₀ then (FinEnum.card G.V : ℝ) else 0) := by
     ext i j
     rcases eq_or_ne i i₀ with hi | hi
     · rcases eq_or_ne j i₀ with hj | hj
@@ -6911,28 +6989,28 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
       · subst hi
         simp [Matrix.vecMulVec_apply, Matrix.diagonal, Ne.symm hj, hwvanish j hj]
     · simp [Matrix.vecMulVec_apply, Matrix.diagonal, hi, hwvanish i hi]
-  have hNd : ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ))
-      = Matrix.diagonal (fun _ ↦ (Fintype.card G.V : ℝ)) := by
+  have hNd : ((FinEnum.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ))
+      = Matrix.diagonal (fun _ ↦ (FinEnum.card G.V : ℝ)) := by
     ext i j
     rcases eq_or_ne i j with rfl | hij
     · simp
     · simp [Matrix.one_apply_ne hij, Matrix.diagonal_apply_ne _ hij]
   have hdsplit : Matrix.diagonal d
-      = Matrix.diagonal (fun _ ↦ (Fintype.card G.V : ℝ))
-        - Matrix.diagonal (fun i ↦ if i = i₀ then (Fintype.card G.V : ℝ) else 0)
+      = Matrix.diagonal (fun _ ↦ (FinEnum.card G.V : ℝ))
+        - Matrix.diagonal (fun i ↦ if i = i₀ then (FinEnum.card G.V : ℝ) else 0)
         - Matrix.diagonal G.lapEigenvalues := by
     rw [hdd, ← Matrix.diagonal_sub, ← Matrix.diagonal_sub]
-  have hfinal : Uᵀ * ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+  have hfinal : Uᵀ * ((FinEnum.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
       - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U = Matrix.diagonal d := by
     rw [Matrix.mul_sub, Matrix.sub_mul, Matrix.mul_sub, Matrix.sub_mul, hJ, hvv, hdiag,
       Matrix.mul_smul, mul_one, Matrix.smul_mul, hUU, hNd, hdsplit]
-  have hcon2 : ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+  have hcon2 : ((FinEnum.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
       - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U = U * Matrix.diagonal d := by
-    calc ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+    calc ((FinEnum.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
           - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U
-        = (U * Uᵀ) * (((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+        = (U * Uᵀ) * (((FinEnum.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
             - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U) := by rw [hUU', one_mul]
-      _ = U * (Uᵀ * ((Fintype.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
+      _ = U * (Uᵀ * ((FinEnum.card G.V : ℝ) • (1 : Matrix G.V G.V ℝ)
             - Matrix.vecMulVec (1 : G.V → ℝ) 1 - G.lapMat) * U) := by simp only [mul_assoc]
       _ = U * Matrix.diagonal d := by rw [hfinal]
   have hspec : Gᶜ.lapSpectrum = Finset.univ.val.map d :=
@@ -6964,11 +7042,11 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
 recovered from its complement's. -/
 theorem lapSpectrum_eq_of_compl {G : CGraph} (hconn : G.IsConnected) :
     G.lapSpectrum
-      = 0 ::ₘ (Gᶜ.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+      = 0 ::ₘ (Gᶜ.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
   haveI : Nonempty G.V := hconn.nonempty
   have h := lapSpectrum_compl_of_isConnected (G := G) hconn
   rw [h, Multiset.erase_cons_head, Multiset.map_map]
-  rw [show ((fun x ↦ (Fintype.card G.V : ℝ) - x) ∘ fun x ↦ (Fintype.card G.V : ℝ) - x) = id from
+  rw [show ((fun x ↦ (FinEnum.card G.V : ℝ) - x) ∘ fun x ↦ (FinEnum.card G.V : ℝ) - x) = id from
     funext fun x ↦ by simp, Multiset.map_id]
   exact (Multiset.cons_erase G.zero_mem_lapSpectrum).symm
 
@@ -6977,7 +7055,7 @@ complement cannot both be disconnected. -/
 @[toIsoGraph]
 theorem lapSpectrum_compl (G : CGraph) [Nonempty G.V] :
     Gᶜ.lapSpectrum
-      = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+      = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
   by_cases hpre : G.toSimple.Preconnected
   · exact lapSpectrum_compl_of_isConnected ⟨hpre⟩
   · haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
@@ -6997,7 +7075,7 @@ theorem lapSpectrum_bipartite (m n : ℕ) :
   have hcompl : (bipartite (m + 1) (n + 1))ᶜ
       = complete (m + 1) ⊕g complete (n + 1) := by
     simp [bipartite]
-  have hcard : Fintype.card (bipartite (m + 1) (n + 1)).V = m + 1 + (n + 1) :=
+  have hcard : FinEnum.card (bipartite (m + 1) (n + 1)).V = m + 1 + (n + 1) :=
     card_bipartite _ _
   rw [lapSpectrum_eq_of_compl (isConnected_bipartite m n), hcard, hcompl,
     lapSpectrum_disjUnion, lapSpectrum_complete, lapSpectrum_complete]
@@ -7034,18 +7112,18 @@ each factor shifted by the order of the other factor. -/
 theorem lapSpectrum_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
     (G ∇g H).lapSpectrum
-      = 0 ::ₘ (((Fintype.card G.V : ℝ) + Fintype.card H.V)
-          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card H.V : ℝ))
-             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card G.V : ℝ)))) := by
+      = 0 ::ₘ (((FinEnum.card G.V : ℝ) + FinEnum.card H.V)
+          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (FinEnum.card H.V : ℝ))
+             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (FinEnum.card G.V : ℝ)))) := by
   haveI : Nonempty (Gᶜ ⊕g Hᶜ).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
   have hK := lapSpectrum_compl (Gᶜ ⊕g Hᶜ)
   rw [lapSpectrum_disjUnion, lapSpectrum_compl G, lapSpectrum_compl H, card_disjUnion, card_compl,
     card_compl] at hK
   rw [join, hK]
-  rw [show (0 : ℝ) ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x)
-      + (0 : ℝ) ::ₘ (H.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card H.V : ℝ) - x)
-      = 0 ::ₘ (0 ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x)
-          + (H.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card H.V : ℝ) - x))) from by
+  rw [show (0 : ℝ) ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x)
+      + (0 : ℝ) ::ₘ (H.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card H.V : ℝ) - x)
+      = 0 ::ₘ (0 ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x)
+          + (H.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card H.V : ℝ) - x))) from by
     rw [Multiset.cons_add, Multiset.add_cons]]
   rw [Multiset.erase_cons_head, Multiset.map_cons, Multiset.map_add, Multiset.map_map,
     Multiset.map_map]
@@ -7065,9 +7143,9 @@ degree, then the join has that degree as an eigenvalue, `k - n` as a second one,
 @[toIsoGraph]
 theorem spectrum_join_of_isRegularWith {G H : CGraph}
     [Nonempty G.V] [Nonempty H.V] {k l m : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
-    (h1 : k + Fintype.card H.V = m) (h2 : Fintype.card G.V + l = m) :
+    (h1 : k + FinEnum.card H.V = m) (h2 : FinEnum.card G.V + l = m) :
     (G ∇g H).spectrum
-      = (m : ℝ) ::ₘ (((k : ℝ) - Fintype.card G.V)
+      = (m : ℝ) ::ₘ (((k : ℝ) - FinEnum.card G.V)
           ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ))) := by
   have hinj : Function.Injective (fun x : ℝ ↦ (k : ℝ) - x) := fun a b hab ↦ by
     simpa using hab
@@ -7079,12 +7157,12 @@ theorem spectrum_join_of_isRegularWith {G H : CGraph}
   have hHe : H.lapSpectrum.erase 0 = (H.spectrum.erase (l : ℝ)).map (fun x ↦ (l : ℝ) - x) := by
     rw [lapSpectrum_of_isRegularWith hH, Multiset.map_erase _ hinj']
     simp
-  have hhead : (m : ℝ) - ((Fintype.card G.V : ℝ) + Fintype.card H.V)
-      = (k : ℝ) - Fintype.card G.V := by
+  have hhead : (m : ℝ) - ((FinEnum.card G.V : ℝ) + FinEnum.card H.V)
+      = (k : ℝ) - FinEnum.card G.V := by
     rw [← h1]; push_cast; ring
-  have hk : ∀ x : ℝ, (m : ℝ) - ((k : ℝ) - x + (Fintype.card H.V : ℝ)) = x := fun x ↦ by
+  have hk : ∀ x : ℝ, (m : ℝ) - ((k : ℝ) - x + (FinEnum.card H.V : ℝ)) = x := fun x ↦ by
     rw [← h1]; push_cast; ring
-  have hl : ∀ x : ℝ, (m : ℝ) - ((l : ℝ) - x + (Fintype.card G.V : ℝ)) = x := fun x ↦ by
+  have hl : ∀ x : ℝ, (m : ℝ) - ((l : ℝ) - x + (FinEnum.card G.V : ℝ)) = x := fun x ↦ by
     rw [← h2]; push_cast; ring
   rw [spectrum_of_isRegularWith (hG.join hH h1 h2), lapSpectrum_join, hGe, hHe]
   rw [Multiset.map_cons, Multiset.map_cons, Multiset.map_add, Multiset.map_map, Multiset.map_map,
@@ -7249,7 +7327,7 @@ theorem lapSpectrum_path (n : ℕ) :
       have := congrArg (fun t : ℝ ↦ t * (n : ℝ)) harg
       simpa [div_mul_cancel₀, ne_of_gt hnR] using this
     exact Fin.ext (by exact_mod_cast mul_left_cancel₀ Real.pi_ne_zero h3)
-  have hcard : Fintype.card (path n).V ≤ (Finset.image f Finset.univ).card := by
+  have hcard : FinEnum.card (path n).V ≤ (Finset.image f Finset.univ).card := by
     rw [Finset.card_image_of_injective _ hinj]
     simp [path, ofRel]
   have hs : ∀ x ∈ Finset.image f Finset.univ,
@@ -7315,12 +7393,12 @@ by the complete graph.  On an eigenvector for `x ≠ 0` — which sums to zero �
 Laplacian acts as `n - x`, and that is nonnegative. -/
 @[toIsoGraph le_V_of_mem_lapSpectrum]
 theorem le_card_of_mem_lapSpectrum (G : CGraph) {x : ℝ}
-    (hx : x ∈ G.lapSpectrum) : x ≤ Fintype.card G.V := by
+    (hx : x ∈ G.lapSpectrum) : x ≤ FinEnum.card G.V := by
   rcases eq_or_ne x 0 with rfl | hx0
   · positivity
   obtain ⟨v, hv0, hv⟩ := (G.mem_lapSpectrum_iff x).1 hx
   have hsum : ∑ i, v i = 0 := sum_eq_zero_of_lapMat_mulVec hx0 hv
-  have hmem : ((Fintype.card G.V : ℝ) - x) ∈ Gᶜ.lapSpectrum :=
+  have hmem : ((FinEnum.card G.V : ℝ) - x) ∈ Gᶜ.lapSpectrum :=
     (Gᶜ.mem_lapSpectrum_iff _).2 ⟨v, hv0, G.lapMat_compl_mulVec hsum hv⟩
   have := Gᶜ.nonneg_of_mem_lapSpectrum hmem
   linarith
@@ -7357,10 +7435,10 @@ theorem algConn_le {G : CGraph} {x : ℝ} (hx : x ∈ G.lapSpectrum.erase 0) : G
 /-- On two or more vertices the algebraic connectivity really is attained: it is a Laplacian
 eigenvalue. -/
 @[toIsoGraph]
-theorem algConn_mem_erase (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+theorem algConn_mem_erase (G : CGraph) (h : 2 ≤ FinEnum.card G.V) :
     G.algConn ∈ G.lapSpectrum.erase 0 := by
-  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
-  have hcard : Multiset.card (G.lapSpectrum.erase 0) = Fintype.card G.V - 1 := by
+  haveI : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  have hcard : Multiset.card (G.lapSpectrum.erase 0) = FinEnum.card G.V - 1 := by
     rw [Multiset.card_erase_of_mem G.zero_mem_lapSpectrum, card_lapSpectrum]
     rfl
   have hpos : 0 < Multiset.card (G.lapSpectrum.erase 0) := by omega
@@ -7368,7 +7446,7 @@ theorem algConn_mem_erase (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
   exact Set.Nonempty.csInf_mem ⟨y, hy⟩ (Multiset.finite_toSet _)
 
 @[toIsoGraph]
-theorem algConn_mem_lapSpectrum (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+theorem algConn_mem_lapSpectrum (G : CGraph) (h : 2 ≤ FinEnum.card G.V) :
     G.algConn ∈ G.lapSpectrum :=
   Multiset.mem_of_mem_erase (G.algConn_mem_erase h)
 
@@ -7383,7 +7461,7 @@ theorem algConn_eq_of_isLeast {G : CGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum
 vertices): the multiplicity of `0` is the number of components, so a second `0` survives the
 erasure precisely when the graph falls apart. -/
 @[toIsoGraph]
-theorem algConn_pos_iff (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+theorem algConn_pos_iff (G : CGraph) (h : 2 ≤ FinEnum.card G.V) :
     0 < G.algConn ↔ G.IsConnected := by
   constructor
   · intro hpos
@@ -7406,14 +7484,14 @@ theorem algConn_pos_iff (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
       omega
     exact lt_of_le_of_ne G.algConn_nonneg (Ne.symm hne)
 
-theorem algConn_eq_zero_of_not_isConnected {G : CGraph} (h : 2 ≤ Fintype.card G.V)
+theorem algConn_eq_zero_of_not_isConnected {G : CGraph} (h : 2 ≤ FinEnum.card G.V)
     (hcon : ¬ G.IsConnected) : G.algConn = 0 :=
   le_antisymm (not_lt.1 fun hpos ↦ hcon ((G.algConn_pos_iff h).1 hpos)) G.algConn_nonneg
 
 /-- **The algebraic connectivity is at most the order**, with equality for the complete graph. -/
 @[toIsoGraph algConn_le_V]
-theorem algConn_le_card (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
-    G.algConn ≤ Fintype.card G.V :=
+theorem algConn_le_card (G : CGraph) (h : 2 ≤ FinEnum.card G.V) :
+    G.algConn ≤ FinEnum.card G.V :=
   G.le_card_of_mem_lapSpectrum (G.algConn_mem_lapSpectrum h)
 
 /-- **A disjoint union has algebraic connectivity `0`** as soon as both pieces are nonempty. -/
@@ -7442,7 +7520,7 @@ theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 
   have herase : (complete (n + 2)).lapSpectrum.erase 0
       = Multiset.replicate (n + 1) ((n : ℝ) + 2) := by
     rw [hspec, Multiset.erase_cons_head]
-  have hcard : 2 ≤ Fintype.card (complete (n + 2)).V := by
+  have hcard : 2 ≤ FinEnum.card (complete (n + 2)).V := by
     rw [card_complete]
     omega
   have hmem := (complete (n + 2)).algConn_mem_erase hcard
@@ -7601,13 +7679,13 @@ theorem lapLambdaMax_nonneg (G : CGraph) [Nonempty G.V] : 0 ≤ G.lapLambdaMax :
   le_lapLambdaMax G.zero_mem_lapSpectrum
 
 @[toIsoGraph]
-theorem algConn_le_lapLambdaMax (G : CGraph) (h : 2 ≤ Fintype.card G.V) :
+theorem algConn_le_lapLambdaMax (G : CGraph) (h : 2 ≤ FinEnum.card G.V) :
     G.algConn ≤ G.lapLambdaMax :=
   le_lapLambdaMax (G.algConn_mem_lapSpectrum h)
 
 /-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
 theorem lapLambdaMax_le_card (G : CGraph) [Nonempty G.V] :
-    G.lapLambdaMax ≤ Fintype.card G.V :=
+    G.lapLambdaMax ≤ FinEnum.card G.V :=
   G.le_card_of_mem_lapSpectrum G.lapLambdaMax_mem_lapSpectrum
 
 @[toIsoGraph]
@@ -7619,7 +7697,7 @@ theorem lapLambdaMax_le_two_mul_maxDeg (G : CGraph) [Nonempty G.V] :
 to `2 E`. -/
 @[toIsoGraph two_mul_E_le_V_mul_lapLambdaMax]
 theorem two_mul_E_le_card_mul_lapLambdaMax (G : CGraph) :
-    2 * (G.E : ℝ) ≤ Fintype.card G.V * G.lapLambdaMax := by
+    2 * (G.E : ℝ) ≤ FinEnum.card G.V * G.lapLambdaMax := by
   have hsum : G.lapSpectrum.sum ≤ Multiset.card G.lapSpectrum • G.lapLambdaMax :=
     Multiset.sum_le_card_nsmul _ _ fun x hx ↦ le_lapLambdaMax hx
   rw [G.sum_lapSpectrum, G.card_lapSpectrum, nsmul_eq_mul] at hsum
@@ -7629,7 +7707,7 @@ theorem two_mul_E_le_card_mul_lapLambdaMax (G : CGraph) :
 of them left after the erasure still sum to `2 E`. -/
 @[toIsoGraph V_sub_one_mul_algConn_le_two_mul_E]
 theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
-    (Fintype.card G.V - 1 : ℕ) * G.algConn ≤ 2 * (G.E : ℝ) := by
+    (FinEnum.card G.V - 1 : ℕ) * G.algConn ≤ 2 * (G.E : ℝ) := by
   have hsum : (G.lapSpectrum.erase 0).sum = 2 * (G.E : ℝ) := by
     have hcons := Multiset.cons_erase G.zero_mem_lapSpectrum
     have h2 : G.lapSpectrum.sum = 0 + (G.lapSpectrum.erase 0).sum := by
@@ -7637,7 +7715,7 @@ theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
       rw [Multiset.sum_cons]
     rw [G.sum_lapSpectrum] at h2
     linarith
-  have hcard : Multiset.card (G.lapSpectrum.erase 0) = Fintype.card G.V - 1 := by
+  have hcard : Multiset.card (G.lapSpectrum.erase 0) = FinEnum.card G.V - 1 := by
     rw [Multiset.card_erase_of_mem G.zero_mem_lapSpectrum, card_lapSpectrum]
     rfl
   have h := Multiset.card_nsmul_le_sum (s := G.lapSpectrum.erase 0) (a := G.algConn)
@@ -7647,8 +7725,8 @@ theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
 
 /-- **The complement swaps the two ends of the Laplacian spectrum**: `μ_max (Ḡ) = n - a (G)`. -/
 theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
-    (h : 2 ≤ Fintype.card G.V) :
-    Gᶜ.lapLambdaMax = Fintype.card G.V - G.algConn := by
+    (h : 2 ≤ FinEnum.card G.V) :
+    Gᶜ.lapLambdaMax = FinEnum.card G.V - G.algConn := by
   haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [lapSpectrum_compl]
@@ -7657,7 +7735,7 @@ theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
     rw [lapSpectrum_compl, Multiset.mem_cons] at hx
     rcases hx with rfl | hx
     · have := G.algConn_le_card h
-      have hcard : (0 : ℝ) ≤ Fintype.card G.V := by positivity
+      have hcard : (0 : ℝ) ≤ FinEnum.card G.V := by positivity
       linarith
     · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
       have := algConn_le hy
@@ -7665,21 +7743,21 @@ theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
 
 /-- **The complement swaps the two ends of the Laplacian spectrum**: `a (Ḡ) = n - μ_max (G)`. -/
 theorem algConn_compl (G : CGraph) [Nonempty G.V]
-    (h : 2 ≤ Fintype.card G.V) :
-    Gᶜ.algConn = Fintype.card G.V - G.lapLambdaMax := by
+    (h : 2 ≤ FinEnum.card G.V) :
+    Gᶜ.algConn = FinEnum.card G.V - G.lapLambdaMax := by
   haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
   have herase : Gᶜ.lapSpectrum.erase 0
-      = (G.lapSpectrum.erase 0).map (fun x ↦ (Fintype.card G.V : ℝ) - x) := by
+      = (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
     rw [lapSpectrum_compl, Multiset.erase_cons_head]
   have hmax : G.lapLambdaMax ∈ G.lapSpectrum.erase 0 := by
     rcases eq_or_ne G.lapLambdaMax 0 with h0 | h0
     · -- every eigenvalue is squeezed between `0` and `μ_max = 0`, so the spectrum is all zeros
       have hall : ∀ x ∈ G.lapSpectrum, x = 0 := fun x hx ↦
         le_antisymm (h0 ▸ le_lapLambdaMax hx) (G.nonneg_of_mem_lapSpectrum hx)
-      have hrep : G.lapSpectrum = Multiset.replicate (Fintype.card G.V) 0 := by
+      have hrep : G.lapSpectrum = Multiset.replicate (FinEnum.card G.V) 0 := by
         rw [Multiset.eq_replicate]
         exact ⟨G.card_lapSpectrum, hall⟩
-      have hcount : (G.lapSpectrum.erase 0).count 0 = Fintype.card G.V - 1 := by
+      have hcount : (G.lapSpectrum.erase 0).count 0 = FinEnum.card G.V - 1 := by
         rw [Multiset.count_erase_self, hrep, Multiset.count_replicate_self]
       rw [h0, ← Multiset.one_le_count_iff_mem, hcount]
       omega
@@ -8095,10 +8173,10 @@ theorem algConn_mul_le_lap_quadratic (G : CGraph) [Nonempty G.V] (v : G.V → �
     · exact mul_le_mul_of_nonneg_right
         (algConn_le ((Multiset.mem_erase_of_ne h0).2 (G.lapEigenvalues_mem_lapSpectrum i)))
         (sq_nonneg _)
-  · have hcard : 2 ≤ Fintype.card G.V := by
+  · have hcard : 2 ≤ FinEnum.card G.V := by
       by_contra hlt
       push_neg at hlt
-      haveI : Subsingleton G.V := Fintype.card_le_one_iff_subsingleton.1 (by omega)
+      haveI : Subsingleton G.V := Fintype.card_le_one_iff_subsingleton.1 (by rw [G.fintypeCard]; omega)
       have hpre : G.toSimple.Preconnected := fun x y ↦ by
         rw [Subsingleton.elim x y]
       exact hconn ⟨hpre⟩
@@ -8143,13 +8221,13 @@ norm is `n |S| |Sᶜ|`, and every crossing edge contributes `n ²` to the quadra
 theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V]
     (S : Finset G.V) :
     G.algConn * ((S.card : ℝ) * (Sᶜ.card : ℝ))
-      ≤ Fintype.card G.V * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j := by
-  set n : ℝ := (Fintype.card G.V : ℝ) with hn
+      ≤ FinEnum.card G.V * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j := by
+  set n : ℝ := (FinEnum.card G.V : ℝ) with hn
   set a : ℝ := (S.card : ℝ) with ha
   set b : ℝ := (Sᶜ.card : ℝ) with hb
   set e : ℝ := ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j with he
   have hab : a + b = n := by
-    rw [ha, hb, hn, ← Nat.cast_add, Finset.card_add_card_compl]
+    rw [ha, hb, hn, ← Nat.cast_add, Finset.card_add_card_compl, G.fintypeCard]
   set x : G.V → ℝ := fun i ↦ if i ∈ S then b else -a with hx
   have hxS : ∀ i ∈ S, x i = b := fun i hi ↦ by rw [hx]; exact if_pos hi
   have hxSc : ∀ i ∈ Sᶜ, x i = -a := fun i hi ↦ by
@@ -8211,7 +8289,7 @@ theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V]
   rw [hnorm, hquad] at hkey
   have hnpos : (0 : ℝ) < n := by
     rw [hn]
-    exact_mod_cast Fintype.card_pos
+    exact_mod_cast FinEnum.card_pos
   have hcancel : n * (G.algConn * (a * b)) ≤ n * (n * e) := by nlinarith
   exact le_of_mul_le_mul_left hcancel hnpos
 
@@ -8219,17 +8297,17 @@ theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V]
 of edges leaving `S` is at least `a (G) |S| / 2`.  This is the previous bound with `|Sᶜ| ≥ n / 2`
 substituted and the order cancelled. -/
 theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V]
-    (S : Finset G.V) (hS : 2 * S.card ≤ Fintype.card G.V) :
+    (S : Finset G.V) (hS : 2 * S.card ≤ FinEnum.card G.V) :
     G.algConn * S.card ≤ 2 * ∑ i ∈ S, ∑ j ∈ Sᶜ, G.adjMat i j := by
   have hkey := G.algConn_mul_card_mul_card_compl_le S
-  have hb : (Sᶜ.card : ℝ) = (Fintype.card G.V : ℝ) - S.card := by
-    have : (S.card : ℝ) + (Sᶜ.card : ℝ) = Fintype.card G.V := by
-      rw [← Nat.cast_add, Finset.card_add_card_compl]
+  have hb : (Sᶜ.card : ℝ) = (FinEnum.card G.V : ℝ) - S.card := by
+    have : (S.card : ℝ) + (Sᶜ.card : ℝ) = FinEnum.card G.V := by
+      rw [← Nat.cast_add, Finset.card_add_card_compl, G.fintypeCard]
     linarith
   rw [hb] at hkey
-  have hhalf : 2 * (S.card : ℝ) ≤ (Fintype.card G.V : ℝ) := by exact_mod_cast hS
-  have hnpos : (0 : ℝ) < (Fintype.card G.V : ℝ) := by exact_mod_cast Fintype.card_pos
-  have h3 : 0 ≤ G.algConn * (S.card : ℝ) * ((Fintype.card G.V : ℝ) - 2 * S.card) :=
+  have hhalf : 2 * (S.card : ℝ) ≤ (FinEnum.card G.V : ℝ) := by exact_mod_cast hS
+  have hnpos : (0 : ℝ) < (FinEnum.card G.V : ℝ) := by exact_mod_cast FinEnum.card_pos
+  have h3 : 0 ≤ G.algConn * (S.card : ℝ) * ((FinEnum.card G.V : ℝ) - 2 * S.card) :=
     mul_nonneg (mul_nonneg G.algConn_nonneg (Nat.cast_nonneg _)) (by linarith)
   refine le_of_mul_le_mul_left ?_ hnpos
   nlinarith [hkey, h3]
@@ -8238,16 +8316,16 @@ theorem algConn_mul_card_le_two_mul_cut (G : CGraph) [Nonempty G.V]
 complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hypothesis is exactly what
 `Δ + 1 ≤ μ_max` needs, namely that `Ḡ` has an edge. -/
 theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V]
-    (h : 2 ≤ Fintype.card G.V) (hc : 0 < Gᶜ.E) :
+    (h : 2 ≤ FinEnum.card G.V) (hc : 0 < Gᶜ.E) :
     G.algConn ≤ G.minDeg := by
   haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
   have h1 : (Gᶜ.maxDeg : ℝ) + 1 ≤ Gᶜ.lapLambdaMax :=
     Gᶜ.maxDeg_add_one_le_lapLambdaMax hc
   rw [G.lapLambdaMax_compl h] at h1
-  have hδ : G.minDeg ≤ Fintype.card G.V - 1 :=
+  have hδ : G.minDeg ≤ FinEnum.card G.V - 1 :=
     le_trans G.minDeg_le_maxDeg (by have := maxDeg_lt_card (G := G); omega)
-  have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
-  have h2 : (Gᶜ.maxDeg : ℝ) = (Fintype.card G.V : ℝ) - 1 - G.minDeg := by
+  have h1' : (1 : ℕ) ≤ FinEnum.card G.V := by omega
+  have h2 : (Gᶜ.maxDeg : ℝ) = (FinEnum.card G.V : ℝ) - 1 - G.minDeg := by
     rw [maxDeg_compl (G := G), Nat.cast_sub hδ, Nat.cast_sub h1']
     push_cast
     ring
@@ -8258,30 +8336,30 @@ theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V]
 For `K_n` it is an equality, `a = n` and `δ = n - 1`; for every other graph the sharper
 `algConn_le_minDeg` applies. -/
 theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V]
-    (h : 2 ≤ Fintype.card G.V) :
-    ((Fintype.card G.V : ℝ) - 1) * G.algConn ≤ Fintype.card G.V * G.minDeg := by
+    (h : 2 ≤ FinEnum.card G.V) :
+    ((FinEnum.card G.V : ℝ) - 1) * G.algConn ≤ FinEnum.card G.V * G.minDeg := by
   haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
-  have hn : (2 : ℝ) ≤ Fintype.card G.V := by exact_mod_cast h
+  have hn : (2 : ℝ) ≤ FinEnum.card G.V := by exact_mod_cast h
   have hδ0 : (0 : ℝ) ≤ G.minDeg := Nat.cast_nonneg _
   rcases Nat.eq_zero_or_pos Gᶜ.E with h0 | hpos
   · -- the complement is edgeless, so `G` is complete: `a = n` and `δ = n - 1`
     have hmax : Gᶜ.maxDeg = 0 := by
       have := CGraph.maxDeg_le_two_mul_E (G := Gᶜ)
       omega
-    have hδ : Fintype.card G.V - 1 ≤ G.minDeg := by
+    have hδ : FinEnum.card G.V - 1 ≤ G.minDeg := by
       have := maxDeg_compl (G := G)
       omega
-    have hδ' : (Fintype.card G.V : ℝ) - 1 ≤ G.minDeg := by
-      have h1' : (1 : ℕ) ≤ Fintype.card G.V := by omega
-      have hc : ((Fintype.card G.V - 1 : ℕ) : ℝ) ≤ (G.minDeg : ℝ) := by exact_mod_cast hδ
+    have hδ' : (FinEnum.card G.V : ℝ) - 1 ≤ G.minDeg := by
+      have h1' : (1 : ℕ) ≤ FinEnum.card G.V := by omega
+      have hc : ((FinEnum.card G.V - 1 : ℕ) : ℝ) ≤ (G.minDeg : ℝ) := by exact_mod_cast hδ
       rwa [Nat.cast_sub h1', Nat.cast_one] at hc
     have hlam : Gᶜ.lapLambdaMax ≤ 0 := by
       have := Gᶜ.lapLambdaMax_le_two_mul_maxDeg
       rw [hmax] at this
       simpa using this
     rw [G.lapLambdaMax_compl h] at hlam
-    have hac : G.algConn ≤ Fintype.card G.V := G.algConn_le_card h
-    have haeq : G.algConn = Fintype.card G.V := le_antisymm hac (by linarith)
+    have hac : G.algConn ≤ FinEnum.card G.V := G.algConn_le_card h
+    have haeq : G.algConn = FinEnum.card G.V := le_antisymm hac (by linarith)
     rw [haeq]
     nlinarith
   · have := G.algConn_le_minDeg h hpos
@@ -8289,10 +8367,10 @@ theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V]
 
 /-- **Fiedler's bound in its usual form**: `a (G) ≤ n / (n - 1) · δ (G)`. -/
 theorem algConn_le_div_mul_minDeg (G : CGraph) [Nonempty G.V]
-    (h : 2 ≤ Fintype.card G.V) :
-    G.algConn ≤ (Fintype.card G.V : ℝ) / ((Fintype.card G.V : ℝ) - 1) * G.minDeg := by
-  have hn : (2 : ℝ) ≤ Fintype.card G.V := by exact_mod_cast h
-  have hpos : (0 : ℝ) < (Fintype.card G.V : ℝ) - 1 := by linarith
+    (h : 2 ≤ FinEnum.card G.V) :
+    G.algConn ≤ (FinEnum.card G.V : ℝ) / ((FinEnum.card G.V : ℝ) - 1) * G.minDeg := by
+  have hn : (2 : ℝ) ≤ FinEnum.card G.V := by exact_mod_cast h
+  have hpos : (0 : ℝ) < (FinEnum.card G.V : ℝ) - 1 := by linarith
   rw [div_mul_eq_mul_div, le_div_iff₀ hpos]
   linarith [G.card_sub_one_mul_algConn_le_card_mul_minDeg h]
 
@@ -8302,9 +8380,9 @@ complement, so this is `algConn_compl` read backwards; here it is read straight 
 @[toIsoGraph]
 theorem lapLambdaMax_join (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] :
-    (G ∇g H).lapLambdaMax = (Fintype.card G.V : ℝ) + Fintype.card H.V := by
-  have hG0 : (0 : ℝ) ≤ Fintype.card G.V := Nat.cast_nonneg _
-  have hH0 : (0 : ℝ) ≤ Fintype.card H.V := Nat.cast_nonneg _
+    (G ∇g H).lapLambdaMax = (FinEnum.card G.V : ℝ) + FinEnum.card H.V := by
+  have hG0 : (0 : ℝ) ≤ FinEnum.card G.V := Nat.cast_nonneg _
+  have hH0 : (0 : ℝ) ≤ FinEnum.card H.V := Nat.cast_nonneg _
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [lapSpectrum_join]
     exact Multiset.mem_cons_of_mem (Multiset.mem_cons_self _ _)
@@ -8326,34 +8404,34 @@ the other factor, whichever is smaller.  The order `n + m` itself is never the s
 `a (G) ≤ n`. -/
 @[toIsoGraph]
 theorem algConn_join (G H : CGraph)
-    (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
+    (hG : 2 ≤ FinEnum.card G.V) (hH : 2 ≤ FinEnum.card H.V) :
     (G ∇g H).algConn
-      = min (G.algConn + Fintype.card H.V) (H.algConn + Fintype.card G.V) := by
-  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
-  haveI : Nonempty H.V := Fintype.card_pos_iff.1 (by omega)
+      = min (G.algConn + FinEnum.card H.V) (H.algConn + FinEnum.card G.V) := by
+  haveI : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  haveI : Nonempty H.V := FinEnum.card_pos_iff.1 (by omega)
   have hmemG : G.algConn ∈ G.lapSpectrum.erase 0 := G.algConn_mem_erase hG
   have hmemH : H.algConn ∈ H.lapSpectrum.erase 0 := H.algConn_mem_erase hH
-  have hGle : G.algConn ≤ Fintype.card G.V := G.algConn_le_card hG
-  have hHle : H.algConn ≤ Fintype.card H.V := H.algConn_le_card hH
+  have hGle : G.algConn ≤ FinEnum.card G.V := G.algConn_le_card hG
+  have hHle : H.algConn ≤ FinEnum.card H.V := H.algConn_le_card hH
   have herase : (G ∇g H).lapSpectrum.erase 0
-      = ((Fintype.card G.V : ℝ) + Fintype.card H.V)
-          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card H.V : ℝ))
-             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (Fintype.card G.V : ℝ))) := by
+      = ((FinEnum.card G.V : ℝ) + FinEnum.card H.V)
+          ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (FinEnum.card H.V : ℝ))
+             + (H.lapSpectrum.erase 0).map (fun x ↦ x + (FinEnum.card G.V : ℝ))) := by
     rw [lapSpectrum_join, Multiset.erase_cons_head]
   refine algConn_eq_of_isLeast ?_ ?_
   · rw [herase]
     refine Multiset.mem_cons_of_mem ?_
-    rcases le_total (G.algConn + Fintype.card H.V) (H.algConn + Fintype.card G.V) with hle | hle
+    rcases le_total (G.algConn + FinEnum.card H.V) (H.algConn + FinEnum.card G.V) with hle | hle
     · rw [min_eq_left hle]
       exact Multiset.mem_add.2 (Or.inl (Multiset.mem_map_of_mem _ hmemG))
     · rw [min_eq_right hle]
       exact Multiset.mem_add.2 (Or.inr (Multiset.mem_map_of_mem _ hmemH))
   · intro x hx
     rw [herase, Multiset.mem_cons] at hx
-    have hminG := min_le_left (G.algConn + (Fintype.card H.V : ℝ))
-      (H.algConn + (Fintype.card G.V : ℝ))
-    have hminH := min_le_right (G.algConn + (Fintype.card H.V : ℝ))
-      (H.algConn + (Fintype.card G.V : ℝ))
+    have hminG := min_le_left (G.algConn + (FinEnum.card H.V : ℝ))
+      (H.algConn + (FinEnum.card G.V : ℝ))
+    have hminH := min_le_right (G.algConn + (FinEnum.card H.V : ℝ))
+      (H.algConn + (FinEnum.card G.V : ℝ))
     rcases hx with rfl | hx
     · linarith
     rcases Multiset.mem_add.1 hx with hx | hx
@@ -8415,7 +8493,10 @@ theorem lapSpectrum_cartesianProduct (G H : CGraph) :
           (fun p : G.V × H.V ↦ G.lapEigenvalues p.1 + H.lapEigenvalues p.2) := by
     rw [← hdiag, Matrix.mul_add, ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul,
       Matrix.mul_one, Matrix.mul_one]
-  refine lapSpectrum_eq_of_conj (P := U₁ ⊗ₖ U₂) (Q := U₁ᵀ ⊗ₖ U₂ᵀ) ?_ ?_ ?_
+  rw [← fintype_eq_prod (FinEnum.instFintype : Fintype (G □g H).V)]
+  refine lapSpectrum_eq_of_conj (G := G □g H) (P := U₁ ⊗ₖ U₂) (Q := U₁ᵀ ⊗ₖ U₂ᵀ) ?_ ?_ ?_
+  all_goals rw [fintype_eq_prod (FinEnum.instFintype : Fintype (G □g H).V)]
+  all_goals try rw [decEq_eq_prod (FinEnum.decEq : DecidableEq (G □g H).V)]
   · rw [← Matrix.mul_kronecker_mul, h₁', h₂', Matrix.one_kronecker_one]
   · rw [← Matrix.mul_kronecker_mul, h₁, h₂, Matrix.one_kronecker_one]
   · rw [lapMat_cartesianProduct, Matrix.add_mul, ← Matrix.mul_kronecker_mul,
@@ -8451,10 +8532,10 @@ of them.  No connectivity hypothesis is needed — if either factor is disconnec
 are `0`. -/
 @[toIsoGraph]
 theorem algConn_cartesianProduct (G H : CGraph)
-    (hG : 2 ≤ Fintype.card G.V) (hH : 2 ≤ Fintype.card H.V) :
+    (hG : 2 ≤ FinEnum.card G.V) (hH : 2 ≤ FinEnum.card H.V) :
     (G □g H).algConn = min G.algConn H.algConn := by
-  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by omega)
-  haveI : Nonempty H.V := Fintype.card_pos_iff.1 (by omega)
+  haveI : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  haveI : Nonempty H.V := FinEnum.card_pos_iff.1 (by omega)
   set gs : Multiset ℝ := G.lapSpectrum.erase 0 with hgs
   set hs : Multiset ℝ := H.lapSpectrum.erase 0 with hhs
   have hGc : G.lapSpectrum = 0 ::ₘ gs := (Multiset.cons_erase G.zero_mem_lapSpectrum).symm
@@ -8720,8 +8801,9 @@ theorem lapLambdaMax_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))]
 /-! ### Laplacian cospectrality -/
 
 @[simp, toIsoGraph] theorem natDegree_lapCharpoly (G : CGraph) :
-    G.lapCharpoly.natDegree = Fintype.card G.V :=
-  Matrix.charpoly_natDegree_eq_dim _
+    G.lapCharpoly.natDegree = FinEnum.card G.V := by
+  rw [← G.fintypeCard]
+  exact Matrix.charpoly_natDegree_eq_dim _
 
 theorem lapCharpoly_eq_prod (G : CGraph) :
     G.lapCharpoly = ∏ i, (X - C (G.lapEigenvalues i)) :=
@@ -8774,7 +8856,7 @@ theorem lapCospectral_iff_lapSpectrum_eq (G H : CGraph) :
 
 /-- **Laplacian cospectral graphs have the same number of vertices.** -/
 theorem LapCospectral.card_eq {G H : CGraph} (h : LapCospectral G H) :
-    Fintype.card G.V = Fintype.card H.V := by
+    FinEnum.card G.V = FinEnum.card H.V := by
   rw [← natDegree_lapCharpoly, ← natDegree_lapCharpoly, h]
 
 /-- **Laplacian cospectral graphs have the same number of edges**, by the trace. -/
@@ -8817,7 +8899,7 @@ twin `Cospectral.isRegularWith` needs the extremal eigenvalue instead. -/
 theorem LapCospectral.isRegularWith {G H : CGraph} (h : LapCospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : H.IsRegularWith k := by
   classical
-  have hcard : Fintype.card H.V = Fintype.card G.V := h.card_eq.symm
+  have hcard : FinEnum.card H.V = FinEnum.card G.V := h.card_eq.symm
   -- the degrees of `H` sum to `n k`
   have hdegsum : ∑ i, H.toSimple.degree i = ∑ i, G.toSimple.degree i := by
     rw [SimpleGraph.sum_degrees_eq_twice_card_edges, SimpleGraph.sum_degrees_eq_twice_card_edges]
@@ -8825,17 +8907,17 @@ theorem LapCospectral.isRegularWith {G H : CGraph} (h : LapCospectral G H) {k : 
     have hE2 : H.E = H.toSimple.edgeFinset.card := rfl
     have := h.E_eq
     omega
-  have hGsum : ∑ i, G.toSimple.degree i = Fintype.card G.V * k := by
-    rw [Finset.sum_congr rfl fun i _ ↦ hG i, Finset.sum_const, Finset.card_univ, smul_eq_mul]
-  have hlin : ∑ i, (H.toSimple.degree i : ℝ) = Fintype.card G.V * (k : ℝ) := by
+  have hGsum : ∑ i, G.toSimple.degree i = FinEnum.card G.V * k := by
+    rw [Finset.sum_congr rfl fun i _ ↦ hG i, Finset.sum_const, Finset.card_univ, smul_eq_mul, G.fintypeCard]
+  have hlin : ∑ i, (H.toSimple.degree i : ℝ) = FinEnum.card G.V * (k : ℝ) := by
     rw [← Nat.cast_sum, hdegsum, hGsum]
     push_cast
     ring
   -- and their squares to `n k ²`
-  have hGsq : ∑ i, (G.toSimple.degree i : ℝ) ^ 2 = Fintype.card G.V * (k : ℝ) ^ 2 := by
+  have hGsq : ∑ i, (G.toSimple.degree i : ℝ) ^ 2 = FinEnum.card G.V * (k : ℝ) ^ 2 := by
     have hpt : ∀ i : G.V, (G.toSimple.degree i : ℝ) ^ 2 = (k : ℝ) ^ 2 := fun i ↦ by rw [hG i]
-    rw [Finset.sum_congr rfl fun i _ ↦ hpt i, Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
-  have hsq : ∑ i, (H.toSimple.degree i : ℝ) ^ 2 = Fintype.card G.V * (k : ℝ) ^ 2 := by
+    rw [Finset.sum_congr rfl fun i _ ↦ hpt i, Finset.sum_const, Finset.card_univ, nsmul_eq_mul, G.fintypeCard]
+  have hsq : ∑ i, (H.toSimple.degree i : ℝ) ^ 2 = FinEnum.card G.V * (k : ℝ) ^ 2 := by
     rw [← h.sum_sq_degrees_eq]
     exact hGsq
   -- so the variance vanishes
@@ -8844,7 +8926,7 @@ theorem LapCospectral.isRegularWith {G H : CGraph} (h : LapCospectral G H) {k : 
         = (H.toSimple.degree i : ℝ) ^ 2 - 2 * k * (H.toSimple.degree i : ℝ) + k ^ 2 :=
       fun i ↦ by ring
     rw [Finset.sum_congr rfl fun i _ ↦ hpt i, Finset.sum_add_distrib, Finset.sum_sub_distrib,
-      ← Finset.mul_sum, Finset.sum_const, Finset.card_univ, nsmul_eq_mul, hsq, hlin, hcard]
+      ← Finset.mul_sum, Finset.sum_const, Finset.card_univ, nsmul_eq_mul, H.fintypeCard, hsq, hlin, hcard]
     ring
   intro v
   have h0 := (Finset.sum_eq_zero_iff_of_nonneg fun i _ ↦ sq_nonneg
@@ -9082,7 +9164,7 @@ theorem eq_empty_of_card_toFinset_spectrum_eq_one {G : IsoGraph}
   | h g =>
     rw [spectrum_mk] at h1
     haveI : Nonempty g.V := by
-      rw [← Fintype.card_pos_iff, ← CGraph.card_spectrum]
+      rw [← FinEnum.card_pos_iff, ← CGraph.card_spectrum]
       by_contra hc
       have hz : g.spectrum = 0 := Multiset.card_eq_zero.1 (by omega)
       rw [hz] at h1
@@ -9276,7 +9358,7 @@ theorem lapLambdaMax_compl {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [compl_mk, lapLambdaMax_mk, algConn_mk, V_mk]
     exact g.lapLambdaMax_compl h
 
@@ -9287,7 +9369,7 @@ theorem algConn_compl {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [compl_mk, algConn_mk, lapLambdaMax_mk, V_mk]
     exact g.algConn_compl h
 
@@ -9525,7 +9607,7 @@ theorem algConn_le_minDeg {G : IsoGraph} (h : 2 ≤ G.V) (hc : 0 < Gᶜ.E) :
     classical
     rw [V_mk] at h
     rw [compl_mk, E_mk] at hc
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [algConn_mk, minDeg_mk]
     exact g.algConn_le_minDeg h hc
 
@@ -9536,7 +9618,7 @@ theorem V_sub_one_mul_algConn_le_V_mul_minDeg {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [algConn_mk, minDeg_mk, V_mk]
     exact g.card_sub_one_mul_algConn_le_card_mul_minDeg h
 
@@ -9547,7 +9629,7 @@ theorem algConn_le_div_mul_minDeg {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := Fintype.card_pos_iff.1 (by omega)
+    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [algConn_mk, minDeg_mk, V_mk]
     exact g.algConn_le_div_mul_minDeg h
 

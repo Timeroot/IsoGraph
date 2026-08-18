@@ -124,7 +124,7 @@ theorem isEmpty_subgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
       (fun x y _ ↦ g.edgeOk_map x y) _ (searchOrder_nodup H rH.toList)
       hri hrn symPairs_ne hg] at hn
     exact absurd hn (by simp)
-  · exact absurd (show Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E from
+  · exact absurd (show FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E from
       ⟨f.card_le, f.E_le⟩) ‹_›
 
 /-- `H` is a subgraph of `G` exactly when the search fails to find one. -/

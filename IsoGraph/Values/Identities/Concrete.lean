@@ -1770,18 +1770,19 @@ theorem isConnected_cartesianProduct_iff (G H : CGraph) :
 one fewer edge than it has vertices. -/
 @[toIsoGraph isTree_iff]
 theorem isTree_iff_isConnected_and_E (G : CGraph) :
-    G.IsTree ↔ G.IsConnected ∧ G.E + 1 = Fintype.card G.V := by
+    G.IsTree ↔ G.IsConnected ∧ G.E + 1 = FinEnum.card G.V := by
   show G.toSimple.IsTree ↔ _
   rw [SimpleGraph.isTree_iff_connected_and_card, Nat.card_eq_fintype_card,
-    Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card]
+    Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card, ← FinEnum.card_eq_fintypeCard']
   rfl
 
 /-- A connected graph has at least one fewer edge than it has vertices. -/
 @[toIsoGraph IsConnected.V_le_E_add_one]
 theorem IsConnected.card_le_E_add_one {G : CGraph} (h : G.IsConnected) :
-    Fintype.card G.V ≤ G.E + 1 := by
+    FinEnum.card G.V ≤ G.E + 1 := by
   have := SimpleGraph.Connected.card_vert_le_card_edgeSet_add_one h
-  rwa [Nat.card_eq_fintype_card, Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card] at this
+  rwa [Nat.card_eq_fintype_card, Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card,
+    ← FinEnum.card_eq_fintypeCard'] at this
 
 /-- A graph with a positive edge count has an edge. -/
 theorem exists_adj_of_E_pos {G : CGraph} (h : 0 < G.E) : ∃ a b, G.Adj a b := by
@@ -1859,9 +1860,9 @@ theorem not_isBipartite_lexProduct {G H : CGraph} (hG : 0 < G.E) (hH : 0 < H.E) 
 
 @[simp, toIsoGraph]
 theorem length_degSequence (G : CGraph) :
-    G.degSequence.length = Fintype.card G.V := by
+    G.degSequence.length = FinEnum.card G.V := by
   rw [degSequence, degMultiset, Multiset.length_sort, Multiset.card_map, Finset.card_val,
-    Finset.card_univ]
+    FinEnum.card_univ]
 
 /-- The handshake lemma: the degrees add up to twice the edge count. -/
 @[toIsoGraph]
@@ -1875,7 +1876,7 @@ theorem sum_degSequence (G : CGraph) : G.degSequence.sum = 2 * G.E := by
 
 /-- A regular graph has a constant degree sequence. -/
 theorem degSequence_of_regular (G : CGraph) {k : ℕ} (h : G.toSimple.IsRegularOfDegree k) :
-    G.degSequence = List.replicate (Fintype.card G.V) k := by
+    G.degSequence = List.replicate (FinEnum.card G.V) k := by
   rw [List.eq_replicate_iff]
   refine ⟨G.length_degSequence, fun b hb ↦ ?_⟩
   rw [degSequence, degMultiset, Multiset.mem_sort, Multiset.mem_map] at hb
@@ -1886,7 +1887,7 @@ theorem degSequence_of_regular (G : CGraph) {k : ℕ} (h : G.toSimple.IsRegularO
 @[toIsoGraph]
 theorem IsSRGWith.degSequence {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
     G.degSequence = List.replicate n k := by
-  rw [degSequence_of_regular G h.regular, h.card]
+  rw [degSequence_of_regular G h.regular, FinEnum.card_eq_fintypeCard', h.card]
 
 /-- Any sum over the vertices of a function of the degree is a sum over the degree sequence. -/
 theorem sum_degSequence_map (G : CGraph) (f : ℕ → ℕ) :
@@ -1904,7 +1905,7 @@ theorem E_lineGraph_eq_sum_degSequence (G : CGraph) :
   rw [sum_degSequence_map, E_lineGraph]
 
 theorem degSequence_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v).card = k) :
-    G.degSequence = List.replicate (Fintype.card G.V) k :=
+    G.degSequence = List.replicate (FinEnum.card G.V) k :=
   degSequence_of_regular G (isRegularOfDegree_of_card_nbrs G h)
 
 @[simp, toIsoGraph] theorem degSequence_kneser {n k : ℕ} (hk : 1 ≤ k) :
@@ -1915,7 +1916,6 @@ theorem degSequence_of_card_nbrs (G : CGraph) {k : ℕ} (h : ∀ v, (G.nbrs v).c
     (rook m n).degSequence = List.replicate (m * n) ((n - 1) + (m - 1)) := by
   rw [degSequence_of_card_nbrs _ (card_nbrs_rook)]
   congr 1
-  simp only [rook, card_cartesianProduct, card_complete]
 
 variable {G H : CGraph}
 
@@ -1964,9 +1964,9 @@ theorem nbrs_lexProduct (p : (G ·g H).V) :
 theorem card_nbrs_lexProduct {k l : ℕ}
     (hG : ∀ v, (G.nbrs v).card = k) (hH : ∀ w, (H.nbrs w).card = l)
     (p : (G ·g H).V) :
-    ((G ·g H).nbrs p).card = k * Fintype.card H.V + l := by
+    ((G ·g H).nbrs p).card = k * FinEnum.card H.V + l := by
   rw [nbrs_lexProduct, Finset.card_union_of_disjoint, Finset.card_product, Finset.card_product,
-    Finset.card_singleton, Finset.card_univ, hG, hH, one_mul]
+    Finset.card_singleton, FinEnum.card_univ, hG, hH, one_mul]
   refine Finset.disjoint_product.2 (Or.inl ?_)
   rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
   exact Bool.noConfusion
@@ -2008,7 +2008,7 @@ theorem card_nbrs_strongProduct {k l : ℕ}
 theorem degSequence_cartesianProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
     (G □g H).degSequence
-      = List.replicate (Fintype.card G.V * Fintype.card H.V) (k + l) := by
+      = List.replicate (FinEnum.card G.V * FinEnum.card H.V) (k + l) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_cartesianProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
     card_cartesianProduct]
@@ -2016,7 +2016,7 @@ theorem degSequence_cartesianProduct {m k n l : ℕ}
 theorem degSequence_tensorProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
     (G ⊗g H).degSequence
-      = List.replicate (Fintype.card G.V * Fintype.card H.V) (k * l) := by
+      = List.replicate (FinEnum.card G.V * FinEnum.card H.V) (k * l) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_tensorProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
     card_tensorProduct]
@@ -2024,7 +2024,7 @@ theorem degSequence_tensorProduct {m k n l : ℕ}
 theorem degSequence_lexProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
     (G ·g H).degSequence
-      = List.replicate (Fintype.card G.V * Fintype.card H.V) (k * Fintype.card H.V + l) := by
+      = List.replicate (FinEnum.card G.V * FinEnum.card H.V) (k * FinEnum.card H.V + l) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_lexProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
     card_lexProduct]
@@ -2032,7 +2032,7 @@ theorem degSequence_lexProduct {m k n l : ℕ}
 theorem degSequence_strongProduct {m k n l : ℕ}
     (hG : G.degSequence = List.replicate m k) (hH : H.degSequence = List.replicate n l) :
     (G ⊠g H).degSequence
-      = List.replicate (Fintype.card G.V * Fintype.card H.V) ((k + 1) * (l + 1) - 1) := by
+      = List.replicate (FinEnum.card G.V * FinEnum.card H.V) ((k + 1) * (l + 1) - 1) := by
   rw [degSequence_of_card_nbrs _
     (card_nbrs_strongProduct (card_nbrs_of_degSequence hG) (card_nbrs_of_degSequence hH)),
     card_strongProduct]
@@ -2046,13 +2046,14 @@ theorem degree_eq_of_isVertexTransitive {G : CGraph} (h : G.IsVertexTransitive) 
 
 @[toIsoGraph]
 theorem exists_degSequence_replicate_of_isVertexTransitive {G : CGraph}
-    (h : G.IsVertexTransitive) : ∃ k, G.degSequence = List.replicate (Fintype.card G.V) k := by
+    (h : G.IsVertexTransitive) : ∃ k, G.degSequence = List.replicate (FinEnum.card G.V) k := by
   cases isEmpty_or_nonempty G.V with
   | inl hE =>
     refine ⟨0, ?_⟩
+    have hcard : FinEnum.card G.V = 0 := FinEnum.card_eq_zero_iff.2 hE
     have hnil : G.degSequence = [] :=
-      List.eq_nil_of_length_eq_zero (by rw [length_degSequence]; exact Fintype.card_eq_zero)
-    rw [hnil, Fintype.card_eq_zero]
+      List.eq_nil_of_length_eq_zero (by rw [length_degSequence, hcard])
+    rw [hnil, hcard]
     rfl
   | inr hN =>
     obtain ⟨v₀⟩ := hN
@@ -2127,8 +2128,8 @@ theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWit
     (hk : k + 1 < n) : ∃ u v : G.V, u ≠ v ∧ ¬ G.toSimple.Adj u v := by
   classical
   have h' : G.toSimple.IsSRGWith n k ℓ μ := h
-  have hn : Fintype.card G.V = n := h'.card
-  obtain ⟨u⟩ := Fintype.card_pos_iff.1 (show 0 < Fintype.card G.V by omega)
+  have hn : FinEnum.card G.V = n := FinEnum.card_eq_fintypeCard'.trans h'.card
+  obtain ⟨u⟩ := FinEnum.card_pos_iff.1 (show 0 < FinEnum.card G.V by omega)
   by_contra hcon
   push_neg at hcon
   have hnbrs : G.nbrs u = Finset.univ.erase u := by
@@ -2142,7 +2143,7 @@ theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWit
     · intro hw
       exact hcon u w (Ne.symm hw)
   have hcard : (G.nbrs u).card = k := by rw [card_nbrs_eq_degree, h'.regular u]
-  rw [hnbrs, Finset.card_erase_of_mem (Finset.mem_univ u), Finset.card_univ, hn] at hcard
+  rw [hnbrs, Finset.card_erase_of_mem (Finset.mem_univ u), FinEnum.card_univ, hn] at hcard
   omega
 
 /-- **A strongly regular graph with `μ > 0` is connected**: any two non-adjacent vertices are
@@ -2173,7 +2174,7 @@ theorem IsSRGWith.diameter_eq_two {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWi
 /-- A graph with fewer than `V choose 2` edges has a non-adjacent pair: if every two distinct
 vertices were adjacent it would be regular of degree `V - 1`, and the handshake lemma would make
 the edge count exactly `V choose 2`. -/
-theorem exists_not_adj_of_E_lt (G : CGraph) (h : G.E < (Fintype.card G.V).choose 2) :
+theorem exists_not_adj_of_E_lt (G : CGraph) (h : G.E < (FinEnum.card G.V).choose 2) :
     ∃ u v : G.V, u ≠ v ∧ G.Adj u v = false := by
   classical
   by_contra hcon
@@ -2181,7 +2182,7 @@ theorem exists_not_adj_of_E_lt (G : CGraph) (h : G.E < (Fintype.card G.V).choose
   have hall : ∀ u v : G.V, u ≠ v → G.Adj u v = true := by
     intro u v huv
     simpa using hcon u v huv
-  have hnbrs : ∀ u : G.V, (G.nbrs u).card = Fintype.card G.V - 1 := by
+  have hnbrs : ∀ u : G.V, (G.nbrs u).card = FinEnum.card G.V - 1 := by
     intro u
     have hu : G.nbrs u = Finset.univ.erase u := by
       ext w
@@ -2192,11 +2193,11 @@ theorem exists_not_adj_of_E_lt (G : CGraph) (h : G.E < (Fintype.card G.V).choose
         exact Bool.noConfusion hw
       · intro hw
         exact hall u w (Ne.symm hw)
-    rw [hu, Finset.card_erase_of_mem (Finset.mem_univ u), Finset.card_univ]
-  have h2 : 2 * G.E = Fintype.card G.V * (Fintype.card G.V - 1) := by
+    rw [hu, Finset.card_erase_of_mem (Finset.mem_univ u), FinEnum.card_univ]
+  have h2 : 2 * G.E = FinEnum.card G.V * (FinEnum.card G.V - 1) := by
     rw [← sum_degSequence, degSequence_of_card_nbrs G hnbrs, List.sum_replicate, smul_eq_mul]
   rw [Nat.choose_two_right] at h
-  set m := Fintype.card G.V * (Fintype.card G.V - 1) with hm
+  set m := FinEnum.card G.V * (FinEnum.card G.V - 1) with hm
   omega
 
 /-- In a join, two vertices on the same side have a common neighbour on the other side, and two
@@ -2229,7 +2230,7 @@ theorem diameter_join_of_not_adj (G H : CGraph)
 /-- **A join whose left factor is not complete has diameter two.** -/
 @[toIsoGraph]
 theorem diameter_join_left {G H : CGraph} [Nonempty H.V]
-    (h : G.E < (Fintype.card G.V).choose 2) : (G ∇g H).diameter = 2 := by
+    (h : G.E < (FinEnum.card G.V).choose 2) : (G ∇g H).diameter = 2 := by
   obtain ⟨a, c, hne, hadj⟩ := exists_not_adj_of_E_lt G h
   exact diameter_join_of_not_adj G H hne hadj
 
@@ -2287,7 +2288,7 @@ theorem isConnected_compl_of_not_isConnected {G : CGraph} [Nonempty G.V] (h : ¬
 theorem diameter_compl_eq_two (G : CGraph) (h : ¬ G.toSimple.Preconnected)
     (hE : 0 < G.E) : Gᶜ.diameter = 2 := by
   obtain ⟨u, v, hne, hadj⟩ := exists_not_adj_of_E_lt Gᶜ
-    (show Gᶜ.E < (Fintype.card G.V).choose 2 by have hc := G.E_compl; omega)
+    (show Gᶜ.E < (FinEnum.card G.V).choose 2 by have hc := G.E_compl; omega)
   refine diameter_eq_two _ (two_step_compl G h) hne fun hc ↦ ?_
   have hc' : Gᶜ.Adj u v = true := by simpa using hc
   rw [hc'] at hadj
@@ -2295,10 +2296,20 @@ theorem diameter_compl_eq_two (G : CGraph) (h : ¬ G.toSimple.Preconnected)
 
 /-! ### Degree multisets of the binary constructions -/
 
-private theorem univ_val_sum (α β : Type*) [Fintype α] [Fintype β] :
+private theorem univ_val_sum' (α β : Type*) [Fintype α] [Fintype β] :
     (Finset.univ : Finset (α ⊕ β)).val
       = (Finset.univ : Finset α).val.map Sum.inl + (Finset.univ : Finset β).val.map Sum.inr :=
   rfl
+
+/- The `Fintype` on the sum is taken as an argument rather than synthesised: the vertex type of a
+disjoint union counts with the instance its own `FinEnum` induces, not with the one for a sum, and
+the two are only propositionally equal.  The canonical case is `univ_val_sum'`, split off so that
+the instance it is stated about is fixed by its own context rather than found in this one, where
+`i` itself is a candidate. -/
+private theorem univ_val_sum (α β : Type*) [Fintype α] [Fintype β] (i : Fintype (α ⊕ β)) :
+    (@Finset.univ (α ⊕ β) i).val
+      = (Finset.univ : Finset α).val.map Sum.inl + (Finset.univ : Finset β).val.map Sum.inr :=
+  (congrArg Finset.val (Finset.univ_inst_eq i _)).trans (univ_val_sum' α β)
 
 theorem nbrs_disjUnion_inl (G H : CGraph) (a : G.V) :
     (G ⊕g H).nbrs (Sum.inl a) = (G.nbrs a).map ⟨Sum.inl, Sum.inl_injective⟩ := by
@@ -2340,29 +2351,29 @@ theorem nbrs_compl (G : CGraph) (v : G.V) :
     exact ⟨fun he ↦ h1 he.symm, h2⟩
 
 theorem degree_compl (G : CGraph) (v : G.V) :
-    Gᶜ.toSimple.degree v = Fintype.card G.V - 1 - G.toSimple.degree v := by
+    Gᶜ.toSimple.degree v = FinEnum.card G.V - 1 - G.toSimple.degree v := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_compl]
   have hv : v ∈ (G.nbrs v)ᶜ := by simp [adj_self]
-  rw [Finset.card_erase_of_mem hv, Finset.card_compl]
+  rw [Finset.card_erase_of_mem hv, Finset.card_compl, ← FinEnum.card_eq_fintypeCard']
   omega
 
 theorem degree_le (G : CGraph) (v : G.V) :
-    G.toSimple.degree v + 1 ≤ Fintype.card G.V := by
+    G.toSimple.degree v + 1 ≤ FinEnum.card G.V := by
   rw [← card_nbrs_eq_degree]
   have hv : v ∉ G.nbrs v := by simp [adj_self]
   have hsub := Finset.card_le_card (Finset.subset_univ (insert v (G.nbrs v)))
-  rw [Finset.card_insert_of_notMem hv, Finset.card_univ] at hsub
+  rw [Finset.card_insert_of_notMem hv, FinEnum.card_univ] at hsub
   omega
 
 theorem degree_join_inl (G H : CGraph) (a : G.V) :
-    (G ∇g H).toSimple.degree (Sum.inl a) = G.toSimple.degree a + Fintype.card H.V := by
+    (G ∇g H).toSimple.degree (Sum.inl a) = G.toSimple.degree a + FinEnum.card H.V := by
   have hd := G.degree_le a
   show ((Gᶜ ⊕g Hᶜ)ᶜ).toSimple.degree (Sum.inl a) = _
   rw [degree_compl, degree_disjUnion_inl, degree_compl, card_disjUnion, card_compl, card_compl]
   omega
 
 theorem degree_join_inr (G H : CGraph) (b : H.V) :
-    (G ∇g H).toSimple.degree (Sum.inr b) = Fintype.card G.V + H.toSimple.degree b := by
+    (G ∇g H).toSimple.degree (Sum.inr b) = FinEnum.card G.V + H.toSimple.degree b := by
   have hd := H.degree_le b
   show ((Gᶜ ⊕g Hᶜ)ᶜ).toSimple.degree (Sum.inr b) = _
   rw [degree_compl, degree_disjUnion_inr, degree_compl, card_disjUnion, card_compl, card_compl]
@@ -2370,20 +2381,20 @@ theorem degree_join_inr (G H : CGraph) (b : H.V) :
 
 /-- **The degree multiset of a join**: every vertex picks up all the vertices on the other side. -/
 theorem degMultiset_join (G H : CGraph) :
-    (G ∇g H).degMultiset = G.degMultiset.map (· + Fintype.card H.V)
-      + H.degMultiset.map (· + Fintype.card G.V) := by
+    (G ∇g H).degMultiset = G.degMultiset.map (· + FinEnum.card H.V)
+      + H.degMultiset.map (· + FinEnum.card G.V) := by
   unfold degMultiset
   rw [univ_val_sum, Multiset.map_add, Multiset.map_map, Multiset.map_map, Multiset.map_map,
     Multiset.map_map]
   congr 1
   · exact Multiset.map_congr rfl fun v _ ↦ degree_join_inl G H v
   · refine Multiset.map_congr rfl fun v _ ↦ ?_
-    show (G ∇g H).toSimple.degree (Sum.inr v) = H.toSimple.degree v + Fintype.card G.V
+    show (G ∇g H).toSimple.degree (Sum.inr v) = H.toSimple.degree v + FinEnum.card G.V
     rw [degree_join_inr, Nat.add_comm]
 
 /-- **The degree multiset of the complement**: every degree is replaced by its "co-degree". -/
 theorem degMultiset_compl (G : CGraph) :
-    Gᶜ.degMultiset = G.degMultiset.map (fun d ↦ Fintype.card G.V - 1 - d) := by
+    Gᶜ.degMultiset = G.degMultiset.map (fun d ↦ FinEnum.card G.V - 1 - d) := by
   unfold degMultiset
   rw [Multiset.map_map]
   exact Multiset.map_congr rfl fun v _ ↦ degree_compl G v
@@ -2442,10 +2453,15 @@ theorem degree_path {n : ℕ} (i : Fin n) :
   rw [← card_nbrs_eq_degree]
   exact card_nbrs_path i
 
-private theorem univ_val_map_val (n : ℕ) :
+private theorem univ_val_map_val' (n : ℕ) :
     (Finset.univ : Finset (Fin n)).val.map Fin.val = Multiset.range n := by
   rw [Fin.univ_val_map, List.ofFn_eq_map, List.map_coe_finRange_eq_range]
   rfl
+
+private theorem univ_val_map_val (n : ℕ) (i : Fintype (Fin n)) :
+    (@Finset.univ (Fin n) i).val.map Fin.val = Multiset.range n :=
+  (congrArg (fun s : Finset (Fin n) ↦ s.val.map Fin.val) (Finset.univ_inst_eq i _)).trans
+    (univ_val_map_val' n)
 
 /-- The degrees of the path, listed vertex by vertex: the two ends have degree one and everything
 in between has degree two. -/
@@ -2460,12 +2476,21 @@ theorem degMultiset_path (n : ℕ) :
 
 /-! ### Degree multisets of the four products -/
 
-private theorem univ_val_map_prod {α β : Type} [Fintype α] [Fintype β] (f : α → β → ℕ) :
+private theorem univ_val_map_prod' {α β : Type} [Fintype α] [Fintype β] (f : α → β → ℕ) :
     (Finset.univ : Finset (α × β)).val.map (fun p ↦ f p.1 p.2)
       = (Finset.univ : Finset α).val.bind fun a ↦ (Finset.univ : Finset β).val.map (f a) := by
   rw [← Finset.univ_product_univ, Finset.product_val]
   simp only [SProd.sprod, Multiset.product, Multiset.map_bind]
   exact Multiset.bind_congr fun a _ ↦ Multiset.map_map _ _ _
+
+/- As with `univ_val_sum`, the product's `Fintype` is an argument: the four products all count
+their vertices with the instance their own `FinEnum` induces. -/
+private theorem univ_val_map_prod {α β : Type} [Fintype α] [Fintype β] (i : Fintype (α × β))
+    (f : α → β → ℕ) :
+    (@Finset.univ (α × β) i).val.map (fun p ↦ f p.1 p.2)
+      = (Finset.univ : Finset α).val.bind fun a ↦ (Finset.univ : Finset β).val.map (f a) :=
+  (congrArg (fun s : Finset (α × β) ↦ s.val.map fun p ↦ f p.1 p.2)
+    (Finset.univ_inst_eq i _)).trans (univ_val_map_prod' f)
 
 theorem degree_cartesianProduct (G H : CGraph)
     (p : (G □g H).V) :
@@ -2488,10 +2513,10 @@ theorem degree_tensorProduct (G H : CGraph)
 theorem degree_lexProduct (G H : CGraph)
     (p : (G ·g H).V) :
     (G ·g H).toSimple.degree p
-      = G.toSimple.degree p.1 * Fintype.card H.V + H.toSimple.degree p.2 := by
+      = G.toSimple.degree p.1 * FinEnum.card H.V + H.toSimple.degree p.2 := by
   rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, ← card_nbrs_eq_degree,
     nbrs_lexProduct, Finset.card_union_of_disjoint, Finset.card_product, Finset.card_product,
-    Finset.card_singleton, Finset.card_univ, one_mul]
+    Finset.card_singleton, FinEnum.card_univ, one_mul]
   refine Finset.disjoint_product.2 (Or.inl ?_)
   rw [Finset.disjoint_singleton_right, mem_nbrs, adj_self]
   exact Bool.noConfusion
@@ -2520,7 +2545,8 @@ theorem degMultiset_cartesianProduct (G H : CGraph) :
       = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d + e := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_cartesianProduct G H p]
-  refine Eq.trans (univ_val_map_prod fun a b ↦ G.toSimple.degree a + H.toSimple.degree b) ?_
+  refine Eq.trans (univ_val_map_prod (α := G.V) (β := H.V) _
+    fun a b ↦ G.toSimple.degree a + H.toSimple.degree b) ?_
   rw [Multiset.bind_map]
   exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
 
@@ -2529,17 +2555,18 @@ theorem degMultiset_tensorProduct (G H : CGraph) :
       = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d * e := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_tensorProduct G H p]
-  refine Eq.trans (univ_val_map_prod fun a b ↦ G.toSimple.degree a * H.toSimple.degree b) ?_
+  refine Eq.trans (univ_val_map_prod (α := G.V) (β := H.V) _
+    fun a b ↦ G.toSimple.degree a * H.toSimple.degree b) ?_
   rw [Multiset.bind_map]
   exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
 
 theorem degMultiset_lexProduct (G H : CGraph) :
     (G ·g H).degMultiset
-      = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d * Fintype.card H.V + e := by
+      = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ d * FinEnum.card H.V + e := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_lexProduct G H p]
-  refine Eq.trans (univ_val_map_prod
-    fun a b ↦ G.toSimple.degree a * Fintype.card H.V + H.toSimple.degree b) ?_
+  refine Eq.trans (univ_val_map_prod (α := G.V) (β := H.V) _
+    fun a b ↦ G.toSimple.degree a * FinEnum.card H.V + H.toSimple.degree b) ?_
   rw [Multiset.bind_map]
   exact Multiset.bind_congr fun a _ ↦ (Multiset.map_map _ _ _).symm
 
@@ -2548,7 +2575,7 @@ theorem degMultiset_strongProduct (G H : CGraph) :
       = G.degMultiset.bind fun d ↦ H.degMultiset.map fun e ↦ (d + 1) * (e + 1) - 1 := by
   unfold degMultiset
   rw [Multiset.map_congr rfl fun p _ ↦ degree_strongProduct G H p]
-  refine Eq.trans (univ_val_map_prod
+  refine Eq.trans (univ_val_map_prod (α := G.V) (β := H.V) _
     fun a b ↦ (G.toSimple.degree a + 1) * (H.toSimple.degree b + 1) - 1) ?_
   rw [Multiset.bind_map]
   exact Multiset.bind_congr fun a _ ↦
@@ -2832,8 +2859,8 @@ theorem diameter_cartesianProduct (G H : CGraph)
   rw [empty_toSimple]
   exact SimpleGraph.diam_bot
 
-theorem diameter_disjUnion (G H : CGraph) (hG : 0 < Fintype.card G.V)
-    (hH : 0 < Fintype.card H.V) : (G ⊕g H).diameter = 0 :=
+theorem diameter_disjUnion (G H : CGraph) (hG : 0 < FinEnum.card G.V)
+    (hH : 0 < FinEnum.card H.V) : (G ⊕g H).diameter = 0 :=
   SimpleGraph.diam_eq_zero_of_not_connected (not_isConnected_disjUnion G H hG hH)
 
 theorem chromNum_le_iff_colorable {G : CGraph} {n : ℕ} : G.chromNum ≤ n ↔ G.toSimple.Colorable n := by
@@ -2884,8 +2911,8 @@ theorem chromNum_eq_of_chromaticNumber {G : CGraph} {n : ℕ}
   rw [← Nat.cast_inj (R := ℕ∞), coe_chromNum, h]
 
 @[toIsoGraph chromNum_le_V]
-theorem chromNum_le_card (G : CGraph) : G.chromNum ≤ Fintype.card G.V := by
-  rw [← Nat.cast_le (α := ℕ∞), coe_chromNum]
+theorem chromNum_le_card (G : CGraph) : G.chromNum ≤ FinEnum.card G.V := by
+  rw [← Nat.cast_le (α := ℕ∞), coe_chromNum, FinEnum.card_eq_fintypeCard' (α := G.V)]
   exact SimpleGraph.chromaticNumber_le_card
 
 /-- A clique needs one colour per vertex, so `ω(G) ≤ χ(G)`. -/
@@ -2918,7 +2945,7 @@ theorem isBipartite_iff_chromNum_le_two {G : CGraph} : G.IsBipartite ↔ G.chrom
 /-- **`K_n` needs `n` colours.** -/
 @[simp, toIsoGraph] theorem chromNum_complete (n : ℕ) : (complete n).chromNum = n :=
   chromNum_eq_of_chromaticNumber (by rw [complete_toSimple, SimpleGraph.chromaticNumber_top,
-    card_complete])
+    ← FinEnum.card_eq_fintypeCard', card_complete])
 
 @[simp, toIsoGraph] theorem chromNum_path (n : ℕ) : (path (n + 2)).chromNum = 2 :=
   chromNum_eq_of_chromaticNumber (by
@@ -2970,8 +2997,8 @@ theorem chromNum_eq_two_iff {G : CGraph} : G.chromNum = 2 ↔ G.IsBipartite ∧ 
   exact_mod_cast SimpleGraph.chromaticNumber_eq_two_iff
 
 @[toIsoGraph]
-theorem chromNum_eq_zero_iff {G : CGraph} : G.chromNum = 0 ↔ Fintype.card G.V = 0 := by
-  rw [chromNum_eq_iff_chromaticNumber, Fintype.card_eq_zero_iff]
+theorem chromNum_eq_zero_iff {G : CGraph} : G.chromNum = 0 ↔ FinEnum.card G.V = 0 := by
+  rw [chromNum_eq_iff_chromaticNumber, FinEnum.card_eq_zero_iff]
   exact ⟨fun h ↦ SimpleGraph.isEmpty_of_chromaticNumber_eq_zero (by exact_mod_cast h),
     fun h ↦ by exact_mod_cast SimpleGraph.chromaticNumber_eq_zero_of_isEmpty⟩
 
@@ -3214,17 +3241,17 @@ theorem chromNum_lexProduct_le (G H : CGraph) :
 
 /-- One colour is enough exactly when there is a vertex but no edge. -/
 @[toIsoGraph]
-theorem chromNum_eq_one_iff {G : CGraph} : G.chromNum = 1 ↔ G.E = 0 ∧ 0 < Fintype.card G.V := by
+theorem chromNum_eq_one_iff {G : CGraph} : G.chromNum = 1 ↔ G.E = 0 ∧ 0 < FinEnum.card G.V := by
   have hb : G.toSimple = ⊥ ↔ G.E = 0 := by
     rw [← not_iff_not, ← ne_eq, toSimple_ne_bot_iff]
     omega
   rw [chromNum_eq_iff_chromaticNumber, Nat.cast_one, SimpleGraph.chromaticNumber_eq_one_iff, hb,
-    Fintype.card_pos_iff]
+    FinEnum.card_pos_iff]
 
 /-- **Every colour class is an independent set**, so `|V| ≤ χ·α`. -/
 @[toIsoGraph V_le_chromNum_mul_indepNum]
 theorem card_le_chromNum_mul_indepNum (G : CGraph) :
-    Fintype.card G.V ≤ G.chromNum * G.indepNum := by
+    FinEnum.card G.V ≤ G.chromNum * G.indepNum := by
   classical
   obtain ⟨c⟩ := G.colorable_chromNum
   have hfib : ∀ i : Fin G.chromNum,
@@ -3234,11 +3261,11 @@ theorem card_le_chromNum_mul_indepNum (G : CGraph) :
     intro x hx y hy hne hadj
     rw [Finset.coe_filter, Set.mem_setOf_eq] at hx hy
     exact c.valid hadj (hx.2.trans hy.2.symm)
-  have hsum : Fintype.card G.V
+  have hsum : FinEnum.card G.V
       = ∑ i : Fin G.chromNum, (Finset.univ.filter fun v ↦ c v = i).card := by
-    rw [← Finset.card_univ]
+    rw [← FinEnum.card_univ]
     exact Finset.card_eq_sum_card_fiberwise fun v _ ↦ Finset.mem_univ (c v)
-  calc Fintype.card G.V = ∑ i : Fin G.chromNum, (Finset.univ.filter fun v ↦ c v = i).card := hsum
+  calc FinEnum.card G.V = ∑ i : Fin G.chromNum, (Finset.univ.filter fun v ↦ c v = i).card := hsum
     _ ≤ ∑ _i : Fin G.chromNum, G.indepNum := Finset.sum_le_sum fun i _ ↦ hfib i
     _ = G.chromNum * G.indepNum := by rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
         smul_eq_mul]

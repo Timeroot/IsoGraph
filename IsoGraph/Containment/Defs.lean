@@ -202,10 +202,10 @@ theorem E_le_of_injective {H G : CGraph} (f : H.V → G.V) (hinj : Function.Inje
 isomorphism.** -/
 noncomputable def isoOfInjective {H G : CGraph} (f : H.V → G.V) (hinj : Function.Injective f)
     (hadj : ∀ x y, H.Adj x y → G.Adj (f x) (f y))
-    (hcard : Fintype.card G.V ≤ Fintype.card H.V) (hE : G.E ≤ H.E) : H ≃cg G := by
+    (hcard : FinEnum.card G.V ≤ FinEnum.card H.V) (hE : G.E ≤ H.E) : H ≃cg G := by
   have hbij : Function.Bijective f :=
-    (Fintype.bijective_iff_injective_and_card f).2
-      ⟨hinj, le_antisymm (Fintype.card_le_of_injective f hinj) hcard⟩
+    (FinEnum.bijective_iff_injective_and_card f).2
+      ⟨hinj, le_antisymm (FinEnum.card_le_of_injective f hinj) hcard⟩
   have hEeq : H.E = G.E := le_antisymm (E_le_of_injective f hinj hadj) hE
   let φ : H.toSimple →g G.toSimple := ⟨f, fun {x y} h ↦ hadj x y h⟩
   have hφ : Function.Injective φ.mapEdgeSet := SimpleGraph.Hom.mapEdgeSet.injective φ hinj
@@ -292,8 +292,8 @@ def toHom (f : H.SubgraphOf G) : H →cg G := ⟨f, fun h ↦ f.map_adj h⟩
 theorem E_le (f : H.SubgraphOf G) : H.E ≤ G.E :=
   E_le_of_injective f f.injective f.map_adj'
 
-theorem card_le (f : H.SubgraphOf G) : Fintype.card H.V ≤ Fintype.card G.V :=
-  Fintype.card_le_of_injective f f.injective
+theorem card_le (f : H.SubgraphOf G) : FinEnum.card H.V ≤ FinEnum.card G.V :=
+  FinEnum.card_le_of_injective f f.injective
 
 /-- **Two graphs that are subgraphs of each other are isomorphic.** -/
 noncomputable def antisymm (f : H.SubgraphOf G) (g : G.SubgraphOf H) : H ≃cg G :=
@@ -367,8 +367,8 @@ theorem surjective (f : H.QuotientOf G) : Function.Surjective f := f.surjective'
 theorem map_adj (f : H.QuotientOf G) {x y : G.V} (h : G.Adj x y) : H.Adj (f x) (f y) :=
   f.map_adj' x y h
 
-theorem card_le (f : H.QuotientOf G) : Fintype.card H.V ≤ Fintype.card G.V :=
-  Fintype.card_le_of_surjective _ f.surjective
+theorem card_le (f : H.QuotientOf G) : FinEnum.card H.V ≤ FinEnum.card G.V :=
+  FinEnum.card_le_of_surjective _ f.surjective
 
 /-- An isomorphism presents either graph as a quotient of the other. -/
 def ofIso (i : H ≃cg G) : H.QuotientOf G where
@@ -391,13 +391,13 @@ def trans (f : H.QuotientOf G) (g : G.QuotientOf K) : H.QuotientOf K where
 /-- **Two graphs that are quotients of each other are isomorphic**: the vertex maps are bijections,
 so each is an injective homomorphism, and the edge counts pin them down. -/
 noncomputable def antisymm (f : H.QuotientOf G) (g : G.QuotientOf H) : H ≃cg G := by
-  have hcard : Fintype.card H.V = Fintype.card G.V :=
-    le_antisymm (Fintype.card_le_of_surjective _ f.surjective)
-      (Fintype.card_le_of_surjective _ g.surjective)
+  have hcard : FinEnum.card H.V = FinEnum.card G.V :=
+    le_antisymm (FinEnum.card_le_of_surjective _ f.surjective)
+      (FinEnum.card_le_of_surjective _ g.surjective)
   have hginj : Function.Injective ⇑g :=
-    (Fintype.bijective_iff_surjective_and_card _).2 ⟨g.surjective, hcard⟩ |>.1
+    (FinEnum.bijective_iff_surjective_and_card _).2 ⟨g.surjective, hcard⟩ |>.1
   have hfinj : Function.Injective ⇑f :=
-    (Fintype.bijective_iff_surjective_and_card _).2 ⟨f.surjective, hcard.symm⟩ |>.1
+    (FinEnum.bijective_iff_surjective_and_card _).2 ⟨f.surjective, hcard.symm⟩ |>.1
   exact isoOfInjective ⇑g hginj g.map_adj' (le_of_eq hcard.symm)
     (E_le_of_injective ⇑f hfinj f.map_adj')
 
@@ -497,10 +497,10 @@ def trans (f : H.MinorOf K) (g : K.MinorOf G) : H.MinorOf G where
     (f.trans g).branch v = (g.branch v).bind f.branch := rfl
 
 /-- The branch sets are nonempty and disjoint, so a minor has no more vertices. -/
-theorem card_le (f : H.MinorOf G) : Fintype.card H.V ≤ Fintype.card G.V := by
+theorem card_le (f : H.MinorOf G) : FinEnum.card H.V ≤ FinEnum.card G.V := by
   choose r hr using fun x : H.V ↦ (f.connectedOn x).nonempty
   simp only [Set.mem_setOf_eq] at hr
-  refine Fintype.card_le_of_injective r fun x y h ↦ ?_
+  refine FinEnum.card_le_of_injective r fun x y h ↦ ?_
   have hx := hr x
   rw [h, hr y] at hx
   exact (Option.some_inj.mp hx).symm
@@ -624,7 +624,7 @@ def trans (f : H.ContractionOf K) (g : K.ContractionOf G) : H.ContractionOf G wh
   exact (f.trans g).branch_eq_some_iff.mp h
 
 /-- The blocks are nonempty and disjoint, so a contraction has no more vertices. -/
-theorem card_le (f : H.ContractionOf G) : Fintype.card H.V ≤ Fintype.card G.V :=
+theorem card_le (f : H.ContractionOf G) : FinEnum.card H.V ≤ FinEnum.card G.V :=
   f.toInducedMinorOf.toMinorOf.card_le
 
 end ContractionOf
@@ -752,8 +752,8 @@ variable {H G : CGraph}
 
 theorem injective (f : H.ImmersionOf G) : Function.Injective f.toFun := f.injective'
 
-theorem card_le (f : H.ImmersionOf G) : Fintype.card H.V ≤ Fintype.card G.V :=
-  Fintype.card_le_of_injective _ f.injective
+theorem card_le (f : H.ImmersionOf G) : FinEnum.card H.V ≤ FinEnum.card G.V :=
+  FinEnum.card_le_of_injective _ f.injective
 
 /-- **A topological minor is an immersion**: paths are trails, and two paths that shared an edge
 would share both of its endpoints, which are then branch vertices of both, forcing the two edges

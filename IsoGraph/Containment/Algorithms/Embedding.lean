@@ -81,7 +81,7 @@ namespace CGraph
 /-- How much a vertex is worth taking next: first the number of neighbours already taken, then the
 degree.  Packed into one natural number so that it can be compared with `<`. -/
 private def orderKey (H : CGraph) (acc : List H.V) (v : H.V) : ℕ :=
-  (acc.countP fun u ↦ H.Adj v u) * (Fintype.card H.V + 1) + H.toSimple.degree v
+  (acc.countP fun u ↦ H.Adj v u) * (FinEnum.card H.V + 1) + H.toSimple.degree v
 
 /-- Greedily take the vertex of highest `orderKey`, `n` times. -/
 private def searchOrderAux (H : CGraph) : ℕ → List H.V → List H.V → List H.V
@@ -618,7 +618,7 @@ def hostRank (rG : Roster G.V) (v : G.V) : ℕ := rG.toList.idxOf v
 /-- The assignment the search finds, before it is turned into a witness.  `ind` chooses which of
 the two relations is being looked for. -/
 def searchAsg (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
-  if Fintype.card H.V ≤ Fintype.card G.V ∧ H.E ≤ G.E then
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     Backtrack.dfs
       (candList H G ind (hostRank G rG) rG.toList.length (symPairs H (searchOrder H rH.toList))
         (rowList G rG.toList) (adjTable G rG.toList))

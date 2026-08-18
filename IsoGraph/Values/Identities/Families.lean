@@ -855,9 +855,9 @@ graph, the radius of a path, and the matching bound on the clique cover number. 
 /-- Cover the vertices by the edges of a maximum matching plus the leftover singletons. -/
 @[toIsoGraph cliqueCoverNum_le_V_sub_matchNum]
 theorem _root_.CGraph.cliqueCoverNum_le_card_sub_matchNum (g : CGraph) :
-    g.cliqueCoverNum ≤ Fintype.card g.V - g.matchNum := by
+    g.cliqueCoverNum ≤ FinEnum.card g.V - g.matchNum := by
   classical
-  show CGraph.chromNum gᶜ ≤ Fintype.card g.V - (CGraph.lineGraph g).indepNum
+  show CGraph.chromNum gᶜ ≤ FinEnum.card g.V - (CGraph.lineGraph g).indepNum
   -- Get a max independent set in CGraph.lineGraph g (a max matching)
   obtain ⟨S, hS_indep, hS_card⟩ := (CGraph.lineGraph g).toSimple.exists_isNIndepSet_indepNum
   have hcard : S.card = (CGraph.lineGraph g).indepNum := hS_card
@@ -880,15 +880,15 @@ theorem _root_.CGraph.cliqueCoverNum_le_card_sub_matchNum (g : CGraph) :
       simp [Finset.sum_const, smul_eq_mul, Nat.mul_comm]
     · exact fun e he f hf hef => hdisjoint e he f hf hef
   -- Equivalently, 2 * indepNum ≤ V
-  have h2le : 2 * (CGraph.lineGraph g).indepNum ≤ Fintype.card g.V :=
+  have h2le : 2 * (CGraph.lineGraph g).indepNum ≤ FinEnum.card g.V :=
     CGraph.two_mul_indepNum_lineGraph_le_card g
   -- Unmatched vertices
   set unmatchedS := Finset.univ \ matchedS with hunmatchedS_def
   have hunmatched_card :
-      unmatchedS.card = Fintype.card g.V - 2 * (CGraph.lineGraph g).indepNum := by
-    have : unmatchedS.card = Fintype.card g.V - matchedS.card := by
+      unmatchedS.card = FinEnum.card g.V - 2 * (CGraph.lineGraph g).indepNum := by
+    have : unmatchedS.card = FinEnum.card g.V - matchedS.card := by
       rw [hunmatchedS_def, Finset.card_sdiff_of_subset (Finset.subset_univ matchedS),
-        Finset.card_univ]
+        FinEnum.card_univ]
     rw [this, hmatched_card, hcard]
   -- Build coloring
   rw [CGraph.chromNum_le_iff_colorable]
@@ -911,12 +911,12 @@ theorem _root_.CGraph.cliqueCoverNum_le_card_sub_matchNum (g : CGraph) :
   -- The color function
   -- For unmatched vertices, we need an equiv with Fin (V - 2*S.card)
   have hcard_unmatched :
-      Fintype.card {v : g.V // v ∉ matchedS} = Fintype.card g.V - 2 * S.card := by
-    have h1 : Fintype.card {v : g.V // v ∉ matchedS} = Fintype.card g.V - matchedS.card := by
+      Fintype.card {v : g.V // v ∉ matchedS} = FinEnum.card g.V - 2 * S.card := by
+    have h1 : Fintype.card {v : g.V // v ∉ matchedS} = FinEnum.card g.V - matchedS.card := by
       rw [Fintype.card_subtype_compl]
       simp
     rw [h1, hmatched_card, hcard]
-  let unmatchedEmb : {v : g.V // v ∉ matchedS} ≃ Fin (Fintype.card g.V - 2 * S.card) :=
+  let unmatchedEmb : {v : g.V // v ∉ matchedS} ≃ Fin (FinEnum.card g.V - 2 * S.card) :=
     Fintype.equivFinOfCardEq hcard_unmatched
   let f : g.V → ℕ := fun v =>
     if hv : v ∈ matchedS then
@@ -975,20 +975,20 @@ theorem _root_.CGraph.cliqueCoverNum_le_card_sub_matchNum (g : CGraph) :
         exact Subtype.ext_iff.mp (unmatchedEmb.injective (Fin.ext heq))
   · -- Color bound
     by_cases hv : v ∈ matchedS
-    · show f v < Fintype.card g.V - g.lineGraph.indepNum
+    · show f v < FinEnum.card g.V - g.lineGraph.indepNum
       simp [f, hv]
       have h1 : (equivS' (edgeOf ⟨v, hv⟩) : ℕ) < S.card := Fin.isLt _
-      have h2le' : 2 * S.card ≤ Fintype.card g.V := by rw [← hcard] at h2le; exact h2le
-      have hle : S.card ≤ Fintype.card g.V - S.card := by omega
-      have : Fintype.card g.V - g.lineGraph.indepNum = Fintype.card g.V - S.card := by rw [hcard]
+      have h2le' : 2 * S.card ≤ FinEnum.card g.V := by rw [← hcard] at h2le; exact h2le
+      have hle : S.card ≤ FinEnum.card g.V - S.card := by omega
+      have : FinEnum.card g.V - g.lineGraph.indepNum = FinEnum.card g.V - S.card := by rw [hcard]
       rw [this]
       exact lt_of_lt_of_le h1 hle
-    · show f v < Fintype.card g.V - g.lineGraph.indepNum
+    · show f v < FinEnum.card g.V - g.lineGraph.indepNum
       simp [f, hv]
-      have h1 : (unmatchedEmb ⟨v, hv⟩ : ℕ) < Fintype.card g.V - 2 * S.card := Fin.isLt _
-      have h2le' : 2 * S.card ≤ Fintype.card g.V := by rw [← hcard] at h2le; exact h2le
-      have hle : S.card ≤ Fintype.card g.V - S.card := by omega
-      have hbound : Fintype.card g.V - g.lineGraph.indepNum = Fintype.card g.V - S.card := by
+      have h1 : (unmatchedEmb ⟨v, hv⟩ : ℕ) < FinEnum.card g.V - 2 * S.card := Fin.isLt _
+      have h2le' : 2 * S.card ≤ FinEnum.card g.V := by rw [← hcard] at h2le; exact h2le
+      have hle : S.card ≤ FinEnum.card g.V - S.card := by omega
+      have hbound : FinEnum.card g.V - g.lineGraph.indepNum = FinEnum.card g.V - S.card := by
         rw [hcard]
       rw [hbound]
       omega
@@ -1469,7 +1469,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
     decide
   have hle : (CGraph.kneser 5 2).domNum ≤ 3 :=
     le_trans (CGraph.domNum_le_card_of_isDominatingSet hdom) (by rw [hcard])
-  have hcardV : Fintype.card (CGraph.kneser 5 2).V = 10 := CGraph.card_petersen
+  have hcardV : FinEnum.card (CGraph.kneser 5 2).V = 10 := CGraph.card_petersen
   have hmaxDeg : (CGraph.kneser 5 2).maxDeg = 3 := IsoGraph.maxDeg_kneser 5 2 (by omega) (by omega)
   have hlow : 3 ≤ (CGraph.kneser 5 2).domNum := by
     have := CGraph.card_le_domNum_mul_maxDeg_add_one (CGraph.kneser 5 2)
@@ -1502,7 +1502,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
       dsimp only [SimpleGraph.cliqueNum]
       apply le_csSup
       · -- bounded above: clique size ≤ card of V = 10
-        refine ⟨Fintype.card (CGraph.kneser 5 2).V, fun n ⟨s, hs⟩ ↦ ?_⟩
+        refine ⟨FinEnum.card (CGraph.kneser 5 2).V, fun n ⟨s, hs⟩ ↦ ?_⟩
         rw [← hs.card_eq]
         exact Finset.card_le_univ s
       · -- 2 is in the set: the edge {{0,1}, {2,3}} is a 2-clique
@@ -1680,7 +1680,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
     rw [hkneser_iso, IsoGraph.indepNum_mk] at h_le
     -- indepNum_petersen_le now gives (CGraph.kneser 5 2).indepNum ≤ 5
     -- Use CGraph-level gallai for line graph
-    have hv : Fintype.card (CGraph.kneser 5 2).V = 10 := by
+    have hv : FinEnum.card (CGraph.kneser 5 2).V = 10 := by
       native_decide
     simp only [lineGraph_mk, IsoGraph.indepNum_mk]
     have h_exists : ∃ S : Finset (CGraph.lineGraph (CGraph.kneser 5 2)).V, S.card = 5 ∧
@@ -1917,8 +1917,8 @@ example : (ladder 5).cliqueCoverNum = 5 := by rw [cliqueCoverNum_ladder]
   · -- (n+3)/3 ≤ domNum: every dominating set has size ≥ (n+3)/3
     apply le_csInf
     · -- Nonempty
-      refine ⟨Fintype.card (CGraph.path (n + 1)).V, ⟨Finset.univ, rfl, CGraph.isDominatingSet_univ
-        (CGraph.path (n + 1))⟩⟩
+      refine ⟨FinEnum.card (CGraph.path (n + 1)).V, ⟨Finset.univ, FinEnum.card_univ,
+        CGraph.isDominatingSet_univ (CGraph.path (n + 1))⟩⟩
     · -- Lower bound on every element
       intro k ⟨s, hk, hs⟩
       rw [← hk]
@@ -2609,7 +2609,7 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
   · -- Upper bound: domNum ≤ min(m+1, n+1)
     have h1 : (CGraph.complete (m + 1) □g CGraph.complete (n + 1)).domNum ≤ n + 1 := by
       calc (CGraph.complete (m + 1) □g CGraph.complete (n + 1)).domNum
-          ≤ (CGraph.complete (m + 1)).domNum * Fintype.card (CGraph.complete (n + 1)).V :=
+          ≤ (CGraph.complete (m + 1)).domNum * FinEnum.card (CGraph.complete (n + 1)).V :=
             CGraph.domNum_cartesianProduct_le _ _
         _ = 1 * (n + 1) := by rw [CGraph.domNum_complete, CGraph.card_complete]
         _ = n + 1 := one_mul _
@@ -2619,7 +2619,7 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
         CGraph.Iso.cartesianProductComm _ _
       rw [CGraph.domNum_eq_of_iso hiso]
       calc (CGraph.complete (n + 1) □g CGraph.complete (m + 1)).domNum
-          ≤ (CGraph.complete (n + 1)).domNum * Fintype.card (CGraph.complete (m + 1)).V :=
+          ≤ (CGraph.complete (n + 1)).domNum * FinEnum.card (CGraph.complete (m + 1)).V :=
             CGraph.domNum_cartesianProduct_le _ _
         _ = 1 * (m + 1) := by rw [CGraph.domNum_complete, CGraph.card_complete]
         _ = m + 1 := one_mul _
@@ -2652,8 +2652,10 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
           exact Subtype.ext_iff.mp heq
         rw [← hci.2, heq', hci'.2]
       have := Fintype.card_le_of_injective _ hinj
+      have hV1 : Fintype.card V1 = m + 1 :=
+        (FinEnum.card_eq_fintypeCard' (α := V1)).symm.trans (CGraph.card_complete (m + 1))
       have : m + 1 ≤ S.card := by
-        have := this; rw [CGraph.card_complete] at this
+        have := this; rw [hV1] at this
         rw [Fintype.card_subtype] at this
         simp at this
         exact this
@@ -2677,9 +2679,11 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
         have := congr_arg Prod.snd this
         rw [hfproj j, hfproj j'] at this
         exact this
+      have hV2 : Fintype.card V2 = n + 1 :=
+        (FinEnum.card_eq_fintypeCard' (α := V2)).symm.trans (CGraph.card_complete (n + 1))
       have hcard : n + 1 ≤ S.card := by
         have h := Fintype.card_le_of_injective _ hinj2
-        rw [CGraph.card_complete] at h
+        rw [hV2] at h
         rw [Fintype.card_subtype] at h
         simp at h
         exact h
@@ -2767,7 +2771,7 @@ theorem domNum_hypercube_three : (hypercube 3).domNum = 2 := by
   -- domNum ≥ 1
   have domNum_pos' : 0 < (CGraph.hypercube 3).domNum :=
     CGraph.domNum_pos (CGraph.hypercube 3)
-      (by native_decide : 0 < Fintype.card (CGraph.hypercube 3).V)
+      (by native_decide : 0 < FinEnum.card (CGraph.hypercube 3).V)
   -- domNum ≥ 2
   have domNum_ge_two : 2 ≤ (CGraph.hypercube 3).domNum := by omega
   -- domNum ≤ 2: exhibit a dominating set of size 2

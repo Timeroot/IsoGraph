@@ -19,7 +19,7 @@ point:
 * `…OfEquiv e`, taking the indexing as an argument — for the usual case where `G.V` is `Fin n` or
   something with an obvious equivalence to it, and the fast one;
 * the plain version, which goes through `G.canonicalize` (whose vertex type *is*
-  `Fin (Fintype.card G.V)`) and transports the answer back along `nonempty_iso_canonicalize`.
+  `Fin (FinEnum.card G.V)`) and transports the answer back along `nonempty_iso_canonicalize`.
   Always available, at the cost of a second run of the canonical labelling.
 
 ## Deciding transitivity
@@ -147,8 +147,8 @@ theorem arcTransitiveBOfEquiv_iff (e : G.V ≃ Fin n) :
   (_root_.IsoGraph.Canon.arcTransitiveB_iff n (G.finAdj e)).trans
     (G.isArcTransitive_iff_fin e).symm
 
-/-- The canonical representative of `G`, indexed by `Fin (Fintype.card G.V)` on the nose. -/
-def canonicalizeEquiv : G.canonicalize.V ≃ Fin (Fintype.card G.V) := Equiv.refl _
+/-- The canonical representative of `G`, indexed by `Fin (FinEnum.card G.V)` on the nose. -/
+def canonicalizeEquiv : G.canonicalize.V ≃ Fin (FinEnum.card G.V) := Equiv.refl _
 
 /-- Transitivity of `G` and of its canonical representative are the same question. -/
 theorem isVertexTransitive_canonicalize :
@@ -162,7 +162,7 @@ theorem isArcTransitive_canonicalize :
     isArcTransitive_of_iso G.nonempty_iso_canonicalize.some⟩
 
 /-- **Is `G` vertex-transitive?**, with no indexing of `G.V` supplied: ask of the canonical
-representative, which is indexed by `Fin (Fintype.card G.V)`, and transport back. -/
+representative, which is indexed by `Fin (FinEnum.card G.V)`, and transport back. -/
 def vertexTransitiveB : Bool := G.canonicalize.vertexTransitiveBOfEquiv G.canonicalizeEquiv
 
 theorem vertexTransitiveB_iff : G.vertexTransitiveB = true ↔ G.IsVertexTransitive :=

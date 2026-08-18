@@ -294,12 +294,12 @@ theorem card_commonNeighbors (v w : G.V) :
 /-- **Strong regularity, spelled out in `Finset` terms.**  No `SimpleGraph`, no `Fintype.card` of
 a subtype and no `Sym2`: just the neighbour sets of `nbrs` and their intersections, which is the
 form in which the families of `IsoGraph/Graphs/SRG.lean` are proved. -/
-theorem isSRGWith_of {n k ℓ μ : ℕ} (hn : Fintype.card G.V = n)
+theorem isSRGWith_of {n k ℓ μ : ℕ} (hn : FinEnum.card G.V = n)
     (hk : ∀ v, (G.nbrs v).card = k)
     (hℓ : ∀ v w, G.Adj v w = true → (G.nbrs v ∩ G.nbrs w).card = ℓ)
     (hμ : ∀ v w, v ≠ w → G.Adj v w = false → (G.nbrs v ∩ G.nbrs w).card = μ) :
     G.IsSRGWith n k ℓ μ where
-  card := hn
+  card := G.fintypeCard.trans hn
   regular v := by rw [SimpleGraph.degree, neighborFinset_eq_nbrs, hk]
   of_adj v w h := by rw [card_commonNeighbors]; exact hℓ v w h
   of_not_adj v w hne h := by
@@ -431,11 +431,12 @@ This runs in time `O(n³)`, so `native_decide` settles it for the graphs of
 `IsoGraph/Graphs/SRG.lean`; the kernel would not get far. -/
 instance (n k ℓ μ : ℕ) : Decidable (G.IsSRGWith n k ℓ μ) :=
   decidable_of_iff
-    (Fintype.card G.V = n ∧ (∀ v, G.toSimple.degree v = k) ∧
+    (FinEnum.card G.V = n ∧ (∀ v, G.toSimple.degree v = k) ∧
       (∀ v w, G.toSimple.Adj v w → Fintype.card (G.toSimple.commonNeighbors v w) = ℓ) ∧
       (∀ v w, v ≠ w → ¬G.toSimple.Adj v w → Fintype.card (G.toSimple.commonNeighbors v w) = μ))
-    ⟨fun ⟨h₁, h₂, h₃, h₄⟩ ↦ ⟨h₁, h₂, h₃, fun _ _ hne ↦ h₄ _ _ hne⟩,
-      fun h ↦ ⟨h.card, h.regular, h.of_adj, fun _ _ hne ↦ h.of_not_adj hne⟩⟩
+    ⟨fun ⟨h₁, h₂, h₃, h₄⟩ ↦ ⟨G.fintypeCard.trans h₁, h₂, h₃, fun _ _ hne ↦ h₄ _ _ hne⟩,
+      fun h ↦ ⟨G.fintypeCard.symm.trans h.card, h.regular, h.of_adj,
+        fun _ _ hne ↦ h.of_not_adj hne⟩⟩
 
 /-- Vertex-transitivity is decidable by enumerating the `n!` permutations of the vertex type — so
 this is for tiny graphs only, and the structural lemmas of `IsoGraph/Graphs/Constructions.lean` are

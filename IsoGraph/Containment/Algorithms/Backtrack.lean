@@ -2,6 +2,7 @@ import Mathlib.Data.Finset.Sort
 import Mathlib.Data.List.Pairwise
 import Mathlib.Data.List.Sublists
 import Mathlib.Logic.Equiv.Fin.Basic
+import IsoGraph.ForMathlib.FinEnum
 
 /-!
 # A verified backtracking search
@@ -58,6 +59,12 @@ structure Roster (α : Type u) where
 /-- The roster of `Fin n`.  This covers essentially every graph in practice: a `CGraph` built by
 one of the constructions has `Fin n`, or something equivalent to it, for its vertex type. -/
 def Roster.fin (n : ℕ) : Roster (Fin n) := ⟨List.finRange n, by simp⟩
+
+/-- The roster a `FinEnum` already carries.  Every `CGraph` bundles one, so no vertex type in this
+development is without a roster; the hand-written combinators below survive because they can be
+cheaper — `FinEnum.toList` runs every index through `equiv.symm`, which for a vertex type whose
+enumeration is a list is a list index per element. -/
+def Roster.enum (α : Type u) [FinEnum α] : Roster α := ⟨FinEnum.toList α, FinEnum.mem_toList⟩
 
 /-- A roster transported along an equivalence. -/
 def Roster.ofEquiv {α : Type u} {β : Type v} (r : Roster β) (e : α ≃ β) : Roster α :=

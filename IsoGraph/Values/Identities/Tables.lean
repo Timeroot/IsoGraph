@@ -1077,7 +1077,7 @@ theorem diameter_compl_le_two {G : IsoGraph} (hV : 0 < G.V) (h : ¬ IsConnected 
   rw [V_mk] at hV
   rw [isConnected_mk] at h
   rw [compl_mk, diameter_mk]
-  haveI := Fintype.card_pos_iff.1 hV
+  haveI := FinEnum.card_pos_iff.1 hV
   exact CGraph.diameter_compl_le_two _ fun hp ↦ h ⟨hp⟩
 
 /-- A disconnected graph with an edge has a complement of diameter exactly two. -/
@@ -1096,7 +1096,7 @@ theorem diameter_compl {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
   rw [E_mk] at hE
   rw [isConnected_mk] at h
   rw [compl_mk, diameter_mk]
-  haveI := Fintype.card_pos_iff.1 hV
+  haveI := FinEnum.card_pos_iff.1 hV
   exact CGraph.diameter_compl_eq_two _ (fun hp ↦ h ⟨hp⟩) hE
 
 @[simp] theorem isConnected_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
@@ -1212,11 +1212,11 @@ private theorem cycEdge_inj (n : ℕ) : Function.Injective (cycEdge n) := by
 is where `n ≥ 3` enters: for `n = 2` the two "edges" `{0, 1}` and `{1, 0}` coincide. -/
 @[toIsoGraph simp lineGraph_cycle]
 def lineGraphCycle (n : ℕ) : lineGraph (cycle (n + 3)) ≃cg cycle (n + 3) := by
-  have hcard : Fintype.card (Fin (n + 3))
-      = Fintype.card (CGraph.lineGraph (CGraph.cycle (n + 3))).V := by
-    rw [CGraph.card_lineGraph, CGraph.E_cycle, Fintype.card_fin]
+  have hcard : FinEnum.card (Fin (n + 3))
+      = FinEnum.card (CGraph.lineGraph (CGraph.cycle (n + 3))).V := by
+    rw [CGraph.card_lineGraph, CGraph.E_cycle, FinEnum.card_fin']
   have hbij : Function.Bijective (cycEdge n) :=
-    Fintype.bijective_iff_injective_and_card _ |>.2 ⟨cycEdge_inj n, hcard⟩
+    FinEnum.bijective_iff_injective_and_card _ |>.2 ⟨cycEdge_inj n, hcard⟩
   have hadj : ∀ i j : Fin (n + 3),
       (CGraph.lineGraph (CGraph.cycle (n + 3))).Adj (cycEdge n i) (cycEdge n j)
         = (CGraph.cycle (n + 3)).Adj i j := by
@@ -1275,11 +1275,11 @@ private theorem pathEdge_inj (n : ℕ) : Function.Injective (pathEdge n) := by
 no size hypothesis — `L(P₁) = P₀` is the empty graph. -/
 @[toIsoGraph simp lineGraph_path]
 def lineGraphPath (n : ℕ) : lineGraph (path (n + 1)) ≃cg path n := by
-  have hcard : Fintype.card (Fin n)
-      = Fintype.card (CGraph.lineGraph (CGraph.path (n + 1))).V := by
-    rw [CGraph.card_lineGraph, CGraph.E_path, Fintype.card_fin]
+  have hcard : FinEnum.card (Fin n)
+      = FinEnum.card (CGraph.lineGraph (CGraph.path (n + 1))).V := by
+    rw [CGraph.card_lineGraph, CGraph.E_path, FinEnum.card_fin']
   have hbij : Function.Bijective (pathEdge n) :=
-    Fintype.bijective_iff_injective_and_card _ |>.2 ⟨pathEdge_inj n, hcard⟩
+    FinEnum.bijective_iff_injective_and_card _ |>.2 ⟨pathEdge_inj n, hcard⟩
   have hadj : ∀ i j : Fin n,
       (CGraph.lineGraph (CGraph.path (n + 1))).Adj (pathEdge n i) (pathEdge n j)
         = (CGraph.path n).Adj i j := by
@@ -1330,12 +1330,12 @@ private theorem bipartiteEdge_inj (m n : ℕ) : Function.Injective (bipartiteEdg
 An edge of `K_{m,n}` *is* a square `(i, j)` of the `m × n` board, and two squares share a vertex
 exactly when they share a row or a column. -/
 def lineGraphBipartite (m n : ℕ) : lineGraph (bipartite m n) ≃cg rook m n := by
-  have hcard : Fintype.card (Fin m × Fin n)
-      = Fintype.card (CGraph.lineGraph (CGraph.bipartite m n)).V := by
-    rw [CGraph.card_lineGraph, CGraph.E_bipartite, Fintype.card_prod, Fintype.card_fin,
-      Fintype.card_fin]
+  have hcard : FinEnum.card (Fin m × Fin n)
+      = FinEnum.card (CGraph.lineGraph (CGraph.bipartite m n)).V := by
+    rw [CGraph.card_lineGraph, CGraph.E_bipartite, FinEnum.card_prod', FinEnum.card_fin',
+      FinEnum.card_fin']
   have hbij : Function.Bijective (bipartiteEdge m n) :=
-    Fintype.bijective_iff_injective_and_card _ |>.2 ⟨bipartiteEdge_inj m n, hcard⟩
+    FinEnum.bijective_iff_injective_and_card _ |>.2 ⟨bipartiteEdge_inj m n, hcard⟩
   have hadj : ∀ p q : Fin m × Fin n,
       (CGraph.lineGraph (CGraph.bipartite m n)).Adj (bipartiteEdge m n p) (bipartiteEdge m n q)
         = (CGraph.rook m n).Adj p q := by

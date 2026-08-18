@@ -21,7 +21,7 @@ between them by trying to synthesise the instance:
 
 * `disjUnion` needs no `DecidableEq`, so it lifts through `Quotient.lift₂` directly, and
   `disjUnion_mk` is `rfl`;
-* the rest are applied to `G.canonicalize`, whose vertex type is `Fin (Fintype.card G.V)` — and
+* the rest are applied to `G.canonicalize`, whose vertex type is `Fin (FinEnum.card G.V)` — and
   so has a `DecidableEq` — before descending.  The construction stays computable, and the price
   is that `cartesianProduct_mk` and friends are not `rfl`.
 
@@ -746,6 +746,9 @@ def lineGraph (i : G ≃cg G') :
         · rintro ⟨v, hv1, hv2⟩
           exact ⟨i v, Sym2.mem_map.2 ⟨v, hv1, rfl⟩, Sym2.mem_map.2 ⟨v, hv2, rfl⟩⟩
 
+-- the vertex type here is a subtype of `Sym2` of a sum, so every `Fintype` instance in sight is a
+-- tower the elaborator has to unfold to check the four `show`s below against
+set_option maxHeartbeats 1000000 in
 /-- **The line graph of a disjoint union is the disjoint union of the line graphs**: an edge of
 `G + H` lies wholly in `G` or wholly in `H`, and two edges on opposite sides never meet.
 
@@ -758,7 +761,10 @@ def lineGraphDisjUnion (G H : CGraph) :
       CGraph.lineGraph G ⊕g CGraph.lineGraph H := by
   have hcard : Fintype.card ((CGraph.lineGraph G).V ⊕ (CGraph.lineGraph H).V)
       = Fintype.card (CGraph.lineGraph (G ⊕g H)).V := by
-    rw [Fintype.card_sum, CGraph.card_lineGraph, CGraph.card_lineGraph, CGraph.card_lineGraph,
+    rw [Fintype.card_sum, ← FinEnum.card_eq_fintypeCard (α := (CGraph.lineGraph G).V),
+      ← FinEnum.card_eq_fintypeCard (α := (CGraph.lineGraph H).V),
+      ← FinEnum.card_eq_fintypeCard (α := (CGraph.lineGraph (G ⊕g H)).V),
+      CGraph.card_lineGraph, CGraph.card_lineGraph, CGraph.card_lineGraph,
       CGraph.E_disjUnion]
   have hbij : Function.Bijective (sumEdge G H) :=
     Fintype.bijective_iff_injective_and_card _ |>.2 ⟨sumEdge_inj G H, hcard⟩
@@ -1162,7 +1168,7 @@ produces the `Quotient.lift` along it.  These two are what is left over — the 
 `CGraph`-level side is a `Fintype.card` rather than a construction, and the fact that
 canonicalising does not change the class. -/
 
-@[simp, isoTransfer] theorem V_mk (G : CGraph) : IsoGraph.V ⟦G⟧ = Fintype.card G.V := rfl
+@[simp, isoTransfer] theorem V_mk (G : CGraph) : IsoGraph.V ⟦G⟧ = FinEnum.card G.V := rfl
 
 isograph_bridge CGraph.V ↦ IsoGraph.V via IsoGraph.V_mk
 

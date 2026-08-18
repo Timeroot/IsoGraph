@@ -68,13 +68,13 @@ theorem rep_injective (f : H.MinorOf G) : Function.Injective f.rep := by
   rw [h, f.branch_rep y] at hx
   exact (Option.some_inj.mp hx).symm
 
-theorem rep_surjective (f : H.MinorOf G) (hcard : Fintype.card G.V ≤ Fintype.card H.V) :
+theorem rep_surjective (f : H.MinorOf G) (hcard : FinEnum.card G.V ≤ FinEnum.card H.V) :
     Function.Surjective f.rep :=
-  ((Fintype.bijective_iff_injective_and_card _).2
+  ((FinEnum.bijective_iff_injective_and_card _).2
     ⟨f.rep_injective, le_antisymm f.card_le hcard⟩).2
 
 /-- When the two vertex counts agree, the branch sets are exactly the singletons `{rep x}`. -/
-theorem branch_eq_some_iff (f : H.MinorOf G) (hcard : Fintype.card G.V ≤ Fintype.card H.V)
+theorem branch_eq_some_iff (f : H.MinorOf G) (hcard : FinEnum.card G.V ≤ FinEnum.card H.V)
     {u : G.V} {x : H.V} : f.branch u = some x ↔ u = f.rep x := by
   refine ⟨fun h ↦ ?_, fun h ↦ h ▸ f.branch_rep x⟩
   obtain ⟨z, rfl⟩ := f.rep_surjective hcard u
@@ -86,7 +86,7 @@ theorem branch_eq_some_iff (f : H.MinorOf G) (hcard : Fintype.card G.V ≤ Finty
 /-- **A minor with as many vertices as its host is a subgraph of it.**  There is no room to
 contract or to delete: every branch set is a single vertex, and the map picking it is an injective
 homomorphism. -/
-noncomputable def toSubgraphOf (f : H.MinorOf G) (hcard : Fintype.card G.V ≤ Fintype.card H.V) :
+noncomputable def toSubgraphOf (f : H.MinorOf G) (hcard : FinEnum.card G.V ≤ FinEnum.card H.V) :
     H.SubgraphOf G where
   toFun := f.rep
   injective' := f.rep_injective
@@ -133,7 +133,7 @@ variable {H G : CGraph}
 /-- An induced minor with as many vertices as its host is an induced subgraph of it.  The
 reflection of adjacency is `adj_map'` off the diagonal, and looplessness on it. -/
 noncomputable def toInducedSubgraphOf (f : H.InducedMinorOf G)
-    (hcard : Fintype.card G.V ≤ Fintype.card H.V) : H.InducedSubgraphOf G where
+    (hcard : FinEnum.card G.V ≤ FinEnum.card H.V) : H.InducedSubgraphOf G where
   toSubgraphOf := f.toMinorOf.toSubgraphOf hcard
   adj_map' x y h := by
     rcases eq_or_ne x y with rfl | hxy
@@ -155,7 +155,7 @@ variable {H G : CGraph}
 /-- A contraction with as many vertices as its host contracts nothing: every block is a single
 vertex, and the contraction is an induced subgraph inclusion the other way. -/
 noncomputable def toInducedSubgraphOf (f : H.ContractionOf G)
-    (hcard : Fintype.card G.V ≤ Fintype.card H.V) : H.InducedSubgraphOf G :=
+    (hcard : FinEnum.card G.V ≤ FinEnum.card H.V) : H.InducedSubgraphOf G :=
   f.toInducedMinorOf.toInducedSubgraphOf hcard
 
 /-- **Two graphs each a contraction of the other are isomorphic.** -/

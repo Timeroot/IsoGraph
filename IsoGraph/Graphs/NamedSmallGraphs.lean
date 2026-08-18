@@ -649,7 +649,7 @@ theorem enumerateConnIso_eq {n : ℕ} (hn : n ≤ 6) :
 
 /-- Unpacking `enumerateConnIso_eq`: every connected graph on at most six vertices is isomorphic
 to one of the graphs named here… -/
-theorem connOfCard_complete {n : ℕ} (hn : n ≤ 6) (G : CGraph) (hcard : Fintype.card G.V = n)
+theorem connOfCard_complete {n : ℕ} (hn : n ≤ 6) (G : CGraph) (hcard : FinEnum.card G.V = n)
     (hG : G.IsConnected) : ∃ H ∈ connOfCard n, Nonempty (G ≃cg H) := by
   have hmem : (Quotient.mk CGraph.isoSetoid G) ∈ enumerateConnIso n :=
     mem_enumerateConnIso (G := Quotient.mk CGraph.isoSetoid G) hcard hG
