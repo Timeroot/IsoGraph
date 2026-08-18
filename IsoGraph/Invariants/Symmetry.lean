@@ -1,5 +1,6 @@
 import IsoGraph.Canon.Group
 import IsoGraph.Canon.Transitive
+import IsoGraph.Graphs.Cache
 import IsoGraph.Invariants.Basic
 
 /-!
@@ -18,9 +19,33 @@ point:
 
 * `…OfEquiv e`, taking the indexing as an argument — for the usual case where `G.V` is `Fin n` or
   something with an obvious equivalence to it, and the fast one;
-* the plain version, which goes through `G.canonicalize` (whose vertex type *is*
-  `Fin (FinEnum.card G.V)`) and transports the answer back along `nonempty_iso_canonicalize`.
-  Always available, at the cost of a second run of the canonical labelling.
+* the plain version, which goes through `G.cacheFin` (whose vertex type *is*
+  `Fin (FinEnum.card G.V)`) and transports the answer back along `CGraph.isoCacheFin`.  Always
+  available, at the cost of one sweep of the adjacency function.
+
+## Tabulating the model
+
+The search asks `adj i j` a great many times, and `G.finAdj e` answers each one with two calls to
+`e.symm` and one to `G.Adj`, which for most of the gallery is a scan of an edge list.  Every entry
+point below therefore tabulates the model first — `Fin n × Fin n` queries, once — and hands the
+search an array read.  `CacheBench.lean`, cases `api-vt`, `api-order` and `api-aut`, best of three
+interleaved rounds, in milliseconds:
+
+| job                                    | untabulated | tabulated |
+| -------------------------------------- | ----------- | --------- |
+| `vertexTransitiveB` of the Balaban 10-cage | 11517   | 619       |
+| `vertexTransitiveB` of `K(7,3)`        | 3384        | 278       |
+| `autGroupOrder?` of the Balaban 10-cage | 26         | 15        |
+| `autGens` of the Balaban 10-cage       | 22          | 12        |
+
+The transitivity tests are the ones that move, because they need a generating set that is *proved*
+complete — the stabiliser chain of `Canon/Chain.lean` — where `autGens` and `autGroupOrder?` take
+what the canonical labelling search harvested on its way past, which is far less work.
+
+The tabulation is an `Array`, not a function: a definition whose result type is a function is
+compiled with maximal arity, so a `def … : Fin n → Fin n → Bool := matLookup n (adjArray n ⋯)`
+would rebuild the array on every single query.  `finAdjArray` returns the array and the entry
+points apply `matLookup n` to it, which is a closure holding the table.
 
 ## Deciding transitivity
 
@@ -56,6 +81,15 @@ def finAdj (e : G.V ≃ Fin n) : Fin n → Fin n → Bool := fun i j ↦ G.Adj (
 @[simp] theorem finAdj_apply (e : G.V ≃ Fin n) (u v : G.V) :
     G.finAdj e (e u) (e v) = G.Adj u v := by simp [finAdj]
 
+/-- **The `Fin n` model of `G`, tabulated.**  An array rather than a function, for the reason in
+the header: what the entry points below pass to the search is `matLookup n (G.finAdjArray e)`, a
+closure holding this table. -/
+def finAdjArray (e : G.V ≃ Fin n) : Array (Array Bool) := adjArray n (G.finAdj e)
+
+@[simp] theorem matLookup_finAdjArray (e : G.V ≃ Fin n) :
+    matLookup n (G.finAdjArray e) = G.finAdj e :=
+  matLookup_adjArray_eq n (G.finAdj e)
+
 /-- An automorphism of the `Fin n` model is an automorphism of `G`. -/
 def autoOfFin (e : G.V ≃ Fin n) (σ : autGroup n (G.finAdj e)) : G ≃cg G :=
   autoOfPerm ((e.trans (σ : Equiv.Perm (Fin n))).trans e.symm) fun x y ↦ by
@@ -65,19 +99,33 @@ def autoOfFin (e : G.V ≃ Fin n) (σ : autGroup n (G.finAdj e)) : G ≃cg G :=
 @[simp] theorem autoOfFin_apply (e : G.V ≃ Fin n) (σ : autGroup n (G.finAdj e)) (x : G.V) :
     G.autoOfFin e σ x = e.symm ((σ : Equiv.Perm (Fin n)) (e x)) := rfl
 
+/-- An automorphism of a model equal to `G.finAdj e` is an automorphism of `G`.  The tabulated
+model is only *propositionally* equal to `G.finAdj e`, and `autGroup n adj` depends on `adj`, so
+the membership proof has to be moved across by hand. -/
+def autoOfTab (e : G.V ≃ Fin n) {adj : Fin n → Fin n → Bool} (h : adj = G.finAdj e)
+    (σ : autGroup n adj) : G ≃cg G :=
+  G.autoOfFin e ⟨σ.1, fun i j ↦ by rw [← h]; exact σ.2 i j⟩
+
+@[simp] theorem autoOfTab_apply (e : G.V ≃ Fin n) {adj : Fin n → Fin n → Bool}
+    (h : adj = G.finAdj e) (σ : autGroup n adj) (x : G.V) :
+    G.autoOfTab e h σ x = e.symm ((σ : Equiv.Perm (Fin n)) (e x)) := rfl
+
 /-- **Generators of the automorphism group of `G`**, harvested by the canonical labelling search.
 -/
 def autGens (e : G.V ≃ Fin n) : Array (G ≃cg G) :=
-  (_root_.IsoGraph.Canon.autGens n (G.finAdj e)).map (G.autoOfFin e)
+  (_root_.IsoGraph.Canon.autGens n (matLookup n (G.finAdjArray e))).map
+    (G.autoOfTab e (G.matLookup_finAdjArray e))
 
 /-- **The pair entry point at the level of `CGraph`**: the canonical form of `G` and generators of
 its automorphism group, from a single run of the search. -/
 def canonMatrixAndAutos (e : G.V ≃ Fin n) : _root_.IsoGraph.Canon.AdjMatrix n × Array (G ≃cg G) :=
-  let (M, gens) := canonMatrixAndGens n (G.finAdj e)
-  (M, gens.map (G.autoOfFin e))
+  let (M, gens) := canonMatrixAndGens n (matLookup n (G.finAdjArray e))
+  (M, gens.map (G.autoOfTab e (G.matLookup_finAdjArray e)))
 
 theorem canonMatrixAndAutos_fst (e : G.V ≃ Fin n) :
-    (G.canonMatrixAndAutos e).1 = canonMatrix n (G.finAdj e) := rfl
+    (G.canonMatrixAndAutos e).1 = canonMatrix n (G.finAdj e) := by
+  show canonMatrix n (matLookup n (G.finAdjArray e)) = _
+  rw [matLookup_finAdjArray]
 
 theorem canonMatrixAndAutos_snd (e : G.V ≃ Fin n) :
     (G.canonMatrixAndAutos e).2 = G.autGens e := rfl
@@ -131,24 +179,38 @@ theorem isArcTransitive_iff_fin (e : G.V ≃ Fin n) :
 
 /-- **Is `G` vertex-transitive?** -/
 def vertexTransitiveBOfEquiv (e : G.V ≃ Fin n) : Bool :=
-  _root_.IsoGraph.Canon.vertexTransitiveB n (G.finAdj e)
+  _root_.IsoGraph.Canon.vertexTransitiveB n (matLookup n (G.finAdjArray e))
 
 theorem vertexTransitiveBOfEquiv_iff (e : G.V ≃ Fin n) :
-    G.vertexTransitiveBOfEquiv e = true ↔ G.IsVertexTransitive :=
-  (_root_.IsoGraph.Canon.vertexTransitiveB_iff n (G.finAdj e)).trans
+    G.vertexTransitiveBOfEquiv e = true ↔ G.IsVertexTransitive := by
+  rw [vertexTransitiveBOfEquiv, matLookup_finAdjArray]
+  exact (_root_.IsoGraph.Canon.vertexTransitiveB_iff n (G.finAdj e)).trans
     (G.isVertexTransitive_iff_fin e).symm
 
 /-- **Is `G` arc-transitive?** -/
 def arcTransitiveBOfEquiv (e : G.V ≃ Fin n) : Bool :=
-  _root_.IsoGraph.Canon.arcTransitiveB n (G.finAdj e)
+  _root_.IsoGraph.Canon.arcTransitiveB n (matLookup n (G.finAdjArray e))
 
 theorem arcTransitiveBOfEquiv_iff (e : G.V ≃ Fin n) :
-    G.arcTransitiveBOfEquiv e = true ↔ G.IsArcTransitive :=
-  (_root_.IsoGraph.Canon.arcTransitiveB_iff n (G.finAdj e)).trans
+    G.arcTransitiveBOfEquiv e = true ↔ G.IsArcTransitive := by
+  rw [arcTransitiveBOfEquiv, matLookup_finAdjArray]
+  exact (_root_.IsoGraph.Canon.arcTransitiveB_iff n (G.finAdj e)).trans
     (G.isArcTransitive_iff_fin e).symm
 
 /-- The canonical representative of `G`, indexed by `Fin (FinEnum.card G.V)` on the nose. -/
 def canonicalizeEquiv : G.canonicalize.V ≃ Fin (FinEnum.card G.V) := Equiv.refl _
+
+/-- The tabulated copy of `G`, indexed by `Fin (FinEnum.card G.V)` on the nose. -/
+def cacheFinEquiv : G.cacheFin.V ≃ Fin (FinEnum.card G.V) := Equiv.refl _
+
+/-- Transitivity of `G` and of its tabulated copy are the same question. -/
+theorem isVertexTransitive_cacheFin :
+    G.cacheFin.IsVertexTransitive ↔ G.IsVertexTransitive :=
+  ⟨isVertexTransitive_of_iso G.isoCacheFin.symm, isVertexTransitive_of_iso G.isoCacheFin⟩
+
+theorem isArcTransitive_cacheFin :
+    G.cacheFin.IsArcTransitive ↔ G.IsArcTransitive :=
+  ⟨isArcTransitive_of_iso G.isoCacheFin.symm, isArcTransitive_of_iso G.isoCacheFin⟩
 
 /-- Transitivity of `G` and of its canonical representative are the same question. -/
 theorem isVertexTransitive_canonicalize :
@@ -161,25 +223,31 @@ theorem isArcTransitive_canonicalize :
   ⟨isArcTransitive_of_iso G.nonempty_iso_canonicalize.some.symm,
     isArcTransitive_of_iso G.nonempty_iso_canonicalize.some⟩
 
-/-- **Is `G` vertex-transitive?**, with no indexing of `G.V` supplied: ask of the canonical
-representative, which is indexed by `Fin (FinEnum.card G.V)`, and transport back. -/
-def vertexTransitiveB : Bool := G.canonicalize.vertexTransitiveBOfEquiv G.canonicalizeEquiv
+/-- **Is `G` vertex-transitive?**, with no indexing of `G.V` supplied: ask of the tabulated copy,
+which is indexed by `Fin (FinEnum.card G.V)`, and transport back.
+
+`G.canonicalize` would serve just as well as the indexed copy, and used to; `G.cacheFin` is the
+same relabelling done by one sweep of the adjacency function instead of a whole canonical
+labelling search. -/
+def vertexTransitiveB : Bool := G.cacheFin.vertexTransitiveBOfEquiv G.cacheFinEquiv
 
 theorem vertexTransitiveB_iff : G.vertexTransitiveB = true ↔ G.IsVertexTransitive :=
-  (G.canonicalize.vertexTransitiveBOfEquiv_iff G.canonicalizeEquiv).trans
-    G.isVertexTransitive_canonicalize
+  (G.cacheFin.vertexTransitiveBOfEquiv_iff G.cacheFinEquiv).trans G.isVertexTransitive_cacheFin
 
 /-- **Is `G` arc-transitive?**, with no indexing of `G.V` supplied. -/
-def arcTransitiveB : Bool := G.canonicalize.arcTransitiveBOfEquiv G.canonicalizeEquiv
+def arcTransitiveB : Bool := G.cacheFin.arcTransitiveBOfEquiv G.cacheFinEquiv
 
 theorem arcTransitiveB_iff : G.arcTransitiveB = true ↔ G.IsArcTransitive :=
-  (G.canonicalize.arcTransitiveBOfEquiv_iff G.canonicalizeEquiv).trans
-    G.isArcTransitive_canonicalize
+  (G.cacheFin.arcTransitiveBOfEquiv_iff G.cacheFinEquiv).trans G.isArcTransitive_cacheFin
 
 /-- The order of the automorphism group of `G`, or `none` if it exceeds `limit`.  Unverified: a
 diagnostic, see `Canon.groupOrder?`. -/
 def autGroupOrder? (e : G.V ≃ Fin n) (limit : Nat := 100000) : Option Nat :=
-  _root_.IsoGraph.Canon.autGroupOrder? n (G.finAdj e) limit
+  _root_.IsoGraph.Canon.autGroupOrder? n (matLookup n (G.finAdjArray e)) limit
+
+/-- **The order of the automorphism group of `G`**, with no indexing of `G.V` supplied. -/
+def autOrder? (limit : Nat := 100000) : Option Nat :=
+  G.cacheFin.autGroupOrder? G.cacheFinEquiv limit
 
 end CGraph
 

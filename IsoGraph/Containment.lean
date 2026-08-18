@@ -1,4 +1,5 @@
 import IsoGraph.Containment.Algorithms.Backtrack
+import IsoGraph.Containment.Algorithms.Cached
 import IsoGraph.Containment.Algorithms.Contraction
 import IsoGraph.Containment.Algorithms.Embedding
 import IsoGraph.Containment.Algorithms.InducedSubgraph

@@ -285,6 +285,15 @@ def trans (f : H.SubgraphOf G) (g : G.SubgraphOf K) : H.SubgraphOf K where
   toFun x := g (f x)
   injective' := g.injective.comp f.injective
   map_adj' _ _ h := g.map_adj (f.map_adj h)
+/-- **Transport a subgraph inclusion along isomorphisms of both graphs**: relabel the pattern along
+`i` and the host along `j`.  This is what lets a search run on a tabulated copy of both graphs and
+hand the answer back on the originals. -/
+def congr {H' G' : CGraph} (f : H.SubgraphOf G) (i : H ≃cg H') (j : G ≃cg G') : H'.SubgraphOf G' :=
+  ((ofIso i.symm).trans f).trans (ofIso j)
+
+@[simp] theorem congr_apply {H' G' : CGraph} (f : H.SubgraphOf G) (i : H ≃cg H') (j : G ≃cg G')
+    (x : H'.V) : f.congr i j x = j (f (i.symm x)) := rfl
+
 
 /-- A subgraph inclusion is in particular a homomorphism. -/
 def toHom (f : H.SubgraphOf G) : H →cg G := ⟨f, fun h ↦ f.map_adj h⟩
@@ -342,6 +351,14 @@ def refl (G : CGraph) : G.InducedSubgraphOf G := ofIso (RelIso.refl _)
 def trans (f : H.InducedSubgraphOf G) (g : G.InducedSubgraphOf K) : H.InducedSubgraphOf K where
   toSubgraphOf := f.toSubgraphOf.trans g.toSubgraphOf
   adj_map' _ _ h := f.adj_map (g.adj_map h)
+/-- **Transport an induced subgraph inclusion along isomorphisms of both graphs.** -/
+def congr {H' G' : CGraph} (f : H.InducedSubgraphOf G) (i : H ≃cg H') (j : G ≃cg G') :
+    H'.InducedSubgraphOf G' :=
+  ((ofIso i.symm).trans f).trans (ofIso j)
+
+@[simp] theorem congr_apply {H' G' : CGraph} (f : H.InducedSubgraphOf G) (i : H ≃cg H')
+    (j : G ≃cg G') (x : H'.V) : f.congr i j x = j (f (i.symm x)) := rfl
+
 
 /-- **Two graphs that are induced subgraphs of each other are isomorphic.**  No edge count is
 needed: the vertex map is already a bijection that reflects adjacency. -/
@@ -387,6 +404,10 @@ def trans (f : H.QuotientOf G) (g : G.QuotientOf K) : H.QuotientOf K where
   toFun x := f (g x)
   surjective' := f.surjective.comp g.surjective
   map_adj' _ _ h := f.map_adj (g.map_adj h)
+/-- **Transport a quotient presentation along isomorphisms of both graphs.** -/
+def congr {H' G' : CGraph} (f : H.QuotientOf G) (i : H ≃cg H') (j : G ≃cg G') : H'.QuotientOf G' :=
+  ((ofIso i.symm).trans f).trans (ofIso j)
+
 
 /-- **Two graphs that are quotients of each other are isomorphic**: the vertex maps are bijections,
 so each is an injective homomorphism, and the edge counts pin them down. -/
@@ -495,6 +516,16 @@ def trans (f : H.MinorOf K) (g : K.MinorOf G) : H.MinorOf G where
 
 @[simp] theorem trans_branch (f : H.MinorOf K) (g : K.MinorOf G) (v : G.V) :
     (f.trans g).branch v = (g.branch v).bind f.branch := rfl
+/-- **Transport a minor model along isomorphisms of both graphs**: relabel the host along `j` and
+the branch values along `i`. -/
+def congr {H' G' : CGraph} (f : H.MinorOf G) (i : H ≃cg H') (j : G ≃cg G') : H'.MinorOf G' :=
+  ((ofIso i.symm).trans f).trans (ofIso j)
+
+@[simp] theorem congr_branch {H' G' : CGraph} (f : H.MinorOf G) (i : H ≃cg H') (j : G ≃cg G')
+    (v : G'.V) : (f.congr i j).branch v = (f.branch (j.symm v)).map i := by
+  show ((f.branch (j.symm v)).bind fun x ↦ some (i x)) = _
+  cases f.branch (j.symm v) <;> rfl
+
 
 /-- The branch sets are nonempty and disjoint, so a minor has no more vertices. -/
 theorem card_le (f : H.MinorOf G) : FinEnum.card H.V ≤ FinEnum.card G.V := by
@@ -544,6 +575,11 @@ def trans (f : H.InducedMinorOf K) (g : K.InducedMinorOf G) : H.InducedMinorOf G
         rcases eq_or_ne k k' with rfl | hkk'
         · exact absurd (hu.symm.trans hv) (by simpa using hxy)
         · exact f.adj_map hxy ⟨k, k', hu, hv, g.adj_map hkk' ⟨u, v, hk, hk', huv⟩⟩
+/-- **Transport an induced minor model along isomorphisms of both graphs.** -/
+def congr {H' G' : CGraph} (f : H.InducedMinorOf G) (i : H ≃cg H') (j : G ≃cg G') :
+    H'.InducedMinorOf G' :=
+  ((ofIso i.symm).trans f).trans (ofIso j)
+
 
 end InducedMinorOf
 
@@ -622,6 +658,15 @@ def trans (f : H.ContractionOf K) (g : K.ContractionOf G) : H.ContractionOf G wh
     show ((g.branch u).bind f.branch) = _
     rw [g.branch_eq u, Option.bind_some, f.branch_eq]
   exact (f.trans g).branch_eq_some_iff.mp h
+/-- **Transport a contraction along isomorphisms of both graphs.** -/
+def congr {H' G' : CGraph} (f : H.ContractionOf G) (i : H ≃cg H') (j : G ≃cg G') :
+    H'.ContractionOf G' :=
+  ((ofIso i.symm).trans f).trans (ofIso j)
+
+@[simp] theorem congr_apply {H' G' : CGraph} (f : H.ContractionOf G) (i : H ≃cg H')
+    (j : G ≃cg G') (u : G'.V) : f.congr i j u = i (f (j.symm u)) := by
+  simp [congr]
+
 
 /-- The blocks are nonempty and disjoint, so a contraction has no more vertices. -/
 theorem card_le (f : H.ContractionOf G) : FinEnum.card H.V ≤ FinEnum.card G.V :=

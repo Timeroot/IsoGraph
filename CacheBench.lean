@@ -1,3 +1,4 @@
+import IsoGraph.Containment.Algorithms.Cached
 import IsoGraph.Containment.Algorithms.Contraction
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
@@ -60,6 +61,35 @@ and nothing else, so this is the purest measure of what a query costs. -/
 def pairCount (G : CGraph) : String :=
   let vs := FinEnum.toList G.V
   toString ((vs.map fun a ↦ (vs.filter fun b ↦ G.Adj a b).length).sum)
+
+/-! ## The library entry points, before and after
+
+The three above time the tabulation by hand.  These time the entry points the library actually
+offers, each against the same computation written the way it was before: `CGraph.autGens` and
+friends now tabulate the `Fin n` model themselves, and `CGraph.subgraphOf?` and friends run the
+search on `cacheFin` copies of both graphs. -/
+
+/-- The generators of the automorphism group, off the raw adjacency function — what `autGens` did
+before it tabulated. -/
+def autGensRaw (G : CGraph) : String :=
+  toString (IsoGraph.Canon.autGens (FinEnum.card G.V)
+    (G.finAdj (FinEnum.equiv (α := G.V)))).size
+
+/-- The same, through the entry point, which tabulates. -/
+def autGensTab (G : CGraph) : String :=
+  toString (G.autGens (FinEnum.equiv (α := G.V))).size
+
+def apiSub (H G : CGraph) : String :=
+  match H.subgraphOf? G with | some _ => "found" | none => "none "
+
+def apiInd (H G : CGraph) : String :=
+  match H.inducedSubgraphOf? G with | some _ => "found" | none => "none "
+
+def apiMinor (H G : CGraph) : String :=
+  match H.minorOf? G with | some _ => "found" | none => "none "
+
+def apiCon (H G : CGraph) : String :=
+  match H.contractionOf? G with | some _ => "found" | none => "none "
 
 def report (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
   match findMinor H G rH rG with
@@ -291,6 +321,70 @@ def main (args : List String) : IO Unit := do
     duel r s!"enum K({n},{k}) vertices"
       [("fast  ", fun _ => enumSum {s : Finset (Fin n) // s.card = k} inferInstance),
        ("mathlib", fun _ => enumSum {s : Finset (Fin n) // s.card = k} (kneserEnumMathlib n k))]
+  /- ### the library entry points, before and after -/
+  | "api-aut" =>
+    let which := (args[2]?).getD "tutte"
+    let G := match which with
+      | "balaban" => hostOfEdges r 70 (lcfEdges balabanCode 1)
+      | "mcgee" => hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)
+      | "kneser" => kneser (size 3 7) (size 4 3)
+      | _ => hostOfEdges r 46 tutteEdges
+    duel r s!"autGens {which}"
+      [("raw   ", fun _ => autGensRaw G), ("entry ", fun _ => autGensTab G)]
+  | "api-order" =>
+    let which := (args[2]?).getD "tutte"
+    let G := match which with
+      | "balaban" => hostOfEdges r 70 (lcfEdges balabanCode 1)
+      | "mcgee" => hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)
+      | "kneser" => kneser (size 3 7) (size 4 3)
+      | "cycle" => cycle (size 3 46)
+      | _ => hostOfEdges r 46 tutteEdges
+    duel r s!"autGroupOrder? {which}"
+      [("raw   ", fun _ => toString (IsoGraph.Canon.autGroupOrder? (FinEnum.card G.V)
+          (G.finAdj (FinEnum.equiv (α := G.V))) 100000)),
+       ("entry ", fun _ => toString (G.autOrder? 100000))]
+  | "api-vt" =>
+    let which := (args[2]?).getD "tutte"
+    let G := match which with
+      | "balaban" => hostOfEdges r 70 (lcfEdges balabanCode 1)
+      | "kneser" => kneser (size 3 7) (size 4 3)
+      | _ => hostOfEdges r 46 tutteEdges
+    duel r s!"vertexTransitiveB {which}"
+      [("raw   ", fun _ => toString (IsoGraph.Canon.vertexTransitiveB (FinEnum.card G.V)
+          (G.finAdj (FinEnum.equiv (α := G.V))))),
+       ("canon ", fun _ => toString (G.canonicalize.vertexTransitiveBOfEquiv G.canonicalizeEquiv)),
+       ("entry ", fun _ => toString G.vertexTransitiveB)]
+  | "api-sub" =>
+    let m := size 2 8
+    let G := hostOfEdges r 46 tutteEdges
+    duel r s!"C{m} ⊆ tutte"
+      [("raw   ", fun _ => reportSub (cycle m) G (Roster.enum _) (Roster.enum _)),
+       ("entry ", fun _ => apiSub (cycle m) G)]
+  | "api-sub-kneser" =>
+    let n := size 2 10
+    let k := size 3 5
+    let m := size 4 6
+    let G := kneser n k
+    duel r s!"C{m} ⊆ K({n},{k})"
+      [("raw   ", fun _ => reportSub (cycle m) G (Roster.enum _) (Roster.enum _)),
+       ("entry ", fun _ => apiSub (cycle m) G)]
+  | "api-minor" =>
+    let m := size 2 4
+    let G := hostOfEdges r 46 tutteEdges
+    duel r s!"K{m} ≼ tutte"
+      [("raw   ", fun _ => report (complete m) G (Roster.enum _) (Roster.enum _)),
+       ("entry ", fun _ => apiMinor (complete m) G)]
+  | "api-con" =>
+    let m := size 2 4
+    let G := hostOfEdges r 46 tutteEdges
+    duel r s!"C{m} ⋏ tutte"
+      [("raw   ", fun _ => reportCon (cycle m) G (Roster.enum _) (Roster.enum _)),
+       ("entry ", fun _ => apiCon (cycle m) G)]
+  | "api-con-self" =>
+    let G := hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)
+    duel r "mcgee ⋏ mcgee"
+      [("raw   ", fun _ => reportCon G G (Roster.enum _) (Roster.enum _)),
+       ("entry ", fun _ => apiCon G G)]
   /- ### the cache on its own -/
   | "degsum" => trio r "degree sum of tutte" (hostOfEdges r 46 tutteEdges) pairCount
   | _ =>
@@ -303,4 +397,6 @@ def main (args : List String) : IO Unit := do
     IO.println "kneser:  kneser, kneser-canon, kneser-aut, kneser-sub,"
     IO.println "         kneser-enum, kneser-enum-canon"
     IO.println "finenum: fe-fin, fe-prod, fe-sum, fe-subtype"
+    IO.println "entry:   api-aut, api-order, api-vt, api-sub, api-sub-kneser, api-minor, api-con,"
+    IO.println "         api-con-self"
     IO.println "cache:   degsum"
