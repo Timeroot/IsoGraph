@@ -551,6 +551,24 @@ scoped instance instZeroLEOneClass : ZeroLEOneClass IsoGraph where
 
 end ZeroLEOne
 
+section DisjUnion
+open scoped IsoGraph.DisjUnion
+
+scoped instance instIsOrderedAddMonoidDisjUnion : IsOrderedAddMonoid IsoGraph where
+  add_le_add_left _ _ h c := IsTopMinorOf.disjUnion h (isTopMinorOf_refl c)
+  add_le_add_right _ _ h c := IsTopMinorOf.disjUnion (isTopMinorOf_refl c) h
+
+end DisjUnion
+
+section Join
+open scoped IsoGraph.Join
+
+scoped instance instIsOrderedAddMonoidJoin : IsOrderedAddMonoid IsoGraph where
+  add_le_add_left _ _ h c := IsTopMinorOf.join h (isTopMinorOf_refl c)
+  add_le_add_right _ _ h c := IsTopMinorOf.join (isTopMinorOf_refl c) h
+
+end Join
+
 end TopMinor
 
 namespace Immersion
@@ -563,6 +581,24 @@ scoped instance instZeroLEOneClass : ZeroLEOneClass IsoGraph where
   zero_le_one := empty_zero_isImmersionMinorOf _
 
 end ZeroLEOne
+
+section DisjUnion
+open scoped IsoGraph.DisjUnion
+
+scoped instance instIsOrderedAddMonoidDisjUnion : IsOrderedAddMonoid IsoGraph where
+  add_le_add_left _ _ h c := IsImmersionMinorOf.disjUnion h (isImmersionMinorOf_refl c)
+  add_le_add_right _ _ h c := IsImmersionMinorOf.disjUnion (isImmersionMinorOf_refl c) h
+
+end DisjUnion
+
+section Join
+open scoped IsoGraph.Join
+
+scoped instance instIsOrderedAddMonoidJoin : IsOrderedAddMonoid IsoGraph where
+  add_le_add_left _ _ h c := IsImmersionMinorOf.join h (isImmersionMinorOf_refl c)
+  add_le_add_right _ _ h c := IsImmersionMinorOf.join (isImmersionMinorOf_refl c) h
+
+end Join
 
 end Immersion
 
@@ -597,6 +633,15 @@ open scoped IsoGraph.Hom IsoGraph.LexProduct
 
 example (a b c : IsoGraph) (h : a ≤ b) : c * a ≤ c * b := mul_le_mul_right h c
 example (a b c : IsoGraph) (h : a ≤ b) : a * c ≤ b * c := mul_le_mul_left h c
+
+end Examples
+
+section Examples
+
+open scoped IsoGraph.Immersion IsoGraph.Join
+
+example (a b c d : IsoGraph) (h : a ≤ b) (h' : c ≤ d) : a + c ≤ b + d := add_le_add h h'
+example (a : IsoGraph) : 0 ≤ a := bot_le
 
 end Examples
 

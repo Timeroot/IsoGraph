@@ -66,8 +66,9 @@ search looks at a solution and its relabellings.
 `Values/Identities/Semiring.lean`: for which of the fifty-four pairs does `H ≤ G` and `H' ≤ G'`
 give `H op H' ≤ G op G'`?  The four relations that are a map of vertices always do, whatever the
 operation; the minor relations need the branch sets of the product to stay connected, which rules
-out the tensor product; the two that replace an edge by a walk are not attempted.  Each entry is a
-construction on the `CGraph` models and a theorem about `IsoGraph` lifted from it.
+out the tensor product; the two that replace an edge by a walk get the two sums, where the walks of
+the two summands cannot meet, and not the products.  Each entry is a construction on the `CGraph`
+models and a theorem about `IsoGraph` lifted from it.
 
 `Containment/Ordered.lean` reads that table back as typeclasses.  Opening an order scope and an
 algebra scope at once — `IsoGraph.Subgraph` and `IsoGraph.Semiring`, say — turns on

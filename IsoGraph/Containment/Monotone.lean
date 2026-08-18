@@ -18,8 +18,8 @@ and `H'` inside `G'`, does `H op H'` sit inside `G op G'`?
 | `≤ₘ` minor | ✓ | ✓ | ✓ | ? | ✓ | ✓ |
 | `≤ᵢₘ` induced minor | ✓ | ✓ | ✓ | ? | ✓ | ? |
 | `≤ₚ` contraction | ✓ | ✓ | ✓ | ? | ✓ | ? |
-| `≤ₜₘ` topological minor | ? | ? | ? | ? | ? | ? |
-| `≤ₑ` immersion | ? | ? | ? | ? | ? | ? |
+| `≤ₜₘ` topological minor | ✓ | ✓ | ? | ? | ? | ? |
+| `≤ₑ` immersion | ✓ | ✓ | ? | ? | ? | ? |
 
 Each `✓` is a theorem here, at both levels: a construction on the `CGraph` models, which is what a
 search would have to output, and the statement about `IsoGraph` that it lifts to, e.g.
@@ -37,7 +37,10 @@ when both are bipartite.  Whether the tensor product is monotone in the minor or
 model is left open, as is the lexicographic product for the two *induced* minor relations, where
 the obstruction is different: an edge inside a branch set of the first factor is an edge of the
 lexicographic product whatever the second coordinates do, and nothing makes it induced.  The last
-two relations, which replace an edge by a path or a trail, are not attempted at all.
+two relations replace an edge by a path or a trail, and get the two sums only: an edge inside a
+summand keeps that summand's walk, an edge across a join is an edge of the join of the hosts, and
+walks that came from different summands are disjoint for free.  Over a product they are left open,
+because two walks that came from the same factor would run through each other.
 -/
 
 set_option autoImplicit false
@@ -779,6 +782,486 @@ def lexProduct (f : A.QuotientOf B) (f' : A'.QuotientOf B') :
 
 end QuotientOf
 
+/-! ## Topological minors and immersions, on the two sums
+
+The last two relations replace an edge of `H` by a walk of `G`, so a construction on them has to
+say which walk each edge of the sum gets.  An edge inside a summand keeps that summand's walk,
+carried over by `Sum.inl` or `Sum.inr`; an edge across the join is an edge of the join of the
+hosts, and gets a walk of one edge.  The disjoint union has no edges across, and the products are
+not attempted: there the walk of an edge of one factor would have to be a walk of the product,
+which it is, but the walks of two different edges would then run through each other. -/
+
+/-! ### The two summands as homomorphisms -/
+
+/-- `Sum.inl` as a homomorphism into a disjoint union. -/
+def inlHom (B B' : CGraph) : B.toSimple →g (B ⊕g B').toSimple where
+  toFun := Sum.inl
+  map_rel' {_ _} h := by simpa using h
+
+/-- `Sum.inr` as a homomorphism into a disjoint union. -/
+def inrHom (B B' : CGraph) : B'.toSimple →g (B ⊕g B').toSimple where
+  toFun := Sum.inr
+  map_rel' {_ _} h := by simpa using h
+
+/-- `inlHom` is `Sum.inl`. -/
+@[simp] theorem inlHom_apply (B B' : CGraph) (u : B.V) :
+    inlHom B B' u = (Sum.inl u : (B ⊕g B').V) := rfl
+
+/-- `inrHom` is `Sum.inr`. -/
+@[simp] theorem inrHom_apply (B B' : CGraph) (u : B'.V) :
+    inrHom B B' u = (Sum.inr u : (B ⊕g B').V) := rfl
+
+/-- `inlHom` is injective, which is what `Walk.map` asks for. -/
+theorem inlHom_injective (B B' : CGraph) : Function.Injective ⇑(inlHom B B') :=
+  fun _ _ h ↦ Sum.inl_injective h
+
+/-- `inrHom` is injective, which is what `Walk.map` asks for. -/
+theorem inrHom_injective (B B' : CGraph) : Function.Injective ⇑(inrHom B B') :=
+  fun _ _ h ↦ Sum.inr_injective h
+
+/-- Every vertex of one side of a join is adjacent to every vertex of the other. -/
+theorem toSimple_join_inl_inr (B B' : CGraph) (u : B.V) (v : B'.V) :
+    (B ∇g B').toSimple.Adj (Sum.inl u) (Sum.inr v) := by simp
+
+/-- Every vertex of one side of a join is adjacent to every vertex of the other. -/
+theorem toSimple_join_inr_inl (B B' : CGraph) (u : B'.V) (v : B.V) :
+    (B ∇g B').toSimple.Adj (Sum.inr u) (Sum.inl v) := by simp
+
+/-- `Sum.inl` as a homomorphism into a join. -/
+def joinInlHom (B B' : CGraph) : B.toSimple →g (B ∇g B').toSimple where
+  toFun := Sum.inl
+  map_rel' {u v} h := by
+    show (B ∇g B').Adj (Sum.inl u) (Sum.inl v) = true
+    rw [join_adj_inl_inl]
+    exact h
+
+/-- `Sum.inr` as a homomorphism into a join. -/
+def joinInrHom (B B' : CGraph) : B'.toSimple →g (B ∇g B').toSimple where
+  toFun := Sum.inr
+  map_rel' {u v} h := by
+    show (B ∇g B').Adj (Sum.inr u) (Sum.inr v) = true
+    rw [join_adj_inr_inr]
+    exact h
+
+/-- The underlying function of `inlHom`, for rewriting under `Walk.map`. -/
+@[simp] theorem coe_inlHom (B B' : CGraph) :
+    ⇑(inlHom B B') = (Sum.inl : B.V → (B ⊕g B').V) := rfl
+
+/-- The underlying function of `inrHom`, for rewriting under `Walk.map`. -/
+@[simp] theorem coe_inrHom (B B' : CGraph) :
+    ⇑(inrHom B B') = (Sum.inr : B'.V → (B ⊕g B').V) := rfl
+
+/-- The underlying function of `joinInlHom`, for rewriting under `Walk.map`. -/
+@[simp] theorem coe_joinInlHom (B B' : CGraph) :
+    ⇑(joinInlHom B B') = (Sum.inl : B.V → (B ∇g B').V) := rfl
+
+/-- The underlying function of `joinInrHom`, for rewriting under `Walk.map`. -/
+@[simp] theorem coe_joinInrHom (B B' : CGraph) :
+    ⇑(joinInrHom B B') = (Sum.inr : B'.V → (B ∇g B').V) := rfl
+
+/-- `joinInlHom` is `Sum.inl`. -/
+@[simp] theorem joinInlHom_apply (B B' : CGraph) (u : B.V) :
+    joinInlHom B B' u = (Sum.inl u : (B ∇g B').V) := rfl
+
+/-- `joinInrHom` is `Sum.inr`. -/
+@[simp] theorem joinInrHom_apply (B B' : CGraph) (u : B'.V) :
+    joinInrHom B B' u = (Sum.inr u : (B ∇g B').V) := rfl
+
+/-- An edge inside the left summand is not an edge inside the right one. -/
+theorem sym2_map_inl_ne_map_inr {α β : Type*} (e : Sym2 α) (e' : Sym2 β) :
+    Sym2.map (Sum.inl : α → α ⊕ β) e ≠ Sym2.map Sum.inr e' := by
+  induction e using Sym2.ind with | _ x y =>
+  induction e' using Sym2.ind with | _ u v =>
+  simp
+
+/-- An edge inside the left summand is not an edge across. -/
+theorem sym2_map_inl_ne_cross {α β : Type*} (e : Sym2 α) (u : α) (v : β) :
+    Sym2.map (Sum.inl : α → α ⊕ β) e ≠ s(Sum.inl u, Sum.inr v) := by
+  induction e using Sym2.ind with | _ x y => simp
+
+/-- An edge inside the left summand is not an edge across. -/
+theorem sym2_map_inl_ne_cross' {α β : Type*} (e : Sym2 α) (u : α) (v : β) :
+    Sym2.map (Sum.inl : α → α ⊕ β) e ≠ s(Sum.inr v, Sum.inl u) := by
+  induction e using Sym2.ind with | _ x y => simp
+
+/-- An edge inside the right summand is not an edge across. -/
+theorem sym2_map_inr_ne_cross {α β : Type*} (e : Sym2 β) (u : α) (v : β) :
+    Sym2.map (Sum.inr : β → α ⊕ β) e ≠ s(Sum.inl u, Sum.inr v) := by
+  induction e using Sym2.ind with | _ x y => simp
+
+/-- An edge inside the right summand is not an edge across. -/
+theorem sym2_map_inr_ne_cross' {α β : Type*} (e : Sym2 β) (u : α) (v : β) :
+    Sym2.map (Sum.inr : β → α ⊕ β) e ≠ s(Sum.inr v, Sum.inl u) := by
+  induction e using Sym2.ind with | _ x y => simp
+
+/-- Two edges across a sum are equal only if both of their ends are. -/
+theorem sym2_cross_eq {α β : Type*} {u u' : α} {v v' : β}
+    (h : s(Sum.inl u, Sum.inr v) = s(Sum.inl u', Sum.inr v')) : u = u' ∧ v = v' := by
+  rw [Sym2.eq_iff] at h
+  simpa using h
+
+/-- Two edges across a sum are equal only if both of their ends are. -/
+theorem sym2_cross_eq' {α β : Type*} {u u' : α} {v v' : β}
+    (h : s(Sum.inl u, Sum.inr v) = s(Sum.inr v', Sum.inl u')) : u = u' ∧ v = v' := by
+  rw [Sym2.eq_iff] at h
+  simpa using h
+
+/-- Two edges across a sum are equal only if both of their ends are. -/
+theorem sym2_cross_eq'' {α β : Type*} {u u' : α} {v v' : β}
+    (h : s(Sum.inr v, Sum.inl u) = s(Sum.inr v', Sum.inl u')) : u = u' ∧ v = v' := by
+  rw [Sym2.eq_iff] at h
+  exact ((by simpa using h : v = v' ∧ u = u').symm)
+
+/-! ### Topological minors -/
+
+namespace TopMinorOf
+
+/-- The path replacing an edge of a disjoint union: the edge lies in one summand, and so does its
+path. -/
+def sumPath (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
+    ∀ (x y : A.V ⊕ A'.V), (A ⊕g A').Adj x y →
+      (B ⊕g B').toSimple.Walk (Sum.map f.toFun f'.toFun x) (Sum.map f.toFun f'.toFun y)
+  | Sum.inl _, Sum.inl _, h => (f.path (by simpa using h)).map (inlHom B B')
+  | Sum.inl _, Sum.inr _, h => absurd h (by simp)
+  | Sum.inr _, Sum.inl _, h => absurd h (by simp)
+  | Sum.inr _, Sum.inr _, h => (f'.path (by simpa using h)).map (inrHom B B')
+
+/-- **The disjoint union of two topological minor models.** -/
+def disjUnion (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
+    (A ⊕g A').TopMinorOf (B ⊕g B') where
+  toFun := Sum.map f.toFun f'.toFun
+  injective' := f.injective.sumMap f'.injective
+  path {x y} h := sumPath f f' x y h
+  isPath' := by
+    rintro (a | b) (c | d) h
+    · exact SimpleGraph.Walk.map_isPath_of_injective (inlHom_injective B B') (f.isPath' _)
+    · exact absurd h (by simp)
+    · exact absurd h (by simp)
+    · exact SimpleGraph.Walk.map_isPath_of_injective (inrHom_injective B B') (f'.isPath' _)
+  reverse' := by
+    rintro (a | b) (c | d) h h'
+    · show (f.path _).map (inlHom B B') = ((f.path _).map (inlHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f.reverse' (show A.Adj a c by simpa using h)]
+    · exact absurd h (by simp)
+    · exact absurd h (by simp)
+    · show (f'.path _).map (inrHom B B') = ((f'.path _).map (inrHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f'.reverse' (show A'.Adj b d by simpa using h)]
+  branch' := by
+    rintro (a | b) (c | d) h (z | z) hz
+    all_goals first
+      | simp only [disjUnion_adj_inl_inr, disjUnion_adj_inr_inl, Bool.false_eq_true] at h
+      | skip
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inlHom_apply,
+        Sum.map_inl] at hz
+      obtain ⟨w, hw, hwz⟩ := hz
+      exact (f.branch' (by simpa using h) z (Sum.inl_injective hwz ▸ hw)).imp
+        (congrArg Sum.inl) (congrArg Sum.inl)
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inlHom_apply,
+        Sum.map_inr] at hz
+      simp at hz
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inrHom_apply,
+        Sum.map_inl] at hz
+      simp at hz
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inrHom_apply,
+        Sum.map_inr] at hz
+      obtain ⟨w, hw, hwz⟩ := hz
+      exact (f'.branch' (by simpa using h) z (Sum.inr_injective hwz ▸ hw)).imp
+        (congrArg Sum.inr) (congrArg Sum.inr)
+  disjoint' := by
+    rintro (a | b) (c | d) h (a' | b') (c' | d') h' hne z hz hz'
+    all_goals first
+      | simp only [disjUnion_adj_inl_inr, disjUnion_adj_inr_inl, Bool.false_eq_true] at h
+      | simp only [disjUnion_adj_inl_inr, disjUnion_adj_inr_inl, Bool.false_eq_true] at h'
+      | skip
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inlHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      obtain ⟨t, rfl⟩ := f.disjoint' (by simpa using h) (by simpa using h')
+        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) e)) w hw
+        (Sum.inl_injective hww ▸ hw')
+      exact ⟨Sum.inl t, rfl⟩
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inlHom_apply,
+        inrHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      simp at hww
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inlHom_apply,
+        inrHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      simp at hww
+    · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inrHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      obtain ⟨t, rfl⟩ := f'.disjoint' (by simpa using h) (by simpa using h')
+        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) e)) w hw
+        (Sum.inr_injective hww ▸ hw')
+      exact ⟨Sum.inr t, rfl⟩
+
+/-- The path replacing an edge of a join: an edge inside a summand keeps that summand's path,
+and an edge across is an edge of the join already. -/
+def joinPath (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
+    ∀ (x y : (A ∇g A').V), (A ∇g A').Adj x y →
+      (B ∇g B').toSimple.Walk (Sum.map f.toFun f'.toFun x) (Sum.map f.toFun f'.toFun y)
+  | Sum.inl _, Sum.inl _, h => (f.path (by simpa using h)).map (joinInlHom B B')
+  | Sum.inl _, Sum.inr _, _ => .cons (toSimple_join_inl_inr B B' _ _) .nil
+  | Sum.inr _, Sum.inl _, _ => .cons (toSimple_join_inr_inl B B' _ _) .nil
+  | Sum.inr _, Sum.inr _, h => (f'.path (by simpa using h)).map (joinInrHom B B')
+
+/-- **The join of two topological minor models.**  Every edge across the join is an edge of the
+join of the hosts, so the paths that the disjoint union has no need of are the ones the join makes
+a single edge. -/
+def join (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
+    (A ∇g A').TopMinorOf (B ∇g B') where
+  toFun := Sum.map f.toFun f'.toFun
+  injective' := f.injective.sumMap f'.injective
+  path {x y} h := joinPath f f' x y h
+  isPath' := by
+    rintro (a | b) (c | d) h
+    · exact SimpleGraph.Walk.map_isPath_of_injective
+        (fun _ _ hh ↦ Sum.inl_injective hh) (f.isPath' _)
+    · simp [joinPath, SimpleGraph.Walk.cons_isPath_iff]
+    · simp [joinPath, SimpleGraph.Walk.cons_isPath_iff]
+    · exact SimpleGraph.Walk.map_isPath_of_injective
+        (fun _ _ hh ↦ Sum.inr_injective hh) (f'.isPath' _)
+  reverse' := by
+    rintro (a | b) (c | d) h h'
+    · show (f.path _).map (joinInlHom B B') = ((f.path _).map (joinInlHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f.reverse' (show A.Adj a c by simpa using h)]
+    · show SimpleGraph.Walk.cons _ _ = _
+      simp [joinPath]
+    · show SimpleGraph.Walk.cons _ _ = _
+      simp [joinPath]
+    · show (f'.path _).map (joinInrHom B B') = ((f'.path _).map (joinInrHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f'.reverse' (show A'.Adj b d by simpa using h)]
+  branch' := by
+    rintro (a | b) (c | d) h (z | z) hz
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInlHom_apply,
+        Sum.map_inl] at hz
+      obtain ⟨w, hw, hwz⟩ := hz
+      exact (f.branch' (by simpa using h) z (Sum.inl_injective hwz ▸ hw)).imp
+        (congrArg Sum.inl) (congrArg Sum.inl)
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInlHom_apply,
+        Sum.map_inr] at hz
+      obtain ⟨w, hw, hwz⟩ := hz
+      exact absurd hwz (by simp)
+    · simp only [joinPath, SimpleGraph.Walk.support_cons, SimpleGraph.Walk.support_nil,
+        List.mem_cons, List.not_mem_nil, or_false, Sum.map_inl, Sum.map_inr] at hz
+      rcases hz with hz | hz
+      · exact Or.inl (congrArg Sum.inl (f.injective (Sum.inl_injective hz)))
+      · exact absurd hz (by simp)
+    · simp only [joinPath, SimpleGraph.Walk.support_cons, SimpleGraph.Walk.support_nil,
+        List.mem_cons, List.not_mem_nil, or_false, Sum.map_inl, Sum.map_inr] at hz
+      rcases hz with hz | hz
+      · exact absurd hz (by simp)
+      · exact Or.inr (congrArg Sum.inr (f'.injective (Sum.inr_injective hz)))
+    · simp only [joinPath, SimpleGraph.Walk.support_cons, SimpleGraph.Walk.support_nil,
+        List.mem_cons, List.not_mem_nil, or_false, Sum.map_inl, Sum.map_inr] at hz
+      rcases hz with hz | hz
+      · exact absurd hz (by simp)
+      · exact Or.inr (congrArg Sum.inl (f.injective (Sum.inl_injective hz)))
+    · simp only [joinPath, SimpleGraph.Walk.support_cons, SimpleGraph.Walk.support_nil,
+        List.mem_cons, List.not_mem_nil, or_false, Sum.map_inl, Sum.map_inr] at hz
+      rcases hz with hz | hz
+      · exact Or.inl (congrArg Sum.inr (f'.injective (Sum.inr_injective hz)))
+      · exact absurd hz (by simp)
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInrHom_apply,
+        Sum.map_inl] at hz
+      obtain ⟨w, hw, hwz⟩ := hz
+      exact absurd hwz (by simp)
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInrHom_apply,
+        Sum.map_inr] at hz
+      obtain ⟨w, hw, hwz⟩ := hz
+      exact (f'.branch' (by simpa using h) z (Sum.inr_injective hwz ▸ hw)).imp
+        (congrArg Sum.inr) (congrArg Sum.inr)
+  disjoint' := by
+    rintro (a | b) (c | d) h (a' | b') (c' | d') h' hne z hz hz'
+    all_goals first
+      | (simp only [joinPath, SimpleGraph.Walk.support_cons, SimpleGraph.Walk.support_nil,
+            List.mem_cons, List.not_mem_nil, or_false] at hz
+         rcases hz with rfl | rfl <;>
+           first
+             | exact ⟨Sum.inl a, rfl⟩ | exact ⟨Sum.inr b, rfl⟩
+             | exact ⟨Sum.inl c, rfl⟩ | exact ⟨Sum.inr d, rfl⟩)
+      | (simp only [joinPath, SimpleGraph.Walk.support_cons, SimpleGraph.Walk.support_nil,
+            List.mem_cons, List.not_mem_nil, or_false] at hz'
+         rcases hz' with rfl | rfl <;>
+           first
+             | exact ⟨Sum.inl a', rfl⟩ | exact ⟨Sum.inr b', rfl⟩
+             | exact ⟨Sum.inl c', rfl⟩ | exact ⟨Sum.inr d', rfl⟩)
+      | skip
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInlHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      obtain ⟨t, rfl⟩ := f.disjoint' (by simpa using h) (by simpa using h')
+        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) e)) w hw
+        (Sum.inl_injective hww ▸ hw')
+      exact ⟨Sum.inl t, rfl⟩
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInlHom_apply,
+        joinInrHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      exact absurd hww (by simp)
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInlHom_apply,
+        joinInrHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      exact absurd hww (by simp)
+    · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInrHom_apply] at hz hz'
+      obtain ⟨w, hw, rfl⟩ := hz
+      obtain ⟨w', hw', hww⟩ := hz'
+      obtain ⟨t, rfl⟩ := f'.disjoint' (by simpa using h) (by simpa using h')
+        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) e)) w hw
+        (Sum.inr_injective hww ▸ hw')
+      exact ⟨Sum.inr t, rfl⟩
+
+end TopMinorOf
+
+/-! ### Immersions -/
+
+namespace ImmersionOf
+
+/-- The trail replacing an edge of a disjoint union: the edge lies in one summand, and so does
+its trail. -/
+def sumWalk (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
+    ∀ (x y : A.V ⊕ A'.V), (A ⊕g A').Adj x y →
+      (B ⊕g B').toSimple.Walk (Sum.map f.toFun f'.toFun x) (Sum.map f.toFun f'.toFun y)
+  | Sum.inl _, Sum.inl _, h => (f.walk (by simpa using h)).map (inlHom B B')
+  | Sum.inl _, Sum.inr _, h => absurd h (by simp)
+  | Sum.inr _, Sum.inl _, h => absurd h (by simp)
+  | Sum.inr _, Sum.inr _, h => (f'.walk (by simpa using h)).map (inrHom B B')
+
+/-- **The disjoint union of two immersions.** -/
+def disjUnion (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
+    (A ⊕g A').ImmersionOf (B ⊕g B') where
+  toFun := Sum.map f.toFun f'.toFun
+  injective' := f.injective.sumMap f'.injective
+  walk {x y} h := sumWalk f f' x y h
+  isTrail' := by
+    rintro (a | b) (c | d) h
+    · exact SimpleGraph.Walk.map_isTrail_of_injective (inlHom_injective B B') (f.isTrail' _)
+    · exact absurd h (by simp)
+    · exact absurd h (by simp)
+    · exact SimpleGraph.Walk.map_isTrail_of_injective (inrHom_injective B B') (f'.isTrail' _)
+  reverse' := by
+    rintro (a | b) (c | d) h h'
+    · show (f.walk _).map (inlHom B B') = ((f.walk _).map (inlHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f.reverse' (show A.Adj a c by simpa using h)]
+    · exact absurd h (by simp)
+    · exact absurd h (by simp)
+    · show (f'.walk _).map (inrHom B B') = ((f'.walk _).map (inrHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f'.reverse' (show A'.Adj b d by simpa using h)]
+  edgeDisjoint' := by
+    rintro (a | b) (c | d) h (a' | b') (c' | d') h' hne e he he'
+    all_goals first
+      | simp only [disjUnion_adj_inl_inr, disjUnion_adj_inr_inl, Bool.false_eq_true] at h
+      | simp only [disjUnion_adj_inl_inr, disjUnion_adj_inr_inl, Bool.false_eq_true] at h'
+      | skip
+    · simp only [sumWalk, SimpleGraph.Walk.edges_map, List.mem_map, coe_inlHom] at he he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact f.edgeDisjoint' (by simpa using h) (by simpa using h')
+        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) eq))
+        e₀ he₀ (Sym2.map.injective Sum.inl_injective hee ▸ he₁)
+    · simp only [sumWalk, SimpleGraph.Walk.edges_map, List.mem_map, coe_inlHom, coe_inrHom]
+        at he he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inl_ne_map_inr e₀ e₁ hee.symm
+    · simp only [sumWalk, SimpleGraph.Walk.edges_map, List.mem_map, coe_inlHom, coe_inrHom]
+        at he he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inl_ne_map_inr e₁ e₀ hee
+    · simp only [sumWalk, SimpleGraph.Walk.edges_map, List.mem_map, coe_inrHom] at he he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact f'.edgeDisjoint' (by simpa using h) (by simpa using h')
+        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) eq))
+        e₀ he₀ (Sym2.map.injective Sum.inr_injective hee ▸ he₁)
+
+/-- The trail replacing an edge of a join: an edge inside a summand keeps that summand's trail, and
+an edge across is an edge of the join already. -/
+def joinWalk (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
+    ∀ (x y : (A ∇g A').V), (A ∇g A').Adj x y →
+      (B ∇g B').toSimple.Walk (Sum.map f.toFun f'.toFun x) (Sum.map f.toFun f'.toFun y)
+  | Sum.inl _, Sum.inl _, h => (f.walk (by simpa using h)).map (joinInlHom B B')
+  | Sum.inl _, Sum.inr _, _ => .cons (toSimple_join_inl_inr B B' _ _) .nil
+  | Sum.inr _, Sum.inl _, _ => .cons (toSimple_join_inr_inl B B' _ _) .nil
+  | Sum.inr _, Sum.inr _, h => (f'.walk (by simpa using h)).map (joinInrHom B B')
+
+/-- **The join of two immersions.** -/
+def join (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
+    (A ∇g A').ImmersionOf (B ∇g B') where
+  toFun := Sum.map f.toFun f'.toFun
+  injective' := f.injective.sumMap f'.injective
+  walk {x y} h := joinWalk f f' x y h
+  isTrail' := by
+    rintro (a | b) (c | d) h
+    · exact SimpleGraph.Walk.map_isTrail_of_injective
+        (fun _ _ hh ↦ Sum.inl_injective hh) (f.isTrail' _)
+    · simp [joinWalk]
+    · simp [joinWalk]
+    · exact SimpleGraph.Walk.map_isTrail_of_injective
+        (fun _ _ hh ↦ Sum.inr_injective hh) (f'.isTrail' _)
+  reverse' := by
+    rintro (a | b) (c | d) h h'
+    · show (f.walk _).map (joinInlHom B B') = ((f.walk _).map (joinInlHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f.reverse' (show A.Adj a c by simpa using h)]
+    · show SimpleGraph.Walk.cons _ _ = _
+      simp [joinWalk]
+    · show SimpleGraph.Walk.cons _ _ = _
+      simp [joinWalk]
+    · show (f'.walk _).map (joinInrHom B B') = ((f'.walk _).map (joinInrHom B B')).reverse
+      rw [SimpleGraph.Walk.reverse_map, f'.reverse' (show A'.Adj b d by simpa using h)]
+  edgeDisjoint' := by
+    rintro (a | b) (c | d) h (a' | b') (c' | d') h' hne e he he'
+    all_goals simp only [joinWalk, SimpleGraph.Walk.edges_map, SimpleGraph.Walk.edges_cons,
+      SimpleGraph.Walk.edges_nil, List.mem_map, List.mem_cons, List.not_mem_nil, or_false,
+      coe_joinInlHom, coe_joinInrHom] at he he'
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact f.edgeDisjoint' (by simpa using h) (by simpa using h')
+        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) eq))
+        e₀ he₀ (Sym2.map.injective Sum.inl_injective hee ▸ he₁)
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      exact sym2_map_inl_ne_cross e₀ _ _ he'
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      exact sym2_map_inl_ne_cross' e₀ _ _ he'
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inl_ne_map_inr e₀ e₁ hee.symm
+    · obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inl_ne_cross e₁ _ _ (hee.trans he)
+    · obtain ⟨hu, hv⟩ := sym2_cross_eq (he.symm.trans he')
+      exact hne (by rw [f.injective hu, f'.injective hv])
+    · obtain ⟨hu, hv⟩ := sym2_cross_eq' (he.symm.trans he')
+      exact hne (by rw [f.injective hu, f'.injective hv]; exact Sym2.eq_swap)
+    · obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inr_ne_cross e₁ _ _ (hee.trans he)
+    · obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inl_ne_cross' e₁ _ _ (hee.trans he)
+    · obtain ⟨hu, hv⟩ := sym2_cross_eq' (he'.symm.trans he)
+      exact hne (by rw [f.injective hu, f'.injective hv]; exact Sym2.eq_swap)
+    · obtain ⟨hu, hv⟩ := sym2_cross_eq'' (he.symm.trans he')
+      exact hne (by rw [f.injective hu, f'.injective hv])
+    · obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inr_ne_cross' e₁ _ _ (hee.trans he)
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact sym2_map_inl_ne_map_inr e₁ e₀ hee
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      exact sym2_map_inr_ne_cross e₀ _ _ he'
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      exact sym2_map_inr_ne_cross' e₀ _ _ he'
+    · obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, hee⟩ := he'
+      exact f'.edgeDisjoint' (by simpa using h) (by simpa using h')
+        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) eq))
+        e₀ he₀ (Sym2.map.injective Sum.inr_injective hee ▸ he₁)
+
+end ImmersionOf
+
 end CGraph
 
 namespace IsoGraph
@@ -844,6 +1327,18 @@ theorem IsContractionOf.disjUnion (h : H ≤ₚ G) (h' : H' ≤ₚ G') : H ⊕g 
 
 theorem IsContractionOf.join (h : H ≤ₚ G) (h' : H' ≤ₚ G') : H ∇g H' ≤ₚ G ∇g G' :=
   mono₂ isContractionOf_mk join_mk CGraph.ContractionOf.join h h'
+
+theorem IsTopMinorOf.disjUnion (h : H ≤ₜₘ G) (h' : H' ≤ₜₘ G') : H ⊕g H' ≤ₜₘ G ⊕g G' :=
+  mono₂ isTopMinorOf_mk disjUnion_mk CGraph.TopMinorOf.disjUnion h h'
+
+theorem IsTopMinorOf.join (h : H ≤ₜₘ G) (h' : H' ≤ₜₘ G') : H ∇g H' ≤ₜₘ G ∇g G' :=
+  mono₂ isTopMinorOf_mk join_mk CGraph.TopMinorOf.join h h'
+
+theorem IsImmersionMinorOf.disjUnion (h : H ≤ₑ G) (h' : H' ≤ₑ G') : H ⊕g H' ≤ₑ G ⊕g G' :=
+  mono₂ isImmersionMinorOf_mk disjUnion_mk CGraph.ImmersionOf.disjUnion h h'
+
+theorem IsImmersionMinorOf.join (h : H ≤ₑ G) (h' : H' ≤ₑ G') : H ∇g H' ≤ₑ G ∇g G' :=
+  mono₂ isImmersionMinorOf_mk join_mk CGraph.ImmersionOf.join h h'
 
 theorem HasHomInto.cartesianProduct (h : H ≤ₕ G) (h' : H' ≤ₕ G') : H □g H' ≤ₕ G □g G' :=
   mono₂ hasHomInto_mk cartesianProduct_mk CGraph.Hom.cartesianProduct h h'
