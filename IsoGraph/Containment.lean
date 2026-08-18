@@ -80,8 +80,10 @@ does without — the induced subgraph on a set of vertices, which is a `CGraph` 
 `IsoGraph` operation, since it depends on the labelling.  It is done for seven of the nine
 relations: the two inclusions, then the five that replace a vertex by a branch set or an edge by a
 walk, for which the branch sets and the walks have to be pulled back into a summand, so the file
-also pulls a walk back along an induced subgraph inclusion.  It ends by complementing an induced
-subgraph, which turns every statement about the disjoint union into one about the join.
+also pulls a walk back along an induced subgraph inclusion.  It then complements an induced
+subgraph, which turns every statement about the disjoint union into one about the join, and closes
+with the join that no splitting reaches: joining on a single vertex, where the apex of the pattern
+has only two places to go and the map can be restricted to the two bases by hand.
 
 `Containment/Ordered.lean` reads that table back as typeclasses.  Opening an order scope and an
 algebra scope at once — `IsoGraph.Subgraph` and `IsoGraph.Semiring`, say — turns on
@@ -92,7 +94,9 @@ quotient and contraction orders have no least one; and cancellation, where the s
 run by induction on the number of vertices cancelled, upgrades eight of those pairs to
 `IsOrderedCancelAddMonoid` — the disjoint union in all seven orders where it cancels, the join in
 the induced subgraph order — while no product cancels in any of the nine, and the join fails in
-the five orders that contract or subdivide.
+the five orders that contract or subdivide.  That leaves the join in the homomorphism, subgraph
+and quotient orders open; cancelling a clique there is proved, and a search over the deciders
+found no counterexample to the general statement.
 
 `Algorithms/Cached.lean` is the layer to call.  Each of the nine searches there runs on adjacency
 matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of

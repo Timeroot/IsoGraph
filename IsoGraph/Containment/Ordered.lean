@@ -71,6 +71,16 @@ The argument is written once, as `disjUnion_cancel_of_split`, and run for the se
 inclusions split: the subgraph and induced subgraph ones, and the five minor-like ones.  The join
 follows for the induced subgraph order alone, by complementation.
 
+The join does not split — every vertex of one side sees every vertex of the other, so nothing
+holds a piece of the pattern on one side — but a *cone*, a join with a single vertex, can be
+cancelled by hand in the three orders whose maps are total: either the apex goes to the apex, and
+then nothing else can, or it goes to a vertex `b₀` of the base, which is then adjacent to the
+image of everything, so sending to `b₀` whatever lands on the apex repairs the map.  That is
+`CGraph.exists_map_of_join_complete_one`; `join_complete_one_cancel` states it for the
+homomorphism, subgraph and quotient orders, and `join_complete_cancel` peels a clique off one
+vertex at a time.  These are partial results, not instances: the general join in those three
+orders is still open, and `## Cancellation` says what is known about it.
+
 This section comes first because the instances below use it.  What *fails* to cancel, which is
 most of the table, is collected in `## Cancellation` after them. -/
 
@@ -150,6 +160,69 @@ theorem IsImmersionMinorOf.disjUnion_cancel {H G K : IsoGraph} (h : H ⊕g K ≤
   disjUnion_cancel_of_split isImmersionMinorOf_refl isImmersionMinorOf_trans
     IsImmersionMinorOf.disjUnion IsImmersionMinorOf.V_le
     IsImmersionMinorOf.exists_split_disjUnion H G K h
+
+/-- **The homomorphism order cancels a cone.**  Joining on one vertex is the one case of the join
+that `Containment/Split.lean` can take apart: the apex has nowhere to hide. -/
+theorem HasHomInto.join_complete_one_cancel {H G : IsoGraph}
+    (h : H ∇g complete 1 ≤ₕ G ∇g complete 1) : H ≤ₕ G := by
+  revert h
+  induction H using Quotient.inductionOn with | _ H =>
+  induction G using Quotient.inductionOn with | _ G =>
+  show (⟦H⟧ ∇g ⟦CGraph.complete 1⟧ : IsoGraph) ≤ₕ ⟦G⟧ ∇g ⟦CGraph.complete 1⟧ → _
+  rw [join_mk, join_mk, hasHomInto_mk, hasHomInto_mk]
+  rintro ⟨f⟩
+  exact CGraph.nonempty_hom_of_join_complete_one f
+
+/-- **The subgraph order cancels a cone.** -/
+theorem IsSubgraphOf.join_complete_one_cancel {H G : IsoGraph}
+    (h : H ∇g complete 1 ≤ₛ G ∇g complete 1) : H ≤ₛ G := by
+  revert h
+  induction H using Quotient.inductionOn with | _ H =>
+  induction G using Quotient.inductionOn with | _ G =>
+  show (⟦H⟧ ∇g ⟦CGraph.complete 1⟧ : IsoGraph) ≤ₛ ⟦G⟧ ∇g ⟦CGraph.complete 1⟧ → _
+  rw [join_mk, join_mk, isSubgraphOf_mk, isSubgraphOf_mk]
+  rintro ⟨f⟩
+  exact CGraph.nonempty_subgraphOf_of_join_complete_one f
+
+/-- **The quotient order cancels a cone.** -/
+theorem HasQuotient.join_complete_one_cancel {H G : IsoGraph}
+    (h : H ∇g complete 1 ≤/ G ∇g complete 1) : H ≤/ G := by
+  revert h
+  induction H using Quotient.inductionOn with | _ H =>
+  induction G using Quotient.inductionOn with | _ G =>
+  show (⟦H⟧ ∇g ⟦CGraph.complete 1⟧ : IsoGraph) ≤/ ⟦G⟧ ∇g ⟦CGraph.complete 1⟧ → _
+  rw [join_mk, join_mk, hasQuotient_mk, hasQuotient_mk]
+  rintro ⟨f⟩
+  exact CGraph.nonempty_quotientOf_of_join_complete_one f
+
+/-- **The homomorphism order cancels a clique**, by peeling one vertex off it at a time:
+`complete (n + 1)` is `complete n ∇g complete 1`, so the cone cancellation applies `n + 1`
+times. -/
+theorem HasHomInto.join_complete_cancel {H G : IsoGraph} {n : ℕ}
+    (h : H ∇g complete n ≤ₕ G ∇g complete n) : H ≤ₕ G := by
+  induction n with
+  | zero => rwa [complete_zero, join_empty_zero, join_empty_zero] at h
+  | succ n ih =>
+    refine ih (HasHomInto.join_complete_one_cancel ?_)
+    rwa [join_assoc, join_assoc, join_complete]
+
+/-- **The subgraph order cancels a clique.** -/
+theorem IsSubgraphOf.join_complete_cancel {H G : IsoGraph} {n : ℕ}
+    (h : H ∇g complete n ≤ₛ G ∇g complete n) : H ≤ₛ G := by
+  induction n with
+  | zero => rwa [complete_zero, join_empty_zero, join_empty_zero] at h
+  | succ n ih =>
+    refine ih (IsSubgraphOf.join_complete_one_cancel ?_)
+    rwa [join_assoc, join_assoc, join_complete]
+
+/-- **The quotient order cancels a clique.** -/
+theorem HasQuotient.join_complete_cancel {H G : IsoGraph} {n : ℕ}
+    (h : H ∇g complete n ≤/ G ∇g complete n) : H ≤/ G := by
+  induction n with
+  | zero => rwa [complete_zero, join_empty_zero, join_empty_zero] at h
+  | succ n ih =>
+    refine ih (HasQuotient.join_complete_one_cancel ?_)
+    rwa [join_assoc, join_assoc, join_complete]
 
 namespace Hom
 
@@ -978,11 +1051,13 @@ and `empty 3` has none.
 
 Of the eleven cells that leaves, eight are settled above: the disjoint union cancels in all seven
 orders where it can, and the join in the induced subgraph order.  The three still open are the
-join in the homomorphism, subgraph and quotient orders.  None of them has a counterexample among
-the graphs on at most three vertices, and all are expected to hold; what they want is the
-splitting of `Containment/Split.lean` for the join, which complementation gives only in the one
-order that it preserves.  `IsStrictOrderedRing` stays out of reach regardless, since it asks for a
-product to cancel. -/
+join in the homomorphism, subgraph and quotient orders, and all three are expected to hold.  A
+search over the deciders of `Containment/Algorithms/` found no counterexample: exhaustively for
+the subgraph order on at most four vertices, and with `H` and `G` on at most five and `K` on at
+most three.  Cancelling a *clique* is proved above; what the general case wants is the splitting
+of `Containment/Split.lean` for the join, which complementation gives only in the one order that
+it preserves.  `IsStrictOrderedRing` stays out of reach regardless, since it asks for a product to
+cancel. -/
 
 theorem not_empty_one_hasHomInto_empty_zero : ¬(empty 1 : IsoGraph) ≤ₕ empty 0 := fun h ↦ by
   have hV := le_V_of_hasHomInto_complete (n := 1) (G := empty 0) (by rwa [complete_one])

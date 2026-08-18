@@ -37,10 +37,18 @@ comes with the two isomorphisms that make it useful here — `Iso.induceSplit`, 
 splitting itself, and `Iso.induceDisjUnion`, which says that inducing on a disjoint union induces
 on each summand.
 
-The complement appears at the end, for one reason: `(G ∇g H)ᶜ = Gᶜ ⊕g Hᶜ`, so a fact about the
+The complement appears near the end, for one reason: `(G ∇g H)ᶜ = Gᶜ ⊕g Hᶜ`, so a fact about the
 join follows from the same fact about the disjoint union in any order that complementation
 preserves.  The induced subgraph order is the one that does — `InducedSubgraphOf.compl` — and it
 is how the join is cancelled there.
+
+The join itself never splits: every vertex of one side is adjacent to every vertex of the other,
+so no edge of the pattern forces its two ends onto the same side.  The last section does the one
+case where that does not matter.  When the graph joined on is a single vertex the pattern's apex
+has nowhere to go but the host's apex or the host's base, and either way the map can be repaired
+by hand: `exists_map_of_join_complete_one` restricts a map of one cone into another to a map of
+the two bases, and keeps injectivity and surjectivity while it does, so the three orders whose
+maps are total each get their cancellation from it.
 -/
 
 set_option autoImplicit false
@@ -867,6 +875,124 @@ theorem exists_split {h k c d : CGraph} (f : (h ⊕g k).ImmersionOf (c ⊕g d)) 
 end ImmersionOf
 
 end Minors
+
+/-! ## Cancelling a cone
+
+The join does not split — every vertex of one side is adjacent to every vertex of the other, so
+nothing forces a component of the pattern to stay on one side — but when what is joined on is a
+single vertex there is nowhere for it to go, and the map can be repaired by hand. -/
+
+section Cone
+
+variable {A B : CGraph}
+
+/-- The cone has one apex. -/
+theorem complete_one_subsingleton (a b : (complete 1).V) : a = b :=
+  Subsingleton.elim (α := Fin 1) a b
+
+/-- **Cancelling a cone.**  A map of the cone over `A` into the cone over `B` that carries edges
+to edges restricts to one of `A` into `B`, and keeps injectivity and surjectivity while it does.
+
+There are two cases.  Either the apex goes to the apex, and then nothing else can — a vertex of
+`A` is adjacent to the apex, and the apex is adjacent to no vertex of the cone but the ones of
+`B` — so the map already runs from `A` to `B`.  Or the apex goes to a vertex `b₀` of `B`, which is
+then adjacent to the image of every vertex of `A`; sending to `b₀` everything that lands on the
+apex is again a map of the kind, because two vertices of `A` cannot both land there. -/
+theorem exists_map_of_join_complete_one (f : (A ∇g complete 1).V → (B ∇g complete 1).V)
+    (hadj : ∀ x y, (A ∇g complete 1).Adj x y → (B ∇g complete 1).Adj (f x) (f y)) :
+    ∃ g : A.V → B.V, (∀ x y, A.Adj x y → B.Adj (g x) (g y)) ∧
+      (Function.Injective f → Function.Injective g) ∧
+      (Function.Surjective f → Function.Surjective g) := by
+  let v : (complete 1).V := (0 : Fin 1)
+  have hap : ∀ x : A.V, (B ∇g complete 1).Adj (f (Sum.inl x)) (f (Sum.inr v)) := fun x ↦
+    hadj _ _ (by simp [join_adj_inl_inr])
+  rcases hz : f (Sum.inr v) with b₀ | u
+  · -- the apex goes to a vertex of `B`, adjacent to the image of everything
+    refine ⟨fun x ↦ Sum.elim id (fun _ ↦ b₀) (f (Sum.inl x)), ?_, ?_, ?_⟩
+    · intro a b hab
+      have hf : (B ∇g complete 1).Adj (f (Sum.inl a)) (f (Sum.inl b)) :=
+        hadj _ _ (by simpa [join_adj_inl_inl] using hab)
+      have ha := hap a
+      have hb := hap b
+      rw [hz] at ha hb
+      rcases hx : f (Sum.inl a) with ba | ua <;> rcases hy : f (Sum.inl b) with bb | ub <;>
+        rw [hx] at hf ha <;> rw [hy] at hf hb <;>
+        simp only [hx, hy, Sum.elim_inl, Sum.elim_inr, id_eq]
+      · rwa [join_adj_inl_inl] at hf
+      · rwa [join_adj_inl_inl] at ha
+      · rw [B.symm]; rwa [join_adj_inl_inl] at hb
+      · rw [join_adj_inr_inr, complete_one_subsingleton ua ub] at hf
+        simp at hf
+    · intro hinj a b hg
+      simp only at hg
+      rcases hx : f (Sum.inl a) with ba | ua <;> rcases hy : f (Sum.inl b) with bb | ub <;>
+        rw [hx, hy] at hg <;> simp only [Sum.elim_inl, Sum.elim_inr, id_eq] at hg
+      · exact Sum.inl_injective (hinj (by rw [hx, hy, hg]))
+      · exact absurd (hinj (show f (Sum.inl a) = f (Sum.inr v) by rw [hx, hz, hg]))
+          Sum.inl_ne_inr
+      · exact absurd (hinj (show f (Sum.inr v) = f (Sum.inl b) by rw [hy, hz, hg]))
+          Sum.inr_ne_inl
+      · exact Sum.inl_injective (hinj (by rw [hx, hy, complete_one_subsingleton ua ub]))
+    · intro hsurj y
+      obtain ⟨x, hx⟩ := hsurj (Sum.inl y)
+      rcases x with a | w
+      · exact ⟨a, by simp [hx]⟩
+      · -- the apex side of the source goes to `b₀`, so `y` is `b₀`, and something else goes there
+        rw [complete_one_subsingleton w v, hz] at hx
+        obtain ⟨x', hx'⟩ := hsurj (Sum.inr v)
+        rcases x' with a' | w'
+        · refine ⟨a', ?_⟩
+          show Sum.elim id (fun _ ↦ b₀) (f (Sum.inl a')) = y
+          rw [hx', Sum.elim_inr, Sum.inl_injective hx]
+        · rw [complete_one_subsingleton w' v, hz] at hx'
+          exact absurd hx' Sum.inl_ne_inr
+  · -- the apex goes to the apex, and then nothing else can
+    have hleft : ∀ x : A.V, (f (Sum.inl x)).isLeft := by
+      intro x
+      have hx' := hap x
+      rw [hz] at hx'
+      rcases hx : f (Sum.inl x) with b | w
+      · rfl
+      · rw [hx, join_adj_inr_inr, complete_one_subsingleton w u] at hx'
+        simp at hx'
+    refine ⟨fun x ↦ (f (Sum.inl x)).getLeft (hleft x), ?_, ?_, ?_⟩
+    · intro a b hab
+      have hf : (B ∇g complete 1).Adj (f (Sum.inl a)) (f (Sum.inl b)) :=
+        hadj _ _ (by simpa [join_adj_inl_inl] using hab)
+      rw [Sum.eq_inl_getLeft _ (hleft a), Sum.eq_inl_getLeft _ (hleft b), join_adj_inl_inl] at hf
+      exact hf
+    · intro hinj a b hg
+      refine Sum.inl_injective (hinj ?_)
+      rw [Sum.eq_inl_getLeft _ (hleft a), Sum.eq_inl_getLeft _ (hleft b)]
+      exact congrArg Sum.inl hg
+    · intro hsurj y
+      obtain ⟨x, hx⟩ := hsurj (Sum.inl y)
+      rcases x with a | w
+      · refine ⟨a, ?_⟩
+        show (f (Sum.inl a)).getLeft (hleft a) = y
+        exact Sum.inl_injective ((Sum.eq_inl_getLeft _ (hleft a)).symm.trans hx)
+      · rw [complete_one_subsingleton w v, hz] at hx
+        exact absurd hx Sum.inr_ne_inl
+
+/-- **A homomorphism of one cone into another comes from one of the bases.** -/
+theorem nonempty_hom_of_join_complete_one (f : (A ∇g complete 1) →cg (B ∇g complete 1)) :
+    Nonempty (A →cg B) := by
+  obtain ⟨g, hg, -, -⟩ := exists_map_of_join_complete_one (⇑f) fun _ _ h ↦ f.map_rel h
+  exact ⟨⟨g, fun {a b} h ↦ hg a b h⟩⟩
+
+/-- **A cone inside a cone puts the base inside the base.** -/
+theorem nonempty_subgraphOf_of_join_complete_one
+    (f : (A ∇g complete 1).SubgraphOf (B ∇g complete 1)) : Nonempty (A.SubgraphOf B) := by
+  obtain ⟨g, hg, hinj, -⟩ := exists_map_of_join_complete_one (⇑f) fun _ _ h ↦ f.map_adj h
+  exact ⟨⟨g, hinj f.injective, hg⟩⟩
+
+/-- **A cone that is a quotient of a cone has a base that is a quotient of the base.** -/
+theorem nonempty_quotientOf_of_join_complete_one
+    (f : (A ∇g complete 1).QuotientOf (B ∇g complete 1)) : Nonempty (A.QuotientOf B) := by
+  obtain ⟨g, hg, -, hsurj⟩ := exists_map_of_join_complete_one (⇑f) fun _ _ h ↦ f.map_adj h
+  exact ⟨⟨g, hsurj f.surjective, hg⟩⟩
+
+end Cone
 
 end CGraph
 
