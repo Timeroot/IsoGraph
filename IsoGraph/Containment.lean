@@ -77,7 +77,10 @@ sends each vertex to one side or the other, and by connectivity a whole componen
 way, so the source splits as well: `H ⊕g K ≤ C ⊕g D` gives `H = H₁ ⊕g H₂` and `K = K₁ ⊕g K₂` with
 `H₁ ⊕g K₁ ≤ C` and `H₂ ⊕g K₂ ≤ D`.  The splitting needs a construction the rest of the library
 does without — the induced subgraph on a set of vertices, which is a `CGraph` and not an
-`IsoGraph` operation, since it depends on the labelling.  The file also complements an induced
+`IsoGraph` operation, since it depends on the labelling.  It is done for seven of the nine
+relations: the two inclusions, then the five that replace a vertex by a branch set or an edge by a
+walk, for which the branch sets and the walks have to be pulled back into a summand, so the file
+also pulls a walk back along an induced subgraph inclusion.  It ends by complementing an induced
 subgraph, which turns every statement about the disjoint union into one about the join.
 
 `Containment/Ordered.lean` reads that table back as typeclasses.  Opening an order scope and an
@@ -86,10 +89,10 @@ algebra scope at once — `IsoGraph.Subgraph` and `IsoGraph.Semiring`, say — t
 `IsOrderedRing`, so the ordered-algebra lemmas of `Mathlib` apply to graphs.  It also has the two
 questions that are about the orders alone: none of the nine has a greatest element, and only the
 quotient and contraction orders have no least one; and cancellation, where the splitting above,
-run by induction on the number of vertices cancelled, upgrades three of those pairs to
-`IsOrderedCancelAddMonoid` — the disjoint union in the subgraph and induced subgraph orders, the
-join in the induced subgraph order — while no product cancels in any of the nine, and the two sums
-each fail in several.
+run by induction on the number of vertices cancelled, upgrades eight of those pairs to
+`IsOrderedCancelAddMonoid` — the disjoint union in all seven orders where it cancels, the join in
+the induced subgraph order — while no product cancels in any of the nine, and the join fails in
+the five orders that contract or subdivide.
 
 `Algorithms/Cached.lean` is the layer to call.  Each of the nine searches there runs on adjacency
 matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of

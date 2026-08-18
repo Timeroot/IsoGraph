@@ -15,6 +15,20 @@ pieces: `H` splits as `H₁ ⊕g H₂` and `K` as `K₁ ⊕g K₂`, with `H₁ �
 on isomorphism classes; `Containment/Ordered.lean` turns it into the cancellation theorem
 `H ⊕g K ≤ₛ G ⊕g K → H ≤ₛ G` by induction on the number of vertices of `K`.
 
+Seven of the nine relations split this way, each by the same three steps — a `side` function on
+the pattern, constant on edges; the two halves `splitLeft` and `splitRight`, induced on the
+vertices of each side; and `exists_split`, which reassembles them.  What differs is what has to
+cross with the vertices.  For an inclusion, nothing does.  For a minor, an induced minor or a
+contraction it is the branch sets, which must stay connected in the summand they land in, so the
+file first pulls connectedness back along an induced subgraph inclusion: a walk of the host all of
+whose vertices are in the image comes from a walk of the subgraph, because the induced condition
+takes each step and injectivity makes it unique.  For a topological minor or an immersion it is
+the paths and trails themselves, which are *data* and not just an existence statement — the axioms
+relate the path of an edge to the path of its reverse — so the pulled-back walk gets a name,
+`walkLeft`, and the lemmas that say what its support, edges and reverse are.  The homomorphism and
+quotient orders are the two that do not split, and they are also the two where the disjoint union
+does not cancel.
+
 The construction the cut needs is `CGraph.induce G s`, the subgraph of `G` on the vertices where
 `s` is true, on the subtype `{v // s v}`.  It is not in `Graphs/Constructions.lean` with the rest
 of the constructions because it cannot follow them to `IsoGraph`: its second argument is a
@@ -108,6 +122,218 @@ def Iso.induceDisjUnion (G H : CGraph) (s : (G ⊕g H).V → Bool) :
       left_inv := by rintro ⟨_ | _, _⟩ <;> rfl
       right_inv := by rintro (⟨_, _⟩ | ⟨_, _⟩) <;> rfl }
     (by rintro ⟨_ | _, _⟩ ⟨_ | _, _⟩ <;> rfl)
+
+/-! ## Walks pulled back into an induced subgraph -/
+
+section Walks
+
+variable {A G : CGraph}
+
+/-- A subgraph inclusion, as a homomorphism of the underlying `SimpleGraph`s — the form
+`Walk.map` asks for. -/
+def SubgraphOf.toSimpleHom (f : A.SubgraphOf G) : A.toSimple →g G.toSimple := f.toHom
+
+@[simp] theorem SubgraphOf.coe_toSimpleHom (f : A.SubgraphOf G) : ⇑f.toSimpleHom = ⇑f := rfl
+
+/-- **A walk of the host that never leaves an induced subgraph comes from a walk of it.**  The
+induced condition is what lets each step be taken in the subgraph, and injectivity is what makes
+the vertex it passes through unique. -/
+theorem InducedSubgraphOf.exists_walk_map (f : A.InducedSubgraphOf G) :
+    ∀ {p q : G.V} (w : G.toSimple.Walk p q), (∀ z ∈ w.support, ∃ a : A.V, f a = z) →
+      ∀ (u v : A.V) (hu : f u = p) (hv : f v = q),
+        ∃ w' : A.toSimple.Walk u v, w'.map f.toSubgraphOf.toSimpleHom = w.copy hu.symm hv.symm := by
+  intro p q w
+  induction w with
+  | @nil a =>
+    intro _ u v hu hv
+    have huv : u = v := f.injective (hu.trans hv.symm)
+    subst huv
+    subst hu
+    exact ⟨.nil, rfl⟩
+  | @cons a b c hadj w ih =>
+    intro hw u v hu hv
+    obtain ⟨m, hm⟩ := hw b (by simp)
+    subst hu
+    subst hm
+    subst hv
+    have hadj' : A.toSimple.Adj u m := f.adj_map hadj
+    obtain ⟨w', hw'⟩ := ih (fun z hz ↦ hw z (by simp [hz])) m v rfl rfl
+    refine ⟨.cons hadj' w', ?_⟩
+    rw [SimpleGraph.Walk.map_cons]
+    simp only [SimpleGraph.Walk.copy_rfl_rfl] at hw' ⊢
+    rw [hw']
+
+/-- **Connectedness pulls back along an induced subgraph inclusion**: a set of the host that is
+connected and lies in the image is connected in the subgraph.  This is what the minor relations
+need to be cut in two, since their branch sets have to stay connected on both sides. -/
+theorem ConnectedOn.pullback (f : A.InducedSubgraphOf G) {s : Set G.V} (hs : G.ConnectedOn s)
+    (hsub : ∀ v ∈ s, ∃ a : A.V, f a = v) : A.ConnectedOn {a | f a ∈ s} := by
+  constructor
+  · obtain ⟨v, hv⟩ := hs.nonempty
+    obtain ⟨a, rfl⟩ := hsub v hv
+    exact ⟨a, hv⟩
+  · intro u hu v hv
+    obtain ⟨w, hw⟩ := hs.walk hu hv
+    obtain ⟨w', hw'⟩ := f.exists_walk_map w (fun z hz ↦ hsub z (hw z hz)) u v rfl rfl
+    refine ⟨w', fun z hz ↦ ?_⟩
+    have hmem : f z ∈ (w.copy rfl rfl).support := by
+      rw [← hw', SimpleGraph.Walk.support_map]
+      exact List.mem_map_of_mem hz
+    simp only [SimpleGraph.Walk.copy_rfl_rfl] at hmem
+    exact hw _ hmem
+
+/-- The walk of the subgraph that a walk of the host staying inside it comes from.  The topological
+minor and immersion relations need the pulled-back walk as *data* and not just as an existence
+statement, because their axioms relate the walks of an edge and of its reverse. -/
+noncomputable def InducedSubgraphOf.pullbackWalk (f : A.InducedSubgraphOf G) {u v : A.V}
+    (w : G.toSimple.Walk (f u) (f v)) (hw : ∀ z ∈ w.support, ∃ a : A.V, f a = z) :
+    A.toSimple.Walk u v :=
+  (f.exists_walk_map w hw u v rfl rfl).choose
+
+theorem InducedSubgraphOf.map_pullbackWalk (f : A.InducedSubgraphOf G) {u v : A.V}
+    (w : G.toSimple.Walk (f u) (f v)) (hw : ∀ z ∈ w.support, ∃ a : A.V, f a = z) :
+    (f.pullbackWalk w hw).map f.toSubgraphOf.toSimpleHom = w :=
+  (f.exists_walk_map w hw u v rfl rfl).choose_spec
+
+/-- The pullback is the only walk with that image, so a fact about it follows from exhibiting any
+walk that maps to `w`. -/
+theorem InducedSubgraphOf.pullbackWalk_eq (f : A.InducedSubgraphOf G) {u v : A.V}
+    {w : G.toSimple.Walk (f u) (f v)} (hw : ∀ z ∈ w.support, ∃ a : A.V, f a = z)
+    {w' : A.toSimple.Walk u v} (hw' : w'.map f.toSubgraphOf.toSimpleHom = w) :
+    f.pullbackWalk w hw = w' :=
+  SimpleGraph.Walk.map_injective_of_injective (f := f.toSubgraphOf.toSimpleHom) f.injective u v
+    ((f.map_pullbackWalk w hw).trans hw'.symm)
+
+end Walks
+
+/-! ## The two sides of a disjoint union -/
+
+section Sides
+
+variable {C D : CGraph}
+
+/-- The left summand is an induced subgraph of a disjoint union. -/
+def InducedSubgraphOf.inl (C D : CGraph) : C.InducedSubgraphOf (C ⊕g D) where
+  toFun := Sum.inl
+  injective' := Sum.inl_injective
+  map_adj' _ _ h := h
+  adj_map' _ _ h := h
+
+/-- The right summand is an induced subgraph of a disjoint union. -/
+def InducedSubgraphOf.inr (C D : CGraph) : D.InducedSubgraphOf (C ⊕g D) where
+  toFun := Sum.inr
+  injective' := Sum.inr_injective
+  map_adj' _ _ h := h
+  adj_map' _ _ h := h
+
+@[simp] theorem InducedSubgraphOf.coe_inl (C D : CGraph) :
+    ⇑(InducedSubgraphOf.inl C D) = Sum.inl := rfl
+
+@[simp] theorem InducedSubgraphOf.coe_inr (C D : CGraph) :
+    ⇑(InducedSubgraphOf.inr C D) = Sum.inr := rfl
+
+/-- Adjacent vertices of a disjoint union are on the same side. -/
+theorem isLeft_eq_of_adj {u v : (C ⊕g D).V} (h : (C ⊕g D).Adj u v) : u.isLeft = v.isLeft := by
+  cases u <;> cases v <;> simp_all
+
+/-- A walk of a disjoint union never crosses between the summands. -/
+theorem isLeft_of_mem_support {p q : (C ⊕g D).V} (w : (C ⊕g D).toSimple.Walk p q) :
+    ∀ z ∈ w.support, z.isLeft = p.isLeft := by
+  induction w with
+  | nil => simp
+  | @cons a b c hadj w ih =>
+    intro z hz
+    rw [SimpleGraph.Walk.support_cons, List.mem_cons] at hz
+    rcases hz with rfl | hz
+    · rfl
+    · rw [ih z hz, isLeft_eq_of_adj hadj]
+
+theorem isLeft_of_mem_support' {u v : (C ⊕g D).V} (w : (C ⊕g D).toSimple.Walk u v)
+    (hu : u.isLeft) {z : (C ⊕g D).V} (hz : z ∈ w.support) : z.isLeft :=
+  (isLeft_of_mem_support w z hz).trans hu
+
+theorem isRight_of_mem_support' {u v : (C ⊕g D).V} (w : (C ⊕g D).toSimple.Walk u v)
+    (hu : u.isRight) {z : (C ⊕g D).V} (hz : z ∈ w.support) : z.isRight := by
+  have h := isLeft_of_mem_support w z hz
+  cases z <;> cases u <;> simp_all
+
+/-- A connected set of a disjoint union lies wholly in one summand. -/
+theorem ConnectedOn.isLeft_eq {s : Set (C ⊕g D).V} (hs : (C ⊕g D).ConnectedOn s) {u : (C ⊕g D).V}
+    (hu : u ∈ s) {v : (C ⊕g D).V} (hv : v ∈ s) : u.isLeft = v.isLeft := by
+  obtain ⟨w, _⟩ := hs.walk hu hv
+  exact (isLeft_of_mem_support w v w.end_mem_support).symm
+
+/-- A walk of a disjoint union out of the left summand stays inside the image of `Sum.inl`. -/
+theorem exists_inl_of_mem_support {u v : (C ⊕g D).V} (w : (C ⊕g D).toSimple.Walk u v)
+    (hu : u.isLeft) (hv : v.isLeft) :
+    ∀ z ∈ (w.copy (Sum.eq_inl_getLeft u hu) (Sum.eq_inl_getLeft v hv)).support,
+      ∃ a : C.V, (InducedSubgraphOf.inl C D) a = z := fun z hz ↦ by
+  rw [SimpleGraph.Walk.support_copy] at hz
+  exact ⟨z.getLeft (isLeft_of_mem_support' w hu hz),
+    (Sum.eq_inl_getLeft z (isLeft_of_mem_support' w hu hz)).symm⟩
+
+/-- A walk of a disjoint union out of the right summand stays inside the image of `Sum.inr`. -/
+theorem exists_inr_of_mem_support {u v : (C ⊕g D).V} (w : (C ⊕g D).toSimple.Walk u v)
+    (hu : u.isRight) (hv : v.isRight) :
+    ∀ z ∈ (w.copy (Sum.eq_inr_getRight u hu) (Sum.eq_inr_getRight v hv)).support,
+      ∃ a : D.V, (InducedSubgraphOf.inr C D) a = z := fun z hz ↦ by
+  rw [SimpleGraph.Walk.support_copy] at hz
+  exact ⟨z.getRight (isRight_of_mem_support' w hu hz),
+    (Sum.eq_inr_getRight z (isRight_of_mem_support' w hu hz)).symm⟩
+
+/-- A walk of a disjoint union between two vertices of the left summand, read as a walk there. -/
+noncomputable def walkLeft {u v : (C ⊕g D).V} (w : (C ⊕g D).toSimple.Walk u v)
+    (hu : u.isLeft) (hv : v.isLeft) : C.toSimple.Walk (u.getLeft hu) (v.getLeft hv) :=
+  (InducedSubgraphOf.inl C D).pullbackWalk _ (exists_inl_of_mem_support w hu hv)
+
+/-- A walk of a disjoint union between two vertices of the right summand, read as a walk there. -/
+noncomputable def walkRight {u v : (C ⊕g D).V} (w : (C ⊕g D).toSimple.Walk u v)
+    (hu : u.isRight) (hv : v.isRight) : D.toSimple.Walk (u.getRight hu) (v.getRight hv) :=
+  (InducedSubgraphOf.inr C D).pullbackWalk _ (exists_inr_of_mem_support w hu hv)
+
+variable {u v : (C ⊕g D).V}
+
+theorem map_walkLeft (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isLeft) (hv : v.isLeft) :
+    (walkLeft w hu hv).map (InducedSubgraphOf.inl C D).toSubgraphOf.toSimpleHom
+      = w.copy (Sum.eq_inl_getLeft u hu) (Sum.eq_inl_getLeft v hv) :=
+  (InducedSubgraphOf.inl C D).map_pullbackWalk _ (exists_inl_of_mem_support w hu hv)
+
+theorem map_walkRight (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isRight) (hv : v.isRight) :
+    (walkRight w hu hv).map (InducedSubgraphOf.inr C D).toSubgraphOf.toSimpleHom
+      = w.copy (Sum.eq_inr_getRight u hu) (Sum.eq_inr_getRight v hv) :=
+  (InducedSubgraphOf.inr C D).map_pullbackWalk _ (exists_inr_of_mem_support w hu hv)
+
+theorem support_walkLeft (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isLeft) (hv : v.isLeft) :
+    (walkLeft w hu hv).support.map Sum.inl = w.support := by
+  have h := congrArg SimpleGraph.Walk.support (map_walkLeft w hu hv)
+  rwa [SimpleGraph.Walk.support_map, SimpleGraph.Walk.support_copy] at h
+
+theorem support_walkRight (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isRight) (hv : v.isRight) :
+    (walkRight w hu hv).support.map Sum.inr = w.support := by
+  have h := congrArg SimpleGraph.Walk.support (map_walkRight w hu hv)
+  rwa [SimpleGraph.Walk.support_map, SimpleGraph.Walk.support_copy] at h
+
+theorem edges_walkLeft (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isLeft) (hv : v.isLeft) :
+    (walkLeft w hu hv).edges.map (Sym2.map Sum.inl) = w.edges := by
+  have h := congrArg SimpleGraph.Walk.edges (map_walkLeft w hu hv)
+  rwa [SimpleGraph.Walk.edges_map, SimpleGraph.Walk.edges_copy] at h
+
+theorem edges_walkRight (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isRight) (hv : v.isRight) :
+    (walkRight w hu hv).edges.map (Sym2.map Sum.inr) = w.edges := by
+  have h := congrArg SimpleGraph.Walk.edges (map_walkRight w hu hv)
+  rwa [SimpleGraph.Walk.edges_map, SimpleGraph.Walk.edges_copy] at h
+
+theorem reverse_walkLeft (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isLeft) (hv : v.isLeft) :
+    walkLeft w.reverse hv hu = (walkLeft w hu hv).reverse :=
+  (InducedSubgraphOf.inl C D).pullbackWalk_eq _ (by
+    rw [← SimpleGraph.Walk.reverse_map, map_walkLeft w hu hv, SimpleGraph.Walk.reverse_copy])
+
+theorem reverse_walkRight (w : (C ⊕g D).toSimple.Walk u v) (hu : u.isRight) (hv : v.isRight) :
+    walkRight w.reverse hv hu = (walkRight w hu hv).reverse :=
+  (InducedSubgraphOf.inr C D).pullbackWalk_eq _ (by
+    rw [← SimpleGraph.Walk.reverse_map, map_walkRight w hu hv, SimpleGraph.Walk.reverse_copy])
+
+end Sides
 
 /-! ## Cutting an inclusion in two -/
 
@@ -223,6 +449,425 @@ def compl {H G : CGraph} (f : H.InducedSubgraphOf G) : Hᶜ.InducedSubgraphOf G�
 
 end InducedSubgraphOf
 
+section Minors
+
+variable {A C D : CGraph}
+
+namespace MinorOf
+
+/-- Which side of a disjoint union a branch set lies in. -/
+noncomputable def side (f : A.MinorOf (C ⊕g D)) (x : A.V) : Bool :=
+  ((f.connectedOn x).nonempty.choose).isLeft
+
+theorem isLeft_eq_side (f : A.MinorOf (C ⊕g D)) {x : A.V} {v : (C ⊕g D).V}
+    (hv : f.branch v = some x) : v.isLeft = f.side x :=
+  (f.connectedOn x).isLeft_eq hv (f.connectedOn x).nonempty.choose_spec
+
+/-- No edge of the pattern crosses the sides. -/
+theorem side_eq_of_adj (f : A.MinorOf (C ⊕g D)) {x y : A.V} (h : A.Adj x y) :
+    f.side x = f.side y := by
+  obtain ⟨u, v, hu, hv, huv⟩ := f.map_adj h
+  rw [← f.isLeft_eq_side hu, ← f.isLeft_eq_side hv]
+  exact isLeft_eq_of_adj huv
+
+theorem eq_inl (f : A.MinorOf (C ⊕g D)) {x : A.V} (hx : f.side x) {v : (C ⊕g D).V}
+    (hv : f.branch v = some x) : ∃ w : C.V, v = .inl w := by
+  cases v with
+  | inl w => exact ⟨w, rfl⟩
+  | inr w => exact absurd ((f.isLeft_eq_side hv).trans hx) (by simp)
+
+theorem eq_inr (f : A.MinorOf (C ⊕g D)) {x : A.V} (hx : !f.side x) {v : (C ⊕g D).V}
+    (hv : f.branch v = some x) : ∃ w : D.V, v = .inr w := by
+  cases v with
+  | inl w => exact absurd (f.isLeft_eq_side hv) (by simp_all)
+  | inr w => exact ⟨w, rfl⟩
+
+/-- The branch map of the part of a minor model that lies in the left summand. -/
+noncomputable def branchLeft (f : A.MinorOf (C ⊕g D)) (w : C.V) : Option (A.induce f.side).V :=
+  (f.branch (.inl w)).bind fun x ↦ if h : f.side x then some ⟨x, h⟩ else none
+
+theorem branchLeft_eq_some (f : A.MinorOf (C ⊕g D)) (w : C.V) (x : (A.induce f.side).V) :
+    f.branchLeft w = some x ↔ f.branch (.inl w) = some x.1 := by
+  rcases hb : f.branch (Sum.inl w) with _ | y
+  · simp [branchLeft, hb]
+  · by_cases hy : f.side y
+    · simp only [branchLeft, hb, Option.bind_some, dif_pos hy, Option.some.injEq]
+      exact ⟨fun h ↦ congrArg Subtype.val h, fun h ↦ Subtype.ext h⟩
+    · refine ⟨fun h ↦ by simp [branchLeft, hb, hy] at h, fun h ↦ ?_⟩
+      have hxy : y = x.1 := by simpa using h
+      subst hxy
+      exact absurd x.2 hy
+
+/-- The branch map of the part of a minor model that lies in the right summand. -/
+noncomputable def branchRight (f : A.MinorOf (C ⊕g D)) (w : D.V) :
+    Option (A.induce fun v ↦ !f.side v).V :=
+  (f.branch (.inr w)).bind fun x ↦ if h : !f.side x then some ⟨x, h⟩ else none
+
+theorem branchRight_eq_some (f : A.MinorOf (C ⊕g D)) (w : D.V)
+    (x : (A.induce fun v ↦ !f.side v).V) :
+    f.branchRight w = some x ↔ f.branch (.inr w) = some x.1 := by
+  rcases hb : f.branch (Sum.inr w) with _ | y
+  · simp [branchRight, hb]
+  · by_cases hy : !f.side y
+    · simp only [branchRight, hb, Option.bind_some, dif_pos hy, Option.some.injEq]
+      exact ⟨fun h ↦ congrArg Subtype.val h, fun h ↦ Subtype.ext h⟩
+    · refine ⟨fun h ↦ by
+        simp only [branchRight, hb, Option.bind_some, dif_neg hy] at h
+        exact absurd h (by simp), fun h ↦ ?_⟩
+      have hxy : y = x.1 := by simpa using h
+      subst hxy
+      exact absurd x.2 hy
+
+/-- The part of a minor model that lies in the left summand. -/
+noncomputable def splitLeft (f : A.MinorOf (C ⊕g D)) : (A.induce f.side).MinorOf C where
+  branch := f.branchLeft
+  connectedOn' x := by
+    have hset : {w : C.V | f.branchLeft w = some x}
+        = {a : C.V | (InducedSubgraphOf.inl C D) a ∈ {v | f.branch v = some x.1}} := by
+      ext w
+      simpa using f.branchLeft_eq_some w x
+    rw [hset]
+    refine ConnectedOn.pullback _ (f.connectedOn x.1) fun v hv ↦ ?_
+    obtain ⟨u, rfl⟩ := f.eq_inl x.2 hv
+    exact ⟨u, rfl⟩
+  map_adj' x y h := by
+    obtain ⟨u, v, hu, hv, huv⟩ := f.map_adj (show A.Adj x.1 y.1 from h)
+    obtain ⟨u', rfl⟩ := f.eq_inl x.2 hu
+    obtain ⟨v', rfl⟩ := f.eq_inl y.2 hv
+    exact ⟨u', v', (f.branchLeft_eq_some u' x).2 hu, (f.branchLeft_eq_some v' y).2 hv,
+      by simpa using huv⟩
+
+/-- The part of a minor model that lies in the right summand. -/
+noncomputable def splitRight (f : A.MinorOf (C ⊕g D)) :
+    (A.induce fun v ↦ !f.side v).MinorOf D where
+  branch := f.branchRight
+  connectedOn' x := by
+    have hset : {w : D.V | f.branchRight w = some x}
+        = {a : D.V | (InducedSubgraphOf.inr C D) a ∈ {v | f.branch v = some x.1}} := by
+      ext w
+      simpa using f.branchRight_eq_some w x
+    rw [hset]
+    refine ConnectedOn.pullback _ (f.connectedOn x.1) fun v hv ↦ ?_
+    obtain ⟨u, rfl⟩ := f.eq_inr x.2 hv
+    exact ⟨u, rfl⟩
+  map_adj' x y h := by
+    obtain ⟨u, v, hu, hv, huv⟩ := f.map_adj (show A.Adj x.1 y.1 from h)
+    obtain ⟨u', rfl⟩ := f.eq_inr x.2 hu
+    obtain ⟨v', rfl⟩ := f.eq_inr y.2 hv
+    exact ⟨u', v', (f.branchRight_eq_some u' x).2 hu, (f.branchRight_eq_some v' y).2 hv,
+      by simpa using huv⟩
+
+/-- **A minor model of a disjoint union splits into four.** -/
+theorem exists_split {h k c d : CGraph} (f : (h ⊕g k).MinorOf (c ⊕g d)) :
+    ∃ h₁ h₂ k₁ k₂ : CGraph, Nonempty (h ≃cg h₁ ⊕g h₂) ∧ Nonempty (k ≃cg k₁ ⊕g k₂) ∧
+      Nonempty ((h₁ ⊕g k₁).MinorOf c) ∧ Nonempty ((h₂ ⊕g k₂).MinorOf d) :=
+  ⟨h.induce fun v ↦ f.side (.inl v), h.induce fun v ↦ !f.side (.inl v),
+    k.induce fun v ↦ f.side (.inr v), k.induce fun v ↦ !f.side (.inr v),
+    ⟨Iso.induceSplit h _ fun x y hxy ↦
+      f.side_eq_of_adj (show (h ⊕g k).Adj (.inl x) (.inl y) from hxy)⟩,
+    ⟨Iso.induceSplit k _ fun x y hxy ↦
+      f.side_eq_of_adj (show (h ⊕g k).Adj (.inr x) (.inr y) from hxy)⟩,
+    ⟨f.splitLeft.congr (Iso.induceDisjUnion h k f.side) (RelIso.refl _)⟩,
+    ⟨f.splitRight.congr (Iso.induceDisjUnion h k fun v ↦ !f.side v) (RelIso.refl _)⟩⟩
+
+end MinorOf
+
+namespace InducedMinorOf
+
+/-- The part of an induced minor model that lies in the left summand. -/
+noncomputable def splitLeft (f : A.InducedMinorOf (C ⊕g D)) :
+    (A.induce f.toMinorOf.side).InducedMinorOf C where
+  toMinorOf := f.toMinorOf.splitLeft
+  adj_map' x y hne := by
+    rintro ⟨u, v, hu, hv, huv⟩
+    refine f.adj_map (x := x.1) (y := y.1) (fun he ↦ hne (Subtype.ext he)) ?_
+    exact ⟨.inl u, .inl v, (f.toMinorOf.branchLeft_eq_some u x).1 hu,
+      (f.toMinorOf.branchLeft_eq_some v y).1 hv, by simpa using huv⟩
+
+/-- The part of an induced minor model that lies in the right summand. -/
+noncomputable def splitRight (f : A.InducedMinorOf (C ⊕g D)) :
+    (A.induce fun v ↦ !f.toMinorOf.side v).InducedMinorOf D where
+  toMinorOf := f.toMinorOf.splitRight
+  adj_map' x y hne := by
+    rintro ⟨u, v, hu, hv, huv⟩
+    refine f.adj_map (x := x.1) (y := y.1) (fun he ↦ hne (Subtype.ext he)) ?_
+    exact ⟨.inr u, .inr v, (f.toMinorOf.branchRight_eq_some u x).1 hu,
+      (f.toMinorOf.branchRight_eq_some v y).1 hv, by simpa using huv⟩
+
+@[inherit_doc MinorOf.exists_split]
+theorem exists_split {h k c d : CGraph} (f : (h ⊕g k).InducedMinorOf (c ⊕g d)) :
+    ∃ h₁ h₂ k₁ k₂ : CGraph, Nonempty (h ≃cg h₁ ⊕g h₂) ∧ Nonempty (k ≃cg k₁ ⊕g k₂) ∧
+      Nonempty ((h₁ ⊕g k₁).InducedMinorOf c) ∧ Nonempty ((h₂ ⊕g k₂).InducedMinorOf d) :=
+  ⟨h.induce fun v ↦ f.toMinorOf.side (.inl v), h.induce fun v ↦ !f.toMinorOf.side (.inl v),
+    k.induce fun v ↦ f.toMinorOf.side (.inr v), k.induce fun v ↦ !f.toMinorOf.side (.inr v),
+    ⟨Iso.induceSplit h _ fun x y hxy ↦
+      f.toMinorOf.side_eq_of_adj (show (h ⊕g k).Adj (.inl x) (.inl y) from hxy)⟩,
+    ⟨Iso.induceSplit k _ fun x y hxy ↦
+      f.toMinorOf.side_eq_of_adj (show (h ⊕g k).Adj (.inr x) (.inr y) from hxy)⟩,
+    ⟨f.splitLeft.congr (Iso.induceDisjUnion h k f.toMinorOf.side) (RelIso.refl _)⟩,
+    ⟨f.splitRight.congr (Iso.induceDisjUnion h k fun v ↦ !f.toMinorOf.side v) (RelIso.refl _)⟩⟩
+
+end InducedMinorOf
+
+namespace ContractionOf
+
+/-- The part of a contraction that lies in the left summand. -/
+noncomputable def splitLeft (f : A.ContractionOf (C ⊕g D)) :
+    (A.induce f.toMinorOf.side).ContractionOf C where
+  toInducedMinorOf := f.toInducedMinorOf.splitLeft
+  total' w := by
+    rcases hb : f.branch (Sum.inl w) with _ | x
+    · exact absurd (f.total (Sum.inl w)) (by simp [hb])
+    · have hx : f.toMinorOf.side x := (f.toMinorOf.isLeft_eq_side hb).symm
+      exact Option.isSome_of_eq_some
+        ((f.toMinorOf.branchLeft_eq_some w ⟨x, hx⟩).2 hb)
+
+/-- The part of a contraction that lies in the right summand. -/
+noncomputable def splitRight (f : A.ContractionOf (C ⊕g D)) :
+    (A.induce fun v ↦ !f.toMinorOf.side v).ContractionOf D where
+  toInducedMinorOf := f.toInducedMinorOf.splitRight
+  total' w := by
+    rcases hb : f.branch (Sum.inr w) with _ | x
+    · exact absurd (f.total (Sum.inr w)) (by simp [hb])
+    · have hx : !f.toMinorOf.side x := by
+        have := f.toMinorOf.isLeft_eq_side hb
+        simp_all
+      exact Option.isSome_of_eq_some
+        ((f.toMinorOf.branchRight_eq_some w ⟨x, hx⟩).2 hb)
+
+@[inherit_doc MinorOf.exists_split]
+theorem exists_split {h k c d : CGraph} (f : (h ⊕g k).ContractionOf (c ⊕g d)) :
+    ∃ h₁ h₂ k₁ k₂ : CGraph, Nonempty (h ≃cg h₁ ⊕g h₂) ∧ Nonempty (k ≃cg k₁ ⊕g k₂) ∧
+      Nonempty ((h₁ ⊕g k₁).ContractionOf c) ∧ Nonempty ((h₂ ⊕g k₂).ContractionOf d) :=
+  ⟨h.induce fun v ↦ f.toMinorOf.side (.inl v), h.induce fun v ↦ !f.toMinorOf.side (.inl v),
+    k.induce fun v ↦ f.toMinorOf.side (.inr v), k.induce fun v ↦ !f.toMinorOf.side (.inr v),
+    ⟨Iso.induceSplit h _ fun x y hxy ↦
+      f.toMinorOf.side_eq_of_adj (show (h ⊕g k).Adj (.inl x) (.inl y) from hxy)⟩,
+    ⟨Iso.induceSplit k _ fun x y hxy ↦
+      f.toMinorOf.side_eq_of_adj (show (h ⊕g k).Adj (.inr x) (.inr y) from hxy)⟩,
+    ⟨f.splitLeft.congr (Iso.induceDisjUnion h k f.toMinorOf.side) (RelIso.refl _)⟩,
+    ⟨f.splitRight.congr (Iso.induceDisjUnion h k fun v ↦ !f.toMinorOf.side v) (RelIso.refl _)⟩⟩
+
+end ContractionOf
+
+namespace TopMinorOf
+
+/-- Which side of a disjoint union each branch vertex lands on. -/
+def side (f : A.TopMinorOf (C ⊕g D)) (x : A.V) : Bool := (f.toFun x).isLeft
+
+/-- No edge of the pattern crosses the sides: its path would have to. -/
+theorem side_eq_of_adj (f : A.TopMinorOf (C ⊕g D)) {x y : A.V} (h : A.Adj x y) :
+    f.side x = f.side y :=
+  (isLeft_of_mem_support (f.path h) _ (f.path h).end_mem_support).symm
+
+theorem isRight_of_not_side (f : A.TopMinorOf (C ⊕g D)) {v : A.V} (h : !f.side v) :
+    (f.toFun v).isRight := by
+  cases hv : f.toFun v <;> simp_all [side]
+
+/-- The part of a topological minor model that lies in the left summand. -/
+noncomputable def splitLeft (f : A.TopMinorOf (C ⊕g D)) : (A.induce f.side).TopMinorOf C where
+  toFun x := (f.toFun x.1).getLeft x.2
+  injective' x y hxy := by
+    apply Subtype.ext
+    apply f.injective
+    rw [Sum.eq_inl_getLeft (f.toFun x.1) x.2, Sum.eq_inl_getLeft (f.toFun y.1) y.2]
+    exact congrArg Sum.inl hxy
+  path {x y} h := walkLeft (f.path (show A.Adj x.1 y.1 from h)) x.2 y.2
+  isPath' {x y} h := by
+    have hn := (f.isPath' (show A.Adj x.1 y.1 from h)).support_nodup
+    rw [← support_walkLeft (f.path (show A.Adj x.1 y.1 from h)) x.2 y.2] at hn
+    exact SimpleGraph.Walk.isPath_def _ |>.2 (List.Nodup.of_map _ hn)
+  reverse' {x y} h h' := by
+    rw [show f.path (show A.Adj y.1 x.1 from h')
+        = (f.path (show A.Adj x.1 y.1 from h)).reverse from f.reverse' _ _]
+    exact reverse_walkLeft _ x.2 y.2
+  branch' {x y} h z hz := by
+    have hz' : f.toFun z.1 ∈ (f.path (show A.Adj x.1 y.1 from h)).support := by
+      rw [← support_walkLeft (f.path (show A.Adj x.1 y.1 from h)) x.2 y.2,
+        Sum.eq_inl_getLeft (f.toFun z.1) z.2]
+      exact List.mem_map_of_mem (f := Sum.inl) hz
+    rcases f.branch' _ z.1 hz' with hzx | hzy
+    · exact Or.inl (Subtype.ext hzx)
+    · exact Or.inr (Subtype.ext hzy)
+  disjoint' {x y} h {x' y'} h' hne z hz hz' := by
+    have hne' : s(x.1, y.1) ≠ s(x'.1, y'.1) := by
+      rw [Ne, Sym2.eq_iff]
+      rintro (⟨h1, h2⟩ | ⟨h1, h2⟩) <;> refine hne ?_ <;> rw [Sym2.eq_iff]
+      · exact Or.inl ⟨Subtype.ext h1, Subtype.ext h2⟩
+      · exact Or.inr ⟨Subtype.ext h1, Subtype.ext h2⟩
+    have hzl : (Sum.inl z : (C ⊕g D).V) ∈ (f.path (show A.Adj x.1 y.1 from h)).support := by
+      rw [← support_walkLeft (f.path (show A.Adj x.1 y.1 from h)) x.2 y.2]
+      exact List.mem_map_of_mem (f := Sum.inl) hz
+    have hzl' : (Sum.inl z : (C ⊕g D).V) ∈ (f.path (show A.Adj x'.1 y'.1 from h')).support := by
+      rw [← support_walkLeft (f.path (show A.Adj x'.1 y'.1 from h')) x'.2 y'.2]
+      exact List.mem_map_of_mem (f := Sum.inl) hz'
+    obtain ⟨b, hb⟩ := f.disjoint' _ _ hne' _ hzl hzl'
+    have hbside : f.side b := by show (f.toFun b).isLeft = true; rw [← hb]; rfl
+    exact ⟨⟨b, hbside⟩, Sum.inl_injective (hb.trans (Sum.eq_inl_getLeft (f.toFun b) hbside))⟩
+
+/-- The part of a topological minor model that lies in the right summand. -/
+noncomputable def splitRight (f : A.TopMinorOf (C ⊕g D)) :
+    (A.induce fun v ↦ !f.side v).TopMinorOf D where
+  toFun x := (f.toFun x.1).getRight (f.isRight_of_not_side x.2)
+  injective' x y hxy := by
+    apply Subtype.ext
+    apply f.injective
+    rw [Sum.eq_inr_getRight (f.toFun x.1) (f.isRight_of_not_side x.2),
+      Sum.eq_inr_getRight (f.toFun y.1) (f.isRight_of_not_side y.2)]
+    exact congrArg Sum.inr hxy
+  path {x y} h := walkRight (f.path (show A.Adj x.1 y.1 from h))
+    (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)
+  isPath' {x y} h := by
+    have hn := (f.isPath' (show A.Adj x.1 y.1 from h)).support_nodup
+    rw [← support_walkRight (f.path (show A.Adj x.1 y.1 from h))
+      (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)] at hn
+    exact SimpleGraph.Walk.isPath_def _ |>.2 (List.Nodup.of_map _ hn)
+  reverse' {x y} h h' := by
+    rw [show f.path (show A.Adj y.1 x.1 from h')
+        = (f.path (show A.Adj x.1 y.1 from h)).reverse from f.reverse' _ _]
+    exact reverse_walkRight _ (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)
+  branch' {x y} h z hz := by
+    have hz' : f.toFun z.1 ∈ (f.path (show A.Adj x.1 y.1 from h)).support := by
+      rw [← support_walkRight (f.path (show A.Adj x.1 y.1 from h))
+          (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2),
+        Sum.eq_inr_getRight (f.toFun z.1) (f.isRight_of_not_side z.2)]
+      exact List.mem_map_of_mem (f := Sum.inr) hz
+    rcases f.branch' _ z.1 hz' with hzx | hzy
+    · exact Or.inl (Subtype.ext hzx)
+    · exact Or.inr (Subtype.ext hzy)
+  disjoint' {x y} h {x' y'} h' hne z hz hz' := by
+    have hne' : s(x.1, y.1) ≠ s(x'.1, y'.1) := by
+      rw [Ne, Sym2.eq_iff]
+      rintro (⟨h1, h2⟩ | ⟨h1, h2⟩) <;> refine hne ?_ <;> rw [Sym2.eq_iff]
+      · exact Or.inl ⟨Subtype.ext h1, Subtype.ext h2⟩
+      · exact Or.inr ⟨Subtype.ext h1, Subtype.ext h2⟩
+    have hzl : (Sum.inr z : (C ⊕g D).V) ∈ (f.path (show A.Adj x.1 y.1 from h)).support := by
+      rw [← support_walkRight (f.path (show A.Adj x.1 y.1 from h))
+        (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)]
+      exact List.mem_map_of_mem (f := Sum.inr) hz
+    have hzl' : (Sum.inr z : (C ⊕g D).V) ∈ (f.path (show A.Adj x'.1 y'.1 from h')).support := by
+      rw [← support_walkRight (f.path (show A.Adj x'.1 y'.1 from h'))
+        (f.isRight_of_not_side x'.2) (f.isRight_of_not_side y'.2)]
+      exact List.mem_map_of_mem (f := Sum.inr) hz'
+    obtain ⟨b, hb⟩ := f.disjoint' _ _ hne' _ hzl hzl'
+    have hbside : !f.side b := by
+      show (!(f.toFun b).isLeft) = true
+      rw [← hb]; rfl
+    exact ⟨⟨b, hbside⟩,
+      Sum.inr_injective (hb.trans (Sum.eq_inr_getRight (f.toFun b) (f.isRight_of_not_side hbside)))⟩
+
+/-- **A topological minor model of a disjoint union splits into four.** -/
+theorem exists_split {h k c d : CGraph} (f : (h ⊕g k).TopMinorOf (c ⊕g d)) :
+    ∃ h₁ h₂ k₁ k₂ : CGraph, Nonempty (h ≃cg h₁ ⊕g h₂) ∧ Nonempty (k ≃cg k₁ ⊕g k₂) ∧
+      Nonempty ((h₁ ⊕g k₁).TopMinorOf c) ∧ Nonempty ((h₂ ⊕g k₂).TopMinorOf d) :=
+  ⟨h.induce fun v ↦ f.side (.inl v), h.induce fun v ↦ !f.side (.inl v),
+    k.induce fun v ↦ f.side (.inr v), k.induce fun v ↦ !f.side (.inr v),
+    ⟨Iso.induceSplit h _ fun x y hxy ↦
+      f.side_eq_of_adj (show (h ⊕g k).Adj (.inl x) (.inl y) from hxy)⟩,
+    ⟨Iso.induceSplit k _ fun x y hxy ↦
+      f.side_eq_of_adj (show (h ⊕g k).Adj (.inr x) (.inr y) from hxy)⟩,
+    ⟨f.splitLeft.congr (Iso.induceDisjUnion h k f.side) (RelIso.refl _)⟩,
+    ⟨f.splitRight.congr (Iso.induceDisjUnion h k fun v ↦ !f.side v) (RelIso.refl _)⟩⟩
+
+end TopMinorOf
+
+namespace ImmersionOf
+
+/-- Which side of a disjoint union each branch vertex lands on. -/
+def side (f : A.ImmersionOf (C ⊕g D)) (x : A.V) : Bool := (f.toFun x).isLeft
+
+/-- No edge of the pattern crosses the sides: its trail would have to. -/
+theorem side_eq_of_adj (f : A.ImmersionOf (C ⊕g D)) {x y : A.V} (h : A.Adj x y) :
+    f.side x = f.side y :=
+  (isLeft_of_mem_support (f.walk h) _ (f.walk h).end_mem_support).symm
+
+theorem isRight_of_not_side (f : A.ImmersionOf (C ⊕g D)) {v : A.V} (h : !f.side v) :
+    (f.toFun v).isRight := by
+  cases hv : f.toFun v <;> simp_all [side]
+
+/-- The part of an immersion that lies in the left summand. -/
+noncomputable def splitLeft (f : A.ImmersionOf (C ⊕g D)) : (A.induce f.side).ImmersionOf C where
+  toFun x := (f.toFun x.1).getLeft x.2
+  injective' x y hxy := by
+    apply Subtype.ext
+    apply f.injective
+    rw [Sum.eq_inl_getLeft (f.toFun x.1) x.2, Sum.eq_inl_getLeft (f.toFun y.1) y.2]
+    exact congrArg Sum.inl hxy
+  walk {x y} h := walkLeft (f.walk (show A.Adj x.1 y.1 from h)) x.2 y.2
+  isTrail' {x y} h := by
+    have hn := (f.isTrail' (show A.Adj x.1 y.1 from h)).edges_nodup
+    rw [← edges_walkLeft (f.walk (show A.Adj x.1 y.1 from h)) x.2 y.2] at hn
+    exact SimpleGraph.Walk.isTrail_def _ |>.2 (List.Nodup.of_map _ hn)
+  reverse' {x y} h h' := by
+    rw [show f.walk (show A.Adj y.1 x.1 from h')
+        = (f.walk (show A.Adj x.1 y.1 from h)).reverse from f.reverse' _ _]
+    exact reverse_walkLeft _ x.2 y.2
+  edgeDisjoint' {x y} h {x' y'} h' hne e he he' := by
+    have hne' : s(x.1, y.1) ≠ s(x'.1, y'.1) := by
+      rw [Ne, Sym2.eq_iff]
+      rintro (⟨h1, h2⟩ | ⟨h1, h2⟩) <;> refine hne ?_ <;> rw [Sym2.eq_iff]
+      · exact Or.inl ⟨Subtype.ext h1, Subtype.ext h2⟩
+      · exact Or.inr ⟨Subtype.ext h1, Subtype.ext h2⟩
+    refine f.edgeDisjoint' (show A.Adj x.1 y.1 from h) (show A.Adj x'.1 y'.1 from h') hne'
+      (Sym2.map Sum.inl e) ?_ ?_
+    · rw [← edges_walkLeft (f.walk (show A.Adj x.1 y.1 from h)) x.2 y.2]
+      exact List.mem_map_of_mem (f := Sym2.map Sum.inl) he
+    · rw [← edges_walkLeft (f.walk (show A.Adj x'.1 y'.1 from h')) x'.2 y'.2]
+      exact List.mem_map_of_mem (f := Sym2.map Sum.inl) he'
+
+/-- The part of an immersion that lies in the right summand. -/
+noncomputable def splitRight (f : A.ImmersionOf (C ⊕g D)) :
+    (A.induce fun v ↦ !f.side v).ImmersionOf D where
+  toFun x := (f.toFun x.1).getRight (f.isRight_of_not_side x.2)
+  injective' x y hxy := by
+    apply Subtype.ext
+    apply f.injective
+    rw [Sum.eq_inr_getRight (f.toFun x.1) (f.isRight_of_not_side x.2),
+      Sum.eq_inr_getRight (f.toFun y.1) (f.isRight_of_not_side y.2)]
+    exact congrArg Sum.inr hxy
+  walk {x y} h := walkRight (f.walk (show A.Adj x.1 y.1 from h))
+    (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)
+  isTrail' {x y} h := by
+    have hn := (f.isTrail' (show A.Adj x.1 y.1 from h)).edges_nodup
+    rw [← edges_walkRight (f.walk (show A.Adj x.1 y.1 from h))
+      (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)] at hn
+    exact SimpleGraph.Walk.isTrail_def _ |>.2 (List.Nodup.of_map _ hn)
+  reverse' {x y} h h' := by
+    rw [show f.walk (show A.Adj y.1 x.1 from h')
+        = (f.walk (show A.Adj x.1 y.1 from h)).reverse from f.reverse' _ _]
+    exact reverse_walkRight _ (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)
+  edgeDisjoint' {x y} h {x' y'} h' hne e he he' := by
+    have hne' : s(x.1, y.1) ≠ s(x'.1, y'.1) := by
+      rw [Ne, Sym2.eq_iff]
+      rintro (⟨h1, h2⟩ | ⟨h1, h2⟩) <;> refine hne ?_ <;> rw [Sym2.eq_iff]
+      · exact Or.inl ⟨Subtype.ext h1, Subtype.ext h2⟩
+      · exact Or.inr ⟨Subtype.ext h1, Subtype.ext h2⟩
+    refine f.edgeDisjoint' (show A.Adj x.1 y.1 from h) (show A.Adj x'.1 y'.1 from h') hne'
+      (Sym2.map Sum.inr e) ?_ ?_
+    · rw [← edges_walkRight (f.walk (show A.Adj x.1 y.1 from h))
+        (f.isRight_of_not_side x.2) (f.isRight_of_not_side y.2)]
+      exact List.mem_map_of_mem (f := Sym2.map Sum.inr) he
+    · rw [← edges_walkRight (f.walk (show A.Adj x'.1 y'.1 from h'))
+        (f.isRight_of_not_side x'.2) (f.isRight_of_not_side y'.2)]
+      exact List.mem_map_of_mem (f := Sym2.map Sum.inr) he'
+
+/-- **An immersion of a disjoint union splits into four.** -/
+theorem exists_split {h k c d : CGraph} (f : (h ⊕g k).ImmersionOf (c ⊕g d)) :
+    ∃ h₁ h₂ k₁ k₂ : CGraph, Nonempty (h ≃cg h₁ ⊕g h₂) ∧ Nonempty (k ≃cg k₁ ⊕g k₂) ∧
+      Nonempty ((h₁ ⊕g k₁).ImmersionOf c) ∧ Nonempty ((h₂ ⊕g k₂).ImmersionOf d) :=
+  ⟨h.induce fun v ↦ f.side (.inl v), h.induce fun v ↦ !f.side (.inl v),
+    k.induce fun v ↦ f.side (.inr v), k.induce fun v ↦ !f.side (.inr v),
+    ⟨Iso.induceSplit h _ fun x y hxy ↦
+      f.side_eq_of_adj (show (h ⊕g k).Adj (.inl x) (.inl y) from hxy)⟩,
+    ⟨Iso.induceSplit k _ fun x y hxy ↦
+      f.side_eq_of_adj (show (h ⊕g k).Adj (.inr x) (.inr y) from hxy)⟩,
+    ⟨f.splitLeft.congr (Iso.induceDisjUnion h k f.side) (RelIso.refl _)⟩,
+    ⟨f.splitRight.congr (Iso.induceDisjUnion h k fun v ↦ !f.side v) (RelIso.refl _)⟩⟩
+
+end ImmersionOf
+
+end Minors
+
 end CGraph
 
 /-! ## On isomorphism classes -/
@@ -263,6 +908,91 @@ theorem IsInducedSubgraphOf.exists_split_disjUnion {H K C D : IsoGraph} (hf : H 
     by rw [disjUnion_mk]; exact Quotient.sound ik,
     by rw [disjUnion_mk, isInducedSubgraphOf_mk]; exact fc,
     by rw [disjUnion_mk, isInducedSubgraphOf_mk]; exact fd⟩
+
+@[inherit_doc IsSubgraphOf.exists_split_disjUnion]
+theorem IsMinorOf.exists_split_disjUnion {H K C D : IsoGraph} (hf : H ⊕g K ≤ₘ C ⊕g D) :
+    ∃ H₁ H₂ K₁ K₂ : IsoGraph, H = H₁ ⊕g H₂ ∧ K = K₁ ⊕g K₂ ∧
+      H₁ ⊕g K₁ ≤ₘ C ∧ H₂ ⊕g K₂ ≤ₘ D := by
+  revert hf
+  refine Quotient.inductionOn₂ H K ?_
+  intro h k
+  refine Quotient.inductionOn₂ C D ?_
+  rintro c d hf
+  rw [disjUnion_mk, disjUnion_mk, isMinorOf_mk] at hf
+  obtain ⟨f⟩ := hf
+  obtain ⟨h₁, h₂, k₁, k₂, ih, ik, fc, fd⟩ := f.exists_split
+  exact ⟨⟦h₁⟧, ⟦h₂⟧, ⟦k₁⟧, ⟦k₂⟧, by rw [disjUnion_mk]; exact Quotient.sound ih,
+    by rw [disjUnion_mk]; exact Quotient.sound ik,
+    by rw [disjUnion_mk, isMinorOf_mk]; exact fc,
+    by rw [disjUnion_mk, isMinorOf_mk]; exact fd⟩
+
+@[inherit_doc IsSubgraphOf.exists_split_disjUnion]
+theorem IsInducedMinorOf.exists_split_disjUnion {H K C D : IsoGraph} (hf : H ⊕g K ≤ᵢₘ C ⊕g D) :
+    ∃ H₁ H₂ K₁ K₂ : IsoGraph, H = H₁ ⊕g H₂ ∧ K = K₁ ⊕g K₂ ∧
+      H₁ ⊕g K₁ ≤ᵢₘ C ∧ H₂ ⊕g K₂ ≤ᵢₘ D := by
+  revert hf
+  refine Quotient.inductionOn₂ H K ?_
+  intro h k
+  refine Quotient.inductionOn₂ C D ?_
+  rintro c d hf
+  rw [disjUnion_mk, disjUnion_mk, isInducedMinorOf_mk] at hf
+  obtain ⟨f⟩ := hf
+  obtain ⟨h₁, h₂, k₁, k₂, ih, ik, fc, fd⟩ := f.exists_split
+  exact ⟨⟦h₁⟧, ⟦h₂⟧, ⟦k₁⟧, ⟦k₂⟧, by rw [disjUnion_mk]; exact Quotient.sound ih,
+    by rw [disjUnion_mk]; exact Quotient.sound ik,
+    by rw [disjUnion_mk, isInducedMinorOf_mk]; exact fc,
+    by rw [disjUnion_mk, isInducedMinorOf_mk]; exact fd⟩
+
+@[inherit_doc IsSubgraphOf.exists_split_disjUnion]
+theorem IsContractionOf.exists_split_disjUnion {H K C D : IsoGraph} (hf : H ⊕g K ≤ₚ C ⊕g D) :
+    ∃ H₁ H₂ K₁ K₂ : IsoGraph, H = H₁ ⊕g H₂ ∧ K = K₁ ⊕g K₂ ∧
+      H₁ ⊕g K₁ ≤ₚ C ∧ H₂ ⊕g K₂ ≤ₚ D := by
+  revert hf
+  refine Quotient.inductionOn₂ H K ?_
+  intro h k
+  refine Quotient.inductionOn₂ C D ?_
+  rintro c d hf
+  rw [disjUnion_mk, disjUnion_mk, isContractionOf_mk] at hf
+  obtain ⟨f⟩ := hf
+  obtain ⟨h₁, h₂, k₁, k₂, ih, ik, fc, fd⟩ := f.exists_split
+  exact ⟨⟦h₁⟧, ⟦h₂⟧, ⟦k₁⟧, ⟦k₂⟧, by rw [disjUnion_mk]; exact Quotient.sound ih,
+    by rw [disjUnion_mk]; exact Quotient.sound ik,
+    by rw [disjUnion_mk, isContractionOf_mk]; exact fc,
+    by rw [disjUnion_mk, isContractionOf_mk]; exact fd⟩
+
+@[inherit_doc IsSubgraphOf.exists_split_disjUnion]
+theorem IsTopMinorOf.exists_split_disjUnion {H K C D : IsoGraph} (hf : H ⊕g K ≤ₜₘ C ⊕g D) :
+    ∃ H₁ H₂ K₁ K₂ : IsoGraph, H = H₁ ⊕g H₂ ∧ K = K₁ ⊕g K₂ ∧
+      H₁ ⊕g K₁ ≤ₜₘ C ∧ H₂ ⊕g K₂ ≤ₜₘ D := by
+  revert hf
+  refine Quotient.inductionOn₂ H K ?_
+  intro h k
+  refine Quotient.inductionOn₂ C D ?_
+  rintro c d hf
+  rw [disjUnion_mk, disjUnion_mk, isTopMinorOf_mk] at hf
+  obtain ⟨f⟩ := hf
+  obtain ⟨h₁, h₂, k₁, k₂, ih, ik, fc, fd⟩ := f.exists_split
+  exact ⟨⟦h₁⟧, ⟦h₂⟧, ⟦k₁⟧, ⟦k₂⟧, by rw [disjUnion_mk]; exact Quotient.sound ih,
+    by rw [disjUnion_mk]; exact Quotient.sound ik,
+    by rw [disjUnion_mk, isTopMinorOf_mk]; exact fc,
+    by rw [disjUnion_mk, isTopMinorOf_mk]; exact fd⟩
+
+@[inherit_doc IsSubgraphOf.exists_split_disjUnion]
+theorem IsImmersionMinorOf.exists_split_disjUnion {H K C D : IsoGraph} (hf : H ⊕g K ≤ₑ C ⊕g D) :
+    ∃ H₁ H₂ K₁ K₂ : IsoGraph, H = H₁ ⊕g H₂ ∧ K = K₁ ⊕g K₂ ∧
+      H₁ ⊕g K₁ ≤ₑ C ∧ H₂ ⊕g K₂ ≤ₑ D := by
+  revert hf
+  refine Quotient.inductionOn₂ H K ?_
+  intro h k
+  refine Quotient.inductionOn₂ C D ?_
+  rintro c d hf
+  rw [disjUnion_mk, disjUnion_mk, isImmersionMinorOf_mk] at hf
+  obtain ⟨f⟩ := hf
+  obtain ⟨h₁, h₂, k₁, k₂, ih, ik, fc, fd⟩ := f.exists_split
+  exact ⟨⟦h₁⟧, ⟦h₂⟧, ⟦k₁⟧, ⟦k₂⟧, by rw [disjUnion_mk]; exact Quotient.sound ih,
+    by rw [disjUnion_mk]; exact Quotient.sound ik,
+    by rw [disjUnion_mk, isImmersionMinorOf_mk]; exact fc,
+    by rw [disjUnion_mk, isImmersionMinorOf_mk]; exact fd⟩
 
 @[inherit_doc CGraph.InducedSubgraphOf.compl]
 theorem IsInducedSubgraphOf.compl {H G : IsoGraph} (h : H ≤ᵢₛ G) : Hᶜ ≤ᵢₛ Gᶜ := by
