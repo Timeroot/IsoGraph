@@ -88,6 +88,9 @@ def apiInd (H G : CGraph) : String :=
 def apiMinor (H G : CGraph) : String :=
   match H.minorOf? G with | some _ => "found" | none => "none "
 
+def apiIndMinor (H G : CGraph) : String :=
+  match H.inducedMinorOf? G with | some _ => "found" | none => "none "
+
 def apiCon (H G : CGraph) : String :=
   match H.contractionOf? G with | some _ => "found" | none => "none "
 
@@ -109,6 +112,11 @@ def reportInd (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
 
 def reportSub (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
   match findSubgraph H G rH rG with
+  | some _ => "found"
+  | none => "none "
+
+def reportIndMinor (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
+  match findInducedMinor H G rH rG with
   | some _ => "found"
   | none => "none "
 
@@ -390,6 +398,17 @@ def main (args : List String) : IO Unit := do
     duel r s!"K{m} ≼ tutte"
       [("raw   ", fun _ => report (complete m) G (Roster.enum _) (Roster.enum _)),
        ("entry ", fun _ => apiMinor (complete m) G)]
+  | "api-indminor" =>
+    let m := size 2 4
+    let G := hostOfEdges r 46 tutteEdges
+    let shape := (args[3]?).getD "cycle"
+    let H := match shape with
+      | "complete" => complete m
+      | "petersen" => hostOfEdges r 10 (gpEdges 5 2)
+      | _ => cycle m
+    duel r s!"{shape} {m} induced minor of tutte"
+      [("raw   ", fun _ => reportIndMinor H G (Roster.enum _) (Roster.enum _)),
+       ("entry ", fun _ => apiIndMinor H G)]
   | "api-con" =>
     let m := size 2 4
     let G := hostOfEdges r 46 tutteEdges
@@ -431,5 +450,5 @@ def main (args : List String) : IO Unit := do
     IO.println "         kneser-enum, kneser-enum-canon"
     IO.println "finenum: fe-fin, fe-prod, fe-sum, fe-subtype"
     IO.println "entry:   api-aut, api-order, api-vt, api-sub, api-sub-kneser, api-minor, api-con,"
-    IO.println "         api-con-self, api-hom, api-quot"
+    IO.println "         api-con-self, api-hom, api-quot, api-indminor"
     IO.println "cache:   degsum"

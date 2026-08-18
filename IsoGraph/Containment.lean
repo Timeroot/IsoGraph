@@ -41,7 +41,8 @@ pruning is discharged by a single implication, so making a search cleverer canno
 `Algorithms/Embedding.lean` searches for an injection of the pattern into the host and is run two
 ways, by `Algorithms/Subgraph.lean` and `Algorithms/InducedSubgraph.lean`, which differ only in
 whether a non-edge of the pattern has to stay a non-edge; `Algorithms/Minor.lean` is the minor
-relation, whose search builds the branch sets in an order that keeps them connected as it goes.
+relation, whose search builds the branch sets in an order that keeps them connected as it goes, and
+is run twice over: with its induced test switched on it decides the induced minor relation too.
 `Algorithms/Contraction.lean` runs the opposite way round, labelling every vertex of the host with
 the block it goes into, because a contraction may throw nothing away.  `Algorithms/Hom.lean` drops
 injectivity altogether, which decides both the homomorphism order — `k`-colourability, against
@@ -49,9 +50,9 @@ injectivity altogether, which decides both the homomorphism order — `k`-colour
 the classes of interchangeable vertices of the pattern, so that no search looks at a solution and
 its relabellings.
 
-`Algorithms/Cached.lean` is the layer to call.  Each of the six searches there runs on adjacency
+`Algorithms/Cached.lean` is the layer to call.  Each of the seven searches there runs on adjacency
 matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of
 magnitude on anything out of the gallery, and transports the answer back.
 
-Three relations still have no search: **induced minor**, **topological minor** and **immersion**.
+Two relations still have no search: **topological minor** and **immersion**.
 -/

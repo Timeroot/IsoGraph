@@ -12,6 +12,9 @@ succeeds it returns the witness itself, an `H.MinorOf G`, and when it fails,
 `isEmpty_minorOf_of_findMinor_eq_none` says there was nothing to find.  `rH` and `rG` are
 `Backtrack.Roster`s; for a graph on `Fin n`, `Backtrack.Roster.fin n` is the one to use.
 
+`CGraph.findInducedMinor` is the same search asked for an *induced* minor; see "The induced minor"
+below.
+
 ## What is searched over
 
 A minor is a partial map `G.V → Option H.V` with connected fibres, so the naive search would be
@@ -122,6 +125,29 @@ clear the same floor, and the search therefore also applies `symOk` to the singl
 `pick`.  That turns the rule from one that rejects a set after building it into one that refuses
 to seed it, which is most of what it is worth.
 
+## The induced minor
+
+`CGraph.findInducedMinor` is the same state machine with one flag flipped.  An induced minor asks
+for the converse of the edge condition as well: an edge of `G` between two branch sets must have an
+edge of `H` above it.  As a test on a finished model that is one more pass over the pairs — the
+last conjunct of `MinorSearch.finalOk`, guarded by `ind` — but as a *search* that would be no use,
+because an induced minor is a much rarer thing than a minor and filtering at the end means
+enumerating every model of `H` first.
+
+So the condition is also checked at every `pick`, by `MinorSearch.indPick`: a vertex joining the
+set of `x` may not be adjacent to a *finished* set whose vertex of `H` is not adjacent to `x`.
+Every unordered pair of sets is covered, because the later of the two is built while the earlier is
+already in `done`.  With `ind = false` `indPick` is constantly true and this is the plain minor
+search, which is why one state machine serves both and none of the pruning proofs, the canonical
+pick order or the symmetry breaking is duplicated.
+
+Both reductions above survive the extra condition.  Peeling to the two-core only drops vertices
+from a model — `CGraph.exists_model_erase` returns that the model it hands back is a restriction of
+the one it was given — and dropping vertices cannot put an edge between two branch sets, which is
+`CGraph.InducedMinorOf.restrict`.  The symmetry breaking relabels a model along an automorphism of
+`H`, and an automorphism carries non-edges to non-edges too
+(`CGraph.InducedMinorOf.exists_reindex`).
+
 ## What it costs
 
 The search is exponential — the problem is NP-hard — and what it costs depends much more on the
@@ -143,6 +169,13 @@ is worth a further 1.6 and 1.3 (14.7 s → 9.0 s and 84 s → 66 s, interleaved 
 On a host where a model exists none of it makes a measurable difference either way.  (The numbers
 above are from one idle machine running `MinorBench`; this one is shared, and the same binary has
 been seen to vary fourfold with load, so treat them as ratios rather than absolutes.)
+
+The induced search costs what the plain one does when there is a model, because `indPick` rejects
+at a `pick` the sets the final test would otherwise have thrown away at the end: `K4` as an induced
+minor of the 30-vertex Tutte–Coxeter graph takes 18 ms against 19 ms for the plain minor, and `C4`
+7 ms (`CacheBench`, cases `api-indminor` and `api-minor`, best of three interleaved rounds).  When
+there is no model it is the same expensive direction as before: `K5` in that host gives no answer
+in ten minutes — nor, for that matter, does the plain minor search for it in five.
 -/
 
 set_option autoImplicit false
@@ -592,19 +625,23 @@ variable {H : CGraph}
 /-- **A vertex with at most one neighbour left is of no use.**  If every vertex of `H` has two
 neighbours, then a model of `H` inside `gs` can be pushed off any vertex `v` of pool-degree at
 most one: `v`'s branch set, if it has one, has another vertex, so `v` is a leaf of it and no edge
-of `H` runs through `v`. -/
+of `H` runs through `v`.
+
+The model that comes back is the one that went in, with `v` dropped — that is the second
+conclusion, and it is what carries the induced condition through the reduction. -/
 theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = true ∧ H.Adj x z = true)
     (f : H.MinorOf G) {gs : List G.V}
     (hsupp : ∀ (w : G.V) (x : H.V), f.branch w = some x → w ∈ gs)
     {v : G.V} (hv : gs.countP (G.Adj v) ≤ 1) :
-    ∃ g : H.MinorOf G, ∀ (w : G.V) (x : H.V), g.branch w = some x → w ∈ gs.erase v := by
+    ∃ g : H.MinorOf G, (∀ (w : G.V) (x : H.V), g.branch w = some x → w ∈ gs.erase v) ∧
+      ∀ (w : G.V) (x : H.V), g.branch w = some x → f.branch w = some x := by
   have huniq : ∀ w ∈ gs, ∀ w' ∈ gs, G.Adj v w = true → G.Adj v w' = true → w = w' := by
     intro w hw w' hw' hvw hvw'
     by_contra hne
     exact absurd hv (by have := two_le_countP hne hw hw' hvw hvw'; omega)
   cases hbv : f.branch v with
   | none =>
-    refine ⟨f, fun w x hw ↦ ?_⟩
+    refine ⟨f, fun w x hw ↦ ?_, fun _ _ h ↦ h⟩
     have hwv : w ≠ v := by rintro rfl; rw [hbv] at hw; exact absurd hw (by simp)
     exact (List.mem_erase_of_ne hwv).mpr (hsupp w x hw)
   | some x =>
@@ -650,8 +687,14 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
       intro w
       rw [List.mem_filter, hlmem]
       simp [Set.mem_setOf_eq]
+    have hres : ∀ (w : G.V) (x' : H.V), (if w = v then none else f.branch w) = some x' →
+        f.branch w = some x' := by
+      intro w x' hw
+      by_cases hwv : w = v
+      · simp only [if_pos hwv] at hw; exact absurd hw (by simp)
+      · simpa only [if_neg hwv] using hw
     refine ⟨⟨fun w ↦ if w = v then none else f.branch w, fun x' ↦ ?_, fun x₁ x₂ hadj ↦ ?_⟩,
-      fun w x' hw ↦ ?_⟩
+      fun w x' hw ↦ ?_, hres⟩
     · by_cases hx' : x' = x
       · subst hx'
         have hset : {w : G.V | (if w = v then none else f.branch w) = some x'} =
@@ -693,27 +736,38 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
         subst this
         exact hne (Option.some_inj.mp (ha.symm.trans hus))
       exact ⟨a, b, by simp only [if_neg hav]; exact ha, by simp only [if_neg hbv']; exact hb, hab⟩
-    · by_cases hwv : w = v
-      · simp only [if_pos hwv] at hw; exact absurd hw (by simp)
-      · simp only [if_neg hwv] at hw
-        exact (List.mem_erase_of_ne hwv).mpr (hsupp w x' hw)
+    · have hwv : w ≠ v := by rintro rfl; simp at hw
+      exact (List.mem_erase_of_ne hwv).mpr (hsupp w x' (hres w x' hw))
 
 /-- **Peeling loses no model**: if every vertex of `H` has two neighbours, a model of `H` inside
 `gs` can be moved into the two-core of `gs`. -/
 theorem exists_model_twoCore (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = true ∧ H.Adj x z = true) :
     ∀ (n : ℕ) {gs : List G.V} (f : H.MinorOf G),
       (∀ (w : G.V) (x : H.V), f.branch w = some x → w ∈ gs) →
-      ∃ g : H.MinorOf G, ∀ (w : G.V) (x : H.V), g.branch w = some x → w ∈ twoCore G n gs
-  | 0, _, f, hsupp => ⟨f, hsupp⟩
+      ∃ g : H.MinorOf G, (∀ (w : G.V) (x : H.V), g.branch w = some x → w ∈ twoCore G n gs) ∧
+        ∀ (w : G.V) (x : H.V), g.branch w = some x → f.branch w = some x
+  | 0, _, f, hsupp => ⟨f, hsupp, fun _ _ h ↦ h⟩
   | n + 1, gs, f, hsupp => by
     rw [twoCore]
     cases hlow : lowDeg G gs with
-    | none => exact ⟨f, hsupp⟩
+    | none => exact ⟨f, hsupp, fun _ _ h ↦ h⟩
     | some v =>
       have hv : gs.countP (G.Adj v) ≤ 1 := by
         simpa using (List.find?_eq_some_iff_getElem.mp hlow).1
-      obtain ⟨g, hg⟩ := exists_model_erase hH f hsupp hv
-      exact exists_model_twoCore hH n g hg
+      obtain ⟨g, hg, hgf⟩ := exists_model_erase hH f hsupp hv
+      obtain ⟨k, hk, hkg⟩ := exists_model_twoCore hH n g hg
+      exact ⟨k, hk, fun w x h ↦ hgf w x (hkg w x h)⟩
+
+/-- **Restricting an induced model keeps it induced.**  Both reductions above hand back the model
+they were given with vertices dropped, and dropping a vertex can only remove edges between branch
+sets, so an induced minor survives them. -/
+def InducedMinorOf.restrict (f : H.InducedMinorOf G) (g : H.MinorOf G)
+    (h : ∀ (w : G.V) (x : H.V), g.branch w = some x → f.branch w = some x) :
+    H.InducedMinorOf G where
+  toMinorOf := g
+  adj_map' x y hxy := by
+    rintro ⟨u, w, hu, hw, huw⟩
+    exact f.adj_map hxy ⟨u, w, h u x hu, h w y hw, huw⟩
 
 /-- Does every vertex of `H` have two neighbours?  This is the side condition on `H` that lets the
 host be shrunk to its two-core. -/
@@ -821,6 +875,18 @@ theorem MinorOf.exists_reindex (f : H.MinorOf G) {σ : H.V → H.V} (hinj : Func
   · obtain ⟨u, w, hu, hw, huw⟩ := f.map_adj (show H.Adj (σ x) (σ y) = true by rw [hadj]; exact hxy)
     exact ⟨u, w, (hkey u x).mpr hu, (hkey w y).mpr hw, huw⟩
 
+/-- **Relabelling an induced model along an automorphism**, which is the same relabelling: an
+automorphism carries non-edges to non-edges too. -/
+theorem InducedMinorOf.exists_reindex (f : H.InducedMinorOf G) {σ : H.V → H.V}
+    (hinj : Function.Injective σ) (hadj : ∀ x y, H.Adj (σ x) (σ y) = H.Adj x y) :
+    ∃ g : H.InducedMinorOf G,
+      ∀ (v : G.V) (x : H.V), g.branch v = some x ↔ f.branch v = some (σ x) := by
+  obtain ⟨g, hg⟩ := MinorOf.exists_reindex f.toMinorOf hinj hadj
+  refine ⟨⟨g, fun x y hxy ↦ ?_⟩, hg⟩
+  rintro ⟨u, w, hu, hw, huw⟩
+  rw [← hadj]
+  exact f.adj_map (fun e ↦ hxy (hinj e)) ⟨u, w, (hg u x).mp hu, (hg w y).mp hw, huw⟩
+
 /-- The least rank in `x`'s branch set, read off a branch map. -/
 def modelMin (br : G.V → Option H.V) (rank : G.V → ℕ) (gs : List G.V) (x : H.V) : ℕ :=
   minRank rank (gs.filter fun v ↦ decide (br v = some x))
@@ -901,7 +967,7 @@ end Symmetry
 
 namespace MinorSearch
 
-variable (H G : CGraph) (rank : G.V → ℕ) (pairs : List (H.V × H.V))
+variable (H G : CGraph) (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (ind : Bool)
 
 /-- A step of the search. -/
 inductive Move (G : CGraph) where
@@ -944,6 +1010,19 @@ def feasibleSeed (x : H.V) (v : G.V) (rest : List H.V) (done : List (H.V × List
     (let R := seedReach G v avail
      need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
 
+/-- The induced condition as the search meets it, one vertex at a time.  A vertex `v` joining the
+set of `x` must not be next to a *finished* set whose vertex of `H` is not adjacent to `x`, since
+that edge of `G` would be an edge between two branch sets with no edge of `H` above it.
+
+Checking it at every `pick` rather than once at the end is the whole point: an induced minor is a
+much rarer thing than a minor, and a search that only filtered at the end would enumerate every
+model of `H` before rejecting them.  Every unordered pair of branch sets is covered, because the
+later of the two is built while the earlier one is already in `done`.
+
+With `ind = false` this is the constant `true` and the search is the plain minor search. -/
+def indPick (ind : Bool) (x : H.V) (v : G.V) (done : List (H.V × List G.V)) : Bool :=
+  !ind || done.all fun q ↦ H.Adj x q.1 || !q.2.any (G.Adj v)
+
 /-- Make a move, or report that it is illegal. -/
 def step (m : Move G) (st : State H G) : Option (State H G) :=
   match m with
@@ -955,7 +1034,7 @@ def step (m : Move G) (st : State H G) : Option (State H G) :=
         if (u :: T).any (G.Adj v) &&
             (!attOf H G x st.done v || decide (rank (T.getLastD u) ≤ rank v)) &&
             (decide (rank u ≤ rank v) || !T.any (G.Adj v)) &&
-            symOk rank pairs x [v] st.done then
+            symOk rank pairs x [v] st.done && indPick H G ind x v st.done then
           some ⟨st.todo, some (x, v :: u :: T), st.done, st.avail.erase v⟩
         else none
       | none =>
@@ -963,7 +1042,7 @@ def step (m : Move G) (st : State H G) : Option (State H G) :=
         | [] => none
         | x :: rest =>
           if attOf H G x st.done v && feasibleSeed H G x v rest st.done st.avail &&
-              symOk rank pairs x [v] st.done then
+              symOk rank pairs x [v] st.done && indPick H G ind x v st.done then
             some ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩
           else none
     else none
@@ -980,10 +1059,11 @@ def step (m : Move G) (st : State H G) : Option (State H G) :=
 
 /-- The states one legal move away. -/
 def candList (st : State H G) : List (State H G) :=
-  (step H G rank pairs .stop st).toList ++ st.avail.filterMap fun v ↦ step H G rank pairs (.pick v) st
+  (step H G rank pairs ind .stop st).toList ++
+    st.avail.filterMap fun v ↦ step H G rank pairs ind (.pick v) st
 
-theorem mem_candList {m : Move G} {st st' : State H G} (h : step H G rank pairs m st = some st') :
-    st' ∈ candList H G rank pairs st := by
+theorem mem_candList {m : Move G} {st st' : State H G}
+    (h : step H G rank pairs ind m st = some st') : st' ∈ candList H G rank pairs ind st := by
   cases m with
   | stop => exact List.mem_append_left _ (by rw [h]; exact List.mem_singleton_self _)
   | pick v =>
@@ -1001,10 +1081,12 @@ def headSt (init : State H G) : List (Unit × State H G) → State H G
 /-- Every state in the list follows from the one before by a legal move. -/
 def chainOk (init : State H G) : List (Unit × State H G) → Bool
   | [] => true
-  | (_, st) :: rest => (candList H G rank pairs (headSt H G init rest)).contains st && chainOk init rest
+  | (_, st) :: rest =>
+    (candList H G rank pairs ind (headSt H G init rest)).contains st && chainOk init rest
 
 theorem chainOk_of_append {init : State H G} {l r : List (Unit × State H G)}
-    (h : chainOk H G rank pairs init (l ++ r) = true) : chainOk H G rank pairs init r = true := by
+    (h : chainOk H G rank pairs ind init (l ++ r) = true) :
+    chainOk H G rank pairs ind init r = true := by
   induction l with
   | nil => exact h
   | cons p l ih =>
@@ -1022,20 +1104,22 @@ def branchOf : List (H.V × List G.V) → G.V → Option H.V
   | [], _ => none
   | (y, S) :: rest, v => if S.contains v then some y else branchOf rest v
 
-/-- Does the state describe a minor?  Everything the answer needs is checked here, so the search
-itself is free to prune as it likes. -/
+/-- Does the state describe a minor — an *induced* one when `ind`?  Everything the answer needs is
+checked here, so the search itself is free to prune as it likes. -/
 def finalOk (hs : List H.V) (st : State H G) : Bool :=
   st.cur.isNone && st.todo.isEmpty &&
     decide (st.done.map Prod.fst).Nodup && decide (st.done.flatMap Prod.snd).Nodup &&
     hs.all (fun x ↦ (st.done.map Prod.fst).contains x) &&
     st.done.all (fun p ↦ ChainConn G p.2) &&
-    hs.all fun x ↦ hs.all fun y ↦
-      !H.Adj x y || linked G (getSet H G st.done x) (getSet H G st.done y)
+    (hs.all fun x ↦ hs.all fun y ↦
+      !H.Adj x y || linked G (getSet H G st.done x) (getSet H G st.done y)) &&
+    (!ind || hs.all fun x ↦ hs.all fun y ↦
+      decide (x = y) || H.Adj x y || !linked G (getSet H G st.done x) (getSet H G st.done y))
 
 /-- A complete run of the search is a solution when every move was legal and the state it ends in
 describes a minor. -/
 def goal (hs : List H.V) (init : State H G) (r : List (Unit × State H G)) : Bool :=
-  chainOk H G rank pairs init r && finalOk H G hs (headSt H G init r)
+  chainOk H G rank pairs ind init r && finalOk H G ind hs (headSt H G init r)
 
 /-! ## Soundness -/
 
@@ -1104,26 +1188,62 @@ theorem branchOf_eq_some_iff {bs : List (H.V × List G.V)} (hk : (bs.map Prod.fs
       · rw [if_neg hvS]
         exact ih hk.2 hf.2.1
 
-/-- The minor that a successful search describes. -/
-def ofFinal (hs : List H.V) (st : State H G) (hcov : ∀ x : H.V, x ∈ hs)
-    (h : finalOk H G hs st = true) : H.MinorOf G := by
+/-- What a finished state says, unpacked: distinct keys, disjoint sets, every vertex of `H`
+placed, every branch set connected, and every edge of `H` realised. -/
+theorem finalOk_parts {hs : List H.V} {st : State H G} (h : finalOk H G ind hs st = true) :
+    (st.done.map Prod.fst).Nodup ∧ (st.done.flatMap Prod.snd).Nodup ∧
+      (∀ x ∈ hs, (st.done.map Prod.fst).contains x = true) ∧
+      (∀ p ∈ st.done, ChainConn G p.2 = true) ∧
+      ∀ x ∈ hs, ∀ y ∈ hs, H.Adj x y = true →
+        linked G (getSet H G st.done x) (getSet H G st.done y) = true := by
   rw [finalOk] at h
   simp only [Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true, Bool.or_eq_true,
     Bool.not_eq_eq_eq_not, Bool.not_true] at h
-  obtain ⟨⟨⟨⟨⟨⟨-, -⟩, hkey⟩, hflat⟩, hmem⟩, hconn⟩, hedge⟩ := h
-  have hiff : ∀ (v : G.V) (x : H.V), branchOf H G st.done v = some x ↔ v ∈ getSet H G st.done x :=
-    fun _ _ ↦ branchOf_eq_some_iff H G hkey hflat
-  refine ⟨branchOf H G st.done, fun x ↦ ?_, fun x y hxy ↦ ?_⟩
-  · rw [show {v : G.V | branchOf H G st.done v = some x} = {v | v ∈ getSet H G st.done x} from
-      Set.ext fun v ↦ hiff v x]
+  obtain ⟨⟨⟨⟨⟨⟨⟨-, -⟩, hkey⟩, hflat⟩, hmem⟩, hconn⟩, hedge⟩, -⟩ := h
+  exact ⟨hkey, hflat, hmem, hconn,
+    fun x hx y hy hxy ↦ (hedge x hx y hy).resolve_left (by simp [hxy])⟩
+
+/-- The minor that a successful search describes.  The branch map is `branchOf` itself, so that
+`ofFinalInd` can read the induced condition off the same table. -/
+def ofFinal (hs : List H.V) (st : State H G) (hcov : ∀ x : H.V, x ∈ hs)
+    (h : finalOk H G ind hs st = true) : H.MinorOf G where
+  branch := branchOf H G st.done
+  connectedOn' x := by
+    obtain ⟨hkey, hflat, hmem, hconn, -⟩ := finalOk_parts H G ind h
+    rw [show {v : G.V | branchOf H G st.done v = some x} = {v | v ∈ getSet H G st.done x} from
+      Set.ext fun v ↦ branchOf_eq_some_iff H G hkey hflat]
     exact connectedOn_of_chainConn
       (hconn _ (mem_getSet H G (List.contains_iff_mem.mp (hmem x (hcov x)))))
-  · have := (hedge x (hcov x) y (hcov y)).resolve_left (by simp [hxy])
-    rw [linked, List.any_eq_true] at this
-    obtain ⟨u, hu, hw⟩ := this
-    rw [List.any_eq_true] at hw
-    obtain ⟨w, hw, huw⟩ := hw
-    exact ⟨u, w, (hiff u x).mpr hu, (hiff w y).mpr hw, huw⟩
+  map_adj' x y hxy := by
+    obtain ⟨hkey, hflat, -, -, hedge⟩ := finalOk_parts H G ind h
+    obtain ⟨u, hu, w, hw, huw⟩ := linked_iff.mp (hedge x (hcov x) y (hcov y) hxy)
+    exact ⟨u, w, (branchOf_eq_some_iff H G hkey hflat).mpr hu,
+      (branchOf_eq_some_iff H G hkey hflat).mpr hw, huw⟩
+
+/-- The induced half of `finalOk`: an edge between two different branch sets is an edge of `H`. -/
+theorem adj_of_finalOk {hs : List H.V} {st : State H G} (h : finalOk H G true hs st = true)
+    {x y : H.V} (hx : x ∈ hs) (hy : y ∈ hs) (hxy : x ≠ y)
+    (hlink : linked G (getSet H G st.done x) (getSet H G st.done y) = true) : H.Adj x y = true := by
+  rw [finalOk] at h
+  simp only [Bool.and_eq_true, List.all_eq_true, Bool.or_eq_true, Bool.not_eq_eq_eq_not,
+    Bool.not_true, decide_eq_true_eq] at h
+  rcases h.2 with he | he
+  · exact absurd he (by simp)
+  · rcases he x hx y hy with (h1 | h1) | h1
+    · exact absurd h1 hxy
+    · exact h1
+    · exact absurd hlink (by simp [h1])
+
+/-- The induced minor that a successful induced search describes. -/
+def ofFinalInd (hs : List H.V) (st : State H G) (hcov : ∀ x : H.V, x ∈ hs)
+    (h : finalOk H G true hs st = true) : H.InducedMinorOf G where
+  toMinorOf := ofFinal H G true hs st hcov h
+  adj_map' x y hxy := by
+    rintro ⟨u, w, hu, hw, huw⟩
+    obtain ⟨hkey, hflat, -, -, -⟩ := finalOk_parts H G true h
+    exact adj_of_finalOk H G h (hcov x) (hcov y) hxy (linked_iff.mpr
+      ⟨u, (branchOf_eq_some_iff H G hkey hflat).mp hu, w,
+        (branchOf_eq_some_iff H G hkey hflat).mp hw, huw⟩)
 
 /-! ## The search -/
 
@@ -1135,11 +1255,12 @@ hs.length` moves long: at most one `pick` per vertex of `G` and one `stop` per v
 padded out with idle moves once everything is placed. -/
 def searchFrom (hs : List H.V) (gs : List G.V) : Option (State H G) :=
   let init := initState H G hs gs
-  (Backtrack.dfs (fun _ pre ↦ candList H G rank pairs (headSt H G init pre)) (goal H G rank pairs hs init)
+  (Backtrack.dfs (fun _ pre ↦ candList H G rank pairs ind (headSt H G init pre))
+    (goal H G rank pairs ind hs init)
     (List.replicate (gs.length + hs.length) ()) []).map (headSt H G init)
 
 theorem finalOk_of_searchFrom {hs : List H.V} {gs : List G.V} {st : State H G}
-    (h : searchFrom H G rank pairs hs gs = some st) : finalOk H G hs st = true := by
+    (h : searchFrom H G rank pairs ind hs gs = some st) : finalOk H G ind hs st = true := by
   simp only [searchFrom, Option.map_eq_some_iff] at h
   obtain ⟨r, hr, rfl⟩ := h
   exact (Bool.and_eq_true .. |>.mp (Backtrack.goal_of_dfs_eq_some hr)).2
@@ -1167,7 +1288,7 @@ theorem mem_eraseAll {avail : List G.V} (h : avail.Nodup) : ∀ (L : List G.V) (
 def trace (init : State H G) : List (Move G) → Option (List (Unit × State H G))
   | [] => some []
   | m :: ms => (trace init ms).bind fun r ↦
-      (step H G rank pairs m (headSt H G init r)).map fun st ↦ ((), st) :: r
+      (step H G rank pairs ind m (headSt H G init r)).map fun st ↦ ((), st) :: r
 
 theorem headSt_append (init : State H G) (r₁ r₂ : List (Unit × State H G)) :
     headSt H G init (r₁ ++ r₂) = headSt H G (headSt H G init r₂) r₁ := by
@@ -1176,22 +1297,23 @@ theorem headSt_append (init : State H G) (r₁ r₂ : List (Unit × State H G)) 
   | cons p r₁ => obtain ⟨_, st⟩ := p; rfl
 
 theorem trace_append {init : State H G} {ms₁ ms₂ : List (Move G)} {r₂ : List (Unit × State H G)}
-    (h₂ : trace H G rank pairs init ms₂ = some r₂) :
-    trace H G rank pairs init (ms₁ ++ ms₂) = (trace H G rank pairs (headSt H G init r₂) ms₁).map (· ++ r₂) := by
+    (h₂ : trace H G rank pairs ind init ms₂ = some r₂) :
+    trace H G rank pairs ind init (ms₁ ++ ms₂) =
+      (trace H G rank pairs ind (headSt H G init r₂) ms₁).map (· ++ r₂) := by
   induction ms₁ with
   | nil => simp [trace, h₂]
   | cons m ms ih =>
     rw [List.cons_append, trace, ih, trace]
-    cases htr : trace H G rank pairs (headSt H G init r₂) ms with
+    cases htr : trace H G rank pairs ind (headSt H G init r₂) ms with
     | none => simp
     | some r₁ =>
       simp only [Option.map_some, Option.bind_some, headSt_append]
-      cases step H G rank pairs m (headSt H G (headSt H G init r₂) r₁) <;> simp
+      cases step H G rank pairs ind m (headSt H G (headSt H G init r₂) r₁) <;> simp
 
 /-- A traced run is a legal one. -/
 theorem trace_chainOk {init : State H G} {ms : List (Move G)} {r : List (Unit × State H G)}
-    (h : trace H G rank pairs init ms = some r) :
-    chainOk H G rank pairs init r = true ∧ r.length = ms.length := by
+    (h : trace H G rank pairs ind init ms = some r) :
+    chainOk H G rank pairs ind init r = true ∧ r.length = ms.length := by
   induction ms generalizing r with
   | nil => rw [trace, Option.some_inj] at h; subst h; exact ⟨rfl, rfl⟩
   | cons m ms ih =>
@@ -1202,11 +1324,11 @@ theorem trace_chainOk {init : State H G} {ms : List (Move G)} {r : List (Unit ×
     obtain ⟨hchain, hlen⟩ := ih hr'
     refine ⟨?_, by simp [hlen]⟩
     rw [chainOk, Bool.and_eq_true]
-    exact ⟨List.contains_iff_mem.mpr (mem_candList H G rank pairs hst), hchain⟩
+    exact ⟨List.contains_iff_mem.mpr (mem_candList H G rank pairs ind hst), hchain⟩
 
 /-- Idling once everything is placed changes nothing. -/
 theorem trace_pad {st : State H G} (hcur : st.cur = none) (htodo : st.todo = []) :
-    ∀ k, ∃ r, trace H G rank pairs st (List.replicate k Move.stop) = some r ∧ r.length = k ∧
+    ∀ k, ∃ r, trace H G rank pairs ind st (List.replicate k Move.stop) = some r ∧ r.length = k ∧
       headSt H G st r = st
   | 0 => ⟨[], rfl, rfl, rfl⟩
   | k + 1 => by
@@ -1287,14 +1409,15 @@ theorem trace_picks {x : H.V} {rest : List H.V} :
       PickChain G rank (attOf H G x st.done) L = true →
       (∀ u, L.getLast? = some u → feasibleSeed H G x u rest st.done st.avail = true) →
       (∀ v ∈ L, symOk rank pairs x [v] st.done = true) →
+      (∀ v ∈ L, indPick H G ind x v st.done = true) →
       L.Nodup → (∀ v ∈ L, v ∈ st.avail) → st.avail.Nodup →
-      ∃ r, trace H G rank pairs st (L.map Move.pick) = some r ∧ r.length = L.length ∧
+      ∃ r, trace H G rank pairs ind st (L.map Move.pick) = some r ∧ r.length = L.length ∧
         headSt H G st r = ⟨rest, some (x, L), st.done, eraseAll G st.avail L⟩ := by
   intro L
   induction L with
-  | nil => intro st _ _ hL _ _ _ _ _; simp [PickChain] at hL
+  | nil => intro st _ _ hL _ _ _ _ _ _; simp [PickChain] at hL
   | cons v L ih =>
-    intro st hcur htodo hL hfeas hsymv hnd hsub hav
+    intro st hcur htodo hL hfeas hsymv hindv hnd hsub hav
     have hvL : v ∉ L := (List.nodup_cons.mp hnd).1
     have hvav : v ∈ st.avail := hsub v (List.mem_cons_self ..)
     rcases L with _ | ⟨w, L⟩
@@ -1303,27 +1426,29 @@ theorem trace_picks {x : H.V} {rest : List H.V} :
       refine ⟨[((), ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩)], ?_, rfl, rfl⟩
       rw [List.map_cons, List.map_nil, trace, trace, Option.bind_some]
       simp only [headSt, step, List.contains_iff_mem, hvav, if_pos, hcur, htodo, hL, hfv,
-        hsymv v (List.mem_cons_self ..), Bool.and_self]
+        hsymv v (List.mem_cons_self ..), hindv v (List.mem_cons_self ..), Bool.and_self]
       rfl
     · rw [PickChain] at hL
       simp only [Bool.and_eq_true] at hL
       obtain ⟨⟨⟨hadj, hseed⟩, hrank⟩, hLc⟩ := hL
       obtain ⟨r, hr, hlen, hhead⟩ := ih st hcur htodo hLc
         (fun u hu ↦ hfeas u (by simpa using hu))
-        (fun u hu ↦ hsymv u (List.mem_cons_of_mem _ hu)) (List.Nodup.of_cons hnd)
+        (fun u hu ↦ hsymv u (List.mem_cons_of_mem _ hu))
+        (fun u hu ↦ hindv u (List.mem_cons_of_mem _ hu)) (List.Nodup.of_cons hnd)
         (fun u hu ↦ hsub u (List.mem_cons_of_mem _ hu)) hav
       refine ⟨((), ⟨rest, some (x, v :: w :: L), st.done, eraseAll G st.avail (v :: w :: L)⟩) :: r,
         ?_, by simp [hlen], rfl⟩
       have hmem : v ∈ eraseAll G st.avail (w :: L) := (mem_eraseAll G hav _ v).mpr ⟨hvav, hvL⟩
       rw [List.map_cons, trace, hr, Option.bind_some, hhead, step]
       simp only [List.contains_iff_mem, hmem, if_pos, hadj, hseed, hrank,
-        hsymv v (List.mem_cons_self ..), Bool.and_self]
+        hsymv v (List.mem_cons_self ..), hindv v (List.mem_cons_self ..), Bool.and_self]
       rfl
 
 variable (f : H.MinorOf G) (hl : ∀ (x : H.V) (v : G.V), v ∈ l x ↔ f.branch v = some x)
   (hnd : ∀ x, (l x).Nodup) (hcc : ∀ x, ChainConn G (l x) = true) (hs : List H.V)
   (hhsnd : hs.Nodup) (hch : ∀ x, PickChain G rank (attMinor f hs x) (l x) = true)
   (hsym : ∀ p ∈ pairs, minRank rank (l p.1) ≤ minRank rank (l p.2))
+  (hind : ind = true → ∀ x y : H.V, x ≠ y → linked G (l x) (l y) = true → H.Adj x y = true)
 
 include hl in
 /-- Distinct vertices of `H` have disjoint branch sets. -/
@@ -1380,11 +1505,11 @@ theorem length_le_flatMap : ∀ xs : List H.V, xs.length ≤ (xs.flatMap l).leng
     rw [List.flatMap_cons, List.length_append, List.length_cons]
     omega
 
-include f hl hnd hcc hhsnd hch hsym in
+include f hl hnd hcc hhsnd hch hsym hind in
 /-- One block of moves gives `x` its branch set. -/
 theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st (x :: xs) p)
     (hxs : (x :: xs).Nodup) (hpre : hs = p.reverse ++ x :: xs) :
-    ∃ r, trace H G rank pairs st (blockOf l x) = some r ∧ r.length = (l x).length + 1 ∧
+    ∃ r, trace H G rank pairs ind st (blockOf l x) = some r ∧ r.length = (l x).length + 1 ∧
       Ok l (headSt H G st r) xs (x :: p) := by
   obtain ⟨hcur, htodo, hdone, hsub, hav⟩ := hok
   have hfeas : ∀ u, (l x).getLast? = some u →
@@ -1425,8 +1550,26 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
         exact h1.trans (minRank_le hv)
       · exact Or.inl hy
     · exact Or.inl hqx
-  obtain ⟨r, hr, hlen, hhead⟩ := trace_picks rank pairs (l x) st hcur htodo
-    (by rw [hdone, attOf_eq l hl hhsnd hpre]; exact hch x) hfeas hsymv
+  have hxp : x ∉ p := by
+    intro hx
+    rw [hpre, List.nodup_append] at hhsnd
+    exact hhsnd.2.2 x (List.mem_reverse.mpr hx) x (List.mem_cons_self ..) rfl
+  have hindv : ∀ v ∈ l x, indPick H G ind x v st.done = true := by
+    intro v hv
+    cases hi : ind with
+    | false => simp [indPick]
+    | true =>
+      rw [indPick, hdone]
+      simp only [Bool.not_true, Bool.false_or, List.all_eq_true]
+      intro q hq
+      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hq
+      cases hany : (l y).any (G.Adj v) with
+      | false => simp
+      | true =>
+        obtain ⟨u, hu, hvu⟩ := List.any_eq_true.mp hany
+        simp [hind hi x y (fun e ↦ hxp (e ▸ hy)) (linked_iff.mpr ⟨v, hv, u, hu, hvu⟩)]
+  obtain ⟨r, hr, hlen, hhead⟩ := trace_picks rank pairs ind (l x) st hcur htodo
+    (by rw [hdone, attOf_eq l hl hhsnd hpre]; exact hch x) hfeas hsymv hindv
     (hnd x) (hsub x (List.mem_cons_self ..)) hav
   have havail : ∀ y ∈ xs, ∀ v ∈ l y, v ∈ eraseAll G st.avail (l x) := by
     intro y hy v hv
@@ -1471,21 +1614,21 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
   simp only [hc1, hc2, hc3, hc4, decide_true, Bool.and_true, if_pos]
   rfl
 
-include f hl hnd hcc hhsnd hch hsym in
+include f hl hnd hcc hhsnd hch hsym hind in
 /-- The whole run: every vertex of `xs` gets its branch set. -/
 theorem trace_blocks : ∀ (xs p : List H.V) (st : State H G), Ok l st xs p → xs.Nodup →
     hs = p.reverse ++ xs →
-    ∃ r, trace H G rank pairs st (blocks l xs) = some r ∧
+    ∃ r, trace H G rank pairs ind st (blocks l xs) = some r ∧
       r.length = (xs.map fun y ↦ (l y).length + 1).sum ∧
       Ok l (headSt H G st r) [] (xs.reverse ++ p)
   | [], p, st, hok, _, _ => ⟨[], rfl, rfl, by simpa using hok⟩
   | x :: xs, p, st, hok, hxs, hpre => by
     obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ :=
-      trace_block rank pairs l f hl hnd hcc hs hhsnd hch hsym x xs p st hok hxs hpre
+      trace_block rank pairs ind l f hl hnd hcc hs hhsnd hch hsym hind x xs p st hok hxs hpre
     obtain ⟨r₂, hr₂, hlen₂, hok₂⟩ := trace_blocks xs (x :: p) _ hok₁ (List.Nodup.of_cons hxs)
       (by rw [hpre]; simp)
     refine ⟨r₂ ++ r₁, ?_, ?_, ?_⟩
-    · rw [blocks, trace_append H G rank pairs hr₁, hr₂]; rfl
+    · rw [blocks, trace_append H G rank pairs ind hr₁, hr₂]; rfl
     · rw [List.length_append, hlen₁, hlen₂, List.map_cons, List.sum_cons]; omega
     · rw [headSt_append]; simpa using hok₂
 
@@ -1499,10 +1642,10 @@ theorem getSet_map {ys : List H.V} {x : H.V} (h : x ∈ ys) :
     · rename_i hy; rw [hy]
     · rename_i hy; exact ih ((List.mem_cons.mp h).resolve_left fun e ↦ hy e.symm)
 
-include f hl hnd hcc hhsnd in
+include f hl hnd hcc hhsnd hind in
 /-- A finished run passes every test. -/
 theorem finalOk_of_ok {st : State H G} (hok : Ok l st [] hs.reverse) :
-    finalOk H G hs st = true := by
+    finalOk H G ind hs st = true := by
   obtain ⟨hcur, htodo, hdone, -, -⟩ := hok
   have e1 : ((hs.reverse.map fun y ↦ (y, l y)).map Prod.fst) = hs.reverse := by
     simp [Function.comp_def]
@@ -1525,6 +1668,22 @@ theorem finalOk_of_ok {st : State H G} (hok : Ok l st [] hs.reverse) :
     cases hadj : H.Adj x y
     · simp
     · simp [linked_l l f hl hadj]
+  have h6 : (!ind || (hs.all fun x ↦ hs.all fun y ↦ decide (x = y) || H.Adj x y ||
+      !linked G (getSet H G (hs.reverse.map fun z ↦ (z, l z)) x)
+        (getSet H G (hs.reverse.map fun z ↦ (z, l z)) y))) = true := by
+    cases hi : ind with
+    | false => simp
+    | true =>
+      simp only [Bool.not_true, Bool.false_or, List.all_eq_true]
+      intro x hx y hy
+      rw [getSet_map l (List.mem_reverse.mpr hx), getSet_map l (List.mem_reverse.mpr hy)]
+      by_cases hxy : x = y
+      · simp [hxy]
+      cases hlk : linked G (l x) (l y)
+      · simp
+      · simp [hind hi x y hxy hlk]
+  rw [Bool.and_eq_true]
+  refine ⟨?_, h6⟩
   simp only [Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true]
   exact ⟨⟨⟨⟨⟨⟨rfl, rfl⟩, h1⟩, h2⟩, h3⟩, h4⟩, h5⟩
 
@@ -1560,9 +1719,11 @@ variable {H G}
 lie inside the pool it searched.  The pool need not be all of `G`: it is legitimate to shrink it
 first, as long as no model is lost — see `exists_model_core`. -/
 theorem not_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V}
-    (hhsnd : hs.Nodup) (hgsnd : gs.Nodup) (h : searchFrom H G rank pairs hs gs = none)
+    (hhsnd : hs.Nodup) (hgsnd : gs.Nodup) (h : searchFrom H G rank pairs ind hs gs = none)
     (f : H.MinorOf G) (hgs : ∀ (v : G.V) (x : H.V), f.branch v = some x → v ∈ gs)
-    (hfsym : ∀ p ∈ pairs, modelMin f.branch rank gs p.1 ≤ modelMin f.branch rank gs p.2) :
+    (hfsym : ∀ p ∈ pairs, modelMin f.branch rank gs p.1 ≤ modelMin f.branch rank gs p.2)
+    (hfind : ind = true → ∀ x y : H.V, x ≠ y →
+      (∃ u w, f.branch u = some x ∧ f.branch w = some y ∧ G.Adj u w) → H.Adj x y = true) :
     False := by
   obtain ⟨l, hl, hnd, hcc, hch⟩ := exists_chain_model f rank hs hgs
   have hsupp : ∀ (y : H.V), ∀ v ∈ l y, v ∈ gs := fun y v hv ↦ hgs v y ((hl y v).mp hv)
@@ -1577,10 +1738,15 @@ theorem not_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V}
     intro p hp
     rw [hmin, hmin]
     exact hfsym p hp
+  have hind : ind = true → ∀ x y : H.V, x ≠ y → linked G (l x) (l y) = true →
+      H.Adj x y = true := by
+    intro hi x y hxy hlk
+    obtain ⟨u, hu, w, hw, huw⟩ := linked_iff.mp hlk
+    exact hfind hi x y hxy ⟨u, w, (hl x u).mp hu, (hl y w).mp hw, huw⟩
   have hok : Ok l (initState H G hs gs) hs [] :=
     ⟨rfl, rfl, rfl, fun y _ v hv ↦ hsupp y v hv, hgsnd⟩
   obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ :=
-    trace_blocks rank pairs l f hl hnd hcc hs hhsnd hch hsym hs [] _ hok hhsnd rfl
+    trace_blocks rank pairs ind l f hl hnd hcc hs hhsnd hch hsym hind hs [] _ hok hhsnd rfl
   have hbound : r₁.length ≤ gs.length + hs.length := by
     have : (hs.flatMap l).length ≤ gs.length :=
       ((nodup_flatMap l f hl hnd hhsnd).subperm fun v hv ↦ by
@@ -1589,21 +1755,21 @@ theorem not_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V}
     rw [hlen₁, length_flatMap_add l hs]
     omega
   obtain ⟨r₂, hr₂, hlen₂, hhead₂⟩ :=
-    trace_pad H G rank pairs hok₁.cur hok₁.todo (gs.length + hs.length - r₁.length)
-  have htr : trace H G rank pairs (initState H G hs gs)
+    trace_pad H G rank pairs ind hok₁.cur hok₁.todo (gs.length + hs.length - r₁.length)
+  have htr : trace H G rank pairs ind (initState H G hs gs)
       (List.replicate (gs.length + hs.length - r₁.length) Move.stop ++ blocks l hs)
-      = some (r₂ ++ r₁) := by rw [trace_append H G rank pairs hr₁, hr₂]; rfl
-  obtain ⟨hchain, -⟩ := trace_chainOk H G rank pairs htr
-  have hgoal : goal H G rank pairs hs (initState H G hs gs) (r₂ ++ r₁) = true := by
+      = some (r₂ ++ r₁) := by rw [trace_append H G rank pairs ind hr₁, hr₂]; rfl
+  obtain ⟨hchain, -⟩ := trace_chainOk H G rank pairs ind htr
+  have hgoal : goal H G rank pairs ind hs (initState H G hs gs) (r₂ ++ r₁) = true := by
     rw [goal, Bool.and_eq_true, headSt_append, hhead₂]
-    exact ⟨hchain, finalOk_of_ok l f hl hnd hcc hs hhsnd (by simpa using hok₁)⟩
+    exact ⟨hchain, finalOk_of_ok ind l f hl hnd hcc hs hhsnd hind (by simpa using hok₁)⟩
   have hcand : ∀ (a : Unit) (pre : List (Unit × State H G)) (b : State H G)
       (u : List (Unit × State H G)),
-      goal H G rank pairs hs (initState H G hs gs) (u ++ (a, b) :: pre) = true →
-      b ∈ candList H G rank pairs (headSt H G (initState H G hs gs) pre) := by
+      goal H G rank pairs ind hs (initState H G hs gs) (u ++ (a, b) :: pre) = true →
+      b ∈ candList H G rank pairs ind (headSt H G (initState H G hs gs) pre) := by
     intro _ pre b u hg
     rw [goal, Bool.and_eq_true] at hg
-    have hc := chainOk_of_append H G rank pairs hg.1
+    have hc := chainOk_of_append H G rank pairs ind hg.1
     rw [chainOk, Bool.and_eq_true] at hc
     exact List.contains_iff_mem.mp hc.1
   have hsol : ((r₂ ++ r₁).reverse).map Prod.fst = List.replicate (gs.length + hs.length) () := by
@@ -1620,13 +1786,25 @@ theorem not_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V}
 minor. -/
 theorem isEmpty_minorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀ v, v ∈ gs)
     (hcov : ∀ x : H.V, x ∈ hs) (hhsnd : hs.Nodup) (hgsnd : gs.Nodup)
-    (h : searchFrom H G rank (symPairs H hs) hs gs = none) : IsEmpty (H.MinorOf G) := by
+    (h : searchFrom H G rank (symPairs H hs) false hs gs = none) : IsEmpty (H.MinorOf G) := by
   refine ⟨fun f ↦ ?_⟩
   obtain ⟨g, hg, hgsym⟩ :=
     exists_sorted_model_pairs MinorOf.branch
       (fun f {_σ} hinj hadj ↦ MinorOf.exists_reindex f hinj hadj)
       (rank := rank) (gs := gs) hcov f fun v _ _ ↦ hgs v
-  exact not_minorOf_of_searchFrom rank _ hhsnd hgsnd h g hg hgsym
+  exact not_minorOf_of_searchFrom rank _ false hhsnd hgsnd h g hg hgsym (by simp)
+
+/-- **Completeness of the induced search** over the whole of `G`. -/
+theorem isEmpty_inducedMinorOf_of_searchFrom {hs : List H.V} {gs : List G.V} (hgs : ∀ v, v ∈ gs)
+    (hcov : ∀ x : H.V, x ∈ hs) (hhsnd : hs.Nodup) (hgsnd : gs.Nodup)
+    (h : searchFrom H G rank (symPairs H hs) true hs gs = none) : IsEmpty (H.InducedMinorOf G) := by
+  refine ⟨fun f ↦ ?_⟩
+  obtain ⟨g, hg, hgsym⟩ :=
+    exists_sorted_model_pairs (fun f : H.InducedMinorOf G ↦ f.branch)
+      (fun f {_σ} hinj hadj ↦ f.exists_reindex hinj hadj)
+      (rank := rank) (gs := gs) hcov f fun v _ _ ↦ hgs v
+  exact not_minorOf_of_searchFrom rank _ true hhsnd hgsnd h g.toMinorOf hg hgsym
+    fun _ x y hxy hex ↦ g.adj_map hxy hex
 
 end MinorSearch
 
@@ -1702,28 +1880,40 @@ def hostPool (rH : Roster H.V) (rG : Roster G.V) : List G.V :=
 
 The guard in front is the cheap necessary condition: a minor has no more vertices and no more
 edges than its host, so a search that cannot possibly succeed is not started. -/
-def searchMinor (rH : Roster H.V) (rG : Roster G.V) : Option (State H G) :=
+def searchMinor (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) : Option (State H G) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
-    searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) (hsOrder H rH)
+    searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) ind (hsOrder H rH)
       (hostPool H G rH rG)
   else none
 
-theorem finalOk_of_searchMinor {rH : Roster H.V} {rG : Roster G.V} {st : State H G}
-    (h : searchMinor H G rH rG = some st) : finalOk H G (hsOrder H rH) st = true := by
+theorem finalOk_of_searchMinor {ind : Bool} {rH : Roster H.V} {rG : Roster G.V} {st : State H G}
+    (h : searchMinor H G ind rH rG = some st) : finalOk H G ind (hsOrder H rH) st = true := by
   rw [searchMinor] at h
   split at h
-  · exact finalOk_of_searchFrom H G _ _ h
+  · exact finalOk_of_searchFrom H G _ _ _ h
   · exact absurd h (by simp)
 
 /-- **Is `H` a minor of `G`?**  Returns a witness if so.  See
 `isEmpty_minorOf_of_findMinor_eq_none` for the other half of the answer. -/
 def findMinor (rH : Roster H.V) (rG : Roster G.V) : Option (H.MinorOf G) :=
-  Option.pmap (p := fun st ↦ finalOk H G (hsOrder H rH) st = true)
-    (fun st hst ↦ ofFinal H G (hsOrder H rH) st (mem_hsOrder H rH) hst)
-    (searchMinor H G rH rG) (fun _ hst ↦ finalOk_of_searchMinor H G hst)
+  Option.pmap (p := fun st ↦ finalOk H G false (hsOrder H rH) st = true)
+    (fun st hst ↦ ofFinal H G false (hsOrder H rH) st (mem_hsOrder H rH) hst)
+    (searchMinor H G false rH rG) (fun _ hst ↦ finalOk_of_searchMinor H G hst)
+
+/-- **Is `H` an induced minor of `G`?**  Returns a witness if so.  This is the same search with
+`indPick` switched on, so it prunes on the induced condition as it goes rather than filtering
+models at the end.  See `isEmpty_inducedMinorOf_of_findInducedMinor_eq_none`. -/
+def findInducedMinor (rH : Roster H.V) (rG : Roster G.V) : Option (H.InducedMinorOf G) :=
+  Option.pmap (p := fun st ↦ finalOk H G true (hsOrder H rH) st = true)
+    (fun st hst ↦ ofFinalInd H G (hsOrder H rH) st (mem_hsOrder H rH) hst)
+    (searchMinor H G true rH rG) (fun _ hst ↦ finalOk_of_searchMinor H G hst)
 
 theorem findMinor_eq_none_iff (rH : Roster H.V) (rG : Roster G.V) :
-    findMinor H G rH rG = none ↔ searchMinor H G rH rG = none :=
+    findMinor H G rH rG = none ↔ searchMinor H G false rH rG = none :=
+  Option.pmap_eq_none_iff
+
+theorem findInducedMinor_eq_none_iff (rH : Roster H.V) (rG : Roster G.V) :
+    findInducedMinor H G rH rG = none ↔ searchMinor H G true rH rG = none :=
   Option.pmap_eq_none_iff
 
 variable {H G}
@@ -1740,27 +1930,66 @@ theorem isEmpty_minorOf_of_findMinor_eq_none {rH : Roster H.V} {rG : Roster G.V}
     -- accepts, and then contradicts the empty search
     have key : ∀ (gs : List G.V), gs.Nodup → ∀ f' : H.MinorOf G,
         (∀ (w : G.V) (x : H.V), f'.branch w = some x → w ∈ gs) →
-        searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) (hsOrder H rH) gs
-          = none → False := by
+        searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) false
+          (hsOrder H rH) gs = none → False := by
       intro gs hgsnd f' hf' hnone
       obtain ⟨g, hg, hgsym⟩ := exists_sorted_model_pairs MinorOf.branch
         (fun f {_σ} hinj hadj ↦ MinorOf.exists_reindex f hinj hadj)
         (rank := fun v ↦ rG.toList.idxOf v) (gs := gs) (mem_hsOrder H rH) f' hf'
-      exact not_minorOf_of_searchFrom _ _ (hsOrder_nodup H rH) hgsnd hnone g hg hgsym
+      exact not_minorOf_of_searchFrom _ _ false (hsOrder_nodup H rH) hgsnd hnone g hg hgsym
+        (by simp)
     rw [hostPool] at h
     split at h
-    · obtain ⟨g, hg⟩ := exists_model_twoCore
+    · obtain ⟨g, hg, -⟩ := exists_model_twoCore
         (exists_two_adj_of_minDegTwo (hsOrder_nodup H rH) (mem_hsOrder H rH) ‹_›) _ f hall
       exact key _ (twoCore_nodup _ (List.nodup_dedup _)) g hg h
     · exact key _ (List.nodup_dedup _) f hall h
   · exact ⟨fun f ↦ absurd (show FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E from
       ⟨f.card_le, f.E_le⟩) ‹_›⟩
 
+/-- **Completeness**: when the induced search comes back empty, `H` is not an induced minor of
+`G`.  The two reductions the search relies on both survive the induced condition — peeling the
+host to its two-core only drops vertices (`InducedMinorOf.restrict`), and the symmetry breaking
+relabels the model along an automorphism of `H` (`InducedMinorOf.exists_reindex`). -/
+theorem isEmpty_inducedMinorOf_of_findInducedMinor_eq_none {rH : Roster H.V} {rG : Roster G.V}
+    (h : findInducedMinor H G rH rG = none) : IsEmpty (H.InducedMinorOf G) := by
+  rw [findInducedMinor_eq_none_iff, searchMinor] at h
+  split at h
+  · refine ⟨fun f ↦ ?_⟩
+    have hall : ∀ (w : G.V) (x : H.V), f.branch w = some x → w ∈ rG.toList.dedup :=
+      fun w _ _ ↦ List.mem_dedup.mpr (rG.mem_toList w)
+    have key : ∀ (gs : List G.V), gs.Nodup → ∀ f' : H.InducedMinorOf G,
+        (∀ (w : G.V) (x : H.V), f'.branch w = some x → w ∈ gs) →
+        searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) true
+          (hsOrder H rH) gs = none → False := by
+      intro gs hgsnd f' hf' hnone
+      obtain ⟨g, hg, hgsym⟩ := exists_sorted_model_pairs (fun k : H.InducedMinorOf G ↦ k.branch)
+        (fun k {_σ} hinj hadj ↦ k.exists_reindex hinj hadj)
+        (rank := fun v ↦ rG.toList.idxOf v) (gs := gs) (mem_hsOrder H rH) f' hf'
+      exact not_minorOf_of_searchFrom _ _ true (hsOrder_nodup H rH) hgsnd hnone g.toMinorOf hg
+        hgsym fun _ x y hxy hex ↦ g.adj_map hxy hex
+    rw [hostPool] at h
+    split at h
+    · obtain ⟨g, hg, hgf⟩ := exists_model_twoCore
+        (exists_two_adj_of_minDegTwo (hsOrder_nodup H rH) (mem_hsOrder H rH) ‹_›) _ f.toMinorOf hall
+      exact key _ (twoCore_nodup _ (List.nodup_dedup _)) (f.restrict g hgf) hg h
+    · exact key _ (List.nodup_dedup _) f hall h
+  · exact ⟨fun f ↦ absurd (show FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E from
+      ⟨f.toMinorOf.card_le, f.toMinorOf.E_le⟩) ‹_›⟩
+
 /-- `H` is a minor of `G` exactly when the search finds one. -/
 theorem isEmpty_minorOf_iff (rH : Roster H.V) (rG : Roster G.V) :
     IsEmpty (H.MinorOf G) ↔ findMinor H G rH rG = none := by
   refine ⟨fun h ↦ ?_, isEmpty_minorOf_of_findMinor_eq_none⟩
   rcases hm : findMinor H G rH rG with _ | f
+  · rfl
+  · exact (h.false f).elim
+
+/-- `H` is an induced minor of `G` exactly when the induced search finds one. -/
+theorem isEmpty_inducedMinorOf_iff (rH : Roster H.V) (rG : Roster G.V) :
+    IsEmpty (H.InducedMinorOf G) ↔ findInducedMinor H G rH rG = none := by
+  refine ⟨fun h ↦ ?_, isEmpty_inducedMinorOf_of_findInducedMinor_eq_none⟩
+  rcases hm : findInducedMinor H G rH rG with _ | f
   · rfl
   · exact (h.false f).elim
 

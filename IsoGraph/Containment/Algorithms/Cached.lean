@@ -10,26 +10,27 @@ import IsoGraph.Graphs.Cache
 
 `Algorithms/Subgraph.lean` and its siblings take the two graphs as they are, and each asks
 `H.Adj` and `G.Adj` a few million times.  For a graph out of the gallery that is a few million
-scans of an edge list.  This file wraps each of the six searches so that it runs on `cacheFin`
+scans of an edge list.  This file wraps each of the seven searches so that it runs on `cacheFin`
 copies of the pattern *and* the host — adjacency matrices on `Fin n`, filled once — and transports
 the answer back along `CGraph.isoCacheFin`.
 
 Both sides are worth caching, and the effect multiplies: caching the pattern alone or the host
 alone each recovers about half of the following, and the numbers below are the two together.
 `CacheBench.lean`, cases `api-sub`, `api-minor`, `api-con`, `api-con-self`, `api-sub-kneser`,
-`api-hom`, `api-quot`; best of three interleaved rounds, in milliseconds; the cost of filling both
-arrays is included in the right-hand column:
+`api-hom`, `api-quot`, `api-indminor`; best of three interleaved rounds, in milliseconds; the cost
+of filling both arrays is included in the right-hand column:
 
-| job                        | `find…` | `…Of?` |
-| -------------------------- | ------- | ------ |
-| `C₄ ⋏ tutte` (contraction) | 5957    | 478    |
-| `C₄` a quotient of `tutte` | 5981    | 599    |
-| `tutte → K₃` (3-colouring) | 3232    | 385    |
-| `mcgee ⋏ mcgee`            | 353     | 63     |
-| `C₆ ⊆ K(10,5)`             | 403     | 120    |
-| `mcgee → K₂`               | 183     | 29     |
-| `K₄ ≼ tutte` (minor)       | 31      | 7      |
-| `C₈ ⊆ tutte`               | 7       | 3      |
+| job                           | `find…` | `…Of?` |
+| ----------------------------- | ------- | ------ |
+| `C₄` a quotient of `tutte`    | 4598    | 582    |
+| `C₄ ⋏ tutte` (contraction)    | 3284    | 380    |
+| `tutte → K₃` (3-colouring)    | 3111    | 369    |
+| `C₆ ⊆ K(10,5)`                | 417     | 120    |
+| `mcgee ⋏ mcgee`               | 347     | 63     |
+| `mcgee → K₂`                  | 166     | 30     |
+| `K₄ ≼ tutte` (minor)          | 19      | 5      |
+| `K₄` induced minor of `tutte` | 18      | 4      |
+| `C₈ ⊆ tutte`                  | 7       | 3      |
 
 The `…Of?` entry points here are the ones to reach for; the underlying `find…` take a `Roster` and
 run on whatever vertex type they are given, which is what to use when the graphs are already
@@ -70,6 +71,11 @@ theorem isEmpty_minorOf_cacheFin :
   ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
     fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
 
+theorem isEmpty_inducedMinorOf_cacheFin :
+    IsEmpty (H.cacheFin.InducedMinorOf G.cacheFin) ↔ IsEmpty (H.InducedMinorOf G) :=
+  ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
+    fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
+
 theorem isEmpty_contractionOf_cacheFin :
     IsEmpty (H.cacheFin.ContractionOf G.cacheFin) ↔ IsEmpty (H.ContractionOf G) :=
   ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
@@ -105,6 +111,12 @@ def minorOf? : Option (H.MinorOf G) :=
   (findMinor H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
     (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
 
+/-- **Is `H` an induced minor of `G`?**  Returns the branch sets if so — a set of them with no
+edge of `G` between two of them that `H` does not have. -/
+def inducedMinorOf? : Option (H.InducedMinorOf G) :=
+  (findInducedMinor H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
+    (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
+
 /-- **Is `H` a contraction of `G`?**  Returns the partition of `G` into blocks if so. -/
 def contractionOf? : Option (H.ContractionOf G) :=
   (findContraction H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
@@ -137,6 +149,11 @@ theorem inducedSubgraphOf?_eq_none_iff :
 theorem minorOf?_eq_none_iff : H.minorOf? G = none ↔ IsEmpty (H.MinorOf G) := by
   rw [minorOf?, Option.map_eq_none_iff, ← isEmpty_minorOf_iff, isEmpty_minorOf_cacheFin]
 
+theorem inducedMinorOf?_eq_none_iff :
+    H.inducedMinorOf? G = none ↔ IsEmpty (H.InducedMinorOf G) := by
+  rw [inducedMinorOf?, Option.map_eq_none_iff, ← isEmpty_inducedMinorOf_iff,
+    isEmpty_inducedMinorOf_cacheFin]
+
 theorem contractionOf?_eq_none_iff : H.contractionOf? G = none ↔ IsEmpty (H.ContractionOf G) := by
   rw [contractionOf?, Option.map_eq_none_iff, ← isEmpty_contractionOf_iff,
     isEmpty_contractionOf_cacheFin]
@@ -162,6 +179,9 @@ def inducedSubgraphB : Bool := (H.inducedSubgraphOf? G).isSome
 /-- **Is `H` a minor of `G`?**, as a `Bool`. -/
 def minorB : Bool := (H.minorOf? G).isSome
 
+/-- **Is `H` an induced minor of `G`?**, as a `Bool`. -/
+def inducedMinorB : Bool := (H.inducedMinorOf? G).isSome
+
 /-- **Is `H` a contraction of `G`?**, as a `Bool`. -/
 def contractionB : Bool := (H.contractionOf? G).isSome
 
@@ -182,6 +202,10 @@ theorem inducedSubgraphB_iff : H.inducedSubgraphB G = true ↔ Nonempty (H.Induc
 theorem minorB_iff : H.minorB G = true ↔ Nonempty (H.MinorOf G) := by
   rw [minorB, ← not_isEmpty_iff, ← minorOf?_eq_none_iff]
   cases H.minorOf? G <;> simp
+
+theorem inducedMinorB_iff : H.inducedMinorB G = true ↔ Nonempty (H.InducedMinorOf G) := by
+  rw [inducedMinorB, ← not_isEmpty_iff, ← inducedMinorOf?_eq_none_iff]
+  cases H.inducedMinorOf? G <;> simp
 
 theorem contractionB_iff : H.contractionB G = true ↔ Nonempty (H.ContractionOf G) := by
   rw [contractionB, ← not_isEmpty_iff, ← contractionOf?_eq_none_iff]
