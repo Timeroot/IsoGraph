@@ -25,17 +25,20 @@ with `empty 0` as the bottom element where it is one.  The scopes are `IsoGraph.
 
 ## The relations
 
-| structure | the data | order on `IsoGraph` |
-| --- | --- | --- |
-| `Hom` (Mathlib's, as `→cg`) | a map carrying edges to edges | `HasHomInto`, a preorder |
-| `SubgraphOf` | an injective such map | `IsSubgraphOf`, a partial order |
-| `InducedSubgraphOf` | injective, and reflecting edges | `IsInducedSubgraphOf`, a partial order |
-| `QuotientOf` | a surjective such map, the other way | `HasQuotient`, a partial order |
-| `MinorOf` | connected branch sets, one per vertex | `IsMinorOf`, a preorder |
-| `InducedMinorOf` | branch sets that reflect edges too | `IsInducedMinorOf`, a preorder |
-| `ContractionOf` | induced, and no vertex deleted | `IsContractionOf`, a preorder |
-| `TopMinorOf` | branch vertices and internally disjoint paths | `IsTopMinorOf` |
-| `ImmersionOf` | branch vertices and edge-disjoint trails | `IsImmersionMinorOf` |
+| structure | the data | order on `IsoGraph` | written |
+| --- | --- | --- | --- |
+| `Hom` (Mathlib's, as `→cg`) | a map carrying edges to edges | `HasHomInto`, a preorder | `≤ₕ` |
+| `SubgraphOf` | an injective such map | `IsSubgraphOf`, a partial order | `≤ₛ` |
+| `InducedSubgraphOf` | injective, and reflecting edges | `IsInducedSubgraphOf`, a partial order | `≤ᵢₛ` |
+| `QuotientOf` | a surjective such map, the other way | `HasQuotient`, a partial order | `≤/` |
+| `MinorOf` | connected branch sets, one per vertex | `IsMinorOf`, a preorder | `≤ₘ` |
+| `InducedMinorOf` | branch sets that reflect edges too | `IsInducedMinorOf`, a preorder | `≤ᵢₘ` |
+| `ContractionOf` | induced, and no vertex deleted | `IsContractionOf`, a preorder | `≤ₚ` |
+| `TopMinorOf` | branch vertices and internally disjoint paths | `IsTopMinorOf` | `≤ₜₘ` |
+| `ImmersionOf` | branch vertices and edge-disjoint trails | `IsImmersionMinorOf` | `≤ₑ` |
+
+The last column is the global notation of `## Notation` below, which is what to reach for outside
+the order scopes.
 
 The hom order is only a preorder, and not by omission: `K₂` and `K₂ ⊕g K₁` map into each other and
 are not isomorphic.  The subgraph, induced subgraph and quotient orders are partial orders, because
@@ -980,7 +983,7 @@ namespace IsoGraph
 
 open CGraph
 
-/-- `H.HasHomInto G`: some homomorphism `H → G` exists. -/
+/-- `H ≤ₕ G`: some homomorphism `H → G` exists. -/
 def HasHomInto : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H →cg G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨(j.toRelEmbedding.toRelHom.comp f).comp i.symm.toRelEmbedding.toRelHom⟩,
@@ -989,7 +992,7 @@ def HasHomInto : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem hasHomInto_mk (H G : CGraph) :
     HasHomInto ⟦H⟧ ⟦G⟧ ↔ Nonempty (H →cg G) := Iff.rfl
 
-/-- `H.IsSubgraphOf G`: `H` is isomorphic to a subgraph of `G`. -/
+/-- `H ≤ₛ G`: `H` is isomorphic to a subgraph of `G`. -/
 def IsSubgraphOf : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H.SubgraphOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨((SubgraphOf.ofIso i.symm).trans f).trans (SubgraphOf.ofIso j)⟩,
@@ -998,7 +1001,7 @@ def IsSubgraphOf : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem isSubgraphOf_mk (H G : CGraph) :
     IsSubgraphOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.SubgraphOf G) := Iff.rfl
 
-/-- `H.IsInducedSubgraphOf G`: `H` is isomorphic to an induced subgraph of `G`. -/
+/-- `H ≤ᵢₛ G`: `H` is isomorphic to an induced subgraph of `G`. -/
 def IsInducedSubgraphOf : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H.InducedSubgraphOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨((InducedSubgraphOf.ofIso i.symm).trans f).trans (InducedSubgraphOf.ofIso j)⟩,
@@ -1007,9 +1010,10 @@ def IsInducedSubgraphOf : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem isInducedSubgraphOf_mk (H G : CGraph) :
     IsInducedSubgraphOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.InducedSubgraphOf G) := Iff.rfl
 
-/-- `G.HasQuotient H`: `H` is a homomorphic image of `G` under a surjection.  The map runs from
-the left argument to the right one, as in `HasHomInto`; the order it induces runs the other way,
-since a quotient is *below* what it is a quotient of. -/
+/-- `G.HasQuotient H`, spelled `H ≤/ G`: `H` is a homomorphic image of `G` under a surjection.
+The map runs from the first argument of `HasQuotient` to the second, as in `HasHomInto`; the order
+runs the other way, since a quotient is *below* what it is a quotient of, which is why the notation
+takes them in the opposite order. -/
 def HasQuotient : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun G H ↦ Nonempty (H.QuotientOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨((QuotientOf.ofIso j.symm).trans f).trans (QuotientOf.ofIso i)⟩,
@@ -1018,7 +1022,7 @@ def HasQuotient : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem hasQuotient_mk (G H : CGraph) :
     HasQuotient ⟦G⟧ ⟦H⟧ ↔ Nonempty (H.QuotientOf G) := Iff.rfl
 
-/-- `H.IsMinorOf G`: `H` is a minor of `G`. -/
+/-- `H ≤ₘ G`: `H` is a minor of `G`. -/
 def IsMinorOf : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H.MinorOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨((MinorOf.ofIso i.symm).trans f).trans (MinorOf.ofIso j)⟩,
@@ -1027,7 +1031,7 @@ def IsMinorOf : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem isMinorOf_mk (H G : CGraph) :
     IsMinorOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.MinorOf G) := Iff.rfl
 
-/-- `H.IsInducedMinorOf G`: `H` is an induced minor of `G`. -/
+/-- `H ≤ᵢₘ G`: `H` is an induced minor of `G`. -/
 def IsInducedMinorOf : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H.InducedMinorOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨((InducedMinorOf.ofIso i.symm).trans f).trans (InducedMinorOf.ofIso j)⟩,
@@ -1036,7 +1040,7 @@ def IsInducedMinorOf : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem isInducedMinorOf_mk (H G : CGraph) :
     IsInducedMinorOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.InducedMinorOf G) := Iff.rfl
 
-/-- `H.IsContractionOf G`: `H` is a contraction of `G` — the result of partitioning `G` into
+/-- `H ≤ₚ G`: `H` is a contraction of `G` — the result of partitioning `G` into
 connected blocks and shrinking each to a point. -/
 def IsContractionOf : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H.ContractionOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
@@ -1049,7 +1053,7 @@ def IsContractionOf : IsoGraph → IsoGraph → Prop :=
 /-! The last two have no `trans`, so their invariance is proved instead by transporting a single
 model along isomorphisms of both sides: `TopMinorOf.congr` and `ImmersionOf.congr`. -/
 
-/-- `H.IsTopMinorOf G`: `H` is a topological minor of `G`. -/
+/-- `H ≤ₜₘ G`: `H` is a topological minor of `G`. -/
 def IsTopMinorOf : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H.TopMinorOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨f.congr i j⟩, fun ⟨f⟩ ↦ ⟨f.congr i.symm j.symm⟩⟩
@@ -1057,7 +1061,7 @@ def IsTopMinorOf : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem isTopMinorOf_mk (H G : CGraph) :
     IsTopMinorOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.TopMinorOf G) := Iff.rfl
 
-/-- `H.IsImmersionMinorOf G`: `H` immerses in `G`. -/
+/-- `H ≤ₑ G`: `H` immerses in `G`. -/
 def IsImmersionMinorOf : IsoGraph → IsoGraph → Prop :=
   Quotient.lift₂ (fun H G ↦ Nonempty (H.ImmersionOf G)) fun _ _ _ _ ⟨i⟩ ⟨j⟩ ↦ propext
     ⟨fun ⟨f⟩ ↦ ⟨f.congr i j⟩, fun ⟨f⟩ ↦ ⟨f.congr i.symm j.symm⟩⟩
@@ -1065,149 +1069,176 @@ def IsImmersionMinorOf : IsoGraph → IsoGraph → Prop :=
 @[simp, isoTransfer] theorem isImmersionMinorOf_mk (H G : CGraph) :
     IsImmersionMinorOf ⟦H⟧ ⟦G⟧ ↔ Nonempty (H.ImmersionOf G) := Iff.rfl
 
+/-! ## Notation
+
+Nine relations on one type, and only one of them at a time can be `≤`.  These are the compact
+spellings of the other eight — and of that one, when its scope is not open — so they are *global*:
+`H ≤ₛ G` is `H.IsSubgraphOf G` whatever else is in scope, and nothing here ever collides with the
+`≤` of `## The orders` below.
+
+The subscript names the relation: `ₕ` homomorphism, `ₛ` subgraph, `ₘ` minor, `ᵢ` induced, `ₜₘ`
+topological minor, `ₑ` immersion — the *edge*-disjoint cousin of `≤ₜₘ` — and `ₚ` contraction, the
+one case where the host is *partitioned* into connected blocks with nothing deleted, spelled with a
+`ₚ` because Unicode has no subscript `c`.  The quotient order is `≤/`, after `G/∼`, and it is the
+one whose arguments flip: `H ≤/ G` unfolds to `G.HasQuotient H`, since the surjection runs from
+larger graph down. -/
+
+@[inherit_doc] infix:50 " ≤ₕ " => HasHomInto
+@[inherit_doc] infix:50 " ≤ₛ " => IsSubgraphOf
+@[inherit_doc] infix:50 " ≤ᵢₛ " => IsInducedSubgraphOf
+@[inherit_doc] infix:50 " ≤ₘ " => IsMinorOf
+@[inherit_doc] infix:50 " ≤ᵢₘ " => IsInducedMinorOf
+@[inherit_doc] infix:50 " ≤ₚ " => IsContractionOf
+@[inherit_doc] infix:50 " ≤ₜₘ " => IsTopMinorOf
+@[inherit_doc] infix:50 " ≤ₑ " => IsImmersionMinorOf
+
+/-- `H ≤/ G`: `H` is a quotient of `G`, which is `G.HasQuotient H` with its arguments the way
+round the order puts them. -/
+notation:50 H:51 " ≤/ " G:51 => HasQuotient G H
+
 /-! ## Reflexivity, transitivity and antisymmetry -/
 
-theorem hasHomInto_refl (G : IsoGraph) : G.HasHomInto G := by
+theorem hasHomInto_refl (G : IsoGraph) : G ≤ₕ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨RelHom.id _⟩
 
-theorem hasHomInto_trans {H G K : IsoGraph} (h₁ : H.HasHomInto G) (h₂ : G.HasHomInto K) :
-    H.HasHomInto K := by
+theorem hasHomInto_trans {H G K : IsoGraph} (h₁ : H ≤ₕ G) (h₂ : G ≤ₕ K) :
+    H ≤ₕ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨g.comp f⟩
 
-theorem isSubgraphOf_refl (G : IsoGraph) : G.IsSubgraphOf G := by
+theorem isSubgraphOf_refl (G : IsoGraph) : G ≤ₛ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨SubgraphOf.refl g⟩
 
-theorem isSubgraphOf_trans {H G K : IsoGraph} (h₁ : H.IsSubgraphOf G) (h₂ : G.IsSubgraphOf K) :
-    H.IsSubgraphOf K := by
+theorem isSubgraphOf_trans {H G K : IsoGraph} (h₁ : H ≤ₛ G) (h₂ : G ≤ₛ K) :
+    H ≤ₛ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
-theorem isSubgraphOf_antisymm {H G : IsoGraph} (h₁ : H.IsSubgraphOf G) (h₂ : G.IsSubgraphOf H) :
+theorem isSubgraphOf_antisymm {H G : IsoGraph} (h₁ : H ≤ₛ G) (h₂ : G ≤ₛ H) :
     H = G := by
   revert h₁ h₂
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
-theorem isInducedSubgraphOf_refl (G : IsoGraph) : G.IsInducedSubgraphOf G := by
+theorem isInducedSubgraphOf_refl (G : IsoGraph) : G ≤ᵢₛ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨InducedSubgraphOf.refl g⟩
 
-theorem isInducedSubgraphOf_trans {H G K : IsoGraph} (h₁ : H.IsInducedSubgraphOf G)
-    (h₂ : G.IsInducedSubgraphOf K) : H.IsInducedSubgraphOf K := by
+theorem isInducedSubgraphOf_trans {H G K : IsoGraph} (h₁ : H ≤ᵢₛ G)
+    (h₂ : G ≤ᵢₛ K) : H ≤ᵢₛ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
-theorem isInducedSubgraphOf_antisymm {H G : IsoGraph} (h₁ : H.IsInducedSubgraphOf G)
-    (h₂ : G.IsInducedSubgraphOf H) : H = G := by
+theorem isInducedSubgraphOf_antisymm {H G : IsoGraph} (h₁ : H ≤ᵢₛ G)
+    (h₂ : G ≤ᵢₛ H) : H = G := by
   revert h₁ h₂
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
-theorem hasQuotient_refl (G : IsoGraph) : G.HasQuotient G := by
+theorem hasQuotient_refl (G : IsoGraph) : G ≤/ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨QuotientOf.refl g⟩
 
-theorem hasQuotient_trans {G K L : IsoGraph} (h₁ : G.HasQuotient K) (h₂ : K.HasQuotient L) :
-    G.HasQuotient L := by
+theorem hasQuotient_trans {G K L : IsoGraph} (h₁ : K ≤/ G) (h₂ : L ≤/ K) :
+    L ≤/ G := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ G K L ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨g.trans f⟩
 
-theorem hasQuotient_antisymm {G H : IsoGraph} (h₁ : G.HasQuotient H) (h₂ : H.HasQuotient G) :
+theorem hasQuotient_antisymm {G H : IsoGraph} (h₁ : H ≤/ G) (h₂ : G ≤/ H) :
     G = H := by
   revert h₁ h₂
   refine Quotient.inductionOn₂ G H ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨(f.antisymm g).symm⟩
 
-theorem isMinorOf_refl (G : IsoGraph) : G.IsMinorOf G := by
+theorem isMinorOf_refl (G : IsoGraph) : G ≤ₘ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨MinorOf.refl g⟩
 
-theorem isMinorOf_trans {H G K : IsoGraph} (h₁ : H.IsMinorOf G) (h₂ : G.IsMinorOf K) :
-    H.IsMinorOf K := by
+theorem isMinorOf_trans {H G K : IsoGraph} (h₁ : H ≤ₘ G) (h₂ : G ≤ₘ K) :
+    H ≤ₘ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
-theorem isInducedMinorOf_refl (G : IsoGraph) : G.IsInducedMinorOf G := by
+theorem isInducedMinorOf_refl (G : IsoGraph) : G ≤ᵢₘ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨InducedMinorOf.refl g⟩
 
-theorem isInducedMinorOf_trans {H G K : IsoGraph} (h₁ : H.IsInducedMinorOf G)
-    (h₂ : G.IsInducedMinorOf K) : H.IsInducedMinorOf K := by
+theorem isInducedMinorOf_trans {H G K : IsoGraph} (h₁ : H ≤ᵢₘ G)
+    (h₂ : G ≤ᵢₘ K) : H ≤ᵢₘ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
-theorem isContractionOf_refl (G : IsoGraph) : G.IsContractionOf G := by
+theorem isContractionOf_refl (G : IsoGraph) : G ≤ₚ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨ContractionOf.refl g⟩
 
-theorem isContractionOf_trans {H G K : IsoGraph} (h₁ : H.IsContractionOf G)
-    (h₂ : G.IsContractionOf K) : H.IsContractionOf K := by
+theorem isContractionOf_trans {H G K : IsoGraph} (h₁ : H ≤ₚ G)
+    (h₂ : G ≤ₚ K) : H ≤ₚ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
-theorem isTopMinorOf_refl (G : IsoGraph) : G.IsTopMinorOf G := by
+theorem isTopMinorOf_refl (G : IsoGraph) : G ≤ₜₘ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨TopMinorOf.refl g⟩
 
-theorem isImmersionMinorOf_refl (G : IsoGraph) : G.IsImmersionMinorOf G := by
+theorem isImmersionMinorOf_refl (G : IsoGraph) : G ≤ₑ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨ImmersionOf.refl g⟩
 
 /-! ## The weakenings -/
 
-theorem IsInducedSubgraphOf.isSubgraphOf {H G : IsoGraph} (h : H.IsInducedSubgraphOf G) :
-    H.IsSubgraphOf G := by
+theorem IsInducedSubgraphOf.isSubgraphOf {H G : IsoGraph} (h : H ≤ᵢₛ G) :
+    H ≤ₛ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toSubgraphOf⟩
 
-theorem IsSubgraphOf.hasHomInto {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.HasHomInto G := by
+theorem IsSubgraphOf.hasHomInto {H G : IsoGraph} (h : H ≤ₛ G) : H ≤ₕ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toHom⟩
 
-theorem HasQuotient.hasHomInto {G H : IsoGraph} (h : G.HasQuotient H) : G.HasHomInto H := by
+theorem HasQuotient.hasHomInto {G H : IsoGraph} (h : H ≤/ G) : G ≤ₕ H := by
   revert h
   refine Quotient.inductionOn₂ G H ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toHom⟩
 
-theorem IsSubgraphOf.isMinorOf {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.IsMinorOf G := by
+theorem IsSubgraphOf.isMinorOf {H G : IsoGraph} (h : H ≤ₛ G) : H ≤ₘ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toMinorOf⟩
 
-theorem IsInducedSubgraphOf.isInducedMinorOf {H G : IsoGraph} (h : H.IsInducedSubgraphOf G) :
-    H.IsInducedMinorOf G := by
+theorem IsInducedSubgraphOf.isInducedMinorOf {H G : IsoGraph} (h : H ≤ᵢₛ G) :
+    H ≤ᵢₘ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toInducedMinorOf⟩
 
-theorem IsInducedMinorOf.isMinorOf {H G : IsoGraph} (h : H.IsInducedMinorOf G) : H.IsMinorOf G := by
+theorem IsInducedMinorOf.isMinorOf {H G : IsoGraph} (h : H ≤ᵢₘ G) : H ≤ₘ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
@@ -1216,24 +1247,24 @@ theorem IsInducedMinorOf.isMinorOf {H G : IsoGraph} (h : H.IsInducedMinorOf G) :
 /-- A contraction is an induced minor: it is one that happens to delete nothing.  It is *not* a
 quotient, though the map runs the same way — the blocks of a quotient are independent sets and the
 blocks of a contraction are connected, so neither relation implies the other. -/
-theorem IsContractionOf.isInducedMinorOf {H G : IsoGraph} (h : H.IsContractionOf G) :
-    H.IsInducedMinorOf G := by
+theorem IsContractionOf.isInducedMinorOf {H G : IsoGraph} (h : H ≤ₚ G) :
+    H ≤ᵢₘ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toInducedMinorOf⟩
 
-theorem IsContractionOf.isMinorOf {H G : IsoGraph} (h : H.IsContractionOf G) : H.IsMinorOf G :=
+theorem IsContractionOf.isMinorOf {H G : IsoGraph} (h : H ≤ₚ G) : H ≤ₘ G :=
   h.isInducedMinorOf.isMinorOf
 
-theorem IsSubgraphOf.isTopMinorOf {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.IsTopMinorOf G := by
+theorem IsSubgraphOf.isTopMinorOf {H G : IsoGraph} (h : H ≤ₛ G) : H ≤ₜₘ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨TopMinorOf.ofSubgraphOf f⟩
 
-theorem IsTopMinorOf.isImmersionMinorOf {H G : IsoGraph} (h : H.IsTopMinorOf G) :
-    H.IsImmersionMinorOf G := by
+theorem IsTopMinorOf.isImmersionMinorOf {H G : IsoGraph} (h : H ≤ₜₘ G) :
+    H ≤ₑ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
@@ -1241,75 +1272,75 @@ theorem IsTopMinorOf.isImmersionMinorOf {H G : IsoGraph} (h : H.IsTopMinorOf G) 
 
 /-! ## What the relations say about the counts -/
 
-theorem IsSubgraphOf.V_le {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.V ≤ G.V := by
+theorem IsSubgraphOf.V_le {H G : IsoGraph} (h : H ≤ₛ G) : H.V ≤ G.V := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact f.card_le
 
-theorem IsSubgraphOf.E_le {H G : IsoGraph} (h : H.IsSubgraphOf G) : H.E ≤ G.E := by
+theorem IsSubgraphOf.E_le {H G : IsoGraph} (h : H ≤ₛ G) : H.E ≤ G.E := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact f.E_le
 
-theorem HasQuotient.V_le {G H : IsoGraph} (h : G.HasQuotient H) : H.V ≤ G.V := by
+theorem HasQuotient.V_le {G H : IsoGraph} (h : H ≤/ G) : H.V ≤ G.V := by
   revert h
   refine Quotient.inductionOn₂ G H ?_
   rintro _ _ ⟨f⟩
   exact f.card_le
 
-theorem IsMinorOf.V_le {H G : IsoGraph} (h : H.IsMinorOf G) : H.V ≤ G.V := by
+theorem IsMinorOf.V_le {H G : IsoGraph} (h : H ≤ₘ G) : H.V ≤ G.V := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact f.card_le
 
-theorem IsImmersionMinorOf.V_le {H G : IsoGraph} (h : H.IsImmersionMinorOf G) : H.V ≤ G.V := by
+theorem IsImmersionMinorOf.V_le {H G : IsoGraph} (h : H ≤ₑ G) : H.V ≤ G.V := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact f.card_le
 
-theorem IsTopMinorOf.V_le {H G : IsoGraph} (h : H.IsTopMinorOf G) : H.V ≤ G.V :=
+theorem IsTopMinorOf.V_le {H G : IsoGraph} (h : H ≤ₜₘ G) : H.V ≤ G.V :=
   h.isImmersionMinorOf.V_le
 
-theorem IsInducedSubgraphOf.V_le {H G : IsoGraph} (h : H.IsInducedSubgraphOf G) : H.V ≤ G.V :=
+theorem IsInducedSubgraphOf.V_le {H G : IsoGraph} (h : H ≤ᵢₛ G) : H.V ≤ G.V :=
   h.isSubgraphOf.V_le
 
-theorem IsContractionOf.V_le {H G : IsoGraph} (h : H.IsContractionOf G) : H.V ≤ G.V :=
+theorem IsContractionOf.V_le {H G : IsoGraph} (h : H ≤ₚ G) : H.V ≤ G.V :=
   h.isMinorOf.V_le
 
-theorem IsInducedMinorOf.V_le {H G : IsoGraph} (h : H.IsInducedMinorOf G) : H.V ≤ G.V :=
+theorem IsInducedMinorOf.V_le {H G : IsoGraph} (h : H ≤ᵢₘ G) : H.V ≤ G.V :=
   h.isMinorOf.V_le
 
 /-! ## The empty graph at the bottom -/
 
-theorem empty_zero_hasHomInto (G : IsoGraph) : HasHomInto (empty 0) G := by
+theorem empty_zero_hasHomInto (G : IsoGraph) : empty 0 ≤ₕ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨CGraph.homEmptyZero g⟩
 
-theorem empty_zero_isSubgraphOf (G : IsoGraph) : IsSubgraphOf (empty 0) G := by
+theorem empty_zero_isSubgraphOf (G : IsoGraph) : empty 0 ≤ₛ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨SubgraphOf.emptyZero g⟩
 
-theorem empty_zero_isInducedSubgraphOf (G : IsoGraph) : IsInducedSubgraphOf (empty 0) G := by
+theorem empty_zero_isInducedSubgraphOf (G : IsoGraph) : empty 0 ≤ᵢₛ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨InducedSubgraphOf.emptyZero g⟩
 
-theorem empty_zero_isMinorOf (G : IsoGraph) : IsMinorOf (empty 0) G := by
+theorem empty_zero_isMinorOf (G : IsoGraph) : empty 0 ≤ₘ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨MinorOf.emptyZero g⟩
 
-theorem empty_zero_isInducedMinorOf (G : IsoGraph) : IsInducedMinorOf (empty 0) G := by
+theorem empty_zero_isInducedMinorOf (G : IsoGraph) : empty 0 ≤ᵢₘ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨InducedMinorOf.emptyZero g⟩
 
-theorem empty_zero_isTopMinorOf (G : IsoGraph) : IsTopMinorOf (empty 0) G := by
+theorem empty_zero_isTopMinorOf (G : IsoGraph) : empty 0 ≤ₜₘ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨TopMinorOf.emptyZero g⟩
 
-theorem empty_zero_isImmersionMinorOf (G : IsoGraph) : IsImmersionMinorOf (empty 0) G := by
+theorem empty_zero_isImmersionMinorOf (G : IsoGraph) : empty 0 ≤ₑ G := by
   induction G using Quotient.inductionOn with
   | h g => exact ⟨ImmersionOf.emptyZero g⟩
 
@@ -1326,7 +1357,7 @@ scoped instance : Preorder IsoGraph where
   le_refl := hasHomInto_refl
   le_trans _ _ _ := hasHomInto_trans
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.HasHomInto G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ₕ G := Iff.rfl
 
 scoped instance : OrderBot IsoGraph where
   bot := empty 0
@@ -1343,7 +1374,7 @@ scoped instance : PartialOrder IsoGraph where
   le_trans _ _ _ := isSubgraphOf_trans
   le_antisymm _ _ := isSubgraphOf_antisymm
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsSubgraphOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ₛ G := Iff.rfl
 
 scoped instance : OrderBot IsoGraph where
   bot := empty 0
@@ -1360,7 +1391,7 @@ scoped instance : PartialOrder IsoGraph where
   le_trans _ _ _ := isInducedSubgraphOf_trans
   le_antisymm _ _ := isInducedSubgraphOf_antisymm
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsInducedSubgraphOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ᵢₛ G := Iff.rfl
 
 scoped instance : OrderBot IsoGraph where
   bot := empty 0
@@ -1374,12 +1405,12 @@ namespace Quotient
 downwards.  It has no bottom element: a surjection onto the empty graph has to start from the empty
 graph. -/
 scoped instance : PartialOrder IsoGraph where
-  le H G := G.HasQuotient H
+  le H G := H ≤/ G
   le_refl := hasQuotient_refl
   le_trans _ _ _ h₁ h₂ := hasQuotient_trans h₂ h₁
   le_antisymm _ _ h₁ h₂ := hasQuotient_antisymm h₂ h₁
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ G.HasQuotient H := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤/ G := Iff.rfl
 
 end Quotient
 
@@ -1407,7 +1438,7 @@ section Examples
 open scoped IsoGraph.Hom
 
 example (G : IsoGraph) : (⊥ : IsoGraph) ≤ G := bot_le
-example {H G : IsoGraph} (h : H.IsInducedSubgraphOf G) : H ≤ G := h.isSubgraphOf.hasHomInto
+example {H G : IsoGraph} (h : H ≤ᵢₛ G) : H ≤ G := h.isSubgraphOf.hasHomInto
 
 end Examples
 

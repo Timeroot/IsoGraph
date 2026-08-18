@@ -27,6 +27,11 @@ extending one another so that the implications between the relations are project
 `ofIso`, `refl` and `trans` for each.  On `IsoGraph` it is the `Prop` that such a structure exists,
 and each of those becomes a scoped order instance, with `empty 0` at the bottom.
 
+Outside those scopes each relation has a global notation, so that a statement can mention two of
+them at once: `≤ₕ ≤ₛ ≤ᵢₛ ≤ₘ ≤ᵢₘ ≤ₚ ≤ₜₘ ≤ₑ` for hom, subgraph, induced subgraph, minor, induced
+minor, contraction, topological minor and immersion, and `≤/` for the quotient order, whose
+arguments the notation flips.
+
 `Containment/Minors.lean` finishes the five relations `Defs.lean` leaves open.  A minor with as
 many vertices as its host is a subgraph of it, which makes the minor, induced minor and contraction
 orders antisymmetric, and a minor has no more edges than its host.  Topological minors and

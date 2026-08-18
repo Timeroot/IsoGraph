@@ -678,41 +678,41 @@ open CGraph
 
 /-! ## On isomorphism classes -/
 
-theorem isMinorOf_antisymm {H G : IsoGraph} (h₁ : H.IsMinorOf G) (h₂ : G.IsMinorOf H) : H = G := by
+theorem isMinorOf_antisymm {H G : IsoGraph} (h₁ : H ≤ₘ G) (h₂ : G ≤ₘ H) : H = G := by
   revert h₁ h₂
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
-theorem isInducedMinorOf_antisymm {H G : IsoGraph} (h₁ : H.IsInducedMinorOf G)
-    (h₂ : G.IsInducedMinorOf H) : H = G := by
+theorem isInducedMinorOf_antisymm {H G : IsoGraph} (h₁ : H ≤ᵢₘ G)
+    (h₂ : G ≤ᵢₘ H) : H = G := by
   revert h₁ h₂
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
-theorem isContractionOf_antisymm {H G : IsoGraph} (h₁ : H.IsContractionOf G)
-    (h₂ : G.IsContractionOf H) : H = G := by
+theorem isContractionOf_antisymm {H G : IsoGraph} (h₁ : H ≤ₚ G)
+    (h₂ : G ≤ₚ H) : H = G := by
   revert h₁ h₂
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
-theorem IsMinorOf.E_le {H G : IsoGraph} (h : H.IsMinorOf G) : H.E ≤ G.E := by
+theorem IsMinorOf.E_le {H G : IsoGraph} (h : H ≤ₘ G) : H.E ≤ G.E := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact f.E_le
 
-theorem IsInducedMinorOf.E_le {H G : IsoGraph} (h : H.IsInducedMinorOf G) : H.E ≤ G.E :=
+theorem IsInducedMinorOf.E_le {H G : IsoGraph} (h : H ≤ᵢₘ G) : H.E ≤ G.E :=
   h.isMinorOf.E_le
 
-theorem IsContractionOf.E_le {H G : IsoGraph} (h : H.IsContractionOf G) : H.E ≤ G.E :=
+theorem IsContractionOf.E_le {H G : IsoGraph} (h : H ≤ₚ G) : H.E ≤ G.E :=
   h.isMinorOf.E_le
 
 /-- A contraction of a graph with no vertices has no vertices: this is why the contraction order
 has no bottom element. -/
-theorem eq_empty_zero_of_isContractionOf {H : IsoGraph} (h : H.IsContractionOf (empty 0)) :
+theorem eq_empty_zero_of_isContractionOf {H : IsoGraph} (h : H ≤ₚ empty 0) :
     H = empty 0 := by
   revert h
   refine Quotient.inductionOn H ?_
@@ -721,51 +721,51 @@ theorem eq_empty_zero_of_isContractionOf {H : IsoGraph} (h : H.IsContractionOf (
   haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
   exact Quotient.sound ⟨⟨Equiv.equivOfIsEmpty K.V (CGraph.empty 0).V, fun {a} ↦ hK.elim a⟩⟩
 
-theorem IsSubgraphOf.of_isMinorOf {H G : IsoGraph} (h : H.IsMinorOf G) (hV : G.V ≤ H.V) :
-    H.IsSubgraphOf G := by
+theorem IsSubgraphOf.of_isMinorOf {H G : IsoGraph} (h : H ≤ₘ G) (hV : G.V ≤ H.V) :
+    H ≤ₛ G := by
   revert h hV
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩ hV
   exact ⟨f.toSubgraphOf hV⟩
 
-theorem isImmersionMinorOf_trans {H G K : IsoGraph} (h₁ : H.IsImmersionMinorOf G)
-    (h₂ : G.IsImmersionMinorOf K) : H.IsImmersionMinorOf K := by
+theorem isImmersionMinorOf_trans {H G K : IsoGraph} (h₁ : H ≤ₑ G)
+    (h₂ : G ≤ₑ K) : H ≤ₑ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
-theorem isImmersionMinorOf_antisymm {H G : IsoGraph} (h₁ : H.IsImmersionMinorOf G)
-    (h₂ : G.IsImmersionMinorOf H) : H = G := by
+theorem isImmersionMinorOf_antisymm {H G : IsoGraph} (h₁ : H ≤ₑ G)
+    (h₂ : G ≤ₑ H) : H = G := by
   revert h₁ h₂
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩ ⟨g⟩
   exact Quotient.sound ⟨f.antisymm g⟩
 
-theorem IsImmersionMinorOf.E_le {H G : IsoGraph} (h : H.IsImmersionMinorOf G) : H.E ≤ G.E := by
+theorem IsImmersionMinorOf.E_le {H G : IsoGraph} (h : H ≤ₑ G) : H.E ≤ G.E := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact f.E_le
 
-theorem isTopMinorOf_trans {H G K : IsoGraph} (h₁ : H.IsTopMinorOf G) (h₂ : G.IsTopMinorOf K) :
-    H.IsTopMinorOf K := by
+theorem isTopMinorOf_trans {H G K : IsoGraph} (h₁ : H ≤ₜₘ G) (h₂ : G ≤ₜₘ K) :
+    H ≤ₜₘ K := by
   revert h₁ h₂
   refine Quotient.inductionOn₃ H G K ?_
   rintro _ _ _ ⟨f⟩ ⟨g⟩
   exact ⟨f.trans g⟩
 
 /-- **A topological minor is a minor**: contract every subdivided path onto one of its ends. -/
-theorem IsTopMinorOf.isMinorOf {H G : IsoGraph} (h : H.IsTopMinorOf G) : H.IsMinorOf G := by
+theorem IsTopMinorOf.isMinorOf {H G : IsoGraph} (h : H ≤ₜₘ G) : H ≤ₘ G := by
   revert h
   refine Quotient.inductionOn₂ H G ?_
   rintro _ _ ⟨f⟩
   exact ⟨f.toMinorOf'⟩
 
-theorem isTopMinorOf_antisymm {H G : IsoGraph} (h₁ : H.IsTopMinorOf G) (h₂ : G.IsTopMinorOf H) :
+theorem isTopMinorOf_antisymm {H G : IsoGraph} (h₁ : H ≤ₜₘ G) (h₂ : G ≤ₜₘ H) :
     H = G := isMinorOf_antisymm h₁.isMinorOf h₂.isMinorOf
 
-theorem IsTopMinorOf.E_le {H G : IsoGraph} (h : H.IsTopMinorOf G) : H.E ≤ G.E :=
+theorem IsTopMinorOf.E_le {H G : IsoGraph} (h : H ≤ₜₘ G) : H.E ≤ G.E :=
   h.isMinorOf.E_le
 
 /-! ## The containment orders -/
@@ -779,7 +779,7 @@ scoped instance : PartialOrder IsoGraph where
   le_trans _ _ _ := isMinorOf_trans
   le_antisymm _ _ := isMinorOf_antisymm
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsMinorOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ₘ G := Iff.rfl
 
 scoped instance : OrderBot IsoGraph where
   bot := empty 0
@@ -796,7 +796,7 @@ scoped instance : PartialOrder IsoGraph where
   le_trans _ _ _ := isInducedMinorOf_trans
   le_antisymm _ _ := isInducedMinorOf_antisymm
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsInducedMinorOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ᵢₘ G := Iff.rfl
 
 scoped instance : OrderBot IsoGraph where
   bot := empty 0
@@ -816,7 +816,7 @@ scoped instance : PartialOrder IsoGraph where
   le_trans _ _ _ := isContractionOf_trans
   le_antisymm _ _ := isContractionOf_antisymm
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsContractionOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ₚ G := Iff.rfl
 
 end Contraction
 
@@ -829,7 +829,7 @@ scoped instance : PartialOrder IsoGraph where
   le_trans _ _ _ := isTopMinorOf_trans
   le_antisymm _ _ := isTopMinorOf_antisymm
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsTopMinorOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ₜₘ G := Iff.rfl
 
 scoped instance : OrderBot IsoGraph where
   bot := empty 0
@@ -846,7 +846,7 @@ scoped instance : PartialOrder IsoGraph where
   le_trans _ _ _ := isImmersionMinorOf_trans
   le_antisymm _ _ := isImmersionMinorOf_antisymm
 
-theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H.IsImmersionMinorOf G := Iff.rfl
+theorem le_iff (H G : IsoGraph) : H ≤ G ↔ H ≤ₑ G := Iff.rfl
 
 scoped instance : OrderBot IsoGraph where
   bot := empty 0
