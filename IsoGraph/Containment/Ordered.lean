@@ -51,7 +51,8 @@ place of `IsOrderedAddMonoid`.  No product cancels in any of the nine orders, si
 absorbs, so `IsOrderedCancelMonoid` and `IsStrictOrderedRing` are out of reach by construction;
 the disjoint union does not cancel in the homomorphism or quotient orders, and the join does not
 cancel in the five orders that contract or subdivide.  That leaves three cells open, all of them
-the join.
+the join: in the homomorphism, subgraph and quotient orders a join with a *clique* is proved to
+cancel, and no counterexample to the general statement has been found.
 -/
 
 set_option autoImplicit false
