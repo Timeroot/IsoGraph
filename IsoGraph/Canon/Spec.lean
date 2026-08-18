@@ -58,6 +58,37 @@ def invArray (n : Nat) (a : Array Nat) : Array Nat := Id.run do
     if a[i]! < n then b := b.set! a[i]! i
   return b
 
+/-! ## Tabulating an adjacency function
+
+An adjacency function is called far more than `n²` times by the search below, and for most graphs
+each call does real work — a scan of an edge list, a comparison of two coordinates, a recursive
+call under a complement.  Filling an `n × n` array of `Bool` once and reading it thereafter is
+therefore worth several times the cost of the fill; `CGraph.canonOfArray` does exactly that, and
+`CGraph.cache` in `Graphs/Cache.lean` offers it to the rest of the library.
+
+The shape is forced.  Lean maximises the arity of a top-level definition, so a `def` whose type
+ends in `Fin n → Fin n → Bool` and whose body builds a table is compiled with the table *inside*
+the two-argument function, and rebuilds it on every query.  `matLookup` is therefore a top-level
+definition of its own, applied to the array alone: what is passed around is a closure holding the
+table. -/
+
+/-- The adjacency matrix of `adj`, as an array of rows. -/
+def adjArray (n : Nat) (adj : Fin n → Fin n → Bool) : Array (Array Bool) :=
+  Array.ofFn fun i : Fin n ↦ Array.ofFn fun j : Fin n ↦ adj i j
+
+/-- Read the entry of an adjacency matrix at `(i, j)`.  Top-level, and meant to be applied to the
+array alone, for the reason above. -/
+def matLookup (n : Nat) (a : Array (Array Bool)) (i j : Fin n) : Bool :=
+  (a.getD i.1 #[]).getD j.1 false
+
+@[simp] theorem matLookup_adjArray (n : Nat) (adj : Fin n → Fin n → Bool) (i j : Fin n) :
+    matLookup n (adjArray n adj) i j = adj i j := by
+  simp [matLookup, adjArray, Array.getD, i.isLt, j.isLt]
+
+theorem matLookup_adjArray_eq (n : Nat) (adj : Fin n → Fin n → Bool) :
+    matLookup n (adjArray n adj) = adj :=
+  funext fun i ↦ funext fun j ↦ matLookup_adjArray n adj i j
+
 /-- Adjacency oracle on `{0, …, n-1}` coming from an adjacency function on `Fin n`. -/
 def oracleOfFin (n : Nat) (adj : Fin n → Fin n → Bool) (v w : Nat) : Bool :=
   if hv : v < n then if hw : w < n then adj ⟨v, hv⟩ ⟨w, hw⟩ else false else false

@@ -5,6 +5,7 @@ import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.TopMinor
+import IsoGraph.Enum.All
 import IsoGraph.Graphs.Cache
 import IsoGraph.Graphs.NamedGraphs
 import IsoGraph.Invariants.Symmetry
@@ -50,6 +51,37 @@ def canonSum (G : CGraph) : String :=
   let c := G.canon
   let idx := List.finRange (FinEnum.card G.V)
   toString ((idx.map fun a ↦ (idx.filter fun b ↦ c.adj a b).length).sum)
+
+/-! ### Tabulating inside the canonical form
+
+`CGraph.canonOfArray` tabulates the adjacency before it runs the search — `canonOfArrayTab`, a
+`@[csimp]` implementation of it — so the search reads an array rather than calling `G.Adj`.  The
+`raw` line below is the same computation written the way it ran before, straight off
+`G.adjOfArray`; the `entry` line is `CGraph.canon`.  The fill is inside the timed thunk, so the
+two are directly comparable, and the gap between them is also the check that the `@[csimp]` really
+fired. -/
+
+/-- The number of ordered adjacent pairs of an adjacency matrix. -/
+def matSum (n : ℕ) (c : IsoGraph.Canon.AdjMatrix n) : String :=
+  let idx := List.finRange n
+  toString ((idx.map fun a ↦ (idx.filter fun b ↦ c.adj a b).length).sum)
+
+/-- The canonical form of `G` off the raw adjacency function: no `canonOfArray` in sight, so the
+`@[csimp]` does not reach it. -/
+def canonRaw (G : CGraph) : IsoGraph.Canon.AdjMatrix (FinEnum.card G.V) :=
+  let a := (FinEnum.toList G.V).toArray
+  (IsoGraph.Canon.canonMatrix a.size (G.adjOfArray a)).reindex (FinEnum.card G.V)
+
+def canonRawSum (G : CGraph) : String := matSum _ (canonRaw G)
+
+/-- Canonicalise the first `hi` labelled graphs on `n` vertices, and count those whose canonical
+form has its first two vertices adjacent.  One query forces the whole search, so this times the
+search and nothing else — on graphs small enough that the `n²` fill might not pay for itself. -/
+def massRaw (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦ (canonRaw (Enum.graphOfCode n c)).get 0 1)
+
+def massEntry (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦ (Enum.graphOfCode n c).canon.get 0 1)
 
 /-- Force the automorphism group: the number of generators the stabiliser chain produces.  The
 relabelling onto `Fin` is the one the enumeration supplies, so this runs on any vertex type. -/
@@ -227,6 +259,23 @@ def main (args : List String) : IO Unit := do
   | "canon-complete" =>
     let n := size 2 40
     trio r s!"canon K{n}" (complete n) canonSum
+  /- ### tabulating inside the canonical form -/
+  | "canon-tab" =>
+    let which := (args[2]?).getD "balaban"
+    let G := match which with
+      | "tutte" => hostOfEdges r 46 tutteEdges
+      | "mcgee" => hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)
+      | "cycle" => cycle (size 3 46)
+      | "complete" => complete (size 3 40)
+      | "kneser" => kneser (size 3 7) (size 4 3)
+      | _ => hostOfEdges r 70 (lcfEdges balabanCode 1)
+    duel r s!"canon {which}"
+      [("raw   ", fun _ => canonRawSum G), ("entry ", fun _ => canonSum G)]
+  | "canon-mass" =>
+    let n := size 2 6
+    let hi := size 3 20000
+    duel r s!"canon {hi} graphs on {n}"
+      [("raw   ", fun _ => massRaw n hi), ("entry ", fun _ => massEntry n hi)]
   /- ### the automorphism group -/
   | "aut-tutte" => trio r "aut tutte" (hostOfEdges r 46 tutteEdges) autCount
   | "aut-balaban" => trio r "aut balaban10" (hostOfEdges r 70 (lcfEdges balabanCode 1)) autCount
@@ -491,7 +540,8 @@ def main (args : List String) : IO Unit := do
   | "degsum" => trio r "degree sum of tutte" (hostOfEdges r 46 tutteEdges) pairCount
   | _ =>
     IO.println "usage: cachebench <case> [rounds] [sizes...]"
-    IO.println "canon:   canon-tutte, canon-mcgee, canon-balaban, canon-cycle, canon-complete"
+    IO.println "canon:   canon-tutte, canon-mcgee, canon-balaban, canon-cycle, canon-complete,"
+    IO.println "         canon-tab <graph>, canon-mass <n> <count>"
     IO.println "aut:     aut-tutte, aut-balaban, aut-cycle"
     IO.println "search:  ind-empty-tutte, sub-cycle-tutte, km-tutte, con-cycle-tutte,"
     IO.println "         sub-cycle-mcgee, sub-petersen-tutte, con-self-mcgee"

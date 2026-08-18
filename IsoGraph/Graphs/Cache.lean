@@ -32,7 +32,9 @@ below is not free to change.  The Lean compiler maximises the arity of a top-lev
 with `heavy x` in its body, and then `heavy` runs again on every call.  A definition that means to
 share work must therefore not return a function type.  `cacheOfAdj` and `cache` return a `CGraph`,
 so the array is built once per call, and the field they store is a partial application —
-`matLookup n a` or `matLookupOn α a` — a closure holding the array.
+`matLookup n a` or `matLookupOn α a` — a closure holding the array.  The table itself and its
+lookup are `IsoGraph.Canon.adjArray` and `IsoGraph.Canon.matLookup`, which live next to the search
+because `CGraph.canonOfArray` tabulates for itself.
 
 That leaves the caller responsible for evaluating `G.cache` once: it is a function call like any
 other, and calling it twice fills the array twice.  A top-level `def` (or a `let` outside the
@@ -55,8 +57,12 @@ function does real work and the search does not finish immediately:
 | `K₄ ≼ tutte` (minor)                 | 19     | 5       | 4          |
 | `petersen ⊆ tutte`                   | 16     | 8       | 6          |
 | `C₈ ⊆ tutte`                         | 12     | 6       | 5          |
-| canonical form of the Balaban 10-cage | 26    | 13      | 13         |
-| canonical form of the Tutte graph    | 9      | 6       | 6          |
+| canonical form of the Balaban 10-cage | 11    | 13      | 12         |
+| canonical form of the Tutte graph    | 6      | 6       | 6          |
+
+The last two rows are the exception that proves the rule, and they used to read 26 | 13 | 13 and
+9 | 6 | 6.  `CGraph.canonOfArray` now tabulates for itself — see `IsoGraph/Basic.lean` — so the
+plain column already pays for one fill, and caching first only adds a second.
 
 Caching the *pattern* is worth as much as caching the host, and caching both multiplies.  Nothing
 measured on a `Fin n` vertex type got materially slower: even a host whose adjacency is a formula
@@ -77,8 +83,11 @@ than no cache at all — on the Kneser graph `K(10,5)`, whose vertices are the 5
 | ------------------ | ----- | ------- | ---------- |
 | automorphisms of `K(7,3)` | 3302 | 10332 | 460  |
 | `C₆ ⊆ K(10,5)`     | 409   | 1576    | 124        |
-| canonical form     | 750   | 1440    | 655        |
+| canonical form     | 1066  | 1581    | 1131       |
 | degree sum         | 65    | 362     | 106        |
+
+The canonical-form row is again one where the plain column already tabulates, so neither variant
+has anything left to win.
 
 So: `cache` on `Fin n`, `cacheFin` everywhere else.  (These figures are already with the
 memoised subset enumeration of `IsoGraph.ForMathlib.FinEnum`; against Mathlib's instance, whose
@@ -87,24 +96,7 @@ memoised subset enumeration of `IsoGraph.ForMathlib.FinEnum`; against Mathlib's 
 
 namespace CGraph
 
-/-- The adjacency matrix of `adj`, as an array of rows. -/
-def adjArray (n : ℕ) (adj : Fin n → Fin n → Bool) : Array (Array Bool) :=
-  Array.ofFn fun i : Fin n ↦ Array.ofFn fun j : Fin n ↦ adj i j
-
-/-- Read the entry of an adjacency matrix at `(i, j)`.
-
-Kept as a separate top-level definition, and applied to the array alone: the closure that results
-holds the table, where a `fun i j ↦ ⋯` written in place would rebuild it. -/
-def matLookup (n : ℕ) (a : Array (Array Bool)) (i j : Fin n) : Bool :=
-  (a.getD i.1 #[]).getD j.1 false
-
-@[simp] theorem matLookup_adjArray (n : ℕ) (adj : Fin n → Fin n → Bool) (i j : Fin n) :
-    matLookup n (adjArray n adj) i j = adj i j := by
-  simp [matLookup, adjArray, Array.getD, i.isLt, j.isLt]
-
-theorem matLookup_adjArray_eq (n : ℕ) (adj : Fin n → Fin n → Bool) :
-    matLookup n (adjArray n adj) = adj :=
-  funext fun i ↦ funext fun j ↦ matLookup_adjArray n adj i j
+open IsoGraph.Canon (adjArray matLookup matLookup_adjArray matLookup_adjArray_eq)
 
 /-! ### Keeping the vertex type -/
 

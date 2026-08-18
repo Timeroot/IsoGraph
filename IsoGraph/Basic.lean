@@ -209,6 +209,34 @@ def canonOfArray (G : CGraph) (a : Array G.V) :
     IsoGraph.Canon.AdjMatrix (FinEnum.card G.V) :=
   (IsoGraph.Canon.canonMatrix a.size (G.adjOfArray a)).reindex (FinEnum.card G.V)
 
+/-- The same, off a tabulated adjacency: the `n × n` array is filled once, and every query the
+search makes is then an array read rather than a call to `G.Adj`.
+
+This is what runs — `canonOfArray_eq_tab` below is a `@[csimp]` lemma — while `canonOfArray`
+stays the definition everything is proved about.  Measured by `CacheBench.lean` (`canon-tab`,
+`canon-mass`), best of five interleaved rounds, in milliseconds:
+
+| job                                   | raw  | tabulated |
+| ------------------------------------- | ---- | --------- |
+| canonical form of the Balaban 10-cage | 24   | 9         |
+| canonical form of the Tutte graph     | 9    | 6         |
+| canonical form of the Kneser graph `K(7,3)` | 5 | 3      |
+| canonical form of `K₄₀`               | 21   | 22        |
+| 20000 labelled graphs on six vertices | 968  | 933       |
+
+The win is the whole of what a query costs, because the search asks far more than `n²` times.
+Nothing gets slower: a host whose adjacency is already a formula is a wash, and so is a sweep of
+graphs small enough that the fill is a real fraction of the work. -/
+def canonOfArrayTab (G : CGraph) (a : Array G.V) :
+    IsoGraph.Canon.AdjMatrix (FinEnum.card G.V) :=
+  (IsoGraph.Canon.canonMatrix a.size
+    (IsoGraph.Canon.matLookup a.size
+      (IsoGraph.Canon.adjArray a.size (G.adjOfArray a)))).reindex (FinEnum.card G.V)
+
+@[csimp] theorem canonOfArray_eq_tab : @canonOfArray = @canonOfArrayTab := by
+  funext G a
+  rw [canonOfArrayTab, IsoGraph.Canon.matLookup_adjArray_eq, canonOfArray]
+
 /-- **The canonical form of `G` relative to the listing `l`**: the canonical adjacency matrix,
 on `Fin (FinEnum.card G.V)`.
 
