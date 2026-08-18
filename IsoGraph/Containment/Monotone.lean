@@ -18,8 +18,8 @@ and `H'` inside `G'`, does `H op H'` sit inside `G op G'`?
 | `≤ₘ` minor | ✓ | ✓ | ✓ | ? | ✓ | ✓ |
 | `≤ᵢₘ` induced minor | ✓ | ✓ | ✓ | ? | ✓ | ? |
 | `≤ₚ` contraction | ✓ | ✓ | ✓ | ? | ✓ | ? |
-| `≤ₜₘ` topological minor | ✓ | ✓ | ? | ? | ? | ? |
-| `≤ₑ` immersion | ✓ | ✓ | ? | ? | ? | ? |
+| `≤ₜₘ` topological minor | ✓ | ✓ | ✓ | ? | ? | ? |
+| `≤ₑ` immersion | ✓ | ✓ | ✓ | ? | ? | ? |
 
 Each `✓` is a theorem here, at both levels: a construction on the `CGraph` models, which is what a
 search would have to output, and the statement about `IsoGraph` that it lifts to, e.g.
@@ -37,10 +37,12 @@ when both are bipartite.  Whether the tensor product is monotone in the minor or
 model is left open, as is the lexicographic product for the two *induced* minor relations, where
 the obstruction is different: an edge inside a branch set of the first factor is an edge of the
 lexicographic product whatever the second coordinates do, and nothing makes it induced.  The last
-two relations replace an edge by a path or a trail, and get the two sums only: an edge inside a
-summand keeps that summand's walk, an edge across a join is an edge of the join of the hosts, and
-walks that came from different summands are disjoint for free.  Over a product they are left open,
-because two walks that came from the same factor would run through each other.
+two relations replace an edge by a path or a trail, and get the two sums and the cartesian
+product: an edge inside a summand keeps that summand's walk, an edge across a join is an edge of
+the join of the hosts, and an edge of `□g` moves one coordinate and so takes that factor's walk
+along one row or one column of the product.  Over the other three products they are left open,
+because there an edge of one factor can be replaced by a walk that moves both coordinates, and two
+such walks would have to be kept apart by hand.
 -/
 
 set_option autoImplicit false
@@ -782,14 +784,20 @@ def lexProduct (f : A.QuotientOf B) (f' : A'.QuotientOf B') :
 
 end QuotientOf
 
-/-! ## Topological minors and immersions, on the two sums
+/-! ## Topological minors and immersions, on the two sums and the cartesian product
 
 The last two relations replace an edge of `H` by a walk of `G`, so a construction on them has to
-say which walk each edge of the sum gets.  An edge inside a summand keeps that summand's walk,
-carried over by `Sum.inl` or `Sum.inr`; an edge across the join is an edge of the join of the
-hosts, and gets a walk of one edge.  The disjoint union has no edges across, and the products are
-not attempted: there the walk of an edge of one factor would have to be a walk of the product,
-which it is, but the walks of two different edges would then run through each other. -/
+say which walk each edge of the operation gets.  An edge inside a summand keeps that summand's
+walk, carried over by `Sum.inl` or `Sum.inr`; an edge across the join is an edge of the join of
+the hosts, and gets a walk of one edge; the disjoint union has no edges across.  An edge of a
+cartesian product moves exactly one of the two coordinates and keeps the other, so it keeps the
+walk of that factor, run along the row or the column that the other coordinate names.  Two such
+walks meet only where a row meets a column, which is a branch vertex of the product, and they
+never share an edge, since an edge of a row and an edge of a column are never the same edge.
+
+The other three products are not attempted: there an edge of `H` can move both coordinates, so
+its walk would have to be routed through the product itself, and two walks routed that way would
+have to be kept apart by hand. -/
 
 /-! ### The two summands as homomorphisms -/
 
@@ -911,6 +919,124 @@ theorem sym2_cross_eq'' {α β : Type*} {u u' : α} {v v' : β}
     (h : s(Sum.inr v, Sum.inl u) = s(Sum.inr v', Sum.inl u')) : u = u' ∧ v = v' := by
   rw [Sym2.eq_iff] at h
   exact ((by simpa using h : v = v' ∧ u = u').symm)
+
+/-! ### The two factors of a cartesian product as homomorphisms -/
+
+/-- A row of a cartesian product: `(·, q)` as a homomorphism. -/
+def fstHom (B B' : CGraph) (q : B'.V) : B.toSimple →g (B □g B').toSimple where
+  toFun p := (p, q)
+  map_rel' {u v} h := by
+    show (B □g B').Adj (u, q) (v, q) = true
+    simp only [cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+    exact Or.inr ⟨h, trivial⟩
+
+/-- A column of a cartesian product: `(p, ·)` as a homomorphism. -/
+def sndHom (B B' : CGraph) (p : B.V) : B'.toSimple →g (B □g B').toSimple where
+  toFun q := (p, q)
+  map_rel' {u v} h := by
+    show (B □g B').Adj (p, u) (p, v) = true
+    simp only [cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+    exact Or.inl ⟨trivial, h⟩
+
+@[simp] theorem coe_fstHom (B B' : CGraph) (q : B'.V) :
+    ⇑(fstHom B B' q) = fun p ↦ (p, q) := rfl
+
+@[simp] theorem coe_sndHom (B B' : CGraph) (p : B.V) :
+    ⇑(sndHom B B' p) = fun q ↦ (p, q) := rfl
+
+theorem fstHom_injective (B B' : CGraph) (q : B'.V) : Function.Injective ⇑(fstHom B B' q) :=
+  fun _ _ h ↦ congrArg Prod.fst h
+
+theorem sndHom_injective (B B' : CGraph) (p : B.V) : Function.Injective ⇑(sndHom B B' p) :=
+  fun _ _ h ↦ congrArg Prod.snd h
+
+theorem mem_support_sndHom {p : B.V} {u v : B'.V} (w : B'.toSimple.Walk u v)
+    (z : B.V × B'.V) :
+    z ∈ (w.map (sndHom B B' p)).support ↔ z.1 = p ∧ z.2 ∈ w.support := by
+  simp only [SimpleGraph.Walk.support_map, List.mem_map, coe_sndHom]
+  constructor
+  · rintro ⟨q, hq, rfl⟩
+    exact ⟨rfl, hq⟩
+  · rintro ⟨h₁, h₂⟩
+    exact ⟨z.2, h₂, by rw [← h₁]⟩
+
+theorem mem_support_fstHom {q : B'.V} {u v : B.V} (w : B.toSimple.Walk u v)
+    (z : B.V × B'.V) :
+    z ∈ (w.map (fstHom B B' q)).support ↔ z.2 = q ∧ z.1 ∈ w.support := by
+  simp only [SimpleGraph.Walk.support_map, List.mem_map, coe_fstHom]
+  constructor
+  · rintro ⟨p, hp, rfl⟩
+    exact ⟨rfl, hp⟩
+  · rintro ⟨h₁, h₂⟩
+    exact ⟨z.1, h₂, by rw [← h₁]⟩
+
+theorem mem_edges_sndHom {p : B.V} {u v : B'.V} (w : B'.toSimple.Walk u v)
+    (e : Sym2 (B.V × B'.V)) :
+    e ∈ (w.map (sndHom B B' p)).edges ↔ ∃ e₀ ∈ w.edges, Sym2.map (fun q ↦ (p, q)) e₀ = e := by
+  simp [SimpleGraph.Walk.edges_map]
+
+theorem mem_edges_fstHom {q : B'.V} {u v : B.V} (w : B.toSimple.Walk u v)
+    (e : Sym2 (B.V × B'.V)) :
+    e ∈ (w.map (fstHom B B' q)).edges ↔ ∃ e₀ ∈ w.edges, Sym2.map (fun p ↦ (p, q)) e₀ = e := by
+  simp [SimpleGraph.Walk.edges_map]
+
+/-- An edge of a cartesian product that keeps the first coordinate moves along the second. -/
+theorem cartesianProduct_adj_of_fst_eq {x₁ y₁ : A.V} {x₂ y₂ : A'.V}
+    (h : (A □g A').Adj (x₁, x₂) (y₁, y₂)) (hx : x₁ = y₁) : A'.Adj x₂ y₂ := by
+  subst hx
+  simpa [A.loopless x₁] using h
+
+/-- An edge of a cartesian product that moves the first coordinate keeps the second. -/
+theorem cartesianProduct_adj_of_fst_ne {x₁ y₁ : A.V} {x₂ y₂ : A'.V}
+    (h : (A □g A').Adj (x₁, x₂) (y₁, y₂)) (hx : x₁ ≠ y₁) : A.Adj x₁ y₁ ∧ x₂ = y₂ := by
+  simpa [hx] using h
+
+/-- A column of a cartesian product and a row of it share no edge. -/
+theorem sym2_map_col_ne_row {α β : Type*} {a : α} {c : β} {e : Sym2 β} {e' : Sym2 α}
+    (he : ¬ e.IsDiag) :
+    Sym2.map (fun q : β ↦ (a, q)) e ≠ Sym2.map (fun p : α ↦ (p, c)) e' := by
+  induction e using Sym2.ind with | _ u v => ?_
+  induction e' using Sym2.ind with | _ p p' => ?_
+  simp only [Sym2.isDiag_iff_proj_eq] at he
+  intro h
+  rw [Sym2.map_pair_eq, Sym2.map_pair_eq, Sym2.eq_iff] at h
+  simp only [Prod.mk.injEq] at h
+  rcases h with ⟨⟨-, h₁⟩, ⟨-, h₂⟩⟩ | ⟨⟨-, h₁⟩, ⟨-, h₂⟩⟩ <;> exact he (h₁.trans h₂.symm)
+
+/-- Two columns of a cartesian product that share an edge are the same column. -/
+theorem sym2_map_col_eq {α β : Type*} {a a' : α} {e e' : Sym2 β}
+    (h : Sym2.map (fun q : β ↦ (a, q)) e = Sym2.map (fun q : β ↦ (a', q)) e') : a = a' := by
+  induction e using Sym2.ind with | _ u v => ?_
+  induction e' using Sym2.ind with | _ u' v' => ?_
+  rw [Sym2.map_pair_eq, Sym2.map_pair_eq, Sym2.eq_iff] at h
+  simp only [Prod.mk.injEq] at h
+  rcases h with ⟨⟨h, -⟩, -⟩ | ⟨⟨h, -⟩, -⟩ <;> exact h
+
+/-- Two rows of a cartesian product that share an edge are the same row. -/
+theorem sym2_map_row_eq {α β : Type*} {c c' : β} {e e' : Sym2 α}
+    (h : Sym2.map (fun p : α ↦ (p, c)) e = Sym2.map (fun p : α ↦ (p, c')) e') : c = c' := by
+  induction e using Sym2.ind with | _ u v => ?_
+  induction e' using Sym2.ind with | _ u' v' => ?_
+  rw [Sym2.map_pair_eq, Sym2.map_pair_eq, Sym2.eq_iff] at h
+  simp only [Prod.mk.injEq] at h
+  rcases h with ⟨⟨-, h⟩, -⟩ | ⟨⟨-, h⟩, -⟩ <;> exact h
+
+/-- Two edges in the same column of a cartesian product are different if the columns' edges
+are. -/
+theorem sym2_col_ne {α β : Type*} {a : α} {u v u' v' : β}
+    (h : s((a, u), (a, v)) ≠ (s((a, u'), (a, v')) : Sym2 (α × β))) : s(u, v) ≠ s(u', v') := by
+  intro he
+  refine h ?_
+  rw [Sym2.eq_iff] at he ⊢
+  simpa using he
+
+/-- Two edges in the same row of a cartesian product are different if the rows' edges are. -/
+theorem sym2_row_ne {α β : Type*} {c : β} {u v u' v' : α}
+    (h : s((u, c), (v, c)) ≠ (s((u', c), (v', c)) : Sym2 (α × β))) : s(u, v) ≠ s(u', v') := by
+  intro he
+  refine h ?_
+  rw [Sym2.eq_iff] at he ⊢
+  simpa using he
 
 /-! ### Topological minors -/
 
@@ -1115,6 +1241,116 @@ def join (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
         (Sum.inr_injective hww ▸ hw')
       exact ⟨Sum.inr t, rfl⟩
 
+/-- The path replacing an edge of a cartesian product: an edge that moves the first coordinate
+takes the path of the first factor, at a fixed second coordinate, and vice versa. -/
+def prodPath (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
+    ∀ (x y : A.V × A'.V), (A □g A').Adj x y →
+      (B □g B').toSimple.Walk (Prod.map f.toFun f'.toFun x) (Prod.map f.toFun f'.toFun y)
+  | (x₁, x₂), (y₁, y₂), h =>
+    if hx : x₁ = y₁ then
+      ((f'.path (cartesianProduct_adj_of_fst_eq h hx)).map (sndHom B B' (f.toFun x₁))).copy rfl
+        (by rw [hx]; rfl)
+    else
+      ((f.path (cartesianProduct_adj_of_fst_ne h hx).1).map (fstHom B B' (f'.toFun x₂))).copy rfl
+        (by rw [(cartesianProduct_adj_of_fst_ne h hx).2]; rfl)
+
+/-- An edge along the second coordinate takes the second factor's path, in one column. -/
+theorem prodPath_col (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') {x₁ : A.V} {x₂ y₂ : A'.V}
+    (h : (A □g A').Adj (x₁, x₂) (x₁, y₂)) (ha : A'.Adj x₂ y₂) :
+    prodPath f f' (x₁, x₂) (x₁, y₂) h = (f'.path ha).map (sndHom B B' (f.toFun x₁)) := by
+  rw [prodPath, dif_pos rfl]
+  rfl
+
+/-- An edge along the first coordinate takes the first factor's path, in one row. -/
+theorem prodPath_row (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') {x₁ y₁ : A.V} {x₂ : A'.V}
+    (hx : x₁ ≠ y₁) (h : (A □g A').Adj (x₁, x₂) (y₁, x₂)) (ha : A.Adj x₁ y₁) :
+    prodPath f f' (x₁, x₂) (y₁, x₂) h = (f.path ha).map (fstHom B B' (f'.toFun x₂)) := by
+  rw [prodPath, dif_neg hx]
+  rfl
+
+/-- A topological minor of each factor is a topological minor of the cartesian product. -/
+def cartesianProduct (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
+    (A □g A').TopMinorOf (B □g B') where
+  toFun := Prod.map f.toFun f'.toFun
+  injective' := f.injective.prodMap f'.injective
+  path {x y} h := prodPath f f' x y h
+  isPath' := by
+    rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h
+    by_cases hx : x₁ = y₁
+    · subst hx
+      rw [prodPath_col f f' h (cartesianProduct_adj_of_fst_eq h rfl)]
+      exact SimpleGraph.Walk.map_isPath_of_injective (sndHom_injective B B' _) (f'.isPath' _)
+    · obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      rw [prodPath_row f f' hx h ha]
+      exact SimpleGraph.Walk.map_isPath_of_injective (fstHom_injective B B' _) (f.isPath' _)
+  reverse' := by
+    rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h h'
+    by_cases hx : x₁ = y₁
+    · subst hx
+      rw [prodPath_col f f' h (cartesianProduct_adj_of_fst_eq h rfl),
+        prodPath_col f f' h' (cartesianProduct_adj_of_fst_eq h' rfl),
+        SimpleGraph.Walk.reverse_map,
+        f'.reverse' (cartesianProduct_adj_of_fst_eq h rfl)]
+    · obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      obtain ⟨ha', -⟩ := cartesianProduct_adj_of_fst_ne h' (Ne.symm hx)
+      rw [prodPath_row f f' (Ne.symm hx) h' ha', prodPath_row f f' hx h ha,
+        SimpleGraph.Walk.reverse_map, f.reverse' ha]
+  branch' := by
+    rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h ⟨z₁, z₂⟩ hz
+    by_cases hx : x₁ = y₁
+    · subst hx
+      rw [prodPath_col f f' h (cartesianProduct_adj_of_fst_eq h rfl),
+        mem_support_sndHom] at hz
+      obtain ⟨hz₁, hz₂⟩ := hz
+      have : z₁ = x₁ := f.injective hz₁
+      subst this
+      exact (f'.branch' (cartesianProduct_adj_of_fst_eq h rfl) z₂ hz₂).imp
+        (fun hh ↦ by rw [hh]) (fun hh ↦ by rw [hh])
+    · obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      rw [prodPath_row f f' hx h ha, mem_support_fstHom] at hz
+      obtain ⟨hz₂, hz₁⟩ := hz
+      have : z₂ = x₂ := f'.injective hz₂
+      subst this
+      exact (f.branch' ha z₁ hz₁).imp (fun hh ↦ by rw [hh]) (fun hh ↦ by rw [hh])
+  disjoint' := by
+    rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h ⟨x₁', x₂'⟩ ⟨y₁', y₂'⟩ h' hne ⟨z₁, z₂⟩ hz hz'
+    by_cases hx : x₁ = y₁ <;> by_cases hx' : x₁' = y₁'
+    · -- two columns
+      subst hx
+      subst hx'
+      rw [prodPath_col f f' h (cartesianProduct_adj_of_fst_eq h rfl), mem_support_sndHom] at hz
+      rw [prodPath_col f f' h' (cartesianProduct_adj_of_fst_eq h' rfl), mem_support_sndHom] at hz'
+      obtain ⟨hz₁, hz₂⟩ := hz
+      obtain ⟨hz₁', hz₂'⟩ := hz'
+      have : x₁ = x₁' := f.injective (hz₁.symm.trans hz₁')
+      subst this
+      obtain ⟨b, hb⟩ := f'.disjoint' (cartesianProduct_adj_of_fst_eq h rfl)
+        (cartesianProduct_adj_of_fst_eq h' rfl) (sym2_col_ne hne) z₂ hz₂ hz₂'
+      exact ⟨(x₁, b), Prod.ext hz₁ hb⟩
+    · -- a column and a row
+      subst hx
+      obtain ⟨ha', rfl⟩ := cartesianProduct_adj_of_fst_ne h' hx'
+      rw [prodPath_col f f' h (cartesianProduct_adj_of_fst_eq h rfl), mem_support_sndHom] at hz
+      rw [prodPath_row f f' hx' h' ha', mem_support_fstHom] at hz'
+      exact ⟨(x₁, x₂'), Prod.ext hz.1 hz'.1⟩
+    · -- a row and a column
+      subst hx'
+      obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      rw [prodPath_row f f' hx h ha, mem_support_fstHom] at hz
+      rw [prodPath_col f f' h' (cartesianProduct_adj_of_fst_eq h' rfl), mem_support_sndHom] at hz'
+      exact ⟨(x₁', x₂), Prod.ext hz'.1 hz.1⟩
+    · -- two rows
+      obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      obtain ⟨ha', rfl⟩ := cartesianProduct_adj_of_fst_ne h' hx'
+      rw [prodPath_row f f' hx h ha, mem_support_fstHom] at hz
+      rw [prodPath_row f f' hx' h' ha', mem_support_fstHom] at hz'
+      obtain ⟨hz₂, hz₁⟩ := hz
+      obtain ⟨hz₂', hz₁'⟩ := hz'
+      have : x₂ = x₂' := f'.injective (hz₂.symm.trans hz₂')
+      subst this
+      obtain ⟨b, hb⟩ := f.disjoint' ha ha' (sym2_row_ne hne) z₁ hz₁ hz₁'
+      exact ⟨(b, x₂), Prod.ext hb hz₂⟩
+
 end TopMinorOf
 
 /-! ### Immersions -/
@@ -1260,6 +1496,106 @@ def join (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
         (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) eq))
         e₀ he₀ (Sym2.map.injective Sum.inr_injective hee ▸ he₁)
 
+/-- The trail replacing an edge of a cartesian product. -/
+def prodWalk (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
+    ∀ (x y : A.V × A'.V), (A □g A').Adj x y →
+      (B □g B').toSimple.Walk (Prod.map f.toFun f'.toFun x) (Prod.map f.toFun f'.toFun y)
+  | (x₁, x₂), (y₁, y₂), h =>
+    if hx : x₁ = y₁ then
+      ((f'.walk (cartesianProduct_adj_of_fst_eq h hx)).map (sndHom B B' (f.toFun x₁))).copy rfl
+        (by rw [hx]; rfl)
+    else
+      ((f.walk (cartesianProduct_adj_of_fst_ne h hx).1).map (fstHom B B' (f'.toFun x₂))).copy rfl
+        (by rw [(cartesianProduct_adj_of_fst_ne h hx).2]; rfl)
+
+/-- An edge along the second coordinate takes the second factor's trail, in one column. -/
+theorem prodWalk_col (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') {x₁ : A.V} {x₂ y₂ : A'.V}
+    (h : (A □g A').Adj (x₁, x₂) (x₁, y₂)) (ha : A'.Adj x₂ y₂) :
+    prodWalk f f' (x₁, x₂) (x₁, y₂) h = (f'.walk ha).map (sndHom B B' (f.toFun x₁)) := by
+  rw [prodWalk, dif_pos rfl]
+  rfl
+
+/-- An edge along the first coordinate takes the first factor's trail, in one row. -/
+theorem prodWalk_row (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') {x₁ y₁ : A.V} {x₂ : A'.V}
+    (hx : x₁ ≠ y₁) (h : (A □g A').Adj (x₁, x₂) (y₁, x₂)) (ha : A.Adj x₁ y₁) :
+    prodWalk f f' (x₁, x₂) (y₁, x₂) h = (f.walk ha).map (fstHom B B' (f'.toFun x₂)) := by
+  rw [prodWalk, dif_neg hx]
+  rfl
+
+/-- An immersion of each factor is an immersion of the cartesian product. -/
+def cartesianProduct (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
+    (A □g A').ImmersionOf (B □g B') where
+  toFun := Prod.map f.toFun f'.toFun
+  injective' := f.injective.prodMap f'.injective
+  walk {x y} h := prodWalk f f' x y h
+  isTrail' := by
+    rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h
+    by_cases hx : x₁ = y₁
+    · subst hx
+      rw [prodWalk_col f f' h (cartesianProduct_adj_of_fst_eq h rfl)]
+      exact SimpleGraph.Walk.map_isTrail_of_injective (sndHom_injective B B' _) (f'.isTrail' _)
+    · obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      rw [prodWalk_row f f' hx h ha]
+      exact SimpleGraph.Walk.map_isTrail_of_injective (fstHom_injective B B' _) (f.isTrail' _)
+  reverse' := by
+    rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h h'
+    by_cases hx : x₁ = y₁
+    · subst hx
+      rw [prodWalk_col f f' h (cartesianProduct_adj_of_fst_eq h rfl),
+        prodWalk_col f f' h' (cartesianProduct_adj_of_fst_eq h' rfl),
+        SimpleGraph.Walk.reverse_map,
+        f'.reverse' (cartesianProduct_adj_of_fst_eq h rfl)]
+    · obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      obtain ⟨ha', -⟩ := cartesianProduct_adj_of_fst_ne h' (Ne.symm hx)
+      rw [prodWalk_row f f' (Ne.symm hx) h' ha', prodWalk_row f f' hx h ha,
+        SimpleGraph.Walk.reverse_map, f.reverse' ha]
+  edgeDisjoint' := by
+    rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h ⟨x₁', x₂'⟩ ⟨y₁', y₂'⟩ h' hne e he he'
+    by_cases hx : x₁ = y₁ <;> by_cases hx' : x₁' = y₁'
+    · -- two columns
+      subst hx
+      subst hx'
+      rw [prodWalk_col f f' h (cartesianProduct_adj_of_fst_eq h rfl), mem_edges_sndHom] at he
+      rw [prodWalk_col f f' h' (cartesianProduct_adj_of_fst_eq h' rfl), mem_edges_sndHom] at he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, he₂⟩ := he'
+      have hxx : x₁ = x₁' := f.injective (sym2_map_col_eq he₂.symm)
+      subst hxx
+      refine f'.edgeDisjoint' (cartesianProduct_adj_of_fst_eq h rfl)
+        (cartesianProduct_adj_of_fst_eq h' rfl) (sym2_col_ne hne) e₀ he₀ ?_
+      exact (Sym2.map.injective (sndHom_injective B B' (f.toFun x₁)) he₂.symm) ▸ he₁
+    · -- a column and a row
+      subst hx
+      obtain ⟨ha', rfl⟩ := cartesianProduct_adj_of_fst_ne h' hx'
+      rw [prodWalk_col f f' h (cartesianProduct_adj_of_fst_eq h rfl), mem_edges_sndHom] at he
+      rw [prodWalk_row f f' hx' h' ha', mem_edges_fstHom] at he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, -, he₂⟩ := he'
+      exact sym2_map_col_ne_row
+        (SimpleGraph.not_isDiag_of_mem_edgeSet _
+          (SimpleGraph.Walk.edges_subset_edgeSet _ he₀)) he₂.symm
+    · -- a row and a column
+      subst hx'
+      obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      rw [prodWalk_row f f' hx h ha, mem_edges_fstHom] at he
+      rw [prodWalk_col f f' h' (cartesianProduct_adj_of_fst_eq h' rfl), mem_edges_sndHom] at he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, he₂⟩ := he'
+      exact sym2_map_col_ne_row
+        (SimpleGraph.not_isDiag_of_mem_edgeSet _
+          (SimpleGraph.Walk.edges_subset_edgeSet _ he₁)) he₂
+    · -- two rows
+      obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
+      obtain ⟨ha', rfl⟩ := cartesianProduct_adj_of_fst_ne h' hx'
+      rw [prodWalk_row f f' hx h ha, mem_edges_fstHom] at he
+      rw [prodWalk_row f f' hx' h' ha', mem_edges_fstHom] at he'
+      obtain ⟨e₀, he₀, rfl⟩ := he
+      obtain ⟨e₁, he₁, he₂⟩ := he'
+      have hxx : x₂ = x₂' := f'.injective (sym2_map_row_eq he₂.symm)
+      subst hxx
+      refine f.edgeDisjoint' ha ha' (sym2_row_ne hne) e₀ he₀ ?_
+      exact (Sym2.map.injective (fstHom_injective B B' (f'.toFun x₂)) he₂.symm) ▸ he₁
+
 end ImmersionOf
 
 end CGraph
@@ -1361,6 +1697,12 @@ theorem IsInducedMinorOf.cartesianProduct (h : H ≤ᵢₘ G) (h' : H' ≤ᵢₘ
 
 theorem IsContractionOf.cartesianProduct (h : H ≤ₚ G) (h' : H' ≤ₚ G') : H □g H' ≤ₚ G □g G' :=
   mono₂ isContractionOf_mk cartesianProduct_mk CGraph.ContractionOf.cartesianProduct h h'
+
+theorem IsTopMinorOf.cartesianProduct (h : H ≤ₜₘ G) (h' : H' ≤ₜₘ G') : H □g H' ≤ₜₘ G □g G' :=
+  mono₂ isTopMinorOf_mk cartesianProduct_mk CGraph.TopMinorOf.cartesianProduct h h'
+
+theorem IsImmersionMinorOf.cartesianProduct (h : H ≤ₑ G) (h' : H' ≤ₑ G') : H □g H' ≤ₑ G □g G' :=
+  mono₂ isImmersionMinorOf_mk cartesianProduct_mk CGraph.ImmersionOf.cartesianProduct h h'
 
 theorem HasHomInto.tensorProduct (h : H ≤ₕ G) (h' : H' ≤ₕ G') : H ⊗g H' ≤ₕ G ⊗g G' :=
   mono₂ hasHomInto_mk tensorProduct_mk CGraph.Hom.tensorProduct h h'

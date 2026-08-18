@@ -23,16 +23,18 @@ What each pair gets:
 
 * the two sums, in the eight orders that are partial orders: `IsOrderedAddMonoid`, and in the
   homomorphism order, which is only a preorder, `AddLeftMono` and `AddRightMono`;
-* the cartesian and strong products, which are commutative monoids: `IsOrderedMonoid`, again
+* the cartesian product, a commutative monoid, in the same eight: `IsOrderedMonoid`, again
   weakened to `MulLeftMono` and `MulRightMono` for the homomorphism order;
+* the strong product, likewise, in every order but the topological minor and immersion ones,
+  where it is not known to be monotone;
 * the tensor product, which has no unit, and the lexicographic one, which is not commutative:
   `MulLeftMono` and `MulRightMono`, the most those classes allow;
 * `ZeroLEOneClass` in the seven orders with a bottom element — every order but the quotient and
   the contraction one, whose least element `empty 0` is not below `empty 1`;
-* and, premium, `IsOrderedRing` — an ordered *semi*ring, since graphs have no negation — in the
-  four orders that have all three of those and a bottom: the subgraph, induced subgraph, minor and
-  induced minor orders, over both distributive pairs `IsoGraph.Semiring` (`⊕g`, `□g`) and
-  `IsoGraph.StrongSemiring` (`⊕g`, `⊠g`).
+* and, premium, `IsOrderedRing` — an ordered *semi*ring, since graphs have no negation — in every
+  order that has all three of those and a bottom: over `IsoGraph.Semiring` (`⊕g`, `□g`) that is
+  the subgraph, induced subgraph, minor, induced minor, topological minor and immersion orders,
+  and over `IsoGraph.StrongSemiring` (`⊕g`, `⊠g`) the first four of them.
 
 `IsStrictOrderedRing` and the cancellative classes `IsOrderedCancelAddMonoid` and
 `IsOrderedCancelMonoid` are *not* here.  They ask for the converse implications — that
@@ -569,6 +571,23 @@ scoped instance instIsOrderedAddMonoidJoin : IsOrderedAddMonoid IsoGraph where
 
 end Join
 
+section CartesianProduct
+open scoped IsoGraph.CartesianProduct
+
+scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph where
+  mul_le_mul_left _ _ h c := IsTopMinorOf.cartesianProduct h (isTopMinorOf_refl c)
+  mul_le_mul_right _ _ h c := IsTopMinorOf.cartesianProduct (isTopMinorOf_refl c) h
+
+end CartesianProduct
+
+section Semiring
+open scoped IsoGraph.Semiring
+
+/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
+scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+
+end Semiring
+
 end TopMinor
 
 namespace Immersion
@@ -599,6 +618,23 @@ scoped instance instIsOrderedAddMonoidJoin : IsOrderedAddMonoid IsoGraph where
   add_le_add_right _ _ h c := IsImmersionMinorOf.join (isImmersionMinorOf_refl c) h
 
 end Join
+
+section CartesianProduct
+open scoped IsoGraph.CartesianProduct
+
+scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph where
+  mul_le_mul_left _ _ h c := IsImmersionMinorOf.cartesianProduct h (isImmersionMinorOf_refl c)
+  mul_le_mul_right _ _ h c := IsImmersionMinorOf.cartesianProduct (isImmersionMinorOf_refl c) h
+
+end CartesianProduct
+
+section Semiring
+open scoped IsoGraph.Semiring
+
+/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
+scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+
+end Semiring
 
 end Immersion
 
@@ -642,6 +678,16 @@ open scoped IsoGraph.Immersion IsoGraph.Join
 
 example (a b c d : IsoGraph) (h : a ≤ b) (h' : c ≤ d) : a + c ≤ b + d := add_le_add h h'
 example (a : IsoGraph) : 0 ≤ a := bot_le
+
+end Examples
+
+section Examples
+
+open scoped IsoGraph.TopMinor IsoGraph.Semiring
+
+example (a b c d : IsoGraph) (h : a ≤ b) (h' : c ≤ d) : a * c ≤ b * d := mul_le_mul' h h'
+example (a b c : IsoGraph) (h : a ≤ b) : c * a ≤ c * b := mul_le_mul_of_nonneg_left h bot_le
+example : (0 : IsoGraph) ≤ 1 := zero_le_one
 
 end Examples
 

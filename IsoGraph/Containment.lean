@@ -67,7 +67,8 @@ search looks at a solution and its relabellings.
 give `H op H' ≤ G op G'`?  The four relations that are a map of vertices always do, whatever the
 operation; the minor relations need the branch sets of the product to stay connected, which rules
 out the tensor product; the two that replace an edge by a walk get the two sums, where the walks of
-the two summands cannot meet, and not the products.  Each entry is a construction on the `CGraph`
+the two summands cannot meet, and the cartesian product, where an edge moves one coordinate and its
+walk runs along one row or one column.  Each entry is a construction on the `CGraph`
 models and a theorem about `IsoGraph` lifted from it.
 
 `Containment/Ordered.lean` reads that table back as typeclasses.  Opening an order scope and an
