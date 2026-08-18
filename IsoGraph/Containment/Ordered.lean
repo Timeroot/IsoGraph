@@ -1,3 +1,4 @@
+import IsoGraph.Containment.Algorithms.Cached
 import IsoGraph.Containment.Monotone
 import IsoGraph.Values.Identities.Semiring
 
@@ -44,7 +45,10 @@ other seven have `⊥ = empty 0`, so no order here is `NoMinOrder`.
 `IsStrictOrderedRing` and the cancellative classes `IsOrderedCancelAddMonoid` and
 `IsOrderedCancelMonoid` are *not* here.  They ask for the converse implications — that
 `H ⊕g K ≤ G ⊕g K` forces `H ≤ G` — which is a cancellation theorem about the containment relations
-and not about the algebra, and none of the nine is proved to have it.
+and not about the algebra.  The last section settles what it can: no product cancels in any of the
+nine orders, since `empty 0` absorbs; the disjoint union does not cancel in the homomorphism or
+quotient orders, and the join does not cancel in the five orders that contract or subdivide.  The
+eleven cells left over are open here.
 -/
 
 set_option autoImplicit false
@@ -832,6 +836,193 @@ theorem isMin_empty_zero : IsMin (empty 0 : IsoGraph) := fun _ hb ↦ by
   rw [eq_empty_zero_of_isContractionOf hb]
 
 end Contraction
+
+/-! ## Cancellation
+
+The other half of each monotonicity question: when does `H op K ≤ G op K` force `H ≤ G`?
+
+*Never*, for the four products.  Each of them has `empty 0` for an absorbing element, so taking
+`K = empty 0` makes the hypothesis vacuous while `empty 1 ≤ empty 0` is false in all nine orders —
+that is `not_mul_cancel`, and its nine instances below, each stated for any operation with a zero.
+`IsOrderedCancelMonoid` is therefore out of reach by construction, not merely unproved.
+
+For the two sums the answer depends on the order, and the counterexamples are these.  A disjoint
+union cannot be cancelled in the homomorphism order — two isolated vertices map onto one — nor in
+the quotient order, where `empty 0 ⊕g empty 1` is a quotient of `empty 1 ⊕g empty 1` although
+`empty 0` is a quotient of nothing but itself.  A join cannot be cancelled in the five orders that
+may contract or subdivide: `complete 2 ∇g empty 2` is `K₄` less an edge and `empty 3 ∇g empty 2`
+is `K₃,₂`, and contracting one edge of the latter gives the former, while `complete 2` has an edge
+and `empty 3` has none.
+
+The eleven remaining cells — the disjoint union in the seven orders of inclusion, and the join in
+the homomorphism, subgraph, induced subgraph and quotient orders — have no counterexample among
+the graphs on at most four vertices, and are expected to hold, but they are not proved here: the
+argument splits the vertices of the source by which side of the target they land in, which needs
+an induced-subgraph construction the library does not have yet.  So no
+`IsOrderedCancelAddMonoid`, and no `IsStrictOrderedRing`, for the time being. -/
+
+theorem not_empty_one_hasHomInto_empty_zero : ¬(empty 1 : IsoGraph) ≤ₕ empty 0 := fun h ↦ by
+  have hV := le_V_of_hasHomInto_complete (n := 1) (G := empty 0) (by rwa [complete_one])
+  simp at hV
+
+theorem not_empty_one_isSubgraphOf_empty_zero : ¬(empty 1 : IsoGraph) ≤ₛ empty 0 := fun h ↦ by
+  have hV := h.V_le; simp at hV
+
+theorem not_empty_one_isInducedSubgraphOf_empty_zero : ¬(empty 1 : IsoGraph) ≤ᵢₛ empty 0 :=
+  fun h ↦ by have hV := h.V_le; simp at hV
+
+theorem not_empty_one_hasQuotient_empty_zero : ¬(empty 1 : IsoGraph) ≤/ empty 0 := fun h ↦ by
+  have hV := HasQuotient.V_le h; simp at hV
+
+theorem not_empty_one_isMinorOf_empty_zero : ¬(empty 1 : IsoGraph) ≤ₘ empty 0 := fun h ↦ by
+  have hV := h.V_le; simp at hV
+
+theorem not_empty_one_isInducedMinorOf_empty_zero : ¬(empty 1 : IsoGraph) ≤ᵢₘ empty 0 :=
+  fun h ↦ by have hV := h.V_le; simp at hV
+
+theorem not_empty_one_isContractionOf_empty_zero : ¬(empty 1 : IsoGraph) ≤ₚ empty 0 := fun h ↦ by
+  have hV := h.V_le; simp at hV
+
+theorem not_empty_one_isTopMinorOf_empty_zero : ¬(empty 1 : IsoGraph) ≤ₜₘ empty 0 := fun h ↦ by
+  have hV := h.V_le; simp at hV
+
+theorem not_empty_one_isImmersionMinorOf_empty_zero : ¬(empty 1 : IsoGraph) ≤ₑ empty 0 :=
+  fun h ↦ by have hV := h.V_le; simp at hV
+
+/-- **No product cancels, in any of the nine orders.**  Every product of graphs has `empty 0` for
+an absorbing element, so `op c a ≤ op c b` says nothing whatever about `a` and `b` when `c` is
+`empty 0`; all that is needed of the order is that `empty 1` is not below `empty 0`. -/
+theorem not_mul_cancel {R : IsoGraph → IsoGraph → Prop} (hrefl : R (empty 0) (empty 0))
+    (h10 : ¬R (empty 1) (empty 0)) (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, R (op c a) (op c b) → R a b := fun h ↦
+  h10 (h (empty 1) (empty 0) (empty 0) (by rw [hzero, hzero]; exact hrefl))
+
+theorem not_mul_cancel_hasHomInto (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ₕ op c b → a ≤ₕ b :=
+  not_mul_cancel (hasHomInto_refl _) not_empty_one_hasHomInto_empty_zero op hzero
+
+theorem not_mul_cancel_isSubgraphOf (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ₛ op c b → a ≤ₛ b :=
+  not_mul_cancel (isSubgraphOf_refl _) not_empty_one_isSubgraphOf_empty_zero op hzero
+
+theorem not_mul_cancel_isInducedSubgraphOf (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ᵢₛ op c b → a ≤ᵢₛ b :=
+  not_mul_cancel (isInducedSubgraphOf_refl _) not_empty_one_isInducedSubgraphOf_empty_zero op hzero
+
+theorem not_mul_cancel_hasQuotient (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤/ op c b → a ≤/ b :=
+  not_mul_cancel (R := fun a b ↦ a ≤/ b) (hasQuotient_refl _)
+    not_empty_one_hasQuotient_empty_zero op hzero
+
+theorem not_mul_cancel_isMinorOf (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ₘ op c b → a ≤ₘ b :=
+  not_mul_cancel (isMinorOf_refl _) not_empty_one_isMinorOf_empty_zero op hzero
+
+theorem not_mul_cancel_isInducedMinorOf (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ᵢₘ op c b → a ≤ᵢₘ b :=
+  not_mul_cancel (isInducedMinorOf_refl _) not_empty_one_isInducedMinorOf_empty_zero op hzero
+
+theorem not_mul_cancel_isContractionOf (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ₚ op c b → a ≤ₚ b :=
+  not_mul_cancel (isContractionOf_refl _) not_empty_one_isContractionOf_empty_zero op hzero
+
+theorem not_mul_cancel_isTopMinorOf (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ₜₘ op c b → a ≤ₜₘ b :=
+  not_mul_cancel (isTopMinorOf_refl _) not_empty_one_isTopMinorOf_empty_zero op hzero
+
+theorem not_mul_cancel_isImmersionMinorOf (op : IsoGraph → IsoGraph → IsoGraph)
+    (hzero : ∀ G, op (empty 0) G = empty 0) :
+    ¬∀ a b c : IsoGraph, op c a ≤ₑ op c b → a ≤ₑ b :=
+  not_mul_cancel (isImmersionMinorOf_refl _) not_empty_one_isImmersionMinorOf_empty_zero op hzero
+
+/-! ### The two sums -/
+
+/-- Two isolated vertices map onto one. -/
+theorem hasHomInto_empty_two_one : (empty 2 : IsoGraph) ≤ₕ empty 1 := by
+  show (⟦CGraph.empty 2⟧ : IsoGraph) ≤ₕ ⟦CGraph.empty 1⟧
+  rw [hasHomInto_mk]
+  exact (CGraph.homB_iff _ _).1 (by native_decide)
+
+/-- One isolated vertex is a quotient of two. -/
+theorem hasQuotient_empty_one_two : (empty 1 : IsoGraph) ≤/ empty 2 := by
+  show (⟦CGraph.empty 1⟧ : IsoGraph) ≤/ ⟦CGraph.empty 2⟧
+  rw [hasQuotient_mk]
+  exact (CGraph.quotientB_iff _ _).1 (by native_decide)
+
+/-- `K₄` less an edge is a contraction of `K₃,₂` — contract one edge of the bipartite graph and
+nothing is left to delete. -/
+theorem isContractionOf_join_complete_two :
+    (complete 2 ∇g empty 2 : IsoGraph) ≤ₚ empty 3 ∇g empty 2 := by
+  show (⟦CGraph.complete 2⟧ ∇g ⟦CGraph.empty 2⟧ : IsoGraph) ≤ₚ ⟦CGraph.empty 3⟧ ∇g ⟦CGraph.empty 2⟧
+  rw [join_mk, join_mk, isContractionOf_mk]
+  exact (CGraph.contractionB_iff _ _).1 (by native_decide)
+
+/-- It is a topological minor of it as well: route the one missing edge through the third vertex
+of the larger side. -/
+theorem isTopMinorOf_join_complete_two :
+    (complete 2 ∇g empty 2 : IsoGraph) ≤ₜₘ empty 3 ∇g empty 2 := by
+  show (⟦CGraph.complete 2⟧ ∇g ⟦CGraph.empty 2⟧ : IsoGraph) ≤ₜₘ ⟦CGraph.empty 3⟧ ∇g ⟦CGraph.empty 2⟧
+  rw [join_mk, join_mk, isTopMinorOf_mk]
+  exact (CGraph.topMinorB_iff _ _).1 (by native_decide)
+
+/-- **The homomorphism order does not cancel disjoint unions.**  `empty 1 ⊕g empty 1` maps into
+`empty 0 ⊕g empty 1`, both vertices going to the one, but `empty 1` does not map into
+`empty 0`. -/
+theorem not_disjUnion_cancel_hasHomInto :
+    ¬∀ H G K : IsoGraph, H ⊕g K ≤ₕ G ⊕g K → H ≤ₕ G := fun h ↦
+  not_empty_one_hasHomInto_empty_zero
+    (h (empty 1) (empty 0) (empty 1) (by simpa using hasHomInto_empty_two_one))
+
+/-- **The quotient order does not cancel disjoint unions.**  `empty 0 ⊕g empty 1` is a quotient of
+`empty 1 ⊕g empty 1`, but `empty 0` is a quotient of nothing but itself. -/
+theorem not_disjUnion_cancel_hasQuotient :
+    ¬∀ H G K : IsoGraph, H ⊕g K ≤/ G ⊕g K → H ≤/ G := fun h ↦
+  absurd (h (empty 0) (empty 1) (empty 1) (by simpa using hasQuotient_empty_one_two))
+    (fun hq ↦ by simpa using eq_empty_zero_of_empty_zero_hasQuotient hq)
+
+/-- **The minor order does not cancel joins.**  `K₄` less an edge is a minor of `K₃,₂` — the two
+graphs are `complete 2 ∇g empty 2` and `empty 3 ∇g empty 2` — but `complete 2` has an edge and
+`empty 3` has none. -/
+theorem not_join_cancel_isMinorOf :
+    ¬∀ H G K : IsoGraph, H ∇g K ≤ₘ G ∇g K → H ≤ₘ G := fun h ↦ by
+  have hE := (h (complete 2) (empty 3) (empty 2)
+    isContractionOf_join_complete_two.isMinorOf).E_le
+  simp at hE
+
+@[inherit_doc not_join_cancel_isMinorOf]
+theorem not_join_cancel_isInducedMinorOf :
+    ¬∀ H G K : IsoGraph, H ∇g K ≤ᵢₘ G ∇g K → H ≤ᵢₘ G := fun h ↦ by
+  have hE := (h (complete 2) (empty 3) (empty 2)
+    isContractionOf_join_complete_two.isInducedMinorOf).E_le
+  simp at hE
+
+@[inherit_doc not_join_cancel_isMinorOf]
+theorem not_join_cancel_isContractionOf :
+    ¬∀ H G K : IsoGraph, H ∇g K ≤ₚ G ∇g K → H ≤ₚ G := fun h ↦ by
+  have hE := (h (complete 2) (empty 3) (empty 2) isContractionOf_join_complete_two).E_le
+  simp at hE
+
+@[inherit_doc not_join_cancel_isMinorOf]
+theorem not_join_cancel_isTopMinorOf :
+    ¬∀ H G K : IsoGraph, H ∇g K ≤ₜₘ G ∇g K → H ≤ₜₘ G := fun h ↦ by
+  have hE := (h (complete 2) (empty 3) (empty 2) isTopMinorOf_join_complete_two).E_le
+  simp at hE
+
+@[inherit_doc not_join_cancel_isMinorOf]
+theorem not_join_cancel_isImmersionMinorOf :
+    ¬∀ H G K : IsoGraph, H ∇g K ≤ₑ G ∇g K → H ≤ₑ G := fun h ↦ by
+  have hE := (h (complete 2) (empty 3) (empty 2)
+    isTopMinorOf_join_complete_two.isImmersionMinorOf).E_le
+  simp at hE
 
 /-! ## The instances in use
 

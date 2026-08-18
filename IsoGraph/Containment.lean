@@ -74,7 +74,10 @@ models and a theorem about `IsoGraph` lifted from it.
 `Containment/Ordered.lean` reads that table back as typeclasses.  Opening an order scope and an
 algebra scope at once — `IsoGraph.Subgraph` and `IsoGraph.Semiring`, say — turns on
 `IsOrderedAddMonoid`, `IsOrderedMonoid`, `ZeroLEOneClass` and, over the two distributive pairs,
-`IsOrderedRing`, so the ordered-algebra lemmas of `Mathlib` apply to graphs.
+`IsOrderedRing`, so the ordered-algebra lemmas of `Mathlib` apply to graphs.  It also has the two
+questions that are about the orders alone: none of the nine has a greatest element, and only the
+quotient and contraction orders have no least one; and cancellation, which no product has in any
+of them, and which the disjoint union and the join each lose in some.
 
 `Algorithms/Cached.lean` is the layer to call.  Each of the nine searches there runs on adjacency
 matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of
