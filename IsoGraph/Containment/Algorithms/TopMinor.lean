@@ -1,4 +1,5 @@
 import IsoGraph.Containment.Algorithms.Embedding
+import IsoGraph.Containment.Algorithms.Routing
 import IsoGraph.Containment.Minors
 
 /-!
@@ -11,26 +12,23 @@ A topological minor model is two things at once — an injection `f` of the vert
 path of `G` for every edge of `H` — and the paths have to be internally disjoint from each other
 and from the branch vertices.  The `SimpleGraph.Walk` that `CGraph.TopMinorOf` carries is a
 dependent type, indexed by its own endpoints, which is not something a search can build up one
-step at a time.  So the file works with `CGraph.TopModel`, the same data written as lists: `seg x
-y` is the list of vertices a path visits after `f x`, for the endpoint order `ord y < ord x` fixed
-once and for all by where the vertices sit in the search order.  `CGraph.TopMinorOf.toTopModel`
-and `CGraph.TopModel.toTopMinorOf` are the two bridges, and they are the only place a `Walk` is
-taken apart or put together.
+step at a time.  So the file works with `CGraph.TopModel`, the same data written as lists — on the
+list-shaped walks of `Algorithms/Routing.lean` — where `seg x y` is the list of vertices a path
+visits after `f x`, for the endpoint order `ord y < ord x` fixed once and for all by where the
+vertices sit in the search order.  `CGraph.TopMinorOf.toTopModel` and
+`CGraph.TopModel.toTopMinorOf` are the two bridges, and they are the only place a `Walk` is taken
+apart or put together.
 
-The search itself is `Algorithms/Backtrack.lean` over a list of *tasks*: place a vertex, or route
-an edge whose two ends are already placed.  `CGraph.tasks` interleaves them — each vertex is
-placed and then immediately joined to the placed vertices it is adjacent to — so a placement that
-cannot be reached from the rest is rejected without placing anything else.  The value of a place
-task is a one-element list, the value of a route task is the run itself, and `CGraph.routes`
-enumerates the runs: every simple path of `G` from one branch vertex to the other that avoids the
-vertices already spent.
+The search itself is `Algorithms/Backtrack.lean` over the list of `CGraph.tasks` — place a vertex,
+or route an edge whose two ends are already placed — which `Algorithms/Routing.lean` also
+supplies.  The value of a place task is a one-element list, the value of a route task is the run
+itself, and `CGraph.routes`, which is this file's own, enumerates the runs: every simple path of
+`G` from one branch vertex to the other that avoids the vertices already spent.
 
 Everything the goal test asks is asked of the *entries* of the assignment rather than of what a
-lookup finds in it, because the pruning obligation `CGraph.mem_candTop` discharges is quantified
-over every way of splitting the assignment in two, and a duplicated key would otherwise let a test
-pass on one occurrence and fail on another.  For the same reason the goal demands that every route
-entry be `CGraph.oriented`: without it there is no finite candidate list to offer for a task the
-search never generates.
+lookup finds in it, for the reason `Algorithms/Routing.lean` gives.  For the same reason the goal
+demands that every route entry be `CGraph.oriented`: without it there is no finite candidate list
+to offer for a task the search never generates.
 
 Two prunes do the real work.  A branch vertex must have at least the degree of the vertex it
 stands for — `CGraph.TopMinorOf.degree_le`, which holds because the paths at `x` leave `f x` by
@@ -63,68 +61,6 @@ open Backtrack
 namespace CGraph
 
 variable {G H : CGraph}
-
-/-! ## Walks as lists -/
-
-/-- Where the walk that starts at `u` and runs along `l` ends up. -/
-def chainEnd : G.V → List G.V → G.V
-  | u, [] => u
-  | _, w :: l => chainEnd w l
-
-/-- Is `u :: l` a walk of `G`? -/
-def isWalkList (G : CGraph) : G.V → List G.V → Bool
-  | _, [] => true
-  | u, w :: l => G.Adj u w && isWalkList G w l
-
-/-- The walk of `G` whose vertices are `u :: l`. -/
-def walkOfList (G : CGraph) : (u : G.V) → (l : List G.V) → isWalkList G u l = true →
-    G.toSimple.Walk u (chainEnd u l)
-  | _, [], _ => .nil
-  | u, w :: l, h =>
-    .cons ((G.toSimple_adj u w).mpr (by rw [isWalkList, Bool.and_eq_true] at h; exact h.1))
-      (walkOfList G w l (by rw [isWalkList, Bool.and_eq_true] at h; exact h.2))
-
-@[simp] theorem support_walkOfList (u : G.V) (l : List G.V) (h : isWalkList G u l = true) :
-    (walkOfList G u l h).support = u :: l := by
-  induction l generalizing u with
-  | nil => rfl
-  | cons w l ih => rw [walkOfList, SimpleGraph.Walk.support_cons, ih]
-
-theorem chainEnd_eq_getLast (u : G.V) (l : List G.V) :
-    chainEnd u l = (u :: l).getLast (by simp) := by
-  induction l generalizing u with
-  | nil => rfl
-  | cons w l ih => rw [chainEnd, ih, List.getLast_cons_cons]
-
-/-- The vertices a walk runs through, after its first. -/
-theorem isWalkList_support_tail {u v : G.V} (p : G.toSimple.Walk u v) :
-    isWalkList G u p.support.tail = true := by
-  induction p with
-  | nil => rfl
-  | @cons u v w h p ih =>
-    rw [SimpleGraph.Walk.support_cons, List.tail_cons, p.support_eq_cons, isWalkList]
-    simpa using ⟨h, ih⟩
-
-theorem chainEnd_support_tail {u v : G.V} (p : G.toSimple.Walk u v) :
-    chainEnd u p.support.tail = v := by
-  induction p with
-  | nil => rfl
-  | @cons u v w h p ih =>
-    rw [SimpleGraph.Walk.support_cons, List.tail_cons, p.support_eq_cons, chainEnd]
-    exact ih
-
-/-- The vertices a walk between distinct ends visits after its first, split at the last one. -/
-theorem tail_support_eq {u v : G.V} (p : G.toSimple.Walk u v) (h : u ≠ v) :
-    p.support.tail = p.support.tail.dropLast ++ [v] := by
-  have hend := chainEnd_support_tail p
-  have hne : p.support.tail ≠ [] := by
-    intro he
-    rw [he, chainEnd] at hend
-    exact h hend
-  have hl : p.support.tail.getLast hne = v := by
-    rw [chainEnd_eq_getLast, List.getLast_cons hne] at hend
-    exact hend
-  conv_lhs => rw [← List.dropLast_append_getLast hne, hl]
 
 /-! ## Enumerating the paths between two vertices -/
 
@@ -487,145 +423,6 @@ def toTopMinorOf (m : TopModel H G) : H.TopMinorOf G where
       (m.canon_lt h') (by simpa using m.canon_ne h h' hne) z he)
 
 end TopModel
-
-/-! ## The search -/
-
-/-- A step of the search. -/
-inductive Task (H : CGraph) where
-  /-- Choose the branch vertex of `x`. -/
-  | place : H.V → Task H
-  /-- Choose the run of the edge joining `x` to the earlier vertex `y`. -/
-  | route : H.V → H.V → Task H
-
-/-- What the search assigns: a list of vertices of `G` to each step — a one-element list for a
-branch vertex, the run itself for an edge. -/
-abbrev Asg (H G : CGraph) := List (Task H × List G.V)
-
-/-- Is `x`–`y` an edge of `H` taken in the orientation the search routes it in, from the later of
-its endpoints to the earlier?  Position is position in `hs`, the order the vertices are placed
-in. -/
-def oriented (H : CGraph) (hs : List H.V) (x y : H.V) : Bool :=
-  H.Adj x y && decide (hs.idxOf y < hs.idxOf x)
-
-theorem adj_of_oriented {hs : List H.V} {x y : H.V} (h : oriented H hs x y = true) :
-    H.Adj x y = true := (Bool.and_eq_true .. ▸ h).1
-
-theorem idxOf_lt_of_oriented {hs : List H.V} {x y : H.V} (h : oriented H hs x y = true) :
-    hs.idxOf y < hs.idxOf x := of_decide_eq_true (Bool.and_eq_true .. ▸ h).2
-
-theorem oriented_eq_true {hs : List H.V} {x y : H.V} (h : H.Adj x y = true)
-    (hlt : hs.idxOf y < hs.idxOf x) : oriented H hs x y = true := by
-  rw [oriented, Bool.and_eq_true]; exact ⟨h, by simpa using hlt⟩
-
-theorem ne_of_oriented {hs : List H.V} {x y : H.V} (h : oriented H hs x y = true) : x ≠ y := by
-  rintro rfl; exact absurd (idxOf_lt_of_oriented h) (by omega)
-
-/-- The steps, in order: each vertex in turn, and after it the edges joining it to the vertices
-already placed.  A run is therefore chosen as soon as both of its ends are known, which is what
-keeps the search from placing a whole model before discovering that two of its vertices cannot be
-joined. -/
-def tasks (H : CGraph) (hs : List H.V) : List (Task H) :=
-  hs.flatMap fun x ↦ Task.place x :: (hs.filter fun y ↦ oriented H hs x y).map (Task.route x)
-
-theorem place_mem_tasks {hs : List H.V} {x : H.V} (hx : x ∈ hs) : Task.place x ∈ tasks H hs :=
-  List.mem_flatMap.mpr ⟨x, hx, List.mem_cons_self ..⟩
-
-theorem route_mem_tasks {hs : List H.V} {x y : H.V} (hx : x ∈ hs) (hy : y ∈ hs)
-    (h : oriented H hs x y = true) : Task.route x y ∈ tasks H hs :=
-  List.mem_flatMap.mpr ⟨x, hx, List.mem_cons_of_mem _
-    (List.mem_map.mpr ⟨y, List.mem_filter.mpr ⟨hy, h⟩, rfl⟩)⟩
-
-/-! ## Reading an assignment
-
-Everything the search checks is stated over the *entries* of the assignment rather than over what
-a lookup finds in it.  That is what makes the pruning easy to justify: a candidate is filtered
-against the entries made so far, and those entries are entries of the finished assignment too, so
-the test the leaf applies is exactly the test the filter needs. -/
-
-/-- The branch vertices an assignment names. -/
-def branches (asg : Asg H G) : List (H.V × G.V) :=
-  asg.filterMap fun p ↦ match p with
-    | (.place x, [u]) => some (x, u)
-    | _ => none
-
-/-- The runs an assignment names. -/
-def runs (asg : Asg H G) : List (H.V × H.V × List G.V) :=
-  asg.filterMap fun p ↦ match p with
-    | (.route x y, s) => some (x, y, s)
-    | _ => none
-
-theorem mem_branches {asg : Asg H G} {x : H.V} {u : G.V} (h : (Task.place x, [u]) ∈ asg) :
-    (x, u) ∈ branches asg := List.mem_filterMap.mpr ⟨_, h, rfl⟩
-
-theorem mem_runs {asg : Asg H G} {x y : H.V} {s : List G.V} (h : (Task.route x y, s) ∈ asg) :
-    (x, y, s) ∈ runs asg := List.mem_filterMap.mpr ⟨_, h, rfl⟩
-
-theorem branches_append (l m : Asg H G) : branches (l ++ m) = branches l ++ branches m :=
-  List.filterMap_append ..
-
-theorem runs_append (l m : Asg H G) : runs (l ++ m) = runs l ++ runs m := List.filterMap_append ..
-
-/-- The branch vertex an assignment gives `x`, if it gives it one. -/
-def findB (x : H.V) : List (H.V × G.V) → Option G.V
-  | [] => none
-  | (z, u) :: rest => if x = z then some u else findB x rest
-
-/-- The run an assignment gives the edge from `x` to `y`, if it gives it one. -/
-def findR (x y : H.V) : List (H.V × H.V × List G.V) → Option (List G.V)
-  | [] => none
-  | (z, w, s) :: rest => if x = z ∧ y = w then some s else findR x y rest
-
-theorem findB_mem {x : H.V} {u : G.V} : ∀ {l : List (H.V × G.V)}, findB x l = some u → (x, u) ∈ l
-  | [], h => by rw [findB] at h; exact absurd h (by simp)
-  | (z, v) :: rest, h => by
-    rw [findB] at h
-    split at h
-    · rename_i he; subst he; rw [Option.some_inj] at h; subst h; exact List.mem_cons_self ..
-    · exact List.mem_cons_of_mem _ (findB_mem h)
-
-theorem findB_isSome {x : H.V} {u : G.V} : ∀ {l : List (H.V × G.V)}, (x, u) ∈ l →
-    (findB x l).isSome
-  | [], h => absurd h (by simp)
-  | (z, v) :: rest, h => by
-    rw [findB]
-    split
-    · simp
-    · rename_i hne
-      rcases List.mem_cons.mp h with he | hm
-      · exact absurd (Prod.mk.injEq .. ▸ he).1 hne
-      · exact findB_isSome hm
-
-theorem findR_mem {x y : H.V} {s : List G.V} :
-    ∀ {l : List (H.V × H.V × List G.V)}, findR x y l = some s → (x, y, s) ∈ l
-  | [], h => by rw [findR] at h; exact absurd h (by simp)
-  | (z, w, t) :: rest, h => by
-    rw [findR] at h
-    split at h
-    · rename_i he; obtain ⟨rfl, rfl⟩ := he; rw [Option.some_inj] at h; subst h
-      exact List.mem_cons_self ..
-    · exact List.mem_cons_of_mem _ (findR_mem h)
-
-theorem findR_isSome {x y : H.V} {s : List G.V} :
-    ∀ {l : List (H.V × H.V × List G.V)}, (x, y, s) ∈ l → (findR x y l).isSome
-  | [], h => absurd h (by simp)
-  | (z, w, t) :: rest, h => by
-    rw [findR]
-    split
-    · simp
-    · rename_i hne
-      rcases List.mem_cons.mp h with he | hm
-      · simp only [Prod.mk.injEq] at he
-        exact absurd ⟨he.1, he.2.1⟩ hne
-      · exact findR_isSome hm
-
-/-! ## What a finished assignment has to satisfy -/
-
-/-- A branch vertex is one vertex. -/
-def placeShape (p : Task H × List G.V) : Bool :=
-  match p with
-  | (.place _, l) => l.length == 1
-  | (.route _ _, _) => true
-
 /-- What the run `s` given to the edge from `x` to `y` has to satisfy: it is a walk from the
 branch vertex of `x` to that of `y` repeating no vertex, its interior avoids every branch vertex,
 and it shares no interior vertex with the run of another edge. -/
@@ -735,9 +532,6 @@ def branchOf (H G : CGraph) (hs : List H.V) (hmem : ∀ x : H.V, x ∈ hs) (asg 
 theorem branchOf_mem (hmem : ∀ x : H.V, x ∈ hs) (hg : goalTop H G hs asg = true) (x : H.V) :
     (x, branchOf H G hs hmem asg hg x) ∈ branches asg := findB_mem (Option.some_get _).symm
 
-/-- And the run it gives the edge from `x` to `y`. -/
-def runOf (asg : Asg H G) (x y : H.V) : List G.V := (findR x y (runs asg)).getD []
-
 theorem runOf_mem (hg : goalTop H G hs asg = true) {x y : H.V} (hx : x ∈ hs) (hy : y ∈ hs)
     (ho : oriented H hs x y = true) : (x, y, runOf asg x y) ∈ runs asg := by
   have hs := goalTop_findR hg hx hy ho
@@ -774,16 +568,6 @@ def modelOfGoal (H G : CGraph) (hs : List H.V) (hmem : ∀ x : H.V, x ∈ hs) (a
       (oriented_eq_true hadj' hlt') (fun he ↦ hne (by rw [he.1, he.2])) hz
 
 /-! ## The candidates at a step -/
-
-theorem mem_branches_of_subset {asg asg' : Asg H G} (h : asg ⊆ asg') {p : H.V × G.V}
-    (hp : p ∈ branches asg) : p ∈ branches asg' := by
-  obtain ⟨q, hq, hqp⟩ := List.mem_filterMap.mp hp
-  exact List.mem_filterMap.mpr ⟨q, h hq, hqp⟩
-
-theorem mem_runs_of_subset {asg asg' : Asg H G} (h : asg ⊆ asg') {r : H.V × H.V × List G.V}
-    (hr : r ∈ runs asg) : r ∈ runs asg' := by
-  obtain ⟨q, hq, hqr⟩ := List.mem_filterMap.mp hr
-  exact List.mem_filterMap.mpr ⟨q, h hq, hqr⟩
 
 /-- The vertices of `G` that are not available to `x`: the branch vertices of the other vertices
 already placed, and the interior of every run already chosen. -/
@@ -949,17 +733,6 @@ theorem val_of_mem_asgOfModel {m : TopModel H G} {hs : List H.V} {k : Task H} {v
   obtain ⟨k', hk', he⟩ := h
   rw [Prod.mk.injEq] at he
   exact ⟨he.1 ▸ hk', he.1 ▸ he.2.symm⟩
-
-theorem oriented_of_route_mem_tasks {hs : List H.V} {x y : H.V}
-    (h : Task.route x y ∈ tasks H hs) : oriented H hs x y = true := by
-  rw [tasks, List.mem_flatMap] at h
-  obtain ⟨z, _, hmem⟩ := h
-  rcases List.mem_cons.mp hmem with he | hmap
-  · exact absurd he (by simp)
-  · obtain ⟨w, hw, he⟩ := List.mem_map.mp hmap
-    simp only [Task.route.injEq] at he
-    obtain ⟨rfl, rfl⟩ := he
-    exact (List.mem_filter.mp hw).2
 
 theorem branch_of_mem_branches {m : TopModel H G} {hs : List H.V} {x : H.V} {u : G.V}
     (h : (x, u) ∈ branches (asgOfModel m hs).reverse) : u = m.f x := by
