@@ -1,5 +1,6 @@
 import IsoGraph.Containment.Algorithms.Cached
 import IsoGraph.Containment.Algorithms.Contraction
+import IsoGraph.Containment.Algorithms.Immersion
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
@@ -95,6 +96,9 @@ def apiIndMinor (H G : CGraph) : String :=
 def apiTop (H G : CGraph) : String :=
   match H.topMinorOf? G with | some _ => "found" | none => "none "
 
+def apiImm (H G : CGraph) : String :=
+  match H.immersionOf? G with | some _ => "found" | none => "none "
+
 def apiCon (H G : CGraph) : String :=
   match H.contractionOf? G with | some _ => "found" | none => "none "
 
@@ -126,6 +130,11 @@ def reportIndMinor (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :
 
 def reportTop (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
   match findTopMinor H G rH rG with
+  | some _ => "found"
+  | none => "none "
+
+def reportImm (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
+  match findImmersion H G rH rG with
   | some _ => "found"
   | none => "none "
 
@@ -434,6 +443,22 @@ def main (args : List String) : IO Unit := do
     duel r s!"{shape} {m} ≤ₜ {which}"
       [("raw   ", fun _ => reportTop H G (Roster.enum _) (Roster.enum _)),
        ("entry ", fun _ => apiTop H G)]
+  | "api-immersion" =>
+    let which := (args[2]?).getD "petersen"
+    let G := match which with
+      | "heawood" => hostOfEdges r 14 (lcfEdges [5, -5] 7)
+      | "mcgee" => hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)
+      | "tutte" => hostOfEdges r 46 tutteEdges
+      | _ => hostOfEdges r 10 (gpEdges 5 2)
+    let shape := (args[3]?).getD "complete"
+    let m := size 4 4
+    let H := match shape with
+      | "cycle" => cycle m
+      | "petersen" => hostOfEdges r 10 (gpEdges 5 2)
+      | _ => complete m
+    duel r s!"{shape} {m} immersed in {which}"
+      [("raw   ", fun _ => reportImm H G (Roster.enum _) (Roster.enum _)),
+       ("entry ", fun _ => apiImm H G)]
   | "api-con" =>
     let m := size 2 4
     let G := hostOfEdges r 46 tutteEdges
@@ -475,5 +500,6 @@ def main (args : List String) : IO Unit := do
     IO.println "         kneser-enum, kneser-enum-canon"
     IO.println "finenum: fe-fin, fe-prod, fe-sum, fe-subtype"
     IO.println "entry:   api-aut, api-order, api-vt, api-sub, api-sub-kneser, api-minor, api-con,"
-    IO.println "         api-con-self, api-hom, api-quot, api-indminor, api-topminor"
+    IO.println "         api-con-self, api-hom, api-quot, api-indminor, api-topminor,"
+    IO.println "         api-immersion"
     IO.println "cache:   degsum"

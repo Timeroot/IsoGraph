@@ -1,5 +1,6 @@
 import IsoGraph.Containment.Algorithms.Contraction
 import IsoGraph.Containment.Algorithms.Hom
+import IsoGraph.Containment.Algorithms.Immersion
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
@@ -11,7 +12,7 @@ import IsoGraph.Graphs.Cache
 
 `Algorithms/Subgraph.lean` and its siblings take the two graphs as they are, and each asks
 `H.Adj` and `G.Adj` a few million times.  For a graph out of the gallery that is a few million
-scans of an edge list.  This file wraps each of the eight searches so that it runs on `cacheFin`
+scans of an edge list.  This file wraps each of the nine searches so that it runs on `cacheFin`
 copies of the pattern *and* the host — adjacency matrices on `Fin n`, filled once — and transports
 the answer back along `CGraph.isoCacheFin`.
 
@@ -92,6 +93,11 @@ theorem isEmpty_topMinorOf_cacheFin :
   ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
     fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
 
+theorem isEmpty_immersionOf_cacheFin :
+    IsEmpty (H.cacheFin.ImmersionOf G.cacheFin) ↔ IsEmpty (H.ImmersionOf G) :=
+  ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
+    fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin.symm G.isoCacheFin.symm)⟩⟩
+
 theorem isEmpty_quotientOf_cacheFin :
     IsEmpty (H.cacheFin.QuotientOf G.cacheFin) ↔ IsEmpty (H.QuotientOf G) :=
   ⟨fun h ↦ ⟨fun f ↦ h.false (f.congr H.isoCacheFin G.isoCacheFin)⟩,
@@ -127,6 +133,12 @@ def inducedMinorOf? : Option (H.InducedMinorOf G) :=
 branch vertices, and the path each edge of `H` runs along. -/
 def topMinorOf? : Option (H.TopMinorOf G) :=
   (findTopMinor H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
+    (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
+
+/-- **Is `H` immersed in `G`?**  Returns the branch vertices, and the trail each edge of `H` runs
+along, if so — trails that share no edge, though they may share vertices. -/
+def immersionOf? : Option (H.ImmersionOf G) :=
+  (findImmersion H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
     (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
 
 /-- **Is `H` a contraction of `G`?**  Returns the partition of `G` into blocks if so. -/
@@ -169,6 +181,10 @@ theorem inducedMinorOf?_eq_none_iff :
 theorem topMinorOf?_eq_none_iff : H.topMinorOf? G = none ↔ IsEmpty (H.TopMinorOf G) := by
   rw [topMinorOf?, Option.map_eq_none_iff, ← isEmpty_topMinorOf_iff, isEmpty_topMinorOf_cacheFin]
 
+theorem immersionOf?_eq_none_iff : H.immersionOf? G = none ↔ IsEmpty (H.ImmersionOf G) := by
+  rw [immersionOf?, Option.map_eq_none_iff, ← isEmpty_immersionOf_iff,
+    isEmpty_immersionOf_cacheFin]
+
 theorem contractionOf?_eq_none_iff : H.contractionOf? G = none ↔ IsEmpty (H.ContractionOf G) := by
   rw [contractionOf?, Option.map_eq_none_iff, ← isEmpty_contractionOf_iff,
     isEmpty_contractionOf_cacheFin]
@@ -200,6 +216,9 @@ def inducedMinorB : Bool := (H.inducedMinorOf? G).isSome
 /-- **Is `H` a topological minor of `G`?**, as a `Bool`. -/
 def topMinorB : Bool := (H.topMinorOf? G).isSome
 
+/-- **Is `H` immersed in `G`?**, as a `Bool`. -/
+def immersionB : Bool := (H.immersionOf? G).isSome
+
 /-- **Is `H` a contraction of `G`?**, as a `Bool`. -/
 def contractionB : Bool := (H.contractionOf? G).isSome
 
@@ -228,6 +247,10 @@ theorem inducedMinorB_iff : H.inducedMinorB G = true ↔ Nonempty (H.InducedMino
 theorem topMinorB_iff : H.topMinorB G = true ↔ Nonempty (H.TopMinorOf G) := by
   rw [topMinorB, ← not_isEmpty_iff, ← topMinorOf?_eq_none_iff]
   cases H.topMinorOf? G <;> simp
+
+theorem immersionB_iff : H.immersionB G = true ↔ Nonempty (H.ImmersionOf G) := by
+  rw [immersionB, ← not_isEmpty_iff, ← immersionOf?_eq_none_iff]
+  cases H.immersionOf? G <;> simp
 
 theorem contractionB_iff : H.contractionB G = true ↔ Nonempty (H.ContractionOf G) := by
   rw [contractionB, ← not_isEmpty_iff, ← contractionOf?_eq_none_iff]
