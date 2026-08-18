@@ -11,6 +11,8 @@ import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Containment.Algorithms.Twins
 import IsoGraph.Containment.Defs
 import IsoGraph.Containment.Minors
+import IsoGraph.Containment.Monotone
+import IsoGraph.Containment.Ordered
 
 /-!
 # The containment relations
@@ -59,6 +61,18 @@ the disjointness moved from vertices to edges, so that what it routes are trails
 `k`-colourability, against `complete k` — and the quotient one.  `Algorithms/Twins.lean` is shared
 between them all: it finds the classes of interchangeable vertices of the pattern, so that no
 search looks at a solution and its relabellings.
+
+`Containment/Monotone.lean` crosses the nine relations with the two sums and four products of
+`Values/Identities/Semiring.lean`: for which of the fifty-four pairs does `H ≤ G` and `H' ≤ G'`
+give `H op H' ≤ G op G'`?  The four relations that are a map of vertices always do, whatever the
+operation; the minor relations need the branch sets of the product to stay connected, which rules
+out the tensor product; the two that replace an edge by a walk are not attempted.  Each entry is a
+construction on the `CGraph` models and a theorem about `IsoGraph` lifted from it.
+
+`Containment/Ordered.lean` reads that table back as typeclasses.  Opening an order scope and an
+algebra scope at once — `IsoGraph.Subgraph` and `IsoGraph.Semiring`, say — turns on
+`IsOrderedAddMonoid`, `IsOrderedMonoid`, `ZeroLEOneClass` and, over the two distributive pairs,
+`IsOrderedRing`, so the ordered-algebra lemmas of `Mathlib` apply to graphs.
 
 `Algorithms/Cached.lean` is the layer to call.  Each of the nine searches there runs on adjacency
 matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of
