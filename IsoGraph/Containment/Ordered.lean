@@ -1,5 +1,6 @@
 import IsoGraph.Containment.Algorithms.Cached
 import IsoGraph.Containment.Monotone
+import IsoGraph.Containment.Split
 import IsoGraph.Values.Identities.Semiring
 
 /-!
@@ -42,19 +43,81 @@ seven of them are `NoMaxOrder` and the quotient and contraction orders — where
 maximal — are `NoTopOrder`.  Those two are also the two with no least element, `NoBotOrder`; the
 other seven have `⊥ = empty 0`, so no order here is `NoMinOrder`.
 
-`IsStrictOrderedRing` and the cancellative classes `IsOrderedCancelAddMonoid` and
-`IsOrderedCancelMonoid` are *not* here.  They ask for the converse implications — that
-`H ⊕g K ≤ G ⊕g K` forces `H ≤ G` — which is a cancellation theorem about the containment relations
-and not about the algebra.  The last section settles what it can: no product cancels in any of the
-nine orders, since `empty 0` absorbs; the disjoint union does not cancel in the homomorphism or
-quotient orders, and the join does not cancel in the five orders that contract or subdivide.  The
-eleven cells left over are open here.
+The cancellative classes ask for the converse implications — that `H ⊕g K ≤ G ⊕g K` forces
+`H ≤ G` — which is a theorem about the containment relations and not about the algebra.  Three of
+those hold: the subgraph and induced subgraph orders cancel the disjoint union, and the induced
+subgraph order cancels the join as well, so each of those three pairs gets
+`IsOrderedCancelAddMonoid` in place of `IsOrderedAddMonoid`.  The rest do not, or are not known
+to.  No product cancels in any of the nine orders, since `empty 0` absorbs, so
+`IsOrderedCancelMonoid` and `IsStrictOrderedRing` are out of reach by construction; the disjoint
+union does not cancel in the homomorphism or quotient orders, and the join does not cancel in the
+five orders that contract or subdivide.  That leaves eight cells open.
 -/
 
 set_option autoImplicit false
 
 namespace IsoGraph
 
+/-! ## What cancels
+
+The cancellative classes need the converse of monotonicity: that `H ⊕g K ≤ G ⊕g K` forces
+`H ≤ G`.  `Containment/Split.lean` cuts an inclusion of one disjoint union into another into four
+pieces, and that is all the induction below needs.  Cancelling `K` from `H ⊕g K ≤ G ⊕g K` splits
+`K` as `K₁ ⊕g K₂` with `H₂ ⊕g K₂` inside `K` itself, and either `K₂` is smaller than `K` — so the
+induction hypothesis puts `H₂` inside `K₁`, and `H = H₁ ⊕g H₂ ≤ H₁ ⊕g K₁ ≤ G` — or `K₂` is all of
+`K`, in which case counting vertices makes `K₁` and `H₂` empty and `H = H₁ ≤ G` outright.
+
+This section comes first because the instances below use it.  What *fails* to cancel, which is
+most of the table, is collected in `## Cancellation` after them. -/
+
+/-- **How a relation that splits disjoint unions cancels them.**  The hypotheses are reflexivity,
+transitivity, monotonicity under `⊕g`, that a containment does not gain vertices, and the
+splitting itself; the conclusion is cancellation. -/
+theorem disjUnion_cancel_of_split {R : IsoGraph → IsoGraph → Prop} (hrefl : ∀ a, R a a)
+    (htrans : ∀ {a b c : IsoGraph}, R a b → R b c → R a c)
+    (hmono : ∀ {a b c d : IsoGraph}, R a b → R c d → R (a ⊕g c) (b ⊕g d))
+    (hV : ∀ {a b : IsoGraph}, R a b → a.V ≤ b.V)
+    (hsplit : ∀ {H K C D : IsoGraph}, R (H ⊕g K) (C ⊕g D) →
+      ∃ H₁ H₂ K₁ K₂ : IsoGraph, H = H₁ ⊕g H₂ ∧ K = K₁ ⊕g K₂ ∧
+        R (H₁ ⊕g K₁) C ∧ R (H₂ ⊕g K₂) D)
+    (H G K : IsoGraph) (h : R (H ⊕g K) (G ⊕g K)) : R H G := by
+  have key : ∀ n (H G K : IsoGraph), K.V = n → R (H ⊕g K) (G ⊕g K) → R H G := by
+    intro n
+    induction n using Nat.strong_induction_on with
+    | _ n ih =>
+      rintro H G K hK h
+      obtain ⟨H₁, H₂, K₁, K₂, hH, hKd, h₁, h₂⟩ := hsplit h
+      have hVK : K.V = K₁.V + K₂.V := by rw [hKd, V_disjUnion]
+      by_cases hlt : K₂.V < n
+      · rw [hKd] at h₂
+        exact hH ▸ htrans (hmono (hrefl H₁) (ih K₂.V hlt H₂ K₁ K₂ rfl h₂)) h₁
+      · have hV₂ := hV h₂
+        rw [V_disjUnion] at hV₂
+        have hK₁ : K₁ = empty 0 := V_eq_zero_iff.1 (by omega)
+        have hH₂ : H₂ = empty 0 := V_eq_zero_iff.1 (by omega)
+        rw [hK₁, disjUnion_empty_zero] at h₁
+        rw [hH, hH₂, disjUnion_empty_zero]
+        exact h₁
+  exact key K.V H G K rfl h
+
+/-- **The subgraph order cancels disjoint unions.** -/
+theorem IsSubgraphOf.disjUnion_cancel {H G K : IsoGraph} (h : H ⊕g K ≤ₛ G ⊕g K) : H ≤ₛ G :=
+  disjUnion_cancel_of_split isSubgraphOf_refl isSubgraphOf_trans IsSubgraphOf.disjUnion
+    IsSubgraphOf.V_le IsSubgraphOf.exists_split_disjUnion H G K h
+
+/-- **The induced subgraph order cancels disjoint unions.** -/
+theorem IsInducedSubgraphOf.disjUnion_cancel {H G K : IsoGraph} (h : H ⊕g K ≤ᵢₛ G ⊕g K) :
+    H ≤ᵢₛ G :=
+  disjUnion_cancel_of_split isInducedSubgraphOf_refl isInducedSubgraphOf_trans
+    IsInducedSubgraphOf.disjUnion IsInducedSubgraphOf.V_le
+    IsInducedSubgraphOf.exists_split_disjUnion H G K h
+
+/-- **The induced subgraph order cancels joins.**  The complement of a join is the disjoint union
+of the complements, and complementation is a symmetry of this order. -/
+theorem IsInducedSubgraphOf.join_cancel {H G K : IsoGraph} (h : H ∇g K ≤ᵢₛ G ∇g K) : H ≤ᵢₛ G := by
+  have hc := h.compl
+  rw [compl_join, compl_join] at hc
+  simpa using (IsInducedSubgraphOf.disjUnion_cancel hc).compl
 namespace Hom
 
 section ZeroLEOne
@@ -148,9 +211,13 @@ end ZeroLEOne
 section DisjUnion
 open scoped IsoGraph.DisjUnion
 
-scoped instance instIsOrderedAddMonoidDisjUnion : IsOrderedAddMonoid IsoGraph where
+/-- The disjoint union cancels here, so this is the cancellative class rather than the plain
+`IsOrderedAddMonoid`. -/
+scoped instance instIsOrderedCancelAddMonoidDisjUnion : IsOrderedCancelAddMonoid IsoGraph where
   add_le_add_left _ _ h c := IsSubgraphOf.disjUnion h (isSubgraphOf_refl c)
   add_le_add_right _ _ h c := IsSubgraphOf.disjUnion (isSubgraphOf_refl c) h
+  le_of_add_le_add_left a b c h := IsSubgraphOf.disjUnion_cancel
+    (show b ⊕g a ≤ₛ c ⊕g a by rw [disjUnion_comm b a, disjUnion_comm c a]; exact h)
 
 end DisjUnion
 
@@ -235,18 +302,24 @@ end ZeroLEOne
 section DisjUnion
 open scoped IsoGraph.DisjUnion
 
-scoped instance instIsOrderedAddMonoidDisjUnion : IsOrderedAddMonoid IsoGraph where
+@[inherit_doc IsoGraph.Subgraph.instIsOrderedCancelAddMonoidDisjUnion]
+scoped instance instIsOrderedCancelAddMonoidDisjUnion : IsOrderedCancelAddMonoid IsoGraph where
   add_le_add_left _ _ h c := IsInducedSubgraphOf.disjUnion h (isInducedSubgraphOf_refl c)
   add_le_add_right _ _ h c := IsInducedSubgraphOf.disjUnion (isInducedSubgraphOf_refl c) h
+  le_of_add_le_add_left a b c h := IsInducedSubgraphOf.disjUnion_cancel
+    (show b ⊕g a ≤ᵢₛ c ⊕g a by rw [disjUnion_comm b a, disjUnion_comm c a]; exact h)
 
 end DisjUnion
 
 section Join
 open scoped IsoGraph.Join
 
-scoped instance instIsOrderedAddMonoidJoin : IsOrderedAddMonoid IsoGraph where
+/-- The join cancels here too, by complementation. -/
+scoped instance instIsOrderedCancelAddMonoidJoin : IsOrderedCancelAddMonoid IsoGraph where
   add_le_add_left _ _ h c := IsInducedSubgraphOf.join h (isInducedSubgraphOf_refl c)
   add_le_add_right _ _ h c := IsInducedSubgraphOf.join (isInducedSubgraphOf_refl c) h
+  le_of_add_le_add_left a b c h := IsInducedSubgraphOf.join_cancel
+    (show b ∇g a ≤ᵢₛ c ∇g a by rw [join_comm b a, join_comm c a]; exact h)
 
 end Join
 
@@ -839,7 +912,8 @@ end Contraction
 
 /-! ## Cancellation
 
-The other half of each monotonicity question: when does `H op K ≤ G op K` force `H ≤ G`?
+The other half of each monotonicity question: when does `H op K ≤ G op K` force `H ≤ G`?  `## What
+cancels`, above, has the three cells where it does; this section has the rest.
 
 *Never*, for the four products.  Each of them has `empty 0` for an absorbing element, so taking
 `K = empty 0` makes the hypothesis vacuous while `empty 1 ≤ empty 0` is false in all nine orders —
@@ -854,12 +928,15 @@ may contract or subdivide: `complete 2 ∇g empty 2` is `K₄` less an edge and 
 is `K₃,₂`, and contracting one edge of the latter gives the former, while `complete 2` has an edge
 and `empty 3` has none.
 
-The eleven remaining cells — the disjoint union in the seven orders of inclusion, and the join in
-the homomorphism, subgraph, induced subgraph and quotient orders — have no counterexample among
-the graphs on at most four vertices, and are expected to hold, but they are not proved here: the
-argument splits the vertices of the source by which side of the target they land in, which needs
-an induced-subgraph construction the library does not have yet.  So no
-`IsOrderedCancelAddMonoid`, and no `IsStrictOrderedRing`, for the time being. -/
+Of the eleven cells that leaves, three are settled above: the disjoint union cancels in the
+subgraph and induced subgraph orders, and so does the join in the induced subgraph order.  The
+eight still open are the disjoint union in the five minor-like orders — minor, induced minor,
+contraction, topological minor and immersion — and the join in the homomorphism, subgraph and
+quotient orders.  None of them has a counterexample among the graphs on at most three vertices,
+and all are expected to hold; what the five minor-like ones want is the splitting of
+`Containment/Split.lean` for a relation whose branch sets have to be carried across, which needs
+`ConnectedOn` pulled back along an induced-subgraph inclusion.  `IsStrictOrderedRing` stays out of
+reach regardless, since it asks for a product to cancel. -/
 
 theorem not_empty_one_hasHomInto_empty_zero : ¬(empty 1 : IsoGraph) ≤ₕ empty 0 := fun h ↦ by
   have hV := le_V_of_hasHomInto_complete (n := 1) (G := empty 0) (by rwa [complete_one])
@@ -1037,6 +1114,17 @@ example (a b c d : IsoGraph) (h : a ≤ b) (h' : c ≤ d) : a * c ≤ b * d := m
 example (a : IsoGraph) : 0 ≤ a := bot_le
 example : (0 : IsoGraph) ≤ 1 := zero_le_one
 example (a b : IsoGraph) (h : a ≤ b) : a * a ≤ b * b := mul_le_mul' h h
+/-- The disjoint union cancels, so `add_le_add_iff_left` is an iff. -/
+example (a b c : IsoGraph) : c + a ≤ c + b ↔ a ≤ b := add_le_add_iff_left c
+
+end Examples
+
+section Examples
+
+open scoped IsoGraph.InducedSubgraph IsoGraph.Join
+
+/-- The join cancels in this order, the only one where it is known to. -/
+example (a b c : IsoGraph) (h : a + c ≤ b + c) : a ≤ b := le_of_add_le_add_right h
 
 end Examples
 
