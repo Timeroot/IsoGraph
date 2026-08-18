@@ -1053,9 +1053,10 @@ and `empty 3` has none.
 Of the eleven cells that leaves, eight are settled above: the disjoint union cancels in all seven
 orders where it can, and the join in the induced subgraph order.  The three still open are the
 join in the homomorphism, subgraph and quotient orders, and all three are expected to hold.  A
-search over the deciders of `Containment/Algorithms/` found no counterexample: exhaustively for
-the subgraph order on at most four vertices, and with `H` and `G` on at most five and `K` on at
-most three.  Cancelling a *clique* is proved above; what the general case wants is the splitting
+search over the deciders of `Containment/Algorithms/` found no counterexample to any of them: all
+three exhaustively on at most three vertices, and the subgraph order exhaustively on at most four
+and then with `H` and `G` on at most five and `K` on at most three.  Cancelling a *clique* is
+proved above; what the general case wants is the splitting
 of `Containment/Split.lean` for the join, which complementation gives only in the one order that
 it preserves.  `IsStrictOrderedRing` stays out of reach regardless, since it asks for a product to
 cancel. -/
