@@ -13,6 +13,10 @@ rev = "v4.28.0"
 [[lean_lib]]
 name = "IsoGraph"
 roots = ["IsoGraph"]
+# The decision procedures are meant to be run, not just compiled: `native_decide` and `#eval` call
+# into imported modules, and without this they go through the interpreter.  The enumeration behind
+# `small_graphs` is two orders of magnitude apart between the two.
+precompileModules = true
 
 # Test / benchmark driver for the canonical labelling algorithm.
 [[lean_exe]]

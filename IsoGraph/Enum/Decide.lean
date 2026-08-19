@@ -50,20 +50,31 @@ domination number — and the two derived from them.  What is left is still most
 
 ## The cost
 
-`enumerateIso n` has 1, 2, 4, 11, 34, 156, 1044, 12346, … entries, but what it costs is not the
+`enumerateIso n` has 1, 1, 2, 4, 11, 34, 156, 1044, 12346, … entries, but what it costs is not the
 length: the list is the fixed points of `canonCode` among all `2 ^ (n choose 2)` codes, which is
 1024 canonicalisations at `n = 5`, 32768 at `n = 6` and two million at `n = 7`.
 
-On top of that, the library is not built with `precompileModules`, so a `native_decide` runs the
-enumerator through the interpreter rather than as compiled code — a factor of a hundred or so
-against the numbers in `EnumBench.lean`.  In practice `enumerateIso 5` is a second or two,
-`enumerateIso 6` about forty-five, and `n = 7` is out of reach until that flag changes.  So this
-is a tactic for `n ≤ 6`.
-
 Adding `G.IsConnected` to the statement is worth it twice over, and the second time is the larger:
 `enumConnCodes` grows the connected codes level by level instead of sweeping all `2 ^ (n choose 2)`
-of them, so `enumerateConnIso 6` costs a fraction of `enumerateIso 6` and not merely the ratio
-112/156 of their lengths.
+of them, so it never pays that exponential at all — its cost tracks the 1, 1, 2, 6, 21, 112, 853,
+11117, 261080 connected classes themselves rather than the ratio 112/156 of two list lengths.
+
+The library *is* built with `precompileModules` (see `lakefile.toml`), so a `native_decide` runs
+the enumerator as compiled code rather than through the interpreter.  That is what makes these
+numbers what they are — measured as the extra time a module takes over one that only imports this
+one, so the ~5 s of loading the library is already subtracted:
+
+| `n` | `enumerateIso n` | `enumerateConnIso n` |
+| --- | --- | --- |
+| 5 | 0.1 s | — |
+| 6 | 2.7 s | 0.3 s |
+| 7 | 228 s | 0.6 s |
+| 8 | — | 5 s |
+| 9 | — | 197 s |
+
+So: the unrestricted shapes are comfortable to `n = 6` and possible at `n = 7`; the connected shape
+is comfortable to `n = 8` and possible at `n = 9`.  Without `precompileModules` every one of these
+is about two orders of magnitude worse, which is what the flag is there for.
 
 What `P` costs on each graph is on top of that, and need not be small — a containment search is
 not free — but at these orders it rarely is what dominates.

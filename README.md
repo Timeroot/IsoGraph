@@ -74,6 +74,28 @@ each of which imports its directory.
 Toolchain is `leanprover/lean4:v4.28.0` with Mathlib pinned at `v4.28.0` — the rev the prover
 service's base image ships, so the project can be submitted to it without a Mathlib rebuild.
 
+### Building
+
+The library sets `precompileModules = true`. Almost everything here is a decision procedure that
+is meant to be *run* — the canonical labelling, the enumerators, the nine containment searches —
+and without the flag every `native_decide` and every `#eval` goes through Lean's interpreter,
+which is about two orders of magnitude slower. `Exhaustion.lean` is the clearest case: twenty-three
+minutes interpreted, forty seconds compiled.
+
+The price is paid once, and twice over. The first build compiles Mathlib's C to a shared library,
+which is a couple of thousand `clang -O3` invocations; and because that shared library links
+against `libLake_shared.so`, which Lake does not put on the loader path for its own build
+subprocesses, a plain `lake build` fails with `error loading library, libLake_shared.so`. Build
+with
+
+```sh
+lake env lake build          # or: export LD_LIBRARY_PATH="$(lean --print-prefix)/lib/lean"
+```
+
+`lake env` sets `LD_LIBRARY_PATH` correctly, so this is the whole of the workaround. Note also
+that `lake env lean Foo.lean` does *not* pass `--load-dynlib`, so checking a file that way still
+runs interpreted; to time anything, build it as a module.
+
 `Algorithm.lean` deliberately imports nothing: it is plain functional Lean over `Array`, so it
 compiles in seconds and its equation lemmas are available for the eventual correctness proof.
 Nothing in it is `partial` — every loop is structural on an explicit fuel argument.
