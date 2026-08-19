@@ -53,11 +53,12 @@ Where the table is ragged, it is because the missing law is false.
   product with an absorbing zero can only cancel a *nonzero* factor — and the tensor product fails
   even that: `empty 1 ⊗g complete 2 = empty 1 ⊗g empty 2` with `empty 1 ≠ 0`, since a tensor
   product with an edgeless factor is edgeless whatever the other factor is.  That is
-  `not_isCancelMulZero_tensorProduct` below.  For the other three, `IsCancelMulZero` is true but
-  deep — Imrich, Klavžar and Rall for `□g` and `⊠g`, Dörfler and Imrich for `·g` — and it is not
+  `not_isCancelMulZero_tensorProduct` below.  The other three do cancel.  For `⊠g` that is
+  `Identities/Cancellation.lean`, which counts homomorphisms of the reflexive closures; for `□g`
+  (Imrich, Klavžar and Rall) and for `·g` on both sides (Dörfler and Imrich) it is deep and is not
   formalised here.  A search over the graphs on at most five vertices, with the cancelled factor on
-  at most three, found no counterexample to any of the three, `·g` included on both sides.  What
-  all four do get is `NoZeroDivisors`, which is just the vertex count.
+  at most three, found no counterexample to either.  What all four products do get is
+  `NoZeroDivisors`, which is just the vertex count.
 
 What the two semirings do and do not satisfy beyond this is `Identities/Factorization.lean`: the
 one-vertex graph is the only unit, divisibility is well-founded, the semiring is local, and it is

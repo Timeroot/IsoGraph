@@ -35,19 +35,15 @@ additive.
 
 ## What is not here
 
-Two positive results are classical and are *not* formalised.
-
-The first is cancellation.  Both `□g` and `⊠g` cancel — if `A □g C = B □g C` with `C` nonempty
-then `A = B`, and likewise for the strong product — which is Imrich, Klavžar and Rall,
-*Cancellation properties of products of graphs*, Discrete Applied Mathematics 155 (2007) 2362–2364.
-So `IsCancelMulZero` and `IsDomain` do hold, and the failure of unique factorisation above is a
-genuine failure of uniqueness rather than of cancellation.  The proof goes through counting
-homomorphisms and is well out of reach of this development; `Identities/Semiring.lean` records the
-same gap.  The lexicographic product cancels on both sides (Dörfler and Imrich, 1972); the tensor
-product does not cancel at all, and that failure *is* formalised, as
+The failure of unique factorisation above is a failure of uniqueness and not of cancellation: both
+`□g` and `⊠g` cancel a nonempty factor (Imrich, Klavžar and Rall, *Cancellation properties of
+products of graphs*, Discrete Applied Mathematics 155 (2007) 2362–2364), as does `·g` on both sides
+(Dörfler and Imrich, 1972).  For the strong product that is formalised, in
+`Identities/Cancellation.lean`, so `IsCancelMulZero` and `IsDomain` hold there; the other two are
+not.  The tensor product does not cancel at all, and that failure *is* formalised, as
 `not_isCancelMulZero_tensorProduct`.
 
-The second is unique factorisation of *connected* graphs.  A connected graph factors uniquely into
+What is classical and missing is unique factorisation of *connected* graphs.  A connected graph factors uniquely into
 connected graphs that are prime for `□g` — Sabidussi 1960 and Vizing 1963 — and for `⊠g` —
 Dörfler and Imrich 1970, McKenzie 1971.  Together with cancellation this identifies the graph
 semiring with the polynomial semiring `ℕ₀[Y]` on the connected primes (Imrich, Klep and Smertnig,
