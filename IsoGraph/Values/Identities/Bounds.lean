@@ -12,7 +12,8 @@ This module carries the general bounds across — Turán, Ramsey, Gallai, the cl
 König's theorem for the complete bipartite graphs, the two-approximation for vertex covers — and
 fills in the columns they govern: the vertex cover number, the domination number, the radius, the
 clique, component and automorphism counts, the edge chromatic number, the matching number and the
-clique cover number.
+clique cover number.  The last three are defined in `Invariants/Derived.lean`, each as an
+invariant of another graph; what is here is what they are worth and how they are bounded.
 -/
 
 set_option autoImplicit false
@@ -2087,23 +2088,9 @@ example : maxDeg (kneser 5 2) = 3 := by
 
 /-! ### The edge chromatic number
 
-An edge colouring of `G` is a vertex colouring of `L(G)`, so the chromatic index is the
-chromatic number of the line graph and needs no separate well-definedness argument.  It is
-defined on `CGraph` and lifted, like every other invariant. -/
-
-/-- The *edge chromatic number* (chromatic index) `χ'(G)`: the least number of colours needed
-to colour the edges of `G` so that edges meeting at a vertex get different colours. -/
-noncomputable def _root_.CGraph.edgeChromNum (G : CGraph) : ℕ := G.lineGraph.chromNum
-
-@[toIsoGraph]
-theorem _root_.CGraph.edgeChromNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
-    G.edgeChromNum = H.edgeChromNum :=
-  CGraph.chromNum_eq_of_iso (CGraph.Iso.lineGraph i)
-
-theorem edgeChromNum_eq (G : IsoGraph) : G.edgeChromNum = chromNum (lineGraph G) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [edgeChromNum_mk, lineGraph_mk, chromNum_mk]
-  rfl
+The chromatic index `χ'(G)` is the chromatic number of the line graph — that is its definition,
+in `Invariants/Derived.lean` — so `edgeChromNum_eq` turns every statement below into one about
+`chromNum` of `lineGraph`. -/
 
 /-- Every edge colouring uses at least `Δ` colours, since the edges at a vertex of maximum
 degree pairwise conflict. -/
@@ -2159,21 +2146,8 @@ example : (star 4).edgeChromNum = 4 := edgeChromNum_star 4
 
 /-! ### The matching number
 
-A matching is a set of pairwise disjoint edges, that is, an independent set in the line
-graph, so like the chromatic index the matching number needs no separate construction. -/
-
-/-- The *matching number* `ν(G)`: the largest number of pairwise disjoint edges. -/
-noncomputable def _root_.CGraph.matchNum (G : CGraph) : ℕ := G.lineGraph.indepNum
-
-@[toIsoGraph]
-theorem _root_.CGraph.matchNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
-    G.matchNum = H.matchNum :=
-  CGraph.indepNum_eq_of_iso (CGraph.Iso.lineGraph i)
-
-theorem matchNum_eq (G : IsoGraph) : G.matchNum = indepNum (lineGraph G) := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [matchNum_mk, lineGraph_mk, indepNum_mk]
-  rfl
+The matching number `ν(G)` is the independence number of the line graph, again by definition
+(`Invariants/Derived.lean`), so `matchNum_eq` is what the bounds below rewrite with. -/
 
 theorem matchNum_le_E (G : IsoGraph) : G.matchNum ≤ G.E := by
   have h := (lineGraph G).coverNum_add_indepNum
@@ -2393,23 +2367,9 @@ example : (paley 13).girth = 3 := by
 
 /-! ### The clique cover number
 
-A partition of the vertices into cliques of `G` is a proper colouring of the complement, so
-`θ(G) = χ(Ḡ)`.  As with the chromatic index it is defined on `CGraph` and lifted, and every
-statement about it is a statement about `chromNum` in disguise. -/
-
-/-- The *clique cover number* `θ(G)`: the least number of cliques needed to cover the
-vertices. -/
-noncomputable def _root_.CGraph.cliqueCoverNum (G : CGraph) : ℕ := G.compl.chromNum
-
-@[toIsoGraph]
-theorem _root_.CGraph.cliqueCoverNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) :
-    G.cliqueCoverNum = H.cliqueCoverNum :=
-  CGraph.chromNum_eq_of_iso (CGraph.Iso.compl i)
-
-theorem cliqueCoverNum_eq (G : IsoGraph) : G.cliqueCoverNum = chromNum Gᶜ := by
-  induction G using Quotient.inductionOn with | _ g =>
-  rw [cliqueCoverNum_mk, compl_mk, chromNum_mk]
-  rfl
+The clique cover number `θ(G)` is the chromatic number of the complement
+(`Invariants/Derived.lean`), so every statement about it is a statement about `chromNum` in
+disguise. -/
 
 @[simp] theorem cliqueCoverNum_compl (G : IsoGraph) :
     Gᶜ.cliqueCoverNum = G.chromNum := by
@@ -2913,23 +2873,10 @@ example (G : IsoGraph) (h : G.matchNum = 0) : G.coverNum = 0 := by
   omega
 
 
-/-! ### Self-complementary graphs -/
+/-! ### Self-complementary graphs
 
-/-- A graph is *self-complementary* when it is isomorphic to its own complement.  Because
-`IsoGraph` is the quotient of graphs by isomorphism, this is literally the equation
-`Gᶜ = G`. -/
-def IsSelfComplementary (G : IsoGraph) : Prop := Gᶜ = G
-
-theorem isSelfComplementary_iff {G : IsoGraph} :
-    IsSelfComplementary G ↔ Gᶜ = G := Iff.rfl
-
-theorem IsSelfComplementary.compl_eq {G : IsoGraph} (h : IsSelfComplementary G) :
-    Gᶜ = G := h
-
-theorem isSelfComplementary_compl {G : IsoGraph} (h : IsSelfComplementary G) :
-    IsSelfComplementary Gᶜ := by
-  show Gᶜᶜ = Gᶜ
-  rw [compl_compl, h.compl_eq]
+`IsSelfComplementary G` is the equation `Gᶜ = G`, defined in `Invariants/Derived.lean`; what is
+here is which graphs satisfy it and what it forces. -/
 
 @[simp] theorem isSelfComplementary_empty_zero : IsSelfComplementary (empty 0) := by
   show (empty 0)ᶜ = empty 0

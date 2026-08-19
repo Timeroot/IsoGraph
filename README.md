@@ -47,6 +47,7 @@ imports its directory.
 | `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
 | `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
 | `IsoGraph/Invariants/Basic.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
+| `IsoGraph/Invariants/Derived.lean` | invariants of a derived graph: `edgeChromNum`, `matchNum`, `cliqueCoverNum`, `IsSelfComplementary` | yes |
 | `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
 | `IsoGraph/Invariants/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, decided | yes |
 | `IsoGraph/Graphs/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |

@@ -1,4 +1,5 @@
 import IsoGraph.Invariants.Certificates
+import IsoGraph.Invariants.Derived
 import IsoGraph.Graphs.Quotient
 import Mathlib.Combinatorics.SimpleGraph.ConcreteColorings
 import Mathlib.Combinatorics.SimpleGraph.Sum

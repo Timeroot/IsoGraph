@@ -1,4 +1,5 @@
 import IsoGraph.Invariants.Basic
+import IsoGraph.Invariants.Derived
 import IsoGraph.Invariants.Certificates
 import IsoGraph.Invariants.Symmetry
 
@@ -10,6 +11,11 @@ invariants themselves — the order, the number of edges, the degree sequence, t
 independence numbers, connectivity, girth, the chromatic number, … — each as a thin wrapper
 around the corresponding Mathlib notion for `G.toSimple`, and each tagged `@[toIsoGraph]` so that
 the attribute lifts it to `IsoGraph`.
+
+`Invariants/Derived.lean` adds the three invariants that are read off *another* graph — the
+chromatic index and the matching number from the line graph, the clique cover number from the
+complement — together with self-complementarity, which on the quotient is the equation `Gᶜ = G`.
+They come after the constructions rather than with the rest, because they need them.
 
 The other two files are about *establishing* those quantities for a graph in hand.
 `Invariants/Certificates.lean` turns a finite witness — a list of vertices closing into a cycle, a
