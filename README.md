@@ -13,10 +13,10 @@ and its correctness proof, `IsoGraph/Enum/` is the enumerator built on top of it
 theory proper in three more, one per kind of thing being said: `IsoGraph/Invariants/` *defines*
 the invariants, `IsoGraph/Graphs/` *builds* the graphs, and `IsoGraph/Values/` records what the
 invariants come to on them. Underneath them all is `IsoGraph/ForMathlib/`, which holds the lemmas
-that mention nothing from this development and could be contributed upstream. Only `Basic.lean`
-and `Compute.lean` are left at the root, along with the six index modules `ForMathlib.lean`,
-`Canon.lean`, `Enum.lean`, `Invariants.lean`, `Graphs.lean` and `Values.lean`, each of which
-imports its directory.
+that mention nothing from this development and could be contributed upstream. Only `Basic.lean`,
+`Compute.lean` and `Exhaustion.lean` are left at the root, along with the six index modules
+`ForMathlib.lean`, `Canon.lean`, `Enum.lean`, `Invariants.lean`, `Graphs.lean` and `Values.lean`,
+each of which imports its directory.
 
 | file | what it is | Mathlib? |
 | --- | --- | --- |
@@ -46,6 +46,7 @@ imports its directory.
 | `IsoGraph/Compute.lean` | evidence that `canonicalize` really runs, checked at elaboration time | yes |
 | `IsoGraph/Enum/All.lean` | one graph per isomorphism class on `n` vertices, and why nothing is missed | yes |
 | `IsoGraph/Enum/Conn.lean` | the same for *connected* graphs | yes |
+| `IsoGraph/Enum/Decide.lean` | `small_graphs`: a statement about every graph of an order, checked | yes |
 | `IsoGraph/Invariants/Basic.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Invariants/Derived.lean` | invariants of a derived graph: `edgeChromNum`, `matchNum`, `cliqueCoverNum`, `IsSelfComplementary` | yes |
 | `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
@@ -62,6 +63,7 @@ imports its directory.
 | `IsoGraph/Graphs/Tutte12Cage.lean` | the Tutte 12-cage, the largest cubic cage with a name | yes |
 | `IsoGraph/Values/Identities/` | the equations between the constructions, and the tables of their invariants — seventeen modules, indexed by `Identities.lean` | yes |
 | `IsoGraph/Values/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
+| `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |

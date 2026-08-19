@@ -41,6 +41,11 @@ tabulated or the search is short enough that the `n²` fill would dominate.
 Each comes with `…?_eq_none_iff`, which says that `none` means the containment type is empty — so
 a `none` is a complete answer and not a failure to search hard enough — and a `Bool` version with
 the same guarantee, for `native_decide`.
+
+Those `Bool` versions are what makes the nine relations of `Containment/Defs.lean` decidable *on
+the quotient*, which is the last section of this file: `H ≤ₛ G` for `H G : IsoGraph` is settled by
+running the search on the canonical representatives.  So a containment may be `decide`d, or put
+inside a `native_decide` over a whole enumeration.
 -/
 
 set_option autoImplicit false
@@ -265,3 +270,54 @@ theorem quotientB_iff : H.quotientB G = true ↔ Nonempty (H.QuotientOf G) := by
   cases H.quotientOf? G <;> simp
 
 end CGraph
+
+/-! ## The relations on `IsoGraph`, decided
+
+Each of `Containment/Defs.lean`'s nine relations is `Quotient.lift₂` of a `Nonempty`, so it says
+nothing that can be evaluated as it stands.  What decides it is the search above, run on the
+canonical representatives: `H.toCGraph` and `G.toCGraph` are members of the two classes, and
+`IsoGraph.mk_toCGraph` says so, which is all the `_mk` lemma needs to close the gap.
+
+The searches are exponential in the pattern, so these are for small graphs — but "small" here is
+the whole gallery, and it is exactly what an exhaustive check over `Enum/Decide.lean`'s
+enumerations wants. -/
+
+namespace IsoGraph
+
+instance instDecidableHasHomInto (H G : IsoGraph) : Decidable (H ≤ₕ G) :=
+  decidable_of_iff (H.toCGraph.homB G.toCGraph = true) <| by
+    rw [CGraph.homB_iff, ← hasHomInto_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableIsSubgraphOf (H G : IsoGraph) : Decidable (H ≤ₛ G) :=
+  decidable_of_iff (H.toCGraph.subgraphB G.toCGraph = true) <| by
+    rw [CGraph.subgraphB_iff, ← isSubgraphOf_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableIsInducedSubgraphOf (H G : IsoGraph) : Decidable (H ≤ᵢₛ G) :=
+  decidable_of_iff (H.toCGraph.inducedSubgraphB G.toCGraph = true) <| by
+    rw [CGraph.inducedSubgraphB_iff, ← isInducedSubgraphOf_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableHasQuotient (G H : IsoGraph) : Decidable (H ≤/ G) :=
+  decidable_of_iff (H.toCGraph.quotientB G.toCGraph = true) <| by
+    rw [CGraph.quotientB_iff, ← hasQuotient_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableIsMinorOf (H G : IsoGraph) : Decidable (H ≤ₘ G) :=
+  decidable_of_iff (H.toCGraph.minorB G.toCGraph = true) <| by
+    rw [CGraph.minorB_iff, ← isMinorOf_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableIsInducedMinorOf (H G : IsoGraph) : Decidable (H ≤ᵢₘ G) :=
+  decidable_of_iff (H.toCGraph.inducedMinorB G.toCGraph = true) <| by
+    rw [CGraph.inducedMinorB_iff, ← isInducedMinorOf_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableIsContractionOf (H G : IsoGraph) : Decidable (H ≤ₚ G) :=
+  decidable_of_iff (H.toCGraph.contractionB G.toCGraph = true) <| by
+    rw [CGraph.contractionB_iff, ← isContractionOf_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableIsTopMinorOf (H G : IsoGraph) : Decidable (H ≤ₜₘ G) :=
+  decidable_of_iff (H.toCGraph.topMinorB G.toCGraph = true) <| by
+    rw [CGraph.topMinorB_iff, ← isTopMinorOf_mk, mk_toCGraph, mk_toCGraph]
+
+instance instDecidableIsImmersionMinorOf (H G : IsoGraph) : Decidable (H ≤ₑ G) :=
+  decidable_of_iff (H.toCGraph.immersionB G.toCGraph = true) <| by
+    rw [CGraph.immersionB_iff, ← isImmersionMinorOf_mk, mk_toCGraph, mk_toCGraph]
+
+end IsoGraph

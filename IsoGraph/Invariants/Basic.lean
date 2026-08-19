@@ -438,6 +438,11 @@ instance (n k ℓ μ : ℕ) : Decidable (G.IsSRGWith n k ℓ μ) :=
       fun h ↦ ⟨G.fintypeCard.symm.trans h.card, h.regular, h.of_adj,
         fun _ _ hne ↦ h.of_not_adj hne⟩⟩
 
+/-- Regularity is the second conjunct of strong regularity, and decidable on its own: one
+bounded quantification, and no `DecidableEq` needed. -/
+instance (k : ℕ) : Decidable (G.IsRegularWith k) :=
+  decidable_of_iff (∀ v, G.toSimple.degree v = k) Iff.rfl
+
 /-- Vertex-transitivity is decidable by enumerating the `n!` permutations of the vertex type — so
 this is for tiny graphs only, and the structural lemmas of `IsoGraph/Graphs/Constructions.lean` are
 the way to settle anything larger.  Even `native_decide` starts to labour at eight vertices. -/

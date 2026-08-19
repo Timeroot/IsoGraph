@@ -7,3 +7,4 @@ import IsoGraph.Invariants
 import IsoGraph.Graphs
 import IsoGraph.Values
 import IsoGraph.Containment
+import IsoGraph.Exhaustion
