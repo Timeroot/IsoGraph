@@ -33,10 +33,16 @@ What each pair gets:
   `MulLeftMono` and `MulRightMono`, the most those classes allow;
 * `ZeroLEOneClass` in the seven orders with a bottom element — every order but the quotient and
   the contraction one, whose least element `empty 0` is not below `empty 1`;
-* and, premium, `IsOrderedRing` — an ordered *semi*ring, since graphs have no negation — in every
-  order that has all three of those and a bottom: over `IsoGraph.Semiring` (`⊕g`, `□g`) that is
+* `PosMulStrictMono` and `MulPosStrictMono` — a *proper* containment stays proper after
+  multiplying by a nonzero graph — wherever a product is monotone in an order that is rigid, which
+  is all eight partial orders but the quotient one.  Not for the tensor product, which is monotone
+  and not strictly monotone: `empty 2 < complete 2`, but both sides have two vertices and no
+  edges survive multiplication by `empty 1`;
+* and, premium, `IsStrictOrderedRing` — an ordered *semi*ring, since graphs have no negation — in
+  every order that has all of those and a bottom: over `IsoGraph.Semiring` (`⊕g`, `□g`) that is
   the subgraph, induced subgraph, minor, induced minor, topological minor and immersion orders,
-  and over `IsoGraph.StrongSemiring` (`⊕g`, `⊠g`) the first four of them.
+  and over `IsoGraph.StrongSemiring` (`⊕g`, `⊠g`) the first four of them.  `IsOrderedRing` comes
+  with it.
 
 The last section needs no operation at all: none of the nine orders has a greatest element, so
 seven of them are `NoMaxOrder` and the quotient and contraction orders — where `empty 0` is
@@ -48,7 +54,9 @@ The cancellative classes ask for the converse implications — that `H ⊕g K �
 those hold: the disjoint union cancels in all seven orders where it can, and the induced subgraph
 order cancels the join as well, so each of those eight pairs gets `IsOrderedCancelAddMonoid` in
 place of `IsOrderedAddMonoid`.  No product cancels in any of the nine orders, since `empty 0`
-absorbs, so `IsOrderedCancelMonoid` and `IsStrictOrderedRing` are out of reach by construction;
+absorbs and `empty 0 ⊗g H ≤ empty 0 ⊗g G` says nothing at all, so `IsOrderedCancelMonoid` is out
+of reach by construction — but that is a statement about *every* multiplier, and the ordered-ring
+classes only ever multiply by a positive one, which is why `IsStrictOrderedRing` survives;
 the disjoint union does not cancel in the homomorphism or quotient orders, and the join does not
 cancel in the five orders that contract or subdivide.  That leaves three cells open, all of them
 the join: in the homomorphism, subgraph and quotient orders a join with a *clique* is proved to
@@ -225,6 +233,203 @@ theorem HasQuotient.join_complete_cancel {H G : IsoGraph} {n : ℕ}
     refine ih (HasQuotient.join_complete_one_cancel ?_)
     rwa [join_assoc, join_assoc, join_complete]
 
+/-! ## What is strictly monotone
+
+Monotonicity says that `a ≤ b` gives `c * a ≤ c * b`; `PosMulStrictMono` asks for the strict
+version, that a *proper* containment stays proper after multiplying by a nonzero graph.  In a
+partial order the two differ by exactly one thing — `c * a ≠ c * b` — and that much is arithmetic,
+not cancellation:
+
+* multiplying by `c` multiplies the vertex count by `c.V` and the edge count by a positive
+  combination of `c.V` and `c.E`, so `c * a = c * b` with `c` nonempty forces `a.V = b.V` and
+  `a.E = b.E`.  That is the `V_and_E_eq_of_` group below;
+* a containment that loses no vertex and no edge is an equality, since an injection on vertices
+  that preserves adjacency between graphs of the same order and the same size is an isomorphism
+  (`CGraph.isoOfInjective`).  That is the `eq_of_V_le_of_E_le` group.
+
+Put together — `posMulStrictMono_of_counts` and `mulPosStrictMono_of_counts` — they upgrade every
+monotone cell whose order is rigid, which is the last thing `IsStrictOrderedRing` was missing.  It
+is *not* the cancellation law for a product, which asks a great deal more and is not proved
+anywhere here; a proper containment cannot become an equality, but two unrelated graphs may still
+have the same product with `c`.
+
+The tensor product is the one that drops out.  Its edge count is `2 * a.E * b.E`, which forgets `a`
+altogether when `b` is edgeless, and `IsoGraph.not_isCancelMulZero_tensorProduct` turns that into a
+counterexample: in the subgraph order `empty 2 < complete 2` and `empty 1 > 0`, but the two
+products agree, so `Subgraph.not_posMulStrictMono_tensorProduct` refutes the class rather than
+proving it.
+
+Two orders are excluded for reasons that have nothing to do with the products.  The homomorphism
+order is only a preorder, so `a < b` does not mean `a` and `b` differ in any count and rigidity is
+simply false there.  The quotient order runs the other way — `H ≤/ G` says `H` is a quotient *of*
+`G`, so a containment *gains* nothing and `0 < c` is unsatisfiable, `empty 0` being its greatest
+element rather than its least.  In the other seven, every monotone cell of the cartesian, strong
+and lexicographic products is upgraded.
+
+### A containment that loses nothing is an equality -/
+
+/-- **A subgraph on as many vertices and as many edges is the whole graph.** -/
+theorem IsSubgraphOf.eq_of_V_le_of_E_le {H G : IsoGraph} (h : H ≤ₛ G) (hV : G.V ≤ H.V)
+    (hE : G.E ≤ H.E) : H = G := by
+  revert h hV hE
+  refine Quotient.inductionOn₂ H G ?_
+  rintro A B ⟨f⟩ hV hE
+  exact Quotient.sound ⟨CGraph.isoOfInjective f f.injective f.map_adj' hV hE⟩
+
+@[inherit_doc IsSubgraphOf.eq_of_V_le_of_E_le]
+theorem IsInducedSubgraphOf.eq_of_V_le_of_E_le {H G : IsoGraph} (h : H ≤ᵢₛ G) (hV : G.V ≤ H.V)
+    (hE : G.E ≤ H.E) : H = G :=
+  h.isSubgraphOf.eq_of_V_le_of_E_le hV hE
+
+/-- **A minor on as many vertices and as many edges is the whole graph**: with no vertex to spare
+there is nothing to contract, so the minor is a subgraph. -/
+theorem IsMinorOf.eq_of_V_le_of_E_le {H G : IsoGraph} (h : H ≤ₘ G) (hV : G.V ≤ H.V)
+    (hE : G.E ≤ H.E) : H = G :=
+  (IsSubgraphOf.of_isMinorOf h hV).eq_of_V_le_of_E_le hV hE
+
+@[inherit_doc IsMinorOf.eq_of_V_le_of_E_le]
+theorem IsInducedMinorOf.eq_of_V_le_of_E_le {H G : IsoGraph} (h : H ≤ᵢₘ G) (hV : G.V ≤ H.V)
+    (hE : G.E ≤ H.E) : H = G :=
+  h.isMinorOf.eq_of_V_le_of_E_le hV hE
+
+@[inherit_doc IsMinorOf.eq_of_V_le_of_E_le]
+theorem IsContractionOf.eq_of_V_le_of_E_le {H G : IsoGraph} (h : H ≤ₚ G) (hV : G.V ≤ H.V)
+    (hE : G.E ≤ H.E) : H = G :=
+  h.isMinorOf.eq_of_V_le_of_E_le hV hE
+
+@[inherit_doc IsMinorOf.eq_of_V_le_of_E_le]
+theorem IsTopMinorOf.eq_of_V_le_of_E_le {H G : IsoGraph} (h : H ≤ₜₘ G) (hV : G.V ≤ H.V)
+    (hE : G.E ≤ H.E) : H = G :=
+  h.isMinorOf.eq_of_V_le_of_E_le hV hE
+
+/-- **An immersion with no edge to spare is a subgraph**: the paths it routes the edges of `H`
+along are edge-disjoint, so there are at least `H.E` edges in `G`, and if there are no more then
+every path is a single edge. -/
+theorem IsSubgraphOf.of_isImmersionMinorOf {H G : IsoGraph} (h : H ≤ₑ G) (hE : G.E ≤ H.E) :
+    H ≤ₛ G := by
+  revert h hE
+  refine Quotient.inductionOn₂ H G ?_
+  rintro _ _ ⟨f⟩ hE
+  exact ⟨f.toSubgraphOf hE⟩
+
+@[inherit_doc IsSubgraphOf.eq_of_V_le_of_E_le]
+theorem IsImmersionMinorOf.eq_of_V_le_of_E_le {H G : IsoGraph} (h : H ≤ₑ G) (hV : G.V ≤ H.V)
+    (hE : G.E ≤ H.E) : H = G :=
+  (IsSubgraphOf.of_isImmersionMinorOf h hE).eq_of_V_le_of_E_le hV hE
+
+/-! ### Counting the factors of a product
+
+`c □g a = c □g b` with `c` nonempty pins down both counts of `a` and `b`, and the same for the
+strong and lexicographic products.  Not for the tensor product: `E_tensorProduct` is
+`2 * c.E * a.E`, which says nothing at all when `c` is edgeless. -/
+
+/-- **A cartesian product determines the order and the size of its second factor.**  The counts
+are `c.V * a.V` and `c.V * a.E + a.V * c.E`, both of which cancel `c.V`. -/
+theorem V_and_E_eq_of_cartesianProduct_left {c a b : IsoGraph} (hc : c ≠ empty 0)
+    (h : c □g a = c □g b) : a.V = b.V ∧ a.E = b.E := by
+  have hcV : 0 < c.V := Nat.pos_of_ne_zero fun h0 ↦ hc (V_eq_zero_iff.1 h0)
+  have hV : a.V = b.V := by
+    have hVc := congrArg IsoGraph.V h
+    rw [V_cartesianProduct, V_cartesianProduct] at hVc
+    exact Nat.eq_of_mul_eq_mul_left hcV hVc
+  refine ⟨hV, ?_⟩
+  have hEc := congrArg IsoGraph.E h
+  rw [E_cartesianProduct, E_cartesianProduct, hV] at hEc
+  exact Nat.eq_of_mul_eq_mul_left hcV (Nat.add_right_cancel hEc)
+
+@[inherit_doc V_and_E_eq_of_cartesianProduct_left]
+theorem V_and_E_eq_of_cartesianProduct_right {c a b : IsoGraph} (hc : c ≠ empty 0)
+    (h : a □g c = b □g c) : a.V = b.V ∧ a.E = b.E :=
+  V_and_E_eq_of_cartesianProduct_left hc
+    (by rwa [cartesianProduct_comm c a, cartesianProduct_comm c b])
+
+/-- **A strong product determines the order and the size of its second factor.**  The size is
+`(c.V + 2 * c.E) * a.E + a.V * c.E`, and the coefficient of `a.E` is positive as soon as `c` has a
+vertex. -/
+theorem V_and_E_eq_of_strongProduct_left {c a b : IsoGraph} (hc : c ≠ empty 0)
+    (h : c ⊠g a = c ⊠g b) : a.V = b.V ∧ a.E = b.E := by
+  have hcV : 0 < c.V := Nat.pos_of_ne_zero fun h0 ↦ hc (V_eq_zero_iff.1 h0)
+  have hV : a.V = b.V := by
+    have hVc := congrArg IsoGraph.V h
+    rw [V_strongProduct, V_strongProduct] at hVc
+    exact Nat.eq_of_mul_eq_mul_left hcV hVc
+  refine ⟨hV, ?_⟩
+  have hEc := congrArg IsoGraph.E h
+  rw [E_strongProduct, E_strongProduct, hV] at hEc
+  have hpos : 0 < c.V + 2 * c.E := by omega
+  have h1 : (c.V + 2 * c.E) * a.E + b.V * c.E = (c.V + 2 * c.E) * b.E + b.V * c.E := by
+    rw [Nat.add_mul, Nat.add_mul]
+    omega
+  exact Nat.eq_of_mul_eq_mul_left hpos (Nat.add_right_cancel h1)
+
+@[inherit_doc V_and_E_eq_of_strongProduct_left]
+theorem V_and_E_eq_of_strongProduct_right {c a b : IsoGraph} (hc : c ≠ empty 0)
+    (h : a ⊠g c = b ⊠g c) : a.V = b.V ∧ a.E = b.E :=
+  V_and_E_eq_of_strongProduct_left hc (by rwa [strongProduct_comm c a, strongProduct_comm c b])
+
+/-- **A lexicographic product determines the order and the size of its inner factor.**  The size
+is `a.V * a.V * c.E + c.V * a.E`, and the first summand is already determined by the orders. -/
+theorem V_and_E_eq_of_lexProduct_left {c a b : IsoGraph} (hc : c ≠ empty 0)
+    (h : c ·g a = c ·g b) : a.V = b.V ∧ a.E = b.E := by
+  have hcV : 0 < c.V := Nat.pos_of_ne_zero fun h0 ↦ hc (V_eq_zero_iff.1 h0)
+  have hV : a.V = b.V := by
+    have hVc := congrArg IsoGraph.V h
+    rw [V_lexProduct, V_lexProduct] at hVc
+    exact Nat.eq_of_mul_eq_mul_left hcV hVc
+  refine ⟨hV, ?_⟩
+  have hEc := congrArg IsoGraph.E h
+  rw [E_lexProduct, E_lexProduct, hV] at hEc
+  exact Nat.eq_of_mul_eq_mul_left hcV (Nat.add_left_cancel hEc)
+
+/-- **A lexicographic product determines the order and the size of its outer factor**, this time
+cancelling `c.V * c.V` from the size. -/
+theorem V_and_E_eq_of_lexProduct_right {c a b : IsoGraph} (hc : c ≠ empty 0)
+    (h : a ·g c = b ·g c) : a.V = b.V ∧ a.E = b.E := by
+  have hcV : 0 < c.V := Nat.pos_of_ne_zero fun h0 ↦ hc (V_eq_zero_iff.1 h0)
+  have hV : a.V = b.V := by
+    have hVc := congrArg IsoGraph.V h
+    rw [V_lexProduct, V_lexProduct] at hVc
+    exact Nat.eq_of_mul_eq_mul_right hcV hVc
+  refine ⟨hV, ?_⟩
+  have hEc := congrArg IsoGraph.E h
+  rw [E_lexProduct, E_lexProduct, hV] at hEc
+  exact Nat.eq_of_mul_eq_mul_left (Nat.mul_pos hcV hcV) (Nat.add_right_cancel hEc)
+
+/-- Two isolated vertices sit inside an edge — the pair that shows the tensor product is not
+strictly monotone, since both graphs have two vertices. -/
+theorem isSubgraphOf_empty_two_complete_two : (empty 2 : IsoGraph) ≤ₛ complete 2 := by
+  show (⟦CGraph.empty 2⟧ : IsoGraph) ≤ₛ ⟦CGraph.complete 2⟧
+  rw [isSubgraphOf_mk]
+  exact (CGraph.subgraphB_iff _ _).1 (by native_decide)
+
+/-! ### The two combinators
+
+Every strict-monotonicity instance below is one of these two applied to a rigidity lemma, a
+monotonicity lemma and a counting lemma; the order and the product are whatever the two open
+scopes say they are. -/
+
+/-- **Monotone plus rigid plus counting is strictly monotone**, on the left. -/
+theorem posMulStrictMono_of_counts [Mul IsoGraph] [PartialOrder IsoGraph]
+    (hrigid : ∀ {H G : IsoGraph}, H ≤ G → G.V ≤ H.V → G.E ≤ H.E → H = G)
+    (hmono : ∀ {a b : IsoGraph} (c : IsoGraph), a ≤ b → c * a ≤ c * b)
+    (hcount : ∀ {c a b : IsoGraph}, c ≠ empty 0 → c * a = c * b → a.V = b.V ∧ a.E = b.E) :
+    PosMulStrictMono IsoGraph where
+  mul_lt_mul_of_pos_left c hc a b hab := by
+    refine lt_of_le_of_ne (hmono c hab.le) fun heq ↦ hab.ne ?_
+    obtain ⟨hV, hE⟩ := hcount (fun h0 ↦ hc.ne' (h0.trans zero_eq.symm)) heq
+    exact hrigid hab.le hV.ge hE.ge
+
+/-- **Monotone plus rigid plus counting is strictly monotone**, on the right. -/
+theorem mulPosStrictMono_of_counts [Mul IsoGraph] [PartialOrder IsoGraph]
+    (hrigid : ∀ {H G : IsoGraph}, H ≤ G → G.V ≤ H.V → G.E ≤ H.E → H = G)
+    (hmono : ∀ {a b : IsoGraph} (c : IsoGraph), a ≤ b → a * c ≤ b * c)
+    (hcount : ∀ {c a b : IsoGraph}, c ≠ empty 0 → a * c = b * c → a.V = b.V ∧ a.E = b.E) :
+    MulPosStrictMono IsoGraph where
+  mul_lt_mul_of_pos_right c hc a b hab := by
+    refine lt_of_le_of_ne (hmono c hab.le) fun heq ↦ hab.ne ?_
+    obtain ⟨hV, hE⟩ := hcount (fun h0 ↦ hc.ne' (h0.trans zero_eq.symm)) heq
+    exact hrigid hab.le hV.ge hE.ge
+
 namespace Hom
 
 section ZeroLEOne
@@ -344,6 +549,16 @@ scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph w
   mul_le_mul_left _ _ h c := IsSubgraphOf.cartesianProduct h (isSubgraphOf_refl c)
   mul_le_mul_right _ _ h c := IsSubgraphOf.cartesianProduct (isSubgraphOf_refl c) h
 
+scoped instance instPosMulStrictMonoCartesianProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsSubgraphOf.cartesianProduct (isSubgraphOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_left hc h
+
+scoped instance instMulPosStrictMonoCartesianProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsSubgraphOf.cartesianProduct h (isSubgraphOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_right hc h
+
 end CartesianProduct
 
 section TensorProduct
@@ -355,6 +570,19 @@ scoped instance instMulLeftMonoTensorProduct : MulLeftMono IsoGraph :=
 scoped instance instMulRightMonoTensorProduct : MulRightMono IsoGraph :=
   ⟨fun c _ _ h ↦ IsSubgraphOf.tensorProduct h (isSubgraphOf_refl c)⟩
 
+/-- **The tensor product is monotone but not strictly monotone**, which is why the other three
+products get a `PosMulStrictMono` here and it does not.  `empty 2` is properly inside `complete 2`,
+but both have two vertices, so multiplying by the edgeless `empty 1` collapses the two to
+`empty 2`.  The same example refutes `IsCancelMulZero`, in
+`IsoGraph.not_isCancelMulZero_tensorProduct`. -/
+theorem not_posMulStrictMono_tensorProduct : ¬PosMulStrictMono IsoGraph := fun _ ↦ by
+  have h0 : (0 : IsoGraph) < empty 1 :=
+    lt_of_le_of_ne (empty_zero_isSubgraphOf _) (ne_of_V_ne (by simp))
+  have h2 : (empty 2 : IsoGraph) < complete 2 :=
+    lt_of_le_of_ne isSubgraphOf_empty_two_complete_two (empty_ne_complete 0)
+  exact (mul_lt_mul_of_pos_left h2 h0).ne
+    (tensorProduct_empty_one_eq_of_V (empty 2) (complete 2) (by simp))
+
 end TensorProduct
 
 section StrongProduct
@@ -363,6 +591,16 @@ open scoped IsoGraph.StrongProduct
 scoped instance instIsOrderedMonoidStrongProduct : IsOrderedMonoid IsoGraph where
   mul_le_mul_left _ _ h c := IsSubgraphOf.strongProduct h (isSubgraphOf_refl c)
   mul_le_mul_right _ _ h c := IsSubgraphOf.strongProduct (isSubgraphOf_refl c) h
+
+scoped instance instPosMulStrictMonoStrongProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsSubgraphOf.strongProduct (isSubgraphOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_strongProduct_left hc h
+
+scoped instance instMulPosStrictMonoStrongProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsSubgraphOf.strongProduct h (isSubgraphOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_strongProduct_right hc h
 
 end StrongProduct
 
@@ -375,21 +613,32 @@ scoped instance instMulLeftMonoLexProduct : MulLeftMono IsoGraph :=
 scoped instance instMulRightMonoLexProduct : MulRightMono IsoGraph :=
   ⟨fun c _ _ h ↦ IsSubgraphOf.lexProduct h (isSubgraphOf_refl c)⟩
 
+scoped instance instPosMulStrictMonoLexProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsSubgraphOf.lexProduct (isSubgraphOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_lexProduct_left hc h
+
+scoped instance instMulPosStrictMonoLexProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsSubgraphOf.lexProduct h (isSubgraphOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_lexProduct_right hc h
+
 end LexProduct
 
 section Semiring
 open scoped IsoGraph.Semiring
 
-/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
-scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the cartesian product.  Strict
+because the cartesian product is strictly monotone: `IsOrderedRing` follows. -/
+scoped instance instIsStrictOrderedRingSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end Semiring
 
 section StrongSemiring
 open scoped IsoGraph.StrongSemiring
 
-/-- **An ordered semiring**, under the disjoint union and the strong product. -/
-scoped instance instIsOrderedRingStrongSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the strong product. -/
+scoped instance instIsStrictOrderedRingStrongSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end StrongSemiring
 
@@ -437,6 +686,16 @@ scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph w
   mul_le_mul_left _ _ h c := IsInducedSubgraphOf.cartesianProduct h (isInducedSubgraphOf_refl c)
   mul_le_mul_right _ _ h c := IsInducedSubgraphOf.cartesianProduct (isInducedSubgraphOf_refl c) h
 
+scoped instance instPosMulStrictMonoCartesianProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsInducedSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedSubgraphOf.cartesianProduct (isInducedSubgraphOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_left hc h
+
+scoped instance instMulPosStrictMonoCartesianProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsInducedSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedSubgraphOf.cartesianProduct h (isInducedSubgraphOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_right hc h
+
 end CartesianProduct
 
 section TensorProduct
@@ -457,6 +716,16 @@ scoped instance instIsOrderedMonoidStrongProduct : IsOrderedMonoid IsoGraph wher
   mul_le_mul_left _ _ h c := IsInducedSubgraphOf.strongProduct h (isInducedSubgraphOf_refl c)
   mul_le_mul_right _ _ h c := IsInducedSubgraphOf.strongProduct (isInducedSubgraphOf_refl c) h
 
+scoped instance instPosMulStrictMonoStrongProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsInducedSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedSubgraphOf.strongProduct (isInducedSubgraphOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_strongProduct_left hc h
+
+scoped instance instMulPosStrictMonoStrongProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsInducedSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedSubgraphOf.strongProduct h (isInducedSubgraphOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_strongProduct_right hc h
+
 end StrongProduct
 
 section LexProduct
@@ -468,21 +737,32 @@ scoped instance instMulLeftMonoLexProduct : MulLeftMono IsoGraph :=
 scoped instance instMulRightMonoLexProduct : MulRightMono IsoGraph :=
   ⟨fun c _ _ h ↦ IsInducedSubgraphOf.lexProduct h (isInducedSubgraphOf_refl c)⟩
 
+scoped instance instPosMulStrictMonoLexProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsInducedSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedSubgraphOf.lexProduct (isInducedSubgraphOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_lexProduct_left hc h
+
+scoped instance instMulPosStrictMonoLexProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsInducedSubgraphOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedSubgraphOf.lexProduct h (isInducedSubgraphOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_lexProduct_right hc h
+
 end LexProduct
 
 section Semiring
 open scoped IsoGraph.Semiring
 
-/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
-scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the cartesian product.  Strict
+because the cartesian product is strictly monotone: `IsOrderedRing` follows. -/
+scoped instance instIsStrictOrderedRingSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end Semiring
 
 section StrongSemiring
 open scoped IsoGraph.StrongSemiring
 
-/-- **An ordered semiring**, under the disjoint union and the strong product. -/
-scoped instance instIsOrderedRingStrongSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the strong product. -/
+scoped instance instIsStrictOrderedRingStrongSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end StrongSemiring
 
@@ -589,6 +869,16 @@ scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph w
   mul_le_mul_left _ _ h c := IsMinorOf.cartesianProduct h (isMinorOf_refl c)
   mul_le_mul_right _ _ h c := IsMinorOf.cartesianProduct (isMinorOf_refl c) h
 
+scoped instance instPosMulStrictMonoCartesianProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsMinorOf.cartesianProduct (isMinorOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_left hc h
+
+scoped instance instMulPosStrictMonoCartesianProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsMinorOf.cartesianProduct h (isMinorOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_right hc h
+
 end CartesianProduct
 
 section StrongProduct
@@ -597,6 +887,16 @@ open scoped IsoGraph.StrongProduct
 scoped instance instIsOrderedMonoidStrongProduct : IsOrderedMonoid IsoGraph where
   mul_le_mul_left _ _ h c := IsMinorOf.strongProduct h (isMinorOf_refl c)
   mul_le_mul_right _ _ h c := IsMinorOf.strongProduct (isMinorOf_refl c) h
+
+scoped instance instPosMulStrictMonoStrongProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsMinorOf.strongProduct (isMinorOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_strongProduct_left hc h
+
+scoped instance instMulPosStrictMonoStrongProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsMinorOf.strongProduct h (isMinorOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_strongProduct_right hc h
 
 end StrongProduct
 
@@ -609,21 +909,32 @@ scoped instance instMulLeftMonoLexProduct : MulLeftMono IsoGraph :=
 scoped instance instMulRightMonoLexProduct : MulRightMono IsoGraph :=
   ⟨fun c _ _ h ↦ IsMinorOf.lexProduct h (isMinorOf_refl c)⟩
 
+scoped instance instPosMulStrictMonoLexProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsMinorOf.lexProduct (isMinorOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_lexProduct_left hc h
+
+scoped instance instMulPosStrictMonoLexProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsMinorOf.lexProduct h (isMinorOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_lexProduct_right hc h
+
 end LexProduct
 
 section Semiring
 open scoped IsoGraph.Semiring
 
-/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
-scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the cartesian product.  Strict
+because the cartesian product is strictly monotone: `IsOrderedRing` follows. -/
+scoped instance instIsStrictOrderedRingSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end Semiring
 
 section StrongSemiring
 open scoped IsoGraph.StrongSemiring
 
-/-- **An ordered semiring**, under the disjoint union and the strong product. -/
-scoped instance instIsOrderedRingStrongSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the strong product. -/
+scoped instance instIsStrictOrderedRingStrongSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end StrongSemiring
 
@@ -668,6 +979,16 @@ scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph w
   mul_le_mul_left _ _ h c := IsInducedMinorOf.cartesianProduct h (isInducedMinorOf_refl c)
   mul_le_mul_right _ _ h c := IsInducedMinorOf.cartesianProduct (isInducedMinorOf_refl c) h
 
+scoped instance instPosMulStrictMonoCartesianProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsInducedMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedMinorOf.cartesianProduct (isInducedMinorOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_left hc h
+
+scoped instance instMulPosStrictMonoCartesianProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsInducedMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedMinorOf.cartesianProduct h (isInducedMinorOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_right hc h
+
 end CartesianProduct
 
 section StrongProduct
@@ -677,21 +998,32 @@ scoped instance instIsOrderedMonoidStrongProduct : IsOrderedMonoid IsoGraph wher
   mul_le_mul_left _ _ h c := IsInducedMinorOf.strongProduct h (isInducedMinorOf_refl c)
   mul_le_mul_right _ _ h c := IsInducedMinorOf.strongProduct (isInducedMinorOf_refl c) h
 
+scoped instance instPosMulStrictMonoStrongProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsInducedMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedMinorOf.strongProduct (isInducedMinorOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_strongProduct_left hc h
+
+scoped instance instMulPosStrictMonoStrongProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsInducedMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsInducedMinorOf.strongProduct h (isInducedMinorOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_strongProduct_right hc h
+
 end StrongProduct
 
 section Semiring
 open scoped IsoGraph.Semiring
 
-/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
-scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the cartesian product.  Strict
+because the cartesian product is strictly monotone: `IsOrderedRing` follows. -/
+scoped instance instIsStrictOrderedRingSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end Semiring
 
 section StrongSemiring
 open scoped IsoGraph.StrongSemiring
 
-/-- **An ordered semiring**, under the disjoint union and the strong product. -/
-scoped instance instIsOrderedRingStrongSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the strong product. -/
+scoped instance instIsStrictOrderedRingStrongSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end StrongSemiring
 
@@ -727,6 +1059,16 @@ scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph w
   mul_le_mul_left _ _ h c := IsContractionOf.cartesianProduct h (isContractionOf_refl c)
   mul_le_mul_right _ _ h c := IsContractionOf.cartesianProduct (isContractionOf_refl c) h
 
+scoped instance instPosMulStrictMonoCartesianProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsContractionOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsContractionOf.cartesianProduct (isContractionOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_left hc h
+
+scoped instance instMulPosStrictMonoCartesianProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsContractionOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsContractionOf.cartesianProduct h (isContractionOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_right hc h
+
 end CartesianProduct
 
 section StrongProduct
@@ -735,6 +1077,16 @@ open scoped IsoGraph.StrongProduct
 scoped instance instIsOrderedMonoidStrongProduct : IsOrderedMonoid IsoGraph where
   mul_le_mul_left _ _ h c := IsContractionOf.strongProduct h (isContractionOf_refl c)
   mul_le_mul_right _ _ h c := IsContractionOf.strongProduct (isContractionOf_refl c) h
+
+scoped instance instPosMulStrictMonoStrongProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsContractionOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsContractionOf.strongProduct (isContractionOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_strongProduct_left hc h
+
+scoped instance instMulPosStrictMonoStrongProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsContractionOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsContractionOf.strongProduct h (isContractionOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_strongProduct_right hc h
 
 end StrongProduct
 
@@ -779,13 +1131,24 @@ scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph w
   mul_le_mul_left _ _ h c := IsTopMinorOf.cartesianProduct h (isTopMinorOf_refl c)
   mul_le_mul_right _ _ h c := IsTopMinorOf.cartesianProduct (isTopMinorOf_refl c) h
 
+scoped instance instPosMulStrictMonoCartesianProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsTopMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsTopMinorOf.cartesianProduct (isTopMinorOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_left hc h
+
+scoped instance instMulPosStrictMonoCartesianProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsTopMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsTopMinorOf.cartesianProduct h (isTopMinorOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_right hc h
+
 end CartesianProduct
 
 section Semiring
 open scoped IsoGraph.Semiring
 
-/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
-scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the cartesian product.  Strict
+because the cartesian product is strictly monotone: `IsOrderedRing` follows. -/
+scoped instance instIsStrictOrderedRingSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end Semiring
 
@@ -830,13 +1193,24 @@ scoped instance instIsOrderedMonoidCartesianProduct : IsOrderedMonoid IsoGraph w
   mul_le_mul_left _ _ h c := IsImmersionMinorOf.cartesianProduct h (isImmersionMinorOf_refl c)
   mul_le_mul_right _ _ h c := IsImmersionMinorOf.cartesianProduct (isImmersionMinorOf_refl c) h
 
+scoped instance instPosMulStrictMonoCartesianProduct : PosMulStrictMono IsoGraph :=
+  posMulStrictMono_of_counts IsImmersionMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsImmersionMinorOf.cartesianProduct (isImmersionMinorOf_refl c) h)
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_left hc h
+
+scoped instance instMulPosStrictMonoCartesianProduct : MulPosStrictMono IsoGraph :=
+  mulPosStrictMono_of_counts IsImmersionMinorOf.eq_of_V_le_of_E_le
+    (fun c h ↦ IsImmersionMinorOf.cartesianProduct h (isImmersionMinorOf_refl c))
+    fun hc h ↦ V_and_E_eq_of_cartesianProduct_right hc h
+
 end CartesianProduct
 
 section Semiring
 open scoped IsoGraph.Semiring
 
-/-- **An ordered semiring**, under the disjoint union and the cartesian product. -/
-scoped instance instIsOrderedRingSemiring : IsOrderedRing IsoGraph := { }
+/-- **A strict ordered semiring**, under the disjoint union and the cartesian product.  Strict
+because the cartesian product is strictly monotone: `IsOrderedRing` follows. -/
+scoped instance instIsStrictOrderedRingSemiring : IsStrictOrderedRing IsoGraph := { }
 
 end Semiring
 
@@ -1042,6 +1416,14 @@ cancels`, above, has the eight cells where it does; this section has the rest.
 that is `not_mul_cancel`, and its nine instances below, each stated for any operation with a zero.
 `IsOrderedCancelMonoid` is therefore out of reach by construction, not merely unproved.
 
+That is a defect of the question, not of the products: it is the same one `Nat` has, and the class
+to ask about a multiplication with an absorbing zero is `IsCancelMulZero`, which exempts the zero.
+Three of the four products satisfy it — `Values/Identities/Semiring.lean` has the discussion, with
+`□g` and `⊠g` resting on unique prime factorisation, a deep theorem that is not formalized here —
+and the tensor product refutes it outright, at `not_isCancelMulZero_tensorProduct`.  None of this
+touches the ordered-ring classes, which multiply only by positive elements; see `## What is
+strictly monotone`.
+
 For the two sums the answer depends on the order, and the counterexamples are these.  A disjoint
 union cannot be cancelled in the homomorphism order — two isolated vertices map onto one — nor in
 the quotient order, where `empty 0 ⊕g empty 1` is a quotient of `empty 1 ⊕g empty 1` although
@@ -1058,8 +1440,7 @@ three exhaustively on at most three vertices, and the subgraph order exhaustivel
 and then with `H` and `G` on at most five and `K` on at most three.  Cancelling a *clique* is
 proved above; what the general case wants is the splitting
 of `Containment/Split.lean` for the join, which complementation gives only in the one order that
-it preserves.  `IsStrictOrderedRing` stays out of reach regardless, since it asks for a product to
-cancel. -/
+it preserves. -/
 
 theorem not_empty_one_hasHomInto_empty_zero : ¬(empty 1 : IsoGraph) ≤ₕ empty 0 := fun h ↦ by
   have hV := le_V_of_hasHomInto_complete (n := 1) (G := empty 0) (by rwa [complete_one])
@@ -1239,6 +1620,11 @@ example : (0 : IsoGraph) ≤ 1 := zero_le_one
 example (a b : IsoGraph) (h : a ≤ b) : a * a ≤ b * b := mul_le_mul' h h
 /-- The disjoint union cancels, so `add_le_add_iff_left` is an iff. -/
 example (a b c : IsoGraph) : c + a ≤ c + b ↔ a ≤ b := add_le_add_iff_left c
+/-- A proper containment stays proper against a nonempty factor, on either side. -/
+example (a b c : IsoGraph) (hc : 0 < c) (h : a < b) : c * a < c * b :=
+  mul_lt_mul_of_pos_left h hc
+example (a b c : IsoGraph) (hc : 0 < c) (h : a < b) : a * c < b * c :=
+  mul_lt_mul_of_pos_right h hc
 
 end Examples
 
@@ -1260,6 +1646,9 @@ example (a b c : IsoGraph) (h : a ≤ b) : c * a ≤ c * b := mul_le_mul_of_nonn
 /-- The disjoint union cancels here too — a summand of a minor of `b ⊕g c` beyond `c` is a minor
 of `b`. -/
 example (a b c : IsoGraph) : a + c ≤ b + c ↔ a ≤ b := add_le_add_iff_right c
+/-- The strong product is strictly monotone as well, so this is an ordered semiring twice over. -/
+example (a b c : IsoGraph) (hc : 0 < c) (h : a < b) : c * a < c * b :=
+  mul_lt_mul_of_pos_left h hc
 
 end Examples
 

@@ -9,11 +9,16 @@ units: the graph on no vertices is the zero of both sums and annihilates every p
 graph on one vertex is the one of three of the products.  This module packages that into the
 algebraic classes of `Mathlib`.
 
-None of it is an instance on `IsoGraph` itself.  `+`, `*`, `0` and `1` on graphs are notation to be
+Almost none of it is an instance on `IsoGraph` itself.  `+` and `*` on graphs are notation to be
 opted into, and *which* operation they denote is a choice; so each combination gets a scope of its
-own.  The underlying data — one `Zero`, one `One`, two `Add`s and four `Mul`s — is declared once,
-as plain definitions, and re-tagged `scoped instance` in every namespace that wants it, so no two
-scopes can disagree about `0`, `1`, or the meaning of an operation they share.
+own.  The underlying data — two `Add`s and four `Mul`s — is declared once, as plain definitions,
+and re-tagged `scoped instance` in every namespace that wants it, so no two scopes can disagree
+about the meaning of an operation they share.
+
+`0` and `1` are global instances, because there is nothing to choose: `empty 0` is the zero of both
+sums and the absorbing element of all four products, and `empty 1` is the unit of three of them.
+`zero_eq` and `one_eq` are `rfl`, and the simp normal form is `empty 0` and `empty 1` rather than
+the numerals, since that is the form the rest of the library states its identities in.
 
 | scope | `+` | `*` | what it opens |
 | --- | --- | --- | --- |
@@ -33,8 +38,8 @@ Where the table is ragged, it is because the missing law is false.
 
 * **The tensor product has no unit.**  A unit would have to be a single vertex with a loop at it,
   and a `CGraph` is loopless: `empty 1 ⊗g G` is `empty G.V`.  So `⊗g` gets a `SemigroupWithZero`
-  and a `CommMagma` where the other three products get a `CommMonoidWithZero`, and `1` is not part
-  of either tensor scope.
+  and a `CommMagma` where the other three products get a `CommMonoidWithZero`; `1` still names
+  `empty 1`, but nothing in either tensor scope says it is a unit.
 * **The lexicographic product distributes on one side only.**  `(G ⊕g H) ·g K = G ·g K ⊕g H ·g K`
   and the same over `∇g`, because the first factor is the outer one; but `G ·g (H ⊕g K)` joins the
   two copies of `G`'s edges across the union, so it is not `G ·g H ⊕g G ·g K`.  Hence a
@@ -44,9 +49,16 @@ Where the table is ragged, it is because the missing law is false.
   non-adjacent, while in `(G □g K) ∇g (H □g K)` everything across the join is adjacent — and the
   same computation rules out `⊗g` and `⊠g`.  The lexicographic product is the exception because
   complementation exchanges `⊕g` with `∇g` and fixes `·g` up to complementing the factors.
-* **No product is cancellative.**  Already `empty 1 ⊗g complete 2 = empty 1 ⊗g empty 2` with
-  `empty 1 ≠ 0`.  For the other three, cancellation is a theorem about unique prime factorisation
-  and is not attempted here; what they do get is `NoZeroDivisors`, which is just the vertex count.
+* **The tensor product is not cancellative.**  The class to ask for is `IsCancelMulZero` — a
+  product with an absorbing zero can only cancel a *nonzero* factor — and the tensor product fails
+  even that: `empty 1 ⊗g complete 2 = empty 1 ⊗g empty 2` with `empty 1 ≠ 0`, since a tensor
+  product with an edgeless factor is edgeless whatever the other factor is.  That is
+  `not_isCancelMulZero_tensorProduct` below.  For the other three, `IsCancelMulZero` is true but
+  deep: it is the cancellation law that comes with unique prime factorisation — Sabidussi and
+  Vizing for `□g`, Dörfler and Imrich for `⊠g` — and it is not formalised here.  A search over the
+  graphs on at most five vertices, with the cancelled factor on at most three, found no
+  counterexample to any of the three, `·g` included on both sides.  What all four do get is
+  `NoZeroDivisors`, which is just the vertex count.
 
 Both sums, on the other hand, *are* cancellative, and that is the one fact in this module that
 needs an argument rather than a list of names.  It comes from the decomposition of a graph into its
@@ -317,17 +329,34 @@ end CGraph
 
 /-! ## The operations, as data
 
-One `Zero`, one `One`, an `Add` for each sum and a `Mul` for each product.  They are definitions
-rather than instances: the scopes below are what turn them on, and they turn on *these*, so any
-two scopes agree wherever they overlap. -/
+An `Add` for each sum and a `Mul` for each product.  They are definitions rather than instances:
+the scopes below are what turn them on, and they turn on *these*, so any two scopes agree wherever
+they overlap.
+
+`0` and `1` are the exception, and are global instances.  There is nothing to choose about them —
+every scope below would name the same two graphs — so a scope that had to be opened to write `0`
+would be pure ceremony.  What stays scoped is the `Zero`-shaped *structure*: `AddCancelCommMonoid`,
+`CommMonoidWithZero` and the rest still say which operation `0` is a unit or an absorber for. -/
 
 namespace IsoGraph
 
-/-- Zero is the graph on no vertices, for both sums and all four products. -/
-def instZero : Zero IsoGraph := ⟨empty 0⟩
+/-- **Zero is the graph on no vertices**, for both sums and all four products. -/
+instance instZero : Zero IsoGraph := ⟨empty 0⟩
 
-/-- One is the graph on a single vertex. -/
-def instOne : One IsoGraph := ⟨empty 1⟩
+/-- **One is the graph on a single vertex**, the unit of every product but the tensor one. -/
+instance instOne : One IsoGraph := ⟨empty 1⟩
+
+/-- There is more than one graph, which every ordered-ring class wants to know. -/
+instance instNontrivial : Nontrivial IsoGraph :=
+  ⟨empty 0, empty 1, fun h ↦ by simpa using congrArg IsoGraph.V h⟩
+
+/-- `0` is `empty 0`.  A `rfl` lemma, and the simp normal form is the right-hand side: the library
+states its identities about `empty n`, and `V_empty`, `E_empty` and the rest are what a proof
+wants to reach. -/
+@[simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
+
+/-- `1` is `empty 1`. -/
+@[simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 /-- Addition as the disjoint union. -/
 def instAddDisjUnion : Add IsoGraph := ⟨disjUnion⟩
@@ -349,7 +378,7 @@ def instMulLexProduct : Mul IsoGraph := ⟨lexProduct⟩
 
 section
 
-attribute [local instance] instZero instAddDisjUnion
+attribute [local instance] instAddDisjUnion
 
 /-- The disjoint union is a commutative monoid with the empty graph for unit.  This is the
 auxiliary version, used to state the component decomposition that proves cancellation; the scoped
@@ -375,8 +404,7 @@ section Cancellation
 
 open IsoGraph
 
-attribute [local instance] IsoGraph.instZero IsoGraph.instAddDisjUnion
-  IsoGraph.addCommMonoidDisjUnionAux
+attribute [local instance] IsoGraph.instAddDisjUnion IsoGraph.addCommMonoidDisjUnionAux
 
 namespace CGraph
 
@@ -435,7 +463,7 @@ namespace IsoGraph
 
 section DisjUnionData
 
-attribute [local instance] instZero instAddDisjUnion
+attribute [local instance] instAddDisjUnion
 
 /-- **The disjoint union is a cancellative commutative monoid.** -/
 def addCancelCommMonoidDisjUnion : AddCancelCommMonoid IsoGraph where
@@ -452,7 +480,7 @@ end DisjUnionData
 
 section JoinData
 
-attribute [local instance] instZero instAddJoin
+attribute [local instance] instAddJoin
 
 /-- **The join is a cancellative commutative monoid**, again with the empty graph for unit. -/
 def addCancelCommMonoidJoin : AddCancelCommMonoid IsoGraph where
@@ -479,7 +507,7 @@ private theorem eq_zero_or_eq_zero_of_V_mul {a b c : IsoGraph} (hV : c.V = a.V *
 
 section CartesianData
 
-attribute [local instance] instZero instOne instMulCartesianProduct
+attribute [local instance] instMulCartesianProduct
 
 /-- **The cartesian product is a commutative monoid** with the one-vertex graph for unit, and the
 empty graph annihilates it. -/
@@ -500,7 +528,7 @@ end CartesianData
 
 section TensorData
 
-attribute [local instance] instZero instMulTensorProduct
+attribute [local instance] instMulTensorProduct
 
 /-- **The tensor product is a semigroup** annihilated by the empty graph.  It has no unit: the
 would-be unit is a single vertex with a loop, and `CGraph`s are loopless. -/
@@ -517,11 +545,35 @@ def commMagmaTensorProduct : CommMagma IsoGraph where
 def noZeroDivisorsTensorProduct : NoZeroDivisors IsoGraph where
   eq_zero_or_eq_zero_of_mul_eq_zero h := eq_zero_or_eq_zero_of_V_mul (V_tensorProduct _ _) h
 
+/-- **A tensor product with an edgeless factor forgets the other factor entirely**, keeping only
+its order: `empty 1 ⊗g G` is `empty G.V`.  This is the witness that the tensor product does not
+cancel. -/
+theorem tensorProduct_empty_one_eq_of_V (G H : IsoGraph) (h : G.V = H.V) :
+    empty 1 ⊗g G = empty 1 ⊗g H := by
+  rw [empty_tensorProduct, empty_tensorProduct, h]
+
+section
+attribute [local instance] semigroupWithZeroTensorProduct
+
+/-- **The tensor product cancels no factor, not even a nonzero one.**  `empty 1 ⊗g empty 2` and
+`empty 1 ⊗g complete 2` are both `empty 2`, and `empty 1` is not `0`. -/
+theorem not_isLeftCancelMulZero_tensorProduct : ¬IsLeftCancelMulZero IsoGraph := fun _ ↦
+  have hne : (empty 1 : IsoGraph) ≠ 0 :=
+    ne_of_V_ne (show (empty 1 : IsoGraph).V ≠ (empty 0 : IsoGraph).V by simp)
+  empty_ne_complete 0
+    (mul_left_cancel₀ hne (tensorProduct_empty_one_eq_of_V (empty 2) (complete 2) (by simp)))
+
+@[inherit_doc not_isLeftCancelMulZero_tensorProduct]
+theorem not_isCancelMulZero_tensorProduct : ¬IsCancelMulZero IsoGraph := fun h ↦
+  not_isLeftCancelMulZero_tensorProduct h.toIsLeftCancelMulZero
+
+end
+
 end TensorData
 
 section StrongData
 
-attribute [local instance] instZero instOne instMulStrongProduct
+attribute [local instance] instMulStrongProduct
 
 /-- **The strong product is a commutative monoid** with the same unit and zero as the cartesian
 one. -/
@@ -542,7 +594,7 @@ end StrongData
 
 section LexData
 
-attribute [local instance] instZero instOne instMulLexProduct
+attribute [local instance] instMulLexProduct
 
 /-- **The lexicographic product is a monoid** with the same unit and zero as the other products.
 It is not commutative: `empty 2 ·g complete 2` is two disjoint edges and `complete 2 ·g empty 2` is
@@ -569,62 +621,52 @@ back down to the notation of the rest of the library at any point. -/
 
 namespace DisjUnion
 
-attribute [scoped instance] instZero instAddDisjUnion addCancelCommMonoidDisjUnion
+attribute [scoped instance] instAddDisjUnion addCancelCommMonoidDisjUnion
 
 @[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ⊕g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
 
 end DisjUnion
 
 namespace Join
 
-attribute [scoped instance] instZero instAddJoin addCancelCommMonoidJoin
+attribute [scoped instance] instAddJoin addCancelCommMonoidJoin
 
 @[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ∇g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
 
 end Join
 
 namespace CartesianProduct
 
-attribute [scoped instance] instZero instOne instMulCartesianProduct
-  commMonoidWithZeroCartesianProduct noZeroDivisorsCartesianProduct
+attribute [scoped instance] instMulCartesianProduct commMonoidWithZeroCartesianProduct
+  noZeroDivisorsCartesianProduct
 
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G □g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 end CartesianProduct
 
 namespace TensorProduct
 
-attribute [scoped instance] instZero instMulTensorProduct semigroupWithZeroTensorProduct
+attribute [scoped instance] instMulTensorProduct semigroupWithZeroTensorProduct
   commMagmaTensorProduct noZeroDivisorsTensorProduct
 
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G ⊗g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
 
 end TensorProduct
 
 namespace StrongProduct
 
-attribute [scoped instance] instZero instOne instMulStrongProduct
-  commMonoidWithZeroStrongProduct noZeroDivisorsStrongProduct
+attribute [scoped instance] instMulStrongProduct commMonoidWithZeroStrongProduct
+  noZeroDivisorsStrongProduct
 
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G ⊠g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 end StrongProduct
 
 namespace LexProduct
 
-attribute [scoped instance] instZero instOne instMulLexProduct monoidWithZeroLexProduct
-  noZeroDivisorsLexProduct
+attribute [scoped instance] instMulLexProduct monoidWithZeroLexProduct noZeroDivisorsLexProduct
 
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G ·g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 end LexProduct
 
@@ -632,8 +674,8 @@ end LexProduct
 
 namespace Semiring
 
-attribute [scoped instance] instZero instOne instAddDisjUnion instMulCartesianProduct
-  isCancelAddDisjUnion noZeroDivisorsCartesianProduct
+attribute [scoped instance] instAddDisjUnion instMulCartesianProduct isCancelAddDisjUnion
+  noZeroDivisorsCartesianProduct
 
 /-- **The graphs form a commutative semiring** under the disjoint union and the cartesian product,
 with the graph on no vertices for zero and the graph on one vertex for one.  The four operations
@@ -650,8 +692,6 @@ scoped instance instCommSemiring : CommSemiring IsoGraph where
 
 @[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ⊕g H := rfl
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G □g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 /-- The numeral `n` is the graph on `n` vertices with no edges. -/
 @[scoped simp] theorem natCast_eq (n : ℕ) : (n : IsoGraph) = empty n := by
@@ -683,8 +723,8 @@ end Semiring
 
 namespace StrongSemiring
 
-attribute [scoped instance] instZero instOne instAddDisjUnion instMulStrongProduct
-  isCancelAddDisjUnion noZeroDivisorsStrongProduct
+attribute [scoped instance] instAddDisjUnion instMulStrongProduct isCancelAddDisjUnion
+  noZeroDivisorsStrongProduct
 
 /-- **The graphs form a commutative semiring** under the disjoint union and the strong product,
 with the same zero and one as under the cartesian product. -/
@@ -698,8 +738,6 @@ scoped instance instCommSemiring : CommSemiring IsoGraph where
 
 @[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ⊕g H := rfl
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G ⊠g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 /-- The numeral `n` is the graph on `n` vertices with no edges. -/
 @[scoped simp] theorem natCast_eq (n : ℕ) : (n : IsoGraph) = empty n := by
@@ -725,8 +763,8 @@ end StrongSemiring
 
 namespace TensorSemiring
 
-attribute [scoped instance] instZero instAddDisjUnion instMulTensorProduct
-  isCancelAddDisjUnion noZeroDivisorsTensorProduct
+attribute [scoped instance] instAddDisjUnion instMulTensorProduct isCancelAddDisjUnion
+  noZeroDivisorsTensorProduct
 
 /-- **The graphs form a non-unital commutative semiring** under the disjoint union and the tensor
 product.  Only the unit is missing; everything else — associativity, commutativity, both
@@ -740,7 +778,6 @@ scoped instance instNonUnitalCommSemiring : NonUnitalCommSemiring IsoGraph where
 
 @[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ⊕g H := rfl
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G ⊗g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
 
 end TensorSemiring
 
@@ -748,8 +785,8 @@ end TensorSemiring
 
 namespace LexSemiring
 
-attribute [scoped instance] instZero instOne instAddDisjUnion instMulLexProduct
-  addCancelCommMonoidDisjUnion monoidWithZeroLexProduct noZeroDivisorsLexProduct
+attribute [scoped instance] instAddDisjUnion instMulLexProduct addCancelCommMonoidDisjUnion
+  monoidWithZeroLexProduct noZeroDivisorsLexProduct
 
 /-- **The lexicographic product distributes over the disjoint union in its first factor**, and
 only there: the second factor is the inner one, and `G ·g (H ⊕g K)` keeps `G`'s edges between the
@@ -759,15 +796,13 @@ scoped instance instRightDistribClass : RightDistribClass IsoGraph where
 
 @[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ⊕g H := rfl
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G ·g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 end LexSemiring
 
 namespace JoinLexSemiring
 
-attribute [scoped instance] instZero instOne instAddJoin instMulLexProduct
-  addCancelCommMonoidJoin monoidWithZeroLexProduct noZeroDivisorsLexProduct
+attribute [scoped instance] instAddJoin instMulLexProduct addCancelCommMonoidJoin
+  monoidWithZeroLexProduct noZeroDivisorsLexProduct
 
 /-- **The lexicographic product distributes over the join in its first factor** — the same law as
 over the disjoint union, carried across by complementation. -/
@@ -776,8 +811,6 @@ scoped instance instRightDistribClass : RightDistribClass IsoGraph where
 
 @[scoped simp] theorem add_eq (G H : IsoGraph) : G + H = G ∇g H := rfl
 @[scoped simp] theorem mul_eq (G H : IsoGraph) : G * H = G ·g H := rfl
-@[scoped simp] theorem zero_eq : (0 : IsoGraph) = empty 0 := rfl
-@[scoped simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 end JoinLexSemiring
 

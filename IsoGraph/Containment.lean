@@ -87,13 +87,15 @@ has only two places to go and the map can be restricted to the two bases by hand
 
 `Containment/Ordered.lean` reads that table back as typeclasses.  Opening an order scope and an
 algebra scope at once — `IsoGraph.Subgraph` and `IsoGraph.Semiring`, say — turns on
-`IsOrderedAddMonoid`, `IsOrderedMonoid`, `ZeroLEOneClass` and, over the two distributive pairs,
-`IsOrderedRing`, so the ordered-algebra lemmas of `Mathlib` apply to graphs.  It also has the two
+`IsOrderedAddMonoid`, `IsOrderedMonoid`, `ZeroLEOneClass`, `PosMulStrictMono` and, over the two
+distributive pairs, `IsStrictOrderedRing`, so the ordered-algebra lemmas of `Mathlib` apply to
+graphs.  It also has the two
 questions that are about the orders alone: none of the nine has a greatest element, and only the
 quotient and contraction orders have no least one; and cancellation, where the splitting above,
 run by induction on the number of vertices cancelled, upgrades eight of those pairs to
 `IsOrderedCancelAddMonoid` — the disjoint union in all seven orders where it cancels, the join in
-the induced subgraph order — while no product cancels in any of the nine, and the join fails in
+the induced subgraph order — while no product cancels in any of the nine, `empty 0` absorbing
+being enough to stop it, and the join fails in
 the five orders that contract or subdivide.  That leaves the join in the homomorphism, subgraph
 and quotient orders open; cancelling a clique there is proved, and a search over the deciders
 found no counterexample to the general statement.
