@@ -1860,6 +1860,11 @@ theorem numComponents_eq_one_iff (G : CGraph) : G.numComponents = 1 ↔ G.IsConn
   · rintro ⟨hpre, hne⟩
     exact ⟨hpre.subsingleton_connectedComponent, inferInstance⟩
 
+/-- A connected graph has a vertex, there being a component for it to be. -/
+@[toIsoGraph IsConnected.V_pos]
+theorem IsConnected.card_pos {G : CGraph} (h : G.IsConnected) : 0 < FinEnum.card G.V :=
+  (numComponents_pos_iff G).1 (by rw [(numComponents_eq_one_iff G).2 h]; omega)
+
 /-- Each component contains at least one vertex. -/
 @[toIsoGraph numComponents_le_V]
 theorem numComponents_le_card (G : CGraph) : G.numComponents ≤ FinEnum.card G.V := by

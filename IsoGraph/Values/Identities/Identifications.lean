@@ -163,6 +163,21 @@ theorem mk_eq_empty_zero {G : CGraph} [IsEmpty G.V] : (⟦G⟧ : IsoGraph) = emp
   · rintro rfl
     exact V_empty 0
 
+/-- A graph is the empty graph on `1` vertex exactly when it has one vertex: with a single vertex
+there is no edge to draw. -/
+@[simp] theorem V_eq_one_iff {G : IsoGraph} : G.V = 1 ↔ G = empty 1 := by
+  refine ⟨fun h ↦ ?_, fun h ↦ by rw [h, V_empty]⟩
+  induction G using Quotient.inductionOn with
+  | h g =>
+    have hcard : FinEnum.card g.V = 1 := h
+    have : Subsingleton g.V := by
+      have hfin := FinEnum.card_eq_fintypeCard (α := g.V)
+      rw [hcard] at hfin
+      exact Fintype.card_le_one_iff_subsingleton.1 (le_of_eq hfin.symm)
+    rw [show (empty 1 : IsoGraph) = empty (FinEnum.card g.V) by rw [hcard]]
+    exact mk_eq_empty fun x y ↦ by
+      rw [Subsingleton.elim x y]; simpa using g.loopless y
+
 /-! ## The join, and the constructions built from it
 
 The `IsoGraph`-level `join`, defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees

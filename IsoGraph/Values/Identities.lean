@@ -16,6 +16,8 @@ import IsoGraph.Values.Identities.Products
 import IsoGraph.Values.Identities.Mycielskians
 import IsoGraph.Values.Identities.Operators
 import IsoGraph.Values.Identities.Semiring
+import IsoGraph.Values.Identities.Factorization
+import IsoGraph.Values.Identities.Connected
 import IsoGraph.Values.Identities.Exponential
 
 /-!
@@ -79,5 +81,7 @@ are the tables themselves, on the quotient.
 | `Identities/Mycielskians.lean` | the Mycielskian and the line graph of everything, and of each other |
 | `Identities/Operators.lean` | the folded cube, and the transitivity and regularity columns |
 | `Identities/Semiring.lean` | the connected components, and the scoped algebra of the six operations |
+| `Identities/Factorization.lean` | units, irreducibles, and the failure of unique factorisation |
+| `Identities/Connected.lean` | the connected graphs as a submonoid of each product |
 | `Identities/Exponential.lean` | the graph exponential, and the exponent laws it fails |
 -/

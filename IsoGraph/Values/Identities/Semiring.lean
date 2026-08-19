@@ -54,11 +54,16 @@ Where the table is ragged, it is because the missing law is false.
   even that: `empty 1 ⊗g complete 2 = empty 1 ⊗g empty 2` with `empty 1 ≠ 0`, since a tensor
   product with an edgeless factor is edgeless whatever the other factor is.  That is
   `not_isCancelMulZero_tensorProduct` below.  For the other three, `IsCancelMulZero` is true but
-  deep: it is the cancellation law that comes with unique prime factorisation — Sabidussi and
-  Vizing for `□g`, Dörfler and Imrich for `⊠g` — and it is not formalised here.  A search over the
-  graphs on at most five vertices, with the cancelled factor on at most three, found no
-  counterexample to any of the three, `·g` included on both sides.  What all four do get is
-  `NoZeroDivisors`, which is just the vertex count.
+  deep — Imrich, Klavžar and Rall for `□g` and `⊠g`, Dörfler and Imrich for `·g` — and it is not
+  formalised here.  A search over the graphs on at most five vertices, with the cancelled factor on
+  at most three, found no counterexample to any of the three, `·g` included on both sides.  What
+  all four do get is `NoZeroDivisors`, which is just the vertex count.
+
+What the two semirings do and do not satisfy beyond this is `Identities/Factorization.lean`: the
+one-vertex graph is the only unit, divisibility is well-founded, the semiring is local, and it is
+neither Noetherian nor Bézout nor a unique factorisation monoid.  `Identities/Connected.lean` cuts
+out the connected graphs, which are a submonoid of each product and are where unique factorisation
+would hold.
 
 Both sums, on the other hand, *are* cancellative, and that is the one fact in this module that
 needs an argument rather than a list of names.  It comes from the decomposition of a graph into its
@@ -425,6 +430,11 @@ theorem sum_comps (G : CGraph) : G.comps.sum = (⟦G⟧ : IsoGraph) := by
   rw [← h, quot_part]
   rfl
 
+/-- The multiset of components has one entry per component. -/
+theorem card_comps (G : CGraph) : Multiset.card G.comps = G.numComponents := by
+  rw [comps, Multiset.card_map, numComponents_eq_card]
+  exact Finset.card_univ
+
 end CGraph
 
 namespace IsoGraph
@@ -433,6 +443,17 @@ namespace IsoGraph
 @[simp] theorem sum_comps (a : IsoGraph) : a.comps.sum = a := by
   induction a using Quotient.ind with
   | _ G => rw [comps_mk]; exact CGraph.sum_comps G
+
+/-- The multiset of components has one entry per component. -/
+@[simp] theorem card_comps (a : IsoGraph) : Multiset.card a.comps = a.numComponents := by
+  induction a using Quotient.ind with
+  | _ G => rw [comps_mk, numComponents_mk]; exact CGraph.card_comps G
+
+/-- **A connected graph is its own only component.** -/
+theorem comps_eq_singleton {a : IsoGraph} (h : a.numComponents = 1) : a.comps = {a} := by
+  obtain ⟨b, hb⟩ := Multiset.card_eq_one.1 (by rw [card_comps, h])
+  have hba : b = a := by rw [← sum_comps a, hb, Multiset.sum_singleton]
+  rw [hb, hba]
 
 end IsoGraph
 
