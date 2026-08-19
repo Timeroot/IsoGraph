@@ -63,6 +63,9 @@ imports its directory.
 | `IsoGraph/Values/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
+| `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
+| `CacheBench.lean` | timings for the memoised containment searches (`lake exe cachebench`) | no |
+| `Coverage.lean` | the invariant × construction coverage table; writes `invariant_coverage.txt` | no |
 | `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
 
 Toolchain is `leanprover/lean4:v4.28.0` with Mathlib pinned at `v4.28.0` — the rev the prover
