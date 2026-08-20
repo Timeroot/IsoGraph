@@ -1057,8 +1057,7 @@ example : (rook 4 4).radius = 2 := by
   simp
 
 example : (cycle 5 ⊠g cycle 5).diameter ≤ 4 := by
-  have := diameter_strongProduct_le (G := cycle 5) (H := cycle 5) (by simp) (by simp)
-  simpa using this
+  simp
 
 example : (empty 3 ·g complete 2).domNum = 3 := by
   rw [domNum_lexProduct _ (by simp), domNum_empty]
