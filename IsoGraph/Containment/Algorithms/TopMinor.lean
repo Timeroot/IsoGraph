@@ -146,6 +146,90 @@ structure TopModel (H G : CGraph) where
   disj : ∀ x y x' y', H.Adj x y = true → ord y < ord x → H.Adj x' y' = true → ord y' < ord x' →
     (x, y) ≠ (x', y') → ∀ z ∈ (seg x y).dropLast, z ∉ (seg x' y').dropLast
 
+/-! ### Models whose paths have length at most two
+
+Excision — delete a few vertices of a cubic graph, then suppress the degree-two vertices that
+leaves behind — produces a subdivision in which every path has one edge or two.  Such a model is
+much less data than a general `CGraph.TopModel`: where the branch vertices go, and the midpoint of
+each subdivided edge.  The conditions are correspondingly local.  In particular `mid_ne_f` and
+`mid_inj` are the whole of `interior` and `disj`, and neither of them mentions a *pair* of edges
+of `H` — which is what makes a model on a hundred vertices checkable at all. -/
+
+/-- A topological minor model in which the path of every edge of `H` has length one or two: `f`
+places the branch vertices and `mid x y` is the interior vertex of the path of `x`–`y`, when that
+path has one. -/
+structure PathTwoModel (H G : CGraph) where
+  /-- The branch vertices. -/
+  f : H.V → G.V
+  /-- Distinct vertices of `H` get distinct branch vertices. -/
+  f_inj : Function.Injective f
+  /-- The interior vertex of the path of an edge, if its path has length two. -/
+  mid : H.V → H.V → Option G.V
+  /-- An edge's path does not depend on which way the edge is read. -/
+  mid_symm : ∀ x y, mid x y = mid y x
+  /-- The path of an edge is a walk of `G` between the two branch vertices. -/
+  step : ∀ x y, H.Adj x y = true →
+    ((mid x y).elim (G.Adj (f x) (f y)) fun w ↦ G.Adj (f x) w && G.Adj w (f y)) = true
+  /-- No interior vertex is a branch vertex. -/
+  mid_ne_f : ∀ x y w, mid x y = some w → ∀ z, f z ≠ w
+  /-- Distinct edges get distinct interior vertices. -/
+  mid_inj : ∀ x y x' y' w, mid x y = some w → mid x' y' = some w → s(x, y) = s(x', y')
+
+namespace PathTwoModel
+
+variable {H G : CGraph}
+
+/-- The run of vertices the path of `x`–`y` visits after `f x`. -/
+def seg (m : H.PathTwoModel G) (x y : H.V) : List G.V :=
+  match m.mid x y with
+  | none => [m.f y]
+  | some w => [w, m.f y]
+
+/-- **A model whose paths have length at most two is a model.**  Any injective `ord` will orient
+the edges; which one is chosen makes no difference, since the data is symmetric to begin with. -/
+def toTopModel (m : H.PathTwoModel G) (ord : H.V → ℕ) (hord : Function.Injective ord) :
+    H.TopModel G where
+  ord := ord
+  ord_inj := hord
+  f := m.f
+  f_inj := m.f_inj
+  seg := m.seg
+  isWalk := by
+    intro x y hxy _
+    have hs := m.step x y hxy
+    rcases hm : m.mid x y with _ | w <;> rw [hm] at hs <;>
+      simp only [seg, hm, isWalkList, Bool.and_true] <;> exact hs
+  ends := by
+    intro x y _ _
+    rcases hm : m.mid x y with _ | w <;> simp [seg, hm, chainEnd]
+  nodup := by
+    intro x y hxy _
+    have hne : m.f x ≠ m.f y := fun he ↦ H.loopless y (by rw [m.f_inj he] at hxy; exact hxy)
+    rcases hm : m.mid x y with _ | w
+    · simp [seg, hm, hne]
+    · have h1 : m.f x ≠ w := m.mid_ne_f x y w hm x
+      have h2 : m.f y ≠ w := m.mid_ne_f x y w hm y
+      simp [seg, hm, hne, h1, Ne.symm h2]
+  interior := by
+    intro x y _ _ z
+    rcases hm : m.mid x y with _ | w
+    · simp [seg, hm]
+    · simpa [seg, hm] using m.mid_ne_f x y w hm z
+  disj := by
+    intro x y x' y' _ hxy _ hxy' hne z hz hz'
+    rcases hm : m.mid x y with _ | w
+    · simp [seg, hm] at hz
+    rcases hm' : m.mid x' y' with _ | w'
+    · simp [seg, hm'] at hz'
+    simp [seg, hm, hm'] at hz hz'
+    subst hz
+    subst hz'
+    rcases Sym2.eq_iff.1 (m.mid_inj x y x' y' _ hm hm') with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+    · exact hne rfl
+    · omega
+
+end PathTwoModel
+
 namespace TopMinorOf
 
 variable (t : H.TopMinorOf G) {x y : H.V}

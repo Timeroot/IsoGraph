@@ -994,6 +994,20 @@ theorem ofEdges_adj_val (n : ℕ) (es : List (ℕ × ℕ)) (u v : (ofEdges n es)
   simp only [ofEdges, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
     ne_eq, huv, List.contains_eq_mem]
 
+/-- **Checking a property of every edge of `ofEdges n es` costs `es`, not `n²`.**  Deciding
+`∀ u v, (ofEdges n es).Adj u v = true → p u v` by exhaustion runs the adjacency test on all `n²`
+pairs, and each test that comes out false is a full scan of `es`; running down `es` instead tests
+`p` once per entry per orientation, and never asks whether anything is *not* an edge.  For the
+hundred-vertex graphs of `SmallGraphs/Defs/` the difference is minutes against seconds. -/
+theorem forall_adj_ofEdges {n : ℕ} [NeZero n] {es : List (ℕ × ℕ)} (p : Fin n → Fin n → Bool)
+    (h : ∀ e ∈ es, p (vtx n e.1) (vtx n e.2) = true ∧ p (vtx n e.2) (vtx n e.1) = true)
+    {u v : (ofEdges n es).V} (huv : (ofEdges n es).Adj u v = true) : p u v = true := by
+  have hu : vtx n u.1 = u := Fin.ext (Nat.mod_eq_of_lt u.2)
+  have hv : vtx n v.1 = v := Fin.ext (Nat.mod_eq_of_lt v.2)
+  rcases (ofEdges_adj_val n es u v).1 huv with ⟨-, hm | hm⟩
+  · have := (h _ hm).1; rwa [hu, hv] at this
+  · have := (h _ hm).2; rwa [hu, hv] at this
+
 /-! ### Theta graphs with two paths: the cycle -/
 
 /-- Adjacency in `cycle n`, phrased entirely in terms of the underlying naturals. -/

@@ -4411,19 +4411,19 @@ stays out of reach; what is proved is that each graph has the degree, girth and 
 ## What sits inside what
 
 `SmallGraphs/Substructure.lean` crosses the gallery with the nine containment relations of
-`IsoGraph/Containment/`. Every proof is the same: `native_decide` on the relation, which is
-decided by running the search of `Containment/Algorithms/Cached.lean` on the canonical
-representatives of the two classes. A `none` from one of those searches is an exhausted tree and
-not a timeout, so the negative statements are proofs on the same footing as the positive ones —
-they are just the expensive half.
+`IsoGraph/Containment/`. Every positive statement carries its witness. The searches of
+`Containment/Algorithms/Cached.lean` found the maps, but what is checked at compile time is the
+map — a table of vertices, a list of branch sets, a list of subdivision paths, a colouring — and
+`decide` on the finitely many conditions the witness has to meet. So a positive statement costs
+what its *witness* costs to check, which is a handful of adjacency lookups, and not what the
+search cost to run.
 
-What costs is the *pattern*, not the host. An induced `C₁₂` in the 126-vertex Tutte 12-cage takes
-five seconds and an induced `C₁₁` in the Balaban 11-cage three, while the Petersen graph inside
-the twenty-vertex Desargues graph takes sixteen — ten vertices of pattern against twelve of it,
-and the host's size barely registers. The same asymmetry sets what the negative statements can
-be: ruling out a `K₅` minor of the twelve-vertex icosahedron is four minutes, so the planar graph
-that carries both halves of its certificate here is the seven-vertex Moser spindle rather than a
-polyhedron.
+The negative statements have no witness to give, and they stay on `native_decide`, where what is
+run is the exhausted search tree. A `none` from one of those searches is an exhaustion and not a
+timeout, so they are proofs on the same footing as the positive ones — they are just the expensive
+half, and what they cost is set by the *pattern* rather than by the host. Ruling out a `K₅` minor
+of the twelve-vertex icosahedron is four minutes, so the planar graph that carries both halves of
+its certificate here is the seven-vertex Moser spindle rather than a polyhedron.
 
 The girths of the cages are restated as containments — `cycle 5 ≤ᵢₛ petersen`, `cycle 8 ≤ᵢₛ
 tutteCoxeter`, and the negative one rung below each — which is what the invariant does not give
@@ -4444,11 +4444,25 @@ Colourings live here too, since `G ≤ₕ complete k` is `k`-colourability with 
 attached: the Grötzsch graph and the Moser spindle are each four- but not three-colourable, the
 first with no triangle at all and the second planar.
 
-What is missing is the one containment between two large graphs that would be worth having. The
-Balaban 11-cage is got from the Tutte 12-cage by excision — delete a subtree, then suppress the
-degree-two vertices left behind — so it is a topological minor of it, and the search that would
-decide that has to place 112 branch vertices in a 126-vertex host. Writing the subdivision down
-by hand would settle it; searching for it will not.
+The one containment between two large graphs is the Balaban 11-cage inside the Tutte 12-cage.
+Balaban found the first 11-cage by **excision**: delete six vertices of the 12-cage spanning a
+tree — an edge and the four other neighbours of its two ends — and of the 120 left, eight have
+lost a neighbour; suppress those eight and what remains is 112 vertices and 168 edges, which is
+the Balaban 11-cage. Read backwards that is a subdivision of the 11-cage drawn inside the 12-cage,
+160 of its edges being edges of the 12-cage outright and 8 being paths of length two through the
+suppressed vertices.
+
+No search could do this — it would have to place 112 branch vertices in a 126-vertex host — and
+the model is written down instead: a 112-entry table of branch vertices and an 8-entry table of
+midpoints. Checking it needed two things that are now in the library. `CGraph.PathTwoModel`
+(`Containment/Algorithms/TopMinor.lean`) is a `CGraph.TopModel` whose paths all have length one or
+two, which is what excision produces; its conditions are local, so neither the disjointness of the
+paths nor the interiors being free of branch vertices ever mentions a *pair* of edges of the
+pattern. And `CGraph.forall_adj_ofEdges` (`Core/Counts.lean`) checks a property of every edge of an
+`ofEdges` graph by running down its edge list, rather than by testing all `n²` pairs of vertices
+and scanning the whole list for each of the ones that are not edges. Between them the 168 walks
+come to 176 adjacency lookups, and the whole thing — a topological minor on 112 vertices, checked
+by the kernel — takes about a minute.
 
 ## Spectral graph theory
 
