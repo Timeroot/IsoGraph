@@ -4,6 +4,7 @@ import IsoGraph.SmallGraphs.Counts
 import IsoGraph.SmallGraphs.Structure
 import IsoGraph.SmallGraphs.Symmetry
 import IsoGraph.SmallGraphs.Colouring
+import IsoGraph.SmallGraphs.Substructure
 import IsoGraph.SmallGraphs.Values
 import IsoGraph.SmallGraphs.Extremal
 import IsoGraph.SmallGraphs.EdgeColourings
@@ -30,6 +31,8 @@ order as `IsoGraph.Core`:
 * `SmallGraphs.Defs` — the definitions.
 * `SmallGraphs.Equalities` — when one named graph *is* another; the normalising `simp` lemmas.
 * `SmallGraphs.Counts`, `.Structure`, `.Symmetry`, `.Colouring` — the invariants, by topic.
+* `SmallGraphs.Substructure` — which named graph sits inside which other, in each of the nine
+  containment relations of `IsoGraph.Containment`.
 
 The rest of the folder is a chain, each file taking up where the one before leaves off.  It is
 organised by the family or the operator under study — `Circulants`, `TuranGraphs`, `Grotzsch`,

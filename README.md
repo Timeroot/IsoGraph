@@ -10,19 +10,21 @@ canonical representative that is actually computable at useful sizes.
 
 Two engines, each in its own directory — `IsoGraph/Canon/` is the canonical labelling algorithm
 and its correctness proof, `IsoGraph/Enum/` is the enumerator built on top of it — and the graph
-theory proper in four more, one per kind of thing being said: `IsoGraph/Invariants/` *defines* the
+theory proper in five more, one per kind of thing being said: `IsoGraph/Invariants/` *defines* the
 invariants, `IsoGraph/Core/` builds the graphs everything else is made of and settles the
-invariants on them, `IsoGraph/SmallGraphs/` does the same for the gallery of named graphs, and
-`IsoGraph/Algebra/` treats isomorphism classes as a semiring. Underneath them all is
-`IsoGraph/ForMathlib/`, which holds the lemmas that mention nothing from this development and
-could be contributed upstream. `Basic.lean`, `Compute.lean`, `Cache.lean`, `Spectrum.lean` and
-`Exhaustion.lean` are left at the root, along with the index modules `ForMathlib.lean`,
-`Canon.lean`, `Enum.lean`, `Invariants.lean`, `Core.lean`, `SmallGraphs.lean` and `Algebra.lean`,
-each of which imports its directory.
+invariants on them, `IsoGraph/SmallGraphs/` does the same for the gallery of named graphs,
+`IsoGraph/Algebra/` treats isomorphism classes as a semiring, and `IsoGraph/Containment/` orders
+them by what sits inside what. Underneath them all is `IsoGraph/ForMathlib/`, which holds the
+lemmas that mention nothing from this development and could be contributed upstream.
+`Basic.lean`, `Compute.lean`, `Cache.lean`, `Spectrum.lean` and `Exhaustion.lean` are left at the
+root, along with the index modules `ForMathlib.lean`, `Canon.lean`, `Enum.lean`,
+`Invariants.lean`, `Core.lean`, `SmallGraphs.lean`, `Algebra.lean` and `Containment.lean`, each of
+which imports its directory.
 
 Both `Core/` and `SmallGraphs/` are split by topic, and in the same order: the definitions, the
 equations between them, then order and size, connectivity, symmetry and colouring. `SmallGraphs/`
-continues past those with a chain of files organised by the family or the operator under study.
+continues past those with a chain of files organised by the family or the operator under study,
+and with `Substructure.lean`, which crosses the gallery with the containment relations.
 
 | file | what it is | Mathlib? |
 | --- | --- | --- |
@@ -68,6 +70,8 @@ continues past those with a chain of files organised by the family or the operat
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
 | `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then seventeen more by family and by operator, indexed by `SmallGraphs.lean` | yes |
 | `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
+| `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
+| `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
 | `IsoGraph/Cache.lean` | the memoised adjacency function the searches run on | yes |
 | `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
@@ -4403,6 +4407,48 @@ Petersen graph, `gp 4 1` the cube, `gp 6 1` the hexagonal prism, and the Möbius
 Desargues, dodecahedron and Nauru graphs all have LCF codes as well as `GP` descriptions.
 Minimality — what makes a cage a cage — is a statement about all graphs of a given order, so it
 stays out of reach; what is proved is that each graph has the degree, girth and order claimed.
+
+## What sits inside what
+
+`SmallGraphs/Substructure.lean` crosses the gallery with the nine containment relations of
+`IsoGraph/Containment/`. Every proof is the same: `native_decide` on the relation, which is
+decided by running the search of `Containment/Algorithms/Cached.lean` on the canonical
+representatives of the two classes. A `none` from one of those searches is an exhausted tree and
+not a timeout, so the negative statements are proofs on the same footing as the positive ones —
+they are just the expensive half.
+
+What costs is the *pattern*, not the host. An induced `C₁₂` in the 126-vertex Tutte 12-cage takes
+five seconds and an induced `C₁₁` in the Balaban 11-cage three, while the Petersen graph inside
+the twenty-vertex Desargues graph takes sixteen — ten vertices of pattern against twelve of it,
+and the host's size barely registers. The same asymmetry sets what the negative statements can
+be: ruling out a `K₅` minor of the twelve-vertex icosahedron is four minutes, so the planar graph
+that carries both halves of its certificate here is the seven-vertex Moser spindle rather than a
+polyhedron.
+
+The girths of the cages are restated as containments — `cycle 5 ≤ᵢₛ petersen`, `cycle 8 ≤ᵢₛ
+tutteCoxeter`, and the negative one rung below each — which is what the invariant does not give
+back: `girth = 8` says the length of the shortest cycle, not that the octagon is there and is
+induced. Then the Kuratowski obstructions: the Petersen, Heawood, Grötzsch and Tietze graphs each
+carry both a `K₅` and a `K₃,₃` minor, and the Wagner graph `V₈` carries only the second — a
+nonplanar graph with no `K₅` minor at all, which is the graph Wagner's theorem has to name.
+
+The Petersen graph is the worked example of how far apart the relations are. It has a `K₅` minor;
+it even *contracts* onto `K₅`, the five spokes partitioning all ten vertices into connected
+blocks with nothing deleted. It has no `K₅` subdivision, since a branch vertex keeps its degree
+and the graph is cubic. It does have a `K₃,₃` subdivision, and `K₄` is immersed in it. It is an
+induced subgraph of `K(6, 2)` and of the Hoffman–Singleton graph, and a quotient of the Desargues
+graph — its bipartite double cover — but not an induced subgraph of that, the cover being
+bipartite where it is not.
+
+Colourings live here too, since `G ≤ₕ complete k` is `k`-colourability with the colouring
+attached: the Grötzsch graph and the Moser spindle are each four- but not three-colourable, the
+first with no triangle at all and the second planar.
+
+What is missing is the one containment between two large graphs that would be worth having. The
+Balaban 11-cage is got from the Tutte 12-cage by excision — delete a subtree, then suppress the
+degree-two vertices left behind — so it is a topological minor of it, and the search that would
+decide that has to place 112 branch vertices in a 126-vertex host. Writing the subdivision down
+by hand would settle it; searching for it will not.
 
 ## Spectral graph theory
 
