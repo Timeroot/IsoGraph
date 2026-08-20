@@ -64,7 +64,7 @@ An adjacency function is called far more than `n²` times by the search below, a
 each call does real work — a scan of an edge list, a comparison of two coordinates, a recursive
 call under a complement.  Filling an `n × n` array of `Bool` once and reading it thereafter is
 therefore worth several times the cost of the fill; `CGraph.canonOfArray` does exactly that, and
-`CGraph.cache` in `Graphs/Cache.lean` offers it to the rest of the library.
+`CGraph.cache` in `Cache.lean` offers it to the rest of the library.
 
 The shape is forced.  Lean maximises the arity of a top-level definition, so a `def` whose type
 ends in `Fin n → Fin n → Bool` and whose body builds a table is compiled with the table *inside*

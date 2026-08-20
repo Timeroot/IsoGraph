@@ -1,0 +1,813 @@
+import IsoGraph.SmallGraphs.Counts
+
+/-!
+# Connectivity, girth and distance in the named graphs
+
+Connectivity, girth, radius, diameter and acyclicity of the named graphs and the parametrised
+families.
+-/
+
+namespace CGraph
+
+section
+open Fintype
+variable (G H : CGraph)
+
+@[simp] theorem isConnected_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).IsConnected := by
+  simp only [bipartite, CGraph.IsConnected, compl_toSimple]
+  show SimpleGraph.Connected ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ
+  haveI : Nonempty ((complete (m + 1)).disjUnion (complete (n + 1))).V := ⟨Sum.inl ⟨0, Nat.zero_lt_succ _⟩⟩
+  apply SimpleGraph.Connected.mk
+  intro u v
+  -- Pick a "hub" vertex on the right side
+  let w : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inr ⟨0, Nat.zero_lt_succ n⟩
+  -- In the complement, every vertex is adjacent to w (since w is in right, and for any x,
+  -- if x is in left, they're across partitions so adjacent in complement;
+  -- if x is in right and x ≠ w, wait, they're in the same partition... hmm)
+  -- Actually in the complement, inl-* is NOT adjacent to inr-* ... wait yes it is.
+  -- complement of disjUnion: adj iff NOT (same side and adj in that side).
+  -- For inl a and inr b: same side? No. So NOT false = true. Adjacent! ✓
+  -- For inl a and inl c (a ≠ c): same side yes, adj in complete yes, so NOT true = false. Not adjacent.
+  -- For inr b and inr d (b ≠ d): same道理.
+  -- For inr b and w = inr ⟨0,...⟩ when b = 0 (and b ≠ w is impossible since w is inr 0):
+  --   They're the same vertex when b = ⟨0,...⟩, or same-side adjacent in G so not adjacent in complement.
+  -- So NOT every vertex is adjacent to w. Only vertices on the left side are adjacent to w in the complement.
+  -- Vertices on the right side (different from w) are NOT adjacent to w in the complement.
+  -- But they ARE adjacent to vertices on the left side.
+  -- So for reachability u → v:
+  --   Case u=inl, v=inl: u → w → v (via left vertices adjacent to w)
+  --   Case u=inl, v=inr: u → v directly (adjacent)
+  --   Case u=inr, v=inl: u → v directly
+  --   Case u=inr, v=inr: u → (some inl) → v
+  -- We need a "hub" on the LEFT side for right-side vertices to use. Let's pick hub on left.
+  let w' : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inl ⟨0, Nat.zero_lt_succ m⟩
+  -- In the complement, every RIGHT vertex is adjacent to w' (across partition).
+  -- Left vertices ≠ w' are NOT adjacent to w' (same side, complete).
+  -- Strategy: route EVERYTHING through both hubs. u → (if u on right, go to w'; if u on left, already on left)
+  -- Actually, simplest: u → w' (if u on right, adj directly; if u on left and u ≠ w', not adj directly...)
+  --Hmm. Let me think of a 2-hop strategy for everything.
+  -- u=(inl a), v=(inl c): use any right vertex r. u→r (across, adj) and r→v (across, adj). So u→r→v.
+  -- u=(inr b), v=(inr d): use any left vertex l. u→l→v.
+  -- u=(inl a), v=(inr d): u→v directly.
+  -- u=(inr b), v=(inl c): u→v directly.
+  -- So I need: for any left vertex l0 and right vertex r0, use them as intermediaries.
+  let r0 : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inr ⟨0, Nat.zero_lt_succ n⟩
+  -- Key adjacency facts in the complement:
+  -- Cross-partition edges exist (complete bipartite structure)
+  -- In the complement, cross-partition edges exist.
+  have h_cross_adj : ∀ (a : Fin (m + 1)) (b : Fin (n + 1)),
+      ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ.Adj (Sum.inl a) (Sum.inr b) := by
+    intro a b
+    simp [SimpleGraph.compl_adj, CGraph.toSimple_adj, disjUnion_adj_inl_inr]
+  have h_cross_adj2 : ∀ (a : Fin (m + 1)) (b : Fin (n + 1)),
+      ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ.Adj (Sum.inr b) (Sum.inl a) := by
+    intro a b
+    simp [SimpleGraph.compl_adj, CGraph.toSimple_adj, disjUnion_adj_inr_inl]
+  -- Strategy for Reachable u v:
+  -- • inl → inr: direct edge
+  -- • inr → inl: direct edge  
+  -- • inl → inl: go via any inr (2 hops)
+  -- • inr → inr: go via any inl (2 hops)
+  rcases u with ⟨a, ha⟩ | ⟨b, hb⟩ <;> rcases v with ⟨c, hc⟩ | ⟨d, hd⟩
+  · -- inl → inl: via r0
+    exact (h_cross_adj ⟨a, ha⟩ ⟨0, Nat.zero_lt_succ n⟩).reachable.trans
+      (h_cross_adj2 ⟨c, hc⟩ ⟨0, Nat.zero_lt_succ n⟩).reachable
+  · -- inl → inr: direct
+    exact (h_cross_adj ⟨a, ha⟩ ⟨d, hd⟩).reachable
+  · -- inr → inl: direct
+    exact (h_cross_adj2 ⟨c, hc⟩ ⟨b, hb⟩).reachable
+  · -- inr → inr: via w' (inl ⟨0,...⟩)
+    exact (h_cross_adj2 ⟨0, Nat.zero_lt_succ m⟩ ⟨b, hb⟩).reachable.trans
+      (h_cross_adj ⟨0, Nat.zero_lt_succ m⟩ ⟨d, hd⟩).reachable
+
+@[simp] theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 := by
+  set V₁ := Fin (m + 2)
+  set V₂ := Fin (n + 2)
+  set G : SimpleGraph (V₁ ⊕ V₂) := (bipartite (m + 2) (n + 2)).toSimple
+  -- All pairs in different parts are adjacent
+  have h_adj_cross : ∀ a : V₁, ∀ d : V₂, G.Adj (.inl a) (.inr d) := by
+    intro a d
+    simp only [G, bipartite, CGraph.toSimple_adj, compl_adj]
+    rw [disjUnion_adj_inl_inr]
+    simp
+  have h_adj_cross' : ∀ b : V₂, ∀ c : V₁, G.Adj (.inr b) (.inl c) := by
+    intro b c; exact (h_adj_cross c b).symm
+  -- No edges within part 1 (inl-inl), handled by... we don't need this explicitly
+  -- All pairs in different parts have dist 1
+  -- Pairs in the same part have dist 2 (via any vertex in the other part)
+  -- No edges within each part
+  have h_no_edge_inl_inl : ∀ a c : V₁, ¬G.Adj (.inl a) (.inl c) := by
+    intro a c
+    by_cases h : a = c <;> simp [G, bipartite, complete, disjUnion, h]
+  have h_no_edge_inr_inr : ∀ b d : V₂, ¬G.Adj (.inr b) (.inr d) := by
+    intro b d
+    by_cases h : b = d <;> simp [G, bipartite, complete, disjUnion, h]
+  -- The graph is connected
+  have h_connected : G.Connected := by
+    show SimpleGraph.Connected G
+    exact ⟨fun u v => by
+      cases u with
+      | inl a =>
+        cases v with
+        | inl c =>
+          exact ⟨SimpleGraph.Walk.append
+            (SimpleGraph.Walk.cons (h_adj_cross a ⟨0, by omega⟩) (SimpleGraph.Walk.nil : G.Walk _ _))
+            (SimpleGraph.Walk.cons (h_adj_cross' ⟨0, by omega⟩ c) (SimpleGraph.Walk.nil : G.Walk _ _))⟩
+        | inr d =>
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a d) (SimpleGraph.Walk.nil : G.Walk _ _)⟩
+      | inr b =>
+        cases v with
+        | inl c =>
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b c) (SimpleGraph.Walk.nil : G.Walk _ _)⟩
+        | inr d =>
+          exact ⟨SimpleGraph.Walk.append
+            (SimpleGraph.Walk.cons (h_adj_cross' b ⟨0, by omega⟩) (SimpleGraph.Walk.nil : G.Walk _ _))
+            (SimpleGraph.Walk.cons (h_adj_cross ⟨0, by omega⟩ d) (SimpleGraph.Walk.nil : G.Walk _ _))⟩⟩
+  -- Distance ≤ 2 for all pairs
+  have h_edist_le_two : ∀ u v : V₁ ⊕ V₂, G.edist u v ≤ 2 := by
+    intro u v
+    cases u with
+    | inl a =>
+      cases v with
+      | inl c =>
+        -- Walk inl a → inr ⟨0,...⟩ → inl c, length 2
+        have hw : ∃ w : G.Walk (.inl a) (.inl c), w.length = 2 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a ⟨0, by omega⟩)
+            (SimpleGraph.Walk.cons (h_adj_cross' ⟨0, by omega⟩ c)
+              (SimpleGraph.Walk.nil : G.Walk _ _)), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+      | inr d =>
+        -- Adj, so edist ≤ 1
+        have hw : ∃ w : G.Walk (.inl a) (.inr d), w.length = 1 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a d) (SimpleGraph.Walk.nil : G.Walk _ _), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+    | inr b =>
+      cases v with
+      | inl c =>
+        have hw : ∃ w : G.Walk (.inr b) (.inl c), w.length = 1 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b c) (SimpleGraph.Walk.nil : G.Walk _ _), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+      | inr d =>
+        have hw : ∃ w : G.Walk (.inr b) (.inr d), w.length = 2 := by
+          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b ⟨0, by omega⟩)
+            (SimpleGraph.Walk.cons (h_adj_cross ⟨0, by omega⟩ d)
+              (SimpleGraph.Walk.nil : G.Walk _ _)), by simp⟩
+        obtain ⟨w, hw⟩ := hw
+        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
+  -- There exist u, v with distance ≥ 2 (in fact = 2): pick two distinct vertices in V₁
+  have h_exists_dist_ge_two : ∃ u v : V₁ ⊕ V₂, 2 ≤ G.edist u v := by
+    -- Pick two distinct vertices in V₁, say ⟨0,by omega⟩ and ⟨1,by omega⟩
+    refine ⟨.inl ⟨0, by omega⟩, .inl ⟨1, by omega⟩, ?_⟩
+    -- They're not adjacent, so edist is not 1. Since they're reachable and distinct, edist ≥ 2.
+    have hreach : G.Reachable (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) :=
+       h_connected _ _
+    have hne : (.inl ⟨0, by omega⟩ : V₁ ⊕ V₂) ≠ .inl ⟨1, by omega⟩ := by simp
+    have hnotadj := h_no_edge_inl_inl ⟨0, by omega⟩ ⟨1, by omega⟩
+    -- Any walk from inl ⟨0⟩ to inl ⟨1⟩ has length ≥ 2 (since not adjacent, can't be length 1; and ne, can't be 0)
+    -- So edist ≥ 2.
+    have h_ge : 2 ≤ G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) := by
+      by_contra hlt
+      push_neg at hlt
+      have h_ne0 : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ 0 := by
+        intro heq
+        rw [SimpleGraph.edist_eq_zero_iff] at heq
+        exact hne heq
+      have h_ne_top : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ ⊤ := by
+        intro h
+        obtain ⟨w⟩ := hreach
+        have := SimpleGraph.edist_le w
+        rw [h] at this
+        exact absurd this (by simp)
+      have h_ne1 : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ 1 := by
+        intro heq; exact hnotadj (SimpleGraph.edist_eq_one_iff_adj.mp heq)
+      -- In ENat, < 2, ≠ ⊤, ≠ 0, ≠ 1 is impossible
+      have : ∀ (x : ℕ∞), x < 2 → x ≠ ⊤ → x ≠ 0 → x ≠ 1 → False := by
+        intro x hx hx_top hx0 hx1
+        cases x with
+        | top => exact hx_top rfl
+        | coe n =>
+          simp at hx hx0 hx1
+          omega
+      exact absurd (this _ hlt h_ne_top h_ne0 h_ne1) (by trivial)
+    exact h_ge
+  -- Conclude diam = 2 from edist bounds
+  -- G.ediam = 2 (as ℕ∞) since all edist ≤ 2 and some edist ≥ 2
+  have h_ediam_le : G.ediam ≤ 2 := SimpleGraph.ediam_le_of_edist_le h_edist_le_two
+  obtain ⟨u, v, huv⟩ := h_exists_dist_ge_two
+  have h_ediam_ge : 2 ≤ G.ediam := by
+    exact le_trans huv (SimpleGraph.edist_le_ediam)
+  have h_ediam_eq : G.ediam = 2 := le_antisymm h_ediam_le h_ediam_ge
+  simp only [CGraph.diameter]
+  change G.diam = 2
+  rw [SimpleGraph.diam, h_ediam_eq]
+  rfl
+
+end
+
+section
+variable {G H : CGraph}
+
+@[toIsoGraph]
+theorem diameter_join_le_two (G H : CGraph) [Nonempty G.V]
+    [Nonempty H.V] : (G ∇g H).diameter ≤ 2 :=
+  diameter_le_two _ (two_step_join G H)
+
+/-- A join is of diameter exactly two as soon as one side has a non-adjacent pair. -/
+theorem diameter_join_of_not_adj (G H : CGraph)
+    [Nonempty H.V] {a c : G.V} (hne : a ≠ c) (hadj : G.Adj a c = false) :
+    (G ∇g H).diameter = 2 := by
+  haveI : Nonempty G.V := ⟨a⟩
+  refine diameter_eq_two _ (two_step_join G H) (u := Sum.inl a) (v := Sum.inl c) ?_ ?_
+  · exact fun h ↦ hne (Sum.inl.inj h)
+  · simp [hadj]
+
+/-- **A join whose left factor is not complete has diameter two.** -/
+@[toIsoGraph]
+theorem diameter_join_left {G H : CGraph} [Nonempty H.V]
+    (h : G.E < (FinEnum.card G.V).choose 2) : (G ∇g H).diameter = 2 := by
+  obtain ⟨a, c, hne, hadj⟩ := exists_not_adj_of_E_lt G h
+  exact diameter_join_of_not_adj G H hne hadj
+
+theorem diameter_compl_le_two (G : CGraph) (h : ¬ G.toSimple.Preconnected) :
+    Gᶜ.diameter ≤ 2 :=
+  diameter_le_two _ (two_step_compl G h)
+
+/-- **The complement of a disconnected graph is connected.** -/
+theorem isConnected_compl_of_not_preconnected (G : CGraph) [Nonempty G.V]
+    (h : ¬ G.toSimple.Preconnected) : Gᶜ.IsConnected := by
+  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  exact SimpleGraph.connected_of_ediam_ne_top
+    (ne_top_of_le_ne_top (by simp) (ediam_le_two _ (two_step_compl G h)))
+
+/-- **The complement of a disconnected graph is connected**, phrased with `IsConnected` rather
+than `Preconnected` so that it transfers to `IsoGraph`. -/
+@[toIsoGraph]
+theorem isConnected_compl_of_not_isConnected {G : CGraph} [Nonempty G.V] (h : ¬ G.IsConnected) :
+    Gᶜ.IsConnected :=
+  isConnected_compl_of_not_preconnected G fun hp ↦ h ⟨hp⟩
+
+/-- If the graph is disconnected and has an edge, its complement has diameter exactly two. -/
+theorem diameter_compl_eq_two (G : CGraph) (h : ¬ G.toSimple.Preconnected)
+    (hE : 0 < G.E) : Gᶜ.diameter = 2 := by
+  obtain ⟨u, v, hne, hadj⟩ := exists_not_adj_of_E_lt Gᶜ
+    (show Gᶜ.E < (FinEnum.card G.V).choose 2 by have hc := G.E_compl; omega)
+  refine diameter_eq_two _ (two_step_compl G h) hne fun hc ↦ ?_
+  have hc' : Gᶜ.Adj u v = true := by simpa using hc
+  rw [hc'] at hadj
+  exact Bool.noConfusion hadj
+
+/-- Two colours suffice exactly when the graph is bipartite. -/
+@[toIsoGraph]
+theorem isBipartite_iff_chromNum_le_two {G : CGraph} : G.IsBipartite ↔ G.chromNum ≤ 2 :=
+  G.isBipartite_iff_colorable.trans chromNum_le_iff_colorable.symm
+
+/-- **Radius one and domination number one are the same condition** on a graph with at least two
+vertices: both say that some vertex sees the whole graph. -/
+@[toIsoGraph]
+theorem radius_eq_one_iff_domNum_eq_one (G : CGraph) (hV : 1 < FinEnum.card G.V) :
+    G.radius = 1 ↔ G.domNum = 1 := by
+  rw [domNum_eq_one_iff]
+  exact ⟨G.exists_universal_of_radius_eq_one, fun ⟨_, hv⟩ ↦ radius_eq_one_of_universal hv hV⟩
+
+/-- **A vertex-transitive graph has radius equal to its diameter**: every vertex is as central as
+every other, so the least and the greatest eccentricity agree. -/
+@[toIsoGraph]
+theorem radius_eq_diameter_of_isVertexTransitive (G : CGraph) (h : G.IsVertexTransitive) :
+    G.radius = G.diameter := by
+  rcases isEmpty_or_nonempty G.V with hemp | hne
+  · have h1 : G.toSimple.radius = ⊤ := SimpleGraph.radius_eq_top_of_isEmpty
+    have h2 : G.toSimple.diam = 0 := by
+      rw [SimpleGraph.diam_eq_zero]
+      exact Or.inr (by infer_instance)
+    simp [radius, diameter, h1, h2]
+  · have key : G.toSimple.radius = G.toSimple.ediam := by
+      rw [SimpleGraph.radius_eq_ediam_iff]
+      refine ⟨G.toSimple.eccent Classical.ofNonempty, fun u ↦ ?_⟩
+      obtain ⟨σ, hσ⟩ := h Classical.ofNonempty u
+      rw [← hσ]
+      exact (SimpleGraph.Iso.eccent_eq (CGraph.Iso.toSimpleIso σ) _).symm
+    simp [radius, diameter, SimpleGraph.diam, key]
+
+@[simp, toIsoGraph] theorem numComponents_disjUnion (G H : CGraph) :
+    (G ⊕g H).numComponents = G.numComponents + H.numComponents := by
+  rw [numComponents, numComponents, numComponents,
+    Nat.card_congr (disjUnionComponentEquiv G H), Nat.card_sum]
+
+/-- **At most one of a graph and its complement is disconnected.** -/
+@[toIsoGraph]
+theorem numComponents_compl_eq_one (G : CGraph) (h : 2 ≤ G.numComponents) :
+    Gᶜ.numComponents = 1 := by
+  have hne : Nonempty G.V := FinEnum.card_pos_iff.1
+    ((numComponents_pos_iff G).1 (by omega))
+  rw [numComponents_eq_one_iff]
+  refine G.isConnected_compl_of_not_preconnected (fun hpre ↦ ?_)
+  have : Subsingleton G.toSimple.ConnectedComponent := hpre.subsingleton_connectedComponent
+  have : G.numComponents = 1 := by
+    rw [numComponents]
+    exact Nat.card_eq_one_iff_unique.2 ⟨this, inferInstance⟩
+  omega
+
+/-- One vertex from each component is an independent set, so there are at most `α(G)` components. -/
+@[toIsoGraph]
+theorem numComponents_le_indepNum (G : CGraph) : G.numComponents ≤ G.indepNum := by
+  classical
+  choose f hout using G.surjective_connectedComponentMk
+  have hinj : Function.Injective f := fun c d h ↦ by rw [← hout c, ← hout d, h]
+  set s : Finset G.V := Finset.univ.image f with hs
+  have hcard : s.card = G.numComponents := by
+    rw [hs, Finset.card_image_of_injective _ hinj, Finset.card_univ, numComponents,
+      Fintype.card_eq_nat_card]
+  have hindep : G.toSimple.IsIndepSet s := by
+    intro x hx y hy hxy hadj
+    simp only [hs, Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ,
+      true_and] at hx hy
+    obtain ⟨c, rfl⟩ := hx
+    obtain ⟨d, rfl⟩ := hy
+    refine hxy ?_
+    have : c = d := by
+      rw [← hout c, ← hout d]
+      exact SimpleGraph.ConnectedComponent.sound hadj.reachable
+    rw [this]
+  calc G.numComponents = s.card := hcard.symm
+    _ ≤ G.indepNum := hindep.card_le_indepNum
+
+/-- A dominating set must meet every component, so there are at most `γ(G)` components. -/
+@[toIsoGraph]
+theorem numComponents_le_domNum (G : CGraph) : G.numComponents ≤ G.domNum := by
+  classical
+  obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
+  have hsurj : Function.Surjective
+      (fun v : {x : G.V // x ∈ s} ↦ G.toSimple.connectedComponentMk v.1) := by
+    intro c
+    induction c using SimpleGraph.ConnectedComponent.ind with
+    | _ v =>
+      rcases hs v with hv | ⟨u, hu, hadj⟩
+      · exact ⟨⟨v, hv⟩, rfl⟩
+      · exact ⟨⟨u, hu⟩, SimpleGraph.ConnectedComponent.sound
+          (SimpleGraph.Adj.reachable (G.toSimple_adj u v |>.2 hadj))⟩
+  rw [numComponents]
+  calc Nat.card G.toSimple.ConnectedComponent
+      ≤ Nat.card {x : G.V // x ∈ s} := Nat.card_le_card_of_surjective _ hsurj
+    _ = s.card := Nat.card_eq_finsetCard s
+    _ = G.domNum := hcard
+
+/-- The join of two nonempty graphs is connected, hence has one component. -/
+theorem numComponents_join (G H : CGraph)
+    (hG : 0 < FinEnum.card G.V) (hH : 0 < FinEnum.card H.V) :
+    (G ∇g H).numComponents = 1 :=
+  (numComponents_eq_one_iff _).2 (isConnected_join G H hG hH)
+
+/-- A graph has as many components as vertices exactly when it has no edges. -/
+@[toIsoGraph numComponents_eq_V_iff]
+theorem numComponents_eq_card_iff (G : CGraph) :
+    G.numComponents = FinEnum.card G.V ↔ G.E = 0 := by
+  classical
+  constructor
+  · intro h
+    by_contra hE
+    obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos (Nat.pos_of_ne_zero hE)
+    have hadj : G.toSimple.Adj a b := hab
+    have hnotinj : ¬ Function.Injective G.toSimple.connectedComponentMk := fun hinj ↦
+      hadj.ne (hinj (SimpleGraph.ConnectedComponent.sound hadj.reachable))
+    have hlt := Fintype.card_lt_of_surjective_not_injective _ G.surjective_connectedComponentMk
+      hnotinj
+    rw [Fintype.card_eq_nat_card] at hlt
+    rw [numComponents, FinEnum.card_eq_fintypeCard'] at h
+    omega
+  · intro h
+    have hbot : G.toSimple = ⊥ := by
+      ext a b
+      simp only [SimpleGraph.bot_adj, iff_false]
+      intro hadj
+      have := E_pos_of_adj hadj
+      omega
+    have hinj : Function.Injective G.toSimple.connectedComponentMk := by
+      intro u v huv
+      have hr : G.toSimple.Reachable u v := SimpleGraph.ConnectedComponent.exact huv
+      rw [hbot] at hr
+      exact SimpleGraph.reachable_bot.1 hr
+    rw [numComponents,
+      ← Nat.card_eq_of_bijective _ ⟨hinj, G.surjective_connectedComponentMk⟩,
+      Nat.card_eq_fintype_card, ← FinEnum.card_eq_fintypeCard']
+
+theorem numComponents_lt_card_of_E_pos (G : CGraph) (h : 0 < G.E) :
+    G.numComponents < FinEnum.card G.V := by
+  have hle := G.numComponents_le_card
+  have := (G.numComponents_eq_card_iff).not.2 (by omega : ¬ G.E = 0)
+  omega
+
+/-- **The girth of a cycle is its length.** -/
+@[toIsoGraph]
+theorem girth_cycle (n : ℕ) : (cycle (n + 3)).girth = n + 3 := by
+  refine le_antisymm ?_ ?_
+  · have h := girth_le_V (not_isAcyclic_cycle n)
+    rwa [card_cycle] at h
+  · exact le_girth_of_forall_cycleList
+      (fun u vs h2 hlt hnd hch hcl ↦
+        cycle_no_short_cycleList (by omega) u vs h2 hlt hnd hch hcl)
+      (not_isAcyclic_cycle n)
+
+end
+
+end CGraph
+
+namespace IsoGraph
+
+/-! ### Trees, and Euler's count -/
+
+theorem IsTree.E_add_one {G : IsoGraph} (h : IsTree G) : G.E + 1 = G.V :=
+  ((isTree_iff G).1 h).2
+
+/-- Too few edges to be connected. -/
+theorem not_isConnected_of_E_add_one_lt {G : IsoGraph} (h : G.E + 1 < G.V) : ¬ IsConnected G :=
+  fun hc ↦ absurd hc.V_le_E_add_one (by omega)
+
+@[simp] theorem not_isConnected_empty (n : ℕ) : ¬ IsConnected (empty (n + 2)) :=
+  not_isConnected_of_E_add_one_lt (by simp)
+
+@[simp] theorem not_isTree_cycle (n : ℕ) : ¬ IsTree (cycle (n + 3)) := by
+  rw [isTree_iff, E_cycle, V_cycle]
+  rintro ⟨-, h⟩
+  omega
+
+@[simp] theorem not_isTree_complete (n : ℕ) : ¬ IsTree (complete (n + 3)) := by
+  rw [isTree_iff, E_complete, V_complete]
+  rintro ⟨-, h⟩
+  rw [show n + 3 = (n + 2) + 1 from rfl, choose_two_succ] at h
+  have : 0 < (n + 2).choose 2 := Nat.choose_pos (by omega)
+  omega
+
+/-- Anything connected that is not a tree has a cycle. -/
+theorem not_isAcyclic_of_isConnected {G : IsoGraph} (hc : IsConnected G) (h : ¬ IsTree G) :
+    ¬ IsAcyclic G :=
+  fun ha ↦ h ((isTree_iff_isConnected_and_isAcyclic G).2 ⟨hc, ha⟩)
+
+@[simp] theorem not_isAcyclic_complete (n : ℕ) : ¬ IsAcyclic (complete (n + 3)) :=
+  not_isAcyclic_of_isConnected (isConnected_complete (n + 2)) (not_isTree_complete n)
+
+/-! ### The diameter of a join -/
+
+/-- A join whose right factor is not complete has diameter two. -/
+theorem diameter_join_right {G H : IsoGraph} (hG : 0 < G.V) (h : H.E < H.V.choose 2) :
+    (G ∇g H).diameter = 2 := by
+  rw [join_comm]
+  exact diameter_join_left hG h
+
+@[simp] theorem girth_complete (n : ℕ) : (complete (n + 3)).girth = 3 :=
+  girth_eq_three_of_cliqueNum (by simp)
+
+@[simp] theorem girth_cycle_three : (cycle 3).girth = 3 := by
+  rw [cycle_three]; exact girth_complete 0
+
+theorem girth_join_left {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.V) :
+    (G ∇g H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_join]
+  have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
+  have h2 : 1 ≤ H.cliqueNum := one_le_cliqueNum hH
+  omega
+
+theorem girth_join_right {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.E) :
+    (G ∇g H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_join]
+  have h1 : 1 ≤ G.cliqueNum := one_le_cliqueNum hG
+  have h2 : 2 ≤ H.cliqueNum := two_le_cliqueNum_of_E_pos hH
+  omega
+
+theorem girth_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    (G ⊠g H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_strongProduct]
+  have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
+  have h2 : 2 ≤ H.cliqueNum := two_le_cliqueNum_of_E_pos hH
+  calc 3 ≤ 2 * 2 := by norm_num
+    _ ≤ G.cliqueNum * H.cliqueNum := Nat.mul_le_mul h1 h2
+
+theorem girth_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    (G ·g H).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  rw [cliqueNum_lexProduct]
+  have h1 : 2 ≤ G.cliqueNum := two_le_cliqueNum_of_E_pos hG
+  have h2 : 2 ≤ H.cliqueNum := two_le_cliqueNum_of_E_pos hH
+  calc 3 ≤ 2 * 2 := by norm_num
+    _ ≤ G.cliqueNum * H.cliqueNum := Nat.mul_le_mul h1 h2
+
+/-- Either way round: on six vertices a graph or its complement has girth three. -/
+theorem girth_eq_three_or_girth_compl_eq_three (G : IsoGraph) (h : 6 ≤ G.V) :
+    G.girth = 3 ∨ Gᶜ.girth = 3 := by
+  rcases G.three_le_cliqueNum_or_three_le_indepNum h with h' | h'
+  · exact Or.inl (girth_eq_three_iff.2 h')
+  · exact Or.inr (girth_eq_three_iff.2 (by rwa [cliqueNum_compl]))
+
+@[simp] theorem radius_empty (n : ℕ) : (empty n).radius = 0 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_empty n), diameter_empty]
+
+@[simp] theorem radius_complete (n : ℕ) : (complete (n + 2)).radius = 1 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_complete _),
+    diameter_complete]
+
+@[simp] theorem radius_cycle (n : ℕ) : (cycle (n + 1)).radius = (n + 1) / 2 := by
+  rw [radius_eq_diameter_of_isVertexTransitive (isVertexTransitive_cycle _), diameter_cycle]
+
+/-! ### Components versus the other invariants -/
+
+@[simp] theorem numComponents_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ∇g H).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_join hG hH)
+
+theorem numComponents_lt_V_of_E_pos {G : IsoGraph} (h : 0 < G.E) : G.numComponents < G.V := by
+  have hle := G.numComponents_le_V
+  have := (G.numComponents_eq_V_iff).not.2 (by omega : ¬ G.E = 0)
+  omega
+
+theorem not_isConnected_of_E_add_one_lt_V {G : IsoGraph} (h : G.E + 1 < G.V) :
+    ¬ G.IsConnected := fun hc ↦ by
+  have := V_le_E_add_one_of_isConnected hc
+  omega
+
+/-- Each connected component needs a clique of its own. -/
+theorem numComponents_le_cliqueCoverNum (G : IsoGraph) :
+    G.numComponents ≤ G.cliqueCoverNum :=
+  le_trans G.numComponents_le_indepNum G.indepNum_le_cliqueCoverNum
+
+/-! ### The radius of a join
+
+A join of two nonempty graphs has diameter at most two, so its radius is one or two, and it is
+one exactly when one of the two factors has a dominating vertex. -/
+
+theorem radius_join_eq_one {G H : IsoGraph} (hV : 1 < G.V + H.V)
+    (h : G.domNum = 1 ∨ H.domNum = 1) : (G ∇g H).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one (by rwa [V_join]), domNum_join_eq_one_iff]
+  exact h
+
+theorem radius_join_eq_two {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h1 : G.domNum ≠ 1) (h2 : H.domNum ≠ 1) : (G ∇g H).radius = 2 := by
+  have hV : 1 < (G ∇g H).V := by rw [V_join]; omega
+  have hne : (G ∇g H).radius ≠ 1 := by
+    intro h
+    rw [radius_eq_one_iff_domNum_eq_one hV, domNum_join_eq_one_iff] at h
+    rcases h with h | h
+    · exact h1 h
+    · exact h2 h
+  have hle := radius_le_diameter (G ∇g H)
+  have hd := diameter_join_le_two _ _ hG hH
+  have hpos := radius_pos (isConnected_join hG hH) hV
+  omega
+
+/-! ### The radius of a strong or lexicographic product -/
+
+theorem radius_strongProduct_eq_one {G H : IsoGraph} (hV : 1 < (G ⊠g H).V)
+    (hG : G.domNum = 1) (hH : H.domNum = 1) : (G ⊠g H).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one hV]
+  exact domNum_strongProduct_eq_one hG hH
+
+theorem radius_lexProduct_eq_one {G H : IsoGraph} (hV : 1 < (G ·g H).V)
+    (hG : G.domNum = 1) (hH : H.domNum = 1) : (G ·g H).radius = 1 := by
+  rw [radius_eq_one_iff_domNum_eq_one hV, domNum_lexProduct G hH]
+  exact hG
+
+theorem not_isTree_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) : ¬ IsTree (lineGraph G) :=
+  not_isTree_of_girth_pos (by rw [girth_lineGraph_eq_three h]; omega)
+
+/-- A graph with no edges is a tree exactly when it is the one-point graph. -/
+@[simp] theorem isTree_empty_iff (n : ℕ) : IsTree (empty n) ↔ n = 1 := by
+  rw [isTree_iff, E_empty, V_empty]
+  refine ⟨fun ⟨_, h⟩ ↦ by omega, ?_⟩
+  rintro rfl
+  exact ⟨by simp [isConnected_empty_one], rfl⟩
+
+@[simp] theorem not_isTree_empty (n : ℕ) : ¬ IsTree (empty (n + 2)) := by
+  rw [isTree_empty_iff]; omega
+
+/-! ### Counting edges detects the cycles
+
+A graph with at least as many edges as vertices cannot be a tree, and if it is also connected it
+cannot be acyclic.  This is the cheapest cycle detector in the library: it needs no witness
+cycle, only the two counts.
+-/
+
+theorem not_isTree_of_V_le_E {G : IsoGraph} (h : G.V ≤ G.E) : ¬ IsTree G :=
+  fun ht ↦ by have := ht.E_add_one; omega
+
+theorem not_isTree_of_not_isAcyclic {G : IsoGraph} (h : ¬ IsAcyclic G) : ¬ IsTree G :=
+  fun ht ↦ h ((isTree_iff_isConnected_and_isAcyclic G).1 ht).2
+
+theorem not_isAcyclic_of_V_le_E {G : IsoGraph} (hc : IsConnected G) (h : G.V ≤ G.E) :
+    ¬ IsAcyclic G :=
+  not_isAcyclic_of_isConnected hc (not_isTree_of_V_le_E h)
+
+theorem radius_cartesianProduct_cycle (m n : ℕ) :
+    (cycle (m + 1) □g cycle (n + 1)).radius = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_cycle m) (isConnected_cycle n), radius_cycle,
+    radius_cycle]
+
+theorem diameter_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 1) □g path (n + 1)).diameter = (m + 1) / 2 + n := by
+  rw [diameter_cartesianProduct (isConnected_cycle m) (isConnected_path n), diameter_cycle,
+    diameter_path]
+
+theorem radius_cartesianProduct_cycle_path (m n : ℕ) :
+    (cycle (m + 1) □g path (n + 1)).radius = (m + 1) / 2 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_cycle m) (isConnected_path n), radius_cycle,
+    radius_path]
+
+@[simp] theorem isConnected_strongProduct_cycle (m n : ℕ) :
+    IsConnected (cycle (m + 1) ⊠g cycle (n + 1)) :=
+  isConnected_strongProduct (isConnected_cycle m) (isConnected_cycle n)
+
+@[simp] theorem girth_strongProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ⊠g cycle (n + 3)).girth = 3 :=
+  girth_strongProduct (by rw [E_cycle]; omega) (by rw [E_cycle]; omega)
+
+@[simp] theorem isConnected_lexProduct_cycle (m n : ℕ) :
+    IsConnected (cycle (m + 1) ·g cycle (n + 1)) :=
+  isConnected_lexProduct (isConnected_cycle m) (isConnected_cycle n)
+
+@[simp] theorem girth_lexProduct_cycle (m n : ℕ) :
+    (cycle (m + 3) ·g cycle (n + 3)).girth = 3 :=
+  girth_lexProduct (by rw [E_cycle]; omega) (by rw [E_cycle]; omega)
+
+@[simp] theorem isConnected_lexProduct_path (m n : ℕ) :
+    IsConnected (path (m + 1) ·g path (n + 1)) :=
+  isConnected_lexProduct (isConnected_path m) (isConnected_path n)
+
+@[simp] theorem girth_lexProduct_path (m n : ℕ) :
+    (path (m + 2) ·g path (n + 2)).girth = 3 :=
+  girth_lexProduct (by rw [E_path]; omega) (by rw [E_path]; omega)
+
+theorem not_isBipartite_lexProduct_path (m n : ℕ) :
+    ¬ IsBipartite (path (m + 2) ·g path (n + 2)) :=
+  not_isBipartite_lexProduct (by rw [E_path]; omega) (by rw [E_path]; omega)
+
+@[simp] theorem girth_strongProduct_complete (m n : ℕ) :
+    (complete (m + 2) ⊠g complete (n + 2)).girth = 3 :=
+  girth_strongProduct (E_complete_pos m) (E_complete_pos n)
+
+theorem isConnected_strongProduct_complete (m n : ℕ) :
+    IsConnected (complete (m + 1) ⊠g complete (n + 1)) :=
+  isConnected_strongProduct (isConnected_complete m) (isConnected_complete n)
+
+@[simp] theorem girth_lexProduct_complete (m n : ℕ) :
+    (complete (m + 2) ·g complete (n + 2)).girth = 3 :=
+  girth_lexProduct (E_complete_pos m) (E_complete_pos n)
+
+theorem isConnected_lexProduct_complete (m n : ℕ) :
+    IsConnected (complete (m + 1) ·g complete (n + 1)) :=
+  isConnected_lexProduct (isConnected_complete m) (isConnected_complete n)
+
+theorem radius_strongProduct_of_domNum_complete (m n : ℕ) :
+    (complete (m + 2) ⊠g complete (n + 1)).radius = 1 := by
+  refine radius_strongProduct_eq_one ?_ (domNum_complete (m + 1)) (domNum_complete n)
+  rw [V_strongProduct, V_complete, V_complete]
+  have h : 2 * 1 ≤ (m + 2) * (n + 1) := Nat.mul_le_mul (by omega) (by omega)
+  omega
+
+theorem radius_lexProduct_complete (m n : ℕ) :
+    (complete (m + 2) ·g complete (n + 1)).radius = 1 := by
+  refine radius_lexProduct_eq_one ?_ (domNum_complete (m + 1)) (domNum_complete n)
+  rw [V_lexProduct, V_complete, V_complete]
+  have h : 2 * 1 ≤ (m + 2) * (n + 1) := Nat.mul_le_mul (by omega) (by omega)
+  omega
+
+theorem diameter_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 2) □g cycle (n + 1)).diameter = 1 + (n + 1) / 2 := by
+  rw [diameter_cartesianProduct (isConnected_complete (m + 1)) (isConnected_cycle n),
+    diameter_complete, diameter_cycle]
+
+theorem radius_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 2) □g cycle (n + 1)).radius = 1 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_complete (m + 1)) (isConnected_cycle n),
+    radius_complete, radius_cycle]
+
+theorem girth_cartesianProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 3) □g cycle (n + 3)).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  have h := cliqueNum_cartesianProduct (G := complete (m + 3)) (H := cycle (n + 3))
+    (by rw [V_complete]; omega) (by rw [V_cycle]; omega)
+  rw [cliqueNum_complete] at h
+  omega
+
+theorem diameter_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) □g path (n + 1)).diameter = 1 + n := by
+  rw [diameter_cartesianProduct (isConnected_complete (m + 1)) (isConnected_path n),
+    diameter_complete, diameter_path]
+
+theorem radius_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) □g path (n + 1)).radius = 1 + (n + 1) / 2 := by
+  rw [radius_cartesianProduct (isConnected_complete (m + 1)) (isConnected_path n),
+    radius_complete, radius_path]
+
+theorem girth_cartesianProduct_complete_path (m n : ℕ) :
+    (complete (m + 3) □g path (n + 2)).girth = 3 := by
+  refine girth_eq_three_of_cliqueNum ?_
+  have h := cliqueNum_cartesianProduct (G := complete (m + 3)) (H := path (n + 2))
+    (by rw [V_complete]; omega) (by rw [V_path]; omega)
+  rw [cliqueNum_complete] at h
+  omega
+
+theorem isConnected_tensorProduct_cycle_odd_cycle (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g cycle (n + 3)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_cycle (n + 2))
+    (not_isBipartite_cycle_odd a) (by rw [E_cycle]; omega)
+
+theorem numComponents_tensorProduct_cycle_odd_cycle (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g cycle (n + 3)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_cycle a n)
+
+theorem isConnected_tensorProduct_cycle_odd_path (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g path (n + 2)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_path (n + 1))
+    (not_isBipartite_cycle_odd a) (by rw [E_path]; omega)
+
+theorem numComponents_tensorProduct_cycle_odd_path (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g path (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_path a n)
+
+theorem isConnected_tensorProduct_cycle_odd_complete (a n : ℕ) :
+    IsConnected (cycle (2 * a + 3) ⊗g complete (n + 2)) :=
+  isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_complete (n + 1))
+    (not_isBipartite_cycle_odd a) (E_complete_pos n)
+
+theorem numComponents_tensorProduct_cycle_odd_complete (a n : ℕ) :
+    (cycle (2 * a + 3) ⊗g complete (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_cycle_odd_complete a n)
+
+theorem isConnected_tensorProduct_complete_cycle (m n : ℕ) :
+    IsConnected (complete (m + 3) ⊗g cycle (n + 3)) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_cycle (n + 2))
+    (not_isBipartite_complete m) (by rw [E_cycle]; omega)
+
+theorem numComponents_tensorProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 3) ⊗g cycle (n + 3)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_complete_cycle m n)
+
+theorem isConnected_tensorProduct_complete_path (m n : ℕ) :
+    IsConnected (complete (m + 3) ⊗g path (n + 2)) :=
+  isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_path (n + 1))
+    (not_isBipartite_complete m) (by rw [E_path]; omega)
+
+theorem numComponents_tensorProduct_complete_path (m n : ℕ) :
+    (complete (m + 3) ⊗g path (n + 2)).numComponents = 1 :=
+  numComponents_eq_one_of_isConnected (isConnected_tensorProduct_complete_path m n)
+
+theorem girth_strongProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 2) ⊠g cycle (n + 3)).girth = 3 :=
+  girth_strongProduct (E_complete_pos m) (by rw [E_cycle]; omega)
+
+theorem girth_lexProduct_complete_cycle (m n : ℕ) :
+    (complete (m + 2) ·g cycle (n + 3)).girth = 3 :=
+  girth_lexProduct (E_complete_pos m) (by rw [E_cycle]; omega)
+
+theorem girth_strongProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) ⊠g path (n + 2)).girth = 3 :=
+  girth_strongProduct (E_complete_pos m) (by rw [E_path]; omega)
+
+theorem girth_lexProduct_complete_path (m n : ℕ) :
+    (complete (m + 2) ·g path (n + 2)).girth = 3 :=
+  girth_lexProduct (E_complete_pos m) (by rw [E_path]; omega)
+
+theorem diameter_join_path_complete (m n : ℕ) :
+    (path (m + 3) ∇g complete (n + 1)).diameter = 2 := by
+  have h : (m + 3).choose 2 = (m + 3) * (m + 2) / 2 := by
+    rw [Nat.choose_two_right, show m + 3 - 1 = m + 2 from by omega]
+  have h2 : m + 3 ≤ (m + 3) * (m + 2) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 3) * (m + 2) = m * m + 5 * m + 6 := by ring
+    omega
+  refine diameter_join_left (by rw [V_complete]; omega) ?_
+  rw [E_path, V_path, h]
+  omega
+
+theorem diameter_join_cycle_complete (m n : ℕ) :
+    (cycle (m + 4) ∇g complete (n + 1)).diameter = 2 := by
+  have h : (m + 4).choose 2 = (m + 4) * (m + 3) / 2 := by
+    rw [Nat.choose_two_right, show m + 4 - 1 = m + 3 from by omega]
+  have h2 : m + 5 ≤ (m + 4) * (m + 3) / 2 := by
+    rw [Nat.le_div_iff_mul_le (by norm_num : 0 < 2)]
+    have e : (m + 4) * (m + 3) = m * m + 7 * m + 12 := by ring
+    omega
+  refine diameter_join_left (by rw [V_complete]; omega) ?_
+  rw [E_cycle, V_cycle, h]
+  omega
+
+theorem girth_lineGraph_mycielskian {G : IsoGraph} (h3 : 3 ≤ max (2 * maxDeg G) G.V) :
+    (lineGraph (mycielskian G)).girth = 3 :=
+  girth_lineGraph_eq_three (by rw [maxDeg_mycielskian]; exact h3)
+
+theorem not_isBipartite_lineGraph_mycielskian {G : IsoGraph}
+    (h3 : 3 ≤ max (2 * maxDeg G) G.V) : ¬ IsBipartite (lineGraph (mycielskian G)) :=
+  not_isBipartite_lineGraph (by rw [maxDeg_mycielskian]; exact h3)
+
+theorem not_isAcyclic_lineGraph_mycielskian {G : IsoGraph}
+    (h3 : 3 ≤ max (2 * maxDeg G) G.V) : ¬ IsAcyclic (lineGraph (mycielskian G)) :=
+  not_isAcyclic_lineGraph (by rw [maxDeg_mycielskian]; exact h3)
+
+theorem not_isTree_lineGraph_mycielskian {G : IsoGraph}
+    (h3 : 3 ≤ max (2 * maxDeg G) G.V) : ¬ IsTree (lineGraph (mycielskian G)) :=
+  not_isTree_lineGraph (by rw [maxDeg_mycielskian]; exact h3)
+
+end IsoGraph

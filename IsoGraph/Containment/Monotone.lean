@@ -3,7 +3,7 @@ import IsoGraph.Containment.Minors
 /-!
 # The operations against the orders
 
-`Values/Identities/Semiring.lean` gives `IsoGraph` two sums, the disjoint union `⊕g` and the join
+`Algebra/Semiring.lean` gives `IsoGraph` two sums, the disjoint union `⊕g` and the join
 `∇g`, and four products, the cartesian `□g`, tensor `⊗g`, strong `⊠g` and lexicographic `·g` ones.
 `Containment/Defs.lean` gives it nine containment relations.  This file asks, for each of the
 fifty-four pairs, whether the operation is **monotone** in that relation: if `H` sits inside `G`

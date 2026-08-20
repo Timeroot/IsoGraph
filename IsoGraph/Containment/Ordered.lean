@@ -1,13 +1,13 @@
 import IsoGraph.Containment.Algorithms.Cached
 import IsoGraph.Containment.Monotone
 import IsoGraph.Containment.Split
-import IsoGraph.Values.Identities.Semiring
+import IsoGraph.Algebra.Semiring
 
 /-!
 # The ordered algebraic structures
 
 `Containment/Monotone.lean` proves that the sums and products of graphs are monotone in the
-containment relations; `Values/Identities/Semiring.lean` packages those operations as `+` and `*`
+containment relations; `Algebra/Semiring.lean` packages those operations as `+` and `*`
 in a scope apiece, and `Containment/Defs.lean` packages each relation as `≤` in a scope apiece.
 This file is the two of them together: for every pair of scopes that can be opened at once, the
 `Mathlib` class that says the order and the operation agree.
@@ -1418,7 +1418,7 @@ that is `not_mul_cancel`, and its nine instances below, each stated for any oper
 
 That is a defect of the question, not of the products: it is the same one `Nat` has, and the class
 to ask about a multiplication with an absorbing zero is `IsCancelMulZero`, which exempts the zero.
-Three of the four products satisfy it — `Values/Identities/Semiring.lean` has the discussion, with
+Three of the four products satisfy it — `Algebra/Semiring.lean` has the discussion, with
 `□g` and `⊠g` resting on unique prime factorisation, a deep theorem that is not formalized here —
 and the tensor product refutes it outright, at `not_isCancelMulZero_tensorProduct`.  None of this
 touches the ordered-ring classes, which multiply only by positive elements; see `## What is

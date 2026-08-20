@@ -1,4 +1,4 @@
-import IsoGraph.Graphs.Constructions
+import IsoGraph.Core.Defs
 import IsoGraph.ForMathlib.List
 import IsoGraph.ForMathlib.SimpleGraph
 
@@ -409,7 +409,7 @@ adjacent, with the last adjacent back to `u`.  `exists_cycleList_of_isCycle` rea
 cycle, `exists_cycle_of_cycleList` builds the cycle back up, and `le_girth_of_forall_cycleList`
 is the lower bound.  With a precomputed neighbour table (`nbrTable`) the hypotheses of
 `six_le_girth_of_nbrList` and friends are one `native_decide` each, which is how the cubic cages
-of `IsoGraph/Graphs/NamedGraphs.lean` get their girth. -/
+of `IsoGraph/SmallGraphs/Defs/Named.lean` get their girth. -/
 
 theorem exists_cycleList_of_isCycle {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a}
     (hw : w.IsCycle) :

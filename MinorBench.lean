@@ -2,7 +2,7 @@ import IsoGraph.Containment.Algorithms.Contraction
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Subgraph
-import IsoGraph.Graphs.NamedGraphs
+import IsoGraph.SmallGraphs.Defs.Named
 
 /-! Timing driver for the minor search: one case per invocation, named by the first argument,
 with the sizes taken from the arguments after it —

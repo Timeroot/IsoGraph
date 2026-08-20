@@ -464,4 +464,4 @@ theorem IsoGraph.mk_toCGraph (G : IsoGraph) : Quotient.mk _ G.toCGraph = G := by
 -- The invariants of a `CGraph` / `IsoGraph` (`indepNum`, `cliqueNum`, `E`, `degSequence`,
 -- `IsConnected`, `IsAcyclic`, `diameter`, …) live in `IsoGraph/Invariants/Basic.lean`, and the ways
 -- of building graphs (`empty`, `complete`, `path`, products, …) in
--- `IsoGraph/Graphs/Constructions.lean`.
+-- `IsoGraph/Core/Defs.lean`.

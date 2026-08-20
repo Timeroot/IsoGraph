@@ -6,8 +6,8 @@ import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Enum.All
-import IsoGraph.Graphs.Cache
-import IsoGraph.Graphs.NamedGraphs
+import IsoGraph.Cache
+import IsoGraph.SmallGraphs.Defs.Named
 import IsoGraph.Invariants.Symmetry
 
 /-! Head-to-head timing driver for the two ways of tabulating an adjacency matrix, and for the

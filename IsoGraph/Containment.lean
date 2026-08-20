@@ -64,7 +64,7 @@ between them all: it finds the classes of interchangeable vertices of the patter
 search looks at a solution and its relabellings.
 
 `Containment/Monotone.lean` crosses the nine relations with the two sums and four products of
-`Values/Identities/Semiring.lean`: for which of the fifty-four pairs does `H ≤ G` and `H' ≤ G'`
+`Algebra/Semiring.lean`: for which of the fifty-four pairs does `H ≤ G` and `H' ≤ G'`
 give `H op H' ≤ G op G'`?  The four relations that are a map of vertices always do, whatever the
 operation; the minor relations need the branch sets of the product to stay connected, which rules
 out the tensor product; the two that replace an edge by a walk get the two sums, where the walks of

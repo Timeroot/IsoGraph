@@ -10,13 +10,19 @@ canonical representative that is actually computable at useful sizes.
 
 Two engines, each in its own directory — `IsoGraph/Canon/` is the canonical labelling algorithm
 and its correctness proof, `IsoGraph/Enum/` is the enumerator built on top of it — and the graph
-theory proper in three more, one per kind of thing being said: `IsoGraph/Invariants/` *defines*
-the invariants, `IsoGraph/Graphs/` *builds* the graphs, and `IsoGraph/Values/` records what the
-invariants come to on them. Underneath them all is `IsoGraph/ForMathlib/`, which holds the lemmas
-that mention nothing from this development and could be contributed upstream. Only `Basic.lean`,
-`Compute.lean` and `Exhaustion.lean` are left at the root, along with the six index modules
-`ForMathlib.lean`, `Canon.lean`, `Enum.lean`, `Invariants.lean`, `Graphs.lean` and `Values.lean`,
+theory proper in four more, one per kind of thing being said: `IsoGraph/Invariants/` *defines* the
+invariants, `IsoGraph/Core/` builds the graphs everything else is made of and settles the
+invariants on them, `IsoGraph/SmallGraphs/` does the same for the gallery of named graphs, and
+`IsoGraph/Algebra/` treats isomorphism classes as a semiring. Underneath them all is
+`IsoGraph/ForMathlib/`, which holds the lemmas that mention nothing from this development and
+could be contributed upstream. `Basic.lean`, `Compute.lean`, `Cache.lean`, `Spectrum.lean` and
+`Exhaustion.lean` are left at the root, along with the index modules `ForMathlib.lean`,
+`Canon.lean`, `Enum.lean`, `Invariants.lean`, `Core.lean`, `SmallGraphs.lean` and `Algebra.lean`,
 each of which imports its directory.
+
+Both `Core/` and `SmallGraphs/` are split by topic, and in the same order: the definitions, the
+equations between them, then order and size, connectivity, symmetry and colouring. `SmallGraphs/`
+continues past those with a chain of files organised by the family or the operator under study.
 
 | file | what it is | Mathlib? |
 | --- | --- | --- |
@@ -51,25 +57,26 @@ each of which imports its directory.
 | `IsoGraph/Invariants/Derived.lean` | invariants of a derived graph: `edgeChromNum`, `matchNum`, `cliqueCoverNum`, `IsSelfComplementary` | yes |
 | `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
 | `IsoGraph/Invariants/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, decided | yes |
-| `IsoGraph/Graphs/Constructions.lean` | ways of building a `CGraph`, and their invariants | yes |
-| `IsoGraph/Graphs/Quotient.lean` | the same constructions on `IsoGraph`, lifted through the quotient | yes |
-| `IsoGraph/Graphs/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
-| `IsoGraph/Graphs/NamedSmallGraphs.lean` | a name for each of the 143 connected graphs on `n ≤ 6` | yes |
-| `IsoGraph/Graphs/SRG.lean` | a table of strongly regular graphs, parameters checked | yes |
-| `IsoGraph/Graphs/NamedGraphs.lean` | the cubic cages, generalized Petersen graphs, and other named graphs | yes |
-| `IsoGraph/Graphs/NamedSolids.lean` | the Archimedean and Catalan solids | yes |
-| `IsoGraph/Graphs/NamedCages.lean` | the Harries, Harries–Wong, Gray and Foster graphs | yes |
-| `IsoGraph/Graphs/Balaban11Cage.lean` | the Balaban 11-cage, whose girth is the slowest check here | yes |
-| `IsoGraph/Graphs/Tutte12Cage.lean` | the Tutte 12-cage, the largest cubic cage with a name | yes |
-| `IsoGraph/Values/Identities/` | the equations between the constructions, and the tables of their invariants — seventeen modules, indexed by `Identities.lean` | yes |
-| `IsoGraph/Values/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
+| `IsoGraph/Core/Defs.lean` | ways of building a `CGraph`, and the notation for them | yes |
+| `IsoGraph/Core/Quotient.lean` | the same constructions on `IsoGraph`, lifted through the quotient | yes |
+| `IsoGraph/Core/CliqueSum.lean` | gluing two graphs at a vertex or along an edge | yes |
+| `IsoGraph/Core/Identities.lean` | equations between the core constructions, mostly `simp` lemmas | yes |
+| `IsoGraph/Core/Counts.lean` | order, size and degrees of the core constructions | yes |
+| `IsoGraph/Core/Structure.lean` | their connectivity, girth, distance and acyclicity | yes |
+| `IsoGraph/Core/Symmetry.lean` | their automorphisms, transitivity and regularity | yes |
+| `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
+| `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
+| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then seventeen more by family and by operator, indexed by `SmallGraphs.lean` | yes |
+| `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
+| `IsoGraph/Cache.lean` | the memoised adjacency function the searches run on | yes |
+| `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
 | `CacheBench.lean` | timings for the memoised containment searches (`lake exe cachebench`) | no |
 | `Coverage.lean` | the invariant × construction coverage table; writes `invariant_coverage.txt` | no |
-| `atp/` | tooling that handed `Constructions.lean`'s `sorry`s to the Harmonic prover | — |
+| `atp/` | tooling that handed the `Core/` invariant `sorry`s to the Harmonic prover | — |
 
 Toolchain is `leanprover/lean4:v4.28.0` with Mathlib pinned at `v4.28.0` — the rev the prover
 service's base image ships, so the project can be submitted to it without a Mathlib rebuild.
@@ -224,7 +231,7 @@ there. `IsBipartite` is phrased as a
 the form the double-cover splitting theorem consumes — and `isBipartite_iff_colorable` identifies
 it with Mathlib's `Colorable 2`.
 
-`Constructions.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
+`Core/Defs.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
 relation, delete the diagonal), `empty`, `disjUnion` — plus `compl`:
 
 ```
@@ -250,8 +257,9 @@ structure would remove the boilerplate but stop the type being a bare `Fintype`-
 
 This is what the quotient was for. On `CGraph`, `compl (compl G) = G` is *false*: the two sides
 have vertex types `G.V` and `G.V`, but they are two different `CGraph` values that happen to be
-isomorphic. On `IsoGraph` it is an equality, and a `@[simp]` lemma. `Identities.lean` re-exports
-the whole zoo through the quotient and then proves the equations that only become available there.
+isomorphic. On `IsoGraph` it is an equality, and a `@[simp]` lemma. `Core/Quotient.lean`
+re-exports the whole zoo through the quotient, and `Core/Identities.lean` proves the equations
+that only become available there.
 
 Lifted names: `empty`, `complete`, `path`, `cycle`, `bipartite`, `completeMultipartite`, `star`,
 `wheel`, `kneser`, `johnson`, `hypercube`, `foldedCube`, `circulant`, `paley`, `thetaGraph`,
@@ -569,7 +577,7 @@ families.  `CGraph.not_isBipartite_of_triangle` is the pigeonhole on its own —
 adjacent vertices, no numbering involved — which is what `not_isBipartite_complete` now calls, and
 what settles the wheel, whose hub is adjacent to both ends of every rim edge.  Reaching into a
 `join` for that needed adjacency to compute, so `join_adj_inl_inl`, `join_adj_inr_inr`,
-`join_adj_inl_inr` and `join_adj_inr_inl` are `@[simp]` in `Constructions.lean`; the two same-side
+`join_adj_inl_inr` and `join_adj_inr_inl` are `@[simp]` in `Core/Defs.lean`; the two same-side
 ones want the `Sum` disequality supplied by hand, since `simp` will not discharge
 `decide ¬Sum.inl a = Sum.inl c` from `a ≠ c` on its own.  The alternating-colour argument becomes
 `CGraph.not_isBipartite_ofEdges_of_odd_cycle`: an edge list containing an odd cycle through
@@ -725,8 +733,9 @@ pushed forward along `Sum.inl`/`Sum.inr` — prove it injective, and let
 `Fintype.bijective_iff_injective_and_card` supply the inverse from `E (G + H) = E G + E H`. Nobody
 has to write the inverse down, at the cost of the definition being `noncomputable`.
 
-`triangular 4 = cocktailParty 3` — the octahedron — is the one identity here that `SRG.lean` also
-proves, by `native_decide` on the canonical keys. The version in `Identities.lean` is
+`triangular 4 = cocktailParty 3` — the octahedron — is the one identity here that the SRG table
+also proves, by `native_decide` on the canonical keys. The version in
+`SmallGraphs/Identifications.lean` is
 kernel-checkable: `T(4)` is `compl (kneser 4 2)`, `kneser 4 2` is three disjoint edges (a six-point
 `decide` on an explicit `Equiv.ofBijective`), and three uses of the cons rule turn
 `compl (cocktailParty 3)` into the same disjoint union.
@@ -739,8 +748,9 @@ graph exactly when they agree in neither coordinate, which is the tensor product
 
 `circulant n [1] = cycle n` is the one identity that holds already at the level of `CGraph` —
 both sides are `ofRel` on `Fin n`, so it is an equality of graphs, not of isomorphism classes, and
-it lives in `Constructions.lean`. What it costs is the modular arithmetic: for distinct
-`a, b < n`, `(b + n - a) % n = 1 ↔ (a + 1) % n = b`, by trichotomy on `a` versus `b` and a split
+it lives in `SmallGraphs/Defs/Families.lean`. What it costs is the modular arithmetic: for
+distinct `a, b < n`, `(b + n - a) % n = 1 ↔ (a + 1) % n = b`, by trichotomy on `a` versus `b`
+and a split
 on whether `a + 1` wraps. Distinctness is genuinely needed — at `n = 1` the single vertex is its
 own successor but has difference `0`.
 
@@ -847,7 +857,8 @@ cocktail party graph, and the definitional unfoldings for the rook graph, the pr
 Petersen graph. `IsArcTransitive.lineGraph` covers the line graphs, since the arcs of `G` are
 exactly the vertices of `L(G)`.
 
-Strong regularity closes the list. `SRG.lean` builds its table at the `CGraph` level, so the
+Strong regularity closes the list. `SmallGraphs/Values.lean` builds its table at the `CGraph`
+level, so the
 infinite families — the square rook graphs, `K(n, 2)` and `J(n, 2)`, the triangular graphs,
 `K_{n,n}`, the cocktail party graphs and the Paley graphs — get quotient versions through the
 `_def` bridging lemmas, and `IsSRGWith.compl` through `mk_canonicalize`. Being an isomorphism
@@ -876,7 +887,7 @@ to a constant degree sequence gives `IsSRGWith.E_lineGraph` and `E_lineGraph_com
 latter transports along `lineGraph_complete_eq_triangular` to `E_triangular`.
 
 Not every regular graph is strongly regular, and the ones that are not still have constant degree
-sequences. The `SRG.lean` machinery already computes neighbour-set cardinalities for several
+sequences. The SRG machinery already computes neighbour-set cardinalities for several
 families, so `isRegularOfDegree_of_card_nbrs` turns a `∀ v, (G.nbrs v).card = k` into Mathlib's
 `IsRegularOfDegree` and hence into a `replicate` degree sequence. That covers the Kneser graphs
 `K(n, k)` for every `k` and the rectangular rook graphs `m × n`, where the strongly regular
@@ -4160,13 +4171,13 @@ be *very* cheap to pay for itself, and "fewer candidates" is not the same as "fa
 
 ## Names for the small graphs
 
-`NamedSmallGraphs.lean` gives every connected graph on at most six vertices a name — 1, 1, 2, 6,
-21 and 112 of them, 143 in all. Customary names where they exist (`claw`, `paw`, `bull`,
+`SmallGraphs/Defs/Small.lean` gives every connected graph on at most six vertices a name — 1, 1,
+2, 6, 21 and 112 of them, 143 in all. Customary names where they exist (`claw`, `paw`, `bull`,
 `cricket`, `net`, `house`, `gem`, `dart`, `kite`, `domino`, `fish`, `prism3`, `octahedron`,
 `sun3`, …), and constructive ones otherwise, along two conventions: `coX` is the complement of `X`
 (used when `X` is connected), and `K6MinusX` is `K₆` minus the edges of `X` (used when the graph
 has a universal vertex). Each definition is one expression in the constructors of
-`Constructions.lean`, and is an `abbrev` when it is a single constructor call:
+`Core/Defs.lean`, and is an `abbrev` when it is a single constructor call:
 
 ```lean
 abbrev C4        : CGraph := cycle 4
@@ -4196,7 +4207,8 @@ definitions and all six checks, builds in about four seconds.
 
 ## Strongly regular graphs
 
-`SRG.lean` is a table of 28 strongly regular graphs — `(n, k, ℓ, μ)` meaning `n` vertices,
+`SmallGraphs/Defs/SRG.lean` heads a table of 28 strongly regular graphs — `(n, k, ℓ, μ)` meaning
+`n` vertices,
 `k`-regular, `ℓ` common neighbours across an edge and `μ` across a non-edge. Families first
 (`cycle 5`, `bipartite 3 3`, `cocktailParty 4`, `rook m n`, `triangular n`, `kneser 6 2`,
 `foldedCube`, `paley q` up to `Paley(101)`), then the sporadic ones defined in that file:
@@ -4206,7 +4218,7 @@ Chang graphs, Hoffman–Singleton, and the three graphs that come out of the Ste
 `(100, 22, 0, 6)`.
 
 Each row's parameters are a theorem, and whatever can be proved rather than computed, is.
-Six infinite families are settled once and for all in `Constructions.lean`, from
+Six infinite families are settled once and for all in `SmallGraphs/Symmetry.lean`, from
 `isSRGWith_of` — a restatement of strong regularity in terms of `nbrs`, a vertex's neighbours as
 a `Finset`, with no `SimpleGraph` and no `Fintype.card` of a subtype in sight:
 
@@ -4309,9 +4321,9 @@ by incidence. Blocks are stored twice over: as readable six-element lists, and a
 
 ## Cages and other named graphs
 
-`NamedGraphs.lean` is the gallery: the graphs with proper names that are too big for
-`NamedSmallGraphs.lean` and not strongly regular, so miss `SRG.lean` too. Two constructions carry
-most of them — LCF notation, a Hamiltonian cycle plus a periodic list of chords, and the
+`SmallGraphs/Defs/Named.lean` is the gallery: the graphs with proper names that are too big for
+`SmallGraphs/Defs/Small.lean` and not strongly regular, so miss the SRG table too. Two
+constructions carry most of them — LCF notation, a Hamiltonian cycle plus a periodic list of chords, and the
 generalized Petersen graphs `GP(n, k)` — and the rest are edge lists.
 
 | graph | why it is famous |
@@ -4346,9 +4358,9 @@ always an explicit two-colouring: parity of the vertex number for the LCF graphs
 `(i + i / n) % 2` for the bipartite generalized Petersen graphs. Nothing here searches for a
 colouring or a path.
 
-Girth above five needed new machinery. The old ladder in `Identities.lean` was one hand-written
-lemma per length — triangle, square, pentagon — and stops there, so `Identities.lean` now states
-the rung once, at every length, in terms of *cycle lists*: a list `u :: vs` of distinct vertices,
+Girth above five needed new machinery. The old ladder was one hand-written lemma per length —
+triangle, square, pentagon — and stops there, so `Invariants/Certificates.lean` states the rung
+once, at every length, in terms of *cycle lists*: a list `u :: vs` of distinct vertices,
 consecutive ones adjacent, with the last adjacent back to `u`.
 
 ```lean
@@ -4594,7 +4606,7 @@ theorem eigenvalue_eq_of_isSRGWith {G : CGraph} [DecidableEq G.V] {n k l m : ℕ
       ∨ x = (((l : ℝ) - m) - Real.sqrt (((l : ℝ) - m) ^ 2 + 4 * ((k : ℝ) - m))) / 2
 ```
 
-so the twenty-eight graphs of `SRG.lean` all have three-element spectra with known values. The
+so the twenty-eight graphs of the SRG table all have three-element spectra with known values. The
 multiplicities are fixed by the same two moments. Applying the matrix identity to the all-ones
 vector gives the parameter identity `k² = k + ℓ k + μ (n - 1 - k)` — `sq_degree_of_isSRGWith`,
 stated over `ℝ` so that none of the subtractions truncate — and rearranged it reads
@@ -4673,7 +4685,7 @@ theorem int_or_conference_of_isSRGWith {G : CGraph} [DecidableEq G.V] [Nonempty 
 Feeding it the two roots of the quadratic gives the textbook form,
 `isSquare_discrim_or_conference_of_isSRGWith`: the discriminant `(ℓ - μ)² + 4 (k - μ)` is a
 perfect square, unless the parameters are of *conference* type. Both branches occur among the
-graphs of `SRG.lean`: the Paley graphs are conference graphs, while every other family in the
+graphs of the SRG table: the Paley graphs are conference graphs, while every other family in the
 table has a square discriminant and integer eigenvalues. This is the condition that rules out
 most candidate parameter sets, and it is the reason the search for Moore graphs of degree `57` is
 a search rather than a construction.
@@ -5414,7 +5426,7 @@ long enough to be even. The ladder `Pₙ □ K₂` needs no such hypothesis: `la
 `2 cos (π / (n + 2)) + 1` and `lambdaMin_ladder` is its negative, because the path factor is
 bipartite whatever its length. The hypercube is the same story a section later: `lambdaMax_hypercube` is
 `n` and `lambdaMin_hypercube` is `-n`, off the spectrum `n - 2j` with multiplicity `C(n, j)`. That
-one sits at the very end of `IsoGraph/Values/Spectrum.lean`, after `end IsoGraph`, because
+one sits at the very end of `IsoGraph/Spectrum.lean`, after `end IsoGraph`, because
 `hypercube_succ` is an isomorphism rather than an equality, so the induction computing `Q n`'s
 spectrum has to run at the isomorphism level and be transported back.
 
@@ -5647,7 +5659,7 @@ of one — are a convenience rather than part of the definition.
 Both predicates are decidable, by enumerating the `n!` permutations of the vertex type. That is
 fine for a sanity check at four vertices and useless past seven. Two things replace it: for
 individual graphs, the automorphism-group search of the next section; for the families, a
-structural proof in `Constructions.lean`: `isVertexTransitive_complete`,
+structural proof in `Core/Symmetry.lean`: `isVertexTransitive_complete`,
 `isArcTransitive_complete`, `isVertexTransitive_cayleyAdd` (right translation),
 `isVertexTransitive_hypercube` and `isVertexTransitive_foldedCube` (add a fixed bit-string), and
 for cycles both `isVertexTransitive_cycle` and `isArcTransitive_cycle` — rotations `x ↦ x + d`
@@ -5676,7 +5688,7 @@ And `isVertexTransitive_lineGraph` turns arc-transitivity of `G` into vertex-tra
 `lineGraph G`: an automorphism of `G` permutes its edges (`edgePerm`, hence `lineGraphAuto`), and
 an arc `(u, v) ↦ (u', v')` carries the edge `s(u, v)` to `s(u', v')`.
 
-The payoff is in `NamedSmallGraphs.lean`, where six graphs get their natural definitions:
+The payoff is in `SmallGraphs/Defs/Small.lean`, where six graphs get their natural definitions:
 
 ```lean
 abbrev paw     : CGraph := oneCliqueSum K3 K2    abbrev diamond : CGraph := twoCliqueSum K3 K3
@@ -5862,8 +5874,9 @@ invisible against an `Ω(n²)` search.
 `labellingInvariant`, `canonAdj_relabel` and `exists_relabel_of_canonAdj_eq`.
 
 The exceptions are the computational checks, which are deliberate: everything proved by
-`native_decide` — `Compute.lean`, the enumeration identities of `NamedSmallGraphs.lean`, the
-five large sporadic parameter checks and the non-isomorphism theorems of `SRG.lean` — additionally uses `Lean.ofReduceBool` and
+`native_decide` — `Compute.lean`, the enumeration identities of `SmallGraphs/Defs/Small.lean`,
+the five large sporadic parameter checks and the non-isomorphism theorems of the SRG table —
+additionally uses `Lean.ofReduceBool` and
 `Lean.trustCompiler`, i.e. trusts the compiler. It has to: `canonAdj` is well-founded recursion over
 `Array`, which the kernel will not reduce.
 
@@ -5983,8 +5996,8 @@ back out of the packed certificate, which is `LabellingInvariant`.
 
 ### Notes
 
-`Constructions.lean`'s second half — 41 statements pinning down the invariants of every
-construction, from `indepNum_empty` up to `E_mycielskian` and the four products — was closed by
+The invariant lemmas of `Core/` — 41 statements pinning down the invariants of every
+construction, from `indepNum_empty` up to `E_mycielskian` and the four products — were closed by
 the Harmonic `sorry`-closing prover rather than by hand; `atp/` holds the tooling that submitted
 them and spliced the results back. Those proofs are machine-written: long, explicit, and
 un-golfed. They are checked, not pretty.

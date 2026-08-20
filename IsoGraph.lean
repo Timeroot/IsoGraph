@@ -4,7 +4,10 @@ import IsoGraph.Basic
 import IsoGraph.Compute
 import IsoGraph.Enum
 import IsoGraph.Invariants
-import IsoGraph.Graphs
-import IsoGraph.Values
+import IsoGraph.Cache
+import IsoGraph.Core
+import IsoGraph.SmallGraphs
+import IsoGraph.Algebra
+import IsoGraph.Spectrum
 import IsoGraph.Containment
 import IsoGraph.Exhaustion

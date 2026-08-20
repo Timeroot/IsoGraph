@@ -1,6 +1,6 @@
 import IsoGraph.Canon.Group
 import IsoGraph.Canon.Transitive
-import IsoGraph.Graphs.Cache
+import IsoGraph.Cache
 import IsoGraph.Invariants.Basic
 
 /-!

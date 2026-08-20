@@ -30,7 +30,7 @@ quotient orders are the two that do not split, and they are also the two where t
 does not cancel.
 
 The construction the cut needs is `CGraph.induce G s`, the subgraph of `G` on the vertices where
-`s` is true, on the subtype `{v // s v}`.  It is not in `Graphs/Constructions.lean` with the rest
+`s` is true, on the subtype `{v // s v}`.  It is not in `Core/Defs.lean` with the rest
 of the constructions because it cannot follow them to `IsoGraph`: its second argument is a
 predicate on the vertices of *this* representative, and an isomorphism class has no vertices.  It
 comes with the two isomorphisms that make it useful here — `Iso.induceSplit`, which is the

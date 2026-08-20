@@ -5,7 +5,7 @@ import IsoGraph.Containment.Algorithms.InducedSubgraph
 import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.TopMinor
-import IsoGraph.Graphs.Cache
+import IsoGraph.Cache
 
 /-!
 # The containment searches, on tabulated copies of both graphs

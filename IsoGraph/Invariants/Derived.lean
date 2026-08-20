@@ -1,11 +1,11 @@
-import IsoGraph.Graphs.Quotient
+import IsoGraph.Core.Quotient
 
 /-!
 # The invariants that are read off another graph
 
 `Invariants/Basic.lean` defines the invariants that are computed from a graph directly.  Three
 more are computed from a graph *built* out of it, so they have to wait until the constructions of
-`Graphs/Constructions.lean` are in hand — but they are invariants, not identities, and this is
+`Core/Defs.lean` are in hand — but they are invariants, not identities, and this is
 where they belong.
 
 | invariant | is | notation |
@@ -26,7 +26,7 @@ number.  On the quotient it is an equation, `Gᶜ = G`, which is why it needs no
 
 The bounds relating all four to the rest of the invariants — `Δ ≤ χ'`, `χ' ≤ 2Δ - 1`, Gallai in
 the line graph, `α ≤ θ`, the vertex counts forced on a self-complementary graph — are in
-`Values/Identities/Bounds.lean`, with the other bounds.
+`SmallGraphs/Bounds.lean`, with the other bounds.
 -/
 
 set_option autoImplicit false

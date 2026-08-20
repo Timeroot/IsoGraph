@@ -1,4 +1,4 @@
-import IsoGraph.Graphs.Quotient
+import IsoGraph.Core
 import IsoGraph.Invariants.Basic
 
 /-!

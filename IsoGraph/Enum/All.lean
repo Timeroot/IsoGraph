@@ -1,4 +1,4 @@
-import IsoGraph.Graphs.Constructions
+import IsoGraph.Core.Defs
 import Mathlib.Data.List.Sort
 import Mathlib.Data.Fintype.Perm
 import IsoGraph.ForMathlib.Bits
