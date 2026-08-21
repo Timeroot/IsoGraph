@@ -1,5 +1,6 @@
 import IsoGraph.Invariants.Basic
 import IsoGraph.Invariants.Derived
+import IsoGraph.Invariants.Fractional
 import IsoGraph.Invariants.Connectivity
 import IsoGraph.Invariants.Hamiltonian
 import IsoGraph.Invariants.Certificates
@@ -18,6 +19,13 @@ the attribute lifts it to `IsoGraph`.
 chromatic index and the matching number from the line graph, the clique cover number from the
 complement — together with self-complementarity, which on the quotient is the equation `Gᶜ = G`.
 They come after the constructions rather than with the rest, because they need them.
+
+`Invariants/Fractional.lean` relaxes two of them.  The fractional independence and chromatic
+numbers are the values of linear programs, so they are real rather than natural numbers, and they
+sit between the integer invariants they relax: `α ≤ α_f ≤ θ` and `ω ≤ χ_f ≤ χ`.  Being linear
+programs they are far cheaper to certify than the things they bound, which is what
+`IsoGraph/Fractional.lean` — the tactics `compute_fractional_indepNum` and
+`compute_fractional_chromNum`, and a fast path for `graph_sat` — is for.
 
 `Invariants/Connectivity.lean` and `Invariants/Hamiltonian.lean` add the three invariants that
 Mathlib does not have at all: the edge connectivity, the vertex connectivity and Hamiltonicity.

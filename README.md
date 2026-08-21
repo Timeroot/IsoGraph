@@ -16,8 +16,8 @@ invariants on them, `IsoGraph/SmallGraphs/` does the same for the gallery of nam
 `IsoGraph/Algebra/` treats isomorphism classes as a semiring, and `IsoGraph/Containment/` orders
 them by what sits inside what. Underneath them all is `IsoGraph/ForMathlib/`, which holds the
 lemmas that mention nothing from this development and could be contributed upstream.
-`Basic.lean`, `Compute.lean`, `Cache.lean`, `Spectrum.lean`, `Exhaustion.lean` and `Sat.lean` are
-left at the root, along with the index modules `ForMathlib.lean`, `Canon.lean`, `Enum.lean`,
+`Basic.lean`, `Compute.lean`, `Cache.lean`, `Spectrum.lean`, `Exhaustion.lean`, `Sat.lean` and
+`Fractional.lean` are left at the root, along with the index modules `ForMathlib.lean`, `Canon.lean`, `Enum.lean`,
 `Invariants.lean`, `Core.lean`, `SmallGraphs.lean`, `Algebra.lean` and `Containment.lean`, each of
 which imports its directory.
 
@@ -78,6 +78,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
 | `IsoGraph/Sat.lean` | `graph_sat`: bounds on `α`, `ω`, `χ`, `ν`, `χ'` and `θ` handed to a SAT solver through `bv_decide` | yes |
+| `IsoGraph/Fractional.lean` | `compute_fractional_indepNum` and `compute_fractional_chromNum`: the linear relaxations, solved by an exact simplex in the elaborator, and a fast path for `graph_sat` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
@@ -6091,6 +6092,153 @@ theorem chromNum_le_of_colouring {G : CGraph} {k : ℕ} (c : G.V → Fin k)
 the tactic that is both halves of a value, the six `*Values.lean` leaves are what that buys:
 `α, ω, χ, χ'` for forty-four of the gallery graphs and for every connected graph on at most six
 vertices, seven hundred and fourteen values.
+
+## The fractional relaxations
+
+Two of those invariants are the answers to integer programs, and dropping the integrality gives a
+linear program that a simplex settles exactly, in rationals, in milliseconds.
+`Invariants/Fractional.lean` defines the relaxations and proves what they bound; `Fractional.lean`
+computes them.
+
+The fractional independence number of `G` is the value of
+
+    maximise ∑ x v   subject to   x ≥ 0 and ∑_{v ∈ K} x v ≤ 1 for every clique K,
+
+a supremum of rational objective values and so a real number:
+
+```lean
+def IsFracIndep (x : G.V → ℚ) : Prop :=
+  (∀ v, 0 ≤ x v) ∧ ∀ K : Finset G.V, G.IsCliqueOn K → ∑ v ∈ K, x v ≤ 1
+
+noncomputable def fracIndepNum : ℝ := sSup G.fracIndepVals
+noncomputable def fracChromNum : ℝ := Gᶜ.fracIndepNum
+```
+
+The indicator of an independent set is feasible, and a colouring of `Gᶜ` — that is, a partition of
+`G` into cliques — bounds any feasible `x` from above, which is the four inequalities the file
+exists for:
+
+| | |
+| --- | --- |
+| `indepNum_le_fracIndepNum` | `α(G) ≤ α_f(G)` |
+| `fracIndepNum_le_cliqueCoverNum` | `α_f(G) ≤ θ(G)` |
+| `cliqueNum_le_fracChromNum` | `ω(G) ≤ χ_f(G)` |
+| `fracChromNum_le_chromNum` | `χ_f(G) ≤ χ(G)` |
+
+The constraints are over *cliques*, not edges, and that is forced: the edge-constrained program is
+unbounded on an edgeless graph, so as a definition of `χ_f` it would sit above `χ` rather than
+below it. Defining `χ_f(G)` as `α_f(Gᶜ)` is the fractional *clique* number of `G`; that it is also
+the least fractional cover of `G` by independent sets is LP duality, which is not proved here —
+`fracCliqueCoverNum` is defined and related to `α_f` by weak duality only, which is the direction
+that follows from summing.
+
+Both directions of a value come from a certificate, and the two are not symmetric. An upper bound
+is a fractional clique cover — the dual solution, which the simplex hands over with support at
+most `|V|`, and whose check is one sum per vertex. A lower bound is a single weighting, but
+checking it feasible means checking *every* clique, so the search is cut down to the subsets of
+size at most `w` given `ω(G) ≤ w`. Scaling both by the common denominator makes every side
+condition a statement about natural numbers, which is what lets `decide` do the checking:
+
+```lean
+theorem fracIndepNum_le_of_natCover {m d s : ℕ} (hd : 0 < d) (K : Fin m → Finset G.V)
+    (a : Fin m → ℕ) (hs : ∑ i, a i = s) (hK : ∀ i, a i ≠ 0 → G.IsCliqueOn (K i))
+    (hcov : ∀ v : G.V, d ≤ ∑ i, if v ∈ K i then a i else 0) :
+    G.fracIndepNum ≤ (s : ℝ) / (d : ℝ)
+
+theorem le_fracIndepNum_of_natWeights {d w s : ℕ} (hd : 0 < d) (b : G.V → ℕ)
+    (hs : ∑ v, b v = s) (hw : G.cliqueNum ≤ w)
+    (h : ∀ k ≤ w, ∀ K ∈ Finset.powersetCard k (Finset.univ : Finset G.V),
+      G.IsCliqueOn K → ∑ v ∈ K, b v ≤ d) :
+    (s : ℝ) / (d : ℝ) ≤ G.fracIndepNum
+```
+
+The tactics run the program and add the value to the context, `linarith` closing the two halves
+into an equation:
+
+```lean
+example : (cycle 5).fracIndepNum = 5 / 2 := by
+  compute_fractional_indepNum (cycle 5)
+  exact h_fα
+
+example : petersen.fracChromNum = 5 / 2 := by
+  compute_fractional_chromNum native petersen
+  exact h_fχ
+```
+
+That second one is `χ_f(K(n, k)) = n/k` for the Petersen graph, the fact the chromatic number of a
+Kneser graph is read off. `compute_fractional_chromNum` is `compute_fractional_indepNum` on the
+complement and nothing else; `native` swaps `decide` for `native_decide` in the side conditions,
+as in `graph_sat`, and the complement is usually where that becomes necessary — its adjacency is a
+conjunction with a disequality, and on `Finset` vertices the kernel is very slow on those. The
+same computation that finishes in a few seconds with `native` did not finish in fifteen minutes
+without it.
+
+The elaborator does the arithmetic: Bron–Kerbosch with pivoting for the maximal cliques — a
+constraint on a clique inside another is implied by it, so only the maximal ones are needed — and
+a tableau simplex over `ℚ` with Bland's rule. The slack basis is feasible to begin with, every
+right-hand side being 1, so there is no phase one; the primal solution is read off the basic
+columns and the dual off the slack entries of the objective row. `Solution.valid` then checks both
+for feasibility and for equal objective value before a single piece of syntax is emitted. None of
+this is trusted — the worst a bug in the simplex can do is produce a certificate that fails to
+typecheck.
+
+Being a bound on `α` that is cheap to establish, the relaxation is also worth trying *before* the
+SAT search: if the program says `α_f(G) ≤ 5/2` then `α(G) ≤ 2`, by integrality, with no search at
+all. That is a second elaborator for the `graph_sat` syntax, tried first, and standing aside — the
+goal falls through to CaDiCaL — when the relaxation is too weak, the program too big, or the
+certificate not worth its cost:
+
+```lean
+example : (cycle 5).indepNum ≤ 2 := by graph_sat native   -- α_f = 5/2, no SAT call
+example : (cycle 5).cliqueNum ≤ 2 := by graph_sat native  -- χ_f = 5/2, likewise
+example : 2 < (cycle 5).chromNum := by graph_sat native   -- χ_f > 2, and `ω = 2` would not do it
+example : petersen.indepNum ≤ 4 := by graph_sat native    -- α_f = 5: this one is CaDiCaL's
+```
+
+`set_option trace.graph_sat.frac true` says which way each one went, and what the program cost:
+
+```
+[graph_sat.frac] 14 vertices, 21 cliques: 9 ms reading, 5 ms solving
+[graph_sat.frac] closing the goal with the fractional bound 7
+[graph_sat.frac] the relaxation gives only 5; leaving it to the SAT search
+[graph_sat.frac] the certificate would cost more than the search; leaving it to SAT
+```
+
+The `χ` direction is the one that earns its keep, because `χ_f` sees things `ω` does not — `C₅` and
+the Kneser graphs are exactly the standard examples — but it is also the expensive one, since it
+needs the *primal* certificate on the complement, and it needs `ω(Gᶜ) ≤ w` first, which it gets by
+calling `graph_sat` recursively. The `α` direction is where the relaxation is weakest: the clique
+constraints of a triangle-free graph are its edges, so any such graph with a perfect fractional
+matching has `α_f = n/2` and the bound is a whole unit or more above the truth. That is why
+`petersen.indepNum ≤ 4` (`α_f = 5`) and Erdős–Ko–Rado for `K(7, 3)` (`α = 15`, `α_f = 35/2`) are
+still the solver's. Erdős–Ko–Rado is not an LP fact.
+
+Where it pays is where the graph *is* one of those triangle-free ones and the bound being asserted
+is exactly `n/2`. The bipartite cages have `α = n/2 = α_f`, so every `le_antisymm (by graph_sat
+native) ?_` over Heawood, Möbius–Kantor, Pappus, Desargues, Folkman, Nauru, Tutte–Coxeter and Dyck
+is settled by a cover certificate with no search at all. On this machine
+`SmallGraphs/CageValues.lean`, twenty-three such calls, builds in **41 s** with the fast path and
+**53 s** without it (63 s against 89 s of CPU).
+
+Two things bound how much further that goes, and both are the certificate rather than the program.
+The program is milliseconds — the 54-vertex Gray graph is 166 ms to read and 89 ms to solve. What
+is expensive is elaborating one `Finset` literal per clique of the cover and checking the two sums
+over them: on the Gray graph that had not finished after five minutes, where `graph_sat` alone
+refutes the same bound in fifteen seconds. And on the kernel it is expensive even when the graph
+is small, so the fast path fires only on `graph_sat native` and only up to forty vertices and
+sixty-four cliques. That is `worthACertificate`, and it is deliberately narrow: getting it wrong
+costs time, never soundness, but time is the whole point of the exercise. Files like
+`SmallGraphs/ConnectedValues.lean`, whose 272 calls are plain `graph_sat`, are untouched by it.
+
+`set_option graph_sat.frac false` turns the fast path off, per file or per section. What makes it
+reach the gallery at all is one import: `SmallGraphs/EdgeColourings.lean`, the file that first
+brings `graph_sat` into the gallery's chain, imports `IsoGraph.Fractional` rather than
+`IsoGraph.Sat`, and everything downstream inherits it.
+
+The caps are arbitrary and deliberate: 200 vertices and 800 maximal cliques for the entry points,
+300 in the fast path, and the primal half is skipped when `∑_{k ≤ w} (n choose k)` exceeds 20000 —
+in which case `compute_fractional_indepNum` adds `α_f(G) ≤ q` rather than the equation, since the
+upper bound is the half that is always affordable.
 
 ## Writing it so it can be proved
 

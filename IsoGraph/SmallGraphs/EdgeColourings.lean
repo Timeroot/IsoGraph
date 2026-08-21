@@ -1,5 +1,7 @@
 import IsoGraph.SmallGraphs.Extremal
-import IsoGraph.Sat
+-- `Fractional` re-exports `Sat`; importing it here is what puts the fractional fast path in
+-- front of `graph_sat` for the whole gallery downstream of this file.
+import IsoGraph.Fractional
 
 /-!
 # Edge colourings

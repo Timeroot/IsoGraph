@@ -461,15 +461,16 @@ private def natOf (e : Expr) : MetaM (Option ℕ) := do
   return none
 
 /-- The invariant a goal is about, together with its graph and the bound. -/
-private inductive Shape
+inductive Shape
   | indep (G : Expr) (n : ℕ)
   | clique (G : Expr) (n : ℕ)
   | chrom (G : Expr) (k : ℕ)
 
 /-- Recognise a bound on one of the six invariants, on either level.  The three derived ones are
 *definitionally* the invariant of another graph — `χ'` and `ν` of the line graph, `θ` of the
-complement — so recognising them is a matter of handing the search that graph instead. -/
-private def shapeOf (tgt : Expr) : MetaM (Option Shape) := do
+complement — so recognising them is a matter of handing the search that graph instead.  Shared
+with the fractional fast path in `IsoGraph/Fractional.lean`, which recognises the same goals. -/
+def shapeOf (tgt : Expr) : MetaM (Option Shape) := do
   let asCGraph (e : Expr) : MetaM (Option Expr) := do
     if (← inferType e).isAppOf ``CGraph then return some e else repOfIsoGraph e
   let lineGraphOf (G : Expr) : Expr := mkApp (.const ``CGraph.lineGraph []) G

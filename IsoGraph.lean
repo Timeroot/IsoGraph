@@ -12,3 +12,4 @@ import IsoGraph.Spectrum
 import IsoGraph.Containment
 import IsoGraph.Exhaustion
 import IsoGraph.Sat
+import IsoGraph.Fractional
