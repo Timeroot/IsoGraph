@@ -790,6 +790,11 @@ theorem exists_edgeColouring {G : CGraph} {k : ℕ}
 
 end
 
+/-- **`Δ ≤ χ'`**: the edges at a vertex of maximum degree pairwise conflict, so they are a clique
+of the line graph. -/
+theorem maxDeg_le_edgeChromNum (G : CGraph) : G.maxDeg ≤ G.edgeChromNum :=
+  le_trans G.maxDeg_le_cliqueNum_lineGraph (cliqueNum_le_chromNum _)
+
 end CGraph
 
 namespace IsoGraph

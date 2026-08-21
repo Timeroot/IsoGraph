@@ -70,7 +70,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Symmetry.lean` | their automorphisms, transitivity and regularity | yes |
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
-| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then eighteen more by family and by operator, indexed by `SmallGraphs.lean` | yes |
+| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty more by family and by operator, indexed by `SmallGraphs.lean` | yes |
 | `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
 | `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
@@ -4461,6 +4461,20 @@ and the other side is an independent set, a clique or a colouring found by machi
 graph with a vertex blown up into a triangle, and the Robertson graph is the `(4, 5)`-cage with
 `χ' = Δ + 1` — which is the direction no case split reaches.
 
+Thirty more follow in `SmallGraphs/SolidValues.lean` and `SmallGraphs/CageValues.lean`, a hundred
+and twenty values in the same style: the solids from the truncated tetrahedron up to the rhombic
+triacontahedron in the first, and the cages and small named cubic graphs — Moser spindle,
+Herschel, Franklin, Frucht, Dürer, Bidiakis, Heawood, Möbius–Kantor, Pappus, Desargues, Folkman,
+McGee, Nauru, Holt, Coxeter, Tutte–Coxeter, Dyck — in the second. Only the independence numbers
+need the solver in every case. The rest of the refutations go to the library first: a graph of
+girth other than three has `ω = 2` by `cliqueNum_le_two_of_girth_ne_three`, a bipartite one has
+`χ = 2` by `chromNum_eq_two_iff`, a non-bipartite one has `χ ≥ 3` by `three_le_chromNum`, a graph
+with a `K_ω` has `χ ≥ ω` by `cliqueNum_le_chromNum`, and every graph has `χ' ≥ Δ` by
+`maxDeg_le_edgeChromNum`. That leaves `graph_sat` the thirty independence numbers, the twelve
+clique numbers of the graphs that do have a triangle, the three graphs that need four colours —
+the Moser spindle, the icosahedron and the pentakis dodecahedron — and the one graph of the thirty
+that is class two, the Holt graph, whose odd order rules out a four-edge-colouring.
+
 ## What sits inside what
 
 `SmallGraphs/Substructure.lean` crosses the gallery with the nine containment relations of
@@ -6036,8 +6050,8 @@ theorem chromNum_le_of_colouring {G : CGraph} {k : ℕ} (c : G.V → Fin k)
 ```
 
 — a list of vertices or a table of colours, with side conditions `decide` settles. Together with
-the tactic that is both halves of a value, and `SmallGraphs/SatValues.lean` is what that buys:
-`α, ω, χ, χ'` for the Chvátal, Tietze and Robertson graphs, twelve values in one file.
+the tactic that is both halves of a value, the three `*Values.lean` leaves are what that buys:
+`α, ω, χ, χ'` for thirty-three of the gallery graphs, a hundred and thirty-two values.
 
 ## Writing it so it can be proved
 

@@ -209,27 +209,27 @@ V                   S    S    S    S    S    .    .    S    .    .    S    S
 algConn             .    .    .    .    .    .    .    .    .    .    T    .    
 autCount            .    S    b    b    b    .    .    .    .    .    S    t    
 charpoly            .    ~S   .    .    .    .    .    .    .    .    .    .    
-chromNum            T    S    S    T    S    .    .    S    .    .    S    s    
+chromNum            T    S    S    T    S    .    ~s   S    .    .    S    s    
 cliqueCount         S    S    .    S    .    .    .    S    .    .    S    .    
 cliqueCoverNum      T    S    S    T    S    .    .    T    .    .    S    t    
-cliqueNum           T    S    S    T    S    .    .    S    .    .    S    s    
+cliqueNum           T    S    S    T    S    .    ~s   S    .    .    S    s    
 comps               .    .    .    .    .    .    .    .    .    .    .    .    
 coverNum            T    S    S    T    S    .    .    T    .    .    S    T    
 degMultiset         .    S    .    .    .    .    .    S    .    .    .    .    
 degSequence         .    S    S    T    S    .    .    .    .    .    S    S    
 diameter            T    S    S    S    S    .    .    T    .    .    S    T    
 domNum              T    S    S    b    S    .    .    T    .    .    t    s    
-edgeChromNum        T    S    b    b    T    .    .    T    .    .    T    s    
+edgeChromNum        T    S    b    b    T    .    ~s   T    .    .    T    s    
 edgeConn            .    S    .    .    .    .    .    .    .    .    .    .    
 energy              .    ~S   .    .    .    .    .    .    .    .    .    .    
 girth               T    S    S    T    S    .    ~s   T    .    .    S    T    
 indepCount          .    S    .    .    .    .    .    .    .    .    .    .    
-indepNum            T    S    S    T    S    .    .    T    .    .    S    s    
+indepNum            T    S    S    T    S    .    ~s   T    .    .    S    s    
 lapCharpoly         .    .    .    .    .    .    .    .    .    .    .    .    
 lapLambdaMax        .    ~T   .    .    .    .    .    .    .    .    T    .    
 lapSpectrum         .    S    .    .    .    .    .    .    .    .    T    .    
 matchNum            T    S    S    T    T    .    .    T    .    .    S    t    
-maxDeg              T    S    S    T    S    .    .    T    .    .    S    S    
+maxDeg              T    S    S    T    S    .    ~s   T    .    .    S    S    
 minDeg              T    S    S    S    S    .    .    T    .    .    S    S    
 numComponents       T    S    S    T    S    .    .    T    .    .    S    S    
 radius              T    S    S    S    S    .    .    T    .    .    S    S    
@@ -266,27 +266,27 @@ V                   S    S    .    .    S    .    S    .    S    S    S    S
 algConn             ~t   T    .    .    .    .    ~T   .    T    .    T    ~T   
 autCount            T    b    .    .    t    .    b    .    b    S    b    b    
 charpoly            .    .    .    .    .    .    .    .    .    .    .    .    
-chromNum            T    S    .    .    T    .    b    .    S    S    S    S    
+chromNum            T    S    ~s   .    T    .    b    .    S    S    S    S    
 cliqueCount         .    S    .    .    .    .    .    .    S    S    S    .    
 cliqueCoverNum      T    S    .    .    s    .    b    .    S    S    S    S    
-cliqueNum           T    S    .    .    T    .    b    .    S    S    S    S    
+cliqueNum           T    S    ~s   .    T    .    b    .    S    S    S    S    
 comps               .    .    .    .    .    .    .    .    .    .    .    .    
 coverNum            S    S    .    .    s    .    b    .    S    S    S    S    
 degMultiset         .    .    .    .    .    .    .    .    S    S    .    .    
 degSequence         S    T    .    .    t    .    T    .    S    S    S    S    
 diameter            T    S    .    .    s    .    T    .    S    S    S    S    
 domNum              T    b    .    .    s    .    b    .    S    S    b    S    
-edgeChromNum        S    T    .    .    s    .    t    .    S    S    T    T    
+edgeChromNum        S    T    ~s   .    s    .    t    .    S    S    T    T    
 edgeConn            .    .    .    .    .    .    .    .    S    S    .    .    
 energy              ~t   .    .    .    .    .    .    .    .    .    .    .    
 girth               T    S    ~s   .    T    .    T    .    S    S    S    T    
 indepCount          .    .    .    .    .    .    .    .    .    .    .    .    
-indepNum            T    S    .    .    s    .    b    .    S    S    S    S    
+indepNum            T    S    ~s   .    s    .    b    .    S    S    S    S    
 lapCharpoly         .    .    .    .    .    .    .    .    .    .    .    .    
 lapLambdaMax        ~t   T    .    .    .    .    ~T   .    T    .    T    ~T   
 lapSpectrum         ~t   T    .    .    .    .    ~T   .    T    .    T    ~T   
 matchNum            S    S    .    .    s    .    S    .    S    S    S    T    
-maxDeg              T    S    .    .    T    .    T    .    S    S    S    S    
+maxDeg              T    S    ~s   .    T    .    T    .    S    S    S    S    
 minDeg              T    S    .    .    T    .    T    .    S    S    S    S    
 numComponents       T    S    .    .    T    .    T    .    S    S    S    S    
 radius              T    S    .    .    s    .    T    .    S    S    S    S    
@@ -411,7 +411,7 @@ tensorProduct (22/42 missing)
   foldedCube              25/42
   friendship              26/42
   gewirtz                 1/42
-  gp                      6/42
+  gp                      11/42
   grotzsch                25/42
   higmanSims              1/42
   hoffmanSingleton        1/42
@@ -419,7 +419,7 @@ tensorProduct (22/42 missing)
   johnson                 27/42
   kneser                  32/42
   ladder                  31/42
-  lcf                     6/42
+  lcf                     11/42
   linesOnCubic            1/42
   lollipop                25/42
   m22                     1/42
@@ -935,11 +935,13 @@ tensorProduct (22/42 missing)
   S   chromNum            fan                   chromNum_fan
   T   chromNum            foldedCube            chromNum_foldedCube_odd
   S   chromNum            friendship            chromNum_friendship
+  ~s  chromNum            gp                    NamedGraphs.chromNum_dodecahedron
   S   chromNum            grotzsch              chromNum_grotzsch
   S   chromNum            hypercube             chromNum_hypercube
   s   chromNum            johnson               chromNum_johnson_two_odd
   T   chromNum            kneser                chromNum_kneser_of_lt
   S   chromNum            ladder                chromNum_ladder
+  ~s  chromNum            lcf                   NamedGraphs.chromNum_heawood
   T   chromNum            lollipop              chromNum_lollipop
   b   chromNum            paley                 chromNum_paley_seventeen_le
   S   chromNum            path                  chromNum_path
@@ -1037,11 +1039,13 @@ tensorProduct (22/42 missing)
   S   cliqueNum           fan                   cliqueNum_fan
   T   cliqueNum           foldedCube            cliqueNum_foldedCube
   S   cliqueNum           friendship            cliqueNum_friendship
+  ~s  cliqueNum           gp                    NamedGraphs.cliqueNum_durer
   S   cliqueNum           grotzsch              cliqueNum_grotzsch
   S   cliqueNum           hypercube             cliqueNum_hypercube
   s   cliqueNum           johnson               cliqueNum_johnson_two
   T   cliqueNum           kneser                cliqueNum_kneser_of_lt
   S   cliqueNum           ladder                cliqueNum_ladder
+  ~s  cliqueNum           lcf                   NamedGraphs.cliqueNum_franklin
   T   cliqueNum           lollipop              cliqueNum_lollipop
   b   cliqueNum           paley                 cliqueNum_paley_seventeen_le
   S   cliqueNum           path                  cliqueNum_path
@@ -1248,11 +1252,13 @@ tensorProduct (22/42 missing)
   b   edgeChromNum        fan                   le_edgeChromNum_fan
   b   edgeChromNum        foldedCube            le_edgeChromNum_foldedCube
   T   edgeChromNum        friendship            edgeChromNum_friendship
+  ~s  edgeChromNum        gp                    NamedGraphs.edgeChromNum_desargues
   T   edgeChromNum        grotzsch              edgeChromNum_grotzsch
   T   edgeChromNum        hypercube             edgeChromNum_hypercube
   s   edgeChromNum        johnson               edgeChromNum_johnson_one
   S   edgeChromNum        kneser                edgeChromNum_kneser_of_lt
   T   edgeChromNum        ladder                edgeChromNum_ladder
+  ~s  edgeChromNum        lcf                   NamedGraphs.edgeChromNum_dyck
   s   edgeChromNum        lollipop              edgeChromNum_lollipop_one
   t   edgeChromNum        paley                 edgeChromNum_paley_thirteen
   S   edgeChromNum        path                  edgeChromNum_path
@@ -1351,11 +1357,13 @@ tensorProduct (22/42 missing)
   S   indepNum            fan                   indepNum_fan
   T   indepNum            foldedCube            indepNum_foldedCube_odd
   S   indepNum            friendship            indepNum_friendship
+  ~s  indepNum            gp                    NamedGraphs.indepNum_nauru
   T   indepNum            grotzsch              indepNum_grotzsch
   S   indepNum            hypercube             indepNum_hypercube
   s   indepNum            johnson               indepNum_johnson_two
   T   indepNum            kneser                indepNum_kneser_of_lt
   S   indepNum            ladder                indepNum_ladder
+  ~s  indepNum            lcf                   NamedGraphs.indepNum_franklin
   s   indepNum            lollipop              indepNum_lollipop_one
   b   indepNum            paley                 indepNum_paley_thirteen_le
   S   indepNum            path                  indepNum_path
@@ -1468,11 +1476,13 @@ tensorProduct (22/42 missing)
   S   maxDeg              fan                   maxDeg_fan
   T   maxDeg              foldedCube            maxDeg_foldedCube
   S   maxDeg              friendship            maxDeg_friendship
+  ~s  maxDeg              gp                    NamedGraphs.maxDeg_dodecahedron
   T   maxDeg              grotzsch              maxDeg_grotzsch
   S   maxDeg              hypercube             maxDeg_hypercube
   S   maxDeg              johnson               maxDeg_johnson
   T   maxDeg              kneser                maxDeg_kneser
   S   maxDeg              ladder                maxDeg_ladder
+  ~s  maxDeg              lcf                   NamedGraphs.maxDeg_tutteCoxeter
   T   maxDeg              lollipop              maxDeg_lollipop
   T   maxDeg              paley                 maxDeg_paley
   S   maxDeg              path                  maxDeg_path
@@ -1636,7 +1646,7 @@ tensorProduct (22/42 missing)
   S   vertexConn          path                  vertexConn_path
   S   vertexConn          petersen              vertexConn_petersen
 
-1194 of 2352 cells filled (42 invariants × 11 operators + 45 families).
+1204 of 2352 cells filled (42 invariants × 11 operators + 45 families).
 
 ## CGraph declarations with no IsoGraph counterpart
 

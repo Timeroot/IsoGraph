@@ -1053,6 +1053,12 @@ theorem girth_eq_three_iff {G : CGraph} : G.girth = 3 ↔ 3 ≤ G.cliqueNum := b
 theorem girth_eq_three_of_cliqueNum {G : CGraph} (h : 3 ≤ G.cliqueNum) : G.girth = 3 :=
   girth_eq_three_iff.2 h
 
+/-- **A graph whose girth is not three has no triangle**, so its cliques are its edges. -/
+@[toIsoGraph]
+theorem cliqueNum_le_two_of_girth_ne_three {G : CGraph} (h : G.girth ≠ 3) : G.cliqueNum ≤ 2 := by
+  by_contra hc
+  exact h (girth_eq_three_of_cliqueNum (by omega))
+
 /-- **A triangle-free graph with a cycle has girth at least four**, stated through the clique
 number. -/
 @[toIsoGraph]
