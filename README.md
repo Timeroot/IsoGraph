@@ -16,8 +16,8 @@ invariants on them, `IsoGraph/SmallGraphs/` does the same for the gallery of nam
 `IsoGraph/Algebra/` treats isomorphism classes as a semiring, and `IsoGraph/Containment/` orders
 them by what sits inside what. Underneath them all is `IsoGraph/ForMathlib/`, which holds the
 lemmas that mention nothing from this development and could be contributed upstream.
-`Basic.lean`, `Compute.lean`, `Cache.lean`, `Spectrum.lean` and `Exhaustion.lean` are left at the
-root, along with the index modules `ForMathlib.lean`, `Canon.lean`, `Enum.lean`,
+`Basic.lean`, `Compute.lean`, `Cache.lean`, `Spectrum.lean`, `Exhaustion.lean` and `Sat.lean` are
+left at the root, along with the index modules `ForMathlib.lean`, `Canon.lean`, `Enum.lean`,
 `Invariants.lean`, `Core.lean`, `SmallGraphs.lean`, `Algebra.lean` and `Containment.lean`, each of
 which imports its directory.
 
@@ -77,6 +77,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Cache.lean` | the memoised adjacency function the searches run on | yes |
 | `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
+| `IsoGraph/Sat.lean` | `graph_sat`: bounds on `α`, `ω` and `χ` handed to a SAT solver through `bv_decide` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
@@ -5924,6 +5925,75 @@ vertex-transitive but not arc-transitive. It gets the same numbers from `chainAr
 generators are the proved-complete ones, on all of those but Petersen: ten vertices of subtree
 search per candidate point is twenty seconds of elaboration, which is the cost of completeness in
 one number.
+
+## The co-NP invariants by SAT
+
+Three of the invariants have a hard direction that is a *refutation*: there is no independent set
+of size `n + 1`, no clique of size `n + 1`, no proper colouring with `k` colours. That is exactly
+what a SAT solver decides, and Lean ships one — `bv_decide` bit-blasts a `BitVec` goal, calls
+CaDiCaL, and replays the LRAT refutation it gets back in the kernel. `Sat.lean` puts a tactic on
+top of it:
+
+```lean
+example : (kneser 5 2).indepNum ≤ 4 := by graph_sat
+example : (kneser 5 2).cliqueNum ≤ 2 := by graph_sat
+example : 4 < (mycielskian (mycielskian (cycle 5))).chromNum := by graph_sat native
+```
+
+The graph may be a `CGraph` or an element of `IsoGraph` that reduces to the class of one: the
+quotient-level invariants are `Quotient.lift`s, so `(IsoGraph.kneser 5 2).indepNum ≤ 4` and its
+`CGraph` reading are definitionally equal and the tactic simply changes the goal.
+
+An independent set is a `BitVec` of width `|V|`, one bit per vertex in the order `FinEnum.equiv`
+puts them in, with one constraint per edge — no two adjacent bits both set — and a population
+count spelled out as a chain of `w`-bit additions, which is how a solver counts. `cliqueNum` is
+the same on the non-edges. A colouring is a `BitVec` of width `|V| · k` read as `|V|` chunks of
+`k` bits, the chunk of a vertex being the colours it may take; every chunk is nonzero and adjacent
+chunks are disjoint. That is one constraint per vertex and one per edge, rather than the usual one
+per edge *and colour*, and it is still exactly `Colorable k`: from a solution, pick any set bit of
+each chunk.
+
+Everything the tactic emits is a literal — the width, the indices, the addition chain — because
+the two facts that connect the graph to those literals are proved separately, as the hypotheses
+`FinEnum.card G.V = m` and `edgeIdxList G = es` of the bridge lemmas `indepNum_le_of_bv`,
+`cliqueNum_le_of_bv` and `lt_chromNum_of_bv`. Those three are proved once, by hand, against
+Mathlib's `exists_isNIndepSet_indepNum`, `exists_isNClique_cliqueNum` and the library's
+`chromNum_le_iff_colorable`; the tactic contributes no trusted code, only the syntax it generates
+and one defeq check that the emitted addition chain is the `bvCount` the bridge speaks about.
+
+The side conditions are the only place the graph itself is evaluated, and on a vertex type the
+kernel handles badly they cost more than the solver does. `graph_sat` proves them with `decide`,
+`graph_sat native` with `native_decide`:
+
+| goal | vertices | time |
+| --- | --- | --- |
+| `(kneser 5 2).indepNum ≤ 4` | 10 | 5 s |
+| `(kneser 5 2).cliqueNum ≤ 2` | 10 | 6 s |
+| `3 < (mycielskian (cycle 5)).chromNum` | 11 | 2 s |
+| `(kneser 7 3).indepNum ≤ 15` | 35 | 7 s with `native`, 26 s without |
+| `4 < (mycielskian (mycielskian (cycle 5))).chromNum` | 23 | 10 s |
+
+`bv_decide` itself stays under a second on every one of them; the rest is the side conditions and
+the kernel rechecking the generated script. The comparison is not with `decide`, which cannot do
+any of these at all — `indepNum` is an infimum over a set of naturals and does not reduce — but
+with the hand proofs elsewhere in the library. The clique–coclique bound gives
+`petersen.indepNum ≤ 5`, one short of the truth; `graph_sat` gives `4` in five seconds.
+
+The theorem the file keeps for its own sake is Erdős–Ko–Rado for `K(7, 3)`:
+
+```lean
+theorem indepNum_kneser_seven_three : (kneser 7 3).indepNum = 15
+```
+
+An independent set of a Kneser graph is a family of pairwise intersecting `k`-subsets. The lower
+bound is the star at a point, fifteen triples through `0`, and is four lines. The upper bound is a
+search over `2 ^ 35` subsets; the general theorem is not in Mathlib and the `k = 2` case is the
+only one the library had. CaDiCaL settles it in well under a second.
+
+The other direction of each bound — `n ≤ G.indepNum`, `G.chromNum ≤ k` — is a *witness* rather
+than a refutation, and the solver is the wrong tool for it: hand the independent set to
+`SimpleGraph.IsIndepSet.card_le_indepNum` or the colouring to `chromNum_le_iff_colorable` and the
+kernel checks it directly. `graph_sat` on such a goal says so and fails.
 
 ## Writing it so it can be proved
 

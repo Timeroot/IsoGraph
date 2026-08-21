@@ -48,7 +48,8 @@ def graphLevel? (e : Expr) : MetaM (Option Bool) := do
 
 /-- Declarations that are shaped like invariants but are plumbing, not mathematics. -/
 def blacklist : Array String :=
-  #["toCGraph", "toIsoGraph", "key", "canon", "vertexTransitiveB", "arcTransitiveB"]
+  #["toCGraph", "toIsoGraph", "key", "canon", "vertexTransitiveB", "arcTransitiveB",
+    "edgeIdxList", "nonEdgeIdxList"]
 
 /-- Compiler-generated declarations and instances, which are not mathematics either. -/
 def isNoise (nm : Name) : Bool :=

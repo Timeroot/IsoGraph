@@ -11,3 +11,4 @@ import IsoGraph.Algebra
 import IsoGraph.Spectrum
 import IsoGraph.Containment
 import IsoGraph.Exhaustion
+import IsoGraph.Sat
