@@ -59,6 +59,10 @@ a set of naturals and does not reduce — but with the hand proofs the library g
 clique–coclique bound gets `petersen.indepNum ≤ 5` and stops one short of the truth, and the
 Erdős–Ko–Rado value `(kneser 7 3).indepNum = 15` is a theorem nobody would attempt by hand here.
 
+The tactic is used downstream too: `NamedGraphs.edgeChromNum_flowerSnark`, in
+`SmallGraphs/EdgeColourings.lean`, is the flower snark `J₅` shown to be class two on a line graph
+of thirty vertices — the case split the Petersen proof runs, `3 ^ E`, is hopeless there.
+
 ## The side conditions
 
 Two facts about the graph are settled outside the solver: its order, and its edge list read

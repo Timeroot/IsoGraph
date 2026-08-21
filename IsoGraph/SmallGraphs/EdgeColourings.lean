@@ -1,10 +1,11 @@
 import IsoGraph.SmallGraphs.Extremal
+import IsoGraph.Sat
 
 /-!
 # Edge colourings
 
 Chromatic indices proved by exhibiting a colouring, and the class-two proofs that go with them: the
-Petersen graph, the tadpole, the cocktail party graph and the hypercube.
+Petersen graph, the tadpole, the cocktail party graph, the hypercube and the flower snark.
 -/
 
 namespace CGraph
@@ -940,6 +941,71 @@ theorem cubeAutOf_surjective (n : ℕ) : Function.Surjective (cubeAutOf n) := by
 end
 
 end CGraph
+
+namespace NamedGraphs
+
+open CGraph
+
+/-! ## The flower snark is class two
+
+`flowerSnark` is cubic, so Vizing gives `χ' ≤ 4`, and `flowerSnarkColTable` realises that bound.
+The lower bound is where the exhaustive method used for the Petersen graph stops: thirty edges over
+three colours is a `3 ^ 30` case split.  Instead the goal goes to `graph_sat`, which bit-blasts the
+line graph — twenty bits of colour class per edge — and asks a SAT solver, and the refutation comes
+back in seconds. -/
+
+/-- A proper `4`-edge-colouring of the flower snark `J₅`, as a symmetric twenty by twenty table;
+the entries off the edge set are `0`. -/
+def flowerSnarkColTable : List (List ℕ) :=
+  [[0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+   [0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+   [0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+   [0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+   [2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0],
+   [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+   [0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+   [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0],
+   [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0],
+   [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0],
+   [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+   [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0],
+   [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+
+/-- The table `flowerSnarkColTable` read as a colouring of the edges, clamped into `Fin 4`. -/
+def flowerSnarkCol (x y : flowerSnark.V) : Fin 4 :=
+  ⟨min ((flowerSnarkColTable.getD x.1 []).getD y.1 0) 3, by omega⟩
+
+theorem flowerSnarkCol_symm : ∀ x y : flowerSnark.V, flowerSnarkCol x y = flowerSnarkCol y x := by
+  native_decide
+
+theorem flowerSnarkCol_proper : ∀ u v w : flowerSnark.V, flowerSnark.Adj u v = true →
+    flowerSnark.Adj u w = true → v ≠ w → flowerSnarkCol u v ≠ flowerSnarkCol u w := by
+  native_decide
+
+theorem edgeChromNum_flowerSnark_le : flowerSnark.edgeChromNum ≤ 4 := by
+  rw [← IsoGraph.edgeChromNum_mk]
+  exact IsoGraph.edgeChromNum_mk_le_of_colouring (G := flowerSnark)
+    flowerSnarkCol flowerSnarkCol_symm flowerSnarkCol_proper
+
+set_option maxHeartbeats 1000000 in
+/-- **The flower snark `J₅` is a snark**: it is cubic, but three colours do not suffice for its
+thirty edges.  The refutation is a SAT proof, replayed through `bv_decide`'s LRAT checker. -/
+theorem four_le_edgeChromNum_flowerSnark : 4 ≤ flowerSnark.edgeChromNum := by
+  show 3 < flowerSnark.edgeChromNum
+  graph_sat native
+
+/-- **The chromatic index of the flower snark is four.** -/
+@[simp] theorem edgeChromNum_flowerSnark : flowerSnark.edgeChromNum = 4 :=
+  le_antisymm edgeChromNum_flowerSnark_le four_le_edgeChromNum_flowerSnark
+
+end NamedGraphs
 
 namespace IsoGraph
 

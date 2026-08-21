@@ -5956,7 +5956,10 @@ example : 3 < petersen.edgeChromNum := by graph_sat native   -- the Petersen gra
 
 That last one the library already has, as `four_le_edgeChromNum_petersen`, out of a hand analysis
 of the perfect matchings of the Petersen graph; the line graph has fifteen vertices and CaDiCaL
-does not need the analysis.
+does not need the analysis. The next snark is the one the old method could not reach: the flower
+snark `J₅` has thirty edges, so the `3ᴱ` case split is out, and `four_le_edgeChromNum_flowerSnark`
+is `graph_sat native` on a line graph of thirty vertices in about seven seconds. With the
+`4`-colouring table `flowerSnarkCol` on the other side that is `edgeChromNum_flowerSnark = 4`.
 
 An independent set is a `BitVec` of width `|V|`, one bit per vertex in the order `FinEnum.equiv`
 puts them in, with one constraint per edge — no two adjacent bits both set — and a population
@@ -5986,6 +5989,7 @@ kernel handles badly they cost more than the solver does. `graph_sat` proves the
 | `3 < (mycielskian (cycle 5)).chromNum` | 11 | 2 s |
 | `(kneser 7 3).indepNum ≤ 15` | 35 | 7 s with `native`, 26 s without |
 | `4 < (mycielskian (mycielskian (cycle 5))).chromNum` | 23 | 10 s |
+| `3 < flowerSnark.edgeChromNum` | 30, the line graph | 7 s with `native` |
 
 `bv_decide` itself stays under a second on every one of them; the rest is the side conditions and
 the kernel rechecking the generated script. The comparison is not with `decide`, which cannot do
@@ -6227,8 +6231,9 @@ half at general parameters. For the odd-order regular families — `rook`, `tria
 found by machine and checked by `native_decide`, are exact. Everything else in the row sits inside
 `Δ ≤ χ' ≤ 2Δ − 1`. The two cases that used to be the awkward ones are gone: the cocktail party
 graph fell to the round-robin `1`-factorisation and the Petersen graph to an exhaustive `3¹⁵`
-search, but the search does not generalise — the next snark on the list, Blanuša's, has `18`
-vertices and `27` edges, and `3²⁷` is not a case split.
+search. That search does not generalise — `3²⁷` is not a case split — but `graph_sat` does: the
+flower snark `J₅`, twenty vertices and thirty edges, is `edgeChromNum_flowerSnark = 4`, the lower
+bound a SAT refutation and the upper bound a table.
 
 The cartesian products join that list at their odd parameters. `edgeChromNum_cartesianProduct_le`
 gives `χ' ≤ χ'(G) + χ'(H)`, which meets `Δ` when both factors are class one and overshoots it by
