@@ -70,7 +70,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Symmetry.lean` | their automorphisms, transitivity and regularity | yes |
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
-| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty more by family and by operator, indexed by `SmallGraphs.lean` | yes |
+| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-one more by family and by operator, indexed by `SmallGraphs.lean` | yes |
 | `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
 | `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
@@ -4475,6 +4475,13 @@ clique numbers of the graphs that do have a triangle, the three graphs that need
 the Moser spindle, the icosahedron and the pentakis dodecahedron — and the one graph of the thirty
 that is class two, the Holt graph, whose odd order rules out a four-edge-colouring.
 
+`SmallGraphs/CubicValues.lean` adds five more cubic graphs — the Wagner graph, the flower snark
+`J₅`, the Tutte graph, the Gray graph and the truncated icosahedron. These are the largest
+refutations in the library: `α ≤ 19` on the Tutte graph's forty-six vertices, `α ≤ 27` on the Gray
+graph's fifty-four, `α ≤ 24` on the truncated icosahedron's sixty. All five together take about a
+minute of solver time, which is the argument for the tactic in one line — the same five bounds by
+`decide` would each be a search over `2⁶⁰` subsets.
+
 ## What sits inside what
 
 `SmallGraphs/Substructure.lean` crosses the gallery with the nine containment relations of
@@ -6051,7 +6058,7 @@ theorem chromNum_le_of_colouring {G : CGraph} {k : ℕ} (c : G.V → Fin k)
 
 — a list of vertices or a table of colours, with side conditions `decide` settles. Together with
 the tactic that is both halves of a value, the three `*Values.lean` leaves are what that buys:
-`α, ω, χ, χ'` for thirty-three of the gallery graphs, a hundred and thirty-two values.
+`α, ω, χ, χ'` for thirty-eight of the gallery graphs, a hundred and fifty-two values.
 
 ## Writing it so it can be proved
 
