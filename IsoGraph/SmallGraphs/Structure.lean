@@ -1,10 +1,11 @@
 import IsoGraph.SmallGraphs.Counts
+import IsoGraph.Invariants.Hamiltonian
 
 /-!
 # Connectivity, girth and distance in the named graphs
 
 Connectivity, girth, radius, diameter and acyclicity of the named graphs and the parametrised
-families.
+families, together with their edge and vertex connectivities and their Hamiltonicity.
 -/
 
 namespace CGraph
@@ -412,6 +413,101 @@ theorem girth_cycle (n : ℕ) : (cycle (n + 3)).girth = n + 3 := by
 
 end
 
+/-! ### Hamiltonicity of the named graphs
+
+Every graph in the gallery that is presented by an LCF code carries its Hamiltonian cycle in that
+presentation: the ring `0 – 1 – ⋯ – (n-1) – 0` of `lcfEdges` *is* a Hamiltonian cycle, so
+`isHamiltonian_lcfEdges` turns the definition into a certificate and the only side condition left
+is `3 ≤ n`.  The four graphs that are defined by hand and only later identified with an LCF code
+are transported along that identification. -/
+
+section
+open NamedGraphs
+
+/-- A graph given by an LCF code is Hamiltonian: its defining ring is a Hamiltonian cycle. -/
+theorem isHamiltonian_lcf (ss : List ℤ) (r : ℕ) (h3 : 3 ≤ ss.length * r) :
+    (lcf ss r).IsHamiltonian :=
+  isHamiltonian_lcfEdges ss r rfl h3
+
+theorem isHamiltonian_heawood : heawood.IsHamiltonian := isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_mcgee : mcgee.IsHamiltonian := isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_tutteCoxeter : tutteCoxeter.IsHamiltonian :=
+  isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_franklin : franklin.IsHamiltonian := isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_pappus : pappus.IsHamiltonian := isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_folkman : folkman.IsHamiltonian := isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_frucht : frucht.IsHamiltonian := isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_bidiakisCube : bidiakisCube.IsHamiltonian :=
+  isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_dyck : dyck.IsHamiltonian := isHamiltonian_lcf _ _ (by norm_num)
+
+theorem isHamiltonian_mobiusKantor : mobiusKantor.IsHamiltonian :=
+  isHamiltonian_of_iso mobiusKantorLcfIso (isHamiltonian_lcf _ _ (by norm_num))
+
+theorem isHamiltonian_desargues : desargues.IsHamiltonian :=
+  isHamiltonian_of_iso desarguesLcfIso (isHamiltonian_lcf _ _ (by norm_num))
+
+theorem isHamiltonian_dodecahedron : dodecahedron.IsHamiltonian :=
+  isHamiltonian_of_iso dodecahedronLcfIso (isHamiltonian_lcf _ _ (by norm_num))
+
+theorem isHamiltonian_nauru : nauru.IsHamiltonian :=
+  isHamiltonian_of_iso nauruLcfIso (isHamiltonian_lcf _ _ (by norm_num))
+
+theorem isHamiltonian_balaban10Cage : balaban10Cage.IsHamiltonian :=
+  isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_biggsSmith : biggsSmith.IsHamiltonian :=
+  isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_ljubljana : ljubljana.IsHamiltonian :=
+  isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_harries : harries.IsHamiltonian :=
+  isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_harriesWong : harriesWong.IsHamiltonian :=
+  isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_gray : gray.IsHamiltonian := isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_foster : foster.IsHamiltonian := isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_balaban11Cage : balaban11Cage.IsHamiltonian :=
+  isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+theorem isHamiltonian_tutte12Cage : tutte12Cage.IsHamiltonian :=
+  isHamiltonian_lcfEdges _ _ rfl (by norm_num)
+
+end
+
+/-! ### The connectivity of the Petersen graph
+
+The Petersen graph is 3-connected, and 3-edge-connected.  Both upper bounds come from Whitney's
+inequality `κ ≤ λ ≤ δ` and 3-regularity; the two lower bounds are the searches that the definitions
+ask for, cut by cut and separator by separator. -/
+
+theorem edgeConn_petersen : petersen.edgeConn = 3 := by
+  have hcard : petersen.card = 10 := card_petersen
+  have hreg : petersen.IsRegularWith 3 := by native_decide
+  have : Nonempty petersen.V := ⟨⟨{0, 1}, by decide⟩⟩
+  refine le_antisymm ?_ (petersen.le_edgeConn (by omega) (by native_decide))
+  have h := petersen.edgeConn_le_minDeg (by omega)
+  rwa [hreg.minDeg_eq] at h
+
+theorem vertexConn_petersen : petersen.vertexConn = 3 := by
+  have hcard : petersen.card = 10 := card_petersen
+  refine le_antisymm ?_ (petersen.le_vertexConn_of_forall_card_lt (by omega) (by native_decide))
+  rw [← edgeConn_petersen]
+  exact petersen.vertexConn_le_edgeConn
+
 end CGraph
 
 namespace IsoGraph
@@ -809,5 +905,98 @@ theorem not_isAcyclic_lineGraph_mycielskian {G : IsoGraph}
 theorem not_isTree_lineGraph_mycielskian {G : IsoGraph}
     (h3 : 3 ≤ max (2 * maxDeg G) G.V) : ¬ IsTree (lineGraph (mycielskian G)) :=
   not_isTree_lineGraph (by rw [maxDeg_mycielskian]; exact h3)
+
+/-! ### The connectivities of the basic families
+
+`λ` and `κ` of the basic families.  Most are settled by connectedness and `minDeg` alone: an empty
+graph and a disjoint union are disconnected, so both vanish; a path is connected with a degree-one
+endpoint, so both are one.  The cycle needs an argument of its own for the lower bound — that is
+`CGraph.two_le_edgeConn_cycle` and `CGraph.two_le_vertexConn_cycle` — and `minDeg` for the upper.
+-/
+
+@[simp] theorem edgeConn_empty (n : ℕ) : (empty n).edgeConn = 0 := by
+  rw [edgeConn_eq_zero_iff]
+  match n with
+  | 0 | 1 => exact Or.inl (by simp)
+  | (m + 2) => exact Or.inr (not_isConnected_empty m)
+
+@[simp] theorem vertexConn_empty (n : ℕ) : (empty n).vertexConn = 0 := by
+  rw [vertexConn_eq_zero_iff]
+  match n with
+  | 0 | 1 => exact Or.inl (by simp)
+  | (m + 2) => exact Or.inr (not_isConnected_empty m)
+
+@[simp] theorem edgeConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ⊕g H).edgeConn = 0 := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [V_mk] at hG hH
+  rw [disjUnion_mk, edgeConn_mk]
+  exact (G ⊕g H).edgeConn_eq_zero_iff.2 (Or.inr (CGraph.not_isConnected_disjUnion G H hG hH))
+
+@[simp] theorem vertexConn_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ⊕g H).vertexConn = 0 := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [V_mk] at hG hH
+  rw [disjUnion_mk, vertexConn_mk]
+  exact (G ⊕g H).vertexConn_eq_zero_iff.2 (Or.inr (CGraph.not_isConnected_disjUnion G H hG hH))
+
+@[simp] theorem edgeConn_path (n : ℕ) : (path (n + 2)).edgeConn = 1 := by
+  refine le_antisymm ?_ ((one_le_edgeConn_iff _ (by rw [V_path]; omega)).2 (isConnected_path _))
+  have h := edgeConn_le_minDeg (path (n + 2)) (by rw [V_path]; omega)
+  rwa [minDeg_path] at h
+
+@[simp] theorem vertexConn_path (n : ℕ) : (path (n + 2)).vertexConn = 1 := by
+  refine le_antisymm ?_ ((one_le_vertexConn_iff _ (by rw [V_path]; omega)).2 (isConnected_path _))
+  have h := vertexConn_le_edgeConn (path (n + 2))
+  rwa [edgeConn_path] at h
+
+@[simp] theorem edgeConn_cycle (n : ℕ) : (cycle (n + 3)).edgeConn = 2 := by
+  refine le_antisymm ?_ ?_
+  · have h := edgeConn_le_minDeg (cycle (n + 3)) (by rw [V_cycle]; omega)
+    rwa [minDeg_cycle] at h
+  · rw [cycle_def, edgeConn_mk]
+    exact CGraph.two_le_edgeConn_cycle (by omega)
+
+@[simp] theorem vertexConn_cycle (n : ℕ) : (cycle (n + 3)).vertexConn = 2 := by
+  refine le_antisymm ?_ ?_
+  · have h := vertexConn_le_edgeConn (cycle (n + 3))
+    rwa [edgeConn_cycle] at h
+  · rw [cycle_def, vertexConn_mk]
+    exact CGraph.two_le_vertexConn_cycle (by omega)
+
+/-! ### The connectivity of the Petersen graph, on the quotient -/
+
+@[simp] theorem edgeConn_petersen : petersen.edgeConn = 3 := by
+  show (kneser 5 2).edgeConn = 3
+  rw [kneser_def, edgeConn_mk]
+  exact CGraph.edgeConn_petersen
+
+@[simp] theorem vertexConn_petersen : petersen.vertexConn = 3 := by
+  show (kneser 5 2).vertexConn = 3
+  rw [kneser_def, vertexConn_mk]
+  exact CGraph.vertexConn_petersen
+
+/-! ### Graphs that are not Hamiltonian -/
+
+theorem not_isHamiltonian_empty (n : ℕ) : ¬ IsHamiltonian (empty (n + 2)) :=
+  not_isHamiltonian_of_not_isConnected _ (not_isConnected_empty n)
+
+theorem not_isHamiltonian_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    ¬ IsHamiltonian (G ⊕g H) := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [V_mk] at hG hH
+  rw [disjUnion_mk, isHamiltonian_mk]
+  exact CGraph.not_isHamiltonian_of_not_isConnected _ (CGraph.not_isConnected_disjUnion G H hG hH)
+
+theorem not_isHamiltonian_path (n : ℕ) : ¬ IsHamiltonian (path (n + 3)) :=
+  not_isHamiltonian_of_isAcyclic (isAcyclic_path _) (by rw [V_path]; omega)
+
+/-- A tree on three vertices or more is not Hamiltonian: it has no cycle to be one. -/
+theorem IsTree.not_isHamiltonian {G : IsoGraph} (h : IsTree G) (h3 : 3 ≤ G.V) :
+    ¬ IsHamiltonian G :=
+  not_isHamiltonian_of_isAcyclic ((isTree_iff_isConnected_and_isAcyclic G).1 h).2 h3
 
 end IsoGraph

@@ -58,6 +58,8 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Invariants/Basic.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Invariants/Derived.lean` | invariants of a derived graph: `edgeChromNum`, `matchNum`, `cliqueCoverNum`, `IsSelfComplementary` | yes |
 | `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
+| `IsoGraph/Invariants/Connectivity.lean` | the edge and vertex connectivities `λ` and `κ`, their cuts and separators, and Whitney's `κ ≤ λ ≤ δ` | yes |
+| `IsoGraph/Invariants/Hamiltonian.lean` | Hamiltonicity, and the cycle-list and cyclic-numbering certificates that establish it | yes |
 | `IsoGraph/Invariants/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, decided | yes |
 | `IsoGraph/Core/Defs.lean` | ways of building a `CGraph`, and the notation for them | yes |
 | `IsoGraph/Core/Quotient.lean` | the same constructions on `IsoGraph`, lifted through the quotient | yes |
@@ -234,6 +236,46 @@ there. `IsBipartite` is phrased as a
 `Bool`-valued colouring with no monochromatic edge rather than as a pair of vertex sets — that is
 the form the double-cover splitting theorem consumes — and `isBipartite_iff_colorable` identifies
 it with Mathlib's `Colorable 2`.
+
+### Connectivity and Hamiltonicity
+
+Three invariants that Mathlib does not have at all live in `Invariants/Connectivity.lean` and
+`Invariants/Hamiltonian.lean`: the edge connectivity `λ`, the vertex connectivity `κ`, and
+Hamiltonicity.
+
+`edgeConn` is `sInf` over the cuts — a cut is a set `s` of vertices that is neither empty nor
+everything, and `cutSize s` counts the edges leaving it. `vertexConn` is `sInf` over the
+separators, with `card - 1` thrown into the set as well, so that a complete graph (which no vertex
+deletion disconnects) gets the conventional `n - 1` rather than an infimum of nothing. A separator
+is phrased *without deleting anything*: `G.IsSeparator s` asks for a `Bool`-colouring of `G.V` that
+is constant along every edge avoiding `s` and non-constant outside `s`. Staying inside `G.V` — no
+subtype, no induced subgraph — is what makes `IsSeparator` decidable and what makes it transport
+along an isomorphism in three lines. Each invariant gets a witness lemma
+(`edgeConn_le_of_isCut`, `vertexConn_le_of_isSeparator`), a lower bound quantified over the search
+space (`le_edgeConn`, `le_vertexConn`, and `le_vertexConn_of_forall_card_lt`, which only has to
+look at the *small* separators and is the one worth running), and their combination (`edgeConn_eq`,
+`vertexConn_eq`). Both vanish exactly when the graph is disconnected or trivial
+(`edgeConn_eq_zero_iff`, `one_le_edgeConn_iff`), and Whitney's chain `κ ≤ λ ≤ δ` is
+`vertexConn_le_edgeConn` and `edgeConn_le_minDeg`. All of that is proved on `CGraph` and then
+stated again on `IsoGraph`, where the constructions live.
+
+Whitney plus connectedness already settles the easy families: `λ = κ = 0` for an empty graph and
+for a disjoint union, `λ = κ = 1` for a path. The cycle is the first that needs an argument of its
+own, and it is the same argument twice: *a set of vertices of a cycle that is closed under the
+successor is everything*, applied once to a cut and once to the two colour classes of a would-be
+separator, gives `λ = κ = 2`. The Petersen graph is `3`-connected and `3`-edge-connected — the
+upper bounds from `3`-regularity, the lower bounds from the two searches, the second one cut down
+to the separators on fewer than three vertices so that it runs in half a minute rather than four.
+
+Hamiltonicity has no cheap decision procedure, so that file is about *certificates* instead.
+`isHamiltonian_of_cycleList` takes a list of vertices with the adjacencies along it, and
+`isHamiltonian_of_cyclicNumbering` takes a numbering `f : ℕ → G.V` with `f i ~ f (i+1 mod n)`.
+That second one is exactly what an LCF code hands you: the ring `0 – 1 – ⋯ – (n-1) – 0` inside
+`lcfEdges` *is* a Hamiltonian cycle, so every LCF graph in the gallery — Heawood, McGee,
+Tutte–Coxeter, Möbius–Kantor, Desargues, Nauru, the dodecahedron, Balaban's two cages, Foster,
+Gray, Ljubljana, Tutte's 12-cage and the rest — is Hamiltonian by `norm_num` on `3 ≤ n`. In the
+other direction only necessary conditions are available: a Hamiltonian graph is connected, is not
+acyclic, and has `girth ≤ card`.
 
 `Core/Defs.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
 relation, delete the diagonal), `empty`, `disjUnion` — plus `compl`:
