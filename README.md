@@ -77,7 +77,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Cache.lean` | the memoised adjacency function the searches run on | yes |
 | `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
-| `IsoGraph/Sat.lean` | `graph_sat`: bounds on `α`, `ω` and `χ` handed to a SAT solver through `bv_decide` | yes |
+| `IsoGraph/Sat.lean` | `graph_sat`: bounds on `α`, `ω`, `χ`, `ν`, `χ'` and `θ` handed to a SAT solver through `bv_decide` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
@@ -5943,6 +5943,20 @@ example : 4 < (mycielskian (mycielskian (cycle 5))).chromNum := by graph_sat nat
 The graph may be a `CGraph` or an element of `IsoGraph` that reduces to the class of one: the
 quotient-level invariants are `Quotient.lift`s, so `(IsoGraph.kneser 5 2).indepNum ≤ 4` and its
 `CGraph` reading are definitionally equal and the tactic simply changes the goal.
+
+The three derived invariants come along for free, because each is *definitionally* one of the
+first three taken on another graph — `ν(G) = α(L(G))`, `χ'(G) = χ(L(G))`, `θ(G) = χ(Ḡ)` — so
+recognising them is a matter of handing the search the derived graph:
+
+```lean
+example : (kneser 5 2).matchNum ≤ 5 := by graph_sat native
+example : 2 < (kneser 5 2).cliqueCoverNum := by graph_sat native
+example : 3 < petersen.edgeChromNum := by graph_sat native   -- the Petersen graph is a snark
+```
+
+That last one the library already has, as `four_le_edgeChromNum_petersen`, out of a hand analysis
+of the perfect matchings of the Petersen graph; the line graph has fifteen vertices and CaDiCaL
+does not need the analysis.
 
 An independent set is a `BitVec` of width `|V|`, one bit per vertex in the order `FinEnum.equiv`
 puts them in, with one constraint per edge — no two adjacent bits both set — and a population

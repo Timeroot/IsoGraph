@@ -14,9 +14,12 @@ back with in the kernel.
 This file is the bridge.  `graph_sat` recognises
 
     G.indepNum ≤ n        G.cliqueNum ≤ n        k < G.chromNum
+    G.matchNum ≤ n        k < G.edgeChromNum     k < G.cliqueCoverNum
 
 for a concrete graph — a `CGraph`, or an element of `IsoGraph` that reduces to the class of one —
-encodes it into a `BitVec` goal and hands that to `bv_decide`.
+encodes it into a `BitVec` goal and hands that to `bv_decide`.  The three on the second line are
+the same three invariants of a derived graph, definitionally: `ν(G) = α(L(G))`,
+`χ'(G) = χ(L(G))`, `θ(G) = χ(Ḡ)`, so all the tactic does with them is search the derived graph.
 
 ## The encodings
 
@@ -358,9 +361,10 @@ theorem lt_chromNum_of_bv {G : CGraph} {m k W : ℕ} {es : List (ℕ × ℕ)}
 
 /-! ## The tactic
 
-`graph_sat` recognises the three refutation goals
+`graph_sat` recognises the six refutation goals
 
     G.indepNum ≤ n        G.cliqueNum ≤ n        k < G.chromNum
+    G.matchNum ≤ n        k < G.edgeChromNum     k < G.cliqueCoverNum
 
 for a *closed* graph `G` — either a `CGraph` or an element of `IsoGraph` that reduces to the class
 of one — evaluates the graph once in the elaborator to get its order and its edge list, emits the
@@ -458,10 +462,14 @@ private inductive Shape
   | clique (G : Expr) (n : ℕ)
   | chrom (G : Expr) (k : ℕ)
 
-/-- Recognise `G.indepNum ≤ n`, `G.cliqueNum ≤ n` or `k < G.chromNum`, on either level. -/
+/-- Recognise a bound on one of the six invariants, on either level.  The three derived ones are
+*definitionally* the invariant of another graph — `χ'` and `ν` of the line graph, `θ` of the
+complement — so recognising them is a matter of handing the search that graph instead. -/
 private def shapeOf (tgt : Expr) : MetaM (Option Shape) := do
   let asCGraph (e : Expr) : MetaM (Option Expr) := do
     if (← inferType e).isAppOf ``CGraph then return some e else repOfIsoGraph e
+  let lineGraphOf (G : Expr) : Expr := mkApp (.const ``CGraph.lineGraph []) G
+  let complOf (G : Expr) : Expr := mkApp (.const ``CGraph.compl []) G
   match tgt.getAppFnArgs with
   | (``LE.le, #[_, _, lhs, rhs]) =>
     let some n ← natOf rhs | return none
@@ -470,21 +478,31 @@ private def shapeOf (tgt : Expr) : MetaM (Option Shape) := do
       return (← asCGraph G).map (Shape.indep · n)
     | (``CGraph.cliqueNum, #[G]) | (``IsoGraph.cliqueNum, #[G]) =>
       return (← asCGraph G).map (Shape.clique · n)
+    | (``CGraph.matchNum, #[G]) | (``IsoGraph.matchNum, #[G]) =>
+      return (← asCGraph G).map (fun g ↦ Shape.indep (lineGraphOf g) n)
     | _ => return none
   | (``LT.lt, #[_, _, lhs, rhs]) =>
     let some k ← natOf lhs | return none
     match rhs.getAppFnArgs with
     | (``CGraph.chromNum, #[G]) | (``IsoGraph.chromNum, #[G]) =>
       return (← asCGraph G).map (Shape.chrom · k)
+    | (``CGraph.edgeChromNum, #[G]) | (``IsoGraph.edgeChromNum, #[G]) =>
+      return (← asCGraph G).map (fun g ↦ Shape.chrom (lineGraphOf g) k)
+    | (``CGraph.cliqueCoverNum, #[G]) | (``IsoGraph.cliqueCoverNum, #[G]) =>
+      return (← asCGraph G).map (fun g ↦ Shape.chrom (complOf g) k)
     | _ => return none
   | _ => return none
 
 /-- **Prove a bound on the independence, clique or chromatic number with a SAT solver.**
 
-The goal must be `G.indepNum ≤ n`, `G.cliqueNum ≤ n` or `k < G.chromNum` for a closed graph `G`;
-these are the three directions that are *refutations*, which is what a SAT solver decides.  The
-other three directions — `n ≤ G.indepNum`, `n ≤ G.cliqueNum`, `G.chromNum ≤ k` — are witnessed by an
-independent set, a clique or a colouring, and are cheap to give explicitly.
+The goal must be one of
+
+    G.indepNum ≤ n        G.cliqueNum ≤ n        k < G.chromNum
+    G.matchNum ≤ n        k < G.edgeChromNum     k < G.cliqueCoverNum
+
+for a closed graph `G`; these are the directions that are *refutations*, which is what a SAT
+solver decides.  The opposite direction of each — `n ≤ G.indepNum`, `G.chromNum ≤ k` and so on —
+is witnessed by an independent set, a clique or a colouring, and is cheap to give explicitly.
 
 `graph_sat native` replaces the `decide` that ties the graph to the emitted literals by
 `native_decide`. -/
@@ -494,8 +512,9 @@ elab_rules : tactic
   | `(tactic| graph_sat $[native%$nat]?) => withMainContext do
     let native := nat.isSome
     let some shape ← shapeOf (← whnfR (← (← getMainGoal).getType)) |
-      throwError "graph_sat: the goal should be `G.indepNum ≤ n`, `G.cliqueNum ≤ n` or \
-        `k < G.chromNum` for a closed graph `G`"
+      throwError "graph_sat: the goal should be `G.indepNum ≤ n`, `G.cliqueNum ≤ n`, \
+        `G.matchNum ≤ n`, `k < G.chromNum`, `k < G.edgeChromNum` or `k < G.cliqueCoverNum` \
+        for a closed graph `G`"
     let sideTac : TSyntax `tactic ← if native then `(tactic| native_decide) else `(tactic| decide)
     match shape with
     | .indep G n | .clique G n =>
@@ -553,6 +572,20 @@ example : 3 < (mycielskian (cycle 5)).chromNum := by graph_sat native
 
 /-- One Mycielskian further: 23 vertices, five colours, and no clique bigger than an edge. -/
 example : 4 < (mycielskian (mycielskian (cycle 5))).chromNum := by graph_sat native
+
+/-- **The Petersen graph is a snark**: cubic, and not `3`-edge-colourable.  `SmallGraphs/` proves
+this as `four_le_edgeChromNum_petersen`, out of a hand analysis of its perfect matchings. -/
+example : 3 < (kneser 5 2).edgeChromNum := by graph_sat native
+
+/-- A matching of the Petersen graph has at most five edges — an independent set of `L(P)`, which
+has fifteen vertices. -/
+example : (kneser 5 2).matchNum ≤ 5 := by graph_sat native
+
+/-- The Petersen graph is not covered by two cliques. -/
+example : 2 < (kneser 5 2).cliqueCoverNum := by graph_sat native
+
+/-- The derived invariants work on the quotient too, and through an `abbrev`. -/
+example : 3 < IsoGraph.petersen.edgeChromNum := by graph_sat native
 
 end Examples
 
