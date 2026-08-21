@@ -70,7 +70,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Symmetry.lean` | their automorphisms, transitivity and regularity | yes |
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
-| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-two more by family and by operator, indexed by `SmallGraphs.lean` | yes |
+| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-three more by family and by operator, indexed by `SmallGraphs.lean` | yes |
 | `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
 | `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
@@ -4495,6 +4495,24 @@ are keyed by the sorted pair of endpoints as a `List ((ℕ × ℕ) × ℕ)` rath
 `n × n` table — one entry per edge instead of fifteen thousand, and the symmetry becomes a rewrite
 by `Nat.min_comm` and `Nat.max_comm` instead of a check.
 
+`SmallGraphs/ConnectedValues.lean` goes to the other end of the size range. `Defs/Small.lean`
+names all hundred and forty-four connected graphs on at most six vertices, and this file says what
+`α`, `ω`, `χ` and `χ'` come to on every one of them: five hundred and thirty-eight theorems, the
+remaining values of the five hundred and seventy-six being already covered by the family lemma the
+graph is an alias for — `α(K₆)` is `indepNum_complete`. The proofs have the same two sides, but at
+this size the witness side is uniformly `decide`, and the refutation side mostly does not need the
+solver either. `χ ≥ ω` by `cliqueNum_le_chromNum` settles the chromatic number of every graph here
+but four, and `χ' ≥ Δ` by `maxDeg_le_edgeChromNum` settles the edge chromatic number of every
+graph here but eight, which leaves `graph_sat` the independence and clique numbers and twelve
+stragglers. The four needing a colour more than their largest clique are `C₅`, the 5-tadpole,
+`θ(2, 2, 3)` and the 5-wheel; the eight of class two are `K₃`, `C₅`, `K₅`, `K₅` less an edge,
+`K₂,₃` plus an edge, and the complements of the cross, the fish and `K₂ ⊕ claw`.
+
+Fifty-eight of those graphs are defined as a complement or a join, so their vertex type is a sum
+and not `Fin n`. Their tables are read through `FinEnum.equiv`, which `decide` unfolds as happily
+as it does a `Fin` literal; the two styles sit side by side in the file, and which one a graph
+gets is decided by how it was defined and nothing else.
+
 ## What sits inside what
 
 `SmallGraphs/Substructure.lean` crosses the gallery with the nine containment relations of
@@ -6070,8 +6088,9 @@ theorem chromNum_le_of_colouring {G : CGraph} {k : ℕ} (c : G.V → Fin k)
 ```
 
 — a list of vertices or a table of colours, with side conditions `decide` settles. Together with
-the tactic that is both halves of a value, the five `*Values.lean` leaves are what that buys:
-`α, ω, χ, χ'` for forty-four of the gallery graphs, a hundred and seventy-six values.
+the tactic that is both halves of a value, the six `*Values.lean` leaves are what that buys:
+`α, ω, χ, χ'` for forty-four of the gallery graphs and for every connected graph on at most six
+vertices, seven hundred and fourteen values.
 
 ## Writing it so it can be proved
 

@@ -57,7 +57,7 @@ degMultiset         S    S    S    .    .    S    S    .    S    S
 degSequence         T    s    .    .    .    .    T    s    ~s   T    
 diameter            T    T    S    .    .    T    b    b    b    T    
 domNum              b    b    S    .    .    S    T    b    T    T    
-edgeChromNum        t    .    S    .    .    .    .    b    b    .    
+edgeChromNum        t    .    S    .    .    ~s   .    b    b    .    
 edgeConn            .    .    S    .    .    .    .    .    .    .    
 energy              .    .    S    .    .    .    .    .    .    .    
 girth               T    t    s    .    .    T    T    T    t    T    
@@ -367,8 +367,8 @@ exponential (41/42 missing)
 homExponential (42/42 missing)
   E, IsAcyclic, IsArcTransitive, IsBipartite, IsConnected, IsDS, IsHamiltonian, IsRegularWith, IsSRGWith, IsSelfComplementary, IsTree, IsVertexTransitive, V, algConn, autCount, charpoly, chromNum, cliqueCount, cliqueCoverNum, cliqueNum, comps, coverNum, degMultiset, degSequence, diameter, domNum, edgeChromNum, edgeConn, energy, girth, indepCount, indepNum, lapCharpoly, lapLambdaMax, lapSpectrum, matchNum, maxDeg, minDeg, numComponents, radius, spectrum, vertexConn
 
-join (17/42 missing)
-  IsArcTransitive, IsDS, IsHamiltonian, IsSRGWith, IsSelfComplementary, IsTree, IsVertexTransitive, charpoly, cliqueCount, comps, degSequence, edgeChromNum, edgeConn, energy, lapCharpoly, matchNum, vertexConn
+join (16/42 missing)
+  IsArcTransitive, IsDS, IsHamiltonian, IsSRGWith, IsSelfComplementary, IsTree, IsVertexTransitive, charpoly, cliqueCount, comps, degSequence, edgeConn, energy, lapCharpoly, matchNum, vertexConn
   bounds only: autCount
 
 lexProduct (20/42 missing)
@@ -1236,6 +1236,7 @@ tensorProduct (22/42 missing)
   S   domNum              wheel                 domNum_wheel
   t   edgeChromNum        cartesianProduct      edgeChromNum_cartesianProduct_cycle_even_hypercube
   S   edgeChromNum        disjUnion             edgeChromNum_disjUnion
+  ~s  edgeChromNum        join                  SmallGraphs.edgeChromNum_fan5
   b   edgeChromNum        lineGraph             le_edgeChromNum_lineGraph
   b   edgeChromNum        mycielskian           le_edgeChromNum_mycielskian
   S   edgeChromNum        bipartite             edgeChromNum_bipartite
@@ -1646,7 +1647,7 @@ tensorProduct (22/42 missing)
   S   vertexConn          path                  vertexConn_path
   S   vertexConn          petersen              vertexConn_petersen
 
-1204 of 2352 cells filled (42 invariants × 11 operators + 45 families).
+1205 of 2352 cells filled (42 invariants × 11 operators + 45 families).
 
 ## CGraph declarations with no IsoGraph counterpart
 
