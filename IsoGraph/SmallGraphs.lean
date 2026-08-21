@@ -21,6 +21,7 @@ import IsoGraph.SmallGraphs.Complements
 import IsoGraph.SmallGraphs.Products
 import IsoGraph.SmallGraphs.Mycielskians
 import IsoGraph.SmallGraphs.Operators
+import IsoGraph.SmallGraphs.SatValues
 
 /-!
 # The named graphs
@@ -38,5 +39,6 @@ The rest of the folder is a chain, each file taking up where the one before leav
 organised by the family or the operator under study — `Circulants`, `TuranGraphs`, `Grotzsch`,
 `TreesAndCycles`, `Complements`, `Products`, `Mycielskians`, `Operators` — with `Tables`,
 `Bounds` and `Brackets` holding the values that are read off a table or squeezed between two
-bounds rather than computed directly.
+bounds rather than computed directly, and `SatValues` the ones whose hard half is a SAT
+refutation.
 -/

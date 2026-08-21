@@ -70,7 +70,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Symmetry.lean` | their automorphisms, transitivity and regularity | yes |
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
-| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then seventeen more by family and by operator, indexed by `SmallGraphs.lean` | yes |
+| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then eighteen more by family and by operator, indexed by `SmallGraphs.lean` | yes |
 | `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
 | `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
@@ -4451,6 +4451,16 @@ Desargues, dodecahedron and Nauru graphs all have LCF codes as well as `GP` desc
 Minimality — what makes a cage a cage — is a statement about all graphs of a given order, so it
 stays out of reach; what is proved is that each graph has the degree, girth and order claimed.
 
+Three of the gallery graphs now have more than their shape recorded. `SmallGraphs/SatValues.lean`
+settles `α, ω, χ, χ'` for the Chvátal graph at `4, 2, 4, 4`, for Tietze's graph at `5, 3, 3, 4`
+and for the Robertson graph at `7, 2, 3, 5`. Every one of the twelve values is squeezed between a
+SAT refutation and a witness: `graph_sat native` proves `α ≤ n`, `ω ≤ n`, `k < χ` and `k < χ'`,
+and the other side is an independent set, a clique or a colouring found by machine and checked by
+`le_indepNum_of_nodup`, `le_cliqueNum_of_nodup`, `chromNum_le_of_colouring` or
+`edgeChromNum_mk_le_of_colouring`. Two of the three are class two — Tietze's graph is the Petersen
+graph with a vertex blown up into a triangle, and the Robertson graph is the `(4, 5)`-cage with
+`χ' = Δ + 1` — which is the direction no case split reaches.
+
 ## What sits inside what
 
 `SmallGraphs/Substructure.lean` crosses the gallery with the nine containment relations of
@@ -6011,7 +6021,23 @@ only one the library had. CaDiCaL settles it in well under a second.
 The other direction of each bound — `n ≤ G.indepNum`, `G.chromNum ≤ k` — is a *witness* rather
 than a refutation, and the solver is the wrong tool for it: hand the independent set to
 `SimpleGraph.IsIndepSet.card_le_indepNum` or the colouring to `chromNum_le_iff_colorable` and the
-kernel checks it directly. `graph_sat` on such a goal says so and fails.
+kernel checks it directly. `graph_sat` on such a goal says so and fails. Three wrappers in
+`Core/Colouring.lean` put the witness in the form a search program hands it over in —
+
+```lean
+theorem le_indepNum_of_nodup {G : CGraph} {l : List G.V} (hnd : l.Nodup)
+    (h : ∀ u ∈ l, ∀ v ∈ l, u ≠ v → G.Adj u v = false) : l.length ≤ G.indepNum
+
+theorem le_cliqueNum_of_nodup {G : CGraph} {l : List G.V} (hnd : l.Nodup)
+    (h : ∀ u ∈ l, ∀ v ∈ l, u ≠ v → G.Adj u v = true) : l.length ≤ G.cliqueNum
+
+theorem chromNum_le_of_colouring {G : CGraph} {k : ℕ} (c : G.V → Fin k)
+    (h : ∀ u v : G.V, G.Adj u v = true → c u ≠ c v) : G.chromNum ≤ k
+```
+
+— a list of vertices or a table of colours, with side conditions `decide` settles. Together with
+the tactic that is both halves of a value, and `SmallGraphs/SatValues.lean` is what that buys:
+`α, ω, χ, χ'` for the Chvátal, Tietze and Robertson graphs, twelve values in one file.
 
 ## Writing it so it can be proved
 

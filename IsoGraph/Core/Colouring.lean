@@ -1247,6 +1247,15 @@ theorem chromNum_le_iff_colorable {G : CGraph} {n : ℕ} : G.chromNum ≤ n ↔ 
 
 theorem colorable_chromNum {G : CGraph} : G.toSimple.Colorable G.chromNum := chromNum_le_iff_colorable.1 le_rfl
 
+/-- **An explicit colouring bounds the chromatic number.**  The witness direction of
+`chromNum ≤ k`, in the form a computed colouring comes in: a function to `Fin k` whose properness
+is a decidable statement about `Adj`. -/
+theorem chromNum_le_of_colouring {G : CGraph} {k : ℕ} (c : G.V → Fin k)
+    (h : ∀ u v : G.V, G.Adj u v = true → c u ≠ c v) : G.chromNum ≤ k := by
+  refine chromNum_le_iff_colorable.2 ⟨SimpleGraph.Coloring.mk c ?_⟩
+  intro u v huv
+  exact h u v ((toSimple_adj _ _ _).1 huv)
+
 theorem le_chromNum_iff {G : CGraph} {n : ℕ} : n ≤ G.chromNum ↔ ∀ m, G.toSimple.Colorable m → n ≤ m := by
   rw [← Nat.cast_le (α := ℕ∞), coe_chromNum, SimpleGraph.le_chromaticNumber_iff_colorable]
 
@@ -1347,6 +1356,21 @@ theorem one_le_cliqueNum {G : CGraph} [Nonempty G.V] : 1 ≤ G.cliqueNum :=
 theorem two_le_cliqueNum_of_E_pos {G : CGraph} (h : 0 < G.E) : 2 ≤ G.cliqueNum := by
   obtain ⟨a, b, hab⟩ := exists_adj_of_E_pos h
   exact two_le_cliqueNum hab
+
+/-- **A list of pairwise adjacent vertices bounds the clique number below.**  Both hypotheses are
+decidable, so a clique found by machine is checked by `decide`. -/
+theorem le_cliqueNum_of_nodup {G : CGraph} {l : List G.V} (hnd : l.Nodup)
+    (h : ∀ u ∈ l, ∀ v ∈ l, u ≠ v → G.Adj u v = true) : l.length ≤ G.cliqueNum := by
+  classical
+  have hcard : l.toFinset.card = l.length := List.toFinset_card_of_nodup hnd
+  have hcl : G.toSimple.IsClique (↑l.toFinset : Set G.V) := by
+    intro u hu v hv huv
+    simp only [Finset.mem_coe, List.mem_toFinset] at hu hv
+    rw [toSimple_adj]
+    exact h u hu v hv huv
+  show l.length ≤ G.toSimple.cliqueNum
+  rw [← hcard]
+  exact SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
 
 /-! ### Maximum and minimum degree -/
 
@@ -2815,6 +2839,21 @@ theorem two_le_indepNum {G : CGraph} {a b : G.V} (hab : a ≠ b) (h : ¬ G.Adj a
     · exact hxy rfl
   have := hind.card_le_indepNum
   rwa [Finset.card_pair hab] at this
+
+/-- **A list of pairwise non-adjacent vertices bounds the independence number below.**  The
+counterpart of `le_cliqueNum_of_nodup`, and the witness direction that `graph_sat` does not do. -/
+theorem le_indepNum_of_nodup {G : CGraph} {l : List G.V} (hnd : l.Nodup)
+    (h : ∀ u ∈ l, ∀ v ∈ l, u ≠ v → G.Adj u v = false) : l.length ≤ G.indepNum := by
+  classical
+  have hcard : l.toFinset.card = l.length := List.toFinset_card_of_nodup hnd
+  have hind : G.toSimple.IsIndepSet (↑l.toFinset : Set G.V) := by
+    intro u hu v hv huv hadj
+    simp only [Finset.mem_coe, List.mem_toFinset] at hu hv
+    rw [toSimple_adj, h u hu v hv huv] at hadj
+    exact Bool.false_ne_true hadj
+  show l.length ≤ G.toSimple.indepNum
+  rw [← hcard]
+  exact hind.card_le_indepNum
 
 /-- **Nordhaus–Gaddum for the clique number**: `ω(G) + α(G) ≤ |V| + 1`, since `ω ≤ χ` and
 `χ(G) + α(G) ≤ |V| + 1`.  Equality holds for both the complete and the edgeless graph. -/
