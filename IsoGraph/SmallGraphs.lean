@@ -25,6 +25,7 @@ import IsoGraph.SmallGraphs.SatValues
 import IsoGraph.SmallGraphs.SolidValues
 import IsoGraph.SmallGraphs.CageValues
 import IsoGraph.SmallGraphs.CubicValues
+import IsoGraph.SmallGraphs.BipartiteCageValues
 
 /-!
 # The named graphs
@@ -44,8 +45,10 @@ organised by the family or the operator under study — `Circulants`, `TuranGrap
 `Bounds` and `Brackets` holding the values that are read off a table or squeezed between two
 bounds rather than computed directly.
 
-Four leaves hang off `Operators`, all holding values whose hard half is a SAT refutation:
+Five leaves hang off `Operators`, all holding values whose hard half is a SAT refutation:
 `SatValues` for the Chvátal, Tietze and Robertson graphs, `SolidValues` for the Platonic,
-Archimedean and Catalan solids, `CageValues` for the cages and the small named cubic graphs, and
-`CubicValues` for five more cubic graphs, the Wagner graph up to the truncated icosahedron.
+Archimedean and Catalan solids, `CageValues` for the cages and the small named cubic graphs,
+`CubicValues` for five more cubic graphs, the Wagner graph up to the truncated icosahedron, and
+`BipartiteCageValues` for the six large bipartite cages, the Harries graph up to the Tutte
+12-cage.
 -/

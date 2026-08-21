@@ -70,7 +70,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Symmetry.lean` | their automorphisms, transitivity and regularity | yes |
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
-| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-one more by family and by operator, indexed by `SmallGraphs.lean` | yes |
+| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-two more by family and by operator, indexed by `SmallGraphs.lean` | yes |
 | `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
 | `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
@@ -4476,11 +4476,24 @@ the Moser spindle, the icosahedron and the pentakis dodecahedron — and the one
 that is class two, the Holt graph, whose odd order rules out a four-edge-colouring.
 
 `SmallGraphs/CubicValues.lean` adds five more cubic graphs — the Wagner graph, the flower snark
-`J₅`, the Tutte graph, the Gray graph and the truncated icosahedron. These are the largest
-refutations in the library: `α ≤ 19` on the Tutte graph's forty-six vertices, `α ≤ 27` on the Gray
-graph's fifty-four, `α ≤ 24` on the truncated icosahedron's sixty. All five together take about a
-minute of solver time, which is the argument for the tactic in one line — the same five bounds by
-`decide` would each be a search over `2⁶⁰` subsets.
+`J₅`, the Tutte graph, the Gray graph and the truncated icosahedron. These push the solver past
+fifty vertices: `α ≤ 19` on the Tutte graph's forty-six, `α ≤ 27` on the Gray graph's fifty-four,
+`α ≤ 24` on the truncated icosahedron's sixty. All five together take about a minute of solver
+time, which is the argument for the tactic in one line — the same five bounds by `decide` would
+each be a search over `2⁶⁰` subsets.
+
+`SmallGraphs/BipartiteCageValues.lean` closes the six large bipartite cages: the three
+`(3, 10)`-cages — Harries, Harries–Wong and Balaban — then the Foster graph, the Ljubljana graph
+and the Tutte 12-cage, seventy to a hundred and twenty-six vertices. Cubic and bipartite fixes
+three of the four values with no search at all: `ω = 2` from the girth, `χ = 2` from the
+bipartition, and `χ' = Δ = 3` from a decomposition into three perfect matchings. The independence
+number is what costs something. All six come out at `|V| / 2`, which is König's theorem applied to
+a perfect matching, but the library does not have König; instead one side of the bipartition goes
+in as the witness and `graph_sat native` refutes one more. The Tutte 12-cage's `α ≤ 63` over a
+hundred and twenty-six vertices is the largest refutation in the library. The edge colourings here
+are keyed by the sorted pair of endpoints as a `List ((ℕ × ℕ) × ℕ)` rather than laid out as an
+`n × n` table — one entry per edge instead of fifteen thousand, and the symmetry becomes a rewrite
+by `Nat.min_comm` and `Nat.max_comm` instead of a check.
 
 ## What sits inside what
 
@@ -6057,8 +6070,8 @@ theorem chromNum_le_of_colouring {G : CGraph} {k : ℕ} (c : G.V → Fin k)
 ```
 
 — a list of vertices or a table of colours, with side conditions `decide` settles. Together with
-the tactic that is both halves of a value, the three `*Values.lean` leaves are what that buys:
-`α, ω, χ, χ'` for thirty-eight of the gallery graphs, a hundred and fifty-two values.
+the tactic that is both halves of a value, the five `*Values.lean` leaves are what that buys:
+`α, ω, χ, χ'` for forty-four of the gallery graphs, a hundred and seventy-six values.
 
 ## Writing it so it can be proved
 
