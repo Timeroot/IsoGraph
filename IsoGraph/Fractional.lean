@@ -709,8 +709,9 @@ end FracLP
 /-! ## Examples
 
 The regression tests: both entry points on a graph whose value is not an integer, the upper bound
-alone on one where the two invariants come apart, and the fast path on each of the three goal
-shapes it handles. -/
+alone on one where the two invariants come apart, one program carried to a product by the algebra
+of `IsoGraph/Invariants/Fractional.lean`, and the fast path on each of the three goal shapes it
+handles. -/
 
 section Examples
 
@@ -736,6 +737,26 @@ example : petersen.fracIndepNum = 5 := by
 example : petersen.fracChromNum = 5 / 2 := by
   compute_fractional_chromNum native petersen
   exact h_fχ
+
+-- One linear program is enough for a whole family, since `α_f` is multiplicative on the strong
+-- product: `α_f(C₅ ⊠ C₅) = 25 / 4`, while `α(C₅ ⊠ C₅) = 5`.  The Shannon capacity of `C₅` is the
+-- `√5` between them.
+example : (cycle 5 ⊠g cycle 5).fracIndepNum = 25 / 4 := by
+  compute_fractional_indepNum (cycle 5)
+  rw [fracIndepNum_strongProduct, h_fα]
+  norm_num
+
+example : ((cycle 5 ⊠g cycle 5).indepNum : ℝ) ≤ 25 / 4 := by
+  compute_fractional_indepNum (cycle 5)
+  have h := indepNum_strongProduct_le_mul_fracIndepNum (cycle 5) (cycle 5)
+  rw [h_fα] at h
+  linarith
+
+-- `χ_f` adds over the join, and `C₅ ∇ C₅` is a graph on ten vertices with `χ_f = 5`.
+example : (cycle 5 ∇g cycle 5).fracChromNum = 5 := by
+  compute_fractional_chromNum (cycle 5)
+  rw [fracChromNum_join, h_fχ]
+  norm_num
 
 -- `α(C₅) ≤ 2`, `ω(C₅) ≤ 2` and `χ(C₅) > 2`, none of them with a SAT call, on either level of
 -- `decide`.
