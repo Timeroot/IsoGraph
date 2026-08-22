@@ -427,6 +427,81 @@ theorem card_le_fracIndepNum_mul_fracChromNum :
     rw [div_le_iff₀ (by exact_mod_cast hw)] at h
     exact h.trans (mul_le_mul_of_nonneg_left G.cliqueNum_le_fracChromNum G.zero_le_fracIndepNum)
 
+/-! ## Vertex-transitive graphs
+
+Both relaxations are exactly the obvious ratio when the automorphism group is transitive: the
+uniform weighting is optimal, so no integrality gap survives averaging.  This is where the two
+programs part company with `α` and `χ`, for which the clique–coclique bound
+`CGraph.indepNum_mul_cliqueNum_le_card` is only an inequality. -/
+
+/-- **`α_f` of a vertex-transitive graph is at most `n / ω`.**  Average a feasible weighting over
+the automorphism group: a maximum clique is carried to a clique by every automorphism, and each
+vertex is hit equally often. -/
+theorem fracIndepNum_le_card_div_cliqueNum (hvt : G.IsVertexTransitive) (hω : 0 < G.cliqueNum) :
+    G.fracIndepNum ≤ (FinEnum.card G.V : ℝ) / G.cliqueNum := by
+  classical
+  refine fracIndepNum_le fun x hx ↦ ?_
+  obtain ⟨C, hC, hCcard⟩ := G.toSimple.exists_isNClique_cliqueNum
+  have key : (C.card : ℚ) * ∑ v, x v ≤ FinEnum.card G.V := by
+    refine card_mul_sum_le_card_of_isVertexTransitive hvt C fun σ hσ ↦ ?_
+    have himg : G.IsCliqueOn (C.image σ) := by
+      intro u hu v hv huv
+      obtain ⟨a, ha, rfl⟩ := Finset.mem_image.1 hu
+      obtain ⟨b, hb, rfl⟩ := Finset.mem_image.1 hv
+      have hab : a ≠ b := fun hab ↦ huv (by rw [hab])
+      rw [hσ a b]
+      exact (toSimple_adj _ _ _).1 (hC ha hb hab)
+    have hsum := hx.sum_le himg
+    rwa [Finset.sum_image fun a _ b _ hab ↦ σ.injective hab] at hsum
+  rw [hCcard] at key
+  have hωq : (0 : ℝ) < G.cliqueNum := by exact_mod_cast hω
+  rw [le_div_iff₀ hωq]
+  have hR : ((G.cliqueNum : ℝ) * ((∑ v, x v : ℚ) : ℝ)) ≤ (FinEnum.card G.V : ℝ) := by
+    exact_mod_cast key
+  linarith
+
+/-- **`α_f(G) = n / ω(G)` for a vertex-transitive graph.**  The uniform weighting `1 / ω` is
+feasible, and by the averaging bound nothing does better. -/
+theorem fracIndepNum_eq_card_div_cliqueNum (hvt : G.IsVertexTransitive) (hω : 0 < G.cliqueNum) :
+    G.fracIndepNum = (FinEnum.card G.V : ℝ) / G.cliqueNum :=
+  le_antisymm (fracIndepNum_le_card_div_cliqueNum G hvt hω) (card_div_le_fracIndepNum G hω le_rfl)
+
+/-- **`χ_f(G) = n / α(G)` for a vertex-transitive graph**, the same statement on the complement,
+which is vertex-transitive too. -/
+theorem fracChromNum_eq_card_div_indepNum (hvt : G.IsVertexTransitive) (hα : 0 < G.indepNum) :
+    G.fracChromNum = (FinEnum.card G.V : ℝ) / G.indepNum := by
+  have h := fracIndepNum_eq_card_div_cliqueNum (G := Gᶜ) (isVertexTransitive_compl G hvt)
+    (by rwa [cliqueNum_compl])
+  rwa [cliqueNum_compl, card_compl, ← fracChromNum_eq_compl] at h
+
+/-- **`χ_f` of a cycle is `n / ⌊n / 2⌋`.**  The cycle is vertex-transitive and its independence
+number is `⌊n / 2⌋`. -/
+theorem fracChromNum_cycle (n : ℕ) :
+    (cycle (n + 3)).fracChromNum = (n + 3 : ℕ) / (((n + 3) / 2 : ℕ) : ℝ) := by
+  rw [fracChromNum_eq_card_div_indepNum _ (isVertexTransitive_cycle _)
+    (by rw [indepNum_cycle]; omega), indepNum_cycle, card_cycle]
+
+/-- **`χ_f(C_{2k+3}) = (2k+3) / (k+1)`**: the odd cycles, whose fractional chromatic number falls
+strictly between the clique number `2` and the chromatic number `3`. -/
+theorem fracChromNum_cycle_odd (k : ℕ) :
+    (cycle (2 * k + 3)).fracChromNum = (2 * k + 3 : ℝ) / (k + 1) := by
+  have h := fracChromNum_cycle (2 * k)
+  rw [show (2 * k + 3) / 2 = k + 1 from by omega] at h
+  rw [h]
+  push_cast
+  ring
+
+/-- **`χ_f` of an even cycle is `2`**, as is `χ`. -/
+theorem fracChromNum_cycle_even (k : ℕ) : (cycle (2 * k + 4)).fracChromNum = 2 := by
+  have h := fracChromNum_cycle (2 * k + 1)
+  rw [show 2 * k + 1 + 3 = 2 * k + 4 from by omega,
+    show (2 * k + 4) / 2 = k + 2 from by omega] at h
+  rw [h]
+  have hk : ((k : ℝ) + 2) ≠ 0 := by positivity
+  push_cast
+  rw [div_eq_iff hk]
+  ring
+
 /-! ## The two extremes
 
 On the edgeless graph every vertex may take weight one, and on the complete graph the whole

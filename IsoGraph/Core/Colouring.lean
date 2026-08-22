@@ -2031,6 +2031,62 @@ private theorem card_autFinset_filter_eq (hvt : G.IsVertexTransitive) (c v c' v'
   · intro τ _
     group
 
+/-- **Averaging a weighting over the automorphism group.**  Let `G` be vertex-transitive, let
+`x` weigh each vertex, and let `C` be a finset of vertices whose image under every automorphism
+carries weight at most one.  Then `|C| · ∑ x ≤ |V|`.
+
+The double count is the one behind the clique–coclique bound below, with the indicator of a
+maximum independent set replaced by an arbitrary weighting: each of the `|Aut G|` automorphisms
+contributes at most one, while for a fixed `c ∈ C` each vertex is `σ c` for exactly
+`|Aut G| / |V|` automorphisms `σ`.  `Invariants/Fractional` reads this off as
+`α_f(G) = |V| / ω(G)` for a vertex-transitive graph. -/
+theorem card_mul_sum_le_card_of_isVertexTransitive {x : G.V → ℚ} (hvt : G.IsVertexTransitive)
+    (C : Finset G.V) (h : ∀ σ : Equiv.Perm G.V, (∀ u v, G.Adj (σ u) (σ v) = G.Adj u v) →
+      ∑ c ∈ C, x (σ c) ≤ 1) :
+    (C.card : ℚ) * ∑ v, x v ≤ FinEnum.card G.V := by
+  classical
+  rcases isEmpty_or_nonempty G.V with hV | ⟨⟨v₀⟩⟩
+  · have hC : C = ∅ := Finset.eq_empty_of_isEmpty C
+    simp [hC, Finset.univ_eq_empty]
+  set Γ : Finset (Equiv.Perm G.V) := autFinset G with hΓ
+  set m : ℕ := (Γ.filter fun σ ↦ σ v₀ = v₀).card with hm
+  -- every fibre has size `m`, and the fibres over `v₀` partition the automorphism group
+  have hfib : ∀ c v : G.V, (Γ.filter fun σ ↦ σ c = v).card = m := fun c v ↦
+    card_autFinset_filter_eq hvt c v v₀ v₀
+  have hmpos : 0 < m := by
+    rw [hm]
+    exact Finset.card_pos.2 ⟨1, Finset.mem_filter.2 ⟨one_mem_autFinset, rfl⟩⟩
+  have hcard : Γ.card = FinEnum.card G.V * m := by
+    have h1 := Finset.card_eq_sum_card_fiberwise
+      (f := fun σ : Equiv.Perm G.V ↦ σ v₀) (s := Γ) (t := Finset.univ)
+      (fun x _ ↦ by simp)
+    rw [h1, Finset.sum_congr rfl fun v _ ↦ hfib v₀ v, Finset.sum_const, FinEnum.card_univ,
+      smul_eq_mul]
+  -- the double count, over the rationals this time
+  set N : ℚ := ∑ σ ∈ Γ, ∑ c ∈ C, x (σ c) with hN
+  have hupper : N ≤ (FinEnum.card G.V : ℚ) * m := by
+    have hone : ∀ σ ∈ Γ, ∑ c ∈ C, x (σ c) ≤ (1 : ℚ) := fun σ hσ ↦ h σ (mem_autFinset.1 hσ)
+    calc N ≤ Γ.card • (1 : ℚ) := Finset.sum_le_card_nsmul _ _ 1 hone
+      _ = (Γ.card : ℚ) := by simp
+      _ = (FinEnum.card G.V : ℚ) * m := by rw [hcard]; push_cast; ring
+  have hlower : N = (C.card : ℚ) * ((m : ℚ) * ∑ v, x v) := by
+    have hcol : ∀ c : G.V, ∑ σ ∈ Γ, x (σ c) = (m : ℚ) * ∑ v, x v := by
+      intro c
+      rw [← Finset.sum_fiberwise_of_maps_to (g := fun σ : Equiv.Perm G.V ↦ σ c)
+        (t := Finset.univ) (fun σ _ ↦ Finset.mem_univ _)]
+      have hinner : ∀ v : G.V, ∑ σ ∈ Γ.filter (fun σ ↦ σ c = v), x (σ c) = (m : ℚ) * x v := by
+        intro v
+        rw [Finset.sum_congr rfl fun σ hσ ↦ by rw [(Finset.mem_filter.1 hσ).2],
+          Finset.sum_const, hfib c v, nsmul_eq_mul]
+      rw [Finset.sum_congr rfl fun v _ ↦ hinner v, ← Finset.mul_sum]
+    rw [hN, Finset.sum_comm, Finset.sum_congr rfl fun c _ ↦ hcol c, Finset.sum_const,
+      nsmul_eq_mul]
+  -- cancel the common factor `m`
+  have hmq : (0 : ℚ) < m := by exact_mod_cast hmpos
+  refine le_of_mul_le_mul_right ?_ hmq
+  calc (C.card : ℚ) * (∑ v, x v) * m = N := by rw [hlower]; ring
+    _ ≤ (FinEnum.card G.V : ℚ) * m := hupper
+
 end
 
 section
