@@ -38,6 +38,15 @@ with the last two the first two read on the complement.  `CGraph.fracCliqueCover
 covering program dual to `α_f`; it is here for completeness, with weak duality
 `α_f ≤ θ_f` and nothing else.
 
+Past those four bounds is the basic theory of how the two quantities behave under substructure
+and under the graph operations.  An adjacency-reflecting injection `H.V → G.V` cannot lower `α_f`
+(`CGraph.fracIndepNum_le_of_injective`), which is every containment at once; `α_f` adds over `⊕`
+and maximises over `∇` (`CGraph.fracIndepNum_disjUnion`, `CGraph.fracIndepNum_join`), with `χ_f`
+doing the opposite; and `α_f` is multiplicative over the strong and lexicographic products
+(`CGraph.fracIndepNum_strongProduct`, `CGraph.fracIndepNum_lexProduct`), which `α` is not.  The
+two extremes are `CGraph.fracIndepNum_empty` and `CGraph.fracIndepNum_complete`, and the two
+quantities meet in `CGraph.card_le_fracIndepNum_mul_fracChromNum`, the fractional `n ≤ α · χ`.
+
 Both directions of a fractional bound come with a finite certificate, and those are what the
 `compute_fractional_indepNum` tactic emits: `CGraph.fracIndepNum_le_of_cover` takes a *fractional
 clique cover* — finitely many cliques with nonnegative weights covering every vertex — and
@@ -392,6 +401,632 @@ theorem card_div_le_fracChromNum {w : ℕ} (hw : 0 < w) (h : G.indepNum ≤ w) :
     (FinEnum.card G.V : ℝ) / w ≤ G.fracChromNum := by
   have := card_div_le_fracIndepNum (G := Gᶜ) hw (by rwa [cliqueNum_compl])
   rwa [card_compl] at this
+
+/-- The two quantities are each other's on the complement, by definition one way and by
+`CGraph.compl_compl` the other. -/
+@[simp] theorem fracIndepNum_compl : Gᶜ.fracIndepNum = G.fracChromNum := rfl
+
+@[simp] theorem fracChromNum_compl : Gᶜ.fracChromNum = G.fracIndepNum := by
+  rw [fracChromNum_eq_compl, compl_compl]
+
+theorem fracChromNum_le_card : G.fracChromNum ≤ FinEnum.card G.V :=
+  Gᶜ.fracIndepNum_le_card
+
+/-- **`n ≤ α_f(G) · χ_f(G)`**, the fractional form of `n ≤ α(G) · χ(G)`: the uniform weighting
+`1 / ω(G)` is feasible, and `ω ≤ χ_f`. -/
+theorem card_le_fracIndepNum_mul_fracChromNum :
+    (FinEnum.card G.V : ℝ) ≤ G.fracIndepNum * G.fracChromNum := by
+  rcases Nat.eq_zero_or_pos (FinEnum.card G.V) with h0 | h0
+  · rw [h0, Nat.cast_zero]
+    exact mul_nonneg G.zero_le_fracIndepNum G.zero_le_fracChromNum
+  · have hne : Nonempty G.V := by
+      rw [FinEnum.card_eq_fintypeCard' (α := G.V)] at h0
+      exact Fintype.card_pos_iff.1 h0
+    have hw : 0 < G.cliqueNum := one_le_cliqueNum
+    have h := G.card_div_le_fracIndepNum hw le_rfl
+    rw [div_le_iff₀ (by exact_mod_cast hw)] at h
+    exact h.trans (mul_le_mul_of_nonneg_left G.cliqueNum_le_fracChromNum G.zero_le_fracIndepNum)
+
+/-! ## The two extremes
+
+On the edgeless graph every vertex may take weight one, and on the complete graph the whole
+vertex set is a single clique; the complement exchanges the two. -/
+
+/-- **`α_f` of the edgeless graph is the number of vertices**, which is already `α`. -/
+@[simp] theorem fracIndepNum_empty (n : ℕ) : (empty n).fracIndepNum = n := by
+  refine le_antisymm ?_ ?_
+  · simpa using (empty n).fracIndepNum_le_card
+  · have h := (empty n).indepNum_le_fracIndepNum
+    rwa [indepNum_empty] at h
+
+/-- **`α_f` of the complete graph is one**, or zero when there are no vertices at all. -/
+@[simp] theorem fracIndepNum_complete (n : ℕ) : (complete n).fracIndepNum = min n 1 := by
+  match n with
+  | 0 =>
+    have h := (complete 0).fracIndepNum_le_card
+    rw [card_complete] at h
+    simpa using le_antisymm (by exact_mod_cast h) (complete 0).zero_le_fracIndepNum
+  | m + 1 =>
+    refine le_antisymm ?_ ?_
+    · have h := fracIndepNum_le_of_cliqueColouring (G := complete (m + 1)) (fun _ ↦ (0 : Fin 1))
+        (fun u v huv _ ↦ by simpa using huv)
+      simpa using h
+    · have h := (complete (m + 1)).indepNum_le_fracIndepNum
+      rw [indepNum_complete] at h
+      simpa using h
+
+@[simp] theorem fracChromNum_complete (n : ℕ) : (complete n).fracChromNum = n := by
+  rw [fracChromNum_eq_compl, compl_complete, fracIndepNum_empty]
+
+@[simp] theorem fracChromNum_empty (n : ℕ) : (empty n).fracChromNum = min n 1 := by
+  rw [fracChromNum_eq_compl, compl_empty, fracIndepNum_complete]
+
+/-! ## Substructure
+
+One lemma covers every containment: an injection `f : H.V → G.V` that *reflects* adjacency —
+every edge of `G` between two vertices of the image is an edge of `H` — cannot lower `α_f`, since
+extending a weighting of `H` by zero keeps every clique of `G` light.  Induced subgraphs are the
+case where `f` reflects and preserves adjacency, adding edges to a graph is the case `f = id`, and
+an isomorphism is the case where `f` is a bijection, so `α_f` and `χ_f` are graph invariants.
+Reading the lemma on the complements asks instead for an injection that *preserves* adjacency, and
+bounds `χ_f`. -/
+
+/-- **A reflecting injection cannot lower `α_f`.** -/
+theorem fracIndepNum_le_of_injective {H G : CGraph} (f : H.V → G.V)
+    (hinj : Function.Injective f)
+    (hadj : ∀ u v, G.Adj (f u) (f v) = true → H.Adj u v = true) :
+    H.fracIndepNum ≤ G.fracIndepNum := by
+  classical
+  refine fracIndepNum_le fun x hx ↦ ?_
+  set z : G.V → ℚ := Function.extend f x 0 with hzdef
+  have hzf : ∀ u, z (f u) = x u := fun u ↦ hinj.extend_apply x 0 u
+  have hz0 : ∀ w, ¬ (∃ u, f u = w) → z w = 0 := by
+    intro w hw
+    rw [hzdef, Function.extend_apply' _ _ _ hw]
+    rfl
+  have hsum : ∀ K : Finset H.V, ∑ w ∈ K.image f, z w = ∑ u ∈ K, x u := by
+    intro K
+    rw [Finset.sum_image fun a _ b _ h ↦ hinj h]
+    exact Finset.sum_congr rfl fun u _ ↦ hzf u
+  have hfeas : G.IsFracIndep z := by
+    refine ⟨fun w ↦ ?_, fun K hK ↦ ?_⟩
+    · by_cases h : ∃ u, f u = w
+      · obtain ⟨u, rfl⟩ := h
+        rw [hzf]
+        exact hx.nonneg u
+      · rw [hz0 w h]
+    · set K' : Finset H.V := Finset.univ.filter (fun u ↦ f u ∈ K) with hK'def
+      have hK' : H.IsCliqueOn K' := by
+        intro u hu v hv huv
+        rw [hK'def, Finset.mem_filter] at hu hv
+        exact hadj u v (hK _ hu.2 _ hv.2 fun h ↦ huv (hinj h))
+      have himg : K'.image f ⊆ K := by
+        intro w hw
+        obtain ⟨u, hu, rfl⟩ := Finset.mem_image.1 hw
+        exact (Finset.mem_filter.1 hu).2
+      have hrestrict : ∑ w ∈ K, z w = ∑ w ∈ K'.image f, z w := by
+        refine (Finset.sum_subset himg ?_).symm
+        intro w hwK hw
+        by_cases h : ∃ u, f u = w
+        · obtain ⟨u, rfl⟩ := h
+          exact absurd (Finset.mem_image.2
+            ⟨u, Finset.mem_filter.2 ⟨Finset.mem_univ u, hwK⟩, rfl⟩) hw
+        · exact hz0 w h
+      rw [hrestrict, hsum K']
+      exact hx.sum_le hK'
+  have htot : ∑ w, z w = ∑ u, x u := by
+    rw [← hsum Finset.univ]
+    refine (Finset.sum_subset (Finset.subset_univ _) ?_).symm
+    intro w _ hw
+    by_cases h : ∃ u, f u = w
+    · obtain ⟨u, rfl⟩ := h
+      exact absurd (Finset.mem_image_of_mem f (Finset.mem_univ u)) hw
+    · exact hz0 w h
+  have := le_fracIndepNum hfeas
+  rwa [htot] at this
+
+/-- **A preserving injection cannot lower `χ_f`.** -/
+theorem fracChromNum_le_of_injective {H G : CGraph} (f : H.V → G.V)
+    (hinj : Function.Injective f)
+    (hadj : ∀ u v, H.Adj u v = true → G.Adj (f u) (f v) = true) :
+    H.fracChromNum ≤ G.fracChromNum := by
+  refine fracIndepNum_le_of_injective (H := Hᶜ) (G := Gᶜ) f hinj fun u v h ↦ ?_
+  rw [compl_adj] at h ⊢
+  simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true'] at h ⊢
+  refine ⟨fun he ↦ h.1 (by rw [he]), ?_⟩
+  by_contra hb
+  rw [Bool.not_eq_false] at hb
+  rw [hadj u v hb] at h
+  exact Bool.noConfusion h.2
+
+/-- **`α_f` is an isomorphism invariant.** -/
+theorem Iso.fracIndepNum_eq {G H : CGraph} (i : G ≃cg H) : G.fracIndepNum = H.fracIndepNum :=
+  le_antisymm
+    (fracIndepNum_le_of_injective i (RelIso.injective i) fun u v h ↦ by
+      rwa [Iso.adj_eq i u v] at h)
+    (fracIndepNum_le_of_injective i.symm (RelIso.injective i.symm) fun u v h ↦ by
+      rwa [Iso.adj_eq i.symm u v] at h)
+
+/-- **`χ_f` is an isomorphism invariant.** -/
+theorem Iso.fracChromNum_eq {G H : CGraph} (i : G ≃cg H) : G.fracChromNum = H.fracChromNum :=
+  Iso.fracIndepNum_eq i.compl
+
+/-! ## Sums and products
+
+`α_f` adds over the disjoint union and maximises over the join; `χ_f` is `α_f` of the complement,
+which exchanges those two operations, so it does the opposite.  A clique of a strong product is
+exactly a product of cliques, and that makes `α_f` multiplicative there — unlike `α` itself, whose
+failure to be multiplicative on `C₅ ⊠ C₅` is the beginning of the Shannon capacity, which `α_f`
+therefore bounds from above.  The lexicographic product takes the same value, squeezed between a
+product weighting from below and `G ⊠ H ≤ G[H]` from above; on the complement that reads
+`χ_f(G[H]) = χ_f(G) · χ_f(H)`.  A clique of a Cartesian product lies in one row or one column, so
+`α_f(G □ H)` is caught between `α_f(G) · α_f(H)` and `n(G) · α_f(H)`; the tensor product gets only
+the lower bounds. -/
+
+/-- Sums over the vertices of a disjoint union. -/
+private theorem sum_univ_disjUnion {G H : CGraph} {M : Type*} [AddCommMonoid M]
+    (f : (G ⊕g H).V → M) :
+    ∑ w, f w = (∑ u, f (Sum.inl u)) + ∑ v, f (Sum.inr v) :=
+  (Finset.sum_univ_inst_eq _ (instFintypeSum G.V H.V) f).trans (Fintype.sum_sum_type f)
+
+/-- Sums over the vertices of a join. -/
+private theorem sum_univ_join {G H : CGraph} {M : Type*} [AddCommMonoid M]
+    (f : (G ∇g H).V → M) :
+    ∑ w, f w = (∑ u, f (Sum.inl u)) + ∑ v, f (Sum.inr v) :=
+  (Finset.sum_univ_inst_eq _ (instFintypeSum G.V H.V) f).trans (Fintype.sum_sum_type f)
+
+/-- A product of weightings, summed over the vertices of a lexicographic product. -/
+private theorem sum_univ_lexProduct {G H : CGraph} (x : G.V → ℚ) (y : H.V → ℚ) :
+    ∑ p : (G ·g H).V, x p.1 * y p.2 = (∑ u, x u) * ∑ v, y v := by
+  rw [Finset.sum_mul_sum]
+  exact (Finset.sum_univ_inst_eq _ (instFintypeProd G.V H.V) _).trans
+    (Fintype.sum_prod_type _)
+
+/-- Sums over the vertices of a Cartesian product, fibre by fibre. -/
+private theorem sum_univ_cartesianProduct {G H : CGraph} (z : (G □g H).V → ℚ) :
+    ∑ p, z p = ∑ u, ∑ v, z (u, v) :=
+  (Finset.sum_univ_inst_eq _ (instFintypeProd G.V H.V) z).trans (Fintype.sum_prod_type z)
+
+/-- Sums over the vertices of a strong product, fibre by fibre. -/
+private theorem sum_univ_strongProduct {G H : CGraph} (z : (G ⊠g H).V → ℚ) :
+    ∑ p, z p = ∑ u, ∑ v, z (u, v) :=
+  (Finset.sum_univ_inst_eq _ (instFintypeProd G.V H.V) z).trans (Fintype.sum_prod_type z)
+
+/-- A weighting that ignores the second coordinate, summed over a tensor product. -/
+private theorem sum_univ_tensorProduct {G H : CGraph} (x : G.V → ℚ) :
+    ∑ p : (G ⊗g H).V, x p.1 = (FinEnum.card H.V : ℚ) * ∑ u, x u := by
+  rw [Finset.mul_sum]
+  refine ((Finset.sum_univ_inst_eq _ (instFintypeProd G.V H.V) _).trans
+    (Fintype.sum_prod_type _)).trans (Finset.sum_congr rfl fun u _ ↦ ?_)
+  show ∑ _v : H.V, x u = _
+  rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul,
+    FinEnum.card_eq_fintypeCard' (α := H.V)]
+
+/-- **Scaling `α_f` by a rational bound.** -/
+theorem sum_le_mul_fracIndepNum_rat {G : CGraph} {x : G.V → ℚ} {p : ℚ} (hnn : ∀ v, 0 ≤ x v)
+    (hp : ∀ K : Finset G.V, G.IsCliqueOn K → ∑ v ∈ K, x v ≤ p) :
+    ((∑ v, x v : ℚ) : ℝ) ≤ (p : ℝ) * G.fracIndepNum := by
+  have hdiv : ∀ s : Finset G.V, ∑ v ∈ s, x v / p = (∑ v ∈ s, x v) / p := by
+    intro s
+    simp only [div_eq_mul_inv, ← Finset.sum_mul]
+  have hp0 : (0 : ℚ) ≤ p := by simpa using hp ∅ isCliqueOn_empty
+  rcases eq_or_lt_of_le hp0 with h | h
+  · have hx : ∀ v, x v = 0 := by
+      intro v
+      refine le_antisymm ?_ (hnn v)
+      have := hp {v} (isCliqueOn_singleton v)
+      simpa [← h] using this
+    simp [hx, ← h]
+  · have hfeas : G.IsFracIndep (fun v ↦ x v / p) :=
+      ⟨fun v ↦ div_nonneg (hnn v) h.le, fun K hK ↦ by
+        rw [hdiv, div_le_one h]
+        exact hp K hK⟩
+    have hle := le_fracIndepNum hfeas
+    rw [hdiv] at hle
+    have hpR : (0 : ℝ) < (p : ℝ) := by exact_mod_cast h
+    rw [Rat.cast_div, div_le_iff₀ hpR] at hle
+    linarith
+
+/-- **Scaling `α_f`.**  If every clique of `G` weighs at most `c`, the whole weighting weighs
+at most `c · α_f(G)`.  The bound `c` may be any real number. -/
+theorem sum_le_mul_fracIndepNum {G : CGraph} {x : G.V → ℚ} {c : ℝ} (hnn : ∀ v, 0 ≤ x v)
+    (hc : ∀ K : Finset G.V, G.IsCliqueOn K → ((∑ v ∈ K, x v : ℚ) : ℝ) ≤ c) :
+    ((∑ v, x v : ℚ) : ℝ) ≤ c * G.fracIndepNum := by
+  have hq : ∀ p : ℚ, c ≤ (p : ℝ) →
+      ((∑ v, x v : ℚ) : ℝ) ≤ (p : ℝ) * G.fracIndepNum := fun p hp ↦
+    sum_le_mul_fracIndepNum_rat hnn fun K hK ↦ by
+      exact_mod_cast le_trans (hc K hK) hp
+  by_contra hcon
+  push_neg at hcon
+  rcases eq_or_lt_of_le G.zero_le_fracIndepNum with h0 | h0
+  · obtain ⟨p, hp⟩ := exists_rat_gt c
+    have h1 := hq p hp.le
+    rw [← h0, mul_zero] at h1
+    rw [← h0, mul_zero] at hcon
+    linarith
+  · have hlt : c < ((∑ v, x v : ℚ) : ℝ) / G.fracIndepNum := by
+      rw [lt_div_iff₀ h0]
+      linarith
+    obtain ⟨p, hp1, hp2⟩ := exists_rat_btwn hlt
+    rw [lt_div_iff₀ h0] at hp2
+    have h1 := hq p hp1.le
+    linarith
+
+/-- Two feasible weightings at once, for a bound on `α_f + α_f`. -/
+theorem fracIndepNum_add_fracIndepNum_le {G H : CGraph} {c : ℝ}
+    (h : ∀ (x : G.V → ℚ) (y : H.V → ℚ), G.IsFracIndep x → H.IsFracIndep y →
+      ((∑ u, x u : ℚ) : ℝ) + ((∑ v, y v : ℚ) : ℝ) ≤ c) :
+    G.fracIndepNum + H.fracIndepNum ≤ c := by
+  have h1 : ∀ y : H.V → ℚ, H.IsFracIndep y →
+      G.fracIndepNum ≤ c - ((∑ v, y v : ℚ) : ℝ) := fun y hy ↦
+    fracIndepNum_le fun x hx ↦ by linarith [h x y hx hy]
+  have h2 : H.fracIndepNum ≤ c - G.fracIndepNum :=
+    fracIndepNum_le fun y hy ↦ by linarith [h1 y hy]
+  linarith
+
+/-- Two feasible weightings at once, for a bound on `α_f * α_f`. -/
+theorem fracIndepNum_mul_fracIndepNum_le {G H : CGraph} {c : ℝ} (hc : 0 ≤ c)
+    (h : ∀ (x : G.V → ℚ) (y : H.V → ℚ), G.IsFracIndep x → H.IsFracIndep y →
+      ((∑ u, x u : ℚ) : ℝ) * ((∑ v, y v : ℚ) : ℝ) ≤ c) :
+    G.fracIndepNum * H.fracIndepNum ≤ c := by
+  rcases eq_or_lt_of_le G.zero_le_fracIndepNum with h0 | h0
+  · rw [← h0, zero_mul]
+    exact hc
+  rw [mul_comm, ← le_div_iff₀ h0]
+  refine fracIndepNum_le fun y hy ↦ ?_
+  have hy0 : (0 : ℝ) ≤ ((∑ v, y v : ℚ) : ℝ) := by
+    exact_mod_cast Finset.sum_nonneg fun v _ ↦ hy.nonneg v
+  rcases eq_or_lt_of_le hy0 with hy0' | hy0'
+  · rw [← hy0']
+    exact div_nonneg hc h0.le
+  rw [le_div_iff₀ h0, mul_comm, ← le_div_iff₀ hy0']
+  refine fracIndepNum_le fun x hx ↦ ?_
+  rw [le_div_iff₀ hy0']
+  exact h x y hx hy
+
+/-- **`α_f` adds over the disjoint union.** -/
+@[simp] theorem fracIndepNum_disjUnion (G H : CGraph) :
+    (G ⊕g H).fracIndepNum = G.fracIndepNum + H.fracIndepNum := by
+  refine le_antisymm (fracIndepNum_le fun z hz ↦ ?_) ?_
+  · have hG : G.IsFracIndep (fun u ↦ z (Sum.inl u)) := by
+      refine ⟨fun u ↦ hz.nonneg _, fun K hK ↦ ?_⟩
+      have hcl : (G ⊕g H).IsCliqueOn (K.map ⟨Sum.inl, Sum.inl_injective⟩) := by
+        intro a ha b hb hab
+        obtain ⟨u, hu, rfl⟩ := Finset.mem_map.1 ha
+        obtain ⟨v, hv, rfl⟩ := Finset.mem_map.1 hb
+        exact hK u hu v hv fun h ↦ hab (by rw [h])
+      have hs := hz.sum_le hcl
+      rwa [Finset.sum_map] at hs
+    have hH : H.IsFracIndep (fun v ↦ z (Sum.inr v)) := by
+      refine ⟨fun v ↦ hz.nonneg _, fun K hK ↦ ?_⟩
+      have hcl : (G ⊕g H).IsCliqueOn (K.map ⟨Sum.inr, Sum.inr_injective⟩) := by
+        intro a ha b hb hab
+        obtain ⟨u, hu, rfl⟩ := Finset.mem_map.1 ha
+        obtain ⟨v, hv, rfl⟩ := Finset.mem_map.1 hb
+        exact hK u hu v hv fun h ↦ hab (by rw [h])
+      have hs := hz.sum_le hcl
+      rwa [Finset.sum_map] at hs
+    rw [sum_univ_disjUnion z, Rat.cast_add]
+    exact add_le_add (le_fracIndepNum hG) (le_fracIndepNum hH)
+  · refine fracIndepNum_add_fracIndepNum_le fun x y hx hy ↦ ?_
+    have hfeas : (G ⊕g H).IsFracIndep (Sum.elim x y) := by
+      refine ⟨fun w ↦ ?_, fun K hK ↦ ?_⟩
+      · cases w with
+        | inl u => exact hx.nonneg u
+        | inr v => exact hy.nonneg v
+      · have hleft : G.IsCliqueOn K.toLeft := by
+          intro u hu v hv huv
+          rw [Finset.mem_toLeft] at hu hv
+          exact hK _ hu _ hv fun h ↦ huv (Sum.inl.inj h)
+        have hright : H.IsCliqueOn K.toRight := by
+          intro u hu v hv huv
+          rw [Finset.mem_toRight] at hu hv
+          exact hK _ hu _ hv fun h ↦ huv (Sum.inr.inj h)
+        have hone : K.toLeft = ∅ ∨ K.toRight = ∅ := by
+          by_contra hcon
+          push_neg at hcon
+          obtain ⟨u, hu⟩ := hcon.1
+          obtain ⟨v, hv⟩ := hcon.2
+          rw [Finset.mem_toLeft] at hu
+          rw [Finset.mem_toRight] at hv
+          have hadj := hK _ hu _ hv (by simp)
+          rw [disjUnion_adj_inl_inr] at hadj
+          exact Bool.noConfusion hadj
+        have hsplit : ∑ w ∈ K, Sum.elim x y w
+            = (∑ a ∈ K.toLeft, x a) + ∑ b ∈ K.toRight, y b :=
+          Finset.sum_sum_eq_sum_toLeft_add_sum_toRight K _
+        rw [hsplit]
+        rcases hone with hemp | hemp
+        · rw [hemp, Finset.sum_empty, zero_add]
+          exact hy.sum_le hright
+        · rw [hemp, Finset.sum_empty, add_zero]
+          exact hx.sum_le hleft
+    have hle := le_fracIndepNum hfeas
+    rw [sum_univ_disjUnion (Sum.elim x y), Rat.cast_add] at hle
+    exact hle
+
+/-- **`α_f` of a join is the larger of the two.**  Weight `p` of a clique of `G` and weight `q`
+of one of `H` join to a clique of `G ∇ H`, so `p + q ≤ 1`, and the two sides scale by `p` and
+`q`. -/
+@[simp] theorem fracIndepNum_join (G H : CGraph) :
+    (G ∇g H).fracIndepNum = max G.fracIndepNum H.fracIndepNum := by
+  refine le_antisymm (fracIndepNum_le fun z hz ↦ ?_) (max_le ?_ ?_)
+  · obtain ⟨KG, hKG, hKGmax⟩ := Finset.exists_max_image
+      (Finset.univ.filter fun K : Finset G.V ↦ G.IsCliqueOn K)
+      (fun K ↦ ∑ u ∈ K, z (Sum.inl u)) ⟨∅, by simp⟩
+    obtain ⟨KH, hKH, hKHmax⟩ := Finset.exists_max_image
+      (Finset.univ.filter fun K : Finset H.V ↦ H.IsCliqueOn K)
+      (fun K ↦ ∑ v ∈ K, z (Sum.inr v)) ⟨∅, by simp⟩
+    rw [Finset.mem_filter] at hKG hKH
+    set p : ℚ := ∑ u ∈ KG, z (Sum.inl u) with hpdef
+    set q : ℚ := ∑ v ∈ KH, z (Sum.inr v) with hqdef
+    have hpmax : ∀ K : Finset G.V, G.IsCliqueOn K → ∑ u ∈ K, z (Sum.inl u) ≤ p :=
+      fun K hKc ↦ hKGmax K (Finset.mem_filter.2 ⟨Finset.mem_univ K, hKc⟩)
+    have hqmax : ∀ K : Finset H.V, H.IsCliqueOn K → ∑ v ∈ K, z (Sum.inr v) ≤ q :=
+      fun K hKc ↦ hKHmax K (Finset.mem_filter.2 ⟨Finset.mem_univ K, hKc⟩)
+    have hpq : p + q ≤ 1 := by
+      have hcl : (G ∇g H).IsCliqueOn (KG.disjSum KH) := by
+        intro a ha b hb hab
+        obtain ⟨u, hu, rfl⟩ | ⟨u, hu, rfl⟩ := Finset.mem_disjSum.1 ha <;>
+          obtain ⟨v, hv, rfl⟩ | ⟨v, hv, rfl⟩ := Finset.mem_disjSum.1 hb
+        · rw [join_adj_inl_inl]
+          exact hKG.2 u hu v hv fun h ↦ hab (by rw [h])
+        · exact join_adj_inl_inr G H u v
+        · exact join_adj_inr_inl G H u v
+        · rw [join_adj_inr_inr]
+          exact hKH.2 u hu v hv fun h ↦ hab (by rw [h])
+      have hsplit : ∑ w ∈ KG.disjSum KH, z w
+          = (∑ u ∈ KG, z (Sum.inl u)) + ∑ v ∈ KH, z (Sum.inr v) :=
+        Finset.sum_disjSum KG KH z
+      calc p + q = ∑ w ∈ KG.disjSum KH, z w := hsplit.symm
+        _ ≤ 1 := hz.sum_le hcl
+    have hp0 : (0 : ℚ) ≤ p := by simpa using hpmax ∅ isCliqueOn_empty
+    have hq0 : (0 : ℚ) ≤ q := by simpa using hqmax ∅ isCliqueOn_empty
+    have hGa : ((∑ u, z (Sum.inl u) : ℚ) : ℝ) ≤ (p : ℝ) * G.fracIndepNum :=
+      sum_le_mul_fracIndepNum_rat (fun u ↦ hz.nonneg _) hpmax
+    have hHa : ((∑ v, z (Sum.inr v) : ℚ) : ℝ) ≤ (q : ℝ) * H.fracIndepNum :=
+      sum_le_mul_fracIndepNum_rat (fun v ↦ hz.nonneg _) hqmax
+    have hpqR : (p : ℝ) + (q : ℝ) ≤ 1 := by exact_mod_cast hpq
+    have hp0R : (0 : ℝ) ≤ (p : ℝ) := by exact_mod_cast hp0
+    have hq0R : (0 : ℝ) ≤ (q : ℝ) := by exact_mod_cast hq0
+    have hGM : G.fracIndepNum ≤ max G.fracIndepNum H.fracIndepNum := le_max_left _ _
+    have hHM : H.fracIndepNum ≤ max G.fracIndepNum H.fracIndepNum := le_max_right _ _
+    have hM0 : (0 : ℝ) ≤ max G.fracIndepNum H.fracIndepNum :=
+      le_trans G.zero_le_fracIndepNum hGM
+    rw [sum_univ_join z, Rat.cast_add]
+    nlinarith [mul_le_mul_of_nonneg_left hGM hp0R, mul_le_mul_of_nonneg_left hHM hq0R]
+  · exact fracIndepNum_le_of_injective Sum.inl Sum.inl_injective fun u v h ↦ by
+      rwa [join_adj_inl_inl] at h
+  · exact fracIndepNum_le_of_injective Sum.inr Sum.inr_injective fun u v h ↦ by
+      rwa [join_adj_inr_inr] at h
+
+/-- **`χ_f` adds over the join.** -/
+@[simp] theorem fracChromNum_join (G H : CGraph) :
+    (G ∇g H).fracChromNum = G.fracChromNum + H.fracChromNum := by
+  rw [fracChromNum_eq_compl, compl_join, fracIndepNum_disjUnion]
+  rfl
+
+/-- **`χ_f` of a disjoint union is the larger of the two.** -/
+@[simp] theorem fracChromNum_disjUnion (G H : CGraph) :
+    (G ⊕g H).fracChromNum = max G.fracChromNum H.fracChromNum := by
+  rw [fracChromNum_eq_compl, compl_disjUnion, fracIndepNum_join]
+  rfl
+
+/-- **A product of feasible weightings is feasible in the lexicographic product.** -/
+theorem fracIndepNum_mul_fracIndepNum_le_fracIndepNum_lexProduct (G H : CGraph) :
+    G.fracIndepNum * H.fracIndepNum ≤ (G ·g H).fracIndepNum := by
+  classical
+  refine fracIndepNum_mul_fracIndepNum_le (G ·g H).zero_le_fracIndepNum fun x y hx hy ↦ ?_
+  have hfeas : (G ·g H).IsFracIndep (fun p ↦ x p.1 * y p.2) := by
+    refine ⟨fun p ↦ mul_nonneg (hx.nonneg _) (hy.nonneg _), fun K hK ↦ ?_⟩
+    have hfst : G.IsCliqueOn (K.image Prod.fst) := by
+      intro a ha b hb hab
+      obtain ⟨p, hp, rfl⟩ := Finset.mem_image.1 ha
+      obtain ⟨q, hq, rfl⟩ := Finset.mem_image.1 hb
+      have hpq : p ≠ q := fun h ↦ hab (by rw [h])
+      have hadj := hK p hp q hq hpq
+      rw [lexProduct_adj] at hadj
+      simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hadj
+      rcases hadj with h | ⟨h, -⟩
+      · exact h
+      · exact absurd h hab
+    have hfib : ∀ a : G.V,
+        H.IsCliqueOn ((K.filter fun p ↦ p.1 = a).image Prod.snd) := by
+      intro a c hc d hd hcd
+      obtain ⟨p, hp, rfl⟩ := Finset.mem_image.1 hc
+      obtain ⟨q, hq, rfl⟩ := Finset.mem_image.1 hd
+      rw [Finset.mem_filter] at hp hq
+      have hpq : p ≠ q := fun h ↦ hcd (by rw [h])
+      have hadj := hK p hp.1 q hq.1 hpq
+      rw [lexProduct_adj] at hadj
+      simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hadj
+      rcases hadj with h | ⟨-, h⟩
+      · rw [hp.2, hq.2, adj_self] at h
+        exact Bool.noConfusion h
+      · exact h
+    calc ∑ p ∈ K, x p.1 * y p.2
+        = ∑ a ∈ K.image Prod.fst, ∑ p ∈ K.filter fun p ↦ p.1 = a, x p.1 * y p.2 :=
+          (Finset.sum_fiberwise_of_maps_to (fun p hp ↦ Finset.mem_image_of_mem _ hp) _).symm
+      _ ≤ ∑ a ∈ K.image Prod.fst, x a := by
+          refine Finset.sum_le_sum fun a _ ↦ ?_
+          have hcast : ∑ p ∈ K.filter fun p ↦ p.1 = a, x p.1 * y p.2
+              = x a * ∑ p ∈ K.filter fun p ↦ p.1 = a, y p.2 := by
+            rw [Finset.mul_sum]
+            refine Finset.sum_congr rfl fun p hp ↦ ?_
+            rw [(Finset.mem_filter.1 hp).2]
+          have himg : ∑ v ∈ (K.filter fun p ↦ p.1 = a).image Prod.snd, y v
+              = ∑ p ∈ K.filter fun p ↦ p.1 = a, y p.2 := by
+            refine Finset.sum_image fun p hp q hq h ↦ ?_
+            simp only [Finset.mem_coe, Finset.mem_filter] at hp hq
+            exact Prod.ext (hp.2.trans hq.2.symm) h
+          rw [hcast, ← himg]
+          calc x a * ∑ v ∈ (K.filter fun p ↦ p.1 = a).image Prod.snd, y v
+              ≤ x a * 1 :=
+                mul_le_mul_of_nonneg_left (hy.sum_le (hfib a)) (hx.nonneg a)
+            _ = x a := mul_one _
+      _ ≤ 1 := hx.sum_le hfst
+  have hle := le_fracIndepNum hfeas
+  rw [sum_univ_lexProduct x y, Rat.cast_mul] at hle
+  exact hle
+
+/-- The strong product is a subgraph of the lexicographic one. -/
+theorem fracIndepNum_lexProduct_le_fracIndepNum_strongProduct (G H : CGraph) :
+    (G ·g H).fracIndepNum ≤ (G ⊠g H).fracIndepNum :=
+  fracIndepNum_le_of_injective (H := G ·g H) (G := G ⊠g H) id Function.injective_id
+    fun _ _ h ↦ (toSimple_adj _ _ _).1 (strongProduct_le_lexProduct G H
+      ((toSimple_adj _ _ _).2 h))
+
+/-- The product weighting is feasible in the strong product too. -/
+theorem fracIndepNum_mul_fracIndepNum_le_fracIndepNum_strongProduct (G H : CGraph) :
+    G.fracIndepNum * H.fracIndepNum ≤ (G ⊠g H).fracIndepNum :=
+  le_trans (fracIndepNum_mul_fracIndepNum_le_fracIndepNum_lexProduct G H)
+    (fracIndepNum_lexProduct_le_fracIndepNum_strongProduct G H)
+
+/-- **`α_f` is multiplicative on the strong product.**  Unlike `α` itself: a weighting of
+`G ⊠ H` restricted to `K × V(H)`, for a clique `K` of `G`, is feasible for `H`. -/
+@[simp] theorem fracIndepNum_strongProduct (G H : CGraph) :
+    (G ⊠g H).fracIndepNum = G.fracIndepNum * H.fracIndepNum := by
+  refine le_antisymm (fracIndepNum_le fun z hz ↦ ?_)
+    (fracIndepNum_mul_fracIndepNum_le_fracIndepNum_strongProduct G H)
+  have hxnn : ∀ u : G.V, (0 : ℚ) ≤ ∑ v, z (u, v) :=
+    fun u ↦ Finset.sum_nonneg fun v _ ↦ hz.nonneg _
+  have hrow : ∀ K : Finset G.V, G.IsCliqueOn K →
+      ((∑ u ∈ K, ∑ v, z (u, v) : ℚ) : ℝ) ≤ H.fracIndepNum := by
+    intro K hKc
+    have hw : H.IsFracIndep fun v ↦ ∑ u ∈ K, z (u, v) := by
+      refine ⟨fun v ↦ Finset.sum_nonneg fun u _ ↦ hz.nonneg _, fun L hL ↦ ?_⟩
+      have hcl : (G ⊠g H).IsCliqueOn (K ×ˢ L) := by
+        intro a ha b hb hab
+        obtain ⟨ha1, ha2⟩ := Finset.mem_product.1 ha
+        obtain ⟨hb1, hb2⟩ := Finset.mem_product.1 hb
+        rw [strongProduct_adj]
+        simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, ne_eq]
+        refine ⟨hab, ?_, ?_⟩
+        · rcases eq_or_ne a.1 b.1 with h | h
+          · exact Or.inl h
+          · exact Or.inr (hKc _ ha1 _ hb1 h)
+        · rcases eq_or_ne a.2 b.2 with h | h
+          · exact Or.inl h
+          · exact Or.inr (hL _ ha2 _ hb2 h)
+      calc ∑ v ∈ L, ∑ u ∈ K, z (u, v)
+          = ∑ u ∈ K, ∑ v ∈ L, z (u, v) := Finset.sum_comm
+        _ = ∑ w ∈ K ×ˢ L, z w := (Finset.sum_product K L z).symm
+        _ ≤ 1 := hz.sum_le hcl
+    have hle := le_fracIndepNum hw
+    rwa [Finset.sum_comm] at hle
+  have hmain := sum_le_mul_fracIndepNum hxnn hrow
+  rw [sum_univ_strongProduct z, mul_comm]
+  exact hmain
+
+/-- **`α_f` is multiplicative on the lexicographic product.** -/
+@[simp] theorem fracIndepNum_lexProduct (G H : CGraph) :
+    (G ·g H).fracIndepNum = G.fracIndepNum * H.fracIndepNum :=
+  le_antisymm
+    ((fracIndepNum_lexProduct_le_fracIndepNum_strongProduct G H).trans
+      (fracIndepNum_strongProduct G H).le)
+    (fracIndepNum_mul_fracIndepNum_le_fracIndepNum_lexProduct G H)
+
+/-- The Cartesian product has even fewer edges than the strong product. -/
+theorem fracIndepNum_mul_fracIndepNum_le_fracIndepNum_cartesianProduct (G H : CGraph) :
+    G.fracIndepNum * H.fracIndepNum ≤ (G □g H).fracIndepNum :=
+  le_trans (fracIndepNum_mul_fracIndepNum_le_fracIndepNum_strongProduct G H)
+    (fracIndepNum_le_of_injective (H := G ⊠g H) (G := G □g H) id Function.injective_id
+      fun _ _ h ↦ (toSimple_adj _ _ _).1 (cartesianProduct_le_strongProduct G H
+        ((toSimple_adj _ _ _).2 h)))
+
+/-- **The rows of a Cartesian product bound it above.**  Every clique of `G □ H` lies in a single
+row or a single column, so a feasible weighting restricted to one row `{u} × V(H)` is feasible for
+`H`, and there are `n(G)` rows. -/
+theorem fracIndepNum_cartesianProduct_le_card_mul (G H : CGraph) :
+    (G □g H).fracIndepNum ≤ (FinEnum.card G.V : ℝ) * H.fracIndepNum := by
+  refine fracIndepNum_le fun z hz ↦ ?_
+  have hrow : ∀ u : G.V, ((∑ v, z (u, v) : ℚ) : ℝ) ≤ H.fracIndepNum := by
+    intro u
+    refine le_fracIndepNum ⟨fun v ↦ hz.nonneg _, fun L hL ↦ ?_⟩
+    have hcl : (G □g H).IsCliqueOn (({u} : Finset G.V) ×ˢ L) := by
+      intro a ha b hb hab
+      obtain ⟨ha1, ha2⟩ := Finset.mem_product.1 ha
+      obtain ⟨hb1, hb2⟩ := Finset.mem_product.1 hb
+      rw [Finset.mem_singleton] at ha1 hb1
+      have h1 : a.1 = b.1 := ha1.trans hb1.symm
+      have h2 : a.2 ≠ b.2 := fun h ↦ hab (Prod.ext h1 h)
+      rw [cartesianProduct_adj]
+      simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
+      exact Or.inl ⟨h1, hL _ ha2 _ hb2 h2⟩
+    calc ∑ v ∈ L, z (u, v)
+        = ∑ w ∈ ({u} : Finset G.V) ×ˢ L, z w :=
+          ((Finset.sum_product ({u} : Finset G.V) L z).trans (Finset.sum_singleton _ _)).symm
+      _ ≤ 1 := hz.sum_le hcl
+  have hcast : ((∑ p, z p : ℚ) : ℝ) = ∑ u, ((∑ v, z (u, v) : ℚ) : ℝ) := by
+    rw [sum_univ_cartesianProduct z]
+    push_cast
+    rfl
+  rw [hcast]
+  refine (Finset.sum_le_sum fun u _ ↦ hrow u).trans (le_of_eq ?_)
+  rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul,
+    FinEnum.card_eq_fintypeCard' (α := G.V)]
+
+/-- The same bound read along the columns. -/
+theorem fracIndepNum_cartesianProduct_le_mul_card (G H : CGraph) :
+    (G □g H).fracIndepNum ≤ G.fracIndepNum * (FinEnum.card H.V : ℝ) := by
+  rw [Iso.fracIndepNum_eq (Iso.cartesianProductComm G H), mul_comm]
+  exact fracIndepNum_cartesianProduct_le_card_mul H G
+
+/-- **A weighting of `G` lifted to `G ⊗ H` ignoring the second coordinate is feasible**, since a
+clique of a tensor product meets every fibre once. -/
+theorem fracIndepNum_mul_card_le_fracIndepNum_tensorProduct (G H : CGraph) :
+    G.fracIndepNum * FinEnum.card H.V ≤ (G ⊗g H).fracIndepNum := by
+  classical
+  rcases Nat.eq_zero_or_pos (FinEnum.card H.V) with h0 | h0
+  · rw [h0]
+    simpa using (G ⊗g H).zero_le_fracIndepNum
+  have hn : (0 : ℝ) < (FinEnum.card H.V : ℝ) := by exact_mod_cast h0
+  rw [← le_div_iff₀ hn]
+  refine fracIndepNum_le fun x hx ↦ ?_
+  rw [le_div_iff₀ hn]
+  have hfeas : (G ⊗g H).IsFracIndep (fun p ↦ x p.1) := by
+    refine ⟨fun p ↦ hx.nonneg _, fun K hK ↦ ?_⟩
+    have hinj : ∀ p ∈ K, ∀ q ∈ K, p.1 = q.1 → p = q := by
+      intro p hp q hq h
+      by_contra hne
+      have hadj := hK p hp q hq hne
+      rw [tensorProduct_adj, Bool.and_eq_true] at hadj
+      rw [h, adj_self] at hadj
+      exact Bool.noConfusion hadj.1
+    have hfst : G.IsCliqueOn (K.image Prod.fst) := by
+      intro a ha b hb hab
+      obtain ⟨p, hp, rfl⟩ := Finset.mem_image.1 ha
+      obtain ⟨q, hq, rfl⟩ := Finset.mem_image.1 hb
+      have hpq : p ≠ q := fun h ↦ hab (by rw [h])
+      have hadj := hK p hp q hq hpq
+      rw [tensorProduct_adj, Bool.and_eq_true] at hadj
+      exact hadj.1
+    have himg : ∑ a ∈ K.image Prod.fst, x a = ∑ p ∈ K, x p.1 := Finset.sum_image hinj
+    rw [← himg]
+    exact hx.sum_le hfst
+  have hle := le_fracIndepNum hfeas
+  rw [sum_univ_tensorProduct x, Rat.cast_mul, Rat.cast_natCast] at hle
+  linarith
+
+/-- The same bound on the other side of the tensor product. -/
+theorem card_mul_fracIndepNum_le_fracIndepNum_tensorProduct (G H : CGraph) :
+    (FinEnum.card G.V : ℝ) * H.fracIndepNum ≤ (G ⊗g H).fracIndepNum := by
+  rw [Iso.fracIndepNum_eq (Iso.tensorProductComm G H), mul_comm]
+  exact fracIndepNum_mul_card_le_fracIndepNum_tensorProduct H G
+
+/-- **`α_f` bounds the independence number of every strong power**, so it bounds the Shannon
+capacity of `G` from above. -/
+theorem indepNum_strongProduct_le_mul_fracIndepNum (G H : CGraph) :
+    ((G ⊠g H).indepNum : ℝ) ≤ G.fracIndepNum * H.fracIndepNum :=
+  le_trans (indepNum_le_fracIndepNum _) (fracIndepNum_strongProduct G H).le
+
+/-- **`χ_f` is multiplicative on the lexicographic product**, because the complement of
+`G[H]` is `Gᶜ[Hᶜ]`. -/
+@[simp] theorem fracChromNum_lexProduct (G H : CGraph) :
+    (G ·g H).fracChromNum = G.fracChromNum * H.fracChromNum := by
+  simp only [fracChromNum_eq_compl]
+  rw [Iso.fracIndepNum_eq (Iso.complLexProduct G H)]
+  exact fracIndepNum_lexProduct Gᶜ Hᶜ
 
 /-! ## The covering program
 
