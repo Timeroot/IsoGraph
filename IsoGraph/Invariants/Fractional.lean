@@ -22,8 +22,9 @@ one, and maximise the total.  Dropping "`0` or `1`" in favour of "at least `0`" 
 The complement turns cliques into independent sets, so the same program on `Gᶜ` is the fractional
 *clique* number, which is what `CGraph.fracChromNum` is defined to be.  Linear programming
 duality identifies it with the usual covering definition of `χ_f` — the least total weight of a
-nonnegative weighting of the independent sets that covers every vertex — but that duality is not
-proved here, and nothing below needs it.
+nonnegative weighting of the independent sets that covers every vertex — and that duality is not
+proved here in general, only for the vertex-transitive graphs
+(`CGraph.fracChromNum_eq_fracCliqueCoverNum_compl`); nothing below needs it.
 
 The four bounds this file exists for are
 
@@ -35,8 +36,8 @@ The four bounds this file exists for are
 | `χ_f(G) ≤ χ(G)` | `CGraph.fracChromNum_le_chromNum` |
 
 with the last two the first two read on the complement.  `CGraph.fracCliqueCoverNum` is the
-covering program dual to `α_f`; it is here for completeness, with weak duality
-`α_f ≤ θ_f` and nothing else.
+covering program dual to `α_f`; it is here for completeness, with weak duality `α_f ≤ θ_f` in
+general and equality when `G` is vertex-transitive.
 
 Past those four bounds is the basic theory of how the two quantities behave under substructure
 and under the graph operations.  An adjacency-reflecting injection `H.V → G.V` cannot lower `α_f`
@@ -434,6 +435,53 @@ uniform weighting is optimal, so no integrality gap survives averaging.  This is
 programs part company with `α` and `χ`, for which the clique–coclique bound
 `CGraph.indepNum_mul_cliqueNum_le_card` is only an inequality. -/
 
+/-- The image of a clique under an adjacency-preserving permutation is a clique. -/
+private theorem isCliqueOn_image {G : CGraph} {σ : Equiv.Perm G.V}
+    (hσ : ∀ u v, G.Adj (σ u) (σ v) = G.Adj u v) {C : Finset G.V} (hC : G.IsCliqueOn C) :
+    G.IsCliqueOn (C.image σ) := by
+  classical
+  intro u hu v hv huv
+  obtain ⟨a, ha, rfl⟩ := Finset.mem_image.1 hu
+  obtain ⟨b, hb, rfl⟩ := Finset.mem_image.1 hv
+  rw [hσ a b]
+  exact hC a ha b hb fun hab ↦ huv (by rw [hab])
+
+/-- **Averaging a weighting over the automorphism group.**  If every automorphic image of `C`
+carries weight at most one then `|C| · ∑ x ≤ |V|`: each of the `|Aut G|` automorphisms
+contributes at most one, while for a fixed `c ∈ C` each vertex is `σ c` for exactly
+`|Aut G| / |V|` automorphisms `σ`. -/
+private theorem card_mul_sum_le_card {G : CGraph} {x : G.V → ℚ} (hvt : G.IsVertexTransitive)
+    (C : Finset G.V) (h : ∀ σ : Equiv.Perm G.V, (∀ u v, G.Adj (σ u) (σ v) = G.Adj u v) →
+      ∑ c ∈ C, x (σ c) ≤ 1) :
+    (C.card : ℚ) * ∑ v, x v ≤ FinEnum.card G.V := by
+  classical
+  rcases isEmpty_or_nonempty G.V with hV | hne
+  · have hC : C = ∅ := Finset.eq_empty_of_isEmpty C
+    simp [hC, Finset.univ_eq_empty]
+  obtain ⟨Γ, m, hmpos, hcard, hadj, hfib⟩ := exists_autFinset_of_isVertexTransitive hvt hne
+  set N : ℚ := ∑ σ ∈ Γ, ∑ c ∈ C, x (σ c) with hN
+  have hupper : N ≤ (FinEnum.card G.V : ℚ) * m := by
+    have hone : ∀ σ ∈ Γ, ∑ c ∈ C, x (σ c) ≤ (1 : ℚ) := fun σ hσ ↦ h σ (hadj σ hσ)
+    calc N ≤ Γ.card • (1 : ℚ) := Finset.sum_le_card_nsmul _ _ 1 hone
+      _ = (Γ.card : ℚ) := by simp
+      _ = (FinEnum.card G.V : ℚ) * m := by rw [hcard]; push_cast; ring
+  have hlower : N = (C.card : ℚ) * ((m : ℚ) * ∑ v, x v) := by
+    have hcol : ∀ c : G.V, ∑ σ ∈ Γ, x (σ c) = (m : ℚ) * ∑ v, x v := by
+      intro c
+      rw [← Finset.sum_fiberwise_of_maps_to (g := fun σ : Equiv.Perm G.V ↦ σ c)
+        (t := Finset.univ) (fun σ _ ↦ Finset.mem_univ _)]
+      have hinner : ∀ v : G.V, ∑ σ ∈ Γ.filter (fun σ ↦ σ c = v), x (σ c) = (m : ℚ) * x v := by
+        intro v
+        rw [Finset.sum_congr rfl fun σ hσ ↦ by rw [(Finset.mem_filter.1 hσ).2],
+          Finset.sum_const, hfib c v, nsmul_eq_mul]
+      rw [Finset.sum_congr rfl fun v _ ↦ hinner v, ← Finset.mul_sum]
+    rw [hN, Finset.sum_comm, Finset.sum_congr rfl fun c _ ↦ hcol c, Finset.sum_const,
+      nsmul_eq_mul]
+  have hmq : (0 : ℚ) < m := by exact_mod_cast hmpos
+  refine le_of_mul_le_mul_right ?_ hmq
+  calc (C.card : ℚ) * (∑ v, x v) * m = N := by rw [hlower]; ring
+    _ ≤ (FinEnum.card G.V : ℚ) * m := hupper
+
 /-- **`α_f` of a vertex-transitive graph is at most `n / ω`.**  Average a feasible weighting over
 the automorphism group: a maximum clique is carried to a clique by every automorphism, and each
 vertex is hit equally often. -/
@@ -442,16 +490,10 @@ theorem fracIndepNum_le_card_div_cliqueNum (hvt : G.IsVertexTransitive) (hω : 0
   classical
   refine fracIndepNum_le fun x hx ↦ ?_
   obtain ⟨C, hC, hCcard⟩ := G.toSimple.exists_isNClique_cliqueNum
+  have hC' : G.IsCliqueOn C := fun u hu v hv huv ↦ (toSimple_adj _ _ _).1 (hC hu hv huv)
   have key : (C.card : ℚ) * ∑ v, x v ≤ FinEnum.card G.V := by
-    refine card_mul_sum_le_card_of_isVertexTransitive hvt C fun σ hσ ↦ ?_
-    have himg : G.IsCliqueOn (C.image σ) := by
-      intro u hu v hv huv
-      obtain ⟨a, ha, rfl⟩ := Finset.mem_image.1 hu
-      obtain ⟨b, hb, rfl⟩ := Finset.mem_image.1 hv
-      have hab : a ≠ b := fun hab ↦ huv (by rw [hab])
-      rw [hσ a b]
-      exact (toSimple_adj _ _ _).1 (hC ha hb hab)
-    have hsum := hx.sum_le himg
+    refine card_mul_sum_le_card hvt C fun σ hσ ↦ ?_
+    have hsum := hx.sum_le (isCliqueOn_image hσ hC')
     rwa [Finset.sum_image fun a _ b _ hab ↦ σ.injective hab] at hsum
   rw [hCcard] at key
   have hωq : (0 : ℝ) < G.cliqueNum := by exact_mod_cast hω
@@ -1106,8 +1148,8 @@ theorem indepNum_strongProduct_le_mul_fracIndepNum (G H : CGraph) :
 /-! ## The covering program
 
 The program dual to `α_f`: weights on the cliques rather than on the vertices, covering every
-vertex instead of packing every clique.  Strong duality would make it equal to `α_f`; only weak
-duality is proved. -/
+vertex instead of packing every clique.  Strong duality would make it equal to `α_f`; that is
+proved below for the vertex-transitive graphs, and only weak duality in general. -/
 
 /-- A *fractional clique cover*: a nonnegative weight on each set of vertices, zero off the
 cliques, putting total weight at least one on every vertex. -/
@@ -1147,7 +1189,8 @@ theorem fracCliqueCoverVals_bddBelow : BddBelow G.fracCliqueCoverVals := by
 
 /-- The *fractional clique cover number* `θ_f(G)`: the least total weight of a fractional clique
 cover.  It is the linear programming dual of `α_f`, so strong duality would make the two equal;
-`CGraph.fracIndepNum_le_fracCliqueCoverNum` is the easy half. -/
+`CGraph.fracIndepNum_le_fracCliqueCoverNum` is the easy half, and
+`CGraph.fracIndepNum_eq_fracCliqueCoverNum` the other half for a vertex-transitive graph. -/
 noncomputable def fracCliqueCoverNum : ℝ := sInf G.fracCliqueCoverVals
 
 /-- **Weak duality**: every fractional clique cover outweighs every fractional independent
@@ -1169,6 +1212,176 @@ theorem fracCliqueCoverNum_le_card : G.fracCliqueCoverNum ≤ FinEnum.card G.V :
       Nat.choose_one_right, FinEnum.card_eq_fintypeCard' (α := G.V)]
   rw [h]
   norm_num
+
+/-- **A partition of the vertices into cliques is a fractional clique cover**, so `θ_f(G) ≤ k`
+for a colouring in `k` colours whose classes are cliques.  The counterpart of
+`CGraph.fracIndepNum_le_of_cliqueColouring` on the covering side. -/
+theorem fracCliqueCoverNum_le_of_cliqueColouring {k : ℕ} (c : G.V → Fin k)
+    (hc : ∀ u v : G.V, u ≠ v → c u = c v → G.Adj u v = true) : G.fracCliqueCoverNum ≤ k := by
+  classical
+  set F : Fin k → Finset G.V := fun i ↦ Finset.univ.filter fun v ↦ c v = i with hF
+  set S : Finset (Finset G.V) := Finset.univ.image F with hS
+  have hcover : G.IsFracCliqueCover (fun K ↦ if K ∈ S then 1 else 0) := by
+    refine ⟨fun K ↦ by dsimp only; split_ifs <;> norm_num, fun K hK ↦ ?_, fun v ↦ ?_⟩
+    · have hKS : K ∈ S := by
+        by_contra h
+        exact hK (by simp [h])
+      obtain ⟨i, -, rfl⟩ := Finset.mem_image.1 hKS
+      intro u hu w hw huw
+      simp only [hF, Finset.mem_filter] at hu hw
+      exact hc u w huw (hu.2.trans hw.2.symm)
+    · have hmem : F (c v) ∈ S := Finset.mem_image_of_mem F (Finset.mem_univ _)
+      have hvF : v ∈ F (c v) := by simp [hF]
+      have hnn : ∀ K ∈ (Finset.univ : Finset (Finset G.V)),
+          0 ≤ (if v ∈ K then (if K ∈ S then (1 : ℚ) else 0) else 0) := by
+        intro K _
+        split_ifs <;> norm_num
+      refine le_trans ?_ (Finset.single_le_sum hnn (Finset.mem_univ (F (c v))))
+      simp [hvF, hmem]
+  have htot : (∑ K, (if K ∈ S then (1 : ℚ) else 0)) = (S.card : ℚ) := by
+    rw [Finset.sum_boole]
+    congr 1
+    rw [Finset.filter_mem_eq_inter, Finset.univ_inter]
+  have hval : ((S.card : ℚ) : ℝ) ∈ G.fracCliqueCoverVals := ⟨_, hcover, by rw [htot]⟩
+  refine le_trans (csInf_le G.fracCliqueCoverVals_bddBelow hval) ?_
+  have hcard : S.card ≤ k := by
+    calc S.card ≤ (Finset.univ : Finset (Fin k)).card := Finset.card_image_le
+      _ = k := by simp
+  exact_mod_cast hcard
+
+/-- **`θ_f ≤ θ`**: a cover of the vertices by `θ(G)` cliques weighs `θ(G)`.  With weak duality
+this sharpens `CGraph.fracIndepNum_le_cliqueCoverNum`. -/
+theorem fracCliqueCoverNum_le_cliqueCoverNum : G.fracCliqueCoverNum ≤ G.cliqueCoverNum := by
+  obtain ⟨c⟩ := colorable_chromNum (G := Gᶜ)
+  refine fracCliqueCoverNum_le_of_cliqueColouring G (k := Gᶜ.chromNum) (fun v ↦ c v) ?_
+  intro u v huv hcuv
+  dsimp only at hcuv
+  by_contra hadj
+  refine c.valid ?_ hcuv
+  rw [toSimple_adj, compl_adj]
+  simp [huv, Bool.eq_false_iff.2 hadj]
+
+/-! ### The covering program on a vertex-transitive graph
+
+Strong duality is not proved in general, but it holds on a vertex-transitive graph for a reason
+that is elementary: spread a maximum clique over its orbit and the resulting cover has total
+weight `n / ω`, which is the value of the packing program.  Both are then optimal. -/
+
+/-- **A vertex-transitive graph has a fractional clique cover of weight `n / ω`.**  Give each
+automorphic image `σ C` of a maximum clique the weight `1 / (ω · |Aut G| / |V|)`; every vertex
+of `σ C` is covered by exactly `|Aut G| · ω / |V|` of them, and the total weight is `n / ω`. -/
+theorem fracCliqueCoverNum_le_card_div_cliqueNum (G : CGraph) (hvt : G.IsVertexTransitive)
+    (hω : 0 < G.cliqueNum) :
+    G.fracCliqueCoverNum ≤ (FinEnum.card G.V : ℝ) / G.cliqueNum := by
+  classical
+  obtain ⟨C, hC, hCcard⟩ := G.toSimple.exists_isNClique_cliqueNum
+  have hC' : G.IsCliqueOn C := fun u hu v hv huv ↦ (toSimple_adj _ _ _).1 (hC hu hv huv)
+  have hne : Nonempty G.V := by
+    rcases Finset.eq_empty_or_nonempty C with rfl | ⟨c, hc⟩
+    · exfalso
+      rw [Finset.card_empty, show G.toSimple.cliqueNum = G.cliqueNum from rfl] at hCcard
+      omega
+    · exact ⟨c⟩
+  obtain ⟨Γ, m, hmpos, hcard, hadj, hfib⟩ := exists_autFinset_of_isVertexTransitive hvt hne
+  have hdpos : 0 < m * G.cliqueNum := Nat.mul_pos hmpos hω
+  have hdq : (0 : ℚ) < ((m * G.cliqueNum : ℕ) : ℚ) := by exact_mod_cast hdpos
+  set y : Finset G.V → ℚ := fun K ↦
+    (((Γ.filter fun σ : Equiv.Perm G.V ↦ C.image σ = K).card : ℚ)) /
+      ((m * G.cliqueNum : ℕ) : ℚ) with hy
+  -- the fibres of `σ ↦ σ C`, summed over the finsets of vertices
+  have hfibre : ∀ (p : Finset G.V → Prop) (_ : DecidablePred p),
+      ∑ K : Finset G.V,
+          (if p K then (Γ.filter fun σ : Equiv.Perm G.V ↦ C.image σ = K).card else 0)
+        = (Γ.filter fun σ : Equiv.Perm G.V ↦ p (C.image σ)).card := by
+    intro p _
+    rw [Finset.card_eq_sum_card_fiberwise (f := fun σ : Equiv.Perm G.V ↦ C.image σ)
+      (s := Γ.filter fun σ : Equiv.Perm G.V ↦ p (C.image σ)) (t := Finset.univ)
+      (fun σ _ ↦ by simp)]
+    refine Finset.sum_congr rfl fun K _ ↦ ?_
+    by_cases hp : p K
+    · rw [if_pos hp, Finset.filter_filter]
+      congr 1
+      exact (Finset.filter_congr fun σ _ ↦ ⟨fun h ↦ h.2, fun h ↦ ⟨h ▸ hp, h⟩⟩).symm
+    · rw [if_neg hp, Finset.filter_filter, eq_comm, Finset.card_eq_zero,
+        Finset.filter_eq_empty_iff]
+      rintro σ _ ⟨h1, h2⟩
+      exact hp (h2 ▸ h1)
+  have hcover : G.IsFracCliqueCover y := by
+    refine ⟨fun K ↦ by positivity, fun K hK ↦ ?_, fun v ↦ ?_⟩
+    · have hpos : (Γ.filter fun σ : Equiv.Perm G.V ↦ C.image σ = K).Nonempty := by
+        rw [← Finset.card_pos]
+        by_contra h
+        have h0 : (Γ.filter fun σ : Equiv.Perm G.V ↦ C.image σ = K).card = 0 := by omega
+        exact hK (by rw [hy]; simp [h0])
+      obtain ⟨σ, hσ⟩ := hpos
+      rw [Finset.mem_filter] at hσ
+      exact hσ.2 ▸ isCliqueOn_image (hadj σ hσ.1) hC'
+    · -- every vertex is covered to weight exactly one
+      have h1 : ∑ K : Finset G.V, (if v ∈ K then y K else 0)
+          = (((Γ.filter fun σ : Equiv.Perm G.V ↦ v ∈ C.image σ).card : ℕ) : ℚ) /
+            ((m * G.cliqueNum : ℕ) : ℚ) := by
+        rw [← hfibre (fun K ↦ v ∈ K) _, ← sum_natCast_div]
+        refine Finset.sum_congr rfl fun K _ ↦ ?_
+        by_cases hv : v ∈ K <;> simp [hy, hv]
+      have h2 : (Γ.filter fun σ : Equiv.Perm G.V ↦ v ∈ C.image σ).card = C.card * m := by
+        rw [Finset.card_eq_sum_card_fiberwise (f := fun σ : Equiv.Perm G.V ↦ σ.symm v)
+          (s := Γ.filter fun σ : Equiv.Perm G.V ↦ v ∈ C.image σ) (t := C) ?_]
+        · rw [Finset.sum_congr rfl (g := fun _ ↦ m) ?_, Finset.sum_const, smul_eq_mul]
+          intro c hc
+          rw [Finset.filter_filter, ← hfib c v]
+          congr 1
+          refine Finset.filter_congr fun σ _ ↦ ⟨fun h ↦ ?_, fun h ↦ ⟨?_, ?_⟩⟩
+          · rw [← h.2]; simp
+          · exact Finset.mem_image.2 ⟨c, hc, h⟩
+          · rw [← h]; simp
+        · intro σ hσ
+          simp only [Finset.coe_filter, Set.mem_setOf_eq] at hσ
+          obtain ⟨c, hc, hcv⟩ := Finset.mem_image.1 hσ.2
+          have hsymm : σ.symm v = c := by rw [← hcv]; simp
+          simpa [hsymm] using hc
+      rw [h1, h2, hCcard, le_div_iff₀ hdq, one_mul]
+      push_cast
+      ring_nf
+      exact le_refl _
+  refine csInf_le G.fracCliqueCoverVals_bddBelow ⟨y, hcover, ?_⟩
+  have htot : (∑ K, y K : ℚ) = (FinEnum.card G.V : ℚ) / G.cliqueNum := by
+    rw [hy]
+    rw [show (∑ K : Finset G.V,
+        (((Γ.filter fun σ : Equiv.Perm G.V ↦ C.image σ = K).card : ℚ)) /
+          ((m * G.cliqueNum : ℕ) : ℚ))
+      = ∑ K : Finset G.V,
+        (((if True then (Γ.filter fun σ : Equiv.Perm G.V ↦ C.image σ = K).card
+          else 0 : ℕ) : ℚ)) / ((m * G.cliqueNum : ℕ) : ℚ) from by simp]
+    rw [sum_natCast_div, hfibre (fun _ ↦ True) _]
+    simp only [Finset.filter_true_of_mem fun _ _ ↦ trivial]
+    rw [hcard]
+    have hωq : (0 : ℚ) < (G.cliqueNum : ℚ) := by exact_mod_cast hω
+    push_cast
+    rw [div_eq_div_iff (by positivity) hωq.ne']
+    ring
+  rw [htot]
+  push_cast
+  rfl
+
+/-- **`θ_f(G) = n / ω(G)` for a vertex-transitive graph.** -/
+theorem fracCliqueCoverNum_eq_card_div_cliqueNum (G : CGraph) (hvt : G.IsVertexTransitive)
+    (hω : 0 < G.cliqueNum) : G.fracCliqueCoverNum = (FinEnum.card G.V : ℝ) / G.cliqueNum :=
+  le_antisymm (fracCliqueCoverNum_le_card_div_cliqueNum G hvt hω)
+    ((fracIndepNum_eq_card_div_cliqueNum G hvt hω) ▸ G.fracIndepNum_le_fracCliqueCoverNum)
+
+/-- **Strong duality on a vertex-transitive graph**: the packing program and the covering
+program have the same value, both equal to `n / ω`.  In general only `α_f ≤ θ_f` is proved. -/
+theorem fracIndepNum_eq_fracCliqueCoverNum (G : CGraph) (hvt : G.IsVertexTransitive)
+    (hω : 0 < G.cliqueNum) : G.fracIndepNum = G.fracCliqueCoverNum := by
+  rw [fracIndepNum_eq_card_div_cliqueNum G hvt hω,
+    fracCliqueCoverNum_eq_card_div_cliqueNum G hvt hω]
+
+/-- **`χ_f` is the covering program on the complement, for a vertex-transitive graph**: the
+fractional chromatic number defined by packing the independent sets — which is what
+`CGraph.fracChromNum` is — agrees with the one defined by covering the vertices with them. -/
+theorem fracChromNum_eq_fracCliqueCoverNum_compl (G : CGraph) (hvt : G.IsVertexTransitive)
+    (hα : 0 < G.indepNum) : G.fracChromNum = Gᶜ.fracCliqueCoverNum :=
+  fracIndepNum_eq_fracCliqueCoverNum Gᶜ (isVertexTransitive_compl G hvt) (by rwa [cliqueNum_compl])
 
 /-! ## Integrality
 
