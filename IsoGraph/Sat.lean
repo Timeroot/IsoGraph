@@ -598,9 +598,10 @@ end Examples
 
 An independent set of `K(n, k)` is a family of pairwise *intersecting* `k`-subsets, and
 Erdős–Ko–Rado says that for `n ≥ 2k` the largest one is a star: all the sets through a fixed point,
-`C(n - 1, k - 1)` of them.  The theorem is not in the library — only the `k = 2` case, which is a
-matching argument — and for `K(7, 3)` the upper bound is a search over `2 ^ 35` subsets that no
-kernel evaluation will do.  The solver settles it in a few seconds. -/
+`C(n - 1, k - 1)` of them.  Nothing here appeals to that: for `K(7, 3)` the upper bound is a
+search over `2 ^ 35` subsets that no kernel evaluation will do, and the solver settles it in a few
+seconds.  `SmallGraphs.Kneser`, downstream, proves the value for every `n` and `k` out of
+`Finset.erdos_ko_rado`; this is the independent check. -/
 
 set_option maxHeartbeats 1000000 in
 /-- **Erdős–Ko–Rado for `K(7, 3)`, upper bound**, by SAT. -/

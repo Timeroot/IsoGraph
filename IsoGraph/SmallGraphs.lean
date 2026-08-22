@@ -13,6 +13,7 @@ import IsoGraph.SmallGraphs.Tables
 import IsoGraph.SmallGraphs.Bounds
 import IsoGraph.SmallGraphs.Families
 import IsoGraph.SmallGraphs.Circulants
+import IsoGraph.SmallGraphs.Kneser
 import IsoGraph.SmallGraphs.TuranGraphs
 import IsoGraph.SmallGraphs.Grotzsch
 import IsoGraph.SmallGraphs.TreesAndCycles
@@ -45,6 +46,9 @@ organised by the family or the operator under study — `Circulants`, `TuranGrap
 `TreesAndCycles`, `Complements`, `Products`, `Mycielskians`, `Operators` — with `Tables`,
 `Bounds` and `Brackets` holding the values that are read off a table or squeezed between two
 bounds rather than computed directly.
+
+`Kneser` hangs off `Circulants`, for what the Erdős–Ko–Rado theorem and the fractional chromatic
+number say about `K(n, k)`.
 
 Six leaves hang off `Operators`, all holding values whose hard half is a refutation:
 `SatValues` for the Chvátal, Tietze and Robertson graphs, `SolidValues` for the Platonic,
