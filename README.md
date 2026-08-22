@@ -6135,9 +6135,8 @@ that follows from summing.
 Both directions of a value come from a certificate, and the two are not symmetric. An upper bound
 is a fractional clique cover — the dual solution, which the simplex hands over with support at
 most `|V|`, and whose check is one sum per vertex. A lower bound is a single weighting, but
-checking it feasible means checking *every* clique, so the search is cut down to the subsets of
-size at most `w` given `ω(G) ≤ w`. Scaling both by the common denominator makes every side
-condition a statement about natural numbers, which is what lets `decide` do the checking:
+checking it feasible means checking *every* clique. Scaling both by the common denominator makes
+every side condition a statement about natural numbers:
 
 ```lean
 theorem fracIndepNum_le_of_natCover {m d s : ℕ} (hd : 0 < d) (K : Fin m → Finset G.V)
@@ -6145,12 +6144,72 @@ theorem fracIndepNum_le_of_natCover {m d s : ℕ} (hd : 0 < d) (K : Fin m → Fi
     (hcov : ∀ v : G.V, d ≤ ∑ i, if v ∈ K i then a i else 0) :
     G.fracIndepNum ≤ (s : ℝ) / (d : ℝ)
 
-theorem le_fracIndepNum_of_natWeights {d w s : ℕ} (hd : 0 < d) (b : G.V → ℕ)
-    (hs : ∑ v, b v = s) (hw : G.cliqueNum ≤ w)
-    (h : ∀ k ≤ w, ∀ K ∈ Finset.powersetCard k (Finset.univ : Finset G.V),
-      G.IsCliqueOn K → ∑ v ∈ K, b v ≤ d) :
+theorem le_fracIndepNum_of_natWeights {d s : ℕ} (hd : 0 < d) (b : G.V → ℕ)
+    (hs : ∑ v, b v = s) (h : ∀ K : Finset G.V, G.IsCliqueOn K → ∑ v ∈ K, b v ≤ d) :
     (s : ℝ) / (d : ℝ) ≤ G.fracIndepNum
 ```
+
+### Certificates the size of the answer
+
+Those are the mathematics, but they are not what the tactic emits, and the difference is the
+whole cost of the thing. The first version did emit them: the cover came out as
+`m` literal `Finset G.V`s, each written `(([0, 3, 7] : List (Fin n)).map (FinEnum.equiv).symm)
+.toFinset`, and feasibility of the weighting was a `decide` over `Finset.powersetCard k univ` for
+every `k ≤ ω`. Both are statements about `Finset G.V`, and a `Finset G.V` is an expensive thing
+to ask a kernel about — the vertex type may be a subtype, a sum, a quotient or a `Finset`, and
+every membership test drags `FinEnum.equiv` and a `DecidableEq` instance behind it, once per
+vertex per clique. On the Heawood graph the linear program took 14 ms and the certificate took
+11 s, of which one `native_decide` was 7.7 s. On the 54-vertex Gray graph the certificate had not
+finished after five minutes.
+
+That is not what an LP certificate is supposed to look like. What `linarith` hands its kernel is
+a nonnegative combination of the hypotheses and a numeral arithmetic identity; what `omega` and
+`grind`'s `lia` hand theirs is the same, a linear combination checked by GMP. The certificate
+should be *small* and it should be *numbers*.
+
+So the tactic states nothing about `Finset G.V` at all. It does what `graph_sat` does — the two
+bridges live in the same `CGraph.Sat` namespace and take the same two hypotheses:
+
+```lean
+def AdjIdx (es : List (ℕ × ℕ)) (i j : ℕ) : Bool := es.contains (i, j) || es.contains (j, i)
+
+def IsIdxCover (m d : ℕ) (es : List (ℕ × ℕ)) (Kas : List (List ℕ × ℕ)) : Bool :=
+  (Kas.all fun p ↦ (p.2 == 0) || IsCliqueIdx es p.1) &&
+    (List.range m).all fun i ↦ d ≤ coverWeight Kas i
+
+theorem fracIndepNum_le_of_idxCover {G : CGraph} {m d s : ℕ} {es : List (ℕ × ℕ)}
+    {Kas : List (List ℕ × ℕ)} (hm : FinEnum.card G.V = m) (hes : edgeIdxList G = es)
+    (hd : 0 < d) (hchk : IsIdxCover m d es Kas = true) (hs : (Kas.map Prod.snd).sum = s) :
+    G.fracIndepNum ≤ (s : ℝ) / (d : ℝ)
+```
+
+`hm` and `hes` are the only things said about the graph, they are the same two facts `graph_sat`
+already proves, and everything after them is a closed `Bool` computation over `List ℕ` and
+`List (ℕ × ℕ)`, where the arithmetic is the kernel's own. The Heawood certificate went from 11 s
+to 0.5 s, the Gray graph from *unfinished after five minutes* to 2.1 s, and the plain `decide`
+path — hopeless before — became merely slower than `native_decide` rather than impossible.
+
+The primal half is the one with real work in it, since feasibility means no clique is overloaded
+and there is no way round enumerating the cliques. It does so depth-first, in the kernel:
+
+```lean
+def cliqueWeightOK (es : List (ℕ × ℕ)) (b : List ℕ) (d : ℕ) : ℕ → List ℕ → ℕ → Bool
+  | 0, cand, acc => cand.isEmpty && decide (acc ≤ d)
+  | fuel + 1, cand, acc =>
+      match cand with
+      | [] => decide (acc ≤ d)
+      | i :: rest =>
+          cliqueWeightOK es b d fuel rest acc &&
+            cliqueWeightOK es b d fuel (nbrsIn es i rest) (acc + b.getD i 0)
+```
+
+Enumerating the cliques rather than all subsets of size at most `ω` is a large constant on its
+own — but it also removes the *reason* the old version needed `ω(G) ≤ w`, and with it a recursive
+`graph_sat` call from inside the certificate. The recursion is on a fuel rather than on
+`cand.length` because a well-founded definition is one the kernel cannot unfold, and unfolding it
+is the point; running out of fuel returns `false`, so a too-small fuel can only fail to prove
+something. `cliqueWeightOK_spec` is the induction that says a `true` here really does bound every
+clique.
 
 The tactics run the program and add the value to the context, `linarith` closing the two halves
 into an equation:
@@ -6168,10 +6227,9 @@ example : petersen.fracChromNum = 5 / 2 := by
 That second one is `χ_f(K(n, k)) = n/k` for the Petersen graph, the fact the chromatic number of a
 Kneser graph is read off. `compute_fractional_chromNum` is `compute_fractional_indepNum` on the
 complement and nothing else; `native` swaps `decide` for `native_decide` in the side conditions,
-as in `graph_sat`, and the complement is usually where that becomes necessary — its adjacency is a
-conjunction with a disequality, and on `Finset` vertices the kernel is very slow on those. The
-same computation that finishes in a few seconds with `native` did not finish in fifteen minutes
-without it.
+as in `graph_sat`. It is worth about an order of magnitude — 0.5 s against 6.4 s on Heawood — and
+essentially all of that is reading the graph, the same `edgeIdxList G = es` that plain `graph_sat`
+pays for too. It is no longer the difference between seconds and not finishing.
 
 The elaborator does the arithmetic: Bron–Kerbosch with pivoting for the maximal cliques — a
 constraint on a clique inside another is implied by it, so only the maximal ones are needed — and
@@ -6189,9 +6247,9 @@ goal falls through to CaDiCaL — when the relaxation is too weak, the program t
 certificate not worth its cost:
 
 ```lean
-example : (cycle 5).indepNum ≤ 2 := by graph_sat native   -- α_f = 5/2, no SAT call
-example : (cycle 5).cliqueNum ≤ 2 := by graph_sat native  -- χ_f = 5/2, likewise
-example : 2 < (cycle 5).chromNum := by graph_sat native   -- χ_f > 2, and `ω = 2` would not do it
+example : (cycle 5).indepNum ≤ 2 := by graph_sat          -- α_f = 5/2, no SAT call
+example : (cycle 5).cliqueNum ≤ 2 := by graph_sat         -- χ_f = 5/2, likewise
+example : 2 < (cycle 5).chromNum := by graph_sat          -- χ_f > 2, and `ω = 2` would not do it
 example : petersen.indepNum ≤ 4 := by graph_sat native    -- α_f = 5: this one is CaDiCaL's
 ```
 
@@ -6206,29 +6264,28 @@ example : petersen.indepNum ≤ 4 := by graph_sat native    -- α_f = 5: this on
 
 The `χ` direction is the one that earns its keep, because `χ_f` sees things `ω` does not — `C₅` and
 the Kneser graphs are exactly the standard examples — but it is also the expensive one, since it
-needs the *primal* certificate on the complement, and it needs `ω(Gᶜ) ≤ w` first, which it gets by
-calling `graph_sat` recursively. The `α` direction is where the relaxation is weakest: the clique
-constraints of a triangle-free graph are its edges, so any such graph with a perfect fractional
-matching has `α_f = n/2` and the bound is a whole unit or more above the truth. That is why
+needs the *primal* certificate on the complement, and that means enumerating the complement's
+cliques. The `α` direction is where the relaxation is weakest: the clique constraints of a
+triangle-free graph are its edges, so any such graph with a perfect fractional matching has
+`α_f = n/2` and the bound is a whole unit or more above the truth. That is why
 `petersen.indepNum ≤ 4` (`α_f = 5`) and Erdős–Ko–Rado for `K(7, 3)` (`α = 15`, `α_f = 35/2`) are
 still the solver's. Erdős–Ko–Rado is not an LP fact.
 
 Where it pays is where the graph *is* one of those triangle-free ones and the bound being asserted
 is exactly `n/2`. The bipartite cages have `α = n/2 = α_f`, so every `le_antisymm (by graph_sat
 native) ?_` over Heawood, Möbius–Kantor, Pappus, Desargues, Folkman, Nauru, Tutte–Coxeter and Dyck
-is settled by a cover certificate with no search at all. On this machine
-`SmallGraphs/CageValues.lean`, twenty-three such calls, builds in **41 s** with the fast path and
-**53 s** without it (63 s against 89 s of CPU).
+is settled by a cover certificate with no search at all. On this machine (min of two interleaved
+runs, CPU time, which is the only honest measure on a shared box)
+`SmallGraphs/CageValues.lean` — twenty-three such calls — is **118 s** with the fast path and
+**160 s** without, and `SmallGraphs/ConnectedValues.lean`, whose 272 calls are plain `graph_sat`
+on graphs of at most six vertices, is **556 s** against **694 s**.
 
-Two things bound how much further that goes, and both are the certificate rather than the program.
-The program is milliseconds — the 54-vertex Gray graph is 166 ms to read and 89 ms to solve. What
-is expensive is elaborating one `Finset` literal per clique of the cover and checking the two sums
-over them: on the Gray graph that had not finished after five minutes, where `graph_sat` alone
-refutes the same bound in fifteen seconds. And on the kernel it is expensive even when the graph
-is small, so the fast path fires only on `graph_sat native` and only up to forty vertices and
-sixty-four cliques. That is `worthACertificate`, and it is deliberately narrow: getting it wrong
-costs time, never soundness, but time is the whole point of the exercise. Files like
-`SmallGraphs/ConnectedValues.lean`, whose 272 calls are plain `graph_sat`, are untouched by it.
+That second file is the measure of what the index-level certificates bought, because under the
+old ones it was untouched: the gate was `native`-only and forty vertices, on the grounds that the
+kernel took longer over the certificate than CaDiCaL took to refute the bound outright. Now the
+check is a `decide` over lists of numerals — one pass over the cover, one over the vertices — so
+`worthACertificate` asks only that the program be small enough to be worth solving, 120 vertices
+and 300 maximal cliques. Getting that wrong costs time, never soundness.
 
 `set_option graph_sat.frac false` turns the fast path off, per file or per section. What makes it
 reach the gallery at all is one import: `SmallGraphs/EdgeColourings.lean`, the file that first
@@ -6236,9 +6293,10 @@ brings `graph_sat` into the gallery's chain, imports `IsoGraph.Fractional` rathe
 `IsoGraph.Sat`, and everything downstream inherits it.
 
 The caps are arbitrary and deliberate: 200 vertices and 800 maximal cliques for the entry points,
-300 in the fast path, and the primal half is skipped when `∑_{k ≤ w} (n choose k)` exceeds 20000 —
-in which case `compute_fractional_indepNum` adds `α_f(G) ≤ q` rather than the equation, since the
-upper bound is the half that is always affordable.
+300 in the fast path, and the primal half is skipped when the depth-first clique enumeration would
+visit more than 20000 nodes — the elaborator counts them first, outside the kernel, since that is
+the one number here that can be exponential. In that case `compute_fractional_indepNum` adds
+`α_f(G) ≤ q` rather than the equation, the upper bound being the half that is always affordable.
 
 ## Writing it so it can be proved
 

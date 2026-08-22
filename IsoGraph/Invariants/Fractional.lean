@@ -41,12 +41,14 @@ covering program dual to `α_f`; it is here for completeness, with weak duality
 Both directions of a fractional bound come with a finite certificate, and those are what the
 `compute_fractional_indepNum` tactic emits: `CGraph.fracIndepNum_le_of_cover` takes a *fractional
 clique cover* — finitely many cliques with nonnegative weights covering every vertex — and
-`CGraph.le_fracIndepNum` takes a single feasible weighting.  Feasibility quantifies over all
-cliques, so `CGraph.isFracIndep_of_card_le` cuts the check down to the sets of at most `ω`
-vertices, which is a `decide` of `∑_{k ≤ ω} (n choose k)` sums rather than of `2 ^ n`.  What the
-tactic in `IsoGraph/Fractional.lean` actually calls are the integer-scaled forms of those two,
+`CGraph.le_fracIndepNum` takes a single feasible weighting.  What the tactic in
+`IsoGraph/Fractional.lean` actually calls are the integer-scaled forms of those two,
 `CGraph.fracIndepNum_le_of_natCover` and `CGraph.le_fracIndepNum_of_natWeights`, which take the
-weights already cleared of denominators so that no side condition mentions `ℚ` at all.
+weights already cleared of denominators so that no side condition mentions `ℚ` at all — and it
+calls them through a further pair of bridges that phrase the side conditions as arithmetic on
+lists of indices, since a `Finset G.V` is an expensive thing to ask a kernel about.
+`CGraph.isFracIndep_of_card_le` is the other way to make feasibility finite — check the sets of at
+most `ω` vertices — and is here for its own sake; the tactic enumerates cliques instead.
 
 Finally, since `α` and `ω` are integers, an upper bound on `α_f` rounds down and a lower bound on
 `χ_f` rounds up: `CGraph.indepNum_le_of_fracIndepNum_le` and
@@ -253,19 +255,16 @@ theorem fracIndepNum_le_of_natCover {m d s : ℕ} (hd : 0 < d) (K : Fin m → Fi
   ring
 
 /-- **A lower bound from an integer-scaled feasible weighting.**  The vertex `v` carries weight
-`b v / d`; feasibility need only be checked on the sets of at most `w` vertices, where `w` bounds
-the clique number, so `α_f ≥ (∑ b) / d`. -/
-theorem le_fracIndepNum_of_natWeights {d w s : ℕ} (hd : 0 < d) (b : G.V → ℕ)
-    (hs : ∑ v, b v = s) (hw : G.cliqueNum ≤ w)
-    (h : ∀ k ≤ w, ∀ K ∈ Finset.powersetCard k (Finset.univ : Finset G.V),
-      G.IsCliqueOn K → ∑ v ∈ K, b v ≤ d) :
+`b v / d`, no clique weighs more than `d`, and so `α_f ≥ (∑ b) / d`. -/
+theorem le_fracIndepNum_of_natWeights {d s : ℕ} (hd : 0 < d) (b : G.V → ℕ)
+    (hs : ∑ v, b v = s) (h : ∀ K : Finset G.V, G.IsCliqueOn K → ∑ v ∈ K, b v ≤ d) :
     (s : ℝ) / (d : ℝ) ≤ G.fracIndepNum := by
   subst hs
   have hd' : (0 : ℚ) < (d : ℚ) := by exact_mod_cast hd
   have hfeas : G.IsFracIndep (fun v ↦ (b v : ℚ) / (d : ℚ)) :=
-    isFracIndep_of_card_le (fun v ↦ div_nonneg (by positivity) hd'.le) hw fun k hk K hK hcl ↦ by
+    ⟨fun v ↦ div_nonneg (by positivity) hd'.le, fun K hK ↦ by
       rw [sum_natCast_div, div_le_one hd']
-      exact_mod_cast h k hk K hK hcl
+      exact_mod_cast h K hK⟩
   have hle := le_fracIndepNum hfeas
   simp only [sum_natCast_div] at hle
   push_cast at hle ⊢

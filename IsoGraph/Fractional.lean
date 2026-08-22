@@ -8,25 +8,28 @@ import IsoGraph.Invariants.Fractional
 computes them.  The value of the linear program is found outside the kernel, by a rational
 simplex, and comes back as a pair of certificates that Lean checks:
 
-* the optimal *dual* solution is a fractional clique cover, and `CGraph.fracIndepNum_le_of_natCover`
-  turns it into `α_f(G) ≤ q`;
+* the optimal *dual* solution is a fractional clique cover, and
+  `CGraph.Sat.fracIndepNum_le_of_idxCover` turns it into `α_f(G) ≤ q`;
 * the optimal *primal* solution is a fractional independent set, and
-  `CGraph.le_fracIndepNum_of_natWeights` turns it into `q ≤ α_f(G)`.
+  `CGraph.Sat.le_fracIndepNum_of_idxWeights` turns it into `q ≤ α_f(G)`.
 
-Both are integer-scaled, so every side condition is a `decide` about natural numbers, and
-`linarith` puts the two halves together into the equation.  The primal half also needs to know
-that no clique is larger than `w`, since that is what cuts its feasibility check down to a finite
-search; that one bound is left to `graph_sat`.
+Both are integer-scaled and both are stated about *indices*, not vertices: as in `graph_sat`, the
+only thing said about `G` itself is `FinEnum.card G.V = m` and `edgeIdxList G = es`, and every
+other side condition is a closed `Bool` computation over lists of numerals.  That is what keeps
+the certificate the small, arithmetic object an LP certificate should be — the same shape
+`linarith` and `omega` hand their kernels — instead of a search over `Finset G.V`.  `linarith`
+then puts the two halves together into the equation.
 
     compute_fractional_indepNum (cycle 5)         -- h_fα : (cycle 5).fracIndepNum = 5 / 2
     compute_fractional_chromNum native petersen   -- h_fχ : petersen.fracChromNum = 5 / 2
 
 `compute_fractional_chromNum` is the same computation run on the complement, since that is what
-`CGraph.fracChromNum` is.  When the primal half is out of reach — the feasibility check grows as
-`∑_{k ≤ ω} (n choose k)`, and `w` may be large — the tactic settles for the upper bound and adds
-`h_fα : α_f(G) ≤ q` instead.  As in `graph_sat`, `native` proves the side conditions with
-`native_decide`; on a complement, or on `Finset` vertices, that is the difference between seconds
-and not finishing.
+`CGraph.fracChromNum` is.  The primal half is the expensive one — a weighting is feasible when no
+clique is overloaded, and there is no way round enumerating the cliques, which `cliqueWeightOK`
+does depth-first — so when that enumeration is too large the tactic settles for the upper bound
+and adds `h_fα : α_f(G) ≤ q` instead.  As in `graph_sat`, `native` proves the side conditions with
+`native_decide`, which is worth an order of magnitude but is no longer the difference between
+seconds and not finishing.
 
 The linear program is over the *maximal* cliques, enumerated by Bron–Kerbosch: a constraint on a
 clique that sits inside another is implied by it, so the smaller ones can be dropped.  The
@@ -35,8 +38,8 @@ start with, so no first phase is needed.  Everything here is metacode: a wrong a
 Lean accept a wrong theorem, it can only fail to produce one.
 
 The last section puts the same bound in front of `graph_sat`, where integrality turns
-`α_f(G) ≤ 5/2` into `α(G) ≤ 2` with no search at all — on the graphs where certifying it is
-cheaper than the search it replaces, which is a smaller set than one would hope.
+`α_f(G) ≤ 5/2` into `α(G) ≤ 2` with no search at all, on any graph whose program the simplex
+can solve and whose relaxation is tight enough to answer the question.
 -/
 
 set_option autoImplicit false
@@ -49,6 +52,224 @@ register_option graph_sat.frac : Bool := {
 }
 
 namespace CGraph
+namespace Sat
+
+/-! ## The certificates, at the level of indices
+
+`CGraph.fracIndepNum_le_of_natCover` and `CGraph.le_fracIndepNum_of_natWeights` are the bounds a
+solved linear program gives, but their hypotheses quantify over `Finset G.V`, and a `Finset G.V`
+is an expensive thing to ask a kernel about: the vertex type may be a subtype, a sum or a
+`Finset`, and every membership test drags `FinEnum.equiv` and a `DecidableEq` instance behind it.
+
+So the tactic never states its certificate that way.  It does what `graph_sat` does: prove
+`FinEnum.card G.V = m` and `edgeIdxList G = es` once, and phrase everything else as a closed
+`Bool` computation over `List ℕ` and `List (ℕ × ℕ)`, where the arithmetic is the kernel's own.
+The two bridges below are what carries such a computation back to the real statement. -/
+
+section Certificates
+open Finset
+
+/-! ### Adjacency at the level of indices -/
+
+/-- Adjacency read off an edge-index list: the pair in one order or the other. -/
+def AdjIdx (es : List (ℕ × ℕ)) (i j : ℕ) : Bool := es.contains (i, j) || es.contains (j, i)
+
+theorem adj_of_adjIdx {G : CGraph} {u v : G.V}
+    (h : AdjIdx (edgeIdxList G) (vIdx u) (vIdx v) = true) : G.Adj u v = true := by
+  have hmem : (vIdx u, vIdx v) ∈ edgeIdxList G ∨ (vIdx v, vIdx u) ∈ edgeIdxList G := by
+    rw [AdjIdx, Bool.or_eq_true] at h
+    simpa using h
+  rcases hmem with hm | hm
+  · obtain ⟨u', v', hadj, hp⟩ := exists_adj_of_mem_edgeIdxList hm
+    obtain ⟨h1, h2⟩ := Prod.mk.injEq .. ▸ hp
+    rw [vIdx_injective h1, vIdx_injective h2]
+    exact hadj
+  · obtain ⟨u', v', hadj, hp⟩ := exists_adj_of_mem_edgeIdxList hm
+    obtain ⟨h1, h2⟩ := Prod.mk.injEq .. ▸ hp
+    rw [vIdx_injective h1, vIdx_injective h2, G.symm]
+    exact hadj
+
+theorem adjIdx_of_adj {G : CGraph} {u v : G.V} (huv : u ≠ v) (h : G.Adj u v = true) :
+    AdjIdx (edgeIdxList G) (vIdx u) (vIdx v) = true := by
+  have key : ∀ x y : G.V, G.Adj x y = true → vIdx x < vIdx y →
+      (vIdx x, vIdx y) ∈ edgeIdxList G := by
+    intro x y hxy hlt
+    refine List.mem_flatMap.2 ⟨x, FinEnum.mem_toList x, List.mem_filterMap.2 ⟨y, ?_, ?_⟩⟩
+    · exact FinEnum.mem_toList y
+    · rw [if_pos ⟨hxy, hlt⟩]
+  have hne : vIdx u ≠ vIdx v := fun he ↦ huv (vIdx_injective he)
+  rw [AdjIdx, Bool.or_eq_true]
+  rcases Nat.lt_or_ge (vIdx u) (vIdx v) with hlt | hge
+  · exact Or.inl (by simpa using key u v h hlt)
+  · have hlt : vIdx v < vIdx u := by omega
+    exact Or.inr (by simpa using key v u ((G.symm u v) ▸ h) hlt)
+
+/-! ### The cover certificate -/
+
+/-- Whether the indices in `K` are pairwise adjacent in `es`. -/
+def IsCliqueIdx (es : List (ℕ × ℕ)) (K : List ℕ) : Bool :=
+  K.all fun i ↦ K.all fun j ↦ (i == j) || AdjIdx es i j
+
+/-- The total weight the weighted family `Kas` puts on the index `i`. -/
+def coverWeight (Kas : List (List ℕ × ℕ)) (i : ℕ) : ℕ :=
+  (Kas.map fun p ↦ if p.1.contains i then p.2 else 0).sum
+
+/-- Whether `Kas` is a fractional clique cover of scale `d` of the `m` indices: every set carrying
+weight is a clique, and every index is covered to total weight at least `d`. -/
+def IsIdxCover (m d : ℕ) (es : List (ℕ × ℕ)) (Kas : List (List ℕ × ℕ)) : Bool :=
+  (Kas.all fun p ↦ (p.2 == 0) || IsCliqueIdx es p.1) &&
+    (List.range m).all fun i ↦ d ≤ coverWeight Kas i
+
+/-- A sum over `Fin l.length` of a function of the entries is the sum of `l.map f`. -/
+private theorem sum_fin_get {M : Type*} [AddCommMonoid M] {α : Type*} (l : List α) (f : α → M) :
+    ∑ i : Fin l.length, f l[(i : ℕ)] = (l.map f).sum := by
+  rw [← List.sum_ofFn, List.ofFn_getElem_eq_map]
+
+/-- **The dual certificate, checked on indices.**  A weighted list of index sets that `IsIdxCover`
+accepts is a fractional clique cover of `G`, so it bounds `α_f(G)` above by `(∑ weights) / d`. -/
+theorem fracIndepNum_le_of_idxCover {G : CGraph} {m d s : ℕ} {es : List (ℕ × ℕ)}
+    {Kas : List (List ℕ × ℕ)} (hm : FinEnum.card G.V = m) (hes : edgeIdxList G = es)
+    (hd : 0 < d) (hchk : IsIdxCover m d es Kas = true)
+    (hs : (Kas.map Prod.snd).sum = s) :
+    G.fracIndepNum ≤ (s : ℝ) / (d : ℝ) := by
+  subst hes; subst hm; subst hs
+  rw [IsIdxCover, Bool.and_eq_true, List.all_eq_true, List.all_eq_true] at hchk
+  obtain ⟨hcl, hcov⟩ := hchk
+  refine fracIndepNum_le_of_natCover (G := G) hd
+    (K := fun i : Fin Kas.length ↦
+      Finset.univ.filter fun v ↦ Kas[(i : ℕ)].1.contains (vIdx v) = true)
+    (a := fun i ↦ Kas[(i : ℕ)].2) (sum_fin_get Kas Prod.snd) ?_ ?_
+  · intro i hi
+    have h := hcl Kas[(i : ℕ)] (List.getElem_mem i.isLt)
+    rw [Bool.or_eq_true] at h
+    have hcl' : IsCliqueIdx (edgeIdxList G) Kas[(i : ℕ)].1 = true := by
+      rcases h with h0 | h1
+      · exact absurd (by simpa using h0) hi
+      · exact h1
+    intro u hu w hw huw
+    simp only [Finset.mem_filter] at hu hw
+    rw [IsCliqueIdx, List.all_eq_true] at hcl'
+    have hmu : vIdx u ∈ Kas[(i : ℕ)].1 := by simpa using hu.2
+    have hmw : vIdx w ∈ Kas[(i : ℕ)].1 := by simpa using hw.2
+    have h2 := List.all_eq_true.1 (hcl' _ hmu) _ hmw
+    rw [Bool.or_eq_true] at h2
+    rcases h2 with he | hadj
+    · exact absurd (vIdx_injective (by simpa using he)) huw
+    · exact adj_of_adjIdx hadj
+  · intro v
+    have hv : vIdx v ∈ List.range (FinEnum.card G.V) := List.mem_range.2 (vIdx_lt v)
+    have h : d ≤ coverWeight Kas (vIdx v) := of_decide_eq_true (hcov _ hv)
+    refine le_trans h (le_of_eq ?_)
+    rw [coverWeight, ← sum_fin_get]
+    refine Finset.sum_congr rfl fun i _ ↦ ?_
+    simp
+
+/-! ### The weighting certificate -/
+
+/-- The members of `l` adjacent to `i`.  A definition of its own rather than the `List.filter` it
+unfolds to, so that the recursion below sees an opaque argument. -/
+def nbrsIn (es : List (ℕ × ℕ)) (i : ℕ) (l : List ℕ) : List ℕ := l.filter (AdjIdx es i)
+
+theorem mem_nbrsIn {es : List (ℕ × ℕ)} {i j : ℕ} {l : List ℕ} (hj : j ∈ l)
+    (hadj : AdjIdx es i j = true) : j ∈ nbrsIn es i l := List.mem_filter.2 ⟨hj, hadj⟩
+
+/-- Whether every clique of `es` inside `cand` weighs at most `d` once the weight `acc` already
+accumulated is added: a depth-first enumeration of the cliques extending the current one, which
+is what makes the feasibility of a weighting a finite check.
+
+The recursion is on a fuel rather than on `cand.length` because a well-founded definition is one
+the kernel cannot unfold, and `decide` is half the point.  Any fuel at least `cand.length` gives
+the same answer; running out returns `false`, so the check is never wrongly passed. -/
+def cliqueWeightOK (es : List (ℕ × ℕ)) (b : List ℕ) (d : ℕ) : ℕ → List ℕ → ℕ → Bool
+  | 0, cand, acc => cand.isEmpty && decide (acc ≤ d)
+  | fuel + 1, cand, acc =>
+      match cand with
+      | [] => decide (acc ≤ d)
+      | i :: rest =>
+          cliqueWeightOK es b d fuel rest acc &&
+            cliqueWeightOK es b d fuel (nbrsIn es i rest) (acc + b.getD i 0)
+
+theorem cliqueWeightOK_spec {es : List (ℕ × ℕ)} {b : List ℕ} {d : ℕ} (fuel : ℕ) :
+    ∀ (cand : List ℕ) (acc : ℕ), cliqueWeightOK es b d fuel cand acc = true →
+      ∀ C : Finset ℕ, (∀ i ∈ C, i ∈ cand) →
+        (∀ i ∈ C, ∀ j ∈ C, i ≠ j → AdjIdx es i j = true) →
+        acc + ∑ i ∈ C, b.getD i 0 ≤ d := by
+  induction fuel with
+  | zero =>
+    intro cand acc h C hC _
+    rw [cliqueWeightOK, Bool.and_eq_true] at h
+    obtain ⟨hnil, hle⟩ := h
+    rw [List.isEmpty_iff] at hnil
+    subst hnil
+    have hC' : C = ∅ := Finset.eq_empty_of_forall_notMem fun i hi ↦ by simpa using hC i hi
+    subst hC'
+    simpa using of_decide_eq_true hle
+  | succ fuel ih =>
+    rintro (_ | ⟨i, rest⟩) acc h C hC hadj
+    · simp only [cliqueWeightOK] at h
+      have hC' : C = ∅ := Finset.eq_empty_of_forall_notMem fun i hi ↦ by simpa using hC i hi
+      subst hC'
+      simpa using of_decide_eq_true h
+    · simp only [cliqueWeightOK, Bool.and_eq_true] at h
+      by_cases hi : i ∈ C
+      · have hsub : ∀ j ∈ C.erase i, j ∈ nbrsIn es i rest := by
+          intro j hj
+          have hji : j ≠ i := Finset.ne_of_mem_erase hj
+          have hjC : j ∈ C := Finset.mem_of_mem_erase hj
+          refine mem_nbrsIn ?_ (hadj i hi j hjC (Ne.symm hji))
+          rcases List.mem_cons.1 (hC j hjC) with rfl | hr
+          · exact absurd rfl hji
+          · exact hr
+        have key := ih _ _ h.2 (C.erase i) hsub
+          (fun x hx y hy hxy ↦
+            hadj x (Finset.mem_of_mem_erase hx) y (Finset.mem_of_mem_erase hy) hxy)
+        have hsum : ∑ x ∈ C, b.getD x 0 = b.getD i 0 + ∑ x ∈ C.erase i, b.getD x 0 :=
+          (Finset.add_sum_erase _ _ hi).symm
+        omega
+      · refine ih _ _ h.1 C (fun j hj ↦ ?_) hadj
+        rcases List.mem_cons.1 (hC j hj) with rfl | hr
+        · exact absurd hj hi
+        · exact hr
+
+private theorem sum_getD_fin {n : ℕ} (b : List ℕ) (h : b.length = n) :
+    ∑ i : Fin n, b.getD (i : ℕ) 0 = b.sum := by
+  subst h
+  have hb : ∑ i : Fin b.length, b[(i : ℕ)] = b.sum := by simp
+  rw [← hb]
+  exact Finset.sum_congr rfl fun i _ ↦ by simp
+
+/-- **The primal certificate, checked on indices.**  A list of natural weights, one per index,
+that no clique of `es` overloads is a feasible fractional independent set of `G` at scale `d`, so
+it bounds `α_f(G)` below by `(∑ b) / d`.  Unlike the cover, this one has to look at *every*
+clique, which is what `cliqueWeightOK` enumerates. -/
+theorem le_fracIndepNum_of_idxWeights {G : CGraph} {m d s : ℕ} {es : List (ℕ × ℕ)} {b : List ℕ}
+    (hm : FinEnum.card G.V = m) (hes : edgeIdxList G = es) (hd : 0 < d) (hlen : b.length = m)
+    (hchk : cliqueWeightOK es b d m (List.range m) 0 = true) (hs : b.sum = s) :
+    (s : ℝ) / (d : ℝ) ≤ G.fracIndepNum := by
+  subst hes; subst hs
+  refine le_fracIndepNum_of_natWeights (G := G) hd (fun v ↦ b.getD (vIdx v) 0) ?_ ?_
+  · rw [← sum_getD_fin b (hlen.trans hm.symm)]
+    exact Fintype.sum_equiv (FinEnum.equiv (α := G.V)) _ _ (fun v ↦ rfl)
+  · intro K hK
+    have hmem : ∀ i ∈ K.image vIdx, i ∈ List.range m := by
+      intro i hi
+      obtain ⟨v, -, rfl⟩ := Finset.mem_image.1 hi
+      exact List.mem_range.2 (hm ▸ vIdx_lt v)
+    have hpair : ∀ i ∈ K.image vIdx, ∀ j ∈ K.image vIdx, i ≠ j →
+        AdjIdx (edgeIdxList G) i j = true := by
+      intro i hi j hj hij
+      obtain ⟨u, hu, rfl⟩ := Finset.mem_image.1 hi
+      obtain ⟨w, hw, rfl⟩ := Finset.mem_image.1 hj
+      have hne : u ≠ w := fun he ↦ hij (by rw [he])
+      exact adjIdx_of_adj hne (hK u hu w hw hne)
+    have key := cliqueWeightOK_spec m (List.range m) 0 hchk (K.image vIdx) hmem hpair
+    rw [Finset.sum_image (fun x _ y _ h ↦ vIdx_injective h)] at key
+    simpa using key
+
+end Certificates
+
+end Sat
+
 namespace FracLP
 
 /-! ## Maximal cliques -/
@@ -229,31 +450,44 @@ private def graphData (g : Term) : TermElabM (ℕ × List (ℕ × ℕ)) := do
   let es ← evalPairs (← Term.elabTerm (← `(CGraph.Sat.edgeIdxList ($g : CGraph))) none)
   return (n, es)
 
-/-- The `Finset` of vertices with the listed indices, read through `FinEnum.equiv`, which is the
-only way to name a vertex of a graph whose vertex type is not literally `Fin n`. -/
-private def cliqueTerm (g : Term) (n : ℕ) (K : Array ℕ) : TermElabM Term := do
-  let elems ← K.mapM fun j ↦ `($(quote j))
-  `(((([$elems,*] : List (Fin $(quote n))).map
-      (FinEnum.equiv (α := ($g : CGraph).V)).symm).toFinset))
-
-/-- A vector of natural number literals. -/
-private def natVec (a : Array ℕ) : MetaM Term := do
+/-- A list of natural number literals. -/
+private def natListTerm (a : Array ℕ) : MetaM Term := do
   let elems ← a.mapM fun v ↦ `($(quote v))
-  `(![$elems,*])
+  `([$elems,*])
+
+/-- A list of pairs of natural number literals. -/
+private def pairsTerm (es : List (ℕ × ℕ)) : MetaM Term := do
+  let elems ← es.toArray.mapM fun (i, j) ↦ `(($(quote i), $(quote j)))
+  `([$elems,*])
+
+/-- A weighted family of index sets, as the literal `[([0, 1], 2), …]` the cover bridge takes. -/
+private def coverTerm (Kas : Array (Array ℕ × ℕ)) : MetaM Term := do
+  let elems ← Kas.mapM fun (K, a) ↦ do `(($(← natListTerm K), $(quote a)))
+  `([$elems,*])
 
 /-- A nonnegative rational as a real literal. -/
 private def ratTerm (q : Rat) : MetaM Term :=
   if q.den == 1 then `(($(quote q.num.toNat) : ℝ))
   else `((($(quote q.num.toNat) : ℝ)) / (($(quote q.den) : ℝ)))
 
-/-- How many sets the feasibility check of the primal certificate would have to look at. -/
-private def searchSize (n w : ℕ) : ℕ := (List.range (w + 1)).foldl (fun acc k ↦ acc + n.choose k) 0
+/-- How many nodes the kernel's depth-first clique enumeration would visit, abandoned once that
+passes `limit`.  This is exactly the recursion `CGraph.Sat.cliqueWeightOK` runs, counted outside
+the kernel first: it is the cost of the primal half of the certificate, and it is the one thing
+here that can be exponential. -/
+private partial def dfsNodes (adj : Array (Array Bool)) (limit : ℕ) (cand : List ℕ)
+    (acc : ℕ) : ℕ :=
+  if acc > limit then acc
+  else match cand with
+    | [] => acc + 1
+    | i :: rest => dfsNodes adj limit (rest.filter (nbr adj i)) (dfsNodes adj limit rest (acc + 1))
 
-/-- Everything the elaborator learned about a graph: its order, its maximal cliques, and the
-optimal pair of the packing program over them. -/
+/-- Everything the elaborator learned about a graph: its order, its edges, its maximal cliques,
+and the optimal pair of the packing program over them. -/
 private structure Data where
   /-- The number of vertices. -/
   n : ℕ
+  /-- The edges, as pairs of vertex indices; the certificates are stated against this list. -/
+  es : List (ℕ × ℕ)
   /-- The maximal cliques, as sorted arrays of vertex indices. -/
   cliques : Array (Array ℕ)
   /-- A verified optimal pair for the packing program. -/
@@ -273,7 +507,7 @@ private def lpData (g : Term) (maxCliques : ℕ) : TermElabM (Option Data) := do
   let t2 ← IO.monoMsNow
   trace[graph_sat.frac] "{n} vertices, {cliques.size} cliques: {t1 - t0} ms reading, \
     {t2 - t1} ms solving"
-  return if sol.valid n cliques then some ⟨n, cliques, sol⟩ else none
+  return if sol.valid n cliques then some ⟨n, es, cliques, sol⟩ else none
 
 /-- The tactic that ties the emitted literals to the graph: `decide`, or `native_decide` when the
 vertex type is one the kernel is slow on.  A complement or a `Finset` subtype is usually the
@@ -282,33 +516,38 @@ private def sideTac (native : Bool) : MetaM (TSyntax `tactic) :=
   if native then `(tactic| native_decide) else `(tactic| decide)
 
 /-- The dual half of the certificate: a term proving `α_f(g) ≤ q`, built from the cliques the
-optimal cover actually uses, with their weights cleared of denominators. -/
+optimal cover actually uses, with their weights cleared of denominators.  Two `decide`s tie the
+literals to the graph and one checks the cover; the rest is numerals. -/
 private def upperTerm (g : Term) (D : Data) (native : Bool) : TermElabM Term := do
   let used := (Array.range D.cliques.size).filter (fun i ↦ D.sol.y.getD i 0 != 0)
   let (d, ay) := clearDenom (used.map (D.sol.y.getD · 0))
-  let coverCliques : Array Term ← (used.map (D.cliques.getD · #[])).mapM (cliqueTerm g D.n)
-  let coverTerm ← `(![$coverCliques,*])
-  let weightTerm ← natVec ay
+  let cover ← coverTerm <| (Array.range used.size).map fun k ↦
+    (D.cliques.getD (used.getD k 0) #[], ay.getD k 0)
+  let esT ← pairsTerm D.es
   let s := ay.foldl (· + ·) 0
   let tac ← sideTac native
-  `(CGraph.fracIndepNum_le_of_natCover (G := $g) (d := $(quote d)) (s := $(quote s))
-    (by norm_num) $coverTerm $weightTerm (by $tac:tactic) (by $tac:tactic) (by $tac:tactic))
+  `(CGraph.Sat.fracIndepNum_le_of_idxCover (G := $g) (m := $(quote D.n)) (d := $(quote d))
+    (s := $(quote s)) (es := $esT) (Kas := $cover)
+    (by $tac:tactic) (by $tac:tactic) (by norm_num) (by $tac:tactic) (by decide))
 
 /-- The primal half of the certificate: a term proving `q ≤ α_f(g)` from the optimal vertex
-weights.  Their feasibility is checked over the sets of at most `ω(g)` vertices, so this is only
-worth trying when there are not too many of those; the bound `ω(g) ≤ w` itself is left to
-`graph_sat`. -/
+weights.  Feasibility means no clique of `g` is overloaded, and there is no way round looking at
+all of them, so this is only offered when the depth-first enumeration is small — see
+`dfsNodes`. -/
 private def lowerTerm (g : Term) (D : Data) (native : Bool) : TermElabM (Option Term) := do
-  let w := D.cliques.foldl (fun acc K ↦ Nat.max acc K.size) 0
-  if searchSize D.n w > 20000 then return none
+  let nodes := dfsNodes (adjMatrix D.n D.es) 20000 (List.range D.n) 0
+  if nodes > 20000 then
+    trace[graph_sat.frac] "the clique enumeration has more than {nodes} nodes; no lower bound"
+    return none
   let (bd, bx) := clearDenom D.sol.x
-  let bTerm ← natVec bx
+  let bTerm ← natListTerm bx
+  let esT ← pairsTerm D.es
   let sb := bx.foldl (· + ·) 0
   let tac ← sideTac native
-  let sat ← if native then `(tactic| graph_sat native) else `(tactic| graph_sat)
-  some <$> `(CGraph.le_fracIndepNum_of_natWeights (G := $g) (d := $(quote bd))
-    (w := $(quote w)) (s := $(quote sb)) (by norm_num)
-    (fun v ↦ $bTerm (FinEnum.equiv v)) (by $tac:tactic) (by $sat:tactic) (by $tac:tactic))
+  trace[graph_sat.frac] "the clique enumeration has {nodes} nodes"
+  some <$> `(CGraph.Sat.le_fracIndepNum_of_idxWeights (G := $g) (m := $(quote D.n))
+    (d := $(quote bd)) (s := $(quote sb)) (es := $esT) (b := $bTerm)
+    (by $tac:tactic) (by $tac:tactic) (by norm_num) (by decide) (by $tac:tactic) (by decide))
 
 /-- The two halves of the certificate for `g`: a term proving `α_f(g) ≤ q`, optionally a term
 proving `q ≤ α_f(g)`, and `q` itself. -/
@@ -378,33 +617,27 @@ the linear program says `α_f(G) ≤ 5/2` then `α(G) ≤ 2` with no search at a
 `graph_sat` syntax, tried before the SAT one; when the relaxation is too weak, too big to solve,
 or too big to be worth certifying, it stands aside and the SAT search runs as before.
 
-It fires on `graph_sat native` and on graphs of at most forty vertices — see
-`worthACertificate`, which is where the measurements are.  `set_option graph_sat.frac false`
-turns it off entirely. -/
+`set_option graph_sat.frac false` turns it off entirely; `worthACertificate` is where the size
+limits and the measurements behind them are. -/
 
 /-- Whether the fast path should go on and build a certificate for a program this size.
 
-The bound is empirical and it is *small*.  What the fast path spends is not the linear program —
-that is milliseconds on anything here — but the certificate: elaborating one `Finset` literal per
-clique of the cover and then checking the two sums over them.  On the 54-vertex Gray graph that
-step had not finished after five minutes, where `graph_sat` alone refutes the same bound in
-fifteen seconds; on the cages up to thirty-two vertices it is fast enough to save a fifth of the
-file.  Being wrong here is only ever slow, never unsound, but slow is the thing worth avoiding, so
-the fast path stays inside the range where it has been measured.
-
-`native` is required for the same reason: the check is three `native_decide`s, and the kernel
-takes longer over them than CaDiCaL takes to refute the bound outright — and it takes the
-declaration's heartbeats with it, leaving none for the fallback. -/
-private def worthACertificate (native : Bool) (D : Data) : Bool :=
-  native && D.n ≤ 40 && D.cliques.size ≤ 64
+The limits are empirical, and with the index-level certificates they are no longer tight: the
+check is a `decide` over lists of numerals, one pass over the cover and one over the vertices, so
+it costs about what reading the graph costs.  The 54-vertex Gray graph is two seconds where the
+`Finset`-level certificate had not finished in five minutes.  What is left is the linear program
+and the literal it turns into, both linear in `n * |cliques|`, and being wrong here is only ever
+slow, never unsound. -/
+private def worthACertificate (D : Data) : Bool :=
+  D.n ≤ 120 && D.cliques.size ≤ 300
 
 /-- Close a goal `G.indepNum ≤ n`, or `G.cliqueNum ≤ n` when `dual` is set, by rounding down the
 fractional bound.  Fails if the program is out of reach or its value is at least `n + 1`. -/
 private def roundDown (g : Term) (n : ℕ) (dual native : Bool) : TacticM Unit := do
   let lp ← if dual then `(($g)ᶜ) else pure g
   let some D ← lpData lp 300 | throwUnsupportedSyntax
-  unless worthACertificate native D do
-    trace[graph_sat.frac] "the certificate would cost more than the search; leaving it to SAT"
+  unless worthACertificate D do
+    trace[graph_sat.frac] "the program is larger than the fast path takes on; leaving it to SAT"
     throwUnsupportedSyntax
   if D.sol.val ≥ (n : Rat) + 1 then
     trace[graph_sat.frac] "the relaxation gives only {D.sol.val}; leaving it to the SAT search"
@@ -436,8 +669,8 @@ Kneser bounds — and because when it fires there is no search at all. -/
 private def roundUp (g : Term) (k : ℕ) (native : Bool) : TacticM Unit := do
   let lp ← `(($g)ᶜ)
   let some D ← lpData lp 300 | throwUnsupportedSyntax
-  unless worthACertificate native D do
-    trace[graph_sat.frac] "the certificate would cost more than the search; leaving it to SAT"
+  unless worthACertificate D do
+    trace[graph_sat.frac] "the program is larger than the fast path takes on; leaving it to SAT"
     throwUnsupportedSyntax
   if D.sol.val ≤ (k : Rat) then
     trace[graph_sat.frac] "the relaxation gives only {D.sol.val}; leaving it to the SAT search"
@@ -504,8 +737,11 @@ example : petersen.fracChromNum = 5 / 2 := by
   compute_fractional_chromNum native petersen
   exact h_fχ
 
--- `α(C₅) ≤ 2`, `ω(C₅) ≤ 2` and `χ(C₅) > 2`, none of them with a SAT call.  The fast path only
--- fires on `graph_sat native`; see `worthACertificate` for why.
+-- `α(C₅) ≤ 2`, `ω(C₅) ≤ 2` and `χ(C₅) > 2`, none of them with a SAT call, on either level of
+-- `decide`.
+example : (cycle 5).indepNum ≤ 2 := by graph_sat
+example : (cycle 5).cliqueNum ≤ 2 := by graph_sat
+example : 2 < (cycle 5).chromNum := by graph_sat
 example : (cycle 5).indepNum ≤ 2 := by graph_sat native
 example : (cycle 5).cliqueNum ≤ 2 := by graph_sat native
 example : 2 < (cycle 5).chromNum := by graph_sat native
