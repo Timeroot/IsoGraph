@@ -1,6 +1,7 @@
 import IsoGraph.Invariants.Basic
 import IsoGraph.Invariants.Derived
 import IsoGraph.Invariants.Fractional
+import IsoGraph.Invariants.FracProducts
 import IsoGraph.Invariants.Connectivity
 import IsoGraph.Invariants.Hamiltonian
 import IsoGraph.Invariants.Certificates
@@ -26,6 +27,12 @@ sit between the integer invariants they relax: `α ≤ α_f ≤ θ` and `ω ≤ 
 programs they are far cheaper to certify than the things they bound, which is what
 `IsoGraph/Fractional.lean` — the tactics `compute_fractional_indepNum` and
 `compute_fractional_chromNum`, and a fast path for `graph_sat` — is for.
+
+`Invariants/FracProducts.lean` computes χ_f of a tensor product.  Hedetniemi's conjecture is false
+for the chromatic number, but Zhu proved the fractional statement: χ_f of a tensor product is
+exactly the minimum of the two factors' — one of the few product identities in the subject that is
+an equality rather than a bound.
+
 
 `Invariants/Connectivity.lean` and `Invariants/Hamiltonian.lean` add the three invariants that
 Mathlib does not have at all: the edge connectivity, the vertex connectivity and Hamiltonicity.
