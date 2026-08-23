@@ -25,6 +25,7 @@ tactic and never an unsound proof.
 * otherwise, if its *complement* is disconnected, the join of the descriptions of the co-components
   (a join is exactly a graph whose complement falls apart);
 * otherwise, if the complement is in the atlas, the complement of that name;
+* otherwise, if it is a cartesian, tensor or strong product of two atlas graphs, that product;
 * otherwise, the edge list of the canonical form.
 
 Looking in the atlas *first* is what keeps `empty 5` from coming out as `1 ⊕g 1 ⊕g 1 ⊕g 1 ⊕g 1`
@@ -90,6 +91,36 @@ def induce (g : IGraph) (vs : Array ℕ) : IGraph :=
 def edgeList (g : IGraph) : List (ℕ × ℕ) :=
   (pairsBelow g.n).filter fun p ↦ g.adj p.1 p.2
 
+/-- The number of edges. -/
+def edgeCount (g : IGraph) : ℕ := g.edgeList.length
+
+/-- The degrees, in order of vertex. -/
+def degrees (g : IGraph) : List ℕ :=
+  (List.range g.n).map fun i ↦ (List.range g.n).countP fun j ↦ g.adj i j
+
+/-! ### Products
+
+Vertex `i` of a product stands for the pair `(i / h.n, i % h.n)`.  That is not the numbering the
+`FinEnum` instance on a product vertex type uses, and it does not have to be: these are only used
+to compare canonical codes, and the isomorphism that ends up in the certificate is read off the
+real product afterwards. -/
+
+/-- The cartesian product `□g`. -/
+def cartesian (g h : IGraph) : IGraph :=
+  ofFn (g.n * h.n) fun i j ↦
+    (i / h.n == j / h.n && h.adj (i % h.n) (j % h.n)) ||
+      (i % h.n == j % h.n && g.adj (i / h.n) (j / h.n))
+
+/-- The tensor product `⊗g`. -/
+def tensor (g h : IGraph) : IGraph :=
+  ofFn (g.n * h.n) fun i j ↦ g.adj (i / h.n) (j / h.n) && h.adj (i % h.n) (j % h.n)
+
+/-- The strong product `⊠g`. -/
+def strong (g h : IGraph) : IGraph :=
+  ofFn (g.n * h.n) fun i j ↦
+    i != j && (g.adj (i / h.n) (j / h.n) || i / h.n == j / h.n) &&
+      (h.adj (i % h.n) (j % h.n) || i % h.n == j % h.n)
+
 /-- The edges of the *canonical form*: the same graph, relabelled so that the labelling is
 determined by the isomorphism class. -/
 def canonEdgeList (g : IGraph) : List (ℕ × ℕ) :=
@@ -149,9 +180,19 @@ def entry (head : Lean.Name) (args : List ℕ) (G : CGraph) : AtlasEntry :=
 def family₁ (head : Lean.Name) (f : ℕ → CGraph) (lo hi : ℕ) : List AtlasEntry :=
   (List.range (hi + 1 - lo)).map fun k ↦ entry head [k + lo] (f (k + lo))
 
+/-- A one-parameter family, for a given list of parameters.  For families whose definition still
+makes sense outside the intended range but no longer deserves the name. -/
+def familyOn (head : Lean.Name) (f : ℕ → CGraph) (ks : List ℕ) : List AtlasEntry :=
+  ks.map fun k ↦ entry head [k] (f k)
+
 /-- A two-parameter family. -/
 def family₂ (head : Lean.Name) (f : ℕ → ℕ → CGraph) (as bs : List ℕ) : List AtlasEntry :=
   as.flatMap fun a ↦ bs.map fun b ↦ entry head [a, b] (f a b)
+
+/-- A two-parameter family, restricted to the parameters the name is meant for. -/
+def family₂If (head : Lean.Name) (f : ℕ → ℕ → CGraph) (p : ℕ → ℕ → Bool) (as bs : List ℕ) :
+    List AtlasEntry :=
+  as.flatMap fun a ↦ (bs.filter (p a)).map fun b ↦ entry head [a, b] (f a b)
 
 /-- The individually named graphs.  These come first, so that a graph with a proper name gets it
 rather than the systematic description of a family it happens to belong to: `claw` rather than
@@ -247,13 +288,17 @@ def familyAtlas : List AtlasEntry :=
   family₁ ``fan fan 2 20 ++
   family₁ ``friendship friendship 1 12 ++
   family₁ ``triangular triangular 3 10 ++
-  family₁ ``paley paley 5 29 ++
+  -- only a prime `q ≡ 1 mod 4` gives the Paley graph; `CGraph.paley` of anything else is a
+  -- circulant with no claim to the name, and naming a graph after it would be a lie
+  familyOn ``paley paley [5, 13, 17, 29] ++
   family₂ ``bipartite bipartite (List.range 21) (List.range 21) ++
   family₂ ``rook rook (List.range 9) (List.range 9) ++
   family₂ ``turan turan (List.range 21) (List.range 9) ++
   family₂ ``kneser kneser (List.range 10) (List.range 4) ++
   family₂ ``johnson johnson (List.range 10) (List.range 4) ++
-  family₂ ``gp gp (List.range 16) (List.range 8) ++
+  -- `GP(n, k)` wants `3 ≤ n` and `1 ≤ k < n/2`; outside that the spokes and the inner cycle
+  -- degenerate and the graph is not the one the name promises
+  family₂If ``gp gp (fun n k ↦ 3 ≤ n && 1 ≤ k && 2 * k < n) (List.range 16) (List.range 8) ++
   family₂ ``tadpole tadpole (List.range 13) (List.range 13) ++
   family₂ ``lollipop lollipop (List.range 13) (List.range 13) ++
   family₂ ``doubleStar doubleStar (List.range 11) (List.range 11)
@@ -279,6 +324,12 @@ inductive GExpr where
   | join (a b : GExpr)
   /-- A complement. -/
   | compl (a : GExpr)
+  /-- A cartesian product. -/
+  | cart (a b : GExpr)
+  /-- A tensor product. -/
+  | tens (a b : GExpr)
+  /-- A strong product. -/
+  | strong (a b : GExpr)
   /-- No name found: the canonical edge list. -/
   | edges (n : ℕ) (es : List (ℕ × ℕ))
   deriving Inhabited
@@ -294,6 +345,9 @@ def GExpr.interp : GExpr → CGraph
   | .sum a b => a.interp ⊕g b.interp
   | .join a b => a.interp ∇g b.interp
   | .compl a => a.interpᶜ
+  | .cart a b => a.interp □g b.interp
+  | .tens a b => a.interp ⊗g b.interp
+  | .strong a b => a.interp ⊠g b.interp
   | .edges n es => CGraph.ofEdges n es
 
 /-- How many named pieces a description is built from: the tie-breaker that prefers a genuine
@@ -303,6 +357,9 @@ def GExpr.weight : GExpr → ℕ
   | .sum a b => a.weight + b.weight
   | .join a b => a.weight + b.weight
   | .compl a => a.weight
+  | .cart a b => a.weight + b.weight
+  | .tens a b => a.weight + b.weight
+  | .strong a b => a.weight + b.weight
   | .edges _ _ => 0
 
 /-! ## The search -/
@@ -325,6 +382,59 @@ private def cutSets (cs : List (List ℕ)) : Option (List (List ℕ)) :=
     if split.1.length ≤ 1 || split.2.isEmpty then some cs
     else some (split.1.flatten :: split.2)
 
+/-! ### Products
+
+A graph that is none of the above may still be a product of two named ones.  There is no cheap
+analogue of "split it into components" here — the factorisation algorithms for the cartesian
+product are a subject in themselves — so the search is a search: every pair of atlas entries whose
+orders multiply to the right thing, filtered by edge count, and the survivors compared by canonical
+code.  The filter is what makes this affordable, since the edge count of each product is determined
+by the orders and edge counts of the factors and almost never matches by accident. -/
+
+/-- An atlas entry with its bitset graph and degrees, ready to be multiplied. -/
+private structure Cand where
+  head : Lean.Name
+  args : List ℕ
+  graph : IGraph
+  degs : List ℕ
+
+/-- The atlas entries of a given order.  Building an entry means reading a `CGraph` through its
+`FinEnum`, which is not free, so the order test comes first. -/
+private def candidates (k : ℕ) : List Cand :=
+  (atlas.filter fun e ↦ e.ord == k).map fun e ↦
+    let ig := IGraph.ofCGraph e.graph
+    ⟨e.head, e.args, ig, ig.degrees⟩
+
+/-- One of the three products, as the search needs it: how to build it, what the degree of a
+vertex is in terms of the degrees of its two coordinates, and how to describe it. -/
+private structure ProdOp where
+  build : IGraph → IGraph → IGraph
+  deg : ℕ → ℕ → ℕ
+  descr : GExpr → GExpr → GExpr
+
+private def prodOps : List ProdOp :=
+  [ ⟨IGraph.cartesian, fun dA dB ↦ dA + dB, .cart⟩,
+    ⟨IGraph.tensor, fun dA dB ↦ dA * dB, .tens⟩,
+    ⟨IGraph.strong, fun dA dB ↦ dA + dB + dA * dB, .strong⟩ ]
+
+/-- Describe `g` as a product of two atlas graphs, if it is one.  Only factorisations `n = a * b`
+with `2 ≤ a ≤ b` are tried; all three products are commutative up to isomorphism, so nothing is
+lost.
+
+The degree sequence is what makes this affordable.  A vertex of a product has a degree determined
+by the degrees of its two coordinates, so a candidate pair can be rejected by sorting `n` numbers,
+and only the few pairs that survive are canonically labelled. -/
+private def productSplit (g : IGraph) : Option GExpr :=
+  let c := g.code
+  let ds := g.degrees.mergeSort (· ≤ ·)
+  ((List.range (g.n + 1)).filter fun a ↦ 2 ≤ a && a * a ≤ g.n && g.n % a == 0).findSome? fun a ↦
+    let bs := candidates (g.n / a)
+    (candidates a).findSome? fun A ↦ bs.findSome? fun B ↦ prodOps.findSome? fun op ↦
+      let ds' := (A.degs.flatMap fun dA ↦ B.degs.map fun dB ↦ op.deg dA dB).mergeSort (· ≤ ·)
+      if ds' == ds && (op.build A.graph B.graph).code == c then
+        some (op.descr (.atom A.head A.args) (.atom B.head B.args))
+      else none
+
 /-- **Describe a graph.**  See the module docstring for the order the rules are tried in. -/
 partial def decompose (g : IGraph) : GExpr :=
   match atlasLookup g with
@@ -343,7 +453,10 @@ partial def decompose (g : IGraph) : GExpr :=
       | none =>
         match atlasLookup g.compl with
         | some (h, a) => .compl (.atom h a)
-        | none => .edges g.n g.canonEdgeList
+        | none =>
+          match productSplit g with
+          | some e => e
+          | none => .edges g.n g.canonEdgeList
 
 /-- The index lists of an isomorphism `g ≃ h`, found by composing the two canonical labellings.
 

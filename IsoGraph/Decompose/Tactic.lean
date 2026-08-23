@@ -80,7 +80,11 @@ partial def render : GExpr → MetaM Term
   | .sum a b => do `($(← render a) ⊕g $(← render b))
   | .join a b => do `($(← render a) ∇g $(← render b))
   | .compl a => do `($(← render a)ᶜ)
-  | .edges n es => do `(CGraph.ofEdges $(quote n) $(← pairsTerm es))
+  | .cart a b => do `($(← render a) □g $(← render b))
+  | .tens a b => do `($(← render a) ⊗g $(← render b))
+  | .strong a b => do `($(← render a) ⊠g $(← render b))
+  | .edges n es => do
+    return Syntax.mkApp (mkIdent ``CGraph.ofEdges) #[quote n, ← pairsTerm es]
 
 /-! ## Running the search -/
 
@@ -174,3 +178,48 @@ elab_rules : tactic
 end Tactic
 
 end CGraph.Decompose
+
+/-! ## Examples
+
+One of each rule the search knows, kept here as its regression test: the answers below are the
+kernel's, not the elaborator's, since each of them is a `decide` on a certificate. -/
+
+/-- The Mycielskian of `C₅` is the Grötzsch graph. -/
+example : (Quotient.mk CGraph.isoSetoid (CGraph.mycielskian (CGraph.cycle 5)) : IsoGraph)
+    = Quotient.mk CGraph.isoSetoid NamedGraphs.grotzsch := by
+  decompose_graph (CGraph.mycielskian (CGraph.cycle 5))
+
+/-- The complement of the Petersen graph is the triangular graph `T(5)`. -/
+example : (Quotient.mk CGraph.isoSetoid CGraph.petersenᶜ : IsoGraph)
+    = Quotient.mk CGraph.isoSetoid (CGraph.triangular 5) := by
+  decompose_graph CGraph.petersenᶜ
+
+/-- The line graph of `K₄` is the octahedron. -/
+example : Nonempty (CGraph.lineGraph (CGraph.complete 4) ≃cg SmallGraphs.octahedron) := by
+  generate_graph_iso (CGraph.lineGraph (CGraph.complete 4)) with e
+  exact ⟨e⟩
+
+/-- A disconnected graph is described component by component, in order of size. -/
+example : Nonempty (CGraph.cycle 4 ⊕g CGraph.complete 3 ≃cg
+    CGraph.complete 3 ⊕g CGraph.cycle 4) := by
+  generate_graph_iso (CGraph.cycle 4 ⊕g CGraph.complete 3) with e
+  exact ⟨e⟩
+
+/-- A join is found through the complement, and the isolated vertices of the complement are pooled
+into one complete graph rather than joined on one at a time. -/
+example : Nonempty (CGraph.complete 2 ∇g (CGraph.cycle 5 ⊕g CGraph.complete 1) ≃cg
+    CGraph.complete 2 ∇g (CGraph.empty 1 ⊕g CGraph.cycle 5)) := by
+  generate_graph_iso (CGraph.complete 2 ∇g (CGraph.cycle 5 ⊕g CGraph.complete 1)) with e
+  exact ⟨e⟩
+
+/-- A product of two named graphs is recognised as one — and the tensor square of `C₅` happens to
+be its cartesian square. -/
+example : (Quotient.mk CGraph.isoSetoid (CGraph.cycle 5 ⊗g CGraph.cycle 5) : IsoGraph)
+    = Quotient.mk CGraph.isoSetoid (CGraph.cycle 5 □g CGraph.cycle 5) := by
+  decompose_graph (CGraph.cycle 5 ⊗g CGraph.cycle 5)
+
+/-- Nothing in the atlas: the description falls back to the canonical edge list. -/
+example : Nonempty (CGraph.mycielskian (CGraph.path 3) ≃cg CGraph.ofEdges 7
+    [(1, 4), (2, 4), (0, 5), (3, 5), (4, 5), (0, 6), (1, 6), (2, 6), (3, 6)]) := by
+  generate_graph_iso (CGraph.mycielskian (CGraph.path 3)) with e
+  exact ⟨e⟩
