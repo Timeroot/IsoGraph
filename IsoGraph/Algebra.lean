@@ -2,6 +2,7 @@ import IsoGraph.Algebra.Semiring
 import IsoGraph.Algebra.Cancellation
 import IsoGraph.Algebra.Factorization
 import IsoGraph.Algebra.Connected
+import IsoGraph.Algebra.UniqueFactorization
 import IsoGraph.Algebra.Exponential
 
 /-!

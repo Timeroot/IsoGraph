@@ -49,6 +49,18 @@ theorem isUnit_iff_V (G : IsoGraph) : IsUnit G ↔ G.V = 1 := by
     exact hG ▸ isUnit_one
 
 include hone hV in
+/-- **Associated graphs are equal.**  Associates differ by a unit, and the only unit is the graph
+on one vertex, so the "up to associates" that factorisation theory usually has to carry around is
+here plain equality of isomorphism classes. -/
+theorem associated_iff_eq {a b : IsoGraph} : Associated a b ↔ a = b := by
+  refine ⟨fun h ↦ ?_, fun h ↦ h ▸ Associated.refl a⟩
+  obtain ⟨u, hu⟩ := h
+  have h1 : (u : IsoGraph) = 1 := by
+    rw [hone]
+    exact V_eq_one_iff.1 ((isUnit_iff_V hone hV _).1 u.isUnit)
+  rw [← hu, h1, mul_one]
+
+include hone hV in
 /-- **A graph on a prime number of vertices is irreducible**, there being nowhere for the vertices
 of a factorisation to go. -/
 theorem irreducible_of_prime_V {G : IsoGraph} (hp : Nat.Prime G.V) : Irreducible G := by
@@ -96,6 +108,16 @@ theorem wfDvdMonoid_of_V : WfDvdMonoid IsoGraph := by
   by_cases h : a = 0
   · exact h ▸ Acc.intro _ (fun b hb ↦ key b.V b le_rfl hb.1)
   · exact key a.V a le_rfl h
+
+include hzero hone hV in
+/-- **Every graph with a vertex is a product of irreducibles.**  Well-founded divisibility gives a
+factorisation up to associates, and associates are equal here, so the product is the graph on the
+nose.  The empty multiset covers the one-vertex graph; anything larger gets a genuine factor. -/
+theorem exists_multiset_prod_eq {a : IsoGraph} (ha : a ≠ 0) :
+    ∃ f : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ f.prod = a := by
+  haveI := wfDvdMonoid_of_V hzero hone hV
+  obtain ⟨f, hf, hassoc⟩ := WfDvdMonoid.exists_factors a ha
+  exact ⟨f, hf, (associated_iff_eq hone hV).1 hassoc⟩
 
 end
 
@@ -221,6 +243,55 @@ theorem not_isNoetherianRing_of_V : ¬ IsNoetherianRing IsoGraph := by
   omega
 
 include hadd hone hV in
+/-- With `x` on two vertices, `1 + x` has three vertices and `1 + x + x²` has seven, so the one
+cannot divide the other. -/
+private theorem not_dvd_one_add_add_sq (x : IsoGraph) (hx : x.V = 2) :
+    ¬ (1 + x) ∣ (1 + x + x * x) := by
+  intro h
+  have h7 := V_dvd_of_dvd hV h
+  simp only [hadd, V_disjUnion, hone, V_empty, hV, hx] at h7
+  omega
+
+include hadd hone hV in
+/-- With `x` connected on two vertices, `1 + x` does not divide `1 + x³`: a cofactor would be a
+component of `1 + x³` and so have one or eight vertices rather than three. -/
+private theorem not_dvd_one_add_cube (x : IsoGraph) (hx : x.V = 2)
+    (hx3 : (x * x * x).numComponents = 1) : ¬ (1 + x) ∣ (1 + x * x * x) := by
+  rintro ⟨c, hc⟩
+  have hc' : (1 : IsoGraph) + x * x * x = c + x * c := by rw [hc]; ring
+  have hVc : c.V = 3 := by
+    have hh := congrArg IsoGraph.V hc
+    simp only [hadd, hV, V_disjUnion, hone, V_empty, hx] at hh
+    omega
+  have hVxc : (x * c).V = 6 := by rw [hV, hx, hVc]
+  have hnc : ∀ a b : IsoGraph, (a + b).numComponents = a.numComponents + b.numComponents :=
+    fun a b ↦ by rw [hadd, numComponents_disjUnion]
+  have hnc1 : (1 : IsoGraph).numComponents = 1 := by rw [hone, numComponents_empty]
+  have hncc : c.numComponents = 1 := by
+    have hh := congrArg IsoGraph.numComponents hc'
+    rw [hnc, hnc, hnc1, hx3] at hh
+    have h1 : c.numComponents ≠ 0 := fun hzz ↦ by
+      rw [numComponents_eq_zero_iff_eq_empty.1 hzz, V_empty] at hVc; omega
+    have h2 : (x * c).numComponents ≠ 0 := fun hzz ↦ by
+      rw [numComponents_eq_zero_iff_eq_empty.1 hzz, V_empty] at hVxc; omega
+    omega
+  have hcomps := congrArg IsoGraph.comps hc'
+  rw [hadd, hadd, comps_disjUnion, comps_disjUnion, comps_eq_singleton hnc1,
+    comps_eq_singleton hx3, comps_eq_singleton hncc] at hcomps
+  have hmem : c ∈ ({(1 : IsoGraph)} + {x * x * x} : Multiset IsoGraph) := by
+    rw [hcomps]; exact Multiset.mem_add.2 (Or.inl (Multiset.mem_singleton_self c))
+  rw [Multiset.singleton_add, Multiset.mem_cons, Multiset.mem_singleton] at hmem
+  rcases hmem with rfl | rfl
+  · rw [hone, V_empty] at hVc; omega
+  · rw [hV, hV, hx] at hVc; omega
+
+/-- **The two factorisations.**  Writing `x` for `K₂`, so that `xᵏ` is the `k`-cube, both sides are
+`1 + x + x² + x³ + x⁴ + x⁵`; the identity holds in any commutative semiring and so needs nothing
+about graphs at all. -/
+theorem one_add_mul_eq (x : IsoGraph) :
+    (1 + x) * (1 + x * x + x * x * x * x) = (1 + x + x * x) * (1 + x * x * x) := by ring
+
+include hadd hone hV in
 /-- **An irreducible graph that is not prime.**  With `x` connected on two vertices, `1 + x` has
 three vertices, and `(1 + x) * (1 + x² + x⁴) = (1 + x + x²) * (1 + x³)`.  It does not divide
 `1 + x + x²`, which has seven vertices; and it does not divide `1 + x³` either, since a cofactor
@@ -228,40 +299,11 @@ would be a component of `1 + x³` and so have one or eight vertices rather than 
 theorem not_prime_one_add (x : IsoGraph) (hx : x.V = 2) (hx3 : (x * x * x).numComponents = 1) :
     ¬ Prime (1 + x) := by
   intro hp
-  have hV1x : (1 + x : IsoGraph).V = 3 := by rw [hadd, V_disjUnion, hone, V_empty, hx]
   have hdvd : (1 + x) ∣ (1 + x + x * x) * (1 + x * x * x) :=
-    ⟨1 + x * x + x * x * x * x, by ring⟩
+    ⟨1 + x * x + x * x * x * x, (one_add_mul_eq x).symm⟩
   rcases hp.2.2 _ _ hdvd with h | h
-  · have h7 := V_dvd_of_dvd hV h
-    rw [hV1x, hadd, hadd, V_disjUnion, V_disjUnion, hone, V_empty, hV, hx] at h7
-    omega
-  · obtain ⟨c, hc⟩ := h
-    have hc' : (1 : IsoGraph) + x * x * x = c + x * c := by rw [hc]; ring
-    have hVc : c.V = 3 := by
-      have hh := congrArg IsoGraph.V hc
-      simp only [hadd, hV, V_disjUnion, hone, V_empty, hx] at hh
-      omega
-    have hVxc : (x * c).V = 6 := by rw [hV, hx, hVc]
-    have hnc : ∀ a b : IsoGraph, (a + b).numComponents = a.numComponents + b.numComponents :=
-      fun a b ↦ by rw [hadd, numComponents_disjUnion]
-    have hnc1 : (1 : IsoGraph).numComponents = 1 := by rw [hone, numComponents_empty]
-    have hncc : c.numComponents = 1 := by
-      have hh := congrArg IsoGraph.numComponents hc'
-      rw [hnc, hnc, hnc1, hx3] at hh
-      have h1 : c.numComponents ≠ 0 := fun hzz ↦ by
-        rw [numComponents_eq_zero_iff_eq_empty.1 hzz, V_empty] at hVc; omega
-      have h2 : (x * c).numComponents ≠ 0 := fun hzz ↦ by
-        rw [numComponents_eq_zero_iff_eq_empty.1 hzz, V_empty] at hVxc; omega
-      omega
-    have hcomps := congrArg IsoGraph.comps hc'
-    rw [hadd, hadd, comps_disjUnion, comps_disjUnion, comps_eq_singleton hnc1,
-      comps_eq_singleton hx3, comps_eq_singleton hncc] at hcomps
-    have hmem : c ∈ ({(1 : IsoGraph)} + {x * x * x} : Multiset IsoGraph) := by
-      rw [hcomps]; exact Multiset.mem_add.2 (Or.inl (Multiset.mem_singleton_self c))
-    rw [Multiset.singleton_add, Multiset.mem_cons, Multiset.mem_singleton] at hmem
-    rcases hmem with rfl | rfl
-    · rw [hone, V_empty] at hVc; omega
-    · rw [hV, hV, hx] at hVc; omega
+  · exact not_dvd_one_add_add_sq hadd hone hV x hx h
+  · exact not_dvd_one_add_cube hadd hone hV x hx hx3 h
 
 include hadd hone hV in
 /-- **Irreducible does not imply prime** in the graph semiring. -/
@@ -278,6 +320,55 @@ theorem not_uniqueFactorizationMonoid_of_V (x : IsoGraph) (hx : x.V = 2)
   intro _
   obtain ⟨p, hirr, hnp⟩ := exists_irreducible_not_prime hadd hone hV x hx hx3
   exact hnp (UniqueFactorizationMonoid.irreducible_iff_prime.1 hirr)
+
+include hadd hzero hone hV in
+/-- **Two genuinely different factorisations of one graph into irreducibles.**  Writing `x` for
+`K₂`, the commutative-semiring axioms alone give
+
+    (1 + x) * (1 + x² + x⁴) = 1 + x + x² + x³ + x⁴ + x⁵ = (1 + x + x²) * (1 + x³),
+
+so the two sides are the same graph.  Split `1 + x + x²` and `1 + x³` into irreducibles and one
+gets a factorisation none of whose members is `1 + x`, since `1 + x` divides neither; split
+`1 + x² + x⁴` and put `1 + x` in front, which is irreducible because it has three vertices, and one
+gets a factorisation that does contain `1 + x`.  The two multisets therefore differ, and since
+associates are equal here there is no wriggle room left: the factorisation really is not unique.
+The graph in question is disconnected, and that is no accident — Sabidussi and Vizing proved that
+connected graphs do factor uniquely under the cartesian product. -/
+theorem exists_factorisations_ne (x : IsoGraph) (hx : x.V = 2)
+    (hx3 : (x * x * x).numComponents = 1) :
+    ∃ f g : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ (∀ b ∈ g, Irreducible b) ∧
+      f.prod = g.prod ∧ f ≠ g := by
+  have hVone : (1 : IsoGraph).V = 1 := by rw [hone, V_empty]
+  have hVadd : ∀ a b : IsoGraph, (a + b).V = a.V + b.V := fun a b ↦ by rw [hadd, V_disjUnion]
+  have hne : ∀ a : IsoGraph, a.V ≠ 0 → a ≠ 0 := fun a h hz ↦ h (by rw [hz, hzero, V_empty])
+  have hV7 : (1 + x + x * x : IsoGraph).V = 7 := by simp only [hVadd, hV, hVone, hx]
+  have hV9 : (1 + x * x * x : IsoGraph).V = 9 := by simp only [hVadd, hV, hVone, hx]
+  have hV21 : (1 + x * x + x * x * x * x : IsoGraph).V = 21 := by
+    simp only [hVadd, hV, hVone, hx]
+  obtain ⟨f₁, hf₁, hf₁p⟩ :=
+    exists_multiset_prod_eq hzero hone hV (a := 1 + x + x * x) (hne _ (by omega))
+  obtain ⟨f₂, hf₂, hf₂p⟩ :=
+    exists_multiset_prod_eq hzero hone hV (a := 1 + x * x * x) (hne _ (by omega))
+  obtain ⟨g₀, hg₀, hg₀p⟩ :=
+    exists_multiset_prod_eq hzero hone hV (a := 1 + x * x + x * x * x * x) (hne _ (by omega))
+  have hirr : Irreducible (1 + x : IsoGraph) := by
+    refine irreducible_of_prime_V hone hV ?_
+    have hV3 : (1 + x : IsoGraph).V = 3 := by simp only [hVadd, hVone, hx]
+    rw [hV3]
+    exact Nat.prime_three
+  refine ⟨f₁ + f₂, (1 + x) ::ₘ g₀, ?_, ?_, ?_, ?_⟩
+  · exact fun b hb ↦ (Multiset.mem_add.1 hb).elim (hf₁ b) (hf₂ b)
+  · intro b hb
+    rcases Multiset.mem_cons.1 hb with rfl | hb
+    · exact hirr
+    · exact hg₀ b hb
+  · rw [Multiset.prod_add, Multiset.prod_cons, hf₁p, hf₂p, hg₀p, one_add_mul_eq]
+  · intro heq
+    have hmem : (1 + x : IsoGraph) ∈ f₁ + f₂ := by
+      rw [heq]; exact Multiset.mem_cons_self _ _
+    rcases Multiset.mem_add.1 hmem with hb | hb
+    · exact not_dvd_one_add_add_sq hadd hone hV x hx (hf₁p ▸ Multiset.dvd_prod hb)
+    · exact not_dvd_one_add_cube hadd hone hV x hx hx3 (hf₂p ▸ Multiset.dvd_prod hb)
 
 end
 
@@ -298,9 +389,18 @@ theorem isUnit_iff (G : IsoGraph) : IsUnit G ↔ G.V = 1 := isUnit_iff_V rfl V_c
 theorem irreducible_of_prime_V {G : IsoGraph} (hp : Nat.Prime G.V) : Irreducible G :=
   IsoGraph.irreducible_of_prime_V rfl V_cartesianProduct hp
 
+/-- **Associated graphs are equal** for the cartesian product. -/
+theorem associated_iff_eq {a b : IsoGraph} : Associated a b ↔ a = b :=
+  IsoGraph.associated_iff_eq rfl V_cartesianProduct
+
 /-- **Divisibility for the cartesian product is well-founded.** -/
 scoped instance instWfDvdMonoid : WfDvdMonoid IsoGraph :=
   wfDvdMonoid_of_V rfl rfl V_cartesianProduct
+
+/-- **Every graph with a vertex is a cartesian product of irreducibles.** -/
+theorem exists_multiset_prod_eq {a : IsoGraph} (ha : a ≠ 0) :
+    ∃ f : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ f.prod = a :=
+  IsoGraph.exists_multiset_prod_eq rfl rfl V_cartesianProduct ha
 
 end IsoGraph.CartesianProduct
 
@@ -313,9 +413,18 @@ theorem isUnit_iff (G : IsoGraph) : IsUnit G ↔ G.V = 1 := isUnit_iff_V rfl V_s
 theorem irreducible_of_prime_V {G : IsoGraph} (hp : Nat.Prime G.V) : Irreducible G :=
   IsoGraph.irreducible_of_prime_V rfl V_strongProduct hp
 
+/-- **Associated graphs are equal** for the strong product. -/
+theorem associated_iff_eq {a b : IsoGraph} : Associated a b ↔ a = b :=
+  IsoGraph.associated_iff_eq rfl V_strongProduct
+
 /-- **Divisibility for the strong product is well-founded.** -/
 scoped instance instWfDvdMonoid : WfDvdMonoid IsoGraph :=
   wfDvdMonoid_of_V rfl rfl V_strongProduct
+
+/-- **Every graph with a vertex is a strong product of irreducibles.** -/
+theorem exists_multiset_prod_eq {a : IsoGraph} (ha : a ≠ 0) :
+    ∃ f : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ f.prod = a :=
+  IsoGraph.exists_multiset_prod_eq rfl rfl V_strongProduct ha
 
 end IsoGraph.StrongProduct
 
@@ -327,6 +436,10 @@ theorem isUnit_iff (G : IsoGraph) : IsUnit G ↔ G.V = 1 := isUnit_iff_V rfl V_l
 /-- A graph on a prime number of vertices is irreducible for the lexicographic product. -/
 theorem irreducible_of_prime_V {G : IsoGraph} (hp : Nat.Prime G.V) : Irreducible G :=
   IsoGraph.irreducible_of_prime_V rfl V_lexProduct hp
+
+/-- **Associated graphs are equal** for the lexicographic product. -/
+theorem associated_iff_eq {a b : IsoGraph} : Associated a b ↔ a = b :=
+  IsoGraph.associated_iff_eq rfl V_lexProduct
 
 end IsoGraph.LexProduct
 
@@ -373,6 +486,20 @@ theorem not_uniqueFactorizationMonoid : ¬ UniqueFactorizationMonoid IsoGraph :=
   not_uniqueFactorizationMonoid_of_V (fun _ _ ↦ rfl) rfl V_cartesianProduct (complete 2)
     (V_complete 2) cube_connected
 
+/-- **Two different factorisations of `K₁ ⊕g Q₁ ⊕g Q₂ ⊕g Q₃ ⊕g Q₄ ⊕g Q₅` into irreducibles**, the
+`Qₖ` being the hypercubes.  The graph is disconnected; Sabidussi and Vizing proved that connected
+graphs do factor uniquely. -/
+theorem exists_factorisations_ne :
+    ∃ f g : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ (∀ b ∈ g, Irreducible b) ∧
+      f.prod = g.prod ∧ f ≠ g :=
+  IsoGraph.exists_factorisations_ne (fun _ _ ↦ rfl) rfl rfl V_cartesianProduct (complete 2)
+    (V_complete 2) cube_connected
+
+/-- **Every graph with a vertex is a product of irreducibles.** -/
+theorem exists_multiset_prod_eq {a : IsoGraph} (ha : a ≠ 0) :
+    ∃ f : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ f.prod = a :=
+  IsoGraph.exists_multiset_prod_eq rfl rfl V_cartesianProduct ha
+
 end IsoGraph.Semiring
 
 namespace IsoGraph.StrongSemiring
@@ -417,5 +544,19 @@ theorem exists_irreducible_not_prime : ∃ p : IsoGraph, Irreducible p ∧ ¬ Pr
 theorem not_uniqueFactorizationMonoid : ¬ UniqueFactorizationMonoid IsoGraph :=
   not_uniqueFactorizationMonoid_of_V (fun _ _ ↦ rfl) rfl V_strongProduct (complete 2)
     (V_complete 2) cube_connected
+
+/-- **Two different factorisations of `K₁ ⊕g Q₁ ⊕g Q₂ ⊕g Q₃ ⊕g Q₄ ⊕g Q₅` into irreducibles**, the
+`Qₖ` being the hypercubes.  The graph is disconnected; Sabidussi and Vizing proved that connected
+graphs do factor uniquely. -/
+theorem exists_factorisations_ne :
+    ∃ f g : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ (∀ b ∈ g, Irreducible b) ∧
+      f.prod = g.prod ∧ f ≠ g :=
+  IsoGraph.exists_factorisations_ne (fun _ _ ↦ rfl) rfl rfl V_strongProduct (complete 2)
+    (V_complete 2) cube_connected
+
+/-- **Every graph with a vertex is a product of irreducibles.** -/
+theorem exists_multiset_prod_eq {a : IsoGraph} (ha : a ≠ 0) :
+    ∃ f : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ f.prod = a :=
+  IsoGraph.exists_multiset_prod_eq rfl rfl V_strongProduct ha
 
 end IsoGraph.StrongSemiring
