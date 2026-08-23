@@ -9258,6 +9258,21 @@ theorem lapSpectrum_hypercube (n : ℕ) :
   congr 1
   ring
 
+/-- `lapSpectrum_cycle` for a `CGraph`, as `lapSpectrum_path` is stated: the two forms are the same
+fact, but a tactic that has reduced a goal to the spectrum of a concrete graph meets this one. -/
+theorem _root_.CGraph.lapSpectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
+    (CGraph.cycle n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
+  have h := IsoGraph.lapSpectrum_cycle hn
+  rwa [IsoGraph.cycle_def, IsoGraph.lapSpectrum_mk] at h
+
+/-- `lapSpectrum_hypercube` for a `CGraph`. -/
+theorem _root_.CGraph.lapSpectrum_hypercube (n : ℕ) :
+    (CGraph.hypercube n).lapSpectrum
+      = ∑ j ∈ Finset.range (n + 1), Multiset.replicate (n.choose j) (2 * j : ℝ) := by
+  have h := IsoGraph.lapSpectrum_hypercube n
+  rwa [IsoGraph.hypercube_def, IsoGraph.lapSpectrum_mk] at h
+
 /-- **The Laplacian spectrum of the wheel** `W_n`: the hub contributes the order `n + 1`, and every
 nonzero eigenvalue of the rim is shifted by one. -/
 theorem lapSpectrum_wheel {n : ℕ} (hn : 0 < n) :

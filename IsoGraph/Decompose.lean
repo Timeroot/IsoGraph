@@ -1,6 +1,7 @@
 import IsoGraph.Decompose.Cert
 import IsoGraph.Decompose.Atlas
 import IsoGraph.Decompose.Tactic
+import IsoGraph.Decompose.Spectrum
 
 /-!
 # Describing a graph
@@ -25,4 +26,9 @@ ordinary compiled Lean working on a bitset adjacency matrix, not meta code.
 `Decompose/Tactic.lean` is the interface: `#decompose_graph` to print a description,
 `generate_graph_iso` to bind an isomorphism to it as a `let` in the context, and `decompose_graph`
 to rewrite the graph in the goal to its description.
+
+`Decompose/Spectrum.lean` is what the description is *for*: `compute_lapSpectrum` decomposes a
+graph and then evaluates the Laplacian spectrum of the description, since the disjoint union, the
+join and the complement all have unconditional rules for it.  The eigenvalues come out as explicit
+real numbers — integers for a cograph, cosines for anything with a cycle or a path in it.
 -/

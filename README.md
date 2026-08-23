@@ -57,6 +57,8 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Enum/Decide.lean` | `small_graphs`: a statement about every graph of an order, checked | yes |
 | `IsoGraph/Invariants/Basic.lean` | invariants at both levels: `indepNum`, `E`, `IsConnected`, `diameter`, … | yes |
 | `IsoGraph/Invariants/Derived.lean` | invariants of a derived graph: `edgeChromNum`, `matchNum`, `cliqueCoverNum`, `IsSelfComplementary` | yes |
+| `IsoGraph/Invariants/Fractional.lean` | the fractional independence and chromatic numbers as linear programs, and `α ≤ α_f ≤ θ`, `ω ≤ χ_f ≤ χ` | yes |
+| `IsoGraph/Invariants/FracProducts.lean` | `χ_f(G × H) = min χ_f(G) χ_f(H)` — Zhu's theorem, the fractional Hedetniemi equality | yes |
 | `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
 | `IsoGraph/Invariants/Connectivity.lean` | the edge and vertex connectivities `λ` and `κ`, their cuts and separators, and Whitney's `κ ≤ λ ≤ δ` | yes |
 | `IsoGraph/Invariants/Hamiltonian.lean` | Hamiltonicity, and the cycle-list and cyclic-numbering certificates that establish it | yes |
@@ -71,7 +73,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
 | `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-three more by family and by operator, indexed by `SmallGraphs.lean` | yes |
-| `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization and the exponential — five modules, indexed by `Algebra.lean` | yes |
+| `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization, the exponential, and how far the uniqueness of a cartesian factorisation gets without Sabidussi–Vizing — six modules, indexed by `Algebra.lean` | yes |
 | `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
 | `IsoGraph/Cache.lean` | the memoised adjacency function the searches run on | yes |
@@ -79,6 +81,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
 | `IsoGraph/Sat.lean` | `graph_sat`: bounds on `α`, `ω`, `χ`, `ν`, `χ'` and `θ` handed to a SAT solver through `bv_decide` | yes |
 | `IsoGraph/Fractional.lean` | `compute_fractional_indepNum` and `compute_fractional_chromNum`: the linear relaxations, solved by an exact simplex in the elaborator, and a fast path for `graph_sat` | yes |
+| `IsoGraph/Decompose/` | `#decompose_graph`, `generate_graph_iso`, `decompose_graph` and `compute_lapSpectrum`: what a graph *is*, as a formula in named graphs, with a certificate — four modules, indexed by `Decompose.lean` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
@@ -6297,6 +6300,135 @@ The caps are arbitrary and deliberate: 200 vertices and 800 maximal cliques for 
 visit more than 20000 nodes — the elaborator counts them first, outside the kernel, since that is
 the one number here that can be exponential. In that case `compute_fractional_indepNum` adds
 `α_f(G) ≤ q` rather than the equation, the upper bound being the half that is always affordable.
+
+### Fractional Hedetniemi
+
+The relaxation is not only cheaper than the invariant it bounds; on the tensor product it is
+*better behaved*. Hedetniemi's conjecture asks whether `χ(G × H) = min (χ G) (χ H)`, and the
+answer is no — Shitov, 2019. The fractional statement is a theorem, Zhu, 2011, and
+`Invariants/FracProducts.lean` proves it:
+
+```lean
+@[simp] theorem fracChromNum_tensorProduct (G H : CGraph) :
+    (G ⊗g H).fracChromNum = min G.fracChromNum H.fracChromNum
+```
+
+One half is free once homomorphism monotonicity is available: the two projections
+`G ⊗ H → G` and `G ⊗ H → H` are homomorphisms by the definition of the tensor product, and
+`fracChromNum_le_of_hom` pushes a weighting forward along a homomorphism — a strengthening of the
+injective version already in `Fractional.lean`, since only the *preimage* of an independent set
+need be independent.
+
+The other half is Zhu's argument. It runs entirely in weightings, because `χ_f` is defined here as
+the packing value on the complement and no strong duality is available: a lower bound has to be a
+feasible weighting exhibited by hand. Two lemmas carry it. The closed-neighbourhood bound says
+`f(X)·χ_f(G) ≤ f(N[X]) + (χ_f(G) − f(V))` for an independent `X` — Zhu states it for a maximum
+fractional clique so the bracket vanishes, and keeping the error term instead means never having
+to know the supremum is attained. The partition lemma splits an independent set of `G ⊗ H` into
+the part that is row-isolated and the rest, and the combinatorial heart is that the two sets those
+inflate to are disjoint. Weighing `(x, y) ↦ g x · h y` against that partition is the theorem.
+
+What is *not* proved is the cartesian analogue in the interesting direction:
+`max (χ_f G) (χ_f H) ≤ χ_f(G □ H)` is here, the reverse is not. Sabidussi's `χ(G □ H) = max` has
+no fractional proof by the same route, since the colouring that realises it is a construction on
+colourings rather than on weightings.
+
+## What a graph is
+
+A construction hands back an adjacency table. `mycielskian (cycle 5)` is a `CGraph` on eleven
+vertices and nothing about the term says that it is the Grötzsch graph; `lineGraph (complete 4)`
+says nothing about the octahedron. `IsoGraph/Decompose/` closes that gap mechanically. It searches
+for a *description* of a graph — a formula in named graphs, disjoint unions, joins, complements
+and products — and returns the description together with a proof that it is right:
+
+```lean
+#decompose_graph CGraph.petersenᶜ                        -- CGraph.triangular 5
+#decompose_graph (CGraph.cycle 5 ⊠g CGraph.cycle 3)      -- CGraph.complete 3 ⊠g CGraph.cycle 5
+#decompose_graph (CGraph.mycielskian (CGraph.path 3))    -- CGraph.ofEdges 7 [(1, 4), …]
+```
+
+The rules are tried in order: look the graph up in the atlas; failing that split it into connected
+components; failing that split its *complement* into components, which is a join; failing that
+complement it and look it up again; failing that try to write it as a cartesian, tensor or strong
+product of two atlas graphs; failing all of that, print the canonical edge list. Each part is
+described recursively, and the parts are ordered — by size, then by canonical code — so that the
+answer approximates the `simp` normal form for the operation, and two isomorphic graphs presented
+differently come out as the same formula. Isolated components are pooled, so five isolated
+vertices are `empty 5` rather than four `⊕g`s of `complete 1`, and the same on the join side.
+
+The atlas is about fifteen hundred graphs: everything individually named in the gallery, the
+strongly regular table, the cages and the solids, and the first several members of each infinite
+family. Where two names fit, the more specific wins — `star 3` rather than `bipartite 1 3`,
+`octahedron` rather than `cocktailParty 3`. Where a name is only correct under a hypothesis, the
+family is restricted to the arguments that earn it: `CGraph.paley q` is the Paley graph only for a
+prime `q ≡ 1 mod 4`, and the atlas holds `paley 5`, `13`, `17` and `29` and no others, because
+otherwise the search cheerfully reports `C₅ ⊠ C₃` as `paley 15`, which it is not.
+
+### Nothing of the search is trusted
+
+The elaborator runs `decomposeWithPerm` as compiled code and gets back the formula and two lists
+of vertex indices, the relabelling and its inverse. What it emits is
+
+```lean
+CGraph.Decompose.isoOfList G H p q (by decide)
+```
+
+and `isoListOK G H p q` is a single `Bool`: the two lists are inverse permutations of `Fin n`, and
+adjacency agrees across them. That is one quadratic computation for the kernel to check, no
+`native_decide`, and a wrong answer from the search is a failed `decide` rather than an unsound
+proof. There are three entry points on top of it — `#decompose_graph` to print a description,
+`generate_graph_iso G with e` to bind `e : G ≃cg H` in the context as a `let`, since an
+isomorphism is data and a later step will want to apply it to vertices, and `decompose_graph G`
+to rewrite `⟦G⟧` in the goal to `⟦H⟧`, which is the form to reach for when the goal is about an
+isomorphism invariant.
+
+| what it is given | what it finds |
+| --- | --- |
+| `mycielskian (cycle 5)` | `NamedGraphs.grotzsch` |
+| `lineGraph (complete 4)` | `SmallGraphs.octahedron` |
+| `lineGraph (complete 5)`, `petersenᶜ` | `CGraph.triangular 5` |
+| `(complete 4 ⊕g complete 4)ᶜ` | `CGraph.bipartite 4 4` |
+| `complete 3 □g complete 3`, `complete 3 ⊗g complete 3` | `CGraph.rook 3 3` |
+| `cycle 5 ⊗g cycle 5` | `CGraph.cycle 5 □g CGraph.cycle 5` |
+| `petersen □g complete 2` | `CGraph.complete 2 □g CGraph.petersen` |
+| `lineGraph petersen`, `mycielskian (path 3)` | an explicit `CGraph.ofEdges` |
+
+The product rule is brute force and says so: there is no factorisation algorithm here, only a
+search over pairs of atlas graphs whose orders multiply to `n`. What makes it affordable is that a
+vertex of a product has a degree determined by the degrees of its coordinates, so the sorted
+degree sequence of a candidate product can be computed from the factors' and compared before any
+adjacency is touched. That filter is the difference between a second and a minute.
+
+### What the description is for
+
+`compute_lapSpectrum` is the payoff. The Laplacian spectrum has unconditional rules for exactly
+the three operations the decomposition uses — `lapSpectrum_disjUnion`, `lapSpectrum_join`,
+`lapSpectrum_compl` — so a decomposition into named atoms *is* an evaluation strategy:
+
+```lean
+example : IsoGraph.lapSpectrum ⟦(CGraph.path 3 ⊕g CGraph.complete 2)ᶜ⟧
+    = 0 ::ₘ 5 ::ₘ 2 ::ₘ 3 ::ₘ {4} := by
+  compute_lapSpectrum ((CGraph.path 3 ⊕g CGraph.complete 2)ᶜ)
+
+example : IsoGraph.lapSpectrum ⟦CGraph.lineGraph (CGraph.cycle 6)⟧
+    = Finset.univ.val.map (fun m : Fin 6 ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / 6)) := by
+  compute_lapSpectrum (CGraph.lineGraph (CGraph.cycle 6))
+```
+
+Neither goal mentions a graph whose spectrum is in the library until the tactic has found one. The
+eigenvalues that come out are real numbers named by closed expressions — integers for a cograph,
+cosines as soon as a cycle or a path is involved — which is the sense in which a spectrum can be
+computed at all: there is no decision procedure for `ℝ` here, and none is wanted.
+
+The adjacency spectrum gets no such tactic, and the reason is structural rather than an omission.
+The adjacency spectrum of a join is determined by the factors' only when they are regular, so the
+same pipeline stops at the first join. It is the Laplacian that is compositional.
+
+The honest limits: an atom with no spectrum lemma is left as `H.lapSpectrum`, and there are plenty
+of those — the gallery is much larger than the list of graphs whose spectrum this library knows. A
+product is left alone too, since `lapSpectrum_cartesianProduct` gives a sum over pairs of
+*eigenvalues* rather than a combination of spectra and does not compose with the rest. Adding an
+atom is adding one name to a `simp` list.
 
 ## Writing it so it can be proved
 
