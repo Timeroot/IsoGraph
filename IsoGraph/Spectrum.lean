@@ -9499,6 +9499,47 @@ theorem lapSpectrum_ladder (n : ℕ) :
   simp only [Function.comp_def]
   congr 1 <;> exact Multiset.map_congr rfl fun x _ ↦ by ring
 
+/-- `lapSpectrum_grid` for a `CGraph`: the form a tactic meets after reducing a spectrum goal to a
+concrete graph. -/
+theorem _root_.CGraph.lapSpectrum_grid (m n : ℕ) :
+    (CGraph.path m □g CGraph.path n).lapSpectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          (2 - 2 * Real.cos (Real.pi * p.1.1 / m))
+            + (2 - 2 * Real.cos (Real.pi * p.2.1 / n))) := by
+  have h := IsoGraph.lapSpectrum_grid m n
+  rwa [show IsoGraph.path m = Quotient.mk CGraph.isoSetoid (CGraph.path m) from rfl,
+    show IsoGraph.path n = Quotient.mk CGraph.isoSetoid (CGraph.path n) from rfl,
+    IsoGraph.cartesianProduct_mk, IsoGraph.lapSpectrum_mk] at h
+
+/-- `lapSpectrum_cartesianProduct_cycle` for a `CGraph`. -/
+theorem _root_.CGraph.lapSpectrum_cartesianProduct_cycle {m n : ℕ} (hm : 3 ≤ m) (hn : 3 ≤ n) :
+    (CGraph.cycle m □g CGraph.cycle n).lapSpectrum
+      = Finset.univ.val.map (fun p : Fin m × Fin n ↦
+          (2 - 2 * Real.cos (2 * Real.pi * p.1.1 / m))
+            + (2 - 2 * Real.cos (2 * Real.pi * p.2.1 / n))) := by
+  have h := IsoGraph.lapSpectrum_cartesianProduct_cycle hm hn
+  rwa [show IsoGraph.cycle m = Quotient.mk CGraph.isoSetoid (CGraph.cycle m) from rfl,
+    show IsoGraph.cycle n = Quotient.mk CGraph.isoSetoid (CGraph.cycle n) from rfl,
+    IsoGraph.cartesianProduct_mk, IsoGraph.lapSpectrum_mk] at h
+
+/-- `lapSpectrum_prism` for a `CGraph`. -/
+theorem _root_.CGraph.lapSpectrum_prism {n : ℕ} (hn : 3 ≤ n) :
+    (CGraph.prism n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / n))
+        + Finset.univ.val.map (fun m : Fin n ↦ 4 - 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
+  have h := IsoGraph.lapSpectrum_prism hn
+  rwa [show IsoGraph.prism n = Quotient.mk CGraph.isoSetoid (CGraph.prism n) from rfl,
+    IsoGraph.lapSpectrum_mk] at h
+
+/-- `lapSpectrum_ladder` for a `CGraph`. -/
+theorem _root_.CGraph.lapSpectrum_ladder (n : ℕ) :
+    (CGraph.ladder n).lapSpectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ 2 - 2 * Real.cos (Real.pi * m.1 / n))
+        + Finset.univ.val.map (fun m : Fin n ↦ 4 - 2 * Real.cos (Real.pi * m.1 / n)) := by
+  have h := IsoGraph.lapSpectrum_ladder n
+  rwa [show IsoGraph.ladder n = Quotient.mk CGraph.isoSetoid (CGraph.ladder n) from rfl,
+    IsoGraph.lapSpectrum_mk] at h
+
 /-! ### The Laplacian of the grid, the torus and the cylinder -/
 
 /-- **The largest Laplacian eigenvalue of a grid** is the sum of the two paths'. -/

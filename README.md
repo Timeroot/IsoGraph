@@ -6416,6 +6416,12 @@ example : IsoGraph.lapSpectrum ⟦(CGraph.path 3 ⊕g CGraph.complete 2)ᶜ⟧
 example : IsoGraph.lapSpectrum ⟦CGraph.lineGraph (CGraph.cycle 6)⟧
     = Finset.univ.val.map (fun m : Fin 6 ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / 6)) := by
   compute_lapSpectrum (CGraph.lineGraph (CGraph.cycle 6))
+
+example : IsoGraph.lapSpectrum ⟦CGraph.cycle 5 □g CGraph.cycle 6⟧
+    = Finset.univ.val.map (fun p : Fin 5 × Fin 6 ↦
+        (2 - 2 * Real.cos (2 * Real.pi * p.1.1 / 5))
+          + (2 - 2 * Real.cos (2 * Real.pi * p.2.1 / 6))) := by
+  compute_lapSpectrum (CGraph.cycle 5 □g CGraph.cycle 6)
 ```
 
 Neither goal mentions a graph whose spectrum is in the library until the tactic has found one. The
@@ -6428,10 +6434,11 @@ The adjacency spectrum of a join is determined by the factors' only when they ar
 same pipeline stops at the first join. It is the Laplacian that is compositional.
 
 The honest limits: an atom with no spectrum lemma is left as `H.lapSpectrum`, and there are plenty
-of those — the gallery is much larger than the list of graphs whose spectrum this library knows. A
-product is left alone too, since `lapSpectrum_cartesianProduct` gives a sum over pairs of
-*eigenvalues* rather than a combination of spectra and does not compose with the rest. Adding an
-atom is adding one name to a `simp` list.
+of those — the gallery is much larger than the list of graphs whose spectrum this library knows.
+Products are handled only in the shapes that have their own rule — the grid `Pₘ □ Pₙ`, the torus
+`Cₘ □ Cₙ`, the prism and the ladder — because `lapSpectrum_cartesianProduct` in general gives a sum
+over pairs of *eigenvalues* rather than a combination of spectra, and so does not compose with the
+rest. Adding an atom, or another product shape, is adding one name to a `simp` list.
 
 ## Writing it so it can be proved
 

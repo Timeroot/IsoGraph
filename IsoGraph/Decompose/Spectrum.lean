@@ -23,16 +23,17 @@ the first join.
 
 Every atom the decomposition can produce whose Laplacian spectrum is in the library: `empty`,
 `complete`, `star`, `bipartite`, `path`, `cycle`, `hypercube`, `cocktailParty`, `rook`,
-`triangular`, `wheel` (through `wheel_eq_join`) and the Petersen graph.  Cycles and paths
-contribute cosines rather than integers, which is the point of doing this over `ℝ` rather than
-computing a characteristic polynomial: the answer is a multiset of real numbers given by closed
-expressions, not a decidable object.
+`triangular`, `prism`, `ladder`, `wheel` (through `wheel_eq_join`) and the Petersen graph.  Cycles
+and paths contribute cosines rather than integers, which is the point of doing this over `ℝ`
+rather than computing a characteristic polynomial: the answer is a multiset of real numbers given
+by closed expressions, not a decidable object.
 
-An atom it does not know — a named graph with no spectrum lemma, or the `ofEdges` fallback for a
-graph the atlas cannot describe — is left alone, as `H.lapSpectrum` for that `H`.  So is a product:
-`lapSpectrum_cartesianProduct` expresses the spectrum of `G □g H` as a sum over pairs of
-eigenvalues, which is a formula in the *eigenvalues* of the factors rather than in their spectra,
-and does not compose with the rest.  Adding an atom is adding one lemma to the list below.
+Two shapes of cartesian product are known as well, the grid `Pₘ □ Pₙ` and the torus `Cₘ □ Cₙ`.
+The general product is not: `lapSpectrum_cartesianProduct` expresses the spectrum of `G □g H` as a
+sum over pairs of eigenvalues, which is a formula in the *eigenvalues* of the factors rather than
+in their spectra, and so does not compose with the rest of the list.  An atom the list does not
+know — a named graph with no spectrum lemma, or the `ofEdges` fallback for a graph the atlas cannot
+describe — is left alone, as `H.lapSpectrum` for that `H`.  Adding one is adding one lemma below.
 -/
 
 set_option autoImplicit false
@@ -56,7 +57,9 @@ macro_rules
          CGraph.lapSpectrum_compl, CGraph.lapSpectrum_empty, CGraph.lapSpectrum_complete,
          CGraph.lapSpectrum_star, CGraph.lapSpectrum_bipartite, CGraph.lapSpectrum_path,
          CGraph.lapSpectrum_cycle, CGraph.lapSpectrum_hypercube, CGraph.lapSpectrum_cocktailParty,
-         CGraph.lapSpectrum_rook, CGraph.lapSpectrum_triangular, CGraph.lapSpectrum_petersen]
+         CGraph.lapSpectrum_rook, CGraph.lapSpectrum_triangular, CGraph.lapSpectrum_petersen,
+         CGraph.lapSpectrum_grid, CGraph.lapSpectrum_cartesianProduct_cycle,
+         CGraph.lapSpectrum_prism, CGraph.lapSpectrum_ladder]
        all_goals try norm_num [Nat.choose]))
 
 end CGraph.Decompose
@@ -89,3 +92,18 @@ Laplacian spectrum gets. -/
 example : IsoGraph.lapSpectrum (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph (CGraph.cycle 6)))
     = Finset.univ.val.map (fun m : Fin 6 ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / 6)) := by
   compute_lapSpectrum (CGraph.lineGraph (CGraph.cycle 6))
+
+/-- A torus: the product search recovers the two cycles from the adjacency table, and the torus
+rule adds their eigenvalues in pairs. -/
+example : IsoGraph.lapSpectrum (Quotient.mk CGraph.isoSetoid (CGraph.cycle 5 □g CGraph.cycle 6))
+    = Finset.univ.val.map (fun p : Fin 5 × Fin 6 ↦
+        (2 - 2 * Real.cos (2 * Real.pi * p.1.1 / 5))
+          + (2 - 2 * Real.cos (2 * Real.pi * p.2.1 / 6))) := by
+  compute_lapSpectrum (CGraph.cycle 5 □g CGraph.cycle 6)
+
+/-- The pentagonal prism is an atlas graph, so it is named rather than factored, and its own
+spectrum lemma applies: the cycle's eigenvalues, and the same shifted up by `2`. -/
+example : IsoGraph.lapSpectrum (Quotient.mk CGraph.isoSetoid (CGraph.prism 5))
+    = Finset.univ.val.map (fun m : Fin 5 ↦ 2 - 2 * Real.cos (2 * Real.pi * m.1 / 5))
+      + Finset.univ.val.map (fun m : Fin 5 ↦ 4 - 2 * Real.cos (2 * Real.pi * m.1 / 5)) := by
+  compute_lapSpectrum (CGraph.prism 5)
