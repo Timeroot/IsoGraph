@@ -6349,10 +6349,10 @@ and products — and returns the description together with a proof that it is ri
 
 The rules are tried in order: look the graph up in the atlas; failing that split it into connected
 components; failing that split its *complement* into components, which is a join; failing that
-complement it and look it up again; failing that try to write it as a cartesian, tensor or strong
-product of two atlas graphs; failing all of that, print the canonical edge list. Each part is
-described recursively, and the parts are ordered — by size, then by canonical code — so that the
-answer approximates the `simp` normal form for the operation, and two isomorphic graphs presented
+complement it and look it up again; failing that try to write it as a cartesian, tensor, strong or
+lexicographic product of two atlas graphs; failing all of that, print the canonical edge list.
+Each part is described recursively, and the parts are ordered — by size, then by canonical code —
+so that the answer approximates the `simp` normal form, and two isomorphic graphs presented
 differently come out as the same formula. Isolated components are pooled, so five isolated
 vertices are `empty 5` rather than four `⊕g`s of `complete 1`, and the same on the join side.
 
@@ -6391,10 +6391,13 @@ isomorphism invariant.
 | `complete 3 □g complete 3`, `complete 3 ⊗g complete 3` | `CGraph.rook 3 3` |
 | `cycle 5 ⊗g cycle 5` | `CGraph.cycle 5 □g CGraph.cycle 5` |
 | `petersen □g complete 2` | `CGraph.complete 2 □g CGraph.petersen` |
+| `cycle 7 ·g empty 2` | `CGraph.cycle 7 ·g CGraph.empty 2` — a blow-up into false twins |
+| `path 4 ·g complete 2` | `CGraph.complete 2 ⊠g CGraph.path 4` — true twins are a strong product |
 | `lineGraph petersen`, `mycielskian (path 3)` | an explicit `CGraph.ofEdges` |
 
 The product rule is brute force and says so: there is no factorisation algorithm here, only a
-search over pairs of atlas graphs whose orders multiply to `n`. What makes it affordable is that a
+search over pairs of atlas graphs whose orders multiply to `n`, both ways round for the
+lexicographic product, which is the only one of the four that is not commutative. What makes it affordable is that a
 vertex of a product has a degree determined by the degrees of its coordinates, so the sorted
 degree sequence of a candidate product can be computed from the factors' and compared before any
 adjacency is touched. That filter is the difference between a second and a minute.

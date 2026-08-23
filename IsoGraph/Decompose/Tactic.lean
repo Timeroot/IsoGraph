@@ -5,9 +5,9 @@ import IsoGraph.Decompose.Cert
 # The `generate_graph_iso` tactic
 
 `IsoGraph/Decompose/Atlas.lean` describes a graph as a formula built from named graphs, disjoint
-unions, joins and complements; `IsoGraph/Decompose/Cert.lean` turns a pair of index lists into an
-isomorphism.  This file is the glue: a tactic that runs the search in the elaborator and hands the
-result back as a term.
+unions, joins, complements and products; `IsoGraph/Decompose/Cert.lean` turns a pair of index lists
+into an isomorphism.  This file is the glue: a tactic that runs the search in the elaborator and
+hands the result back as a term.
 
     example : True := by
       generate_graph_iso (CGraph.cycle 4 ⊕g CGraph.complete 3) with e
@@ -83,6 +83,7 @@ partial def render : GExpr → MetaM Term
   | .cart a b => do `($(← render a) □g $(← render b))
   | .tens a b => do `($(← render a) ⊗g $(← render b))
   | .strong a b => do `($(← render a) ⊠g $(← render b))
+  | .lex a b => do `($(← render a) ·g $(← render b))
   | .edges n es => do
     return Syntax.mkApp (mkIdent ``CGraph.ofEdges) #[quote n, ← pairsTerm es]
 
@@ -118,8 +119,8 @@ private def searchFor (tac : String) (G : Expr) : TermElabM (Term × Term × Ter
     #decompose_graph CGraph.mycielskian (CGraph.cycle 5)   -- NamedGraphs.grotzsch
 
 Recognises named graphs and infinite families from the atlas of `IsoGraph/Decompose/Atlas.lean`,
-splits along disjoint unions and joins, and tries the complement; a graph it cannot describe is
-printed as an explicit `CGraph.ofEdges`. -/
+splits along disjoint unions and joins, tries the complement, and tries to write the graph as a
+product of two named ones; a graph it cannot describe is printed as an explicit `CGraph.ofEdges`. -/
 syntax (name := decomposeGraphCmd) "#decompose_graph " term : command
 
 elab_rules : command
@@ -134,7 +135,8 @@ elab_rules : command
     generate_graph_iso G with e
 
 adds a `let`-bound `e : G ≃cg H` to the context, where `H` is the description of `G` found by the
-atlas search — a formula in named graphs, `⊕g`, `∇g` and `ᶜ`.  The name defaults to `iso`.
+atlas search — a formula in named graphs, `⊕g`, `∇g`, `ᶜ` and the four products.  The name
+defaults to `iso`.
 
 The isomorphism is data and is bound by `let`, so `e x` reduces: a later step can compute with it,
 not just cite it.  Its correctness is checked by a single `decide` on an index-list certificate; the
@@ -217,6 +219,19 @@ be its cartesian square. -/
 example : (Quotient.mk CGraph.isoSetoid (CGraph.cycle 5 ⊗g CGraph.cycle 5) : IsoGraph)
     = Quotient.mk CGraph.isoSetoid (CGraph.cycle 5 □g CGraph.cycle 5) := by
   decompose_graph (CGraph.cycle 5 ⊗g CGraph.cycle 5)
+
+/-- A blow-up — every vertex of `C₇` split into two false twins — is found as a lexicographic
+product, the one of the four that is not commutative and so has to be tried both ways round.  The
+statement would not typecheck if the search named anything else. -/
+example : Nonempty (CGraph.cycle 7 ·g CGraph.empty 2 ≃cg CGraph.cycle 7 ·g CGraph.empty 2) := by
+  generate_graph_iso (CGraph.cycle 7 ·g CGraph.empty 2) with e
+  exact ⟨e⟩
+
+/-- Blowing a vertex up into `k` *true* twins is the strong product with `Kₖ` instead, and since
+the strong product is tried first that is the description that comes out. -/
+example : (Quotient.mk CGraph.isoSetoid (CGraph.path 4 ·g CGraph.complete 2) : IsoGraph)
+    = Quotient.mk CGraph.isoSetoid (CGraph.complete 2 ⊠g CGraph.path 4) := by
+  decompose_graph (CGraph.path 4 ·g CGraph.complete 2)
 
 /-- Nothing in the atlas: the description falls back to the canonical edge list. -/
 example : Nonempty (CGraph.mycielskian (CGraph.path 3) ≃cg CGraph.ofEdges 7

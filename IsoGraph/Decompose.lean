@@ -8,8 +8,8 @@ import IsoGraph.Decompose.Spectrum
 
 Given a graph presented as an adjacency table — the output of a construction, a line graph, a
 Mycielskian — what *is* it?  This folder answers that question mechanically: it searches for a
-description of the graph as a formula in named graphs, disjoint unions, joins and complements, and
-returns the description together with an isomorphism proving it right.
+description of the graph as a formula in named graphs, disjoint unions, joins, complements and
+products, and returns the description together with an isomorphism proving it right.
 
 `Decompose/Cert.lean` is the checker.  A pair of lists of naturals describes a bijection of vertex
 sets and its inverse; `isoListOK` is a `Bool` saying that the bijection preserves adjacency, and

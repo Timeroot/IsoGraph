@@ -25,7 +25,9 @@ tactic and never an unsound proof.
 * otherwise, if its *complement* is disconnected, the join of the descriptions of the co-components
   (a join is exactly a graph whose complement falls apart);
 * otherwise, if the complement is in the atlas, the complement of that name;
-* otherwise, if it is a cartesian, tensor or strong product of two atlas graphs, that product;
+* otherwise, if it is a cartesian, tensor, strong or lexicographic product of two atlas graphs,
+  that product — which is how a blow-up is recognised, `G ·g empty k` being `G` with every vertex
+  split into `k` false twins;
 * otherwise, the edge list of the canonical form.
 
 Looking in the atlas *first* is what keeps `empty 5` from coming out as `1 ⊕g 1 ⊕g 1 ⊕g 1 ⊕g 1`
@@ -120,6 +122,12 @@ def strong (g h : IGraph) : IGraph :=
   ofFn (g.n * h.n) fun i j ↦
     i != j && (g.adj (i / h.n) (j / h.n) || i / h.n == j / h.n) &&
       (h.adj (i % h.n) (j % h.n) || i % h.n == j % h.n)
+
+/-- The lexicographic product `·g`: the first factor blown up by the second.  The only one of the
+four that is not commutative up to isomorphism. -/
+def lex (g h : IGraph) : IGraph :=
+  ofFn (g.n * h.n) fun i j ↦
+    g.adj (i / h.n) (j / h.n) || (i / h.n == j / h.n && h.adj (i % h.n) (j % h.n))
 
 /-- The edges of the *canonical form*: the same graph, relabelled so that the labelling is
 determined by the isomorphism class. -/
@@ -330,6 +338,8 @@ inductive GExpr where
   | tens (a b : GExpr)
   /-- A strong product. -/
   | strong (a b : GExpr)
+  /-- A lexicographic product. -/
+  | lex (a b : GExpr)
   /-- No name found: the canonical edge list. -/
   | edges (n : ℕ) (es : List (ℕ × ℕ))
   deriving Inhabited
@@ -348,6 +358,7 @@ def GExpr.interp : GExpr → CGraph
   | .cart a b => a.interp □g b.interp
   | .tens a b => a.interp ⊗g b.interp
   | .strong a b => a.interp ⊠g b.interp
+  | .lex a b => a.interp ·g b.interp
   | .edges n es => CGraph.ofEdges n es
 
 /-- How many named pieces a description is built from: the tie-breaker that prefers a genuine
@@ -360,6 +371,7 @@ def GExpr.weight : GExpr → ℕ
   | .cart a b => a.weight + b.weight
   | .tens a b => a.weight + b.weight
   | .strong a b => a.weight + b.weight
+  | .lex a b => a.weight + b.weight
   | .edges _ _ => 0
 
 /-! ## The search -/
@@ -405,21 +417,33 @@ private def candidates (k : ℕ) : List Cand :=
     let ig := IGraph.ofCGraph e.graph
     ⟨e.head, e.args, ig, ig.degrees⟩
 
-/-- One of the three products, as the search needs it: how to build it, what the degree of a
-vertex is in terms of the degrees of its two coordinates, and how to describe it. -/
+/-- One of the four products, as the search needs it: how to build it, what the degree of a vertex
+is in terms of the orders and degrees of its two coordinates, whether the two factors can be
+exchanged, and how to describe it. -/
 private structure ProdOp where
   build : IGraph → IGraph → IGraph
-  deg : ℕ → ℕ → ℕ
+  deg : (nA nB dA dB : ℕ) → ℕ
+  comm : Bool
   descr : GExpr → GExpr → GExpr
 
 private def prodOps : List ProdOp :=
-  [ ⟨IGraph.cartesian, fun dA dB ↦ dA + dB, .cart⟩,
-    ⟨IGraph.tensor, fun dA dB ↦ dA * dB, .tens⟩,
-    ⟨IGraph.strong, fun dA dB ↦ dA + dB + dA * dB, .strong⟩ ]
+  [ ⟨IGraph.cartesian, fun _ _ dA dB ↦ dA + dB, true, .cart⟩,
+    ⟨IGraph.tensor, fun _ _ dA dB ↦ dA * dB, true, .tens⟩,
+    ⟨IGraph.strong, fun _ _ dA dB ↦ dA + dB + dA * dB, true, .strong⟩,
+    ⟨IGraph.lex, fun _ nB dA dB ↦ dA * nB + dB, false, .lex⟩ ]
+
+/-- One ordered pair of factors, one product: the degree sequences first, the canonical codes only
+if those agree. -/
+private def prodMatch (c : ℕ) (ds : List ℕ) (op : ProdOp) (A B : Cand) : Option GExpr :=
+  let ds' := (A.degs.flatMap fun dA ↦ B.degs.map fun dB ↦ op.deg A.graph.n B.graph.n dA dB)
+    |>.mergeSort (· ≤ ·)
+  if ds' == ds && (op.build A.graph B.graph).code == c then
+    some (op.descr (.atom A.head A.args) (.atom B.head B.args))
+  else none
 
 /-- Describe `g` as a product of two atlas graphs, if it is one.  Only factorisations `n = a * b`
-with `2 ≤ a ≤ b` are tried; all three products are commutative up to isomorphism, so nothing is
-lost.
+with `2 ≤ a ≤ b` are enumerated; the first three products are commutative up to isomorphism, and
+for the lexicographic one the pair is tried both ways round.
 
 The degree sequence is what makes this affordable.  A vertex of a product has a degree determined
 by the degrees of its two coordinates, so a candidate pair can be rejected by sorting `n` numbers,
@@ -430,10 +454,8 @@ private def productSplit (g : IGraph) : Option GExpr :=
   ((List.range (g.n + 1)).filter fun a ↦ 2 ≤ a && a * a ≤ g.n && g.n % a == 0).findSome? fun a ↦
     let bs := candidates (g.n / a)
     (candidates a).findSome? fun A ↦ bs.findSome? fun B ↦ prodOps.findSome? fun op ↦
-      let ds' := (A.degs.flatMap fun dA ↦ B.degs.map fun dB ↦ op.deg dA dB).mergeSort (· ≤ ·)
-      if ds' == ds && (op.build A.graph B.graph).code == c then
-        some (op.descr (.atom A.head A.args) (.atom B.head B.args))
-      else none
+      (prodMatch c ds op A B).orElse fun _ ↦
+        if op.comm then none else prodMatch c ds op B A
 
 /-- **Describe a graph.**  See the module docstring for the order the rules are tried in. -/
 partial def decompose (g : IGraph) : GExpr :=

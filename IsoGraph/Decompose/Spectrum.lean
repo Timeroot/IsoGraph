@@ -4,10 +4,10 @@ import IsoGraph.Spectrum
 /-!
 # Computing a Laplacian spectrum
 
-`decompose_graph` turns a graph into a formula in named graphs, disjoint unions, joins and
-complements.  This file uses it: `compute_lapSpectrum G` decomposes `G` and then rewrites the
-spectrum of the formula with the identities of `IsoGraph/Spectrum.lean`, leaving the eigenvalues
-of `G` in the goal as an explicit multiset of real numbers.
+`decompose_graph` turns a graph into a formula in named graphs, disjoint unions, joins,
+complements and products.  This file uses it: `compute_lapSpectrum G` decomposes `G` and then
+rewrites the spectrum of the formula with the identities of `IsoGraph/Spectrum.lean`, leaving the
+eigenvalues of `G` in the goal as an explicit multiset of real numbers.
 
     example : IsoGraph.lapSpectrum ⟦(CGraph.path 3 ⊕g CGraph.complete 2)ᶜ⟧
         = 0 ::ₘ 5 ::ₘ 2 ::ₘ 3 ::ₘ {4} := by
