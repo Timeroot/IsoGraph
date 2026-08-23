@@ -1,0 +1,198 @@
+import IsoGraph.Decompose.Tactic
+import IsoGraph.SmallGraphs
+import IsoGraph.SmallGraphs.SolidValues
+
+/-!
+# Computing an invariant from a decomposition
+
+`decompose_graph` turns a graph into a formula in named graphs, disjoint unions, joins,
+complements and products.  This file uses it for the invariants that are hard to compute directly:
+`compute_invariant G` decomposes `G` and then evaluates the invariant in the goal by the
+compositional rules, so that an independence number nobody could `decide` becomes a maximum of
+two numerals.
+
+    example : IsoGraph.indepNum ⟦(CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ⟧ = 10 := by
+      compute_invariant ((CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ)
+
+The four co-NP invariants — `indepNum`, `cliqueNum`, `chromNum`, `cliqueCoverNum` — are the point
+of the exercise, since each of them is an exponential search on the adjacency table and none of
+them is `decide`-able past a dozen vertices.  All four are compositional in the same way: the
+disjoint union, the join and the complement have unconditional rules, the cartesian product has
+Sabidussi's theorem for `chromNum` and `cliqueNum`, and the lexicographic and tensor products have
+rules for the clique and independence numbers.  The tactic is invariant-agnostic — it also
+computes `V`, `E` and `numComponents`, and through `edgeChromNum_eq` the chromatic index of a
+graph whose line graph the atlas can name.
+
+## The two levels
+
+The values live on both levels of the library and the tactic has to visit both.  A family — the
+cycles, the complete graphs, the Kneser graphs — carries its invariants as `IsoGraph` theorems,
+while a graph named by an adjacency table — the solids, the cages, the small graphs — carries them
+as `CGraph` theorems, since that is where the SAT witnesses of `SmallGraphs/SolidValues.lean` are
+proved.  So the tactic first pushes the class inward with the `isoTransfer` bridges *reversed*,
+turning `⟦A ∇g B⟧` into `⟦A⟧ ∇g ⟦B⟧` and `⟦CGraph.cycle 7⟧` into `IsoGraph.cycle 7`, and then
+simplifies: the compositional rules fire on the `IsoGraph` formula, the families' values fire on
+the lifted atoms, and an atom with no `IsoGraph` name — `⟦NamedGraphs.dodecahedron⟧` — is carried
+back down by `indepNum_mk` and met by its `CGraph` theorem there.
+
+Two atoms are lifted on purpose and two are not.  `mycielskian` is, because the Mycielskian raises
+the chromatic number by one and the atlas hands back `NamedGraphs.grotzsch`, which is that
+construction on the pentagon.  `completeMultipartite` is, because that is what a Turán graph
+unfolds to.  `gp` and `circulant` are not: the atlas prefers a name to a family, so `gp 10 2` only
+ever appears when the graph really is the dodecahedron, and lifting it would step over the values
+proved for that name.
+
+## What it knows
+
+Every atom the decomposition can produce whose invariants are in the library.  Two lemmas below
+put the parity-dependent ones — the chromatic number of a cycle and the chromatic index of a
+complete graph — into a shape that fires on a numeral rather than on `2 * m + 3`.
+
+What it does not know it leaves alone, as `H.indepNum` for that `H`.  The gaps worth naming are
+the Kneser graphs, whose chromatic number is the Lovász–Kneser theorem and is not in the library;
+the graphs the atlas cannot describe at all, which come back as `ofEdges`; and the independence
+number of a cartesian product, which is not determined by the factors.
+-/
+
+set_option autoImplicit false
+
+namespace IsoGraph
+
+/-- **The chromatic number of a cycle**, in a shape that fires on a numeral.  `chromNum_cycle_odd`
+and `chromNum_cycle_even` are stated of `2 * m + 3` and `2 * m + 2`, and `simp` cannot match either
+against `cycle 7`; an offset from a numeral it can. -/
+theorem chromNum_cycle_ite (n : ℕ) :
+    (cycle (n + 3)).chromNum = if n % 2 = 0 then 3 else 2 := by
+  rcases Nat.even_or_odd n with ⟨m, hm⟩ | ⟨m, hm⟩
+  · subst hm
+    rw [show m + m + 3 = 2 * m + 3 by ring, chromNum_cycle_odd,
+      if_pos (by omega : (m + m) % 2 = 0)]
+  · subst hm
+    rw [show 2 * m + 1 + 3 = 2 * (m + 1) + 2 by ring, chromNum_cycle_even,
+      if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
+
+/-- **The chromatic index of a complete graph**, in a shape that fires on a numeral: `n - 1`
+colours for an even order, `n` for an odd one. -/
+theorem edgeChromNum_complete_ite (n : ℕ) :
+    (complete (n + 2)).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
+  rcases Nat.even_or_odd n with ⟨m, hm⟩ | ⟨m, hm⟩
+  · subst hm
+    rw [show m + m + 2 = 2 * m + 2 by ring, edgeChromNum_complete_even,
+      if_pos (by omega : (m + m) % 2 = 0)]
+    omega
+  · subst hm
+    rw [show 2 * m + 1 + 2 = 2 * m + 3 by ring, edgeChromNum_complete_odd,
+      if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
+
+end IsoGraph
+
+namespace CGraph.Decompose
+
+/-- **Compute an invariant of a graph from its decomposition.**
+
+    compute_invariant ((CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ)
+
+decomposes the graph with `decompose_graph` and evaluates the invariant of the resulting formula:
+the independence, clique, chromatic and clique cover numbers, and also the order, the size and the
+number of components.  The decomposition is checked by the kernel and the rules are theorems, so
+the answer is a proof and not a computation on the adjacency table — which is the point, since
+these are the invariants no adjacency table of interesting size will give up to `decide`. -/
+syntax (name := computeInvariant) "compute_invariant" ppSpace term : tactic
+
+macro_rules
+  | `(tactic| compute_invariant $t:term) =>
+    `(tactic|
+      (decompose_graph $t
+       try simp only [← IsoGraph.disjUnion_mk, ← IsoGraph.join_mk, ← IsoGraph.compl_mk,
+         ← IsoGraph.cartesianProduct_mk, ← IsoGraph.tensorProduct_mk,
+         ← IsoGraph.strongProduct_mk, ← IsoGraph.lexProduct_mk, ← IsoGraph.mycielskian_mk,
+         ← IsoGraph.empty_def, ← IsoGraph.complete_def, ← IsoGraph.path_def,
+         ← IsoGraph.cycle_def, ← IsoGraph.star_def, ← IsoGraph.wheel_def,
+         ← IsoGraph.hypercube_def, ← IsoGraph.paley_def, ← IsoGraph.bipartite_def,
+         ← IsoGraph.kneser_def, ← IsoGraph.johnson_def, ← IsoGraph.completeMultipartite_def]
+       try simp [IsoGraph.chromNum_cartesianProduct, IsoGraph.cliqueNum_cartesianProduct,
+         IsoGraph.chromNum_cycle_ite, IsoGraph.edgeChromNum_complete_ite,
+         IsoGraph.indepNum_triangular, IsoGraph.chromNum_triangular,
+         IsoGraph.cliqueCoverNum_triangular, IsoGraph.indepNum_crown,
+         ← IsoGraph.compl_cocktailParty]
+       all_goals try norm_num [Nat.choose]))
+
+end CGraph.Decompose
+
+/-! ## Examples -/
+
+/-- The complement of four disjoint `K₁₀`s is the complete four-partite graph on forty vertices,
+whose independence number is ten.  Nothing decides an independence number on forty vertices; the
+decomposition turns it into `max` of four tens. -/
+example : IsoGraph.indepNum (Quotient.mk CGraph.isoSetoid
+    ((CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ))
+      = 10 := by
+  compute_invariant
+    ((CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ)
+
+/-- A Turán graph is perfect, and here is one instance of it: the chromatic number and the clique
+number of `T(12, 4)` agree.  Both sides of the goal mention the graph, and `decompose_graph`
+rewrites both, so one call settles the equation. -/
+example : IsoGraph.chromNum (Quotient.mk CGraph.isoSetoid (CGraph.turan 12 4))
+    = IsoGraph.cliqueNum (Quotient.mk CGraph.isoSetoid (CGraph.turan 12 4)) := by
+  compute_invariant (CGraph.turan 12 4)
+
+/-- **The Grötzsch graph needs four colours.**  The atlas recognises the adjacency table as the
+Mycielskian of the pentagon, and then the chromatic number is the pentagon's plus one. -/
+example : IsoGraph.chromNum (Quotient.mk CGraph.isoSetoid (CGraph.mycielskian (CGraph.cycle 5)))
+    = 4 := by
+  compute_invariant (CGraph.mycielskian (CGraph.cycle 5))
+
+/-- **The chromatic index of `K₅` is five**, computed as the chromatic number of its line graph:
+the atlas recognises `L(K₅)` as the triangular graph `T(5)`, whose chromatic number is by
+definition the chromatic index of `K₅`, and Vizing's theorem for complete graphs finishes it. -/
+example : IsoGraph.chromNum (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph (CGraph.complete 5)))
+    = 5 := by
+  compute_invariant (CGraph.lineGraph (CGraph.complete 5))
+
+/-- The complement of the Petersen graph is the triangular graph `T(5)`, whose ten vertices are
+the edges of `K₅`; a clique cover of it is a proper edge colouring of `K₅`, so it takes three
+cliques for the ten vertices — a partition into three perfect matchings does not exist, and the
+number is the chromatic number of the Kneser graph the other way round. -/
+example : IsoGraph.cliqueCoverNum (Quotient.mk CGraph.isoSetoid CGraph.petersenᶜ) = 3 := by
+  compute_invariant CGraph.petersenᶜ
+
+/-- **Blowing up a cycle multiplies its independence number.**  The lexicographic product of `C₇`
+with an empty graph on two vertices is the seven-cycle with each vertex doubled, and its
+independence number is `2 · α(C₇) = 6`. -/
+example : IsoGraph.indepNum (Quotient.mk CGraph.isoSetoid (CGraph.cycle 7 ·g CGraph.empty 2))
+    = 6 := by
+  compute_invariant (CGraph.cycle 7 ·g CGraph.empty 2)
+
+/-- **Sabidussi's theorem at work**: the chromatic number of a cartesian product is the larger of
+the two, so the torus `C₄ □ C₅` needs three colours because the odd cycle does.  The tactic has to
+discharge the nonemptiness side conditions of the rule, which it does from the orders of the
+factors. -/
+example : IsoGraph.chromNum (Quotient.mk CGraph.isoSetoid (CGraph.cycle 4 □g CGraph.cycle 5))
+    = 3 := by
+  compute_invariant (CGraph.cycle 4 □g CGraph.cycle 5)
+
+/-- A clique in `P₄ · K₂` is a clique of `P₄` with both copies of each of its vertices, so the
+clique number doubles. -/
+example : IsoGraph.cliqueNum (Quotient.mk CGraph.isoSetoid (CGraph.path 4 ·g CGraph.complete 2))
+    = 4 := by
+  compute_invariant (CGraph.path 4 ·g CGraph.complete 2)
+
+/-- **The bipartite double cover of a bipartite graph falls apart.**  The tensor product of the
+cube with `K₂` is two cubes, which the decomposition finds and the count of components confirms. -/
+example : IsoGraph.numComponents
+    (Quotient.mk CGraph.isoSetoid (CGraph.hypercube 3 ⊗g CGraph.complete 2)) = 2 := by
+  compute_invariant (CGraph.hypercube 3 ⊗g CGraph.complete 2)
+
+/-- Counting works the same way: the Grötzsch graph has twenty edges, by the rule for the
+Mycielskian rather than by counting them. -/
+example : IsoGraph.E (Quotient.mk CGraph.isoSetoid (CGraph.mycielskian (CGraph.cycle 5)))
+    = 20 := by
+  compute_invariant (CGraph.mycielskian (CGraph.cycle 5))
+
+/-- A named atom inside a formula: the dodecahedron's independence number is eight — a SAT
+refutation and a witness, proved once in `SmallGraphs/SolidValues.lean` — and adding a disjoint
+triangle adds one. -/
+example : IsoGraph.indepNum
+    (Quotient.mk CGraph.isoSetoid (CGraph.gp 10 2 ⊕g CGraph.complete 3)) = 9 := by
+  compute_invariant (CGraph.gp 10 2 ⊕g CGraph.complete 3)

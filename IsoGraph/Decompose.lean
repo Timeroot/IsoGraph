@@ -2,6 +2,7 @@ import IsoGraph.Decompose.Cert
 import IsoGraph.Decompose.Atlas
 import IsoGraph.Decompose.Tactic
 import IsoGraph.Decompose.Spectrum
+import IsoGraph.Decompose.Invariants
 import IsoGraph.Decompose.Examples
 
 /-!
@@ -32,6 +33,13 @@ to rewrite the graph in the goal to its description.
 graph and then evaluates the Laplacian spectrum of the description, since the disjoint union, the
 join and the complement all have unconditional rules for it.  The eigenvalues come out as explicit
 real numbers — integers for a cograph, cosines for anything with a cycle or a path in it.
+
+`Decompose/Invariants.lean` does the same for the invariants that are worth avoiding:
+`compute_invariant` decomposes a graph and evaluates the independence, clique, chromatic or clique
+cover number of the description by the compositional rules.  Each of those is an exponential
+search on an adjacency table and none of them will `decide` past a dozen vertices, but the
+independence number of a complete four-partite graph on forty vertices is a maximum of four
+numerals once one knows that is what the graph is.
 
 `Decompose/Examples.lean` is the gallery: line graphs of the solids, bipartite double covers,
 self-complementary graphs, graphs that belong to two families at once, spectra computed through a

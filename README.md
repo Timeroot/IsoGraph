@@ -81,7 +81,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
 | `IsoGraph/Sat.lean` | `graph_sat`: bounds on `α`, `ω`, `χ`, `ν`, `χ'` and `θ` handed to a SAT solver through `bv_decide` | yes |
 | `IsoGraph/Fractional.lean` | `compute_fractional_indepNum` and `compute_fractional_chromNum`: the linear relaxations, solved by an exact simplex in the elaborator, and a fast path for `graph_sat` | yes |
-| `IsoGraph/Decompose/` | `#decompose_graph`, `generate_graph_iso`, `decompose_graph` and `compute_lapSpectrum`: what a graph *is*, as a formula in named graphs, with a certificate, and a gallery of worked examples — five modules, indexed by `Decompose.lean` | yes |
+| `IsoGraph/Decompose/` | `#decompose_graph`, `generate_graph_iso`, `decompose_graph` and `compute_lapSpectrum`, `compute_invariant`: what a graph *is*, as a formula in named graphs, with a certificate, and what that description buys — spectra and colouring invariants evaluated compositionally, plus a gallery of worked examples — six modules, indexed by `Decompose.lean` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
@@ -6439,6 +6439,50 @@ Products are handled only in the shapes that have their own rule — the grid `P
 `Cₘ □ Cₙ`, the prism and the ladder — because `lapSpectrum_cartesianProduct` in general gives a sum
 over pairs of *eigenvalues* rather than a combination of spectra, and so does not compose with the
 rest. Adding an atom, or another product shape, is adding one name to a `simp` list.
+
+`compute_invariant` is the same idea aimed at the invariants one actually wants and cannot get:
+the independence, clique, chromatic and clique cover numbers. Each is an exponential search over
+subsets of the vertex set, so `decide` gives out somewhere around a dozen vertices, and the
+library's larger values are SAT witnesses imported one graph at a time. A decomposition sidesteps
+the search entirely, because all four invariants have unconditional rules for the disjoint union,
+the join and the complement, Sabidussi's theorem for the cartesian product, and rules for the
+clique and independence numbers of the lexicographic and tensor products:
+
+```lean
+example : IsoGraph.indepNum ⟦(CGraph.complete 10 ⊕g CGraph.complete 10
+    ⊕g CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ⟧ = 10 := by
+  compute_invariant ((CGraph.complete 10 ⊕g CGraph.complete 10
+    ⊕g CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ)
+
+example : IsoGraph.chromNum ⟦CGraph.lineGraph (CGraph.complete 5)⟧ = 5 := by
+  compute_invariant (CGraph.lineGraph (CGraph.complete 5))
+
+example : IsoGraph.chromNum ⟦CGraph.turan 12 4⟧ = IsoGraph.cliqueNum ⟦CGraph.turan 12 4⟧ := by
+  compute_invariant (CGraph.turan 12 4)
+```
+
+The first is an independence number on forty vertices, which is a maximum of four numerals once
+one knows the graph is complete four-partite. The second is the chromatic index of `K₅` wearing a
+disguise: the atlas recognises the line graph as the triangular graph `T(5)`, whose chromatic
+number is the chromatic index of `K₅` by definition, and Vizing's theorem for complete graphs
+gives the five. The third proves an instance of perfection without either side of the equation
+being known in advance — both occurrences of the graph are rewritten by the one call.
+
+What makes this more involved than the spectrum is that the values live on both levels of the
+library. A family carries its invariants as `IsoGraph` theorems, while a graph named by an
+adjacency table carries them as `CGraph` theorems, since that is where the SAT witnesses are. So
+the tactic pushes the isomorphism class *inward* — the `isoTransfer` bridges run backwards,
+turning `⟦A ∇g B⟧` into `⟦A⟧ ∇g ⟦B⟧` and `⟦CGraph.cycle 7⟧` into `IsoGraph.cycle 7` — lets the
+compositional rules and the families' values fire upstairs, and leaves an atom like
+`⟦NamedGraphs.dodecahedron⟧` to be carried back down by `indepNum_mk` and met by its `CGraph`
+theorem there. Which atoms to lift is a real choice and not a formality: `gp` is deliberately left
+alone, because the atlas only ever emits `gp 10 2` when the graph is the dodecahedron, and lifting
+it would step over everything proved under that name.
+
+The honest limits, again: the chromatic number of a Kneser graph is the Lovász–Kneser theorem and
+is not in this library, so `kneser 7 3` comes back untouched; a graph the atlas cannot describe
+comes back as `ofEdges`; and the independence number of a cartesian product is not a function of
+the factors, so there is nothing to fire.
 
 `Decompose/Examples.lean` is the gallery: thirty-odd graphs built one way and recognised as
 another, each a theorem with a certificate rather than a table entry. The line graph of the cube
