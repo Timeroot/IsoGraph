@@ -1,0 +1,176 @@
+import IsoGraph.Decompose.Atlas
+import IsoGraph.Decompose.Cert
+
+/-!
+# The `generate_graph_iso` tactic
+
+`IsoGraph/Decompose/Atlas.lean` describes a graph as a formula built from named graphs, disjoint
+unions, joins and complements; `IsoGraph/Decompose/Cert.lean` turns a pair of index lists into an
+isomorphism.  This file is the glue: a tactic that runs the search in the elaborator and hands the
+result back as a term.
+
+    example : True := by
+      generate_graph_iso (CGraph.cycle 4 ⊕g CGraph.complete 3) with e
+      -- e : CGraph.cycle 4 ⊕g CGraph.complete 3 ≃cg CGraph.complete 3 ⊕g CGraph.cycle 4
+      trivial
+
+What the tactic adds is a `let`, not a `have`: an isomorphism is data, and later steps will want to
+apply it to vertices, not merely know that it exists.
+
+## What the kernel sees
+
+Nothing of the search.  `decomposeWithPerm` runs as compiled code and returns a formula together
+with the two index lists relating the original graph to it; the tactic prints the formula as a term
+and emits
+
+    CGraph.Decompose.isoOfList G H p q (by decide)
+
+so the only thing checked is `isoListOK G H p q`, one `Bool` computation, quadratic in the order of
+the graph.  No `native_decide`: a wrong answer from the elaborator is a failed `decide`, not an
+unsound proof.
+
+## Also here
+
+`#decompose_graph G` prints the formula without proving anything — the way to find out what the
+atlas knows about a graph.  `decompose_graph G` rewrites `G`, as an element of `IsoGraph`, to the
+class of the formula, which is the useful form when the goal is about an isomorphism invariant.
+-/
+
+set_option autoImplicit false
+
+namespace CGraph.Decompose
+
+section Tactic
+open Lean Elab Command Tactic Meta Term
+
+/-- The type `Option (GExpr × List ℕ × List ℕ)`, as an expression. -/
+private def resultType : Expr :=
+  let nats := mkApp (.const ``List [0]) (.const ``Nat [])
+  mkApp (.const ``Option [0]) <|
+    mkApp2 (.const ``Prod [0, 0]) (.const ``GExpr []) (mkApp2 (.const ``Prod [0, 0]) nats nats)
+
+/-- Compile and run a closed expression of type `Option (GExpr × List ℕ × List ℕ)`. -/
+private unsafe def evalResultImpl (e : Expr) : MetaM (Option (GExpr × List ℕ × List ℕ)) :=
+  Meta.evalExpr (Option (GExpr × List ℕ × List ℕ)) resultType e
+
+/-- Evaluate a closed expression of type `Option (GExpr × List ℕ × List ℕ)`.  Only ever called
+through its `implemented_by`; the answer is checked by `decide`, so a wrong one is not unsound. -/
+@[implemented_by evalResultImpl]
+private def evalResult (_e : Expr) : MetaM (Option (GExpr × List ℕ × List ℕ)) := pure none
+
+/-! ## Printing a formula -/
+
+/-- `l` as a list literal. -/
+private def natsTerm (l : List ℕ) : MetaM Term := do
+  let elems : Array Term := l.toArray.map fun n ↦ quote n
+  `([$elems,*])
+
+/-- `es` as a list literal. -/
+private def pairsTerm (es : List (ℕ × ℕ)) : MetaM Term := do
+  let elems ← es.toArray.mapM fun (i, j) ↦ `(($(quote i), $(quote j)))
+  `([$elems,*])
+
+/-- A formula as a term, using the library's notation for the operations.  Atoms are printed with
+their full names — not `mkCIdent`, whose macro scope would show up as a dagger in the output; the
+names are all at the root, so an ordinary identifier resolves to the same thing. -/
+partial def render : GExpr → MetaM Term
+  | .atom h args =>
+    if args.isEmpty then return mkIdent h
+    else return Syntax.mkApp (mkIdent h) (args.toArray.map fun n ↦ quote n)
+  | .sum a b => do `($(← render a) ⊕g $(← render b))
+  | .join a b => do `($(← render a) ∇g $(← render b))
+  | .compl a => do `($(← render a)ᶜ)
+  | .edges n es => do `(CGraph.ofEdges $(quote n) $(← pairsTerm es))
+
+/-! ## Running the search -/
+
+/-- The `CGraph` a term denotes: either one outright, or an `IsoGraph` that reduces to the class of
+one.  The `Bool` says which it was. -/
+private def asCGraph (tac : String) (e : Expr) : MetaM (Expr × Bool) := do
+  if (← inferType e).isAppOf ``CGraph then return (e, false)
+  match (← whnf e).getAppFnArgs with
+  | (``Quot.mk, #[_, _, G]) => return (G, true)
+  | _ => throwError "{tac}: expected a closed `CGraph`, or an `IsoGraph` that reduces to the \
+      class of one, but got{indentExpr e}"
+
+/-- Elaborate a term and force its metavariables, so that it can be compiled. -/
+private def closedTerm (t : Term) : TermElabM Expr := do
+  let e ← Term.elabTerm t none
+  Term.synthesizeSyntheticMVarsNoPostponing
+  instantiateMVars e
+
+/-- Decompose `G`, returning the formula and the two index lists as terms. -/
+private def searchFor (tac : String) (G : Expr) : TermElabM (Term × Term × Term) := do
+  let g ← Term.exprToSyntax G
+  let call ← closedTerm (← `(CGraph.Decompose.decomposeWithPerm $g))
+  match ← evalResult call with
+  | none => throwError "{tac}: could not decompose{indentExpr G}"
+  | some (e, p, q) => return (← render e, ← natsTerm p, ← natsTerm q)
+
+/-! ## The tactics -/
+
+/-- **Print the decomposition of a graph.**
+
+    #decompose_graph CGraph.mycielskian (CGraph.cycle 5)   -- NamedGraphs.grotzsch
+
+Recognises named graphs and infinite families from the atlas of `IsoGraph/Decompose/Atlas.lean`,
+splits along disjoint unions and joins, and tries the complement; a graph it cannot describe is
+printed as an explicit `CGraph.ofEdges`. -/
+syntax (name := decomposeGraphCmd) "#decompose_graph " term : command
+
+elab_rules : command
+  | `(command| #decompose_graph $t:term) => Command.liftTermElabM do
+    let (G, _) ← asCGraph "#decompose_graph" (← closedTerm t)
+    let (h, _, _) ← searchFor "#decompose_graph" G
+    logInfo m!"{h}"
+
+/-- **Name an isomorphism from a graph to its decomposition.**
+
+    generate_graph_iso G
+    generate_graph_iso G with e
+
+adds a `let`-bound `e : G ≃cg H` to the context, where `H` is the description of `G` found by the
+atlas search — a formula in named graphs, `⊕g`, `∇g` and `ᶜ`.  The name defaults to `iso`.
+
+The isomorphism is data and is bound by `let`, so `e x` reduces: a later step can compute with it,
+not just cite it.  Its correctness is checked by a single `decide` on an index-list certificate; the
+search itself happens in the elaborator and costs the kernel nothing. -/
+syntax (name := generateGraphIso) "generate_graph_iso" ppSpace term (" with " ident)? : tactic
+
+elab_rules : tactic
+  | `(tactic| generate_graph_iso $t:term $[with $nm:ident]?) => withMainContext do
+    let (G, _) ← asCGraph "generate_graph_iso" (← closedTerm t)
+    let (h, p, q) ← searchFor "generate_graph_iso" G
+    let g ← Term.exprToSyntax G
+    let ty ← closedTerm (← `(($g : CGraph) ≃cg $h))
+    let val ← instantiateMVars <| ← Term.elabTermEnsuringType
+      (← `(CGraph.Decompose.isoOfList $g $h $p $q (by decide))) ty
+    Term.synthesizeSyntheticMVarsNoPostponing
+    let val ← instantiateMVars val
+    let name := (nm.map (·.getId)).getD `iso
+    let (_, goal) ← (← (← getMainGoal).define name ty val).intro1P
+    replaceMainGoal [goal]
+
+/-- **Rewrite a graph in the goal to its decomposition.**
+
+    decompose_graph (CGraph.mycielskian (CGraph.cycle 5))
+
+replaces the class of that graph, wherever it occurs in the goal, by the class of the description
+found by the atlas search — here `NamedGraphs.grotzsch`.  Since the two are equal as `IsoGraph`s,
+every isomorphism invariant of the goal is unchanged, which is the point: it is the step that turns
+a question about an unfamiliar graph into a question about named ones. -/
+syntax (name := decomposeGraph) "decompose_graph" ppSpace term : tactic
+
+elab_rules : tactic
+  | `(tactic| decompose_graph $t:term) => withMainContext do
+    let (G, _) ← asCGraph "decompose_graph" (← closedTerm t)
+    let (h, p, q) ← searchFor "decompose_graph" G
+    let g ← Term.exprToSyntax G
+    evalTactic <| ← `(tactic|
+      rw [show (Quotient.mk CGraph.isoSetoid ($g : CGraph) : IsoGraph)
+            = Quotient.mk CGraph.isoSetoid $h from
+          CGraph.Decompose.mk_eq_mk_of_isoListOK (p := $p) (q := $q) (by decide)])
+
+end Tactic
+
+end CGraph.Decompose

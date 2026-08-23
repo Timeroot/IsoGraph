@@ -13,3 +13,4 @@ import IsoGraph.Containment
 import IsoGraph.Exhaustion
 import IsoGraph.Sat
 import IsoGraph.Fractional
+import IsoGraph.Decompose
