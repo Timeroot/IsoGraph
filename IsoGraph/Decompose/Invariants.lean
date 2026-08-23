@@ -20,8 +20,10 @@ them is `decide`-able past a dozen vertices.  All four are compositional in the 
 disjoint union, the join and the complement have unconditional rules, the cartesian product has
 Sabidussi's theorem for `chromNum` and `cliqueNum`, and the lexicographic and tensor products have
 rules for the clique and independence numbers.  The tactic is invariant-agnostic — it also
-computes `V`, `E` and `numComponents`, and through `edgeChromNum_eq` the chromatic index of a
-graph whose line graph the atlas can name.
+computes `V`, `E` and `numComponents`, and by Gallai's identity `coverNum_eq` the vertex cover
+number rides along with the independence number.  Two invariants come in through the line graph:
+the independence number of `L(G)` is the matching number of `G` and its chromatic number is the
+chromatic index, so a graph whose line graph the atlas can name gets those for free.
 
 ## The two levels
 
@@ -51,7 +53,9 @@ complete graph — into a shape that fires on a numeral rather than on `2 * m + 
 What it does not know it leaves alone, as `H.indepNum` for that `H`.  The gaps worth naming are
 the Kneser graphs, whose chromatic number is the Lovász–Kneser theorem and is not in the library;
 the graphs the atlas cannot describe at all, which come back as `ofEdges`; and the independence
-number of a cartesian product, which is not determined by the factors.
+number of a cartesian product, which is not determined by the factors.  The domination number is
+a partial case: it is additive over disjoint unions and so composes, but few of the atoms have a
+value in the library for it to compose out of.
 -/
 
 set_option autoImplicit false
@@ -130,6 +134,15 @@ example : IsoGraph.indepNum (Quotient.mk CGraph.isoSetoid
   compute_invariant
     ((CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ)
 
+/-- **A minimum vertex cover of the same forty vertices has thirty of them.**  Gallai's identity
+turns the cover number into the order minus the independence number, and the decomposition
+supplies both. -/
+example : IsoGraph.coverNum (Quotient.mk CGraph.isoSetoid
+    ((CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ))
+      = 30 := by
+  compute_invariant
+    ((CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10 ⊕g CGraph.complete 10)ᶜ)
+
 /-- A Turán graph is perfect, and here is one instance of it: the chromatic number and the clique
 number of `T(12, 4)` agree.  Both sides of the goal mention the graph, and `decompose_graph`
 rewrites both, so one call settles the equation. -/
@@ -148,6 +161,13 @@ the atlas recognises `L(K₅)` as the triangular graph `T(5)`, whose chromatic n
 definition the chromatic index of `K₅`, and Vizing's theorem for complete graphs finishes it. -/
 example : IsoGraph.chromNum (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph (CGraph.complete 5)))
     = 5 := by
+  compute_invariant (CGraph.lineGraph (CGraph.complete 5))
+
+/-- **The matching number of `K₅` is two**, by the other reading of the same line graph: an
+independent set of `L(G)` is a matching of `G`, and the independence number of the triangular
+graph `T(n)` is `⌊n/2⌋`. -/
+example : IsoGraph.indepNum (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph (CGraph.complete 5)))
+    = 2 := by
   compute_invariant (CGraph.lineGraph (CGraph.complete 5))
 
 /-- The complement of the Petersen graph is the triangular graph `T(5)`, whose ten vertices are

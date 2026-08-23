@@ -6457,6 +6457,9 @@ example : IsoGraph.indepNum ⟦(CGraph.complete 10 ⊕g CGraph.complete 10
 example : IsoGraph.chromNum ⟦CGraph.lineGraph (CGraph.complete 5)⟧ = 5 := by
   compute_invariant (CGraph.lineGraph (CGraph.complete 5))
 
+example : IsoGraph.indepNum ⟦CGraph.lineGraph (CGraph.complete 5)⟧ = 2 := by
+  compute_invariant (CGraph.lineGraph (CGraph.complete 5))
+
 example : IsoGraph.chromNum ⟦CGraph.turan 12 4⟧ = IsoGraph.cliqueNum ⟦CGraph.turan 12 4⟧ := by
   compute_invariant (CGraph.turan 12 4)
 ```
@@ -6465,8 +6468,11 @@ The first is an independence number on forty vertices, which is a maximum of fou
 one knows the graph is complete four-partite. The second is the chromatic index of `K₅` wearing a
 disguise: the atlas recognises the line graph as the triangular graph `T(5)`, whose chromatic
 number is the chromatic index of `K₅` by definition, and Vizing's theorem for complete graphs
-gives the five. The third proves an instance of perfection without either side of the equation
-being known in advance — both occurrences of the graph are rewritten by the one call.
+gives the five. The third reads the same line graph the other way — an independent set of `L(G)`
+is a matching of `G` — and so computes a matching number. The fourth proves an instance of
+perfection without either side of the equation being known in advance: both occurrences of the
+graph are rewritten by the one call. Gallai's identity comes along for the ride, so the minimum
+vertex cover of the forty-vertex graph above is `40 - 10 = 30` by the same tactic.
 
 What makes this more involved than the spectrum is that the values live on both levels of the
 library. A family carries its invariants as `IsoGraph` theorems, while a graph named by an
