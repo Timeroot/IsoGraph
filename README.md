@@ -73,7 +73,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
 | `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-three more by family and by operator, indexed by `SmallGraphs.lean` | yes |
-| `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization, the exponential, and how far the uniqueness of a cartesian factorisation gets without Sabidussi–Vizing — six modules, indexed by `Algebra.lean` | yes |
+| `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization, the exponential, and Sabidussi–Vizing: a connected graph factors uniquely into cartesian irreducibles — six modules, indexed by `Algebra.lean` | yes |
 | `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
 | `IsoGraph/Cache.lean` | the memoised adjacency function the searches run on | yes |
