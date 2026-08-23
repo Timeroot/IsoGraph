@@ -2,6 +2,7 @@ import IsoGraph.Decompose.Cert
 import IsoGraph.Decompose.Atlas
 import IsoGraph.Decompose.Tactic
 import IsoGraph.Decompose.Spectrum
+import IsoGraph.Decompose.Examples
 
 /-!
 # Describing a graph
@@ -31,4 +32,9 @@ to rewrite the graph in the goal to its description.
 graph and then evaluates the Laplacian spectrum of the description, since the disjoint union, the
 join and the complement all have unconditional rules for it.  The eigenvalues come out as explicit
 real numbers — integers for a cograph, cosines for anything with a cycle or a path in it.
+
+`Decompose/Examples.lean` is the gallery: line graphs of the solids, bipartite double covers,
+self-complementary graphs, graphs that belong to two families at once, spectra computed through a
+name the construction never mentions, and two invariants transported along a decomposition.  Every
+one of them is a fact one would otherwise look up, and here it is a theorem with a certificate.
 -/

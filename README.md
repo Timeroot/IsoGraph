@@ -81,7 +81,7 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Exhaustion.lean` | ten theorems whose only proof here is `small_graphs` | yes |
 | `IsoGraph/Sat.lean` | `graph_sat`: bounds on `α`, `ω`, `χ`, `ν`, `χ'` and `θ` handed to a SAT solver through `bv_decide` | yes |
 | `IsoGraph/Fractional.lean` | `compute_fractional_indepNum` and `compute_fractional_chromNum`: the linear relaxations, solved by an exact simplex in the elaborator, and a fast path for `graph_sat` | yes |
-| `IsoGraph/Decompose/` | `#decompose_graph`, `generate_graph_iso`, `decompose_graph` and `compute_lapSpectrum`: what a graph *is*, as a formula in named graphs, with a certificate — four modules, indexed by `Decompose.lean` | yes |
+| `IsoGraph/Decompose/` | `#decompose_graph`, `generate_graph_iso`, `decompose_graph` and `compute_lapSpectrum`: what a graph *is*, as a formula in named graphs, with a certificate, and a gallery of worked examples — five modules, indexed by `Decompose.lean` | yes |
 | `Bench.lean` | validation and timing harness (`lake exe isobench`) | no |
 | `EnumBench.lean` | enumeration counts and timings (`lake exe enumbench`) | no |
 | `MinorBench.lean` | timings for the containment searches (`lake exe minorbench`) | no |
@@ -6439,6 +6439,20 @@ Products are handled only in the shapes that have their own rule — the grid `P
 `Cₘ □ Cₙ`, the prism and the ladder — because `lapSpectrum_cartesianProduct` in general gives a sum
 over pairs of *eigenvalues* rather than a combination of spectra, and so does not compose with the
 rest. Adding an atom, or another product shape, is adding one name to a `simp` list.
+
+`Decompose/Examples.lean` is the gallery: thirty-odd graphs built one way and recognised as
+another, each a theorem with a certificate rather than a table entry. The line graph of the cube
+is the cuboctahedron, because for a cubic planar graph the line graph is the medial graph — and
+the thirty-vertex instance of that, `lineGraph dodecahedron = icosidodecahedron`, is the one
+example left commented out, since the kernel spends minutes on a certificate whose adjacency test
+is itself a decision procedure on pairs of edges; the bipartite double cover `G ⊗g K₂` is
+the cube for `G = K₄`, the crown `S₅⁰` for `K₅` and the Desargues graph for the Petersen graph;
+the complement of the cube is `K₄ □g K₂`, and `rook 3 3` and `paley 13` are their own complements.
+The last three put the answer to work: `GP(10, 2)` and the bipartite double cover of the Petersen
+graph are Hamiltonian because the dodecahedron and the Desargues graph are, which goes through
+`generate_graph_iso` and `isHamiltonian_of_iso` and so wants the isomorphism as data; the cube is
+`3`-edge-colourable because its line graph is the `3`-chromatic cuboctahedron, which is a rewrite
+of `⟦G⟧` in the goal and wants only the equation.
 
 ## Writing it so it can be proved
 
