@@ -20,13 +20,15 @@ them is `decide`-able past a dozen vertices.  All four are compositional in the 
 disjoint union, the join and the complement have unconditional rules, the cartesian product has
 Sabidussi's theorem for `chromNum` and `cliqueNum`, and the lexicographic and tensor products have
 rules for the clique and independence numbers.  The tactic is invariant-agnostic — it also
-computes `V`, `E`, `numComponents`, `matchNum` and the domination number `domNum`, and by Gallai's
-identity `coverNum_eq` the vertex cover number rides along with the independence number.  Two
-invariants come in through the line graph: the independence number of `L(G)` is the matching number
-of `G` and its chromatic number is the chromatic index, so a graph whose line graph the atlas can
-name gets those for free.  The chromatic index and the matching number also compose over a
+computes `V`, `E`, `numComponents`, `matchNum`, the girth and the domination number `domNum`, and
+by Gallai's identity `coverNum_eq` the vertex cover number rides along with the independence
+number.  Two invariants come in through the line graph: the independence number of `L(G)` is the
+matching number of `G` and its chromatic number is the chromatic index, so a graph whose line
+graph the atlas can name gets those for free.  The chromatic index and the matching number also compose over a
 disjoint union directly, by `edgeChromNum_disjUnion` and `matchNum_disjUnion`, and the atoms
-below give them values on the same families the four hard invariants get.
+below give them values on the same families the four hard invariants get.  So does the girth,
+by `girth_disjUnion` — a cycle of `G ⊕ H` lives on one side, so the shortest one is the shorter
+of the two sides' shortest, with the `0`-for-acyclic convention handled by an `if`.
 
 ## The two levels
 
@@ -159,6 +161,7 @@ macro_rules
          IsoGraph.edgeChromNum_cocktailParty, IsoGraph.edgeChromNum_doubleStar,
          IsoGraph.edgeChromNum_grotzsch, IsoGraph.edgeChromNum_hypercube,
          IsoGraph.matchNum_wheel, IsoGraph.matchNum_book, IsoGraph.matchNum_rook,
+         IsoGraph.girth_disjUnion,
          IsoGraph.indepNum_triangular, IsoGraph.chromNum_triangular,
          IsoGraph.cliqueCoverNum_triangular, IsoGraph.indepNum_crown,
          ← IsoGraph.compl_cocktailParty, IsoGraph.indepNum_kneser,
@@ -331,3 +334,15 @@ a maximum matching of `K₉`. -/
 example : IsoGraph.matchNum
     (Quotient.mk CGraph.isoSetoid (CGraph.wheel 9 ⊕g CGraph.complete 9)) = 9 := by
   compute_invariant (CGraph.wheel 9 ⊕g CGraph.complete 9)
+
+/-- **The girth of a disjoint union**, which is `girth_disjUnion`: the shorter of the two, with an
+acyclic side skipped rather than minimised over.  Here `K₃` has girth three and the Petersen graph
+— which is what `kneser 5 2` is — has girth five. -/
+example : IsoGraph.girth
+    (Quotient.mk CGraph.isoSetoid (CGraph.complete 3 ⊕g CGraph.kneser 5 2)) = 3 := by
+  compute_invariant (CGraph.complete 3 ⊕g CGraph.kneser 5 2)
+
+/-- **A forest has no girth at all.**  Two trees make an acyclic graph, and the convention is `0`;
+both `if`s fire and there is no `min` to take. -/
+example : IsoGraph.girth (Quotient.mk CGraph.isoSetoid (CGraph.path 6 ⊕g CGraph.star 5)) = 0 := by
+  compute_invariant (CGraph.path 6 ⊕g CGraph.star 5)

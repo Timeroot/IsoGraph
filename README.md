@@ -1735,6 +1735,19 @@ other direction an acyclic graph has no triangle, so its clique number is at mos
 no three-vertex clique at all; combined with the edge count `E + 1 = V` this pins the clique
 number of any tree on at least two vertices at exactly two.
 
+The girth is also the one invariant in this group that composes over a disjoint union, and saying
+so takes more than it looks. `girth_disjUnion` is the statement that a cycle of `G ⊔ H` lives
+entirely on one side, so the shortest cycle is the shorter of the two sides' shortest — with the
+`0`-for-acyclic convention forcing an acyclic side to be *skipped* rather than minimised over,
+which is why the value is two nested `if`s and not a `min`. The content is a walk restriction:
+`exists_walk_of_inl` takes a walk of `G ⊔ H` whose two endpoints are on the left and produces the
+walk of `G` whose image under the inclusion it is — a dependent induction, since the intermediate
+vertices are the ones that have to be shown to stay on the left, and it is the adjacency of the
+disjoint union that rules out a step across. Once the walk is exhibited as an image, being a cycle
+transfers for free by `Walk.map_isCycle_iff_of_injective`, and the two directions of
+`isAcyclic_disjUnion` are the same lemma read forwards and backwards. Neither Mathlib's
+`SimpleGraph.Sum` nor its `Girth` file has this: `Sum.lean` stops at colourings.
+
 Because the line graph of `K_{m,n}` is the rook's graph and the line graph of a star is complete,
 the chromatic index of both families falls out of the chromatic-number table: `χ'(K_{m,n}) =
 max m n` is König's edge-colouring theorem for complete bipartite graphs, obtained here from
@@ -6553,6 +6566,10 @@ numbers of the wheels, books and rooks, join the atom list. So `χ'(C₇ ⊔ K�
 lookups and a `max`, `χ'(prism 6) = 3` is read off a cubic class-one family through the
 `path 6 □g K₂` the decomposition hands back, and `ν(W₉ ⊔ K₉) = 9` is a perfect matching on ten
 vertices plus a near-perfect one on nine.
+
+The girth joins them, and it is the invariant that needed the most new mathematics to get there.
+`girth_disjUnion` above is what the tactic fires, so `girth(K₃ ⊔ Petersen) = 3` is `min 3 5` and
+`girth(P₆ ⊔ K_{1,5}) = 0` is two forests with no cycle between them.
 
 What makes this more involved than the spectrum is that the values live on both levels of the
 library. A family carries its invariants as `IsoGraph` theorems, while a graph named by an

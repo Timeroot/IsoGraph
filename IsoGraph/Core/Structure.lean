@@ -1017,6 +1017,164 @@ theorem girth_cartesianProduct_le_four {G H : CGraph}
   · exact fun h ↦ hane (congrArg Prod.fst h)
   · exact fun h ↦ hane (congrArg Prod.fst h).symm
 
+/-! ### The girth of a disjoint union
+
+A cycle of `G ⊕ H` never crosses between the two sides, so it is a cycle of one of them.  Proving
+that means carrying a walk back along the inclusion, which `Sum` makes into a small dependent
+induction: the endpoints are `inl` by hypothesis and every step keeps them there, so the walk is
+the image of a walk of the factor, and being a cycle transfers because the inclusion is injective.
+-/
+
+/-- A walk of a disjoint union between two vertices of the left factor is the image of a walk of
+that factor, and of the *same* walk: the inclusion carries it back exactly. -/
+private theorem exists_walk_of_inl {G H : CGraph} {u v : (G ⊕g H).V}
+    (w : (G ⊕g H).toSimple.Walk u v) :
+    ∀ (a b : G.V) (hu : u = Sum.inl a) (hv : v = Sum.inl b),
+      ∃ w' : G.toSimple.Walk a b, w'.map (disjUnionInl G H) = w.copy hu hv := by
+  induction w with
+  | nil =>
+    rintro a b rfl hv
+    cases Sum.inl_injective hv
+    exact ⟨SimpleGraph.Walk.nil, rfl⟩
+  | @cons x y z hadj p ih =>
+    rintro a b rfl hv
+    match y, hadj with
+    | Sum.inl c, hadj =>
+      have hac : G.toSimple.Adj a c := by simpa [CGraph.toSimple_adj] using hadj
+      obtain ⟨w', hw'⟩ := ih c b rfl hv
+      refine ⟨SimpleGraph.Walk.cons hac w', ?_⟩
+      subst hv
+      simp only [SimpleGraph.Walk.copy_rfl_rfl, SimpleGraph.Walk.map_cons]
+      rw [hw']
+      rfl
+    | Sum.inr d, hadj => exact absurd hadj (by simp [CGraph.toSimple_adj])
+
+/-- The mirror image of `exists_walk_of_inl` on the right factor. -/
+private theorem exists_walk_of_inr {G H : CGraph} {u v : (G ⊕g H).V}
+    (w : (G ⊕g H).toSimple.Walk u v) :
+    ∀ (a b : H.V) (hu : u = Sum.inr a) (hv : v = Sum.inr b),
+      ∃ w' : H.toSimple.Walk a b, w'.map (disjUnionInr G H) = w.copy hu hv := by
+  induction w with
+  | nil =>
+    rintro a b rfl hv
+    cases Sum.inr_injective hv
+    exact ⟨SimpleGraph.Walk.nil, rfl⟩
+  | @cons x y z hadj p ih =>
+    rintro a b rfl hv
+    match y, hadj with
+    | Sum.inr c, hadj =>
+      have hac : H.toSimple.Adj a c := by simpa [CGraph.toSimple_adj] using hadj
+      obtain ⟨w', hw'⟩ := ih c b rfl hv
+      refine ⟨SimpleGraph.Walk.cons hac w', ?_⟩
+      subst hv
+      simp only [SimpleGraph.Walk.copy_rfl_rfl, SimpleGraph.Walk.map_cons]
+      rw [hw']
+      rfl
+    | Sum.inl d, hadj => exact absurd hadj (by simp [CGraph.toSimple_adj])
+
+/-- **A cycle of a disjoint union based in the left factor is a cycle of that factor**, of the
+same length. -/
+theorem exists_cycle_of_inl {G H : CGraph} {a : G.V}
+    {w : (G ⊕g H).toSimple.Walk (Sum.inl a) (Sum.inl a)} (hw : w.IsCycle) :
+    ∃ w' : G.toSimple.Walk a a, w'.IsCycle ∧ w'.length = w.length := by
+  obtain ⟨w', hw'⟩ := exists_walk_of_inl w a a rfl rfl
+  rw [SimpleGraph.Walk.copy_rfl_rfl] at hw'
+  refine ⟨w', ?_, ?_⟩
+  · exact (SimpleGraph.Walk.map_isCycle_iff_of_injective
+      (f := disjUnionInl G H) Sum.inl_injective).1 (hw' ▸ hw)
+  · rw [← hw', SimpleGraph.Walk.length_map]
+
+/-- **A cycle of a disjoint union based in the right factor is a cycle of that factor**, of the
+same length. -/
+theorem exists_cycle_of_inr {G H : CGraph} {b : H.V}
+    {w : (G ⊕g H).toSimple.Walk (Sum.inr b) (Sum.inr b)} (hw : w.IsCycle) :
+    ∃ w' : H.toSimple.Walk b b, w'.IsCycle ∧ w'.length = w.length := by
+  obtain ⟨w', hw'⟩ := exists_walk_of_inr w b b rfl rfl
+  rw [SimpleGraph.Walk.copy_rfl_rfl] at hw'
+  refine ⟨w', ?_, ?_⟩
+  · exact (SimpleGraph.Walk.map_isCycle_iff_of_injective
+      (f := disjUnionInr G H) Sum.inr_injective).1 (hw' ▸ hw)
+  · rw [← hw', SimpleGraph.Walk.length_map]
+
+/-- **A disjoint union is acyclic exactly when both sides are.** -/
+@[toIsoGraph simp]
+theorem isAcyclic_disjUnion : (G ⊕g H).IsAcyclic ↔ G.IsAcyclic ∧ H.IsAcyclic := by
+  constructor
+  · intro h
+    exact ⟨fun a w hw ↦ h _ (hw.map (f := disjUnionInl G H) Sum.inl_injective),
+      fun b w hw ↦ h _ (hw.map (f := disjUnionInr G H) Sum.inr_injective)⟩
+  · rintro ⟨hG, hH⟩ u w hw
+    match u with
+    | Sum.inl a => obtain ⟨w', hw', -⟩ := exists_cycle_of_inl hw; exact hG _ hw'
+    | Sum.inr b => obtain ⟨w', hw', -⟩ := exists_cycle_of_inr hw; exact hH _ hw'
+
+private theorem girth_disjUnion_le_left {G : CGraph} (H : CGraph) (hG : ¬ G.IsAcyclic) :
+    (G ⊕g H).girth ≤ G.girth := by
+  obtain ⟨a, w, hw, hlen⟩ := SimpleGraph.exists_girth_eq_length.2 hG
+  have h := SimpleGraph.girth_le_length (hw.map (f := disjUnionInl G H) Sum.inl_injective)
+  rw [SimpleGraph.Walk.length_map] at h
+  show (G ⊕g H).toSimple.girth ≤ G.toSimple.girth
+  rw [hlen]
+  exact h
+
+private theorem girth_disjUnion_le_right {H : CGraph} (G : CGraph) (hH : ¬ H.IsAcyclic) :
+    (G ⊕g H).girth ≤ H.girth := by
+  obtain ⟨b, w, hw, hlen⟩ := SimpleGraph.exists_girth_eq_length.2 hH
+  have h := SimpleGraph.girth_le_length (hw.map (f := disjUnionInr G H) Sum.inr_injective)
+  rw [SimpleGraph.Walk.length_map] at h
+  show (G ⊕g H).toSimple.girth ≤ H.toSimple.girth
+  rw [hlen]
+  exact h
+
+/-- A shortest cycle of a disjoint union is a shortest cycle of the side it lives on. -/
+private theorem exists_side_girth {G H : CGraph} (h : ¬ (G ⊕g H).IsAcyclic) :
+    (¬ G.IsAcyclic ∧ G.girth ≤ (G ⊕g H).girth) ∨
+      (¬ H.IsAcyclic ∧ H.girth ≤ (G ⊕g H).girth) := by
+  obtain ⟨u, w, hw, hlen⟩ := SimpleGraph.exists_girth_eq_length.2 h
+  match u with
+  | Sum.inl a =>
+    obtain ⟨w', hw', hl⟩ := exists_cycle_of_inl hw
+    refine Or.inl ⟨fun hac ↦ hac _ hw', ?_⟩
+    show G.toSimple.girth ≤ (G ⊕g H).toSimple.girth
+    rw [hlen, ← hl]
+    exact SimpleGraph.girth_le_length hw'
+  | Sum.inr b =>
+    obtain ⟨w', hw', hl⟩ := exists_cycle_of_inr hw
+    refine Or.inr ⟨fun hac ↦ hac _ hw', ?_⟩
+    show H.toSimple.girth ≤ (G ⊕g H).toSimple.girth
+    rw [hlen, ← hl]
+    exact SimpleGraph.girth_le_length hw'
+
+/-- **The girth of a disjoint union.**  A cycle lives on one side, so the shortest cycle is the
+shorter of the two sides' shortest — except that the `0`-for-acyclic convention means an acyclic
+side has to be skipped rather than minimised over, which is what the two `if`s do. -/
+@[toIsoGraph]
+theorem girth_disjUnion :
+    (G ⊕g H).girth =
+      if G.girth = 0 then H.girth else if H.girth = 0 then G.girth else min G.girth H.girth := by
+  by_cases hG : G.IsAcyclic <;> by_cases hH : H.IsAcyclic
+  · rw [if_pos (girth_eq_zero_iff.2 hG), girth_eq_zero_iff.2 hH]
+    exact girth_eq_zero_iff.2 (isAcyclic_disjUnion.2 ⟨hG, hH⟩)
+  · have hne : ¬ (G ⊕g H).IsAcyclic := fun h ↦ hH (isAcyclic_disjUnion.1 h).2
+    rw [if_pos (girth_eq_zero_iff.2 hG)]
+    refine le_antisymm (girth_disjUnion_le_right G hH) ?_
+    rcases exists_side_girth hne with ⟨h, -⟩ | ⟨-, h⟩
+    · exact absurd hG h
+    · exact h
+  · have hne : ¬ (G ⊕g H).IsAcyclic := fun h ↦ hG (isAcyclic_disjUnion.1 h).1
+    rw [if_neg (girth_eq_zero_iff.not.2 hG), if_pos (girth_eq_zero_iff.2 hH)]
+    refine le_antisymm (girth_disjUnion_le_left H hG) ?_
+    rcases exists_side_girth hne with ⟨-, h⟩ | ⟨h, -⟩
+    · exact h
+    · exact absurd hH h
+  · rw [if_neg (girth_eq_zero_iff.not.2 hG), if_neg (girth_eq_zero_iff.not.2 hH)]
+    have hne : ¬ (G ⊕g H).IsAcyclic := fun h ↦ hG (isAcyclic_disjUnion.1 h).1
+    refine le_antisymm (le_min (girth_disjUnion_le_left H hG)
+      (girth_disjUnion_le_right G hH)) ?_
+    rcases exists_side_girth hne with ⟨-, h⟩ | ⟨-, h⟩
+    · exact le_trans (min_le_left _ _) h
+    · exact le_trans (min_le_right _ _) h
+
 /-! ### Girth three and the clique number -/
 
 /-- **Girth three means a triangle**, and a triangle is a three-clique: so a graph has girth
