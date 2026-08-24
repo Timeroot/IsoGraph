@@ -299,3 +299,42 @@ theorem ediam_boxProd {α β : Type} [Fintype α] [Fintype β] [Nonempty α] [No
     obtain ⟨b, b', hb⟩ := SimpleGraph.exists_edist_eq_ediam_of_finite (G := T)
     rw [← ha, ← hb, ← SimpleGraph.edist_boxProd (x := (a, b)) (y := (a', b'))]
     exact SimpleGraph.edist_le_ediam
+
+namespace SimpleGraph
+
+variable {V : Type*} {G : SimpleGraph V} {u v : V}
+
+/-- A lower bound on the length of *every* walk between two vertices is a lower bound on their
+distance: the extended distance is the infimum of the walk lengths. -/
+theorem le_edist_of_forall_walk {k : ℕ∞} (h : ∀ p : G.Walk u v, k ≤ p.length) :
+    k ≤ G.edist u v := by
+  rw [SimpleGraph.edist_eq_sInf]
+  exact le_sInf (by rintro _ ⟨p, rfl⟩; exact h p)
+
+/-- Two distinct non-adjacent vertices are at least two steps apart. -/
+theorem two_le_length_of_not_adj (hne : u ≠ v) (hadj : ¬ G.Adj u v) (p : G.Walk u v) :
+    2 ≤ p.length := by
+  refine not_lt.1 fun hlt ↦ ?_
+  rcases (by omega : p.length = 0 ∨ p.length = 1) with h | h
+  · refine hne ?_
+    have hv := p.getVert_length
+    rw [h] at hv
+    exact p.getVert_zero.symm.trans hv
+  · exact hadj (SimpleGraph.Walk.adj_of_length_eq_one h)
+
+/-- Two distinct non-adjacent vertices with no common neighbour are at least three steps apart:
+a walk of length two would pass through such a neighbour. -/
+theorem three_le_length_of_no_common_neighbour (hne : u ≠ v) (hadj : ¬ G.Adj u v)
+    (hcom : ∀ w, G.Adj u w → ¬ G.Adj w v) (p : G.Walk u v) : 3 ≤ p.length := by
+  refine not_lt.1 fun hlt ↦ ?_
+  have hge2 := two_le_length_of_not_adj hne hadj p
+  have h : p.length = 2 := by omega
+  refine hcom (p.getVert 1) ?_ ?_
+  · have h1 := p.adj_getVert_succ (i := 0) (by omega)
+    rwa [p.getVert_zero] at h1
+  · have hv : p.getVert p.length = v := p.getVert_length
+    rw [h] at hv
+    have h1 := p.adj_getVert_succ (i := 1) (by omega)
+    rwa [hv] at h1
+
+end SimpleGraph

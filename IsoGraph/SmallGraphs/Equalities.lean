@@ -254,6 +254,78 @@ theorem mem_spiderEdges_bound : ∀ (off : ℕ) (ks : List ℕ) (p q : ℕ),
       · have := mem_spiderEdges_bound (off + k) rest p q h
         omega
 
+/-- Spider edges point away from the centre: the second endpoint is the larger one. -/
+theorem spiderEdges_lt : ∀ (off : ℕ) (ks : List ℕ), 0 < off → ∀ p q,
+    (p, q) ∈ spiderEdges off ks → p < q := by
+  intro off ks
+  induction ks generalizing off with
+  | nil => simp [spiderEdges]
+  | cons k rest ih =>
+    intro hoff p q hpq
+    rw [spiderEdges, List.mem_append] at hpq
+    rcases hpq with h | h
+    · rw [mem_legEdges] at h
+      omega
+    · exact ih (off + k) (by omega) p q h
+
+/-- Every vertex of a leg has a predecessor along that leg. -/
+theorem exists_mem_spiderEdges_snd : ∀ (off : ℕ) (ks : List ℕ) (q : ℕ), off ≤ q →
+    q < off + ks.sum → ∃ p, (p, q) ∈ spiderEdges off ks := by
+  intro off ks
+  induction ks generalizing off with
+  | nil => intro q h1 h2; simp only [List.sum_nil, Nat.add_zero] at h2; omega
+  | cons k rest ih =>
+    intro q h1 h2
+    simp only [List.sum_cons] at h2
+    by_cases hq : q < off + k
+    · refine ⟨if q = off then 0 else q - 1, ?_⟩
+      rw [spiderEdges, List.mem_append]
+      refine Or.inl ?_
+      rw [mem_legEdges]
+      split_ifs with hqo
+      · exact Or.inl ⟨rfl, hqo, by omega⟩
+      · exact Or.inr ⟨by omega, by omega, by omega⟩
+    · obtain ⟨p, hp⟩ := ih (off + k) q (by omega) (by omega)
+      exact ⟨p, by rw [spiderEdges, List.mem_append]; exact Or.inr hp⟩
+
+/-- A leg vertex has exactly one predecessor. -/
+theorem spiderEdges_snd_unique : ∀ (off : ℕ) (ks : List ℕ), 0 < off → ∀ p p' q,
+    (p, q) ∈ spiderEdges off ks → (p', q) ∈ spiderEdges off ks → p = p' := by
+  intro off ks
+  induction ks generalizing off with
+  | nil => simp [spiderEdges]
+  | cons k rest ih =>
+    intro hoff p p' q h h'
+    rw [spiderEdges, List.mem_append] at h h'
+    rcases h with h | h <;> rcases h' with h' | h'
+    · rw [mem_legEdges] at h h'
+      omega
+    · exfalso
+      rw [mem_legEdges] at h
+      have := mem_spiderEdges_bound (off + k) rest p' q h'
+      omega
+    · exfalso
+      rw [mem_legEdges] at h'
+      have := mem_spiderEdges_bound (off + k) rest p q h
+      omega
+    · exact ih (off + k) (by omega) p p' q h h'
+
+/-- A spider with a nonempty leg has an edge at its centre. -/
+theorem exists_mem_spiderEdges_zero : ∀ (off : ℕ) (ks : List ℕ), 0 < ks.sum →
+    ∃ q, (0, q) ∈ spiderEdges off ks := by
+  intro off ks
+  induction ks generalizing off with
+  | nil => intro h; simp at h
+  | cons k rest ih =>
+    intro h
+    simp only [List.sum_cons] at h
+    by_cases hk : 0 < k
+    · exact ⟨off, by
+        rw [spiderEdges, List.mem_append]
+        exact Or.inl ((mem_legEdges 0 off k 0 off).2 (Or.inl ⟨rfl, rfl, hk⟩))⟩
+    · obtain ⟨q, hq⟩ := ih (off + k) (by omega)
+      exact ⟨q, by rw [spiderEdges, List.mem_append]; exact Or.inr hq⟩
+
 /-- Exchange the blocks `[s, s + a)` and `[s + a, s + a + b)`, fixing everything else. -/
 def swapBlocksFwd (s a b x : ℕ) : ℕ :=
   if x < s then x else if x < s + a then x + b else if x < s + a + b then x - a else x

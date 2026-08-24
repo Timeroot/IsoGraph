@@ -354,343 +354,116 @@ variable (G H : CGraph)
   · apply le_csSup hbdd hmem
 
 @[simp] theorem indepNum_disjUnion : (G ⊕g H).indepNum = G.indepNum + H.indepNum := by
-  simp only [CGraph.indepNum]
-  -- The LHS graph is isomorphic to G.toSimple.sum H.toSimple
-  have heq : (G.disjUnion H).toSimple = G.toSimple.sum H.toSimple := by
-    ext x y
-    simp [SimpleGraph.sum_adj, CGraph.toSimple_adj]
-    cases x <;> cases y <;> simp [disjUnion_adj_inl_inl, disjUnion_adj_inr_inr, disjUnion_adj_inl_inr, disjUnion_adj_inr_inl]
-  rw [heq]
-  unfold SimpleGraph.indepNum
-  set G' := G.toSimple
-  set H' := H.toSimple
   classical
-  set SG := {n : ℕ | ∃ s : Finset G.V, G'.IsNIndepSet n s} with SG_def
-  set SH := {n : ℕ | ∃ s : Finset H.V, H'.IsNIndepSet n s} with SH_def
-  set SL := {n : ℕ | ∃ s : Finset (G.V ⊕ H.V), (G' ⊕g H').IsNIndepSet n s} with SL_def
-  --SG, SH bounded above
-  have hSG_bdd : BddAbove SG := ⟨FinEnum.card G.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ FinEnum.card_le s⟩
-  have hSH_bdd : BddAbove SH := ⟨FinEnum.card H.V, fun n ⟨s, hs⟩ => hs.card_eq ▸ FinEnum.card_le s⟩
-  have hSL_bdd : BddAbove SL := ⟨FinEnum.card G.V + FinEnum.card H.V, fun n ⟨s, hs⟩ => by
-    rw [← hs.card_eq]
-    exact s.card_le_univ.trans (by simp [Fintype.card_sum])⟩
-  -- Step: SG + SH ⊆ SL (construct indep set in sum from indep sets in each side)
-  have h_add_mem : ∀ a ∈ SG, ∀ b ∈ SH, a + b ∈ SL := by
-    rintro a ha b hb
-    obtain ⟨sG, hsG⟩ := ha
-    obtain ⟨sH, hsH⟩ := hb
-    let embL : G.V ↪ G.V ⊕ H.V := ⟨Sum.inl, Sum.inl_injective⟩
-    let embR : H.V ↪ G.V ⊕ H.V := ⟨Sum.inr, Sum.inr_injective⟩
-    have hdisjoint : Disjoint (Finset.map embL sG) (Finset.map embR sH) := by
-      rw [Finset.disjoint_left]
-      intro x hxL hxR
-      simp [Finset.mem_map] at hxL hxR
-      obtain ⟨a, ha, rfl⟩ := hxL
-      obtain ⟨b, hb, hb'⟩ := hxR
-      cases hb'
-    have hasmp : (Finset.map embL sG ⊔ Finset.map embR sH) = Finset.map embL sG ∪ Finset.map embR sH := rfl
-    have hc : (Finset.map embL sG ⊔ Finset.map embR sH).card = a + b := by
-      rw [hasmp, Finset.card_union_of_disjoint hdisjoint]
-      simp [Finset.card_map, embL, embR, hsG.card_eq, hsH.card_eq]
-    refine ⟨sG.map embL ⊔ sH.map embR, ?_, hc⟩
-    show (G' ⊕g H').IsIndepSet (↑(sG.map embL ⊔ sH.map embR))
-    unfold SimpleGraph.IsIndepSet
-    simp
-    intro v hv w hw hvw
-    simp only [Set.mem_union, Set.mem_image] at hv hw
-    rcases hv with ⟨x, hx, rfl⟩ | ⟨x, hx, rfl⟩ <;> rcases hw with ⟨y, hy, rfl⟩ | ⟨y, hy, rfl⟩ <;>
-      simp at hvw ⊢
-    · intro hadj; exact hsG.1 hx hy hvw (by simpa using hadj)
-    · intro hadj; exact hsH.1 hx hy hvw (by simpa using hadj)
-  -- 0 ∈ SG and 0 ∈ SH (empty independent set)
-  have h0_SG : 0 ∈ SG := ⟨∅, by simp [SimpleGraph.IsNIndepSet.mk, SimpleGraph.IsIndepSet]⟩
-  have h0_SH : 0 ∈ SH := ⟨∅, by simp [SimpleGraph.IsNIndepSet.mk, SimpleGraph.IsIndepSet]⟩
-  -- Every element of SL is ≤ sSup SG + sSup SH
-  have h_le_each : ∀ n ∈ SL, n ≤ sSup SG + sSup SH := by
-    intro n hn
-    obtain ⟨s, hs⟩ := hn
-    -- Define sL and sR as finsets of vertices in G.V and H.V whose inl/inr is in s
-    let sL := Finset.filter (fun a => (Sum.inl a : G.V ⊕ H.V) ∈ s) Finset.univ
-    let sR := Finset.filter (fun b => (Sum.inr b : G.V ⊕ H.V) ∈ s) Finset.univ
-    -- sL is indep in G', sR is indep in H'
-    have hsL_ind : G'.IsIndepSet (sL : Set G.V) := by
-      unfold SimpleGraph.IsIndepSet
-      intro a ha c hc hac
-      simp [sL] at ha hc
-      have hsum_adj : ¬(G' ⊕g H').Adj (Sum.inl a) (Sum.inl c) := by
-        have := hs.1 ha hc (Sum.inl_injective.ne hac)
-        simpa [SimpleGraph.sum_adj] using this
-      simpa [SimpleGraph.sum_adj] using hsum_adj
-    have hsR_ind : H'.IsIndepSet (sR : Set H.V) := by
-      unfold SimpleGraph.IsIndepSet
-      intro b hb d hd hbd
-      simp [sR] at hb hd
-      have hsum_adj : ¬(G' ⊕g H').Adj (Sum.inr b) (Sum.inr d) := by
-        have := hs.1 hb hd (Sum.inr_injective.ne hbd)
-        simpa [SimpleGraph.sum_adj] using this
-      simpa [SimpleGraph.sum_adj] using hsum_adj
-    -- card s = card sL + card sR
-    have hcard : s.card = sL.card + sR.card := by
-      let embL : G.V ↪ G.V ⊕ H.V := ⟨Sum.inl, Sum.inl_injective⟩
-      let embR : H.V ↪ G.V ⊕ H.V := ⟨Sum.inr, Sum.inr_injective⟩
-      have hsum_eq : s = sL.map embL ∪ sR.map embR := by
-        ext v
-        simp [sL, sR, embL, embR, Finset.mem_map, Finset.mem_union, Finset.mem_filter, Finset.mem_univ]
-        cases v <;> simp
-      have hdisjoint : Disjoint (sL.map embL) (sR.map embR) := by
-        rw [Finset.disjoint_left]
-        intro x hxL hxR
-        simp [embL, embR, Finset.mem_map] at hxL hxR
-        obtain ⟨a, ha, rfl⟩ := hxL
-        obtain ⟨b, hb, hb'⟩ := hxR
-        cases hb'
-      rw [hsum_eq, Finset.card_union_of_disjoint hdisjoint,
-          Finset.card_map embL,
-          Finset.card_map embR]
-    -- sL.card ≤ sSup SG, sR.card ≤ sSup SH
-    have hcard_L : sL.card ≤ sSup SG := by
-      apply le_csSup hSG_bdd
-      exact ⟨sL, ⟨hsL_ind, rfl⟩⟩
-    have hcard_R : sR.card ≤ sSup SH := by
-      apply le_csSup hSH_bdd
-      exact ⟨sR, ⟨hsR_ind, rfl⟩⟩
+  show (G ⊕g H).toSimple.indepNum = G.toSimple.indepNum + H.toSimple.indepNum
+  refine le_antisymm ?_ ?_
+  · obtain ⟨s, hs⟩ := (G ⊕g H).toSimple.exists_isNIndepSet_indepNum
+    set sl : Finset G.V := Finset.univ.filter (fun a ↦ Sum.inl a ∈ s) with hsl
+    set sr : Finset H.V := Finset.univ.filter (fun b ↦ Sum.inr b ∈ s) with hsr
+    have hunion : sl.map ⟨Sum.inl, Sum.inl_injective⟩ ∪ sr.map ⟨Sum.inr, Sum.inr_injective⟩ = s := by
+      ext x
+      cases x <;> simp [hsl, hsr]
+    have hcard : s.card = sl.card + sr.card := by
+      rw [← hunion, Finset.card_union_of_disjoint (by simp [Finset.disjoint_left]),
+        Finset.card_map, Finset.card_map]
+    have hindl : G.toSimple.IsIndepSet ↑sl := by
+      intro a ha b hb hab hadj
+      have ha' : Sum.inl a ∈ s := by simpa [hsl] using ha
+      have hb' : Sum.inl b ∈ s := by simpa [hsl] using hb
+      refine hs.isIndepSet (Finset.mem_coe.2 ha') (Finset.mem_coe.2 hb')
+        (fun h ↦ hab (Sum.inl_injective h)) ?_
+      rwa [toSimple_adj, disjUnion_adj_inl_inl, ← toSimple_adj]
+    have hindr : H.toSimple.IsIndepSet ↑sr := by
+      intro a ha b hb hab hadj
+      have ha' : Sum.inr a ∈ s := by simpa [hsr] using ha
+      have hb' : Sum.inr b ∈ s := by simpa [hsr] using hb
+      refine hs.isIndepSet (Finset.mem_coe.2 ha') (Finset.mem_coe.2 hb')
+        (fun h ↦ hab (Sum.inr_injective h)) ?_
+      rwa [toSimple_adj, disjUnion_adj_inr_inr, ← toSimple_adj]
     rw [← hs.card_eq, hcard]
-    exact add_le_add hcard_L hcard_R
-  -- RHS ≤ LHS: sSup SG + sSup SH ≤ sSup SL
-  have h_sum_subset : {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} ⊆ SL := by
-    rintro n ⟨a, ha, b, hb, rfl⟩; exact h_add_mem a ha b hb
-  have h_nonempty_sum : (∃ n, n ∈ {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n}) := ⟨0 + 0, 0, h0_SG, 0, h0_SH, rfl⟩
-  have h_bdd_sum : BddAbove {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} := by
-    exact ⟨sSup SG + sSup SH, fun n ⟨a, ha, b, hb, hn⟩ => hn ▸ add_le_add (le_csSup hSG_bdd ha) (le_csSup hSH_bdd hb)⟩
-  have h_sSup_sum_le : sSup {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} ≤ sSup SL :=
-    csSup_le h_nonempty_sum (fun n hn => le_csSup hSL_bdd (h_sum_subset hn))
-  have h_sSup_mem (S : Set ℕ) (hSne : S.Nonempty) (hSbb : BddAbove S) : sSup S ∈ S := by
-    have hfin : S.Finite := Set.Finite.subset (Set.finite_Iic hSbb.choose) (fun x hx => hSbb.choose_spec hx)
-    have hmem_aux : hfin.toFinset.max' (hSne.imp (fun x hx => hfin.mem_toFinset.mpr hx)) ∈ S := by
-      have := Finset.max'_mem (hfin.toFinset) (hSne.imp (fun x hx => hfin.mem_toFinset.mpr hx))
-      exact hfin.mem_toFinset.mp this
-    have hsSup_eq_max' : sSup S = hfin.toFinset.max' (hSne.imp (fun x hx => hfin.mem_toFinset.mpr hx)) := by
-      apply le_antisymm
-      · exact csSup_le hSne (fun x hx => Finset.le_max' _ _ (hfin.mem_toFinset.mpr hx))
-      · apply le_csSup hSbb hmem_aux
-    rw [hsSup_eq_max']
-    exact hmem_aux
-  have h_sSup_add : sSup SG + sSup SH ≤ sSup {n | ∃ a ∈ SG, ∃ b ∈ SH, a + b = n} := by
-    exact le_csSup h_bdd_sum ⟨sSup SG, h_sSup_mem SG ⟨0, h0_SG⟩ hSG_bdd, sSup SH, h_sSup_mem SH ⟨0, h0_SH⟩ hSH_bdd, rfl⟩
-  have h_rtl : sSup SG + sSup SH ≤ sSup SL := le_trans h_sSup_add h_sSup_sum_le
-  -- LHS ≤ RHS: sSup SL ≤ sSup SG + sSup SH
-  have h_ltr : sSup SL ≤ sSup SG + sSup SH := by
-    apply csSup_le'
-    intro n hn
-    exact h_le_each n hn
-  exact le_antisymm h_ltr h_rtl
+    exact Nat.add_le_add hindl.card_le_indepNum hindr.card_le_indepNum
+  · obtain ⟨tG, htG⟩ := G.toSimple.exists_isNIndepSet_indepNum
+    obtain ⟨tH, htH⟩ := H.toSimple.exists_isNIndepSet_indepNum
+    let embL : G.V ↪ (G ⊕g H).V := ⟨Sum.inl, Sum.inl_injective⟩
+    let embR : H.V ↪ (G ⊕g H).V := ⟨Sum.inr, Sum.inr_injective⟩
+    have hdisj : Disjoint (tG.map embL) (tH.map embR) := by
+      simp [Finset.disjoint_left, embL, embR]
+    have hind : (G ⊕g H).toSimple.IsIndepSet ↑(tG.map embL ∪ tH.map embR) := by
+      rintro x hx y hy hxy hadj
+      simp only [Finset.coe_union, Set.mem_union, Finset.coe_map, Set.mem_image,
+        Finset.mem_coe, Function.Embedding.coeFn_mk, embL, embR] at hx hy
+      rw [toSimple_adj] at hadj
+      rcases hx with ⟨a, ha, rfl⟩ | ⟨a, ha, rfl⟩ <;> rcases hy with ⟨b, hb, rfl⟩ | ⟨b, hb, rfl⟩
+      · rw [disjUnion_adj_inl_inl, ← toSimple_adj] at hadj
+        exact htG.isIndepSet ha hb (fun h ↦ hxy (by rw [h])) hadj
+      · rw [disjUnion_adj_inl_inr] at hadj
+        exact Bool.noConfusion hadj
+      · rw [disjUnion_adj_inr_inl] at hadj
+        exact Bool.noConfusion hadj
+      · rw [disjUnion_adj_inr_inr, ← toSimple_adj] at hadj
+        exact htH.isIndepSet ha hb (fun h ↦ hxy (by rw [h])) hadj
+    have h := hind.card_le_indepNum
+    rwa [Finset.card_union_of_disjoint hdisj, Finset.card_map, Finset.card_map,
+      htG.card_eq, htH.card_eq] at h
 
 @[simp] theorem cliqueNum_disjUnion :
     (G ⊕g H).cliqueNum = max G.cliqueNum H.cliqueNum := by
-  simp only [CGraph.cliqueNum]
-  letI := Classical.decEq G.V
-  letI := Classical.decEq H.V
-  let SG := G.toSimple
-  let SH := H.toSimple
-  let SD := (G.disjUnion H).toSimple
-  show SD.cliqueNum = max SG.cliqueNum SH.cliqueNum
-  unfold SimpleGraph.cliqueNum
-  -- Define the sets of achievable clique sizes
-  set SC := {n : ℕ | ∃ s : Finset (G.V ⊕ H.V), SD.IsNClique n s}
-  set SSG := {n : ℕ | ∃ s : Finset G.V, SG.IsNClique n s}
-  set SSH := {n : ℕ | ∃ s : Finset H.V, SH.IsNClique n s}
-  -- Helper: Fintype.card of G.V ⊕ H.V bounds all clique sizes in SD
-  have hbound : ∀ n ∈ SC, n ≤ Fintype.card (G.V ⊕ H.V) := by
-    rintro n ⟨s, hs⟩
-    have hcard := hs.card_eq
-    rw [← hcard]
-    exact s.card_le_univ
-  -- SC is bounded above
-  have hSC_bdd : BddAbove SC := ⟨Fintype.card (G.V ⊕ H.V), hbound⟩
-  -- Lower bounds: embedding cliques from G and H into disjUnion
-  have hSSG : ∀ n ∈ SSG, n ≤ sSup SC := by
-    rintro n ⟨s, hs⟩
-    apply le_csSup hSC_bdd
-    use s.map (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ G.V ⊕ H.V)
-    constructor
-    · -- IsClique / pairwise adj
+  classical
+  show (G ⊕g H).toSimple.cliqueNum = max G.toSimple.cliqueNum H.toSimple.cliqueNum
+  refine le_antisymm ?_ (max_le ?_ ?_)
+  · obtain ⟨s, hs⟩ := (G ⊕g H).toSimple.exists_isNClique_cliqueNum
+    rw [← hs.card_eq]
+    -- A clique meets only one side: a left and a right vertex are never adjacent.
+    by_cases hleft : ∀ x ∈ s, ∃ a : G.V, x = Sum.inl a
+    · obtain ⟨u, -, rfl⟩ := Finset.subset_map_iff.1
+        (show s ⊆ Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩ from fun x hx ↦ by
+          obtain ⟨a, rfl⟩ := hleft x hx; simp)
+      rw [Finset.card_map]
+      refine le_max_of_le_left (SimpleGraph.IsClique.card_le_cliqueNum (tc := ?_))
       intro a ha b hb hab
-      simp [Set.mem_image] at ha hb
-      obtain ⟨x, hx, rfl⟩ := ha
-      obtain ⟨y, hy, rfl⟩ := hb
-      have hxy : x ≠ y := fun heq => hab (by rw [heq])
-      show SD.Adj (Sum.inl x) (Sum.inl y)
-      simp only [SD, CGraph.toSimple]
-      rw [disjUnion_adj_inl_inl]
-      rcases hs with ⟨hadj, hcard⟩
-      exact hadj hx hy hxy
-    · -- card
-      rw [Finset.card_map]; exact hs.card_eq
-  have hSSH : ∀ n ∈ SSH, n ≤ sSup SC := by
-    rintro n ⟨s, hs⟩
-    apply le_csSup hSC_bdd
-    use s.map (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ G.V ⊕ H.V)
-    constructor
-    · -- IsClique / pairwise adj
+      have := hs.isClique (Finset.mem_coe.2 (Finset.mem_map_of_mem _ (Finset.mem_coe.1 ha)))
+        (Finset.mem_coe.2 (Finset.mem_map_of_mem _ (Finset.mem_coe.1 hb)))
+        (fun h ↦ hab (Sum.inl_injective h))
+      simpa [toSimple_adj] using this
+    · -- Otherwise the clique has a right vertex, so all of it is on the right.
+      push_neg at hleft
+      obtain ⟨x, hx, hxr⟩ := hleft
+      obtain ⟨b, rfl⟩ : ∃ b : H.V, x = Sum.inr b := by
+        cases x with
+        | inl a => exact absurd rfl (hxr a)
+        | inr b => exact ⟨b, rfl⟩
+      obtain ⟨u, -, rfl⟩ := Finset.subset_map_iff.1
+        (show s ⊆ Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ from fun y hy ↦ by
+          cases y with
+          | inr c => simp
+          | inl a =>
+            exact absurd (hs.isClique (Finset.mem_coe.2 hy) (Finset.mem_coe.2 hx)
+              (by simp)) (by simp [toSimple_adj]))
+      rw [Finset.card_map]
+      refine le_max_of_le_right (SimpleGraph.IsClique.card_le_cliqueNum (tc := ?_))
       intro a ha b hb hab
-      simp [Set.mem_image] at ha hb
-      obtain ⟨x, hx, rfl⟩ := ha
-      obtain ⟨y, hy, rfl⟩ := hb
-      have hxy : x ≠ y := fun heq => hab (by rw [heq])
-      show SD.Adj (Sum.inr x) (Sum.inr y)
-      simp only [SD, CGraph.toSimple]
-      rw [disjUnion_adj_inr_inr]
-      rcases hs with ⟨hadj, hcard⟩
-      exact hadj hx hy hxy
-    · rw [Finset.card_map]
-      exact hs.card_eq
-  -- SSG is bounded above
-  have hSSG_bdd : BddAbove SSG := ⟨FinEnum.card G.V, fun n ⟨s, hs⟩ => by
-    rw [← hs.card_eq]; exact FinEnum.card_le s⟩
-  -- SSH is bounded above
-  have hSSH_bdd : BddAbove SSH := ⟨FinEnum.card H.V, fun n ⟨s, hs⟩ => by
-    rw [← hs.card_eq]; exact FinEnum.card_le s⟩
-  -- Lower bound from G: SG.cliqueNum ≤ SD.cliqueNum
-  have hle_G : sSup SSG ≤ sSup SC := by
-    apply csSup_le _ hSSG
-    exact ⟨0, ∅, by simp⟩
-  -- Lower bound from H
-  have hle_H : sSup SSH ≤ sSup SC := by
-    apply csSup_le _ hSSH
-    exact ⟨0, ∅, by simp⟩
-  -- Lower bound: max ≤ SD
-  have hlower : max (sSup SSG) (sSup SSH) ≤ sSup SC := max_le hle_G hle_H
-  -- Upper bound: SD ≤ max
-  -- Key: every SD-clique comes from G or H
-  -- If s is a clique in SD containing an inl vertex, then all vertices of s are inl.
-  have hclique_inl : ∀ (s : Finset (G.V ⊕ H.V)) (n : ℕ) (x₀ : G.V),
-      Sum.inl x₀ ∈ s → SD.IsNClique n s →
-      ∃ t : Finset G.V, SG.IsNClique n t ∧ s = t.map (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ G.V ⊕ H.V) := by
-    intro s n x₀ hinx₀ hnc
-    have hall_inl : ∀ y ∈ s, ∃ a : G.V, y = Sum.inl a := by
-      intro y hy
-      cases y with
-      | inl a => exact ⟨a, rfl⟩
-      | inr b =>
-        exfalso
-        rcases hnc with ⟨hclique, _⟩
-        have hineq : (Sum.inl x₀ : G.V ⊕ H.V) ≠ Sum.inr b := by intro h; cases h
-        have hadj : SD.Adj (Sum.inl x₀) (Sum.inr b) := hclique hinx₀ hy hineq
-        simp [SD, CGraph.toSimple, disjUnion_adj_inl_inr] at hadj
-    let decoder : G.V ⊕ H.V → G.V := Sum.elim id (fun _ => x₀)
-    have hinl_decoder : ∀ y ∈ s, Sum.inl (decoder y) = y := by
-      intro y hy; obtain ⟨a, rfl⟩ := hall_inl y hy; simp [decoder]
-    let t := s.image decoder
-    have ht_card : t.card = s.card := by
-      rw [Finset.card_image_of_injOn]
-      intro y hy z hz h_eq
-      have hy' := hinl_decoder y hy
-      have hz' := hinl_decoder z hz
-      exact hy'.symm.trans (congr_arg Sum.inl h_eq ▸ hz')
-    have hs_card : s.card = n := hnc.card_eq
-    refine ⟨t, ?_, ?_⟩
-    · have ht_n : t.card = n := ht_card.symm ▸ hs_card
-      exact ⟨fun a ha b hb hab => by
-        rw [Finset.mem_coe, Finset.mem_image] at ha hb
-        obtain ⟨y, hy, rfl⟩ := ha
-        obtain ⟨z, hz, rfl⟩ := hb
-        show SG.Adj (decoder y) (decoder z)
-        rcases hnc with ⟨hclique, _⟩
-        have hadj := hclique hy hz (by intro heq; apply hab; rw [heq])
-        show SG.Adj (decoder y) (decoder z)
-        rw [CGraph.toSimple_adj]
-        show G.Adj (decoder y) (decoder z) = true
-        rw [← disjUnion_adj_inl_inl G H (decoder y) (decoder z)]
-        rw [hinl_decoder y hy, hinl_decoder z hz]
-        rw [CGraph.toSimple_adj] at hadj
-        exact hadj, ht_n⟩
-    · show s = t.map (⟨Sum.inl, Sum.inl_injective⟩ : G.V ↪ G.V ⊕ H.V)
-      ext y
-      simp [Finset.mem_map]
-      exact ⟨fun hy => ⟨decoder y, Finset.mem_image.mpr ⟨y, hy, rfl⟩, hinl_decoder y hy⟩,
-             fun ⟨a, ha, hxy⟩ => by
-               obtain ⟨z, hz, hza⟩ := Finset.mem_image.mp ha
-               have heq : Sum.inl a = z := Eq.trans (congr_arg Sum.inl hza.symm) (hinl_decoder z hz)
-               exact hxy.symm ▸ heq ▸ hz⟩
-  -- Similarly for inr.
-  have hclique_inr : ∀ (s : Finset (G.V ⊕ H.V)) (x₀ : H.V),
-      Sum.inr x₀ ∈ s → SD.IsNClique s.card s →
-      ∃ t : Finset H.V, SH.IsNClique t.card t ∧ s = t.map (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ G.V ⊕ H.V) := by
-    intro s x₀ hinx₀ hnc
-    have hall_inr : ∀ y ∈ s, ∃ b : H.V, y = Sum.inr b := by
-      intro y hy
-      cases y with
-      | inl a =>
-        exfalso
-        rcases hnc with ⟨hclique, _⟩
-        have hineq : (Sum.inr x₀ : G.V ⊕ H.V) ≠ Sum.inl a := by intro h; cases h
-        have hadj : SD.Adj (Sum.inr x₀) (Sum.inl a) := hclique hinx₀ hy hineq
-        simp [SD, CGraph.toSimple, disjUnion_adj_inr_inl] at hadj
-      | inr b => exact ⟨b, rfl⟩
-    let encoder : G.V ⊕ H.V → H.V := Sum.elim (fun _ => x₀) id
-    have hinr_encoder : ∀ y ∈ s, Sum.inr (encoder y) = y := by
-      intro y hy; obtain ⟨b, rfl⟩ := hall_inr y hy; simp [encoder]
-    let t := s.image encoder
-    have ht_card : t.card = s.card := by
-      rw [Finset.card_image_of_injOn]
-      intro y hy z hz h_eq
-      have hy' := hinr_encoder y hy
-      have hz' := hinr_encoder z hz
-      exact hy'.symm.trans (congr_arg Sum.inr h_eq ▸ hz')
-    refine ⟨t, ?_, ?_⟩
-    · exact ⟨fun a ha b hb hab => by
-        rw [Finset.mem_coe, Finset.mem_image] at ha hb
-        obtain ⟨y, hy, rfl⟩ := ha
-        obtain ⟨z, hz, rfl⟩ := hb
-        show SH.Adj (encoder y) (encoder z)
-        rcases hnc with ⟨hclique, _⟩
-        have hadj := hclique hy hz (by intro heq; apply hab; exact (congr_arg encoder heq))
-        show SH.Adj (encoder y) (encoder z)
-        rw [CGraph.toSimple_adj]
-        show H.Adj (encoder y) (encoder z) = true
-        rw [← disjUnion_adj_inr_inr G H (encoder y) (encoder z)]
-        rw [hinr_encoder y hy, hinr_encoder z hz]
-        rw [CGraph.toSimple_adj] at hadj
-        exact hadj, rfl⟩
-    · show s = t.map (⟨Sum.inr, Sum.inr_injective⟩ : H.V ↪ G.V ⊕ H.V)
-      ext y
-      simp [Finset.mem_map]
-      exact ⟨fun hy => ⟨encoder y, Finset.mem_image.mpr ⟨y, hy, rfl⟩, hinr_encoder y hy⟩,
-             fun ⟨a, ha, hxy⟩ => by
-               obtain ⟨z, hz, hza⟩ := Finset.mem_image.mp ha
-               have heq : Sum.inr a = z := Eq.trans (congr_arg Sum.inr hza.symm) (hinr_encoder z hz)
-               exact hxy.symm ▸ heq ▸ hz⟩
-  have hmem : ∀ n ∈ SC, n ∈ SSG ∨ n ∈ SSH := by
-    rintro n ⟨s, hs⟩
-    by_cases hempty : s = ∅
-    · subst hempty
-      have hn0 : n = 0 := hs.card_eq.symm
-      subst hn0
-      left; exact ⟨∅, by simp⟩
-    · obtain ⟨v, hv⟩ := Finset.nonempty_of_ne_empty hempty
-      cases v with
-      | inl x =>
-        left
-        obtain ⟨t, ht1, ht2⟩ := hclique_inl s n x hv hs
-        exact ⟨t, ht1⟩
-      | inr x =>
-        right
-        have hs_card_eq : s.card = n := hs.card_eq
-        have hs' : SD.IsNClique s.card s := ⟨by rcases hs with ⟨hc, _⟩; exact hc, rfl⟩
-        obtain ⟨t, ht1, ht2⟩ := hclique_inr s x hv hs'
-        have : t.card = n := by
-          have := congr_arg Finset.card ht2
-          simp [Finset.card_map] at this
-          exact this.symm ▸ hs_card_eq
-        exact ⟨t, this ▸ ht1⟩
-  have hupper : sSup SC ≤ max (sSup SSG) (sSup SSH) := by
-    apply csSup_le
-    · exact ⟨0, ⟨∅, by simp⟩⟩
-    · intro n hn
-      rcases hmem n hn with h | h
-      · exact le_max_of_le_left (le_csSup hSSG_bdd h)
-      · exact le_max_of_le_right (le_csSup hSSH_bdd h)
-  exact le_antisymm hupper hlower
+      have := hs.isClique (Finset.mem_coe.2 (Finset.mem_map_of_mem _ (Finset.mem_coe.1 ha)))
+        (Finset.mem_coe.2 (Finset.mem_map_of_mem _ (Finset.mem_coe.1 hb)))
+        (fun h ↦ hab (Sum.inr_injective h))
+      simpa [toSimple_adj] using this
+  · obtain ⟨t, ht⟩ := G.toSimple.exists_isNClique_cliqueNum
+    rw [← ht.card_eq, ← Finset.card_map ⟨Sum.inl, Sum.inl_injective⟩]
+    refine SimpleGraph.IsClique.card_le_cliqueNum (tc := ?_)
+    rintro _ ha _ hb hab
+    simp only [Finset.coe_map, Set.mem_image, Finset.mem_coe] at ha hb
+    obtain ⟨a, ha, rfl⟩ := ha
+    obtain ⟨b, hb, rfl⟩ := hb
+    have hG : G.toSimple.Adj a b := ht.isClique ha hb fun h ↦ hab (by rw [h])
+    simpa [toSimple_adj] using hG
+  · obtain ⟨t, ht⟩ := H.toSimple.exists_isNClique_cliqueNum
+    rw [← ht.card_eq, ← Finset.card_map ⟨Sum.inr, Sum.inr_injective⟩]
+    refine SimpleGraph.IsClique.card_le_cliqueNum (tc := ?_)
+    rintro _ ha _ hb hab
+    simp only [Finset.coe_map, Set.mem_image, Finset.mem_coe] at ha hb
+    obtain ⟨a, ha, rfl⟩ := ha
+    obtain ⟨b, hb, rfl⟩ := hb
+    have hH : H.toSimple.Adj a b := ht.isClique ha hb fun h ↦ hab (by rw [h])
+    simpa [toSimple_adj] using hH
 
 @[simp] theorem cliqueNum_join :
     (G ∇g H).cliqueNum = G.cliqueNum + H.cliqueNum := by
@@ -977,177 +750,51 @@ variable (G H : CGraph)
 
 @[simp] theorem cliqueNum_strongProduct :
     (G ⊠g H).cliqueNum = G.cliqueNum * H.cliqueNum := by
-  unfold CGraph.cliqueNum
-  -- cliqueNum G = G.toSimple.cliqueNum = sSup {n | ∃ s, G.toSimple.IsNClique n s}
-  set sG := G.toSimple
-  set sH := H.toSimple
-  set sGH := (G.strongProduct H).toSimple
-  -- The adjacency in sGH: for p q : G.V × H.V,
-  -- sGH.Adj p q ↔ p ≠ q ∧ ((p.1 = q.1 ∨ sG.Adj p.1 q.1) ∧ (p.2 = q.2 ∨ sH.Adj p.2 q.2))
-  have hasAdj : ∀ p q : G.V × H.V,
-    sGH.Adj p q ↔ p ≠ q ∧ ((p.1 = q.1 ∨ sG.Adj p.1 q.1) ∧ (p.2 = q.2 ∨ sH.Adj p.2 q.2)) := by
-    intro p q
-    simp [sGH, strongProduct_adj, CGraph.toSimple]
-    simp [sG, sH]
-  -- cliqueNum unfolds to sSup of clique sizes
-  -- We prove both directions.
-  -- Get witnesses of max cliques in G and H
-  have h0G : ∃ s : Finset G.V, sG.IsNClique 0 s := ⟨∅, by simp⟩
-  have h0H : ∃ s : Finset H.V, sH.IsNClique 0 s := ⟨∅, by simp⟩
-  have hωG_nonempty : {n | ∃ s : Finset G.V, sG.IsNClique n s}.Nonempty := ⟨0, h0G⟩
-  have hωG_bdd : BddAbove {n | ∃ s : Finset G.V, sG.IsNClique n s} := by
-    exact ⟨FinEnum.card G.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact FinEnum.card_le s⟩
-  have hωH_nonempty : {n | ∃ s : Finset H.V, sH.IsNClique n s}.Nonempty := ⟨0, h0H⟩
-  have hωH_bdd : BddAbove {n | ∃ s : Finset H.V, sH.IsNClique n s} := by
-    exact ⟨FinEnum.card H.V, fun n ⟨s, hs⟩ ↦ by rw [← hs.2]; exact FinEnum.card_le s⟩
-  -- cliqueNum = sSup of clique sizes (already unfolded)
-  -- Helper: clique sizes are ≤ cliqueNum
-  have card_le_cliqueNum {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
-      {n : ℕ} {s : Finset V} (hs : G.IsNClique n s) : n ≤ G.cliqueNum := by
-    rw [SimpleGraph.cliqueNum]
-    exact le_csSup
-      ⟨Fintype.card V, fun m ⟨t, ht⟩ ↦ ht.2 ▸ Finset.card_le_univ t⟩
-      ⟨s, hs⟩
-  -- Upper bound on clique size in strong product
-  have upper : ∀ u : Finset (G.V × H.V), sGH.IsNClique u.card u → u.card ≤ sG.cliqueNum * sH.cliqueNum := by
-    intro u hu
-    -- Let πG be the image of u under first projection
-    let projG := Finset.image (fun p : G.V × H.V => p.1) u
-    -- For each g, fiber size
-    let fiber := fun g => Finset.filter (fun p => p.1 = g) u
-    -- Project to H for a fixed g
-    let projHfiber := fun g => Finset.image (fun p : G.V × H.V => p.2) (fiber g)
-    -- Step 1: projG is a clique in sG
-    have projG_clique : sG.IsClique projG := by
-      intro g1 hg1 g2 hg2 hne
-      obtain ⟨p1, hp1, rfl⟩ := Finset.mem_image.mp hg1
-      obtain ⟨p2, hp2, rfl⟩ := Finset.mem_image.mp hg2
-      have hne2 : p1 ≠ p2 := by intro h; exact hne (by simp [h])
-      have hadj := hu.1 hp1 hp2 hne2
-      rw [hasAdj] at hadj
-      exact hadj.2.1.resolve_left (fun h => hne (h ▸ rfl))
-    -- Step 2: Each fiber's image in H is a clique
-    have fiber_clique : ∀ g ∈ projG, sH.IsClique (projHfiber g) := by
-      intro g hg h1 hh1 h2 hh2 hne
-      obtain ⟨p1, hp1, rfl⟩ := Finset.mem_image.mp hh1
-      obtain ⟨p2, hp2, rfl⟩ := Finset.mem_image.mp hh2
-      have hne2 : p1 ≠ p2 := fun h => hne (by simp [h])
-      have hp1uv : p1 ∈ u ∧ p1.1 = g := by simpa [fiber] using hp1
-      have hp2uv : p2 ∈ u ∧ p2.1 = g := by simpa [fiber] using hp2
-      have hadj := hu.1 hp1uv.1 hp2uv.1 hne2
-      rw [hasAdj] at hadj
-      have hp1p2 : p1.1 = p2.1 := hp1uv.2 ▸ hp2uv.2.symm
-      rw [hp1p2] at hadj
-      exact hadj.2.2.resolve_left hne
-    -- Step 3: Each fiber has size ≤ sH.cliqueNum
-    have fiber_size_bound : ∀ g ∈ projG, (fiber g).card ≤ sH.cliqueNum := by
-      intro g hg
-      have hclique_H := fiber_clique g hg
-      have hcard_eq : (fiber g).card = (projHfiber g).card := by
-        dsimp only [projHfiber, fiber]
-        exact (Finset.card_image_of_injOn (fun p1 hp1 p2 hp2 h => by
-          have h1 : p1.1 = g := (Finset.mem_filter.mp hp1).2
-          have h2 : p2.1 = g := (Finset.mem_filter.mp hp2).2
-          exact Prod.ext (h1 ▸ h2.symm) h)).symm
-      rw [hcard_eq]
-      exact card_le_cliqueNum sH ⟨hclique_H, rfl⟩
-    -- Step 4: u.card ≤ projG.card * sH.cliqueNum
-    have u_card_bound : u.card ≤ projG.card * sH.cliqueNum := by
-      have hsum : u.card = ∑ g ∈ projG, (fiber g).card := by
-        have h_decomp : ∀ p, p ∈ u ↔ ∃ g ∈ projG, p ∈ fiber g := by
-          intro p
-          constructor
-          · intro hp
-            exact ⟨p.1, Finset.mem_image_of_mem _ hp, Finset.mem_filter.mpr ⟨hp, rfl⟩⟩
-          · rintro ⟨g, hg, hp⟩
-            exact (Finset.mem_filter.mp hp).1
-        have h_union : u = projG.biUnion fiber := by ext p; simp [h_decomp, Finset.mem_biUnion]
-        rw [h_union]
-        apply Finset.card_biUnion
-        intro g hg g' hg' hne
-        show Disjoint (fiber g) (fiber g')
-        rw [Finset.disjoint_left]
-        intro p hp1 hp2
-        exact hne ((Finset.mem_filter.mp hp1).2 ▸ (Finset.mem_filter.mp hp2).2)
-      exact hsum ▸ Finset.sum_le_card_nsmul _ _ _ fiber_size_bound
-    -- Step 5: projG.card ≤ sG.cliqueNum
-    have projG_card_bound : projG.card ≤ sG.cliqueNum := by
-      exact card_le_cliqueNum sG ⟨projG_clique, rfl⟩
-    exact le_trans u_card_bound (Nat.mul_le_mul_right _ projG_card_bound)
-  -- So cliqueNumGH ≤ cliqueNumG * cliqueNumH
-  have upper_sSup : sGH.cliqueNum ≤ sG.cliqueNum * sH.cliqueNum := by
-    rw [SimpleGraph.cliqueNum]
-    have hωGH_nonempty : {n | ∃ s : Finset (G.V × H.V), sGH.IsNClique n s}.Nonempty := ⟨0, ⟨∅, by simp⟩⟩
-    apply csSup_le hωGH_nonempty
-    rintro n ⟨s, hs⟩
-    obtain ⟨hclique, hcard⟩ := hs
-    have hncard : sGH.IsNClique s.card s := ⟨hclique, rfl⟩
-    have := upper s hncard
-    exact hcard ▸ this
-  -- Lower bound: ωG * ωH ≤ ωGH
-  -- Build sizes_G and sizes_H finsets of clique sizes
-  let cliques_G := Finset.univ.powerset.filter (fun (s : Finset G.V) => sG.IsClique s)
-  let sizes_G := cliques_G.image (fun s => s.card)
-  have hsizes_G_ne : sizes_G.Nonempty := ⟨0, Finset.mem_image.mpr ⟨∅, Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr (Finset.empty_subset _), by simp [SimpleGraph.IsClique]⟩, rfl⟩⟩
-  let cliques_H := Finset.univ.powerset.filter (fun (s : Finset H.V) => sH.IsClique s)
-  let sizes_H := cliques_H.image (fun s => s.card)
-  have hsizes_H_ne : sizes_H.Nonempty := ⟨0, Finset.mem_image.mpr ⟨∅, Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr (Finset.empty_subset _), by simp [SimpleGraph.IsClique]⟩, rfl⟩⟩
-  -- cliqueNum = sup' of the sizes finset
-  have hset_eq_G : {n | ∃ s : Finset G.V, sG.IsNClique n s} = (sizes_G : Set ℕ) := by
-    ext n
-    simp [sizes_G, cliques_G]
-    exact ⟨fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩, fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩⟩
-  have hset_eq_H : {n | ∃ s : Finset H.V, sH.IsNClique n s} = (sizes_H : Set ℕ) := by
-    ext n
-    simp [sizes_H, cliques_H]
-    exact ⟨fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩, fun ⟨s, hclique, hcard⟩ ↦ ⟨s, hclique, hcard⟩⟩
-  have hcliqueNum_eq_G : sG.cliqueNum = sizes_G.max' hsizes_G_ne := by
-    rw [SimpleGraph.cliqueNum, hset_eq_G]
-    have hωG_ne' : ((sizes_G : Set ℕ)).Nonempty := by rw [← hset_eq_G]; exact hωG_nonempty
-    have hωG_bd' : BddAbove (sizes_G : Set ℕ) := by rw [← hset_eq_G]; exact hωG_bdd
-    have hmem : (sizes_G.max' hsizes_G_ne : ℕ) ∈ (sizes_G : Set ℕ) := Finset.max'_mem sizes_G hsizes_G_ne
-    exact le_antisymm
-      (csSup_le hωG_ne' (fun n hn => Finset.le_max' _ _ hn))
-      (le_csSup hωG_bd' hmem)
-  have hcliqueNum_eq_H : sH.cliqueNum = sizes_H.max' hsizes_H_ne := by
-    rw [SimpleGraph.cliqueNum, hset_eq_H]
-    have hωH_ne' : ((sizes_H : Set ℕ)).Nonempty := by rw [← hset_eq_H]; exact hωH_nonempty
-    have hωH_bd' : BddAbove (sizes_H : Set ℕ) := by rw [← hset_eq_H]; exact hωH_bdd
-    have hmem : (sizes_H.max' hsizes_H_ne : ℕ) ∈ (sizes_H : Set ℕ) := Finset.max'_mem sizes_H hsizes_H_ne
-    exact le_antisymm
-      (csSup_le hωH_ne' (fun n hn => Finset.le_max' _ _ hn))
-      (le_csSup hωH_bd' hmem)
-  -- Get attained max cliques in G and H
-  have hsGmax_mem : sizes_G.max' hsizes_G_ne ∈ sizes_G := Finset.max'_mem sizes_G hsizes_G_ne
-  have hsHmax_mem : sizes_H.max' hsizes_H_ne ∈ sizes_H := Finset.max'_mem sizes_H hsizes_H_ne
-  obtain ⟨sGmax, hsGmax_mem', hsGmax_card⟩ := Finset.mem_image.mp hsGmax_mem
-  obtain ⟨sHmax, hsHmax_mem', hsHmax_card⟩ := Finset.mem_image.mp hsHmax_mem
-  have hsGmax_clique : sG.IsClique sGmax := (Finset.mem_filter.mp hsGmax_mem').2
-  have hsHmax_clique : sH.IsClique sHmax := (Finset.mem_filter.mp hsHmax_mem').2
-  -- sGmax is a clique in G, sHmax is a clique in H
-  -- Their product is a clique in sGH
-  let u := sGmax.product sHmax
-  have hu_clique_carrier : sGH.IsClique (↑(sGmax.product sHmax) : Set (G.V × H.V)) := by
-    intro p hp q hq hpq
-    simp at hp hq
-    obtain ⟨hpG, hpH⟩ := hp
-    obtain ⟨hqG, hqH⟩ := hq
-    rw [hasAdj]
-    refine ⟨hpq, ?_, ?_⟩
-    · by_cases h1 : p.1 = q.1
-      · exact Or.inl h1
-      · exact Or.inr (hsGmax_clique hpG hqG h1)
-    · by_cases h2 : p.2 = q.2
-      · exact Or.inl h2
-      · exact Or.inr (hsHmax_clique hpH hqH h2)
-  have hu_clique : sGH.IsNClique (sGmax.card * sHmax.card) (sGmax.product sHmax) := by
-    exact ⟨hu_clique_carrier, Finset.card_product sGmax sHmax⟩
-  have hu_clique' : sGH.IsNClique (sizes_G.max' hsizes_G_ne * sizes_H.max' hsizes_H_ne) (sGmax.product sHmax) := by
-    rwa [hsGmax_card, hsHmax_card] at hu_clique
-  have hlower : sG.cliqueNum * sH.cliqueNum ≤ sGH.cliqueNum := by
-    rw [hcliqueNum_eq_G, hcliqueNum_eq_H]
-    exact card_le_cliqueNum sGH hu_clique'
-  exact le_antisymm upper_sSup hlower
+  classical
+  show (G ⊠g H).toSimple.cliqueNum = G.toSimple.cliqueNum * H.toSimple.cliqueNum
+  refine le_antisymm ?_ ?_
+  · obtain ⟨u, hu⟩ := (G ⊠g H).toSimple.exists_isNClique_cliqueNum
+    have hfst : G.toSimple.IsClique ↑(u.image Prod.fst) := by
+      rintro a ha b hb hab
+      simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe] at ha hb
+      obtain ⟨p, hp, rfl⟩ := ha
+      obtain ⟨q, hq, rfl⟩ := hb
+      rcases ((strongProduct_toSimple_adj G H p q).1
+        (hu.isClique hp hq (fun h ↦ hab (by rw [h])))).2.1 with heq | hadj
+      · exact absurd heq hab
+      · exact hadj
+    have hsnd : H.toSimple.IsClique ↑(u.image Prod.snd) := by
+      rintro a ha b hb hab
+      simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe] at ha hb
+      obtain ⟨p, hp, rfl⟩ := ha
+      obtain ⟨q, hq, rfl⟩ := hb
+      rcases ((strongProduct_toSimple_adj G H p q).1
+        (hu.isClique hp hq (fun h ↦ hab (by rw [h])))).2.2 with heq | hadj
+      · exact absurd heq hab
+      · exact hadj
+    have hsub : u ⊆ (u.image Prod.fst) ×ˢ (u.image Prod.snd) := fun p hp ↦
+      Finset.mem_product.2 ⟨Finset.mem_image_of_mem _ hp, Finset.mem_image_of_mem _ hp⟩
+    calc (G ⊠g H).toSimple.cliqueNum = u.card := hu.card_eq.symm
+      _ ≤ ((u.image Prod.fst) ×ˢ (u.image Prod.snd)).card := Finset.card_le_card hsub
+      _ = (u.image Prod.fst).card * (u.image Prod.snd).card := Finset.card_product _ _
+      _ ≤ G.toSimple.cliqueNum * H.toSimple.cliqueNum :=
+          Nat.mul_le_mul (SimpleGraph.IsClique.card_le_cliqueNum (tc := hfst))
+            (SimpleGraph.IsClique.card_le_cliqueNum (tc := hsnd))
+  · obtain ⟨s, hs⟩ := G.toSimple.exists_isNClique_cliqueNum
+    obtain ⟨t, ht⟩ := H.toSimple.exists_isNClique_cliqueNum
+    have hcl : (G ⊠g H).toSimple.IsClique (↑(s ×ˢ t) : Set (G.V × H.V)) := by
+      rintro p hp q hq hpq
+      have hp' := Finset.mem_product.1 (Finset.mem_coe.1 hp)
+      have hq' := Finset.mem_product.1 (Finset.mem_coe.1 hq)
+      refine (strongProduct_toSimple_adj G H p q).2 ⟨hpq, ?_, ?_⟩
+      · rcases eq_or_ne p.1 q.1 with h | h
+        · exact Or.inl h
+        · exact Or.inr (hs.isClique hp'.1 hq'.1 h)
+      · rcases eq_or_ne p.2 q.2 with h | h
+        · exact Or.inl h
+        · exact Or.inr (ht.isClique hp'.2 hq'.2 h)
+    have hcard := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
+    rwa [Finset.card_product, hs.card_eq, ht.card_eq] at hcard
 
 end
 
@@ -1371,6 +1018,92 @@ theorem le_cliqueNum_of_nodup {G : CGraph} {l : List G.V} (hnd : l.Nodup)
   show l.length ≤ G.toSimple.cliqueNum
   rw [← hcard]
   exact SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
+
+/-- **An injectively indexed family of pairwise adjacent vertices bounds `ω` below.**  The
+`Fintype` counterpart of `le_cliqueNum_of_nodup`, and the mirror of `card_le_indepNum`: the index
+type is usually the shape of the construction, and the arithmetic is done once on
+`Fintype.card`. -/
+theorem card_le_cliqueNum {G : CGraph} {ι : Type*} [Fintype ι] (f : ι → G.V)
+    (hinj : Function.Injective f) (h : ∀ i j, i ≠ j → G.Adj (f i) (f j)) :
+    Fintype.card ι ≤ G.cliqueNum := by
+  classical
+  have hcl : G.toSimple.IsClique ((Finset.univ.image f : Finset G.V) : Set G.V) := by
+    intro u hu v hv huv
+    simp only [Finset.coe_image, Finset.coe_univ, Set.image_univ, Set.mem_range] at hu hv
+    obtain ⟨i, rfl⟩ := hu
+    obtain ⟨j, rfl⟩ := hv
+    exact h i j (fun hij ↦ huv (by rw [hij]))
+  have := hcl.card_le_cliqueNum
+  rwa [Finset.card_image_of_injective _ hinj, Finset.card_univ] at this
+
+/-- **A uniform bound on cliques bounds `ω` above.**  The mirror of `indepNum_le_of_forall_card_le`;
+it saves unfolding the `sSup` that defines the clique number. -/
+theorem cliqueNum_le_of_forall_card_le {G : CGraph} {n : ℕ}
+    (h : ∀ s : Finset G.V, G.toSimple.IsClique (s : Set G.V) → s.card ≤ n) : G.cliqueNum ≤ n := by
+  obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNClique_cliqueNum
+  show G.toSimple.cliqueNum ≤ n
+  rw [← hcard]
+  exact h s hs
+
+/-- **The clique number of a disjoint union is the largest of the pieces.**  `sigmaUnion` puts no
+edge between two different fibres, so a clique lives inside one of them; conversely each fibre's
+maximum clique is a clique of the union. -/
+theorem cliqueNum_sigmaUnion {ι : Type} [FinEnum ι] (F : ι → CGraph) :
+    (sigmaUnion F).cliqueNum = Finset.univ.sup fun i ↦ (F i).cliqueNum := by
+  classical
+  refine le_antisymm (cliqueNum_le_of_forall_card_le ?_) (Finset.sup_le fun i _ ↦ ?_)
+  · intro s hs
+    rcases s.eq_empty_or_nonempty with rfl | ⟨x, hx⟩
+    · simp
+    · set i := x.1 with hi
+      have hall : ∀ y ∈ s, y.1 = i := by
+        intro y hy
+        by_cases hyx : y = x
+        · rw [hyx]
+        · have hadj := hs hy hx hyx
+          by_contra hne
+          rw [toSimple_adj, sigmaUnion_adj_of_fst_ne _ _ _ hne] at hadj
+          exact Bool.false_ne_true hadj
+      obtain ⟨t, hts⟩ : ∃ t : Finset (F i).V, ∀ a, a ∈ t ↔ (⟨i, a⟩ : (sigmaUnion F).V) ∈ s :=
+        ⟨Finset.univ.filter fun a ↦ (⟨i, a⟩ : (sigmaUnion F).V) ∈ s, by simp⟩
+      have hmk : Function.Injective (fun a : (F i).V ↦ (⟨i, a⟩ : (sigmaUnion F).V)) := by
+        intro a b hab
+        simpa using hab
+      have hsub : s ⊆ t.image (fun a : (F i).V ↦ (⟨i, a⟩ : (sigmaUnion F).V)) := by
+        intro y hy
+        obtain ⟨j, a⟩ := y
+        have hj : j = i := hall _ hy
+        subst hj
+        exact Finset.mem_image.mpr ⟨a, (hts a).mpr hy, rfl⟩
+      have hclique : (F i).toSimple.IsClique (t : Set (F i).V) := by
+        intro a ha b hb hab
+        have hadj := hs ((hts a).mp ha) ((hts b).mp hb) (fun h ↦ hab (hmk h))
+        rw [toSimple_adj, sigmaUnion_adj_mk] at hadj
+        rwa [toSimple_adj]
+      calc s.card ≤ (t.image (fun a : (F i).V ↦ (⟨i, a⟩ : (sigmaUnion F).V))).card :=
+            Finset.card_le_card hsub
+        _ = t.card := Finset.card_image_of_injective _ hmk
+        _ ≤ (F i).cliqueNum := hclique.card_le_cliqueNum
+        _ ≤ _ := Finset.le_sup (f := fun i ↦ (F i).cliqueNum) (Finset.mem_univ i)
+  · show (F i).cliqueNum ≤ (sigmaUnion F).toSimple.cliqueNum
+    obtain ⟨t, ht, hcard⟩ := (F i).toSimple.exists_isNClique_cliqueNum
+    have hmk : Function.Injective (fun a : (F i).V ↦ (⟨i, a⟩ : (sigmaUnion F).V)) := by
+      intro a b hab
+      simpa using hab
+    have himg : (sigmaUnion F).toSimple.IsClique
+        ((t.image (fun a : (F i).V ↦ (⟨i, a⟩ : (sigmaUnion F).V)) :
+          Finset (sigmaUnion F).V) : Set (sigmaUnion F).V) := by
+      intro x hx y hy hxy
+      simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe] at hx hy
+      obtain ⟨a, ha, rfl⟩ := hx
+      obtain ⟨b, hb, rfl⟩ := hy
+      rw [toSimple_adj, sigmaUnion_adj_mk]
+      exact ht ha hb (fun h ↦ hxy (by rw [h]))
+    calc (F i).cliqueNum = t.card := hcard.symm
+      _ = (t.image (fun a : (F i).V ↦ (⟨i, a⟩ : (sigmaUnion F).V))).card :=
+          (Finset.card_image_of_injective _ hmk).symm
+      _ ≤ (sigmaUnion F).toSimple.cliqueNum := himg.card_le_cliqueNum
+
 
 /-! ### Maximum and minimum degree -/
 
@@ -2939,6 +2672,34 @@ theorem le_indepNum_of_nodup {G : CGraph} {l : List G.V} (hnd : l.Nodup)
   rw [← hcard]
   exact hind.card_le_indepNum
 
+/-- **An injectively indexed family of pairwise non-adjacent vertices bounds `α` below.**  The
+`Fintype` counterpart of `le_indepNum_of_nodup`, matching `card_le_matchNum`; usually the index
+type is the shape of the construction (`Fin k × Fin 2` for one vertex per rung of a prism, say)
+and the arithmetic is then done once, on `Fintype.card`. -/
+theorem card_le_indepNum {G : CGraph} {ι : Type*} [Fintype ι] (f : ι → G.V)
+    (hinj : Function.Injective f) (h : ∀ i j, i ≠ j → G.Adj (f i) (f j) = false) :
+    Fintype.card ι ≤ G.indepNum := by
+  classical
+  have hind : G.toSimple.IsIndepSet ((Finset.univ.image f : Finset G.V) : Set G.V) := by
+    intro u hu v hv huv hadj
+    simp only [Finset.coe_image, Finset.coe_univ, Set.image_univ, Set.mem_range] at hu hv
+    obtain ⟨i, rfl⟩ := hu
+    obtain ⟨j, rfl⟩ := hv
+    rw [toSimple_adj, h i j (fun hij ↦ huv (by rw [hij]))] at hadj
+    exact Bool.false_ne_true hadj
+  have := hind.card_le_indepNum
+  rwa [Finset.card_image_of_injective _ hinj, Finset.card_univ] at this
+
+/-- **A uniform bound on independent sets bounds `α` above.**  Saves unfolding the `sSup` that
+defines the independence number, which otherwise costs a `csSup_le` and a witness that the set of
+sizes is nonempty. -/
+theorem indepNum_le_of_forall_card_le {G : CGraph} {n : ℕ}
+    (h : ∀ s : Finset G.V, G.toSimple.IsIndepSet (s : Set G.V) → s.card ≤ n) : G.indepNum ≤ n := by
+  obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
+  show G.toSimple.indepNum ≤ n
+  rw [← hcard]
+  exact h s hs
+
 /-- **Nordhaus–Gaddum for the clique number**: `ω(G) + α(G) ≤ |V| + 1`, since `ω ≤ χ` and
 `χ(G) + α(G) ≤ |V| + 1`.  Equality holds for both the complete and the edgeless graph. -/
 @[toIsoGraph cliqueNum_add_indepNum_le_V_add_one]
@@ -3385,6 +3146,55 @@ theorem le_indepNum_cartesianProduct_cycle (m n : ℕ) (hev : n % 2 = 0) :
     calc 2 * (m / 2) * (n / 2) = m / 2 * (2 * (n / 2)) := by ring
       _ = n * (m / 2) := by rw [hn2]; ring
   exact hcard ▸ hindep.card_le_indepNum
+
+/-! ### Matchings written down by hand
+
+`le_indepNum_lineGraph_board` above hands a matching to the board graphs, but most families
+want an ad hoc one.  Spelling such a matching out as an independent set of the line graph is
+the same twenty lines every time — build the `Sym2`, prove it is an edge, prove the index map
+injective, prove the image independent, count it.  `card_le_matchNum` does all of that once:
+give it the two endpoints of each edge as functions of an index, say that indices with
+different names give edges with no endpoint in common, and it returns the bound. -/
+
+/-- **An explicit matching bounds the matching number from below.**  If `a i` and `b i` are
+adjacent for every index `i`, and edges with different indices share no endpoint, then `ν(G)`
+is at least the number of indices. -/
+theorem card_le_matchNum {G : CGraph} {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (a b : ι → G.V) (hadj : ∀ i, G.Adj (a i) (b i))
+    (hdisj : ∀ i j, i ≠ j → a i ≠ a j ∧ a i ≠ b j ∧ b i ≠ a j ∧ b i ≠ b j) :
+    Fintype.card ι ≤ G.matchNum := by
+  classical
+  let e : ι → G.lineGraph.V := fun i ↦ ⟨s(a i, b i), by
+    rw [SimpleGraph.mem_edgeSet, toSimple_adj]; exact hadj i⟩
+  have hmem : ∀ i j, i ≠ j → ∀ v : G.V, v ∈ (e i).1 → v ∉ (e j).1 := by
+    intro i j hij v hvi hvj
+    obtain ⟨h1, h2, h3, h4⟩ := hdisj i j hij
+    simp only [e, Sym2.mem_iff] at hvi hvj
+    rcases hvi with rfl | rfl <;> rcases hvj with h | h <;>
+      [exact h1 h; exact h2 h; exact h3 h; exact h4 h]
+  have hinj : Function.Injective e := by
+    intro i j hij
+    by_contra hne
+    exact hmem i j hne (a i) (by simp [e]) (hij ▸ (by simp [e] : a i ∈ (e i).1))
+  have hindep : G.lineGraph.toSimple.IsIndepSet (Finset.univ.image e) := by
+    intro x hx y hy hxy
+    simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ, true_and] at hx hy
+    obtain ⟨i, rfl⟩ := hx
+    obtain ⟨j, rfl⟩ := hy
+    rw [toSimple_adj, lineGraph_adj]
+    simp only [Bool.and_eq_true, decide_eq_true_eq, not_and]
+    rintro _ ⟨v, hv1, hv2⟩
+    exact hmem i j (fun h ↦ hxy (by rw [h])) v hv1 hv2
+  have hcard := hindep.card_le_indepNum
+  rwa [Finset.card_image_of_injective _ hinj, Finset.card_univ] at hcard
+
+/-- Two vertices on the right of a join are distinct as soon as their labels are.  The join's
+vertex type is a `Sum` of two `Fin`s, but neither `Fin.ext_iff` nor `Sum.inr.injEq` fires on it
+without unfolding the family first, so `card_le_matchNum`'s disjointness side conditions want
+this instead. -/
+theorem inr_mk_ne_inr_mk {α : Type} {m u v : ℕ} (hu : u < m) (hv : v < m) (h : u ≠ v) :
+    (Sum.inr ⟨u, hu⟩ : α ⊕ Fin m) ≠ Sum.inr ⟨v, hv⟩ :=
+  fun he ↦ h (congrArg Fin.val (Sum.inr.inj he))
 
 /-- **The chromatic index of a cartesian product is at most the sum of the two factors'.** -/
 theorem chromNum_lineGraph_cartesianProduct_le {G H : CGraph}

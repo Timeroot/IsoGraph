@@ -63,440 +63,23 @@ theorem coverNum_circulant (n : ℕ) (S : List ℕ) :
   rw [V_circulant] at h
   omega
 
-/-- A rook graph has a matching that misses at most one vertex. -/
+/-- **The matching number of a rook's graph**: `ν(Kₘ □ Kₙ) = ⌊mn/2⌋`.  The board already carries
+a boustrophedon Hamiltonian path as a grid, and every grid edge is a rook edge, so
+`le_indepNum_lineGraph_board` supplies the matching. -/
 theorem matchNum_rook (m n : ℕ) :
     (rook (m + 1) (n + 1)).matchNum = (m + 1) * (n + 1) / 2 := by
-  rw [matchNum_eq]
-  apply le_antisymm
-  · -- Upper bound: 2 * indepNum(L(rook)) ≤ V(rook) = (m+1)*(n+1)
-    have h := (rook (m + 1) (n + 1)).two_mul_matchNum_le_V
-    rw [matchNum_eq] at h
-    rw [show (rook (m + 1) (n + 1)).V = (m + 1) * (n + 1) from by simp [rook]] at h
+  refine le_antisymm ?_ ?_
+  · have h := (rook (m + 1) (n + 1)).two_mul_matchNum_le_V
+    rw [V_rook] at h
     omega
-  · -- Lower bound
-    rw [← matchNum_eq]
-    rw [rook, matchNum_eq]
-    -- Case split on parity of n+1
-    rcases Nat.even_or_odd' (n + 1) with ⟨k, hk | hk⟩
-    · -- n+1 = 2*k (even): horizontal pairing in each row, (m+1)*k edges
-      rw [hk]
-      have : (m + 1) * (2 * k) / 2 = (m + 1) * k := by
-        have : ∀ a b : ℕ, a * (2 * b) / 2 = a * b := fun a b => by
-          rw
-            [show a * (2 * b) = 2 * (a * b) from by ring,
-              Nat.mul_div_cancel_left _ (by norm_num : 0 < 2)]
-        rw [this]
-      rw [this]
-      dsimp only [complete]
-      rw [cartesianProduct_mk, lineGraph_mk, indepNum_mk]
-      -- Build S = image of horizontal edges H(i,j) for i : Fin(m+1), j : Fin k
-      let v0 : Fin (m + 1) × Fin k → Fin (m + 1) × Fin (2 * k) := fun ⟨i, j⟩ => (i,
-        ⟨2 * (j : ℕ), by omega⟩)
-      let v1 : Fin (m + 1) × Fin k → Fin (m + 1) × Fin (2 * k) := fun ⟨i, j⟩ => (i,
-        ⟨2 * (j : ℕ) + 1, by omega⟩)
-      have huv_adj : ∀ p : Fin (m + 1) × Fin k,
-          (CGraph.complete (m + 1) □g CGraph.complete (2 * k)).Adj (v0 p)
-            (v1 p) := by
-        intro ⟨i, j⟩
-        rw [CGraph.cartesianProduct_adj]
-        simp [v0, v1, CGraph.complete_adj]
-      -- edgeVertex for horizontal edges
-      let edgeVertex : Fin (m + 1) × Fin k → (CGraph.lineGraph (
-        CGraph.complete (m + 1) □g CGraph.complete (2 * k))).V :=
-        fun p => ⟨Sym2.mk (v0 p, v1 p), by
-          rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
-          exact huv_adj p⟩
-      let S : Finset ((CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2 * k))).V) :=
-        Finset.univ.image edgeVertex
-      -- Disjointness
-      have hv0_fst : ∀ p : Fin (m + 1) × Fin k, (v0 p).1 = p.1 := by simp [v0]
-      have hv1_fst : ∀ p : Fin (m + 1) × Fin k, (v1 p).1 = p.1 := by simp [v1]
-      have hv0_snd_eq : ∀ p : Fin (m + 1) × Fin k, (v0 p).2.val = 2 * (p.2 : ℕ) := by simp [v0]
-      have hv1_snd_eq : ∀ p : Fin (m + 1) × Fin k, (v1 p).2.val = 2 * (p.2 : ℕ) + 1 := by simp [v1]
-      have hne_snd : ∀ p : Fin (m + 1) × Fin k, (v0 p).2 ≠ (v1 p).2 := by
-        intro ⟨i, j⟩
-        simp [v0, v1]
-      have hdisjoint : ∀ p q : Fin (m + 1) × Fin k, p ≠ q →
-          ¬∃ v : Fin (m + 1) × Fin (2 * k), v ∈ (Sym2.mk (v0 p, v1 p) : Sym2 (Fin (m + 1) × Fin (2 *
-            k))) ∧
-            v ∈ (Sym2.mk (v0 q, v1 q) : Sym2 (Fin (m + 1) × Fin (2 * k))) := by
-        intro p q hpq ⟨v, hv1, hv2⟩
-        rw [Sym2.mem_iff] at hv1 hv2
-        -- hv1 : v = v0 p ∨ v = v1 p, hv2 : v = v0 q ∨ v = v1 q
-        -- v0 p has fst = p.1, snd.val = 2*p.2; v1 p has fst = p.1, snd.val = 2*p.2+1
-        -- Same for q. Since 2*a and 2*b+1 have different parity, v0 p can only equal v0 q or v1 q
-        -- with appropriate parity match. But v0 p (even snd) can't equal v1 q (odd snd), and vice
-        -- versa.
-        -- And v0 p = v0 q implies p = q, contradiction. Same for v1.
-        rcases hv1 with rfl | rfl
-        · -- v = v0 p
-          rcases hv2 with hx | hx
-          · -- v = v0 q
-            dsimp [v0] at hx
-            have h1 : p.1 = q.1 := by simpa using congr_arg Prod.fst hx
-            have h2 : (p.2 : ℕ) = (q.2 : ℕ) := by simpa using congr_arg Prod.snd hx
-            exact hpq (Prod.ext h1 (Fin.ext h2))
-          · -- v = v1 q, parity contradiction
-            dsimp [v1] at hx
-            have h2 : ((v0 p).2 : ℕ) = ((v1 q).2 : ℕ) := by
-              have := congr_arg Prod.snd hx; exact congr_arg Fin.val this
-            simp [hv0_snd_eq, hv1_snd_eq] at h2
-            omega
-        · -- v = v1 p
-          rcases hv2 with hx | hx
-          · -- v = v0 q, parity contradiction
-            dsimp [v0] at hx
-            have h2 : ((v1 p).2 : ℕ) = ((v0 q).2 : ℕ) := by
-              have := congr_arg Prod.snd hx; exact congr_arg Fin.val this
-            simp [hv0_snd_eq, hv1_snd_eq] at h2
-            omega
-          · -- v = v1 q
-            dsimp [v1] at hx
-            have h1 : p.1 = q.1 := by simpa using congr_arg Prod.fst hx
-            have h2 : (p.2 : ℕ) = (q.2 : ℕ) := by simpa using congr_arg Prod.snd hx
-            exact hpq (Prod.ext h1 (Fin.ext h2))
-      -- Independence
-      have hS_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
-        CGraph.complete (2 * k))).toSimple.IsIndepSet S := by
-        intro e he f hf haf
-        simp only [S] at he hf
-        rw [Finset.mem_coe, Finset.mem_image] at he hf
-        obtain ⟨x, _, rfl⟩ := he
-        obtain ⟨y, _, rfl⟩ := hf
-        simp [CGraph.toSimple_adj, CGraph.lineGraph_adj]
-        intro _
-        have hne : x ≠ y := fun h => haf (h ▸ rfl)
-        intro v hv hx1v
-        exact hdisjoint x y hne ⟨v, hv, hx1v⟩
-      -- Injectivity
-      have hinj : Function.Injective edgeVertex := by
-        intro p q hxy
-        have hsym2 : Sym2.mk (v0 p, v1 p) = Sym2.mk (v0 q, v1 q) := Subtype.ext_iff.mp hxy
-        rcases Sym2.eq_iff.1 hsym2 with ⟨h1, _⟩ | ⟨h1, h2⟩
-        · -- v0 p = v0 q
-          dsimp [v0] at h1
-          have hp1 : p.1 = q.1 := by simpa using congr_arg Prod.fst h1
-          have hp2 : (p.2 : ℕ) = (q.2 : ℕ) := by simpa using congr_arg Prod.snd h1
-          exact Prod.ext hp1 (Fin.ext hp2)
-        · -- v0 p = v1 q and v1 p = v0 q: parity contradiction
-          exfalso
-          dsimp [v0, v1] at h1 h2
-          have := congr_arg (fun x : Fin (m+1) × Fin (2*k) => (x.2 : ℕ)) h1
-          simp at this
-          omega
-      -- Cardinality
-      have hS_card : S.card = (m + 1) * k := by
-        show Finset.card (Finset.image edgeVertex Finset.univ) = (m + 1) * k
-        rw [Finset.card_image_of_injective _ hinj]
-        simp [Finset.card_univ, Fintype.card_prod]
-      exact hS_card ▸ hS_indep.card_le_indepNum
-    · -- n+1 = 2*k+1 (odd): horizontal edges in all rows + vertical edges in last column
-      rw [hk]
-      -- Target: (m+1)*(2*k+1)/2 ≤ indepNum ...
-      -- (m+1)*(2*k+1)/2 = (m+1)*k + (m+1)/2
-      have htarget : (m + 1) * (2 * k + 1) / 2 = (m + 1) * k + (m + 1) / 2 := by
-        have : (m + 1) * (2 * k + 1) = 2 * ((m + 1) * k) + (m + 1) := by ring
-        rw [this]
-        omega
-      rw [htarget]
-      -- Build horizontal edges H(i,j) for i : Fin(m+1), j : Fin k
-      -- and vertical edges V(t) for t : Fin((m+1)/2) in column n = 2*k
-      let mv2 := (m + 1) / 2
-      -- Final column index
-      let last_col : Fin (2 * k + 1) := ⟨2 * k, by omega⟩
-      -- Horizontal edge endpoints
-      let hv0 : Fin (m + 1) × Fin k → Fin (m + 1) × Fin (2 * k + 1) :=
-        fun ⟨i, j⟩ => (i, ⟨2 * (j : ℕ), by omega⟩)
-      let hv1 : Fin (m + 1) × Fin k → Fin (m + 1) × Fin (2 * k + 1) :=
-        fun ⟨i, j⟩ => (i, ⟨2 * (j : ℕ) + 1, by omega⟩)
-      -- Vertical edge endpoints (in last column)
-      let hv0v : Fin mv2 → Fin (m + 1) × Fin (2 * k + 1) :=
-        fun t => (⟨2 * (t : ℕ), by omega⟩, last_col)
-      let hv1v : Fin mv2 → Fin (m + 1) × Fin (2 * k + 1) :=
-        fun t => (⟨2 * (t : ℕ) + 1, by omega⟩, last_col)
-      -- Adjacency for horizontal edges
-      have hh_adj : ∀ p : Fin (m + 1) × Fin k,
-          (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1)).Adj (hv0
-            p) (hv1 p) := by
-        intro ⟨i, j⟩
-        rw [CGraph.cartesianProduct_adj]
-        simp [hv0, hv1, CGraph.complete_adj]
-      -- Adjacency for vertical edges
-      have hvv_adj : ∀ t : Fin mv2,
-          (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1)).Adj
-            (hv0v t) (hv1v t) := by
-        intro t
-        rw [CGraph.cartesianProduct_adj]
-        simp [hv0v, hv1v, last_col, CGraph.complete_adj]
-      -- edgeVertex for horizontal edges
-      let hEdgeVertex : Fin (m + 1) × Fin k →
-          (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1))).V :=
-        fun p => ⟨Sym2.mk (hv0 p, hv1 p), by
-          rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
-          exact hh_adj p⟩
-      -- edgeVertex for vertical edges
-      let vEdgeVertex : Fin mv2 →
-          (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2 * k + 1))).V :=
-        fun t => ⟨Sym2.mk (hv0v t, hv1v t), by
-          rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
-          exact hvv_adj t⟩
-      -- Helper: horizontal edge endpoints have 2nd coord < 2*k < 2*k+1, so ≠ last_col
-      have hH_col_lt : ∀ p : Fin (m + 1) × Fin k, (hv0 p).2.val < 2 * k ∧ (hv1 p).2.val < 2 * k :=
-        by
-        simp [hv0, hv1]; intros; omega
-      -- last_col.val = 2*k
-      have hlast_col_val : last_col.val = 2 * k := rfl
-      -- Horizontal edges disjoint from vertical edges (different columns)
-      have hv0v_snd_val : ∀ t : Fin mv2, (hv0v t).2.val = 2 * k := by simp [hv0v, hlast_col_val]
-      have hv1v_snd_val : ∀ t : Fin mv2, (hv1v t).2.val = 2 * k := by simp [hv1v, hlast_col_val]
-      have hHV_disjoint : ∀ p : Fin (m + 1) × Fin k, ∀ t : Fin mv2,
-          ¬∃ v : Fin (m + 1) × Fin (2 * k + 1), v ∈ (Sym2.mk (hv0 p, hv1 p) : Sym2 _) ∧
-            v ∈ (Sym2.mk (hv0v t, hv1v t) : Sym2 _) := by
-        intro p t ⟨v, hv1, hv2⟩
-        rw [Sym2.mem_iff] at hv1 hv2
-        have hlt0 := (hH_col_lt p).1
-        rcases hv1 with hv1 | hv1
-        · rcases hv2 with hv2 | hv2
-          · exfalso; rw [hv1] at hv2; have h2 := congr_arg Prod.snd hv2; have := hv0v_snd_val t;
-              omega
-          · exfalso; rw [hv1] at hv2; have h2 := congr_arg Prod.snd hv2; have := hv1v_snd_val t;
-              omega
-        · rcases hv2 with hv2 | hv2
-          · exfalso; rw [hv1] at hv2; have h2 := congr_arg Fin.val (congr_arg Prod.snd hv2); have :=
-              (hH_col_lt p).2; have := hv0v_snd_val t; omega
-          · exfalso; rw [hv1] at hv2; have h2 := congr_arg Fin.val (congr_arg Prod.snd hv2); have :=
-              (hH_col_lt p).2; have := hv1v_snd_val t; omega
-      -- Vertical edges disjoint among themselves
-      have hv0v_fst : ∀ t : Fin mv2, (hv0v t).1.val = 2 * (t : ℕ) := by simp [hv0v]
-      have hv1v_fst : ∀ t : Fin mv2, (hv1v t).1.val = 2 * (t : ℕ) + 1 := by simp [hv1v]
-      have hv0v_snd : ∀ t : Fin mv2, (hv0v t).2 = last_col := by simp [hv0v]
-      have hv1v_snd : ∀ t : Fin mv2, (hv1v t).2 = last_col := by simp [hv1v]
-      have hne_snd_v : ∀ t : Fin mv2, (hv0v t).1 ≠ (hv1v t).1 := by
-        intro t; simp [hv0v, hv1v]
-      have hVV_disjoint : ∀ t t' : Fin mv2, t ≠ t' →
-          ¬∃ v : Fin (m + 1) × Fin (2 * k + 1), v ∈ (Sym2.mk (hv0v t, hv1v t) : Sym2 _) ∧
-            v ∈ (Sym2.mk (hv0v t', hv1v t') : Sym2 _) := by
-        intro t t' hne ⟨v, hv1, hv2⟩
-        rw [Sym2.mem_iff] at hv1 hv2
-        rcases hv1 with rfl | rfl
-        · rcases hv2 with hx | hx
-          · dsimp [hv0v] at hx
-            have h1 : (t : ℕ) = (t' : ℕ) := by
-              have := congr_arg Prod.fst hx
-              simp at this
-              omega
-            exact hne (Fin.ext h1)
-          · dsimp [hv1v] at hx
-            have h2 : ((hv0v t).1 : ℕ) = ((hv1v t').1 : ℕ) := by
-              have := congr_arg Prod.fst hx; exact congr_arg Fin.val this
-            simp [hv0v_fst, hv1v_fst] at h2
-            omega
-        · rcases hv2 with hx | hx
-          · dsimp [hv0v] at hx
-            have h2 : ((hv1v t).1 : ℕ) = ((hv0v t').1 : ℕ) := by
-              have := congr_arg Prod.fst hx; exact congr_arg Fin.val this
-            simp [hv0v_fst, hv1v_fst] at h2
-            omega
-          · dsimp [hv1v] at hx
-            have h1 : (t : ℕ) = (t' : ℕ) := by
-              have := congr_arg Prod.fst hx
-              simp at this
-              omega
-            exact hne (Fin.ext h1)
-      -- EdgeVertex injectivity
-      have hhEdge_inj : Function.Injective hEdgeVertex := by
-        intro p q hxy
-        have hsym2 : Sym2.mk (hv0 p, hv1 p) = Sym2.mk (hv0 q, hv1 q) := Subtype.ext_iff.mp hxy
-        rcases Sym2.eq_iff.1 hsym2 with ⟨h1, _⟩ | ⟨h1, h2⟩
-        · dsimp [hv0] at h1
-          have hp1 : p.1 = q.1 := by simpa using congr_arg Prod.fst h1
-          have hp2 : (p.2 : ℕ) = (q.2 : ℕ) := by
-            have := congr_arg Prod.snd h1
-            simp at this
-            omega
-          exact Prod.ext hp1 (Fin.ext hp2)
-        · exfalso
-          dsimp [hv0, hv1] at h1 h2
-          have := congr_arg (fun x : Fin (m+1) × Fin (2*k+1) => (x.2 : ℕ)) h1
-          simp at this
-          omega
-      have hvEdge_inj : Function.Injective vEdgeVertex := by
-        intro t t' hxy
-        have hsym2 : Sym2.mk (hv0v t, hv1v t) = Sym2.mk (hv0v t', hv1v t') := Subtype.ext_iff.mp hxy
-        rcases Sym2.eq_iff.1 hsym2 with ⟨h1, _⟩ | ⟨h1, h2⟩
-        · dsimp [hv0v] at h1
-          have ht : (t : ℕ) = (t' : ℕ) := by
-            have := congr_arg Prod.fst h1
-            simp at this
-            omega
-          exact Fin.ext ht
-        · exfalso
-          dsimp [hv0v, hv1v] at h1 h2
-          have := congr_arg (fun x : Fin (m+1) × Fin (2*k+1) => (x.1 : ℕ)) h1
-          simp at this
-          omega
-      -- H-image and V-image are disjoint as Finsets
-      have hS_disjoint : Disjoint (Finset.univ.image hEdgeVertex) (Finset.univ.image vEdgeVertex) :=
-        by
-        rw [Finset.disjoint_left]
-        intro e he1 he2
-        rw [Finset.mem_image] at he1 he2
-        obtain ⟨p, _, hp⟩ := he1
-        obtain ⟨t, _, ht⟩ := he2
-        exfalso
-        have heq : hEdgeVertex p = vEdgeVertex t := hp.trans ht.symm
-        have hsym2 : Sym2.mk (hv0 p, hv1 p) = Sym2.mk (hv0v t, hv1v t) := Subtype.ext_iff.mp heq
-        exact hHV_disjoint p t ⟨hv0 p, Sym2.mem_mk_left _ _, hsym2 ▸ Sym2.mem_mk_left _ _⟩
-      -- H-image is independent
-      have hhS_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
-        CGraph.complete (2 * k + 1))).toSimple.IsIndepSet (Finset.univ.image hEdgeVertex) := by
-        intro e he f hf haf
-        simp only [Finset.coe_image, Set.mem_image] at he hf
-        obtain ⟨x, _, rfl⟩ := he
-        obtain ⟨y, _, rfl⟩ := hf
-        simp [CGraph.toSimple_adj, CGraph.lineGraph_adj]
-        intro _
-        have hne : x ≠ y := fun h => haf (h ▸ rfl)
-        intro v hv hx1v
-        have : ∀ p q : Fin (m + 1) × Fin k, p ≠ q →
-            ¬∃ v : Fin (m + 1) × Fin (2 * k + 1), v ∈ (Sym2.mk (hv0 p, hv1 p) : Sym2 _) ∧
-              v ∈ (Sym2.mk (hv0 q, hv1 q) : Sym2 _) := by
-          intro p q hpq ⟨v, hv1, hv2⟩
-          rw [Sym2.mem_iff] at hv1 hv2
-          rcases hv1 with rfl | rfl
-          · rcases hv2 with hx | hx
-            · -- hv0 p = hv0 q
-              dsimp [hv0] at hx
-              have h1 : p.1 = q.1 := by simpa using congr_arg Prod.fst hx
-              have h2 : (p.2 : ℕ) = (q.2 : ℕ) := by
-                simpa using congr_arg Fin.val (congr_arg Prod.snd hx)
-              exact hpq (Prod.ext h1 (Fin.ext h2))
-            · -- hv0 p = hv1 q, parity contradiction
-              dsimp [hv0, hv1] at hx
-              have := congr_arg (fun x : Fin (m+1) × Fin (2*k+1) => (x.2 : ℕ)) hx
-              simp at this; omega
-          · rcases hv2 with hx | hx
-            · -- hv1 p = hv0 q, parity contradiction
-              dsimp [hv0, hv1] at hx
-              have := congr_arg (fun x : Fin (m+1) × Fin (2*k+1) => (x.2 : ℕ)) hx
-              simp at this; omega
-            · -- hv1 p = hv1 q
-              dsimp [hv1] at hx
-              have h1 : p.1 = q.1 := by simpa using congr_arg Prod.fst hx
-              have h2 : (p.2 : ℕ) = (q.2 : ℕ) := by
-                simpa using congr_arg Fin.val (congr_arg Prod.snd hx)
-              exact hpq (Prod.ext h1 (Fin.ext h2))
-        exact this x y hne ⟨v, hv, hx1v⟩
-      -- V-image is independent
-      have hvS_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
-        CGraph.complete (2 * k + 1))).toSimple.IsIndepSet (Finset.univ.image vEdgeVertex) := by
-        intro e he f hf haf
-        simp only [Finset.coe_image, Set.mem_image] at he hf
-        obtain ⟨t, _, rfl⟩ := he
-        obtain ⟨t', _, rfl⟩ := hf
-        simp [CGraph.toSimple_adj, CGraph.lineGraph_adj]
-        intro _
-        have hne : t ≠ t' := fun h => haf (h ▸ rfl)
-        intro v hv hv1v
-        exact hVV_disjoint t t' hne ⟨v, hv, hv1v⟩
-      -- H and V images have no edges between them in lineGraph (disjoint vertex sets gives this...
-      -- actually indep set across union needs more)
-      -- Actually, for the union to be independent, we need: no edges within H (done), no edges
-      -- within V (done), and no edges between H and V.
-      -- No edges between H and V in lineGraph means H edges and V edges don't share endpoints,
-      -- which is hHV_disjoint.
-      have h_cross : ∀ p : Fin (m + 1) × Fin k, ∀ t : Fin mv2,
-          ¬(CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete (2
-            * k + 1))).Adj (hEdgeVertex p) (vEdgeVertex t) := by
-        intro p t
-        simp [CGraph.lineGraph_adj, hEdgeVertex, vEdgeVertex]
-        have hne0 : hv0 p ≠ hv0v t := by
-          intro h
-          have h1 := congr_arg Prod.snd h
-          have h2 := (hH_col_lt p).1
-          simp [hv0v_snd] at h1
-          have := congr_arg Fin.val h1
-          simp at this
-          omega
-        have hne1 : hv0 p ≠ hv1v t := by
-          intro h
-          have h1 := congr_arg Prod.snd h
-          have h2 := (hH_col_lt p).1
-          simp [hv1v_snd] at h1
-          have := congr_arg Fin.val h1
-          simp at this
-          omega
-        have hne2 : hv1 p ≠ hv0v t := by
-          intro h
-          have h1 := congr_arg Prod.snd h
-          have h2 := (hH_col_lt p).2
-          simp [hv0v_snd] at h1
-          have := congr_arg Fin.val h1
-          simp at this
-          omega
-        have hne3 : hv1 p ≠ hv1v t := by
-          intro h
-          have h1 := congr_arg Prod.snd h
-          have h2 := (hH_col_lt p).2
-          simp [hv1v_snd] at h1
-          have := congr_arg Fin.val h1
-          simp at this
-          omega
-        intro _ _
-        exact ⟨⟨hne0, hne1⟩, hne2, hne3⟩
-      have h_union_indep : (CGraph.lineGraph (CGraph.complete (m + 1) □g
-        CGraph.complete (2 * k + 1))).toSimple.IsIndepSet
-          (↑(Finset.univ.image hEdgeVertex ∪ Finset.univ.image vEdgeVertex)) := by
-        have h_cross_toSimple : ∀ p : Fin (m + 1) × Fin k, ∀ t : Fin mv2,
-            ¬(CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
-              (2 * k + 1))).toSimple.Adj (hEdgeVertex p) (vEdgeVertex t) := by
-          intro p t hadj
-          rw [CGraph.toSimple_adj] at hadj
-          exact h_cross p t hadj
-        have h_cross_toSimple' : ∀ p : Fin (m + 1) × Fin k, ∀ t : Fin mv2,
-            ¬(CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
-              (2 * k + 1))).toSimple.Adj (vEdgeVertex t) (hEdgeVertex p) := by
-          intro p t hadj
-          rw [CGraph.toSimple_adj] at hadj
-          have hsymm : ∀ e f : (CGraph.lineGraph (CGraph.complete (m + 1) □g
-            CGraph.complete (2 * k + 1))).V,
-              (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
-                (2 * k + 1))).Adj e f =
-              (CGraph.lineGraph (CGraph.complete (m + 1) □g CGraph.complete
-                (2 * k + 1))).Adj f e := by
-            intro e f
-            rw [CGraph.lineGraph_adj, CGraph.lineGraph_adj]
-            simp [and_comm, eq_comm]
-          rw [hsymm] at hadj
-          exact h_cross p t hadj
-        intro e he f hf haf
-        simp at he hf
-        rcases he with he | he
-        · obtain ⟨p, hp, rfl⟩ := he
-          rcases hf with hf | hf
-          · obtain ⟨q, hq, rfl⟩ := hf
-            exact hhS_indep (Finset.mem_image_of_mem _ (Finset.mem_univ (p, hp)))
-                (Finset.mem_image_of_mem _ (Finset.mem_univ (q, hq))) haf
-          · obtain ⟨t', ht', rfl⟩ := hf
-            exact h_cross_toSimple (p, hp) t'
-        · obtain ⟨t, ht, rfl⟩ := he
-          rcases hf with hf | hf
-          · obtain ⟨q, hq, rfl⟩ := hf
-            exact h_cross_toSimple' (q, hq) t
-          · obtain ⟨t', ht', rfl⟩ := hf
-            exact hvS_indep (Finset.mem_image_of_mem _ (Finset.mem_univ t))
-                (Finset.mem_image_of_mem _ (Finset.mem_univ t')) haf
-      -- Cardinality
-      have hS_card : ((Finset.univ.image hEdgeVertex) ∪ (Finset.univ.image vEdgeVertex)).card = (m +
-        1) * k + (m + 1) / 2 := by
-        rw [Finset.card_union_of_disjoint hS_disjoint]
-        rw [Finset.card_image_of_injective _ hhEdge_inj, Finset.card_image_of_injective _
-          hvEdge_inj]
-        simp [Finset.card_univ, Fintype.card_prod, mv2]
-      -- Now lift to IsoGraph level and conclude
-      dsimp only [IsoGraph.complete]
-      rw [cartesianProduct_mk, lineGraph_mk, indepNum_mk]
-      exact hS_card ▸ h_union_indep.card_le_indepNum
+  · rw [matchNum_eq, rook, complete, complete, cartesianProduct_mk, lineGraph_mk, indepNum_mk]
+    refine CGraph.le_indepNum_lineGraph_board _ (fun p ↦ p) (fun _ _ h ↦ h) ?_
+    intro p q h
+    rw [CGraph.cartesianProduct_adj]
+    simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, CGraph.complete_adj, ne_eq]
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · exact Or.inl ⟨h1, by simp only [Fin.ext_iff]; omega⟩
+    · exact Or.inr ⟨by simp only [Fin.ext_iff]; omega, h1⟩
 
 /-- Two `k`-sets differing in `d` elements are at distance `d`, and `d ≤ min k (n - k)`. -/
 theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
@@ -1056,241 +639,56 @@ theorem two_mul_E_ladder (n : ℕ) : 2 * (ladder (n + 2)).E = 8 + 6 * n := by
     smul_eq_mul, smul_eq_mul] at h
   omega
 
-/-- A wheel has a near-perfect matching. -/
+/-- Consecutive rim vertices of a wheel are adjacent. -/
+private theorem wheel_rim_adj {m : ℕ} (u v : ℕ) (hu : u < m) (hv : v < m) (h : u + 1 = v) :
+    (CGraph.wheel m).Adj (Sum.inr ⟨u, hu⟩) (Sum.inr ⟨v, hv⟩) = true := by
+  show (CGraph.complete 1 ∇g CGraph.cycle m).Adj (Sum.inr ⟨u, hu⟩) (Sum.inr ⟨v, hv⟩) = true
+  rw [CGraph.join_adj_inr_inr, CGraph.cycle_adj_val]
+  exact ⟨by simp only []; omega, Or.inl (by simp only []; rw [h, Nat.mod_eq_of_lt hv])⟩
+
+/-- **A wheel has a near-perfect matching.**  When the rim `Cₙ₊₃` is even it matches itself
+perfectly; when it is odd, one rim vertex is left over and a spoke to the hub takes care of
+it. -/
 theorem matchNum_wheel (n : ℕ) : (wheel (n + 3)).matchNum = (n + 4) / 2 := by
-  apply le_antisymm
+  refine le_antisymm ?_ ?_
   · have h1 := (wheel (n + 3)).two_mul_matchNum_le_V
     rw [V_wheel] at h1
     omega
-  · -- Lower bound
-    rw [matchNum_eq]
-    set G := wheel (n + 3)
-    -- We exhibit an independent set of lineGraph G of size (n+4)/2,
-    -- corresponding to a matching in G.
-    -- Vertices of G = wheel(n+3) = join (complete 1) (cycle (n+3)) live in Fin 1 ⊕ Fin (n+3).
-    -- Hub = inl 0, rim vertices = inr i for i : Fin (n+3).
-    -- Rim edges: (inr i, inr ((i+1) % (n+3))) for i : Fin (n+3).
-    -- Spoke edges: (inl 0, inr i) for i : Fin (n+3).
-    -- Construction (parity split on n):
-    --   n = 2*k (even): spoke to inr 0, plus rim edges (inr (2*i+1), inr (2*i+2)) for i < k+1.
-    --     Size = 1 + (k+1) = k+2 = (2*k+4)/2.
-    --   n = 2*k+1 (odd): rim edges (inr (2*i), inr (2*i+1)) for i < k+2.
-    --     Size = k+2 = (2*k+3+1)/2 = (n+4)/2.
-    -- These edges are pairwise disjoint, so the corresponding vertices of lineGraph G
-    -- form an independent set.
-    rcases Nat.even_or_odd' n with ⟨k, rfl | rfl⟩
-    · -- Even case: n = 2*k
-      have hconvert : (wheel (2 * k + 3)).lineGraph.indepNum =
-          (CGraph.wheel (2 * k + 3)).lineGraph.indepNum := by
-        rw [show (wheel (2 * k + 3) : IsoGraph) = ⟦CGraph.wheel (2 * k + 3)⟧ from rfl,
-            lineGraph_mk, indepNum_mk]
-      rw [hconvert]
-      have harith : (2 * k + 4) / 2 = k + 2 := by omega
-      rw [harith]
-      set m : ℕ := 2 * k + 3
-      -- spokes edge: {inl 0, inr 0}
-      let mkSpoke : Sym2 (Fin 1 ⊕ Fin m) := Sym2.mk (Sum.inl ⟨0, by omega⟩, Sum.inr ⟨0, by omega⟩)
-      -- rim edges for j : Fin (k+1): {inr(2*j+1), inr(2*j+2)}
-      let mkRim : Fin (k + 1) → Sym2 (Fin 1 ⊕ Fin m) :=
-        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 2, by omega⟩)
-      -- Show spoke is in edgeSet
-      have hspoke_mem : mkSpoke ∈ (CGraph.wheel m).toSimple.edgeSet := by
-        rw [SimpleGraph.mem_edgeSet]
-        simp [CGraph.wheel]
-        rw [CGraph.join_adj_inl_inr]
-      -- Show each rim edge is in edgeSet
-      have hrim_mem : ∀ j : Fin (k + 1),
-          mkRim j ∈ (CGraph.wheel m).toSimple.edgeSet := by
-        intro j
-        rw [SimpleGraph.mem_edgeSet]
-        simp [CGraph.wheel]
-        rw [CGraph.join_adj_inr_inr]
-        show (CGraph.cycle m).Adj ⟨2 * (j : ℕ) + 1, by omega⟩ ⟨2 * (j : ℕ) + 2, by omega⟩ = true
-        simp [CGraph.cycle, CGraph.ofRel_adj]
-        have hj : (j : ℕ) < k + 1 := j.is_lt
-        rw [Nat.mod_eq_of_lt (by omega : 2 * (j : ℕ) + 2 < m)]
-        simp
-      -- mkRim is injective
-      have hrim_inj : Function.Injective mkRim := by
-        intro j j' hjj'
-        simp only [mkRim] at hjj'
-        set a : Fin m := ⟨2 * (j : ℕ) + 1, by omega⟩
-        set b : Fin m := ⟨2 * (j : ℕ) + 2, by omega⟩
-        set a' : Fin m := ⟨2 * (j' : ℕ) + 1, by omega⟩
-        set b' : Fin m := ⟨2 * (j' : ℕ) + 2, by omega⟩
-        have heq : Sym2.mk (Sum.inr a, Sum.inr b) = Sym2.mk (Sum.inr a', Sum.inr b') := hjj'
-        have ha_in_edge' : (Sum.inr a : Fin 1 ⊕ Fin m) ∈ Sym2.mk (Sum.inr a', Sum.inr b') := by
-          rw [← heq]
-          show Sym2.Mem _ _
-          simp [Sym2.Mem]
-        simp at ha_in_edge'
-        obtain h | h := ha_in_edge'
-        · simp [a, a'] at h
-          exact Fin.ext (by omega)
-        · simp [a, b'] at h
-          omega
-      let spokeV : (CGraph.lineGraph (CGraph.wheel m)).V := ⟨mkSpoke, hspoke_mem⟩
-      let rimV : Fin (k + 1) → (CGraph.lineGraph (CGraph.wheel m)).V :=
-        fun j => ⟨mkRim j, hrim_mem j⟩
-      -- Charactize spokeV vs rimV: spokeV has inl, rimV edges don't
-      -- Charactize mkSpoke membership
-      have hmem_spoke_lhs : (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ mkSpoke ∧
-          (Sum.inr ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ mkSpoke := by
-        simp [mkSpoke]
-      have hnotmem_spoke : ∀ (v : Fin 1 ⊕ Fin m) (j : Fin (k + 1)), v ∈ mkSpoke → v ∉ mkRim j := by
-        intro v j hvmem
-        simp [mkSpoke] at hvmem
-        rcases hvmem with rfl | rfl <;> simp [mkRim]
-      -- spokeV ≠ rimV j
-      have hspoke_ne_rim : ∀ j : Fin (k + 1), spokeV ≠ rimV j := by
-        intro j heq
-        have hval : mkSpoke = mkRim j := Subtype.ext_iff.mp heq
-        have h1 : Sum.inl ⟨0, by omega⟩ ∈ mkSpoke := hmem_spoke_lhs.1
-        rw [hval] at h1
-        exact absurd h1 (hnotmem_spoke _ j (hmem_spoke_lhs.1))
-      -- Charactize mkRim membership
-      have hmemRim_char : ∀ j : Fin (k + 1), ∀ y : Fin 1 ⊕ Fin m,
-          y ∈ mkRim j ↔ y = Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩ ∨ y = Sum.inr
-            ⟨2 * (j : ℕ) + 2, by omega⟩ := by
-        intro j y; simp [mkRim]
-      -- LineGraph vertices: spokeV and all rimV
-      let vertices : Finset (CGraph.lineGraph (CGraph.wheel m)).V :=
-        {spokeV} ∪ Finset.univ.image rimV
-      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.wheel m)).toSimple
-        (vertices : Set _) := by
-        unfold SimpleGraph.IsIndepSet
-        intro v hv w hw hvw
-        have hv' : v = spokeV ∨ ∃ j : Fin (k + 1), rimV j = v := by
-          simp [vertices]
-            at hv
-          exact hv
-        have hw' : w = spokeV ∨ ∃ j : Fin (k + 1), rimV j = w := by
-          simp [vertices]
-            at hw
-          exact hw
-        rcases hv' with rfl | ⟨j, rfl⟩
-        · rcases hw' with rfl | ⟨j', rfl⟩
-          · exact absurd rfl hvw
-          · intro h
-            simp [CGraph.toSimple] at h
-            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
-            exact hnotmem_spoke v j' hv1 hv2
-        · rcases hw' with rfl | ⟨j', rfl⟩
-          · intro h
-            simp [CGraph.toSimple] at h
-            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
-            exact hnotmem_spoke v j hv2 hv1
-          · by_cases heq : j = j'
-            · subst heq; simp [CGraph.toSimple, CGraph.lineGraph_adj]
-            · intro h
-              simp [CGraph.toSimple, CGraph.lineGraph_adj, rimV, hmemRim_char] at h
-              have hne' : (j : ℕ) ≠ (j' : ℕ) := fun hval => heq (Fin.ext hval)
-              omega
-      have hcard : vertices.card = k + 2 := by
-        simp only [vertices]
-        have hdisj : Disjoint {spokeV} (Finset.univ.image rimV) := by
-          rw [Finset.disjoint_singleton_left]
-          intro hv
-          obtain ⟨j, _, hj⟩ := Finset.mem_image.mp hv
-          exact hspoke_ne_rim j (hj.symm)
-        rw [Finset.card_union_of_disjoint hdisj]
-        simp [Finset.card_singleton]
-        rw [Finset.card_image_of_injective _ (fun j j' hj => hrim_inj (Subtype.ext_iff.mp hj))]
-        simp; omega
-      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
-    · -- Odd case: n = 2*k+1
-      -- Goal: (2*k+5)/2 ≤ (wheel (2*k+4)).lineGraph.indepNum
-      -- We work at CGraph level. wheel (2*k+4) as IsoGraph = ⟦CGraph.wheel (2*k+4)⟧
-      -- lineGraph (wheel (2*k+4)) as IsoGraph = ⟦CGraph.lineGraph (CGraph.wheel (2*k+4))⟧
-      -- indepNum of that = (CGraph.lineGraph (CGraph.wheel (2*k+4))).indepNum
-      have hconvert : (wheel (2 * k + 1 + 3)).lineGraph.indepNum =
-          (CGraph.wheel (2 * k + 4)).lineGraph.indepNum := by
-        rw [show (wheel (2 * k + 1 + 3) : IsoGraph) = ⟦CGraph.wheel (2 * k + 4)⟧ from rfl,
-            lineGraph_mk, indepNum_mk]
-      rw [hconvert]
-      -- Simplify arithmetic
-      have harith : (2 * k + 1 + 4) / 2 = k + 2 := by omega
-      rw [harith]
-      -- Define the candidate independent set: rim edges E_j = {inr(2j), inr(2j+1)} for j : Fin
-      -- (k+2)
-      set m : ℕ := 2 * k + 4
-      -- Each edge as a Sym2
-      let mkEdge : Fin (k + 2) → Sym2 (Fin 1 ⊕ Fin m) :=
-        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ), by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩)
-      -- Show each mkEdge j is in the wheel's edgeSet
-      have hedge_mem : ∀ j : Fin (k + 2),
-          mkEdge j ∈ (CGraph.wheel m).toSimple.edgeSet := by
-        intro j
-        rw [SimpleGraph.mem_edgeSet]
-        simp [CGraph.wheel]
-        rw [CGraph.join_adj_inr_inr]
-        show (CGraph.cycle m).Adj ⟨2 * (j : ℕ), by omega⟩ ⟨2 * (j : ℕ) + 1, by omega⟩ = true
-        simp [CGraph.cycle, CGraph.ofRel_adj]
-        have hj : (j : ℕ) < k + 2 := j.is_lt
-        rw [Nat.mod_eq_of_lt (by omega : 2 * (j : ℕ) + 1 < m)]
-        simp
-      -- Build the Finset of lineGraph vertices
-      let vertices : Finset (CGraph.lineGraph (CGraph.wheel m)).V :=
-        Finset.univ.image (fun j : Fin (k + 2) =>
-          ⟨mkEdge j, hedge_mem j⟩)
-      -- Show the vertices are pairwise non-adjacent in lineGraph
-      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.wheel m)).toSimple
-        (vertices : Set _) := by
-        unfold SimpleGraph.IsIndepSet
-        intro v hv w hw
-        -- Get the Fin indices
-        obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp (show v ∈ vertices from hv)
-        obtain ⟨j', _, rfl⟩ := Finset.mem_image.mp (show w ∈ vertices from hw)
-        simp [CGraph.lineGraph_adj]
-        intro hne hsym2 x hx
-        -- Characterize membership in mkEdge
-        have hmem_j : ∀ y, y ∈ mkEdge j ↔ y = Sum.inr ⟨2 * (j : ℕ), by omega⟩ ∨ y = Sum.inr
-          ⟨2 * (j : ℕ) + 1, by omega⟩ := by
-          simp [mkEdge]
-        have hmem_j' : ∀ y, y ∈ mkEdge j' ↔ y = Sum.inr ⟨2 * (j' : ℕ), by omega⟩ ∨ y = Sum.inr
-          ⟨2 * (j' : ℕ) + 1, by omega⟩ := by
-          simp [mkEdge]
-        rw [hmem_j] at hx
-        rw [hmem_j']
-        rcases hx with hx | hx <;> intro h <;> rw [hx] at h <;> simp at h
-        all_goals {
-          -- h is of the form inr ... = inr ... implying 2*j = 2*j' or similar as Fin m
-          have hne' : j ≠ j' := fun heq => hsym2 (heq ▸ rfl)
-          omega
-        }
-      -- mkEdge is injective
-      have hmk_inj : Function.Injective mkEdge := by
-        intro j j' hjj'
-        simp only [mkEdge] at hjj'
-        -- Extract membership from mkEdge j
-        set a : Fin m := ⟨2 * (j : ℕ), by omega⟩
-        set b : Fin m := ⟨2 * (j : ℕ) + 1, by omega⟩
-        set a' : Fin m := ⟨2 * (j' : ℕ), by omega⟩
-        set b' : Fin m := ⟨2 * (j' : ℕ) + 1, by omega⟩
-        have heq : Sym2.mk (Sum.inr a, Sum.inr b) = Sym2.mk (Sum.inr a', Sum.inr b') := hjj'
-        -- From Sym2.mk equality, we know Sum.inr a is in the second mk, so it equals inr a' or inr
-        -- b'
-        have ha_in_edge' : (Sum.inr a : Fin 1 ⊕ Fin m) ∈ Sym2.mk (Sum.inr a', Sum.inr b') := by
-          rw [← heq]
-          show Sym2.Mem _ _
-          simp [Sym2.Mem]
-        simp at ha_in_edge'
-        obtain h | h := ha_in_edge'
-        · -- inr a = inr a' (h : a = a' as Fin m)
-          exact Fin.ext (by simp [a, a'] at h; omega)
-        · -- inr a = inr b' (h : a = b' as Fin m)
-          simp [a, b'] at h
-          omega
-      -- Show cardinality
-      have hcard : vertices.card = k + 2 := by
-        simp only [vertices]
-        have hlift_inj : Function.Injective (fun j : Fin (k + 2) => ⟨mkEdge j, hedge_mem j⟩ : Fin (k
-          + 2) → (CGraph.lineGraph (CGraph.wheel m)).V) := by
-          intro j j' hj
-          exact hmk_inj (Subtype.ext_iff.mp hj)
-        rw [Finset.card_image_of_injective _ hlift_inj, Finset.card_fin]
-      -- Conclude
-      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
+  · rcases Nat.even_or_odd' n with ⟨k, rfl | rfl⟩
+    · -- `n = 2k`: the rim has odd length `2k + 3`, so pair `2j+1` with `2j+2` along it and
+      -- spend one spoke on the leftover rim vertex `0`.
+      rw [show (wheel (2 * k + 3) : IsoGraph) = ⟦CGraph.wheel (2 * k + 3)⟧ from rfl, matchNum_mk,
+        show (2 * k + 4) / 2 = Fintype.card (Unit ⊕ Fin (k + 1)) by simp; omega]
+      refine CGraph.card_le_matchNum
+        (Sum.elim (fun _ ↦ Sum.inl ⟨0, by omega⟩)
+          fun j : Fin (k + 1) ↦ Sum.inr ⟨2 * j + 1, by have := j.isLt; omega⟩)
+        (Sum.elim (fun _ ↦ Sum.inr ⟨0, by omega⟩)
+          fun j : Fin (k + 1) ↦ Sum.inr ⟨2 * j + 2, by have := j.isLt; omega⟩) ?_ ?_
+      · rintro (_ | j)
+        · exact CGraph.join_adj_inl_inr _ _ _ _
+        · exact wheel_rim_adj _ _ _ _ rfl
+      · rintro (⟨⟩ | i) (⟨⟩ | j) hij
+        · exact absurd rfl hij
+        · have hj := j.isLt
+          exact ⟨by simp, by simp, CGraph.inr_mk_ne_inr_mk _ _ (by omega),
+            CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
+        · have hi := i.isLt
+          exact ⟨by simp, CGraph.inr_mk_ne_inr_mk _ _ (by omega), by simp,
+            CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
+        · have hne : (i : ℕ) ≠ (j : ℕ) := fun h ↦ hij (by rw [Fin.ext h])
+          exact ⟨CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega),
+            CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
+    · -- `n = 2k + 1`: the rim has even length `2k + 4` and a perfect matching of its own.
+      rw [show (wheel (2 * k + 1 + 3) : IsoGraph) = ⟦CGraph.wheel (2 * k + 4)⟧ from rfl,
+        matchNum_mk, show (2 * k + 1 + 4) / 2 = Fintype.card (Fin (k + 2)) by simp; omega]
+      refine CGraph.card_le_matchNum
+        (fun j : Fin (k + 2) ↦ Sum.inr ⟨2 * j, by have := j.isLt; omega⟩)
+        (fun j : Fin (k + 2) ↦ Sum.inr ⟨2 * j + 1, by have := j.isLt; omega⟩)
+        (fun _ ↦ wheel_rim_adj _ _ _ _ rfl) ?_
+      intro i j hij
+      have hne : (i : ℕ) ≠ (j : ℕ) := fun h ↦ hij (by rw [Fin.ext h])
+      exact ⟨CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega),
+        CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
 
 @[simp] theorem radius_strongProduct_hypercube (m n : ℕ) :
     (hypercube m ⊠g hypercube n).radius = max m n := by
@@ -1637,7 +1035,8 @@ part. -/
 /-! ### Domination in Kneser graphs -/
 
 /-- **Three pairs dominate a Kneser graph on at least five points**: `{0,1}`, `{1,2}` and
-`{0,2}` between them meet or miss every pair. -/
+`{0,2}` between them meet or miss every pair, and no two pairs can do the same, because two
+pairs use up at most four of the `n ≥ 5` points and a third pair can be built to meet both. -/
 theorem domNum_kneser_two (n : ℕ) : (kneser (n + 5) 2).domNum = 3 := by
   have h01 : (0 : Fin (n + 5)) ≠ 1 := by
     intro h; have := Fin.ext_iff.mp h; simp at this
@@ -1645,593 +1044,194 @@ theorem domNum_kneser_two (n : ℕ) : (kneser (n + 5) 2).domNum = 3 := by
     intro h; have := Fin.ext_iff.mp h; simp [Nat.mod_eq_of_lt (by omega : 2 < n + 5)] at this
   have h12 : (1 : Fin (n + 5)) ≠ 2 := by
     intro h; have := Fin.ext_iff.mp h; simp [Nat.mod_eq_of_lt (by omega : 2 < n + 5)] at this
-  have key_dom : ∀ (t : Finset (Fin (n + 5))), t.card = 2 →
-      (t = {0, 1} ∨ t = {1, 2} ∨ t = {0, 2} ∨
-       t ∩ {0, 1} = ∅ ∨ t ∩ {1, 2} = ∅ ∨ t ∩ {0, 2} = ∅) := by
+  -- two pairs differ as soon as one contains a point the other misses
+  have vne : ∀ (p q : (CGraph.kneser (n + 5) 2).V) (y : Fin (n + 5)), y ∈ p.1 → y ∉ q.1 →
+      p ≠ q := fun p q y hyp hyq h ↦ hyq (h ▸ hyp)
+  -- Every pair either *is* one of `{0,1}`, `{1,2}`, `{0,2}` or misses one of them.
+  have key_dom : ∀ t : Finset (Fin (n + 5)), t.card = 2 →
+      t = {0, 1} ∨ t = {1, 2} ∨ t = {0, 2} ∨
+        t ∩ {0, 1} = ∅ ∨ t ∩ {1, 2} = ∅ ∨ t ∩ {0, 2} = ∅ := by
     intro t ht
-    by_contra h
-    push_neg at h
-    -- h : t ≠ {0,1} ∧ t ≠ {1,2} ∧ t ≠ {0,2} ∧ t ∩ {0,1} ≠ ∅ ∧ t ∩ {1,2} ≠ ∅ ∧ t ∩ {0,2} ≠ ∅
-    obtain ⟨hne01, hne12, hne02, hint01, hint12, hint02⟩ := h
-    -- Each nonzero intersection gives an element of t in the corresponding pair.
-    have hint01' : (t ∩ {0, 1} : Finset (Fin (n+5))) ≠ ∅ := by
-      exact Finset.Nonempty.ne_empty ‹_›
-    have hint12' : (t ∩ {1, 2} : Finset (Fin (n+5))) ≠ ∅ := by
-      exact Finset.Nonempty.ne_empty ‹_›
-    have hint02' : (t ∩ {0, 2} : Finset (Fin (n+5))) ≠ ∅ := by
-      exact Finset.Nonempty.ne_empty ‹_›
-    have h0 : (0 : Fin (n+5)) ∈ t ∨ 1 ∈ t := by
-      obtain ⟨x, hx⟩ := Finset.nonempty_iff_ne_empty.mpr hint01'
-      simp at hx
-      rcases hx with ⟨hxt, rfl | rfl⟩ <;> tauto
-    have h1 : (1 : Fin (n+5)) ∈ t ∨ 2 ∈ t := by
-      obtain ⟨x, hx⟩ := Finset.nonempty_iff_ne_empty.mpr hint12'
-      simp at hx
-      rcases hx with ⟨hxt, rfl | rfl⟩ <;> tauto
-    have h2 : (0 : Fin (n+5)) ∈ t ∨ 2 ∈ t := by
-      obtain ⟨x, hx⟩ := Finset.nonempty_iff_ne_empty.mpr hint02'
-      simp at hx
-      rcases hx with ⟨hxt, rfl | rfl⟩ <;> tauto
-    have eq_pair_of_mem : ∀ (a b : Fin (n+5)), a ≠ b → a ∈ t → b ∈ t → t = {a, b} := by
-      intro a b hab ha hb
-      apply Finset.eq_of_subset_of_card_le
-      · intro x hx
-        by_contra hxne
-        have hextra : ({a, b, x} : Finset (Fin (n+5))) ⊆ t := by
-          intro y hy; simp at hy; rcases hy with rfl | rfl | rfl <;> assumption
-        have hcard := Finset.card_le_card hextra
-        have hcard3 : ({a, b, x} : Finset (Fin (n+5))).card = 3 := by
-          have hax : a ≠ x := by intro h; exact hxne (h ▸ Finset.mem_insert_self _ _)
-          have hbx : b ≠ x := by
-            intro h
-            exact hxne (h ▸ Finset.mem_insert_of_mem (Finset.mem_singleton_self _))
-          rw [Finset.card_insert_of_notMem, Finset.card_insert_of_notMem]
-          · simp
-          · exact fun h => hbx (Finset.mem_singleton.mp h)
-          · intro h; rcases Finset.mem_insert.mp h with rfl | h; exact absurd rfl hab; exact hax
-              (Finset.mem_singleton.mp h)
-        omega
-      · rw [ht, Finset.card_pair hab]
-    have hcard012 : ({0, 1, 2} : Finset (Fin (n+5))).card = 3 := by
-      simp [Finset.card_insert_of_notMem, h01, h02, h12]
-    rcases h0 with h0 | h0 <;> rcases h1 with h1 | h1 <;> rcases h2 with h2 | h2
-    · exact hne01 (eq_pair_of_mem 0 1 h01 h0 h1)
-    · have : ({0,1,2} : Finset (Fin (n+5))) ⊆ t := by
-        intro x hx; simp at hx; rcases hx with rfl | rfl | rfl <;> assumption
-      have hcard := Finset.card_le_card this
-      rw [hcard012, ht] at hcard; omega
-    · exact hne02 (eq_pair_of_mem 0 2 h02 h0 h1)
-    · exact hne02 (eq_pair_of_mem 0 2 h02 h0 h2)
-    · have := eq_pair_of_mem 1 0 h01.symm h0 h2
-      exact hne01 (this.trans (Finset.pair_comm _ _))
-    · exact hne12 (eq_pair_of_mem 1 2 h12 h0 h2)
-    · have : ({0,1,2} : Finset (Fin (n+5))) ⊆ t := by
-        intro x hx; simp at hx; rcases hx with rfl | rfl | rfl <;> [exact h2; exact h0; exact h1]
-      have hcard := Finset.card_le_card this
-      rw [hcard012, ht] at hcard; omega
-    · exact hne12 (eq_pair_of_mem 1 2 h12 h0 h2)
+    -- a pair containing `a` and `b` *is* `{a, b}` …
+    have pair : ∀ a b : Fin (n + 5), a ≠ b → a ∈ t → b ∈ t → t = {a, b} := fun a b hab ha hb ↦
+      (Finset.eq_of_subset_of_card_le (by simp [Finset.insert_subset_iff, ha, hb])
+        (by rw [ht, Finset.card_pair hab])).symm
+    -- … and one containing neither misses `{a, b}` altogether
+    have miss : ∀ a b : Fin (n + 5), a ∉ t → b ∉ t → t ∩ {a, b} = ∅ := by
+      intro a b ha hb
+      simp only [Finset.eq_empty_iff_forall_notMem, Finset.mem_inter, Finset.mem_insert,
+        Finset.mem_singleton, not_and]
+      rintro x hx (rfl | rfl)
+      · exact ha hx
+      · exact hb hx
+    by_cases hm0 : (0 : Fin (n + 5)) ∈ t <;> by_cases hm1 : (1 : Fin (n + 5)) ∈ t <;>
+        by_cases hm2 : (2 : Fin (n + 5)) ∈ t
+    · -- `t` would have three elements
+      have hsub : ({0, 1, 2} : Finset (Fin (n + 5))) ⊆ t := by
+        intro x hx
+        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+        rcases hx with rfl | rfl | rfl <;> assumption
+      have hc := Finset.card_le_card hsub
+      rw [ht, show ({0, 1, 2} : Finset (Fin (n + 5))).card = 3 by
+        simp [Finset.card_insert_of_notMem, h01, h02, h12]] at hc
+      omega
+    · exact Or.inl (pair 0 1 h01 hm0 hm1)
+    · exact Or.inr (Or.inr (Or.inl (pair 0 2 h02 hm0 hm2)))
+    · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl (miss 1 2 hm1 hm2)))))
+    · exact Or.inr (Or.inl (pair 1 2 h12 hm1 hm2))
+    · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (miss 0 2 hm0 hm2)))))
+    · exact Or.inr (Or.inr (Or.inr (Or.inl (miss 0 1 hm0 hm1))))
+    · exact Or.inr (Or.inr (Or.inr (Or.inl (miss 0 1 hm0 hm1))))
   rw [kneser, IsoGraph.domNum_mk]
-  have hcard01 : ({0, 1} : Finset (Fin (n + 5))).card = 2 := Finset.card_pair h01
-  have hcard12 : ({1, 2} : Finset (Fin (n + 5))).card = 2 := Finset.card_pair h12
-  have hcard02 : ({0, 2} : Finset (Fin (n + 5))).card = 2 := Finset.card_pair h02
-  let v01 : (CGraph.kneser (n + 5) 2).V := ⟨{0, 1}, hcard01⟩
-  let v12 : (CGraph.kneser (n + 5) 2).V := ⟨{1, 2}, hcard12⟩
-  let v02 : (CGraph.kneser (n + 5) 2).V := ⟨{0, 2}, hcard02⟩
-  let s : Finset (CGraph.kneser (n + 5) 2).V := {v01, v12, v02}
-  have hd01_12 : ({0, 1} : Finset (Fin (n + 5))) ≠ {1, 2} := by
-    intro h; have := Finset.ext_iff.mp h 0; simp at this; exact h02 this
-  have hd01_02 : ({0, 1} : Finset (Fin (n + 5))) ≠ {0, 2} := by
-    intro h; have := Finset.ext_iff.mp h 2; simp at this; rcases this with h' | h' <;> [exact absurd
-      h' h02.symm; exact absurd h' h12.symm]
-  have hd12_02 : ({1, 2} : Finset (Fin (n + 5))) ≠ {0, 2} := by
-    intro h; have := Finset.ext_iff.mp h 1; simp at this; exact h12 this
-  have hne01_12 : v01 ≠ v12 := fun h => hd01_12 (Subtype.ext_iff.mp h)
-  have hne01_02 : v01 ≠ v02 := fun h => hd01_02 (Subtype.ext_iff.mp h)
-  have hne12_02 : v12 ≠ v02 := fun h => hd12_02 (Subtype.ext_iff.mp h)
-  have hcard_s : s.card = 3 := by
-    show Finset.card ({v01, v12, v02} : Finset _) = 3
-    rw [show ({v01, v12, v02} : Finset _) = insert v01 (insert v12 (insert v02 ∅)) from rfl]
-    have hv02_not_empty : v02 ∉ (∅ : Finset (CGraph.kneser (n + 5) 2).V) := Finset.notMem_empty v02
-    have hv12_not_in_v02 : v12 ∉ insert v02 (∅ : Finset _) := by
-      simp [hne12_02]
-    have hv01_not_in_v12_v02 : v01 ∉ insert v12 (insert v02 (∅ : Finset _)) := by
-      simp [Finset.mem_insert, hne01_12, hne01_02]
-    rw [Finset.card_insert_of_notMem hv01_not_in_v12_v02,
-        Finset.card_insert_of_notMem hv12_not_in_v02,
-        Finset.card_insert_of_notMem hv02_not_empty,
-        Finset.card_empty]
-  have hdom_s : (CGraph.kneser (n + 5) 2).IsDominatingSet s := by
-    unfold CGraph.IsDominatingSet
-    intro ⟨t, ht⟩
-    by_cases hmem : ⟨t, ht⟩ = v01 ∨ ⟨t, ht⟩ = v12 ∨ ⟨t, ht⟩ = v02
-    · rcases hmem with h | h | h
-      · rw [h]; simp [s]
-      · rw [h]; simp [s]
-      · rw [h]; simp [s]
-    · push_neg at hmem
-      rcases key_dom t ht with h | h | h | h | h | h
-      · exact False.elim (hmem.1 (by subst h; rfl))
-      · exact False.elim (hmem.2.1 (by subst h; rfl))
-      · exact False.elim (hmem.2.2 (by subst h; rfl))
-      · right; exact ⟨v01, Finset.mem_insert_self _ _, by
-          rw [CGraph.kneser_adj]
-          simp [decide_eq_true_eq]
-          dsimp [v01]
-          exact ⟨hmem.1.symm, h.symm ▸ Eq.symm (Finset.inter_comm t {0, 1})⟩⟩
-      · right; exact ⟨v12, Finset.mem_insert_of_mem (Finset.mem_insert_self _ _), by
-          rw [CGraph.kneser_adj]
-          simp [decide_eq_true_eq]
-          dsimp [v12]
-          exact ⟨hmem.2.1.symm, h.symm ▸ Eq.symm (Finset.inter_comm t {1, 2})⟩⟩
-      · right; exact ⟨v02, show v02 ∈ s from by simp [s], by
-          rw [CGraph.kneser_adj]
-          simp [decide_eq_true_eq]
-          dsimp [v02]
-          exact ⟨hmem.2.2.symm, h.symm ▸ Eq.symm (Finset.inter_comm t {0, 2})⟩⟩
-  have hupp : (CGraph.kneser (n + 5) 2).domNum ≤ 3 :=
-    le_trans (CGraph.domNum_le_card_of_isDominatingSet hdom_s) (by rw [hcard_s])
-  -- Lower bound: domNum ≥ 3
-  have hlow : 3 ≤ (CGraph.kneser (n + 5) 2).domNum := by
-    by_contra hlt
-    push_neg at hlt
-    obtain ⟨s, hs_card, hs_dom⟩ := CGraph.exists_isDominatingSet_domNum (CGraph.kneser (n + 5) 2)
-    have hscard : s.card ≤ 2 := by linarith
-    unfold CGraph.IsDominatingSet at hs_dom
-    have hn5 : 5 ≤ n + 5 := by omega
-    -- All elements appearing in vertices of s
-    set E := s.biUnion (fun u : (CGraph.kneser (n + 5) 2).V => u.val) with hE_def
-    have hE_card : E.card ≤ 4 := by
-      calc E.card ≤ ∑ u ∈ s, u.val.card := Finset.card_biUnion_le
-        _ = s.card * 2 := by
-            rw [Finset.sum_congr rfl (fun u hu => u.2), Finset.sum_const, smul_eq_mul]
-        _ ≤ 2 * 2 := by gcongr
-        _ = 4 := by norm_num
-    have hE_lt : E.card < Fintype.card (Fin (n + 5)) := by
-      rw [Fintype.card_fin]; omega
-    obtain ⟨x₀, hx₀⟩ : ∃ x₀ : Fin (n + 5), x₀ ∉ E := by
-      by_contra hx₀; push_neg at hx₀
-      have : E = Finset.univ := Finset.eq_univ_of_forall hx₀
-      rw [this, Finset.card_univ, Fintype.card_fin] at hE_card; omega
-    have hx₀_not_in : ∀ u ∈ s, x₀ ∉ u.val := by
-      intro u hu hmem; exact hx₀ (Finset.mem_biUnion.mpr ⟨u, hu, hmem⟩)
-    interval_cases hscard2 : s.card
-    · -- card = 0
-      have hs_empty : s = ∅ := Finset.card_eq_zero.mp hscard2; subst hs_empty
-      exact absurd (hs_dom v01) (by simp)
-    · -- card = 1
-      obtain ⟨u, hu⟩ : ∃ u : (CGraph.kneser (n + 5) 2).V, s = {u} := by
-        rw [Finset.card_eq_one] at hscard2; exact hscard2
-      subst hu
-      have hu_ne_zero : u.val ≠ ∅ := by intro h; have := u.2; simp [h] at this
-      obtain ⟨a, ha⟩ : ∃ a, a ∈ u.val := Finset.nonempty_iff_ne_empty.mpr hu_ne_zero
-      obtain ⟨c, hc⟩ : ∃ c : Fin (n + 5), c ∉ u.val := by
-        by_contra hc; push_neg at hc
-        have huniv : u.val = Finset.univ := Finset.eq_univ_of_forall hc
-        have := u.2
-        rw [huniv, Finset.card_univ, Fintype.card_fin] at this
-        omega
-      have hac : a ≠ c := by intro h; exact hc (h ▸ ha)
-      let tval : Finset (Fin (n + 5)) := {a, c}
-      have htval_card : tval.card = 2 := Finset.card_pair hac
-      let t : (CGraph.kneser (n + 5) 2).V := ⟨tval, htval_card⟩
-      have ht_ne_u : t ≠ u := by
-        intro h
-        have h1 := Subtype.ext_iff.mp h
-        exact hc (h1.symm ▸ Finset.mem_insert_of_mem (Finset.mem_singleton_self _))
-      have ht_not_mem : t ∉ ({u} : Finset _) := by simp [ht_ne_u]
-      have ht_not_adj_u : ¬(CGraph.kneser (n + 5) 2).Adj u t := by
-        rw [CGraph.kneser_adj]
-        have h_mem : a ∈ u.val ∩ tval := Finset.mem_inter.mpr ⟨ha, Finset.mem_insert_self _ _⟩
-        by_contra h_adj
-        simp at h_adj
-        exact Finset.notMem_empty a (h_adj.2 ▸ h_mem)
-      have hdom_t := hs_dom t
-      rcases hdom_t with h | ⟨u_1, hu_1, hadj⟩
-      · exact ht_not_mem h
-      · simp [Finset.mem_singleton] at hu_1
-        subst hu_1
-        exact ht_not_adj_u hadj
-    · -- card = 2
-      obtain ⟨u, v, huv, hs_eq⟩ : ∃ u v : (CGraph.kneser (n + 5) 2).V, u ≠ v ∧ s = {u, v} := by
-        rw [Finset.card_eq_two] at hscard2; exact hscard2
-      subst hs_eq
-      by_cases hint_empty : (u.val ∩ v.val : Finset (Fin (n + 5))) = ∅
-      · -- Disjoint case
-        obtain ⟨a, ha⟩ : ∃ a, a ∈ u.val := Finset.card_pos.mp (by rw [u.2]; omega)
-        obtain ⟨b, hb⟩ : ∃ b, b ∈ v.val := Finset.card_pos.mp (by rw [v.2]; omega)
-        have hab_ne : a ≠ b := by
-          intro h
-          exact Finset.notMem_empty a (hint_empty ▸ Finset.mem_inter.mpr ⟨ha, h ▸ hb⟩)
-        let tval : Finset (Fin (n + 5)) := {a, b}
-        have htval_card : tval.card = 2 := Finset.card_pair hab_ne
-        let t : (CGraph.kneser (n + 5) 2).V := ⟨tval, htval_card⟩
-        have ha_not_in_v : a ∉ v.val := by
-          intro h
-          exact Finset.notMem_empty a (hint_empty ▸ Finset.mem_inter.mpr ⟨ha, h⟩)
-        have hb_not_in_u : b ∉ u.val := by
-          intro h
-          exact Finset.notMem_empty b (hint_empty ▸ Finset.mem_inter.mpr ⟨h, hb⟩)
-        have ht_ne_u : t ≠ u := by
-          intro h
-          have h1 := Subtype.ext_iff.mp h
-          have : b ∈ u.val := by
-            rw [← h1]
-            exact Finset.mem_insert_of_mem (Finset.mem_singleton_self _)
-          exact hb_not_in_u this
-        have ht_ne_v : t ≠ v := by
-          intro h
-          have h1 := Subtype.ext_iff.mp h
-          have : a ∈ v.val := by rw [← h1]; exact Finset.mem_insert_self _ _
-          exact ha_not_in_v this
-        have ht_not_mem : t ∉ ({u, v} : Finset _) := by simp [ht_ne_u, ht_ne_v]
-        have ht_not_adj_u : ¬(CGraph.kneser (n + 5) 2).Adj u t := by
-          rw [CGraph.kneser_adj]
-          have h_mem : a ∈ u.val ∩ t.val := Finset.mem_inter.mpr ⟨ha, Finset.mem_insert_self _ _⟩
-          by_contra h_adj
-          simp at h_adj
-          exact Finset.notMem_empty a (h_adj.2 ▸ h_mem)
-        have ht_not_adj_v : ¬(CGraph.kneser (n + 5) 2).Adj v t := by
-          rw [CGraph.kneser_adj]
-          have h_mem : b ∈ v.val ∩ t.val := Finset.mem_inter.mpr ⟨hb, Finset.mem_insert_of_mem
-            (Finset.mem_singleton_self _)⟩
-          by_contra h_adj
-          simp at h_adj
-          exact Finset.notMem_empty b (h_adj.2 ▸ h_mem)
-        have hcontradiction := hs_dom t
-        rcases hcontradiction with h | ⟨w, hw, hadj⟩
-        · exact ht_not_mem h
-        · simp [Finset.mem_insert, Finset.mem_singleton] at hw
-          rcases hw with rfl | rfl <;> [exact ht_not_adj_u hadj; exact ht_not_adj_v hadj]
-      · -- Non-disjoint case
-        obtain ⟨a, ha⟩ : ∃ a, a ∈ (u.val ∩ v.val : Finset (Fin (n + 5))) :=
-          Finset.nonempty_iff_ne_empty.mpr hint_empty
-        have ha_u : a ∈ u.val := Finset.mem_inter.mp ha |>.1
-        have ha_v : a ∈ v.val := Finset.mem_inter.mp ha |>.2
-        have hdiff_u : (u.val \ v.val : Finset (Fin (n + 5))).Nonempty := by
-          by_contra hd; push_neg at hd
-          have hsub : u.val ⊆ v.val := Finset.sdiff_eq_empty_iff_subset.mp hd
-          have := Finset.card_le_card hsub
-          rw [u.2, v.2] at this
-          have : u.val = v.val := Finset.eq_of_subset_of_card_le hsub (by rw [u.2, v.2])
-          exact huv (Subtype.ext this)
-        obtain ⟨b, hb⟩ := hdiff_u
-        have hb_u : b ∈ u.val := Finset.mem_sdiff.mp hb |>.1
-        have hb_nv : b ∉ v.val := Finset.mem_sdiff.mp hb |>.2
-        have hdiff_v : (v.val \ u.val : Finset (Fin (n + 5))).Nonempty := by
-          by_contra hd; push_neg at hd
-          have hsub : v.val ⊆ u.val := Finset.sdiff_eq_empty_iff_subset.mp hd
-          have := Finset.card_le_card hsub
-          rw [v.2, u.2] at this
-          have : v.val = u.val := Finset.eq_of_subset_of_card_le hsub (by rw [v.2, u.2])
-          exact huv.symm (Subtype.ext this)
-        obtain ⟨c, hc⟩ := hdiff_v
-        have hc_v : c ∈ v.val := Finset.mem_sdiff.mp hc |>.1
-        have hc_nu : c ∉ u.val := Finset.mem_sdiff.mp hc |>.2
-        have hb_ne_c : b ≠ c := by intro h; exact hc_nu (h ▸ hb_u)
-        let tval : Finset (Fin (n + 5)) := {b, c}
-        have htval_card : tval.card = 2 := Finset.card_pair hb_ne_c
-        let t : (CGraph.kneser (n + 5) 2).V := ⟨tval, htval_card⟩
-        have ht_ne_u : t ≠ u := by
-          intro h; have := Subtype.ext_iff.mp h
-          exact hc_nu (this ▸ Finset.mem_insert_of_mem (Finset.mem_singleton_self _))
-        have ht_ne_v : t ≠ v := by
-          intro h; have := Subtype.ext_iff.mp h
-          exact hb_nv (this ▸ Finset.mem_insert_self _ _)
-        have ht_not_mem : t ∉ ({u, v} : Finset _) := by simp [ht_ne_u, ht_ne_v]
-        have ht_not_adj_u : ¬(CGraph.kneser (n + 5) 2).Adj u t := by
-          rw [CGraph.kneser_adj]
-          have h_mem : b ∈ u.val ∩ t.val := Finset.mem_inter.mpr ⟨hb_u, Finset.mem_insert_self _ _⟩
-          by_contra h_adj
-          simp at h_adj
-          exact Finset.notMem_empty b (h_adj.2 ▸ h_mem)
-        have ht_not_adj_v : ¬(CGraph.kneser (n + 5) 2).Adj v t := by
-          rw [CGraph.kneser_adj]
-          have h_mem : c ∈ v.val ∩ t.val := Finset.mem_inter.mpr ⟨hc_v, Finset.mem_insert_of_mem
-            (Finset.mem_singleton_self _)⟩
-          by_contra h_adj
-          simp at h_adj
-          exact Finset.notMem_empty c (h_adj.2 ▸ h_mem)
-        have hcontradiction := hs_dom t
-        rcases hcontradiction with h | ⟨w, hw, hadj⟩
-        · exact ht_not_mem h
-        · simp [Finset.mem_insert, Finset.mem_singleton] at hw
-          rcases hw with rfl | rfl <;> [exact ht_not_adj_u hadj; exact ht_not_adj_v hadj]
-  exact le_antisymm hupp hlow
+  -- Upper bound: the three pairs above dominate.
+  have hupp : (CGraph.kneser (n + 5) 2).domNum ≤ 3 := by
+    let v01 : (CGraph.kneser (n + 5) 2).V := ⟨{0, 1}, Finset.card_pair h01⟩
+    let v12 : (CGraph.kneser (n + 5) 2).V := ⟨{1, 2}, Finset.card_pair h12⟩
+    let v02 : (CGraph.kneser (n + 5) 2).V := ⟨{0, 2}, Finset.card_pair h02⟩
+    have hne01_12 : v01 ≠ v12 := vne _ _ 0 (by simp [v01]) (by simp [v12, h01, h02])
+    have hne01_02 : v01 ≠ v02 := vne _ _ 1 (by simp [v01]) (by simp [v02, h01.symm, h12])
+    have hne12_02 : v12 ≠ v02 := vne _ _ 1 (by simp [v12]) (by simp [v02, h01.symm, h12])
+    have hcard_s : ({v01, v12, v02} : Finset (CGraph.kneser (n + 5) 2).V).card = 3 := by
+      rw [Finset.card_insert_of_notMem (by simp [hne01_12, hne01_02]),
+        Finset.card_insert_of_notMem (by simp [hne12_02]), Finset.card_singleton]
+    refine hcard_s ▸ CGraph.domNum_le_card_of_isDominatingSet ?_
+    rintro ⟨t, ht⟩
+    by_cases hmem : (⟨t, ht⟩ : (CGraph.kneser (n + 5) 2).V) ∈ ({v01, v12, v02} : Finset _)
+    · exact Or.inl hmem
+    right
+    -- a member of the dominating set disjoint from `t` is adjacent to it
+    have dom_of : ∀ w : (CGraph.kneser (n + 5) 2).V, w ∈ ({v01, v12, v02} : Finset _) →
+        t ∩ w.1 = ∅ → ∃ w' ∈ ({v01, v12, v02} : Finset _),
+          (CGraph.kneser (n + 5) 2).Adj w' ⟨t, ht⟩ := by
+      intro w hw hint
+      refine ⟨w, hw, ?_⟩
+      rw [CGraph.kneser_adj]
+      simp only [Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+      exact ⟨fun h ↦ hmem (h ▸ hw), by rw [Finset.inter_comm]; exact hint⟩
+    have hv01 : v01 ∈ ({v01, v12, v02} : Finset _) := by simp
+    have hv12 : v12 ∈ ({v01, v12, v02} : Finset _) := by simp
+    have hv02 : v02 ∈ ({v01, v12, v02} : Finset _) := by simp
+    rcases key_dom t ht with h | h | h | h | h | h
+    · exact absurd ((show (⟨t, ht⟩ : (CGraph.kneser (n + 5) 2).V) = v01 from Subtype.ext h) ▸ hv01)
+        hmem
+    · exact absurd ((show (⟨t, ht⟩ : (CGraph.kneser (n + 5) 2).V) = v12 from Subtype.ext h) ▸ hv12)
+        hmem
+    · exact absurd ((show (⟨t, ht⟩ : (CGraph.kneser (n + 5) 2).V) = v02 from Subtype.ext h) ▸ hv02)
+        hmem
+    · exact dom_of v01 hv01 h
+    · exact dom_of v12 hv12 h
+    · exact dom_of v02 hv02 h
+  -- Lower bound: no two pairs dominate, since some third pair meets both.
+  have hlow : 2 < (CGraph.kneser (n + 5) 2).domNum := by
+    refine CGraph.two_lt_domNum _ ?_ ?_
+    · rw [CGraph.card_kneser]
+      calc 2 ≤ Nat.choose 5 2 := by decide
+        _ ≤ (n + 5).choose 2 := Nat.choose_le_choose 2 (by omega)
+    intro u v
+    -- two vertices use up at most four points, so some point `x` lies outside both
+    obtain ⟨x, hx⟩ : ∃ x : Fin (n + 5), x ∉ u.1 ∪ v.1 := by
+      by_contra hall
+      push_neg at hall
+      have h1 := Finset.card_le_card (fun y _ ↦ hall y :
+        (Finset.univ : Finset (Fin (n + 5))) ⊆ u.1 ∪ v.1)
+      have h2 := Finset.card_union_le u.1 v.1
+      rw [Finset.card_univ, Fintype.card_fin] at h1
+      rw [u.2, v.2] at h2
+      omega
+    have hxu : x ∉ u.1 := fun h ↦ hx (Finset.mem_union_left _ h)
+    have hxv : x ∉ v.1 := fun h ↦ hx (Finset.mem_union_right _ h)
+    have nadj : ∀ (p q : (CGraph.kneser (n + 5) 2).V) (y : Fin (n + 5)), y ∈ p.1 → y ∈ q.1 →
+        (CGraph.kneser (n + 5) 2).Adj p q = false := by
+      intro p q y hyp hyq
+      rw [CGraph.kneser_adj, Bool.and_eq_false_iff]
+      exact Or.inr (by
+        simp only [decide_eq_false_iff_not]
+        exact fun h ↦ Finset.notMem_empty y (h ▸ Finset.mem_inter.mpr ⟨hyp, hyq⟩))
+    by_cases hint : (u.1 ∩ v.1).Nonempty
+    · -- `u` and `v` share a point: pair it with `x`
+      obtain ⟨a, ha⟩ := hint
+      rw [Finset.mem_inter] at ha
+      have hax : a ≠ x := fun h ↦ hxu (h ▸ ha.1)
+      exact ⟨⟨{a, x}, Finset.card_pair hax⟩, vne _ _ x (by simp) hxu, vne _ _ x (by simp) hxv,
+        nadj _ _ a ha.1 (by simp), nadj _ _ a ha.2 (by simp)⟩
+    · -- `u` and `v` are disjoint: take one point from each
+      rw [Finset.not_nonempty_iff_eq_empty] at hint
+      obtain ⟨a, ha⟩ : u.1.Nonempty := Finset.card_pos.mp (by rw [u.2]; omega)
+      obtain ⟨b, hb⟩ : v.1.Nonempty := Finset.card_pos.mp (by rw [v.2]; omega)
+      have hbu : b ∉ u.1 := fun h ↦ Finset.notMem_empty b (hint ▸ Finset.mem_inter.mpr ⟨h, hb⟩)
+      have hav : a ∉ v.1 := fun h ↦ Finset.notMem_empty a (hint ▸ Finset.mem_inter.mpr ⟨ha, h⟩)
+      have hab : a ≠ b := fun h ↦ hav (h ▸ hb)
+      exact ⟨⟨{a, b}, Finset.card_pair hab⟩, vne _ _ b (by simp) hbu, vne _ _ a (by simp) hav,
+        nadj _ _ a ha (by simp), nadj _ _ b hb (by simp)⟩
+  omega
 
-/-- **A fan has a near-perfect matching**: pair the hub with one end of the path and match
-the rest of the path in pairs. -/
+/-- Consecutive spine vertices of a fan are adjacent. -/
+private theorem fan_spine_adj {m : ℕ} (u v : ℕ) (hu : u < m) (hv : v < m) (h : u + 1 = v) :
+    (CGraph.complete 1 ∇g CGraph.path m).Adj (Sum.inr ⟨u, hu⟩) (Sum.inr ⟨v, hv⟩) = true := by
+  rw [CGraph.join_adj_inr_inr, CGraph.path_adj_val]
+  exact ⟨by simp only []; omega, Or.inl (by simp only []; omega)⟩
+
+/-- **A fan has a near-perfect matching**, by the same argument as the wheel: the spine matches
+itself, and a spoke to the hub mops up the leftover end vertex when the spine is odd. -/
 @[simp] theorem matchNum_fan (n : ℕ) : (fan (n + 1)).matchNum = (n + 2) / 2 := by
-  apply le_antisymm
+  refine le_antisymm ?_ ?_
   · have h1 := (fan (n + 1)).two_mul_matchNum_le_V
     rw [V_fan] at h1
     omega
-  · -- Lower bound: exhibit a matching of size (n+2)/2 in fan (n+1)
-    rw [matchNum_eq]
+  · rw [fan_eq_join, IsoGraph.complete, IsoGraph.path, join_mk, matchNum_mk]
     rcases Nat.even_or_odd' n with ⟨k, rfl | rfl⟩
-    · have join_mk : ∀ (G H : CGraph),
-          ⟦G⟧ ∇g ⟦H⟧ = ⟦G ∇g H⟧ := by
-        intro G H
-        rw [IsoGraph.join, compl_mk, compl_mk, disjUnion_mk, compl_mk]
-        rfl
-      have hconvert : (fan (2 * k + 1)).lineGraph.indepNum =
-          (CGraph.complete 1 ∇g CGraph.path (2 * k + 1)).lineGraph.indepNum := by
-        rw [fan_eq_join, IsoGraph.complete, IsoGraph.path, join_mk, lineGraph_mk, indepNum_mk]
-      rw [hconvert]
-      have harith : (2 * k + 2) / 2 = k + 1 := by omega
-      rw [harith]
-      -- Lower bound: exhibit k+1 pairwise disjoint edges in fan (2*k+1) = join K1 P(2k+1)
-      -- Edge set of CGraph.join (complete 1) (path (2*k+1)):
-      --   - spoke edges: (inl 0, inr j) for all j : Fin (2*k+1)
-      --   - path edges: (inr i, inr (i+1)) for i : Fin (2*k)
-      -- Matching: spoke to 0, plus path edges (2i-1, 2i) for i=1..k, i.e.,
-      -- (1,2),(3,4),...,(2k-1,2k)
-      set m : ℕ := 2 * k + 1
-      -- spoke edge: {inl 0, inr ⟨0, by omega⟩}
-      let e0 : Sym2 (Fin 1 ⊕ Fin m) := Sym2.mk (Sum.inl ⟨0, by omega⟩, Sum.inr ⟨0, by omega⟩)
-      -- path edges for j : Fin k: {inr ⟨2*j+1, ...⟩, inr ⟨2*j+2, ...⟩}
-      let epath : Fin k → Sym2 (Fin 1 ⊕ Fin m) :=
-        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 2, by omega⟩)
-      -- Show e0 is an edge
-      have he0 : e0 ∈ (CGraph.complete 1 ∇g CGraph.path m).toSimple.edgeSet := by
-        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inl_inr]
-      -- Show each epath j is an edge
-      have hepath : ∀ j : Fin k, epath j ∈ (CGraph.complete 1 ∇g CGraph.path
-        m).toSimple.edgeSet := by
-        intro j
-        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inr_inr, CGraph.path_adj]
-        simp [Fin.ext_iff]
-      let spokeV : (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V := ⟨e0, he0⟩
-      let rimV : Fin k → (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V :=
-        fun j => ⟨epath j, hepath j⟩
-      -- inl 0 is in e0 but not in any epath j
-      have hinl0_in_e0 : (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ e0 := by
-        simp [e0]
-      have hinl0_not_in_epath : ∀ j : Fin k, (Sum.inl ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∉ epath j := by
-        intro j; simp [epath]
-      -- spokeV ≠ rimV j (spoke has inl, rim doesn't)
-      have hspoke_ne_rim : ∀ j : Fin k, spokeV ≠ rimV j := by
-        intro j heq
-        have hval : e0 = epath j := Subtype.ext_iff.mp heq
-        have := hinl0_in_e0
-        rw [hval] at this
-        exact hinl0_not_in_epath j this
-      -- rim edge membership char
-      have hmemRim_char : ∀ j : Fin k, ∀ y : Fin 1 ⊕ Fin m,
-          y ∈ epath j ↔ y = Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩ ∨ y = Sum.inr
-            ⟨2 * (j : ℕ) + 2, by omega⟩ := by
-        intro j y; simp [epath]
-      -- vertices in e0: only inl 0 and inr 0
-      have hin0_in_e0 : (Sum.inr ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∈ e0 := by
-        simp [e0]
-      have hin0_not_in_epath : ∀ j : Fin k, (Sum.inr ⟨0, by omega⟩ : Fin 1 ⊕ Fin m) ∉ epath j := by
-        intro j; simp [epath]
-      -- Any vertex in e0 is not in any epath j
-      have hnot_in_epath_of_in_e0 : ∀ (v : Fin 1 ⊕ Fin m) (j : Fin k), v ∈ e0 → v ∉ epath j := by
-        intro v j hv hv'
-        simp [e0] at hv
-        rcases hv with rfl | rfl
-        · exact hinl0_not_in_epath j hv'
-        · exact hin0_not_in_epath j hv'
-      -- spokeV ≠ rimV j (alternative proof using vertex membership)
-      -- (already have hspoke_ne_rim above, keep it)
-      -- vertices in epath j characterised
-      -- rimV is injective
-      have hrim_inj : Function.Injective rimV := by
-        intro j j' hj
-        have hval : epath j = epath j' := Subtype.ext_iff.mp hj
-        -- inr ⟨2*j+1, ...⟩ ∈ epath j, so ∈ epath j', so by hmemRim_char, 2*j+1 = 2*j'+1 or 2*j+1 =
-        -- 2*j'+2
-        have hm1 : (Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩ : Fin 1 ⊕ Fin m) ∈ epath j := by
-          simp [epath]
-        rw [hval] at hm1
-        rcases hmemRim_char j' _ |>.mp hm1 with h | h <;> simp [Fin.ext_iff] at h <;> omega
-      -- vertices finset
-      let vertices : Finset (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V
-        :=
-        {spokeV} ∪ Finset.univ.image rimV
-      -- Independence
-      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.complete 1 ∇g
-        CGraph.path m)).toSimple
-          (vertices : Set _) := by
-        unfold SimpleGraph.IsIndepSet
-        intro v hv w hw hvw
-        have hv' : v = spokeV ∨ ∃ j : Fin k, rimV j = v := by
-          simp [vertices] at hv; exact hv
-        have hw' : w = spokeV ∨ ∃ j : Fin k, rimV j = w := by
-          simp [vertices] at hw; exact hw
-        rcases hv' with rfl | ⟨j, rfl⟩
-        · rcases hw' with rfl | ⟨j', rfl⟩
-          · exact absurd rfl hvw
-          · intro h
-            simp [CGraph.toSimple] at h
-            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
-            exact hnot_in_epath_of_in_e0 v j' hv1 hv2
-        · rcases hw' with rfl | ⟨j', rfl⟩
-          · intro h
-            simp [CGraph.toSimple] at h
-            obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
-            exact hnot_in_epath_of_in_e0 v j hv2 hv1
-          · by_cases heq : j = j'
-            · subst heq; simp at hvw
-            · intro h
-              simp [CGraph.lineGraph_adj] at h
-              -- epath j and epath j' share a vertex, but they shouldn't when j≠j'
-              obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
-              simp only [rimV] at hv1 hv2
-              rw [hmemRim_char j] at hv1
-              rw [hmemRim_char j'] at hv2
-              rcases hv1 with h|h <;> rcases hv2 with h'|h' <;> (
-                subst h; simp at h'
-                omega)
-      -- Cardinality
-      have hcard : vertices.card = k + 1 := by
-        simp only [vertices]
-        have hdisj : Disjoint {spokeV} (Finset.univ.image rimV) := by
-          rw [Finset.disjoint_singleton_left]
-          intro hv
-          obtain ⟨j, _, hj⟩ := Finset.mem_image.mp hv
-          exact hspoke_ne_rim j (hj.symm)
-        rw [Finset.card_union_of_disjoint hdisj]
-        simp [Finset.card_singleton]
-        rw [Finset.card_image_of_injective _ hrim_inj]
-        simp
-        omega
-      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
-    · -- Odd case: n = 2*k+1, fan(n+1) = fan(2*k+2)
-      have hconvert : (fan (2 * k + 1 + 1)).lineGraph.indepNum =
-          (CGraph.complete 1 ∇g CGraph.path (2 * k + 2)).lineGraph.indepNum := by
-        rw [fan_eq_join, IsoGraph.complete, IsoGraph.path, join_mk, lineGraph_mk, indepNum_mk]
-      rw [hconvert]
-      have harith : (2 * k + 1 + 2) / 2 = k + 1 := by omega
-      rw [harith]
-      set m : ℕ := 2 * k + 2
-      -- path edges for j : Fin (k+1): {inr ⟨2*j, ...⟩, inr ⟨2*j+1, ...⟩}
-      let epath : Fin (k + 1) → Sym2 (Fin 1 ⊕ Fin m) :=
-        fun j => Sym2.mk (Sum.inr ⟨2 * (j : ℕ), by omega⟩, Sum.inr ⟨2 * (j : ℕ) + 1, by omega⟩)
-      -- Show each epath j is an edge (rim-rim, path edges)
-      have hepath : ∀ j : Fin (k + 1), epath j ∈ (CGraph.complete 1 ∇g CGraph.path
-        m).toSimple.edgeSet := by
-        intro j
-        rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, CGraph.join_adj_inr_inr, CGraph.path_adj]
-        simp [Fin.ext_iff]
-      let rimV : Fin (k + 1) → (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path
-        m)).V :=
-        fun j => ⟨epath j, hepath j⟩
-      -- rim edge membership char
-      have hmemRim_char : ∀ j : Fin (k + 1), ∀ y : Fin 1 ⊕ Fin m,
-          y ∈ epath j ↔ y = Sum.inr ⟨2 * (j : ℕ), by omega⟩ ∨ y = Sum.inr
-            ⟨2 * (j : ℕ) + 1, by omega⟩ := by
-        intro j y; simp [epath]
-      -- rimV is injective
-      have hrim_inj : Function.Injective rimV := by
-        intro j j' hj
-        have hval : epath j = epath j' := Subtype.ext_iff.mp hj
-        have hm1 : (Sum.inr ⟨2 * (j : ℕ), by omega⟩ : Fin 1 ⊕ Fin m) ∈ epath j := by
-          simp [epath]
-        rw [hval] at hm1
-        rcases hmemRim_char j' _ |>.mp hm1 with h | h <;> simp [Fin.ext_iff] at h <;> omega
-      -- vertices finset
-      let vertices : Finset (CGraph.lineGraph (CGraph.complete 1 ∇g CGraph.path m)).V
-        :=
-        Finset.univ.image rimV
-      -- Independence: no two epath edges share a vertex
-      have hindependent : SimpleGraph.IsIndepSet (CGraph.lineGraph (CGraph.complete 1 ∇g
-        CGraph.path m)).toSimple
-          (vertices : Set _) := by
-        unfold SimpleGraph.IsIndepSet
-        intro v hv w hw hvw
-        simp only [vertices, Finset.mem_coe, Finset.mem_image, Finset.mem_univ, true_and] at hv hw
-        obtain ⟨j, hj⟩ := hv
-        obtain ⟨j', hwj'⟩ := hw
-        subst hj hwj'
-        by_cases heq : j = j'
-        · subst heq; simp at hvw
-        · intro h
-          simp [CGraph.lineGraph_adj] at h
-          obtain ⟨_, ⟨v, hv1, hv2⟩⟩ := h
-          simp [rimV] at hv2
-          rw [hmemRim_char j] at hv1
-          rw [hmemRim_char j'] at hv2
-          rcases hv1 with h|h <;> rcases hv2 with h'|h' <;> (
-            subst h; simp at h'
-            omega)
-      -- Cardinality
-      have hcard : vertices.card = k + 1 := by
-        simp only [vertices]
-        rw [Finset.card_image_of_injective _ hrim_inj]
-        simp
-      exact hcard ▸ SimpleGraph.IsIndepSet.card_le_indepNum hindependent
+    · -- `n = 2k`: the spine `P₂ₖ₊₁` has odd order, so match `1—2, 3—4, …` along it and spend a
+      -- spoke on the leftover end vertex `0`.
+      rw [show (2 * k + 2) / 2 = Fintype.card (Unit ⊕ Fin k) by simp; omega]
+      refine CGraph.card_le_matchNum
+        (Sum.elim (fun _ ↦ Sum.inl ⟨0, by omega⟩)
+          fun j : Fin k ↦ Sum.inr ⟨2 * j + 1, by have := j.isLt; omega⟩)
+        (Sum.elim (fun _ ↦ Sum.inr ⟨0, by omega⟩)
+          fun j : Fin k ↦ Sum.inr ⟨2 * j + 2, by have := j.isLt; omega⟩) ?_ ?_
+      · rintro (_ | j)
+        · exact CGraph.join_adj_inl_inr _ _ _ _
+        · exact fan_spine_adj _ _ _ _ rfl
+      · rintro (⟨⟩ | i) (⟨⟩ | j) hij
+        · exact absurd rfl hij
+        · have hj := j.isLt
+          exact ⟨by simp, by simp, CGraph.inr_mk_ne_inr_mk _ _ (by omega),
+            CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
+        · have hi := i.isLt
+          exact ⟨by simp, CGraph.inr_mk_ne_inr_mk _ _ (by omega), by simp,
+            CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
+        · have hne : (i : ℕ) ≠ (j : ℕ) := fun h ↦ hij (by rw [Fin.ext h])
+          exact ⟨CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega),
+            CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
+    · -- `n = 2k + 1`: the spine `P₂ₖ₊₂` has even order and matches itself perfectly.
+      rw [show (2 * k + 1 + 2) / 2 = Fintype.card (Fin (k + 1)) by simp; omega]
+      refine CGraph.card_le_matchNum
+        (fun j : Fin (k + 1) ↦ Sum.inr ⟨2 * j, by have := j.isLt; omega⟩)
+        (fun j : Fin (k + 1) ↦ Sum.inr ⟨2 * j + 1, by have := j.isLt; omega⟩)
+        (fun _ ↦ fan_spine_adj _ _ _ _ rfl) ?_
+      intro i j hij
+      have hne : (i : ℕ) ≠ (j : ℕ) := fun h ↦ hij (by rw [Fin.ext h])
+      exact ⟨CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega),
+        CGraph.inr_mk_ne_inr_mk _ _ (by omega), CGraph.inr_mk_ne_inr_mk _ _ (by omega)⟩
 
 /-- **A book with at least two pages has matching number two**: one spine vertex pairs
 with one page vertex and the other spine vertex with another. -/
 theorem matchNum_book (n : ℕ) : (book (n + 2)).matchNum = 2 := by
-  set G := book (n + 2)
-  apply le_antisymm
-  · -- ≤ 2
-    calc G.matchNum ≤ G.coverNum := matchNum_le_coverNum G
-    _ = 2 := by
-        show (book (n + 2)).coverNum = 2
-        rw [book_eq_join]
-        simp [coverNum_join, coverNum_complete, coverNum_empty, V_complete, V_empty]
-        omega
-  · -- ≥ 2
-    rw [matchNum_eq]
-    -- Reduce to CGraph level
-    have hG_cgraph : G = ⟦CGraph.completeMultipartite [1, 1, (n + 2)]⟧ := by rfl
-    rw [hG_cgraph, lineGraph_mk, indepNum_mk]
-    set H : CGraph := CGraph.completeMultipartite [1, 1, n + 2]
-    show 2 ≤ (CGraph.lineGraph H).indepNum
-    let v00 : H.V := ⟨0, ⟨0, by simp⟩⟩
-    let v10 : H.V := ⟨1, ⟨0, by simp⟩⟩
-    let v20 : H.V := ⟨2, ⟨0, by simp⟩⟩
-    let v21 : H.V := ⟨2, ⟨1, by simp⟩⟩
-    let e1 : Sym2 H.V := Sym2.mk (v00, v20)
-    let e2 : Sym2 H.V := Sym2.mk (v10, v21)
-    have hsua_ne1 : (CGraph.sigmaUnion (fun i => CGraph.complete ([1,1,n+2].get i))).Adj v00 v20 =
-      false := by
-      exact CGraph.sigmaUnion_adj_ne (fun i => CGraph.complete ([1,1,n+2].get i)) 0 2
-        ⟨0, by simp⟩ ⟨0, by simp⟩ (by decide : (0:Fin 3) ≠ 2)
-    have hsua_ne2 : (CGraph.sigmaUnion (fun i => CGraph.complete ([1,1,n+2].get i))).Adj v10 v21 =
-      false := by
-      exact CGraph.sigmaUnion_adj_ne (fun i => CGraph.complete ([1,1,n+2].get i)) 1 2
-        ⟨0, by simp⟩ ⟨1, by simp⟩ (by decide : (1:Fin 3) ≠ 2)
-    have hv00_ne_v20 : v00 ≠ v20 := by
-      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v00, v20] at this; omega
-    have hv10_ne_v21 : v10 ≠ v21 := by
-      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v10, v21] at this; omega
-    have hadj1 : H.Adj v00 v20 = true := by
-      simp only [H, CGraph.completeMultipartite, CGraph.compl_adj]
-      rw [hsua_ne1]
-      simp [hv00_ne_v20]
-    have hadj2 : H.Adj v10 v21 = true := by
-      simp only [H, CGraph.completeMultipartite, CGraph.compl_adj]
-      rw [hsua_ne2]
-      simp [hv10_ne_v21]
-    have he1 : e1 ∈ H.toSimple.edgeSet := by
-      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]; exact hadj1
-    have he2 : e2 ∈ H.toSimple.edgeSet := by
-      rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]; exact hadj2
-    set e1' : (CGraph.lineGraph H).V := ⟨e1, he1⟩
-    set e2' : (CGraph.lineGraph H).V := ⟨e2, he2⟩
-    have hne00_10 : v00 ≠ v10 := by
-      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v00, v10] at this
-    have hne00_21 : v00 ≠ v21 := by
-      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v00, v21] at this; omega
-    have hne20_10 : v20 ≠ v10 := by
-      intro h; have := congr_arg (fun x : H.V => x.1) h; simp [v20, v10] at this; omega
-    have hne20_21 : v20 ≠ v21 := by
-      intro h
-      have h' := Sigma.ext_iff.mp h
-      simp [v20, v21] at h'
-      exact absurd h' (by show (0 : Fin (n + 2)) ≠ 1; simp)
-    have he1_ne_he2 : e1 ≠ e2 := by
-      intro h'
-      rcases Sym2.eq_iff.1 h' with ⟨h1, _⟩ | ⟨h1, h2⟩
-      · exact hne00_10 h1
-      · exact hne00_21 h1
-    have hmem_e1 : ∀ v, v ∈ e1 → v = v00 ∨ v = v20 := by
-      intro v hv; induction e1 using Sym2.ind with
-      | _ a b => simpa [e1] using hv
-    have hmem_e2 : ∀ v, v ∈ e2 → v = v10 ∨ v = v21 := by
-      intro v hv; induction e2 using Sym2.ind with
-      | _ a b => simpa [e2] using hv
-    have hno_common : ¬ ∃ v, v ∈ (e1 : Sym2 H.V) ∧ v ∈ (e2 : Sym2 H.V) := by
-      intro ⟨v, hv1, hv2⟩
-      rcases hmem_e1 v hv1 with h | h <;> rcases hmem_e2 v hv2 with j | j
-      · exact hne00_10 (h.symm.trans j)
-      · exact hne00_21 (h.symm.trans j)
-      · exact hne20_10 (h.symm.trans j)
-      · exact hne20_21 (h.symm.trans j)
-    have he1'_ne_he2' : e1' ≠ e2' := by
-      intro h; exact he1_ne_he2 (congr_arg Subtype.val h)
-    have hna : ¬ (CGraph.lineGraph H).Adj e1' e2' := by
-      rw [CGraph.lineGraph_adj]
-      have hdec1 : decide (e1' ≠ e2') = true := by simp [he1'_ne_he2']
-      have hdec2 : decide (∃ v : H.V, v ∈ e1'.val ∧ v ∈ e2'.val) = false := by
-        simp [e1', e2']
-        exact fun v hv1 hv2 => hno_common ⟨v, hv1, hv2⟩
-      simp [hdec1, hdec2]
-    exact CGraph.two_le_indepNum he1'_ne_he2' hna
+  refine le_antisymm ?_ ?_
+  · calc (book (n + 2)).matchNum ≤ (book (n + 2)).coverNum := matchNum_le_coverNum _
+      _ = 2 := by
+          rw [book_eq_join]
+          simp [coverNum_join, coverNum_complete, coverNum_empty, V_complete, V_empty]
+          omega
+  · rw [book_eq_join, IsoGraph.complete, IsoGraph.empty, join_mk, matchNum_mk]
+    refine le_trans (le_of_eq (by simp)) (CGraph.card_le_matchNum
+      (fun i : Fin 2 ↦ Sum.inl i)
+      (fun i : Fin 2 ↦ Sum.inr ⟨i.val, by have := i.isLt; omega⟩) ?_ ?_)
+    · intro i
+      exact CGraph.join_adj_inl_inr _ _ _ _
+    · intro i j hij
+      refine ⟨fun h ↦ hij (Sum.inl.inj h), fun h ↦ Sum.inl_ne_inr h,
+        fun h ↦ Sum.inl_ne_inr h.symm, ?_⟩
+      exact CGraph.inr_mk_ne_inr_mk _ _ (fun h ↦ hij (Fin.ext h))
 
 /-- **A balanced complete multipartite graph with at least two parts has a near-perfect
 matching.** -/

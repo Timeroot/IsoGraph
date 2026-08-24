@@ -994,6 +994,55 @@ theorem ofEdges_adj_val (n : ℕ) (es : List (ℕ × ℕ)) (u v : (ofEdges n es)
   simp only [ofEdges, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
     ne_eq, huv, List.contains_eq_mem]
 
+/-- **A list covering the neighbours of `v` bounds its degree.**  Together with
+`le_degree_ofEdges` this turns a degree computation in a graph given by an edge list into two
+membership arguments about lists of naturals, with no `Finset` left at the call site. -/
+theorem degree_ofEdges_le (n : ℕ) (es : List (ℕ × ℕ)) (v : (ofEdges n es).V) (l : List ℕ)
+    (hl : ∀ w : ℕ, w ≠ v.1 → ((v.1, w) ∈ es ∨ (w, v.1) ∈ es) → w ∈ l) :
+    (ofEdges n es).toSimple.degree v ≤ l.length := by
+  classical
+  have hinj : Function.Injective (fun u : (ofEdges n es).V ↦ u.1) := fun a b h ↦ Fin.ext h
+  calc (ofEdges n es).toSimple.degree v
+      = ((ofEdges n es).nbrs v).card := (card_nbrs_eq_degree _ _).symm
+    _ = (((ofEdges n es).nbrs v).image (fun u : (ofEdges n es).V ↦ u.1)).card :=
+        (Finset.card_image_of_injective _ hinj).symm
+    _ ≤ l.toFinset.card := Finset.card_le_card (by
+        intro w hw
+        simp only [Finset.mem_image, mem_nbrs] at hw
+        obtain ⟨u, hu, rfl⟩ := hw
+        obtain ⟨hne, hadj⟩ := (ofEdges_adj_val n es v u).1 hu
+        exact List.mem_toFinset.2 (hl u.1 (Ne.symm hne) hadj))
+    _ ≤ l.length := List.toFinset_card_le l
+
+/-- A duplicate-free list of neighbours of `v` bounds its degree from below. -/
+theorem le_degree_ofEdges (n : ℕ) (es : List (ℕ × ℕ)) (v : (ofEdges n es).V) (l : List ℕ)
+    (hnd : l.Nodup)
+    (hl : ∀ w ∈ l, w < n ∧ w ≠ v.1 ∧ ((v.1, w) ∈ es ∨ (w, v.1) ∈ es)) :
+    l.length ≤ (ofEdges n es).toSimple.degree v := by
+  classical
+  have hsub : l.toFinset ⊆ ((ofEdges n es).nbrs v).image (fun u : (ofEdges n es).V ↦ u.1) := by
+    intro w hw
+    obtain ⟨hwn, hne, hadj⟩ := hl w (List.mem_toFinset.1 hw)
+    refine Finset.mem_image.2 ⟨⟨w, hwn⟩, ?_, rfl⟩
+    exact (mem_nbrs _ _ _).2 ((ofEdges_adj_val n es v ⟨w, hwn⟩).2 ⟨Ne.symm hne, hadj⟩)
+  calc l.length = l.toFinset.card := (List.toFinset_card_of_nodup hnd).symm
+    _ ≤ (((ofEdges n es).nbrs v).image (fun u : (ofEdges n es).V ↦ u.1)).card :=
+        Finset.card_le_card hsub
+    _ ≤ ((ofEdges n es).nbrs v).card := Finset.card_image_le
+    _ = _ := card_nbrs_eq_degree _ _
+
+/-- **The degree of a vertex of `ofEdges n es`, read off a list of its neighbours.**  The list
+must be duplicate-free, live in `Fin n`, avoid `v` itself, and contain exactly those vertices
+joined to `v` by an entry of `es` in one orientation or the other. -/
+theorem degree_ofEdges (n : ℕ) (es : List (ℕ × ℕ)) (v : (ofEdges n es).V) (l : List ℕ)
+    (hnd : l.Nodup) (hlt : ∀ w ∈ l, w < n) (hv : v.1 ∉ l)
+    (hmem : ∀ w : ℕ, w ≠ v.1 → (((v.1, w) ∈ es ∨ (w, v.1) ∈ es) ↔ w ∈ l)) :
+    (ofEdges n es).toSimple.degree v = l.length := by
+  refine le_antisymm (degree_ofEdges_le n es v l fun w hne hw ↦ (hmem w hne).1 hw)
+    (le_degree_ofEdges n es v l hnd fun w hw ↦ ?_)
+  have hne : w ≠ v.1 := by rintro rfl; exact hv hw
+  exact ⟨hlt w hw, hne, (hmem w hne).2 hw⟩
+
 /-- **Checking a property of every edge of `ofEdges n es` costs `es`, not `n²`.**  Deciding
 `∀ u v, (ofEdges n es).Adj u v = true → p u v` by exhaustion runs the adjacency test on all `n²`
 pairs, and each test that comes out false is a full scan of `es`; running down `es` instead tests
@@ -1007,6 +1056,115 @@ theorem forall_adj_ofEdges {n : ℕ} [NeZero n] {es : List (ℕ × ℕ)} (p : Fi
   rcases (ofEdges_adj_val n es u v).1 huv with ⟨-, hm | hm⟩
   · have := (h _ hm).1; rwa [hu, hv] at this
   · have := (h _ hm).2; rwa [hu, hv] at this
+
+/-- **The edge count of `ofEdges n es`**: if `es` lists no loop, no repeat and no reversed
+repeat, and stays inside `Fin n`, then the edges of `ofEdges n es` are exactly its entries, so
+there are `es.length` of them. -/
+theorem E_ofEdges_of_nodup {n : ℕ} {es : List (ℕ × ℕ)} (hn : ∀ p ∈ es, p.1 < n ∧ p.2 < n)
+    (hnooops : ∀ p ∈ es, p.1 ≠ p.2) (hnorev : ∀ p ∈ es, (p.2, p.1) ∉ es) (hnodup : es.Nodup) :
+    (ofEdges n es).E = es.length := by
+  induction es with
+  | nil =>
+    have : ofEdges n [] = empty n := by
+      exact ext' rfl (heq_of_eq (funext fun i => funext fun j =>
+          by simp [ofEdges, empty]))
+    rw [this, E_empty, List.length_nil]
+  | cons e es' ih =>
+    unfold E
+    set ue : Fin n := ⟨e.1, (hn e (by simp)).1⟩
+    set ve : Fin n := ⟨e.2, (hn e (by simp)).2⟩
+    set edge_e : Sym2 (Fin n) := Sym2.mk (ue, ve)
+    have he_not_in_es' : e ∉ es' := by
+      intro h
+      have hd := hnodup
+      simp [List.nodup_cons] at hd
+      exact hd.1 h
+    have hrev_not_in_es' : (e.2, e.1) ∉ es' := by
+      intro h
+      have hmem : (e.2, e.1) ∈ e :: es' := by simp [h]
+      exact absurd (hnorev (e.2, e.1) hmem) (by simp [List.mem_cons])
+    have hdisjoint : edge_e ∉ (ofEdges n es').toSimple.edgeFinset := by
+      intro he
+      rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, toSimple_adj,
+          ofEdges_adj_val] at he
+      rcases he.2 with h | h
+      · exact he_not_in_es' h
+      · exact hrev_not_in_es' h
+    -- Now show the edgeFinset equality
+    have hedgeFinset_eq : (ofEdges n (e :: es')).toSimple.edgeFinset =
+        (insert edge_e (ofEdges n es').toSimple.edgeFinset) := by
+      ext x
+      show x ∈ (ofEdges n (e :: es')).toSimple.edgeFinset ↔
+          x ∈ insert edge_e (ofEdges n es').toSimple.edgeFinset
+      have hdef : (ofEdges n (e :: es')).V = Fin n := rfl
+      change x ∈ (ofEdges n (e :: es')).toSimple.edgeFinset ↔
+          x ∈ insert edge_e (ofEdges n es').toSimple.edgeFinset at *
+      induction x using Sym2.ind with
+      | h u v =>
+        simp [SimpleGraph.mem_edgeFinset, Finset.mem_insert, SimpleGraph.mem_edgeSet,
+          toSimple_adj, ofEdges_adj_val]
+        dsimp only [ofEdges, ofRel] at u v
+        simp only [edge_e]
+        rw [Sym2.eq_iff]
+        have heq1 : (u = ue ↔ ↑u = e.1) := by simp [ue, Fin.ext_iff]
+        have heq2 : (v = ve ↔ ↑v = e.2) := by simp [ve, Fin.ext_iff]
+        have heq3 : (u = ve ↔ ↑u = e.2) := by simp [ve, Fin.ext_iff]
+        have heq4 : (v = ue ↔ ↑v = e.1) := by simp [ue, Fin.ext_iff]
+        have heq5 : ((↑u, ↑v) = e ↔ ↑u = e.1 ∧ ↑v = e.2) := Prod.ext_iff
+        have heq6 : ((↑v, ↑u) = e ↔ ↑v = e.1 ∧ ↑u = e.2) := Prod.ext_iff
+        rw [heq5, heq6, heq1, heq2, heq3, heq4]
+        have hnooops_e : e.1 ≠ e.2 := hnooops e (by simp)
+        have huvFin : (u : ℕ) = (v : ℕ) ↔ u = v := Fin.ext_iff.symm
+        have hA_notC : (↑u = e.1 ∧ ↑v = e.2) → ¬(↑u = ↑v) := by
+          intro ⟨ha, hb⟩ huv
+          have huv' : (u : ℕ) = (v : ℕ) := congr_arg (fun x : Fin n => (x : ℕ)) huv
+          exact hnooops_e (by rw [ha, hb] at huv'; exact huv')
+        have hB_notC : (↑v = e.1 ∧ ↑u = e.2) → ¬(↑u = ↑v) := by
+          intro ⟨ha, hb⟩ huv
+          have huv' : (u : ℕ) = (v : ℕ) := congr_arg (fun x : Fin n => (x : ℕ)) huv
+          exact hnooops_e (by rw [hb, ha] at huv'; exact huv'.symm)
+        have hB'_notC : (↑v = e.1 ∧ ↑u = e.2) → ¬(↑u = ↑v) := hB_notC
+        have hB_eq_B' : (↑u = e.2 ∧ ↑v = e.1) ↔ (↑v = e.1 ∧ ↑u = e.2) := and_comm
+        have hAB_notC : (↑u = e.1 ∧ ↑v = e.2 ∨ ↑u = e.2 ∧ ↑v = e.1) → ¬(↑u = ↑v) := by
+          rintro (hA | hB'')
+          · exact hA_notC hA
+          · exact hB_notC ⟨hB''.2, hB''.1⟩
+        constructor
+        · rintro ⟨hne, hmem⟩
+          rcases hmem with hAD | hBD' | hF
+          · rcases hAD with hA | hD
+            · exact .inl (.inl hA)
+            · exact .inr ⟨hne, .inl hD⟩
+          · exact .inl (.inr (hB_eq_B'.mpr hBD'))
+          · exact .inr ⟨hne, .inr hF⟩
+        · rintro (hAB | ⟨hne, hDF⟩)
+          · have hnotC := hAB_notC hAB
+            exact ⟨by intro huv; exact hnotC (Fin.ext_iff.mpr huv),
+                   Or.elim hAB (fun hA => Or.inl (Or.inl hA))
+                     (fun hB'' => Or.inr (Or.inl (hB_eq_B'.mp hB'')))⟩
+          · exact ⟨hne, Or.elim hDF (fun hD => Or.inl (Or.inr hD)) (fun hF => Or.inr (Or.inr hF))⟩
+    rw [hedgeFinset_eq, Finset.card_insert_of_notMem hdisjoint]
+    simp [List.length_cons]
+    exact ih
+      (fun p hp => ⟨(hn p (by simp [hp])).1, (hn p (by simp [hp])).2⟩)
+      (fun p hp => hnooops p (by simp [hp]))
+      (fun p hp => by
+        have h := hnorev p (by simp [hp])
+        exact fun hm => h (by simp [hm]))
+      hnodup.tail
+
+/-- **The edge count of a sorted edge list**: the common case of `E_ofEdges_of_nodup`, where
+every entry `(a, b)` has `a < b < n`.  This is the normal form the edge lists of
+`SmallGraphs/Defs/` are in. -/
+theorem E_ofEdges (n : ℕ) (es : List (ℕ × ℕ)) (hlt : ∀ p ∈ es, p.1 < p.2)
+    (hbound : ∀ p ∈ es, p.2 < n) (hnup : List.Nodup es) : (ofEdges n es).E = es.length :=
+  E_ofEdges_of_nodup (fun p hp ↦ ⟨lt_trans (hlt p hp) (hbound p hp), hbound p hp⟩)
+    (fun p hp ↦ Nat.ne_of_lt (hlt p hp))
+    (fun p hp hmem ↦ by
+      have h1 : p.1 < p.2 := hlt p hp
+      have h2 : p.2 < p.1 := hlt _ hmem
+      omega)
+    hnup
 
 /-! ### Theta graphs with two paths: the cycle -/
 

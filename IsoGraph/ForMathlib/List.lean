@@ -89,3 +89,13 @@ theorem exists_max_weight {V : Type*} (f : V → ℕ) (u : V) (vs : List V) :
         rcases List.mem_cons.1 hy with rfl | hy'
         · exact Nat.le_refl _
         · exact Nat.le_trans (hmax y hy') h
+
+/-- The shifted range `[c, c + 1, …, c + m - 1]`, as a membership test. -/
+theorem List.mem_map_add_range (c m w : ℕ) :
+    w ∈ (List.range m).map (fun i ↦ c + i) ↔ c ≤ w ∧ w < c + m := by
+  simp only [List.mem_map, List.mem_range]
+  constructor
+  · rintro ⟨i, hi, rfl⟩
+    omega
+  · intro h
+    exact ⟨w - c, by omega, by omega⟩

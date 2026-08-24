@@ -943,6 +943,60 @@ theorem not_isBipartite_lexProduct {G H : CGraph} (hG : 0 < G.E) (hH : 0 < H.E) 
 section
 variable {G H : CGraph}
 
+/-- **A diameter upper bound from a family of walks.**  If every pair of vertices is joined by a
+walk of length at most `k`, the diameter is at most `k`. -/
+theorem diameter_le_of_walks (G : CGraph) (k : ℕ)
+    (h : ∀ u v : G.V, ∃ p : G.toSimple.Walk u v, p.length ≤ k) : G.diameter ≤ k := by
+  have hup : G.toSimple.ediam ≤ (k : ℕ∞) :=
+    SimpleGraph.ediam_le_of_edist_le fun u v ↦ by
+      obtain ⟨p, hp⟩ := h u v
+      exact le_trans p.edist_le (by exact_mod_cast hp)
+  have h2 := ENat.toNat_le_toNat hup (by simp)
+  simpa [diameter, SimpleGraph.diam] using h2
+
+/-- **A diameter certificate.**  Walks of length at most `k` between all pairs, together with one
+pair `a`, `b` that no shorter walk joins, pin the diameter to `k`. -/
+theorem diameter_eq_of_walks (G : CGraph) (k : ℕ) {a b : G.V}
+    (hle : ∀ u v : G.V, ∃ p : G.toSimple.Walk u v, p.length ≤ k)
+    (hge : ∀ p : G.toSimple.Walk a b, k ≤ p.length) : G.diameter = k := by
+  have hup : G.toSimple.ediam ≤ (k : ℕ∞) :=
+    SimpleGraph.ediam_le_of_edist_le fun u v ↦ by
+      obtain ⟨p, hp⟩ := hle u v
+      exact le_trans p.edist_le (by exact_mod_cast hp)
+  have hlow : (k : ℕ∞) ≤ G.toSimple.ediam :=
+    le_trans (SimpleGraph.le_edist_of_forall_walk fun p ↦ by exact_mod_cast hge p)
+      (SimpleGraph.edist_le_ediam (u := a) (v := b))
+  rw [diameter, SimpleGraph.diam, le_antisymm hup hlow]
+  rfl
+
+/-- **A radius upper bound from a centre.**  A vertex that reaches everything in at most `k` steps
+witnesses `radius ≤ k`. -/
+theorem radius_le_of_walks (G : CGraph) (k : ℕ) (c : G.V)
+    (h : ∀ u : G.V, ∃ p : G.toSimple.Walk c u, p.length ≤ k) : G.radius ≤ k := by
+  have hup : G.toSimple.radius ≤ (k : ℕ∞) :=
+    le_trans SimpleGraph.radius_le_eccent <| iSup_le fun u ↦ by
+      obtain ⟨p, hp⟩ := h u
+      exact le_trans p.edist_le (by exact_mod_cast hp)
+  have h2 := ENat.toNat_le_toNat hup (by simp)
+  simpa [radius] using h2
+
+/-- **A radius certificate.**  A centre reaching everything in at most `k` steps, together with a
+vertex at distance at least `k` from *every* vertex, pins the radius to `k`. -/
+theorem radius_eq_of_walks (G : CGraph) (k : ℕ) (c : G.V)
+    (hle : ∀ u : G.V, ∃ p : G.toSimple.Walk c u, p.length ≤ k)
+    (hge : ∀ v : G.V, ∃ w : G.V, ∀ p : G.toSimple.Walk v w, k ≤ p.length) : G.radius = k := by
+  have hup : G.toSimple.radius ≤ (k : ℕ∞) :=
+    le_trans SimpleGraph.radius_le_eccent <| iSup_le fun u ↦ by
+      obtain ⟨p, hp⟩ := hle u
+      exact le_trans p.edist_le (by exact_mod_cast hp)
+  have hlow : (k : ℕ∞) ≤ G.toSimple.radius := by
+    refine le_iInf fun v ↦ ?_
+    obtain ⟨w, hw⟩ := hge v
+    exact le_trans (SimpleGraph.le_edist_of_forall_walk fun p ↦ by exact_mod_cast hw p)
+      SimpleGraph.edist_le_eccent
+  rw [radius, le_antisymm hup hlow]
+  rfl
+
 theorem diameter_le_two (G : CGraph)
     (h : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v) :
     G.diameter ≤ 2 := by
@@ -1480,6 +1534,158 @@ theorem radius_cartesianProduct (G H : CGraph)
   show (G □g H).toSimple.radius.toNat = _
   rw [h, ENat.toNat_add hGtop hHtop]
   rfl
+
+/-! ### The strong product carries the `ℓ∞` product metric -/
+
+theorem strongProduct_toSimple_adj (G H : CGraph) (p q : (G ⊠g H).V) :
+    (G ⊠g H).toSimple.Adj p q ↔
+      p ≠ q ∧ ((p.1 = q.1 ∨ G.toSimple.Adj p.1 q.1) ∧ (p.2 = q.2 ∨ H.toSimple.Adj p.2 q.2)) := by
+  simp [CGraph.toSimple_adj]
+
+theorem edist_fst_le_length {p q : (G ⊠g H).V} (W : (G ⊠g H).toSimple.Walk p q) :
+    G.toSimple.edist p.1 q.1 ≤ W.length := by
+  induction W with
+  | nil => simp
+  | @cons a b c hab rest ih =>
+    rw [SimpleGraph.Walk.length_cons]
+    rcases ((strongProduct_toSimple_adj G H a b).1 hab).2.1 with heq | hadj
+    · rw [heq]
+      exact le_trans ih (by exact_mod_cast Nat.le_add_right rest.length 1)
+    · calc G.toSimple.edist a.1 c.1
+          ≤ G.toSimple.edist a.1 b.1 + G.toSimple.edist b.1 c.1 := SimpleGraph.edist_triangle
+        _ ≤ 1 + (rest.length : ℕ∞) := add_le_add (le_trans (SimpleGraph.Walk.edist_le
+              (SimpleGraph.Walk.cons hadj SimpleGraph.Walk.nil)) (by simp)) ih
+        _ = ((rest.length + 1 : ℕ) : ℕ∞) := by push_cast; ring
+
+theorem edist_snd_le_length {p q : (G ⊠g H).V} (W : (G ⊠g H).toSimple.Walk p q) :
+    H.toSimple.edist p.2 q.2 ≤ W.length := by
+  induction W with
+  | nil => simp
+  | @cons a b c hab rest ih =>
+    rw [SimpleGraph.Walk.length_cons]
+    rcases ((strongProduct_toSimple_adj G H a b).1 hab).2.2 with heq | hadj
+    · rw [heq]
+      exact le_trans ih (by exact_mod_cast Nat.le_add_right rest.length 1)
+    · calc H.toSimple.edist a.2 c.2
+          ≤ H.toSimple.edist a.2 b.2 + H.toSimple.edist b.2 c.2 := SimpleGraph.edist_triangle
+        _ ≤ 1 + (rest.length : ℕ∞) := add_le_add (le_trans (SimpleGraph.Walk.edist_le
+              (SimpleGraph.Walk.cons hadj SimpleGraph.Walk.nil)) (by simp)) ih
+        _ = ((rest.length + 1 : ℕ) : ℕ∞) := by push_cast; ring
+
+private theorem exists_walk_strongProduct_aux (G H : CGraph) : ∀ (n : ℕ) {g₁ g₂ : G.V}
+    {h₁ h₂ : H.V} (WG : G.toSimple.Walk g₁ g₂) (WH : H.toSimple.Walk h₁ h₂),
+    WG.length + WH.length ≤ n →
+    ∃ W : (G ⊠g H).toSimple.Walk (g₁, h₁) (g₂, h₂), W.length ≤ max WG.length WH.length := by
+  let toSPG (h₀ : H.V) : G.toSimple →g (G ⊠g H).toSimple :=
+    { toFun := fun g ↦ (g, h₀)
+      map_rel' := @fun a b hab ↦ (strongProduct_toSimple_adj G H (a, h₀) (b, h₀)).2
+        ⟨fun h ↦ hab.ne (congrArg Prod.fst h), Or.inr hab, Or.inl rfl⟩ }
+  let toSPH (g₀ : G.V) : H.toSimple →g (G ⊠g H).toSimple :=
+    { toFun := fun h ↦ (g₀, h)
+      map_rel' := @fun a b hab ↦ (strongProduct_toSimple_adj G H (g₀, a) (g₀, b)).2
+        ⟨fun h ↦ hab.ne (congrArg Prod.snd h), Or.inl rfl, Or.inr hab⟩ }
+  intro n
+  induction n with
+  | zero =>
+    intro g₁ g₂ h₁ h₂ WG WH hle
+    obtain rfl := SimpleGraph.Walk.eq_of_length_eq_zero (p := WG) (by omega)
+    obtain rfl := SimpleGraph.Walk.eq_of_length_eq_zero (p := WH) (by omega)
+    exact ⟨.nil, by simp⟩
+  | succ m ih =>
+    intro g₁ g₂ h₁ h₂ WG WH hle
+    by_cases hg : WG.length = 0
+    · obtain rfl := SimpleGraph.Walk.eq_of_length_eq_zero (p := WG) hg
+      exact ⟨WH.map (toSPH g₁), by simp [hg]⟩
+    · by_cases hh : WH.length = 0
+      · obtain rfl := SimpleGraph.Walk.eq_of_length_eq_zero (p := WH) hh
+        exact ⟨WG.map (toSPG h₁), by simp [hh]⟩
+      · cases WG with
+        | nil => exact absurd rfl hg
+        | cons hab WGtail =>
+          cases WH with
+          | nil => exact absurd rfl hh
+          | cons hcd WHtail =>
+            obtain ⟨W, hW⟩ := ih WGtail WHtail (by
+              simp only [SimpleGraph.Walk.length_cons] at hle ⊢; omega)
+            refine ⟨SimpleGraph.Walk.cons ((strongProduct_toSimple_adj G H _ _).2
+              ⟨by rintro ⟨rfl, rfl⟩; exact hab.ne rfl, Or.inr hab, Or.inr hcd⟩) W, ?_⟩
+            simp only [SimpleGraph.Walk.length_cons] at hW ⊢
+            omega
+
+/-- **Walks in a strong product move in both coordinates at once.**  Two walks, one in each
+factor, combine into a single walk in the strong product whose length is the *maximum* of the
+two: the shorter one waits in place while the longer one catches up. -/
+theorem exists_walk_strongProduct {g₁ g₂ : G.V} {h₁ h₂ : H.V} (WG : G.toSimple.Walk g₁ g₂)
+    (WH : H.toSimple.Walk h₁ h₂) :
+    ∃ W : (G ⊠g H).toSimple.Walk (g₁, h₁) (g₂, h₂), W.length ≤ max WG.length WH.length :=
+  exists_walk_strongProduct_aux G H _ WG WH le_rfl
+
+/-- **The strong product carries the `ℓ∞` product metric.** -/
+theorem edist_strongProduct (G H : CGraph) (p q : (G ⊠g H).V) :
+    (G ⊠g H).toSimple.edist p q =
+      max (G.toSimple.edist p.1 q.1) (H.toSimple.edist p.2 q.2) := by
+  refine le_antisymm ?_ (SimpleGraph.le_edist_of_forall_walk fun W ↦
+    max_le (edist_fst_le_length W) (edist_snd_le_length W))
+  by_cases hg : G.toSimple.edist p.1 q.1 = ⊤
+  · simp [hg]
+  by_cases hh : H.toSimple.edist p.2 q.2 = ⊤
+  · simp [hh]
+  obtain ⟨WG, hWG⟩ := SimpleGraph.exists_walk_of_edist_ne_top hg
+  obtain ⟨WH, hWH⟩ := SimpleGraph.exists_walk_of_edist_ne_top hh
+  obtain ⟨W, hW⟩ := exists_walk_strongProduct WG WH
+  calc (G ⊠g H).toSimple.edist p q ≤ (W.length : ℕ∞) := SimpleGraph.Walk.edist_le W
+    _ ≤ ((max WG.length WH.length : ℕ) : ℕ∞) := by exact_mod_cast hW
+    _ = max (WG.length : ℕ∞) (WH.length : ℕ∞) := by
+        rcases le_total WG.length WH.length with h | h <;> simp [h, Nat.cast_le.2 h]
+    _ ≤ max (G.toSimple.edist p.1 q.1) (H.toSimple.edist p.2 q.2) := max_le_max hWG.le hWH.le
+
+/-- The eccentricity of a vertex of a strong product is the larger of the two coordinate
+eccentricities. -/
+theorem eccent_strongProduct (G H : CGraph) (p : (G ⊠g H).V) :
+    (G ⊠g H).toSimple.eccent p =
+      max (G.toSimple.eccent p.1) (H.toSimple.eccent p.2) := by
+  simp only [SimpleGraph.eccent, edist_strongProduct]
+  refine le_antisymm (iSup_le fun v ↦ max_le_max (le_iSup _ v.1) (le_iSup _ v.2)) (max_le ?_ ?_)
+  · exact iSup_le fun a ↦ le_trans (le_max_left _ (H.toSimple.edist p.2 p.2))
+      (le_iSup (fun v : (G ⊠g H).V ↦
+        max (G.toSimple.edist p.1 v.1) (H.toSimple.edist p.2 v.2)) (a, p.2))
+  · exact iSup_le fun b ↦ le_trans (le_max_right (G.toSimple.edist p.1 p.1) _)
+      (le_iSup (fun v : (G ⊠g H).V ↦
+        max (G.toSimple.edist p.1 v.1) (H.toSimple.edist p.2 v.2)) (p.1, b))
+
+/-- The extended diameter of a strong product is the larger of the two diameters. -/
+theorem ediam_strongProduct (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
+    (G ⊠g H).toSimple.ediam = max G.toSimple.ediam H.toSimple.ediam := by
+  simp only [SimpleGraph.ediam, eccent_strongProduct]
+  refine le_antisymm (iSup_le fun v ↦ max_le_max (le_iSup _ v.1) (le_iSup _ v.2)) (max_le ?_ ?_)
+  · exact iSup_le fun a ↦ le_trans (le_max_left _ (H.toSimple.eccent (Classical.arbitrary H.V)))
+      (le_iSup (fun v : (G ⊠g H).V ↦ max (G.toSimple.eccent v.1) (H.toSimple.eccent v.2))
+        (a, Classical.arbitrary H.V))
+  · exact iSup_le fun b ↦ le_trans (le_max_right (G.toSimple.eccent (Classical.arbitrary G.V)) _)
+      (le_iSup (fun v : (G ⊠g H).V ↦ max (G.toSimple.eccent v.1) (H.toSimple.eccent v.2))
+        (Classical.arbitrary G.V, b))
+
+/-- The radius of a strong product is the larger of the two radii. -/
+theorem radius_strongProduct_enat (G H : CGraph) :
+    (G ⊠g H).toSimple.radius = max G.toSimple.radius H.toSimple.radius := by
+  rcases isEmpty_or_nonempty G.V with hG | hG
+  · haveI := hG
+    haveI : IsEmpty (G ⊠g H).V := ⟨fun p ↦ hG.elim p.1⟩
+    rw [SimpleGraph.radius_eq_top_of_isEmpty,
+      SimpleGraph.radius_eq_top_of_isEmpty (G := G.toSimple)]
+    simp
+  rcases isEmpty_or_nonempty H.V with hH | hH
+  · haveI := hH
+    haveI : IsEmpty (G ⊠g H).V := ⟨fun p ↦ hH.elim p.2⟩
+    rw [SimpleGraph.radius_eq_top_of_isEmpty,
+      SimpleGraph.radius_eq_top_of_isEmpty (G := H.toSimple)]
+    simp
+  simp only [SimpleGraph.radius, eccent_strongProduct]
+  refine le_antisymm ?_ (le_iInf fun u ↦ max_le_max (iInf_le _ u.1) (iInf_le _ u.2))
+  obtain ⟨a, ha⟩ := ENat.exists_eq_iInf G.toSimple.eccent
+  obtain ⟨b, hb⟩ := ENat.exists_eq_iInf H.toSimple.eccent
+  exact le_trans (iInf_le (fun v : (G ⊠g H).V ↦
+    max (G.toSimple.eccent v.1) (H.toSimple.eccent v.2)) (a, b)) (le_of_eq (by rw [ha, hb]))
 
 /-- Adding edges cannot increase the diameter: the strong product is at most as wide as the
 cartesian product living inside it. -/

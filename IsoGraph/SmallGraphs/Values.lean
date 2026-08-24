@@ -1,4 +1,5 @@
 import IsoGraph.SmallGraphs.Colouring
+import IsoGraph.ForMathlib.Hamming
 
 /-!
 # Values that need more than one of the topical files
@@ -134,6 +135,57 @@ theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransit
     simp
 
 end
+
+/-! ### The cube families through the Hamming distance
+
+Both cube families are defined by counting the coordinates at which two bit-strings differ, which
+is exactly `hammingDist`.  Restating adjacency that way gives access to the triangle inequality
+and to the lemmas of `IsoGraph.ForMathlib.Hamming`, and turns the two elementary moves — flipping
+one coordinate, and flipping them all — into named edges. -/
+
+section Cubes
+
+/-- Adjacency in the hypercube is Hamming distance one. -/
+theorem hypercube_adj_hamming (n : ℕ) (x y : Fin n → Bool) :
+    (hypercube n).Adj x y = true ↔ hammingDist x y = 1 := by
+  simp [hypercube_adj, hammingDist]
+
+/-- The edges of the hypercube are exactly the single coordinate flips. -/
+theorem hypercube_adj_update_iff (n : ℕ) (x y : Fin n → Bool) :
+    (hypercube n).Adj x y = true ↔ ∃ i, y = Function.update x i (!x i) := by
+  rw [hypercube_adj_hamming, hammingDist_eq_one_iff]
+
+/-- Adjacency in the folded cube is Hamming distance one or `n`. -/
+theorem foldedCube_adj_hamming (n : ℕ) (x y : Fin n → Bool) :
+    (foldedCube n).Adj x y = true ↔ x ≠ y ∧ (hammingDist x y = 1 ∨ hammingDist x y = n) := by
+  simp [foldedCube_adj, hammingDist]
+
+/-- Flipping one coordinate is an edge of the folded cube. -/
+theorem foldedCube_adj_update (n : ℕ) (x : Fin n → Bool) (i : Fin n) :
+    (foldedCube n).Adj x (Function.update x i (!x i)) = true :=
+  (foldedCube_adj_hamming n _ _).2
+    ⟨fun h ↦ by simpa using congrArg (· i) h, Or.inl (hammingDist_update_not_self x i)⟩
+
+/-- The antipodal map is an edge of the folded cube. -/
+theorem foldedCube_adj_not (n : ℕ) (hn : 0 < n) (x : Fin n → Bool) :
+    (foldedCube n).Adj x (fun i ↦ !x i) = true := by
+  refine (foldedCube_adj_hamming n _ _).2 ⟨fun h ↦ ?_, Or.inr ?_⟩
+  · simpa using congrArg (· (⟨0, hn⟩ : Fin n)) h
+  · simpa [Fintype.card_fin] using
+      (hammingDist_eq_card_iff (x := x) (y := fun i ↦ !x i)).2 fun i ↦ by simp
+
+/-- …and those are the only edges: every edge of the folded cube is either a single coordinate
+flip or the antipodal map. -/
+theorem foldedCube_adj_cases {n : ℕ} {u v : Fin n → Bool} (h : (foldedCube n).Adj u v = true) :
+    (∃ i, v = Function.update u i (!u i)) ∨ v = fun i ↦ !u i := by
+  obtain ⟨-, hd⟩ := (foldedCube_adj_hamming n u v).1 h
+  rcases hd with h1 | hm
+  · exact Or.inl (hammingDist_eq_one_iff.1 h1)
+  · exact Or.inr (funext fun i ↦ by
+      have := hammingDist_eq_card_iff.1 (by rw [hm, Fintype.card_fin]) i
+      revert this; cases u i <;> cases v i <;> simp)
+
+end Cubes
 
 end CGraph
 
@@ -532,6 +584,13 @@ theorem tadpole_adj_val (m k : ℕ) (u v : (tadpole m k).V) :
     (tadpole m k).Adj u v = true ↔
       (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ cycleEdges m ++ legEdges 0 m k ∨
         (v.1, u.1) ∈ cycleEdges m ++ legEdges 0 m k)) :=
+  ofEdges_adj_val _ _ u v
+
+/-- Adjacency in `lollipop m k`, phrased entirely in terms of the underlying naturals. -/
+theorem lollipop_adj_val (m k : ℕ) (u v : (lollipop m k).V) :
+    (lollipop m k).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ cliqueEdges m ++ legEdges 0 m k ∨
+        (v.1, u.1) ∈ cliqueEdges m ++ legEdges 0 m k)) :=
   ofEdges_adj_val _ _ u v
 
 /-- Adjacency in `cyclePendant m ks`, phrased entirely in terms of the underlying naturals. -/

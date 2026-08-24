@@ -17,335 +17,40 @@ reversed pairs, therefore `E` is its length".  The remaining invariants come fro
 a lollipop's clique is its largest, a tadpole's junction is its only degree-three vertex, and a
 double star always has a pendant. -/
 
-/-- The double star has one central edge and `m + n` pendant edges. -/
+/-- **The double star has one central edge and `m + n` pendant edges.**  Its edge list is already
+in the normal form of `CGraph.E_ofEdges` — every pair `(a, b)` has `a < b` — so all that is left is
+to check the three side conditions and measure the list. -/
 theorem E_doubleStar (m n : ℕ) : (doubleStar m n).E = m + n + 1 := by
-  simp only [doubleStar]
-  rw [IsoGraph.E_mk]
-  set G : CGraph := CGraph.ofEdges (2 + m + n)
-    ((0, 1) :: (((List.range m).map fun i ↦ (0, 2 + i)) ++
-      ((List.range n).map fun i ↦ (1, 2 + m + i))))
-  have heq : G = CGraph.doubleStar m n := rfl
-  -- G.Adj is definitionally (CGraph.doubleStar m n).Adj
-  let root : G.V := ⟨0, by omega⟩
-  have hreach : ∀ v : G.V, G.toSimple.Reachable root v := by
-    intro v
-    by_cases hv0 : v.val = 0
-    · have : v = root := Fin.ext hv0; rw [this]
-    by_cases hv1 : v.val = 1
-    · have hv_eq : v = ⟨1, by omega⟩ := Fin.ext hv1
-      rw [hv_eq]
-      have hadj : G.Adj root ⟨1, by omega⟩ = true := by
-        change (CGraph.doubleStar m n).Adj root ⟨1, by omega⟩ = true
-        rw [CGraph.doubleStar_adj_val]
-        dsimp [root]
-        simp
-      exact SimpleGraph.Adj.reachable (show G.toSimple.Adj root ⟨1, by omega⟩ by simpa using hadj)
-    · -- v.val ≥ 2
-      by_cases hv_m : v.val < 2 + m
-      · have hadj : G.Adj root v = true := by
-          change (CGraph.doubleStar m n).Adj root v = true
-          rw [CGraph.doubleStar_adj_val]
-          dsimp [root]
-          simp; omega
-        exact SimpleGraph.Adj.reachable (show G.toSimple.Adj root v by simpa using hadj)
-      · have hadj : G.Adj ⟨1, by omega⟩ v = true := by
-          change (CGraph.doubleStar m n).Adj ⟨1, by omega⟩ v = true
-          rw [CGraph.doubleStar_adj_val]
-          simp; omega
-        have hreach1 : G.toSimple.Reachable root ⟨1, by omega⟩ := by
-          have hadj1 : G.Adj root ⟨1, by omega⟩ = true := by
-            change (CGraph.doubleStar m n).Adj root ⟨1, by omega⟩ = true
-            rw [CGraph.doubleStar_adj_val]
-            dsimp [root]
-            simp
-          exact
-            SimpleGraph.Adj.reachable (show G.toSimple.Adj root ⟨1, by omega⟩ by simpa using hadj1)
-        exact hreach1.trans (SimpleGraph.Adj.reachable
-          (show G.toSimple.Adj ⟨1, by omega⟩ v by simpa using hadj))
-  have hconn : G.IsConnected := by
-    unfold CGraph.IsConnected
-    have : Nonempty G.V := ⟨root⟩
-    apply SimpleGraph.Connected.mk
-    intro u v
-    exact (hreach u).symm.trans (hreach v)
-  have hlower : m + n + 1 ≤ G.E := by
-    have h1 := hconn.card_le_E_add_one
-    have hcard : FinEnum.card G.V = 2 + m + n := by simp [G]
-    rw [hcard] at h1; omega
-  have hdeg_bound : ∀ v : G.V,
-      G.toSimple.degree v ≤
-    if v.val = 0 then m + 1
-    else if v.val = 1 then n + 1
-    else 1 := by
-    intro v
-    simp only [SimpleGraph.degree]
-    have hadj_eq : ∀ u w : G.V, G.Adj u w = true ↔
-      (u.1 ≠ w.1 ∧
-        (((u.1 = 0 ∧ w.1 = 1) ∨ (u.1 = 0 ∧ 2 ≤ w.1 ∧ w.1 < 2 + m) ∨
-            (u.1 = 1 ∧ 2 + m ≤ w.1 ∧ w.1 < 2 + m + n)) ∨
-          ((w.1 = 0 ∧ u.1 = 1) ∨ (w.1 = 0 ∧ 2 ≤ u.1 ∧ u.1 < 2 + m) ∨
-            (w.1 = 1 ∧ 2 + m ≤ u.1 ∧ u.1 < 2 + m + n)))) := by
-      intro u w; exact CGraph.doubleStar_adj_val m n u w
-    -- neighborFinset characterization helper
-    let oneEle : G.V := ⟨1, by omega⟩
-    -- For any w, if Adj v w = true, then w satisfies certain val conditions
-    by_cases hv0 : v.val = 0
-    · simp [hv0]
-      have hv_eq : v = root := Fin.ext hv0
-      rw [hv_eq]
-      have hneigh_root :
-          ∀ w : G.V, G.Adj root w = true → w.val = 1 ∨ (2 ≤ w.val ∧ w.val < 2 + m) := by
-        intro w hw
-        rw [hadj_eq] at hw
-        simp [root] at hw
-        omega
-      have hsub : G.toSimple.neighborFinset root ⊆
-        Finset.univ.filter (fun w => w.val = 1 ∨ (2 ≤ w.val ∧ w.val < 2 + m)) := by
-        intro w hw
-        simp [SimpleGraph.mem_neighborFinset] at hw
-        simp [Finset.mem_filter]; exact hneigh_root w hw
-      have hcard_le : Finset.card (Finset.univ.filter (fun w : G.V => w.val = 1 ∨ (2 ≤ w.val ∧
-          w.val < 2 + m))) ≤ m + 1 := by
-        have hsub2 : Finset.univ.filter (fun w : G.V => w.val = 1 ∨ (2 ≤ w.val ∧ w.val < 2 + m)) ⊆
-          {oneEle} ∪ Finset.image (fun i : Fin m => ⟨2 + i.val, by omega⟩) Finset.univ := by
-          intro w hw
-          simp [Finset.mem_filter] at hw
-          simp [Finset.mem_image, Finset.mem_univ]
-          rcases hw with h | h
-          · left; exact Fin.ext h
-          · right
-            obtain ⟨h2, hlt⟩ := h
-            set a : Fin m := ⟨w.val - 2, by omega⟩
-            have hge2 : 2 ≤ w.val := h2
-            have hfa : (fun i : Fin m => Fin.mk (2 + i.val) (by omega) : Fin m → G.V) a = w := by
-              ext; simp [a, hge2]
-            exact ⟨a, hfa⟩
-        have hcard_image : Finset.card (Finset.image (fun i : Fin m => Fin.mk (2 + i.val)
-            (by omega) : Fin m → G.V) Finset.univ) ≤ m := by
-          exact le_trans (Finset.card_image_le) (by simp)
-        have : Finset.card ({oneEle} ∪ Finset.image (fun i : Fin m => Fin.mk (2 + i.val) (by omega)
-            : Fin m → G.V) Finset.univ) ≤ 1 + m := by
-          exact le_trans (Finset.card_union_le _ _) (add_le_add (by simp) hcard_image)
-        have h1 : 1 + m = m + 1 := by omega
-        rw [h1] at this
-        exact le_trans (Finset.card_le_card hsub2) this
-      exact le_trans (Finset.card_le_card hsub) hcard_le
-    · by_cases hv1 : v.val = 1
-      · simp [hv1]
-        have hv_eq : v = oneEle := Fin.ext hv1
-        rw [hv_eq]
-        have hneigh_one :
-            ∀ w : G.V, G.Adj oneEle w = true → w.val = 0 ∨ (2 + m ≤ w.val ∧ w.val < 2 + m + n) := by
-          intro w hw
-          rw [hadj_eq] at hw
-          simp [oneEle] at hw
-          by_cases hw0 : w = root
-          · left; exact congr_arg Fin.val hw0
-          · right
-            obtain ⟨_, hcases⟩ := hw
-            rcases hcases with h | h | h
-            · exact ⟨h, w.isLt⟩
-            · exfalso; exact hw0 h
-            · exfalso; omega
-        have hsub : G.toSimple.neighborFinset oneEle ⊆
-          {root} ∪ Finset.image (fun i : Fin n => ⟨2 + m + i.val, by omega⟩) Finset.univ := by
-          intro w hw
-          simp [SimpleGraph.mem_neighborFinset] at hw
-          obtain h | h := hneigh_one w hw
-          · exact Finset.mem_union_left _ (Finset.mem_singleton.mpr (Fin.ext h))
-          · obtain ⟨h2, hlt⟩ := h
-            exact Finset.mem_union_right _ (Finset.mem_image.mpr ⟨⟨w.val - (2 + m), by omega⟩,
-                Finset.mem_univ _, Fin.ext (by simp; omega)⟩)
-        have hcard_image : Finset.card (Finset.image (fun i : Fin n => Fin.mk (2 + m + i.val)
-            (by omega) : Fin n → G.V) Finset.univ) ≤ n := by
-          exact le_trans (Finset.card_image_le) (by simp)
-        have hcard_le : Finset.card (G.toSimple.neighborFinset oneEle) ≤ n + 1 := by
-          have := Finset.card_le_card hsub
-          calc Finset.card (G.toSimple.neighborFinset oneEle)
-              ≤ Finset.card ({root} ∪ Finset.image (fun i : Fin n => Fin.mk (2 + m + i.val)
-                  (by omega) : Fin n → G.V) Finset.univ) := this
-            _ ≤ Finset.card {root} + Finset.card (Finset.image (fun i : Fin n => Fin.mk (2 + m +
-                i.val) (by omega) : Fin n → G.V) Finset.univ) :=
-                Finset.card_union_le _ _
-            _ ≤ 1 + n := by exact add_le_add (by simp [Finset.card_singleton]) hcard_image
-            _ = n + 1 := by omega
-        exact hcard_le
-      · simp [hv0, hv1]
-        by_cases hv_m : v.val < 2 + m
-        · -- v connected to root only
-          have hv2 : 2 ≤ v.val := by omega
-          have hneigh_pendant_m : ∀ w : G.V, G.Adj v w = true → w.val = 0 := by
-            intro w hw
-            rw [hadj_eq] at hw
-            simp [hv2, hv0, hv1, hv_m] at hw
-            rcases hw with ⟨hne, h | h⟩
-            · exact congr_arg Fin.val h
-            · exfalso; omega
-          have hsub : G.toSimple.neighborFinset v ⊆ {root} := by
-            intro w hw
-            simp [SimpleGraph.mem_neighborFinset] at hw
-            exact Finset.mem_singleton.mpr (Fin.ext (hneigh_pendant_m w hw))
-          exact Finset.card_le_card hsub |> le_trans <| by simp
-        · -- v connected to oneEle only
-          have hge : 2 + m ≤ v.val := by omega
-          have hneigh_pendant_n : ∀ w : G.V, G.Adj v w = true → w.val = 1 := by
-            intro w hw
-            rw [hadj_eq] at hw
-            simp [hge, hv0, hv1] at hw
-            omega
-          have hsub : G.toSimple.neighborFinset v ⊆ {oneEle} := by
-            intro w hw
-            simp [SimpleGraph.mem_neighborFinset] at hw
-            exact Finset.mem_singleton.mpr (Fin.ext (hneigh_pendant_n w hw))
-          exact Finset.card_le_card hsub |> le_trans <| by simp
-  have hsum_bound : ∑ v : G.V, G.toSimple.degree v ≤ 2 * (m + n + 1) := by
-    calc ∑ v : G.V, G.toSimple.degree v
-        ≤ ∑ v : G.V, (if v.val = 0 then m + 1 else if v.val = 1 then n + 1 else 1) :=
-          Finset.sum_le_sum fun v _ => hdeg_bound v
-      _ = 2 * (m + n + 1) := by
-          have hGV : G.V = Fin (2 + m + n) := rfl
-          rw [← Equiv.sum_comp (Equiv.cast hGV).symm]
-          simp [Equiv.cast]
-          have hfun : ∀ x : Fin (2 + m + n),
-            (if x = 0 then m + 1 else if (x : ℕ) = 1 then n + 1 else 1) =
-            (if (x : ℕ) = 0 then m + 1 else if (x : ℕ) = 1 then n + 1 else 1) := by
-            intro x; by_cases hx : x = 0 <;> simp [hx]
-          rw [Finset.sum_congr rfl (fun x _ => hfun x)]
-          set f : ℕ → ℕ := fun i => if i = 0 then m + 1 else if i = 1 then n + 1 else 1
-          have hsum_eq :
-              ∑ x : Fin (2 + m + n), f (x : ℕ) = ∑ i ∈ Finset.range (2 + m + n), f i := by
-            rw [Finset.sum_range]
-          rw [hsum_eq]
-          have hsum_computed :
-              ∀ k ≥ 2, ∑ i ∈ Finset.range k, f i = (m + 1) + (n + 1) + (k - 2) := by
-            intro k hk
-            induction k, hk using Nat.le_induction with
-            | base => simp [Finset.sum_range_succ, f]
-            | succ k hk ih =>
-              rw [Finset.sum_range_succ, ih]
-              have hk1 : k ≠ 0 := by omega
-              have hk2 : k ≠ 1 := by omega
-              simp [f, hk1, hk2]
-              omega
-          rw [hsum_computed (2 + m + n) (by omega)]
-          omega
-  have hE := SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
-  unfold CGraph.E at hE
-  have hull : G.E ≤ m + n + 1 := by
-    unfold CGraph.E
-    omega
-  rw [← heq]
-  exact le_antisymm hull hlower
+  simp only [doubleStar, IsoGraph.E_mk]
+  set es : List (ℕ × ℕ) := (0, 1) :: (((List.range m).map fun i ↦ (0, 2 + i)) ++
+    ((List.range n).map fun i ↦ (1, 2 + m + i))) with hes
+  have hmem : ∀ p ∈ es, p = (0, 1) ∨ (∃ i < m, p = (0, 2 + i)) ∨ ∃ i < n, p = (1, 2 + m + i) := by
+    intro p hp
+    simp only [hes, List.mem_cons, List.mem_append, List.mem_map, List.mem_range] at hp
+    rcases hp with rfl | ⟨i, hi, rfl⟩ | ⟨i, hi, rfl⟩
+    · exact Or.inl rfl
+    · exact Or.inr (Or.inl ⟨i, hi, rfl⟩)
+    · exact Or.inr (Or.inr ⟨i, hi, rfl⟩)
+  have hlt : ∀ p ∈ es, p.1 < p.2 := by
+    intro p hp
+    rcases hmem p hp with rfl | ⟨i, hi, rfl⟩ | ⟨i, hi, rfl⟩ <;> dsimp only <;> omega
+  have hbound : ∀ p ∈ es, p.2 < 2 + m + n := by
+    intro p hp
+    rcases hmem p hp with rfl | ⟨i, hi, rfl⟩ | ⟨i, hi, rfl⟩ <;> dsimp only <;> omega
+  have hnup : es.Nodup := by
+    rw [hes]
+    refine List.nodup_cons.mpr ⟨by simp; intro x _; omega, List.Nodup.append ?_ ?_ ?_⟩
+    · exact List.Nodup.map (fun a b h ↦ by simpa using h) List.nodup_range
+    · exact List.Nodup.map (fun a b h ↦ by simpa using h) List.nodup_range
+    · simp [List.Disjoint]
+  show (CGraph.ofEdges (2 + m + n) es).E = m + n + 1
+  rw [CGraph.E_ofEdges _ _ hlt hbound hnup, hes]
+  simp
 
 /-- The lollipop is a clique plus a path. -/
 theorem E_lollipop (m k : ℕ) : (lollipop (m + 1) k).E = (m + 1).choose 2 + k := by
   -- Helper: for ofEdges with a list of pairs (i,j) where i < j for all entries,
   -- all indices < n, and the list is nodup, E = list.length.
-  have ofEdges_E_of_lt : ∀ (n : ℕ) (es : List (ℕ × ℕ)),
-      (∀ p ∈ es, p.1 < p.2) →
-      (∀ p ∈ es, p.2 < n) →
-      List.Nodup es →
-      (CGraph.ofEdges n es).E = es.length := by
-    intro n es hlt hbound hnup
-    induction es with
-    | nil =>
-      rw [CGraph.ofEdges_nil, CGraph.E_empty]; rfl
-    | cons p es' ih =>
-      -- ofEdges n (p :: es') = ofEdges n (es' ++ [p]) by commutativity of disjunction in contains
-      have heq : CGraph.ofEdges n (p :: es') = CGraph.ofEdges n (es' ++ [p]) := by
-        apply CGraph.ofEdges_congr n _ _ _
-        intro x y hne
-        simp [List.mem_cons, List.mem_append]
-        tauto
-      rw [heq]
-      -- Restrict hypotheses to es'
-      have hlt' : ∀ q ∈ es', q.1 < q.2 := fun q hq => hlt q (List.mem_cons_of_mem _ hq)
-      have hfun : ∀ q ∈ p :: es', q.1 < n := fun q hq => lt_trans (hlt q hq) (hbound q hq)
-      have hbound' : ∀ q ∈ es', q.2 < n := fun q hq => hbound q (List.mem_cons_of_mem _ hq)
-      have hnup' : es'.Nodup := hnup.tail
-      have ihm := ih hlt' hbound' hnup'
-      -- The edge from p
-      have hp_mem : p ∈ p :: es' := List.mem_cons_self
-      set ep : Sym2 (Fin n) := Sym2.mk (⟨p.1, hfun p hp_mem⟩, ⟨p.2, hbound p hp_mem⟩)
-      -- ep is not in edgeFinset of ofEdges n es'
-      have hnotin : ep ∉ (CGraph.ofEdges n es').toSimple.edgeFinset := by
-        intro hmem
-        simp [SimpleGraph.mem_edgeFinset, CGraph.toSimple, CGraph.ofEdges, CGraph.ofRel] at hmem
-        obtain ⟨hne, hm ⟩ := hmem
-        have hp12 : p.1 < p.2 := hlt p hp_mem
-        have hpn : p ∉ es' := (List.nodup_cons.mp hnup).1
-        -- ep.1 = ⟨p.1, ...⟩, ep.2 = ⟨p.2, ...⟩ as Fin n
-        -- hm : ((↑ep.1, ↑ep.2) ∈ es' ∨ (↑ep.2, ↑ep.1) ∈ es')
-        -- But ↑ep.1 = p.1 and ↑ep.2 = p.2 (definitionally, from how ep is constructed)
-        -- So hm says (p.1, p.2) ∈ es' ∨ (p.2, p.1) ∈ es'
-        -- Both are impossible: first by hpn, second by hlt' (would give p.2 < p.1)
-        rcases hm with h | h
-        · exact hpn h
-        · have := hlt' (p.2, p.1) h
-          omega
-      -- edgeFinset of ofEdges n (es' ++ [p]) = edgeFinset of ofEdges n es' ∪ {ep}
-      have hedgeFinset : (CGraph.ofEdges n (es' ++ [p])).toSimple.edgeFinset =
-          (CGraph.ofEdges n es').toSimple.edgeFinset ∪ {ep} := by
-        ext e
-        simp [SimpleGraph.mem_edgeFinset, CGraph.toSimple, CGraph.ofEdges, CGraph.ofRel,
-          List.mem_append]
-        induction e using Sym2.ind with
-        | _ a b =>
-          simp only [SimpleGraph.mem_edgeSet, SimpleGraph.edgeSet]
-          dsimp only [ep]
-          rw [Sym2.eq_iff]
-          simp only [Fin.ext_iff]
-          -- Convert Fin constructor equalities to Nat equalities
-          have : ∀ (x : Fin n) (v : ℕ) (hv : v < n), (x = ⟨v, hv⟩ ↔ x.1 = v) := by
-            intro x v hv; simp [Fin.ext_iff]
-          rw [this a p.1 (hfun p hp_mem), this b p.2 (hbound p hp_mem),
-              this a p.2 (hbound p hp_mem), this b p.1 (hfun p hp_mem)]
-          set a' : ℕ := a.val
-          set b' : ℕ := b.val
-          rcases p with ⟨p1, p2⟩
-          simp [Prod.mk.injEq]
-          have hpnotin_es' : (p1, p2) ∉ es' := by
-            intro h; exact (List.nodup_cons.mp hnup).1 h
-          have hp12 : p1 < p2 := by simpa using hlt (p1, p2) hp_mem
-          have hp21notin_es' : (p2, p1) ∉ es' := by
-            intro h; have := hlt' (p2, p1) h; omega
-          have hp12ne : p1 ≠ p2 := hp12.ne
-          set A := (a', b') ∈ es'
-          set B := a' = p1 ∧ b' = p2
-          set C := (b', a') ∈ es'
-          set D := b' = p1 ∧ a' = p2
-          simp only [A, B, C, D] at *
-          have hDflip : a' = p2 ∧ b' = p1 ↔ D := by constructor <;> intro h <;> exact ⟨h.2, h.1⟩
-          rw [hDflip]
-          rw [show b' = p1 ∧ a' = p2 ↔ D from Iff.rfl]
-          have hNe_from_B : B → ¬a' = b' := by intro ⟨ha, hb⟩; omega
-          have hNe_from_D : D → ¬a' = b' := by intro ⟨hb, ha⟩; omega
-          -- Goal: Ne ∧ ((A ∨ B) ∨ C ∨ D) ↔ (B ∨ D) ∨ Ne ∧ (A ∨ C)
-          set Ne := ¬a' = b'
-          show Ne ∧ ((A ∨ B) ∨ C ∨ D) ↔ (B ∨ D) ∨ Ne ∧ (A ∨ C)
-          constructor
-          · intro h
-            rcases h with ⟨Ne, hmem⟩
-            rcases hmem with hAB | hCD
-            · rcases hAB with hA | hB
-              · exact Or.inr ⟨Ne, Or.inl hA⟩
-              · exact Or.inl (Or.inl hB)
-            · rcases hCD with hC | hD_val
-              · exact Or.inr ⟨Ne, Or.inr hC⟩
-              · exact Or.inl (Or.inr hD_val)
-          · intro h
-            rcases h with hBD | ⟨Ne, hAC⟩
-            · rcases hBD with hB | hD_val
-              · exact ⟨hNe_from_B hB, Or.inl (Or.inr hB)⟩
-              · exact ⟨hNe_from_D hD_val, Or.inr (Or.inr hD_val)⟩
-            · rcases hAC with hA | hC
-              · exact ⟨Ne, Or.inl (Or.inl hA)⟩
-              · exact ⟨Ne, Or.inr (Or.inl hC)⟩
-      unfold CGraph.E at ihm ⊢
-      rw [hedgeFinset, Finset.card_union_of_disjoint (Finset.disjoint_singleton_right.mpr hnotin)]
-      rw [Finset.card_singleton]
-      rw [ihm]
-      rfl
   -- Apply helper to lollipop
   simp only [lollipop, CGraph.lollipop, IsoGraph.E_mk]
   have hvalid : (∀ p ∈ CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k, p.1 < p.2) := by
@@ -449,518 +154,49 @@ theorem E_lollipop (m k : ℕ) : (lollipop (m + 1) k).E = (m + 1).choose 2 + k :
       intro p hp; rw [CGraph.mem_cliqueEdges] at hp; exact hp.1
     have hbound' : ∀ p ∈ CGraph.cliqueEdges m, p.2 < m := by
       intro p hp; rw [CGraph.mem_cliqueEdges] at hp; exact hp.2
-    have h1 := ofEdges_E_of_lt m (CGraph.cliqueEdges m) hvalid' hbound' (hclique_nodup m)
+    have h1 := CGraph.E_ofEdges m (CGraph.cliqueEdges m) hvalid' hbound' (hclique_nodup m)
     rw [CGraph.ofEdges_cliqueEdges, CGraph.E_complete] at h1
     exact h1.symm
-  rw [ofEdges_E_of_lt (m + 1 + k) _ hvalid hbound hnup, List.length_append, hclique_len, hleg_len]
+  rw [CGraph.E_ofEdges (m + 1 + k) _ hvalid hbound hnup, List.length_append, hclique_len, hleg_len]
 
-/-- The tadpole is a cycle plus a path: `m + k` edges on `m + k` vertices. -/
+/-- **The tadpole is a cycle plus a path**: `m + k` edges on `m + k` vertices.  The cycle edges run
+`(i, i + 1)` with one backward wrap, the leg edges run forward from `m + 3`, and no pair occurs
+twice or reversed, so the edge count is the length of the concatenated list. -/
 theorem E_tadpole (m k : ℕ) : (tadpole (m + 3) k).E = m + 3 + k := by
-  simp only [IsoGraph.E_mk, tadpole_def, CGraph.E]
-  unfold CGraph.tadpole
-  rw [show CGraph.ofEdges (m + 3 + k) (CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k) =
-      CGraph.tadpole (m + 3) k from rfl]
-  -- Helper: injectivity of the path edge maps
-  let inj1 : Function.Injective (fun i : ℕ => (i, i + 1) : ℕ → ℕ × ℕ) := fun a b h => by injection h
-  let inj2 : Function.Injective (fun i : ℕ => (i + (m + 3), i + 1 + (m + 3)) : ℕ → ℕ × ℕ) :=
-    fun a b h => by injection h; omega
-  -- Prove nodup of cycleEdges (m+3)
-  have hnodup_cycle : List.Nodup (CGraph.cycleEdges (m + 3)) := by
-    induction m + 3 with
-    | zero => simp [CGraph.cycleEdges_zero]
-    | succ n ih =>
-      rw [CGraph.cycleEdges_succ]
-      apply List.Nodup.append
-      · exact List.Nodup.map inj1 List.nodup_range
-      · exact List.nodup_singleton _
-      · simp [List.mem_map]
-  -- Prove nodup of legEdges 0 (m+3) k
-  have hnodup_leg : List.Nodup (CGraph.legEdges 0 (m + 3) k) := by
-    induction k with
-    | zero => simp [CGraph.legEdges_zero]
-    | succ j ih =>
-      rw [CGraph.legEdges_succ]
-      apply List.Nodup.cons
-      · simp [List.mem_map, List.mem_range]
-      · exact List.Nodup.map inj2 List.nodup_range
-  -- Prove disjointness
-  have hdisjoint : Disjoint (CGraph.cycleEdges (m + 3)).toFinset
-      (CGraph.legEdges 0 (m + 3) k).toFinset := by
-    rw [Finset.disjoint_left]
-    intro p hpcy hple
-    simp only [List.mem_toFinset] at hpcy hple
-    rw [CGraph.mem_cycleEdges] at hpcy
-    rw [CGraph.mem_legEdges] at hple
-    rcases hpcy with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> rcases hple with ⟨h3, h4, _⟩ | ⟨h3, h4, h5⟩ <;> omega
-  -- es.length = m+3+k
-  have hlen_cycle : List.length (CGraph.cycleEdges (m + 3)) = m + 3 := by
-    induction m + 3 with
-    | zero => simp [CGraph.cycleEdges_zero]
-    | succ n ih =>
-      rw [CGraph.cycleEdges_succ, List.length_append, List.length_map, List.length_range,
-          List.length_singleton]
-  have hlen_leg : List.length (CGraph.legEdges 0 (m + 3) k) = k := by
-    induction k with
-    | zero => simp [CGraph.legEdges_zero]
-    | succ j ih =>
-      rw [CGraph.legEdges_succ, List.length_cons, List.length_map, List.length_range]
-  have hes_len : (CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k).length = m + 3 + k := by
-    simp [hlen_cycle, hlen_leg]
-  -- Bound on edge endpoints
-  have habound : ∀ p ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k,
-      p.1 < m + 3 + k ∧ p.2 < m + 3 + k := by
+  simp only [IsoGraph.E_mk, tadpole_def]
+  show (CGraph.ofEdges (m + 3 + k)
+    (CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k)).E = m + 3 + k
+  have hmem : ∀ p ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k,
+      (p.2 = p.1 + 1 ∧ p.1 + 1 < m + 3) ∨ (p.1 + 1 = m + 3 ∧ p.2 = 0) ∨
+        (p.1 = 0 ∧ p.2 = m + 3 ∧ 0 < k) ∨ (m + 3 ≤ p.1 ∧ p.2 = p.1 + 1 ∧ p.1 + 1 < m + 3 + k) := by
     intro p hp
-    simp [List.mem_append] at hp
-    rcases hp with h | h
-    · rw [CGraph.mem_cycleEdges] at h
-      rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> constructor <;> omega
-    · rw [CGraph.mem_legEdges] at h
-      rcases h with ⟨h1, h2, _⟩ | ⟨h1, h2, h3⟩ <;> constructor <;> omega
-  -- No self-loops
-  have hes_no_loop : ∀ p ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k, p.1 ≠ p.2 := by
-    intro p hp
-    simp [List.mem_append] at hp
-    rcases hp with h | h
-    · rw [CGraph.mem_cycleEdges] at h
-      rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> omega
-    · rw [CGraph.mem_legEdges] at h
-      rcases h with ⟨h1, h2, _⟩ | ⟨h1, h2, h3⟩ <;> omega
-  -- No reverse duplicates
-  have hes_no_rev : ∀ a b : ℕ, a ≠ b →
-      ((a, b) ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k →
-       (b, a) ∉ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k) := by
-    intro a b hab hmem
-    simp [List.mem_append, CGraph.mem_legEdges] at hmem ⊢
-    rcases hmem with h | h | h | h <;> omega
-  -- adjacency characterization
-  let G := CGraph.tadpole (m + 3) k
-  have hadj : ∀ v u : G.V, G.toSimple.Adj v u ↔
-      v ≠ u ∧ ((v.val, u.val) ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k ∨
-                (u.val, v.val) ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k) := by
-    intro v u
-    rw [CGraph.toSimple_adj, CGraph.tadpole_adj_val]
-    simp
-    rw [not_congr (Fin.ext_iff.symm)]
+    rw [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges] at hp
     tauto
-  -- adjFinset.card = 2 * es.length
-  let es := CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k
-  let adjFinset : Finset (G.V × G.V) := Finset.filter (fun p => G.toSimple.Adj p.1 p.2) Finset.univ
-  have hnodup_es : es.Nodup := List.Nodup.append hnodup_cycle hnodup_leg
-    (List.disjoint_left.mpr fun p hp hq => Finset.disjoint_left.mp hdisjoint (List.mem_toFinset.mpr
-        hp) (List.mem_toFinset.mpr hq))
-  have hes_finset_card : es.toFinset.card = es.length := List.toFinset_card_of_nodup hnodup_es
-  -- Build adjFinset.card = 2 * es.length
-  -- Key: there's a bijection es.toFinset × Bool ≃ adjFinset
-  -- Each edge (a,b) in es gives two adjacent pairs in adjFinset: (a,b) and (b,a)
-  have hes_no_loop' : ∀ p ∈ es.toFinset, p.1 ≠ p.2 := by
-    intro p hp; exact hes_no_loop p (List.mem_toFinset.mp hp)
-  have hes_no_rev' : ∀ a b : ℕ, a ≠ b →
-      ((a, b) ∈ es.toFinset → (b, a) ∉ es.toFinset) := by
-    intro a b hab hmem
-    exact fun hmem2 => hes_no_rev a b hab (List.mem_toFinset.mp hmem) (List.mem_toFinset.mp hmem2)
-  have hcard_adj : adjFinset.card = 2 * es.length := by
-    let attached := { p : ℕ × ℕ // p ∈ es.toFinset }
-    let toAdj (x : attached × Bool) : adjFinset :=
-      let pp : ℕ × ℕ := x.1.val
-      have hpes' : pp ∈ es.toFinset := by
-        exact x.1.property
-      let hpes := List.mem_toFinset.mp hpes'
-      let hv1 : G.V := ⟨pp.1, (habound pp hpes).1⟩
-      let hv2 : G.V := ⟨pp.2, (habound pp hpes).2⟩
-      if x.2 = Bool.true then
-        ⟨(hv2, hv1),
-         Finset.mem_filter.mpr ⟨Finset.mem_univ _,
-           (hadj hv2 hv1).mpr
-             ⟨fun heq =>
-               have h : pp.2 = pp.1 := Fin.ext_iff.mp heq
-               hes_no_loop' pp hpes' (by omega),
-              Or.inr hpes⟩⟩⟩
-      else
-        ⟨(hv1, hv2),
-         Finset.mem_filter.mpr ⟨Finset.mem_univ _,
-           (hadj hv1 hv2).mpr
-             ⟨fun heq =>
-               have h : pp.1 = pp.2 := Fin.ext_iff.mp heq
-               hes_no_loop' pp hpes' (by omega),
-              Or.inl hpes⟩⟩⟩
-    let inftyAdj (x : adjFinset) : attached × Bool := by
-      let hv : G.V := x.val.1
-      let hu : G.V := x.val.2
-      have hx2 : G.toSimple.Adj hv hu := by simpa [adjFinset, hv, hu] using x.2
-      have hor : (hv.val, hu.val) ∈ es ∨ (hu.val, hv.val) ∈ es := (hadj hv hu).mp hx2 |>.2
-      if h : (hv.val, hu.val) ∈ es then
-        exact ⟨⟨(hv.val, hu.val), List.mem_toFinset.mpr h⟩, Bool.false⟩
-      else
-        have h' : (hu.val, hv.val) ∈ es := (or_iff_not_imp_left.mp hor) h
-        exact ⟨⟨(hu.val, hv.val), List.mem_toFinset.mpr h'⟩, Bool.true⟩
-    have h_left_inv : ∀ x : attached × Bool, inftyAdj (toAdj x) = x := by
-      intro ⟨⟨pp, hpes'⟩, b⟩
-      dsimp only [toAdj, inftyAdj]
-      rcases b with (_ | _)
-      · -- b = false: toAdj gives (hv1, hv2) with adj proof using Or.inl hpes
-        -- inftyAdj: checks (pp.1, pp.2) ∈ es → true, so returns (⟨(pp.1,pp.2), ...⟩, false)
-        have hpes_list : pp ∈ es := List.mem_toFinset.mp hpes'
-        dsimp [And.rec]
-        simp [hpes_list]
-      · -- b = true
-        have hpes_list' : pp ∈ es.toFinset := hpes'
-        have hpes_list : pp ∈ es := List.mem_toFinset.mp hpes_list'
-        have hno_rev : (pp.2, pp.1) ∉ es := by
-          intro h
-          exact hes_no_rev' pp.1 pp.2 (hes_no_loop' pp hpes_list') (List.mem_toFinset.mpr
-              hpes_list) (List.mem_toFinset.mpr h)
-        simp [hno_rev]
-    have h_right_inv : ∀ x : adjFinset, toAdj (inftyAdj x) = x := by
-      intro ⟨p, hp⟩
-      simp only [inftyAdj, toAdj]
-      let hv := p.1
-      let hu := p.2
-      have hx2 : G.toSimple.Adj hv hu := by
-        simpa [adjFinset] using hp
-      have hor : (hv.val, hu.val) ∈ es ∨ (hu.val, hv.val) ∈ es :=
-        (hadj hv hu).mp hx2 |>.2
-      show toAdj (inftyAdj ⟨p, hp⟩) = ⟨p, hp⟩
-      simp only [inftyAdj]
-      by_cases h2 : ((↑⟨p, hp⟩ : adjFinset).val.1.val, (↑⟨p, hp⟩ : adjFinset).val.2.val) ∈ es
-      · -- (hv,hu) ∈ es: inftyAdj gives (⟨(hv,hu),_⟩, false), toAdj gives ⟨(hv,hu),_⟩
-        simp [h2]
-        dsimp [toAdj]
-      · -- (hv,hu) ∉ es, so (hu,hv) ∈ es by hor
-        have h3 : ((↑⟨p, hp⟩ : adjFinset).val.2.val, (↑⟨p, hp⟩ : adjFinset).val.1.val) ∈ es := by
-          simpa [hv, hu] using (or_iff_not_imp_left.mp hor) h2
-        simp [h2]
-        dsimp [toAdj]
-    let h_equiv : attached × Bool ≃ adjFinset :=
-      { toFun := toAdj
-        invFun := inftyAdj
-        left_inv := h_left_inv
-        right_inv := h_right_inv }
-    have hcard_attached : Fintype.card attached = es.toFinset.card := by
-      have h : attached ≃ ↥es.toFinset :=
-        { toFun := fun x => ⟨x.val, x.property⟩
-          invFun := fun x => ⟨x.val, x.property⟩
-          left_inv := fun x => Subtype.ext rfl
-          right_inv := fun x => Subtype.ext rfl }
-      rw [Fintype.card_congr h]
-      exact Fintype.card_coe es.toFinset
-    have h1 := Fintype.card_congr h_equiv
-    simp [Fintype.card_prod, hcard_attached, hes_finset_card] at h1
-    linarith
-  -- Connect to edgeFinset via handshaking
-  have hhand : ∑ v : G.V, G.toSimple.degree v = 2 * G.toSimple.edgeFinset.card :=
-    SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
-  have hadjFinset_card : adjFinset.card = ∑ v : G.V, G.toSimple.degree v := by
-    simp only [SimpleGraph.degree, SimpleGraph.neighborFinset]
-    have h1 : adjFinset = Finset.biUnion Finset.univ (fun v => Finset.image (fun u => (v, u))
-        (Finset.filter (G.toSimple.Adj v ·) Finset.univ)) := by
-      ext ⟨v, u⟩
-      simp [adjFinset, Finset.mem_biUnion, Finset.mem_image]
-    rw [h1, Finset.card_biUnion]
-    · apply Finset.sum_congr rfl
-      intro v _
-      rw [Finset.card_image_of_injective _ (fun a b h => by injection h)]
-      simp
-    · intro v _ w _ hvw
-      show Disjoint _ _
-      rw [Finset.disjoint_left]
-      intro p hp
-      dsimp at hp
-      rw [Finset.mem_image] at hp
-      obtain ⟨u, hu, rfl⟩ := hp
-      intro h
-      dsimp at h
-      rw [Finset.mem_image] at h
-      obtain ⟨u', hu', hpp'⟩ := h
-      have := congr_arg Prod.fst hpp'
-      simp at this
-      exact hvw this.symm
-  rw [hadjFinset_card] at hcard_adj
-  linarith [hes_len]
+  have hdisj : List.Disjoint (CGraph.cycleEdges (m + 3)) (CGraph.legEdges 0 (m + 3) k) := by
+    intro p hpc hpl
+    rw [CGraph.mem_cycleEdges] at hpc
+    rw [CGraph.mem_legEdges] at hpl
+    omega
+  rw [CGraph.E_ofEdges_of_nodup (n := m + 3 + k)
+    (fun p hp ↦ by rcases hmem p hp with h | h | h | h <;> omega)
+    (fun p hp ↦ by rcases hmem p hp with h | h | h | h <;> omega)
+    (fun p hp hrev ↦ by
+      rcases hmem p hp with h | h | h | h <;> rcases hmem _ hrev with h' | h' | h' | h' <;>
+        simp only at h' <;> omega)
+    (List.Nodup.append (CGraph.cycleEdges_nodup _) (CGraph.legEdges_nodup _ _ _) hdisj)]
+  simp
 
 /-- The theta graph's `i`-th path contributes `xs[i] + 1` edges.  The hypothesis rules out the
 repeated pole-to-pole edge that two zeroes in the list would give. -/
 theorem E_thetaGraph (xs : List ℕ) (h : ∀ k ∈ xs, 0 < k) :
     (thetaGraph xs).E = xs.sum + xs.length := by
-  -- Step 1: Show (thetaEdges 2 xs).length = xs.sum + xs.length
-  have hlen : ∀ (off : ℕ) (xs : List ℕ), (∀ k ∈ xs, 0 < k) → (CGraph.thetaEdges off
-      xs).length = xs.sum + xs.length := by
-    intro off xs hxs; induction xs generalizing off with
-    | nil => rfl
-    | cons hd tl ih =>
-      rcases hd with _ | hd
-      · have h0 : 0 ∈ (0 :: tl) := by simp [List.mem_cons]
-        exact absurd (hxs 0 h0) (by norm_num)
-      · have ih' := ih (off + hd + 1) (fun k hk => hxs k (List.mem_cons.mpr (Or.inr hk)))
-        simp [CGraph.thetaEdges, List.length_append, List.length_map, List.length_range]
-        omega
-  -- Step 2: The edge set of thetaGraph xs is in bijection with thetaEdges 2 xs
-  -- (when all xs elements are positive, thetaEdges has no duplicates, no self-loops, no reverse
-  -- pairs)
-  -- So (thetaGraph xs).E = (thetaEdges 2 xs).length = xs.sum + xs.length
-  rw [thetaGraph_def, E_mk]
-  -- Goal: (CGraph.thetaGraph xs).E = xs.sum + xs.length
-  -- thetaGraph xs = ofEdges (2 + xs.sum) (thetaEdges 2 xs)
-  -- We need: (ofEdges (2 + xs.sum) (thetaEdges 2 xs)).E = (thetaEdges 2 xs).length
-  -- then use hlen.
-  -- Helper: for any "good" edge list es on vertices Fin n, (ofEdges n es).E = es.length
-  -- Standalone helper: each element contributes to exactly one bucket
-  have hsum_fst : ∀ {n : ℕ} {es : List (ℕ × ℕ)}, (∀ p ∈ es, p.1 < n) →
-      ∑ i : Fin n, (es.filter (fun p => p.1 = i.val)).length = es.length := by
-    intro n es hen
-    induction es with
-    | nil => simp
-    | cons e es' ih =>
-      simp [List.filter_cons]
-      have hgoal : ∀ (x : Fin n),
-          ((if e.1 = (x : ℕ) then e :: List.filter (fun p => decide (p.1 = ↑x)) es'
-            else List.filter (fun p => decide (p.1 = ↑x)) es')).length =
-          (List.filter (fun p => decide (p.1 = ↑x)) es').length + (if e.1 = (x : ℕ) then 1 else
-              0) := by
-        intro x; split_ifs <;> simp [List.length_cons]
-      simp_rw [hgoal]
-      rw [Finset.sum_add_distrib]
-      have hif : ∑ i : Fin n, (if e.1 = (i : ℕ) then 1 else 0) = 1 := by
-        have hmem : e.1 < n := hen e (by simp)
-        have : ∀ x : Fin n, (e.1 = (x : ℕ)) ↔ x = ⟨e.1, hmem⟩ := by
-          intro x; exact ⟨fun h => Fin.ext h.symm, fun h => h ▸ rfl⟩
-        simp [this]
-      rw [hif]
-      simp
-      exact ih (fun p hp => hen p (List.mem_cons.mpr (Or.inr hp)))
-  have hsum_snd : ∀ {n : ℕ} {es : List (ℕ × ℕ)}, (∀ p ∈ es, p.2 < n) →
-      ∑ i : Fin n, (es.filter (fun p => p.2 = i.val)).length = es.length := by
-    intro n es hen
-    induction es with
-    | nil => simp
-    | cons e es' ih =>
-      simp [List.filter_cons]
-      have hgoal : ∀ (x : Fin n),
-          ((if e.2 = (x : ℕ) then e :: List.filter (fun p => decide (p.2 = ↑x)) es'
-            else List.filter (fun p => decide (p.2 = ↑x)) es')).length =
-          (List.filter (fun p => decide (p.2 = ↑x)) es').length + (if e.2 = (x : ℕ) then 1 else
-              0) := by
-        intro x; split_ifs <;> simp [List.length_cons]
-      simp_rw [hgoal]
-      rw [Finset.sum_add_distrib]
-      have hif : ∑ i : Fin n, (if e.2 = (i : ℕ) then 1 else 0) = 1 := by
-        have hmem : e.2 < n := hen e (by simp)
-        have : ∀ x : Fin n, (e.2 = (x : ℕ)) ↔ x = ⟨e.2, hmem⟩ := by
-          intro x; exact ⟨fun h => Fin.ext h.symm, fun h => h ▸ rfl⟩
-        simp [this]
-      rw [hif]
-      simp
-      exact ih (fun p hp => hen p (List.mem_cons.mpr (Or.inr hp)))
-  have ofEdges_E_helper : ∀ {n : ℕ} {es : List (ℕ × ℕ)},
-      (∀ p ∈ es, p.1 < n ∧ p.2 < n) →
-      (∀ p ∈ es, p.1 ≠ p.2) →
-      (∀ p ∈ es, (p.2, p.1) ∉ es) →
-      es.Nodup →
-      (CGraph.ofEdges n es).E = es.length := by
-    intro n es hn hnooops hnorev hnodup
-    induction es with
-    | nil =>
-      have : CGraph.ofEdges n [] = CGraph.empty n := by
-        exact CGraph.ext' rfl (heq_of_eq (funext fun i => funext fun j =>
-            by simp [CGraph.ofEdges, CGraph.empty]))
-      rw [this, CGraph.E_empty, List.length_nil]
-    | cons e es' ih =>
-      unfold CGraph.E
-      set ue : Fin n := ⟨e.1, (hn e (by simp)).1⟩
-      set ve : Fin n := ⟨e.2, (hn e (by simp)).2⟩
-      set edge_e : Sym2 (Fin n) := Sym2.mk (ue, ve)
-      have he_not_in_es' : e ∉ es' := by
-        intro h
-        have hd := hnodup
-        simp [List.nodup_cons] at hd
-        exact hd.1 h
-      have hrev_not_in_es' : (e.2, e.1) ∉ es' := by
-        intro h
-        have hmem : (e.2, e.1) ∈ e :: es' := by simp [h]
-        exact absurd (hnorev (e.2, e.1) hmem) (by simp [List.mem_cons])
-      have hdisjoint : edge_e ∉ (CGraph.ofEdges n es').toSimple.edgeFinset := by
-        intro he
-        rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj,
-            CGraph.ofEdges_adj_val] at he
-        rcases he.2 with h | h
-        · exact he_not_in_es' h
-        · exact hrev_not_in_es' h
-      -- Now show the edgeFinset equality
-      have hedgeFinset_eq : (CGraph.ofEdges n (e :: es')).toSimple.edgeFinset =
-          (insert edge_e (CGraph.ofEdges n es').toSimple.edgeFinset) := by
-        ext x
-        show x ∈ (CGraph.ofEdges n (e :: es')).toSimple.edgeFinset ↔
-            x ∈ insert edge_e (CGraph.ofEdges n es').toSimple.edgeFinset
-        have hdef : (CGraph.ofEdges n (e :: es')).V = Fin n := rfl
-        change x ∈ (CGraph.ofEdges n (e :: es')).toSimple.edgeFinset ↔
-            x ∈ insert edge_e (CGraph.ofEdges n es').toSimple.edgeFinset at *
-        induction x using Sym2.ind with
-        | h u v =>
-          simp [SimpleGraph.mem_edgeFinset, Finset.mem_insert, SimpleGraph.mem_edgeSet,
-            CGraph.toSimple_adj, CGraph.ofEdges_adj_val]
-          dsimp only [CGraph.ofEdges, CGraph.ofRel] at u v
-          simp only [edge_e]
-          rw [Sym2.eq_iff]
-          have heq1 : (u = ue ↔ ↑u = e.1) := by simp [ue, Fin.ext_iff]
-          have heq2 : (v = ve ↔ ↑v = e.2) := by simp [ve, Fin.ext_iff]
-          have heq3 : (u = ve ↔ ↑u = e.2) := by simp [ve, Fin.ext_iff]
-          have heq4 : (v = ue ↔ ↑v = e.1) := by simp [ue, Fin.ext_iff]
-          have heq5 : ((↑u, ↑v) = e ↔ ↑u = e.1 ∧ ↑v = e.2) := Prod.ext_iff
-          have heq6 : ((↑v, ↑u) = e ↔ ↑v = e.1 ∧ ↑u = e.2) := Prod.ext_iff
-          rw [heq5, heq6, heq1, heq2, heq3, heq4]
-          have hnooops_e : e.1 ≠ e.2 := hnooops e (by simp)
-          have huvFin : (u : ℕ) = (v : ℕ) ↔ u = v := Fin.ext_iff.symm
-          have hA_notC : (↑u = e.1 ∧ ↑v = e.2) → ¬(↑u = ↑v) := by
-            intro ⟨ha, hb⟩ huv
-            have huv' : (u : ℕ) = (v : ℕ) := congr_arg (fun x : Fin n => (x : ℕ)) huv
-            exact hnooops_e (by rw [ha, hb] at huv'; exact huv')
-          have hB_notC : (↑v = e.1 ∧ ↑u = e.2) → ¬(↑u = ↑v) := by
-            intro ⟨ha, hb⟩ huv
-            have huv' : (u : ℕ) = (v : ℕ) := congr_arg (fun x : Fin n => (x : ℕ)) huv
-            exact hnooops_e (by rw [hb, ha] at huv'; exact huv'.symm)
-          have hB'_notC : (↑v = e.1 ∧ ↑u = e.2) → ¬(↑u = ↑v) := hB_notC
-          have hB_eq_B' : (↑u = e.2 ∧ ↑v = e.1) ↔ (↑v = e.1 ∧ ↑u = e.2) := and_comm
-          have hAB_notC : (↑u = e.1 ∧ ↑v = e.2 ∨ ↑u = e.2 ∧ ↑v = e.1) → ¬(↑u = ↑v) := by
-            rintro (hA | hB'')
-            · exact hA_notC hA
-            · exact hB_notC ⟨hB''.2, hB''.1⟩
-          constructor
-          · rintro ⟨hne, hmem⟩
-            rcases hmem with hAD | hBD' | hF
-            · rcases hAD with hA | hD
-              · exact .inl (.inl hA)
-              · exact .inr ⟨hne, .inl hD⟩
-            · exact .inl (.inr (hB_eq_B'.mpr hBD'))
-            · exact .inr ⟨hne, .inr hF⟩
-          · rintro (hAB | ⟨hne, hDF⟩)
-            · have hnotC := hAB_notC hAB
-              exact ⟨by intro huv; exact hnotC (Fin.ext_iff.mpr huv),
-                     Or.elim hAB (fun hA => Or.inl (Or.inl hA))
-                       (fun hB'' => Or.inr (Or.inl (hB_eq_B'.mp hB'')))⟩
-            · exact ⟨hne, Or.elim hDF (fun hD => Or.inl (Or.inr hD)) (fun hF => Or.inr (Or.inr hF))⟩
-      rw [hedgeFinset_eq, Finset.card_insert_of_notMem hdisjoint]
-      simp [List.length_cons]
-      exact ih
-        (fun p hp => ⟨(hn p (by simp [hp])).1, (hn p (by simp [hp])).2⟩)
-        (fun p hp => hnooops p (by simp [hp]))
-        (fun p hp => by
-          have h := hnorev p (by simp [hp])
-          exact fun hm => h (by simp [hm]))
-        hnodup.tail
-  have htheta_good_off : ∀ (off : ℕ) (xs : List ℕ),
-      (∀ k ∈ xs, 0 < k) → off ≥ 2 →
-      (∀ p ∈ CGraph.thetaEdges off xs, p.1 < off + xs.sum ∧ p.2 < off + xs.sum) ∧
-      (∀ p ∈ CGraph.thetaEdges off xs, p.1 ≠ p.2) ∧
-      (∀ p ∈ CGraph.thetaEdges off xs, (p.2, p.1) ∉ CGraph.thetaEdges off xs) ∧
-      (CGraph.thetaEdges off xs).Nodup := by
-    intro off xs hxshit offge2
-    induction xs generalizing off with
-    | nil =>
-      simp [CGraph.thetaEdges]
-    | cons hd tl ih =>
-      have hhdpos : 0 < hd := hxshit hd (List.mem_cons_self ..)
-      have ih' := ih (off + hd) (fun k hk => hxshit k (List.mem_cons_of_mem hd hk)) (by omega)
-      rw [CGraph.thetaEdges_cons off hd tl]
-      simp only [List.sum_cons]
-      refine ⟨?_, ?_, ?_, ?_⟩
-      -- Destructure ih'
-      set ih1 := ih'.1
-      set ih2 := ih'.2.1
-      set ih3 := ih'.2.2.1
-      set ih4 := ih'.2.2.2
-      -- 1. Bounds
-      · intro p hp
-        rcases List.mem_append.mp hp with hp1 | hp2
-        · have := CGraph.mem_thetaEdges_bound off [hd] p.1 p.2 hp1
-          simp [List.sum_cons, List.sum_nil] at this; omega
-        · have := ih1 p hp2; constructor <;> omega
-      -- 2. No self-loops
-      · intro p hp
-        rcases List.mem_append.mp hp with hp1 | hp2
-        · rw [CGraph.mem_thetaEdges_single] at hp1
-          rcases hp1 with ⟨rfl, hp1eq, hp2eq⟩ | ⟨hpos, hp1eq, hp2eq⟩ | ⟨hpos, hp1eq, hp2eq⟩ | ⟨h1,
-              hp2eq, h3⟩ <;> omega
-        · exact ih'.2.1 p hp2
-      -- 3. No reverse duplicates
-      · intro p hp
-        rcases List.mem_append.mp hp with hp1 | hp2
-        · -- p in block1
-          have hnot_block1 : (p.2, p.1) ∉ CGraph.thetaEdges off [hd] := by
-            rw [CGraph.mem_thetaEdges_single]
-            rw [CGraph.mem_thetaEdges_single] at hp1
-            rcases hp1 with h | h | h | h
-            · omega
-            · rcases h with ⟨hpos, hp1eq, hp2eq⟩
-              simp [hp1eq, hp2eq]
-              omega
-            · rcases h with ⟨hpos, hp1eq, hp2eq⟩
-              simp [hp1eq, hp2eq]
-              omega
-            · rcases h with ⟨h1, hp2eq, h3⟩
-              simp [hp2eq]
-              omega
-          intro hmem
-          rcases List.mem_append.mp hmem with h' | h'
-          · exact absurd h' hnot_block1
-          · rw [CGraph.mem_thetaEdges_single] at hp1
-            rcases hp1 with h | h | h | h
-            · omega
-            · -- p = (0, off), reverse = (off, 0). Block2 first coord off: off < 2? No. off+hd ≤
-              -- off? No.
-              have hb2 := CGraph.mem_thetaEdges_bound (off + hd) tl p.2 p.1 h'
-              omega
-            · -- p = (off+hd-1, 1), reverse = (1, off+hd-1). Block2 second coord off+hd-1: <2? No
-              -- (≥2). ≥ off+hd? No.
-              have hb2 := CGraph.mem_thetaEdges_bound (off + hd) tl p.2 p.1 h'
-              omega
-            · -- chain edge: off ≤ p.1, p.2 = p.1+1, p.1+1 < off+hd. Reverse: (p.2, p.1) = (p.1+1,
-              -- p.1).
-              -- Block2 first coord p.2 = p.1+1: <2? p.1+1 < 2 → p.1 < 1, but off ≤ p.1, off≥2,
-              -- contradiction.
-              -- ≥ off+hd? p.1+1 ≥ off+hd, but p.1+1 < off+hd, contradiction.
-              have hb2 := CGraph.mem_thetaEdges_bound (off + hd) tl p.2 p.1 h'
-              omega
-        · -- p in block2
-          have hrev_block2 : (p.2, p.1) ∉ CGraph.thetaEdges (off + hd) tl := ih'.2.2.1 p hp2
-          intro hmem
-          rcases List.mem_append.mp hmem with h' | h'
-          · rw [CGraph.mem_thetaEdges_single] at h'
-            have hbound2 := CGraph.mem_thetaEdges_bound (off + hd) tl p.1 p.2 hp2
-            rcases h' with h'' | h'' | h'' | h'' <;> omega
-          · exact absurd h' hrev_block2
-      -- 4. Nodup
-      · have hblk1_nodup : (CGraph.thetaEdges off [hd]).Nodup := by
-          rcases hd with _ | k
-          · omega
-          · simp [CGraph.thetaEdges]
-            refine ⟨fun h => by omega, ?_⟩
-            have hinj : Function.Injective (fun i : ℕ => (off + i, off + i + 1)) := by
-              intro a b hab; injection hab with h1 h2; omega
-            have hnodup_range : ∀ m : ℕ, (List.range m).Nodup := fun m => by
-              induction m with
-              | zero => simp
-              | succ n ih =>
-                rw [List.range_succ]
-                exact List.Nodup.append ih (List.nodup_singleton n) (by simp [List.mem_range])
-            exact List.Nodup.map hinj (hnodup_range k)
-        have hdisjoint : ∀ e ∈ CGraph.thetaEdges off [hd], e ∉ CGraph.thetaEdges (off + hd) tl := by
-          intro ⟨p1, p2⟩ hp1
-          rw [CGraph.mem_thetaEdges_single] at hp1
-          by_contra hmem
-          have hb2 := CGraph.mem_thetaEdges_bound (off + hd) tl p1 p2 hmem
-          rcases hp1 with h | h | h | h
-          · rcases h with ⟨rfl, _, _⟩; omega
-          · rcases h with ⟨_, rfl, rfl⟩
-            omega
-          · rcases h with ⟨_, rfl, rfl⟩
-            omega
-          · rcases h with ⟨h1, rfl, h3⟩
-            omega
-        exact List.Nodup.append hblk1_nodup ih'.2.2.2 hdisjoint
-  have htheta_good := htheta_good_off 2 xs h (by omega)
-  have heq : (CGraph.thetaGraph xs).E = (CGraph.thetaEdges 2 xs).length := by
-    rw [CGraph.thetaGraph]
-    exact ofEdges_E_helper htheta_good.1 htheta_good.2.1 htheta_good.2.2.1 htheta_good.2.2.2
-  rw [heq, hlen 2 xs h]
+  rw [thetaGraph_def, E_mk, CGraph.thetaGraph,
+    CGraph.E_ofEdges_of_nodup (n := 2 + xs.sum)
+      (CGraph.thetaEdges_lt 2 xs (by omega) h)
+      (CGraph.thetaEdges_ne 2 xs (by omega) h)
+      (CGraph.thetaEdges_no_rev 2 xs (by omega) h)
+      (CGraph.thetaEdges_nodup 2 xs (by omega) h),
+    CGraph.length_thetaEdges 2 xs h]
 
 /-- A lollipop on at least three clique vertices contains a triangle. -/
 theorem girth_lollipop (m k : ℕ) : (lollipop (m + 3) k).girth = 3 := by
@@ -999,62 +235,27 @@ theorem girth_lollipop (m k : ℕ) : (lollipop (m + 3) k).girth = 3 := by
 /-- A double star always has a vertex of degree one — a pendant, or an endpoint of the central
 edge when there are no pendants. -/
 theorem minDeg_doubleStar (m n : ℕ) : minDeg (doubleStar m n) = 1 := by
-  simp [IsoGraph.doubleStar, IsoGraph.minDeg]
-  apply le_antisymm
-  · -- minDeg ≤ 1: exhibit a vertex of degree ≤ 1
-    by_cases hm : m = 0
-    · by_cases hn : n = 0
-      · subst hm; subst hn
-        let v : (CGraph.doubleStar 0 0).V := ⟨0, by omega⟩
-        have h : (CGraph.doubleStar 0 0).toSimple.degree v = 1 := by native_decide
-        exact le_trans (CGraph.minDeg_le_degree _ v) h.le
-      · subst hm
-        have h2lt : 2 < 2 + n := by omega
-        let v : (CGraph.doubleStar 0 n).V := ⟨2, h2lt⟩
-        have hadj : ∀ w : (CGraph.doubleStar 0 n).V, (CGraph.doubleStar 0 n).Adj v w = (w = ⟨1,
-            by omega⟩) := by
-          intro w
-          rw [CGraph.doubleStar_adj_val]
-          simp [v]
-          constructor
-          · rintro ⟨hne, h1, _⟩; exact Fin.ext h1
-          · rintro rfl; simp; omega
-        have hdeg : (CGraph.doubleStar 0 n).toSimple.degree v = 1 := by
-          rw [SimpleGraph.degree, CGraph.neighborFinset_eq_nbrs]
-          have hnbs : (CGraph.doubleStar 0 n).nbrs v = {⟨1, by omega⟩} := by
-            ext w; simp [CGraph.mem_nbrs, hadj]
-          rw [hnbs, Finset.card_singleton]
-        exact (CGraph.minDeg_le_degree _ v).trans hdeg.le
-    · -- m > 0: vertex 2 is pendant attached to 0
-      have hm1 : 0 < m := Nat.pos_of_ne_zero hm
-      have h2lt : 2 < 2 + m + n := by omega
-      let v : (CGraph.doubleStar m n).V := ⟨2, h2lt⟩
-      have hdeg : (CGraph.doubleStar m n).toSimple.degree v = 1 := by
-        rw [SimpleGraph.degree, CGraph.neighborFinset_eq_nbrs]
-        have hnbs : (CGraph.doubleStar m n).nbrs v = {⟨0, by omega⟩} := by
-          ext w
-          simp [CGraph.mem_nbrs, CGraph.doubleStar_adj_val, v]
-          constructor
-          · rintro ⟨hne, h | h⟩ <;> exact Fin.ext (by omega)
-          · intro hw; subst hw; simp; omega
-        rw [hnbs, Finset.card_singleton]
-      exact (CGraph.minDeg_le_degree _ v).trans hdeg.le
-  · -- 1 ≤ minDeg: every vertex has degree ≥ 1
-    apply CGraph.le_minDeg_of_forall (⟨0, by omega⟩ : (CGraph.doubleStar m n).V)
-    intro v
-    have hvlt : v.1 < 2 + m + n := v.isLt
-    have hpos : 0 < (CGraph.doubleStar m n).toSimple.degree v := by
-      rw [SimpleGraph.degree_pos_iff_exists_adj]
-      by_cases h0 : v.1 = 0
-      · exact ⟨⟨1, by omega⟩, by simp [CGraph.doubleStar_adj_val, h0]⟩
-      · by_cases h1 : v.1 = 1
-        · exact ⟨⟨0, by omega⟩, by simp [CGraph.doubleStar_adj_val, h1]⟩
-        · by_cases hlow : v.1 < 2 + m
-          · exact ⟨⟨0, by omega⟩,
-              by simp [CGraph.doubleStar_adj_val, h0, h1, show 2 ≤ v.1 from by omega, hlow]⟩
-          · exact ⟨⟨1, by omega⟩,
-              by simp [CGraph.doubleStar_adj_val, h0, h1, show 2 + m ≤ v.1 from by omega]⟩
-    omega
+  change (CGraph.doubleStar m n).minDeg = 1
+  refine le_antisymm ?_ (CGraph.le_minDeg_of_forall ⟨0, by omega⟩ fun v ↦ ?_)
+  · have hlast : ∀ v : (CGraph.doubleStar m n).V, v.1 = 1 + m + n →
+        (CGraph.doubleStar m n).toSimple.degree v ≤ 1 := by
+      intro v hv
+      refine le_trans (CGraph.degree_ofEdges_le (2 + m + n) _ v [if n = 0 then 0 else 1] ?_)
+        (by simp)
+      intro w hne hw
+      simp only [hv, CGraph.mem_doubleStarEdges] at hw hne
+      simp only [List.mem_cons, List.not_mem_nil, or_false]
+      split_ifs <;> omega
+    exact le_trans (CGraph.minDeg_le_degree _ _) (hlast ⟨1 + m + n, by omega⟩ rfl)
+  · refine le_trans (by simp) (CGraph.le_degree_ofEdges (2 + m + n) _ v
+      [if v.1 = 0 then 1 else if v.1 = 1 then 0 else if v.1 < 2 + m then 0 else 1] (by simp) ?_)
+    intro w hw
+    have hv : v.1 < 2 + m + n := v.isLt
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+    subst hw
+    refine ⟨by split_ifs <;> omega, by split_ifs <;> omega, ?_⟩
+    simp only [CGraph.mem_doubleStarEdges]
+    split_ifs <;> omega
 
 /-- The coordinate edges alone already connect the cube. -/
 theorem isConnected_foldedCube (n : ℕ) : IsConnected (foldedCube (n + 1)) := by
@@ -1195,364 +396,83 @@ theorem matchNum_foldedCube_odd (m : ℕ) : (foldedCube (2 * m + 1)).matchNum = 
 /-- The junction of a tadpole's cycle and its tail is the only vertex of degree three. -/
 theorem maxDeg_tadpole (m k : ℕ) : maxDeg (tadpole (m + 3) (k + 1)) = 3 := by
   rw [tadpole_def, maxDeg_mk]
-  -- Show 3 ∈ degMultiset by exhibiting vertex 0
-  have hmem : 3 ∈ (CGraph.tadpole (m + 3) (k + 1)).degMultiset := by
-    rw [CGraph.mem_degMultiset]
-    refine ⟨⟨0, by omega⟩, ?_⟩
-    rw [← CGraph.card_nbrs_eq_degree]
-    -- Characterize the neighbor set of vertex 0
-    have hnbrs0 : (CGraph.tadpole (m + 3) (k + 1)).nbrs ⟨0, by omega⟩ =
-      {⟨1, by omega⟩, ⟨m + 2, by omega⟩, ⟨m + 3, by omega⟩} := by
-      apply Finset.ext
-      intro w
-      simp [CGraph.nbrs, CGraph.tadpole_adj_val]
-      constructor
-      · rintro ⟨hne, hw | hw⟩
-        · rcases hw with h | h
-          · exact Or.inl (Fin.ext h)
-          · exact Or.inr (Or.inr (Fin.ext h))
-        · exact Or.inr (Or.inl (Fin.ext hw))
-      · rintro (h | h | h)
-        · subst h; simp
-        · subst h; simp
-        · subst h; simp
-    rw [hnbrs0]
-    have h12 : (⟨1, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V) ≠ ⟨m + 2, by omega⟩ := by
-      intro h; simp at h
-    have h13 : (⟨1, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V) ≠ ⟨m + 3, by omega⟩ := by
-      intro h; simp at h
-    have h23 : (⟨m + 2, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V) ≠ ⟨m + 3, by omega⟩ := by
-      intro h; simp at h
-    simp [h12, h13, h23]
-  have hle : ∀ v : (CGraph.tadpole (m + 3) (k + 1)).V,
-      (CGraph.tadpole (m + 3) (k + 1)).toSimple.degree v ≤ 3 := by
-    intro v
-    rw [← CGraph.card_nbrs_eq_degree]
-    -- The neighbor set of v is contained in the union of:
-    -- - cycle neighbors (at most 2 vertices in range [0, m+2])
-    -- - leg neighbors (at most 2 vertices in range [m+3, m+3+k], plus possibly 0)
-    -- We'll show nbrs v ⊆ S for an explicit small S.
-    -- Characterize membership in legEdges
-    have hleg_mem : ∀ a b : ℕ,
-        (a, b) ∈ CGraph.legEdges 0 (m + 3) (k + 1) ↔
-          (a = 0 ∧ b = m + 3) ∨ (∃ j < k, a = m + 3 + j ∧ b = m + 3 + j + 1) := by
-      intro a b
-      rw [CGraph.mem_legEdges]
-      simp
-      constructor
-      · rintro (⟨rfl, rfl, _⟩ | ⟨hle, rfl, hlt⟩)
-        · exact Or.inl ⟨rfl, rfl⟩
-        · exact Or.inr ⟨a - (m + 3), by omega, by omega, by omega⟩
-      · rintro (⟨rfl, rfl⟩ | ⟨j, hj, rfl, rfl⟩)
-        · simp
-        · exact Or.inr ⟨by omega, rfl, by omega⟩
-    -- Characterize adjacency in tadpole
-    have hadj_char : ∀ u v : (CGraph.tadpole (m + 3) (k + 1)).V,
-        (CGraph.tadpole (m + 3) (k + 1)).Adj u v ↔
-          u.1 ≠ v.1 ∧
-          ((v.1 = u.1 + 1 ∧ u.1 + 1 < m + 3) ∨ (u.1 + 1 = m + 3 ∧ v.1 = 0) ∨
-           (u.1 = v.1 + 1 ∧ v.1 + 1 < m + 3) ∨ (v.1 + 1 = m + 3 ∧ u.1 = 0) ∨
-           (u.1 = 0 ∧ v.1 = m + 3) ∨ (v.1 = 0 ∧ u.1 = m + 3) ∨
-           (∃ j < k, u.1 = m + 3 + j ∧ v.1 = m + 3 + j + 1) ∨
-           (∃ j < k, v.1 = m + 3 + j ∧ u.1 = m + 3 + j + 1) ∨
-           (∃ j < k, u.1 = m + 3 + j + 1 ∧ v.1 = m + 3 + j) ∨
-           (∃ j < k, v.1 = m + 3 + j + 1 ∧ u.1 = m + 3 + j)) := by
-      intro u v
-      rw [CGraph.tadpole_adj_val]
-      simp only [List.mem_append]
-      rw [CGraph.mem_cycleEdges, hleg_mem, CGraph.mem_cycleEdges, hleg_mem]
-      aesop
-    -- Now bound degree of v
-    set i := v.1
-    set N := CGraph.nbrs (CGraph.tadpole (m + 3) (k + 1)) v with hN_def
-    have hN_char : N = Finset.filter (fun w : (CGraph.tadpole (m + 3) (k + 1)).V =>
-        i ≠ w.1 ∧
-          ((w.1 = i + 1 ∧ i + 1 < m + 3) ∨ (i + 1 = m + 3 ∧ w.1 = 0) ∨
-           (i = w.1 + 1 ∧ w.1 + 1 < m + 3) ∨ (w.1 + 1 = m + 3 ∧ i = 0) ∨
-           (i = 0 ∧ w.1 = m + 3) ∨ (w.1 = 0 ∧ i = m + 3) ∨
-           (∃ j < k, i = m + 3 + j ∧ w.1 = m + 3 + j + 1) ∨
-           (∃ j < k, w.1 = m + 3 + j ∧ i = m + 3 + j + 1) ∨
-           (∃ j < k, i = m + 3 + j + 1 ∧ w.1 = m + 3 + j) ∨
-           (∃ j < k, w.1 = m + 3 + j + 1 ∧ i = m + 3 + j))
-      ) Finset.univ := by
-      ext w
-      show w ∈ N ↔ w ∈ Finset.filter _ Finset.univ
-      simp [hN_def, hadj_char, i]
-    -- The .1 map is injective on Fin
-    have hinj : Function.Injective (fun w : (CGraph.tadpole (m + 3) (k + 1)).V =>
-        w.1) := fun a b h => Fin.ext h
-    -- For each region of i, N is contained in an explicit small finset.
-    -- Region i = 0: N ⊆ {⟨1,...⟩, ⟨m+2,...⟩, ⟨m+3,...⟩}
-    -- Region 0 < i < m+3: N ⊆ {⟨i-1,...⟩, ⟨i+1,...⟩}
-    -- Region i = m+3: N ⊆ {⟨0,...⟩, ⟨m+4,...⟩} (if k ≥ 1)
-    -- Region m+3 < i < m+3+k: N ⊆ {⟨i-1,...⟩, ⟨i+1,...⟩}
-    -- Region i = m+3+k: N ⊆ {⟨i-1,...⟩}
-    have hi_valid : i < m + k + 4 := by omega
-    -- Get membership from hN_char
-    have hmem_filter : ∀ w, w ∈ N ↔
-        i ≠ w.1 ∧
-          ((w.1 = i + 1 ∧ i + 1 < m + 3) ∨ (i + 1 = m + 3 ∧ w.1 = 0) ∨
-           (i = w.1 + 1 ∧ w.1 + 1 < m + 3) ∨ (w.1 + 1 = m + 3 ∧ i = 0) ∨
-           (i = 0 ∧ w.1 = m + 3) ∨ (w.1 = 0 ∧ i = m + 3) ∨
-           (∃ j < k, i = m + 3 + j ∧ w.1 = m + 3 + j + 1) ∨
-           (∃ j < k, w.1 = m + 3 + j ∧ i = m + 3 + j + 1) ∨
-           (∃ j < k, i = m + 3 + j + 1 ∧ w.1 = m + 3 + j) ∨
-           (∃ j < k, w.1 = m + 3 + j + 1 ∧ i = m + 3 + j)) := by
-      intro w; rw [hN_char, Finset.mem_filter]; simp
-    -- Bound degree of v by bounding |N|
-    -- Use image under .1 to work in ℕ (avoids Fin membership繁琐)
-    let f : (CGraph.tadpole (m + 3) (k + 1)).V → ℕ := (·.1)
-    have hf_inj : Function.Injective f := hinj
-    have hN_card : N.card = (N.image f).card := by
-      rw [Finset.card_image_of_injective _ hf_inj]
-    rw [hN_card]
-    have himage : ∀ x, x ∈ N.image f ↔ ∃ w ∈ N, f w = x := by simp [Finset.mem_image]
-    by_cases hi0 : i = 0;
-    · -- Region i = 0: image N ⊆ {1, m+2, m+3}
-      rw [hi0] at hmem_filter
-      have himagesub : N.image f ⊆ ({1, m + 2, m + 3} : Finset ℕ) := by
-        intro x hx
-        obtain ⟨w, hw, rfl⟩ := himage _ |>.mp hx
-        rw [hmem_filter] at hw
-        obtain ⟨hne, hw1⟩ := hw
-        simp only [Nat.zero_add] at hw1
-        rcases hw1 with h | h | h | h | h | h | ⟨j, hj, hj1, hj2⟩ | ⟨j, hj, hj1, hj2⟩ | ⟨j, hj,
-            hj1, hj2⟩ | ⟨j, hj, hj1, hj2⟩
-        · rw [show f w = 1 from h.1]; simp
-        · exfalso; omega
-        · exfalso; omega
-        · rw [show f w = m + 2 from by simp [f]; omega]; simp
-        · rw [show f w = m + 3 from h.2]; simp
-        · exfalso; omega
-        · exfalso; omega
-        · exfalso; omega
-        · exfalso; omega
-        · exfalso; omega
-      exact le_trans (Finset.card_mono himagesub) (by
-        have : ({1, m + 2, m + 3} : Finset ℕ).card ≤ 3 := by
-          calc ({1, m + 2, m + 3} : Finset ℕ).card
-              ≤ ({m + 2, m + 3} : Finset ℕ).card + 1 := Finset.card_insert_le _ _
-            _ ≤ (({(m + 3)} : Finset ℕ).card + 1) + 1 := by
-                exact Nat.add_le_add_right (Finset.card_insert_le _ _) _
-            _ ≤ (1 + 1) + 1 := by
-                exact Nat.add_le_add_right (Finset.card_singleton _ ▸ le_rfl) _
-            _ = 3 := by omega
-        exact this)
-    · -- i ≠ 0: image N ⊆ {0, i-1, i+1}
-      have himagesub : N.image f ⊆ ({0, i - 1, i + 1} : Finset ℕ) := by
-        intro x hx
-        obtain ⟨w, hw, rfl⟩ := himage _ |>.mp hx
-        rw [hmem_filter] at hw
-        obtain ⟨hne, hw1⟩ := hw
-        rcases hw1 with h | h | h | h | h | h | ⟨j, hj, hj1, hj2⟩ | ⟨j, hj, hj1, hj2⟩ | ⟨j, hj,
-            hj1, hj2⟩ | ⟨j, hj, hj1, hj2⟩
-        · rw [show f w = i + 1 from h.1]; simp
-        · have hf0 : (f w : ℕ) = 0 := by show (w.1 : ℕ) = 0; exact h.2
-          rw [hf0]; simp
-        · rw [show f w = i - 1 from by simp [f]; omega]; simp
-        · exfalso; exact hi0 h.2
-        · exfalso; exact hi0 h.1
-        · have hf0 : (f w : ℕ) = 0 := by show (w.1 : ℕ) = 0; exact h.1
-          rw [hf0]; simp
-        · rw [show f w = i + 1 from by simp [f]; omega]; simp
-        · rw [show f w = i - 1 from by simp [f]; omega]; simp
-        · rw [show f w = i - 1 from by simp [f]; omega]; simp
-        · rw [show f w = i + 1 from by simp [f]; omega]; simp
-      exact le_trans (Finset.card_mono himagesub) (by
-        have : ({0, i - 1, i + 1} : Finset ℕ).card ≤ 3 := by
-          have := Finset.card_insert_le 0 {i - 1, i + 1}
-          have := Finset.card_insert_le (i - 1) {(i + 1)}
-          simp [Finset.card_singleton] at *
-          omega
-        exact this)
-  exact CGraph.maxDeg_eq_of_degMultiset hmem (fun d hd => by
-    obtain ⟨v, hv⟩ := CGraph.mem_degMultiset.1 hd
-    rw [← hv]
-    exact hle v)
+  have hdeg0 : ∀ v : (CGraph.tadpole (m + 3) (k + 1)).V, v.1 = 0 →
+      (CGraph.tadpole (m + 3) (k + 1)).toSimple.degree v = 3 := by
+    intro v hv
+    have h := CGraph.degree_ofEdges (m + 3 + (k + 1)) _ v [1, m + 2, m + 3]
+      (by simp) (by simp; omega) (by simp [hv])
+      (by
+        intro w hne
+        simp only [hv, List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges,
+          List.mem_cons, List.not_mem_nil, or_false, true_and, and_true]
+        omega)
+    simpa using h
+  refine le_antisymm (CGraph.maxDeg_le_of_forall fun v ↦ ?_)
+    (le_of_eq_of_le (hdeg0 ⟨0, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _))
+  refine le_trans (CGraph.degree_ofEdges_le (m + 3 + (k + 1)) _ v
+    [if v.1 = 0 then m + 2 else v.1 - 1, v.1 + 1, if v.1 = 0 then m + 3 else 0] ?_) (by simp)
+  intro w hne hw
+  have hv : v.1 < m + 3 + (k + 1) := v.isLt
+  simp only [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges] at hw
+  simp only [List.mem_cons, List.not_mem_nil, or_false]
+  split_ifs <;> omega
 
 /-- The two centres of a double star have degrees `m + 1` and `n + 1`; every other vertex is
 pendant. -/
 theorem maxDeg_doubleStar (m n : ℕ) : maxDeg (doubleStar m n) = max m n + 1 := by
   change (CGraph.doubleStar m n).maxDeg = max m n + 1
-  let h0 : (0 : ℕ) < 2 + m + n := by omega
-  let h1 : (1 : ℕ) < 2 + m + n := by omega
-  let f0 : Fin m → Fin (2 + m + n) := fun i => ⟨2 + (i : ℕ), by omega⟩
-  let f1 : Fin n → Fin (2 + m + n) := fun i => ⟨2 + m + (i : ℕ), by omega⟩
-  have hadj : ∀ (v w : (CGraph.doubleStar m n).V),
-      (CGraph.doubleStar m n).Adj v w =
-      (v.1 ≠ w.1 ∧
-        (((v.1 = 0 ∧ w.1 = 1) ∨ (v.1 = 0 ∧ 2 ≤ w.1 ∧ w.1 < 2 + m) ∨
-            (v.1 = 1 ∧ 2 + m ≤ w.1 ∧ w.1 < 2 + m + n)) ∨
-          ((w.1 = 0 ∧ v.1 = 1) ∨ (w.1 = 0 ∧ 2 ≤ v.1 ∧ v.1 < 2 + m) ∨
-            (w.1 = 1 ∧ 2 + m ≤ v.1 ∧ v.1 < 2 + m + n)))) := by
-    intro v w
-    simp only [CGraph.doubleStar, CGraph.ofEdges_adj_val, CGraph.mem_doubleStarEdges]
-  -- neighborFinset for vertex 0
-  have hneighborFinset_0 : (CGraph.doubleStar m n).toSimple.neighborFinset ⟨0, h0⟩ =
-      {⟨1, h1⟩} ∪ Finset.image f0 Finset.univ := by
-    ext w
-    simp only [SimpleGraph.mem_neighborFinset, Finset.mem_union, Finset.mem_image,
-      Finset.mem_univ, true_and]
-    have hadj0w := hadj ⟨0, h0⟩ w
-    rw [CGraph.toSimple_adj, hadj0w]
-    simp
-    constructor
-    · rintro ⟨hne, hw | ⟨hge, hlt⟩⟩
-      · left; exact Fin.ext_iff.mpr hw
-      · right
-        let a : Fin m := ⟨w.val - 2, by omega⟩
-        have hv : (a : ℕ) = w.val - 2 := rfl
-        have hlt2 : w.val - 2 < 2 + m + n := by omega
-        have : f0 a = w := by
-          ext; dsimp [f0]; rw [hv]; omega
-        exact ⟨a, this⟩
-    · rintro (rfl | ⟨a, ha⟩)
-      · simp
-      · rw [show w = ⟨2 + (a : ℕ), by omega⟩ from ha.symm]
-        simp; omega
-  -- neighborFinset for vertex 1
-  have hneighborFinset_1 : (CGraph.doubleStar m n).toSimple.neighborFinset ⟨1, h1⟩ =
-      {⟨0, h0⟩} ∪ Finset.image f1 Finset.univ := by
-    ext w
-    simp only [SimpleGraph.mem_neighborFinset, Finset.mem_union, Finset.mem_image,
-      Finset.mem_univ, true_and]
-    have hadj1w := hadj ⟨1, h1⟩ w
-    rw [CGraph.toSimple_adj, hadj1w]
-    simp
-    constructor
-    · rintro ⟨hne, hw | hw | ⟨hweq1, _, _⟩⟩
-      · right
-        let a : Fin n := ⟨w.val - (2 + m), by omega⟩
-        have hv : (a : ℕ) = w.val - (2 + m) := rfl
-        have hlt2 : w.val - (2 + m) < 2 + m + n := by omega
-        have : f1 a = w := by
-          ext; dsimp [f1]; rw [hv]; omega
-        exact ⟨a, this⟩
-      · left; exact hw
-      · exfalso; omega
-    · rintro (rfl | ⟨a, ha⟩)
-      · simp
-      · rw [show w = ⟨2 + m + (a : ℕ), by omega⟩ from ha.symm]
-        simp
-        omega
-  -- degrees of vertices 0 and 1
-  have hdisjoint_0 :
-      Disjoint ({⟨1, h1⟩} : Finset (CGraph.doubleStar m n).V) (Finset.image f0 Finset.univ) := by
-    rw [Finset.disjoint_left]
-    simp [Finset.mem_image, f0]
-    intro a ha
-    have := congr_arg (fun x : Fin (2+m+n) => x.val) ha
-    simp at this
-    omega
-  have hinj_0 : Function.Injective f0 := by
-    intro i j h
-    have := congr_arg (fun x : Fin (2 + m + n) => x.val) h
-    simp [f0] at this
-    exact Fin.ext this
-  have himage_card_0 : (Finset.image f0 Finset.univ).card = m := by
-    rw [Finset.card_image_of_injective Finset.univ hinj_0]
-    simp [Finset.card_univ]
-  have hdeg_0 : (CGraph.doubleStar m n).toSimple.degree ⟨0, h0⟩ = m + 1 := by
-    rw [SimpleGraph.degree, hneighborFinset_0, Finset.card_union_of_disjoint hdisjoint_0,
-        himage_card_0]
-    rw [Finset.card_singleton]
-    omega
-  have hdisjoint_1 :
-      Disjoint ({⟨0, h0⟩} : Finset (CGraph.doubleStar m n).V) (Finset.image f1 Finset.univ) := by
-    rw [Finset.disjoint_left]
-    simp [Finset.mem_image, f1]
-    intro a ha
-    have := congr_arg (fun x : Fin (2+m+n) => x.val) ha
-    simp at this
-  have hinj_1 : Function.Injective f1 := by
-    intro i j h
-    have := congr_arg (fun x : Fin (2 + m + n) => x.val) h
-    simp [f1] at this
-    exact Fin.ext this
-  have himage_card_1 : (Finset.image f1 Finset.univ).card = n := by
-    rw [Finset.card_image_of_injective Finset.univ hinj_1]
-    simp [Finset.card_univ]
-  have hdeg_1 : (CGraph.doubleStar m n).toSimple.degree ⟨1, h1⟩ = n + 1 := by
-    rw [SimpleGraph.degree, hneighborFinset_1, Finset.card_union_of_disjoint hdisjoint_1,
-        himage_card_1]
-    rw [Finset.card_singleton]
-    omega
-  have hadj_simple : ∀ v w, (CGraph.doubleStar m n).toSimple.Adj v w ↔
-      (v.1 ≠ w.1 ∧
-        (((v.1 = 0 ∧ w.1 = 1) ∨ (v.1 = 0 ∧ 2 ≤ w.1 ∧ w.1 < 2 + m) ∨
-            (v.1 = 1 ∧ 2 + m ≤ w.1 ∧ w.1 < 2 + m + n)) ∨
-          ((w.1 = 0 ∧ v.1 = 1) ∨ (w.1 = 0 ∧ 2 ≤ v.1 ∧ v.1 < 2 + m) ∨
-            (w.1 = 1 ∧ 2 + m ≤ v.1 ∧ v.1 < 2 + m + n)))) := by
-    intro v w
-    rw [CGraph.toSimple_adj]
-    exact iff_of_eq (hadj v w)
-  have hdeg_le_one : ∀ v : (CGraph.doubleStar m n).V, v ≠ ⟨0, h0⟩ → v ≠ ⟨1, h1⟩ →
-      (CGraph.doubleStar m n).toSimple.degree v ≤ 1 := by
-    intro v hv0 hv1
-    rw [SimpleGraph.degree]
-    have hv0' : (v.val : ℕ) ≠ 0 := by intro h; exact hv0 (Fin.ext h)
-    have hv1' : (v.val : ℕ) ≠ 1 := by intro h; exact hv1 (Fin.ext h)
-    have hvlt : (v.val : ℕ) < 2 + m + n := v.2
-    have hsub_one : ∀ w, (CGraph.doubleStar m n).toSimple.Adj v w → w = ⟨0, h0⟩ ∨ w = ⟨1, h1⟩ := by
-      intro w hw
-      rw [hadj_simple] at hw
-      obtain ⟨hne, hwCases⟩ := hw
-      -- All 6 cases in hwCases give: w.val = 0 ∨ w.val = 1 (using hv0', hv1' to eliminate v-val
-      -- cases)
-      have hw0_or_1 : w.val = 0 ∨ w.val = 1 := by
-        cases hwCases with
-        | inl h =>
-          rcases h with h1 | h1 | h1
-          · exfalso; exact hv0' h1.1
-          · exfalso; exact hv0' h1.1
-          · exfalso; exact hv1' h1.1
-        | inr h =>
-          rcases h with h1 | h1 | h1
-          · left; exact h1.1
-          · left; exact h1.1
-          · right; exact h1.1
-      rcases hw0_or_1 with h | h
-      · left; exact Fin.ext h
-      · right; exact Fin.ext h
-    by_cases hcase : v.val < 2 + m
-    · have : SimpleGraph.neighborFinset (CGraph.doubleStar m n).toSimple v ⊆ {⟨0, h0⟩} := by
+  have hdeg0 : ∀ v : (CGraph.doubleStar m n).V, v.1 = 0 →
+      (CGraph.doubleStar m n).toSimple.degree v = m + 1 := by
+    intro v hv
+    have h := CGraph.degree_ofEdges (2 + m + n) _ v (1 :: (List.range m).map fun i ↦ 2 + i)
+      (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
+        List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
+      (by
         intro w hw
-        rw [SimpleGraph.mem_neighborFinset] at hw
-        rcases hsub_one w hw with rfl | rfl
-        · exact Finset.mem_singleton_self _
-        · have hw2 := hadj_simple v ⟨1, h1⟩ |>.mp hw
-          have : (⟨1, h1⟩ : Fin (2 + m + n)).val = 1 := rfl
-          rw [this] at hw2
-          omega
-      exact Finset.card_le_card this
-    · push_neg at hcase
-      have : SimpleGraph.neighborFinset (CGraph.doubleStar m n).toSimple v ⊆ {⟨1, h1⟩} := by
+        simp only [List.mem_cons, List.mem_map_add_range] at hw
+        omega)
+      (by simp only [hv, List.mem_cons, List.mem_map_add_range]; omega)
+      (by
+        intro w hne
+        rw [hv, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
+        simp only [List.mem_cons, List.mem_map_add_range, true_and]
+        omega)
+    simpa using h
+  have hdeg1 : ∀ v : (CGraph.doubleStar m n).V, v.1 = 1 →
+      (CGraph.doubleStar m n).toSimple.degree v = n + 1 := by
+    intro v hv
+    have h := CGraph.degree_ofEdges (2 + m + n) _ v (0 :: (List.range n).map fun i ↦ 2 + m + i)
+      (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
+        List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
+      (by
         intro w hw
-        rw [SimpleGraph.mem_neighborFinset] at hw
-        rcases hsub_one w hw with rfl | rfl
-        · have hw2 := hadj_simple v ⟨0, h0⟩ |>.mp hw
-          have : (⟨0, h0⟩ : Fin (2 + m + n)).val = 0 := rfl
-          rw [this] at hw2
-          omega
-        · exact Finset.mem_singleton_self _
-      exact Finset.card_le_card this
-  apply CGraph.maxDeg_eq_of_degMultiset
-  · -- max m n + 1 ∈ degMultiset
-    rw [CGraph.mem_degMultiset]
-    by_cases hmn : m ≥ n
-    · exact ⟨⟨0, h0⟩, by rw [hdeg_0]; simp [hmn]⟩
-    · push_neg at hmn
-      exact ⟨⟨1, h1⟩, by rw [hdeg_1]; simp [show max m n = n from max_eq_right (le_of_lt hmn)]⟩
-  · -- all degrees ≤ max m n + 1
-    intro d hd
-    rw [CGraph.mem_degMultiset] at hd
-    obtain ⟨v, hv⟩ := hd
-    by_cases hv0 : v = ⟨0, h0⟩
-    · subst hv0; linarith [hdeg_0, le_max_left m n]
-    · by_cases hv1 : v = ⟨1, h1⟩
-      · subst hv1; linarith [hdeg_1, le_max_right m n]
-      · rw [← hv]
-        exact le_trans (hdeg_le_one v hv0 hv1) (by omega)
+        simp only [List.mem_cons, List.mem_map_add_range] at hw
+        omega)
+      (by simp only [hv, List.mem_cons, List.mem_map_add_range]; omega)
+      (by
+        intro w hne
+        rw [hv, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
+        simp only [List.mem_cons, List.mem_map_add_range, true_and, and_true]
+        omega)
+    simpa using h
+  refine le_antisymm (CGraph.maxDeg_le_of_forall fun v ↦ ?_) ?_
+  · by_cases h0 : v.1 = 0
+    · rw [hdeg0 v h0]
+      omega
+    by_cases h1 : v.1 = 1
+    · rw [hdeg1 v h1]
+      omega
+    refine le_trans (CGraph.degree_ofEdges_le (2 + m + n) _ v
+      [if v.1 < 2 + m then 0 else 1] ?_) (by simp)
+    intro w hne hw
+    simp only [CGraph.mem_doubleStarEdges] at hw
+    simp only [List.mem_cons, List.not_mem_nil, or_false]
+    split_ifs <;> omega
+  · rcases le_total m n with h | h
+    · rw [max_eq_right h]
+      exact le_of_eq_of_le (hdeg1 ⟨1, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _)
+    · rw [max_eq_left h]
+      exact le_of_eq_of_le (hdeg0 ⟨0, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _)
 
 /-- The clique a lollipop is built from is its largest. -/
 theorem cliqueNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).cliqueNum = m + 2 := by
@@ -1867,103 +787,36 @@ theorem indepNum_doubleStar (m n : ℕ) :
   show G.indepNum = m + n + 2
   omega
 
-/-- A cycle with a path glued to it stays connected. -/
+/-- A cycle with a path glued to it stays connected: the vertex number is a rank in the sense
+of `CGraph.isConnected_of_rank`, descending around the cycle and back down the tail. -/
 theorem isConnected_tadpole (m k : ℕ) : IsConnected (tadpole (m + 3) k) := by
   unfold IsoGraph.tadpole
   rw [IsoGraph.isConnected_mk]
-  show CGraph.IsConnected _
-  simp only [CGraph.IsConnected]
-  haveI : Nonempty (CGraph.tadpole (m + 3) k).V := by
-    show Nonempty (Fin (m + 3 + k))
-    exact ⟨0, by omega⟩
-  apply SimpleGraph.Connected.mk
-  · -- Preconnected: use reachability from 0
-    have hreach : ∀ (v : Fin (m + 3 + k)),
-        (CGraph.tadpole (m + 3) k).toSimple.Reachable
-          (⟨0, by omega⟩ : Fin (m + 3 + k)) v := by
-      intro v
-      by_cases hv : (v : ℕ) < m + 3
-      · -- cycle part: reach via forward cycle edges 0→1→...→v
-        let vi := (v : ℕ)
-        -- Reachability to all cycle vertices by induction on index
-        have hall : ∀ (i : ℕ) (hi : i < m + 3),
-            (CGraph.tadpole (m + 3) k).toSimple.Reachable
-              (⟨0, by omega⟩ : Fin (m + 3 + k)) (⟨i, by omega⟩ : Fin (m + 3 + k)) := by
-          intro i hi
-          induction i with
-          | zero => exact SimpleGraph.Reachable.refl _
-          | succ j ih =>
-            have ihj : ∀ (hj : j < m + 3), (CGraph.tadpole (m + 3) k).toSimple.Reachable
-                (⟨0, by omega⟩ : Fin (m + 3 + k)) (⟨j, by omega⟩ : Fin (m + 3 + k)) := ih
-            have hj_lt_m3 : j + 1 < m + 3 := hi
-            have ihj' := ihj (by omega)
-            have hadj : (CGraph.tadpole (m + 3) k).Adj ⟨j, by omega⟩ ⟨j + 1, by omega⟩ := by
-              rw [CGraph.tadpole_adj_val]
-              simp only []
-              refine ⟨by omega, Or.inl ?_⟩
-              rw [List.mem_append]
-              exact Or.inl ((CGraph.mem_cycleEdges (m + 3) j (j + 1)).mpr
-                (Or.inl ⟨rfl, by omega⟩))
-            obtain ⟨w⟩ := ihj'
-            exact ⟨w.concat hadj⟩
-        exact hall vi (by omega)
-      · -- tail part: reach via leg edges 0→m+3→m+4→...→v
-        have hk_pos : 0 < k := by omega
-        -- Helper: show (0, m+3) is in legEdges 0 (m+3) k
-        have hleg0 : (0, m + 3) ∈ CGraph.legEdges 0 (m + 3) k := by
-          rw [CGraph.mem_legEdges]
-          exact Or.inl ⟨rfl, rfl, hk_pos⟩
-        -- Edge (m+3+j, m+3+j+1) ∈ legEdges for j+1 < k
-        have hledge_succ : ∀ j, j + 1 < k →
-            (m + 3 + j, m + 3 + j + 1) ∈ CGraph.legEdges 0 (m + 3) k := by
-          intro j hj
-          rw [CGraph.mem_legEdges]
-          exact Or.inr ⟨by omega, by omega, by omega⟩
-        -- Show reachability to all tail vertices by induction on t
-        let tailV : ∀ t, t < k → Fin (m + 3 + k) := fun t ht => ⟨m + 3 + t, by omega⟩
-        have hall_tail : ∀ t (ht : t < k),
-            (CGraph.tadpole (m + 3) k).toSimple.Reachable
-              (⟨0, by omega⟩ : Fin (m + 3 + k)) (tailV t ht) := by
-          intro t ht
-          induction t with
-          | zero =>
-            show (CGraph.tadpole (m + 3) k).toSimple.Reachable
-              (⟨0, by omega⟩ : Fin (m + 3 + k)) (tailV 0 ht)
-            have hadj : (CGraph.tadpole (m + 3) k).Adj ⟨0, by omega⟩ (tailV 0 ht) := by
-              simp only [tailV]
-              rw [CGraph.tadpole_adj_val]
-              simp only []
-              exact ⟨by omega, Or.inl (by rw [List.mem_append]; right; exact hleg0)⟩
-            obtain ⟨w⟩ := SimpleGraph.Reachable.refl _
-            exact ⟨w.concat hadj⟩
-          | succ j ih =>
-            show (CGraph.tadpole (m + 3) k).toSimple.Reachable
-              (⟨0, by omega⟩ : Fin (m + 3 + k)) (tailV (j + 1) ht)
-            have ihj : j < k := by omega
-            have ihj' := ih ihj
-            have hadj : (CGraph.tadpole (m + 3) k).Adj (tailV j ihj) (tailV (j + 1) ht) := by
-              simp only [tailV]
-              rw [CGraph.tadpole_adj_val]
-              simp only []
-              have hmem : (m + 3 + j, m + 3 + (j + 1)) ∈ CGraph.legEdges 0 (m +
-                  3) k := hledge_succ j (by omega)
-              exact ⟨by omega, Or.inl (by rw [List.mem_append]; right; exact hmem)⟩
-            obtain ⟨w⟩ := ihj'
-            exact ⟨w.concat hadj⟩
-        set t := (v : ℕ) - (m + 3)
-        have ht_lt_k : t < k := by
-          simp only [t]
-          omega
-        have hv_eq : v = tailV t ht_lt_k := by
-          simp [tailV, t]
-          have hle : m + 3 ≤ (v : ℕ) := by omega
-          apply Fin.ext
-          simp
-          omega
-        rw [hv_eq]
-        exact hall_tail t ht_lt_k
-    intro u v
-    exact (hreach u).symm.trans (hreach v)
+  refine CGraph.isConnected_of_rank (fun v ↦ (v : Fin (m + 3 + k)).val)
+    (⟨0, by omega⟩ : Fin (m + 3 + k)) fun v hv ↦ ?_
+  have hlt := (v : Fin (m + 3 + k)).isLt
+  have hv0 : 0 < (v : Fin (m + 3 + k)).val := by
+    rcases Nat.eq_zero_or_pos (v : Fin (m + 3 + k)).val with h | h
+    · exact absurd (Fin.ext h) hv
+    · exact h
+  set i := (v : Fin (m + 3 + k)).val with hi
+  by_cases hmid : i = m + 3
+  · -- the first vertex of the tail hangs off the centre `0`
+    refine ⟨(⟨0, by omega⟩ : Fin (m + 3 + k)), show 0 < i by omega, ?_⟩
+    rw [CGraph.tadpole_adj_val]
+    refine ⟨show i ≠ 0 by omega, Or.inr ?_⟩
+    show (0, i) ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k
+    exact List.mem_append_right _
+      ((CGraph.mem_legEdges _ _ _ _ _).2 (Or.inl ⟨rfl, hmid, by omega⟩))
+  · -- everything else has its predecessor as a neighbour
+    refine ⟨(⟨i - 1, by omega⟩ : Fin (m + 3 + k)), show i - 1 < i by omega, ?_⟩
+    rw [CGraph.tadpole_adj_val]
+    refine ⟨show i ≠ i - 1 by omega, Or.inr ?_⟩
+    show (i - 1, i) ∈ CGraph.cycleEdges (m + 3) ++ CGraph.legEdges 0 (m + 3) k
+    rcases Nat.lt_or_ge i (m + 3) with hcyc | hcyc
+    · exact List.mem_append_left _ ((CGraph.mem_cycleEdges _ _ _).2 (Or.inl ⟨by omega, by omega⟩))
+    · exact List.mem_append_right _
+        ((CGraph.mem_legEdges _ _ _ _ _).2 (Or.inr ⟨by omega, by omega, by omega⟩))
 
 theorem numComponents_tadpole (m k : ℕ) : (tadpole (m + 3) k).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_tadpole m k)
@@ -1971,84 +824,26 @@ theorem numComponents_tadpole (m k : ℕ) : (tadpole (m + 3) k).numComponents = 
 /-- The far end of the tail is the unique pendant. -/
 theorem minDeg_tadpole (m k : ℕ) : minDeg (tadpole (m + 3) (k + 1)) = 1 := by
   rw [tadpole_def, minDeg_mk]
-  apply le_antisymm
-  · -- minDeg ≤ 1: the far end vertex has degree 1
-    let v : (CGraph.tadpole (m + 3) (k + 1)).V := ⟨m + 3 + k, by omega⟩
-    have hv1' : v.1 = m + 3 + k := rfl
-    have hdeg_le : (CGraph.tadpole (m + 3) (k + 1)).toSimple.degree v ≤ 1 := by
-      rw [← CGraph.card_nbrs_eq_degree]
-      -- The neighbor set of v is a subset of a singleton, so card ≤ 1.
-      -- v.1 = m+3+k. CycleEdges (m+3) involves only vertices < m+3, so no cycle edges incident.
-      -- legEdges 0 (m+3) (k+1) has edge (0, m+3) and edges (m+3+j, m+3+j+1) for j < k+1.
-      -- v.1 = m+3+k appears in legEdges only as second endpoint of (m+2+k, m+3+k) when k≥1,
-      -- or as second endpoint of (0, m+3) when k=0.
-      -- So at most one neighbor.
-      have hsub : (CGraph.tadpole (m + 3) (k + 1)).nbrs v ⊆
-          if k = 0 then {(⟨0, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V)}
-          else {(⟨m + 2 + k, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V)} := by
-        split
-        · -- k = 0
-          intro w hw
-          rw [CGraph.mem_nbrs] at hw
-          rw [CGraph.tadpole_adj_val] at hw
-          rw [hv1'] at hw
-          rw [List.mem_append, List.mem_append] at hw
-          rw [CGraph.mem_cycleEdges, CGraph.mem_legEdges, CGraph.mem_cycleEdges,
-              CGraph.mem_legEdges] at hw
-          rcases hw with ⟨hne, hor⟩
-          rcases hor with h | h
-          · rcases h with h | h <;> omega
-          · rcases h with h | h
-            · rcases h with h | h <;> omega
-            · rcases h with h | h
-              · exact Finset.mem_singleton.mpr (Fin.ext_iff.mpr h.1)
-              · omega
-        · -- k ≠ 0
-          intro w hw
-          rw [CGraph.mem_nbrs] at hw
-          rw [CGraph.tadpole_adj_val] at hw
-          rw [hv1'] at hw
-          rw [List.mem_append, List.mem_append] at hw
-          rw [CGraph.mem_cycleEdges, CGraph.mem_legEdges, CGraph.mem_cycleEdges,
-              CGraph.mem_legEdges] at hw
-          rcases hw with ⟨hne, hor⟩
-          rcases hor with h | h
-          · rcases h with h | h <;> omega
-          · rcases h with h | h
-            · omega
-            · rcases h with h | h
-              · omega
-              · rcases h with ⟨hle, hvw, hlt⟩
-                have hvw' : w.1 = m + 2 + k := by omega
-                exact Finset.mem_singleton.mpr (Fin.ext_iff.mpr hvw')
-      split_ifs at hsub with hk
-      · exact Finset.card_le_one.mpr (fun x hx y hy =>
-          by rw [Finset.mem_singleton.mp (hsub hx), Finset.mem_singleton.mp (hsub hy)])
-      · exact Finset.card_le_one.mpr (fun x hx y hy =>
-          by rw [Finset.mem_singleton.mp (hsub hx), Finset.mem_singleton.mp (hsub hy)])
-    exact le_trans (CGraph.minDeg_le_degree _ v) hdeg_le
-  · -- 1 ≤ minDeg: every vertex has degree ≥ 1
-    apply CGraph.le_minDeg_of_forall (⟨0, by omega⟩ : (CGraph.tadpole (m + 3) (k + 1)).V)
-    intro v
-    -- Exhibit a neighbor of v to show degree ≥ 1
-    have hneighbor : ∃ w : (CGraph.tadpole (m + 3) (k + 1)).V, (CGraph.tadpole (m + 3) (k +
-        1)).Adj v w = true := by
-      by_cases hv0 : v.1 = 0
-      · exact ⟨⟨1, by omega⟩, by rw [CGraph.tadpole_adj_val]; simp [hv0]⟩
-      · by_cases hvm : v.1 < m + 3
-        · refine ⟨⟨v.1 - 1, by omega⟩, ?_⟩
-          rw [CGraph.tadpole_adj_val]
-          simp [hv0]
-          omega
-        · by_cases hv_leg : v.1 = m + 3
-          · exact ⟨⟨0, by omega⟩, by rw [CGraph.tadpole_adj_val]; simp [hv_leg]⟩
-          · have hv_gt : m + 3 < v.1 := by omega
-            refine ⟨⟨v.1 - 1, by omega⟩, ?_⟩
-            rw [CGraph.tadpole_adj_val]
-            simp
-            omega
-    exact (CGraph.toSimple (CGraph.tadpole (m + 3) (k +
-        1))).degree_pos_iff_exists_adj v |>.mpr hneighbor
+  refine le_antisymm ?_ (CGraph.le_minDeg_of_forall ⟨0, by omega⟩ fun v ↦ ?_)
+  · have hlast : ∀ v : (CGraph.tadpole (m + 3) (k + 1)).V, v.1 = m + 3 + k →
+        (CGraph.tadpole (m + 3) (k + 1)).toSimple.degree v ≤ 1 := by
+      intro v hv
+      refine le_trans (CGraph.degree_ofEdges_le (m + 3 + (k + 1)) _ v
+        [if k = 0 then 0 else m + 2 + k] ?_) (by simp)
+      intro w hne hw
+      simp only [hv, List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges] at hw hne
+      simp only [List.mem_cons, List.not_mem_nil, or_false]
+      split_ifs <;> omega
+    exact le_trans (CGraph.minDeg_le_degree _ _) (hlast ⟨m + 3 + k, by omega⟩ rfl)
+  · refine le_trans (by simp) (CGraph.le_degree_ofEdges (m + 3 + (k + 1)) _ v
+      [if v.1 = 0 then 1 else if v.1 = m + 3 then 0 else v.1 - 1] (by simp) ?_)
+    intro w hw
+    have hv : v.1 < m + 3 + (k + 1) := v.isLt
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+    subst hw
+    refine ⟨by split_ifs <;> omega, by split_ifs <;> omega, ?_⟩
+    simp only [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges]
+    split_ifs <;> omega
 
 /-- A cycle of length four or more is triangle free, and gluing on a path adds no clique. -/
 theorem cliqueNum_tadpole (m k : ℕ) : (tadpole (m + 4) k).cliqueNum = 2 := by
@@ -2085,140 +880,65 @@ theorem cliqueNum_tadpole (m k : ℕ) : (tadpole (m + 4) k).cliqueNum = 2 := by
     omega
   omega
 
-/-- A clique with a path glued to it stays connected. -/
+/-- A clique with a path glued to it stays connected: the vertex number is a rank in the sense
+of `CGraph.isConnected_of_rank`, and everything in the clique sees vertex `0`. -/
 theorem isConnected_lollipop (m k : ℕ) : IsConnected (lollipop (m + 1) k) := by
-  rw [lollipop_def, IsoGraph.isConnected_mk, CGraph.IsConnected, SimpleGraph.connected_iff]
-  refine ⟨?_, ⟨⟨0, by omega⟩⟩⟩
-  let G := CGraph.ofEdges (m + 1 + k) (CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k)
-  have hG : (CGraph.lollipop (m + 1) k).toSimple = G.toSimple := rfl
-  show SimpleGraph.Preconnected G.toSimple
-  -- Reachable to root (vertex 0) for every vertex
-  let root : G.V := ⟨0, by omega⟩
-  have hreach : ∀ (v : G.V), G.toSimple.Reachable v root := by
-    intro v
-    by_cases hvclique : v.1 < m + 1
-    · -- v is in the clique
-      by_cases hv0 : v = root
-      · rw [hv0]
-      · have hv0' : v.1 ≠ 0 := by
-          intro h; apply hv0; exact Fin.ext h
-        have huv : G.Adj v root := by
-          rw [CGraph.ofEdges_adj_val]
-          have : root.1 = 0 := rfl
-          simp [this]
-          exact ⟨fun h => hv0' (by rw [h]; rfl), Or.inl ⟨Nat.pos_of_ne_zero hv0', by omega⟩⟩
-        exact ⟨SimpleGraph.Walk.cons huv SimpleGraph.Walk.nil⟩
-    · -- v is in the leg: v.1 ≥ m+1
-      push_neg at hvclique
-      -- Convert hvclique to Nat
-      have hvclique' : m + 1 ≤ v.1 := by
-        exact_mod_cast hvclique
-      -- Helper: leg vertex ⟨m+1+jj, hj⟩ has .1 = m+1+jj
-      let legV : ∀ (jj : ℕ) (hj : m + 1 + jj < m + 1 + k), G.V := fun jj hj => ⟨m + 1 + jj, hj⟩
-      have legV_val : ∀ (jj : ℕ) (hj : m + 1 + jj < m + 1 + k), (legV jj hj).1 = m + 1 + jj := by
-        intro jj hj; rfl
-      -- Base leg vertex (jj=0) is adjacent to root
-      have hleg_adj_zero : k > 0 → G.Adj (legV 0 (by omega)) root := by
-        intro hk
-        rw [CGraph.ofEdges_adj_val]
-        simp only [root, ne_eq]
-        rw [legV_val]
-        exact ⟨by omega, Or.inr (by
-          rw [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges]
-          exact Or.inr (Or.inl ⟨rfl, rfl, hk⟩))⟩
-      -- Reachability of leg vertices by induction on jj
-      have hreachLeg : ∀ (jj : ℕ) (hj : m + 1 + jj < m + 1 + k), jj < k →
-          G.toSimple.Reachable (legV jj hj) root := by
-        intro jj hj hj'
-        induction jj with
-        | zero =>
-          exact ⟨SimpleGraph.Walk.cons (hleg_adj_zero (by omega)) SimpleGraph.Walk.nil⟩
-        | succ ii hii =>
-          have hiik : ii < k := by omega
-          have hii_bound : m + 1 + ii < m + 1 + k := by omega
-          have hu_reach : G.toSimple.Reachable (legV ii hii_bound) root := hii hii_bound hiik
-          have hwu_bound : m + 1 + (ii + 1) < m + 1 + k := hj
-          have hadj_w_u : G.Adj (legV (ii + 1) hwu_bound) (legV ii hii_bound) := by
-            rw [CGraph.ofEdges_adj_val]
-            simp only [ne_eq]
-            rw [legV_val, legV_val]
-            exact ⟨by omega, Or.inr (by
-              rw [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges]
-              exact Or.inr (Or.inr ⟨by omega, by omega, by omega⟩))⟩
-          exact ⟨SimpleGraph.Walk.cons hadj_w_u hu_reach.some⟩
-      -- Now handle v: v = legV (v.1 - (m+1)) ...
-      have hv_bound : m + 1 + (v.1 - (m + 1)) < m + 1 + k := by omega
-      have hv_lt : v.1 - (m + 1) < k := by omega
-      have hv_eq : v = legV (v.1 - (m + 1)) hv_bound := by
-        apply Fin.ext
-        rw [legV_val]
-        omega
-      rw [hv_eq]
-      exact hreachLeg _ hv_bound hv_lt
-  intro u v
-  exact (hreach u).trans (hreach v).symm
+  unfold IsoGraph.lollipop
+  rw [IsoGraph.isConnected_mk]
+  refine CGraph.isConnected_of_rank (fun v ↦ (v : Fin (m + 1 + k)).val)
+    (⟨0, by omega⟩ : Fin (m + 1 + k)) fun v hv ↦ ?_
+  have hlt := (v : Fin (m + 1 + k)).isLt
+  have hv0 : 0 < (v : Fin (m + 1 + k)).val := by
+    rcases Nat.eq_zero_or_pos (v : Fin (m + 1 + k)).val with h | h
+    · exact absurd (Fin.ext h) hv
+    · exact h
+  set i := (v : Fin (m + 1 + k)).val with hi
+  by_cases hin : i ≤ m + 1
+  · -- the clique, and the first vertex of the tail, all see the centre `0`
+    refine ⟨(⟨0, by omega⟩ : Fin (m + 1 + k)), show 0 < i by omega, ?_⟩
+    rw [CGraph.lollipop_adj_val]
+    refine ⟨show i ≠ 0 by omega, Or.inr ?_⟩
+    show (0, i) ∈ CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k
+    rcases Nat.lt_or_ge i (m + 1) with h | h
+    · exact List.mem_append_left _ ((CGraph.mem_cliqueEdges _ _ _).2 ⟨by omega, by omega⟩)
+    · exact List.mem_append_right _
+        ((CGraph.mem_legEdges _ _ _ _ _).2 (Or.inl ⟨rfl, by omega, by omega⟩))
+  · -- further along the tail, the predecessor
+    refine ⟨(⟨i - 1, by omega⟩ : Fin (m + 1 + k)), show i - 1 < i by omega, ?_⟩
+    rw [CGraph.lollipop_adj_val]
+    refine ⟨show i ≠ i - 1 by omega, Or.inr ?_⟩
+    show (i - 1, i) ∈ CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k
+    exact List.mem_append_right _
+      ((CGraph.mem_legEdges _ _ _ _ _).2 (Or.inr ⟨by omega, by omega, by omega⟩))
 
 theorem numComponents_lollipop (m k : ℕ) : (lollipop (m + 1) k).numComponents = 1 :=
   (numComponents_eq_one_iff _).2 (isConnected_lollipop m k)
 
-/-- Every pendant hangs off one of the two centres, and the centres are joined. -/
+/-- A double star is connected: every leaf sees its own hub, and the two hubs see each other. -/
 theorem isConnected_doubleStar (m n : ℕ) : IsConnected (doubleStar m n) := by
-  unfold IsoGraph.IsConnected IsoGraph.doubleStar
-  simp
-  -- Goal: CGraph.IsConnected (CGraph.doubleStar m n)
-  simp only [CGraph.IsConnected]
-  rw [SimpleGraph.connected_iff]
-  -- All vertices reachable from 0.
-  set N := 2 + m + n
-  -- Define helper: adjacency in toSimple at key pairs
-  let G := CGraph.doubleStar m n
-  have adj_0_1 : G.toSimple.Adj ⟨0, by omega⟩ ⟨1, by omega⟩ := by
-    rw [CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
-    simp
-  -- For each i < m, edge (0, 2+i)
-  have bound_0 : 0 < N := by omega
-  have bound_1 : 1 < N := by omega
-  have hPendant0Fin : ∀ (i : ℕ), i < m → 2 + i < N := by intro i hi; omega
-  have hPendant1Fin : ∀ (i : ℕ), i < n → 2 + m + i < N := by intro i hi; omega
-  have h_pendant0 : ∀ (i : ℕ) (hi : i < m),
-      G.toSimple.Adj ⟨0, bound_0⟩ ⟨2 + i, hPendant0Fin i hi⟩ := by
-    intro i hi
-    rw [CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
-    simp; omega
-  have h_pendant1 : ∀ (i : ℕ) (hi : i < n),
-      G.toSimple.Adj ⟨1, bound_1⟩ ⟨2 + m + i, hPendant1Fin i hi⟩ := by
-    intro i hi
-    rw [CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
-    simp; omega
-  -- Reachable from 0 to all vertices
-  have hreach_base : G.toSimple.Reachable ⟨0, bound_0⟩ ⟨1, bound_1⟩ :=
-    adj_0_1.reachable
-  have hreach_pendant0 : ∀ (i : ℕ) (hi : i < m),
-      G.toSimple.Reachable ⟨0, bound_0⟩ ⟨2 + i, hPendant0Fin i hi⟩ :=
-    fun i hi => (h_pendant0 i hi).reachable
-  have hreach_pendant1 : ∀ (i : ℕ) (hi : i < n),
-      G.toSimple.Reachable ⟨0, bound_0⟩ ⟨2 + m + i, hPendant1Fin i hi⟩ := by
-    intro i hi
-    exact hreach_base.trans ((h_pendant1 i hi).reachable)
-  -- Now prove reachability for all vertices by case analysis
-  have hreach : ∀ (u : Fin N), G.toSimple.Reachable ⟨0, bound_0⟩ u := by
-    intro ⟨v, hv⟩
-    by_cases hv0 : v = 0
-    · subst hv0
-      exact SimpleGraph.Reachable.refl _
-    by_cases hv1 : v = 1
-    · subst hv1
-      exact hreach_base
-    by_cases hv2 : v < 2 + m
-    · obtain ⟨i, hi, hi2⟩ : ∃ i, i < m ∧ 2 + i = v := by
-        exact ⟨v - 2, by omega, by omega⟩
-      have heq : (⟨2 + i, hPendant0Fin i hi⟩ : G.V) = ⟨v, hv⟩ := Fin.ext hi2
-      exact heq ▸ hreach_pendant0 i hi
-    · obtain ⟨i, hi, hi2⟩ : ∃ i, i < n ∧ 2 + m + i = v := by
-        exact ⟨v - (2 + m), by omega, by omega⟩
-      have heq : (⟨2 + m + i, hPendant1Fin i hi⟩ : G.V) = ⟨v, hv⟩ := Fin.ext hi2
-      exact heq ▸ hreach_pendant1 i hi
-  refine ⟨fun u v => (hreach u).symm.trans (hreach v), ⟨⟨0, bound_0⟩⟩⟩
+  unfold IsoGraph.doubleStar
+  rw [IsoGraph.isConnected_mk]
+  refine CGraph.isConnected_of_rank (fun v ↦ (v : Fin (2 + m + n)).val)
+    (⟨0, by omega⟩ : Fin (2 + m + n)) fun v hv ↦ ?_
+  have hlt := (v : Fin (2 + m + n)).isLt
+  have hv0 : 0 < (v : Fin (2 + m + n)).val := by
+    rcases Nat.eq_zero_or_pos (v : Fin (2 + m + n)).val with h | h
+    · exact absurd (Fin.ext h) hv
+    · exact h
+  set i := (v : Fin (2 + m + n)).val with hi
+  by_cases hleft : i < 2 + m
+  · -- the hub `1` and the leaves on its side see `0`
+    refine ⟨(⟨0, by omega⟩ : Fin (2 + m + n)), show 0 < i by omega, ?_⟩
+    rw [CGraph.doubleStar_adj_val]
+    refine ⟨show i ≠ 0 by omega, ?_⟩
+    rcases Nat.lt_or_ge i 2 with h | h
+    · exact Or.inr (Or.inl ⟨show (0 : ℕ) = 0 from rfl, by omega⟩)
+    · exact Or.inr (Or.inr (Or.inl ⟨show (0 : ℕ) = 0 from rfl, by omega, by omega⟩))
+  · -- the leaves on the other side see the hub `1`
+    refine ⟨(⟨1, by omega⟩ : Fin (2 + m + n)), show 1 < i by omega, ?_⟩
+    rw [CGraph.doubleStar_adj_val]
+    exact ⟨show i ≠ 1 by omega,
+      Or.inr (Or.inr (Or.inr ⟨show (1 : ℕ) = 1 from rfl, by omega, by omega⟩))⟩
 
 theorem numComponents_doubleStar (m n : ℕ) : (doubleStar m n).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_doubleStar m n)
@@ -2451,318 +1171,68 @@ theorem matchNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).matchNum 
 
 /-- The far end of the tail is the unique pendant. -/
 theorem minDeg_lollipop (m k : ℕ) : minDeg (lollipop (m + 2) (k + 1)) = 1 := by
-  simp only [IsoGraph.lollipop, IsoGraph.minDeg_mk]
-  set G := CGraph.lollipop (m + 2) (k + 1)
-  
-  set v_last : G.V := ⟨m + k + 2, by omega⟩
-  -- Connectivity of G
-  have hconn : G.IsConnected := by
-    have := isConnected_lollipop (m + 1) (k + 1)
-    rw [IsoGraph.lollipop, IsoGraph.isConnected_mk] at this
-    exact this
-  -- All vertices have degree ≥ 1
-  have hall : ∀ v : G.V, 1 ≤ G.toSimple.degree v := by
-    intro v
-    have hvadj : ∃ w : G.V, G.Adj v w := by
-      -- Construct a neighbor based on v.val
-      set ev := v.val
-      set em := m + 2
-      set ek := k + 1
-      set en := m + k + 3
-      by_cases hev : ev < em
-      · -- v is in the clique
-        by_cases hev0 : ev = 0
-        · -- Use neighbor m+2 (first leg vertex)
-          refine ⟨⟨em, by omega⟩, ?_⟩
-          show (CGraph.ofEdges _ _).Adj v ⟨em, by omega⟩ = true
-          simp [CGraph.ofEdges, CGraph.ofRel_adj]
-          have hv0 : v = ⟨0, by omega⟩ := Fin.ext hev0
-          simp [hv0]
-          omega
-        · -- Use neighbor 0
-          refine ⟨⟨0, by omega⟩, ?_⟩
-          exact (CGraph.ofEdges_adj_val _ _ _ _).2 ⟨hev0, Or.inr (List.mem_append_left _
-              (by rw [CGraph.mem_cliqueEdges]; exact ⟨Nat.pos_of_ne_zero hev0, hev⟩))⟩
-      · -- v is on the leg (ev ≥ em)
-        by_cases hev_eq : ev = em
-        · -- neighbor is 0, edge (0, em) in legEdges
-          refine ⟨⟨0, by omega⟩, ?_⟩
-          have hv_ne_zero : v ≠ ⟨0, by omega⟩ := by
-            intro h; simp [h, ev, em] at hev_eq
-          dsimp only [G, CGraph.lollipop]
-          rw [CGraph.ofEdges_adj_val]
-          have hv_val : v.val = m + 2 := hev_eq
-          rw [hv_val]
-          simp
-        · -- ev > em, use neighbor with val = ev - 1 (leg edge (ev-1, ev))
-          have hev_gt : ev > em := by omega
-          have hevd1 : ev - 1 ≥ em := by omega
-          have hevd1_lt : ev - 1 + 1 < em + ek := by omega
-          refine ⟨⟨ev - 1, by omega⟩, ?_⟩
-          dsimp only [G, CGraph.lollipop]
-          rw [CGraph.ofEdges_adj_val]
-          have hEv1_lt_en' : ev - 1 < m + 2 + (k + 1) := by omega
-          have hEv1_val : (⟨ev - 1, hEv1_lt_en'⟩ : G.V).val = ev - 1 := rfl
-          rw [hEv1_val]
-          refine ⟨by omega, Or.inr ?_⟩
-          exact List.mem_append_right _
-              (by rw [CGraph.mem_legEdges]; exact Or.inr ⟨hevd1, by omega, hevd1_lt⟩)
-    exact Nat.lt_of_lt_of_le zero_lt_one (G.toSimple.degree_pos_iff_exists_adj v |>.2 hvadj)
-  -- The last vertex has degree = 1  
-  have hdeg_last : G.toSimple.degree v_last = 1 := by
-    dsimp only [G, CGraph.lollipop]
-    rw [← CGraph.card_nbrs_eq_degree]
-    have hvlast_val : v_last.val = m + k + 2 := rfl
-    -- Hall gives degree ≥ 1
-    have hcard_ge : 1 ≤ ((CGraph.ofEdges _ _).nbrs v_last).card := by
-      have := hall v_last
-      rwa [CGraph.card_nbrs_eq_degree]
-    -- Case split on k
-    by_cases hk0 : k = 0
-    · -- k = 0: nbrs v_last = {⟨0,...⟩}
-      subst hk0
-      set w0 : G.V := ⟨0, by omega⟩
-      have hnbrs : (CGraph.ofEdges (m + 2 + (0 + 1)) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges
-          0 (m + 2) (0 + 1))).nbrs v_last = {w0} := by
-        ext w
-        simp [CGraph.mem_nbrs]
-        rw [CGraph.ofEdges_adj_val, hvlast_val]
-        constructor
-        · intro ⟨hne, hmem⟩
-          simp [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at hmem
-          rcases hmem with hmem | hmem
-          · omega
-          · rcases hmem with hmem | hmem
-            · exact hmem
-            · exfalso; omega
-        · intro hew
-          subst hew
-          simp only [w0]
-          refine ⟨by omega, Or.inr (List.mem_append_right _ ?_)⟩
-          rw [CGraph.mem_legEdges]
-          exact Or.inl ⟨rfl, rfl, Nat.succ_pos _⟩
-      rw [hnbrs]
-      exact Finset.card_singleton w0
-    · -- k ≥ 1: nbrs v_last = {⟨m+k+1,...⟩}
-      set w2 : G.V := ⟨m + k + 1, by omega⟩
-      have hnbrs : (CGraph.ofEdges (m + 2 + (k + 1)) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges
-          0 (m + 2) (k + 1))).nbrs v_last = {w2} := by
-        ext w
-        simp [CGraph.mem_nbrs]
-        rw [CGraph.ofEdges_adj_val, hvlast_val]
-        constructor
-        · intro ⟨hne, hmem⟩
-          simp [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at hmem
-          rcases hmem with hmem | hmem
-          · omega
-          · rcases hmem with hmem | hmem
-            · omega
-            · have hv2 : w2.val = m + k + 1 := rfl
-              exact Fin.ext (hmem.2.1.symm.trans hv2)
-        · rintro rfl
-          simp only [w2]
-          refine ⟨by omega, Or.inr ?_⟩
-          apply List.mem_append_right
-          rw [CGraph.mem_legEdges]
-          exact Or.inr ⟨by omega, by omega, by omega⟩
-      rw [hnbrs]; exact Finset.card_singleton w2
-  -- Combine
-  show G.minDeg = 1
-  have h1 : G.minDeg ≤ 1 := le_trans (CGraph.minDeg_le_degree G v_last) hdeg_last.le
-  have h2 : 1 ≤ G.minDeg := CGraph.le_minDeg_of_forall v_last hall
-  exact le_antisymm h1 h2
+  change (CGraph.lollipop (m + 2) (k + 1)).minDeg = 1
+  refine le_antisymm ?_ (CGraph.le_minDeg_of_forall ⟨0, by omega⟩ fun v ↦ ?_)
+  · have hlast : ∀ v : (CGraph.lollipop (m + 2) (k + 1)).V, v.1 = m + 2 + k →
+        (CGraph.lollipop (m + 2) (k + 1)).toSimple.degree v ≤ 1 := by
+      intro v hv
+      refine le_trans (CGraph.degree_ofEdges_le (m + 2 + (k + 1)) _ v
+        [if k = 0 then 0 else m + 1 + k] ?_) (by simp)
+      intro w hne hw
+      simp only [hv, List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at hw hne
+      simp only [List.mem_cons, List.not_mem_nil, or_false]
+      split_ifs <;> omega
+    exact le_trans (CGraph.minDeg_le_degree _ _) (hlast ⟨m + 2 + k, by omega⟩ rfl)
+  · refine le_trans (by simp) (CGraph.le_degree_ofEdges (m + 2 + (k + 1)) _ v
+      [if v.1 = 0 then 1 else if v.1 ≤ m + 2 then 0 else v.1 - 1] (by simp) ?_)
+    intro w hw
+    have hlt : v.1 < m + 2 + (k + 1) := v.isLt
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+    subst hw
+    refine ⟨by split_ifs <;> omega, by split_ifs <;> omega, ?_⟩
+    simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges]
+    split_ifs <;> omega
 
 /-- The junction has the `m + 1` clique edges plus the first tail edge. -/
 theorem maxDeg_lollipop (m k : ℕ) : maxDeg (lollipop (m + 2) (k + 1)) = m + 2 := by
   change (CGraph.lollipop (m + 2) (k + 1)).maxDeg = m + 2
-  -- G = lollipop (m+2) (k+1)
-  -- Vertex 0 has degree m+2
-  have hdeg0 : (CGraph.lollipop (m + 2) (k + 1)).toSimple.degree ⟨0, by omega⟩ = m + 2 := by
-    rw [← CGraph.card_nbrs_eq_degree]
-    -- Characterize nbrs of ⟨0,...⟩
-    let n := m + 2 + (k + 1)
-    have h0 : (0 : ℕ) < n := by omega
-    -- Every vertex v with v.1 ∈ {1,...,m+1,m+2} is a neighbor, and only those.
-    have hnbrs : (CGraph.lollipop (m + 2) (k + 1)).nbrs ⟨0, h0⟩ = Finset.image (fun i : Fin (m + 2)
-        => ⟨i.val + 1, by omega⟩) Finset.univ := by
-      apply Finset.ext
-      intro w
-      simp only [CGraph.lollipop, CGraph.nbrs, Finset.mem_filter, Finset.mem_image,
-        Finset.mem_univ, true_and]
-      rw [CGraph.ofEdges_adj_val]
-      constructor
-      · rintro ⟨hne, heng⟩
-        simp only [CGraph.mem_cliqueEdges, CGraph.mem_legEdges, List.mem_append] at heng
-        rcases heng with heng | heng
-        · rcases heng with heng | heng | heng
-          · -- case 1: 0 < w.val ∧ w.val < m+2
-            exact ⟨⟨w.val - 1, by omega⟩, Fin.ext (by simp; omega)⟩
-          · -- case 2: w.val = m+2
-            exact ⟨⟨m + 1, by omega⟩, Fin.ext (by simp; omega)⟩
-          · omega
-        · omega
-      · rintro ⟨i, rfl⟩
-        simp only [CGraph.mem_cliqueEdges, CGraph.mem_legEdges, List.mem_append]
-        refine ⟨by omega, ?_⟩
-        by_cases hi : (i : ℕ) < m + 1
-        · exact Or.inl (Or.inl (by omega))
-        · have hi2 : (i : ℕ) = m + 1 := by omega
-          apply Or.inl
-          apply Or.inr
-          simp [hi2]
-    rw [hnbrs]
-    rw [Finset.card_image_of_injective _ (fun a b h =>
-        by exact Fin.ext (by have := congr_arg Fin.val h; simp at this; omega))]
-    rw [Finset.card_univ, Fintype.card_fin]
-  have hmem : (m + 2 : ℕ) ∈ (CGraph.lollipop (m + 2) (k + 1)).degMultiset :=
-    CGraph.mem_degMultiset.mpr ⟨⟨0, by omega⟩, hdeg0⟩
-  have hule : ∀ v : (CGraph.lollipop (m + 2) (k + 1)).V, (CGraph.lollipop (m + 2) (k +
-      1)).toSimple.degree v ≤ m + 2 := by
-    intro v
-    rw [← CGraph.card_nbrs_eq_degree]
-    -- Characterize: Adj v w ↔ ...
-    have hadj : ∀ w : (CGraph.lollipop (m + 2) (k + 1)).V, (CGraph.lollipop (m + 2) (k +
-        1)).Adj v w ↔
-      v.val ≠ w.val ∧
-        ((v.val < w.val ∧ w.val < m + 2) ∨
-         (0 < k + 1 ∧ v.val = 0 ∧ w.val = m + 2) ∨
-         (m + 2 ≤ v.val ∧ w.val = v.val + 1 ∧ v.val + 1 < m + 2 + (k + 1)) ∨
-         (w.val < v.val ∧ v.val < m + 2) ∨
-         (0 < k + 1 ∧ w.val = 0 ∧ v.val = m + 2) ∨
-         (m + 2 ≤ w.val ∧ v.val = w.val + 1 ∧ w.val + 1 < m + 2 + (k + 1))) := by
-      intro w
-      simp only [CGraph.lollipop, CGraph.ofEdges_adj_val]
-      simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges]
-      grind
-    have hv_lt : v.val < m + 2 + (k + 1) := v.2
-    by_cases hvcl : v.val < m + 2
-    · -- v is a clique vertex
-      -- nbrs v ⊆ {w | w.val < m+2 ∧ w ≠ v} ∪ {⟨m+2,...⟩}
-      -- This set has card ≤ (m+2-1)+1 = m+2
-      let cliqueSet : Finset ((CGraph.lollipop (m + 2) (k + 1)).V) :=
-        Finset.filter (fun w => w.val < m + 2 ∧ w.val ≠ v.val) Finset.univ
-      have hnbrs_sub : (CGraph.lollipop (m + 2) (k + 1)).nbrs v ⊆ cliqueSet ∪ {⟨m + 2,
-          by omega⟩} := by
+  have hdeg0 : ∀ v : (CGraph.lollipop (m + 2) (k + 1)).V, v.1 = 0 →
+      (CGraph.lollipop (m + 2) (k + 1)).toSimple.degree v = m + 2 := by
+    intro v hv
+    have hd := CGraph.degree_ofEdges (m + 2 + (k + 1)) _ v
+      ((List.range (m + 2)).map fun i ↦ 1 + i)
+      (List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range)
+      (by
         intro w hw
-        rw [CGraph.mem_nbrs] at hw
-        simp only [Finset.mem_union, Finset.mem_filter, Finset.mem_univ, true_and,
-            Finset.mem_singleton, cliqueSet]
-        rcases (hadj w).mp hw with ⟨hne, hcases⟩
-        rcases hcases with h1 | h2 | h3 | h4 | h5 | h6
-        · -- v < w < m+2: w is in clique, w ≠ v
-          exact Or.inl ⟨h1.2, hne.symm⟩
-        · -- v = 0, w = m+2
-          have : w.val = m + 2 := by omega
-          exact Or.inr (Fin.ext this)
-        · -- m+2 ≤ v, contradicting hvcl
-          exfalso; omega
-        · -- w < v < m+2: w is in clique, w ≠ v
-          exact Or.inl ⟨by omega, hne.symm⟩
-        · -- w = 0, v = m+2, contradicting hvcl
-          exfalso; omega
-        · -- m+2 ≤ w, v = w+1, so v ≥ m+3, contradicting hvcl
-          exfalso; omega
-      let cliqueAll : Finset ((CGraph.lollipop (m + 2) (k + 1)).V) :=
-        Finset.filter (fun w : Fin (m + 2 + (k + 1)) => w.val < m + 2) Finset.univ
-      have hcard_cliqueSet : cliqueSet.card ≤ m + 1 := by
-        have hcliqueSet_sub : cliqueSet ⊆ cliqueAll \ {v} := by
-          intro w hw
-          simp [cliqueSet, cliqueAll, Finset.mem_sdiff, Finset.mem_filter] at hw ⊢
-          exact ⟨hw.1, fun h => hw.2 (by rw [h])⟩
-        have hcard_cliqueAll : cliqueAll.card = m + 2 := by
-          have heq : cliqueAll = Finset.image (fun i : Fin (m + 2) => ⟨i.val, by omega⟩ : Fin (m +
-              2) → Fin (m + 2 + (k + 1))) Finset.univ := by
-            ext (w : Fin (m + 2 + (k + 1))); simp [cliqueAll, Finset.mem_image, Finset.mem_univ,
-                true_and]
-            exact ⟨fun h => ⟨⟨w.val, h⟩, rfl⟩, fun ⟨i, hi⟩ => hi ▸ i.2⟩
-          rw [heq, Finset.card_image_of_injective _ (fun a b h => Fin.ext
-              (by have := congr_arg Fin.val h; simp at this; omega)), Finset.card_univ,
-                  Fintype.card_fin]
-        have hv_in_clique : v ∈ cliqueAll := by simp [cliqueAll, hvcl]
-        have hcard_diff : (cliqueAll \ {v}).card = m + 1 := by
-          rw [Finset.card_sdiff_of_subset (Finset.singleton_subset_iff.mpr hv_in_clique),
-              hcard_cliqueAll, Finset.card_singleton]
-          omega
-        exact le_trans (Finset.card_mono hcliqueSet_sub) hcard_diff.le
-      have hcard_nbrs_clique : ((CGraph.lollipop (m + 2) (k + 1)).nbrs v).card ≤ m + 2 := by
-        calc ((CGraph.lollipop (m + 2) (k + 1)).nbrs v).card
-            ≤ (cliqueSet ∪ {⟨m + 2, by omega⟩}).card := Finset.card_mono hnbrs_sub
-          _ ≤ cliqueSet.card + 1 := Finset.card_union_le _ _
-          _ ≤ m + 1 + 1 := by omega
-          _ = m + 2 := by omega
-      exact hcard_nbrs_clique
-    · -- v is a leg vertex (m+2 ≤ v.val)
-      have hvge : m + 2 ≤ v.val := by omega
-      -- For leg vertices, degree ≤ 2. Then 2 ≤ m + 2.
-      -- Define f : nbrs v → Bool by f w = (w.val < v.val).
-      -- This is injective (by hadj analysis), so card ≤ 2.
-      have hdeg_le_2 : ((CGraph.lollipop (m + 2) (k + 1)).nbrs v).card ≤ 2 := by
-        set S := (CGraph.lollipop (m + 2) (k + 1)).nbrs v
-        -- Define g : S → Bool by g w = (w.val < v.val). This is injective.
-        have hinj : ∀ w1 ∈ S, ∀ w2 ∈ S, (w1.val < v.val ↔ w2.val < v.val) → w1 = w2 := by
-          intro w1 hw1 w2 hw2 hbooll
-          rw [CGraph.mem_nbrs] at hw1 hw2
-          rw [hadj w1] at hw1; rw [hadj w2] at hw2
-          obtain ⟨hne1, hc1⟩ := hw1; obtain ⟨hne2, hc2⟩ := hw2
-          set a1 := w1.val; set a2 := w2.val; set bv := v.val
-          -- Eliminate impossible cases for w1: bv ≥ m+2 eliminates cases where bv < a1 ∧ a1 < m+2,
-          -- a1 < bv ∧ bv < m+2, bv = 0 case
-          have hw1_valid :
-            (m + 2 ≤ bv ∧ a1 = bv + 1 ∧ bv + 1 < m + 2 + (k + 1)) ∨
-            (0 < k + 1 ∧ a1 = 0 ∧ bv = m + 2) ∨
-            (m + 2 ≤ a1 ∧ bv = a1 + 1 ∧ a1 + 1 < m + 2 + (k + 1)) := by
-            rcases hc1 with h | h | h | h | h | h
-            · exact absurd (by omega : bv < a1) (not_lt_of_ge (by omega))
-            · exfalso; omega
-            · exact Or.inl h
-            · exfalso; omega
-            · exact Or.inr (Or.inl h)
-            · exact Or.inr (Or.inr h)
-          have hw2_valid :
-            (m + 2 ≤ bv ∧ a2 = bv + 1 ∧ bv + 1 < m + 2 + (k + 1)) ∨
-            (0 < k + 1 ∧ a2 = 0 ∧ bv = m + 2) ∨
-            (m + 2 ≤ a2 ∧ bv = a2 + 1 ∧ a2 + 1 < m + 2 + (k + 1)) := by
-            rcases hc2 with h | h | h | h | h | h
-            · exact absurd (by omega : bv < a2) (not_lt_of_ge (by omega))
-            · exfalso; omega
-            · exact Or.inl h
-            · exfalso; omega
-            · exact Or.inr (Or.inl h)
-            · exact Or.inr (Or.inr h)
-          -- bool values: T3→false, T5→true (0 < m+2), T6→true (a < bv since bv = a+1)
-          rcases hw1_valid with ⟨_, ha1_eq, _⟩ | ⟨_, ha1_eq, hbv_eq⟩ | ⟨_, hbv_eq, _⟩
-          · rcases hw2_valid with ⟨_, ha2_eq, _⟩ | ⟨_, ha2_eq, hbv_eq2⟩ | ⟨_, hbv_eq2, _⟩
-            · exact Fin.ext (by omega)
-            · exfalso; simp [ha1_eq] at hbooll; omega
-            · exfalso; simp [ha1_eq] at hbooll; omega
-          · rcases hw2_valid with ⟨_, ha2_eq, _⟩ | ⟨_, ha2_eq, hbv_eq2⟩ | ⟨_, hbv_eq2, _⟩
-            · exfalso; simp [ha1_eq] at hbooll; omega
-            · exact Fin.ext (by omega)
-            · exfalso; omega
-          · rcases hw2_valid with ⟨_, ha2_eq, _⟩ | ⟨_, ha2_eq, hbv_eq2⟩ | ⟨_, hbv_eq2, _⟩
-            · exfalso; simp [hbv_eq] at hbooll; omega
-            · exfalso; omega
-            · exact Fin.ext (by omega)
-        -- Injectivity into Bool (which has card 2) gives card S ≤ 2.
-        -- Map each neighbor to Fin 2: 0 if w.val < v.val, 1 otherwise. This is injective.
-        let f : S → Fin 2 := fun ⟨w, hw⟩ => if w.val < v.val then 0 else 1
-        have hf_inj : Function.Injective f := by
-          intro ⟨w1, hw1⟩ ⟨w2, hw2⟩ heq
-          have hbooll : (w1.val < v.val ↔ w2.val < v.val) := by
-            simp only [f] at heq
-            show (w1.val < v.val ↔ w2.val < v.val)
-            by_cases h1 : w1.val < v.val <;> by_cases h2 : w2.val < v.val <;> simp [h1, h2] at heq ⊢
-          exact Subtype.ext (hinj w1 hw1 w2 hw2 hbooll)
-        have := Fintype.card_le_of_injective f hf_inj
-        simp [Fintype.card_fin] at this
-        exact this
+        rw [List.mem_map_add_range] at hw
+        omega)
+      (by rw [hv, List.mem_map_add_range]; omega)
+      (by
+        intro w hne
+        rw [hv]
+        simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges,
+          List.mem_map_add_range, true_and]
+        omega)
+    simpa using hd
+  refine le_antisymm (CGraph.maxDeg_le_of_forall fun v ↦ ?_)
+    (le_of_eq_of_le (hdeg0 ⟨0, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _))
+  rcases Nat.lt_or_ge v.1 (m + 2) with hv | hv
+  · refine le_trans (CGraph.degree_ofEdges_le (m + 2 + (k + 1)) _ v
+      (((List.range (m + 2)).erase v.1) ++ [m + 2]) ?_) ?_
+    · intro w hne hw
+      simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at hw
+      rw [List.mem_append, List.mem_erase_of_ne hne, List.mem_range, List.mem_singleton]
       omega
-  exact @CGraph.maxDeg_eq_of_degMultiset (CGraph.lollipop (m + 2) (k + 1)) (m + 2) hmem (fun d hd
-      => by
-    rw [CGraph.mem_degMultiset] at hd
-    obtain ⟨v, hv⟩ := hd
-    rw [← hv]
-    exact hule v)
+    · rw [List.length_append, List.length_erase_of_mem (List.mem_range.2 hv), List.length_range,
+        List.length_singleton]
+      omega
+  · refine le_trans (CGraph.degree_ofEdges_le (m + 2 + (k + 1)) _ v
+      [if v.1 = m + 2 then 0 else v.1 - 1, v.1 + 1] ?_) (by simp)
+    intro w hne hw
+    have hlt : v.1 < m + 2 + (k + 1) := v.isLt
+    simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at hw
+    simp only [List.mem_cons, List.not_mem_nil, or_false]
+    split_ifs <;> omega
 
 /-- An even cycle with a tail is bipartite, and it has an edge. -/
 theorem chromNum_tadpole_even (m k : ℕ) : (tadpole (2 * m + 4) k).chromNum = 2 := by
@@ -2844,460 +1314,81 @@ theorem E_spider (legs : List ℕ) : (spider legs).E = legs.sum := by
       rcases hmem_leg with ⟨h1, h2, hk⟩ | ⟨h1, h2, h3⟩
       · omega
       · omega
-  have ofEdges_E_of_lt_local : ∀ (n : ℕ) (es : List (ℕ × ℕ)),
-      (∀ p ∈ es, p.1 < p.2) →
-      (∀ p ∈ es, p.2 < n) →
-      List.Nodup es →
-      (CGraph.ofEdges n es).E = es.length := by
-    intro n es hlt hbound hnup
-    induction es with
-    | nil => rw [CGraph.ofEdges_nil, CGraph.E_empty]; rfl
-    | cons p es' ih =>
-      have heq : CGraph.ofEdges n (p :: es') = CGraph.ofEdges n (es' ++ [p]) := by
-        apply CGraph.ofEdges_congr n _ _ _
-        intro x y hne
-        simp [List.mem_cons, List.mem_append]
-        tauto
-      rw [heq]
-      have hlt' : ∀ q ∈ es', q.1 < q.2 := fun q hq => hlt q (List.mem_cons_of_mem _ hq)
-      have hfun : ∀ q ∈ p :: es', q.1 < n := fun q hq => lt_trans (hlt q hq) (hbound q hq)
-      have hbound' : ∀ q ∈ es', q.2 < n := fun q hq => hbound q (List.mem_cons_of_mem _ hq)
-      have hnup' : es'.Nodup := hnup.tail
-      have ihm := ih hlt' hbound' hnup'
-      have hp_mem : p ∈ p :: es' := List.mem_cons_self
-      set ep : Sym2 (Fin n) := Sym2.mk (⟨p.1, hfun p hp_mem⟩, ⟨p.2, hbound p hp_mem⟩)
-      have hnotin : ep ∉ (CGraph.ofEdges n es').toSimple.edgeFinset := by
-        intro hmem
-        simp [SimpleGraph.mem_edgeFinset, CGraph.toSimple, CGraph.ofEdges, CGraph.ofRel] at hmem
-        obtain ⟨hne, hm ⟩ := hmem
-        have hp12 : p.1 < p.2 := hlt p hp_mem
-        have hpn : p ∉ es' := (List.nodup_cons.mp hnup).1
-        rcases hm with h | h
-        · exact hpn h
-        · have := hlt' (p.2, p.1) h
-          omega
-      have hedgeFinset : (CGraph.ofEdges n (es' ++ [p])).toSimple.edgeFinset =
-          (CGraph.ofEdges n es').toSimple.edgeFinset ∪ {ep} := by
-        ext e
-        simp [SimpleGraph.mem_edgeFinset, CGraph.toSimple, CGraph.ofEdges, CGraph.ofRel,
-          List.mem_append]
-        induction e using Sym2.ind with
-        | _ a b =>
-          simp only [SimpleGraph.mem_edgeSet, SimpleGraph.edgeSet]
-          dsimp only [ep]
-          rw [Sym2.eq_iff]
-          simp only [Fin.ext_iff]
-          have : ∀ (x : Fin n) (v : ℕ) (hv : v < n), (x = ⟨v, hv⟩ ↔ x.1 = v) := by
-            intro x v hv; simp [Fin.ext_iff]
-          rw [this a p.1 (hfun p hp_mem), this b p.2 (hbound p hp_mem),
-              this a p.2 (hbound p hp_mem), this b p.1 (hfun p hp_mem)]
-          set a' : ℕ := a.val
-          set b' : ℕ := b.val
-          rcases p with ⟨p1, p2⟩
-          simp [Prod.mk.injEq]
-          have hpnotin_es' : (p1, p2) ∉ es' := by
-            intro h; exact (List.nodup_cons.mp hnup).1 h
-          have hp12 : p1 < p2 := by simpa using hlt (p1, p2) hp_mem
-          have hp21notin_es' : (p2, p1) ∉ es' := by
-            intro h; have := hlt' (p2, p1) h; omega
-          have hp12ne : p1 ≠ p2 := hp12.ne
-          set A := (a', b') ∈ es'
-          set B := a' = p1 ∧ b' = p2
-          set C := (b', a') ∈ es'
-          set D := b' = p1 ∧ a' = p2
-          simp only [A, B, C, D] at *
-          have hDflip : a' = p2 ∧ b' = p1 ↔ D := by constructor <;> intro h <;> exact ⟨h.2, h.1⟩
-          rw [hDflip]
-          rw [show b' = p1 ∧ a' = p2 ↔ D from Iff.rfl]
-          have hNe_from_B : B → ¬a' = b' := by intro ⟨ha, hb⟩; omega
-          have hNe_from_D : D → ¬a' = b' := by intro ⟨hb, ha⟩; omega
-          set Ne := ¬a' = b'
-          show Ne ∧ ((A ∨ B) ∨ C ∨ D) ↔ (B ∨ D) ∨ Ne ∧ (A ∨ C)
-          constructor
-          · intro h
-            rcases h with ⟨Ne, hmem⟩
-            rcases hmem with hAB | hCD
-            · rcases hAB with hA | hB
-              · exact Or.inr ⟨Ne, Or.inl hA⟩
-              · exact Or.inl (Or.inl hB)
-            · rcases hCD with hC | hD_val
-              · exact Or.inr ⟨Ne, Or.inr hC⟩
-              · exact Or.inl (Or.inr hD_val)
-          · intro h
-            rcases h with hBD | ⟨Ne, hAC⟩
-            · rcases hBD with hB | hD_val
-              · exact ⟨hNe_from_B hB, Or.inl (Or.inr hB)⟩
-              · exact ⟨hNe_from_D hD_val, Or.inr (Or.inr hD_val)⟩
-            · rcases hAC with hA | hC
-              · exact ⟨Ne, Or.inl (Or.inl hA)⟩
-              · exact ⟨Ne, Or.inr (Or.inl hC)⟩
-      unfold CGraph.E at ihm ⊢
-      rw [hedgeFinset, Finset.card_union_of_disjoint (Finset.disjoint_singleton_right.mpr hnotin)]
-      rw [Finset.card_singleton]
-      rw [ihm]
-      simp
   unfold CGraph.spider
-  rw [ofEdges_E_of_lt_local (1 + legs.sum) (CGraph.spiderEdges 1 legs)
+  rw [CGraph.E_ofEdges (1 + legs.sum) (CGraph.spiderEdges 1 legs)
     (hlts 1 legs (by omega))
     (hbounds2 1 legs (by omega))
     (hnoup 1 legs (by omega))]
   rw [hlen 1 legs]
 
-/-- Hanging pendant vertices off a cycle adds one edge per pendant. -/
+/-- **Hanging pendant vertices off a cycle adds one edge per pendant.**  A cycle edge keeps both
+endpoints below `m + 3`, a pendant edge runs from below `m + 3` to a fresh vertex at or above it,
+so the two lists are disjoint and neither contains a reversed pair. -/
 theorem E_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
     (cyclePendant (m + 3) ks).E = m + 3 + ks.sum := by
   simp only [IsoGraph.cyclePendant, IsoGraph.E_mk, CGraph.cyclePendant]
-  -- Helper: ofEdges_E_helper replicated locally
-  have ofEdges_E_helper : ∀ {n : ℕ} {es : List (ℕ × ℕ)},
-      (∀ p ∈ es, p.1 < n ∧ p.2 < n) →
-      (∀ p ∈ es, p.1 ≠ p.2) →
-      (∀ p ∈ es, (p.2, p.1) ∉ es) →
-      es.Nodup →
-      (CGraph.ofEdges n es).E = es.length := by
-    intro n es hn hnooops hnorev hnodup
-    induction es with
-    | nil =>
-      have : CGraph.ofEdges n [] = CGraph.empty n := by
-        exact CGraph.ext' rfl (heq_of_eq (funext fun i => funext fun j =>
-            by simp [CGraph.ofEdges, CGraph.empty]))
-      rw [this, CGraph.E_empty, List.length_nil]
-    | cons e es' ih =>
-      unfold CGraph.E
-      set ue : Fin n := ⟨e.1, (hn e (by simp)).1⟩
-      set ve : Fin n := ⟨e.2, (hn e (by simp)).2⟩
-      set edge_e : Sym2 (Fin n) := Sym2.mk (ue, ve)
-      have he_not_in_es' : e ∉ es' := by
-        intro h
-        have hd := hnodup
-        simp [List.nodup_cons] at hd
-        exact hd.1 h
-      have hrev_not_in_es' : (e.2, e.1) ∉ es' := by
-        intro h
-        have hmem : (e.2, e.1) ∈ e :: es' := by simp [h]
-        exact absurd (hnorev (e.2, e.1) hmem) (by simp [List.mem_cons])
-      have hdisjoint : edge_e ∉ (CGraph.ofEdges n es').toSimple.edgeFinset := by
-        intro he
-        rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj,
-            CGraph.ofEdges_adj_val] at he
-        rcases he.2 with h | h
-        · exact he_not_in_es' h
-        · exact hrev_not_in_es' h
-      have hedgeFinset_eq : (CGraph.ofEdges n (e :: es')).toSimple.edgeFinset =
-          (insert edge_e (CGraph.ofEdges n es').toSimple.edgeFinset) := by
-        ext x
-        show x ∈ (CGraph.ofEdges n (e :: es')).toSimple.edgeFinset ↔
-            x ∈ insert edge_e (CGraph.ofEdges n es').toSimple.edgeFinset
-        have hdef : (CGraph.ofEdges n (e :: es')).V = Fin n := rfl
-        change x ∈ (CGraph.ofEdges n (e :: es')).toSimple.edgeFinset ↔
-            x ∈ insert edge_e (CGraph.ofEdges n es').toSimple.edgeFinset at *
-        induction x using Sym2.ind with
-        | h u v =>
-          simp [SimpleGraph.mem_edgeFinset, Finset.mem_insert, SimpleGraph.mem_edgeSet,
-            CGraph.toSimple_adj, CGraph.ofEdges_adj_val]
-          dsimp only [CGraph.ofEdges, CGraph.ofRel] at u v
-          simp only [edge_e]
-          rw [Sym2.eq_iff]
-          have heq1 : (u = ue ↔ ↑u = e.1) := by simp [ue, Fin.ext_iff]
-          have heq2 : (v = ve ↔ ↑v = e.2) := by simp [ve, Fin.ext_iff]
-          have heq3 : (u = ve ↔ ↑u = e.2) := by simp [ve, Fin.ext_iff]
-          have heq4 : (v = ue ↔ ↑v = e.1) := by simp [ue, Fin.ext_iff]
-          have heq5 : ((↑u, ↑v) = e ↔ ↑u = e.1 ∧ ↑v = e.2) := Prod.ext_iff
-          have heq6 : ((↑v, ↑u) = e ↔ ↑v = e.1 ∧ ↑u = e.2) := Prod.ext_iff
-          rw [heq5, heq6, heq1, heq2, heq3, heq4]
-          have hnooops_e : e.1 ≠ e.2 := hnooops e (by simp)
-          have hA_notC : (↑u = e.1 ∧ ↑v = e.2) → ¬(↑u = ↑v) := by
-            intro ⟨ha, hb⟩ huv
-            have huv' : (u : ℕ) = (v : ℕ) := congr_arg (fun x : Fin n => (x : ℕ)) huv
-            exact hnooops_e (by rw [ha, hb] at huv'; exact huv')
-          have hB_notC : (↑v = e.1 ∧ ↑u = e.2) → ¬(↑u = ↑v) := by
-            intro ⟨ha, hb⟩ huv
-            have huv' : (u : ℕ) = (v : ℕ) := congr_arg (fun x : Fin n => (x : ℕ)) huv
-            exact hnooops_e (by rw [hb, ha] at huv'; exact huv'.symm)
-          have hB_eq_B' : (↑u = e.2 ∧ ↑v = e.1) ↔ (↑v = e.1 ∧ ↑u = e.2) := and_comm
-          have hAB_notC : (↑u = e.1 ∧ ↑v = e.2 ∨ ↑u = e.2 ∧ ↑v = e.1) → ¬(↑u = ↑v) := by
-            rintro (hA | hB'')
-            · exact hA_notC hA
-            · exact hB_notC ⟨hB''.2, hB''.1⟩
-          constructor
-          · rintro ⟨hne, hmem⟩
-            rcases hmem with hAD | hBD' | hF
-            · rcases hAD with hA | hD
-              · exact .inl (.inl hA)
-              · exact .inr ⟨hne, .inl hD⟩
-            · exact .inl (.inr (hB_eq_B'.mpr hBD'))
-            · exact .inr ⟨hne, .inr hF⟩
-          · rintro (hAB | ⟨hne, hDF⟩)
-            · have hnotC := hAB_notC hAB
-              exact ⟨by intro huv; exact hnotC (Fin.ext_iff.mpr huv),
-                     Or.elim hAB (fun hA => Or.inl (Or.inl hA))
-                       (fun hB'' => Or.inr (Or.inl (hB_eq_B'.mp hB'')))⟩
-            · exact ⟨hne, Or.elim hDF (fun hD => Or.inl (Or.inr hD)) (fun hF => Or.inr (Or.inr hF))⟩
-      rw [hedgeFinset_eq, Finset.card_insert_of_notMem hdisjoint]
-      simp [List.length_cons]
-      exact ih
-        (fun p hp => ⟨(hn p (by simp [hp])).1, (hn p (by simp [hp])).2⟩)
-        (fun p hp => hnooops p (by simp [hp]))
-        (fun p hp => by
-          have h := hnorev p (by simp [hp])
-          exact fun hm => h (by simp [hm]))
-        hnodup.tail
-  -- pendantEdges length = sum
-  have hpending_len : ∀ (v off : ℕ) (ks : List ℕ),
-      (CGraph.pendantEdges v off ks).length = ks.sum := by
-    intro v off ks
-    induction ks generalizing v off with
-    | nil => simp [CGraph.pendantEdges]
-    | cons k rest ih =>
-      simp [CGraph.pendantEdges, List.length_append, List.length_map, List.length_range]
-      rw [ih (v + 1) (off + k)]
-  -- cycleEdges length = n
-  have hcycle_len : ∀ n, (CGraph.cycleEdges n).length = n := by
-    intro n
-    induction n with
-    | zero => simp [CGraph.cycleEdges_zero]
-    | succ n ih =>
-      rw [CGraph.cycleEdges_succ]
-      simp [List.length_append, List.length_map, List.length_range]
-  -- Bounds for cycleEdges
-  have hcycle_bound : ∀ p ∈ CGraph.cycleEdges (m + 3), p.1 < m + 3 ∧ p.2 < m + 3 := by
+  have hcyc : ∀ p ∈ CGraph.cycleEdges (m + 3), p.1 < m + 3 ∧ p.2 < m + 3 := by
     intro p hp
     rw [CGraph.mem_cycleEdges] at hp
-    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> constructor <;> omega
-  -- Bounds for pendantEdges
-  have hpending_bound : ∀ p ∈ CGraph.pendantEdges 0 (m +
-      3) ks, p.1 < m + 3 + ks.sum ∧ p.2 < m + 3 + ks.sum := by
-    intro p hp
-    have := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.1 p.2 hp
-    simp at this
     omega
-  -- cycleEdges nodup
-  have hcycle_nodup : List.Nodup (CGraph.cycleEdges (m + 3)) := by
-    induction m + 3 with
-    | zero => simp [CGraph.cycleEdges_zero]
-    | succ n ih =>
-      rw [CGraph.cycleEdges_succ]
-      apply List.Nodup.append
-      · exact List.Nodup.map (fun i j hij => by injection hij) List.nodup_range
-      · exact List.nodup_singleton _
-      · intro x hx
-        simp [List.mem_map, List.mem_range] at hx
-        rcases hx with ⟨i, hi, rfl, rfl⟩
-        simp
-  -- No loops in cycleEdges
-  have hcycle_noloop : ∀ p ∈ CGraph.cycleEdges (m + 3), p.1 ≠ p.2 := by
-    intro p hp
-    rw [CGraph.mem_cycleEdges] at hp
-    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> omega
-  -- Pendant edges have p.1 < p.2 (so no self loops, since p.1 ≥ 0 and p.2 ≥ m+3 > p.1... wait, p.1
-  -- is the first component which is the "owner" vertex index)
-  -- Actually from mem_pendantEdges_bound with v=0: p.1 < ks.length ≤ m+3, and p.2 ≥ m+3. So p.1 <
-  -- p.2 always. Hence no loops.
-  have hpending_noloop : ∀ p ∈ CGraph.pendantEdges 0 (m + 3) ks, p.1 ≠ p.2 := by
-    intro p hp
-    have := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.1 p.2 hp
-    simp at this
-    omega
-  -- Pendant edges: first component < second component (so no reverses of pendant edges within
-  -- themselves)
-  have hpending_forward : ∀ p ∈ CGraph.pendantEdges 0 (m + 3) ks, p.1 < p.2 := by
+  have hpen : ∀ p ∈ CGraph.pendantEdges 0 (m + 3) ks,
+      p.1 < m + 3 ∧ m + 3 ≤ p.2 ∧ p.2 < m + 3 + ks.sum := by
     intro p hp
     have := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.1 p.2 hp
     omega
-  -- No reverse of a pendant edge is in cycleEdges (pendant edges go to vertices ≥ m+3, cycle edges
-  -- have both endpoints < m+3)
-  have hpending_no_rev_in_cycle : ∀ p ∈ CGraph.pendantEdges 0 (m + 3) ks, (p.2,
-      p.1) ∉ CGraph.cycleEdges (m + 3) := by
-    intro p hp hrev
-    have hc1 := (hcycle_bound _ hrev).1
-    have hc2 := (hcycle_bound _ hrev).2
-    have hpb := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.1 p.2 hp
+  have hdisj : List.Disjoint (CGraph.cycleEdges (m + 3)) (CGraph.pendantEdges 0 (m + 3) ks) := by
+    intro p hp hq
+    have := hcyc p hp
+    have := hpen p hq
     omega
-  -- Reverse of cycle edge not in cycleEdges
-  have hcycle_no_rev_in_cycle : ∀ p ∈ CGraph.cycleEdges (m + 3), (p.2, p.1) ∉ CGraph.cycleEdges (m
-      + 3) := by
-    intro p hp hmem
-    rw [CGraph.mem_cycleEdges] at hp hmem
-    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> rcases hmem with ⟨h3, h4⟩ | ⟨h3, h4⟩ <;> omega
-  -- Reverse of cycle edge not in pendantEdges (cycle edges have both endpoints < m+3; pendant edges
-  -- have 2nd endpoint ≥ m+3)
-  have hcycle_no_rev_in_pendant : ∀ p ∈ CGraph.cycleEdges (m + 3), (p.2,
-      p.1) ∉ CGraph.pendantEdges 0 (m + 3) ks := by
-    intro p hp hrev
-    have hc := hcycle_bound _ hp
-    have hpb := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.2 p.1 hrev
-    omega
-  -- Reverse of pendant edge not in pendantEdges (since pendant edges go forward)
-  have hpendant_no_rev_in_pendant : ∀ p ∈ CGraph.pendantEdges 0 (m + 3) ks, (p.2,
-      p.1) ∉ CGraph.pendantEdges 0 (m + 3) ks := by
-    intro p hp hrev
-    have hfwd := hpending_forward _ hp
-    have := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.1 p.2 hp
-    simp at this
-    have := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.2 p.1 hrev
-    simp at this
-    omega
-  -- pendantEdges is nodup
-  have hpending_nodup : ∀ (v off : ℕ) (ks : List ℕ),
-      List.Nodup (CGraph.pendantEdges v off ks) := by
-    intro v off ks
-    induction ks generalizing v off with
-    | nil => simp [CGraph.pendantEdges]
-    | cons k rest ih =>
-      simp [CGraph.pendantEdges]
-      apply List.Nodup.append
-      · exact List.Nodup.map (fun i j hij => by injection hij with h1 h2; omega) List.nodup_range
-      · exact ih (v + 1) (off + k)
-      · intro x hxc hxp
-        rcases List.mem_map.mp hxc with ⟨i, hi, rfl, rfl⟩
-        have hbound := CGraph.mem_pendantEdges_bound (v + 1) (off + k) rest (v) (off + i) hxp
-        omega
-  -- cycleEdges and pendantEdges are disjoint
-  have hdisjoint : Disjoint (CGraph.cycleEdges (m + 3)).toFinset (CGraph.pendantEdges 0 (m + 3)
-      ks).toFinset := by
-    rw [Finset.disjoint_left]
-    intro p hp hpn
-    have hc := hcycle_bound _ (by simpa using hp)
-    have hpb := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p.1 p.2 (by simpa using hpn)
-    omega
-  -- Nodup of the union
-  have hunion_nodup : List.Nodup (CGraph.cycleEdges (m + 3) ++ CGraph.pendantEdges 0 (m + 3)
-      ks) := by
-    apply List.Nodup.append hcycle_nodup (hpending_nodup 0 (m + 3) ks)
-    intro p hpcy hppend
-    exact Finset.disjoint_left.mp hdisjoint (List.mem_toFinset.mpr hpcy) (List.mem_toFinset.mpr
-        hppend)
-  -- No reverse in the union
-  have hunion_norev : ∀ p ∈ CGraph.cycleEdges (m + 3) ++ CGraph.pendantEdges 0 (m + 3) ks,
-      (p.2, p.1) ∉ CGraph.cycleEdges (m + 3) ++ CGraph.pendantEdges 0 (m + 3) ks := by
-    intro p hp
-    have hnotin_cycle : (p.2, p.1) ∉ CGraph.cycleEdges (m + 3) := by
-      rcases List.mem_append.mp hp with h | h
-      · exact hcycle_no_rev_in_cycle _ h
-      · exact hpending_no_rev_in_cycle _ h
-    have hnotin_pendant : (p.2, p.1) ∉ CGraph.pendantEdges 0 (m + 3) ks := by
-      rcases List.mem_append.mp hp with h | h
-      · exact hcycle_no_rev_in_pendant _ h
-      · exact hpendant_no_rev_in_pendant _ h
-    intro hmem
-    rcases List.mem_append.mp hmem with h' | h'
-    · exact hnotin_cycle h'
-    · exact hnotin_pendant h'
-  -- Bounds for union
-  have hunion_bound : ∀ p ∈ CGraph.cycleEdges (m + 3) ++ CGraph.pendantEdges 0 (m +
-      3) ks, p.1 < m + 3 + ks.sum ∧ p.2 < m + 3 + ks.sum := by
-    intro p hp
-    rcases List.mem_append.mp hp with h | h
-    · have := hcycle_bound _ h
-      exact ⟨by omega, by omega⟩
-    · exact hpending_bound _ h
-  -- No loops in union
-  have hunion_noloop : ∀ p ∈ CGraph.cycleEdges (m + 3) ++ CGraph.pendantEdges 0 (m +
-      3) ks, p.1 ≠ p.2 := by
-    intro p hp
-    rcases List.mem_append.mp hp with h | h
-    · exact hcycle_noloop _ h
-    · exact hpending_noloop _ h
-  -- Now apply ofEdges_E_helper
-  rw [ofEdges_E_helper hunion_bound hunion_noloop hunion_norev hunion_nodup]
-  rw [List.length_append, hcycle_len, hpending_len]
+  rw [CGraph.E_ofEdges_of_nodup (n := m + 3 + ks.sum)
+    (fun p hp ↦ by
+      rcases List.mem_append.mp hp with hp | hp
+      · have := hcyc p hp; omega
+      · have := hpen p hp; omega)
+    (fun p hp ↦ by
+      rcases List.mem_append.mp hp with hp | hp
+      · rw [CGraph.mem_cycleEdges] at hp; omega
+      · have := hpen p hp; omega)
+    (fun p hp hrev ↦ by
+      rcases List.mem_append.mp hp with hp | hp <;>
+        rcases List.mem_append.mp hrev with hrev | hrev
+      · rw [CGraph.mem_cycleEdges] at hp hrev; omega
+      · have := hcyc p hp; have := hpen _ hrev; omega
+      · have := hpen p hp; have := hcyc _ hrev; omega
+      · have := hpen p hp; have := hpen _ hrev; omega)
+    (List.Nodup.append (CGraph.cycleEdges_nodup _) (CGraph.pendantEdges_nodup _ _ _) hdisj)]
+  simp
 
-/-- The cycle keeps everything together and each pendant hangs off it. -/
+/-- A cycle with pendant vertices stays connected: each pendant hangs off a cycle vertex, whose
+number is smaller, and the cycle descends to `0`. -/
 theorem isConnected_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
     IsConnected (cyclePendant (m + 3) ks) := by
   unfold IsoGraph.cyclePendant
   rw [IsoGraph.isConnected_mk]
-  show CGraph.IsConnected _
-  simp only [CGraph.IsConnected]
-  haveI : Nonempty (CGraph.cyclePendant (m + 3) ks).V := by
-    show Nonempty (Fin (m + 3 + ks.sum))
-    exact ⟨0, by omega⟩
-  apply SimpleGraph.Connected.mk
-  · -- Preconnected: reachability from 0
-    show SimpleGraph.Preconnected _
-    -- All vertices are in Fin (m + 3 + ks.sum)
-    --Cycle vertices: indices < m+3; Pendant vertices: indices ≥ m+3
-    -- Pendant coverage: every index in [m+3, m+3+ks.sum) is a pendant vertex
-    have hpend_cov : ∀ (ks : List ℕ) (v off : ℕ) (q : ℕ),
-        off ≤ q → q < off + ks.sum →
-        ∃ (p : ℕ), v ≤ p ∧ p < v + ks.length ∧ (p, q) ∈ CGraph.pendantEdges v off ks := by
-      intro ks
-      induction ks with
-      | nil => intro v off q hq1 hq2; simp [List.sum] at hq2; omega
-      | cons k ks ih =>
-        simp only [List.sum_cons]
-        intro v off q hq1 hq2
-        by_cases hqk : q < off + k
-        · exact ⟨v, le_refl v, by simp [List.length_cons], by
-            simp [CGraph.pendantEdges, List.mem_append, List.mem_map, List.mem_range]
-            exact Or.inl ⟨q - off, by omega, by omega⟩⟩
-        · have hq1' : off + k ≤ q := by omega
-          have hq2' : q < off + k + ks.sum := by omega
-          obtain ⟨p', hp1', hp2', hp3'⟩ := ih (v + 1) (off + k) q hq1' hq2'
-          exact ⟨p', by omega, by simp [List.length_cons]; omega, by
-            simp [CGraph.pendantEdges]
-            exact Or.inr hp3'⟩
-    -- Pendant vertices are adjacent to some cycle vertex
-    have hpend_adj : ∀ (q : ℕ) (hq2 : q < m + 3 + ks.sum), m + 3 ≤ q →
-        ∃ (v : (CGraph.cyclePendant (m + 3) ks).V), v.val < m + 3 ∧
-          (CGraph.cyclePendant (m + 3) ks).Adj v ⟨q, hq2⟩ := by
-      intro q hq2 hq1
-      obtain ⟨p, hp1, hp2, hp3⟩ := hpend_cov ks 0 (m + 3) q (by omega) hq2
-      have hp_lt_m3 : p < m + 3 := by omega
-      have hp_lt_N : p < m + 3 + ks.sum := by omega
-      refine ⟨⟨p, hp_lt_N⟩, hp_lt_m3, ?_⟩
-      have hne : (p : ℕ) ≠ q := by omega
-      rw [CGraph.cyclePendant_adj_val]
-      simp [hne]
-      exact Or.inl (Or.inr hp3)
-    have hindex_bound : ∀ (i : ℕ), i < m + 3 → i < m + 3 + ks.sum := fun i hi => by omega
-    -- Cycle edges: (j, j+1) for j < m+2, as vertices of the graph
-    let embed : Fin (m + 3) → (CGraph.cyclePendant (m + 3) ks).V := fun i => ⟨i.val, hindex_bound
-        i.val i.isLt⟩
-    let next : ∀ (j : Fin (m + 3)), j.val < m + 2 → Fin (m + 3) := fun j _ => ⟨j.val + 1, by omega⟩
-    have hcycle_edge : ∀ (j : Fin (m + 3)) (hj : j.val < m + 2),
-        (CGraph.cyclePendant (m + 3) ks).Adj (embed j) (embed (next j hj)) := by
-      intro j hj
-      rw [CGraph.cyclePendant_adj_val]
-      simp only [embed, next]
-      refine ⟨by omega, Or.inl ?_⟩
-      apply List.mem_append_left
-      rw [CGraph.mem_cycleEdges]
-      exact Or.inl ⟨rfl, by omega⟩
-    -- Reachability to all cycle vertices from 0
-    have hcycle_reach : ∀ (i : Fin (m + 3)),
-        (CGraph.cyclePendant (m + 3) ks).toSimple.Reachable
-          (embed ⟨0, by omega⟩) (embed i) := by
-      intro i
-      have : ∀ (n : ℕ) (hn : n < m + 3),
-          (CGraph.cyclePendant (m + 3) ks).toSimple.Reachable
-            (embed ⟨0, by omega⟩) (embed ⟨n, hn⟩) := by
-        intro n
-        induction n with
-        | zero => intro hn; rfl
-        | succ j ih =>
-          intro hj
-          have hj' : j < m + 3 := by omega
-          have hj'' : j < m + 2 := by omega
-          exact (ih hj').trans (SimpleGraph.Adj.reachable (show (CGraph.cyclePendant (m + 3)
-              ks).toSimple.Adj (embed ⟨j, hj'⟩) (embed (next ⟨j, hj'⟩
-                  hj'')) by simpa using hcycle_edge ⟨j, hj'⟩ hj''))
-      exact this i i.isLt
-    -- Reachability to all pendant vertices from 0
-    have hpend_reach : ∀ (q : ℕ) (hq2 : q < m + 3 + ks.sum), m + 3 ≤ q →
-        (CGraph.cyclePendant (m + 3) ks).toSimple.Reachable
-          (embed ⟨0, by omega⟩) (⟨q, hq2⟩ : (CGraph.cyclePendant (m + 3) ks).V) := by
-      intro q hq2 hq1
-      obtain ⟨v, hv_lt, havj⟩ := hpend_adj q hq2 hq1
-      exact (hcycle_reach ⟨v.val, hv_lt⟩).trans (SimpleGraph.Adj.reachable (show
-          (CGraph.cyclePendant (m + 3) ks).toSimple.Adj v ⟨q, hq2⟩ by simpa using havj))
-    -- Reachability to all vertices from 0
-    have hreach : ∀ (v : (CGraph.cyclePendant (m + 3) ks).V),
-        (CGraph.cyclePendant (m + 3) ks).toSimple.Reachable (embed ⟨0, by omega⟩) v := by
-      intro ⟨vi, hvi⟩
-      by_cases hvi_lt : vi < m + 3
-      · exact hcycle_reach ⟨vi, hvi_lt⟩
-      · exact hpend_reach vi hvi (by omega)
-    exact fun u v => (hreach u).symm.trans (hreach v)
+  refine CGraph.isConnected_of_rank (fun v ↦ (v : Fin (m + 3 + ks.sum)).val)
+    (⟨0, by omega⟩ : Fin (m + 3 + ks.sum)) fun v hv ↦ ?_
+  have hlt := (v : Fin (m + 3 + ks.sum)).isLt
+  have hv0 : 0 < (v : Fin (m + 3 + ks.sum)).val := by
+    rcases Nat.eq_zero_or_pos (v : Fin (m + 3 + ks.sum)).val with h | h
+    · exact absurd (Fin.ext h) hv
+    · exact h
+  set i := (v : Fin (m + 3 + ks.sum)).val with hi
+  by_cases hcyc : i < m + 3
+  · -- around the cycle, the predecessor
+    refine ⟨(⟨i - 1, by omega⟩ : Fin (m + 3 + ks.sum)), show i - 1 < i by omega, ?_⟩
+    rw [CGraph.cyclePendant_adj_val]
+    refine ⟨show i ≠ i - 1 by omega, Or.inr ?_⟩
+    show (i - 1, i) ∈ CGraph.cycleEdges (m + 3) ++ CGraph.pendantEdges 0 (m + 3) ks
+    exact List.mem_append_left _ ((CGraph.mem_cycleEdges _ _ _).2 (Or.inl ⟨by omega, by omega⟩))
+  · -- a pendant vertex hangs off a cycle vertex, which has the smaller number
+    obtain ⟨p, hp⟩ := CGraph.exists_mem_pendantEdges 0 (m + 3) ks i (by omega) (by omega)
+    have hb := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p i hp
+    refine ⟨(⟨p, by omega⟩ : Fin (m + 3 + ks.sum)), show p < i by omega, ?_⟩
+    rw [CGraph.cyclePendant_adj_val]
+    refine ⟨show i ≠ p by omega, Or.inr ?_⟩
+    show (p, i) ∈ CGraph.cycleEdges (m + 3) ++ CGraph.pendantEdges 0 (m + 3) ks
+    exact List.mem_append_right _ hp
 
 theorem numComponents_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
     (cyclePendant (m + 3)
@@ -3306,441 +1397,82 @@ theorem numComponents_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ 
 
 /-- The far end of any leg is a pendant. -/
 theorem minDeg_spider (legs : List ℕ) (h : 0 < legs.sum) : minDeg (spider legs) = 1 := by
-  induction legs with
-  | nil => simp at h
-  | cons k rest ih =>
-    by_cases hk : k = 0
-    · subst hk; rw [spider_zero_cons]; exact ih (by simp [List.sum_cons] at h; omega)
-    · -- k > 0 case
-      have hk0 : 0 < k := Nat.pos_of_ne_zero hk
-      -- spider (k :: rest) = ofEdges (1 + k + rest.sum) (spiderEdges 1 (k :: rest))
-      -- spiderEdges 1 (k :: rest) = legEdges 0 1 k ++ spiderEdges (1+k) rest
-      -- Vertex k (index k) has degree 1 (pendant at end of first leg).
-      -- Every vertex has degree ≥ 1.
-      apply le_antisymm
-      · -- minDeg ≤ 1: vertex ⟨k, _⟩ has degree ≤ 1
-        simp [IsoGraph.minDeg, IsoGraph.spider, CGraph.minDeg]
-        have hk_lt : k < 1 + (k :: rest).sum := by simp [List.sum_cons]; omega
-        let v : (CGraph.spider (k :: rest)).V := ⟨k, hk_lt⟩
-        have hdeg : (CGraph.spider (k :: rest)).toSimple.degree v ≤ 1 := by
-          rw [← CGraph.card_nbrs_eq_degree]
-          have hsub : (CGraph.spider (k :: rest)).nbrs v ⊆ {⟨k - 1, by omega⟩} := by
-            intro w hw
-            rw [CGraph.mem_nbrs, CGraph.spider_adj_val] at hw
-            simp only [show v.val = k from rfl, CGraph.spiderEdges, List.mem_append] at hw
-            rcases hw with ⟨hne, hor⟩
-            -- (k, w.1) ∉ spiderEdges (1+k) rest and (w.1, k) ∉ spiderEdges (1+k) rest
-            have hnot_spider : (k, w.1) ∉ CGraph.spiderEdges (1 + k) rest ∧ (w.1,
-                k) ∉ CGraph.spiderEdges (1 + k) rest := by
-              constructor <;> intro hmem
-              · have := CGraph.mem_spiderEdges_bound (1 + k) rest k w.1 hmem
-                omega
-              · have := CGraph.mem_spiderEdges_bound (1 + k) rest w.1 k hmem
-                omega
-            rcases hor with hor | hor
-            · -- (v,w) ∈ legEdges 0 1 k ∨ (v,w) ∈ spiderEdges (1+k) rest
-              rcases hor with hle | hspider
-              · rw [CGraph.mem_legEdges] at hle
-                rcases hle with ⟨hv0, hw1, _⟩ | ⟨h1v, hwv, hlt⟩
-                · exfalso; have hv : v.val = k := rfl; omega
-                · exfalso; have hv : v.val = k := rfl; omega
-              · exfalso; exact hnot_spider.1 hspider
-            · -- (w,v) ∈ legEdges 0 1 k ∨ (w,v) ∈ spiderEdges (1+k) rest
-              rcases hor with hle | hspider
-              · rw [CGraph.mem_legEdges] at hle
-                rcases hle with ⟨hw0, hv1, _⟩ | ⟨h1w, hvw, hlt'⟩
-                · have hk1 : k = 1 := by
-                    have : v.val = k := rfl
-                    omega
-                  subst hk1
-                  let v2 : (CGraph.spider (1 :: rest)).V := ⟨0, by omega⟩
-                  exact Finset.mem_singleton.mpr (Fin.ext hw0)
-                · let v2 : (CGraph.spider (k :: rest)).V := ⟨k - 1, by omega⟩
-                  have hwk : w.val = v2.val := by
-                    simp [v2]; omega
-                  exact Finset.mem_singleton.mpr (Fin.ext hwk)
-              · exfalso; exact hnot_spider.2 hspider
-          exact Finset.card_le_one.mpr (fun x hx y hy =>
-              by rw [Finset.mem_singleton.mp (hsub hx), Finset.mem_singleton.mp (hsub hy)])
-        exact le_trans (CGraph.minDeg_le_degree _ v) hdeg
-      · -- 1 ≤ minDeg: every vertex has degree ≥ 1
-        -- Off-general lemma: for off ≥ 1 and legs with legs.sum > 0,
-        -- every vertex v of ofEdges (off + legs.sum) (spiderEdges off legs) with off ≤ v.val
-        -- has degree ≥ 1.
-        have h_off_gen : ∀ (off : ℕ) (legs : List ℕ), 1 ≤ off → 0 < legs.sum →
-            ∀ v : (CGraph.ofEdges (off + legs.sum) (CGraph.spiderEdges off legs)).V,
-            off ≤ v.val → 1 ≤ (CGraph.ofEdges (off + legs.sum) (CGraph.spiderEdges off
-                legs)).toSimple.degree v := by
-          intro off legs
-          induction legs generalizing off with
-          | nil =>
-            intro _ hlegs_sum _ _; simp [List.sum_nil] at hlegs_sum
-          | cons l rs ih =>
-            intro h_off hlegs_sum v hv_off
-            have hsum_eq : off + (l :: rs).sum = (off + l) + rs.sum := by simp [List.sum_cons]; ring
-            let v'' : Fin ((off + l) + rs.sum) := Fin.cast hsum_eq v
-            have hv_val : v.val = v''.val := rfl
-            -- Degree casting lemma
-            have hdeg_cast : ∀ {n m : ℕ} (e : n = m) (es : List (ℕ × ℕ))
-                (hend : ∀ ep eq, (ep, eq) ∈ es → ep < n ∧ eq < n)
-                (vend : ∀ ep eq, (ep, eq) ∈ es → ep < m ∧ eq < m)
-                (u : Fin n) (u' : Fin m), u.val = u'.val →
-                (CGraph.ofEdges n es).toSimple.degree u =
-                (CGraph.ofEdges m es).toSimple.degree u' := by
-              intro n m e es hend vend u u' hu_val; subst e; rw [Fin.ext hu_val]
-            have spider_bound : ∀ ep eq, (ep, eq) ∈ CGraph.spiderEdges off (l :: rs) →
-                ep < off + (l :: rs).sum ∧ eq < off + (l :: rs).sum := by
-              intro ep eq hmem
-              rcases CGraph.mem_spiderEdges_bound off (l :: rs) ep eq hmem with ⟨hp | ⟨_, hp2⟩,
-                  hq1, hq2⟩
-              · exact ⟨by omega, by omega⟩
-              · exact ⟨by omega, by omega⟩
-            have hdeg_eq : (CGraph.ofEdges (off + (l :: rs).sum) (CGraph.spiderEdges off (l ::
-                rs))).toSimple.degree v =
-                (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges off (l ::
-                    rs))).toSimple.degree v'' := by
-              exact hdeg_cast hsum_eq _
-                (fun ep eq hmem => by
-                  rcases spider_bound ep eq hmem with ⟨h1, h2⟩
-                  rw [hsum_eq] at h1 h2 ⊢; exact ⟨h1, h2⟩)
-                (fun ep eq hmem => by
-                  rcases spider_bound ep eq hmem with ⟨h1, h2⟩
-                  rw [hsum_eq] at h1 h2
-                  exact ⟨by omega, by omega⟩)
-                v v'' hv_val
-            suffices h : 1 ≤ (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges off (l ::
-                rs))).toSimple.degree v'' by
-              linarith
-            have hsplit : CGraph.spiderEdges off (l ::
-                rs) = CGraph.legEdges 0 off l ++ CGraph.spiderEdges (off + l) rs := by
-              simp [CGraph.spiderEdges]
-            have handheld_edges : ∀ e : ℕ × ℕ, e ∈ CGraph.legEdges 0 off l → e.1 < off + l ∧ e.2 <
-                off + l := by
-              intro ⟨p, q⟩ hmem
-              rw [CGraph.mem_legEdges] at hmem
-              rcases hmem with ⟨rfl, rfl, hl0⟩ | ⟨h1p, rfl, hlt⟩ <;> constructor <;> omega
-            by_cases hl : l = 0
-            · subst hl
-              simp only [List.sum_cons, zero_add] at hsum_eq ⊢
-              -- spiderEdges off (0::rs) = spiderEdges off rs, and off+0+rs.sum = off+rs.sum
-              have hspider : CGraph.spiderEdges off (0 :: rs) = CGraph.spiderEdges off rs := by
-                simp [CGraph.spiderEdges, CGraph.legEdges]
-              have hbdd : off + 0 + rs.sum = off + rs.sum := by omega
-              have spider_bound_rs : ∀ ep eq, (ep, eq) ∈ CGraph.spiderEdges off rs →
-                  ep < off + rs.sum ∧ eq < off + rs.sum := by
-                intro ep eq hmem
-                have := CGraph.mem_spiderEdges_bound off rs ep eq hmem
-                omega
-              have hv_rs : v.val < off + rs.sum := by
-                have : (0 :: rs).sum = rs.sum := by simp
-                omega
-              let v' : (CGraph.ofEdges (off + rs.sum) (CGraph.spiderEdges off rs)).V := ⟨v.val,
-                  hv_rs⟩
-              have hdeg_eq' : (CGraph.ofEdges (off + (0 :: rs).sum) (CGraph.spiderEdges off (0 ::
-                  rs))).toSimple.degree v =
-                  (CGraph.ofEdges (off + rs.sum) (CGraph.spiderEdges off
-                      rs)).toSimple.degree v' := by
-                apply hdeg_cast
-                · simp [List.sum_cons]
-                · intro ep eq hmem
-                  have := spider_bound ep eq (by rw [hspider] at hmem ⊢; exact hmem)
-                  omega
-                · exact spider_bound_rs
-                · exact rfl
-              have hdeg_eq'' : (CGraph.ofEdges (off + rs.sum) (CGraph.spiderEdges off
-                  rs)).toSimple.degree v' =
-                  (CGraph.ofEdges (off + 0 + rs.sum) (CGraph.spiderEdges off (0 ::
-                      rs))).toSimple.degree v'' := by
-                rw [← hdeg_eq', hdeg_eq]
-              rw [← hdeg_eq'']
-              exact ih off h_off (by simp at hlegs_sum; omega) v' hv_off
-            · have hl0 : 0 < l := Nat.pos_of_ne_zero hl
-              by_cases hvleg : v.val < off + l
-              ·
-                rw [SimpleGraph.degree, CGraph.neighborFinset_eq_nbrs]
-                by_cases hv_off_eq : v.val = off
-                ·
-                  have hv''_zero : v''.val = off := by omega
-                  have hedge : (0, off) ∈ CGraph.spiderEdges off (l :: rs) := by
-                    rw [hsplit]
-                    exact List.mem_append.mpr (Or.inl
-                        (by rw [CGraph.mem_legEdges]; exact Or.inl ⟨rfl, rfl, hl0⟩))
-                  have hmem : (⟨0, by omega⟩ : (CGraph.ofEdges ((off + l) + rs.sum)
-                      (CGraph.spiderEdges off (l :: rs))).V) ∈ (CGraph.ofEdges ((off +
-                          l) + rs.sum) (CGraph.spiderEdges off (l :: rs))).nbrs v'' := by
-                    rw [CGraph.mem_nbrs, CGraph.ofEdges_adj_val]
-                    simp [hv''_zero]
-                    exact ⟨by omega, Or.inr hedge⟩
-                  exact Finset.one_le_card.mpr ⟨_, hmem⟩
-                ·
-                  have hv_gt_off : off < v''.val := by omega
-                  -- neighbor v''-1 via edge (v''-1, v'') in legEdges 0 off l
-                  have hedge : ((v''.val - 1, v''.val) : ℕ × ℕ) ∈ CGraph.spiderEdges off (l ::
-                      rs) := by
-                    exact List.mem_append.mpr (Or.inl
-                        (by rw [CGraph.mem_legEdges]; exact Or.inr ⟨by omega, by omega, by omega⟩))
-                  have hmem : (⟨v''.val - 1, by omega⟩ : (CGraph.ofEdges ((off + l) + rs.sum)
-                      (CGraph.spiderEdges off (l :: rs))).V) ∈ (CGraph.ofEdges ((off +
-                          l) + rs.sum) (CGraph.spiderEdges off (l :: rs))).nbrs v'' := by
-                    rw [CGraph.mem_nbrs, CGraph.ofEdges_adj_val]
-                    simp
-                    exact ⟨by omega, Or.inr hedge⟩
-                  exact Finset.one_le_card.mpr ⟨_, hmem⟩
-              ·
-                push_neg at hvleg
-                have hvtoff : off + l ≤ v''.val := by omega
-                have hrs_pos : 0 < rs.sum := by omega
-                have hvleg_not : ¬ (v''.val < off + l) := by omega
-                have hv_not_adjl : ∀ w : Fin ((off + l) + rs.sum),
-                    ¬ (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.legEdges 0 off
-                        l)).Adj v'' w := by
-                  intro w; rw [CGraph.ofEdges_adj_val]
-                  intro hadj; obtain ⟨hne, hor⟩ := hadj
-                  rcases hor with hor | hor
-                  · have := handheld_edges _ hor |>.1; omega
-                  · have := handheld_edges _ hor |>.2; omega
-                have hw_not_adjl : ∀ w : Fin ((off + l) + rs.sum),
-                    ¬ (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.legEdges 0 off
-                        l)).Adj w v'' := by
-                  intro w; rw [CGraph.ofEdges_adj_val]
-                  intro hadj; obtain ⟨hne, hor⟩ := hadj
-                  rcases hor with hor | hor
-                  · have := handheld_edges _ hor |>.2; omega
-                  · have := handheld_edges _ hor |>.1; omega
-                have hneighbor_eq : ∀ w : Fin ((off + l) + rs.sum),
-                    (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges off (l ::
-                        rs))).Adj v'' w ↔
-                    (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges (off + l)
-                        rs)).Adj v'' w := by
-                  intro w
-                  rw [hsplit, CGraph.ofEdges_adj_val, CGraph.ofEdges_adj_val]
-                  simp only [List.mem_append]
-                  constructor
-                  · intro ⟨hne, hor⟩
-                    -- hor : ((v'',w) ∈ leg ∨ (v'',w) ∈ spider) ∨ ((w,v'') ∈ leg ∨ (w,v'') ∈ spider)
-                    have : (↑v'', ↑w) ∈ CGraph.spiderEdges (off + l) rs ∨ (↑w,
-                        ↑v'') ∈ CGraph.spiderEdges (off + l) rs := by
-                      rcases hor with hor | hor
-                      · rcases hor with hor | hor
-                        · exfalso; have := handheld_edges _ hor |>.1; omega
-                        · exact Or.inl hor
-                      · rcases hor with hor | hor
-                        · exfalso; have := handheld_edges _ hor |>.2; omega
-                        · exact Or.inr hor
-                    exact ⟨hne, this⟩
-                  · intro ⟨hne, hor⟩
-                    obtain h1 | h2 := hor
-                    · exact ⟨hne, Or.inl (Or.inr h1)⟩
-                    · exact ⟨hne, Or.inr (Or.inr h2)⟩
-                have hdeg_local : (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges off (l
-                    :: rs))).toSimple.degree v'' =
-                    (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges (off + l)
-                        rs)).toSimple.degree v'' := by
-                  simp only [SimpleGraph.degree, CGraph.neighborFinset_eq_nbrs]
-                  have : (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges off (l ::
-                      rs))).nbrs v'' =
-                         (CGraph.ofEdges ((off + l) + rs.sum) (CGraph.spiderEdges (off + l)
-                             rs)).nbrs v'' := by
-                    ext w; rw [CGraph.mem_nbrs, CGraph.mem_nbrs]; exact hneighbor_eq w
-                  rw [this]
-                rw [hdeg_local]
-                exact ih (off + l) (by omega) hrs_pos v'' (by omega)
-        -- Now prove the lower bound for spider (k :: rest)
-        apply CGraph.le_minDeg_of_forall (⟨0, by omega⟩ : (CGraph.spider (k :: rest)).V)
-        intro v
-        by_cases hv0 : v.val = 0
-        ·
-          show 1 ≤ (CGraph.spider (k :: rest)).toSimple.degree v
-          rw [SimpleGraph.degree, CGraph.neighborFinset_eq_nbrs]
-          have hmem : ⟨1, by omega⟩ ∈ (CGraph.spider (k :: rest)).nbrs v := by
-            rw [CGraph.mem_nbrs, CGraph.spider_adj_val]
-            simp [hv0]
-            left
-            exact List.mem_append_left _ (by rw [CGraph.mem_legEdges]; exact Or.inl ⟨rfl, rfl, hk0⟩)
-          exact Finset.one_le_card.mpr ⟨_, hmem⟩
-        ·
-          show 1 ≤ (CGraph.spider (k :: rest)).toSimple.degree v
-          have hv1 : 1 ≤ v.val := Nat.pos_of_ne_zero hv0
-          simp
-          have := h_off_gen 1 (k :: rest) (by omega) (by omega) v hv1
-          exact this
+  simp only [IsoGraph.spider, IsoGraph.minDeg_mk]
+  refine le_antisymm ?_ (CGraph.le_minDeg_of_forall ⟨0, by omega⟩ fun v ↦ ?_)
+  · obtain ⟨p, hp⟩ := CGraph.exists_mem_spiderEdges_snd 1 legs legs.sum (by omega) (by omega)
+    have hlast : ∀ v : (CGraph.spider legs).V, v.1 = legs.sum →
+        (CGraph.spider legs).toSimple.degree v ≤ 1 := by
+      intro v hv
+      refine le_trans (CGraph.degree_ofEdges_le (1 + legs.sum) _ v [p] ?_) (by simp)
+      intro w hne hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false]
+      rcases hw with hw | hw
+      · exfalso
+        have h1 := CGraph.spiderEdges_lt 1 legs (by omega) _ _ hw
+        have h2 := CGraph.mem_spiderEdges_bound 1 legs _ _ hw
+        omega
+      · exact CGraph.spiderEdges_snd_unique 1 legs (by omega) w p _ (hv ▸ hw) hp
+    exact le_trans (CGraph.minDeg_le_degree _ _) (hlast ⟨legs.sum, by omega⟩ rfl)
+  · rcases Nat.eq_zero_or_pos v.1 with hv | hv
+    · obtain ⟨q, hq⟩ := CGraph.exists_mem_spiderEdges_zero 1 legs h
+      have hb := CGraph.mem_spiderEdges_bound 1 legs 0 q hq
+      refine le_trans (by simp) (CGraph.le_degree_ofEdges (1 + legs.sum) _ v [q] (by simp) ?_)
+      intro w hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+      subst hw
+      exact ⟨by omega, by omega, Or.inl (by rw [hv]; exact hq)⟩
+    · have hlt : v.1 < 1 + legs.sum := v.isLt
+      obtain ⟨p, hp⟩ := CGraph.exists_mem_spiderEdges_snd 1 legs v.1 (by omega) (by omega)
+      have hb := CGraph.mem_spiderEdges_bound 1 legs p v.1 hp
+      have hpv := CGraph.spiderEdges_lt 1 legs (by omega) p v.1 hp
+      refine le_trans (by simp) (CGraph.le_degree_ofEdges (1 + legs.sum) _ v [p] (by simp) ?_)
+      intro w hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+      subst hw
+      exact ⟨by omega, by omega, Or.inr hp⟩
 
 /-- A pendant vertex has degree one. -/
 theorem minDeg_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) (h2 : 0 < ks.sum) :
     minDeg (cyclePendant (m + 3) ks) = 1 := by
-  -- Key helper:pendant vertices (≥ m+3) have degree exactly 1
-  -- Key helper 2: cycle vertices (< m+3) have degree ≥ 2
-  -- Upper bound: vertex m+3 has degree 1, so minDeg ≤ 1
-  -- Lower bound: all vertices have degree ≥ 1, so 1 ≤ minDeg
-  set n := m + 3 with hn_def
-  -- Helper: cycle edges only involve vertices < n
-  have hcyc_bounds : ∀ a b : ℕ, (a, b) ∈ CGraph.cycleEdges n → a < n ∧ b < n := by
-    intro a b hab
-    rw [CGraph.mem_cycleEdges] at hab
-    rcases hab with ⟨hlt, hlt2⟩ | ⟨heq, hb0⟩
-    · exact ⟨by omega, by omega⟩
-    · exact ⟨by omega, by omega⟩
-  -- Helper: m+3 cannot be in any cycle edge (as either component)
-  have hnot_in_cycle : ∀ q : ℕ, (n, q) ∉ CGraph.cycleEdges n ∧ (q, n) ∉ CGraph.cycleEdges n := by
-    intro q
-    exact ⟨fun h => by obtain ⟨ha, hb⟩ := hcyc_bounds n q h; omega,
-           fun h => by obtain ⟨ha, hb⟩ := hcyc_bounds q n h; omega⟩
-  -- Helper: pendant edge first component is < ks.length ≤ n
-  have hpending_first_lt : ∀ p q : ℕ, (p, q) ∈ CGraph.pendantEdges 0 n ks → p < n := by
-    intro p q hpq
-    have := CGraph.mem_pendantEdges_bound 0 n ks p q hpq
-    omega
-  -- Helper: m+3 cannot be first component of any pendant edge
-  have hnot_first_pendant : ∀ q : ℕ, (n, q) ∉ CGraph.pendantEdges 0 n ks := by
-    intro q h
-    have := hpending_first_lt n q h
-    omega
-  -- Helper: pendant vertices (≥ n) can only appear as second component of pendant edges
-  -- For degree = 1 of vertex n: its only possible neighbor is via a pendant edge (n.owner, n)
-  -- pendantEdges covers its stated range (second component)
-  -- More general: for any v, off, ks, every q in [off, off + ks.sum) appears as second component
-  have hpendant_exists : ∀ (v off : ℕ) (ks : List ℕ) (q : ℕ),
-      off ≤ q → q < off + ks.sum →
-      ∃ p : ℕ, (p, q) ∈ CGraph.pendantEdges v off ks := by
-    clear h h2 hcyc_bounds hnot_in_cycle hpending_first_lt hnot_first_pendant hn_def
-    suffices h : ∀ (ks : List ℕ), ∀ (v off : ℕ) (q : ℕ),
-        off ≤ q → q < off + ks.sum → ∃ p, (p, q) ∈ CGraph.pendantEdges v off ks by
-      exact fun v off ks q hle hlt => h ks v off q hle hlt
-    intro ks
-    induction ks with
-    | nil => intro q hle hlt; show hle ≤ hlt → hlt < hle + [].sum → _; intro _ hlt'; rw
-        [List.sum_nil] at hlt'; omega
-    | cons k rest ih =>
-      intro q hle hlt hk1 hk2
-      have hk2' : hlt < hle + (k + rest.sum) := by
-        rwa [List.sum_cons] at hk2
-      by_cases hk3 : hlt < hle + k
-      · refine ⟨q, ?_⟩
-        rw [CGraph.pendantEdges]
-        apply List.mem_append.mpr
-        left
-        exact List.mem_map.mpr ⟨hlt - hle, List.mem_range.mpr (by omega), by ext <;> omega⟩
-      · push_neg at hk3
-        have hlt'' : hlt < hle + k + rest.sum := by omega
-        obtain ⟨p, hp⟩ := ih (q + 1) (hle + k) hlt (by omega) hlt''
-        exact ⟨p, by simp [CGraph.pendantEdges]; exact Or.inr hp⟩
-  -- Uniqueness: each pendant vertex (second component) appears in at most one pendant edge
-  have hpendant_second_unique : ∀ (ks : List ℕ) (v off : ℕ) (p1 p2 q : ℕ),
-      (p1, q) ∈ CGraph.pendantEdges v off ks →
-      (p2, q) ∈ CGraph.pendantEdges v off ks → p1 = p2 := by
-    intro ks
-    induction ks with
-    | nil =>
-      intro v off p1 p2 q h1 h2; simp [CGraph.pendantEdges] at h1 h2
-    | cons k rest ih =>
-      intro v off p1 p2 q h1 h2
-      simp [CGraph.pendantEdges, List.mem_append, List.mem_map, List.mem_range,
-          Prod.mk.injEq] at h1 h2
-      rcases h1 with ⟨a1, ha1, hp1, hq1⟩ | h1'
-      · rcases h2 with ⟨a2, ha2, hp2, hq2⟩ | h2'
-        · subst hp1; subst hp2; rfl
-        · have := CGraph.mem_pendantEdges_bound (v + 1) (off + k) rest p2 q h2'
-          omega
-      · have := CGraph.mem_pendantEdges_bound (v + 1) (off + k) rest p1 q h1'
-        rcases h2 with ⟨a2, ha2, hp2, hq2⟩ | h2'
-        · omega
-        · exact ih (v + 1) (off + k) p1 p2 q h1' h2'
-  have hm3lt : n < n + ks.sum := by omega
-  let v : (CGraph.cyclePendant n ks).V := ⟨n, hm3lt⟩
-  -- pendant vertex n has exactly one neighbor (its owner)
-  -- Get the owner p of pendant vertex n
-  obtain ⟨p, hp⟩ := hpendant_exists 0 n ks n (by omega) hm3lt
-  -- p < n (first component of pendant edge)
-  have hp_lt : p < n := hpending_first_lt p n hp
-  -- The vertex ⟨p, by omega⟩ in cyclePendant n ks is adjacent to v
-  let wp : (CGraph.cyclePendant n ks).V := ⟨p, by omega⟩
-  -- Adjacency v ~ wp
-  have hadj_vp : (CGraph.cyclePendant n ks).Adj v wp := by
-    rw [CGraph.cyclePendant_adj_val]
-    simp [v, wp]
-    exact ⟨by omega, Or.inr (Or.inr hp)⟩
-  -- No other vertex is adjacent to v
-  have honly_neighbor : ∀ w : (CGraph.cyclePendant n ks).V,
-      (CGraph.cyclePendant n ks).Adj v w → w = wp := by
-    intro w hw
-    rw [CGraph.cyclePendant_adj_val] at hw
-    simp [v] at hw
-    obtain ⟨hne, heir⟩ := hw
-    -- heir : (n, w.1) ∈ cycleEdges n ++ pendantEdges 0 n ks ∨ (w.1, n) ∈ cycleEdges n ++
-    -- pendantEdges 0 n ks
-    rcases heir with heir | heir
-    · -- (n, ↑w) in cycleEdges or pendantEdges
-      rcases heir with heir2 | heir2
-      · exact absurd (hcyc_bounds n w.1 heir2) (by omega)
-      · exact False.elim (hnot_first_pendant _ heir2)
-    · -- (↑w, n) in pendantEdges (or cycleEdges, but n not in cycle edges)
-      rcases heir with heir2 | heir2
-      · exact absurd (hcyc_bounds w.1 n heir2) (by omega)
-      · have heq := hpendant_second_unique ks 0 n w.1 p n heir2 hp
-        exact Fin.ext (by simp [wp, heq])
-  -- degree(v) = 1
-  have hnbrs_eq : CGraph.nbrs (CGraph.cyclePendant n ks) v = {wp} := by
-    ext w; simp [Finset.mem_singleton]
-    exact ⟨honly_neighbor w, fun hw => hw.symm ▸ hadj_vp⟩
-  have hdeg_v : (CGraph.cyclePendant n ks).toSimple.degree v = 1 := by
-    rw [SimpleGraph.degree]
-    have hns : (CGraph.cyclePendant n ks).toSimple.neighborSet v = {wp} := by
-      ext w; simp
-      exact ⟨fun hw => honly_neighbor w hw, fun hw => hw.symm ▸ hadj_vp⟩
-    simp [SimpleGraph.neighborFinset, hns, Finset.card_singleton]
-  have hminDeg_le : (CGraph.cyclePendant n ks).minDeg ≤ 1 := by
-    exact le_trans (CGraph.minDeg_le_degree _ _) hdeg_v.le
-  -- All vertices have degree ≥ 1
-  have hall_ge_one : ∀ w : (CGraph.cyclePendant n ks).V, 1 ≤ (CGraph.cyclePendant n
-      ks).toSimple.degree w := by
-    intro w
-    set wf := w.1
-    have hwlt := w.isLt
-    have hexists : ∃ u, (CGraph.cyclePendant n ks).toSimple.Adj w u := by
-      by_cases hwc : wf < n
-      · -- cycle vertex
-        by_cases hw1 : wf + 1 < n
-        · let u : (CGraph.cyclePendant n ks).V := ⟨wf + 1, by omega⟩
-          have hadj : (CGraph.cyclePendant n ks).Adj w u = true := by
-            rw [CGraph.cyclePendant_adj_val]
-            simp [u]
-            have hmem : ((w.val, wf + 1)) ∈ CGraph.cycleEdges n := by
-              rw [CGraph.mem_cycleEdges]
-              exact Or.inl ⟨rfl, hw1⟩
-            exact ⟨by omega, Or.inl (Or.inl hmem)⟩
-          exact ⟨u, by rwa [CGraph.toSimple_adj]⟩
-        · have hw1eq : wf + 1 = n := by omega
-          let u : (CGraph.cyclePendant n ks).V := ⟨0, by omega⟩
-          have hadj : (CGraph.cyclePendant n ks).Adj w u = true := by
-            rw [CGraph.cyclePendant_adj_val]
-            simp [u]
-            have hmem : ((w.val, 0)) ∈ CGraph.cycleEdges n := by
-              rw [CGraph.mem_cycleEdges]
-              exact Or.inr ⟨hw1eq, rfl⟩
-            have hne : (w ≠ ⟨0, by omega⟩) := by
-              intro h; have : w.val = 0 := by simp [h]
-              omega
-            exact ⟨hne, Or.inl (Or.inl hmem)⟩
-          exact ⟨u, by rwa [CGraph.toSimple_adj]⟩
-      · -- pendant vertex
-        push_neg at hwc
-        have hwpending : n ≤ wf ∧ wf < n + ks.sum := ⟨hwc, hwlt⟩
-        obtain ⟨p, hp⟩ := hpendant_exists 0 n ks wf hwpending.1 hwpending.2
-        have hp_lt : p < n := hpending_first_lt p wf hp
-        let u : (CGraph.cyclePendant n ks).V := ⟨p, by omega⟩
-        have hadj : (CGraph.cyclePendant n ks).Adj w u = true := by
-          rw [CGraph.cyclePendant_adj_val]
-          simp [u]
-          have hne : w.val ≠ p := ne_of_gt (by omega : p < w.val)
-          exact ⟨hne, Or.inr (Or.inr hp)⟩
-        exact ⟨u, by rwa [CGraph.toSimple_adj]⟩
-    have hpos : 0 < (CGraph.cyclePendant n ks).toSimple.degree w := by
-      rwa [SimpleGraph.degree_pos_iff_exists_adj]
-    omega
-
-  show IsoGraph.minDeg (cyclePendant n ks) = 1
-  simp [IsoGraph.minDeg_mk, IsoGraph.cyclePendant]
-  exact le_antisymm hminDeg_le (CGraph.le_minDeg_of_forall v hall_ge_one)
+  simp only [IsoGraph.cyclePendant, IsoGraph.minDeg_mk]
+  refine le_antisymm ?_ (CGraph.le_minDeg_of_forall ⟨0, by omega⟩ fun v ↦ ?_)
+  · obtain ⟨p, hp⟩ := CGraph.exists_mem_pendantEdges 0 (m + 3) ks (m + 3 + ks.sum - 1)
+      (by omega) (by omega)
+    have hlast : ∀ v : (CGraph.cyclePendant (m + 3) ks).V, v.1 = m + 3 + ks.sum - 1 →
+        (CGraph.cyclePendant (m + 3) ks).toSimple.degree v ≤ 1 := by
+      intro v hv
+      refine le_trans (CGraph.degree_ofEdges_le (m + 3 + ks.sum) _ v [p] ?_) (by simp)
+      intro w hne hw
+      simp only [hv, List.mem_append] at hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false]
+      rcases hw with hw | hw <;> rcases hw with hw | hw
+      · rw [CGraph.mem_cycleEdges] at hw
+        omega
+      · have := CGraph.mem_pendantEdges_bound 0 (m + 3) ks _ _ hw
+        omega
+      · rw [CGraph.mem_cycleEdges] at hw
+        omega
+      · exact CGraph.pendantEdges_snd_unique 0 (m + 3) ks w p _ hw hp
+    exact le_trans (CGraph.minDeg_le_degree _ _) (hlast ⟨m + 3 + ks.sum - 1, by omega⟩ rfl)
+  · rcases Nat.lt_or_ge v.1 (m + 3) with hv | hv
+    · refine le_trans (by simp) (CGraph.le_degree_ofEdges (m + 3 + ks.sum) _ v
+        [if v.1 + 1 < m + 3 then v.1 + 1 else 0] (by simp) ?_)
+      intro w hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+      subst hw
+      refine ⟨by split_ifs <;> omega, by split_ifs <;> omega, ?_⟩
+      refine Or.inl (List.mem_append_left _ ?_)
+      rw [CGraph.mem_cycleEdges]
+      split_ifs <;> omega
+    · have hlt : v.1 < m + 3 + ks.sum := v.isLt
+      obtain ⟨p, hp⟩ := CGraph.exists_mem_pendantEdges 0 (m + 3) ks v.1 hv (by omega)
+      have hb := CGraph.mem_pendantEdges_bound 0 (m + 3) ks p v.1 hp
+      refine le_trans (by simp) (CGraph.le_degree_ofEdges (m + 3 + ks.sum) _ v [p]
+        (by simp) ?_)
+      intro w hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+      subst hw
+      exact ⟨by omega, by omega, Or.inr (List.mem_append_right _ hp)⟩
 
 /-- The two centres are a vertex cover, and one vertex is not. -/
 theorem coverNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).coverNum = 2 := by
@@ -3883,181 +1615,26 @@ theorem chromNum_cyclePendant_even (t : ℕ) (ks : List ℕ) (h : ks.length ≤ 
     CGraph.two_le_chromNum_of_adj hadj
   exact le_antisymm (CGraph.chromNum_le_iff_colorable.mpr hc2) hge
 
-/-- Every vertex of a spider walks down its own leg to the centre. -/
+/-- Every vertex of a spider walks down its own leg to the centre: the vertex number is a rank
+in the sense of `CGraph.isConnected_of_rank`, and `CGraph.exists_mem_spiderEdges_snd` supplies
+the descending neighbour. -/
 theorem isConnected_spider (legs : List ℕ) : IsConnected (spider legs) := by
-  -- Key lemma: reachability from 0 in spiderEdges off legs for off > 0
-  have hreach_off : ∀ (ks : List ℕ) (off : ℕ) (hoff : 0 < off),
-      ∀ (v : Fin (off + ks.sum)), (v.val = 0 ∨ off ≤ (v : ℕ)) →
-        (CGraph.ofEdges (off + ks.sum) (CGraph.spiderEdges off ks)).toSimple.Reachable
-          (⟨0, add_pos_of_pos_of_nonneg hoff (Nat.zero_le _)⟩ : Fin (off + ks.sum)) v := by
-    intro ks
-    induction ks using List.rec with
-    | nil =>
-      intro off hoff v hv
-      simp at hv
-      rcases hv with h | h
-      · have heq : v = ⟨0, hoff⟩ := Fin.ext h
-        rw [heq]
-      · omega
-    | cons k rest ih =>
-      intro off hoff v hv
-      rw [CGraph.spiderEdges]
-      -- SpiderEdges off (k :: rest) has edges from legEdges 0 off k and spiderEdges (off+k) rest
-      -- Case v.val = 0
-      rcases hv with hv0 | hvge
-      · have heq : v = ⟨0, add_pos_of_pos_of_nonneg hoff (Nat.zero_le _)⟩ := by
-          exact Fin.ext hv0
-        rw [heq]
-      · -- off ≤ v.val
-        -- If v.val < off + k, v is in the first leg. Reachable via leg edges.
-        -- If v.val ≥ off + k, v is in the recursive spider (offset off+k). Use IH.
-        by_cases hvlt : (v : ℕ) < off + k
-        · -- v in first leg range: off ≤ v.val < off + k, so k > 0.
-          have hsum' : (k :: rest).sum = k + rest.sum := List.sum_cons
-          have hk0 : 0 < k := by omega
-          -- Build path 0 → off → off+1 → ... → v using leg edges
-          set t := (v : ℕ) - off with ht_def
-          have ht_lt_k : t < k := by omega
-          have hverb : off + k + rest.sum = off + (k :: rest).sum := by omega
-          -- All vertices ⟨off + j, ...⟩ for j < k are in range
-          have hsumk : k ≤ (k :: rest).sum := by simp [List.sum_cons]
-          let offV : ∀ (j : ℕ), j < k → Fin (off + (k :: rest).sum) := fun j hj =>
-            ⟨off + j, by omega⟩
-          -- Edge (0, off) is in legEdges
-          have hleg0 : (0, off) ∈ CGraph.legEdges 0 off k := by
-            rw [CGraph.mem_legEdges]
-            exact Or.inl ⟨rfl, rfl, hk0⟩
-          -- Edge (off+j, off+j+1) ∈ legEdges for j+1 < k
-          have hledge_succ : ∀ j, j + 1 < k →
-              (off + j, off + (j + 1)) ∈ CGraph.legEdges 0 off k := by
-            intro j hj
-            rw [CGraph.mem_legEdges]
-            exact Or.inr ⟨by omega, by omega, by omega⟩
-          -- Hall: reachability from 0 to offV j hj
-          have hall : ∀ (j : ℕ) (hj : j < k),
-              (CGraph.ofEdges (off + (k :: rest).sum) (CGraph.legEdges 0 off k ++
-                  CGraph.spiderEdges (off + k) rest)).toSimple.Reachable
-                (⟨0, by omega⟩ : Fin (off + (k :: rest).sum)) (offV j hj) := by
-            intro j hj
-            induction j with
-            | zero =>
-              have hadj : (CGraph.ofEdges (off + (k :: rest).sum) (CGraph.legEdges 0 off k ++
-                  CGraph.spiderEdges (off + k) rest)).Adj
-                (⟨0, by omega⟩ : Fin (off + (k :: rest).sum)) (offV 0 hj) := by
-                rw [CGraph.ofEdges_adj_val]
-                show (0 : ℕ) ≠ off + 0 ∧ _
-                exact ⟨by omega, Or.inl (List.mem_append_left _ hleg0)⟩
-              obtain ⟨w⟩ := SimpleGraph.Reachable.refl _
-              exact ⟨w.concat hadj⟩
-            | succ i ih =>
-              have hi_lt_k : i < k := by omega
-              have ih' := ih hi_lt_k
-              have hedge : ((off + i, off + (i + 1)) : (ℕ ×
-                  ℕ)) ∈ CGraph.legEdges 0 off k := hledge_succ i (by omega)
-              have hadj : (CGraph.ofEdges (off + (k :: rest).sum) (CGraph.legEdges 0 off k ++
-                  CGraph.spiderEdges (off + k) rest)).Adj
-                  (offV i hi_lt_k) (offV (i + 1) hj) := by
-                rw [CGraph.ofEdges_adj_val]
-                show (off + i : ℕ) ≠ off + (i + 1) ∧ _
-                exact ⟨by omega, Or.inl (List.mem_append_left _ hedge)⟩
-              obtain ⟨walk⟩ := ih'
-              exact ⟨walk.concat hadj⟩
-          -- v = offV t ht_lt_k
-          have hv_eq : v = offV t ht_lt_k := by
-            apply Fin.ext
-            simp [offV, ht_def]
-            omega
-          rw [hv_eq]
-          exact hall t ht_lt_k
-        · -- v.val ≥ off + k, use IH with offset off+k
-          have hverb : off + (k :: rest).sum = off + k + rest.sum := by
-            simp [List.sum_cons]; omega
-          have hfork : 0 < off + k := Nat.pos_of_ne_zero (by omega)
-          have hvge2 : off + k ≤ (v : ℕ) := by omega
-          -- Cast v to Fin (off + k + rest.sum)
-          let v' : Fin (off + k + rest.sum) := ⟨(v : ℕ), by omega⟩
-          have hv'_val : (v' : ℕ) = (v : ℕ) := rfl
-          have hh := ih (off + k) hfork v' (Or.inr (by omega))
-          -- Edge superset: spiderEdges (off+k) rest ⊆ legEdges 0 off k ++ spiderEdges (off+k) rest
-          have edge_subset : ∀ e : ℕ × ℕ, e ∈ CGraph.spiderEdges (off + k) rest →
-              e ∈ CGraph.legEdges 0 off k ++ CGraph.spiderEdges (off + k) rest :=
-            fun e he => List.mem_append_right _ he
-          -- Adjacency lifts
-          have adj_lift : ∀ u w : Fin (off + k + rest.sum),
-              (CGraph.ofEdges (off + k + rest.sum) (CGraph.spiderEdges (off + k) rest)).Adj u w →
-              (CGraph.ofEdges (off + k + rest.sum) (CGraph.legEdges 0 off k ++ CGraph.spiderEdges
-                  (off + k) rest)).Adj u w := by
-            intro u w hadj
-            rw [CGraph.ofEdges_adj_val] at hadj ⊢
-            exact ⟨hadj.1, hadj.2.elim (fun h => Or.inl (edge_subset (u.val, w.val) h)) (fun h =>
-                Or.inr (edge_subset (w.val, u.val) h))⟩
-          have reach_lift : ∀ {u w : Fin (off + k + rest.sum)},
-              (CGraph.ofEdges (off + k + rest.sum) (CGraph.spiderEdges (off + k)
-                  rest)).toSimple.Reachable u w →
-              (CGraph.ofEdges (off + k + rest.sum) (CGraph.legEdges 0 off k ++ CGraph.spiderEdges
-                  (off + k) rest)).toSimple.Reachable u w := by
-            intro u w hr
-            have : (CGraph.ofEdges (off + k + rest.sum) (CGraph.spiderEdges (off + k)
-                rest)).toSimple ≤
-                   (CGraph.ofEdges (off + k + rest.sum) (CGraph.legEdges 0 off k ++
-                       CGraph.spiderEdges (off + k) rest)).toSimple := by
-              intro u v huv
-              show (CGraph.ofEdges _ (CGraph.legEdges 0 off k ++ CGraph.spiderEdges (off + k)
-                  rest)).toSimple.Adj u v
-              rw [CGraph.toSimple_adj, CGraph.ofEdges_adj_val] at huv ⊢
-              exact ⟨huv.1, huv.2.elim (fun he => Or.inl (edge_subset (u.val, v.val) he)) (fun he
-                  => Or.inr (edge_subset (v.val, u.val) he))⟩
-            exact hr.mono this
-          have key := reach_lift hh
-          let cast : Fin (off + k + rest.sum) → Fin (off + (k :: rest).sum) := Fin.cast hverb.symm
-          have hcast_val : ∀ (x : Fin (off + k + rest.sum)), (cast x : ℕ) = (x : ℕ) := by
-            intro x; simp [cast]
-          have adj_cast : ∀ u w : Fin (off + k + rest.sum),
-              (CGraph.ofEdges (off + k + rest.sum) (CGraph.legEdges 0 off k ++ CGraph.spiderEdges
-                  (off + k) rest)).Adj u w →
-              (CGraph.ofEdges (off + (k :: rest).sum) (CGraph.legEdges 0 off k ++
-                  CGraph.spiderEdges (off + k) rest)).Adj (cast u) (cast w) := by
-            intro u w hadj
-            rw [CGraph.ofEdges_adj_val] at hadj ⊢
-            exact ⟨hadj.1, hadj.2⟩
-          have hreach_cast : ∀ {u w : Fin (off + k + rest.sum)},
-              (CGraph.ofEdges (off + k + rest.sum) (CGraph.legEdges 0 off k ++ CGraph.spiderEdges
-                  (off + k) rest)).toSimple.Reachable u w →
-              (CGraph.ofEdges (off + (k :: rest).sum) (CGraph.legEdges 0 off k ++
-                  CGraph.spiderEdges (off + k) rest)).toSimple.Reachable (cast u) (cast w) := by
-            intro u w hr
-            obtain ⟨walk⟩ := hr
-            induction walk with
-            | nil => exact SimpleGraph.Reachable.refl _
-            | cons x' y' ih' =>
-              rename_i u_ v_ w_
-              have hxt_cgraph := adj_cast u_ v_ (by rwa [CGraph.toSimple_adj] at x')
-              have hxt : (CGraph.ofEdges (off + (k :: rest).sum) (CGraph.legEdges 0 off k ++
-                  CGraph.spiderEdges (off + k) rest)).toSimple.Adj (cast u_) (cast v_) := by
-                rwa [CGraph.toSimple_adj]
-              exact hxt.reachable.trans ih'
-          have hcast0 : cast ⟨0, by omega⟩ = ⟨0, by omega⟩ := by
-            apply Fin.ext; simp [cast]
-          have hcastv : cast v' = v := by
-            apply Fin.ext; simp [cast, hv'_val]
-          have step1 := hreach_cast key
-          rw [hcastv] at step1
-          exact step1
   unfold IsoGraph.spider
   rw [IsoGraph.isConnected_mk]
-  show CGraph.IsConnected _
-  simp only [CGraph.IsConnected]
-  have hreach : ∀ (v : Fin (1 + legs.sum)),
-      (CGraph.ofEdges (1 + legs.sum) (CGraph.spiderEdges 1 legs)).toSimple.Reachable
-        (⟨0, add_pos_of_pos_of_nonneg Nat.one_pos (Nat.zero_le _)⟩ : Fin (1 + legs.sum)) v := by
-    intro v
-    exact hreach_off legs 1 Nat.one_pos v (by omega)
-  haveI : Nonempty (CGraph.spider legs).V := by
-    rw [CGraph.spider]
-    show Nonempty (Fin (1 + legs.sum))
-    exact ⟨0, by omega⟩
-  apply SimpleGraph.Connected.mk
-  · exact fun u v => (hreach u).symm.trans (hreach v)
+  refine CGraph.isConnected_of_rank (fun v ↦ (v : Fin (1 + legs.sum)).val)
+    (⟨0, by omega⟩ : Fin (1 + legs.sum)) ?_
+  intro v hv
+  have hv0 : 0 < (v : Fin (1 + legs.sum)).val := by
+    rcases Nat.eq_zero_or_pos (v : Fin (1 + legs.sum)).val with h | h
+    · exact absurd (Fin.ext h) hv
+    · exact h
+  obtain ⟨p, hp⟩ :=
+    CGraph.exists_mem_spiderEdges_snd 1 legs (v : Fin (1 + legs.sum)).val (by omega)
+      (by have := (v : Fin (1 + legs.sum)).isLt; omega)
+  have hlt : p < (v : Fin (1 + legs.sum)).val := CGraph.spiderEdges_lt 1 legs one_pos _ _ hp
+  refine ⟨(⟨p, by have := (v : Fin (1 + legs.sum)).isLt; omega⟩ : Fin (1 + legs.sum)), hlt, ?_⟩
+  rw [CGraph.spider_adj_val]
+  exact ⟨(Nat.ne_of_lt hlt).symm, Or.inr hp⟩
 
 theorem numComponents_spider (legs : List ℕ) : (spider legs).numComponents = 1 :=
   (numComponents_eq_one_iff _).2 (isConnected_spider legs)
@@ -4070,99 +1647,6 @@ theorem isTree_spider (legs : List ℕ) : IsTree (spider legs) := by
   suffices hE : (spider legs).E = legs.sum by omega
   show (CGraph.spider legs).E = legs.sum
   rw [CGraph.spider]
-  have ofEdges_E_of_lt : ∀ (n : ℕ) (es : List (ℕ × ℕ)),
-      (∀ p ∈ es, p.1 < p.2) →
-      (∀ p ∈ es, p.2 < n) →
-      List.Nodup es →
-      (CGraph.ofEdges n es).E = es.length := by
-    intro n es hlt hbound hnup
-    induction es with
-    | nil =>
-      rw [CGraph.ofEdges_nil, CGraph.E_empty]; rfl
-    | cons p es' ih =>
-      have heq : CGraph.ofEdges n (p :: es') = CGraph.ofEdges n (es' ++ [p]) := by
-        apply CGraph.ofEdges_congr n _ _ _
-        intro x y hne
-        simp [List.mem_cons, List.mem_append]
-        tauto
-      rw [heq]
-      have hlt' : ∀ q ∈ es', q.1 < q.2 := fun q hq => hlt q (List.mem_cons_of_mem _ hq)
-      have hfun : ∀ q ∈ p :: es', q.1 < n := fun q hq => lt_trans (hlt q hq) (hbound q hq)
-      have hbound' : ∀ q ∈ es', q.2 < n := fun q hq => hbound q (List.mem_cons_of_mem _ hq)
-      have hnup' : es'.Nodup := hnup.tail
-      have ihm := ih hlt' hbound' hnup'
-      have hp_mem : p ∈ p :: es' := List.mem_cons_self
-      set ep : Sym2 (Fin n) := Sym2.mk (⟨p.1, hfun p hp_mem⟩, ⟨p.2, hbound p hp_mem⟩)
-      have hnotin : ep ∉ (CGraph.ofEdges n es').toSimple.edgeFinset := by
-        intro hmem
-        simp [SimpleGraph.mem_edgeFinset, CGraph.toSimple, CGraph.ofEdges, CGraph.ofRel] at hmem
-        obtain ⟨hne, hm⟩ := hmem
-        have hp12 : p.1 < p.2 := hlt p hp_mem
-        have hpn : p ∉ es' := (List.nodup_cons.mp hnup).1
-        rcases hm with h | h
-        · exact hpn h
-        · have := hlt' (p.2, p.1) h
-          omega
-      have hedgeFinset : (CGraph.ofEdges n (es' ++ [p])).toSimple.edgeFinset =
-          (CGraph.ofEdges n es').toSimple.edgeFinset ∪ {ep} := by
-        ext e
-        simp [SimpleGraph.mem_edgeFinset, CGraph.toSimple, CGraph.ofEdges, CGraph.ofRel,
-          List.mem_append]
-        induction e using Sym2.ind with
-        | _ a b =>
-          simp only [SimpleGraph.mem_edgeSet, SimpleGraph.edgeSet]
-          dsimp only [ep]
-          rw [Sym2.eq_iff]
-          simp only [Fin.ext_iff]
-          have : ∀ (x : Fin n) (v : ℕ) (hv : v < n), (x = ⟨v, hv⟩ ↔ x.1 = v) := by
-            intro x v hv; simp [Fin.ext_iff]
-          rw [this a p.1 (hfun p hp_mem), this b p.2 (hbound p hp_mem),
-              this a p.2 (hbound p hp_mem), this b p.1 (hfun p hp_mem)]
-          set a' : ℕ := a.val
-          set b' : ℕ := b.val
-          rcases p with ⟨p1, p2⟩
-          simp [Prod.mk.injEq]
-          have hpnotin_es' : (p1, p2) ∉ es' := by
-            intro h; exact (List.nodup_cons.mp hnup).1 h
-          have hp12 : p1 < p2 := by simpa using hlt (p1, p2) hp_mem
-          have hp21notin_es' : (p2, p1) ∉ es' := by
-            intro h; have := hlt' (p2, p1) h; omega
-          have hp12ne : p1 ≠ p2 := hp12.ne
-          set A := (a', b') ∈ es'
-          set B := a' = p1 ∧ b' = p2
-          set C := (b', a') ∈ es'
-          set D := b' = p1 ∧ a' = p2
-          simp only [A, B, C, D] at *
-          have hDflip : a' = p2 ∧ b' = p1 ↔ D := by constructor <;> intro h <;> exact ⟨h.2, h.1⟩
-          rw [hDflip]
-          rw [show b' = p1 ∧ a' = p2 ↔ D from Iff.rfl]
-          have hNe_from_B : B → ¬a' = b' := by intro ⟨ha, hb⟩; omega
-          have hNe_from_D : D → ¬a' = b' := by intro ⟨hb, ha⟩; omega
-          set Ne := ¬a' = b'
-          show Ne ∧ ((A ∨ B) ∨ C ∨ D) ↔ (B ∨ D) ∨ Ne ∧ (A ∨ C)
-          constructor
-          · intro h
-            rcases h with ⟨Ne, hmem⟩
-            rcases hmem with hAB | hCD
-            · rcases hAB with hA | hB
-              · exact Or.inr ⟨Ne, Or.inl hA⟩
-              · exact Or.inl (Or.inl hB)
-            · rcases hCD with hC | hD_val
-              · exact Or.inr ⟨Ne, Or.inr hC⟩
-              · exact Or.inl (Or.inr hD_val)
-          · intro h
-            rcases h with hBD | ⟨Ne, hAC⟩
-            · rcases hBD with hB | hD_val
-              · exact ⟨hNe_from_B hB, Or.inl (Or.inr hB)⟩
-              · exact ⟨hNe_from_D hD_val, Or.inr (Or.inr hD_val)⟩
-            · rcases hAC with hA | hC
-              · exact ⟨Ne, Or.inl (Or.inl hA)⟩
-              · exact ⟨Ne, Or.inr (Or.inl hC)⟩
-      unfold CGraph.E at ihm ⊢
-      rw [hedgeFinset, Finset.card_union_of_disjoint (Finset.disjoint_singleton_right.mpr hnotin)]
-      rw [Finset.card_singleton]
-      rw [ihm]
-      rfl
   have spider_spiderEdges_facts : ∀ (offs : ℕ) (hoffs : 1 ≤ offs) (ks : List ℕ),
       List.Nodup (CGraph.spiderEdges offs ks) ∧
       (∀ p ∈ CGraph.spiderEdges offs ks, p.1 < p.2) ∧
@@ -4217,10 +1701,10 @@ theorem isTree_spider (legs : List ℕ) : IsTree (spider legs) := by
         · rcases hp with ⟨rfl, rfl, hk⟩ | ⟨h1, rfl, h3⟩ <;> omega
         · have := hbound' _ hp; omega
       · -- length
-        rw [hleg_len, hlen']
+        exact hlen'
   -- Now close the main goal
   have ⟨hnup, hlt, hbound, hlen⟩ := spider_spiderEdges_facts 1 (by omega) legs
-  rw [ofEdges_E_of_lt _ _ hlt hbound hnup, hlen]
+  rw [CGraph.E_ofEdges _ _ hlt hbound hnup, hlen]
 
 theorem girth_spider (legs : List ℕ) : (spider legs).girth = 0 := by
   rw [girth_eq_zero_iff]
@@ -4296,217 +1780,72 @@ theorem chromNum_spider (legs : List ℕ) (h : 0 < legs.sum) : (spider legs).chr
 
 /-- Pendant, centre, centre, pendant. -/
 theorem diameter_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).diameter = 3 := by
-  simp only [IsoGraph.diameter]
-  unfold doubleStar
-  rw [Quotient.lift_mk]
-  unfold CGraph.diameter
-  set SG : SimpleGraph (CGraph.doubleStar (m + 1) (n + 1)).V :=
-    (CGraph.doubleStar (m + 1) (n + 1)).toSimple
+  rw [IsoGraph.doubleStar_def, diameter_mk]
   let c0 : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨0, by omega⟩
   let c1 : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨1, by omega⟩
-  have h_c0_val : c0.val = 0 := rfl
-  have h_c1_val : c1.val = 1 := rfl
-  have h_adj_val : ∀ x y : (CGraph.doubleStar (m + 1) (n + 1)).V,
-      SG.Adj x y ↔
-        (x.val ≠ y.val ∧
-          ((x.val = 0 ∧ y.val = 1 ∨ x.val = 0 ∧ 2 ≤ y.val ∧ y.val < 2 + (m + 1) ∨
-            x.val = 1 ∧ 2 + (m + 1) ≤ y.val ∧ y.val < 2 + (m + 1) + (n + 1)) ∨
-           (y.val = 0 ∧ x.val = 1 ∨ y.val = 0 ∧ 2 ≤ x.val ∧ x.val < 2 + (m + 1) ∨
-            y.val = 1 ∧ 2 + (m + 1) ≤ x.val ∧ x.val < 2 + (m + 1) + (n + 1)))) := by
+  let a : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨2, by omega⟩
+  let b : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨m + 3, by omega⟩
+  have hv0 : c0.1 = 0 := rfl
+  have hv1 : c1.1 = 1 := rfl
+  have hva : a.1 = 2 := rfl
+  have hvb : b.1 = m + 3 := rfl
+  have hadj : ∀ x y : (CGraph.doubleStar (m + 1) (n + 1)).V,
+      (CGraph.doubleStar (m + 1) (n + 1)).toSimple.Adj x y ↔
+        (x.1 ≠ y.1 ∧
+          (((x.1 = 0 ∧ y.1 = 1) ∨ (x.1 = 0 ∧ 2 ≤ y.1 ∧ y.1 < 2 + (m + 1)) ∨
+              (x.1 = 1 ∧ 2 + (m + 1) ≤ y.1 ∧ y.1 < 2 + (m + 1) + (n + 1))) ∨
+            ((y.1 = 0 ∧ x.1 = 1) ∨ (y.1 = 0 ∧ 2 ≤ x.1 ∧ x.1 < 2 + (m + 1)) ∨
+              (y.1 = 1 ∧ 2 + (m + 1) ≤ x.1 ∧ x.1 < 2 + (m + 1) + (n + 1))))) := by
     intro x y
-    simp only [SG, CGraph.toSimple_adj]
-    exact CGraph.doubleStar_adj_val (m+1) (n+1) x y
-  have h_center_adj : SG.Adj c0 c1 := by
-    rw [h_adj_val]
-    rw [h_c0_val, h_c1_val]
-    simp
-  have h_adj_symm : ∀ x y : (CGraph.doubleStar (m + 1) (n + 1)).V, SG.Adj x y → SG.Adj y x :=
-    fun x y h => SimpleGraph.Adj.symm h
-  have hne_c0_c1 : c0 ≠ c1 := by
-    intro h; have := congr_arg Fin.val h; simp at this
-  -- Edge w-c0 when w.val < 2+(m+1) and w ≠ c0
-  have h_adj_w_c0 : ∀ w, w ≠ c0 → w.val < 2 + (m + 1) → SG.Adj w c0 := by
-    intro w hne hw
-    rw [h_adj_val, h_c0_val]
-    apply And.intro
-    · exact fun h => hne (Fin.ext h)
-    · right
-      by_cases h1 : w.val = 1
-      · exact Or.inl ⟨rfl, h1⟩
-      · have hne0 : w.val ≠ 0 := fun h => hne (Fin.ext h)
-        exact Or.inr (Or.inl ⟨rfl, Nat.lt_of_le_of_ne (Nat.succ_le_of_lt (Nat.pos_of_ne_zero hne0))
-            (Ne.symm h1), hw⟩)
-  -- Edge c0-w when w.val < 2+(m+1) and w ≠ c0
-  have h_adj_c0_w : ∀ w, w ≠ c0 → w.val < 2 + (m + 1) → SG.Adj c0 w :=
-    fun w hne hw => h_adj_symm _ _ (h_adj_w_c0 w hne hw)
-  -- Edge w-c1 when 2+(m+1) ≤ w.val
-  have h_adj_w_c1 : ∀ w, 2 + (m + 1) ≤ w.val → SG.Adj w c1 := by
-    intro w hw
-    rw [h_adj_val, h_c1_val]
-    exact ⟨by omega, Or.inr (Or.inr (Or.inr ⟨h_c1_val, hw, by exact w.2⟩))⟩
-  -- Edge c1-w when 2+(m+1) ≤ w.val
-  have h_adj_c1_w : ∀ w, 2 + (m + 1) ≤ w.val → SG.Adj c1 w :=
-    fun w hw => h_adj_symm _ _ (h_adj_w_c1 w hw)
-  -- Walk from w to c0, length ≤ 1
-  let walkToCenter0 : ∀ w, w.val < 2 + (m + 1) → SG.Walk w c0 := by
-    intro w hw
-    by_cases h0 : w = c0
-    · subst h0; exact SimpleGraph.Walk.nil
-    · exact (SimpleGraph.Walk.cons (h_adj_w_c0 w h0 hw) SimpleGraph.Walk.nil)
-  have walkToCenter0_len : ∀ w hw, (walkToCenter0 w hw).length ≤ 1 := by
-    intro w hw
-    by_cases h0 : w = c0
-    · subst h0; simp [walkToCenter0]
-    · simp [walkToCenter0, h0]
-  -- Walk from c0 to w, length ≤ 1
-  let walkFromCenter0 : ∀ w, w.val < 2 + (m + 1) → SG.Walk c0 w := by
-    intro w hw
-    by_cases h0 : w = c0
-    · subst h0; exact SimpleGraph.Walk.nil
-    · exact (SimpleGraph.Walk.cons (h_adj_c0_w w h0 hw) SimpleGraph.Walk.nil)
-  have walkFromCenter0_len : ∀ w hw, (walkFromCenter0 w hw).length ≤ 1 := by
-    intro w hw
-    by_cases h0 : w = c0
-    · subst h0; simp [walkFromCenter0]
-    · simp [walkFromCenter0, h0]
-  -- Walk from w to c1, length ≤ 1
-  let walkToCenter1 : ∀ w, 2 + (m + 1) ≤ w.val → SG.Walk w c1 := by
-    intro w hw
-    exact (SimpleGraph.Walk.cons (h_adj_w_c1 w hw) SimpleGraph.Walk.nil)
-  have walkToCenter1_len : ∀ w hw, (walkToCenter1 w hw).length = 1 := by
-    intro w hw; rfl
-  -- Walk from c1 to w, length ≤ 1
-  let walkFromCenter1 : ∀ w, 2 + (m + 1) ≤ w.val → SG.Walk c1 w := by
-    intro w hw
-    exact (SimpleGraph.Walk.cons (h_adj_c1_w w hw) SimpleGraph.Walk.nil)
-  have walkFromCenter1_len : ∀ w hw, (walkFromCenter1 w hw).length = 1 := by
-    intro w hw; rfl
-  -- Walk c0 → c1, length 1
-  let walk0to1 : SG.Walk c0 c1 := SimpleGraph.Walk.cons h_center_adj SimpleGraph.Walk.nil
-  have walk0to1_len : walk0to1.length = 1 := by rfl
-  -- Walk c1 → c0, length 1
-  let walk1to0 : SG.Walk c1 c0 := SimpleGraph.Walk.cons (h_adj_symm _ _
-      h_center_adj) SimpleGraph.Walk.nil
-  have walk1to0_len : walk1to0.length = 1 := by rfl
-  -- Upper bound
-  have h_walk_to_c0_len : ∀ w hw, (walkToCenter0 w hw).length ≤ 1 := walkToCenter0_len
-  have h_walk_from_c0_len : ∀ w hw, (walkFromCenter0 w hw).length ≤ 1 := walkFromCenter0_len
-  have h_walk_to_c1_len : ∀ w hw, (walkToCenter1 w hw).length = 1 := walkToCenter1_len
-  have h_walk_from_c1_len : ∀ w hw, (walkFromCenter1 w hw).length = 1 := walkFromCenter1_len
-  have h_walk_0to1_len : walk0to1.length = 1 := walk0to1_len
-  have h_walk_1to0_len : walk1to0.length = 1 := walk1to0_len
-  -- Build concrete walks and bound their lengths
-  
-  let walkuC0 : ∀ w hw, SG.Walk w c0 := fun w hw => walkToCenter0 w hw
-  have walkuC0_len : ∀ w hw, (walkuC0 w hw).length ≤ 1 := fun w hw => walkToCenter0_len w hw
-  let walkuC1 : ∀ w hw, SG.Walk w c1 := fun w hw => walkToCenter1 w hw
-  have walkuC1_len : ∀ w hw, (walkuC1 w hw).length = 1 := fun w hw => walkToCenter1_len w hw
-  have h_edist_le_three : ∀ u v : (CGraph.doubleStar (m + 1) (n + 1)).V, SG.edist u v ≤ 3 := by
-    intro u v
-    by_cases hu0 : u.val < 2 + (m + 1)
-    · by_cases hv0 : v.val < 2 + (m + 1)
-      · exact ((walkToCenter0 u hu0).append (walkFromCenter0 v hv0)) |>.edist_le.trans
-          (by rw [SimpleGraph.Walk.length_append]; exact_mod_cast
-            (by have := walkToCenter0_len u hu0; have := walkFromCenter0_len v hv0; omega))
-      · let hvhw : 2 + (m + 1) ≤ v.val := Nat.le_of_not_lt hv0
-        let hwalk2 : SG.Walk c0 v := walk0to1.append (walkFromCenter1 v hvhw)
-        have hlen2 : hwalk2.length = 2 := by
-          dsimp only [hwalk2, walk0to1, walkFromCenter1]
-          rw [SimpleGraph.Walk.length_append, walk0to1_len, walkFromCenter1_len v hvhw]
-        exact ((walkToCenter0 u hu0).append hwalk2) |>.edist_le.trans
-          (by rw [SimpleGraph.Walk.length_append, hlen2]; exact_mod_cast
-            (by have := walkToCenter0_len u hu0; omega))
-    · by_cases hv0 : v.val < 2 + (m + 1)
-      · let hwalk2 : SG.Walk c1 v := walk1to0.append (walkFromCenter0 v hv0)
-        have hlen2 : hwalk2.length ≤ 2 := by
-          dsimp only [hwalk2, walk1to0, walkFromCenter0]
-          rw [SimpleGraph.Walk.length_append, walk1to0_len]
-          exact Nat.add_le_add_left (walkFromCenter0_len v hv0) 1
-        exact ((walkToCenter1 u (Nat.le_of_not_lt hu0)).append hwalk2) |>.edist_le.trans
-          (by rw [SimpleGraph.Walk.length_append]; exact_mod_cast
-            (by have := walkToCenter1_len u (Nat.le_of_not_lt hu0); omega))
-      · exact ((walkToCenter1 u (Nat.le_of_not_lt hu0)).append (walkFromCenter1 v (Nat.le_of_not_lt
-          hv0))) |>.edist_le.trans
-          (by rw [SimpleGraph.Walk.length_append]; exact_mod_cast
-            (by
-              have := walkToCenter1_len u (Nat.le_of_not_lt hu0)
-              have := walkFromCenter1_len v (Nat.le_of_not_lt hv0)
-              omega))
-  -- Lower bound
-  set u : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨2, by omega⟩
-  set v : (CGraph.doubleStar (m + 1) (n + 1)).V := ⟨m + 3, by omega⟩
-  have h_ne : u ≠ v := by
-    intro h; have := congr_arg Fin.val h; simp [u, v] at this
-  have h_not_adj : ¬SG.Adj u v := by
-    rw [h_adj_val]
-    simp [u, v]
-  have hu_val : u.val = 2 := rfl
-  have hc0_val' : c0.val = 0 := rfl
-  -- Neighbors of u: only c0
-  have h_u_neighbors : ∀ p, SG.Adj u p → p = c0 := by
-    intro p hp
-    rw [h_adj_val] at hp
-    simp [hu_val] at hp
-    obtain ⟨hne, hdisj⟩ := hp
-    exact Fin.ext (by simp [hc0_val'] at hdisj ⊢; omega)
-  have hv_val : v.val = m + 3 := rfl
-  -- Neighbors of v: only c1
-  have h_v_neighbors : ∀ p, SG.Adj p v → p = c1 := by
-    intro p hp
-    rw [h_adj_val] at hp
-    rw [hv_val] at hp
-    obtain ⟨hne, hdisj⟩ := hp
-    have hp1 : p.val = 1 := by
-      rcases hdisj with h | h | h | h | h | h <;> try omega
-    exact Fin.ext hp1
-  -- No walk of length 2 from u to v
-  have h_no_walk2 : ∀ w : SG.Walk u v, w.length = 2 → False := by
-    intro w hw
-    have hadj1 : SG.Adj u (w.getVert (1 : ℕ)) := by
-      have h1 := w.adj_getVert_succ (i := 0) (by omega : (0 : ℕ) < w.length)
-      rw [w.getVert_zero] at h1; exact h1
-    have hadj2 : SG.Adj (w.getVert (1 : ℕ)) v := by
-      have hvert2 : w.getVert w.length = v := w.getVert_length
-      rw [hw] at hvert2
-      have h1 := w.adj_getVert_succ (i := 1) (by omega : (1 : ℕ) < w.length)
-      rw [hvert2] at h1; exact h1
-    have hp0 := h_u_neighbors _ hadj1
-    have hp1 := h_v_neighbors _ hadj2
-    exact hne_c0_c1 (hp0.symm.trans hp1)
-  -- No walk of length < 3 from u to v
-  have h_no_walk_lt_3 : ∀ w : SG.Walk u v, ¬(w.length < 3) := by
-    intro w hlt
-    have h012 : w.length = 0 ∨ w.length = 1 ∨ w.length = 2 := by omega
-    rcases h012 with h | h | h
-    · exfalso
-      have huv : u = v := by
-        have h1 := w.getVert_zero
-        have h2 := w.getVert_length
-        rw [h] at h2; exact h1.symm.trans h2
-      exact h_ne huv
-    · exfalso; exact h_not_adj (SimpleGraph.Walk.adj_of_length_eq_one h)
-    · exact h_no_walk2 w h
-  have h_walks_ge_3 : ∀ w : SG.Walk u v, 3 ≤ w.length := fun w => not_lt.mp (h_no_walk_lt_3 w)
-  -- Reachability: u → c0 → c1 → v
-  have h_reach : SG.Reachable u v := by
-    exact ((walkToCenter0 u (by simp [u])).append
-      (walk0to1.append (walkFromCenter1 v (by simp [v]; omega)))).reachable
-  have h_edist_ge_three : 3 ≤ SG.edist u v := by
-    rw [SimpleGraph.edist]
-    apply le_csInf
-    · exact ⟨_, ⟨h_reach.some, rfl⟩⟩
-    · rintro _ ⟨w, rfl⟩
-      show (3 : ℕ∞) ≤ ↑w.length
-      exact_mod_cast h_walks_ge_3 w
-  have h_3_le_ediam : 3 ≤ SG.ediam := h_edist_ge_three.trans SimpleGraph.edist_le_ediam
-  have h_ediam_le_three : SG.ediam ≤ 3 := by
-    apply SimpleGraph.ediam_le_of_edist_le
-    intro x y
-    exact_mod_cast h_edist_le_three x y
-  have h_ediam_eq_three : SG.ediam = 3 := le_antisymm h_ediam_le_three h_3_le_ediam
-  change SG.diam = 3
-  rw [SimpleGraph.diam, h_ediam_eq_three]
-  rfl
+    rw [CGraph.toSimple_adj]
+    exact CGraph.doubleStar_adj_val (m + 1) (n + 1) x y
+  have hc01 : (CGraph.doubleStar (m + 1) (n + 1)).toSimple.Adj c0 c1 := by
+    rw [hadj, hv0, hv1]
+    omega
+  -- Every vertex is a centre, or a leaf one step from a centre.
+  have key : ∀ w : (CGraph.doubleStar (m + 1) (n + 1)).V, ∃ c, (c = c0 ∨ c = c1) ∧
+      ∃ p : (CGraph.doubleStar (m + 1) (n + 1)).toSimple.Walk w c, p.length ≤ 1 := by
+    intro w
+    by_cases hw : w.1 < 2 + (m + 1)
+    · refine ⟨c0, Or.inl rfl, ?_⟩
+      by_cases h0 : w = c0
+      · subst h0
+        exact ⟨SimpleGraph.Walk.nil, by simp⟩
+      · have hw0 : w.1 ≠ 0 := fun h ↦ h0 (Fin.ext (by rw [hv0]; omega))
+        have hwc : (CGraph.doubleStar (m + 1) (n + 1)).toSimple.Adj w c0 := by
+          rw [hadj, hv0]; omega
+        exact ⟨SimpleGraph.Walk.cons hwc SimpleGraph.Walk.nil, by simp⟩
+    · have hwc : (CGraph.doubleStar (m + 1) (n + 1)).toSimple.Adj w c1 := by
+        have := w.isLt
+        rw [hadj, hv1]
+        omega
+      exact ⟨c1, Or.inr rfl, SimpleGraph.Walk.cons hwc SimpleGraph.Walk.nil, by simp⟩
+  have link : ∀ x y : (CGraph.doubleStar (m + 1) (n + 1)).V, (x = c0 ∨ x = c1) →
+      (y = c0 ∨ y = c1) →
+      ∃ p : (CGraph.doubleStar (m + 1) (n + 1)).toSimple.Walk x y, p.length ≤ 1 := by
+    rintro x y (rfl | rfl) (rfl | rfl)
+    · exact ⟨SimpleGraph.Walk.nil, by simp⟩
+    · exact ⟨SimpleGraph.Walk.cons hc01 SimpleGraph.Walk.nil, by simp⟩
+    · exact ⟨SimpleGraph.Walk.cons hc01.symm SimpleGraph.Walk.nil, by simp⟩
+    · exact ⟨SimpleGraph.Walk.nil, by simp⟩
+  refine CGraph.diameter_eq_of_walks _ 3 (a := a) (b := b) (fun u v ↦ ?_) fun p ↦ ?_
+  · obtain ⟨cu, hcu, pu, hpu⟩ := key u
+    obtain ⟨cv, hcv, pv, hpv⟩ := key v
+    obtain ⟨q, hq⟩ := link cu cv hcu hcv
+    refine ⟨(pu.append q).append pv.reverse, ?_⟩
+    simp only [SimpleGraph.Walk.length_append, SimpleGraph.Walk.length_reverse]
+    omega
+  · -- A leaf of one centre and a leaf of the other are three steps apart: they are distinct,
+    -- non-adjacent, and their only neighbours are the two distinct centres.
+    refine SimpleGraph.three_le_length_of_no_common_neighbour ?_ ?_ ?_ p
+    · exact fun h ↦ by have h' := congrArg Fin.val h; rw [hva, hvb] at h'; omega
+    · rw [hadj, hva, hvb]; omega
+    · intro x hx hx'
+      have e0 : x = c0 := Fin.ext (by rw [hadj, hva] at hx; rw [hv0]; omega)
+      have e1 : x = c1 := Fin.ext (by rw [hadj, hvb] at hx'; rw [hv1]; omega)
+      have h' := congrArg Fin.val (e0.symm.trans e1)
+      rw [hv0, hv1] at h'
+      omega
 
 /-- Either centre reaches everything in two steps. -/
 theorem radius_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).radius = 2 := by

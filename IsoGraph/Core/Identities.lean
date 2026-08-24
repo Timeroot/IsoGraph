@@ -585,6 +585,28 @@ theorem mem_cycleEdges (m a b : ℕ) :
   | zero => simp only [cycleEdges_zero, List.not_mem_nil, false_iff]; omega
   | succ k => rw [mem_cycleEdges_succ]; omega
 
+/-- The cycle on `m` vertices has `m` edges. -/
+@[simp] theorem length_cycleEdges (m : ℕ) : (cycleEdges m).length = m := by
+  cases m with
+  | zero => simp
+  | succ k => rw [cycleEdges_succ]; simp
+
+/-- The edge list of a cycle repeats nothing: the wrap-around edge `(k, 0)` runs backwards, so it
+cannot coincide with any of the forward steps `(i, i + 1)`. -/
+theorem cycleEdges_nodup (m : ℕ) : (cycleEdges m).Nodup := by
+  cases m with
+  | zero => simp
+  | succ k =>
+    rw [cycleEdges_succ]
+    refine List.Nodup.append (List.Nodup.map (fun a b h ↦ by injection h) List.nodup_range)
+      (List.nodup_singleton _) ?_
+    intro p hp hq
+    simp only [List.mem_map, List.mem_range] at hp
+    simp only [List.mem_singleton] at hq
+    obtain ⟨i, -, rfl⟩ := hp
+    exact absurd (congrArg Prod.snd hq) (by simp)
+
+
 @[simp] theorem cliqueEdges_zero : cliqueEdges 0 = [] := rfl
 
 @[simp] theorem cliqueEdges_one : cliqueEdges 1 = [] := rfl
@@ -809,6 +831,27 @@ theorem legEdges_succ (v off j : ℕ) :
     · rintro (⟨rfl, rfl, -⟩ | ⟨h1, rfl, h3⟩)
       · exact Or.inl ⟨rfl, rfl⟩
       · exact Or.inr ⟨p - off, by omega, by omega, by omega⟩
+
+/-- A leg of `k` fresh vertices contributes `k` edges. -/
+@[simp] theorem length_legEdges (v off k : ℕ) : (legEdges v off k).length = k := by
+  cases k with
+  | zero => simp [legEdges]
+  | succ j => rw [legEdges_succ]; simp
+
+/-- The edge list of a leg repeats nothing: the steps `(i + off, i + 1 + off)` are distinct, and
+none of them can be the attaching edge `(v, off)`. -/
+theorem legEdges_nodup (v off k : ℕ) : (legEdges v off k).Nodup := by
+  cases k with
+  | zero => simp [legEdges]
+  | succ j =>
+    rw [legEdges_succ]
+    refine List.nodup_cons.mpr ⟨?_, List.Nodup.map (fun a b h ↦ by injection h; omega)
+      List.nodup_range⟩
+    intro hmem
+    simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at hmem
+    obtain ⟨i, -, -, h⟩ := hmem
+    omega
+
 
 /-- Folding the interval `[0, a]` of `Fin N` back on itself, fixing everything above `a`.  This
 is the relabelling that straightens a two-legged spider into a path: the two legs, which run
@@ -1089,6 +1132,89 @@ theorem mem_thetaEdges_single (off k p q : ℕ) :
       · exact Or.inr (Or.inl ⟨by omega, rfl⟩)
       · exact Or.inr (Or.inr ⟨p - off, by omega, by omega, by omega⟩)
 
+/-- Each of the `ks.length` paths of a theta graph contributes `ks[i] + 1` edges. -/
+theorem length_thetaEdges : ∀ (off : ℕ) (ks : List ℕ), (∀ k ∈ ks, 0 < k) →
+    (thetaEdges off ks).length = ks.sum + ks.length := by
+  intro off ks
+  induction ks generalizing off with
+  | nil => intro _; rfl
+  | cons k rest ih =>
+    intro h
+    obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by have := h k (by simp); omega⟩
+    rw [thetaEdges_cons, List.length_append,
+      ih (off + (j + 1)) fun x hx ↦ h x (List.mem_cons_of_mem _ hx)]
+    simp only [thetaEdges, List.append_nil, List.length_cons, List.length_map,
+      List.length_range, List.sum_cons]
+    omega
+
+/-- Every theta edge has one of three shapes: out of the pole `0`, into the pole `1`, or a step
+along the interior of a path. -/
+theorem mem_thetaEdges_shape : ∀ (off : ℕ) (ks : List ℕ), 2 ≤ off → (∀ k ∈ ks, 0 < k) →
+    ∀ p ∈ thetaEdges off ks,
+      (p.1 = 0 ∧ off ≤ p.2 ∧ p.2 < off + ks.sum) ∨
+      (p.2 = 1 ∧ off ≤ p.1 ∧ p.1 < off + ks.sum) ∨
+      (off ≤ p.1 ∧ p.2 = p.1 + 1 ∧ p.2 < off + ks.sum) := by
+  intro off ks
+  induction ks generalizing off with
+  | nil => simp [thetaEdges]
+  | cons k rest ih =>
+    intro hoff h p hp
+    have hk : 0 < k := h k (by simp)
+    rw [thetaEdges_cons, List.mem_append] at hp
+    simp only [List.sum_cons]
+    rcases hp with hp | hp
+    · rw [mem_thetaEdges_single] at hp
+      omega
+    · have := ih (off + k) (by omega) (fun x hx ↦ h x (List.mem_cons_of_mem _ hx)) p hp
+      omega
+
+/-- No theta edge is a loop. -/
+theorem thetaEdges_ne (off : ℕ) (ks : List ℕ) (hoff : 2 ≤ off) (h : ∀ k ∈ ks, 0 < k) :
+    ∀ p ∈ thetaEdges off ks, p.1 ≠ p.2 := fun p hp ↦ by
+  have := mem_thetaEdges_shape off ks hoff h p hp
+  omega
+
+/-- Both endpoints of a theta edge are vertices of `thetaGraph`. -/
+theorem thetaEdges_lt (off : ℕ) (ks : List ℕ) (hoff : 2 ≤ off) (h : ∀ k ∈ ks, 0 < k) :
+    ∀ p ∈ thetaEdges off ks, p.1 < off + ks.sum ∧ p.2 < off + ks.sum := fun p hp ↦ by
+  have := mem_thetaEdges_shape off ks hoff h p hp
+  omega
+
+/-- The edge list of a theta graph lists no edge in both orientations. -/
+theorem thetaEdges_no_rev (off : ℕ) (ks : List ℕ) (hoff : 2 ≤ off) (h : ∀ k ∈ ks, 0 < k) :
+    ∀ p ∈ thetaEdges off ks, (p.2, p.1) ∉ thetaEdges off ks := fun p hp hrev ↦ by
+  have h1 := mem_thetaEdges_shape off ks hoff h p hp
+  have h2 := mem_thetaEdges_shape off ks hoff h _ hrev
+  simp only at h2
+  omega
+
+/-- The edge list of a theta graph has no repeats. -/
+theorem thetaEdges_nodup : ∀ (off : ℕ) (ks : List ℕ), 2 ≤ off → (∀ k ∈ ks, 0 < k) →
+    (thetaEdges off ks).Nodup := by
+  intro off ks
+  induction ks generalizing off with
+  | nil => simp [thetaEdges]
+  | cons k rest ih =>
+    intro hoff h
+    have hk : 0 < k := h k (by simp)
+    have hrest : ∀ x ∈ rest, 0 < x := fun x hx ↦ h x (List.mem_cons_of_mem _ hx)
+    rw [thetaEdges_cons]
+    refine List.Nodup.append ?_ (ih (off + k) (by omega) hrest) ?_
+    · obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+      simp only [thetaEdges, List.append_nil, List.nodup_cons, List.mem_cons, List.mem_map,
+        List.mem_range, Prod.mk.injEq, not_or]
+      refine ⟨⟨by omega, ?_⟩, ?_, List.Nodup.map (fun a b hab ↦ by
+        injection hab with h1 _; omega) List.nodup_range⟩
+      · rintro ⟨i, -, hi, -⟩
+        omega
+      · rintro ⟨i, -, -, hi⟩
+        omega
+    · intro p hp hq
+      have h1 := mem_thetaEdges_shape off [k] hoff (by simpa using hk) p hp
+      have h2 := mem_thetaEdges_shape (off + k) rest (by omega) hrest p hq
+      simp only [List.sum_cons, List.sum_nil, Nat.add_zero] at h1
+      omega
+
 /-- The relabelling that reads a theta graph with two paths off as a cycle: the first path is
 traversed away from the pole `0`, the second one back towards it. -/
 def thetaCycleFwd (a b v : ℕ) : ℕ :=
@@ -1243,6 +1369,72 @@ theorem mem_pendantEdges_bound : ∀ (v off : ℕ) (ks : List ℕ) (p q : ℕ),
         omega
       · have := mem_pendantEdges_bound (v + 1) (off + k) ks p q h
         omega
+
+/-- Every fresh vertex of `pendantEdges v off ks` hangs off some cycle vertex. -/
+theorem exists_mem_pendantEdges : ∀ (v off : ℕ) (ks : List ℕ) (q : ℕ), off ≤ q →
+    q < off + ks.sum → ∃ p, (p, q) ∈ pendantEdges v off ks := by
+  intro v off ks
+  induction ks generalizing v off with
+  | nil => intro q h1 h2; simp only [List.sum_nil, Nat.add_zero] at h2; omega
+  | cons k rest ih =>
+    intro q h1 h2
+    simp only [List.sum_cons] at h2
+    by_cases hq : q < off + k
+    · refine ⟨v, ?_⟩
+      rw [pendantEdges, List.mem_append]
+      exact Or.inl (List.mem_map.2 ⟨q - off, List.mem_range.2 (by omega), by
+        simp only [Prod.mk.injEq, true_and]; omega⟩)
+    · obtain ⟨p, hp⟩ := ih (v + 1) (off + k) q (by omega) (by omega)
+      exact ⟨p, by rw [pendantEdges, List.mem_append]; exact Or.inr hp⟩
+
+/-- A pendant vertex hangs off exactly one cycle vertex. -/
+theorem pendantEdges_snd_unique : ∀ (v off : ℕ) (ks : List ℕ) (p p' q : ℕ),
+    (p, q) ∈ pendantEdges v off ks → (p', q) ∈ pendantEdges v off ks → p = p' := by
+  intro v off ks
+  induction ks generalizing v off with
+  | nil => intro p p' q h; simp [pendantEdges] at h
+  | cons k rest ih =>
+    intro p p' q h h'
+    rw [pendantEdges, List.mem_append] at h h'
+    rcases h with h | h <;> rcases h' with h' | h'
+    · simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at h h'
+      obtain ⟨i, -, rfl, -⟩ := h
+      obtain ⟨j, -, rfl, -⟩ := h'
+      rfl
+    · exfalso
+      simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at h
+      obtain ⟨i, hi, -, hqi⟩ := h
+      have := mem_pendantEdges_bound (v + 1) (off + k) rest p' q h'
+      omega
+    · exfalso
+      simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at h'
+      obtain ⟨i, hi, -, hqi⟩ := h'
+      have := mem_pendantEdges_bound (v + 1) (off + k) rest p q h
+      omega
+    · exact ih (v + 1) (off + k) p p' q h h'
+
+/-- Hanging `ks` pendants contributes `ks.sum` edges. -/
+@[simp] theorem length_pendantEdges : ∀ (v off : ℕ) (ks : List ℕ),
+    (pendantEdges v off ks).length = ks.sum
+  | _, _, [] => rfl
+  | v, off, k :: ks => by
+      rw [pendantEdges, List.length_append, List.length_map, List.length_range,
+        length_pendantEdges (v + 1) (off + k) ks, List.sum_cons]
+
+/-- The edge list of a family of pendants repeats nothing: the `k` edges hung on `v` all end at
+distinct fresh vertices, and the later blocks live above `off + k`. -/
+theorem pendantEdges_nodup : ∀ (v off : ℕ) (ks : List ℕ), (pendantEdges v off ks).Nodup
+  | _, _, [] => by simp [pendantEdges]
+  | v, off, k :: ks => by
+      rw [pendantEdges]
+      refine List.Nodup.append (List.Nodup.map (fun a b h ↦ by injection h with h1 h2; omega)
+        List.nodup_range) (pendantEdges_nodup (v + 1) (off + k) ks) ?_
+      intro p hp hq
+      simp only [List.mem_map, List.mem_range] at hp
+      obtain ⟨i, hi, rfl⟩ := hp
+      have := mem_pendantEdges_bound (v + 1) (off + k) ks v (off + i) hq
+      omega
+
 
 /-- Along every pendant edge the parity of `pendantOwner` changes. -/
 theorem pendantOwner_parity (m : ℕ) : ∀ (v off : ℕ) (ks : List ℕ) (p q : ℕ),

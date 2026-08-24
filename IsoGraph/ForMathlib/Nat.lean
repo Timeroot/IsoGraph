@@ -1,3 +1,4 @@
+import Mathlib.Data.ENat.Lattice
 import Mathlib.Data.Nat.Choose.Basic
 import Mathlib.Data.Nat.ModEq
 import Mathlib.Tactic.Common
@@ -139,3 +140,10 @@ theorem row_col_step {n x y x' y' : ℕ} (hy : y < n) (hy' : y' < n)
     obtain ⟨h1, h2⟩ := row_col_eq (show (0 : ℕ) < n by omega) hy'
       (show (x + 1) * n + 0 = x' * n + y' by omega)
     exact Or.inr ⟨h1, by omega, h2.symm⟩
+
+/-- `ENat.toNat` commutes with `max` away from `⊤`. -/
+theorem ENat.toNat_max (a b : ℕ∞) (ha : a ≠ ⊤) (hb : b ≠ ⊤) :
+    (max a b).toNat = max a.toNat b.toNat := by
+  rcases le_total a b with h | h
+  · rw [max_eq_right h, max_eq_right (ENat.toNat_le_toNat h hb)]
+  · rw [max_eq_left h, max_eq_left (ENat.toNat_le_toNat h ha)]

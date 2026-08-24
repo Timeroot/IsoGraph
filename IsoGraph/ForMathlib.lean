@@ -2,6 +2,7 @@ import IsoGraph.ForMathlib.Analysis
 import IsoGraph.ForMathlib.Array
 import IsoGraph.ForMathlib.Bits
 import IsoGraph.ForMathlib.Decide
+import IsoGraph.ForMathlib.Hamming
 import IsoGraph.ForMathlib.List
 import IsoGraph.ForMathlib.Matrix
 import IsoGraph.ForMathlib.Nat
@@ -20,7 +21,8 @@ shrinks by one.
 
 The modules are grouped by subject: `Nat`, `ZMod` and `Bits` for arithmetic and bit fiddling,
 `List` and `Array` for the containers the canonical form runs on, `Decide` and `Perm` for two
-small odds-and-ends, `QuadraticChar` for the character sums behind the Paley graphs, `Matrix` and
+small odds-and-ends, `Hamming` for the Boolean corner of `hammingDist` that the cube families
+run on, `QuadraticChar` for the character sums behind the Paley graphs, `Matrix` and
 `Analysis` for the spectral computations, and `SimpleGraph` for the graph facts themselves —
 chiefly that every invariant Mathlib defines is invariant under `SimpleGraph.Iso`, which is the
 one lemma family here that the rest of the library leans on everywhere.

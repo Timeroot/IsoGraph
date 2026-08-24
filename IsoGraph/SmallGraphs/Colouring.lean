@@ -21,166 +21,39 @@ variable (G H : CGraph)
   simp only [bipartite, cliqueNum_compl, indepNum_disjUnion, indepNum_complete]
   omega
 
+/-- The supremum of a list, read through `Finset.sup` over its indices, is `List.max?`. -/
+private theorem sup_get_eq_max? (l : List ℕ) (s : Finset (Fin l.length)) (hs : ∀ i, i ∈ s) :
+    (s.sup fun i ↦ l.get i) = l.max?.getD 0 := by
+  rw [Finset.eq_univ_iff_forall.mpr hs]
+  clear hs
+  clear s
+  induction l with
+  | nil => simp [List.max?]
+  | cons a tl ih =>
+    simp only [List.length_cons]
+    have hsplit : ∀ f : Fin (tl.length + 1) → ℕ, Finset.univ.sup f =
+        max (f 0) (Finset.univ.sup fun i : Fin tl.length ↦ f i.succ) := by
+      intro f
+      have huniv : (Finset.univ : Finset (Fin (tl.length + 1))) =
+          {(0 : Fin (tl.length + 1))} ∪ Finset.image Fin.succ (Finset.univ : Finset
+            (Fin tl.length)) := by
+        ext i; simp [Finset.mem_univ]
+      rw [huniv, Finset.sup_union, Finset.sup_singleton, Finset.sup_image]
+      rfl
+    rw [hsplit, show ((a :: tl).get 0 : ℕ) = a from rfl,
+      Finset.sup_congr rfl (fun i (_ : i ∈ Finset.univ) ↦ (by simp : (a :: tl).get i.succ =
+        tl.get i)), ih]
+    cases htl : tl.max? with
+    | none => simp_all
+    | some b => simp [List.max?_cons, htl]
+
+/-- **The independence number of a complete multipartite graph is its largest part.**  Complements
+into `cliqueNum_sigmaUnion`: a clique of the disjoint union of the parts is a subset of one
+part. -/
 @[simp] theorem indepNum_completeMultipartite (ds : List ℕ) :
     (completeMultipartite ds).indepNum = (ds.max?).getD 0 := by
-  simp only [completeMultipartite, indepNum_compl]
-  -- Need: (sigmaUnion (fun i : Fin ds.length => complete (ds.get i))).cliqueNum = (ds.max?).getD 0
-  induction ds with
-  | nil =>
-    simp [List.max?]
-    -- vertex type of sigmaUnion over Fin 0 is empty
-    have : IsEmpty (sigmaUnion (fun i : Fin 0 => complete [][↑i])).V := by
-      exact ⟨fun x => Fin.elim0 x.1⟩
-    simp only [CGraph.cliqueNum, CGraph.toSimple]
-    unfold SimpleGraph.cliqueNum
-    have : {n : ℕ | ∃ s : Finset (sigmaUnion (fun i : Fin 0 => complete [][↑i])).V,
-        (sigmaUnion (fun i : Fin 0 => complete [][↑i])).toSimple.IsNClique n s} ⊆ {0} := by
-      rintro n ⟨s, hs⟩
-      have : s = ∅ := by
-        by_contra hns
-        obtain ⟨x, hx⟩ := Finset.nonempty_of_ne_empty hns
-        exact this.elim (Fin.elim0 (by exact x.1))
-      rw [this] at hs
-      have : n = 0 := by
-        have := SimpleGraph.IsNClique.card_eq hs
-        simp at this
-        exact this.symm
-      exact this
-    rw [csSup_eq_of_forall_le_of_forall_lt_exists_gt]
-    · exact ⟨0, ∅, by simp⟩
-    · intro n hn; have := this hn; simp at this; exact this.le
-    · intro w hw; exact ⟨0, by simp, hw⟩
-  | cons h tl ih =>
-    let Fi : Fin (tl.length + 1) → CGraph := fun i => complete ((h :: tl).get i)
-    have hcliqueNum_Fi : ∀ i, (Fi i).cliqueNum = (h :: tl).get i := fun i => cliqueNum_complete _
-    -- Helper: adjacent in sigmaUnion implies same fiber
-    have hsame_fiber : ∀ x y : (sigmaUnion Fi).V, (sigmaUnion Fi).Adj x y → x.1 = y.1 := by
-      intro x y hadj
-      by_contra heq
-      rw [sigmaUnion_adj_of_fst_ne _ x y heq] at hadj
-      simp at hadj
-    -- Helper: embedding from Fi i into sigmaUnion Fi
-    let embed : ∀ i, (Fi i).V ↪ (sigmaUnion Fi).V := fun i =>
-      ⟨fun v => ⟨i, v⟩, fun a b h => by
-        exact heq_iff_eq.mp (Sigma.mk.inj_iff.mp h |>.2)⟩
-    have hembed_inj : ∀ i, Function.Injective (embed i) := fun i => (embed i).injective
-    -- Adjacency within a fiber (all pairs adjacent in Fi = complete)
-    have hcomplete_adj : ∀ i (a b : (Fi i).V), a ≠ b → (Fi i).Adj a b := by
-      intro i a b hab
-      show (complete ((h :: tl).get i)).Adj a b
-      show (complete ((h :: tl).get i)).Adj a b
-      show (complete ((h :: tl).get i)).Adj a b
-      show ((empty ((h :: tl).get i))ᶜ).Adj a b
-      dsimp [CGraph.compl]
-      simp [empty]
-      exact hab
-    have hfiber_adj : ∀ i (a b : (Fi i).V), a ≠ b → (sigmaUnion Fi).Adj (embed i a) (embed i b) := by
-      intro i a b hab
-      show (sigmaUnion Fi).Adj ⟨i, a⟩ ⟨i, b⟩ = true
-      rw [sigmaUnion_adj_mk]
-      exact hcomplete_adj i a b hab
-    -- Fiber cardinality via equiv
-    let fiberEquiv : ∀ i, (Fi i).V ≃ {v : (sigmaUnion Fi).V // v.1 = i} := fun i =>
-      ⟨fun v => ⟨⟨i, v⟩, rfl⟩,
-       fun p => (show (Fi p.val.1).V = (Fi i).V from by rw [p.property]) ▸ p.val.2,
-       fun _ => rfl,
-       fun ⟨⟨j, v⟩, hj⟩ => by subst hj; rfl⟩
-    have hfiber_card_equiv : ∀ i, Fintype.card {v : (sigmaUnion Fi).V // v.1 = i} = FinEnum.card (Fi i).V :=
-      fun i => (Fintype.card_congr (fiberEquiv i).symm).trans
-        FinEnum.card_eq_fintypeCard.symm
-    -- Step 1: cliqueNum (sigmaUnion Fi) = Finset.sup Finset.univ (fun i => (Fi i).cliqueNum)
-    have hsigma : (sigmaUnion Fi).cliqueNum = Finset.sup Finset.univ (fun i => (Fi i).cliqueNum) := by
-      apply le_antisymm
-      · -- Upper bound
-        unfold CGraph.cliqueNum SimpleGraph.cliqueNum
-        apply csSup_le
-        · exact ⟨0, ∅, by simp⟩
-        · intro n ⟨s, hs⟩
-          by_cases hs0 : s = ∅
-          · rw [hs0] at hs; have hcard := SimpleGraph.IsNClique.card_eq hs; simp at hcard; rw [← hcard]; exact Nat.zero_le _
-          · obtain ⟨x, hx⟩ := Finset.nonempty_of_ne_empty hs0
-            set i := x.1
-            have hall : ∀ y ∈ s, y.1 = i := by
-              intro y hy
-              by_cases hyx : y = x
-              · rw [hyx]
-              · have hadj : (sigmaUnion Fi).toSimple.Adj y x := SimpleGraph.IsNClique.isClique hs hy hx hyx
-                exact hsame_fiber y x hadj
-            have hcard_eq_n : s.card = n := SimpleGraph.IsNClique.card_eq hs
-            have hsub : s ⊆ Finset.univ.filter (fun v : (sigmaUnion Fi).V => v.1 = i) := by
-              intro v hv; simp [hall v hv]
-            have hfilter_card : (Finset.univ.filter (fun v : (sigmaUnion Fi).V => v.1 = i)).card = FinEnum.card (Fi i).V := by
-              rw [← Fintype.card_subtype, hfiber_card_equiv]
-            have hcard_eq_clique : FinEnum.card (Fi i).V = (Fi i).cliqueNum := by
-              rw [card_complete, hcliqueNum_Fi i]
-            rw [hcard_eq_clique] at hfilter_card
-            have hcard_le : n ≤ (Fi i).cliqueNum := by
-              rw [← hcard_eq_n, ← hfilter_card]
-              exact Finset.card_le_card hsub
-            exact hcard_le.trans (Finset.le_sup (f := fun i => sSup {n | ∃ s, (Fi i).toSimple.IsNClique n s}) (Finset.mem_univ i))
-      · -- Lower bound
-        apply Finset.sup_le
-        intro i _
-        apply le_csSup
-        · exact ⟨FinEnum.card (sigmaUnion Fi).V, fun m ⟨t, ht⟩ => by
-            rw [← ht.card_eq]
-            exact FinEnum.card_le t⟩
-        · let s_i := Finset.univ.image (embed i)
-          have hc : (Fi i).cliqueNum = FinEnum.card (Fi i).V := by
-            rw [hcliqueNum_Fi i, card_complete]
-          have hs_i_clique : (sigmaUnion Fi).toSimple.IsNClique (Fi i).cliqueNum s_i := by
-            rw [hc] at *
-            constructor
-            · intro a' ha' b' hb' hab'
-              simp only [s_i, Finset.coe_image, Set.mem_image] at ha' hb'
-              obtain ⟨a, _, rfl⟩ := ha'
-              obtain ⟨b, _, rfl⟩ := hb'
-              exact hfiber_adj i a b (hembed_inj i |>.ne_iff.mp hab')
-            · rw [Finset.card_image_of_injective _ (hembed_inj i)]
-              simp
-          exact ⟨s_i, hs_i_clique⟩
-    -- Step 2: hsup lemma
-    have hsup : ∀ (l : List ℕ), Finset.sup Finset.univ (fun i : Fin l.length => l.get i) = l.max?.getD 0 := by
-      intro l
-      induction l with
-      | nil => simp [List.max?]
-      | cons a tl ih =>
-        simp only [List.length_cons]
-        -- Step 1: sup over Fin (n+2) splits as max of f(0) and sup over the rest
-        have hsplit : ∀ (f : Fin (tl.length + 1) → ℕ),
-            Finset.sup Finset.univ f = max (f 0) (Finset.sup Finset.univ (fun i : Fin tl.length => f i.succ)) := by
-          intro f
-          have : (Finset.univ : Finset (Fin (tl.length + 1))) =
-              {(0 : Fin (tl.length + 1))} ∪ Finset.image Fin.succ (Finset.univ : Finset (Fin tl.length)) := by
-            ext i; simp [Finset.mem_univ]
-          rw [this, Finset.sup_union, Finset.sup_singleton]
-          rw [Finset.sup_image]
-          rfl
-        -- Step 2: Apply split to (a :: tl).get
-        have hget : ∀ (i : Fin tl.length), (a :: tl).get i.succ = tl.get i := by
-          intro i; simp
-        have hget0 : (a :: tl).get 0 = a := by simp
-        rw [hsplit, hget0]
-        rw [Finset.sup_congr rfl (fun i _ => hget i)]
-        rw [ih]
-        -- Step 3: max a (tl.max?.getD 0) = (a :: tl).max?.getD 0
-        have foldl_max : ∀ (x : ℕ) (l : List ℕ), ∀ y, max x (List.foldl max y l) = List.foldl max (max x y) l := by
-          intro x l
-          induction l with
-          | nil => simp
-          | cons hd tl ih' =>
-            intro y
-            simp only [List.foldl]
-            rw [ih' (max y hd)]
-            rw [(max_assoc x y hd).symm]
-        simp [List.max?]
-        cases tl with
-        | nil => simp
-        | cons b tl => simp [List.foldl, foldl_max]
-    have hsup' := hsup (h :: tl)
-    show (sigmaUnion (fun i : Fin (tl.length + 1) => complete ((h :: tl).get i))).cliqueNum = (h :: tl).max?.getD 0
-    dsimp only [Fi] at hsigma ⊢
-    rw [hsigma, Finset.sup_congr rfl (fun i _ => hcliqueNum_Fi i), hsup']
+  simp only [completeMultipartite, indepNum_compl, cliqueNum_sigmaUnion, cliqueNum_complete]
+  exact sup_get_eq_max? ds _ (fun i ↦ by simp)
 
 end
 

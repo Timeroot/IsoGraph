@@ -257,507 +257,115 @@ theorem cliqueCoverNum_kneser_two (n : ℕ) :
     (kneser n 2).cliqueCoverNum = (complete n).edgeChromNum := by
   rw [cliqueCoverNum_eq, ← triangular_eq_compl_kneser, chromNum_triangular]
 
+/-- **The hypercube is class one.**  Colour an edge by the coordinate its two ends disagree on:
+two edges at a common vertex flip different coordinates, so they get different colours.  That is
+`n + 1` colours, and the graph is `(n + 1)`-regular, so no fewer will do. -/
 theorem edgeChromNum_hypercube (n : ℕ) : (hypercube (n + 1)).edgeChromNum = n + 1 := by
-  apply le_antisymm
-  · -- Upper bound: edgeChromNum ≤ n+1
-    rw [edgeChromNum_eq]
-    rw [show lineGraph (hypercube (n + 1)) = ⟦(lineGraph (hypercube (n + 1))).toCGraph⟧ from
-      (IsoGraph.mk_toCGraph _).symm]
-    rw [chromNum_mk, CGraph.chromNum_le_iff_colorable]
-    rw [SimpleGraph.colorable_iff_exists_bdd_nat_coloring]
-    -- Work with CGraph.hypercube directly
-    have hhc : lineGraph (hypercube (n + 1)) = ⟦CGraph.lineGraph (CGraph.hypercube (n + 1))⟧ := by
-      rw [hypercube_def, lineGraph_mk]
-    rw [hhc, IsoGraph.toCGraph_mk]
-    let V := Fin (n + 1) → Bool
-    -- Edge coloring: color edge {x,y} by the unique coordinate where x and y differ.
-    let diffSet : V → V → Finset (Fin (n + 1)) := fun x y => Finset.univ.filter (fun i => x i ≠ y i)
-    have hdiff_symm : ∀ x y, diffSet x y = diffSet y x := by
-      intro x y; ext i; simp [diffSet, ne_comm]
-    let colorPair : V → V → Fin (n + 1) := fun x y =>
-      if h : (diffSet x y).card = 1 then
-        Classical.choose (Finset.card_eq_one.mp h)
-      else 0
-    have hcolor_symm : ∀ x y : V, colorPair x y = colorPair y x := by
-      intro x y; simp [colorPair, hdiff_symm]
-    let colorOnEdges : Sym2 V → Fin (n + 1) :=
-      Quot.lift (fun p : V × V => colorPair p.1 p.2)
-        (fun p q hpq => by
-          simp at hpq
-          rcases hpq with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
-          · rfl
-          · exact hcolor_symm _ _)
-    let C : (CGraph.lineGraph (CGraph.hypercube (n + 1))).V → Fin (n + 1) :=
-      fun e => colorOnEdges e.1
-    have hcolor_bound : ∀ e : (CGraph.lineGraph (CGraph.hypercube (n + 1))).V,
-        (C e : ℕ) < n + 1 := by
-      intro e
-      show (colorOnEdges e.1 : ℕ) < n + 1
-      exact Fin.isLt (colorOnEdges e.1)
-    have hcolor_adj : ∀ e f : (CGraph.lineGraph (CGraph.hypercube (n + 1))).V,
-        (CGraph.lineGraph (CGraph.hypercube (n + 1))).Adj e f → C e ≠ C f := by
-      intro e f hef hCEq
-      rw [CGraph.lineGraph_adj] at hef
-      simp at hef
-      obtain ⟨hne, v, hv_e, hv_f⟩ := hef
-      obtain ⟨e_edge, he_mem⟩ := e
-      obtain ⟨f_edge, hf_mem⟩ := f
-      obtain ⟨⟨u, w⟩, he1⟩ := Sym2.mk_surjective e_edge
-      obtain ⟨⟨x, y⟩, hf1⟩ := Sym2.mk_surjective f_edge
-      rw [he1.symm] at he_mem; rw [hf1.symm] at hf_mem
-      have he_adj : (CGraph.hypercube (n + 1)).Adj u w := by
-        simpa [CGraph.toSimple_adj] using he_mem
-      have hf_adj : (CGraph.hypercube (n + 1)).Adj x y := by
-        simpa [CGraph.toSimple_adj] using hf_mem
-      rw [CGraph.hypercube_adj] at he_adj hf_adj
-      have he_adj1 : (Finset.univ.filter (fun i => u i ≠ w i)).card = 1 := by simpa using he_adj
-      have hf_adj1 : (Finset.univ.filter (fun i => x i ≠ y i)).card = 1 := by simpa using hf_adj
-      obtain ⟨ie, hie⟩ := Finset.card_eq_one.mp he_adj1
-      obtain ⟨idf, hif⟩ := Finset.card_eq_one.mp hf_adj1
-      have hCEq' : colorPair u w = colorPair x y := by
-        have : colorOnEdges e_edge = colorOnEdges f_edge := hCEq
-        rw [← he1, ← hf1] at this
-        exact this
-      have huel_ne_wiel : u ie ≠ w ie := by
-        by_contra h
-        have : ie ∈ ({ie} : Finset (Fin (n+1))) := Finset.mem_singleton_self ie
-        rw [← hie] at this
-        simp [h] at this
-      have hxel_ne_yiel : x idf ≠ y idf := by
-        by_contra h
-        have : idf ∈ ({idf} : Finset (Fin (n+1))) := Finset.mem_singleton_self idf
-        rw [← hif] at this
-        simp [h] at this
-      have hu_eq_w : ∀ i, i ≠ ie → u i = w i := by
-        intro i hi
-        by_contra hne'
-        have hmem_i : i ∈ ({i | u i ≠ w i} : Finset (Fin (n+1))) := by simp [hne']
-        have hi_eq : i = ie := Finset.mem_singleton.mp ((Finset.ext_iff.mp hie i).mp hmem_i)
-        exact hi hi_eq
-      have hx_eq_y : ∀ i, i ≠ idf → x i = y i := by
-        intro i hi
-        by_contra hne'
-        have hmem_i : i ∈ ({i | x i ≠ y i} : Finset (Fin (n+1))) := by simp [hne']
-        have hi_eq : i = idf := Finset.mem_singleton.mp ((Finset.ext_iff.mp hif i).mp hmem_i)
-        exact hi hi_eq
-      have hwiel : w ie = !u ie := by
-        rcases hu_ie : u ie with true | false <;>
-        rcases hw_ie : w ie with true | false <;>
-        simp [hu_ie, hw_ie] at huel_ne_wiel ⊢
-      have hyiel : y idf = !x idf := by
-        rcases hx_ie : x idf with true | false <;>
-        rcases hy_ie : y idf with true | false <;>
-        simp [hx_ie, hy_ie] at hxel_ne_yiel ⊢
-      have hw_def : w = Function.update u ie (!u ie) := by
-        funext i
-        by_cases hi : i = ie
-        · subst hi; rw [hwiel, Function.update_self]
-        · simp [hi, Function.update_of_ne, hu_eq_w i hi]
-      have hy_def : y = Function.update x idf (!x idf) := by
-        funext i
-        by_cases hi : i = idf
-        · subst hi; rw [hyiel, Function.update_self]
-        · simp [hi, Function.update_of_ne, hx_eq_y i hi]
-      -- hmem_uw and hmem_xy from hv_e, hv_f
-      have hv_e' : v ∈ (e_edge : Sym2 (CGraph.hypercube (n + 1)).V) := hv_e
-      have hv_f' : v ∈ (f_edge : Sym2 (CGraph.hypercube (n + 1)).V) := hv_f
-      rw [← he1] at hv_e'; rw [← hf1] at hv_f'
-      have hmem_uw : v = u ∨ v = w := by
-        have := Sym2.mem_iff.mp hv_e'
-        exact this
-      have hmem_xy : v = x ∨ v = y := by
-        have := Sym2.mem_iff.mp hv_f'
-        exact this
-      have hx_when_y : v = y → x = Function.update v idf (!v idf) := by
-        intro hvx
-        rw [hvx]
-        funext i
-        by_cases hi : i = idf
-        · rw [hi]
-          rcases hx_2 : x idf with true | false <;>
-          rcases hy_2 : y idf with true | false <;>
-          simp [hx_2, hy_2] at hxel_ne_yiel ⊢
-        · rw [hx_eq_y i hi, Function.update_of_ne hi]
-      have hu_when_w : v = w → u = Function.update v ie (!v ie) := by
-        intro hvw
-        rw [hvw]
-        funext i
-        by_cases hi : i = ie
-        · rw [hi]
-          rcases hu_2 : u ie with true | false <;>
-          rcases hw_2 : w ie with true | false <;>
-          simp [hu_2, hw_2] at huel_ne_wiel ⊢
-        · rw [hu_eq_w i hi, Function.update_of_ne hi]
-      have hCEF_uw : colorPair u w = ie := by
-        show colorPair u w = ie
-        have key : diffSet u w = {ie} := hie
-        simp [colorPair, key]
-      have hCEF_xy : colorPair x y = idf := by
-        show colorPair x y = idf
-        have key : diffSet x y = {idf} := hif
-        simp [colorPair, key]
-      rw [hCEF_uw, hCEF_xy] at hCEq'
-      -- hCEq' : ie = idf
-      subst hCEq'
-      -- Now w = update u ie (!u ie), y = update x ie (!x ie)
-      -- Both edges contain v and update v ie (!v ie), so e_edge = f_edge
-      -- = s(v, update v ie (!v ie))
-      have he1' : e_edge = s(v, Function.update v ie (!v ie)) := by
-        rcases hmem_uw with rfl | rfl
-        · rw [← he1, hw_def]
-        · rw [← he1, hu_when_w rfl]
-          exact Sym2.eq_swap
-      have hf1' : f_edge = s(v, Function.update v ie (!v ie)) := by
-        rcases hmem_xy with rfl | rfl
-        · rw [← hf1, hy_def]
-        · rw [← hf1, hx_when_y rfl]
-          exact Sym2.eq_swap
-      have hedge_eq : e_edge = f_edge := by rw [he1', hf1']
-      exact hne (Subtype.ext hedge_eq)
-    let isoLinG := (CGraph.lineGraph (CGraph.hypercube (n + 1))).isoCanonicalize
-    let colorFun : (CGraph.lineGraph (CGraph.hypercube (n + 1))).canonicalize.V → ℕ :=
-      fun v => (C (isoLinG.symm v) : ℕ)
-    have hcolorFun_valid : ∀ {u v : (CGraph.lineGraph (CGraph.hypercube (n + 1))).canonicalize.V},
-        (CGraph.lineGraph (CGraph.hypercube (n + 1))).canonicalize.toSimple.Adj u v →
-          colorFun u ≠ colorFun v := by
-      intro u v huv
-      have hadj : (CGraph.lineGraph (CGraph.hypercube (n + 1))).Adj
-          (isoLinG.symm u) (isoLinG.symm v) = true :=
-        isoLinG.symm.map_rel_iff.mpr huv
-      show (C (isoLinG.symm u) : ℕ) ≠ (C (isoLinG.symm v) : ℕ)
-      exact Fin.val_injective.ne (hcolor_adj _ _ hadj)
-    refine ⟨⟨colorFun, hcolorFun_valid⟩, fun v => hcolor_bound _⟩
-  · -- Lower bound: n+1 ≤ edgeChromNum
-    have : 0 < (hypercube (n + 1)).V := by
-      rw [V_hypercube]; exact Nat.pos_of_ne_zero (by positivity)
-    exact (isRegularWith_hypercube (n + 1)).le_edgeChromNum this
+  refine le_antisymm ?_ ?_
+  · rw [hypercube_def]
+    refine edgeChromNum_mk_le_of_colouring
+      (fun x y ↦ (Finset.univ.filter fun i ↦ x i ≠ y i).sup id) (fun x y ↦ by simp [ne_comm])
+      ?_
+    intro u v w huv huw hvw hc
+    obtain ⟨i, rfl⟩ := (CGraph.hypercube_adj_update_iff _ _ _).1 huv
+    obtain ⟨j, rfl⟩ := (CGraph.hypercube_adj_update_iff _ _ _).1 huw
+    simp only [filter_ne_update_not, Finset.sup_singleton, id] at hc
+    exact hvw (by rw [hc])
+  · exact (isRegularWith_hypercube (n + 1)).le_edgeChromNum
+      (by rw [V_hypercube]; positivity)
 
+/-- **The wheel is class one.**  Give the spoke at rim vertex `i` the colour `i`, and the rim edge
+`{i, i + 1}` the colour `i + 2`.  At the hub the spokes are all differently coloured; at a rim
+vertex `i` the spoke, the rim edge going forward and the rim edge coming back get `i`, `i + 2`
+and `i + 1`, which are three distinct colours because the rim has at least four vertices. -/
 theorem edgeChromNum_wheel (n : ℕ) : (wheel (n + 4)).edgeChromNum = n + 4 := by
-  rw [edgeChromNum_eq]
-  apply le_antisymm
-  · -- Upper bound: chromNum (lineGraph (wheel (n+4))) ≤ n+4
-    set m := n + 4 with hm_def
-    rw [wheel_def, lineGraph_mk, chromNum_mk]
-    have chromNum_le_iff_colorable_local {G : CGraph} {n : ℕ} :
-        G.chromNum ≤ n ↔ G.toSimple.Colorable n := CGraph.chromNum_le_iff_colorable
-    rw [chromNum_le_iff_colorable_local]
-    -- Goal: (CGraph.wheel m).lineGraph.toSimple.Colorable m
-    -- Construct an m-coloring of the line graph of wheel(m).
-    -- Vertices of lineGraph(wheel(m)) = edges of wheel(m) = Sym2 edges of (Fin 1 ⊕ Fin m).
-    -- Hub = inl ⟨0, _⟩. Spoke edge to rim vertex i: {hub, inr i}. Rim edge i: {inr i, inr (i+1)}.
-    -- Coloring: spoke i → color i; rim edge i (anchor at i, the "first" endpoint in
-    -- cyclic order) → color (i+2) mod m.
-    have hm_pos : 0 < m := by omega
-    have hm_ge_4 : 4 ≤ m := by omega
-    -- Hub vertex
-    let hub : Fin 1 ⊕ Fin m := Sum.inl ⟨0, by omega⟩
-    -- rimVertex i
-    let rim : Fin m → Fin 1 ⊕ Fin m := fun i => Sum.inr i
-    -- spoke edge to rim i
-    let spokeEdge : Fin m → Sym2 (Fin 1 ⊕ Fin m) := fun i => Sym2.mk (hub, rim i)
-    -- rim edge from i to i+1 (canonical orientation)
-    let rimEdge : Fin m → Sym2 (Fin 1 ⊕ Fin m) := fun i => Sym2.mk (rim i, rim (i + 1))
-    -- Characterize spoke edges as those containing hub
-    have spoke_mem : ∀ i : Fin m, hub ∈ spokeEdge i := by
-      intro i; simp [spokeEdge, hub, rim]
-    have spoke_not_in_rim : ∀ (i : Fin m) (j : Fin m), hub ∈ spokeEdge i → hub ∉ rimEdge j := by
-      intro i j _; simp [rimEdge, hub, rim]
-    have spoke_ne_rim : ∀ (i j : Fin m), spokeEdge i ≠ rimEdge j := by
-      intro i j h
-      exact spoke_not_in_rim i j (spoke_mem i) (h ▸ spoke_mem i)
-    -- Characterize spoke edge membership of inr
-    have inr_mem_spoke : ∀ i : Fin m, rim i ∈ spokeEdge i := by
-      intro i; simp [spokeEdge, rim, hub]
-    --Hub is in every spoke edge
-    --hub ∉ any rim edge (done above)
-    -- Edge set of wheel m
-    -- spokes are edges
-    have spoke_edge_mem : ∀ i : Fin m, spokeEdge i ∈ (CGraph.wheel m).toSimple.edgeSet := by
-      intro i
-      rw [SimpleGraph.mem_edgeSet]
-      show (CGraph.wheel m).Adj hub (rim i)
-      change (CGraph.wheel (n + 4)).Adj (Sum.inl ⟨0, by omega⟩) (Sum.inr i)
-      dsimp [CGraph.wheel]
-      simp [CGraph.join_adj_inl_inr]
-    -- rim edges are edges
-    have rim_edge_mem : ∀ i : Fin m, rimEdge i ∈ (CGraph.wheel m).toSimple.edgeSet := by
-      intro i
-      rw [SimpleGraph.mem_edgeSet]
-      show (CGraph.wheel m).Adj (rim i) (rim (i + 1))
-      change (CGraph.wheel (n + 4)).Adj (Sum.inr i) (Sum.inr (i + 1))
-      dsimp [CGraph.wheel, rim]
-      simp [CGraph.join_adj_inr_inr, CGraph.cycle_adj_val]
-      have hval : (i + 1 : Fin (n + 4)).val = (i.val + 1) % (n + 4) := Fin.val_add i 1
-      simp [hval]
-      have hlt : (i : ℕ) < n + 4 := by show (i : ℕ) < m; exact i.isLt
-      by_cases h : (i : ℕ) + 1 < n + 4
-      · rw [Nat.mod_eq_of_lt h]
-        omega
-      · push_neg at h
-        have h2 : (i : ℕ) + 1 = n + 4 := by omega
-        rw [h2, Nat.mod_self]
-        omega
-    -- The goal is to show Colorable m for the line graph of wheel m.
-    -- We construct an explicit m-coloring of edges of wheel m.
-    -- Colors: spoke to rim i gets color i; rim edge {rim i, rim(i+1)} gets color (i+2) % m.
-    -- We define the coloring using spokeEdge and rimEdge maps.
-    -- First we need to show every edge is of one of these two forms.
-    -- Then we define color on the line graph vertex set.
-    -- Then we prove it's a proper coloring.
-    -- Hub and rim as Fin 1 ⊕ Fin m
-    let fin1_zero : ∀ (x : Fin 1), x = ⟨0, by omega⟩ := fun x => Fin.eq_zero x
-    let colorPair : (Fin 1 ⊕ Fin m) → (Fin 1 ⊕ Fin m) → Fin m :=
-      fun a b =>
+  refine le_antisymm ?_ ?_
+  · -- The three colours meeting at a rim vertex are distinct because the rim is long.
+    have hmod : 2 % (n + 4) = 2 := Nat.mod_eq_of_lt (by omega)
+    have hone_ne_zero : (1 : Fin (n + 4)) ≠ 0 := Fin.ne_of_val_ne (by simp)
+    have htwo_ne_zero : (2 : Fin (n + 4)) ≠ 0 := Fin.ne_of_val_ne (by simp [hmod])
+    have hone_ne_two : (1 : Fin (n + 4)) ≠ 2 := Fin.ne_of_val_ne (by simp [hmod])
+    have h11 : (1 : Fin (n + 4)) + 1 = 2 := by apply Fin.ext; simp [Fin.val_add]
+    have hne1 : ∀ x : Fin (n + 4), x ≠ x + 1 :=
+      fun x hx ↦ hone_ne_zero (add_left_cancel (a := x) (by rw [add_zero, ← hx]))
+    have hne2 : ∀ x : Fin (n + 4), x ≠ x + 2 :=
+      fun x hx ↦ htwo_ne_zero (add_left_cancel (a := x) (by rw [add_zero, ← hx]))
+    have hne12 : ∀ x : Fin (n + 4), x + 1 ≠ x + 2 := fun x h ↦ hone_ne_two (add_left_cancel h)
+    rw [wheel_def]
+    -- The colouring, on ordered pairs of vertices of `complete 1 ∇g cycle (n + 4)`.
+    let col : (Fin 1 ⊕ Fin (n + 4)) → (Fin 1 ⊕ Fin (n + 4)) → Fin (n + 4) := fun a b ↦
       match a, b with
-      | Sum.inl _, Sum.inl _ => ⟨0, hm_pos⟩
+      | Sum.inl _, Sum.inl _ => 0
       | Sum.inl _, Sum.inr i => i
       | Sum.inr i, Sum.inl _ => i
-      | Sum.inr a, Sum.inr b =>
-        if b = a + 1 then a + 2
-        else if a = b + 1 then b + 2
-        else ⟨0, hm_pos⟩
-    -- colorPair is symmetric
-    have h_two_ne_zero : (2 : Fin m) ≠ 0 := by
-      intro h
-      have h1 : (2 : Fin m).val = (0 : Fin m).val := congr_arg Fin.val h
-      simp at h1
-      have hlt : 2 < m := by omega
-      have : 2 % m = 2 := Nat.mod_eq_of_lt hlt
-      omega
-    have h_not_self_plus_two : ∀ x : Fin m, x ≠ x + 1 + 1 := by
-      intro x h
-      have : (1 + 1 : Fin m) = 0 := by simpa [add_assoc] using h
-      exact h_two_ne_zero this
-    have one_ne_two : (1 : Fin m) ≠ 2 := by
-      intro h
-      have : (0 : Fin m) = 1 := by
-        have := h; rw [show (2 : Fin m) = 1 + 1 from rfl] at this; simp at this
-      exact one_ne_zero this.symm
-    have hsym : ∀ a b : Fin 1 ⊕ Fin m, colorPair a b = colorPair b a := by
-      intro a b
-      rcases a with x | ⟨a0, ha0⟩ <;> rcases b with y | ⟨b0, hb0⟩
-      · fin_cases x; fin_cases y; rfl
+      | Sum.inr a, Sum.inr b => if b = a + 1 then a + 2 else if a = b + 1 then b + 2 else 0
+    have hsym : ∀ a b, col a b = col b a := by
+      rintro (x | a) (y | b)
       · rfl
       · rfl
-      · simp only [colorPair]
-        by_cases h1 : (⟨b0, hb0⟩ : Fin m) = (⟨a0, ha0⟩ : Fin m) + 1
-        · rw [h1]
-          simp [h_not_self_plus_two]
-        · by_cases h2 : (⟨a0, ha0⟩ : Fin m) = (⟨b0, hb0⟩ : Fin m) + 1
-          · rw [h2]
-            simp; exact h_not_self_plus_two _
-          · simp [h1, h2]
-    -- Lift colorPair to Sym2
-    let colorOnSym2 : Sym2 (Fin 1 ⊕ Fin m) → Fin m :=
-      Quot.lift (fun p => colorPair p.1 p.2) (fun p q hpq => by
-        simp at hpq
-        rcases hpq with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
-        · rfl
-        · exact hsym _ _)
-    -- Coloring of line graph
-    let c : (CGraph.lineGraph (CGraph.wheel m)).V → Fin m := fun e => colorOnSym2 e.1
-    -- Show every edge is spoke or rim
-    have edge_is_spoke_or_rim : ∀ e : Sym2 (Fin 1 ⊕ Fin m),
-        e ∈ (CGraph.wheel m).toSimple.edgeSet →
-        (∃ i : Fin m, e = spokeEdge i) ∨ (∃ i : Fin m, e = rimEdge i) := by
-      intro e he
-      induction e using Sym2.ind with
-      | h a b =>
-        rw [SimpleGraph.mem_edgeSet] at he
-        simp at he
-        rcases a with a | ⟨a0, ha0⟩ <;> rcases b with b | ⟨b0, hb0⟩
-        · -- inl-inl: impossible (loopless)
-          fin_cases a; fin_cases b
-          simp [CGraph.wheel, CGraph.join] at he
-        · -- inl-inr: spoke edge
-          fin_cases a
-          left; exact ⟨⟨b0, hb0⟩, by simp [spokeEdge, hub, rim]⟩
-        · -- inr-inl: spoke edge
-          fin_cases b
-          left; exact ⟨⟨a0, ha0⟩, by
-            simp [spokeEdge, hub, rim]⟩
-        · -- inr-inr: rim edge from cycle
-          dsimp [CGraph.wheel] at he
-          rw [CGraph.join_adj_inr_inr] at he
-          have h_adj := CGraph.cycle_adj_val m ⟨a0, ha0⟩ ⟨b0, hb0⟩ |>.mp he
-          obtain ⟨hne, hab | hba⟩ := h_adj
-          · -- b = a + 1 (mod m): edge is rimEdge a0
-            right
-            have hb_eq : (⟨b0, hb0⟩ : Fin m) = (⟨a0, ha0⟩ : Fin m) + 1 := by
-              exact Fin.ext (by simpa [Fin.val_add] using hab.symm)
-            refine ⟨⟨a0, ha0⟩, ?_⟩
-            show s(Sum.inr ⟨a0, ha0⟩, Sum.inr ⟨b0, hb0⟩) = rimEdge ⟨a0, ha0⟩
-            dsimp only [rimEdge]
-            rw [hb_eq]
-          · -- a = b + 1 (mod m): edge is rimEdge b0 (after swap)
-            right
-            have ha_eq : (⟨a0, ha0⟩ : Fin m) = (⟨b0, hb0⟩ : Fin m) + 1 := by
-              exact Fin.ext (by simpa [Fin.val_add] using hba.symm)
-            refine ⟨⟨b0, hb0⟩, ?_⟩
-            show s(Sum.inr ⟨a0, ha0⟩, Sum.inr ⟨b0, hb0⟩) = rimEdge ⟨b0, hb0⟩
-            dsimp only [rimEdge]
-            rw [ha_eq]
-            exact Quot.sound (Sym2.Rel.swap _ _)
-    -- rimEdge membership (need these for spoke_rim_shared below)
-    have rimEdge_mem_left : ∀ j : Fin m, (rim j : Fin 1 ⊕ Fin m) ∈ rimEdge j := by
-      intro j; simp [rimEdge, rim]
-    have rimEdge_mem_right : ∀ j : Fin m, (rim (j + 1) : Fin 1 ⊕ Fin m) ∈ rimEdge j := by
-      intro j; simp [rimEdge, rim]
-    have rim_injective : ∀ i j : Fin m, rim i = rim j → i = j := by
-      intro i j h; simp [rim] at h; exact h
-    have one_ne_zero : (1 : Fin m) ≠ 0 := by
-      intro h
-      have h1 : (1 : ℕ) % m = 0 := by
-        simp at h
-      rw [Nat.mod_eq_of_lt (by omega : 1 < m)] at h1
-      omega
-    -- Color computations
-    have color_spoke : ∀ i : Fin m, colorOnSym2 (spokeEdge i) = i := by
-      intro i; simp [colorOnSym2, spokeEdge, colorPair, hub, rim]
-    have color_rim : ∀ i : Fin m, colorOnSym2 (rimEdge i) = i + 2 := by
-      intro i; simp [colorOnSym2, rimEdge, colorPair, rim]
-    -- Vertex ∈ spoke/rim edge characterization
-    have spoke_mem_hub : ∀ i : Fin m, hub ∈ spokeEdge i := spoke_mem
-    have spoke_mem_rim : ∀ i : Fin m, rim i ∈ spokeEdge i := inr_mem_spoke
-    have rim_not_hub : ∀ (i j : Fin m), ¬(hub ∈ rimEdge i) := by
-      intro i j; exact spoke_not_in_rim j i (spoke_mem_hub j)
-    -- spoke_rim_shared: if v is in spokeEdge i and rimEdge j, then i = j or i = j+1
-    have spoke_rim_shared : ∀ (i j : Fin m) (v : Fin 1 ⊕ Fin m),
-        v ∈ spokeEdge i → v ∈ rimEdge j → (i = j ∨ i = j + 1) := by
-      intro i j v hvi hvj
-      have hv_spoke : v = hub ∨ v = rim i := by
-        simp [spokeEdge] at hvi; exact hvi
-      have hv_rim : v = rim j ∨ v = rim (j + 1) := by
-        simp [rimEdge] at hvj; exact hvj
-      rcases hv_spoke with rfl | rfl
-      · exact absurd hvj (rim_not_hub j i)
-      · rcases hv_rim with h | h
-        · left; exact rim_injective _ _ h
-        · right; exact rim_injective _ _ h
-    -- spoke-rim color incompatibility
-    have spoke_rim_color : ∀ (i j : Fin m), i = j ∨ i = j + 1 → (i : Fin m) ≠ (j + 2 : Fin m) := by
-      intro i j hij
-      rcases hij with rfl | rfl
-      · intro h; exact h_two_ne_zero (by simpa using h)
-      · intro h
-        have h12 : (1 : ℕ) % m = (2 : ℕ) % m := by
-          simpa [Fin.ext_iff] using h
-        rw [Nat.mod_eq_of_lt (by omega : 1 < m), Nat.mod_eq_of_lt (by omega : 2 < m)] at h12
-        omega
-    -- rimEdge injectivity (needed for rim-rim case)
-    have rimEdge_inj : ∀ (a b : Fin m), rimEdge a = rimEdge b → a = b := by
-      intro a b heq
-      have hi1 := rimEdge_mem_left a
-      have hi2 := rimEdge_mem_right a
-      rw [heq] at hi1 hi2
-      have hj_options : ∀ x : Fin 1 ⊕ Fin m, x ∈ rimEdge b → x = rim b ∨ x = rim (b + 1) := by
-        intro x hx; simp [rimEdge] at hx; exact hx
-      rcases hj_options _ hi1 with h1 | h1 <;> rcases hj_options _ hi2 with h2 | h2
-      · exfalso
-        have h3 : rim (a + 1) = rim a := by rw [← h1] at h2; exact h2
-        have h4 : (1 : Fin m) = 0 := by
-          have := rim_injective _ _ h3
-          simp at this
-        exact one_ne_zero h4
-      · exact rim_injective _ _ h1
-      · exfalso
-        have ha_fb : a = b + 1 := rim_injective _ _ h1
-        have ha1_b : a + 1 = b := rim_injective _ _ h2
-        have h2eq : (2 : Fin m) = 0 := by
-          have h : b + 1 + 1 = b := by rw [ha_fb] at ha1_b; exact ha1_b
-          have : (2 + b : Fin m) = b := by simpa [add_comm, add_left_comm, add_assoc] using h
-          simpa using this
-        exact h_two_ne_zero h2eq
-      · exfalso
-        have ha1_b : a + 1 = b + 1 := rim_injective _ _ h2
-        have ha_b : a = b := by simpa using ha1_b
-        have : (1 : Fin m) = 0 := by
-          have := rim_injective _ _ h1
-          simp [ha_b] at this
-        exact one_ne_zero this
-    -- Main coloring proof
-    refine ⟨c, fun {e f} hef => ?_⟩
-    simp [CGraph.toSimple, SimpleGraph.completeGraph] at hef ⊢
-    obtain ⟨hef_ne, v, hv_e, hv_f⟩ := hef
-    obtain ⟨e_val, he_mem⟩ := e
-    obtain ⟨f_val, hf_mem⟩ := f
-    simp at hv_e hv_f hef_ne
-    have he_split := edge_is_spoke_or_rim e_val he_mem
-    have hf_split := edge_is_spoke_or_rim f_val hf_mem
-    rcases he_split with ⟨ie, he_eq⟩ | ⟨ie, he_eq⟩
-    · -- e is spoke
-      rcases hf_split with ⟨jf, hf_eq⟩ | ⟨jf, hf_eq⟩
-      · -- spoke-spoke
-        simp only [he_eq, hf_eq, c, color_spoke]
-        intro h; exact hef_ne (by simp [he_eq, hf_eq, h])
-      · -- spoke-rim
-        simp only [he_eq, hf_eq, c, color_spoke, color_rim]
-        have hmem_e : v ∈ spokeEdge ie := by rw [he_eq] at hv_e; exact hv_e
-        have hmem_f : v ∈ rimEdge jf := by rw [hf_eq] at hv_f; exact hv_f
-        rcases spoke_rim_shared ie jf v hmem_e hmem_f with rfl | h
-        · -- ie = jf, colors: ie vs ie+2, need ie ≠ ie+2
-          intro h'
-          have : ie = ie + 1 + 1 := by simpa [add_assoc] using h'
-          exact h_not_self_plus_two ie this
-        · -- ie = jf + 1, colors: ie vs jf+2 = ie+1, need ie ≠ ie+1
-          intro h'
-          rw [h] at h'
-          have h' : jf + 1 = jf + 2 := h'
-          have : (1 : Fin m) = 2 := by simpa [add_assoc] using h'
-          exact one_ne_two this
-    · -- e is rim
-      rcases hf_split with ⟨jf, hf_eq⟩ | ⟨jf, hf_eq⟩
-      · -- rim-spoke
-        simp only [he_eq, hf_eq, c, color_spoke, color_rim]
-        have hmem_e : v ∈ rimEdge ie := by rw [he_eq] at hv_e; exact hv_e
-        have hmem_f : v ∈ spokeEdge jf := by rw [hf_eq] at hv_f; exact hv_f
-        rcases spoke_rim_shared jf ie v hmem_f hmem_e with h|h
-        · -- h : jf = ie, colors: ie+2 vs ie
-          intro h'
-          rw [h] at h'
-          have : ie + 1 + 1 = ie := by simpa [add_assoc] using h'
-          exact h_not_self_plus_two ie this.symm
-        · -- h : jf = ie + 1, colors: ie+2 vs ie+1
-          intro h'
-          rw [h] at h'
-          -- h' : ie + 2 = ie + 1, so 2 = 1, so 1 = 0
-          have h12 : (2 : Fin m) = 1 := by simpa using h'
-          have : (1 : Fin m) = 0 := by
-            have := h12; rw [show (2 : Fin m) = 1 + 1 from rfl] at this; simp at this
-          exact one_ne_zero this
-      · -- rim-rim
-        simp only [he_eq, hf_eq, c, color_rim]
-        have hmem_e : v ∈ rimEdge ie := by rw [he_eq] at hv_e; exact hv_e
-        have hmem_f : v ∈ rimEdge jf := by rw [hf_eq] at hv_f; exact hv_f
-        have hv_ie : v = rim ie ∨ v = rim (ie + 1) := by
-          simp [rimEdge] at hmem_e; exact hmem_e
-        have hv_jf : v = rim jf ∨ v = rim (jf + 1) := by
-          simp [rimEdge] at hmem_f; exact hmem_f
-        rcases hv_ie with h1 | h1 <;> rcases hv_jf with h2 | h2
-        · exfalso
-          exact hef_ne (by rw [he_eq, hf_eq, show ie = jf from rim_injective _ _ (h1 ▸ h2)])
-        · intro h'
-          have hiej : ie = jf + 1 := rim_injective _ _ (h1 ▸ h2)
-          rw [hiej] at h'
-          have : (1 : Fin m) = 0 := by simp [add_assoc] at h'
-          exact one_ne_zero this
-        · intro h'
-          have hfiej : jf = ie + 1 := rim_injective _ _ (h2 ▸ h1)
-          rw [hfiej] at h'
-          have : (1 : Fin m) = 0 := by simp [add_assoc] at h'
-          exact one_ne_zero this
-        · exfalso
-          have : ie = jf := by
-            have h3 : ie + 1 = jf + 1 := rim_injective _ _ (h1 ▸ h2)
-            simpa using h3
-          rw [he_eq, hf_eq, this] at hef_ne; exact hef_ne rfl
-  · -- Lower bound: n+4 ≤ chromNum (lineGraph (wheel (n+4)))
-    have h := maxDeg_le_edgeChromNum (wheel (n + 4))
-    rw [edgeChromNum_eq] at h
-    have : maxDeg (wheel (n + 4)) = n + 4 := by
-      rw [show n + 4 = (n + 1) + 3 from rfl, maxDeg_wheel]
-    rw [this] at h
-    exact h
+      · rfl
+      · show (if b = a + 1 then a + 2 else if a = b + 1 then b + 2 else 0)
+            = (if a = b + 1 then b + 2 else if b = a + 1 then a + 2 else 0)
+        by_cases h1 : b = a + 1
+        · have h2 : a ≠ b + 1 := by rw [h1, add_assoc, h11]; exact hne2 a
+          rw [if_pos h1, if_neg h2, if_pos h1]
+        · by_cases h2 : a = b + 1
+          · rw [if_neg h1, if_pos h2, if_pos h2]
+          · rw [if_neg h1, if_neg h2, if_neg h2, if_neg h1]
+    -- Two rim vertices are adjacent only if they are cyclically consecutive…
+    have hrim : ∀ a b : Fin (n + 4), (CGraph.wheel (n + 4)).Adj (Sum.inr a) (Sum.inr b) = true →
+        b = a + 1 ∨ a = b + 1 := by
+      intro a b hab
+      simp only [CGraph.wheel, CGraph.join_adj_inr_inr] at hab
+      rw [CGraph.cycle_adj_val] at hab
+      obtain ⟨-, h | h⟩ := hab
+      · exact Or.inl (Fin.ext (by simpa [Fin.val_add] using h.symm))
+      · exact Or.inr (Fin.ext (by simpa [Fin.val_add] using h.symm))
+    -- …and then the rim edge gets the colour of its forward end plus one.
+    have hcol_rim : ∀ a b : Fin (n + 4),
+        (CGraph.wheel (n + 4)).Adj (Sum.inr a) (Sum.inr b) = true →
+        (b = a + 1 ∧ col (Sum.inr a) (Sum.inr b) = a + 2) ∨
+          (b + 1 = a ∧ col (Sum.inr a) (Sum.inr b) = a + 1) := by
+      intro a b hab
+      rcases hrim a b hab with h | h
+      · refine Or.inl ⟨h, ?_⟩
+        show (if b = a + 1 then a + 2 else if a = b + 1 then b + 2 else 0) = a + 2
+        rw [if_pos h]
+      · refine Or.inr ⟨h.symm, ?_⟩
+        show (if b = a + 1 then a + 2 else if a = b + 1 then b + 2 else 0) = a + 1
+        by_cases h1 : b = a + 1
+        · refine absurd ?_ (hne2 a)
+          calc a = b + 1 := h
+            _ = a + 1 + 1 := by rw [h1]
+            _ = a + 2 := by rw [add_assoc, h11]
+        · rw [if_neg h1, if_pos h, h, add_assoc, h11]
+    -- The hub is a single vertex, so it is adjacent to nothing on its own side.
+    have hhub : ∀ x y : Fin 1, (CGraph.wheel (n + 4)).Adj (Sum.inl x) (Sum.inl y) = false := by
+      intro x y
+      rw [Subsingleton.elim x y]
+      exact Bool.eq_false_iff.2 ((CGraph.wheel (n + 4)).loopless _)
+    refine edgeChromNum_mk_le_of_colouring col hsym ?_
+    rintro (x | a) (y | b) (z | c) huv huw hvw
+    · rw [hhub] at huv; exact absurd huv (by simp)
+    · rw [hhub] at huv; exact absurd huv (by simp)
+    · rw [hhub] at huw; exact absurd huw (by simp)
+    · exact fun h ↦ hvw (congrArg Sum.inr h)
+    · exact absurd (congrArg Sum.inl (Subsingleton.elim (α := Fin 1) y z)) hvw
+    · rcases hcol_rim a c huw with ⟨-, hc⟩ | ⟨-, hc⟩ <;> rw [hc]
+      · exact hne2 a
+      · exact hne1 a
+    · rcases hcol_rim a b huv with ⟨-, hb⟩ | ⟨-, hb⟩ <;> rw [hb]
+      · exact fun h ↦ hne2 a h.symm
+      · exact fun h ↦ hne1 a h.symm
+    · rcases hcol_rim a b huv with ⟨hb, hbc⟩ | ⟨hb, hbc⟩ <;>
+        rcases hcol_rim a c huw with ⟨hc, hcc⟩ | ⟨hc, hcc⟩ <;> rw [hbc, hcc]
+      · exact absurd (congrArg Sum.inr (hb.trans hc.symm)) hvw
+      · exact fun h ↦ hne12 a h.symm
+      · exact hne12 a
+      · exact absurd (congrArg Sum.inr (add_right_cancel (hb.trans hc.symm))) hvw
+  · have h := maxDeg_le_edgeChromNum (wheel (n + 4))
+    rwa [show maxDeg (wheel (n + 4)) = n + 4 from by
+      rw [show n + 4 = (n + 1) + 3 from rfl, maxDeg_wheel]] at h
 
 /-- **Turán's theorem**: among the graphs on `n` vertices with no clique of size `r + 1`, the
 Turán graph `T(n, r)` has the most edges. -/
