@@ -24,7 +24,9 @@ computes `V`, `E`, `numComponents`, `matchNum` and the domination number `domNum
 identity `coverNum_eq` the vertex cover number rides along with the independence number.  Two
 invariants come in through the line graph: the independence number of `L(G)` is the matching number
 of `G` and its chromatic number is the chromatic index, so a graph whose line graph the atlas can
-name gets those for free.
+name gets those for free.  The chromatic index and the matching number also compose over a
+disjoint union directly, by `edgeChromNum_disjUnion` and `matchNum_disjUnion`, and the atoms
+below give them values on the same families the four hard invariants get.
 
 ## The two levels
 
@@ -47,10 +49,11 @@ proved for that name.
 
 ## What it knows
 
-Every atom the decomposition can produce whose invariants are in the library.  Three lemmas below
+Every atom the decomposition can produce whose invariants are in the library.  Four lemmas below
 put awkwardly-shaped rules into a form `simp` can use: the parity-dependent chromatic number of a
-cycle and chromatic index of a complete graph fire on a numeral rather than on `2 * m + 3`, and
-the domination number of a join becomes one value with an `if` instead of two case lemmas.
+cycle and chromatic index of a cycle and of a complete graph fire on a numeral rather than on
+`2 * m + 3`, and the domination number of a join becomes one value with an `if` instead of two
+case lemmas.
 
 What it does not know it leaves alone, as `H.indepNum` for that `H`.  The gaps worth naming are
 the graphs the atlas cannot describe at all, which come back as `ofEdges`; the independence number
@@ -98,6 +101,20 @@ theorem edgeChromNum_complete_ite (n : ℕ) :
     rw [show 2 * m + 1 + 2 = 2 * m + 3 by ring, edgeChromNum_complete_odd,
       if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
 
+/-- **The chromatic index of a cycle**, in a shape that fires on a numeral.  A cycle is
+`2`-regular, so Vizing leaves only two and three, and it is three exactly for the odd cycles;
+`edgeChromNum_cycle_even` and `edgeChromNum_cycle_odd` are stated of `2 * m + 4` and `2 * m + 3`,
+which `simp` cannot match against `cycle 7`. -/
+theorem edgeChromNum_cycle_ite (n : ℕ) :
+    (cycle (n + 3)).edgeChromNum = if n % 2 = 0 then 3 else 2 := by
+  rcases Nat.even_or_odd n with ⟨m, hm⟩ | ⟨m, hm⟩
+  · subst hm
+    rw [show m + m + 3 = 2 * m + 3 by ring, edgeChromNum_cycle_odd,
+      if_pos (by omega : (m + m) % 2 = 0)]
+  · subst hm
+    rw [show 2 * m + 1 + 3 = 2 * m + 4 by ring, edgeChromNum_cycle_even,
+      if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
+
 /-- **The domination number of a join**, as a value rather than as a pair of case lemmas.  One
 vertex dominates `G ∇ H` exactly when one side has a universal vertex, and a vertex from each side
 always dominates, so there is nothing else it can be. -/
@@ -137,6 +154,11 @@ macro_rules
          ← IsoGraph.kneser_def, ← IsoGraph.johnson_def, ← IsoGraph.completeMultipartite_def]
        try simp [IsoGraph.chromNum_cartesianProduct, IsoGraph.cliqueNum_cartesianProduct,
          IsoGraph.chromNum_cycle_ite, IsoGraph.edgeChromNum_complete_ite,
+         IsoGraph.edgeChromNum_cycle_ite, IsoGraph.edgeChromNum_ladder,
+         IsoGraph.edgeChromNum_prism, IsoGraph.edgeChromNum_crown,
+         IsoGraph.edgeChromNum_cocktailParty, IsoGraph.edgeChromNum_doubleStar,
+         IsoGraph.edgeChromNum_grotzsch, IsoGraph.edgeChromNum_hypercube,
+         IsoGraph.matchNum_wheel, IsoGraph.matchNum_book, IsoGraph.matchNum_rook,
          IsoGraph.indepNum_triangular, IsoGraph.chromNum_triangular,
          IsoGraph.cliqueCoverNum_triangular, IsoGraph.indepNum_crown,
          ← IsoGraph.compl_cocktailParty, IsoGraph.indepNum_kneser,
@@ -288,3 +310,24 @@ discharges the two nonemptiness conditions from the orders. -/
 example : IsoGraph.domNum (Quotient.mk CGraph.isoSetoid (CGraph.cycle 5 ∇g CGraph.cycle 5))
     = 2 := by
   compute_invariant (CGraph.cycle 5 ∇g CGraph.cycle 5)
+
+/-- **A chromatic index over a disjoint union.**  `χ'` is the maximum of the two sides, and each
+side is a parity case: the seven-cycle is odd, so `χ'(C₇) = 3`, and `K₆` has even order, so
+`χ'(K₆) = 5`.  Both are stated of `2 * m + 3` in their home files and neither matches a numeral;
+`edgeChromNum_cycle_ite` and `edgeChromNum_complete_ite` are what let `simp` see them. -/
+example : IsoGraph.edgeChromNum
+    (Quotient.mk CGraph.isoSetoid (CGraph.cycle 7 ⊕g CGraph.complete 6)) = 5 := by
+  compute_invariant (CGraph.cycle 7 ⊕g CGraph.complete 6)
+
+/-- **The chromatic index of a prism is three**, whatever the number of rungs — a cubic graph of
+class one.  The decomposition hands back `path 6 □g complete 2`, which is the prism by
+definition, and `edgeChromNum_prism` fires on it. -/
+example : IsoGraph.edgeChromNum (Quotient.mk CGraph.isoSetoid (CGraph.prism 6)) = 3 := by
+  compute_invariant (CGraph.prism 6)
+
+/-- **A matching number the tables do not hold.**  `wheel 9` is a hub over `C₉`, ten vertices, and
+it has a perfect matching: `matchNum_wheel` gives five.  The disjoint rule adds the four edges of
+a maximum matching of `K₉`. -/
+example : IsoGraph.matchNum
+    (Quotient.mk CGraph.isoSetoid (CGraph.wheel 9 ⊕g CGraph.complete 9)) = 9 := by
+  compute_invariant (CGraph.wheel 9 ⊕g CGraph.complete 9)

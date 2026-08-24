@@ -6539,7 +6539,20 @@ Mycielskians, the small Paley graphs, and the ladders and prisms of `SmallGraphs
 so that `γ(L₅ ⊔ K₄) = 4` on twenty-four vertices is a `simp` call and not a search over `2²⁴`
 sets, and a goal naming both the six-rung prism and the seven-rung ladder is settled by an
 argument-free `compute_invariant`. Over a cartesian product there is nothing to fire, and for a
-good reason: that is Vizing's conjecture. The matching number rides along the same way.
+good reason: that is Vizing's conjecture.
+
+The matching number and the chromatic index ride along the same way, and they needed the same two
+things. Both compose over a disjoint union unconditionally — `ν` adds, `χ'` takes the maximum —
+so all that was missing were atoms in a shape `simp` can match. `edgeChromNum_cycle_ite` is the
+chromatic index of a cycle as `if n % 2 = 0 then 3 else 2` rather than as the pair
+`edgeChromNum_cycle_even`/`edgeChromNum_cycle_odd` stated of `2 * m + 4` and `2 * m + 3`, which is
+the same manoeuvre `chromNum_cycle_ite` performs for the chromatic number and
+`edgeChromNum_complete_ite` for Vizing's theorem on `Kₙ`; and the values for the ladders, prisms,
+crowns, cocktail parties, double stars, hypercubes and the Grötzsch graph, and the matching
+numbers of the wheels, books and rooks, join the atom list. So `χ'(C₇ ⊔ K₆) = 5` is two parity
+lookups and a `max`, `χ'(prism 6) = 3` is read off a cubic class-one family through the
+`path 6 □g K₂` the decomposition hands back, and `ν(W₉ ⊔ K₉) = 9` is a perfect matching on ten
+vertices plus a near-perfect one on nine.
 
 What makes this more involved than the spectrum is that the values live on both levels of the
 library. A family carries its invariants as `IsoGraph` theorems, while a graph named by an
