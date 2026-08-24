@@ -57,7 +57,8 @@ the graphs the atlas cannot describe at all, which come back as `ofEdges`; the i
 of a cartesian product, which is not determined by the factors; and the chromatic number of a
 Kneser graph `K(n, k)` with `n ≥ 2k + 2` and `k ≥ 3`, where the full Lovász–Kneser theorem would
 be needed — the library proves the cases `k = 2` and `n ≤ 2k + 1`, which `chromNum_kneser_of_le`
-and `chromNum_kneser_two` put in numeral-friendly shape.  The domination number composes over
+and `chromNum_kneser_two` put in numeral-friendly shape, and the single instance `K(8, 3)`, whose
+lower bound is a SAT refutation.  The domination number composes over
 disjoint unions and joins and has a value for most of the atoms, but not for the ladders and prisms
 beyond the seven or eight rungs of `SmallGraphs/Brackets.lean`, nor for a Paley graph past
 `q = 17`, and over a cartesian product it is Vizing's conjecture, so there is only the inequality
@@ -140,7 +141,8 @@ macro_rules
          IsoGraph.cliqueCoverNum_triangular, IsoGraph.indepNum_crown,
          ← IsoGraph.compl_cocktailParty, IsoGraph.indepNum_kneser,
          IsoGraph.chromNum_kneser_of_le, IsoGraph.chromNum_kneser_of_lt,
-         IsoGraph.chromNum_kneser_two, IsoGraph.domNum_disjUnion, IsoGraph.domNum_join_ite,
+         IsoGraph.chromNum_kneser_two, IsoGraph.chromNum_kneser_eight_three,
+         IsoGraph.domNum_disjUnion, IsoGraph.domNum_join_ite,
          IsoGraph.domNum_empty,
          IsoGraph.domNum_complete, IsoGraph.domNum_star,
          IsoGraph.domNum_wheel, IsoGraph.domNum_fan, IsoGraph.domNum_book,

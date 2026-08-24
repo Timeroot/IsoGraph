@@ -19,6 +19,8 @@ each vertex exactly `k` times.
   `χ(K(2k + 1, k)) = 3`, collected as `chromNum_kneser_of_le` in the form `n - 2k + 2`.
 * `chromNum_kneser_two` — `χ(K(n, 2)) = n - 2` for `n ≥ 4`, the **Lovász–Kneser theorem** for
   pairs, proved by counting rather than by topology.
+* `chromNum_kneser_eight_three` — `χ(K(8, 3)) = 4`, one instance at `k = 3`, where the lower
+  bound is a SAT refutation rather than a theorem.
 
 The middle two are the cases of the theorem `χ(K(n, k)) = n - 2k + 2` that the fractional value
 settles: `χ ≥ ⌈χ_f⌉ = ⌈n / k⌉` agrees with `n - 2k + 2` exactly when `n ∈ {2k, 2k + 1}` (or
@@ -495,6 +497,34 @@ theorem le_chromNum_kneser_two (n : ℕ) : n - 2 ≤ (kneser n 2).chromNum := by
 theorem chromNum_kneser_two {n : ℕ} (hn : 4 ≤ n) : (kneser n 2).chromNum = n - 2 := by
   refine le_antisymm ?_ (le_chromNum_kneser_two n)
   have h := chromNum_kneser_le n 2 (by norm_num)
+  omega
+
+/-! ### One value at `k = 3`
+
+Above `k = 2` the lower bound is Borsuk–Ulam and the library has no route to it, but a *single*
+instance is a finite question, and the first one outside the fractional range is small enough for
+the solver.  `K(8, 3)` is the graph the general theorem would give `8 - 6 + 2 = 4`, and that is
+also the greedy upper bound, so all that is missing is that three colours do not suffice — a
+refutation on fifty-six vertices, which is what `graph_sat` is for.
+
+It does not scale: the next case, `K(9, 3)`, asks for a four-colour refutation on eighty-four
+vertices, and a probe was still running after ten minutes, so it stays out of the build.
+-/
+
+set_option maxHeartbeats 4000000 in
+/-- **Three colours do not suffice for `K(8, 3)`**, by a SAT refutation over the fifty-six
+triples. -/
+theorem four_le_chromNum_kneser_eight_three : 4 ≤ (kneser 8 3).chromNum := by
+  show 3 < (kneser 8 3).chromNum
+  graph_sat native
+
+/-- **`χ(K(8, 3)) = 4`**, the first value of the Lovász–Kneser theorem at `k = 3`.  The upper
+bound is the greedy colouring by least element and the lower bound is the refutation above; the
+next case, `K(9, 3)`, would need four colours ruled out on eighty-four vertices. -/
+@[toIsoGraph]
+theorem chromNum_kneser_eight_three : (kneser 8 3).chromNum = 4 := by
+  refine le_antisymm ?_ four_le_chromNum_kneser_eight_three
+  have h := chromNum_kneser_le 8 3 (by norm_num)
   omega
 
 /-! ### Three values reproved

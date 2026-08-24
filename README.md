@@ -1167,6 +1167,14 @@ of the fractional bound (`χ_f = 3`); and since `T(n)` is the complement of `K(n
 theorem closes the clique cover bracket on the triangular graphs as
 `cliqueCoverNum_triangular_eq : κ(T(n)) = n - 2`.
 
+Above `k = 2` there is no theorem, but a single graph is a finite question.  The smallest case the
+two escapes miss is `K(8, 3)`, where the greedy bound gives `χ ≤ 4` and the fractional bound only
+`χ ≥ ⌈8/3⌉ = 3`; the gap is closed by `graph_sat native`, a CaDiCaL refutation of
+three-colourability on the fifty-six triples, and `chromNum_kneser_eight_three : χ(K(8, 3)) = 4` is
+the library's first value of the theorem at `k = 3`.  This is a one-graph-at-a-time route and it
+stops here: `K(9, 3)` wants a four-colour refutation on eighty-four vertices and a probe was still
+running after ten minutes, so it is left out of the build.
+
 Two more invariants round out the degree material: `maxDeg` and `minDeg`, the largest and smallest
 vertex degree, wrapping Mathlib's `maxDegree` and `minDegree` (both `0` on the empty graph, which
 is the convention the rest of the file already uses).  Isomorphism invariance is Mathlib's
@@ -6545,9 +6553,10 @@ alone, because the atlas only ever emits `gp 10 2` when the graph is the dodecah
 it would step over everything proved under that name.
 
 The honest limits, again: the chromatic number of a Kneser graph is the Lovász–Kneser theorem,
-which this library has for `k = 2` and for `n ≤ 2k + 1` but not in general, so `kneser 8 3` comes
-back untouched; a graph the atlas cannot describe comes back as `ofEdges`; and the independence
-number of a cartesian product is not a function of the factors, so there is nothing to fire.
+which this library has for `k = 2`, for `n ≤ 2k + 1` and at the one point `K(8, 3)`, but not in
+general, so `kneser 9 3` comes back untouched; a graph the atlas cannot describe comes back as
+`ofEdges`; and the independence number of a cartesian product is not a function of the factors, so
+there is nothing to fire.
 
 Both tactics also take no argument at all, in which case they decompose every closed graph the
 goal mentions — the form to use when a goal names several, or one whose term is long enough that
@@ -6798,8 +6807,8 @@ lower bound at `5` and it is the upper bound, `6`, that is loose.
 
 The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
 `K(n, k)` with `k ≥ 3` and `n ≥ 2k + 2` (Lovász's theorem in the cases where it needs Borsuk–Ulam;
-`k = 2`, `n < 2k` and `n ≤ 2k + 1` are all settled), the
-automorphism count for most families — `autCount` is settled for the empty, complete, path, Kneser,
+`k = 2`, `n < 2k` and `n ≤ 2k + 1` are all settled, and `K(8, 3)` is settled one graph at a time
+by the solver), the automorphism count for most families — `autCount` is settled for the empty, complete, path, Kneser,
 Johnson, circulant and lollipop families, for complements and, exactly and not just as a bound, for
 the star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and
 `autCount_bipartite_self`), the cycle (`autCount_cycle`), the wheel (`autCount_wheel`), the
