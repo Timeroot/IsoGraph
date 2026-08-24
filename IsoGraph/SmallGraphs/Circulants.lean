@@ -1239,36 +1239,25 @@ theorem matchNum_completeMultipartite_replicate (m d : ℕ) :
     (completeMultipartite (List.replicate (m + 2) (d + 1))).matchNum
       = (m + 2) * (d + 1) / 2 := by
   apply le_antisymm
-  · -- Upper bound
-    have h1 := two_mul_matchNum_le_V (completeMultipartite (List.replicate (m + 2) (d + 1)))
+  · have h1 := two_mul_matchNum_le_V (completeMultipartite (List.replicate (m + 2) (d + 1)))
     rw [V_completeMultipartite, List.sum_replicate] at h1
     simp at h1
     omega
-  · -- Lower bound: explicit matching via global enumeration
-    let k := m + 2
-    let s := d + 1
-    let G : IsoGraph := completeMultipartite (List.replicate k s)
-    rw [matchNum_eq]
-    let H : CGraph := CGraph.completeMultipartite (List.replicate k s)
-    have hGL : G.lineGraph = ⟦CGraph.lineGraph H⟧ := by
-      simp [G, IsoGraph.completeMultipartite, IsoGraph.lineGraph_mk]
-      rfl
-    rw [hGL, indepNum_mk]
+  · -- Number the vertices round robin: `j` sits in part `j % k`, slot `j / k`.  Consecutive
+    -- numbers land in different parts, so the pairs `{2t, 2t + 1}` are disjoint edges.
+    set k := m + 2 with hk
+    set s := d + 1 with hs
+    set H : CGraph := CGraph.completeMultipartite (List.replicate k s) with hH
+    rw [show (completeMultipartite (List.replicate k s) : IsoGraph) = ⟦H⟧ from rfl, matchNum_mk]
     have hlen : (List.replicate k s).length = k := List.length_replicate
     have hget : ∀ (i : Fin k), (List.replicate k s).get ⟨i, by rw [hlen]; exact i.2⟩ = s := by
       intro i; simp [List.getElem_replicate]
-    -- vertex (i, a) in H, with i : Fin k, a : Fin s
     let vertex : Fin k → Fin s → H.V := fun i a =>
       ⟨⟨i, by rw [hlen]; exact i.2⟩, Fin.cast (hget i).symm a⟩
-    have hadj : ∀ (i j : Fin k) (a : Fin s) (b : Fin s),
-        H.Adj (vertex i a) (vertex j b) ↔ i ≠ j := by
+    have hadj : ∀ (i j : Fin k) (a b : Fin s), H.Adj (vertex i a) (vertex j b) ↔ i ≠ j := by
       intro i j a b
       simp [vertex, H, CGraph.completeMultipartite_adj]
       simp [Fin.ext_iff]
-    -- Key lemma: .2.val of vertex
-    have hv_snd_val : ∀ (i : Fin k) (a : Fin s), (vertex i a).2.val = a.val := by
-      intro i a; simp [vertex, Fin.cast]
-    -- f : Fin (k * s) → H.V, f(j) = vertex (j % k) (j / k)
     let f : Fin (k * s) → H.V := fun ⟨j, hj⟩ =>
       vertex ⟨j % k, Nat.mod_lt _ (by omega : 0 < k)⟩ ⟨j / k, Nat.div_lt_of_lt_mul hj⟩
     have hf_fst_val : ∀ j : Fin (k * s), (f j).1.val = j.val % k := by
@@ -1285,101 +1274,45 @@ theorem matchNum_completeMultipartite_replicate (m d : ℕ) :
         have h2 := congr_arg (fun v : H.V => v.2.val) hfeq
         simp only [hf_snd_val] at h2
         exact h2
-      have : j1.val = j2.val := by
-        have h1' := Nat.div_add_mod j1.val k
-        have h2' := Nat.div_add_mod j2.val k
-        rw [hmod, hdiv] at h1'
-        linarith [h2']
-      exact Fin.ext this
-    -- Key bounds for all t : Fin (k * s / 2)
-    have hks_ge_2 : 2 ≤ k * s := by unfold k s; nlinarith
-    have hbound : ∀ (t : Fin (k * s / 2)), 2 * (t : ℕ) + 1 < k * s := by
+      refine Fin.ext ?_
+      have h1' := Nat.div_add_mod j1.val k
+      have h2' := Nat.div_add_mod j2.val k
+      rw [hmod, hdiv] at h1'
+      linarith [h2']
+    have hbound : ∀ t : Fin (k * s / 2), 2 * (t : ℕ) + 1 < k * s := by
       intro t
       have ht : (t : ℕ) < k * s / 2 := t.2
       have := Nat.div_add_mod (k * s) 2
       omega
-    have hbound2 : ∀ (t : Fin (k * s / 2)), 2 * (t : ℕ) < k * s := by
-      intro t; linarith [hbound t]
-    -- Edge for t : Fin (k * s / 2): connect f(2*t) and f(2*t+1)
-    let fm1 : Fin (k * s / 2) → Fin (k * s) := fun t => ⟨2 * t.val, hbound2 t⟩
-    let fm2 : Fin (k * s / 2) → Fin (k * s) := fun t => ⟨2 * t.val + 1, hbound t⟩
-    let edgeFn : Fin (k * s / 2) → (H.lineGraph).V := fun t =>
-      ⟨Sym2.mk (f (fm1 t), f (fm2 t)), by
-        rw [SimpleGraph.mem_edgeSet]
-        show H.Adj _ _ = true
+    have hbound' : ∀ t : Fin (k * s / 2), 2 * (t : ℕ) < k * s := fun t ↦ by
+      have := hbound t; omega
+    refine le_trans (le_of_eq (by simp)) (CGraph.card_le_matchNum
+      (fun t : Fin (k * s / 2) ↦ f ⟨2 * (t : ℕ), hbound' t⟩)
+      (fun t : Fin (k * s / 2) ↦ f ⟨2 * (t : ℕ) + 1, hbound t⟩) ?_ ?_)
+    · -- `2t` and `2t + 1` are different mod `k ≥ 2`, so they lie in different parts.
+      have hpart : ∀ x y : Fin (k * s), x.val % k ≠ y.val % k → H.Adj (f x) (f y) := by
+        rintro ⟨x, hx⟩ ⟨y, hy⟩ hne
         simp only [f]
         rw [hadj]
-        intro h
-        have hne : (2 * t.val) % k ≠ (2 * t.val + 1) % k := by
-          have hk : 2 ≤ k := by omega
-          by_contra heq
-          have hmod : (2 * t.val) % k = (2 * t.val + 1) % k := heq
-          have := Nat.modEq_iff_dvd.mp hmod.symm
-          simp at this
-          exact absurd (Int.le_of_dvd (by omega : (0 : ℤ) < 1) this) (by omega)
-        exact hne (congr_arg Fin.val h)⟩
-    -- edgeFn is injective
-    have fin_eq_of_f_eq : ∀ (a b : Fin (k * s)), f a = f b → a = b := hf_inj
-    have h_edge_inj : Function.Injective edgeFn := by
-      intro t t' h_eq
-      dsimp only [edgeFn] at h_eq
-      have hsym : Sym2.mk (f (fm1 t), f (fm2 t)) = Sym2.mk (f (fm1 t'), f (fm2 t')) := by
-        exact congr_arg Subtype.val h_eq
-      rw [Sym2.eq_iff] at hsym
-      rcases hsym with h | h
-      · -- Same order: f(fm1 t) = f(fm1 t')
-        have h1 : f (fm1 t) = f (fm1 t') := h.1
-        have hfin : fm1 t = fm1 t' := hf_inj h1
-        have := congr_arg Fin.val hfin
-        simp [fm1] at this
-        exact Fin.ext (by omega)
-      · -- Swapped: f(fm1 t) = f(fm2 t'), impossible by parity
-        exfalso
-        have h1 : f (fm1 t) = f (fm2 t') := h.1
-        have hfin : fm1 t = fm2 t' := hf_inj h1
-        have := congr_arg Fin.val hfin
-        simp [fm1, fm2] at this
-        omega
-    -- The image is an independent set in the line graph
-    let S := Finset.univ.image edgeFn
-    have hcard : S.card = k * s / 2 := by
-      rw [Finset.card_image_of_injective _ h_edge_inj, Finset.card_fin]
-    have hind : SimpleGraph.IsIndepSet (H.lineGraph).toSimple (S : Set (H.lineGraph.V)) := by
-      rw [SimpleGraph.isIndepSet_iff]
-      intro e he f hf hef
-      have he' : e ∈ S := he
-      have hf' : f ∈ S := hf
-      obtain ⟨t, _, heq⟩ := Finset.mem_image.mp he'
-      obtain ⟨t', _, hfq⟩ := Finset.mem_image.mp hf'
-      subst heq; subst hfq
-      by_cases h : t = t'
-      · exact absurd (h ▸ rfl) hef
-      · -- edges for t ≠ t' are vertex-disjoint
-        rw [show ¬H.lineGraph.toSimple.Adj (edgeFn t) (edgeFn t') ↔ H.lineGraph.Adj (edgeFn t)
-          (edgeFn t') = false from by
-          rw [CGraph.toSimple_adj]; simp]
-        rw [CGraph.lineGraph_adj]
-        simp [h_edge_inj.ne h]
-        intro v hv1 hv2
-        simp [edgeFn, fm1, fm2] at hv1 hv2
-        rcases hv1 with hv1 | hv1 <;> rcases hv2 with hv2 | hv2
-        · exfalso
-          have heq : f (fm1 t) = f (fm1 t') := hv1.symm.trans hv2
-          have hfin : fm1 t = fm1 t' := hf_inj heq
-          have := congr_arg Fin.val hfin; simp [fm1] at this; omega
-        · exfalso
-          have heq : f (fm1 t) = f (fm2 t') := hv1.symm.trans hv2
-          have hfin : fm1 t = fm2 t' := hf_inj heq
-          have := congr_arg Fin.val hfin; simp [fm1, fm2] at this; omega
-        · exfalso
-          have heq : f (fm2 t) = f (fm1 t') := hv1.symm.trans hv2
-          have hfin : fm2 t = fm1 t' := hf_inj heq
-          have := congr_arg Fin.val hfin; simp [fm1, fm2] at this; omega
-        · exfalso
-          have heq : f (fm2 t) = f (fm2 t') := hv1.symm.trans hv2
-          have hfin : fm2 t = fm2 t' := hf_inj heq
-          have := congr_arg Fin.val hfin; simp [fm2] at this; omega
-    exact hcard.ge.trans (hind.card_le_indepNum)
+        exact fun h ↦ hne (congrArg Fin.val h)
+      intro t
+      refine hpart ⟨2 * (t : ℕ), hbound' t⟩ ⟨2 * (t : ℕ) + 1, hbound t⟩ ?_
+      dsimp only
+      intro heq
+      have := Nat.modEq_iff_dvd.mp (Nat.ModEq.symm heq)
+      simp at this
+      exact absurd (Int.le_of_dvd (by omega : (0 : ℤ) < 1) this) (by omega)
+    · intro t t' htt'
+      have hfval : ∀ x y : Fin (k * s), f x = f y → (x : ℕ) = (y : ℕ) :=
+        fun x y he ↦ congrArg Fin.val (hf_inj he)
+      have hne : ∀ (x y : ℕ) (hx : x < k * s) (hy : y < k * s), x ≠ y →
+          f ⟨x, hx⟩ ≠ f ⟨y, hy⟩ :=
+        fun x y hx hy hxy he ↦ hxy (hfval ⟨x, hx⟩ ⟨y, hy⟩ he)
+      have ht : (t : ℕ) ≠ (t' : ℕ) := fun hval ↦ htt' (Fin.ext hval)
+      exact ⟨hne _ _ (hbound' t) (hbound' t') (by omega),
+        hne _ _ (hbound' t) (hbound t') (by omega),
+        hne _ _ (hbound t) (hbound' t') (by omega),
+        hne _ _ (hbound t) (hbound t') (by omega)⟩
 
 /-- **The Johnson graph `J(2m+3, 2)` needs `2m + 3` colours**: its chromatic number is the edge
 chromatic number of the complete graph `K_{2m+3}`, which is class two. -/

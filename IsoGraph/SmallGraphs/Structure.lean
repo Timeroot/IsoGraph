@@ -17,45 +17,12 @@ variable (G H : CGraph)
 @[simp] theorem isConnected_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).IsConnected := by
   simp only [bipartite, CGraph.IsConnected, compl_toSimple]
   show SimpleGraph.Connected ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ
-  haveI : Nonempty ((complete (m + 1)).disjUnion (complete (n + 1))).V := ⟨Sum.inl ⟨0, Nat.zero_lt_succ _⟩⟩
+  haveI : Nonempty ((complete (m + 1)).disjUnion (complete (n + 1))).V :=
+    ⟨Sum.inl ⟨0, Nat.zero_lt_succ _⟩⟩
   apply SimpleGraph.Connected.mk
   intro u v
-  -- Pick a "hub" vertex on the right side
-  let w : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inr ⟨0, Nat.zero_lt_succ n⟩
-  -- In the complement, every vertex is adjacent to w (since w is in right, and for any x,
-  -- if x is in left, they're across partitions so adjacent in complement;
-  -- if x is in right and x ≠ w, wait, they're in the same partition... hmm)
-  -- Actually in the complement, inl-* is NOT adjacent to inr-* ... wait yes it is.
-  -- complement of disjUnion: adj iff NOT (same side and adj in that side).
-  -- For inl a and inr b: same side? No. So NOT false = true. Adjacent! ✓
-  -- For inl a and inl c (a ≠ c): same side yes, adj in complete yes, so NOT true = false. Not adjacent.
-  -- For inr b and inr d (b ≠ d): same道理.
-  -- For inr b and w = inr ⟨0,...⟩ when b = 0 (and b ≠ w is impossible since w is inr 0):
-  --   They're the same vertex when b = ⟨0,...⟩, or same-side adjacent in G so not adjacent in complement.
-  -- So NOT every vertex is adjacent to w. Only vertices on the left side are adjacent to w in the complement.
-  -- Vertices on the right side (different from w) are NOT adjacent to w in the complement.
-  -- But they ARE adjacent to vertices on the left side.
-  -- So for reachability u → v:
-  --   Case u=inl, v=inl: u → w → v (via left vertices adjacent to w)
-  --   Case u=inl, v=inr: u → v directly (adjacent)
-  --   Case u=inr, v=inl: u → v directly
-  --   Case u=inr, v=inr: u → (some inl) → v
-  -- We need a "hub" on the LEFT side for right-side vertices to use. Let's pick hub on left.
-  let w' : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inl ⟨0, Nat.zero_lt_succ m⟩
-  -- In the complement, every RIGHT vertex is adjacent to w' (across partition).
-  -- Left vertices ≠ w' are NOT adjacent to w' (same side, complete).
-  -- Strategy: route EVERYTHING through both hubs. u → (if u on right, go to w'; if u on left, already on left)
-  -- Actually, simplest: u → w' (if u on right, adj directly; if u on left and u ≠ w', not adj directly...)
-  --Hmm. Let me think of a 2-hop strategy for everything.
-  -- u=(inl a), v=(inl c): use any right vertex r. u→r (across, adj) and r→v (across, adj). So u→r→v.
-  -- u=(inr b), v=(inr d): use any left vertex l. u→l→v.
-  -- u=(inl a), v=(inr d): u→v directly.
-  -- u=(inr b), v=(inl c): u→v directly.
-  -- So I need: for any left vertex l0 and right vertex r0, use them as intermediaries.
-  let r0 : ((complete (m + 1)).disjUnion (complete (n + 1))).V := Sum.inr ⟨0, Nat.zero_lt_succ n⟩
-  -- Key adjacency facts in the complement:
-  -- Cross-partition edges exist (complete bipartite structure)
-  -- In the complement, cross-partition edges exist.
+  -- The complement of a disjoint union of two complete graphs keeps exactly the crossing pairs:
+  -- opposite sides are adjacent, and two vertices on the same side are joined in two hops.
   have h_cross_adj : ∀ (a : Fin (m + 1)) (b : Fin (n + 1)),
       ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ.Adj (Sum.inl a) (Sum.inr b) := by
     intro a b
@@ -64,147 +31,17 @@ variable (G H : CGraph)
       ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ.Adj (Sum.inr b) (Sum.inl a) := by
     intro a b
     simp [SimpleGraph.compl_adj, CGraph.toSimple_adj, disjUnion_adj_inr_inl]
-  -- Strategy for Reachable u v:
-  -- • inl → inr: direct edge
-  -- • inr → inl: direct edge  
-  -- • inl → inl: go via any inr (2 hops)
-  -- • inr → inr: go via any inl (2 hops)
   rcases u with ⟨a, ha⟩ | ⟨b, hb⟩ <;> rcases v with ⟨c, hc⟩ | ⟨d, hd⟩
-  · -- inl → inl: via r0
+  · -- inl → inl: hop through the right side
     exact (h_cross_adj ⟨a, ha⟩ ⟨0, Nat.zero_lt_succ n⟩).reachable.trans
       (h_cross_adj2 ⟨c, hc⟩ ⟨0, Nat.zero_lt_succ n⟩).reachable
   · -- inl → inr: direct
     exact (h_cross_adj ⟨a, ha⟩ ⟨d, hd⟩).reachable
   · -- inr → inl: direct
     exact (h_cross_adj2 ⟨c, hc⟩ ⟨b, hb⟩).reachable
-  · -- inr → inr: via w' (inl ⟨0,...⟩)
+  · -- inr → inr: hop through the left side
     exact (h_cross_adj2 ⟨0, Nat.zero_lt_succ m⟩ ⟨b, hb⟩).reachable.trans
       (h_cross_adj ⟨0, Nat.zero_lt_succ m⟩ ⟨d, hd⟩).reachable
-
-@[simp] theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 := by
-  set V₁ := Fin (m + 2)
-  set V₂ := Fin (n + 2)
-  set G : SimpleGraph (V₁ ⊕ V₂) := (bipartite (m + 2) (n + 2)).toSimple
-  -- All pairs in different parts are adjacent
-  have h_adj_cross : ∀ a : V₁, ∀ d : V₂, G.Adj (.inl a) (.inr d) := by
-    intro a d
-    simp only [G, bipartite, CGraph.toSimple_adj, compl_adj]
-    rw [disjUnion_adj_inl_inr]
-    simp
-  have h_adj_cross' : ∀ b : V₂, ∀ c : V₁, G.Adj (.inr b) (.inl c) := by
-    intro b c; exact (h_adj_cross c b).symm
-  -- No edges within part 1 (inl-inl), handled by... we don't need this explicitly
-  -- All pairs in different parts have dist 1
-  -- Pairs in the same part have dist 2 (via any vertex in the other part)
-  -- No edges within each part
-  have h_no_edge_inl_inl : ∀ a c : V₁, ¬G.Adj (.inl a) (.inl c) := by
-    intro a c
-    by_cases h : a = c <;> simp [G, bipartite, complete, disjUnion, h]
-  have h_no_edge_inr_inr : ∀ b d : V₂, ¬G.Adj (.inr b) (.inr d) := by
-    intro b d
-    by_cases h : b = d <;> simp [G, bipartite, complete, disjUnion, h]
-  -- The graph is connected
-  have h_connected : G.Connected := by
-    show SimpleGraph.Connected G
-    exact ⟨fun u v => by
-      cases u with
-      | inl a =>
-        cases v with
-        | inl c =>
-          exact ⟨SimpleGraph.Walk.append
-            (SimpleGraph.Walk.cons (h_adj_cross a ⟨0, by omega⟩) (SimpleGraph.Walk.nil : G.Walk _ _))
-            (SimpleGraph.Walk.cons (h_adj_cross' ⟨0, by omega⟩ c) (SimpleGraph.Walk.nil : G.Walk _ _))⟩
-        | inr d =>
-          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a d) (SimpleGraph.Walk.nil : G.Walk _ _)⟩
-      | inr b =>
-        cases v with
-        | inl c =>
-          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b c) (SimpleGraph.Walk.nil : G.Walk _ _)⟩
-        | inr d =>
-          exact ⟨SimpleGraph.Walk.append
-            (SimpleGraph.Walk.cons (h_adj_cross' b ⟨0, by omega⟩) (SimpleGraph.Walk.nil : G.Walk _ _))
-            (SimpleGraph.Walk.cons (h_adj_cross ⟨0, by omega⟩ d) (SimpleGraph.Walk.nil : G.Walk _ _))⟩⟩
-  -- Distance ≤ 2 for all pairs
-  have h_edist_le_two : ∀ u v : V₁ ⊕ V₂, G.edist u v ≤ 2 := by
-    intro u v
-    cases u with
-    | inl a =>
-      cases v with
-      | inl c =>
-        -- Walk inl a → inr ⟨0,...⟩ → inl c, length 2
-        have hw : ∃ w : G.Walk (.inl a) (.inl c), w.length = 2 := by
-          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a ⟨0, by omega⟩)
-            (SimpleGraph.Walk.cons (h_adj_cross' ⟨0, by omega⟩ c)
-              (SimpleGraph.Walk.nil : G.Walk _ _)), by simp⟩
-        obtain ⟨w, hw⟩ := hw
-        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
-      | inr d =>
-        -- Adj, so edist ≤ 1
-        have hw : ∃ w : G.Walk (.inl a) (.inr d), w.length = 1 := by
-          exact ⟨SimpleGraph.Walk.cons (h_adj_cross a d) (SimpleGraph.Walk.nil : G.Walk _ _), by simp⟩
-        obtain ⟨w, hw⟩ := hw
-        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
-    | inr b =>
-      cases v with
-      | inl c =>
-        have hw : ∃ w : G.Walk (.inr b) (.inl c), w.length = 1 := by
-          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b c) (SimpleGraph.Walk.nil : G.Walk _ _), by simp⟩
-        obtain ⟨w, hw⟩ := hw
-        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
-      | inr d =>
-        have hw : ∃ w : G.Walk (.inr b) (.inr d), w.length = 2 := by
-          exact ⟨SimpleGraph.Walk.cons (h_adj_cross' b ⟨0, by omega⟩)
-            (SimpleGraph.Walk.cons (h_adj_cross ⟨0, by omega⟩ d)
-              (SimpleGraph.Walk.nil : G.Walk _ _)), by simp⟩
-        obtain ⟨w, hw⟩ := hw
-        exact le_trans (SimpleGraph.edist_le w) (by rw [hw]; decide)
-  -- There exist u, v with distance ≥ 2 (in fact = 2): pick two distinct vertices in V₁
-  have h_exists_dist_ge_two : ∃ u v : V₁ ⊕ V₂, 2 ≤ G.edist u v := by
-    -- Pick two distinct vertices in V₁, say ⟨0,by omega⟩ and ⟨1,by omega⟩
-    refine ⟨.inl ⟨0, by omega⟩, .inl ⟨1, by omega⟩, ?_⟩
-    -- They're not adjacent, so edist is not 1. Since they're reachable and distinct, edist ≥ 2.
-    have hreach : G.Reachable (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) :=
-       h_connected _ _
-    have hne : (.inl ⟨0, by omega⟩ : V₁ ⊕ V₂) ≠ .inl ⟨1, by omega⟩ := by simp
-    have hnotadj := h_no_edge_inl_inl ⟨0, by omega⟩ ⟨1, by omega⟩
-    -- Any walk from inl ⟨0⟩ to inl ⟨1⟩ has length ≥ 2 (since not adjacent, can't be length 1; and ne, can't be 0)
-    -- So edist ≥ 2.
-    have h_ge : 2 ≤ G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) := by
-      by_contra hlt
-      push_neg at hlt
-      have h_ne0 : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ 0 := by
-        intro heq
-        rw [SimpleGraph.edist_eq_zero_iff] at heq
-        exact hne heq
-      have h_ne_top : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ ⊤ := by
-        intro h
-        obtain ⟨w⟩ := hreach
-        have := SimpleGraph.edist_le w
-        rw [h] at this
-        exact absurd this (by simp)
-      have h_ne1 : G.edist (.inl ⟨0, by omega⟩) (.inl ⟨1, by omega⟩) ≠ 1 := by
-        intro heq; exact hnotadj (SimpleGraph.edist_eq_one_iff_adj.mp heq)
-      -- In ENat, < 2, ≠ ⊤, ≠ 0, ≠ 1 is impossible
-      have : ∀ (x : ℕ∞), x < 2 → x ≠ ⊤ → x ≠ 0 → x ≠ 1 → False := by
-        intro x hx hx_top hx0 hx1
-        cases x with
-        | top => exact hx_top rfl
-        | coe n =>
-          simp at hx hx0 hx1
-          omega
-      exact absurd (this _ hlt h_ne_top h_ne0 h_ne1) (by trivial)
-    exact h_ge
-  -- Conclude diam = 2 from edist bounds
-  -- G.ediam = 2 (as ℕ∞) since all edist ≤ 2 and some edist ≥ 2
-  have h_ediam_le : G.ediam ≤ 2 := SimpleGraph.ediam_le_of_edist_le h_edist_le_two
-  obtain ⟨u, v, huv⟩ := h_exists_dist_ge_two
-  have h_ediam_ge : 2 ≤ G.ediam := by
-    exact le_trans huv (SimpleGraph.edist_le_ediam)
-  have h_ediam_eq : G.ediam = 2 := le_antisymm h_ediam_le h_ediam_ge
-  simp only [CGraph.diameter]
-  change G.diam = 2
-  rw [SimpleGraph.diam, h_ediam_eq]
-  rfl
 
 end
 
@@ -231,6 +68,15 @@ theorem diameter_join_left {G H : CGraph} [Nonempty H.V]
     (h : G.E < (FinEnum.card G.V).choose 2) : (G ∇g H).diameter = 2 := by
   obtain ⟨a, c, hne, hadj⟩ := exists_not_adj_of_E_lt G h
   exact diameter_join_of_not_adj G H hne hadj
+
+/-- **A complete bipartite graph with two or more vertices on each side has diameter two**: it is
+the join of two edgeless graphs, and an edgeless graph on two or more vertices is not complete. -/
+@[simp] theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 := by
+  haveI : Nonempty (empty (n + 2)).V := ⟨⟨0, by omega⟩⟩
+  rw [show bipartite (m + 2) (n + 2) = empty (m + 2) ∇g empty (n + 2) from rfl]
+  refine diameter_join_left ?_
+  rw [E_empty, card_empty]
+  exact Nat.choose_pos (by omega)
 
 theorem diameter_compl_le_two (G : CGraph) (h : ¬ G.toSimple.Preconnected) :
     Gᶜ.diameter ≤ 2 :=
