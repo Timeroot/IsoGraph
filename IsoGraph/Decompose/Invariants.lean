@@ -21,9 +21,10 @@ disjoint union, the join and the complement have unconditional rules, the cartes
 Sabidussi's theorem for `chromNum` and `cliqueNum`, and the lexicographic and tensor products have
 rules for the clique and independence numbers.  The tactic is invariant-agnostic — it also
 computes `V`, `E`, `numComponents`, `matchNum` and the domination number `domNum`, and by Gallai's
-identity `coverNum_eq` the vertex cover number rides along with the independence number.  Two invariants come in through the line graph:
-the independence number of `L(G)` is the matching number of `G` and its chromatic number is the
-chromatic index, so a graph whose line graph the atlas can name gets those for free.
+identity `coverNum_eq` the vertex cover number rides along with the independence number.  Two
+invariants come in through the line graph: the independence number of `L(G)` is the matching number
+of `G` and its chromatic number is the chromatic index, so a graph whose line graph the atlas can
+name gets those for free.
 
 ## The two levels
 
@@ -46,9 +47,10 @@ proved for that name.
 
 ## What it knows
 
-Every atom the decomposition can produce whose invariants are in the library.  Two lemmas below
-put the parity-dependent ones — the chromatic number of a cycle and the chromatic index of a
-complete graph — into a shape that fires on a numeral rather than on `2 * m + 3`.
+Every atom the decomposition can produce whose invariants are in the library.  Three lemmas below
+put awkwardly-shaped rules into a form `simp` can use: the parity-dependent chromatic number of a
+cycle and chromatic index of a complete graph fire on a numeral rather than on `2 * m + 3`, and
+the domination number of a join becomes one value with an `if` instead of two case lemmas.
 
 What it does not know it leaves alone, as `H.indepNum` for that `H`.  The gaps worth naming are
 the graphs the atlas cannot describe at all, which come back as `ofEdges`; the independence number
@@ -56,8 +58,10 @@ of a cartesian product, which is not determined by the factors; and the chromati
 Kneser graph `K(n, k)` with `n ≥ 2k + 2` and `k ≥ 3`, where the full Lovász–Kneser theorem would
 be needed — the library proves the cases `k = 2` and `n ≤ 2k + 1`, which `chromNum_kneser_of_le`
 and `chromNum_kneser_two` put in numeral-friendly shape.  The domination number composes over
-disjoint unions and has a value for most of the atoms, but not for the ladders and prisms beyond
-the seven or eight rungs of `SmallGraphs/Brackets.lean`, nor for a Paley graph past `q = 17`.
+disjoint unions and joins and has a value for most of the atoms, but not for the ladders and prisms
+beyond the seven or eight rungs of `SmallGraphs/Brackets.lean`, nor for a Paley graph past
+`q = 17`, and over a cartesian product it is Vizing's conjecture, so there is only the inequality
+`domNum_cartesianProduct_le` and nothing to evaluate.
 
 Called with no argument, `compute_invariant` decomposes every closed graph in the goal, which is
 the form to use when the goal names several.
@@ -93,6 +97,17 @@ theorem edgeChromNum_complete_ite (n : ℕ) :
     rw [show 2 * m + 1 + 2 = 2 * m + 3 by ring, edgeChromNum_complete_odd,
       if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
 
+/-- **The domination number of a join**, as a value rather than as a pair of case lemmas.  One
+vertex dominates `G ∇ H` exactly when one side has a universal vertex, and a vertex from each side
+always dominates, so there is nothing else it can be. -/
+theorem domNum_join_ite {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ∇g H).domNum = if G.domNum = 1 ∨ H.domNum = 1 then 1 else 2 := by
+  split
+  · next h => exact (domNum_join_eq_one_iff G H).2 h
+  · next h =>
+    push_neg at h
+    exact domNum_join_eq_two hG hH h.1 h.2
+
 end IsoGraph
 
 namespace CGraph.Decompose
@@ -125,7 +140,8 @@ macro_rules
          IsoGraph.cliqueCoverNum_triangular, IsoGraph.indepNum_crown,
          ← IsoGraph.compl_cocktailParty, IsoGraph.indepNum_kneser,
          IsoGraph.chromNum_kneser_of_le, IsoGraph.chromNum_kneser_of_lt,
-         IsoGraph.chromNum_kneser_two, IsoGraph.domNum_disjUnion, IsoGraph.domNum_empty,
+         IsoGraph.chromNum_kneser_two, IsoGraph.domNum_disjUnion, IsoGraph.domNum_join_ite,
+         IsoGraph.domNum_empty,
          IsoGraph.domNum_complete, IsoGraph.domNum_star,
          IsoGraph.domNum_wheel, IsoGraph.domNum_fan, IsoGraph.domNum_book,
          IsoGraph.domNum_cocktailParty, IsoGraph.domNum_rook, IsoGraph.domNum_bipartite,
@@ -248,8 +264,8 @@ example : IsoGraph.chromNum (Quotient.mk CGraph.isoSetoid (CGraph.kneser 6 2)) =
 /-- **The chromatic index of `K₆` is five**, the same theorem read three identifications away: the
 line graph of `K₆` is the triangular graph `T(6)`, whose clique cover number is the chromatic
 number of its complement `K(6, 2)`. -/
-example : IsoGraph.cliqueCoverNum (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph (CGraph.complete 6)))
-    = 4 := by
+example : IsoGraph.cliqueCoverNum
+    (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph (CGraph.complete 6))) = 4 := by
   compute_invariant (CGraph.lineGraph (CGraph.complete 6))
 
 /-- **Two graphs in one goal.**  Called with no argument, the tactic decomposes every closed graph
@@ -263,3 +279,10 @@ union like everything else, and `ν(C₇) = 3` and `ν(K₆) = 3` are table entr
 example : IsoGraph.matchNum (Quotient.mk CGraph.isoSetoid (CGraph.cycle 7 ⊕g CGraph.complete 6))
     = 6 := by
   compute_invariant (CGraph.cycle 7 ⊕g CGraph.complete 6)
+
+/-- **A join takes one vertex or two.**  Neither pentagon has a universal vertex, so the join of
+two of them needs one vertex from each side; `domNum_join_ite` says exactly that, and the tactic
+discharges the two nonemptiness conditions from the orders. -/
+example : IsoGraph.domNum (Quotient.mk CGraph.isoSetoid (CGraph.cycle 5 ∇g CGraph.cycle 5))
+    = 2 := by
+  compute_invariant (CGraph.cycle 5 ∇g CGraph.cycle 5)

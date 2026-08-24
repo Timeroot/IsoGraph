@@ -6521,14 +6521,17 @@ vertex cover of the forty-vertex graph above is `40 - 10 = 30` by the same tacti
 
 Nothing in the machinery is specific to those four. Any invariant with a rule for the operations
 and a value on the atoms rides along, and the domination number is the case worth naming, because
-it is the one whose atoms were mostly missing. `γ` composes over the disjoint union by addition,
-and the atoms now supply the complete graphs, stars, wheels, fans, books, cocktail parties, rooks,
-complete bipartite graphs, Turán and triangular graphs, double stars, crowns, cycles and paths,
-hypercubes at three and four, Petersen, the Grötzsch graph and the Mycielskians, the small Paley
-graphs, and the ladders and prisms of `SmallGraphs/Brackets.lean` — so that `γ(L₅ ⊔ K₄) = 4` on
-twenty-four vertices is a `simp` call and not a search over `2²⁴` sets, and a goal naming both the
-six-rung prism and the seven-rung ladder is settled by an argument-free `compute_invariant`. The
-matching number rides along the same way.
+it is the one whose atoms were mostly missing. `γ` composes over the disjoint union by addition
+and over the join by `domNum_join_ite`, one vertex if either side has a universal vertex and two
+otherwise — a value with an `if` in it rather than the two case lemmas it was stated as, which is
+what a `simp` set can use. The atoms now supply the complete graphs, stars, wheels, fans, books,
+cocktail parties, rooks, complete bipartite graphs, Turán and triangular graphs, double stars,
+crowns, cycles and paths, hypercubes at three and four, Petersen, the Grötzsch graph and the
+Mycielskians, the small Paley graphs, and the ladders and prisms of `SmallGraphs/Brackets.lean` —
+so that `γ(L₅ ⊔ K₄) = 4` on twenty-four vertices is a `simp` call and not a search over `2²⁴`
+sets, and a goal naming both the six-rung prism and the seven-rung ladder is settled by an
+argument-free `compute_invariant`. Over a cartesian product there is nothing to fire, and for a
+good reason: that is Vizing's conjecture. The matching number rides along the same way.
 
 What makes this more involved than the spectrum is that the values live on both levels of the
 library. A family carries its invariants as `IsoGraph` theorems, while a graph named by an
