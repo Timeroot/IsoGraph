@@ -325,118 +325,38 @@ exponential, above) but it has to wait for `complete_adj`. -/
 
 /-! ### Disjoint unions and joins -/
 
+theorem nbrs_disjUnion_inl (G H : CGraph) (a : G.V) :
+    (G ⊕g H).nbrs (Sum.inl a) = (G.nbrs a).map ⟨Sum.inl, Sum.inl_injective⟩ := by
+  ext w
+  rcases w with c | d <;> simp
+
+theorem nbrs_disjUnion_inr (G H : CGraph) (b : H.V) :
+    (G ⊕g H).nbrs (Sum.inr b) = (H.nbrs b).map ⟨Sum.inr, Sum.inr_injective⟩ := by
+  ext w
+  rcases w with c | d <;> simp
+
+theorem degree_disjUnion_inl (G H : CGraph) (a : G.V) :
+    (G ⊕g H).toSimple.degree (Sum.inl a) = G.toSimple.degree a := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inl, Finset.card_map]
+
+theorem degree_disjUnion_inr (G H : CGraph) (b : H.V) :
+    (G ⊕g H).toSimple.degree (Sum.inr b) = H.toSimple.degree b := by
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inr, Finset.card_map]
+
+/-- **A disjoint union has the edges of both its parts**: every vertex keeps the degree it had,
+so the handshake lemma splits along the sum. -/
 @[simp] theorem E_disjUnion : (G ⊕g H).E = G.E + H.E := by
-  simp [CGraph.E]
-  haveI : DecidableEq (G.V ⊕ H.V) := Classical.decEq _
-  rw [SimpleGraph.edgeFinset_card, SimpleGraph.edgeFinset_card, SimpleGraph.edgeFinset_card]
-  -- Goal: Fintype.card ↑edgeSet ...
-  -- Build injection from G.edgeSet to (G.disjUnion H).edgeSet via Sym2.map Sum.inl
-  -- Build injection from H.edgeSet similarly. Show images disjoint and covering.
-  -- Then use Fintype.card_congr.
-  -- Step 1: Sym2.map Sum.inl and Sum.inr are injective
-  have hinj_l : Function.Injective (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) := by
-    intro a b hab
-    obtain ⟨x, y, rfl⟩ := Sym2.mk_surjective a
-    obtain ⟨u, v, rfl⟩ := Sym2.mk_surjective b
-    simp [Sym2.map, Quot.map] at hab
-    apply Quot.sound
-    rw [Sym2.rel_iff]
-    rcases hab with h | h
-    · exact Or.inl ⟨Sum.inl_injective (congr_arg Prod.fst h), Sum.inl_injective (congr_arg Prod.snd h)⟩
-    · exact Or.inr ⟨Sum.inl_injective (congr_arg Prod.fst h), Sum.inl_injective (congr_arg Prod.snd h)⟩
-  have hinj_r : Function.Injective (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) := by
-    intro a b hab
-    obtain ⟨x, y, rfl⟩ := Sym2.mk_surjective a
-    obtain ⟨u, v, rfl⟩ := Sym2.mk_surjective b
-    simp [Sym2.map, Quot.map] at hab
-    apply Quot.sound
-    rw [Sym2.rel_iff]
-    rcases hab with h | h
-    · exact Or.inl ⟨Sum.inr_injective (congr_arg Prod.fst h), Sum.inr_injective (congr_arg Prod.snd h)⟩
-    · exact Or.inr ⟨Sum.inr_injective (congr_arg Prod.fst h), Sum.inr_injective (congr_arg Prod.snd h)⟩
-  -- Show forward direction: every edge of disjUnion is inl-image of G-edge or inr-image of H-edge
-  -- Membership: inl-image of G-edges are disjUnion-edges
-  have hmem_inl : ∀ e ∈ G.toSimple.edgeSet, Sym2.map Sum.inl e ∈ (G.disjUnion H).toSimple.edgeSet := by
-    intro e he
-    obtain ⟨a, b, hab, rfl⟩ := Sym2.mk_surjective e
-    simp [Sym2.map, Quot.map]
-    show Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) (Sym2.mk a) ∈ (G.disjUnion H).toSimple.edgeSet
-    simp only [Sym2.map, Quot.map]
-    show Sym2.mk (Sum.inl a.1, Sum.inl a.2) ∈ (G.disjUnion H).toSimple.edgeSet
-    rw [SimpleGraph.mem_edgeSet] at he ⊢
-    rw [CGraph.toSimple_adj] at he
-    simp [CGraph.toSimple_adj, disjUnion_adj_inl_inl, he]
-  -- hmem_inr: inr-image of H-edges are disjUnion-edges
-  have hmem_inr : ∀ e ∈ H.toSimple.edgeSet, Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e ∈ (G.disjUnion H).toSimple.edgeSet := by
-    intro e he
-    obtain ⟨a, b, hab, rfl⟩ := Sym2.mk_surjective e
-    show Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) (Sym2.mk a) ∈ (G.disjUnion H).toSimple.edgeSet
-    simp only [Sym2.map, Quot.map]
-    show Sym2.mk (Sum.inr a.1, Sum.inr a.2) ∈ (G.disjUnion H).toSimple.edgeSet
-    rw [SimpleGraph.mem_edgeSet] at he ⊢
-    rw [CGraph.toSimple_adj] at he
-    simp [CGraph.toSimple_adj, disjUnion_adj_inr_inr, he]
-  -- Cover: every disjUnion edge is inl-image of G-edge or inr-image of H-edge
-  have hcover : ∀ s ∈ (G.disjUnion H).toSimple.edgeSet,
-      (∃ e ∈ G.toSimple.edgeSet, Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) e = s) ∨
-      (∃ e ∈ H.toSimple.edgeSet, Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e = s) := by
-    intro s hs
-    obtain ⟨p, rfl⟩ := Quot.exists_rep s
-    rw [SimpleGraph.mem_edgeSet] at hs
-    rcases p with ⟨a | b, c | d⟩ <;> simp at hs
-    · -- inl/inl
-      left
-      refine ⟨Sym2.mk (a, c), hs, ?_⟩
-      simp [Sym2.map, Quot.map]
-      rfl
-    · -- inr/inr
-      right
-      refine ⟨Sym2.mk (b, d), hs, ?_⟩
-      simp [Sym2.map, Quot.map]
-      rfl
-  -- inl-image and inr-image edges are disjoint
-  have hnd : ∀ e ∈ G.toSimple.edgeSet, ∀ e' ∈ H.toSimple.edgeSet,
-      Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) e ≠ Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e' := by
-    intro e he e' he' h_eq
-    obtain ⟨⟨a, b⟩, rfl⟩ := Sym2.mk_surjective e
-    obtain ⟨⟨c, d⟩, rfl⟩ := Sym2.mk_surjective e'
-    simp [Sym2.map, Quot.map] at h_eq
-  -- The edge set is exactly the disjoint union of the two images
-  have himage_in : Set.image (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) ↑G.toSimple.edgeSet ⊆ ↑(G.disjUnion H).toSimple.edgeSet := by
-    rintro _ ⟨e, he, rfl⟩; exact hmem_inl e he
-  have himage_in' : Set.image (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) ↑H.toSimple.edgeSet ⊆ ↑(G.disjUnion H).toSimple.edgeSet := by
-    rintro _ ⟨e, he, rfl⟩; exact hmem_inr e he
-  have himage_union : ↑(G.disjUnion H).toSimple.edgeSet ⊆
-      Set.image (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) ↑G.toSimple.edgeSet ∪
-      Set.image (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) ↑H.toSimple.edgeSet := by
-    intro s hs; exact hcover s hs
-  have heqv_set : ↑(G.disjUnion H).toSimple.edgeSet =
-      Set.image (Sym2.map (Sum.inl : G.V → G.V ⊕ H.V)) ↑G.toSimple.edgeSet ∪
-      Set.image (Sym2.map (Sum.inr : H.V → G.V ⊕ H.V)) ↑H.toSimple.edgeSet := by
-    exact Set.Subset.antisymm himage_union (Set.union_subset himage_in himage_in')
-  -- Build the equiv between edge sets
-  let f : ↑G.toSimple.edgeSet ⊕ ↑H.toSimple.edgeSet → ↑(G.disjUnion H).toSimple.edgeSet :=
-    Sum.elim (fun ⟨e, he⟩ => ⟨Sym2.map (Sum.inl : G.V → G.V ⊕ H.V) e, hmem_inl e he⟩)
-             (fun ⟨e, he⟩ => ⟨Sym2.map (Sum.inr : H.V → G.V ⊕ H.V) e, hmem_inr e he⟩)
-  -- f is injective
-  have hf_inj : Function.Injective f := by
-    intro x y hxy
-    rcases x with (⟨e₁, he₁⟩ | ⟨e₁, he₁⟩) <;> rcases y with (⟨e₂, he₂⟩ | ⟨e₂, he₂⟩)
-    · simp [f] at hxy
-      cases hinj_l hxy with rfl
-    · simp [f] at hxy; exact False.elim (hnd e₁ he₁ e₂ he₂ hxy)
-    · simp [f] at hxy; exact False.elim (hnd e₂ he₂ e₁ he₁ hxy.symm)
-    · simp [f] at hxy
-      cases hinj_r hxy with rfl
-  -- f is surjective
-  have hf_surj : Function.Surjective f := by
-    intro ⟨s, hs⟩
-    rcases hcover s hs with ⟨e, he, rfl⟩ | ⟨e, he, rfl⟩
-    · exact ⟨Sum.inl ⟨e, he⟩, rfl⟩
-    · exact ⟨Sum.inr ⟨e, he⟩, rfl⟩
-  let hequiv := Equiv.ofBijective f ⟨hf_inj, hf_surj⟩
-  rw [Fintype.card_congr hequiv.symm]
-  exact Fintype.card_sum
+  have hsum : ∑ w : (G ⊕g H).V, (G ⊕g H).toSimple.degree w =
+      (∑ u : G.V, (G ⊕g H).toSimple.degree (Sum.inl u)) +
+        ∑ v : H.V, (G ⊕g H).toSimple.degree (Sum.inr v) :=
+    (Finset.sum_univ_inst_eq _ (instFintypeSum G.V H.V) _).trans (Fintype.sum_sum_type _)
+  simp only [degree_disjUnion_inl, degree_disjUnion_inr] at hsum
+  have h1 := SimpleGraph.sum_degrees_eq_twice_card_edges (G ⊕g H).toSimple
+  have h2 := SimpleGraph.sum_degrees_eq_twice_card_edges G.toSimple
+  have h3 := SimpleGraph.sum_degrees_eq_twice_card_edges H.toSimple
+  show (G ⊕g H).toSimple.edgeFinset.card
+    = G.toSimple.edgeFinset.card + H.toSimple.edgeFinset.card
+  omega
 
 @[simp] theorem E_join :
     (G ∇g H).E = G.E + H.E + FinEnum.card G.V * FinEnum.card H.V := by
@@ -1414,24 +1334,6 @@ private theorem univ_val_sum (α β : Type*) [Fintype α] [Fintype β] (i : Fint
     (@Finset.univ (α ⊕ β) i).val
       = (Finset.univ : Finset α).val.map Sum.inl + (Finset.univ : Finset β).val.map Sum.inr :=
   (congrArg Finset.val (Finset.univ_inst_eq i _)).trans (univ_val_sum' α β)
-
-theorem nbrs_disjUnion_inl (G H : CGraph) (a : G.V) :
-    (G ⊕g H).nbrs (Sum.inl a) = (G.nbrs a).map ⟨Sum.inl, Sum.inl_injective⟩ := by
-  ext w
-  rcases w with c | d <;> simp
-
-theorem nbrs_disjUnion_inr (G H : CGraph) (b : H.V) :
-    (G ⊕g H).nbrs (Sum.inr b) = (H.nbrs b).map ⟨Sum.inr, Sum.inr_injective⟩ := by
-  ext w
-  rcases w with c | d <;> simp
-
-theorem degree_disjUnion_inl (G H : CGraph) (a : G.V) :
-    (G ⊕g H).toSimple.degree (Sum.inl a) = G.toSimple.degree a := by
-  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inl, Finset.card_map]
-
-theorem degree_disjUnion_inr (G H : CGraph) (b : H.V) :
-    (G ⊕g H).toSimple.degree (Sum.inr b) = H.toSimple.degree b := by
-  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_disjUnion_inr, Finset.card_map]
 
 /-- **The degree multiset of a disjoint union** is the sum of the two degree multisets. -/
 @[toIsoGraph]

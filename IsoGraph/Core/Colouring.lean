@@ -202,157 +202,6 @@ variable (G H : CGraph)
         exact ⟨{⟨0, hn1⟩}, SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) (by simp)⟩
     exact le_csSup hbdd hmem
 
-@[simp] theorem indepNum_cycle (n : ℕ) : (cycle (n + 3)).indepNum = (n + 3) / 2 := by
-  unfold CGraph.indepNum SimpleGraph.indepNum
-  set m := n + 3
-  -- Adjacency in cycle m: toSimple.Adj i j ↔ i ≠ j ∧ ((i+1)%m == j ∨ (j+1)%m == i)
-  have habj : ∀ (i j : Fin m), (cycle m).toSimple.Adj i j ↔ i ≠ j ∧ (((i.val + 1) % m == j.val) ∨ ((j.val + 1) % m == i.val)) := by
-    intro i j
-    simp [cycle, ofRel_adj, CGraph.toSimple_adj]
-  -- The shift map i ↦ (i+1) % m is a bijection on Fin m
-  let shift : Fin m → Fin m := fun i => ⟨(i.val + 1) % m, Nat.mod_lt _ (by omega)⟩
-  have hshift_eq : ∀ i : Fin m, shift i = i + 1 := by
-    intro i; exact Fin.ext (by simp [shift, Fin.val_add])
-  have hshift_bijective : Function.Bijective shift := by
-    refine ⟨?_, ?_⟩
-    · -- injective
-      intro i j hij
-      rw [hshift_eq] at hij
-      exact add_right_cancel hij
-    · -- surjective
-      intro j
-      refine ⟨j + ⟨m - 1, by omega⟩, ?_⟩
-      rw [hshift_eq]
-      have hlast : (⟨m - 1, by omega⟩ : Fin m) + 1 = 0 := by
-        ext; simp [Fin.val_add]
-        have : m - 1 + 1 = m := Nat.sub_add_cancel (by omega)
-        simp [this]
-      rw [add_assoc, hlast, add_zero]
-  have hshift_inj := hshift_bijective.1
-  have hshift_surj := hshift_bijective.2
-  -- For any i : Fin m, i ≠ shift i (since m ≥ 3)
-  have hne_shift : ∀ i : Fin m, i ≠ shift i := by
-    intro i hi
-    have hshift_eq_i : shift i = i + 1 := hshift_eq i
-    rw [hshift_eq_i] at hi
-    have h1 : (i + 1 : Fin m) = i := hi.symm
-    have h2 : (1 : Fin m) = 0 := by
-      have := congr_arg (· + (-i : Fin m)) h1
-      simp [add_assoc] at this
-    exact absurd (Fin.ext_iff.mp h2) (by simp; omega)
-  -- For any i : Fin m, Adj i (shift i)
-  have hadj_shift : ∀ i : Fin m, (cycle m).toSimple.Adj i (shift i) := by
-    intro i
-    rw [habj]
-    exact ⟨hne_shift i, Or.inl (by simp [shift])⟩
-  -- For any independent set s, shift(s) is disjoint from s
-  have hdisjoint : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
-      Disjoint s (s.map ⟨shift, hshift_inj⟩) := by
-    intro s hs
-    rw [Finset.disjoint_left]
-    intro z hz hzm
-    obtain ⟨y, hy, hyz⟩ := Finset.mem_map.mp hzm
-    have hyz' : shift y = z := hyz
-    have hadyz : (cycle m).toSimple.Adj y z := by
-      subst hyz'
-      exact hadj_shift y
-    have hyz_ne : y ≠ z := by
-      intro heq; rw [heq.symm] at hyz'; exact hne_shift y hyz'.symm
-    exact hs hy hz hyz_ne hadyz
-  -- So |s| + |shift(s)| ≤ m, i.e., 2|s| ≤ m
-  have hupper : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
-      2 * s.card ≤ m := by
-    intro s hs
-    have hd := hdisjoint s hs
-    have hcard_map : (s.map ⟨shift, hshift_inj⟩).card = s.card := by
-      exact Finset.card_map (⟨shift, hshift_inj⟩ : Fin m ↪ Fin m)
-    have hcard_union : (s ∪ s.map ⟨shift, hshift_inj⟩).card = 2 * s.card := by
-      rw [Finset.card_union_of_disjoint hd, hcard_map, two_mul]
-    exact hcard_union ▸ le_trans (Finset.card_le_univ _) (by simp)
-  have hupper' : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
-      s.card ≤ m / 2 := by
-    intro s hindep
-    rw [Nat.le_div_iff_mul_le zero_lt_two]
-    linarith [hupper s hindep]
-  -- Flower: there exists an independent set of size m/2
-  have flower : ∃ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) ∧ s.card = m / 2 := by
-    -- Use the set of odd-valued vertices
-    let s := Finset.image (fun (a : Fin (m / 2)) => ⟨2 * a.val + 1, by omega⟩ : Fin (m / 2) → Fin m) Finset.univ
-    refine ⟨s, ?_, ?_⟩
-    · -- s is independent
-      intro x hx y hy hxy hadj
-      rw [Finset.mem_coe, Finset.mem_image] at hx
-      rw [Finset.mem_coe, Finset.mem_image] at hy
-      obtain ⟨a, _, rfl⟩ := hx
-      obtain ⟨b, _, rfl⟩ := hy
-      rw [habj] at hadj
-      obtain ⟨hne, hcase⟩ := hadj
-      have ha_lt : a.val < m / 2 := a.isLt
-      have hb_lt : b.val < m / 2 := b.isLt
-      have h2a1_lt_m : 2 * a.val + 1 < m := by omega
-      have h2b1_lt_m : 2 * b.val + 1 < m := by omega
-      -- Fin.val of our constructed elements
-      have hval_a : ((⟨2 * a.val + 1, by omega⟩ : Fin m).val) = 2 * a.val + 1 := by
-        simp
-      have hval_b : ((⟨2 * b.val + 1, by omega⟩ : Fin m).val) = 2 * b.val + 1 := by
-        simp
-      -- (v+1) as Fin m: (2*k+1)+1 = 2*k+2. Two cases: 2*k+2 < m or 2*k+2 = m.
-      -- In either case ((v+1).val) is even.
-      have h2a2_le_m : 2 * a.val + 2 ≤ m := by omega
-      have h2b2_le_m : 2 * b.val + 2 ≤ m := by omega
-      -- (v1+1).val = (2*a+2) % m, which is even
-      have hv1p1_val : ((⟨2 * a.val + 1, by omega⟩ : Fin m) + 1).val = (2 * a.val + 2) % m := by
-        simp [Fin.val_add]
-      have hv2p1_val : ((⟨2 * b.val + 1, by omega⟩ : Fin m) + 1).val = (2 * b.val + 2) % m := by
-        simp [Fin.val_add]
-      -- (2*k+2) % m is even since 2*k+2 ≤ m
-      have heven_mod : ∀ k : ℕ, 2 * k + 2 ≤ m → ((2 * k + 2) % m) % 2 = 0 := by
-        intro k hk
-        by_cases hlt : 2 * k + 2 < m
-        · rw [Nat.mod_eq_of_lt hlt]
-          omega
-        · have heq : 2 * k + 2 = m := by omega
-          rw [heq, Nat.mod_self]
-      have heven_v1 : ((⟨2 * a.val + 1, by omega⟩ : Fin m) + 1).val % 2 = 0 := by rw [hv1p1_val]; exact heven_mod a h2a2_le_m
-      have heven_v2 : ((⟨2 * b.val + 1, by omega⟩ : Fin m) + 1).val % 2 = 0 := by rw [hv2p1_val]; exact heven_mod b h2b2_le_m
-      -- adjacency requires even == odd, impossible
-      rcases hcase with h | h
-      · simp at h
-        have h1 := heven_mod a h2a2_le_m
-        rw [h] at h1
-        omega
-      · simp at h
-        have h1 := heven_mod b h2b2_le_m
-        rw [h] at h1
-        omega
-    · -- s has size m/2
-      rw [Finset.card_image_of_injective _ (fun i j hij => by
-        have := Fin.ext_iff.mp hij
-        simp at this
-        omega), Finset.card_fin]
-  -- Now combine to get sSup = m/2
-  have hindep_empty : (cycle m).toSimple.IsIndepSet (∅ : Set (Fin m)) := by
-    simp [SimpleGraph.IsIndepSet]
-  have hmem : m / 2 ∈ {n | ∃ s : Finset (Fin m), (cycle m).toSimple.IsNIndepSet n s} := by
-    obtain ⟨s, hind, hcard⟩ := flower
-    exact ⟨s, SimpleGraph.IsNIndepSet.mk hind hcard⟩
-  have hbdd : BddAbove {n | ∃ s : Finset (Fin m), (cycle m).toSimple.IsNIndepSet n s} := by
-    exact ⟨m, fun k ⟨s, hs⟩ => by
-      rcases hs with ⟨hs_indep, hs_card⟩
-      rw [hs_card.symm]
-      show s.card ≤ m
-      exact le_trans (FinEnum.card_le s) (card_cycle m |> le_of_eq)⟩
-  have hnonempty : ({n | ∃ s : Finset (Fin m), (cycle m).toSimple.IsNIndepSet n s}).Nonempty := by
-    exact ⟨0, (∅ : Finset (Fin m)), SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) rfl⟩
-  apply le_antisymm
-  · apply csSup_le hnonempty
-    intro b hb
-    obtain ⟨s, hs⟩ := hb
-    rcases hs with ⟨hs_indep, hs_card⟩
-    rw [← hs_card]
-    exact hupper' s hs_indep
-  · apply le_csSup hbdd hmem
-
 @[simp] theorem indepNum_disjUnion : (G ⊕g H).indepNum = G.indepNum + H.indepNum := by
   classical
   show (G ⊕g H).toSimple.indepNum = G.toSimple.indepNum + H.toSimple.indepNum
@@ -2437,6 +2286,59 @@ theorem indepNum_le_of_forall_card_le {G : CGraph} {n : ℕ}
   show G.toSimple.indepNum ≤ n
   rw [← hcard]
   exact h s hs
+
+/-- **Half the vertices of a cycle, rounded down**: the odd labels are independent, and shifting
+an independent set by one step around the cycle lands it on fresh vertices, so it uses at most
+half of them. -/
+@[simp] theorem indepNum_cycle (n : ℕ) : (cycle (n + 3)).indepNum = (n + 3) / 2 := by
+  classical
+  set m := n + 3 with hm
+  -- Consecutive labels are adjacent.
+  have hstep : ∀ u : Fin m, (cycle m).toSimple.Adj u (u + 1) := by
+    intro u
+    have hu := u.isLt
+    have hval : ((u + 1 : Fin m)).1 = (u.1 + 1) % m := by
+      simp [Fin.val_add, Nat.mod_eq_of_lt (show 1 < m by omega)]
+    have hne : u.1 ≠ (u.1 + 1) % m := by
+      rcases eq_or_lt_of_le (show u.1 + 1 ≤ m from hu) with h | h
+      · rw [h, Nat.mod_self]; omega
+      · rw [Nat.mod_eq_of_lt h]; omega
+    rw [toSimple_adj, cycle_adj_val, hval]
+    exact ⟨hne, Or.inl rfl⟩
+  -- Shifting an independent set by one lands it off itself, so it has at most `m / 2` elements.
+  have hupper : ∀ s : Finset (Fin m), (cycle m).toSimple.IsIndepSet (s : Set (Fin m)) →
+      s.card ≤ m / 2 := by
+    intro s hs
+    let shift : Fin m ↪ Fin m := ⟨fun y ↦ y + 1, fun a b h ↦ add_right_cancel h⟩
+    have hdisj : Disjoint s (s.map shift) := by
+      rw [Finset.disjoint_left]
+      intro z hz hz'
+      obtain ⟨y, hy, hyz⟩ := Finset.mem_map.1 hz'
+      have hyz' : y + 1 = z := hyz
+      subst hyz'
+      exact hs hy hz (hstep y).ne (hstep y)
+    have hcard : (s ∪ s.map shift).card = 2 * s.card := by
+      rw [Finset.card_union_of_disjoint hdisj, Finset.card_map, two_mul]
+    have h2 : 2 * s.card ≤ m := hcard ▸ le_trans (Finset.card_le_univ _) (by simp)
+    omega
+  refine le_antisymm (indepNum_le_of_forall_card_le hupper) ?_
+  -- The odd labels `1, 3, …` are pairwise non-adjacent.
+  have hodd : ∀ a : Fin (m / 2), 2 * a.1 + 1 < m := fun a ↦ by have := a.isLt; omega
+  have key : ∀ k l : ℕ, 2 * k + 1 < m → (2 * k + 1 + 1) % m ≠ 2 * l + 1 := by
+    intro k l hk
+    rcases eq_or_lt_of_le (show 2 * k + 1 + 1 ≤ m by omega) with h | h
+    · rw [← h, Nat.mod_self]; omega
+    · rw [Nat.mod_eq_of_lt h]; omega
+  have hkey := card_le_indepNum (G := cycle m)
+    (fun a : Fin (m / 2) ↦ (⟨2 * a.1 + 1, hodd a⟩ : Fin m)) ?_ ?_
+  · simpa using hkey
+  · intro a b hab
+    exact Fin.ext (by have := congrArg Fin.val hab; simp at this; omega)
+  · intro a b hab
+    rw [Bool.eq_false_iff, ne_eq, cycle_adj_val]
+    rintro ⟨-, h | h⟩
+    · exact key a.1 b.1 (hodd a) h
+    · exact key b.1 a.1 (hodd b) h
 
 /-- **Nordhaus–Gaddum for the clique number**: `ω(G) + α(G) ≤ |V| + 1`, since `ω ≤ χ` and
 `χ(G) + α(G) ≤ |V| + 1`.  Equality holds for both the complete and the edgeless graph. -/
