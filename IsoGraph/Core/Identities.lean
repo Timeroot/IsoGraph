@@ -620,6 +620,16 @@ theorem cycleEdges_nodup (m : ℕ) : (cycleEdges m).Nodup := by
   · rintro ⟨hab, hb⟩
     exact ⟨a, by omega, b, ⟨hb, hab⟩, rfl, rfl⟩
 
+/-- **The edge list of a clique repeats nothing**: it lists the pairs `(i, x)` with `i < x < m`
+grouped by their first entry, and within a group the second entries are distinct. -/
+theorem cliqueEdges_nodup (m : ℕ) : (cliqueEdges m).Nodup := by
+  rw [cliqueEdges]
+  refine List.nodup_flatMap.2 ⟨fun i _ ↦ (List.nodup_range.filter _).map fun a b h ↦ by
+    injection h, List.nodup_range.imp fun {i j} hij ↦ ?_⟩
+  simp only [Function.onFun, List.disjoint_left, List.mem_map]
+  rintro p ⟨a, -, rfl⟩ ⟨b, -, hb⟩
+  exact hij (congrArg Prod.fst hb).symm
+
 @[simp] theorem legEdges_zero (v off : ℕ) : legEdges v off 0 = [] := rfl
 
 /-- A leg of `k` fresh vertices hung off vertex `0`, when the fresh vertices start at `1`, is just

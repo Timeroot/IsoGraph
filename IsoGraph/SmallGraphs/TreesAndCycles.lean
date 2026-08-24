@@ -47,117 +47,28 @@ theorem E_doubleStar (m n : ℕ) : (doubleStar m n).E = m + n + 1 := by
   rw [CGraph.E_ofEdges _ _ hlt hbound hnup, hes]
   simp
 
-/-- The lollipop is a clique plus a path. -/
+/-- **The lollipop is a clique with a path stuck to it**: its edge list is the clique's followed
+by the leg's, and the two share no pair because the leg only ever mentions the fresh vertices. -/
 theorem E_lollipop (m k : ℕ) : (lollipop (m + 1) k).E = (m + 1).choose 2 + k := by
-  -- Helper: for ofEdges with a list of pairs (i,j) where i < j for all entries,
-  -- all indices < n, and the list is nodup, E = list.length.
-  -- Apply helper to lollipop
   simp only [lollipop, CGraph.lollipop, IsoGraph.E_mk]
-  have hvalid : (∀ p ∈ CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k, p.1 < p.2) := by
-    intro p hp
-    simp [List.mem_append] at hp
-    rcases hp with h | h
-    · rw [CGraph.mem_cliqueEdges] at h; exact h.1
-    · rw [CGraph.mem_legEdges] at h
-      rcases h with h | h
-      · rcases h with ⟨hp1, hp2, hk⟩; simp [hp1, hp2]
-      · rcases h with ⟨hoff, hp2, hlim⟩; simp [hp2]
+  have hlt : ∀ p ∈ CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k, p.1 < p.2 := by
+    rintro ⟨a, b⟩ hp
+    rcases List.mem_append.1 hp with h | h
+    · exact ((CGraph.mem_cliqueEdges _ _ _).1 h).1
+    · rcases (CGraph.mem_legEdges _ _ _ _ _).1 h with ⟨rfl, rfl, -⟩ | ⟨-, rfl, -⟩ <;> omega
   have hbound :
-      (∀ p ∈ CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k, p.2 < m + 1 + k) := by
-    intro p hp
-    simp [List.mem_append] at hp
-    rcases hp with h | h
-    · rw [CGraph.mem_cliqueEdges] at h; omega
-    · rw [CGraph.mem_legEdges] at h
-      rcases h with h | h
-      · rcases h with ⟨hp1, hp2, hk⟩; simp [hp2]; exact hk
-      · rcases h with ⟨hoff, hp2, hlim⟩; simp [hp2]; omega
-  have hclique_nodup : ∀ m, (CGraph.cliqueEdges m).Nodup := by
-    intro m
-    induction m with
-    | zero => simp [CGraph.cliqueEdges]
-    | succ n ih =>
-      unfold CGraph.cliqueEdges
-      have hsource : (List.range (n + 1)).Nodup := List.nodup_range
-      have hinners : ∀ i ∈ List.range (n + 1), ((List.filter (fun x => decide (i < x)) (List.range
-          (n + 1))).map (i, ·)).Nodup := by
-        intro i hi
-        have hsub : List.Sublist (List.filter (fun x => decide (i < x)) (List.range (n +
-            1))) (List.range (n + 1)) := List.filter_sublist
-        have hnup_inner := List.Sublist.nodup hsub hsource
-        exact List.Nodup.map (show Function.Injective (fun x : ℕ => (i, x)) from fun x y h =>
-            by injection h) hnup_inner
-      -- Now prove flatMap nodup
-      have hflat_nodup : ∀ {l : List ℕ}, l.Nodup → (∀ i ∈ l, ((List.filter (fun x => decide (i <
-          x)) (List.range (n + 1))).map (i, ·)).Nodup) →
-          (∀ i ∈ l, ∀ j ∈ l, i ≠ j → ∀ x, x ∈ ((List.filter (fun x => decide (i < x)) (List.range
-              (n + 1))).map (i, ·)) →
-            x ∉ ((List.filter (fun x => decide (j < x)) (List.range (n + 1))).map (j, ·))) →
-          (l.flatMap (fun i => (List.filter (fun x => decide (i < x)) (List.range (n + 1))).map (i,
-              ·))).Nodup := by
-        intro l hlnodup hinner hdj
-        induction l with
-        | nil => simp
-        | cons a l ihl =>
-          simp only [List.flatMap_cons]
-          apply List.Nodup.append
-          · exact hinner a List.mem_cons_self
-          · exact
-              ihl (List.nodup_cons.mp hlnodup).2 (fun i hi => hinner i (List.mem_cons_of_mem a hi))
-              (fun i hi j hj hij => hdj i (List.mem_cons_of_mem a hi) j (List.mem_cons_of_mem a hj)
-                  hij)
-          · intro x hx1 hx2
-            have ha_notin_l : a ∉ l := (List.nodup_cons.mp hlnodup).1
-            rcases List.mem_map.mp hx1 with ⟨b, hb1, hb2⟩
-            subst hb2
-            rcases List.mem_flatMap.mp hx2 with ⟨j, hj1, hj2⟩
-            rcases List.mem_map.mp hj2 with ⟨c, hc1, hc2⟩
-            have := Prod.ext_iff.mp hc2
-            rcases this with ⟨rfl, _⟩
-            exact ha_notin_l hj1
-      exact hflat_nodup hsource hinners (fun i hi j hj hij x hx1 hx2 => by
-        obtain ⟨a, _, ha2⟩ := List.mem_map.mp hx1
-        obtain ⟨b, _, hb2⟩ := List.mem_map.mp hx2
-        have hab : (i, a) = (j, b) := ha2.trans hb2.symm
-        have hij' : i = j := by simpa using congr_arg Prod.fst hab
-        exact hij hij'
-      )
-  have hleg_nodup : ∀ k, (CGraph.legEdges 0 (m + 1) k).Nodup := by
-    intro k; induction k with
-    | zero => simp [CGraph.legEdges_zero]
-    | succ j ih =>
-      simp [CGraph.legEdges_succ]
-      have : (List.range j).Nodup := List.nodup_range
-      exact List.Nodup.map (fun x y h => by injection h with h1 h2; omega) this
-  have hleg_len : ∀ k, (CGraph.legEdges 0 (m + 1) k).length = k := by
-    intro k; induction k with
-    | zero => simp [CGraph.legEdges_zero]
-    | succ j ih => simp [CGraph.legEdges_succ, List.length_cons]
-  have hnup : (CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k).Nodup := by
-    apply List.Nodup.append (hclique_nodup (m + 1)) (hleg_nodup k)
-    intro a ha1 ha2
-    -- a ∈ cliqueEdges (m+1) and a ∈ legEdges 0 (m+1) k
-    -- From mem_cliqueEdges: a.1 < a.2 < m+1
-    -- From mem_legEdges: (a.1 = 0 ∧ a.2 = m+1 ∧ 0 < k) ∨ (m+1 ≤ a.1 ∧ a.2 = a.1+1 ∧ a.1+1 < m+1+k)
-    -- Both cases give contradiction since a.2 < m+1 but legEdges requires a.2 ≥ m+1
-    rw [CGraph.mem_cliqueEdges] at ha1
-    rw [CGraph.mem_legEdges] at ha2
-    rcases ha2 with ⟨h1, h2, h3⟩ | ⟨hoff, hp2, hlim⟩
-    · -- (0, m+1) case: but cliqueEdges requires a.2 < m+1, i.e. m+1 < m+1, contradiction
-      rw [h1, h2] at ha1; omega
-    · -- (p, p+1) with m+1 ≤ p case: but cliqueEdges requires a.2 < m+1, i.e. p+1 < m+1,
-      -- contradiction with m+1 ≤ p
-      rw [hp2] at ha1; omega
-  have hclique_len : ∀ m, (CGraph.cliqueEdges m).length = m.choose 2 := by
-    intro m
-    have hvalid' : ∀ p ∈ CGraph.cliqueEdges m, p.1 < p.2 := by
-      intro p hp; rw [CGraph.mem_cliqueEdges] at hp; exact hp.1
-    have hbound' : ∀ p ∈ CGraph.cliqueEdges m, p.2 < m := by
-      intro p hp; rw [CGraph.mem_cliqueEdges] at hp; exact hp.2
-    have h1 := CGraph.E_ofEdges m (CGraph.cliqueEdges m) hvalid' hbound' (hclique_nodup m)
-    rw [CGraph.ofEdges_cliqueEdges, CGraph.E_complete] at h1
-    exact h1.symm
-  rw [CGraph.E_ofEdges (m + 1 + k) _ hvalid hbound hnup, List.length_append, hclique_len, hleg_len]
+      ∀ p ∈ CGraph.cliqueEdges (m + 1) ++ CGraph.legEdges 0 (m + 1) k, p.2 < m + 1 + k := by
+    rintro ⟨a, b⟩ hp
+    rcases List.mem_append.1 hp with h | h
+    · have := ((CGraph.mem_cliqueEdges _ _ _).1 h).2; omega
+    · rcases (CGraph.mem_legEdges _ _ _ _ _).1 h with ⟨rfl, rfl, hk⟩ | ⟨-, rfl, hlim⟩ <;> omega
+  have hdisj : List.Disjoint (CGraph.cliqueEdges (m + 1)) (CGraph.legEdges 0 (m + 1) k) := by
+    rintro ⟨a, b⟩ hc hl
+    have hb := ((CGraph.mem_cliqueEdges _ _ _).1 hc).2
+    rcases (CGraph.mem_legEdges _ _ _ _ _).1 hl with ⟨-, rfl, -⟩ | ⟨ha, rfl, -⟩ <;> omega
+  rw [CGraph.E_ofEdges _ _ hlt hbound (List.Nodup.append (CGraph.cliqueEdges_nodup _)
+    (CGraph.legEdges_nodup _ _ _) hdisj)]
+  simp
 
 /-- **The tadpole is a cycle plus a path**: `m + k` edges on `m + k` vertices.  The cycle edges run
 `(i, i + 1)` with one backward wrap, the leg edges run forward from `m + 3`, and no pair occurs
@@ -474,218 +385,109 @@ theorem maxDeg_doubleStar (m n : ℕ) : maxDeg (doubleStar m n) = max m n + 1 :=
     · rw [max_eq_left h]
       exact le_of_eq_of_le (hdeg0 ⟨0, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _)
 
+/-- The colouring that both `cliqueNum_lollipop` and `chromNum_lollipop` rest on: the clique takes
+the `m + 2` colours in order, and the leg alternates between the first two. -/
+private theorem chromNum_lollipop_le (m k : ℕ) :
+    (CGraph.lollipop (m + 2) k).chromNum ≤ m + 2 := by
+  rw [CGraph.chromNum_le_iff_colorable]
+  have : (m + 2) ≥ 2 := by omega
+  -- Define the coloring: clique vertices get color = their index, path vertices get alternating
+  -- colors 1,2
+  let f : Fin (m + 2 + k) → Fin (m + 2) := fun v =>
+    if h : v.val < m + 2 then ⟨v.val, by omega⟩
+    else ⟨1 - ((v.val - (m + 2)) % 2), by omega⟩
+  have hproper : ∀ {u v : Fin (m + 2 + k)},
+      (CGraph.ofEdges (m + 2 + k) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges 0 (m + 2)
+          k)).Adj u v = true →
+      f u ≠ f v := by
+    intro u v huv
+    rw [CGraph.ofEdges_adj_val] at huv
+    obtain ⟨hne, huv' | huv'⟩ := huv
+    · -- edge (u, v)
+      rw [List.mem_append] at huv'
+      rcases huv' with hu' | hv'
+      · -- u,v in clique
+        rw [CGraph.mem_cliqueEdges] at hu'
+        obtain ⟨hlt, hb⟩ := hu'
+        simp [f, show (u : ℕ) < m + 2 from hlt.trans hb, show (v : ℕ) < m + 2 from hb]
+        exact hne
+      · -- edge in legEdges
+        rw [CGraph.mem_legEdges] at hv'
+        rcases hv' with (⟨hu0, hvleg, hkpos⟩ | ⟨humble, hv_eq, hvbound⟩)
+        · -- (0, m+2): f 0 = 0, f (m+2) = 1 - 0 = 1
+          have hu0' : u = 0 := Fin.ext hu0
+          have hvleg' : v = ⟨m + 2, by omega⟩ := Fin.ext hvleg
+          simp [f, hu0', hvleg']
+        · -- (u, u+1) in path: both ≥ m+2, offsets j and j+1 have different parities
+          have hu_ge : m + 2 ≤ (u : ℕ) := humble
+          have hv_eq' : (v : ℕ) = (u : ℕ) + 1 := hv_eq
+          simp [f, show ¬((u : ℕ) < m + 2) from by omega,
+                show ¬((v : ℕ) < m + 2) from by omega]
+          rw [hv_eq']
+          set j : ℕ := (u : ℕ) - (m + 2)
+          simp [show (↑u + 1 - (m + 2) : ℕ) = j + 1 from by omega]
+          have hm2 : 2 ≤ m + 2 := this
+          rcases Nat.mod_two_eq_zero_or_one j with h | h <;> simp [h] <;> omega
+    · -- edge (v, u): handle symmetrically
+      rw [List.mem_append] at huv'
+      rcases huv' with hv' | hu'
+      · rw [CGraph.mem_cliqueEdges] at hv'
+        obtain ⟨hlt, hb⟩ := hv'
+        simp [f, show (v : ℕ) < m + 2 from hlt.trans hb, show (u : ℕ) < m + 2 from hb]
+        exact hne
+      · rw [CGraph.mem_legEdges] at hu'
+        rcases hu' with (⟨hu0, hvleg, hkpos⟩ | ⟨humble, hu_eq, hvbound⟩)
+        · -- (m+2, 0): f (m+2) = 1, f 0 = 0
+          have hv0' : v = 0 := Fin.ext hu0
+          have huleg' : u = ⟨m + 2, by omega⟩ := Fin.ext hvleg
+          simp [f, hv0', huleg']
+        · -- (v, v+1) in path swapped: u = v+1, both ≥ m+2
+          have hv_ge : m + 2 ≤ (v : ℕ) := humble
+          simp [f, show ¬((v : ℕ) < m + 2) from by omega,
+                show ¬((u : ℕ) < m + 2) from by omega]
+          rw [hu_eq]
+          set j : ℕ := (v : ℕ) - (m + 2)
+          simp [show (↑v + 1 - (m + 2) : ℕ) = j + 1 from by omega]
+          have hm2 : 2 ≤ m + 2 := this
+          rcases Nat.mod_two_eq_zero_or_one j with h | h <;> simp [h] <;> omega
+  unfold CGraph.toSimple
+  show SimpleGraph.Colorable _ _
+  refine ⟨SimpleGraph.Coloring.mk f (fun {u v} huv ↦ hproper ?_)⟩
+  simp [CGraph.lollipop] at huv
+  exact huv
+
+/-- The clique a lollipop is built from is a clique of it. -/
+private theorem le_cliqueNum_lollipop (m k : ℕ) :
+    m + 2 ≤ (CGraph.lollipop (m + 2) k).cliqueNum := by
+  have h := CGraph.card_le_cliqueNum (G := CGraph.lollipop (m + 2) k)
+    (fun i : Fin (m + 2) ↦ (⟨i.val, by omega⟩ : Fin (m + 2 + k))) ?_ ?_
+  · simpa using h
+  · have key : ∀ (x y : ℕ) (hx : x < m + 2 + k) (hy : y < m + 2 + k),
+        (⟨x, hx⟩ : Fin (m + 2 + k)) = ⟨y, hy⟩ → x = y := fun _ _ _ _ h ↦ congrArg Fin.val h
+    intro a b hab
+    dsimp only at hab
+    exact Fin.ext (key _ _ _ _ hab)
+  · intro i j hij
+    have hne : (i : ℕ) ≠ (j : ℕ) := fun heq ↦ hij (Fin.ext heq)
+    show (CGraph.ofEdges (m + 2 + k)
+      (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges 0 (m + 2) k)).Adj _ _ = true
+    rw [CGraph.ofEdges_adj_val]
+    refine ⟨fun heq ↦ hne heq, ?_⟩
+    rcases lt_or_gt_of_ne hne with h | h
+    · exact Or.inl (List.mem_append_left _ ((CGraph.mem_cliqueEdges _ _ _).2 ⟨h, j.2⟩))
+    · exact Or.inr (List.mem_append_left _ ((CGraph.mem_cliqueEdges _ _ _).2 ⟨h, i.2⟩))
+
 /-- The clique a lollipop is built from is its largest. -/
 theorem cliqueNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).cliqueNum = m + 2 := by
   simp only [IsoGraph.lollipop_def, IsoGraph.cliqueNum_mk]
-  -- Work at CGraph level
-  let G : CGraph := CGraph.lollipop (m + 2) k
-  -- Helper: bound all clique sizes
-  let bdd : BddAbove {n : ℕ | ∃ s : Finset G.V, G.toSimple.IsNClique n s} :=
-    ⟨FinEnum.card G.V, fun n hn => by
-      obtain ⟨s, hs⟩ := hn
-      exact hs.card_eq ▸ FinEnum.card_le s⟩
-  have hnonempty : ({n : ℕ | ∃ s : Finset G.V, G.toSimple.IsNClique n s}).Nonempty :=
-    ⟨0, ∅, by simp⟩
-  have hlower : (m + 2 : ℕ) ≤ G.cliqueNum := by
-    unfold CGraph.cliqueNum SimpleGraph.cliqueNum
-    apply le_csSup bdd
-    let emb : Fin (m + 2) → G.V := fun i => ⟨i.val, by omega⟩
-    let s := Finset.image emb Finset.univ
-    have hemb_inj : Function.Injective emb := by
-      intro a b h
-      have := congr_arg Fin.val h
-      simp [emb] at this
-      exact Fin.ext this
-    have hs_card : s.card = m + 2 := by
-      simp [s, Finset.card_image_of_injective _ hemb_inj, Finset.card_univ]
-    have hs_clique : G.toSimple.IsClique (s : Set G.V) := by
-      intro u hu v hv huv
-      simp [s] at hu hv
-      obtain ⟨au, _, rfl⟩ := hu
-      obtain ⟨av, _, rfl⟩ := hv
-      change (CGraph.ofEdges (m + 2 + k) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges 0 (m + 2)
-          k)).Adj ⟨au.val, by omega⟩ ⟨av.val, by omega⟩ = true
-      rw [CGraph.ofEdges_adj_val]
-      refine ⟨?_, ?_⟩
-      · intro heq; exact huv (Fin.ext heq)
-      · rcases lt_or_gt_of_ne (show au.val ≠ av.val from fun heq => huv (Fin.ext heq)) with h | h
-        · left; exact List.mem_append_left _ (CGraph.mem_cliqueEdges _ _ _ |>.mpr ⟨h, av.2⟩)
-        · right; exact List.mem_append_left _ (CGraph.mem_cliqueEdges _ _ _ |>.mpr ⟨h, au.2⟩)
-    exact ⟨s, ⟨hs_clique, hs_card⟩⟩
-  have hcolorable : G.toSimple.Colorable (m + 2) := by
-    let color : Fin (m + 2 + k) → Fin (m + 2) := fun v =>
-      if h : v.val < m + 2 then ⟨v.val, by omega⟩
-      else if ((v.val - (m + 2)) % 2) = 0 then ⟨1, by omega⟩
-      else ⟨0, by omega⟩
-    -- Key lemma: consecutive leg vertices (as Fin) have different colors
-    have leg_diff : ∀ (p : Fin (m + 2 + k)) (hp_bound : p.val + 1 < m + 2 + k),
-        m + 2 ≤ p.val → color p ≠ color ⟨p.val + 1, hp_bound⟩ := by
-      intro p hp_bound hp
-      show color p ≠ color ⟨p.val + 1, hp_bound⟩
-      unfold color
-      have hnot_lt : ¬(p.val < m + 2) := not_lt.mpr hp
-      have hnot_lt2 : ¬(p.val + 1 < m + 2) := by omega
-      simp only [hnot_lt, hnot_lt2]
-      set off := p.val - (m + 2)
-      have : (p.val + 1 : ℕ) - (m + 2) = off + 1 := by omega
-      have : (p.val : ℕ) - (m + 1) = off + 1 := by omega
-      simp [*]
-      rcases Nat.mod_two_eq_zero_or_one off with h | h <;> simp [h, Nat.add_mod]
-    have colorable_all : ∀ (u v : Fin (m + 2 + k)), G.Adj u v → color u ≠ color v := by
-      intro u v huv
-      change (CGraph.ofEdges (m + 2 + k) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges 0 (m + 2)
-          k)).Adj u v at huv
-      rw [CGraph.ofEdges_adj_val] at huv
-      rcases huv with ⟨hne, heng | heng⟩
-      clear G hlower bdd hnonempty
-      · rw [List.mem_append] at heng
-        rcases heng with h | h
-        · -- clique edge: u < v < m+2
-          have hclique := (CGraph.mem_cliqueEdges _ _ _ |>.mp h)
-          have hvll : v.val < m + 2 := hclique.2
-          have hull_u : u.val < m + 2 := by omega
-          simp [color, hull_u, hvll]
-          intro heq
-          exact hne (congr_arg Fin.val (Fin.val_inj.mp heq))
-        · -- leg edge (u, v): either (0, m+2) or (p, p+1)
-          rw [CGraph.mem_legEdges] at h
-          rcases h with h0 | hpath
-          · obtain ⟨hu0, hv0, hk⟩ := h0
-            simp [color, hu0, hv0]
-          · obtain ⟨hu_ge, hv_eq, hu_lt⟩ := hpath
-            have hv_fin : v = ⟨u.val + 1, by omega⟩ := by
-              apply Fin.ext; simp; omega
-            rw [hv_fin]
-            exact leg_diff u hu_lt hu_ge
-      · rw [List.mem_append] at heng
-        rcases heng with h | h
-        · -- clique edge (v, u): v < u < m+2
-          have hclique_vu := (CGraph.mem_cliqueEdges _ _ _ |>.mp h)
-          have hvull : v.val < m + 2 := by omega
-          have hull_u : u.val < m + 2 := hclique_vu.2
-          simp [color, hvull, hull_u]
-          intro heq
-          exact hne (congr_arg Fin.val (Fin.val_inj.mp heq))
-        · -- leg edge (v, u): v=p, u=p+1
-          rw [CGraph.mem_legEdges] at h
-          rcases h with h0 | hpath
-          · obtain ⟨hv0, hu0, hk⟩ := h0
-            simp [color, hv0, hu0]
-          · obtain ⟨hv_ge, hu_eq, hv_lt⟩ := hpath
-            have hu_fin : u = ⟨v.val + 1, by omega⟩ := by
-              apply Fin.ext; simp; omega
-            rw [hu_fin]
-            exact (leg_diff v hv_lt hv_ge).symm
-    exact ⟨SimpleGraph.Coloring.mk color
-        (by intro u v huv; exact colorable_all u v (by rw [CGraph.toSimple_adj] at huv; exact huv))⟩
-  have hchrom : G.chromNum ≤ m + 2 := by
-    rw [CGraph.chromNum_le_iff_colorable]
-    exact hcolorable
-  have hupper : G.cliqueNum ≤ m + 2 :=
-    le_trans (CGraph.cliqueNum_le_chromNum G) hchrom
-  exact le_antisymm hupper hlower
+  exact le_antisymm ((CGraph.cliqueNum_le_chromNum _).trans (chromNum_lollipop_le m k))
+    (le_cliqueNum_lollipop m k)
 
 /-- Greedily colouring the tail of a lollipop needs no colour beyond the clique's. -/
 theorem chromNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).chromNum = m + 2 := by
-  simp [IsoGraph.lollipop, IsoGraph.chromNum_mk]
-  rw [CGraph.chromNum_eq_iff]
-  -- We need: Colorable (m+2) and ∀ m', Colorable m' → m+2 ≤ m'
-  constructor
-  · -- Colorable with m+2 colors
-    have : (m + 2) ≥ 2 := by omega
-    -- Define the coloring: clique vertices get color = their index, path vertices get alternating
-    -- colors 1,2
-    let f : Fin (m + 2 + k) → Fin (m + 2) := fun v =>
-      if h : v.val < m + 2 then ⟨v.val, by omega⟩
-      else ⟨1 - ((v.val - (m + 2)) % 2), by omega⟩
-    have hproper : ∀ {u v : Fin (m + 2 + k)},
-        (CGraph.ofEdges (m + 2 + k) (CGraph.cliqueEdges (m + 2) ++ CGraph.legEdges 0 (m + 2)
-            k)).Adj u v = true →
-        f u ≠ f v := by
-      intro u v huv
-      rw [CGraph.ofEdges_adj_val] at huv
-      obtain ⟨hne, huv' | huv'⟩ := huv
-      · -- edge (u, v)
-        rw [List.mem_append] at huv'
-        rcases huv' with hu' | hv'
-        · -- u,v in clique
-          rw [CGraph.mem_cliqueEdges] at hu'
-          obtain ⟨hlt, hb⟩ := hu'
-          simp [f, show (u : ℕ) < m + 2 from hlt.trans hb, show (v : ℕ) < m + 2 from hb]
-          exact hne
-        · -- edge in legEdges
-          rw [CGraph.mem_legEdges] at hv'
-          rcases hv' with (⟨hu0, hvleg, hkpos⟩ | ⟨humble, hv_eq, hvbound⟩)
-          · -- (0, m+2): f 0 = 0, f (m+2) = 1 - 0 = 1
-            have hu0' : u = 0 := Fin.ext hu0
-            have hvleg' : v = ⟨m + 2, by omega⟩ := Fin.ext hvleg
-            simp [f, hu0', hvleg']
-          · -- (u, u+1) in path: both ≥ m+2, offsets j and j+1 have different parities
-            have hu_ge : m + 2 ≤ (u : ℕ) := humble
-            have hv_eq' : (v : ℕ) = (u : ℕ) + 1 := hv_eq
-            simp [f, show ¬((u : ℕ) < m + 2) from by omega,
-                  show ¬((v : ℕ) < m + 2) from by omega]
-            rw [hv_eq']
-            set j : ℕ := (u : ℕ) - (m + 2)
-            simp [show (↑u + 1 - (m + 2) : ℕ) = j + 1 from by omega]
-            have hm2 : 2 ≤ m + 2 := this
-            rcases Nat.mod_two_eq_zero_or_one j with h | h <;> simp [h] <;> omega
-      · -- edge (v, u): handle symmetrically
-        rw [List.mem_append] at huv'
-        rcases huv' with hv' | hu'
-        · rw [CGraph.mem_cliqueEdges] at hv'
-          obtain ⟨hlt, hb⟩ := hv'
-          simp [f, show (v : ℕ) < m + 2 from hlt.trans hb, show (u : ℕ) < m + 2 from hb]
-          exact hne
-        · rw [CGraph.mem_legEdges] at hu'
-          rcases hu' with (⟨hu0, hvleg, hkpos⟩ | ⟨humble, hu_eq, hvbound⟩)
-          · -- (m+2, 0): f (m+2) = 1, f 0 = 0
-            have hv0' : v = 0 := Fin.ext hu0
-            have huleg' : u = ⟨m + 2, by omega⟩ := Fin.ext hvleg
-            simp [f, hv0', huleg']
-          · -- (v, v+1) in path swapped: u = v+1, both ≥ m+2
-            have hv_ge : m + 2 ≤ (v : ℕ) := humble
-            simp [f, show ¬((v : ℕ) < m + 2) from by omega,
-                  show ¬((u : ℕ) < m + 2) from by omega]
-            rw [hu_eq]
-            set j : ℕ := (v : ℕ) - (m + 2)
-            simp [show (↑v + 1 - (m + 2) : ℕ) = j + 1 from by omega]
-            have hm2 : 2 ≤ m + 2 := this
-            rcases Nat.mod_two_eq_zero_or_one j with h | h <;> simp [h] <;> omega
-    unfold CGraph.toSimple
-    show SimpleGraph.Colorable _ _
-    refine ⟨SimpleGraph.Coloring.mk f (fun {u v} huv ↦ hproper ?_)⟩
-    simp [CGraph.lollipop] at huv
-    exact huv
-  · -- Lower bound: lollipop contains a clique of size m+2, so chromNum ≥ m+2
-    have hlb : (m + 2 : ℕ) ≤ (CGraph.lollipop (m + 2) k).chromNum := by
-      have hchrom_le : (CGraph.complete (m + 2)).toSimple.chromaticNumber ≤ (CGraph.lollipop (m +
-          2) k).toSimple.chromaticNumber := by
-        apply SimpleGraph.chromaticNumber_mono_of_hom
-        refine ⟨Fin.castLE (by omega : m + 2 ≤ m + 2 + k), fun {a b} hab ↦ ?_⟩
-        simp only [CGraph.lollipop, CGraph.toSimple, CGraph.ofEdges_adj_val]
-        have hne : a.val ≠ b.val := by
-          intro he
-          have : a = b := Fin.ext he
-          simp [CGraph.complete, this] at hab
-        have ha : a.val < m + 2 := a.isLt
-        have hb : b.val < m + 2 := b.isLt
-        let f : Fin (m + 2) → Fin (m + 2 + k) := Fin.castLE (by omega : m + 2 ≤ m + 2 + k)
-        have hne2 : (f a).val ≠ (f b).val := by
-          simp [f, Fin.castLE]; exact hne
-        have hclique : ((f a).val, (f b).val) ∈ CGraph.cliqueEdges (m + 2) ∨
-          ((f b).val, (f a).val) ∈ CGraph.cliqueEdges (m + 2) := by
-          rcases lt_or_gt_of_ne hne with hlt | hlt
-          · left; rw [CGraph.mem_cliqueEdges]; exact ⟨hlt, hb⟩
-          · right; rw [CGraph.mem_cliqueEdges]; exact ⟨hlt, ha⟩
-        exact ⟨hne2, Or.elim hclique (fun h => Or.inl (List.mem_append_left _ h)) (fun h => Or.inr
-            (List.mem_append_left _ h))⟩
-      rw [CGraph.complete_toSimple, SimpleGraph.chromaticNumber_top,
-          ← FinEnum.card_eq_fintypeCard, CGraph.card_complete] at hchrom_le
-      rw [CGraph.chromNum]
-      exact ENat.toNat_le_toNat hchrom_le (CGraph.chromaticNumber_ne_top _)
-    intro m_1 hm_1
-    exact le_trans hlb (CGraph.chromNum_le_iff_colorable.mpr hm_1)
+  simp only [IsoGraph.lollipop_def, IsoGraph.chromNum_mk]
+  exact le_antisymm (chromNum_lollipop_le m k)
+    ((le_cliqueNum_lollipop m k).trans (CGraph.cliqueNum_le_chromNum _))
 
 /-- Every pendant of a double star, and nothing else. -/
 theorem indepNum_doubleStar (m n : ℕ) :
@@ -695,11 +497,7 @@ theorem indepNum_doubleStar (m n : ℕ) :
   -- V = m + n + 4
   have hV : FinEnum.card G.V = m + n + 4 := by
     simp [G, CGraph.card_doubleStar]; omega
-  -- Two disjoint edges: (0,2) and (1, m+3)
-  -- Any vertex cover needs ≥ 2 vertices, so coverNum ≥ 2, so indepNum ≤ V - 2 = m+n+2
-  -- Also pendants (≥2) form indep set of size m+n+2, so indepNum ≥ m+n+2
-  -- Key CGraph facts work at toSimple level
-  -- Step A: Indep set of size m+n+2 (pendants with val ≥ 2)
+  -- Step A: the pendants, the vertices numbered `2` and up, are independent
   let s : Finset G.V := Finset.univ.filter (fun v : G.V => 2 ≤ v.1)
   have hs_card : s.card = m + n + 2 := by
     have heq : s = Finset.image (fun i : Fin (m + n + 2) => ⟨i.val + 2, by omega⟩ : Fin (m + n + 2)
@@ -723,63 +521,29 @@ theorem indepNum_doubleStar (m n : ℕ) :
   have hindep_ge : m + n + 2 ≤ G.indepNum := by
     rw [← hs_card]
     exact hs_indep.card_le_indepNum
-  -- Step B: coverNum ≥ 2 (disjoint edges (0,2) and (1, m+3))  
-  have h_cover_02 : G.toSimple.Adj ⟨0, by omega⟩ ⟨2, by omega⟩ := by
-    simp [G, CGraph.toSimple_adj, CGraph.doubleStar_adj_val]
-  have h_cover_1_m3 : G.toSimple.Adj ⟨1, by omega⟩ ⟨2 + (m + 1), by omega⟩ := by
-    simp [G, CGraph.toSimple_adj, CGraph.doubleStar_adj_val]; omega
-  have h_disjoint : (⟨0, by omega⟩ : G.V) ≠ (⟨1, by omega⟩ : G.V) ∧
-      (⟨0, by omega⟩ : G.V) ≠ (⟨2 + (m + 1), by omega⟩ : G.V) ∧
-      (⟨2, by omega⟩ : G.V) ≠ (⟨1, by omega⟩ : G.V) ∧
-      (⟨2, by omega⟩ : G.V) ≠ (⟨2 + (m + 1), by omega⟩ : G.V) := by
-    simp [Fin.ext_iff]; omega
-  set a : G.V := ⟨0, by omega⟩
-  set b : G.V := ⟨2, by omega⟩
-  set c : G.V := ⟨1, by omega⟩
-  set d : G.V := ⟨2 + (m + 1), by omega⟩
-  have hab : G.toSimple.Adj a b := h_cover_02
-  have hcd : G.toSimple.Adj c d := h_cover_1_m3
-  have hdad : a ≠ b ∧ a ≠ d ∧ a ≠ c ∧ b ≠ c ∧ b ≠ d ∧ c ≠ d := by
-    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> intro h <;> have := congr_arg Fin.val h <;> simp [a, b, c,
-        d] at this <;> omega
-  have hge_pair : ∀ (u v : G.V), u ≠ v → 2 ≤ ({u, v} : Set G.V).encard := by
-    intro u v huv; rw [Set.encard_pair huv]
-  have le_two_of_mem {C : Set G.V} {u v : G.V} (huv : u ≠ v) (hu : u ∈ C) (hv : v ∈
-      C) : 2 ≤ C.encard := by
-    exact le_trans (hge_pair u v huv) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨hu,
-        Set.singleton_subset_iff.mpr hv⟩))
-  have hcover_ge_enat : 2 ≤ G.toSimple.vertexCoverNum := by
-    have hvc_lower : ∀ C : Set G.V, G.toSimple.IsVertexCover C → 2 ≤ C.encard := by
-      intro C hC
-      have ha_or_b : a ∈ C ∨ b ∈ C := hC hab
-      have hc_or_d : c ∈ C ∨ d ∈ C := hC hcd
-      rcases ha_or_b with ha | hb <;> rcases hc_or_d with hc | hd
-      · exact le_trans (hge_pair a c hdad.2.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨ha,
-          Set.singleton_subset_iff.mpr hc⟩))
-      · exact le_trans (hge_pair a d hdad.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨ha,
-          Set.singleton_subset_iff.mpr hd⟩))
-      · exact le_trans (hge_pair b c hdad.2.2.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr ⟨hb,
-          Set.singleton_subset_iff.mpr hc⟩))
-      · exact le_trans (hge_pair b d hdad.2.2.2.2.1) (Set.encard_mono (Set.insert_subset_iff.mpr
-          ⟨hb, Set.singleton_subset_iff.mpr hd⟩))
-    apply le_csInf
-    · exact ⟨_, ⟨Set.univ, rfl⟩⟩
-    · rintro _ ⟨C, rfl⟩
-      by_cases hC : G.toSimple.IsVertexCover C
-      · simp [hC]
-        exact hvc_lower C hC
-      · simp [hC]
-
-  have hcover_ge : 2 ≤ G.coverNum := by
-    have hfin : G.toSimple.vertexCoverNum ≠ ⊤ := by
-      have hcov : G.toSimple.IsVertexCover (Set.univ : Set
-          G.V) := fun x y _ => Or.inl (Set.mem_univ x)
-      have h1 := hcov.vertexCoverNum_le
-      have hne : (Set.univ : Set G.V).encard ≠ ⊤ := by simp [Set.encard_univ]
-      intro h; apply hne; exact le_antisymm le_top (h ▸ h1)
-    unfold CGraph.coverNum
-    apply ENat.toNat_le_toNat hcover_ge_enat hfin
-  
+  -- Step B: `{0, 2}` and `{1, m + 3}` are two disjoint edges, so `2 ≤ ν ≤ τ`
+  have hne : ∀ (x y : ℕ) (hx hy), x ≠ y → ((⟨x, hx⟩ : G.V) ≠ ⟨y, hy⟩) :=
+    fun _ _ _ _ h he ↦ h (congrArg Fin.val he)
+  have hmatch : 2 ≤ G.matchNum := by
+    have hkey := CGraph.card_le_matchNum (G := G)
+      (Sum.elim (fun _ : Unit ↦ (⟨0, by omega⟩ : G.V)) (fun _ : Unit ↦ (⟨1, by omega⟩ : G.V)))
+      (Sum.elim (fun _ : Unit ↦ (⟨2, by omega⟩ : G.V))
+        (fun _ : Unit ↦ (⟨2 + (m + 1), by omega⟩ : G.V))) ?_ ?_
+    · simpa using hkey
+    · rintro (⟨⟩ | ⟨⟩)
+      · simp [G, CGraph.doubleStar_adj_val]
+      · simp [G, CGraph.doubleStar_adj_val]
+        omega
+    · rintro (⟨⟩ | ⟨⟩) (⟨⟩ | ⟨⟩) hij <;> simp only [Sum.elim_inl, Sum.elim_inr]
+      · exact absurd rfl hij
+      · exact ⟨hne _ _ _ _ (by omega), hne _ _ _ _ (by omega), hne _ _ _ _ (by omega),
+          hne _ _ _ _ (by omega)⟩
+      · exact ⟨hne _ _ _ _ (by omega), hne _ _ _ _ (by omega), hne _ _ _ _ (by omega),
+          hne _ _ _ _ (by omega)⟩
+      · exact absurd rfl hij
+  have hcover_ge : 2 ≤ G.coverNum := le_trans hmatch (by
+    have := IsoGraph.matchNum_le_coverNum ⟦G⟧
+    simpa using this)
   -- Step C: Combine
   have hadd : G.coverNum + G.indepNum = FinEnum.card G.V :=
     CGraph.coverNum_add_indepNum G

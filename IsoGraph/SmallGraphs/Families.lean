@@ -957,35 +957,7 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
   --Lower bound: ≥ 5 from V = 10, cliqueNum = 2
   have hV : petersen.V = 10 := by
     rw [petersen, V_kneser]; decide
-  have hclique : petersen.cliqueNum = 2 := by
-    show IsoGraph.cliqueNum (kneser 5 2) = 2
-    rw [IsoGraph.kneser, cliqueNum_mk]
-    refine Nat.le_antisymm ?_ ?_
-    · -- cliqueNum ≤ 2: no triangle in kneser 5 2 (3 pairwise disjoint 2-subsets need 6 elements)
-      dsimp only [SimpleGraph.cliqueNum]
-      apply csSup_le
-      · -- nonempty
-        exact ⟨0, ⟨∅, by simp⟩⟩
-      · -- upper bound: every clique has size ≤ 2
-        have hub : ∀ s : Finset (CGraph.kneser 5 2).V,
-            (CGraph.kneser 5 2).toSimple.IsNClique s.card s → s.card ≤ 2 := by
-          native_decide
-        intro b hb
-        obtain ⟨s, hs⟩ := hb
-        rw [← hs.card_eq]
-        exact hub s ⟨hs.isClique, rfl⟩
-    · -- 2 ≤ cliqueNum: edge exists
-      dsimp only [SimpleGraph.cliqueNum]
-      apply le_csSup
-      · -- bounded above: clique size ≤ card of V = 10
-        refine ⟨FinEnum.card (CGraph.kneser 5 2).V, fun n ⟨s, hs⟩ ↦ ?_⟩
-        rw [← hs.card_eq]
-        exact Finset.card_le_univ s
-      · -- 2 is in the set: the edge {{0,1}, {2,3}} is a 2-clique
-        let v0 : (CGraph.kneser 5 2).V := ⟨{0, 1}, by decide⟩
-        let v1 : (CGraph.kneser 5 2).V := ⟨{2, 3}, by decide⟩
-        refine ⟨{v0, v1}, ?_⟩
-        native_decide
+  have hclique : petersen.cliqueNum = 2 := cliqueNum_petersen
   have hlow : 5 ≤ petersen.cliqueCoverNum := by
     calc 5 = 10 / 2 := by decide
     _ ≤ petersen.cliqueCoverNum := by

@@ -1166,6 +1166,14 @@ theorem E_ofEdges (n : ℕ) (es : List (ℕ × ℕ)) (hlt : ∀ p ∈ es, p.1 < 
       omega)
     hnup
 
+/-- **A clique on `m` vertices contributes `m.choose 2` edges**, since its edge list is a sorted
+list of distinct pairs and `ofEdges` on it is `complete m`. -/
+@[simp] theorem length_cliqueEdges (m : ℕ) : (cliqueEdges m).length = m.choose 2 := by
+  have h := E_ofEdges m (cliqueEdges m) (fun ⟨a, b⟩ hp ↦ ((mem_cliqueEdges m a b).1 hp).1)
+    (fun ⟨a, b⟩ hp ↦ ((mem_cliqueEdges m a b).1 hp).2) (cliqueEdges_nodup m)
+  rw [ofEdges_cliqueEdges, E_complete] at h
+  exact h.symm
+
 /-! ### Theta graphs with two paths: the cycle -/
 
 /-- Adjacency in `cycle n`, phrased entirely in terms of the underlying naturals. -/
