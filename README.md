@@ -1146,6 +1146,27 @@ among the top `2k - 1` elements.  Specialised to `K(5, 2)` this gives `χ(peters
 `three_le_chromNum` from non-bipartiteness, `χ(petersen) = 3` exactly.  Finally the product form of
 Nordhaus–Gaddum, `|V| ≤ χ(G)·χ(Gᶜ)`, drops out of `|V| ≤ χ·α` and `α(G) = ω(Gᶜ) ≤ χ(Gᶜ)`.
 
+That greedy bound is tight — `χ(K(n, k)) = n - 2k + 2` is the Lovász–Kneser theorem — but the
+matching lower bound is a Borsuk–Ulam argument, which Mathlib does not have.  Two cases escape it.
+The fractional value `χ_f(K(n, k)) = n / k` forces `χ ≥ ⌈n / k⌉`, which meets `n - 2k + 2` exactly
+at `n = 2k` and `n = 2k + 1`, giving `chromNum_kneser_two_mul` and
+`chromNum_kneser_two_mul_add_one` (collected as `chromNum_kneser_of_le`).  And `k = 2` is
+elementary, which `chromNum_kneser_two : χ(K(n, 2)) = n - 2` for `n ≥ 4` now proves in full.  A
+colour class of `K(n, 2)` is a family of pairwise-meeting pairs, and such a family is either a
+*star* — all of its pairs through one point — or, if no point is common to all of them, three
+pairs inside a common triangle (`exists_triple_of_intersecting`, the two-element case of the
+sunflower dichotomy, proved by taking two pairs of the family and chasing where a third that
+misses their common point can go).  So a colouring with `m` colours has some `s` star classes,
+centred at a set `S` of `s ≤ m` points, and the remaining `m - s` classes hold at most three pairs
+each.  Every pair inside the complement of `S` is uncoloured by a star, so `C(n - s, 2) ≤ 3(m - s)`;
+with `n - s ≥ (m - s) + 3` whenever `n > m + 2` that is a contradiction, since `C(d + 3, 2) > 3d`.
+The whole count is `card_le_of_colouring_pairs`, stated on colourings of pairs rather than on
+graphs so that no junk values enter, and `le_chromNum_kneser_two` feeds it a colouring of the
+graph through `le_chromNum_iff`.  The first genuinely new value is `χ(K(6, 2)) = 4`, out of reach
+of the fractional bound (`χ_f = 3`); and since `T(n)` is the complement of `K(n, 2)`, the same
+theorem closes the clique cover bracket on the triangular graphs as
+`cliqueCoverNum_triangular_eq : κ(T(n)) = n - 2`.
+
 Two more invariants round out the degree material: `maxDeg` and `minDeg`, the largest and smallest
 vertex degree, wrapping Mathlib's `maxDegree` and `minDegree` (both `0` on the empty graph, which
 is the convention the rest of the file already uses).  Isomorphism invariance is Mathlib's
@@ -2408,7 +2429,9 @@ The clique cover row picks up the triangular graphs. `cliqueCoverNum_triangular`
 `compl_triangular` fed through `κ(G) = χ(Gᶜ)`: covering `L(Kₙ)` by cliques is colouring the Kneser
 graph `K(n, 2)`. Lovász' bound then gives `cliqueCoverNum_triangular_le : κ(L(K_{n+4})) ≤ n + 2`,
 and the smallest case is exact — `cliqueCoverNum_triangular_five = 3`, because `L(K₅)ᶜ` is the
-Petersen graph and `χ(Petersen) = 3`. `cliqueCoverNum_lexProduct_le` is the same trick on the
+Petersen graph and `χ(Petersen) = 3`. That bracket has since closed everywhere:
+`cliqueCoverNum_triangular_eq : κ(T(n)) = n - 2` for `n ≥ 4`, because the Kneser graph on pairs
+has `χ(K(n, 2)) = n - 2` (below). `cliqueCoverNum_lexProduct_le` is the same trick on the
 other side: `compl_lexProduct` says the complement of a lexicographic product is the lexicographic
 product of the complements, so `chromNum_lexProduct_le` transports verbatim into
 `κ(G · H) ≤ κ(G) · κ(H)`.
@@ -2864,6 +2887,28 @@ for binary codes of covering radius one — together with `le_domNum_kneser`, `d
 `two_mul_autCount_path_le_autCount_ladder`, and `maxDeg_lineGraph` — the line graph of a
 `k`-regular graph is `(2k − 2)`-regular — feeds the usual sandwich to give
 `le_edgeChromNum_lineGraph` and `edgeChromNum_lineGraph_le`.
+
+The ladder and prism brackets then close, one graph at a time, and the interesting part is which
+half is cheap. The upper half always is: an explicit dominating set and `decide` on
+`IsDominatingSet`, which is a bounded check over the vertices — `{(0,0), (2,1), (3,0), (5,1)}` for
+`L₆`, and so on. The lower half splits. The sphere bound `|V| ≤ γ(Δ + 1)` is tight exactly when a
+perfect dominating set can exist, which for these two families means an odd ladder or a prism on a
+multiple of four, and there `le_domNum_ladder` and `le_domNum_prism` finish in one line. The other
+cases — `L₄`, `L₆`, `Y₆` and `Paley 13` — need to *exhaust* the sets of the size the bound allows,
+and quantifying over `Finset G.V` is hopeless for the kernel: `2¹²` subsets of a twelve-vertex
+graph is not a `decide`. `lt_domNum_of_forall_tuple` replaces the subsets by tuples. If every
+`k`-tuple of vertices misses somebody — `∀ f : Fin k → V, ∃ v, ∀ i, v ≠ f i ∧ ¬ Adj (f i) v` —
+then no `k`-set dominates, and the search is `|V|^k` closed neighbourhood tests rather than a
+powerset. `one_lt_domNum`, `two_lt_domNum` and `three_lt_domNum` are the instances actually used,
+each stated with the tuple spelled out as two or three ordinary vertex variables so that `decide`
+sees nothing but nested `Fin` binders. That is `γ(L₃) = 2` through `γ(L₇) = 4`, `γ(Y₃) = 2`
+through `γ(Y₈) = 4` and `γ(Paley 5) = 2`, `γ(Paley 13) = γ(Paley 17) = 3`, all as `simp` lemmas.
+The closed forms `γ(Lₙ) = ⌊n/2⌋ + 1` and `γ(Yₙ) = n/2` for `4 ∣ n`, `⌊n/2⌋ + 1` otherwise, still
+want a discharging argument on the columns and are not proved. The Paley graphs stop at
+seventeen for the reason the method predicts: up to there the sphere bound leaves only a *pair* to
+rule out, and `q²` pairs is nothing, while at `q = 29` a pair is already impossible and it is a
+triple that has to be excluded — `29³` tuples, a search that costs more than the value is worth
+putting in the build.
 
 The triangle-count column falls out in one pass. `cliqueCount G 3` counts the triangles, and it
 vanishes as soon as the clique number is at most two, which for a bipartite graph is automatic:
@@ -6474,6 +6519,17 @@ perfection without either side of the equation being known in advance: both occu
 graph are rewritten by the one call. Gallai's identity comes along for the ride, so the minimum
 vertex cover of the forty-vertex graph above is `40 - 10 = 30` by the same tactic.
 
+Nothing in the machinery is specific to those four. Any invariant with a rule for the operations
+and a value on the atoms rides along, and the domination number is the case worth naming, because
+it is the one whose atoms were mostly missing. `γ` composes over the disjoint union by addition,
+and the atoms now supply the complete graphs, stars, wheels, fans, books, cocktail parties, rooks,
+complete bipartite graphs, Turán and triangular graphs, double stars, crowns, cycles and paths,
+hypercubes at three and four, Petersen, the Grötzsch graph and the Mycielskians, the small Paley
+graphs, and the ladders and prisms of `SmallGraphs/Brackets.lean` — so that `γ(L₅ ⊔ K₄) = 4` on
+twenty-four vertices is a `simp` call and not a search over `2²⁴` sets, and a goal naming both the
+six-rung prism and the seven-rung ladder is settled by an argument-free `compute_invariant`. The
+matching number rides along the same way.
+
 What makes this more involved than the spectrum is that the values live on both levels of the
 library. A family carries its invariants as `IsoGraph` theorems, while a graph named by an
 adjacency table carries them as `CGraph` theorems, since that is where the SAT witnesses are. So
@@ -6485,10 +6541,14 @@ theorem there. Which atoms to lift is a real choice and not a formality: `gp` is
 alone, because the atlas only ever emits `gp 10 2` when the graph is the dodecahedron, and lifting
 it would step over everything proved under that name.
 
-The honest limits, again: the chromatic number of a Kneser graph is the Lovász–Kneser theorem and
-is not in this library, so `kneser 7 3` comes back untouched; a graph the atlas cannot describe
-comes back as `ofEdges`; and the independence number of a cartesian product is not a function of
-the factors, so there is nothing to fire.
+The honest limits, again: the chromatic number of a Kneser graph is the Lovász–Kneser theorem,
+which this library has for `k = 2` and for `n ≤ 2k + 1` but not in general, so `kneser 8 3` comes
+back untouched; a graph the atlas cannot describe comes back as `ofEdges`; and the independence
+number of a cartesian product is not a function of the factors, so there is nothing to fire.
+
+Both tactics also take no argument at all, in which case they decompose every closed graph the
+goal mentions — the form to use when a goal names several, or one whose term is long enough that
+repeating it is a nuisance.
 
 `Decompose/Examples.lean` is the gallery: thirty-odd graphs built one way and recognised as
 another, each a theorem with a certificate rather than a table entry. The line graph of the cube
@@ -6734,7 +6794,8 @@ one; the torus with *two* odd sides is the opposite case, where the parity argum
 lower bound at `5` and it is the upper bound, `6`, that is loose.
 
 The rest are genuinely hard, or at least not cheap: the chromatic number of a Kneser graph
-(Lovász's theorem, so the `kneser` column stops at bounds and at the degenerate cases), the
+`K(n, k)` with `k ≥ 3` and `n ≥ 2k + 2` (Lovász's theorem in the cases where it needs Borsuk–Ulam;
+`k = 2`, `n < 2k` and `n ≤ 2k + 1` are all settled), the
 automorphism count for most families — `autCount` is settled for the empty, complete, path, Kneser,
 Johnson, circulant and lollipop families, for complements and, exactly and not just as a bound, for
 the star (`autCount_star`), the complete bipartite graphs (`autCount_bipartite` and

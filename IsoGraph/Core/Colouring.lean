@@ -2191,6 +2191,69 @@ theorem domNum_eq_one_of_universal {v : G.V} (h : ∀ u, u ≠ v → G.Adj v u) 
   have := G.domNum_pos h2
   omega
 
+/-! #### Lower bounds by exhaustion
+
+The degree bound below is the cheap lower bound on `γ`, and for a cubic graph on `2n` vertices it
+is off by at most one.  Closing that last gap means ruling out *every* set of `k` vertices, and
+quantifying over `Finset`s is hopeless for the kernel — `2 ^ |V|` subsets, each with its own
+membership check.  `lt_domNum_of_forall_tuple` replaces the subsets by *tuples*: `k` vertices
+listed with repetition, `|V| ^ k` of them, and for each an escaping vertex.  Padding a small
+dominating set up to exactly `k` elements is what makes the two quantifications agree.
+
+The `Fin k → G.V` form is the one to prove things with; the numbered corollaries are the ones to
+`decide` with, since enumerating functions out of `Fin k` overflows the kernel where enumerating
+`k` separate variables does not. -/
+
+/-- **A domination lower bound by exhaustion.**  If for every `k`-tuple of vertices there is a
+vertex that is neither in the tuple nor adjacent to any of it, then no `k` vertices dominate. -/
+theorem lt_domNum_of_forall_tuple (G : CGraph) {k : ℕ} (hk : k ≤ FinEnum.card G.V)
+    (h : ∀ f : Fin k → G.V, ∃ v, ∀ i, v ≠ f i ∧ G.Adj (f i) v = false) : k < G.domNum := by
+  by_contra hle
+  push_neg at hle
+  obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
+  have hsk : s.card ≤ k := by omega
+  have hcardV : k ≤ Fintype.card G.V := by
+    show k ≤ (Finset.univ : Finset G.V).card
+    rwa [FinEnum.card_univ]
+  -- pad the minimum dominating set out to exactly `k` vertices and read it off as a tuple
+  obtain ⟨t, hst, htcard⟩ := Finset.exists_superset_card_eq hsk hcardV
+  set e := t.equivFin with he
+  obtain ⟨v, hv⟩ := h (fun i ↦ (e.symm (Fin.cast htcard.symm i) : G.V))
+  have hmem : ∀ u ∈ t, ∃ i : Fin k, (e.symm (Fin.cast htcard.symm i) : G.V) = u := by
+    intro u hu
+    refine ⟨Fin.cast htcard (e ⟨u, hu⟩), ?_⟩
+    simp
+  rcases hs v with hvs | ⟨u, hu, hadj⟩
+  · obtain ⟨i, hi⟩ := hmem v (hst hvs)
+    exact (hv i).1 hi.symm
+  · obtain ⟨i, hi⟩ := hmem u (hst hu)
+    subst hi
+    rw [(hv i).2] at hadj
+    exact Bool.noConfusion hadj
+
+/-- `γ ≥ 2` when no vertex is universal. -/
+theorem one_lt_domNum (G : CGraph) (hk : 1 ≤ FinEnum.card G.V)
+    (h : ∀ a : G.V, ∃ v, v ≠ a ∧ G.Adj a v = false) : 1 < G.domNum := by
+  refine lt_domNum_of_forall_tuple G hk fun f ↦ ?_
+  obtain ⟨v, h1, h2⟩ := h (f 0)
+  exact ⟨v, fun i ↦ by fin_cases i; exact ⟨by assumption, by assumption⟩⟩
+
+/-- `γ ≥ 3` when no two vertices dominate. -/
+theorem two_lt_domNum (G : CGraph) (hk : 2 ≤ FinEnum.card G.V)
+    (h : ∀ a b : G.V, ∃ v, v ≠ a ∧ v ≠ b ∧ G.Adj a v = false ∧ G.Adj b v = false) :
+    2 < G.domNum := by
+  refine lt_domNum_of_forall_tuple G hk fun f ↦ ?_
+  obtain ⟨v, h1, h2, h3, h4⟩ := h (f 0) (f 1)
+  exact ⟨v, fun i ↦ by fin_cases i <;> exact ⟨by assumption, by assumption⟩⟩
+
+/-- `γ ≥ 4` when no three vertices dominate. -/
+theorem three_lt_domNum (G : CGraph) (hk : 3 ≤ FinEnum.card G.V)
+    (h : ∀ a b c : G.V, ∃ v, v ≠ a ∧ v ≠ b ∧ v ≠ c ∧ G.Adj a v = false ∧ G.Adj b v = false
+      ∧ G.Adj c v = false) : 3 < G.domNum := by
+  refine lt_domNum_of_forall_tuple G hk fun f ↦ ?_
+  obtain ⟨v, h1, h2, h3, h4, h5, h6⟩ := h (f 0) (f 1) (f 2)
+  exact ⟨v, fun i ↦ by fin_cases i <;> exact ⟨by assumption, by assumption⟩⟩
+
 /-- **The degree bound** `|V| ≤ γ·(Δ + 1)`: each vertex of a dominating set covers itself and at
 most `Δ` neighbours. -/
 @[toIsoGraph V_le_domNum_mul_maxDeg_add_one]

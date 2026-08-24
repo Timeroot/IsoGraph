@@ -20,8 +20,8 @@ them is `decide`-able past a dozen vertices.  All four are compositional in the 
 disjoint union, the join and the complement have unconditional rules, the cartesian product has
 Sabidussi's theorem for `chromNum` and `cliqueNum`, and the lexicographic and tensor products have
 rules for the clique and independence numbers.  The tactic is invariant-agnostic — it also
-computes `V`, `E` and `numComponents`, and by Gallai's identity `coverNum_eq` the vertex cover
-number rides along with the independence number.  Two invariants come in through the line graph:
+computes `V`, `E`, `numComponents`, `matchNum` and the domination number `domNum`, and by Gallai's
+identity `coverNum_eq` the vertex cover number rides along with the independence number.  Two invariants come in through the line graph:
 the independence number of `L(G)` is the matching number of `G` and its chromatic number is the
 chromatic index, so a graph whose line graph the atlas can name gets those for free.
 
@@ -51,11 +51,16 @@ put the parity-dependent ones — the chromatic number of a cycle and the chroma
 complete graph — into a shape that fires on a numeral rather than on `2 * m + 3`.
 
 What it does not know it leaves alone, as `H.indepNum` for that `H`.  The gaps worth naming are
-the Kneser graphs, whose chromatic number is the Lovász–Kneser theorem and is not in the library;
-the graphs the atlas cannot describe at all, which come back as `ofEdges`; and the independence
-number of a cartesian product, which is not determined by the factors.  The domination number is
-a partial case: it is additive over disjoint unions and so composes, but few of the atoms have a
-value in the library for it to compose out of.
+the graphs the atlas cannot describe at all, which come back as `ofEdges`; the independence number
+of a cartesian product, which is not determined by the factors; and the chromatic number of a
+Kneser graph `K(n, k)` with `n ≥ 2k + 2` and `k ≥ 3`, where the full Lovász–Kneser theorem would
+be needed — the library proves the cases `k = 2` and `n ≤ 2k + 1`, which `chromNum_kneser_of_le`
+and `chromNum_kneser_two` put in numeral-friendly shape.  The domination number composes over
+disjoint unions and has a value for most of the atoms, but not for the ladders and prisms beyond
+the seven or eight rungs of `SmallGraphs/Brackets.lean`, nor for a Paley graph past `q = 17`.
+
+Called with no argument, `compute_invariant` decomposes every closed graph in the goal, which is
+the form to use when the goal names several.
 -/
 
 set_option autoImplicit false
@@ -101,12 +106,12 @@ the independence, clique, chromatic and clique cover numbers, and also the order
 number of components.  The decomposition is checked by the kernel and the rules are theorems, so
 the answer is a proof and not a computation on the adjacency table — which is the point, since
 these are the invariants no adjacency table of interesting size will give up to `decide`. -/
-syntax (name := computeInvariant) "compute_invariant" ppSpace term : tactic
+syntax (name := computeInvariant) "compute_invariant" (ppSpace term)? : tactic
 
 macro_rules
-  | `(tactic| compute_invariant $t:term) =>
+  | `(tactic| compute_invariant $[$t?]?) =>
     `(tactic|
-      (decompose_graph $t
+      (decompose_graph $[$t?]?
        try simp only [← IsoGraph.disjUnion_mk, ← IsoGraph.join_mk, ← IsoGraph.compl_mk,
          ← IsoGraph.cartesianProduct_mk, ← IsoGraph.tensorProduct_mk,
          ← IsoGraph.strongProduct_mk, ← IsoGraph.lexProduct_mk, ← IsoGraph.mycielskian_mk,
@@ -118,7 +123,17 @@ macro_rules
          IsoGraph.chromNum_cycle_ite, IsoGraph.edgeChromNum_complete_ite,
          IsoGraph.indepNum_triangular, IsoGraph.chromNum_triangular,
          IsoGraph.cliqueCoverNum_triangular, IsoGraph.indepNum_crown,
-         ← IsoGraph.compl_cocktailParty]
+         ← IsoGraph.compl_cocktailParty, IsoGraph.indepNum_kneser,
+         IsoGraph.chromNum_kneser_of_le, IsoGraph.chromNum_kneser_of_lt,
+         IsoGraph.chromNum_kneser_two, IsoGraph.domNum_disjUnion, IsoGraph.domNum_empty,
+         IsoGraph.domNum_complete, IsoGraph.domNum_star,
+         IsoGraph.domNum_wheel, IsoGraph.domNum_fan, IsoGraph.domNum_book,
+         IsoGraph.domNum_cocktailParty, IsoGraph.domNum_rook, IsoGraph.domNum_bipartite,
+         IsoGraph.domNum_triangular, IsoGraph.domNum_turan, IsoGraph.domNum_doubleStar,
+         IsoGraph.domNum_johnson_one, IsoGraph.domNum_kneser_of_lt,
+         IsoGraph.domNum_hypercube_three,
+         IsoGraph.domNum_hypercube_four, IsoGraph.domNum_kneser_two, IsoGraph.domNum_petersen,
+         IsoGraph.domNum_grotzsch, IsoGraph.domNum_mycielskian]
        all_goals try norm_num [Nat.choose]))
 
 end CGraph.Decompose
@@ -216,3 +231,35 @@ triangle adds one. -/
 example : IsoGraph.indepNum
     (Quotient.mk CGraph.isoSetoid (CGraph.gp 10 2 ⊕g CGraph.complete 3)) = 9 := by
   compute_invariant (CGraph.gp 10 2 ⊕g CGraph.complete 3)
+
+/-- **A domination number on twenty-four vertices.**  Dominating a disjoint union means dominating
+each piece, `γ(L₅) = 3` is a bracket closed in `SmallGraphs/Brackets.lean` and `γ(K₄) = 1`, so the
+answer is four — against a search over `2 ^ 24` sets. -/
+example : IsoGraph.domNum (Quotient.mk CGraph.isoSetoid (CGraph.ladder 5 ⊕g CGraph.complete 4))
+    = 4 := by
+  compute_invariant (CGraph.ladder 5 ⊕g CGraph.complete 4)
+
+/-- **The Lovász–Kneser theorem for pairs, applied.**  `χ(K(6, 2)) = 4` is the first value of
+`chromNum_kneser_two` that the fractional bound cannot reach, and the tactic reads it off the
+atlas' recognition of the adjacency table. -/
+example : IsoGraph.chromNum (Quotient.mk CGraph.isoSetoid (CGraph.kneser 6 2)) = 4 := by
+  compute_invariant (CGraph.kneser 6 2)
+
+/-- **The chromatic index of `K₆` is five**, the same theorem read three identifications away: the
+line graph of `K₆` is the triangular graph `T(6)`, whose clique cover number is the chromatic
+number of its complement `K(6, 2)`. -/
+example : IsoGraph.cliqueCoverNum (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph (CGraph.complete 6)))
+    = 4 := by
+  compute_invariant (CGraph.lineGraph (CGraph.complete 6))
+
+/-- **Two graphs in one goal.**  Called with no argument, the tactic decomposes every closed graph
+the goal mentions: here the six-rung prism and the seven-rung ladder, each with its own bracket. -/
+example : IsoGraph.domNum (Quotient.mk CGraph.isoSetoid (CGraph.prism 6))
+    + IsoGraph.domNum (Quotient.mk CGraph.isoSetoid (CGraph.ladder 7)) = 8 := by
+  compute_invariant
+
+/-- The tactic is not tied to the four hard invariants: a matching number composes over a disjoint
+union like everything else, and `ν(C₇) = 3` and `ν(K₆) = 3` are table entries. -/
+example : IsoGraph.matchNum (Quotient.mk CGraph.isoSetoid (CGraph.cycle 7 ⊕g CGraph.complete 6))
+    = 6 := by
+  compute_invariant (CGraph.cycle 7 ⊕g CGraph.complete 6)

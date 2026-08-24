@@ -799,6 +799,42 @@ theorem domNum_paley_le (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
   have h := domNum_add_maxDeg_le_V (paley q)
   rwa [V_paley, maxDeg_paley q hq] at h
 
+set_option maxRecDepth 100000 in
+/-- **γ(Paley 5) = 2.**  The smallest Paley graph is the pentagon, and one vertex of a pentagon
+misses the two opposite it. -/
+@[simp] theorem domNum_paley_five : (paley 5).domNum = 2 := by
+  rw [show (paley 5 : IsoGraph) = ⟦CGraph.paley 5⟧ from rfl, domNum_mk]
+  refine Nat.le_antisymm ?_ ?_
+  · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({0, 2} : Finset (Fin 5)))) (by decide)) (by decide)
+  · have := CGraph.one_lt_domNum (CGraph.paley 5) (by decide) (by decide)
+    omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(Paley 13) = 3.**  The bracket above only says `2 ≤ γ ≤ 7`: thirteen vertices of degree six
+leave room for a dominating pair, and there is none, but `{0, 2, 7}` does dominate. -/
+@[simp] theorem domNum_paley_thirteen : (paley 13).domNum = 3 := by
+  rw [show (paley 13 : IsoGraph) = ⟦CGraph.paley 13⟧ from rfl, domNum_mk]
+  refine Nat.le_antisymm ?_ ?_
+  · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({0, 2, 7} : Finset (Fin 13)))) (by decide)) (by decide)
+  · have := CGraph.two_lt_domNum (CGraph.paley 13) (by decide) (by decide)
+    omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(Paley 17) = 3.**  Seventeen vertices of degree eight also leave room for a dominating
+pair, and again there is none; `{0, 3, 6}` dominates, so the exponent of the bracket is met on the
+same side as at thirteen.  The exhaustion is over `q ^ 2` pairs, so it is the last Paley graph the
+library settles: at `q = 29` a pair is out of the question but a *triple* has to be ruled out, and
+that search is cubic. -/
+@[simp] theorem domNum_paley_seventeen : (paley 17).domNum = 3 := by
+  rw [show (paley 17 : IsoGraph) = ⟦CGraph.paley 17⟧ from rfl, domNum_mk]
+  refine Nat.le_antisymm ?_ ?_
+  · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({0, 3, 6} : Finset (Fin 17)))) (by decide)) (by decide)
+  · have := CGraph.two_lt_domNum (CGraph.paley 17) (by decide) (by decide)
+    omega
+
 /-- A cycle with pendant paths attached contains a cycle, so its girth is at least three. -/
 theorem three_le_girth_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3) :
     3 ≤ (cyclePendant (m + 3) ks).girth :=
@@ -923,6 +959,143 @@ theorem le_domNum_ladder (n : ℕ) : n + 3 ≤ 2 * (ladder (n + 3)).domNum := by
 theorem domNum_ladder_le (n : ℕ) : (ladder (n + 3)).domNum + 3 ≤ 2 * (n + 3) := by
   have h := domNum_add_maxDeg_le_V (ladder (n + 3))
   rw [V_ladder, maxDeg_ladder] at h
+  omega
+
+/-! ### Where the ladder and prism brackets close
+
+`γ(Lₙ) = ⌊n/2⌋ + 1` and `γ(Pₙ) = n/2` for `n ≡ 0 (mod 4)`, `⌊n/2⌋ + 1` otherwise, are the textbook
+formulas; neither is proved here, because the even lower bounds need a discharging argument on the
+columns.  What *is* proved is every value up to seven or eight rungs, and the two proofs of each
+are the two halves of the bracket: an explicit dominating set for the upper bound, and either the
+degree bound `n ≤ 2γ` above or `three_lt_domNum` — an exhaustion over triples of vertices — for
+the lower one.  The degree bound is tight exactly when the ladder has an odd number of rungs and
+when the prism has a multiple of four, which is to say exactly when a perfect dominating set can
+exist.
+-/
+
+set_option maxRecDepth 100000 in
+/-- **γ(L₃) = 2**: one vertex of the first rung and the far vertex of the last. -/
+@[simp] theorem domNum_ladder_three : (ladder 3).domNum = 2 := by
+  have hle : (ladder 3).domNum ≤ 2 := by
+    rw [show (ladder 3 : IsoGraph) = ⟦CGraph.ladder 3⟧ from rfl, domNum_mk]
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 3), (0 : Fin 2)), (2, 1)}) : Finset (Fin 3 × Fin 2))) (by decide))
+      (by decide)
+  have hge := le_domNum_ladder 0
+  norm_num at hge
+  omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(L₄) = 3.**  The degree bound only gives two, and two vertices really do not suffice:
+whichever pair is chosen, some vertex escapes. -/
+@[simp] theorem domNum_ladder_four : (ladder 4).domNum = 3 := by
+  rw [show (ladder 4 : IsoGraph) = ⟦CGraph.ladder 4⟧ from rfl, domNum_mk]
+  refine Nat.le_antisymm ?_ ?_
+  · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 4), (0 : Fin 2)), (1, 1), (3, 0)}) : Finset (Fin 4 × Fin 2)))
+      (by decide)) (by decide)
+  · have := CGraph.two_lt_domNum (CGraph.ladder 4) (by decide) (by decide)
+    omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(L₅) = 3**, and the three chosen vertices form a perfect dominating set. -/
+@[simp] theorem domNum_ladder_five : (ladder 5).domNum = 3 := by
+  have hle : (ladder 5).domNum ≤ 3 := by
+    rw [show (ladder 5 : IsoGraph) = ⟦CGraph.ladder 5⟧ from rfl, domNum_mk]
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 5), (0 : Fin 2)), (2, 1), (4, 0)}) : Finset (Fin 5 × Fin 2))) (by decide))
+      (by decide)
+  have hge := le_domNum_ladder 2
+  norm_num at hge
+  omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(L₆) = 4**: again one more than the degree bound allows. -/
+@[simp] theorem domNum_ladder_six : (ladder 6).domNum = 4 := by
+  rw [show (ladder 6 : IsoGraph) = ⟦CGraph.ladder 6⟧ from rfl, domNum_mk]
+  refine Nat.le_antisymm ?_ ?_
+  · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 6), (0 : Fin 2)), (2, 1), (3, 0), (5, 1)}) : Finset (Fin 6 × Fin 2)))
+      (by decide)) (by decide)
+  · have := CGraph.three_lt_domNum (CGraph.ladder 6) (by decide) (by decide)
+    omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(L₇) = 4.** -/
+@[simp] theorem domNum_ladder_seven : (ladder 7).domNum = 4 := by
+  have hle : (ladder 7).domNum ≤ 4 := by
+    rw [show (ladder 7 : IsoGraph) = ⟦CGraph.ladder 7⟧ from rfl, domNum_mk]
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 7), (0 : Fin 2)), (2, 1), (4, 0), (6, 1)}) : Finset (Fin 7 × Fin 2)))
+      (by decide)) (by decide)
+  have hge := le_domNum_ladder 4
+  norm_num at hge
+  omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(K₃ □ K₂) = 2**: a vertex and a vertex of the other triangle not above it. -/
+@[simp] theorem domNum_prism_three : (prism 3).domNum = 2 := by
+  have hle : (prism 3).domNum ≤ 2 := by
+    rw [show (prism 3 : IsoGraph) = ⟦CGraph.prism 3⟧ from rfl, domNum_mk]
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 3), (0 : Fin 2)), (1, 1)}) : Finset (Fin 3 × Fin 2))) (by decide))
+      (by decide)
+  have hge := le_domNum_prism 0
+  norm_num at hge
+  omega
+
+/-- **γ(Q₃) = 2** read off the prism: `C₄ □ K₂` is the three-cube. -/
+@[simp] theorem domNum_prism_four : (prism 4).domNum = 2 := by
+  rw [← hypercube_three, domNum_hypercube_three]
+
+set_option maxRecDepth 100000 in
+/-- **γ(C₅ □ K₂) = 3.**  The Petersen graph has the same order, degree and domination number, but
+the two are not isomorphic. -/
+@[simp] theorem domNum_prism_five : (prism 5).domNum = 3 := by
+  have hle : (prism 5).domNum ≤ 3 := by
+    rw [show (prism 5 : IsoGraph) = ⟦CGraph.prism 5⟧ from rfl, domNum_mk]
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 5), (0 : Fin 2)), (2, 1), (4, 0)}) : Finset (Fin 5 × Fin 2))) (by decide))
+      (by decide)
+  have hge := le_domNum_prism 2
+  norm_num at hge
+  omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(C₆ □ K₂) = 4**, one more than the degree bound: six is not a multiple of four, so the
+prism has no perfect dominating set. -/
+@[simp] theorem domNum_prism_six : (prism 6).domNum = 4 := by
+  rw [show (prism 6 : IsoGraph) = ⟦CGraph.prism 6⟧ from rfl, domNum_mk]
+  refine Nat.le_antisymm ?_ ?_
+  · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 6), (0 : Fin 2)), (2, 1), (3, 0), (5, 1)}) : Finset (Fin 6 × Fin 2)))
+      (by decide)) (by decide)
+  · have := CGraph.three_lt_domNum (CGraph.prism 6) (by decide) (by decide)
+    omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(C₇ □ K₂) = 4.** -/
+@[simp] theorem domNum_prism_seven : (prism 7).domNum = 4 := by
+  have hle : (prism 7).domNum ≤ 4 := by
+    rw [show (prism 7 : IsoGraph) = ⟦CGraph.prism 7⟧ from rfl, domNum_mk]
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 7), (0 : Fin 2)), (2, 1), (4, 0), (6, 1)}) : Finset (Fin 7 × Fin 2)))
+      (by decide)) (by decide)
+  have hge := le_domNum_prism 4
+  norm_num at hge
+  omega
+
+set_option maxRecDepth 100000 in
+/-- **γ(C₈ □ K₂) = 4**, and the four vertices are a perfect code: sixteen vertices, four closed
+neighbourhoods of four, no overlap. -/
+@[simp] theorem domNum_prism_eight : (prism 8).domNum = 4 := by
+  have hle : (prism 8).domNum ≤ 4 := by
+    rw [show (prism 8 : IsoGraph) = ⟦CGraph.prism 8⟧ from rfl, domNum_mk]
+    exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
+      (s := (({((0 : Fin 8), (0 : Fin 2)), (2, 1), (4, 0), (6, 1)}) : Finset (Fin 8 × Fin 2)))
+      (by decide)) (by decide)
+  have hge := le_domNum_prism 5
+  norm_num at hge
   omega
 
 /-- The ladder is `Pₙ □ K₂`, so it is at least twice as symmetric as the path. -/

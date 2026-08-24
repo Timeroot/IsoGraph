@@ -104,13 +104,44 @@ private def closedTerm (t : Term) : TermElabM Expr := do
   Term.synthesizeSyntheticMVarsNoPostponing
   instantiateMVars e
 
-/-- Decompose `G`, returning the formula and the two index lists as terms. -/
-private def searchFor (tac : String) (G : Expr) : TermElabM (Term × Term × Term) := do
+/-- Decompose `G`, returning the formula and the two index lists as terms, or `none` if the search
+fails. -/
+private def searchFor? (G : Expr) : TermElabM (Option (Term × Term × Term)) := do
   let g ← Term.exprToSyntax G
   let call ← closedTerm (← `(CGraph.Decompose.decomposeWithPerm $g))
   match ← evalResult call with
+  | none => return none
+  | some (e, p, q) => return some (← render e, ← natsTerm p, ← natsTerm q)
+
+/-- Decompose `G`, returning the formula and the two index lists as terms. -/
+private def searchFor (tac : String) (G : Expr) : TermElabM (Term × Term × Term) := do
+  match ← searchFor? G with
   | none => throwError "{tac}: could not decompose{indentExpr G}"
-  | some (e, p, q) => return (← render e, ← natsTerm p, ← natsTerm q)
+  | some r => return r
+
+/-- Every closed `CGraph` that occurs in `e` as the payload of a quotient class, in the order they
+are met and without repetitions.  This is what `decompose_graph` decomposes when it is called with
+no argument: the graphs the goal is actually about. -/
+private partial def cgraphsIn (e : Expr) : MetaM (Array Expr) := go e #[]
+where
+  /-- Record `G` if it is a closed term of type `CGraph` not already seen. -/
+  push (G : Expr) (acc : Array Expr) : MetaM (Array Expr) := do
+    if G.hasLooseBVars || G.hasFVar || G.hasMVar then return acc
+    unless (← inferType G).isAppOf ``CGraph do return acc
+    if acc.any (· == G) then return acc
+    return acc.push G
+  go (e : Expr) (acc : Array Expr) : MetaM (Array Expr) := do
+    let acc ← match e.getAppFnArgs with
+      | (``Quot.mk, #[_, _, G]) | (``Quotient.mk, #[_, _, G]) => push G acc
+      | _ => pure acc
+    match e with
+    | .app f a => do go a (← go f acc)
+    | .lam _ d b _ => do go b (← go d acc)
+    | .forallE _ d b _ => do go b (← go d acc)
+    | .letE _ t v b _ => do go b (← go v (← go t acc))
+    | .mdata _ b => go b acc
+    | .proj _ _ b => go b acc
+    | _ => pure acc
 
 /-! ## The tactics -/
 
@@ -157,25 +188,55 @@ elab_rules : tactic
     let (_, goal) ← (← (← getMainGoal).define name ty val).intro1P
     replaceMainGoal [goal]
 
+/-- Rewrite the class of `G` in the goal to the class of its decomposition.  In `auto` mode a
+graph the atlas cannot describe, or one whose description is itself, is passed over instead of
+raising. -/
+private def rewriteDecomposition (G : Expr) (auto : Bool) : TacticM Unit := do
+  let res? : Option (Term × Term × Term) ←
+    if auto then searchFor? G
+    else do
+      let r ← searchFor "decompose_graph" G
+      pure (some r)
+  let some (h, p, q) := res? | return
+  let g ← Term.exprToSyntax G
+  let rw ← `(tactic|
+    rw [show (Quotient.mk CGraph.isoSetoid ($g : CGraph) : IsoGraph)
+          = Quotient.mk CGraph.isoSetoid $h from
+        CGraph.Decompose.mk_eq_mk_of_isoListOK (p := $p) (q := $q) (by decide)])
+  if auto then
+    let s ← saveState
+    try evalTactic rw catch _ => s.restore
+  else
+    evalTactic rw
+
 /-- **Rewrite a graph in the goal to its decomposition.**
 
     decompose_graph (CGraph.mycielskian (CGraph.cycle 5))
+    decompose_graph
 
 replaces the class of that graph, wherever it occurs in the goal, by the class of the description
 found by the atlas search — here `NamedGraphs.grotzsch`.  Since the two are equal as `IsoGraph`s,
 every isomorphism invariant of the goal is unchanged, which is the point: it is the step that turns
-a question about an unfamiliar graph into a question about named ones. -/
-syntax (name := decomposeGraph) "decompose_graph" ppSpace term : tactic
+a question about an unfamiliar graph into a question about named ones.
+
+With no argument the tactic reads the graphs off the goal: every closed `CGraph` occurring in it
+under a `Quotient.mk` is decomposed, in the order they appear, and a graph whose search fails is
+left as it stands.  That is the form to use when the goal names several graphs, or one whose term
+is long enough that repeating it is a nuisance. -/
+syntax (name := decomposeGraph) "decompose_graph" (ppSpace term)? : tactic
 
 elab_rules : tactic
-  | `(tactic| decompose_graph $t:term) => withMainContext do
-    let (G, _) ← asCGraph "decompose_graph" (← closedTerm t)
-    let (h, p, q) ← searchFor "decompose_graph" G
-    let g ← Term.exprToSyntax G
-    evalTactic <| ← `(tactic|
-      rw [show (Quotient.mk CGraph.isoSetoid ($g : CGraph) : IsoGraph)
-            = Quotient.mk CGraph.isoSetoid $h from
-          CGraph.Decompose.mk_eq_mk_of_isoListOK (p := $p) (q := $q) (by decide)])
+  | `(tactic| decompose_graph $[$t?]?) => withMainContext do
+    match t? with
+    | some t =>
+      let (G, _) ← asCGraph "decompose_graph" (← closedTerm t)
+      rewriteDecomposition G false
+    | none =>
+      let gs ← cgraphsIn (← instantiateMVars (← (← getMainGoal).getType))
+      if gs.isEmpty then
+        throwError "decompose_graph: no closed `CGraph` occurs in the goal; give one as an argument"
+      for G in gs do
+        withMainContext (rewriteDecomposition G true)
 
 end Tactic
 

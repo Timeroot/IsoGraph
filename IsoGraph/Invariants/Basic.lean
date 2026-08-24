@@ -203,6 +203,11 @@ theorem coverNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.coverNum = H.cover
 neighbour in it. -/
 def IsDominatingSet (s : Finset G.V) : Prop := ∀ v : G.V, v ∈ s ∨ ∃ u ∈ s, G.Adj u v
 
+/-- Dominating sets are recognised by a bounded check over the vertices, so `decide` can verify a
+proposed one. -/
+instance decidableIsDominatingSet (G : CGraph) : DecidablePred G.IsDominatingSet := fun s ↦
+  decidable_of_iff (∀ v : G.V, v ∈ s ∨ ∃ u ∈ s, G.Adj u v) Iff.rfl
+
 /-- Domination number: the size of a smallest dominating set.  The whole vertex set dominates,
 so the infimum is over a nonempty set of naturals. -/
 noncomputable def domNum : ℕ := sInf {n | ∃ s : Finset G.V, s.card = n ∧ G.IsDominatingSet s}
