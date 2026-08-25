@@ -1574,20 +1574,14 @@ theorem _root_.CGraph.cliqueCoverNum_le_card_sub_matchNum (g : CGraph) :
         set e₂ := edgeOf ⟨v, hv⟩
         simp [f, hu, hv, hequivS'_def]
         by_cases hsame : e₁ = e₂
-        · -- Same edge: u, v are both in e₁.1.toFinset, so u = v or Adj in g. Contradiction.
+        · -- Same edge: `u ≠ v` both lie on it, so that edge is `s(u, v)` and `g` joins them.
           exfalso
-          have hu' : u ∈ (e₁ : (CGraph.lineGraph g).V).1.toFinset := hedge_mem u hu
-          have hv' : v ∈ (e₁ : (CGraph.lineGraph g).V).1.toFinset := by
-            simpa [hsame] using hedge_mem v hv
-          have he_edgeSet : (e₁ : (CGraph.lineGraph g).V).1 ∈ g.toSimple.edgeSet := e₁.1.2
-          have hadj : g.Adj u v := by
-            generalize (e₁ : (CGraph.lineGraph g).V).1 = se at hu' hv' he_edgeSet ⊢
-            induction se using Sym2.ind with
-            | _ a b =>
-              simp [Sym2.mem_toFinset, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
-                at hu' hv' he_edgeSet ⊢
-              rcases hu' with rfl | rfl <;> rcases hv' with rfl | rfl <;> simp_all
-              exact absurd (huv.2 ▸ g.symm u v ▸ he_edgeSet) (by decide)
+          have hu' : u ∈ (e₁ : (CGraph.lineGraph g).V).1 := Sym2.mem_toFinset.1 (hedge_mem u hu)
+          have hv' : v ∈ (e₁ : (CGraph.lineGraph g).V).1 :=
+            Sym2.mem_toFinset.1 (by simpa [hsame] using hedge_mem v hv)
+          have hadj : g.Adj u v = true := by
+            have he : (e₁ : (CGraph.lineGraph g).V).1 ∈ g.toSimple.edgeSet := e₁.1.2
+            rwa [(Sym2.mem_and_mem_iff huv.1).1 ⟨hu', hv'⟩, SimpleGraph.mem_edgeSet] at he
           exact absurd (huv.2 ▸ hadj) (by decide)
         · -- Different edges: colors are equivS' e₁ and equivS' e₂, different.
           intro heq

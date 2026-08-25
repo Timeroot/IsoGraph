@@ -1119,25 +1119,10 @@ a largest part. -/
     minDeg (turan n r) = n - (n + r - 1) / r := by
   -- Helper: compute (r * m + s) / r = m when s < r
   have div_helper (m s : ℕ) (hs : s < r) : (r * m + s) / r = m := by
-    clear n h
-    have hm : r * (m + 1) = r * m + r := Nat.mul_succ r m
-    have hle : r * m ≤ r * m + s := by omega
-    have hlt : r * m + s < r * m + r := by omega
-    have hlt2 : r * m + s < r * (m + 1) := by rw [hm]; omega
-    have upper : (r * m + s) / r < m + 1 := Nat.div_lt_of_lt_mul hlt2
-    have lower : m ≤ (r * m + s) / r := by
-      rw [Nat.le_div_iff_mul_le hr]
-      rw [mul_comm]
-      omega
-    omega
+    rw [Nat.mul_add_div hr, Nat.div_eq_of_lt hs, Nat.add_zero]
   have sub_one_div (q : ℕ) : (r * (q + 1) - 1) / r = q := by
-    clear n h div_helper
-    have hm : r * (q + 1) = r * q + r := Nat.mul_succ r q
-    have hge : r * q ≤ r * (q + 1) - 1 := by rw [hm]; omega
-    have hlt : r * (q + 1) - 1 < r * (q + 1) := by omega
-    exact le_antisymm
-      (Nat.le_of_lt_succ (Nat.div_lt_of_lt_mul hlt))
-      (Nat.le_div_iff_mul_le hr |>.mpr (by rw [hm]; rw [mul_comm]; omega))
+    rw [show r * (q + 1) - 1 = r * q + (r - 1) from by rw [Nat.mul_succ]; omega]
+    exact div_helper q (r - 1) (by omega)
   have div_zero : r * (n / r) / r = n / r := div_helper (n / r) 0 (by omega)
   by_cases hdvd : r ∣ n
   · -- Case: r divides n
@@ -1184,31 +1169,21 @@ a largest part. -/
     set q := n / r
     have hrq : r * (q + 1) = r * q + r := Nat.mul_succ r q
     simp only [hrq] at *
-    have hnr1 : (r - 1) * q + (k - 1) = n - (q + 1) := by
-      rw [hv1]
-      have : (r - 1) * q + (k - 1) + (q + 1) = r * q + k := by
-        have h1 : (r - 1) * q + q = r * q := by
-          have hsub : r - 1 + 1 = r := Nat.sub_add_cancel hr
-          have h2 : (r - 1) * q + q = ((r - 1) + 1) * q := by
-            simp [add_mul]
-          rw [h2, hsub]
-        omega
-      exact Eq.symm (Nat.sub_eq_of_eq_add this.symm)
+    -- Each of the three arithmetic facts is linear once distributivity splits off the `q`s.
+    have hmul : (r - 1) * q = r * q - q := Nat.sub_one_mul r q
+    have hqle : q ≤ r * q := Nat.le_mul_of_pos_left q hr
+    have hnr1 : (r - 1) * q + (k - 1) = n - (q + 1) := by omega
     rw [hnr1.symm]
-    have hkr : k - 1 + (r - k) = r - 1 := by omega
     have harg1_eq : (k - 1) * (q + 1) + (r - k) * q = (r - 1) * q + (k - 1) := by
-      have h1 : (k - 1) * (q + 1) + (r - k) * q = ((k - 1) * q + (r - k) * q) + (k - 1) := by
-        rw [Nat.mul_add]
-        omega
-      rw [h1, ← Nat.add_mul, hkr]
+      have h1 : (k - 1) * q + (r - k) * q = (r - 1) * q := by
+        rw [← Nat.add_mul, show k - 1 + (r - k) = r - 1 from by omega]
+      rw [Nat.mul_succ]
+      omega
     have harg2_ge : k * (q + 1) + (r - k - 1) * q ≥ (r - 1) * q + (k - 1) := by
-      have : k * q + k + (r - k - 1) * q ≥ (r - 1) * q + (k - 1) := by
-        have : (r - 1) * q = (r - k - 1) * q + k * q := by
-          have : r - 1 = r - k - 1 + k := by omega
-          rw [this, Nat.add_mul]
-        rw [this]
-        omega
-      exact this
+      have h1 : (r - k - 1) * q + k * q = (r - 1) * q := by
+        rw [← Nat.add_mul, show r - k - 1 + k = r - 1 from by omega]
+      rw [Nat.mul_succ]
+      omega
     rw [harg1_eq]
     exact min_eq_left harg2_ge
 

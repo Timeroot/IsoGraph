@@ -229,27 +229,13 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
         le_trans (Finset.card_le_card hunion) (Finset.card_union_le _ _)
       rw [card_uv u v huv] at hcard_union
       exact hcard_union
-    have phi_walk_le : ∀ (u v : (CGraph.johnson n k).V) (p : G.Walk u v),
-        phi u ≤ phi v + p.length := by
-      intro u v p
-      induction p with
-      | nil => simp
-      | cons h p' ih =>
-        rename_i u1 u2 _
-        have hstep := phi_adj u1 u2 h
-        simp only [SimpleGraph.Walk.length_cons]
-        omega
+    -- `phi` is `1`-Lipschitz and vanishes at `t`, so `phi s` steps are needed to reach `t`
     have hphi_s : phi s = k - (s.val ∩ t.val).card := by
       simp only [phi]
       rw [Finset.card_sdiff, s.property, Finset.inter_comm]
-    rw [← ENat.coe_sub, ← hphi_s, SimpleGraph.edist_eq_sInf]
-    refine le_sInf ?_
-    rintro _ ⟨w, rfl⟩
-    have hw := phi_walk_le s t w
     have ht0 : phi t = 0 := by simp [phi]
-    rw [ht0, Nat.zero_add] at hw
-    show ((phi s : ℕ) : ℕ∞) ≤ ((w.length : ℕ) : ℕ∞)
-    exact_mod_cast hw
+    have hlip := SimpleGraph.sub_le_edist_of_adj_le_succ phi_adj s t
+    rwa [hphi_s, ht0, ENat.coe_sub, Nat.cast_zero, tsub_zero] at hlip
   -- Step 3: so the distance is exactly `k - |s ∩ t|`.
   have edist_eq : ∀ s t : (CGraph.johnson n k).V, G.edist s t = (k : ℕ∞) - ↑(s.val ∩ t.val).card :=
     fun s t ↦ le_antisymm (edist_le_k_inter s t) (inter_le_k_sub_edist s t)

@@ -311,6 +311,25 @@ theorem le_edist_of_forall_walk {k : ℕ∞} (h : ∀ p : G.Walk u v, k ≤ p.le
   rw [SimpleGraph.edist_eq_sInf]
   exact le_sInf (by rintro _ ⟨p, rfl⟩; exact h p)
 
+/-- A vertex labelling that grows by at most one along every edge is `1`-Lipschitz for the walk
+length: `φ u ≤ φ v + p.length` for every walk `p` from `u` to `v`. -/
+theorem le_add_length_of_adj_le_succ {φ : V → ℕ} (hφ : ∀ x y : V, G.Adj x y → φ x ≤ φ y + 1)
+    (p : G.Walk u v) : φ u ≤ φ v + p.length := by
+  induction p with
+  | nil => simp
+  | cons h _ ih =>
+    have hstep := hφ _ _ h
+    rw [SimpleGraph.Walk.length_cons]
+    omega
+
+/-- A `1`-Lipschitz labelling bounds the extended distance from below: the label can only shrink
+by one per step, so `φ u - φ v` steps are needed to get from `u` to `v`. -/
+theorem sub_le_edist_of_adj_le_succ {φ : V → ℕ} (hφ : ∀ x y : V, G.Adj x y → φ x ≤ φ y + 1)
+    (u v : V) : (φ u : ℕ∞) - φ v ≤ G.edist u v := by
+  refine le_edist_of_forall_walk fun p ↦ ?_
+  rw [tsub_le_iff_right]
+  exact_mod_cast (le_add_length_of_adj_le_succ hφ p).trans_eq (Nat.add_comm _ _)
+
 /-- Two distinct non-adjacent vertices are at least two steps apart. -/
 theorem two_le_length_of_not_adj (hne : u ≠ v) (hadj : ¬ G.Adj u v) (p : G.Walk u v) :
     2 ≤ p.length := by
