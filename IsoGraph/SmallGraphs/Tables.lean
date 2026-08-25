@@ -1831,21 +1831,14 @@ theorem edgeChromNum_complete_even_add_four (m : ℕ) :
     set n := 2 * m + 3 with hn_def
     set inv2 := m + 2 with hinv2_def
     have hmod : 2 * (m + 2) = (2 * m + 3) + 1 := by ring
+    -- `inv2` halves modulo the odd number `n`
     have hmul_inv2 (k : ℕ) : 2 * (k * inv2 % n) % n = k % n := by
-      have h2inv : 2 * inv2 = n + 1 := hmod
-      set q := k * inv2 / n
-      set r := k * inv2 % n
-      have hdiv : n * q + r = k * inv2 := Nat.div_add_mod _ _
-      have hkey : 2 * (n * q + r) = n * k + k := by
-        calc 2 * (n * q + r) = 2 * (k * inv2) := by rw [hdiv]
-          _ = (n + 1) * k := by rw [← h2inv]; ring
+      have h1 : 2 * (k * inv2 % n) % n = 2 * (k * inv2) % n := (Nat.mod_modEq _ n).mul_left 2
+      have h2 : 2 * (k * inv2) = n * k + k :=
+        calc 2 * (k * inv2) = (2 * inv2) * k := by ring
+          _ = (n + 1) * k := by rw [show 2 * inv2 = n + 1 from hmod]
           _ = n * k + k := by ring
-      -- 2*r ≡ k (mod n)
-      have hmod2 : (2 * r : ℤ) % (n : ℤ) = (k : ℤ) % (n : ℤ) := by
-        have : (2 * r : ℤ) = (n : ℤ) * (↑k - 2 * ↑q) + (k : ℤ) := by linarith
-        rw [this, Int.add_emod, Int.mul_emod]
-        simp
-      exact_mod_cast hmod2
+      rw [h1, h2, Nat.mul_add_mod]
     let colorFn : Fin (n + 1) → Fin (n + 1) → Fin n := fun a b =>
       if ha : (a : ℕ) = n then ⟨(b : ℕ) % n, Nat.mod_lt _ (by omega)⟩
       else if hb : (b : ℕ) = n then ⟨(a : ℕ) % n, Nat.mod_lt _ (by omega)⟩
@@ -1854,67 +1847,54 @@ theorem edgeChromNum_complete_even_add_four (m : ℕ) :
       intro a b; dsimp [colorFn]
       split_ifs with ha hb <;> simp_all
       · rw [show (↑b + ↑a : ℕ) = ↑a + ↑b from by omega]
+    -- residues below `n` that agree mod `n` are equal, and `2a ≡ a + b [MOD n]` forces `a = b`
+    have heq_of_modEq : ∀ a b : ℕ, a < n → b < n → a % n = b % n → a = b := by
+      intro a b ha hb h
+      rwa [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h
+    have heq_of_double : ∀ a b : ℕ, a < n → b < n → 2 * a % n = (a + b) % n → a = b := by
+      intro a b ha hb h
+      have h' : a + a ≡ a + b [MOD n] := by rw [← two_mul]; exact h
+      exact heq_of_modEq a b ha hb (Nat.ModEq.add_left_cancel' a h')
     have hcolorFn_ne : ∀ (v x y : Fin (n + 1)), x ≠ y → x ≠ v → y ≠ v →
         colorFn v x ≠ colorFn v y := by
       intro v x y hxy hxv hyv
       dsimp [colorFn]
       by_cases hv : (v : ℕ) = n
-      · -- v = last n: x, y ≠ last n
-        have hxne_n : (x : ℕ) ≠ n := by intro h; exact hxv (Fin.ext (by omega))
-        have hyne_n : (y : ℕ) ≠ n := by intro h; exact hyv (Fin.ext (by omega))
+      · -- `v` is the extra point, so `x` and `y` are not
+        have hxlt : (x : ℕ) < n :=
+          Nat.lt_of_le_of_ne (Fin.is_le x) fun h ↦ hxv (Fin.ext (by omega))
+        have hylt : (y : ℕ) < n :=
+          Nat.lt_of_le_of_ne (Fin.is_le y) fun h ↦ hyv (Fin.ext (by omega))
         simp [hv]
         intro h
-        have hxlt : (x : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le x) hxne_n
-        have hylt : (y : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le y) hyne_n
-        have h2 : (x : ℕ) % n = (y : ℕ) % n := h
-        exact hxy (Fin.ext (by simp [Nat.mod_eq_of_lt hxlt, Nat.mod_eq_of_lt hylt] at h2; exact h2))
+        exact hxy (Fin.ext (heq_of_modEq _ _ hxlt hylt h))
       · push_neg at hv
         have hvlt : (v : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le v) hv
-        -- Helper: from 2*a % n = (a + b) % n with a,b < n, deduce a = b
-        have heq_of_double : ∀ (a b : ℕ), a < n → b < n → 2 * a % n = (a + b) % n → a = b := by
-          intro a b ha hb h
-          have h1 : ((2 * a : ℤ) % (n : ℤ)) = ((a + b : ℤ) % (n : ℤ)) := by exact_mod_cast h
-          have h2 : ((a : ℤ) - (b : ℤ)) % (n : ℤ) = 0 := by
-            rw [Int.emod_eq_emod_iff_emod_sub_eq_zero] at h1
-            ring_nf at h1 ⊢; exact h1
-          obtain ⟨k, hk⟩ := Int.modEq_zero_iff_dvd.mp h2
-          have : (a : ℤ) = (b : ℤ) := by nlinarith [show k = 0 from by nlinarith]
-          exact_mod_cast this
         by_cases hx : (x : ℕ) = n
-        · have hyne_n : (y : ℕ) ≠ n := by intro h; exact hxy (Fin.ext (by omega))
-          simp [hv, hx, hyne_n]
+        · have hylt : (y : ℕ) < n :=
+            Nat.lt_of_le_of_ne (Fin.is_le y) fun h ↦ hxy (Fin.ext (by omega))
+          simp [hv, hx, Nat.ne_of_lt hylt]
           intro h
-          have this := hmul_inv2 (v + y)
-          rw [h.symm] at this
-          rw [Nat.mod_eq_of_lt hvlt] at this
-          exact hyv (Fin.ext (heq_of_double v y hvlt
-            (Nat.lt_of_le_of_ne (Fin.is_le y) hyne_n) this).symm)
+          have key := hmul_inv2 (v + y)
+          rw [h.symm, Nat.mod_eq_of_lt hvlt] at key
+          exact hyv (Fin.ext (heq_of_double v y hvlt hylt key).symm)
         · push_neg at hx
           have hxlt : (x : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le x) hx
           by_cases hy : (y : ℕ) = n
           · simp [hv, hx, hy]
             intro h
             have key := hmul_inv2 (v + x)
-            rw [h] at key
-            rw [Nat.mod_eq_of_lt hvlt] at key
+            rw [h, Nat.mod_eq_of_lt hvlt] at key
             exact hxv (Fin.ext (heq_of_double v x hvlt hxlt key).symm)
           · push_neg at hy
             have hylt : (y : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le y) hy
             simp [hv, hx, hy]
             intro h
             have keyx := hmul_inv2 (v + x)
-            have keyy := hmul_inv2 (v + y)
-            rw [h] at keyx
-            rw [keyy] at keyx
-            have h_eq : (x : ℕ) = (y : ℕ) := by
-              have h1 : ((v + y : ℤ) % (n : ℤ)) = ((v + x : ℤ) % (n : ℤ)) := by exact_mod_cast keyx
-              have h2 : ((y : ℤ) - (x : ℤ)) % (n : ℤ) = 0 := by
-                rw [Int.emod_eq_emod_iff_emod_sub_eq_zero] at h1
-                ring_nf at h1 ⊢; exact h1
-              obtain ⟨k, hk⟩ := Int.modEq_zero_iff_dvd.mp h2
-              have : (y : ℤ) = (x : ℤ) := by nlinarith [show k = 0 from by nlinarith]
-              exact_mod_cast this.symm
-            exact hxy (Fin.ext h_eq)
+            rw [h, hmul_inv2 (v + y)] at keyx
+            have hkey : (v : ℕ) + y ≡ (v : ℕ) + x [MOD n] := keyx
+            exact hxy (Fin.ext (heq_of_modEq _ _ hylt hxlt
+              (Nat.ModEq.add_left_cancel' (v : ℕ) hkey)).symm)
     refine edgeChromNum_mk_le_of_colouring colorFn hsym fun u v w huv huw hvw ↦
       hcolorFn_ne u v w hvw ?_ ?_
     · rintro rfl; simp [CGraph.loopless] at huv

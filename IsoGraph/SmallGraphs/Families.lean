@@ -757,104 +757,94 @@ example : (completeMultipartite (List.replicate 3 3)).E = 27 := by
     exact hS_card ▸ hS_indep.card_le_indepNum
   omega
 
+/-- **A balanced complete multipartite graph with at least two parts has a near-perfect
+matching.** -/
+theorem matchNum_completeMultipartite_replicate (m d : ℕ) :
+    (completeMultipartite (List.replicate (m + 2) (d + 1))).matchNum
+      = (m + 2) * (d + 1) / 2 := by
+  apply le_antisymm
+  · have h1 := two_mul_matchNum_le_V (completeMultipartite (List.replicate (m + 2) (d + 1)))
+    rw [V_completeMultipartite, List.sum_replicate] at h1
+    simp at h1
+    omega
+  · -- Number the vertices round robin: `j` sits in part `j % k`, slot `j / k`.  Consecutive
+    -- numbers land in different parts, so the pairs `{2t, 2t + 1}` are disjoint edges.
+    set k := m + 2 with hk
+    set s := d + 1 with hs
+    set H : CGraph := CGraph.completeMultipartite (List.replicate k s) with hH
+    rw [show (completeMultipartite (List.replicate k s) : IsoGraph) = ⟦H⟧ from rfl, matchNum_mk]
+    have hlen : (List.replicate k s).length = k := List.length_replicate
+    have hget : ∀ (i : Fin k), (List.replicate k s).get ⟨i, by rw [hlen]; exact i.2⟩ = s := by
+      intro i; simp [List.getElem_replicate]
+    let vertex : Fin k → Fin s → H.V := fun i a =>
+      ⟨⟨i, by rw [hlen]; exact i.2⟩, Fin.cast (hget i).symm a⟩
+    have hadj : ∀ (i j : Fin k) (a b : Fin s), H.Adj (vertex i a) (vertex j b) ↔ i ≠ j := by
+      intro i j a b
+      simp [vertex, H, CGraph.completeMultipartite_adj]
+      simp [Fin.ext_iff]
+    let f : Fin (k * s) → H.V := fun ⟨j, hj⟩ =>
+      vertex ⟨j % k, Nat.mod_lt _ (by omega : 0 < k)⟩ ⟨j / k, Nat.div_lt_of_lt_mul hj⟩
+    have hf_fst_val : ∀ j : Fin (k * s), (f j).1.val = j.val % k := by
+      intro j; simp [f, vertex]
+    have hf_snd_val : ∀ j : Fin (k * s), (f j).2.val = j.val / k := by
+      intro j; simp [f, vertex]
+    have hf_inj : Function.Injective f := by
+      intro j1 j2 hfeq
+      have hmod : j1.val % k = j2.val % k := by
+        have h1 := congr_arg (fun v : H.V => v.1.val) hfeq
+        simp only [hf_fst_val] at h1
+        exact h1
+      have hdiv : j1.val / k = j2.val / k := by
+        have h2 := congr_arg (fun v : H.V => v.2.val) hfeq
+        simp only [hf_snd_val] at h2
+        exact h2
+      refine Fin.ext ?_
+      have h1' := Nat.div_add_mod j1.val k
+      have h2' := Nat.div_add_mod j2.val k
+      rw [hmod, hdiv] at h1'
+      linarith [h2']
+    have hbound : ∀ t : Fin (k * s / 2), 2 * (t : ℕ) + 1 < k * s := by
+      intro t
+      have ht : (t : ℕ) < k * s / 2 := t.2
+      have := Nat.div_add_mod (k * s) 2
+      omega
+    have hbound' : ∀ t : Fin (k * s / 2), 2 * (t : ℕ) < k * s := fun t ↦ by
+      have := hbound t; omega
+    refine le_trans (le_of_eq (by simp)) (CGraph.card_le_matchNum
+      (fun t : Fin (k * s / 2) ↦ f ⟨2 * (t : ℕ), hbound' t⟩)
+      (fun t : Fin (k * s / 2) ↦ f ⟨2 * (t : ℕ) + 1, hbound t⟩) ?_ ?_)
+    · -- `2t` and `2t + 1` are different mod `k ≥ 2`, so they lie in different parts.
+      have hpart : ∀ x y : Fin (k * s), x.val % k ≠ y.val % k → H.Adj (f x) (f y) := by
+        rintro ⟨x, hx⟩ ⟨y, hy⟩ hne
+        simp only [f]
+        rw [hadj]
+        exact fun h ↦ hne (congrArg Fin.val h)
+      intro t
+      refine hpart ⟨2 * (t : ℕ), hbound' t⟩ ⟨2 * (t : ℕ) + 1, hbound t⟩ ?_
+      dsimp only
+      intro heq
+      have := Nat.modEq_iff_dvd.mp (Nat.ModEq.symm heq)
+      simp at this
+      exact absurd (Int.le_of_dvd (by omega : (0 : ℤ) < 1) this) (by omega)
+    · intro t t' htt'
+      have hfval : ∀ x y : Fin (k * s), f x = f y → (x : ℕ) = (y : ℕ) :=
+        fun x y he ↦ congrArg Fin.val (hf_inj he)
+      have hne : ∀ (x y : ℕ) (hx : x < k * s) (hy : y < k * s), x ≠ y →
+          f ⟨x, hx⟩ ≠ f ⟨y, hy⟩ :=
+        fun x y hx hy hxy he ↦ hxy (hfval ⟨x, hx⟩ ⟨y, hy⟩ he)
+      have ht : (t : ℕ) ≠ (t' : ℕ) := fun hval ↦ htt' (Fin.ext hval)
+      exact ⟨hne _ _ (hbound' t) (hbound' t') (by omega),
+        hne _ _ (hbound' t) (hbound t') (by omega),
+        hne _ _ (hbound t) (hbound' t') (by omega),
+        hne _ _ (hbound t) (hbound t') (by omega)⟩
+
 /-- The cocktail party graph `K_{n×2}` has a perfect matching for `n ≥ 2`. -/
 @[simp] theorem matchNum_cocktailParty (n : ℕ) : (cocktailParty (n + 2)).matchNum = n + 2 := by
-  rw [matchNum_eq]
-  apply le_antisymm
-  · -- Upper bound
-    have h1 := two_mul_matchNum_le_V (cocktailParty (n + 2))
-    rw [matchNum_eq] at h1
-    rw [V_cocktailParty] at h1
-    omega
-  · -- Lower bound: construct indep set of size n+2 in lineGraph
-    simp only [cocktailParty, IsoGraph.completeMultipartite, IsoGraph.lineGraph_mk,
-      IsoGraph.indepNum_mk]
-    -- G = CGraph.completeMultipartite (List.replicate (n+2) 2)
-    -- Its vertices are Σ i : Fin (n+2), Fin 2
-    -- We exhibit n+2 pairwise disjoint edges (a perfect matching), giving an independent set
-    -- of size n+2 in the line graph.
-    set m : ℕ := n + 2 with hm_def
-    let G : CGraph := CGraph.completeMultipartite (List.replicate m 2)
-    -- The vertices of G
-    have hlen : (List.replicate m 2).length = m := List.length_replicate
-    -- Reindex vertices to be Fin m → Fin 2 ≃ G.V
-    let vertex : Fin m → Fin 2 → (G.V) := fun i a =>
-      let hi : Fin (List.replicate m 2).length := ⟨i, by rw [hlen]; exact i.2⟩
-      have hget : (List.replicate m 2).get hi = 2 := by simp [List.getElem_replicate]
-      ⟨hi, Fin.cast hget.symm a⟩
-    -- Edge i in our matching: between vertex i 0 and vertex (i+1) 1
-    let edgeFn : Fin m → (CGraph.lineGraph G).V := fun i : Fin m =>
-      ⟨Sym2.mk (vertex i 0, vertex (i + 1) 1), by
-        rw [SimpleGraph.mem_edgeSet]
-        simp [vertex, G, CGraph.completeMultipartite_adj]
-        have : (i + 1 : Fin m).val ≠ i.val := by
-          simp [Fin.val_add]
-          by_cases hlt : (i : ℕ) + 1 < m
-          · rw [Nat.mod_eq_of_lt hlt]; omega
-          · have heq : (i : ℕ) + 1 = m := by omega
-            rw [heq, Nat.mod_self]; omega
-        exact this.symm⟩
-    -- edgeFn is injective
-    have h_inj : Function.Injective edgeFn := by
-      intro i j hij
-      -- edgeFn i = edgeFn j means the Sym2 parts are equal
-      have hsym2 :
-          Sym2.mk (vertex i 0, vertex (i + 1) 1) = Sym2.mk (vertex j 0, vertex (j + 1) 1) := by
-        have := congr_arg Subtype.val hij
-        exact this
-      -- Use Sym2.eq_iff
-      rw [Sym2.eq_iff] at hsym2
-      rcases hsym2 with h | h
-      · -- Same order: vertex i 0 = vertex j 0 and vertex (i+1) 1 = vertex (j+1) 1
-        have hi : i = j := by
-          unfold vertex at h
-          have := congr_arg Sigma.fst h.1
-          simp at this
-          exact Fin.ext this
-        exact hi
-      · -- Swapped: vertex i 0 = vertex (j+1) 1, impossible (0 ≠ 1 in Fin 2)
-        exfalso
-        have h2 : (vertex i 0).2.val = (vertex (j + 1) 1).2.val := by
-          exact congr_arg (fun x : G.V => x.2.val) h.1
-        simp [vertex] at h2
-    -- The image is an indep set in lineGraph
-    let s := Finset.univ.image edgeFn
-    have hcard : s.card = m := by
-      rw [Finset.card_image_of_injective _ h_inj, Finset.card_fin]
-    have hG : G = CGraph.completeMultipartite (List.replicate m 2) := rfl
-    have hind : SimpleGraph.IsIndepSet (G.lineGraph).toSimple (s : Set (G.lineGraph.V)) := by
-      rw [SimpleGraph.isIndepSet_iff]
-      intro e he f hf hef
-      change e ∈ s at he; change f ∈ s at hf
-      obtain ⟨i, _, heq⟩ := Finset.mem_image.mp he
-      obtain ⟨j, _, hfq⟩ := Finset.mem_image.mp hf
-      subst heq; subst hfq
-      by_cases h : i = j
-      · exact absurd (h ▸ rfl) hef
-      · dsimp only [G, CGraph.toSimple]
-        rw [CGraph.lineGraph_adj]
-        simp [h_inj.ne h]
-        intro x hx
-        simp [edgeFn] at hx ⊢
-        rcases hx with rfl | rfl
-        · constructor
-          · exact fun heq => h (Fin.ext (by
-              have := congr_arg (fun v : G.V => v.1.val) heq
-              simp [vertex] at this
-              exact this))
-          · exact fun heq => by
-              have := congr_arg (fun v : G.V => v.2.val) heq
-              simp [vertex] at this
-        · constructor
-          · intro heq
-            exfalso; apply_fun (fun v : G.V => v.2.val) at heq; simp [vertex] at heq
-          · intro heq
-            have heq1 : (i + 1 : Fin m) = (j + 1 : Fin m) := by
-              have h1 := congr_arg (fun v : G.V => v.1) heq
-              simp [vertex] at h1
-              exact Fin.ext h1
-            exact h (by simpa using heq1)
-    exact le_trans hcard.ge (hind.card_le_indepNum)
+  rw [show (cocktailParty (n + 2) : IsoGraph)
+      = completeMultipartite (List.replicate (n + 2) 2) from rfl,
+    matchNum_completeMultipartite_replicate n 1]
+  omega
+
 
 /-! ### Degrees and radius of the ladder -/
 

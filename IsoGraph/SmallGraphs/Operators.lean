@@ -342,102 +342,40 @@ combinatorial: two vertices are adjacent exactly when they differ in one coordin
 them. -/
 
 /-- Each vertex of the folded cube has `n` coordinate neighbours and one antipode. -/
-theorem isRegularWith_foldedCube (n : ℕ) : (foldedCube (n + 2)).IsRegularWith (n + 3) :=
-  have hcard :
-      ∀ (x : (CGraph.foldedCube (n + 2)).V), ((CGraph.foldedCube (n + 2)).nbrs x).card = n + 3 := by
-    intro x
-    let xc : Fin (n + 2) → Bool := fun i => !x i
-    have hx_ne_compl2 : x ≠ xc := by
-      intro h; have := congr_fun h ⟨0, by omega⟩; simp [xc] at this
-    set F := fun w : Fin (n + 2) → Bool => (Finset.univ.filter (fun i => x i ≠ w i)).card
-    have hs_compl : F xc = n + 2 := by
-      simp [xc, F]
-    have hcard_univ : ∀ w : Fin (n + 2) → Bool, F w = n + 2 → w = xc := by
-      intro w hsw
-      have hfull : ∀ i : Fin (n + 2), x i ≠ w i := by
-        by_contra h
-        push_neg at h
-        have : (Finset.univ.filter (fun i => x i ≠ w i)).card ≤ n + 1 := by
-          have : Finset.univ.filter (fun i => x i ≠ w i) ⊆ Finset.univ.erase h.choose := by
-            intro i hi; simp at hi ⊢
-            intro heq; rw [heq] at hi; exact hi h.choose_spec
-          calc (Finset.univ.filter (fun i => x i ≠ w i)).card ≤ (Finset.univ.erase
-              h.choose).card := Finset.card_le_card this
-            _ = n + 1 := by simp
-        linarith
-      ext i; exact show w i = !x i from by
-        have := hfull i
-        cases hxi : x i with
-        | true => simp [hxi] at this; simp [this]
-        | false => simp [hxi] at this; simp [this]
-    have hs_pos_imp_ne : ∀ w : Fin (n + 2) → Bool, F w > 0 → x ≠ w := by
-      intro w hpos hne
-      subst hne
-      simp [F] at hpos
-    -- Step 2: nbrs_foldedCube x = nbrs_hypercube x ∪ {xc}
-    have hnbrs_eq : (CGraph.foldedCube (n + 2)).nbrs x =
-        (CGraph.hypercube (n + 2)).nbrs x ∪ {xc} := by
-      ext y
-      simp only [CGraph.mem_nbrs, CGraph.foldedCube_adj]
-      have convert : ∀ w : Fin (n + 2) → Bool,
-          (({i : Fin (n + 2) | x i ≠ w i} : Set (Fin (n + 2))).ncard) = F w := by
-        intro w
-        show Set.ncard ({i : Fin (n + 2) | x i ≠ w i} : Set (Fin (n + 2))) = F w
-        rw [Set.ncard_eq_toFinset_card]
-        simp [F]
-      simp only [Finset.mem_union, Finset.mem_singleton, CGraph.mem_nbrs, CGraph.hypercube_adj]
-      -- The goal has `{i | ...}.card` which is `Nat.card (Set.setOf ...)` = `Fintype.card {i //
-      -- ...}`
-      have goal_card : ∀ w : Fin (n + 2) → Bool,
-          Fintype.card {i : Fin (n + 2) // x i ≠ w i} = F w := by
-        intro w
-        show Fintype.card {i : Fin (n + 2) // x i ≠ w i} = (Finset.univ.filter (fun i => x i ≠ w
-            i)).card
-        rw [Fintype.card_subtype]
-      -- Convert goal's `.card` (Nat.card on Set) to Fintype.card
-      have hconv : ∀ w : Fin (n + 2) → Bool,
-          Nat.card ({i | x i ≠ w i} : Set (Fin (n + 2))) = F w := by
-        intro w
-        show Nat.card {i : Fin (n + 2) // x i ≠ w i} = F w
-        rw [Nat.card_eq_fintype_card]
-        exact goal_card w
-      -- `decide (x ≠ y)` in the goal was elaborated with the `DecidableEq` of a Pi type, where
-      -- `x ≠ y` written here picks the one the graph's `FinEnum` carries; the two are equal only
-      -- propositionally.  Decidability instances are subsingletons, so swap it and then say what
-      -- the goal is.
-      rw [show (Fintype.decidablePiFintype x y : Decidable (x = y)) = FinEnum.decEq x y from
-        Subsingleton.elim _ _]
-      show (decide (x ≠ y) && (F y == 1 || F y == n + 2)) = true ↔ (F y == 1) = true ∨ y = xc
-      have beq_to_eq : ∀ (a b : ℕ), ((a == b) = true ↔ a = b) := by simp [beq_iff_eq]
-      set Fy := F y with hFy_def
-      simp only [Bool.and_eq_true_iff, Bool.or_eq_true_iff]
-      simp only [show decide (x ≠ y) = true ↔ x ≠ y from by simp]
-      rw [show ((F y == 1) = true ↔ F y = 1) from beq_to_eq _ _,
-          show ((F y == n + 2) = true ↔ F y = n + 2) from beq_to_eq _ _]
-      constructor
-      · rintro ⟨hne, h1|h2⟩
-        · left; exact h1
-        · right; exact hcard_univ y h2
-      · rintro (h1 | hy)
-        · exact ⟨hs_pos_imp_ne y (by rw [h1]; omega), Or.inl h1⟩
-        · subst hy; rw [hs_compl]; simp; exact hx_ne_compl2
-    -- Step 3: disjoint
-    have hnotin : xc ∉ (CGraph.hypercube (n + 2)).nbrs x := by
-      simp [CGraph.nbrs, CGraph.hypercube_adj, xc]
-    have hdj : Disjoint ((CGraph.hypercube (n + 2)).nbrs x) {xc} :=
-      Finset.disjoint_singleton_right.mpr hnotin
-    -- Step 4: card of hypercube nbrs x = n + 2
-    have hcard_hyper : ((CGraph.hypercube (n + 2)).nbrs x).card = n + 2 := by
-      have hreg_iso : IsoGraph.IsRegularWith (IsoGraph.hypercube (n + 2)) (n +
-          2) := IsoGraph.isRegularWith_hypercube (n + 2)
-      unfold IsoGraph.hypercube at hreg_iso
-      rw [IsoGraph.isRegularWith_mk] at hreg_iso
-      rw [CGraph.isRegularWith_iff_forall_degree] at hreg_iso
-      have := CGraph.card_nbrs_eq_degree (CGraph.hypercube (n + 2)) x
-      exact this ▸ hreg_iso x
-    -- Step 5: conclude
-    rw [hnbrs_eq, Finset.card_union_of_disjoint hdj, hcard_hyper, Finset.card_singleton]
-  CGraph.isRegularWith_of_card_nbrs _ hcard
+theorem isRegularWith_foldedCube (n : ℕ) : (foldedCube (n + 2)).IsRegularWith (n + 3) := by
+  refine CGraph.isRegularWith_of_card_nbrs _ fun x ↦ ?_
+  set xc : Fin (n + 2) → Bool := fun i ↦ !x i with hxc
+  have hdist : hammingDist x xc = n + 2 := by
+    simpa [Fintype.card_fin] using
+      (hammingDist_eq_card_iff (x := x) (y := xc)).2 fun i ↦ by simp [hxc]
+  -- the neighbours of `x` are its `n + 2` coordinate flips together with its antipode
+  have hnbrs : (CGraph.foldedCube (n + 2)).nbrs x
+      = (CGraph.hypercube (n + 2)).nbrs x ∪ {xc} := by
+    ext y
+    simp only [CGraph.mem_nbrs, Finset.mem_union, Finset.mem_singleton,
+      CGraph.foldedCube_adj_hamming, CGraph.hypercube_adj_hamming]
+    constructor
+    · rintro ⟨-, h1 | hm⟩
+      · exact Or.inl h1
+      · refine Or.inr (funext fun i ↦ ?_)
+        have hne := hammingDist_eq_card_iff.1 (by rw [hm, Fintype.card_fin]) i
+        show y i = !x i
+        revert hne
+        cases x i <;> cases y i <;> simp
+    · rintro (h1 | rfl)
+      · exact ⟨fun h ↦ by rw [h, hammingDist_self] at h1; omega, Or.inl h1⟩
+      · exact ⟨fun h ↦ by simpa [hxc] using congr_fun h ⟨0, by omega⟩, Or.inr hdist⟩
+  have hnotin : xc ∉ (CGraph.hypercube (n + 2)).nbrs x := by
+    rw [CGraph.mem_nbrs, CGraph.hypercube_adj_hamming, hdist]
+    omega
+  have hcard_hyper : ((CGraph.hypercube (n + 2)).nbrs x).card = n + 2 := by
+    have hreg := IsoGraph.isRegularWith_hypercube (n + 2)
+    unfold IsoGraph.hypercube at hreg
+    rw [IsoGraph.isRegularWith_mk, CGraph.isRegularWith_iff_forall_degree] at hreg
+    rw [CGraph.card_nbrs_eq_degree]
+    exact hreg x
+  rw [hnbrs, Finset.card_union_of_disjoint, hcard_hyper, Finset.card_singleton]
+  exact Finset.disjoint_singleton_right.mpr hnotin
 
 @[simp] theorem minDeg_foldedCube (n : ℕ) : minDeg (foldedCube (n + 2)) = n + 3 :=
   IsRegularWith.minDeg_eq (isRegularWith_foldedCube n) (by simp [V_foldedCube])

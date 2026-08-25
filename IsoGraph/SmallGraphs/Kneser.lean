@@ -446,20 +446,13 @@ private theorem card_le_of_colouring_pairs {m : ℕ} (col : Finset (Fin n) → F
     exact le_trans h1 (Nat.mul_le_mul_left 3 (by omega))
   have hud : d + 3 ≤ u := by omega
   obtain ⟨w, rfl⟩ : ∃ w, u = w + 3 := ⟨u - 3, by omega⟩
-  rw [Nat.choose_two_right] at hchoose
-  have hprod : (w + 3) * (w + 3 - 1) = (w + 3) * (w + 2) := by norm_num
-  rw [hprod] at hchoose
-  obtain ⟨X, hX⟩ : ∃ X, X = (w + 3) * (w + 2) := ⟨_, rfl⟩
-  rw [← hX] at hchoose
-  have hXle : X ≤ 6 * d + 1 := by omega
-  obtain ⟨Y, hY⟩ : ∃ Y, Y = w * w := ⟨_, rfl⟩
-  have hexp : X = Y + 5 * w + 6 := by rw [hX, hY]; ring
-  have hYw : w ≤ Y := by
+  -- `C(w + 3, 2) = (w² + 5w + 6)/2` already exceeds `3w ≥ 3d`
+  rw [Nat.choose_two_right, show w + 3 - 1 = w + 2 from by omega,
+    show (w + 3) * (w + 2) = w * w + 5 * w + 6 from by ring] at hchoose
+  have hYw : w ≤ w * w := by
     rcases Nat.eq_zero_or_pos w with rfl | hw
-    · simp [hY]
-    · calc w = 1 * w := (one_mul w).symm
-        _ ≤ w * w := Nat.mul_le_mul_right w hw
-        _ = Y := hY.symm
+    · simp
+    · exact Nat.le_mul_of_pos_left w hw
   omega
 
 /-- **`χ(K(n, 2)) ≥ n - 2`.**  Every proper colouring of the Kneser graph `K(n, 2)` uses at least
