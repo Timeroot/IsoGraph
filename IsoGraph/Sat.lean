@@ -564,8 +564,6 @@ namespace CGraph
 
 section Examples
 
-set_option maxHeartbeats 1000000
-
 example : (kneser 5 2).indepNum ≤ 4 := by graph_sat
 
 example : (IsoGraph.kneser 5 2).indepNum ≤ 4 := by graph_sat
@@ -603,7 +601,6 @@ search over `2 ^ 35` subsets that no kernel evaluation will do, and the solver s
 seconds.  `SmallGraphs.Kneser`, downstream, proves the value for every `n` and `k` out of
 `Finset.erdos_ko_rado`; this is the independent check. -/
 
-set_option maxHeartbeats 1000000 in
 /-- **Erdős–Ko–Rado for `K(7, 3)`, upper bound**, by SAT. -/
 theorem indepNum_kneser_seven_three_le : (kneser 7 3).indepNum ≤ 15 := by graph_sat native
 

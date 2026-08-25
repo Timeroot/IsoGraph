@@ -353,7 +353,9 @@ Eight disjoint triangles joined by a perfect matching, so `α ≤ 8` and `ω = 3
     (l := ([2, 6, 10, 14, 16, 18, 21, 23] : List (Fin 24)))
     (by decide) (by native_decide)
 
-set_option maxHeartbeats 4000000 in
+-- Measured: 367 102 heartbeats.  A `cliqueNum ≤ k` refutation has one clause per non-edge, so the
+-- CNF is quadratic in the vertex count and the kernel's LRAT replay dominates.
+set_option maxHeartbeats 800000 in
 /-- **The clique number of the truncated cube is three.** -/
 @[simp] theorem cliqueNum_truncatedCube : truncatedCube.cliqueNum = 3 := by
   refine le_antisymm (by graph_sat native) ?_
@@ -517,7 +519,8 @@ pentagonal faces. -/
     (l := ([4, 7, 10, 13, 16, 20, 22, 24, 26, 28] : List (Fin 30)))
     (by decide) (by native_decide)
 
-set_option maxHeartbeats 4000000 in
+-- Measured: 874 594 heartbeats — thirty vertices against the truncated cube's twenty-four.
+set_option maxHeartbeats 1600000 in
 /-- **The clique number of the icosidodecahedron is three.** -/
 @[simp] theorem cliqueNum_icosidodecahedron : icosidodecahedron.cliqueNum = 3 := by
   refine le_antisymm (by graph_sat native) ?_
@@ -900,7 +903,9 @@ degree six.  Four colours are needed even though the largest clique is a triangl
     (l := ([20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31] : List (Fin 32)))
     (by decide) (by native_decide)
 
-set_option maxHeartbeats 4000000 in
+-- Measured: 1 022 466 heartbeats, the largest of the three: thirty-two vertices, and the pentakis
+-- dodecahedron is sparse, so almost every pair contributes a clause.
+set_option maxHeartbeats 1600000 in
 /-- **The clique number of the pentakis dodecahedron is three.** -/
 @[simp] theorem cliqueNum_pentakisDodecahedron : pentakisDodecahedron.cliqueNum = 3 := by
   refine le_antisymm (by graph_sat native) ?_

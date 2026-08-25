@@ -4733,7 +4733,6 @@ theorem mulVec_le_dynkinD (m : ℕ) (x : (dynkinD m).V) :
 
 
 
-set_option maxHeartbeats 1000000 in
 /-- **`2` is not an eigenvalue of `Dₙ`.**  An eigenvector for `2` is forced to be constant along
 the chain by the recurrence `c(t-1) + c(t+1) = 2 c t` together with the boundary condition at the
 forked end; the single pendant vertex at the other end then forces that constant to vanish. -/

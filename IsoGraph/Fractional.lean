@@ -715,8 +715,6 @@ handles. -/
 
 section Examples
 
-set_option maxHeartbeats 1000000
-
 example : (cycle 5).fracIndepNum = 5 / 2 := by
   compute_fractional_indepNum (cycle 5)
   exact h_fα

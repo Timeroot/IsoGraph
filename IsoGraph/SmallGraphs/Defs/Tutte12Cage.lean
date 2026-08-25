@@ -54,7 +54,10 @@ def tutte12CageNb (a : tutte12Cage.V) : List tutte12Cage.V := tutte12CageTbl.get
 theorem tutte12Cage_nb : ∀ a b : tutte12Cage.V, b ∈ tutte12CageNb a ↔ tutte12Cage.Adj a b := by
   native_decide
 
-set_option maxHeartbeats 4000000 in
+-- Measured: 538 889 heartbeats.  The fifteen `native_decide` searches are free; the cost is the
+-- elaborator's, in stating and typechecking the nine hypotheses of `twelve_le_girth_of_nbrList`
+-- over a 126-vertex neighbour table.
+set_option maxHeartbeats 1600000 in
 /-- The Tutte 12-cage has girth twelve. -/
 @[simp] theorem girth_tutte12Cage : tutte12Cage.girth = 12 := by
   have hcyc : tutte12Cage.girth ≤ 12 :=

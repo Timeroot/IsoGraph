@@ -2413,10 +2413,11 @@ def petPairs : List (ℕ × ℕ) :=
    (3, 11), (3, 12), (4, 5), (4, 9), (4, 14), (5, 8), (6, 7), (6, 8), (6, 9), (6, 10), (7, 8),
    (7, 11), (7, 13), (9, 10), (9, 14), (10, 12), (11, 12), (11, 13), (13, 14)]
 
+-- The fifteen nested `Fin 3` binders make the `Decidable` instance a fifteen-deep tower of
+-- `Nat.decEq`/`instDecidableAnd`, which is what the two walls below are for.  The `3 ^ 15` search
+-- itself is compiled code and costs 1 591 heartbeats, so the default budget is ample.
 set_option maxRecDepth 100000 in
-set_option maxHeartbeats 1000000 in
 set_option synthInstance.maxSize 1000000 in
-set_option synthInstance.maxHeartbeats 2000000 in
 /-- No assignment of three colours to the fifteen edges of the Petersen graph avoids all thirty
 conflicts: an exhaustive `3 ^ 15` case split. -/
 theorem petSearch : ∀ c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 : Fin 3,

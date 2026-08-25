@@ -777,7 +777,9 @@ namespace CGraph.Iso
 section
 variable {G G' H H' : CGraph}
 
-set_option maxHeartbeats 1000000 in
+-- Measured: 308 114 heartbeats.  All of it is elaborator work — `Fintype.bijective_iff_injective_
+-- and_card` and `equivOfBijective` reduce the two `Fintype` instances on `Sym2`-indexed subtypes.
+set_option maxHeartbeats 800000 in
 /-- **The line graph of a disjoint union is the disjoint union of the line graphs**: an edge of
 `G + H` lies wholly in `G` or wholly in `H`, and two edges on opposite sides never meet.
 

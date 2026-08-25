@@ -238,7 +238,6 @@ theorem robertsonEdgeCol_proper : ∀ u v w : robertson.V, robertson.Adj u v = t
     robertson.Adj u w = true → v ≠ w → robertsonEdgeCol u v ≠ robertsonEdgeCol u w := by
   native_decide
 
-set_option maxHeartbeats 2000000 in
 /-- **The Robertson graph is class two**: four colours do not suffice for its thirty-eight edges,
 by a SAT refutation over the line graph. -/
 theorem five_le_edgeChromNum_robertson : 5 ≤ robertson.edgeChromNum := by

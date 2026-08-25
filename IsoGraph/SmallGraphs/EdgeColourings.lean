@@ -314,10 +314,10 @@ theorem petIdx_map_ne (f : kneser 5 2 ≃cg kneser 5 2) {i j : Fin 10} (hij : i 
   have h2 : petAt i = petAt j := f.injective h1
   rw [← petIdx_petAt i, ← petIdx_petAt j, h2]
 
+-- As in `petSearch`: the six nested binders build a deep `Decidable` instance, which needs the
+-- `maxSize` wall.  The search runs as compiled code and costs 6 856 heartbeats.
 set_option maxRecDepth 100000 in
-set_option maxHeartbeats 1000000 in
 set_option synthInstance.maxSize 1000000 in
-set_option synthInstance.maxHeartbeats 2000000 in
 /-- **The stabiliser of a `3`-arc in the Petersen graph is trivial**, as a search over the six
 vertices that are not on the arc `petAt 0 – petAt 5 – petAt 6 – petAt 2`.  Twelve of the forty-five
 adjacency constraints already pin the six images down, so the case split is `10 ^ 6` wide and each
@@ -996,7 +996,6 @@ theorem edgeChromNum_flowerSnark_le : flowerSnark.edgeChromNum ≤ 4 := by
   exact IsoGraph.edgeChromNum_mk_le_of_colouring (G := flowerSnark)
     flowerSnarkCol flowerSnarkCol_symm flowerSnarkCol_proper
 
-set_option maxHeartbeats 1000000 in
 /-- **The flower snark `J₅` is a snark**: it is cubic, but three colours do not suffice for its
 thirty edges.  The refutation is a SAT proof, replayed through `bv_decide`'s LRAT checker. -/
 theorem four_le_edgeChromNum_flowerSnark : 4 ≤ flowerSnark.edgeChromNum := by

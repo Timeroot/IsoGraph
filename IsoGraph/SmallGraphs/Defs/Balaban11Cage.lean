@@ -61,7 +61,9 @@ theorem balaban11Cage_nb :
     ∀ a b : balaban11Cage.V, b ∈ balaban11CageNb a ↔ balaban11Cage.Adj a b := by
   native_decide
 
-set_option maxHeartbeats 4000000 in
+-- Measured: 214 273 heartbeats — the same shape as `girth_tutte12Cage`, on 112 vertices and with
+-- one hypothesis fewer.
+set_option maxHeartbeats 400000 in
 /-- The Balaban 11-cage has girth eleven. -/
 @[simp] theorem girth_balaban11Cage : balaban11Cage.girth = 11 := by
   have hcyc : balaban11Cage.girth ≤ 11 :=
