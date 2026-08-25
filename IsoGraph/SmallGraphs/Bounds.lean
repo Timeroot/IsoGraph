@@ -677,7 +677,8 @@ example : 3 ≤ (hypercube 3).indepNum :=
 
 /-- A graph on `70` vertices has four mutually adjacent or four mutually non-adjacent vertices. -/
 example (G : IsoGraph) (h : 70 ≤ G.V) : 4 ≤ G.cliqueNum ∨ 4 ≤ G.indepNum :=
-  G.le_cliqueNum_or_le_indepNum (by rw [show (4 : ℕ) + 4 = 8 from rfl]; simpa using h)
+  G.le_cliqueNum_or_le_indepNum (by rw [show (4 : ℕ) + 4 = 8 from rfl,
+    show Nat.choose 8 4 = 70 from rfl]; exact h)
 
 /-! ### The vertex cover number -/
 
@@ -983,11 +984,11 @@ example : 10 ≤ (cycle 5).autCount := by
 
 example : 24 ≤ (hypercube 3).autCount := by
   have := two_mul_E_le_autCount_of_isArcTransitive (G := hypercube 3) (by simp)
-  simpa using this
+  simpa [show (hypercube 3).E = 12 from rfl] using this
 
 example : 30 ≤ (kneser 5 2).autCount := by
   have := two_mul_E_le_autCount_of_isArcTransitive (G := kneser 5 2) (by simp)
-  simpa using this
+  simpa [show (kneser 5 2).E = 15 from rfl] using this
 
 /-- There is no cubic graph on seven vertices. -/
 example (G : IsoGraph) (h : degSequence G = List.replicate 7 3) : False := by

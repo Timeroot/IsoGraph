@@ -356,7 +356,6 @@ theorem fracIndepNum_le_cliqueCoverNum : G.fracIndepNum ≤ G.cliqueCoverNum := 
   obtain ⟨c⟩ := colorable_chromNum (G := Gᶜ)
   refine fracIndepNum_le_of_cliqueColouring (G := G) (k := Gᶜ.chromNum) (fun v ↦ c v) ?_
   intro u v huv hcuv
-  dsimp only at hcuv
   by_contra hadj
   refine c.valid ?_ hcuv
   rw [toSimple_adj, compl_adj]
@@ -388,7 +387,6 @@ theorem fracChromNum_le_chromNum : G.fracChromNum ≤ G.chromNum := by
   obtain ⟨c⟩ := colorable_chromNum (G := G)
   refine fracIndepNum_le_of_cliqueColouring (G := Gᶜ) (k := G.chromNum) (fun v ↦ c v) ?_
   intro u v huv hcuv
-  dsimp only at hcuv
   rw [compl_adj]
   have hadj : G.Adj u v = false := by
     cases hb : G.Adj u v with
@@ -1255,7 +1253,6 @@ theorem fracCliqueCoverNum_le_cliqueCoverNum : G.fracCliqueCoverNum ≤ G.clique
   obtain ⟨c⟩ := colorable_chromNum (G := Gᶜ)
   refine fracCliqueCoverNum_le_of_cliqueColouring G (k := Gᶜ.chromNum) (fun v ↦ c v) ?_
   intro u v huv hcuv
-  dsimp only at hcuv
   by_contra hadj
   refine c.valid ?_ hcuv
   rw [toSimple_adj, compl_adj]

@@ -117,7 +117,6 @@ theorem autoOf_auto {n : Nat} {f : Nat → Nat → Bool} {σ τ : Array Nat} (h�
   have hi' : i < (Graph.ofOracle n f).n := by rw [hn]; exact hi
   have hj' : j < (Graph.ofOracle n f).n := by rw [hn]; exact hj
   have key := congrArg (fun c => certGet (Graph.ofOracle n f).n c i j) hcert
-  simp only at key
   rw [certOf_get (G := Graph.ofOracle n f) hi' hj',
     certOf_get (G := Graph.ofOracle n f) hi' hj'] at key
   rw [autoOf_get hσ hi, autoOf_get hσ hj]

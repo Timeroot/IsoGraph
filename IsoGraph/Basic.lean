@@ -78,7 +78,7 @@ theorem CGraph.heq_enum_fin {m n : ℕ} (h : m = n) :
 /-- The `SimpleGraph` underlying a `CGraph`. -/
 def CGraph.toSimple (G : CGraph) : SimpleGraph G.V where
   Adj x y := G.Adj x y
-  symm := by intro x y h; show G.Adj y x = true; rw [← G.symm x y]; exact h
+  symm := ⟨by intro x y h; show G.Adj y x = true; rw [← G.symm x y]; exact h⟩
   loopless := ⟨fun x h => G.loopless x h⟩
 
 @[simp] theorem CGraph.toSimple_adj (G : CGraph) (x y : G.V) :

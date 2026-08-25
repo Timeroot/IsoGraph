@@ -408,8 +408,13 @@ so the handshake lemma splits along the sum. -/
         have hh_eq_a : h = a := congr_arg Prod.snd heq'
         subst hb_eq_g; subst hh_eq_a
         simp [SimpleGraph.mem_neighborFinset] at ha
-    simp only [hdeg, Fintype.sum_prod_type]
-    simp [Finset.sum_add_distrib, Finset.mul_sum]
+    -- `Fintype.sum_prod_type` first: rewriting the degree before splitting the sum leaves the
+    -- pair inside the `Fintype (neighborSet …)` instance, and the inner summand is then not
+    -- constant in the second component.
+    rw [Fintype.sum_prod_type,
+      Finset.sum_congr rfl fun g _ ↦ Finset.sum_congr rfl fun h _ ↦ hdeg g h]
+    simp [Finset.sum_add_distrib, Finset.mul_sum, Finset.card_univ,
+      ← FinEnum.card_eq_fintypeCard]
   -- Use handshaking lemma
   have hhand : 2 * (G □g H).toSimple.edgeFinset.card =
       ∑ v : G.V × H.V, (G □g H).toSimple.degree v :=
@@ -508,7 +513,7 @@ theorem exists_edist_lineGraph_le_length : ∀ {u v : G.V} (w : G.toSimple.Walk 
   | nil => exact ⟨e, hu, by rw [SimpleGraph.edist_self]; simp⟩
   | @cons x y z hxy wtail ih =>
     let ep : (lineGraph G).V :=
-      ⟨Sym2.mk (x, y), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hxy⟩
+      ⟨s(x, y), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hxy⟩
     obtain ⟨e', hz, hd⟩ := ih ep (Sym2.mem_mk_right _ _)
     refine ⟨e', hz, le_trans ((lineGraph G).toSimple.edist_triangle.trans
       (add_le_add (edist_lineGraph_le_one G e ep x hu (Sym2.mem_mk_left _ _)) hd)) ?_⟩
@@ -565,8 +570,8 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
       rw [S.mem_incidenceFinset]
       exact ⟨(heqmem ee).mpr hee_mem, Sym2.mem_toFinset.mp hv⟩
     have hsubset : {ee} ⊆ S.incidenceFinset v := Finset.singleton_subset_iff.mpr hEE
-    have hcard_v : (S.incidenceFinset v).card = S.degree v := by
-      rw [SimpleGraph.degree, SimpleGraph.incidenceFinset]; simp
+    have hcard_v : (S.incidenceFinset v).card = S.degree v :=
+      S.card_incidenceFinset_eq_degree v
     rw [Finset.card_sdiff_of_subset hsubset, Finset.card_singleton, hcard_v]
   -- The pieces are disjoint: an edge meeting both endpoints of `ee` *is* `ee`.
   · intro v hv w hw hvw
@@ -625,9 +630,8 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
   have hinner : ∀ v, ∑ e ∈ S.incidenceFinset v, (S.degree v - 1) = S.degree v * (S.degree v - 1) := by
     intro v
     rw [Finset.sum_const, smul_eq_mul]
-    have hcard : (S.incidenceFinset v).card = S.degree v := by
-      rw [SimpleGraph.degree, SimpleGraph.incidenceFinset]
-      simp
+    have hcard : (S.incidenceFinset v).card = S.degree v :=
+      S.card_incidenceFinset_eq_degree v
     rw [hcard]
   have Halle : ∑ v : G.V, S.degree v * (S.degree v - 1) =
       2 * ∑ v : G.V, (S.degree v).choose 2 := by
@@ -942,7 +946,7 @@ theorem E_ofEdges_of_nodup {n : ℕ} {es : List (ℕ × ℕ)} (hn : ∀ p ∈ es
     unfold E
     set ue : Fin n := ⟨e.1, (hn e (by simp)).1⟩
     set ve : Fin n := ⟨e.2, (hn e (by simp)).2⟩
-    set edge_e : Sym2 (Fin n) := Sym2.mk (ue, ve)
+    set edge_e : Sym2 (Fin n) := s(ue, ve)
     have he_not_in_es' : e ∉ es' := by
       intro h
       have hd := hnodup
@@ -1940,14 +1944,18 @@ theorem isNClique_disjUnion_iff {n : ℕ} {s : Finset (G ⊕g H).V} :
       obtain ⟨a, ha, rfl⟩ := hx
       obtain ⟨b, hb, rfl⟩ := hy
       have : a ≠ b := fun h ↦ hxy (by rw [h])
-      simpa [CGraph.toSimple_adj] using hcl ha hb this
+      show (G ⊕g H).toSimple.Adj (Sum.inl a) (Sum.inl b)
+      rw [CGraph.toSimple_adj, disjUnion_adj_inl_inl]
+      exact hcl ha hb this
     · refine ⟨?_, by simpa using hcard⟩
       rintro _ hx _ hy hxy
       simp only [Finset.coe_map, Set.mem_image, Finset.mem_coe] at hx hy
       obtain ⟨a, ha, rfl⟩ := hx
       obtain ⟨b, hb, rfl⟩ := hy
       have : a ≠ b := fun h ↦ hxy (by rw [h])
-      simpa [CGraph.toSimple_adj] using hcl ha hb this
+      show (G ⊕g H).toSimple.Adj (Sum.inr a) (Sum.inr b)
+      rw [CGraph.toSimple_adj, disjUnion_adj_inr_inr]
+      exact hcl ha hb this
 
 /-! ### The components of a disjoint union -/
 

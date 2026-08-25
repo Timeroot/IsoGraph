@@ -105,7 +105,10 @@ def lineGraphComplete (n : ℕ) : lineGraph (complete n) ≃cg johnson n 2 := by
     refine ⟨⟨s(a, b), ?_⟩, ?_⟩
     · show (CGraph.complete n).toSimple.Adj a b
       simpa [CGraph.toSimple] using hab
-    · exact Subtype.ext (by simpa [hF] using Sym2.toFinset_mk_eq (x := a) (y := b))
+    · refine Subtype.ext ?_
+      simp only [hF]
+      ext x
+      simp
   have hadj : ∀ e f, (CGraph.johnson n 2).Adj (F e) (F f)
       = (CGraph.lineGraph (CGraph.complete n)).Adj e f := by
     intro e f
@@ -1761,9 +1764,9 @@ theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
       have := g.exists_adj_dist_lt (r := u) (show g.toSimple.Reachable v u from hSconn v u)
         (Ne.symm hu)
       exact ⟨this.choose, this.choose_spec.1⟩
-    obtain ⟨w, hw⟩ : ∃ w : g.V, g.Adj v w := by simpa [CGraph.toSimple_adj] using hvadj
+    obtain ⟨w, hw⟩ : ∃ w : g.V, g.Adj v w := by simpa [S, CGraph.toSimple_adj] using hvadj
     let e0 : g.lineGraph.V :=
-      ⟨Sym2.mk (v, w), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hw⟩
+      ⟨s(v, w), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hw⟩
     have hecc_e0 : LG.eccent e0 ≤ ↑S.radius.toNat + 1 := by
       haveI : Nonempty g.lineGraph.V := by
         have hcard : 0 < FinEnum.card (g.lineGraph).V := by rw [CGraph.card_lineGraph]; exact hE
@@ -2040,7 +2043,7 @@ theorem _root_.CGraph.matchNum_mycielskian (G : CGraph)
   choose pep hpep using fun e : (CGraph.lineGraph G).V ↦ Sym2.mk_surjective e.1
   let ue : (CGraph.lineGraph G).V → G.V := fun e ↦ (pep e).1
   let ve : (CGraph.lineGraph G).V → G.V := fun e ↦ (pep e).2
-  have hend : ∀ e : (CGraph.lineGraph G).V, e.1 = Sym2.mk (ue e, ve e) := fun e ↦ (hpep e).symm
+  have hend : ∀ e : (CGraph.lineGraph G).V, e.1 = s(ue e, ve e) := fun e ↦ (hpep e).symm
   have hadj : ∀ e : (CGraph.lineGraph G).V, G.Adj (ue e) (ve e) := by
     intro e
     have he : e.1 ∈ G.toSimple.edgeSet := e.2

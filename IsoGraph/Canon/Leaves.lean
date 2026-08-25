@@ -295,7 +295,8 @@ theorem dfsNode_good (n : Nat) (f : Nat → Nat → Bool) :
       have h := Node.step hnode htc hv hcell
       rw [hcinv] at h
       simpa only [hchild] using h
-    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    rw [dfsChildren_step_stop (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href habort2]
     exact (ih1 hnode' hst).unwind path
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
@@ -308,8 +309,9 @@ theorem dfsNode_good (n : Nat) (f : Nat → Nat → Bool) :
       have h := Node.step hnode htc hv hcell
       rw [hcinv] at h
       simpa only [hchild] using h
-    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
-      (by simpa using habort2)]
+    rw [dfsChildren_step_go (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href
+      (by simp only [Bool.not_eq_true] at habort2; exact habort2)]
     exact ih2 hnode (fun w hw => hverts w (List.mem_cons_of_mem _ hw))
       ((ih1 hnode' hst).unwind path)
 

@@ -24,13 +24,10 @@ variable (G H : CGraph)
   have h2 : (SimpleGraph.pathGraph (n + 1)).edgeSet.ncard =
     (SimpleGraph.pathGraph (n + 1)).edgeFinset.card := by
     rw [Set.ncard_eq_toFinset_card', SimpleGraph.edgeFinset]
-  have htree : (SimpleGraph.pathGraph (n + 1)).IsTree := by
-    exact {
-      isConnected := SimpleGraph.pathGraph_connected n
-      IsAcyclic := by
-        have := isAcyclic_path (n + 1)
-        simpa [CGraph.IsAcyclic, path_toSimple] using this
-    }
+  have htree : (SimpleGraph.pathGraph (n + 1)).IsTree :=
+    ⟨SimpleGraph.pathGraph_connected n, by
+      have := isAcyclic_path (n + 1)
+      simpa [CGraph.IsAcyclic, path_toSimple] using this⟩
   have h3 := SimpleGraph.IsTree.card_edgeFinset htree
   have h4 : (SimpleGraph.pathGraph (n + 1)).edgeFinset.card = n := by
     simp [Fintype.card_fin] at h3; omega

@@ -379,7 +379,8 @@ theorem dfsNode_best (n : Nat) (f : Nat → Nat → Bool) :
     have hnc' : numCells n p < numCells n p'' := by
       have := hnc v (by simp)
       rwa [hchild] at this
-    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    rw [dfsChildren_step_stop (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href habort2]
     rw [unwind_best]
     exact ih1 hwf'' (by omega) hgood
   case refine_10 =>
@@ -396,8 +397,9 @@ theorem dfsNode_best (n : Nat) (f : Nat → Nat → Bool) :
     have hbest : st2.best.isSome = true := by
       rw [show st2 = unwind path st1 from rfl, unwind_best]
       exact ih1 hwf'' (by omega) hgood
-    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
-      (by simpa using habort2)]
+    rw [dfsChildren_step_go (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href
+      (by simp only [Bool.not_eq_true] at habort2; exact habort2)]
     exact ih2 hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw))
       (fun w hw => hnc w (List.mem_cons_of_mem _ hw)) hfuel
       (fun _ => hbest) (Or.inl hbest)

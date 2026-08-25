@@ -139,7 +139,9 @@ def homOfAsg (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod.fst)
   map_rel' := by
     intro x y hxy
     have hne : x ≠ y := fun h ↦ H.loopless y (h ▸ hxy)
-    have hc := ((validHom_iff H G r).mp hv).forall (homCompat_symmetric H G)
+    haveI : Std.Symm fun p q : H.V × G.V ↦ homCompat H G p q = true :=
+      ⟨fun _ _ h ↦ homCompat_symmetric H G h⟩
+    have hc := ((validHom_iff H G r).mp hv).forall
       (asgFun_mem H G r hcov x) (asgFun_mem H G r hcov y) (fun h ↦ hne (congrArg Prod.fst h))
     simpa [homCompat, show H.Adj x y = true from hxy] using hc
 

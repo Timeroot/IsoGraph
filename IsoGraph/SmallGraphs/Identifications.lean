@@ -1471,7 +1471,6 @@ theorem not_isBipartite_foldedCube_of_even {n : ℕ} (h2 : n % 2 = 0) (hn : 0 < 
     (fun k ↦ (if k ≤ n then CGraph.prefixVec n k else CGraph.prefixVec n 0 :
       (CGraph.foldedCube n).V)) (n + 1) (by omega) ?_ ?_
   · intro k hk
-    dsimp only
     rcases Nat.lt_or_ge k n with hkn | hkn
     · have hcard := CGraph.card_prefixVec_step n k hkn
       have hne : CGraph.prefixVec n k ≠ CGraph.prefixVec n (k + 1) := by
@@ -1493,8 +1492,7 @@ theorem not_isBipartite_foldedCube_of_even {n : ℕ} (h2 : n % 2 = 0) (hn : 0 < 
           = (Finset.univ.filter fun i ↦ CGraph.prefixVec k 0 i ≠ CGraph.prefixVec k k i) from
           Finset.filter_congr fun i _ ↦ by exact ne_comm, hcard]
       simp [Ne.symm hne]
-  · dsimp only
-    rw [if_neg (by omega), if_pos (by omega)]
+  · rw [if_neg (by omega), if_pos (by omega)]
 
 theorem not_isBipartite_foldedCube_even (m : ℕ) : ¬ IsBipartite (foldedCube (2 * m + 2)) :=
   not_isBipartite_foldedCube_of_even (by omega) (by omega)

@@ -266,7 +266,8 @@ theorem dfsNode_mono (n : Nat) (f : Nat → Nat → Bool) :
     have hnc' : numCells n p < numCells n p'' := by
       have := hnc v (by simp)
       rwa [hchild] at this
-    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    rw [dfsChildren_step_stop (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href habort2]
     exact (ih1 hwf'' (by omega)).trans (BestMono.of_best_eq (unwind_best _ _))
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
@@ -279,8 +280,9 @@ theorem dfsNode_mono (n : Nat) (f : Nat → Nat → Bool) :
     have hnc' : numCells n p < numCells n p'' := by
       have := hnc v (by simp)
       rwa [hchild] at this
-    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
-      (by simpa using habort2)]
+    rw [dfsChildren_step_go (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href
+      (by simp only [Bool.not_eq_true] at habort2; exact habort2)]
     refine ((ih1 hwf'' (by omega)).trans (BestMono.of_best_eq
       (unwind_best path (dfsNode (Graph.ofOracle n f) fuel (path.push v) childInv' p'' st)))).trans ?_
     exact ih2 hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw))

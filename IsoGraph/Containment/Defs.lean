@@ -264,7 +264,7 @@ variable {H G K : CGraph}
 
 instance : FunLike (H.SubgraphOf G) H.V G.V where
   coe f := f.toFun
-  coe_injective' f g h := by cases f; cases g; congr
+  coe_injective f g h := by cases f; cases g; congr
 
 @[simp] theorem coe_mk (f : H.V → G.V) (hinj hadj) :
     ⇑(⟨f, hinj, hadj⟩ : H.SubgraphOf G) = f := rfl
@@ -331,7 +331,7 @@ variable {H G K : CGraph}
 
 instance : FunLike (H.InducedSubgraphOf G) H.V G.V where
   coe f := f.toFun
-  coe_injective' f g h := by
+  coe_injective f g h := by
     obtain ⟨⟨_, _, _⟩, _⟩ := f
     obtain ⟨⟨_, _, _⟩, _⟩ := g
     congr
@@ -392,7 +392,7 @@ variable {H G K : CGraph}
 
 instance : FunLike (H.QuotientOf G) G.V H.V where
   coe f := f.toFun
-  coe_injective' f g h := by cases f; cases g; congr
+  coe_injective f g h := by cases f; cases g; congr
 
 theorem surjective (f : H.QuotientOf G) : Function.Surjective f := f.surjective'
 
@@ -616,7 +616,7 @@ theorem branch_injective : Function.Injective fun f : H.ContractionOf G ↦ f.br
 
 instance : FunLike (H.ContractionOf G) G.V H.V where
   coe := toFun
-  coe_injective' f g h := branch_injective (funext fun u ↦
+  coe_injective f g h := branch_injective (funext fun u ↦
     (Option.some_get (f.total u)).symm.trans
       ((congrArg some (congrFun h u)).trans (Option.some_get (g.total u))))
 

@@ -340,7 +340,8 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
     have hnc : numCells n p < numCells n p'' := by
       have := numCells_child (n := n) (f := f) hnode.wf htc hv hcell
       rwa [hchild] at this
-    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    rw [dfsChildren_step_stop (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href habort2]
     exact guar_stop (ih1 D hnode' (by omega) hnone hgood
       (fun l hl => hpthc l hl v (by simp)) (hjmpc.child v)) habort2
   case refine_10 =>
@@ -357,11 +358,13 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
     have hnc : numCells n p < numCells n p'' := by
       have := numCells_child (n := n) (f := f) hnode.wf htc hv hcell
       rwa [hchild] at this
-    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
-      (by simpa using habort2)]
+    rw [dfsChildren_step_go (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href
+      (by simp only [Bool.not_eq_true] at habort2; exact habort2)]
     have hg1 := ih1 D hnode' (by omega) hnone hgood
       (fun l hl => hpthc l hl v (by simp)) (hjmpc.child v)
-    obtain ⟨hdv, hab2, hm2⟩ := guar_go hnode hv hg1 (by simpa using habort2)
+    obtain ⟨hdv, hab2, hm2⟩ := guar_go hnode hv hg1
+      (by simp only [Bool.not_eq_true] at habort2; exact habort2)
     set ST2 : St :=
       unwind path (dfsNode (Graph.ofOracle n f) fuel (path.push v) childInv' p'' st) with hST2
     have hvne : ∀ w ∈ vs, ¬ w = v := fun w hw he => (List.nodup_cons.1 hnodup).1 (he ▸ hw)

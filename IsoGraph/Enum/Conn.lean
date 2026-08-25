@@ -41,7 +41,8 @@ def Conn {n : ℕ} (adj : Fin n → Fin n → Bool) : Prop := ∀ i j, Reach adj
 
 theorem reach_symm {n : ℕ} {adj : Fin n → Fin n → Bool} (hs : ∀ i j, adj i j = adj j i)
     {i j : Fin n} (h : Reach adj i j) : Reach adj j i :=
-  Relation.ReflTransGen.symmetric (fun _ _ h ↦ by rwa [hs]) h
+  haveI : Std.Symm fun a b : Fin n ↦ adj a b = true := ⟨fun _ _ h ↦ by rwa [hs]⟩
+  Std.Symm.symm _ _ h
 
 /-- Reachability transports along a relabelling. -/
 theorem reach_map {n : ℕ} {adj adj' : Fin n → Fin n → Bool} (σ : Equiv.Perm (Fin n))

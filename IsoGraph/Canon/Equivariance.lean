@@ -2772,7 +2772,6 @@ theorem splitOk_general {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
     intro he
     have hii : i = i' := by
       have h := congrArg (fun x => pos[x]!) he
-      simp only at h
       rw [hposLab i (by omega), hposLab i' (by omega)] at h
       exact h
     rw [hii, hi3'] at hi3
@@ -4540,7 +4539,8 @@ theorem dfsNode_ok (n : Nat) (f : Nat → Nat → Bool) :
       have h1 : p' = (individualize p v).1 := by rw [hind]
       rw [h2, h1]
       exact refine_wf (individualize_wf' hp hv) _ _
-    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    rw [dfsChildren_step_stop (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href (by exact habort2)]
     exact (ih1 hwf'' hst).unwind path
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
@@ -4551,8 +4551,9 @@ theorem dfsNode_ok (n : Nat) (f : Nat → Nat → Bool) :
       have h1 : p' = (individualize p v).1 := by rw [hind]
       rw [h2, h1]
       exact refine_wf (individualize_wf' hp hv) _ _
-    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
-      (by simpa using habort2)]
+    rw [dfsChildren_step_go (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href
+      (by simp only [Bool.not_eq_true] at habort2; exact habort2)]
     exact ih2 hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw)) ((ih1 hwf'' hst).unwind path)
 
 /-! ### `isPermArray` is complete

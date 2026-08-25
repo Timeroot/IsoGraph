@@ -1203,7 +1203,6 @@ edges, since `1` is always a square. -/
       (fun i : Fin (q / 2) ↦ (⟨2 * (i : ℕ) + 1, hlt i⟩ : Fin q)) ?_ ?_)
     · -- The two ends of the `i`-th rung differ by `1`, and `1` is a square in every field.
       intro i
-      dsimp only
       have hiq_val : ((i : ℕ) : ZMod q).val = (i : ℕ) :=
         ZMod.val_cast_of_lt (by have := hlt i; omega)
       have hval2 : ZMod.val (2 : ZMod q) = 2 := by

@@ -703,7 +703,7 @@ example : (completeMultipartite (List.replicate 3 3)).E = 27 := by
       simp [this]
     -- Construct the matching edges as vertices of the line graph
     let edgeVertex : (Fin n → Bool) → (CGraph.lineGraph (CGraph.hypercube (n + 1))).V := fun x =>
-      ⟨Sym2.mk (v0 x, v1 x), by
+      ⟨s(v0 x, v1 x), by
         rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
         exact huv_adj x⟩
     -- The Finset of these 2^n vertices
@@ -715,8 +715,8 @@ example : (completeMultipartite (List.replicate 3 3)).E = 27 := by
       exact h
     -- Disjointness: for x ≠ y, edges {v0 x, v1 x} and {v0 y, v1 y} share no vertex
     have hdisjoint : ∀ x y : (Fin n → Bool), x ≠ y →
-        ¬∃ v : Fin (n + 1) → Bool, v ∈ (Sym2.mk (v0 x, v1 x) : Sym2 (Fin (n + 1) → Bool)) ∧
-          v ∈ (Sym2.mk (v0 y, v1 y) : Sym2 (Fin (n + 1) → Bool)) := by
+        ¬∃ v : Fin (n + 1) → Bool, v ∈ (s(v0 x, v1 x) : Sym2 (Fin (n + 1) → Bool)) ∧
+          v ∈ (s(v0 y, v1 y) : Sym2 (Fin (n + 1) → Bool)) := by
       intro x y hxy ⟨v, hv1, hv2⟩
       rw [Sym2.mem_iff] at hv1 hv2
       rcases hv1 with rfl | rfl
@@ -745,7 +745,7 @@ example : (completeMultipartite (List.replicate 3 3)).E = 27 := by
     -- edgeVertex is injective
     have hinj : Function.Injective edgeVertex := by
       intro x y hxy
-      have hsym2 : Sym2.mk (v0 x, v1 x) = Sym2.mk (v0 y, v1 y) := Subtype.ext_iff.mp hxy
+      have hsym2 : s(v0 x, v1 x) = s(v0 y, v1 y) := Subtype.ext_iff.mp hxy
       rcases Sym2.eq_iff.1 hsym2 with ⟨h1, _⟩ | ⟨h1, h2⟩
       · exact hv0_inj h1
       · exfalso; have h2 : (false : Bool) = true := congr_fun h1 0
@@ -989,17 +989,17 @@ example : (ladder 4).radius = 3 := by rw [show (4 : ℕ) = 3 + 1 from rfl, radiu
     let G' : CGraph := (CGraph.path n).cartesianProduct (CGraph.complete 2)
     -- Edge set membership for rungs
     have hrung_mem : ∀ i : Fin n,
-        Sym2.mk ((i, (0 : Fin 2)), (i, (1 : Fin 2))) ∈ G'.toSimple.edgeSet := by
+        s((i, (0 : Fin 2)), (i, (1 : Fin 2))) ∈ G'.toSimple.edgeSet := by
       intro i
       simp [G', CGraph.cartesianProduct_adj, CGraph.complete_adj, SimpleGraph.mem_edgeSet]
     -- The vertices of lineGraph G' corresponding to rungs
     let rungVer : Fin n → (CGraph.lineGraph G').V := fun i =>
-      ⟨Sym2.mk ((i, (0 : Fin 2)), (i, (1 : Fin 2))), hrung_mem i⟩
+      ⟨s((i, (0 : Fin 2)), (i, (1 : Fin 2))), hrung_mem i⟩
     -- rungVer is injective
     have hrungVer_inj : Function.Injective rungVer := by
       intro i j hij
-      have hval : Sym2.mk ((i, (0 : Fin 2)), (i, (1 : Fin 2)))
-          = Sym2.mk ((j, (0 : Fin 2)), (j, (1 : Fin 2))) :=
+      have hval : s((i, (0 : Fin 2)), (i, (1 : Fin 2)))
+          = s((j, (0 : Fin 2)), (j, (1 : Fin 2))) :=
         congr_arg Subtype.val hij
       rcases Sym2.eq_iff.1 hval with h | h
       · exact congr_arg Prod.fst h.1

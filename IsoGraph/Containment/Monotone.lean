@@ -1004,7 +1004,7 @@ theorem sym2_map_col_ne_row {α β : Type*} {a : α} {c : β} {e : Sym2 β} {e' 
   induction e' using Sym2.ind with | _ p p' => ?_
   simp only [Sym2.isDiag_iff_proj_eq] at he
   intro h
-  rw [Sym2.map_pair_eq, Sym2.map_pair_eq, Sym2.eq_iff] at h
+  rw [Sym2.map_mk, Sym2.map_mk, Sym2.eq_iff] at h
   simp only [Prod.mk.injEq] at h
   rcases h with ⟨⟨-, h₁⟩, ⟨-, h₂⟩⟩ | ⟨⟨-, h₁⟩, ⟨-, h₂⟩⟩ <;> exact he (h₁.trans h₂.symm)
 
@@ -1013,7 +1013,7 @@ theorem sym2_map_col_eq {α β : Type*} {a a' : α} {e e' : Sym2 β}
     (h : Sym2.map (fun q : β ↦ (a, q)) e = Sym2.map (fun q : β ↦ (a', q)) e') : a = a' := by
   induction e using Sym2.ind with | _ u v => ?_
   induction e' using Sym2.ind with | _ u' v' => ?_
-  rw [Sym2.map_pair_eq, Sym2.map_pair_eq, Sym2.eq_iff] at h
+  rw [Sym2.map_mk, Sym2.map_mk, Sym2.eq_iff] at h
   simp only [Prod.mk.injEq] at h
   rcases h with ⟨⟨h, -⟩, -⟩ | ⟨⟨h, -⟩, -⟩ <;> exact h
 
@@ -1022,7 +1022,7 @@ theorem sym2_map_row_eq {α β : Type*} {c c' : β} {e e' : Sym2 α}
     (h : Sym2.map (fun p : α ↦ (p, c)) e = Sym2.map (fun p : α ↦ (p, c')) e') : c = c' := by
   induction e using Sym2.ind with | _ u v => ?_
   induction e' using Sym2.ind with | _ u' v' => ?_
-  rw [Sym2.map_pair_eq, Sym2.map_pair_eq, Sym2.eq_iff] at h
+  rw [Sym2.map_mk, Sym2.map_mk, Sym2.eq_iff] at h
   simp only [Prod.mk.injEq] at h
   rcases h with ⟨⟨-, h⟩, -⟩ | ⟨⟨-, h⟩, -⟩ <;> exact h
 
@@ -1108,7 +1108,7 @@ def disjUnion (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
       obtain ⟨w, hw, rfl⟩ := hz
       obtain ⟨w', hw', hww⟩ := hz'
       obtain ⟨t, rfl⟩ := f.disjoint' (by simpa using h) (by simpa using h')
-        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) e)) w hw
+        (fun e ↦ hne (congrArg (Sym2.map Sum.inl) e)) w hw
         (Sum.inl_injective hww ▸ hw')
       exact ⟨Sum.inl t, rfl⟩
     · simp only [sumPath, SimpleGraph.Walk.support_map, List.mem_map, inlHom_apply,
@@ -1125,7 +1125,7 @@ def disjUnion (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
       obtain ⟨w, hw, rfl⟩ := hz
       obtain ⟨w', hw', hww⟩ := hz'
       obtain ⟨t, rfl⟩ := f'.disjoint' (by simpa using h) (by simpa using h')
-        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) e)) w hw
+        (fun e ↦ hne (congrArg (Sym2.map Sum.inr) e)) w hw
         (Sum.inr_injective hww ▸ hw')
       exact ⟨Sum.inr t, rfl⟩
 
@@ -1225,7 +1225,7 @@ def join (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
       obtain ⟨w, hw, rfl⟩ := hz
       obtain ⟨w', hw', hww⟩ := hz'
       obtain ⟨t, rfl⟩ := f.disjoint' (by simpa using h) (by simpa using h')
-        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) e)) w hw
+        (fun e ↦ hne (congrArg (Sym2.map Sum.inl) e)) w hw
         (Sum.inl_injective hww ▸ hw')
       exact ⟨Sum.inl t, rfl⟩
     · simp only [joinPath, SimpleGraph.Walk.support_map, List.mem_map, joinInlHom_apply,
@@ -1242,7 +1242,7 @@ def join (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
       obtain ⟨w, hw, rfl⟩ := hz
       obtain ⟨w', hw', hww⟩ := hz'
       obtain ⟨t, rfl⟩ := f'.disjoint' (by simpa using h) (by simpa using h')
-        (fun e ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) e)) w hw
+        (fun e ↦ hne (congrArg (Sym2.map Sum.inr) e)) w hw
         (Sum.inr_injective hww ▸ hw')
       exact ⟨Sum.inr t, rfl⟩
 
@@ -1402,7 +1402,7 @@ def disjUnion (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
       obtain ⟨e₀, he₀, rfl⟩ := he
       obtain ⟨e₁, he₁, hee⟩ := he'
       exact f.edgeDisjoint' (by simpa using h) (by simpa using h')
-        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) eq))
+        (fun eq ↦ hne (congrArg (Sym2.map Sum.inl) eq))
         e₀ he₀ (Sym2.map.injective Sum.inl_injective hee ▸ he₁)
     · simp only [sumWalk, SimpleGraph.Walk.edges_map, List.mem_map, coe_inlHom, coe_inrHom]
         at he he'
@@ -1418,7 +1418,7 @@ def disjUnion (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
       obtain ⟨e₀, he₀, rfl⟩ := he
       obtain ⟨e₁, he₁, hee⟩ := he'
       exact f'.edgeDisjoint' (by simpa using h) (by simpa using h')
-        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) eq))
+        (fun eq ↦ hne (congrArg (Sym2.map Sum.inr) eq))
         e₀ he₀ (Sym2.map.injective Sum.inr_injective hee ▸ he₁)
 
 /-- The trail replacing an edge of a join: an edge inside a summand keeps that summand's trail, and
@@ -1463,7 +1463,7 @@ def join (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
     · obtain ⟨e₀, he₀, rfl⟩ := he
       obtain ⟨e₁, he₁, hee⟩ := he'
       exact f.edgeDisjoint' (by simpa using h) (by simpa using h')
-        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inl) eq))
+        (fun eq ↦ hne (congrArg (Sym2.map Sum.inl) eq))
         e₀ he₀ (Sym2.map.injective Sum.inl_injective hee ▸ he₁)
     · obtain ⟨e₀, he₀, rfl⟩ := he
       exact sym2_map_inl_ne_cross e₀ _ _ he'
@@ -1498,7 +1498,7 @@ def join (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
     · obtain ⟨e₀, he₀, rfl⟩ := he
       obtain ⟨e₁, he₁, hee⟩ := he'
       exact f'.edgeDisjoint' (by simpa using h) (by simpa using h')
-        (fun eq ↦ hne (by simpa only [Sym2.map_pair_eq] using congrArg (Sym2.map Sum.inr) eq))
+        (fun eq ↦ hne (congrArg (Sym2.map Sum.inr) eq))
         e₀ he₀ (Sym2.map.injective Sum.inr_injective hee ▸ he₁)
 
 /-- The trail replacing an edge of a cartesian product. -/

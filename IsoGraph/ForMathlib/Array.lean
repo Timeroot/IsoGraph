@@ -59,7 +59,7 @@ theorem nodup_getElem!_ne {a : Array Nat} (h : a.toList.Nodup) {i j : Nat} (hi :
     (hj : j < a.size) (hij : i ≠ j) : a[i]! ≠ a[j]! := by
   rw [getElem!_pos a i hi, getElem!_pos a j hj]
   intro he
-  exact hij ((List.Nodup.getElem_inj_iff h).mp (by simpa using he))
+  exact hij ((List.Nodup.getElem_inj_iff h).mp he)
 
 /-- An array whose entries at distinct indices differ has no duplicates. -/
 theorem nodup_of_getElem!_ne {a : Array Nat}

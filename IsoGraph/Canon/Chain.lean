@@ -183,7 +183,6 @@ theorem chain_complete (n : Nat) (adj : Fin n → Fin n → Bool) :
         have hgi : (arrOfPerm n σ)[i.1]! < n := hg.perm.lt i.1 i.2
         rw [hdisc _ (hwf.posLt _ hgi), hdisc _ (hwf.posLt _ i.2)] at h1
         have h2 := congrArg (fun k => p.lab[k]!) h1
-        simp only at h2
         rw [hwf.labPos _ hgi, hwf.labPos _ i.2, arrOfPerm_get σ i.2] at h2
         simpa using h2
       rw [hone]; exact one_mem _

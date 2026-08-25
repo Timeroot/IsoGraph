@@ -82,6 +82,7 @@ theorem lexCmpFrom_eq_compare (a b : Array UInt64) : ∀ (fuel i : Nat),
 theorem lexCmpU64_eq_compare (a b : Array UInt64) :
     lexCmpU64 a b = compare a.toList b.toList := by
   have h := lexCmpFrom_eq_compare a b (min a.size b.size) 0 (by omega)
+  rw [lexCmpU64]
   simpa using h
 
 theorem lexCmpU64_eq_iff {a b : Array UInt64} : lexCmpU64 a b = .eq ↔ a = b := by
@@ -401,7 +402,8 @@ theorem dfsNode_reach (n : Nat) (f : Nat → Nat → Bool) (P : List (List UInt6
       refine hreach v (by simp) k ?_
       rw [hcinv, hchild]
       exact hk
-    rw [dfsChildren_step_stop (by simpa using habort) (by simpa using hmark) hind href habort2]
+    rw [dfsChildren_step_stop (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href habort2]
     exact (ih1 hwf'' hr hst).unwind path
   case refine_10 =>
     intro fuel path invPath p processed orb st v vs habort orb1 hmark p' s hind inW p'' tr href
@@ -418,8 +420,9 @@ theorem dfsNode_reach (n : Nat) (f : Nat → Nat → Bool) (P : List (List UInt6
       refine hreach v (by simp) k ?_
       rw [hcinv, hchild]
       exact hk
-    rw [dfsChildren_step_go (by simpa using habort) (by simpa using hmark) hind href
-      (by simpa using habort2)]
+    rw [dfsChildren_step_go (by simpa using habort)
+      (by simp only [Bool.not_eq_true] at hmark; exact hmark) hind href
+      (by simp only [Bool.not_eq_true] at habort2; exact habort2)]
     exact ih2 hp (fun w hw => hverts w (List.mem_cons_of_mem _ hw))
       (fun w hw => hreach w (List.mem_cons_of_mem _ hw))
       ((ih1 hwf'' hr hst).unwind path)

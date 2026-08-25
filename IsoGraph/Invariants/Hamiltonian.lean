@@ -41,7 +41,7 @@ theorem isHamiltonian_of_iso {G H : CGraph} (i : G ≃cg H) (h : G.IsHamiltonian
     rw [G.fintypeCard, H.fintypeCard]; exact i.card_eq
   obtain ⟨a, p, hp⟩ := h (by rw [hGH]; exact hcard)
   exact ⟨_, p.map (Iso.toSimpleIso i).toHom,
-    hp.map _ (Iso.toSimpleIso i).toEquiv.bijective⟩
+    hp.map (Iso.toSimpleIso i).toEquiv.bijective⟩
 
 @[toIsoGraph]
 theorem isHamiltonian_iff_of_iso {G H : CGraph} (i : G ≃cg H) :

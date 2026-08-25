@@ -579,7 +579,7 @@ theorem one_le_cliqueNum_of_vertex {G : CGraph} (a : G.V) : 1 ≤ G.cliqueNum :=
   classical
   have hcl : G.toSimple.IsClique ((({a} : Finset G.V)) : Set G.V) := by simp
   have := SimpleGraph.IsClique.card_le_cliqueNum (tc := hcl)
-  simpa using this
+  simpa [cliqueNum] using this
 
 /-- **A nonempty graph has a clique**: a single vertex is one. -/
 @[toIsoGraph]
@@ -1170,7 +1170,7 @@ private theorem vertexCoverNum_toNat_add_indepNum (S : SimpleGraph X) :
     rw [← Finset.coe_compl, Set.encard_coe_eq_coe_finsetCard, Finset.card_compl] at h1
     have h2 : S.vertexCoverNum.toNat ≤ Fintype.card X - s.card := by
       have := ENat.toNat_le_toNat h1 (by simp)
-      simpa using this
+      rwa [ENat.toNat_natCast] at this
     omega
   -- `|V| - α ≤ τ`, since the complement of a minimum cover is independent.
   have hge : Fintype.card X ≤ S.vertexCoverNum.toNat + S.indepNum := by
@@ -1258,7 +1258,7 @@ theorem coverNum_le_E (G : CGraph) : G.coverNum ≤ G.E := by
     rw [← SimpleGraph.coe_edgeFinset, Set.encard_coe_eq_coe_finsetCard]
     rfl
   rw [he] at h
-  simpa using ENat.toNat_le_toNat h (by simp)
+  simpa [coverNum] using ENat.toNat_le_toNat h (by simp)
 
 /-- A graph with an edge is not independent as a whole. -/
 @[toIsoGraph indepNum_lt_V_of_E_pos]
@@ -1618,11 +1618,10 @@ theorem domNum_le_indepNum (G : CGraph) : G.domNum ≤ G.indepNum := by
       intro u hu hadj
       exact hne u hu ((toSimple_adj _ _ _).1 hadj)
     have hins : G.toSimple.IsIndepSet (insert v (S : Set G.V)) := by
-      refine (Set.pairwise_insert_of_symmetric ?_).2 ⟨hS, ?_⟩
-      · intro a b hab h
-        exact hab h.symm
-      · intro b hb _
-        exact fun h ↦ hnadj b hb h.symm
+      haveI : Std.Symm fun v w : G.V ↦ ¬ G.toSimple.Adj v w := ⟨fun _ _ h h' ↦ h h'.symm⟩
+      refine Set.pairwise_insert_of_symmetric.2 ⟨hS, ?_⟩
+      intro b hb _
+      exact fun h ↦ hnadj b hb h.symm
     rw [← Finset.coe_insert] at hins
     have hcard := hins.card_le_indepNum
     rw [Finset.card_insert_of_notMem hv, hScard] at hcard
@@ -2220,7 +2219,7 @@ theorem one_le_indepNum_of_vertex {G : CGraph} (a : G.V) : 1 ≤ G.indepNum := b
     intro x hx y hy hxy
     simp only [Finset.coe_singleton, Set.mem_singleton_iff] at hx hy
     exact absurd (hx.trans hy.symm) hxy
-  simpa using hind.card_le_indepNum
+  simpa [indepNum] using hind.card_le_indepNum
 
 /-- **A nonempty graph has an independent vertex**: a single vertex is an independent set. -/
 @[toIsoGraph]
@@ -2685,12 +2684,12 @@ theorem le_indepNum_lineGraph_of_pairing {G : CGraph} {k : ℕ}
     k ≤ (lineGraph G).indepNum := by
   classical
   let E : Fin k → (lineGraph G).V := fun i ↦
-    ⟨Sym2.mk (a i, b i), by rw [SimpleGraph.mem_edgeSet, toSimple_adj]; exact hadj i⟩
+    ⟨s(a i, b i), by rw [SimpleGraph.mem_edgeSet, toSimple_adj]; exact hadj i⟩
   have hEinj : Function.Injective E := by
     intro i j hij
     by_contra hne
     obtain ⟨h1, h2, h3, h4⟩ := hdisj i j hne
-    have hval : Sym2.mk (a i, b i) = Sym2.mk (a j, b j) := congrArg Subtype.val hij
+    have hval : s(a i, b i) = s(a j, b j) := congrArg Subtype.val hij
     rcases Sym2.eq_iff.1 hval with ⟨he, _⟩ | ⟨he, _⟩
     · exact h1 he
     · exact h2 he

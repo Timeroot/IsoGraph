@@ -436,6 +436,7 @@ theorem dedupSortedFast.go_eq (l acc : List ℕ) :
 
 @[csimp] theorem dedupSorted_eq_dedupSortedFast : @dedupSorted = @dedupSortedFast := by
   funext l
+  show dedupSorted l = dedupSortedFast.go l []
   simpa using (dedupSortedFast.go_eq l []).symm
 
 /-- Deduplicate a list of naturals in `O(k log k)`: sort, then drop adjacent duplicates. -/

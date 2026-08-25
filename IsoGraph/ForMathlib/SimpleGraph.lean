@@ -123,7 +123,7 @@ theorem degrees_eq [Fintype V] [DecidableRel G.Adj] [Fintype W] [DecidableRel G'
 this to `f` and to `f.symm` gives `edist_eq`. -/
 private theorem edist_le_of_iso (f : G ≃g G') (u v : V) :
     G'.edist (f u) (f v) ≤ G.edist u v := by
-  rw [SimpleGraph.edist_eq_sInf]
+  rw [SimpleGraph.edist_eq_sInf (u := u) (v := v)]
   refine le_sInf ?_
   rintro _ ⟨w, rfl⟩
   simpa using SimpleGraph.edist_le (w.map f.toHom)
@@ -220,17 +220,7 @@ theorem isRegularOfDegree_iff (f : G ≃g G') : G.IsRegularOfDegree k ↔ G'.IsR
 
 end StronglyRegular
 
-/-- **Girth is an isomorphism invariant**: an isomorphism carries cycles to cycles of the same
-length, in both directions, so the infimum of cycle lengths is the same on both sides. -/
-theorem egirth_eq (f : G ≃g G') : G.egirth = G'.egirth := by
-  refine le_antisymm (le_egirth.2 fun a w hw ↦ ?_) (le_egirth.2 fun a w hw ↦ ?_)
-  · have h := egirth_le_length (hw.map (f := f.symm.toHom) f.symm.injective)
-    rwa [Walk.length_map] at h
-  · have h := egirth_le_length (hw.map (f := f.toHom) f.injective)
-    rwa [Walk.length_map] at h
-
-theorem girth_eq (f : G ≃g G') : G.girth = G'.girth := by
-  rw [girth, girth, f.egirth_eq]
+-- `egirth_eq` and `girth_eq` used to live here; Mathlib has them since `v4.30`.
 
 end SimpleGraph.Iso
 

@@ -1621,7 +1621,7 @@ theorem trace_blocks : ∀ (xs p : List H.V) (st : State H G), Ok l st xs p → 
     ∃ r, trace H G rank pairs ind st (blocks l xs) = some r ∧
       r.length = (xs.map fun y ↦ (l y).length + 1).sum ∧
       Ok l (headSt H G st r) [] (xs.reverse ++ p)
-  | [], p, st, hok, _, _ => ⟨[], rfl, rfl, by simpa using hok⟩
+  | [], p, st, hok, _, _ => ⟨[], rfl, rfl, by simpa [headSt] using hok⟩
   | x :: xs, p, st, hok, hxs, hpre => by
     obtain ⟨r₁, hr₁, hlen₁, hok₁⟩ :=
       trace_block rank pairs ind l f hl hnd hcc hs hhsnd hch hsym hind x xs p st hok hxs hpre

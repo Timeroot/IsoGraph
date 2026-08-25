@@ -202,7 +202,7 @@ theorem chromNum_foldedCube_odd {n : ℕ} (hn : n % 2 = 1) : (foldedCube n).chro
     intro h; exact absurd (congr_fun h ⟨0, Nat.pos_of_ne_zero (by omega)⟩) (by simp)
   have hadj : (CGraph.foldedCube n).Adj (fun _ => false) (fun _ => true) := by
     simp [CGraph.foldedCube_adj, hne']
-  have hex : Sym2.mk (fun _ => (false : Bool), fun _ => (true : Bool)) ∈ (CGraph.foldedCube
+  have hex : s((fun _ => (false : Bool)), (fun _ => (true : Bool))) ∈ (CGraph.foldedCube
       n).toSimple.edgeFinset := by
     simp [SimpleGraph.mem_edgeFinset, CGraph.toSimple_adj, hne']
   have hne'' : (CGraph.foldedCube n).toSimple.edgeFinset.Nonempty := ⟨_, hex⟩
@@ -257,7 +257,7 @@ theorem matchNum_foldedCube_odd (m : ℕ) : (foldedCube (2 * m + 1)).matchNum = 
       simp
     let edgeVertex : (Fin (2 * m) → Bool) → (CGraph.lineGraph (CGraph.foldedCube (2 * m +
         1))).V := fun x =>
-      ⟨Sym2.mk (v0 x, v1 x), by
+      ⟨s(v0 x, v1 x), by
         rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj]
         exact huv_adj x⟩
     let S : Finset (CGraph.lineGraph (CGraph.foldedCube (2 * m +
@@ -265,8 +265,8 @@ theorem matchNum_foldedCube_odd (m : ℕ) : (foldedCube (2 * m + 1)).matchNum = 
     have hv0_inj : Function.Injective v0 := by
       intro x y h; simp [v0] at h; exact h
     have hdisjoint : ∀ x y : (Fin (2 * m) → Bool), x ≠ y →
-        ¬∃ v : Fin (2 * m + 1) → Bool, v ∈ (Sym2.mk (v0 x, v1 x) : Sym2 (Fin (2 * m + 1) → Bool)) ∧
-          v ∈ (Sym2.mk (v0 y, v1 y) : Sym2 (Fin (2 * m + 1) → Bool)) := by
+        ¬∃ v : Fin (2 * m + 1) → Bool, v ∈ (s(v0 x, v1 x) : Sym2 (Fin (2 * m + 1) → Bool)) ∧
+          v ∈ (s(v0 y, v1 y) : Sym2 (Fin (2 * m + 1) → Bool)) := by
       intro x y hxy ⟨v, hv1, hv2⟩
       rw [Sym2.mem_iff] at hv1 hv2
       rcases hv1 with rfl | rfl
@@ -289,7 +289,7 @@ theorem matchNum_foldedCube_odd (m : ℕ) : (foldedCube (2 * m + 1)).matchNum = 
       exact hdisjoint x y hne ⟨v, hv, hx1v⟩
     have hinj : Function.Injective edgeVertex := by
       intro x y hxy
-      have hsym2 : Sym2.mk (v0 x, v1 x) = Sym2.mk (v0 y, v1 y) := Subtype.ext_iff.mp hxy
+      have hsym2 : s(v0 x, v1 x) = s(v0 y, v1 y) := Subtype.ext_iff.mp hxy
       rcases Sym2.eq_iff.1 hsym2 with ⟨h1, _⟩ | ⟨h1, h2⟩
       · exact hv0_inj h1
       · have h2 := congr_fun h1 0; simp [v0, v1] at h2
@@ -317,7 +317,7 @@ theorem maxDeg_tadpole (m k : ℕ) : maxDeg (tadpole (m + 3) (k + 1)) = 3 := by
         simp only [hv, List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges,
           List.mem_cons, List.not_mem_nil, or_false, true_and, and_true]
         omega)
-    simpa using h
+    simpa [CGraph.tadpole] using h
   refine le_antisymm (CGraph.maxDeg_le_of_forall fun v ↦ ?_)
     (le_of_eq_of_le (hdeg0 ⟨0, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _))
   refine le_trans (CGraph.degree_ofEdges_le (m + 3 + (k + 1)) _ v
@@ -348,7 +348,7 @@ theorem maxDeg_doubleStar (m n : ℕ) : maxDeg (doubleStar m n) = max m n + 1 :=
         rw [hv, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
         simp only [List.mem_cons, List.mem_map_add_range, true_and]
         omega)
-    simpa using h
+    simpa [CGraph.doubleStar] using h
   have hdeg1 : ∀ v : (CGraph.doubleStar m n).V, v.1 = 1 →
       (CGraph.doubleStar m n).toSimple.degree v = n + 1 := by
     intro v hv
@@ -365,7 +365,7 @@ theorem maxDeg_doubleStar (m n : ℕ) : maxDeg (doubleStar m n) = max m n + 1 :=
         rw [hv, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
         simp only [List.mem_cons, List.mem_map_add_range, true_and, and_true]
         omega)
-    simpa using h
+    simpa [CGraph.doubleStar] using h
   refine le_antisymm (CGraph.maxDeg_le_of_forall fun v ↦ ?_) ?_
   · by_cases h0 : v.1 = 0
     · rw [hdeg0 v h0]
@@ -903,7 +903,7 @@ theorem matchNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).matchNum 
     have hve0_ne_ve1 : ve0 ≠ ve1 := by
       intro h; have := congr_arg Fin.val h; simp [ve0, ve1] at this
     have hve0_ne_ve2m1 : ve0 ≠ ve2m1 := by
-      intro h; have := congr_arg Fin.val h; simp [ve0, ve2m1] at this; omega
+      intro h; have := congr_arg Fin.val h; simp [ve0, ve2m1] at this
     have hve2_ne_ve1 : ve2 ≠ ve1 := by
       intro h; have := congr_arg Fin.val h; simp [ve2, ve1] at this
     have hve2_ne_ve2m1 : ve2 ≠ ve2m1 := by
@@ -977,7 +977,7 @@ theorem maxDeg_lollipop (m k : ℕ) : maxDeg (lollipop (m + 2) (k + 1)) = m + 2 
         simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges,
           List.mem_map_add_range, true_and]
         omega)
-    simpa using hd
+    simpa [CGraph.lollipop] using hd
   refine le_antisymm (CGraph.maxDeg_le_of_forall fun v ↦ ?_)
     (le_of_eq_of_le (hdeg0 ⟨0, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _))
   rcases Nat.lt_or_ge v.1 (m + 2) with hv | hv

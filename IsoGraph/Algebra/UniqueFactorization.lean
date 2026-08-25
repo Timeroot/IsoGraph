@@ -213,7 +213,7 @@ theorem eq_snd_of_mem_interval {G H : CGraph} {x y w : (G □g H).V}
       _ = G.toSimple.edist x.1 y.1 := hkey
       _ = G.toSimple.edist x.1 y.1 + 0 := (add_zero _).symm
   have hzero : H.toSimple.edist x.2 w.2 + H.toSimple.edist w.2 x.2 = 0 :=
-    le_antisymm ((ENat.add_le_add_iff_left hfin).1 hle) (zero_le _)
+    le_antisymm ((ENat.add_le_add_iff_left hfin).1 hle) zero_le
   exact (SimpleGraph.edist_eq_zero_iff.1 (add_eq_zero.1 hzero).1).symm
 
 /-- **Layers are convex.**  The copies of `G` inside a connected `G □g H` are convex sets of

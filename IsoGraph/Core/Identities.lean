@@ -2228,7 +2228,7 @@ theorem cpVal_eq_zero_iff (n i j : ℕ) (hi : i < n + 2) : cpVal n i j = 0 ↔ i
   constructor
   · intro h
     have h2 : ((cpCode n i j : ℕ) : ZMod (2 * n + 3)) = ((0 : ℕ) : ZMod (2 * n + 3)) := by
-      simpa using h
+      simpa [cpVal] using h
     exact cp_natCast_inj n _ _ (cpCode_lt n i j hi) (by omega) h2
   · intro h; unfold cpVal; rw [h]; simp
 
@@ -2501,6 +2501,7 @@ theorem staircase_same (a c i i' : ℕ) (hi : i ≤ a) (hi' : i' ≤ a) :
     (c + 2 * i + 1) % (2 * a + 3) ≠ (c + 2 * i') % (2 * a + 3) := by
   intro he
   have h1 : c + (2 * i + 1) ≡ c + 2 * i' [MOD 2 * a + 3] := by
+    show (c + (2 * i + 1)) % (2 * a + 3) = (c + 2 * i') % (2 * a + 3)
     simpa [Nat.add_assoc] using he
   exact two_mul_succ_not_modEq a i i' hi hi' (Nat.ModEq.add_left_cancel' _ h1)
 

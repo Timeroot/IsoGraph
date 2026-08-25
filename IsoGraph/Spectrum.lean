@@ -583,7 +583,7 @@ theorem spectrum_congr {G H : CGraph} (i : G ≃cg H) : G.spectrum = H.spectrum 
 
 theorem spectrum_eq_map (G : CGraph) :
     G.spectrum = Finset.univ.val.map G.eigenvalues := by
-  simpa [spectrum, charpoly, Function.comp_def]
+  simpa [spectrum, charpoly, eigenvalues, Function.comp_def]
     using G.isHermitian_adjMat.roots_charpoly_eq_eigenvalues
 
 @[simp, toIsoGraph] theorem card_spectrum (G : CGraph) :
@@ -979,7 +979,6 @@ theorem hasEigenvector_path (n : ℕ) (m : Fin n) :
     rw [show ((⟨0, m.pos⟩ : Fin n).1 : ℝ) + 1 = 1 by norm_num, mul_one] at hzero
     exact absurd hzero (ne_of_gt (Real.sin_pos_of_pos_of_lt_pi hapos haltpi))
   · have key := path_adjMat_mulVec n (fun k : ℕ ↦ Real.sin (a * k)) hf0 hfn i
-    simp only at key
     have hpre : (fun j : Fin n ↦ Real.sin (a * ((j.1 : ℝ) + 1)))
         = fun j : Fin n ↦ Real.sin (a * ((j.1 + 1 : ℕ) : ℝ)) := by
       funext j; norm_num
@@ -6515,7 +6514,7 @@ theorem lapSpectrum_congr {G H : CGraph} (i : G ≃cg H) : G.lapSpectrum = H.lap
 
 theorem lapSpectrum_eq_map (G : CGraph) :
     G.lapSpectrum = Finset.univ.val.map G.lapEigenvalues := by
-  simpa [lapSpectrum, lapCharpoly, Function.comp_def]
+  simpa [lapSpectrum, lapCharpoly, lapEigenvalues, Function.comp_def]
     using G.isHermitian_lapMat.roots_charpoly_eq_eigenvalues
 
 @[simp, toIsoGraph] theorem card_lapSpectrum (G : CGraph) :
@@ -6894,7 +6893,7 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
     simpa [Matrix.mulVec, dotProduct, Matrix.mul_apply, mul_comm] using h1
   -- on a connected graph a kernel vector of `L` is constant
   obtain ⟨i₀, hlam, hvv⟩ := exists_conj_vecMulVec hUU hUU' hdiag
-    (show G.lapMat *ᵥ (fun _ ↦ (1 : ℝ)) = (0 : ℝ) • (fun _ ↦ (1 : ℝ)) by
+    (show G.lapMat *ᵥ (1 : G.V → ℝ) = (0 : ℝ) • (1 : G.V → ℝ) by
       simpa using G.lapMat_mulVec_one)
     (fun i hi x y ↦ (G.lapMat_mulVec_eq_zero_iff.1 (by rw [hcol i, hi, zero_smul])) x y
       (hconn.preconnected x y))

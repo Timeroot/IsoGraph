@@ -309,7 +309,7 @@ theorem degree_le (t : H.TopMinorOf G) (x : H.V) :
     rcases t.branch' h1 b hz1 with rfl | rfl
     · have h0 : (t.path h1).getVert 0 = (t.path h1).getVert 1 := by
         rw [SimpleGraph.Walk.getVert_zero]; exact hb.symm
-      exact absurd ((t.isPath' h1).getVert_injOn (by simp) (by simpa using hlen) h0) (by simp)
+      exact absurd ((t.isPath' h1).getVert_injOn (by simp) (by simp; omega) h0) (by simp)
     · rcases t.branch' h2 b hz2 with rfl | rfl
       · exact H.loopless _ h1
       · exact hne rfl

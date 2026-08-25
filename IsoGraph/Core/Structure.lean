@@ -262,7 +262,7 @@ theorem isAcyclic_pathGraph (n : ℕ) : (pathGraph n).IsAcyclic := by
       (pathGraph n).IsBridge s(a, b) := by
     intro a b hab hval
     rw [isBridge_iff]
-    refine ⟨hab, fun hr ↦ ?_⟩
+    intro hr
     -- with the edge `a — b` gone, no walk can change the truth of `· ≤ a`
     have hinv : ∀ {x y : Fin n}, (pathGraph n \ fromEdgeSet {s(a, b)}).Reachable x y →
         (x.val ≤ a.val ↔ y.val ≤ a.val) := by
@@ -694,7 +694,6 @@ theorem not_isBipartite_ofEdges_of_odd_cycle (N m : ℕ) (es : List (ℕ × ℕ)
     (fun k ↦ (⟨k % m, Nat.lt_of_lt_of_le (Nat.mod_lt _ hm) hN⟩ : Fin N)) m hodd ?_
     (Fin.ext (by simp))
   intro k hk
-  dsimp only
   have h1 : k % m = k := Nat.mod_eq_of_lt hk
   rcases Nat.lt_or_ge (k + 1) m with h | h
   · have h2 : (k + 1) % m = k + 1 := Nat.mod_eq_of_lt h
@@ -841,8 +840,8 @@ theorem diameter_eq_two (G : CGraph)
     ENat.one_le_iff_ne_zero.2 fun h0 ↦ hne (SimpleGraph.edist_eq_zero_iff.1 h0)
   have h2 : G.toSimple.edist u v ≠ 1 := fun he ↦ hadj (SimpleGraph.edist_eq_one_iff_adj.1 he)
   have h3 : (2 : ℕ∞) ≤ G.toSimple.edist u v := by
-    have := Order.add_one_le_of_lt (lt_of_le_of_ne h1 (Ne.symm h2))
-    simpa using this
+    have h4 := Order.add_one_le_of_lt (lt_of_le_of_ne h1 (Ne.symm h2))
+    exact h4
   have heq : G.toSimple.ediam = 2 :=
     le_antisymm (G.ediam_le_two h) (le_trans h3 SimpleGraph.edist_le_ediam)
   rw [diameter, SimpleGraph.diam, heq]
@@ -1145,7 +1144,7 @@ theorem diameter_le_two_mul_radius (G : CGraph) : G.diameter ≤ 2 * G.radius :=
     have h2 : G.toSimple.ediam ≤ ((2 * r : ℕ) : ℕ∞) := by
       rwa [Nat.cast_mul, Nat.cast_ofNat]
     have h3 := ENat.toNat_le_toNat h2 (ENat.coe_ne_top _)
-    simpa [radius, ← hr] using h3
+    simpa [diameter, SimpleGraph.diam, radius, ← hr] using h3
   · have h : G.toSimple.diam = 0 := SimpleGraph.diam_eq_zero_of_not_connected hc
     simp [diameter, h]
 
@@ -1880,14 +1879,8 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
   -- Pick an endpoint a of e₀
   -- Get endpoints of e₀: e₀'.1 is a Sym2 of V, and it's in edgeSet so it's an actual edge.
   -- I need at least one vertex from e₀'.1. I'll use induction on Sym2.
-  have h_sym2_mem : ∀ (s : Sym2 (G.toCGraph.V)), ∃ v : G.toCGraph.V, v ∈ s := by
-    intro s
-    change Quot (Sym2.Rel (G.toCGraph.V)) at s
-    obtain ⟨p, rfl⟩ := Quot.exists_rep s
-    refine ⟨p.1, ?_⟩
-    show Sym2.Mem p.1 (Quot.mk (Sym2.Rel G.toCGraph.V) p)
-    simp [Sym2.Mem]
-    exact ⟨p.2, Or.inl rfl⟩
+  have h_sym2_mem : ∀ (s : Sym2 (G.toCGraph.V)), ∃ v : G.toCGraph.V, v ∈ s :=
+    Sym2.ind fun x y ↦ ⟨x, Sym2.mem_mk_left x y⟩
   obtain ⟨a, ha_mem⟩ := h_sym2_mem e₀'.1
   -- All edges incident to a are reachable from e₀' (clique at a, using e₀' itself)
   have hreach_a : ∀ f : (CGraph.lineGraph G.toCGraph).V, a ∈ f.1 →
@@ -1902,7 +1895,7 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
   have hsweep_prop : ∀ u v : G.toCGraph.V, G.toCGraph.Adj u v = true → Swept u → Swept v := by
     intro u v huv ih
     -- The edge {u,v} is incident to u, hence reachable
-    let fe : (CGraph.lineGraph G.toCGraph).V := ⟨Sym2.mk ⟨u, v⟩, by
+    let fe : (CGraph.lineGraph G.toCGraph).V := ⟨s(u, v), by
       simpa [CGraph.toSimple_adj, SimpleGraph.mem_edgeSet] using huv⟩
     have hfe_u : u ∈ fe.1 := by simp [fe]
     have hfe_v : v ∈ fe.1 := by simp [fe]
