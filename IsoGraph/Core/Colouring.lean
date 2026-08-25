@@ -2287,6 +2287,56 @@ theorem indepNum_le_of_forall_card_le {G : CGraph} {n : ℕ}
   rw [← hcard]
   exact h s hs
 
+/-- In `G □ K₂` the two vertices of a column are adjacent, so `Prod.fst` is injective on any
+independent set. -/
+private theorem injOn_fst_of_isIndepSet {G : CGraph} {s : Finset (G.V × Fin 2)}
+    (hs : (G □g complete 2).toSimple.IsIndepSet (s : Set (G.V × Fin 2))) :
+    Set.InjOn Prod.fst (s : Set (G.V × Fin 2)) := by
+  rintro ⟨i, b⟩ hx ⟨j, c⟩ hy (hij : i = j)
+  subst hij
+  by_contra hne
+  have hbc : b ≠ c := fun hh ↦ hne (by rw [hh])
+  exact hs hx hy hne (by simp [toSimple_adj, hbc])
+
+/-- **A prism holds no more independent vertices than its base has vertices**: an independent set
+of `G □ K₂` meets each of the `|V(G)|` columns at most once. -/
+theorem indepNum_cartesianProduct_complete_two_le (G : CGraph) :
+    (G □g complete 2).indepNum ≤ FinEnum.card G.V := by
+  classical
+  refine indepNum_le_of_forall_card_le fun (s : Finset (G.V × Fin 2)) hs ↦ ?_
+  calc s.card = (s.image Prod.fst).card :=
+        (Finset.card_image_of_injOn (injOn_fst_of_isIndepSet hs)).symm
+    _ ≤ (Finset.univ : Finset G.V).card := Finset.card_le_card (Finset.subset_univ _)
+    _ = FinEnum.card G.V := FinEnum.card_univ
+
+/-- **Only a bipartite base fills its prism**: an independent set of `G □ K₂` meeting every column
+picks a layer for each vertex of `G`, and adjacent vertices must pick different layers, so `G` is
+two-colourable. -/
+theorem indepNum_cartesianProduct_complete_two_lt (G : CGraph) (h : ¬ G.IsBipartite) :
+    (G □g complete 2).indepNum < FinEnum.card G.V := by
+  classical
+  refine lt_of_le_of_ne (indepNum_cartesianProduct_complete_two_le G) fun heq ↦ h ?_
+  obtain ⟨s, hs, hcard⟩ := (G □g complete 2).toSimple.exists_isNIndepSet_indepNum
+  have hcards : s.card = FinEnum.card G.V := hcard.trans heq
+  -- every column is met, so each vertex of `G` gets a layer
+  have huniv : s.image Prod.fst = Finset.univ :=
+    Finset.eq_univ_of_card _ <|
+      calc (s.image Prod.fst).card = s.card :=
+            Finset.card_image_of_injOn (injOn_fst_of_isIndepSet hs)
+        _ = FinEnum.card G.V := hcards
+        _ = Fintype.card G.V := by rw [← FinEnum.card_univ, Finset.card_univ]
+  have hlayer : ∀ i : G.V, ∃ b : Fin 2, (i, b) ∈ s := by
+    intro i
+    obtain ⟨x, hx, rfl⟩ := Finset.mem_image.1 (huniv ▸ Finset.mem_univ i)
+    exact ⟨x.2, hx⟩
+  choose f hf using hlayer
+  refine ⟨fun i ↦ decide (f i = 1), fun x y hxy hcon ↦ ?_⟩
+  have hlift : ∀ a b : Fin 2, decide (a = 1) = decide (b = 1) → a = b := by decide
+  have hfxy : f x = f y := hlift _ _ hcon
+  have hne : x ≠ y := by rintro rfl; exact G.loopless x hxy
+  refine hs (hf x) (hf y) (fun hh ↦ hne (congrArg Prod.fst hh)) ?_
+  simp [toSimple_adj, hxy, hfxy]
+
 /-- **Half the vertices of a cycle, rounded down**: the odd labels are independent, and shifting
 an independent set by one step around the cycle lands it on fresh vertices, so it uses at most
 half of them. -/
@@ -3497,6 +3547,60 @@ a proper colouring of `L(G)` is a proper edge colouring of `G`, and an independe
   rw [V_lineGraph, indepNum_lineGraph] at h
   omega
 
+/-- Every unordered pair has a member. -/
+theorem _root_.Sym2.exists_mem {V : Type*} (z : Sym2 V) : ∃ v, v ∈ z :=
+  z.ind (fun a b ↦ ⟨a, Sym2.mem_mk_left a b⟩)
+
+/-- **A pairwise intersecting family of edges is a star or a triangle.**  If no vertex lies on
+every member of the family, the family has at most three members: two of them meet at some `v`,
+a third avoids `v`, and those three already form a triangle that a fourth edge — having only two
+ends — cannot meet three times. -/
+theorem _root_.Sym2.card_le_three_of_forall_inter {V : Type*} [DecidableEq V] {S : Finset (Sym2 V)}
+    (hmeet : ∀ e ∈ S, ∀ f ∈ S, ∃ v, v ∈ e ∧ v ∈ f) (hstar : ∀ v : V, ∃ e ∈ S, v ∉ e) :
+    S.card ≤ 3 := by
+  rcases le_or_gt S.card 1 with h | h
+  · omega
+  -- two members meet at `v`, and a third avoids `v`, so the three form a triangle
+  obtain ⟨e₁, he₁, e₂, he₂, h₁₂⟩ := Finset.one_lt_card.1 h
+  obtain ⟨v, hv₁, hv₂⟩ := hmeet e₁ he₁ e₂ he₂
+  obtain ⟨e₃, he₃, hv₃⟩ := hstar v
+  obtain ⟨u₁, hu₁₁, hu₁₃⟩ := hmeet e₁ he₁ e₃ he₃
+  obtain ⟨u₂, hu₂₂, hu₂₃⟩ := hmeet e₂ he₂ e₃ he₃
+  have hu₁v : u₁ ≠ v := fun hh ↦ hv₃ (hh ▸ hu₁₃)
+  have hu₂v : u₂ ≠ v := fun hh ↦ hv₃ (hh ▸ hu₂₃)
+  have hu₁₂ : u₁ ≠ u₂ := fun hh ↦ h₁₂ (Sym2.eq_of_ne_mem hu₁v hu₁₁ hv₁ (hh ▸ hu₂₂) hv₂)
+  have he₁eq : e₁ = s(u₁, v) := Sym2.eq_of_ne_mem hu₁v hu₁₁ hv₁ (by simp) (by simp)
+  have he₂eq : e₂ = s(u₂, v) := Sym2.eq_of_ne_mem hu₂v hu₂₂ hv₂ (by simp) (by simp)
+  have he₃eq : e₃ = s(u₁, u₂) := Sym2.eq_of_ne_mem hu₁₂ hu₁₃ hu₂₃ (by simp) (by simp)
+  -- any further edge meets all three sides, and two of those meetings pin it down
+  have hsub : S ⊆ {e₁, e₂, e₃} := by
+    intro f hf
+    obtain ⟨w, hwf, hw₃⟩ := hmeet f hf e₃ he₃
+    obtain ⟨z, hzf, hz₁⟩ := hmeet f hf e₁ he₁
+    obtain ⟨y, hyf, hy₂⟩ := hmeet f hf e₂ he₂
+    rw [he₃eq, Sym2.mem_iff] at hw₃
+    rw [he₁eq, Sym2.mem_iff] at hz₁
+    rw [he₂eq, Sym2.mem_iff] at hy₂
+    simp only [Finset.mem_insert, Finset.mem_singleton]
+    rcases hw₃ with hw | hw
+    · -- `f` meets `e₃` at `u₁`
+      have hwf : u₁ ∈ f := hw ▸ hwf
+      rcases hz₁ with _ | hz
+      · rcases hy₂ with hy | hy
+        · exact Or.inr (Or.inr (Sym2.eq_of_ne_mem hu₁₂ hwf (hy ▸ hyf) hu₁₃ hu₂₃))
+        · exact Or.inl (Sym2.eq_of_ne_mem hu₁v hwf (hy ▸ hyf) hu₁₁ hv₁)
+      · exact Or.inl (Sym2.eq_of_ne_mem hu₁v hwf (hz ▸ hzf) hu₁₁ hv₁)
+    · -- `f` meets `e₃` at `u₂`
+      have hwf : u₂ ∈ f := hw ▸ hwf
+      rcases hy₂ with _ | hy
+      · rcases hz₁ with hz | hz
+        · exact Or.inr (Or.inr (Sym2.eq_of_ne_mem hu₁₂ (hz ▸ hzf) hwf hu₁₃ hu₂₃))
+        · exact Or.inr (Or.inl (Sym2.eq_of_ne_mem hu₂v hwf (hz ▸ hzf) hu₂₂ hv₂))
+      · exact Or.inr (Or.inl (Sym2.eq_of_ne_mem hu₂v hwf (hy ▸ hyf) hu₂₂ hv₂))
+  refine le_trans (Finset.card_le_card hsub) ?_
+  exact le_trans (Finset.card_insert_le _ _)
+    (Nat.succ_le_succ (le_trans (Finset.card_insert_le _ _) (by simp)))
+
 /-- **A clique in a line graph is a star or a triangle**, so once some vertex has degree three
 the largest star wins and the clique number of the line graph is the maximum degree. -/
 theorem cliqueNum_lineGraph_of_three_le_maxDeg {G : IsoGraph} (h : 3 ≤ maxDeg G) :
@@ -3544,161 +3648,20 @@ theorem cliqueNum_lineGraph_of_three_le_maxDeg {G : IsoGraph} (h : 3 ≤ maxDeg 
           _ ≤ (H.toSimple.incidenceFinset v).card := Finset.card_le_card himage
           _ = H.toSimple.degree v := SimpleGraph.card_incidenceFinset_eq_degree H.toSimple v
           _ ≤ H.maxDeg := H.degree_le_maxDeg v
-      · -- No common vertex: show |S| ≤ 3
+      · -- No common vertex: the clique is a triangle, so `H` needs no degree at all
+        push_neg at hstar
         have hcard_le_3 : S.card ≤ 3 := by
-          by_contra hcontra
-          push_neg at hcontra
-          have hge4 : 4 ≤ S.card := by omega
-          -- Pick two distinct edges e₁, e₂ in S
-          obtain ⟨e₁, he₁, e₂, he₂, hef₁₂⟩ : ∃ e₁ ∈ S, ∃ e₂ ∈ S, e₁ ≠ e₂ := by
-            have : 1 < S.card := by omega
-            obtain ⟨e₁, he₁, e₂, he₂, hef⟩ := Finset.one_lt_card.mp this
-            exact ⟨e₁, he₁, e₂, he₂, hef⟩
-          -- e₁ and e₂ share a vertex v (clique property)
-          obtain ⟨v, hv_e1, hv_e2⟩ := hclique e₁ he₁ e₂ he₂ hef₁₂
-          -- By hstar, some edge e₃ ∈ S does not contain v
-          obtain ⟨e₃, he₃, hv_not_e3⟩ : ∃ e₃ ∈ S, v ∉ (e₃.1 : Sym2 H.V) := by
-            push_neg at hstar; exact hstar v
-          have hef₁₃ : e₁ ≠ e₃ := by intro h; subst h; exact hv_not_e3 hv_e1
-          have hef₂₃ : e₂ ≠ e₃ := by intro h; subst h; exact hv_not_e3 hv_e2
-          -- e₃ shares u₁ with e₁
-          have haj_e1_e3 := hS he₁ he₃ hef₁₃
-          rw [CGraph.toSimple_adj, lineGraph_adj_def] at haj_e1_e3
-          obtain ⟨u₁, hu₁_e1, hu₁_e3⟩ := haj_e1_e3.2
-          have huv₁ : u₁ ≠ v := by intro h; rw [h] at hu₁_e3; exact hv_not_e3 hu₁_e3
-          -- e₃ shares u₂ with e₂
-          have haj_e2_e3 := hS he₂ he₃ hef₂₃
-          rw [CGraph.toSimple_adj, lineGraph_adj_def] at haj_e2_e3
-          obtain ⟨u₂, hu₂_e2, hu₂_e3⟩ := haj_e2_e3.2
-          have huv₂ : u₂ ≠ v := by intro h; rw [h] at hu₂_e3; exact hv_not_e3 hu₂_e3
-          have hne_u : u₁ ≠ u₂ := by
-            intro heq
-            have : e₁.1 = e₂.1 := by
-              have : u₁ ∈ (e₂.1 : Sym2 H.V) := heq.symm ▸ hu₂_e2
-              exact Sym2.eq_of_ne_mem huv₁ hu₁_e1 hv_e1 this hv_e2
-            exact hef₁₂ (Subtype.ext this)
-          -- e₃.1 has exactly members u₁ and u₂ (card 2, no loops)
-          have he3_edge : e₃.1 ∈ H.toSimple.edgeSet := e₃.2
-          have he3_not_diag : ¬(e₃.1).IsDiag := SimpleGraph.not_isDiag_of_mem_edgeSet _ he3_edge
-          have hcard_e3 : e₃.1.toFinset.card = 2 :=
-            Sym2.card_toFinset_of_not_isDiag e₃.1 he3_not_diag
-          have hu1_in_e3 : u₁ ∈ e₃.1.toFinset := Sym2.mem_toFinset.mpr hu₁_e3
-          have hu2_in_e3 : u₂ ∈ e₃.1.toFinset := Sym2.mem_toFinset.mpr hu₂_e3
-          have hne_uv : u₁ ≠ u₂ := hne_u
-          -- e₁.1 has exactly members v and u₁
-          have he1_edge : e₁.1 ∈ H.toSimple.edgeSet := e₁.2
-          have he1_not_diag : ¬(e₁.1).IsDiag := SimpleGraph.not_isDiag_of_mem_edgeSet _ he1_edge
-          have hcard_e1 : e₁.1.toFinset.card = 2 :=
-            Sym2.card_toFinset_of_not_isDiag e₁.1 he1_not_diag
-          have hv_in_e1 : v ∈ e₁.1.toFinset := Sym2.mem_toFinset.mpr hv_e1
-          have hu1_in_e1 : u₁ ∈ e₁.1.toFinset := Sym2.mem_toFinset.mpr hu₁_e1
-          -- Similarly for e₂
-          have he2_edge : e₂.1 ∈ H.toSimple.edgeSet := e₂.2
-          have he2_not_diag : ¬(e₂.1).IsDiag := SimpleGraph.not_isDiag_of_mem_edgeSet _ he2_edge
-          have hcard_e2 : e₂.1.toFinset.card = 2 :=
-            Sym2.card_toFinset_of_not_isDiag e₂.1 he2_not_diag
-          have hv_in_e2 : v ∈ e₂.1.toFinset := Sym2.mem_toFinset.mpr hv_e2
-          have hu2_in_e2 : u₂ ∈ e₂.1.toFinset := Sym2.mem_toFinset.mpr hu₂_e2
-          -- e₁.1.toFinset = {v, u₁}, e₂.1.toFinset = {v, u₂}, e₃.1.toFinset = {u₁, u₂}
-          -- There exists e₄ ∈ S \ {e₁, e₂, e₃}
-          have hsub : {e₁, e₂, e₃} ⊆ S := by
-            simp [Finset.insert_subset_iff, he₁, he₂, he₃]
-          have hcard_sub : ({e₁, e₂, e₃} : Finset (CGraph.lineGraph H).V).card = 3 := by
-            rw [Finset.card_insert_of_notMem, Finset.card_insert_of_notMem, Finset.card_singleton]
-            · simp [hef₂₃]
-            · intro h; simp_all
-          have hS_minus_card : (S \ {e₁, e₂, e₃}).card > 0 := by
-            have h1 := Finset.card_sdiff_of_subset hsub
-            omega
-          obtain ⟨e₄, he₄_mem⟩ := Finset.card_pos.mp hS_minus_card
-          have he₄_mem' := he₄_mem
-          obtain ⟨he₄_in_S, he₄_not_in_triple⟩ := Finset.mem_sdiff.mp he₄_mem'
-          simp [Finset.mem_insert, Finset.mem_singleton] at he₄_not_in_triple
-          obtain ⟨he₄_ne₁', he₄_ne₂', he₄_ne₃'⟩ := he₄_not_in_triple
-          -- e₄.1 is also an edge
-          have he4_edge : e₄.1 ∈ H.toSimple.edgeSet := e₄.2
-          -- Adjacency gives shared vertices
-          have haj_e4_e3 := hS he₄_in_S he₃ he₄_ne₃'
-          have haj_e4_e1 := hS he₄_in_S he₁ he₄_ne₁'
-          have haj_e4_e2 := hS he₄_in_S he₂ he₄_ne₂'
-          rw [CGraph.toSimple_adj, lineGraph_adj_def] at haj_e4_e3 haj_e4_e1 haj_e4_e2
-          -- e₄ adjacent to e₃: e₄.1 ≠ e₃.1 and share a vertex
-          -- e₄ adjacent to e₁: e₄.1 ≠ e₁.1 and share a vertex
-          -- e₄ adjacent to e₂: e₄.1 ≠ e₂.1 and share a vertex
-          -- e₁.1 has v, u₁ (v ≠ u₁), e₂.1 has v, u₂ (v ≠ u₂), e₃.1 has u₁, u₂ (u₁ ≠ u₂)
-          -- e₄.1 must intersect each of these. With |e₄.1| = 2, this forces e₄.1 = one of them.
-          -- Use Sym2.eq_of_ne_mem: if a ≠ b, a ∈ s, b ∈ s, a ∈ t, b ∈ t, and s,t are non-diag
-          -- edges, then s = t.
-          -- We show e₄.1 = e₁.1, e₂.1, or e₃.1, contradicting he₄_ne.*
-          obtain ⟨he4_adj3, w, hw_e4, hw_e3⟩ := haj_e4_e3
-          obtain ⟨he4_adj1, z, hz_e4, hz_e1⟩ := haj_e4_e1
-          obtain ⟨he4_adj2, y, hy_e4, hy_e2⟩ := haj_e4_e2
-          -- e₃.1 contains u₁, u₂ (u₁ ≠ u₂). e₄.1 shares w with e₃.1.
-          -- Since e₃.1 is non-diag with u₁,u₂ ∈ e₃.1 and u₁ ≠ u₂,
-          -- any vertex in e₃.1 is u₁ or u₂... but we don't need that.
-          -- Instead, we directly check: e₄.1 intersects e₃.1 ({u₁,u₂}), e₁.1 ({v,u₁}), e₂.1
-          -- ({v,u₂}).
-          -- e₄.1 has two endpoints. To intersect all three pairs, it must equal one of them.
-          -- Case analysis on which endpoint of e₄.1 lies in e₃.1.
-          -- w ∈ e₄.1 ∩ e₃.1. Since u₁,u₂ ∈ e₃.1 and e₃.1 is not diag with those two members,
-          -- e₃.1 = Sym2.mk (u₁, u₂). So w = u₁ or w = u₂.
-          have hsye_e3 : e₃.1 = Sym2.mk (u₁, u₂) := by
-            exact Sym2.eq_of_ne_mem hne_uv hu₁_e3 hu₂_e3 (Sym2.mem_mk_left _ _) (Sym2.mem_mk_right _
-              _)
-          have hsye_e1 : e₁.1 = Sym2.mk (v, u₁) := by
-            exact Sym2.eq_of_ne_mem huv₁.symm hv_e1 hu₁_e1 (Sym2.mem_mk_left _ _) (Sym2.mem_mk_right
-              _ _)
-          have hsye_e2 : e₂.1 = Sym2.mk (v, u₂) := by
-            exact Sym2.eq_of_ne_mem huv₂.symm hv_e2 hu₂_e2 (Sym2.mem_mk_left _ _) (Sym2.mem_mk_right
-              _ _)
-          have hw_cases : w = u₁ ∨ w = u₂ := by
-            rw [hsye_e3] at hw_e3; exact Sym2.mem_iff.mp hw_e3
-          -- Now: e₄.1 ≠ e₃.1, e₄.1 ≠ e₁.1, e₄.1 ≠ e₂.1 (from adjacency ≠)
-          -- and e₄.1 shares a vertex with each.
-          -- w = u₁ or u₂ (from e₃ intersection)
-          -- We also know z ∈ e₄.1 ∩ e₁.1, y ∈ e₄.1 ∩ e₂.1
-          -- e₁.1 = Sym2.mk (v, u₁), so z = v or z = u₁
-          have hz_cases : z = v ∨ z = u₁ := by
-            rw [hsye_e1] at hz_e1; exact Sym2.mem_iff.mp hz_e1
-          -- e₂.1 = Sym2.mk (v, u₂), so y = v or y = u₂
-          have hy_cases : y = v ∨ y = u₂ := by
-            rw [hsye_e2] at hy_e2; exact Sym2.mem_iff.mp hy_e2
-          -- e₄.1 has two elements, one of which is w ∈ {u₁,u₂}.
-          -- If w = u₁ and z = u₁ and y = u₂: e₄.1 has u₁, u₂ → e₄.1 = e₃.1, contradiction.
-          -- We go case by case and derive contradiction in each.
-          -- Derive concrete Sym2 membership in e₄.1
-          have hw'_e4 : w ∈ (e₄.1 : Sym2 H.V) := hw_e4
-          have hz'_e4 : z ∈ (e₄.1 : Sym2 H.V) := hz_e4
-          have hy'_e4 : y ∈ (e₄.1 : Sym2 H.V) := hy_e4
-          rcases hw_cases with hwu₁ | hwu₂
-          · -- w = u₁
-            have hu1_in_e4 : u₁ ∈ (e₄.1 : Sym2 H.V) := hwu₁ ▸ hw_e4
-            rcases hz_cases with hzv | hzv
-            · -- z = v
-              have hv_in_e4 : v ∈ (e₄.1 : Sym2 H.V) := hzv ▸ hz_e4
-              exfalso; apply he4_adj1; exact hinj (Sym2.eq_of_ne_mem huv₁.symm hv_in_e4 hu1_in_e4
-                hv_e1 hu₁_e1)
-            · -- z = u₁
-              rcases hy_cases with hyv | hyu2
-              · -- y = v
-                have hv_in_e4 : v ∈ (e₄.1 : Sym2 H.V) := hyv ▸ hy_e4
-                exfalso; apply he4_adj1; exact hinj (Sym2.eq_of_ne_mem huv₁.symm hv_in_e4 hu1_in_e4
-                  hv_e1 hu₁_e1)
-              · -- y = u₂
-                have hu2_in_e4 : u₂ ∈ (e₄.1 : Sym2 H.V) := hyu2 ▸ hy_e4
-                exfalso; apply he4_adj3; exact hinj (Sym2.eq_of_ne_mem hne_uv hu1_in_e4 hu2_in_e4
-                  hu₁_e3 hu₂_e3)
-          · -- w = u₂
-            have hu2_in_e4 : u₂ ∈ (e₄.1 : Sym2 H.V) := hwu₂ ▸ hw_e4
-            rcases hz_cases with hzv | hzv
-            · -- z = v
-              have hv_in_e4 : v ∈ (e₄.1 : Sym2 H.V) := hzv ▸ hz_e4
-              exfalso; apply he4_adj2; exact hinj (Sym2.eq_of_ne_mem huv₂ hu2_in_e4 hv_in_e4 hu₂_e2
-                hv_e2)
-            · -- z = u₁
-              have hu1_in_e4 : u₁ ∈ (e₄.1 : Sym2 H.V) := hzv ▸ hz_e4
-              exfalso; apply he4_adj3; exact hinj (Sym2.eq_of_ne_mem hne_uv hu1_in_e4 hu2_in_e4
-                hu₁_e3 hu₂_e3)
+          rw [← Finset.card_image_of_injective S hinj]
+          refine Sym2.card_le_three_of_forall_inter (fun e he f hf ↦ ?_) fun v ↦ ?_
+          · simp only [Finset.mem_image] at he hf
+            obtain ⟨e₀, he₀, rfl⟩ := he
+            obtain ⟨f₀, hf₀, rfl⟩ := hf
+            by_cases hef : e₀ = f₀
+            · obtain ⟨a, ha⟩ := Sym2.exists_mem (e₀.1 : Sym2 H.V)
+              exact ⟨a, ha, hef ▸ ha⟩
+            · exact hclique e₀ he₀ f₀ hf₀ hef
+          · obtain ⟨e, he, hv⟩ := hstar v
+            exact ⟨e.1, Finset.mem_image_of_mem _ he, hv⟩
         exact le_trans hcard_le_3 h
     obtain ⟨t, ht, hcard⟩ := (CGraph.lineGraph H).toSimple.exists_isNClique_cliqueNum
     simp only [CGraph.cliqueNum] at hcard ⊢
@@ -3720,147 +3683,58 @@ theorem indepNum_mycielskian_le (G : IsoGraph) (hV : 0 < G.V) :
   induction G using Quotient.inductionOn with
   | h g =>
     rw [← mk_canonicalize g] at *
-    simp only [indepNum_mk, V_mk]
-    rw [mycielskian_mk, indepNum_mk]
-    set G' := g.canonicalize
-    set n := FinEnum.card G'.V
-
-    -- Helper embeddings
-    let inlEmb : G'.V → (G'.mycielskian).V := fun a => some (Sum.inl a)
-    let inrEmb : G'.V → (G'.mycielskian).V := fun a => some (Sum.inr a)
-    have hinl_inj : Function.Injective inlEmb := by
-      intro a b h; exact Sum.inl_injective (Option.some_injective _ h)
-    have hinr_inj : Function.Injective inrEmb := by
-      intro a b h; exact Sum.inr_injective (Option.some_injective _ h)
-    have hinl_adj : ∀ a b : G'.V, (G'.mycielskian).Adj (inlEmb a) (inlEmb b) = G'.Adj a b := by
-      intro a b; rfl
-    have hnone_inr_adj : ∀ a : G'.V, (G'.mycielskian).Adj none (inrEmb a) = true := by
-      intro a; rfl
-    -- inr vertices are pairwise non-adjacent in μG'
-    have hinr_not_adj : ∀ a b : G'.V, (G'.mycielskian).Adj (inrEmb a) (inrEmb b) = false := by
-      intro a b; simp [inrEmb, CGraph.mycielskian_adj_inr_inr]
-    --key: any indep set s of μG' has |s| ≤ n + α(G')
-    have key : ∀ (s : Finset ((G'.mycielskian).V)), (G'.mycielskian).toSimple.IsIndepSet (↑s) →
-        s.card ≤ n + G'.indepNum := by
-      intro s hs_ind
-      -- The inl-vertices of s, as a Finset of G'.V
-      let A : Finset G'.V := Finset.univ.filter (fun a => inlEmb a ∈ s)
-      -- The inr-vertices of s, as a Finset of G'.V  
-      let B : Finset G'.V := Finset.univ.filter (fun a => inrEmb a ∈ s)
-      -- Key facts about A and B
-      -- A is an indep set in G'
-      have hA_indep : G'.toSimple.IsIndepSet (A : Set G'.V) := by
-        intro a ha b hb hab
-        simp [A] at ha hb
-        intro hadj
-        have hnot_adj := hs_ind ha hb (hinl_inj.ne hab)
-        simp [CGraph.toSimple_adj] at hnot_adj
-        rw [hinl_adj] at hnot_adj
-        simp [CGraph.toSimple_adj] at hadj
-        simp [hnot_adj] at hadj
-      have hA_card : A.card ≤ G'.indepNum := hA_indep.card_le_indepNum
-      -- B.card ≤ n
-      have hB_card : B.card ≤ n := by
-        have : B.card ≤ FinEnum.card G'.V := FinEnum.card_le B
-        exact this
-      -- The inlEmb image of A has size |A|
-      have himage_inl : (Finset.image inlEmb
-          A).card = A.card := Finset.card_image_of_injective _ hinl_inj
-      -- The inrEmb image of B has size |B|
-      have himage_inr : (Finset.image inrEmb
-          B).card = B.card := Finset.card_image_of_injective _ hinr_inj
-      -- none is not in any inlEmb or inrEmb image
-      have hnone_not_inl : none ∉ Finset.image inlEmb A := by simp [inlEmb]
-      have hnone_not_inr : none ∉ Finset.image inrEmb B := by simp [inrEmb]
-      -- inlEmb images and inrEmb images are disjoint
-      have hdisl : Disjoint (Finset.image inlEmb A) (Finset.image inrEmb B) := by
-        rw [Finset.disjoint_left]
-        intro v hvl hvr
-        obtain ⟨a, _, rfl⟩ := Finset.mem_image.mp hvl
-        obtain ⟨b, _, hb⟩ := Finset.mem_image.mp hvr
-        simp [inlEmb, inrEmb] at hb
-        have := Option.some_injective _ hb
-        exact Sum.inl_ne_inr this.symm
-      -- Case split on none ∈ s
-      -- Subset relations
-      have hs_sub_caseA : none ∈ s → s ⊆ {none} ∪ Finset.image inlEmb A := by
-        intro hnone v hv
-        cases v with
-        | none => simp
-        | some x =>
-          cases x with
-          | inl a =>
-            have : some (Sum.inl a) ∈ Finset.image inlEmb A := by
-              simp [Finset.mem_image, A]
-              exact ⟨a, hv, rfl⟩
-            rw [Finset.mem_union]
-            exact Or.inr this
-          | inr a =>
-            exfalso
-            have hne : (none : G'.mycielskian.V) ≠ some (Sum.inr a) := by simp
-            have := hs_ind hnone hv hne
-            simp [inrEmb, hnone_inr_adj a] at this
-      have hs_sub_caseB : none ∉ s → s ⊆ Finset.image inlEmb A ∪ Finset.image inrEmb B := by
-        intro hnone v hv
-        cases v with
+    simp only [indepNum_mk, V_mk, mycielskian_mk] at hV ⊢
+    classical
+    set G' := g.canonicalize with hG'
+    obtain ⟨s, hs, hcard⟩ := (CGraph.mycielskian G').toSimple.exists_isNIndepSet_indepNum
+    rw [CGraph.indepNum, ← hcard]
+    -- the originals of `s` are independent in `G'`, and its shadows are at most everything
+    set A : Finset G'.V := Finset.univ.filter (fun a ↦ (some (Sum.inl a) : G'.mycielskian.V) ∈ s)
+      with hA
+    set B : Finset G'.V := Finset.univ.filter (fun a ↦ (some (Sum.inr a) : G'.mycielskian.V) ∈ s)
+      with hB
+    have hAindep : G'.toSimple.IsIndepSet (A : Set G'.V) := by
+      intro a ha b hb hab hadj
+      have hne : (some (Sum.inl a) : G'.mycielskian.V) ≠ some (Sum.inl b) := by
+        simpa using hab
+      refine hs ?_ ?_ hne ?_
+      · simpa [hA] using ha
+      · simpa [hA] using hb
+      · simpa [CGraph.toSimple_adj] using hadj
+    have hAcard : A.card ≤ G'.indepNum := hAindep.card_le_indepNum
+    have hBcard : B.card ≤ FinEnum.card G'.V := FinEnum.card_le B
+    by_cases hnone : (none : G'.mycielskian.V) ∈ s
+    · -- the apex is in `s`, so no shadow is: the apex sees every shadow
+      have hnos : ∀ a : G'.V, (some (Sum.inr a) : G'.mycielskian.V) ∉ s := fun a ha ↦
+        hs hnone ha (by simp) (by simp [CGraph.toSimple_adj])
+      have hsub : s ⊆ insert none (A.image fun a ↦ (some (Sum.inl a) : G'.mycielskian.V)) := by
+        intro v hv
+        match v with
+        | none => exact Finset.mem_insert_self _ _
+        | some (Sum.inl a) =>
+          exact Finset.mem_insert_of_mem (Finset.mem_image_of_mem _ (by simpa [hA] using hv))
+        | some (Sum.inr a) => exact absurd hv (hnos a)
+      have := Finset.card_le_card hsub
+      have h2 := Finset.card_insert_le (none : G'.mycielskian.V)
+        (A.image fun a ↦ (some (Sum.inl a) : G'.mycielskian.V))
+      have h3 := Finset.card_image_le (s := A) (f := fun a ↦ (some (Sum.inl a) : G'.mycielskian.V))
+      omega
+    · -- the apex is not in `s`, which therefore splits into originals and shadows
+      have hsub : s ⊆ (A.image fun a ↦ (some (Sum.inl a) : G'.mycielskian.V)) ∪
+          (B.image fun a ↦ (some (Sum.inr a) : G'.mycielskian.V)) := by
+        intro v hv
+        match v with
         | none => exact absurd hv hnone
-        | some x =>
-          cases x with
-          | inl a =>
-            have : some (Sum.inl a) ∈ Finset.image inlEmb A := by
-              simp [Finset.mem_image, A]
-              exact ⟨a, hv, rfl⟩
-            rw [Finset.mem_union]
-            exact Or.inl this
-          | inr a =>
-            have : some (Sum.inr a) ∈ Finset.image inrEmb B := by
-              simp [Finset.mem_image, B]
-              exact ⟨a, hv, rfl⟩
-            rw [Finset.mem_union]
-            exact Or.inr this
-      -- B = ∅ when none ∈ s
-      have hB_empty : none ∈ s → B = ∅ := by
-        intro hnone
-        ext a; simp [B]
-        intro ha_mem
-        exfalso
-        have hne : (none : G'.mycielskian.V) ≠ some (Sum.inr a) := by simp
-        have := hs_ind hnone ha_mem hne
-        simp [inrEmb, hnone_inr_adj a] at this
-      -- Case split on none ∈ s
-      by_cases hnone : none ∈ s
-      · have hs_subA := hs_sub_caseA hnone
-        have hcard : s.card ≤ 1 + A.card := by
-          calc s.card ≤ ({none} ∪ Finset.image inlEmb A).card := Finset.card_le_card hs_subA
-            _ = 1 + A.card := by
-              rw [Finset.card_union_of_disjoint (Finset.disjoint_singleton_left.mpr hnone_not_inl)]
-              simp [himage_inl]
-        have hn : 0 < n := hV
-        omega
-      · have hs_subB' := hs_sub_caseB hnone
-        have hcardB' : s.card ≤ A.card + B.card := by
-          calc s.card ≤ (Finset.image inlEmb A ∪ Finset.image inrEmb B).card :=
-              Finset.card_le_card hs_subB'
-            _ = A.card + B.card := by
-              rw [Finset.card_union_of_disjoint hdisl, himage_inl, himage_inr]
-        linarith
-
-    have goal : (CGraph.mycielskian G').indepNum ≤ n + G'.indepNum := by
-      unfold CGraph.indepNum
-      rw [SimpleGraph.indepNum]
-      have hbdd : BddAbove {n | ∃ s : Finset ((G'.mycielskian).V),
-          (G'.mycielskian).toSimple.IsNIndepSet n s} :=
-        ⟨Fintype.card _, fun k ⟨s, hs⟩ => by
-          rw [← hs.card_eq]
-          exact Finset.card_le_univ s⟩
-      apply csSup_le'
-      · intro k hk
-        obtain ⟨s, hs⟩ := hk
-        rcases hs with ⟨hs_ind, hs_card⟩
-        rw [← hs_card]
-        unfold CGraph.indepNum at key
-        exact key s hs_ind
-    exact goal
+        | some (Sum.inl a) =>
+          exact Finset.mem_union_left _ (Finset.mem_image_of_mem _ (by simpa [hA] using hv))
+        | some (Sum.inr a) =>
+          exact Finset.mem_union_right _ (Finset.mem_image_of_mem _ (by simpa [hB] using hv))
+      have := Finset.card_le_card hsub
+      have h2 := Finset.card_union_le (A.image fun a ↦ (some (Sum.inl a) : G'.mycielskian.V))
+        (B.image fun a ↦ (some (Sum.inr a) : G'.mycielskian.V))
+      have h3 := Finset.card_image_le (s := A) (f := fun a ↦ (some (Sum.inl a) : G'.mycielskian.V))
+      have h4 := Finset.card_image_le (s := B) (f := fun a ↦ (some (Sum.inr a) : G'.mycielskian.V))
+      omega
 
 /-- The `|V(G)|` shadows are an independent set, so the complementary cover is small. -/
 theorem coverNum_mycielskian_le (G : IsoGraph) : (mycielskian G).coverNum ≤ G.V + 1 := by

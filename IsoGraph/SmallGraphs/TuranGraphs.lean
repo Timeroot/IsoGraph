@@ -969,34 +969,11 @@ but one degree is two and the hub takes the rest. -/
       simp [Multiset.count_cons, Multiset.count_replicate, Multiset.count_singleton]
     ext x
     exact h3' x
-  rw [h3]
-  rw [add_comm]
-  -- Goal: sort ({2*n+2} + replicate (2*n+2) 2) (· ≤ ·) = replicate (2*n+2) 2 ++ [2*n+2]
-  -- I need to prove a sort equality. Let me use the approach from sort_replicate_append inline.
-  set m := 2 * n + 2
-  set l := List.replicate m 2 ++ [m]
-  have hperm : (l : Multiset ℕ) = Multiset.replicate m 2 + {m} := by
-    simp [l]
-    have : ∀ (l1 l2 : List ℕ), (l1 ++ l2 : Multiset ℕ) = (l1 : Multiset ℕ) + (l2 : Multiset ℕ) := by
-      intro l1 l2; induction l1 with
-      | nil => simp
-      | cons a t ih => simp
-    rw [this, Multiset.coe_replicate, Multiset.coe_singleton]
-  -- l is pairwise sorted: twos inside the block, and every two is at most the hub degree
-  have hl_sorted : List.Pairwise (fun x1 x2 => x1 ≤ x2) l := by
-    simp [l, List.pairwise_append, List.pairwise_replicate]
-    omega
-  have hsort_sorted : List.Pairwise (fun x1 x2 => x1 ≤ x2)
-      (Multiset.sort ({m} + Multiset.replicate m 2) (fun x1 x2 => x1 ≤ x2)) :=
-    Multiset.pairwise_sort _ _
-  have hperm2 : (Multiset.sort ({m} + Multiset.replicate m 2) (fun x1 x2 => x1 ≤ x2) : Multiset ℕ) =
-      ({m} + Multiset.replicate m 2 : Multiset ℕ) := by
-    exact Multiset.sort_eq _ _
-  have hperm4 :
-      (Multiset.sort ({m} + Multiset.replicate m 2) (fun x1 x2 => x1 ≤ x2) : List ℕ).Perm l := by
-    exact Multiset.coe_eq_coe.mp (hperm2.trans (hperm.symm ▸ Multiset.add_comm _ _))
-  exact List.Perm.eq_of_pairwise (fun a b _ _ hab hba => le_antisymm hab hba) hsort_sorted
-    hl_sorted hperm4
+  rw [h3, add_comm,
+    show ({2 * n + 2} : Multiset ℕ) = (([2 * n + 2] : List ℕ) : Multiset ℕ) from rfl]
+  refine sort_replicate_append (List.pairwise_singleton _ _) fun x hx b hb ↦ ?_
+  rw [List.eq_of_mem_replicate hx, List.mem_singleton] at *
+  omega
 
 /-- A vertex of a Turán graph sees everything outside its own part, so the largest degree
 belongs to a vertex of a smallest part. -/
@@ -1457,7 +1434,7 @@ theorem compl_turan (n r : ℕ) :
 
 /-- A Turán graph with at least two parts has a near-perfect matching: pair the vertices up
 in round-robin order, so consecutive vertices land in different parts. -/
-theorem matchNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : (turan n r).matchNum = n / 2 := by
+theorem matchNum_turan {n r : ℕ} (hr : 2 ≤ r) (_h : r ≤ n) : (turan n r).matchNum = n / 2 := by
   apply le_antisymm
   · have h1 := two_mul_matchNum_le_V (turan n r)
     rw [V_turan] at h1
@@ -1481,35 +1458,21 @@ theorem matchNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : (turan n r).ma
       intro ⟨i, hi⟩
       simp only [L]
       simp [List.getElem_append]
+    -- vertex `j` sits in part `j % r`, slot `j / r`; the slot fits because `j < n`
     let f : Fin n → H.V := fun j =>
       ⟨⟨j.val % r, show j.val % r < L.length from hLlen.symm ▸ Nat.mod_lt _ hpos_r⟩, ⟨j.val / r, by
-        have hj' : j.val < n := j.isLt
         rw [hLget ⟨j.val % r, Nat.mod_lt _ hpos_r⟩]
-        split_ifs with h
-        · rw [hq_def]
-          clear hLget hLlen h
-          have hj' : (j : ℕ) < n := j.isLt
-          have hqm2 : n = r * (n / r) + n % r := by
-            have := Nat.div_add_mod n r; linarith
-          have h1 : (j : ℕ) < r * (n / r) + r := by omega
-          have h2 : r * (n / r) + r = r * (n / r + 1) := by ring
-          rw [h2] at h1
-          exact Nat.div_lt_of_lt_mul h1
-        · rw [hq_def]
-          clear hLget hLlen
-          have hj' : (j : ℕ) < n := j.isLt
-          have hqm2 : n = r * (n / r) + n % r := by
-            have := Nat.div_add_mod n r; linarith
-          have hval_ge : n % r ≤ (j : ℕ) % r := not_lt.mp h
-          clear h
-          have hj_decomp := Nat.div_add_mod (j : ℕ) r
-          have hj_mod_lt := Nat.mod_lt (j : ℕ) hpos_r
-          have hqr_pos : 0 < n / r := Nat.div_pos (by omega) hpos_r
-          have h_jdiv_lt : (j : ℕ) / r < n / r := by
-            have := hj_decomp
-            nlinarith
-          have h1 : (j : ℕ) < r * (n / r) := by nlinarith
-          exact Nat.div_lt_of_lt_mul h1⟩⟩
+        dsimp only
+        have hj : (j : ℕ) < n := j.isLt
+        have hdj := Nat.div_add_mod (j : ℕ) r
+        have hdn := Nat.div_add_mod n r
+        have hdle : (j : ℕ) / r ≤ n / r := Nat.div_le_div_right hj.le
+        split_ifs with hlt
+        · omega
+        · rcases eq_or_lt_of_le hdle with heq | hlt2
+          · rw [heq] at hdj
+            omega
+          · exact hlt2⟩⟩
     have hf_inj : Function.Injective f := by
       intro ⟨j1, hj1⟩ ⟨j2, hj2⟩ hfeq
       have hf1 : (j1 : ℕ) % r = (j2 : ℕ) % r := by
@@ -1530,23 +1493,15 @@ theorem matchNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : r ≤ n) : (turan n r).ma
       intro j1 j2
       rw [CGraph.completeMultipartite_adj]
       simp [f]
+    -- `2t` and `2t + 1` are never congruent mod `r ≥ 2`
     have hedge : ∀ t : Fin (n / 2),
         H.Adj (f ⟨2 * t.val, by omega⟩) (f ⟨2 * t.val + 1, by omega⟩) := by
       intro t
       rw [hf_adj]
       intro h
-      have h2 : (2 * (t : ℕ) + 1) % r = (2 * (t : ℕ)) % r := by exact_mod_cast h.symm
-      set x := (2 * (t : ℕ)) % r
-      have hx_lt : x < r := Nat.mod_lt _ hpos_r
-      have h4 : x = (x + 1) % r := by
-        have h1mod : 1 % r = 1 := Nat.mod_eq_of_lt (by omega)
-        show x = ((2 * (t : ℕ)) % r + 1) % r
-        rw [← h2]
-        rw [Nat.add_mod, h1mod]
-      by_cases hx1 : x + 1 < r
-      · rw [Nat.mod_eq_of_lt hx1] at h4; omega
-      · have : x + 1 = r := by omega
-        rw [this, Nat.mod_self] at h4; omega
+      have hdvd : r ∣ 1 := by simpa using (Nat.modEq_iff_dvd' (Nat.le_succ _)).1 h
+      have := Nat.le_of_dvd one_pos hdvd
+      omega
     refine le_trans (le_of_eq (by simp)) (CGraph.card_le_matchNum
       (fun t : Fin (n / 2) ↦ f ⟨2 * t.val, by omega⟩)
       (fun t : Fin (n / 2) ↦ f ⟨2 * t.val + 1, by omega⟩) hedge ?_)

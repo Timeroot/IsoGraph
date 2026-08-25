@@ -112,6 +112,74 @@ private theorem card_inter_finBlock {n k d : ℕ} (h0 : 0 + k ≤ n) (h : d + k 
     omega
   rw [hinter, card_finBlock]
 
+/-- **The swap bound**: replacing an element of `s \ t` by one of `t \ s` moves `s` one edge
+closer to `t` in `J(n, k)`, so `s` and `t` are at distance at most `|s \ t|`. -/
+private theorem edist_johnson_le {n k : ℕ} : ∀ (d : ℕ) (s t : Finset (Fin n))
+    (hs : s.card = k) (ht : t.card = k), (s \ t).card ≤ d →
+      (CGraph.johnson n k).toSimple.edist ⟨s, hs⟩ ⟨t, ht⟩ ≤ (d : ℕ∞) := by
+  classical
+  intro d
+  induction d with
+  | zero =>
+    intro s t hs ht hd
+    have hst : s = t := Finset.eq_of_subset_of_card_le
+      (Finset.sdiff_eq_empty_iff_subset.1 (Finset.card_eq_zero.1 (Nat.le_zero.1 hd)))
+      (by rw [hs, ht])
+    subst hst
+    simp
+  | succ d ih =>
+    intro s t hs ht hd
+    rcases Finset.eq_empty_or_nonempty (s \ t) with hst | ⟨a, ha⟩
+    · exact le_trans (ih s t hs ht (by simp [hst])) (by exact_mod_cast Nat.le_succ d)
+    rw [Finset.mem_sdiff] at ha
+    obtain ⟨b, hb⟩ : (t \ s).Nonempty := by
+      rw [← Finset.card_pos, ← Finset.card_sdiff_comm (hs.trans ht.symm)]
+      exact Finset.card_pos.2 ⟨a, Finset.mem_sdiff.2 ha⟩
+    rw [Finset.mem_sdiff] at hb
+    -- `s` with `a` swapped for `b`
+    set w : Finset (Fin n) := insert b (s.erase a) with hw
+    have hbw : b ∉ s.erase a := fun h ↦ hb.2 (Finset.mem_of_mem_erase h)
+    have hwcard : w.card = k := by
+      rw [hw, Finset.card_insert_of_notMem hbw, Finset.card_erase_of_mem ha.1, hs]
+      have : 0 < k := hs ▸ Finset.card_pos.2 ⟨a, ha.1⟩
+      omega
+    have hinter : s ∩ w = s.erase a := by
+      ext x
+      simp only [hw, Finset.mem_inter, Finset.mem_insert, Finset.mem_erase]
+      constructor
+      · rintro ⟨hx, rfl | hx2⟩
+        · exact absurd hx hb.2
+        · exact hx2
+      · rintro ⟨hxa, hxs⟩
+        exact ⟨hxs, Or.inr ⟨hxa, hxs⟩⟩
+    have hne : (⟨s, hs⟩ : (CGraph.johnson n k).V) ≠ ⟨w, hwcard⟩ := fun h ↦
+      hb.2 (by rw [show s = w from congrArg Subtype.val h]; exact Finset.mem_insert_self _ _)
+    have hadj : (CGraph.johnson n k).toSimple.Adj ⟨s, hs⟩ ⟨w, hwcard⟩ := by
+      simp only [CGraph.toSimple_adj, CGraph.johnson_adj, Bool.and_eq_true, decide_eq_true_eq,
+        beq_iff_eq]
+      exact ⟨hne, by rw [hinter, Finset.card_erase_of_mem ha.1, hs]⟩
+    -- the swap removed `a` from the difference and added nothing
+    have hstep : (w \ t).card ≤ d := by
+      have hsub : w \ t ⊆ (s \ t).erase a := by
+        intro x hx
+        rw [Finset.mem_sdiff] at hx
+        rw [Finset.mem_erase, Finset.mem_sdiff]
+        rcases Finset.mem_insert.1 hx.1 with rfl | hx1
+        · exact absurd hb.1 hx.2
+        · exact ⟨(Finset.mem_erase.1 hx1).1, (Finset.mem_erase.1 hx1).2, hx.2⟩
+      have hcard := Finset.card_le_card hsub
+      rw [Finset.card_erase_of_mem (Finset.mem_sdiff.2 ha)] at hcard
+      omega
+    calc (CGraph.johnson n k).toSimple.edist ⟨s, hs⟩ ⟨t, ht⟩
+        ≤ (CGraph.johnson n k).toSimple.edist ⟨s, hs⟩ ⟨w, hwcard⟩
+            + (CGraph.johnson n k).toSimple.edist ⟨w, hwcard⟩ ⟨t, ht⟩ :=
+          SimpleGraph.edist_triangle
+      _ ≤ 1 + (d : ℕ∞) :=
+          add_le_add ((SimpleGraph.edist_le (SimpleGraph.Adj.toWalk hadj)).trans (by simp))
+            (ih w t hwcard ht hstep)
+      _ = ((d + 1 : ℕ) : ℕ∞) := by push_cast; ring
+
+
 /-- Two `k`-sets differing in `d` elements are at distance `d`, and `d ≤ min k (n - k)`. -/
 theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
     (johnson n k).diameter = min k (n - k) := by
@@ -122,100 +190,14 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
   have adj_char : ∀ s t : (CGraph.johnson n k).V, G.Adj s t ↔ s ≠ t ∧ (s.val ∩ t.val).card = k - 1
     := by
     simp [G, CGraph.johnson_adj]
-  -- Step 1: the distance is at most the number of elements that have to be swapped in, since
-  -- swapping one in brings the two sets one step closer.
+  -- Step 1: the distance is at most the number of elements that have to be swapped in.
   have edist_le_k_inter : ∀ s t : (CGraph.johnson n k).V, G.edist s t ≤ (k - (s.val ∩ t.val).card :
     ℕ∞) := by
-    have key : ∀ d : ℕ, ∀ s t : (CGraph.johnson n k).V, k - (s.val ∩ t.val).card = d → G.edist s t ≤
-      (d : ℕ∞) := by
-      intro d
-      induction d with
-      | zero =>
-        intro s t h0
-        have hcard_le : (s.val ∩ t.val).card ≤ k :=
-          le_trans (Finset.card_le_card Finset.inter_subset_left) s.property.le
-        have hcard_inter : (s.val ∩ t.val).card = k := by omega
-        have hs : s.val ∩ t.val = s.val := Finset.eq_of_subset_of_card_le
-          Finset.inter_subset_left (le_of_eq (by rw [s.property, hcard_inter]))
-        have ht : s.val ∩ t.val = t.val := Finset.eq_of_subset_of_card_le
-          Finset.inter_subset_right (le_of_eq (by rw [t.property, hcard_inter]))
-        simp [Subtype.ext (hs.symm.trans ht), SimpleGraph.edist_self]
-      | succ d ih =>
-        intro s t hd
-        have hcard_inter : (s.val ∩ t.val).card = k - (d + 1) := by omega
-        have hcard_st : (s.val \ t.val).card = d + 1 := by
-          rw [Finset.card_sdiff, s.property, Finset.inter_comm, hcard_inter]
-          omega
-        have hcard_ts : (t.val \ s.val).card = d + 1 := by
-          rw [Finset.card_sdiff, t.property, hcard_inter]
-          omega
-        obtain ⟨a, ha_s, ha_t⟩ : ∃ a, a ∈ s.val ∧ a ∉ t.val := by
-          obtain ⟨a, ha⟩ := Finset.card_pos.mp (by omega : 0 < (s.val \ t.val).card)
-          exact ⟨a, Finset.mem_sdiff.mp ha |>.1, Finset.mem_sdiff.mp ha |>.2⟩
-        obtain ⟨b, hb_t, hb_s⟩ : ∃ b, b ∈ t.val ∧ b ∉ s.val := by
-          obtain ⟨b, hb⟩ := Finset.card_pos.mp (by omega : 0 < (t.val \ s.val).card)
-          exact ⟨b, Finset.mem_sdiff.mp hb |>.1, Finset.mem_sdiff.mp hb |>.2⟩
-        -- Trade `a` for `b`: the new set `s'` is adjacent to `s` and one closer to `t`.
-        have hcard_sa : (s.val ∩ {a}).card = 1 := by
-          rw [Finset.inter_eq_right.mpr (Finset.singleton_subset_iff.mpr ha_s)]
-          exact Finset.card_singleton a
-        have hcard_as : ({a} ∩ s.val).card = 1 := by rw [Finset.inter_comm]; exact hcard_sa
-        let s'_val : Finset (Fin n) := (s.val \ {a}) ∪ {b}
-        have hs'_card : s'_val.card = k := by
-          have hdisj : Disjoint (s.val \ {a}) {b} := by
-            rw [Finset.disjoint_singleton_right]
-            exact fun h => hb_s (Finset.mem_sdiff.mp h |>.1)
-          rw [Finset.card_union_of_disjoint hdisj, Finset.card_sdiff, hcard_as,
-            Finset.card_singleton, s.property]
-          omega
-        let s' : (CGraph.johnson n k).V := ⟨s'_val, hs'_card⟩
-        have hab : a ≠ b := by intro h; exact ha_t (h ▸ hb_t)
-        have ha_not_in_s' : a ∉ s'_val := by
-          simp [s'_val, Finset.mem_sdiff, Finset.mem_singleton]
-          tauto
-        have hne : s ≠ s' := by
-          intro heq
-          apply ha_not_in_s'
-          have heq2 : s.val = s'_val := Subtype.ext_iff.mp heq
-          rw [← heq2]
-          exact ha_s
-        have hinter_ss' : (s.val ∩ s'_val).card = k - 1 := by
-          have hex : s.val ∩ s'_val = s.val \ {a} := by
-            ext x
-            simp [s'_val, Finset.mem_sdiff, Finset.mem_singleton]
-            by_cases hx : x = a
-            · subst hx; simp [hab]
-            · simp [hx]; exact fun _ => Or.inr ‹_›
-          rw [hex, Finset.card_sdiff, hcard_as, s.property]
-        have hadj : G.Adj s s' := by
-          rw [adj_char]
-          exact ⟨hne, hinter_ss'⟩
-        have hinter_s't : (s'_val ∩ t.val).card = (s.val ∩ t.val).card + 1 := by
-          have hex : s'_val ∩ t.val = (s.val ∩ t.val) ∪ {b} := by
-            ext x
-            simp [s'_val, Finset.mem_sdiff, Finset.mem_singleton, Finset.mem_inter]
-            by_cases hx : x = b
-            · subst hx; simp [hb_t]
-            · simp [hx]
-              exact fun hxt _ hxa => ha_t (hxa ▸ hxt)
-          rw [hex]
-          have hdisj2 : Disjoint (s.val ∩ t.val) {b} := by
-            rw [Finset.disjoint_singleton_right]
-            intro h; exact hb_s (Finset.mem_of_mem_inter_left h)
-          rw [Finset.card_union_of_disjoint hdisj2, Finset.card_singleton]
-        have hid : k - (s'_val ∩ t.val).card = d := by
-          rw [hinter_s't, hcard_inter]
-          omega
-        have hedist_s't : G.edist s' t ≤ ↑d := ih s' t hid
-        have hedist_ss' : G.edist s s' ≤ 1 :=
-          le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj SimpleGraph.Walk.nil))
-            (by simp)
-        calc G.edist s t
-            ≤ G.edist s s' + G.edist s' t := @SimpleGraph.edist_triangle _ G _ _ _
-          _ ≤ (1 : ℕ∞) + ↑d := add_le_add hedist_ss' hedist_s't
-          _ = ↑(d + 1) := by push_cast; ring
     intro s t
-    exact key _ _ _ rfl
+    have hsd : (s.val \ t.val).card = k - (s.val ∩ t.val).card := by
+      rw [Finset.card_sdiff, s.property, Finset.inter_comm]
+    rw [← ENat.coe_sub, ← hsd]
+    exact edist_johnson_le _ s.1 t.1 s.2 t.2 le_rfl
   -- Step 2: the distance is at least that, because `|u \ t|` drops by at most one along an edge.
   have inter_le_k_sub_edist : ∀ s t : (CGraph.johnson n k).V, (k : ℕ∞) - ↑(s.val ∩ t.val).card ≤
     G.edist s t := by
@@ -305,122 +287,17 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
   rw [le_antisymm (SimpleGraph.ediam_le_of_edist_le upper) edist_le_ediam_aux, hmin_coe,
     ENat.toNat_coe]
 
-/-- Johnson graphs are connected: swap the elements of two `k`-sets one at a time. -/
+/-- Johnson graphs are connected: any two `k`-sets are a finite number of swaps apart. -/
 theorem isConnected_johnson {n k : ℕ} (hk : k ≤ n) : IsConnected (johnson n k) := by
   change IsConnected ⟦CGraph.johnson n k⟧
   rw [IsoGraph.isConnected_mk]
-  -- Goal: (johnson n k).IsConnected, i.e., (johnson n k).toSimple.Connected
-  unfold CGraph.IsConnected
-  have hne : Nonempty (CGraph.johnson n k).V := by
-    by_cases hkn : k = n
-    · subst hkn
-      exact ⟨⟨Finset.univ, by simp⟩⟩
-    · exact ⟨⟨Finset.Iio ⟨k, lt_of_le_of_ne hk hkn⟩, by simp⟩⟩
-  apply SimpleGraph.Connected.mk
-  · -- Preconnected: any two vertices reachable
-    let johnsonC : CGraph := CGraph.johnson n k
-    have reachability : ∀ d : ℕ, ∀ (s t : Finset (Fin n)) (hs : s.card = k) (ht : t.card = k),
-        (s \ t).card = d → johnsonC.toSimple.Reachable ⟨s, hs⟩ ⟨t, ht⟩ := by
-      intro d
-      induction d using Nat.strong_induction_on with
-      | _ d ih =>
-        intro s t hs ht hdval
-        by_cases hst : s = t
-        · exact hst ▸ SimpleGraph.Reachable.refl _
-        · -- s ≠ t, so (s \ t) is nonempty
-          have hd_pos : 0 < (s \ t).card := by
-            by_contra h
-            have h0 : (s \ t).card = 0 := by omega
-            have hsub : s ⊆ t := Finset.sdiff_eq_empty_iff_subset.mp (Finset.card_eq_zero.mp h0)
-            exact hst (Finset.eq_of_subset_of_card_le hsub (by simp [hs, ht]))
-          -- Pick a ∈ s \ t
-          obtain ⟨a, has, hat⟩ : ∃ a ∈ s, a ∉ t := by
-            obtain ⟨x, hx⟩ := Finset.card_pos.mp hd_pos
-            exact ⟨x, Finset.mem_sdiff.mp hx |>.1, Finset.mem_sdiff.mp hx |>.2⟩
-          -- Pick b ∈ t \ s
-          have hne2 : (t \ s).Nonempty := by
-            by_contra h
-            have hempty : t \ s = ∅ := Finset.not_nonempty_iff_eq_empty.mp h
-            have hsub2 : t ⊆ s := Finset.sdiff_eq_empty_iff_subset.mp hempty
-            have := Finset.eq_of_subset_of_card_le hsub2 (by simp [ht, hs])
-            exact hst this.symm
-          obtain ⟨b, hbt, hbs⟩ : ∃ b ∈ t, b ∉ s := by
-            obtain ⟨x, hx⟩ := hne2
-            exact ⟨x, Finset.mem_sdiff.mp hx |>.1, Finset.mem_sdiff.mp hx |>.2⟩
-          -- Construct s'val = insert b (erase s a)
-          let s'val : Finset (Fin n) := s.erase a ∪ {b}
-          have hb_not_in_erase : b ∉ s.erase a := by intro h; exact hbs (Finset.mem_of_mem_erase h)
-          have hs'card : s'val.card = k := by
-            have hdisj : Disjoint (s.erase a) {b} := by
-              rw [Finset.disjoint_singleton_right]
-              exact hb_not_in_erase
-            have := Finset.card_union_of_disjoint hdisj
-            rw [this, Finset.card_erase_of_mem has, Finset.card_singleton, hs]
-            have : 0 < k := hs ▸ Finset.card_pos.mpr ⟨a, has⟩
-            omega
-          let s' : johnsonC.V := ⟨s'val, hs'card⟩
-          have hab : a ≠ b := by intro h; exact hbs (h.symm ▸ has)
-          -- Show s' ≠ s (for adjacency)
-          have hs'_ne_s : (⟨s, hs⟩ : johnsonC.V) ≠ s' := by
-            intro h
-            have hval : s = s'val := Subtype.ext_iff.mp h
-            have : b ∈ s := by
-              rw [hval]
-              exact Finset.mem_union_right _ (Finset.mem_singleton_self _)
-            exact hbs this
-          -- Show |s'val ∩ s| = k - 1
-          have hinter : (s'val ∩ s).card = k - 1 := by
-            have hessa : s'val ∩ s = s.erase a := by
-              ext x
-              simp [s'val]
-              by_cases hx : x = a <;> by_cases hx2 : x = b <;> simp [hx, hx2, hab]
-              tauto
-            rw [hessa, Finset.card_erase_of_mem has, hs]
-          -- Show s' is adjacent to s
-          have hadj_adj : johnsonC.Adj ⟨s, hs⟩ s' := by
-            show johnsonC.Adj ⟨s, hs⟩ s'
-            simp only [johnsonC, CGraph.johnson_adj]
-            have hne' : (⟨s, hs⟩ : johnsonC.V) ≠ s' := hs'_ne_s
-            have hcard' : (s ∩ s'.val).card = k - 1 := by rw [Finset.inter_comm]; exact hinter
-            simp [hne', hcard']
-          -- Show (s'val \ t).card < d
-          have hcard_lt : (s'val \ t).card < d := by
-            have hsub : s'val \ t ⊆ (s \ t) \ {a} := by
-              intro x hx
-              simp only [Finset.mem_sdiff, Finset.mem_singleton] at hx ⊢
-              have hx1 : x ∈ s := by
-                dsimp [s'val] at hx
-                rcases Finset.mem_union.mp hx.1 with hx1 | hx1
-                · exact Finset.mem_of_mem_erase hx1
-                · have hxb : x = b := Finset.mem_singleton.mp hx1
-                  exact False.elim ((hxb ▸ hx.2) hbt)
-              have hxa : x ≠ a := by
-                by_contra hx_eq_a
-                rw [hx_eq_a] at hx
-                have : a ∈ s'val := hx.1
-                simp [s'val, Finset.mem_erase] at this
-                exact hab this
-              exact ⟨⟨hx1, hx.2⟩, hxa⟩
-            have hcard_erase : ((s \ t) \ {a}).card = (s \ t).card - 1 := by
-              have ha_mem : a ∈ s \ t := Finset.mem_sdiff.mpr ⟨has, hat⟩
-              rw [show (s \ t) \ {a} = (s \ t).erase a from by
-                ext x; simp [Finset.mem_sdiff, Finset.mem_singleton, Finset.mem_erase]
-                tauto]
-              exact Finset.card_erase_of_mem ha_mem
-            have : (s'val \ t).card ≤ (s \ t).card - 1 := by
-              exact le_trans (Finset.card_le_card hsub) hcard_erase.le
-            omega
-          -- Use IH for s', t
-          have hired : johnsonC.toSimple.Reachable s' ⟨t, ht⟩ :=
-            ih _ hcard_lt _ _ hs'card ht rfl
-          -- Compose: s → s' → t
-          have hreach_edge : johnsonC.toSimple.Reachable ⟨s, hs⟩ s' :=
-            (SimpleGraph.Adj.reachable
-              (show johnsonC.toSimple.Adj _ _ from by
-                simpa [johnsonC, CGraph.toSimple_adj] using hadj_adj))
-          exact hreach_edge.trans hired
-    intro ⟨u, hu⟩ ⟨v, hv⟩
-    exact reachability _ _ _ hu hv rfl
+  classical
+  obtain ⟨s₀, -, hs₀⟩ :=
+    Finset.exists_subset_card_eq (s := (Finset.univ : Finset (Fin n))) (by simpa using hk)
+  exact { preconnected := fun ⟨u, hu⟩ ⟨v, hv⟩ ↦
+            SimpleGraph.reachable_of_edist_ne_top
+              (ne_top_of_le_ne_top (ENat.coe_ne_top _) (edist_johnson_le _ u v hu hv le_rfl)),
+          nonempty := ⟨⟨s₀, hs₀⟩⟩ }
 
 /-- The `2 × n` grid has four corners of degree two and `2n - 4` interior vertices of degree
 three. -/
@@ -454,16 +331,8 @@ theorem degSequence_ladder (n : ℕ) :
   -- Now handle the main sort goal
   have h3 : (3 ::ₘ ({3} : Multiset ℕ)) = Multiset.replicate 2 3 := by rfl
   rw [h3, hrep]
-  apply List.Perm.eq_of_pairwise
-    (fun _ _ _ _ hab hba => le_antisymm hab hba)
-    (Multiset.pairwise_sort _ (fun x1 x2 => x1 ≤ x2))
-    (by simp [List.pairwise_cons, List.pairwise_replicate, List.mem_replicate])
-    (by
-      have hms : ∀ (m : Multiset ℕ), Multiset.ofList (Multiset.sort m (· ≤ ·)) = m := by
-        intro m; exact Multiset.sort_eq _ _
-      have htarget : (2 ::ₘ 2 ::ₘ 2 ::ₘ 2 ::ₘ Multiset.replicate (2 * n) 3 : Multiset ℕ) =
-          ((2 :: 2 :: 2 :: 2 :: List.replicate (2 * n) 3) : Multiset ℕ) := by rfl
-      exact Multiset.coe_eq_coe.mp (hms _ ▸ htarget))
+  exact sort_eq_of_pairwise
+    (by simp [List.pairwise_replicate, List.mem_replicate]) rfl
 
 /-! ### Consequences of the Johnson graph's connectivity and diameter -/
 
@@ -648,107 +517,56 @@ theorem even_minDeg_circulant_of_odd {n : ℕ} (S : List ℕ) (hodd : n % 2 = 1)
 but one vertex; a near-perfect matching does it. -/
 theorem domNum_triangular (n : ℕ) : (triangular (n + 2)).domNum = (n + 2) / 2 := by
   simp only [triangular, IsoGraph.johnson, IsoGraph.domNum_mk]
-  -- goal: (CGraph.johnson (n + 2) 2).domNum = (n + 2) / 2
-  apply le_antisymm
-  · -- Upper bound: domNum ≤ indepNum ≤ (n+2)/2
-    have h1 : (CGraph.johnson (n + 2) (2 : ℕ)).domNum ≤ (CGraph.johnson (n + 2) (2 : ℕ)).indepNum :=
-      CGraph.domNum_le_indepNum _
-    have h2 : (CGraph.johnson (n + 2) (2 : ℕ)).indepNum ≤ (n + 2) / 2 := by
-      unfold CGraph.indepNum
-      simp only [SimpleGraph.indepNum]
-      apply csSup_le
-      · -- nonempty
-        exact ⟨0, ⟨∅, SimpleGraph.IsNIndepSet.mk (by simp [SimpleGraph.IsIndepSet]) rfl⟩⟩
-      · -- upper bound
-        intro b hb
-        obtain ⟨S, hS_indep, rfl⟩ := hb
-        -- Each pair of distinct vertices in S is disjoint (as Finsets)
-        have hdisj : ∀ u ∈ S, ∀ v ∈ S, u ≠ v → Disjoint u.1 v.1 := by
-          intro u hu v hv huv
-          by_contra hndisj
-          have hadj : (CGraph.johnson (n + 2) (2 : ℕ)).Adj u v := by
-            simp [CGraph.johnson_adj, huv, beq_iff_eq]
-            have hnd := Finset.not_disjoint_iff.mp hndisj
-            exact CGraph.card_inter_eq_one_of_ne u v huv
-              (by
-                intro h
-                obtain ⟨x, hxu, hxv⟩ := hnd
-                exact absurd (h ▸ Finset.mem_inter_of_mem hxu hxv) (by simp))
-          exact absurd hadj (hS_indep hu hv huv)
-        have hcard2 : ∀ u ∈ S, u.1.card = 2 := fun u hu => u.2
-        have hcard_biUnion : (S.biUnion (fun u => u.1)).card = ∑ u ∈ S, u.1.card :=
-          Finset.card_biUnion (fun u hu v hv huv => hdisj u hu v hv huv)
-        have hcard_sum : ∑ u ∈ S, u.1.card = 2 * S.card := by
-          rw [Finset.sum_congr rfl hcard2]
-          simp [Finset.sum_const, mul_comm]
-        have hle : 2 * S.card ≤ (n + 2) := by
-          have : (S.biUnion (fun u => u.1)).card = 2 * S.card := by rw [hcard_biUnion, hcard_sum]
-          have hsub : S.biUnion (fun u => u.1) ⊆ Finset.univ := Finset.subset_univ _
-          have := Finset.card_le_card hsub
-          simp [Finset.card_univ, Fintype.card_fin] at this
-          linarith
-        omega
+  classical
+  -- two pairs are adjacent exactly when they are distinct and meet
+  have hadj : ∀ u v : (CGraph.johnson (n + 2) 2).V,
+      (CGraph.johnson (n + 2) 2).Adj u v = true ↔ u ≠ v ∧ (u.1 ∩ v.1).card = 1 := by
+    intro u v
+    simp [CGraph.johnson_adj]
+  -- a set of `m` pairs covers at most `2m` points
+  have hcov : ∀ s : Finset (CGraph.johnson (n + 2) 2).V,
+      (s.biUnion fun u ↦ u.1).card ≤ 2 * s.card := fun s ↦
+    calc (s.biUnion fun u ↦ u.1).card ≤ ∑ u ∈ s, u.1.card := Finset.card_biUnion_le
+      _ = 2 * s.card := by rw [Finset.sum_congr rfl fun u _ ↦ u.2]; simp [mul_comm]
+  refine le_antisymm ?_ ?_
+  · -- an independent set is a matching, so it has at most `⌊n/2⌋` pairs, and it dominates
+    refine le_trans (CGraph.domNum_le_indepNum _) (CGraph.indepNum_le_of_forall_card_le ?_)
+    intro S hS
+    have hdisj : ∀ u ∈ S, ∀ v ∈ S, u ≠ v → Disjoint u.1 v.1 := by
+      intro u hu v hv huv
+      rw [Finset.disjoint_iff_inter_eq_empty]
+      by_contra hne
+      exact hS hu hv huv ((hadj u v).2 ⟨huv, CGraph.card_inter_eq_one_of_ne u v huv hne⟩)
+    have hcard : (S.biUnion fun u ↦ u.1).card = 2 * S.card := by
+      rw [Finset.card_biUnion hdisj, Finset.sum_congr rfl fun u _ ↦ u.2]
+      simp [mul_comm]
+    have hle : (S.biUnion fun u ↦ u.1).card ≤ n + 2 := by
+      simpa using Finset.card_le_card (Finset.subset_univ (S.biUnion fun u ↦ u.1))
     omega
-  · -- Lower bound
-    have hlower : ∀ s : Finset (CGraph.johnson (n + 2) (2 : ℕ)).V,
-        (CGraph.johnson (n + 2) (2 : ℕ)).IsDominatingSet s → (n + 2) / 2 ≤ s.card := by
-      intro s hsdom
-      by_contra hcard
-      push_neg at hcard
-      set covered := Finset.biUnion s (fun u => u.1) with hcovered_def
-      have hcovered_size : covered.card ≤ 2 * s.card := by
-        have : ∀ u ∈ s, u.1.card = 2 := fun u hu => u.2
-        calc covered.card = (s.biUnion (fun u => u.1)).card := congr_arg Finset.card hcovered_def
-          _ ≤ ∑ u ∈ s, u.1.card := Finset.card_biUnion_le
-          _ = ∑ _ ∈ s, 2 := Finset.sum_congr rfl this
-          _ = 2 * s.card := by simp [mul_comm]
-      have h2le : 2 * s.card ≤ n := by omega
-      have huncovered : (Finset.univ \ covered).card ≥ 2 := by
+  · -- a dominating set covering fewer than `n + 1` points misses a pair entirely
+    obtain ⟨D, hDcard, hD⟩ := (CGraph.johnson (n + 2) 2).exists_isDominatingSet_domNum
+    refine hDcard ▸ ?_
+    by_contra hlt
+    push_neg at hlt
+    have h2 := hcov D
+    obtain ⟨a, ha, b, hb, hab⟩ : ∃ a ∈ Finset.univ \ D.biUnion fun u ↦ u.1,
+        ∃ b ∈ Finset.univ \ D.biUnion fun u ↦ u.1, a ≠ b :=
+      Finset.one_lt_card.mp (by
         rw [Finset.card_sdiff, Finset.inter_univ, Finset.card_univ, Fintype.card_fin]
-        omega
-      obtain ⟨a, ha, b, hb, hab⟩ : ∃ a ∈ Finset.univ \ covered, ∃ b ∈ Finset.univ \ covered, a ≠ b
-        := by
-        exact Finset.one_lt_card.mp huncovered
-      let v : (CGraph.johnson (n + 2) (2 : ℕ)).V := ⟨{a, b}, Finset.card_pair hab⟩
-      have hv_notin : v ∉ s := by
-        intro hv
-        have : a ∈ covered := hcovered_def ▸ Finset.mem_biUnion.mpr ⟨v, hv, Finset.mem_insert_self _
-          _⟩
-        exact Finset.mem_sdiff.mp ha |>.2 this
-      have ha_notin : ∀ u ∈ s, a ∉ u.1 := by
-        intro u hu hua
-        exact Finset.mem_sdiff.mp ha |>.2 (hcovered_def ▸ Finset.mem_biUnion.mpr ⟨u, hu, hua⟩)
-      have hb_notin : ∀ u ∈ s, b ∉ u.1 := by
-        intro u hu hub
-        exact Finset.mem_sdiff.mp hb |>.2 (hcovered_def ▸ Finset.mem_biUnion.mpr ⟨u, hu, hub⟩)
-      have hv_inter_empty : ∀ u ∈ s, (u.1 ∩ v.1) = ∅ := by
-        intro u hu
-        have hv1 : v.1 = {a, b} := rfl
-        have : ∀ x, x ∈ u.1 ∩ v.1 → False := by
-          intro x hx
-          simp [hv1, Finset.mem_inter] at hx
-          rcases hx.2 with rfl | rfl
-          · exact ha_notin u hu hx.1
-          · exact hb_notin u hu hx.1
-        exact Finset.not_nonempty_iff_eq_empty.mp (by rintro ⟨x, hx⟩; exact this x hx)
-      have huv_ne : ∀ u ∈ s, u ≠ v := by
-        intro u hu huv_eq
-        have := congrArg Subtype.val huv_eq
-        simp [v] at this
-        have ha_in_u : a ∈ u.1 := by rw [this]; simp
-        exact Finset.mem_sdiff.mp ha |>.2 (hcovered_def ▸ Finset.mem_biUnion.mpr ⟨u, hu, ha_in_u⟩)
-      have hv_not_adj : ∀ u ∈ s, ¬(CGraph.johnson (n + 2) (2 : ℕ)).Adj u v := by
-        intro u hu
-        simp [CGraph.johnson_adj, huv_ne u hu, hv_inter_empty u hu]
-      have hv_not_dom : ¬(v ∈ s ∨ ∃ u ∈ s, (CGraph.johnson (n + 2) (2 : ℕ)).Adj u v) := by
-        intro h
-        rcases h with hv | ⟨u, hu, hadj⟩
-        · exact hv_notin hv
-        · exact absurd hadj (hv_not_adj u hu)
-      exact hv_not_dom (hsdom v)
-    apply le_csInf
-    · exact ⟨Fintype.card _, ⟨Finset.univ, rfl, CGraph.isDominatingSet_univ _⟩⟩
-    · intro a ⟨s, hs, hsdom⟩; rw [← hs]; exact hlower s hsdom
+        omega)
+    have hnot : ∀ x ∈ Finset.univ \ D.biUnion fun u ↦ u.1, ∀ u ∈ D, x ∉ u.1 :=
+      fun x hx u hu hxu ↦ (Finset.mem_sdiff.1 hx).2 (Finset.mem_biUnion.2 ⟨u, hu, hxu⟩)
+    rcases hD ⟨{a, b}, Finset.card_pair hab⟩ with hv | ⟨u, hu, huv⟩
+    · exact hnot a ha _ hv (Finset.mem_insert_self _ _)
+    · obtain ⟨x, hx⟩ := Finset.card_pos.1 (by
+        rw [((hadj u _).1 huv).2]; omega :
+        0 < (u.1 ∩ ({a, b} : Finset (Fin (n + 2)))).card)
+      rw [Finset.mem_inter] at hx
+      rcases Finset.mem_insert.1 hx.2 with rfl | hx2
+      · exact hnot x ha u hu hx.1
+      · rw [Finset.mem_singleton] at hx2
+        subst hx2
+        exact hnot x hb u hu hx.1
 
 @[simp] theorem domNum_johnson_two (n : ℕ) : (johnson (n + 2) 2).domNum = (n + 2) / 2 :=
   domNum_triangular n

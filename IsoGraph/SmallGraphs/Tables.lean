@@ -884,7 +884,7 @@ attribute [simp] IsoGraph.degMultiset_disjUnion
 /-- The sorted form of a multiset made of `m` copies of a small value `a` and a list `l` of larger
 ones.  This is exactly the shape of the degree multisets of the join-built families: a large hub
 and a lot of small vertices. -/
-private theorem sort_replicate_append {m a : ℕ} {l : List ℕ} (hl : l.Pairwise (· ≤ ·))
+theorem sort_replicate_append {m a : ℕ} {l : List ℕ} (hl : l.Pairwise (· ≤ ·))
     (hab : ∀ x ∈ List.replicate m a, ∀ b ∈ l, x ≤ b) :
     ((l : Multiset ℕ) + Multiset.replicate m a).sort (· ≤ ·) = List.replicate m a ++ l := by
   refine sort_eq_of_pairwise ?_ ?_
@@ -1955,145 +1955,65 @@ theorem domNum_mycielskian (G : IsoGraph) (h : 0 < G.V) :
   induction G using Quotient.inductionOn with | _ g =>
   rw [← mk_canonicalize g]
   simp only [IsoGraph.domNum_mk, IsoGraph.V_mk, mycielskian_mk] at h ⊢
+  classical
+  -- A dominating set of `μ H` projects to a dominating set of `H`, and one of its vertices —
+  -- the apex if it is there, otherwise a shadow dominating the apex — can be spared.
   have hlower : ∀ (H : CGraph) [Fintype H.V], 0 < FinEnum.card H.V →
       H.domNum + 1 ≤ H.mycielskian.domNum := by
     intro H _ hH
-    -- For any DS D of μ(H), |D| ≥ domNum(H) + 1
-    have hlbound : ∀ (D : Finset (Option (H.V ⊕ H.V))),
-        (CGraph.mycielskian H).IsDominatingSet D → H.domNum + 1 ≤ D.card := by
-      intro D hDDom
-      -- Helper: project Option (H.V ⊕ H.V) to H.V, sending none to an arbitrary vertex
-      let decode : Option (H.V ⊕ H.V) → H.V := fun x =>
-        match x with
-        | none => Classical.choice (FinEnum.card_pos_iff.mp hH)
-        | some (Sum.inl v) => v
-        | some (Sum.inr v) => v
-      have hdecode_inl : ∀ v, decode (some (Sum.inl v)) = v := fun v => rfl
-      have hdecode_inr : ∀ v, decode (some (Sum.inr v)) = v := fun v => rfl
-      let f_inl : H.V → Option (H.V ⊕ H.V) := fun v => some (Sum.inl v)
-      let f_inr : H.V → Option (H.V ⊕ H.V) := fun v => some (Sum.inr v)
-      have hinj_inl : Function.Injective f_inl := fun a b h => Sum.inl_injective
-          (Option.some_injective _ h)
-      have hinj_inr : Function.Injective f_inr := fun a b h => Sum.inr_injective
-          (Option.some_injective _ h)
-      -- O' = originals in D (as Finset H.V)
-      let O' : Finset H.V := Finset.univ.filter (fun v => some (Sum.inl v) ∈ D)
-      have hinl_mem : ∀ v, v ∈ O' ↔ some (Sum.inl v) ∈ D := by intro v; simp [O']
-      let R' : Finset H.V := Finset.univ.filter (fun v => some (Sum.inr v) ∈ D)
-      have hinr_mem : ∀ v, v ∈ R' ↔ some (Sum.inr v) ∈ D := by intro v; simp [R']
+    obtain ⟨D, hDcard, hD⟩ := H.mycielskian.exists_isDominatingSet_domNum
+    refine hDcard ▸ ?_
+    obtain ⟨v₀⟩ := FinEnum.card_pos_iff.mp hH
+    set proj : Option (H.V ⊕ H.V) → H.V := fun x ↦ x.elim v₀ (Sum.elim id id) with hproj
+    -- the vertex of `D` that can be spared
+    obtain ⟨d₀, hd₀D, hd₀⟩ : ∃ d₀ ∈ D, d₀ = none ∨ (none ∉ D ∧ ∃ r, d₀ = some (.inr r)) := by
       by_cases hnone : none ∈ D
-      · -- Case none ∈ D: project D \ {none} to get DS of H
-        let S := Finset.image decode (D.erase none)
-        have hSdom : H.IsDominatingSet S := by
-          intro a
-          have hadj := hDDom (some (Sum.inl a))
-          rcases hadj with hDal | ⟨u, huD, huAdj⟩
-          · left
-            apply Finset.mem_image.mpr
-            exact ⟨some (Sum.inl a), Finset.mem_erase_of_ne_of_mem (by simp [Option.some_ne_none])
-                hDal, hdecode_inl a⟩
-          · -- u ≠ none
-            have hu_ne : u ≠ none := by
-              rintro rfl; simp [CGraph.mycielskian] at huAdj
-            right
-            refine ⟨decode u, Finset.mem_image_of_mem _
-                (by exact Finset.mem_erase_of_ne_of_mem hu_ne huD), ?_⟩
-            rcases u with _ | (b | b) <;> simp [hdecode_inl, hdecode_inr] at huAdj ⊢
-            · exact huAdj
-            · exact huAdj
-        have hSsize : S.card ≤ D.card - 1 := by
-          exact Finset.card_image_le.trans (by simp [Finset.card_erase_of_mem hnone])
-        have hDpos : 1 ≤ D.card := Finset.card_pos.mpr ⟨none, hnone⟩
-        have h1 := CGraph.domNum_le_card_of_isDominatingSet hSdom
-        omega
-      · -- Case none ∉ D
-        have hR'nonempty : R'.Nonempty := by
-          rcases hDDom none with h | ⟨u, huD, huAdj⟩
-          · exact absurd h hnone
-          · rcases u with _ | (a | a)
-            · exact absurd huD hnone
-            · simp [CGraph.mycielskian] at huAdj
-            · exact ⟨a, hinr_mem a |>.mpr huD⟩
-        obtain ⟨r, hr⟩ := hR'nonempty
-        let T := R' \ {r}
-        let S2 := O' ∪ T
-        have hS2dom : H.IsDominatingSet S2 := by
-          intro v
-          have hadjR := hDDom (some (Sum.inr v))
-          have hadjL := hDDom (some (Sum.inl v))
-          by_cases hvR : v ∈ R'
-          · by_cases hvr : v = r
-            · by_cases hvO : v ∈ O'
-              · exact Or.inl (Finset.mem_union_left _ hvO)
-              · rcases hadjL with h | ⟨u, huD, huAdj⟩
-                · exfalso; simp [hinl_mem] at hvO; exact hvO h
-                · rcases u with _ | (a | a)
-                  · simp at huAdj
-                  · dsimp only [S2]
-                    exact Or.inr ⟨a, Finset.mem_union.mpr (Or.inl (hinl_mem a |>.mpr huD)),
-                        by simp [CGraph.mycielskian_adj_inl_inl] at huAdj; exact huAdj⟩
-                  · right
-                    dsimp only [S2]
-                    have ha_ne_v : a ≠ v :=
-                        by intro heq; rw [heq] at huAdj; exact H.loopless v huAdj
-                    have haT : a ∈ T := Finset.mem_sdiff.mpr ⟨hinr_mem a |>.mpr huD, fun h =>
-                        ha_ne_v (hvr ▸ Finset.mem_singleton.mp h)⟩
-                    exact ⟨a, Finset.mem_union_right _ haT,
-                        by simp [CGraph.mycielskian_adj_inr_inl] at huAdj; exact huAdj⟩
-            · left
-              dsimp only [S2]
-              have : v ∈ T := Finset.mem_sdiff.mpr ⟨hvR, fun h => hvr (Finset.mem_singleton.mp h)⟩
-              exact Finset.mem_union_right _ this
-          · have hnotinR : some (Sum.inr v) ∉ D := fun h => hvR (hinr_mem v |>.mpr h)
-            rcases hadjR with h | ⟨u, huD, huAdj⟩
-            · exact absurd h hnotinR
-            · rcases u with _ | (a | a)
-              · exact absurd huD hnone
-              · right
-                dsimp only [S2]
-                exact ⟨a, Finset.mem_union_left _ (hinl_mem a |>.mpr huD),
-                    by simp [CGraph.mycielskian_adj_inl_inr] at huAdj; exact huAdj⟩
-              · simp [CGraph.mycielskian_adj_inr_inr] at huAdj
-        have hOR : O'.card + R'.card ≤ D.card := by
-          have hsub : (Finset.image (fun v => some (Sum.inl v)) O') ∪ (Finset.image (fun v => some
-              (Sum.inr v)) R') ⊆ D := by
-            intro x hx
-            simp [Finset.mem_image] at hx
-            rcases hx with ⟨v, hv, rfl⟩ | ⟨v, hv, rfl⟩
-            · exact hinl_mem v |>.mp hv
-            · exact hinr_mem v |>.mp hv
-          have hdisj : Disjoint (Finset.image (fun v => some (Sum.inl v)) O') (Finset.image (fun v
-              => some (Sum.inr v)) R') := by
-            simp [Finset.disjoint_left]
-          have hcard : ((Finset.image (fun v => some (Sum.inl v)) O') ∪ (Finset.image (fun v =>
-              some (Sum.inr v)) R')).card = O'.card + R'.card := by
-            rw [Finset.card_union_of_disjoint hdisj, Finset.card_image_of_injective _ hinj_inl,
-                Finset.card_image_of_injective _ hinj_inr]
-          have := Finset.card_le_card hsub
-          rw [hcard] at this; exact this
-        have hR'pos : 1 ≤ R'.card := Finset.card_pos.mpr ⟨r, hr⟩
-        have hDpos : 1 ≤ D.card := by
-          have hsub : Finset.image (fun v => some (Sum.inr v)) R' ⊆ D := by
-            intro x hx; simp [Finset.mem_image] at hx; obtain ⟨v, hv,
-                rfl⟩ := hx; exact hinr_mem v |>.mp hv
-          have := Finset.card_le_card hsub
-          rw [Finset.card_image_of_injective _ hinj_inr] at this
-          omega
-        have hdomS2 : H.domNum ≤ S2.card := CGraph.domNum_le_card_of_isDominatingSet hS2dom
-        have hS2size : S2.card + 1 ≤ D.card := by
-          have hTcard : T.card + 1 = R'.card := by
-            dsimp only [T]
-            rw [Finset.card_sdiff]
-            simp [hr]
-            omega
-          have h1 : S2.card ≤ O'.card + T.card := by
-            simpa only [S2] using Finset.card_union_le O' T
-          have hTcard' : T.card = R'.card - 1 := by omega
-          rw [hTcard'] at h1
-          omega
-        omega
-    obtain ⟨D, hDcard, hDDom⟩ := H.mycielskian.exists_isDominatingSet_domNum
-    exact le_trans (hlbound D hDDom) hDcard.le
+      · exact ⟨none, hnone, Or.inl rfl⟩
+      · rcases hD none with hv | ⟨u, huD, hu⟩
+        · exact absurd hv hnone
+        · rcases u with _ | (a | a)
+          · exact absurd huD hnone
+          · simp at hu
+          · exact ⟨_, huD, Or.inr ⟨hnone, a, rfl⟩⟩
+    set S : Finset H.V := (D.erase d₀).image proj with hS
+    have hmemS : ∀ x ∈ D, x ≠ d₀ → proj x ∈ S := fun x hx hne ↦
+      Finset.mem_image_of_mem _ (Finset.mem_erase.2 ⟨hne, hx⟩)
+    -- the deleted vertex is never an original
+    have hnel : ∀ a : H.V, some (Sum.inl a) ≠ d₀ := by
+      rintro a rfl
+      rcases hd₀ with h | ⟨-, r, hr⟩
+      · simp at h
+      · exact absurd (Option.some_injective _ hr) (by simp)
+    have hSdom : H.IsDominatingSet S := by
+      intro v
+      rcases hD (some (.inl v)) with hv | ⟨u, huD, hu⟩
+      · exact Or.inl (hmemS _ hv (hnel v))
+      · rcases u with _ | (a | a)
+        · simp at hu
+        · exact Or.inr ⟨a, hmemS _ huD (hnel a), by simpa using hu⟩
+        · have hav : H.Adj a v := by simpa using hu
+          by_cases hd : some (Sum.inr a) = d₀
+          · -- `v` was dominated only through the spared shadow, so use the shadow of `v` instead
+            have hnone : none ∉ D := by
+              rcases hd₀ with h | ⟨h, -⟩
+              · exact absurd (hd.trans h) (by simp)
+              · exact h
+            rcases hD (some (.inr v)) with hv | ⟨w, hwD, hw⟩
+            · refine Or.inl (hmemS _ hv fun hcon ↦ H.loopless v ?_)
+              have : a = v := by simpa using hd.trans hcon.symm
+              exact this ▸ hav
+            · rcases w with _ | (b | b)
+              · exact absurd hwD hnone
+              · exact Or.inr ⟨b, hmemS _ hwD (hnel b), by simpa using hw⟩
+              · simp at hw
+          · exact Or.inr ⟨a, hmemS _ huD hd, hav⟩
+    have h1 : S.card + 1 ≤ D.card := by
+      rw [hS]
+      have h2 := Finset.card_image_le (s := D.erase d₀) (f := proj)
+      rw [Finset.card_erase_of_mem hd₀D] at h2
+      have hpos : 1 ≤ D.card := Finset.card_pos.2 ⟨d₀, hd₀D⟩
+      omega
+    exact le_trans (Nat.add_le_add_right (CGraph.domNum_le_card_of_isDominatingSet hSdom) 1) h1
   have hupper : ∀ (H : CGraph) [Fintype H.V], 0 < FinEnum.card H.V →
       H.mycielskian.domNum ≤ H.domNum + 1 := by
     intro H _ hH

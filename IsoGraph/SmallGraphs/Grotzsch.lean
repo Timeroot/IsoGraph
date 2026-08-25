@@ -142,41 +142,10 @@ theorem degSequence_turan {n r : ℕ} (hr : 0 < r) :
       exact Nat.eq_sub_of_add_eq hval
     rw [this]
   rw [hrep1, hrep2]
-  rw [add_comm]
-  set a := n - k - 1
-  set b := n - k
-  set m' := m * (k + 1)
-  set l' := List.replicate ((r - m) * k) b
-  have hl_pairwise : l'.Pairwise (· ≤ ·) := List.pairwise_replicate.2 (by omega)
-  have hle : ∀ x ∈ List.replicate m' a, ∀ b' ∈ l', x ≤ b' := by
-    intro x hx b' hb'
-    rw [List.eq_of_mem_replicate hx, List.eq_of_mem_replicate hb']
-    omega
-  have hsort_perm :
-      (Multiset.sort ((l' : Multiset ℕ) + Multiset.replicate m' a) (· ≤ ·) : Multiset ℕ) =
-      ((l' : Multiset ℕ) + Multiset.replicate m' a : Multiset ℕ) :=
-    Multiset.sort_eq _ _
-  have hl_sorted : List.Pairwise (fun x1 x2 => x1 ≤ x2) (List.replicate m' a ++ l') := by
-    exact List.pairwise_append.2 ⟨List.pairwise_replicate.2 (by omega), hl_pairwise, hle⟩
-  have hperm4 :
-      (Multiset.sort ((l' : Multiset ℕ) + Multiset.replicate m' a) (· ≤ ·) : List ℕ).Perm
-      (List.replicate m' a ++ l') := by
-    have : (l' : Multiset ℕ) + Multiset.replicate m' a =
-        (List.replicate m' a ++ l' : Multiset ℕ) := by
-      rw [Multiset.add_comm]
-      have heq : ∀ x : ℕ, Multiset.count x (Multiset.replicate m' a + ↑l')
-          = Multiset.count x (↑(List.replicate m' a ++ l')) := by
-        intro x
-        simp [Multiset.count_add, Multiset.count_replicate, List.count_append,
-          List.count_replicate]
-      exact (Multiset.ext (α := ℕ)).mpr heq
-    apply Multiset.coe_eq_coe.mp
-    rw [hsort_perm, this]
-  have hsort_pairwise : List.Pairwise (fun x1 x2 => x1 ≤ x2)
-      (Multiset.sort ((l' : Multiset ℕ) + Multiset.replicate m' a) (· ≤ ·)) :=
-    Multiset.pairwise_sort _ _
-  exact List.Perm.eq_of_pairwise (fun x y _ _ hxy hyx => le_antisymm hxy hyx)
-    hsort_pairwise hl_sorted hperm4
+  rw [add_comm, ← Multiset.coe_replicate]
+  refine sort_replicate_append (List.pairwise_replicate.2 (Or.inr le_rfl)) fun x hx y hy ↦ ?_
+  rw [List.eq_of_mem_replicate hx, List.eq_of_mem_replicate hy]
+  omega
 
 /-! ### Paley graphs
 
@@ -367,6 +336,46 @@ theorem edgeChromNum_wheel (n : ℕ) : (wheel (n + 4)).edgeChromNum = n + 4 := b
     rwa [show maxDeg (wheel (n + 4)) = n + 4 from by
       rw [show n + 4 = (n + 1) + 3 from rfl, maxDeg_wheel]] at h
 
+/-- **The Turán count**: writing `n = r * q + s` with `s ≤ r`, the number of edges of the Turán
+graph, the `s` parts of size `q + 1` and the `r - s` parts of size `q` together account for every
+pair of vertices.  Stated for `Nat` division and subtraction, which is why it is not a `ring`. -/
+private theorem turan_card_identity {r q s n : ℕ} (hr : 0 < r) (hs : s ≤ r) (hn : r * q + s = n) :
+    (n ^ 2 - s ^ 2) * (r - 1) / (2 * r) + s.choose 2
+      + (s * (q + 1).choose 2 + (r - s) * q.choose 2) = n.choose 2 := by
+  have hdouble : ∀ m : ℕ, 2 * m.choose 2 = m * (m - 1) := fun m ↦ by
+    rw [Nat.choose_two_right,
+      Nat.mul_div_cancel' (even_iff_two_dvd.mp (Nat.even_mul_pred_self m))]
+  -- the division is exact: `n² - s² = r * q * (r * q + 2 * s)`
+  have hsq : n ^ 2 - s ^ 2 = r * q * (r * q + 2 * s) := by rw [← hn]; ring_nf; omega
+  have hdvd : 2 ∣ q * (r * q + 2 * s) * (r - 1) := by
+    rcases Nat.even_or_odd q with hq2 | hq2
+    · exact dvd_mul_of_dvd_left (dvd_mul_of_dvd_left hq2.two_dvd _) _
+    · rcases Nat.even_or_odd r with hr2 | hr2
+      · exact dvd_mul_of_dvd_left
+          (dvd_mul_of_dvd_right (dvd_add (dvd_mul_of_dvd_left hr2.two_dvd q) ⟨s, rfl⟩) q) _
+      · exact dvd_mul_of_dvd_right (Nat.Odd.sub_odd hr2 odd_one).two_dvd _
+  have hdiv : 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r)) = q * (r * q + 2 * s) * (r - 1) := by
+    rw [hsq, show r * q * (r * q + 2 * s) * (r - 1) = r * (q * (r * q + 2 * s) * (r - 1)) by ring,
+      show 2 * r = r * 2 from mul_comm _ _, Nat.mul_div_mul_left _ _ hr, mul_comm,
+      Nat.div_mul_cancel hdvd]
+  refine Nat.eq_of_mul_eq_mul_left two_pos ?_
+  rw [Nat.mul_add, Nat.mul_add, Nat.mul_add, hdiv, hdouble, mul_left_comm 2 s,
+    mul_left_comm 2 (r - s), hdouble, hdouble, hdouble]
+  simp only [Nat.add_sub_cancel]
+  -- a polynomial identity, once the truncated subtractions are known not to truncate
+  rcases Nat.eq_zero_or_pos q with rfl | hq1
+  · subst hn; simp
+  rcases Nat.eq_zero_or_pos s with rfl | hs1
+  · subst hn
+    have hn1 : 1 ≤ r * q := Nat.one_le_iff_ne_zero.2 (Nat.mul_ne_zero hr.ne' hq1.ne')
+    simp only [Nat.sub_zero, Nat.zero_mul, Nat.mul_zero, Nat.add_zero, Nat.zero_add]
+    zify [hr, hq1, hn1]
+    ring
+  · have hn1 : 1 ≤ r * q + s := by omega
+    subst hn
+    zify [hr, hs, hq1, hs1, hn1]
+    ring
+
 /-- **Turán's theorem**: among the graphs on `n` vertices with no clique of size `r + 1`, the
 Turán graph `T(n, r)` has the most edges. -/
 theorem E_le_E_turan {G : IsoGraph} {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ r) :
@@ -392,116 +401,10 @@ theorem E_le_E_turan {G : IsoGraph} {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ 
   -- Step 5: relate (turan (FinEnum.card g.V) r).E to turanGraph
   set n := FinEnum.card g.V
   -- Both turanGraph n r and turan n r have the same edge count.
-  have key : (SimpleGraph.turanGraph n r).edgeFinset.card = (turan n r).E := by
-    have hturanGraph_E := @SimpleGraph.card_edgeFinset_turanGraph n r
-    have hturan_E := E_turan n r
-    set q := n / r
-    set s := n % r
-    have hq : r * q + s = n := Nat.div_add_mod n r
-    have hs_lt : s < r := Nat.mod_lt n hr
-    have hsle : s ≤ r := hs_lt.le
-    let corr := s * Nat.choose (q + 1) 2 + (r - s) * Nat.choose q 2
-    -- From E_turan: (turan n r).E + corr = n.choose 2
-    -- Goal: turanGraph.card + corr = n.choose 2 (then omega)
-    rw [hturanGraph_E]
-    -- Need: (n^2 - s^2) * (r-1) / (2*r) + s.choose 2 + corr = n.choose 2
-    -- Equivalently, 2 * lhs + 2 * corr = 2 * n.choose 2 = n*(n-1)
-    -- It suffices to show turanGraph.card + corr = n.choose 2
-    suffices h : (n ^ 2 - s ^ 2) * (r - 1) / (2 * r) + s.choose 2 + corr = n.choose 2 by
-      omega
-    -- Multiply by 2 to avoid Nat division
-    have h2choose_s : 2 * s.choose 2 = s * (s - 1) := by
-      rw [Nat.choose_two_right, mul_comm,
-          Nat.div_mul_cancel (even_iff_two_dvd.mp (Nat.even_mul_pred_self s))]
-    have h2choose_q1 : 2 * ((q + 1).choose 2) = (q + 1) * q := by
-      rw [Nat.choose_two_right]
-      exact Nat.mul_div_cancel' (even_iff_two_dvd.mp (Nat.even_mul_pred_self (q + 1)))
-    have h2choose_q : 2 * (q.choose 2) = q * (q - 1) := by
-      rw [Nat.choose_two_right]
-      rw [mul_comm, Nat.div_mul_cancel (even_iff_two_dvd.mp (Nat.even_mul_pred_self q))]
-    have h2E0 : 2 * n.choose 2 = n * (n - 1) := by
-      rw [Nat.choose_two_right, mul_comm,
-          Nat.div_mul_cancel (even_iff_two_dvd.mp (Nat.even_mul_pred_self n))]
-    have h2corr : 2 * corr = s * ((q + 1) * q) + (r - s) * (q * (q - 1)) := by
-      unfold corr
-      have : 2 * (s * ((q + 1).choose 2) + (r - s) * (q.choose 2)) =
-        s * (2 * ((q + 1).choose 2)) + (r - s) * (2 * (q.choose 2)) := by ring
-      rw [this, h2choose_q1, h2choose_q]
-    -- Key: 2 * turanGraph term
-    -- (n^2 - s^2) = r * q * (r * q + 2 * s)
-    have hsq : n ^ 2 - s ^ 2 = r * q * (r * q + 2 * s) := by
-      rw [← hq]; ring_nf; omega
-    have h2turan : 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r)) = q * (r * q + 2 * s) * (r - 1) := by
-      rw [hsq]
-      have : r * q * (r * q + 2 * s) * (r - 1) = r * (q * (r * q + 2 * s) * (r - 1)) := by ring
-      rw [this]
-      rw [show 2 * r = r * 2 from mul_comm _ _]
-      rw [Nat.mul_div_mul_left _ _ hr]
-      rw [mul_comm, Nat.div_mul_cancel]
-      by_cases hq2 : Even q
-      · exact dvd_mul_of_dvd_left (dvd_mul_of_dvd_left (even_iff_two_dvd.mp hq2) _) _
-      · by_cases hr2 : Even r
-        · have hmid : 2 ∣ r * q + 2 * s := by
-            exact dvd_add (dvd_mul_of_dvd_left (even_iff_two_dvd.mp hr2) q) (dvd_mul_right 2 s)
-          exact dvd_mul_of_dvd_left (dvd_mul_of_dvd_right hmid q) (r - 1)
-        · have hrd : Even (r - 1) := by
-            rw [Nat.even_sub (show 1 ≤ r from hr)]
-            simp [Nat.even_iff] at hr2 ⊢
-            omega
-          exact dvd_mul_of_dvd_right hrd.two_dvd _
-    -- Now: 2*(LHS + corr) = 2*n.choose 2  ↔  LHS + corr = n.choose 2
-    have : 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r) + s.choose 2 + corr) = 2 * n.choose 2 := by
-      calc 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r) + s.choose 2 + corr)
-          = 2 * ((n ^ 2 - s ^ 2) * (r - 1) / (2 * r)) + 2 * s.choose 2 + 2 * corr := by ring
-        _ = q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) + (r - s) * (q * (q -
-            1))) := by
-            rw [h2turan, h2choose_s, h2corr]
-        _ = n * (n - 1) := by
-            by_cases hq0 : q = 0
-            · simp only [hq0] at hq ⊢; rw [show n = s from by omega]; simp [mul_zero, zero_mul,
-                  add_zero]
-            · have hq1 : 1 ≤ q := Nat.pos_of_ne_zero hq0
-              by_cases hs0 : s = 0
-              · rw [hs0] at hq ⊢; ring_nf at *
-                have : ∀ x : ℕ, x - 0 = x := fun x => Nat.sub_zero x
-                rw [this r] at *
-                rw [show n = q * r from hq.symm]
-                have : q * r * (q * r - 1) = q * r * (q - 1) + q ^ 2 * r * (r - 1) := by
-                  zify [Nat.cast_sub (show 1 ≤ q from hq1), Nat.cast_sub (show 1 ≤ r from hr),
-                      Nat.cast_sub (show 1 ≤ q * r from by nlinarith)]
-                  ring
-                rw [this]
-              · have hs1 : 1 ≤ s := Nat.pos_of_ne_zero hs0
-                have hpos_n : 1 ≤ n := by omega
-
-                have hsub_r1 : (r - 1 : ℤ) = ↑r - 1 := by omega
-                have hsub_s1 : (s - 1 : ℤ) = ↑s - 1 := by omega
-                have hsub_q1 : (q - 1 : ℤ) = ↑q - 1 := by omega
-                have hsub_rs : (r - s : ℤ) = ↑r - ↑s := by omega
-                have hsub_n1 : (n - 1 : ℤ) = ↑n - 1 := by omega
-                have hn_int : (n : ℤ) = ↑r * ↑q + ↑s := by norm_cast; omega
-                have hgoal : q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) + (r
-                    - s) * (q * (q - 1))) = n * (n - 1) := by
-                  have hcast : (q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) +
-                      (r - s) * (q * (q - 1))) : ℤ) =
-                      (n * (n - 1) : ℤ) := by
-                    rw [hn_int]
-                    ring
-                  have hup_lhs : (↑(q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) *
-                      q) + (r - s) * (q * (q - 1))) : ℕ) : ℤ) =
-                      (q * (r * q + 2 * s) * (r - 1) + s * (s - 1) + (s * ((q + 1) * q) + (r - s) *
-                          (q * (q - 1))) : ℤ) := by
-                    push_cast [Nat.cast_sub (show 1 ≤ r from hr), Nat.cast_sub hsle,
-                        Nat.cast_sub hq1, Nat.cast_sub hs1, Nat.cast_sub (show s ≤ r from hsle),
-                        Nat.cast_sub (show 1 ≤ q from hq1)]
-                    rfl
-                  have hup_rhs : (↑(n * (n - 1)) : ℤ) = (n * (n - 1) : ℤ) := by
-                    push_cast [Nat.cast_sub (show 1 ≤ n from hpos_n)]
-                    rfl
-                  exact Nat.cast_injective (hup_lhs.trans (hcast.trans hup_rhs.symm))
-                exact hgoal
-        _ = 2 * n.choose 2 := h2E0.symm
-    omega
+  have key : (SimpleGraph.turanGraph n r).edgeFinset.card = (turan n r).E :=
+    Nat.add_right_cancel (m := n % r * ((n / r + 1).choose 2) + (r - n % r) * ((n / r).choose 2))
+      (by rw [SimpleGraph.card_edgeFinset_turanGraph,
+        turan_card_identity hr (Nat.mod_lt n hr).le (Nat.div_add_mod n r), E_turan])
   rw [CGraph.E]
   exact le_trans (hle1.trans hle2.le) key.le
 

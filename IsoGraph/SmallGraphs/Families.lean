@@ -1175,92 +1175,13 @@ for `k ≤ m`, attains it. -/
   have hG : prism (2 * m + 3) = ⟦CGraph.prism (2 * m + 3)⟧ := by
     simp [prism, cycle, complete, cartesianProduct_mk, CGraph.prism]
   rw [hG, indepNum_mk]
-  -- The vertex type of the prism is `Fin (2m+3) × Fin 2` on the nose; naming it in the binder
-  -- keeps `fin_cases` and the numerals below on the reduced type.
-  refine le_antisymm (CGraph.indepNum_le_of_forall_card_le
-    (fun (s : Finset (Fin (2 * m + 3) × Fin 2)) hs ↦ ?_)) ?_
-  · unfold SimpleGraph.IsIndepSet at hs
-    -- Step A: for each column i, at most one of (i,0), (i,1) is in s (vertical edges from
-    -- complete 2)
-    have hvert : ∀ i : Fin (2 * m + 3),
-        ¬((i, (0 : Fin 2)) ∈ s ∧ (i, (1 : Fin 2)) ∈ s) := by
-      intro i ⟨h1, h2⟩
-      have hadj : (CGraph.prism (2 * m + 3)).toSimple.Adj (i, (0 : Fin 2)) (i, (1 : Fin 2)) := by
-        simp [CGraph.prism]
-      have hne : (i, (0 : Fin 2)) ≠ (i, (1 : Fin 2)) := by simp
-      exact hs h1 h2 hne hadj
-    -- Step B: fst is injective on s (since at most one per column in Fin 2)
-    have hinj_fst : ∀ x ∈ s, ∀ y ∈ s, x.1 = y.1 → x = y := by
-      intro ⟨i, b⟩ hx ⟨j, c⟩ hy hij
-      subst hij
-      by_contra hne
-      have hbc : b ≠ c := fun h => hne (Prod.ext rfl h)
-      have : b = 0 ∧ c = 1 ∨ b = 1 ∧ c = 0 := by
-        fin_cases b <;> fin_cases c <;> simp at hbc ⊢
-      rcases this with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
-      · exact hvert _ ⟨hx, hy⟩
-      · have hadj : (CGraph.prism (2 * m + 3)).toSimple.Adj (i, (1 : Fin 2)) (i, (0 : Fin 2)) :=
-          by
-          simp [CGraph.prism]
-        have hne2 : (i, (0 : Fin 2)) ≠ (i, (1 : Fin 2)) := by simp
-        exact hs hy hx hne2 hadj
-    -- Step C: s.card ≤ 2*m+3 (via injection into Fin (2*m+3))
-    have hcard_le : s.card ≤ 2 * m + 3 := by
-      have hinj_fun : Function.Injective (fun x : s => (x.val.1 : Fin (2 * m + 3))) := by
-        intro x y hxy
-        exact Subtype.ext (hinj_fst x.val x.property y.val y.property hxy)
-      have := Fintype.card_le_of_injective _ hinj_fun
-      simp at this
-      exact this
-    -- Step D: if s.card = 2*m+3, then fst is bijective from s to univ, giving f : Fin(2*m+3) →
-    -- Fin 2
-    by_contra hcontra
-    push_neg at hcontra
-    have hcard_eq : s.card = 2 * m + 3 := by omega
-    -- Define f : Fin (2*m+3) → Fin 2 by picking the layer for each column
-    have hsurj : ∀ i : Fin (2 * m + 3), ∃ b : Fin 2, (i, b) ∈ s := by
-      have hinj_on : Set.InjOn Prod.fst (s : Set ((Fin (2 * m + 3)) × (Fin 2))) := by
-        intro x hx y hy hxy
-        exact hinj_fst x hx y hy hxy
-      have himage : s.image Prod.fst = Finset.univ := by
-        apply Finset.eq_of_subset_of_card_le (Finset.image_subset_iff.mpr fun x hx =>
-          Finset.mem_univ _)
-        rw [Finset.card_image_of_injOn (fun x hx y hy h => hinj_fst x hx y hy h), hcard_eq]
-        simp
-      intro i
-      have : i ∈ s.image Prod.fst := himage.symm ▸ Finset.mem_univ i
-      obtain ⟨x, hx, rfl⟩ := Finset.mem_image.mp this
-      exact ⟨x.2, hx⟩
-    choose f hf using hsurj
-    -- Step E: horizontal edges force f to be a proper 2-coloring of cycle(2*m+3)
-    -- Adjacent vertices in the cycle with the same f-value would give an edge in s,
-    -- contradiction.
-    -- But cycle(2*m+3) is not bipartite. Contradiction.
-    have hcolor : ∀ (i j : Fin (2 * m + 3)), (CGraph.cycle (2 * m + 3)).Adj i j → f i ≠ f j := by
-      intro i j hij hfij
-      have hadj : (CGraph.prism (2 * m + 3)).toSimple.Adj (i, f i) (j, f j) := by
-        show (CGraph.prism (2 * m + 3)).Adj (i, f i) (j, f j)
-        have : (CGraph.prism (2 * m + 3)).Adj (i, f i) (j, f j) := by
-          simp [CGraph.prism, CGraph.cartesianProduct_adj, CGraph.cycle, CGraph.complete_adj,
-            hfij] at hij ⊢
-          exact hij
-        exact this
-      have hijne : i ≠ j := by
-        intro heq; subst heq; exact absurd hij (by simp [CGraph.cycle, CGraph.ofRel_adj])
-      exact hs (hf i) (hf j) (by exact ne_of_apply_ne Prod.fst hijne) hadj
-    -- So f is a proper 2-coloring of cycle(2*m+3), meaning cycle(2*m+3) is bipartite.
-    -- Contradiction.
-    have hbip : (CGraph.cycle (2 * m + 3)).IsBipartite := by
-      let c : Fin (2 * m + 3) → Bool := fun i => decide (f i = 1)
-      have hc : ∀ i j, (CGraph.cycle (2 * m + 3)).Adj i j → c i ≠ c j := by
-        intro i j hij
-        have hne := hcolor i j hij
-        show decide (f i = 1) ≠ decide (f j = 1)
-        have hne := hcolor i j hij
-        have : ∀ (a b : Fin 2), a ≠ b → decide (a = 1) ≠ decide (b = 1) := by decide
-        exact this (f i) (f j) hne
-      exact ⟨c, hc⟩
-    exact not_isBipartite_cycle_odd m hbip
+  refine le_antisymm ?_ ?_
+  · -- an independent set meets every rung at most once, and meeting all `2m + 3` of them would
+    -- two-colour the odd cycle
+    have h := CGraph.indepNum_cartesianProduct_complete_two_lt (CGraph.cycle (2 * m + 3))
+      (not_isBipartite_cycle_odd m)
+    rw [CGraph.card_cycle] at h
+    exact Nat.lt_succ_iff.mp h
   -- Lower bound: take `(2k, 0)` and `(2k + 1, 1)` for `k ≤ m`.  Two of these on the same layer
   -- have first coordinates of equal parity, so they are never consecutive on the cycle; two on
   -- different layers have first coordinates of different parity, so they differ.
