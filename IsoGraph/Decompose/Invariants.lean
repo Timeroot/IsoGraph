@@ -93,15 +93,8 @@ theorem chromNum_cycle_ite (n : ℕ) :
 /-- **The chromatic index of a complete graph**, in a shape that fires on a numeral: `n - 1`
 colours for an even order, `n` for an odd one. -/
 theorem edgeChromNum_complete_ite (n : ℕ) :
-    (complete (n + 2)).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
-  rcases Nat.even_or_odd n with ⟨m, hm⟩ | ⟨m, hm⟩
-  · subst hm
-    rw [show m + m + 2 = 2 * m + 2 by ring, edgeChromNum_complete_even,
-      if_pos (by omega : (m + m) % 2 = 0)]
-    omega
-  · subst hm
-    rw [show 2 * m + 1 + 2 = 2 * m + 3 by ring, edgeChromNum_complete_odd,
-      if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
+    (complete (n + 2)).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 :=
+  edgeChromNum_complete n
 
 /-- **The chromatic index of a cycle**, in a shape that fires on a numeral.  A cycle is
 `2`-regular, so Vizing leaves only two and three, and it is three exactly for the odd cycles;

@@ -250,15 +250,10 @@ theorem edgeChromNum_cartesianProduct_cycle_even_hypercube (m n : ℕ) :
 factor with at least one edge; the odd cycles, the complete graphs on at least three vertices and
 the Petersen graph all serve on the left. -/
 
-theorem E_pos_hypercube (n : ℕ) : 0 < (hypercube (n + 1)).E := by
-  have h := E_hypercube (n + 1)
-  have hp : 0 < (n + 1) * 2 ^ (n + 1) := by positivity
-  omega
-
 theorem isConnected_tensorProduct_cycle_odd_hypercube (a n : ℕ) :
     IsConnected (cycle (2 * a + 3) ⊗g hypercube (n + 1)) :=
   isConnected_tensorProduct (isConnected_cycle (2 * a + 2)) (isConnected_hypercube (n + 1))
-    (not_isBipartite_cycle_odd a) (E_pos_hypercube n)
+    (not_isBipartite_cycle_odd a) (E_hypercube_pos n)
 
 theorem numComponents_tensorProduct_cycle_odd_hypercube (a n : ℕ) :
     (cycle (2 * a + 3) ⊗g hypercube (n + 1)).numComponents = 1 :=
@@ -285,7 +280,7 @@ theorem numComponents_tensorProduct_cycle_odd_star (a n : ℕ) :
 theorem isConnected_tensorProduct_complete_hypercube (m n : ℕ) :
     IsConnected (complete (m + 3) ⊗g hypercube (n + 1)) :=
   isConnected_tensorProduct (isConnected_complete (m + 2)) (isConnected_hypercube (n + 1))
-    (not_isBipartite_complete m) (E_pos_hypercube n)
+    (not_isBipartite_complete m) (E_hypercube_pos n)
 
 theorem numComponents_tensorProduct_complete_hypercube (m n : ℕ) :
     (complete (m + 3) ⊗g hypercube (n + 1)).numComponents = 1 :=
@@ -339,7 +334,7 @@ theorem numComponents_tensorProduct_petersen_complete (n : ℕ) :
 theorem isConnected_tensorProduct_petersen_hypercube (n : ℕ) :
     IsConnected (petersen ⊗g hypercube (n + 1)) :=
   isConnected_tensorProduct isConnected_petersen (isConnected_hypercube (n + 1))
-    not_isBipartite_petersen (E_pos_hypercube n)
+    not_isBipartite_petersen (E_hypercube_pos n)
 
 theorem numComponents_tensorProduct_petersen_hypercube (n : ℕ) :
     (petersen ⊗g hypercube (n + 1)).numComponents = 1 :=
@@ -436,7 +431,7 @@ theorem isRegularWith_strongProduct_cycle_hypercube (m n : ℕ) :
 
 theorem girth_strongProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 3) ⊠g hypercube (n + 1)).girth = 3 :=
-  girth_strongProduct (by rw [E_cycle]; omega) (E_pos_hypercube n)
+  girth_strongProduct (by rw [E_cycle]; omega) (E_hypercube_pos n)
 
 theorem chromNum_strongProduct_complete_hypercube (m n : ℕ) :
     (complete m ⊠g hypercube (n + 1)).chromNum = m * 2 := by
@@ -496,7 +491,7 @@ theorem minDeg_strongProduct_path_hypercube (m n : ℕ) :
 
 theorem girth_strongProduct_path_hypercube (m n : ℕ) :
     (path (m + 2) ⊠g hypercube (n + 1)).girth = 3 :=
-  girth_strongProduct (by rw [E_path]; omega) (E_pos_hypercube n)
+  girth_strongProduct (by rw [E_path]; omega) (E_hypercube_pos n)
 
 theorem chromNum_strongProduct_path_hypercube (m n : ℕ) :
     (path (m + 2) ⊠g hypercube (n + 1)).chromNum = 4 := by
@@ -543,7 +538,7 @@ theorem isRegularWith_lexProduct_cycle_hypercube (m n : ℕ) :
 
 theorem girth_lexProduct_cycle_hypercube (m n : ℕ) :
     (cycle (m + 3) ·g hypercube (n + 1)).girth = 3 :=
-  girth_lexProduct (by rw [E_cycle]; omega) (E_pos_hypercube n)
+  girth_lexProduct (by rw [E_cycle]; omega) (E_hypercube_pos n)
 
 /-! ### Domination in a lexicographic product with a dominated right factor -/
 
@@ -742,7 +737,7 @@ theorem radius_mycielskian_hypercube (n : ℕ) :
 
 theorem four_le_girth_mycielskian_hypercube (n : ℕ) :
     4 ≤ (mycielskian (hypercube (n + 1))).girth :=
-  four_le_girth_mycielskian _ (by rw [cliqueNum_hypercube]) (E_pos_hypercube n)
+  four_le_girth_mycielskian _ (by rw [cliqueNum_hypercube]) (E_hypercube_pos n)
 
 theorem matchNum_mycielskian_hypercube (n : ℕ) :
     (mycielskian (hypercube (n + 1))).matchNum = 2 ^ (n + 1) := by

@@ -215,113 +215,86 @@ exponential, above) but it has to wait for `complete_adj`. -/
     beq_iff_eq, SimpleGraph.pathGraph_adj, ne_eq, Fin.ext_iff]
   omega
 
+/-- Adjacency in `cycle n`, phrased entirely in terms of the underlying naturals. -/
+theorem cycle_adj_val (n : ℕ) (u v : (cycle n).V) :
+    (cycle n).Adj u v = true ↔
+      (u.1 ≠ v.1 ∧ ((u.1 + 1) % n = v.1 ∨ (v.1 + 1) % n = u.1)) := by
+  have huv : (u = v) ↔ (u.1 = v.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
+  simp only [cycle, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq,
+    ne_eq, huv]
+
+/-- **Every vertex of a cycle has exactly two neighbours**: the label one step forward and the
+label one step back. -/
+theorem neighborFinset_cycle (n : ℕ) (v : Fin (n + 3)) :
+    (cycle (n + 3)).toSimple.neighborFinset v = {v + 1, v + ⟨n + 2, by omega⟩} := by
+  have hnext : ∀ x : Fin (n + 3), ((x + 1 : Fin (n + 3)) : ℕ) = (x.1 + 1) % (n + 3) := fun x ↦ by
+    simp [Fin.val_add]
+  have hprev : ∀ x : Fin (n + 3), ((x + ⟨n + 2, by omega⟩ : Fin (n + 3)) : ℕ)
+      = (x.1 + (n + 2)) % (n + 3) := fun x ↦ by simp [Fin.val_add]
+  -- Reduce every `%` in sight: the numerators here are all below `2 * (n + 3)`.
+  have hlo : ∀ a : ℕ, a < n + 3 → a % (n + 3) = a := fun a h ↦ Nat.mod_eq_of_lt h
+  have hhi : ∀ a : ℕ, n + 3 ≤ a → a < 2 * (n + 3) → a % (n + 3) = a - (n + 3) := by
+    intro a h1 h2
+    rw [Nat.mod_eq_sub_mod h1, Nat.mod_eq_of_lt (by omega)]
+  -- "One step forward from `x` is `y`" and "one step back from `y` is `x`" say the same thing.
+  have hback : ∀ x y : Fin (n + 3),
+      (x.1 + 1) % (n + 3) = y.1 ↔ x.1 = (y.1 + (n + 2)) % (n + 3) := by
+    intro x y
+    have hx := x.isLt
+    have hy := y.isLt
+    rcases lt_or_ge (x.1 + 1) (n + 3) with h | h
+    · rw [hlo _ h]
+      rcases lt_or_ge (y.1 + (n + 2)) (n + 3) with h2 | h2
+      · rw [hlo _ h2]; omega
+      · rw [hhi _ h2 (by omega)]; omega
+    · rw [hhi _ h (by omega)]
+      rcases lt_or_ge (y.1 + (n + 2)) (n + 3) with h2 | h2
+      · rw [hlo _ h2]; omega
+      · rw [hhi _ h2 (by omega)]; omega
+  have heq1 : ∀ u : Fin (n + 3), u = v + 1 ↔ u.1 = (v.1 + 1) % (n + 3) := by
+    intro u; rw [Fin.ext_iff, hnext]
+  have heq2 : ∀ u : Fin (n + 3),
+      u = v + ⟨n + 2, by omega⟩ ↔ u.1 = (v.1 + (n + 2)) % (n + 3) := by
+    intro u; rw [Fin.ext_iff, hprev]
+  have hv := v.isLt
+  ext u
+  simp only [SimpleGraph.mem_neighborFinset, toSimple_adj, Finset.mem_insert, Finset.mem_singleton,
+    heq1, heq2]
+  rw [cycle_adj_val]
+  constructor
+  · rintro ⟨-, h | h⟩
+    · exact Or.inl h.symm
+    · exact Or.inr ((hback u v).1 h)
+  · have hu := u.isLt
+    rintro (h | h)
+    · refine ⟨fun hvu ↦ ?_, Or.inl h.symm⟩
+      rcases lt_or_ge (v.1 + 1) (n + 3) with h' | h'
+      · rw [hlo _ h'] at h; omega
+      · rw [hhi _ h' (by omega)] at h; omega
+    · refine ⟨fun hvu ↦ ?_, Or.inr ((hback u v).2 h)⟩
+      rcases lt_or_ge (v.1 + (n + 2)) (n + 3) with h' | h'
+      · rw [hlo _ h'] at h; omega
+      · rw [hhi _ h' (by omega)] at h; omega
+
+private theorem degree_cycle_fin (n : ℕ) (v : Fin (n + 3)) :
+    (cycle (n + 3)).toSimple.degree v = 2 := by
+  have hne : (v + 1 : Fin (n + 3)) ≠ v + ⟨n + 2, by omega⟩ := fun h ↦ by
+    have h2 := congrArg Fin.val (add_left_cancel h)
+    simp at h2
+  rw [SimpleGraph.degree, neighborFinset_cycle, Finset.card_pair hne]
+
+/-- **A cycle is two-regular.** -/
+theorem degree_cycle (n : ℕ) (v : (cycle (n + 3)).V) :
+    (cycle (n + 3)).toSimple.degree v = 2 := degree_cycle_fin n v
+
+/-- **A cycle has as many edges as vertices**: it is two-regular, so the handshake lemma counts
+each of the `n + 3` vertices twice. -/
 @[simp] theorem E_cycle (n : ℕ) : (cycle (n + 3)).E = n + 3 := by
-  rw [show (cycle (n + 3)).E = (cycle (n + 3)).toSimple.edgeFinset.card from rfl]
-  have hadj : ∀ v u : Fin (n + 3), (cycle (n + 3)).toSimple.Adj v u ↔
-      u = (v + 1) % (n + 3) ∨ u = (v + (n + 2)) % (n + 3) := by
-    intro v u
-    simp only [cycle, ofRel, CGraph.toSimple_adj]
-    -- Key: relate Nat.mod stuff to Fin equality via Fin.ext_iff
-    have hv1 : ∀ (x : Fin (n + 3)), (x + 1 : Fin (n + 3)).val = (x.val + 1) % (n + 3) := by
-      simp [Fin.val_add]
-    have hv2 : ∀ (x : Fin (n + 3)), (x + Fin.mk (n + 2) (by omega) : Fin (n + 3)).val = (x.val + (n + 2)) % (n + 3) := by
-      simp [Fin.val_add]
-    -- u = v+1 (Fin) ↔ (v+1).val = u.val ↔ (v.val+1)%(n+3) = u.val
-    -- (u+1 = v) ↔ (u+1).val = v.val ↔ (u.val+1)%(n+3) = v.val
-    -- Inverse direction for key2: u+1 = v ↔ ...
-    have key_uv1 : (v + 1 = u) ↔ (v.val + 1) % (n + 3) = u.val := by
-      rw [← hv1, Fin.ext_iff]
-    have key_u1v : (u + 1 = v) ↔ (u.val + 1) % (n + 3) = v.val := by
-      rw [← hv1, Fin.ext_iff]
-    have key_uv1_rev : (u = v + 1) ↔ u.val = (v.val + 1) % (n + 3) := by
-      rw [← hv1]; exact Fin.ext_iff
-    have key_venv : (u = v + Fin.mk (n + 2) (by omega)) ↔
-        u.val = (v.val + (n + 2)) % (n + 3) := by
-      rw [← hv2]; exact Fin.ext_iff
-    -- Now: adj ↔ (¬v=u ∧ ((v+1)%m = u ∨ (u+1)%m = v)) ↔ u = v+1 ∨ u = v+(n+2) (in Fin, expressed as Nat mod)
-    -- The RHS of the theorem goal is about Nat mod, not Fin eq. But it's equivalent to Fin eq.
-    -- LHS: ¬v = u ∧ ((v.val+1)%(n+3) == u.val ∨ (u.val+1)%(n+3) == v.val) = true
-    -- After simp with Bool.eq... let me just use the keys.
-    simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq]
-    rw [key_uv1.symm, key_u1v.symm]
-    -- Now: v ≠ u ∧ (v + 1 = u ∨ u + 1 = v) ↔ u = v + 1 ∨ u = v + ⟨n+2,...⟩
-    have h_add_one_mk : (1 : Fin (n + 3)) + Fin.mk (n + 2) (by omega) = 0 := by
-      ext; simp [Fin.val_add]
-      rw [Nat.add_mod, Nat.mod_eq_of_lt (by omega : 1 < n + 3), Nat.mod_eq_of_lt (by omega : n + 2 < n + 3)]
-      rw [show 1 + (n + 2) = n + 3 by omega]
-      exact Nat.mod_self _
-    have h_mk_one_add : Fin.mk (n + 2) (by omega) + (1 : Fin (n + 3)) = 0 := by
-      show (⟨n + 2, by omega⟩ : Fin (n + 3)) + 1 = 0
-      ext; simp [Fin.val_add]
-    have hadd_cancel : ∀ x : Fin (n + 3), ∀ v : Fin (n + 3), v + x = v → x = 0 := by
-      intro x v h
-      have h1 : (v.val + x.val) % (n + 3) = v.val := by
-        have := congr_arg Fin.val h; simp [Fin.val_add] at this; exact this
-      have hvb := v.2
-      have hxvb := x.2
-      have hdiv := Nat.mod_add_div (v.val + x.val) (n + 3)
-      rw [h1] at hdiv
-      have hdiv2 : x.val = (n + 3) * ((v.val + x.val) / (n + 3)) := by omega
-      have : x.val = 0 := by
-        by_contra hx_ne
-        have : (n + 3) ≤ x.val := Nat.le_of_dvd (Nat.pos_of_ne_zero hx_ne) ⟨(v.val + x.val) / (n + 3), by linarith⟩
-        omega
-      exact Fin.ext this
-    have hne_from_left : v + 1 ≠ v := by
-      intro h; exact absurd (hadd_cancel 1 v h) (by simp)
-    have hne_from_right : v + Fin.mk (n + 2) (by omega) ≠ v := by
-      intro h
-      have : (Fin.mk (n + 2) (by omega) : Fin (n + 3)) = 0 → False := by
-        intro heq; exact absurd (congr_arg Fin.val heq) (by simp)
-      exact this (hadd_cancel _ _ h)
-    have hinv : ∀ x y : Fin (n + 3), x + 1 = y ↔ x = y + Fin.mk (n + 2) (by omega) := by
-      intro x y
-      constructor
-      · intro h
-        have : y + Fin.mk (n + 2) (by omega) = x + 1 + Fin.mk (n + 2) (by omega) := by rw [h]
-        rw [this, add_assoc, h_add_one_mk, add_zero]
-      · intro h; rw [h, add_assoc, h_mk_one_add, add_zero]
-    have hinv_right : (u + 1 = v) ↔ (u = v + Fin.mk (n + 2) (by omega)) := hinv u v
-    rw [hinv_right]
-    constructor
-    · rintro ⟨hne, h | h⟩
-      · left; exact (key_uv1.mp h).symm
-      · right; exact key_venv.mp h
-    · rintro (h | h)
-      · exact ⟨fun heq => hne_from_left (heq ▸ key_uv1.mpr h.symm), Or.inl (key_uv1.mpr h.symm)⟩
-      · exact ⟨fun heq => hne_from_right (heq.symm ▸ (key_venv.mpr h).symm), Or.inr (key_venv.mpr h)⟩
-  have hne_one_mk : (1 : Fin (n + 3)) ≠ Fin.mk (n + 2) (by omega) := by
-    intro h; have := congr_arg Fin.val h; simp at this
-  have hdeg : ∀ v : (cycle (n + 3)).V, (cycle (n + 3)).toSimple.degree v = 2 := by
-    intro v
-    change Fin (n + 3) at v
-    have hne2 : v + 1 ≠ v + Fin.mk (n + 2) (by omega) := by
-      intro h; exact hne_one_mk (add_left_cancel h)
-    rw [SimpleGraph.degree]
-    have hneighborFinset : (cycle (n + 3)).toSimple.neighborFinset v =
-      {v + 1, v + Fin.mk (n + 2) (by omega)} := by
-      ext u
-      change Fin (n + 3) at u
-      simp only [SimpleGraph.mem_neighborFinset]
-      have hu := hadj v u
-      have hv1' : ∀ (x : Fin (n + 3)), (x + 1 : Fin (n + 3)).val = (x.val + 1) % (n + 3) := by
-        intro x; simp [Fin.val_add]
-      have hv2' : ∀ (x : Fin (n + 3)), (x + Fin.mk (n + 2) (by omega) : Fin (n + 3)).val = (x.val + (n + 2)) % (n + 3) := by
-        intro x; simp [Fin.val_add]
-      have key1 : u = v + 1 ↔ u.val = (v.val + 1) % (n + 3) := by
-        rw [← hv1']; exact Fin.ext_iff
-      have key2 : u = v + Fin.mk (n + 2) (by omega) ↔ u.val = (v.val + (n + 2)) % (n + 3) := by
-        rw [← hv2']; exact Fin.ext_iff
-      rw [hu, Finset.mem_insert, Finset.mem_singleton]
-      rw [key1, key2]
-    rw [hneighborFinset]
-    rw [Finset.card_eq_two]
-    exact ⟨v + 1, v + Fin.mk (n + 2) (by omega), hne2, rfl⟩
-  have hsum : ∑ v : (cycle (n + 3)).V, (cycle (n + 3)).toSimple.degree v = 2 * (n + 3) := by
-    simp [hdeg]
-    omega
   have h2 := SimpleGraph.sum_degrees_eq_twice_card_edges (cycle (n + 3)).toSimple
-  linarith
+  simp only [degree_cycle, Finset.sum_const, Finset.card_univ, smul_eq_mul] at h2
+  rw [show Fintype.card (cycle (n + 3)).V = n + 3 by simp] at h2
+  show (cycle (n + 3)).toSimple.edgeFinset.card = n + 3
+  omega
 
 /-! ### Disjoint unions and joins -/
 
@@ -501,17 +474,53 @@ so the handshake lemma splits along the sum. -/
   rw [E, SimpleGraph.edgeFinset_card, FinEnum.card_eq_fintypeCard]
   exact Fintype.card_congr' rfl
 
+
+/-- **Adjacency in a line graph**, as a `SimpleGraph`: two distinct edges sharing an endpoint. -/
+theorem lineGraph_toSimple_adj (e f : (lineGraph G).V) :
+    (lineGraph G).toSimple.Adj e f ↔
+      e ≠ f ∧ ∃ v : G.V, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V) := by
+  simp [CGraph.toSimple, CGraph.lineGraph_adj, Bool.and_eq_true]
+
+/-- A vertex of a line graph is an edge of the original, so it has an endpoint. -/
+theorem exists_mem_lineGraph_vertex (e : (lineGraph G).V) : ∃ v : G.V, v ∈ (e.1 : Sym2 G.V) := by
+  obtain ⟨se, _⟩ := e
+  induction se using Sym2.ind with
+  | _ a b => exact ⟨a, Sym2.mem_mk_left _ _⟩
+
+/-- **Two edges sharing an endpoint are at distance at most one in the line graph.** -/
+theorem edist_lineGraph_le_one (e f : (lineGraph G).V) (v : G.V)
+    (hev : v ∈ (e.1 : Sym2 G.V)) (hfv : v ∈ (f.1 : Sym2 G.V)) :
+    (lineGraph G).toSimple.edist e f ≤ 1 := by
+  by_cases heq : e = f
+  · rw [heq]; simp
+  · exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons
+      ((lineGraph_toSimple_adj G e f).2 ⟨heq, v, hev, hfv⟩) SimpleGraph.Walk.nil)) (by simp)
+
+/-- **A walk lifts to the line graph**: a walk from `u` to `v` and an edge `e` at `u` produce an
+edge `e'` at `v` no further from `e` than the walk is long.  Each step of the walk moves to the
+edge it traverses, which shares its tail with the edge reached before it. -/
+theorem exists_edist_lineGraph_le_length : ∀ {u v : G.V} (w : G.toSimple.Walk u v)
+    (e : (lineGraph G).V), u ∈ (e.1 : Sym2 G.V) →
+      ∃ e' : (lineGraph G).V, v ∈ (e'.1 : Sym2 G.V) ∧
+        (lineGraph G).toSimple.edist e e' ≤ w.length := by
+  intro u v w e hu
+  induction w using SimpleGraph.Walk.rec generalizing e with
+  | nil => exact ⟨e, hu, by rw [SimpleGraph.edist_self]; simp⟩
+  | @cons x y z hxy wtail ih =>
+    let ep : (lineGraph G).V :=
+      ⟨Sym2.mk (x, y), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hxy⟩
+    obtain ⟨e', hz, hd⟩ := ih ep (Sym2.mem_mk_right _ _)
+    refine ⟨e', hz, le_trans ((lineGraph G).toSimple.edist_triangle.trans
+      (add_le_add (edist_lineGraph_le_one G e ep x hu (Sym2.mem_mk_left _ _)) hd)) ?_⟩
+    show (1 : ℕ∞) + ↑wtail.length ≤ ↑(wtail.length + 1)
+    simp [Nat.cast_add, add_comm]
+
 /-- The degree of an edge `e` in `lineGraph G`: each endpoint `v` of `e` contributes the
 `G.degree v - 1` other edges incident to `v`, and no edge is counted twice because two
 distinct endpoints cannot both lie on a third edge. -/
 theorem degree_lineGraph (e : (lineGraph G).V) :
     (lineGraph G).toSimple.degree e = ∑ v ∈ e.1.toFinset, (G.toSimple.degree v - 1) := by
   set S := G.toSimple
-  have hhadj : ∀ x y : (lineGraph G).V,
-      (lineGraph G).toSimple.Adj x y ↔ x ≠ y ∧ ∃ v : G.V, Sym2.Mem v (Subtype.val x) ∧ Sym2.Mem v (Subtype.val y) := by
-    intro x y
-    simp only [CGraph.toSimple, lineGraph_adj]
-    simp [Bool.and_eq_true, decide_eq_true_eq]
   have heqmem : ∀ e : Sym2 G.V, e ∈ S.edgeSet ↔ e ∈ S.edgeFinset := by
     intro e; simp [SimpleGraph.mem_edgeFinset]
   rw [SimpleGraph.degree]
@@ -525,7 +534,8 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
     constructor
     · rintro ⟨a, hadj, ha⟩
       subst ha
-      have hadj' : e ≠ a ∧ ∃ v, v ∈ ee ∧ v ∈ a.1 := (hhadj e a).mp (by simpa using hadj)
+      have hadj' : e ≠ a ∧ ∃ v, v ∈ ee ∧ v ∈ a.1 :=
+        (lineGraph_toSimple_adj G e a).mp (by simpa using hadj)
       exact ⟨a.2, fun h => hadj'.1 (Subtype.ext (h.symm)), hadj'.2⟩
     · rintro ⟨hf1, hf2, v, hv1, hv2⟩
       have hf1' : f ∈ S.edgeFinset := (heqmem f).mp hf1
@@ -536,11 +546,9 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
   have hcard_eq : (G.lineGraph.toSimple.neighborFinset e).card =
       ({f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset}).card := by
     rw [← hneighbor_val]
-    have : (Finset.image (fun f : (lineGraph G).V => f.1) (G.lineGraph.toSimple.neighborFinset e)).card =
-        (G.lineGraph.toSimple.neighborFinset e).card := by
-      apply Finset.card_image_of_injective _ Subtype.coe_injective
-    rw [this]
+    exact (Finset.card_image_of_injective _ Subtype.coe_injective).symm
   rw [hcard_eq]
+  -- Split the other edges at `ee` by which endpoint of `ee` they meet.
   have hdecomp : {f ∈ S.edgeFinset | f ≠ ee ∧ ∃ v ∈ ee.toFinset, v ∈ f.toFinset} =
       Finset.biUnion ee.toFinset (fun v => S.incidenceFinset v \ {ee}) := by
     ext f
@@ -551,79 +559,28 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
       exact ⟨a, ha, ⟨hf1, havf⟩, hf2⟩
     · rintro ⟨a, ha, hfa, hf2⟩
       exact ⟨hfa.1, hf2, a, ha, hfa.2⟩
-  rw [hdecomp]
-  have hEE_inc_sym2 : ∀ v ∈ ee.toFinset, v ∈ ee := by
-    intro v hv
-    exact Sym2.mem_toFinset.mp hv
-  have hEE_inc : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceFinset v := by
-    intro v hv
-    rw [S.mem_incidenceFinset]
-    exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
-  have hEE_inc_set : ∀ v ∈ ee.toFinset, ee ∈ S.incidenceSet v := by
-    intro v hv
-    show ee ∈ {e ∈ S.edgeSet | v ∈ e}
-    exact ⟨(heqmem ee).mpr hee_mem, hEE_inc_sym2 v hv⟩
-  have hpiece : ∀ v ∈ ee.toFinset, (S.incidenceFinset v \ {ee}).card = S.degree v - 1 := by
-    intro v hv
-    have hsubset : {ee} ⊆ S.incidenceFinset v := Finset.singleton_subset_iff.mpr (hEE_inc v hv)
+  rw [hdecomp, Finset.card_biUnion]
+  · refine Finset.sum_congr rfl fun v hv ↦ ?_
+    have hEE : ee ∈ S.incidenceFinset v := by
+      rw [S.mem_incidenceFinset]
+      exact ⟨(heqmem ee).mpr hee_mem, Sym2.mem_toFinset.mp hv⟩
+    have hsubset : {ee} ⊆ S.incidenceFinset v := Finset.singleton_subset_iff.mpr hEE
     have hcard_v : (S.incidenceFinset v).card = S.degree v := by
       rw [SimpleGraph.degree, SimpleGraph.incidenceFinset]; simp
     rw [Finset.card_sdiff_of_subset hsubset, Finset.card_singleton, hcard_v]
-  rw [Finset.card_biUnion]
-  · exact Finset.sum_congr rfl hpiece
+  -- The pieces are disjoint: an edge meeting both endpoints of `ee` *is* `ee`.
   · intro v hv w hw hvw
     rw [Function.onFun, Finset.disjoint_left]
     intro f hfv hfw
     simp [Finset.mem_sdiff, Finset.mem_singleton] at hfv hfw
-    obtain ⟨hfv_inc, hfv_ne⟩ := hfv
-    obtain ⟨hfw_inc, hfw_ne⟩ := hfw
-    have hfv_inc' : f ∈ S.incidenceFinset v := by
-      rw [S.mem_incidenceFinset]; exact ⟨hfv_inc.1, hfv_inc.2⟩
-    have hfw_inc' : f ∈ S.incidenceFinset w := by
-      rw [S.mem_incidenceFinset]; exact ⟨hfw_inc.1, hfw_inc.2⟩
-    simp [SimpleGraph.mem_incidenceFinset] at hfv_inc' hfw_inc'
-    have hf_edge' : f ∈ S.edgeSet := hfv_inc.1
-    have hee_edge' : ee ∈ S.edgeSet := (heqmem ee).mpr hee_mem
-    have hvf_mem : Sym2.Mem v f := hfv_inc.2
-    have hwf_mem : Sym2.Mem w f := hfw_inc.2
-    have hvf : v ∈ f.toFinset := Sym2.mem_toFinset.mpr hvf_mem
-    have hwf : w ∈ f.toFinset := Sym2.mem_toFinset.mpr hwf_mem
-    -- Both f and ee have v, w as members (distinct). Since Sym2 elements have exactly 2 members,
-    -- every member of f is v or w, and same for ee. Hence f = ee by Sym2 extensionality.
-    -- f and ee both contain v and w (v ≠ w) as members. Since they're Sym2 (unordered pairs),
-    -- each must equal Sym2.mk (v, w), so they're equal.
-    -- We prove this by showing both are equal via Sym2.mk (v, w).
-    -- First, we show membership in Sym2.mk (v, w) characterizes when x ∈ f.
-    -- Key lemma: for any Sym2 e with v, w ∈ e and v ≠ w, e = Sym2.mk (v, w).
-    have hsyeq : ∀ (e : Sym2 G.V), Sym2.Mem v e → Sym2.Mem w e → v ≠ w → e = Sym2.mk (v, w) := by
-      intro e hve hwe hvw
-      obtain ⟨a, ha⟩ := Sym2.mk_surjective e
-      subst ha
-      -- For any x, x ∈ Sym2.mk a → x = a.1 ∨ x = a.2 (from cases on Sym2.Mem)
-      have hx_mem : ∀ x, Sym2.Mem x (Sym2.mk a) → x = a.1 ∨ x = a.2 := by
-        intro x hx'
-        show x = a.1 ∨ x = a.2
-        simp [Sym2.Mem] at hx'
-        rcases hx' with ⟨y, rfl | rfl⟩ <;> simp
-      obtain rfl | rfl := hx_mem v hve
-      · obtain rfl | rfl := hx_mem w hwe
-        · exact absurd rfl hvw
-        · rfl
-      · obtain rfl | rfl := hx_mem w hwe
-        · exact Quot.sound (Sym2.Rel.swap (a.1) (a.2))
-        · exact absurd rfl hvw
-    exact hfv_ne (hsyeq f hvf_mem hwf_mem hvw ▸ hsyeq ee (Sym2.mem_toFinset.mp hv) (Sym2.mem_toFinset.mp hw) hvw ▸ rfl)
-
+    obtain ⟨⟨-, hvf⟩, hfne⟩ := hfv
+    obtain ⟨⟨-, hwf⟩, -⟩ := hfw
+    exact hfne (Sym2.eq_of_ne_mem hvw hvf hwf (Sym2.mem_toFinset.mp hv) (Sym2.mem_toFinset.mp hw))
 @[simp] theorem E_lineGraph :
     (lineGraph G).E = (∑ v : G.V, (G.toSimple.degree v).choose 2) := by
   set S := G.toSimple
   show (lineGraph G).toSimple.edgeFinset.card = ∑ v, (S.degree v).choose 2
   -- Key fact: (lineGraph G).toSimple.Adj x y ↔ x ≠ y ∧ ∃ v, v ∈ ↑x ∧ v ∈ ↑y
-  have hhadj : ∀ x y : (lineGraph G).V,
-      (lineGraph G).toSimple.Adj x y ↔ x ≠ y ∧ ∃ v : G.V, Sym2.Mem v (Subtype.val x) ∧ Sym2.Mem v (Subtype.val y) := by
-    intro x y
-    simp only [CGraph.toSimple, lineGraph_adj]
-    simp [Bool.and_eq_true, decide_eq_true_eq]
   -- Handshaking
   have hhand : 2 * (lineGraph G).toSimple.edgeFinset.card =
       ∑ e : (lineGraph G).V, (lineGraph G).toSimple.degree e :=
@@ -694,92 +651,84 @@ theorem degree_lineGraph (e : (lineGraph G).V) :
     FinEnum.card (mycielskian G).V = 2 * FinEnum.card G.V + 1 := by
   simp [mycielskian, two_mul]
 
+private theorem some_inl_inj {K : CGraph} :
+    Function.Injective (fun b : K.V ↦ (some (Sum.inl b) : Option (K.V ⊕ K.V))) :=
+  fun _ _ h ↦ Sum.inl_injective (Option.some_injective (K.V ⊕ K.V) h)
+
+private theorem some_inr_inj {K : CGraph} :
+    Function.Injective (fun b : K.V ↦ (some (Sum.inr b) : Option (K.V ⊕ K.V))) :=
+  fun _ _ h ↦ Sum.inr_injective (Option.some_injective (K.V ⊕ K.V) h)
+
+/-- The neighbours of an original vertex of a Mycielskian: its old neighbours and their shadows. -/
+theorem neighborFinset_mycielskian_inl (a : G.V) :
+    (mycielskian G).toSimple.neighborFinset (some (Sum.inl a)) =
+      (Finset.image (fun b : G.V ↦ some (Sum.inl b)) (G.toSimple.neighborFinset a) ∪
+        Finset.image (fun b : G.V ↦ some (Sum.inr b)) (G.toSimple.neighborFinset a)) := by
+  ext y
+  simp [mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
+  rcases y with _ | y | y <;> simp
+
+/-- The neighbours of a shadow vertex: the neighbours of the vertex it shadows, and the apex. -/
+theorem neighborFinset_mycielskian_inr (a : G.V) :
+    (mycielskian G).toSimple.neighborFinset (some (Sum.inr a)) =
+      Finset.image (fun b : G.V ↦ some (Sum.inl b)) (G.toSimple.neighborFinset a) ∪ {none} := by
+  ext y
+  simp [mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
+  rcases y with _ | y | y <;> simp
+
+/-- The apex of a Mycielskian sees exactly the shadows. -/
+theorem neighborFinset_mycielskian_none :
+    (mycielskian G).toSimple.neighborFinset none =
+      Finset.image (fun b : G.V ↦ some (Sum.inr b)) Finset.univ := by
+  ext y
+  simp [mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
+  rcases y with _ | y | y <;> simp
+
+/-- **An original vertex of a Mycielskian has twice its old degree**: it keeps its old neighbours
+and gains their shadows. -/
+theorem degree_mycielskian_inl (a : G.V) :
+    (mycielskian G).toSimple.degree (some (Sum.inl a)) = 2 * G.toSimple.degree a := by
+  rw [SimpleGraph.degree, neighborFinset_mycielskian_inl, Finset.card_union_of_disjoint
+    (by rw [Finset.disjoint_left]; simp [Finset.mem_image]),
+    Finset.card_image_of_injective _ some_inl_inj,
+    Finset.card_image_of_injective _ some_inr_inj, SimpleGraph.degree]
+  ring
+
+/-- **A shadow vertex has the degree of the vertex it shadows, plus one** for the apex. -/
+theorem degree_mycielskian_inr (a : G.V) :
+    (mycielskian G).toSimple.degree (some (Sum.inr a)) = G.toSimple.degree a + 1 := by
+  rw [SimpleGraph.degree, neighborFinset_mycielskian_inr, Finset.card_union_of_disjoint
+    (by simp [Finset.disjoint_singleton_right]),
+    Finset.card_image_of_injective _ some_inl_inj]
+  rfl
+
+/-- **The apex of a Mycielskian is adjacent to every shadow**, so its degree is the order of `G`. -/
+theorem degree_mycielskian_none :
+    (mycielskian G).toSimple.degree none = FinEnum.card G.V := by
+  rw [SimpleGraph.degree, neighborFinset_mycielskian_none,
+    Finset.card_image_of_injective _ some_inr_inj]
+  simp
+
+/-- **A Mycielskian triples the edge count and adds one edge per vertex**: each old edge is joined
+by its two mixed copies, and the apex contributes one edge to every shadow. -/
 @[simp] theorem E_mycielskian :
     (mycielskian G).E = 3 * G.E + FinEnum.card G.V := by
   unfold CGraph.E
-  let H := (mycielskian G).toSimple
-  have hhand_myc := H.sum_degrees_eq_twice_card_edges
+  have hhand_myc := (mycielskian G).toSimple.sum_degrees_eq_twice_card_edges
   have hhand_G := G.toSimple.sum_degrees_eq_twice_card_edges
-  -- Goal: H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + FinEnum.card G.V
-  -- From handshaking: 2 * H.edgeFinset.card = ∑ v, H.degree v
-  -- and 2 * G.toSimple.edgeFinset.card = ∑ v, G.toSimple.degree v
-  -- So it suffices to show ∑ v, H.degree v = 3 * ∑ v, G.toSimple.degree v + 2 * FinEnum.card G.V
-  -- Helper: describe neighbors of each vertex type in H
-  have h_neighborFinset_inl : ∀ a : G.V,
-      H.neighborFinset (some (Sum.inl a)) =
-        (Finset.image (fun b : G.V => some (Sum.inl b)) (G.toSimple.neighborFinset a) ∪
-          Finset.image (fun b : G.V => some (Sum.inr b)) (G.toSimple.neighborFinset a)) := by
-    intro a
-    ext y
-    simp [H, mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
-    rcases y with _ | y | y <;> simp
-  have h_neighborFinset_inr : ∀ a : G.V,
-      H.neighborFinset (some (Sum.inr a)) =
-        Finset.image (fun b : G.V => some (Sum.inl b)) (G.toSimple.neighborFinset a) ∪ {none} := by
-    intro a
-    ext y
-    simp [H, mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
-    rcases y with _ | y | y <;> simp
-  have h_neighborFinset_none :
-      H.neighborFinset none = Finset.image (fun b : G.V => some (Sum.inr b)) Finset.univ := by
-    ext y
-    simp [H, mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
-    rcases y with _ | y | y <;> simp
-  have target : ∑ v : Option (G.V ⊕ G.V), H.degree v = 3 * ∑ v : G.V, G.toSimple.degree v + 2 * FinEnum.card G.V := by
-    have hinjl : Function.Injective (fun b : G.V => some (Sum.inl b) : G.V → Option (G.V ⊕ G.V)) :=
-      fun x y h => Sum.inl_injective (Option.some_injective (G.V ⊕ G.V) h)
-    have hinjr : Function.Injective (fun b : G.V => some (Sum.inr b) : G.V → Option (G.V ⊕ G.V)) :=
-      fun x y h => Sum.inr_injective (Option.some_injective (G.V ⊕ G.V) h)
-    -- Compute degrees from neighborFinset lemmas
-    have hdeg_inl : ∀ a : G.V, H.degree (some (Sum.inl a)) = 2 * G.toSimple.degree a := by
-      intro a
-      rw [SimpleGraph.degree, h_neighborFinset_inl, Finset.card_union_of_disjoint]
-      · rw [Finset.card_image_of_injective _ hinjl, Finset.card_image_of_injective _ hinjr]
-        rw [SimpleGraph.degree]
-        ring
-      · rw [Finset.disjoint_left]; simp [Finset.mem_image]
-    have hdeg_inr : ∀ a : G.V, H.degree (some (Sum.inr a)) = G.toSimple.degree a + 1 := by
-      intro a
-      rw [SimpleGraph.degree, h_neighborFinset_inr, Finset.card_union_of_disjoint]
-      · rw [Finset.card_image_of_injective _ hinjl]
-        · rfl
-      · simp [Finset.disjoint_singleton_right]
-    have hdeg_none : H.degree none = FinEnum.card G.V := by
-      rw [SimpleGraph.degree, h_neighborFinset_none]
-      rw [Finset.card_image_of_injective _ hinjr]
-      simp
-    -- Split the sum over Option
-    have hsum_split : ∑ v : Option (G.V ⊕ G.V), H.degree v =
-        H.degree none + ∑ x : G.V ⊕ G.V, H.degree (some x) := by
-      rw [Fintype.sum_option]
-    rw [hsum_split, hdeg_none]
-    -- Split the sum over Sum
-    have hsum_split2 : ∑ x : G.V ⊕ G.V, H.degree (some x) =
-        ∑ a : G.V, H.degree (some (Sum.inl a)) + ∑ a : G.V, H.degree (some (Sum.inr a)) := by
-      have h_disj : Disjoint (Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩ : Finset (G.V ⊕ G.V))
-          (Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ : Finset (G.V ⊕ G.V)) := by
-        rw [Finset.disjoint_left]
-        simp
-      have h_univ : (Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩ : Finset (G.V ⊕ G.V)) ∪
-          Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ = Finset.univ := by
-        ext x; cases x <;> simp
-      rw [← h_univ, Finset.sum_union h_disj, Finset.sum_map, Finset.sum_map]
-      simp
-    rw [hsum_split2]
-    simp only [hdeg_inl, hdeg_inr]
-    have h1 : ∑ x : G.V, 2 * G.toSimple.degree x = 2 * ∑ x : G.V, G.toSimple.degree x := by
-      rw [Finset.mul_sum]
-    have h2 : ∑ x : G.V, (G.toSimple.degree x + 1) = ∑ x : G.V, G.toSimple.degree x + FinEnum.card G.V := by
-      rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ]
-      simp
-    rw [h1, h2]
+  -- The handshake lemma on both sides, so it suffices to add up the degrees computed above.
+  have target : ∑ v : Option (G.V ⊕ G.V), (mycielskian G).toSimple.degree v =
+      3 * ∑ v : G.V, G.toSimple.degree v + 2 * FinEnum.card G.V := by
+    rw [Fintype.sum_option, Fintype.sum_sum_type, degree_mycielskian_none]
+    simp only [degree_mycielskian_inl, degree_mycielskian_inr, ← Finset.mul_sum,
+      Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, smul_eq_mul, mul_one]
+    rw [show Fintype.card G.V = FinEnum.card G.V by simp]
     ring
-  rw [show (∑ v : Option (G.V ⊕ G.V), H.degree v) = 2 * H.edgeFinset.card from
+  rw [show (∑ v : Option (G.V ⊕ G.V), (mycielskian G).toSimple.degree v)
+      = 2 * (mycielskian G).toSimple.edgeFinset.card from
     (Finset.sum_univ_inst_eq _ _ _).trans hhand_myc] at target
   rw [show (∑ v : G.V, G.toSimple.degree v) = 2 * G.toSimple.edgeFinset.card from hhand_G] at target
-  have h2 : 2 * H.edgeFinset.card = 6 * G.toSimple.edgeFinset.card + 2 * FinEnum.card G.V := by linarith
-  have h3 : H.edgeFinset.card = 3 * G.toSimple.edgeFinset.card + FinEnum.card G.V := by omega
-  exact h3
+  omega
 
 end
 
@@ -1093,16 +1042,6 @@ list of distinct pairs and `ofEdges` on it is `complete m`. -/
     (fun ⟨a, b⟩ hp ↦ ((mem_cliqueEdges m a b).1 hp).2) (cliqueEdges_nodup m)
   rw [ofEdges_cliqueEdges, E_complete] at h
   exact h.symm
-
-/-! ### Theta graphs with two paths: the cycle -/
-
-/-- Adjacency in `cycle n`, phrased entirely in terms of the underlying naturals. -/
-theorem cycle_adj_val (n : ℕ) (u v : (cycle n).V) :
-    (cycle n).Adj u v = true ↔
-      (u.1 ≠ v.1 ∧ ((u.1 + 1) % n = v.1 ∨ (v.1 + 1) % n = u.1)) := by
-  have huv : (u = v) ↔ (u.1 = v.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
-  simp only [cycle, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq,
-    ne_eq, huv]
 
 /-! ## Two small facts about one-vertex graphs -/
 
@@ -3041,40 +2980,12 @@ apex sees every shadow. -/
   rw [← mk_canonicalize g, mycielskian_mk, degMultiset_mk, degMultiset_mk, V_mk]
   set F := g.canonicalize
   let H := (CGraph.mycielskian F).toSimple
-  -- Neighbor finset lemmas from Constructions.lean
-  have h_neighborFinset_inl : ∀ a : F.V,
-      H.neighborFinset (some (Sum.inl a)) =
-        (Finset.image (fun b : F.V => some (Sum.inl b)) (F.toSimple.neighborFinset a) ∪
-          Finset.image (fun b : F.V => some (Sum.inr b)) (F.toSimple.neighborFinset a)) := by
-    intro a; ext y; simp [H, CGraph.mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
-    rcases y with _ | y | y <;> simp
-  have h_neighborFinset_inr : ∀ a : F.V,
-      H.neighborFinset (some (Sum.inr a)) =
-        Finset.image (fun b : F.V => some (Sum.inl b)) (F.toSimple.neighborFinset a) ∪ {none} := by
-    intro a; ext y; simp [H, CGraph.mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
-    rcases y with _ | y | y <;> simp
-  have h_neighborFinset_none :
-      H.neighborFinset none = Finset.image (fun b : F.V => some (Sum.inr b)) Finset.univ := by
-    ext y; simp [H, CGraph.mycielskian, CGraph.toSimple, SimpleGraph.mem_neighborFinset]
-    rcases y with _ | y | y <;> simp
-  -- Degree lemmas
-  have hinjl : Function.Injective (fun b : F.V => some (Sum.inl b) : F.V → Option (F.V ⊕ F.V)) :=
-    fun x y h => Sum.inl_injective (Option.some_injective _ h)
-  have hinjr : Function.Injective (fun b : F.V => some (Sum.inr b) : F.V → Option (F.V ⊕ F.V)) :=
-    fun x y h => Sum.inr_injective (Option.some_injective _ h)
-  have hdeg_inl : ∀ a : F.V, H.degree (some (Sum.inl a)) = 2 * F.toSimple.degree a := by
-    intro a
-    rw [SimpleGraph.degree, h_neighborFinset_inl, Finset.card_union_of_disjoint]
-    · rw [Finset.card_image_of_injective _ hinjl, Finset.card_image_of_injective _ hinjr,
-        SimpleGraph.degree]; ring
-    · rw [Finset.disjoint_left]; simp [Finset.mem_image]
-  have hdeg_inr : ∀ a : F.V, H.degree (some (Sum.inr a)) = F.toSimple.degree a + 1 := by
-    intro a
-    rw [SimpleGraph.degree, h_neighborFinset_inr, Finset.card_union_of_disjoint]
-    · rw [Finset.card_image_of_injective _ hinjl]; rfl
-    · simp [Finset.disjoint_singleton_right]
-  have hdeg_none : H.degree none = FinEnum.card F.V := by
-    rw [SimpleGraph.degree, h_neighborFinset_none, Finset.card_image_of_injective _ hinjr]; simp
+  -- The three kinds of vertex, with the degrees computed once and for all above.
+  have hdeg_inl : ∀ a : F.V, H.degree (some (Sum.inl a)) = 2 * F.toSimple.degree a :=
+    CGraph.degree_mycielskian_inl F
+  have hdeg_inr : ∀ a : F.V, H.degree (some (Sum.inr a)) = F.toSimple.degree a + 1 :=
+    CGraph.degree_mycielskian_inr F
+  have hdeg_none : H.degree none = FinEnum.card F.V := CGraph.degree_mycielskian_none F
   -- Now compute degMultiset.  Unfolding leaves the goal talking about
   -- `(CGraph.mycielskian F).toSimple` and counting with the `Fintype` the graph's own `FinEnum`
   -- induces; the `show` folds the graph back to `H`, and the rewrite moves to Mathlib's `Fintype`
@@ -3235,107 +3146,12 @@ more neighbour than its original, and the apex sees every shadow. -/
     simp [maxDeg_mk, mycielskian_mk, IsoGraph.V]
     set H : CGraph := g.mycielskian
     set Hs := H.toSimple
-    -- Neighbor finset lemmas (copying E_mycielskian proof pattern)
-    have h_adj_inl_inl :
-        ∀ a b : g.V, Hs.Adj (some (Sum.inl a)) (some (Sum.inl b)) ↔ g.Adj a b = true := by
-      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; tauto
-    have h_adj_inl_inr :
-        ∀ a b : g.V, Hs.Adj (some (Sum.inl a)) (some (Sum.inr b)) ↔ g.Adj a b = true := by
-      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; tauto
-    have h_adj_inl_none : ∀ a : g.V, ¬Hs.Adj (some (Sum.inl a)) none := by
-      intro a; dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
-    have h_adj_inr_inl :
-        ∀ a b : g.V, Hs.Adj (some (Sum.inr a)) (some (Sum.inl b)) ↔ g.Adj a b = true := by
-      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; tauto
-    have h_adj_inr_inr : ∀ a b : g.V, ¬Hs.Adj (some (Sum.inr a)) (some (Sum.inr b)) := by
-      intro a b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
-    have h_adj_inr_none : ∀ a : g.V, Hs.Adj (some (Sum.inr a)) none := by
-      intro a; dsimp [Hs, H, mycielskian, CGraph.toSimple]
-    have h_adj_none_inr : ∀ b : g.V, Hs.Adj none (some (Sum.inr b)) := by
-      intro b; dsimp [Hs, H, mycielskian, CGraph.toSimple]
-    have h_adj_none_inl : ∀ b : g.V, ¬Hs.Adj none (some (Sum.inl b)) := by
-      intro b; dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
-    have h_adj_none_none : ¬Hs.Adj none none := by
-      dsimp [Hs, H, mycielskian, CGraph.toSimple]; simp
-    have h_inl_ne_inr : ∀ (x y : g.V), ¬some (Sum.inl x) = some (Sum.inr y) :=
-      fun x y h => by
-        injection h with h'
-        cases h'
-    have h_neighborFinset_inl : ∀ a : g.V,
-        Hs.neighborFinset (some (Sum.inl a)) =
-          (Finset.image (fun b : g.V => some (Sum.inl b)) (g.toSimple.neighborFinset a) ∪
-            Finset.image (fun b : g.V => some (Sum.inr b)) (g.toSimple.neighborFinset a)) := by
-      intro a
-      ext y
-      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_union, Finset.mem_image]
-      rcases y with _ | y
-      · simp [h_adj_inl_none a]
-      · rcases y with (y | y)
-        · rw [h_adj_inl_inl a y]
-          simp
-          constructor
-          · intro h; exact Or.inl ⟨y, h, rfl⟩
-          · intro h; rcases h with (⟨b, hb, hb2⟩ | ⟨b, hb, hb2⟩)
-            · exact (Sum.inl_injective (Option.some_injective _ hb2)) ▸ hb
-            · exact absurd hb2.symm (h_inl_ne_inr y b)
-        · rw [h_adj_inl_inr a y]
-          simp [CGraph.toSimple]
-          constructor
-          · intro h; exact Or.inr ⟨y, h, rfl⟩
-          · intro h; rcases h with (⟨b, hb, hb2⟩ | ⟨b, hb, hb2⟩)
-            · exact absurd hb2 (h_inl_ne_inr b y)
-            · exact (Sum.inr_injective (Option.some_injective _ hb2)) ▸ hb
-    have h_neighborFinset_inr : ∀ a : g.V,
-        Hs.neighborFinset (some (Sum.inr a)) =
-          Finset.image (fun b : g.V => some (Sum.inl b)) (g.toSimple.neighborFinset
-              a) ∪ {none} := by
-      intro a
-      ext y
-      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_union, Finset.mem_image,
-          Finset.mem_singleton]
-      rcases y with _ | y
-      · simp [h_adj_inr_none a]
-      · rcases y with (y | y)
-        · rw [h_adj_inr_inl a y]
-          simp
-          exact ⟨fun h => ⟨y, h, rfl⟩, fun ⟨b, hb, hb2⟩ => (Sum.inl_injective
-              (Option.some_injective _ hb2)) ▸ hb⟩
-        · show Hs.Adj (some (Sum.inr a)) (some (Sum.inr y)) ↔ _
-          simp [h_adj_inr_inr a y, CGraph.toSimple]
-          exact fun x _ hx => h_inl_ne_inr x y hx
-    have h_neighborFinset_none :
-        Hs.neighborFinset none = Finset.image (fun b : g.V => some (Sum.inr b)) Finset.univ := by
-      ext y
-      simp only [SimpleGraph.mem_neighborFinset, Finset.mem_image, Finset.mem_univ, true_and]
-      rcases y with _ | y
-      · simp
-      · rcases y with (y | y)
-        · simp [h_adj_none_inl y]
-          intro x; exact fun h => h_inl_ne_inr y x h.symm
-        · simp [h_adj_none_inr y]
-    -- Injectivity helpers
-    have hinjl : Function.Injective (fun b : g.V => some (Sum.inl b) : g.V → H.V) :=
-      fun x y h => Sum.inl_injective (Option.some_injective (g.V ⊕ g.V) h)
-    have hinjr : Function.Injective (fun b : g.V => some (Sum.inr b) : g.V → H.V) :=
-      fun x y h => Sum.inr_injective (Option.some_injective (g.V ⊕ g.V) h)
-    -- Degree lemmas
-    have hdeg_inl : ∀ a : g.V, Hs.degree (some (Sum.inl a)) = 2 * g.toSimple.degree a := by
-      intro a
-      rw [SimpleGraph.degree, h_neighborFinset_inl, Finset.card_union_of_disjoint]
-      · rw [Finset.card_image_of_injective _ hinjl, Finset.card_image_of_injective _ hinjr,
-            SimpleGraph.degree]
-        ring
-      · rw [Finset.disjoint_left]; simp [Finset.mem_image]
-    have hdeg_inr : ∀ a : g.V, Hs.degree (some (Sum.inr a)) = g.toSimple.degree a + 1 := by
-      intro a
-      rw [SimpleGraph.degree, h_neighborFinset_inr, Finset.card_union_of_disjoint]
-      · rw [Finset.card_image_of_injective _ hinjl]
-        rfl
-      · simp [Finset.disjoint_singleton_right]
-    have hdeg_none : Hs.degree none = FinEnum.card g.V := by
-      rw [SimpleGraph.degree, h_neighborFinset_none]
-      rw [Finset.card_image_of_injective _ hinjr]
-      simp
+    -- The three kinds of vertex, with the degrees computed once and for all in `Core/Counts`.
+    have hdeg_inl : ∀ a : g.V, Hs.degree (some (Sum.inl a)) = 2 * g.toSimple.degree a :=
+      CGraph.degree_mycielskian_inl g
+    have hdeg_inr : ∀ a : g.V, Hs.degree (some (Sum.inr a)) = g.toSimple.degree a + 1 :=
+      CGraph.degree_mycielskian_inr g
+    have hdeg_none : Hs.degree none = FinEnum.card g.V := CGraph.degree_mycielskian_none g
     -- Now prove maxDeg ≤ ...
     apply le_antisymm
     · -- All vertices of H have degree ≤ max (2 * maxDeg g) |V(g)|

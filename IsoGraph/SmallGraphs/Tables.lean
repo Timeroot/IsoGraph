@@ -1698,7 +1698,8 @@ theorem diameter_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsCon
   rw [diameter_strongProduct (isConnected_cycle m) (isConnected_cycle n), diameter_cycle,
     diameter_cycle]
 
-/-- **The line graph does not increase the diameter by more than one.** -/
+/-- **The line graph does not increase the diameter by more than one.**  Walk from an endpoint of
+one edge to an endpoint of the other, lift the walk to the line graph, and take one last step. -/
 theorem diameter_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     (lineGraph G).diameter ≤ G.diameter + 1 := by
   induction G using Quotient.inductionOn with | h g =>
@@ -1709,104 +1710,30 @@ theorem diameter_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
   simp only [CGraph.diameter]
   set S := g.toSimple
   let LG : SimpleGraph g.lineGraph.V := (CGraph.lineGraph g).toSimple
-  have hadj : ∀ e f : g.lineGraph.V,
-      LG.Adj e f ↔ e ≠ f ∧ ∃ v : g.V, v ∈ (e.1 : Sym2 g.V) ∧ v ∈ (f.1 : Sym2 g.V) := by
-    intro e f
-    simp [LG, CGraph.toSimple, CGraph.lineGraph_adj, Bool.and_eq_true]
-  -- Key lemma: walk lifting from S to LG
-  have hwalk_lift : ∀ {u v : g.V} (w : S.Walk u v) (e : g.lineGraph.V),
-      u ∈ (e.1 : Sym2 g.V) →
-      ∃ e' : g.lineGraph.V, v ∈ (e'.1 : Sym2 g.V) ∧ LG.edist e e' ≤ w.length := by
-    intro u v w e huv
-    induction w using SimpleGraph.Walk.rec generalizing e with
-    | nil =>
-      exact ⟨e, huv, by rw [SimpleGraph.edist_self]; simp⟩
-    | @cons x y z huv_tail wtail ih =>
-      let huv_tail' : S.Adj x y := by rwa [CGraph.toSimple_adj]
-      let ep : g.lineGraph.V :=
-        ⟨Sym2.mk (x, y), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using huv_tail'⟩
-      have hev' : y ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_right _ _
-      have heu' : x ∈ (e.1 : Sym2 g.V) := huv
-      have hep_u' : x ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_left _ _
-      -- Step 1: edist e ep ≤ 1 (they're adjacent or equal)
-      have hstep : LG.edist e ep ≤ 1 := by
-        by_cases heq : e = ep
-        · rw [heq]; simp
-        · have hadj_ef : LG.Adj e ep := (hadj e ep).mpr ⟨heq, x, heu', hep_u'⟩
-          have : LG.edist e ep ≤ 1 := by
-            exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef
-              SimpleGraph.Walk.nil)) (by simp)
-          exact this
-      -- Step 2: use IH from ep to get to an edge incident to z
-      obtain ⟨e', hvz', hdist'⟩ := ih ep hev'
-      -- Step 3: triangle inequality
-      have hels : LG.edist e e' ≤ LG.edist e ep + LG.edist ep e' := LG.edist_triangle
-      have hels'' : LG.edist e e' ≤ 1 + ↑wtail.length := hels.trans (add_le_add hstep hdist')
-      have hels_final : LG.edist e e' ≤ ↑(wtail.length + 1) := hels''.trans (by
-        show (1 : ℕ∞) + ↑wtail.length ≤ ↑(wtail.length + 1)
-        simp [Nat.cast_add, add_comm])
-      exact ⟨e', hvz', hels_final⟩
-  -- Get an endpoint of any line-graph vertex
-  have hendpoint : ∀ (e : g.lineGraph.V), ∃ (v : g.V), v ∈ (e.1 : Sym2 g.V) := by
-    intro ⟨se, _⟩
-    induction se using Sym2.ind with
-    | _ a b => exact ⟨a, Sym2.mem_mk_left _ _⟩
-  -- Any two edges sharing a vertex are at distance ≤ 1
-  have hshared : ∀ (e f : g.lineGraph.V) (v : g.V), v ∈ (e.1 : Sym2 g.V) → v ∈ (f.1 : Sym2 g.V) →
-    LG.edist e f ≤ 1 := by
-    intro e f v hev hfv
-    by_cases heq : e = f
-    · rw [heq]; simp
-    · have hadj_ef : LG.Adj e f := (hadj e f).mpr ⟨heq, v, hev, hfv⟩
-      exact le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef
-        SimpleGraph.Walk.nil)) (by simp)
-  -- edist in S between any two vertices ≤ G.diameter (as ℕ∞)
   have hSconn : S.Connected := hG
   have hSnediam : S.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hSconn
-  have hSdiam_eq : (g.diameter : ℕ∞) = S.diam := by
-    simp [CGraph.diameter, SimpleGraph.diam, S]
-  have hSedist : ∀ (u x : g.V), S.edist u x ≤ ↑(CGraph.diameter g) := by
-    intro u x
-    rw [hSdiam_eq]
-    exact SimpleGraph.edist_le_ediam.trans (le_of_eq (by
-      rw [show (S.diam : ℕ∞) = S.ediam.toNat from rfl]
-      exact (ENat.coe_toNat hSnediam).symm))
-  -- Pairwise LG.edist bound
-  have hbd : ∀ (e f : g.lineGraph.V), LG.edist e f ≤ ↑S.diam + 1 := by
+  have hbd : ∀ e f : g.lineGraph.V, LG.edist e f ≤ ↑S.diam + 1 := by
     intro e f
-    obtain ⟨ue, heue⟩ := hendpoint e
-    obtain ⟨xf, hxf⟩ := hendpoint f
-    have hreach : S.Reachable ue xf := hSconn ue xf
-    obtain ⟨p, hp_len_eq_dist⟩ := hreach.exists_walk_length_eq_dist
-    have hp_len_le_diam : (p.length : ℕ∞) ≤ ↑S.diam := by
-      rw [hp_len_eq_dist]
+    obtain ⟨ue, hue⟩ := CGraph.exists_mem_lineGraph_vertex g e
+    obtain ⟨xf, hxf⟩ := CGraph.exists_mem_lineGraph_vertex g f
+    obtain ⟨p, hp⟩ := (hSconn ue xf).exists_walk_length_eq_dist
+    have hp_le : (p.length : ℕ∞) ≤ ↑S.diam := by
+      rw [hp]
       exact_mod_cast @SimpleGraph.dist_le_diam _ S hSnediam ue xf
-    obtain ⟨e', hvf', hlift⟩ := hwalk_lift p e heue
-    have hels'' : LG.edist e f ≤ LG.edist e e' + LG.edist e' f := LG.edist_triangle
-    have hels'_le : LG.edist e e' ≤ ↑S.diam := hlift.trans hp_len_le_diam
-    have hfinal : LG.edist e f ≤ ↑S.diam + 1 := hels''.trans (add_le_add hels'_le (hshared e' f xf
-      hvf' hxf))
-    exact hfinal
-  -- Get ediam bound
-  have hLGediam : LG.ediam ≤ ↑(S.diam + 1) := by
-    have := SimpleGraph.ediam_le_of_edist_le (fun e f => by
+    obtain ⟨e', he', hlift⟩ := CGraph.exists_edist_lineGraph_le_length g p e hue
+    exact LG.edist_triangle.trans
+      (add_le_add (hlift.trans hp_le) (CGraph.edist_lineGraph_le_one g e' f xf he' hxf))
+  have hLGediam : LG.ediam ≤ ↑(S.diam + 1) :=
+    SimpleGraph.ediam_le_of_edist_le fun e f ↦ by
       calc LG.edist e f ≤ ↑S.diam + 1 := hbd e f
-        _ = ↑(S.diam + 1) := by rw [Nat.cast_add, Nat.cast_one])
-    exact this
-  -- Convert to diam
-  have hLGediam_ne_top : LG.ediam ≠ ⊤ := by
-    intro h; simp [h] at hLGediam
-    exact absurd hLGediam (by
-      show (↑(S.diam : ℕ) + 1 : ℕ∞) ≠ ⊤
-      have : (↑(S.diam : ℕ) : ℕ∞) + 1 = ↑(S.diam + 1) := by
-        simp [Nat.cast_add, Nat.cast_one]
-      rw [this]
-      exact WithTop.coe_ne_top)
-  have hfinal : LG.diam ≤ S.diam + 1 := by
-    unfold SimpleGraph.diam
-    exact ENat.toNat_le_of_le_coe hLGediam
-  exact hfinal
+        _ = ↑(S.diam + 1) := by rw [Nat.cast_add, Nat.cast_one]
+  show LG.diam ≤ S.diam + 1
+  unfold SimpleGraph.diam
+  exact ENat.toNat_le_of_le_coe hLGediam
 
+/-- **The line graph does not increase the radius by more than one.**  A centre of `G` lies on
+some edge; that edge is within `radius + 1` of every other edge, by the same lift as for the
+diameter. -/
 theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     (lineGraph G).radius ≤ G.radius + 1 := by
   induction G using Quotient.inductionOn with | h g =>
@@ -1815,14 +1742,13 @@ theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
   rw [isConnected_mk] at hG
   rw [E_mk] at hE
   set S : SimpleGraph g.V := g.toSimple
-  set LG_def : SimpleGraph g.lineGraph.V := (CGraph.lineGraph g).toSimple
-  --LG_def is LG
+  set LG : SimpleGraph g.lineGraph.V := (CGraph.lineGraph g).toSimple
   simp only [CGraph.radius, CGraph.toSimple]
   have hSconn : S.Connected := hG
-  by_cases hLGconn : LG_def.Connected
-  · show LG_def.radius.toNat ≤ S.radius.toNat + 1
-    have hSnediam : S.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hSconn
+  by_cases hLGconn : LG.Connected
+  · show LG.radius.toNat ≤ S.radius.toNat + 1
     obtain ⟨v, hv⟩ := SimpleGraph.exists_eccent_eq_radius (G := S)
+    -- The graph has an edge, so it has two distinct vertices, so the centre `v` has a neighbour.
     have hne : Nontrivial g.V := by
       have hEc : 0 < g.toSimple.edgeFinset.card := by simpa [CGraph.E] using hE
       obtain ⟨e, he⟩ := Finset.card_pos.mp hEc
@@ -1838,99 +1764,45 @@ theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
       exact ⟨hne'.choose, hne'.choose_spec.choose, hne'.choose_spec.choose_spec⟩
     have hvadj : ∃ w : g.V, S.Adj v w := by
       obtain ⟨u, hu⟩ := exists_ne v
-      have hr : S.Reachable v u := hSconn v u
-      have := g.exists_adj_dist_lt (r := u) (show g.toSimple.Reachable v u from hr) (Ne.symm hu)
+      have := g.exists_adj_dist_lt (r := u) (show g.toSimple.Reachable v u from hSconn v u)
+        (Ne.symm hu)
       exact ⟨this.choose, this.choose_spec.1⟩
     obtain ⟨w, hw⟩ : ∃ w : g.V, g.Adj v w := by simpa [CGraph.toSimple_adj] using hvadj
     let e0 : g.lineGraph.V :=
       ⟨Sym2.mk (v, w), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hw⟩
-    -- Adjacency in LG_def
-    have hadjLG : ∀ e f : g.lineGraph.V,
-        LG_def.Adj e f ↔ e ≠ f ∧ ∃ x : g.V, x ∈ (e.1 : Sym2 g.V) ∧ x ∈ (f.1 : Sym2 g.V) := by
-      intro e f
-      simp [LG_def, CGraph.toSimple, CGraph.lineGraph_adj, Bool.and_eq_true]
-    -- endpoint of any linegraph vertex
-    have hendpoint : ∀ (e : g.lineGraph.V), ∃ (x : g.V), x ∈ (e.1 : Sym2 g.V) := by
-      intro ⟨se, _⟩
-      induction se using Sym2.ind with
-      | _ a b => exact ⟨a, Sym2.mem_mk_left _ _⟩
-    -- shared vertex => edist ≤ 1
-    have hshared : ∀ (e f : g.lineGraph.V) (x : g.V), x ∈ (e.1 : Sym2 g.V) → x ∈ (f.1 : Sym2 g.V) →
-        LG_def.edist e f ≤ 1 := by
-      intro e f x hev hfx
-      by_cases heq : e = f
-      · rw [heq]; simp
-      · have hadj_ef : LG_def.Adj e f := (hadjLG e f).mpr ⟨heq, x, hev, hfx⟩
-        exact le_trans
-          (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef SimpleGraph.Walk.nil)) (by simp)
-    -- walk lifting from S to LG_def
-    have hwalk_lift : ∀ (v : g.V) {u : g.V} (p : S.Walk v u) (e : g.lineGraph.V),
-        v ∈ (e.1 : Sym2 g.V) →
-        ∃ e' : g.lineGraph.V, u ∈ (e'.1 : Sym2 g.V) ∧ LG_def.edist e e' ≤ ↑p.length := by
-      intro v u p e hev
-      induction p using SimpleGraph.Walk.rec generalizing e with
-      | nil =>
-        exact ⟨e, hev, by rw [SimpleGraph.edist_self]; simp⟩
-      | @cons x y z huv_tail wtail ih =>
-        let huv_tail' : S.Adj x y := by rwa [CGraph.toSimple_adj]
-        let ep : g.lineGraph.V :=
-          ⟨Sym2.mk (x, y), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using huv_tail'⟩
-        have hev' : y ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_right _ _
-        have heu' : x ∈ (e.1 : Sym2 g.V) := hev
-        have hep_u' : x ∈ (ep.1 : Sym2 g.V) := Sym2.mem_mk_left _ _
-        have hstep : LG_def.edist e ep ≤ 1 := by
-          by_cases heq : e = ep
-          · rw [heq]; simp
-          · have hadj_ef : LG_def.Adj e ep := (hadjLG e ep).mpr ⟨heq, x, heu', hep_u'⟩
-            exact le_trans
-              (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj_ef SimpleGraph.Walk.nil))
-              (by simp)
-        obtain ⟨e', hvz', hdist'⟩ := ih ep hev'
-        have hels : LG_def.edist e e' ≤ LG_def.edist e ep + LG_def.edist ep e' :=
-          LG_def.edist_triangle
-        have hels'' : LG_def.edist e e' ≤ 1 + ↑wtail.length := hels.trans (add_le_add hstep hdist')
-        have hels_final : LG_def.edist e e' ≤ ↑(wtail.length + 1) := hels''.trans (by
-          show (1 : ℕ∞) + ↑wtail.length ≤ ↑(wtail.length + 1)
-          simp [Nat.cast_add, add_comm])
-        exact ⟨e', hvz', hels_final⟩
-    -- eccent LG(e0) ≤ S.radius + 1
-    have hecc_e0 : LG_def.eccent e0 ≤ ↑S.radius.toNat + 1 := by
+    have hecc_e0 : LG.eccent e0 ≤ ↑S.radius.toNat + 1 := by
       haveI : Nonempty g.lineGraph.V := by
         have hcard : 0 < FinEnum.card (g.lineGraph).V := by rw [CGraph.card_lineGraph]; exact hE
         exact FinEnum.card_pos_iff.mp hcard
       unfold SimpleGraph.eccent
       apply ciSup_le
       intro f
-      obtain ⟨u, hu⟩ := hendpoint f
-      have hreach : S.Reachable v u := hSconn v u
-      obtain ⟨p, hp_len⟩ := hreach.exists_walk_length_eq_dist
-      obtain ⟨e', hue', hlift⟩ := hwalk_lift v p e0 (Sym2.mem_mk_left _ _)
-      have hels : LG_def.edist e0 f ≤ ↑(S.dist v u) + 1 := by
-        calc LG_def.edist e0 f ≤ LG_def.edist e0 e' + LG_def.edist e' f := LG_def.edist_triangle
-          _ ≤ ↑p.length + 1 := add_le_add hlift (hshared e' f u hue' hu)
+      obtain ⟨u, hu⟩ := CGraph.exists_mem_lineGraph_vertex g f
+      obtain ⟨p, hp_len⟩ := (hSconn v u).exists_walk_length_eq_dist
+      obtain ⟨e', hue', hlift⟩ :=
+        CGraph.exists_edist_lineGraph_le_length g p e0 (Sym2.mem_mk_left _ _)
+      have hels : LG.edist e0 f ≤ ↑(S.dist v u) + 1 := by
+        calc LG.edist e0 f ≤ LG.edist e0 e' + LG.edist e' f := LG.edist_triangle
+          _ ≤ ↑p.length + 1 := add_le_add hlift (CGraph.edist_lineGraph_le_one g e' f u hue' hu)
           _ = ↑(S.dist v u) + 1 := by rw [hp_len]
+      -- The centre is within the radius of `u`, and the walk `p` realises that distance.
       have hdist_le_radius : (S.dist v u : ℕ∞) ≤ ↑S.radius.toNat := by
         have h1 := @SimpleGraph.edist_le_eccent g.V S v u
         rw [hv] at h1
         have h2 : S.edist v u = ↑(S.dist v u) := by
-          have key : ∀ (q : S.Walk v u), S.dist v u ≤ q.length := fun q => SimpleGraph.dist_le q
-          apply le_antisymm
+          refine le_antisymm ?_ ?_
           · have := SimpleGraph.Walk.edist_le p; simp [hp_len] at this; exact this
           · rw [SimpleGraph.edist]
-            exact le_iInf fun q => mod_cast key q
+            exact le_iInf fun q ↦ mod_cast SimpleGraph.dist_le q
         rw [h2] at h1
-        have hradius_ne_top : S.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hSconn
-        have h1' : S.edist v u ≤ S.radius := by rw [h2]; exact h1
-        have h3 : S.dist v u ≤ S.radius.toNat := ENat.toNat_le_toNat h1' hradius_ne_top
-        exact_mod_cast h3
+        exact_mod_cast ENat.toNat_le_toNat (by rw [h2]; exact h1)
+          (SimpleGraph.radius_ne_top_iff.2 hSconn)
       exact hels.trans (add_le_add hdist_le_radius le_rfl)
-    -- radius ≤ eccent
-    have hradius_le : LG_def.radius ≤ LG_def.eccent e0 := SimpleGraph.radius_le_eccent
-    exact ENat.toNat_le_of_le_coe (hradius_le.trans hecc_e0)
-  · -- LG disconnected
-    have hLGtop : LG_def.radius = ⊤ := SimpleGraph.radius_eq_top_of_not_connected hLGconn
-    show LG_def.radius.toNat ≤ S.radius.toNat + 1
-    rw [hLGtop]; simp
+    exact ENat.toNat_le_of_le_coe (SimpleGraph.radius_le_eccent.trans hecc_e0)
+  · -- A disconnected line graph has infinite radius, and `⊤.toNat = 0`.
+    show LG.radius.toNat ≤ S.radius.toNat + 1
+    rw [SimpleGraph.radius_eq_top_of_not_connected hLGconn]
+    simp
 
 @[simp] theorem cliqueCoverNum_cycle_odd (m : ℕ) : (cycle (2 * m + 5)).cliqueCoverNum = m + 3 := by
   rw [show 2 * m + 5 = (2 * m + 1) + 4 from by omega, cliqueCoverNum_cycle]
