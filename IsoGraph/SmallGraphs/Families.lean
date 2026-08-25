@@ -1303,246 +1303,98 @@ for `k ≤ m`, attains it. -/
       _ ≤ _ := CGraph.card_le_indepNum f hinj hnadj
 
 /-- The Johnson graph `J(n, k)` is regular of degree `k(n - k)`: a neighbour is obtained by
-swapping one of the `k` chosen elements for one of the `n - k` unchosen ones. -/
+swapping one of the `k` chosen elements for one of the `n - k` unchosen ones, and that swap is a
+bijection between the pairs `(a, b) ∈ s × sᶜ` and the neighbours of `s`. -/
 @[simp] theorem degSequence_johnson {n k : ℕ} (hk : k ≤ n) :
     degSequence (johnson n k) = List.replicate (n.choose k) (k * (n - k)) := by
   simp only [johnson, degSequence_mk]
-  have hreg : (CGraph.johnson n k).toSimple.IsRegularOfDegree (k * (n - k)) := by
+  have hnbrs : ∀ s : (CGraph.johnson n k).V,
+      ((CGraph.johnson n k).nbrs s).card = k * (n - k) := by
     intro s
-    change SimpleGraph.degree (CGraph.johnson n k).toSimple s = k * (n - k)
-    simp only [SimpleGraph.degree]
-    have hcard : ((CGraph.johnson n k).toSimple.neighborSet s).toFinset.card =
-        Fintype.card {t : (CGraph.johnson n k).V | (CGraph.johnson n k).toSimple.Adj s t} := by
-      simp [SimpleGraph.neighborSet, Fintype.card_subtype]
-    simp only [SimpleGraph.neighborFinset]
-    rw [hcard]
     by_cases hk0 : k = 0
-    · -- k = 0 case
+    · -- with `k = 0` there is a single vertex and no edges at all
       subst hk0
-      simp [CGraph.johnson_adj]
-      have hollow : ∀ t : (CGraph.johnson n 0).V, s = t := by
-        intro t; exact Subtype.ext (by
-          ext x; simp [Finset.card_eq_zero.mp s.2, Finset.card_eq_zero.mp t.2])
-      have hpred : ∀ t : (CGraph.johnson n 0).V, ¬(¬s = t ∧ (s.1 ∩ t.1 : Finset (Fin n)) = ∅) := by
-        intro t h
-        exact h.1 (hollow t)
-      have : ∀ t : (CGraph.johnson n 0).V, ¬(¬s = t ∧ (s.1 ∩ t.1 : Finset (Fin n)) = ∅) := hpred
-      have h2 : Fintype.card {t : (CGraph.johnson n 0).V // ¬s = t ∧ (s.1 ∩ t.1 : Finset (Fin n)) =
-        ∅} = 0 := by
-        rw [Fintype.card_eq_zero_iff]
-        exact ⟨fun ⟨t, ht⟩ => hpred t ht⟩
-      exact h2
-    · -- k ≥ 1 case
-      have hk1 : 1 ≤ k := Nat.pos_of_ne_zero hk0
-      have hadj_equiv : {t : (CGraph.johnson n k).V | (CGraph.johnson n k).toSimple.Adj s t} =
-          {t : (CGraph.johnson n k).V | ¬s = t ∧ (s.1 ∩ t.1).card = k - 1} := by
-        ext t
-        show (decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)) = true ↔ ¬s = t ∧ (s.1 ∩ t.1).card = k
-          - 1
-        simp [Bool.and_eq_true]
-      simp_rw [hadj_equiv]
-      set S : Finset (Fin n) := s.1
-      have hSk : S.card = k := s.2
-      have hchar_set : ∀ t : (CGraph.johnson n k).V,
-          (¬s = t ∧ (s.1 ∩ t.1).card = k - 1) ↔
-          ∃ a ∈ s.1, ∃ b : Fin n, b ∉ s.1 ∧ t.1 = s.1.erase a ∪ {b} := by
-        intro t
-        constructor
-        · intro ⟨hne, hint⟩
-          have hs_card : s.1.card = k := hSk
-          have ht_card : t.1.card = k := t.2
-          have hsdiff_s : (s.1 \ t.1).card = 1 := by
-            have := Finset.card_sdiff_add_card_inter s.1 t.1
-            omega
-          have hint_comm : (t.1 ∩ s.1).card = k - 1 := by
-            rw [Finset.inter_comm, hint]
-          have hsdiff_t : (t.1 \ s.1).card = 1 := by
-            have h1 := Finset.card_sdiff_add_card_inter t.1 s.1
-            rw [hint_comm, ht_card] at h1
-            omega
-          have ⟨a, ha_eq⟩ := Finset.card_eq_one.mp hsdiff_s
-          have ⟨b, hb_eq⟩ := Finset.card_eq_one.mp hsdiff_t
-          have ha_mem_s : a ∈ s.1 := by
-            have := ha_eq ▸ Finset.mem_singleton_self a
-            exact Finset.mem_sdiff.mp this |>.1
-          have ha_not_mem_t : a ∉ t.1 := by
-            have := ha_eq ▸ Finset.mem_singleton_self a
-            exact Finset.mem_sdiff.mp this |>.2
-          have hb_not_mem_s : b ∉ s.1 := by
-            have := hb_eq ▸ Finset.mem_singleton_self b
-            exact Finset.mem_sdiff.mp this |>.2
-          refine ⟨a, ha_mem_s, b, hb_not_mem_s, ?_⟩
-          have hinter : s.1 ∩ t.1 = s.1 \ {a} := by
-            ext x
-            simp only [Finset.mem_inter, Finset.mem_sdiff, Finset.mem_singleton]
-            constructor
-            · rintro ⟨hxs, hxt⟩; exact ⟨hxs, fun hxa => ha_not_mem_t (hxa ▸ hxt)⟩
-            · intro ⟨hxs, hxa⟩
-              exact ⟨hxs, by
-                by_contra hxt_not
-                have hmem : x ∈ s.1 \ t.1 := Finset.mem_sdiff.mpr ⟨hxs, hxt_not⟩
-                have hxeq : x = a := Finset.mem_singleton.mp (ha_eq ▸ hmem)
-                exact hxa hxeq⟩
-          have ht_union : t.1 = (t.1 ∩ s.1) ∪ (t.1 \ s.1) := by
-            ext x; by_cases hx : x ∈ s.1 <;> simp [hx]
-          rw [ht_union, hb_eq, Finset.inter_comm, hinter, Finset.sdiff_singleton_eq_erase]
-        · rintro ⟨a, ha, b, hb, ht⟩
-          constructor
-          · intro hst; subst hst; exact hb (ht ▸ Finset.mem_union_right _ (Finset.mem_singleton_self
-              b))
-          · have hij : s.1 ∩ ((s.1).erase a ∪ {b}) = (s.1).erase a := by
-              ext x
-              simp only [Finset.mem_inter, Finset.mem_erase, Finset.mem_union, Finset.mem_singleton]
-              constructor
-              · rintro ⟨hxs, h | hxb⟩
-                · exact ⟨h.1, hxs⟩
-                · exact absurd hxs (hxb ▸ hb)
-              · rintro ⟨hxa, hxs⟩
-                exact ⟨hxs, Or.inl ⟨hxa, hxs⟩⟩
-            rw [ht, hij, Finset.card_erase_of_mem ha, hSk]
-      have hchar : ∀ t : (CGraph.johnson n k).V,
-          (¬s = t ∧ (s.1 ∩ t.1).card = k - 1) ↔
-          ∃ a ∈ s.1, ∃ b : Fin n, b ∉ s.1 ∧ t.1 = s.1.erase a ∪ {b} := by
-        intro t; exact hchar_set t
-      -- Now use hchar to build a bijection with pairs
-      have card_erase_union : ∀ a b (ha : a ∈ s.1) (hb : b ∉ s.1),
-          (s.1.erase a ∪ {b}).card = k := by
-        intro a b ha hb
-        have hdj : Disjoint (s.1.erase a) ({b} : Finset (Fin n)) := by
-          simp [Finset.disjoint_singleton_right, hb]
-        rw [Finset.card_union_of_disjoint hdj, Finset.card_erase_of_mem ha, Finset.card_singleton,
-          hSk, Nat.sub_add_cancel hk1]
-      let mkT (a : Fin n) (b : Fin n) (ha : a ∈ s.1) (hb : b ∉ s.1) : (CGraph.johnson n k).V :=
-        ⟨s.1.erase a ∪ {b}, card_erase_union a b ha hb⟩
-      have mkT_mem : ∀ a b (ha : a ∈ s.1) (hb : b ∉ s.1), mkT a b ha hb ∈
-          {t : (CGraph.johnson n k).V | ¬s = t ∧ (s.1 ∩ t.1).card = k - 1} := by
-        intro a b ha hb
-        show mkT a b ha hb ∈ _
-        unfold mkT
-        exact (hchar _).mpr ⟨a, ha, b, hb, rfl⟩
-      set T := {t : (CGraph.johnson n k).V | ¬s = t ∧ (s.1 ∩ t.1).card = k - 1}
-      -- fwd: T → {p | p.1 ∈ s.1 ∧ p.2 ∉ s.1}
-      let Spairs := {p : Fin n × Fin n | p.1 ∈ s.1 ∧ p.2 ∉ s.1}
-      let fwd : T → Spairs := fun ⟨t, ht⟩ =>
-        let h := (hchar t).mp ht
-        ⟨(h.choose, h.choose_spec.2.choose), h.choose_spec.1, h.choose_spec.2.choose_spec.1⟩
-      -- back: {p | ...} → T
-      let back : Spairs → T := fun ⟨p, hp⟩ =>
-        ⟨mkT p.1 p.2 hp.1 hp.2, mkT_mem p.1 p.2 hp.1 hp.2⟩
-      -- Helper: erase a = erase a' implies a = a' for a, a' ∈ s.1
-      have erase_eq_erase_of_mem : ∀ a a' : Fin n, a ∈ s.1 → a' ∈ s.1 →
-          s.1.erase a = s.1.erase a' → a = a' := by
-        intro a a' ha ha' hex2
-        by_contra hne
-        have hne' : a' ≠ a := mt Eq.symm hne
-        have ha'_mem_erase_a : a' ∈ s.1.erase a := by
-          simp [Finset.mem_erase, hne', ha']
-        rw [hex2] at ha'_mem_erase_a
-        simp [Finset.mem_erase] at ha'_mem_erase_a
-      -- The (a,b) representation is unique
-      have unique_repr : ∀ t : (CGraph.johnson n k).V,
-          ∀ a b a' b' : Fin n,
-          a ∈ s.1 → b ∉ s.1 → t.1 = s.1.erase a ∪ {b} →
-          a' ∈ s.1 → b' ∉ s.1 → t.1 = s.1.erase a' ∪ {b'} →
-          a = a' ∧ b = b' := by
-        intro t a b a' b' ha hb hteq1 ha' hb' hteq2
-        have hex : s.1.erase a ∪ {b} = s.1.erase a' ∪ {b'} := by
-          calc (s.1.erase a ∪ {b}) = t.1 := hteq1.symm
-            _ = s.1.erase a' ∪ {b'} := hteq2
-        have hbb' : b = b' := by
-          have hbn : b ∉ s.1.erase a' := by intro h; exact hb (Finset.mem_of_mem_erase h)
-          have hbmem : b ∈ s.1.erase a' ∪ {b'} := hex ▸ Finset.mem_union_right _
-            (Finset.mem_singleton_self _)
-          simp at hbmem; tauto
-        have hb'_notin_erase_a : b' ∉ s.1.erase a := by
-          intro h; exact hb' (Finset.mem_of_mem_erase h)
-        have hb'_notin_erase_a' : b' ∉ s.1.erase a' := by
-          intro h; exact hb' (Finset.mem_of_mem_erase h)
-        have hex2 : s.1.erase a = s.1.erase a' := by
-          have hhex' : s.1.erase a ∪ {b'} = s.1.erase a' ∪ {b'} := by
-            calc (s.1.erase a ∪ {b'}) = s.1.erase a ∪ {b} := by rw [hbb']
-              _ = t.1 := hteq1.symm
-              _ = s.1.erase a' ∪ {b'} := hteq2
+      rw [Nat.zero_mul, Finset.card_eq_zero, Finset.eq_empty_iff_forall_notMem]
+      intro t ht
+      rw [CGraph.mem_nbrs, CGraph.johnson_adj, Bool.and_eq_true, decide_eq_true_eq] at ht
+      exact ht.1 (Subtype.ext (by rw [Finset.card_eq_zero.1 s.2, Finset.card_eq_zero.1 t.2]))
+    have hk1 : 1 ≤ k := Nat.pos_of_ne_zero hk0
+    have hcard : ∀ {a b : Fin n}, a ∈ s.1 → b ∉ s.1 → (s.1.erase a ∪ {b}).card = k := by
+      intro a b ha hb
+      rw [Finset.card_union_of_disjoint (by simp [Finset.disjoint_singleton_right, hb]),
+        Finset.card_erase_of_mem ha, Finset.card_singleton, s.2, Nat.sub_add_cancel hk1]
+    have hbij : (s.1 ×ˢ s.1ᶜ).card = ((CGraph.johnson n k).nbrs s).card := by
+      refine Finset.card_bij (fun p hp ↦ ⟨s.1.erase p.1 ∪ {p.2}, hcard (Finset.mem_product.1 hp).1
+        (Finset.mem_compl.1 (Finset.mem_product.1 hp).2)⟩) ?_ ?_ ?_
+      · -- swapping `a` out for `b` does produce a neighbour
+        rintro ⟨a, b⟩ hp
+        obtain ⟨ha, hb⟩ := Finset.mem_product.1 hp
+        rw [Finset.mem_compl] at hb
+        have hint : s.1 ∩ (s.1.erase a ∪ {b}) = s.1.erase a := by
           ext x
-          by_cases hx : x = b'
-          · simp [hx, hb'_notin_erase_a, hb'_notin_erase_a']
-          · have hmem_a : x ∈ s.1.erase a ∪ {b'} ↔ x ∈ s.1.erase a := by
-              simp [hx]
-            have hmem_a' : x ∈ s.1.erase a' ∪ {b'} ↔ x ∈ s.1.erase a' := by
-              simp [hx]
-            rw [← hmem_a, hhex', hmem_a']
-        exact ⟨erase_eq_erase_of_mem a a' ha ha' hex2, hbb'⟩
-      -- fwd ∘ back = id
-      have fwd_back : ∀ p : Spairs, fwd (back p) = p := by
-        intro ⟨p, hp⟩
-        set q := back ⟨p, hp⟩
-        set hch2 := (hchar q).mp q.prop
-        set a' := hch2.choose
-        set b' := hch2.choose_spec.2.choose
-        set ha' := hch2.choose_spec.1
-        set hb' := hch2.choose_spec.2.choose_spec.1
-        set hteq2 := hch2.choose_spec.2.choose_spec.2
-        have hteq3 : (q.1 : (CGraph.johnson n k).V).1 = s.1.erase p.1 ∪ {p.2} := rfl
-        have ⟨ha_eq, hb_eq⟩ := unique_repr q.1 p.1 p.2 a' b' hp.1 hp.2 hteq3 ha' hb' hteq2
-        have hpairs : (a', b') = (p.1, p.2) := by
-          exact Prod.ext ha_eq.symm hb_eq.symm
-        show fwd q = ⟨p, hp⟩
-        apply Subtype.ext
-        exact hpairs
-      -- back ∘ fwd = id
-      have back_fwd : ∀ t : T, back (fwd t) = t := by
-        intro ⟨t, ht⟩
-        show back (fwd ⟨t, ht⟩) = ⟨t, ht⟩
-        unfold fwd back mkT
-        have h := (hchar t).mp ht
-        have hteq : (mkT h.choose h.choose_spec.2.choose h.choose_spec.1
-          h.choose_spec.2.choose_spec.1 : (CGraph.johnson n k).V).1 = t.1 :=
-          h.choose_spec.2.choose_spec.2.symm
-        apply Subtype.ext
-        show (mkT h.choose h.choose_spec.2.choose h.choose_spec.1 h.choose_spec.2.choose_spec.1 :
-          (CGraph.johnson n k).V) = t
-        exact Subtype.ext hteq
-      -- Build equiv and compute cardinality
-      let equiv : ↑T ≃ ↑Spairs := Equiv.ofBijective fwd ⟨fun t1 t2 h => by
-        have h1 := (hchar t1.1).mp t1.prop
-        have h2 := (hchar t2.1).mp t2.prop
-        have hpairs : (h1.choose, h1.choose_spec.2.choose) = (h2.choose, h2.choose_spec.2.choose) :=
-          by
-          exact congr_arg (fun p : ↑Spairs => (p : Fin n × Fin n)) h
-        have ha_eq : h1.choose = h2.choose := congr_arg Prod.fst hpairs
-        have hb_eq : h1.choose_spec.2.choose = h2.choose_spec.2.choose := congr_arg Prod.snd hpairs
-        show t1 = t2
-        set a1 := h1.choose
-        set b1 := h1.choose_spec.2.choose
-        set a2 := h2.choose
-        set b2 := h2.choose_spec.2.choose
-        have ht1 : ((t1 : (CGraph.johnson n k).V).1 : Finset (Fin n)) = s.1.erase a1 ∪ {b1} :=
-          h1.choose_spec.2.choose_spec.2
-        have ht2 : ((t2 : (CGraph.johnson n k).V).1 : Finset (Fin n)) = s.1.erase a2 ∪ {b2} :=
-          h2.choose_spec.2.choose_spec.2
-        have ha_eq' : a1 = a2 := ha_eq
-        have hb_eq' : b1 = b2 := hb_eq
-        have ht1' : ((t1 : (CGraph.johnson n k).V).1 : Finset (Fin n)) = s.1.erase a2 ∪ {b2} := by
-          rw [ht1, ha_eq', hb_eq']
-        exact Subtype.ext (Subtype.ext (ht1'.trans ht2.symm))
-        , fun p => ⟨back p, fwd_back p⟩⟩
-      have hcard_equiv : Fintype.card T = Fintype.card Spairs := Fintype.card_congr equiv
-      have hcard_spairs : Fintype.card Spairs = s.1.card * (Finset.univ \ s.1).card := by
-        let S' : Type _ := ↥s.1
-        let T' : Type _ := ↥(Finset.univ \ s.1)
-        let equiv' : Spairs ≃ S' × T' :=
-          { toFun := fun ⟨⟨a, b⟩, ha, hb⟩ => (⟨a, ha⟩, ⟨b, by simpa [Finset.mem_sdiff] using hb⟩)
-            invFun := fun ⟨⟨a, ha⟩, ⟨b, hb⟩⟩ => ⟨(a, b), ha, by simpa [Finset.mem_sdiff] using hb⟩
-            left_inv := fun ⟨⟨a, b⟩, ha, hb⟩ => by simp
-            right_inv := fun ⟨⟨a, ha⟩, ⟨b, hb⟩⟩ => by simp }
-        rw [Fintype.card_congr equiv', Fintype.card_prod]
-        rw [Fintype.card_coe, Fintype.card_coe]
-      rw [hcard_equiv, hcard_spairs]
-      have hcard_s : s.1.card = k := hSk
-      rw [hcard_s]
-      show k * (Finset.univ \ s.1).card = k * (n - k)
-      rw [Finset.card_sdiff, Finset.inter_univ, Finset.card_univ, Fintype.card_fin, hcard_s]
-  rw [CGraph.degSequence_of_regular (CGraph.johnson n k) hreg, CGraph.card_johnson]
+          simp only [Finset.mem_inter, Finset.mem_union, Finset.mem_erase, Finset.mem_singleton]
+          exact ⟨fun ⟨hx, h⟩ ↦ h.elim id fun hxb ↦ absurd (hxb ▸ hx) hb,
+            fun h ↦ ⟨h.2, Or.inl h⟩⟩
+        rw [CGraph.mem_nbrs, CGraph.johnson_adj, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq]
+        refine ⟨fun h ↦ hb ?_, ?_⟩
+        · rw [show s.1 = s.1.erase a ∪ {b} from congrArg Subtype.val h]
+          exact Finset.mem_union_right _ (Finset.mem_singleton_self b)
+        · rw [hint, Finset.card_erase_of_mem ha, s.2]
+      · -- and distinct pairs produce distinct neighbours
+        rintro ⟨a, b⟩ hp ⟨a', b'⟩ hp' heq
+        obtain ⟨ha, hb⟩ := Finset.mem_product.1 hp
+        obtain ⟨ha', hb'⟩ := Finset.mem_product.1 hp'
+        rw [Finset.mem_compl] at hb hb'
+        have h : s.1.erase a ∪ {b} = s.1.erase a' ∪ {b'} := congrArg Subtype.val heq
+        have hbb : b = b' := by
+          have hmem : b ∈ s.1.erase a' ∪ {b'} := by
+            rw [← h]; exact Finset.mem_union_right _ (Finset.mem_singleton_self b)
+          rcases Finset.mem_union.1 hmem with hx | hx
+          · exact absurd (Finset.mem_of_mem_erase hx) hb
+          · exact Finset.mem_singleton.1 hx
+        subst hbb
+        have hna : a ∉ s.1.erase a' ∪ {b} := by
+          rw [← h, Finset.mem_union, Finset.mem_singleton]
+          rintro (h1 | rfl)
+          · exact Finset.ne_of_mem_erase h1 rfl
+          · exact hb ha
+        rw [Finset.mem_union, Finset.mem_singleton] at hna
+        push_neg at hna
+        by_contra hne
+        exact hna.1 (Finset.mem_erase.2 ⟨fun hx ↦ hne (by rw [hx]), ha⟩)
+      · -- every neighbour arises this way, from the unique points of `s \ t` and `t \ s`
+        rintro t ht
+        rw [CGraph.mem_nbrs, CGraph.johnson_adj, Bool.and_eq_true, decide_eq_true_eq,
+          beq_iff_eq] at ht
+        obtain ⟨hne, hint⟩ := ht
+        obtain ⟨a, ha⟩ : ∃ a, s.1 \ t.1 = {a} := Finset.card_eq_one.1 (by
+          have := Finset.card_sdiff_add_card_inter s.1 t.1
+          rw [hint, s.2] at this
+          omega)
+        obtain ⟨b, hb⟩ : ∃ b, t.1 \ s.1 = {b} := Finset.card_eq_one.1 (by
+          have := Finset.card_sdiff_add_card_inter t.1 s.1
+          rw [Finset.inter_comm, hint, t.2] at this
+          omega)
+        have hain : a ∈ s.1 \ t.1 := by rw [ha]; exact Finset.mem_singleton_self a
+        have hbin : b ∈ t.1 \ s.1 := by rw [hb]; exact Finset.mem_singleton_self b
+        obtain ⟨has, hat⟩ := Finset.mem_sdiff.1 hain
+        obtain ⟨hbt, hbs⟩ := Finset.mem_sdiff.1 hbin
+        refine ⟨(a, b), Finset.mem_product.2 ⟨has, Finset.mem_compl.2 hbs⟩, Subtype.ext ?_⟩
+        show s.1.erase a ∪ {b} = t.1
+        ext x
+        rw [Finset.mem_union, Finset.mem_erase, Finset.mem_singleton]
+        constructor
+        · rintro (⟨hxa, hxs⟩ | rfl)
+          · by_contra hxt
+            exact hxa (Finset.mem_singleton.1 (by rw [← ha]; exact Finset.mem_sdiff.2 ⟨hxs, hxt⟩))
+          · exact hbt
+        · intro hx
+          by_cases hxs : x ∈ s.1
+          · exact Or.inl ⟨fun hxa ↦ hat (hxa ▸ hx), hxs⟩
+          · exact Or.inr (Finset.mem_singleton.1 (by
+              rw [← hb]; exact Finset.mem_sdiff.2 ⟨hx, hxs⟩))
+    rw [← hbij, Finset.card_product, Finset.card_compl, Fintype.card_fin, s.2]
+  rw [CGraph.degSequence_of_card_nbrs _ hnbrs, CGraph.card_johnson]
 
 /-! ### Degrees and edge counts of the Johnson graphs
 

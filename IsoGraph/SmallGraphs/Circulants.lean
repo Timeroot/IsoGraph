@@ -81,49 +81,65 @@ theorem matchNum_rook (m n : ℕ) :
     · exact Or.inl ⟨h1, by simp only [Fin.ext_iff]; omega⟩
     · exact Or.inr ⟨by simp only [Fin.ext_iff]; omega, h1⟩
 
+/-! ### Blocks of consecutive elements
+
+The extremal pairs for the Johnson diameter are two blocks of `k` consecutive elements at a
+prescribed offset; three lemmas about blocks are all the argument needs of them. -/
+
+/-- The block `{a, a + 1, …, a + m - 1}` of `Fin n`. -/
+private def finBlock (n a m : ℕ) (h : a + m ≤ n) : Finset (Fin n) :=
+  Finset.image (fun i : Fin m ↦ (⟨a + i.val, by omega⟩ : Fin n)) Finset.univ
+
+private theorem mem_finBlock {n a m : ℕ} (h : a + m ≤ n) (x : Fin n) :
+    x ∈ finBlock n a m h ↔ a ≤ x.val ∧ x.val < a + m := by
+  simp only [finBlock, Finset.mem_image, Finset.mem_univ, true_and]
+  constructor
+  · rintro ⟨i, rfl⟩
+    exact ⟨Nat.le_add_right _ _, Nat.add_lt_add_left i.isLt a⟩
+  · rintro ⟨h1, h2⟩
+    exact ⟨⟨x.val - a, by omega⟩, Fin.ext (by show a + (x.val - a) = x.val; omega)⟩
+
+private theorem card_finBlock {n a m : ℕ} (h : a + m ≤ n) : (finBlock n a m h).card = m := by
+  rw [finBlock, Finset.card_image_of_injective _ fun i j hij ↦
+    Fin.ext (by simpa [Fin.ext_iff] using hij), Finset.card_univ, Fintype.card_fin]
+
+/-- Two blocks of length `k` at offset `d ≤ k` meet in exactly `k - d` points. -/
+private theorem card_inter_finBlock {n k d : ℕ} (h0 : 0 + k ≤ n) (h : d + k ≤ n) (hdk : d ≤ k) :
+    (finBlock n 0 k h0 ∩ finBlock n d k h).card = k - d := by
+  have hinter : finBlock n 0 k h0 ∩ finBlock n d k h = finBlock n d (k - d) (by omega) := by
+    ext x
+    simp only [Finset.mem_inter, mem_finBlock]
+    omega
+  rw [hinter, card_finBlock]
+
 /-- Two `k`-sets differing in `d` elements are at distance `d`, and `d ≤ min k (n - k)`. -/
 theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
     (johnson n k).diameter = min k (n - k) := by
-  -- johnson here is IsoGraph.johnson = ⟦CGraph.johnson n k⟧
-  -- We need to work with CGraph.johnson n k
   have : (johnson n k : IsoGraph) = Quotient.mk _ (CGraph.johnson n k) := rfl
   rw [this, diameter_mk]
   simp [CGraph.diameter, SimpleGraph.diam]
   set G := (CGraph.johnson n k).toSimple
-  -- Adjacency in G
   have adj_char : ∀ s t : (CGraph.johnson n k).V, G.Adj s t ↔ s ≠ t ∧ (s.val ∩ t.val).card = k - 1
     := by
     simp [G, CGraph.johnson_adj]
-  -- Key: edist(s, t) = k - |s ∩ t|.card
-  -- Step 1: Upper bound on edist via swap path
+  -- Step 1: the distance is at most the number of elements that have to be swapped in, since
+  -- swapping one in brings the two sets one step closer.
   have edist_le_k_inter : ∀ s t : (CGraph.johnson n k).V, G.edist s t ≤ (k - (s.val ∩ t.val).card :
     ℕ∞) := by
-    -- Bound edist by |s \ t| = k - |s ∩ t|
-    -- Induction: if s = t, edist = 0. If s ≠ t, swap one element to get closer.
     have key : ∀ d : ℕ, ∀ s t : (CGraph.johnson n k).V, k - (s.val ∩ t.val).card = d → G.edist s t ≤
       (d : ℕ∞) := by
       intro d
       induction d with
       | zero =>
         intro s t h0
-        have hcard_le : (s.val ∩ t.val).card ≤ k := by
-          exact le_trans (Finset.card_le_card Finset.inter_subset_left) s.property.le
+        have hcard_le : (s.val ∩ t.val).card ≤ k :=
+          le_trans (Finset.card_le_card Finset.inter_subset_left) s.property.le
         have hcard_inter : (s.val ∩ t.val).card = k := by omega
-        have hsub_s : s.val ⊆ t.val := by
-          have hel : (s.val ∩ t.val) = s.val :=
-            Finset.eq_of_subset_of_card_le Finset.inter_subset_left
-              (by show (s.val).card ≤ (s.val ∩ t.val).card; rw [hcard_inter]; exact s.property.le)
-          exact Finset.inter_eq_left.mp hel
-        have hsub_t : t.val ⊆ s.val := by
-          have hcard_inter' : (t.val ∩ s.val).card = k := by
-            rw [Finset.inter_comm]
-            exact hcard_inter
-          have hel : (t.val ∩ s.val) = t.val :=
-            Finset.eq_of_subset_of_card_le Finset.inter_subset_left
-              (by show (t.val).card ≤ (t.val ∩ s.val).card; rw [hcard_inter']; exact t.property.le)
-          exact Finset.inter_eq_left.mp hel
-        have : s.val = t.val := Finset.Subset.antisymm hsub_s hsub_t
-        simp [Subtype.ext this, SimpleGraph.edist_self]
+        have hs : s.val ∩ t.val = s.val := Finset.eq_of_subset_of_card_le
+          Finset.inter_subset_left (le_of_eq (by rw [s.property, hcard_inter]))
+        have ht : s.val ∩ t.val = t.val := Finset.eq_of_subset_of_card_le
+          Finset.inter_subset_right (le_of_eq (by rw [t.property, hcard_inter]))
+        simp [Subtype.ext (hs.symm.trans ht), SimpleGraph.edist_self]
       | succ d ih =>
         intro s t hd
         have hcard_inter : (s.val ∩ t.val).card = k - (d + 1) := by omega
@@ -133,25 +149,24 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
         have hcard_ts : (t.val \ s.val).card = d + 1 := by
           rw [Finset.card_sdiff, t.property, hcard_inter]
           omega
-        have hk1 : 1 ≤ k := by omega
         obtain ⟨a, ha_s, ha_t⟩ : ∃ a, a ∈ s.val ∧ a ∉ t.val := by
           obtain ⟨a, ha⟩ := Finset.card_pos.mp (by omega : 0 < (s.val \ t.val).card)
           exact ⟨a, Finset.mem_sdiff.mp ha |>.1, Finset.mem_sdiff.mp ha |>.2⟩
         obtain ⟨b, hb_t, hb_s⟩ : ∃ b, b ∈ t.val ∧ b ∉ s.val := by
           obtain ⟨b, hb⟩ := Finset.card_pos.mp (by omega : 0 < (t.val \ s.val).card)
           exact ⟨b, Finset.mem_sdiff.mp hb |>.1, Finset.mem_sdiff.mp hb |>.2⟩
+        -- Trade `a` for `b`: the new set `s'` is adjacent to `s` and one closer to `t`.
+        have hcard_sa : (s.val ∩ {a}).card = 1 := by
+          rw [Finset.inter_eq_right.mpr (Finset.singleton_subset_iff.mpr ha_s)]
+          exact Finset.card_singleton a
+        have hcard_as : ({a} ∩ s.val).card = 1 := by rw [Finset.inter_comm]; exact hcard_sa
         let s'_val : Finset (Fin n) := (s.val \ {a}) ∪ {b}
         have hs'_card : s'_val.card = k := by
           have hdisj : Disjoint (s.val \ {a}) {b} := by
             rw [Finset.disjoint_singleton_right]
             exact fun h => hb_s (Finset.mem_sdiff.mp h |>.1)
-          have hcard_sa : (s.val ∩ {a}).card = 1 := by
-            rw [Finset.inter_eq_right.mpr (Finset.singleton_subset_iff.mpr ha_s)]
-            exact Finset.card_singleton a
-          rw [Finset.card_union_of_disjoint hdisj, Finset.card_sdiff]
-          rw
-            [show ({a} ∩ s.val).card = (s.val ∩ {a}).card by rw [Finset.inter_comm],
-              hcard_sa, Finset.card_singleton, s.property]
+          rw [Finset.card_union_of_disjoint hdisj, Finset.card_sdiff, hcard_as,
+            Finset.card_singleton, s.property]
           omega
         let s' : (CGraph.johnson n k).V := ⟨s'_val, hs'_card⟩
         have hab : a ≠ b := by intro h; exact ha_t (h ▸ hb_t)
@@ -171,13 +186,7 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
             by_cases hx : x = a
             · subst hx; simp [hab]
             · simp [hx]; exact fun _ => Or.inr ‹_›
-          have hcard_sa : (s.val ∩ {a}).card = 1 := by
-            rw [Finset.inter_eq_right.mpr (Finset.singleton_subset_iff.mpr ha_s)]
-            exact Finset.card_singleton a
-          rw [hex, Finset.card_sdiff]
-          rw
-            [show ({a} ∩ s.val).card = (s.val ∩ {a}).card by rw [Finset.inter_comm],
-              hcard_sa, s.property]
+          rw [hex, Finset.card_sdiff, hcard_as, s.property]
         have hadj : G.Adj s s' := by
           rw [adj_char]
           exact ⟨hne, hinter_ss'⟩
@@ -198,132 +207,75 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
           rw [hinter_s't, hcard_inter]
           omega
         have hedist_s't : G.edist s' t ≤ ↑d := ih s' t hid
-        have hedist_ss' : G.edist s s' ≤ 1 := by
-          let hwalk : G.Walk s s' := SimpleGraph.Walk.cons hadj (SimpleGraph.Walk.nil : G.Walk s'
-            s')
-          have h1 : G.edist s s' ≤ ↑hwalk.length := SimpleGraph.Walk.edist_le hwalk
-          simp [hwalk] at h1
-          exact h1
-        have htri : G.edist s t ≤ G.edist s s' + G.edist s' t :=
-          @SimpleGraph.edist_triangle _ G _ _ _
+        have hedist_ss' : G.edist s s' ≤ 1 :=
+          le_trans (SimpleGraph.Walk.edist_le (SimpleGraph.Walk.cons hadj SimpleGraph.Walk.nil))
+            (by simp)
         calc G.edist s t
-            ≤ G.edist s s' + G.edist s' t := htri
+            ≤ G.edist s s' + G.edist s' t := @SimpleGraph.edist_triangle _ G _ _ _
           _ ≤ (1 : ℕ∞) + ↑d := add_le_add hedist_ss' hedist_s't
           _ = ↑(d + 1) := by push_cast; ring
     intro s t
     exact key _ _ _ rfl
-  -- Step 2: Lower bound on edist via potential
-  -- Goal: (k : ℕ∞) - ↑|s∩t|.card ≤ edist s t
+  -- Step 2: the distance is at least that, because `|u \ t|` drops by at most one along an edge.
   have inter_le_k_sub_edist : ∀ s t : (CGraph.johnson n k).V, (k : ℕ∞) - ↑(s.val ∩ t.val).card ≤
     G.edist s t := by
     intro s t
-    -- Potential φ(u) = |u \ t|.card. For adjacent u,v, φ(u) ≤ φ(v) + 1.
-    -- Hence for any walk of length L from s to t: φ(s) ≤ L.
-    -- So φ(s) ≤ edist s t = sInf of walk lengths.
     set phi : (CGraph.johnson n k).V → ℕ := fun u => (u.val \ t.val).card
     have card_uv : ∀ u v : (CGraph.johnson n k).V, G.Adj u v → (u.val \ v.val).card = 1 := by
       intro u v huv
       have huv' := adj_char u v |>.mp huv
       have h1 : (u.val ∩ v.val).card = k - 1 := huv'.2
       by_cases hk0 : k = 0
-      · exfalso; apply huv'.1
-        have hu : u.val = ∅ := by
-          have := Finset.card_eq_zero.mp (by rw [u.property, hk0])
-          exact this
-        have hv : v.val = ∅ := by
-          have := Finset.card_eq_zero.mp (by rw [v.property, hk0])
-          exact this
-        exact Subtype.ext (by simp [‹u.val = ∅›, ‹v.val = ∅›])
+      · exfalso
+        apply huv'.1
+        have hu : u.val = ∅ := Finset.card_eq_zero.mp (by rw [u.property, hk0])
+        have hv : v.val = ∅ := Finset.card_eq_zero.mp (by rw [v.property, hk0])
+        exact Subtype.ext (by rw [hu, hv])
       · have h2 : (u.val \ v.val).card = k - (k - 1) := by
           rw [Finset.card_sdiff, u.property, ← h1, Finset.inter_comm]
         omega
-    have card_vu : ∀ u v : (CGraph.johnson n k).V, G.Adj u v → (v.val \ u.val).card = 1 := by
+    have phi_adj : ∀ u v : (CGraph.johnson n k).V, G.Adj u v → phi u ≤ phi v + 1 := by
       intro u v huv
-      have huv2 : G.Adj v u := by
-        rw [adj_char] at huv ⊢
-        exact ⟨huv.1.symm, by rw [Finset.inter_comm]; exact huv.2⟩
-      exact card_uv v u huv2
-    have phi_adj : ∀ u v : (CGraph.johnson n k).V, G.Adj u v → (phi u : ℕ∞) ≤ (phi v : ℕ∞) + 1 := by
-      intro u v huv
-      -- |u\t| = |(u\v) \ t| + |(u∩v)\t|  (disjoint union)
-      -- |v\t| = |(v\u) \ t| + |(v∩u)\t| = |(v\u) \ t| + |(u∩v)\t|
-      -- So |u\t| ≤ |(u\v)\t| + |(u∩v)\t| ≤ 1 + |(u∩v)\t| ≤ |v\t| + 1
-      have hle : (u.val \ t.val).card ≤ (v.val \ t.val).card + 1 := by
-        have hunion : (u.val \ t.val) ⊆ (v.val \ t.val) ∪ (u.val \ v.val) := by
-          intro x hx
-          simp [Finset.mem_sdiff] at hx ⊢
-          by_cases hxv : x ∈ v.val
-          · exact Or.inl ⟨hxv, hx.2⟩
-          · exact Or.inr ⟨hx.1, hxv⟩
-        have hcard_union : (u.val \ t.val).card ≤ (v.val \ t.val).card + (u.val \ v.val).card := by
-          exact Finset.card_le_card hunion |> (fun h => le_trans h (Finset.card_union_le _ _))
-        linarith [card_uv u v huv]
-      exact mod_cast hle
-    -- Generalize over target
-    have phi_walk_le_gen : ∀ (u v : (CGraph.johnson n k).V) (p : G.Walk u v), (phi u : ℕ∞) ≤ (phi v
-      : ℕ∞) + ↑p.length := by
+      -- every element of `u \ t` lies in `v \ t` or in the single-element set `u \ v`
+      have hunion : (u.val \ t.val) ⊆ (v.val \ t.val) ∪ (u.val \ v.val) := by
+        intro x hx
+        simp [Finset.mem_sdiff] at hx ⊢
+        by_cases hxv : x ∈ v.val
+        · exact Or.inl ⟨hxv, hx.2⟩
+        · exact Or.inr ⟨hx.1, hxv⟩
+      have hcard_union : (u.val \ t.val).card ≤ (v.val \ t.val).card + (u.val \ v.val).card :=
+        le_trans (Finset.card_le_card hunion) (Finset.card_union_le _ _)
+      rw [card_uv u v huv] at hcard_union
+      exact hcard_union
+    have phi_walk_le : ∀ (u v : (CGraph.johnson n k).V) (p : G.Walk u v),
+        phi u ≤ phi v + p.length := by
       intro u v p
       induction p with
-      | nil => simp [phi]
+      | nil => simp
       | cons h p' ih =>
-        rename_i u1 u2 u3
-        have step := phi_adj u1 u2 h
-        have hlen : (SimpleGraph.Walk.cons h p').length = p'.length + 1 := by
-          rfl
-        rw [hlen]
-        have hphi32 : (phi u2 : ℕ∞) ≤ (phi u3 : ℕ∞) + ↑p'.length := by
-          rw [← ENat.coe_add]; exact_mod_cast ih
-        have heq : (↑(p'.length + 1) : ℕ∞) = ↑p'.length + 1 := by
-          rw [ENat.coe_add, ENat.coe_one]
-        rw [heq]
-        calc (phi u1 : ℕ∞) ≤ (phi u2 : ℕ∞) + 1 := step
-          _ ≤ ((phi u3 : ℕ∞) + ↑p'.length) + 1 := by
-            have h2 := add_le_add_left hphi32 1
-            rw [add_comm] at h2 ⊢; exact h2
-          _ = (phi u3 : ℕ∞) + (↑p'.length + 1) := by rw [add_assoc]
-    have phi_walk_le : ∀ (u : (CGraph.johnson n k).V) (p : G.Walk u t), (phi u : ℕ∞) ≤ ↑p.length :=
-      by
-      intro u p
-      have := phi_walk_le_gen u t p
-      simp [phi] at this
-      exact_mod_cast this
+        rename_i u1 u2 _
+        have hstep := phi_adj u1 u2 h
+        simp only [SimpleGraph.Walk.length_cons]
+        omega
     have hphi_s : phi s = k - (s.val ∩ t.val).card := by
       simp only [phi]
       rw [Finset.card_sdiff, s.property, Finset.inter_comm]
-    have hc_le_k : (s.val ∩ t.val).card ≤ k :=
-        le_trans (Finset.card_le_card Finset.inter_subset_left) s.property.le
-    have hcast : ((k - (s.val ∩ t.val).card : ℕ) : ℕ∞) = (k : ℕ∞) - ↑(s.val ∩ t.val).card := by
-      set c := (s.val ∩ t.val).card
-      have hsum : (k : ℕ∞) = ↑(k - c) + ↑c := by
-        calc (k : ℕ∞) = ↑((k - c) + c) := by rw [Nat.sub_add_cancel hc_le_k]
-        _ = ↑(k - c) + ↑c := ENat.coe_add _ _
-      rw [hsum]
-      have key : ∀ (a b : ℕ), ((a : ℕ∞) + (b : ℕ∞)) - (b : ℕ∞) = (a : ℕ∞) := by
-        intro a b
-        -- In ℕ∞ = WithTop ℕ, coe commutes with + and - (truncated)
-        have h1 : ((a : ℕ∞) + (b : ℕ∞) : ℕ∞) = (↑(a + b) : ℕ∞) := by
-          rw [← ENat.coe_add]
-        have coe_tsub : ∀ (x y : ℕ), y ≤ x → ((x : ℕ∞) - (y : ℕ∞) : ℕ∞) = (↑(x - y) : ℕ∞) := by
-          intro x y hxy
-          rfl
-        have h2 : ((a : ℕ∞) + (b : ℕ∞) - (b : ℕ∞) : ℕ∞) = (a : ℕ∞) := by
-          rw [← ENat.coe_add, coe_tsub (a + b) b (by omega), Nat.add_sub_cancel_right]
-        exact h2
-      exact (key _ _).symm
-    rw [← hcast, ← hphi_s]
-    rw [SimpleGraph.edist_eq_sInf]
-    apply le_sInf
+    rw [← ENat.coe_sub, ← hphi_s, SimpleGraph.edist_eq_sInf]
+    refine le_sInf ?_
     rintro _ ⟨w, rfl⟩
-    exact phi_walk_le _ w
-  -- Step 3: edist(s,t) = k - |s∩t|.card (in ℕ∞)
+    have hw := phi_walk_le s t w
+    have ht0 : phi t = 0 := by simp [phi]
+    rw [ht0, Nat.zero_add] at hw
+    show ((phi s : ℕ) : ℕ∞) ≤ ((w.length : ℕ) : ℕ∞)
+    exact_mod_cast hw
+  -- Step 3: so the distance is exactly `k - |s ∩ t|`.
   have edist_eq : ∀ s t : (CGraph.johnson n k).V, G.edist s t = (k : ℕ∞) - ↑(s.val ∩ t.val).card :=
-    by
-    intro s t
-    exact le_antisymm (edist_le_k_inter s t) (inter_le_k_sub_edist s t)
-  -- Step 4: ediam = max_{s,t} (k - |s∩t|.card)
-  -- Helper: rewrite ℕ∞ subtraction
-  have hsub_nk : (n : ℕ∞) - ↑k = ↑(n - k) := by rw [ENat.coe_sub]
-  -- Upper bound on edist
+    fun s t ↦ le_antisymm (edist_le_k_inter s t) (inter_le_k_sub_edist s t)
+  have hmin_coe : min (↑k) (↑(n - k) : ℕ∞) = ↑(min k (n - k)) := by
+    by_cases h : k ≤ n - k
+    · rw [min_eq_left (mod_cast h), min_eq_left (mod_cast h)]
+    · rw [min_eq_right (mod_cast le_of_not_ge h), min_eq_right (mod_cast le_of_not_ge h)]
+  -- Step 4: `|s ∩ t| ≥ 2k - n`, so no pair is further apart than `min k (n - k)` …
   have upper : ∀ s t : (CGraph.johnson n k).V, G.edist s t ≤ (min (↑k) (↑(n - k) : ℕ∞)) := by
     intro s t
     rw [edist_eq s t]
@@ -332,130 +284,26 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
       exact Nat.cast_le.mpr (Nat.sub_le _ _)
     · have hunion : (s.val ∪ t.val).card + (s.val ∩ t.val).card = 2 * k := by
         rw [Finset.card_union_add_card_inter, s.property, t.property]; ring
-      have hunion_le_n : (s.val ∪ t.val).card ≤ n := by
-        exact le_trans (Finset.card_le_card (Finset.subset_univ _)) (by simp)
-      have hcard_ge : (s.val ∩ t.val).card ≥ 2 * k - n := by omega
+      have hunion_le_n : (s.val ∪ t.val).card ≤ n :=
+        le_trans (Finset.card_le_card (Finset.subset_univ _)) (by simp)
       have hle : k - (s.val ∩ t.val).card ≤ n - k := by omega
       rw [ENat.coe_sub]
       exact Nat.cast_le.mpr hle
-  -- Lower bound: exhibit s,t with edist = min (↑k) (↑(n-k))
+  -- … and two blocks of `k` consecutive elements offset by `min k (n - k)` are that far apart.
   have edist_le_ediam_aux : min (↑k) (↑(n - k) : ℕ∞) ≤ G.ediam := by
-    by_cases hk2 : 2 * k ≤ n
-    · -- Disjoint s, t: edist = k = min
-      let s_val : Finset (Fin n) := Finset.image (fun i : Fin k => Fin.castLE hk i) (Finset.univ :
-        Finset (Fin k))
-      let t_val : Finset (Fin n) := Finset.image (fun i : Fin k => ⟨(i : ℕ) + k, by omega⟩ : Fin k →
-        Fin n) (Finset.univ : Finset (Fin k))
-      have hs_card : s_val.card = k := by
-        rw [Finset.card_image_of_injective _ (Fin.castLE_injective hk)]
-        simp
-      have ht_card : t_val.card = k := by
-        rw [Finset.card_image_of_injective _ (fun i j h => Fin.ext
-          (by simp [Fin.ext_iff] at h; omega))]
-        simp
-      let s : (CGraph.johnson n k).V := ⟨s_val, hs_card⟩
-      let t : (CGraph.johnson n k).V := ⟨t_val, ht_card⟩
-      have hint_empty : s_val ∩ t_val = ∅ := by
-        have : ∀ x, x ∉ s_val ∩ t_val := by
-          intro x hx
-          simp [s_val, t_val, Finset.mem_inter, Finset.mem_image] at hx
-          obtain ⟨i, hi⟩ := hx.1
-          obtain ⟨j, hj⟩ := hx.2
-          simp [Fin.ext_iff] at hi hj
-          omega
-        exact Finset.not_nonempty_iff_eq_empty.mp (by intro h; obtain ⟨x, hx⟩ := h; exact this x hx)
-      have hedist : G.edist s t = (k : ℕ∞) := by
-        rw [edist_eq s t, hint_empty, Finset.card_empty, Nat.cast_zero]
-        simp
-      have hmin : min (↑k) (↑(n - k) : ℕ∞) = (k : ℕ∞) := by
-        rw [min_eq_left]
-        exact_mod_cast Nat.le_sub_of_add_le (by omega)
-      rw [hmin]
-      exact hedist.symm ▸ SimpleGraph.edist_le_ediam
-    · -- 2k > n: min = n-k
-      have h2kn : n < 2 * k := lt_of_not_ge hk2
-      have hnk_lt_k : n - k < k := by omega
-      let s_val : Finset (Fin n) := Finset.image (fun i : Fin k => Fin.castLE hk i) (Finset.univ :
-        Finset (Fin k))
-      let t_val : Finset (Fin n) := Finset.image (fun i : Fin k => ⟨(i : ℕ) + (n - k), by omega⟩ :
-        Fin k → Fin n) (Finset.univ : Finset (Fin k))
-      have hs_card : s_val.card = k := by
-        rw [Finset.card_image_of_injective _ (Fin.castLE_injective hk)]
-        simp
-      have ht_card : t_val.card = k := by
-        rw [Finset.card_image_of_injective _ (fun i j h => Fin.ext
-          (by simp [Fin.ext_iff] at h; omega))]
-        simp
-      let s : (CGraph.johnson n k).V := ⟨s_val, hs_card⟩
-      let t : (CGraph.johnson n k).V := ⟨t_val, ht_card⟩
-      have hint_card : (s_val ∩ t_val).card = 2 * k - n := by
-        -- s_val = image of Fin.castLE hk over Fin k, i.e. {0,...,k-1} in Fin n
-        -- t_val = image of shift by (n-k), i.e. {n-k,...,n-1} in Fin n
-        -- Their intersection = elements of Fin n with value in [n-k, k), size = 2k-n
-        -- This set is in bijection with Fin (2*k-n) via i ↦ ⟨n-k + i, by omega⟩
-        have hinj : Function.Injective (fun (i : Fin (2 * k - n)) =>
-          ⟨(n - k) + i.val, by omega⟩ : Fin (2 * k - n) → Fin n) := by
-          intro i j h
-          simp [Fin.ext_iff] at h ⊢; exact h
-        -- Key lemma: x ∈ s_val ↔ x.val < k, and x ∈ t_val ↔ n-k ≤ x.val
-        have hs_mem : ∀ x : Fin n, x ∈ s_val ↔ x.val < k := by
-          intro x
-          simp only [s_val, Finset.mem_image, Finset.mem_univ, true_and]
-          constructor
-          · rintro ⟨i, hi⟩
-            have : x.val = i.val := by
-              have := congr_arg Fin.val hi; simp [Fin.castLE] at this; exact this.symm
-            rw [this]; exact i.is_lt
-          · intro hx
-            exact ⟨⟨x.val, hx⟩, Fin.ext (by simp)⟩
-        have ht_mem : ∀ x : Fin n, x ∈ t_val ↔ n - k ≤ x.val := by
-          intro x
-          simp only [t_val, Finset.mem_image, Finset.mem_univ, true_and]
-          constructor
-          · rintro ⟨j, hj⟩
-            have hval : x.val = j.val + (n - k) := by
-              have := congr_arg Fin.val hj; simp at this ⊢; exact
-                this.symm
-            rw [hval]; exact Nat.le_add_left _ _
-          · intro hx
-            exact ⟨⟨x.val - (n - k), by omega⟩, Fin.ext (by simp [Nat.sub_add_cancel hx])⟩
-        -- Now: s_val ∩ t_val = {x : Fin n | n-k ≤ x.val ∧ x.val < k}
-        -- This equals the image of Fin (2k-n) under i ↦ ⟨n-k + i, by omega⟩
-        have hint_eq : s_val ∩ t_val = Finset.image (fun (i : Fin (2 * k - n)) =>
-          ⟨(n - k) + i.val, by omega⟩ : Fin (2 * k - n) → Fin n) Finset.univ := by
-          ext x
-          simp [Finset.mem_inter, hs_mem, ht_mem, Finset.mem_image, Finset.mem_univ, true_and]
-          constructor
-          · intro h
-            have h1 : n - k ≤ x.val := by omega
-            exact ⟨⟨x.val - (n - k), by omega⟩, Fin.ext (by simp [Nat.add_sub_of_le h1])⟩
-          · rintro ⟨i, hi⟩
-            subst hi
-            have : (⟨n - k + i.val, by omega⟩ : Fin n).val = n - k + i.val := by simp
-            rw [this]
-            exact ⟨by omega, by omega⟩
-        rw [hint_eq, Finset.card_image_of_injective _ hinj, Finset.card_univ]
-        simp
-      have hedist : G.edist s t = (↑(n - k) : ℕ∞) := by
-        rw [edist_eq s t, hint_card]
-        show (↑k : ℕ∞) - ↑(2 * k - n) = ↑(n - k)
-        haveI : 2 * k - n ≤ k := by omega
-        rw [← ENat.coe_sub k (2 * k - n)]
-        congr 1; omega
-      have hmin : min (↑k) (↑(n - k) : ℕ∞) = (↑(n - k) : ℕ∞) := by
-        rw [min_eq_right]
-        exact_mod_cast Nat.sub_le_of_le_add (by omega)
-      rw [hmin]
-      exact hedist.symm ▸ SimpleGraph.edist_le_ediam
-  have ediam_eq_nn : G.ediam = min (↑k) (↑(n - k) : ℕ∞) :=
-    le_antisymm (SimpleGraph.ediam_le_of_edist_le upper) edist_le_ediam_aux
-  -- Step 5: conclude
-  rw [ediam_eq_nn]
-  have hmin_coe : min (↑k) (↑(n - k) : ℕ∞) = ↑(min k (n - k)) := by
-    by_cases h : k ≤ n - k
-    · rw [min_eq_left (mod_cast h), min_eq_left (mod_cast h)]
-    · rw [min_eq_right (mod_cast le_of_not_ge h), min_eq_right (mod_cast le_of_not_ge h)]
-  rw [hmin_coe, ENat.toNat_coe]
+    have h0 : 0 + k ≤ n := by omega
+    have hdn : min k (n - k) + k ≤ n := by omega
+    let s : (CGraph.johnson n k).V := ⟨finBlock n 0 k h0, card_finBlock h0⟩
+    let t : (CGraph.johnson n k).V := ⟨finBlock n (min k (n - k)) k hdn, card_finBlock hdn⟩
+    have hst : G.edist s t = ((min k (n - k) : ℕ) : ℕ∞) := by
+      rw [edist_eq s t, show (s.val ∩ t.val).card = k - min k (n - k) from
+        card_inter_finBlock h0 hdn (min_le_left _ _), ← ENat.coe_sub]
+      congr 1
+      omega
+    rw [hmin_coe, ← hst]
+    exact SimpleGraph.edist_le_ediam
+  rw [le_antisymm (SimpleGraph.ediam_le_of_edist_le upper) edist_le_ediam_aux, hmin_coe,
+    ENat.toNat_coe]
 
 /-- Johnson graphs are connected: swap the elements of two `k`-sets one at a time. -/
 theorem isConnected_johnson {n k : ℕ} (hk : k ≤ n) : IsConnected (johnson n k) := by

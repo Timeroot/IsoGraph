@@ -1315,6 +1315,26 @@ theorem exists_conj_diagonal (G : CGraph) :
     _ = U * (Star.star U * G.adjMat * U) := by simp only [mul_assoc]
     _ = U * Matrix.diagonal G.eigenvalues := by rw [hst]
 
+/-- **A diagonalisation of `A` diagonalises every power of `A`.**  The same conjugation works for
+all exponents at once, which is what makes power sums of the eigenvalues computable. -/
+theorem exists_conj_diagonal_pow (G : CGraph) :
+    ∃ P Q : Matrix G.V G.V ℝ, P * Q = 1 ∧ Q * P = 1 ∧
+      ∀ m : ℕ, G.adjMat ^ m = P * Matrix.diagonal G.eigenvalues ^ m * Q := by
+  obtain ⟨P, Q, hPQ, hQP, h⟩ := exists_conj_diagonal G
+  set D : Matrix G.V G.V ℝ := Matrix.diagonal G.eigenvalues with hD
+  have hA : G.adjMat = P * D * Q := by
+    calc G.adjMat = G.adjMat * (P * Q) := by rw [hPQ, mul_one]
+      _ = G.adjMat * P * Q := by rw [mul_assoc]
+      _ = P * D * Q := by rw [h]
+  refine ⟨P, Q, hPQ, hQP, fun m ↦ ?_⟩
+  induction m with
+  | zero => simp [hPQ]
+  | succ m ih =>
+    rw [pow_succ, ih, hA, pow_succ]
+    calc P * D ^ m * Q * (P * D * Q) = P * D ^ m * (Q * P) * D * Q := by
+          simp only [mul_assoc]
+      _ = P * (D ^ m * D) * Q := by rw [hQP]; simp only [mul_assoc, mul_one]
+
 /-- **Shifting by the identity shifts every eigenvalue**: `A + c I` has characteristic polynomial
 `∏ (X - (λᵢ + c))`. -/
 theorem charpoly_adjMat_add_smul_one (G : CGraph) (c : ℝ) :
@@ -1486,22 +1506,8 @@ theorem adjMat_pow_apply (G : CGraph) (n : ℕ) (u v : G.V) :
 diagonalises `A` diagonalises every power of it. -/
 theorem trace_adjMat_pow (G : CGraph) (n : ℕ) :
     (G.adjMat ^ n).trace = ∑ i, G.eigenvalues i ^ n := by
-  obtain ⟨P, Q, hPQ, hQP, h⟩ := exists_conj_diagonal G
+  obtain ⟨P, Q, _, hQP, hpow⟩ := exists_conj_diagonal_pow G
   set D : Matrix G.V G.V ℝ := Matrix.diagonal G.eigenvalues with hD
-  have hA : G.adjMat = P * D * Q := by
-    calc G.adjMat = G.adjMat * (P * Q) := by rw [hPQ, mul_one]
-      _ = G.adjMat * P * Q := by rw [mul_assoc]
-      _ = P * D * Q := by rw [h]
-  have hpow : ∀ m : ℕ, G.adjMat ^ m = P * D ^ m * Q := by
-    intro m
-    induction m with
-    | zero => simp [hPQ]
-    | succ m ih =>
-      rw [pow_succ, ih, hA, pow_succ]
-      calc P * D ^ m * Q * (P * D * Q) = P * D ^ m * (Q * P) * D * Q := by
-            simp only [mul_assoc]
-        _ = P * (D ^ m * D) * Q := by rw [hQP]; simp only [mul_assoc, mul_one]
-        _ = P * (D ^ m * D) * Q := rfl
   calc (G.adjMat ^ n).trace = (P * D ^ n * Q).trace := by rw [hpow]
     _ = (Q * (P * D ^ n)).trace := by rw [Matrix.trace_mul_comm]
     _ = (D ^ n).trace := by rw [← mul_assoc, hQP, one_mul]
@@ -2625,19 +2631,20 @@ theorem exists_orthogonal_diagonal (G : CGraph) :
   · rw [← hstar]; exact hU.1
   · rw [← hstar]; exact hU.2
 
-/-- **Diagonalising rotates the quadratic form into a weighted sum of squares.**  There are
-coordinates `w`, of the same length as `v`, in which `⟪v, A v⟫ = ∑ λ i * w i ^ 2`. -/
-theorem exists_rotate_quadratic (G : CGraph) (v : G.V → ℝ) :
-    ∃ w : G.V → ℝ, v ⬝ᵥ (G.adjMat *ᵥ v) = ∑ i, G.eigenvalues i * w i ^ 2 ∧
-      v ⬝ᵥ v = ∑ i, w i ^ 2 := by
-  obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_diagonal
-  refine ⟨Uᵀ *ᵥ v, ?_, ?_⟩
-  · have hA : G.adjMat = U * Matrix.diagonal G.eigenvalues * Uᵀ := by
+/-- **An orthogonal diagonalisation rotates a quadratic form into a weighted sum of squares.**
+If `Uᵀ M U` is the diagonal matrix of `lam` then, in the coordinates `w = Uᵀ v` given by the
+eigenbasis, `⟪v, M v⟫ = ∑ lam i * w i ^ 2` while the norm `⟪v, v⟫ = ∑ w i ^ 2` is unchanged. -/
+private theorem rotate_quadratic_of_orthogonal_diagonal {V : Type*} [Fintype V] [DecidableEq V]
+    {U M : Matrix V V ℝ} {lam : V → ℝ} (hUU' : U * Uᵀ = 1)
+    (hD : Uᵀ * M * U = Matrix.diagonal lam) (v : V → ℝ) :
+    v ⬝ᵥ (M *ᵥ v) = ∑ i, lam i * (Uᵀ *ᵥ v) i ^ 2 ∧ v ⬝ᵥ v = ∑ i, (Uᵀ *ᵥ v) i ^ 2 := by
+  constructor
+  · have hM : M = U * Matrix.diagonal lam * Uᵀ := by
       rw [← hD]
-      calc G.adjMat = U * Uᵀ * G.adjMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
-        _ = U * (Uᵀ * G.adjMat * U) * Uᵀ := by simp only [mul_assoc]
-    rw [hA, show (U * Matrix.diagonal G.eigenvalues * Uᵀ) *ᵥ v
-          = U *ᵥ (Matrix.diagonal G.eigenvalues *ᵥ (Uᵀ *ᵥ v)) by
+      calc M = U * Uᵀ * M * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
+        _ = U * (Uᵀ * M * U) * Uᵀ := by simp only [mul_assoc]
+    rw [hM, show (U * Matrix.diagonal lam * Uᵀ) *ᵥ v
+          = U *ᵥ (Matrix.diagonal lam *ᵥ (Uᵀ *ᵥ v)) by
         simp only [Matrix.mulVec_mulVec, mul_assoc],
       dotProduct_mulVec, show v ᵥ* U = Uᵀ *ᵥ v by
         rw [← Matrix.vecMul_transpose, Matrix.transpose_transpose]]
@@ -2648,6 +2655,14 @@ theorem exists_rotate_quadratic (G : CGraph) (v : G.V → ℝ) :
         rw [Matrix.vecMul_transpose], Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
     rw [← hn]
     exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+
+/-- **Diagonalising rotates the quadratic form into a weighted sum of squares.**  There are
+coordinates `w`, of the same length as `v`, in which `⟪v, A v⟫ = ∑ λ i * w i ^ 2`. -/
+theorem exists_rotate_quadratic (G : CGraph) (v : G.V → ℝ) :
+    ∃ w : G.V → ℝ, v ⬝ᵥ (G.adjMat *ᵥ v) = ∑ i, G.eigenvalues i * w i ^ 2 ∧
+      v ⬝ᵥ v = ∑ i, w i ^ 2 := by
+  obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_diagonal
+  exact ⟨Uᵀ *ᵥ v, rotate_quadratic_of_orthogonal_diagonal hUU' hD v⟩
 
 /-- **The Rayleigh quotient is bounded above by the largest eigenvalue.** -/
 theorem rayleigh_le_lambdaMax (G : CGraph) [Nonempty G.V] (v : G.V → ℝ) :
@@ -5851,21 +5866,8 @@ eigenvalues. -/
 theorem sum_coeff_smul_adjMat_pow (G : CGraph) :
     ∑ i ∈ Finset.range (G.spectrum.toFinset.card + 1),
       G.minSpecPoly.coeff i • G.adjMat ^ i = 0 := by
-  obtain ⟨P, Q, hPQ, hQP, h⟩ := exists_conj_diagonal G
+  obtain ⟨P, Q, _, _, hpow⟩ := exists_conj_diagonal_pow G
   set D : Matrix G.V G.V ℝ := Matrix.diagonal G.eigenvalues with hD
-  have hA : G.adjMat = P * D * Q := by
-    calc G.adjMat = G.adjMat * (P * Q) := by rw [hPQ, mul_one]
-      _ = G.adjMat * P * Q := by rw [mul_assoc]
-      _ = P * D * Q := by rw [h]
-  have hpow : ∀ m : ℕ, G.adjMat ^ m = P * D ^ m * Q := by
-    intro m
-    induction m with
-    | zero => simp [hPQ]
-    | succ m ih =>
-      rw [pow_succ, ih, hA, pow_succ]
-      calc P * D ^ m * Q * (P * D * Q) = P * D ^ m * (Q * P) * D * Q := by
-            simp only [mul_assoc]
-        _ = P * (D ^ m * D) * Q := by rw [hQP]; simp only [mul_assoc, mul_one]
   have hsum : ∑ i ∈ Finset.range (G.spectrum.toFinset.card + 1),
       G.minSpecPoly.coeff i • D ^ i = 0 := by
     ext u v
@@ -7350,6 +7352,28 @@ theorem algConn_eq_of_isLeast {G : CGraph} {a : ℝ} (hmem : a ∈ G.lapSpectrum
     (hle : ∀ x ∈ G.lapSpectrum.erase 0, a ≤ x) : G.algConn = a :=
   le_antisymm (algConn_le hmem) (le_csInf ⟨a, hmem⟩ hle)
 
+/-- **Reading the algebraic connectivity off an indexed Laplacian spectrum.**  If the Laplacian
+spectrum of `G` is the multiset of values of `f`, with the trivial eigenvalue `0` sitting at the
+index `i₀` and `f i₁` least among the values at the other indices, then `f i₁` is the algebraic
+connectivity. -/
+@[toIsoGraph]
+theorem algConn_eq_of_lapSpectrum_map {G : CGraph} {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {f : ι → ℝ} {i₀ i₁ : ι} (hspec : G.lapSpectrum = Finset.univ.val.map f) (h0 : f i₀ = 0)
+    (hne : i₁ ≠ i₀) (hmin : ∀ i, i ≠ i₀ → f i₁ ≤ f i) : G.algConn = f i₁ := by
+  have huniv : (Finset.univ.val : Multiset ι) = i₀ ::ₘ Finset.univ.val.erase i₀ :=
+    (Multiset.cons_erase (Finset.mem_univ_val i₀)).symm
+  have herase : G.lapSpectrum.erase 0 = (Finset.univ.val.erase i₀).map f := by
+    rw [hspec]
+    conv_lhs => rw [huniv]
+    rw [Multiset.map_cons, h0, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    exact Multiset.mem_map_of_mem f ((Multiset.mem_erase_of_ne hne).2 (Finset.mem_univ_val _))
+  · intro x hx
+    rw [herase] at hx
+    obtain ⟨i, hi, rfl⟩ := Multiset.mem_map.1 hx
+    exact hmin i ((Finset.univ : Finset ι).nodup.mem_erase_iff.1 hi).1
+
 /-- **The algebraic connectivity is positive exactly for a connected graph** (on at least two
 vertices): the multiplicity of `0` is the number of components, so a second `0` survives the
 erasure precisely when the graph falls apart. -/
@@ -7485,51 +7509,28 @@ theorem algConn_path (n : ℕ) :
   have h0 : f 0 = 0 := by
     rw [hf]
     simp
-  have hmem0 : (0 : Fin (n + 2)) ∈ Finset.univ.val := Finset.mem_univ_val _
-  have huniv : (Finset.univ.val : Multiset (Fin (n + 2)))
-      = 0 ::ₘ Finset.univ.val.erase 0 := (Multiset.cons_erase hmem0).symm
-  have herase : (path (n + 2)).lapSpectrum.erase 0
-      = (Finset.univ.val.erase (0 : Fin (n + 2))).map f := by
-    rw [hspec]
-    conv_lhs => rw [huniv]
-    rw [Multiset.map_cons, h0, Multiset.erase_cons_head]
   have hone : f 1 = 2 - 2 * Real.cos (π / ((n : ℝ) + 2)) := by
     rw [hf]
     simp only [Fin.val_one]
     norm_num
-  refine algConn_eq_of_isLeast ?_ ?_
-  · rw [herase, ← hone]
-    refine Multiset.mem_map_of_mem f ?_
-    refine (Multiset.mem_erase_of_ne ?_).2 (Finset.mem_univ_val _)
-    simp
-  · intro x hx
-    rw [herase] at hx
-    obtain ⟨m, hm, rfl⟩ := Multiset.mem_map.1 hx
-    have hm0 : m ≠ 0 := by
-      intro hzero
-      subst hzero
-      rw [← Multiset.one_le_count_iff_mem, Multiset.count_erase_self] at hm
-      have hle1 := Multiset.nodup_iff_count_le_one.1 Finset.univ.nodup (0 : Fin (n + 2))
-      omega
-    have hm1 : 1 ≤ m.1 := by
-      rcases Nat.eq_zero_or_pos m.1 with h | h
-      · exact absurd (Fin.ext h) hm0
-      · exact h
-    have hm1R : (1 : ℝ) ≤ (m.1 : ℝ) := by exact_mod_cast hm1
-    have hmltR : (m.1 : ℝ) ≤ (n : ℝ) + 2 := by
-      have : m.1 ≤ n + 2 := m.isLt.le
-      exact_mod_cast this
-    have hle : π / ((n : ℝ) + 2) ≤ π * m.1 / ((n : ℝ) + 2) := by
-      gcongr
-      nlinarith
-    have hub : π * m.1 / ((n : ℝ) + 2) ≤ π := by
-      rw [div_le_iff₀ hN]
-      nlinarith
-    have hcos : Real.cos (π * m.1 / ((n : ℝ) + 2)) ≤ Real.cos (π / ((n : ℝ) + 2)) :=
-      Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hub hle
-    have hfm : f m = 2 - 2 * Real.cos (π * m.1 / ((n : ℝ) + 2)) := rfl
-    rw [hfm]
-    linarith
+  rw [← hone]
+  refine algConn_eq_of_lapSpectrum_map hspec h0 (by simp) fun m hm0 ↦ ?_
+  have hm1 : 1 ≤ m.1 := Nat.one_le_iff_ne_zero.2 fun h ↦ hm0 (Fin.ext h)
+  have hm1R : (1 : ℝ) ≤ (m.1 : ℝ) := by exact_mod_cast hm1
+  have hmltR : (m.1 : ℝ) ≤ (n : ℝ) + 2 := by
+    have : m.1 ≤ n + 2 := m.isLt.le
+    exact_mod_cast this
+  have hle : π / ((n : ℝ) + 2) ≤ π * m.1 / ((n : ℝ) + 2) := by
+    gcongr
+    nlinarith
+  have hub : π * m.1 / ((n : ℝ) + 2) ≤ π := by
+    rw [div_le_iff₀ hN]
+    nlinarith
+  have hcos : Real.cos (π * m.1 / ((n : ℝ) + 2)) ≤ Real.cos (π / ((n : ℝ) + 2)) :=
+    Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hub hle
+  have hfm : f m = 2 - 2 * Real.cos (π * m.1 / ((n : ℝ) + 2)) := rfl
+  rw [hone, hfm]
+  linarith
 
 /-! ### The largest Laplacian eigenvalue -/
 
@@ -7873,23 +7874,7 @@ theorem exists_rotate_lap_quadratic (G : CGraph) (v : G.V → ℝ) :
     ∃ w : G.V → ℝ, v ⬝ᵥ (G.lapMat *ᵥ v) = ∑ i, G.lapEigenvalues i * w i ^ 2 ∧
       v ⬝ᵥ v = ∑ i, w i ^ 2 := by
   obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_lap_diagonal
-  refine ⟨Uᵀ *ᵥ v, ?_, ?_⟩
-  · have hL : G.lapMat = U * Matrix.diagonal G.lapEigenvalues * Uᵀ := by
-      rw [← hD]
-      calc G.lapMat = U * Uᵀ * G.lapMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
-        _ = U * (Uᵀ * G.lapMat * U) * Uᵀ := by simp only [mul_assoc]
-    rw [hL, show (U * Matrix.diagonal G.lapEigenvalues * Uᵀ) *ᵥ v
-          = U *ᵥ (Matrix.diagonal G.lapEigenvalues *ᵥ (Uᵀ *ᵥ v)) by
-        simp only [Matrix.mulVec_mulVec, mul_assoc],
-      dotProduct_mulVec, show v ᵥ* U = Uᵀ *ᵥ v by
-        rw [← Matrix.vecMul_transpose, Matrix.transpose_transpose]]
-    simp only [dotProduct, Matrix.mulVec_diagonal]
-    exact Finset.sum_congr rfl fun i _ ↦ by ring
-  · have hn : (Uᵀ *ᵥ v) ⬝ᵥ (Uᵀ *ᵥ v) = v ⬝ᵥ v := by
-      rw [dotProduct_mulVec, show (Uᵀ *ᵥ v) ᵥ* Uᵀ = U *ᵥ (Uᵀ *ᵥ v) by
-        rw [Matrix.vecMul_transpose], Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
-    rw [← hn]
-    exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+  exact ⟨Uᵀ *ᵥ v, rotate_quadratic_of_orthogonal_diagonal hUU' hD v⟩
 
 /-- On a connected graph the rotation of `exists_rotate_lap_quadratic` kills the kernel
 direction as well: the columns of the diagonalising matrix belonging to the eigenvalue `0` are
@@ -7900,27 +7885,12 @@ theorem exists_rotate_lap_quadratic_of_sum_eq_zero (G : CGraph) (hconn : G.IsCon
       v ⬝ᵥ v = ∑ i, w i ^ 2 ∧ ∀ i, G.lapEigenvalues i = 0 → w i = 0 := by
   haveI : Nonempty G.V := hconn.nonempty
   obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_lap_diagonal
-  have hL : G.lapMat = U * Matrix.diagonal G.lapEigenvalues * Uᵀ := by
-    rw [← hD]
-    calc G.lapMat = U * Uᵀ * G.lapMat * (U * Uᵀ) := by rw [hUU', one_mul, mul_one]
-      _ = U * (Uᵀ * G.lapMat * U) * Uᵀ := by simp only [mul_assoc]
   have hLU : G.lapMat * U = U * Matrix.diagonal G.lapEigenvalues := by
     calc G.lapMat * U = (U * Uᵀ) * (G.lapMat * U) := by rw [hUU', one_mul]
       _ = U * (Uᵀ * G.lapMat * U) := by simp only [mul_assoc]
       _ = U * Matrix.diagonal G.lapEigenvalues := by rw [hD]
-  refine ⟨Uᵀ *ᵥ v, ?_, ?_, ?_⟩
-  · rw [hL, show (U * Matrix.diagonal G.lapEigenvalues * Uᵀ) *ᵥ v
-          = U *ᵥ (Matrix.diagonal G.lapEigenvalues *ᵥ (Uᵀ *ᵥ v)) by
-        simp only [Matrix.mulVec_mulVec, mul_assoc],
-      dotProduct_mulVec, show v ᵥ* U = Uᵀ *ᵥ v by
-        rw [← Matrix.vecMul_transpose, Matrix.transpose_transpose]]
-    simp only [dotProduct, Matrix.mulVec_diagonal]
-    exact Finset.sum_congr rfl fun i _ ↦ by ring
-  · have hn : (Uᵀ *ᵥ v) ⬝ᵥ (Uᵀ *ᵥ v) = v ⬝ᵥ v := by
-      rw [dotProduct_mulVec, show (Uᵀ *ᵥ v) ᵥ* Uᵀ = U *ᵥ (Uᵀ *ᵥ v) by
-        rw [Matrix.vecMul_transpose], Matrix.mulVec_mulVec, hUU', Matrix.one_mulVec]
-    rw [← hn]
-    exact Finset.sum_congr rfl fun i _ ↦ (sq _).symm
+  obtain ⟨hquad, hnorm⟩ := rotate_quadratic_of_orthogonal_diagonal hUU' hD v
+  refine ⟨Uᵀ *ᵥ v, hquad, hnorm, ?_⟩
   · intro i hi
     have hcol : G.lapMat *ᵥ (Uᵀ i) = 0 := by
       funext x
@@ -9203,55 +9173,32 @@ theorem algConn_cycle (n : ℕ) :
   have h0 : f 0 = 0 := by
     rw [hf]
     simp
-  have hmem0 : (0 : Fin (n + 3)) ∈ Finset.univ.val := Finset.mem_univ_val _
-  have huniv : (Finset.univ.val : Multiset (Fin (n + 3)))
-      = 0 ::ₘ Finset.univ.val.erase 0 := (Multiset.cons_erase hmem0).symm
-  have herase : (cycle (n + 3)).lapSpectrum.erase 0
-      = (Finset.univ.val.erase (0 : Fin (n + 3))).map f := by
-    rw [hspec]
-    conv_lhs => rw [huniv]
-    rw [Multiset.map_cons, h0, Multiset.erase_cons_head]
   have hone : f 1 = 2 - 2 * Real.cos (2 * π / ((n : ℝ) + 3)) := by
     rw [hf]
     simp only [Fin.val_one]
     norm_num
-  refine algConn_eq_of_isLeast ?_ ?_
-  · rw [herase, ← hone]
-    refine Multiset.mem_map_of_mem f ?_
-    refine (Multiset.mem_erase_of_ne ?_).2 (Finset.mem_univ_val _)
-    simp
-  · intro x hx
-    rw [herase] at hx
-    obtain ⟨m, hm, rfl⟩ := Multiset.mem_map.1 hx
-    have hm0 : m ≠ 0 := by
-      intro hzero
-      subst hzero
-      rw [← Multiset.one_le_count_iff_mem, Multiset.count_erase_self] at hm
-      have hle1 := Multiset.nodup_iff_count_le_one.1 Finset.univ.nodup (0 : Fin (n + 3))
-      omega
-    have hm1 : 1 ≤ m.1 := by
-      rcases Nat.eq_zero_or_pos m.1 with h | h
-      · exact absurd (Fin.ext h) hm0
-      · exact h
-    have hm1R : (1 : ℝ) ≤ (m.1 : ℝ) := by exact_mod_cast hm1
-    have hmR : (m.1 : ℝ) + 1 ≤ (n : ℝ) + 3 := by
-      have : m.1 + 1 ≤ n + 3 := m.isLt
-      exact_mod_cast this
-    -- the angle `2 π m / (n + 3)` lies between `2 π / (n + 3)` and `2 π - 2 π / (n + 3)`
-    have hlow : 2 * π / ((n : ℝ) + 3) ≤ 2 * π * m.1 / ((n : ℝ) + 3) :=
-      div_le_div_of_nonneg_right (by nlinarith) hN.le
-    have hhigh : 2 * π * m.1 / ((n : ℝ) + 3) ≤ 2 * π - 2 * π / ((n : ℝ) + 3) := by
-      rw [le_sub_iff_add_le, ← add_div, div_le_iff₀ hN]
-      nlinarith
-    have hcos : Real.cos (2 * π * m.1 / ((n : ℝ) + 3))
-        ≤ Real.cos (2 * π / ((n : ℝ) + 3)) := by
-      rcases le_total (2 * π * m.1 / ((n : ℝ) + 3)) π with hle | hle
-      · exact Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hle hlow
-      · rw [← Real.cos_two_pi_sub]
-        refine Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) (by linarith) (by linarith)
-    have hfm : f m = 2 - 2 * Real.cos (2 * π * m.1 / ((n : ℝ) + 3)) := rfl
-    rw [hfm]
-    linarith
+  rw [← hone]
+  refine algConn_eq_of_lapSpectrum_map hspec h0 (by simp) fun m hm0 ↦ ?_
+  have hm1 : 1 ≤ m.1 := Nat.one_le_iff_ne_zero.2 fun h ↦ hm0 (Fin.ext h)
+  have hm1R : (1 : ℝ) ≤ (m.1 : ℝ) := by exact_mod_cast hm1
+  have hmR : (m.1 : ℝ) + 1 ≤ (n : ℝ) + 3 := by
+    have : m.1 + 1 ≤ n + 3 := m.isLt
+    exact_mod_cast this
+  -- the angle `2 π m / (n + 3)` lies between `2 π / (n + 3)` and `2 π - 2 π / (n + 3)`
+  have hlow : 2 * π / ((n : ℝ) + 3) ≤ 2 * π * m.1 / ((n : ℝ) + 3) :=
+    div_le_div_of_nonneg_right (by nlinarith) hN.le
+  have hhigh : 2 * π * m.1 / ((n : ℝ) + 3) ≤ 2 * π - 2 * π / ((n : ℝ) + 3) := by
+    rw [le_sub_iff_add_le, ← add_div, div_le_iff₀ hN]
+    nlinarith
+  have hcos : Real.cos (2 * π * m.1 / ((n : ℝ) + 3))
+      ≤ Real.cos (2 * π / ((n : ℝ) + 3)) := by
+    rcases le_total (2 * π * m.1 / ((n : ℝ) + 3)) π with hle | hle
+    · exact Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hle hlow
+    · rw [← Real.cos_two_pi_sub]
+      refine Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) (by linarith) (by linarith)
+  have hfm : f m = 2 - 2 * Real.cos (2 * π * m.1 / ((n : ℝ) + 3)) := rfl
+  rw [hone, hfm]
+  linarith
 
 /-- **The largest Laplacian eigenvalue is at most the number of vertices.** -/
 theorem lapLambdaMax_le_V (G : IsoGraph) (h : 0 < G.V) : G.lapLambdaMax ≤ G.V :=

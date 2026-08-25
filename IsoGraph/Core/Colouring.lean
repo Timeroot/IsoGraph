@@ -3417,256 +3417,67 @@ theorem matchNum_complete_le (n : ℕ) : (complete n).matchNum ≤ n / 2 := by
 
 /-! ### Domination, independence and regularity -/
 
-/-- The domination number of a path is `⌈n/3⌉`. -/
+/-- **The domination number of a path is `⌈n/3⌉`.**  The greedy dominating set takes every third
+vertex starting from the second, `{1, 4, 7, …}`, with the last dominator pulled back onto the far
+endpoint; conversely the `⌈n/3⌉` vertices whose index is divisible by three are pairwise at
+distance at least three, so no vertex of a dominating set can cover two of them. -/
 @[simp] theorem domNum_path (n : ℕ) : (path (n + 1)).domNum = (n + 3) / 3 := by
   simp only [IsoGraph.path, domNum_mk, CGraph.domNum]
-
-  apply le_antisymm
-  · -- domNum ≤ (n+3)/3: construct dominating set of size (n+3)/3
-    apply csInf_le
-    · exact ⟨0, fun x ⟨s, _, _⟩ => Nat.zero_le _⟩
-    · -- Exhibit a dominating set of size (n+3)/3
-      have hmod : n % 3 = 0 ∨ n % 3 = 1 ∨ n % 3 = 2 := by omega
-      rcases hmod with hk | hk | hk
-      · -- n = 3*a
-        obtain ⟨a, rfl⟩ : ∃ a, n = 3 * a := ⟨n / 3, by omega⟩
-        let S : Finset (Fin (3 * a + 1)) :=
-          Finset.image (fun i : Fin (a + 1) => ⟨3 * i.val, by omega⟩) Finset.univ
-        refine ⟨S, ?_, ?_⟩
-        · rw [Finset.card_image_of_injective _ fun i j h => Fin.ext
-            (by have := congr_arg Fin.val h; simp at this; omega), Finset.card_fin]
-          simp
-        · intro v
-          show v ∈ S ∨ ∃ u ∈ S, (CGraph.path (3 * a + 1)).Adj u v
-          dsimp only [S]
-          simp only [Finset.mem_image, Finset.mem_univ, true_and]
-          set i := v.val / 3
-          have hi : i < a + 1 := by omega
-          have hmod_v : v.val % 3 = 0 ∨ v.val % 3 = 1 ∨ v.val % 3 = 2 := by omega
-          rcases hmod_v with hm0 | hm1 | hm2
-          · left
-            have hvval : v.val = 3 * i := by omega
-            exact ⟨⟨i, hi⟩, Fin.ext (by simp; omega)⟩
-          · right
-            set ui : Fin (a + 1) := ⟨i, hi⟩
-            set u : Fin (3 * a + 1) := ⟨3 * ui.val, by omega⟩
-            have huv_ne : u ≠ v := by
-              intro h
-              have := congr_arg Fin.val h
-              dsimp [u, ui] at this
-              omega
-            have hadj : (u : ℕ) + 1 = v.val := by
-              simp [u, ui]
-              have := Nat.div_add_mod v.val 3
-              omega
-            exact ⟨u, ⟨ui, rfl⟩, by
-              rw [CGraph.path_adj]
-              simp [huv_ne, hadj]⟩
-          · right
-            have hi_lt_a : i < a := by omega
-            set ui : Fin (a + 1) := ⟨i + 1, by omega⟩
-            set u : Fin (3 * a + 1) := ⟨3 * ui.val, by omega⟩
-            have huv_ne : u ≠ v := by
-              intro h
-              have := congr_arg Fin.val h
-              dsimp [u, ui] at this
-              omega
-            have hadj : v.val + 1 = (u : ℕ) := by
-              simp [u, ui]
-              rw [← Nat.div_add_mod v.val 3, hm2]
-              omega
-            exact ⟨u, ⟨ui, rfl⟩, by
-              rw [CGraph.path_adj]
-              simp [huv_ne, hadj]⟩
-      · -- n = 3*a + 1
-        obtain ⟨a, rfl⟩ : ∃ a, n = 3 * a + 1 := ⟨n / 3, by omega⟩
-        let S : Finset (Fin (3 * a + 2)) :=
-          Finset.image (fun i : Fin (a + 1) => ⟨3 * i + 1, by omega⟩) Finset.univ
-        refine ⟨S, ?_, ?_⟩
-        · rw [Finset.card_image_of_injective _ fun i j h => Fin.ext
-            (by have := congr_arg Fin.val h; simp at this; omega), Finset.card_fin]
-          simp; omega
-        · intro v
-          show v ∈ S ∨ ∃ u ∈ S, (CGraph.path (3 * a + 2)).Adj u v
-          dsimp only [S]
-          simp only [Finset.mem_image, Finset.mem_univ, true_and]
-          set i := v.val / 3
-          have hi : i < a + 1 := by omega
-          have hmod_v : v.val % 3 = 0 ∨ v.val % 3 = 1 ∨ v.val % 3 = 2 := by omega
-          rcases hmod_v with hm0 | hm1 | hm2
-          · right
-            set ui : Fin (a + 1) := ⟨i, hi⟩
-            set u : Fin (3 * a + 2) := ⟨3 * ui.val + 1, by omega⟩
-            have huv_ne : u ≠ v := by
-              intro h
-              have := congr_arg Fin.val h
-              dsimp [u, ui] at this
-              omega
-            have hadj : v.val + 1 = (u : ℕ) := by
-              simp [u, ui]
-              rw [← Nat.div_add_mod v.val 3, hm0]
-              dsimp [i]
-            exact ⟨u, ⟨ui, rfl⟩, by
-              rw [CGraph.path_adj]
-              simp [huv_ne, hadj]⟩
-          · left
-            have hvval : v.val = 3 * i + 1 := by omega
-            exact ⟨⟨i, hi⟩, Fin.ext (by simp; omega)⟩
-          · right
-            set ui : Fin (a + 1) := ⟨i, hi⟩
-            set u : Fin (3 * a + 2) := ⟨3 * ui.val + 1, by omega⟩
-            have huv_ne : u ≠ v := by
-              intro h
-              have := congr_arg Fin.val h
-              dsimp [u, ui] at this
-              omega
-            have hadj : (u : ℕ) + 1 = v.val := by simp [u, ui]; rw [← Nat.div_add_mod v.val 3, hm2]
-            exact ⟨u, ⟨ui, rfl⟩, by
-              rw [CGraph.path_adj]
-              simp [huv_ne, hadj]⟩
-      · -- n = 3*a + 2
-        obtain ⟨a, rfl⟩ : ∃ a, n = 3 * a + 2 := ⟨n / 3, by omega⟩
-        let S : Finset (Fin (3 * a + 3)) :=
-          Finset.image (fun i : Fin (a + 1) => ⟨3 * i + 1, by omega⟩) Finset.univ
-        refine ⟨S, ?_, ?_⟩
-        · rw [Finset.card_image_of_injective _ fun i j h => Fin.ext
-            (by have := congr_arg Fin.val h; simp at this; omega), Finset.card_fin]
-          simp; omega
-        · intro v
-          show v ∈ S ∨ ∃ u ∈ S, (CGraph.path (3 * a + 3)).Adj u v
-          dsimp only [S]
-          simp only [Finset.mem_image, Finset.mem_univ, true_and]
-          set i := v.val / 3
-          have hi : i < a + 1 := by omega
-          have hmod_v : v.val % 3 = 0 ∨ v.val % 3 = 1 ∨ v.val % 3 = 2 := by omega
-          rcases hmod_v with hm0 | hm1 | hm2
-          · right
-            set ui : Fin (a + 1) := ⟨i, hi⟩
-            set u : Fin (3 * a + 3) := ⟨3 * ui.val + 1, by omega⟩
-            have huv_ne : u ≠ v := by
-              intro h
-              have := congr_arg Fin.val h
-              dsimp [u, ui] at this
-              omega
-            have hadj : v.val + 1 = (u : ℕ) := by
-              simp [u, ui]
-              rw [← Nat.div_add_mod v.val 3, hm0]
-              dsimp [i]
-            exact ⟨u, ⟨ui, rfl⟩, by
-              rw [CGraph.path_adj]
-              simp [huv_ne, hadj]⟩
-          · left
-            have hvval : v.val = 3 * i + 1 := by omega
-            exact ⟨⟨i, hi⟩, Fin.ext (by simp; omega)⟩
-          · right
-            set ui : Fin (a + 1) := ⟨i, hi⟩
-            set u : Fin (3 * a + 3) := ⟨3 * ui.val + 1, by omega⟩
-            have huv_ne : u ≠ v := by
-              intro h
-              have := congr_arg Fin.val h
-              dsimp [u, ui] at this
-              omega
-            have hadj : (u : ℕ) + 1 = v.val := by simp [u, ui]; rw [← Nat.div_add_mod v.val 3, hm2]
-            exact ⟨u, ⟨ui, rfl⟩, by
-              rw [CGraph.path_adj]
-              simp [huv_ne, hadj]⟩
-  · -- (n+3)/3 ≤ domNum: every dominating set has size ≥ (n+3)/3
-    apply le_csInf
-    · -- Nonempty
-      refine ⟨FinEnum.card (CGraph.path (n + 1)).V, ⟨Finset.univ, FinEnum.card_univ,
-        CGraph.isDominatingSet_univ (CGraph.path (n + 1))⟩⟩
-    · -- Lower bound on every element
-      intro k ⟨s, hk, hs⟩
-      rw [← hk]
-      -- V of path (n+1) is Fin (n+1)
-      -- Define T = {v : Fin (n+1) | v.val % 3 = 0}. |T| = (n+3)/3.
-      -- Each dominator covers at most one element of T (indices within 1, mod 3 argument).
-      --Every element of T is dominated, so |T| ≤ |s|.
-      simp only [CGraph.path, CGraph.ofRel, CGraph.IsDominatingSet] at hs
-      -- Every vertex v : Fin (n+1) is in s or adjacent to something in s (per hs)
-      -- Define T = {v : Fin (n+1) | v.val % 3 = 0}. |T| = (n+3)/3.
-      set T : Finset (Fin (n + 1)) := Finset.filter (fun v : Fin (n + 1) => v.val % 3 = 0)
-        Finset.univ
-      have hcard_T : T.card = (n + 3) / 3 := by
-        set m := (n + 3) / 3
-        -- There are exactly m elements in {0,...,n} divisible by 3, namely 0,3,...,3*(m-1)
-        have : T = Finset.image (fun i : Fin m => ⟨3 * i.val, by omega⟩ : Fin m → Fin (n + 1))
+  set m := (n + 3) / 3 with hm
+  have hlt : ∀ i : ℕ, min (3 * i + 1) n < n + 1 := fun _ ↦ by omega
+  let d : Fin m → Fin (n + 1) := fun i ↦ ⟨min (3 * i.val + 1) n, hlt _⟩
+  have hdinj : Function.Injective d := fun i j hij ↦ by
+    have h : min (3 * i.val + 1) n = min (3 * j.val + 1) n := congrArg Fin.val hij
+    have hi := i.isLt
+    have hj := j.isLt
+    exact Fin.ext (by omega)
+  refine le_antisymm (csInf_le ⟨0, fun _ _ ↦ Nat.zero_le _⟩ ?_) (le_csInf ⟨_, Finset.univ,
+    rfl, CGraph.isDominatingSet_univ (CGraph.path (n + 1))⟩ ?_)
+  · -- the greedy set dominates and has the right size
+    refine ⟨Finset.image d Finset.univ, ?_, ?_⟩
+    · rw [Finset.card_image_of_injective _ hdinj, Finset.card_univ, Fintype.card_fin]
+    · intro v
+      have hiv : v.val / 3 < m := by omega
+      have hmem : d ⟨v.val / 3, hiv⟩ ∈ Finset.image d Finset.univ :=
+        Finset.mem_image_of_mem d (Finset.mem_univ _)
+      have key : (d ⟨v.val / 3, hiv⟩).val = min (3 * (v.val / 3) + 1) n := rfl
+      by_cases huv : d ⟨v.val / 3, hiv⟩ = v
+      · exact Or.inl (huv ▸ hmem)
+      · have hne : min (3 * (v.val / 3) + 1) n ≠ v.val := fun h ↦ huv (Fin.ext (key.trans h))
+        refine Or.inr ⟨_, hmem, ?_⟩
+        rw [CGraph.path_adj_val, key]
+        omega
+  · -- every dominating set is at least that big
+    rintro k ⟨s, rfl, hs⟩
+    set T : Finset (Fin (n + 1)) := Finset.univ.filter (fun v ↦ v.val % 3 = 0) with hT
+    have hcard_T : T.card = m := by
+      have himg : T = Finset.image (fun i : Fin m ↦ (⟨3 * i.val, by omega⟩ : Fin (n + 1)))
           Finset.univ := by
-          ext v
-          simp [T, Finset.mem_image, Finset.mem_univ]
-          constructor
-          · intro hv
-            exact ⟨⟨v.val / 3, by omega⟩, by ext; simp; omega⟩
-          · rintro ⟨i, hi, rfl⟩
-            simp
-        rw [this, Finset.card_image_of_injective]
-        · simp
-        · intro a b h; simp at h; exact Fin.ext (by omega)
-      -- Each u ∈ s can "cover" at most one element of T.
-      -- Define a function covering each t ∈ T by some u ∈ s that dominates t.
-      -- Then injectivity (mod 3 argument) gives |T| ≤ |s|.
-      -- Step: for each t ∈ T, pick a dominator u ∈ s.
-      -- Dominator u for t means: t = u (t ∈ s) or Adj u t (u adjacent to t, i.e., |u.val - t.val| =
-      -- 1).
-      -- In either case, t.val ∈ {u.val - 1, u.val, u.val + 1} (within bounds).
-      -- Two distinct elements of T have indices both ≡ 0 mod 3, so they differ by ≥ 3.
-      -- Hence no u can dominate two distinct elements of T. ⇒ injection T → s.
-      -- Step 1: For each t ∈ T, obtain u ∈ s dominating t.
-      have hcover : ∀ t ∈ T, ∃ u ∈ s, (t : ℕ) = u.val ∨ (u.val + 1 = (t : ℕ) ∨ (t : ℕ) + 1 = u.val)
-        := by
-        intro t ht
-        specialize hs t
-        rcases hs with hts | ⟨u, hus, hadj⟩
-        · exact ⟨t, hts, Or.inl rfl⟩
-        · simp at hadj
-          obtain ⟨hne, hadj|hado⟩ := hadj
-          · exact ⟨u, hus, Or.inr (Or.inl hadj)⟩
-          · exact ⟨u, hus, Or.inr (Or.inr hado)⟩
-      -- Step 2: Each u ∈ s covers at most one element of T (mod 3 argument)
-      -- For each t ∈ T, hcover gives a dominator in s.
-      -- Key lemma: no u ∈ s covers two distinct elements of T.
-      have hunique : ∀ u ∈ s, ∀ t1 ∈ T, ∀ t2 ∈ T,
-          ((t1 : ℕ) = u.val ∨ u.val + 1 = (t1 : ℕ) ∨ (t1 : ℕ) + 1 = u.val) →
-          ((t2 : ℕ) = u.val ∨ u.val + 1 = (t2 : ℕ) ∨ (t2 : ℕ) + 1 = u.val) → t1 = t2 := by
-        intro u hu t1 ht1 t2 ht2 p1 p2
-        have ht1T : (t1 : ℕ) % 3 = 0 := Finset.mem_filter.mp ht1 |>.2
-        have ht2T : (t2 : ℕ) % 3 = 0 := Finset.mem_filter.mp ht2 |>.2
-        -- Each of t1.val, t2.val is in {u.val-1, u.val, u.val+1}
-        -- Two numbers ≡ 0 mod 3 in an interval of 3 consecutive integers must be equal.
-        have : (t1 : ℕ) % 3 = (t2 : ℕ) % 3 := by omega
-        -- More: they differ by at most 2, and both ≡ 0 mod 3, so they're equal.
-        have hle : (t1 : ℕ) ≤ (t2 : ℕ) + 2 := by omega
-        have hge : (t2 : ℕ) ≤ (t1 : ℕ) + 2 := by omega
-        have h_eq_val : (t1 : ℕ) = (t2 : ℕ) := by omega
-        exact Fin.ext h_eq_val
-      -- Build an injection from T to s.
-      -- f (as a function on the subtype T) gives dominators in s.
-      -- hunique (rephrased for the subtype) gives injectivity.
-      choose f hf using hcover
-      have hcard_le : T.card ≤ s.card := by
-        let g : T → s := fun t => ⟨f t.val t.property, hf t.val t.property |>.1⟩
-        have hg_inj : Function.Injective g := by
-          intro t1 t2 h_eq
-          have p1 := (hf t1.val t1.property).2
-          have p2 := (hf t2.val t2.property).2
-          have h_eq' : f t1.val t1.property = f t2.val t2.property := by
-            exact congr_arg Subtype.val h_eq
-          rw [h_eq'] at p1
-          have heq := hunique (f t2.val t2.property) (hf t2.val t2.property |>.1) t1.val t1.property
-            t2.val t2.property p1 p2
-          exact Subtype.ext heq
-        have himage : Finset.image (fun t : T => (g t : (CGraph.path (n+1)).V)) Finset.univ ⊆ s :=
-          by
-          intro u hu
-          obtain ⟨t, ht, rfl⟩ := Finset.mem_image.mp hu
-          exact (g t).property
-        have h1 : (Finset.image (fun t : T => (g t : (CGraph.path (n+1)).V)) Finset.univ).card =
-          T.card := by
-          rw [Finset.card_image_of_injective _ (fun a b h => hg_inj (Subtype.ext h))]
-          simp
-        exact h1 ▸ Finset.card_le_card himage
-      rw [← hcard_T]
-      exact hcard_le
+        ext v
+        simp only [hT, Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image]
+        refine ⟨fun hv ↦ ⟨⟨v.val / 3, by omega⟩, Fin.ext (by
+          show 3 * (v.val / 3) = v.val; omega)⟩, ?_⟩
+        rintro ⟨i, rfl⟩
+        exact Nat.mul_mod_right 3 _
+      rw [himg, Finset.card_image_of_injective _ fun i j hij ↦ Fin.ext (by
+        have h : 3 * i.val = 3 * j.val := congrArg Fin.val hij
+        omega), Finset.card_univ, Fintype.card_fin]
+    -- each vertex of `T` picks a dominator, and distinct ones pick distinct dominators
+    have hcover : ∀ v : (CGraph.path (n + 1)).V, ∃ u, u ∈ s ∧
+        (v.val = u.val ∨ u.val + 1 = v.val ∨ v.val + 1 = u.val) := by
+      intro v
+      rcases hs v with hv | ⟨u, hus, hadj⟩
+      · exact ⟨v, hv, Or.inl rfl⟩
+      · exact ⟨u, hus, Or.inr ((CGraph.path_adj_val _ u v).1 hadj).2⟩
+    choose f hfs hfd using hcover
+    rw [← hcard_T]
+    refine Finset.card_le_card_of_injOn f (fun t _ ↦ hfs t) fun t₁ h₁ t₂ h₂ heq ↦ ?_
+    have e₁ := hfd t₁
+    have e₂ := hfd t₂
+    rw [heq] at e₁
+    have m₁ : t₁.val % 3 = 0 := by simpa [hT] using h₁
+    have m₂ : t₂.val % 3 = 0 := by simpa [hT] using h₂
+    exact Fin.ext (by omega)
 
 /-! ### The line graph invariants that are edge invariants by definition
 

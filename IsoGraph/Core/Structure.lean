@@ -8,6 +8,105 @@ union and of a Cartesian product, the diameter and radius of a join and of the p
 bipartiteness, triangles and odd cycles, girth, and when a graph is a tree or a forest.
 -/
 
+namespace SimpleGraph
+
+/-! ### Distances in the path graph
+
+Mathlib has no metric API for `pathGraph`, but the path is the one graph whose distance is
+visibly the difference of the two indices: walking one step changes the index by exactly one, so
+a monotone walk realises that difference and no walk can beat it.  The diameter and the radius of
+a path both fall out of the resulting formula. -/
+
+/-- Stepping right along `pathGraph N` reaches `i + k` in `k` steps. -/
+private theorem exists_walk_pathGraph {N : ℕ} (i : Fin N) : ∀ (k : ℕ) (h : i.val + k < N),
+    ∃ p : (pathGraph N).Walk i ⟨i.val + k, h⟩, p.length = k := by
+  intro k
+  induction k with
+  | zero =>
+    exact fun h ↦ ⟨(Walk.nil : (pathGraph N).Walk i i).copy rfl (Fin.ext (by simp)), by simp⟩
+  | succ k ih =>
+    intro h
+    obtain ⟨p, hp⟩ := ih (by omega)
+    exact ⟨p.concat (pathGraph_adj.2 (Or.inl (by show i.val + k + 1 = i.val + (k + 1); omega))),
+      by simp [hp]⟩
+
+/-- Every edge of `pathGraph N` changes the index by exactly one, so no walk moves further than
+its own length. -/
+private theorem sub_le_length_walk_pathGraph {N : ℕ} {a b : Fin N}
+    (p : (pathGraph N).Walk a b) : max a.val b.val - min a.val b.val ≤ p.length := by
+  induction p with
+  | nil => simp
+  | @cons u v w hadj p ih =>
+    rw [pathGraph_adj] at hadj
+    rw [Walk.length_cons]
+    omega
+
+/-- **The distance in a path graph is the difference of the two indices.** -/
+theorem edist_pathGraph {N : ℕ} (i j : Fin N) :
+    (pathGraph N).edist i j = ((max i.val j.val - min i.val j.val : ℕ) : ℕ∞) := by
+  have key : ∀ u v : Fin N, u.val ≤ v.val →
+      (pathGraph N).edist u v ≤ ((max u.val v.val - min u.val v.val : ℕ) : ℕ∞) := by
+    intro u v huv
+    obtain ⟨p, hp⟩ := exists_walk_pathGraph u (v.val - u.val) (by omega)
+    have hv : (⟨u.val + (v.val - u.val), by omega⟩ : Fin N) = v :=
+      Fin.ext (by show u.val + (v.val - u.val) = v.val; omega)
+    have hle := Walk.edist_le (p.copy rfl hv)
+    rw [Walk.length_copy, hp] at hle
+    exact hle.trans (Nat.cast_le.2 (by omega))
+  refine le_antisymm ?_ ?_
+  · rcases le_total i.val j.val with h | h
+    · exact key i j h
+    · rw [edist_comm]
+      exact (key j i h).trans (Nat.cast_le.2 (by omega))
+  · rw [edist]
+    exact le_iInf fun p ↦ Nat.cast_le.2 (sub_le_length_walk_pathGraph p)
+
+/-- `edist_pathGraph` with the second endpoint given by an explicit index. -/
+theorem edist_pathGraph_mk_right {N b : ℕ} (i : Fin N) (hb : b < N) :
+    (pathGraph N).edist i ⟨b, hb⟩ = ((max i.val b - min i.val b : ℕ) : ℕ∞) :=
+  edist_pathGraph _ _
+
+/-- `edist_pathGraph` with both endpoints given by explicit indices. -/
+theorem edist_pathGraph_mk {N a b : ℕ} (ha : a < N) (hb : b < N) :
+    (pathGraph N).edist ⟨a, ha⟩ ⟨b, hb⟩ = ((max a b - min a b : ℕ) : ℕ∞) :=
+  edist_pathGraph _ _
+
+/-- **The eccentricity of a vertex of a path** is its distance to the further endpoint. -/
+theorem eccent_pathGraph {n : ℕ} (i : Fin (n + 1)) :
+    (pathGraph (n + 1)).eccent i = ((max i.val (n - i.val) : ℕ) : ℕ∞) := by
+  refine le_antisymm ?_ ?_
+  · unfold eccent
+    refine iSup_le fun j ↦ ?_
+    rw [edist_pathGraph]
+    exact Nat.cast_le.2 (by omega)
+  · rcases le_total i.val (n - i.val) with h | h
+    · refine le_trans (le_of_eq ?_) (edist_le_eccent (v := (⟨n, Nat.lt_succ_self n⟩ : Fin (n + 1))))
+      rw [edist_pathGraph_mk_right]
+      exact congrArg (fun k : ℕ ↦ (k : ℕ∞)) (by omega)
+    · refine le_trans (le_of_eq ?_) (edist_le_eccent (v := (⟨0, Nat.succ_pos n⟩ : Fin (n + 1))))
+      rw [edist_pathGraph_mk_right]
+      exact congrArg (fun k : ℕ ↦ (k : ℕ∞)) (by omega)
+
+/-- **The diameter of a path** is realised by its two endpoints. -/
+theorem ediam_pathGraph (n : ℕ) : (pathGraph (n + 1)).ediam = (n : ℕ∞) := by
+  refine le_antisymm (ediam_le_of_edist_le fun u v ↦ ?_) (le_trans (le_of_eq ?_)
+    (edist_le_ediam (u := (⟨0, Nat.succ_pos n⟩ : Fin (n + 1)))
+      (v := (⟨n, Nat.lt_succ_self n⟩ : Fin (n + 1)))))
+  · rw [edist_pathGraph]
+    exact Nat.cast_le.2 (by omega)
+  · rw [edist_pathGraph_mk]
+    exact congrArg (fun k : ℕ ↦ (k : ℕ∞)) (by omega)
+
+/-- **The radius of a path** is realised by its middle vertex. -/
+theorem radius_pathGraph (n : ℕ) : (pathGraph (n + 1)).radius = (((n + 1) / 2 : ℕ) : ℕ∞) := by
+  refine le_antisymm (le_trans (radius_le_eccent (u := (⟨n / 2, by omega⟩ : Fin (n + 1)))) ?_) ?_
+  · rw [eccent_pathGraph]
+    exact Nat.cast_le.2 (by show max (n / 2) (n - n / 2) ≤ (n + 1) / 2; omega)
+  · unfold radius
+    exact le_iInf fun i ↦ by rw [eccent_pathGraph]; exact Nat.cast_le.2 (by omega)
+
+end SimpleGraph
+
 namespace CGraph
 
 section
@@ -168,128 +267,8 @@ variable (G H : CGraph)
   ⟨isConnected_path n, isAcyclic_path (n + 1)⟩
 
 @[simp] theorem diameter_path (n : ℕ) : (path (n + 1)).diameter = n := by
-  simp [diameter, path_toSimple]
-  rw [SimpleGraph.diam]
-  -- Build walks from 0 to i of length i for all i : Fin (n+1)
-  have walk0to : ∀ i : Fin (n + 1), ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk 0 i, p.length = i.val := by
-    intro i
-    induction i using Fin.induction with
-    | zero =>
-      let p : (SimpleGraph.pathGraph (n + 1)).Walk 0 0 := .nil
-      exact ⟨p, rfl⟩
-    | succ i ih =>
-      obtain ⟨p, hp⟩ := ih
-      have hadj : (SimpleGraph.pathGraph (n + 1)).Adj (i.castSucc) (i.succ) := by
-        simp [SimpleGraph.pathGraph_adj]
-      let single : (SimpleGraph.pathGraph (n + 1)).Walk i.castSucc i.succ :=
-        SimpleGraph.Walk.cons hadj (SimpleGraph.Walk.nil : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.succ)
-      have hsingle : single.length = 1 := by simp [single]
-      exact ⟨p.append single, by simp [hp, hsingle]⟩
-  -- From this, edist 0 i ≤ ↑i.val
-  have edist0_le : ∀ i : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).edist 0 i ≤ ↑(i.val : ℕ) := by
-    intro i
-    obtain ⟨p, hp⟩ := walk0to i
-    rw [SimpleGraph.edist]
-    exact le_trans (iInf_le (f := fun w : (SimpleGraph.pathGraph (n + 1)).Walk 0 i => (w.length : ℕ∞)) p) (by simp [hp])
-  -- upWalk i : walk from castSucc i to succ i of length 1, for i : Fin n
-  have upWalk : ∀ i : Fin n, ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i.castSucc i.succ, p.length = 1 := by
-    intro i
-    exact ⟨SimpleGraph.Walk.cons (by simp [SimpleGraph.pathGraph_adj])
-      (SimpleGraph.Walk.nil : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.succ), by simp⟩
-  -- downWalk i : walk from succ i to castSucc i, by reversing upWalk
-  have downWalk : ∀ i : Fin n, ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.castSucc, p.length = 1 := by
-    intro i
-    obtain ⟨q, hq⟩ := upWalk i
-    exact ⟨q.reverse, by simp [hq]⟩
-  -- Monotone up walk: for u v with u.val ≤ v.val, walk from u to v of length v - u
-  -- By induction on the difference. This is complex; let me use a simpler approach.
-  -- For any i : Fin (n+1) and k : ℕ with i.val + k ≤ n, walk from i to ⟨i+k, ...⟩ of length k.
-  -- Adjacency between any i and i+1 in pathGraph (n+1)
-  have adj_succ : ∀ i : Fin n, (SimpleGraph.pathGraph (n + 1)).Adj i.castSucc i.succ := by
-    intro i; simp [SimpleGraph.pathGraph_adj]
-  -- Walk from i to i.succ of length 1
-  have walk_succ : ∀ i : Fin n, ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i.castSucc i.succ, p.length = 1 := by
-    intro i
-    exact ⟨SimpleGraph.Walk.cons (adj_succ i)
-      (SimpleGraph.Walk.nil : (SimpleGraph.pathGraph (n + 1)).Walk i.succ i.succ), by simp⟩
-  -- Build walk from i to j (where j = i + k) by iterating walk_succ k times
-  -- Target vertex: i + k in Fin (n+1), when i.val + k < n + 1
-  let addK (i : Fin (n + 1)) (k : ℕ) (hk : (i : ℕ) + k < n + 1) : Fin (n + 1) := ⟨i.val + k, hk⟩
-  have upWalkAny : ∀ (i : Fin (n + 1)) (k : ℕ) (hk : (i : ℕ) + k < n + 1),
-      ∃ p : (SimpleGraph.pathGraph (n + 1)).Walk i (addK i k hk), p.length = k := by
-    intro i k hk
-    induction k with
-    | zero =>
-      exact ⟨.nil, rfl⟩
-    | succ m ih =>
-      obtain ⟨p, hp⟩ := ih (by omega)
-      have hm : (i : ℕ) + m < n := by omega
-      obtain ⟨q, hq⟩ := walk_succ ⟨i.val + m, hm⟩
-      exact ⟨p.append q, by simp [hp, hq]⟩
-  -- hupper: edist u v ≤ ↑n for all u, v
-  have hinner : ∀ {u v : Fin (n + 1)}, (u : ℕ) ≤ v → (SimpleGraph.pathGraph (n + 1)).edist u v ≤ ↑n := by
-    intro u v huv
-    have hvk : (u : ℕ) + (v - u) < n + 1 := by omega
-    have hkep : addK u (v - u) hvk = v := by
-      ext; simp [addK, Nat.add_sub_of_le huv]
-    obtain ⟨p, hp⟩ := upWalkAny u (v - u) hvk
-    have hedist_le : (SimpleGraph.pathGraph (n + 1)).edist u (addK u (v - u) hvk) ≤ ↑(v - u : ℕ) := by
-      exact SimpleGraph.edist_le p |>.trans (by rw [hp])
-    rw [hkep] at hedist_le
-    exact hedist_le.trans (Nat.cast_le.mpr (by omega))
-  have hupper : ∀ u v : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).edist u v ≤ ↑n := by
-    intro u v
-    by_cases huv : (u : ℕ) ≤ v
-    · exact hinner huv
-    · rw [SimpleGraph.edist_comm]
-      exact hinner (le_of_lt (not_le.mp huv))
-  -- hexist_upper
-  have hexist_upper : (SimpleGraph.pathGraph (n + 1)).edist 0 ⟨n, Nat.lt_succ_self n⟩ ≤ ↑n := hupper 0 ⟨n, Nat.lt_succ_self n⟩
-  -- Key: for any walk, b.val ≤ a.val + walk.length
-  have walk_pot : ∀ {a b : Fin (n + 1)} (p : (SimpleGraph.pathGraph (n + 1)).Walk a b),
-      (b : ℕ) ≤ (a : ℕ) + p.length := by
-    intro a b p
-    induction p with
-    | nil => simp
-    | @cons u v w hadj p ih =>
-      have hadj' : (SimpleGraph.pathGraph (n + 1)).Adj u v := hadj
-      rw [SimpleGraph.pathGraph_adj] at hadj'
-      have : (v : ℕ) ≤ (u : ℕ) + 1 := by
-        rcases hadj' with h | h <;> omega
-      simp [SimpleGraph.Walk.length_cons]
-      omega
-  -- hexist_lower: edist 0 last ≥ ↑n
-  have hexist_lower : ↑(n : ℕ∞) ≤ (SimpleGraph.pathGraph (n + 1)).edist 0 ⟨n, Nat.lt_succ_self n⟩ := by
-    rw [SimpleGraph.edist]
-    by_cases hne : Nonempty ((SimpleGraph.pathGraph (n + 1)).Walk 0 ⟨n, Nat.lt_succ_self n⟩)
-    · apply le_ciInf
-      intro p
-      have := walk_pot p
-      simp at this ⊢
-      exact_mod_cast this
-    · push_neg at hne
-      simp
-  -- hexist
-  have hexist : (SimpleGraph.pathGraph (n + 1)).edist 0 ⟨n, Nat.lt_succ_self n⟩ = ↑n :=
-    le_antisymm hexist_upper hexist_lower
-  -- iSup bounds
-  have hiSup_ge : ↑(n : ℕ∞) ≤ ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 := by
-    rw [← hexist]
-    exact le_iSup (f := fun p : (Fin (n + 1)) × (Fin (n + 1)) => (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2) ⟨0, ⟨n, Nat.lt_succ_self n⟩⟩
-  have hiSup_le : ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 ≤ ↑(n : ℕ∞) :=
-    ciSup_le fun p => hupper p.1 p.2
-  have hisup : ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 = ↑(n : ℕ∞) :=
-    le_antisymm hiSup_le hiSup_ge
-  have : ⨆ u : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).eccent u = ⨆ p : (Fin (n + 1)) × (Fin (n + 1)), (SimpleGraph.pathGraph (n + 1)).edist p.1 p.2 := by
-    simp only [SimpleGraph.eccent]
-    have : ∀ {f : Fin (n + 1) → Fin (n + 1) → ℕ∞}, (⨆ u, ⨆ v, f u v) = ⨆ p : Fin (n + 1) × Fin (n + 1), f p.1 p.2 := by
-      intro f
-      exact iSup_prod' f
-    exact this
-  have hediam : (SimpleGraph.pathGraph (n + 1)).ediam = ⨆ u : Fin (n + 1), (SimpleGraph.pathGraph (n + 1)).eccent u := by
-    simp [SimpleGraph.ediam]
-  rw [hediam, this, hisup]
-  simp
+  show (path (n + 1)).toSimple.diam = n
+  rw [path_toSimple, SimpleGraph.diam, SimpleGraph.ediam_pathGraph, ENat.toNat_coe]
 
 @[simp] theorem isConnected_cycle (n : ℕ) : (cycle (n + 1)).IsConnected := by
   rcases n with _ | n
@@ -1978,193 +1957,8 @@ theorem not_isAcyclic_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
 
 /-- The radius of a path is `⌊n/2⌋`. -/
 @[simp] theorem radius_path (n : ℕ) : (path (n + 1)).radius = (n + 1) / 2 := by
-  simp [radius, IsoGraph.path, CGraph.radius]
-  -- Goal: (SimpleGraph.pathGraph (n + 1)).radius.toNat = (n + 1) / 2
-  set m := n + 1
-  let G := SimpleGraph.pathGraph m
-  -- adj_succ: edge between castSucc i and succ i for i : Fin n
-  have adj_succ : ∀ i : Fin n, G.Adj i.castSucc i.succ := by
-    intro i; simp [G, SimpleGraph.pathGraph_adj]
-  -- walk from castSucc i to succ i, length 1
-  have walk_succ : ∀ i : Fin n, ∃ p : G.Walk i.castSucc i.succ, p.length = 1 := by
-    intro i; exact ⟨SimpleGraph.Walk.cons (adj_succ i) (.nil), by simp⟩
-  -- walk from succ i to castSucc i, length 1 (reverse)
-  have walk_prev : ∀ i : Fin n, ∃ p : G.Walk i.succ i.castSucc, p.length = 1 := by
-    intro i; obtain ⟨q, hq⟩ := walk_succ i; exact ⟨q.reverse, by simp [hq]⟩
-  -- walk from 0 to i of length i.val
-  have walk0to : ∀ i : Fin (n + 1), ∃ p : G.Walk 0 i, p.length = (i : ℕ) := by
-    intro i
-    induction i using Fin.induction with
-    | zero => exact ⟨.nil, rfl⟩
-    | succ i ih =>
-      obtain ⟨p, hp⟩ := ih
-      obtain ⟨q, hq⟩ := walk_succ i
-      exact ⟨p.append q, by simp [hp, hq]⟩
-  -- walk from i to 0 of length i.val (reverse of walk0to)
-  have waveto0 : ∀ i : Fin (n + 1), ∃ p : G.Walk i 0, p.length = (i : ℕ) := by
-    intro i; obtain ⟨p, hp⟩ := walk0to i; exact ⟨p.reverse, by simp [hp]⟩
-  -- walk from i to (last) of length (n - i.val)
-  -- addK: i + k as Fin (n+1)
-  let addK (i : Fin (n + 1)) (k : ℕ) (hk : (i : ℕ) + k < n + 1) : Fin (n + 1) := ⟨i.val + k, hk⟩
-  -- upWalkAny: walk from i to addK i k hk of length k (going right)
-  have upWalkAny : ∀ (i : Fin (n + 1)) (k : ℕ) (hk : (i : ℕ) + k < n + 1),
-      ∃ p : G.Walk i (addK i k hk), p.length = k := by
-    intro i k hk
-    induction k with
-    | zero => exact ⟨.nil, rfl⟩
-    | succ m ih =>
-      obtain ⟨p, hp⟩ := ih (by omega)
-      have hm : (i : ℕ) + m < n := by omega
-      obtain ⟨q, hq⟩ := walk_succ ⟨i.val + m, hm⟩
-      exact ⟨p.append q, by simp [hp, hq]⟩
-
-  -- edist upper bounds
-  have edist_to_zero : ∀ i : Fin (n + 1), G.edist i 0 ≤ ↑(i : ℕ) := by
-    intro i; obtain ⟨p, hp⟩ := waveto0 i
-    rw [SimpleGraph.edist]
-    exact le_trans (iInf_le _ p) (by simp [hp])
-  have edist_to_last : ∀ i : Fin (n + 1), G.edist i ⟨n, Nat.lt_succ_self n⟩ ≤ ↑(n - (i : ℕ)) := by
-    intro i
-    have hk : (i : ℕ) + (n - (i : ℕ)) < n + 1 := by omega
-    have hkep : addK i (n - (i : ℕ)) hk = ⟨n, Nat.lt_succ_self n⟩ := by
-      ext; simp [addK, Nat.add_sub_of_le (show (i : ℕ) ≤ n from i.is_le)]
-    rw [← hkep]
-    obtain ⟨p, hp⟩ := upWalkAny i (n - (i : ℕ)) hk
-    rw [SimpleGraph.edist]
-    exact le_trans (iInf_le _ p) (by simp [hp])
-  -- walk_pot: for any walk from a to b in pathGraph, b.val ≤ a.val + p.length
-  have walk_pot : ∀ {a b : Fin (n + 1)} (p : G.Walk a b), (b : ℕ) ≤ (a : ℕ) + p.length := by
-    intro a b p
-    induction p with
-    | nil => simp
-    | @cons u v w hadj p ih =>
-      have hadj' : G.Adj u v := hadj
-      simp [G, SimpleGraph.pathGraph_adj] at hadj'
-      have : (v : ℕ) ≤ (u : ℕ) + 1 := by omega
-      simp [SimpleGraph.Walk.length_cons]
-      omega
-  have edist_from_zero_ge : ∀ i : Fin (n + 1), ↑(i : ℕ) ≤ G.edist i 0 := by
-    intro i
-    rw [SimpleGraph.edist_comm]
-    have hconn : G.Connected := SimpleGraph.pathGraph_connected n
-    have hreach : G.Reachable 0 i := hconn 0 i
-    have : Nonempty (G.Walk 0 i) := hreach
-    rw [SimpleGraph.edist]
-    have key : ∀ p : G.Walk 0 i, (i : ℕ∞) ≤ ↑p.length := by
-      intro p
-      have hpot := walk_pot p
-      simp at hpot
-      exact Nat.cast_le.mpr hpot
-    exact le_ciInf key
-  -- lower bound: edist i last ≥ n - i.val
-  have edist_to_last_ge :
-      ∀ i : Fin (n + 1), ↑(n - (i : ℕ)) ≤ G.edist i ⟨n, Nat.lt_succ_self n⟩ := by
-    intro i
-    have hconn : G.Connected := SimpleGraph.pathGraph_connected n
-    have hreach : G.Reachable i ⟨n, Nat.lt_succ_self n⟩ := hconn i ⟨n, Nat.lt_succ_self n⟩
-    have hwalk : Nonempty (G.Walk i ⟨n, Nat.lt_succ_self n⟩) := hreach
-    rw [SimpleGraph.edist]
-    have key : ∀ p : G.Walk i ⟨n, Nat.lt_succ_self n⟩, (n - (i : ℕ) : ℕ∞) ≤ ↑p.length := by
-      intro p
-      have hpot := walk_pot p
-      show (↑(n - (i : ℕ)) : ℕ∞) ≤ ↑(p.length : ℕ)
-      simp at hpot
-      exact Nat.cast_le.mpr (by omega)
-    exact le_ciInf key
-  -- eccent bounds
-  -- edist_le_diff_of_le: for u v with u.val ≤ v.val, edist u v ≤ ↑(v - u)
-  have edist_le_diff_of_le :
-      ∀ {u v : Fin (n + 1)}, (u : ℕ) ≤ v → G.edist u v ≤ ↑((v : ℕ) - (u : ℕ)) := by
-    intro u v huv
-    have hvk : (u : ℕ) + (v - u) < n + 1 := by omega
-    have hkep : addK u (v - u) hvk = v := by ext; simp [addK, Nat.add_sub_of_le huv]
-    obtain ⟨p, hp⟩ := upWalkAny u (v - u) hvk
-    have := SimpleGraph.edist_le p
-    rw [hp] at this
-    simpa [hkep] using this
-  have eccent_lower : ∀ i : Fin (n + 1), (max ((i : ℕ)) (n - (i : ℕ)) : ℕ∞) ≤ G.eccent i := by
-    intro i
-    unfold SimpleGraph.eccent
-    have hbdd : BddAbove (Set.range (G.edist i)) := by
-      have := Set.toFinite (Set.range (G.edist i))
-      exact this.bddAbove
-    refine max_le ?_ ?_
-    · -- i.val ≤ eccent i: use edist i 0 ≥ i.val
-      have : (↑((i : ℕ)) : ℕ∞) ≤ G.edist i 0 := edist_from_zero_ge i
-      exact le_trans this (le_ciSup hbdd 0)
-    · -- n - i.val ≤ eccent i: use edist i last ≥ n - i.val
-      have : (↑(n - (i : ℕ)) : ℕ∞) ≤ G.edist i ⟨n, Nat.lt_succ_self n⟩ := edist_to_last_ge i
-      exact le_trans this (le_ciSup hbdd ⟨n, Nat.lt_succ_self n⟩)
-  have eccent_upper : ∀ i : Fin (n + 1), G.eccent i ≤ (max ((i : ℕ)) (n - (i : ℕ)) : ℕ∞) := by
-    intro i
-    unfold SimpleGraph.eccent
-    apply ciSup_le
-    intro j
-    by_cases huv : (i : ℕ) ≤ (j : ℕ)
-    · -- j ≥ i: edist i j ≤ ↑(j - i) ≤ ↑(n - i) ≤ max(i, n-i)
-      have h1 : G.edist i j ≤ ↑((j : ℕ) - (i : ℕ)) := edist_le_diff_of_le huv
-      have h2 : (↑((j : ℕ) - (i : ℕ)) : ℕ∞) ≤ (↑(n - (i : ℕ)) : ℕ∞) := Nat.cast_le.mpr (by omega)
-      have h3 : (↑(n - (i : ℕ)) : ℕ∞) ≤ (max ((i : ℕ)) (n - (i : ℕ)) : ℕ∞) := by
-        apply Nat.cast_le.mpr; exact le_max_right _ _
-      exact le_trans (le_trans h1 h2) h3
-    · -- j < i: edist i j = edist j i ≤ ↑(i - j) ≤ ↑i ≤ max(i, n-i)
-      push_neg at huv
-      have h1 : G.edist i j = G.edist j i := by rw [SimpleGraph.edist_comm]
-      have h2 : G.edist j i ≤ ↑((i : ℕ) - (j : ℕ)) := edist_le_diff_of_le (le_of_lt huv)
-      have h3 : (↑((i : ℕ) - (j : ℕ)) : ℕ∞) ≤ (↑((i : ℕ)) : ℕ∞) := Nat.cast_le.mpr (by omega)
-      have h4 : (↑((i : ℕ)) : ℕ∞) ≤ (max ((i : ℕ)) (n - (i : ℕ)) : ℕ∞) := by
-        apply Nat.cast_le.mpr; exact le_max_left _ _
-      exact h1.symm ▸ le_trans (le_trans h2 h3) h4
-  -- eccent i = max(i, n - i)
-  have eccent_eq : ∀ i : Fin (n + 1), G.eccent i = (max ((i : ℕ)) (n - (i : ℕ)) : ℕ∞) := by
-    intro i; exact le_antisymm (eccent_upper i) (eccent_lower i)
-  -- radius = ⨅ i, ↑(max(i, n-i))
-  have radius_eq : G.radius = (⨅ u : Fin (n + 1), (max ((u : ℕ)) (n - (u : ℕ)) : ℕ∞)) := by
-    simp [SimpleGraph.radius, eccent_eq]
-    rfl
-  -- For all u : Fin (n+1), max(u, n-u) ≥ (n+1)/2 in ℕ
-  have ge_half : ∀ u : Fin (n + 1), (n + 1) / 2 ≤ max ((u : ℕ)) (n - (u : ℕ)) := by
-    intro u
-    have hle : (n + 1) / 2 ≤ (u : ℕ) ∨ (n + 1) / 2 ≤ n - (u : ℕ) := by
-      by_contra h
-      push_neg at h
-      omega
-    exact hle.elim (fun h => h.trans (le_max_left _ _)) (fun h => h.trans (le_max_right _ _))
-  -- There exists u with max(u, n-u) = (n+1)/2: take u = n/2
-  have exists_eq_half : ∃ u : Fin (n + 1), max ((u : ℕ)) (n - (u : ℕ)) = (n + 1) / 2 := by
-    refine ⟨⟨n / 2, by omega⟩, ?_⟩
-    simp
-    omega
-
-  -- Bridge lemmas in ℕ∞
-  have coe_tsub : ∀ (a b : ℕ), b ≤ a → (↑a : ℕ∞) - ↑b = ↑(a - b) := by
-    intro a b hab
-    simp
-  have cast_max : ∀ (a b : ℕ), max (↑a : ℕ∞) (↑b : ℕ∞) = ↑(max a b) := by
-    intro a b
-    by_cases h : a ≤ b
-    · rw [max_eq_right h, max_eq_right (by exact Nat.cast_le.mpr h)]
-    · rw [max_eq_left (le_of_not_ge h), max_eq_left (by exact Nat.cast_le.mpr (le_of_not_ge h))]
-  -- Key: f u = ↑(max (↑u) (n - ↑u))
-  have f_eq : ∀ u : Fin (n + 1), max (↑↑u) (↑n - ↑↑u : ℕ∞) = ↑(max ((u : ℕ)) (n - (u : ℕ))) := by
-    intro u
-    rw [coe_tsub n (u : ℕ) u.is_le, cast_max]
-  -- The inf of max(u, n-u) over u is (n+1)/2 (in ℕ∞)
-  have inf_eq_half :
-      (⨅ u : Fin (n + 1), max (↑↑u) (↑n - ↑↑u : ℕ∞)) = (↑((n + 1) / 2 : ℕ) : ℕ∞) := by
-    have hbdd : BddBelow (Set.range (fun u : Fin (n + 1) => max (↑↑u) (↑n - ↑↑u : ℕ∞))) := by
-      exact ⟨0, fun _ ⟨_, _⟩ => by positivity⟩
-    apply le_antisymm
-    · obtain ⟨u, hu⟩ := exists_eq_half
-      have : max (↑↑u) (↑n - ↑↑u : ℕ∞) = ↑((n + 1) / 2 : ℕ) := by
-        rw [f_eq u, hu]
-      exact this ▸ ciInf_le hbdd u
-    · apply le_ciInf
-      intro u
-      rw [f_eq u]
-      exact_mod_cast ge_half u
-  rw [radius_eq, inf_eq_half]
-  simp [m]
+  rw [IsoGraph.path, radius_mk, CGraph.radius, CGraph.path_toSimple,
+    SimpleGraph.radius_pathGraph, ENat.toNat_coe]
 
 /-! ### Connectivity of the strong and lexicographic products -/
 
