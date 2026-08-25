@@ -105,6 +105,251 @@ theorem radius_pathGraph (n : ℕ) : (pathGraph (n + 1)).radius = (((n + 1) / 2 
   · unfold radius
     exact le_iInf fun i ↦ by rw [eccent_pathGraph]; exact Nat.cast_le.2 (by omega)
 
+/-! ### Distances in the cycle graph
+
+The cycle is the path with its two ends glued, and its metric is the same difference of indices
+read modulo the length: two vertices are joined by two arcs, and the distance is the shorter of
+them.  Being vertex-transitive, the cycle has the same radius as diameter. -/
+
+/-- Adjacency in `cycleGraph (n + 2)` read off the indices: neighbours are consecutive, except
+for the pair `0`, `n + 1` that closes the cycle. -/
+theorem cycleGraph_adj_val {n : ℕ} (u v : Fin (n + 2)) :
+    (cycleGraph (n + 2)).Adj u v ↔
+      u.val + 1 = v.val ∨ v.val + 1 = u.val ∨
+        (u.val = 0 ∧ v.val = n + 1) ∨ (v.val = 0 ∧ u.val = n + 1) := by
+  have key : ∀ a b : Fin (n + 2),
+      (a - b).val = 1 ↔ b.val + 1 = a.val ∨ (a.val = 0 ∧ b.val = n + 1) := by
+    intro a b
+    have hsub : (a - b).val = (n + 2 - b.val + a.val) % (n + 2) := rfl
+    have ha := a.isLt
+    have hb := b.isLt
+    rcases lt_or_ge (n + 2 - b.val + a.val) (n + 2) with h | h
+    · rw [hsub, Nat.mod_eq_of_lt h]
+      omega
+    · rw [hsub, Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]
+      omega
+  rw [cycleGraph_adj', key, key]
+  tauto
+
+/-- One step forward around the cycle. -/
+private theorem cycleGraph_adj_succ {n : ℕ} (a b : Fin (n + 2))
+    (h : (a.val + 1) % (n + 2) = b.val) : (cycleGraph (n + 2)).Adj a b := by
+  rw [cycleGraph_adj_val]
+  have ha := a.isLt
+  rcases lt_or_ge (a.val + 1) (n + 2) with hlt | hge
+  · rw [Nat.mod_eq_of_lt hlt] at h
+    exact Or.inl h
+  · have han : a.val = n + 1 := by omega
+    have h0 : (a.val + 1) % (n + 2) = 0 := by rw [han]; exact Nat.mod_self _
+    exact Or.inr (Or.inr (Or.inr ⟨h.symm.trans h0, han⟩))
+
+/-- Stepping forward `k` times around `cycleGraph (n + 2)` reaches the index `u + k` mod `n + 2`. -/
+private theorem exists_walk_cycleGraph {n : ℕ} (u : Fin (n + 2)) : ∀ (k : ℕ) (v : Fin (n + 2)),
+    (u.val + k) % (n + 2) = v.val → ∃ p : (cycleGraph (n + 2)).Walk u v, p.length = k := by
+  intro k
+  induction k with
+  | zero =>
+    intro v h
+    have hu : (u.val + 0) % (n + 2) = u.val := Nat.mod_eq_of_lt (by omega)
+    exact ⟨(Walk.nil : (cycleGraph (n + 2)).Walk u u).copy rfl (Fin.ext (hu.symm.trans h)),
+      by simp⟩
+  | succ k ih =>
+    intro v h
+    have hx : (u.val + k) % (n + 2) < n + 2 := Nat.mod_lt _ (by omega)
+    obtain ⟨p, hp⟩ := ih ⟨(u.val + k) % (n + 2), hx⟩ rfl
+    exact ⟨p.concat (cycleGraph_adj_succ _ v (by rw [Nat.mod_add_mod]; exact h)), by simp [hp]⟩
+
+/-- Walking forward bounds the distance to whatever vertex the walk reaches. -/
+private theorem edist_cycleGraph_le {n : ℕ} (u v : Fin (n + 2)) (k : ℕ)
+    (h : (u.val + k) % (n + 2) = v.val) :
+    (cycleGraph (n + 2)).edist u v ≤ (k : ℕ∞) := by
+  obtain ⟨p, hp⟩ := exists_walk_cycleGraph u k v h
+  exact hp ▸ Walk.edist_le p
+
+/-- Every edge of `cycleGraph (n + 2)` changes the arc distance to a fixed vertex by at most one,
+so no walk can beat the shorter of the two arcs. -/
+private theorem arc_le_length_walk_cycleGraph {n : ℕ} {a b : Fin (n + 2)}
+    (p : (cycleGraph (n + 2)).Walk a b) :
+    min (max a.val b.val - min a.val b.val) (n + 2 - (max a.val b.val - min a.val b.val))
+      ≤ p.length := by
+  induction p with
+  | nil => simp
+  | @cons u v w hadj p ih =>
+    rw [cycleGraph_adj_val] at hadj
+    rw [Walk.length_cons]
+    omega
+
+/-- **The distance in a cycle graph is the shorter of the two arcs.** -/
+theorem edist_cycleGraph {n : ℕ} (u v : Fin (n + 2)) :
+    (cycleGraph (n + 2)).edist u v =
+      ((min (max u.val v.val - min u.val v.val)
+        (n + 2 - (max u.val v.val - min u.val v.val)) : ℕ) : ℕ∞) := by
+  have key : ∀ a b : Fin (n + 2), a.val ≤ b.val →
+      (cycleGraph (n + 2)).edist a b ≤
+        ((min (b.val - a.val) (n + 2 - (b.val - a.val)) : ℕ) : ℕ∞) := by
+    intro a b hab
+    have ha := a.isLt
+    have hb := b.isLt
+    rcases le_total (b.val - a.val) (n + 2 - (b.val - a.val)) with h | h
+    · rw [min_eq_left h]
+      exact edist_cycleGraph_le a b _ (by
+        rw [show a.val + (b.val - a.val) = b.val by omega, Nat.mod_eq_of_lt hb])
+    · rw [min_eq_right h, edist_comm]
+      exact edist_cycleGraph_le b a _ (by
+        rw [show b.val + (n + 2 - (b.val - a.val)) = n + 2 + a.val by omega, Nat.add_mod_left,
+          Nat.mod_eq_of_lt ha])
+  refine le_antisymm ?_ ?_
+  · rcases le_total u.val v.val with h | h
+    · exact le_trans (key u v h) (Nat.cast_le.2 (by omega))
+    · rw [edist_comm]
+      exact le_trans (key v u h) (Nat.cast_le.2 (by omega))
+  · rw [edist]
+    exact le_iInf fun p ↦ Nat.cast_le.2 (arc_le_length_walk_cycleGraph p)
+
+/-- `edist_cycleGraph` with both endpoints given by explicit indices. -/
+theorem edist_cycleGraph_mk {n a b : ℕ} (ha : a < n + 2) (hb : b < n + 2) :
+    (cycleGraph (n + 2)).edist ⟨a, ha⟩ ⟨b, hb⟩ =
+      ((min (max a b - min a b) (n + 2 - (max a b - min a b)) : ℕ) : ℕ∞) :=
+  edist_cycleGraph _ _
+
+/-- **The diameter of a cycle** is `⌊N/2⌋`, realised by a pair of antipodal vertices. -/
+theorem ediam_cycleGraph (n : ℕ) :
+    (cycleGraph (n + 2)).ediam = (((n + 2) / 2 : ℕ) : ℕ∞) := by
+  refine le_antisymm (ediam_le_of_edist_le fun u v ↦ ?_) (le_trans (le_of_eq ?_)
+    (edist_le_ediam (u := (⟨0, by omega⟩ : Fin (n + 2)))
+      (v := (⟨(n + 2) / 2, by omega⟩ : Fin (n + 2)))))
+  · rw [edist_cycleGraph]
+    exact Nat.cast_le.2 (by omega)
+  · rw [edist_cycleGraph_mk]
+    exact congrArg (fun k : ℕ ↦ (k : ℕ∞)) (by omega)
+
+/-- **Every vertex of a cycle has the same eccentricity**, namely `⌊N/2⌋`. -/
+theorem eccent_cycleGraph {n : ℕ} (u : Fin (n + 2)) :
+    (cycleGraph (n + 2)).eccent u = (((n + 2) / 2 : ℕ) : ℕ∞) := by
+  refine le_antisymm ?_ ?_
+  · unfold eccent
+    refine iSup_le fun v ↦ ?_
+    rw [edist_cycleGraph]
+    exact Nat.cast_le.2 (by omega)
+  · refine le_trans (le_of_eq ?_) (edist_le_eccent
+      (v := (⟨(u.val + (n + 2) / 2) % (n + 2), Nat.mod_lt _ (by omega)⟩ : Fin (n + 2))))
+    rw [edist_cycleGraph]
+    refine congrArg (fun k : ℕ ↦ (k : ℕ∞)) ?_
+    have hu := u.isLt
+    have hv : ((⟨(u.val + (n + 2) / 2) % (n + 2), Nat.mod_lt _ (by omega)⟩ : Fin (n + 2)) : ℕ)
+        = (u.val + (n + 2) / 2) % (n + 2) := rfl
+    rw [hv]
+    rcases lt_or_ge (u.val + (n + 2) / 2) (n + 2) with h | h
+    · rw [Nat.mod_eq_of_lt h]
+      omega
+    · rw [Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]
+      omega
+
+/-- **The radius of a cycle** equals its diameter. -/
+theorem radius_cycleGraph (n : ℕ) :
+    (cycleGraph (n + 2)).radius = (((n + 2) / 2 : ℕ) : ℕ∞) := by
+  refine le_antisymm ((radius_le_eccent (u := (⟨0, by omega⟩ : Fin (n + 2)))).trans_eq
+    (eccent_cycleGraph _)) ?_
+  unfold radius
+  exact le_iInf fun u ↦ (eccent_cycleGraph u).ge
+
+/-! ### Acyclicity of the path graph -/
+
+/-- **The path graph is acyclic**: deleting the edge `k — k + 1` separates the indices `≤ k` from
+the indices `> k`, so every edge is a bridge. -/
+theorem isAcyclic_pathGraph (n : ℕ) : (pathGraph n).IsAcyclic := by
+  have key : ∀ a b : Fin n, (pathGraph n).Adj a b → a.val + 1 = b.val →
+      (pathGraph n).IsBridge s(a, b) := by
+    intro a b hab hval
+    rw [isBridge_iff]
+    refine ⟨hab, fun hr ↦ ?_⟩
+    -- with the edge `a — b` gone, no walk can change the truth of `· ≤ a`
+    have hinv : ∀ {x y : Fin n}, (pathGraph n \ fromEdgeSet {s(a, b)}).Reachable x y →
+        (x.val ≤ a.val ↔ y.val ≤ a.val) := by
+      rintro x y ⟨w⟩
+      induction w with
+      | nil => rfl
+      | @cons p q r hpq w ih =>
+        refine Iff.trans ?_ ih
+        obtain ⟨hpq1, hpq2⟩ := hpq
+        rw [pathGraph_adj] at hpq1
+        simp only [fromEdgeSet_adj, Set.mem_singleton_iff, not_and] at hpq2
+        have hpne : p ≠ q := fun hpq ↦ by rw [hpq] at hpq1; omega
+        have hne : s(p, q) ≠ s(a, b) := fun h ↦ hpq2 h hpne
+        rw [Ne, Sym2.eq_iff] at hne
+        push_neg at hne
+        have h1 : p.val = a.val → q.val ≠ b.val := fun h h' ↦
+          absurd (Fin.ext h) (fun hp ↦ hne.1 hp (Fin.ext h'))
+        have h2 : p.val = b.val → q.val ≠ a.val := fun h h' ↦
+          absurd (Fin.ext h) (fun hp ↦ hne.2 hp (Fin.ext h'))
+        omega
+    have := (hinv hr).mp le_rfl
+    omega
+  rw [isAcyclic_iff_forall_adj_isBridge]
+  intro v w h
+  rcases pathGraph_adj.1 h with hv | hv
+  · exact key v w h hv
+  · rw [Sym2.eq_swap]
+    exact key w v h.symm hv
+
+/-- **The path graph is a tree.** -/
+theorem isTree_pathGraph (n : ℕ) : (pathGraph (n + 1)).IsTree :=
+  ⟨pathGraph_connected n, isAcyclic_pathGraph _⟩
+
+/-! ### Walks of prescribed parity
+
+A connected graph that is not bipartite carries a closed walk of odd length, and closed walks are
+the only tool needed to adjust the length of a walk: appending an odd one flips the parity, and
+repeating it lengthens the walk arbitrarily.  This is the combinatorial engine behind Weichsel's
+theorem on tensor products. -/
+
+/-- Go round the closed walk `c` `k` times before walking `p`. -/
+private def prependLoop {V : Type*} {G : SimpleGraph V} {u v : V} (c : G.Walk u u)
+    (p : G.Walk u v) : ℕ → G.Walk u v
+  | 0 => p
+  | k + 1 => c.append (prependLoop c p k)
+
+private theorem length_prependLoop {V : Type*} {G : SimpleGraph V} {u v : V} (c : G.Walk u u)
+    (p : G.Walk u v) (k : ℕ) : (prependLoop c p k).length = k * c.length + p.length := by
+  induction k with
+  | zero => simp [prependLoop]
+  | succ k ih => simp [prependLoop, ih]; ring
+
+/-- **A connected graph that is not two-colourable carries an odd closed walk through every
+vertex.**  This is the easy half of the odd-cycle characterisation of bipartiteness, which Mathlib
+still lists as a TODO; the walk form is what parity arguments need. -/
+theorem exists_closed_walk_odd_length {V : Type*} {G : SimpleGraph V} (hc : G.Preconnected)
+    (hb : ¬ G.Colorable 2) (v : V) : ∃ w : G.Walk v v, w.length % 2 = 1 := by
+  by_contra hno
+  push_neg at hno
+  -- otherwise every two walks out of `v` to a common endpoint agree in parity, and that parity
+  -- is a two-colouring
+  have hwd : ∀ (u : V) (w₁ w₂ : G.Walk v u), w₁.length % 2 = w₂.length % 2 := by
+    intro u w₁ w₂
+    have h := hno (w₁.append w₂.reverse)
+    rw [Walk.length_append, Walk.length_reverse] at h
+    omega
+  refine hb ⟨fun u ↦ ⟨(hc v u).some.length % 2, Nat.mod_lt _ (by omega)⟩, fun {a b} hadj ↦ ?_⟩
+  have h := hwd b (hc v b).some ((hc v a).some.concat hadj)
+  rw [Walk.length_concat] at h
+  exact Fin.ne_of_val_ne (by simpa using fun hab ↦ by omega)
+
+/-- **In a connected non-bipartite graph any two vertices are joined by arbitrarily long walks of
+either parity.**  An odd closed walk flips the parity, and going round it repeatedly lengthens a
+walk without changing either endpoint. -/
+theorem exists_walk_length_ge_of_parity {V : Type*} {G : SimpleGraph V} (hc : G.Preconnected)
+    (hb : ¬ G.Colorable 2) (u v : V) (N r : ℕ) :
+    ∃ w : G.Walk u v, N ≤ w.length ∧ w.length % 2 = r % 2 := by
+  obtain ⟨c, hc2⟩ := exists_closed_walk_odd_length hc hb u
+  obtain ⟨w₁, hw₁⟩ : ∃ w : G.Walk u v, w.length % 2 = r % 2 := by
+    by_cases h : (hc u v).some.length % 2 = r % 2
+    · exact ⟨_, h⟩
+    · exact ⟨c.append (hc u v).some, by rw [Walk.length_append]; omega⟩
+  have hbig : N ≤ 2 * N * c.length := by
+    nlinarith [Nat.one_le_iff_ne_zero.2 (by omega : c.length ≠ 0)]
+  have heven : 2 * N * c.length % 2 = 0 := by rw [mul_assoc]; exact Nat.mul_mod_right 2 _
+  refine ⟨prependLoop c w₁ (2 * N), ?_, ?_⟩ <;> rw [length_prependLoop] <;> omega
+
 end SimpleGraph
 
 namespace CGraph
@@ -133,135 +378,10 @@ variable (G H : CGraph)
   simpa [IsConnected] using SimpleGraph.pathGraph_connected n
 
 @[simp] theorem isAcyclic_path (n : ℕ) : (path n).IsAcyclic := by
-  simp [IsAcyclic, path_toSimple]
-  intro v c hc
-  have hne : c ≠ SimpleGraph.Walk.nil := hc.isCircuit.ne_nil
-  have htrail := hc.isCircuit.isTrail
-  -- No edges in pathGraph n when n ≤ 1
-  by_cases hn : n ≤ 1
-  · -- pathGraph n has no edges
-    have no_edges : ∀ (a b : Fin n), ¬(SimpleGraph.pathGraph n).Adj a b := by
-      intro a b hab
-      rw [SimpleGraph.pathGraph_adj] at hab
-      omega
-    -- In a graph with no edges, every walk is nil. Contradiction with hne.
-    have all_walks_nil : ∀ ⦃x y : Fin n⦄ (w : (SimpleGraph.pathGraph n).Walk x y), w.length = 0 := by
-      intro x y w
-      induction w with
-      | nil => simp
-      | cons hab w' ih =>
-        exact absurd hab (no_edges _ _)
-    exact hne (by
-      have h0 : c.length = 0 := all_walks_nil c
-      rw [SimpleGraph.Walk.length_eq_zero_iff] at h0
-      exact h0)
-  · -- n ≥ 2: use cut lemma
-    -- Helper: In pathGraph n, adjacent vertices have indices differing by exactly 1.
-    have adj_idx : ∀ (a b : Fin n), (SimpleGraph.pathGraph n).Adj a b → (a.val = b.val + 1 ∨ b.val = a.val + 1) := by
-      intro a b hab
-      rw [SimpleGraph.pathGraph_adj] at hab
-      omega
-    -- Helper: The only edge between {0..k} and {k+1..n-1} is {⟨k,...⟩, ⟨k+1,...⟩}.
-    -- Specifically, if Adj x y, x.val ≤ k, and y.val ≥ k+1, then {x,y} = {⟨k,...⟩, ⟨k+1,...⟩}.
-    have crossing_edge_unique : ∀ (k : ℕ) (hk : k + 1 < n) (x y : Fin n)
-      (hadj : (SimpleGraph.pathGraph n).Adj x y) (hx : x.val ≤ k) (hy : k + 1 ≤ y.val),
-      Sym2.mk (x, y) = Sym2.mk (Prod.mk (⟨k, by omega⟩ : Fin n) (⟨k + 1, by omega⟩ : Fin n)) := by
-      intro k hk x y hadj hx hy
-      have hadj' := adj_idx x y hadj
-      obtain hx1 | hy1 := hadj'
-      · -- x.val = y.val + 1, but x ≤ k < y, impossible
-        omega
-      · -- y.val = x.val + 1, and x ≤ k < y, so x = k, y = k+1
-        have hxval : x.val = k := by omega
-        have hyval : y.val = k + 1 := by omega
-        have hxFin : x = ⟨k, by omega⟩ := Fin.ext hxval
-        have hyFin' : y = ⟨k + 1, hk⟩ := Fin.ext hyval
-        exact congr_arg Sym2.mk (Prod.ext hxFin hyFin')
-    -- Cut lemma: any walk from index ≥ k+1 to index ≤ k uses the crossing edge.
-    have cut_lemma : ∀ (k : ℕ) (hk : k + 1 < n) (x y : Fin n) (hx : k + 1 ≤ x.val) (hy : y.val ≤ k)
-      (w : (SimpleGraph.pathGraph n).Walk x y),
-      Sym2.mk (Prod.mk (⟨k, by omega⟩ : Fin n) (⟨k + 1, by omega⟩ : Fin n)) ∈ w.edges := by
-      intro k hk x y hx hy w
-      induction w with
-      | nil =>
-        simp at hx hy
-        omega
-      | @cons u v w huv rest ih =>
-        -- huv : Adj u v, rest : Walk v w, ih : for walk v → w
-        -- hx : k+1 ≤ u.val, hy : w.val ≤ k
-        by_cases hv : v.val ≤ k
-        · -- Edge huv crosses: u.val ≥ k+1, v.val ≤ k. Use crossing_edge_unique with (v, u).
-          have hcross : Sym2.mk (v, u) = Sym2.mk (Prod.mk (⟨k, by omega⟩ : Fin n) (⟨k + 1, by omega⟩ : Fin n)) :=
-            crossing_edge_unique k hk v u (huv.symm) (by omega) (by omega)
-          have : Sym2.mk (v, u) = Sym2.mk (u, v) := by
-            symm
-            show Sym2.mk (u, v) = Sym2.mk (v, u)
-            dsimp only [Sym2.mk]
-            exact Quot.sound (Sym2.Rel.swap u v)
-          rw [SimpleGraph.Walk.edges_cons, ← hcross, this]
-          exact List.Mem.head _
-        · -- v.val ≥ k+1, recurse on rest
-          push_neg at hv
-          have := ih hv hy
-          rw [SimpleGraph.Walk.edges_cons]
-          exact List.mem_cons_of_mem _ this
-    -- Sym2 symmetry helper
-    have symm_edge : ∀ (a b : (path n).V), Sym2.mk (b, a) = Sym2.mk (a, b) := by
-      intro a b
-      dsimp only [Sym2.mk]
-      exact Quot.sound (Sym2.Rel.swap b a)
-    -- Now handle c. Decompose.
-    cases c
-    · exact absurd rfl hne
-    · rename_i v_star huv rest
-      have edge_in_cons : Sym2.mk (v, v_star) ∈ (SimpleGraph.Walk.cons huv rest).edges := by
-        simp [SimpleGraph.Walk.edges_cons]
-      obtain hvw | hvw := adj_idx v v_star huv
-      · -- v.val = v_star.val + 1, so v_star < v. rest goes low→high.
-        set k := v_star.val
-        have hk : k + 1 < n := by omega
-        have hvk : (v : (path n).V).val = k + 1 := hvw
-        let vki : (path n).V := ⟨k, by omega⟩
-        let VKI : (path n).V := ⟨k + 1, by omega⟩
-        have hv_eq : v = VKI := Fin.ext hvk
-        let crossing : Sym2 ((path n).V) := Sym2.mk (vki, VKI)
-        have hedge_eq : Sym2.mk (v, v_star) = crossing := by
-          subst hv_eq; exact symm_edge vki VKI
-        -- reverse rest : Walk v v_star, high→low
-        have hmem_rev : crossing ∈ (SimpleGraph.Walk.reverse rest).edges := by
-          have h1 : k + 1 ≤ (v : Fin n).val := hvk.ge
-          have h2 : (v_star : Fin n).val ≤ k := le_rfl
-          convert cut_lemma k hk v v_star h1 h2 (SimpleGraph.Walk.reverse rest) using 1
-        rw [SimpleGraph.Walk.edges_reverse] at hmem_rev
-        have hmem : crossing ∈ rest.edges := by
-          rw [List.mem_reverse] at hmem_rev; exact hmem_rev
-        have hnodu := htrail.edges_nodup
-        rw [SimpleGraph.Walk.edges_cons] at hnodu edge_in_cons
-        rw [hedge_eq] at edge_in_cons
-        have hnotin : crossing ∉ rest.edges := by
-          intro h
-          rw [hedge_eq.symm] at h
-          exact (List.nodup_cons.mp hnodu).1 h
-        exact hnotin hmem
-      · -- v_star.val = v.val + 1, so v_star > v. rest goes high→low.
-        set k := (v : (path n).V).val
-        have hk : k + 1 < n := by omega
-        let vki : (path n).V := ⟨k, by omega⟩
-        let VKI : (path n).V := ⟨k + 1, by omega⟩
-        have hvstar_eq : v_star = VKI := Fin.ext hvw
-        let crossing : Sym2 ((path n).V) := Sym2.mk (vki, VKI)
-        have hedge_eq : Sym2.mk (v, v_star) = crossing := by
-          subst hvstar_eq; rfl
-        have hmem : crossing ∈ rest.edges :=
-          cut_lemma k hk v_star v (by omega) (by omega) rest
-        have hnodu := htrail.edges_nodup
-        rw [SimpleGraph.Walk.edges_cons] at hnodu edge_in_cons
-        rw [hedge_eq] at edge_in_cons
-        have hnotin : crossing ∉ rest.edges := by
-          intro h
-          rw [hedge_eq.symm] at h
-          exact (List.nodup_cons.mp hnodu).1 h
-        exact hnotin hmem
+  show (path n).toSimple.IsAcyclic
+  rw [path_toSimple]
+  exact SimpleGraph.isAcyclic_pathGraph n
+
 
 @[simp] theorem isTree_path (n : ℕ) : (path (n + 1)).IsTree :=
   ⟨isConnected_path n, isAcyclic_path (n + 1)⟩
@@ -271,67 +391,9 @@ variable (G H : CGraph)
   rw [path_toSimple, SimpleGraph.diam, SimpleGraph.ediam_pathGraph, ENat.toNat_coe]
 
 @[simp] theorem isConnected_cycle (n : ℕ) : (cycle (n + 1)).IsConnected := by
-  rcases n with _ | n
-  · -- n = 0: cycle 1, single vertex, trivially connected
-    show (cycle 1).toSimple.Connected
-    let _ : Nonempty (cycle 1).V := ⟨⟨0, by omega⟩⟩
-    have huv : ∀ (u v : (cycle 1).V), u = v := by
-      intro u v
-      have hu : u.val = 0 := Nat.eq_zero_of_le_zero (Nat.le_of_lt_succ u.is_lt)
-      have hv : v.val = 0 := Nat.eq_zero_of_le_zero (Nat.le_of_lt_succ v.is_lt)
-      exact Fin.ext (hu.trans hv.symm)
-    exact { preconnected := fun u v => by rw [huv u v] }
-  · -- n ≥ 1: m ≥ 2
-    set m := n + 1 + 1
-    -- step_adj: from i can go to (i+1)%m
-    have step_adj : ∀ i : Fin m, (cycle m).toSimple.Adj i ⟨(i.val + 1) % m, Nat.mod_lt _ (by omega)⟩ := by
-      intro i
-      simp only [cycle, toSimple_adj, ofRel_adj]
-      have hi_lt : (i : ℕ) < m := i.is_lt
-      have hne : (i : ℕ) ≠ (i.val + 1) % m := by
-        intro h
-        have him1 : (i : ℕ) + 1 ≤ m := by omega
-        by_cases hlt : (i : ℕ) + 1 < m
-        · have hmod : ((i : ℕ) + 1) % m = (i : ℕ) + 1 := Nat.mod_eq_of_lt hlt
-          rw [hmod] at h; omega
-        · have hneq : (i : ℕ) + 1 = m := by omega
-          have hmod2 : ((i : ℕ) + 1) % m = 0 := by rw [hneq]; simp
-          rw [hmod2] at h; omega
-      set j : Fin m := ⟨(i.val + 1) % m, Nat.mod_lt _ (by omega)⟩
-      have hne' : i ≠ j := by
-        intro h; have := congr_arg Fin.val h; simp [j] at this; exact hne this
-      simp [hne', j]
-    -- Walk step: reachability from i to (i+k)%m for any k
-    have walk_step : ∀ (i : Fin m) (k : ℕ), (cycle m).toSimple.Reachable i ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ := by
-      intro i k
-      induction k with
-      | zero =>
-        show (cycle m).toSimple.Reachable i ⟨(i.val + 0) % m, Nat.mod_lt _ (by omega)⟩
-        simp [Nat.mod_eq_of_lt (by omega : (i : ℕ) < m)]
-      | succ k ih =>
-        show (cycle m).toSimple.Reachable i ⟨(i.val + (k + 1)) % m, Nat.mod_lt _ (by omega)⟩
-        have hstep : (cycle m).toSimple.Adj ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ ⟨((i.val + k) + 1) % m, Nat.mod_lt _ (by omega)⟩ := by
-          convert step_adj ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ using 2
-          simp
-        obtain ⟨w⟩ := ih
-        exact ⟨w.concat hstep⟩
-    -- Reachability between any two vertices
-    have reach_all : ∀ (i j : Fin m), (cycle m).toSimple.Reachable i j := by
-      intro i j
-      let k := j.val + m - i.val
-      have hk : (i.val + k) % m = j.val := by
-        simp [k]
-        have : (i.val + (j.val + m - i.val)) = j.val + m := by omega
-        have h1 : (↑i + (↑j + m - ↑i)) = ↑j + m := ‹_›
-        rw [h1]
-        have h2 : ((↑j + m) % m : ℕ) = ↑j := by
-          simp [Nat.mod_eq_of_lt (by omega : (j : ℕ) < m)]
-        exact h2
-      have h_eq : j = ⟨(i.val + k) % m, Nat.mod_lt _ (by omega)⟩ := by
-        exact Fin.ext hk.symm
-      rw [h_eq]
-      exact walk_step i k
-    exact { preconnected := reach_all, nonempty := ⟨⟨0, by omega⟩⟩ }
+  show (cycle (n + 1)).toSimple.Connected
+  rw [cycle_toSimple]
+  exact SimpleGraph.cycleGraph_connected
 
 @[simp] theorem not_isAcyclic_cycle (n : ℕ) : ¬(cycle (n + 3)).IsAcyclic := by
   by_contra h_ac
@@ -357,227 +419,16 @@ variable (G H : CGraph)
   rw [hE] at this
   omega
 
+/-- **The diameter of a cycle is `⌊n/2⌋`**, the length of the shorter of the two arcs joining a
+pair of antipodal vertices. -/
 @[simp] theorem diameter_cycle (n : ℕ) : (cycle (n + 1)).diameter = (n + 1) / 2 := by
   show (cycle (n + 1)).toSimple.diam = (n + 1) / 2
-  simp only [SimpleGraph.diam]
-  set m : ℕ := (n + 1) / 2
-  show ((cycle (n + 1)).toSimple.ediam).toNat = m
-  by_cases hn : n = 0
-  · subst hn
-    simp [m]
-    exact Or.inl (by show Subsingleton (Fin 1); exact inferInstance)
-  have h_edge : ∀ i : Fin (n + 1), (cycle (n + 1)).toSimple.Adj i (i + 1) := by
-    intro i
-    simp [cycle, ofRel_adj, toSimple_adj]
-    exact ⟨hn, Or.inl (by rw [Fin.val_add]; simp)⟩
-  -- Clockwise walk of length t from u to (u + t)
-  let finAdd : ℕ → Fin (n + 1) := fun t => ⟨t % (n + 1), Nat.mod_lt t (Nat.succ_pos n)⟩
-  have h_edist_walk : ∀ (u : Fin (n + 1)) (t : ℕ), t ≤ n → (cycle (n + 1)).toSimple.edist u (u + finAdd t) ≤ (t : ℕ∞) := by
-    intro u t
-    induction t with
-    | zero =>
-      intro ht
-      simp [finAdd, SimpleGraph.edist_self]
-    | succ t ih =>
-      intro ht
-      have hstep : (u + finAdd t) + 1 = u + finAdd (t + 1) := by
-        simp [finAdd, Fin.add_def, Nat.add_assoc]
-      have hedge : (cycle (n + 1)).toSimple.Adj (u + finAdd t) (u + finAdd (t + 1)) := by
-        rw [← hstep]
-        exact h_edge (u + finAdd t)
-      have h_edist_succ : (cycle (n + 1)).toSimple.edist (u + finAdd t) (u + finAdd (t + 1)) ≤ 1 := by
-        have : (cycle (n + 1)).toSimple.edist (u + finAdd t) (u + finAdd (t + 1)) ≤ ↑(SimpleGraph.Walk.nil.cons hedge).length := SimpleGraph.Walk.edist_le (SimpleGraph.Walk.nil.cons hedge)
-        simpa using this
-      calc (cycle (n + 1)).toSimple.edist u (u + finAdd (t + 1))
-          ≤ (cycle (n + 1)).toSimple.edist u (u + finAdd t) +
-              (cycle (n + 1)).toSimple.edist (u + finAdd t) (u + finAdd (t + 1)) :=
-            SimpleGraph.edist_triangle
-        _ ≤ ↑t + 1 := by
-            exact add_le_add (ih (by omega)) h_edist_succ
-        _ = ↑(t + 1) := by push_cast; rfl
-  have h_edist_le : ∀ u v : Fin (n + 1), (cycle (n + 1)).toSimple.edist u v ≤ (m : ℕ∞) := by
-    intro u v
-    let t : ℕ := (v.val + (n + 1) - u.val) % (n + 1)  -- clockwise distance, 0 ≤ t ≤ n
-    -- min(t, (n+1)-t) ≤ m
-    have hmin : t ≤ m ∨ (n + 1 - t) ≤ m := by
-      have ht : t < n + 1 := Nat.mod_lt _ (Nat.succ_pos n)
-      have ht_le : t ≤ n := Nat.le_of_lt_succ ht
-      have : t + (n + 1 - t) = n + 1 := by omega
-      by_contra h
-      push_neg at h
-      omega
-    -- Helper: u + (v - u) = v in Fin (n+1)
-    have hfin_add_sub : ∀ (u v : Fin (n + 1)), u + (v - u) = v := by
-      intro u v
-      ext
-      simp
-    -- Helper: Fin.val of subtraction
-    have ht_def : t = (v - u).val := by
-      simp [t, Fin.sub_def]
-      have : (v : ℕ) + (n + 1) - u = (n + 1 - u + v : ℕ) := by omega
-      rw [this]
-    let t' : ℕ := (u.val + (n + 1) - v.val) % (n + 1)
-    have ht'_def : t' = (u - v).val := by
-      simp [t', Fin.sub_def]
-      have : (u : ℕ) + (n + 1) - v = (n + 1 - v + u : ℕ) := by omega
-      rw [this]
-    rcases hmin with htle | hbtle
-    · -- clockwise walk from u to v has edist ≤ t ≤ m
-      have huv : v = u + finAdd t := by
-        have : finAdd t = (v - u : Fin (n + 1)) := by
-          ext; simp [finAdd, ht_def]
-          omega
-        rw [this]
-        exact (hfin_add_sub u v).symm
-      rw [huv]
-      exact (h_edist_walk u t (by omega)).trans (WithBot.coe_le_coe.mpr htle)
-    · -- counterclockwise: use symmetry and walk from v to u clockwise
-      rw [SimpleGraph.edist_comm]
-      -- clockwise distance from v to u
-      have ht'_le_n : t' ≤ n := Nat.le_of_lt_succ (Nat.mod_lt _ (Nat.succ_pos n))
-      -- t' ≤ m (since t' = (n+1-t) % (n+1) and hbtle says n+1-t ≤ m)
-      have ht'_le_m : t' ≤ m := by
-        by_cases ht0 : t = 0
-        · simp [t']
-          omega
-        · -- t > 0 case: t' + t = n + 1
-          have ht_pos : 0 < t := Nat.pos_of_ne_zero ht0
-          have ht_lt : t < n + 1 := Nat.mod_lt _ (Nat.succ_pos n)
-          have ht'_lt : t' < n + 1 := Nat.mod_lt _ (Nat.succ_pos n)
-          have htsum : t' + t = n + 1 := by
-            have hsum_zero : (u - v : Fin (n + 1)) + (v - u) = 0 := by
-              ext; simp
-            have hval : ((u - v).val + (v - u).val) % (n + 1) = 0 := by
-              have h1 : ((u - v : Fin (n + 1)) + (v - u)).val = (0 : Fin (n + 1)).val := by rw [hsum_zero]
-              rw [Fin.val_add] at h1
-              simp at h1
-              exact h1
-            have hvu_val : (v - u).val = t := ht_def.symm
-            have hu_val : (u - v).val = t' := ht'_def.symm
-            have hpos : 0 < (v - u).val := hvu_val ▸ ht_pos
-            have hlt : (v - u).val < n + 1 := (v - u).isLt
-            have hlt' : (u - v).val < n + 1 := (u - v).isLt
-            have hdvd : (n + 1 : ℕ) ∣ ((u - v).val + (v - u).val) := Nat.dvd_of_mod_eq_zero hval
-            obtain ⟨k, hk⟩ := hdvd
-            rcases k with (_ | _ | k) <;> simp at hk
-            · exfalso
-              have h1 : (v - u : Fin (n + 1)) = 0 := hk.2
-              have h2 : (v - u).val = 0 := by simpa using h1
-              omega
-            · rw [← hvu_val, ← hu_val]; exact hk
-            · exfalso
-              have hge : (n + 1) * (k + 1 + 1) ≥ 2 * (n + 1) := by nlinarith
-              omega
-          omega
-      have huv' : u = v + finAdd t' := by
-        have : finAdd t' = (u - v : Fin (n + 1)) := by
-          ext; simp [finAdd, ht'_def]
-          omega
-        rw [this]
-        exact (hfin_add_sub v u).symm
-      rw [huv']
-      exact (h_edist_walk v t' ht'_le_n).trans (WithBot.coe_le_coe.mpr ht'_le_m)
-  have h_ediam_le : (cycle (n + 1)).toSimple.ediam ≤ (m : ℕ∞) :=
-    SimpleGraph.ediam_le_of_edist_le h_edist_le
-  -- Potential function for lower bounds
-  let f : Fin (n + 1) → ℤ := fun i => min ((i : ℤ)) ((n + 1) - (i : ℤ))
-  have hf_adj : ∀ {i j : Fin (n + 1)}, (cycle (n + 1)).toSimple.Adj i j → |(f j : ℤ) - (f i : ℤ)| ≤ 1 := by
-    intro i j hij
-    -- Characterize edges: Adj i j ↔ j = i + 1 ∨ i = j + 1 in Fin (n+1)
-    simp [cycle, ofRel_adj, toSimple_adj] at hij
-    rcases hij with ⟨hne, hj|hi⟩
-    · -- j = i + 1
-      have hij1 : j = i + 1 := by
-        ext; simp [Fin.val_add] at hj ⊢; omega
-      rw [hij1]
-      simp only [f]
-      rw [abs_sub_le_iff]
-      by_cases hmax : (i : ℕ) = n
-      · -- i is the last element, i+1 wraps to 0
-        have : (i + 1 : Fin (n + 1)) = 0 := by
-          ext; simp [Fin.val_add, hmax]
-        rw [this]
-        simp only [Fin.val_zero]
-        simp
-        constructor <;> omega
-      · -- i.val < n, so (i+1).val = i.val + 1
-        have hi_lt_n : (i : ℕ) < n := Nat.lt_of_le_of_ne (Nat.lt_succ_iff.mp i.isLt) hmax
-        have hmod : ((i : ℕ) + 1) % (n + 1) = (i : ℕ) + 1 := Nat.mod_eq_of_lt (by omega)
-        have hval_i1 : ((i + 1 : Fin (n + 1)) : ℤ) = (i : ℤ) + 1 := by
-          simp [Fin.val_add, hmod]
-        rw [hval_i1]
-        set a := (i : ℤ) with ha_def
-        simp only [Int.min_def]
-        split <;> split <;> omega
-    · -- i = j + 1
-      have hij2 : i = j + 1 := by
-        ext; simp [Fin.val_add] at hi ⊢; omega
-      rw [hij2]
-      simp only [f]
-      rw [abs_sub_le_iff]
-      by_cases hmax : (j : ℕ) = n
-      · have : (j + 1 : Fin (n + 1)) = 0 := by
-          ext; simp [Fin.val_add, hmax]
-        rw [this]
-        simp only [Fin.val_zero]
-        simp
-        constructor <;> omega
-      · have hj_lt_n : (j : ℕ) < n := Nat.lt_of_le_of_ne (Nat.lt_succ_iff.mp j.isLt) hmax
-        have hmod : ((j : ℕ) + 1) % (n + 1) = (j : ℕ) + 1 := Nat.mod_eq_of_lt (by omega)
-        have hval_j1 : ((j + 1 : Fin (n + 1)) : ℤ) = (j : ℤ) + 1 := by
-          simp [Fin.val_add, hmod]
-        rw [hval_j1]
-        set a := (j : ℤ) with ha_def
-        simp only [Int.min_def]
-        split <;> split <;> omega
-  have hf_walk : ∀ {u v : Fin (n + 1)} (w : (cycle (n + 1)).toSimple.Walk u v),
-      |(f v : ℤ) - (f u : ℤ)| ≤ (w.length : ℤ) := by
-    intro u v w
-    induction w with
-    | nil => simp [SimpleGraph.Walk.length]
-    | @cons u' w' hstep ih pw ihw =>
-      calc |(f hstep : ℤ) - (f u' : ℤ)|
-          = |((f hstep : ℤ) - (f w' : ℤ)) + ((f w' : ℤ) - (f u' : ℤ))| := by
-            congr 1; ring
-        _ ≤ |(f hstep : ℤ) - (f w' : ℤ)| + |(f w' : ℤ) - (f u' : ℤ)| := abs_add_le _ _
-        _ ≤ (pw.length : ℤ) + 1 := by
-            exact add_le_add ihw (hf_adj ih)
-        _ = (SimpleGraph.Walk.cons ih pw).length := by simp [SimpleGraph.Walk.length]
-  have hf0 : f (0 : Fin (n + 1)) = 0 := by
-    show min ((0 : ℤ)) ((n : ℤ) + 1 - (0 : ℤ)) = 0
-    simp; omega
-  have hfm : f ⟨m, by omega⟩ = (m : ℤ) := by
-    show min ((m : ℤ)) ((n : ℤ) + 1 - (m : ℤ)) = (m : ℤ)
-    exact min_eq_left (by omega)
-  have h_lb : ∀ {w : (cycle (n + 1)).toSimple.Walk (0 : Fin (n + 1)) ⟨m, by omega⟩}, (m : ℤ) ≤ (w.length : ℤ) := by
-    intro w
-    have := hf_walk w
-    rw [hfm, hf0] at this
-    simpa using this
-  have h_edist_ge : ∃ u v : Fin (n + 1), (m : ℕ∞) ≤ (cycle (n + 1)).toSimple.edist u v := by
-    refine ⟨(0 : Fin (n + 1)), (⟨m, by omega⟩ : Fin (n + 1)), ?_⟩
-    let base : Fin (n + 1) := ⟨0, by omega⟩
-    have hfinAdd : base + finAdd m = ⟨m, by omega⟩ := by
-      ext; simp [finAdd, base]; omega
-    have hreach : (cycle (n + 1)).toSimple.Reachable base ⟨m, by omega⟩ := by
-      rw [← hfinAdd]
-      have hne : (cycle (n + 1)).toSimple.edist base (base + finAdd m) ≠ ⊤ := by
-        have : (m : ℕ∞) ≠ ⊤ := by simp
-        exact ne_top_of_le_ne_top this (h_edist_walk base m (by omega))
-      exact (SimpleGraph.edist_ne_top_iff_reachable).mp hne
-    -- Reachable: use le_csInf
-    rw [SimpleGraph.edist]
-    apply le_csInf
-    · exact ⟨_, ⟨hreach.some, rfl⟩⟩
-    · rintro _ ⟨w, rfl⟩
-      show (m : ℕ∞) ≤ ↑w.length
-      exact_mod_cast @h_lb w
-  obtain ⟨u, v, huv⟩ := h_edist_ge
-  have h_m_le_ediam : (m : ℕ∞) ≤ (cycle (n + 1)).toSimple.ediam :=
-    huv.trans (SimpleGraph.edist_le_ediam)
-  have h_ediam_eq : (cycle (n + 1)).toSimple.ediam = (m : ℕ∞) := le_antisymm h_ediam_le h_m_le_ediam
-  rw [h_ediam_eq]
-  simp
+  rw [cycle_toSimple]
+  match n with
+  | 0 =>
+    show (SimpleGraph.cycleGraph 1).diam = 0
+    exact SimpleGraph.diam_eq_zero.2 (Or.inr (by show Subsingleton (Fin 1); infer_instance))
+  | (m + 1) => rw [SimpleGraph.diam, SimpleGraph.ediam_cycleGraph, ENat.toNat_coe]
 
 /-- A disjoint union of two nonempty graphs is disconnected. -/
 theorem not_isConnected_disjUnion (hG : 0 < FinEnum.card G.V) (hH : 0 < FinEnum.card H.V) :
@@ -1755,6 +1606,24 @@ theorem girth_le_card_of_map {G H : CGraph} (f : G.V → H.V) (hinj : Function.I
 
 end
 
+/-- **Walks of equal length in the two factors pair up in the tensor product.**  Length is the
+only obstruction: a step of the product is a simultaneous step of both factors. -/
+theorem reachable_tensorProduct {G H : CGraph} {g₁ g₂ : G.V} {h₁ h₂ : H.V}
+    (wG : G.toSimple.Walk g₁ g₂) (wH : H.toSimple.Walk h₁ h₂) (hlen : wG.length = wH.length) :
+    (G ⊗g H).toSimple.Reachable (g₁, h₁) (g₂, h₂) := by
+  induction wG generalizing h₁ with
+  | nil =>
+    cases wH with
+    | nil => rfl
+    | cons _ _ => simp at hlen
+  | @cons a b _ hab p ih =>
+    cases wH with
+    | nil => simp at hlen
+    | cons hab' q =>
+      refine ⟨SimpleGraph.Walk.cons ?_ (ih q (by simpa using hlen)).some⟩
+      simp only [toSimple_adj, tensorProduct_adj, Bool.and_eq_true]
+      exact ⟨hab, hab'⟩
+
 end CGraph
 
 namespace IsoGraph
@@ -2078,6 +1947,10 @@ theorem not_isBipartite_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
     ¬ IsBipartite (lineGraph G) :=
   not_isBipartite_of_girth_eq_three (girth_lineGraph_eq_three h)
 
+/-- **Weichsel\'s theorem**: the tensor product of two connected graphs is connected as soon as
+one factor is non-bipartite and the other has an edge.  A walk of the product is a pair of walks
+of the same length; the non-bipartite factor supplies walks of every length and parity, and the
+edge of the other factor pads its walks two steps at a time. -/
 theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H)
     (hb : ¬ IsBipartite G) (hE : 0 < H.E) : IsConnected (G ⊗g H) := by
   induction G using Quotient.inductionOn with | _ Gc =>
@@ -2086,210 +1959,28 @@ theorem isConnected_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : Is
   rw [isBipartite_mk] at hb
   rw [E_mk] at hE
   rw [tensorProduct_mk, isConnected_mk, CGraph.IsConnected]
-  -- Hs V is G.V × H.V
-  -- Adj in tensor product: (g1,h1) ~ (g2,h2) ↔ G.Adj g1 g2 ∧ H.Adj h1 h2
-  -- Key idea (Weichsel's theorem):
-  --   - G is connected + non-bipartite → from any g, closed walks of both parities
-  --   - H is connected + has an edge → from any h, can reach any h' with both parities
-  --   → tensor product is connected
-  -- Step 1: Get an edge in H.toSimple
-  have hHne : Nonempty Hc.V := hH.nonempty
-  have hGne : Nonempty Gc.V := hG.nonempty
-  have hVne : Nonempty ((Gc ⊗g Hc).V) :=
-    ⟨(Classical.choice hGne, Classical.choice hHne)⟩
-  -- Step 2: Work at SimpleGraph level
-  set Gs := Gc.toSimple
-  set Hs := Hc.toSimple
-  have hGs : SimpleGraph.Connected Gs := hG
-  have hBs : ¬ SimpleGraph.IsBipartite Gs := by
-    show ¬ Gc.toSimple.IsBipartite
-    intro h
-    apply hb
-    rw [CGraph.isBipartite_iff_colorable]
-    exact h
-  -- Get an edge in Hs from hE
-  have hHedge : ∃ (u v : Hc.V), Hs.Adj u v := by
-    simp only [Hs, CGraph.toSimple_adj]
-    have hne : Hc.toSimple ≠ ⊥ :=
-      (CGraph.toSimple_ne_bot_iff (G := Hc)).symm.mp hE
-    have hne_card : 0 < Hc.toSimple.edgeFinset.card :=
-      Finset.card_pos.mpr (SimpleGraph.edgeFinset_nonempty.mpr hne)
-    have hne : Hc.toSimple.edgeFinset.Nonempty := Finset.card_pos.mp hne_card
-    obtain ⟨e, he⟩ := hne
-    rcases e with ⟨a, b⟩
-    have hadj : Hs.Adj a b := by
-      have := SimpleGraph.mem_edgeFinset.mp he
-      exact this
-    exact ⟨a, b, hadj⟩
-  obtain ⟨u₀, v₀, huv₀⟩ := hHedge
-  -- Reachability in tensor product:
-  -- Key facts:
-  -- 1. Walk extension in H: from any walk in H, I can add 2 to its length by going u₀-v₀-u₀
-  -- 2. G is connected and non-bipartite: from any g1 to any g2, walks of both parities exist
-  --    (using the odd closed walk from non-bipartiteness)
-  -- 3. Pair walks of same length in G and H to get a walk in G ⊗ H
-  -- Strategy: from (g₀, u₀) to (g, h):
-  --   - Get a walk in H from u₀ to h of length d (by connectivity of Hs)
-  --   - Pad to even length 2k ≥ d using edge (u₀,v₀)
-  --   - Get a walk in G from g₀ to g of the same even length (G is connected and nonbipartite)
-  --   - Pair to get walk in tensor product
-  -- Let T be the tensor product simple graph
-  set T := (Gc.tensorProduct Hc).toSimple
-  -- Get a base vertex
-  let g₀ := Classical.choice hGne
-  set base : (Gc.tensorProduct Hc).V := (g₀, u₀)
-  -- Goal: T.Connected
-  -- We show preconnected + nonempty
-  apply SimpleGraph.Connected.mk
-  · -- Preconnected: all reachable from base
-    have hreach_H_u : ∀ h : Hc.V, Hs.Reachable h u₀ := fun h => (hH.preconnected h u₀)
-    have hreach_H_v : ∀ h : Hc.V, Hs.Reachable h v₀ := fun h => (hH.preconnected h v₀)
-    -- Walk pairing in tensor product: equal-length walks pair to a walk in T
-    have walk_pair_aux : ∀ {g1 g2 : Gc.V} {h1 h2 : Hc.V} {L : ℕ},
-        ∀ (wG : Gs.Walk g1 g2) (wH : Hs.Walk h1 h2), wG.length = L → wH.length = L →
-        T.Reachable (g1, h1) (g2, h2) := by
-      intro g1 g2 h1 h2 L wG wH hwG hwH
-      induction L generalizing g1 g2 h1 h2 wG wH with
-      | zero =>
-        have hg : g1 = g2 := by
-          induction wG with
-          | nil => rfl
-          | cons _ _ ih => simp at hwG
-        have hh : h1 = h2 := by
-          induction wH with
-          | nil => rfl
-          | cons _ _ ih => simp at hwH
-        rw [hg, hh]
-      | succ L ih =>
-        cases wG with
-        | nil => simp at hwG
-        | @cons g1 g1' g2 hadj_wG rest_wG =>
-          cases wH with
-          | nil => simp at hwH
-          | @cons h1 h1' h2 hadj_wH rest_wH =>
-            have hwG' : rest_wG.length = L := by
-              simp [SimpleGraph.Walk.length] at hwG; linarith
-            have hwH' : rest_wH.length = L := by
-              simp [SimpleGraph.Walk.length] at hwH; linarith
-            have hr := ih rest_wG rest_wH hwG' hwH'
-            have hadj_T : T.Adj (g1, h1) (g1', h1') := by
-              simp [T, CGraph.toSimple_adj]
-              exact ⟨hadj_wG, hadj_wH⟩
-            exact ⟨SimpleGraph.Walk.cons hadj_T hr.some⟩
-    -- Reachability from g₀ in Gs
-    have hreach_g₀ : ∀ v : Gc.V, Gs.Reachable g₀ v := fun v => (hGs.preconnected g₀) v
-    let walkTo : ∀ v : Gc.V, Gs.Walk g₀ v := fun v => (hreach_g₀ v).some
-    -- Odd closed walk at g₀ from ¬bipartite (by contradiction + coloring)
-    have hodd_closed : ∃ (w : Gs.Walk g₀ g₀), w.length % 2 = 1 := by
-      by_contra h_even
-      push_neg at h_even
-      have hwelldef : ∀ (v : Gc.V) (w1 w2 : Gs.Walk g₀ v),
-          w1.length % 2 = w2.length % 2 := by
-        intro v w1 w2
-        have h1 : (w1.append w2.reverse).length = w1.length + w2.length := by
-          rw [SimpleGraph.Walk.length_append, SimpleGraph.Walk.length_reverse]
-        have h2 := h_even (w1.append w2.reverse)
-        rw [h1] at h2
-        omega
-      let color : Gc.V → Fin 2 := fun v => ⟨(walkTo v).length % 2, Nat.mod_lt _ (by omega)⟩
-      have hcolor_adj : ∀ {u v : Gc.V}, Gs.Adj u v → color u ≠ color v := by
-        intro u v hadj
-        simp only [color]
-        let hcons : Gs.Walk g₀ v :=
-          (walkTo u).append (SimpleGraph.Walk.cons hadj SimpleGraph.Walk.nil)
-        have hlen : hcons.length = (walkTo u).length + 1 := by
-          simp [hcons, SimpleGraph.Walk.length_append, SimpleGraph.Walk.length_cons,
-            SimpleGraph.Walk.length_nil]
-        have hwd := hwelldef v (walkTo v) hcons
-        rw [hlen] at hwd
-        exact Fin.ne_of_val_ne (by omega : (walkTo u).length % 2 ≠ (walkTo v).length % 2)
-      exact hBs ⟨color, hcolor_adj⟩
-    obtain ⟨wOdd, hwOdd⟩ := hodd_closed
-    -- Odd closed walk at any vertex g
-    let oddAtG : ∀ g : Gc.V, Gs.Walk g g := fun g =>
-      (walkTo g).reverse.append (wOdd.append (walkTo g))
-    have hoddAtG_len : ∀ g, (oddAtG g).length % 2 = 1 := by
-      intro g
-      simp [oddAtG, SimpleGraph.Walk.length_append, SimpleGraph.Walk.length_reverse]
-      omega
-    -- Even closed walk at g (append two odd closed walks)
-    let evenAtG : ∀ g : Gc.V, Gs.Walk g g :=
-      fun g => oddAtG g |> SimpleGraph.Walk.append <| oddAtG g
-    have hevenAtG_len' : ∀ g, (evenAtG g).length = 2 * (oddAtG g).length := by
-      intro g; simp [evenAtG, SimpleGraph.Walk.length_append]
-      ring
-    have hoddAtG_pos : ∀ g, 0 < (oddAtG g).length := by
-      intro g; by_contra h; have := hoddAtG_len g
-      simp [show (oddAtG g).length = 0 from le_antisymm (le_of_not_gt h) (Nat.zero_le _)] at this
-    -- Pad G walk by k even detours (adds 2*(oddAtG target).length per detour)
-    let padWalkGAt (target : Gc.V) : ∀ (w : Gs.Walk g₀ target) (k : ℕ), Gs.Walk g₀ target :=
-      fun w k => Nat.rec w (fun _ w' => w'.append (evenAtG target)) k
-    have hpadiWalkGAt_len : ∀ (target : Gc.V) (w : Gs.Walk g₀ target) (k : ℕ),
-        (padWalkGAt target w k).length = w.length + k * (2 * (oddAtG target).length) := by
-      intro target w k; induction k with
-      | zero => simp [padWalkGAt]
-      | succ k ih => simp [padWalkGAt, hevenAtG_len']; linarith
-    -- Pad H-walk: prepend u₀→v₀→u₀ detour adds +2 to length
-    let padWalk : ∀ {target : Hc.V} (w : Hs.Walk u₀ target) (k : ℕ), Hs.Walk u₀ target :=
-      fun w k => Nat.rec w
-        (fun _ w' => SimpleGraph.Walk.cons huv₀ (SimpleGraph.Walk.cons (Hs.symm huv₀) w')) k
-    have hpadiWalk_len : ∀ {target : Hc.V} (w : Hs.Walk u₀ target) (k : ℕ),
-        (padWalk w k).length = w.length + 2 * k := by
-      intro target w k
-      induction k with
-      | zero => simp [padWalk]
-      | succ k ih => simp [padWalk, SimpleGraph.Walk.length_cons]; linarith
-    -- Walk of given parity from g₀ to g
-    have hwalk_parity : ∀ (g : Gc.V) (p : Bool),
-        ∃ (w : Gs.Walk g₀ g), w.length % 2 = (if p then 1 else 0) := by
-      intro g p
-      have hodd_len : (oddAtG g).length % 2 = 1 := hoddAtG_len g
-      have happend_len : ∀ (w : Gs.Walk g₀ g),
-          (w.append (oddAtG g)).length = w.length + (oddAtG g).length := by
-        intro w; rw [SimpleGraph.Walk.length_append]
-      by_cases hp : p
-      · -- p = true, need % 2 = 1
-        by_cases hd : (walkTo g).length % 2 = 1
-        · exact ⟨walkTo g, by simp [hp]; exact hd⟩
-        · exact ⟨(walkTo g).append (oddAtG g), by simp [hp, happend_len]; omega⟩
-      · -- p = false, need % 2 = 0
-        simp [hp]
-        by_cases hd : (walkTo g).length % 2 = 0
-        · exact ⟨walkTo g, hd⟩
-        · exact ⟨(walkTo g).append (oddAtG g), by simp [happend_len]; omega⟩
-    -- Now prove Preconnected
-    have h_preconn : ∀ (p : (Gc.tensorProduct Hc).V), T.Reachable base p := by
-      intro ⟨g, h⟩
-      let wH₀ : Hs.Walk u₀ h := (hreach_H_u h).some.reverse
-      let p' : Bool := wH₀.length % 2 = 1
-      obtain ⟨wG_base, hwG_par⟩ := hwalk_parity g p'
-      have hwG_par' : wG_base.length % 2 = wH₀.length % 2 := by
-        unfold p' at hwG_par
-        have := Nat.mod_lt wH₀.length two_pos
-        interval_cases wH₀.length % 2 <;> simp at hwG_par ⊢ <;> exact hwG_par
-      let m := wH₀.length + 1
-      let wG' := padWalkGAt g wG_base m
-      have hm_pos : 0 < m := by simp [m]
-      have hodd_pos : 0 < (oddAtG g).length := hoddAtG_pos g
-      have hwG'_len : wG'.length ≥ wH₀.length := by
-        rw [hpadiWalkGAt_len g wG_base m]
-        show wH₀.length ≤ wG_base.length + (wH₀.length + 1) * (2 * (oddAtG g).length)
-        nlinarith [hoddAtG_pos g]
-      have hwG'_par : wG'.length % 2 = wG_base.length % 2 := by
-        rw [hpadiWalkGAt_len g wG_base m]
-        simp [Nat.add_mod, Nat.mul_mod, Nat.zero_mod]
-      have hwG'_par' : wG'.length % 2 = wH₀.length % 2 := by rw [hwG'_par, hwG_par']
-      let L := wG'.length
-      let k := L - wH₀.length
-      have hk_even : 2 ∣ k := by omega
-      obtain ⟨n, hn⟩ := hk_even
-      let wH_padded := padWalk wH₀ n
-      have hwH_pad_len : wH_padded.length = L := by
-        rw [hpadiWalk_len]; omega
-      exact walk_pair_aux wG' wH_padded rfl hwH_pad_len
-    show T.Preconnected
-    intro p q
-    exact (h_preconn p).symm.trans (h_preconn q)
+  -- an edge of `H` to pad its walks with, and the non-two-colourability of `G`
+  obtain ⟨e, he⟩ := SimpleGraph.edgeFinset_nonempty.2
+    ((CGraph.toSimple_ne_bot_iff (G := Hc)).symm.mp hE)
+  obtain ⟨u₀, v₀⟩ := e
+  have huv₀ : Hc.toSimple.Adj u₀ v₀ := SimpleGraph.mem_edgeFinset.1 he
+  have hb2 : ¬ Gc.toSimple.Colorable 2 := fun h ↦ hb ((CGraph.isBipartite_iff_colorable _).2 h)
+  -- the loop `u₀ → v₀ → u₀`, which lengthens a walk of `H` by two
+  set loop : Hc.toSimple.Walk u₀ u₀ :=
+    SimpleGraph.Walk.cons huv₀ (SimpleGraph.Walk.cons huv₀.symm SimpleGraph.Walk.nil) with hloop
+  have hloop_len : loop.length = 2 := by simp [hloop]
+  obtain ⟨g₀⟩ := hG.nonempty
+  -- everything is reachable from `(g₀, u₀)`
+  have key : ∀ p : (Gc ⊗g Hc).V, (Gc ⊗g Hc).toSimple.Reachable (g₀, u₀) p := by
+    rintro ⟨g, h⟩
+    set wH := (hH.preconnected u₀ h).some with hwH
+    obtain ⟨wG, hge, hpar⟩ := SimpleGraph.exists_walk_length_ge_of_parity hG.preconnected hb2
+      g₀ g wH.length wH.length
+    obtain ⟨k, hk⟩ : ∃ k, wG.length = wH.length + 2 * k := ⟨(wG.length - wH.length) / 2, by omega⟩
+    exact CGraph.reachable_tensorProduct wG (SimpleGraph.prependLoop loop wH k)
+      (by rw [SimpleGraph.length_prependLoop, hloop_len]; omega)
+  exact { preconnected := fun p q ↦ (key p).symm.trans (key q), nonempty := ⟨(g₀, u₀)⟩ }
+
 
 /-- With no isolated vertex every original reaches a shadow, and every shadow reaches the apex. -/
 theorem isConnected_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) :
