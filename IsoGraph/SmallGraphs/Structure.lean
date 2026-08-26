@@ -271,6 +271,7 @@ section
 open NamedGraphs
 
 /-- A graph given by an LCF code is Hamiltonian: its defining ring is a Hamiltonian cycle. -/
+@[toIsoGraph]
 theorem isHamiltonian_lcf (ss : List ℤ) (r : ℕ) (h3 : 3 ≤ ss.length * r) :
     (lcf ss r).IsHamiltonian :=
   isHamiltonian_lcfEdges ss r rfl h3
@@ -304,6 +305,7 @@ theorem isHamiltonian_desargues : desargues.IsHamiltonian :=
 theorem isHamiltonian_dodecahedron : dodecahedron.IsHamiltonian :=
   isHamiltonian_of_iso dodecahedronLcfIso (isHamiltonian_lcf _ _ (by norm_num))
 
+@[toIsoGraph]
 theorem isHamiltonian_nauru : nauru.IsHamiltonian :=
   isHamiltonian_of_iso nauruLcfIso (isHamiltonian_lcf _ _ (by norm_num))
 

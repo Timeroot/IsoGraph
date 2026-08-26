@@ -41,7 +41,10 @@ set_option synthInstance.maxSize 400
 
 namespace IsoGraph
 
-open NamedGraphs SmallGraphs
+-- `_root_`, because `@[toIsoGraph]` puts its restatements of the gallery's facts in
+-- `IsoGraph.NamedGraphs` and `IsoGraph.SmallGraphs`, and a bare `open` inside `namespace IsoGraph`
+-- would pick up those instead of the graphs themselves.
+open _root_.NamedGraphs _root_.SmallGraphs
 
 /-! ## Reading the witnesses
 

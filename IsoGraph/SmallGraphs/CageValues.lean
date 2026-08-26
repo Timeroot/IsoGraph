@@ -164,7 +164,7 @@ vertices, and the six-vertex colour classes are the largest independent sets. -/
   (isRegularWith_franklin).maxDeg_eq
 
 /-- **The independence number of the Franklin graph is six.** -/
-@[simp] theorem indepNum_franklin : franklin.indepNum = 6 := by
+@[simp, toIsoGraph] theorem indepNum_franklin : franklin.indepNum = 6 := by
   refine le_antisymm (by graph_sat native) ?_
   exact le_indepNum_of_nodup (G := franklin)
     (l := ([1, 3, 5, 7, 9, 11] : List (Fin 12)))
@@ -434,7 +434,7 @@ theorem bidiakisCubeEdgeCol_proper : ∀ u v w : bidiakisCube.V,
       bidiakisCubeEdgeCol u v ≠ bidiakisCubeEdgeCol u w := by native_decide
 
 /-- **The Bidiakis cube is class one**: `χ' = Δ = 3`. -/
-@[simp] theorem edgeChromNum_bidiakisCube : bidiakisCube.edgeChromNum = 3 := by
+@[simp, toIsoGraph] theorem edgeChromNum_bidiakisCube : bidiakisCube.edgeChromNum = 3 := by
   refine le_antisymm ?_ ?_
   · rw [← IsoGraph.edgeChromNum_mk]
     exact IsoGraph.edgeChromNum_mk_le_of_colouring (G := bidiakisCube)
@@ -592,7 +592,7 @@ girth six. -/
     (by decide) (by native_decide)
 
 /-- **The Pappus graph has no triangle**, having girth six, so its cliques are its edges. -/
-@[simp] theorem cliqueNum_pappus : pappus.cliqueNum = 2 :=
+@[simp, toIsoGraph] theorem cliqueNum_pappus : pappus.cliqueNum = 2 :=
   le_antisymm (cliqueNum_le_two_of_girth_ne_three (by rw [girth_pappus]; decide))
     (two_le_cliqueNum_of_E_pos (by rw [E_pappus]; decide))
 
@@ -705,7 +705,7 @@ theorem desarguesEdgeCol_proper : ∀ u v w : desargues.V,
       desarguesEdgeCol u v ≠ desarguesEdgeCol u w := by native_decide
 
 /-- **The Desargues graph is class one**: `χ' = Δ = 3`. -/
-@[simp] theorem edgeChromNum_desargues : desargues.edgeChromNum = 3 := by
+@[simp, toIsoGraph] theorem edgeChromNum_desargues : desargues.edgeChromNum = 3 := by
   refine le_antisymm ?_ ?_
   · rw [← IsoGraph.edgeChromNum_mk]
     exact IsoGraph.edgeChromNum_mk_le_of_colouring (G := desargues)
@@ -881,14 +881,14 @@ The generalised Petersen graph `GP(12, 5)`: cubic, bipartite, girth six, twenty-
   (isRegularWith_nauru).maxDeg_eq
 
 /-- **The independence number of the Nauru graph is twelve.** -/
-@[simp] theorem indepNum_nauru : nauru.indepNum = 12 := by
+@[simp, toIsoGraph] theorem indepNum_nauru : nauru.indepNum = 12 := by
   refine le_antisymm (by graph_sat native) ?_
   exact le_indepNum_of_nodup (G := nauru)
     (l := ([0, 2, 4, 6, 8, 10, 13, 15, 17, 19, 21, 23] : List (Fin 24)))
     (by decide) (by native_decide)
 
 /-- **The Nauru graph has no triangle**, having girth six, so its cliques are its edges. -/
-@[simp] theorem cliqueNum_nauru : nauru.cliqueNum = 2 :=
+@[simp, toIsoGraph] theorem cliqueNum_nauru : nauru.cliqueNum = 2 :=
   le_antisymm (cliqueNum_le_two_of_girth_ne_three (by rw [girth_nauru]; decide))
     (two_le_cliqueNum_of_E_pos (by rw [E_nauru]; decide))
 
@@ -1137,7 +1137,7 @@ theorem coxeterEdgeCol_proper : ∀ u v w : coxeter.V,
 Levi's graph of the generalised quadrangle `W(2)`: the `(3, 8)`-cage, cubic and bipartite on
 thirty vertices. -/
 
-@[simp] theorem maxDeg_tutteCoxeter : tutteCoxeter.maxDeg = 3 :=
+@[simp, toIsoGraph] theorem maxDeg_tutteCoxeter : tutteCoxeter.maxDeg = 3 :=
   haveI : Nonempty tutteCoxeter.V := ⟨(0 : Fin 30)⟩
   (isRegularWith_tutteCoxeter).maxDeg_eq
 
@@ -1236,7 +1236,7 @@ symmetric graphs of that order. -/
     (two_le_cliqueNum_of_E_pos (by rw [E_dyck]; decide))
 
 /-- **The Dyck graph is bipartite**, so two colours do and one does not. -/
-@[simp] theorem chromNum_dyck : dyck.chromNum = 2 :=
+@[simp, toIsoGraph] theorem chromNum_dyck : dyck.chromNum = 2 :=
   chromNum_eq_two_iff.2
     ⟨isBipartite_dyck, by rw [E_dyck]; decide⟩
 

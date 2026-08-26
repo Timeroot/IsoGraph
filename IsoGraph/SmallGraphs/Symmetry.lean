@@ -130,6 +130,7 @@ variable {F : Type} [Field F] [FinEnum F]
 
 /-- **Paley graphs are strongly regular.**  For a finite field with `q ≡ 1 mod 4` elements the
 Paley graph has parameters `(q, (q-1)/2, (q-5)/4, (q-1)/4)`. -/
+@[toIsoGraph]
 theorem isSRGWith_paleyField (hq : Fintype.card F % 4 = 1) :
     (paleyField F).IsSRGWith (Fintype.card F) ((Fintype.card F - 1) / 2)
       ((Fintype.card F - 5) / 4) ((Fintype.card F - 1) / 4) := by
@@ -183,6 +184,7 @@ theorem isVertexTransitive_cayleyAdd (A : Type) [FinEnum A] [AddGroup A]
     ⟨Equiv.addRight (-u + v), fun x y ↦ by simp [add_sub_add_right_eq_sub], by simp⟩
 
 /-- The Paley graph of a finite field is a Cayley graph, hence vertex-transitive. -/
+@[toIsoGraph]
 theorem isVertexTransitive_paleyField (F : Type) [Field F] [FinEnum F] :
     (paleyField F).IsVertexTransitive :=
   isVertexTransitive_cayleyAdd F _

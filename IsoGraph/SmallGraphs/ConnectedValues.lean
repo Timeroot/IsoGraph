@@ -3820,7 +3820,7 @@ def fan5EdgeCol : fan5.V → fan5.V → Fin 5 := fun x y =>
    ![3, 0, 0, 1, 0, 0], ![4, 0, 0, 0, 0, 0]] (FinEnum.equiv x) (FinEnum.equiv y)
 
 /-- **The edge chromatic number of `fan5` is five.** -/
-@[simp] theorem edgeChromNum_fan5 : fan5.edgeChromNum = 5 := by
+@[simp, toIsoGraph] theorem edgeChromNum_fan5 : fan5.edgeChromNum = 5 := by
   refine le_antisymm ?_ ?_
   · rw [← IsoGraph.edgeChromNum_mk]
     exact IsoGraph.edgeChromNum_mk_le_of_colouring (G := fan5)

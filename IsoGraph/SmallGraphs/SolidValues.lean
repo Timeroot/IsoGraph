@@ -260,7 +260,7 @@ theorem icosahedronEdgeCol_proper : ∀ u v w : icosahedron.V,
 `GP(10, 2)`: cubic of girth five on twenty vertices.  It is not bipartite — the pentagonal
 faces are odd — so three colours are needed, and eight is the largest independent set. -/
 
-@[simp] theorem maxDeg_dodecahedron : dodecahedron.maxDeg = 3 :=
+@[simp, toIsoGraph] theorem maxDeg_dodecahedron : dodecahedron.maxDeg = 3 :=
   haveI : Nonempty dodecahedron.V := ⟨(0 : Fin 20)⟩
   (isRegularWith_dodecahedron).maxDeg_eq
 
@@ -289,7 +289,7 @@ theorem dodecahedronCol_proper : ∀ u v : dodecahedron.V,
       dodecahedronCol u ≠ dodecahedronCol v := by native_decide
 
 /-- **The chromatic number of the dodecahedron is three.** -/
-@[simp] theorem chromNum_dodecahedron : dodecahedron.chromNum = 3 :=
+@[simp, toIsoGraph] theorem chromNum_dodecahedron : dodecahedron.chromNum = 3 :=
   le_antisymm (chromNum_le_of_colouring dodecahedronCol dodecahedronCol_proper)
     (three_le_chromNum not_isBipartite_dodecahedron)
 

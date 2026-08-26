@@ -48,7 +48,7 @@ abbrev tutteCoxeter : CGraph := lcf [-13, -9, 7, -7, 9, 13] 5
 theorem isRegularWith_heawood : heawood.IsRegularWith 3 :=
   isRegularWith_of_degSequence (n := 14) (by native_decide)
 
-@[simp] theorem isConnected_heawood : heawood.IsConnected :=
+@[simp, toIsoGraph] theorem isConnected_heawood : heawood.IsConnected :=
   isConnected_of_backEdge (Equiv.refl (Fin 14)) (by norm_num) (by native_decide)
 
 @[simp] theorem isBipartite_heawood : heawood.IsBipartite :=
@@ -58,6 +58,7 @@ theorem isRegularWith_heawood : heawood.IsRegularWith 3 :=
 
 @[simp] theorem E_mcgee : mcgee.E = 36 := by native_decide
 
+@[toIsoGraph]
 theorem isRegularWith_mcgee : mcgee.IsRegularWith 3 :=
   isRegularWith_of_degSequence (n := 24) (by native_decide)
 
@@ -108,7 +109,7 @@ theorem isRegularWith_franklin : franklin.IsRegularWith 3 :=
 @[simp] theorem isConnected_franklin : franklin.IsConnected :=
   isConnected_of_backEdge (Equiv.refl (Fin 12)) (by norm_num) (by native_decide)
 
-@[simp] theorem isBipartite_franklin : franklin.IsBipartite :=
+@[simp, toIsoGraph] theorem isBipartite_franklin : franklin.IsBipartite :=
   ⟨fun v ↦ decide (v.1 % 2 = 1), by native_decide⟩
 
 @[simp] theorem girth_franklin : franklin.girth = 4 := by
@@ -216,7 +217,7 @@ noncomputable def dodecahedronFacesIso :
 theorem isRegularWith_durer : durer.IsRegularWith 3 :=
   isRegularWith_of_degSequence (n := 12) (by native_decide)
 
-@[simp] theorem isConnected_durer : durer.IsConnected :=
+@[simp, toIsoGraph] theorem isConnected_durer : durer.IsConnected :=
   isConnected_of_backEdge (Equiv.refl (Fin 12)) (by norm_num) (by native_decide)
 
 @[simp] theorem not_isBipartite_durer : ¬ durer.IsBipartite :=
@@ -245,6 +246,7 @@ theorem isRegularWith_mobiusKantor : mobiusKantor.IsRegularWith 3 :=
 
 @[simp] theorem E_dodecahedron : dodecahedron.E = 30 := by native_decide
 
+@[toIsoGraph]
 theorem isRegularWith_dodecahedron : dodecahedron.IsRegularWith 3 :=
   isRegularWith_of_degSequence (n := 20) (by native_decide)
 
@@ -266,7 +268,7 @@ theorem isRegularWith_dodecahedron : dodecahedron.IsRegularWith 3 :=
 
 @[simp] theorem card_desargues : FinEnum.card desargues.V = 20 := card_ofEdges _ _
 
-@[simp] theorem E_desargues : desargues.E = 30 := by native_decide
+@[simp, toIsoGraph] theorem E_desargues : desargues.E = 30 := by native_decide
 
 theorem isRegularWith_desargues : desargues.IsRegularWith 3 :=
   isRegularWith_of_degSequence (n := 20) (by native_decide)
@@ -274,7 +276,7 @@ theorem isRegularWith_desargues : desargues.IsRegularWith 3 :=
 @[simp] theorem isConnected_desargues : desargues.IsConnected :=
   isConnected_of_backEdge (Equiv.refl (Fin 20)) (by norm_num) (by native_decide)
 
-@[simp] theorem isBipartite_desargues : desargues.IsBipartite :=
+@[simp, toIsoGraph] theorem isBipartite_desargues : desargues.IsBipartite :=
   ⟨fun v ↦ decide ((v.1 + v.1 / 10) % 2 = 1), by native_decide⟩
 
 @[simp] theorem card_nauru : FinEnum.card nauru.V = 24 := card_ofEdges _ _
@@ -471,7 +473,7 @@ theorem isRegularWith_tutte : tutte.IsRegularWith 3 :=
 
 /-- The Grötzsch graph is not regular: the pentagon has degree four, its shadows degree three,
 and the apex degree five. -/
-@[simp] theorem degSequence_grotzsch :
+@[simp, toIsoGraph] theorem degSequence_grotzsch :
     grotzsch.degSequence = [3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5] := by native_decide
 
 @[simp] theorem isConnected_grotzsch : grotzsch.IsConnected :=
@@ -684,7 +686,7 @@ theorem isRegularWith_bidiakisCube : bidiakisCube.IsRegularWith 3 :=
 
 @[simp] theorem card_dyck : FinEnum.card dyck.V = 32 := card_ofEdges _ _
 
-@[simp] theorem E_dyck : dyck.E = 48 := by native_decide
+@[simp, toIsoGraph] theorem E_dyck : dyck.E = 48 := by native_decide
 
 theorem isRegularWith_dyck : dyck.IsRegularWith 3 :=
   isRegularWith_of_degSequence (n := 32) (by native_decide)
@@ -731,7 +733,7 @@ theorem heawood_nb : ∀ a b : heawood.V, b ∈ heawoodNb a ↔ heawood.Adj a b 
 /-- The Heawood graph, the `(3, 6)`-cage, has girth six: `0 - 1 - 2 - 3 - 4 - 5 - 0` is a
 six-cycle, and a search along the
 neighbour table finds no shorter one. -/
-@[simp] theorem girth_heawood : heawood.girth = 6 := by
+@[simp, toIsoGraph] theorem girth_heawood : heawood.girth = 6 := by
   have hcyc : heawood.girth ≤ 6 :=
     girth_le_of_cycleList
       (vtx 14 0) [vtx 14 1, vtx 14 2, vtx 14 3, vtx 14 4, vtx 14 5]
@@ -843,7 +845,7 @@ theorem nauru_nb : ∀ a b : nauru.V, b ∈ nauruNb a ↔ nauru.Adj a b := by
 /-- The Nauru graph has girth six: `0 - 1 - 2 - 14 - 19 - 12 - 0` is a six-cycle, and a search
 along the
 neighbour table finds no shorter one. -/
-@[simp] theorem girth_nauru : nauru.girth = 6 := by
+@[simp, toIsoGraph] theorem girth_nauru : nauru.girth = 6 := by
   have hcyc : nauru.girth ≤ 6 :=
     girth_le_of_cycleList
       (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 14, vtx 24 19, vtx 24 12]

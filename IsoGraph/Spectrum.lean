@@ -688,7 +688,7 @@ theorem exists_intCast_eq_of_ratCast_mem_spectrum (G : CGraph) {q : ℚ}
 @[simp] theorem adjMat_empty (n : ℕ) : (empty n).adjMat = 0 := by
   ext i j; simp [adjMat_apply]
 
-@[simp] theorem charpoly_empty (n : ℕ) : (empty n).charpoly = X ^ n := by
+@[simp, toIsoGraph] theorem charpoly_empty (n : ℕ) : (empty n).charpoly = X ^ n := by
   simp [charpoly, Matrix.charpoly_zero]
 
 @[simp, toIsoGraph]
@@ -724,6 +724,7 @@ theorem adjMat_complete (n : ℕ) :
   by_cases h : i = j <;>
     simp [adjMat_apply, complete, Matrix.vecMulVec, h]
 
+@[toIsoGraph]
 theorem charpoly_complete (n : ℕ) :
     (complete (n + 1)).charpoly = (X - C (n : ℝ)) * (X + 1) ^ n := by
   classical
@@ -1810,6 +1811,7 @@ conditions pin `f` and `g` down, so a caller who already knows them can hand the
 checked rather than solve for them: subtracting the two copies of `k + f r + g s = 0` leaves
 `(f - f') (r - s) = 0`, and `r ≠ s`.  This is what turns each of the sporadic graphs below into a
 single `norm_num`. -/
+@[toIsoGraph]
 theorem spectrum_isSRGWith_of_mult {G : CGraph} [Nonempty G.V] {n k l m : ℕ}
     (h : G.IsSRGWith n k l m) (hm : 0 < m) {r s : ℝ} (f g : ℕ)
     (hrs : r + s = (l : ℝ) - m) (hprod : r * s = -((k : ℝ) - m)) (hne : r ≠ s)
@@ -1980,6 +1982,7 @@ theorem degree_of_isSRGWith_moore {G : CGraph} {k : ℕ} (hk : 2 ≤ k)
     · exact_mod_cast (by linarith : (k : ℝ) = 2)
 
 /-- **The spectrum of the Petersen graph**: `3` once, `1` five times, `-2` four times. -/
+@[toIsoGraph]
 theorem spectrum_petersen :
     SRG.petersen.spectrum = 3 ::ₘ (Multiset.replicate 5 1 + Multiset.replicate 4 (-2)) := by
   have : Nonempty SRG.petersen.V :=
@@ -1997,6 +2000,7 @@ theorem spectrum_petersen :
 
 /-- **The spectrum of the cocktail party graph `K_{n×2}`**: `2n - 2` once, `0` with multiplicity
 `n` and `-2` with multiplicity `n - 1`. -/
+@[toIsoGraph]
 theorem spectrum_cocktailParty (m : ℕ) :
     (cocktailParty (m + 2)).spectrum
       = (2 * (m : ℝ) + 2) ::ₘ (Multiset.replicate (m + 2) 0 + Multiset.replicate (m + 1) (-2)) := by
@@ -2019,6 +2023,7 @@ theorem spectrum_cocktailParty (m : ℕ) :
 
 /-- **The spectrum of the rook's graph `K_n □ K_n`**: the degree `2n - 2` once, `n - 2` with
 multiplicity `2 (n - 1)`, and `-2` with multiplicity `(n - 1) ²`. -/
+@[toIsoGraph]
 theorem spectrum_rook (k : ℕ) :
     (rook (k + 2) (k + 2)).spectrum
       = (2 * (k : ℝ) + 2) ::ₘ (Multiset.replicate (2 * (k + 1)) (k : ℝ)
@@ -2049,6 +2054,7 @@ theorem spectrum_rook (k : ℕ) :
 
 /-- **The spectrum of the triangular graph `T(n) = L(Kₙ)`**: the degree `2 (n - 2)` once, `n - 4`
 with multiplicity `n - 1`, and `-2` with multiplicity `C(n, 2) - n`. -/
+@[toIsoGraph]
 theorem spectrum_triangular (m : ℕ) :
     (triangular (m + 4)).spectrum
       = (2 * (m : ℝ) + 4) ::ₘ (Multiset.replicate (m + 3) (m : ℝ)
@@ -2082,6 +2088,7 @@ theorem spectrum_triangular (m : ℕ) :
 the two conjugates `(-1 ± √q) / 2`, each with multiplicity `2t`.  This is the conference case of
 `int_or_conference_of_isSRGWith` — the one family here whose eigenvalues are irrational, and the
 reason the two multiplicities have to agree: `k + f r + g s = 0` reads `(f - g) √q = 0`. -/
+@[toIsoGraph]
 theorem spectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
     (paley (4 * t + 1)).spectrum
       = (2 * (t : ℝ)) ::ₘ
@@ -2176,6 +2183,7 @@ instance : Nonempty SRG.higmanSims.V :=
 
 /-- **The spectrum of the Clebsch graph** `srg(16, 5, 0, 2)`: `5` once, `1` ten times, `-3` five
 times. -/
+@[toIsoGraph]
 theorem spectrum_clebsch :
     SRG.clebsch.spectrum = 5 ::ₘ (Multiset.replicate 10 1 + Multiset.replicate 5 (-3)) :=
   spectrum_isSRGWith_of_mult SRG.clebsch_srg (by norm_num) 10 5 (by norm_num) (by norm_num)
@@ -2183,6 +2191,7 @@ theorem spectrum_clebsch :
 
 /-- **The spectrum of the Shrikhande graph** `srg(16, 6, 2, 2)`: `6` once, `2` six times, `-2`
 nine times — the same as the rook's graph `K₄ □ K₄`, which is the point of the pair. -/
+@[toIsoGraph]
 theorem spectrum_shrikhande :
     SRG.shrikhande.spectrum = 6 ::ₘ (Multiset.replicate 6 2 + Multiset.replicate 9 (-2)) :=
   spectrum_isSRGWith_of_mult SRG.shrikhande_srg (by norm_num) 6 9 (by norm_num) (by norm_num)
@@ -2190,6 +2199,7 @@ theorem spectrum_shrikhande :
 
 /-- **The spectrum of the graph on the 27 lines of a cubic surface** `srg(27, 10, 1, 5)`: `10`
 once, `1` twenty times, `-5` six times. -/
+@[toIsoGraph]
 theorem spectrum_linesOnCubic :
     SRG.linesOnCubic.spectrum = 10 ::ₘ (Multiset.replicate 20 1 + Multiset.replicate 6 (-5)) :=
   spectrum_isSRGWith_of_mult SRG.linesOnCubic_srg (by norm_num) 20 6 (by norm_num) (by norm_num)
@@ -2198,6 +2208,7 @@ theorem spectrum_linesOnCubic :
 /-- **The spectrum of the Schläfli graph** `srg(27, 16, 10, 8)`: `16` once, `4` six times, `-2`
 twenty times.  It is the complement of the previous graph, and indeed `16 = 26 - 10`,
 `4 = -1 - (-5)` and `-2 = -1 - 1`. -/
+@[toIsoGraph]
 theorem spectrum_schlafli :
     SRG.schlafli.spectrum = 16 ::ₘ (Multiset.replicate 6 4 + Multiset.replicate 20 (-2)) :=
   spectrum_isSRGWith_of_mult SRG.schlafli_srg (by norm_num) 6 20 (by norm_num) (by norm_num)
@@ -2206,18 +2217,21 @@ theorem spectrum_schlafli :
 /-- **The spectrum of the first Chang graph** `srg(28, 12, 6, 4)`: `12` once, `4` seven times,
 `-2` twenty times.  All three Chang graphs and the triangular graph `T(8)` share it — that is
 what makes the four of them the standard example of parameters that do not determine a graph. -/
+@[toIsoGraph]
 theorem spectrum_chang₁ :
     SRG.chang₁.spectrum = 12 ::ₘ (Multiset.replicate 7 4 + Multiset.replicate 20 (-2)) :=
   spectrum_isSRGWith_of_mult SRG.chang₁_srg (by norm_num) 7 20 (by norm_num) (by norm_num)
     (by norm_num) (by norm_num) (by norm_num)
 
 /-- **The spectrum of the second Chang graph**, the same as the first. -/
+@[toIsoGraph]
 theorem spectrum_chang₂ :
     SRG.chang₂.spectrum = 12 ::ₘ (Multiset.replicate 7 4 + Multiset.replicate 20 (-2)) :=
   spectrum_isSRGWith_of_mult SRG.chang₂_srg (by norm_num) 7 20 (by norm_num) (by norm_num)
     (by norm_num) (by norm_num) (by norm_num)
 
 /-- **The spectrum of the third Chang graph**, the same as the first. -/
+@[toIsoGraph]
 theorem spectrum_chang₃ :
     SRG.chang₃.spectrum = 12 ::ₘ (Multiset.replicate 7 4 + Multiset.replicate 20 (-2)) :=
   spectrum_isSRGWith_of_mult SRG.chang₃_srg (by norm_num) 7 20 (by norm_num) (by norm_num)
@@ -2227,6 +2241,7 @@ theorem spectrum_chang₃ :
 times, `-3` twenty-one times.  The multiplicities are exactly what `degree_of_isSRGWith_moore`
 runs on: `f ≠ g`, so `√(4k - 3) = 5` has to be an integer, which is why `k = 7` is allowed at
 all. -/
+@[toIsoGraph]
 theorem spectrum_hoffmanSingleton :
     SRG.hoffmanSingleton.spectrum
       = 7 ::ₘ (Multiset.replicate 28 2 + Multiset.replicate 21 (-3)) :=
@@ -2235,6 +2250,7 @@ theorem spectrum_hoffmanSingleton :
 
 /-- **The spectrum of the Gewirtz graph** `srg(56, 10, 0, 2)`: `10` once, `2` thirty-five times,
 `-4` twenty times. -/
+@[toIsoGraph]
 theorem spectrum_gewirtz :
     SRG.gewirtz.spectrum = 10 ::ₘ (Multiset.replicate 35 2 + Multiset.replicate 20 (-4)) :=
   spectrum_isSRGWith_of_mult SRG.gewirtz_srg (by norm_num) 35 20 (by norm_num) (by norm_num)
@@ -2242,6 +2258,7 @@ theorem spectrum_gewirtz :
 
 /-- **The spectrum of the `M₂₂` graph** `srg(77, 16, 0, 4)`: `16` once, `2` fifty-five times, `-6`
 twenty-one times. -/
+@[toIsoGraph]
 theorem spectrum_m22 :
     SRG.m22.spectrum = 16 ::ₘ (Multiset.replicate 55 2 + Multiset.replicate 21 (-6)) :=
   spectrum_isSRGWith_of_mult SRG.m22_srg (by norm_num) 55 21 (by norm_num) (by norm_num)
@@ -2249,6 +2266,7 @@ theorem spectrum_m22 :
 
 /-- **The spectrum of the Higman–Sims graph** `srg(100, 22, 0, 6)`: `22` once, `2` seventy-seven
 times, `-8` twenty-two times. -/
+@[toIsoGraph]
 theorem spectrum_higmanSims :
     SRG.higmanSims.spectrum = 22 ::ₘ (Multiset.replicate 77 2 + Multiset.replicate 22 (-8)) :=
   spectrum_isSRGWith_of_mult SRG.higmanSims_srg (by norm_num) 77 22 (by norm_num) (by norm_num)
@@ -2517,6 +2535,7 @@ theorem adjMat_bipartite_cube (m n : ℕ) :
   simp only [Matrix.mul_zero, Matrix.zero_mul, add_zero, zero_add, smul_zero]
   congr 1 <;> ext i j <;> simp [Matrix.mul_apply, mul_comm]
 
+@[toIsoGraph]
 theorem spectrum_bipartite (m n : ℕ) :
     (bipartite (m + 1) (n + 1)).spectrum =
       Real.sqrt ((m + 1) * (n + 1)) ::ₘ (-Real.sqrt ((m + 1) * (n + 1)) ::ₘ
@@ -2527,6 +2546,7 @@ theorem spectrum_bipartite (m n : ℕ) :
   rw [h, card_bipartite, show m + 1 + (n + 1) - 2 = m + n from by omega]
   norm_num
 
+@[toIsoGraph]
 theorem spectrum_star (n : ℕ) :
     (star (n + 1)).spectrum =
       Real.sqrt (n + 1) ::ₘ (-Real.sqrt (n + 1) ::ₘ Multiset.replicate n 0) := by
@@ -4356,63 +4376,75 @@ theorem le_chromNum_of_isSRGWith_of_lambdaMin {G : CGraph} [Nonempty G.V] {n k l
   exact_mod_cast le_of_mul_le_mul_right (hle.trans hb) hneg
 
 /-- The Clebsch graph has at most `⌊16 · 3 / 8⌋ = 6` pairwise non-adjacent vertices. -/
+@[toIsoGraph]
 theorem indepNum_clebsch_le : SRG.clebsch.indepNum ≤ 6 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.clebsch_srg lambdaMin_clebsch (by norm_num)
     (by norm_num)
 
 /-- The Shrikhande graph has at most `⌊16 · 2 / 8⌋ = 4` pairwise non-adjacent vertices, and this
 is attained. -/
+@[toIsoGraph]
 theorem indepNum_shrikhande_le : SRG.shrikhande.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.shrikhande_srg lambdaMin_shrikhande (by norm_num)
     (by norm_num)
 
 /-- Sixteen vertices, four to a colour class at best, so four colours at least. -/
+@[toIsoGraph]
 theorem four_le_chromNum_shrikhande : 4 ≤ SRG.shrikhande.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.shrikhande_srg lambdaMin_shrikhande (by norm_num)
     (by norm_num)
 
 /-- At most `⌊27 · 5 / 15⌋ = 9` pairwise skew lines on a cubic surface. -/
+@[toIsoGraph]
 theorem indepNum_linesOnCubic_le : SRG.linesOnCubic.indepNum ≤ 9 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.linesOnCubic_srg lambdaMin_linesOnCubic (by norm_num)
     (by norm_num)
 
 /-- The Schläfli graph has at most `⌊27 · 2 / 18⌋ = 3` pairwise non-adjacent vertices. -/
+@[toIsoGraph]
 theorem indepNum_schlafli_le : SRG.schlafli.indepNum ≤ 3 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.schlafli_srg lambdaMin_schlafli (by norm_num)
     (by norm_num)
 
 /-- Twenty-seven vertices, three to a colour class at best, so nine colours at least — and nine
 is the chromatic number. -/
+@[toIsoGraph]
 theorem nine_le_chromNum_schlafli : 9 ≤ SRG.schlafli.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.schlafli_srg lambdaMin_schlafli (by norm_num)
     (by norm_num)
 
 /-- The first Chang graph has at most `⌊28 · 2 / 14⌋ = 4` pairwise non-adjacent vertices. -/
+@[toIsoGraph]
 theorem indepNum_chang₁_le : SRG.chang₁.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.chang₁_srg lambdaMin_chang₁ (by norm_num)
     (by norm_num)
 
 /-- Seven colours at least, matching `χ(T(8)) = χ'(K₈) = 7`. -/
+@[toIsoGraph]
 theorem seven_le_chromNum_chang₁ : 7 ≤ SRG.chang₁.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.chang₁_srg lambdaMin_chang₁ (by norm_num)
     (by norm_num)
 
 /-- The second Chang graph has at most `4` pairwise non-adjacent vertices. -/
+@[toIsoGraph]
 theorem indepNum_chang₂_le : SRG.chang₂.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.chang₂_srg lambdaMin_chang₂ (by norm_num)
     (by norm_num)
 
 /-- Seven colours at least for the second Chang graph. -/
+@[toIsoGraph]
 theorem seven_le_chromNum_chang₂ : 7 ≤ SRG.chang₂.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.chang₂_srg lambdaMin_chang₂ (by norm_num)
     (by norm_num)
 
 /-- The third Chang graph has at most `4` pairwise non-adjacent vertices. -/
+@[toIsoGraph]
 theorem indepNum_chang₃_le : SRG.chang₃.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.chang₃_srg lambdaMin_chang₃ (by norm_num)
     (by norm_num)
 
 /-- Seven colours at least for the third Chang graph. -/
+@[toIsoGraph]
 theorem seven_le_chromNum_chang₃ : 7 ≤ SRG.chang₃.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.chang₃_srg lambdaMin_chang₃ (by norm_num)
     (by norm_num)
@@ -4420,44 +4452,52 @@ theorem seven_le_chromNum_chang₃ : 7 ≤ SRG.chang₃.chromNum :=
 /-- The Hoffman–Singleton graph has at most `⌊50 · 3 / 10⌋ = 15` pairwise non-adjacent vertices,
 and this is attained: the graph splits into five Petersen graphs, and the fifteen come from
 three of them. -/
+@[toIsoGraph]
 theorem indepNum_hoffmanSingleton_le : SRG.hoffmanSingleton.indepNum ≤ 15 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.hoffmanSingleton_srg lambdaMin_hoffmanSingleton
     (by norm_num) (by norm_num)
 
 /-- The Hoffman–Singleton graph is triangle-free, so no clique bound will do better than `2`, but
 the ratio bound gives `3 ≤ χ`. -/
+@[toIsoGraph]
 theorem three_le_chromNum_hoffmanSingleton : 3 ≤ SRG.hoffmanSingleton.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.hoffmanSingleton_srg lambdaMin_hoffmanSingleton
     (by norm_num) (by norm_num)
 
 /-- The Gewirtz graph has at most `⌊56 · 4 / 14⌋ = 16` pairwise non-adjacent vertices, and this is
 attained. -/
+@[toIsoGraph]
 theorem indepNum_gewirtz_le : SRG.gewirtz.indepNum ≤ 16 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.gewirtz_srg lambdaMin_gewirtz (by norm_num)
     (by norm_num)
 
 /-- The Gewirtz graph is triangle-free; the ratio bound still gives `3 ≤ χ`. -/
+@[toIsoGraph]
 theorem three_le_chromNum_gewirtz : 3 ≤ SRG.gewirtz.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.gewirtz_srg lambdaMin_gewirtz (by norm_num)
     (by norm_num)
 
 /-- The `M₂₂` graph has at most `⌊77 · 6 / 22⌋ = 21` pairwise non-adjacent vertices, and this is
 attained. -/
+@[toIsoGraph]
 theorem indepNum_m22_le : SRG.m22.indepNum ≤ 21 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.m22_srg lambdaMin_m22 (by norm_num) (by norm_num)
 
 /-- The `M₂₂` graph is triangle-free; the ratio bound still gives `3 ≤ χ`. -/
+@[toIsoGraph]
 theorem three_le_chromNum_m22 : 3 ≤ SRG.m22.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.m22_srg lambdaMin_m22 (by norm_num) (by norm_num)
 
 /-- The Higman–Sims graph has at most `⌊100 · 8 / 30⌋ = 26` pairwise non-adjacent vertices.  This
 one is not attained — the true value is `22` — which is what a bound with an irrational ratio
 looks like from the inside. -/
+@[toIsoGraph]
 theorem indepNum_higmanSims_le : SRG.higmanSims.indepNum ≤ 26 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.higmanSims_srg lambdaMin_higmanSims (by norm_num)
     (by norm_num)
 
 /-- The Higman–Sims graph is triangle-free; the ratio bound still gives `3 ≤ χ`. -/
+@[toIsoGraph]
 theorem three_le_chromNum_higmanSims : 3 ≤ SRG.higmanSims.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.higmanSims_srg lambdaMin_higmanSims (by norm_num)
     (by norm_num)
@@ -5469,6 +5509,7 @@ theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} {k : ℕ}
 /-- **The spectrum of the line graph of a `k`-regular graph.**  Each eigenvalue `λ` of `G`
 contributes `λ + k - 2` to `L(G)`, and the remaining `|E| - |V|` eigenvalues are all `-2`.  The
 proof is Sylvester's determinant identity applied to `B Bᵀ = A + k I` and `Bᵀ B = A(L G) + 2 I`. -/
+@[toIsoGraph]
 theorem spectrum_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
     (h : G.IsRegularWith k) (hle : FinEnum.card G.V ≤ G.E) :
     (lineGraph G).spectrum
@@ -5717,6 +5758,7 @@ private theorem map_univ_val_eq_cons {V : Type*} [Fintype V] [DecidableEq V] {la
 
 /-- **The spectrum of the complement of a connected regular graph.**  The degree `k` is replaced
 by `n - 1 - k` and every other eigenvalue `x` by `-1 - x`. -/
+@[toIsoGraph]
 theorem spectrum_compl_of_isRegularWith {G : CGraph}
     (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
     Gᶜ.spectrum = ((FinEnum.card G.V : ℝ) - 1 - k)
@@ -6846,11 +6888,12 @@ theorem energy_eq_zero_iff (G : CGraph) : G.energy = 0 ↔ G.E = 0 := by
     rw [energy_eq_sum]
     exact Finset.sum_eq_zero fun i _ ↦ by rw [hz i, abs_zero]
 
-@[simp] theorem energy_empty (n : ℕ) : (empty n).energy = 0 := by
+@[simp, toIsoGraph] theorem energy_empty (n : ℕ) : (empty n).energy = 0 := by
   rw [energy, spectrum_empty]
   simp
 
 /-- **The energy of a complete bipartite graph** is `2 √(m n)`. -/
+@[toIsoGraph]
 theorem energy_bipartite (m n : ℕ) :
     (bipartite (m + 1) (n + 1)).energy = 2 * Real.sqrt ((m + 1) * (n + 1)) := by
   rw [energy, spectrum_bipartite]
@@ -6858,12 +6901,14 @@ theorem energy_bipartite (m n : ℕ) :
   ring
 
 /-- **The energy of a star** is `2 √n`. -/
+@[toIsoGraph]
 theorem energy_star (n : ℕ) : (star (n + 1)).energy = 2 * Real.sqrt (n + 1) := by
   rw [energy, spectrum_star]
   simp [abs_of_nonneg (Real.sqrt_nonneg ((n : ℝ) + 1))]
   ring
 
 /-- **The energy of the Petersen graph** is `16`: `3 + 5 · 1 + 4 · 2`. -/
+@[toIsoGraph]
 theorem energy_petersen : SRG.petersen.energy = 16 := by
   rw [energy, spectrum_petersen]
   norm_num [Multiset.map_add, Multiset.map_replicate]
@@ -6878,6 +6923,7 @@ conference graphs. -/
 
 /-- **The energy of a graph with a two-valued spectrum.**  Given `spectrum = d ::ₘ (f • r + g • s)`
 with `r ≥ 0 ≥ s`, the energy is `d + f r - g s`. -/
+@[toIsoGraph]
 theorem energy_of_spectrum_eq {G : CGraph} {f g : ℕ} {d r s : ℝ}
     (hd : 0 ≤ d) (hr : 0 ≤ r) (hs : s ≤ 0)
     (hspec : G.spectrum = d ::ₘ (Multiset.replicate f r + Multiset.replicate g s)) :
@@ -6888,57 +6934,68 @@ theorem energy_of_spectrum_eq {G : CGraph} {f g : ℕ} {d r s : ℝ}
   ring
 
 /-- The Clebsch graph has energy `5 + 10 · 1 + 5 · 3 = 30`. -/
+@[toIsoGraph]
 theorem energy_clebsch : SRG.clebsch.energy = 30 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_clebsch]
   norm_num
 
 /-- The Shrikhande graph has energy `6 + 6 · 2 + 9 · 2 = 36`, the same as the `4 × 4` rook's
 graph it is cospectral with. -/
+@[toIsoGraph]
 theorem energy_shrikhande : SRG.shrikhande.energy = 36 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_shrikhande]
   norm_num
 
 /-- The graph of lines on a cubic surface has energy `10 + 20 · 1 + 6 · 5 = 60`. -/
+@[toIsoGraph]
 theorem energy_linesOnCubic : SRG.linesOnCubic.energy = 60 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_linesOnCubic]
   norm_num
 
 /-- The Schläfli graph has energy `16 + 6 · 4 + 20 · 2 = 80`. -/
+@[toIsoGraph]
 theorem energy_schlafli : SRG.schlafli.energy = 80 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_schlafli]
   norm_num
 
 /-- The first Chang graph has energy `12 + 7 · 4 + 20 · 2 = 80`. -/
+@[toIsoGraph]
 theorem energy_chang₁ : SRG.chang₁.energy = 80 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_chang₁]
   norm_num
 
 /-- The second Chang graph has energy `80`. -/
+@[toIsoGraph]
 theorem energy_chang₂ : SRG.chang₂.energy = 80 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_chang₂]
   norm_num
 
 /-- The third Chang graph has energy `80`. -/
+@[toIsoGraph]
 theorem energy_chang₃ : SRG.chang₃.energy = 80 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_chang₃]
   norm_num
 
 /-- The Hoffman–Singleton graph has energy `7 + 28 · 2 + 21 · 3 = 126`. -/
+@[toIsoGraph]
 theorem energy_hoffmanSingleton : SRG.hoffmanSingleton.energy = 126 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_hoffmanSingleton]
   norm_num
 
 /-- The Gewirtz graph has energy `10 + 35 · 2 + 20 · 4 = 160`. -/
+@[toIsoGraph]
 theorem energy_gewirtz : SRG.gewirtz.energy = 160 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_gewirtz]
   norm_num
 
 /-- The `M₂₂` graph has energy `16 + 55 · 2 + 21 · 6 = 252`. -/
+@[toIsoGraph]
 theorem energy_m22 : SRG.m22.energy = 252 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_m22]
   norm_num
 
 /-- The Higman–Sims graph has energy `22 + 77 · 2 + 22 · 8 = 352`. -/
+@[toIsoGraph]
 theorem energy_higmanSims : SRG.higmanSims.energy = 352 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_higmanSims]
   norm_num
@@ -7163,7 +7220,7 @@ theorem lapMat_disjUnion (G H : CGraph) :
     simp only [degree_disjUnion_inl, degree_disjUnion_inr] <;>
     simp [adjMat_apply, disjUnion, Matrix.diagonal_apply]
 
-@[simp] theorem lapCharpoly_disjUnion (G H : CGraph) :
+@[simp, toIsoGraph] theorem lapCharpoly_disjUnion (G H : CGraph) :
     (G ⊕g H).lapCharpoly = G.lapCharpoly * H.lapCharpoly := by
   classical
   rw [lapCharpoly_eq_matrix_charpoly, lapMat_disjUnion,
@@ -8292,6 +8349,7 @@ theorem lapLambdaMax_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
 
 /-- **The largest Laplacian eigenvalue of the empty graph** is `0`: its Laplacian is the zero
 matrix, so `μ_max = 0 - λ_min` collapses. -/
+@[toIsoGraph]
 theorem lapLambdaMax_empty (n : ℕ) : (empty (n + 1)).lapLambdaMax = 0 := by
   rw [lapLambdaMax_of_isRegularWith (isRegularWith_empty (n + 1)), lambdaMin_empty]
   norm_num
@@ -8990,6 +9048,7 @@ theorem algConn_of_spectrum_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k)
 /-! ### The Laplacian of the named strongly regular graphs -/
 
 /-- **The Laplacian spectrum of the Petersen graph**: `0`, `2` five times, `5` four times. -/
+@[toIsoGraph]
 theorem lapSpectrum_petersen :
     SRG.petersen.lapSpectrum = 0 ::ₘ (Multiset.replicate 5 2 + Multiset.replicate 4 5) := by
   have h := lapSpectrum_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (by norm_num)
@@ -8997,12 +9056,14 @@ theorem lapSpectrum_petersen :
   rw [h]
   norm_num
 
+@[toIsoGraph]
 theorem algConn_petersen : SRG.petersen.algConn = 2 := by
   have h := algConn_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (f := 5) (g := 4)
     (by norm_num) (by norm_num) (by norm_num) spectrum_petersen
   rw [h]
   norm_num
 
+@[toIsoGraph]
 theorem lapLambdaMax_petersen : SRG.petersen.lapLambdaMax = 5 := by
   have : Nonempty SRG.petersen.V :=
     Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
@@ -9019,6 +9080,7 @@ theorem isRegularWith_cocktailParty (m : ℕ) :
 
 /-- **The Laplacian spectrum of the cocktail party graph `K_{n×2}`**: `0` once, `2n - 2` with
 multiplicity `n` and `2n` with multiplicity `n - 1`. -/
+@[toIsoGraph]
 theorem lapSpectrum_cocktailParty (m : ℕ) :
     (cocktailParty (m + 2)).lapSpectrum
       = 0 ::ₘ (Multiset.replicate (m + 2) (2 * (m : ℝ) + 2)
@@ -9028,6 +9090,7 @@ theorem lapSpectrum_cocktailParty (m : ℕ) :
   rw [h]
   ring_nf
 
+@[toIsoGraph]
 theorem algConn_cocktailParty (m : ℕ) :
     (cocktailParty (m + 2)).algConn = 2 * (m : ℝ) + 2 := by
   have h := algConn_of_spectrum_eq (isRegularWith_cocktailParty m) (f := m + 2) (g := m + 1)
@@ -9035,6 +9098,7 @@ theorem algConn_cocktailParty (m : ℕ) :
   rw [h]
   ring
 
+@[toIsoGraph]
 theorem lapLambdaMax_cocktailParty (m : ℕ) :
     (cocktailParty (m + 2)).lapLambdaMax = 2 * (m : ℝ) + 4 := by
   have : Nonempty (cocktailParty (m + 2)).V :=
@@ -9052,6 +9116,7 @@ theorem isRegularWith_rook (k : ℕ) : (rook (k + 2) (k + 2)).IsRegularWith (2 *
 /-- **The Laplacian spectrum of the rook's graph `K_n □ K_n`**: `0` once, `n` with multiplicity
 `2 (n - 1)` and `2n` with multiplicity `(n - 1) ²` — exactly what `lapSpectrum_cartesianProduct`
 gives for `K_n □ K_n`. -/
+@[toIsoGraph]
 theorem lapSpectrum_rook (k : ℕ) :
     (rook (k + 2) (k + 2)).lapSpectrum
       = 0 ::ₘ (Multiset.replicate (2 * (k + 1)) ((k : ℝ) + 2)
@@ -9061,6 +9126,7 @@ theorem lapSpectrum_rook (k : ℕ) :
   rw [h]
   ring_nf
 
+@[toIsoGraph]
 theorem algConn_rook (k : ℕ) : (rook (k + 2) (k + 2)).algConn = (k : ℝ) + 2 := by
   have h := algConn_of_spectrum_eq (isRegularWith_rook k) (f := 2 * (k + 1)) (g := (k + 1) ^ 2)
     (by push_cast; ring) (by omega) (by have : (0 : ℝ) ≤ k := Nat.cast_nonneg k; linarith)
@@ -9068,6 +9134,7 @@ theorem algConn_rook (k : ℕ) : (rook (k + 2) (k + 2)).algConn = (k : ℝ) + 2 
   rw [h]
   ring
 
+@[toIsoGraph]
 theorem lapLambdaMax_rook (k : ℕ) :
     (rook (k + 2) (k + 2)).lapLambdaMax = 2 * (k : ℝ) + 4 := by
   have : Nonempty (rook (k + 2) (k + 2)).V :=
@@ -9086,6 +9153,7 @@ theorem isRegularWith_triangular (m : ℕ) :
 
 /-- **The Laplacian spectrum of the triangular graph `T(n) = L(Kₙ)`**: `0` once, `n` with
 multiplicity `n - 1`, and `2n - 2` with multiplicity `C(n, 2) - n`. -/
+@[toIsoGraph]
 theorem lapSpectrum_triangular (m : ℕ) :
     (triangular (m + 4)).lapSpectrum
       = 0 ::ₘ (Multiset.replicate (m + 3) ((m : ℝ) + 4)
@@ -9095,6 +9163,7 @@ theorem lapSpectrum_triangular (m : ℕ) :
   rw [h]
   ring_nf
 
+@[toIsoGraph]
 theorem algConn_triangular (m : ℕ) : (triangular (m + 4)).algConn = (m : ℝ) + 4 := by
   have h := algConn_of_spectrum_eq (isRegularWith_triangular m) (f := m + 3)
     (g := (m + 4).choose 2 - (m + 4)) (by push_cast; ring) (by omega)
@@ -9102,6 +9171,7 @@ theorem algConn_triangular (m : ℕ) : (triangular (m + 4)).algConn = (m : ℝ) 
   rw [h]
   ring
 
+@[toIsoGraph]
 theorem lapLambdaMax_triangular (m : ℕ) :
     (triangular (m + 4)).lapLambdaMax = 2 * (m : ℝ) + 6 := by
   have : Nonempty (triangular (m + 4)).V :=
@@ -9128,6 +9198,7 @@ theorem isRegularWith_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))
 
 /-- **The Laplacian spectrum of the Paley graph** `P(q)`, `q = 4t + 1` prime: `0` once, and
 `(q ∓ √q) / 2` each with multiplicity `(q - 1) / 2`. -/
+@[toIsoGraph]
 theorem lapSpectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
     (paley (4 * t + 1)).lapSpectrum
       = 0 ::ₘ
@@ -9139,6 +9210,7 @@ theorem lapSpectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] 
   rw [h]
   ring_nf
 
+@[toIsoGraph]
 theorem algConn_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
     (paley (4 * t + 1)).algConn
       = (4 * (t : ℝ) + 1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
@@ -9148,6 +9220,7 @@ theorem algConn_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
   rw [h]
   ring
 
+@[toIsoGraph]
 theorem lapLambdaMax_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
     (paley (4 * t + 1)).lapLambdaMax
       = (4 * (t : ℝ) + 1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
@@ -9172,18 +9245,21 @@ that take `algConn` as input apply to them. -/
 
 /-- The Clebsch graph has Laplacian spectrum `0`, `4` with multiplicity `10`, and `8` with
 multiplicity `5`. -/
+@[toIsoGraph]
 theorem lapSpectrum_clebsch :
     SRG.clebsch.lapSpectrum = 0 ::ₘ (Multiset.replicate 10 4 + Multiset.replicate 5 8) := by
   rw [lapSpectrum_of_spectrum_eq (k := 5) SRG.clebsch_srg.regular (by norm_num) spectrum_clebsch]
   norm_num
 
 /-- The Clebsch graph has algebraic connectivity `5 - 1 = 4`; in particular it is connected. -/
+@[toIsoGraph]
 theorem algConn_clebsch : SRG.clebsch.algConn = 4 := by
   rw [algConn_of_spectrum_eq (k := 5) SRG.clebsch_srg.regular (f := 10) (g := 5)
     (by norm_num) (by norm_num) (by norm_num) spectrum_clebsch]
   norm_num
 
 /-- The Clebsch graph has largest Laplacian eigenvalue `8`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_clebsch : SRG.clebsch.lapLambdaMax = 8 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 5) SRG.clebsch_srg.regular (f := 10) (g := 5)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_clebsch]
@@ -9191,6 +9267,7 @@ theorem lapLambdaMax_clebsch : SRG.clebsch.lapLambdaMax = 8 := by
 
 /-- The Shrikhande graph has Laplacian spectrum `0`, `4` with multiplicity `6`, and `8` with
 multiplicity `9`. -/
+@[toIsoGraph]
 theorem lapSpectrum_shrikhande :
     SRG.shrikhande.lapSpectrum = 0 ::ₘ (Multiset.replicate 6 4 + Multiset.replicate 9 8) := by
   rw [lapSpectrum_of_spectrum_eq (k := 6) SRG.shrikhande_srg.regular (by norm_num)
@@ -9198,12 +9275,14 @@ theorem lapSpectrum_shrikhande :
   norm_num
 
 /-- The Shrikhande graph has algebraic connectivity `6 - 2 = 4`; in particular it is connected. -/
+@[toIsoGraph]
 theorem algConn_shrikhande : SRG.shrikhande.algConn = 4 := by
   rw [algConn_of_spectrum_eq (k := 6) SRG.shrikhande_srg.regular (f := 6) (g := 9)
     (by norm_num) (by norm_num) (by norm_num) spectrum_shrikhande]
   norm_num
 
 /-- The Shrikhande graph has largest Laplacian eigenvalue `8`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_shrikhande : SRG.shrikhande.lapLambdaMax = 8 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 6) SRG.shrikhande_srg.regular (f := 6) (g := 9)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_shrikhande]
@@ -9211,6 +9290,7 @@ theorem lapLambdaMax_shrikhande : SRG.shrikhande.lapLambdaMax = 8 := by
 
 /-- The graph of lines on a cubic surface has Laplacian spectrum `0`, `9` with multiplicity `20`,
 and `15` with multiplicity `6`. -/
+@[toIsoGraph]
 theorem lapSpectrum_linesOnCubic :
     SRG.linesOnCubic.lapSpectrum = 0 ::ₘ (Multiset.replicate 20 9 + Multiset.replicate 6 15) := by
   rw [lapSpectrum_of_spectrum_eq (k := 10) SRG.linesOnCubic_srg.regular (by norm_num)
@@ -9219,12 +9299,14 @@ theorem lapSpectrum_linesOnCubic :
 
 /-- The graph of lines on a cubic surface has algebraic connectivity `10 - 1 = 9`; in particular
 it is connected. -/
+@[toIsoGraph]
 theorem algConn_linesOnCubic : SRG.linesOnCubic.algConn = 9 := by
   rw [algConn_of_spectrum_eq (k := 10) SRG.linesOnCubic_srg.regular (f := 20) (g := 6)
     (by norm_num) (by norm_num) (by norm_num) spectrum_linesOnCubic]
   norm_num
 
 /-- The graph of lines on a cubic surface has largest Laplacian eigenvalue `15`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_linesOnCubic : SRG.linesOnCubic.lapLambdaMax = 15 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 10) SRG.linesOnCubic_srg.regular (f := 20) (g := 6)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_linesOnCubic]
@@ -9232,18 +9314,21 @@ theorem lapLambdaMax_linesOnCubic : SRG.linesOnCubic.lapLambdaMax = 15 := by
 
 /-- The Schläfli graph has Laplacian spectrum `0`, `12` with multiplicity `6`, and `18` with
 multiplicity `20`. -/
+@[toIsoGraph]
 theorem lapSpectrum_schlafli :
     SRG.schlafli.lapSpectrum = 0 ::ₘ (Multiset.replicate 6 12 + Multiset.replicate 20 18) := by
   rw [lapSpectrum_of_spectrum_eq (k := 16) SRG.schlafli_srg.regular (by norm_num) spectrum_schlafli]
   norm_num
 
 /-- The Schläfli graph has algebraic connectivity `16 - 4 = 12`; in particular it is connected. -/
+@[toIsoGraph]
 theorem algConn_schlafli : SRG.schlafli.algConn = 12 := by
   rw [algConn_of_spectrum_eq (k := 16) SRG.schlafli_srg.regular (f := 6) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) spectrum_schlafli]
   norm_num
 
 /-- The Schläfli graph has largest Laplacian eigenvalue `18`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_schlafli : SRG.schlafli.lapLambdaMax = 18 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 16) SRG.schlafli_srg.regular (f := 6) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_schlafli]
@@ -9251,6 +9336,7 @@ theorem lapLambdaMax_schlafli : SRG.schlafli.lapLambdaMax = 18 := by
 
 /-- The first Chang graph has Laplacian spectrum `0`, `8` with multiplicity `7`, and `14` with
 multiplicity `20`. -/
+@[toIsoGraph]
 theorem lapSpectrum_chang₁ :
     SRG.chang₁.lapSpectrum = 0 ::ₘ (Multiset.replicate 7 8 + Multiset.replicate 20 14) := by
   rw [lapSpectrum_of_spectrum_eq (k := 12) SRG.chang₁_srg.regular (by norm_num) spectrum_chang₁]
@@ -9258,12 +9344,14 @@ theorem lapSpectrum_chang₁ :
 
 /-- The first Chang graph has algebraic connectivity `12 - 4 = 8`; in particular it is connected.
 -/
+@[toIsoGraph]
 theorem algConn_chang₁ : SRG.chang₁.algConn = 8 := by
   rw [algConn_of_spectrum_eq (k := 12) SRG.chang₁_srg.regular (f := 7) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) spectrum_chang₁]
   norm_num
 
 /-- The first Chang graph has largest Laplacian eigenvalue `14`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_chang₁ : SRG.chang₁.lapLambdaMax = 14 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 12) SRG.chang₁_srg.regular (f := 7) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_chang₁]
@@ -9271,6 +9359,7 @@ theorem lapLambdaMax_chang₁ : SRG.chang₁.lapLambdaMax = 14 := by
 
 /-- The second Chang graph has Laplacian spectrum `0`, `8` with multiplicity `7`, and `14` with
 multiplicity `20`. -/
+@[toIsoGraph]
 theorem lapSpectrum_chang₂ :
     SRG.chang₂.lapSpectrum = 0 ::ₘ (Multiset.replicate 7 8 + Multiset.replicate 20 14) := by
   rw [lapSpectrum_of_spectrum_eq (k := 12) SRG.chang₂_srg.regular (by norm_num) spectrum_chang₂]
@@ -9278,12 +9367,14 @@ theorem lapSpectrum_chang₂ :
 
 /-- The second Chang graph has algebraic connectivity `12 - 4 = 8`; in particular it is connected.
 -/
+@[toIsoGraph]
 theorem algConn_chang₂ : SRG.chang₂.algConn = 8 := by
   rw [algConn_of_spectrum_eq (k := 12) SRG.chang₂_srg.regular (f := 7) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) spectrum_chang₂]
   norm_num
 
 /-- The second Chang graph has largest Laplacian eigenvalue `14`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_chang₂ : SRG.chang₂.lapLambdaMax = 14 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 12) SRG.chang₂_srg.regular (f := 7) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_chang₂]
@@ -9291,6 +9382,7 @@ theorem lapLambdaMax_chang₂ : SRG.chang₂.lapLambdaMax = 14 := by
 
 /-- The third Chang graph has Laplacian spectrum `0`, `8` with multiplicity `7`, and `14` with
 multiplicity `20`. -/
+@[toIsoGraph]
 theorem lapSpectrum_chang₃ :
     SRG.chang₃.lapSpectrum = 0 ::ₘ (Multiset.replicate 7 8 + Multiset.replicate 20 14) := by
   rw [lapSpectrum_of_spectrum_eq (k := 12) SRG.chang₃_srg.regular (by norm_num) spectrum_chang₃]
@@ -9298,12 +9390,14 @@ theorem lapSpectrum_chang₃ :
 
 /-- The third Chang graph has algebraic connectivity `12 - 4 = 8`; in particular it is connected.
 -/
+@[toIsoGraph]
 theorem algConn_chang₃ : SRG.chang₃.algConn = 8 := by
   rw [algConn_of_spectrum_eq (k := 12) SRG.chang₃_srg.regular (f := 7) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) spectrum_chang₃]
   norm_num
 
 /-- The third Chang graph has largest Laplacian eigenvalue `14`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_chang₃ : SRG.chang₃.lapLambdaMax = 14 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 12) SRG.chang₃_srg.regular (f := 7) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_chang₃]
@@ -9311,6 +9405,7 @@ theorem lapLambdaMax_chang₃ : SRG.chang₃.lapLambdaMax = 14 := by
 
 /-- The Hoffman–Singleton graph has Laplacian spectrum `0`, `5` with multiplicity `28`, and `10`
 with multiplicity `21`. -/
+@[toIsoGraph]
 theorem lapSpectrum_hoffmanSingleton :
     SRG.hoffmanSingleton.lapSpectrum
       = 0 ::ₘ (Multiset.replicate 28 5 + Multiset.replicate 21 10) := by
@@ -9320,12 +9415,14 @@ theorem lapSpectrum_hoffmanSingleton :
 
 /-- The Hoffman–Singleton graph has algebraic connectivity `7 - 2 = 5`; in particular it is
 connected. -/
+@[toIsoGraph]
 theorem algConn_hoffmanSingleton : SRG.hoffmanSingleton.algConn = 5 := by
   rw [algConn_of_spectrum_eq (k := 7) SRG.hoffmanSingleton_srg.regular (f := 28) (g := 21)
     (by norm_num) (by norm_num) (by norm_num) spectrum_hoffmanSingleton]
   norm_num
 
 /-- The Hoffman–Singleton graph has largest Laplacian eigenvalue `10`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_hoffmanSingleton : SRG.hoffmanSingleton.lapLambdaMax = 10 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 7) SRG.hoffmanSingleton_srg.regular (f := 28) (g := 21)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_hoffmanSingleton]
@@ -9333,18 +9430,21 @@ theorem lapLambdaMax_hoffmanSingleton : SRG.hoffmanSingleton.lapLambdaMax = 10 :
 
 /-- The Gewirtz graph has Laplacian spectrum `0`, `8` with multiplicity `35`, and `14` with
 multiplicity `20`. -/
+@[toIsoGraph]
 theorem lapSpectrum_gewirtz :
     SRG.gewirtz.lapSpectrum = 0 ::ₘ (Multiset.replicate 35 8 + Multiset.replicate 20 14) := by
   rw [lapSpectrum_of_spectrum_eq (k := 10) SRG.gewirtz_srg.regular (by norm_num) spectrum_gewirtz]
   norm_num
 
 /-- The Gewirtz graph has algebraic connectivity `10 - 2 = 8`; in particular it is connected. -/
+@[toIsoGraph]
 theorem algConn_gewirtz : SRG.gewirtz.algConn = 8 := by
   rw [algConn_of_spectrum_eq (k := 10) SRG.gewirtz_srg.regular (f := 35) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) spectrum_gewirtz]
   norm_num
 
 /-- The Gewirtz graph has largest Laplacian eigenvalue `14`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_gewirtz : SRG.gewirtz.lapLambdaMax = 14 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 10) SRG.gewirtz_srg.regular (f := 35) (g := 20)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_gewirtz]
@@ -9352,18 +9452,21 @@ theorem lapLambdaMax_gewirtz : SRG.gewirtz.lapLambdaMax = 14 := by
 
 /-- The `M₂₂` graph has Laplacian spectrum `0`, `14` with multiplicity `55`, and `22` with
 multiplicity `21`. -/
+@[toIsoGraph]
 theorem lapSpectrum_m22 :
     SRG.m22.lapSpectrum = 0 ::ₘ (Multiset.replicate 55 14 + Multiset.replicate 21 22) := by
   rw [lapSpectrum_of_spectrum_eq (k := 16) SRG.m22_srg.regular (by norm_num) spectrum_m22]
   norm_num
 
 /-- The `M₂₂` graph has algebraic connectivity `16 - 2 = 14`; in particular it is connected. -/
+@[toIsoGraph]
 theorem algConn_m22 : SRG.m22.algConn = 14 := by
   rw [algConn_of_spectrum_eq (k := 16) SRG.m22_srg.regular (f := 55) (g := 21)
     (by norm_num) (by norm_num) (by norm_num) spectrum_m22]
   norm_num
 
 /-- The `M₂₂` graph has largest Laplacian eigenvalue `22`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_m22 : SRG.m22.lapLambdaMax = 22 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 16) SRG.m22_srg.regular (f := 55) (g := 21)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_m22]
@@ -9371,6 +9474,7 @@ theorem lapLambdaMax_m22 : SRG.m22.lapLambdaMax = 22 := by
 
 /-- The Higman–Sims graph has Laplacian spectrum `0`, `20` with multiplicity `77`, and `30` with
 multiplicity `22`. -/
+@[toIsoGraph]
 theorem lapSpectrum_higmanSims :
     SRG.higmanSims.lapSpectrum = 0 ::ₘ (Multiset.replicate 77 20 + Multiset.replicate 22 30) := by
   rw [lapSpectrum_of_spectrum_eq (k := 22) SRG.higmanSims_srg.regular (by norm_num)
@@ -9379,12 +9483,14 @@ theorem lapSpectrum_higmanSims :
 
 /-- The Higman–Sims graph has algebraic connectivity `22 - 2 = 20`; in particular it is connected.
 -/
+@[toIsoGraph]
 theorem algConn_higmanSims : SRG.higmanSims.algConn = 20 := by
   rw [algConn_of_spectrum_eq (k := 22) SRG.higmanSims_srg.regular (f := 77) (g := 22)
     (by norm_num) (by norm_num) (by norm_num) spectrum_higmanSims]
   norm_num
 
 /-- The Higman–Sims graph has largest Laplacian eigenvalue `30`. -/
+@[toIsoGraph]
 theorem lapLambdaMax_higmanSims : SRG.higmanSims.lapLambdaMax = 30 := by
   rw [lapLambdaMax_of_spectrum_eq (k := 22) SRG.higmanSims_srg.regular (f := 77) (g := 22)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_higmanSims]
