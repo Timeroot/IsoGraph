@@ -11,8 +11,8 @@ import IsoGraph.ForMathlib.List
 /-!
 # Graphs up to isomorphism
 
-This file follows `isograph_draft.txt`: a bundled, computable graph type `CGraph`, its
-isomorphisms, and the quotient `IsoGraph` of graphs up to isomorphism.
+A bundled, computable graph type `CGraph`, its isomorphisms, and the quotient `IsoGraph` of
+graphs up to isomorphism.
 
 Everything that has to be lifted through the quotient — in particular the canonical
 representative `IsoGraph.toCGraph` — rests on the invariance of the canonical labelling
@@ -213,8 +213,8 @@ def canonOfArray (G : CGraph) (a : Array G.V) :
 search makes is then an array read rather than a call to `G.Adj`.
 
 This is what runs — `canonOfArray_eq_tab` below is a `@[csimp]` lemma — while `canonOfArray`
-stays the definition everything is proved about.  Measured by `CacheBench.lean` (`canon-tab`,
-`canon-mass`), best of five interleaved rounds, in milliseconds:
+stays the definition everything is proved about.  Measured by `testing/CacheBench.lean`
+(`canon-tab`, `canon-mass`), best of five interleaved rounds, in milliseconds:
 
 | job                                   | raw  | tabulated |
 | ------------------------------------- | ---- | --------- |

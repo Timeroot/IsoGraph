@@ -63,9 +63,9 @@ of about eight on the McGee case and two on the Heawood one.  Forward checking â
 unlabelled neighbours of `v` still have a label available, the closed neighbourhoods in `H` of
 their labelled neighbours' labels having something in common â€” was tried and dropped, since it
 made the grid and Heawood cases about 1.4 times slower and McGee a wash: `labSource` has already
-ruled out most of what it would catch.  (Numbers from `MinorBench`, best of several runs; the
-machine is shared and the same binary has been seen to vary fourfold with load, so treat them as
-ratios rather than absolutes.)
+ruled out most of what it would catch.  (Numbers from `testing/MinorBench.lean`, best of several
+runs; the machine is shared and the same binary has been seen to vary fourfold with load, so treat
+them as ratios rather than absolutes.)
 -/
 
 set_option autoImplicit false

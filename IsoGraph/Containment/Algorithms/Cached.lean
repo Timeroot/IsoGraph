@@ -18,9 +18,9 @@ the answer back along `CGraph.isoCacheFin`.
 
 Both sides are worth caching, and the effect multiplies: caching the pattern alone or the host
 alone each recovers about half of the following, and the numbers below are the two together.
-`CacheBench.lean`, cases `api-sub`, `api-minor`, `api-con`, `api-con-self`, `api-sub-kneser`,
-`api-hom`, `api-quot`, `api-indminor`; best of three interleaved rounds, in milliseconds; the cost
-of filling both arrays is included in the right-hand column:
+`testing/CacheBench.lean`, cases `api-sub`, `api-minor`, `api-con`, `api-con-self`,
+`api-sub-kneser`, `api-hom`, `api-quot`, `api-indminor`; best of three interleaved rounds, in
+milliseconds; the cost of filling both arrays is included in the right-hand column:
 
 | job                           | `find…` | `…Of?` |
 | ----------------------------- | ------- | ------ |

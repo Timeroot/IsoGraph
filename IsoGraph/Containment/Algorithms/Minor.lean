@@ -167,15 +167,16 @@ far less than the `5!` and `2·(3!)²` relabellings the classes admit, because t
 order and the seed rules had already ruled out most of them.  Checking it at every `pick` as well
 is worth a further 1.6 and 1.3 (14.7 s → 9.0 s and 84 s → 66 s, interleaved runs of both binaries).
 On a host where a model exists none of it makes a measurable difference either way.  (The numbers
-above are from one idle machine running `MinorBench`; this one is shared, and the same binary has
-been seen to vary fourfold with load, so treat them as ratios rather than absolutes.)
+above are from one idle machine running `testing/MinorBench.lean`; this one is shared, and the
+same binary has been seen to vary fourfold with load, so treat them as ratios rather than
+absolutes.)
 
 The induced search costs what the plain one does when there is a model, because `indPick` rejects
 at a `pick` the sets the final test would otherwise have thrown away at the end: `K4` as an induced
 minor of the 30-vertex Tutte–Coxeter graph takes 18 ms against 19 ms for the plain minor, and `C4`
-7 ms (`CacheBench`, cases `api-indminor` and `api-minor`, best of three interleaved rounds).  When
-there is no model it is the same expensive direction as before: `K5` in that host gives no answer
-in ten minutes — nor, for that matter, does the plain minor search for it in five.
+7 ms (`testing/CacheBench.lean`, cases `api-indminor` and `api-minor`, best of three interleaved
+rounds).  When there is no model it is the same expensive direction as before: `K5` in that host
+gives no answer in ten minutes — nor, for that matter, does the plain minor search for it in five.
 -/
 
 set_option autoImplicit false

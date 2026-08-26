@@ -28,8 +28,8 @@ point:
 The search asks `adj i j` a great many times, and `G.finAdj e` answers each one with two calls to
 `e.symm` and one to `G.Adj`, which for most of the gallery is a scan of an edge list.  Every entry
 point below therefore tabulates the model first — `Fin n × Fin n` queries, once — and hands the
-search an array read.  `CacheBench.lean`, cases `api-vt`, `api-order` and `api-aut`, best of three
-interleaved rounds, in milliseconds:
+search an array read.  `testing/CacheBench.lean`, cases `api-vt`, `api-order` and `api-aut`,
+best of three interleaved rounds, in milliseconds:
 
 | job                                    | untabulated | tabulated |
 | -------------------------------------- | ----------- | --------- |

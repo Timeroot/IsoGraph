@@ -59,7 +59,7 @@ def nodesMinor (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
   let gs := hostPool H G rH rG
   let init := MinorSearch.initState H G hs gs
   let cand := fun (_ : Unit) (pre : List (Unit × MinorSearch.State H G)) =>
-    MinorSearch.candList H G (fun v => rG.toList.idxOf v) (symPairs H hs)
+    MinorSearch.candList H G (fun v => rG.toList.idxOf v) (symPairs H hs) false
       (MinorSearch.headSt H G init pre)
   toString (dfsCount cand (List.replicate (gs.length + hs.length) ()) [])
 

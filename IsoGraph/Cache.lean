@@ -43,9 +43,9 @@ node.
 
 ## When it pays
 
-Measured by `CacheBench.lean`, best of three interleaved rounds, in milliseconds; the cost of
-filling the array is included in every cached figure.  The wins are large wherever the adjacency
-function does real work and the search does not finish immediately:
+Measured by `testing/CacheBench.lean`, best of three interleaved rounds, in milliseconds; the
+cost of filling the array is included in every cached figure.  The wins are large wherever the
+adjacency function does real work and the search does not finish immediately:
 
 | job                                  | plain  | `cache` | `cacheFin` |
 | ------------------------------------ | ------ | ------- | ---------- |

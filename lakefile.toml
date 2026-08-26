@@ -28,19 +28,19 @@ precompileModules = true
 # Test / benchmark driver for the canonical labelling algorithm.
 [[lean_exe]]
 name = "isobench"
-root = "Bench"
+root = "testing.Bench"
 
 # Benchmark driver for the graph enumerator.
 [[lean_exe]]
 name = "enumbench"
-root = "EnumBench"
+root = "testing.EnumBench"
 
 # Timing driver for the minor search.
 [[lean_exe]]
 name = "minorbench"
-root = "MinorBench"
+root = "testing.MinorBench"
 
 # Head-to-head driver for the tabulated adjacency of `CGraph.cache`.
 [[lean_exe]]
 name = "cachebench"
-root = "CacheBench"
+root = "testing.CacheBench"

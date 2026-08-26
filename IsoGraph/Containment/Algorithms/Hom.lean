@@ -46,7 +46,7 @@ but for one question at one `k` the pivot does most of the work.
 
 ## What it costs
 
-`CacheBench.lean`, cases `api-hom` and `api-quot`; best of three interleaved rounds, in
+`testing/CacheBench.lean`, cases `api-hom` and `api-quot`; best of three interleaved rounds, in
 milliseconds.  `CGraph.findHom` is the search on the graphs as they are; `CGraph.homOf?` and
 `CGraph.quotientOf?`, in `Algorithms/Cached.lean`, are the same search on tabulated copies of both
 and are what to reach for:
