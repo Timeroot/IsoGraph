@@ -199,6 +199,11 @@ what makes them equal. -/
 
 variable (α : Type u) [inst : FinEnum α] (k : ℕ)
 
+-- Both of these are deliberately semireducible: `kSubsetEnum` has to stay an opaque constant
+-- for the `@[implemented_by]` redirection below to survive into compiled code, and making it
+-- unfold at instance-synthesis transparency costs an order of magnitude at run time.
+set_option warn.classDefReducibility false
+
 /-- `kSubsetEnum`, with the position table built once and hashed. -/
 private unsafe def kSubsetEnumImpl :
     FinEnum.{u + 1} {s : Finset α // s.card = k} :=

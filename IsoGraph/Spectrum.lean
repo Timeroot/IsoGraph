@@ -1898,7 +1898,7 @@ integer `c`, the multiplicity equation reads `(f - g) c = k ^ 2 - 2 k`, and elim
 `c ∈ {1, 3, 5, 15}` and `k = (c ^ 2 + 3) / 4 ∈ {1, 3, 7, 57}`. -/
 theorem degree_of_isSRGWith_moore {G : CGraph} {k : ℕ} (hk : 2 ≤ k)
     (h : G.IsSRGWith (k ^ 2 + 1) k 0 1) : k = 2 ∨ k = 3 ∨ k = 7 ∨ k = 57 := by
-  haveI : Nonempty G.V := Fintype.card_pos_iff.1 (by rw [h.card]; positivity)
+  have : Nonempty G.V := Fintype.card_pos_iff.1 (by rw [h.card]; positivity)
   have hk0 : (2 : ℝ) ≤ (k : ℝ) := by exact_mod_cast hk
   obtain ⟨d, hd⟩ : ∃ d : ℝ, d = Real.sqrt (4 * (k : ℝ) - 3) := ⟨_, rfl⟩
   have hd0 : 0 < d := by
@@ -1958,7 +1958,7 @@ theorem degree_of_isSRGWith_moore {G : CGraph} {k : ℕ} (hk : 2 ≤ k)
 /-- **The spectrum of the Petersen graph**: `3` once, `1` five times, `-2` four times. -/
 theorem spectrum_petersen :
     SRG.petersen.spectrum = 3 ::ₘ (Multiset.replicate 5 1 + Multiset.replicate 4 (-2)) := by
-  haveI : Nonempty SRG.petersen.V :=
+  have : Nonempty SRG.petersen.V :=
     Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
   obtain ⟨f, g, h1, h2, h3⟩ :=
     spectrum_isSRGWith SRG.petersen_srg (by norm_num) (r := 1) (s := -2)
@@ -1979,7 +1979,7 @@ theorem spectrum_cocktailParty (m : ℕ) :
   have hsrg := isSRGWith_cocktailParty (m + 2)
   rw [show 2 * (m + 2) - 2 = 2 * m + 2 from by omega,
     show 2 * (m + 2) - 4 = 2 * m from by omega] at hsrg
-  haveI : Nonempty (cocktailParty (m + 2)).V :=
+  have : Nonempty (cocktailParty (m + 2)).V :=
     Fintype.card_pos_iff.1 (by rw [hsrg.card]; omega)
   obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega) (r := 0) (s := -2)
     (by push_cast; ring) (by push_cast; ring) (by norm_num)
@@ -2002,7 +2002,7 @@ theorem spectrum_rook (k : ℕ) :
   have hsrg := isSRGWith_rook (k + 2)
   rw [show 2 * (k + 2 - 1) = 2 * k + 2 from by omega,
     show k + 2 - 2 = k from by omega] at hsrg
-  haveI : Nonempty (rook (k + 2) (k + 2)).V :=
+  have : Nonempty (rook (k + 2) (k + 2)).V :=
     Fintype.card_pos_iff.1 (by rw [hsrg.card]; positivity)
   obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega) (r := (k : ℝ)) (s := -2)
     (by push_cast; ring) (by push_cast; ring)
@@ -2032,7 +2032,7 @@ theorem spectrum_triangular (m : ℕ) :
   have hsrg := isSRGWith_triangular (m + 4) (by omega)
   rw [show 2 * (m + 4 - 2) = 2 * m + 4 from by omega,
     show m + 4 - 2 = m + 2 from by omega] at hsrg
-  haveI : Nonempty (triangular (m + 4)).V :=
+  have : Nonempty (triangular (m + 4)).V :=
     Fintype.card_pos_iff.1 (by rw [hsrg.card]; exact Nat.choose_pos (by omega))
   obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega) (r := (m : ℝ)) (s := -2)
     (by push_cast; ring) (by push_cast; ring)
@@ -2063,12 +2063,12 @@ theorem spectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
       = (2 * (t : ℝ)) ::ₘ
         (Multiset.replicate (2 * t) ((-1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2)
           + Multiset.replicate (2 * t) ((-1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2)) := by
-  haveI : NeZero (4 * t + 1) := ⟨by omega⟩
+  have : NeZero (4 * t + 1) := ⟨by omega⟩
   have hsrg := isSRGWith_paley (4 * t + 1) (by omega)
   rw [show (4 * t + 1 - 1) / 2 = 2 * t from by omega,
     show (4 * t + 1 - 5) / 4 = t - 1 from by omega,
     show (4 * t + 1 - 1) / 4 = t from by omega] at hsrg
-  haveI : Nonempty (paley (4 * t + 1)).V :=
+  have : Nonempty (paley (4 * t + 1)).V :=
     Fintype.card_pos_iff.1 (by rw [hsrg.card]; omega)
   obtain ⟨q, hq⟩ : ∃ q : ℝ, q = Real.sqrt (4 * (t : ℝ) + 1) := ⟨_, rfl⟩
   have hq0 : 0 < q := by
@@ -2223,7 +2223,7 @@ theorem isDS_complete (n : ℕ) : IsDS (complete n) := by
   -- hence every degree is exactly `m`
   have hall : ∀ v : H.V, H.toSimple.degree v = m := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     obtain ⟨v, hv⟩ := hc
     have hlt : ∑ u, H.toSimple.degree u < ∑ _u : H.V, m :=
       Finset.sum_lt_sum (fun i _ ↦ hle i) ⟨v, Finset.mem_univ v, lt_of_le_of_ne (hle v) hv⟩
@@ -2495,7 +2495,7 @@ theorem lambdaMax_le_of_mulVec_le {G : CGraph} [Nonempty G.V] {c : ℝ} {w : G.V
 /-- The largest eigenvalue is nonnegative, because the eigenvalues sum to zero. -/
 theorem lambdaMax_nonneg (G : CGraph) [Nonempty G.V] : 0 ≤ G.lambdaMax := by
   by_contra h
-  push_neg at h
+  push Not at h
   have hsum : ∑ i, G.eigenvalues i = 0 := by
     have hs := G.sum_spectrum
     rwa [spectrum_eq_map, ← Finset.sum_eq_multiset_sum] at hs
@@ -2554,7 +2554,7 @@ theorem lambdaMin_le_lambdaMax (G : CGraph) [Nonempty G.V] : G.lambdaMin ≤ G.l
 /-- The smallest eigenvalue is nonpositive, because the eigenvalues sum to zero. -/
 theorem lambdaMin_nonpos (G : CGraph) [Nonempty G.V] : G.lambdaMin ≤ 0 := by
   by_contra h
-  push_neg at h
+  push Not at h
   have hsum : ∑ i, G.eigenvalues i = 0 := by
     have hs := G.sum_spectrum
     rwa [spectrum_eq_map, ← Finset.sum_eq_multiset_sum] at hs
@@ -3247,7 +3247,7 @@ theorem lambdaMin_cycle_odd (n : ℕ) :
       have hcos := Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) h2 h1
       rw [Real.cos_pi_sub] at hcos
       linarith
-    · push_neg at h
+    · push Not at h
       have h1 : Real.pi / ((2 * n + 3 : ℕ) : ℝ)
           ≤ 2 * Real.pi * m.1 / ((2 * n + 3 : ℕ) : ℝ) - Real.pi := by
         rw [div_le_iff₀ hN, sub_mul, div_mul_cancel₀ _ (ne_of_gt hN)]
@@ -3283,7 +3283,6 @@ theorem lambdaMax_path (n : ℕ) :
       nlinarith
     have := Real.cos_le_cos_of_nonneg_of_le_pi (by positivity) hub hle
     push_cast
-    push_cast at this
     linarith
   · rw [spectrum_path, Multiset.mem_map]
     refine ⟨⟨0, by omega⟩, Finset.mem_univ_val _, ?_⟩
@@ -3868,7 +3867,6 @@ theorem isRegularWith_of_two_mul_E_eq (G : CGraph) [Nonempty G.V] {k : ℕ}
   have heq : (fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ (G.adjMat *ᵥ fun _ ↦ (1 : ℝ))
       = G.lambdaMax * ((fun _ : G.V ↦ (1 : ℝ)) ⬝ᵥ fun _ ↦ (1 : ℝ)) := by
     rw [hone, hnorm, hlam]
-    push_cast at hcast ⊢
     linarith
   have hvec := G.mulVec_eq_of_rayleigh_eq_lambdaMax heq
   intro i
@@ -3884,7 +3882,7 @@ theorem Cospectral.isRegularWith {G H : CGraph} (h : Cospectral G H) {k : ℕ}
     (hG : G.IsRegularWith k) : H.IsRegularWith k := by
   rcases isEmpty_or_nonempty H.V with hemp | hne
   · exact fun i ↦ (hemp.false i).elim
-  haveI : Nonempty G.V := by
+  have : Nonempty G.V := by
     rw [← FinEnum.card_pos_iff] at hne ⊢
     rw [h.card_eq]
     exact hne
@@ -4023,13 +4021,13 @@ theorem lambdaMax_sub_lambdaMin_le_chromNum_mul {G : CGraph} [Nonempty G.V] {k :
 /-- The Petersen graph is triangle-free, so its clique number gives nothing, but the ratio bound
 does: `3 - (-2) ≤ χ · 2` forces `3 ≤ χ`. -/
 example : 3 ≤ SRG.petersen.chromNum := by
-  haveI : Nonempty SRG.petersen.V :=
+  have : Nonempty SRG.petersen.V :=
     Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
   have hlm : SRG.petersen.lambdaMin = -2 := lambdaMin_petersen
   have h := sub_lambdaMin_le_chromNum_mul SRG.petersen_srg.regular
   rw [hlm] at h
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   have h2 : (SRG.petersen.chromNum : ℝ) ≤ 2 := by exact_mod_cast Nat.lt_succ_iff.1 hcon
   push_cast at h
   linarith
@@ -4150,7 +4148,7 @@ theorem mulVec_affineD4 : affineD4.adjMat *ᵥ marksAffineD4 = (2 : ℝ) • mar
       marksAffineD4] <;> norm_num
 
 theorem two_mem_spectrum_affineD4 : (2 : ℝ) ∈ affineD4.spectrum := by
-  haveI : Nonempty affineD4.V := ⟨(0 : Fin 5)⟩
+  have : Nonempty affineD4.V := ⟨(0 : Fin 5)⟩
   exact mem_spectrum_of_mulVec_eq marksAffineD4_pos mulVec_affineD4
 
 theorem le_two_of_mem_spectrum_affineD4 {x : ℝ} (hx : x ∈ affineD4.spectrum) : x ≤ 2 :=
@@ -4217,7 +4215,7 @@ theorem mulVec_affineE6 : affineE6.adjMat *ᵥ marksAffineE6 = (2 : ℝ) • mar
       marksAffineE6] <;> norm_num
 
 theorem two_mem_spectrum_affineE6 : (2 : ℝ) ∈ affineE6.spectrum := by
-  haveI : Nonempty affineE6.V := ⟨(0 : Fin 7)⟩
+  have : Nonempty affineE6.V := ⟨(0 : Fin 7)⟩
   exact mem_spectrum_of_mulVec_eq marksAffineE6_pos mulVec_affineE6
 
 theorem le_two_of_mem_spectrum_affineE6 {x : ℝ} (hx : x ∈ affineE6.spectrum) : x ≤ 2 :=
@@ -4286,7 +4284,7 @@ theorem mulVec_affineE7 : affineE7.adjMat *ᵥ marksAffineE7 = (2 : ℝ) • mar
       marksAffineE7] <;> norm_num
 
 theorem two_mem_spectrum_affineE7 : (2 : ℝ) ∈ affineE7.spectrum := by
-  haveI : Nonempty affineE7.V := ⟨(0 : Fin 8)⟩
+  have : Nonempty affineE7.V := ⟨(0 : Fin 8)⟩
   exact mem_spectrum_of_mulVec_eq marksAffineE7_pos mulVec_affineE7
 
 theorem le_two_of_mem_spectrum_affineE7 {x : ℝ} (hx : x ∈ affineE7.spectrum) : x ≤ 2 :=
@@ -4357,7 +4355,7 @@ theorem mulVec_affineE8 : affineE8.adjMat *ᵥ marksAffineE8 = (2 : ℝ) • mar
       marksAffineE8] <;> norm_num
 
 theorem two_mem_spectrum_affineE8 : (2 : ℝ) ∈ affineE8.spectrum := by
-  haveI : Nonempty affineE8.V := ⟨(0 : Fin 9)⟩
+  have : Nonempty affineE8.V := ⟨(0 : Fin 9)⟩
   exact mem_spectrum_of_mulVec_eq marksAffineE8_pos mulVec_affineE8
 
 theorem le_two_of_mem_spectrum_affineE8 {x : ℝ} (hx : x ∈ affineE8.spectrum) : x ≤ 2 :=
@@ -4568,7 +4566,7 @@ theorem card_affineD (m : ℕ) : FinEnum.card (affineD m).V = m + 5 := by
   simp
 
 theorem two_mem_spectrum_affineD (m : ℕ) : (2 : ℝ) ∈ (affineD m).spectrum := by
-  haveI : Nonempty (affineD m).V := ⟨Sum.inl ⟨0, Nat.succ_pos m⟩⟩
+  have : Nonempty (affineD m).V := ⟨Sum.inl ⟨0, Nat.succ_pos m⟩⟩
   exact mem_spectrum_of_mulVec_eq (marksAffineD_pos m) (mulVec_affineD m)
 
 theorem le_two_of_mem_spectrum_affineD (m : ℕ) {x : ℝ} (hx : x ∈ (affineD m).spectrum) : x ≤ 2 :=
@@ -5102,7 +5100,7 @@ theorem two_mul_indepNum_triangular_le (m : ℕ) :
   have hsrg := isSRGWith_triangular (m + 4) (by omega)
   rw [show 2 * (m + 4 - 2) = 2 * m + 4 from by omega,
     show m + 4 - 2 = m + 2 from by omega] at hsrg
-  haveI : Nonempty (triangular (m + 4)).V :=
+  have : Nonempty (triangular (m + 4)).V :=
     Fintype.card_pos_iff.1 (by rw [hsrg.card]; exact Nat.choose_pos (by omega))
   have hpos : 0 < (m + 4).choose 2 - (m + 4) := by
     have := lt_choose_two (n := m + 4) (by omega)
@@ -5131,7 +5129,7 @@ theorem eq_of_mulVec_eq_of_isRegularWith {G : CGraph} (hconn : G.IsConnected) {k
     (hreg : G.IsRegularWith k) {v : G.V → ℝ} (hv : G.adjMat *ᵥ v = (k : ℝ) • v) (i j : G.V) :
     v i = v j := by
   classical
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   obtain ⟨p, -, hp⟩ := Finset.exists_max_image (Finset.univ : Finset G.V) v
     ⟨Classical.arbitrary G.V, Finset.mem_univ _⟩
   have hsum : ∀ x : G.V, ∑ y ∈ G.toSimple.neighborFinset x, v y = k * v x := by
@@ -5293,7 +5291,7 @@ theorem spectrum_compl_of_isRegularWith {G : CGraph}
     (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
     Gᶜ.spectrum = ((FinEnum.card G.V : ℝ) - 1 - k)
       ::ₘ (G.spectrum.erase (k : ℝ)).map (fun x ↦ -1 - x) := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_diagonal G
   have hAU : G.adjMat * U = U * Matrix.diagonal G.eigenvalues := by
     calc G.adjMat * U = (U * Uᵀ) * (G.adjMat * U) := by rw [hUU', one_mul]
@@ -5661,7 +5659,7 @@ theorem exists_smul_of_count_spectrum_eq_one {G : CGraph} {c : ℝ}
 eigenvalue of a regular graph, and the largest eigenvalue of a connected graph is simple. -/
 theorem count_spectrum_eq_one_of_isConnected {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
     (hreg : G.IsRegularWith k) : G.spectrum.count (k : ℝ) = 1 := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   rw [← lambdaMax_of_isRegularWith hreg]
   exact count_spectrum_lambdaMax_eq_one hconn
 
@@ -5669,7 +5667,7 @@ theorem count_spectrum_eq_one_of_isConnected {G : CGraph} (hconn : G.IsConnected
 indicator of a connected component is a second, non-constant eigenvector for `k`. -/
 theorem isConnected_of_count_spectrum_eq_one {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k)
     (hc : G.spectrum.count (k : ℝ) = 1) : G.IsConnected := by
-  haveI : Nonempty G.V := by
+  have : Nonempty G.V := by
     rw [← FinEnum.card_pos_iff, ← card_spectrum]
     have h1 : 0 < Multiset.count (k : ℝ) G.spectrum := by omega
     exact lt_of_lt_of_le h1 (Multiset.count_le_card _ _)
@@ -5802,7 +5800,7 @@ theorem isBipartite_iff_lambdaMin_eq_neg_lambdaMax {G : CGraph} [Nonempty G.V]
 eigenvalue. -/
 theorem isBipartite_of_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
     (hreg : G.IsRegularWith k) (hk : -(k : ℝ) ∈ G.spectrum) : G.IsBipartite := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   exact isBipartite_of_neg_lambdaMax_mem_spectrum hconn
     (by rwa [lambdaMax_of_isRegularWith hreg])
 
@@ -5810,7 +5808,7 @@ theorem isBipartite_of_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k 
 theorem isBipartite_iff_neg_mem_spectrum {G : CGraph} (hconn : G.IsConnected) {k : ℕ}
     (hreg : G.IsRegularWith k) : G.IsBipartite ↔ -(k : ℝ) ∈ G.spectrum := by
   refine ⟨fun h ↦ ?_, isBipartite_of_neg_mem_spectrum hconn hreg⟩
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   rw [← spectrum_neg_of_isBipartite h, Multiset.mem_map]
   exact ⟨(k : ℝ), mem_spectrum_of_isRegularWith hreg, rfl⟩
 
@@ -5927,7 +5925,7 @@ theorem exists_dist_eq (G : CGraph) {u v : G.V} {i : ℕ} (hi : i ≤ G.toSimple
 theorem dist_lt_card_toFinset_spectrum (G : CGraph) (u v : G.V) :
     G.toSimple.dist u v < G.spectrum.toFinset.card := by
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   obtain ⟨k, hk⟩ : ∃ k, G.spectrum.toFinset.card = k := ⟨_, rfl⟩
   obtain ⟨w, hw⟩ := G.exists_dist_eq (u := u) (v := v) (i := k) (by omega)
   have hk0 : 0 < k := by
@@ -5988,7 +5986,7 @@ then forces the columns to share their constant. -/
 theorem exists_forall_eq_of_mul_eq_smul {G : CGraph} {k : ℕ} (hconn : G.IsConnected)
     (hreg : G.IsRegularWith k) {M : Matrix G.V G.V ℝ} (hsymm : ∀ i j, M i j = M j i)
     (hM : G.adjMat * M = (k : ℝ) • M) : ∃ c : ℝ, ∀ i j, M i j = c := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   have hcount := count_spectrum_eq_one_of_isConnected hconn hreg
   have hone : G.adjMat *ᵥ (1 : G.V → ℝ) = (k : ℝ) • 1 :=
     (hasEigenvector_one_of_isRegularWith hreg).2
@@ -6043,7 +6041,7 @@ diagonal of `A` gives `r = -t`.  So every off-diagonal entry of `A` equals `t`, 
 theorem adj_of_card_toFinset_spectrum_eq_two {G : CGraph} {k : ℕ} (hconn : G.IsConnected)
     (hreg : G.IsRegularWith k) (h2 : G.spectrum.toFinset.card = 2) (i j : G.V) (hij : i ≠ j) :
     G.Adj i j = true := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   obtain ⟨a, b, hab, hset⟩ := Finset.card_eq_two.1 h2
   have hk : (k : ℝ) ∈ G.spectrum.toFinset := by
     simpa using mem_spectrum_of_isRegularWith hreg
@@ -6110,7 +6108,7 @@ theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : �
     (hconn : G.IsConnected) (hreg : G.IsRegularWith k)
     (h3 : G.spectrum.toFinset.card = 3) :
     ∃ l m : ℕ, G.IsSRGWith (FinEnum.card G.V) k l m := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   obtain ⟨a, b, c, hab, hac, hbc, hset⟩ := Finset.card_eq_three.1 h3
   have hk : (k : ℝ) ∈ G.spectrum.toFinset := by
     simpa using mem_spectrum_of_isRegularWith hreg
@@ -6180,7 +6178,7 @@ theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : �
     · obtain ⟨v0, w0, h0⟩ := hex
       refine ⟨Fintype.card (G.toSimple.commonNeighbors v0 w0), fun v w hvw ↦ ?_⟩
       exact_mod_cast (hadj v w hvw).trans (hadj v0 w0 h0).symm
-    · push_neg at hex
+    · push Not at hex
       exact ⟨0, fun v w hvw ↦ absurd hvw (hex v w)⟩
   obtain ⟨m, hm⟩ : ∃ m : ℕ, ∀ v w, v ≠ w → ¬G.toSimple.Adj v w →
       Fintype.card (G.toSimple.commonNeighbors v w) = m := by
@@ -6188,7 +6186,7 @@ theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : �
     · obtain ⟨v0, w0, h0, h0'⟩ := hex
       refine ⟨Fintype.card (G.toSimple.commonNeighbors v0 w0), fun v w hvw hn ↦ ?_⟩
       exact_mod_cast (hnadj v w hvw hn).trans (hnadj v0 w0 h0 h0').symm
-    · push_neg at hex
+    · push Not at hex
       exact ⟨0, fun v w hvw hn ↦ absurd (hex v w hvw) (by simpa using hn)⟩
   exact ⟨l, m, G.fintypeCard, hreg, hl, fun v w hne hnadj ↦ hm v w hne hnadj⟩
 
@@ -6227,7 +6225,7 @@ vertices are at distance at least `2`, and `dist_lt_card_toFinset_spectrum` does
 theorem card_toFinset_spectrum_eq_three_of_isSRGWith {G : CGraph} {n k l m : ℕ}
     (hconn : G.IsConnected) (h : G.IsSRGWith n k l m) {i j : G.V} (hij : i ≠ j)
     (hnadj : G.Adj i j = false) : G.spectrum.toFinset.card = 3 := by
-  haveI : Nonempty G.V := ⟨i⟩
+  have : Nonempty G.V := ⟨i⟩
   refine le_antisymm (card_toFinset_spectrum_le_three_of_isSRGWith h) ?_
   have h2 : 1 < G.toSimple.dist i j :=
     hconn.one_lt_dist_of_ne_of_not_adj hij (by simp [hnadj])
@@ -6877,7 +6875,7 @@ theorem lapSpectrum_compl_of_isConnected {G : CGraph}
     (hconn : G.IsConnected) :
     Gᶜ.lapSpectrum
       = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   obtain ⟨U, hUU, hUU', hdiag⟩ := exists_orthogonal_lap_diagonal G
   have hAU : G.lapMat * U = U * Matrix.diagonal G.lapEigenvalues := by
     calc G.lapMat * U = (U * Uᵀ) * (G.lapMat * U) := by rw [hUU', one_mul]
@@ -6936,7 +6934,7 @@ recovered from its complement's. -/
 theorem lapSpectrum_eq_of_compl {G : CGraph} (hconn : G.IsConnected) :
     G.lapSpectrum
       = 0 ::ₘ (Gᶜ.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   have h := lapSpectrum_compl_of_isConnected (G := G) hconn
   rw [h, Multiset.erase_cons_head, Multiset.map_map]
   rw [show ((fun x ↦ (FinEnum.card G.V : ℝ) - x) ∘ fun x ↦ (FinEnum.card G.V : ℝ) - x) = id from
@@ -6951,7 +6949,7 @@ theorem lapSpectrum_compl (G : CGraph) [Nonempty G.V] :
       = 0 ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
   by_cases hpre : G.toSimple.Preconnected
   · exact lapSpectrum_compl_of_isConnected ⟨hpre⟩
-  · haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  · have : Nonempty Gᶜ.V := ‹Nonempty G.V›
     have hc : Gᶜ.IsConnected := G.isConnected_compl_of_not_preconnected hpre
     have h := lapSpectrum_eq_of_compl (G := Gᶜ) hc
     rw [compl_compl, card_compl] at h
@@ -7008,7 +7006,7 @@ theorem lapSpectrum_join (G H : CGraph)
       = 0 ::ₘ (((FinEnum.card G.V : ℝ) + FinEnum.card H.V)
           ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ x + (FinEnum.card H.V : ℝ))
              + (H.lapSpectrum.erase 0).map (fun x ↦ x + (FinEnum.card G.V : ℝ)))) := by
-  haveI : Nonempty (Gᶜ ⊕g Hᶜ).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
+  have : Nonempty (Gᶜ ⊕g Hᶜ).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
   have hK := lapSpectrum_compl (Gᶜ ⊕g Hᶜ)
   rw [lapSpectrum_disjUnion, lapSpectrum_compl G, lapSpectrum_compl H, card_disjUnion, card_compl,
     card_compl] at hK
@@ -7330,7 +7328,7 @@ eigenvalue. -/
 @[toIsoGraph]
 theorem algConn_mem_erase (G : CGraph) (h : 2 ≤ FinEnum.card G.V) :
     G.algConn ∈ G.lapSpectrum.erase 0 := by
-  haveI : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  have : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
   have hcard : Multiset.card (G.lapSpectrum.erase 0) = FinEnum.card G.V - 1 := by
     rw [Multiset.card_erase_of_mem G.zero_mem_lapSpectrum, card_lapSpectrum]
     rfl
@@ -7619,7 +7617,7 @@ theorem card_sub_one_mul_algConn_le_two_mul_E (G : CGraph) [Nonempty G.V] :
 theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ FinEnum.card G.V) :
     Gᶜ.lapLambdaMax = FinEnum.card G.V - G.algConn := by
-  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  have : Nonempty Gᶜ.V := ‹Nonempty G.V›
   refine lapLambdaMax_eq_of_isGreatest ?_ ?_
   · rw [lapSpectrum_compl]
     exact Multiset.mem_cons_of_mem (Multiset.mem_map_of_mem _ (G.algConn_mem_erase h))
@@ -7637,7 +7635,7 @@ theorem lapLambdaMax_compl (G : CGraph) [Nonempty G.V]
 theorem algConn_compl (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ FinEnum.card G.V) :
     Gᶜ.algConn = FinEnum.card G.V - G.lapLambdaMax := by
-  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  have : Nonempty Gᶜ.V := ‹Nonempty G.V›
   have herase : Gᶜ.lapSpectrum.erase 0
       = (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x) := by
     rw [lapSpectrum_compl, Multiset.erase_cons_head]
@@ -7881,7 +7879,7 @@ theorem exists_rotate_lap_quadratic_of_sum_eq_zero (G : CGraph) (hconn : G.IsCon
     (v : G.V → ℝ) (hv : ∑ i, v i = 0) :
     ∃ w : G.V → ℝ, v ⬝ᵥ (G.lapMat *ᵥ v) = ∑ i, G.lapEigenvalues i * w i ^ 2 ∧
       v ⬝ᵥ v = ∑ i, w i ^ 2 ∧ ∀ i, G.lapEigenvalues i = 0 → w i = 0 := by
-  haveI : Nonempty G.V := hconn.nonempty
+  have : Nonempty G.V := hconn.nonempty
   obtain ⟨U, hUU, hUU', hD⟩ := G.exists_orthogonal_lap_diagonal
   have hLU : G.lapMat * U = U * Matrix.diagonal G.lapEigenvalues := by
     calc G.lapMat * U = (U * Uᵀ) * (G.lapMat * U) := by rw [hUU', one_mul]
@@ -8013,7 +8011,7 @@ theorem maxDeg_add_one_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (h : 0 < G.E)
     linarith
   have hpos : 0 < d * (d + 1) := by nlinarith
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   nlinarith [hkey, hpos]
 
 /-! ### Fiedler's bound on the algebraic connectivity -/
@@ -8036,8 +8034,8 @@ theorem algConn_mul_le_lap_quadratic (G : CGraph) [Nonempty G.V] (v : G.V → �
         (sq_nonneg _)
   · have hcard : 2 ≤ FinEnum.card G.V := by
       by_contra hlt
-      push_neg at hlt
-      haveI : Subsingleton G.V := Fintype.card_le_one_iff_subsingleton.1 (by rw [G.fintypeCard]; omega)
+      push Not at hlt
+      have : Subsingleton G.V := Fintype.card_le_one_iff_subsingleton.1 (by rw [G.fintypeCard]; omega)
       have hpre : G.toSimple.Preconnected := fun x y ↦ by
         rw [Subsingleton.elim x y]
       exact hconn ⟨hpre⟩
@@ -8179,7 +8177,7 @@ complement, `Δ + 1 ≤ μ_max` says `n - 1 - δ (G) + 1 ≤ n - a (G)`; the hyp
 theorem algConn_le_minDeg (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ FinEnum.card G.V) (hc : 0 < Gᶜ.E) :
     G.algConn ≤ G.minDeg := by
-  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  have : Nonempty Gᶜ.V := ‹Nonempty G.V›
   have h1 : (Gᶜ.maxDeg : ℝ) + 1 ≤ Gᶜ.lapLambdaMax :=
     Gᶜ.maxDeg_add_one_le_lapLambdaMax hc
   rw [G.lapLambdaMax_compl h] at h1
@@ -8199,7 +8197,7 @@ For `K_n` it is an equality, `a = n` and `δ = n - 1`; for every other graph the
 theorem card_sub_one_mul_algConn_le_card_mul_minDeg (G : CGraph) [Nonempty G.V]
     (h : 2 ≤ FinEnum.card G.V) :
     ((FinEnum.card G.V : ℝ) - 1) * G.algConn ≤ FinEnum.card G.V * G.minDeg := by
-  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  have : Nonempty Gᶜ.V := ‹Nonempty G.V›
   have hn : (2 : ℝ) ≤ FinEnum.card G.V := by exact_mod_cast h
   have hδ0 : (0 : ℝ) ≤ G.minDeg := Nat.cast_nonneg _
   rcases Nat.eq_zero_or_pos Gᶜ.E with h0 | hpos
@@ -8268,8 +8266,8 @@ theorem algConn_join (G H : CGraph)
     (hG : 2 ≤ FinEnum.card G.V) (hH : 2 ≤ FinEnum.card H.V) :
     (G ∇g H).algConn
       = min (G.algConn + FinEnum.card H.V) (H.algConn + FinEnum.card G.V) := by
-  haveI : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
-  haveI : Nonempty H.V := FinEnum.card_pos_iff.1 (by omega)
+  have : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  have : Nonempty H.V := FinEnum.card_pos_iff.1 (by omega)
   have hmemG : G.algConn ∈ G.lapSpectrum.erase 0 := G.algConn_mem_erase hG
   have hmemH : H.algConn ∈ H.lapSpectrum.erase 0 := H.algConn_mem_erase hH
   have hGle : G.algConn ≤ FinEnum.card G.V := G.algConn_le_card hG
@@ -8395,8 +8393,8 @@ are `0`. -/
 theorem algConn_cartesianProduct (G H : CGraph)
     (hG : 2 ≤ FinEnum.card G.V) (hH : 2 ≤ FinEnum.card H.V) :
     (G □g H).algConn = min G.algConn H.algConn := by
-  haveI : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
-  haveI : Nonempty H.V := FinEnum.card_pos_iff.1 (by omega)
+  have : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  have : Nonempty H.V := FinEnum.card_pos_iff.1 (by omega)
   set gs : Multiset ℝ := G.lapSpectrum.erase 0 with hgs
   set hs : Multiset ℝ := H.lapSpectrum.erase 0 with hhs
   have hGc : G.lapSpectrum = 0 ::ₘ gs := (Multiset.cons_erase G.zero_mem_lapSpectrum).symm
@@ -8501,7 +8499,7 @@ theorem algConn_petersen : SRG.petersen.algConn = 2 := by
   norm_num
 
 theorem lapLambdaMax_petersen : SRG.petersen.lapLambdaMax = 5 := by
-  haveI : Nonempty SRG.petersen.V :=
+  have : Nonempty SRG.petersen.V :=
     Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
   have h := lapLambdaMax_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (f := 5) (g := 4)
     (by norm_num) (by norm_num) (by norm_num) (by norm_num) spectrum_petersen
@@ -8534,7 +8532,7 @@ theorem algConn_cocktailParty (m : ℕ) :
 
 theorem lapLambdaMax_cocktailParty (m : ℕ) :
     (cocktailParty (m + 2)).lapLambdaMax = 2 * (m : ℝ) + 4 := by
-  haveI : Nonempty (cocktailParty (m + 2)).V :=
+  have : Nonempty (cocktailParty (m + 2)).V :=
     Fintype.card_pos_iff.1 (by rw [(isSRGWith_cocktailParty (m + 2)).card]; omega)
   have h := lapLambdaMax_of_spectrum_eq (isRegularWith_cocktailParty m) (f := m + 2) (g := m + 1)
     (by push_cast; ring) (by omega) (by norm_num)
@@ -8567,7 +8565,7 @@ theorem algConn_rook (k : ℕ) : (rook (k + 2) (k + 2)).algConn = (k : ℝ) + 2 
 
 theorem lapLambdaMax_rook (k : ℕ) :
     (rook (k + 2) (k + 2)).lapLambdaMax = 2 * (k : ℝ) + 4 := by
-  haveI : Nonempty (rook (k + 2) (k + 2)).V :=
+  have : Nonempty (rook (k + 2) (k + 2)).V :=
     Fintype.card_pos_iff.1 (by rw [(isSRGWith_rook (k + 2)).card]; positivity)
   have h := lapLambdaMax_of_spectrum_eq (isRegularWith_rook k) (f := 2 * (k + 1))
     (g := (k + 1) ^ 2) (by push_cast; ring) (by positivity)
@@ -8601,7 +8599,7 @@ theorem algConn_triangular (m : ℕ) : (triangular (m + 4)).algConn = (m : ℝ) 
 
 theorem lapLambdaMax_triangular (m : ℕ) :
     (triangular (m + 4)).lapLambdaMax = 2 * (m : ℝ) + 6 := by
-  haveI : Nonempty (triangular (m + 4)).V :=
+  have : Nonempty (triangular (m + 4)).V :=
     Fintype.card_pos_iff.1
       (by rw [(isSRGWith_triangular (m + 4) (by omega)).card]; exact Nat.choose_pos (by omega))
   have hch : m + 4 < (m + 4).choose 2 := by
@@ -8619,7 +8617,7 @@ theorem lapLambdaMax_triangular (m : ℕ) :
 
 theorem isRegularWith_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
     (paley (4 * t + 1)).IsRegularWith (2 * t) := by
-  haveI : NeZero (4 * t + 1) := ⟨by omega⟩
+  have : NeZero (4 * t + 1) := ⟨by omega⟩
   have h := (isSRGWith_paley (4 * t + 1) (by omega)).regular
   rwa [show (4 * t + 1 - 1) / 2 = 2 * t from by omega] at h
 
@@ -8648,8 +8646,8 @@ theorem algConn_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
 theorem lapLambdaMax_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
     (paley (4 * t + 1)).lapLambdaMax
       = (4 * (t : ℝ) + 1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
-  haveI : NeZero (4 * t + 1) := ⟨by omega⟩
-  haveI : Nonempty (paley (4 * t + 1)).V :=
+  have : NeZero (4 * t + 1) := ⟨by omega⟩
+  have : Nonempty (paley (4 * t + 1)).V :=
     Fintype.card_pos_iff.1 (by rw [(isSRGWith_paley (4 * t + 1) (by omega)).card]; omega)
   have hq : 0 < Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_pos.2 (by positivity)
   have hqle : Real.sqrt (4 * (t : ℝ) + 1) ≤ 4 * (t : ℝ) + 1 := by
@@ -9024,7 +9022,7 @@ theorem eq_empty_of_card_toFinset_spectrum_eq_one {G : IsoGraph}
   induction G using Quotient.inductionOn with
   | h g =>
     rw [spectrum_mk] at h1
-    haveI : Nonempty g.V := by
+    have : Nonempty g.V := by
       rw [← FinEnum.card_pos_iff, ← CGraph.card_spectrum]
       by_contra hc
       have hz : g.spectrum = 0 := Multiset.card_eq_zero.1 (by omega)
@@ -9211,7 +9209,7 @@ theorem lapLambdaMax_compl {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
+    have : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [compl_mk, lapLambdaMax_mk, algConn_mk, V_mk]
     exact g.lapLambdaMax_compl h
 
@@ -9222,7 +9220,7 @@ theorem algConn_compl {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
+    have : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [compl_mk, algConn_mk, lapLambdaMax_mk, V_mk]
     exact g.algConn_compl h
 
@@ -9501,7 +9499,7 @@ theorem algConn_le_minDeg {G : IsoGraph} (h : 2 ≤ G.V) (hc : 0 < Gᶜ.E) :
     classical
     rw [V_mk] at h
     rw [compl_mk, E_mk] at hc
-    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
+    have : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [algConn_mk, minDeg_mk]
     exact g.algConn_le_minDeg h hc
 
@@ -9512,7 +9510,7 @@ theorem V_sub_one_mul_algConn_le_V_mul_minDeg {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
+    have : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [algConn_mk, minDeg_mk, V_mk]
     exact g.card_sub_one_mul_algConn_le_card_mul_minDeg h
 
@@ -9523,7 +9521,7 @@ theorem algConn_le_div_mul_minDeg {G : IsoGraph} (h : 2 ≤ G.V) :
   | h g =>
     classical
     rw [V_mk] at h
-    haveI : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
+    have : Nonempty g.V := FinEnum.card_pos_iff.1 (by omega)
     rw [algConn_mk, minDeg_mk, V_mk]
     exact g.algConn_le_div_mul_minDeg h
 

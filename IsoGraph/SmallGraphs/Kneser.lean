@@ -276,11 +276,11 @@ private theorem exists_triple_of_intersecting (hn : 0 < n)
   obtain ⟨x, y, hxy, rfl⟩ := Finset.card_eq_two.1 (h2 a0 ha0)
   obtain ⟨b, hbF, hxb⟩ : ∃ b ∈ F, x ∉ b := by
     by_contra h
-    push_neg at h
+    push Not at h
     exact hns ⟨x, h⟩
   obtain ⟨c, hcF, hyc⟩ : ∃ c ∈ F, y ∉ c := by
     by_contra h
-    push_neg at h
+    push Not at h
     exact hns ⟨y, h⟩
   have hyb : y ∈ b := by
     obtain ⟨w, hw⟩ := hint _ ha0 _ hbF
@@ -355,7 +355,7 @@ private theorem card_le_of_colouring_pairs {m : ℕ} (col : Finset (Fin n) → F
     n ≤ m + 2 := by
   classical
   by_contra hlt
-  push_neg at hlt
+  push Not at hlt
   have hn : 0 < n := by omega
   -- a centre for every colour class that has one
   have hpick : ∀ j : Fin m, ∃ v : Fin n,

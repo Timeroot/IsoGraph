@@ -90,7 +90,7 @@ theorem connectedOn_of_connOk : ∀ {l : List G.V}, connOk G l = true → G.Conn
     rw [connOk, List.all_eq_true] at h
     have hset : {u : G.V | u ∈ v :: rest} = {u | u ∈ reach G [v] rest} := by
       ext u
-      simp only [Set.mem_setOf_eq, List.mem_cons]
+      simp only [Set.mem_ofPred_eq, List.mem_cons]
       refine ⟨fun hu ↦ ?_, fun hu ↦ ?_⟩
       · rcases hu with rfl | hu
         · exact mem_reach_of_mem (by simp)

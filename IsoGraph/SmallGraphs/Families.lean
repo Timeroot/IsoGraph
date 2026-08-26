@@ -1270,7 +1270,7 @@ bijection between the pairs `(a, b) ∈ s × sᶜ` and the neighbours of `s`. -/
           · exact Finset.ne_of_mem_erase h1 rfl
           · exact hb ha
         rw [Finset.mem_union, Finset.mem_singleton] at hna
-        push_neg at hna
+        push Not at hna
         by_contra hne
         exact hna.1 (Finset.mem_erase.2 ⟨fun hx ↦ hne (by rw [hx]), ha⟩)
       · -- every neighbour arises this way, from the unique points of `s \ t` and `t \ s`
@@ -1395,7 +1395,7 @@ theorem le_chromNum_triangular_odd (m : ℕ) : 2 * m + 3 ≤ (triangular (2 * m 
     set V2 := (CGraph.complete (n + 1)).V
     have hrow_hit_or_empty : (∀ i : V1, ∃ s ∈ S, s.1 = i) ∨ (∃ i₀ : V1, ∀ s ∈ S, s.1 ≠ i₀) := by
       by_contra h
-      push_neg at h
+      push Not at h
       obtain ⟨hna, hnb⟩ := h
       obtain ⟨i₀, hi₀empty⟩ := hna
       have hA : ∀ i : V1, ∃ s ∈ S, s.1 = i := by
@@ -1529,7 +1529,7 @@ theorem isVertexTransitive_circulant (n : ℕ) (S : List ℕ) :
   unfold CGraph.IsVertexTransitive CGraph.circulant CGraph.ofRel
   by_cases hn : n = 0
   · subst hn; intro u v; fin_cases u
-  · haveI : NeZero n := ⟨hn⟩
+  · have : NeZero n := ⟨hn⟩
     intro u v
     -- Work in ZMod n for the group structure
     let equiv : ZMod n ≃ Fin n := {

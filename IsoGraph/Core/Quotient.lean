@@ -93,7 +93,7 @@ private theorem mem_edgeSet_map_inl (G H : CGraph) (e : Sym2 G.V)
   induction e using Sym2.ind with
   | _ a b =>
     rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at he
-    rw [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, disjUnion_adj_inl_inl]
+    rw [Sym2.map_mk, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, disjUnion_adj_inl_inl]
     exact he
 
 /-- Pushing an edge of `H` forward into `G + H` gives an edge of `G + H`. -/
@@ -103,7 +103,7 @@ private theorem mem_edgeSet_map_inr (G H : CGraph) (e : Sym2 H.V)
   induction e using Sym2.ind with
   | _ a b =>
     rw [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] at he
-    rw [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, disjUnion_adj_inr_inr]
+    rw [Sym2.map_mk, SimpleGraph.mem_edgeSet, CGraph.toSimple_adj, disjUnion_adj_inr_inr]
     exact he
 
 /-- An edge of `G` or an edge of `H`, read as an edge of `G + H`.  It is onto because the two
@@ -122,13 +122,13 @@ theorem sumEdge_inj (G H : CGraph) :
     | _ a b =>
       induction f using Sym2.ind with
       | _ c d =>
-        rw [Sym2.map_pair_eq, Sym2.map_pair_eq] at h
+        rw [Sym2.map_mk, Sym2.map_mk] at h
         rcases Sym2.eq_iff.1 h with ⟨h1, -⟩ | ⟨h1, -⟩ <;> exact absurd h1 (by simp)
   · induction e using Sym2.ind with
     | _ a b =>
       induction f using Sym2.ind with
       | _ c d =>
-        rw [Sym2.map_pair_eq, Sym2.map_pair_eq] at h
+        rw [Sym2.map_mk, Sym2.map_mk] at h
         rcases Sym2.eq_iff.1 h with ⟨h1, -⟩ | ⟨h1, -⟩ <;> exact absurd h1 (by simp)
   · exact congrArg Sum.inr (Subtype.ext (Sym2.map.injective Sum.inr_injective h))
 

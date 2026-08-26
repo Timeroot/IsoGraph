@@ -389,7 +389,7 @@ theorem setOf_prodBranch (f : A.MinorOf B) (f' : A'.MinorOf B') (x : A.V) (y : A
     {p : B.V × B'.V | prodBranch f f' p = some (x, y)}
       = (fun p ↦ p) '' ({u | f.branch u = some x} ×ˢ {v | f'.branch v = some y}) := by
   ext ⟨u, v⟩
-  simp only [Set.mem_setOf_eq, prodBranch_eq_some, Set.image_id', Set.mem_prod]
+  simp only [Set.mem_ofPred_eq, prodBranch_eq_some, Set.image_id', Set.mem_prod]
 
 theorem prodBranch_isSome (f : A.MinorOf B) (f' : A'.MinorOf B')
     (h : ∀ u, (f.branch u).isSome) (h' : ∀ u, (f'.branch u).isSome) (p : B.V × B'.V) :
@@ -1002,7 +1002,7 @@ theorem sym2_map_col_ne_row {α β : Type*} {a : α} {c : β} {e : Sym2 β} {e' 
     Sym2.map (fun q : β ↦ (a, q)) e ≠ Sym2.map (fun p : α ↦ (p, c)) e' := by
   induction e using Sym2.ind with | _ u v => ?_
   induction e' using Sym2.ind with | _ p p' => ?_
-  simp only [Sym2.isDiag_iff_proj_eq] at he
+  simp only [Sym2.mk_isDiag_iff] at he
   intro h
   rw [Sym2.map_mk, Sym2.map_mk, Sym2.eq_iff] at h
   simp only [Prod.mk.injEq] at h
@@ -1065,10 +1065,10 @@ def disjUnion (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
   path {x y} h := sumPath f f' x y h
   isPath' := by
     rintro (a | b) (c | d) h
-    · exact SimpleGraph.Walk.map_isPath_of_injective (inlHom_injective B B') (f.isPath' _)
+    · exact SimpleGraph.Walk.IsPath.map (inlHom_injective B B') (f.isPath' _)
     · exact absurd h (by simp)
     · exact absurd h (by simp)
-    · exact SimpleGraph.Walk.map_isPath_of_injective (inrHom_injective B B') (f'.isPath' _)
+    · exact SimpleGraph.Walk.IsPath.map (inrHom_injective B B') (f'.isPath' _)
   reverse' := by
     rintro (a | b) (c | d) h h'
     · show (f.path _).map (inlHom B B') = ((f.path _).map (inlHom B B')).reverse
@@ -1149,11 +1149,11 @@ def join (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
   path {x y} h := joinPath f f' x y h
   isPath' := by
     rintro (a | b) (c | d) h
-    · exact SimpleGraph.Walk.map_isPath_of_injective
+    · exact SimpleGraph.Walk.IsPath.map
         (fun _ _ hh ↦ Sum.inl_injective hh) (f.isPath' _)
     · simp [joinPath, SimpleGraph.Walk.cons_isPath_iff]
     · simp [joinPath, SimpleGraph.Walk.cons_isPath_iff]
-    · exact SimpleGraph.Walk.map_isPath_of_injective
+    · exact SimpleGraph.Walk.IsPath.map
         (fun _ _ hh ↦ Sum.inr_injective hh) (f'.isPath' _)
   reverse' := by
     rintro (a | b) (c | d) h h'
@@ -1284,10 +1284,10 @@ def cartesianProduct (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
     by_cases hx : x₁ = y₁
     · subst hx
       rw [prodPath_col f f' h (cartesianProduct_adj_of_fst_eq h rfl)]
-      exact SimpleGraph.Walk.map_isPath_of_injective (sndHom_injective B B' _) (f'.isPath' _)
+      exact SimpleGraph.Walk.IsPath.map (sndHom_injective B B' _) (f'.isPath' _)
     · obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
       rw [prodPath_row f f' hx h ha]
-      exact SimpleGraph.Walk.map_isPath_of_injective (fstHom_injective B B' _) (f.isPath' _)
+      exact SimpleGraph.Walk.IsPath.map (fstHom_injective B B' _) (f.isPath' _)
   reverse' := by
     rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h h'
     by_cases hx : x₁ = y₁
@@ -1380,10 +1380,10 @@ def disjUnion (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
   walk {x y} h := sumWalk f f' x y h
   isTrail' := by
     rintro (a | b) (c | d) h
-    · exact SimpleGraph.Walk.map_isTrail_of_injective (inlHom_injective B B') (f.isTrail' _)
+    · exact SimpleGraph.Walk.IsTrail.map (inlHom_injective B B') (f.isTrail' _)
     · exact absurd h (by simp)
     · exact absurd h (by simp)
-    · exact SimpleGraph.Walk.map_isTrail_of_injective (inrHom_injective B B') (f'.isTrail' _)
+    · exact SimpleGraph.Walk.IsTrail.map (inrHom_injective B B') (f'.isTrail' _)
   reverse' := by
     rintro (a | b) (c | d) h h'
     · show (f.walk _).map (inlHom B B') = ((f.walk _).map (inlHom B B')).reverse
@@ -1439,11 +1439,11 @@ def join (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
   walk {x y} h := joinWalk f f' x y h
   isTrail' := by
     rintro (a | b) (c | d) h
-    · exact SimpleGraph.Walk.map_isTrail_of_injective
+    · exact SimpleGraph.Walk.IsTrail.map
         (fun _ _ hh ↦ Sum.inl_injective hh) (f.isTrail' _)
     · simp [joinWalk]
     · simp [joinWalk]
-    · exact SimpleGraph.Walk.map_isTrail_of_injective
+    · exact SimpleGraph.Walk.IsTrail.map
         (fun _ _ hh ↦ Sum.inr_injective hh) (f'.isTrail' _)
   reverse' := by
     rintro (a | b) (c | d) h h'
@@ -1538,10 +1538,10 @@ def cartesianProduct (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
     by_cases hx : x₁ = y₁
     · subst hx
       rw [prodWalk_col f f' h (cartesianProduct_adj_of_fst_eq h rfl)]
-      exact SimpleGraph.Walk.map_isTrail_of_injective (sndHom_injective B B' _) (f'.isTrail' _)
+      exact SimpleGraph.Walk.IsTrail.map (sndHom_injective B B' _) (f'.isTrail' _)
     · obtain ⟨ha, rfl⟩ := cartesianProduct_adj_of_fst_ne h hx
       rw [prodWalk_row f f' hx h ha]
-      exact SimpleGraph.Walk.map_isTrail_of_injective (fstHom_injective B B' _) (f.isTrail' _)
+      exact SimpleGraph.Walk.IsTrail.map (fstHom_injective B B' _) (f.isTrail' _)
   reverse' := by
     rintro ⟨x₁, x₂⟩ ⟨y₁, y₂⟩ h h'
     by_cases hx : x₁ = y₁

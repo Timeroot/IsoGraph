@@ -2097,7 +2097,7 @@ theorem clearCntFrom_mem (touched : Array Nat) : ∀ (fuel j : Nat) (cnt : Array
       · subst h
         by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < touched.size → touched[j'']! ≠ touched[j]!
         · rw [clearCntFrom_ne touched fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
-        · push_neg at hmem
+        · push Not at hmem
           obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
           rw [← hj3]
           exact clearCntFrom_mem touched fuel (j + 1) _ (by omega) j'' hj1 hj2
@@ -2143,7 +2143,7 @@ theorem clearHitFrom_mem (cells : Array Nat) : ∀ (fuel j : Nat) (hit : Array B
       · subst h
         by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < cells.size → cells[j'']! ≠ cells[j]!
         · rw [clearHitFrom_ne cells fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
-        · push_neg at hmem
+        · push Not at hmem
           obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
           rw [← hj3]
           exact clearHitFrom_mem cells fuel (j + 1) _ (by omega) j'' hj1 hj2
@@ -2198,7 +2198,7 @@ theorem clearBcFrom_mem (ks : Array Nat) : ∀ (fuel j : Nat) (bc : Array Nat),
       · subst h
         by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < ks.size → ks[j'']! ≠ ks[j]!
         · rw [clearBcFrom_ne ks fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
-        · push_neg at hmem
+        · push Not at hmem
           obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
           rw [← hj3]
           exact clearBcFrom_mem ks fuel (j + 1) _ (by omega) j'' hj1 hj2
@@ -2406,7 +2406,7 @@ theorem sizesSum_one (sizes : Array Nat) (j : Nat) : sizesSum sizes j (j + 1) = 
 theorem exists_of_bucketSize {lab cnt : Array Nat} {c ec t : Nat}
     (h : bucketSize lab cnt c ec t ≠ 0) : ∃ i, c ≤ i ∧ i < ec ∧ cnt[lab[i]!]! = t := by
   by_contra hno
-  push_neg at hno
+  push Not at hno
   refine h ?_
   rw [bucketSize]
   refine Finset.sum_eq_zero fun i hi => ?_
@@ -2950,7 +2950,7 @@ theorem splitOk_general {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
       (y < c ∨ cen[c]! ≤ y) := by
     intro i hi hio y hy1 hy2
     by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     have hcy : cst[y]! = c := by
       rw [hcellCst c hc y (by omega) (by omega), hcst]
     have hcy2 : cen[y]! = cen[c]! := hcellCen c hc y (by omega) (by omega)
@@ -3316,7 +3316,7 @@ theorem splitCell_bc {cnt : Array Nat} {c : Nat} {st : SplitState}
         rw [← hjt]
         exact clearBcFrom_mem (sortNats ks0) (sortNats ks0).size 0 bc2 (by omega) j (by omega) hj
           (by rw [hjt, hbc2size]; exact ht)
-      · push_neg at hmem
+      · push Not at hmem
         have hnot0 : t ∉ ks0 := by
           intro h
           obtain ⟨j, hj, hjt⟩ := mem_iff_getElem!.1 (sortNats_mem.2 h)
@@ -3534,7 +3534,7 @@ theorem splitCell_start {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
     (hne : c' ≠ c) (hcst' : st.cst[c']! = c') : (splitCell cnt c st).cst[c']! = c' := by
   have hout : c' < c ∨ st.cen[c]! ≤ c' := by
     by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     have hcon2 : c' < st.part.cen[c]! := hcon.2
     have h := hinv.wf.cellCst c hc c' (by rw [show st.part.cst[c]! = c from hcst]; omega)
       (by omega)

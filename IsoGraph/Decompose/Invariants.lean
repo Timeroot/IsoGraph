@@ -118,7 +118,7 @@ theorem domNum_join_ite {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
   split
   · next h => exact (domNum_join_eq_one_iff G H).2 h
   · next h =>
-    push_neg at h
+    push Not at h
     exact domNum_join_eq_two hG hH h.1 h.2
 
 end IsoGraph

@@ -115,7 +115,7 @@ factorisation up to associates, and associates are equal here, so the product is
 nose.  The empty multiset covers the one-vertex graph; anything larger gets a genuine factor. -/
 theorem exists_multiset_prod_eq {a : IsoGraph} (ha : a ≠ 0) :
     ∃ f : Multiset IsoGraph, (∀ b ∈ f, Irreducible b) ∧ f.prod = a := by
-  haveI := wfDvdMonoid_of_V hzero hone hV
+  have := wfDvdMonoid_of_V hzero hone hV
   obtain ⟨f, hf, hassoc⟩ := WfDvdMonoid.exists_factors a ha
   exact ⟨f, hf, (associated_iff_eq hone hV).1 hassoc⟩
 
@@ -177,12 +177,12 @@ private def nonunitIdeal : Ideal IsoGraph where
   carrier := {G : IsoGraph | G.V ≠ 1}
   add_mem' := by
     intro a b ha hb
-    simp only [Set.mem_setOf_eq, hadd, V_disjUnion] at *
+    simp only [Set.mem_ofPred_eq, hadd, V_disjUnion] at *
     omega
   zero_mem' := by simp [hzero]
   smul_mem' := by
     intro c a ha h
-    simp only [Set.mem_setOf_eq, smul_eq_mul, hV] at *
+    simp only [Set.mem_ofPred_eq, smul_eq_mul, hV] at *
     exact ha (Nat.eq_one_of_dvd_one ⟨c.V, by rw [mul_comm]; exact h.symm⟩)
 
 include hadd hzero hV in

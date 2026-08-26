@@ -420,12 +420,12 @@ theorem exists_cycleList_of_isCycle {G : CGraph} {a : G.V} {w : G.toSimple.Walk 
   | @cons _ b _ h p =>
     refine ⟨b, p.support.tail, ?_, ?_, ?_, ?_⟩
     · simp [SimpleGraph.Walk.length_support]
-    · rw [← SimpleGraph.Walk.support_eq_cons]
+    · rw [SimpleGraph.Walk.cons_tail_support]
       simpa using hw.support_nodup
-    · rw [← SimpleGraph.Walk.support_eq_cons]
+    · rw [SimpleGraph.Walk.cons_tail_support]
       exact p.isChain_adj_support
     · have hl : p.support.getLastD b = a := getLastD_support p b
-      rw [SimpleGraph.Walk.support_eq_cons p, List.getLastD_cons] at hl
+      rw [← SimpleGraph.Walk.cons_tail_support p, List.getLastD_cons] at hl
       rw [hl]
       exact h
 

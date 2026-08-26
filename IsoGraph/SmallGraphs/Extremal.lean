@@ -35,7 +35,7 @@ theorem girth_kneser_five_two : (kneser 5 2).girth = 5 := by
 
 @[toIsoGraph]
 theorem domNum_star (n : ℕ) : (star n).domNum = 1 := by
-  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   refine domNum_eq_one_of_universal (v := (Sum.inl 0 : Fin 1 ⊕ Fin n)) fun u hu ↦ ?_
   match u with
   | Sum.inl a => exact absurd (congrArg Sum.inl (Subsingleton.elim a (0 : Fin 1))) hu
@@ -56,7 +56,7 @@ is the centre. -/
 theorem exists_eq_inl_of_two_neighbours {n : ℕ} {x u v : (bipartite 1 n).V} (huv : u ≠ v)
     (hu : (bipartite 1 n).Adj x u = true) (hv : (bipartite 1 n).Adj x v = true) :
     ∃ a, x = Sum.inl a := by
-  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   rcases x with a | b
   · exact ⟨a, rfl⟩
   · exfalso
@@ -71,7 +71,7 @@ theorem exists_eq_inl_of_two_neighbours {n : ℕ} {x u v : (bipartite 1 n).V} (h
 the only vertex with two distinct neighbours. -/
 theorem aut_apply_inl {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2))
     (a : (complete 1).V) : f (.inl a) = .inl a := by
-  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   obtain ⟨u, v, huv⟩ :=
     Fintype.exists_pair_of_one_lt_card (α := (complete (n + 2)).V) (by simp)
   have hne : (Sum.inr u : (bipartite 1 (n + 2)).V) ≠ Sum.inr v := fun h ↦ huv (Sum.inr.inj h)
@@ -84,7 +84,7 @@ theorem aut_apply_inl {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 
 permutation of the rays. -/
 theorem exists_perm_of_aut {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2)) :
     ∃ σ : Equiv.Perm (Fin (n + 2)), f = starAut (n + 2) σ := by
-  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   have hex : ∀ b : (complete (n + 2)).V, ∃ r, f (.inr b) = Sum.inr r := by
     intro b
     rcases hb : f (.inr b) with a | r
@@ -523,7 +523,7 @@ theorem wheelToCycle_injective {N : ℕ} (hN : 4 ≤ N) :
 /-- **A wheel has at most `2n` automorphisms** once its rim has length at least four: the hub is
 fixed, and what is left is an automorphism of the rim. -/
 theorem autCount_wheel_le {N : ℕ} (hN : 4 ≤ N) : (wheel N).autCount ≤ 2 * N := by
-  haveI : Finite (cycle N ≃cg cycle N) := (cycle N).instFiniteAut
+  have : Finite (cycle N ≃cg cycle N) := (cycle N).instFiniteAut
   have h := Nat.card_le_card_of_injective (wheelToCycle hN) (wheelToCycle_injective hN)
   have h2 : (wheel N).autCount ≤ (cycle N).autCount := h
   exact h2.trans (autCount_cycle_le (by omega))

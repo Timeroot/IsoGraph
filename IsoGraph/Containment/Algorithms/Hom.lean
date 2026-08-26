@@ -85,9 +85,8 @@ def homCompat (p q : H.V × G.V) : Bool := !H.Adj p.1 q.1 || G.Adj p.2 q.2
 theorem homCompat_comm (p q : H.V × G.V) : homCompat H G p q = homCompat H G q p := by
   simp only [homCompat, H.symm p.1 q.1, G.symm p.2 q.2]
 
-theorem homCompat_symmetric :
-    Symmetric fun p q : H.V × G.V ↦ homCompat H G p q = true :=
-  fun _ _ h ↦ (homCompat_comm H G _ _).trans h
+theorem homCompat_symm : Std.Symm fun p q : H.V × G.V ↦ homCompat H G p q = true :=
+  ⟨fun _ _ h ↦ (homCompat_comm H G _ _).trans h⟩
 
 /-- Every two placements in the list are compatible. -/
 def validHom : List (H.V × G.V) → Bool
@@ -139,8 +138,7 @@ def homOfAsg (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod.fst)
   map_rel' := by
     intro x y hxy
     have hne : x ≠ y := fun h ↦ H.loopless y (h ▸ hxy)
-    haveI : Std.Symm fun p q : H.V × G.V ↦ homCompat H G p q = true :=
-      ⟨fun _ _ h ↦ homCompat_symmetric H G h⟩
+    have := homCompat_symm H G
     have hc := ((validHom_iff H G r).mp hv).forall
       (asgFun_mem H G r hcov x) (asgFun_mem H G r hcov y) (fun h ↦ hne (congrArg Prod.fst h))
     simpa [homCompat, show H.Adj x y = true from hxy] using hc

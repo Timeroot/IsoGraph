@@ -79,7 +79,7 @@ theorem edgeList_support_tail {u v : G.V} (p : G.toSimple.Walk u v) :
   induction p with
   | nil => rfl
   | @cons u v w h p ih =>
-    rw [SimpleGraph.Walk.support_cons, List.tail_cons, p.support_eq_cons, edgeList,
+    rw [SimpleGraph.Walk.support_cons, List.tail_cons, ← p.cons_tail_support, edgeList,
       SimpleGraph.Walk.edges_cons, ih]
 
 /-- The first edge of a walk that takes at least one step. -/

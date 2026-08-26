@@ -248,10 +248,10 @@ theorem not_mem_dropLast (h : H.Adj x y = true) (z : H.V) :
     t.toFun z ∉ (t.path h).support.tail.dropLast := by
   intro hz
   have hsup : t.toFun z ∈ (t.path h).support := by
-    rw [(t.path h).support_eq_cons, List.mem_cons]
+    rw [← (t.path h).cons_tail_support, List.mem_cons]
     exact Or.inr (List.mem_of_mem_dropLast hz)
   have hnd := t.nodup_support h
-  rw [(t.path h).support_eq_cons, t.support_tail_eq h] at hnd
+  rw [← (t.path h).cons_tail_support, t.support_tail_eq h] at hnd
   rcases t.branch' h z hsup with rfl | rfl
   · exact (List.nodup_cons.mp hnd).1 (List.mem_append_left _ hz)
   · exact (List.nodup_append.mp (List.nodup_cons.mp hnd).2).2.2 _ hz _
@@ -259,7 +259,7 @@ theorem not_mem_dropLast (h : H.Adj x y = true) (z : H.V) :
 
 theorem mem_support_of_mem_dropLast (h : H.Adj x y = true) {z : G.V}
     (hz : z ∈ (t.path h).support.tail.dropLast) : z ∈ (t.path h).support := by
-  rw [(t.path h).support_eq_cons, List.mem_cons]
+  rw [← (t.path h).cons_tail_support, List.mem_cons]
   exact Or.inr (List.mem_of_mem_dropLast hz)
 
 /-- The first step out of a branch vertex along the path of one of its edges. -/
@@ -354,7 +354,7 @@ def toTopModel (t : H.TopMinorOf G) (ord : H.V → ℕ) (hord : Function.Injecti
   nodup x y h _ := by
     rw [dif_pos h]
     have hnd := t.nodup_support h
-    rwa [(t.path h).support_eq_cons] at hnd
+    rwa [← (t.path h).cons_tail_support] at hnd
   interior x y h _ z := by rw [dif_pos h]; exact t.not_mem_dropLast h z
   disj x y x' y' h hc h' hc' hne z hz hz' := by
     rw [dif_pos h] at hz

@@ -1258,7 +1258,7 @@ theorem two_step_compl (G : CGraph) (h : ¬ G.toSimple.Preconnected)
   by_cases hr : G.toSimple.Reachable u v
   · obtain ⟨x, y, hxy⟩ : ∃ x y, ¬ G.toSimple.Reachable x y := by
       unfold SimpleGraph.Preconnected at h
-      push_neg at h
+      push Not at h
       exact h
     have key : ∀ w : G.V, ¬ G.toSimple.Reachable u w →
         Gᶜ.toSimple.Adj u w ∧ Gᶜ.toSimple.Adj w v := fun w hw ↦
@@ -1577,13 +1577,13 @@ theorem le_minDeg_of_forall {G : CGraph} {k : ℕ} (v₀ : G.V)
 
 theorem exists_degree_eq_maxDeg (G : CGraph) (v₀ : G.V) :
     ∃ v : G.V, G.toSimple.degree v = G.maxDeg := by
-  haveI : Nonempty G.V := ⟨v₀⟩
+  have : Nonempty G.V := ⟨v₀⟩
   obtain ⟨v, hv⟩ := SimpleGraph.exists_maximal_degree_vertex G.toSimple
   exact ⟨v, hv.symm⟩
 
 theorem exists_degree_eq_minDeg (G : CGraph) (v₀ : G.V) :
     ∃ v : G.V, G.toSimple.degree v = G.minDeg := by
-  haveI : Nonempty G.V := ⟨v₀⟩
+  have : Nonempty G.V := ⟨v₀⟩
   obtain ⟨v, hv⟩ := SimpleGraph.exists_minimal_degree_vertex G.toSimple
   exact ⟨v, hv.symm⟩
 
@@ -1617,7 +1617,7 @@ theorem maxDeg_le_of_degMultiset {G : CGraph} {k : ℕ} (h : ∀ d ∈ G.degMult
 theorem maxDeg_eq_sup (G : CGraph) : G.maxDeg = G.degMultiset.sup := by
   refine le_antisymm ?_ (Multiset.sup_le.2 fun d hd ↦ ?_)
   · rcases isEmpty_or_nonempty G.V with h | h
-    · rw [maxDeg, SimpleGraph.maxDegree_of_isEmpty]
+    · rw [maxDeg, SimpleGraph.maxDegree_of_subsingleton]
       exact Nat.zero_le _
     · obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg h.some
       exact hv ▸ Multiset.le_sup (mem_degMultiset.2 ⟨v, rfl⟩)
@@ -2131,7 +2131,7 @@ theorem two_mul_E_le_autCount_of_isArcTransitive (G : CGraph) (h : G.IsArcTransi
   rcases Nat.eq_zero_or_pos G.E with hE | hE
   · simp [hE]
   obtain ⟨u₀, v₀, h₀⟩ := exists_adj_of_E_pos hE
-  haveI : Finite (G ≃cg G) := G.instFiniteAut
+  have : Finite (G ≃cg G) := G.instFiniteAut
   choose f hf1 hf2 using fun d : G.toSimple.Dart ↦
     h u₀ v₀ d.toProd.1 d.toProd.2 h₀ d.adj
   have hinj : Function.Injective f := by
@@ -2194,7 +2194,7 @@ theorem even_card_of_isRegularOfDegree_odd (G : CGraph) {k : ℕ} (hk : Odd k)
 theorem exists_even_degree_of_odd_card (G : CGraph) (h : Odd (FinEnum.card G.V)) :
     ∃ v, Even (G.toSimple.degree v) := by
   by_contra hc
-  push_neg at hc
+  push Not at hc
   exact Nat.not_even_iff_odd.2 h
     (G.even_card_of_forall_odd_degree fun v ↦ Nat.not_even_iff_odd.1 (hc v))
 
@@ -2564,7 +2564,7 @@ theorem prismCol_proper (n : ℕ) (u v w : (cycle (n + 3) □g complete 2).V)
   have hw := step u w huw
   have hne : v.1.1 ≠ w.1.1 ∨ v.2.1 ≠ w.2.1 := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     exact hvw (Prod.ext (Fin.ext hc.1) (Fin.ext hc.2))
   have bu := u.1.isLt
   have bv := v.1.isLt
@@ -3096,7 +3096,7 @@ theorem minDeg_mycielskian (G : IsoGraph) (h : 0 < G.V) :
   have hVH : V ⟦H⟧ = FinEnum.card H.V := by simp [IsoGraph.V]
   have hVH_pos : 0 < V ⟦H⟧ := hG.symm ▸ h
   have hHpos : 0 < FinEnum.card H.V := hVH.symm ▸ hVH_pos
-  haveI : Nonempty H.V := FinEnum.card_pos_iff.mp hHpos
+  have : Nonempty H.V := FinEnum.card_pos_iff.mp hHpos
   have hmin_mem : H.minDeg ∈ H.degMultiset := by
     obtain ⟨v, hv⟩ := H.exists_degree_eq_minDeg (Classical.choice ‹Nonempty H.V›)
     exact CGraph.mem_degMultiset.2 ⟨v, hv⟩
@@ -3182,7 +3182,7 @@ more neighbour than its original, and the apex sees every shadow. -/
         exact CGraph.degree_le_maxDeg H none
       have hinl_maxdeg : 2 * g.maxDeg ≤ H.maxDeg := by
         rcases isEmpty_or_nonempty g.V with hempty | ⟨v₀⟩
-        · simp [CGraph.maxDeg, SimpleGraph.maxDegree_of_isEmpty]
+        · simp [CGraph.maxDeg]
         · obtain ⟨v, hv⟩ := CGraph.exists_degree_eq_maxDeg g (v₀.some)
           rw [← hv, ← hdeg_inl]
           exact CGraph.degree_le_maxDeg H (some (Sum.inl v))

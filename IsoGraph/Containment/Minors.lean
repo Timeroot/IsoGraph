@@ -236,7 +236,7 @@ theorem lift_isPath (g : K.TopMinorOf G) {a b : K.V} {p : K.toSimple.Walk a b} (
   | @cons a b c hab p ih =>
     rw [SimpleGraph.Walk.cons_isPath_iff] at hp
     have hnd := (ih hp.1).support_nodup
-    rw [SimpleGraph.Walk.support_eq_cons (g.lift p)] at hnd
+    rw [← SimpleGraph.Walk.cons_tail_support (g.lift p)] at hnd
     have hhead : g.toFun b ∉ (g.lift p).support.tail := (List.nodup_cons.mp hnd).1
     rw [lift_cons, SimpleGraph.Walk.isPath_def, SimpleGraph.Walk.support_append]
     refine List.Nodup.append (g.isPath' hab).support_nodup (List.nodup_cons.mp hnd).2 ?_
@@ -424,7 +424,7 @@ private theorem exists_walk_to_toFun (f : H.TopMinorOf G) (rank : H.V → ℕ) {
     refine ⟨((f.path hxy).takeUntil u hmem).reverse, fun z hz ↦ ?_⟩
     rw [SimpleGraph.Walk.support_reverse, List.mem_reverse] at hz
     refine f.branch_eq_of_mem_path rank hxy hlt ?_
-      (SimpleGraph.Walk.support_takeUntil_subset _ _ hz)
+      (SimpleGraph.Walk.support_takeUntil_subset_support _ _ hz)
     rintro rfl
     exact hnot hz
 
@@ -718,7 +718,7 @@ theorem eq_empty_zero_of_isContractionOf {H : IsoGraph} (h : H ≤ₚ empty 0) :
   refine Quotient.inductionOn H ?_
   rintro K ⟨f⟩
   have hK : IsEmpty K.V := ⟨fun x ↦ (f.surjective x).elim fun v _ ↦ v.elim0⟩
-  haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+  have : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
   exact Quotient.sound ⟨⟨Equiv.equivOfIsEmpty K.V (CGraph.empty 0).V, fun {a} ↦ hK.elim a⟩⟩
 
 theorem IsSubgraphOf.of_isMinorOf {H G : IsoGraph} (h : H ≤ₘ G) (hV : G.V ≤ H.V) :

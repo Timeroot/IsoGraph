@@ -626,7 +626,7 @@ theorem diameter_compl_le_two {G : IsoGraph} (hV : 0 < G.V) (h : ¬ IsConnected 
   rw [V_mk] at hV
   rw [isConnected_mk] at h
   rw [compl_mk, diameter_mk]
-  haveI := FinEnum.card_pos_iff.1 hV
+  have := FinEnum.card_pos_iff.1 hV
   exact CGraph.diameter_compl_le_two _ fun hp ↦ h ⟨hp⟩
 
 /-- A disconnected graph with an edge has a complement of diameter exactly two. -/
@@ -645,7 +645,7 @@ theorem diameter_compl {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
   rw [E_mk] at hE
   rw [isConnected_mk] at h
   rw [compl_mk, diameter_mk]
-  haveI := FinEnum.card_pos_iff.1 hV
+  have := FinEnum.card_pos_iff.1 hV
   exact CGraph.diameter_compl_eq_two _ (fun hp ↦ h ⟨hp⟩) hE
 
 @[simp] theorem isConnected_compl_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
@@ -1236,7 +1236,7 @@ theorem V_mod_four_of_compl_eq {G : IsoGraph} (h : Gᶜ = G) :
   have h2 := two_mul_choose_two G.V
   have h3 : 4 * G.E = G.V * (G.V - 1) := by omega
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   obtain ⟨k, hk⟩ : ∃ k, G.V = 4 * k + G.V % 4 := ⟨G.V / 4, by omega⟩
   have hr : G.V % 4 = 2 ∨ G.V % 4 = 3 := by omega
   rcases hr with hr | hr <;> rw [hr] at hk
@@ -1647,8 +1647,8 @@ theorem radius_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConne
   induction H using Quotient.inductionOn with | _ h =>
   rw [strongProduct_mk, radius_mk, radius_mk, radius_mk]
   rw [isConnected_mk] at hG hH
-  haveI : Nonempty g.V := hG.nonempty
-  haveI : Nonempty h.V := hH.nonempty
+  have : Nonempty g.V := hG.nonempty
+  have : Nonempty h.V := hH.nonempty
   simp only [CGraph.radius, CGraph.radius_strongProduct_enat]
   exact ENat.toNat_max _ _ (SimpleGraph.radius_ne_top_iff.2 hG)
     (SimpleGraph.radius_ne_top_iff.2 hH)
@@ -1684,8 +1684,8 @@ theorem diameter_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsCon
   induction H using Quotient.inductionOn with | _ h =>
   rw [strongProduct_mk, diameter_mk, diameter_mk, diameter_mk]
   rw [isConnected_mk] at hG hH
-  haveI : Nonempty g.V := hG.nonempty
-  haveI : Nonempty h.V := hH.nonempty
+  have : Nonempty g.V := hG.nonempty
+  have : Nonempty h.V := hH.nonempty
   simp only [CGraph.diameter, SimpleGraph.diam, CGraph.ediam_strongProduct]
   exact ENat.toNat_max _ _ (SimpleGraph.connected_iff_ediam_ne_top.1 hG)
     (SimpleGraph.connected_iff_ediam_ne_top.1 hH)
@@ -1700,7 +1700,7 @@ one edge to an endpoint of the other, lift the walk to the line graph, and take 
 theorem diameter_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     (lineGraph G).diameter ≤ G.diameter + 1 := by
   induction G using Quotient.inductionOn with | h g =>
-  haveI : Nonempty g.V := hG.nonempty
+  have : Nonempty g.V := hG.nonempty
   simp [diameter_mk, lineGraph_mk]
   rw [isConnected_mk] at hG
   rw [E_mk] at hE
@@ -1726,7 +1726,7 @@ theorem diameter_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
         _ = ↑(S.diam + 1) := by rw [Nat.cast_add, Nat.cast_one]
   show LG.diam ≤ S.diam + 1
   unfold SimpleGraph.diam
-  exact ENat.toNat_le_of_le_coe hLGediam
+  exact ENat.toNat_le_of_le_natCast hLGediam
 
 /-- **The line graph does not increase the radius by more than one.**  A centre of `G` lies on
 some edge; that edge is within `radius + 1` of every other edge, by the same lift as for the
@@ -1734,7 +1734,7 @@ diameter. -/
 theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     (lineGraph G).radius ≤ G.radius + 1 := by
   induction G using Quotient.inductionOn with | h g =>
-  haveI : Nonempty g.V := hG.nonempty
+  have : Nonempty g.V := hG.nonempty
   simp [radius_mk, lineGraph_mk]
   rw [isConnected_mk] at hG
   rw [E_mk] at hE
@@ -1768,7 +1768,7 @@ theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     let e0 : g.lineGraph.V :=
       ⟨s(v, w), by simpa [SimpleGraph.mem_edgeSet, CGraph.toSimple_adj] using hw⟩
     have hecc_e0 : LG.eccent e0 ≤ ↑S.radius.toNat + 1 := by
-      haveI : Nonempty g.lineGraph.V := by
+      have : Nonempty g.lineGraph.V := by
         have hcard : 0 < FinEnum.card (g.lineGraph).V := by rw [CGraph.card_lineGraph]; exact hE
         exact FinEnum.card_pos_iff.mp hcard
       unfold SimpleGraph.eccent
@@ -1795,7 +1795,7 @@ theorem radius_lineGraph_le {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
         exact_mod_cast ENat.toNat_le_toNat (by rw [h2]; exact h1)
           (SimpleGraph.radius_ne_top_iff.2 hSconn)
       exact hels.trans (add_le_add hdist_le_radius le_rfl)
-    exact ENat.toNat_le_of_le_coe (SimpleGraph.radius_le_eccent.trans hecc_e0)
+    exact ENat.toNat_le_of_le_natCast (SimpleGraph.radius_le_eccent.trans hecc_e0)
   · -- A disconnected line graph has infinite radius, and `⊤.toNat = 0`.
     show LG.radius.toNat ≤ S.radius.toNat + 1
     rw [SimpleGraph.radius_eq_top_of_not_connected hLGconn]
@@ -1865,7 +1865,7 @@ theorem edgeChromNum_complete_even_add_four (m : ℕ) :
         simp [hv]
         intro h
         exact hxy (Fin.ext (heq_of_modEq _ _ hxlt hylt h))
-      · push_neg at hv
+      · push Not at hv
         have hvlt : (v : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le v) hv
         by_cases hx : (x : ℕ) = n
         · have hylt : (y : ℕ) < n :=
@@ -1875,7 +1875,7 @@ theorem edgeChromNum_complete_even_add_four (m : ℕ) :
           have key := hmul_inv2 (v + y)
           rw [h.symm, Nat.mod_eq_of_lt hvlt] at key
           exact hyv (Fin.ext (heq_of_double v y hvlt hylt key).symm)
-        · push_neg at hx
+        · push Not at hx
           have hxlt : (x : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le x) hx
           by_cases hy : (y : ℕ) = n
           · simp [hv, hx, hy]
@@ -1883,7 +1883,7 @@ theorem edgeChromNum_complete_even_add_four (m : ℕ) :
             have key := hmul_inv2 (v + x)
             rw [h, Nat.mod_eq_of_lt hvlt] at key
             exact hxv (Fin.ext (heq_of_double v x hvlt hxlt key).symm)
-          · push_neg at hy
+          · push Not at hy
             have hylt : (y : ℕ) < n := Nat.lt_of_le_of_ne (Fin.is_le y) hy
             simp [hv, hx, hy]
             intro h
@@ -2117,11 +2117,11 @@ theorem radius_mycielskian (G : IsoGraph) (h : 0 < G.minDeg) : (mycielskian G).r
     rw [IsoGraph.minDeg_mk] at h
     rw [IsoGraph.V_mk]
     by_contra hp
-    push_neg at hp
+    push Not at hp
     have hc : FinEnum.card g.V = 0 := by omega
     have : g.minDeg = 0 := by
       show g.minDeg = 0
-      haveI : IsEmpty g.V := by
+      have : IsEmpty g.V := by
         rw [FinEnum.card_eq_zero_iff] at hc; exact hc
       show g.minDeg = 0
       show g.toSimple.minDegree = 0

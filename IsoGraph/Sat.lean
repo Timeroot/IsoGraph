@@ -353,7 +353,7 @@ theorem lt_chromNum_of_bv {G : CGraph} {m k W : ℕ} {es : List (ℕ × ℕ)}
       hbit u t ht, hbit v t ht]
     by_contra hc
     simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not] at hc
-    push_neg at hc
+    push Not at hc
     obtain ⟨⟨x, hx⟩, ⟨y, hy⟩⟩ := hc
     obtain ⟨hxu, hxt⟩ := pair_eq ht (c x).isLt hx
     obtain ⟨hyv, hyt⟩ := pair_eq ht (c y).isLt hy
@@ -611,7 +611,7 @@ theorem le_indepNum_kneser_seven_three : 15 ≤ (kneser 7 3).indepNum := by
   have hcard : s.card = 15 := by rw [hs]; decide
   have hind : (kneser 7 3).toSimple.IsIndepSet ↑s := by
     intro u hu v hv _ hadj
-    simp only [hs, Finset.coe_filter, Set.mem_setOf_eq, Finset.mem_univ, true_and] at hu hv
+    simp only [hs, Finset.coe_filter, Set.mem_ofPred_eq, Finset.mem_univ, true_and] at hu hv
     rw [toSimple_adj, kneser_adj] at hadj
     simp only [Bool.and_eq_true, decide_eq_true_eq] at hadj
     have h0 : (0 : Fin 7) ∈ u.1 ∩ v.1 := Finset.mem_inter.2 ⟨hu, hv⟩

@@ -247,7 +247,7 @@ theorem chromaticNumber_ne_top : G.toSimple.chromaticNumber ≠ ⊤ :=
   SimpleGraph.chromaticNumber_ne_top_iff_exists.2 ⟨_, G.toSimple.colorable_of_fintype⟩
 
 @[simp] theorem coe_chromNum : (G.chromNum : ℕ∞) = G.toSimple.chromaticNumber :=
-  ENat.coe_toNat G.chromaticNumber_ne_top
+  ENat.natCast_toNat G.chromaticNumber_ne_top
 
 @[toIsoGraph]
 theorem chromNum_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.chromNum = H.chromNum :=
@@ -425,7 +425,8 @@ instance : Decidable G.IsConnected :=
 
 instance : Decidable G.IsAcyclic :=
   decidable_of_iff (∀ (v w : G.V) (p q : G.toSimple.Path v w), p = q)
-    SimpleGraph.isAcyclic_iff_path_unique.symm
+    ⟨fun h ↦ SimpleGraph.isAcyclic_iff_subsingleton_path.2 fun v w ↦ ⟨h v w⟩,
+      fun h v w ↦ @Subsingleton.elim _ (h.subsingleton_path v w)⟩
 
 instance : Decidable G.IsTree :=
   decidable_of_iff (G.IsConnected ∧ G.IsAcyclic)

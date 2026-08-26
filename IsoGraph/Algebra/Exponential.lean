@@ -22,7 +22,7 @@ noncomputable def exponentialEmpty (G : CGraph) (n : ℕ) :
 noncomputable def emptyOneExponential (G : CGraph) : empty 1 ^g G ≃cg empty 1 := by
   refine isoEmptyOfCard ?_ (by simp)
   intro f f'
-  haveI : Subsingleton (empty 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton (empty 1).V := inferInstanceAs (Subsingleton (Fin 1))
   have h : f = f' := funext fun _ ↦ Subsingleton.elim _ _
   simp [exponential_adj, h]
 
@@ -86,7 +86,7 @@ theorem complete_two_exponential_adj {G : CGraph} (hG : G.IsConnected)
       · exact key (f v) (f u) (f' u) (Ne.symm (he ▸ h1)) h2
     obtain ⟨u₁, hu₁⟩ : ∃ u, f u ≠ f' u := by
       by_contra hc
-      push_neg at hc
+      push Not at hc
       exact hne (funext hc)
     have hne' : ∀ u, f u ≠ f' u := by
       intro u
@@ -130,7 +130,7 @@ theorem empty_exponential (m : ℕ) {G : IsoGraph} (h : G ≠ empty G.V) :
     by_cases hedge : ∃ x y, g.Adj x y = true
     · obtain ⟨x, y, hxy⟩ := hedge
       exact Quotient.sound ⟨CGraph.Iso.emptyExponential m g hxy⟩
-    · push_neg at hedge
+    · push Not at hedge
       exact absurd (mk_eq_empty (by simpa using hedge)) h
 
 /-! ## The exponent laws all fail
@@ -196,10 +196,10 @@ theorem not_forall_exponential_empty_one : ¬ ∀ a : IsoGraph, a ^g empty 1 = a
 /-! ## The scoped power notation -/
 
 /-- `^` for `CGraph`, with a graph in the exponent. -/
-def instPowCGraph : Pow CGraph CGraph := ⟨CGraph.exponential⟩
+@[instance_reducible] def instPowCGraph : Pow CGraph CGraph := ⟨CGraph.exponential⟩
 
 /-- `^` for `IsoGraph`, with a class in the exponent. -/
-def instPowIsoGraph : Pow IsoGraph IsoGraph := ⟨IsoGraph.exponential⟩
+@[instance_reducible] def instPowIsoGraph : Pow IsoGraph IsoGraph := ⟨IsoGraph.exponential⟩
 
 end IsoGraph
 
@@ -309,7 +309,7 @@ noncomputable def emptyZeroHomExponential (G : CGraph) :
       simp [hf]
   · by_cases h : Nonempty G.V
     · obtain ⟨x⟩ := h
-      haveI : Nonempty G.V := ⟨x⟩
+      have : Nonempty G.V := ⟨x⟩
       rw [zero_pow (FinEnum.card_pos_iff.2 ⟨x⟩).ne']
       exact FinEnum.card_eq_zero_iff.2 ⟨fun f ↦ (f.1 x).elim0⟩
     · have hcard : FinEnum.card G.V = 0 := FinEnum.card_eq_zero_iff.2 ⟨fun x ↦ h ⟨x⟩⟩
@@ -448,10 +448,10 @@ theorem empty_zero_homExponential_of_ne {G : IsoGraph} (h : G ≠ empty 0) :
 /-! ## The scoped power notation, again -/
 
 /-- `^` for `CGraph`, with a graph in the exponent, the reflexive convention. -/
-def instPowHomCGraph : Pow CGraph CGraph := ⟨CGraph.homExponential⟩
+@[instance_reducible] def instPowHomCGraph : Pow CGraph CGraph := ⟨CGraph.homExponential⟩
 
 /-- `^` for `IsoGraph`, with a class in the exponent, the reflexive convention. -/
-def instPowHomIsoGraph : Pow IsoGraph IsoGraph := ⟨IsoGraph.homExponential⟩
+@[instance_reducible] def instPowHomIsoGraph : Pow IsoGraph IsoGraph := ⟨IsoGraph.homExponential⟩
 
 end IsoGraph
 

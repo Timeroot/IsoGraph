@@ -256,7 +256,7 @@ theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWit
   have hn : FinEnum.card G.V = n := FinEnum.card_eq_fintypeCard'.trans h'.card
   obtain ⟨u⟩ := FinEnum.card_pos_iff.1 (show 0 < FinEnum.card G.V by omega)
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   have hnbrs : G.nbrs u = Finset.univ.erase u := by
     ext w
     simp only [mem_nbrs, Finset.mem_erase, Finset.mem_univ, and_true]
@@ -308,7 +308,7 @@ theorem IsSRGWith.five_le_girth {G : CGraph} {n k : ℕ} (h : G.IsSRGWith n k 0 
     rw [Fintype.card_eq_zero_iff] at hemp
     exact hemp.false ⟨y, ((toSimple_adj _ _ _).2 h2).symm, (toSimple_adj _ _ _).2 h1⟩
   · by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     obtain ⟨hxz, hyt⟩ := hcon
     have hy : y ∈ G.toSimple.commonNeighbors x z :=
       ⟨(toSimple_adj _ _ _).2 h1, ((toSimple_adj _ _ _).2 h2).symm⟩
@@ -431,7 +431,7 @@ theorem card_le_autCount_of_isVertexTransitive (G : CGraph) [Nonempty G.V]
     (h : G.IsVertexTransitive) : FinEnum.card G.V ≤ G.autCount := by
   obtain ⟨v₀⟩ := ‹Nonempty G.V›
   choose f hf using h v₀
-  haveI : Finite (G ≃cg G) := G.instFiniteAut
+  have : Finite (G ≃cg G) := G.instFiniteAut
   have hinj : Function.Injective f := by
     intro u v huv
     have h1 : (f u) v₀ = (f v) v₀ := by rw [huv]
@@ -487,7 +487,7 @@ theorem autCount_mul_le_autCount_join (G H : CGraph) :
 theorem two_mul_autCount_mul_le_autCount_disjUnion_self (G : CGraph) [Nonempty G.V] :
     2 * (G.autCount * G.autCount) ≤ (G ⊕g G).autCount := by
   obtain ⟨x₀⟩ := ‹Nonempty G.V›
-  haveI : Finite (G ⊕g G ≃cg G ⊕g G) := (G ⊕g G).instFiniteAut
+  have : Finite (G ⊕g G ≃cg G ⊕g G) := (G ⊕g G).instFiniteAut
   set f : Bool × (G ≃cg G) × (G ≃cg G) → (G ⊕g G ≃cg G ⊕g G) :=
     fun p ↦ if p.1 then (disjUnionAuto p.2.1 p.2.2).trans (disjUnionSwapAuto G)
       else disjUnionAuto p.2.1 p.2.2 with hfdef

@@ -277,7 +277,7 @@ theorem isAcyclic_pathGraph (n : ℕ) : (pathGraph n).IsAcyclic := by
         have hpne : p ≠ q := fun hpq ↦ by rw [hpq] at hpq1; omega
         have hne : s(p, q) ≠ s(a, b) := fun h ↦ hpq2 h hpne
         rw [Ne, Sym2.eq_iff] at hne
-        push_neg at hne
+        push Not at hne
         have h1 : p.val = a.val → q.val ≠ b.val := fun h h' ↦
           absurd (Fin.ext h) (fun hp ↦ hne.1 hp (Fin.ext h'))
         have h2 : p.val = b.val → q.val ≠ a.val := fun h h' ↦
@@ -321,7 +321,7 @@ still lists as a TODO; the walk form is what parity arguments need. -/
 theorem exists_closed_walk_odd_length {V : Type*} {G : SimpleGraph V} (hc : G.Preconnected)
     (hb : ¬ G.Colorable 2) (v : V) : ∃ w : G.Walk v v, w.length % 2 = 1 := by
   by_contra hno
-  push_neg at hno
+  push Not at hno
   -- otherwise every two walks out of `v` to a common endpoint agree in parity, and that parity
   -- is a two-colouring
   have hwd : ∀ (u : V) (w₁ w₂ : G.Walk v u), w₁.length % 2 = w₂.length % 2 := by
@@ -388,7 +388,7 @@ variable (G H : CGraph)
 
 @[simp] theorem diameter_path (n : ℕ) : (path (n + 1)).diameter = n := by
   show (path (n + 1)).toSimple.diam = n
-  rw [path_toSimple, SimpleGraph.diam, SimpleGraph.ediam_pathGraph, ENat.toNat_coe]
+  rw [path_toSimple, SimpleGraph.diam, SimpleGraph.ediam_pathGraph, ENat.toNat_natCast]
 
 @[simp] theorem isConnected_cycle (n : ℕ) : (cycle (n + 1)).IsConnected := by
   show (cycle (n + 1)).toSimple.Connected
@@ -428,7 +428,7 @@ pair of antipodal vertices. -/
   | 0 =>
     show (SimpleGraph.cycleGraph 1).diam = 0
     exact SimpleGraph.diam_eq_zero.2 (Or.inr (by show Subsingleton (Fin 1); infer_instance))
-  | (m + 1) => rw [SimpleGraph.diam, SimpleGraph.ediam_cycleGraph, ENat.toNat_coe]
+  | (m + 1) => rw [SimpleGraph.diam, SimpleGraph.ediam_cycleGraph, ENat.toNat_natCast]
 
 /-- A disjoint union of two nonempty graphs is disconnected. -/
 theorem not_isConnected_disjUnion (hG : 0 < FinEnum.card G.V) (hH : 0 < FinEnum.card H.V) :
@@ -837,7 +837,7 @@ theorem diameter_eq_two (G : CGraph)
     (h : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v)
     {u v : G.V} (hne : u ≠ v) (hadj : ¬ G.toSimple.Adj u v) : G.diameter = 2 := by
   have h1 : 1 ≤ G.toSimple.edist u v :=
-    ENat.one_le_iff_ne_zero.2 fun h0 ↦ hne (SimpleGraph.edist_eq_zero_iff.1 h0)
+    Order.one_le_iff_ne_zero.2 fun h0 ↦ hne (SimpleGraph.edist_eq_zero_iff.1 h0)
   have h2 : G.toSimple.edist u v ≠ 1 := fun he ↦ hadj (SimpleGraph.edist_eq_one_iff_adj.1 he)
   have h3 : (2 : ℕ∞) ≤ G.toSimple.edist u v := by
     have h4 := Order.add_one_le_of_lt (lt_of_le_of_ne h1 (Ne.symm h2))
@@ -862,8 +862,8 @@ connected: the diameter of a disconnected graph is the junk value `0`. -/
 theorem diameter_cartesianProduct (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (G □g H).diameter = G.diameter + H.diameter := by
-  haveI : Nonempty G.V := hG.nonempty
-  haveI : Nonempty H.V := hH.nonempty
+  have : Nonempty G.V := hG.nonempty
+  have : Nonempty H.V := hH.nonempty
   have hGtop : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hG
   have hHtop : H.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hH
   have h : (G □g H).toSimple.ediam = G.toSimple.ediam + H.toSimple.ediam := by
@@ -963,7 +963,7 @@ theorem exists_cycle_of_inl {G H : CGraph} {a : G.V}
   obtain ⟨w', hw'⟩ := exists_walk_of_inl w a a rfl rfl
   rw [SimpleGraph.Walk.copy_rfl_rfl] at hw'
   refine ⟨w', ?_, ?_⟩
-  · exact (SimpleGraph.Walk.map_isCycle_iff_of_injective
+  · exact (SimpleGraph.Walk.isCycle_map_iff_of_injective
       (f := disjUnionInl G H) Sum.inl_injective).1 (hw' ▸ hw)
   · rw [← hw', SimpleGraph.Walk.length_map]
 
@@ -975,7 +975,7 @@ theorem exists_cycle_of_inr {G H : CGraph} {b : H.V}
   obtain ⟨w', hw'⟩ := exists_walk_of_inr w b b rfl rfl
   rw [SimpleGraph.Walk.copy_rfl_rfl] at hw'
   refine ⟨w', ?_, ?_⟩
-  · exact (SimpleGraph.Walk.map_isCycle_iff_of_injective
+  · exact (SimpleGraph.Walk.isCycle_map_iff_of_injective
       (f := disjUnionInr G H) Sum.inr_injective).1 (hw' ▸ hw)
   · rw [← hw', SimpleGraph.Walk.length_map]
 
@@ -1127,7 +1127,7 @@ theorem girth_cycle_five : (cycle 5).girth = 5 := by
 @[toIsoGraph]
 theorem radius_le_diameter (G : CGraph) : G.radius ≤ G.diameter := by
   by_cases hc : G.toSimple.Connected
-  · haveI : Nonempty G.V := hc.nonempty
+  · have : Nonempty G.V := hc.nonempty
     have hd : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hc
     exact ENat.toNat_le_toNat SimpleGraph.radius_le_ediam hd
   · have h : G.toSimple.radius = ⊤ := SimpleGraph.radius_eq_top_of_not_connected hc
@@ -1137,13 +1137,13 @@ theorem radius_le_diameter (G : CGraph) : G.radius ≤ G.diameter := by
 @[toIsoGraph]
 theorem diameter_le_two_mul_radius (G : CGraph) : G.diameter ≤ 2 * G.radius := by
   by_cases hc : G.toSimple.Connected
-  · haveI : Nonempty G.V := hc.nonempty
+  · have : Nonempty G.V := hc.nonempty
     obtain ⟨r, hr⟩ := ENat.ne_top_iff_exists.1 (SimpleGraph.radius_ne_top_iff.2 hc)
     have h := SimpleGraph.ediam_le_two_mul_radius (G := G.toSimple)
     rw [← hr] at h
     have h2 : G.toSimple.ediam ≤ ((2 * r : ℕ) : ℕ∞) := by
       rwa [Nat.cast_mul, Nat.cast_ofNat]
-    have h3 := ENat.toNat_le_toNat h2 (ENat.coe_ne_top _)
+    have h3 := ENat.toNat_le_toNat h2 (ENat.natCast_ne_top _)
     simpa [diameter, SimpleGraph.diam, radius, ← hr] using h3
   · have h : G.toSimple.diam = 0 := SimpleGraph.diam_eq_zero_of_not_connected hc
     simp [diameter, h]
@@ -1151,8 +1151,8 @@ theorem diameter_le_two_mul_radius (G : CGraph) : G.diameter ≤ 2 * G.radius :=
 @[toIsoGraph]
 theorem radius_pos (G : CGraph) (hc : G.IsConnected) (hV : 1 < FinEnum.card G.V) :
     0 < G.radius := by
-  haveI : Nonempty G.V := hc.nonempty
-  haveI : Nontrivial G.V :=
+  have : Nonempty G.V := hc.nonempty
+  have : Nontrivial G.V :=
     Fintype.one_lt_card_iff_nontrivial.1 (by rwa [← FinEnum.card_eq_fintypeCard'])
   have h0 : G.toSimple.radius ≠ 0 := SimpleGraph.radius_ne_zero_of_nontrivial
   have ht : G.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hc
@@ -1165,13 +1165,13 @@ theorem radius_pos (G : CGraph) (hc : G.IsConnected) (hV : 1 < FinEnum.card G.V)
 radius `1` — provided there is something else. -/
 theorem radius_eq_one_of_universal {v : G.V} (h : ∀ u, u ≠ v → G.Adj v u)
     (hV : 1 < FinEnum.card G.V) : G.radius = 1 := by
-  haveI : Nontrivial G.V :=
+  have : Nontrivial G.V :=
     Fintype.one_lt_card_iff_nontrivial.1 (by rwa [← FinEnum.card_eq_fintypeCard'])
   have hle : G.toSimple.eccent v ≤ 1 :=
     (SimpleGraph.eccent_le_one_iff v).2 fun u hu ↦ (toSimple_adj _ _ _).2 (h u (Ne.symm hu))
   have h1 : G.toSimple.radius ≤ 1 := le_trans SimpleGraph.radius_le_eccent hle
   have h0 : G.toSimple.radius ≠ 0 := SimpleGraph.radius_ne_zero_of_nontrivial
-  have : G.toSimple.radius = 1 := le_antisymm h1 (ENat.one_le_iff_ne_zero.2 h0)
+  have : G.toSimple.radius = 1 := le_antisymm h1 (Order.one_le_iff_ne_zero.2 h0)
   simp [radius, this]
 
 /-- Conversely, radius `1` produces a vertex adjacent to everything else. -/
@@ -1181,7 +1181,7 @@ theorem exists_universal_of_radius_eq_one (G : CGraph) (h : G.radius = 1) :
     intro htop
     rw [radius, htop] at h
     simp at h
-  haveI : Nonempty G.V := by
+  have : Nonempty G.V := by
     by_contra hemp
     rw [not_nonempty_iff] at hemp
     exact hne SimpleGraph.radius_eq_top_of_isEmpty
@@ -1191,7 +1191,7 @@ theorem exists_universal_of_radius_eq_one (G : CGraph) (h : G.radius = 1) :
     rw [radius] at h
     rcases ENat.ne_top_iff_exists.1 hne with ⟨r, hr⟩
     rw [← hr] at h ⊢
-    simp only [ENat.toNat_coe] at h
+    simp only [ENat.toNat_natCast] at h
     rw [h]
     rfl
   have : G.toSimple.eccent v ≤ 1 := by rw [hv, h1]
@@ -1338,7 +1338,7 @@ theorem exists_adj_dist_lt (G : CGraph) {v r : G.V} (hr : G.toSimple.Reachable v
   obtain ⟨p, hp⟩ := hr.exists_walk_length_eq_dist
   have hpos : 0 < G.toSimple.dist v r := hr.pos_dist_of_ne hv
   have hnp : ¬ p.Nil := by
-    simp only [SimpleGraph.Walk.nil_iff_length_eq, hp]
+    simp only [← SimpleGraph.Walk.length_eq_zero_iff, hp]
     omega
   refine ⟨p.snd, p.adj_snd hnp, ?_⟩
   have h1 : G.toSimple.dist p.snd r ≤ p.tail.length := SimpleGraph.dist_le p.tail
@@ -1353,8 +1353,8 @@ connected: the radius of a disconnected graph is the junk value `0`. -/
 theorem radius_cartesianProduct (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (G □g H).radius = G.radius + H.radius := by
-  haveI : Nonempty G.V := hG.nonempty
-  haveI : Nonempty H.V := hH.nonempty
+  have : Nonempty G.V := hG.nonempty
+  have : Nonempty H.V := hH.nonempty
   have hGtop : G.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hG
   have hHtop : H.toSimple.radius ≠ ⊤ := SimpleGraph.radius_ne_top_iff.2 hH
   have h : (G □g H).toSimple.radius = G.toSimple.radius + H.toSimple.radius := by
@@ -1498,14 +1498,14 @@ theorem ediam_strongProduct (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
 theorem radius_strongProduct_enat (G H : CGraph) :
     (G ⊠g H).toSimple.radius = max G.toSimple.radius H.toSimple.radius := by
   rcases isEmpty_or_nonempty G.V with hG | hG
-  · haveI := hG
-    haveI : IsEmpty (G ⊠g H).V := ⟨fun p ↦ hG.elim p.1⟩
+  · have := hG
+    have : IsEmpty (G ⊠g H).V := ⟨fun p ↦ hG.elim p.1⟩
     rw [SimpleGraph.radius_eq_top_of_isEmpty,
       SimpleGraph.radius_eq_top_of_isEmpty (G := G.toSimple)]
     simp
   rcases isEmpty_or_nonempty H.V with hH | hH
-  · haveI := hH
-    haveI : IsEmpty (G ⊠g H).V := ⟨fun p ↦ hH.elim p.2⟩
+  · have := hH
+    have : IsEmpty (G ⊠g H).V := ⟨fun p ↦ hH.elim p.2⟩
     rw [SimpleGraph.radius_eq_top_of_isEmpty,
       SimpleGraph.radius_eq_top_of_isEmpty (G := H.toSimple)]
     simp
@@ -1522,10 +1522,10 @@ cartesian product living inside it. -/
 theorem diameter_strongProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (G ⊠g H).diameter ≤ G.diameter + H.diameter := by
-  haveI : Nonempty G.V := hG.nonempty
-  haveI : Nonempty H.V := hH.nonempty
+  have : Nonempty G.V := hG.nonempty
+  have : Nonempty H.V := hH.nonempty
   have hcp : (G □g H).IsConnected := (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
-  haveI : Nonempty (G □g H).V := hcp.nonempty
+  have : Nonempty (G □g H).V := hcp.nonempty
   have hne : (G □g H).toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hcp
   have h := SimpleGraph.diam_anti_of_ediam_ne_top (cartesianProduct_le_strongProduct G H) hne
   rw [← diameter_cartesianProduct G H hG hH]
@@ -1536,10 +1536,10 @@ theorem diameter_strongProduct_le (G H : CGraph)
 theorem diameter_lexProduct_le (G H : CGraph)
     (hG : G.IsConnected) (hH : H.IsConnected) :
     (G ·g H).diameter ≤ G.diameter + H.diameter := by
-  haveI : Nonempty G.V := hG.nonempty
-  haveI : Nonempty H.V := hH.nonempty
+  have : Nonempty G.V := hG.nonempty
+  have : Nonempty H.V := hH.nonempty
   have hcp : (G □g H).IsConnected := (isConnected_cartesianProduct_iff G H).2 ⟨hG, hH⟩
-  haveI : Nonempty (G □g H).V := hcp.nonempty
+  have : Nonempty (G □g H).V := hcp.nonempty
   have hne : (G □g H).toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hcp
   have h := SimpleGraph.diam_anti_of_ediam_ne_top (cartesianProduct_le_lexProduct G H) hne
   rw [← diameter_cartesianProduct G H hG hH]
@@ -1826,7 +1826,7 @@ theorem not_isAcyclic_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
 /-- The radius of a path is `⌊n/2⌋`. -/
 @[simp] theorem radius_path (n : ℕ) : (path (n + 1)).radius = (n + 1) / 2 := by
   rw [IsoGraph.path, radius_mk, CGraph.radius, CGraph.path_toSimple,
-    SimpleGraph.radius_pathGraph, ENat.toNat_coe]
+    SimpleGraph.radius_pathGraph, ENat.toNat_natCast]
 
 /-! ### Connectivity of the strong and lexicographic products -/
 
@@ -1924,7 +1924,7 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
     intro f
     obtain ⟨v, hv⟩ := h_sym2_mem f.1
     exact hswept_all v f hv
-  letI : Nonempty (CGraph.lineGraph G.toCGraph).V := ⟨e₀'⟩
+  let : Nonempty (CGraph.lineGraph G.toCGraph).V := ⟨e₀'⟩
   exact SimpleGraph.Connected.mk (fun e f => (hreach_all_edges e).symm.trans (hreach_all_edges f))
 
 /-- **A graph of girth three is not bipartite**: a bipartite graph with a cycle has girth at

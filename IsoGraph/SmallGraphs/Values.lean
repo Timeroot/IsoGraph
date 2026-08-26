@@ -105,7 +105,7 @@ theorem isArcTransitive_hypercube (n : ℕ) : (hypercube n).IsArcTransitive := b
   obtain ⟨i₀, hi₀⟩ := Finset.card_eq_one.1 huv
   obtain ⟨j₀, hj₀⟩ := Finset.card_eq_one.1 hu'v'
   have hswap : ∀ i : Fin n, decide (Equiv.swap i₀ j₀ i = i₀) = decide (i = j₀) := fun i ↦ by
-    rw [decide_eq_decide, Equiv.apply_eq_iff_eq_symm_apply, Equiv.symm_swap, Equiv.swap_apply_left]
+    rw [decide_eq_decide, ← Equiv.eq_symm_apply, Equiv.symm_swap, Equiv.swap_apply_left]
   refine ⟨((cubeXor n u).trans (cubeCoord n (Equiv.swap i₀ j₀))).trans (cubeXor n u'), ?_, ?_⟩
   · funext i
     show ((u (Equiv.swap i₀ j₀ i) ^^ u (Equiv.swap i₀ j₀ i)) ^^ u' i) = u' i
@@ -1397,7 +1397,7 @@ theorem maxDeg_lt_edgeChromNum_of_isRegularWith_odd {G : IsoGraph} {k : ℕ}
   have hVk : G.V * k ≤ G.edgeChromNum * (G.V - 1) := by nlinarith
   -- If edgeChromNum ≤ k, contradiction (for k > 0, G.V ≥ 1, V odd so V-1 < V)
   by_contra hle
-  push_neg at hle
+  push Not at hle
   have : G.V * k ≤ k * (G.V - 1) := by nlinarith
   nlinarith [Nat.sub_add_cancel hV]
 

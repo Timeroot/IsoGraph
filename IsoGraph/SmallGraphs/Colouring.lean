@@ -114,7 +114,7 @@ theorem chromNum_eq_two_iff {G : CGraph} : G.chromNum = 2 ↔ G.IsBipartite ∧ 
 @[toIsoGraph]
 theorem chromNum_eq_zero_iff {G : CGraph} : G.chromNum = 0 ↔ FinEnum.card G.V = 0 := by
   rw [chromNum_eq_iff_chromaticNumber, FinEnum.card_eq_zero_iff]
-  exact ⟨fun h ↦ SimpleGraph.isEmpty_of_chromaticNumber_eq_zero (by exact_mod_cast h),
+  exact ⟨fun h ↦ SimpleGraph.chromaticNumber_eq_zero_iff.mp (by exact_mod_cast h),
     fun h ↦ by exact_mod_cast SimpleGraph.chromaticNumber_eq_zero_of_isEmpty⟩
 
 /-- Anything that is not bipartite needs at least three colours. -/
@@ -232,7 +232,7 @@ theorem card_le_chromNum_mul_indepNum (G : CGraph) :
     intro i
     refine SimpleGraph.IsIndepSet.card_le_indepNum ?_
     intro x hx y hy hne hadj
-    rw [Finset.coe_filter, Set.mem_setOf_eq] at hx hy
+    rw [Finset.coe_filter, Set.mem_ofPred_eq] at hx hy
     exact c.valid hadj (hx.2.trans hy.2.symm)
   have hsum : FinEnum.card G.V
       = ∑ i : Fin G.chromNum, (Finset.univ.filter fun v ↦ c v = i).card := by

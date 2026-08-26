@@ -196,7 +196,7 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
     intro s t
     have hsd : (s.val \ t.val).card = k - (s.val ∩ t.val).card := by
       rw [Finset.card_sdiff, s.property, Finset.inter_comm]
-    rw [← ENat.coe_sub, ← hsd]
+    rw [← ENat.natCast_sub, ← hsd]
     exact edist_johnson_le _ s.1 t.1 s.2 t.2 le_rfl
   -- Step 2: the distance is at least that, because `|u \ t|` drops by at most one along an edge.
   have inter_le_k_sub_edist : ∀ s t : (CGraph.johnson n k).V, (k : ℕ∞) - ↑(s.val ∩ t.val).card ≤
@@ -235,7 +235,7 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
       rw [Finset.card_sdiff, s.property, Finset.inter_comm]
     have ht0 : phi t = 0 := by simp [phi]
     have hlip := SimpleGraph.sub_le_edist_of_adj_le_succ phi_adj s t
-    rwa [hphi_s, ht0, ENat.coe_sub, Nat.cast_zero, tsub_zero] at hlip
+    rwa [hphi_s, ht0, ENat.natCast_sub, Nat.cast_zero, tsub_zero] at hlip
   -- Step 3: so the distance is exactly `k - |s ∩ t|`.
   have edist_eq : ∀ s t : (CGraph.johnson n k).V, G.edist s t = (k : ℕ∞) - ↑(s.val ∩ t.val).card :=
     fun s t ↦ le_antisymm (edist_le_k_inter s t) (inter_le_k_sub_edist s t)
@@ -248,14 +248,14 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
     intro s t
     rw [edist_eq s t]
     apply le_min
-    · rw [← ENat.coe_sub]
+    · rw [← ENat.natCast_sub]
       exact Nat.cast_le.mpr (Nat.sub_le _ _)
     · have hunion : (s.val ∪ t.val).card + (s.val ∩ t.val).card = 2 * k := by
         rw [Finset.card_union_add_card_inter, s.property, t.property]; ring
       have hunion_le_n : (s.val ∪ t.val).card ≤ n :=
         le_trans (Finset.card_le_card (Finset.subset_univ _)) (by simp)
       have hle : k - (s.val ∩ t.val).card ≤ n - k := by omega
-      rw [ENat.coe_sub]
+      rw [ENat.natCast_sub]
       exact Nat.cast_le.mpr hle
   -- … and two blocks of `k` consecutive elements offset by `min k (n - k)` are that far apart.
   have edist_le_ediam_aux : min (↑k) (↑(n - k) : ℕ∞) ≤ G.ediam := by
@@ -265,13 +265,13 @@ theorem diameter_johnson {n k : ℕ} (hk : k ≤ n) :
     let t : (CGraph.johnson n k).V := ⟨finBlock n (min k (n - k)) k hdn, card_finBlock hdn⟩
     have hst : G.edist s t = ((min k (n - k) : ℕ) : ℕ∞) := by
       rw [edist_eq s t, show (s.val ∩ t.val).card = k - min k (n - k) from
-        card_inter_finBlock h0 hdn (min_le_left _ _), ← ENat.coe_sub]
+        card_inter_finBlock h0 hdn (min_le_left _ _), ← ENat.natCast_sub]
       congr 1
       omega
     rw [hmin_coe, ← hst]
     exact SimpleGraph.edist_le_ediam
   rw [le_antisymm (SimpleGraph.ediam_le_of_edist_le upper) edist_le_ediam_aux, hmin_coe,
-    ENat.toNat_coe]
+    ENat.toNat_natCast]
 
 /-- Johnson graphs are connected: any two `k`-sets are a finite number of swaps apart. -/
 theorem isConnected_johnson {n k : ℕ} (hk : k ≤ n) : IsConnected (johnson n k) := by
@@ -282,7 +282,7 @@ theorem isConnected_johnson {n k : ℕ} (hk : k ≤ n) : IsConnected (johnson n 
     Finset.exists_subset_card_eq (s := (Finset.univ : Finset (Fin n))) (by simpa using hk)
   exact { preconnected := fun ⟨u, hu⟩ ⟨v, hv⟩ ↦
             SimpleGraph.reachable_of_edist_ne_top
-              (ne_top_of_le_ne_top (ENat.coe_ne_top _) (edist_johnson_le _ u v hu hv le_rfl)),
+              (ne_top_of_le_ne_top (ENat.natCast_ne_top _) (edist_johnson_le _ u v hu hv le_rfl)),
           nonempty := ⟨⟨s₀, hs₀⟩⟩ }
 
 /-- The `2 × n` grid has four corners of degree two and `2n - 4` interior vertices of degree
@@ -533,7 +533,7 @@ theorem domNum_triangular (n : ℕ) : (triangular (n + 2)).domNum = (n + 2) / 2 
     obtain ⟨D, hDcard, hD⟩ := (CGraph.johnson (n + 2) 2).exists_isDominatingSet_domNum
     refine hDcard ▸ ?_
     by_contra hlt
-    push_neg at hlt
+    push Not at hlt
     have h2 := hcov D
     obtain ⟨a, ha, b, hb, hab⟩ : ∃ a ∈ Finset.univ \ D.biUnion fun u ↦ u.1,
         ∃ b ∈ Finset.univ \ D.biUnion fun u ↦ u.1, a ≠ b :=
@@ -783,7 +783,7 @@ theorem domNum_kneser_two (n : ℕ) : (kneser (n + 5) 2).domNum = 3 := by
     -- two vertices use up at most four points, so some point `x` lies outside both
     obtain ⟨x, hx⟩ : ∃ x : Fin (n + 5), x ∉ u.1 ∪ v.1 := by
       by_contra hall
-      push_neg at hall
+      push Not at hall
       have h1 := Finset.card_le_card (fun y _ ↦ hall y :
         (Finset.univ : Finset (Fin (n + 5))) ⊆ u.1 ∪ v.1)
       have h2 := Finset.card_union_le u.1 v.1

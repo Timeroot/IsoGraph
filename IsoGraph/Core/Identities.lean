@@ -4,7 +4,7 @@ import IsoGraph.ForMathlib.SimpleGraph
 import IsoGraph.Invariants.Certificates
 import IsoGraph.Invariants.Derived
 import Mathlib.Combinatorics.SimpleGraph.Circulant
-import Mathlib.Combinatorics.SimpleGraph.ConcreteColorings
+import Mathlib.Combinatorics.SimpleGraph.Coloring.Constructions
 import Mathlib.Combinatorics.SimpleGraph.Sum
 import Mathlib.Data.Nat.Choose.Bounds
 
@@ -1861,8 +1861,8 @@ theorem colorable_of_cartesian_adj {S : SimpleGraph X} {T : SimpleGraph Y}
     (hS : S.Colorable n) (hT : T.Colorable n) : P.Colorable n := by
   cases n with
   | zero =>
-    haveI : IsEmpty X := SimpleGraph.isEmpty_of_colorable_zero hS
-    haveI : IsEmpty (X × Y) := inferInstance
+    have : IsEmpty X := SimpleGraph.Colorable.isEmpty hS
+    have : IsEmpty (X × Y) := inferInstance
     exact SimpleGraph.Colorable.of_isEmpty 0
   | succ m =>
     obtain ⟨cS⟩ := hS
@@ -1969,7 +1969,7 @@ theorem mul_autCount_le_autCount {K : CGraph}
     (f : (G ≃cg G) → (H ≃cg H) → (K ≃cg K))
     (hf : ∀ a a' b b', f a b = f a' b' → a = a' ∧ b = b') :
     G.autCount * H.autCount ≤ K.autCount := by
-  haveI : Finite (K ≃cg K) := K.instFiniteAut
+  have : Finite (K ≃cg K) := K.instFiniteAut
   have hinj : Function.Injective fun p : (G ≃cg G) × (H ≃cg H) ↦ f p.1 p.2 := by
     rintro ⟨a, b⟩ ⟨a', b'⟩ h
     obtain ⟨h1, h2⟩ := hf a a' b b' h

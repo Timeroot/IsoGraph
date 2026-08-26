@@ -291,22 +291,22 @@ wants to reach. -/
 @[simp] theorem one_eq : (1 : IsoGraph) = empty 1 := rfl
 
 /-- Addition as the disjoint union. -/
-def instAddDisjUnion : Add IsoGraph := ⟨disjUnion⟩
+@[instance_reducible] def instAddDisjUnion : Add IsoGraph := ⟨disjUnion⟩
 
 /-- Addition as the join. -/
-def instAddJoin : Add IsoGraph := ⟨join⟩
+@[instance_reducible] def instAddJoin : Add IsoGraph := ⟨join⟩
 
 /-- Multiplication as the cartesian product. -/
-def instMulCartesianProduct : Mul IsoGraph := ⟨cartesianProduct⟩
+@[instance_reducible] def instMulCartesianProduct : Mul IsoGraph := ⟨cartesianProduct⟩
 
 /-- Multiplication as the tensor product. -/
-def instMulTensorProduct : Mul IsoGraph := ⟨tensorProduct⟩
+@[instance_reducible] def instMulTensorProduct : Mul IsoGraph := ⟨tensorProduct⟩
 
 /-- Multiplication as the strong product. -/
-def instMulStrongProduct : Mul IsoGraph := ⟨strongProduct⟩
+@[instance_reducible] def instMulStrongProduct : Mul IsoGraph := ⟨strongProduct⟩
 
 /-- Multiplication as the lexicographic product. -/
-def instMulLexProduct : Mul IsoGraph := ⟨lexProduct⟩
+@[instance_reducible] def instMulLexProduct : Mul IsoGraph := ⟨lexProduct⟩
 
 section
 attribute [local instance] instAddDisjUnion
@@ -314,7 +314,7 @@ attribute [local instance] instAddDisjUnion
 /-- The disjoint union is a commutative monoid with the empty graph for unit.  This is the
 auxiliary version, used to state the component decomposition that proves cancellation; the scoped
 instance is the `AddCancelCommMonoid` of the next section. -/
-def addCommMonoidDisjUnionAux : AddCommMonoid IsoGraph where
+@[instance_reducible] def addCommMonoidDisjUnionAux : AddCommMonoid IsoGraph where
   add_assoc := disjUnion_assoc
   zero_add := empty_zero_disjUnion
   add_zero := disjUnion_empty_zero
@@ -422,12 +422,12 @@ section
 attribute [local instance] instAddDisjUnion
 
 /-- **The disjoint union is a cancellative commutative monoid.** -/
-def addCancelCommMonoidDisjUnion : AddCancelCommMonoid IsoGraph where
+@[instance_reducible] def addCancelCommMonoidDisjUnion : AddCancelCommMonoid IsoGraph where
   __ := addCommMonoidDisjUnionAux
   add_left_cancel _ _ _ h := disjUnion_left_cancel h
 
 /-- Both cancellation laws for the disjoint union, without the monoid structure. -/
-def isCancelAddDisjUnion : @IsCancelAdd IsoGraph instAddDisjUnion where
+theorem isCancelAddDisjUnion : @IsCancelAdd IsoGraph instAddDisjUnion where
   add_left_cancel _ _ _ h := disjUnion_left_cancel h
   add_right_cancel a b c h := disjUnion_left_cancel
     (a := a) (by rw [disjUnion_comm a b, disjUnion_comm a c]; exact h)
@@ -438,7 +438,7 @@ section
 attribute [local instance] instAddJoin
 
 /-- **The join is a cancellative commutative monoid**, again with the empty graph for unit. -/
-def addCancelCommMonoidJoin : AddCancelCommMonoid IsoGraph where
+@[instance_reducible] def addCancelCommMonoidJoin : AddCancelCommMonoid IsoGraph where
   add_assoc := join_assoc
   zero_add := empty_zero_join
   add_zero := join_empty_zero
@@ -447,7 +447,7 @@ def addCancelCommMonoidJoin : AddCancelCommMonoid IsoGraph where
   add_left_cancel _ _ _ h := join_left_cancel h
 
 /-- Both cancellation laws for the join, without the monoid structure. -/
-def isCancelAddJoin : @IsCancelAdd IsoGraph instAddJoin where
+theorem isCancelAddJoin : @IsCancelAdd IsoGraph instAddJoin where
   add_left_cancel _ _ _ h := join_left_cancel h
   add_right_cancel a b c h := join_left_cancel
     (a := a) (by rw [join_comm a b, join_comm a c]; exact h)
@@ -465,7 +465,7 @@ attribute [local instance] instMulCartesianProduct
 
 /-- **The cartesian product is a commutative monoid** with the one-vertex graph for unit, and the
 empty graph annihilates it. -/
-def commMonoidWithZeroCartesianProduct : CommMonoidWithZero IsoGraph where
+@[instance_reducible] def commMonoidWithZeroCartesianProduct : CommMonoidWithZero IsoGraph where
   mul_assoc := cartesianProduct_assoc
   one_mul := empty_one_cartesianProduct
   mul_one := cartesianProduct_empty_one
@@ -475,7 +475,7 @@ def commMonoidWithZeroCartesianProduct : CommMonoidWithZero IsoGraph where
   npow := npowRec
 
 /-- A cartesian product is empty only if a factor is. -/
-def noZeroDivisorsCartesianProduct : NoZeroDivisors IsoGraph where
+theorem noZeroDivisorsCartesianProduct : NoZeroDivisors IsoGraph where
   eq_zero_or_eq_zero_of_mul_eq_zero h := eq_zero_or_eq_zero_of_V_mul (V_cartesianProduct _ _) h
 
 end
@@ -485,17 +485,17 @@ attribute [local instance] instMulTensorProduct
 
 /-- **The tensor product is a semigroup** annihilated by the empty graph.  It has no unit: the
 would-be unit is a single vertex with a loop, and `CGraph`s are loopless. -/
-def semigroupWithZeroTensorProduct : SemigroupWithZero IsoGraph where
+@[instance_reducible] def semigroupWithZeroTensorProduct : SemigroupWithZero IsoGraph where
   mul_assoc := tensorProduct_assoc
   zero_mul := empty_zero_tensorProduct
   mul_zero := tensorProduct_empty_zero
 
 /-- The tensor product is commutative. -/
-def commMagmaTensorProduct : CommMagma IsoGraph where
+@[instance_reducible] def commMagmaTensorProduct : CommMagma IsoGraph where
   mul_comm := tensorProduct_comm
 
 /-- A tensor product is empty only if a factor is. -/
-def noZeroDivisorsTensorProduct : NoZeroDivisors IsoGraph where
+theorem noZeroDivisorsTensorProduct : NoZeroDivisors IsoGraph where
   eq_zero_or_eq_zero_of_mul_eq_zero h := eq_zero_or_eq_zero_of_V_mul (V_tensorProduct _ _) h
 
 /-- **A tensor product with an edgeless factor forgets the other factor entirely**, keeping only
@@ -530,7 +530,7 @@ attribute [local instance] instMulStrongProduct
 
 /-- **The strong product is a commutative monoid** with the same unit and zero as the cartesian
 one. -/
-def commMonoidWithZeroStrongProduct : CommMonoidWithZero IsoGraph where
+@[instance_reducible] def commMonoidWithZeroStrongProduct : CommMonoidWithZero IsoGraph where
   mul_assoc := strongProduct_assoc
   one_mul := empty_one_strongProduct
   mul_one := strongProduct_empty_one
@@ -540,7 +540,7 @@ def commMonoidWithZeroStrongProduct : CommMonoidWithZero IsoGraph where
   npow := npowRec
 
 /-- A strong product is empty only if a factor is. -/
-def noZeroDivisorsStrongProduct : NoZeroDivisors IsoGraph where
+theorem noZeroDivisorsStrongProduct : NoZeroDivisors IsoGraph where
   eq_zero_or_eq_zero_of_mul_eq_zero h := eq_zero_or_eq_zero_of_V_mul (V_strongProduct _ _) h
 
 end
@@ -551,7 +551,7 @@ attribute [local instance] instMulLexProduct
 /-- **The lexicographic product is a monoid** with the same unit and zero as the other products.
 It is not commutative: `empty 2 ·g complete 2` is two disjoint edges and `complete 2 ·g empty 2` is
 the four-cycle. -/
-def monoidWithZeroLexProduct : MonoidWithZero IsoGraph where
+@[instance_reducible] def monoidWithZeroLexProduct : MonoidWithZero IsoGraph where
   mul_assoc := lexProduct_assoc
   one_mul := empty_one_lexProduct
   mul_one := lexProduct_empty_one
@@ -560,7 +560,7 @@ def monoidWithZeroLexProduct : MonoidWithZero IsoGraph where
   npow := npowRec
 
 /-- A lexicographic product is empty only if a factor is. -/
-def noZeroDivisorsLexProduct : NoZeroDivisors IsoGraph where
+theorem noZeroDivisorsLexProduct : NoZeroDivisors IsoGraph where
   eq_zero_or_eq_zero_of_mul_eq_zero h := eq_zero_or_eq_zero_of_V_mul (V_lexProduct _ _) h
 
 end

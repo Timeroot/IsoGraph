@@ -426,7 +426,7 @@ theorem exists_pickChain_aux {s : Set G.V} (hs : G.ConnectedOn s) [DecidablePred
     intro u T R hnd hsub hpc hcov hdisj hlen hseed hmin
     by_cases hdone : ∀ v ∈ s, v ∈ u :: T
     · exact ⟨u :: T, hnd, fun v ↦ ⟨hsub v, fun hv ↦ hdone v hv⟩, hpc⟩
-    push_neg at hdone
+    push Not at hdone
     obtain ⟨w, hws, hwl⟩ := hdone
     have hmemF : ∀ v, v ∈ R.filter (fun z ↦ decide (z ∈ s) && (u :: T).any (G.Adj z)) ↔
         (v ∈ R ∧ v ∈ s ∧ (u :: T).any (G.Adj v) = true) := by
@@ -649,7 +649,7 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
     -- branch sets of `x`'s two neighbours.
     obtain ⟨q, hqs, hqv⟩ : ∃ q, f.branch q = some x ∧ q ≠ v := by
       by_contra hcon
-      push_neg at hcon
+      push Not at hcon
       obtain ⟨y, z, hyz, hxy, hxz⟩ := hH x
       obtain ⟨a, b, ha, hb, hab⟩ := f.map_adj hxy
       obtain ⟨a', b', ha', hb', hab'⟩ := f.map_adj hxz
@@ -668,7 +668,7 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
     rw [hp] at hpu
     have hun : u ∈ gs := hsupp u x hus
     have hvu : v ≠ u := fun e ↦ hut (Set.mem_singleton_iff.mpr e.symm)
-    haveI : DecidablePred (· ∈ {w : G.V | f.branch w = some x}) :=
+    have : DecidablePred (· ∈ {w : G.V | f.branch w = some x}) :=
       fun w ↦ inferInstanceAs (Decidable (f.branch w = some x))
     obtain ⟨l, hlnd, hlmem, hlpc⟩ := exists_pickChain (f.connectedOn x)
       (fun z ↦ if z = u then 0 else 1) (fun z ↦ decide (z = u)) gs
@@ -686,7 +686,7 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
         (f.branch w = some x ∧ w ≠ v) := by
       intro w
       rw [List.mem_filter, hlmem]
-      simp [Set.mem_setOf_eq]
+      simp
     have hres : ∀ (w : G.V) (x' : H.V), (if w = v then none else f.branch w) = some x' →
         f.branch w = some x' := by
       intro w x' hw
@@ -700,7 +700,7 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
         have hset : {w : G.V | (if w = v then none else f.branch w) = some x'} =
             {w : G.V | w ∈ l.filter fun z ↦ decide (z ≠ v)} := by
           ext w
-          rw [Set.mem_setOf_eq, Set.mem_setOf_eq, hmemf]
+          rw [Set.mem_ofPred_eq, Set.mem_ofPred_eq, hmemf]
           by_cases hwv : w = v
           · simp [hwv]
           · simp [hwv]
@@ -709,7 +709,7 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
       · have hset : {w : G.V | (if w = v then none else f.branch w) = some x'} =
             {w : G.V | f.branch w = some x'} := by
           ext w
-          rw [Set.mem_setOf_eq, Set.mem_setOf_eq]
+          rw [Set.mem_ofPred_eq, Set.mem_ofPred_eq]
           by_cases hwv : w = v
           · subst hwv
             rw [if_pos rfl, hbv]
@@ -1693,7 +1693,7 @@ theorem exists_chain_model (f : H.MinorOf G) (rank : G.V → ℕ) (hs : List H.V
     ∃ L : H.V → List G.V, (∀ (x : H.V) (v : G.V), v ∈ L x ↔ f.branch v = some x) ∧
       (∀ x, (L x).Nodup) ∧ (∀ x, ChainConn G (L x) = true) ∧
       (∀ x, PickChain G rank (attMinor f hs x) (L x) = true) := by
-  haveI : ∀ x : H.V, DecidablePred (· ∈ {v : G.V | f.branch v = some x}) :=
+  have : ∀ x : H.V, DecidablePred (· ∈ {v : G.V | f.branch v = some x}) :=
     fun x v ↦ inferInstanceAs (Decidable (f.branch v = some x))
   have key : ∀ x : H.V, ∃ L : List G.V, L.Nodup ∧
       (∀ v, v ∈ L ↔ v ∈ {v : G.V | f.branch v = some x}) ∧

@@ -247,7 +247,7 @@ theorem petEdgeAdj : ∀ p ∈ petPairs,
 theorem petersen_no_three_colouring (col : (lineGraph (kneser 5 2)).V → Fin 3) :
     ∃ e f, (lineGraph (kneser 5 2)).Adj e f = true ∧ col e = col f := by
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   exact petSearch (col (petEdge 0)) (col (petEdge 1)) (col (petEdge 2)) (col (petEdge 3))
     (col (petEdge 4)) (col (petEdge 5)) (col (petEdge 6)) (col (petEdge 7)) (col (petEdge 8))
     (col (petEdge 9)) (col (petEdge 10)) (col (petEdge 11)) (col (petEdge 12)) (col (petEdge 13))
@@ -412,7 +412,7 @@ def petCode (f : kneser 5 2 ≃cg kneser 5 2) : PetArc :=
 /-- **The Petersen graph has at most `120` automorphisms**: an automorphism is recorded faithfully
 by the image of one fixed `3`-arc, and there are `10 · 3 · 2 · 2 = 120` `3`-arcs. -/
 theorem autCount_kneser_five_two_le : (kneser 5 2).autCount ≤ 120 := by
-  haveI : Finite (kneser 5 2 ≃cg kneser 5 2) := (kneser 5 2).instFiniteAut
+  have : Finite (kneser 5 2 ≃cg kneser 5 2) := (kneser 5 2).instFiniteAut
   have hinj : Function.Injective petCode := by
     intro f g hfg
     have h1 := congrArg Subtype.val hfg
@@ -453,7 +453,7 @@ theorem kneserAuto_five_two_injective : Function.Injective (kneserAuto 5 2) := b
       exact absurd (ρ.injective (h.symm.trans h')) hbc
 
 theorem le_autCount_kneser_five_two : 120 ≤ (kneser 5 2).autCount := by
-  haveI : Finite (kneser 5 2 ≃cg kneser 5 2) := (kneser 5 2).instFiniteAut
+  have : Finite (kneser 5 2 ≃cg kneser 5 2) := (kneser 5 2).instFiniteAut
   have h := Nat.card_le_card_of_injective _ kneserAuto_five_two_injective
   have hc : Nat.card (Equiv.Perm (Fin 5)) = 120 := by
     rw [Nat.card_eq_fintype_card, Fintype.card_perm, Fintype.card_fin]
@@ -522,7 +522,7 @@ theorem girth_tadpole (m k : ℕ) : (tadpole (m + 3) k).girth = m + 3 := by
       (not_isAcyclic_tadpole m k)
     have hlow : ∀ a ∈ u :: vs, a.1 < m + 3 := by
       by_contra hcon
-      push_neg at hcon
+      push Not at hcon
       obtain ⟨w, hw, hwM⟩ := hcon
       obtain ⟨x, hx, hxmax⟩ := exists_max_weight (fun v : (tadpole (m + 3) k).V ↦ v.1) u vs
       obtain ⟨a, b, ha, hb, hab, hxa, hxb⟩ := cycleList_two_nbrs h2 hnd hch hcl hx
@@ -606,7 +606,7 @@ theorem girth_cyclePendant (m : ℕ) (ks : List ℕ) (hks : ks.length ≤ m + 3)
     have hlow : ∀ a ∈ u :: vs, a.1 < m + 3 := by
       intro a ha
       by_contra hcon
-      push_neg at hcon
+      push Not at hcon
       obtain ⟨p, q, hp, hq, hpq, hap, haq⟩ := cycleList_two_nbrs h2 hnd hch hcl ha
       exact hpq (cyclePendant_high_nbr_unique hks hcon hap haq)
     exact no_short_cycleList_of_labels (H := cyclePendant (m + 3) ks) (by omega) (fun v ↦ v.1) u vs
@@ -740,7 +740,7 @@ theorem hypercube_common {n : ℕ} (u v y : Fin n → Bool) (i j : Fin n) (hij :
     · rw [Function.update_of_ne hk]; exact k2 k hk
   have hab : a = i ∨ a = j := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     have hyi : y i = u i := harest i (Ne.symm hc.1)
     have hyj : y j = u j := harest j (Ne.symm hc.2)
     by_cases hb : b = i

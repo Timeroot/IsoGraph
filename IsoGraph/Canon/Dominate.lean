@@ -57,7 +57,7 @@ theorem leafUpdate_abort {G : Graph} {path : Array Nat} {invPath : Array UInt64}
   all_goals try rw [Nat.min_def] at h
   all_goals try split at h
   all_goals first
-    | (simp at h; done)
+    | simp at h
     | exact ⟨_, Or.inl (by assumption), by simp_all, (Option.some.inj h).symm⟩
     | exact ⟨_, Or.inr (by assumption), by simp_all, (Option.some.inj h).symm⟩
     | exact ⟨_, Or.inr (by simp only [addAuto_best] at *; assumption), by simp_all,

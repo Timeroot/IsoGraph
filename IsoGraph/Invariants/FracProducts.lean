@@ -358,7 +358,7 @@ private theorem key_tensor {G H : CGraph} {g : G.V → ℚ} {h : H.V → ℚ}
     obtain ⟨_, hyR⟩ := (hBxMem y x).1 hy
     obtain ⟨hy'U, _⟩ := (hBxMem y' x).1 hy'
     rw [hRspec] at hyR
-    push_neg at hyR
+    push Not at hyR
     obtain ⟨q, hqU, hq2, hq3⟩ := hyR
     by_contra hcon
     refine hUind q hqU (x, y') hy'U ?_ ?_
@@ -377,7 +377,7 @@ private theorem key_tensor {G H : CGraph} {g : G.V → ℚ} {h : H.V → ℚ}
     · obtain ⟨hxU, _⟩ := (hAyMem x y).1 hA1
       obtain ⟨_, hy₀R⟩ := (hBxMem y₀ x).1 hy₀B
       rw [hRspec] at hy₀R
-      push_neg at hy₀R
+      push Not at hy₀R
       obtain ⟨q, hqU, hq2, hq3⟩ := hy₀R
       refine hUind (x, y) hxU q hqU (by simpa using hq3) ?_
       show H.Adj y q.2 = true
@@ -591,7 +591,7 @@ private theorem le_tensor_aux {G H : CGraph} (hWle : H.fracChromNum ≤ G.fracCh
         - H.fracChromNum * (G ⊗g H).fracChromNum ≤ 0
     · exact le_trans (mul_nonpos_of_nonneg_of_nonpos hWG.le hsign)
         (mul_nonneg (mul_nonneg hWG.le hv0) hT)
-    · push_neg at hsign
+    · push Not at hsign
       have hle : G.fracChromNum
           ≤ (G.fracChromNum * ((∑ v : H.V, k v : ℚ) : ℝ) * (G ⊗g H).fracChromNum)
             / (((∑ v : H.V, k v : ℚ) : ℝ) * H.fracChromNum

@@ -509,7 +509,7 @@ theorem compat_asgFun {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map P
     (hg : goalAsg H G ind rank n pairs r = true) {x y : H.V} (hxy : x ≠ y) :
     compat H G ind (x, asgFun H G r hcov x) (y, asgFun H G r hcov y) = true := by
   simp only [goalAsg, Bool.and_eq_true] at hg
-  haveI : Std.Symm fun p q : H.V × G.V ↦ compat H G ind p q = true :=
+  have : Std.Symm fun p q : H.V × G.V ↦ compat H G ind p q = true :=
     ⟨fun _ _ h ↦ by rwa [compat_comm]⟩
   exact ((validAsg_iff H G ind r).mp hg.1.1.1).forall (asgFun_mem H G r hcov x)
     (asgFun_mem H G r hcov y) (by simp [hxy])

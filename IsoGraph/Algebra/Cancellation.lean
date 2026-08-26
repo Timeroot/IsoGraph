@@ -52,7 +52,11 @@ def blockMap (f : X.V → G.V) (x : X.V) : X.V := (fibre f x).min' (fibre_nonemp
 theorem blockMap_mem (f : X.V → G.V) (x : X.V) : blockMap f x ∈ fibre f x :=
   Finset.min'_mem _ _
 
-@[simp] theorem apply_blockMap (f : X.V → G.V) (x : X.V) : f (blockMap f x) = f x :=
+-- The head symbol of the left-hand side is the variable `f`, so `simp` will try this at every
+-- step; that is unavoidable, since the point of the lemma is that `blockMap f` is a section of an
+-- arbitrary `f`.  It is `local` and the cost is confined to the proofs just below, which need it.
+set_option warning.simp.varHead false in
+@[local simp] theorem apply_blockMap (f : X.V → G.V) (x : X.V) : f (blockMap f x) = f x :=
   mem_fibre.1 (blockMap_mem f x)
 
 theorem blockMap_le (f : X.V → G.V) (x : X.V) : blockMap f x ≤ x :=
@@ -421,7 +425,7 @@ section
 attribute [local instance] instMulStrongProduct commMonoidWithZeroStrongProduct
 
 /-- **Both cancellation laws for the strong product.** -/
-def isCancelMulZeroStrongProduct : IsCancelMulZero IsoGraph where
+theorem isCancelMulZeroStrongProduct : IsCancelMulZero IsoGraph where
   mul_left_cancel_of_ne_zero ha _ _ h := strongProduct_left_cancel ha h
   mul_right_cancel_of_ne_zero hb _ _ h := strongProduct_right_cancel hb h
 

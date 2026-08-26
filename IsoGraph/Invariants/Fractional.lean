@@ -1,6 +1,6 @@
 import IsoGraph.Invariants.Derived
 import IsoGraph.Core.Colouring
-import Mathlib.Data.Real.Archimedean
+import Mathlib.Algebra.Order.Archimedean.Real.Basic
 
 /-!
 # The fractional relaxations
@@ -752,7 +752,7 @@ theorem sum_le_mul_fracIndepNum {G : CGraph} {x : G.V → ℚ} {c : ℝ} (hnn : 
     sum_le_mul_fracIndepNum_rat hnn fun K hK ↦ by
       exact_mod_cast le_trans (hc K hK) hp
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   rcases eq_or_lt_of_le G.zero_le_fracIndepNum with h0 | h0
   · obtain ⟨p, hp⟩ := exists_rat_gt c
     have h1 := hq p hp.le
@@ -839,7 +839,7 @@ theorem fracIndepNum_mul_fracIndepNum_le {G H : CGraph} {c : ℝ} (hc : 0 ≤ c)
           exact hK _ hu _ hv fun h ↦ huv (Sum.inr.inj h)
         have hone : K.toLeft = ∅ ∨ K.toRight = ∅ := by
           by_contra hcon
-          push_neg at hcon
+          push Not at hcon
           obtain ⟨u, hu⟩ := hcon.1
           obtain ⟨v, hv⟩ := hcon.2
           rw [Finset.mem_toLeft] at hu
@@ -1332,7 +1332,7 @@ theorem fracCliqueCoverNum_le_card_div_cliqueNum (G : CGraph) (hvt : G.IsVertexT
           · exact Finset.mem_image.2 ⟨c, hc, h⟩
           · rw [← h]; simp
         · intro σ hσ
-          simp only [Finset.coe_filter, Set.mem_setOf_eq] at hσ
+          simp only [Finset.coe_filter, Set.mem_ofPred_eq] at hσ
           obtain ⟨c, hc, hcv⟩ := Finset.mem_image.1 hσ.2
           have hsymm : σ.symm v = c := by rw [← hcv]; simp
           simpa [hsymm] using hc

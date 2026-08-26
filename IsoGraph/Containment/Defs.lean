@@ -490,7 +490,7 @@ def ofIso (i : H ≃cg G) : H.MinorOf G where
   connectedOn' x := by
     have h : {v : G.V | some (i.symm v) = some x} = {i x} := by
       ext v
-      simp only [Set.mem_setOf_eq, Option.some.injEq, Set.mem_singleton_iff]
+      simp only [Set.mem_ofPred_eq, Option.some.injEq, Set.mem_singleton_iff]
       exact ⟨fun hv ↦ by rw [← hv]; simp, fun hv ↦ by rw [hv]; simp⟩
     rw [h]
     exact connectedOn_singleton G (i x)
@@ -510,7 +510,7 @@ def trans (f : H.MinorOf K) (g : K.MinorOf G) : H.MinorOf G where
     have hset : {v : G.V | (g.branch v).bind f.branch = some x}
         = ⋃ k ∈ {k : K.V | f.branch k = some x}, {v : G.V | g.branch v = some k} := by
       ext v
-      simp only [Set.mem_setOf_eq, Set.mem_iUnion, exists_prop]
+      simp only [Set.mem_ofPred_eq, Set.mem_iUnion, exists_prop]
       constructor
       · intro hv
         rcases hk : g.branch v with _ | k
@@ -545,7 +545,7 @@ def congr {H' G' : CGraph} (f : H.MinorOf G) (i : H ≃cg H') (j : G ≃cg G') :
 /-- The branch sets are nonempty and disjoint, so a minor has no more vertices. -/
 theorem card_le (f : H.MinorOf G) : FinEnum.card H.V ≤ FinEnum.card G.V := by
   choose r hr using fun x : H.V ↦ (f.connectedOn x).nonempty
-  simp only [Set.mem_setOf_eq] at hr
+  simp only [Set.mem_ofPred_eq] at hr
   refine FinEnum.card_le_of_injective r fun x y h ↦ ?_
   have hx := hr x
   rw [h, hr y] at hx
@@ -779,7 +779,7 @@ def congr {H' G' : CGraph} (f : H.TopMinorOf G) (i : H ≃cg H') (j : G ≃cg G'
   toFun x := j (f.toFun (i.symm x))
   injective' _ _ h := RelIso.injective i.symm (f.injective (RelIso.injective j h))
   path h := (f.path (i.symm_adj h)).map j.toSimpleHom
-  isPath' _ := SimpleGraph.Walk.map_isPath_of_injective (RelIso.injective j) (f.isPath' _)
+  isPath' _ := SimpleGraph.Walk.IsPath.map (RelIso.injective j) (f.isPath' _)
   reverse' h h' := by
     rw [SimpleGraph.Walk.reverse_map, f.reverse' (i.symm_adj h) (i.symm_adj h')]
   branch' := fun {x y} h z hz ↦ by
@@ -864,7 +864,7 @@ def congr {H' G' : CGraph} (f : H.ImmersionOf G) (i : H ≃cg H') (j : G ≃cg G
   toFun x := j (f.toFun (i.symm x))
   injective' _ _ h := RelIso.injective i.symm (f.injective (RelIso.injective j h))
   walk h := (f.walk (i.symm_adj h)).map j.toSimpleHom
-  isTrail' _ := SimpleGraph.Walk.map_isTrail_of_injective (RelIso.injective j) (f.isTrail' _)
+  isTrail' _ := SimpleGraph.Walk.IsTrail.map (RelIso.injective j) (f.isTrail' _)
   reverse' h h' := by
     rw [SimpleGraph.Walk.reverse_map, f.reverse' (i.symm_adj h) (i.symm_adj h')]
   edgeDisjoint' := fun {x y} h {x' y'} h' hne e he he' ↦ by
@@ -896,7 +896,7 @@ noncomputable def SubgraphOf.toMinorOf (f : H.SubgraphOf G) : H.MinorOf G where
     have hset : {v : G.V | (if h : ∃ x, f x = v then some h.choose else none) = some x}
         = {f x} := by
       ext v
-      simp only [Set.mem_setOf_eq, Set.mem_singleton_iff]
+      simp only [Set.mem_ofPred_eq, Set.mem_singleton_iff]
       constructor
       · intro hv
         by_cases h : ∃ y, f y = v

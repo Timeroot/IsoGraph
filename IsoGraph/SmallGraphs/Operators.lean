@@ -475,7 +475,7 @@ theorem cliqueNum_foldedCube (n : ℕ) : (foldedCube (n + 3)).cliqueNum = 2 := b
   have hg := girth_foldedCube n
   have hcl : (foldedCube (n + 3)).cliqueNum ≤ 2 := by
     by_contra h
-    push_neg at h
+    push Not at h
     have := girth_eq_three_of_cliqueNum h
     omega
   have hlo : 2 ≤ (foldedCube (n + 3)).cliqueNum :=
@@ -524,7 +524,7 @@ antipodal edges, each of the remaining ones. -/
         intro x y h
         obtain ⟨i, hi⟩ : ∃ i, x i ≠ y i := by
           by_contra hcon
-          push_neg at hcon
+          push Not at hcon
           rw [funext hcon, hammingDist_self] at h
           omega
         have hd : hammingDist (Function.update x i (!x i)) y = d := by
@@ -1225,7 +1225,7 @@ theorem edgeChromNum_paley_thirteen : (paley 13).edgeChromNum = 7 := by
   · rw [paley_def]
     exact edgeChromNum_mk_le_of_colouring (G := CGraph.paley 13)
       CGraph.paley13Col CGraph.paley13Col_symm CGraph.paley13Col_proper
-  · haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
+  · have : Fact (Nat.Prime 13) := ⟨by decide⟩
     have h := edgeChromNum_paley_ge 13 (by norm_num) (by norm_num)
     norm_num at h
     exact h
@@ -1235,7 +1235,7 @@ theorem four_le_edgeChromNum_petersen : 4 ≤ petersen.edgeChromNum := by
   rw [edgeChromNum_eq, show (petersen : IsoGraph) = ⟦CGraph.kneser 5 2⟧ from rfl, lineGraph_mk,
     chromNum_mk]
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   obtain ⟨C⟩ := CGraph.chromNum_le_iff_colorable.1 (Nat.lt_succ_iff.1 hcon)
   obtain ⟨e, f, hadj, heq⟩ := CGraph.petersen_no_three_colouring C
   exact C.valid (by simpa using hadj) heq
@@ -1262,7 +1262,7 @@ theorem cliqueNum_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 
     girth_cyclePendant (m + 1) ks (by omega)
   refine le_antisymm ?_ (two_le_cliqueNum_of_E_pos ?_)
   · by_contra hc
-    push_neg at hc
+    push Not at hc
     have h3 := girth_eq_three_of_cliqueNum (show 3 ≤ (cyclePendant (m + 4) ks).cliqueNum by omega)
     omega
   · rw [E_cyclePendant (m + 1) ks (by omega)]

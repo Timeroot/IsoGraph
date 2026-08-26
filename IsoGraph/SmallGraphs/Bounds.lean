@@ -788,11 +788,11 @@ vertex-transitive. -/
 /-- `ω(Paley 13) ≤ 3` (the true value is `3`), from `ω² ≤ 13`.  Since `Paley 13` is
 self-complementary this bounds its independence number too. -/
 theorem cliqueNum_paley_thirteen_le : (paley 13).cliqueNum ≤ 3 := by
-  haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
+  have : Fact (Nat.Prime 13) := ⟨by decide⟩
   have h := cliqueNum_sq_le_V_of_compl_eq (isVertexTransitive_paley 13) compl_paley_thirteen
   rw [V_paley] at h
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   have : 4 * 4 ≤ (paley 13).cliqueNum ^ 2 := by
     rw [pow_two]; exact Nat.mul_le_mul hcon hcon
   omega
@@ -803,11 +803,11 @@ theorem indepNum_paley_thirteen_le : (paley 13).indepNum ≤ 3 := by
 
 /-- `ω(Paley 17) ≤ 4`, from `ω² ≤ 17`. -/
 theorem cliqueNum_paley_seventeen_le : (paley 17).cliqueNum ≤ 4 := by
-  haveI : Fact (Nat.Prime 17) := ⟨by decide⟩
+  have : Fact (Nat.Prime 17) := ⟨by decide⟩
   have h := cliqueNum_sq_le_V_of_compl_eq (isVertexTransitive_paley 17) compl_paley_seventeen
   rw [V_paley] at h
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   have : 5 * 5 ≤ (paley 17).cliqueNum ^ 2 := by
     rw [pow_two]; exact Nat.mul_le_mul hcon hcon
   omega
@@ -1428,7 +1428,7 @@ example : (triangular 5).girth = 3 := girth_triangular 1
 example : (kneser 6 2).girth = 3 := girth_kneser_two 0
 
 example : (paley 13).girth = 3 := by
-  haveI : Fact (Nat.Prime 13) := ⟨by decide⟩
+  have : Fact (Nat.Prime 13) := ⟨by decide⟩
   exact girth_paley 13 rfl (by omega)
 
 /-- A complete bipartite graph is covered by `max m n` edges and singletons. -/

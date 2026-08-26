@@ -202,7 +202,7 @@ theorem exists_isCut_cutSize_eq_zero (h2 : 2 ≤ G.card) (h : ¬ G.IsConnected) 
     fun hp ↦ h ((SimpleGraph.connected_iff G.toSimple).2 ⟨hp, hne⟩)
   obtain ⟨u, v, huv⟩ : ∃ u v, ¬ G.toSimple.Reachable u v := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     exact hpre hc
   refine ⟨Finset.univ.filter fun x ↦ G.toSimple.Reachable u x,
     ⟨⟨u, by simp⟩, ⟨v, by simp [huv]⟩⟩, ?_⟩
@@ -325,7 +325,7 @@ theorem isSeparator_empty_of_not_isConnected (h2 : 2 ≤ G.card) (h : ¬ G.IsCon
     fun hp ↦ h ((SimpleGraph.connected_iff G.toSimple).2 ⟨hp, hne⟩)
   obtain ⟨u, v, huv⟩ : ∃ u v, ¬ G.toSimple.Reachable u v := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     exact hpre hc
   refine ⟨fun x ↦ decide (G.toSimple.Reachable u x), ⟨u, by simp, by simp⟩,
     ⟨v, by simp, by simp [huv]⟩, fun x y _ _ hxy ↦ ?_⟩
@@ -401,7 +401,7 @@ theorem vertexConn_le_edgeConn (G : CGraph) : G.vertexConn ≤ G.edgeConn := by
   by_cases hall : ∀ a ∈ s, ∀ b, b ∉ s → G.Adj a b = true
   · have := G.card_sub_one_le_cutSize_of_forall_adj hs hall
     omega
-  push_neg at hall
+  push Not at hall
   obtain ⟨a, ha, b, hb, hab⟩ := hall
   set T : Finset G.V :=
     (G.nbrs a \ s) ∪ (s.erase a).filter (fun x ↦ (G.nbrs x \ s).Nonempty) with hT
@@ -608,14 +608,14 @@ theorem two_le_edgeConn_cycle {n : ℕ} (h3 : 3 ≤ n) : 2 ≤ (cycle n).edgeCon
   -- an edge leaving `s`
   obtain ⟨i, hi, hi'⟩ : ∃ i ∈ s, csucc h3 i ∉ s := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     have := eq_univ_of_csucc_mem h3 hsne hc
     rw [this] at hscne
     simp at hscne
   -- an edge leaving `sᶜ`, that is, an edge entering `s`
   obtain ⟨j, hj, hj'⟩ : ∃ j ∈ sᶜ, csucc h3 j ∉ sᶜ := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     have := eq_univ_of_csucc_mem h3 hscne hc
     rw [Finset.compl_eq_univ_iff] at this
     rw [this] at hsne
@@ -660,7 +660,7 @@ theorem not_isSeparator_cycle {n : ℕ} (h3 : 3 ≤ n) {s : Finset (cycle n).V} 
         exact Bool.noConfusion hf
       have hlt : ∃ m : ℕ, m < n ∧ m ≠ a.1 ∧ m ≠ b.1 := by
         by_contra hc
-        push_neg at hc
+        push Not at hc
         have h0 := hc 0 (by omega)
         have h1 := hc 1 (by omega)
         have h2 := hc 2 (by omega)

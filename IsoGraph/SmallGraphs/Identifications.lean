@@ -166,7 +166,7 @@ noncomputable def completeMultipartiteNil : completeMultipartite [] ≃cg empty 
 noncomputable def completeMultipartiteSingleton (n : ℕ) :
     completeMultipartite [n] ≃cg empty n := by
   refine isoEmptyOfCard ?_ (by simp)
-  haveI : Subsingleton (Fin [n].length) := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton (Fin [n].length) := inferInstanceAs (Subsingleton (Fin 1))
   rintro ⟨i, a⟩ ⟨j, b⟩
   obtain rfl : i = j := Subsingleton.elim i j
   show ((sigmaUnion fun i : Fin [n].length ↦ complete ([n].get i))ᶜ).Adj ⟨i, a⟩ ⟨i, b⟩ = false

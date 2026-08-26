@@ -19,7 +19,7 @@ variable (G H : CGraph)
   rw [h1, path_toSimple]
   -- Goal: (pathGraph (n+1)).edgeSet.ncard = n
   -- Use: edgeSet.ncard = edgeFinset.card, and compute edgeFinset.card for pathGraph
-  haveI : DecidableRel (SimpleGraph.pathGraph (n + 1)).Adj :=
+  have : DecidableRel (SimpleGraph.pathGraph (n + 1)).Adj :=
     fun i j => decidable_of_iff _ (SimpleGraph.pathGraph_adj).symm
   have h2 : (SimpleGraph.pathGraph (n + 1)).edgeSet.ncard =
     (SimpleGraph.pathGraph (n + 1)).edgeFinset.card := by
@@ -493,7 +493,7 @@ theorem exists_not_adj_of_E_lt (G : CGraph) (h : G.E < (FinEnum.card G.V).choose
     ∃ u v : G.V, u ≠ v ∧ G.Adj u v = false := by
   classical
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   have hall : ∀ u v : G.V, u ≠ v → G.Adj u v = true := by
     intro u v huv
     simpa using hcon u v huv
@@ -597,7 +597,7 @@ theorem card_le_E_add_numComponents (G : CGraph) :
   have hinjOn : Set.InjOn (fun v ↦ s(v, u v))
       (Finset.univ.filter (fun v ↦ ¬ v = root v) : Finset G.V) := by
     intro v hv w hw h
-    simp only [Finset.coe_filter, Finset.mem_univ, true_and, Set.mem_setOf_eq] at hv hw
+    simp only [Finset.coe_filter, Finset.mem_univ, true_and, Set.mem_ofPred_eq] at hv hw
     simp only [Sym2.eq, Sym2.rel_iff', Prod.mk.injEq, Prod.swap_prod_mk] at h
     rcases h with ⟨h1, _⟩ | ⟨h1, h2⟩
     · exact h1
@@ -660,7 +660,7 @@ theorem cycle_no_short_cycleList {N : ℕ} (hN : 3 ≤ N) (u : (cycle N).V) (vs 
   classical
   obtain ⟨x, hx⟩ : ∃ x : Fin N, x ∉ u :: vs := by
     by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     have hsub : (Finset.univ : Finset (Fin N)) ⊆ (u :: vs).toFinset :=
       fun a _ ↦ List.mem_toFinset.2 (hcon a)
     have h1 := Finset.card_le_card hsub
@@ -1079,7 +1079,7 @@ theorem even_V_of_degSequence_replicate {G : IsoGraph} {n k : ℕ} (hk : Odd k)
 theorem exists_even_mem_degSequence_of_odd_V (G : IsoGraph) (h : Odd G.V) :
     ∃ d ∈ degSequence G, Even d := by
   by_contra hc
-  push_neg at hc
+  push Not at hc
   exact Nat.not_even_iff_odd.2 h (G.even_V_of_forall_odd_mem_degSequence
     fun d hd ↦ Nat.not_even_iff_odd.1 (hc d hd))
 

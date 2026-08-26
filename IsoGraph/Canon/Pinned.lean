@@ -69,7 +69,7 @@ theorem splitCell_pinned {n : Nat} {cnt : Array Nat} {c0 c v : Nat} {st : SplitS
   · -- the pinned position lies outside the cell being split, so nothing there moves
     have hout : c < c0 ∨ st.cen[c0]! ≤ c := by
       by_contra hcon
-      push_neg at hcon
+      push Not at hcon
       have h := hinv.wf.cellCst c0 hc0 c (by rw [show st.part.cst[c0]! = c0 from hcst0]; omega)
         (by exact hcon.2)
       rw [show st.part.cst[c0]! = c0 from hcst0,

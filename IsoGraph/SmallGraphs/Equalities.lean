@@ -913,7 +913,7 @@ rather than `V`: `lineGraph (star n)` is complete on `E (star n) = n` vertices, 
 @[simp] theorem mycielskian_empty_zero : mycielskian (empty 0) = empty 1 := by
   have h : ∀ x y : (CGraph.mycielskian (CGraph.empty 0)).V,
       (CGraph.mycielskian (CGraph.empty 0)).Adj x y = false := by
-    haveI : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+    have : IsEmpty (CGraph.empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
     rintro (_ | (a | a)) (_ | (b | b)) <;> first | rfl | exact isEmptyElim a | exact isEmptyElim b
   rw [empty_def, mycielskian_mk, mk_eq_empty h]
   simp

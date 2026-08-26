@@ -17,7 +17,7 @@ variable (G H : CGraph)
 @[simp] theorem isConnected_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).IsConnected := by
   simp only [bipartite, CGraph.IsConnected, compl_toSimple]
   show SimpleGraph.Connected ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ
-  haveI : Nonempty ((complete (m + 1)).disjUnion (complete (n + 1))).V :=
+  have : Nonempty ((complete (m + 1)).disjUnion (complete (n + 1))).V :=
     ⟨Sum.inl ⟨0, Nat.zero_lt_succ _⟩⟩
   apply SimpleGraph.Connected.mk
   intro u v
@@ -57,7 +57,7 @@ theorem diameter_join_le_two (G H : CGraph) [Nonempty G.V]
 theorem diameter_join_of_not_adj (G H : CGraph)
     [Nonempty H.V] {a c : G.V} (hne : a ≠ c) (hadj : G.Adj a c = false) :
     (G ∇g H).diameter = 2 := by
-  haveI : Nonempty G.V := ⟨a⟩
+  have : Nonempty G.V := ⟨a⟩
   refine diameter_eq_two _ (two_step_join G H) (u := Sum.inl a) (v := Sum.inl c) ?_ ?_
   · exact fun h ↦ hne (Sum.inl.inj h)
   · simp [hadj]
@@ -72,7 +72,7 @@ theorem diameter_join_left {G H : CGraph} [Nonempty H.V]
 /-- **A complete bipartite graph with two or more vertices on each side has diameter two**: it is
 the join of two edgeless graphs, and an edgeless graph on two or more vertices is not complete. -/
 @[simp] theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 := by
-  haveI : Nonempty (empty (n + 2)).V := ⟨⟨0, by omega⟩⟩
+  have : Nonempty (empty (n + 2)).V := ⟨⟨0, by omega⟩⟩
   rw [show bipartite (m + 2) (n + 2) = empty (m + 2) ∇g empty (n + 2) from rfl]
   refine diameter_join_left ?_
   rw [E_empty, card_empty]
@@ -85,7 +85,7 @@ theorem diameter_compl_le_two (G : CGraph) (h : ¬ G.toSimple.Preconnected) :
 /-- **The complement of a disconnected graph is connected.** -/
 theorem isConnected_compl_of_not_preconnected (G : CGraph) [Nonempty G.V]
     (h : ¬ G.toSimple.Preconnected) : Gᶜ.IsConnected := by
-  haveI : Nonempty Gᶜ.V := ‹Nonempty G.V›
+  have : Nonempty Gᶜ.V := ‹Nonempty G.V›
   exact SimpleGraph.connected_of_ediam_ne_top
     (ne_top_of_le_ne_top (by simp) (ediam_le_two _ (two_step_compl G h)))
 

@@ -504,7 +504,7 @@ theorem isConnected_crown (n : ℕ) : IsConnected (crown (n + 3)) := by
       (CGraph.toSimple_adj _ _ _).mpr huv
     exact this.reachable
   unfold CGraph.IsConnected
-  haveI : Nonempty ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).V :=
+  have : Nonempty ((CGraph.complete (n+3)).tensorProduct (CGraph.complete 2)).V :=
     Nonempty.intro ((i0, (0 : Fin 2)) : Fin (n+3) × Fin 2)
   apply SimpleGraph.Connected.mk
   · -- All vertices reachable from (i0, 0)
@@ -1080,11 +1080,11 @@ any two vertices have a common neighbour, so its radius is two. -/
         exact le_trans this.le (by decide)
       · rw [CGraph.toSimple_adj] at hadj
         rw [CGraph.completeMultipartite_adj, decide_eq_true_eq] at hadj
-        push_neg at hadj
+        push Not at hadj
         have hlen_pos : 1 < L.length := by rw [hlen']; omega
         obtain ⟨k, hk⟩ : ∃ k : Fin L.length, k ≠ u.1 := by
           by_contra h'
-          push_neg at h'
+          push Not at h'
           have h1 := h' ⟨0, by omega⟩
           have h2 := h' ⟨1, hlen_pos⟩
           have := congrArg Fin.val (h1.trans h2.symm)

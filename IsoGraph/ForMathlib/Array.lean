@@ -122,7 +122,7 @@ theorem extract_getElem! {a : Array Nat} {j i : Nat} (hi : i < j) :
 theorem push_extract {a : Array Nat} {v j : Nat} (hj : j ≤ a.size) :
     (a.push v).extract 0 j = a.extract 0 j := by
   apply Array.ext'
-  simp only [Array.toList_extract, Array.toList_push, List.extract_eq_drop_take, Nat.sub_zero,
+  simp only [Array.toList_extract, Array.toList_push, List.extract_eq_take_drop, Nat.sub_zero,
     List.drop_zero]
   rw [List.take_append_of_le_length (by simpa using hj)]
 

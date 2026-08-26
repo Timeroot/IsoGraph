@@ -52,7 +52,7 @@ variable (G H : CGraph)
     exact hadj
   have hset : {n_1 | ∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) n_1 s} = Set.Iic n := by
     ext m
-    rw [Set.mem_setOf_eq, Set.mem_Iic]
+    rw [Set.mem_ofPred_eq, Set.mem_Iic]
     change (∃ s : Finset (Fin n), SimpleGraph.IsNIndepSet (G := (⊥ : SimpleGraph (Fin n))) m s) ↔ m ≤ n
     constructor
     · rintro ⟨s, hs_indep, hs_card⟩
@@ -62,7 +62,7 @@ variable (G H : CGraph)
         exact ⟨Finset.image (fun i : Fin m => ⟨i, by omega⟩ : Fin m → Fin n) Finset.univ, hIndep _, by
           rw [Finset.card_image_of_injective _ (fun a b h => Fin.ext (by simpa using congr_arg Fin.val h)), Finset.card_fin]⟩
       else
-        push_neg at h
+        push Not at h
         have heq : m = n := le_antisymm hm h
         subst heq
         exact ⟨Finset.univ, hIndep _, by simp [Fintype.card_fin]⟩
@@ -122,7 +122,7 @@ variable (G H : CGraph)
   have hmem : n ∈ {m | ∃ s : Finset (Fin n), (⊤ : SimpleGraph (Fin n)).IsNClique m s} := by
     refine ⟨Finset.univ, ?_⟩
     show SimpleGraph.IsNClique (⊤ : SimpleGraph (Fin n)) n Finset.univ
-    letI : DecidableEq (Fin n) := inferInstance
+    let : DecidableEq (Fin n) := inferInstance
     have hc : (Finset.univ : Finset (Fin n)).card = n := by simp
     have hcl : (⊤ : SimpleGraph (Fin n)).IsClique (↑(Finset.univ : Finset (Fin n)) : Set (Fin n)) := by
       simp [SimpleGraph.IsClique, Set.Pairwise]
@@ -148,7 +148,7 @@ variable (G H : CGraph)
     · -- IsIndepSet ⊤ s → s.card ≤ 1
       intro h
       by_contra hlt
-      push_neg at hlt
+      push Not at hlt
       obtain ⟨x, hx, y, hy, hxy⟩ := Finset.one_lt_card.mp hlt
       have hna := h hx hy hxy
       exact hna (h_adj_top x y |>.mpr hxy)
@@ -275,7 +275,7 @@ variable (G H : CGraph)
         (fun h ↦ hab (Sum.inl_injective h))
       simpa [toSimple_adj] using this
     · -- Otherwise the clique has a right vertex, so all of it is on the right.
-      push_neg at hleft
+      push Not at hleft
       obtain ⟨x, hx, hxr⟩ := hleft
       obtain ⟨b, rfl⟩ : ∃ b : H.V, x = Sum.inr b := by
         cases x with
@@ -520,13 +520,13 @@ theorem two_le_chromNum_of_adj {G : CGraph} {a b : G.V} (h : G.Adj a b) : 2 ≤ 
 
 @[simp, toIsoGraph] theorem chromNum_empty_zero : (empty 0).chromNum = 0 :=
   chromNum_eq_of_chromaticNumber (by
-    haveI : IsEmpty (empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
+    have : IsEmpty (empty 0).V := inferInstanceAs (IsEmpty (Fin 0))
     rw [empty_toSimple]
     exact SimpleGraph.chromaticNumber_eq_zero_of_isEmpty)
 
 @[simp, toIsoGraph] theorem chromNum_empty (n : ℕ) : (empty (n + 1)).chromNum = 1 :=
   chromNum_eq_of_chromaticNumber (by
-    haveI : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
+    have : Nonempty (empty (n + 1)).V := inferInstanceAs (Nonempty (Fin (n + 1)))
     rw [empty_toSimple]
     exact SimpleGraph.chromaticNumber_bot (V := (empty (n + 1)).V))
 
@@ -717,7 +717,7 @@ private theorem colorable_of_forall_degree_le (S : SimpleGraph X) [DecidableRel 
       obtain ⟨c, hc⟩ := ih
       obtain ⟨k, hk⟩ : ∃ k : Fin (d + 1), k ∉ (S.neighborFinset a).image c := by
         by_contra hcon
-        push_neg at hcon
+        push Not at hcon
         have hsub : (Finset.univ : Finset (Fin (d + 1))) ⊆ (S.neighborFinset a).image c :=
           fun k _ ↦ hcon k
         have h1 := Finset.card_le_card hsub
@@ -912,11 +912,11 @@ private theorem chromOn_add_chromOn_compl_le (S : SimpleGraph X) (s : Finset X) 
     · omega
     have hpa : chromOn S s ≤ (s.filter fun v ↦ S.Adj a v).card := by
       by_contra hcon
-      push_neg at hcon
+      push Not at hcon
       exact hA (chromOn_insert_le_of_lt S ha (fun v hv hadj ↦ Finset.mem_filter.2 ⟨hv, hadj⟩) hcon)
     have hqa : chromOn Sᶜ s ≤ (s.filter fun v ↦ ¬ S.Adj a v).card := by
       by_contra hcon
-      push_neg at hcon
+      push Not at hcon
       refine hB (chromOn_insert_le_of_lt Sᶜ ha (fun v hv hadj ↦ Finset.mem_filter.2 ⟨hv, ?_⟩) hcon)
       exact (SimpleGraph.compl_adj S a v).1 hadj |>.2
     have hsplit := Finset.card_filter_add_card_filter_not
@@ -961,7 +961,7 @@ theorem cliqueFree_iff_cliqueNum_lt {S : SimpleGraph X} {n : ℕ} :
   constructor
   · intro hcf
     by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     obtain ⟨s, hs⟩ := S.exists_isNClique_cliqueNum
     obtain ⟨t, hts, htc⟩ :=
       Finset.exists_subset_card_eq (n := n) (show n ≤ s.card by rw [hs.card_eq]; exact hcon)
@@ -1000,7 +1000,7 @@ private theorem three_le_cliqueNum_of_neighbors (T : SimpleGraph X) (v : X) (A :
       SimpleGraph.is3Clique_triple_iff.2 ⟨hA x hx, hA y hy, hxy⟩
     have := hcl.isClique.card_le_cliqueNum
     rwa [hcl.card_eq] at this
-  · push_neg at hex
+  · push Not at hex
     right
     obtain ⟨t, hts, htc⟩ := Finset.exists_subset_card_eq (n := 3) hcard
     have hcl : Tᶜ.IsClique (t : Set X) := by
@@ -1022,12 +1022,12 @@ private theorem three_le_cliqueNum_or_compl (T : SimpleGraph X) (h : 6 ≤ Finty
   have hins := Finset.card_le_univ (insert v N)
   rw [Finset.card_insert_of_notMem hvN] at hins
   have hcards : N.card + M.card + 1 = Fintype.card X := by
-    rw [hM, Finset.card_univ_diff, Finset.card_insert_of_notMem hvN]
+    rw [hM, Finset.card_univ_sdiff, Finset.card_insert_of_notMem hvN]
     omega
   have hMadj : ∀ x ∈ M, Tᶜ.Adj v x := by
     intro x hx
     rw [hM, Finset.mem_sdiff, Finset.mem_insert] at hx
-    push_neg at hx
+    push Not at hx
     refine (SimpleGraph.compl_adj _ _ _).2 ⟨fun hvx ↦ hx.2.1 hvx.symm, fun hadj ↦ hx.2.2 ?_⟩
     rw [hN, SimpleGraph.mem_neighborFinset]
     exact hadj
@@ -1336,11 +1336,11 @@ private theorem card_autFinset_filter_eq (hvt : G.IsVertexTransitive) (c v c' v'
   have hbv : β v = v' := hb
   refine Finset.card_nbij' (fun σ ↦ β * σ * α) (fun τ ↦ β⁻¹ * τ * α⁻¹) ?_ ?_ ?_ ?_
   · intro σ hσ
-    simp only [Finset.coe_filter, Set.mem_setOf_eq] at hσ ⊢
+    simp only [Finset.coe_filter, Set.mem_ofPred_eq] at hσ ⊢
     refine ⟨mul_mem_autFinset (mul_mem_autFinset hβmem hσ.1) hαmem, ?_⟩
     simp only [Equiv.Perm.mul_apply, hac, hσ.2, hbv]
   · intro τ hτ
-    simp only [Finset.coe_filter, Set.mem_setOf_eq] at hτ ⊢
+    simp only [Finset.coe_filter, Set.mem_ofPred_eq] at hτ ⊢
     refine ⟨mul_mem_autFinset (mul_mem_autFinset (inv_mem_autFinset hβmem) hτ.1)
       (inv_mem_autFinset hαmem), ?_⟩
     have hc : α⁻¹ c = c' := by rw [← hac]; simp
@@ -1529,7 +1529,7 @@ vertex that is neither in the tuple nor adjacent to any of it, then no `k` verti
 theorem lt_domNum_of_forall_tuple (G : CGraph) {k : ℕ} (hk : k ≤ FinEnum.card G.V)
     (h : ∀ f : Fin k → G.V, ∃ v, ∀ i, v ≠ f i ∧ G.Adj (f i) v = false) : k < G.domNum := by
   by_contra hle
-  push_neg at hle
+  push Not at hle
   obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
   have hsk : s.card ≤ k := by omega
   have hcardV : k ≤ Fintype.card G.V := by
@@ -1612,14 +1612,14 @@ theorem domNum_le_indepNum (G : CGraph) : G.domNum ≤ G.indepNum := by
   have hdom : G.IsDominatingSet S := by
     intro v
     by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     obtain ⟨hv, hne⟩ := hcon
     have hnadj : ∀ u ∈ S, ¬ G.toSimple.Adj u v := by
       intro u hu hadj
       exact hne u hu ((toSimple_adj _ _ _).1 hadj)
     have hins : G.toSimple.IsIndepSet (insert v (S : Set G.V)) := by
-      haveI : Std.Symm fun v w : G.V ↦ ¬ G.toSimple.Adj v w := ⟨fun _ _ h h' ↦ h h'.symm⟩
-      refine Set.pairwise_insert_of_symmetric.2 ⟨hS, ?_⟩
+      have : Std.Symm fun v w : G.V ↦ ¬ G.toSimple.Adj v w := ⟨fun _ _ h h' ↦ h h'.symm⟩
+      refine Set.pairwise_insert_of_symm.2 ⟨hS, ?_⟩
       intro b hb _
       exact fun h ↦ hnadj b hb h.symm
     rw [← Finset.coe_insert] at hins
@@ -1638,7 +1638,7 @@ theorem domNum_add_maxDeg_le_card (G : CGraph) : G.domNum + G.maxDeg ≤ FinEnum
   rcases isEmpty_or_nonempty G.V with hemp | hne
   · have h1 : FinEnum.card G.V = 0 := FinEnum.card_eq_zero_iff.2 hemp
     have h2 := G.domNum_le_card
-    have h3 : G.maxDeg = 0 := by rw [maxDeg, SimpleGraph.maxDegree_of_isEmpty]
+    have h3 : G.maxDeg = 0 := by rw [maxDeg, SimpleGraph.maxDegree_of_subsingleton]
     omega
   obtain ⟨v₀⟩ := hne
   obtain ⟨v, hv⟩ := G.exists_degree_eq_maxDeg v₀
@@ -1651,12 +1651,12 @@ theorem domNum_add_maxDeg_le_card (G : CGraph) : G.domNum + G.maxDeg ≤ FinEnum
       · rw [hT, Finset.mem_sdiff]
         exact ⟨Finset.mem_univ _, by simp⟩
       · rw [hT, Finset.mem_sdiff] at hu
-        push_neg at hu
+        push Not at hu
         have := hu (Finset.mem_univ u)
         rw [SimpleGraph.mem_neighborFinset] at this
         exact (toSimple_adj _ _ _).2 (by simpa using this)
   have hcardT : T.card = FinEnum.card G.V - G.maxDeg := by
-    rw [hT, Finset.card_univ_diff, SimpleGraph.card_neighborFinset_eq_degree, hv,
+    rw [hT, Finset.card_univ_sdiff, SimpleGraph.card_neighborFinset_eq_degree, hv,
       ← FinEnum.card_eq_fintypeCard']
   have h1 := domNum_le_card_of_isDominatingSet hdom
   have h2 : G.maxDeg < FinEnum.card G.V := @maxDeg_lt_card G ⟨v₀⟩
@@ -1726,8 +1726,8 @@ theorem domNum_eq_one_iff (G : CGraph) :
 /-- The apex of a join with a single vertex sees the whole graph, so it dominates it. -/
 theorem domNum_join_complete_one (G : CGraph) :
     (complete 1 ∇g G).domNum = 1 := by
-  haveI : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
-  haveI : Subsingleton ((complete 1)ᶜ).V := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+  have : Subsingleton ((complete 1)ᶜ).V := inferInstanceAs (Subsingleton (Fin 1))
   refine domNum_eq_one_of_universal
     (v := (Sum.inl (0 : Fin 1) : (complete 1 ∇g G).V)) fun u hu ↦ ?_
   rcases u with a | b
@@ -1751,7 +1751,7 @@ theorem cliqueNum_mycielskian (G : CGraph) [Nonempty G.V] :
     · -- the apex is adjacent only to the copies, which are pairwise non-adjacent
       refine le_trans ?_ (le_max_right _ _)
       by_contra hc
-      push_neg at hc
+      push Not at hc
       have hcard' : 1 < (t.erase none).card := by
         rw [Finset.card_erase_of_mem hnone]
         omega
@@ -1918,7 +1918,7 @@ theorem domNum_join_eq_one_iff (G H : CGraph) :
 theorem domNum_join_eq_two (G H : CGraph)
     [Nonempty G.V] [Nonempty H.V] (hG : G.domNum ≠ 1) (hH : H.domNum ≠ 1) :
     (G ∇g H).domNum = 2 := by
-  haveI : Nonempty (G ∇g H).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
+  have : Nonempty (G ∇g H).V := ⟨Sum.inl (Classical.arbitrary G.V)⟩
   have h1 := domNum_join_le_two G H
   have h2 := (G ∇g H).domNum_pos (FinEnum.card_pos_iff.2 ‹Nonempty (G ∇g H).V›)
   have h3 : (G ∇g H).domNum ≠ 1 := fun h ↦ by
@@ -1995,7 +1995,7 @@ sees all of `H`, then a dominating set of `G` lifted into that vertex's fibre do
 theorem domNum_lexProduct (G H : CGraph)
     (hH : H.domNum = 1) : (G ·g H).domNum = G.domNum := by
   obtain ⟨x, hx⟩ := (domNum_eq_one_iff H).1 hH
-  haveI : Nonempty H.V := ⟨x⟩
+  have : Nonempty H.V := ⟨x⟩
   refine le_antisymm ?_ (domNum_le_domNum_lexProduct G H)
   obtain ⟨s, hs, hsdom⟩ := G.exists_isDominatingSet_domNum
   have hdom : (G ·g H).IsDominatingSet (s.image fun v ↦ (v, x)) := by
@@ -2138,7 +2138,7 @@ theorem domNum_add_domNum_compl_le_card_add_one (G : CGraph) :
     have h3 := Gᶜ.domNum_le_card
     have h4 : FinEnum.card Gᶜ.V = FinEnum.card G.V := rfl
     omega
-  haveI := hne
+  have := hne
   obtain ⟨v₀⟩ := hne
   have h1 := G.domNum_add_maxDeg_le_card
   have h2 := Gᶜ.domNum_add_maxDeg_le_card
@@ -2171,10 +2171,10 @@ theorem domNum_compl_le_two_of_not_reachable (G : CGraph) {a b : G.V}
 theorem domNum_compl_le_two_of_not_isConnected (G : CGraph) [Nonempty G.V]
     (h : ¬ G.IsConnected) : Gᶜ.domNum ≤ 2 := by
   rw [IsConnected, SimpleGraph.connected_iff] at h
-  push_neg at h
+  push Not at h
   obtain ⟨a, b, hab⟩ : ∃ a b, ¬ G.toSimple.Reachable a b := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     exact absurd (h fun a b ↦ hc a b) (not_isEmpty_iff.2 ‹Nonempty G.V›)
   exact domNum_compl_le_two_of_not_reachable G hab
 
@@ -2195,7 +2195,7 @@ theorem three_le_domNum_add_domNum_compl (G : CGraph)
   · subst hvw
     obtain ⟨u, hu⟩ : ∃ u : G.V, u ≠ w := by
       by_contra hc'
-      push_neg at hc'
+      push Not at hc'
       have : FinEnum.card G.V ≤ 1 := by
         rw [FinEnum.card_eq_fintypeCard']
         exact Fintype.card_le_one_iff.2 fun a b ↦ (hc' a).trans (hc' b).symm
@@ -3648,7 +3648,7 @@ theorem cliqueNum_lineGraph_of_three_le_maxDeg {G : IsoGraph} (h : 3 ≤ maxDeg 
           _ = H.toSimple.degree v := SimpleGraph.card_incidenceFinset_eq_degree H.toSimple v
           _ ≤ H.maxDeg := H.degree_le_maxDeg v
       · -- No common vertex: the clique is a triangle, so `H` needs no degree at all
-        push_neg at hstar
+        push Not at hstar
         have hcard_le_3 : S.card ≤ 3 := by
           rw [← Finset.card_image_of_injective S hinj]
           refine Sym2.card_le_three_of_forall_inter (fun e he f hf ↦ ?_) fun v ↦ ?_

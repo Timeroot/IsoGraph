@@ -66,7 +66,7 @@ theorem isWalkList_support_tail {u v : G.V} (p : G.toSimple.Walk u v) :
   induction p with
   | nil => rfl
   | @cons u v w h p ih =>
-    rw [SimpleGraph.Walk.support_cons, List.tail_cons, p.support_eq_cons, isWalkList]
+    rw [SimpleGraph.Walk.support_cons, List.tail_cons, ← p.cons_tail_support, isWalkList]
     simpa using ⟨h, ih⟩
 
 theorem chainEnd_support_tail {u v : G.V} (p : G.toSimple.Walk u v) :
@@ -74,7 +74,7 @@ theorem chainEnd_support_tail {u v : G.V} (p : G.toSimple.Walk u v) :
   induction p with
   | nil => rfl
   | @cons u v w h p ih =>
-    rw [SimpleGraph.Walk.support_cons, List.tail_cons, p.support_eq_cons, chainEnd]
+    rw [SimpleGraph.Walk.support_cons, List.tail_cons, ← p.cons_tail_support, chainEnd]
     exact ih
 
 /-- The vertices a walk between distinct ends visits after its first, split at the last one. -/

@@ -182,7 +182,7 @@ theorem isConnected_foldedCube (n : ℕ) : IsConnected (foldedCube (n + 1)) := b
     intro x y h; rw [CGraph.toSimple_adj]; exact key x y h
   have hconn : (CGraph.hypercube (n + 1)).toSimple.Connected := isConnected_hypercube (n + 1)
   show SimpleGraph.Connected (CGraph.foldedCube (n + 1)).toSimple
-  haveI hne : Nonempty (CGraph.foldedCube (n + 1)).V := by
+  have hne : Nonempty (CGraph.foldedCube (n + 1)).V := by
     exact ⟨fun _ => false⟩
   exact SimpleGraph.Connected.mk
     (fun u v => by
@@ -745,7 +745,7 @@ theorem chromNum_doubleStar (m n : ℕ) : (doubleStar m n).chromNum = 2 := by
     have key : (a.val = 0 ∨ 2 + m ≤ a.val) ↔ ¬(b.val = 0 ∨ 2 + m ≤ b.val) := by
       constructor
       · intro ha; by_contra hb; omega
-      · intro hb; by_contra ha; push_neg at ha; omega
+      · intro hb; by_contra ha; push Not at ha; omega
     show (if a.val = 0 ∨ 2 + m ≤ a.val then true else
         false) ≠ if b.val = 0 ∨ 2 + m ≤ b.val then true else false
     split <;> simp_all
@@ -779,7 +779,7 @@ theorem domNum_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).domNum = 2 
               rw [CGraph.doubleStar_adj_val]
               simp [v0, hv0']
               omega⟩
-          · push_neg at hpend0
+          · push Not at hpend0
             have hpend1 : 2 + (m + 1) ≤ v.val ∧ v.val < 2 + (m + 1) + (n + 1) := by omega
             exact ⟨v1, by simp [v1], by
               rw [CGraph.doubleStar_adj_val]
@@ -1322,7 +1322,7 @@ theorem chromNum_tadpole_odd (m k : ℕ) : (tadpole (2 * m + 3) k).chromNum = 3 
   · -- Lower bound
     intro m_1 hm_1
     by_contra h
-    push_neg at h
+    push Not at h
     have h2 : G.toSimple.Colorable 2 := by
       have : m_1 ≤ 2 := by omega
       exact hm_1.mono this
@@ -1520,7 +1520,7 @@ theorem chromNum_spider (legs : List ℕ) (h : 0 < legs.sum) : (spider legs).chr
         simp only [List.sum_cons] at hls
         by_cases hk : 0 < k
         · exact hedge_first k rest hk
-        · push_neg at hk
+        · push Not at hk
           have hk0 : k = 0 := by omega
           rw [hk0] at hls
           simp at hls
@@ -1655,7 +1655,7 @@ theorem radius_doubleStar (m n : ℕ) : (doubleStar (m + 1) (n + 1)).radius = 2 
             omega
   have hup : (CGraph.doubleStar (m + 1) (n + 1)).radius ≤ 2 := by
     rw [CGraph.radius]
-    apply ENat.toNat_le_of_le_coe
+    apply ENat.toNat_le_of_le_natCast
     exact le_trans (SimpleGraph.radius_le_eccent (u := v0)) hecc0
   exact le_antisymm hup hlow
 

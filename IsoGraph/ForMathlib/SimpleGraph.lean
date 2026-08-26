@@ -1,8 +1,8 @@
 import Mathlib.Combinatorics.SimpleGraph.Acyclic
 import Mathlib.Combinatorics.SimpleGraph.Diam
 import Mathlib.Combinatorics.SimpleGraph.Girth
-import Mathlib.Combinatorics.SimpleGraph.Connectivity.WalkCounting
-import Mathlib.Combinatorics.SimpleGraph.Coloring
+import Mathlib.Combinatorics.SimpleGraph.Walk.Counting
+import Mathlib.Combinatorics.SimpleGraph.Coloring.Vertex
 import Mathlib.Combinatorics.SimpleGraph.StronglyRegular
 import Mathlib.Combinatorics.SimpleGraph.Prod
 import Mathlib.Combinatorics.SimpleGraph.Metric
@@ -246,8 +246,8 @@ theorem not_mem_edges_of_isPath {V : Type} {G : SimpleGraph V} {u v : V} :
         · exact hbc.symm
         · exact absurd hac h.ne
       subst hbc
-      rw [SimpleGraph.Walk.isPath_iff_eq_nil] at hp
-      simp [hp.1] at hlen
+      rw [SimpleGraph.Walk.isPath_iff_nil] at hp
+      simp [hp.1.length_eq_zero] at hlen
     · exact hp.2 (q.fst_mem_support_of_mem_edges hmem)
 
 /-- The eccentricity of a vertex of a box product is the sum of the eccentricities of its
