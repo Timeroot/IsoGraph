@@ -32,7 +32,7 @@ be nonempty.  See the list of names at the end for what each filled cell actuall
 
                     1    2    3    4    5    6    7    8    9    10   
 E                   S    S    S    .    .    S    S    T    S    S    
-IsAcyclic           T    .    .    .    .    T    T    T    T    T    
+IsAcyclic           T    .    S    .    .    T    T    T    T    T    
 IsArcTransitive     t    .    .    .    .    .    .    .    T    t    
 IsBipartite         S    .    S    .    .    T    T    T    T    T    
 IsConnected         S    T    T    .    .    S    T    T    T    T    
@@ -60,7 +60,7 @@ domNum              b    b    S    .    .    S    T    b    T    T
 edgeChromNum        t    .    S    .    .    ~s   .    b    b    .    
 edgeConn            .    .    S    .    .    .    .    .    .    .    
 energy              .    .    S    .    .    .    .    .    .    .    
-girth               T    t    s    .    .    T    T    T    t    T    
+girth               T    t    T    .    .    T    T    T    t    T    
 indepCount          .    S    .    .    .    S    .    .    .    .    
 indepNum            s    S    S    .    .    S    S    S    b    s    
 lapCharpoly         .    .    ~S   .    .    .    .    .    .    .    
@@ -275,7 +275,7 @@ coverNum            S    S    .    .    s    .    b    .    S    S    S    S
 degMultiset         .    .    .    .    .    .    .    .    S    S    .    .    
 degSequence         S    T    .    .    t    .    T    .    S    S    S    S    
 diameter            T    S    .    .    s    .    T    .    S    S    S    S    
-domNum              T    b    .    .    s    .    b    .    S    S    b    S    
+domNum              T    s    .    .    s    .    s    .    S    S    s    S    
 edgeChromNum        S    T    ~s   .    s    .    t    .    S    S    T    T    
 edgeConn            .    .    .    .    .    .    .    .    S    S    .    .    
 energy              ~t   .    .    .    .    .    .    .    .    .    .    .    
@@ -357,8 +357,8 @@ compl (14/42 missing)
   IsAcyclic, IsArcTransitive, IsBipartite, IsDS, IsHamiltonian, IsTree, charpoly, comps, edgeChromNum, edgeConn, energy, lapCharpoly, matchNum, vertexConn
   bounds only: domNum, radius
 
-disjUnion (8/42 missing)
-  IsAcyclic, IsArcTransitive, IsDS, IsSRGWith, IsTree, IsVertexTransitive, degSequence, indepCount
+disjUnion (7/42 missing)
+  IsArcTransitive, IsDS, IsSRGWith, IsTree, IsVertexTransitive, degSequence, indepCount
   bounds only: autCount
 
 exponential (41/42 missing)
@@ -446,7 +446,7 @@ tensorProduct (22/42 missing)
   S   E                   disjUnion             E_disjUnion
   S   E                   join                  E_join
   S   E                   lexProduct            E_lexProduct
-  T   E                   lineGraph             IsSRGWith.E_lineGraph
+  T   E                   lineGraph             E_lineGraph_of_degSequence_replicate
   S   E                   mycielskian           E_mycielskian
   S   E                   strongProduct         E_strongProduct
   S   E                   tensorProduct         E_tensorProduct
@@ -464,7 +464,7 @@ tensorProduct (22/42 missing)
   S   E                   fan                   E_fan
   T   E                   foldedCube            E_foldedCube
   S   E                   friendship            E_friendship
-  ~s  E                   gp                    NamedGraphs.E_nauru
+  ~s  E                   gp                    NamedGraphs.E_desargues
   S   E                   grotzsch              E_grotzsch
   T   E                   hypercube             E_hypercube_succ
   S   E                   johnson               E_johnson
@@ -485,6 +485,7 @@ tensorProduct (22/42 missing)
   S   E                   turan                 E_turan_of_dvd
   S   E                   wheel                 E_wheel
   T   IsAcyclic           cartesianProduct      not_isAcyclic_cartesianProduct
+  S   IsAcyclic           disjUnion             isAcyclic_disjUnion
   T   IsAcyclic           join                  not_isAcyclic_join_left
   T   IsAcyclic           lexProduct            not_isAcyclic_lexProduct
   T   IsAcyclic           lineGraph             not_isAcyclic_lineGraph
@@ -544,7 +545,7 @@ tensorProduct (22/42 missing)
   S   IsArcTransitive     lollipop              not_isArcTransitive_lollipop
   S   IsArcTransitive     path                  not_isArcTransitive_path
   S   IsArcTransitive     petersen              isArcTransitive_petersen
-  S   IsArcTransitive     spider                not_isArcTransitive_spider_singleton
+  S   IsArcTransitive     spider                not_isArcTransitive_spider_pair
   S   IsArcTransitive     star                  not_isArcTransitive_star
   S   IsArcTransitive     tadpole               not_isArcTransitive_tadpole
   T   IsArcTransitive     thetaGraph            isArcTransitive_thetaGraph_pair
@@ -552,7 +553,7 @@ tensorProduct (22/42 missing)
   S   IsArcTransitive     wheel                 not_isArcTransitive_wheel
   S   IsBipartite         cartesianProduct      isBipartite_cartesianProduct
   S   IsBipartite         disjUnion             isBipartite_disjUnion_iff
-  T   IsBipartite         join                  not_isBipartite_join_right
+  T   IsBipartite         join                  not_isBipartite_join_left
   T   IsBipartite         lexProduct            not_isBipartite_lexProduct
   T   IsBipartite         lineGraph             not_isBipartite_lineGraph
   T   IsBipartite         mycielskian           not_isBipartite_mycielskian_of_E_pos
@@ -572,7 +573,7 @@ tensorProduct (22/42 missing)
   S   IsBipartite         fan                   not_isBipartite_fan
   S   IsBipartite         foldedCube            isBipartite_foldedCube_odd
   S   IsBipartite         friendship            not_isBipartite_friendship
-  ~s  IsBipartite         gp                    NamedGraphs.isBipartite_nauru
+  ~s  IsBipartite         gp                    NamedGraphs.isBipartite_desargues
   S   IsBipartite         grotzsch              not_isBipartite_grotzsch
   S   IsBipartite         hypercube             isBipartite_hypercube
   S   IsBipartite         johnson               not_isBipartite_johnson
@@ -594,7 +595,7 @@ tensorProduct (22/42 missing)
   T   IsBipartite         wheel                 not_isBipartite_wheel
   S   IsConnected         cartesianProduct      isConnected_cartesianProduct
   T   IsConnected         compl                 isConnected_compl_of_not_isConnected
-  T   IsConnected         disjUnion             not_isConnected_disjUnion
+  T   IsConnected         disjUnion             Semiring.not_isConnected_add
   S   IsConnected         join                  isConnected_join
   T   IsConnected         lexProduct            isConnected_lexProduct
   T   IsConnected         lineGraph             isConnected_lineGraph
@@ -603,7 +604,7 @@ tensorProduct (22/42 missing)
   T   IsConnected         tensorProduct         isConnected_tensorProduct
   S   IsConnected         bipartite             isConnected_bipartite
   S   IsConnected         book                  isConnected_book
-  t   IsConnected         circulant             isConnected_circulant_one
+  t   IsConnected         circulant             not_isConnected_circulant_nil
   S   IsConnected         cocktailParty         isConnected_cocktailParty
   S   IsConnected         complete              isConnected_complete
   T   IsConnected         completeMultipartite  isConnected_completeMultipartite_replicate
@@ -667,13 +668,13 @@ tensorProduct (22/42 missing)
   T   IsRegularWith       fan                   not_isRegularWith_fan
   T   IsRegularWith       foldedCube            isRegularWith_foldedCube
   T   IsRegularWith       friendship            not_isRegularWith_friendship
-  ~t  IsRegularWith       gp                    NamedGraphs.isRegularWith_nauru
+  ~t  IsRegularWith       gp                    NamedGraphs.isRegularWith_dodecahedron
   T   IsRegularWith       grotzsch              not_isRegularWith_grotzsch
   S   IsRegularWith       hypercube             isRegularWith_hypercube
   T   IsRegularWith       johnson               isRegularWith_johnson
   T   IsRegularWith       kneser                isRegularWith_kneser
   s   IsRegularWith       ladder                isRegularWith_ladder_two
-  ~t  IsRegularWith       lcf                   NamedGraphs.isRegularWith_bidiakisCube
+  ~t  IsRegularWith       lcf                   NamedGraphs.isRegularWith_mcgee
   T   IsRegularWith       lollipop              not_isRegularWith_lollipop
   T   IsRegularWith       paley                 isRegularWith_paley
   T   IsRegularWith       path                  not_isRegularWith_path
@@ -685,7 +686,7 @@ tensorProduct (22/42 missing)
   S   IsRegularWith       triangular            isRegularWith_triangular
   T   IsRegularWith       turan                 isRegularWith_turan_of_dvd
   T   IsRegularWith       wheel                 not_isRegularWith_wheel
-  t   IsSRGWith           cartesianProduct      rook_three_srg
+  t   IsSRGWith           cartesianProduct      rook_four_srg
   T   IsSRGWith           compl                 IsSRGWith.compl
   T   IsSRGWith           bipartite             isSRGWith_bipartite
   T   IsSRGWith           chang₁                chang₁_srg
@@ -698,7 +699,7 @@ tensorProduct (22/42 missing)
   T   IsSRGWith           gewirtz               gewirtz_srg
   T   IsSRGWith           higmanSims            higmanSims_srg
   T   IsSRGWith           hoffmanSingleton      hoffmanSingleton_srg
-  t   IsSRGWith           johnson               isSRGWith_johnson_two
+  t   IsSRGWith           johnson               isSRGWith_triangular
   t   IsSRGWith           kneser                petersen_srg
   T   IsSRGWith           linesOnCubic          linesOnCubic_srg
   T   IsSRGWith           m22                   m22_srg
@@ -722,7 +723,7 @@ tensorProduct (22/42 missing)
   S   IsSelfComplementary doubleStar            not_isSelfComplementary_doubleStar
   T   IsSelfComplementary empty                 not_isSelfComplementary_empty
   T   IsSelfComplementary fan                   not_isSelfComplementary_fan
-  T   IsSelfComplementary friendship            not_isSelfComplementary_friendship
+  T   IsSelfComplementary friendship            not_isSelfComplementary_friendship_odd
   S   IsSelfComplementary grotzsch              not_isSelfComplementary_grotzsch
   S   IsSelfComplementary hypercube             not_isSelfComplementary_hypercube
   s   IsSelfComplementary johnson               not_isSelfComplementary_johnson_one
@@ -766,7 +767,7 @@ tensorProduct (22/42 missing)
   T   IsTree              spider                isTree_spider
   S   IsTree              star                  isTree_star
   S   IsTree              tadpole               not_isTree_tadpole
-  T   IsTree              thetaGraph            isTree_thetaGraph_singleton
+  T   IsTree              thetaGraph            not_isTree_thetaGraph
   S   IsTree              triangular            not_isTree_triangular
   S   IsTree              turan                 not_isTree_turan
   S   IsTree              wheel                 not_isTree_wheel
@@ -883,7 +884,7 @@ tensorProduct (22/42 missing)
   t   autCount            circulant             autCount_circulant_nil
   b   autCount            cocktailParty         le_autCount_cocktailParty
   S   autCount            complete              autCount_complete
-  b   autCount            completeMultipartite  le_autCount_completeMultipartite_replicate
+  b   autCount            completeMultipartite  factorial_mul_autCount_le_autCount_completeMultipartite_cons
   b   autCount            crown                 le_autCount_crown
   T   autCount            cycle                 autCount_cycle
   b   autCount            cyclePendant          factorial_le_autCount_cyclePendant_one
@@ -929,7 +930,7 @@ tensorProduct (22/42 missing)
   S   chromNum            completeMultipartite  chromNum_completeMultipartite
   S   chromNum            crown                 chromNum_crown
   S   chromNum            cycle                 chromNum_cycle_even
-  T   chromNum            cyclePendant          chromNum_cyclePendant_replicate_zero_odd
+  T   chromNum            cyclePendant          chromNum_cyclePendant_even
   T   chromNum            doubleStar            chromNum_doubleStar
   S   chromNum            empty                 chromNum_empty
   S   chromNum            fan                   chromNum_fan
@@ -939,9 +940,9 @@ tensorProduct (22/42 missing)
   S   chromNum            grotzsch              chromNum_grotzsch
   S   chromNum            hypercube             chromNum_hypercube
   s   chromNum            johnson               chromNum_johnson_two_odd
-  T   chromNum            kneser                chromNum_kneser_of_lt
+  T   chromNum            kneser                chromNum_kneser_of_le
   S   chromNum            ladder                chromNum_ladder
-  ~s  chromNum            lcf                   NamedGraphs.chromNum_heawood
+  ~s  chromNum            lcf                   NamedGraphs.chromNum_dyck
   T   chromNum            lollipop              chromNum_lollipop
   b   chromNum            paley                 chromNum_paley_seventeen_le
   S   chromNum            path                  chromNum_path
@@ -954,7 +955,7 @@ tensorProduct (22/42 missing)
   S   chromNum            thetaGraph            chromNum_thetaGraph_pair_even
   S   chromNum            triangular            chromNum_triangular_even
   S   chromNum            turan                 chromNum_turan
-  S   chromNum            wheel                 chromNum_wheel_even
+  S   chromNum            wheel                 chromNum_wheel_odd
   S   cliqueCount         compl                 cliqueCount_compl
   S   cliqueCount         disjUnion             cliqueCount_disjUnion
   T   cliqueCount         mycielskian           cliqueCount_mycielskian
@@ -986,7 +987,7 @@ tensorProduct (22/42 missing)
   T   cliqueCoverNum      mycielskian           cliqueCoverNum_mycielskian
   S   cliqueCoverNum      bipartite             cliqueCoverNum_bipartite
   S   cliqueCoverNum      book                  cliqueCoverNum_book
-  t   cliqueCoverNum      circulant             cliqueCoverNum_circulant_one
+  t   cliqueCoverNum      circulant             cliqueCoverNum_circulant_nil
   S   cliqueCoverNum      cocktailParty         cliqueCoverNum_cocktailParty
   S   cliqueCoverNum      complete              cliqueCoverNum_complete
   S   cliqueCoverNum      completeMultipartite  cliqueCoverNum_completeMultipartite
@@ -1004,7 +1005,7 @@ tensorProduct (22/42 missing)
   T   cliqueCoverNum      kneser                cliqueCoverNum_kneser_of_lt
   S   cliqueCoverNum      ladder                cliqueCoverNum_ladder
   s   cliqueCoverNum      lollipop              cliqueCoverNum_lollipop_one
-  b   cliqueCoverNum      paley                 five_le_cliqueCoverNum_paley_thirteen
+  b   cliqueCoverNum      paley                 five_le_cliqueCoverNum_paley_seventeen
   S   cliqueCoverNum      path                  cliqueCoverNum_path
   S   cliqueCoverNum      petersen              cliqueCoverNum_petersen
   S   cliqueCoverNum      prism                 cliqueCoverNum_prism
@@ -1013,7 +1014,7 @@ tensorProduct (22/42 missing)
   S   cliqueCoverNum      star                  cliqueCoverNum_star
   s   cliqueCoverNum      tadpole               cliqueCoverNum_tadpole_one
   T   cliqueCoverNum      thetaGraph            cliqueCoverNum_thetaGraph_of_all_one
-  T   cliqueCoverNum      triangular            cliqueCoverNum_triangular
+  T   cliqueCoverNum      triangular            cliqueCoverNum_triangular_eq
   S   cliqueCoverNum      turan                 cliqueCoverNum_turan
   S   cliqueCoverNum      wheel                 cliqueCoverNum_wheel
   T   cliqueNum           cartesianProduct      cliqueNum_cartesianProduct
@@ -1039,15 +1040,15 @@ tensorProduct (22/42 missing)
   S   cliqueNum           fan                   cliqueNum_fan
   T   cliqueNum           foldedCube            cliqueNum_foldedCube
   S   cliqueNum           friendship            cliqueNum_friendship
-  ~s  cliqueNum           gp                    NamedGraphs.cliqueNum_durer
+  ~s  cliqueNum           gp                    NamedGraphs.cliqueNum_nauru
   S   cliqueNum           grotzsch              cliqueNum_grotzsch
   S   cliqueNum           hypercube             cliqueNum_hypercube
   s   cliqueNum           johnson               cliqueNum_johnson_two
   T   cliqueNum           kneser                cliqueNum_kneser_of_lt
   S   cliqueNum           ladder                cliqueNum_ladder
-  ~s  cliqueNum           lcf                   NamedGraphs.cliqueNum_franklin
+  ~s  cliqueNum           lcf                   NamedGraphs.cliqueNum_pappus
   T   cliqueNum           lollipop              cliqueNum_lollipop
-  b   cliqueNum           paley                 cliqueNum_paley_seventeen_le
+  b   cliqueNum           paley                 cliqueNum_paley_thirteen_le
   S   cliqueNum           path                  cliqueNum_path
   S   cliqueNum           petersen              cliqueNum_petersen
   S   cliqueNum           prism                 cliqueNum_prism
@@ -1089,7 +1090,7 @@ tensorProduct (22/42 missing)
   S   coverNum            kneser                coverNum_kneser_of_lt
   S   coverNum            ladder                coverNum_ladder
   s   coverNum            lollipop              coverNum_lollipop_one
-  b   coverNum            paley                 ten_le_coverNum_paley_thirteen
+  b   coverNum            paley                 thirteen_le_coverNum_paley_seventeen
   S   coverNum            path                  coverNum_path
   S   coverNum            petersen              coverNum_petersen
   S   coverNum            prism                 coverNum_prism_even
@@ -1099,7 +1100,7 @@ tensorProduct (22/42 missing)
   s   coverNum            tadpole               coverNum_tadpole_one
   S   coverNum            thetaGraph            coverNum_thetaGraph_pair
   S   coverNum            triangular            coverNum_triangular
-  S   coverNum            turan                 coverNum_turan
+  S   coverNum            turan                 coverNum_turan_of_dvd
   S   coverNum            wheel                 coverNum_wheel
   S   degMultiset         cartesianProduct      degMultiset_cartesianProduct
   S   degMultiset         compl                 degMultiset_compl
@@ -1159,8 +1160,8 @@ tensorProduct (22/42 missing)
   S   diameter            disjUnion             diameter_disjUnion
   T   diameter            join                  diameter_join_left
   b   diameter            lexProduct            diameter_lexProduct_le
-  b   diameter            lineGraph             diameter_lineGraph_cartesianProduct_le
-  b   diameter            mycielskian           two_le_diameter_mycielskian_fan
+  b   diameter            lineGraph             diameter_lineGraph_petersen_le
+  b   diameter            mycielskian           diameter_mycielskian_ladder_le_four
   T   diameter            strongProduct         diameter_strongProduct
   S   diameter            bipartite             diameter_bipartite
   S   diameter            book                  diameter_book
@@ -1192,7 +1193,7 @@ tensorProduct (22/42 missing)
   s   diameter            tadpole               diameter_tadpole_one
   S   diameter            thetaGraph            diameter_thetaGraph_pair
   T   diameter            triangular            diameter_triangular
-  T   diameter            turan                 diameter_turan_of_dvd
+  T   diameter            turan                 diameter_turan
   S   diameter            wheel                 diameter_wheel
   b   domNum              cartesianProduct      domNum_cartesianProduct_le
   b   domNum              compl                 domNum_add_domNum_compl_le_V_add_one
@@ -1204,7 +1205,7 @@ tensorProduct (22/42 missing)
   T   domNum              strongProduct         domNum_strongProduct_eq_one
   T   domNum              bipartite             domNum_bipartite
   S   domNum              book                  domNum_book
-  t   domNum              circulant             domNum_circulant_one
+  t   domNum              circulant             domNum_circulant_nil
   S   domNum              cocktailParty         domNum_cocktailParty
   S   domNum              complete              domNum_complete
   S   domNum              completeMultipartite  domNum_completeMultipartite_replicate
@@ -1220,12 +1221,12 @@ tensorProduct (22/42 missing)
   t   domNum              hypercube             domNum_hypercube_three
   s   domNum              johnson               domNum_johnson_two
   T   domNum              kneser                domNum_kneser_of_lt
-  b   domNum              ladder                domNum_ladder_le
+  s   domNum              ladder                domNum_ladder_three
   s   domNum              lollipop              domNum_lollipop_one
-  b   domNum              paley                 le_domNum_paley
+  s   domNum              paley                 domNum_paley_seventeen
   S   domNum              path                  domNum_path
   S   domNum              petersen              domNum_petersen
-  b   domNum              prism                 le_domNum_prism
+  s   domNum              prism                 domNum_prism_six
   S   domNum              rook                  domNum_rook
   S   domNum              spider                domNum_spider_singleton
   S   domNum              star                  domNum_star
@@ -1234,19 +1235,19 @@ tensorProduct (22/42 missing)
   T   domNum              triangular            domNum_triangular
   T   domNum              turan                 domNum_turan
   S   domNum              wheel                 domNum_wheel
-  t   edgeChromNum        cartesianProduct      edgeChromNum_cartesianProduct_cycle_even_hypercube
+  t   edgeChromNum        cartesianProduct      edgeChromNum_cartesianProduct_cycle_even
   S   edgeChromNum        disjUnion             edgeChromNum_disjUnion
   ~s  edgeChromNum        join                  SmallGraphs.edgeChromNum_fan5
   b   edgeChromNum        lineGraph             le_edgeChromNum_lineGraph
   b   edgeChromNum        mycielskian           le_edgeChromNum_mycielskian
   S   edgeChromNum        bipartite             edgeChromNum_bipartite
   b   edgeChromNum        book                  le_edgeChromNum_book
-  t   edgeChromNum        circulant             edgeChromNum_circulant_one_even
+  t   edgeChromNum        circulant             edgeChromNum_circulant_one_odd
   T   edgeChromNum        cocktailParty         edgeChromNum_cocktailParty
   S   edgeChromNum        complete              edgeChromNum_complete_even
   b   edgeChromNum        completeMultipartite  edgeChromNum_completeMultipartite_replicate_ge
   T   edgeChromNum        crown                 edgeChromNum_crown
-  S   edgeChromNum        cycle                 edgeChromNum_cycle_even
+  S   edgeChromNum        cycle                 edgeChromNum_cycle_odd
   T   edgeChromNum        cyclePendant          edgeChromNum_cyclePendant_replicate_zero_even
   T   edgeChromNum        doubleStar            edgeChromNum_doubleStar
   S   edgeChromNum        empty                 edgeChromNum_empty
@@ -1259,7 +1260,7 @@ tensorProduct (22/42 missing)
   s   edgeChromNum        johnson               edgeChromNum_johnson_one
   S   edgeChromNum        kneser                edgeChromNum_kneser_of_lt
   T   edgeChromNum        ladder                edgeChromNum_ladder
-  ~s  edgeChromNum        lcf                   NamedGraphs.edgeChromNum_dyck
+  ~s  edgeChromNum        lcf                   NamedGraphs.edgeChromNum_bidiakisCube
   s   edgeChromNum        lollipop              edgeChromNum_lollipop_one
   t   edgeChromNum        paley                 edgeChromNum_paley_thirteen
   S   edgeChromNum        path                  edgeChromNum_path
@@ -1270,7 +1271,7 @@ tensorProduct (22/42 missing)
   S   edgeChromNum        star                  edgeChromNum_star
   s   edgeChromNum        tadpole               edgeChromNum_tadpole_one
   S   edgeChromNum        thetaGraph            edgeChromNum_thetaGraph_pair_even
-  t   edgeChromNum        triangular            edgeChromNum_triangular_six
+  t   edgeChromNum        triangular            edgeChromNum_triangular_seven
   b   edgeChromNum        turan                 le_edgeChromNum_turan
   T   edgeChromNum        wheel                 edgeChromNum_wheel
   S   edgeConn            disjUnion             edgeConn_disjUnion
@@ -1288,11 +1289,11 @@ tensorProduct (22/42 missing)
   ~T  energy              star                  energy_star
   T   girth               cartesianProduct      girth_cartesianProduct_of_cliqueNum_le_two
   t   girth               compl                 girth_compl_lineGraph
-  s   girth               disjUnion             girth_disjUnion_complete
-  T   girth               join                  girth_join_right
+  T   girth               disjUnion             girth_disjUnion
+  T   girth               join                  girth_join_left
   T   girth               lexProduct            girth_lexProduct
   T   girth               lineGraph             girth_lineGraph_eq_three
-  t   girth               mycielskian           girth_mycielskian_cocktailParty
+  t   girth               mycielskian           girth_mycielskian_rook
   T   girth               strongProduct         girth_strongProduct
   T   girth               tensorProduct         girth_tensorProduct
   S   girth               bipartite             girth_bipartite
@@ -1362,7 +1363,7 @@ tensorProduct (22/42 missing)
   T   indepNum            grotzsch              indepNum_grotzsch
   S   indepNum            hypercube             indepNum_hypercube
   s   indepNum            johnson               indepNum_johnson_two
-  T   indepNum            kneser                indepNum_kneser_of_lt
+  T   indepNum            kneser                indepNum_kneser
   S   indepNum            ladder                indepNum_ladder
   ~s  indepNum            lcf                   NamedGraphs.indepNum_franklin
   s   indepNum            lollipop              indepNum_lollipop_one
@@ -1386,7 +1387,7 @@ tensorProduct (22/42 missing)
   S   lapLambdaMax        bipartite             lapLambdaMax_bipartite
   ~T  lapLambdaMax        cocktailParty         lapLambdaMax_cocktailParty
   S   lapLambdaMax        complete              lapLambdaMax_complete
-  T   lapLambdaMax        cycle                 lapLambdaMax_cycle_odd
+  T   lapLambdaMax        cycle                 lapLambdaMax_cycle_even
   ~T  lapLambdaMax        empty                 lapLambdaMax_empty
   T   lapLambdaMax        hypercube             lapLambdaMax_hypercube
   ~t  lapLambdaMax        kneser                lapLambdaMax_petersen
@@ -1447,7 +1448,7 @@ tensorProduct (22/42 missing)
   S   matchNum            petersen              matchNum_petersen
   S   matchNum            prism                 matchNum_prism
   T   matchNum            rook                  matchNum_rook
-  S   matchNum            spider                matchNum_spider_singleton
+  S   matchNum            spider                matchNum_spider_pair
   S   matchNum            star                  matchNum_star
   s   matchNum            tadpole               matchNum_tadpole_one
   S   matchNum            thetaGraph            matchNum_thetaGraph_pair
@@ -1481,7 +1482,7 @@ tensorProduct (22/42 missing)
   T   maxDeg              grotzsch              maxDeg_grotzsch
   S   maxDeg              hypercube             maxDeg_hypercube
   S   maxDeg              johnson               maxDeg_johnson
-  T   maxDeg              kneser                maxDeg_kneser
+  T   maxDeg              kneser                maxDeg_kneser_of_lt
   S   maxDeg              ladder                maxDeg_ladder
   ~s  maxDeg              lcf                   NamedGraphs.maxDeg_tutteCoxeter
   T   maxDeg              lollipop              maxDeg_lollipop
@@ -1579,12 +1580,12 @@ tensorProduct (22/42 missing)
   S   numComponents       triangular            numComponents_triangular
   S   numComponents       turan                 numComponents_turan
   S   numComponents       wheel                 numComponents_wheel
-  T   radius              cartesianProduct      radius_cartesianProduct_self
+  T   radius              cartesianProduct      radius_cartesianProduct
   b   radius              compl                 radius_compl_le_two
   S   radius              disjUnion             radius_disjUnion
   T   radius              join                  radius_join_eq_two
   T   radius              lexProduct            radius_lexProduct_eq_one
-  b   radius              lineGraph             radius_lineGraph_rook_le
+  b   radius              lineGraph             radius_lineGraph_triangular_le
   T   radius              mycielskian           radius_mycielskian
   T   radius              strongProduct         radius_strongProduct_self
   T   radius              bipartite             radius_bipartite_self
@@ -1615,7 +1616,7 @@ tensorProduct (22/42 missing)
   S   radius              spider                radius_spider_singleton
   S   radius              star                  radius_star
   s   radius              tadpole               radius_tadpole_one
-  S   radius              thetaGraph            radius_thetaGraph_singleton
+  S   radius              thetaGraph            radius_thetaGraph_pair
   T   radius              triangular            radius_triangular
   S   radius              turan                 radius_turan
   S   radius              wheel                 radius_wheel
@@ -1647,10 +1648,10 @@ tensorProduct (22/42 missing)
   S   vertexConn          path                  vertexConn_path
   S   vertexConn          petersen              vertexConn_petersen
 
-1205 of 2352 cells filled (42 invariants × 11 operators + 45 families).
+1206 of 2352 cells filled (42 invariants × 11 operators + 45 families).
 
 ## CGraph declarations with no IsoGraph counterpart
 
-constructions: affineD, affineD4, affineE6, affineE7, affineE8, cache, cacheFin, cacheOfAdj, canonicalize, cayleyAdd, component, dynkinD, dynkinD4, dynkinE6, dynkinE7, dynkinE8, edgeSum, induce, ofEdges, ofMatrix, ofRel, oneCliqueSum, part, quot, restrict, seidelSwitch, sigmaUnion, twoCliqueSum, vertexSum
+constructions: Decompose.AtlasEntry.graph, Decompose.GExpr.interp, affineD, affineD4, affineE6, affineE7, affineE8, cache, cacheFin, cacheOfAdj, canonicalize, cayleyAdd, component, dynkinD, dynkinD4, dynkinE6, dynkinE7, dynkinE8, edgeSum, induce, ofEdges, ofMatrix, ofRel, oneCliqueSum, part, quot, restrict, seidelSwitch, sigmaUnion, twoCliqueSum, vertexSum
 
-invariants:    IsEigenvalue, IsSmith, IsSubcritical, card, lambdaMax, lambdaMin, minSpecPoly
+invariants:    IsEigenvalue, IsSmith, IsSubcritical, card, fracChromNum, fracCliqueCoverNum, fracIndepNum, lambdaMax, lambdaMin, minSpecPoly
