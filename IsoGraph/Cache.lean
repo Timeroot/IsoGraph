@@ -105,9 +105,13 @@ through `FinEnum.equiv`.  Top-level and applied to the array alone, for the reas
 def matLookupOn (α : Type) [FinEnum α] (a : Array (Array Bool)) (x y : α) : Bool :=
   matLookup (FinEnum.card α) a (FinEnum.equiv x) (FinEnum.equiv y)
 
-/-- The matrix of `f`, indexed by `FinEnum.equiv`. -/
+/-- The matrix of `f`, indexed by `FinEnum.equiv`.
+
+The inverse is `let`-bound: `Equiv.symm` builds a structure, and inside the tabulation's lambda it
+would be built twice for every one of the `n²` entries. -/
 def adjArrayOn (α : Type) [FinEnum α] (f : α → α → Bool) : Array (Array Bool) :=
-  adjArray (FinEnum.card α) fun i j ↦ f (FinEnum.equiv.symm i) (FinEnum.equiv.symm j)
+  let e := ⇑(FinEnum.equiv (α := α)).symm
+  adjArray (FinEnum.card α) fun i j ↦ f (e i) (e j)
 
 @[simp] theorem matLookupOn_adjArrayOn {α : Type} [FinEnum α] (f : α → α → Bool) (x y : α) :
     matLookupOn α (adjArrayOn α f) x y = f x y := by
@@ -160,12 +164,15 @@ def cacheOfAdj (n : ℕ) (adj : Fin n → Fin n → Bool)
 A query is a bare array read, with no `FinEnum.equiv` in the way.  The cost is that this is only
 isomorphic to `G` (`CGraph.isoCacheFin`), not equal to it. -/
 def cacheFin (G : CGraph) : CGraph :=
-  cacheOfAdj (FinEnum.card G.V) (fun i j ↦ G.Adj (FinEnum.equiv.symm i) (FinEnum.equiv.symm j))
+  let e := ⇑(FinEnum.equiv (α := G.V)).symm
+  cacheOfAdj (FinEnum.card G.V) (fun i j ↦ G.Adj (e i) (e j))
     (fun _ _ ↦ G.symm _ _) (fun _ ↦ G.loopless _)
 
 @[simp] theorem cacheFin_adj (G : CGraph) (i j : Fin (FinEnum.card G.V)) :
     G.cacheFin.Adj i j = G.Adj (FinEnum.equiv.symm i) (FinEnum.equiv.symm j) :=
-  cacheOfAdj_adj ..
+  cacheOfAdj_adj (FinEnum.card G.V)
+    (fun i j ↦ G.Adj (FinEnum.equiv.symm i) (FinEnum.equiv.symm j))
+    (fun _ _ ↦ G.symm _ _) (fun _ ↦ G.loopless _) i j
 
 @[simp] theorem card_cacheFin (G : CGraph) : FinEnum.card G.cacheFin.V = FinEnum.card G.V := rfl
 

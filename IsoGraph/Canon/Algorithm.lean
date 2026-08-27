@@ -73,12 +73,15 @@ structure Graph where
 Written with `Array.ofFn`/`Array.filter` rather than as an imperative fill: the arrays are the
 same, but every entry is then definitionally the oracle, which is what makes the lemmas in
 `IsoGraph/Canon/Equivariance.lean` about this function short.  `vs` is shared across the rows so the
-`nbr` pass allocates only the neighbour lists themselves. -/
+`nbr` pass allocates only the neighbour lists themselves, and the rows are read off `adj` rather
+than off the oracle a second time: `f` is typically a `Decidable` instance behind a `FinEnum`
+transport, and asking it `n²` times instead of `2n²` is a third of what building a graph costs. -/
 def Graph.ofOracle (n : Nat) (f : Nat → Nat → Bool) : Graph :=
   let vs := Array.range n
+  let adj := Array.ofFn (n := n) fun v => Array.ofFn (n := n) fun w => f v.1 w.1
   { n := n
-    adj := Array.ofFn (n := n) fun v => Array.ofFn (n := n) fun w => f v.1 w.1
-    nbr := Array.ofFn (n := n) fun v => vs.filter (f v.1) }
+    adj := adj
+    nbr := adj.map fun r => vs.filter fun w => r[w]! }
 
 /-- Number of edges (counting each unordered pair once); handy for sanity checks. -/
 def Graph.edgeCount (G : Graph) : Nat := Id.run do
@@ -214,14 +217,51 @@ def countFrom (G : Graph) (lab : Array Nat) (e : Nat) :
       match bumpFrom nbrs nbrs.size 0 cnt touched with
       | (cnt, touched) => countFrom G lab e fuel (k + 1) cnt touched
 
+/-- Insert `x` into a list already sorted increasingly. -/
+def insertNat (x : Nat) : List Nat → List Nat
+  | [] => [x]
+  | y :: ys => if x ≤ y then x :: y :: ys else y :: insertNat x ys
+
+/-- Insertion sort. -/
+def sortNatList : List Nat → List Nat
+  | [] => []
+  | x :: xs => insertNat x (sortNatList xs)
+
 /-- Sort an array of naturals increasingly.
 
 `Array.qsort` would do the same job, but it has no verified specification in this toolchain, and
 the sorted order of the cells and of the counts *is* part of what makes the trace canonical.  So
-this goes through `List.mergeSort`, which does.  The round trip through `List` costs nothing
-measurable on the benchmarks: both call sites sort at most one entry per cell of the partition,
-against a refinement step that already costs the splitter's degree sum. -/
-def sortNats (a : Array Nat) : Array Nat := (a.toList.mergeSort (fun x y => x ≤ y)).toArray
+this goes through a list sort, which does — `sortNats_toList` in
+`IsoGraph/Canon/Equivariance.lean` identifies it with `List.mergeSort`.  Insertion sort rather than
+`List.mergeSort` itself because both call sites sort at most one entry per cell of the partition,
+and on lists that short the merge's splitting is pure overhead: a tenth of `canonical` on the
+order-six benchmark went on sorting three-element arrays. -/
+def sortNats (a : Array Nat) : Array Nat := (sortNatList a.toList).toArray
+
+/-- What `sortNats` actually runs.  Both call sites sort the cells that one splitter meets, and
+whatever the size of the graph most splitters meet one or two of them; those two lengths are worth
+peeling off, because the list round trip costs more than the comparison does.  Longer arrays go
+through `sortNatList` as before. -/
+def sortNatsFast (a : Array Nat) : Array Nat :=
+  if a.size ≤ 1 then a
+  else if a.size == 2 then (if a[0]! ≤ a[1]! then a else #[a[1]!, a[0]!])
+  else (sortNatList a.toList).toArray
+
+@[csimp] theorem sortNats_eq_sortNatsFast : @sortNats = @sortNatsFast := by
+  funext a
+  obtain ⟨l⟩ := a
+  match l with
+  | [] => rfl
+  | [x] => rfl
+  | [x, y] =>
+    simp only [sortNats, sortNatsFast, Array.size, List.length_cons, List.length_nil,
+      Nat.reduceAdd, Nat.reduceLeDiff, if_false, beq_self_eq_true, if_true, sortNatList,
+      insertNat]
+    split <;> simp_all <;> omega
+  | x :: y :: z :: t =>
+    simp only [sortNatsFast, Array.size, List.length_cons]
+    rw [if_neg (by omega), if_neg (by simp)]
+    rfl
 
 /-- Collect the distinct cell starts of the vertices in `touched[j:]`, using `hit` to deduplicate.
 Phase (2) of `refineStep`, as a structural recursion on fuel; `fuel` is only ever

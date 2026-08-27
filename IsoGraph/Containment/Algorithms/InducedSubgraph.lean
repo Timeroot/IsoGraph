@@ -30,9 +30,9 @@ variable {H G : CGraph} {rank : G.V → ℕ} {n : ℕ} {pairs : List (H.V × H.V
 def InducedSubgraphOf.ofAsg (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod.fst)
     (hg : goalAsg H G true rank n pairs r = true) : H.InducedSubgraphOf G where
   toFun := asgFun H G r hcov
-  injective' := asgFun_injective hg
-  map_adj' _ _ h := asgFun_map_adj hg h
-  adj_map' _ _ h := asgFun_adj_map hg h
+  injective' := asgFun_injective (validAsg_of_goalAsg hg)
+  map_adj' _ _ h := asgFun_map_adj (validAsg_of_goalAsg hg) h
+  adj_map' _ _ h := asgFun_adj_map (validAsg_of_goalAsg hg) h
 
 /-- **Relabelling an embedding along an automorphism of the pattern.** -/
 def InducedSubgraphOf.reindex (f : H.InducedSubgraphOf G) {σ : H.V → H.V}
@@ -91,8 +91,11 @@ theorem isEmpty_inducedSubgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
       (List.idxOf_inj (rG.mem_toList u)).mp huv
     have hrn : ∀ v, hostRank G rG v < rG.toList.length := fun v ↦
       List.idxOf_lt_length_of_mem (rG.mem_toList v)
-    have hn := Backtrack.dfs_eq_none
-      (mem_candList H G true rG.mem_toList (rank := hostRank G rG) (fun _ ↦ rfl) _ _) h hsol
+    have hn := Backtrack.dfs_eq_none_keys
+      (mem_candList H G true rG.mem_toList (rank := hostRank G rG) (fun _ ↦ rfl) _ _
+        (keys := (searchOrder H rH.toList).reverse)
+        (fun x ↦ List.mem_reverse.mpr (mem_searchOrder H rH.mem_toList x))
+        (List.nodup_reverse.mpr (searchOrder_nodup H rH.toList))) h hsol (by simp)
     rw [List.append_nil, goalAsg_of_emb true _ _ _ g.injective
       (fun x y _ ↦ edgeOk_of_eq (g.adj_eq x y).symm) _ (searchOrder_nodup H rH.toList)
       hri hrn symPairs_ne hg] at hn

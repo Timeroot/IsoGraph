@@ -109,27 +109,10 @@ theorem validHom_of_hom (f : H →cg G) (l : List H.V) :
   | false => simp
   | true => simpa using f.map_rel (show H.Adj x y from by simp [hxy])
 
-/-! ## Reading the map off a finished assignment -/
+/-! ## Reading the map off a finished assignment
 
-/-- With no repeated key, the lookup finds what was put in. -/
-theorem lookupV_eq_of_mem {r : List (H.V × G.V)} (hnd : (r.map Prod.fst).Nodup)
-    {p : H.V × G.V} (hp : p ∈ r) : lookupV H G p.1 r = some p.2 := by
-  induction r with
-  | nil => simp at hp
-  | cons q rest ih =>
-    rw [List.map_cons, List.nodup_cons] at hnd
-    rw [lookupV]
-    rcases List.mem_cons.mp hp with rfl | hp
-    · simp
-    · have hne : q.1 ≠ p.1 := fun h ↦ hnd.1 (h ▸ List.mem_map_of_mem hp)
-      rw [if_neg (Ne.symm hne)]
-      exact ih hnd.2 hp
-
-/-- With no repeated key, the function agrees with the assignment on the nose. -/
-theorem asgFun_eq_of_mem {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hnd : (r.map Prod.fst).Nodup) {p : H.V × G.V} (hp : p ∈ r) :
-    asgFun H G r hcov p.1 = p.2 :=
-  Option.some.inj ((Option.some_get _).trans (lookupV_eq_of_mem H G hnd hp))
+`lookupV`, `asgFun` and the two lemmas that say a nodup-keyed assignment is read back as it was
+written are in `Algorithms/Embedding.lean`; the searches there need them too. -/
 
 /-- **The homomorphism a complete, consistent assignment describes.** -/
 def homOfAsg (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod.fst)

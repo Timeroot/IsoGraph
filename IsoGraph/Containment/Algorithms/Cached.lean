@@ -278,9 +278,17 @@ end CGraph
 /-! ## The relations on `IsoGraph`, decided
 
 Each of `Containment/Defs.lean`'s nine relations is `Quotient.lift₂` of a `Nonempty`, so it says
-nothing that can be evaluated as it stands.  What decides it is the search above, run on the
-canonical representatives: `H.toCGraph` and `G.toCGraph` are members of the two classes, and
-`IsoGraph.mk_toCGraph` says so, which is all the `_mk` lemma needs to close the gap.
+nothing that can be evaluated as it stands.  What decides it is the search above, run on *any*
+representative of the two classes — which is exactly what `Quotient.recOnSubsingleton₂` offers,
+since two `Decidable` instances for the same proposition are equal whatever they decide by.  The
+`_mk` lemma then closes the gap between the relation on the class and the `Nonempty` on the
+representative.
+
+Deciding on the representative that is already to hand rather than on `H.toCGraph` is worth
+roughly a factor of two on a short search: `toCGraph` runs the canonical labelling, which for a
+graph on six vertices costs more than the subgraph search it would be preparing for.  Nothing is
+lost by skipping it — each search tabulates its two graphs with `cacheFin` regardless, so the
+adjacency it ends up reading is an array either way.
 
 The searches are exponential in the pattern, so these are for small graphs — but "small" here is
 the whole gallery, and it is exactly what an exhaustive check over `Enum/Decide.lean`'s
@@ -288,40 +296,44 @@ enumerations wants. -/
 
 namespace IsoGraph
 
-instance instDecidableHasHomInto (H G : IsoGraph) : Decidable (H ≤ₕ G) :=
-  decidable_of_iff (H.toCGraph.homB G.toCGraph = true) <| by
-    rw [CGraph.homB_iff, ← hasHomInto_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableHasHomInto : ∀ H G : IsoGraph, Decidable (H ≤ₕ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ₕ G)) H G fun H G ↦
+    decidable_of_iff (H.homB G = true) <| by rw [CGraph.homB_iff, hasHomInto_mk]
 
-instance instDecidableIsSubgraphOf (H G : IsoGraph) : Decidable (H ≤ₛ G) :=
-  decidable_of_iff (H.toCGraph.subgraphB G.toCGraph = true) <| by
-    rw [CGraph.subgraphB_iff, ← isSubgraphOf_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableIsSubgraphOf : ∀ H G : IsoGraph, Decidable (H ≤ₛ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ₛ G)) H G fun H G ↦
+    decidable_of_iff (H.subgraphB G = true) <| by rw [CGraph.subgraphB_iff, isSubgraphOf_mk]
 
-instance instDecidableIsInducedSubgraphOf (H G : IsoGraph) : Decidable (H ≤ᵢₛ G) :=
-  decidable_of_iff (H.toCGraph.inducedSubgraphB G.toCGraph = true) <| by
-    rw [CGraph.inducedSubgraphB_iff, ← isInducedSubgraphOf_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableIsInducedSubgraphOf : ∀ H G : IsoGraph, Decidable (H ≤ᵢₛ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ᵢₛ G)) H G fun H G ↦
+    decidable_of_iff (H.inducedSubgraphB G = true) <| by
+      rw [CGraph.inducedSubgraphB_iff, isInducedSubgraphOf_mk]
 
-instance instDecidableHasQuotient (G H : IsoGraph) : Decidable (H ≤/ G) :=
-  decidable_of_iff (H.toCGraph.quotientB G.toCGraph = true) <| by
-    rw [CGraph.quotientB_iff, ← hasQuotient_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableHasQuotient : ∀ G H : IsoGraph, Decidable (H ≤/ G) := fun G H ↦
+  Quotient.recOnSubsingleton₂ (motive := fun G H ↦ Decidable (H ≤/ G)) G H fun G H ↦
+    decidable_of_iff (H.quotientB G = true) <| by rw [CGraph.quotientB_iff, hasQuotient_mk]
 
-instance instDecidableIsMinorOf (H G : IsoGraph) : Decidable (H ≤ₘ G) :=
-  decidable_of_iff (H.toCGraph.minorB G.toCGraph = true) <| by
-    rw [CGraph.minorB_iff, ← isMinorOf_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableIsMinorOf : ∀ H G : IsoGraph, Decidable (H ≤ₘ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ₘ G)) H G fun H G ↦
+    decidable_of_iff (H.minorB G = true) <| by rw [CGraph.minorB_iff, isMinorOf_mk]
 
-instance instDecidableIsInducedMinorOf (H G : IsoGraph) : Decidable (H ≤ᵢₘ G) :=
-  decidable_of_iff (H.toCGraph.inducedMinorB G.toCGraph = true) <| by
-    rw [CGraph.inducedMinorB_iff, ← isInducedMinorOf_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableIsInducedMinorOf : ∀ H G : IsoGraph, Decidable (H ≤ᵢₘ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ᵢₘ G)) H G fun H G ↦
+    decidable_of_iff (H.inducedMinorB G = true) <| by
+      rw [CGraph.inducedMinorB_iff, isInducedMinorOf_mk]
 
-instance instDecidableIsContractionOf (H G : IsoGraph) : Decidable (H ≤ₚ G) :=
-  decidable_of_iff (H.toCGraph.contractionB G.toCGraph = true) <| by
-    rw [CGraph.contractionB_iff, ← isContractionOf_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableIsContractionOf : ∀ H G : IsoGraph, Decidable (H ≤ₚ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ₚ G)) H G fun H G ↦
+    decidable_of_iff (H.contractionB G = true) <| by
+      rw [CGraph.contractionB_iff, isContractionOf_mk]
 
-instance instDecidableIsTopMinorOf (H G : IsoGraph) : Decidable (H ≤ₜₘ G) :=
-  decidable_of_iff (H.toCGraph.topMinorB G.toCGraph = true) <| by
-    rw [CGraph.topMinorB_iff, ← isTopMinorOf_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableIsTopMinorOf : ∀ H G : IsoGraph, Decidable (H ≤ₜₘ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ₜₘ G)) H G fun H G ↦
+    decidable_of_iff (H.topMinorB G = true) <| by rw [CGraph.topMinorB_iff, isTopMinorOf_mk]
 
-instance instDecidableIsImmersionMinorOf (H G : IsoGraph) : Decidable (H ≤ₑ G) :=
-  decidable_of_iff (H.toCGraph.immersionB G.toCGraph = true) <| by
-    rw [CGraph.immersionB_iff, ← isImmersionMinorOf_mk, mk_toCGraph, mk_toCGraph]
+instance instDecidableIsImmersionMinorOf : ∀ H G : IsoGraph, Decidable (H ≤ₑ G) := fun H G ↦
+  Quotient.recOnSubsingleton₂ (motive := fun H G ↦ Decidable (H ≤ₑ G)) H G fun H G ↦
+    decidable_of_iff (H.immersionB G = true) <| by
+      rw [CGraph.immersionB_iff, isImmersionMinorOf_mk]
 
 end IsoGraph

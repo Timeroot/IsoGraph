@@ -109,6 +109,53 @@ def E : ℕ := G.toSimple.edgeFinset.card
 theorem E_eq_of_iso {G H : CGraph} (i : G ≃cg H) : G.E = H.E :=
   SimpleGraph.Iso.card_edgeFinset_eq (CGraph.Iso.toSimpleIso i)
 
+/-- The degree of a vertex.  A wrapper around Mathlib's, so that the count below has somewhere to
+attach; `deg_eq_degree` erases it, and no statement need ever mention it. -/
+def deg (v : G.V) : ℕ := G.toSimple.degree v
+
+@[simp] theorem deg_eq_degree (v : G.V) : G.deg v = G.toSimple.degree v := rfl
+
+/-! ### Counting by a list scan
+
+`E` and `deg` are cardinalities of a `Finset` — the right *statement*, since every Mathlib lemma
+about `edgeFinset` and `degree` then applies to them, but on the graphs the algorithms run on it
+is a `Finset (Sym2 G.V)` built to settle a question one pass over the enumeration answers.  `E`
+guards every call of the containment search and `deg` is read at every node of it, so both are
+redirected by `@[csimp]` to that pass.  The specifications above are untouched. -/
+
+/-- **The degree, counted along the enumeration.** -/
+theorem degree_eq_countP (v : G.V) :
+    G.toSimple.degree v = (FinEnum.toList G.V).countP (G.Adj v) := by
+  rw [SimpleGraph.degree, SimpleGraph.neighborFinset_eq_filter, Finset.card_def,
+    Finset.filter_val]
+  show (Multiset.filter _ (Finset.univ : Finset G.V).val).card = _
+  rw [show (Finset.univ : Finset G.V).val = ↑(FinEnum.toList G.V) from rfl,
+    ← Multiset.countP_eq_card_filter]
+  simp
+
+/-- What `deg` runs. -/
+def degFast (v : G.V) : ℕ := (FinEnum.toList G.V).countP (G.Adj v)
+
+@[csimp] theorem deg_eq_degFast : @deg = @degFast :=
+  funext fun G ↦ funext fun v ↦ G.degree_eq_countP v
+
+/-- What `E` runs: the adjacent ordered pairs, halved.  One scan of the adjacency function, where
+`edgeFinset.card` builds the edge set of a `Sym2`. -/
+def EFast : ℕ :=
+  let vs := FinEnum.toList G.V
+  (vs.map fun v ↦ vs.countP (G.Adj v)).sum / 2
+
+@[csimp] theorem E_eq_EFast : @E = @EFast := by
+  funext G
+  have h : ∑ v : G.V, G.toSimple.degree v =
+      ((FinEnum.toList G.V).map fun v ↦ (FinEnum.toList G.V).countP (G.Adj v)).sum := by
+    rw [Finset.sum_eq_multiset_sum,
+      show (Finset.univ : Finset G.V).val = ↑(FinEnum.toList G.V) from rfl]
+    simp [degree_eq_countP]
+  rw [SimpleGraph.sum_degrees_eq_twice_card_edges] at h
+  show G.toSimple.edgeFinset.card = _ / 2
+  omega
+
 /-- The multiset of vertex degrees.  This is the degree sequence before sorting; the identities
 of `IsoGraph/SmallGraphs.lean` are much easier to state and prove for the multiset, and
 nothing is lost, since `degSequence` is exactly its `sort` (`coe_degSequence`). -/

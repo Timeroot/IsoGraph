@@ -54,21 +54,23 @@ Both lists are grown one vertex at a time, so what they cost tracks their length
 11, 34, 156, 1044, 12346, 274668 classes, and 1, 1, 2, 6, 21, 112, 853, 11117, 261080 connected
 ones — at roughly one canonical labelling per graph.  Neither ever sweeps the `2 ^ (n choose 2)`
 codes: `enumerateIso` reads as if it did, but `Enum/All.lean` redirects it onto the extension
-enumerator with `@[csimp]`.  So adding `G.IsConnected` to a statement now buys about what the
-ratio 112/156 of the two lengths suggests, and no more.
+enumerator with `@[csimp]`.  So adding `G.IsConnected` to a statement buys what the ratio 112/156
+of the two lengths suggests on `P`, and nothing on the enumeration itself: the connected list is
+shorter but costs slightly *more* to produce, because it also looks for a cut vertex.
 
 Timings from `lake exe enumbench`, which runs exactly the code a `native_decide` runs:
 
 | `n` | `enumerateIso n` | `enumerateConnIso n` |
 | --- | --- | --- |
-| 6 | 0.015 s | 0.011 s |
-| 7 | 0.12 s | 0.11 s |
-| 8 | 1.6 s | 1.8 s |
-| 9 | 42 s | 52 s |
+| 6 | 0.008 s | 0.007 s |
+| 7 | 0.057 s | 0.066 s |
+| 8 | 0.69 s | 1.1 s |
+| 9 | 16 s | 31 s |
 
 On top of that a proof pays for `P` on each graph, which need not be small — a containment search
-is not free, and for `ramsey_three_three` in `Exhaustion.lean` it is the larger half — plus the
-few seconds of loading the library, which at `n ≤ 7` dominates everything else.
+is not free, and for `ramsey_three_three` in `Exhaustion.lean` the two of them are about a third
+of the 12 ms the tactic takes — plus the few seconds of loading the library, which at `n ≤ 7`
+dominates everything else.
 
 So: both shapes are comfortable to `n = 8` and possible at `n = 9`.  All of this assumes the
 library is built with `precompileModules` (see `lakefile.toml`), so that a `native_decide` runs

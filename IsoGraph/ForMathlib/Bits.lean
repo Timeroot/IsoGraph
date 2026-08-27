@@ -73,6 +73,11 @@ theorem testBit_foldl_lor {α : Type} (f : α → ℕ) (p : α → Bool) (k : �
       · simp [hp, Nat.testBit_or, Bool.or_assoc]
       · simp [hp]
 
+/-- A shift distributes over a bitwise or. -/
+theorem shiftLeft_or (a b s : ℕ) : (a ||| b) <<< s = a <<< s ||| b <<< s :=
+  Nat.eq_of_testBit_eq fun _ ↦ by
+    simp [Nat.testBit_shiftLeft, Bool.and_or_distrib_left]
+
 theorem shl_bit (acc : UInt64) (c : Bool) (t : Nat) (ht : t < 64) :
     (acc <<< 1 ||| (if c then 1 else 0)).toBitVec.getLsbD t
       = if t = 0 then c else acc.toBitVec.getLsbD (t - 1) := by

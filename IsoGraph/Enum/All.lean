@@ -32,8 +32,8 @@ The main results are
 * `enumerate_pairwise_not_iso` — **soundness**: the members are pairwise non-isomorphic.
 
 That is the specification, and the sweep is not what runs: `enumerate` is redirected by `@[csimp]`
-onto `enumerateFast` at the end of the file, so a `#eval` or a `native_decide` pays 15 ms at
-`n = 6` rather than 889.  Nothing above this point knows that.
+onto `enumerateFast` at the end of the file, so a `#eval` or a `native_decide` pays 8 ms at
+`n = 6` rather than 663.  Nothing above this point knows that.
 
 ## Faster enumerators
 
@@ -62,16 +62,16 @@ Measured with `lake exe enumbench --all`, one run, counts all matching OEIS A000
 
 | `n` | `sweepCodes` | `enumCodesExt` | `enumCodesSym` | `enumCodesFast` |
 |-----|-------------:|---------------:|---------------:|----------------:|
-| 6   |        889ms |           38ms |           23ms |            15ms |
-| 7   |      66833ms |          392ms |          234ms |           120ms |
-| 8   |            — |         5673ms |         3708ms |          1654ms |
-| 9   |            — |              — |              — |         41757ms |
+| 6   |        663ms |           29ms |           17ms |             8ms |
+| 7   |      47782ms |          295ms |          163ms |            57ms |
+| 8   |            — |         4189ms |         2544ms |           696ms |
+| 9   |            — |              — |              — |         16405ms |
 
-At `n = 9` the pruning leaves little on the table: 18329 candidates were canonicalised to produce
+At `n = 8` the pruning leaves little on the table: 18329 candidates were canonicalised to produce
 the 12346 graphs on 8 vertices, so all but a factor of 1.5 of the work is one canonical labelling
 per graph, and further symmetry reduction cannot buy much.  Of that labelling, at `n = 7`, about a
-sixth is building the `Graph` the search runs on, a ninth is `codeOfAdj` reading the answer back,
-and the rest is the search.
+seventh is building the `Graph` the search runs on, a twentieth is `codeOfAdj` reading the answer
+back off the certificate, and the rest is the search.
 
 The final section uses the same encoding to give every graph a numeric `key` that classifies it up
 to isomorphism, hence a `Decidable` instance for `Nonempty (G ≃cg H)`.
@@ -149,6 +149,22 @@ adjacent, for `i < j < n`. -/
 def codeOfAdj (n : ℕ) (adj : ℕ → ℕ → Bool) : ℕ :=
   (pairsBelow n).foldl (fun c p ↦ if adj p.1 p.2 then c ||| 2 ^ pairIdx p.1 p.2 else c) 0
 
+/-- Only the entries below `n` are read, so two oracles agreeing there have the same code. -/
+theorem codeOfAdj_congr {n : ℕ} {f g : ℕ → ℕ → Bool}
+    (h : ∀ a b, a < n → b < n → f a b = g a b) : codeOfAdj n f = codeOfAdj n g := by
+  have key : ∀ l : List (ℕ × ℕ), (∀ p ∈ l, p.1 < n ∧ p.2 < n) → ∀ c : ℕ,
+      l.foldl (fun c p ↦ if f p.1 p.2 then c ||| 2 ^ pairIdx p.1 p.2 else c) c
+        = l.foldl (fun c p ↦ if g p.1 p.2 then c ||| 2 ^ pairIdx p.1 p.2 else c) c := by
+    intro l
+    induction l with
+    | nil => intros; rfl
+    | cons p ps ih =>
+      intro hp c
+      obtain ⟨h1, h2⟩ := hp p (List.mem_cons_self ..)
+      simp only [List.foldl_cons, h p.1 p.2 h1 h2]
+      exact ih (fun q hq ↦ hp q (List.mem_cons_of_mem _ hq)) _
+  exact key _ (fun p hp ↦ ⟨by have := mem_pairsBelow.1 hp; omega, (mem_pairsBelow.1 hp).2⟩) 0
+
 theorem codeOfAdj_lt (n : ℕ) (adj : ℕ → ℕ → Bool) : codeOfAdj n adj < 2 ^ n.choose 2 :=
   foldl_or_lt _ _ _ _
     (fun p hp ↦ by
@@ -181,6 +197,126 @@ theorem testBit_codeOfAdj_ne (n : ℕ) {adj : ℕ → ℕ → Bool} (hs : ∀ a 
   rcases Nat.lt_or_ge i j with h | h
   · exact testBit_codeOfAdj_pair n adj h hj
   · rw [pairIdx_comm, testBit_codeOfAdj_pair n adj (by omega) hi, hs]
+
+/-! ### The code without the list of pairs
+
+`codeOfAdj` says what the code *is*, and the list of pairs is why it reads that way.  But the
+list is rebuilt on every call — for `n = 6` that is fifteen boxed pairs and some sixty cons
+cells, against fifteen bit operations of actual work, and `canonCode` is called once per
+candidate graph in the enumeration.  The same number comes out of two nested loops with no list
+at all, and `codeOfAdj_eq_codeOfAdjFast` below hands that version to the compiler.
+
+Two loops are not the whole story either, because one of the bit operations is expensive.
+`lean.h` gives `Nat`'s `&&&`, `|||` and `>>>` an inline scalar path — test both arguments with
+`lean_is_scalar`, do the machine operation on the tagged words — and gives `<<<` none:
+`lean_nat_shiftl` is an out-of-line call.  On the fifteen bits of a six-vertex code that one
+difference is a factor of ten, and it is the whole cost of the step: assembling the same code
+with `2 * acc + b` runs as fast as the same loop written over `UInt64`.  So the shifting loops
+below are the *specification* of the fast path — they are what the list lemmas talk to — and
+`colMul`/`codeMul`, which build the accumulator most significant bit first, are what runs. -/
+
+/-- The bits of column `j` strictly below the diagonal: `∑_{i < k} adj i j * 2 ^ i`. -/
+def colBits (adj : ℕ → ℕ → Bool) (j : ℕ) : ℕ → ℕ
+  | 0 => 0
+  | i + 1 => colBits adj j i ||| (if adj i j then 1 <<< i else 0)
+
+theorem colBits_lt (adj : ℕ → ℕ → Bool) (j : ℕ) : ∀ i, colBits adj j i < 2 ^ i
+  | 0 => by simp [colBits]
+  | i + 1 => by
+    have h := colBits_lt adj j i
+    rw [colBits]
+    refine Nat.or_lt_two_pow (lt_of_lt_of_le h (Nat.pow_le_pow_right (by norm_num) (by omega))) ?_
+    split
+    · rw [Nat.shiftLeft_eq, one_mul]
+      exact Nat.pow_lt_pow_right (by norm_num) (by omega)
+    · positivity
+
+/-- `codeOfAdj` as a loop over the columns, from the last down to the first.  Column `j` occupies
+the bits from `j.choose 2` up, and the next column starts `j` bits higher, so the accumulated
+prefix only ever has to be shifted by `j`. -/
+def codeAux (adj : ℕ → ℕ → Bool) : ℕ → ℕ → ℕ
+  | 0, acc => acc
+  | j + 1, acc => codeAux adj j (acc <<< j ||| colBits adj j j)
+
+/-- `colBits`, prepended to `acc` most significant bit first: no shift, one multiply per bit. -/
+def colMul (adj : ℕ → ℕ → Bool) (j : ℕ) : ℕ → ℕ → ℕ
+  | 0, acc => acc
+  | i + 1, acc => colMul adj j i (2 * acc + (if adj i j then 1 else 0))
+
+theorem colMul_eq (adj : ℕ → ℕ → Bool) (j : ℕ) :
+    ∀ (i acc : ℕ), colMul adj j i acc = acc * 2 ^ i + colBits adj j i
+  | 0, acc => by simp [colMul, colBits]
+  | i + 1, acc => by
+    rw [colMul, colMul_eq adj j i, colBits]
+    by_cases hb : adj i j
+    · rw [if_pos hb, if_pos hb, Nat.shiftLeft_eq, one_mul,
+        Nat.or_two_pow_eq_add_of_lt (colBits_lt adj j i)]
+      ring
+    · rw [if_neg hb, if_neg hb, Nat.or_zero]
+      ring
+
+@[inherit_doc colMul]
+def codeMul (adj : ℕ → ℕ → Bool) : ℕ → ℕ → ℕ
+  | 0, acc => acc
+  | j + 1, acc => codeMul adj j (colMul adj j j acc)
+
+theorem codeMul_eq (adj : ℕ → ℕ → Bool) : ∀ (n acc : ℕ), codeMul adj n acc = codeAux adj n acc
+  | 0, _ => rfl
+  | n + 1, acc => by
+    rw [codeMul, codeAux, codeMul_eq adj n, colMul_eq]
+    congr 1
+    rw [Nat.shiftLeft_eq, Nat.mul_comm acc (2 ^ n),
+      Nat.two_pow_add_eq_or_of_lt (colBits_lt adj n n) acc]
+
+@[inherit_doc codeAux]
+def codeOfAdjFast (n : ℕ) (adj : ℕ → ℕ → Bool) : ℕ := codeMul adj n 0
+
+/-- Folding the last column of `pairsBelow (n+1)` into `c` sets exactly the bits of `colBits`,
+shifted up to where column `n` starts. -/
+theorem foldl_range_colBits (adj : ℕ → ℕ → Bool) (n : ℕ) :
+    ∀ k, k ≤ n → ∀ c,
+      (List.range k).foldl (fun c i ↦ if adj i n then c ||| 2 ^ pairIdx i n else c) c
+        = c ||| colBits adj n k <<< n.choose 2 := by
+  intro k
+  induction k with
+  | zero => intro _ c; simp [colBits]
+  | succ k ih =>
+    intro hk c
+    have hkn : k < n := hk
+    rw [List.range_succ, List.foldl_append, ih (Nat.le_of_lt hkn) c]
+    simp only [List.foldl_cons, List.foldl_nil, colBits, shiftLeft_or]
+    have hp : pairIdx k n = n.choose 2 + k := by simp [pairIdx, hkn]
+    by_cases h : adj k n
+    · simp only [h, if_true, hp, Nat.or_assoc, Nat.shiftLeft_eq]
+      rw [one_mul, ← pow_add, Nat.add_comm k]
+    · simp [h]
+
+/-- The pairs of `n + 1` are the pairs of `n` followed by the last column. -/
+theorem pairsBelow_succ (n : ℕ) :
+    pairsBelow (n + 1) = pairsBelow n ++ (List.range n).map fun i ↦ (i, n) := by
+  simp [pairsBelow, List.range_succ]
+
+theorem codeOfAdj_succ (n : ℕ) (adj : ℕ → ℕ → Bool) :
+    codeOfAdj (n + 1) adj = codeOfAdj n adj ||| colBits adj n n <<< n.choose 2 := by
+  rw [codeOfAdj, codeOfAdj, pairsBelow_succ, List.foldl_append, List.foldl_map]
+  exact foldl_range_colBits adj n n le_rfl _
+
+theorem codeAux_eq (adj : ℕ → ℕ → Bool) :
+    ∀ (n acc : ℕ), codeAux adj n acc = acc <<< n.choose 2 ||| codeOfAdj n adj := by
+  intro n
+  induction n with
+  | zero => intro acc; simp [codeAux, codeOfAdj, pairsBelow]
+  | succ n ih =>
+    intro acc
+    rw [codeAux, ih, codeOfAdj_succ, shiftLeft_or, Nat.choose_succ_succ, Nat.choose_one_right,
+      ← Nat.shiftLeft_add, Nat.or_assoc, Nat.or_comm (codeOfAdj n adj)]
+
+theorem codeOfAdjFast_eq (n : ℕ) (adj : ℕ → ℕ → Bool) :
+    codeOfAdjFast n adj = codeOfAdj n adj := by
+  simp [codeOfAdjFast, codeMul_eq, codeAux_eq]
+
+@[csimp] theorem codeOfAdj_eq_codeOfAdjFast : @codeOfAdj = @codeOfAdjFast :=
+  funext fun n ↦ funext fun adj ↦ (codeOfAdjFast_eq n adj).symm
 
 /-- The code of a graph on `Fin n`. -/
 def codeOf (n : ℕ) (adj : Fin n → Fin n → Bool) : ℕ := codeOfAdj n (oracleOfFin n adj)
@@ -224,6 +360,24 @@ def canonCode (n : ℕ) (adj : Fin n → Fin n → Bool) : ℕ := codeOfAdj n (c
 
 theorem canonCode_eq (n : ℕ) (adj : Fin n → Fin n → Bool) :
     canonCode n adj = codeOf n (canonAdj n adj) := rfl
+
+/-- What `canonCode` runs: the certificate the search has already built.
+
+`canonMatrix` is the right thing to *say* — a matrix, indexed by `Fin n`, whose adjacency is the
+canonical form — but a query of it goes through the `Equiv.Perm` that `canonPerm` wraps the
+canonical labelling in, and the code reads `n.choose 2` of them.  The search's own output is that
+same matrix, packed a row of bits to a word, and `canonical_get` says so: reading it is one array
+index and a shift, `canonPerm` and its `O(n)` permutation check never run, and neither does the
+`isPermArray` that `canonicalLabellingOfOracle` guards the labelling with. -/
+def canonCodeFast (n : ℕ) (adj : Fin n → Fin n → Bool) : ℕ :=
+  codeOfAdj n (certGet n (canonical (Graph.ofOracle n (oracleOfFin n adj))).cert)
+
+@[csimp] theorem canonCode_eq_canonCodeFast : @canonCode = @canonCodeFast := by
+  funext n adj
+  simp only [canonCode, canonCodeFast]
+  refine codeOfAdj_congr fun a b ha hb ↦ ?_
+  rw [AdjMatrix.get_eq _ ha hb, canonMatrix_adj, canonAdj_eq_oracle labellingIsPerm,
+    canonical_get _ _ ha hb, labelling, canonicalLabellingOfOracle_eq]
 
 /-- **Canonicalisation is idempotent.**  Immediate from invariance: the canonical form is a
 relabelling of the original, and relabelling does not change the canonical form. -/
@@ -806,6 +960,41 @@ theorem permMask_mul {n : ℕ} (σ τ : Equiv.Perm (Fin n)) (s : ℕ) :
     rw [testBit_permMask _ _ hk, testBit_permMask _ _ (σ ⟨k, hk⟩).2, testBit_permMask _ _ hk]
     rfl
 
+/-- The mask that collects the bits of `s` at the positions listed in `p`: bit `k` of the result
+is bit `p[k]` of `s`.  This is how `permMask` is computed (`permMask_eq_gatherMask`): one pass
+that carries the running power of two along, rather than `rowMask`'s `List.range` and `2 ^ i`, and
+with the permutation read out once instead of applied at every bit. -/
+def gatherMask (s : ℕ) : List ℕ → ℕ
+  | [] => 0
+  | k :: t => (if s.testBit k then 1 else 0) + 2 * gatherMask s t
+
+theorem gatherMask_lt (s : ℕ) : ∀ p : List ℕ, gatherMask s p < 2 ^ p.length
+  | [] => by simp [gatherMask]
+  | a :: t => by
+    have := gatherMask_lt s t
+    rw [gatherMask, List.length_cons, pow_succ]
+    split <;> omega
+
+theorem testBit_gatherMask {s : ℕ} : ∀ {p : List ℕ} {k : ℕ} (_ : k < p.length),
+    (gatherMask s p).testBit k = s.testBit p[k]
+  | a :: t, 0, _ => by
+    rw [gatherMask, Nat.testBit_zero]
+    rcases h : s.testBit a with _ | _ <;>
+      simp [h, Nat.mul_mod_right, Nat.add_mul_mod_self_left]
+  | a :: t, k + 1, hk => by
+    rw [gatherMask, Nat.testBit_succ,
+      show ((if s.testBit a then 1 else 0) + 2 * gatherMask s t) / 2 = gatherMask s t from by
+        split <;> omega]
+    exact testBit_gatherMask (by simpa using hk)
+
+theorem permMask_eq_gatherMask {n : ℕ} (σ : Equiv.Perm (Fin n)) (s : ℕ) :
+    permMask n σ s = gatherMask s ((List.finRange n).map fun k ↦ (σ k).1) := by
+  refine eq_of_testBit_lt (permMask_lt _ _ _)
+    (by simpa only [List.length_map, List.length_finRange] using
+      gatherMask_lt s ((List.finRange n).map fun k ↦ (σ k).1)) fun k hk ↦ ?_
+  rw [testBit_permMask _ _ hk, testBit_gatherMask (by simpa using hk)]
+  simp
+
 /-! ## The automorphism group -/
 
 /-- The automorphisms of a graph on `Fin n`, as a `Finset`. -/
@@ -880,6 +1069,24 @@ theorem autoPerms_mem {n : ℕ} {adj : Fin n → Fin n → Bool} {σ : Equiv.Per
   simp only [autoPerms, List.mem_filter, decide_eq_true_eq] at h
   exact mem_autGroup.2 h.2
 
+/-- The same check as a pair of list loops.  `decide (∀ i j : Fin n, …)` goes through
+`Fintype.decidableForallFintype`, which builds `Finset.univ` once for the outer quantifier and
+again for each value of the inner one; on the six-vertex enumeration that search for `univ` costs
+more than every adjacency query it then makes. -/
+def autoPermsFast (n : ℕ) (adj : Fin n → Fin n → Bool) : List (Equiv.Perm (Fin n)) :=
+  let vs := List.finRange n
+  let gens := ((canonical (Graph.ofOracle n (oracleOfFin n adj))).autos.toList.map
+    fun a ↦ permOfArrays n a (invArray n a))
+  (gens ++ gens.map (·⁻¹)).filter fun σ ↦
+    vs.all fun i ↦ let si := σ i; vs.all fun j ↦ adj si (σ j) == adj i j
+
+@[csimp] theorem autoPerms_eq_autoPermsFast : @autoPerms = @autoPermsFast := by
+  funext n adj
+  simp only [autoPerms, autoPermsFast]
+  refine List.filter_congr fun σ _ ↦ ?_
+  rw [Bool.eq_iff_iff, decide_eq_true_eq]
+  simp [List.all_eq_true]
+
 /-! ## Orbit-reduced masks -/
 
 /-- The neighbourhoods to try for the new vertex: those that no discovered automorphism makes
@@ -905,13 +1112,57 @@ theorem exists_mem_symMasks {n c s : ℕ} (hs : s < 2 ^ n) :
   refine O.min'_le _ ((hOmem _).2 ⟨σ₀ * σ, mul_mem_autGroup hσ₀ (autoPerms_mem hσ), ?_⟩)
   rw [← permMask_mul, ht]
 
+/-- What `symMasks` runs: the automorphisms are read out into lists of naturals once, and the
+`2 ^ n` masks are then tested against those.  Written out rather than left to the elaborator
+because the read-out is loop-invariant and Lean does not hoist it. -/
+def symMasksFast (n c : ℕ) : List ℕ :=
+  let ps := (autoPerms n (graphOfCode n c).Adj).map fun σ ↦ (List.finRange n).map fun k ↦ (σ k).1
+  (List.range (2 ^ n)).filter fun s ↦ ps.all fun p ↦ decide (s ≤ gatherMask s p)
+
+@[csimp] theorem symMasks_eq_symMasksFast : @symMasks = @symMasksFast := by
+  funext n c
+  refine List.filter_congr fun s _ ↦ ?_
+  simp only [List.all_map, Function.comp_def, permMask_eq_gatherMask]
+
 /-! ## Degrees -/
 
 /-- The degree of `i`. -/
 def deg {n : ℕ} (adj : Fin n → Fin n → Bool) (i : Fin n) : ℕ := ∑ j, if adj i j then 1 else 0
 
+/-- The same count as a list scan.  `redMasksFast` takes every degree of the graph it is
+extending, and a `Finset` sum builds `univ` and folds a `Multiset` over it for each one. -/
+def degFast {n : ℕ} (adj : Fin n → Fin n → Bool) (i : Fin n) : ℕ :=
+  (List.finRange n).countP (adj i)
+
+@[csimp] theorem deg_eq_degFast : @deg = @degFast := by
+  funext n adj i
+  have key : ∀ l : List (Fin n),
+      (l.map fun j ↦ if adj i j then 1 else 0).sum = l.countP (adj i) := by
+    intro l
+    induction l with
+    | nil => rfl
+    | cons a t ih => by_cases h : adj i a <;> simp [h, ih, Nat.add_comm]
+  rw [deg, Finset.sum_eq_multiset_sum,
+    show (Finset.univ : Finset (Fin n)).val = ↑(List.finRange n) from rfl]
+  exact key _
+
 /-- The number of set bits of `s` below `n`. -/
 def maskCard (n s : ℕ) : ℕ := ∑ i : Fin n, if s.testBit i.1 then 1 else 0
+
+/-- The same count as a recursion.  A `Finset` sum builds `univ` and folds a `Multiset` over it,
+which for a nine-bit mask is all of the cost. -/
+def maskCardFast (n s : ℕ) : ℕ :=
+  match n with
+  | 0 => 0
+  | k + 1 => maskCardFast k s + (if s.testBit k then 1 else 0)
+
+@[csimp] theorem maskCard_eq_maskCardFast : @maskCard = @maskCardFast := by
+  funext n s
+  induction n with
+  | zero => rfl
+  | succ k ih =>
+    rw [show maskCard (k + 1) s = maskCard k s + (if s.testBit k then 1 else 0) from
+      Fin.sum_univ_castSucc _, ih, maskCardFast]
 
 theorem deg_perm {n : ℕ} (adj : Fin n → Fin n → Bool) (σ : Equiv.Perm (Fin n)) (i : Fin n) :
     deg (fun a b ↦ adj (σ a) (σ b)) i = deg adj (σ i) :=
@@ -998,6 +1249,23 @@ theorem redMasks_complete : MasksComplete redMasks := by
   · rw [canonCode_extendCode_permMask (canonCode_lt n adj') τ hτ, canonCode_extend adjπ hsπ hlπ,
       canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (A := adjπ) (B := adj) π fun _ _ ↦ rfl]
 
+/-- What `redMasks` runs.  The degrees of the graph being extended do not depend on the mask, and
+`maskCard n s` does not depend on the vertex `minDegOk` is looking at; written as `redMasks` is,
+both are recomputed inside the loop, and the degrees — a `Finset` sum each — are two thirds of the
+cost of a level. -/
+def redMasksFast (n c : ℕ) : List ℕ :=
+  let ds := (List.finRange n).map fun i ↦ (deg (graphOfCode n c).Adj i, i.1)
+  (symMasks n c).filter fun s ↦
+    let m := maskCard n s
+    ds.all fun d ↦ decide (m ≤ d.1 + (if s.testBit d.2 then 1 else 0))
+
+@[csimp] theorem redMasks_eq_redMasksFast : @redMasks = @redMasksFast := by
+  funext n c
+  refine List.filter_congr fun s _ ↦ ?_
+  rw [minDegOk, Bool.eq_iff_iff, decide_eq_true_eq]
+  simp only [List.all_map, Function.comp_def, List.all_eq_true, List.mem_finRange,
+    decide_eq_true_eq, forall_const]
+
 theorem symMasks_complete : MasksComplete symMasks := fun n adj hs hl ↦ by
   obtain ⟨τ, hτ, hmem⟩ := exists_mem_symMasks (c := canonCode n (restrict adj)) (lastMask_lt n adj)
   exact ⟨restrict adj, fun _ _ ↦ hs _ _, fun _ ↦ hl _, permMask n τ (lastMask n adj), hmem, by
@@ -1056,9 +1324,9 @@ theorem enumerateIsoFast_eq (n : ℕ) : enumerateIsoFast n = enumerateIso n := b
 /-! ## The sweep is the specification, not the implementation
 
 `enumCodes` reads well and is what every proof above is stated about, but *running* it costs
-`2 ^ (n choose 2)` canonical labellings — 889 ms at `n = 6`, a minute at `n = 7`.  Since the
+`2 ^ (n choose 2)` canonical labellings — 663 ms at `n = 6`, a minute at `n = 7`.  Since the
 extension enumerator computes the same list, the compiler may as well use that one, and then a
-`native_decide` about `enumerate n` pays 15 ms instead.
+`native_decide` about `enumerate n` pays 8 ms instead.
 
 Nothing in the trusted path changes: the three equations below are ordinary proofs, and the kernel
 still sees each `enumCodes`, `enumerate`, `enumerateIso` as its own definition.  What `@[csimp]`

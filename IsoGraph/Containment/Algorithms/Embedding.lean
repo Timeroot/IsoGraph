@@ -83,37 +83,62 @@ namespace CGraph
 /-! ## A search order for the vertices of the pattern -/
 
 /-- How much a vertex is worth taking next: first the number of neighbours already taken, then the
-degree.  Packed into one natural number so that it can be compared with `<`. -/
-private def orderKey (H : CGraph) (acc : List H.V) (v : H.V) : ℕ :=
-  (acc.countP fun u ↦ H.Adj v u) * (FinEnum.card H.V + 1) + H.toSimple.degree v
+degree.  Packed into one natural number so that it can be compared with `<`.
+
+The vertex list `vs` and `nn = card H.V + 1` are passed in rather than read off `H`, and the
+degree is counted along `vs` rather than taken as `H.toSimple.degree`.  This is evaluated `O(n²)`
+times per call of `searchOrder`, and the `Finset` degree — which builds `univ`, filters it and
+counts the result — was three times the cost of the `countP` on its own. -/
+private def orderKey (H : CGraph) (vs : List H.V) (nn : ℕ) (acc : List H.V) (v : H.V) : ℕ :=
+  (acc.countP fun u ↦ H.Adj v u) * nn + vs.countP (H.Adj v)
+
+/-- The entry of `b :: rest` with the highest `orderKey`, ties going to the earliest.  The
+incumbent's key is carried along rather than recomputed at every step, which halves the number of
+keys the greedy pass evaluates. -/
+private def bestKey (H : CGraph) (vs : List H.V) (nn : ℕ) (acc : List H.V) :
+    H.V → ℕ → List H.V → H.V
+  | b, _, [] => b
+  | b, kb, u :: rest =>
+    let ku := orderKey H vs nn acc u
+    if kb < ku then bestKey H vs nn acc u ku rest else bestKey H vs nn acc b kb rest
 
 /-- Greedily take the vertex of highest `orderKey`, `n` times. -/
-private def searchOrderAux (H : CGraph) : ℕ → List H.V → List H.V → List H.V
+private def searchOrderAux (H : CGraph) (vs : List H.V) (nn : ℕ) :
+    ℕ → List H.V → List H.V → List H.V
   | 0, _, acc => acc.reverse
   | _ + 1, [], acc => acc.reverse
   | n + 1, v :: rest, acc =>
-    let best := rest.foldl (fun b u ↦ if orderKey H acc b < orderKey H acc u then u else b) v
-    searchOrderAux H n ((v :: rest).erase best) (best :: acc)
-
-private def rawOrder (H : CGraph) (hs : List H.V) : List H.V := searchOrderAux H hs.length hs []
+    let best := bestKey H vs nn acc v (orderKey H vs nn acc v) rest
+    searchOrderAux H vs nn n ((v :: rest).erase best) (best :: acc)
 
 /-- The order in which the search assigns the vertices of `H`.  The greedy heuristic is checked at
 run time rather than reasoned about: if it fails to produce a duplicate-free list of all the
-vertices — which it will not — the roster is used instead. -/
+vertices — which it will not — the roster is used instead.
+
+The heuristic's output is `let`-bound, and the coverage test is a `List.all` over the enumeration
+rather than the `Fintype` `∀`.  Both matter: written as three occurrences of the same call, with
+one of them under a binder, the check re-ran the whole greedy pass once per vertex, which at order
+six cost a factor of twenty-five. -/
 def searchOrder (H : CGraph) (hs : List H.V) : List H.V :=
-  if (rawOrder H hs).Nodup ∧ ∀ x : H.V, x ∈ rawOrder H hs then rawOrder H hs else hs.dedup
+  let vs := FinEnum.toList H.V
+  let raw := searchOrderAux H vs (FinEnum.card H.V + 1) hs.length hs []
+  if decide raw.Nodup && vs.all (fun x ↦ raw.contains x) then raw else hs.dedup
 
 theorem searchOrder_nodup (H : CGraph) (hs : List H.V) : (searchOrder H hs).Nodup := by
-  rw [searchOrder]
+  simp only [searchOrder]
   split
-  · rename_i h; exact h.1
+  · rename_i h
+    rw [Bool.and_eq_true] at h
+    exact of_decide_eq_true h.1
   · exact hs.nodup_dedup
 
 theorem mem_searchOrder (H : CGraph) {hs : List H.V} (hmem : ∀ x, x ∈ hs) (x : H.V) :
     x ∈ searchOrder H hs := by
-  rw [searchOrder]
+  simp only [searchOrder]
   split
-  · rename_i h; exact h.2 x
+  · rename_i h
+    rw [Bool.and_eq_true, List.all_eq_true] at h
+    exact List.contains_iff_mem.mp (h.2 x (H.mem_toList x))
   · exact List.mem_dedup.mpr (hmem x)
 
 /-! ## The one thing the two searches disagree about -/
@@ -225,13 +250,16 @@ def tailCount : ℕ → List (H.V × H.V) → H.V → ℕ
     | x :: _ => tailCount fuel pairs x + 1
     | [] => 0
 
-/-- What the search is looking for: a consistent assignment that also respects degrees, the
-symmetry-breaking order, and the room that order needs above each image.  None of those is local
-to a pair, which is why they are stated here rather than in `compat`; `mem_candList` projects them
-back out for use as a filter.  `n` is the number of vertices of `G`. -/
+/-- What the search is looking for: a consistent assignment that also respects the
+symmetry-breaking order and the room that order needs above each image.  Neither is local to a
+pair, which is why they are stated here rather than in `compat`; `mem_candList` projects them back
+out for use as a filter.  `n` is the number of vertices of `G`.
+
+The degree bound the candidate list also filters on is *not* here, though it is a necessary
+condition too: a complete consistent assignment satisfies it whether it is tested or not
+(`degree_le_of_validAsg`), and a `Finset` degree per assigned vertex per leaf is not cheap. -/
 def goalAsg (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (asg : List (H.V × G.V)) : Bool :=
   validAsg H G ind asg &&
-    asg.all (fun p ↦ decide (H.toSimple.degree p.1 ≤ G.toSimple.degree p.2)) &&
     sortedAsg H G rank pairs asg &&
     asg.all fun p ↦ decide (rank p.2 + tailCount H pairs.length pairs p.1 < n)
 
@@ -266,7 +294,12 @@ search calls it once per already-placed vertex per candidate per node. -/
 structure Row where
   /-- The vertex. -/
   vert : G.V
-  /-- Its degree. -/
+  /-- An upper bound for its degree: how many times a neighbour of it is listed in `gs`, which is
+  the degree exactly when `gs` lists every vertex once.  The searches only ever ask whether the
+  degree is *large enough* for the vertex being placed, so an overestimate is sound; and the count
+  is the length of `nbrs`, which is already being built, where `SimpleGraph.degree` builds
+  `Finset.univ` and filters it — fifty times dearer on a six-vertex graph, and this runs once per
+  vertex per search. -/
   deg : ℕ
   /-- Its neighbours. -/
   nbrs : List G.V
@@ -276,7 +309,8 @@ structure Row where
 
 /-- The row of a vertex, relative to a list `gs` of all the vertices. -/
 def row (gs : List G.V) (v : G.V) : Row G :=
-  ⟨v, G.toSimple.degree v, gs.filter (G.Adj v), gs.idxOf v⟩
+  let nbrs := gs.filter (G.Adj v)
+  ⟨v, nbrs.length, nbrs, gs.idxOf v⟩
 
 theorem row_nbrs_contains {gs : List G.V} (hgs : ∀ v, v ∈ gs) (v u : G.V) :
     (row G gs v).nbrs.contains u = G.Adj v u := by
@@ -285,15 +319,28 @@ theorem row_nbrs_contains {gs : List G.V} (hgs : ∀ v, v ∈ gs) (v u : G.V) :
   rw [List.mem_filter]
   exact ⟨fun h ↦ h.2, fun h ↦ ⟨hgs u, h⟩⟩
 
+/-- **The tabulated degree is an upper bound for the real one**, which is the direction the degree
+prune needs: a vertex offered as an image has `Row.deg` at least the degree asked of it. -/
+theorem degree_le_row_deg {gs : List G.V} (hgs : ∀ v, v ∈ gs) (v : G.V) :
+    G.toSimple.degree v ≤ (row G gs v).deg := by
+  refine le_trans (Finset.card_le_card ?_) (List.toFinset_card_le _)
+  intro u hu
+  rw [SimpleGraph.mem_neighborFinset, toSimple_adj] at hu
+  exact List.mem_toFinset.mpr (List.mem_filter.mpr ⟨hgs u, hu⟩)
+
 /-- Every vertex of `G` as a row. -/
 def rowList (gs : List G.V) : List (Row G) := gs.map (row G gs)
+
+/-- The adjacency table built from a row list already in hand.  Taking the rows as an argument is
+what lets `searchAsgFast` build them once and use them both as the candidate pool and here;
+building them twice is a quarter of what a small search costs. -/
+def adjTableOf (rs : List (Row G)) (gs : List G.V) : List (G.V × List (Row G)) :=
+  gs.map fun v ↦ (v, rs.filter fun p ↦ G.Adj v p.vert)
 
 /-- Every vertex of `G` paired with the rows of its neighbours: the adjacency list, tabulated
 once.  The search never scans `G` for the neighbours of a vertex, and — for a sparse `G` — never
 looks at more than a handful of candidates at a node. -/
-def adjTable (gs : List G.V) : List (G.V × List (Row G)) :=
-  let rs := rowList G gs
-  gs.map fun v ↦ (v, rs.filter fun p ↦ G.Adj v p.vert)
+def adjTable (gs : List G.V) : List (G.V × List (Row G)) := adjTableOf G (rowList G gs) gs
 
 /-- The row list of `adjTable` belonging to `u`. -/
 def adjRow (u : G.V) : List (G.V × List (Row G)) → Option (List (Row G))
@@ -312,7 +359,7 @@ theorem adjRow_map {f : G.V → List (Row G)} {gs : List G.V} {u : G.V}
 
 theorem mem_adjRow {gs : List G.V} (hgs : ∀ v, v ∈ gs) {u b : G.V} {l : List (Row G)}
     (h : adjRow G u (adjTable G gs) = some l) (hb : G.Adj u b = true) : row G gs b ∈ l := by
-  rw [adjTable] at h
+  rw [adjTable, adjTableOf] at h
   rw [adjRow_map G h]
   exact List.mem_filter.mpr ⟨List.mem_map.mpr ⟨b, hgs b, rfl⟩, hb⟩
 
@@ -352,7 +399,8 @@ theorem candKeep_row {gs : List G.V} (hgs : ∀ v, v ∈ gs) {a : H.V}
     (hcap : gs.idxOf b + tl < n) :
     candKeep H G ind a pre da lo hi tl n (row G gs b) = true := by
   simp only [candKeep, Bool.and_eq_true]
-  refine ⟨⟨⟨⟨?_, by simpa [row] using hd⟩, ?_⟩, ?_⟩, by simpa [row] using hcap⟩
+  refine ⟨⟨⟨⟨?_, decide_eq_true (hd.trans (degree_le_row_deg G hgs b))⟩, ?_⟩, ?_⟩,
+    by simpa [row] using hcap⟩
   · rw [List.all_eq_true] at hc ⊢
     intro q hq
     rw [row_nbrs_contains G hgs]
@@ -399,72 +447,8 @@ def candList (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (rs : Li
   let lo := symLo H G rank pairs a pre
   let hi := symHi H G rank pairs a pre
   ((pool.dropWhile fun p ↦ decide (p.rk < lo.foldl max 0)).filter
-    (candKeep H G ind a pre (H.toSimple.degree a) lo hi
+    (candKeep H G ind a pre (H.deg a) lo hi
       (tailCount H pairs.length pairs a) n)).map Row.vert
-
-/-- **The pruning is sound**: a vertex that occurs in a solution is offered as a candidate. -/
-theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ}
-    (hrank : ∀ v, rank v = gs.idxOf v)
-    (n : ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × G.V))
-    (b : G.V) (l : List (H.V × G.V))
-    (h : goalAsg H G ind rank n pairs (l ++ (a, b) :: pre) = true) :
-    b ∈ candList H G ind rank n pairs (rowList G gs) (adjTable G gs) a pre := by
-  simp only [goalAsg, Bool.and_eq_true] at h
-  obtain ⟨⟨⟨hv, hd⟩, hsort⟩, hcap⟩ := h
-  have hab : (a, b) ∈ l ++ (a, b) :: pre := by simp
-  have hpre : ∀ q ∈ pre, q ∈ l ++ (a, b) :: pre := fun q hq ↦ by simp [hq]
-  have hsym : ∀ (x : H.V) (m : ℕ),
-      ((pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rank q.2) = some m →
-        ∃ q ∈ pre, q.1 = x ∧ rank q.2 = m := by
-    intro x m hx
-    cases hf : pre.find? (fun q ↦ decide (q.1 = x)) with
-    | none => rw [hf] at hx; exact absurd hx (by simp)
-    | some q =>
-      rw [hf] at hx
-      have hq1 := List.find?_some hf
-      simp only [decide_eq_true_eq] at hq1
-      exact ⟨q, List.mem_of_find?_eq_some hf, hq1, Option.some.inj hx⟩
-  have hlo : ∀ m ∈ symLo H G rank pairs a pre, m ≤ rank b := by
-    intro m hm
-    obtain ⟨x, hx, hmx⟩ := List.mem_filterMap.mp hm
-    obtain ⟨q, hq, hq1, hqm⟩ := hsym x m hmx
-    rw [← hqm]
-    exact sortedAsg_le H G hsort (mem_symBefore H hx) (hpre q hq) hab hq1 rfl
-  have hhi : ∀ m ∈ symHi H G rank pairs a pre, rank b ≤ m := by
-    intro m hm
-    obtain ⟨x, hx, hmx⟩ := List.mem_filterMap.mp hm
-    obtain ⟨q, hq, hq1, hqm⟩ := hsym x m hmx
-    rw [← hqm]
-    exact sortedAsg_le H G hsort (mem_symAfter H hx) hab (hpre q hq) rfl hq1
-  have hcompat : pre.all (compat H G ind (a, b)) = true := by
-    have hv' := validAsg_of_append H G ind hv
-    rw [validAsg, Bool.and_eq_true] at hv'
-    exact hv'.1
-  have hdeg : H.toSimple.degree a ≤ G.toSimple.degree b := by
-    rw [List.all_eq_true] at hd
-    simpa using hd (a, b) (by simp)
-  have hrs : row G gs b ∈ rowList G gs := List.mem_map.mpr ⟨b, hgs b, rfl⟩
-  simp only [candList]
-  refine List.mem_map.mpr ⟨row G gs b, List.mem_filter.mpr ⟨mem_dropWhile ?_ ?_, ?_⟩, rfl⟩
-  · split
-    · next u hpv =>
-      obtain ⟨x, hx, hax⟩ := pivot_spec H G hpv
-      have hc := List.all_eq_true.mp hcompat (x, u) hx
-      rw [compat, Bool.and_eq_true] at hc
-      have hub : G.Adj u b = true := by
-        rw [G.symm u b]; exact adj_of_edgeOk hc.2 hax
-      cases hn : adjRow G u (adjTable G gs) with
-      | none => simpa only [hn, Option.getD_none] using hrs
-      | some m => simpa only [hn, Option.getD_some] using mem_adjRow G hgs hn hub
-    · exact hrs
-  · simp only [decide_eq_false_iff_not, Nat.not_lt, row]
-    exact foldl_max_le (Nat.zero_le _) fun m hm ↦ hrank b ▸ hlo m hm
-  · refine candKeep_row H G ind hgs hcompat hdeg (fun m hm ↦ hrank b ▸ hlo m hm)
-      (fun m hm ↦ hrank b ▸ hhi m hm) ?_
-    rw [List.all_eq_true] at hcap
-    have := hcap (a, b) hab
-    rw [decide_eq_true_eq] at this
-    exact hrank b ▸ this
 
 /-! ## Reading a map off a complete assignment -/
 
@@ -497,6 +481,20 @@ theorem mem_of_lookupV {r : List (H.V × G.V)} {x : H.V} {b : G.V}
     · rename_i he; subst he; simp only [Option.some_inj] at h; subst h; simp
     · exact List.mem_cons_of_mem _ (ih h)
 
+/-- With no repeated key, the lookup finds what was put in. -/
+theorem lookupV_eq_of_mem {r : List (H.V × G.V)} (hnd : (r.map Prod.fst).Nodup)
+    {p : H.V × G.V} (hp : p ∈ r) : lookupV H G p.1 r = some p.2 := by
+  induction r with
+  | nil => simp at hp
+  | cons q rest ih =>
+    rw [List.map_cons, List.nodup_cons] at hnd
+    rw [lookupV]
+    rcases List.mem_cons.mp hp with rfl | hp
+    · simp
+    · have hne : q.1 ≠ p.1 := fun h ↦ hnd.1 (h ▸ List.mem_map_of_mem hp)
+      rw [if_neg (Ne.symm hne)]
+      exact ih hnd.2 hp
+
 /-- The map on vertices read off a complete assignment. -/
 def asgFun (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod.fst) (x : H.V) : G.V :=
   (lookupV H G x r).get (lookupV_isSome H G r x (hcov x))
@@ -505,52 +503,163 @@ theorem asgFun_mem (r : List (H.V × G.V)) (hcov : ∀ x : H.V, x ∈ r.map Prod
     (x, asgFun H G r hcov x) ∈ r :=
   mem_of_lookupV H G (Option.some_get _).symm
 
+/-- With no repeated key, the function agrees with the assignment on the nose. -/
+theorem asgFun_eq_of_mem {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
+    (hnd : (r.map Prod.fst).Nodup) {p : H.V × G.V} (hp : p ∈ r) :
+    asgFun H G r hcov p.1 = p.2 :=
+  Option.some.inj ((Option.some_get _).trans (lookupV_eq_of_mem H G hnd hp))
+
+/-! ## What consistency alone already gives
+
+An assignment that is pairwise consistent is an embedding of whatever part of `H` it covers, and
+once it covers all of `H` that is all the search was looking for.  In particular it respects
+degrees — a vertex is sent somewhere with at least as many neighbours — which the search would
+otherwise have to test at every leaf, at the price of a `Finset` degree per assigned vertex. -/
+
+section
+
 variable {H G ind}
 
-variable {rank : G.V → ℕ} {n : ℕ} {pairs : List (H.V × H.V)}
+theorem validAsg_of_goalAsg {rank : G.V → ℕ} {n : ℕ} {pairs : List (H.V × H.V)}
+    {r : List (H.V × G.V)} (hg : goalAsg H G ind rank n pairs r = true) :
+    validAsg H G ind r = true := by
+  simp only [goalAsg, Bool.and_eq_true] at hg
+  exact hg.1.1
 
 theorem compat_asgFun {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hg : goalAsg H G ind rank n pairs r = true) {x y : H.V} (hxy : x ≠ y) :
+    (hv : validAsg H G ind r = true) {x y : H.V} (hxy : x ≠ y) :
     compat H G ind (x, asgFun H G r hcov x) (y, asgFun H G r hcov y) = true := by
-  simp only [goalAsg, Bool.and_eq_true] at hg
   have : Std.Symm fun p q : H.V × G.V ↦ compat H G ind p q = true :=
     ⟨fun _ _ h ↦ by rwa [compat_comm]⟩
-  exact ((validAsg_iff H G ind r).mp hg.1.1.1).forall (asgFun_mem H G r hcov x)
+  exact ((validAsg_iff H G ind r).mp hv).forall (asgFun_mem H G r hcov x)
     (asgFun_mem H G r hcov y) (by simp [hxy])
 
 /-- **The map is a homomorphism**, whichever relation is being searched for. -/
 theorem asgFun_map_adj {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hg : goalAsg H G ind rank n pairs r = true) {x y : H.V} (h : H.Adj x y = true) :
+    (hv : validAsg H G ind r = true) {x y : H.V} (h : H.Adj x y = true) :
     G.Adj (asgFun H G r hcov x) (asgFun H G r hcov y) = true := by
   have hxy : x ≠ y := by
     rintro rfl
     rw [show H.Adj x x = false from by simpa using H.loopless x] at h
     exact absurd h (by simp)
-  have hc := compat_asgFun (hcov := hcov) hg hxy
+  have hc := compat_asgFun (hcov := hcov) hv hxy
   rw [compat, Bool.and_eq_true] at hc
   exact adj_of_edgeOk hc.2 h
 
 /-- **And it reflects edges too**, when the search was the induced one. -/
 theorem asgFun_adj_map {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hg : goalAsg H G true rank n pairs r = true) {x y : H.V}
+    (hv : validAsg H G true r = true) {x y : H.V}
     (h : G.Adj (asgFun H G r hcov x) (asgFun H G r hcov y) = true) : H.Adj x y = true := by
   by_cases hxy : x = y
   · subst hxy
     rw [show G.Adj (asgFun H G r hcov x) (asgFun H G r hcov x) = false from
       by simpa using G.loopless _] at h
     exact absurd h (by simp)
-  · have hc := compat_asgFun (hcov := hcov) hg hxy
+  · have hc := compat_asgFun (hcov := hcov) hv hxy
     rw [compat, Bool.and_eq_true] at hc
     rw [eq_of_edgeOk hc.2]
     exact h
 
 theorem asgFun_injective {r : List (H.V × G.V)} {hcov : ∀ x : H.V, x ∈ r.map Prod.fst}
-    (hg : goalAsg H G ind rank n pairs r = true) : Function.Injective (asgFun H G r hcov) := by
+    (hv : validAsg H G ind r = true) : Function.Injective (asgFun H G r hcov) := by
   intro x y h
   by_contra hxy
-  have hc := compat_asgFun (hcov := hcov) hg hxy
+  have hc := compat_asgFun (hcov := hcov) hv hxy
   rw [compat, Bool.and_eq_true] at hc
   exact absurd h (by simpa using hc.1)
+
+/-- A vertex has no more neighbours than its image. -/
+theorem degree_le_of_map_adj {emb : H.V → G.V} (hinj : Function.Injective emb)
+    (hadj : ∀ {x y : H.V}, H.Adj x y = true → G.Adj (emb x) (emb y) = true) (x : H.V) :
+    H.toSimple.degree x ≤ G.toSimple.degree (emb x) := by
+  refine Finset.card_le_card_of_injOn emb ?_ ?_
+  · intro y hy
+    simp only [Finset.mem_coe, SimpleGraph.mem_neighborFinset] at hy ⊢
+    exact hadj hy
+  · intro a _ b _ hab; exact hinj hab
+
+/-- **A consistent assignment of every vertex respects degrees by itself.**  This is the degree
+prune, and it is a theorem rather than a test: the search never has to check it, and `goal` is
+free of it. -/
+theorem degree_le_of_validAsg {r : List (H.V × G.V)} (hv : validAsg H G ind r = true)
+    (hcov : ∀ x : H.V, x ∈ r.map Prod.fst) (hnd : (r.map Prod.fst).Nodup)
+    {a : H.V} {b : G.V} (hab : (a, b) ∈ r) :
+    H.toSimple.degree a ≤ G.toSimple.degree b := by
+  have h := degree_le_of_map_adj (emb := asgFun H G r hcov) (asgFun_injective hv)
+    (fun {_ _} hxy ↦ asgFun_map_adj hv hxy) a
+  rwa [asgFun_eq_of_mem H G (hcov := hcov) hnd hab] at h
+
+end
+
+/-- **The pruning is sound**: a vertex that occurs in a solution is offered as a candidate.  The
+degree test the candidate list applies is not part of `goalAsg`; what makes it sound is
+`degree_le_of_validAsg`, which needs to know that the solution assigns every vertex of `H` and
+each of them once — hence `hkcov` and `hknd`, which `Backtrack.dfs_eq_none_keys` supplies. -/
+theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ}
+    (hrank : ∀ v, rank v = gs.idxOf v)
+    (n : ℕ) (pairs : List (H.V × H.V)) {keys : List H.V} (hkcov : ∀ x : H.V, x ∈ keys)
+    (hknd : keys.Nodup) (a : H.V) (pre : List (H.V × G.V))
+    (b : G.V) (l : List (H.V × G.V))
+    (hk : (l ++ (a, b) :: pre).map Prod.fst = keys)
+    (h : goalAsg H G ind rank n pairs (l ++ (a, b) :: pre) = true) :
+    b ∈ candList H G ind rank n pairs (rowList G gs) (adjTable G gs) a pre := by
+  simp only [goalAsg, Bool.and_eq_true] at h
+  obtain ⟨⟨hv, hsort⟩, hcap⟩ := h
+  have hab : (a, b) ∈ l ++ (a, b) :: pre := by simp
+  have hpre : ∀ q ∈ pre, q ∈ l ++ (a, b) :: pre := fun q hq ↦ by simp [hq]
+  have hsym : ∀ (x : H.V) (m : ℕ),
+      ((pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rank q.2) = some m →
+        ∃ q ∈ pre, q.1 = x ∧ rank q.2 = m := by
+    intro x m hx
+    cases hf : pre.find? (fun q ↦ decide (q.1 = x)) with
+    | none => rw [hf] at hx; exact absurd hx (by simp)
+    | some q =>
+      rw [hf] at hx
+      have hq1 := List.find?_some hf
+      simp only [decide_eq_true_eq] at hq1
+      exact ⟨q, List.mem_of_find?_eq_some hf, hq1, Option.some.inj hx⟩
+  have hlo : ∀ m ∈ symLo H G rank pairs a pre, m ≤ rank b := by
+    intro m hm
+    obtain ⟨x, hx, hmx⟩ := List.mem_filterMap.mp hm
+    obtain ⟨q, hq, hq1, hqm⟩ := hsym x m hmx
+    rw [← hqm]
+    exact sortedAsg_le H G hsort (mem_symBefore H hx) (hpre q hq) hab hq1 rfl
+  have hhi : ∀ m ∈ symHi H G rank pairs a pre, rank b ≤ m := by
+    intro m hm
+    obtain ⟨x, hx, hmx⟩ := List.mem_filterMap.mp hm
+    obtain ⟨q, hq, hq1, hqm⟩ := hsym x m hmx
+    rw [← hqm]
+    exact sortedAsg_le H G hsort (mem_symAfter H hx) hab (hpre q hq) rfl hq1
+  have hcompat : pre.all (compat H G ind (a, b)) = true := by
+    have hv' := validAsg_of_append H G ind hv
+    rw [validAsg, Bool.and_eq_true] at hv'
+    exact hv'.1
+  have hdeg : H.deg a ≤ G.toSimple.degree b :=
+    degree_le_of_validAsg hv (fun x ↦ by rw [hk]; exact hkcov x) (by rw [hk]; exact hknd) hab
+  have hrs : row G gs b ∈ rowList G gs := List.mem_map.mpr ⟨b, hgs b, rfl⟩
+  simp only [candList]
+  refine List.mem_map.mpr ⟨row G gs b, List.mem_filter.mpr ⟨mem_dropWhile ?_ ?_, ?_⟩, rfl⟩
+  · split
+    · next u hpv =>
+      obtain ⟨x, hx, hax⟩ := pivot_spec H G hpv
+      have hc := List.all_eq_true.mp hcompat (x, u) hx
+      rw [compat, Bool.and_eq_true] at hc
+      have hub : G.Adj u b = true := by
+        rw [G.symm u b]; exact adj_of_edgeOk hc.2 hax
+      cases hn : adjRow G u (adjTable G gs) with
+      | none => simpa only [hn, Option.getD_none] using hrs
+      | some m => simpa only [hn, Option.getD_some] using mem_adjRow G hgs hn hub
+    · exact hrs
+  · simp only [decide_eq_false_iff_not, Nat.not_lt, row]
+    exact foldl_max_le (Nat.zero_le _) fun m hm ↦ hrank b ▸ hlo m hm
+  · refine candKeep_row H G ind hgs hcompat hdeg (fun m hm ↦ hrank b ▸ hlo m hm)
+      (fun m hm ↦ hrank b ▸ hhi m hm) ?_
+    rw [List.all_eq_true] at hcap
+    have := hcap (a, b) hab
+    rw [decide_eq_true_eq] at this
+    exact hrank b ▸ this
+
+variable {H G ind}
 
 /-! ## Symmetry breaking
 
@@ -630,6 +739,23 @@ def searchAsg (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :
       (searchOrder H rH.toList) []
   else none
 
+/-- What `searchAsg` runs.  Everything the two closures share is computed once — in particular the
+row list, which `adjTable` would otherwise build a second time, and the pattern's symmetry, which
+costs a `twinClasses` call.  Written out rather than left to the compiler: it shares subterms
+inside a basic block, but `adjTable`'s copy of the row list is behind a call. -/
+def searchAsgFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
+    let hs := searchOrder H rH.toList
+    let pairs := symPairs H hs
+    let gs := rG.toList
+    let rank := hostRank G rG
+    let rs := rowList G gs
+    Backtrack.dfs (candList H G ind rank gs.length pairs rs (adjTableOf G rs gs))
+      (goalAsg H G ind rank gs.length pairs) hs []
+  else none
+
+@[csimp] theorem searchAsg_eq_searchAsgFast : @searchAsg = @searchAsgFast := rfl
+
 variable {H G ind}
 
 theorem searchAsg_goal {rH : Roster H.V} {rG : Roster G.V} {r : List (H.V × G.V)}
@@ -655,16 +781,6 @@ What a caller has to supply to turn "the search came back empty" into "there is 
 `goalAsg_of_emb`: a genuine embedding, relabelled so that its classes are in order, passes every
 test the search applies.  The three tests that are not local to a pair are proved here once. -/
 
-/-- A vertex has no more neighbours than its image. -/
-theorem degree_le_of_map_adj {emb : H.V → G.V} (hinj : Function.Injective emb)
-    (hadj : ∀ {x y : H.V}, H.Adj x y = true → G.Adj (emb x) (emb y) = true) (x : H.V) :
-    H.toSimple.degree x ≤ G.toSimple.degree (emb x) := by
-  refine Finset.card_le_card_of_injOn emb ?_ ?_
-  · intro y hy
-    simp only [Finset.mem_coe, SimpleGraph.mem_neighborFinset] at hy ⊢
-    exact hadj hy
-  · intro a _ b _ hab; exact hinj hab
-
 /-- The room an ordered class needs: the images of the vertices after `x` in its class outrank
 `emb x` and are all distinct, so there are at least that many ranks above it. -/
 theorem rank_add_tailCount_lt {rank : G.V → ℕ} {n : ℕ} {pairs : List (H.V × H.V)}
@@ -685,33 +801,20 @@ theorem rank_add_tailCount_lt {rank : G.V → ℕ} {n : ℕ} {pairs : List (H.V 
       show rank (emb x) + (tailCount H fuel pairs y + 1) < n
       omega
 
-/-- **An embedding whose classes are in order really does satisfy the search's `goalAsg`**, degree
-condition and all. -/
+/-- **An embedding whose classes are in order really does satisfy the search's `goalAsg`.** -/
 theorem goalAsg_of_emb (ind : Bool) (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V))
     {emb : H.V → G.V} (hinj : Function.Injective emb)
     (hok : ∀ x y : H.V, x ≠ y → edgeOk ind (H.Adj x y) (G.Adj (emb x) (emb y)) = true)
     (hs : List H.V) (hnd : hs.Nodup) (hri : Function.Injective rank) (hrn : ∀ v, rank v < n)
     (hne : ∀ p ∈ pairs, p.1 ≠ p.2) (hsort : ∀ p ∈ pairs, rank (emb p.1) ≤ rank (emb p.2)) :
     goalAsg H G ind rank n pairs ((hs.map fun x ↦ (x, emb x)).reverse) = true := by
-  have hadj : ∀ {x y : H.V}, H.Adj x y = true → G.Adj (emb x) (emb y) = true := by
-    intro x y h
-    have hxy : x ≠ y := by
-      rintro rfl
-      rw [show H.Adj x x = false from by simpa using H.loopless x] at h
-      exact absurd h (by simp)
-    exact adj_of_edgeOk (hok x y hxy) h
   simp only [goalAsg, Bool.and_eq_true]
-  refine ⟨⟨⟨?_, ?_⟩, ?_⟩, ?_⟩
+  refine ⟨⟨?_, ?_⟩, ?_⟩
   · rw [validAsg_iff, List.pairwise_reverse, List.pairwise_map]
     refine hnd.imp ?_
     intro x y hxy
     rw [compat, Bool.and_eq_true]
     exact ⟨by simpa using fun h ↦ hxy (hinj h).symm, hok y x hxy.symm⟩
-  · rw [List.all_eq_true]
-    intro p hp
-    simp only [List.mem_reverse, List.mem_map] at hp
-    obtain ⟨x, _, rfl⟩ := hp
-    simpa using degree_le_of_map_adj hinj hadj x
   · rw [sortedAsg, List.all_eq_true]
     intro p hp
     rw [List.all_eq_true]

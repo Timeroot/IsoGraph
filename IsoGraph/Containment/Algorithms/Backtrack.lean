@@ -28,9 +28,11 @@ as it likes: dropping a candidate is only ever a *speed* question, never a corre
 long as that implication still goes through.
 
 The idiom this suggests, and the one both callers use, is to put every necessary condition into
-`goal` — including ones that are not local, like a degree bound — and then to have `cand` re-check
-the ones it can see.  `goal` is evaluated once per leaf, so the redundancy is free, and the
-soundness of the pruning becomes a projection out of `goal`.
+`goal` and then to have `cand` re-check the ones it can see, so that the soundness of the pruning
+becomes a projection out of `goal`.  A condition that is a *consequence* of the others need not go
+in: `dfs_eq_none_keys` hands the pruning the keys the solution assigns, which is enough to recover
+a global fact like "no vertex of the pattern has more neighbours than its image" from the local
+ones, and a test that would only ever have succeeded is one the leaf does not have to run.
 
 `Backtrack.Roster` is here too: the list of candidates has to come from somewhere, and a `Fintype`
 instance cannot computably produce one.
@@ -140,13 +142,19 @@ theorem keys_of_dfs_eq_some {todo : List α} {pre r : List (α × β)}
     obtain ⟨_, _, hb⟩ := List.exists_of_findSome?_eq_some h
     rw [ih hb]; simp
 
-/-- **Completeness**: if the search comes back empty then nothing satisfies `goal`.  The one thing
-asked of the pruning is `hcand`: a value that occurs in a solution is offered as a candidate. -/
-theorem dfs_eq_none
+/-- **Completeness**, with the keys of the solution in hand: if the search comes back empty then
+nothing satisfies `goal`.  The one thing asked of the pruning is `hcand`, and it may assume that
+the solution it is shown assigns exactly `keys` — which is what lets a condition like "no vertex
+of the pattern has more neighbours than its image" be available to the pruning without `goal`
+having to test it.  What is left to do and what has been done together make up `keys` at every
+step, and that is the invariant `hkeys` carries down the recursion. -/
+theorem dfs_eq_none_keys {keys : List α}
     (hcand : ∀ (a : α) (pre : List (α × β)) (b : β) (l : List (α × β)),
-      goal (l ++ (a, b) :: pre) = true → b ∈ cand a pre)
+      (l ++ (a, b) :: pre).map Prod.fst = keys →
+        goal (l ++ (a, b) :: pre) = true → b ∈ cand a pre)
     {todo : List α} {pre sol : List (α × β)} (h : dfs cand goal todo pre = none)
-    (hsol : sol.map Prod.fst = todo) : goal (sol.reverse ++ pre) = false := by
+    (hsol : sol.map Prod.fst = todo) (hkeys : todo.reverse ++ pre.map Prod.fst = keys) :
+    goal (sol.reverse ++ pre) = false := by
   induction todo generalizing pre sol with
   | nil =>
     obtain rfl : sol = [] := List.map_eq_nil_iff.mp hsol
@@ -164,10 +172,25 @@ theorem dfs_eq_none
       simp only [List.map_cons, List.cons.injEq] at hsol
       obtain ⟨rfl, hsol⟩ := hsol
       have hrw : ((a', b) :: sol).reverse ++ pre = sol.reverse ++ (a', b) :: pre := by simp
+      have hkeys' : todo.reverse ++ ((a', b) :: pre).map Prod.fst = keys := by
+        rw [← hkeys]; simp
+      have hk : (sol.reverse ++ (a', b) :: pre).map Prod.fst = keys := by
+        rw [← hkeys', List.map_append, List.map_reverse, hsol]
       rw [hrw]
       by_contra hg
       rw [Bool.not_eq_false] at hg
-      have hb : b ∈ cand a' pre := hcand a' pre b sol.reverse hg
-      exact absurd hg (by simp [ih (List.findSome?_eq_none_iff.mp h b hb) hsol])
+      have hb : b ∈ cand a' pre := hcand a' pre b sol.reverse hk hg
+      have hno := ih (List.findSome?_eq_none_iff.mp h b hb) hsol hkeys'
+      rw [hg] at hno
+      exact absurd hno (by simp)
+
+/-- **Completeness** for a pruning rule that has no use for what the rest of the solution
+assigns. -/
+theorem dfs_eq_none
+    (hcand : ∀ (a : α) (pre : List (α × β)) (b : β) (l : List (α × β)),
+      goal (l ++ (a, b) :: pre) = true → b ∈ cand a pre)
+    {todo : List α} {pre sol : List (α × β)} (h : dfs cand goal todo pre = none)
+    (hsol : sol.map Prod.fst = todo) : goal (sol.reverse ++ pre) = false :=
+  dfs_eq_none_keys (fun a pre b l _ hg ↦ hcand a pre b l hg) h hsol rfl
 
 end Backtrack

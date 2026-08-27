@@ -152,3 +152,11 @@ theorem replicate_getElem!_false {n w : Nat} : (Array.replicate n false)[w]! = f
   by_cases h : w < n
   · rw [getElem!_pos (Array.replicate n false) w (by simpa using h)]; simp
   · rw [getElem!_neg (Array.replicate n false) w (by simpa using h)]; rfl
+
+/-- Filtering a range only looks at the predicates below the bound.  `Array.filter_congr` asks for
+the two predicates to be equal as functions, which is more than a range ever needs. -/
+theorem filter_range_congr {n : Nat} {p q : Nat → Bool} (h : ∀ w, w < n → p w = q w) :
+    (Array.range n).filter p = (Array.range n).filter q := by
+  apply Array.toList_inj.mp
+  simp only [Array.toList_filter, Array.toList_range]
+  exact List.filter_congr fun w hw => h w (List.mem_range.mp hw)

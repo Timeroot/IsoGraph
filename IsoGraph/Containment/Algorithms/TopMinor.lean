@@ -777,7 +777,8 @@ theorem mem_candTop {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
       List.mem_filter.mpr ⟨List.mem_map.mpr ⟨u, hgs u, rfl⟩, ?_⟩, rfl⟩
     simp only [row, Bool.and_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true, List.contains_eq_mem,
       decide_eq_false_iff_not, decide_eq_true_eq]
-    exact ⟨⟨goalSym_degree hsym hbu, hnu⟩, foldl_max_le (Nat.zero_le _) hlo⟩
+    exact ⟨⟨(goalSym_degree hsym hbu).trans (degree_le_row_deg G hgs u), hnu⟩,
+      foldl_max_le (Nat.zero_le _) hlo⟩
   | route x y =>
     have hrun : (x, y, b) ∈ runs (l ++ (Task.route x y, b) :: pre) :=
       mem_runs (List.mem_append_right _ (List.mem_cons_self ..))

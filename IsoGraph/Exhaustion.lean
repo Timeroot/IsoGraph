@@ -28,7 +28,7 @@ pattern, and the pattern here is a triangle, a `C₆` or a `K₄`, so what costs
 
 Which used to be the whole story of what this module costs: it was forty seconds, most of it the
 six theorems that each rebuild `enumerateIso 6` — nothing is memoised across a `native_decide`.
-That enumeration is now 15 ms rather than 889, since `Enum/All.lean` redirects it onto the
+That enumeration is now 8 ms rather than 663, since `Enum/All.lean` redirects it onto the
 extension enumerator, so what a check here pays for is mostly the containment search in the
 statement itself, and the module costs about what elaborating it costs.  Before the library was
 built with `precompileModules` the same file took twenty-three minutes.

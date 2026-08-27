@@ -132,18 +132,12 @@ theorem ofOracle_congr {n : Nat} {f f' : Nat → Nat → Bool}
     Graph.ofOracle n f = Graph.ofOracle n f' := by
   have hrow : ∀ v : Fin n, (fun w : Fin n => f v.1 w.1) = (fun w : Fin n => f' v.1 w.1) := by
     intro v; funext w; exact h v.1 v.2 w.1 w.2
+  have hadj : (Array.ofFn (n := n) fun v : Fin n => Array.ofFn (n := n) fun w : Fin n => f v.1 w.1)
+      = Array.ofFn (n := n) fun v : Fin n => Array.ofFn (n := n) fun w : Fin n => f' v.1 w.1 := by
+    congr 1; funext v; rw [hrow v]
   rw [Graph.ofOracle, Graph.ofOracle]
   simp only [Graph.mk.injEq, true_and]
-  constructor
-  · congr 1; funext v; rw [hrow v]
-  · congr 1
-    funext v
-    refine Array.ext' ?_
-    simp only [Array.toList_filter]
-    refine List.filter_congr ?_
-    intro x hx
-    have hxn : x < n := by simpa using hx
-    rw [h v.1 v.2 x hxn]
+  exact ⟨hadj, by rw [hadj]⟩
 
 /-- `Reach` only looks at the oracle inside `{0, …, n-1}`. -/
 theorem reach_congr {n : Nat} {f f' : Nat → Nat → Bool}

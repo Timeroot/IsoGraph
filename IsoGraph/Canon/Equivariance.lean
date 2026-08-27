@@ -111,10 +111,14 @@ these three lemmas. -/
     (hw : w < n) : ((Graph.ofOracle n f).adj[v]!)[w]! = f v w := by
   simp [Graph.ofOracle, getElem!_pos, hv, hw]
 
-/-- A neighbour list of `Graph.ofOracle` is the row of the oracle, as a filtered range. -/
+/-- A neighbour list of `Graph.ofOracle` is the row of the oracle, as a filtered range.  It is
+read off the `adj` matrix rather than off `f`, so this is where that detour is discharged. -/
 theorem ofOracle_nbr (n : Nat) (f : Nat → Nat → Bool) (v : Nat) (hv : v < n) :
     (Graph.ofOracle n f).nbr[v]! = (Array.range n).filter (f v) := by
-  simp [Graph.ofOracle, getElem!_pos, hv]
+  simp only [Graph.ofOracle, Array.map_ofFn, getElem!_pos, Array.size_ofFn, hv, Array.getElem_ofFn,
+    Function.comp_apply]
+  exact filter_range_congr fun w hw =>
+    (getElem!_pos (Array.ofFn fun w : Fin n => f v w.1) w (by simpa using hw)).trans (by simp)
 
 /-- The neighbour lists of `Graph.ofOracle` are the rows of the oracle. -/
 theorem ofOracle_mem_nbr (n : Nat) (f : Nat → Nat → Bool) (v w : Nat) (hv : v < n) (hw : w < n) :
@@ -1178,16 +1182,32 @@ theorem countFrom_mem_touched {n : Nat} (f : Nat → Nat → Bool) {p : Part} (h
 Phase (2) of `refineStep` turns the touched vertices into the list of cells that have to be split.
 Its output has to be canonical in a stronger sense than phase (1)'s: not just the same *set* of
 cells in both runs, but the same *array*, since the step then processes them in order.  That is
-what the sort is for, and why `sortNats` goes through `List.mergeSort` rather than `Array.qsort` —
+what the sort is for, and why `sortNats` goes through a list sort rather than `Array.qsort` —
 `qsort` has no specification in this toolchain, and an unspecified order is exactly what cannot be
 tolerated here.  `sortNats_ext` is the punchline of the sorting half ("duplicate-free arrays with
 the same elements sort alike"), `collect_equiv` of the whole phase.
 -/
 
-/-- Sorting a `List` and sorting the `Array` of the same elements agree. -/
+/-- `sortNatList` is `List.insertionSort`, spelled out so that `Canon/Algorithm.lean` can stay
+free of Mathlib. -/
+theorem sortNatList_eq (l : List Nat) : sortNatList l = List.insertionSort (· ≤ ·) l := by
+  induction l with
+  | nil => rfl
+  | cons x xs ih =>
+    have hins : ∀ (x : Nat) (l : List Nat), insertNat x l = List.orderedInsert (· ≤ ·) x l := by
+      intro x l
+      induction l with
+      | nil => rfl
+      | cons y ys ih => simp [insertNat, List.orderedInsert, ih]
+    simp [sortNatList, List.insertionSort, ih, hins]
+
+/-- Sorting a `List` and sorting the `Array` of the same elements agree.  Stated against
+`List.mergeSort` because that is what the rest of the file reasons with; `sortNats` itself runs
+insertion sort, and the two agree because a sorted permutation is unique. -/
 @[simp] theorem sortNats_toList (a : Array Nat) :
     (sortNats a).toList = a.toList.mergeSort (fun x y => x ≤ y) := by
-  simp [sortNats]
+  simp [sortNats, sortNatList_eq,
+    List.mergeSort_eq_insertionSort (r := (· ≤ · : Nat → Nat → Prop))]
 
 theorem sortNats_perm (a : Array Nat) : (sortNats a).toList.Perm a.toList := by
   rw [sortNats_toList]

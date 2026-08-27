@@ -54,6 +54,20 @@ theorem consecPairs_ne {α : Type} :
     · exact fun hxy ↦ h.1 (List.mem_cons.mpr (Or.inl hxy))
     · exact consecPairs_ne h.2 p hp
 
+/-- A test that lets some entries through unconditionally is the test on the rest of the list.
+Worth doing when the exemption does not depend on the enclosing loops, as in `classOk`. -/
+theorem all_or_eq_all_filter {α : Type} (l : List α) (q p : α → Bool) :
+    (l.all fun z ↦ q z || p z) = (l.filter fun z ↦ !q z).all p := by
+  rw [Bool.eq_iff_iff]
+  simp only [List.all_eq_true, List.mem_filter, Bool.or_eq_true, Bool.not_eq_eq_eq_not,
+    Bool.not_true, and_imp]
+  constructor
+  · exact fun h z hz hq ↦ (h z hz).resolve_left (by simp [hq])
+  · intro h z hz
+    cases hq : q z
+    · exact Or.inr (h z hz hq)
+    · exact Or.inl rfl
+
 variable (H)
 
 /-- The vertices of `hs` that can take `x`'s place: those with the same neighbours as `x`, apart
@@ -68,6 +82,68 @@ def classOk (hs C : List H.V) : Bool :=
   (C.all fun x ↦ C.all fun y ↦ hs.all fun z ↦ C.contains z || (H.Adj x z == H.Adj y z)) &&
   (C.all fun x ↦ C.all fun y ↦ C.all fun z ↦ C.all fun w ↦
     decide (x = y) || decide (z = w) || (H.Adj x y == H.Adj z w))
+
+/-- The adjacencies between distinct vertices of `C`. -/
+def offVals (C : List H.V) : List Bool :=
+  C.flatMap fun x ↦ (C.filter fun y ↦ decide (x ≠ y)).map fun y ↦ H.Adj x y
+
+/-- What `classOk` runs.  The vertices outside the class are filtered out once rather than tested
+at every pair, and the `|C| ^ 4` loop — each off-diagonal adjacency equal to each other one — is
+replaced by the `|C| ^ 2` list of those adjacencies compared against its head.  Together they are
+three quarters of what `symPairs` costs on a small pattern. -/
+def classOkFast (hs C : List H.V) : Bool :=
+  let out := hs.filter fun z ↦ !C.contains z
+  let vals := offVals H C
+  decide C.Nodup &&
+  (C.all fun x ↦ C.all fun y ↦ out.all fun z ↦ H.Adj x z == H.Adj y z) &&
+  vals.all fun b ↦ b == vals.headD false
+
+section
+variable {H}
+
+theorem mem_offVals {C : List H.V} {b : Bool} :
+    b ∈ offVals H C ↔ ∃ x ∈ C, ∃ y ∈ C, x ≠ y ∧ H.Adj x y = b := by
+  simp only [offVals, List.mem_flatMap, List.mem_map, List.mem_filter, decide_eq_true_eq]
+  exact ⟨fun ⟨x, hx, y, ⟨hy, hne⟩, hb⟩ ↦ ⟨x, hx, y, hy, hne, hb⟩,
+    fun ⟨x, hx, y, hy, hne, hb⟩ ↦ ⟨x, hx, y, ⟨hy, hne⟩, hb⟩⟩
+
+theorem classOk_outside_eq {hs C : List H.V} :
+    (C.all fun x ↦ C.all fun y ↦ hs.all fun z ↦ C.contains z || (H.Adj x z == H.Adj y z))
+      = (C.all fun x ↦ C.all fun y ↦ (hs.filter fun z ↦ !C.contains z).all
+          fun z ↦ H.Adj x z == H.Adj y z) := by
+  simp only [all_or_eq_all_filter]
+
+theorem classOk_inside_eq {C : List H.V} :
+    (C.all fun x ↦ C.all fun y ↦ C.all fun z ↦ C.all fun w ↦
+        decide (x = y) || decide (z = w) || (H.Adj x y == H.Adj z w))
+      = (offVals H C).all fun b ↦ b == (offVals H C).headD false := by
+  rw [Bool.eq_iff_iff]
+  simp only [List.all_eq_true, Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq]
+  constructor
+  · rintro h b hb
+    obtain ⟨x, hx, y, hy, hne, rfl⟩ := mem_offVals.1 hb
+    have hd : (offVals H C).headD false ∈ offVals H C := by
+      cases hv : offVals H C with
+      | nil => rw [hv] at hb; simp at hb
+      | cons a t => simp
+    obtain ⟨z, hz, w, hw, hnw, hdw⟩ := mem_offVals.1 hd
+    rcases h x hx y hy z hz w hw with (h1 | h1) | h1
+    · exact absurd h1 hne
+    · exact absurd h1 hnw
+    · rw [h1, hdw]
+  · intro h x hx y hy z hz w hw
+    by_cases hxy : x = y
+    · exact Or.inl (Or.inl hxy)
+    by_cases hzw : z = w
+    · exact Or.inl (Or.inr hzw)
+    refine Or.inr ?_
+    rw [h _ (mem_offVals.2 ⟨x, hx, y, hy, hxy, rfl⟩), h _ (mem_offVals.2 ⟨z, hz, w, hw, hzw, rfl⟩)]
+
+@[csimp] theorem classOk_eq_classOkFast : @classOk = @classOkFast := by
+  funext H hs C
+  rw [classOk, classOkFast, classOk_outside_eq, classOk_inside_eq]
+
+end
 
 /-- The classes of mutually interchangeable vertices, each in `hs` order.  A class is recorded
 once, at the first of its members, and classes of one vertex are dropped: they say nothing. -/

@@ -35,7 +35,10 @@ example : IsoGraph.petersen = IsoGraph.kneser 5 2 := rfl
 -- Two constructions with nothing to do with each other are out of reach of `rfl` and `simp`, so
 -- you run the decision procedure instead: `native_decide` canonically labels each side and
 -- compares.  Here the bipartite double cover of the Petersen graph is the Desargues graph — a
--- 10-cycle, the {10/3} star polygon inside it, and spokes between.
+-- 10-cycle, the {10/3} star polygon inside it, and spokes between.  (The `set_option` is a wart:
+-- a `CGraph` carries its vertex type as a field, so instance search only sees `(G ⊗g H).V` for
+-- what it is by unfolding the product.  Most of the library sets it once at the top of the file.)
+set_option backward.isDefEq.respectTransparency false in
 example : IsoGraph.petersen ⊗g IsoGraph.complete 2 = ⟦NamedGraphs.desargues⟧ := by native_decide
 
 -- What *is* this graph?  `#decompose_graph` searches an atlas of named graphs and the
@@ -70,8 +73,7 @@ example : CGraph.petersen.fracChromNum = 5 / 2 := by
   exact h_fχ
 
 -- `small_graphs` proves a statement about *every* isomorphism class of a given order by
--- enumerating them.  Here is R(3,3) <= 6, in one tactic: all 156 graphs of order six go past in
--- about a sixteenth of a second, which is less than the file spends importing the library.
+-- enumerating them.  Here is R(3,3) <= 6, in one tactic: all 156 graphs of order six, in 12ms.
 open IsoGraph in
 theorem ramsey : ∀ G : IsoGraph, G.V = 6 → (complete 3 ≤ₛ G ∨ complete 3 ≤ₛ Gᶜ) := by
   small_graphs
