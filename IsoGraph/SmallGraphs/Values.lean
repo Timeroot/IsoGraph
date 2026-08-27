@@ -1,6 +1,10 @@
 import IsoGraph.SmallGraphs.Colouring
 import IsoGraph.ForMathlib.Hamming
 
+-- A `CGraph` carries its vertex type as a field, so unification only sees `Gᶜ.V` as `G.V`
+-- by unfolding the operation; see the note after `CGraph.enum` in `IsoGraph/Basic.lean`.
+set_option backward.isDefEq.respectTransparency false
+
 /-!
 # Values that need more than one of the topical files
 

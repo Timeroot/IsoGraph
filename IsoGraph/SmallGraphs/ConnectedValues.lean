@@ -1,5 +1,9 @@
 import IsoGraph.SmallGraphs.Operators
 
+-- A `CGraph` carries its vertex type as a field, so unification only sees `Gᶜ.V` as `G.V`
+-- by unfolding the operation; see the note after `CGraph.enum` in `IsoGraph/Basic.lean`.
+set_option backward.isDefEq.respectTransparency false
+
 /-!
 # The connected graphs on at most six vertices: the four co-NP invariants
 

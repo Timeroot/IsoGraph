@@ -47,6 +47,23 @@ structure CGraph where
 
 attribute [instance] CGraph.enum
 
+/-
+`set_option backward.isDefEq.respectTransparency false`, at the top of sixty-odd files here, is a
+consequence of the bundling.  Lean `v4.33` made unification respect the ambient transparency, and
+the vertex type of a derived graph — `Gᶜ.V`, `(G ⊕g H).V`, `G.lineGraph.V` — reaches the
+underlying one only by unfolding the operation, every one of which is a plain `def`.  Under the
+new behaviour `rw` and `simp` no longer cross that boundary, which costs about 1600 proof steps
+across the library for no mathematical reason.
+
+Making the operations reducible is not the fix, tempting as it looks.  It recovers only half of
+those, and it breaks something worse: once `SRG.petersen.V` unfolds to `{s : Finset (Fin 5) //
+s.card = 2}`, instance search finds *that* type's `Subtype.fintype` rather than the one derived
+from the graph's bundled enumeration, and since `FinEnum` is not a subsingleton the two are
+genuinely different.  Opacity of `.V` is what keeps the bundled enumeration canonical.  The fix
+that would remove the need is to have every operation return a graph on `Fin card`, which is a
+redesign of the operation API rather than a flag.
+-/
+
 /-- The number of vertices.  `FinEnum.card` rather than `FinEnum.card`: the enumeration knows the
 number, so for a graph on `Fin n` this is `n` by `rfl`, where the `Fintype` route computes the
 length of a mapped `Finset`. -/

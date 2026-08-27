@@ -4,13 +4,6 @@ defaultTargets = ["IsoGraph"]
 [leanOptions]
 autoImplicit = false
 relaxedAutoImplicit = false
-# Lean `v4.33` made unification respect the ambient transparency.  A `CGraph` carries its vertex
-# type as a field, so the vertex type of a derived graph — `Gᶜ.V`, `(G ⊕g H).V`, `G.lineGraph.V` —
-# reaches the underlying one only by unfolding the operation, and every operation is a plain `def`
-# (`abbrev` would cost the `implemented_by` tabulation that makes `native_decide` usable here).
-# Under the new behaviour `rw` and `simp` no longer cross that boundary, which breaks a few hundred
-# proofs across the library for no mathematical reason.
-backward.isDefEq.respectTransparency = false
 
 [[require]]
 name = "mathlib"

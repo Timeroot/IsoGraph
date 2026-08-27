@@ -7,6 +7,10 @@ import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Cache
 
+-- A `CGraph` carries its vertex type as a field, so unification only sees `Gᶜ.V` as `G.V`
+-- by unfolding the operation; see the note after `CGraph.enum` in `IsoGraph/Basic.lean`.
+set_option backward.isDefEq.respectTransparency false
+
 /-!
 # The containment searches, on tabulated copies of both graphs
 
