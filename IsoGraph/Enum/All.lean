@@ -31,6 +31,10 @@ The main results are
 * `exists_mem_enumerate` — **completeness**: every `n`-vertex graph is isomorphic to a member;
 * `enumerate_pairwise_not_iso` — **soundness**: the members are pairwise non-isomorphic.
 
+That is the specification, and the sweep is not what runs: `enumerate` is redirected by `@[csimp]`
+onto `enumerateFast` at the end of the file, so a `#eval` or a `native_decide` pays 15 ms at
+`n = 6` rather than 889.  Nothing above this point knows that.
+
 ## Faster enumerators
 
 Sweeping all `2 ^ n.choose 2` codes is quadratic in the exponent, so it runs out of steam at
@@ -54,17 +58,20 @@ and soundness from `enumerate`.  Three selectors are provided, each pruning more
 * `redMasks` — additionally require the new vertex to have least degree (`enumCodesFast`), which
   is legitimate because every graph has such a vertex and the test is `Aut`-invariant.
 
-Measured with `lake exe enumbench --all` (counts all matching OEIS A000088):
+Measured with `lake exe enumbench --all`, one run, counts all matching OEIS A000088:
 
-| `n` | `enumCodes` | `enumCodesExt` | `enumCodesSym` | `enumCodesFast` |
-|-----|------------:|---------------:|---------------:|----------------:|
-| 7   |    108389ms |          502ms |          308ms |           161ms |
-| 8   |           — |         7509ms |         4879ms |          2196ms |
-| 9   |           — |              — |              — |        219158ms |
+| `n` | `sweepCodes` | `enumCodesExt` | `enumCodesSym` | `enumCodesFast` |
+|-----|-------------:|---------------:|---------------:|----------------:|
+| 6   |        889ms |           38ms |           23ms |            15ms |
+| 7   |      66833ms |          392ms |          234ms |           120ms |
+| 8   |            — |         5673ms |         3708ms |          1654ms |
+| 9   |            — |              — |              — |         41757ms |
 
 At `n = 9` the pruning leaves little on the table: 18329 candidates were canonicalised to produce
 the 12346 graphs on 8 vertices, so all but a factor of 1.5 of the work is one canonical labelling
-per graph, and further symmetry reduction cannot buy much.
+per graph, and further symmetry reduction cannot buy much.  Of that labelling, at `n = 7`, about a
+sixth is building the `Graph` the search runs on, a ninth is `codeOfAdj` reading the answer back,
+and the rest is the search.
 
 The final section uses the same encoding to give every graph a numeric `key` that classifies it up
 to isomorphism, hence a `Decidable` instance for `Nonempty (G ≃cg H)`.
@@ -114,6 +121,14 @@ theorem pairIdx_inj {i j i' j' : ℕ} (h : i < j) (h' : i' < j')
       rw [choose_two_succ] at h1; omega
   subst hj
   exact ⟨by omega, rfl⟩
+
+/-- `pairIdx` with the binomial coefficient written out.  `Nat.choose j 2` runs Pascal's
+recursion, which is quadratic in `j`, and `pairIdx` is on the path of *every* adjacency query of
+`graphOfCode`; the closed form is worth about a tenth of the enumerator's running time. -/
+def pairIdxFast (i j : ℕ) : ℕ := if i < j then j * (j - 1) / 2 + i else i * (i - 1) / 2 + j
+
+@[csimp] theorem pairIdx_eq_pairIdxFast : @pairIdx = @pairIdxFast := by
+  funext i j; simp only [pairIdx, pairIdxFast, Nat.choose_two_right]
 
 /-! ## Encoding a graph as a natural number -/
 
@@ -241,7 +256,10 @@ theorem canonCode_graphOfCode_canonCode {n : ℕ} {adj : Fin n → Fin n → Boo
 
 /-! ## The enumerator -/
 
-/-- The codes surviving the sweep: those that are their own canonical code. -/
+/-- The codes surviving the sweep: those that are their own canonical code.
+
+What runs is `enumCodesFast`; see the `@[csimp]` block at the end of the file.  `sweepCodes` is
+this list under a name the compiler leaves alone. -/
 def enumCodes (n : ℕ) : List ℕ :=
   (List.range (2 ^ n.choose 2)).filter fun c ↦ canonCode n (graphOfCode n c).Adj == c
 
@@ -1028,13 +1046,50 @@ theorem enumerateFast_pairwise_not_iso (n : ℕ) :
     (enumerateFast n).Pairwise fun G H ↦ ¬Nonempty (G ≃cg H) := by
   rw [enumerateFast_eq]; exact enumerate_pairwise_not_iso n
 
+/-- The isomorphism classes of graphs on `n` vertices — the fast version. -/
+def enumerateIsoFast (n : ℕ) : List IsoGraph :=
+  (enumerateFast n).map (Quotient.mk CGraph.isoSetoid)
+
+theorem enumerateIsoFast_eq (n : ℕ) : enumerateIsoFast n = enumerateIso n := by
+  rw [enumerateIsoFast, enumerateIso, enumerateFast_eq]
+
+/-! ## The sweep is the specification, not the implementation
+
+`enumCodes` reads well and is what every proof above is stated about, but *running* it costs
+`2 ^ (n choose 2)` canonical labellings — 889 ms at `n = 6`, a minute at `n = 7`.  Since the
+extension enumerator computes the same list, the compiler may as well use that one, and then a
+`native_decide` about `enumerate n` pays 15 ms instead.
+
+Nothing in the trusted path changes: the three equations below are ordinary proofs, and the kernel
+still sees each `enumCodes`, `enumerate`, `enumerateIso` as its own definition.  What `@[csimp]`
+replaces is the compiled code of *later* declarations, which is why all three are needed rather
+than just the first: `enumerate` was compiled a few hundred lines above, before `enumCodesFast`
+existed, so its own body still calls the sweep.  Nobody calls `enumerate` any more.
+-/
+
+@[csimp] theorem enumCodes_eq_enumCodesFast : @enumCodes = @enumCodesFast :=
+  funext fun n ↦ (enumCodesFast_eq n).symm
+
+@[csimp] theorem enumerate_eq_enumerateFast : @enumerate = @enumerateFast :=
+  funext fun n ↦ (enumerateFast_eq n).symm
+
+@[csimp] theorem enumerateIso_eq_enumerateIsoFast : @enumerateIso = @enumerateIsoFast :=
+  funext fun n ↦ (enumerateIsoFast_eq n).symm
+
+/-- The brute-force sweep under a name the compiler does not redirect, so that the counts below can
+still be cross-checked against it.  Definitionally `enumCodes`. -/
+def sweepCodes (n : ℕ) : List ℕ :=
+  (List.range (2 ^ n.choose 2)).filter fun c ↦ canonCode n (graphOfCode n c).Adj == c
+
+theorem sweepCodes_eq (n : ℕ) : sweepCodes n = enumCodes n := rfl
+
 /-! ## Sanity check
 
 The counts are OEIS A000088, the number of graphs on `n` unlabelled vertices.  Larger `n` is
 checked by `lake exe enumbench`, which reaches `n = 7`: 1044 classes out of `2 ^ 21` codes.
 -/
 
-#guard ((List.range 5).map fun n ↦ (enumCodes n).length) == [1, 1, 2, 4, 11]
+#guard ((List.range 5).map fun n ↦ (sweepCodes n).length) == [1, 1, 2, 4, 11]
 #guard ((List.range 7).map fun n ↦ (enumCodesExt n).length) == [1, 1, 2, 4, 11, 34, 156]
 #guard ((List.range 8).map fun n ↦ (enumCodesFast n).length) == [1, 1, 2, 4, 11, 34, 156, 1044]
 

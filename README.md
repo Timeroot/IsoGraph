@@ -70,8 +70,8 @@ example : CGraph.petersen.fracChromNum = 5 / 2 := by
   exact h_fχ
 
 -- `small_graphs` proves a statement about *every* isomorphism class of a given order by
--- enumerating them.  Here is R(3,3) <= 6, in one tactic: all 156 graphs of order six go past,
--- and the whole proof takes about seventy seconds.
+-- enumerating them.  Here is R(3,3) <= 6, in one tactic: all 156 graphs of order six go past in
+-- about a sixteenth of a second, which is less than the file spends importing the library.
 open IsoGraph in
 theorem ramsey : ∀ G : IsoGraph, G.V = 6 → (complete 3 ≤ₛ G ∨ complete 3 ≤ₛ Gᶜ) := by
   small_graphs

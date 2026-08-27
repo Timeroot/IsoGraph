@@ -57,7 +57,7 @@ def main (args : List String) : IO UInt32 := do
       fun n => (enumCodesSym n).length) && ok
     ok := (← run "enumCodesExt (extension only):" 8 a000088
       fun n => (enumCodesExt n).length) && ok
-    ok := (← run "enumCodes (brute-force sweep of all 2^(n choose 2) codes):" 7 a000088
-      fun n => (enumCodes n).length) && ok
+    ok := (← run "sweepCodes (brute-force sweep of all 2^(n choose 2) codes):" 7 a000088
+      fun n => (sweepCodes n).length) && ok
   IO.println (if ok then "ALL COUNTS MATCH" else "*** SOME COUNTS WRONG ***")
   return (if ok then 0 else 1)

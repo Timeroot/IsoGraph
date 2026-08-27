@@ -50,34 +50,30 @@ domination number — and the two derived from them.  What is left is still most
 
 ## The cost
 
-`enumerateIso n` has 1, 1, 2, 4, 11, 34, 156, 1044, 12346, … entries, but what it costs is not the
-length: the list is the fixed points of `canonCode` among all `2 ^ (n choose 2)` codes, which is
-1024 canonicalisations at `n = 5`, 32768 at `n = 6` and two million at `n = 7`.
+Both lists are grown one vertex at a time, so what they cost tracks their lengths — 1, 1, 2, 4,
+11, 34, 156, 1044, 12346, 274668 classes, and 1, 1, 2, 6, 21, 112, 853, 11117, 261080 connected
+ones — at roughly one canonical labelling per graph.  Neither ever sweeps the `2 ^ (n choose 2)`
+codes: `enumerateIso` reads as if it did, but `Enum/All.lean` redirects it onto the extension
+enumerator with `@[csimp]`.  So adding `G.IsConnected` to a statement now buys about what the
+ratio 112/156 of the two lengths suggests, and no more.
 
-Adding `G.IsConnected` to the statement is worth it twice over, and the second time is the larger:
-`enumConnCodes` grows the connected codes level by level instead of sweeping all `2 ^ (n choose 2)`
-of them, so it never pays that exponential at all — its cost tracks the 1, 1, 2, 6, 21, 112, 853,
-11117, 261080 connected classes themselves rather than the ratio 112/156 of two list lengths.
-
-The library *is* built with `precompileModules` (see `lakefile.toml`), so a `native_decide` runs
-the enumerator as compiled code rather than through the interpreter.  That is what makes these
-numbers what they are — measured as the extra time a module takes over one that only imports this
-one, so the ~5 s of loading the library is already subtracted:
+Timings from `lake exe enumbench`, which runs exactly the code a `native_decide` runs:
 
 | `n` | `enumerateIso n` | `enumerateConnIso n` |
 | --- | --- | --- |
-| 5 | 0.1 s | — |
-| 6 | 2.7 s | 0.3 s |
-| 7 | 228 s | 0.6 s |
-| 8 | — | 5 s |
-| 9 | — | 197 s |
+| 6 | 0.015 s | 0.011 s |
+| 7 | 0.12 s | 0.11 s |
+| 8 | 1.6 s | 1.8 s |
+| 9 | 42 s | 52 s |
 
-So: the unrestricted shapes are comfortable to `n = 6` and possible at `n = 7`; the connected shape
-is comfortable to `n = 8` and possible at `n = 9`.  Without `precompileModules` every one of these
-is about two orders of magnitude worse, which is what the flag is there for.
+On top of that a proof pays for `P` on each graph, which need not be small — a containment search
+is not free, and for `ramsey_three_three` in `Exhaustion.lean` it is the larger half — plus the
+few seconds of loading the library, which at `n ≤ 7` dominates everything else.
 
-What `P` costs on each graph is on top of that, and need not be small — a containment search is
-not free — but at these orders it rarely is what dominates.
+So: both shapes are comfortable to `n = 8` and possible at `n = 9`.  All of this assumes the
+library is built with `precompileModules` (see `lakefile.toml`), so that a `native_decide` runs
+the enumerator as compiled code; through the interpreter every one of these is about two orders of
+magnitude worse, which is what the flag is there for.
 -/
 
 set_option autoImplicit false

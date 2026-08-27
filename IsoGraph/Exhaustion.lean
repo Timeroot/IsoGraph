@@ -26,11 +26,12 @@ The last five go through the containment searches of `IsoGraph/Containment/`, de
 quotient at the end of `Containment/Algorithms/Cached.lean`.  Those are exponential in the
 pattern, and the pattern here is a triangle, a `C₆` or a `K₄`, so what costs is the enumeration.
 
-Which is the whole story of what this module costs: about forty seconds, most of it the six
-theorems that each rebuild `enumerateIso 6` — nothing is memoised across a `native_decide`, so
-combining those six into a single conjunction would pay for the enumeration once, at the price of
-saying six things in one theorem.  Before the library was built with `precompileModules` the same
-file took twenty-three minutes.
+Which used to be the whole story of what this module costs: it was forty seconds, most of it the
+six theorems that each rebuild `enumerateIso 6` — nothing is memoised across a `native_decide`.
+That enumeration is now 15 ms rather than 889, since `Enum/All.lean` redirects it onto the
+extension enumerator, so what a check here pays for is mostly the containment search in the
+statement itself, and the module costs about what elaborating it costs.  Before the library was
+built with `precompileModules` the same file took twenty-three minutes.
 -/
 
 set_option autoImplicit false
