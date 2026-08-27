@@ -1,5 +1,9 @@
 import IsoGraph.SmallGraphs.Operators
 
+-- A `CGraph` carries its vertex type as a field, so unification only sees `Gᶜ.V` as `G.V`
+-- by unfolding the operation; see the note after `CGraph.enum` in `IsoGraph/Basic.lean`.
+set_option backward.isDefEq.respectTransparency false
+
 /-!
 # The large bipartite cages: the four co-NP invariants
 
@@ -429,7 +433,9 @@ def tutte12CageIndepSet : List (Fin 126) :=
    98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124]
 
 -- Measured: 283 803 heartbeats, the only theorem in the file over the default.  The 126-vertex
--- independence CNF is the largest here, and the elaborator's `isDefEq` on it is what runs long.
+-- independence CNF is the largest in the library, and almost all of the cost is `bv_decide`'s
+-- `bv_normalize` pre-pass: 571 `simp` calls over the 189 adjacency clauses and the 126-term
+-- population count, ~16 s against ~1 s for the bit-blasting, CaDiCaL and the LRAT replay.
 set_option maxHeartbeats 800000 in
 /-- **The independence number of the Tutte 12-cage is sixty-three.**  A cubic bipartite graph has
 a perfect matching, so neither side of the bipartition can be beaten. -/
