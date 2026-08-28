@@ -22,10 +22,13 @@ decide falsehood as well as truth.
 * `autPerms n adj` — the complete generators of `Canon/Chain.lean` as permutations, together with
   their inverses; `closure_autPerms` identifies the group they generate as `autGroup n adj`.
 * `vertexTransitiveB` and `arcTransitiveB` — the two tests, with `vertexTransitiveB_iff` and
-  `arcTransitiveB_iff` saying exactly what a `true` *and* a `false` mean.
+  `arcTransitiveB_iff` saying exactly what a `true` *and* a `false` mean.  `arcTransitiveBFast` is
+  what the second one runs.
 
 The saturation is deliberately naive — a `Finset` union per generator per round — because the
-expensive part is upstream: `chainArrays` runs a subtree search per candidate point.
+expensive part is upstream: `chainArrays` searches a subtree for every candidate point its own
+orbit test does not already reach.  What the orbit here has to be protected from instead is being
+*recomputed*, which is what `arcTransitiveBFast` is for.
 -/
 
 set_option autoImplicit false
@@ -330,6 +333,31 @@ theorem arcTransitiveB_iff (n : Nat) (adj : Fin n → Fin n → Bool) :
         refine Prod.ext ?_ ?_ <;>
           simp only [Prod.smul_fst, Prod.smul_snd, Equiv.Perm.smul_def, h1, h2]
       rwa [hsm] at hmem
+
+/-- `arcTransitiveB`, with the orbit computed once.
+
+The specification writes `orbitFin (autPerms n adj) b` *under* the binder `p`, where nothing
+hoists it: the whole stabiliser chain of `Canon/Chain.lean` is rerun for every arc.  Naming it in
+a `let` outside the scan is worth 32 times on the Heawood graph, 23 on the Petersen graph and 98
+on `C₄₆` (`testing/CacheBench.lean`, case `api-at`).  A graph that is *not* arc-transitive gains
+less, since the scan stops at the first arc outside the orbit. -/
+def arcTransitiveBFast (n : Nat) (adj : Fin n → Fin n → Bool) : Bool :=
+  match arcList n adj with
+  | [] => true
+  | b :: rest =>
+    let orb := orbitFin (autPerms n adj) b
+    rest.all fun p => decide (p ∈ orb)
+
+@[csimp] theorem arcTransitiveB_eq_arcTransitiveBFast :
+    @arcTransitiveB = @arcTransitiveBFast := by
+  funext n adj
+  unfold arcTransitiveB arcTransitiveBFast
+  generalize arcList n adj = l
+  cases l with
+  | nil => rfl
+  | cons b rest =>
+    rw [Bool.eq_iff_iff, decide_eq_true_eq, List.all_eq_true]
+    simp [self_mem_orbitFin]
 
 end Canon
 end IsoGraph

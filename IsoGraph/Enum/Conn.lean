@@ -629,6 +629,30 @@ def connMasks (n c : ℕ) : List ℕ :=
   let rows := rowsOfCode n c
   (symMasks n c).filter fun s ↦ decide (s ≠ 0) && nonCutMinDegOk n rows c s
 
+/-- What `connMasks` runs.  The same hoisting as `redMasksFast`: the degrees of the graph being
+extended do not depend on the mask, and `maskCard n s` does not depend on the vertex the test is
+looking at, but written as `nonCutMinDegOk` is, both sit inside the loop.  The order of the
+disjuncts is kept, so the connectivity search still runs only for the vertices that beat the new
+one on degree.
+
+Worth 11 % of `enumConnCodes 8` and 13 % of `enumConnCodes 9`.  Nothing like what the same
+hoisting is worth for `redMasks`: here the loop it comes out of is not the whole cost of a level,
+since the disjunct that survives it runs a connectivity search of its own. -/
+def connMasksFast (n c : ℕ) : List ℕ :=
+  let rows := rowsOfCode n c
+  let ds := (List.finRange n).map fun i ↦ (deg (graphOfCode n c).Adj i, i.1)
+  (symMasks n c).filter fun s ↦
+    decide (s ≠ 0) &&
+      (let m := maskCard n s
+      ds.all fun d ↦ decide (m ≤ d.1 + (if s.testBit d.2 then 1 else 0)) || !nonCutTest n rows s d.2)
+
+@[csimp] theorem connMasks_eq_connMasksFast : @connMasks = @connMasksFast := by
+  funext n c
+  refine List.filter_congr fun s _ ↦ congrArg _ ?_
+  rw [nonCutMinDegOk, Bool.eq_iff_iff, decide_eq_true_eq]
+  simp only [List.all_map, Function.comp_def, List.all_eq_true, List.mem_finRange,
+    Bool.or_eq_true, decide_eq_true_eq, Bool.not_eq_eq_eq_not, Bool.not_true, forall_const]
+
 theorem connMasks_subset {n c s : ℕ} (h : s ∈ connMasks n c) : s ≠ 0 ∧ s < 2 ^ n := by
   rw [connMasks, List.mem_filter] at h
   obtain ⟨hmem, hok⟩ := h

@@ -445,6 +445,19 @@ def main (args : List String) : IO Unit := do
           (G.finAdj (FinEnum.equiv (α := G.V))))),
        ("canon ", fun _ => toString (G.canonicalize.vertexTransitiveBOfEquiv G.canonicalizeEquiv)),
        ("entry ", fun _ => toString G.vertexTransitiveB)]
+  | "api-at" =>
+    let which := (args[2]?).getD "heawood"
+    let G := match which with
+      | "balaban" => hostOfEdges r 70 (lcfEdges balabanCode 1)
+      | "petersen" => gp 5 2
+      | "mcgee" => hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)
+      | "cycle" => cycle (size 3 46)
+      | "kneser" => kneser (size 3 7) (size 4 3)
+      | _ => hostOfEdges r 14 (lcfEdges [5, -5] 7)
+    duel r s!"arcTransitiveB {which}"
+      [("raw   ", fun _ => toString (IsoGraph.Canon.arcTransitiveB (FinEnum.card G.V)
+          (G.finAdj (FinEnum.equiv (α := G.V))))),
+       ("entry ", fun _ => toString G.arcTransitiveB)]
   | "api-sub" =>
     let m := size 2 8
     let G := hostOfEdges r 46 tutteEdges
@@ -549,7 +562,7 @@ def main (args : List String) : IO Unit := do
     IO.println "kneser:  kneser, kneser-canon, kneser-aut, kneser-sub,"
     IO.println "         kneser-enum, kneser-enum-canon"
     IO.println "finenum: fe-fin, fe-prod, fe-sum, fe-subtype"
-    IO.println "entry:   api-aut, api-order, api-vt, api-sub, api-sub-kneser, api-minor, api-con,"
-    IO.println "         api-con-self, api-hom, api-quot, api-indminor, api-topminor,"
+    IO.println "entry:   api-aut, api-order, api-vt, api-at, api-sub, api-sub-kneser, api-minor,"
+    IO.println "         api-con, api-con-self, api-hom, api-quot, api-indminor, api-topminor,"
     IO.println "         api-immersion"
     IO.println "cache:   degsum"
