@@ -146,9 +146,9 @@ theorem orbRefresh_markP {n : Nat} {f : Nat → Nat → Bool} {P : Nat → Prop}
 
 theorem orbRefresh_gens {n : Nat} {f : Nat → Nat → Bool} {path processed : Array Nat}
     {orb : Orbits} {st : St}
-    (horb : ∀ g ∈ orb.gens, IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]!)
+    (horb : ∀ g ∈ orb.gens.get, IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]!)
     (hst : StGood n f st) :
-    ∀ g ∈ (orbRefresh (Graph.ofOracle n f) path processed orb st).gens,
+    ∀ g ∈ (orbRefresh (Graph.ofOracle n f) path processed orb st).gens.get,
       IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]! := by
   simp only [orbRefresh]
   split
@@ -225,7 +225,7 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
       (∀ w, Chld n p w → w ∉ verts → Dchild n f D invPath p st w) →
       (∀ w ∈ processed, Dchild n f D invPath p st w) →
       MarkP (Dchild n f D invPath p st) orb.mark →
-      (∀ g ∈ orb.gens, IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]!) →
+      (∀ g ∈ orb.gens.get, IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]!) →
         Guar n f D path st
           (dfsChildren (Graph.ofOracle n f) fuel path invPath p verts processed orb st))
     ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
@@ -283,7 +283,7 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
       rw [(Option.some.inj (htc.symm.trans hc)).symm] at hcell
       exact absurd (mem_extract_cell' hp (targetCell_lt n p s htc) (targetCell_cst hp htc)
         hwn hcell) hnw
-    have hF : ∀ g ∈ orb.gens,
+    have hF : ∀ g ∈ orb.gens.get,
         IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]! := by
       intro g hg
       obtain ⟨hg1, hg2⟩ := mem_usableAutos hg
@@ -312,7 +312,7 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
     intro fuel path invPath p processed orb st v vs habort orb1 hmark ih D hnode htcex hverts
       hnodup hfuel hnone hgood hpthc hjmpc hloop hproc hmarkP hgens
     rw [dfsChildren_marked (by simpa using habort) hmark]
-    have hgens1 : ∀ g ∈ orb1.gens,
+    have hgens1 : ∀ g ∈ orb1.gens.get,
         IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]! :=
       orbRefresh_gens hgens hgood
     have hmarkP1 : MarkP (Dchild n f D invPath p st) orb1.mark :=
@@ -374,7 +374,7 @@ theorem dfsNode_dom (n : Nat) (f : Nat → Nat → Bool) :
         (fun Q => PathPre (path.push v) Q ∨ ∃ z, Rec st z ∧ z.path = Q)
         fuel (path.push v) childInv' p'' st (fun Q hQ => Or.inl hQ)
         (rec_iff_stq.2 (fun z hz => Or.inr ⟨z, hz, rfl⟩))).unwind path)
-    have hgens1 : ∀ g ∈ orb1.gens,
+    have hgens1 : ∀ g ∈ orb1.gens.get,
         IsAutoArr n f g ∧ ∀ i, i < path.size → g[path[i]!]! = path[i]! :=
       orbRefresh_gens hgens hgood
     have hmarkP1 : MarkP (Dchild n f D invPath p st) orb1.mark :=

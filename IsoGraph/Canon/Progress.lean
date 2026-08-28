@@ -287,7 +287,7 @@ theorem orbRefresh_eq {G : Graph} {path processed : Array Nat} {orb : Orbits} {s
     (h : orb.nGens = st.autos.size) : orbRefresh G path processed orb st = orb := by
   have hor : orbRefresh G path processed orb st
       = if orb.nGens == st.autos.size then orb
-        else { nGens := st.autos.size, gens := usableAutos st.autos path,
+        else { nGens := st.autos.size, gens := Thunk.mk fun _ ↦ usableAutos st.autos path,
                mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
   rw [hor, if_pos (by simp [h])]
 

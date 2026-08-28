@@ -4433,7 +4433,8 @@ def orbRefresh (G : Graph) (path : Array Nat) (processed : Array Nat) (orb : Orb
   if orb.nGens == st.autos.size then orb
   else
     let gens := usableAutos st.autos path
-    { nGens := st.autos.size, gens, mark := orbitClosure G.n gens processed }
+    { nGens := st.autos.size, gens := Thunk.mk fun _ ↦ gens,
+      mark := orbitClosure G.n gens processed }
 
 /-- Absorb a backjump request aimed at this depth. -/
 def unwind (path : Array Nat) (st : St) : St :=
@@ -4468,7 +4469,7 @@ theorem dfsNode_branch {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Ar
     (hp : pruneNode invPath st = some st') (hc : p.targetCell G.n = some c) :
     dfsNode G (fuel + 1) path invPath p st
       = dfsChildren G fuel path invPath p ((p.lab.extract c p.cen[c]!).toList) #[]
-          { nGens := st'.autos.size, gens := usableAutos st'.autos path,
+          { nGens := st'.autos.size, gens := Thunk.mk fun _ ↦ usableAutos st'.autos path,
             mark := Array.replicate G.n false }
           { st' with nodes := st'.nodes + 1 } := by
   rw [dfsNode, if_neg (by simp [h]), hp]
@@ -4494,7 +4495,7 @@ theorem dfsChildren_marked {G : Graph} {fuel : Nat} {path : Array Nat} {invPath 
       = dfsChildren G fuel path invPath p vs processed (orbRefresh G path processed orb st) st := by
   have hor : orbRefresh G path processed orb st
       = if orb.nGens == st.autos.size then orb
-        else { nGens := st.autos.size, gens := usableAutos st.autos path,
+        else { nGens := st.autos.size, gens := Thunk.mk fun _ ↦ usableAutos st.autos path,
                mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
   rw [dfsChildren]
   simp only []
@@ -4513,11 +4514,11 @@ theorem dfsChildren_step {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : 
          else
            dfsChildren G fuel path invPath p vs (processed.push v)
              { orbRefresh G path processed orb st with
-               mark := closureLoop (orbRefresh G path processed orb st).gens (G.n + 1)
+               mark := closureLoop (orbRefresh G path processed orb st).gens.get (G.n + 1)
                  ((orbRefresh G path processed orb st).mark.set! v true) #[v] } st1) := by
   have hor : orbRefresh G path processed orb st
       = if orb.nGens == st.autos.size then orb
-        else { nGens := st.autos.size, gens := usableAutos st.autos path,
+        else { nGens := st.autos.size, gens := Thunk.mk fun _ ↦ usableAutos st.autos path,
                mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
   rw [dfsChildren]
   simp only []
@@ -4552,7 +4553,7 @@ theorem dfsChildren_step_go {G : Graph} {fuel : Nat} {path : Array Nat} {invPath
     dfsChildren G fuel path invPath p (v :: vs) processed orb st
       = dfsChildren G fuel path invPath p vs (processed.push v)
           { orbRefresh G path processed orb st with
-            mark := closureLoop (orbRefresh G path processed orb st).gens (G.n + 1)
+            mark := closureLoop (orbRefresh G path processed orb st).gens.get (G.n + 1)
               ((orbRefresh G path processed orb st).mark.set! v true) #[v] }
           (unwind path
             (dfsNode G fuel (path.push v) (invPath.push (mix tr (p''.shapeHash G.n))) p'' st)) := by

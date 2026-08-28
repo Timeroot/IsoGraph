@@ -924,12 +924,18 @@ def usableAutos (autos : Array (Array Nat)) (path : Array Nat) : Array (Array Na
   if autos.isEmpty then autos else autos.filter fun g => path.all fun x => g[x]! == x
 
 /-- Cached orbit information for the children of one search-tree node: the orbit of the already
-processed children, under those automorphisms that fix the node's individualisation path. -/
+processed children, under those automorphisms that fix the node's individualisation path.
+
+`gens` is a thunk because most nodes never look at it.  A node needs it only once a child has come
+back *without* a backjump request, and the branch that a matching leaf abandons is exactly a run of
+nodes that each explore one child and then unwind — so on a graph with a large automorphism group
+the filter would run at almost every node and be read at almost none.  Deferring it is a third of
+the whole canonicalisation of `K₁₆₀`. -/
 structure Orbits where
   /-- Size of `St.autos` when this was computed; used to detect staleness. -/
   nGens : Nat
   /-- The automorphisms fixing the node's path pointwise. -/
-  gens : Array (Array Nat)
+  gens : Thunk (Array (Array Nat))
   /-- Membership array for the orbit of the processed children. -/
   mark : Array Bool
   deriving Inhabited
@@ -953,7 +959,7 @@ def dfsNode (G : Graph) (fuel : Nat) (path : Array Nat) (invPath : Array UInt64)
       | some c =>
         let verts := (p.lab.extract c (p.cen[c]!)).toList
         let orb : Orbits :=
-          { nGens := st.autos.size, gens := usableAutos st.autos path,
+          { nGens := st.autos.size, gens := Thunk.mk fun _ ↦ usableAutos st.autos path,
             mark := Array.replicate G.n false }
         dfsChildren G fuel path invPath p verts #[] orb st
   termination_by (fuel, 0)
@@ -971,7 +977,8 @@ def dfsChildren (G : Graph) (fuel : Nat) (path : Array Nat) (invPath : Array UIn
       if orb.nGens == st.autos.size then orb
       else
         let gens := usableAutos st.autos path
-        { nGens := st.autos.size, gens, mark := orbitClosure G.n gens processed }
+        { nGens := st.autos.size, gens := Thunk.mk fun _ ↦ gens,
+          mark := orbitClosure G.n gens processed }
     if orb.mark[v]! then
       dfsChildren G fuel path invPath p vs processed orb st
     else
@@ -988,7 +995,7 @@ def dfsChildren (G : Graph) (fuel : Nat) (path : Array Nat) (invPath : Array UIn
       if st.abortTo.isSome then st
       else
         let orb : Orbits :=
-          { orb with mark := closureLoop orb.gens (G.n + 1) (orb.mark.set! v true) #[v] }
+          { orb with mark := closureLoop orb.gens.get (G.n + 1) (orb.mark.set! v true) #[v] }
         dfsChildren G fuel path invPath p vs (processed.push v) orb st
   termination_by (fuel, verts.length + 1)
 
