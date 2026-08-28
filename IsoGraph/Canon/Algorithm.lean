@@ -232,20 +232,27 @@ def sortNatList : List Nat → List Nat
 `Array.qsort` would do the same job, but it has no verified specification in this toolchain, and
 the sorted order of the cells and of the counts *is* part of what makes the trace canonical.  So
 this goes through a list sort, which does — `sortNats_toList` in
-`IsoGraph/Canon/Equivariance.lean` identifies it with `List.mergeSort`.  Insertion sort rather than
-`List.mergeSort` itself because both call sites sort at most one entry per cell of the partition,
-and on lists that short the merge's splitting is pure overhead: a tenth of `canonical` on the
-order-six benchmark went on sorting three-element arrays. -/
-def sortNats (a : Array Nat) : Array Nat := (sortNatList a.toList).toArray
+`IsoGraph/Canon/Equivariance.lean` identifies it with `List.mergeSort`.
 
-/-- What `sortNats` actually runs.  Both call sites sort the cells that one splitter meets, and
-whatever the size of the graph most splitters meet one or two of them; those two lengths are worth
-peeling off, because the list round trip costs more than the comparison does.  Longer arrays go
-through `sortNatList` as before. -/
+Which sort, though, depends on how many there are to sort.  Both call sites sort the cells that
+one splitter meets, and on a sparse graph that is one or two of them, where the merge's splitting
+is pure overhead — a tenth of `canonical` on the order-six benchmark once went on sorting
+three-element arrays.  On a dense graph a splitter meets a constant fraction of the cells, and
+there insertion sort *is* the algorithm's cost: at `n = 1000` the quadratic term buried in this
+one line was five sixths of the whole canonicalisation.  So: insertion sort up to eight entries,
+`List.mergeSort` above. -/
+def sortNats (a : Array Nat) : Array Nat :=
+  if a.size ≤ 8 then (sortNatList a.toList).toArray
+  else (a.toList.mergeSort fun x y ↦ x ≤ y).toArray
+
+/-- What `sortNats` actually runs.  Most splitters meet one or two cells whatever the size of the
+graph, and those two lengths are worth peeling off, because the list round trip costs more than
+the comparison does. -/
 def sortNatsFast (a : Array Nat) : Array Nat :=
   if a.size ≤ 1 then a
   else if a.size == 2 then (if a[0]! ≤ a[1]! then a else #[a[1]!, a[0]!])
-  else (sortNatList a.toList).toArray
+  else if a.size ≤ 8 then (sortNatList a.toList).toArray
+  else (a.toList.mergeSort fun x y ↦ x ≤ y).toArray
 
 @[csimp] theorem sortNats_eq_sortNatsFast : @sortNats = @sortNatsFast := by
   funext a
@@ -438,6 +445,46 @@ def splitCell (cnt : Array Nat) (c : Nat) (st : SplitState) : SplitState :=
                   else markExceptFrom starts (maxIdxFrom sizes sizes.size 0 0) starts.size 0 st.inW
                 { lab, pos, cst, cen, inW, tr, bc := clearBcFrom ks ks.size 0 bc }
 
+/-- What `splitCell` actually runs: the same thing with the state taken apart first.
+
+`writeFrom`, `boundsFrom` and the two `mark*From` write into `lab`, `pos`, `cst`, `cen` and `inW`,
+and Lean's arrays are copy-on-write: an update is in place only when the array it is handed is the
+only reference to it.  Reading a field off `st` at the point of the call leaves `st` itself holding
+a second reference, so every one of those five loops would copy an array as long as the partition
+before touching it.  Destructuring at the top retires `st` before any of them runs, which is worth
+about 1.2× on a sparse refinement — and nothing on a dense one, where the copies are dwarfed by
+the counting. -/
+def splitCellFast (cnt : Array Nat) (c : Nat) (st : SplitState) : SplitState :=
+  match st with
+  | ⟨slab, spos, scst, scen, sinW, str, sbc⟩ =>
+    let ec := scen[c]!
+    if ec - c == 1 then
+      ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) cnt[slab[c]!]!, sbc⟩
+    else
+      match bucketFrom slab cnt ec (ec - c) c sbc #[] with
+      | (bc, ks) =>
+        if ks.size == 1 then
+          ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) ks[0]!, bc.set! ks[0]! 0⟩
+        else
+          let ks := sortNats ks
+          match offsetFrom ks ks.size 0 (Array.replicate ks.size 0) bc 0 with
+          | (sizes, bc) =>
+            match scatterFrom slab cnt ec (ec - c) c (Array.replicate (ec - c) 0) bc with
+            | (block, bc) =>
+              match writeFrom block c block.size 0 slab spos with
+              | (lab, pos) =>
+                match boundsFrom ks sizes ks.size 0 scst scen #[] c (mixN str c) with
+                | (cst, cen, starts, tr) =>
+                  let inW :=
+                    if sinW[c]! then markAllFrom starts starts.size 0 sinW
+                    else markExceptFrom starts (maxIdxFrom sizes sizes.size 0 0) starts.size 0 sinW
+                  { lab, pos, cst, cen, inW, tr, bc := clearBcFrom ks ks.size 0 bc }
+
+@[csimp] theorem splitCell_eq_splitCellFast : @splitCell = @splitCellFast := by
+  funext cnt c st
+  obtain ⟨lab, pos, cst, cen, inW, tr, bc⟩ := st
+  rfl
+
 /-- Split every cell in `cells[j:]`, left to right. -/
 def splitCellsFrom (cnt cells : Array Nat) : Nat → Nat → SplitState → SplitState
   | 0, _, st => st
@@ -459,7 +506,12 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
   -- (1) count neighbours inside the splitter cell `lab[s:e]`.
   match countFrom G p.lab e (e - s) s sc.cnt #[] with
   | (cnt, touched) =>
-    if touched.isEmpty then (p, inW, tr, sc)
+    -- Nothing in the splitter cell has a neighbour, so there is nothing to split.  From cleared
+    -- scratch `cnt` is `sc.cnt` unchanged (`countFrom_eq_of_touched_isEmpty`), and it is the array
+    -- `countFrom` returned, rather than `sc.cnt`, that is handed back: naming `sc.cnt` here would
+    -- leave a second reference to it alive across the counting loop, and the first bump of *every*
+    -- step would copy an array as long as the partition instead of writing in place.
+    if touched.isEmpty then (p, inW, tr, { sc with cnt := cnt })
     else
       -- (2) collect the cells met by the splitter and process them left to right, so that the
       -- order in which they are processed depends only on positions.  Only *met* cells are
@@ -477,6 +529,36 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
             { cnt := clearCntFrom touched touched.size 0 cnt,
               hit := clearHitFrom cells cells.size 0 hit,
               bc := st.bc })
+
+/-- What `refineStep` actually runs: the same thing with the partition and the scratch taken apart
+first, for the reason given at `splitCellFast`.  `countFrom` writes into `cnt` and `collectFrom`
+into `hit`, both of which are as long as the partition. -/
+def refineStepFast (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
+    (sc : Scratch) : Part × Array Bool × UInt64 × Scratch :=
+  match p, sc with
+  | ⟨plab, ppos, pcst, pcen⟩, ⟨scnt, shit, sbc⟩ =>
+    let e := pcen[s]!
+    let tr := mixN tr s
+    match countFrom G plab e (e - s) s scnt #[] with
+    | (cnt, touched) =>
+      if touched.isEmpty then (⟨plab, ppos, pcst, pcen⟩, inW, tr, ⟨cnt, shit, sbc⟩)
+      else
+        match collectFrom ppos pcst touched touched.size 0 shit #[] with
+        | (hit, collected) =>
+          let cells := sortNats collected
+          match splitCellsFrom cnt cells cells.size 0
+              { lab := plab, pos := ppos, cst := pcst, cen := pcen, inW, tr, bc := sbc } with
+          | st =>
+            ({ lab := st.lab, pos := st.pos, cst := st.cst, cen := st.cen }, st.inW, st.tr,
+              { cnt := clearCntFrom touched touched.size 0 cnt,
+                hit := clearHitFrom cells cells.size 0 hit,
+                bc := st.bc })
+
+@[csimp] theorem refineStep_eq_refineStepFast : @refineStep = @refineStepFast := by
+  funext G p inW s tr sc
+  obtain ⟨plab, ppos, pcst, pcen⟩ := p
+  obtain ⟨scnt, shit, sbc⟩ := sc
+  rfl
 
 /-- Index of the first `true` entry of `a`. -/
 def firstSet (a : Array Bool) : Option Nat := Id.run do
@@ -548,9 +630,11 @@ def rowWords (n : Nat) : Nat := (n + 63) / 64
 `[i * rowWords n, (i+1) * rowWords n)`, and column `j` of a row is bit `63 - j % 64` of word
 `j / 64`.  Unused trailing bits are zero.
 
-The matrix is given as a curried function so that a caller can do its per-row work — for
-`certOf` below, one array index — in the outer lambda, where this loop applies it once per row
-rather than once per bit.
+The matrix is given as a curried function, which reads as if a caller could do its per-row work
+— for `certOf` below, one array index — in the outer lambda and have this loop apply it once per
+row.  It cannot: the compiler eta-expands `fun i => let row := …; fun j => …` into a function of
+two arguments, so `bit i` is a partial application and the outer lambda's body runs once per
+*bit*.  `certOfFast` below is what `certOf` actually runs, and it is a factor of five.
 
 Like the partition walks above, the two loops are structural recursions on fuel rather than
 `for` loops, so that induction applies to them: `fuel` counts the entries still to do and `j`
@@ -582,6 +666,51 @@ unsigned integers, compares the bit strings lexicographically.  Two labellings g
 certificate exactly when they differ by an automorphism. -/
 def certOf (G : Graph) (lab : Array Nat) : Array UInt64 :=
   certBits G.n fun i => let row := G.adj[lab[i]!]!; fun j => row[lab[j]!]!
+
+/-- `certRow` with the row of the adjacency matrix in hand rather than behind a closure. -/
+def certRowAt (row : Array Bool) (lab : Array Nat) (n : Nat) :
+    Nat → Nat → UInt64 → Nat → Array UInt64 → Array UInt64
+  | 0, _, acc, k, out =>
+    if n % 64 != 0 then out.set! k (acc <<< UInt64.ofNat (64 - n % 64)) else out
+  | fuel + 1, j, acc, k, out =>
+    let acc := acc <<< 1 ||| (if row[lab[j]!]! then 1 else 0)
+    if (j + 1) % 64 == 0 then certRowAt row lab n fuel (j + 1) 0 (k + 1) (out.set! k acc)
+    else certRowAt row lab n fuel (j + 1) acc k out
+
+theorem certRow_eq_certRowAt (row : Array Bool) (lab : Array Nat) (n : Nat) :
+    ∀ (fuel j : Nat) (acc : UInt64) (k : Nat) (out : Array UInt64),
+      certRow n (fun j => row[lab[j]!]!) fuel j acc k out = certRowAt row lab n fuel j acc k out
+  | 0, _, _, _, _ => rfl
+  | fuel + 1, j, acc, k, out => by
+    rw [certRow, certRowAt]
+    split <;> exact certRow_eq_certRowAt row lab n fuel _ _ _ _
+
+@[inherit_doc certRowsFrom]
+def certRowsFromAt (adj : Array (Array Bool)) (lab : Array Nat) (n w : Nat) :
+    Nat → Nat → Array UInt64 → Array UInt64
+  | 0, _, out => out
+  | fuel + 1, i, out =>
+    certRowsFromAt adj lab n w fuel (i + 1) (certRowAt adj[lab[i]!]! lab n n 0 0 (i * w) out)
+
+theorem certRowsFrom_eq_certRowsFromAt (G : Graph) (lab : Array Nat) (w : Nat) :
+    ∀ (fuel i : Nat) (out : Array UInt64),
+      certRowsFrom G.n (fun i => let row := G.adj[lab[i]!]!; fun j => row[lab[j]!]!) w fuel i out
+        = certRowsFromAt G.adj lab G.n w fuel i out
+  | 0, _, _ => rfl
+  | fuel + 1, i, out => by
+    rw [certRowsFrom, certRowsFromAt, certRow_eq_certRowAt]
+    exact certRowsFrom_eq_certRowsFromAt G lab w fuel (i + 1) _
+
+/-- What `certOf` runs.  The row of the adjacency matrix is passed to the bit loop as an array
+instead of being captured in a closure, which is the only way to make the lookup happen once per
+row: see the note on `certRow`.  A certificate is `n²` bits, and it is taken at every leaf of the
+search, so this is the second-largest cost in the whole algorithm after the refinement itself. -/
+def certOfFast (G : Graph) (lab : Array Nat) : Array UInt64 :=
+  certRowsFromAt G.adj lab G.n (rowWords G.n) G.n 0 (Array.replicate (G.n * rowWords G.n) 0)
+
+@[csimp] theorem certOf_eq_certOfFast : @certOf = @certOfFast := by
+  funext G lab
+  exact certRowsFrom_eq_certRowsFromAt G lab (rowWords G.n) G.n 0 _
 
 /-- Lexicographic comparison of `a` and `b` from index `i` on, with `fuel` bounding the number of
 positions still to look at.  Written as a structural recursion rather than a `for` loop so that

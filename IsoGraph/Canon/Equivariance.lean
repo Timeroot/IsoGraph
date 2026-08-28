@@ -1163,6 +1163,25 @@ theorem countFrom_touched_spec {n : Nat} (f : Nat → Nat → Bool) (lab : Array
     (fun u x hx => by simpa using ofOracle_nbr_lt' n f u x hx)
     (touched_empty _ fun w hw => by rw [getElem!_pos (Array.replicate n 0) w hw]; simp)
 
+/-- **A splitter cell that meets nobody leaves the counts alone.**  From cleared scratch the
+recorded set is exactly the set of nonzero counts, so an empty record means every count is still
+zero.  This is what lets `refineStep` hand back the array `countFrom` returned in place of the one
+it was given — the two are equal, and naming only the former is what keeps the counting loop's
+writes in place. -/
+theorem countFrom_eq_of_touched_isEmpty {n : Nat} (f : Nat → Nat → Bool) (lab : Array Nat)
+    (e s : Nat) {cnt touched : Array Nat}
+    (hc : countFrom (Graph.ofOracle n f) lab e (e - s) s (Array.replicate n 0) #[]
+      = (cnt, touched))
+    (h : touched.isEmpty = true) : cnt = Array.replicate n 0 := by
+  have hts : Touched cnt touched := by
+    have h := countFrom_touched_spec (n := n) f lab e s; rw [hc] at h; exact h
+  have hsz : cnt.size = n := by
+    have h := countFrom_size (Graph.ofOracle n f) lab e (e - s) s (Array.replicate n 0) #[]
+    rw [hc] at h; simpa using h
+  refine array_ext! (by simp [hsz]) fun i hi => ?_
+  rw [getElem!_pos (Array.replicate n 0) i (by rw [Array.size_replicate, ← hsz]; exact hi)]
+  simpa using not_not.1 fun hne => (arr_isEmpty_iff touched).1 h i ((hts.mem i hi).2 hne)
+
 /-- **The vertices the counting phase records form an invariant set.**  `touched` is exactly the
 set of vertices that the splitter cell reaches, and membership is stated in terms of `cellCount`,
 which `cellCount_equiv` shows corresponding runs agree on.
@@ -1202,12 +1221,14 @@ theorem sortNatList_eq (l : List Nat) : sortNatList l = List.insertionSort (· �
     simp [sortNatList, List.insertionSort, ih, hins]
 
 /-- Sorting a `List` and sorting the `Array` of the same elements agree.  Stated against
-`List.mergeSort` because that is what the rest of the file reasons with; `sortNats` itself runs
-insertion sort, and the two agree because a sorted permutation is unique. -/
+`List.mergeSort` because that is what the rest of the file reasons with; `sortNats` runs insertion
+sort on the short arrays, and the two agree because a sorted permutation is unique. -/
 @[simp] theorem sortNats_toList (a : Array Nat) :
     (sortNats a).toList = a.toList.mergeSort (fun x y => x ≤ y) := by
-  simp [sortNats, sortNatList_eq,
-    List.mergeSort_eq_insertionSort (r := (· ≤ · : Nat → Nat → Prop))]
+  rw [sortNats]
+  split
+  · simp [sortNatList_eq, List.mergeSort_eq_insertionSort (r := (· ≤ · : Nat → Nat → Prop))]
+  · simp
 
 theorem sortNats_perm (a : Array Nat) : (sortNats a).toList.Perm a.toList := by
   rw [sortNats_toList]
@@ -3625,7 +3646,7 @@ theorem refineStep_eq_empty {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} 
     {sc : Scratch} {cnt touched : Array Nat}
     (hc : countFrom G p.lab p.cen[s]! (p.cen[s]! - s) s sc.cnt #[] = (cnt, touched))
     (h : touched.isEmpty = true) :
-    refineStep G p inW s tr sc = (p, inW, mixN tr s, sc) := by
+    refineStep G p inW s tr sc = (p, inW, mixN tr s, { sc with cnt := cnt }) := by
   rw [refineStep]
   dsimp only
   rw [hc]
@@ -3776,7 +3797,9 @@ theorem refineStep_wf {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp : Part
       (Array.replicate n 0) #[] = (cnt, touched) := hc
   by_cases hemp : touched.isEmpty = true
   · rw [refineStep_eq_empty hc hemp]
-    exact ⟨hp, rfl⟩
+    refine ⟨hp, ?_⟩
+    rw [countFrom_eq_of_touched_isEmpty f p.lab p.cen[s]! s hc' hemp]
+    rfl
   · obtain ⟨hit, collected, hcl⟩ : ∃ hit collected,
         collectFrom p.pos p.cst touched touched.size 0 (Scratch.empty n).hit #[]
           = (hit, collected) := ⟨_, _, rfl⟩
