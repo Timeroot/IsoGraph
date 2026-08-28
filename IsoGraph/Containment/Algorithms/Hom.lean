@@ -31,7 +31,9 @@ without it is short enough to be its own search:
   the degree of `u`.
 * **Consistency.**  What survives must pass `CGraph.homCompat` against every placed vertex: an
   edge of `H` to an edge of `G`.  A non-edge of `H` constrains nothing, which is why this search
-  is weaker than the induced one, and why a dense host makes it easy.
+  is weaker than the induced one, and why a dense host makes it easy.  Which placements do
+  constrain is not a question about the candidate, so `CGraph.homCandFast` asks it once at the
+  node rather than once per candidate.
 
 Deciding either relation is NP-hard — `H →cg Kₖ` is `k`-colourability of `H` — so there is no
 better shape available.  The hard instances are a sparse pattern against a host with little
@@ -53,16 +55,19 @@ and are what to reach for:
 
 | job                        | `find…` | cached |
 | -------------------------- | ------- | ------ |
-| `C₄` a quotient of `tutte` | 5981    | 599    |
-| `tutte → K₃`               | 3232    | 385    |
-| `mcgee → K₂`               | 183     | 29     |
-| `grotzsch → K₄`            | 5       | 2      |
-| `petersen → K₃`            | 3       | 1      |
+| `C₄` a quotient of `tutte` | 868     | 74     |
+| `tutte → K₃`               | 29      | 2      |
+| `mcgee → K₂`               | 3       | <1     |
+| `grotzsch → K₄`            | 1       | <1     |
+| `petersen → K₃`            | <1      | <1     |
 
-The two negative answers are the honest ones: `mcgee → K₂` and the quotient both come back `none`,
-which means the search closed the whole tree.  `tutte → K₃` costs more than either even though it
-succeeds — 46 vertices, girth 4, and three colours is enough freedom that the first descent
-backtracks a long way before it commits.
+The quotient is a whole order of magnitude past the rest, and its answer is `none` — the search
+closed the entire tree, which is the honest cost of the relation.  It is also the shape the pivot
+handles worst: 46 vertices of pattern against 4 of host, so the pool is never smaller than a
+quarter of `G` and the pruning has to come from the prefix instead.  `mcgee → K₂` is the other
+`none` and costs nothing, because an odd cycle refuses two colours a few steps in.  The successes
+are cheap in proportion to the freedom the host leaves: `petersen → K₃` commits on the first
+descent, `tutte → K₃` backtracks a while first.
 -/
 
 set_option autoImplicit false
@@ -150,6 +155,45 @@ theorem mem_homPool {rG : Roster G.V} {x : H.V} {pre : List (H.V × G.V)} {u : G
 /-- The candidates for `x`, given what is already placed. -/
 def homCand (rG : Roster G.V) (x : H.V) (pre : List (H.V × G.V)) : List G.V :=
   (homPool H G rG x pre).filter fun u ↦ pre.all fun p ↦ homCompat H G (x, u) p
+
+/-- What `homCand` runs.  A placement constrains the candidate only when it holds a *neighbour* of
+`x`, and which placements those are is not a question about the candidate: asked once at the node,
+each candidate is then only put to the neighbours.  The first of them is the pivot that `homPool`
+already reads the pool off, so it is not asked twice.
+
+The gap is widest where the pattern is large and the host is small, which is what a quotient is:
+the prefix grows to the size of the pattern while the pool never exceeds the host, so this is one
+scan of the prefix per node instead of one per candidate.  `C₄` as a quotient of `tutte` is
+2.2× faster for it. -/
+def homCandFast (rG : Roster G.V) (x : H.V) (pre : List (H.V × G.V)) : List G.V :=
+  match pre.filter fun p ↦ H.Adj x p.1 with
+  | [] => rG.toList
+  | q :: rest => (rG.toList.filter (G.Adj q.2)).filter fun u ↦ rest.all fun p ↦ G.Adj u p.2
+
+/-- A `List.all` of implications is a `List.all` over what satisfies the hypothesis. -/
+private theorem all_imp_eq_all_filter {α : Type} (q r : α → Bool) (l : List α) :
+    (l.all fun a ↦ !q a || r a) = (l.filter q).all r := by
+  induction l with
+  | nil => rfl
+  | cons a l ih =>
+    rw [List.all_cons, List.filter_cons, ih]
+    cases q a <;> simp
+
+@[csimp] theorem homCand_eq_homCandFast : @homCand = @homCandFast := by
+  funext H G rG x pre
+  have hall : ∀ u : G.V, (pre.all fun p ↦ homCompat H G (x, u) p)
+      = (pre.filter fun p ↦ H.Adj x p.1).all fun p ↦ G.Adj u p.2 :=
+    fun u ↦ all_imp_eq_all_filter _ _ pre
+  rw [homCand, homCandFast, homPool, ← List.head?_filter]
+  simp only [hall]
+  generalize pre.filter (fun p ↦ H.Adj x p.1) = nbrs
+  cases nbrs with
+  | nil => simp
+  | cons q rest =>
+    simp only [List.head?_cons, List.all_cons, List.filter_filter]
+    refine List.filter_congr fun u _ ↦ ?_
+    rw [G.symm q.2 u]
+    cases G.Adj u q.2 <;> simp
 
 /-- Does the assignment hit every vertex of `G`?  Only ever asked of a finished one. -/
 def coversHost (rG : Roster G.V) (r : List (H.V × G.V)) : Bool :=

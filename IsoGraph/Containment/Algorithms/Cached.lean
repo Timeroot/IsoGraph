@@ -20,23 +20,25 @@ scans of an edge list.  This file wraps each of the nine searches so that it run
 copies of the pattern *and* the host — adjacency matrices on `Fin n`, filled once — and transports
 the answer back along `CGraph.isoCacheFin`.
 
-Both sides are worth caching, and the effect multiplies: caching the pattern alone or the host
-alone each recovers about half of the following, and the numbers below are the two together.
-`testing/CacheBench.lean`, cases `api-sub`, `api-minor`, `api-con`, `api-con-self`,
-`api-sub-kneser`, `api-hom`, `api-quot`, `api-indminor`; best of three interleaved rounds, in
-milliseconds; the cost of filling both arrays is included in the right-hand column:
+Both sides are cached because the wrapper cannot know which one needs it.  The win is not split
+between them: it sits entirely on whichever side has the expensive `Adj`, which for the jobs below
+is the one built by `CGraph.ofEdges`, and caching the other side buys nothing over its own `n²`
+fill.  Caching the host alone gets 87 of the quotient's 902 ms and the pattern alone gets 888;
+for `tutte → K₃` it is the other way round.  `testing/CacheBench.lean`, cases `api-sub`,
+`api-minor`, `api-con`, `api-con-self`, `api-sub-kneser`, `api-hom`, `api-quot`, `api-indminor`;
+best of three interleaved rounds, in milliseconds, both fills included on the right:
 
 | job                           | `find…` | `…Of?` |
 | ----------------------------- | ------- | ------ |
-| `C₄` a quotient of `tutte`    | 4598    | 582    |
-| `C₄ ⋏ tutte` (contraction)    | 3284    | 380    |
-| `tutte → K₃` (3-colouring)    | 3111    | 369    |
-| `C₆ ⊆ K(10,5)`                | 417     | 120    |
-| `mcgee ⋏ mcgee`               | 347     | 63     |
-| `mcgee → K₂`                  | 166     | 30     |
-| `K₄ ≼ tutte` (minor)          | 19      | 5      |
-| `K₄` induced minor of `tutte` | 18      | 4      |
-| `C₈ ⊆ tutte`                  | 7       | 3      |
+| `C₄` a quotient of `tutte`    | 868     | 74     |
+| `C₆ ⊆ K(10,5)`                | 187     | 99     |
+| `C₄ ⋏ tutte` (contraction)    | 127     | 13     |
+| `tutte → K₃` (3-colouring)    | 29      | 2      |
+| `K₄` induced minor of `tutte` | 13      | 2      |
+| `K₄ ≼ tutte` (minor)          | 12      | 3      |
+| `mcgee ⋏ mcgee`               | 11      | 2      |
+| `C₈ ⊆ tutte`                  | 3       | 2      |
+| `mcgee → K₂`                  | 3       | <1     |
 
 The `…Of?` entry points here are the ones to reach for; the underlying `find…` take a `Roster` and
 run on whatever vertex type they are given, which is what to use when the graphs are already
