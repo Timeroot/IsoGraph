@@ -29,18 +29,21 @@ The search asks `adj i j` a great many times, and `G.finAdj e` answers each one 
 `e.symm` and one to `G.Adj`, which for most of the gallery is a scan of an edge list.  Every entry
 point below therefore tabulates the model first — `Fin n × Fin n` queries, once — and hands the
 search an array read.  `testing/CacheBench.lean`, cases `api-vt`, `api-order` and `api-aut`,
-best of three interleaved rounds, in milliseconds:
+best of five interleaved rounds, in milliseconds:
 
-| job                                    | untabulated | tabulated |
-| -------------------------------------- | ----------- | --------- |
-| `vertexTransitiveB` of the Balaban 10-cage | 11517   | 619       |
-| `vertexTransitiveB` of `K(7,3)`        | 3384        | 278       |
-| `autGroupOrder?` of the Balaban 10-cage | 26         | 15        |
-| `autGens` of the Balaban 10-cage       | 22          | 12        |
+| job                                        | untabulated | tabulated |
+| ------------------------------------------ | ----------- | --------- |
+| `vertexTransitiveB` of the Balaban 10-cage | 854         | 59        |
+| `vertexTransitiveB` of `K(7,3)`            | 99          | 9         |
+| `autGroupOrder?` of the Balaban 10-cage    | 6           | 6         |
+| `autGens` of the Balaban 10-cage           | 5           | 5         |
 
-The transitivity tests are the ones that move, because they need a generating set that is *proved*
-complete — the stabiliser chain of `Canon/Chain.lean` — where `autGens` and `autGroupOrder?` take
-what the canonical labelling search harvested on its way past, which is far less work.
+Only the transitivity tests move, and they move by an order of magnitude, because they are the
+only ones that need a generating set *proved* complete: the stabiliser chain of
+`Canon/Chain.lean`, which searches a subtree per level and so asks about the model far more often
+than anything else here.  `autGens` and `autGroupOrder?` take what the canonical labelling search
+harvested on its way past, which costs a few milliseconds either way — for those the tabulation is
+lost in the noise, and is kept only because the entry points share one code path.
 
 The tabulation is an `Array`, not a function: a definition whose result type is a function is
 compiled with maximal arity, so a `def … : Fin n → Fin n → Bool := matLookup n (adjArray n ⋯)`
