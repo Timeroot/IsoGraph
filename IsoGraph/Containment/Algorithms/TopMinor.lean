@@ -47,15 +47,17 @@ order.
 Compiled, through `CGraph.topMinorOf?`, on one shared machine, so read the numbers as orders of
 magnitude.  The degree bound decides a whole class of negatives outright: `K₅ ≤ₜ Petersen` is empty
 in under a millisecond, where without it the same search takes seconds.  Positives on a small host
-are as quick — `K₄ ≤ₜ Petersen` 1 ms, `Petersen ≤ₜ Petersen` 2 ms, `K₄ ≤ₜ Heawood` 1 ms,
-`Petersen ≤ₜ Heawood` 6 ms — and the cached entry point is worth 3× over the same search on the
-edge lists (`Petersen ≤ₜ Heawood` 16 ms raw against 6 ms cached).
+are as quick — `K₄ ≤ₜ Petersen` and `K₄ ≤ₜ Heawood` under a millisecond, `Petersen ≤ₜ Petersen`
+1 ms, `Petersen ≤ₜ Heawood` 3 ms.  The cached entry point is worth little here, because the path
+enumeration no longer asks the graph anything: `CGraph.searchTopFast` hands it the neighbour lists,
+tabulated once, and what used to be a scan of every vertex per step is a look at three.
 
 What costs is the *host*, not the pattern.  `CGraph.routes` materialises every simple path between
 two vertices, and in a sparse graph that number grows with the host far faster than the search
-tree shrinks: `K₄ ≤ₜ McGee` (24 vertices, cubic) takes 44 ms, and the same pattern in Tutte's
-46-vertex cubic graph does not finish in eight minutes.  Twenty-odd vertices is the working range,
-and a dense host is worse still, so this search is for small sparse hosts.
+tree shrinks: `K₄ ≤ₜ McGee` (24 vertices, cubic) takes 25 ms, `Petersen ≤ₜ McGee` 100 ms, and the
+same pattern in Tutte's 46-vertex cubic graph does not finish in eight minutes.  Twenty-odd
+vertices is the working range, and a dense host is worse still, so this search is for small sparse
+hosts.
 -/
 
 set_option autoImplicit false
@@ -70,20 +72,24 @@ variable {G H : CGraph}
 
 /-- Every way of running from `u` to `t` in at most `n` steps: the list of vertices visited after
 `u`, whose last is `t`, staying clear of `avoid` until then.  Only completeness matters — a caller
-checks what it is handed — so nothing here has to be proved sound. -/
-def routes (G : CGraph) (gs : List G.V) (t : G.V) : ℕ → G.V → List G.V → List (List G.V)
+checks what it is handed — so nothing here has to be proved sound.
+
+`nb u` is the neighbours of `u`, and it is the only thing this asks of `G`; completeness needs
+only that it *contain* them.  See `CGraph.searchTop` for where the list comes from. -/
+def routes (G : CGraph) (nb : G.V → List G.V) (t : G.V) : ℕ → G.V → List G.V → List (List G.V)
   | 0, _, _ => []
   | n + 1, u, avoid =>
     (if G.Adj u t then [[t]] else []) ++
-      (gs.filter fun w ↦ G.Adj u w && !avoid.contains w && w != t).flatMap fun w ↦
-        (routes G gs t n w (w :: avoid)).map (w :: ·)
+      ((nb u).filter fun w ↦ !avoid.contains w && w != t).flatMap fun w ↦
+        (routes G nb t n w (w :: avoid)).map (w :: ·)
 
 /-- **Every path is enumerated**: a run from `u` to `t` short enough, with no repeats, whose
 interior misses `avoid`, is one of the candidates `routes` offers. -/
-theorem mem_routes {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs) {t : G.V} :
+theorem mem_routes {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = true → w ∈ nb u)
+    {t : G.V} :
     ∀ (n : ℕ) (u : G.V) (avoid : List G.V) (p : List G.V), p ≠ [] → p.length ≤ n →
       isWalkList G u p = true → chainEnd u p = t → (u :: p).Nodup →
-      (∀ w ∈ p.dropLast, w ∉ avoid) → p ∈ routes G gs t n u avoid := by
+      (∀ w ∈ p.dropLast, w ∉ avoid) → p ∈ routes G nb t n u avoid := by
   intro n
   induction n with
   | zero => intro u avoid p hne hlen; exact absurd (List.length_eq_zero_iff.mp (by omega)) hne
@@ -101,14 +107,14 @@ theorem mem_routes {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs) {t : G.V} :
         rw [← List.cons_append, List.dropLast_concat]
       have hwq : w ∉ q' ++ [z] := (List.nodup_cons.mp (List.nodup_cons.mp hnd).2).1
       refine List.mem_append_right _ (List.mem_flatMap.mpr ⟨w, ?_, ?_⟩)
-      · refine List.mem_filter.mpr ⟨hgs w, ?_⟩
+      · refine List.mem_filter.mpr ⟨hnb u w hw.1, ?_⟩
         have hwt : w ≠ t := by
           intro he
           refine hwq ?_
           rw [he, ← hend, chainEnd_eq_getLast, List.getLast_cons (by simp)]
           exact List.getLast_mem _
         have hwa : w ∉ avoid := havoid w (by rw [hdrop]; exact List.mem_cons_self ..)
-        simp only [Bool.and_eq_true, hw.1, true_and, Bool.not_eq_eq_eq_not, Bool.not_true,
+        simp only [Bool.and_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true,
           List.contains_eq_mem, decide_eq_false_iff_not, bne_iff_ne, ne_eq]
         exact ⟨hwa, hwt⟩
       · refine List.mem_map.mpr ⟨q' ++ [z], ?_, rfl⟩
@@ -680,17 +686,18 @@ it — `CGraph.tasks` routes an edge only after both of its ends — but the def
 something, and saying "every path between every pair of vertices" keeps the pruning sound without
 a word about the order the steps come in. -/
 def candTop (H G : CGraph) (hs : List H.V) (rank : G.V → ℕ) (pairs : List (H.V × H.V))
-    (rs : List (Row G)) (gs : List G.V) (n : ℕ) : Task H → Asg H G → List (List G.V)
+    (rs : List (Row G)) (gs : List G.V) (nb : G.V → List G.V) (n : ℕ) :
+    Task H → Asg H G → List (List G.V)
   | .place x, pre =>
     let used := usedPlace H G hs x pre
     let lo := (symLo H G rank pairs x (branches pre)).foldl max 0
-    let dx := H.toSimple.degree x
+    let dx := H.deg x
     (rs.filter fun p ↦ decide (dx ≤ p.deg) && !used.contains p.vert &&
       decide (lo ≤ rank p.vert)).map fun p ↦ [p.vert]
   | .route x y, pre =>
     match findB x (branches pre), findB y (branches pre) with
-    | some u, some v => routes G gs v n u (usedRoute H G hs x y pre)
-    | _, _ => gs.flatMap fun u ↦ gs.flatMap fun v ↦ routes G gs v n u []
+    | some u, some v => routes G nb v n u (usedRoute H G hs x y pre)
+    | _, _ => gs.flatMap fun u ↦ gs.flatMap fun v ↦ routes G nb v n u []
 
 /-- The whole test the search applies: the model conditions, and the order symmetry breaking
 puts on the images of interchangeable vertices.  `CGraph.sortedAsg` is the same test the embedding
@@ -698,7 +705,7 @@ search uses, read off the branch entries. -/
 def goalSym (H G : CGraph) (hs : List H.V) (rank : G.V → ℕ) (pairs : List (H.V × H.V))
     (asg : Asg H G) : Bool :=
   goalTop H G hs asg && sortedAsg H G rank pairs (branches asg) &&
-    (branches asg).all fun p ↦ decide (H.toSimple.degree p.1 ≤ G.toSimple.degree p.2)
+    (branches asg).all fun p ↦ decide (H.deg p.1 ≤ G.deg p.2)
 
 theorem goalSym_goal {rank : G.V → ℕ} {pairs : List (H.V × H.V)}
     (h : goalSym H G hs rank pairs asg = true) : goalTop H G hs asg = true := by
@@ -717,13 +724,14 @@ theorem goalSym_degree {rank : G.V → ℕ} {pairs : List (H.V × H.V)}
 
 /-- A run that a finished assignment accepts is one `CGraph.routes` offers. -/
 theorem mem_routes_of_runOk {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs)
+    {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = true → w ∈ nb u)
     (hg : goalTop H G hs asg = true) {x y : H.V} {b : List G.V}
     (hok : runOk H G hs asg x y b = true) {u v : G.V} (hu : (x, u) ∈ branches asg)
     (hv : (y, v) ∈ branches asg) (avoid : List G.V)
-    (hav : ∀ w ∈ b.dropLast, w ∉ avoid) : b ∈ routes G gs v gs.length u avoid := by
+    (hav : ∀ w ∈ b.dropLast, w ∉ avoid) : b ∈ routes G nb v gs.length u avoid := by
   have hnd := runOk_nodup hok hu
   have hends := runOk_ends hok hu hv
-  refine mem_routes hgs gs.length u avoid b ?_ ?_ (runOk_isWalk hok hu) hends hnd hav
+  refine mem_routes hnb gs.length u avoid b ?_ ?_ (runOk_isWalk hok hu) hends hnd hav
   · rintro rfl
     rw [chainEnd] at hends
     exact goalTop_inj hg hu hv (ne_of_oriented (runOk_oriented hok)) hends
@@ -735,10 +743,12 @@ theorem mem_routes_of_runOk {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs)
 /-- **The pruning is sound**: a value that occurs in a finished assignment is one the search
 offers at that step. -/
 theorem mem_candTop {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.V}
-    (hgs : ∀ v : G.V, v ∈ gs) {rank : G.V → ℕ} {pairs : List (H.V × H.V)} (a : Task H)
+    (hgs : ∀ v : G.V, v ∈ gs) {nb : G.V → List G.V}
+    (hnb : ∀ u w : G.V, G.Adj u w = true → w ∈ nb u)
+    {rank : G.V → ℕ} {pairs : List (H.V × H.V)} (a : Task H)
     (pre : Asg H G) (b : List G.V) (l : Asg H G)
     (hsym : goalSym H G hs rank pairs (l ++ (a, b) :: pre) = true) :
-    b ∈ candTop H G hs rank pairs (rowList G gs) gs gs.length a pre := by
+    b ∈ candTop H G hs rank pairs (rowList G gs) gs nb gs.length a pre := by
   have hg := goalSym_goal hsym
   have hsub : pre ⊆ l ++ (a, b) :: pre := fun z hz ↦
     List.mem_append_right _ (List.mem_cons_of_mem _ hz)
@@ -786,7 +796,7 @@ theorem mem_candTop {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
     rw [candTop]
     split
     · rename_i u v hfx hfy
-      refine mem_routes_of_runOk hgs hg hok (mem_branches_of_subset hsub (findB_mem hfx))
+      refine mem_routes_of_runOk hgs hnb hg hok (mem_branches_of_subset hsub (findB_mem hfx))
         (mem_branches_of_subset hsub (findB_mem hfy)) _ ?_
       intro w hw hwu
       rcases List.mem_append.mp hwu with h1 | h2
@@ -802,7 +812,7 @@ theorem mem_candTop {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
       obtain ⟨u, hfu⟩ := Option.isSome_iff_exists.mp (goalTop_findB hg (hmem x))
       obtain ⟨v, hfv⟩ := Option.isSome_iff_exists.mp (goalTop_findB hg (hmem y))
       exact List.mem_flatMap.mpr ⟨u, hgs u, List.mem_flatMap.mpr ⟨v, hgs v,
-        mem_routes_of_runOk hgs hg hok (findB_mem hfu) (findB_mem hfv) []
+        mem_routes_of_runOk hgs hnb hg hok (findB_mem hfu) (findB_mem hfv) []
           (fun w _ ↦ List.not_mem_nil)⟩⟩
 
 /-! ## The search -/
@@ -950,11 +960,28 @@ def searchTop (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : Option (Asg H
     Backtrack.dfs
       (candTop H G (searchOrder H rH.toList) (hostRank G rG)
         (symPairs H (searchOrder H rH.toList)) (rowList G rG.toList) rG.toList
-        rG.toList.length)
+        (fun u ↦ rG.toList.filter (G.Adj u)) rG.toList.length)
       (goalSym H G (searchOrder H rH.toList) (hostRank G rG)
         (symPairs H (searchOrder H rH.toList)))
       (tasks H (searchOrder H rH.toList)) []
   else none
+
+/-- `CGraph.searchTop` with the neighbour lists tabulated.  Every step of every path asks for the
+neighbours of the vertex it stands on, and the path enumeration is nearly all of what the search
+costs; filtering `rG.toList` there is a scan of the whole host, per step. -/
+def searchTopFast (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : Option (Asg H G) :=
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
+    let hs := searchOrder H rH.toList
+    let gs := rG.toList
+    let nb := Backtrack.tabAt (Backtrack.tabulate fun u ↦ gs.filter (G.Adj u))
+    Backtrack.dfs
+      (candTop H G hs (hostRank G rG) (symPairs H hs) (rowList G gs) gs nb gs.length)
+      (goalSym H G hs (hostRank G rG) (symPairs H hs)) (tasks H hs) []
+  else none
+
+@[csimp] theorem searchTop_eq_searchTopFast : @searchTop = @searchTopFast := by
+  funext H G rH rG
+  simp only [searchTop, searchTopFast, Backtrack.tabAt_tabulate]
 
 theorem searchTop_goal {rH : Roster H.V} {rG : Roster G.V} {r : Asg H G}
     (h : searchTop H G rH rG = some r) :
@@ -993,7 +1020,8 @@ theorem isEmpty_topMinorOf_of_eq_none {H G : CGraph} {rH : Roster H.V} {rG : Ros
         = tasks H (searchOrder H rH.toList) := by
       rw [asgOfModel, List.map_map]
       exact List.map_id _
-    have hn := Backtrack.dfs_eq_none (mem_candTop hmem rG.mem_toList) h hsol
+    have hn := Backtrack.dfs_eq_none (mem_candTop hmem rG.mem_toList
+      (fun u w hadj ↦ List.mem_filter.mpr ⟨rG.mem_toList w, hadj⟩)) h hsol
     rw [List.append_nil,
       goalSym_asgOfModel _ _ hmem (fun _ ↦ rfl) _ _ hgsort (fun x ↦ g.degree_le x)] at hn
     exact absurd hn (by simp)

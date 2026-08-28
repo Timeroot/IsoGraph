@@ -40,13 +40,15 @@ the symmetry breaking of `Algorithms/Twins.lean` is reused unchanged, needing on
 Compiled, through `CGraph.immersionOf?`, on one shared machine, so read the numbers as orders of
 magnitude.  The degree bound settles a class of negatives outright — `K₅` immersed in Petersen is
 empty in under a millisecond — and positives on a ten- or fourteen-vertex host are quick: `K₄` in
-Petersen 3 ms, Petersen in Petersen 6 ms, `K₄` in Heawood 18 ms, Petersen in Heawood 42 ms.  The
-cached entry point is worth about 2.4× over the same search on the edge lists (Petersen in Heawood
-100 ms raw against 42 ms cached).
+Petersen 2 ms, Petersen in Petersen 4 ms, `K₄` in Heawood 15 ms, Petersen in Heawood 34 ms.  The
+cached entry point is worth almost nothing over the same search on the edge lists, because the
+trail enumeration no longer asks the graph anything: `CGraph.searchImmFast` hands it the neighbour
+lists, tabulated once, so the innermost loop looks at three neighbours where it used to scan every
+vertex of the host.  On the largest case below that is worth 3×.
 
 The host is what costs, and it costs more here than in `Algorithms/TopMinor.lean`, because there
 are far more trails between two vertices than there are simple paths: `K₄` in McGee (24 vertices,
-cubic) takes 1.2 s where the topological minor search takes 44 ms, and Petersen in McGee 2.5 s.
+cubic) takes 1 s where the topological minor search takes 25 ms, and Petersen in McGee 2 s.
 Tutte's 46-vertex cubic graph is out of reach — the topological minor search already does not
 finish there in eight minutes.  Twenty-odd vertices is the working range, and a dense host is worse
 still.
@@ -110,21 +112,28 @@ theorem length_le_of_nodup_edgeList {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs
 /-- Every way of running from `u` to `t` in at most `n` steps without repeating an edge and
 without using one of `avoid`: the list of vertices visited after `u`, whose last is `t`.  Unlike
 `CGraph.routes` a trail may come back through a vertex it has already been to — including `t` —
-so nothing here filters on where the walk has been, only on which edges it has spent. -/
-def trails (G : CGraph) (gs : List G.V) (t : G.V) :
+so nothing here filters on where the walk has been, only on which edges it has spent.
+
+`nb u` is the neighbours of `u`, and it is the only thing this asks of `G`.  Completeness needs
+only that it *contain* them, and only completeness is proved — a caller checks what it is handed —
+so the walk test that scanning all of `G` would need is not here either.  See `CGraph.searchImm`
+for where the list comes from; the trail search is the innermost loop of the immersion search, and
+looking at three neighbours instead of every vertex is worth 3× on `Petersen ⊴ McGee`. -/
+def trails (G : CGraph) (nb : G.V → List G.V) (t : G.V) :
     ℕ → G.V → List (Sym2 G.V) → List (List G.V)
   | 0, _, _ => []
   | n + 1, u, avoid =>
     (if G.Adj u t && !avoid.contains s(u, t) then [[t]] else []) ++
-      (gs.filter fun w ↦ G.Adj u w && !avoid.contains s(u, w)).flatMap fun w ↦
-        (trails G gs t n w (s(u, w) :: avoid)).map (w :: ·)
+      ((nb u).filter fun w ↦ !avoid.contains s(u, w)).flatMap fun w ↦
+        (trails G nb t n w (s(u, w) :: avoid)).map (w :: ·)
 
 /-- **Every trail is enumerated**: a run from `u` to `t` short enough, repeating no edge and using
 none of `avoid`, is one of the candidates `trails` offers. -/
-theorem mem_trails {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs) {t : G.V} :
+theorem mem_trails {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = true → w ∈ nb u)
+    {t : G.V} :
     ∀ (n : ℕ) (u : G.V) (avoid : List (Sym2 G.V)) (p : List G.V), p ≠ [] → p.length ≤ n →
       isWalkList G u p = true → chainEnd u p = t → (edgeList u p).Nodup →
-      (∀ e ∈ edgeList u p, e ∉ avoid) → p ∈ trails G gs t n u avoid := by
+      (∀ e ∈ edgeList u p, e ∉ avoid) → p ∈ trails G nb t n u avoid := by
   intro n
   induction n with
   | zero => intro u avoid p hne hlen; exact absurd (List.length_eq_zero_iff.mp (by omega)) hne
@@ -146,9 +155,9 @@ theorem mem_trails {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs) {t : G.V} :
       exact List.mem_cons_self ..
     | cons z q' =>
       refine List.mem_append_right _ (List.mem_flatMap.mpr ⟨w, ?_, ?_⟩)
-      · refine List.mem_filter.mpr ⟨hgs w, ?_⟩
-        simp only [Bool.and_eq_true, hw.1, true_and, Bool.not_eq_eq_eq_not, Bool.not_true,
-          List.contains_eq_mem, decide_eq_false_iff_not]
+      · refine List.mem_filter.mpr ⟨hnb u w hw.1, ?_⟩
+        simp only [Bool.not_eq_eq_eq_not, Bool.not_true, List.contains_eq_mem,
+          decide_eq_false_iff_not]
         exact hfirst
       · refine List.mem_map.mpr ⟨z :: q', ?_, rfl⟩
         have hlen' : (z :: q').length ≤ n := by
@@ -542,24 +551,25 @@ The last line is the case where the two ends are *not* already placed, which `CG
 produces; saying "every trail between every pair of vertices" keeps the pruning sound without a
 word about the order the steps come in. -/
 def candImm (H G : CGraph) (hs : List H.V) (rank : G.V → ℕ) (pairs : List (H.V × H.V))
-    (rs : List (Row G)) (gs : List G.V) (n : ℕ) : Task H → Asg H G → List (List G.V)
+    (rs : List (Row G)) (gs : List G.V) (nb : G.V → List G.V) (n : ℕ) :
+    Task H → Asg H G → List (List G.V)
   | .place x, pre =>
     let used := usedBranch H G x pre
     let lo := (symLo H G rank pairs x (branches pre)).foldl max 0
-    let dx := H.toSimple.degree x
+    let dx := H.deg x
     (rs.filter fun p ↦ decide (dx ≤ p.deg) && !used.contains p.vert &&
       decide (lo ≤ rank p.vert)).map fun p ↦ [p.vert]
   | .route x y, pre =>
     match findB x (branches pre), findB y (branches pre) with
-    | some u, some v => trails G gs v n u (usedEdges H G hs x y pre)
-    | _, _ => gs.flatMap fun u ↦ gs.flatMap fun v ↦ trails G gs v n u []
+    | some u, some v => trails G nb v n u (usedEdges H G hs x y pre)
+    | _, _ => gs.flatMap fun u ↦ gs.flatMap fun v ↦ trails G nb v n u []
 
 /-- The whole test the search applies: the model conditions, and the order symmetry breaking puts
 on the images of interchangeable vertices. -/
 def goalImmSym (H G : CGraph) (hs : List H.V) (rank : G.V → ℕ) (pairs : List (H.V × H.V))
     (asg : Asg H G) : Bool :=
   goalImm H G hs asg && sortedAsg H G rank pairs (branches asg) &&
-    (branches asg).all fun p ↦ decide (H.toSimple.degree p.1 ≤ G.toSimple.degree p.2)
+    (branches asg).all fun p ↦ decide (H.deg p.1 ≤ G.deg p.2)
 
 theorem goalImmSym_goal {rank : G.V → ℕ} {pairs : List (H.V × H.V)}
     (h : goalImmSym H G hs rank pairs asg = true) : goalImm H G hs asg = true := by
@@ -578,14 +588,15 @@ theorem goalImmSym_degree {rank : G.V → ℕ} {pairs : List (H.V × H.V)}
 
 /-- A run that a finished assignment accepts is one `CGraph.trails` offers. -/
 theorem mem_trails_of_trailOk {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs)
+    {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = true → w ∈ nb u)
     (hg : goalImm H G hs asg = true) {x y : H.V} {b : List G.V}
     (hok : trailOk H G hs asg x y b = true) {u v : G.V} (hu : (x, u) ∈ branches asg)
     (hv : (y, v) ∈ branches asg) (avoid : List (Sym2 G.V))
     (hav : ∀ e ∈ edgeList u b, e ∉ avoid) :
-    b ∈ trails G gs v (gs.length * gs.length) u avoid := by
+    b ∈ trails G nb v (gs.length * gs.length) u avoid := by
   have hnd := trailOk_nodup hok hu
   have hends := trailOk_ends hok hu hv
-  refine mem_trails hgs _ u avoid b ?_ ?_ (trailOk_isWalk hok hu) hends hnd hav
+  refine mem_trails hnb _ u avoid b ?_ ?_ (trailOk_isWalk hok hu) hends hnd hav
   · rintro rfl
     rw [chainEnd] at hends
     exact goalImm_inj hg hu hv (ne_of_oriented (trailOk_oriented hok)) hends
@@ -594,10 +605,12 @@ theorem mem_trails_of_trailOk {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs)
 /-- **The pruning is sound**: a value that occurs in a finished assignment is one the search
 offers at that step. -/
 theorem mem_candImm {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.V}
-    (hgs : ∀ v : G.V, v ∈ gs) {rank : G.V → ℕ} {pairs : List (H.V × H.V)} (a : Task H)
+    (hgs : ∀ v : G.V, v ∈ gs) {nb : G.V → List G.V}
+    (hnb : ∀ u w : G.V, G.Adj u w = true → w ∈ nb u)
+    {rank : G.V → ℕ} {pairs : List (H.V × H.V)} (a : Task H)
     (pre : Asg H G) (b : List G.V) (l : Asg H G)
     (hsym : goalImmSym H G hs rank pairs (l ++ (a, b) :: pre) = true) :
-    b ∈ candImm H G hs rank pairs (rowList G gs) gs (gs.length * gs.length) a pre := by
+    b ∈ candImm H G hs rank pairs (rowList G gs) gs nb (gs.length * gs.length) a pre := by
   have hg := goalImmSym_goal hsym
   have hsub : pre ⊆ l ++ (a, b) :: pre := fun z hz ↦
     List.mem_append_right _ (List.mem_cons_of_mem _ hz)
@@ -638,7 +651,7 @@ theorem mem_candImm {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
     split
     · rename_i u v hfx hfy
       have hu := mem_branches_of_subset hsub (findB_mem hfx)
-      refine mem_trails_of_trailOk hgs hg hok hu
+      refine mem_trails_of_trailOk hgs hnb hg hok hu
         (mem_branches_of_subset hsub (findB_mem hfy)) _ ?_
       intro e he hused
       obtain ⟨t, ht, het⟩ := List.mem_flatten.mp hused
@@ -655,7 +668,7 @@ theorem mem_candImm {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
     · obtain ⟨u, hfu⟩ := Option.isSome_iff_exists.mp (goalImm_findB hg (hmem x))
       obtain ⟨v, hfv⟩ := Option.isSome_iff_exists.mp (goalImm_findB hg (hmem y))
       exact List.mem_flatMap.mpr ⟨u, hgs u, List.mem_flatMap.mpr ⟨v, hgs v,
-        mem_trails_of_trailOk hgs hg hok (findB_mem hfu) (findB_mem hfv) []
+        mem_trails_of_trailOk hgs hnb hg hok (findB_mem hfu) (findB_mem hfv) []
           (fun e _ ↦ List.not_mem_nil)⟩⟩
 
 /-! ## The search -/
@@ -809,11 +822,31 @@ def searchImm (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : Option (Asg H
     Backtrack.dfs
       (candImm H G (searchOrder H rH.toList) (hostRank G rG)
         (symPairs H (searchOrder H rH.toList)) (rowList G rG.toList) rG.toList
-        (rG.toList.length * rG.toList.length))
+        (fun u ↦ rG.toList.filter (G.Adj u)) (rG.toList.length * rG.toList.length))
       (goalImmSym H G (searchOrder H rH.toList) (hostRank G rG)
         (symPairs H (searchOrder H rH.toList)))
       (tasks H (searchOrder H rH.toList)) []
   else none
+
+/-- `CGraph.searchImm` with the neighbour lists tabulated.
+
+Every step of every trail asks for the neighbours of the vertex it stands on, and the search runs
+tens of thousands of trail searches: `Petersen ⊴ McGee` is about forty thousand, and the trail
+enumeration is nearly all of the eight seconds it takes.  Filtering `rG.toList` there — a scan of
+the whole host, per step — is what `Backtrack.tabulate` takes out, and it is worth 3×. -/
+def searchImmFast (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : Option (Asg H G) :=
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
+    let hs := searchOrder H rH.toList
+    let gs := rG.toList
+    let nb := Backtrack.tabAt (Backtrack.tabulate fun u ↦ gs.filter (G.Adj u))
+    Backtrack.dfs
+      (candImm H G hs (hostRank G rG) (symPairs H hs) (rowList G gs) gs nb (gs.length * gs.length))
+      (goalImmSym H G hs (hostRank G rG) (symPairs H hs)) (tasks H hs) []
+  else none
+
+@[csimp] theorem searchImm_eq_searchImmFast : @searchImm = @searchImmFast := by
+  funext H G rH rG
+  simp only [searchImm, searchImmFast, Backtrack.tabAt_tabulate]
 
 theorem searchImm_goal {rH : Roster H.V} {rG : Roster G.V} {r : Asg H G}
     (h : searchImm H G rH rG = some r) :
@@ -851,7 +884,8 @@ theorem isEmpty_immersionOf_of_eq_none {H G : CGraph} {rH : Roster H.V} {rG : Ro
         = tasks H (searchOrder H rH.toList) := by
       rw [asgOfImm, List.map_map]
       exact List.map_id _
-    have hn := Backtrack.dfs_eq_none (mem_candImm hmem rG.mem_toList) h hsol
+    have hn := Backtrack.dfs_eq_none (mem_candImm hmem rG.mem_toList
+      (fun u w hadj ↦ List.mem_filter.mpr ⟨rG.mem_toList w, hadj⟩)) h hsol
     rw [List.append_nil,
       goalImmSym_asgOfImm _ _ hmem (fun _ ↦ rfl) _ _ hgsort (fun x ↦ g.degree_le x)] at hn
     exact absurd hn (by simp)

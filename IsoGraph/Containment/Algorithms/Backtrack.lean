@@ -105,10 +105,11 @@ def Roster.finset [DecidableEq α] (r : Roster α) : Roster (Finset α) :=
 
 /-! ### Tabulated functions
 
-A search asks the same numeric question about the same element over and over: where the roster
-lists a vertex, how many neighbours it has, how many of its class are still to come.  None of
-those depends on the partial assignment, and all of them are a scan of something, so a search
-computes each once per element before it starts and reads them back out of an array afterwards.
+A search asks the same question about the same element over and over: where the roster lists a
+vertex, how many neighbours it has and which they are, how many of its class are still to come.
+None of those depends on the partial assignment, and all of them are a scan of something, so a
+search computes each once per element before it starts and reads them back out of an array
+afterwards.
 
 `tabulate` and `tabAt` are that array and that read, indexed by `FinEnum.equiv`.  Whether the
 lookup is faster than the question is a matter for the type: for `Fin n`, and for the products and
@@ -116,8 +117,8 @@ sums the graph constructions build, `FinEnum.equiv` is arithmetic; for a vertex 
 enumeration is a list it is another scan, and the table only pays from the second query onwards.
 Neither is ever reasoned about — `tabAt_tabulate` puts the function back. -/
 
-/-- A `ℕ`-valued function on a `FinEnum`, as a table indexed by `FinEnum.equiv`. -/
-def tabulate {α : Type u} [FinEnum α] (f : α → ℕ) : Array ℕ :=
+/-- A function on a `FinEnum`, as a table indexed by `FinEnum.equiv`. -/
+def tabulate {α : Type u} {β : Type v} [FinEnum α] (f : α → β) : Array β :=
   ((List.finRange (FinEnum.card α)).map fun i ↦ f (FinEnum.equiv.symm i)).toArray
 
 /-- Read a value out of a `Backtrack.tabulate` table.
@@ -126,10 +127,12 @@ Top-level, and applied to the table alone rather than defined as `fun f v ↦ �
 maximises the arity of a definition, so one that returns a function type takes the second argument
 too and rebuilds the table on every lookup.  A caller shares the table by naming
 `tabAt (tabulate f)` in a `let`. -/
-def tabAt {α : Type u} [FinEnum α] (t : Array ℕ) (v : α) : ℕ := t[(FinEnum.equiv v).val]!
+def tabAt {α : Type u} {β : Type v} [FinEnum α] [Inhabited β] (t : Array β) (v : α) : β :=
+  t[(FinEnum.equiv v).val]!
 
 /-- **The table says what the function says.** -/
-theorem tabAt_tabulate {α : Type u} [FinEnum α] (f : α → ℕ) : tabAt (tabulate f) = f := by
+theorem tabAt_tabulate {α : Type u} {β : Type v} [FinEnum α] [Inhabited β] (f : α → β) :
+    tabAt (tabulate f) = f := by
   funext v
   rw [tabAt, tabulate, getElem!_pos _ _ (by simp [(FinEnum.equiv v).isLt])]
   simp
