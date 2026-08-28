@@ -66,6 +66,14 @@ made the grid and Heawood cases about 1.4 times slower and McGee a wash: `labSou
 ruled out most of what it would catch.  (Numbers from `testing/MinorBench.lean`, best of several
 runs; the machine is shared and the same binary has been seen to vary fourfold with load, so treat
 them as ratios rather than absolutes.)
+
+The same idea one level up: everything `candKeep` asks that does not mention the label being tried
+is lifted out of the loop over labels and computed once per node.  `candLabFast` is that, and the
+section "What the search runs" below is what it takes to make the hoist pay for itself on the nodes
+where nothing survives the cheap tests anyway.  Against `candKeep` run as written, the two
+alternating in one process: ruling `C6` out of Heawood came down by a quarter, `K4` into McGee by a
+fifth, the two grid cases by about an eighth, and `K4` into the 4-cube — which finds an answer
+almost at once, so there is nothing to amortise a table over — was a wash.
 -/
 
 set_option autoImplicit false
@@ -207,6 +215,12 @@ theorem mem_fibre_of_mem {r r' : List (G.V × H.V)} {v : G.V} {x : H.V} (hr : �
 theorem mem_of_mem_fibre {r : List (G.V × H.V)} {v : G.V} {x : H.V} (h : v ∈ fibre r x) :
     v ∈ r.map Prod.fst :=
   List.mem_map_of_mem (mem_fibre.mp h)
+
+/-- Labelling one more vertex changes one block, and changes it by a cons. -/
+theorem fibre_cons (v : G.V) (x y : H.V) (pre : List (G.V × H.V)) :
+    fibre ((v, x) :: pre) y = if x = y then v :: fibre pre y else fibre pre y := by
+  simp only [fibre, List.filter_cons, decide_eq_true_eq]
+  split <;> simp_all
 
 /-! ## The test on a complete assignment
 
@@ -405,6 +419,95 @@ def candKeep (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V �
 def candLab (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V × H.V))
     (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
   (labSource H G hs v pre).filter (candKeep H G hs gs pairs v pre)
+
+/-! ## What the search runs
+
+`candKeep` reads as one test on one label, which is what the soundness proof below wants, but run
+that way it redoes at every label almost everything it did at the last one.  All but one of the
+blocks of `(v, x) :: pre` are blocks of `pre`, and so is everything asked of them: which vertex `x`
+gets does not change whether the block of some other `y` can still be joined up, or whether an
+unlabelled vertex touches it.  Only `x`'s own block moves.
+
+So the work is lifted out of the loop over labels and into the node: build the blocks of `pre`
+once, and with them the two answers, then give each label the table with its one entry replaced.
+Two things keep that from costing more than it saves on the nodes where the cheap tests kill
+everything.  The table is built after the first three tests and not before, so a node with no
+survivor never builds it; and the two answers are thunks, so a block whose answer `blocksOkTab`
+never looks at — it stops at the first block that fails — is never joined up at all. -/
+
+/-- The two things `blocksOk` asks of a block that do not depend on the label being tried: can what
+is in it still be joined up, and does an unlabelled vertex still touch it? -/
+def blockOk (G : CGraph) (pool f : List G.V) : Bool × Bool :=
+  (connVia G pool f, pool.any fun u ↦ f.any (G.Adj u))
+
+/-- `blocksOk` reading those two off a table instead of recomputing them. -/
+def blocksOkTab (H G : CGraph) (fs : List (H.V × List G.V × Thunk (Bool × Bool))) : Bool :=
+  fs.all fun p ↦
+    p.2.2.get.1 && (p.2.1.isEmpty || p.2.2.get.2 ||
+      fs.all fun q ↦ !H.Adj p.1 q.1 || linked G p.2.1 q.2.1)
+
+theorem blocksOk_eq_blocksOkTab (hs : List H.V) (pool : List G.V) (b : H.V → List G.V) :
+    blocksOk H G pool (hs.map fun y ↦ (y, b y)) =
+      blocksOkTab H G (hs.map fun y ↦ (y, b y, Thunk.mk fun _ ↦ blockOk G pool (b y))) := by
+  rw [blocksOk, blocksOkTab, List.all_map, List.all_map]
+  refine List.all_congr rfl fun y ↦ ?_
+  simp only [Function.comp_apply, blockOk, List.all_map, Function.comp_def, Thunk.get]
+
+/-- Two tests in a row are two filters in a row. -/
+private theorem filter_and {α : Type} (l : List α) (a d : α → Bool) :
+    l.filter (fun x ↦ a x && d x) = (l.filter a).filter d := by
+  rw [List.filter_filter]
+  exact List.filter_congr fun x _ ↦ Bool.and_comm ..
+
+/-- What `candLab` runs: the three cheap tests first, then the block table for whatever got
+through, then the two block tests off that table. -/
+def candLabFast (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V × H.V))
+    (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
+  let used := pre.map Prod.snd
+  let len := pre.length + 1
+  let rough := (labSource H G hs v pre).filter fun x ↦
+    pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
+      decide (hs.countP (fun y ↦ !(x :: used).contains y) + len ≤ gs.length) &&
+      pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
+        (!(fibre ((v, x) :: pre) p.1).isEmpty &&
+          decide (minRank gs.idxOf (fibre ((v, x) :: pre) p.1) ≤
+            minRank gs.idxOf (fibre ((v, x) :: pre) p.2))))
+  if rough.isEmpty then [] else
+    let pool := gs.drop len
+    let tab := hs.map fun y ↦ let f := fibre pre y; (y, f, Thunk.mk fun _ ↦ blockOk G pool f)
+    rough.filter fun x ↦ blocksOkTab H G (tab.map fun t ↦
+      if x = t.1 then (let f := v :: t.2.1; (t.1, f, Thunk.mk fun _ ↦ blockOk G pool f)) else t)
+
+@[csimp] theorem candLab_eq_candLabFast : @candLab = @candLabFast := by
+  funext H G hs gs pairs v pre
+  have hk : candKeep H G hs gs pairs v pre = fun x ↦
+      (pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
+        decide (hs.countP (fun y ↦ !(x :: pre.map Prod.snd).contains y) + (pre.length + 1) ≤
+          gs.length) &&
+        pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
+          (!(fibre ((v, x) :: pre) p.1).isEmpty &&
+            decide (minRank gs.idxOf (fibre ((v, x) :: pre) p.1) ≤
+              minRank gs.idxOf (fibre ((v, x) :: pre) p.2))))) &&
+      blocksOk H G (gs.drop (pre.length + 1))
+        (hs.map fun y ↦ (y, fibre ((v, x) :: pre) y)) := by
+    funext x; rw [candKeep]; rfl
+  rw [candLab, hk, filter_and, candLabFast]
+  split
+  · rename_i hemp
+    rw [List.isEmpty_iff.mp hemp]
+    rfl
+  · refine List.filter_congr fun x _ ↦ ?_
+    have hmap : ((hs.map fun y ↦ (y, fibre pre y, Thunk.mk fun _ ↦
+          blockOk G (gs.drop (pre.length + 1)) (fibre pre y))).map fun t ↦
+          if x = t.1 then (t.1, v :: t.2.1, Thunk.mk fun _ ↦
+            blockOk G (gs.drop (pre.length + 1)) (v :: t.2.1)) else t) =
+        hs.map fun y ↦ (y, fibre ((v, x) :: pre) y, Thunk.mk fun _ ↦
+          blockOk G (gs.drop (pre.length + 1)) (fibre ((v, x) :: pre) y)) := by
+      rw [List.map_map]
+      refine List.map_congr_left fun y _ ↦ ?_
+      simp only [Function.comp_apply, fibre_cons]
+      split <;> rfl
+    rw [hmap, ← blocksOk_eq_blocksOkTab]
 
 /-! ## Soundness of the pruning -/
 
