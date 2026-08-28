@@ -397,6 +397,22 @@ theorem mem_adjRow {gs : List G.V} (hgs : ∀ v, v ∈ gs) {u b : G.V} {l : List
   rw [adjRow_map G h]
   exact List.mem_filter.mpr ⟨List.mem_map.mpr ⟨b, hgs b, rfl⟩, hb⟩
 
+/-- **The table has a row for every vertex it was built from.**  This is what lets the search read
+the adjacency table out of a `Backtrack.tabulate` array instead of scanning the association list:
+for a table built from a complete vertex list the lookup never fails, so the array version answers
+the same question. -/
+theorem adjRow_eq_some {f : G.V → List (Row G)} {u : G.V} :
+    ∀ {gs : List G.V}, u ∈ gs → adjRow G u (gs.map fun v ↦ (v, f v)) = some (f u) := by
+  intro gs
+  induction gs with
+  | nil => exact fun h ↦ absurd h (by simp)
+  | cons v rest ih =>
+    intro h
+    rw [List.map_cons, adjRow]
+    split
+    · next he => rw [he]
+    · next he => exact ih ((List.mem_cons.mp h).resolve_left he)
+
 /-! ## The candidates at a node -/
 
 /-- The ranks symmetry breaking makes `a`'s image rank at or above: the images of the vertices
@@ -484,29 +500,36 @@ against.  The first entry of `nbrs` is the *pivot*: its row of the adjacency tab
 vertices adjacent to it, so taking that as the pool both shrinks the pool to a neighbourhood and
 discharges the pivot's own test for everything in it.  With no placed neighbour — or no row for
 it, which cannot happen for a table built from a complete vertex list — the pool is all of `G`
-and nothing is discharged. -/
-def candPool (rs : List (Row G)) (nb : List (G.V × List (Row G))) :
+and nothing is discharged.
+
+The table is taken as a function rather than as the association list it is written as: looking a
+vertex up in the list is a scan of `G` at every node, against a pool that for a sparse host is a
+handful of rows.  `searchAsgFast` hands over a `Backtrack.tabulate` of it, and `adjRow_eq_some` is
+what says the array answers as the list does. -/
+def candPool (rs : List (Row G)) (nbrOf : G.V → Option (List (Row G))) :
     List G.V → List (Row G) × List G.V
   | [] => (rs, [])
   | u :: t =>
-    match adjRow G u nb with
+    match nbrOf u with
     | some l => (l, t)
     | none => (rs, u :: t)
 
-theorem mem_candPool_fst {gs : List G.V} (hgs : ∀ v, v ∈ gs) {nbrs : List G.V} {b : G.V}
-    (hb : ∀ u ∈ nbrs, G.Adj b u = true) :
-    row G gs b ∈ (candPool G (rowList G gs) (adjTable G gs) nbrs).1 := by
+theorem mem_candPool_fst {gs : List G.V} (hgs : ∀ v, v ∈ gs)
+    {nbrOf : G.V → Option (List (Row G))}
+    (hnb : ∀ u l, nbrOf u = some l → ∀ b, G.Adj u b = true → row G gs b ∈ l)
+    {nbrs : List G.V} {b : G.V} (hb : ∀ u ∈ nbrs, G.Adj b u = true) :
+    row G gs b ∈ (candPool G (rowList G gs) nbrOf nbrs).1 := by
   have hrs : row G gs b ∈ rowList G gs := List.mem_map.mpr ⟨b, hgs b, rfl⟩
   cases nbrs with
   | nil => exact hrs
   | cons u t =>
     rw [candPool]
     split
-    · next l hn => exact mem_adjRow G hgs hn (by rw [G.symm u b]; exact hb u (by simp))
+    · next l hn => exact hnb u l hn b (by rw [G.symm u b]; exact hb u (by simp))
     · exact hrs
 
-theorem candPool_snd_subset {rs : List (Row G)} {nb : List (G.V × List (Row G))}
-    {nbrs : List G.V} : ∀ u ∈ (candPool G rs nb nbrs).2, u ∈ nbrs := by
+theorem candPool_snd_subset {rs : List (Row G)} {nbrOf : G.V → Option (List (Row G))}
+    {nbrs : List G.V} : ∀ u ∈ (candPool G rs nbrOf nbrs).2, u ∈ nbrs := by
   cases nbrs with
   | nil => exact fun _ h ↦ h
   | cons v t =>
@@ -531,9 +554,9 @@ walks the chain of pairs, re-filtering all of them at every step.  Computing the
 used instead costs a scan per node, which on a pattern with no edges — every vertex in one class,
 so the chain is as long as the pattern — is most of the search. -/
 def candList (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (rs : List (Row G))
-    (nb : List (G.V × List (Row G))) (dg tc : H.V → ℕ) (a : H.V) (pre : List (H.V × G.V)) :
-    List G.V :=
-  let cp := candPool G rs nb (preAdj H G a pre)
+    (nbrOf : G.V → Option (List (Row G))) (dg tc : H.V → ℕ) (a : H.V)
+    (pre : List (H.V × G.V)) : List G.V :=
+  let cp := candPool G rs nbrOf (preAdj H G a pre)
   let lo := symLo H G rank pairs a pre
   let hi := symHi H G rank pairs a pre
   let floor := lo.foldl max 0
@@ -694,7 +717,8 @@ theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ
     (b : G.V) (l : List (H.V × G.V))
     (hk : (l ++ (a, b) :: pre).map Prod.fst = keys)
     (h : goalAsg H G ind rank n pairs (l ++ (a, b) :: pre) = true) :
-    b ∈ candList H G ind rank n pairs (rowList G gs) (adjTable G gs) dg tc a pre := by
+    b ∈ candList H G ind rank n pairs (rowList G gs)
+      (fun u ↦ adjRow G u (adjTable G gs)) dg tc a pre := by
   simp only [goalAsg, Bool.and_eq_true] at h
   obtain ⟨⟨hv, hsort⟩, hcap⟩ := h
   have hab : (a, b) ∈ l ++ (a, b) :: pre := by simp
@@ -736,7 +760,8 @@ theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ
     exact adj_of_edgeOk hc.2 hax
   simp only [candList]
   refine List.mem_map.mpr ⟨row G gs b,
-    List.mem_filter.mpr ⟨mem_dropWhile (mem_candPool_fst G hgs hadj) ?_, ?_⟩, rfl⟩
+    List.mem_filter.mpr ⟨mem_dropWhile
+      (mem_candPool_fst G hgs (fun _ _ hn _ hu ↦ mem_adjRow G hgs hn hu) hadj) ?_, ?_⟩, rfl⟩
   · simp only [decide_eq_false_iff_not, Nat.not_lt, row]
     exact foldl_max_le (Nat.zero_le _) fun m hm ↦ hrank b ▸ hlo m hm
   · refine candKeep_row G ind hgs (fun u hu ↦ hadj u (candPool_snd_subset G u hu)) ?_ hdeg
@@ -830,8 +855,8 @@ def searchAsg (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let pairs := symPairs H (searchOrder H rH.toList)
     Backtrack.dfs
-      (candList H G ind (hostRank G rG) rG.toList.length pairs
-        (rowList G rG.toList) (adjTable G rG.toList) H.deg (tailCount H pairs.length pairs))
+      (candList H G ind (hostRank G rG) rG.toList.length pairs (rowList G rG.toList)
+        (fun u ↦ adjRow G u (adjTable G rG.toList)) H.deg (tailCount H pairs.length pairs))
       (goalAsg H G ind (hostRank G rG) rG.toList.length pairs)
       (searchOrder H rH.toList) []
   else none
@@ -841,25 +866,36 @@ row list, which `adjTable` would otherwise build a second time, and the pattern'
 costs a `twinClasses` call.  Written out rather than left to the compiler: it shares subterms
 inside a basic block, but `adjTable`'s copy of the row list is behind a call.
 
-The two questions about the pattern vertex are tabulated for the same reason, and it is worth more:
-they are asked at every node rather than once, and `Backtrack.tabAt_tabulate` is what lets the
-specification above ask them the obvious way. -/
+Everything looked up by a vertex is tabulated, and it is worth more than the sharing: the two
+questions about the pattern vertex and the host's rank are asked at every node rather than once,
+and the adjacency table is asked at every node against a pool that for a sparse host is a handful
+of rows.  `Backtrack.tabAt_tabulate` is what lets the specification above ask them the obvious
+way. -/
 def searchAsgFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let hs := searchOrder H rH.toList
     let pairs := symPairs H hs
     let gs := rG.toList
-    let rank := hostRank G rG
+    let rank := Backtrack.tabAt (Backtrack.rankTable gs)
     let rs := rowList G gs
     let dg := Backtrack.tabAt (Backtrack.tabulate H.deg)
     let tc := Backtrack.tabAt (Backtrack.tabulate (tailCount H pairs.length pairs))
-    Backtrack.dfs (candList H G ind rank gs.length pairs rs (adjTableOf G rs gs) dg tc)
+    let nbrOf := Backtrack.tabAt (Backtrack.tabulate fun v ↦
+      some (rs.filter fun p ↦ G.Adj v p.vert))
+    Backtrack.dfs (candList H G ind rank gs.length pairs rs nbrOf dg tc)
       (goalAsg H G ind rank gs.length pairs) hs []
   else none
 
 @[csimp] theorem searchAsg_eq_searchAsgFast : @searchAsg = @searchAsgFast := by
   funext H G ind rH rG
-  simp only [searchAsg, searchAsgFast, Backtrack.tabAt_tabulate, adjTable]
+  have hrow : (fun u ↦ adjRow G u (adjTable G rG.toList))
+      = fun u ↦ some ((rowList G rG.toList).filter fun p ↦ G.Adj u p.vert) := by
+    funext u
+    rw [adjTable, adjTableOf]
+    exact adjRow_eq_some G (rG.mem_toList u)
+  have hrk : hostRank G rG = fun v ↦ rG.toList.idxOf v := rfl
+  simp only [searchAsg, searchAsgFast, Backtrack.tabAt_tabulate, Backtrack.tabAt_rankTable,
+    hrow, hrk]
 
 variable {H G ind}
 

@@ -50,7 +50,7 @@ def nodes (H G : CGraph) (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) (sym :
   let hs := searchOrder H rH.toList
   let prs := if sym then symPairs H hs else []
   toString (dfsCount (candList H G ind (hostRank G rG) rG.toList.length prs (rowList G rG.toList)
-    (adjTable G rG.toList) H.deg (tailCount H prs.length prs)) hs [])
+    (fun u => adjRow G u (adjTable G rG.toList)) H.deg (tailCount H prs.length prs)) hs [])
 
 /-- Every node of the minor search tree.  For a case that comes back `none` this is exactly the
 tree the real search walks, so `ms / nodes` separates "too many nodes" from "each node is slow". -/
@@ -223,7 +223,7 @@ def main (args : List String) : IO Unit := do
     let ev := gs.zipIdx.filterMap fun p => if p.2 % 2 == 0 then some p.1 else none
     let pre : List (H.V × G.V) := (hs.take d).zip ev
     let rs := rowList G gs
-    let nb := adjTable G gs
+    let nb := Backtrack.tabAt (Backtrack.tabulate fun v => some (rs.filter fun p => G.Adj v p.vert))
     let prs := symPairs H hs
     let tc := tailCount H prs.length prs
     match hs.drop d with
