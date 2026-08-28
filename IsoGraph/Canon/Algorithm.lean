@@ -245,12 +245,29 @@ def sortNats (a : Array Nat) : Array Nat :=
   if a.size ≤ 8 then (sortNatList a.toList).toArray
   else (a.toList.mergeSort fun x y ↦ x ≤ y).toArray
 
-/-- What `sortNats` actually runs.  Most splitters meet one or two cells whatever the size of the
-graph, and those two lengths are worth peeling off, because the list round trip costs more than
-the comparison does. -/
+/-- Insertion sort of three naturals, as a comparison tree. -/
+theorem sortNatList_three (x y z : Nat) :
+    sortNatList [x, y, z] =
+      (if x ≤ y then (if y ≤ z then [x, y, z] else if x ≤ z then [x, z, y] else [z, x, y])
+        else (if x ≤ z then [y, x, z] else if y ≤ z then [y, z, x] else [z, y, x])) := by
+  by_cases h1 : x ≤ y <;> by_cases h2 : y ≤ z <;> by_cases h3 : x ≤ z <;>
+    simp only [sortNatList, insertNat, h1, h2, h3, if_true, if_false] <;>
+    first | rfl | (exfalso; omega)
+
+/-- What `sortNats` actually runs.  Most splitters meet one, two or three cells whatever the size
+of the graph, and those three lengths are worth peeling off, because the list round trip costs
+more than the comparisons do: sorting three elements this way allocates one array, and through
+`sortNatList` it allocates a dozen.  Refinement of a sparse graph spends about a tenth of its time
+in this function, and both of its call sites are in the pop loop. -/
 def sortNatsFast (a : Array Nat) : Array Nat :=
   if a.size ≤ 1 then a
   else if a.size == 2 then (if a[0]! ≤ a[1]! then a else #[a[1]!, a[0]!])
+  else if a.size == 3 then
+    let x := a[0]!
+    let y := a[1]!
+    let z := a[2]!
+    if x ≤ y then (if y ≤ z then a else if x ≤ z then #[x, z, y] else #[z, x, y])
+    else (if x ≤ z then #[y, x, z] else if y ≤ z then #[y, z, x] else #[z, y, x])
   else if a.size ≤ 8 then (sortNatList a.toList).toArray
   else (a.toList.mergeSort fun x y ↦ x ≤ y).toArray
 
@@ -265,9 +282,18 @@ def sortNatsFast (a : Array Nat) : Array Nat :=
       Nat.reduceAdd, Nat.reduceLeDiff, if_false, beq_self_eq_true, if_true, sortNatList,
       insertNat]
     split <;> simp_all <;> omega
-  | x :: y :: z :: t =>
+  | [x, y, z] =>
+    have e0 : (⟨[x, y, z]⟩ : Array Nat)[0]! = x := rfl
+    have e1 : (⟨[x, y, z]⟩ : Array Nat)[1]! = y := rfl
+    have e2 : (⟨[x, y, z]⟩ : Array Nat)[2]! = z := rfl
+    simp only [sortNats, sortNatsFast, Array.size, List.length_cons, List.length_nil,
+      Nat.reduceAdd, Nat.reduceLeDiff, if_false, Nat.reduceBEq, if_true, Bool.false_eq_true,
+      e0, e1, e2]
+    rw [sortNatList_three]
+    split <;> split <;> first | rfl | (split <;> rfl)
+  | x :: y :: z :: w :: t =>
     simp only [sortNatsFast, Array.size, List.length_cons]
-    rw [if_neg (by omega), if_neg (by simp)]
+    rw [if_neg (by omega), if_neg (by simp), if_neg (by simp)]
     rfl
 
 /-- Collect the distinct cell starts of the vertices in `touched[j:]`, using `hit` to deduplicate.
