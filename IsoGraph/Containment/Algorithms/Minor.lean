@@ -43,17 +43,29 @@ being built, the sets already finished, and the vertices of `G` still unused.  T
   vertex of its own set next to this one, and those vertices are all different because the branch
   sets are (`MinorSearch.countP_le_flatMap`).  So the finished set needs at least that many unused
   neighbours.  In a host of maximum degree `d` this alone rules out every set of size `k` with
-  fewer than `deg_H x` boundary vertices, which is what makes `K5` in a cubic graph cheap.
+  fewer than `deg_H x` boundary vertices, which is what makes `K5` in a cubic graph cheap;
+* the *same* count, for every set already finished.  Each of them passed it when it was itself
+  finished, but both sides have shrunk since — the set just built took vertices out of the pool,
+  and its vertex of `H` out of the list still to place — so it is worth asking again.  Asking it
+  once per finished set is a pass over the pool per set, and it pays: on `K₅ ≼ grid 4×4` it takes
+  a quarter of the search tree away.
 
-Starting a set is pruned too:
+Starting a set is pruned too, by `MinorSearch.feasibleSeed` and `MinorSearch.attOf`.  Everything
+the seed's own neighbours have to do they have to do inside the component of the seed in what is
+left of the host (`CGraph.seedReach`): their sets must touch the seed's, and cannot use the seed
+itself.  So
 
-* `MinorSearch.attOf` — the seed must be adjacent to the branch set of the last-placed neighbour
-  of its vertex, if there is one.  The seed is the least vertex of the set, so it can be pinned
-  down only up to which finished set it has to touch, and this is the one the search knows about;
-* `MinorSearch.feasibleSeed` — a set that must touch the new one is confined to the component of
-  the seed in what is left (`CGraph.seedReach`), so if from there it cannot reach the finished sets
-  it is also required to touch, the seed is hopeless.  This is what stops the search from starting
-  a set in a corner of the host it can never get back from.
+* the component must have at least as many vertices as `x` has neighbours left to place, since
+  those sets are disjoint and nonempty;
+* one of them that must also touch a *finished* set has to be able to reach it from there.
+
+Either failing makes the seed hopeless; together they are what stops the search from starting a
+set in a corner of the host it can never get back from.  Both are behind the same guard, since
+the component is a breadth-first sweep of the pool and there is no point paying for it when
+nothing is constrained.  `MinorSearch.attOf` is the third test: the seed must be adjacent to the
+branch set of the last-placed neighbour of its vertex, if there is one.  The seed is the least
+vertex of the set, so it can be pinned down only up to which finished set it has to touch, and
+this is the one the search knows about.
 
 Two counting tests, `card H.V ≤ card G.V` and `H.E ≤ G.E`, reject hopeless pairs before the search
 starts, and `CGraph.hsOrder` places the vertices of `H` in an order that keeps them connected as
@@ -1087,34 +1099,48 @@ def attHit (att : Option (H.V × List G.V)) (v : G.V) : Bool :=
 theorem attOf_eq_attHit (x : H.V) (done : List (H.V × List G.V)) (v : G.V) :
     attOf H G x done v = attHit H G (attTo H G x done) v := rfl
 
-/-- Can the vertices still waiting for a branch set be reached from a set started at `v`?  One
-that has to touch `x`'s set is confined to `seedReach`, so if from there it cannot also touch the
-sets it is required to touch, starting `x` at `v` is hopeless.  This is what stops the search from
-starting a set in a corner of the host it can never get back from; the guard in front keeps the
-component computation out of the way when nothing is constrained. -/
+/-- Is a branch set started at `v` still worth pursuing?  Everything a set of `x`'s neighbour has
+to do it has to do inside `CGraph.seedReach`, the component of `v` in what is left, since it must
+touch `x`'s set and cannot use `v` itself.  Two things follow:
+
+* those sets are disjoint and nonempty, so there have to be at least as many vertices in the
+  component as `x` has neighbours left to place;
+* one of them that also has to touch a *finished* set must be able to reach it from there.
+
+Either failing makes `v` hopeless.  This is what stops the search from starting a set in a corner
+of the host it can never get back from.
+
+Both tests are behind the same guard, `need`: the component is a breadth-first sweep of the pool,
+and asking for it when nothing is constrained is what the guard is there to avoid.  The count
+would be worth having on its own — but not at that price.  On `C₃ ≼ C₃₀₀`, where `need` is always
+empty and the pool is the whole host, taking the count out from behind the guard costs two thirds
+of the running time and prunes nothing. -/
 def feasibleSeed (x : H.V) (v : G.V) (rest : List H.V) (done : List (H.V × List G.V))
     (avail : List G.V) : Bool :=
   let need := rest.filter fun z ↦ H.Adj x z && done.any fun q ↦ H.Adj z q.1
   need.isEmpty ||
     (let R := seedReach G v avail
-     need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
+     decide (rest.countP (H.Adj x) ≤ R.length) &&
+       need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
 
 /-- Which vertices of `H` constrain the seed of `x`'s set: the half of `feasibleSeed` that does
 not mention the candidate. -/
 def seedNeed (x : H.V) (rest : List H.V) (done : List (H.V × List G.V)) : List H.V :=
   rest.filter fun z ↦ H.Adj x z && done.any fun q ↦ H.Adj z q.1
 
-/-- The other half: whether a set started at `v` can still reach what those vertices need. -/
-def feasibleNeed (need : List H.V) (v : G.V) (done : List (H.V × List G.V))
+/-- The other half: whether a set started at `v` leaves room for the `room` neighbours of `x` still
+to be placed, and can still reach what the vertices of `need` require. -/
+def feasibleNeed (need : List H.V) (room : ℕ) (v : G.V) (done : List (H.V × List G.V))
     (avail : List G.V) : Bool :=
   need.isEmpty ||
     (let R := seedReach G v avail
-     need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
+     decide (room ≤ R.length) &&
+       need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
 
 theorem feasibleSeed_eq_feasibleNeed (x : H.V) (v : G.V) (rest : List H.V)
     (done : List (H.V × List G.V)) (avail : List G.V) :
     feasibleSeed H G x v rest done avail =
-      feasibleNeed H G (seedNeed H G x rest done) v done avail := rfl
+      feasibleNeed H G (seedNeed H G x rest done) (rest.countP (H.Adj x)) v done avail := rfl
 
 /-- The induced condition as the search meets it, one vertex at a time.  A vertex `v` joining the
 set of `x` must not be next to a *finished* set whose vertex of `H` is not adjacent to `x`, since
@@ -1158,6 +1184,8 @@ def step (m : Move G) (st : State H G) : Option (State H G) :=
       if st.done.all (fun p ↦ !H.Adj x p.1 || linked G S p.2) &&
           decide (st.todo.length ≤ st.avail.length) &&
           decide (st.todo.countP (H.Adj x) ≤ st.avail.countP fun u ↦ S.any (G.Adj u)) &&
+          st.done.all (fun q ↦
+            decide (st.todo.countP (H.Adj q.1) ≤ st.avail.countP fun u ↦ q.2.any (G.Adj u))) &&
           symOk rank pairs x S st.done then
         some ⟨st.todo, none, (x, S) :: st.done, st.avail⟩
       else none
@@ -1215,10 +1243,11 @@ def candListFast (st : State H G) : List (State H G) :=
       | x :: rest =>
         let att := attTo H G x st.done
         let need := seedNeed H G x rest st.done
+        let room := rest.countP (H.Adj x)
         let fl := symFloor rank pairs x st.done
         st.avail.filterMap fun v ↦
           if decide (fl ≤ rank v) && attHit H G att v && indPick H G ind x v st.done &&
-              feasibleNeed H G need v st.done st.avail then
+              feasibleNeed H G need room v st.done st.avail then
             some ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩
           else none
 
@@ -1698,6 +1727,16 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
     ∃ r, trace H G rank pairs ind st (blockOf l x) = some r ∧ r.length = (l x).length + 1 ∧
       Ok l (headSt H G st r) xs (x :: p) := by
   obtain ⟨hcur, htodo, hdone, hsub, hav⟩ := hok
+  -- The branch set of a neighbour of `x` still to be placed lies in the component of the seed:
+  -- it is connected, it has to touch `x`'s set, and it cannot use the seed itself.
+  have hreach : ∀ u ∈ l x, ∀ z ∈ xs, H.Adj x z = true → ∀ c ∈ l z,
+      c ∈ seedReach G u st.avail := by
+    intro u hux z hz hxz c hc
+    obtain ⟨d, hd, e, he, hde⟩ := linked_iff.mp (linked_l l f hl hxz)
+    refine subset_seedReach (connectedOn_of_chainConn (hcc x)) (connectedOn_of_chainConn (hcc z))
+      hav hux (hsub x (List.mem_cons_self ..)) (hsub z (List.mem_cons_of_mem _ hz)) ?_ he hd
+      (by rw [G.symm]; exact hde) c hc
+    exact not_mem_l l f hl (by rintro rfl; exact (List.nodup_cons.mp hxs).1 hz) hux
   have hfeas : ∀ u, (l x).getLast? = some u →
       feasibleSeed H G x u xs st.done st.avail = true := by
     intro u hu
@@ -1705,6 +1744,19 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
     have hux : u ∈ l x := by rw [hys]; simp
     rw [feasibleSeed, Bool.or_eq_true]
     refine Or.inr ?_
+    rw [Bool.and_eq_true]
+    refine ⟨decide_eq_true ?_, ?_⟩
+    · -- Those branch sets are disjoint and nonempty, so the component has room for all of them.
+      have hsubs : ∀ c ∈ (xs.filter (H.Adj x)).flatMap l, c ∈ seedReach G u st.avail := by
+        intro c hcm
+        obtain ⟨z, hz, hc⟩ := List.mem_flatMap.mp hcm
+        obtain ⟨hz, hxz⟩ := List.mem_filter.mp hz
+        exact hreach u hux z hz hxz c hc
+      calc xs.countP (H.Adj x) = (xs.filter (H.Adj x)).length := List.countP_eq_length_filter ..
+        _ ≤ ((xs.filter (H.Adj x)).flatMap l).length := length_le_flatMap l hcc _
+        _ ≤ (seedReach G u st.avail).length :=
+            ((nodup_flatMap l f hl hnd
+              ((List.Nodup.of_cons hxs).filter _)).subperm hsubs).length_le
     simp only [List.all_eq_true, Bool.or_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true,
       List.mem_filter, Bool.and_eq_true]
     rintro z ⟨hz, hxz, -⟩ q hq
@@ -1713,12 +1765,7 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
     · exact Or.inl rfl
     refine Or.inr ?_
     obtain ⟨c, hc, w, hw, hcw⟩ := linked_iff.mp (linked_l l f hl hzy)
-    obtain ⟨d, hd, e, he, hde⟩ := linked_iff.mp (linked_l l f hl hxz)
-    refine linked_iff.mpr ⟨c, ?_, w, hw, hcw⟩
-    refine subset_seedReach (connectedOn_of_chainConn (hcc x)) (connectedOn_of_chainConn (hcc z))
-      hav hux (hsub x (List.mem_cons_self ..)) (hsub z (List.mem_cons_of_mem _ hz)) ?_ he hd
-      (by rw [G.symm]; exact hde) c hc
-    exact not_mem_l l f hl (by rintro rfl; exact (List.nodup_cons.mp hxs).1 hz) hux
+    exact linked_iff.mpr ⟨c, hreach u hux z hz hxz c hc, w, hw, hcw⟩
   have hsymv : ∀ v ∈ l x, symOk rank pairs x [v] st.done = true := by
     intro v hv
     rw [symOk, List.all_eq_true]
@@ -1780,6 +1827,15 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
   have hc3 : xs.countP (H.Adj x) ≤
       (eraseAll G st.avail (l x)).countP (fun u ↦ (l x).any (G.Adj u)) :=
     le_trans (countP_le_flatMap l f hl x xs) (List.Subperm.countP_le _ hsubperm)
+  -- The same count for the sets already finished.  It was asked of each of them when *it* was
+  -- finished, but both sides have shrunk since, so it is worth asking again.
+  have hc3' : st.done.all (fun q ↦ decide (xs.countP (H.Adj q.1) ≤
+      (eraseAll G st.avail (l x)).countP (fun u ↦ q.2.any (G.Adj u)))) = true := by
+    rw [hdone, List.all_eq_true]
+    intro q hq
+    obtain ⟨y, -, rfl⟩ := List.mem_map.mp hq
+    exact decide_eq_true
+      (le_trans (countP_le_flatMap l f hl y xs) (List.Subperm.countP_le _ hsubperm))
   have hc4 : symOk rank pairs x (l x) st.done = true := by
     rw [symOk, List.all_eq_true]
     intro q hq
@@ -1797,7 +1853,7 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
   refine ⟨((), ⟨xs, none, (x, l x) :: st.done, eraseAll G st.avail (l x)⟩) :: r, ?_,
     by simp [hlen], ⟨rfl, rfl, by rw [hdone]; rfl, havail, nodup_eraseAll G hav _⟩⟩
   rw [blockOf, trace, hr, Option.bind_some, hhead, step]
-  simp only [hc1, hc2, hc3, hc4, decide_true, Bool.and_true, if_pos]
+  simp only [hc1, hc2, hc3, hc3', hc4, decide_true, Bool.and_true, if_pos]
   rfl
 
 include f hl hnd hcc hhsnd hch hsym hind in
