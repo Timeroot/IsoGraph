@@ -316,6 +316,92 @@ theorem testBit_mask {gs l : List G.V} {k : ℕ} :
   rw [mask, testBit_foldl_or]
   simp [Nat.one_shiftLeft, Nat.testBit_two_pow]
 
+/-! A mask is a list of vertices with everything but the membership question thrown away, and the
+lemmas below are that sentence made usable: they read a bit back as a membership, and they turn the
+three word operations a search performs on masks — `|||`, `&&& _ ≠ 0`, `&&& _ = _` — into the list
+statements they stand for.  Each needs the list to be over the same `gs` the mask is ranked by, and
+several need `gs` to list every vertex, since a vertex `gs` omits has the rank of whatever `gs`
+does list first — or of nothing at all. -/
+
+section
+
+variable {G}
+
+variable {gs : List G.V}
+
+theorem testBit_mask_of_mem {l : List G.V} {u : G.V} (h : u ∈ l) :
+    (mask G gs l).testBit (gs.idxOf u) = true := by
+  rw [testBit_mask]
+  exact List.any_eq_true.mpr ⟨u, h, by simp⟩
+
+theorem mem_of_testBit_mask (hgs : ∀ v, v ∈ gs) {l : List G.V} {u : G.V}
+    (h : (mask G gs l).testBit (gs.idxOf u) = true) : u ∈ l := by
+  rw [testBit_mask, List.any_eq_true] at h
+  obtain ⟨w, hw, hwu⟩ := h
+  rwa [← (List.idxOf_inj (hgs w)).mp (of_decide_eq_true hwu)]
+
+theorem mask_append {a b : List G.V} : mask G gs (a ++ b) = mask G gs a ||| mask G gs b := by
+  refine Nat.eq_of_testBit_eq fun k ↦ ?_
+  simp [testBit_mask]
+
+theorem testBit_mask_mono {a b : List G.V} (hab : ∀ u ∈ a, u ∈ b) {k : ℕ}
+    (h : (mask G gs a).testBit k = true) : (mask G gs b).testBit k = true := by
+  rw [testBit_mask, List.any_eq_true] at h ⊢
+  obtain ⟨u, hu, hk⟩ := h
+  exact ⟨u, hab u hu, hk⟩
+
+theorem testBit_mask_eq_decide_mem (hgs : ∀ v, v ∈ gs) (l : List G.V) (u : G.V) :
+    (mask G gs l).testBit (gs.idxOf u) = decide (u ∈ l) := by
+  rw [Bool.eq_iff_iff, decide_eq_true_eq]
+  exact ⟨mem_of_testBit_mask hgs, testBit_mask_of_mem⟩
+
+/-- **Two masks over the same pool agree when they agree at the pool's ranks.** -/
+theorem eq_of_testBit_pool {a b : ℕ} {pool : List G.V}
+    (ha : ∀ k, a.testBit k = true → (mask G gs pool).testBit k = true)
+    (hb : ∀ k, b.testBit k = true → (mask G gs pool).testBit k = true)
+    (h : ∀ u ∈ pool, a.testBit (gs.idxOf u) = b.testBit (gs.idxOf u)) : a = b := by
+  refine Nat.eq_of_testBit_eq fun k ↦ ?_
+  cases hk : (mask G gs pool).testBit k with
+  | false =>
+    rw [Bool.eq_iff_iff]
+    exact ⟨fun h' ↦ by rw [ha k h'] at hk; simp at hk, fun h' ↦ by rw [hb k h'] at hk; simp at hk⟩
+  | true =>
+    rw [testBit_mask, List.any_eq_true] at hk
+    obtain ⟨u, hu, hku⟩ := hk
+    rw [← of_decide_eq_true hku]
+    exact h u hu
+
+/-- **Two masks share a bit exactly when the lists share a vertex.** -/
+theorem and_mask_ne_zero_iff (hgs : ∀ v, v ∈ gs) {a b : List G.V} :
+    mask G gs a &&& mask G gs b ≠ 0 ↔ ∃ u ∈ a, u ∈ b := by
+  rw [and_ne_zero_iff_exists_testBit]
+  refine ⟨fun ⟨k, hka, hkb⟩ ↦ ?_, fun ⟨u, hua, hub⟩ ↦
+    ⟨gs.idxOf u, testBit_mask_of_mem hua, testBit_mask_of_mem hub⟩⟩
+  rw [testBit_mask, List.any_eq_true] at hka
+  obtain ⟨u, hu, hku⟩ := hka
+  exact ⟨u, hu, mem_of_testBit_mask hgs (by rw [of_decide_eq_true hku]; exact hkb)⟩
+
+/-- **One mask covers another exactly when one list covers the other.** -/
+theorem and_mask_eq_self_iff {a : List G.V} {b : ℕ} :
+    mask G gs a &&& b = mask G gs a ↔ ∀ u ∈ a, b.testBit (gs.idxOf u) = true := by
+  constructor
+  · intro h u hu
+    have := congrArg (fun n ↦ n.testBit (gs.idxOf u)) h
+    simpa [testBit_mask_of_mem hu] using this
+  · intro h
+    refine Nat.eq_of_testBit_eq fun k ↦ ?_
+    rw [Nat.testBit_and]
+    cases hk : (mask G gs a).testBit k with
+    | false => simp
+    | true =>
+      rw [testBit_mask, List.any_eq_true] at hk
+      obtain ⟨u, hu, hku⟩ := hk
+      rw [← of_decide_eq_true hku, h u hu]
+      simp
+
+
+end
+
 /-- A vertex of `G` with everything the search asks about it attached. -/
 structure Row where
   /-- The vertex. -/

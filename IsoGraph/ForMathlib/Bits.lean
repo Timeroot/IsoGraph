@@ -54,6 +54,17 @@ theorem exists_testBit {n s : ℕ} (hs : s < 2 ^ n) (h0 : s ≠ 0) :
   exact h0 (eq_of_testBit_lt hs (Nat.two_pow_pos n) fun k hk ↦ by
     rw [Nat.zero_testBit]; exact h ⟨k, hk⟩)
 
+theorem ne_zero_iff_exists_testBit {a : ℕ} : a ≠ 0 ↔ ∃ k, a.testBit k = true := by
+  refine ⟨fun h ↦ ?_, ?_⟩
+  · by_contra hk
+    exact h (Nat.eq_of_testBit_eq fun i ↦ by simpa using not_exists.mp hk i)
+  · rintro ⟨k, hk⟩ rfl
+    simp at hk
+
+theorem and_ne_zero_iff_exists_testBit {a b : ℕ} :
+    a &&& b ≠ 0 ↔ ∃ k, a.testBit k = true ∧ b.testBit k = true := by
+  simp [ne_zero_iff_exists_testBit]
+
 theorem le_of_testBit_imp {a b : ℕ} (h : ∀ k, a.testBit k = true → b.testBit k = true) : a ≤ b := by
   have hab : a &&& b = a := Nat.eq_of_testBit_eq fun k ↦ by
     rw [Nat.testBit_and]

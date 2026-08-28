@@ -553,6 +553,569 @@ theorem candLab_eq_candLabWith (H G : CGraph) (hs : List H.V) (gs : List G.V)
       split <;> rfl
     rw [hmap, ← blocksOk_eq_blocksOkTab]
 
+/-! ## The block tests on masks
+
+`candLabWith` lifts the block tests out of the loop over labels, but what is left at the node is
+still list work: `blocksOk` walks each block as a list, `connVia` floods it a list at a time, and
+"does an unlabelled vertex still touch this block?" is a scan of the pool per block.  That is where
+the search's time goes — on `C6 ⋏ heawood` the three block tests are five sixths of the run.
+
+All three questions are about *sets of vertices of `G`*, and the search already ranks those
+vertices: `Row` carries each one's own bit and its neighbourhood as a mask.  So the blocks go in as
+words.  A block is a `mask` and its neighbourhood a `nbrMask`; "an unlabelled vertex touches it"
+and `linked` become one `&&&` each, against the pool and against another block; and the flood is a
+fixed-point loop on words that visits each row once per round.  Building the two tables costs one
+pass over the assignment, which the node was making anyway.
+
+Nothing here changes what the search accepts.  Each definition is proved equal to the list one it
+replaces, ending at `candLabWith_eq_candLabMask`, and it is still the list version that the
+soundness proof below talks about. -/
+
+
+/-- The bit of each vertex of `gs`, indexed by rank. -/
+def bitTab (rs : List (Row G)) : Array ℕ := (rs.map Row.bit).toArray
+
+/-- The neighbour mask of each vertex of `gs`, indexed by rank. -/
+def nbTab (rs : List (Row G)) : Array ℕ := (rs.map Row.nb).toArray
+
+theorem getD_bitTab (hgs : ∀ v, v ∈ gs) (u : G.V) :
+    (bitTab (rowList G gs)).getD (gs.idxOf u) 0 = mask G gs [u] := by
+  rw [bitTab, getD_toArray, rowList, List.map_map, List.getElem?_map,
+    List.getElem?_idxOf (hgs u)]
+  show (row G gs u).bit = _
+  simp [row, mask]
+
+theorem getD_nbTab (hgs : ∀ v, v ∈ gs) (u : G.V) :
+    (nbTab (rowList G gs)).getD (gs.idxOf u) 0 = (row G gs u).nb := by
+  rw [nbTab, getD_toArray, rowList, List.map_map, List.getElem?_map,
+    List.getElem?_idxOf (hgs u)]
+  rfl
+
+/-- One pass over the assignment, or-ing a mask per pair into the slot of its label.  Slots are
+indexed by the rank of the label; a label with no rank has no slot, and the pair is dropped. -/
+def orTab (H G : CGraph) (f : G.V → ℕ) (hrk : H.V → ℕ) (m : ℕ) (pre : List (G.V × H.V)) :
+    Array ℕ :=
+  pre.foldl (fun t q ↦ t.set! (hrk q.2) (t[hrk q.2]! ||| f q.1)) (Array.replicate m 0)
+
+private theorem getElem!_foldl_or (f : G.V → ℕ) (hrk : H.V → ℕ) {i : ℕ} :
+    ∀ (pre : List (G.V × H.V)) (t : Array ℕ), i < t.size →
+      (pre.foldl (fun t q ↦ t.set! (hrk q.2) (t[hrk q.2]! ||| f q.1)) t)[i]!
+        = (pre.filter fun q ↦ hrk q.2 == i).foldl (fun a q ↦ a ||| f q.1) t[i]!
+  | [], _, _ => rfl
+  | q :: pre, t, ht => by
+    rw [List.foldl_cons, getElem!_foldl_or f hrk pre _ (by rw [Array.size_set!]; exact ht)]
+    by_cases hq : hrk q.2 = i
+    · rw [List.filter_cons_of_pos (by simp [hq]), List.foldl_cons, ← hq,
+        Array.getElem!_set!_self _ _ _ (hq ▸ ht)]
+    · rw [List.filter_cons_of_neg (by simp [hq]), Array.getElem!_set!_ne _ _ _ _ hq]
+
+theorem testBit_getElem!_orTab (f : G.V → ℕ) (hrk : H.V → ℕ) {m i k : ℕ} (hi : i < m)
+    (pre : List (G.V × H.V)) :
+    ((orTab H G f hrk m pre)[i]!).testBit k
+      = (pre.filter fun q ↦ hrk q.2 == i).any fun q ↦ (f q.1).testBit k := by
+  rw [orTab, getElem!_foldl_or f hrk pre _ (by simpa using hi)]
+  rw [show (Array.replicate m 0)[i]! = 0 by
+    rw [Array.getElem!_eq_getD, Array.getD_eq_getD_getElem?, Array.getElem?_replicate, if_pos hi]; rfl]
+  simpa using testBit_foldl_or (γ := G.V × H.V) (fun q ↦ f q.1) k
+    (pre.filter fun q ↦ hrk q.2 == i) 0
+
+/-! ## The flood
+
+`reachAux` grows a set of vertices a front at a time, and `reachMask` is that loop with the set,
+the front and the pool as words.  One round is `stepMask`: a pass over the rows that ors in the bit
+of every row whose neighbourhood meets the front, cut back down to the pool.  So a round costs one
+`&&&`, one `!=` and one `|||` per vertex, where the list version costs a membership test per
+neighbour per vertex. -/
+
+theorem mask_eq_zero_iff {l : List G.V} : mask G gs l = 0 ↔ l = [] := by
+  cases l with
+  | nil => simp [mask]
+  | cons u rest =>
+    simp only [reduceCtorEq, iff_false]
+    intro h
+    have hb := testBit_mask_of_mem (gs := gs) (l := u :: rest) (u := u) (by simp)
+    rw [h] at hb
+    simp at hb
+
+/-- **What the mask of a frontier reaches**: bit `u` of the round's pass over the rows is set
+exactly when `u` is next to something in the frontier. -/
+theorem testBit_nbrsFold (hgs : ∀ v, v ∈ gs) (front : List G.V) (u : G.V) :
+    ((rowList G gs).foldl
+        (fun (m : ℕ) (p : Row G) ↦ if mask G gs front &&& p.nb != 0 then m ||| p.bit else m)
+        0).testBit (gs.idxOf u) = front.any (G.Adj u) := by
+  rw [testBit_foldl_or_if, Nat.zero_testBit, Bool.false_or, Bool.eq_iff_iff, List.any_eq_true,
+    List.any_eq_true]
+  constructor
+  · rintro ⟨p, hp, hb⟩
+    obtain ⟨hkeep, hbit⟩ := Bool.and_eq_true .. ▸ hb
+    obtain ⟨w, hw, rfl⟩ := List.mem_map.mp hp
+    rw [show (row G gs w).bit = 1 <<< gs.idxOf w from rfl, Nat.one_shiftLeft,
+      Nat.testBit_two_pow, decide_eq_true_eq] at hbit
+    obtain rfl := (List.idxOf_inj (hgs w)).mp hbit
+    obtain ⟨z, hz, hzf⟩ := (and_mask_ne_zero_iff hgs).mp (bne_iff_ne.mp hkeep)
+    exact ⟨z, hz, (List.mem_filter.mp hzf).2⟩
+  · rintro ⟨z, hz, hzu⟩
+    refine ⟨row G gs u, List.mem_map.mpr ⟨u, hgs u, rfl⟩, Bool.and_eq_true .. ▸ ⟨?_, ?_⟩⟩
+    · exact bne_iff_ne.mpr
+        ((and_mask_ne_zero_iff hgs).mpr ⟨z, hz, List.mem_filter.mpr ⟨hgs z, hzu⟩⟩)
+    · rw [show (row G gs u).bit = 1 <<< gs.idxOf u from rfl, Nat.one_shiftLeft]
+      simp
+
+/-- One round of `reachMask`: the pool vertices next to the frontier. -/
+def stepMask (rs : List (Row G)) (front pool : ℕ) : ℕ :=
+  (rs.foldl (fun m p ↦ if front &&& p.nb != 0 then m ||| p.bit else m) 0) &&& pool
+
+/-- `reachAux` on bitmasks: the set in hand, the frontier and the pool are masks over the ranks,
+and a round is one pass over the rows. -/
+def reachMask (G : CGraph) (rs : List (Row G)) : ℕ → ℕ → ℕ → ℕ → ℕ
+  | 0, S, _, _ => S
+  | n + 1, S, front, pool =>
+    let new := stepMask rs front pool
+    if new == 0 then S else reachMask G rs n (S ||| new) new (pool ^^^ new)
+
+theorem stepMask_eq (hgs : ∀ v, v ∈ gs) (front pool : List G.V) :
+    stepMask (rowList G gs) (mask G gs front) (mask G gs pool)
+      = mask G gs (pool.filter fun v ↦ front.any (G.Adj v)) := by
+  refine eq_of_testBit_pool (fun k hk ↦ ?_) (fun k hk ↦ testBit_mask_mono (fun _ h ↦ List.mem_of_mem_filter h) hk)
+    (fun u hu ↦ ?_)
+  · rw [stepMask, Nat.testBit_and, Bool.and_eq_true] at hk
+    exact hk.2
+  · rw [stepMask, Nat.testBit_and, testBit_nbrsFold hgs, testBit_mask_of_mem hu, Bool.and_true,
+      testBit_mask_eq_decide_mem hgs]
+    rw [Bool.eq_iff_iff, decide_eq_true_eq, List.mem_filter]
+    exact ⟨fun h ↦ ⟨hu, h⟩, fun h ↦ h.2⟩
+
+private theorem xor_stepMask (hgs : ∀ v, v ∈ gs) (front pool : List G.V) :
+    mask G gs pool ^^^ mask G gs (pool.filter fun v ↦ front.any (G.Adj v))
+      = mask G gs (pool.filter fun v ↦ !front.any (G.Adj v)) := by
+  refine eq_of_testBit_pool (fun k hk ↦ ?_) (fun k hk ↦ testBit_mask_mono (fun _ h ↦ List.mem_of_mem_filter h) hk)
+    (fun u hu ↦ ?_)
+  · rw [Nat.testBit_xor] at hk
+    by_contra hc
+    rw [Bool.eq_false_iff.mpr hc, Bool.eq_false_iff.mpr fun h ↦
+      hc (testBit_mask_mono (fun _ h' ↦ List.mem_of_mem_filter h') h)] at hk
+    simp at hk
+  · rw [Nat.testBit_xor, testBit_mask_of_mem hu, testBit_mask_eq_decide_mem hgs,
+      testBit_mask_eq_decide_mem hgs]
+    by_cases hc : front.any (G.Adj u) <;> simp [List.mem_filter, hu, hc]
+
+theorem reachMask_eq_mask (hgs : ∀ v, v ∈ gs) : ∀ (n : ℕ) (S front pool : List G.V),
+    reachMask G (rowList G gs) n (mask G gs S) (mask G gs front) (mask G gs pool)
+      = mask G gs (reachAux G n S front pool)
+  | 0, _, _, _ => rfl
+  | n + 1, S, front, pool => by
+    rw [reachMask, reachAux]
+    simp only [stepMask_eq hgs]
+    by_cases hemp : (pool.filter fun v ↦ front.any (G.Adj v)) = []
+    · rw [if_pos (by simp [hemp, mask_eq_zero_iff]), if_pos (by simp [hemp])]
+    · rw [if_neg (by simp [mask_eq_zero_iff, hemp]), if_neg (by simp [hemp]),
+        ← reachMask_eq_mask hgs n _ _ _, xor_stepMask hgs, mask_append, Nat.lor_comm]
+
+/-- **Spare fuel changes nothing.**  `reachAux` stops of its own accord once nothing new arrives,
+and one vertex leaves the pool every round, so any two budgets big enough for the pool agree. -/
+theorem reachAux_fuel : ∀ (n m : ℕ) (S front pool : List G.V), pool.length ≤ n → n ≤ m →
+    reachAux G n S front pool = reachAux G m S front pool
+  | 0, m, S, front, pool, hn, _ => by
+    obtain rfl := List.eq_nil_of_length_eq_zero (Nat.le_zero.mp hn)
+    cases m with
+    | zero => rfl
+    | succ m => rw [reachAux, reachAux]; simp
+  | n + 1, m, S, front, pool, hn, hm => by
+    obtain ⟨m, rfl⟩ : ∃ m', m = m' + 1 := ⟨m - 1, by omega⟩
+    rw [reachAux, reachAux]
+    split_ifs with hne
+    · rfl
+    · refine reachAux_fuel n m _ _ _ ?_ (by omega)
+      have hlt : (pool.filter fun v ↦ !front.any (G.Adj v)).length < pool.length := by
+        obtain ⟨w, hw⟩ := List.exists_mem_of_ne_nil (pool.filter fun v ↦ front.any (G.Adj v))
+          fun h ↦ hne (by rw [h]; rfl)
+        obtain ⟨hwp, hwa⟩ := List.mem_filter.mp hw
+        exact List.length_filter_lt_length_iff_exists.mpr ⟨w, hwp, by simpa using hwa⟩
+      omega
+
+/-! ## `connVia` on masks
+
+The mask version has to start its flood somewhere, and a word does not say which vertex its lowest
+set bit belongs to.  So the start comes from the rows instead: `rs.find?` returns the first row
+whose bit lies in the block, which is the block's lowest-ranked vertex.  The flood then runs over
+the block and the pool together, rather than holding the block's other vertices out of the pool the
+way the list version does — that saves a removal a mask cannot do cheaply, and it is sound because
+neither the block's order nor the vertex the flood started from survives into what `connVia` means,
+which is what `exists_of_connVia` and `connVia_iff_reach` say. -/
+
+theorem mask_singleton (v : G.V) : mask G gs [v] = 1 <<< gs.idxOf v := by simp [mask]
+
+theorem bit_eq_mask_of_mem_rowList {p : Row G} (h : p ∈ rowList G gs) :
+    p.bit = mask G gs [p.vert] := by
+  obtain ⟨u, -, rfl⟩ := List.mem_map.mp h
+  rw [mask_singleton]
+  rfl
+
+/-- **What `connVia` really asks**: that the block sits inside a connected set built out of itself
+and the pool.  Neither the block's order nor which of its vertices the search grows from shows up
+here, which is what lets the mask version start from whichever vertex the lowest bit names. -/
+theorem exists_of_connVia {pool f : List G.V} (h : connVia G pool f = true) (hne : f ≠ []) :
+    ∃ B : List G.V, G.ConnectedOn {u | u ∈ B} ∧ (∀ u ∈ f, u ∈ B) ∧ ∀ u ∈ B, u ∈ f ∨ u ∈ pool := by
+  match f, hne with
+  | v :: rest, _ =>
+    rw [connVia, List.all_eq_true] at h
+    refine ⟨reach G [v] (rest ++ pool), connectedOn_reach ?_, fun u hu ↦ ?_, fun u hu ↦ ?_⟩
+    · have hsing : {u : G.V | u ∈ [v]} = {v} := by ext u; simp
+      rw [hsing]
+      exact G.connectedOn_singleton v
+    · rcases List.mem_cons.mp hu with rfl | hu
+      · exact mem_reach_of_mem (by simp)
+      · exact List.contains_iff_mem.mp (h u hu)
+    · rcases mem_or_mem_of_mem_reach hu with hu | hu
+      · exact Or.inl (by rw [List.mem_singleton.mp hu]; simp)
+      · rcases List.mem_append.mp hu with hu | hu
+        · exact Or.inl (List.mem_cons_of_mem _ hu)
+        · exact Or.inr hu
+
+/-- **`connVia` from any vertex of the block.**  The search grows the block from whichever vertex
+comes first in it; a mask has no first vertex, so it grows the block from whichever one the lowest
+bit names, and this says the answer is the same. -/
+theorem connVia_iff_reach {pool f : List G.V} {w : G.V} (hw : w ∈ f) :
+    connVia G pool f = true ↔ ∀ u ∈ f, u ∈ reach G [w] (f ++ pool) := by
+  constructor
+  · intro h u hu
+    obtain ⟨B, hB, hfB, hBf⟩ := exists_of_connVia h (List.ne_nil_of_mem hw)
+    exact subset_reach hB (fun z hz ↦ (hBf z hz).elim
+      (fun h ↦ Or.inr (List.mem_append_left _ h)) fun h ↦ Or.inr (List.mem_append_right _ h))
+      ⟨w, hfB w hw, mem_reach_of_mem (by simp)⟩ u (hfB u hu)
+  · intro h
+    refine connVia_of_connectedOn (B := reach G [w] (f ++ pool)) (connectedOn_reach ?_) h
+      fun u hu ↦ ?_
+    · have hsing : {u : G.V | u ∈ [w]} = {w} := by ext u; simp
+      rw [hsing]
+      exact G.connectedOn_singleton w
+    · rcases mem_or_mem_of_mem_reach hu with hu | hu
+      · exact Or.inl (by rw [List.mem_singleton.mp hu]; exact hw)
+      · exact List.mem_append.mp hu
+
+/-- `connVia` on masks: grow the block from the vertex its lowest bit names, through the block and
+the pool, and ask whether the whole block came back. -/
+def connViaMask (G : CGraph) (rs : List (Row G)) (n pm fm : ℕ) : Bool :=
+  if fm == 0 then true else
+    match rs.find? fun p ↦ fm &&& p.bit != 0 with
+    | none => true
+    | some p => fm &&& reachMask G rs n p.bit p.bit (fm ||| pm) == fm
+
+theorem connVia_eq_connViaMask (hgs : ∀ v, v ∈ gs) {n : ℕ} (pool f : List G.V)
+    (hn : f.length + pool.length ≤ n) :
+    connVia G pool f = connViaMask G (rowList G gs) n (mask G gs pool) (mask G gs f) := by
+  rcases eq_or_ne f [] with rfl | hne
+  · rw [connViaMask, if_pos (by simp [mask])]
+    rfl
+  · have h0 : ¬(mask G gs f == 0) = true := by simp [mask_eq_zero_iff, hne]
+    rw [connViaMask, if_neg h0]
+    -- the row the lowest bit names is a vertex of the block
+    obtain ⟨v, hv⟩ := List.exists_mem_of_ne_nil f hne
+    cases hf : (rowList G gs).find? fun p ↦ mask G gs f &&& p.bit != 0 with
+    | none =>
+      have hmem : row G gs v ∈ rowList G gs := List.mem_map.mpr ⟨v, hgs v, rfl⟩
+      have hne0 : mask G gs f &&& (row G gs v).bit ≠ 0 := by
+        rw [bit_eq_mask_of_mem_rowList hmem, and_mask_ne_zero_iff hgs]
+        exact ⟨v, hv, List.mem_singleton.mpr rfl⟩
+      exact absurd (show (mask G gs f &&& (row G gs v).bit != 0) = true by simpa using hne0)
+        (List.find?_eq_none.mp hf _ hmem)
+    | some p =>
+      have hp : p ∈ rowList G gs := List.mem_of_find?_eq_some hf
+      have hw : p.vert ∈ f := by
+        have := List.find?_some hf
+        rw [bne_iff_ne, ne_eq, bit_eq_mask_of_mem_rowList hp, ← ne_eq,
+          and_mask_ne_zero_iff hgs] at this
+        obtain ⟨u, hu, hup⟩ := this
+        rwa [List.mem_singleton.mp hup] at hu
+      show connVia G pool f = (mask G gs f &&& reachMask G (rowList G gs) n p.bit p.bit
+        (mask G gs f ||| mask G gs pool) == mask G gs f)
+      rw [bit_eq_mask_of_mem_rowList hp, ← mask_append, reachMask_eq_mask hgs,
+        ← reachAux_fuel (f ++ pool).length n [p.vert] [p.vert] (f ++ pool) le_rfl
+          (by simpa using hn),
+        show reachAux G (f ++ pool).length [p.vert] [p.vert] (f ++ pool)
+          = reach G [p.vert] (f ++ pool) from rfl,
+        Bool.eq_iff_iff, beq_iff_eq, and_mask_eq_self_iff, connVia_iff_reach hw]
+      exact forall₂_congr fun u _ ↦ by rw [testBit_mask_eq_decide_mem hgs, decide_eq_true_eq]
+
+/-! ## The other two block tests
+
+"Some unlabelled vertex still touches this block" and `linked` are the same question asked of two
+different sets: does the block's neighbourhood meet them?  With that neighbourhood as a mask, both
+are `&&& _ != 0`. -/
+
+/-- The neighbourhood of a block, as a mask over ranks. -/
+def nbrMask (G : CGraph) (gs f : List G.V) : ℕ := mask G gs (gs.filter fun w ↦ f.any (G.Adj · w))
+
+theorem testBit_nbrMask (hgs : ∀ v, v ∈ gs) (f : List G.V) (w : G.V) :
+    (nbrMask G gs f).testBit (gs.idxOf w) = f.any (G.Adj · w) := by
+  rw [nbrMask, testBit_mask_eq_decide_mem hgs, Bool.eq_iff_iff, decide_eq_true_eq,
+    List.mem_filter]
+  simp [hgs w]
+
+theorem isEmpty_eq_mask_beq_zero (f : List G.V) : f.isEmpty = (mask G gs f == 0) := by
+  rw [Bool.eq_iff_iff, beq_iff_eq, mask_eq_zero_iff, List.isEmpty_iff]
+
+/-- **An unlabelled vertex still touches the block** is one `&&&`. -/
+theorem touch_eq_mask (hgs : ∀ v, v ∈ gs) (f pool : List G.V) :
+    pool.any (fun u ↦ f.any (G.Adj u)) = ((nbrMask G gs f &&& mask G gs pool) != 0) := by
+  rw [Bool.eq_iff_iff, bne_iff_ne, nbrMask, and_mask_ne_zero_iff hgs, List.any_eq_true]
+  constructor
+  · rintro ⟨u, hu, hfu⟩
+    obtain ⟨z, hz, hzu⟩ := List.any_eq_true.mp hfu
+    exact ⟨u, List.mem_filter.mpr ⟨hgs u, List.any_eq_true.mpr ⟨z, hz, by rw [G.symm]; exact hzu⟩⟩,
+      hu⟩
+  · rintro ⟨w, hwf, hwp⟩
+    obtain ⟨z, hz, hzw⟩ := List.any_eq_true.mp (List.mem_filter.mp hwf).2
+    exact ⟨w, hwp, List.any_eq_true.mpr ⟨z, hz, by rw [G.symm]; exact hzw⟩⟩
+
+/-- **An edge of `G` runs between two blocks** is one `&&&`. -/
+theorem linked_eq_mask (hgs : ∀ v, v ∈ gs) (f t : List G.V) :
+    linked G f t = ((nbrMask G gs f &&& mask G gs t) != 0) := by
+  rw [Bool.eq_iff_iff, linked_iff, bne_iff_ne, nbrMask, and_mask_ne_zero_iff hgs]
+  constructor
+  · rintro ⟨u, hu, w, hw, huw⟩
+    exact ⟨w, List.mem_filter.mpr ⟨hgs w, List.any_eq_true.mpr ⟨u, hu, huw⟩⟩, hw⟩
+  · rintro ⟨w, hwf, hwt⟩
+    obtain ⟨u, hu, huw⟩ := List.any_eq_true.mp (List.mem_filter.mp hwf).2
+    exact ⟨u, hu, w, hwt, huw⟩
+
+/-! ## Building the table
+
+One fold over the assignment fills both arrays: the pair `(v, x)` ors `v`'s bit into slot `x` of
+one and `v`'s neighbourhood into slot `x` of the other.  So a labelled vertex costs two reads, two
+`|||`s and two writes, and the table is built once at the node instead of once per label. -/
+
+/-- The block of each label and the neighbourhood of that block, as masks over the ranks of `gs`,
+built in one pass over the assignment.  Slot `i` is the label of rank `i`. -/
+def maskTab (H G : CGraph) (hrk : H.V → ℕ) (rk : G.V → ℕ) (bits nbrs : Array ℕ) (m : ℕ)
+    (pre : List (G.V × H.V)) : Array ℕ × Array ℕ :=
+  pre.foldl (fun t q ↦
+      (t.1.set! (hrk q.2) (t.1[hrk q.2]! ||| bits[rk q.1]!),
+        t.2.set! (hrk q.2) (t.2[hrk q.2]! ||| nbrs[rk q.1]!)))
+    (Array.replicate m 0, Array.replicate m 0)
+
+private theorem foldl_pair {α β γ : Type} (f : α → γ → α) (g : β → γ → β) :
+    ∀ (l : List γ) (a : α) (b : β),
+      l.foldl (fun t q ↦ (f t.1 q, g t.2 q)) (a, b) = (l.foldl f a, l.foldl g b)
+  | [], _, _ => rfl
+  | q :: l, a, b => by rw [List.foldl_cons, List.foldl_cons, List.foldl_cons, foldl_pair]
+
+theorem maskTab_eq (H G : CGraph) (hrk : H.V → ℕ) (rk : G.V → ℕ) (bits nbrs : Array ℕ) (m : ℕ)
+    (pre : List (G.V × H.V)) :
+    maskTab H G hrk rk bits nbrs m pre
+      = (orTab H G (fun u ↦ bits[rk u]!) hrk m pre, orTab H G (fun u ↦ nbrs[rk u]!) hrk m pre) := by
+  rw [maskTab, orTab, orTab]
+  exact foldl_pair (fun (t : Array ℕ) q ↦ t.set! (hrk q.2) (t[hrk q.2]! ||| bits[rk q.1]!))
+    (fun (t : Array ℕ) q ↦ t.set! (hrk q.2) (t[hrk q.2]! ||| nbrs[rk q.1]!)) pre _ _
+
+theorem getElem!_bitTab (hgs : ∀ v, v ∈ gs) (u : G.V) :
+    (bitTab (rowList G gs))[gs.idxOf u]! = mask G gs [u] := by
+  rw [Array.getElem!_eq_getD]
+  exact getD_bitTab hgs u
+
+theorem getElem!_nbTab (hgs : ∀ v, v ∈ gs) (u : G.V) :
+    (nbTab (rowList G gs))[gs.idxOf u]! = (row G gs u).nb := by
+  rw [Array.getElem!_eq_getD]
+  exact getD_nbTab hgs u
+
+
+/-- **A slot of the table is a fold over that label's block.**  The pass writes a pair into the
+slot of its label's rank, and the ranks tell the labels apart. -/
+theorem testBit_getElem!_slot (hhs : ∀ x : H.V, x ∈ hs) (F : G.V → ℕ) (y : H.V)
+    (pre : List (G.V × H.V)) (k : ℕ) :
+    ((orTab H G F hs.idxOf hs.length pre)[hs.idxOf y]!).testBit k
+      = (fibre pre y).any fun u ↦ (F u).testBit k := by
+  rw [testBit_getElem!_orTab F _ (List.idxOf_lt_length_of_mem (hhs y)) pre,
+    show (pre.filter fun q ↦ hs.idxOf q.2 == hs.idxOf y)
+        = pre.filter (fun q ↦ decide (q.2 = y)) from
+      List.filter_congr fun q _ ↦ by
+        rw [Bool.eq_iff_iff, beq_iff_eq, decide_eq_true_eq, List.idxOf_inj (hhs q.2)],
+    fibre, List.any_map]
+  rfl
+
+theorem bit_slot (hgs : ∀ v, v ∈ gs) (hhs : ∀ x : H.V, x ∈ hs) (y : H.V)
+    (pre : List (G.V × H.V)) :
+    (orTab H G (fun u ↦ (bitTab (rowList G gs))[gs.idxOf u]!) hs.idxOf hs.length pre)[hs.idxOf y]!
+      = mask G gs (fibre pre y) := by
+  refine Nat.eq_of_testBit_eq fun k ↦ ?_
+  rw [testBit_getElem!_slot hhs _ y pre k]
+  simp only [getElem!_bitTab hgs, testBit_mask, List.any_cons, List.any_nil, Bool.or_false]
+
+theorem nb_slot (hgs : ∀ v, v ∈ gs) (hhs : ∀ x : H.V, x ∈ hs) (y : H.V)
+    (pre : List (G.V × H.V)) :
+    (orTab H G (fun u ↦ (nbTab (rowList G gs))[gs.idxOf u]!) hs.idxOf hs.length pre)[hs.idxOf y]!
+      = nbrMask G gs (fibre pre y) := by
+  have hnbmask : ∀ u : G.V, (nbTab (rowList G gs))[gs.idxOf u]! = mask G gs (gs.filter (G.Adj u)) :=
+    fun u ↦ getElem!_nbTab hgs u
+  refine eq_of_testBit_pool (gs := gs) (pool := gs) (fun k hk ↦ ?_) (fun k hk ↦ ?_) fun w _ ↦ ?_
+  · rw [testBit_getElem!_slot hhs _ y pre k, List.any_eq_true] at hk
+    obtain ⟨u, -, hu⟩ := hk
+    rw [hnbmask] at hu
+    exact testBit_mask_mono (fun _ h ↦ (List.mem_filter.mp h).1) hu
+  · exact testBit_mask_mono (fun _ h ↦ (List.mem_filter.mp h).1) hk
+  · rw [testBit_getElem!_slot hhs _ y pre, testBit_nbrMask hgs]
+    simp only [getElem!_nbTab hgs, testBit_row_nb (G := G) hgs]
+
+/-- `blocksOk` with the blocks and their neighbourhoods read off masks. -/
+def blocksOkMask (H G : CGraph) (rs : List (Row G)) (n pm : ℕ) (bm nm : Array ℕ)
+    (hz : List (H.V × ℕ)) : Bool :=
+  hz.all fun p ↦
+    connViaMask G rs n pm bm[p.2]! &&
+      (bm[p.2]! == 0 || (nm[p.2]! &&& pm) != 0 ||
+        hz.all fun q ↦ !H.Adj p.1 q.1 || (nm[p.2]! &&& bm[q.2]!) != 0)
+
+theorem blocksOk_eq_blocksOkMask (hgs : ∀ v, v ∈ gs) {n : ℕ} {bm nm : Array ℕ}
+    {b : H.V → List G.V} {hrk : H.V → ℕ} {pool : List G.V}
+    (hb : ∀ y, bm[hrk y]! = mask G gs (b y)) (hnb : ∀ y, nm[hrk y]! = nbrMask G gs (b y))
+    (hn : ∀ y, (b y).length + pool.length ≤ n) :
+    blocksOk H G pool (hs.map fun y ↦ (y, b y))
+      = blocksOkMask H G (rowList G gs) n (mask G gs pool) bm nm (hs.map fun y ↦ (y, hrk y)) := by
+  rw [blocksOk, blocksOkMask]
+  simp only [List.all_map, Function.comp_def, hb, hnb, isEmpty_eq_mask_beq_zero (gs := gs),
+    touch_eq_mask hgs, linked_eq_mask hgs,
+    show ∀ y, connVia G pool (b y) = connViaMask G (rowList G gs) n (mask G gs pool)
+      (mask G gs (b y)) from fun y ↦ connVia_eq_connViaMask hgs pool (b y) (hn y)]
+
+/-! ## The candidate list
+
+`candLabMask` is `candLabWith` with the block tests read off that table.  The only thing a label
+changes is its own slot, so trying one costs two `set!`s on top of the shared table. -/
+
+theorem nb_row_eq (u : G.V) : (row G gs u).nb = mask G gs (gs.filter (G.Adj u)) := rfl
+
+theorem nbrMask_cons (hgs : ∀ v, v ∈ gs) (u : G.V) (f : List G.V) :
+    nbrMask G gs (u :: f) = (row G gs u).nb ||| nbrMask G gs f := by
+  refine eq_of_testBit_pool (gs := gs) (pool := gs) (fun k hk ↦ ?_) (fun k hk ↦ ?_) fun w _ ↦ ?_
+  · exact testBit_mask_mono (fun _ h ↦ (List.mem_filter.mp h).1) hk
+  · rw [Nat.testBit_or, Bool.or_eq_true, nb_row_eq, nbrMask] at hk
+    exact hk.elim (testBit_mask_mono fun _ h ↦ (List.mem_filter.mp h).1)
+      (testBit_mask_mono fun _ h ↦ (List.mem_filter.mp h).1)
+  · rw [testBit_nbrMask hgs, Nat.testBit_or, testBit_row_nb (G := G) hgs, testBit_nbrMask hgs,
+      List.any_cons]
+
+private theorem size_foldl_set! (F : G.V → ℕ) (hrk : H.V → ℕ) :
+    ∀ (pre : List (G.V × H.V)) (t : Array ℕ),
+      (pre.foldl (fun t q ↦ t.set! (hrk q.2) (t[hrk q.2]! ||| F q.1)) t).size = t.size
+  | [], _ => rfl
+  | q :: pre, t => by rw [List.foldl_cons, size_foldl_set!, Array.size_set!]
+
+theorem size_orTab (F : G.V → ℕ) (hrk : H.V → ℕ) (m : ℕ) (pre : List (G.V × H.V)) :
+    (orTab H G F hrk m pre).size = m := by
+  rw [orTab, size_foldl_set!, Array.size_replicate]
+
+private theorem foldl_bits (hgs : ∀ v, v ∈ gs) : ∀ (l : List G.V) (a : ℕ),
+    l.foldl (fun m u ↦ m ||| (bitTab (rowList G gs))[gs.idxOf u]!) a
+      = l.foldl (fun m u ↦ m ||| 1 <<< gs.idxOf u) a
+  | [], _ => rfl
+  | u :: l, a => by
+    rw [List.foldl_cons, List.foldl_cons, foldl_bits hgs l, getElem!_bitTab hgs, mask_singleton]
+
+theorem foldl_bits_eq_mask (hgs : ∀ v, v ∈ gs) (l : List G.V) :
+    l.foldl (fun m u ↦ m ||| (bitTab (rowList G gs))[gs.idxOf u]!) 0 = mask G gs l :=
+  foldl_bits hgs l 0
+
+/-- What the block tests read, built once for the search.
+
+`rows` is what a round of the connectivity sweep runs over; `bits` and `nbrs` are a vertex's own
+bit and its neighbour mask, indexed by rank, so that the pass over the assignment that builds the
+blocks costs one array lookup and one `|||` per pair; `hrk` and `rk` are the two rank tables; and
+`hz` pairs each label with the slot its block lives in. -/
+structure MaskEnv (H G : CGraph) where
+  /-- The rows of `G`, in rank order. -/
+  rows : List (Row G)
+  /-- Each vertex's own bit, indexed by rank. -/
+  bits : Array ℕ
+  /-- Each vertex's neighbour mask, indexed by rank. -/
+  nbrs : Array ℕ
+  /-- The rank of a label in `hs`, which is the slot its block lives in. -/
+  hrk : H.V → ℕ
+  /-- The rank of a vertex of `G` in `gs`. -/
+  rk : G.V → ℕ
+  /-- The labels, each with its slot. -/
+  hz : List (H.V × ℕ)
+
+/-- The environment of a search of `G` for `H` over the orders `hs` and `gs`. -/
+def maskEnv (H G : CGraph) (hs : List H.V) (gs : List G.V) : MaskEnv H G :=
+  let rows := rowList G gs
+  let hrk := Backtrack.tabAt (Backtrack.rankTable hs)
+  { rows, bits := bitTab rows, nbrs := nbTab rows, hrk,
+    rk := Backtrack.tabAt (Backtrack.rankTable gs), hz := hs.map fun y ↦ (y, hrk y) }
+
+/-- `candLabWith` with the block tests on masks: the blocks and their neighbourhoods are built in
+one pass over the assignment, "an unlabelled vertex still touches it" and `linked` are one `&&&`
+each, and the connectivity sweep runs on words. -/
+def candLabMask (H G : CGraph) (env : MaskEnv H G) (hs : List H.V) (gs : List G.V)
+    (pairs : List (H.V × H.V)) (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
+  let used := pre.map Prod.snd
+  let len := pre.length + 1
+  let rough := (labSource H G hs v pre).filter fun x ↦
+    pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
+      decide (hs.countP (fun y ↦ !(x :: used).contains y) + len ≤ gs.length) &&
+      pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
+        (!(fibre ((v, x) :: pre) p.1).isEmpty &&
+          decide (minRank env.rk (fibre ((v, x) :: pre) p.1) ≤
+            minRank env.rk (fibre ((v, x) :: pre) p.2))))
+  if rough.isEmpty then [] else
+    let pm := (gs.drop len).foldl (fun a u ↦ a ||| env.bits[env.rk u]!) 0
+    let t := maskTab H G env.hrk env.rk env.bits env.nbrs hs.length pre
+    let vb := env.bits[env.rk v]!
+    let vn := env.nbrs[env.rk v]!
+    rough.filter fun x ↦
+      let i := env.hrk x
+      blocksOkMask H G env.rows (len + gs.length) pm
+        (t.1.set! i (t.1[i]! ||| vb)) (t.2.set! i (t.2[i]! ||| vn)) env.hz
+
+theorem candLabWith_eq_candLabMask (hgs : ∀ v, v ∈ gs) (hhs : ∀ x : H.V, x ∈ hs)
+    (pairs : List (H.V × H.V)) :
+    candLabWith H G (fun u ↦ gs.idxOf u) hs gs pairs
+      = candLabMask H G (maskEnv H G hs gs) hs gs pairs := by
+  funext v pre
+  simp only [candLabWith, candLabMask, maskEnv, Backtrack.tabAt_rankTable, maskTab_eq]
+  split_ifs with hemp
+  · rfl
+  · refine List.filter_congr fun x _ ↦ ?_
+    set pool := gs.drop (pre.length + 1) with hpool
+    -- the pool mask, and the two tables with `x`'s slot grown by `v`
+    have hkey : ∀ (F : G.V → ℕ) (M : List G.V → ℕ),
+        (∀ y : H.V, (orTab H G F (fun z ↦ hs.idxOf z) hs.length pre)[hs.idxOf y]!
+          = M (fibre pre y)) → (∀ f : List G.V, M (v :: f) = F v ||| M f) →
+        ∀ y : H.V, ((orTab H G F (fun z ↦ hs.idxOf z) hs.length pre).set! (hs.idxOf x)
+            ((orTab H G F (fun z ↦ hs.idxOf z) hs.length pre)[hs.idxOf x]! ||| F v))[hs.idxOf y]!
+          = M (fibre ((v, x) :: pre) y) := by
+      intro F M hslot hcons y
+      rw [fibre_cons]
+      by_cases hxy : x = y
+      · subst hxy
+        rw [Array.getElem!_set!_self _ _ _
+            (by rw [size_orTab]; exact List.idxOf_lt_length_of_mem (hhs x)),
+          if_pos rfl, hslot x, hcons]
+        exact Nat.lor_comm _ _
+      · rw [Array.getElem!_set!_ne _ _ _ _ (fun h ↦ hxy ((List.idxOf_inj (hhs x)).mp h)),
+          if_neg hxy, hslot y]
+    have hb := hkey _ (mask G gs) (bit_slot hgs hhs · pre)
+      (fun f ↦ by rw [getElem!_bitTab hgs, show v :: f = [v] ++ f from rfl, mask_append])
+    have hnb := hkey _ (nbrMask G gs) (nb_slot hgs hhs · pre)
+      (fun f ↦ by rw [getElem!_nbTab hgs, nbrMask_cons hgs])
+    have hn : ∀ y : H.V,
+        (fibre ((v, x) :: pre) y).length + pool.length ≤ pre.length + 1 + gs.length := by
+      intro y
+      have h1 : (fibre ((v, x) :: pre) y).length ≤ pre.length + 1 := by
+        rw [fibre, List.length_map]
+        exact le_trans (List.length_filter_le _ _) (by simp)
+      have h2 : pool.length ≤ gs.length := by rw [hpool]; simp
+      omega
+    rw [foldl_bits_eq_mask hgs, show (hs.map fun y ↦ (y, fibre pre y,
+        Thunk.mk fun _ ↦ blockOk G pool (fibre pre y))).map
+          (fun t ↦ if x = t.1 then (t.1, v :: t.2.1,
+            Thunk.mk fun _ ↦ blockOk G pool (v :: t.2.1)) else t)
+        = hs.map fun y ↦ (y, fibre ((v, x) :: pre) y,
+            Thunk.mk fun _ ↦ blockOk G pool (fibre ((v, x) :: pre) y)) from ?_,
+      ← blocksOk_eq_blocksOkTab, blocksOk_eq_blocksOkMask hgs hb hnb hn]
+    rw [List.map_map]
+    refine List.map_congr_left fun y _ ↦ ?_
+    simp only [Function.comp_apply, fibre_cons]
+    split <;> rfl
+
 /-! ## Soundness of the pruning -/
 
 section Cand
@@ -826,20 +1389,22 @@ def searchLab (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V)) :
       (searchOrder G rG.toList) []
   else none
 
-/-- What `searchLab` runs.  Two things are shared that the specification writes out: the two search
-orders, each named three times above, and the rank, which is a table rather than `List.idxOf`. -/
+/-- What `searchLab` runs.  Three things are shared that the specification writes out: the two
+search orders, each named three times above; the rank, which is a table rather than `List.idxOf`;
+and the row and mask tables the block tests read, built once for the whole search. -/
 def searchLabFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V)) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let hs := searchOrder H rH.toList
     let gs := searchOrder G rG.toList
     let pairs := symPairs H hs
-    Backtrack.dfs (candLabWith H G (Backtrack.tabAt (Backtrack.rankTable gs)) hs gs pairs)
+    Backtrack.dfs (candLabMask H G (maskEnv H G hs gs) hs gs pairs)
       (finalOk H G hs gs pairs) gs []
   else none
 
 @[csimp] theorem searchLab_eq_searchLabFast : @searchLab = @searchLabFast := by
   funext H G rH rG
-  simp only [searchLab, searchLabFast, Backtrack.tabAt_rankTable, ← candLab_eq_candLabWith]
+  simp only [searchLab, searchLabFast, candLab_eq_candLabWith,
+    candLabWith_eq_candLabMask (mem_searchOrder G rG.mem_toList) (mem_searchOrder H rH.mem_toList)]
 
 variable {H G}
 
