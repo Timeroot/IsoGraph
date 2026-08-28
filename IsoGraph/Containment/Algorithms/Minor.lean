@@ -2080,13 +2080,13 @@ def searchMinorFast (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) : Option (S
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let hs := hsOrder H rH
     let gs := rG.toList.dedup
-    searchFrom H G (rankAt (rankTable rG.toList)) (symPairs H hs) ind hs
+    searchFrom H G (tabAt (rankTable rG.toList)) (symPairs H hs) ind hs
       (if minDegTwo H hs then twoCore G gs.length gs else gs)
   else none
 
 @[csimp] theorem searchMinor_eq_searchMinorFast : @searchMinor = @searchMinorFast := by
   funext H G ind rH rG
-  rw [searchMinor, searchMinorFast, rankAt_rankTable, hostPool]
+  rw [searchMinor, searchMinorFast, tabAt_rankTable, hostPool]
 
 theorem finalOk_of_searchMinor {ind : Bool} {rH : Roster H.V} {rG : Roster G.V} {st : State H G}
     (h : searchMinor H G ind rH rG = some st) : finalOk H G ind (hsOrder H rH) st = true := by

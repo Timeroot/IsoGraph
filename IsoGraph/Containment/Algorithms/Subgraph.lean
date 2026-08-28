@@ -37,10 +37,10 @@ another 1.15× on the hardest case below.
 Times on one shared machine, so read them as orders of magnitude.  Girth settles most of the small
 cases outright: `C₆ ⊆ McGee`, `K₄ ⊆ McGee`, `K₃,₃ ⊆ Heawood` and `Petersen ⊆ McGee` all come back
 empty in a millisecond or three, and `C₇ ⊆ McGee`, `C₈ ⊆ grid 5×5`, `grid 3×3 ⊆ grid 5×5` are
-found about as fast.  Finding a Hamiltonian cycle is barely dearer: `C₂₄ ⊆ McGee` and
-`grid 5×5 ⊆ grid 5×5` in 2 ms, `C₂₄ ⊆ grid 5×5` in 10 ms.  Proving there is none is the expensive
+found about as fast.  Finding a Hamiltonian cycle is barely dearer: `C₂₄ ⊆ McGee`,
+`grid 5×5 ⊆ grid 5×5` and `C₂₄ ⊆ grid 5×5` in 2 ms to 6 ms.  Proving there is none is the expensive
 direction — `C₂₅ ⊆ grid 5×5`, and the 5×5 grid has no Hamiltonian cycle, the two colour classes
-being 13 and 12 — and that is about 18 s of exhaustive search.  Nothing here knows about bipartite
+being 13 and 12 — and that is about 10 s of exhaustive search.  Nothing here knows about bipartite
 parity, so that last one is the honest shape of the worst case: the search finds what is there
 quickly and works hard to rule out what is not.
 -/
@@ -124,6 +124,7 @@ theorem isEmpty_subgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
       List.idxOf_lt_length_of_mem (rG.mem_toList v)
     have hn := Backtrack.dfs_eq_none_keys
       (mem_candList H G false rG.mem_toList (rank := hostRank G rG) (fun _ ↦ rfl) _ _
+        (fun _ ↦ rfl) (fun _ ↦ rfl)
         (keys := (searchOrder H rH.toList).reverse)
         (fun x ↦ List.mem_reverse.mpr (mem_searchOrder H rH.mem_toList x))
         (List.nodup_reverse.mpr (searchOrder_nodup H rH.toList))) h hsol (by simp)

@@ -72,6 +72,14 @@ innermost loop of the search asks for adjacency once per placed vertex per candi
 reading it off the candidate's own neighbour list instead took the running time of a
 representative search down by an order of magnitude.
 
+The two things the search asks about a vertex of the *pattern* are tabulated for the same reason
+and by the same means, `Backtrack.tabulate`: its degree, which is a count along the enumeration,
+and `CGraph.tailCount`, which walks a chain of interchangeable vertices and re-filters all of them
+at every step.  Neither depends on the partial assignment, so both are one number per vertex of
+`H`; asked where they are used they are a scan per node instead, and taking them out of the node
+halves `C₂₄ ⊑ McGee` and `C₂₅ ⊆ grid 5×5` and takes 55% off `E₁₉ ⊑ grid 6×6`, where the class of
+interchangeable vertices is the whole pattern and the chain is as long as it can be.
+
 Two counting tests — `card H.V ≤ card G.V` and `H.E ≤ G.E` — reject hopeless pairs before the
 search starts, which matters because injectivity alone would only make the search fail at depth
 `card G.V + 1`.  Both hold of a subgraph as well as of an induced one.
@@ -513,16 +521,24 @@ made: those in the neighbourhood of the pivot, if there is one, that pass `candK
 Symmetry breaking also puts a floor under the candidate's rank, and `rowList` lists the rows in
 rank order, so the pool is cut off below that floor before it is scanned rather than filtered
 element by element.  `dropWhile` is sound whatever order the pool happens to be in: everything it
-drops has too low a rank to be the answer. -/
+drops has too low a rank to be the answer.
+
+The two things this asks about the *pattern* vertex — its degree `dg a`, and the room `tc a` its
+class needs above it — are taken as functions rather than computed here, and `searchAsgFast` hands
+over a `Backtrack.tabulate` of each.  Neither depends on `pre`, so each is one number per vertex of
+`H` for the whole search, and each is a scan: `deg` counts along the enumeration and `tailCount`
+walks the chain of pairs, re-filtering all of them at every step.  Computing them where they are
+used instead costs a scan per node, which on a pattern with no edges — every vertex in one class,
+so the chain is as long as the pattern — is most of the search. -/
 def candList (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (rs : List (Row G))
-    (nb : List (G.V × List (Row G))) (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
+    (nb : List (G.V × List (Row G))) (dg tc : H.V → ℕ) (a : H.V) (pre : List (H.V × G.V)) :
+    List G.V :=
   let cp := candPool G rs nb (preAdj H G a pre)
   let lo := symLo H G rank pairs a pre
   let hi := symHi H G rank pairs a pre
   let floor := lo.foldl max 0
   ((cp.1.dropWhile fun p ↦ decide (p.rk < floor)).filter
-    (candKeep G ind cp.2 (preOther H G ind a pre) (H.deg a) lo hi
-      (tailCount H pairs.length pairs a) n)).map Row.vert
+    (candKeep G ind cp.2 (preOther H G ind a pre) (dg a) lo hi (tc a) n)).map Row.vert
 
 /-! ## Reading a map off a complete assignment -/
 
@@ -671,12 +687,14 @@ degree test the candidate list applies is not part of `goalAsg`; what makes it s
 each of them once — hence `hkcov` and `hknd`, which `Backtrack.dfs_eq_none_keys` supplies. -/
 theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ}
     (hrank : ∀ v, rank v = gs.idxOf v)
-    (n : ℕ) (pairs : List (H.V × H.V)) {keys : List H.V} (hkcov : ∀ x : H.V, x ∈ keys)
+    (n : ℕ) (pairs : List (H.V × H.V)) {dg tc : H.V → ℕ} (hdg : ∀ x, dg x = H.deg x)
+    (htc : ∀ x, tc x = tailCount H pairs.length pairs x) {keys : List H.V}
+    (hkcov : ∀ x : H.V, x ∈ keys)
     (hknd : keys.Nodup) (a : H.V) (pre : List (H.V × G.V))
     (b : G.V) (l : List (H.V × G.V))
     (hk : (l ++ (a, b) :: pre).map Prod.fst = keys)
     (h : goalAsg H G ind rank n pairs (l ++ (a, b) :: pre) = true) :
-    b ∈ candList H G ind rank n pairs (rowList G gs) (adjTable G gs) a pre := by
+    b ∈ candList H G ind rank n pairs (rowList G gs) (adjTable G gs) dg tc a pre := by
   simp only [goalAsg, Bool.and_eq_true] at h
   obtain ⟨⟨hv, hsort⟩, hcap⟩ := h
   have hab : (a, b) ∈ l ++ (a, b) :: pre := by simp
@@ -708,8 +726,8 @@ theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ
     have hv' := validAsg_of_append H G ind hv
     rw [validAsg, Bool.and_eq_true] at hv'
     exact hv'.1
-  have hdeg : H.deg a ≤ G.toSimple.degree b :=
-    degree_le_of_validAsg hv (fun x ↦ by rw [hk]; exact hkcov x) (by rw [hk]; exact hknd) hab
+  have hdeg : dg a ≤ G.toSimple.degree b := (hdg a).le.trans
+    (degree_le_of_validAsg hv (fun x ↦ by rw [hk]; exact hkcov x) (by rw [hk]; exact hknd) hab)
   have hadj : ∀ u ∈ preAdj H G a pre, G.Adj b u = true := by
     intro u hu
     obtain ⟨x, hx, hax⟩ := mem_preAdj H G hu
@@ -734,6 +752,7 @@ theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ
     · rw [List.all_eq_true] at hcap
       have := hcap (a, b) hab
       rw [decide_eq_true_eq] at this
+      rw [htc a]
       exact hrank b ▸ this
 
 variable {H G ind}
@@ -809,17 +828,22 @@ def hostRank (rG : Roster G.V) (v : G.V) : ℕ := rG.toList.idxOf v
 the two relations is being looked for. -/
 def searchAsg (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
+    let pairs := symPairs H (searchOrder H rH.toList)
     Backtrack.dfs
-      (candList H G ind (hostRank G rG) rG.toList.length (symPairs H (searchOrder H rH.toList))
-        (rowList G rG.toList) (adjTable G rG.toList))
-      (goalAsg H G ind (hostRank G rG) rG.toList.length (symPairs H (searchOrder H rH.toList)))
+      (candList H G ind (hostRank G rG) rG.toList.length pairs
+        (rowList G rG.toList) (adjTable G rG.toList) H.deg (tailCount H pairs.length pairs))
+      (goalAsg H G ind (hostRank G rG) rG.toList.length pairs)
       (searchOrder H rH.toList) []
   else none
 
 /-- What `searchAsg` runs.  Everything the two closures share is computed once — in particular the
 row list, which `adjTable` would otherwise build a second time, and the pattern's symmetry, which
 costs a `twinClasses` call.  Written out rather than left to the compiler: it shares subterms
-inside a basic block, but `adjTable`'s copy of the row list is behind a call. -/
+inside a basic block, but `adjTable`'s copy of the row list is behind a call.
+
+The two questions about the pattern vertex are tabulated for the same reason, and it is worth more:
+they are asked at every node rather than once, and `Backtrack.tabAt_tabulate` is what lets the
+specification above ask them the obvious way. -/
 def searchAsgFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let hs := searchOrder H rH.toList
@@ -827,11 +851,15 @@ def searchAsgFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V
     let gs := rG.toList
     let rank := hostRank G rG
     let rs := rowList G gs
-    Backtrack.dfs (candList H G ind rank gs.length pairs rs (adjTableOf G rs gs))
+    let dg := Backtrack.tabAt (Backtrack.tabulate H.deg)
+    let tc := Backtrack.tabAt (Backtrack.tabulate (tailCount H pairs.length pairs))
+    Backtrack.dfs (candList H G ind rank gs.length pairs rs (adjTableOf G rs gs) dg tc)
       (goalAsg H G ind rank gs.length pairs) hs []
   else none
 
-@[csimp] theorem searchAsg_eq_searchAsgFast : @searchAsg = @searchAsgFast := rfl
+@[csimp] theorem searchAsg_eq_searchAsgFast : @searchAsg = @searchAsgFast := by
+  funext H G ind rH rG
+  simp only [searchAsg, searchAsgFast, Backtrack.tabAt_tabulate, adjTable]
 
 variable {H G ind}
 

@@ -103,33 +103,43 @@ def Roster.finset [DecidableEq α] (r : Roster α) : Roster (Finset α) :=
       List.mem_sublists.mpr (List.filter_sublist ..), by
         ext a; simp [r.mem_toList a]⟩⟩
 
-/-! ### Positions
+/-! ### Tabulated functions
 
-A search that breaks symmetry does it by comparing where the roster lists two vertices, and
-`List.idxOf` is a scan.  Asked once per candidate per node it is one of the hotter things in
-either search, so the positions are tabulated. -/
+A search asks the same numeric question about the same element over and over: where the roster
+lists a vertex, how many neighbours it has, how many of its class are still to come.  None of
+those depends on the partial assignment, and all of them are a scan of something, so a search
+computes each once per element before it starts and reads them back out of an array afterwards.
 
-/-- Where `l` lists each element, as a table indexed by `FinEnum.equiv`. -/
-def rankTable {α : Type u} [FinEnum α] (l : List α) : Array ℕ :=
-  ((List.finRange (FinEnum.card α)).map fun i ↦ l.idxOf (FinEnum.equiv.symm i)).toArray
+`tabulate` and `tabAt` are that array and that read, indexed by `FinEnum.equiv`.  Whether the
+lookup is faster than the question is a matter for the type: for `Fin n`, and for the products and
+sums the graph constructions build, `FinEnum.equiv` is arithmetic; for a vertex type whose
+enumeration is a list it is another scan, and the table only pays from the second query onwards.
+Neither is ever reasoned about — `tabAt_tabulate` puts the function back. -/
 
-/-- Read a position out of `Backtrack.rankTable`.
+/-- A `ℕ`-valued function on a `FinEnum`, as a table indexed by `FinEnum.equiv`. -/
+def tabulate {α : Type u} [FinEnum α] (f : α → ℕ) : Array ℕ :=
+  ((List.finRange (FinEnum.card α)).map fun i ↦ f (FinEnum.equiv.symm i)).toArray
 
-Top-level, and applied to the table alone rather than defined as `fun l v ↦ ⋯`: the compiler
+/-- Read a value out of a `Backtrack.tabulate` table.
+
+Top-level, and applied to the table alone rather than defined as `fun f v ↦ ⋯`: the compiler
 maximises the arity of a definition, so one that returns a function type takes the second argument
 too and rebuilds the table on every lookup.  A caller shares the table by naming
-`rankAt (rankTable l)` in a `let`. -/
-def rankAt {α : Type u} [FinEnum α] (t : Array ℕ) (v : α) : ℕ := t[(FinEnum.equiv v).val]!
+`tabAt (tabulate f)` in a `let`. -/
+def tabAt {α : Type u} [FinEnum α] (t : Array ℕ) (v : α) : ℕ := t[(FinEnum.equiv v).val]!
 
-/-- The table says what the scan says.  Whether it says it faster is a question about
-`FinEnum.equiv` for the type: for `Fin n`, and for the products and sums the graph constructions
-build, it is arithmetic, and for a vertex type whose enumeration is a list it is another scan and
-the table only pays for the second query onwards. -/
-theorem rankAt_rankTable {α : Type u} [FinEnum α] (l : List α) :
-    rankAt (rankTable l) = fun v ↦ l.idxOf v := by
+/-- **The table says what the function says.** -/
+theorem tabAt_tabulate {α : Type u} [FinEnum α] (f : α → ℕ) : tabAt (tabulate f) = f := by
   funext v
-  rw [rankAt, rankTable, getElem!_pos _ _ (by simp [(FinEnum.equiv v).isLt])]
+  rw [tabAt, tabulate, getElem!_pos _ _ (by simp [(FinEnum.equiv v).isLt])]
   simp
+
+/-- Where `l` lists each element, tabulated: the rank symmetry breaking orders images by. -/
+def rankTable {α : Type u} [FinEnum α] (l : List α) : Array ℕ := tabulate fun v ↦ l.idxOf v
+
+theorem tabAt_rankTable {α : Type u} [FinEnum α] (l : List α) :
+    tabAt (rankTable l) = fun v ↦ l.idxOf v :=
+  tabAt_tabulate _
 
 /-- Depth-first search over assignments of values in `β` to the elements of `todo`, taken in
 order.  `pre` is the assignment made so far, most recent first; `cand a pre` are the values to try

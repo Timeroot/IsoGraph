@@ -833,13 +833,13 @@ def searchLabFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V
     let hs := searchOrder H rH.toList
     let gs := searchOrder G rG.toList
     let pairs := symPairs H hs
-    Backtrack.dfs (candLabWith H G (Backtrack.rankAt (Backtrack.rankTable gs)) hs gs pairs)
+    Backtrack.dfs (candLabWith H G (Backtrack.tabAt (Backtrack.rankTable gs)) hs gs pairs)
       (finalOk H G hs gs pairs) gs []
   else none
 
 @[csimp] theorem searchLab_eq_searchLabFast : @searchLab = @searchLabFast := by
   funext H G rH rG
-  simp only [searchLab, searchLabFast, Backtrack.rankAt_rankTable, ← candLab_eq_candLabWith]
+  simp only [searchLab, searchLabFast, Backtrack.tabAt_rankTable, ← candLab_eq_candLabWith]
 
 variable {H G}
 

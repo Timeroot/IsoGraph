@@ -93,6 +93,7 @@ theorem isEmpty_inducedSubgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
       List.idxOf_lt_length_of_mem (rG.mem_toList v)
     have hn := Backtrack.dfs_eq_none_keys
       (mem_candList H G true rG.mem_toList (rank := hostRank G rG) (fun _ ↦ rfl) _ _
+        (fun _ ↦ rfl) (fun _ ↦ rfl)
         (keys := (searchOrder H rH.toList).reverse)
         (fun x ↦ List.mem_reverse.mpr (mem_searchOrder H rH.mem_toList x))
         (List.nodup_reverse.mpr (searchOrder_nodup H rH.toList))) h hsol (by simp)

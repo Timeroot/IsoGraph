@@ -50,7 +50,7 @@ def nodes (H G : CGraph) (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) (sym :
   let hs := searchOrder H rH.toList
   let prs := if sym then symPairs H hs else []
   toString (dfsCount (candList H G ind (hostRank G rG) rG.toList.length prs (rowList G rG.toList)
-    (adjTable G rG.toList)) hs [])
+    (adjTable G rG.toList) H.deg (tailCount H prs.length prs)) hs [])
 
 /-- Every node of the minor search tree.  For a case that comes back `none` this is exactly the
 tree the real search walks, so `ms / nodes` separates "too many nodes" from "each node is slow". -/
@@ -225,13 +225,15 @@ def main (args : List String) : IO Unit := do
     let rs := rowList G gs
     let nb := adjTable G gs
     let prs := symPairs H hs
+    let tc := tailCount H prs.length prs
     match hs.drop d with
     | [] => IO.println "micro-cand: d past the end of the pattern"
     | a :: _ =>
       let work := List.replicate k (a, pre)
       bench s!"{k} × candList |pre|={pre.length} ind={ind}" fun _ =>
         toString (work.foldl (fun acc p =>
-          acc + (candList H G ind (hostRank G rG) gs.length prs rs nb p.1 p.2).length) 0)
+          acc + (candList H G ind (hostRank G rG) gs.length prs rs nb H.deg tc p.1 p.2).length)
+          0)
   | "con-km-grid" =>
     let m := size 1 4
     let n := size 2 4
