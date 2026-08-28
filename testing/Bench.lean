@@ -355,14 +355,14 @@ def a000088 : Array Nat := #[1, 1, 2, 4, 11, 34, 156, 1044, 12346]
 /-! ## Profiling -/
 
 /-- `refineLoop` again, but counting splitter pops. -/
-def refineCount (G : Graph) : Nat → Part → Array Bool → UInt64 → Scratch → Nat → Part × Nat
-  | 0, p, _, _, _, k => (p, k)
-  | fuel + 1, p, inW, tr, sc, k =>
-    match firstSet inW with
+def refineCount (G : Graph) : Nat → Part → Array Bool → Nat → UInt64 → Scratch → Nat → Part × Nat
+  | 0, p, _, _, _, _, k => (p, k)
+  | fuel + 1, p, inW, lo, tr, sc, k =>
+    match firstSetFrom inW lo with
     | none => (p, k)
     | some s =>
-      let (p, inW, tr, sc) := refineStep G p (inW.set! s false) s tr sc
-      refineCount G fuel p inW tr sc (k + 1)
+      match refineStepLo G p (inW.set! s false) s tr sc with
+      | ((p, inW, tr, sc), lo) => refineCount G fuel p inW lo tr sc (k + 1)
 
 /-- `IO.println` + flush, so progress is visible when stdout is redirected. -/
 def say (s : String) : IO Unit := do
@@ -375,14 +375,15 @@ def profGraph (name : String) (G : Graph) : IO Unit := do
   let inW0 := if n == 0 then #[] else (Array.replicate n false).set! 0 true
   let fuel := n * n + n + 1
   let (usInit, popsInit) ← timeBest 1 #[G] fun G =>
-    (refineCount G fuel (Part.unit n) inW0 hashSeed (Scratch.empty n) 0).2
+    (refineCount G fuel (Part.unit n) inW0 0 hashSeed (Scratch.empty n) 0).2
   let (p0, _) := initialRefine G
   let (usChild, popsChild) ← timeBest 1 #[G] fun G =>
     match p0.targetCell n with
     | none => 0
     | some c =>
       let (p', s) := individualize p0 (p0.lab[c]!)
-      (refineCount G fuel p' ((Array.replicate n false).set! s true) hashSeed (Scratch.empty n) 0).2
+      (refineCount G fuel p' ((Array.replicate n false).set! s true) 0 hashSeed
+        (Scratch.empty n) 0).2
   let (usCert, _) ← timeBest 1 #[G] fun G => (certOf G (Array.range G.n)).size
   let (usAll, nodes) ← timeBest 1 #[G] fun G => (canonical G).nodes
   say s!"  {pad name 18} n={pad (toString n) 5} init {pad (showMs usInit) 11} ({pad (toString popsInit) 6} pops) \

@@ -130,33 +130,36 @@ theorem refineStep_refines {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp :
     exact this
 
 theorem refineLoop_refines {n : Nat} {f : Nat → Nat → Bool} :
-    ∀ (fuel : Nat) (p : Part) (inW : Array Bool) (tr : UInt64), Part.WF n p →
-      Refines n (refineLoop (Graph.ofOracle n f) fuel p inW tr (Scratch.empty n)).1 p
-  | 0, _, _, _, _ => Refines.refl _
-  | fuel + 1, p, inW, tr, hp => by
-    cases hfs : firstSet inW with
+    ∀ (fuel : Nat) (p : Part) (inW : Array Bool) (lo : Nat) (tr : UInt64), Part.WF n p →
+      Refines n (refineLoop (Graph.ofOracle n f) fuel p inW lo tr (Scratch.empty n)).1 p
+  | 0, _, _, _, _, _ => Refines.refl _
+  | fuel + 1, p, inW, lo, tr, hp => by
+    cases hfs : firstSetFrom inW lo with
     | none => rw [refineLoop_none hfs]; exact Refines.refl _
     | some s =>
       by_cases hg : s < n ∧ p.cst[s]! = s
       · obtain ⟨hsn, hcs⟩ := hg
-        obtain ⟨p1, i1, t1, sc1, hstep⟩ : ∃ p1 i1 t1 sc1, refineStep (Graph.ofOracle n f) p
-          (inW.set! s false) s tr (Scratch.empty n) = (p1, i1, t1, sc1) := ⟨_, _, _, _, rfl⟩
+        obtain ⟨p1, i1, t1, sc1, l1, hlo⟩ : ∃ p1 i1 t1 sc1 l1, refineStepLo (Graph.ofOracle n f) p
+          (inW.set! s false) s tr (Scratch.empty n) = ((p1, i1, t1, sc1), l1) :=
+          ⟨_, _, _, _, _, rfl⟩
+        have hstep : refineStep (Graph.ofOracle n f) p (inW.set! s false) s tr (Scratch.empty n)
+          = (p1, i1, t1, sc1) := congrArg Prod.fst hlo
         have hwf := refineStep_wf (f := f) hp hsn hcs (inW.set! s false) tr
         have href := refineStep_refines (f := f) hp hsn hcs (inW.set! s false) tr
         rw [hstep] at hwf href
-        rw [refineLoop_step hfs (by simp [hcs, hsn]) hstep, show sc1 = Scratch.empty n from hwf.2]
-        exact Refines.trans href (refineLoop_refines fuel p1 i1 t1 hwf.1)
+        rw [refineLoop_step hfs (by simp [hcs, hsn]) hlo, show sc1 = Scratch.empty n from hwf.2]
+        exact Refines.trans href (refineLoop_refines fuel p1 i1 l1 t1 hwf.1)
       · by_cases hsn : s < n
         · have hcs : ¬(p.cst[s]! = s) := fun h => hg ⟨hsn, h⟩
           rw [refineLoop_skip hfs (by simp [hcs])]
-          exact refineLoop_refines fuel p (inW.set! s false) tr hp
+          exact refineLoop_refines fuel p (inW.set! s false) (s + 1) tr hp
         · rw [refineLoop_skip hfs (by simp [hsn])]
-          exact refineLoop_refines fuel p (inW.set! s false) tr hp
+          exact refineLoop_refines fuel p (inW.set! s false) (s + 1) tr hp
 
 theorem refine_refines {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp : Part.WF n p)
     (inW : Array Bool) (tr : UInt64) :
     Refines n (refine (Graph.ofOracle n f) p inW tr).1 p := by
-  rw [refine]; exact refineLoop_refines _ p inW tr hp
+  rw [refine]; exact refineLoop_refines _ p inW 0 tr hp
 
 /-! ### Individualisation creates a cell, refinement keeps it -/
 

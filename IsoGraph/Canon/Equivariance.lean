@@ -3642,16 +3642,47 @@ theorem splitCellsFrom_rel {n : Nat} {σ : Nat → Nat} {cnt cnt' cells : Array 
 
 /-! ### Reading off one refinement step -/
 
-theorem refineStep_eq_empty {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
+theorem refineStepLo_eq_empty {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
     {sc : Scratch} {cnt touched : Array Nat}
     (hc : countFrom G p.lab p.cen[s]! (p.cen[s]! - s) s sc.cnt #[] = (cnt, touched))
     (h : touched.isEmpty = true) :
-    refineStep G p inW s tr sc = (p, inW, mixN tr s, { sc with cnt := cnt }) := by
-  rw [refineStep]
+    refineStepLo G p inW s tr sc = ((p, inW, mixN tr s, { sc with cnt := cnt }), s + 1) := by
+  rw [refineStepLo]
   dsimp only
   rw [hc]
   dsimp only
   exact if_pos h
+
+theorem refineStep_eq_empty {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
+    {sc : Scratch} {cnt touched : Array Nat}
+    (hc : countFrom G p.lab p.cen[s]! (p.cen[s]! - s) s sc.cnt #[] = (cnt, touched))
+    (h : touched.isEmpty = true) :
+    refineStep G p inW s tr sc = (p, inW, mixN tr s, { sc with cnt := cnt }) :=
+  congrArg Prod.fst (refineStepLo_eq_empty hc h)
+
+theorem refineStepLo_eq {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
+    {sc : Scratch} {cnt touched : Array Nat}
+    (hc : countFrom G p.lab p.cen[s]! (p.cen[s]! - s) s sc.cnt #[] = (cnt, touched))
+    (h : ¬touched.isEmpty = true) {hit : Array Bool} {collected : Array Nat}
+    (hcl : collectFrom p.pos p.cst touched touched.size 0 sc.hit #[] = (hit, collected))
+    {st : SplitState}
+    (hst : splitCellsFrom cnt (sortNats collected) (sortNats collected).size 0
+      { lab := p.lab, pos := p.pos, cst := p.cst, cen := p.cen, inW := inW,
+        tr := mixN tr s, bc := sc.bc } = st) :
+    refineStepLo G p inW s tr sc =
+      ((st.part, st.inW, st.tr,
+        { cnt := clearCntFrom touched touched.size 0 cnt,
+          hit := clearHitFrom (sortNats collected) (sortNats collected).size 0 hit,
+          bc := st.bc }),
+        if (sortNats collected).isEmpty then s + 1 else min (s + 1) (sortNats collected)[0]!) := by
+  rw [refineStepLo]
+  dsimp only
+  rw [hc]
+  dsimp only
+  rw [if_neg h, hcl]
+  dsimp only
+  rw [hst]
+  rfl
 
 theorem refineStep_eq {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
     {sc : Scratch} {cnt touched : Array Nat}
@@ -3666,15 +3697,8 @@ theorem refineStep_eq {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : 
       (st.part, st.inW, st.tr,
         { cnt := clearCntFrom touched touched.size 0 cnt,
           hit := clearHitFrom (sortNats collected) (sortNats collected).size 0 hit,
-          bc := st.bc }) := by
-  rw [refineStep]
-  dsimp only
-  rw [hc]
-  dsimp only
-  rw [if_neg h, hcl]
-  dsimp only
-  rw [hst]
-  rfl
+          bc := st.bc }) :=
+  congrArg Prod.fst (refineStepLo_eq hc h hcl hst)
 
 /-! ### The scratch space is restored, and the partition stays well-formed -/
 
@@ -3879,8 +3903,9 @@ theorem refineStep_wf {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp : Part
 /-! ### One refinement step is equivariant -/
 
 /-- **Step 1.**  One refinement pass commutes with relabelling: run on corresponding partitions
-with corresponding adjacency oracles it produces corresponding partitions, the same worklist and
-the same trace. -/
+with corresponding adjacency oracles it produces corresponding partitions, the same worklist, the
+same trace, and — last conjunct — the same scan hint, so that `refineLoop` resumes its worklist
+scan at the same place in both runs. -/
 theorem refineStep_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} {p q : Part}
     (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q) (he : PartEquiv n σ p q)
     {s : Nat} (hs : s < n) (hcst : q.cst[s]! = s) (inW : Array Bool) (tr : UInt64) :
@@ -3891,7 +3916,10 @@ theorem refineStep_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool}
             (Scratch.empty n)).2.1 ∧
       (refineStep (Graph.ofOracle n f) p inW s tr (Scratch.empty n)).2.2.1
         = (refineStep (Graph.ofOracle n fun a b => f (σ a) (σ b)) q inW s tr
-            (Scratch.empty n)).2.2.1 := by
+            (Scratch.empty n)).2.2.1 ∧
+      (refineStepLo (Graph.ofOracle n f) p inW s tr (Scratch.empty n)).2
+        = (refineStepLo (Graph.ofOracle n fun a b => f (σ a) (σ b)) q inW s tr
+            (Scratch.empty n)).2 := by
   have hcstp : p.cst[s]! = s := (he.cst s hs).trans hcst
   obtain ⟨cntp, tp, hcp⟩ : ∃ cnt touched, countFrom (Graph.ofOracle n f) p.lab p.cen[s]!
       (p.cen[s]! - s) s (Scratch.empty n).cnt #[] = (cnt, touched) := ⟨_, _, rfl⟩
@@ -3944,8 +3972,9 @@ theorem refineStep_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool}
       rw [← hcnt w hw, hwv]
       exact hne
   by_cases hep : tp.isEmpty = true
-  · rw [refineStep_eq_empty hcp hep, refineStep_eq_empty hcq (hiff.1 hep)]
-    exact ⟨he, rfl, rfl⟩
+  · rw [refineStep_eq_empty hcp hep, refineStep_eq_empty hcq (hiff.1 hep),
+      refineStepLo_eq_empty hcp hep, refineStepLo_eq_empty hcq (hiff.1 hep)]
+    exact ⟨he, rfl, rfl, rfl⟩
   · have heq : ¬tq.isEmpty = true := fun h => hep (hiff.2 h)
     obtain ⟨hitp, colp, hclp⟩ : ∃ hit col, collectFrom p.pos p.cst tp tp.size 0
         (Scratch.empty n).hit #[] = (hit, col) := ⟨_, _, rfl⟩
@@ -3975,30 +4004,34 @@ theorem refineStep_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool}
         (splitInv_init hp hs hcstp hcp' inW (mixN tr s))
         (splitInv_init hq hs hcst hcq' inW (mixN tr s)) ⟨he, rfl, rfl⟩ fun j' _ h2 => ?_
       exact hstartq _ (sortNats_mem.1 (getElem!_mem h2))
-    rw [refineStep_eq hcp hep hclp hstp, refineStep_eq hcq heq hclq hstq]
-    exact ⟨hrel.part, hrel.inW, hrel.tr⟩
+    rw [refineStep_eq hcp hep hclp hstp, refineStep_eq hcq heq hclq hstq,
+      refineStepLo_eq hcp hep hclp hstp, refineStepLo_eq hcq heq hclq hstq]
+    exact ⟨hrel.part, hrel.inW, hrel.tr, by rw [hcolEq]⟩
 
 /-! ### Reading off the worklist loop -/
 
-theorem refineLoop_none {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {tr : UInt64}
-    {sc : Scratch} (hfs : firstSet inW = none) :
-    refineLoop G (fuel + 1) p inW tr sc = (p, tr) := by
+theorem refineLoop_none {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {lo : Nat}
+    {tr : UInt64} {sc : Scratch} (hfs : firstSetFrom inW lo = none) :
+    refineLoop G (fuel + 1) p inW lo tr sc = (p, tr) := by
   rw [refineLoop, hfs]
 
-theorem refineLoop_step {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {tr : UInt64}
-    {sc : Scratch} {s : Nat} (hfs : firstSet inW = some s)
+/-- A step of the loop.  The `lo'` the recursive call receives is the step's own scan hint; no
+property of it is needed here, and none is available — see `refineStepLo`. -/
+theorem refineLoop_step {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {lo : Nat}
+    {tr : UInt64} {sc : Scratch} {s : Nat} (hfs : firstSetFrom inW lo = some s)
     (hg : (s < G.n && p.cst[s]! == s) = true)
-    {p' : Part} {inW' : Array Bool} {tr' : UInt64} {sc' : Scratch}
-    (hstep : refineStep G p (inW.set! s false) s tr sc = (p', inW', tr', sc')) :
-    refineLoop G (fuel + 1) p inW tr sc = refineLoop G fuel p' inW' tr' sc' := by
+    {p' : Part} {inW' : Array Bool} {tr' : UInt64} {sc' : Scratch} {lo' : Nat}
+    (hstep : refineStepLo G p (inW.set! s false) s tr sc = ((p', inW', tr', sc'), lo')) :
+    refineLoop G (fuel + 1) p inW lo tr sc = refineLoop G fuel p' inW' lo' tr' sc' := by
   rw [refineLoop, hfs]
   dsimp only
   rw [if_pos hg, hstep]
 
-theorem refineLoop_skip {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {tr : UInt64}
-    {sc : Scratch} {s : Nat} (hfs : firstSet inW = some s)
+theorem refineLoop_skip {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {lo : Nat}
+    {tr : UInt64} {sc : Scratch} {s : Nat} (hfs : firstSetFrom inW lo = some s)
     (hg : (s < G.n && p.cst[s]! == s) = false) :
-    refineLoop G (fuel + 1) p inW tr sc = refineLoop G fuel p (inW.set! s false) tr sc := by
+    refineLoop G (fuel + 1) p inW lo tr sc
+      = refineLoop G fuel p (inW.set! s false) (s + 1) tr sc := by
   rw [refineLoop, hfs]
   dsimp only
   rw [if_neg (by rw [hg]; exact Bool.false_ne_true)]
@@ -4009,17 +4042,17 @@ theorem refineLoop_skip {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {
 stay in correspondence and produce the same trace.  The two runs pop the same positions in the
 same order, because the worklist is literally the same array in both. -/
 theorem refineLoop_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} (hσ : IsPerm n σ) :
-    ∀ (fuel : Nat) (p q : Part) (inW : Array Bool) (tr : UInt64),
+    ∀ (fuel : Nat) (p q : Part) (inW : Array Bool) (lo : Nat) (tr : UInt64),
       Part.WF n p → Part.WF n q → PartEquiv n σ p q →
-        PartEquiv n σ (refineLoop (Graph.ofOracle n f) fuel p inW tr (Scratch.empty n)).1
-            (refineLoop (Graph.ofOracle n fun a b => f (σ a) (σ b)) fuel q inW tr
+        PartEquiv n σ (refineLoop (Graph.ofOracle n f) fuel p inW lo tr (Scratch.empty n)).1
+            (refineLoop (Graph.ofOracle n fun a b => f (σ a) (σ b)) fuel q inW lo tr
               (Scratch.empty n)).1
-          ∧ (refineLoop (Graph.ofOracle n f) fuel p inW tr (Scratch.empty n)).2
-            = (refineLoop (Graph.ofOracle n fun a b => f (σ a) (σ b)) fuel q inW tr
+          ∧ (refineLoop (Graph.ofOracle n f) fuel p inW lo tr (Scratch.empty n)).2
+            = (refineLoop (Graph.ofOracle n fun a b => f (σ a) (σ b)) fuel q inW lo tr
               (Scratch.empty n)).2
-  | 0, _, _, _, _, _, _, he => ⟨he, rfl⟩
-  | fuel + 1, p, q, inW, tr, hp, hq, he => by
-    cases hfs : firstSet inW with
+  | 0, _, _, _, _, _, _, _, he => ⟨he, rfl⟩
+  | fuel + 1, p, q, inW, lo, tr, hp, hq, he => by
+    cases hfs : firstSetFrom inW lo with
     | none =>
       rw [refineLoop_none hfs, refineLoop_none hfs]
       exact ⟨he, rfl⟩
@@ -4027,67 +4060,75 @@ theorem refineLoop_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool}
       by_cases hg : s < n ∧ q.cst[s]! = s
       · obtain ⟨hsn, hcs⟩ := hg
         have hpcs : p.cst[s]! = s := (he.cst s hsn).trans hcs
-        obtain ⟨p1, i1, t1, sc1, hstep1⟩ : ∃ p1 i1 t1 sc1, refineStep (Graph.ofOracle n f) p
-          (inW.set! s false) s tr (Scratch.empty n) = (p1, i1, t1, sc1) := ⟨_, _, _, _, rfl⟩
-        obtain ⟨q1, j1, u1, sd1, hstep2⟩ : ∃ q1 j1 u1 sd1,
-          refineStep (Graph.ofOracle n fun a b => f (σ a) (σ b)) q (inW.set! s false) s tr
-            (Scratch.empty n) = (q1, j1, u1, sd1) := ⟨_, _, _, _, rfl⟩
+        obtain ⟨p1, i1, t1, sc1, l1, hlo1⟩ : ∃ p1 i1 t1 sc1 l1, refineStepLo (Graph.ofOracle n f) p
+          (inW.set! s false) s tr (Scratch.empty n) = ((p1, i1, t1, sc1), l1) :=
+          ⟨_, _, _, _, _, rfl⟩
+        obtain ⟨q1, j1, u1, sd1, l2, hlo2⟩ : ∃ q1 j1 u1 sd1 l2,
+          refineStepLo (Graph.ofOracle n fun a b => f (σ a) (σ b)) q (inW.set! s false) s tr
+            (Scratch.empty n) = ((q1, j1, u1, sd1), l2) := ⟨_, _, _, _, _, rfl⟩
+        have hstep1 : refineStep (Graph.ofOracle n f) p (inW.set! s false) s tr (Scratch.empty n)
+          = (p1, i1, t1, sc1) := congrArg Prod.fst hlo1
+        have hstep2 : refineStep (Graph.ofOracle n fun a b => f (σ a) (σ b)) q (inW.set! s false) s
+          tr (Scratch.empty n) = (q1, j1, u1, sd1) := congrArg Prod.fst hlo2
         have hwf1 := refineStep_wf (f := f) hp hsn hpcs (inW.set! s false) tr
         have hwf2 := refineStep_wf (f := fun a b => f (σ a) (σ b)) hq hsn hcs (inW.set! s false) tr
         have heq := refineStep_equiv (f := f) hσ hp hq he hsn hcs (inW.set! s false) tr
         rw [hstep1] at hwf1
         rw [hstep2] at hwf2
-        rw [hstep1, hstep2] at heq
+        rw [hstep1, hstep2, hlo1, hlo2] at heq
         have hwfp1 : Part.WF n p1 := hwf1.1
         have hwfq1 : Part.WF n q1 := hwf2.1
         have hsc1 : sc1 = Scratch.empty n := hwf1.2
         have hsd1 : sd1 = Scratch.empty n := hwf2.2
         have hpq1 : PartEquiv n σ p1 q1 := heq.1
         have hij : i1 = j1 := heq.2.1
-        have htu : t1 = u1 := heq.2.2
-        rw [refineLoop_step hfs (by simp [hpcs, hsn]) hstep1,
-          refineLoop_step hfs (by simp [hcs, hsn]) hstep2, hsc1, hsd1, hij, htu]
-        exact refineLoop_equiv hσ fuel p1 q1 j1 u1 hwfp1 hwfq1 hpq1
+        have htu : t1 = u1 := heq.2.2.1
+        have hll : l1 = l2 := heq.2.2.2
+        rw [refineLoop_step hfs (by simp [hpcs, hsn]) hlo1,
+          refineLoop_step hfs (by simp [hcs, hsn]) hlo2, hsc1, hsd1, hij, htu, hll]
+        exact refineLoop_equiv hσ fuel p1 q1 j1 l2 u1 hwfp1 hwfq1 hpq1
       · by_cases hsn : s < n
         · have hcs : ¬(q.cst[s]! = s) := fun h => hg ⟨hsn, h⟩
           have hpcs : ¬(p.cst[s]! = s) := by rw [he.cst s hsn]; exact hcs
           rw [refineLoop_skip hfs (by simp [hpcs]), refineLoop_skip hfs (by simp [hcs])]
-          exact refineLoop_equiv hσ fuel p q (inW.set! s false) tr hp hq he
+          exact refineLoop_equiv hσ fuel p q (inW.set! s false) (s + 1) tr hp hq he
         · rw [refineLoop_skip hfs (by simp [hsn]), refineLoop_skip hfs (by simp [hsn])]
-          exact refineLoop_equiv hσ fuel p q (inW.set! s false) tr hp hq he
+          exact refineLoop_equiv hσ fuel p q (inW.set! s false) (s + 1) tr hp hq he
 
 /-- The worklist loop keeps the partition well-formed. -/
 theorem refineLoop_wf {n : Nat} {f : Nat → Nat → Bool} :
-    ∀ (fuel : Nat) (p : Part) (inW : Array Bool) (tr : UInt64), Part.WF n p →
-      Part.WF n (refineLoop (Graph.ofOracle n f) fuel p inW tr (Scratch.empty n)).1
-  | 0, _, _, _, hp => hp
-  | fuel + 1, p, inW, tr, hp => by
-    cases hfs : firstSet inW with
+    ∀ (fuel : Nat) (p : Part) (inW : Array Bool) (lo : Nat) (tr : UInt64), Part.WF n p →
+      Part.WF n (refineLoop (Graph.ofOracle n f) fuel p inW lo tr (Scratch.empty n)).1
+  | 0, _, _, _, _, hp => hp
+  | fuel + 1, p, inW, lo, tr, hp => by
+    cases hfs : firstSetFrom inW lo with
     | none =>
       rw [refineLoop_none hfs]
       exact hp
     | some s =>
       by_cases hg : s < n ∧ p.cst[s]! = s
       · obtain ⟨hsn, hcs⟩ := hg
-        obtain ⟨p1, i1, t1, sc1, hstep⟩ : ∃ p1 i1 t1 sc1, refineStep (Graph.ofOracle n f) p
-          (inW.set! s false) s tr (Scratch.empty n) = (p1, i1, t1, sc1) := ⟨_, _, _, _, rfl⟩
+        obtain ⟨p1, i1, t1, sc1, l1, hlo⟩ : ∃ p1 i1 t1 sc1 l1, refineStepLo (Graph.ofOracle n f) p
+          (inW.set! s false) s tr (Scratch.empty n) = ((p1, i1, t1, sc1), l1) :=
+          ⟨_, _, _, _, _, rfl⟩
         have hwf := refineStep_wf (f := f) hp hsn hcs (inW.set! s false) tr
-        rw [hstep] at hwf
-        rw [refineLoop_step hfs (by simp [hcs, hsn]) hstep, show sc1 = Scratch.empty n from hwf.2]
-        exact refineLoop_wf fuel p1 i1 t1 hwf.1
+        rw [show refineStep (Graph.ofOracle n f) p (inW.set! s false) s tr (Scratch.empty n)
+          = (p1, i1, t1, sc1) from congrArg Prod.fst hlo] at hwf
+        rw [refineLoop_step hfs (by simp [hcs, hsn]) hlo, show sc1 = Scratch.empty n from hwf.2]
+        exact refineLoop_wf fuel p1 i1 l1 t1 hwf.1
       · by_cases hsn : s < n
         · have hcs : ¬(p.cst[s]! = s) := fun h => hg ⟨hsn, h⟩
           rw [refineLoop_skip hfs (by simp [hcs])]
-          exact refineLoop_wf fuel p (inW.set! s false) tr hp
+          exact refineLoop_wf fuel p (inW.set! s false) (s + 1) tr hp
         · rw [refineLoop_skip hfs (by simp [hsn])]
-          exact refineLoop_wf fuel p (inW.set! s false) tr hp
+          exact refineLoop_wf fuel p (inW.set! s false) (s + 1) tr hp
 
 /-! ### Refinement from a partition, and from the unit partition -/
 
 theorem refine_wf {n : Nat} {f : Nat → Nat → Bool} {p : Part} (hp : Part.WF n p)
     (inW : Array Bool) (tr : UInt64) : Part.WF n (refine (Graph.ofOracle n f) p inW tr).1 := by
   rw [refine]
-  exact refineLoop_wf _ p inW tr hp
+  exact refineLoop_wf _ p inW 0 tr hp
 
 theorem refine_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} {p q : Part}
     (hσ : IsPerm n σ) (hp : Part.WF n p) (hq : Part.WF n q) (he : PartEquiv n σ p q)
@@ -4097,7 +4138,7 @@ theorem refine_equiv {n : Nat} {σ : Nat → Nat} {f : Nat → Nat → Bool} {p 
       ∧ (refine (Graph.ofOracle n f) p inW tr).2
         = (refine (Graph.ofOracle n fun a b => f (σ a) (σ b)) q inW tr).2 := by
   rw [refine, refine]
-  exact refineLoop_equiv hσ _ p q inW tr hp hq he
+  exact refineLoop_equiv hσ _ p q inW 0 tr hp hq he
 
 theorem initialRefine_wf {n : Nat} (f : Nat → Nat → Bool) :
     Part.WF n (initialRefine (Graph.ofOracle n f)).1 := by

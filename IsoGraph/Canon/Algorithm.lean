@@ -498,9 +498,17 @@ every cell that meets its neighbourhood.
 Returns the new partition, the updated worklist (`inW`, indexed by cell start position), the
 updated trace hash, and the scratch space, restored to its cleared state.  Cells created by a
 split are pushed onto the worklist following Hopcroft's rule: all fragments if the parent was
-queued, otherwise all but a largest fragment. -/
-def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64) (sc : Scratch) :
-    Part × Array Bool × UInt64 × Scratch :=
+queued, otherwise all but a largest fragment.
+
+The trailing `Nat` is a *scan hint* for `refineLoop`: a position below which this step has
+certainly left the worklist untouched, so that the next pop need not rescan from `0`.  Only cells
+that were split get queued, every such cell starts at or after the leftmost one processed, and `s`
+itself is cleared before the step runs, so `min (s + 1) cells[0]!` will do.  Nothing is proved
+about the hint and nothing needs to be: `refineLoop` pops in whatever order the hint dictates, and
+`Equivariance.refineStep_equiv` shows the hint is the same on relabelled input, which is all that
+equivariance of the result requires. -/
+def refineStepLo (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64) (sc : Scratch) :
+    (Part × Array Bool × UInt64 × Scratch) × Nat :=
   let e := p.cen[s]!
   let tr := mixN tr s
   -- (1) count neighbours inside the splitter cell `lab[s:e]`.
@@ -511,7 +519,7 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
     -- `countFrom` returned, rather than `sc.cnt`, that is handed back: naming `sc.cnt` here would
     -- leave a second reference to it alive across the counting loop, and the first bump of *every*
     -- step would copy an array as long as the partition instead of writing in place.
-    if touched.isEmpty then (p, inW, tr, { sc with cnt := cnt })
+    if touched.isEmpty then ((p, inW, tr, { sc with cnt := cnt }), s + 1)
     else
       -- (2) collect the cells met by the splitter and process them left to right, so that the
       -- order in which they are processed depends only on positions.  Only *met* cells are
@@ -525,23 +533,24 @@ def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
         | st =>
           -- (6) restore the scratch space, touching only the entries that were dirtied.  `bc` is
           -- already back to all-zero: every bucket counter is reset as soon as its cell is done.
-          ({ lab := st.lab, pos := st.pos, cst := st.cst, cen := st.cen }, st.inW, st.tr,
+          (({ lab := st.lab, pos := st.pos, cst := st.cst, cen := st.cen }, st.inW, st.tr,
             { cnt := clearCntFrom touched touched.size 0 cnt,
               hit := clearHitFrom cells cells.size 0 hit,
-              bc := st.bc })
+              bc := st.bc }),
+            if cells.isEmpty then s + 1 else min (s + 1) cells[0]!)
 
-/-- What `refineStep` actually runs: the same thing with the partition and the scratch taken apart
-first, for the reason given at `splitCellFast`.  `countFrom` writes into `cnt` and `collectFrom`
-into `hit`, both of which are as long as the partition. -/
-def refineStepFast (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
-    (sc : Scratch) : Part × Array Bool × UInt64 × Scratch :=
+/-- What `refineStepLo` actually runs: the same thing with the partition and the scratch taken
+apart first, for the reason given at `splitCellFast`.  `countFrom` writes into `cnt` and
+`collectFrom` into `hit`, both of which are as long as the partition. -/
+def refineStepLoFast (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64)
+    (sc : Scratch) : (Part × Array Bool × UInt64 × Scratch) × Nat :=
   match p, sc with
   | ⟨plab, ppos, pcst, pcen⟩, ⟨scnt, shit, sbc⟩ =>
     let e := pcen[s]!
     let tr := mixN tr s
     match countFrom G plab e (e - s) s scnt #[] with
     | (cnt, touched) =>
-      if touched.isEmpty then (⟨plab, ppos, pcst, pcen⟩, inW, tr, ⟨cnt, shit, sbc⟩)
+      if touched.isEmpty then ((⟨plab, ppos, pcst, pcen⟩, inW, tr, ⟨cnt, shit, sbc⟩), s + 1)
       else
         match collectFrom ppos pcst touched touched.size 0 shit #[] with
         | (hit, collected) =>
@@ -549,39 +558,51 @@ def refineStepFast (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UIn
           match splitCellsFrom cnt cells cells.size 0
               { lab := plab, pos := ppos, cst := pcst, cen := pcen, inW, tr, bc := sbc } with
           | st =>
-            ({ lab := st.lab, pos := st.pos, cst := st.cst, cen := st.cen }, st.inW, st.tr,
+            (({ lab := st.lab, pos := st.pos, cst := st.cst, cen := st.cen }, st.inW, st.tr,
               { cnt := clearCntFrom touched touched.size 0 cnt,
                 hit := clearHitFrom cells cells.size 0 hit,
-                bc := st.bc })
+                bc := st.bc }),
+              if cells.isEmpty then s + 1 else min (s + 1) cells[0]!)
 
-@[csimp] theorem refineStep_eq_refineStepFast : @refineStep = @refineStepFast := by
+@[csimp] theorem refineStepLo_eq_refineStepLoFast : @refineStepLo = @refineStepLoFast := by
   funext G p inW s tr sc
   obtain ⟨plab, ppos, pcst, pcen⟩ := p
   obtain ⟨scnt, shit, sbc⟩ := sc
   rfl
 
-/-- Index of the first `true` entry of `a`. -/
-def firstSet (a : Array Bool) : Option Nat := Id.run do
-  for j in [0:a.size] do
+/-- One refinement step, forgetting `refineStepLo`'s scan hint.  Everything proved about a step is
+proved about this. -/
+def refineStep (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (tr : UInt64) (sc : Scratch) :
+    Part × Array Bool × UInt64 × Scratch :=
+  (refineStepLo G p inW s tr sc).1
+
+/-- Index of the first `true` entry of `a` at or after `lo`. -/
+def firstSetFrom (a : Array Bool) (lo : Nat) : Option Nat := Id.run do
+  for j in [lo:a.size] do
     if a[j]! then return some j
   return none
 
 /-- The refinement worklist loop.  `fuel` bounds the number of splitter pops.
 
+`lo` is where the scan for the next splitter starts: positions below it are known to be clear, so
+the loop is spared rescanning the prefix it has already drained.  On a sparse graph the worklist
+holds a few hundred cell starts at a time and the scan, not the counting, is the bulk of the work;
+resuming from the hint is worth about 1.3× there and nothing on dense input.
+
 The guard `s < G.n && p.cst[s]! == s` is never false in a real run — only cell starts are ever
 queued, and a cell start stays one when its cell is split — but checking it costs one array read
 per pop and saves `Equivariance.refineLoop_equiv` from having to carry the worklist invariant.
 Popping a position that is not a cell start simply drops it. -/
-def refineLoop (G : Graph) : Nat → Part → Array Bool → UInt64 → Scratch → Part × UInt64
-  | 0, p, _, tr, _ => (p, tr)
-  | fuel + 1, p, inW, tr, sc =>
-    match firstSet inW with
+def refineLoop (G : Graph) : Nat → Part → Array Bool → Nat → UInt64 → Scratch → Part × UInt64
+  | 0, p, _, _, tr, _ => (p, tr)
+  | fuel + 1, p, inW, lo, tr, sc =>
+    match firstSetFrom inW lo with
     | none => (p, tr)
     | some s =>
       if s < G.n && p.cst[s]! == s then
-        let (p, inW, tr, sc) := refineStep G p (inW.set! s false) s tr sc
-        refineLoop G fuel p inW tr sc
-      else refineLoop G fuel p (inW.set! s false) tr sc
+        match refineStepLo G p (inW.set! s false) s tr sc with
+        | ((p, inW, tr, sc), lo) => refineLoop G fuel p inW lo tr sc
+      else refineLoop G fuel p (inW.set! s false) (s + 1) tr sc
 
 /-- Refine `p` to the coarsest equitable partition refining it, using the cells whose start
 positions are flagged in `inW` as initial splitters.  Returns the refined partition together with
@@ -591,7 +612,7 @@ The fuel `n² + n + 1` is a genuine bound: a cell start enters the worklist once
 per fragment of each split, there are at most `n - 1` splits, and each split creates at most `n`
 fragments. -/
 def refine (G : Graph) (p : Part) (inW : Array Bool) (tr : UInt64) : Part × UInt64 :=
-  refineLoop G (G.n * G.n + G.n + 1) p inW tr (Scratch.empty G.n)
+  refineLoop G (G.n * G.n + G.n + 1) p inW 0 tr (Scratch.empty G.n)
 
 /-- Refine from the unit partition: equivalently, the coarsest equitable partition of `G`. -/
 def initialRefine (G : Graph) : Part × UInt64 :=

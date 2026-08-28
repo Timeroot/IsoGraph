@@ -137,33 +137,37 @@ theorem refineStep_pinned {n : Nat} {f : Nat → Nat → Bool} {p : Part} {c v :
     exact this
 
 theorem refineLoop_pinned {n : Nat} {f : Nat → Nat → Bool} {c v : Nat} :
-    ∀ (fuel : Nat) (p : Part) (inW : Array Bool) (tr : UInt64), Part.WF n p → Pinned n p c v →
-      Pinned n (refineLoop (Graph.ofOracle n f) fuel p inW tr (Scratch.empty n)).1 c v
-  | 0, _, _, _, _, hpin => hpin
-  | fuel + 1, p, inW, tr, hp, hpin => by
-    cases hfs : firstSet inW with
+    ∀ (fuel : Nat) (p : Part) (inW : Array Bool) (lo : Nat) (tr : UInt64), Part.WF n p →
+      Pinned n p c v → Pinned n (refineLoop (Graph.ofOracle n f) fuel p inW lo tr
+        (Scratch.empty n)).1 c v
+  | 0, _, _, _, _, _, hpin => hpin
+  | fuel + 1, p, inW, lo, tr, hp, hpin => by
+    cases hfs : firstSetFrom inW lo with
     | none => rw [refineLoop_none hfs]; exact hpin
     | some s =>
       by_cases hg : s < n ∧ p.cst[s]! = s
       · obtain ⟨hsn, hcs⟩ := hg
-        obtain ⟨p1, i1, t1, sc1, hstep⟩ : ∃ p1 i1 t1 sc1, refineStep (Graph.ofOracle n f) p
-          (inW.set! s false) s tr (Scratch.empty n) = (p1, i1, t1, sc1) := ⟨_, _, _, _, rfl⟩
+        obtain ⟨p1, i1, t1, sc1, l1, hlo⟩ : ∃ p1 i1 t1 sc1 l1, refineStepLo (Graph.ofOracle n f) p
+          (inW.set! s false) s tr (Scratch.empty n) = ((p1, i1, t1, sc1), l1) :=
+          ⟨_, _, _, _, _, rfl⟩
+        have hstep : refineStep (Graph.ofOracle n f) p (inW.set! s false) s tr (Scratch.empty n)
+          = (p1, i1, t1, sc1) := congrArg Prod.fst hlo
         have hwf := refineStep_wf (f := f) hp hsn hcs (inW.set! s false) tr
         have hpin1 := refineStep_pinned (f := f) hp hsn hcs (inW.set! s false) tr hpin
         rw [hstep] at hwf hpin1
-        rw [refineLoop_step hfs (by simp [hcs, hsn]) hstep, show sc1 = Scratch.empty n from hwf.2]
-        exact refineLoop_pinned fuel p1 i1 t1 hwf.1 hpin1
+        rw [refineLoop_step hfs (by simp [hcs, hsn]) hlo, show sc1 = Scratch.empty n from hwf.2]
+        exact refineLoop_pinned fuel p1 i1 l1 t1 hwf.1 hpin1
       · by_cases hsn : s < n
         · have hcs : ¬(p.cst[s]! = s) := fun h => hg ⟨hsn, h⟩
           rw [refineLoop_skip hfs (by simp [hcs])]
-          exact refineLoop_pinned fuel p (inW.set! s false) tr hp hpin
+          exact refineLoop_pinned fuel p (inW.set! s false) (s + 1) tr hp hpin
         · rw [refineLoop_skip hfs (by simp [hsn])]
-          exact refineLoop_pinned fuel p (inW.set! s false) tr hp hpin
+          exact refineLoop_pinned fuel p (inW.set! s false) (s + 1) tr hp hpin
 
 theorem refine_pinned {n : Nat} {f : Nat → Nat → Bool} {p : Part} {c v : Nat} (hp : Part.WF n p)
     (inW : Array Bool) (tr : UInt64) (hpin : Pinned n p c v) :
     Pinned n (refine (Graph.ofOracle n f) p inW tr).1 c v := by
-  rw [refine]; exact refineLoop_pinned _ p inW tr hp hpin
+  rw [refine]; exact refineLoop_pinned _ p inW 0 tr hp hpin
 
 /-! ## Individualisation pins the vertex it splits off -/
 
