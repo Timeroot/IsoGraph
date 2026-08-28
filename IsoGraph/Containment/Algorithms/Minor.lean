@@ -832,6 +832,19 @@ variable {H : CGraph}
 /-- The least `rank` in a branch set; `0` for the empty set, which never occurs. -/
 def minRank (rank : G.V → ℕ) (S : List G.V) : ℕ := ((S.map rank).min?).getD 0
 
+/-- What `minRank` runs: one fold, where the specification maps and then takes the minimum.  The
+intermediate list is an allocation, and `symFloor` asks for one per finished branch set at every
+node of the search. -/
+def minRankFast (rank : G.V → ℕ) : List G.V → ℕ
+  | [] => 0
+  | v :: t => t.foldl (fun m u ↦ min m (rank u)) (rank v)
+
+@[csimp] theorem minRank_eq_minRankFast : @minRank = @minRankFast := by
+  funext G rank S
+  match S with
+  | [] => rfl
+  | v :: t => rw [minRank, minRankFast, List.map_cons]; exact List.foldl_map ..
+
 /-- `minRank` depends only on which vertices the set contains. -/
 theorem minRank_congr {rank : G.V → ℕ} {A B : List G.V} (h : ∀ v, v ∈ A ↔ v ∈ B) :
     minRank rank A = minRank rank B := by
@@ -1172,6 +1185,11 @@ everything the tests ask that does not mention it is asked once at the node: whi
 imposes, and which vertices of `H` constrain the seed.  The membership test `step` opens with goes
 too — the candidates come out of `st.avail`, so it always succeeds.
 
+The tests are also in increasing order of cost, which `step` is not: `&&` is commutative, so the
+order is free to choose, and the symmetry floor — one array read and one comparison — goes in
+front of everything.  On the seed branch that is worth about a tenth of the whole search, because
+the test it now runs before is `feasibleNeed`, which is a breadth-first sweep of the pool.
+
 `step` stays as it is.  It is the specification the correctness proofs are written against, and
 `mem_candList` is the only thing that has to hold: a `csimp` lemma changes what runs without
 changing what was proved. -/
@@ -1185,10 +1203,10 @@ def candListFast (st : State H G) : List (State H G) :=
       let ru := rank u
       let fl := symFloor rank pairs x st.done
       st.avail.filterMap fun v ↦
-        if (u :: T).any (G.Adj v) &&
+        if decide (fl ≤ rank v) && (u :: T).any (G.Adj v) &&
             (!attHit H G att v || decide (rlast ≤ rank v)) &&
             (decide (ru ≤ rank v) || !T.any (G.Adj v)) &&
-            decide (fl ≤ rank v) && indPick H G ind x v st.done then
+            indPick H G ind x v st.done then
           some ⟨st.todo, some (x, v :: u :: T), st.done, st.avail.erase v⟩
         else none
     | none =>
@@ -1199,10 +1217,21 @@ def candListFast (st : State H G) : List (State H G) :=
         let need := seedNeed H G x rest st.done
         let fl := symFloor rank pairs x st.done
         st.avail.filterMap fun v ↦
-          if attHit H G att v && feasibleNeed H G need v st.done st.avail &&
-              decide (fl ≤ rank v) && indPick H G ind x v st.done then
+          if decide (fl ≤ rank v) && attHit H G att v && indPick H G ind x v st.done &&
+              feasibleNeed H G need v st.done st.avail then
             some ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩
           else none
+
+/-- The permutation `candListFast` applies to the `pick` tests: the symmetry floor moves to the
+front, everything else keeps its order. -/
+private theorem and_perm₅ (a b c d e : Bool) :
+    (a && b && c && d && e) = (d && a && b && c && e) := by
+  cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> rfl
+
+/-- The same permutation for the four tests on a seed, where the breadth-first one moves to the
+back as well. -/
+private theorem and_perm₄ (a b c d : Bool) : (a && b && c && d) = (c && a && d && b) := by
+  cases a <;> cases b <;> cases c <;> cases d <;> rfl
 
 @[csimp] theorem candList_eq_candListFast : @candList = @candListFast := by
   funext H G rank pairs ind st
@@ -1218,6 +1247,7 @@ def candListFast (st : State H G) : List (State H G) :=
     refine List.filterMap_congr fun v hv ↦ ?_
     rw [step, if_pos (List.contains_iff_mem.mpr hv)]
     simp only [attOf_eq_attHit, symOk_eq_symFloor_le, minRank_singleton]
+    rw [and_perm₅]
   | none, [] =>
     refine List.filterMap_eq_nil_iff.mpr fun v _ ↦ ?_
     rw [step]
@@ -1227,6 +1257,7 @@ def candListFast (st : State H G) : List (State H G) :=
     rw [step, if_pos (List.contains_iff_mem.mpr hv)]
     simp only [attOf_eq_attHit, feasibleSeed_eq_feasibleNeed, symOk_eq_symFloor_le,
       minRank_singleton]
+    rw [and_perm₄]
 
 /-- The state a search has reached: the most recent one, or the initial one. -/
 def headSt (init : State H G) : List (Unit × State H G) → State H G
