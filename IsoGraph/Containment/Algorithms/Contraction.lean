@@ -48,13 +48,13 @@ of `H` still unrealised.
 
 Unlike the minor search this one cannot stop early — every vertex of the host has to be labelled —
 so the cost follows the size of the *host* much more closely.  Finding a contraction is quick when
-the blocks fall out easily: the 4×4 grid gives up a `C4` in 9 ms, a `K4` in 87 ms and a `P4` in
-120 ms, the 4-cube a `K4` in 136 ms, and the 24-vertex McGee graph a `K5` in 1.8 s.  A graph is its
-own contraction with nothing to search for, so `mcgee ⋏ mcgee` takes no measurable time.
+the blocks fall out easily: the 4×4 grid gives up a `C4` in 1 ms, a `K4` in 47 ms and a `P4` in
+62 ms, the 4-cube a `K4` in 12 ms, and the 24-vertex McGee graph a `K5` in 0.7 s.  A graph is its
+own contraction and the search walks straight to it, so `mcgee ⋏ mcgee` is 12 ms.
 
 Ruling one out is the expensive direction, as always: `C6` is not a contraction of the 14-vertex
-Heawood graph, and saying so takes 2.0 s.  Hosts of McGee's size are past the limit for that — `C6`
-against McGee had not answered after ten minutes.
+Heawood graph, and saying so takes 1.0 s.  Hosts of McGee's size are past the limit for that — `C6`
+against McGee had not answered after fifteen minutes.
 
 Most of what the search costs is spent in the two block tests, so it matters that they run off one
 pass over the fibres instead of recomputing a fibre per test and per neighbour, and that `connVia`
@@ -68,12 +68,23 @@ runs; the machine is shared and the same binary has been seen to vary fourfold w
 them as ratios rather than absolutes.)
 
 The same idea one level up: everything `candKeep` asks that does not mention the label being tried
-is lifted out of the loop over labels and computed once per node.  `candLabFast` is that, and the
+is lifted out of the loop over labels and computed once per node.  `candLabWith` is that, and the
 section "What the search runs" below is what it takes to make the hoist pay for itself on the nodes
 where nothing survives the cheap tests anyway.  Against `candKeep` run as written, the two
 alternating in one process: ruling `C6` out of Heawood came down by a quarter, `K4` into McGee by a
 fifth, the two grid cases by about an eighth, and `K4` into the 4-cube — which finds an answer
 almost at once, so there is nothing to amortise a table over — was a wash.
+
+Keeping the walk off a block with a single vertex in it, which `connVia` written the obvious way
+does not do, took another 6% off Heawood and a fifth off `K4` into the grid: at the shallow levels
+of the search almost every block that is not empty is a singleton.  Reading the rank off a table
+rather than scanning the search order took a fifth off `K4` into the grid and a tenth off `K5` into
+McGee, and did nothing at all to Heawood, where `C6` has no interchangeable vertices and so the
+test it feeds never runs.  Two things were tried and dropped: testing the block that just grew
+before the others, which is not where the failures are and cost 6% on Heawood to look for; and
+stopping the walk as soon as the block's other vertices have turned up, which cost a third there,
+since a walk that is going to fail has to finish anyway and now carries a filter through every
+round.
 -/
 
 set_option autoImplicit false
@@ -150,6 +161,33 @@ theorem connOk_of_connectedOn : ∀ {l : List G.V}, G.ConnectedOn {u | u ∈ l} 
     rcases List.mem_cons.mp hw with rfl | hw
     · exact Or.inl (by simp)
     · exact Or.inr hw
+
+/-! Both of these read best with the walk written where it is used, and both run badly that way.
+`connOk` names it inside the `all`, so it walks the graph once per vertex of the block instead of
+once; and either of them, given a block with a single vertex in it, walks the graph and then asks
+nothing of the answer, which at the shallow levels of the search is almost every nonempty block. -/
+
+/-- What `connOk` runs. -/
+def connOkFast (G : CGraph) : List G.V → Bool
+  | [] => false
+  | [_] => true
+  | v :: rest => let R := reach G [v] rest; rest.all fun u ↦ R.contains u
+
+@[csimp] theorem connOk_eq_connOkFast : @connOk = @connOkFast := by
+  funext G l
+  match l with
+  | [] | [_] | _ :: _ :: _ => rfl
+
+/-- What `connVia` runs. -/
+def connViaFast (G : CGraph) (pool : List G.V) : List G.V → Bool
+  | [] => true
+  | [_] => true
+  | v :: rest => let R := reach G [v] (rest ++ pool); rest.all fun u ↦ R.contains u
+
+@[csimp] theorem connVia_eq_connViaFast : @connVia = @connViaFast := by
+  funext G pool l
+  match l with
+  | [] | [_] | _ :: _ :: _ => rfl
 
 namespace ContractionSearch
 
@@ -433,7 +471,11 @@ once, and with them the two answers, then give each label the table with its one
 Two things keep that from costing more than it saves on the nodes where the cheap tests kill
 everything.  The table is built after the first three tests and not before, so a node with no
 survivor never builds it; and the two answers are thunks, so a block whose answer `blocksOkTab`
-never looks at — it stops at the first block that fails — is never joined up at all. -/
+never looks at — it stops at the first block that fails — is never joined up at all.
+
+The rank comes in as an argument for the same reason it does in the other two searches: `searchLab`
+asks for it once per vertex of two blocks per candidate, and `List.idxOf` is a scan, so
+`searchLabFast` passes a `Backtrack.rankTable`. -/
 
 /-- The two things `blocksOk` asks of a block that do not depend on the label being tried: can what
 is in it still be joined up, and does an unlabelled vertex still touch it? -/
@@ -459,10 +501,10 @@ private theorem filter_and {α : Type} (l : List α) (a d : α → Bool) :
   rw [List.filter_filter]
   exact List.filter_congr fun x _ ↦ Bool.and_comm ..
 
-/-- What `candLab` runs: the three cheap tests first, then the block table for whatever got
-through, then the two block tests off that table. -/
-def candLabFast (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V × H.V))
-    (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
+/-- What the search runs in place of `candLab`: the three cheap tests first, then the block table
+for whatever got through, then the two block tests off that table. -/
+def candLabWith (H G : CGraph) (rank : G.V → ℕ) (hs : List H.V) (gs : List G.V)
+    (pairs : List (H.V × H.V)) (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
   let used := pre.map Prod.snd
   let len := pre.length + 1
   let rough := (labSource H G hs v pre).filter fun x ↦
@@ -470,16 +512,18 @@ def candLabFast (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.
       decide (hs.countP (fun y ↦ !(x :: used).contains y) + len ≤ gs.length) &&
       pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
         (!(fibre ((v, x) :: pre) p.1).isEmpty &&
-          decide (minRank gs.idxOf (fibre ((v, x) :: pre) p.1) ≤
-            minRank gs.idxOf (fibre ((v, x) :: pre) p.2))))
+          decide (minRank rank (fibre ((v, x) :: pre) p.1) ≤
+            minRank rank (fibre ((v, x) :: pre) p.2))))
   if rough.isEmpty then [] else
     let pool := gs.drop len
     let tab := hs.map fun y ↦ let f := fibre pre y; (y, f, Thunk.mk fun _ ↦ blockOk G pool f)
     rough.filter fun x ↦ blocksOkTab H G (tab.map fun t ↦
       if x = t.1 then (let f := v :: t.2.1; (t.1, f, Thunk.mk fun _ ↦ blockOk G pool f)) else t)
 
-@[csimp] theorem candLab_eq_candLabFast : @candLab = @candLabFast := by
-  funext H G hs gs pairs v pre
+theorem candLab_eq_candLabWith (H G : CGraph) (hs : List H.V) (gs : List G.V)
+    (pairs : List (H.V × H.V)) :
+    candLab H G hs gs pairs = candLabWith H G (fun v ↦ gs.idxOf v) hs gs pairs := by
+  funext v pre
   have hk : candKeep H G hs gs pairs v pre = fun x ↦
       (pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
         decide (hs.countP (fun y ↦ !(x :: pre.map Prod.snd).contains y) + (pre.length + 1) ≤
@@ -491,7 +535,7 @@ def candLabFast (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.
       blocksOk H G (gs.drop (pre.length + 1))
         (hs.map fun y ↦ (y, fibre ((v, x) :: pre) y)) := by
     funext x; rw [candKeep]; rfl
-  rw [candLab, hk, filter_and, candLabFast]
+  rw [candLab, hk, filter_and, candLabWith]
   split
   · rename_i hemp
     rw [List.isEmpty_iff.mp hemp]
@@ -781,6 +825,21 @@ def searchLab (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V)) :
         (symPairs H (searchOrder H rH.toList)))
       (searchOrder G rG.toList) []
   else none
+
+/-- What `searchLab` runs.  Two things are shared that the specification writes out: the two search
+orders, each named three times above, and the rank, which is a table rather than `List.idxOf`. -/
+def searchLabFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V)) :=
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
+    let hs := searchOrder H rH.toList
+    let gs := searchOrder G rG.toList
+    let pairs := symPairs H hs
+    Backtrack.dfs (candLabWith H G (Backtrack.rankAt (Backtrack.rankTable gs)) hs gs pairs)
+      (finalOk H G hs gs pairs) gs []
+  else none
+
+@[csimp] theorem searchLab_eq_searchLabFast : @searchLab = @searchLabFast := by
+  funext H G rH rG
+  simp only [searchLab, searchLabFast, Backtrack.rankAt_rankTable, ← candLab_eq_candLabWith]
 
 variable {H G}
 
