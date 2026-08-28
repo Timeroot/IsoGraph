@@ -51,12 +51,15 @@ Five things keep it from being the naive enumeration of all `card G.V ^ card H.V
   edges it is worth more than everything else here put together.  `rank_add_tailCount_lt` is the
   proof that a genuine embedding satisfies it.
 
-The candidates a node even looks at are cut down before any of the tests run: if `a` has a
-neighbour already placed, `CGraph.pivot` finds its image `u`, and the candidates are read straight
-off `u`'s row of the adjacency table rather than filtered out of all of `G`.  That is sound for
-both relations, since an edge of `H` is an edge of `G` under either one.  It is not extra pruning
-— the consistency test would reject the others anyway — but it is the difference between a node
-costing `card G.V` and costing the degree of `u`.  For the same reason the pool is cut off below
+The candidates a node even looks at are cut down before any of the tests run.  `CGraph.preAdj`
+and `CGraph.preOther` sort the assignments already made into the images of `a`'s neighbours and
+the images to test against — a question about `H` alone, so it is asked once at the node rather
+than once per candidate — and if `a` has a neighbour already placed at `u`, the candidates are
+read straight off `u`'s row of the adjacency table rather than filtered out of all of `G`.  That
+is sound for both relations, since an edge of `H` is an edge of `G` under either one.  It is not
+extra pruning — the consistency test would reject the others anyway — but it is the difference
+between a node costing `card G.V` and costing the degree of `u`, and what comes out of `u`'s row
+needs no further testing against `u`.  For the same reason the pool is cut off below
 `symLo` with a `dropWhile` before it is filtered: `rowList` happens to list the rows in rank
 order, so the rows below the floor are a prefix.  Soundness does not depend on that happening —
 everything a `dropWhile` drops has too low a rank to be the answer whatever the order.
@@ -263,25 +266,48 @@ def goalAsg (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (asg : Li
     sortedAsg H G rank pairs asg &&
     asg.all fun p ↦ decide (rank p.2 + tailCount H pairs.length pairs p.1 < n)
 
-/-- The image of some already-placed neighbour of `a`, if `a` has one.  Every candidate for `a`
-then has to be a neighbour of that vertex, which is a far shorter list than all of `G`. -/
-def pivot (a : H.V) : List (H.V × G.V) → Option G.V
-  | [] => none
-  | (x, u) :: rest => if H.Adj a x then some u else pivot a rest
+/-- The images of the already-placed neighbours of `a`.  Every candidate for `a` has to be
+adjacent to all of them, and to the first of them in particular — which is why the pool of
+candidates can be its neighbourhood rather than all of `G`.
 
-theorem pivot_spec {a : H.V} {pre : List (H.V × G.V)} {u : G.V} (h : pivot H G a pre = some u) :
+Which vertices of `H` these are is a question about the *pattern*, so it does not depend on the
+candidate and is asked once at the node.  Asking it per candidate instead, inside the filter, is
+what `candKeep` used to do; the filter runs over the whole pool. -/
+def preAdj (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
+  (pre.filter fun q ↦ H.Adj a q.1).map Prod.snd
+
+/-- The images of the already-placed *non*-neighbours of `a`: what the candidate has to differ
+from, and — for an induced search — stay non-adjacent to. -/
+def preNon (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
+  (pre.filter fun q ↦ !H.Adj a q.1).map Prod.snd
+
+theorem mem_preAdj {a : H.V} {pre : List (H.V × G.V)} {u : G.V} (h : u ∈ preAdj H G a pre) :
     ∃ x, (x, u) ∈ pre ∧ H.Adj a x = true := by
-  induction pre with
-  | nil => simp [pivot] at h
-  | cons p rest ih =>
-    obtain ⟨x, v⟩ := p
-    rw [pivot] at h
-    split at h
-    · rename_i hax
-      rw [Option.some_inj] at h
-      exact ⟨x, by simp [h], hax⟩
-    · obtain ⟨y, hy, hay⟩ := ih h
-      exact ⟨y, List.mem_cons_of_mem _ hy, hay⟩
+  obtain ⟨q, hq, rfl⟩ := List.mem_map.mp h
+  obtain ⟨hq, ha⟩ := List.mem_filter.mp hq
+  exact ⟨q.1, hq, ha⟩
+
+theorem mem_preNon {a : H.V} {pre : List (H.V × G.V)} {u : G.V} (h : u ∈ preNon H G a pre) :
+    ∃ x, (x, u) ∈ pre ∧ H.Adj a x = false := by
+  obtain ⟨q, hq, rfl⟩ := List.mem_map.mp h
+  obtain ⟨hq, ha⟩ := List.mem_filter.mp hq
+  exact ⟨q.1, hq, by simpa using ha⟩
+
+/-- The images a candidate is tested against.  A non-induced search asks nothing of the images of
+`a`'s neighbours beyond being different from the candidate, and injectivity is asked of every
+placed vertex alike, so it can skip the sort and take them all — one pass over `pre` at the node
+instead of two, and no query of the pattern's adjacency in either. -/
+def preOther (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
+  if ind then preNon H G a pre else pre.map Prod.snd
+
+theorem mem_preOther {a : H.V} {pre : List (H.V × G.V)} {u : G.V}
+    (h : u ∈ preOther H G ind a pre) : ∃ x, (x, u) ∈ pre ∧ (ind = true → H.Adj a x = false) := by
+  rw [preOther] at h
+  split at h
+  · obtain ⟨x, hx, hax⟩ := mem_preNon H G h
+    exact ⟨x, hx, fun _ ↦ hax⟩
+  · obtain ⟨q, hq, rfl⟩ := List.mem_map.mp h
+    exact ⟨q.1, hq, by simp_all⟩
 
 /-! ## Tabulating the host
 
@@ -379,34 +405,47 @@ def symHi (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List
   (symAfter H pairs a).filterMap fun x ↦
     (pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rank q.2
 
-/-- The test a candidate has to pass to be worth trying as the image of `a`: it must be compatible
-with everything already placed, its degree must be at least `da = H.toSimple.degree a`, and its
-rank must lie between `lo` and `hi`.  All three are passed in so that the list is scanned with
-them fixed.  This is `compat` against all of `pre`, except that adjacency in `G` is read off the
-candidate's own neighbour list — and `edgeOk` is spelled out rather than called, so that the
-neighbour list is only scanned on the branch that needs it. -/
-def candKeep (a : H.V) (pre : List (H.V × G.V)) (da : ℕ) (lo hi : List ℕ) (tl n : ℕ)
-    (p : Row G) : Bool :=
-  pre.all (fun q ↦ decide (p.vert ≠ q.2) &&
-      (if H.Adj a q.1 then p.nbrs.contains q.2 else !ind || !p.nbrs.contains q.2)) &&
-    decide (da ≤ p.deg) && lo.all (fun m ↦ decide (m ≤ p.rk)) &&
-    hi.all (fun m ↦ decide (p.rk ≤ m)) && decide (p.rk + tl < n)
+/-- The test a candidate has to pass to be worth trying as the image of `a`: its degree must be at
+least `da = H.toSimple.degree a`, its rank must leave `tl` ranks free below `n` and lie between
+`lo` and `hi`, it must be adjacent to every image in `nbrs`, and it must differ from — and for an
+induced search be non-adjacent to — every image in `others`.  This is `compat` against all of
+`pre`, except that the pattern's own adjacency has been decided in advance by `preAdj`/`preNon`,
+and adjacency in `G` is read off the candidate's neighbour list rather than out of `G.Adj`.
 
-theorem candKeep_row {gs : List G.V} (hgs : ∀ v, v ∈ gs) {a : H.V}
-    {pre : List (H.V × G.V)} {da : ℕ} {lo hi : List ℕ} {tl n : ℕ} {b : G.V}
-    (hc : pre.all (compat H G ind (a, b)) = true) (hd : da ≤ G.toSimple.degree b)
+Everything is passed in so that the pool is scanned with it fixed, and the tests are in increasing
+order of cost: the four that are arithmetic on numbers already tabulated reject most of the pool
+before either list of images is walked, and each entry of those lists costs a scan of the
+candidate's neighbours.
+
+No injectivity test guards `nbrs`: `G` has no loops, so a candidate adjacent to `u` is not `u`.
+Nor would one be needed for soundness — every test here is a prune, and `goalAsg` re-checks the
+lot at the leaf. -/
+def candKeep (nbrs others : List G.V) (da : ℕ) (lo hi : List ℕ) (tl n : ℕ) (p : Row G) : Bool :=
+  decide (da ≤ p.deg) && decide (p.rk + tl < n) &&
+    lo.all (fun m ↦ decide (m ≤ p.rk)) && hi.all (fun m ↦ decide (p.rk ≤ m)) &&
+    nbrs.all (fun u ↦ p.nbrs.contains u) &&
+    others.all (fun u ↦ decide (p.vert ≠ u) && (!ind || !p.nbrs.contains u))
+
+theorem candKeep_row {gs : List G.V} (hgs : ∀ v, v ∈ gs) {nbrs others : List G.V}
+    {da : ℕ} {lo hi : List ℕ} {tl n : ℕ} {b : G.V}
+    (hnb : ∀ u ∈ nbrs, G.Adj b u = true)
+    (hot : ∀ u ∈ others, b ≠ u ∧ edgeOk ind false (G.Adj b u) = true)
+    (hd : da ≤ G.toSimple.degree b)
     (hlo : ∀ m ∈ lo, m ≤ gs.idxOf b) (hhi : ∀ m ∈ hi, gs.idxOf b ≤ m)
     (hcap : gs.idxOf b + tl < n) :
-    candKeep H G ind a pre da lo hi tl n (row G gs b) = true := by
+    candKeep G ind nbrs others da lo hi tl n (row G gs b) = true := by
   simp only [candKeep, Bool.and_eq_true]
-  refine ⟨⟨⟨⟨?_, decide_eq_true (hd.trans (degree_le_row_deg G hgs b))⟩, ?_⟩, ?_⟩,
-    by simpa [row] using hcap⟩
-  · rw [List.all_eq_true] at hc ⊢
-    intro q hq
+  refine ⟨⟨⟨⟨⟨decide_eq_true (hd.trans (degree_le_row_deg G hgs b)),
+    by simpa [row] using hcap⟩, by simpa [row] using hlo⟩, by simpa [row] using hhi⟩, ?_⟩, ?_⟩
+  · rw [List.all_eq_true]
+    intro u hu
     rw [row_nbrs_contains G hgs]
-    exact hc q hq
-  · simpa [row] using hlo
-  · simpa [row] using hhi
+    exact hnb u hu
+  · rw [List.all_eq_true]
+    intro u hu
+    obtain ⟨hne, hok⟩ := hot u hu
+    rw [Bool.and_eq_true, row_nbrs_contains G hgs]
+    exact ⟨decide_eq_true (by simpa [row] using hne), by simpa [edgeOk] using hok⟩
 
 /-- Dropping a prefix of the pool is safe as long as everything dropped fails the test the
 candidate we are looking for passes. -/
@@ -432,6 +471,42 @@ theorem foldl_max_le {l : List ℕ} {x : ℕ} :
     rw [List.foldl_cons]
     exact ih (max_le ha (h y (by simp))) fun m hm ↦ h m (by simp [hm])
 
+/-- The pool to draw candidates from, together with the images that still have to be tested
+against.  The first entry of `nbrs` is the *pivot*: its row of the adjacency table is exactly the
+vertices adjacent to it, so taking that as the pool both shrinks the pool to a neighbourhood and
+discharges the pivot's own test for everything in it.  With no placed neighbour — or no row for
+it, which cannot happen for a table built from a complete vertex list — the pool is all of `G`
+and nothing is discharged. -/
+def candPool (rs : List (Row G)) (nb : List (G.V × List (Row G))) :
+    List G.V → List (Row G) × List G.V
+  | [] => (rs, [])
+  | u :: t =>
+    match adjRow G u nb with
+    | some l => (l, t)
+    | none => (rs, u :: t)
+
+theorem mem_candPool_fst {gs : List G.V} (hgs : ∀ v, v ∈ gs) {nbrs : List G.V} {b : G.V}
+    (hb : ∀ u ∈ nbrs, G.Adj b u = true) :
+    row G gs b ∈ (candPool G (rowList G gs) (adjTable G gs) nbrs).1 := by
+  have hrs : row G gs b ∈ rowList G gs := List.mem_map.mpr ⟨b, hgs b, rfl⟩
+  cases nbrs with
+  | nil => exact hrs
+  | cons u t =>
+    rw [candPool]
+    split
+    · next l hn => exact mem_adjRow G hgs hn (by rw [G.symm u b]; exact hb u (by simp))
+    · exact hrs
+
+theorem candPool_snd_subset {rs : List (Row G)} {nb : List (G.V × List (Row G))}
+    {nbrs : List G.V} : ∀ u ∈ (candPool G rs nb nbrs).2, u ∈ nbrs := by
+  cases nbrs with
+  | nil => exact fun _ h ↦ h
+  | cons v t =>
+    rw [candPool]
+    split
+    · exact fun _ h ↦ List.mem_cons_of_mem _ h
+    · exact fun _ h ↦ h
+
 /-- The vertices of `G` worth trying as the image of `a`, given the assignments `pre` already
 made: those in the neighbourhood of the pivot, if there is one, that pass `candKeep`.
 
@@ -441,13 +516,12 @@ element by element.  `dropWhile` is sound whatever order the pool happens to be 
 drops has too low a rank to be the answer. -/
 def candList (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (rs : List (Row G))
     (nb : List (G.V × List (Row G))) (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
-  let pool := match pivot H G a pre with
-    | some u => (adjRow G u nb).getD rs
-    | none => rs
+  let cp := candPool G rs nb (preAdj H G a pre)
   let lo := symLo H G rank pairs a pre
   let hi := symHi H G rank pairs a pre
-  ((pool.dropWhile fun p ↦ decide (p.rk < lo.foldl max 0)).filter
-    (candKeep H G ind a pre (H.deg a) lo hi
+  let floor := lo.foldl max 0
+  ((cp.1.dropWhile fun p ↦ decide (p.rk < floor)).filter
+    (candKeep G ind cp.2 (preOther H G ind a pre) (H.deg a) lo hi
       (tailCount H pairs.length pairs a) n)).map Row.vert
 
 /-! ## Reading a map off a complete assignment -/
@@ -636,28 +710,31 @@ theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ
     exact hv'.1
   have hdeg : H.deg a ≤ G.toSimple.degree b :=
     degree_le_of_validAsg hv (fun x ↦ by rw [hk]; exact hkcov x) (by rw [hk]; exact hknd) hab
-  have hrs : row G gs b ∈ rowList G gs := List.mem_map.mpr ⟨b, hgs b, rfl⟩
+  have hadj : ∀ u ∈ preAdj H G a pre, G.Adj b u = true := by
+    intro u hu
+    obtain ⟨x, hx, hax⟩ := mem_preAdj H G hu
+    have hc := List.all_eq_true.mp hcompat (x, u) hx
+    rw [compat, Bool.and_eq_true] at hc
+    exact adj_of_edgeOk hc.2 hax
   simp only [candList]
-  refine List.mem_map.mpr ⟨row G gs b, List.mem_filter.mpr ⟨mem_dropWhile ?_ ?_, ?_⟩, rfl⟩
-  · split
-    · next u hpv =>
-      obtain ⟨x, hx, hax⟩ := pivot_spec H G hpv
-      have hc := List.all_eq_true.mp hcompat (x, u) hx
-      rw [compat, Bool.and_eq_true] at hc
-      have hub : G.Adj u b = true := by
-        rw [G.symm u b]; exact adj_of_edgeOk hc.2 hax
-      cases hn : adjRow G u (adjTable G gs) with
-      | none => simpa only [hn, Option.getD_none] using hrs
-      | some m => simpa only [hn, Option.getD_some] using mem_adjRow G hgs hn hub
-    · exact hrs
+  refine List.mem_map.mpr ⟨row G gs b,
+    List.mem_filter.mpr ⟨mem_dropWhile (mem_candPool_fst G hgs hadj) ?_, ?_⟩, rfl⟩
   · simp only [decide_eq_false_iff_not, Nat.not_lt, row]
     exact foldl_max_le (Nat.zero_le _) fun m hm ↦ hrank b ▸ hlo m hm
-  · refine candKeep_row H G ind hgs hcompat hdeg (fun m hm ↦ hrank b ▸ hlo m hm)
-      (fun m hm ↦ hrank b ▸ hhi m hm) ?_
-    rw [List.all_eq_true] at hcap
-    have := hcap (a, b) hab
-    rw [decide_eq_true_eq] at this
-    exact hrank b ▸ this
+  · refine candKeep_row G ind hgs (fun u hu ↦ hadj u (candPool_snd_subset G u hu)) ?_ hdeg
+      (fun m hm ↦ hrank b ▸ hlo m hm) (fun m hm ↦ hrank b ▸ hhi m hm) ?_
+    · intro u hu
+      obtain ⟨x, hx, hax⟩ := mem_preOther H G ind hu
+      have hc := List.all_eq_true.mp hcompat (x, u) hx
+      rw [compat, Bool.and_eq_true] at hc
+      refine ⟨by simpa using hc.1, ?_⟩
+      cases ind
+      · simp [edgeOk]
+      · exact hax rfl ▸ hc.2
+    · rw [List.all_eq_true] at hcap
+      have := hcap (a, b) hab
+      rw [decide_eq_true_eq] at this
+      exact hrank b ▸ this
 
 variable {H G ind}
 

@@ -103,6 +103,34 @@ def Roster.finset [DecidableEq α] (r : Roster α) : Roster (Finset α) :=
       List.mem_sublists.mpr (List.filter_sublist ..), by
         ext a; simp [r.mem_toList a]⟩⟩
 
+/-! ### Positions
+
+A search that breaks symmetry does it by comparing where the roster lists two vertices, and
+`List.idxOf` is a scan.  Asked once per candidate per node it is one of the hotter things in
+either search, so the positions are tabulated. -/
+
+/-- Where `l` lists each element, as a table indexed by `FinEnum.equiv`. -/
+def rankTable {α : Type u} [FinEnum α] (l : List α) : Array ℕ :=
+  ((List.finRange (FinEnum.card α)).map fun i ↦ l.idxOf (FinEnum.equiv.symm i)).toArray
+
+/-- Read a position out of `Backtrack.rankTable`.
+
+Top-level, and applied to the table alone rather than defined as `fun l v ↦ ⋯`: the compiler
+maximises the arity of a definition, so one that returns a function type takes the second argument
+too and rebuilds the table on every lookup.  A caller shares the table by naming
+`rankAt (rankTable l)` in a `let`. -/
+def rankAt {α : Type u} [FinEnum α] (t : Array ℕ) (v : α) : ℕ := t[(FinEnum.equiv v).val]!
+
+/-- The table says what the scan says.  Whether it says it faster is a question about
+`FinEnum.equiv` for the type: for `Fin n`, and for the products and sums the graph constructions
+build, it is arithmetic, and for a vertex type whose enumeration is a list it is another scan and
+the table only pays for the second query onwards. -/
+theorem rankAt_rankTable {α : Type u} [FinEnum α] (l : List α) :
+    rankAt (rankTable l) = fun v ↦ l.idxOf v := by
+  funext v
+  rw [rankAt, rankTable, getElem!_pos _ _ (by simp [(FinEnum.equiv v).isLt])]
+  simp
+
 /-- Depth-first search over assignments of values in `β` to the elements of `todo`, taken in
 order.  `pre` is the assignment made so far, most recent first; `cand a pre` are the values to try
 for `a`; `goal` decides a complete assignment. -/

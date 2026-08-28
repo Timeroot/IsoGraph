@@ -157,7 +157,7 @@ start: `K5` in the Heawood graph takes 3 ms, `K3,3` in it 3 ms, `K5` in the 24-v
 peeling rather than by search, so a `C3` in a 13-vertex star takes no measurable time at all.
 
 Ruling a minor out of a host that does not peel is the expensive direction, since every family of
-disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes 9 s, and `K3,3` in it 66 s.
+disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes 5 s, and `K3,3` in it 39 s.
 Those two are the honest picture of the limit — a planar host of about twenty vertices is where
 ruling `K5` out stops being interactive.
 
@@ -165,11 +165,10 @@ Symmetry breaking is what makes even that possible, though for less than one mig
 only at a finished set it was worth a factor of 2.6 on the first of those and 1.9 on the second,
 far less than the `5!` and `2·(3!)²` relabellings the classes admit, because the canonical pick
 order and the seed rules had already ruled out most of them.  Checking it at every `pick` as well
-is worth a further 1.6 and 1.3 (14.7 s → 9.0 s and 84 s → 66 s, interleaved runs of both binaries).
-On a host where a model exists none of it makes a measurable difference either way.  (The numbers
-above are from one idle machine running `testing/MinorBench.lean`; this one is shared, and the
-same binary has been seen to vary fourfold with load, so treat them as ratios rather than
-absolutes.)
+is worth a further 1.6 and 1.3, on interleaved runs of both binaries.  On a host where a model
+exists none of it makes a measurable difference either way.  (The numbers above are from
+`testing/MinorBench.lean` on a shared machine, and the same binary has been seen to vary fourfold
+with load, so treat them as ratios rather than absolutes.)
 
 The induced search costs what the plain one does when there is a model, because `indPick` rejects
 at a `pick` the sets the final test would otherwise have thrown away at the end: `K4` as an induced
@@ -191,13 +190,33 @@ variable {G : CGraph}
 
 /-- One round of `reach` per unit of fuel: everything next to the newest arrivals joins them.
 Only the newest are looked at — everything else has had its neighbours taken already — so a round
-costs one pass over the pool rather than one per vertex in hand. -/
+costs one pass over the pool rather than one per vertex in hand.
+
+Written the way the induction wants to read it, which names the round's arrivals four times;
+`CGraph.reachAuxFast` is the same function with the pass done once. -/
 def reachAux (G : CGraph) : ℕ → List G.V → List G.V → List G.V → List G.V
   | 0, S, _, _ => S
   | n + 1, S, front, pool =>
     if (pool.filter fun v ↦ front.any (G.Adj v)).isEmpty then S
     else reachAux G n ((pool.filter fun v ↦ front.any (G.Adj v)) ++ S)
       (pool.filter fun v ↦ front.any (G.Adj v)) (pool.filter fun v ↦ !front.any (G.Adj v))
+
+/-- What `reachAux` runs: one `List.partition` where the specification writes four `List.filter`s,
+and so one query of the adjacency per pool vertex per round instead of four. -/
+def reachAuxFast (G : CGraph) : ℕ → List G.V → List G.V → List G.V → List G.V
+  | 0, S, _, _ => S
+  | n + 1, S, front, pool =>
+    let sp := pool.partition fun v ↦ front.any (G.Adj v)
+    if sp.1.isEmpty then S else reachAuxFast G n (sp.1 ++ S) sp.1 sp.2
+
+@[csimp] theorem reachAux_eq_reachAuxFast : @reachAux = @reachAuxFast := by
+  funext G n
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    funext S front pool
+    rw [reachAux, reachAuxFast, List.partition_eq_filter_filter]
+    split <;> simp_all [Function.comp_def]
 
 /-- The vertices that `S` can reach without leaving `S ∪ pool`: the component of `S` in the
 subgraph induced on those vertices.  Each round takes at least one vertex out of the pool, so
@@ -842,6 +861,10 @@ theorem minRank_le {rank : G.V → ℕ} {S : List G.V} {v : G.V} (hv : v ∈ S) 
   rw [minRank, ha, Option.getD_some]
   exact (List.min?_eq_some_iff.mp ha).2 _ (List.mem_map_of_mem hv)
 
+/-- The least rank of a one-vertex set is that vertex's. -/
+theorem minRank_singleton {rank : G.V → ℕ} {v : G.V} : minRank rank [v] = rank v := by
+  simp [minRank]
+
 /-- A nonempty set attains its least rank. -/
 theorem exists_minRank_eq {rank : G.V → ℕ} {S : List G.V} (hne : S ≠ []) :
     ∃ u ∈ S, minRank rank S = rank u := by
@@ -964,6 +987,44 @@ def symOk (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (x : H.V) (S : List G
   pairs.all fun p ↦ !decide (p.2 = x) ||
     done.all fun q ↦ !decide (q.1 = p.1) || decide (minRank rank q.2 ≤ minRank rank S)
 
+theorem foldl_max_ite_le {γ : Type} (p : γ → Bool) (f : γ → ℕ) (t : ℕ) :
+    ∀ (l : List γ) (m : ℕ),
+      (l.foldl (fun m' c ↦ if p c then max m' (f c) else m') m ≤ t) ↔
+        (m ≤ t ∧ ∀ c ∈ l, p c = true → f c ≤ t)
+  | [], m => by simp
+  | c :: l, m => by
+    rw [List.foldl_cons, foldl_max_ite_le p f t l]
+    by_cases h : p c = true <;> (simp [h]; try tauto)
+
+/-- What `symOk` compares the set's `minRank` against, computed without the set: the largest
+`minRank` among the finished sets that symmetry breaking puts before `x`.
+
+The two say the same thing with the quantifiers the other way round — a set is late enough when
+every set before it starts no later, and that is a bound on `minRank rank S` alone.  So the search
+computes it once at the node and compares, rather than walking `pairs` and `done` again for every
+candidate. -/
+def symFloor (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (x : H.V)
+    (done : List (H.V × List G.V)) : ℕ :=
+  done.foldl (fun m q ↦ if pairs.any fun p ↦ decide (p.2 = x) && decide (q.1 = p.1)
+    then max m (minRank rank q.2) else m) 0
+
+theorem symOk_eq_symFloor_le (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (x : H.V)
+    (S : List G.V) (done : List (H.V × List G.V)) :
+    symOk rank pairs x S done = decide (symFloor rank pairs x done ≤ minRank rank S) := by
+  rw [symOk, symFloor, Bool.eq_iff_iff, decide_eq_true_eq, foldl_max_ite_le]
+  simp only [List.all_eq_true, Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not,
+    decide_eq_true_eq, List.any_eq_true, Bool.and_eq_true, Nat.zero_le, true_and]
+  constructor
+  · rintro h q hq ⟨p, hp, hpx, hqp⟩
+    exact ((h p hp).resolve_left (by simp [hpx]) q hq).resolve_left (by simp [hqp])
+  · intro h p hp
+    by_cases hpx : p.2 = x
+    · exact Or.inr fun q hq ↦ by
+        by_cases hqp : q.1 = p.1
+        · exact Or.inr (h q hq ⟨p, hp, hpx, hqp⟩)
+        · exact Or.inl hqp
+    · exact Or.inl hpx
+
 end Symmetry
 
 namespace MinorSearch
@@ -999,6 +1060,20 @@ def attOf (x : H.V) (done : List (H.V × List G.V)) (v : G.V) : Bool :=
   | none => true
   | some q => q.2.any (G.Adj v)
 
+/-- Which finished set `x` must attach to, if any: the half of `attOf` that does not mention the
+candidate. -/
+def attTo (x : H.V) (done : List (H.V × List G.V)) : Option (H.V × List G.V) :=
+  done.find? fun q ↦ H.Adj x q.1
+
+/-- The other half: whether the candidate touches that set. -/
+def attHit (att : Option (H.V × List G.V)) (v : G.V) : Bool :=
+  match att with
+  | none => true
+  | some q => q.2.any (G.Adj v)
+
+theorem attOf_eq_attHit (x : H.V) (done : List (H.V × List G.V)) (v : G.V) :
+    attOf H G x done v = attHit H G (attTo H G x done) v := rfl
+
 /-- Can the vertices still waiting for a branch set be reached from a set started at `v`?  One
 that has to touch `x`'s set is confined to `seedReach`, so if from there it cannot also touch the
 sets it is required to touch, starting `x` at `v` is hopeless.  This is what stops the search from
@@ -1010,6 +1085,23 @@ def feasibleSeed (x : H.V) (v : G.V) (rest : List H.V) (done : List (H.V × List
   need.isEmpty ||
     (let R := seedReach G v avail
      need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
+
+/-- Which vertices of `H` constrain the seed of `x`'s set: the half of `feasibleSeed` that does
+not mention the candidate. -/
+def seedNeed (x : H.V) (rest : List H.V) (done : List (H.V × List G.V)) : List H.V :=
+  rest.filter fun z ↦ H.Adj x z && done.any fun q ↦ H.Adj z q.1
+
+/-- The other half: whether a set started at `v` can still reach what those vertices need. -/
+def feasibleNeed (need : List H.V) (v : G.V) (done : List (H.V × List G.V))
+    (avail : List G.V) : Bool :=
+  need.isEmpty ||
+    (let R := seedReach G v avail
+     need.all fun z ↦ done.all fun q ↦ !H.Adj z q.1 || linked G R q.2)
+
+theorem feasibleSeed_eq_feasibleNeed (x : H.V) (v : G.V) (rest : List H.V)
+    (done : List (H.V × List G.V)) (avail : List G.V) :
+    feasibleSeed H G x v rest done avail =
+      feasibleNeed H G (seedNeed H G x rest done) v done avail := rfl
 
 /-- The induced condition as the search meets it, one vertex at a time.  A vertex `v` joining the
 set of `x` must not be next to a *finished* set whose vertex of `H` is not adjacent to `x`, since
@@ -1073,6 +1165,68 @@ theorem mem_candList {m : Move G} {st st' : State H G}
     split at h
     · rename_i hv; exact List.contains_iff_mem.mp hv
     · exact absurd h (by simp)
+
+/-- What `candList` runs.  Only the candidate changes from one entry of `st.avail` to the next, so
+everything the tests ask that does not mention it is asked once at the node: which finished set
+`x` has to attach to, the two ranks the ordering compares against, the floor symmetry breaking
+imposes, and which vertices of `H` constrain the seed.  The membership test `step` opens with goes
+too — the candidates come out of `st.avail`, so it always succeeds.
+
+`step` stays as it is.  It is the specification the correctness proofs are written against, and
+`mem_candList` is the only thing that has to hold: a `csimp` lemma changes what runs without
+changing what was proved. -/
+def candListFast (st : State H G) : List (State H G) :=
+  (step H G rank pairs ind .stop st).toList ++
+    match st.cur with
+    | some (_, []) => []
+    | some (x, u :: T) =>
+      let att := attTo H G x st.done
+      let rlast := rank (T.getLastD u)
+      let ru := rank u
+      let fl := symFloor rank pairs x st.done
+      st.avail.filterMap fun v ↦
+        if (u :: T).any (G.Adj v) &&
+            (!attHit H G att v || decide (rlast ≤ rank v)) &&
+            (decide (ru ≤ rank v) || !T.any (G.Adj v)) &&
+            decide (fl ≤ rank v) && indPick H G ind x v st.done then
+          some ⟨st.todo, some (x, v :: u :: T), st.done, st.avail.erase v⟩
+        else none
+    | none =>
+      match st.todo with
+      | [] => []
+      | x :: rest =>
+        let att := attTo H G x st.done
+        let need := seedNeed H G x rest st.done
+        let fl := symFloor rank pairs x st.done
+        st.avail.filterMap fun v ↦
+          if attHit H G att v && feasibleNeed H G need v st.done st.avail &&
+              decide (fl ≤ rank v) && indPick H G ind x v st.done then
+            some ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩
+          else none
+
+@[csimp] theorem candList_eq_candListFast : @candList = @candListFast := by
+  funext H G rank pairs ind st
+  obtain ⟨todo, cur, done, avail⟩ := st
+  rw [candList, candListFast]
+  refine congrArg _ ?_
+  match cur, todo with
+  | some (_, []), todo =>
+    refine List.filterMap_eq_nil_iff.mpr fun v _ ↦ ?_
+    rw [step]
+    split <;> rfl
+  | some (x, u :: T), todo =>
+    refine List.filterMap_congr fun v hv ↦ ?_
+    rw [step, if_pos (List.contains_iff_mem.mpr hv)]
+    simp only [attOf_eq_attHit, symOk_eq_symFloor_le, minRank_singleton]
+  | none, [] =>
+    refine List.filterMap_eq_nil_iff.mpr fun v _ ↦ ?_
+    rw [step]
+    split <;> rfl
+  | none, x :: rest =>
+    refine List.filterMap_congr fun v hv ↦ ?_
+    rw [step, if_pos (List.contains_iff_mem.mpr hv)]
+    simp only [attOf_eq_attHit, feasibleSeed_eq_feasibleNeed, symOk_eq_symFloor_le,
+      minRank_singleton]
 
 /-- The state a search has reached: the most recent one, or the initial one. -/
 def headSt (init : State H G) : List (Unit × State H G) → State H G
@@ -1886,6 +2040,22 @@ def searchMinor (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) : Option (State
     searchFrom H G (fun v ↦ rG.toList.idxOf v) (symPairs H (hsOrder H rH)) ind (hsOrder H rH)
       (hostPool H G rH rG)
   else none
+
+/-- What `searchMinor` runs.  Two things are shared that the specification writes out: `hsOrder`
+is a connectivity walk over the pattern and is named three times above — twice here and once
+inside `hostPool` — and the rank is a table rather than `List.idxOf`, which the search asks for
+three times per candidate and once more for every vertex of every finished branch set. -/
+def searchMinorFast (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) : Option (State H G) :=
+  if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
+    let hs := hsOrder H rH
+    let gs := rG.toList.dedup
+    searchFrom H G (rankAt (rankTable rG.toList)) (symPairs H hs) ind hs
+      (if minDegTwo H hs then twoCore G gs.length gs else gs)
+  else none
+
+@[csimp] theorem searchMinor_eq_searchMinorFast : @searchMinor = @searchMinorFast := by
+  funext H G ind rH rG
+  rw [searchMinor, searchMinorFast, rankAt_rankTable, hostPool]
 
 theorem finalOk_of_searchMinor {ind : Bool} {rH : Roster H.V} {rG : Roster G.V} {st : State H G}
     (h : searchMinor H G ind rH rG = some st) : finalOk H G ind (hsOrder H rH) st = true := by

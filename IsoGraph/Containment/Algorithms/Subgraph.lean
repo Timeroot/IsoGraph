@@ -21,24 +21,28 @@ every vertex after the first is pinned to a neighbourhood, and the consistency t
 than in the induced case, since only edges of `H` constrain anything — still cuts most of what is
 left.
 
-It is also what the branch inside `CGraph.candKeep` is for.  Lean evaluates arguments before it
+It is also what `CGraph.preAdj` and `CGraph.preOther` are for.  Lean evaluates arguments before it
 calls, so passing `p.nbrs.contains q.2` to `edgeOk` scans the candidate's neighbour list for every
-already-placed vertex, adjacent to `a` or not; writing the test as an `if` on `H.Adj a q.1` makes
-the scan happen only where it is needed, which on a sparse pattern is a handful of the pairs
-rather than all of them.  On the hardest case below that is worth about 1.3×, and it costs the
-induced search nothing.
+already-placed vertex, adjacent to `a` or not.  Sorting the placed vertices by whether they are
+neighbours of `a` — a question about the pattern, so it is asked once at the node and not once per
+candidate — leaves the other half of `candKeep` with nothing to look up when `ind` is false, which
+on a sparse pattern is nearly all of the pairs; on a benchmark that runs one node of the search
+and nothing else that is worth about 1.4×.  A non-induced search need not even sort.  Injectivity
+is all it asks of an already-placed vertex and it asks the same of every one of them, so
+`preOther` hands over all the images and walks the assignment once instead of twice, which is
+another 1.15× on the hardest case below.
 
 ## What it costs
 
 Times on one shared machine, so read them as orders of magnitude.  Girth settles most of the small
 cases outright: `C₆ ⊆ McGee`, `K₄ ⊆ McGee`, `K₃,₃ ⊆ Heawood` and `Petersen ⊆ McGee` all come back
-empty in a millisecond or two, and `C₇ ⊆ McGee`, `C₈ ⊆ grid 5×5`, `grid 3×3 ⊆ grid 5×5` are found
-about as fast.  A Hamiltonian cycle is where it starts to cost: `C₂₄ ⊆ McGee` 25 ms and
-`C₂₄ ⊆ grid 5×5` 34 ms to find one, `grid 5×5 ⊆ grid 5×5` 48 ms, and `C₂₅ ⊆ grid 5×5` — proving
-the 5×5 grid has no Hamiltonian cycle, which it has not, the two colour classes being 13 and 12 —
-about 19 s of exhaustive search.  Nothing here knows about bipartite parity, so that last one is
-the honest shape of the worst case: the search finds what is there quickly and works hard to rule
-out what is not.
+empty in a millisecond or three, and `C₇ ⊆ McGee`, `C₈ ⊆ grid 5×5`, `grid 3×3 ⊆ grid 5×5` are
+found about as fast.  Finding a Hamiltonian cycle is barely dearer: `C₂₄ ⊆ McGee` and
+`grid 5×5 ⊆ grid 5×5` in 2 ms, `C₂₄ ⊆ grid 5×5` in 10 ms.  Proving there is none is the expensive
+direction — `C₂₅ ⊆ grid 5×5`, and the 5×5 grid has no Hamiltonian cycle, the two colour classes
+being 13 and 12 — and that is about 18 s of exhaustive search.  Nothing here knows about bipartite
+parity, so that last one is the honest shape of the worst case: the search finds what is there
+quickly and works hard to rule out what is not.
 -/
 
 set_option autoImplicit false

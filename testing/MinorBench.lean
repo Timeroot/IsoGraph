@@ -213,6 +213,7 @@ def main (args : List String) : IO Unit := do
     let d := size 2 7
     let k := size 3 55447
     let m := size 4 14
+    let ind := size 5 1 == 1
     let H := empty m
     let G := path n □g path n
     let rG : Roster G.V := (Roster.fin n).prod (Roster.fin n)
@@ -228,9 +229,9 @@ def main (args : List String) : IO Unit := do
     | [] => IO.println "micro-cand: d past the end of the pattern"
     | a :: _ =>
       let work := List.replicate k (a, pre)
-      bench s!"{k} × candList |pre|={pre.length}" fun _ =>
+      bench s!"{k} × candList |pre|={pre.length} ind={ind}" fun _ =>
         toString (work.foldl (fun acc p =>
-          acc + (candList H G true (hostRank G rG) gs.length prs rs nb p.1 p.2).length) 0)
+          acc + (candList H G ind (hostRank G rG) gs.length prs rs nb p.1 p.2).length) 0)
   | "con-km-grid" =>
     let m := size 1 4
     let n := size 2 4
