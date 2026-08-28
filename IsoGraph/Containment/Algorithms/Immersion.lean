@@ -40,15 +40,16 @@ the symmetry breaking of `Algorithms/Twins.lean` is reused unchanged, needing on
 Compiled, through `CGraph.immersionOf?`, on one shared machine, so read the numbers as orders of
 magnitude.  The degree bound settles a class of negatives outright — `K₅` immersed in Petersen is
 empty in under a millisecond — and positives on a ten- or fourteen-vertex host are quick: `K₄` in
-Petersen 2 ms, Petersen in Petersen 4 ms, `K₄` in Heawood 15 ms, Petersen in Heawood 34 ms.  The
+Petersen 2 ms, Petersen in Petersen 3 ms, `K₄` in Heawood 13 ms, Petersen in Heawood 30 ms.  The
 cached entry point is worth almost nothing over the same search on the edge lists, because the
 trail enumeration no longer asks the graph anything: `CGraph.searchImmFast` hands it the neighbour
 lists, tabulated once, so the innermost loop looks at three neighbours where it used to scan every
-vertex of the host.  On the largest case below that is worth 3×.
+vertex of the host.  On the largest case below that is worth 3×, and putting the question to the
+spent edges as a pair of vertices rather than as a `Sym2` — `CGraph.containsEdge` — a further 1.5×.
 
 The host is what costs, and it costs more here than in `Algorithms/TopMinor.lean`, because there
 are far more trails between two vertices than there are simple paths: `K₄` in McGee (24 vertices,
-cubic) takes 1 s where the topological minor search takes 25 ms, and Petersen in McGee 2 s.
+cubic) takes 0.8 s where the topological minor search takes 25 ms, and Petersen in McGee 1.8 s.
 Tutte's 46-vertex cubic graph is out of reach — the topological minor search already does not
 finish there in eight minutes.  Twenty-odd vertices is the working range, and a dense host is worse
 still.
@@ -109,22 +110,49 @@ theorem length_le_of_nodup_edgeList {gs : List G.V} (hgs : ∀ v : G.V, v ∈ gs
 
 /-! ## Enumerating the trails between two vertices -/
 
+/-- Whether `s(u, w)` is one of `es`.  This is `es.contains s(u, w)` —
+`CGraph.containsEdge_eq_contains` — but it neither builds the `Sym2` nor asks its `DecidableEq`
+which of the two orders matches, and asking a list of spent edges this question is what the
+innermost loop of the immersion search spends its time on: the cheaper test is worth 1.5× on
+`K₄ ⊴ McGee`. -/
+def containsEdge (es : List (Sym2 G.V)) (u w : G.V) : Bool :=
+  es.any <| Sym2.lift ⟨fun a b ↦ (decide (a = u) && decide (b = w)) ||
+      (decide (a = w) && decide (b = u)),
+    by intro a b
+       dsimp only
+       rw [Bool.or_comm, Bool.and_comm (decide (a = w)), Bool.and_comm (decide (a = u))]⟩
+
+@[simp] theorem containsEdge_eq_contains (es : List (Sym2 G.V)) (u w : G.V) :
+    containsEdge es u w = es.contains s(u, w) := by
+  induction es with
+  | nil => rfl
+  | cons e es ih =>
+    rw [containsEdge, List.any_cons, ← containsEdge, ih, List.contains_cons]
+    congr 1
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [Bool.eq_iff_iff]
+      simp only [Sym2.lift_mk, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq,
+        beq_iff_eq, Sym2.eq_iff]
+      tauto
+
 /-- Every way of running from `u` to `t` in at most `n` steps without repeating an edge and
 without using one of `avoid`: the list of vertices visited after `u`, whose last is `t`.  Unlike
 `CGraph.routes` a trail may come back through a vertex it has already been to — including `t` —
 so nothing here filters on where the walk has been, only on which edges it has spent.
 
-`nb u` is the neighbours of `u`, and it is the only thing this asks of `G`.  Completeness needs
-only that it *contain* them, and only completeness is proved — a caller checks what it is handed —
-so the walk test that scanning all of `G` would need is not here either.  See `CGraph.searchImm`
-for where the list comes from; the trail search is the innermost loop of the immersion search, and
-looking at three neighbours instead of every vertex is worth 3× on `Petersen ⊴ McGee`. -/
+`nb u` is the neighbours of `u`, and it is all this asks of `G` — the graph itself is not looked
+at.  Completeness needs only that `nb u` *contain* the neighbours, and only completeness is proved
+— a caller checks what it is handed — so the walk test that scanning all of `G` would need is not
+here either.  See `CGraph.searchImm` for where the list comes from; the trail search is the
+innermost loop of the immersion search, and looking at three neighbours instead of every vertex is
+worth 3× on `Petersen ⊴ McGee`. -/
 def trails (G : CGraph) (nb : G.V → List G.V) (t : G.V) :
     ℕ → G.V → List (Sym2 G.V) → List (List G.V)
   | 0, _, _ => []
   | n + 1, u, avoid =>
-    (if G.Adj u t && !avoid.contains s(u, t) then [[t]] else []) ++
-      ((nb u).filter fun w ↦ !avoid.contains s(u, w)).flatMap fun w ↦
+    (if (nb u).contains t && !containsEdge avoid u t then [[t]] else []) ++
+      ((nb u).filter fun w ↦ !containsEdge avoid u w).flatMap fun w ↦
         (trails G nb t n w (s(u, w) :: avoid)).map (w :: ·)
 
 /-- **Every trail is enumerated**: a run from `u` to `t` short enough, repeating no edge and using
@@ -144,14 +172,17 @@ theorem mem_trails {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = tru
     rw [chainEnd] at hend
     rw [edgeList] at hnd havoid
     rw [trails]
+    simp only [containsEdge_eq_contains]
     have hfirst : s(u, w) ∉ avoid := havoid _ (List.mem_cons_self ..)
     cases q with
     | nil =>
       rw [chainEnd] at hend
       subst hend
       refine List.mem_append_left _ ?_
-      rw [if_pos (by simp only [Bool.and_eq_true, hw.1, true_and, Bool.not_eq_eq_eq_not,
-        Bool.not_true, List.contains_eq_mem, decide_eq_false_iff_not]; exact hfirst)]
+      rw [if_pos (by
+        simp only [Bool.and_eq_true, List.contains_eq_mem, decide_eq_true_eq,
+          Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not]
+        exact ⟨hnb u w hw.1, hfirst⟩)]
       exact List.mem_cons_self ..
     | cons z q' =>
       refine List.mem_append_right _ (List.mem_flatMap.mpr ⟨w, ?_, ?_⟩)

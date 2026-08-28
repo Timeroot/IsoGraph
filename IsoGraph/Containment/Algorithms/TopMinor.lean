@@ -74,12 +74,13 @@ variable {G H : CGraph}
 `u`, whose last is `t`, staying clear of `avoid` until then.  Only completeness matters — a caller
 checks what it is handed — so nothing here has to be proved sound.
 
-`nb u` is the neighbours of `u`, and it is the only thing this asks of `G`; completeness needs
-only that it *contain* them.  See `CGraph.searchTop` for where the list comes from. -/
+`nb u` is the neighbours of `u`, and it is all this asks of `G` — the graph itself is not looked
+at; completeness needs only that `nb u` *contain* the neighbours.  See `CGraph.searchTop` for where
+the list comes from. -/
 def routes (G : CGraph) (nb : G.V → List G.V) (t : G.V) : ℕ → G.V → List G.V → List (List G.V)
   | 0, _, _ => []
   | n + 1, u, avoid =>
-    (if G.Adj u t then [[t]] else []) ++
+    (if (nb u).contains t then [[t]] else []) ++
       ((nb u).filter fun w ↦ !avoid.contains w && w != t).flatMap fun w ↦
         (routes G nb t n w (w :: avoid)).map (w :: ·)
 
@@ -102,7 +103,7 @@ theorem mem_routes {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = tru
     rcases q.eq_nil_or_concat' with rfl | ⟨q', z, rfl⟩
     · rw [chainEnd] at hend
       subst hend
-      exact List.mem_append_left _ (by rw [if_pos hw.1]; simp)
+      exact List.mem_append_left _ (by rw [if_pos (by simpa using hnb u w hw.1)]; simp)
     · have hdrop : (w :: (q' ++ [z])).dropLast = w :: q' := by
         rw [← List.cons_append, List.dropLast_concat]
       have hwq : w ∉ q' ++ [z] := (List.nodup_cons.mp (List.nodup_cons.mp hnd).2).1
