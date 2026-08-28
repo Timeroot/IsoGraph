@@ -150,22 +150,26 @@ McKay-style individualisation–refinement.
 
 ## Numbers
 
-`lake exe isobench` on a (contended) 4-core cloud VM, best of 3, canonicalisation only:
+`lake exe isobench` on an idle 64-core cloud VM, best of 3, canonicalisation only:
 
 ```
-G(50, 1/2)      0.47 ms      G(1000, 1/2)     213 ms      K_100        227 ms
-G(100, 1/2)     1.9 ms       G(1000, 1/100)    38 ms      K_150        870 ms
-G(200, 1/2)     7.5 ms       C_1000           128 ms      Q_8           25 ms
-G(500, 1/2)    49 ms         random tree 500  363 ms      Paley 101    7.9 ms
-3-reg 100      28 ms         3-reg 500       1152 ms      rook 10x10   9.6 ms
+G(50, 1/2)      0.36 ms      G(1000, 1/2)      172 ms      K_100         145 ms
+G(100, 1/2)      1.5 ms      G(1000, 1/100)     12 ms      K_150         530 ms
+G(200, 1/2)      6.0 ms      C_1000             42 ms      Q_8           9.0 ms
+G(500, 1/2)       40 ms      random tree 500    87 ms      Paley 101     5.9 ms
+3-reg 100         17 ms      3-reg 500         571 ms      rook 10x10    5.5 ms
 ```
 
 The bar in the original request was "a random graph on 50 vertices, much better than trying all
 50! permutations"; 50! ≈ 3·10^64, and this takes under a millisecond.
 
-Those are compiled. Driven through the quotient (`CGraph.canon`, in Lean's *interpreter*, at
-elaboration time) the same code is ~60× slower but scales the same way: G(50) 52 ms, G(100) 242 ms,
-G(200) 832 ms, and `G.canonicalize` costs one extra search rather than one per query.
+Those are compiled, and with `precompileModules` that is very nearly what elaboration runs too.
+Driven through the quotient (`CGraph.canon`) by a `#eval` in a module Lake builds, `K_100` takes
+163 ms against the binary's 148 ms: the search itself is the shared library either way, and the
+10% is the interpreted wrapper around it. What the flag is worth shows up when it cannot apply —
+elaborating the same file with `lake env lean`, which does not load the precompiled artifacts,
+takes 17.8 seconds, 120× slower. `G.canonicalize` costs one extra search rather than one per
+query.
 
 Highly symmetric graphs (`K_n`, unions of small cliques) are the weak spot: the automorphisms the
 search harvests there are transposition-like, so it needs `Θ(n²)` nodes. Real nauty has the same
