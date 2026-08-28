@@ -691,7 +691,7 @@ def candTop (H G : CGraph) (hs : List H.V) (rank : G.V → ℕ) (pairs : List (H
     Task H → Asg H G → List (List G.V)
   | .place x, pre =>
     let used := usedPlace H G hs x pre
-    let lo := (symLo H G rank pairs x (branches pre)).foldl max 0
+    let lo := (symLo H rank pairs x (branches pre)).foldl max 0
     let dx := H.deg x
     (rs.filter fun p ↦ decide (dx ≤ p.deg) && !used.contains p.vert &&
       decide (lo ≤ rank p.vert)).map fun p ↦ [p.vert]
@@ -773,7 +773,7 @@ theorem mem_candTop {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
         · rw [if_pos ho, Option.some_inj] at hrt
           exact runOk_interior (goalTop_runOk hg (mem_runs_of_subset hsub hr)) hbu (hrt ▸ hwt)
         · rw [if_neg ho] at hrt; exact absurd hrt.symm (by simp)
-    have hlo : ∀ m ∈ symLo H G rank pairs x (branches pre), m ≤ rank u := by
+    have hlo : ∀ m ∈ symLo H rank pairs x (branches pre), m ≤ rank u := by
       intro m hm
       obtain ⟨z, hz, hmz⟩ := List.mem_filterMap.mp hm
       cases hf : (branches pre).find? (fun q ↦ decide (q.1 = z)) with

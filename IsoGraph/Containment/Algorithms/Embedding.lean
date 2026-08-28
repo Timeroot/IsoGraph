@@ -38,11 +38,11 @@ Five things keep it from being the naive enumeration of all `card G.V ^ card H.V
   one; for an ordinary subgraph only the edges of `H` constrain anything.
 * **Degrees.**  A vertex of `H` of degree `d` can only go to a vertex of `G` of degree at least
   `d`.  This one is not a property of the partial assignment but of the whole embedding, so it
-  lives in `goalAsg` and is projected out of it in `mem_candList`.
+  lives in `goalAsg` and is projected out of it in `mem_candRow`.
 * **Symmetry.**  Interchangeable vertices of `H` — `Algorithms/Twins.lean` — are made to take
   their images in increasing order of `CGraph.hostRank`, so that of the `|C|!` embeddings a class
   of size `|C|` admits, exactly one is looked for.  Like the degree test this is a condition on
-  the whole embedding, `CGraph.sortedAsg` in `goalAsg`, and `mem_candList` projects it out as the
+  the whole embedding, `CGraph.sortedAsg` in `goalAsg`, and `mem_candRow` projects it out as the
   interval `CGraph.symLo`–`CGraph.symHi` the next image has to fall in.
 * **Room to finish.**  Once a class is ordered, the images of the vertices still to come in it are
   all distinct and all outrank the one being placed now, so `a`'s image has to leave
@@ -51,26 +51,30 @@ Five things keep it from being the naive enumeration of all `card G.V ^ card H.V
   edges it is worth more than everything else here put together.  `rank_add_tailCount_lt` is the
   proof that a genuine embedding satisfies it.
 
-The candidates a node even looks at are cut down before any of the tests run.  `CGraph.preAdj`
-and `CGraph.preOther` sort the assignments already made into the images of `a`'s neighbours and
-the images to test against — a question about `H` alone, so it is asked once at the node rather
-than once per candidate — and if `a` has a neighbour already placed at `u`, the candidates are
-read straight off `u`'s row of the adjacency table rather than filtered out of all of `G`.  That
-is sound for both relations, since an edge of `H` is an edge of `G` under either one.  It is not
-extra pruning — the consistency test would reject the others anyway — but it is the difference
-between a node costing `card G.V` and costing the degree of `u`, and what comes out of `u`'s row
-needs no further testing against `u`.  For the same reason the pool is cut off below
-`symLo` with a `dropWhile` before it is filtered: `rowList` happens to list the rows in rank
-order, so the rows below the floor are a prefix.  Soundness does not depend on that happening —
-everything a `dropWhile` drops has too low a rank to be the answer whatever the order.
+The candidates a node even looks at are cut down before any of the tests run.  If `a` has a
+neighbour already placed at `u` — the *pivot* — the candidates are read straight off `u`'s entry of
+`CGraph.nbrRows` rather than filtered out of all of `G`.  That is sound for both relations, since
+an edge of `H` is an edge of `G` under either one.  It is not extra pruning — the consistency test
+would reject the others anyway — but it is the difference between a node costing `card G.V` and
+costing the degree of `u`.  For the same reason the pool is cut off below `symLo` with a
+`dropWhile` before it is filtered: `rowList` happens to list the rows in rank order, so the rows
+below the floor are a prefix.  Soundness does not depend on that happening — everything a
+`dropWhile` drops has too low a rank to be the answer whatever the order.
 
-`CGraph.adjTable` and `CGraph.Row` are what make that cheap.  Everything the search asks about a
-vertex of `G` is tabulated once, before the search starts: its degree, its neighbours, and the
-rows of its neighbours.  This matters more than it looks.  For a graph presented by an edge list —
-which is how most of the named graphs here are built — `G.Adj` is a scan of that list, and the
-innermost loop of the search asks for adjacency once per placed vertex per candidate per node;
-reading it off the candidate's own neighbour list instead took the running time of a
-representative search down by an order of magnitude.
+`CGraph.Row` is what makes that cheap.  Everything the search asks about a vertex of `G` is
+tabulated once, before the search starts: its degree, its rank, and its neighbours as a bitmask
+over ranks.  This matters more than it looks.  For a graph presented by an edge list — which is how
+most of the named graphs here are built — `G.Adj` is a scan of that list, and the innermost loop of
+the search asks for adjacency once per placed vertex per candidate per node.
+
+The search then carries rows rather than vertices, and collects the images already placed into two
+bitmasks — `CGraph.usedMask` and `CGraph.adjMask`, built once at the node, where the candidate is
+what varies.  Injectivity, adjacency to every placed neighbour, and non-adjacency to every other
+placed image are then three machine words against the candidate's own mask, in place of a pass over
+the assignment per candidate.  Together with the tabulation this is 2.8× on `C₂₄ ⊑ McGee` and 2.4×
+on `C₂₅ ⊆ grid 5×5`.  What the search returns is a list of rows, and `searchAsg` maps `Row.vert`
+over it; that the rows are the rows of their own vertices is a conjunct of `CGraph.goalRow`, which
+`Backtrack.dfs` evaluates only at a leaf.
 
 The two things the search asks about a vertex of the *pattern* are tabulated for the same reason
 and by the same means, `Backtrack.tabulate`: its degree, which is a count along the enumeration,
@@ -263,7 +267,7 @@ def tailCount : ℕ → List (H.V × H.V) → H.V → ℕ
 
 /-- What the search is looking for: a consistent assignment that also respects the
 symmetry-breaking order and the room that order needs above each image.  Neither is local to a
-pair, which is why they are stated here rather than in `compat`; `mem_candList` projects them back
+pair, which is why they are stated here rather than in `compat`; `mem_candRow` projects them back
 out for use as a filter.  `n` is the number of vertices of `G`.
 
 The degree bound the candidate list also filters on is *not* here, though it is a necessary
@@ -274,84 +278,85 @@ def goalAsg (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (asg : Li
     sortedAsg H G rank pairs asg &&
     asg.all fun p ↦ decide (rank p.2 + tailCount H pairs.length pairs p.1 < n)
 
-/-- The images of the already-placed neighbours of `a`.  Every candidate for `a` has to be
-adjacent to all of them, and to the first of them in particular — which is why the pool of
-candidates can be its neighbourhood rather than all of `G`.
-
-Which vertices of `H` these are is a question about the *pattern*, so it does not depend on the
-candidate and is asked once at the node.  Asking it per candidate instead, inside the filter, is
-what `candKeep` used to do; the filter runs over the whole pool. -/
-def preAdj (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
-  (pre.filter fun q ↦ H.Adj a q.1).map Prod.snd
-
-/-- The images of the already-placed *non*-neighbours of `a`: what the candidate has to differ
-from, and — for an induced search — stay non-adjacent to. -/
-def preNon (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
-  (pre.filter fun q ↦ !H.Adj a q.1).map Prod.snd
-
-theorem mem_preAdj {a : H.V} {pre : List (H.V × G.V)} {u : G.V} (h : u ∈ preAdj H G a pre) :
-    ∃ x, (x, u) ∈ pre ∧ H.Adj a x = true := by
-  obtain ⟨q, hq, rfl⟩ := List.mem_map.mp h
-  obtain ⟨hq, ha⟩ := List.mem_filter.mp hq
-  exact ⟨q.1, hq, ha⟩
-
-theorem mem_preNon {a : H.V} {pre : List (H.V × G.V)} {u : G.V} (h : u ∈ preNon H G a pre) :
-    ∃ x, (x, u) ∈ pre ∧ H.Adj a x = false := by
-  obtain ⟨q, hq, rfl⟩ := List.mem_map.mp h
-  obtain ⟨hq, ha⟩ := List.mem_filter.mp hq
-  exact ⟨q.1, hq, by simpa using ha⟩
-
-/-- The images a candidate is tested against.  A non-induced search asks nothing of the images of
-`a`'s neighbours beyond being different from the candidate, and injectivity is asked of every
-placed vertex alike, so it can skip the sort and take them all — one pass over `pre` at the node
-instead of two, and no query of the pattern's adjacency in either. -/
-def preOther (a : H.V) (pre : List (H.V × G.V)) : List G.V :=
-  if ind then preNon H G a pre else pre.map Prod.snd
-
-theorem mem_preOther {a : H.V} {pre : List (H.V × G.V)} {u : G.V}
-    (h : u ∈ preOther H G ind a pre) : ∃ x, (x, u) ∈ pre ∧ (ind = true → H.Adj a x = false) := by
-  rw [preOther] at h
-  split at h
-  · obtain ⟨x, hx, hax⟩ := mem_preNon H G h
-    exact ⟨x, hx, fun _ ↦ hax⟩
-  · obtain ⟨q, hq, rfl⟩ := List.mem_map.mp h
-    exact ⟨q.1, hq, by simp_all⟩
-
 /-! ## Tabulating the host
 
-Everything the search asks about a vertex of `G` — its degree, and whether it is adjacent to some
-other vertex — is tabulated before the search starts.  This matters more than it looks: for a
-graph presented by an edge list, `G.Adj` is a scan of that list, and the innermost loop of the
-search calls it once per already-placed vertex per candidate per node. -/
+Everything the search asks about a vertex of `G` — its degree, its rank, and whether it is adjacent
+to some other vertex — is tabulated before the search starts.  This matters more than it looks: for
+a graph presented by an edge list, `G.Adj` is a scan of that list, and the innermost loop of the
+search would otherwise call it once per already-placed vertex per candidate per node.
 
-/-- A vertex of `G` with its degree and its neighbours attached. -/
+The adjacency goes in as a *bitmask over ranks*, and that is what the search reads.  A candidate has
+to be adjacent to the images of the neighbours of `a` already placed, and — for an induced search —
+to none of the other images; with the images collected into masks once at the node, each of those
+questions is a single `&&&` against the candidate's own mask, where a list of images costs a
+membership test per image. -/
+
+/-- The ranks of a list of vertices, as a bitmask: bit `k` is set exactly when `l` contains the
+vertex `gs` lists at rank `k`. -/
+def mask (gs l : List G.V) : ℕ := l.foldl (fun m u ↦ m ||| (1 <<< gs.idxOf u)) 0
+
+theorem testBit_foldl_or {γ : Type} (f : γ → ℕ) (k : ℕ) (l : List γ) (a : ℕ) :
+    (l.foldl (fun m q ↦ m ||| f q) a).testBit k
+      = (a.testBit k || l.any fun q ↦ (f q).testBit k) := by
+  induction l generalizing a with
+  | nil => simp
+  | cons q t ih => rw [List.foldl_cons, ih, Nat.testBit_or]; simp [Bool.or_assoc]
+
+theorem testBit_foldl_or_if {γ : Type} (keep : γ → Bool) (f : γ → ℕ) (k : ℕ) (l : List γ) (a : ℕ) :
+    (l.foldl (fun m q ↦ if keep q then m ||| f q else m) a).testBit k
+      = (a.testBit k || l.any fun q ↦ keep q && (f q).testBit k) := by
+  induction l generalizing a with
+  | nil => simp
+  | cons q t ih =>
+    rw [List.foldl_cons, ih]
+    cases hq : keep q <;> simp [hq, Nat.testBit_or, Bool.or_assoc]
+
+theorem testBit_mask {gs l : List G.V} {k : ℕ} :
+    (mask G gs l).testBit k = l.any fun u ↦ decide (gs.idxOf u = k) := by
+  rw [mask, testBit_foldl_or]
+  simp [Nat.one_shiftLeft, Nat.testBit_two_pow]
+
+/-- A vertex of `G` with everything the search asks about it attached. -/
 structure Row where
   /-- The vertex. -/
   vert : G.V
   /-- An upper bound for its degree: how many times a neighbour of it is listed in `gs`, which is
   the degree exactly when `gs` lists every vertex once.  The searches only ever ask whether the
   degree is *large enough* for the vertex being placed, so an overestimate is sound; and the count
-  is the length of `nbrs`, which is already being built, where `SimpleGraph.degree` builds
+  is the length of a list that is being built anyway, where `SimpleGraph.degree` builds
   `Finset.univ` and filters it — fifty times dearer on a six-vertex graph, and this runs once per
   vertex per search. -/
   deg : ℕ
-  /-- Its neighbours. -/
-  nbrs : List G.V
   /-- Its position in `gs`: the rank symmetry breaking orders images by.  Tabulated because
   `List.idxOf` is a scan, and the innermost loop would otherwise run one per candidate per node. -/
   rk : ℕ
+  /-- Its neighbours as a bitmask over ranks, `CGraph.mask`.  Both of the adjacency questions a
+  candidate has to answer are one machine word against this. -/
+  nb : ℕ
+  /-- `1 <<< rk`: the vertex's own bit, ready to be folded into a mask of the images already
+  placed.  Stored rather than shifted, because `Nat.shiftLeft` is the one `Nat` bitwise operation
+  with no small-number fast path — it goes through GMP whatever it is given, and costs about a
+  hundred times the `|||` it feeds.  A search that took the shift at every node would spend more on
+  building the masks than the masks save. -/
+  bit : ℕ
+  deriving DecidableEq
 
 /-- The row of a vertex, relative to a list `gs` of all the vertices. -/
 def row (gs : List G.V) (v : G.V) : Row G :=
   let nbrs := gs.filter (G.Adj v)
-  ⟨v, nbrs.length, nbrs, gs.idxOf v⟩
+  let rk := gs.idxOf v
+  ⟨v, nbrs.length, rk, mask G gs nbrs, 1 <<< rk⟩
 
-theorem row_nbrs_contains {gs : List G.V} (hgs : ∀ v, v ∈ gs) (v u : G.V) :
-    (row G gs v).nbrs.contains u = G.Adj v u := by
-  rw [Bool.eq_iff_iff, List.contains_iff_mem]
-  show u ∈ gs.filter (G.Adj v) ↔ _
-  rw [List.mem_filter]
-  exact ⟨fun h ↦ h.2, fun h ↦ ⟨hgs u, h⟩⟩
+/-- **The neighbour mask says what the adjacency says**: bit `k` of a row is set exactly when the
+vertex `gs` lists at rank `k` is a neighbour. -/
+theorem testBit_row_nb {gs : List G.V} (hgs : ∀ v, v ∈ gs) (v u : G.V) :
+    (row G gs v).nb.testBit (gs.idxOf u) = G.Adj v u := by
+  show (mask G gs (gs.filter (G.Adj v))).testBit (gs.idxOf u) = _
+  rw [testBit_mask, Bool.eq_iff_iff, List.any_eq_true]
+  refine ⟨fun ⟨w, hw, hwu⟩ ↦ ?_, fun h ↦ ⟨u, List.mem_filter.mpr ⟨hgs u, h⟩, by simp⟩⟩
+  rw [decide_eq_true_eq] at hwu
+  rw [← (List.idxOf_inj (hgs w)).mp hwu]
+  exact (List.mem_filter.mp hw).2
 
 /-- **The tabulated degree is an upper bound for the real one**, which is the direction the degree
 prune needs: a vertex offered as an image has `Row.deg` at least the degree asked of it. -/
@@ -365,111 +370,105 @@ theorem degree_le_row_deg {gs : List G.V} (hgs : ∀ v, v ∈ gs) (v : G.V) :
 /-- Every vertex of `G` as a row. -/
 def rowList (gs : List G.V) : List (Row G) := gs.map (row G gs)
 
-/-- The adjacency table built from a row list already in hand.  Taking the rows as an argument is
-what lets `searchAsgFast` build them once and use them both as the candidate pool and here;
-building them twice is a quarter of what a small search costs. -/
-def adjTableOf (rs : List (Row G)) (gs : List G.V) : List (G.V × List (Row G)) :=
-  gs.map fun v ↦ (v, rs.filter fun p ↦ G.Adj v p.vert)
+/-- The rows of each vertex's neighbours, indexed by rank: entry `k` of `nbrRows (rowList G gs)`
+is the neighbourhood of the vertex `gs` lists at rank `k`.
 
-/-- Every vertex of `G` paired with the rows of its neighbours: the adjacency list, tabulated
-once.  The search never scans `G` for the neighbours of a vertex, and — for a sparse `G` — never
-looks at more than a handful of candidates at a node. -/
-def adjTable (gs : List G.V) : List (G.V × List (Row G)) := adjTableOf G (rowList G gs) gs
+With a neighbour of `a` already placed, the candidates for `a` come off that entry rather than out
+of all of `G` — the difference between a node costing `card G.V` and costing one degree — and
+indexing by the rank the row already carries keeps the lookup an array index, where a lookup by
+vertex is a scan of `G` or a `FinEnum.equiv`. -/
+def nbrRows (rs : List (Row G)) : Array (List (Row G)) :=
+  (rs.map fun p ↦ rs.filter fun q ↦ G.Adj p.vert q.vert).toArray
 
-/-- The row list of `adjTable` belonging to `u`. -/
-def adjRow (u : G.V) : List (G.V × List (Row G)) → Option (List (Row G))
-  | [] => none
-  | (v, l) :: rest => if u = v then some l else adjRow u rest
+theorem getD_toArray {γ : Type} (l : List γ) (k : ℕ) (d : γ) :
+    l.toArray.getD k d = (l[k]?).getD d := by
+  rw [Array.getD]
+  split
+  · rename_i h
+    rw [show l.toArray.getInternal k h = l.toArray[k] from rfl, List.getElem_toArray,
+      List.getElem?_eq_getElem (by simpa using h), Option.getD_some]
+  · rename_i h
+    rw [List.getElem?_eq_none (by simpa using h), Option.getD_none]
 
-theorem adjRow_map {f : G.V → List (Row G)} {gs : List G.V} {u : G.V}
-    {l : List (Row G)} (h : adjRow G u (gs.map fun v ↦ (v, f v)) = some l) : l = f u := by
-  induction gs with
-  | nil => simp [adjRow] at h
-  | cons v rest ih =>
-    rw [List.map_cons, adjRow] at h
-    split at h
-    · rename_i he; subst he; exact (Option.some_inj.mp h).symm
-    · exact ih h
-
-theorem mem_adjRow {gs : List G.V} (hgs : ∀ v, v ∈ gs) {u b : G.V} {l : List (Row G)}
-    (h : adjRow G u (adjTable G gs) = some l) (hb : G.Adj u b = true) : row G gs b ∈ l := by
-  rw [adjTable, adjTableOf] at h
-  rw [adjRow_map G h]
+/-- **The table has every neighbour of the vertex it is indexed by.** -/
+theorem mem_nbrRows {gs : List G.V} (hgs : ∀ v, v ∈ gs) {u b : G.V} (hb : G.Adj u b = true) :
+    row G gs b ∈ (nbrRows G (rowList G gs)).getD (gs.idxOf u) [] := by
+  rw [nbrRows, getD_toArray, rowList, List.map_map, List.getElem?_map,
+    List.getElem?_idxOf (hgs u)]
   exact List.mem_filter.mpr ⟨List.mem_map.mpr ⟨b, hgs b, rfl⟩, hb⟩
 
-/-- **The table has a row for every vertex it was built from.**  This is what lets the search read
-the adjacency table out of a `Backtrack.tabulate` array instead of scanning the association list:
-for a table built from a complete vertex list the lookup never fails, so the array version answers
-the same question. -/
-theorem adjRow_eq_some {f : G.V → List (Row G)} {u : G.V} :
-    ∀ {gs : List G.V}, u ∈ gs → adjRow G u (gs.map fun v ↦ (v, f v)) = some (f u) := by
-  intro gs
-  induction gs with
-  | nil => exact fun h ↦ absurd h (by simp)
-  | cons v rest ih =>
-    intro h
-    rw [List.map_cons, adjRow]
-    split
-    · next he => rw [he]
-    · next he => exact ih ((List.mem_cons.mp h).resolve_left he)
+/-- What the search is looking for, on an assignment that carries rows: `goalAsg` of the vertices
+the rows name, together with each row being the row of its own vertex.
+
+That second conjunct is what lets the pruning read a candidate's degree, rank and neighbour mask
+off the row it is handed and still know they are the vertex's own.  The search only ever offers
+rows out of `rowList`, but `Backtrack.dfs_eq_none_keys` shows `mem_candRow` an arbitrary one, so it
+has to be said somewhere; saying it here costs nothing, since `goalRow` is asked only at a leaf and
+a leaf the pruning let through is already all but a solution. -/
+def goalRow (gs : List G.V) (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V))
+    (asg : List (H.V × Row G)) : Bool :=
+  asg.all (fun q ↦ decide (q.2 = row G gs q.2.vert)) &&
+    goalAsg H G ind rank n pairs (asg.map fun q ↦ (q.1, q.2.vert))
 
 /-! ## The candidates at a node -/
 
 /-- The ranks symmetry breaking makes `a`'s image rank at or above: the images of the vertices
 already placed that come just before `a` in a class.  Computed once at a node, since it does not
-depend on the candidate. -/
-def symLo (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × G.V)) :
+depend on the candidate.
+
+The images are taken through an arbitrary `rk`, so that a search carrying whole rows can read the
+rank off the row rather than ask `G` for it. -/
+def symLo {γ : Type} (rk : γ → ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × γ)) :
     List ℕ :=
   (symBefore H pairs a).filterMap fun x ↦
-    (pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rank q.2
+    (pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rk q.2
 
 /-- And the ranks it must stay at or below: the images of those that come just after. -/
-def symHi (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × G.V)) :
+def symHi {γ : Type} (rk : γ → ℕ) (pairs : List (H.V × H.V)) (a : H.V) (pre : List (H.V × γ)) :
     List ℕ :=
   (symAfter H pairs a).filterMap fun x ↦
-    (pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rank q.2
+    (pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rk q.2
 
-/-- The test a candidate has to pass to be worth trying as the image of `a`: its degree must be at
-least `da = H.toSimple.degree a`, its rank must leave `tl` ranks free below `n` and lie between
-`lo` and `hi`, it must be adjacent to every image in `nbrs`, and it must differ from — and for an
-induced search be non-adjacent to — every image in `others`.  This is `compat` against all of
-`pre`, except that the pattern's own adjacency has been decided in advance by `preAdj`/`preNon`,
-and adjacency in `G` is read off the candidate's neighbour list rather than out of `G.Adj`.
+/-- The ranks of the images already placed, as a bitmask.  Injectivity is then one bit test against
+it, where testing the candidate against the placed images in turn is a pass over the assignment. -/
+def usedMask (pre : List (H.V × Row G)) : ℕ := pre.foldl (fun m q ↦ m ||| q.2.bit) 0
+
+/-- The ranks of the images of the already-placed *neighbours* of `a`, as a bitmask.  A candidate
+has to be adjacent to all of them, which is one `&&&` against its own neighbour mask; and the first
+of them is the pivot, whose entry of `nbrRows` is the pool the candidates come from.
+
+Which vertices of `H` these are is a question about the *pattern*, so it does not depend on the
+candidate and is asked once at the node.
+
+For an induced search the *other* images matter too, and they are `usedMask ^^^ adjMask`: the two
+masks are built from the same assignment, so every bit of the second is a bit of the first, and the
+exclusive or is exactly the images placed at non-neighbours. -/
+def adjMask (a : H.V) (pre : List (H.V × Row G)) : ℕ :=
+  pre.foldl (fun m q ↦ if H.Adj a q.1 then m ||| q.2.bit else m) 0
+
+theorem testBit_usedMask {pre : List (H.V × Row G)} {k : ℕ} :
+    (usedMask H G pre).testBit k = pre.any fun q ↦ q.2.bit.testBit k := by
+  rw [usedMask, testBit_foldl_or]; simp
+
+theorem testBit_adjMask {a : H.V} {pre : List (H.V × Row G)} {k : ℕ} :
+    (adjMask H G a pre).testBit k = pre.any fun q ↦ H.Adj a q.1 && q.2.bit.testBit k := by
+  rw [adjMask, testBit_foldl_or_if]; simp
+
+/-- The test a candidate row has to pass to be worth trying as the image of `a`: its degree must be
+at least `da = H.toSimple.degree a`, its rank must leave `tl` ranks free below `n` and lie between
+`floor` and `ceil`, it must not be an image already used, it must be adjacent to every image in
+`am`, and — for an induced search — to none of the images in `nm`.  This is `compat` against all of
+`pre`, except that the pattern's own adjacency has been decided in advance at the node and folded
+into the two masks, and adjacency in `G` is read off the candidate's own mask rather than out of
+`G.Adj`.
 
 Everything is passed in so that the pool is scanned with it fixed, and the tests are in increasing
-order of cost: the four that are arithmetic on numbers already tabulated reject most of the pool
-before either list of images is walked, and each entry of those lists costs a scan of the
-candidate's neighbours.
-
-No injectivity test guards `nbrs`: `G` has no loops, so a candidate adjacent to `u` is not `u`.
-Nor would one be needed for soundness — every test here is a prune, and `goalAsg` re-checks the
-lot at the leaf. -/
-def candKeep (nbrs others : List G.V) (da : ℕ) (lo hi : List ℕ) (tl n : ℕ) (p : Row G) : Bool :=
-  decide (da ≤ p.deg) && decide (p.rk + tl < n) &&
-    lo.all (fun m ↦ decide (m ≤ p.rk)) && hi.all (fun m ↦ decide (p.rk ≤ m)) &&
-    nbrs.all (fun u ↦ p.nbrs.contains u) &&
-    others.all (fun u ↦ decide (p.vert ≠ u) && (!ind || !p.nbrs.contains u))
-
-theorem candKeep_row {gs : List G.V} (hgs : ∀ v, v ∈ gs) {nbrs others : List G.V}
-    {da : ℕ} {lo hi : List ℕ} {tl n : ℕ} {b : G.V}
-    (hnb : ∀ u ∈ nbrs, G.Adj b u = true)
-    (hot : ∀ u ∈ others, b ≠ u ∧ edgeOk ind false (G.Adj b u) = true)
-    (hd : da ≤ G.toSimple.degree b)
-    (hlo : ∀ m ∈ lo, m ≤ gs.idxOf b) (hhi : ∀ m ∈ hi, gs.idxOf b ≤ m)
-    (hcap : gs.idxOf b + tl < n) :
-    candKeep G ind nbrs others da lo hi tl n (row G gs b) = true := by
-  simp only [candKeep, Bool.and_eq_true]
-  refine ⟨⟨⟨⟨⟨decide_eq_true (hd.trans (degree_le_row_deg G hgs b)),
-    by simpa [row] using hcap⟩, by simpa [row] using hlo⟩, by simpa [row] using hhi⟩, ?_⟩, ?_⟩
-  · rw [List.all_eq_true]
-    intro u hu
-    rw [row_nbrs_contains G hgs]
-    exact hnb u hu
-  · rw [List.all_eq_true]
-    intro u hu
-    obtain ⟨hne, hok⟩ := hot u hu
-    rw [Bool.and_eq_true, row_nbrs_contains G hgs]
-    exact ⟨decide_eq_true (by simpa [row] using hne), by simpa [edgeOk] using hok⟩
+order of cost: the four comparisons on numbers already tabulated reject most of the pool before a
+mask is touched.  For a non-induced search `nm` is zero and the last test is free. -/
+def rowKeep (used am nm da floor ceil tl n : ℕ) (p : Row G) : Bool :=
+  decide (da ≤ p.deg) && decide (p.rk + tl < n) && decide (floor ≤ p.rk) &&
+    decide (p.rk ≤ ceil) && !used.testBit p.rk &&
+    (am &&& p.nb == am) && (nm &&& p.nb == 0)
 
 /-- Dropping a prefix of the pool is safe as long as everything dropped fails the test the
 candidate we are looking for passes. -/
@@ -495,51 +494,22 @@ theorem foldl_max_le {l : List ℕ} {x : ℕ} :
     rw [List.foldl_cons]
     exact ih (max_le ha (h y (by simp))) fun m hm ↦ h m (by simp [hm])
 
-/-- The pool to draw candidates from, together with the images that still have to be tested
-against.  The first entry of `nbrs` is the *pivot*: its row of the adjacency table is exactly the
-vertices adjacent to it, so taking that as the pool both shrinks the pool to a neighbourhood and
-discharges the pivot's own test for everything in it.  With no placed neighbour — or no row for
-it, which cannot happen for a table built from a complete vertex list — the pool is all of `G`
-and nothing is discharged.
+theorem le_foldl_min {l : List ℕ} {x : ℕ} :
+    ∀ {a : ℕ}, x ≤ a → (∀ m ∈ l, x ≤ m) → x ≤ l.foldl min a := by
+  induction l with
+  | nil => exact fun ha _ ↦ ha
+  | cons y t ih =>
+    intro a ha h
+    rw [List.foldl_cons]
+    exact ih (le_min ha (h y (by simp))) fun m hm ↦ h m (by simp [hm])
 
-The table is taken as a function rather than as the association list it is written as: looking a
-vertex up in the list is a scan of `G` at every node, against a pool that for a sparse host is a
-handful of rows.  `searchAsgFast` hands over a `Backtrack.tabulate` of it, and `adjRow_eq_some` is
-what says the array answers as the list does. -/
-def candPool (rs : List (Row G)) (nbrOf : G.V → Option (List (Row G))) :
-    List G.V → List (Row G) × List G.V
-  | [] => (rs, [])
-  | u :: t =>
-    match nbrOf u with
-    | some l => (l, t)
-    | none => (rs, u :: t)
+/-- The rows worth trying as the image of `a`, given the assignments `pre` already made: those in
+the neighbourhood of the pivot, if a neighbour of `a` has been placed, that pass `rowKeep`.
 
-theorem mem_candPool_fst {gs : List G.V} (hgs : ∀ v, v ∈ gs)
-    {nbrOf : G.V → Option (List (Row G))}
-    (hnb : ∀ u l, nbrOf u = some l → ∀ b, G.Adj u b = true → row G gs b ∈ l)
-    {nbrs : List G.V} {b : G.V} (hb : ∀ u ∈ nbrs, G.Adj b u = true) :
-    row G gs b ∈ (candPool G (rowList G gs) nbrOf nbrs).1 := by
-  have hrs : row G gs b ∈ rowList G gs := List.mem_map.mpr ⟨b, hgs b, rfl⟩
-  cases nbrs with
-  | nil => exact hrs
-  | cons u t =>
-    rw [candPool]
-    split
-    · next l hn => exact hnb u l hn b (by rw [G.symm u b]; exact hb u (by simp))
-    · exact hrs
-
-theorem candPool_snd_subset {rs : List (Row G)} {nbrOf : G.V → Option (List (Row G))}
-    {nbrs : List G.V} : ∀ u ∈ (candPool G rs nbrOf nbrs).2, u ∈ nbrs := by
-  cases nbrs with
-  | nil => exact fun _ h ↦ h
-  | cons v t =>
-    rw [candPool]
-    split
-    · exact fun _ h ↦ List.mem_cons_of_mem _ h
-    · exact fun _ h ↦ h
-
-/-- The vertices of `G` worth trying as the image of `a`, given the assignments `pre` already
-made: those in the neighbourhood of the pivot, if there is one, that pass `candKeep`.
+The pivot's entry of `nbrRows` is exactly the vertices adjacent to it, so taking it as the pool
+shrinks the pool to a neighbourhood — sound for both relations, since an edge of `H` is an edge of
+`G` under either one.  It is not extra pruning, the mask test would reject the rest anyway, but it
+is the difference between a node costing `card G.V` and costing one degree.
 
 Symmetry breaking also puts a floor under the candidate's rank, and `rowList` lists the rows in
 rank order, so the pool is cut off below that floor before it is scanned rather than filtered
@@ -553,15 +523,20 @@ over a `Backtrack.tabulate` of each.  Neither depends on `pre`, so each is one n
 walks the chain of pairs, re-filtering all of them at every step.  Computing them where they are
 used instead costs a scan per node, which on a pattern with no edges — every vertex in one class,
 so the chain is as long as the pattern — is most of the search. -/
-def candList (rank : G.V → ℕ) (n : ℕ) (pairs : List (H.V × H.V)) (rs : List (Row G))
-    (nbrOf : G.V → Option (List (Row G))) (dg tc : H.V → ℕ) (a : H.V)
-    (pre : List (H.V × G.V)) : List G.V :=
-  let cp := candPool G rs nbrOf (preAdj H G a pre)
-  let lo := symLo H G rank pairs a pre
-  let hi := symHi H G rank pairs a pre
-  let floor := lo.foldl max 0
-  ((cp.1.dropWhile fun p ↦ decide (p.rk < floor)).filter
-    (candKeep G ind cp.2 (preOther H G ind a pre) (dg a) lo hi (tc a) n)).map Row.vert
+def candRow (n : ℕ) (pairs : List (H.V × H.V)) (rs : List (Row G))
+    (nbrTab : Array (List (Row G))) (dg tc : H.V → ℕ) (a : H.V) (pre : List (H.V × Row G)) :
+    List (Row G) :=
+  let used := usedMask H G pre
+  let am := adjMask H G a pre
+  let nm := if ind then used ^^^ am else 0
+  let floor := (symLo H Row.rk pairs a pre).foldl max 0
+  let ceil := (symHi H Row.rk pairs a pre).foldl min n
+  let da := dg a
+  let tl := tc a
+  let pool := match pre.find? fun q ↦ H.Adj a q.1 with
+    | some q => nbrTab.getD q.2.rk []
+    | none => rs
+  (pool.dropWhile fun p ↦ decide (p.rk < floor)).filter (rowKeep G used am nm da floor ceil tl n)
 
 /-! ## Reading a map off a complete assignment -/
 
@@ -704,28 +679,60 @@ theorem degree_le_of_validAsg {r : List (H.V × G.V)} (hv : validAsg H G ind r =
 
 end
 
-/-- **The pruning is sound**: a vertex that occurs in a solution is offered as a candidate.  The
+/-- **The pruning is sound**: a row that occurs in a solution is offered as a candidate.  The
 degree test the candidate list applies is not part of `goalAsg`; what makes it sound is
 `degree_le_of_validAsg`, which needs to know that the solution assigns every vertex of `H` and
-each of them once — hence `hkcov` and `hknd`, which `Backtrack.dfs_eq_none_keys` supplies. -/
-theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ}
+each of them once — hence `hkcov` and `hknd`, which `Backtrack.dfs_eq_none_keys` supplies.
+
+The row `b` is an arbitrary one, since `dfs_eq_none_keys` says nothing about where the rows in an
+assignment came from, so everything the pruning reads off it has to come out of `goalRow`'s
+canonicality conjunct first: `hcb` and `hcp` below are what make `b.rk`, `b.deg`, `b.nb` and each
+`q.2.bit` mean what the tests take them to mean. -/
+theorem mem_candRow {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ}
     (hrank : ∀ v, rank v = gs.idxOf v)
     (n : ℕ) (pairs : List (H.V × H.V)) {dg tc : H.V → ℕ} (hdg : ∀ x, dg x = H.deg x)
     (htc : ∀ x, tc x = tailCount H pairs.length pairs x) {keys : List H.V}
     (hkcov : ∀ x : H.V, x ∈ keys)
-    (hknd : keys.Nodup) (a : H.V) (pre : List (H.V × G.V))
-    (b : G.V) (l : List (H.V × G.V))
+    (hknd : keys.Nodup) (a : H.V) (pre : List (H.V × Row G))
+    (b : Row G) (l : List (H.V × Row G))
     (hk : (l ++ (a, b) :: pre).map Prod.fst = keys)
-    (h : goalAsg H G ind rank n pairs (l ++ (a, b) :: pre) = true) :
-    b ∈ candList H G ind rank n pairs (rowList G gs)
-      (fun u ↦ adjRow G u (adjTable G gs)) dg tc a pre := by
-  simp only [goalAsg, Bool.and_eq_true] at h
-  obtain ⟨⟨hv, hsort⟩, hcap⟩ := h
-  have hab : (a, b) ∈ l ++ (a, b) :: pre := by simp
-  have hpre : ∀ q ∈ pre, q ∈ l ++ (a, b) :: pre := fun q hq ↦ by simp [hq]
+    (h : goalRow H G ind gs rank n pairs (l ++ (a, b) :: pre) = true) :
+    b ∈ candRow H G ind n pairs (rowList G gs) (nbrRows G (rowList G gs)) dg tc a pre := by
+  rw [goalRow, Bool.and_eq_true] at h
+  obtain ⟨hcan, hg⟩ := h
+  rw [List.all_eq_true] at hcan
+  -- Every row in the assignment is the row of its own vertex.
+  have hcb : b = row G gs b.vert := of_decide_eq_true (hcan (a, b) (by simp))
+  have hcp : ∀ q ∈ pre, q.2 = row G gs q.2.vert :=
+    fun q hq ↦ of_decide_eq_true (hcan q (by simp [hq]))
+  have hrkb : b.rk = rank b.vert := by rw [hrank]; exact congrArg Row.rk hcb
+  have hrkp : ∀ q ∈ pre, q.2.rk = rank q.2.vert := fun q hq ↦ by
+    rw [hrank]; exact congrArg Row.rk (hcp q hq)
+  have hbitp : ∀ q ∈ pre, q.2.bit = 1 <<< q.2.rk := fun q hq ↦ by
+    rw [show q.2.bit = 1 <<< gs.idxOf q.2.vert from congrArg Row.bit (hcp q hq),
+      show q.2.rk = gs.idxOf q.2.vert from congrArg Row.rk (hcp q hq)]
+  -- The same assignment, read as one of vertices, is what `goalAsg` speaks about.
+  have hsplit : (l ++ (a, b) :: pre).map (fun q : H.V × Row G ↦ (q.1, q.2.vert))
+      = l.map (fun q : H.V × Row G ↦ (q.1, q.2.vert)) ++
+        (a, b.vert) :: pre.map (fun q : H.V × Row G ↦ (q.1, q.2.vert)) := by
+    rw [List.map_append, List.map_cons]
+  have hmem : ∀ q ∈ l ++ (a, b) :: pre,
+      (q.1, q.2.vert) ∈ l.map (fun q : H.V × Row G ↦ (q.1, q.2.vert)) ++
+        (a, b.vert) :: pre.map (fun q : H.V × Row G ↦ (q.1, q.2.vert)) :=
+    fun q hq ↦ hsplit ▸ List.mem_map.mpr ⟨q, hq, rfl⟩
+  have hkeys : (l.map (fun q : H.V × Row G ↦ (q.1, q.2.vert)) ++
+      (a, b.vert) :: pre.map (fun q : H.V × Row G ↦ (q.1, q.2.vert))).map Prod.fst = keys := by
+    rw [← hsplit, ← hk, List.map_map]; rfl
+  rw [hsplit] at hg
+  simp only [goalAsg, Bool.and_eq_true] at hg
+  obtain ⟨⟨hv, hsort⟩, hcap⟩ := hg
+  have hab := hmem (a, b) (by simp)
+  have hpre := fun (q : H.V × Row G) (hq : q ∈ pre) ↦
+    hmem q (List.mem_append_right _ (List.mem_cons_of_mem _ hq))
+  -- Symmetry breaking.
   have hsym : ∀ (x : H.V) (m : ℕ),
-      ((pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ rank q.2) = some m →
-        ∃ q ∈ pre, q.1 = x ∧ rank q.2 = m := by
+      ((pre.find? fun q ↦ decide (q.1 = x)).map fun q ↦ q.2.rk) = some m →
+        ∃ q ∈ pre, q.1 = x ∧ q.2.rk = m := by
     intro x m hx
     cases hf : pre.find? (fun q ↦ decide (q.1 = x)) with
     | none => rw [hf] at hx; exact absurd hx (by simp)
@@ -734,51 +741,128 @@ theorem mem_candList {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ
       have hq1 := List.find?_some hf
       simp only [decide_eq_true_eq] at hq1
       exact ⟨q, List.mem_of_find?_eq_some hf, hq1, Option.some.inj hx⟩
-  have hlo : ∀ m ∈ symLo H G rank pairs a pre, m ≤ rank b := by
+  have hlo : ∀ m ∈ symLo H Row.rk pairs a pre, m ≤ b.rk := by
     intro m hm
     obtain ⟨x, hx, hmx⟩ := List.mem_filterMap.mp hm
     obtain ⟨q, hq, hq1, hqm⟩ := hsym x m hmx
-    rw [← hqm]
+    rw [← hqm, hrkp q hq, hrkb]
     exact sortedAsg_le H G hsort (mem_symBefore H hx) (hpre q hq) hab hq1 rfl
-  have hhi : ∀ m ∈ symHi H G rank pairs a pre, rank b ≤ m := by
+  have hhi : ∀ m ∈ symHi H Row.rk pairs a pre, b.rk ≤ m := by
     intro m hm
     obtain ⟨x, hx, hmx⟩ := List.mem_filterMap.mp hm
     obtain ⟨q, hq, hq1, hqm⟩ := hsym x m hmx
-    rw [← hqm]
+    rw [← hqm, hrkp q hq, hrkb]
     exact sortedAsg_le H G hsort (mem_symAfter H hx) hab (hpre q hq) rfl hq1
-  have hcompat : pre.all (compat H G ind (a, b)) = true := by
+  -- Consistency with each assignment already made.
+  have hcq : ∀ q ∈ pre, compat H G ind (a, b.vert) (q.1, q.2.vert) = true := by
     have hv' := validAsg_of_append H G ind hv
     rw [validAsg, Bool.and_eq_true] at hv'
-    exact hv'.1
-  have hdeg : dg a ≤ G.toSimple.degree b := (hdg a).le.trans
-    (degree_le_of_validAsg hv (fun x ↦ by rw [hk]; exact hkcov x) (by rw [hk]; exact hknd) hab)
-  have hadj : ∀ u ∈ preAdj H G a pre, G.Adj b u = true := by
-    intro u hu
-    obtain ⟨x, hx, hax⟩ := mem_preAdj H G hu
-    have hc := List.all_eq_true.mp hcompat (x, u) hx
+    exact fun q hq ↦ List.all_eq_true.mp hv'.1 _ (List.mem_map.mpr ⟨q, hq, rfl⟩)
+  have hne : ∀ q ∈ pre, b.vert ≠ q.2.vert := fun q hq ↦ by
+    have hc := hcq q hq
     rw [compat, Bool.and_eq_true] at hc
-    exact adj_of_edgeOk hc.2 hax
-  simp only [candList]
-  refine List.mem_map.mpr ⟨row G gs b,
-    List.mem_filter.mpr ⟨mem_dropWhile
-      (mem_candPool_fst G hgs (fun _ _ hn _ hu ↦ mem_adjRow G hgs hn hu) hadj) ?_, ?_⟩, rfl⟩
-  · simp only [decide_eq_false_iff_not, Nat.not_lt, row]
-    exact foldl_max_le (Nat.zero_le _) fun m hm ↦ hrank b ▸ hlo m hm
-  · refine candKeep_row G ind hgs (fun u hu ↦ hadj u (candPool_snd_subset G u hu)) ?_ hdeg
-      (fun m hm ↦ hrank b ▸ hlo m hm) (fun m hm ↦ hrank b ▸ hhi m hm) ?_
-    · intro u hu
-      obtain ⟨x, hx, hax⟩ := mem_preOther H G ind hu
-      have hc := List.all_eq_true.mp hcompat (x, u) hx
-      rw [compat, Bool.and_eq_true] at hc
-      refine ⟨by simpa using hc.1, ?_⟩
-      cases ind
-      · simp [edgeOk]
-      · exact hax rfl ▸ hc.2
-    · rw [List.all_eq_true] at hcap
-      have := hcap (a, b) hab
-      rw [decide_eq_true_eq] at this
-      rw [htc a]
-      exact hrank b ▸ this
+    simpa using hc.1
+  have hadj : ∀ q ∈ pre, H.Adj a q.1 = true → G.Adj b.vert q.2.vert = true := fun q hq h1 ↦ by
+    have hc := hcq q hq
+    rw [compat, Bool.and_eq_true] at hc
+    exact adj_of_edgeOk hc.2 h1
+  have hnon : ind = true → ∀ q ∈ pre, H.Adj a q.1 = false → G.Adj b.vert q.2.vert = false := by
+    rintro rfl q hq h1
+    have hc := hcq q hq
+    rw [compat, Bool.and_eq_true] at hc
+    rw [← eq_of_edgeOk hc.2]
+    exact h1
+  -- Degrees and room to finish.
+  have hdeg : dg a ≤ b.deg := by
+    refine (hdg a).le.trans ((degree_le_of_validAsg hv (fun x ↦ by rw [hkeys]; exact hkcov x)
+      (by rw [hkeys]; exact hknd) hab).trans ?_)
+    rw [show b.deg = (row G gs b.vert).deg from congrArg Row.deg hcb]
+    exact degree_le_row_deg G hgs b.vert
+  have hroom : b.rk + tc a < n := by
+    rw [List.all_eq_true] at hcap
+    have hb := hcap (a, b.vert) hab
+    rw [decide_eq_true_eq] at hb
+    rw [htc a, hrkb]
+    exact hb
+  -- No image is used twice: the candidate's rank is not one of the ranks already taken.
+  have hused : (usedMask H G pre).testBit b.rk = false := by
+    rw [testBit_usedMask, Bool.eq_false_iff, ne_eq, List.any_eq_true]
+    rintro ⟨q, hq, hqb⟩
+    rw [hbitp q hq, Nat.one_shiftLeft, Nat.testBit_two_pow, decide_eq_true_eq, hrkp q hq,
+      hrkb] at hqb
+    simp only [hrank] at hqb
+    exact hne q hq ((List.idxOf_inj (hgs q.2.vert)).mp hqb).symm
+  simp only [candRow]
+  refine List.mem_filter.mpr ⟨mem_dropWhile ?_ ?_, ?_⟩
+  · -- The candidate is in the pool: the pivot's neighbourhood, or all of `G`.
+    cases hf : pre.find? (fun q ↦ H.Adj a q.1) with
+    | none => exact List.mem_map.mpr ⟨b.vert, hgs b.vert, hcb.symm⟩
+    | some q =>
+      have hq := List.mem_of_find?_eq_some hf
+      have hq1 : H.Adj a q.1 = true := by simpa using List.find?_some hf
+      show b ∈ (nbrRows G (rowList G gs)).getD q.2.rk []
+      rw [show q.2.rk = gs.idxOf q.2.vert from congrArg Row.rk (hcp q hq)]
+      exact hcb.symm ▸ mem_nbrRows G hgs (by rw [G.symm]; exact hadj q hq hq1)
+  · simp only [decide_eq_false_iff_not, Nat.not_lt]
+    exact foldl_max_le (Nat.zero_le _) hlo
+  · rw [rowKeep]
+    simp only [Bool.and_eq_true]
+    refine ⟨⟨⟨⟨⟨⟨decide_eq_true hdeg, decide_eq_true hroom⟩,
+      decide_eq_true (foldl_max_le (Nat.zero_le _) hlo)⟩,
+      decide_eq_true (le_foldl_min (le_of_lt (Nat.lt_of_le_of_lt (Nat.le_add_right _ _) hroom))
+        hhi)⟩, by rw [hused]; rfl⟩, ?_⟩, ?_⟩
+    · -- Adjacent to every image of an already-placed neighbour of `a`.
+      rw [beq_iff_eq]
+      refine Nat.eq_of_testBit_eq fun k ↦ ?_
+      rw [Nat.testBit_and]
+      cases hm : (adjMask H G a pre).testBit k with
+      | false => rfl
+      | true =>
+        rw [Bool.true_and]
+        rw [testBit_adjMask, List.any_eq_true] at hm
+        obtain ⟨q, hq, hqk⟩ := hm
+        rw [Bool.and_eq_true] at hqk
+        obtain ⟨hq1, hqb⟩ := hqk
+        rw [hbitp q hq, Nat.one_shiftLeft, Nat.testBit_two_pow, decide_eq_true_eq] at hqb
+        subst hqb
+        rw [show q.2.rk = gs.idxOf q.2.vert from congrArg Row.rk (hcp q hq),
+          show b.nb = (row G gs b.vert).nb from congrArg Row.nb hcb, testBit_row_nb G hgs]
+        exact hadj q hq hq1
+    · -- And, for an induced search, adjacent to no other image.
+      rw [beq_iff_eq]
+      by_cases hi : ind = true
+      · rw [if_pos hi]
+        refine Nat.eq_of_testBit_eq fun k ↦ ?_
+        rw [Nat.testBit_and, Nat.testBit_xor, Nat.zero_testBit]
+        cases hu : (usedMask H G pre).testBit k <;> cases hm : (adjMask H G a pre).testBit k
+        · rfl
+        · -- `adjMask`'s bits are `usedMask`'s bits, so this cannot happen.
+          rw [testBit_adjMask, List.any_eq_true] at hm
+          obtain ⟨q, hq, hqk⟩ := hm
+          rw [Bool.and_eq_true] at hqk
+          have h2 : (usedMask H G pre).testBit k = true := by
+            rw [testBit_usedMask, List.any_eq_true]; exact ⟨q, hq, hqk.2⟩
+          rw [hu] at h2
+          exact absurd h2 (by simp)
+        · show b.nb.testBit k = false
+          rw [testBit_usedMask, List.any_eq_true] at hu
+          obtain ⟨q, hq, hqb⟩ := hu
+          have hq1 : H.Adj a q.1 = false := by
+            cases hc : H.Adj a q.1 with
+            | false => rfl
+            | true =>
+              have h2 : (adjMask H G a pre).testBit k = true := by
+                rw [testBit_adjMask, List.any_eq_true]
+                exact ⟨q, hq, by rw [hc, hqb]; rfl⟩
+              rw [hm] at h2
+              exact absurd h2 (by simp)
+          rw [hbitp q hq, Nat.one_shiftLeft, Nat.testBit_two_pow, decide_eq_true_eq] at hqb
+          subst hqb
+          rw [show q.2.rk = gs.idxOf q.2.vert from congrArg Row.rk (hcp q hq),
+            show b.nb = (row G gs b.vert).nb from congrArg Row.nb hcb, testBit_row_nb G hgs]
+          exact hnon hi q hq hq1
+        · rfl
+      · rw [if_neg hi, Nat.zero_and]
 
 variable {H G ind}
 
@@ -850,52 +934,45 @@ variable (H G ind)
 def hostRank (rG : Roster G.V) (v : G.V) : ℕ := rG.toList.idxOf v
 
 /-- The assignment the search finds, before it is turned into a witness.  `ind` chooses which of
-the two relations is being looked for. -/
+the two relations is being looked for.
+
+What the backtracking search carries is rows, not vertices — that is what lets a node read a
+candidate's rank, degree and adjacency without asking `G` anything — and the vertices are read back
+off the rows at the end. -/
 def searchAsg (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let pairs := symPairs H (searchOrder H rH.toList)
-    Backtrack.dfs
-      (candList H G ind (hostRank G rG) rG.toList.length pairs (rowList G rG.toList)
-        (fun u ↦ adjRow G u (adjTable G rG.toList)) H.deg (tailCount H pairs.length pairs))
-      (goalAsg H G ind (hostRank G rG) rG.toList.length pairs)
-      (searchOrder H rH.toList) []
+    (Backtrack.dfs
+      (candRow H G ind rG.toList.length pairs (rowList G rG.toList)
+        (nbrRows G (rowList G rG.toList)) H.deg (tailCount H pairs.length pairs))
+      (goalRow H G ind rG.toList (hostRank G rG) rG.toList.length pairs)
+      (searchOrder H rH.toList) []).map fun r ↦ r.map fun q ↦ (q.1, q.2.vert)
   else none
 
 /-- What `searchAsg` runs.  Everything the two closures share is computed once — in particular the
-row list, which `adjTable` would otherwise build a second time, and the pattern's symmetry, which
+row list, which `nbrRows` would otherwise build a second time, and the pattern's symmetry, which
 costs a `twinClasses` call.  Written out rather than left to the compiler: it shares subterms
-inside a basic block, but `adjTable`'s copy of the row list is behind a call.
+inside a basic block, but `nbrRows`'s copy of the row list is behind a call.
 
-Everything looked up by a vertex is tabulated, and it is worth more than the sharing: the two
-questions about the pattern vertex and the host's rank are asked at every node rather than once,
-and the adjacency table is asked at every node against a pool that for a sparse host is a handful
-of rows.  `Backtrack.tabAt_tabulate` is what lets the specification above ask them the obvious
-way. -/
+The two questions about the pattern vertex are tabulated on top of that, and it is worth more than
+the sharing: each is asked at every node rather than once per vertex of `H`.
+`Backtrack.tabAt_tabulate` is what lets the specification above ask them the obvious way. -/
 def searchAsgFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (H.V × G.V)) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let hs := searchOrder H rH.toList
     let pairs := symPairs H hs
     let gs := rG.toList
-    let rank := Backtrack.tabAt (Backtrack.rankTable gs)
     let rs := rowList G gs
     let dg := Backtrack.tabAt (Backtrack.tabulate H.deg)
     let tc := Backtrack.tabAt (Backtrack.tabulate (tailCount H pairs.length pairs))
-    let nbrOf := Backtrack.tabAt (Backtrack.tabulate fun v ↦
-      some (rs.filter fun p ↦ G.Adj v p.vert))
-    Backtrack.dfs (candList H G ind rank gs.length pairs rs nbrOf dg tc)
-      (goalAsg H G ind rank gs.length pairs) hs []
+    (Backtrack.dfs (candRow H G ind gs.length pairs rs (nbrRows G rs) dg tc)
+      (goalRow H G ind gs (hostRank G rG) gs.length pairs) hs []).map
+      fun r ↦ r.map fun q ↦ (q.1, q.2.vert)
   else none
 
 @[csimp] theorem searchAsg_eq_searchAsgFast : @searchAsg = @searchAsgFast := by
   funext H G ind rH rG
-  have hrow : (fun u ↦ adjRow G u (adjTable G rG.toList))
-      = fun u ↦ some ((rowList G rG.toList).filter fun p ↦ G.Adj u p.vert) := by
-    funext u
-    rw [adjTable, adjTableOf]
-    exact adjRow_eq_some G (rG.mem_toList u)
-  have hrk : hostRank G rG = fun v ↦ rG.toList.idxOf v := rfl
-  simp only [searchAsg, searchAsgFast, Backtrack.tabAt_tabulate, Backtrack.tabAt_rankTable,
-    hrow, hrk]
+  simp only [searchAsg, searchAsgFast, Backtrack.tabAt_tabulate]
 
 variable {H G ind}
 
@@ -905,14 +982,20 @@ theorem searchAsg_goal {rH : Roster H.V} {rG : Roster G.V} {r : List (H.V × G.V
       = true := by
   rw [searchAsg] at h
   split at h
-  · exact Backtrack.goal_of_dfs_eq_some h
+  · obtain ⟨rows, hrows, rfl⟩ := Option.map_eq_some_iff.mp h
+    have hgr := Backtrack.goal_of_dfs_eq_some hrows
+    rw [goalRow, Bool.and_eq_true] at hgr
+    exact hgr.2
   · exact absurd h (by simp)
 
 theorem searchAsg_cov {rH : Roster H.V} {rG : Roster G.V} {r : List (H.V × G.V)}
     (h : searchAsg H G ind rH rG = some r) (x : H.V) : x ∈ r.map Prod.fst := by
   rw [searchAsg] at h
   split at h
-  · rw [Backtrack.keys_of_dfs_eq_some h]
+  · obtain ⟨rows, hrows, rfl⟩ := Option.map_eq_some_iff.mp h
+    rw [List.map_map]
+    show x ∈ rows.map Prod.fst
+    rw [Backtrack.keys_of_dfs_eq_some hrows]
     simpa using mem_searchOrder H rH.mem_toList x
   · exact absurd h (by simp)
 
@@ -975,5 +1058,23 @@ theorem goalAsg_of_emb (ind : Bool) (rank : G.V → ℕ) (n : ℕ) (pairs : List
     simp only [List.mem_reverse, List.mem_map] at hp
     obtain ⟨x, -, rfl⟩ := hp
     simpa using rank_add_tailCount_lt hinj hri hrn hne hsort pairs.length x
+
+/-- **And so does the same embedding read as an assignment of rows**, since the rows it is read as
+are by construction the rows of their own vertices. -/
+theorem goalRow_of_emb (ind : Bool) (gs : List G.V) (rank : G.V → ℕ) (n : ℕ)
+    (pairs : List (H.V × H.V)) {emb : H.V → G.V} (hinj : Function.Injective emb)
+    (hok : ∀ x y : H.V, x ≠ y → edgeOk ind (H.Adj x y) (G.Adj (emb x) (emb y)) = true)
+    (hs : List H.V) (hnd : hs.Nodup) (hri : Function.Injective rank) (hrn : ∀ v, rank v < n)
+    (hne : ∀ p ∈ pairs, p.1 ≠ p.2) (hsort : ∀ p ∈ pairs, rank (emb p.1) ≤ rank (emb p.2)) :
+    goalRow H G ind gs rank n pairs ((hs.map fun x ↦ (x, row G gs (emb x))).reverse) = true := by
+  rw [goalRow, Bool.and_eq_true]
+  refine ⟨?_, ?_⟩
+  · rw [List.all_eq_true]
+    intro q hq
+    rw [List.mem_reverse] at hq
+    obtain ⟨x, -, rfl⟩ := List.mem_map.mp hq
+    exact decide_eq_true rfl
+  · rw [List.map_reverse, List.map_map]
+    exact goalAsg_of_emb ind rank n pairs hinj hok hs hnd hri hrn hne hsort
 
 end CGraph

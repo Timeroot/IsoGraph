@@ -49,8 +49,9 @@ partial def dfsCount {α β : Type} (cand : α → List (α × β) → List β) 
 def nodes (H G : CGraph) (ind : Bool) (rH : Roster H.V) (rG : Roster G.V) (sym : Bool) : String :=
   let hs := searchOrder H rH.toList
   let prs := if sym then symPairs H hs else []
-  toString (dfsCount (candList H G ind (hostRank G rG) rG.toList.length prs (rowList G rG.toList)
-    (fun u => adjRow G u (adjTable G rG.toList)) H.deg (tailCount H prs.length prs)) hs [])
+  let rs := rowList G rG.toList
+  toString (dfsCount (candRow H G ind rG.toList.length prs rs (nbrRows G rs) H.deg
+    (tailCount H prs.length prs)) hs [])
 
 /-- Every node of the minor search tree.  For a case that comes back `none` this is exactly the
 tree the real search walks, so `ms / nodes` separates "too many nodes" from "each node is slow". -/
@@ -200,7 +201,7 @@ def main (args : List String) : IO Unit := do
     let G := path n □g path n
     let rG : Roster G.V := (Roster.fin n).prod (Roster.fin n)
     bench s!"setup grid {n}x{n}" fun _ =>
-      toString ((rowList G rG.toList).length + (adjTable G rG.toList).length + G.E)
+      toString ((rowList G rG.toList).length + (nbrRows G (rowList G rG.toList)).size + G.E)
   | "micro-degree" =>
     let m := size 1 14
     let k := size 2 55447
@@ -221,19 +222,18 @@ def main (args : List String) : IO Unit := do
     let hs := searchOrder H (Roster.fin m).toList
     -- the even-indexed cells of an odd-side grid are an independent set
     let ev := gs.zipIdx.filterMap fun p => if p.2 % 2 == 0 then some p.1 else none
-    let pre : List (H.V × G.V) := (hs.take d).zip ev
     let rs := rowList G gs
-    let nb := Backtrack.tabAt (Backtrack.tabulate fun v => some (rs.filter fun p => G.Adj v p.vert))
+    let pre : List (H.V × Row G) := (hs.take d).zip (ev.map (row G gs))
+    let nb := nbrRows G rs
     let prs := symPairs H hs
     let tc := tailCount H prs.length prs
     match hs.drop d with
     | [] => IO.println "micro-cand: d past the end of the pattern"
     | a :: _ =>
       let work := List.replicate k (a, pre)
-      bench s!"{k} × candList |pre|={pre.length} ind={ind}" fun _ =>
+      bench s!"{k} × candRow |pre|={pre.length} ind={ind}" fun _ =>
         toString (work.foldl (fun acc p =>
-          acc + (candList H G ind (hostRank G rG) gs.length prs rs nb H.deg tc p.1 p.2).length)
-          0)
+          acc + (candRow H G ind gs.length prs rs nb H.deg tc p.1 p.2).length) 0)
   | "con-km-grid" =>
     let m := size 1 4
     let n := size 2 4

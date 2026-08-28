@@ -586,7 +586,7 @@ def candImm (H G : CGraph) (hs : List H.V) (rank : G.V → ℕ) (pairs : List (H
     Task H → Asg H G → List (List G.V)
   | .place x, pre =>
     let used := usedBranch H G x pre
-    let lo := (symLo H G rank pairs x (branches pre)).foldl max 0
+    let lo := (symLo H rank pairs x (branches pre)).foldl max 0
     let dx := H.deg x
     (rs.filter fun p ↦ decide (dx ≤ p.deg) && !used.contains p.vert &&
       decide (lo ≤ rank p.vert)).map fun p ↦ [p.vert]
@@ -657,7 +657,7 @@ theorem mem_candImm {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
       · rw [if_pos hx] at hpu; exact absurd hpu (by simp)
       · rw [if_neg hx, Option.some_inj] at hpu
         exact goalImm_inj hg hbu (mem_branches_of_subset hsub hp) (fun he ↦ hx he.symm) hpu.symm
-    have hlo : ∀ m ∈ symLo H G rank pairs x (branches pre), m ≤ rank u := by
+    have hlo : ∀ m ∈ symLo H rank pairs x (branches pre), m ≤ rank u := by
       intro m hm
       obtain ⟨z, hz, hmz⟩ := List.mem_filterMap.mp hm
       cases hf : (branches pre).find? (fun q ↦ decide (q.1 = z)) with

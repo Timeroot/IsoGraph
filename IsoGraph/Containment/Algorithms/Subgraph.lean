@@ -21,26 +21,24 @@ every vertex after the first is pinned to a neighbourhood, and the consistency t
 than in the induced case, since only edges of `H` constrain anything — still cuts most of what is
 left.
 
-It is also what `CGraph.preAdj` and `CGraph.preOther` are for.  Lean evaluates arguments before it
-calls, so passing `p.nbrs.contains q.2` to `edgeOk` scans the candidate's neighbour list for every
-already-placed vertex, adjacent to `a` or not.  Sorting the placed vertices by whether they are
-neighbours of `a` — a question about the pattern, so it is asked once at the node and not once per
-candidate — leaves the other half of `candKeep` with nothing to look up when `ind` is false, which
-on a sparse pattern is nearly all of the pairs; on a benchmark that runs one node of the search
-and nothing else that is worth about 1.4×.  A non-induced search need not even sort.  Injectivity
-is all it asks of an already-placed vertex and it asks the same of every one of them, so
-`preOther` hands over all the images and walks the assignment once instead of twice, which is
-another 1.15× on the hardest case below.
+It is also what the bitmasks are for.  `CGraph.candRow` walks the assignment once at the node and
+folds it into two words — `CGraph.usedMask`, every rank already taken, and `CGraph.adjMask`, the
+ranks taken by a neighbour of the vertex being placed — and then asks each candidate only about
+its own `CGraph.Row.nb`.  With `ind := false` the third mask is zero, so the whole consistency
+test is `used.testBit p.rk`, `am &&& p.nb == am` and one dead `&&&`: three machine words whatever
+the depth, in place of a pass over the assignment per candidate.  A non-induced search need not
+even sort the placed vertices by adjacency, since it has nothing to ask about the rest of them.
+That is worth 2.4× on the hardest case below.
 
 ## What it costs
 
 Times on one shared machine, so read them as orders of magnitude.  Girth settles most of the small
 cases outright: `C₆ ⊆ McGee`, `K₄ ⊆ McGee`, `K₃,₃ ⊆ Heawood` and `Petersen ⊆ McGee` all come back
-empty in a millisecond or three, and `C₇ ⊆ McGee`, `C₈ ⊆ grid 5×5`, `grid 3×3 ⊆ grid 5×5` are
+empty in a millisecond or less, and `C₇ ⊆ McGee`, `C₈ ⊆ grid 5×5`, `grid 3×3 ⊆ grid 5×5` are
 found about as fast.  Finding a Hamiltonian cycle is barely dearer: `C₂₄ ⊆ McGee`,
-`grid 5×5 ⊆ grid 5×5` and `C₂₄ ⊆ grid 5×5` in 2 ms to 6 ms.  Proving there is none is the expensive
+`grid 5×5 ⊆ grid 5×5` and `C₂₄ ⊆ grid 5×5` in 2 ms to 3 ms.  Proving there is none is the expensive
 direction — `C₂₅ ⊆ grid 5×5`, and the 5×5 grid has no Hamiltonian cycle, the two colour classes
-being 13 and 12 — and that is about 10 s of exhaustive search.  Nothing here knows about bipartite
+being 13 and 12 — and that is about 4 s of exhaustive search.  Nothing here knows about bipartite
 parity, so that last one is the honest shape of the worst case: the search finds what is there
 quickly and works hard to rule out what is not.
 -/
@@ -112,23 +110,24 @@ theorem isEmpty_subgraphOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
   refine ⟨fun f ↦ ?_⟩
   split at h
   · -- the embedding is first relabelled to one the symmetry test accepts
+    rw [Option.map_eq_none_iff] at h
     obtain ⟨g, hg⟩ := exists_sorted_pairs (fun (f : H.SubgraphOf G) ↦ ⇑f)
       (fun f {_σ} hinj hadj ↦ f.exists_reindex hinj hadj) (hs := searchOrder H rH.toList)
       (hostRank G rG) (mem_searchOrder H rH.mem_toList) f
-    have hsol : ((searchOrder H rH.toList).map fun x ↦ (x, g x)).map Prod.fst =
-        searchOrder H rH.toList := by
+    have hsol : ((searchOrder H rH.toList).map
+        fun x ↦ (x, row G rG.toList (g x))).map Prod.fst = searchOrder H rH.toList := by
       simp [Function.comp_def]
     have hri : Function.Injective (hostRank G rG) := fun u v huv ↦
       (List.idxOf_inj (rG.mem_toList u)).mp huv
     have hrn : ∀ v, hostRank G rG v < rG.toList.length := fun v ↦
       List.idxOf_lt_length_of_mem (rG.mem_toList v)
     have hn := Backtrack.dfs_eq_none_keys
-      (mem_candList H G false rG.mem_toList (rank := hostRank G rG) (fun _ ↦ rfl) _ _
+      (mem_candRow H G false rG.mem_toList (rank := hostRank G rG) (fun _ ↦ rfl) _ _
         (fun _ ↦ rfl) (fun _ ↦ rfl)
         (keys := (searchOrder H rH.toList).reverse)
         (fun x ↦ List.mem_reverse.mpr (mem_searchOrder H rH.mem_toList x))
         (List.nodup_reverse.mpr (searchOrder_nodup H rH.toList))) h hsol (by simp)
-    rw [List.append_nil, goalAsg_of_emb false _ _ _ g.injective
+    rw [List.append_nil, goalRow_of_emb false _ _ _ _ g.injective
       (fun x y _ ↦ g.edgeOk_map x y) _ (searchOrder_nodup H rH.toList)
       hri hrn symPairs_ne hg] at hn
     exact absurd hn (by simp)
