@@ -16,7 +16,9 @@ the decidable orbit test of `Canon/Subtree.lean`.
   `c` that the refinement is about to split, fix its first vertex `v₀`, recurse below
   `path.push v₀` to generate the stabiliser of one more point, and then add coset representatives
   for the vertices `v` of `c` that the orbit test finds in the orbit of `v₀` — skipping, by
-  `orbHas`, the ones the representatives already in hand can reach, since those add nothing.
+  `orbHasFrom`, the ones the representatives already in hand can reach from `v₀`, since those add
+  nothing, and the ones they reach from a candidate the test has already refused, since those are
+  not in the orbit at all.
 * `chainArrays n adj` — the top-level call, at the root, with enough fuel for `n + 1` levels
   (`numCells_le` bounds the depth).
 * `chain_complete` — the mathematical content: every automorphism fixing `path` pointwise is a
@@ -53,11 +55,18 @@ some `h ∈ H` already carries the base point `v₀` to `v`, then a representati
 nothing: any `g` fixing the path has `g v₀ = h v₀` for some such `h`, so `h⁻¹ * g` fixes `v₀` too
 and is therefore a product of the generators below, which lie in `H` as well.
 
-So each candidate is first asked whether the generators in hand reach it — a walk over `n`
-vertices, `orbHas` — and only put to the orbit test, which searches its whole subtree, if they do
-not.  `chainStep_reaches` below is the half of this the completeness proof needs: whatever the
-orbit test accepts is reached by the level's generators, whether or not it was the vertex that
-contributed them. -/
+The candidates the test *refuses* are worth remembering for the same reason read backwards.  `H`
+consists of automorphisms fixing the path, so if `h ∈ H` carries a refused `w` to `v`, then `v` is
+in the orbit of `w`, which is not the orbit of `v₀` — and asking is again cheaper than searching.
+That case never arises on a vertex-transitive graph, where nothing is refused, and there the extra
+question costs nothing measurable; but on the Chvátal graph it removes 7 subtree searches of 10 and
+on the Tutte graph 30 of 46, which is worth 1.7 times on the first, 2.4 on the second and 2.1 on
+the McGee graph.
+
+So each candidate is first asked whether the generators in hand reach it from the base point or
+from anything already refused — one walk over `n` vertices, `orbHasFrom`, seeded with all of them
+at once — and only put to the orbit test, which searches its whole subtree, if they do not.
+`chainStep_reaches` below is what the completeness proof needs of the two rules together. -/
 
 /-- Reading `true` out of `a.set! i true` means the index is `i`, or it was `true` already. -/
 theorem set!_true_cases (a : Array Bool) (i j : Nat) (h : (a.set! i true)[j]! = true) :
@@ -73,10 +82,24 @@ theorem set!_true_cases (a : Array Bool) (i j : Nat) (h : (a.set! i true)[j]! = 
   · rw [getElem!_neg (a.setIfInBounds i true) j (by simpa using hj)] at h
     simp at h
 
-/-- Nothing but `i` is marked in `(Array.replicate n false).set! i true`. -/
-theorem replicate_set!_true {n i j : Nat}
-    (h : ((Array.replicate n false).set! i true)[j]! = true) : j = i := by
-  rcases set!_true_cases _ i j h with h' | h'
+/-- The marked set a walk starts from: the sources, and nothing else. -/
+def orbSeed (n : Nat) (src : List Nat) : Array Bool :=
+  src.foldl (fun a w => a.set! w true) (Array.replicate n false)
+
+theorem foldl_set!_true : ∀ (src : List Nat) (a : Array Bool) {j : Nat},
+    (src.foldl (fun a w => a.set! w true) a)[j]! = true → j ∈ src ∨ a[j]! = true
+  | [], _, _, h => Or.inr h
+  | w :: src, a, j, h => by
+    rw [List.foldl_cons] at h
+    rcases foldl_set!_true src _ h with h' | h'
+    · exact Or.inl (List.mem_cons_of_mem _ h')
+    · rcases set!_true_cases _ w j h' with rfl | h'
+      · exact Or.inl (List.mem_cons_self ..)
+      · exact Or.inr h'
+
+/-- Nothing but the sources is marked in `orbSeed n src`. -/
+theorem mem_of_orbSeed {n j : Nat} {src : List Nat} (h : (orbSeed n src)[j]! = true) : j ∈ src := by
+  rcases foldl_set!_true src _ h with h' | h'
   · exact h'
   · rw [Array.getElem!_eq_getD] at h'; simp [Array.getD] at h'
 
@@ -94,11 +117,11 @@ def orbSat (gs : List (Array Nat)) : Nat → Array Bool → List Nat → Array B
     let s := orbPush gs w (seen, rest)
     orbSat gs fuel s.1 s.2
 
-/-- **Do the permutations named by `gs` carry `v₀` to `v`?**  `n + 1` rounds is enough, since every
-round but the last marks a vertex; and running short would only ever answer `false`, which the
-caller is free to believe. -/
-def orbHas (n : Nat) (gs : Array (Array Nat)) (v₀ v : Nat) : Bool :=
-  (orbSat gs.toList (n + 1) ((Array.replicate n false).set! v₀ true) [v₀])[v]!
+/-- **Do the permutations named by `gs` carry some vertex of `src` to `v`?**  `n + 1` rounds is
+enough, since the worklist only ever holds a vertex that has just been marked, and only `n` can be;
+and running short would only ever answer `false`, which the caller is free to believe. -/
+def orbHasFrom (n : Nat) (gs : Array (Array Nat)) (src : List Nat) (v : Nat) : Bool :=
+  (orbSat gs.toList (n + 1) (orbSeed n src) src)[v]!
 
 /-- A predicate closed under the images of `w` survives one round of `orbPush`. -/
 theorem orbPush_sound {P : Nat → Prop} {w : Nat} :
@@ -145,30 +168,32 @@ theorem orbSat_sound {gs : List (Array Nat)} {P : Nat → Prop}
       rw [orbSat] at hu
       exact ih _ _ k1 k2 u hu
 
-/-- What `orbHas` witnesses: any property of `v₀` closed under the `gs` holds of everything they
-reach. -/
-theorem orbHas_sound {n : Nat} {gs : Array (Array Nat)} {v₀ v : Nat} {P : Nat → Prop}
-    (h0 : P v₀) (hstep : ∀ g ∈ gs, ∀ x, P x → P g[x]!) (h : orbHas n gs v₀ v = true) : P v := by
-  refine orbSat_sound (gs := gs.toList) (fun g hg => hstep g (Array.mem_toList_iff.1 hg))
-    (n + 1) _ _ (fun u hu => ?_) (fun x hx => ?_) v h
-  · rw [replicate_set!_true hu]; exact h0
-  · rw [List.mem_singleton.1 hx]; exact h0
+/-- What `orbHasFrom` witnesses: any property of the sources closed under the `gs` holds of
+everything they reach. -/
+theorem orbHasFrom_sound {n : Nat} {gs : Array (Array Nat)} {src : List Nat} {v : Nat}
+    {P : Nat → Prop} (h0 : ∀ w ∈ src, P w) (hstep : ∀ g ∈ gs, ∀ x, P x → P g[x]!)
+    (h : orbHasFrom n gs src v = true) : P v :=
+  orbSat_sound (gs := gs.toList) (fun g hg => hstep g (Array.mem_toList_iff.1 hg))
+    (n + 1) _ _ (fun _ hu => h0 _ (mem_of_orbSeed hu)) h0 v h
 
 /-! ### One level of the chain -/
 
-/-- The body of `chainStep`'s fold: a vertex of the target cell that the generators in hand cannot
-reach, and that the orbit test accepts, contributes the map the test found. -/
+/-- The body of `chainStep`'s fold.  The state is the coset representatives found so far paired
+with the vertices the orbit test has *refused*; a vertex of the target cell reachable from either
+the base point or a refused vertex is skipped, and one the orbit test accepts contributes the map
+the test found. -/
 def chainStepF (n : Nat) (f : Nat → Nat → Bool) (path : Array Nat) (p : Part) (c : Nat)
-    (acc : Array (Array Nat)) (v : Nat) : Array (Array Nat) :=
-  if !orbHas n acc p.lab[c]! v && sameOrbit n f (path.push p.lab[c]!) (path.push v) then
-    acc.push (orbitMap n f (path.push p.lab[c]!) (path.push v))
-  else acc
+    (st : Array (Array Nat) × List Nat) (v : Nat) : Array (Array Nat) × List Nat :=
+  if orbHasFrom n st.1 (p.lab[c]! :: st.2) v then st
+  else if sameOrbit n f (path.push p.lab[c]!) (path.push v) then
+    (st.1.push (orbitMap n f (path.push p.lab[c]!) (path.push v)), st.2)
+  else (st.1, v :: st.2)
 
 /-- One level of the chain: coset representatives generating the orbit of the base point
 `p.lab[c]!` inside the target cell, on top of the generators of the level below. -/
 def chainStep (n : Nat) (f : Nat → Nat → Bool) (path : Array Nat) (p : Part) (c : Nat)
     (below : Array (Array Nat)) : Array (Array Nat) :=
-  (cellOf n p c).foldl (chainStepF n f path p c) below
+  ((cellOf n p c).foldl (chainStepF n f path p c) (below, [])).1
 
 /-- What `chainStep` runs.  Written out, the orbit test on `v` is
 `mapsPath n f (autoOf n (subLab n f P) (subLab n f Q)) P Q` for `P` the path to the base point and
@@ -177,7 +202,7 @@ def chainStep (n : Nat) (f : Nat → Nat → Bool) (path : Array Nat) (p : Part)
 the top of the fold, and keep the map the test built instead of rebuilding it.
 
 That is worth between 2.1 and 3.5 times on the graphs of `testing/CacheBench.lean` (case `aut-…`),
-most on the ones with a large cell to scan.  Skipping the candidates `orbHas` already reaches is
+most on the ones with a large cell to scan.  Skipping the candidates the walk already reaches is
 worth another 1.1 to 9, and collapses the generating set with it: `C₄₆` returns 2 coset
 representatives where the unpruned fold returned 48, and the Balaban 10-cage 3 where it
 returned 42. -/
@@ -186,21 +211,20 @@ def chainStepFast (n : Nat) (f : Nat → Nat → Bool) (path : Array Nat) (p : P
   let v₀ := p.lab[c]!
   let P := path.push v₀
   let labP := subLab n f P
-  (cellOf n p c).foldl (fun acc v =>
-    if orbHas n acc v₀ v then acc
+  ((cellOf n p c).foldl (fun st v =>
+    if orbHasFrom n st.1 (v₀ :: st.2) v then st
     else
       let Q := path.push v
       let d := autoOf n labP (subLab n f Q)
-      if mapsPath n f d P Q then acc.push d else acc) below
+      if mapsPath n f d P Q then (st.1.push d, st.2) else (st.1, v :: st.2)) (below, [])).1
 
 @[csimp] theorem chainStep_eq_chainStepFast : @chainStep = @chainStepFast := by
   funext n f path p c below
   rw [chainStep, chainStepFast]
-  refine congrArg (fun F => List.foldl F below (cellOf n p c)) (funext fun acc => funext fun v => ?_)
+  refine congrArg Prod.fst (congrArg (fun F => List.foldl F (below, []) (cellOf n p c))
+    (funext fun st => funext fun v => ?_))
   rw [chainStepF]
-  cases orbHas n acc p.lab[c]! v
-  · simp only [Bool.not_false, Bool.true_and]; rfl
-  · simp
+  rfl
 
 /-- **The stabiliser chain of the node at `path`**: generators for the group of automorphisms
 fixing every vertex of `path`. -/
@@ -249,35 +273,38 @@ everything that appears is either an element of the initial array or a map the o
 
 theorem mem_foldl_chainStepF {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {p : Part}
     {c : Nat} :
-    ∀ (l : List Nat) (init : Array (Array Nat)) (x : Array Nat), x ∈ init →
-      x ∈ l.foldl (chainStepF n f path p c) init
+    ∀ (l : List Nat) (st : Array (Array Nat) × List Nat) (x : Array Nat), x ∈ st.1 →
+      x ∈ (l.foldl (chainStepF n f path p c) st).1
   | [], _, _, hx => hx
-  | v :: l, init, x, hx => by
+  | v :: l, st, x, hx => by
     rw [List.foldl_cons]
     refine mem_foldl_chainStepF l _ x ?_
     rw [chainStepF]
     split
-    · simp [Array.mem_push, hx]
     · exact hx
+    · split
+      · simp [Array.mem_push, hx]
+      · exact hx
 
 theorem mem_foldl_chainStepF_cases {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {p : Part}
     {c : Nat} :
-    ∀ (l : List Nat) (init : Array (Array Nat)) (x : Array Nat),
-      x ∈ l.foldl (chainStepF n f path p c) init →
-        x ∈ init ∨ ∃ v ∈ l, sameOrbit n f (path.push p.lab[c]!) (path.push v) = true ∧
+    ∀ (l : List Nat) (st : Array (Array Nat) × List Nat) (x : Array Nat),
+      x ∈ (l.foldl (chainStepF n f path p c) st).1 →
+        x ∈ st.1 ∨ ∃ v ∈ l, sameOrbit n f (path.push p.lab[c]!) (path.push v) = true ∧
           x = orbitMap n f (path.push p.lab[c]!) (path.push v)
   | [], _, _, hx => Or.inl hx
-  | v :: l, init, x, hx => by
+  | v :: l, st, x, hx => by
     rw [List.foldl_cons] at hx
     rcases mem_foldl_chainStepF_cases l _ x hx with h | ⟨u, hu, hsu, hxu⟩
     · rw [chainStepF] at h
       split at h
-      · next hT =>
-        rcases Array.mem_push.1 h with h' | h'
-        · exact Or.inl h'
-        · refine Or.inr ⟨v, List.mem_cons_self .., ?_, h'⟩
-          simp only [Bool.and_eq_true] at hT; exact hT.2
       · exact Or.inl h
+      · split at h
+        · next hT =>
+          rcases Array.mem_push.1 h with h' | h'
+          · exact Or.inl h'
+          · exact Or.inr ⟨v, List.mem_cons_self .., hT, h'⟩
+        · exact Or.inl h
     · exact Or.inr ⟨u, List.mem_cons_of_mem _ hu, hsu, hxu⟩
 
 theorem mem_chainStep_of_mem_below {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {p : Part}
@@ -299,6 +326,27 @@ theorem orbitMap_maps_base {n : Nat} {f : Nat → Nat → Bool} {path : Array Na
     (orbitMap n f (path.push v₀) (path.push v))[v₀]! = v := by
   have := (sameOrbit_spec h).2.2 path.size (by rw [Array.size_push]; omega)
   rwa [push_getElem!_eq, push_getElem!_eq] at this
+
+/-- Whatever the fold accumulates is an automorphism, if whatever it started with was. -/
+theorem foldl_chainStepF_isAuto {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {p : Part}
+    {c : Nat} (l : List Nat) (st : Array (Array Nat) × List Nat)
+    (h : ∀ g ∈ st.1, IsAutoArr n f g) :
+    ∀ g ∈ (l.foldl (chainStepF n f path p c) st).1, IsAutoArr n f g := by
+  intro g hg
+  rcases mem_foldl_chainStepF_cases l st g hg with h' | ⟨_, -, hT, rfl⟩
+  · exact h g h'
+  · exact (sameOrbit_spec hT).1
+
+/-- …and fixes the path, if whatever it started with did. -/
+theorem foldl_chainStepF_fixes_path {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {p : Part}
+    {c : Nat} (l : List Nat) (st : Array (Array Nat) × List Nat)
+    (h : ∀ g ∈ st.1, ∀ j, j < path.size → g[path[j]!]! = path[j]!) :
+    ∀ g ∈ (l.foldl (chainStepF n f path p c) st).1,
+      ∀ j, j < path.size → g[path[j]!]! = path[j]! := by
+  intro g hg
+  rcases mem_foldl_chainStepF_cases l st g hg with h' | ⟨_, -, hT, rfl⟩
+  · exact h g h'
+  · exact orbitMap_fixes_path hT
 
 /-! ### Between permutations of `Fin n` and arrays -/
 
@@ -354,6 +402,19 @@ theorem mem_autGroup_of_mem_permsOf {n : Nat} {adj : Fin n → Fin n → Bool}
     show τ j = ⟨g[j.1]!, hg.perm.lt j.1 j.2⟩ from Fin.ext (hval j)]
   exact h
 
+/-- The permutation of `Fin n` named by an automorphism array. -/
+theorem permOfArrays_val_of_isAuto {n : Nat} {f : Nat → Nat → Bool} {g : Array Nat}
+    (hg : IsAutoArr n f g) (i : Fin n) : (permOfArrays n g (invArray n g) i).1 = g[i.1]! :=
+  permOfArrays_val hg.perm.isPerm
+    (fun x hx => invArray_apply hg.perm.size hg.perm.isPerm x hx) i
+
+theorem mem_autGroup_permOfArrays {n : Nat} {adj : Fin n → Fin n → Bool} {g : Array Nat}
+    (hg : IsAutoArr n (oracleOfFin n adj) g) :
+    permOfArrays n g (invArray n g) ∈ autGroup n adj :=
+  mem_autGroup_of_mem_permsOf (gs := #[g]) (fun g' hg' => by
+    rw [show g' = g by simpa using hg']; exact hg)
+    ⟨g, by simp, permOfArrays_val_of_isAuto hg⟩
+
 /-! ### Soundness: the chain computes automorphisms that fix the path -/
 
 theorem chainGens_isAuto (n : Nat) (f : Nat → Nat → Bool) :
@@ -368,9 +429,7 @@ theorem chainGens_isAuto (n : Nat) (f : Nat → Nat → Bool) :
     | none => rw [chainGens_succ_none rfl htc] at hg; simp at hg
     | some c =>
       rw [chainGens_succ_some rfl htc, chainStep] at hg
-      rcases mem_foldl_chainStepF_cases _ _ _ hg with h | ⟨v, -, hT, rfl⟩
-      · exact ih _ g h
-      · exact (sameOrbit_spec hT).1
+      exact foldl_chainStepF_isAuto _ _ (fun g' hg' => ih _ g' hg') g hg
 
 /-- Every level fixes the base point it descends through, so the chain at `path` fixes all of it. -/
 theorem chainGens_fixes_path (n : Nat) (f : Nat → Nat → Bool) :
@@ -385,16 +444,22 @@ theorem chainGens_fixes_path (n : Nat) (f : Nat → Nat → Bool) :
     | none => rw [chainGens_succ_none rfl htc] at hg; simp at hg
     | some c =>
       rw [chainGens_succ_some rfl htc, chainStep] at hg
-      rcases mem_foldl_chainStepF_cases _ _ _ hg with h | ⟨v, -, hso, rfl⟩
-      · have := ih _ g h j (by rw [Array.size_push]; omega)
-        rwa [push_getElem!_lt _ _ hj] at this
-      · exact orbitMap_fixes_path hso j hj
+      refine foldl_chainStepF_fixes_path _ _ (fun g' hg' j' hj' => ?_) g hg j hj
+      have := ih _ g' hg' j' (by rw [Array.size_push]; omega)
+      rwa [push_getElem!_lt _ _ hj'] at this
 
 /-! ### What one level of the chain reaches
 
 Because of the pruning, a vertex of the target cell need not contribute a representative of its
 own.  What is still true — and is all that completeness needs — is that the level's generators
-reach it. -/
+reach it.
+
+Two things are pruned, and they are justified differently.  A vertex the generators in hand reach
+from the base point is redundant, and `Reaches` is what says so.  A vertex they reach from one the
+orbit test has *refused* is not in the orbit at all, and cannot have been accepted: that is
+`sameOrbit_of_mem_autGroup`, which says the test never refuses a vertex some automorphism fixing
+the path actually reaches.  So the second rule never has to be honoured — it only has to be shown
+vacuous, and `ReachesFrom` is the predicate that carries both cases through the walk. -/
 
 /-- The generators `gs` carry `a` to `w` by a permutation fixing every vertex of `path`. -/
 def Reaches (n : Nat) (path : Array Nat) (gs : Array (Array Nat)) (a : Fin n) (w : Nat) : Prop :=
@@ -414,9 +479,7 @@ theorem Reaches.step {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {gs
     (hgfix : ∀ j, j < path.size → g[path[j]!]! = path[j]!) (hr : Reaches n path gs a w) :
     Reaches n path gs a g[w]! := by
   obtain ⟨τ, hτ, hfix, hval⟩ := hr
-  have hγval : ∀ i : Fin n, (permOfArrays n g (invArray n g) i).1 = g[i.1]! := fun i =>
-    permOfArrays_val hauto.perm.isPerm
-      (fun x hx => invArray_apply hauto.perm.size hauto.perm.isPerm x hx) i
+  have hγval := permOfArrays_val_of_isAuto hauto
   refine ⟨permOfArrays n g (invArray n g) * τ,
     mul_mem (Subgroup.subset_closure ⟨g, hg, hγval⟩) hτ, fun i hi => ?_, ?_⟩
   · show permOfArrays n g (invArray n g) (τ i) = i
@@ -426,66 +489,181 @@ theorem Reaches.step {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {gs
   · show (permOfArrays n g (invArray n g) (τ a)).1 = g[w]!
     rw [hγval (τ a), hval]
 
+/-- The generators `gs` carry *some* vertex of `src` to `w`, by a permutation fixing `path`. -/
+def ReachesFrom (n : Nat) (path : Array Nat) (gs : Array (Array Nat)) (src : List Nat) (w : Nat) :
+    Prop :=
+  ∃ a : Fin n, a.1 ∈ src ∧ Reaches n path gs a w
+
+theorem ReachesFrom.refl {n : Nat} {path : Array Nat} {gs : Array (Array Nat)} {src : List Nat}
+    {w : Nat} (hw : w < n) (h : w ∈ src) : ReachesFrom n path gs src w :=
+  ⟨⟨w, hw⟩, h, Reaches.refl ⟨w, hw⟩⟩
+
+theorem ReachesFrom.step {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat}
+    {gs : Array (Array Nat)} {src : List Nat} {w : Nat} {g : Array Nat} (hg : g ∈ gs)
+    (hauto : IsAutoArr n f g) (hgfix : ∀ j, j < path.size → g[path[j]!]! = path[j]!) :
+    ReachesFrom n path gs src w → ReachesFrom n path gs src g[w]! := by
+  rintro ⟨a, ha, hr⟩
+  exact ⟨a, ha, Reaches.step hg hauto hgfix hr⟩
+
+/-- **The orbit test is complete at the target cell**: if some automorphism fixing `path`
+pointwise carries the base point `p.lab[c]!` where the test is looking, the test says so.
+
+This is what the refused vertices are pruned by.  Read contrapositively, a vertex the test refuses
+is one no automorphism fixing `path` carries the base point to — so the whole orbit of a refused
+vertex under the generators in hand, which are such automorphisms, is out of reach too. -/
+theorem sameOrbit_of_mem_autGroup {n : Nat} {adj : Fin n → Fin n → Bool} {path : Array Nat}
+    {ip : Array UInt64} {p : Part} (hnode : Node n (oracleOfFin n adj) path ip p) {c : Nat}
+    (htc : p.targetCell n = some c) (hv0 : p.lab[c]! < n)
+    (hcell0 : p.cst[p.pos[p.lab[c]!]!]! = c) {σ : Equiv.Perm (Fin n)} (hσ : σ ∈ autGroup n adj)
+    (hfix : ∀ i : Fin n, i.1 ∈ path.toList → σ i = i) :
+    sameOrbit n (oracleOfFin n adj) (path.push p.lab[c]!)
+      (path.push (σ ⟨p.lab[c]!, hv0⟩).1) = true := by
+  have hg : IsAutoArr n (oracleOfFin n adj) (arrOfPerm n σ) := arrOfPerm_isAuto hσ
+  have hfixarr : ∀ i, i < path.size → (arrOfPerm n σ)[path[i]!]! = path[i]! := by
+    intro i hi
+    have hlt := hnode.path_lt i hi
+    rw [arrOfPerm_get σ hlt, hfix ⟨path[i]!, hlt⟩ (mem_toList_iff.2 ⟨i, hi, rfl⟩)]
+  have hnode0 := hnode.step htc hv0 hcell0
+  have hpe : PartEquiv n (fun x => (arrOfPerm n σ)[x]!) p p := hnode.auto_partEquiv hg hfixarr
+  have hv : (arrOfPerm n σ)[p.lab[c]!]! < n := hg.perm.lt _ hv0
+  have hcellv : p.cst[p.pos[(arrOfPerm n σ)[p.lab[c]!]!]!]! = c := by
+    rw [hpe.cell _ hv0]; exact hcell0
+  have hnodev := hnode.step htc hv hcellv
+  have hsizeP : (path.push p.lab[c]!).size = (path.push (arrOfPerm n σ)[p.lab[c]!]!).size := by
+    simp
+  have hmapinv : ∀ i, i < (path.push (arrOfPerm n σ)[p.lab[c]!]!).size →
+      (path.push p.lab[c]!)[i]!
+        = (invAuto n (arrOfPerm n σ))[(path.push (arrOfPerm n σ)[p.lab[c]!]!)[i]!]! := by
+    intro i hi
+    rw [Array.size_push] at hi
+    rcases Nat.lt_or_ge i path.size with h1 | h1
+    · have h2 := invAuto_get hg.perm (hnode.path_lt i h1)
+      rw [hfixarr i h1] at h2
+      rw [push_getElem!_lt _ _ h1, push_getElem!_lt _ _ h1, h2]
+    · have hieq : i = path.size := by omega
+      subst hieq
+      rw [push_getElem!_eq, push_getElem!_eq]
+      exact (invAuto_get hg.perm hv0).symm
+  have hres := sameOrbit_of_auto hnode0 hnodev (invAuto_isAuto hg) hsizeP hmapinv
+  rwa [arrOfPerm_get σ hv0] at hres
+
 /-- **Every vertex the orbit test accepts is reached by the level's generators**: the ones that
 contributed a representative by that representative, and the ones that were skipped by the
-representatives that made them redundant. -/
-theorem chainStep_reaches {n : Nat} {f : Nat → Nat → Bool} {path : Array Nat} {p : Part} {c : Nat}
-    {a : Fin n} (ha : a.1 = p.lab[c]!) :
-    ∀ (l : List Nat) (init : Array (Array Nat)),
-      (∀ g ∈ init, IsAutoArr n f g) →
-      (∀ g ∈ init, ∀ j, j < path.size → g[path[j]!]! = path[j]!) →
+representatives that made them redundant.  A vertex skipped because the generators reach it from a
+*refused* one is the case `hcompl` rules out — it could not have been accepted. -/
+theorem chainStep_reaches {n : Nat} {adj : Fin n → Fin n → Bool} {f : Nat → Nat → Bool}
+    (hf : f = oracleOfFin n adj) {path : Array Nat} {p : Part} {c : Nat} {a : Fin n}
+    (ha : a.1 = p.lab[c]!)
+    (hcompl : ∀ σ : Equiv.Perm (Fin n), σ ∈ autGroup n adj →
+      (∀ i : Fin n, i.1 ∈ path.toList → σ i = i) →
+      sameOrbit n f (path.push p.lab[c]!) (path.push (σ a).1) = true) :
+    ∀ l : List Nat, (∀ v ∈ l, v < n) → ∀ st : Array (Array Nat) × List Nat,
+      (∀ g ∈ st.1, IsAutoArr n f g) →
+      (∀ g ∈ st.1, ∀ j, j < path.size → g[path[j]!]! = path[j]!) →
+      (∀ w ∈ st.2, w < n ∧ sameOrbit n f (path.push p.lab[c]!) (path.push w) = false) →
       ∀ v ∈ l, sameOrbit n f (path.push p.lab[c]!) (path.push v) = true →
-        Reaches n path (l.foldl (chainStepF n f path p c) init) a v := by
+        Reaches n path (l.foldl (chainStepF n f path p c) st).1 a v := by
   intro l
   induction l with
-  | nil => intro _ _ _ v hv; simp at hv
+  | nil => intro _ _ _ _ _ v hv; simp at hv
   | cons u l ih =>
-    intro init hauto hgfix v hv hso
+    intro hlt st hauto hgfix hdead v hv hso
     rw [List.foldl_cons]
-    have hauto₁ : ∀ g ∈ chainStepF n f path p c init u, IsAutoArr n f g := by
+    have hauto₁ : ∀ g ∈ (chainStepF n f path p c st u).1, IsAutoArr n f g := by
       intro g hg
       rw [chainStepF] at hg
       split at hg
-      · next hT =>
-        rcases Array.mem_push.1 hg with h' | h'
-        · exact hauto g h'
-        · exact h' ▸ (sameOrbit_spec (by simp only [Bool.and_eq_true] at hT; exact hT.2)).1
       · exact hauto g hg
-    have hgfix₁ : ∀ g ∈ chainStepF n f path p c init u,
+      · split at hg
+        · next hT =>
+          rcases Array.mem_push.1 hg with h' | h'
+          · exact hauto g h'
+          · exact h' ▸ (sameOrbit_spec hT).1
+        · exact hauto g hg
+    have hgfix₁ : ∀ g ∈ (chainStepF n f path p c st u).1,
         ∀ j, j < path.size → g[path[j]!]! = path[j]! := by
       intro g hg
       rw [chainStepF] at hg
       split at hg
-      · next hT =>
-        rcases Array.mem_push.1 hg with h' | h'
-        · exact hgfix g h'
-        · exact h' ▸ orbitMap_fixes_path (by simp only [Bool.and_eq_true] at hT; exact hT.2)
       · exact hgfix g hg
+      · split at hg
+        · next hT =>
+          rcases Array.mem_push.1 hg with h' | h'
+          · exact hgfix g h'
+          · exact h' ▸ orbitMap_fixes_path hT
+        · exact hgfix g hg
+    have hdead₁ : ∀ w ∈ (chainStepF n f path p c st u).2,
+        w < n ∧ sameOrbit n f (path.push p.lab[c]!) (path.push w) = false := by
+      intro w hw
+      rw [chainStepF] at hw
+      split at hw
+      · exact hdead w hw
+      · split at hw
+        · exact hdead w hw
+        · next hF =>
+          rcases List.mem_cons.1 hw with rfl | hw'
+          · exact ⟨hlt w (List.mem_cons_self ..), by simpa using hF⟩
+          · exact hdead w hw'
     rcases List.mem_cons.1 hv with rfl | hv'
-    · cases horb : orbHas n init p.lab[c]! v with
+    · cases horb : orbHasFrom n st.1 (p.lab[c]! :: st.2) v with
       | false =>
-        obtain ⟨hdauto, -, -⟩ := sameOrbit_spec hso
+        have hpush : chainStepF n f path p c st v
+            = (st.1.push (orbitMap n f (path.push p.lab[c]!) (path.push v)), st.2) := by
+          rw [chainStepF, if_neg (by simp [horb]), if_pos hso]
+        rw [hpush]
         have hdmem : orbitMap n f (path.push p.lab[c]!) (path.push v)
-            ∈ l.foldl (chainStepF n f path p c) (chainStepF n f path p c init v) := by
-          refine mem_foldl_chainStepF l _ _ ?_
-          rw [chainStepF, if_pos (by simp [horb, hso])]
-          simp [Array.mem_push]
-        have hτval : ∀ i : Fin n,
-            (permOfArrays n _ (invArray n (orbitMap n f (path.push p.lab[c]!) (path.push v)))
-              i).1 = (orbitMap n f (path.push p.lab[c]!) (path.push v))[i.1]! := fun i =>
-          permOfArrays_val hdauto.perm.isPerm
-            (fun x hx => invArray_apply hdauto.perm.size hdauto.perm.isPerm x hx) i
+            ∈ (l.foldl (chainStepF n f path p c)
+                (st.1.push (orbitMap n f (path.push p.lab[c]!) (path.push v)), st.2)).1 :=
+          mem_foldl_chainStepF l _ _ (by simp [Array.mem_push])
+        have hτval := permOfArrays_val_of_isAuto (sameOrbit_spec hso).1
         refine ⟨_, Subgroup.subset_closure ⟨_, hdmem, hτval⟩, fun i hi => ?_, ?_⟩
         · obtain ⟨j, hj, hji⟩ := mem_toList_iff.1 hi
           exact Fin.ext (by rw [hτval i, ← hji, orbitMap_fixes_path hso j hj])
         · rw [hτval a, ha, orbitMap_maps_base hso]
       | true =>
-        have hskip : chainStepF n f path p c init v = init := by rw [chainStepF, horb]; simp
+        have hskip : chainStepF n f path p c st v = st := by rw [chainStepF, if_pos horb]
         rw [hskip]
-        refine orbHas_sound (P := Reaches n path (l.foldl (chainStepF n f path p c) init) a)
-          (ha ▸ Reaches.refl a) (fun g hg x hx => ?_) horb
-        exact Reaches.step (mem_foldl_chainStepF l init g hg) (hauto g hg) (hgfix g hg) hx
-    · exact ih _ hauto₁ hgfix₁ v hv' hso
+        have hFauto := foldl_chainStepF_isAuto (path := path) (p := p) (c := c) l st hauto
+        obtain ⟨b, hbmem, hbr⟩ :
+            ReachesFrom n path (l.foldl (chainStepF n f path p c) st).1
+              (p.lab[c]! :: st.2) v := by
+          refine orbHasFrom_sound (fun w hw => ?_) (fun g hg x hx => ?_) horb
+          · rcases List.mem_cons.1 hw with rfl | hw'
+            · exact ReachesFrom.refl (ha ▸ a.2) (List.mem_cons_self ..)
+            · exact ReachesFrom.refl (hdead w hw').1 hw
+          · exact ReachesFrom.step (mem_foldl_chainStepF l st g hg) (hauto g hg) (hgfix g hg) hx
+        rcases List.mem_cons.1 hbmem with hb0 | hbdead
+        · rwa [show b = a from Fin.ext (hb0.trans ha.symm)] at hbr
+        -- `b` was refused by the orbit test, so nothing fixing `path` carries the base point to
+        -- it — but `v` is accepted and the generators carry `b` to `v`, which builds one.
+        obtain ⟨hblt, hbfalse⟩ := hdead b.1 hbdead
+        obtain ⟨τ, hτmem, hτfix, hτval⟩ := hbr
+        obtain ⟨δ, hδaut, hδval⟩ : ∃ δ : Equiv.Perm (Fin n), δ ∈ autGroup n adj ∧
+            ∀ i : Fin n, (δ i).1 = (orbitMap n f (path.push p.lab[c]!) (path.push v))[i.1]! :=
+          ⟨_, mem_autGroup_permOfArrays (hf ▸ (sameOrbit_spec hso).1),
+            permOfArrays_val_of_isAuto (sameOrbit_spec hso).1⟩
+        have hτaut : τ ∈ autGroup n adj :=
+          (Subgroup.closure_le _).2 (fun _ hρ =>
+            mem_autGroup_of_mem_permsOf (fun g hg => hf ▸ hFauto g hg) hρ) hτmem
+        have hδa : δ a = τ b := Fin.ext (by
+          rw [hδval a, ha, orbitMap_maps_base hso, hτval])
+        have hfixσ : ∀ i : Fin n, i.1 ∈ path.toList → (τ⁻¹ * δ) i = i := by
+          intro i hi
+          have hδi : δ i = i := by
+            obtain ⟨j, hj, hji⟩ := mem_toList_iff.1 hi
+            exact Fin.ext (by rw [hδval i, ← hji, orbitMap_fixes_path hso j hj])
+          show τ⁻¹ (δ i) = i
+          rw [hδi]
+          calc τ⁻¹ i = τ⁻¹ (τ i) := by rw [hτfix i hi]
+            _ = i := τ.symm_apply_apply i
+        have hσa : ((τ⁻¹ * δ) a).1 = b.1 := by
+          show (τ⁻¹ (δ a)).1 = b.1
+          rw [hδa]
+          exact congrArg Fin.val (τ.symm_apply_apply b)
+        have hcon := hcompl (τ⁻¹ * δ) (mul_mem (inv_mem hτaut) hδaut) hfixσ
+        rw [hσa, hbfalse] at hcon
+        exact Bool.noConfusion hcon
+    · exact ih (fun x hx => hlt x (List.mem_cons_of_mem _ hx)) _ hauto₁ hgfix₁ hdead₁ v hv' hso
 
 /-- **Completeness of the stabiliser chain.**  Every automorphism fixing every vertex of `path`
 lies in the group generated by the chain computed at `path`. -/
@@ -530,33 +708,19 @@ theorem chain_complete (n : Nat) (adj : Fin n → Fin n → Bool) :
         rw [hwf.posLab c hc]; exact targetCell_cst hwf htc
       have hnode0 := hnode.step htc hv0 hcell0
       have hpe : PartEquiv n (fun x => (arrOfPerm n σ)[x]!) p p := hnode.auto_partEquiv hg hfixarr
-      have hv : (arrOfPerm n σ)[p.lab[c]!]! < n := hg.perm.lt _ hv0
-      have hcellv : p.cst[p.pos[(arrOfPerm n σ)[p.lab[c]!]!]!]! = c := by
-        rw [hpe.cell _ hv0]; exact hcell0
-      have hnodev := hnode.step htc hv hcellv
-      have hsizeP : (path.push p.lab[c]!).size = (path.push (arrOfPerm n σ)[p.lab[c]!]!).size := by
-        simp
-      have hmapinv : ∀ i, i < (path.push (arrOfPerm n σ)[p.lab[c]!]!).size →
-          (path.push p.lab[c]!)[i]!
-            = (invAuto n (arrOfPerm n σ))[(path.push (arrOfPerm n σ)[p.lab[c]!]!)[i]!]! := by
-        intro i hi
-        rw [Array.size_push] at hi
-        rcases Nat.lt_or_ge i path.size with h1 | h1
-        · have h2 := invAuto_get hg.perm (hnode.path_lt i h1)
-          rw [hfixarr i h1] at h2
-          rw [push_getElem!_lt _ _ h1, push_getElem!_lt _ _ h1, h2]
-        · have hieq : i = path.size := by omega
-          subst hieq
-          rw [push_getElem!_eq, push_getElem!_eq]
-          exact (invAuto_get hg.perm hv0).symm
-      have hso := sameOrbit_of_auto hnode0 hnodev (invAuto_isAuto hg) hsizeP hmapinv
+      have hv : (σ ⟨p.lab[c]!, hv0⟩).1 < n := (σ ⟨p.lab[c]!, hv0⟩).2
+      have hcellv : p.cst[p.pos[(σ ⟨p.lab[c]!, hv0⟩).1]!]! = c := by
+        rw [← arrOfPerm_get σ hv0, hpe.cell _ hv0]; exact hcell0
+      have hso := sameOrbit_of_mem_autGroup hnode htc hv0 hcell0 hσ hfix
       obtain ⟨τ, hτmem, hτfix, hτval⟩ :
           Reaches n path (chainGens n (oracleOfFin n adj) (fuel + 1) path)
-            ⟨p.lab[c]!, hv0⟩ ((arrOfPerm n σ)[p.lab[c]!]!) := by
+            ⟨p.lab[c]!, hv0⟩ ((σ ⟨p.lab[c]!, hv0⟩).1) := by
         rw [chainGens_succ_some hnp htc, chainStep]
-        refine chainStep_reaches rfl _ _
+        refine chainStep_reaches rfl rfl
+          (fun ρ hρ hρfix => sameOrbit_of_mem_autGroup hnode htc hv0 hcell0 hρ hρfix)
+          _ (fun x hx => (mem_cellOf.1 hx).1) _
           (fun g hgm => chainGens_isAuto n _ fuel _ g hgm) (fun g hgm j hj => ?_)
-          _ (mem_cellOf.2 ⟨hv, hcellv⟩) hso
+          (by simp) _ (mem_cellOf.2 ⟨hv, hcellv⟩) hso
         have := chainGens_fixes_path n _ fuel _ g hgm j (by rw [Array.size_push]; omega)
         rwa [push_getElem!_lt _ _ hj] at this
       have hτaut : τ ∈ autGroup n adj :=
@@ -573,7 +737,7 @@ theorem chain_complete (n : Nat) (adj : Fin n → Fin n → Bool) :
           subst hjeq
           rw [push_getElem!_eq] at hji
           refine Fin.ext ?_
-          rw [show i = ⟨p.lab[c]!, hv0⟩ from Fin.ext hji.symm, hτval, arrOfPerm_get σ hv0]
+          rw [show i = ⟨p.lab[c]!, hv0⟩ from Fin.ext hji.symm, hτval]
       have hfix' : ∀ i : Fin n, i.1 ∈ (path.push p.lab[c]!).toList → (τ⁻¹ * σ) i = i := by
         intro i hi
         show τ⁻¹ (σ i) = i
