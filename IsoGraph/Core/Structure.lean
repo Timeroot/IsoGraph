@@ -1845,23 +1845,16 @@ theorem not_isAcyclic_lineGraph {G : IsoGraph} (h : 3 ≤ G.maxDeg) :
 /-- The line graph of a connected graph with at least one edge is connected. -/
 theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E) :
     IsConnected (lineGraph G) := by
-  set H := G.toCGraph with hH_def
-  rw [← IsoGraph.mk_toCGraph G]
-  rw [lineGraph_mk H]
-  rw [isConnected_mk]
-  simp only [hH_def] at *
-  have hG' : G.toCGraph.IsConnected := by
-    rw [← isConnected_mk (G := G.toCGraph), IsoGraph.mk_toCGraph]
-    exact hG
-  have hE' : 0 < G.toCGraph.E := by
-    rw [← E_mk (G := G.toCGraph), IsoGraph.mk_toCGraph]
-    exact hE
+  obtain ⟨G, rfl⟩ := exists_cgraph G
+  rw [isConnected_mk] at hG
+  rw [E_mk] at hE
+  rw [lineGraph_mk, isConnected_mk]
   -- Theorem: line graph of a connected graph with edges is connected.
-  have hedges : G.toCGraph.toSimple.edgeFinset.Nonempty := Finset.card_pos.mp
-    (by rwa [CGraph.E] at hE')
+  have hedges : G.toSimple.edgeFinset.Nonempty := Finset.card_pos.mp
+    (by rwa [CGraph.E] at hE)
   obtain ⟨e₀, he₀⟩ := hedges
-  have he₀' : e₀ ∈ G.toCGraph.toSimple.edgeSet := by simpa using he₀
-  set e₀' : (CGraph.lineGraph G.toCGraph).V := ⟨e₀, he₀'⟩
+  have he₀' : e₀ ∈ G.toSimple.edgeSet := by simpa using he₀
+  set e₀' : (CGraph.lineGraph G).V := ⟨e₀, he₀'⟩
   -- For any vertex v of G, if some edge incident to v is reachable from e₀', then all edges
   -- incident to v are reachable from e₀'
   -- (because edges incident to the same vertex form a clique in the line graph)
@@ -1870,12 +1863,12 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
   -- By induction along this path, all edges incident to vertices on the path are reachable. In
   -- particular, edges incident to the other endpoint of f are reachable, so f is reachable.
   -- Step 1: edges incident to a vertex u are pairwise reachable (they form a clique)
-  have hclique : ∀ (u : G.toCGraph.V) (f g : (CGraph.lineGraph G.toCGraph).V),
-      u ∈ f.1 → u ∈ g.1 → SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple f g := by
+  have hclique : ∀ (u : G.V) (f g : (CGraph.lineGraph G).V),
+      u ∈ f.1 → u ∈ g.1 → SimpleGraph.Reachable (CGraph.lineGraph G).toSimple f g := by
     intro u f g huf hug
     by_cases hfg : f = g
     · rw [hfg]
-    · have hadj : (CGraph.lineGraph G.toCGraph).Adj f g = true := by
+    · have hadj : (CGraph.lineGraph G).Adj f g = true := by
         rw [CGraph.lineGraph_adj]
         simp [hfg]
         exact ⟨u, huf, hug⟩
@@ -1883,23 +1876,23 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
   -- Pick an endpoint a of e₀
   -- Get endpoints of e₀: e₀'.1 is a Sym2 of V, and it's in edgeSet so it's an actual edge.
   -- I need at least one vertex from e₀'.1. I'll use induction on Sym2.
-  have h_sym2_mem : ∀ (s : Sym2 (G.toCGraph.V)), ∃ v : G.toCGraph.V, v ∈ s :=
+  have h_sym2_mem : ∀ (s : Sym2 G.V), ∃ v : G.V, v ∈ s :=
     Sym2.ind fun x y ↦ ⟨x, Sym2.mem_mk_left x y⟩
   obtain ⟨a, ha_mem⟩ := h_sym2_mem e₀'.1
   -- All edges incident to a are reachable from e₀' (clique at a, using e₀' itself)
-  have hreach_a : ∀ f : (CGraph.lineGraph G.toCGraph).V, a ∈ f.1 →
-      SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple e₀' f := by
+  have hreach_a : ∀ f : (CGraph.lineGraph G).V, a ∈ f.1 →
+      SimpleGraph.Reachable (CGraph.lineGraph G).toSimple e₀' f := by
     intro f hf
     exact hclique a e₀' f ha_mem hf
   -- A vertex is "swept" if all edges incident to it are reachable from e₀'
-  let Swept (v : G.toCGraph.V) : Prop := ∀ f : (CGraph.lineGraph G.toCGraph).V, v ∈ f.1 →
-      SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple e₀' f
+  let Swept (v : G.V) : Prop := ∀ f : (CGraph.lineGraph G).V, v ∈ f.1 →
+      SimpleGraph.Reachable (CGraph.lineGraph G).toSimple e₀' f
   have hswept_a : Swept a := hreach_a
   -- Sweep propagates along adjacencies
-  have hsweep_prop : ∀ u v : G.toCGraph.V, G.toCGraph.Adj u v = true → Swept u → Swept v := by
+  have hsweep_prop : ∀ u v : G.V, G.Adj u v = true → Swept u → Swept v := by
     intro u v huv ih
     -- The edge {u,v} is incident to u, hence reachable
-    let fe : (CGraph.lineGraph G.toCGraph).V := ⟨s(u, v), by
+    let fe : (CGraph.lineGraph G).V := ⟨s(u, v), by
       simpa [CGraph.toSimple_adj, SimpleGraph.mem_edgeSet] using huv⟩
     have hfe_u : u ∈ fe.1 := by simp [fe]
     have hfe_v : v ∈ fe.1 := by simp [fe]
@@ -1907,9 +1900,9 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
     intro g hg_v
     exact hfe_reach.trans (hclique v fe g hfe_v hg_v)
   -- All vertices are swept (by connectedness, from a)
-  have hswept_all : ∀ v : G.toCGraph.V, Swept v := by
+  have hswept_all : ∀ v : G.V, Swept v := by
     intro v
-    have hswept_all' : ∀ {u w : G.toCGraph.V} (w' : G.toCGraph.toSimple.Walk u w), Swept u → Swept w
+    have hswept_all' : ∀ {u w : G.V} (w' : G.toSimple.Walk u w), Swept u → Swept w
       := by
       intro u w w'
       induction w' with
@@ -1917,18 +1910,18 @@ theorem isConnected_lineGraph {G : IsoGraph} (hG : IsConnected G) (hE : 0 < G.E)
       | cons hadj tail ih =>
         intro hu
         exact ih (hsweep_prop _ _ hadj hu)
-    have hreach : G.toCGraph.toSimple.Reachable a v := by
-      change G.toCGraph.toSimple.Connected at hG'
-      exact hG' a v
+    have hreach : G.toSimple.Reachable a v := by
+      change G.toSimple.Connected at hG
+      exact hG a v
     obtain ⟨w⟩ := hreach
     exact hswept_all' w hswept_a
   -- All edges of G are reachable
-  have hreach_all_edges : ∀ f : (CGraph.lineGraph G.toCGraph).V,
-      SimpleGraph.Reachable (CGraph.lineGraph G.toCGraph).toSimple e₀' f := by
+  have hreach_all_edges : ∀ f : (CGraph.lineGraph G).V,
+      SimpleGraph.Reachable (CGraph.lineGraph G).toSimple e₀' f := by
     intro f
     obtain ⟨v, hv⟩ := h_sym2_mem f.1
     exact hswept_all v f hv
-  let : Nonempty (CGraph.lineGraph G.toCGraph).V := ⟨e₀'⟩
+  let : Nonempty (CGraph.lineGraph G).V := ⟨e₀'⟩
   exact SimpleGraph.Connected.mk (fun e f => (hreach_all_edges e).symm.trans (hreach_all_edges f))
 
 /-- **A graph of girth three is not bipartite**: a bipartite graph with a cycle has girth at
