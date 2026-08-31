@@ -10,6 +10,7 @@ import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Containment.Algorithms.Twins
 import IsoGraph.Containment.Defs
+import IsoGraph.Containment.Hereditary
 import IsoGraph.Containment.Minors
 import IsoGraph.Containment.Monotone
 import IsoGraph.Containment.Ordered

@@ -478,6 +478,9 @@ theorem IsoGraph.mk_toCGraph (G : IsoGraph) : Quotient.mk _ G.toCGraph = G := by
   induction G using Quotient.inductionOn with
   | h g => exact Quotient.sound ⟨g.isoCanonicalize.symm⟩
 
+/-- An IsoGraph is isomorphic to a `CGraph`.-/
+theorem IsoGraph.exists_cgraph (H : IsoGraph) : ∃ H' : CGraph, ⟦H'⟧ = H := ⟨ H.toCGraph, IsoGraph.mk_toCGraph H ⟩
+
 -- The invariants of a `CGraph` / `IsoGraph` (`indepNum`, `cliqueNum`, `E`, `degSequence`,
 -- `IsConnected`, `IsAcyclic`, `diameter`, …) live in `IsoGraph/Invariants/Basic.lean`, and the ways
 -- of building graphs (`empty`, `complete`, `path`, products, …) in

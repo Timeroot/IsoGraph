@@ -33,6 +33,10 @@ variable (G H : CGraph)
 @[simp] theorem complete_adj (n : ℕ) (i j : Fin n) : (complete n).Adj i j = decide (i ≠ j) := by
   simp [complete]
 
+/-! A variant of `complete_adj` that does not mention `Fin n`. -/
+@[simp] theorem complete_adj' (n : ℕ) (i j : (CGraph.complete n).V) :
+    (CGraph.complete n).Adj i j = decide (i ≠ j) := CGraph.complete_adj n i j
+
 /-- The disjoint union is commutative up to isomorphism — which is exactly what equality in
 `IsoGraph` means. -/
 theorem disjUnion_comm : Nonempty (G ⊕g H ≃cg H ⊕g G) :=
