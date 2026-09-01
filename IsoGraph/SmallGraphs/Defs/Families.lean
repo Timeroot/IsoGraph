@@ -405,7 +405,13 @@ state their adjacency in, but building the intersection in order to read its siz
 away is not what one wants on every query.  Deciding membership is the expensive half of it, and
 `Multiset.count` decides it with a `BEq` scan and nothing else: over the 252 vertices of `K(10, 5)`,
 a full sweep of the Kneser adjacency costs 25 ms through the intersection, 24 ms counting the
-elements of `s` that satisfy `· ∈ t`, and 9 ms counting them this way. -/
+elements of `s` that satisfy `· ∈ t`, and 9 ms counting them this way.
+
+The Kneser graph asks only whether the count is zero, so the trick the cube families play — give
+up as soon as the answer is settled — ought to apply here too, and it does not: the bounded
+existential `∃ x ∈ s, t.val.count x ≠ 0` does abandon the scan at the first shared element, but it
+reaches each element through `Decidable` rather than a `Bool`, and the sweep costs 19 ms.
+Counting all `k` of them is cheaper than looking for one. -/
 def interCard {α : Type*} [DecidableEq α] (s t : Finset α) : ℕ :=
   Multiset.countP (fun x ↦ t.val.count x ≠ 0) s.val
 

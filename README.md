@@ -9,7 +9,7 @@ simple graph with a concrete vertex type, `IsoGraph` is `CGraph` modulo isomorph
 isomorphic graphs are *equal* — so `rw` and `simp` work on graphs the way they work on numbers. A
 quotient is only worth having if you can compute in it, so underneath sits a canonical labelling
 algorithm, a small nauty: individualisation–refinement with orbit pruning and backjumping, proved
-correct, which canonicalises a random 50-vertex graph in half a millisecond. That is the whole
+correct, which canonicalises a random 50-vertex graph in a fifth of a millisecond. That is the whole
 trick :)
 
 The goal is a library you can actually get answers out of. Invariants are defined once on `CGraph`,

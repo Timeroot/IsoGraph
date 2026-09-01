@@ -85,6 +85,48 @@ def massRaw (n hi : ℕ) : String :=
 def massEntry (n hi : ℕ) : String :=
   toString ((List.range hi).countP fun c ↦ (Enum.graphOfCode n c).canon.get 0 1)
 
+/-- `massRaw` in pieces: what a canonicalisation of a six-vertex graph spends before the search
+starts.  `oracle` is `Canon.Graph.ofOracle` — the `n²` sweep and the neighbour lists — and nothing
+else; `refine` is that plus the initial refinement, which on a graph this small is most of what the
+search does; the `raw` line of the case is the whole of it. -/
+def massOracle (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦
+    (IsoGraph.Canon.Graph.ofOracle n (Enum.codeOracle c)).nbr.size != n)
+
+@[inherit_doc massOracle]
+def massSetup (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦
+    let G := IsoGraph.Canon.Graph.ofOracle n (Enum.codeOracle c)
+    let p := IsoGraph.Canon.Part.unit G.n
+    let sc := IsoGraph.Canon.Scratch.empty G.n
+    p.lab[0]! + sc.cnt[0]! + sc.bc[0]! != 0)
+
+@[inherit_doc massOracle]
+def massRefine (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦
+    (IsoGraph.Canon.initialRefine
+      (IsoGraph.Canon.Graph.ofOracle n (Enum.codeOracle c))).1.lab[0]! != 0)
+
+/-- The same sweep as `massOracle`, but reached the way `Enum.extendLevel` reaches it: through the
+`Fin`-indexed `Adj` field of a `CGraph` and the `oracleOfFin` that unwraps it again.  The gap
+between the two `oracle` lines is what that round trip costs per canonicalisation. -/
+def massOracleFin (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦
+    (IsoGraph.Canon.Graph.ofOracle n
+      (IsoGraph.Canon.oracleOfFin n (Enum.graphOfCode n c).Adj)).nbr.size != n)
+
+/-- The enumerator's own inner call, `Enum.canonOfCode`, against the composite it replaced:
+`canonCode` of the `CGraph` read off a code, which reaches the search through `oracleOfFin`.  The
+gap is the same round trip as between the two `oracle` lines, now measured through the whole
+canonicalisation. -/
+def massCodeFin (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦
+    Enum.canonCode n (Enum.graphOfCode n c).Adj != 0)
+
+@[inherit_doc massCodeFin]
+def massCode (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦ Enum.canonOfCode n c != 0)
+
 /-- `CGraph.canonOfArrayTab` written with the *full* fill, so the `full` lines below A/B the half
 sweep against the sweep it replaced with everything after the fill held fixed. -/
 def canonFull (G : CGraph) : IsoGraph.Canon.AdjMatrix (FinEnum.card G.V) :=
@@ -171,6 +213,11 @@ def interCountP {n : ℕ} (s t : Finset (Fin n)) : ℕ := Multiset.countP (· �
 /-- The same again, testing membership by counting rather than through `Decidable`. -/
 def interCount {n : ℕ} (s t : Finset (Fin n)) : ℕ :=
   Multiset.countP (fun x ↦ t.val.count x ≠ 0) s.val
+
+/-- Not the number but the question the Kneser graph asks: whether the two sets share an element
+at all.  A bounded existential over a `Finset` gives up at the first one it finds. -/
+def interMeets {n : ℕ} (s t : Finset (Fin n)) : Bool :=
+  decide (∃ x ∈ s, t.val.count x ≠ 0)
 
 /-- The Hamming distance of two bit-strings, by recursion on the index rather than over a
 `List.finRange` built afresh on every query — `CGraph.hammingBelow`, but with an accumulator. -/
@@ -407,7 +454,10 @@ def main (args : List String) : IO Unit := do
     let n := size 2 6
     let hi := size 3 20000
     duel r s!"canon {hi} graphs on {n}"
-      [("raw   ", fun _ => massRaw n hi), ("full  ", fun _ => massFull n hi),
+      [("oracle", fun _ => massOracle n hi), ("oracFin", fun _ => massOracleFin n hi),
+       ("setup ", fun _ => massSetup n hi), ("refine", fun _ => massRefine n hi),
+       ("codeFin", fun _ => massCodeFin n hi), ("code  ", fun _ => massCode n hi),
+       ("raw   ", fun _ => massRaw n hi), ("full  ", fun _ => massFull n hi),
        ("entry ", fun _ => massEntry n hi)]
   /- ### the automorphism group -/
   | "aut-tutte" => trio r "aut tutte" (hostOfEdges r 46 tutteEdges) autCount
@@ -764,12 +814,14 @@ def main (args : List String) : IO Unit := do
     let filt : V → V → Bool := fun s t ↦ interFilter s.1 t.1 == 0
     let cntp : V → V → Bool := fun s t ↦ interCountP s.1 t.1 == 0
     let cnt : V → V → Bool := fun s t ↦ interCount s.1 t.1 == 0
+    let mts : V → V → Bool := fun s t ↦ !interMeets s.1 t.1
     duel r s!"K({n},{k}) adjacency"
       [("verts ", fun _ => toString (vertexArray V).size),
        ("const ", fun _ => fillSum (adjArrayOnSymm V (fun _ _ ↦ true))),
        ("filter", fun _ => fillSum (adjArrayOnSymm V filt)),
        ("countP", fun _ => fillSum (adjArrayOnSymm V cntp)),
        ("count ", fun _ => fillSum (adjArrayOnSymm V cnt)),
+       ("meets ", fun _ => fillSum (adjArrayOnSymm V mts)),
        ("real  ", fun _ => fillSum (adjArrayOnSymm V (kneser n k).Adj))]
   | "sym-quot" =>
     let m := size 2 4

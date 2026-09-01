@@ -65,13 +65,23 @@ theorem and_ne_zero_iff_exists_testBit {a b : ℕ} :
     a &&& b ≠ 0 ↔ ∃ k, a.testBit k = true ∧ b.testBit k = true := by
   simp [ne_zero_iff_exists_testBit]
 
-theorem le_of_testBit_imp {a b : ℕ} (h : ∀ k, a.testBit k = true → b.testBit k = true) : a ≤ b := by
-  have hab : a &&& b = a := Nat.eq_of_testBit_eq fun k ↦ by
+/-- Bitwise inclusion, as an equation.  Testing `a &&& b = a` is how a subset test is written when
+both sides are bit masks. -/
+theorem and_eq_self_iff_testBit_imp {a b : ℕ} :
+    a &&& b = a ↔ ∀ k, a.testBit k = true → b.testBit k = true := by
+  constructor
+  · intro hab k hk
+    have h := congrArg (fun c ↦ c.testBit k) hab
+    simpa [Nat.testBit_and, hk] using h
+  · intro h
+    refine Nat.eq_of_testBit_eq fun k ↦ ?_
     rw [Nat.testBit_and]
     cases ha : a.testBit k with
     | false => rw [Bool.false_and]
     | true => rw [h k ha, Bool.and_self]
-  exact hab ▸ Nat.and_le_right
+
+theorem le_of_testBit_imp {a b : ℕ} (h : ∀ k, a.testBit k = true → b.testBit k = true) : a ≤ b :=
+  and_eq_self_iff_testBit_imp.2 h ▸ Nat.and_le_right
 
 theorem testBit_foldl_lor {α : Type} (f : α → ℕ) (p : α → Bool) (k : ℕ) (l : List α) (c : ℕ) :
     (l.foldl (fun c a ↦ if p a then c ||| f a else c) c).testBit k

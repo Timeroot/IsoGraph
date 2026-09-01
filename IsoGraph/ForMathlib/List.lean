@@ -90,6 +90,16 @@ theorem exists_max_weight {V : Type*} (f : V → ℕ) (u : V) (vs : List V) :
         · exact Nat.le_refl _
         · exact Nat.le_trans (hmax y hy') h
 
+/-- A sum of a mapped list, as a fold that never builds the mapped list. -/
+theorem foldl_add_eq_sum_map {α : Type*} (f : α → ℕ) (l : List α) :
+    l.foldl (fun a x ↦ a + f x) 0 = (l.map f).sum := by
+  have key : ∀ (l : List α) (a : ℕ), l.foldl (fun a x ↦ a + f x) a = a + (l.map f).sum := by
+    intro l
+    induction l with
+    | nil => simp
+    | cons x t ih => intro a; rw [List.foldl_cons, ih, List.map_cons, List.sum_cons]; omega
+  rw [key, Nat.zero_add]
+
 /-- The shifted range `[c, c + 1, …, c + m - 1]`, as a membership test. -/
 theorem List.mem_map_add_range (c m w : ℕ) :
     w ∈ (List.range m).map (fun i ↦ c + i) ↔ c ≤ w ∧ w < c + m := by

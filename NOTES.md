@@ -150,26 +150,71 @@ McKay-style individualisation–refinement.
 
 ## Numbers
 
-`lake exe isobench` on an idle 64-core cloud VM, best of 3, canonicalisation only:
+`lake exe isobench` on a 64-core cloud VM, best of 3, canonicalisation only:
 
 ```
-G(50, 1/2)      0.36 ms      G(1000, 1/2)      172 ms      K_100         145 ms
-G(100, 1/2)      1.5 ms      G(1000, 1/100)     12 ms      K_150         530 ms
-G(200, 1/2)      6.0 ms      C_1000             42 ms      Q_8           9.0 ms
-G(500, 1/2)       40 ms      random tree 500    87 ms      Paley 101     5.9 ms
-3-reg 100         17 ms      3-reg 500         571 ms      rook 10x10    5.5 ms
+G(50, 1/2)      0.20 ms      G(1000, 1/2)       61 ms      K_100          76 ms
+G(100, 1/2)     0.71 ms      G(1000, 1/100)    9.4 ms      K_150         243 ms
+G(200, 1/2)      2.6 ms      C_1000             34 ms      Q_8           6.2 ms
+G(500, 1/2)       16 ms      random tree 500    55 ms      Paley 101     3.0 ms
+3-reg 100         14 ms      3-reg 500         543 ms      rook 10x10    4.0 ms
 ```
 
 The bar in the original request was "a random graph on 50 vertices, much better than trying all
-50! permutations"; 50! ≈ 3·10^64, and this takes under a millisecond.
+50! permutations"; 50! ≈ 3·10^64, and this takes a fifth of a millisecond.
 
 Those are compiled, and with `precompileModules` that is very nearly what elaboration runs too.
-Driven through the quotient (`CGraph.canon`) by a `#eval` in a module Lake builds, `K_100` takes
-163 ms against the binary's 148 ms: the search itself is the shared library either way, and the
-10% is the interpreted wrapper around it. What the flag is worth shows up when it cannot apply —
-elaborating the same file with `lake env lean`, which does not load the precompiled artifacts,
-takes 17.8 seconds, 120× slower. `G.canonicalize` costs one extra search rather than one per
-query.
+Driven through the quotient (`CGraph.canon`) by a `#eval` in a module Lake builds, `K_100` came
+out at 163 ms against 148 ms for the binary of the same day: the search itself is the shared
+library either way, and the 10% is the interpreted wrapper around it. What the flag is worth
+shows up when it cannot apply — elaborating the same file with `lake env lean`, which does not
+load the precompiled artifacts, took 17.8 seconds, 120× slower. `G.canonicalize` costs one extra
+search rather than one per query.
+
+### What moved those
+
+The first working version of the search was between 1.8× and 2.8× slower on the dense random
+graphs and almost exactly as fast on the sparse ones — `3-reg 500` is within 5% of where it
+started. (Its numbers were taken on an idle machine and these on a shared one, so the gap is if
+anything understated.) That spread says where the tuning went: all of it is in the refinement and
+the per-node bookkeeping, which is nearly all of the time on a graph that refines to a discrete
+partition in a handful of pops and almost none of it on one whose search tree is a thousand nodes
+deep. Every item below is a `@[csimp]` swap against an unchanged specification, so no correctness
+proof saw any of it.
+
+* **One flat state through the worklist.** `refineLoop` threaded a `Part`, a worklist, a hash, a
+  `Scratch` and a scan hint as a nest of pairs: eight cells allocated per pop to hold ten pointers
+  that the next pop immediately reads back. `RState` is the same ten fields in one record — one
+  allocation per pop, and the step can then be written destructured, so the arrays it updates are
+  held uniquely and written in place rather than copied.
+* **Counting, not comparing.** A step sorts the cells the splitter met, by position, and each such
+  cell's vertices, by neighbour count. Both were comparison sorts and both are now counting sorts
+  over a bounded key — with `sortNats` still picking insertion sort for the one, two or three
+  cells a typical splitter meets, and paying for the bucket array only when the list is long
+  enough to want it.
+* **Two-element cells in closed form.** The average cell a splitter meets at `n = 8` holds 1.9
+  vertices. Singletons were one line already; a two-element cell was going through the general
+  path's eight passes to move at most two entries. `splitCellFast` writes them directly, and
+  `splitCell_eq_splitCellFast` is the equation — three hundred lines of it, most spent showing the
+  bucket array comes back cleared.
+* **Comparing against a prefix.** `pruneNode` asked whether a node's invariant path still beat the
+  incumbent's by `extract`ing a prefix of the incumbent's to compare against: an array allocated
+  at every node of the search, read once and dropped. `lexCmpPre` is the same comparison done in
+  place.
+* **Fused loops, and no closures in them.** The two counting loops of a step became one; the
+  worklist scan became a recursion rather than a `for` over a range built to be consumed (3% of a
+  refinement by itself); a graph's adjacency matrix and its neighbour lists are filled in one pass
+  instead of two; a certificate row is packed a word at a time instead of a bit at a time.
+
+Three were measured and not taken. Giving the split accumulators a starting capacity is worth
+nothing — they reach one or two entries. Branching on a *smallest* non-singleton cell, which is
+what nauty does, gives a *larger* tree here: 55237 nodes against 54879 over the 13304 candidates
+of the eighth level of the enumeration. And walking the target cell by position instead of
+building the list of its vertices, together with sharing one empty orbit cache across the nodes
+that have no automorphism to prune by, is worth about 1.4% — but `dfsNode` and `dfsChildren` are
+mutually recursive and a dozen modules reason by their induction principle, so it would cost
+either broad proof repair or a mutual-induction `csimp` proof several times the size of the
+change. Left alone.
 
 Highly symmetric graphs (`K_n`, unions of small cliques) are the weak spot: the automorphisms the
 search harvests there are transposition-like, so it needs `Θ(n²)` nodes. Real nauty has the same
@@ -4229,19 +4274,23 @@ vertex with neighbourhood `s`, canonicalise, deduplicate. The pruning is in whic
   group is already lying around — the canonical labelling harvests it).
 * `redMasks` additionally insists the new vertex have *least degree*, which is legitimate because
   one may always choose to have deleted a least-degree vertex.
-* `connMasks` (connected case) insists on a nonempty mask and least degree **among the non-cut
+* `keyMasks` replaces the degree by a finer isomorphism invariant — the degree with the sum of the
+  neighbours' degrees underneath it, packed into one `ℕ` so the comparison is `Nat.le`. Nothing in
+  the argument was about the degree: any invariant has a minimiser, and any invariant is
+  `Aut`-stable, so the same proof goes through verbatim.
+* `connMasks` (connected case) insists on a nonempty mask and least key **among the non-cut
   vertices** — deleting a cut vertex would disconnect what remains, and `exists_nonCut` says a
   non-cut vertex always exists.
 
-| candidates canonicalised, cumulative to `n = 8` | `allMasks` | `symMasks` | `redMasks` | `connMasks` |
-| :-- | --: | --: | --: | --: |
-| | 133632 | 79454 | 18329 | 17007 |
-| for this many graphs | 12346 | 12346 | 12346 | 11117 (connected) |
+| candidates canonicalised at `n = 8` | `allMasks` | `symMasks` | `redMasks` | `keyMasks` | `connMasks` |
+| :-- | --: | --: | --: | --: | --: |
+| | 133632 | 79454 | 18329 | 13304 | 12069 |
+| for this many graphs | 12346 | 12346 | 12346 | 12346 | 11117 (connected) |
 
 The connectivity and non-cut tests are bitmask BFS over `rowsOfCode` — `Array ℕ`, one word per
 row — and are proved to agree with `Conn` / `NonCut` on `Relation.ReflTransGen`
-(`connTest_iff`, `nonCutTest_iff`). The non-cut test also has to commute with the orbit reduction
-(`nonCutTest_permMask`), or the two prunings could not be combined. The payoff statement is
+(`connTest_iff`, `nonCutHits_iff`). The non-cut test also has to commute with the orbit reduction
+(`nonCutHits_permMask`), or the two prunings could not be combined. The payoff statement is
 
 ```lean
 theorem enumConnCodes_eq (n : ℕ) : enumConnCodes n = (enumCodes n).filter (connTest n)
@@ -4251,17 +4300,48 @@ theorem enumConnCodes_eq (n : ℕ) : enumConnCodes n = (enumCodes n).filter (con
 enumerator computes the connected part of the full enumeration without ever looking at a
 disconnected graph.
 
+The BFS is the expensive half of that level, and it was being run in the wrong place. Whether `u`
+is a cut vertex of the extension is really a question about the graph being extended: deleting `u`
+breaks the parent into parts, the new vertex joins to every part it has a neighbour in and thereby
+joins those parts to one another, so what is left is connected exactly when *every* part contains a
+neighbour of the new vertex (`nonCutHits_iff`). The parts do not depend on the mask, so they are
+found once per parent — one search per deleted vertex, `compTab` — and each of the ~80 masks tried
+on that parent then costs one `&&&` per vertex (`hitsRow`). Two details make the table cheap enough
+to build unconditionally: the rows of the parent with `u` deleted are computed once for the whole
+of `u`'s row rather than rebuilt inside the frontier loop, and when the first search reports that
+`G - u` is connected the remaining `n - 1` searches are skipped, since then every vertex reaches
+all of it (`compMask_eq_coMask`). At `n = 7` the mask stage goes 166 ms → 48 ms, of which 32 ms
+build the tables and 4 ms read them; the rest is the degree comparison that was there anyway.
+
+That 166 ms was itself the result of an earlier round, now deleted: a vertex whose neighbours are
+pairwise adjacent is never a cut vertex, because a path through it can be shortcut across the
+clique, and checking that costs a few word operations. As a guard in front of the per-mask search
+it took the stage from 347 ms to 166 ms. The table then made it redundant — a lookup is cheaper
+than the check that was there to avoid a search.
+
+Cheap non-cut tests then made a *finer* selection rule affordable, and `connMasks` now asks for
+least `vkey` among the non-cut vertices rather than least degree — the same refinement `keyMasks`
+makes over `redMasks`, and the completeness proof only had to change which invariant
+`Finset.exists_min_image` minimises. It had been measured before and rejected: when the non-cut
+test was a search per mask and vertex, the finer rule *ran more searches* (it rejects a mask at the
+first vertex that beats the new one, and a stricter test rejects later), and the 97 ms it saved
+downstream did not pay for the 79 ms it added. With the table the extra tests are lookups, so the
+same rule costs 32 ms and saves 95 ms: 17007 candidates become 12069, against a floor of 11117.
+The comparison is split in two by `newKey_le_oldKey_iff` — the keys are two digits in base
+`(n+1)² + 1`, so the degrees settle it unless they are equal — which keeps the common case exactly
+as cheap as the old degree test, and leaves the neighbour-degree walk for the ties.
+
 `lake exe enumbench`, compiled, on the same contended VM (counts checked against OEIS A000088 and
 A001349):
 
 ```
 n            5      6       7        8         9
-all       5 ms   20 ms   184 ms   2.4 s     219 s      (1, 1, 2, 4, 11, 34, 156, 1044, 12346, 274668)
-connected 3 ms   19 ms   170 ms   2.5 s                (0, 1, 1, 2, 6, 21, 112, 853, 11117)
+all       1 ms    6 ms    36 ms   0.38 s    7.7 s      (1, 1, 2, 4, 11, 34, 156, 1044, 12346, 274668)
+connected 1 ms    4 ms    28 ms   0.34 s    7.6 s      (0, 1, 1, 2, 6, 21, 112, 853, 11117, 261080)
 ```
 
 Two refinements were built, measured and thrown away; both are worth recording because in both
-cases the *pruning worked* and was still a loss.
+cases the *pruning worked* and was still a loss. (The second one came back — see below.)
 
 * **All graphs from the connected ones.** Every graph is a disjoint union of connected graphs, so
   the all-graphs list can be assembled from `enumerateConn` by joining and canonicalising. It runs
@@ -4279,6 +4359,49 @@ cases the *pruning worked* and was still a loss.
 
 The lesson both times: at these sizes canonicalisation is cheap enough that a pruning test has to
 be *very* cheap to pay for itself, and "fewer candidates" is not the same as "faster".
+
+The tie-break came back later as `keyMasks`, once the test was cheap enough. Two things changed.
+The invariant is the *sum* of the neighbours' degrees rather than their multiset, so comparing two
+keys is one `Nat.le` and not a list comparison — it reaches 13304 candidates where the multiset
+reached 13080, five sixths of the way to the floor of 12346 for a fraction of the price. And
+`minKeyOk` is defined as arithmetic on the degrees of the **parent** (`newKey`, `oldKey`), so
+nothing is built per mask: the fast path carries, once per parent, each vertex's degree and each
+vertex's neighbour list *paired with the neighbours' degrees*, and a mask costs one walk of that.
+`minKeyOk_iff` is the bridge, and it is the reason the arithmetic is stated on the parent rather
+than proved about the extension: `adj_extendCode_last` needs `c < 2 ^ n.choose 2`, which a `csimp`
+lemma may not assume, but both completeness proofs have it. At `n = 7` the whole test cost 33 ms
+and saved ~90 ms downstream — a 17% level-time win where the multiset version lost 6%; the
+arithmetic round below has since brought the test itself down to about 15 ms.
+
+Once the algorithm stopped changing there was still a round of arithmetic to collect, all of it
+`@[csimp]` swaps against unchanged specifications, so nothing above needed reproving.
+
+* **`2 ^ k` is not a shift.** `Nat.pow` and `Nat.shiftLeft` both call into GMP, and both cost
+  ≈ 130 ns whatever the exponent; a two-line doubling recursion costs 32. The masks are built out
+  of powers of two everywhere — `fullMask`, `coMask`, `startMask`, one per vertex per row — so
+  `twoPow` with its `twoPowFast` doubling companion pays for itself many times over. (For contrast
+  `&&&`, `|||`, `^^^`, `>>>` are ≈ 6 ns and `Nat.testBit` of a scalar is 11.)
+* **Ranges folded, not built.** `(List.range n).foldl f a` allocates `n` cons cells to consume
+  them immediately: 166 ns at `n = 8` against 59 for a recursion on a fuel with the index carried
+  along. `reachStep` and `rowMask` — the innermost loops of the connectivity test and of the code
+  builder — became `reachStepAux` and `rowMaskAux`, and the bridge in each case is one induction
+  on the fuel, generalised over the accumulator.
+* **Hoisting by partial application.** Lean does no loop-invariant code motion, so `coMask n u`
+  was recomputed for each of the `n` rows of a deletion and `n.choose 2` for each candidate of a
+  level. Splitting the body into `delRowWith … (coMask n u)` and `extendCodeWith (n.choose 2)`
+  and mapping the partial application evaluates the invariant once, when the closure is built;
+  the `csimp` lemmas are `rfl`, and the only cost is that the `if` moved, so a handful of proofs
+  now `rw` through the new name.
+* **Laziness where the measurement said so.** The neighbour-degree sum in `keyMasks`/`connMasks`
+  is only consulted when the degrees tie. Instrumenting the walk at `n = 7`: of 67293 masks
+  examined, 52822 — 78.5% — never reach the tie branch at all, and the ones that do reach it 0.33
+  times per mask on average. So the sum stays inside the branch that wants it (a `let` before the
+  `&&`-chain would be strict; the right operand of `&&` is not, `Bool.and` being `macro_inline`),
+  and it is folded in place rather than summed over a `List.map` built to be discarded. A memoised
+  `Thunk` was tried and rejected: 67293 allocations to save ~8000 folds.
+
+Together: `n = 9` connected 8.8 → 7.6 s and all 8.3 → 7.7 s. The stage breakdown that
+`enumbench --conn 7` prints moves mask generation 151 → 101 ms and the degree table 66 → 37 ms.
 
 ## Names for the small graphs
 

@@ -49,27 +49,28 @@ enumerator built from a mask selector `masks : ℕ → ℕ → List ℕ`, and th
 and *some* offered mask.  No soundness side is needed: whatever `masks` produces, the output of
 `enumCodesOf` consists of `canonCode` values, hence of canonical codes, so `enumCodesOf_eq` gives
 `enumCodesOf masks n = enumCodes n` on the nose and every enumerator below inherits completeness
-and soundness from `enumerate`.  Three selectors are provided, each pruning more:
+and soundness from `enumerate`.  Four selectors are provided, each pruning more:
 
 * `allMasks` — all `2 ^ n` neighbourhoods (`enumCodesExt`);
 * `symMasks` — keep only orbit minima under the automorphism group of the parent (`enumCodesSym`).
   The generators come out of the canonical-labelling search, but are re-checked at runtime with
   `decide` (`autoPerms`), so no proof depends on the search being correct;
-* `redMasks` — additionally require the new vertex to have least degree (`enumCodesFast`), which
-  is legitimate because every graph has such a vertex and the test is `Aut`-invariant.
+* `redMasks` — additionally require the new vertex to have least degree, which is legitimate
+  because every graph has such a vertex and the test is `Aut`-invariant;
+* `keyMasks` — the same argument with a finer invariant than the degree (`enumCodesFast`).
 
 Measured with `lake exe enumbench --all`, one run, counts all matching OEIS A000088:
 
 | `n` | `sweepCodes` | `enumCodesExt` | `enumCodesSym` | `enumCodesFast` |
 |-----|-------------:|---------------:|---------------:|----------------:|
-| 6   |        663ms |           29ms |           17ms |             8ms |
-| 7   |      47782ms |          295ms |          163ms |            57ms |
-| 8   |            — |         4189ms |         2544ms |           696ms |
-| 9   |            — |              — |              — |         16405ms |
+| 6   |        490ms |           21ms |           12ms |             5ms |
+| 7   |      33335ms |          203ms |          114ms |            38ms |
+| 8   |            — |         2753ms |         1679ms |           395ms |
+| 9   |            — |              — |              — |          8300ms |
 
-At `n = 8` the pruning leaves little on the table: 18329 candidates were canonicalised to produce
-the 12346 graphs on 8 vertices, so all but a factor of 1.5 of the work is one canonical labelling
-per graph, and further symmetry reduction cannot buy much.  Of that labelling, at `n = 7`, about a
+At `n = 8` the pruning leaves almost nothing on the table: 13304 candidates were canonicalised to
+produce the 12346 graphs on 8 vertices, so all but 8 % of the work is one canonical labelling per
+graph, and further symmetry reduction cannot buy much.  Of that labelling, at `n = 7`, about a
 seventh is building the `Graph` the search runs on, a twentieth is `codeOfAdj` reading the answer
 back off the certificate, and the rest is the search.
 
@@ -759,6 +760,36 @@ def rowMask (n : ℕ) (f : ℕ → Bool) : ℕ :=
 theorem rowMask_lt (n : ℕ) (f : ℕ → Bool) : rowMask n f < 2 ^ n :=
   foldl_or_lt (fun a ↦ a) f n _ (fun _ ha ↦ List.mem_range.1 ha) 0 (Nat.two_pow_pos _)
 
+/-- The loop of `rowMaskFast`: the bits of the row, least significant first. -/
+def rowMaskAux (f : ℕ → Bool) : ℕ → ℕ → ℕ
+  | 0, _ => 0
+  | k + 1, i => (if f i then 1 else 0) + 2 * rowMaskAux f k (i + 1)
+
+/-- What `rowMask` runs.  Shifting a bit into place costs a `Nat.pow` — an allocation and a GMP
+call — and the range list costs a cons cell per vertex, so instead the mask is built from the top
+by doubling, which stays on machine words. -/
+def rowMaskFast (n : ℕ) (f : ℕ → Bool) : ℕ := rowMaskAux f n 0
+
+theorem rowMaskAux_lt (f : ℕ → Bool) : ∀ (k i : ℕ), rowMaskAux f k i < 2 ^ k
+  | 0, _ => by simp [rowMaskAux]
+  | k + 1, i => by
+    have := rowMaskAux_lt f k (i + 1)
+    rw [rowMaskAux, pow_succ]
+    split <;> omega
+
+theorem testBit_rowMaskAux (f : ℕ → Bool) :
+    ∀ {k i b : ℕ}, b < k → (rowMaskAux f k i).testBit b = f (i + b)
+  | k + 1, i, 0, _ => by
+    rw [rowMaskAux, Nat.testBit_zero, Nat.add_zero]
+    rcases f i with _ | _ <;> simp [Nat.mul_mod_right, Nat.add_mul_mod_self_left]
+  | k + 1, i, b + 1, hb => by
+    rw [rowMaskAux, Nat.testBit_succ,
+      show ((if f i then 1 else 0) + 2 * rowMaskAux f k (i + 1)) / 2 = rowMaskAux f k (i + 1) from
+        by split <;> omega]
+    rw [testBit_rowMaskAux f (show b < k by omega)]
+    congr 1
+    omega
+
 theorem testBit_rowMask {n : ℕ} (f : ℕ → Bool) {k : ℕ} (hk : k < n) :
     (rowMask n f).testBit k = f k := by
   rw [rowMask, testBit_foldl_or (fun a ↦ a)]
@@ -773,14 +804,23 @@ theorem testBit_rowMask {n : ℕ} (f : ℕ → Bool) {k : ℕ} (hk : k < n) :
     rw [List.any_eq_true]
     exact ⟨k, List.mem_range.2 hk, by simp [h]⟩
 
+@[csimp] theorem rowMask_eq_rowMaskFast : @rowMask = @rowMaskFast := by
+  funext n f
+  refine eq_of_testBit_lt (rowMask_lt n f) (rowMaskAux_lt f n 0) fun k hk ↦ ?_
+  rw [testBit_rowMask f hk, rowMaskFast, testBit_rowMaskAux f hk, Nat.zero_add]
+
+/-- Extend the code `c` of an `n`-vertex graph by a new last vertex whose neighbourhood is the
+bit mask `s`, given the position `k` where the new vertex's bits start. -/
+def extendCodeWith (k c s : ℕ) : ℕ := c ||| (s <<< k)
+
 /-- Extend the code `c` of an `n`-vertex graph by a new last vertex whose neighbourhood is the
 bit mask `s`.  The pair indices `pairIdx i n` for `i < n` are exactly the positions
 `n.choose 2, …, (n+1).choose 2 - 1`, so this is a plain shift-and-or. -/
-def extendCode (n c s : ℕ) : ℕ := c ||| (s <<< n.choose 2)
+def extendCode (n c s : ℕ) : ℕ := extendCodeWith (n.choose 2) c s
 
 theorem testBit_extendCode_low {n c s k : ℕ} (hk : k < n.choose 2) :
     (extendCode n c s).testBit k = c.testBit k := by
-  rw [extendCode, Nat.testBit_or, Nat.testBit_shiftLeft]
+  rw [extendCode, extendCodeWith, Nat.testBit_or, Nat.testBit_shiftLeft]
   simp [Nat.not_le.2 hk]
 
 theorem testBit_extendCode_high {n c s i : ℕ} (hc : c < 2 ^ n.choose 2) :
@@ -788,7 +828,7 @@ theorem testBit_extendCode_high {n c s i : ℕ} (hc : c < 2 ^ n.choose 2) :
   have h0 : c.testBit (n.choose 2 + i) = false :=
     Nat.testBit_lt_two_pow
       (lt_of_lt_of_le hc (Nat.pow_le_pow_right (by norm_num) (by omega)))
-  rw [extendCode, Nat.testBit_or, Nat.testBit_shiftLeft, h0]
+  rw [extendCode, extendCodeWith, Nat.testBit_or, Nat.testBit_shiftLeft, h0]
   simp
 
 theorem adj_extendCode_lt {n c s : ℕ} {i j : Fin (n + 1)} (hi : i.1 < n) (hj : j.1 < n) :
@@ -842,6 +882,15 @@ theorem canonCode_zero (adj : Fin 0 → Fin 0 → Bool) : canonCode 0 adj = 0 :=
 way, canonicalise, and deduplicate. -/
 def extendLevel (masks : ℕ → ℕ → List ℕ) (n : ℕ) (l : List ℕ) : List ℕ :=
   dedupNat ((l.flatMap fun c ↦ (masks n c).map (extendCode n c)).map (canonOfCode (n + 1)))
+
+/-- What `extendLevel` runs.  `Nat.choose` is Pascal's recursion, so `n.choose 2` is quadratic in
+`n`; here it is the same for every code and every mask, so it is computed once for the level
+instead of once per extension. -/
+def extendLevelFast (masks : ℕ → ℕ → List ℕ) (n : ℕ) (l : List ℕ) : List ℕ :=
+  let k := n.choose 2
+  dedupNat ((l.flatMap fun c ↦ (masks n c).map (extendCodeWith k c)).map (canonOfCode (n + 1)))
+
+@[csimp] theorem extendLevel_eq_extendLevelFast : @extendLevel = @extendLevelFast := rfl
 
 theorem mem_extendLevel {masks : ℕ → ℕ → List ℕ} {n : ℕ} {l : List ℕ} {d : ℕ} :
     d ∈ extendLevel masks n l ↔ ∃ c ∈ l, ∃ s ∈ masks n c,
@@ -1168,20 +1217,28 @@ theorem autoPerms_mem {n : ℕ} {adj : Fin n → Fin n → Bool} {σ : Equiv.Per
 /-- The same check as a pair of list loops.  `decide (∀ i j : Fin n, …)` goes through
 `Fintype.decidableForallFintype`, which builds `Finset.univ` once for the outer quantifier and
 again for each value of the inner one; on the six-vertex enumeration that search for `univ` costs
-more than every adjacency query it then makes. -/
+more than every adjacency query it then makes.
+
+The check reads the graph the search has already tabulated rather than `adj` itself.  A candidate
+costs `n²` adjacency queries, and `adj` here is typically a `Decidable` instance behind a `FinEnum`
+transport, which is an order of magnitude dearer than an array read; `Graph.ofOracle` has paid for
+that once already. -/
 def autoPermsFast (n : ℕ) (adj : Fin n → Fin n → Bool) : List (Equiv.Perm (Fin n)) :=
   let vs := List.finRange n
-  let gens := ((canonical (Graph.ofOracle n (oracleOfFin n adj))).autos.toList.map
-    fun a ↦ permOfArrays n a (invArray n a))
+  let G := Graph.ofOracle n (oracleOfFin n adj)
+  let gens := (canonical G).autos.toList.map fun a ↦ permOfArrays n a (invArray n a)
   (gens ++ gens.map (·⁻¹)).filter fun σ ↦
-    vs.all fun i ↦ let si := σ i; vs.all fun j ↦ adj si (σ j) == adj i j
+    vs.all fun i ↦
+      let ri := G.adj[(σ i).1]!
+      let si := G.adj[i.1]!
+      vs.all fun j ↦ ri[(σ j).1]! == si[j.1]!
 
 @[csimp] theorem autoPerms_eq_autoPermsFast : @autoPerms = @autoPermsFast := by
   funext n adj
   simp only [autoPerms, autoPermsFast]
   refine List.filter_congr fun σ _ ↦ ?_
   rw [Bool.eq_iff_iff, decide_eq_true_eq]
-  simp [List.all_eq_true]
+  simp [List.all_eq_true, oracleOfFin_apply]
 
 /-! ## Orbit-reduced masks -/
 
@@ -1277,6 +1334,12 @@ theorem maskCard_permMask {n : ℕ} (σ : Equiv.Perm (Fin n)) (s : ℕ) :
     maskCard n (permMask n σ s) = maskCard n s :=
   Fintype.sum_equiv σ _ _ fun i ↦ by rw [testBit_permMask _ _ i.2]
 
+theorem maskCard_le (n s : ℕ) : maskCard n s ≤ n := by
+  rw [maskCard]
+  calc (∑ i : Fin n, if s.testBit i.1 then 1 else 0) ≤ ∑ _i : Fin n, 1 :=
+        Finset.sum_le_sum fun i _ ↦ by split <;> simp
+    _ = n := by simp
+
 /-! ## Only adding a vertex of least degree -/
 
 /-- Would the new vertex have least degree in the extension?  Every graph has a vertex of least
@@ -1296,6 +1359,40 @@ theorem minDegOk_permMask {n c s : ℕ} {σ : Equiv.Perm (Fin n)}
 /-- The masks actually tried: orbit representatives that keep the new vertex of least degree. -/
 def redMasks (n c : ℕ) : List ℕ := (symMasks n c).filter (minDegOk n c)
 
+/-- **Deleting a vertex of least degree leaves a mask that passes the test.**  Stated for a graph
+whose *last* vertex is one of least degree, because both completeness proofs below begin by
+swapping their chosen vertex there. -/
+theorem minDegOk_lastMask {n : ℕ} (A : Fin (n + 1) → Fin (n + 1) → Bool)
+    (hs : ∀ i j, A i j = A j i) (hl : ∀ i, A i i = false)
+    (hv : ∀ w, deg A (Fin.last n) ≤ deg A w) :
+    minDegOk n (canonCode n (restrict A)) (lastMask n A) = true := by
+  have hs' : ∀ i j, restrict A i j = restrict A j i := fun i j ↦ hs _ _
+  have hl' : ∀ i, restrict A i i = false := fun i ↦ hl _
+  set σ : Equiv.Perm (Fin n) := canonPerm n (restrict A) with hσdef
+  set c : ℕ := canonCode n (restrict A) with hc
+  set s : ℕ := lastMask n A with hsdef
+  -- the bits of the mask, and the degrees they contribute to
+  have hbit : ∀ u : Fin n, s.testBit u.1 = A (σ u).castSucc (Fin.last n) :=
+    fun u ↦ testBit_lastMask u.2
+  -- the new vertex's degree is the degree of the vertex deleted
+  have hcard : maskCard n s = deg A (Fin.last n) := by
+    rw [deg_castSucc_split, if_neg (by simp [hl]), Nat.add_zero, maskCard]
+    refine (Fintype.sum_equiv σ _ _ fun i ↦ ?_).trans rfl
+    rw [hbit i, hs]
+  -- and the old vertices keep theirs
+  have hdeg : ∀ u : Fin n,
+      deg (graphOfCode n c).Adj u + (if s.testBit u.1 then 1 else 0) = deg A (σ u).castSucc := by
+    intro u
+    have hgc : (graphOfCode n c).Adj = fun a b ↦ restrict A (σ a) (σ b) :=
+      funext fun i ↦ funext fun j ↦ by
+        rw [hc, adj_graphOfCode_canonCode hs' hl' i j, canonAdj_apply]
+    rw [hgc, deg_perm, hbit u, deg_castSucc_split]
+    rfl
+  simp only [minDegOk, decide_eq_true_eq]
+  intro u
+  rw [hcard, hdeg u]
+  exact hv _
+
 /-- **Nothing is lost by insisting on least degree either.**  Delete a vertex of least degree
 from a graph on `n+1` vertices: what is left is a graph on `n` vertices, and the mask that puts
 the deleted vertex back passes both tests. -/
@@ -1307,76 +1404,465 @@ theorem redMasks_complete : MasksComplete redMasks := by
   set adjπ : Fin (n + 1) → Fin (n + 1) → Bool := fun a b ↦ adj (π a) (π b) with hadjπ
   have hsπ : ∀ i j, adjπ i j = adjπ j i := fun i j ↦ hs _ _
   have hlπ : ∀ i, adjπ i i = false := fun i ↦ hl _
-  set adj' : Fin n → Fin n → Bool := restrict adjπ with hadj'
-  have hs' : ∀ i j, adj' i j = adj' j i := fun i j ↦ hsπ _ _
-  have hl' : ∀ i, adj' i i = false := fun i ↦ hlπ _
-  set c : ℕ := canonCode n adj' with hc
-  set σ : Equiv.Perm (Fin n) := canonPerm n adj' with hσdef
-  set s : ℕ := lastMask n adjπ with hsdef
-  -- the bits of the mask, and the degrees they contribute to
-  have hbit : ∀ u : Fin n, s.testBit u.1 = adjπ (σ u).castSucc (Fin.last n) :=
-    fun u ↦ testBit_lastMask u.2
-  have hdegπ : ∀ i : Fin (n + 1), deg adjπ i = deg adj (π i) := deg_perm adj π
-  -- the new vertex's degree is the degree of `v`
-  have hcard : maskCard n s = deg adj v := by
-    rw [← Equiv.swap_apply_right v (Fin.last n), ← hπ, ← hdegπ, deg_castSucc_split,
-      if_neg (by simp [hlπ]), Nat.add_zero, maskCard]
-    refine (Fintype.sum_equiv σ _ _ fun i ↦ ?_).trans rfl
-    rw [hbit i, hsπ]
-  -- and the old vertices keep theirs
-  have hdeg : ∀ u : Fin n,
-      deg (graphOfCode n c).Adj u + (if s.testBit u.1 then 1 else 0) = deg adj (π (σ u).castSucc) := by
-    intro u
-    have hgc : (graphOfCode n c).Adj = fun a b ↦ adj' (σ a) (σ b) :=
-      funext fun i ↦ funext fun j ↦ by
-        rw [hc, adj_graphOfCode_canonCode hs' hl' i j, canonAdj_apply]
-    rw [hgc, deg_perm, hbit u, ← hdegπ, deg_castSucc_split]
-    rfl
-  have hmin : minDegOk n c s = true := by
-    simp only [minDegOk, decide_eq_true_eq]
-    intro u
-    rw [hcard, hdeg u]
+  -- the swap puts a vertex of least degree last
+  have hdπ : ∀ w, deg adjπ (Fin.last n) ≤ deg adjπ w := by
+    intro w
+    rw [hadjπ, deg_perm, deg_perm, hπ, Equiv.swap_apply_right]
     exact hv _ (Finset.mem_univ _)
+  set adj' : Fin n → Fin n → Bool := restrict adjπ with hadj'
+  set c : ℕ := canonCode n adj' with hc
+  set s : ℕ := lastMask n adjπ with hsdef
   -- reduce the mask to its orbit representative
   obtain ⟨τ, hτ, hmem⟩ := exists_mem_symMasks (c := c) (lastMask_lt n adjπ)
-  refine ⟨adj', hs', hl', permMask n τ s, ?_, ?_⟩
+  refine ⟨adj', fun i j ↦ hsπ _ _, fun _ ↦ hlπ _, permMask n τ s, ?_, ?_⟩
   · rw [redMasks, List.mem_filter]
-    exact ⟨hmem, minDegOk_permMask hτ hmin⟩
+    exact ⟨hmem, minDegOk_permMask hτ (minDegOk_lastMask adjπ hsπ hlπ hdπ)⟩
   · rw [canonCode_extendCode_permMask (canonCode_lt n adj') τ hτ, canonCode_extend adjπ hsπ hlπ,
       canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (A := adjπ) (B := adj) π fun _ _ ↦ rfl]
 
 /-- What `redMasks` runs.  The degrees of the graph being extended do not depend on the mask, and
 `maskCard n s` does not depend on the vertex `minDegOk` is looking at; written as `redMasks` is,
 both are recomputed inside the loop, and the degrees — a `Finset` sum each — are two thirds of the
-cost of a level. -/
+cost of a level.
+
+The two tests are also fused into a single pass over `List.range (2 ^ n)`, degree first: `redMasks`
+filters the *list* `symMasks` produces, which is to build a list of some 76 masks per parent at
+`n = 8` and then throw three of every four of them away.  Degree first because it is the cheaper
+test — a few comparisons against a table computed once per parent, against a gather of the whole
+mask for every automorphism. -/
 def redMasksFast (n c : ℕ) : List ℕ :=
+  let ps := (autoPerms n (graphOfCode n c).Adj).map fun σ ↦ (List.finRange n).map fun k ↦ (σ k).1
   let ds := (List.finRange n).map fun i ↦ (deg (graphOfCode n c).Adj i, i.1)
-  (symMasks n c).filter fun s ↦
-    let m := maskCard n s
-    ds.all fun d ↦ decide (m ≤ d.1 + (if s.testBit d.2 then 1 else 0))
+  (List.range (2 ^ n)).filter fun s ↦
+    (let m := maskCard n s
+     ds.all fun d ↦ decide (m ≤ d.1 + (if s.testBit d.2 then 1 else 0)))
+      && ps.all fun p ↦ decide (s ≤ gatherMask s p)
 
 @[csimp] theorem redMasks_eq_redMasksFast : @redMasks = @redMasksFast := by
   funext n c
+  simp only [redMasks, symMasks, redMasksFast, List.filter_filter]
   refine List.filter_congr fun s _ ↦ ?_
-  rw [minDegOk, Bool.eq_iff_iff, decide_eq_true_eq]
-  simp only [List.all_map, Function.comp_def, List.all_eq_true, List.mem_finRange,
-    decide_eq_true_eq, forall_const]
+  have hdeg : minDegOk n c s
+      = (((List.finRange n).map fun i ↦ (deg (graphOfCode n c).Adj i, i.1)).all
+          fun d ↦ decide (maskCard n s ≤ d.1 + (if s.testBit d.2 then 1 else 0))) := by
+    rw [minDegOk, Bool.eq_iff_iff, decide_eq_true_eq]
+    simp only [List.all_map, Function.comp_def, List.all_eq_true, List.mem_finRange,
+      decide_eq_true_eq, forall_const]
+  have hsym : ((autoPerms n (graphOfCode n c).Adj).all fun σ ↦ decide (s ≤ permMask n σ s))
+      = (((autoPerms n (graphOfCode n c).Adj).map fun σ ↦
+          (List.finRange n).map fun k ↦ (σ k).1).all fun p ↦ decide (s ≤ gatherMask s p)) := by
+    simp only [List.all_map, Function.comp_def, permMask_eq_gatherMask]
+  rw [hdeg, hsym]
 
 theorem symMasks_complete : MasksComplete symMasks := fun n adj hs hl ↦ by
   obtain ⟨τ, hτ, hmem⟩ := exists_mem_symMasks (c := canonCode n (restrict adj)) (lastMask_lt n adj)
   exact ⟨restrict adj, fun _ _ ↦ hs _ _, fun _ ↦ hl _, permMask n τ (lastMask n adj), hmem, by
     rw [canonCode_extendCode_permMask (canonCode_lt _ _) τ hτ, canonCode_extend adj hs hl]⟩
 
+/-! ## Only adding a vertex of least key
+
+`minDegOk` keeps one candidate per orbit of *least-degree* vertices: 18329 of them at `n = 8`, for
+12346 isomorphism classes.  But the degree is not special.  **Any** isomorphism-invariant key on
+the vertices does just as well — every graph has a vertex of least key, which is all the argument
+above needs — and a finer key admits fewer.
+
+`vkey` is the degree with the sum of the neighbours' degrees underneath it, two digits in base
+`n² + 1`.  That gets to 13304 candidates, five sixths of the way from `redMasks` to the floor of
+one per class.  (The whole *multiset* of the neighbours' degrees reaches 13080, which is not worth
+what it costs to compare.)
+-/
+
+theorem deg_le {n : ℕ} (adj : Fin n → Fin n → Bool) (i : Fin n) : deg adj i ≤ n := by
+  rw [deg]
+  calc (∑ j : Fin n, if adj i j then 1 else 0) ≤ ∑ _j : Fin n, 1 :=
+        Finset.sum_le_sum fun j _ ↦ by split <;> simp
+    _ = n := by simp
+
+/-- The sum of the degrees of `i`'s neighbours. -/
+def nbrDeg {n : ℕ} (adj : Fin n → Fin n → Bool) (i : Fin n) : ℕ :=
+  ∑ j, if adj i j then deg adj j else 0
+
+theorem nbrDeg_le {n : ℕ} (adj : Fin n → Fin n → Bool) (i : Fin n) : nbrDeg adj i ≤ n * n := by
+  rw [nbrDeg]
+  calc (∑ j : Fin n, if adj i j then deg adj j else 0) ≤ ∑ _j : Fin n, n :=
+        Finset.sum_le_sum fun j _ ↦ by
+          split
+          · exact deg_le adj j
+          · exact Nat.zero_le _
+    _ = n * n := by simp
+
+/-- **The key.**  A single natural number rather than a pair, so that the comparison is `Nat.le`:
+`nbrDeg` is at most `n²`, so scaling the degree by `n² + 1` keeps it the leading digit. -/
+def vkey {n : ℕ} (adj : Fin n → Fin n → Bool) (i : Fin n) : ℕ :=
+  deg adj i * (n * n + 1) + nbrDeg adj i
+
+theorem nbrDeg_perm {n : ℕ} (adj : Fin n → Fin n → Bool) (σ : Equiv.Perm (Fin n)) (i : Fin n) :
+    nbrDeg (fun a b ↦ adj (σ a) (σ b)) i = nbrDeg adj (σ i) :=
+  Fintype.sum_equiv σ _ _ fun j ↦ by rw [deg_perm]
+
+/-- **The key is an isomorphism invariant** — which is the whole of what is needed of it. -/
+theorem vkey_perm {n : ℕ} (adj : Fin n → Fin n → Bool) (σ : Equiv.Perm (Fin n)) (i : Fin n) :
+    vkey (fun a b ↦ adj (σ a) (σ b)) i = vkey adj (σ i) := by
+  rw [vkey, vkey, deg_perm, nbrDeg_perm]
+
+/-- The key refines the degree: a vertex of least key is in particular one of least degree, so
+`keyMasks` may keep `minDegOk` as a cheap first test. -/
+theorem deg_le_of_vkey_le {n : ℕ} {adj : Fin n → Fin n → Bool} {a b : Fin n}
+    (h : vkey adj a ≤ vkey adj b) : deg adj a ≤ deg adj b := by
+  by_contra hc
+  have h1 : deg adj b * (n * n + 1) + (n * n + 1) ≤ deg adj a * (n * n + 1) := by
+    rw [← Nat.succ_mul]
+    exact Nat.mul_le_mul_right _ (Nat.lt_of_not_le hc)
+  have h2 := nbrDeg_le adj b
+  rw [vkey, vkey] at h
+  omega
+
+/-! ### The key of the extension, from the degrees of the parent
+
+Comparing keys in the extension means comparing them in a graph that does not exist yet: the test
+runs once per mask, and building the extension to read its degrees off would cost more than the
+canonicalisation it is trying to avoid.  So `minKeyOk` is stated as arithmetic on the degrees of
+the *parent* — which are computed once per parent, not once per mask — and `minKeyOk_iff` is what
+says that arithmetic is the key comparison. -/
+
+/-- The degree that the old vertex `i` has in the extension. -/
+def extDeg (n c s : ℕ) (i : Fin n) : ℕ :=
+  deg (graphOfCode n c).Adj i + (if s.testBit i.1 then 1 else 0)
+
+/-- The key of the new vertex in the extension: it is adjacent to exactly the vertices in `s`. -/
+def newKey (n c s : ℕ) : ℕ :=
+  maskCard n s * ((n + 1) * (n + 1) + 1)
+    + ∑ i : Fin n, if s.testBit i.1 then extDeg n c s i else 0
+
+/-- The key of the old vertex `i` in the extension: its neighbours are the ones it had, each a
+degree heavier if the new vertex joined it, and the new vertex if `s` says so. -/
+def oldKey (n c s : ℕ) (i : Fin n) : ℕ :=
+  extDeg n c s i * ((n + 1) * (n + 1) + 1)
+    + ((∑ j : Fin n, if (graphOfCode n c).Adj i j then extDeg n c s j else 0)
+        + (if s.testBit i.1 then maskCard n s else 0))
+
+section ExtKey
+variable {n c s : ℕ}
+
+private theorem adjE_lt (i j : Fin n) :
+    (graphOfCode (n + 1) (extendCode n c s)).Adj i.castSucc j.castSucc
+      = (graphOfCode n c).Adj i j := by
+  rw [adj_extendCode_lt (show (i.castSucc).1 < n by simp) (show (j.castSucc).1 < n by simp)]
+  simp
+
+private theorem adjE_last (hc : c < 2 ^ n.choose 2) (i : Fin n) :
+    (graphOfCode (n + 1) (extendCode n c s)).Adj i.castSucc (Fin.last n) = s.testBit i.1 :=
+  adj_extendCode_last hc (show (i.castSucc).1 < n by simp)
+
+private theorem degE_castSucc (hc : c < 2 ^ n.choose 2) (i : Fin n) :
+    deg (graphOfCode (n + 1) (extendCode n c s)).Adj i.castSucc = extDeg n c s i := by
+  rw [deg_castSucc_split, extDeg, deg, adjE_last hc]
+  congr 1
+  exact Finset.sum_congr rfl fun j _ ↦ by rw [adjE_lt]
+
+private theorem degE_last (hc : c < 2 ^ n.choose 2) :
+    deg (graphOfCode (n + 1) (extendCode n c s)).Adj (Fin.last n) = maskCard n s := by
+  rw [deg_castSucc_split, if_neg (by simp), Nat.add_zero, maskCard]
+  exact Finset.sum_congr rfl fun j _ ↦ by
+    rw [(graphOfCode (n + 1) (extendCode n c s)).symm, adjE_last hc]
+
+private theorem nbrDegE_last (hc : c < 2 ^ n.choose 2) :
+    nbrDeg (graphOfCode (n + 1) (extendCode n c s)).Adj (Fin.last n)
+      = ∑ i : Fin n, if s.testBit i.1 then extDeg n c s i else 0 := by
+  rw [nbrDeg, Fin.sum_univ_castSucc, if_neg (by simp), Nat.add_zero]
+  exact Finset.sum_congr rfl fun j _ ↦ by
+    rw [(graphOfCode (n + 1) (extendCode n c s)).symm, adjE_last hc, degE_castSucc hc]
+
+private theorem nbrDegE_castSucc (hc : c < 2 ^ n.choose 2) (i : Fin n) :
+    nbrDeg (graphOfCode (n + 1) (extendCode n c s)).Adj i.castSucc
+      = (∑ j : Fin n, if (graphOfCode n c).Adj i j then extDeg n c s j else 0)
+          + (if s.testBit i.1 then maskCard n s else 0) := by
+  rw [nbrDeg, Fin.sum_univ_castSucc, adjE_last hc, degE_last hc]
+  congr 1
+  exact Finset.sum_congr rfl fun j _ ↦ by rw [adjE_lt, degE_castSucc hc]
+
+theorem newKey_eq (hc : c < 2 ^ n.choose 2) :
+    newKey n c s = vkey (graphOfCode (n + 1) (extendCode n c s)).Adj (Fin.last n) := by
+  rw [newKey, vkey, degE_last hc, nbrDegE_last hc]
+
+theorem oldKey_eq (hc : c < 2 ^ n.choose 2) (i : Fin n) :
+    oldKey n c s i = vkey (graphOfCode (n + 1) (extendCode n c s)).Adj i.castSucc := by
+  rw [oldKey, vkey, degE_castSucc hc, nbrDegE_castSucc hc]
+
+end ExtKey
+
+/-- Would the new vertex have least key in the extension?  Read `minKeyOk_iff` for what this says;
+what it *is* is arithmetic on the parent, so that nothing is built per mask. -/
+def minKeyOk (n c s : ℕ) : Bool := decide (∀ i : Fin n, newKey n c s ≤ oldKey n c s i)
+
+theorem minKeyOk_iff {n c s : ℕ} (hc : c < 2 ^ n.choose 2) :
+    minKeyOk n c s = true ↔ ∀ i : Fin (n + 1),
+      vkey (graphOfCode (n + 1) (extendCode n c s)).Adj (Fin.last n)
+        ≤ vkey (graphOfCode (n + 1) (extendCode n c s)).Adj i := by
+  rw [minKeyOk, decide_eq_true_eq]
+  constructor
+  · intro h i
+    refine Fin.lastCases ?_ ?_ i
+    · exact le_refl _
+    · intro j
+      rw [← newKey_eq hc, ← oldKey_eq hc]
+      exact h j
+  · intro h i
+    rw [newKey_eq hc, oldKey_eq hc]
+    exact h _
+
+/-- Permuting the mask by an automorphism of the parent does not change the new vertex's key: it
+is the same extension relabelled. -/
+theorem newKey_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2) {σ : Equiv.Perm (Fin n)}
+    (hσ : σ ∈ autGroup n (graphOfCode n c).Adj) :
+    newKey n c (permMask n σ s) = newKey n c s := by
+  have hB : (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj
+      = fun a b ↦ (graphOfCode (n + 1) (extendCode n c s)).Adj (permLast σ a) (permLast σ b) :=
+    funext fun a ↦ funext fun b ↦ (adj_extendCode_permMask hc σ hσ a b).symm
+  rw [newKey_eq hc, newKey_eq hc, hB, vkey_perm, permLast_last]
+
+/-- …and it carries the old vertices' keys along `σ`. -/
+theorem oldKey_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2) {σ : Equiv.Perm (Fin n)}
+    (hσ : σ ∈ autGroup n (graphOfCode n c).Adj) (i : Fin n) :
+    oldKey n c (permMask n σ s) i = oldKey n c s (σ i) := by
+  have hB : (graphOfCode (n + 1) (extendCode n c (permMask n σ s))).Adj
+      = fun a b ↦ (graphOfCode (n + 1) (extendCode n c s)).Adj (permLast σ a) (permLast σ b) :=
+    funext fun a ↦ funext fun b ↦ (adj_extendCode_permMask hc σ hσ a b).symm
+  rw [oldKey_eq hc, oldKey_eq hc, hB, vkey_perm, permLast_castSucc]
+
+theorem minKeyOk_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2) {σ : Equiv.Perm (Fin n)}
+    (hσ : σ ∈ autGroup n (graphOfCode n c).Adj) (h : minKeyOk n c s = true) :
+    minKeyOk n c (permMask n σ s) = true := by
+  rw [minKeyOk, decide_eq_true_eq] at h ⊢
+  intro i
+  rw [newKey_permMask hc hσ, oldKey_permMask hc hσ]
+  exact h (σ i)
+
+/-- **Deleting a vertex of least key leaves a mask that passes the test** — the companion of
+`minDegOk_lastMask`.  The extension is the graph itself, relabelled by a permutation that fixes the
+last vertex, and `vkey` does not see relabellings. -/
+theorem minKeyOk_lastMask {n : ℕ} (A : Fin (n + 1) → Fin (n + 1) → Bool)
+    (hs : ∀ i j, A i j = A j i) (hl : ∀ i, A i i = false)
+    (hv : ∀ w, vkey A (Fin.last n) ≤ vkey A w) :
+    minKeyOk n (canonCode n (restrict A)) (lastMask n A) = true := by
+  rw [minKeyOk_iff (canonCode_lt n (restrict A))]
+  have hA : (graphOfCode (n + 1) (extendCode n (canonCode n (restrict A)) (lastMask n A))).Adj
+      = fun a b ↦ A (permLast (canonPerm n (restrict A)) a)
+          (permLast (canonPerm n (restrict A)) b) :=
+    funext fun a ↦ funext fun b ↦ (adj_extendCode_lastMask A hs hl a b).symm
+  intro i
+  rw [hA, vkey_perm, vkey_perm, permLast_last]
+  exact hv _
+
+/-- The masks actually tried: orbit representatives whose new vertex is of least key. -/
+def keyMasks (n c : ℕ) : List ℕ := (redMasks n c).filter (minKeyOk n c)
+
+/-- **Nothing is lost by insisting on least key.**  Delete a vertex of least key from a graph on
+`n+1` vertices and the mask that puts it back passes all three tests — the least-degree one
+included, since a least key is in particular a least degree. -/
+theorem keyMasks_complete : MasksComplete keyMasks := by
+  intro n adj hs hl
+  obtain ⟨v, -, hv⟩ :=
+    Finset.exists_min_image (Finset.univ : Finset (Fin (n + 1))) (vkey adj) ⟨0, Finset.mem_univ _⟩
+  set π : Equiv.Perm (Fin (n + 1)) := Equiv.swap v (Fin.last n) with hπ
+  set adjπ : Fin (n + 1) → Fin (n + 1) → Bool := fun a b ↦ adj (π a) (π b) with hadjπ
+  have hsπ : ∀ i j, adjπ i j = adjπ j i := fun i j ↦ hs _ _
+  have hlπ : ∀ i, adjπ i i = false := fun i ↦ hl _
+  -- the swap puts a vertex of least key last
+  have hkπ : ∀ w, vkey adjπ (Fin.last n) ≤ vkey adjπ w := by
+    intro w
+    rw [hadjπ, vkey_perm, vkey_perm, hπ, Equiv.swap_apply_right]
+    exact hv _ (Finset.mem_univ _)
+  have hdπ : ∀ w, deg adjπ (Fin.last n) ≤ deg adjπ w := fun w ↦ deg_le_of_vkey_le (hkπ w)
+  set adj' : Fin n → Fin n → Bool := restrict adjπ with hadj'
+  set c : ℕ := canonCode n adj' with hc
+  set s : ℕ := lastMask n adjπ with hsdef
+  obtain ⟨τ, hτ, hmem⟩ := exists_mem_symMasks (c := c) (lastMask_lt n adjπ)
+  refine ⟨adj', fun i j ↦ hsπ _ _, fun _ ↦ hlπ _, permMask n τ s, ?_, ?_⟩
+  · rw [keyMasks, List.mem_filter, redMasks, List.mem_filter]
+    exact ⟨⟨hmem, minDegOk_permMask hτ (minDegOk_lastMask adjπ hsπ hlπ hdπ)⟩,
+      minKeyOk_permMask (canonCode_lt n adj') hτ (minKeyOk_lastMask adjπ hsπ hlπ hkπ)⟩
+  · rw [canonCode_extendCode_permMask (canonCode_lt n adj') τ hτ, canonCode_extend adjπ hsπ hlπ,
+      canonCode_eq, canonCode_eq, canonAdj_eq_of_equiv (A := adjπ) (B := adj) π fun _ _ ↦ rfl]
+
+private theorem sum_fin_eq_list {n : ℕ} (f : Fin n → ℕ) :
+    ∑ i : Fin n, f i = ((List.finRange n).map f).sum := by
+  rw [Finset.sum_eq_multiset_sum,
+    show (Finset.univ : Finset (Fin n)).val = ↑(List.finRange n) from rfl]
+  rfl
+
+private theorem list_sum_ite {α : Type} (l : List α) (p : α → Bool) (f : α → ℕ) :
+    (l.map fun a ↦ if p a then f a else 0).sum = ((l.filter p).map f).sum := by
+  induction l with
+  | nil => rfl
+  | cons a t ih => by_cases h : p a <;> simp [h, ih]
+
+private theorem newKey_list (n c s : ℕ) :
+    newKey n c s = maskCard n s * ((n + 1) * (n + 1) + 1)
+      + (((List.finRange n).map fun i ↦
+          if s.testBit i.1 then deg (graphOfCode n c).Adj i + 1 else 0).sum) := by
+  rw [newKey, sum_fin_eq_list]
+  congr 2
+  refine List.map_congr_left fun i _ ↦ ?_
+  by_cases h : s.testBit i.1 <;> simp [h, extDeg]
+
+private theorem oldKey_list (n c s : ℕ) (i : Fin n) :
+    oldKey n c s i
+      = (deg (graphOfCode n c).Adj i + (if s.testBit i.1 then 1 else 0))
+          * ((n + 1) * (n + 1) + 1)
+        + (((((List.finRange n).filter ((graphOfCode n c).Adj i)).map fun j ↦
+              deg (graphOfCode n c).Adj j + (if s.testBit j.1 then 1 else 0)).sum)
+            + (if s.testBit i.1 then maskCard n s else 0)) := by
+  rw [oldKey, extDeg, sum_fin_eq_list, list_sum_ite]
+  rfl
+
+/-- Comparing two-digit numbers: the leading digits decide it unless they are equal. -/
+private theorem le_split {a b x y K : ℕ} (hx : x < K) (hy : y < K) :
+    a * K + x ≤ b * K + y ↔ a < b ∨ (a = b ∧ x ≤ y) := by
+  constructor
+  · intro h
+    rcases lt_trichotomy a b with h1 | h1 | h1
+    · exact Or.inl h1
+    · subst h1
+      exact Or.inr ⟨rfl, by omega⟩
+    · exact absurd h (by
+        have : b * K + K ≤ a * K := by
+          rw [← Nat.succ_mul]; exact Nat.mul_le_mul_right _ h1
+        omega)
+  · rintro (h1 | ⟨rfl, h1⟩)
+    · have : a * K + K ≤ b * K := by
+        rw [← Nat.succ_mul]; exact Nat.mul_le_mul_right _ h1
+      omega
+    · omega
+
+private theorem sum_extDeg_le (n c s : ℕ) (p : Fin n → Bool) :
+    (∑ i : Fin n, if p i then extDeg n c s i else 0) ≤ n * (n + 1) := by
+  calc (∑ i : Fin n, if p i then extDeg n c s i else 0) ≤ ∑ _i : Fin n, (n + 1) :=
+        Finset.sum_le_sum fun i _ ↦ by
+          split
+          · rw [extDeg]
+            have := deg_le (graphOfCode n c).Adj i
+            split <;> omega
+          · exact Nat.zero_le _
+    _ = n * (n + 1) := by simp
+
+/-- **The key comparison is settled by the degrees unless they are equal**, in which case it is
+settled by the neighbour degrees.  Splitting it in two lets a caller stop at the first digit, which
+is the cheap one and is usually all the comparison needs. -/
+theorem newKey_le_oldKey_iff (n c s : ℕ) (i : Fin n) :
+    newKey n c s ≤ oldKey n c s i
+      ↔ maskCard n s < deg (graphOfCode n c).Adj i + (if s.testBit i.1 then 1 else 0)
+        ∨ (maskCard n s = deg (graphOfCode n c).Adj i + (if s.testBit i.1 then 1 else 0)
+          ∧ ((List.finRange n).map fun j ↦
+                if s.testBit j.1 then deg (graphOfCode n c).Adj j + 1 else 0).sum
+              ≤ ((((List.finRange n).filter ((graphOfCode n c).Adj i)).map fun j ↦
+                    deg (graphOfCode n c).Adj j + (if s.testBit j.1 then 1 else 0)).sum)
+                + (if s.testBit i.1 then maskCard n s else 0)) := by
+  have hnew : (((List.finRange n).map fun j ↦
+      if s.testBit j.1 then deg (graphOfCode n c).Adj j + 1 else 0).sum)
+        < (n + 1) * (n + 1) + 1 := by
+    have e1 : (((List.finRange n).map fun j ↦
+        if s.testBit j.1 then deg (graphOfCode n c).Adj j + 1 else 0).sum)
+          = ∑ j : Fin n, if s.testBit j.1 then extDeg n c s j else 0 := by
+      rw [← sum_fin_eq_list]
+      exact Finset.sum_congr rfl fun j _ ↦ by
+        by_cases h : s.testBit j.1 <;> simp [h, extDeg]
+    have h1 := sum_extDeg_le n c s fun j ↦ s.testBit j.1
+    have h2 : n * (n + 1) ≤ (n + 1) * (n + 1) := Nat.mul_le_mul_right _ (Nat.le_succ n)
+    omega
+  have hold : (((((List.finRange n).filter ((graphOfCode n c).Adj i)).map fun j ↦
+      deg (graphOfCode n c).Adj j + (if s.testBit j.1 then 1 else 0)).sum)
+        + (if s.testBit i.1 then maskCard n s else 0)) < (n + 1) * (n + 1) + 1 := by
+    have h1 : ((((List.finRange n).filter ((graphOfCode n c).Adj i)).map fun j ↦
+        deg (graphOfCode n c).Adj j + (if s.testBit j.1 then 1 else 0)).sum)
+          ≤ n * (n + 1) := by
+      rw [← list_sum_ite, ← sum_fin_eq_list]
+      exact sum_extDeg_le n c s ((graphOfCode n c).Adj i)
+    have h2 : (if s.testBit i.1 then maskCard n s else 0) ≤ n := by
+      split
+      · exact maskCard_le n s
+      · exact Nat.zero_le _
+    have h3 : (n + 1) * (n + 1) + 1 = n * (n + 1) + (n + 1) + 1 := by ring
+    omega
+  rw [newKey_list, oldKey_list]
+  exact le_split hnew hold
+
+/-- What `keyMasks` runs.  Three tests over one pass of `List.range (2 ^ n)`, cheapest first, and
+none of them looking at anything but a table computed once for the parent: its degrees, and for
+each vertex the list of its neighbours *with their degrees*.  That last is what makes the key test
+affordable — `∑_{j ∈ N(i)} deg j` in the extension is the parent's neighbour degrees plus one for
+each neighbour the new vertex also took, so a mask costs one walk of the adjacency lists and no
+graph is ever built.  It is only walked where the degrees tie, by `newKey_le_oldKey_iff`, which
+is why both sides of that comparison are folded where they are needed instead of hoisted. -/
+def keyMasksFast (n c : ℕ) : List ℕ :=
+  let G := (graphOfCode n c).Adj
+  let vs := List.finRange n
+  let ps := (autoPerms n G).map fun σ ↦ vs.map fun k ↦ (σ k).1
+  let tbl := vs.map fun i ↦ (deg G i, i.1, (vs.filter (G i)).map fun j ↦ (j.1, deg G j))
+  (List.range (2 ^ n)).filter fun s ↦
+    let m := maskCard n s
+    (tbl.all fun t ↦ decide (m ≤ t.1 + (if s.testBit t.2.1 then 1 else 0)))
+      && (ps.all fun p ↦ decide (s ≤ gatherMask s p))
+      && (tbl.all fun t ↦
+            let d := t.1 + (if s.testBit t.2.1 then 1 else 0)
+            decide (m < d)
+              || (decide (m = d)
+                  && decide (tbl.foldl (fun a q ↦ a + if s.testBit q.2.1 then q.1 + 1 else 0) 0
+                      ≤ t.2.2.foldl (fun a q ↦ a + (q.2 + if s.testBit q.1 then 1 else 0)) 0
+                        + (if s.testBit t.2.1 then m else 0))))
+
+@[csimp] theorem keyMasks_eq_keyMasksFast : @keyMasks = @keyMasksFast := by
+  funext n c
+  simp only [keyMasks, redMasks, symMasks, keyMasksFast, List.filter_filter]
+  refine List.filter_congr fun s _ ↦ ?_
+  have hdeg : minDegOk n c s
+      = (((List.finRange n).map fun i ↦
+            (deg (graphOfCode n c).Adj i, i.1,
+              ((List.finRange n).filter ((graphOfCode n c).Adj i)).map fun j ↦
+                (j.1, deg (graphOfCode n c).Adj j))).all
+          fun t ↦ decide (maskCard n s ≤ t.1 + (if s.testBit t.2.1 then 1 else 0))) := by
+    rw [minDegOk, Bool.eq_iff_iff, decide_eq_true_eq]
+    simp only [List.all_map, Function.comp_def, List.all_eq_true, List.mem_finRange,
+      decide_eq_true_eq, forall_const]
+  have hsym : ((autoPerms n (graphOfCode n c).Adj).all fun σ ↦ decide (s ≤ permMask n σ s))
+      = (((autoPerms n (graphOfCode n c).Adj).map fun σ ↦
+          (List.finRange n).map fun k ↦ (σ k).1).all fun p ↦ decide (s ≤ gatherMask s p)) := by
+    simp only [List.all_map, Function.comp_def, permMask_eq_gatherMask]
+  have hkey : minKeyOk n c s
+      = (((List.finRange n).map fun i ↦
+            (deg (graphOfCode n c).Adj i, i.1,
+              ((List.finRange n).filter ((graphOfCode n c).Adj i)).map fun j ↦
+                (j.1, deg (graphOfCode n c).Adj j))).all
+          fun t ↦ decide (maskCard n s < t.1 + (if s.testBit t.2.1 then 1 else 0))
+            || (decide (maskCard n s = t.1 + (if s.testBit t.2.1 then 1 else 0))
+                && decide (((List.finRange n).map fun i ↦
+                      (deg (graphOfCode n c).Adj i, i.1,
+                        ((List.finRange n).filter ((graphOfCode n c).Adj i)).map fun j ↦
+                          (j.1, deg (graphOfCode n c).Adj j))).foldl
+                        (fun a q ↦ a + if s.testBit q.2.1 then q.1 + 1 else 0) 0
+                  ≤ t.2.2.foldl (fun a q ↦ a + (q.2 + if s.testBit q.1 then 1 else 0)) 0
+                    + (if s.testBit t.2.1 then maskCard n s else 0)))) := by
+    rw [minKeyOk, Bool.eq_iff_iff, decide_eq_true_eq]
+    simp only [List.all_map, Function.comp_def, List.all_eq_true, List.mem_finRange,
+      Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, forall_const, List.map_map,
+      foldl_add_eq_sum_map]
+    refine forall_congr' fun i ↦ ?_
+    rw [newKey_le_oldKey_iff]
+  rw [hdeg, hsym, hkey, Bool.and_comm]
+
 /-! ## The fast enumerator
 
 `allMasks` offers every neighbourhood; `symMasks` keeps one per orbit of the automorphism group of
 the graph being extended; `redMasks` additionally insists that the new vertex be one of least
-degree.  All three enumerate the same list — they differ only in how many candidates they
-canonicalise, which is where all the time goes:
+degree, and `keyMasks` that it be one of least key.  All four enumerate the same list — they differ
+only in how many candidates they canonicalise, which is where all the time goes:
 
-| candidates at `n = 8` | `allMasks` | `symMasks` | `redMasks` |
-| :-- | --: | --: | --: |
-| | 133632 | 79454 | 18329 |
+| candidates at `n = 8` | `allMasks` | `symMasks` | `redMasks` | `keyMasks` |
+| :-- | --: | --: | --: | --: |
+| | 133632 | 79454 | 18329 | 13304 |
+
+For scale, there are 12346 graphs on eight vertices: the last column is within 8 % of offering
+each of them exactly once.
 -/
 
 /-- All graphs on `n` vertices, one vertex at a time, with orbit reduction. -/
@@ -1386,13 +1872,13 @@ theorem enumCodesSym_eq (n : ℕ) : enumCodesSym n = enumCodes n :=
   enumCodesOf_eq symMasks_complete n
 
 /-- **The canonical codes of all graphs on `n` vertices** — the recommended enumerator: extend one
-vertex at a time, offering only the least-degree orbit representatives. -/
-def enumCodesFast : ℕ → List ℕ := enumCodesOf redMasks
+vertex at a time, offering only the least-key orbit representatives. -/
+def enumCodesFast : ℕ → List ℕ := enumCodesOf keyMasks
 
 /-- **The fast enumerator computes the same list as the brute-force sweep** — not merely the same
 set: both are strictly increasing lists of codes with the same members. -/
 theorem enumCodesFast_eq (n : ℕ) : enumCodesFast n = enumCodes n :=
-  enumCodesOf_eq redMasks_complete n
+  enumCodesOf_eq keyMasks_complete n
 
 /-- **All graphs on `n` vertices, one per isomorphism class** — the fast version.
 

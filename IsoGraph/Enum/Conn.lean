@@ -14,15 +14,17 @@ a new last vertex, canonicalise, deduplicate — with a stronger mask selector:
 
 * the new vertex must have at least one neighbour, so that the extension stays connected
   (`conn_extendCode`);
-* the new vertex must have least degree **among the non-cut vertices**.  A connected graph always
-  has a non-cut vertex (`exists_nonCut`) and deleting one leaves a connected graph
-  (`conn_delAdj`), so the vertex deleted can always be taken to be a non-cut one of least degree,
+* the new vertex must have least key (`vkey`) **among the non-cut vertices**.  A connected graph
+  always has a non-cut vertex (`exists_nonCut`) and deleting one leaves a connected graph
+  (`conn_delAdj`), so the vertex deleted can always be taken to be a non-cut one of least key,
   and nothing is lost (`connMasks_complete`).
 
 Deciding which vertices are cut vertices needs a connectivity search, done here as a bitmask
 breadth-first search (`reachSet`) that is proved both sound and complete: completeness is what
 makes "is `u` a cut vertex?" a function of the isomorphism class, which is in turn what lets the
-test be combined with the orbit reduction of `symMasks` (`nonCutTest_permMask`).
+test be combined with the orbit reduction of `symMasks` (`nonCutHits_permMask`).  The searches are
+run on the graph being extended rather than on the extension (`compTab`), so that all the masks
+offered for one graph share them.
 
 The result is `enumConnCodes n = (enumCodes n).filter (connTest n)` — the connected part of the
 full enumeration, computed without ever looking at a disconnected graph.
@@ -239,8 +241,29 @@ reduction.  Completeness is why the rounds run to a genuine fixed point rather t
 of times.
 -/
 
+/-- `2 ^ k`, as the masks below use it.
+
+`Nat.pow` goes through GMP for every call — it allocates an `mpz`, squares its way up and frees
+it again, about 140 ns a time — which is more than the rest of a mask costs put together.  The
+compiled version below is a doubling recursion on machine words, and the masks are all written
+through this so that they get it. -/
+def twoPow (k : ℕ) : ℕ := 2 ^ k
+
+/-- What `twoPow` runs. -/
+def twoPowFast : ℕ → ℕ
+  | 0 => 1
+  | k + 1 => 2 * twoPowFast k
+
+@[csimp] theorem twoPow_eq_twoPowFast : @twoPow = @twoPowFast := by
+  funext k
+  induction k with
+  | zero => rfl
+  | succ j ih => rw [twoPow, pow_succ, ← twoPow, ih, twoPowFast, Nat.mul_comm]
+
+@[simp] theorem twoPow_eq (k : ℕ) : twoPow k = 2 ^ k := rfl
+
 /-- The mask of all `n` vertices. -/
-def fullMask (n : ℕ) : ℕ := 2 ^ n - 1
+def fullMask (n : ℕ) : ℕ := twoPow n - 1
 
 theorem fullMask_lt (n : ℕ) : fullMask n < 2 ^ n :=
   Nat.sub_lt (Nat.two_pow_pos n) one_pos
@@ -270,6 +293,28 @@ theorem le_reachStep {n : ℕ} {nbr : ℕ → ℕ} {m : ℕ} (hm : m < 2 ^ n) : 
       (not_lt.1 hc)))] at hk
     exact Bool.noConfusion hk
   rw [testBit_reachStep, hk, Bool.true_or, decide_eq_true hkn, Bool.and_self]
+
+/-- The loop of `reachStepFast`: the same fold, counting down a fuel instead of walking a list. -/
+def reachStepAux (nbr : ℕ → ℕ) (m : ℕ) : ℕ → ℕ → ℕ → ℕ
+  | 0, _, acc => acc
+  | f + 1, i, acc => reachStepAux nbr m f (i + 1) (if m.testBit i then acc ||| nbr i else acc)
+
+/-- What `reachStep` runs.  A round of the search is the innermost loop of the whole enumerator,
+and `List.range n` allocates a cons cell per vertex per round only to walk it once. -/
+def reachStepFast (n : ℕ) (nbr : ℕ → ℕ) (m : ℕ) : ℕ := reachStepAux nbr m n 0 m &&& fullMask n
+
+theorem foldl_range'_eq_reachStepAux (nbr : ℕ → ℕ) (m : ℕ) :
+    ∀ (f i acc : ℕ), (List.range' i f).foldl
+        (fun acc i ↦ if m.testBit i then acc ||| nbr i else acc) acc
+      = reachStepAux nbr m f i acc := by
+  intro f
+  induction f with
+  | zero => intro i acc; rfl
+  | succ k ih => intro i acc; exact ih (i + 1) _
+
+@[csimp] theorem reachStep_eq_reachStepFast : @reachStep = @reachStepFast := by
+  funext n nbr m
+  rw [reachStep, reachStepFast, List.range_eq_range', foldl_range'_eq_reachStepAux]
 
 set_option linter.unusedVariables false in
 /-- The rounds of the search.  `m'` is always one round on from `m`, so no round is run twice;
@@ -433,28 +478,28 @@ theorem connTest_iff {n c : ℕ} : connTest n c = true ↔ 0 < n ∧ Conn (graph
 
 /-! ## Testing for a cut vertex in the extension
 
-The extension of the code `c` by a new vertex with neighbourhood `s` is searched directly from
-the rows of `c`, which are computed once per graph and shared by every mask tried on it.
+Whether a vertex `u` is a cut vertex of the extension of `c` by a new vertex with neighbourhood `s`
+is not really a question about the extension.  Deleting `u` breaks the parent into parts; the new
+vertex joins to each part it has a neighbour in, and so joins all of those parts to one another.
+What is left is therefore connected exactly when *every* part still contains a neighbour of the new
+vertex.
+
+The parts of the parent do not depend on `s`, so they are found once per graph (`compTab`) and each
+of the masks tried on it costs one word operation per vertex (`hitsRow`).
 -/
 
 /-- The mask of every vertex but `u`. -/
-def coMask (n u : ℕ) : ℕ := fullMask n ^^^ 2 ^ u
+def coMask (n u : ℕ) : ℕ := fullMask n ^^^ twoPow u
 
 theorem coMask_lt {n u : ℕ} (hu : u < n) : coMask n u < 2 ^ n :=
   Nat.xor_lt_two_pow (fullMask_lt n) (Nat.pow_lt_pow_right one_lt_two hu)
 
 theorem testBit_coMask {n u k : ℕ} (hk : k < n) : (coMask n u).testBit k = decide (k ≠ u) := by
-  rw [coMask, Nat.testBit_xor, testBit_fullMask, Nat.testBit_two_pow, decide_eq_true hk]
+  rw [coMask, twoPow_eq, Nat.testBit_xor, testBit_fullMask, Nat.testBit_two_pow,
+    decide_eq_true hk]
   by_cases h : k = u
   · subst h; simp
   · simp [h, (Ne.symm h : u ≠ k)]
-
-/-- Row `i` of the extension of `c` by a new vertex with neighbourhood `s`, with the vertex `u`
-deleted.  `rows` are the rows of `c` itself. -/
-def delNbr (n : ℕ) (rows : Array ℕ) (s u i : ℕ) : ℕ :=
-  if i = u then 0
-  else (if i = n then s else rows.getD i 0 ||| (if s.testBit i then 2 ^ n else 0))
-        &&& coMask (n + 1) u
 
 /-- What the rows of a graph on `Fin n` are. -/
 def RowsSpec (n c : ℕ) (rows : Array ℕ) : Prop :=
@@ -470,109 +515,329 @@ theorem rowsSpec_rowsOfCode (n c : ℕ) : RowsSpec n c (rowsOfCode n c) := by
     rw [if_neg hi]
     exact Nat.two_pow_pos n
 
-theorem testBit_delNbr {n c s u : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows)
-    (hc : c < 2 ^ n.choose 2) (hs : s < 2 ^ n) (hu : u < n) (a b : Fin (n + 1)) :
-    (delNbr n rows s u a.1).testBit b.1
-      = avoid (graphOfCode (n + 1) (extendCode n c s)).Adj ⟨u, by omega⟩ a b := by
-  set v : Fin (n + 1) := ⟨u, by omega⟩ with hv
-  set B := (graphOfCode (n + 1) (extendCode n c s)).Adj with hB
-  have hav : a ≠ v → a.1 ≠ u := fun h hc ↦ h (Fin.ext hc)
-  have hbv : decide (b ≠ v) = decide (b.1 ≠ u) := by rw [hv]; simp [Fin.ext_iff]
-  by_cases hau : a.1 = u
-  · rw [delNbr, if_pos hau, Nat.zero_testBit, avoid]
-    have : a = v := Fin.ext hau
-    simp [this]
-  -- the row itself, before deleting `u`
-  have hrow : ∀ x y : Fin (n + 1),
-      (if x.1 = n then s else rows.getD x.1 0 ||| (if s.testBit x.1 then 2 ^ n else 0)).testBit y.1
-        = B x y := by
-    refine Fin.lastCases ?_ ?_
-    · refine Fin.lastCases ?_ ?_
-      · rw [if_pos (by simp), Fin.val_last, Nat.testBit_lt_two_pow (lt_of_lt_of_le hs
-          (Nat.pow_le_pow_right (by norm_num) (by omega)))]
-        simp [hB]
-      · intro y
-        rw [if_pos (by simp), hB, (graphOfCode (n + 1) (extendCode n c s)).symm,
-          adj_extendCode_last hc (show (y.castSucc).1 < n by simp)]
-    · intro x
-      have hxn : (x.castSucc).1 ≠ n := by rw [Fin.val_castSucc]; exact Nat.ne_of_lt x.2
-      refine Fin.lastCases ?_ ?_
-      · rw [if_neg hxn, Nat.testBit_or, Fin.val_last, Nat.testBit_lt_two_pow (hrows.2 _),
-          Bool.false_or, hB, adj_extendCode_last hc (show (x.castSucc).1 < n by simp)]
-        by_cases h : s.testBit x.1 <;> simp [h]
-      · intro y
-        have hhigh : ((if s.testBit (x.castSucc).1 then 2 ^ n else 0)).testBit
-            (y.castSucc).1 = false := by
-          by_cases h : s.testBit x.1 <;> simp [h, y.isLt.ne']
-        rw [if_neg hxn, Nat.testBit_or, hhigh, Bool.or_false, hB,
-          adj_extendCode_lt (show (x.castSucc).1 < n by simp)
-            (show (y.castSucc).1 < n by simp)]
-        exact hrows.1 x y
-  rw [delNbr, if_neg hau, Nat.testBit_and, testBit_coMask b.2, hrow a b, avoid, hbv]
-  have hane : a ≠ v := fun h ↦ hau (Fin.ext_iff.1 h)
-  simp [hane]
-
-/-- Does deleting the vertex `u` from the extension leave the rest connected? -/
-def nonCutTest (n : ℕ) (rows : Array ℕ) (s u : ℕ) : Bool :=
-  reachSet (n + 1) (delNbr n rows s u) (2 ^ n)
-      (Nat.pow_lt_pow_right one_lt_two (Nat.lt_succ_self n))
-    == coMask (n + 1) u
-
 theorem not_reach_avoid {n : ℕ} {adj : Fin n → Fin n → Bool} {v i : Fin n}
     (h : Reach (avoid adj v) i v) : i = v := by
   cases h with
   | refl => rfl
   | tail _ hbv => simp [avoid] at hbv
 
+/-! ### The parts of the parent -/
+
+/-- The mask of the single vertex `x`. -/
+def startMask (n x : ℕ) : ℕ := twoPow x &&& fullMask n
+
+theorem startMask_lt (n x : ℕ) : startMask n x < 2 ^ n :=
+  lt_of_le_of_lt Nat.and_le_right (fullMask_lt n)
+
+theorem testBit_startMask {n x : ℕ} (hx : x < n) (k : ℕ) :
+    (startMask n x).testBit k = decide (k = x) := by
+  rw [startMask, twoPow_eq, Nat.testBit_and, testBit_fullMask, Nat.testBit_two_pow]
+  by_cases h : k = x
+  · subst h; simp [hx]
+  · simp [h, Ne.symm h]
+
+/-- Row `i` of the parent with the vertex `u` deleted, given the complement mask of `u`. -/
+def delRowWith (n : ℕ) (rows : Array ℕ) (u co i : ℕ) : ℕ :=
+  if i = u ∨ n ≤ i then 0 else rows.getD i 0 &&& co
+
+/-- Row `i` of the parent with the vertex `u` deleted. -/
+def delRow (n : ℕ) (rows : Array ℕ) (u i : ℕ) : ℕ := delRowWith n rows u (coMask n u) i
+
+theorem testBit_delRow {n c u : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows) (hu : u < n)
+    (a b : Fin n) :
+    (delRow n rows u a.1).testBit b.1 = avoid (graphOfCode n c).Adj ⟨u, hu⟩ a b := by
+  by_cases hau : a.1 = u
+  · rw [delRow, delRowWith, if_pos (Or.inl hau), Nat.zero_testBit, avoid]
+    have ha : a = (⟨u, hu⟩ : Fin n) := Fin.ext hau
+    simp [ha]
+  · have ha : a ≠ (⟨u, hu⟩ : Fin n) := fun h ↦ hau (congrArg Fin.val h)
+    have hb : (decide (b ≠ (⟨u, hu⟩ : Fin n))) = decide (b.1 ≠ u) := by simp [Fin.ext_iff]
+    rw [delRow, delRowWith, if_neg (by simp only [not_or, not_le]; exact ⟨hau, a.2⟩),
+      Nat.testBit_and,
+      testBit_coMask b.2, hrows.1 a b, avoid, hb]
+    simp [ha]
+
+/-- All of them, so that a search reads a row instead of building one. -/
+def delRows (n : ℕ) (rows : Array ℕ) (u : ℕ) : Array ℕ := (Array.range n).map (delRow n rows u)
+
+/-- What `delRows` runs: the complement mask of `u` is the same for every row, so it is built
+once, when the closure the map runs is built, rather than once per row. -/
+def delRowsFast (n : ℕ) (rows : Array ℕ) (u : ℕ) : Array ℕ :=
+  (Array.range n).map (delRowWith n rows u (coMask n u))
+
+@[csimp] theorem delRows_eq_delRowsFast : @delRows = @delRowsFast := rfl
+
+theorem getD_delRows (n : ℕ) (rows : Array ℕ) (u : ℕ) :
+    (fun i ↦ (delRows n rows u).getD i 0) = delRow n rows u := by
+  funext i
+  rw [delRows, Array.getD_eq_getD_getElem?]
+  by_cases hi : i < n
+  · simp [hi]
+  · rw [delRow, delRowWith, if_pos (Or.inr (by omega))]
+    simp [hi]
+
+/-- The vertices of the parent reachable from `x` once `u` is deleted: the part of `x`. -/
+def compMask (n : ℕ) (rows : Array ℕ) (u x : ℕ) : ℕ :=
+  reachSet n (delRow n rows u) (startMask n x) (startMask_lt n x)
+
+theorem compMask_lt (n : ℕ) (rows : Array ℕ) (u x : ℕ) : compMask n rows u x < 2 ^ n :=
+  reachSet_lt _ _ _ _
+
+/-- **The mask is exactly reachability** in the parent with `u` deleted. -/
+theorem testBit_compMask {n c u x : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows) (hu : u < n)
+    (hx : x < n) (y : Fin n) :
+    (compMask n rows u x).testBit y.1 = true
+      ↔ Reach (avoid (graphOfCode n c).Adj ⟨u, hu⟩) ⟨x, hx⟩ y := by
+  constructor
+  · exact reachSet_sound (adj := avoid (graphOfCode n c).Adj ⟨u, hu⟩) (i := ⟨x, hx⟩)
+      (fun a b h ↦ by rw [← testBit_delRow hrows hu a b]; exact h)
+      (fun j hj ↦ by
+        rw [testBit_startMask hx, decide_eq_true_iff] at hj
+        exact (Fin.ext hj.symm : (⟨x, hx⟩ : Fin n) = j) ▸ .refl) y
+  · exact reachSet_complete (adj := avoid (graphOfCode n c).Adj ⟨u, hu⟩) (i := ⟨x, hx⟩)
+      (fun a b h ↦ by rw [testBit_delRow hrows hu a b]; exact h)
+      (by rw [testBit_startMask hx]; simp)
+
+/-! ### The test -/
+
+/-- Does every vertex `x < k` other than `u` still see a neighbour of the new vertex once `u` is
+deleted?  One word operation each. -/
+def hitsFrom (get : ℕ → ℕ) (s u : ℕ) : ℕ → Bool
+  | 0 => true
+  | x + 1 => (decide (x = u) || get x &&& s != 0) && hitsFrom get s u x
+
+theorem hitsFrom_eq_true (get : ℕ → ℕ) (s u : ℕ) : ∀ k : ℕ,
+    (hitsFrom get s u k = true ↔ ∀ x, x < k → x ≠ u → get x &&& s ≠ 0) := by
+  intro k
+  induction k with
+  | zero => simp [hitsFrom]
+  | succ k ih =>
+      rw [hitsFrom, Bool.and_eq_true, ih, Bool.or_eq_true, decide_eq_true_eq, bne_iff_ne, ne_eq]
+      constructor
+      · rintro ⟨h1, h2⟩ x hx hxu
+        rcases Nat.lt_succ_iff_lt_or_eq.1 hx with h | rfl
+        · exact h2 x h hxu
+        · exact h1.resolve_left hxu
+      · intro h
+        exact ⟨(em (k = u)).imp id fun hne ↦ h k (Nat.lt_succ_self k) hne,
+          fun x hx hxu ↦ h x (Nat.lt_succ_of_lt hx) hxu⟩
+
+theorem hitsFrom_congr {get get' : ℕ → ℕ} {s u k : ℕ}
+    (h : ∀ x, x < k → x ≠ u → get x = get' x) : hitsFrom get s u k = hitsFrom get' s u k := by
+  rw [Bool.eq_iff_iff, hitsFrom_eq_true, hitsFrom_eq_true]
+  constructor <;> intro hh x hx hxu
+  · rw [← h x hx hxu]; exact hh x hx hxu
+  · rw [h x hx hxu]; exact hh x hx hxu
+
+/-- **Does deleting `u` from the extension leave the rest connected?**  Asked of the parent: does
+every part of it still contain a neighbour of the new vertex? -/
+def nonCutHits (n : ℕ) (rows : Array ℕ) (s u : ℕ) : Bool := hitsFrom (compMask n rows u) s u n
+
+/-- A vertex of the parent is `u` exactly when it is `u` in the extension. -/
+theorem castSucc_ne_iff {n u : ℕ} (hu : u < n) (x : Fin n) :
+    (x.castSucc ≠ (⟨u, by omega⟩ : Fin (n + 1))) ↔ x ≠ (⟨u, hu⟩ : Fin n) := by
+  simp [Fin.ext_iff]
+
+/-- A walk in the parent avoiding `u` is a walk in the extension avoiding `u`. -/
+theorem reach_castSucc_avoid {n c s u : ℕ} (hu : u < n) {x y : Fin n}
+    (h : Reach (avoid (graphOfCode n c).Adj ⟨u, hu⟩) x y) :
+    Reach (avoid (graphOfCode (n + 1) (extendCode n c s)).Adj ⟨u, by omega⟩)
+      x.castSucc y.castSucc := by
+  induction h with
+  | refl => exact .refl
+  | @tail a b _ hab ih =>
+      refine ih.tail ?_
+      simp only [avoid, Bool.and_eq_true, decide_eq_true_eq, ne_eq, Fin.ext_iff] at hab ⊢
+      refine ⟨⟨?_, hab.1.2⟩, hab.2⟩
+      rw [adj_extendCode_lt (show (a.castSucc).1 < n by simp) (show (b.castSucc).1 < n by simp)]
+      simpa using hab.1.1
+
+/-- A walk in the extension that avoids `u` and reaches the new vertex leaves the parent from a
+neighbour of the new vertex, and what comes before that is a walk in the parent.  The second
+disjunct is what makes the induction go through: once the walk has reached the new vertex, where it
+goes afterwards says nothing about the parent. -/
+theorem exists_hit_of_reach {n c s : ℕ} (hc : c < 2 ^ n.choose 2) {u : ℕ} (hu : u < n)
+    (x : Fin n) :
+    ∀ {i j : Fin (n + 1)}, Reach (avoid (graphOfCode (n + 1) (extendCode n c s)).Adj
+        ⟨u, by omega⟩) i j → i = x.castSucc →
+      (j = Fin.last n → ∃ y : Fin n, s.testBit y.1 = true ∧
+          Reach (avoid (graphOfCode n c).Adj ⟨u, hu⟩) x y) ∧
+      (∀ z : Fin n, j = z.castSucc →
+        (∃ y : Fin n, s.testBit y.1 = true ∧
+            Reach (avoid (graphOfCode n c).Adj ⟨u, hu⟩) x y) ∨
+          Reach (avoid (graphOfCode n c).Adj ⟨u, hu⟩) x z) := by
+  have hhigh : ∀ z : Fin n, (graphOfCode (n + 1) (extendCode n c s)).Adj z.castSucc (Fin.last n)
+      = s.testBit z.1 := fun z ↦ by
+    rw [adj_extendCode_last hc (show (z.castSucc).1 < n by simp)]; simp
+  have hlow : ∀ a b : Fin n, (graphOfCode (n + 1) (extendCode n c s)).Adj a.castSucc b.castSucc
+      = (graphOfCode n c).Adj a b := fun a b ↦ by
+    rw [adj_extendCode_lt (show (a.castSucc).1 < n by simp) (show (b.castSucc).1 < n by simp)]
+    simp
+  intro i j h
+  induction h with
+  | refl =>
+      rintro rfl
+      refine ⟨fun hl ↦ absurd (congrArg Fin.val hl) (by simp [x.2.ne]), fun z hz ↦ ?_⟩
+      exact Or.inr ((Fin.castSucc_injective n hz.symm : z = x) ▸ .refl)
+  | @tail b e hib hbe ih =>
+      intro hix
+      obtain ⟨ih1, ih2⟩ := ih hix
+      simp only [avoid, Bool.and_eq_true, decide_eq_true_eq, ne_eq] at hbe
+      obtain ⟨⟨hadj, hbv⟩, hev⟩ := hbe
+      rcases Nat.lt_or_ge b.1 n with hbn | hbn
+      · have hb' : b = (⟨b.1, hbn⟩ : Fin n).castSucc := Fin.ext rfl
+        rcases ih2 ⟨b.1, hbn⟩ hb' with hy | hr
+        · exact ⟨fun _ ↦ hy, fun z _ ↦ Or.inl hy⟩
+        · have hb'v : (⟨b.1, hbn⟩ : Fin n) ≠ ⟨u, hu⟩ := fun he ↦
+            hbv (Fin.ext (show b.1 = u from congrArg Fin.val he))
+          refine ⟨fun hl ↦ ⟨⟨b.1, hbn⟩, ?_, hr⟩, fun z hz ↦ Or.inr ?_⟩
+          · rw [← hhigh ⟨b.1, hbn⟩, ← hb', ← hl]; exact hadj
+          · refine hr.tail ?_
+            simp only [avoid, Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+            refine ⟨⟨?_, hb'v⟩, fun he ↦ hev (Fin.ext (show e.1 = u by
+              rw [hz]; exact congrArg Fin.val he))⟩
+            rw [← hlow, ← hb', ← hz]; exact hadj
+      · have hbl : b = Fin.last n := Fin.ext (by have := b.2; simp; omega)
+        exact ⟨fun _ ↦ ih1 hbl, fun z _ ↦ Or.inl (ih1 hbl)⟩
+
 /-- **The cut-vertex test is exact.**  Soundness is what keeps a disconnected graph out of the
 list; completeness is what makes the test depend only on the isomorphism class, which is what lets
 it be combined with orbit reduction. -/
-theorem nonCutTest_iff {n c s u : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows)
-    (hc : c < 2 ^ n.choose 2) (hs : s < 2 ^ n) (hu : u < n) :
-    nonCutTest n rows s u = true
+theorem nonCutHits_iff {n c s u : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows)
+    (hc : c < 2 ^ n.choose 2) (hu : u < n) :
+    nonCutHits n rows s u = true
       ↔ NonCut (graphOfCode (n + 1) (extendCode n c s)).Adj ⟨u, by omega⟩ := by
   set v : Fin (n + 1) := ⟨u, by omega⟩ with hv
-  set B := (graphOfCode (n + 1) (extendCode n c s)).Adj with hB
-  have hsymm : ∀ i j, B i j = B j i := fun i j ↦ (graphOfCode (n + 1) _).symm i j
-  have hstart : ∀ j : Fin (n + 1), (2 ^ n).testBit j.1 = true → Reach (avoid B v) (Fin.last n) j :=
-    fun j hj ↦ by
-      rw [Nat.testBit_two_pow, decide_eq_true_iff] at hj
-      exact (Fin.ext (show (Fin.last n).1 = j.1 from hj) : Fin.last n = j) ▸ .refl
+  set w : Fin n := ⟨u, hu⟩ with hw
+  have hsymm : ∀ i j, (graphOfCode (n + 1) (extendCode n c s)).Adj i j
+      = (graphOfCode (n + 1) (extendCode n c s)).Adj j i :=
+    fun i j ↦ (graphOfCode (n + 1) _).symm i j
+  have hhigh : ∀ z : Fin n, (graphOfCode (n + 1) (extendCode n c s)).Adj z.castSucc (Fin.last n)
+      = s.testBit z.1 := fun z ↦ by
+    rw [adj_extendCode_last hc (show (z.castSucc).1 < n by simp)]; simp
   have hlast : Fin.last n ≠ v := by rw [Ne, hv, Fin.ext_iff]; simp; omega
-  rw [nonCutTest, beq_iff_eq]
+  rw [nonCutHits, hitsFrom_eq_true]
   constructor
-  · intro heq
-    have hreach : ∀ j : Fin (n + 1), j ≠ v → Reach (avoid B v) (Fin.last n) j := by
-      intro j hj
-      refine reachSet_sound (adj := avoid B v) (nbr := delNbr n rows s u) (start := 2 ^ n)
-        (hb := Nat.pow_lt_pow_right one_lt_two (Nat.lt_succ_self n))
-        (fun a b h ↦ ?_) hstart j ?_
-      · rw [← testBit_delNbr hrows hc hs hu a b]; exact h
-      · rw [heq, testBit_coMask j.2]
-        exact decide_eq_true fun h ↦ hj (Fin.ext h)
-    exact fun i j hi hj ↦
-      (reach_symm (avoid_symm hsymm v) (hreach i hi)).trans (hreach j hj)
-  · intro hnc
-    refine eq_of_testBit_lt (reachSet_lt _ _ _ _) (coMask_lt (by omega)) fun k hk ↦ ?_
-    rw [testBit_coMask hk]
-    by_cases hku : k = u
-    · subst hku
-      rw [decide_eq_false (by simp)]
-      by_contra hcon
-      rw [Bool.not_eq_false] at hcon
-      have := reachSet_sound (adj := avoid B v) (i := Fin.last n) (j := v)
-        (nbr := delNbr n rows s k) (start := 2 ^ n)
-        (hb := Nat.pow_lt_pow_right one_lt_two (Nat.lt_succ_self n))
-        (fun a b h ↦ by rw [← testBit_delNbr hrows hc hs hu a b]; exact h) hstart
-      exact hlast (not_reach_avoid (this hcon))
-    · rw [decide_eq_true hku]
-      refine reachSet_complete (adj := avoid B v) (i := Fin.last n) (j := ⟨k, hk⟩)
-        (nbr := delNbr n rows s u) (start := 2 ^ n)
-        (hb := Nat.pow_lt_pow_right one_lt_two (Nat.lt_succ_self n))
-        (fun a b h ↦ by rw [testBit_delNbr hrows hc hs hu a b]; exact h) ?_
-        (hnc _ _ hlast fun h ↦ hku (Fin.ext_iff.1 h))
-      rw [Nat.testBit_two_pow]
-      simp
+  · intro hhit
+    have hreach : ∀ i : Fin (n + 1), i ≠ v →
+        Reach (avoid (graphOfCode (n + 1) (extendCode n c s)).Adj v) i (Fin.last n) := by
+      refine Fin.lastCases (fun _ ↦ .refl) ?_
+      intro x hx
+      have hxw : x ≠ w := (castSucc_ne_iff hu x).1 hx
+      have hne := hhit x.1 x.2 fun he ↦ hxw (Fin.ext he)
+      obtain ⟨k, hk1, hk2⟩ := and_ne_zero_iff_exists_testBit.1 hne
+      have hkn : k < n := by
+        by_contra hcon
+        rw [Nat.testBit_lt_two_pow (lt_of_lt_of_le (compMask_lt n rows u x.1)
+          (Nat.pow_le_pow_right (by norm_num) (not_lt.1 hcon)))] at hk1
+        exact Bool.noConfusion hk1
+      have hr : Reach (avoid (graphOfCode n c).Adj w) x ⟨k, hkn⟩ :=
+        (testBit_compMask hrows hu x.2 ⟨k, hkn⟩).1 hk1
+      have hkw : (⟨k, hkn⟩ : Fin n) ≠ w := fun he ↦ hxw (not_reach_avoid (he ▸ hr))
+      refine (reach_castSucc_avoid (s := s) hu hr).tail ?_
+      simp only [avoid, Bool.and_eq_true, decide_eq_true_eq, ne_eq]
+      refine ⟨⟨?_, (castSucc_ne_iff hu ⟨k, hkn⟩).2 hkw⟩, hlast⟩
+      rw [hhigh ⟨k, hkn⟩]; exact hk2
+    exact fun i j hi hj ↦ (hreach i hi).trans (reach_symm (avoid_symm hsymm v) (hreach j hj))
+  · intro hnc x hx hxu
+    have hxv : (⟨x, hx⟩ : Fin n).castSucc ≠ v :=
+      (castSucc_ne_iff hu ⟨x, hx⟩).2 fun he ↦ hxu (congrArg Fin.val he)
+    obtain ⟨y, hy1, hy2⟩ :=
+      (exists_hit_of_reach hc hu ⟨x, hx⟩ (hnc _ _ hxv hlast) rfl).1 rfl
+    exact and_ne_zero_iff_exists_testBit.2
+      ⟨y.1, (testBit_compMask hrows hu hx y).2 hy2, hy1⟩
+
+/-! ### The parts as bit masks
+
+One search per deleted vertex would be `n` searches per graph, but almost always the first of them
+already reports that the rest of the graph is connected, and then the other `n - 1` are skipped. -/
+
+/-- One search, on rows the deleted vertex has already been taken out of. -/
+def compFrom (n : ℕ) (dr : Array ℕ) (x : ℕ) : ℕ :=
+  reachSet n (fun i ↦ dr.getD i 0) (startMask n x) (startMask_lt n x)
+
+theorem compFrom_eq (n : ℕ) (rows : Array ℕ) (u x : ℕ) :
+    compFrom n (delRows n rows u) x = compMask n rows u x := by
+  rw [compFrom, compMask, getD_delRows]
+
+/-- `u`'s row of the table, given what the first search found: if it found everything then the
+parent minus `u` is connected, every vertex reaches all of it, and the remaining `n - 1` searches
+would all return the same mask. -/
+def compRowWith (n : ℕ) (dr : Array ℕ) (u m : ℕ) : Array ℕ :=
+  if m == coMask n u then Array.replicate n m else (Array.range n).map (compFrom n dr)
+
+/-- `u`'s row of the table.  The first search starts anywhere but `u`. -/
+def compRow (n : ℕ) (dr : Array ℕ) (u : ℕ) : Array ℕ :=
+  compRowWith n dr u (compFrom n dr (if u = 0 then 1 else 0))
+
+/-- **The parts of the parent, one row per deleted vertex.**  Built once per graph and shared by
+every mask tried on it: that is the whole point of asking the question of the parent rather than of
+the extension. -/
+def compTab (n : ℕ) (rows : Array ℕ) : Array (Array ℕ) :=
+  (Array.range n).map fun u ↦ compRow n (delRows n rows u) u
+
+/-- If the vertices reachable from `x₀` are everything but `u`, then so are the vertices reachable
+from any other vertex. -/
+theorem compMask_eq_coMask {n c u x x₀ : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows)
+    (hu : u < n) (hx : x < n) (hxu : x ≠ u) (hx₀ : x₀ < n)
+    (hm : compMask n rows u x₀ = coMask n u) : compMask n rows u x = coMask n u := by
+  refine eq_of_testBit_lt (compMask_lt n rows u x) (coMask_lt hu) fun k hk ↦ ?_
+  rw [testBit_coMask hk]
+  by_cases hku : k = u
+  · subst hku
+    rw [decide_eq_false (by simp), Bool.eq_false_iff, Ne, testBit_compMask hrows hu hx ⟨k, hk⟩]
+    exact fun hr ↦ hxu (congrArg Fin.val (not_reach_avoid hr))
+  · rw [decide_eq_true hku, testBit_compMask hrows hu hx ⟨k, hk⟩]
+    have h1 : Reach (avoid (graphOfCode n c).Adj ⟨u, hu⟩) ⟨x₀, hx₀⟩ ⟨x, hx⟩ :=
+      (testBit_compMask hrows hu hx₀ ⟨x, hx⟩).1
+        (by rw [hm, testBit_coMask hx]; exact decide_eq_true hxu)
+    have h2 : Reach (avoid (graphOfCode n c).Adj ⟨u, hu⟩) ⟨x₀, hx₀⟩ ⟨k, hk⟩ :=
+      (testBit_compMask hrows hu hx₀ ⟨k, hk⟩).1
+        (by rw [hm, testBit_coMask hk]; exact decide_eq_true hku)
+    exact (reach_symm (avoid_symm (fun i j ↦ (graphOfCode n c).symm i j) _) h1).trans h2
+
+theorem getD_compTab {n c u x : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows) (hu : u < n)
+    (hx : x < n) (hxu : x ≠ u) :
+    ((compTab n rows).getD u #[]).getD x 0 = compMask n rows u x := by
+  have hx₀ : (if u = 0 then 1 else 0) < n := by split <;> omega
+  have houter : (compTab n rows).getD u #[] = compRow n (delRows n rows u) u := by
+    rw [compTab, Array.getD_eq_getD_getElem?]
+    simp [hu]
+  rw [houter, compRow, compRowWith]
+  by_cases hbr : compFrom n (delRows n rows u) (if u = 0 then 1 else 0) == coMask n u
+  · rw [if_pos hbr, Array.getD_eq_getD_getElem?]
+    rw [beq_iff_eq, compFrom_eq] at hbr
+    rw [show ((Array.replicate n (compFrom n (delRows n rows u) (if u = 0 then 1 else 0)))[x]?)
+      = some (compFrom n (delRows n rows u) (if u = 0 then 1 else 0)) by simp [hx]]
+    rw [Option.getD_some, compFrom_eq]
+    exact hbr.trans (compMask_eq_coMask hrows hu hx hxu hx₀ hbr).symm
+  · rw [if_neg hbr, Array.getD_eq_getD_getElem?]
+    simp [hx, compFrom_eq]
+
+/-- The mask loop, reading the table. -/
+def hitsRow (r : Array ℕ) (s u : ℕ) : ℕ → Bool
+  | 0 => true
+  | x + 1 => (decide (x = u) || r.getD x 0 &&& s != 0) && hitsRow r s u x
+
+theorem hitsRow_eq (r : Array ℕ) (s u : ℕ) : ∀ k : ℕ,
+    hitsRow r s u k = hitsFrom (fun x ↦ r.getD x 0) s u k := by
+  intro k
+  induction k with
+  | zero => rfl
+  | succ k ih => rw [hitsRow, hitsFrom, ih]
+
+/-- What `nonCutHits` runs. -/
+def nonCutHitsFast (n : ℕ) (tab : Array (Array ℕ)) (s u : ℕ) : Bool :=
+  hitsRow (tab.getD u #[]) s u n
+
+theorem nonCutHits_eq_fast {n c s u : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c rows)
+    (hu : u < n) : nonCutHitsFast n (compTab n rows) s u = nonCutHits n rows s u := by
+  rw [nonCutHitsFast, hitsRow_eq, nonCutHits]
+  exact hitsFrom_congr fun x hx hxu ↦ getD_compTab hrows hu hx hxu
+
+theorem nonCutHitsFast_fin {n c s : ℕ} (u : Fin n) :
+    nonCutHitsFast n (compTab n (rowsOfCode n c)) s u.1 = nonCutHits n (rowsOfCode n c) s u.1 :=
+  nonCutHits_eq_fast (rowsSpec_rowsOfCode n c) u.2
 
 
 /-! ## Transporting non-cutness along a relabelling -/
@@ -611,47 +876,60 @@ theorem deg_ne_zero {n : ℕ} {adj : Fin n → Fin n → Bool} {v w : Fin n} (h 
 /-! ## The connected mask selector
 
 A connected graph on `n + 1` vertices stays connected when a **non-cut** vertex is deleted, and it
-always has one.  So, exactly as for `redMasks`, we may insist that the vertex being added back is
-one of least degree — but only among the non-cut vertices, since those are the only ones that could
-have been deleted.  Deciding which vertices are non-cut needs a connectivity search per vertex
-(`nonCutTest`), so the cheap degree comparison is tried first and the search runs only for the
-vertices that could beat the new one. -/
+always has one.  So, exactly as for `keyMasks`, we may insist that the vertex being added back is
+one of least *key* — but only among the non-cut vertices, since those are the only ones that could
+have been deleted.  Deciding which vertices are non-cut is `nonCutHits`, and the key comparison is
+tried first, in the two halves of `newKey_le_oldKey_iff`, so that the table of parts is only
+consulted for the vertices that could beat the new one. -/
 
-/-- Would the new vertex have least degree **among the non-cut vertices** of the extension? -/
-def nonCutMinDegOk (n : ℕ) (rows : Array ℕ) (c s : ℕ) : Bool :=
-  decide (∀ u : Fin n,
-    maskCard n s ≤ deg (graphOfCode n c).Adj u + (if s.testBit u.1 then 1 else 0) ∨
-      nonCutTest n rows s u.1 = false)
+/-- Would the new vertex have least key **among the non-cut vertices** of the extension? -/
+def nonCutMinKeyOk (n : ℕ) (rows : Array ℕ) (c s : ℕ) : Bool :=
+  decide (∀ u : Fin n, newKey n c s ≤ oldKey n c s u ∨ nonCutHits n rows s u.1 = false)
 
 /-- The masks tried when enumerating connected graphs: nonempty orbit representatives that make
-the new vertex one of least degree among the non-cut vertices. -/
+the new vertex one of least key among the non-cut vertices. -/
 def connMasks (n c : ℕ) : List ℕ :=
   let rows := rowsOfCode n c
-  (symMasks n c).filter fun s ↦ decide (s ≠ 0) && nonCutMinDegOk n rows c s
+  (symMasks n c).filter fun s ↦ decide (s ≠ 0) && nonCutMinKeyOk n rows c s
 
-/-- What `connMasks` runs.  The same hoisting as `redMasksFast`: the degrees of the graph being
-extended do not depend on the mask, and `maskCard n s` does not depend on the vertex the test is
-looking at, but written as `nonCutMinDegOk` is, both sit inside the loop.  The order of the
-disjuncts is kept, so the connectivity search still runs only for the vertices that beat the new
-one on degree.
+/-- What `connMasks` runs.  Everything that does not depend on the mask is hoisted out of the
+filter: the parent's degrees, its adjacency lists with the neighbours' degrees, and the table of
+its parts.  How many neighbours the new vertex has depends on the mask but not on the vertex the
+test is looking at, so it comes out of the inner loop as well, and what is left per vertex is a
+comparison of degrees, then the neighbour degrees if those tie, and only then the table.
 
-Worth 11 % of `enumConnCodes 8` and 13 % of `enumConnCodes 9`.  Nothing like what the same
-hoisting is worth for `redMasks`: here the loop it comes out of is not the whole cost of a level,
-since the disjunct that survives it runs a connectivity search of its own. -/
+The sum of the new vertex's neighbours' degrees is only wanted where the degrees tie, and four
+masks in five never tie at all, so it is left in the branch that wants it rather than hoisted out
+of the loop, and folded in place rather than summed over a list built to be thrown away.
+
+The hoisting of the degrees is worth 11 % of `enumConnCodes 8` and 13 % of `enumConnCodes 9`, the
+table a further 21 %, and the key in place of the degree a further 14 %. -/
 def connMasksFast (n c : ℕ) : List ℕ :=
-  let rows := rowsOfCode n c
-  let ds := (List.finRange n).map fun i ↦ (deg (graphOfCode n c).Adj i, i.1)
+  let G := (graphOfCode n c).Adj
+  let tab := compTab n (rowsOfCode n c)
+  let vs := List.finRange n
+  let tbl := vs.map fun i ↦ (deg G i, i.1, (vs.filter (G i)).map fun j ↦ (j.1, deg G j))
   (symMasks n c).filter fun s ↦
     decide (s ≠ 0) &&
       (let m := maskCard n s
-      ds.all fun d ↦ decide (m ≤ d.1 + (if s.testBit d.2 then 1 else 0)) || !nonCutTest n rows s d.2)
+      tbl.all fun t ↦
+        let d := t.1 + (if s.testBit t.2.1 then 1 else 0)
+        decide (m < d)
+          || (decide (m = d)
+              && decide (tbl.foldl (fun a q ↦ a + if s.testBit q.2.1 then q.1 + 1 else 0) 0
+                  ≤ t.2.2.foldl (fun a q ↦ a + (q.2 + if s.testBit q.1 then 1 else 0)) 0
+                    + (if s.testBit t.2.1 then m else 0)))
+          || !nonCutHitsFast n tab s t.2.1)
 
 @[csimp] theorem connMasks_eq_connMasksFast : @connMasks = @connMasksFast := by
   funext n c
   refine List.filter_congr fun s _ ↦ congrArg _ ?_
-  rw [nonCutMinDegOk, Bool.eq_iff_iff, decide_eq_true_eq]
+  rw [nonCutMinKeyOk, Bool.eq_iff_iff, decide_eq_true_eq]
   simp only [List.all_map, Function.comp_def, List.all_eq_true, List.mem_finRange,
-    Bool.or_eq_true, decide_eq_true_eq, Bool.not_eq_eq_eq_not, Bool.not_true, forall_const]
+    Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_eq_eq_not, Bool.not_true,
+    forall_const, nonCutHitsFast_fin, List.map_map, foldl_add_eq_sum_map]
+  refine forall_congr' fun u ↦ ?_
+  rw [newKey_le_oldKey_iff]
 
 theorem connMasks_subset {n c s : ℕ} (h : s ∈ connMasks n c) : s ≠ 0 ∧ s < 2 ^ n := by
   rw [connMasks, List.mem_filter] at h
@@ -662,31 +940,31 @@ theorem connMasks_subset {n c s : ℕ} (h : s ∈ connMasks n c) : s ≠ 0 ∧ s
 
 /-- The non-cut test only depends on the isomorphism class, so it commutes with the action of the
 automorphism group on masks. -/
-theorem nonCutTest_permMask {n c s u : ℕ} (hc : c < 2 ^ n.choose 2) (hs : s < 2 ^ n) (hu : u < n)
+theorem nonCutHits_permMask {n c s u : ℕ} (hc : c < 2 ^ n.choose 2) (hu : u < n)
     {σ : Equiv.Perm (Fin n)} (hσ : σ ∈ autGroup n (graphOfCode n c).Adj)
-    (h : nonCutTest n (rowsOfCode n c) (permMask n σ s) u = true) :
-    nonCutTest n (rowsOfCode n c) s (σ ⟨u, hu⟩).1 = true := by
-  rw [nonCutTest_iff (rowsSpec_rowsOfCode n c) hc (permMask_lt n σ s) hu] at h
-  rw [nonCutTest_iff (rowsSpec_rowsOfCode n c) hc hs (σ ⟨u, hu⟩).2]
+    (h : nonCutHits n (rowsOfCode n c) (permMask n σ s) u = true) :
+    nonCutHits n (rowsOfCode n c) s (σ ⟨u, hu⟩).1 = true := by
+  rw [nonCutHits_iff (rowsSpec_rowsOfCode n c) hc hu] at h
+  rw [nonCutHits_iff (rowsSpec_rowsOfCode n c) hc (σ ⟨u, hu⟩).2]
   have h' : NonCut (graphOfCode (n + 1) (extendCode n c s)).Adj
       (permLast σ (⟨u, hu⟩ : Fin n).castSucc) :=
     nonCut_map (permLast σ) (adj_extendCode_permMask hc σ hσ) h
   rwa [permLast_castSucc] at h'
 
-theorem nonCutMinDegOk_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2) (hs : s < 2 ^ n)
+theorem nonCutMinKeyOk_permMask {n c s : ℕ} (hc : c < 2 ^ n.choose 2)
     {σ : Equiv.Perm (Fin n)} (hσ : σ ∈ autGroup n (graphOfCode n c).Adj)
-    (h : nonCutMinDegOk n (rowsOfCode n c) c s = true) :
-    nonCutMinDegOk n (rowsOfCode n c) c (permMask n σ s) = true := by
-  simp only [nonCutMinDegOk, decide_eq_true_eq] at h ⊢
+    (h : nonCutMinKeyOk n (rowsOfCode n c) c s = true) :
+    nonCutMinKeyOk n (rowsOfCode n c) c (permMask n σ s) = true := by
+  simp only [nonCutMinKeyOk, decide_eq_true_eq] at h ⊢
   intro u
-  rcases h (σ u) with hd | hnc
+  rcases h (σ u) with hk | hnc
   · left
-    rw [maskCard_permMask, testBit_permMask _ _ u.2, ← deg_of_mem_autGroup hσ u]
-    exact hd
+    rw [newKey_permMask hc hσ, oldKey_permMask hc hσ]
+    exact hk
   · right
     by_contra hcon
     rw [Bool.not_eq_false] at hcon
-    have := nonCutTest_permMask hc hs u.2 hσ hcon
+    have := nonCutHits_permMask hc u.2 hσ hcon
     simp [this] at hnc
 
 /-! ## Completeness of the connected mask selector -/
@@ -710,18 +988,18 @@ def MasksNonzero (masks : ℕ → ℕ → List ℕ) : Prop := ∀ n c, ∀ s ∈
 
 theorem connMasks_nonzero : MasksNonzero connMasks := fun _ _ _ h ↦ connMasks_subset h
 
-/-- **Nothing is lost by only adding a least-degree non-cut vertex.**  Delete, from a connected
-graph, a non-cut vertex of least degree among the non-cut vertices: what is left is a smaller
+/-- **Nothing is lost by only adding a least-key non-cut vertex.**  Delete, from a connected
+graph, a non-cut vertex of least key among the non-cut vertices: what is left is a smaller
 *connected* graph, and the mask that puts the deleted vertex back passes every test. -/
 theorem connMasks_complete : ConnMasksComplete connMasks := by
   intro n adj hs hl hconn
   classical
   obtain ⟨v₀, hv₀⟩ := exists_nonCut hs hconn
   obtain ⟨v, hvmem, hvmin'⟩ := Finset.exists_min_image
-    ((Finset.univ : Finset (Fin (n + 2))).filter fun x ↦ NonCut adj x) (deg adj)
+    ((Finset.univ : Finset (Fin (n + 2))).filter fun x ↦ NonCut adj x) (vkey adj)
     ⟨v₀, Finset.mem_filter.2 ⟨Finset.mem_univ _, hv₀⟩⟩
   have hnc : NonCut adj v := (Finset.mem_filter.1 hvmem).2
-  have hvmin : ∀ u : Fin (n + 2), NonCut adj u → deg adj v ≤ deg adj u := fun u hu ↦
+  have hvmin : ∀ u : Fin (n + 2), NonCut adj u → vkey adj v ≤ vkey adj u := fun u hu ↦
     hvmin' u (Finset.mem_filter.2 ⟨Finset.mem_univ _, hu⟩)
   set π : Equiv.Perm (Fin (n + 2)) := Equiv.swap v (Fin.last (n + 1)) with hπ
   set adjπ : Fin (n + 2) → Fin (n + 2) → Bool := fun a b ↦ adj (π a) (π b) with hadjπ
@@ -743,37 +1021,41 @@ theorem connMasks_complete : ConnMasksComplete connMasks := by
     rw [h1, deg_castSucc_split adjπ (Fin.last (n + 1)), if_neg (by simp [hlπ])]
     simp only [Nat.add_zero, maskCard]
     exact Fintype.sum_equiv σ _ _ fun i ↦ by rw [hbit i, hsπ]
-  have hdeg : ∀ u : Fin (n + 1),
-      deg (graphOfCode (n + 1) c).Adj u + (if s.testBit u.1 then 1 else 0)
-        = deg adj (π (σ u).castSucc) := by
-    intro u
-    have hgc : (graphOfCode (n + 1) c).Adj = fun a b ↦ adj' (σ a) (σ b) :=
-      funext fun i ↦ funext fun j ↦ by
-        rw [hc, adj_graphOfCode_canonCode hs' hl' i j, canonAdj_apply]
-    rw [hgc, deg_perm, hbit u, ← hdegπ, deg_castSucc_split adjπ (σ u).castSucc]
-    rfl
   -- the new vertex has at least one neighbour, since the graph is connected and has ≥ 2 vertices
   obtain ⟨x, hx⟩ : ∃ x : Fin (n + 2), x ≠ v := exists_ne v
   obtain ⟨w, hvw, -⟩ := (Relation.ReflTransGen.cases_head (hconn v x)).resolve_left
     fun he ↦ hx he.symm
   have hdegv : deg adj v ≠ 0 := deg_ne_zero hvw
-  -- and it has least degree among the non-cut vertices
+  -- and it has least key among the non-cut vertices
   have hclt : c < 2 ^ (n + 1).choose 2 := hc ▸ canonCode_lt (n + 1) adj'
   have hslt : s < 2 ^ (n + 1) := hsdef ▸ lastMask_lt (n + 1) adjπ
-  have hchild := adj_extendCode_lastMask adjπ hsπ hlπ
+  have hchild : ∀ a b, adjπ (permLast σ a) (permLast σ b)
+      = (graphOfCode (n + 2) (extendCode (n + 1) c s)).Adj a b :=
+    adj_extendCode_lastMask adjπ hsπ hlπ
+  have hE : (graphOfCode (n + 2) (extendCode (n + 1) c s)).Adj
+      = fun a b ↦ adjπ (permLast σ a) (permLast σ b) :=
+    funext fun a ↦ funext fun b ↦ (hchild a b).symm
+  have hvkeyπ : ∀ i : Fin (n + 2), vkey adjπ i = vkey adj (π i) := fun i ↦ by
+    rw [hadjπ]; exact vkey_perm adj π i
+  have hnewkey : newKey (n + 1) c s = vkey adj v := by
+    rw [newKey_eq hclt, hE, vkey_perm, permLast_last, hvkeyπ, hπ, Equiv.swap_apply_right]
+  have holdkey : ∀ u : Fin (n + 1), oldKey (n + 1) c s u = vkey adj (π (σ u).castSucc) := by
+    intro u
+    rw [oldKey_eq hclt, hE, vkey_perm, permLast_castSucc, hvkeyπ]
   -- a vertex of the extension that the test finds non-cut really is a non-cut vertex of `adj`
-  have hnonCut : ∀ u : Fin (n + 1), nonCutTest (n + 1) (rowsOfCode (n + 1) c) s u.1 = true →
+  have hnonCut : ∀ u : Fin (n + 1), nonCutHits (n + 1) (rowsOfCode (n + 1) c) s u.1 = true →
       NonCut adj (π (σ u).castSucc) := by
     intro u hnct
-    rw [nonCutTest_iff (rowsSpec_rowsOfCode (n + 1) c) hclt hslt u.2] at hnct
-    have h1 : NonCut adjπ (permLast σ u.castSucc) := nonCut_map (permLast σ) hchild hnct
+    have h0 : NonCut (graphOfCode (n + 2) (extendCode (n + 1) c s)).Adj u.castSucc :=
+      (nonCutHits_iff (rowsSpec_rowsOfCode (n + 1) c) hclt u.2).1 hnct
+    have h1 : NonCut adjπ (permLast σ u.castSucc) := nonCut_map (permLast σ) hchild h0
     rw [permLast_castSucc] at h1
     exact nonCut_map π (fun _ _ ↦ rfl) h1
-  have hmin : nonCutMinDegOk (n + 1) (rowsOfCode (n + 1) c) c s = true := by
-    simp only [nonCutMinDegOk, decide_eq_true_eq]
+  have hmin : nonCutMinKeyOk (n + 1) (rowsOfCode (n + 1) c) c s = true := by
+    simp only [nonCutMinKeyOk, decide_eq_true_eq]
     intro u
-    by_cases hnct : nonCutTest (n + 1) (rowsOfCode (n + 1) c) s u.1 = true
-    · rw [hcard, hdeg u]
+    by_cases hnct : nonCutHits (n + 1) (rowsOfCode (n + 1) c) s u.1 = true
+    · rw [hnewkey, holdkey u]
       exact Or.inl (hvmin _ (hnonCut u hnct))
     · exact Or.inr (Bool.eq_false_iff.2 hnct)
   -- reduce the mask to its orbit representative
@@ -782,7 +1064,7 @@ theorem connMasks_complete : ConnMasksComplete connMasks := by
   · rw [connMasks, List.mem_filter]
     refine ⟨hmem, ?_⟩
     simp only [Bool.and_eq_true, decide_eq_true_eq]
-    refine ⟨fun h0 ↦ hdegv ?_, nonCutMinDegOk_permMask hclt hslt hτ hmin⟩
+    refine ⟨fun h0 ↦ hdegv ?_, nonCutMinKeyOk_permMask hclt hτ hmin⟩
     have hpc : maskCard (n + 1) (permMask (n + 1) τ s) = deg adj v := by
       rw [maskCard_permMask, hcard]
     rw [h0, maskCard_zero] at hpc

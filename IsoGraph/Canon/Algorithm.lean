@@ -1086,45 +1086,362 @@ def splitCell (cnt : Array Nat) (c : Nat) (st : SplitState) : SplitState :=
                   else markExceptFrom starts (maxIdxFrom sizes sizes.size 0 0) starts.size 0 st.inW
                 { lab, pos, cst, cen, inW, tr, bc := clearBcFrom ks ks.size 0 bc }
 
-/-- What `splitCell` actually runs: the same thing with the state taken apart first.
+/-- Phases (3) to (5) as they run on a cell of no special shape: the body of `splitCell`'s `else`
+branch, with the state taken apart.  `splitCellFast` falls through to this whenever its shortcut
+does not apply. -/
+def splitCellGen (cnt : Array Nat) (c ec : Nat) (slab spos scst scen : Array Nat)
+    (sinW : Array Bool) (str : UInt64) (sbc : Array Nat) : SplitState :=
+  match bucketFrom slab cnt ec (ec - c) c sbc #[] with
+  | (bc, ks) =>
+    if ks.size == 1 then
+      ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) ks[0]!, bc.set! ks[0]! 0⟩
+    else
+      let ks := sortNats ks
+      match offsetFrom ks ks.size 0 (Array.replicate ks.size 0) bc 0 with
+      | (sizes, bc) =>
+        match scatterFrom slab cnt ec (ec - c) c (Array.replicate (ec - c) 0) bc with
+        | (block, bc) =>
+          match writeFrom block c block.size 0 slab spos with
+          | (lab, pos) =>
+            match boundsFrom ks sizes ks.size 0 scst scen #[] c (mixN str c) with
+            | (cst, cen, starts, tr) =>
+              let inW :=
+                if sinW[c]! then markAllFrom starts starts.size 0 sinW
+                else markExceptFrom starts (maxIdxFrom sizes sizes.size 0 0) starts.size 0 sinW
+              { lab, pos, cst, cen, inW, tr, bc := clearBcFrom ks ks.size 0 bc }
 
-`writeFrom`, `boundsFrom` and the two `mark*From` write into `lab`, `pos`, `cst`, `cen` and `inW`,
-and Lean's arrays are copy-on-write: an update is in place only when the array it is handed is the
-only reference to it.  Reading a field off `st` at the point of the call leaves `st` itself holding
-a second reference, so every one of those five loops would copy an array as long as the partition
-before touching it.  Destructuring at the top retires `st` before any of them runs, which is worth
-about 1.2× on a sparse refinement — and nothing on a dense one, where the copies are dwarfed by
-the counting. -/
+/-- Is bucket `t` in range and empty?  The two-element shortcut below computes the general path's
+answer in closed form, but only when both counts have a clear bucket to begin with.  That is an
+invariant of `refineStep`'s cell loop — the loop restores `bc` after every cell — but `SplitState`
+does not carry it, so the shortcut has to test for it. -/
+def bcOpen (sbc : Array Nat) (t : Nat) : Bool := t < sbc.size && sbc[t]! == 0
+
+/-- What `splitCell` actually runs.  Two changes, both invisible to the caller.
+
+*The state is taken apart first.*  `writeFrom`, `boundsFrom` and the two `mark*From` write into
+`lab`, `pos`, `cst`, `cen` and `inW`, and Lean's arrays are copy-on-write: an update is in place
+only when the array it is handed is the only reference to it.  Reading a field off `st` at the
+point of the call leaves `st` itself holding a second reference, so every one of those five loops
+would copy an array as long as the partition before touching it.  Destructuring at the top retires
+`st` before any of them runs, which is worth about 1.2× on a sparse refinement — and nothing on a
+dense one, where the copies are dwarfed by the counting.
+
+*Cells of two elements are done in closed form.*  They are the commonest cell to reach the general
+path, and everything it does to one is decided by whether the two counts agree: it allocates two
+scratch arrays, sorts a two-element array, and makes eleven writes into the bucket array that
+cancel out.  The shortcut compares the counts and writes the answer, at the cost of the `bcOpen`
+guard, which the general path needs no help with.  Worth about 2% of the enumerator. -/
 def splitCellFast (cnt : Array Nat) (c : Nat) (st : SplitState) : SplitState :=
   match st with
   | ⟨slab, spos, scst, scen, sinW, str, sbc⟩ =>
     let ec := scen[c]!
     if ec - c == 1 then
       ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) cnt[slab[c]!]!, sbc⟩
-    else
-      match bucketFrom slab cnt ec (ec - c) c sbc #[] with
-      | (bc, ks) =>
-        if ks.size == 1 then
-          ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) ks[0]!, bc.set! ks[0]! 0⟩
+    else if ec - c == 2 then
+      let v₀ := slab[c]!
+      let v₁ := slab[c + 1]!
+      let t₀ := cnt[v₀]!
+      let t₁ := cnt[v₁]!
+      if bcOpen sbc t₀ && bcOpen sbc t₁ then
+        if t₀ == t₁ then ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) t₀, sbc⟩
         else
-          let ks := sortNats ks
-          match offsetFrom ks ks.size 0 (Array.replicate ks.size 0) bc 0 with
-          | (sizes, bc) =>
-            match scatterFrom slab cnt ec (ec - c) c (Array.replicate (ec - c) 0) bc with
-            | (block, bc) =>
-              match writeFrom block c block.size 0 slab spos with
-              | (lab, pos) =>
-                match boundsFrom ks sizes ks.size 0 scst scen #[] c (mixN str c) with
-                | (cst, cen, starts, tr) =>
-                  let inW :=
-                    if sinW[c]! then markAllFrom starts starts.size 0 sinW
-                    else markExceptFrom starts (maxIdxFrom sizes sizes.size 0 0) starts.size 0 sinW
-                  { lab, pos, cst, cen, inW, tr, bc := clearBcFrom ks ks.size 0 bc }
+          let sw := t₁ < t₀
+          let a := if sw then v₁ else v₀
+          let b := if sw then v₀ else v₁
+          let ta := if sw then t₁ else t₀
+          let tb := if sw then t₀ else t₁
+          ⟨(slab.set! c a).set! (c + 1) b, (spos.set! a c).set! b (c + 1),
+            (scst.set! c c).set! (c + 1) (c + 1), (scen.set! c (c + 1)).set! (c + 1) (c + 2),
+            (if sinW[c]! then (sinW.set! c true).set! (c + 1) true else sinW.set! (c + 1) true),
+            mixN (mixN (mixN (mixN (mixN str c) 1) ta) 1) tb, sbc⟩
+      else splitCellGen cnt c ec slab spos scst scen sinW str sbc
+    else splitCellGen cnt c ec slab spos scst scen sinW str sbc
+
+/-! ### `splitCellFast` is `splitCell`
+
+Everything from here to `splitCell_eq_splitCellFast` exists to justify the two-element shortcut
+above.  The plan: name the value of each phase of `splitCellGen` on a cell of two elements
+(`bucketFrom_two_eq` … `clearBcFrom_two`), chain them (`splitCellGen_two_eq`, `splitCellGen_two_lt`,
+`splitCellGen_two_gt`), and case on the guard. -/
+
+/-- Writing back what is already there is a no-op, in bounds or out. -/
+private theorem set!_of_getElem! {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {v : α}
+    (h : a[i]! = v) : a.set! i v = a := by
+  by_cases hi : i < a.size
+  · subst h
+    rw [getElem!_pos a i hi]
+    simp [Array.set!_eq_setIfInBounds, Array.setIfInBounds, hi]
+  · exact Array.setIfInBounds_eq_of_size_le (by omega)
+
+/-- `set!_of_getElem!` in the form `simp` leaves the goal in. -/
+private theorem setIf_of_getElem! {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {v : α}
+    (h : a[i]! = v) : a.setIfInBounds i v = a := set!_of_getElem! h
+
+/-- Writing at `i` never disturbs another index, in bounds or not. -/
+private theorem getElem!_set!_nat_ne {a : Array Nat} {i x k : Nat} (h : k ≠ i) :
+    (a.set! i x)[k]! = a[k]! := by
+  by_cases hk : k < a.size
+  · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
+    simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk, if_neg (Ne.symm h)]
+  · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk]
+
+/-- Reading back what was just written. -/
+private theorem getElem!_set!_nat_self {a : Array Nat} {i x : Nat} (hi : i < a.size) :
+    (a.set! i x)[i]! = x := by
+  rw [getElem!_set!_nat hi, if_pos rfl]
+
+/-- `getElem!_set!_nat` in the form `simp` leaves the goal in. -/
+private theorem getElem!_setIfInBounds_nat {a : Array Nat} {i x : Nat} (hi : i < a.size) (k : Nat) :
+    (a.setIfInBounds i x)[k]! = if k = i then x else a[k]! := getElem!_set!_nat hi k
+
+/-- Any chain of writes at two distinct indices collapses to one write at each. -/
+private theorem setIf_collapse {a : Array Nat} {i j x y u : Nat} (h : i ≠ j) :
+    ((a.setIfInBounds i x).setIfInBounds j y).setIfInBounds i u
+      = (a.setIfInBounds i u).setIfInBounds j y := by
+  rw [Array.setIfInBounds_comm _ _ h.symm, Array.setIfInBounds_setIfInBounds]
+
+private theorem size_two {α : Type _} (x y : α) : (#[x, y] : Array α).size = 2 := rfl
+
+private theorem replicate_two {α : Type _} (x : α) : Array.replicate 2 x = #[x, x] := rfl
+
+/-- Insertion sort of two naturals, as one comparison. -/
+theorem sortNats_two (x y : Nat) : sortNats #[x, y] = if x ≤ y then #[x, y] else #[y, x] := by
+  show (if (#[x, y] : Array Nat).size ≤ 8 then (sortNatList (#[x, y] : Array Nat).toList).toArray
+      else _) = _
+  rw [if_pos (by simp)]
+  show (sortNatList [x, y]).toArray = _
+  simp only [sortNatList, insertNat]
+  split <;> simp
+
+section Phases
+variable {slab spos scst scen cnt sbc : Array Nat} {sinW : Array Bool} {str : UInt64}
+  {c v₀ v₁ t₀ t₁ : Nat}
+
+/-- Phase (3a) on a two-element cell whose two counts agree. -/
+theorem bucketFrom_two_eq (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
+    (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₀) (h0 : t₀ < sbc.size) (z0 : sbc[t₀]! = 0) :
+    bucketFrom slab cnt (c + 2) 2 c sbc #[] = ((sbc.set! t₀ 1).set! t₀ 2, #[t₀]) := by
+  rw [bucketFrom, if_neg (by omega : ¬ c ≥ c + 2)]
+  simp only [hv0, ht0, z0]
+  rw [bucketFrom, if_neg (by omega : ¬ c + 1 ≥ c + 2)]
+  simp only [hv1, ht1, bucketFrom]
+  simp [getElem!_setIfInBounds_nat h0]
+
+/-- Phase (3a) on a two-element cell whose two counts differ. -/
+theorem bucketFrom_two_ne (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
+    (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₁) (h0 : t₀ < sbc.size) (z0 : sbc[t₀]! = 0)
+    (z1 : sbc[t₁]! = 0) (hne : t₁ ≠ t₀) :
+    bucketFrom slab cnt (c + 2) 2 c sbc #[] = ((sbc.set! t₀ 1).set! t₁ 1, #[t₀, t₁]) := by
+  rw [bucketFrom, if_neg (by omega : ¬ c ≥ c + 2)]
+  simp only [hv0, ht0, z0]
+  rw [bucketFrom, if_neg (by omega : ¬ c + 1 ≥ c + 2)]
+  simp only [hv1, ht1, bucketFrom]
+  simp [getElem!_setIfInBounds_nat h0, hne, z1]
+
+/-- Phase (3b) on two singleton buckets. -/
+theorem offsetFrom_two (ta tb : Nat) (bc : Array Nat) (hab : tb ≠ ta) (hta : ta < bc.size)
+    (ha : bc[ta]! = 1) (hb : bc[tb]! = 1) :
+    offsetFrom #[ta, tb] 2 0 (Array.replicate 2 0) bc 0
+      = (#[1, 1], (bc.set! ta 0).set! tb 1) := by
+  rw [replicate_two, offsetFrom, if_neg (by simp)]
+  simp only [show (#[ta, tb] : Array Nat)[0]! = ta from rfl, ha]
+  rw [offsetFrom, if_neg (by simp)]
+  simp only [show (#[ta, tb] : Array Nat)[1]! = tb from rfl, getElem!_set!_nat hta, if_neg hab, hb,
+    offsetFrom]
+  rfl
+
+/-- Phase (3c) on a two-element cell. -/
+theorem scatterFrom_two {bc : Array Nat} {o₀ o₁ : Nat}
+    (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁) (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₁)
+    (h₀ : bc[t₀]! = o₀) (h₁ : (bc.set! t₀ (o₀ + 1))[t₁]! = o₁) :
+    scatterFrom slab cnt (c + 2) 2 c (Array.replicate 2 0) bc
+      = (((Array.replicate 2 0).set! o₀ v₀).set! o₁ v₁,
+          (bc.set! t₀ (o₀ + 1)).set! t₁ (o₁ + 1)) := by
+  rw [scatterFrom, if_neg (by omega : ¬ c ≥ c + 2)]
+  simp only [hv0, ht0, h₀]
+  rw [scatterFrom, if_neg (by omega : ¬ c + 1 ≥ c + 2)]
+  simp only [hv1, ht1, h₁]
+  rw [scatterFrom]
+
+/-- Phase (3e) on a two-element block. -/
+theorem writeFrom_two (x y : Nat) (lab pos : Array Nat) (k : Nat) :
+    writeFrom #[x, y] k 2 0 lab pos
+      = ((lab.set! k x).set! (k + 1) y, (pos.set! x k).set! y (k + 1)) := by
+  rfl
+
+/-- Phase (4a) on a singleton fragment. -/
+theorem fillBoundsFrom_one (st : Nat) (cst cen : Array Nat) :
+    fillBoundsFrom st (st + 1) 1 st cst cen = (cst.set! st st, cen.set! st (st + 1)) := by
+  rw [fillBoundsFrom, if_neg (by omega), fillBoundsFrom]
+
+/-- Phase (4) on two singleton fragments. -/
+theorem boundsFrom_two (ta tb : Nat) (tr : UInt64) :
+    boundsFrom #[ta, tb] #[1, 1] 2 0 scst scen #[] c tr
+      = ((scst.set! c c).set! (c + 1) (c + 1), (scen.set! c (c + 1)).set! (c + 1) (c + 2),
+          #[c, c + 1], mixN (mixN (mixN (mixN tr 1) ta) 1) tb) := by
+  rw [boundsFrom, if_neg (by simp)]
+  simp only [show (#[1, 1] : Array Nat)[0]! = 1 from rfl,
+    show (#[ta, tb] : Array Nat)[0]! = ta from rfl, fillBoundsFrom_one]
+  rw [boundsFrom, if_neg (by simp)]
+  simp only [show (#[1, 1] : Array Nat)[1]! = 1 from rfl,
+    show (#[ta, tb] : Array Nat)[1]! = tb from rfl, fillBoundsFrom_one]
+  rw [boundsFrom]
+  simp
+
+/-- Two fragments of equal size: the first is a largest one. -/
+theorem maxIdxFrom_two : maxIdxFrom #[1, 1] 2 0 0 = 0 := by
+  rfl
+
+/-- Phase (5) on two singleton fragments, parent queued. -/
+theorem markAllFrom_two :
+    markAllFrom #[c, c + 1] 2 0 sinW = (sinW.set! c true).set! (c + 1) true := by
+  rfl
+
+/-- Phase (5) on two singleton fragments, parent not queued: the second one is enough. -/
+theorem markExceptFrom_two :
+    markExceptFrom #[c, c + 1] 0 2 0 sinW = sinW.set! (c + 1) true := by
+  rfl
+
+/-- Phase (3d) on two buckets. -/
+theorem clearBcFrom_two (ta tb : Nat) (bc : Array Nat) :
+    clearBcFrom #[ta, tb] 2 0 bc = (bc.set! ta 0).set! tb 0 := by
+  rfl
+
+end Phases
+
+section Gen
+variable {slab spos scst scen cnt sbc : Array Nat} {sinW : Array Bool} {str : UInt64}
+  {c v₀ v₁ t₀ t₁ : Nat}
+
+/-- A two-element cell whose two vertices have the same count does not split: the general path
+leaves everything but the trace alone, and puts the bucket array back as it found it. -/
+theorem splitCellGen_two_eq (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
+    (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₀) (h0 : t₀ < sbc.size) (z0 : sbc[t₀]! = 0) :
+    splitCellGen cnt c (c + 2) slab spos scst scen sinW str sbc =
+      ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) t₀, sbc⟩ := by
+  rw [splitCellGen, show c + 2 - c = 2 from by omega,
+    bucketFrom_two_eq hv0 hv1 ht0 ht1 h0 z0]
+  simp [setIf_of_getElem! z0]
+
+/-- A two-element cell whose two vertices have different counts splits into two singletons.  The
+hypotheses name the intermediate quantities the general path computes: the sorted key array
+`#[ta, tb]`, the two scatter offsets, the resulting block `#[a, b]`, and the fact that the bucket
+array comes back clear. -/
+theorem splitCellGen_two_aux
+    (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁) (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₁)
+    (h0 : t₀ < sbc.size) (z0 : sbc[t₀]! = 0) (z1 : sbc[t₁]! = 0) (hne : t₁ ≠ t₀)
+    {ta tb a b o₀ o₁ : Nat}
+    (hsort : sortNats #[t₀, t₁] = #[ta, tb]) (hab : tb ≠ ta)
+    (hta : ta < ((sbc.set! t₀ 1).set! t₁ 1).size)
+    (ha : ((sbc.set! t₀ 1).set! t₁ 1)[ta]! = 1)
+    (hb : ((sbc.set! t₀ 1).set! t₁ 1)[tb]! = 1)
+    (ho₀ : ((((sbc.set! t₀ 1).set! t₁ 1).set! ta 0).set! tb 1)[t₀]! = o₀)
+    (ho₁ : (((((sbc.set! t₀ 1).set! t₁ 1).set! ta 0).set! tb 1).set! t₀ (o₀ + 1))[t₁]! = o₁)
+    (hblock : ((Array.replicate 2 0).set! o₀ v₀).set! o₁ v₁ = #[a, b])
+    (hclear : (((((((sbc.set! t₀ 1).set! t₁ 1).set! ta 0).set! tb 1).set! t₀ (o₀ + 1)).set! t₁
+        (o₁ + 1)).set! ta 0).set! tb 0 = sbc) :
+    splitCellGen cnt c (c + 2) slab spos scst scen sinW str sbc =
+      ⟨(slab.set! c a).set! (c + 1) b, (spos.set! a c).set! b (c + 1),
+        (scst.set! c c).set! (c + 1) (c + 1), (scen.set! c (c + 1)).set! (c + 1) (c + 2),
+        (if sinW[c]! then (sinW.set! c true).set! (c + 1) true else sinW.set! (c + 1) true),
+        mixN (mixN (mixN (mixN (mixN str c) 1) ta) 1) tb, sbc⟩ := by
+  rw [splitCellGen, show c + 2 - c = 2 from by omega,
+    bucketFrom_two_ne hv0 hv1 ht0 ht1 h0 z0 z1 hne]
+  simp only [show ((2 : Nat) == 1) = false from rfl, Bool.false_eq_true,
+    if_false, hsort, size_two, offsetFrom_two ta tb _ hab hta ha hb,
+    scatterFrom_two hv0 hv1 ht0 ht1 ho₀ ho₁, hblock, writeFrom_two, boundsFrom_two, maxIdxFrom_two,
+    markAllFrom_two, markExceptFrom_two, clearBcFrom_two, hclear]
+
+/-- The general path on a two-element cell, first vertex of smaller count. -/
+theorem splitCellGen_two_lt (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
+    (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₁) (h0 : t₀ < sbc.size) (h1 : t₁ < sbc.size)
+    (z0 : sbc[t₀]! = 0) (z1 : sbc[t₁]! = 0) (hlt : t₀ < t₁) :
+    splitCellGen cnt c (c + 2) slab spos scst scen sinW str sbc =
+      ⟨(slab.set! c v₀).set! (c + 1) v₁, (spos.set! v₀ c).set! v₁ (c + 1),
+        (scst.set! c c).set! (c + 1) (c + 1), (scen.set! c (c + 1)).set! (c + 1) (c + 2),
+        (if sinW[c]! then (sinW.set! c true).set! (c + 1) true else sinW.set! (c + 1) true),
+        mixN (mixN (mixN (mixN (mixN str c) 1) t₀) 1) t₁, sbc⟩ := by
+  have hne : t₁ ≠ t₀ := by omega
+  have hne' : t₀ ≠ t₁ := by omega
+  have s2 : t₁ < (sbc.set! t₀ 1).size := by simpa using h1
+  have s0 : t₀ < ((sbc.set! t₀ 1).set! t₁ 1).size := by simpa using h0
+  have s3 : t₁ < (((sbc.set! t₀ 1).set! t₁ 1).set! t₀ 0).size := by simpa using h1
+  refine splitCellGen_two_aux (ta := t₀) (tb := t₁) (a := v₀) (b := v₁) (o₀ := 0) (o₁ := 1)
+    hv0 hv1 ht0 ht1 h0 z0 z1 hne (by rw [sortNats_two, if_pos (Nat.le_of_lt hlt)]) hne s0
+    (by rw [getElem!_set!_nat_ne hne', getElem!_set!_nat_self h0])
+    (by rw [getElem!_set!_nat_self s2])
+    (by rw [getElem!_set!_nat_ne hne', getElem!_set!_nat_self s0])
+    (by rw [getElem!_set!_nat_ne hne, getElem!_set!_nat_self s3]) rfl ?_
+  simp [setIf_collapse hne', setIf_collapse hne, setIf_of_getElem! z0, setIf_of_getElem! z1]
+
+/-- The general path on a two-element cell, second vertex of smaller count. -/
+theorem splitCellGen_two_gt (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
+    (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₁) (h0 : t₀ < sbc.size) (h1 : t₁ < sbc.size)
+    (z0 : sbc[t₀]! = 0) (z1 : sbc[t₁]! = 0) (hlt : t₁ < t₀) :
+    splitCellGen cnt c (c + 2) slab spos scst scen sinW str sbc =
+      ⟨(slab.set! c v₁).set! (c + 1) v₀, (spos.set! v₁ c).set! v₀ (c + 1),
+        (scst.set! c c).set! (c + 1) (c + 1), (scen.set! c (c + 1)).set! (c + 1) (c + 2),
+        (if sinW[c]! then (sinW.set! c true).set! (c + 1) true else sinW.set! (c + 1) true),
+        mixN (mixN (mixN (mixN (mixN str c) 1) t₁) 1) t₀, sbc⟩ := by
+  have hne : t₁ ≠ t₀ := by omega
+  have hne' : t₀ ≠ t₁ := by omega
+  have s2 : t₁ < (sbc.set! t₀ 1).size := by simpa using h1
+  have s4 : t₁ < ((sbc.set! t₀ 1).set! t₁ 1).size := by simpa using h1
+  have s5 : t₀ < (((sbc.set! t₀ 1).set! t₁ 1).set! t₁ 0).size := by simpa using h0
+  refine splitCellGen_two_aux (ta := t₁) (tb := t₀) (a := v₁) (b := v₀) (o₀ := 1) (o₁ := 0)
+    hv0 hv1 ht0 ht1 h0 z0 z1 hne (by rw [sortNats_two, if_neg (by omega)]) hne' s4
+    (by rw [getElem!_set!_nat_self s2])
+    (by rw [getElem!_set!_nat_ne hne', getElem!_set!_nat_self h0])
+    (by rw [getElem!_set!_nat_self s5])
+    (by rw [getElem!_set!_nat_ne hne, getElem!_set!_nat_ne hne, getElem!_set!_nat_self s4]) rfl ?_
+  simp [setIf_collapse hne', setIf_of_getElem! z0, setIf_of_getElem! z1]
+
+end Gen
+
+theorem bcOpen_iff {sbc : Array Nat} {t : Nat} :
+    bcOpen sbc t = true ↔ t < sbc.size ∧ sbc[t]! = 0 := by
+  simp [bcOpen]
+
+/-- `splitCell` with the state taken apart and the general path named. -/
+theorem splitCell_eq_ite (cnt : Array Nat) (c : Nat) (slab spos scst scen sbc : Array Nat)
+    (sinW : Array Bool) (str : UInt64) :
+    splitCell cnt c ⟨slab, spos, scst, scen, sinW, str, sbc⟩
+      = if scen[c]! - c == 1 then
+          ⟨slab, spos, scst, scen, sinW, mixN (mixN str c) cnt[slab[c]!]!, sbc⟩
+        else splitCellGen cnt c scen[c]! slab spos scst scen sinW str sbc := rfl
 
 @[csimp] theorem splitCell_eq_splitCellFast : @splitCell = @splitCellFast := by
   funext cnt c st
-  obtain ⟨lab, pos, cst, cen, inW, tr, bc⟩ := st
-  rfl
+  obtain ⟨slab, spos, scst, scen, sinW, str, sbc⟩ := st
+  rw [splitCell_eq_ite]
+  simp only [splitCellFast]
+  by_cases h1 : (scen[c]! - c == 1) = true
+  · simp only [if_pos h1]
+  simp only [if_neg h1]
+  by_cases h2 : (scen[c]! - c == 2) = true
+  · simp only [if_pos h2]
+    by_cases hg : (bcOpen sbc cnt[slab[c]!]! && bcOpen sbc cnt[slab[c + 1]!]!) = true
+    · simp only [if_pos hg]
+      rw [Bool.and_eq_true] at hg
+      obtain ⟨g0, g1⟩ := hg
+      obtain ⟨b0, z0⟩ := bcOpen_iff.1 g0
+      obtain ⟨b1, z1⟩ := bcOpen_iff.1 g1
+      have hec : scen[c]! = c + 2 := by
+        have : scen[c]! - c = 2 := by simpa using h2
+        omega
+      rw [hec]
+      by_cases he : (cnt[slab[c]!]! == cnt[slab[c + 1]!]!) = true
+      · rw [if_pos he]
+        exact splitCellGen_two_eq rfl rfl rfl (Eq.symm (by simpa using he)) b0 z0
+      · rw [if_neg he]
+        have hne : cnt[slab[c + 1]!]! ≠ cnt[slab[c]!]! := fun h ↦ he (by simp [h])
+        by_cases hsw : cnt[slab[c + 1]!]! < cnt[slab[c]!]!
+        · simp only [if_pos hsw]
+          exact splitCellGen_two_gt rfl rfl rfl rfl b0 b1 z0 z1 hsw
+        · simp only [if_neg hsw]
+          exact splitCellGen_two_lt rfl rfl rfl rfl b0 b1 z0 z1 (by omega)
+    · simp only [if_neg hg]
+  · simp only [if_neg h2]
 
 /-- Split every cell in `cells[j:]`, left to right. -/
 def splitCellsFrom (cnt cells : Array Nat) : Nat → Nat → SplitState → SplitState
@@ -1578,6 +1895,56 @@ def lexCmpFrom (a b : Array UInt64) : Nat → Nat → Ordering
 /-- Lexicographic comparison of `UInt64` arrays (shorter is smaller on a common prefix). -/
 def lexCmpU64 (a b : Array UInt64) : Ordering := lexCmpFrom a b (min a.size b.size) 0
 
+/-- Lexicographic comparison of `a` against the *prefix* of `b` of `a`'s length, from index `i`
+on: `a` shorter than `b` and agreeing with it reads as `.eq` rather than as `.lt`.  This is
+`lexCmpU64 a (b.extract 0 a.size)` without the copy — see `lexCmpU64_extract_eq`. -/
+def lexCmpPreFrom (a b : Array UInt64) : Nat → Nat → Ordering
+  | 0, _ => if a.size ≤ b.size then .eq else .gt
+  | fuel + 1, i =>
+    if i < min a.size b.size then
+      match compare a[i]! b[i]! with
+      | .eq => lexCmpPreFrom a b fuel (i + 1)
+      | c => c
+    else if a.size ≤ b.size then .eq else .gt
+
+@[inherit_doc lexCmpPreFrom]
+def lexCmpPre (a b : Array UInt64) : Ordering := lexCmpPreFrom a b (min a.size b.size) 0
+
+private theorem size_extract_zero (b : Array UInt64) (k : Nat) :
+    (b.extract 0 k).size = min k b.size := by
+  simp
+
+private theorem getElem!_extract_zero {b : Array UInt64} {k i : Nat} (h : i < min k b.size) :
+    (b.extract 0 k)[i]! = b[i]! := by
+  rw [getElem!_pos _ i (by simp; omega), getElem!_pos b i (by omega)]
+  simp
+
+private theorem min_min_self (x y : Nat) : min x (min x y) = min x y := by omega
+
+private theorem compare_size_min (a b : Array UInt64) :
+    compare a.size (min a.size b.size) = if a.size ≤ b.size then .eq else .gt := by
+  by_cases h : a.size ≤ b.size
+  · rw [if_pos h, Nat.min_eq_left h]
+    exact Nat.compare_eq_eq.2 rfl
+  · rw [if_neg h, Nat.min_eq_right (by omega)]
+    exact Nat.compare_eq_gt.2 (by omega)
+
+theorem lexCmpFrom_extract (a b : Array UInt64) :
+    ∀ (fuel i : Nat), lexCmpFrom a (b.extract 0 a.size) fuel i = lexCmpPreFrom a b fuel i
+  | 0, _ => by rw [lexCmpFrom, lexCmpPreFrom, size_extract_zero, compare_size_min]
+  | fuel + 1, i => by
+    rw [lexCmpFrom, lexCmpPreFrom, size_extract_zero, min_min_self]
+    by_cases h : i < min a.size b.size
+    · rw [if_pos h, if_pos h, getElem!_extract_zero h]
+      cases compare a[i]! b[i]! <;> simp [lexCmpFrom_extract a b fuel (i + 1)]
+    · rw [if_neg h, if_neg h, compare_size_min]
+
+/-- Comparing against a truncation is comparing against a prefix: `lexCmpPre` computes the same
+answer without building the truncation. -/
+theorem lexCmpU64_extract_eq (a b : Array UInt64) :
+    lexCmpU64 a (b.extract 0 a.size) = lexCmpPre a b := by
+  rw [lexCmpU64, lexCmpPre, size_extract_zero, min_min_self, lexCmpFrom_extract]
+
 /-! ## Automorphisms -/
 
 /-- Given two labellings `σ τ : position → vertex` with equal certificates, the permutation
@@ -1683,6 +2050,22 @@ def pruneNode (invPath : Array UInt64) (st : St) : Option St :=
     | .lt => none
     | .gt => some { st with best := none }
     | .eq => some st
+
+/-- What `pruneNode` runs: it compares against a prefix of the incumbent's invariant path in
+place, instead of copying that prefix out first, which saves an array allocation at every node
+of the search. -/
+def pruneNodeFast (invPath : Array UInt64) (st : St) : Option St :=
+  match st.best with
+  | none => some st
+  | some b =>
+    match lexCmpPre invPath b.invPath with
+    | .lt => none
+    | .gt => some { st with best := none }
+    | .eq => some st
+
+@[csimp] theorem pruneNode_eq_pruneNodeFast : @pruneNode = @pruneNodeFast := by
+  funext invPath st
+  simp only [pruneNode, pruneNodeFast, lexCmpU64_extract_eq]
 
 /-- Process a leaf: update the incumbent, harvest any automorphism, and decide how far to
 backjump.

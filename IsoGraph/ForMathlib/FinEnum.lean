@@ -182,7 +182,8 @@ adjacency query applies two vertices `n` times each.  `arrowDecode` below reache
 `digit`, which divides rather than raising to the power and shifts when the base is two, and
 `arrowDecode_eq` is the proof that it is the same digit.  Over the 256 vertices of `Q₈`, a million
 applications cost 505 ms through the composite and 48 through this, and a full sweep of the
-hypercube's adjacency drops from 365 ms to 68.
+hypercube's adjacency drops from 365 ms to 68 — and what a sweep costs now that the count itself
+gives up early is still mostly these two decodes per coordinate.
 
 Equality is the same story told about `Fintype.decidablePiFintype`, which decides `f = g` by
 folding a pointwise check over `Finset.univ` of the domain — structural, and started again from
