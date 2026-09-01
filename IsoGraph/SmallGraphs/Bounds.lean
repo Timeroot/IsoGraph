@@ -902,6 +902,13 @@ example (n : ℕ) : (cycle (2 * n + 1)).radius = n := by
   rw [cliqueCount_three_eq_zero_iff, girth_petersen]
   omega
 
+/-- The Petersen graph has no triangle but plenty of independent triples: `10·6·3/6 = 30`, one for
+each triangle of the complement, the triangular graph `T(5)`. -/
+@[simp] theorem indepCount_petersen : petersen.indepCount 3 = 30 := by
+  show (kneser 5 2).indepCount 3 = 30
+  have h := petersen_srg.six_mul_indepCount_three
+  omega
+
 @[simp] theorem cliqueCount_bipartite (m n : ℕ) : (bipartite m n).cliqueCount 3 = 0 :=
   cliqueCount_three_eq_zero_of_isBipartite (isBipartite_bipartite m n)
 
@@ -922,6 +929,13 @@ example : (complete 4).indepCount 2 = 0 := by
     (star n).indepCount (k + 2) = n.choose (k + 2) := by
   rw [star_def, CGraph.star, ← bipartite_def, indepCount_bipartite]
   simp [Nat.choose_eq_zero_of_lt]
+
+/-- The book graph is `completeMultipartite [1, 1, n]`, and only the page part is big enough to
+hold two independent vertices, let alone `k + 2`. -/
+@[simp] theorem indepCount_book (n k : ℕ) : (book n).indepCount (k + 2) = n.choose (k + 2) := by
+  show (completeMultipartite [1, 1, n]).indepCount (k + 1 + 1) = _
+  rw [indepCount_completeMultipartite]
+  simp [Nat.choose_eq_zero_of_lt (show 1 < k + 2 by omega)]
 
 example : (bipartite 4 6).indepCount 3 = 24 := by
   rw [show (3 : ℕ) = 2 + 1 from rfl, indepCount_bipartite]; decide

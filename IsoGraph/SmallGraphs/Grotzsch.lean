@@ -151,6 +151,13 @@ theorem degSequence_turan {n r : ℕ} (hr : 0 < r) :
   rw [List.eq_of_mem_replicate hx, List.eq_of_mem_replicate hy]
   omega
 
+theorem degMultiset_turan {n r : ℕ} (hr : 0 < r) :
+    degMultiset (turan n r)
+      = Multiset.replicate (n % r * (n / r + 1)) (n - n / r - 1)
+          + Multiset.replicate ((r - n % r) * (n / r)) (n - n / r) := by
+  rw [← coe_degSequence, degSequence_turan hr]
+  rfl
+
 /-! ### Paley graphs
 
 **Paley graphs are self-complementary**: multiplying by a fixed non-residue is a bijection that
@@ -597,5 +604,53 @@ theorem cliqueCoverNum_grotzsch : grotzsch.cliqueCoverNum = 6 := by
   have h2 := matchNum_grotzsch
   have h3 := cliqueCoverNum_of_cliqueNum_le_two cliqueNum_grotzsch.le (by omega)
   omega
+
+/-- Twenty edges on eleven vertices, so not even acyclic, let alone a tree. -/
+theorem not_isTree_grotzsch : ¬ IsTree grotzsch := fun h ↦ not_isAcyclic_grotzsch h.2
+
+/-- The sorted form of `degMultiset_grotzsch`. -/
+@[simp] theorem degSequence_grotzsch :
+    grotzsch.degSequence = [3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5] := by
+  rw [show (grotzsch : IsoGraph) = mycielskian (cycle 5) from rfl, cycle_def, mycielskian_mk,
+    degSequence_mk]
+  exact NamedGraphs.degSequence_grotzsch
+
+end IsoGraph
+
+/-! ### A Hamiltonian cycle in the Grötzsch graph
+
+The apex has to be entered and left through two shadows, and every shadow that the cycle does not
+use for the apex has to spend both of its pentagon neighbours; that forces the cycle below up to
+rotation and reflection.  Written out it is a `cyclicNumbering`, so nothing has to be searched
+for. -/
+
+namespace NamedGraphs
+
+open CGraph
+
+/-- The pentagon vertex `i` of the Grötzsch graph. -/
+private def gU (i : Fin 5) : grotzsch.V := some (Sum.inl i)
+
+/-- The shadow of the pentagon vertex `i`. -/
+private def gW (i : Fin 5) : grotzsch.V := some (Sum.inr i)
+
+/-- A Hamiltonian cycle in the Grötzsch graph, written out.  With `uᵢ` for the pentagon, `vᵢ` for
+its shadow and `w` for the apex, the cycle is `w v₀ u₁ v₂ u₃ v₄ u₀ u₄ v₃ u₂ v₁`. -/
+def grotzschCycle : ℕ → grotzsch.V := fun i ↦
+  [none, gW 0, gU 1, gW 2, gU 3, gW 4, gU 0, gU 4, gW 3, gU 2, gW 1].getD i none
+
+/-- **The Grötzsch graph is Hamiltonian.** -/
+theorem isHamiltonian_grotzsch : grotzsch.IsHamiltonian :=
+  isHamiltonian_of_cyclicNumbering grotzschCycle (by norm_num) card_grotzsch (by decide)
+    (by decide)
+
+end NamedGraphs
+
+namespace IsoGraph
+
+theorem isHamiltonian_grotzsch : grotzsch.IsHamiltonian := by
+  rw [show (grotzsch : IsoGraph) = mycielskian (cycle 5) from rfl, cycle_def, mycielskian_mk,
+    isHamiltonian_mk]
+  exact NamedGraphs.isHamiltonian_grotzsch
 
 end IsoGraph

@@ -1301,4 +1301,95 @@ theorem dyckEdgeCol_proper : ∀ u v w : dyck.V,
   · have h := maxDeg_le_edgeChromNum dyck
     rwa [maxDeg_dyck] at h
 
+/-! ## Vertex covers
+
+Gallai's identity `τ + α = |V|` turns every independence number above into a vertex cover number,
+which is the co-NP half of the same computation: the complement of a maximum independent set is a
+minimum vertex cover. -/
+
+@[simp] theorem coverNum_moserSpindle : moserSpindle.coverNum = 5 := by
+  have h := moserSpindle.coverNum_add_indepNum
+  rw [card_moserSpindle, indepNum_moserSpindle] at h
+  omega
+
+@[simp] theorem coverNum_herschel : herschel.coverNum = 5 := by
+  have h := herschel.coverNum_add_indepNum
+  rw [card_herschel, indepNum_herschel] at h
+  omega
+
+@[simp, toIsoGraph] theorem coverNum_franklin : franklin.coverNum = 6 := by
+  have h := franklin.coverNum_add_indepNum
+  rw [card_franklin, indepNum_franklin] at h
+  omega
+
+@[simp] theorem coverNum_frucht : frucht.coverNum = 7 := by
+  have h := frucht.coverNum_add_indepNum
+  rw [card_frucht, indepNum_frucht] at h
+  omega
+
+@[simp] theorem coverNum_durer : durer.coverNum = 8 := by
+  have h := durer.coverNum_add_indepNum
+  rw [card_durer, indepNum_durer] at h
+  omega
+
+@[simp] theorem coverNum_bidiakisCube : bidiakisCube.coverNum = 7 := by
+  have h := bidiakisCube.coverNum_add_indepNum
+  rw [card_bidiakisCube, indepNum_bidiakisCube] at h
+  omega
+
+@[simp] theorem coverNum_heawood : heawood.coverNum = 7 := by
+  have h := heawood.coverNum_add_indepNum
+  rw [card_heawood, indepNum_heawood] at h
+  omega
+
+@[simp] theorem coverNum_mobiusKantor : mobiusKantor.coverNum = 8 := by
+  have h := mobiusKantor.coverNum_add_indepNum
+  rw [card_mobiusKantor, indepNum_mobiusKantor] at h
+  omega
+
+@[simp] theorem coverNum_pappus : pappus.coverNum = 9 := by
+  have h := pappus.coverNum_add_indepNum
+  rw [card_pappus, indepNum_pappus] at h
+  omega
+
+@[simp] theorem coverNum_desargues : desargues.coverNum = 10 := by
+  have h := desargues.coverNum_add_indepNum
+  rw [card_desargues, indepNum_desargues] at h
+  omega
+
+@[simp] theorem coverNum_folkman : folkman.coverNum = 10 := by
+  have h := folkman.coverNum_add_indepNum
+  rw [card_folkman, indepNum_folkman] at h
+  omega
+
+@[simp] theorem coverNum_mcgee : mcgee.coverNum = 14 := by
+  have h := mcgee.coverNum_add_indepNum
+  rw [card_mcgee, indepNum_mcgee] at h
+  omega
+
+@[simp, toIsoGraph] theorem coverNum_nauru : nauru.coverNum = 12 := by
+  have h := nauru.coverNum_add_indepNum
+  rw [card_nauru, indepNum_nauru] at h
+  omega
+
+@[simp] theorem coverNum_holt : holt.coverNum = 17 := by
+  have h := holt.coverNum_add_indepNum
+  rw [card_holt, indepNum_holt] at h
+  omega
+
+@[simp] theorem coverNum_coxeter : coxeter.coverNum = 16 := by
+  have h := coxeter.coverNum_add_indepNum
+  rw [card_coxeter, indepNum_coxeter] at h
+  omega
+
+@[simp] theorem coverNum_tutteCoxeter : tutteCoxeter.coverNum = 15 := by
+  have h := tutteCoxeter.coverNum_add_indepNum
+  rw [card_tutteCoxeter, indepNum_tutteCoxeter] at h
+  omega
+
+@[simp] theorem coverNum_dyck : dyck.coverNum = 16 := by
+  have h := dyck.coverNum_add_indepNum
+  rw [card_dyck, indepNum_dyck] at h
+  omega
+
 end NamedGraphs

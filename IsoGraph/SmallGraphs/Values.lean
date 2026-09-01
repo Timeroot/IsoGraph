@@ -65,6 +65,51 @@ theorem isSRGWith_triangular (n : ℕ) (hn : 4 ≤ n) :
     (triangular n).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4 :=
   isSRGWith_johnson_two n hn
 
+/-- A triangle of the triangular graph `T(n)` is either three pairs through one common point or
+the three pairs on three points. -/
+@[toIsoGraph]
+theorem cliqueCount_johnson_two (n : ℕ) (hn : 4 ≤ n) :
+    (johnson n 2).cliqueCount 3 = n * (n - 1).choose 3 + n.choose 3 := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
+  have h := (isSRGWith_johnson_two (m + 4) hn).six_mul_cliqueCount_three
+  rw [show m + 4 - 2 = m + 2 from rfl] at h
+  have hC := two_mul_choose_two (m + 4)
+  rw [show m + 4 - 1 = m + 3 from rfl] at hC
+  have hA := six_mul_choose_three (m + 3)
+  rw [show m + 3 - 1 = m + 2 from rfl, show m + 3 - 2 = m + 1 from rfl] at hA
+  have hB := six_mul_choose_three (m + 4)
+  rw [show m + 4 - 1 = m + 3 from rfl, show m + 4 - 2 = m + 2 from rfl] at hB
+  rw [show m + 4 - 1 = m + 3 from rfl]
+  refine (Nat.eq_of_mul_eq_mul_left (show 0 < 6 by norm_num) ?_).symm
+  calc 6 * ((m + 4) * (m + 3).choose 3 + (m + 4).choose 3)
+      = (m + 4) * (6 * (m + 3).choose 3) + 6 * (m + 4).choose 3 := by ring
+    _ = (m + 4) * ((m + 3) * (m + 2) * (m + 1)) + (m + 4) * (m + 3) * (m + 2) := by rw [hA, hB]
+    _ = 2 * (m + 4).choose 2 * (m + 2) * (m + 2) := by rw [hC]; ring
+    _ = (m + 4).choose 2 * (2 * (m + 2)) * (m + 2) := by ring
+    _ = 6 * (johnson (m + 4) 2).cliqueCount 3 := h.symm
+
+@[inherit_doc cliqueCount_johnson_two, toIsoGraph]
+theorem cliqueCount_triangular (n : ℕ) (hn : 4 ≤ n) :
+    (triangular n).cliqueCount 3 = n * (n - 1).choose 3 + n.choose 3 :=
+  cliqueCount_johnson_two n hn
+
+/-- Reading `johnsonTwoIso` the other way: an independent triple of `T(n)` is a triangle of the
+Kneser graph, that is a perfect matching on six of the `n` points. -/
+@[toIsoGraph]
+theorem indepCount_johnson_two (n : ℕ) : (johnson n 2).indepCount 3 = 15 * n.choose 6 := by
+  rw [indepCount_eq_of_iso (johnsonTwoIso n), indepCount_compl, cliqueCount_kneser_two]
+
+@[inherit_doc indepCount_johnson_two, toIsoGraph]
+theorem indepCount_triangular (n : ℕ) : (triangular n).indepCount 3 = 15 * n.choose 6 :=
+  indepCount_johnson_two n
+
+/-- Dually, an independent triple of the Kneser graph is a triangle of `T(n)`. -/
+@[toIsoGraph]
+theorem indepCount_kneser_two (n : ℕ) (hn : 4 ≤ n) :
+    (kneser n 2).indepCount 3 = n * (n - 1).choose 3 + n.choose 3 := by
+  rw [← cliqueCount_compl, ← cliqueCount_eq_of_iso (johnsonTwoIso n)]
+  exact cliqueCount_johnson_two n hn
+
 end
 
 section
@@ -248,6 +293,13 @@ theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by decide +kernel
 
 @[toIsoGraph compl_clebsch_srg]
 theorem compl_clebsch_srg : clebschᶜ.IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
+
+/-- The Clebsch graph is triangle-free, and its independent triples are the triangles of the
+`(16, 10, 6, 6)` graph above: `16·10·6/6 = 160` of them. -/
+@[toIsoGraph indepCount_clebsch]
+theorem indepCount_clebsch : clebsch.indepCount 3 = 160 := by
+  have h := clebsch_srg.six_mul_indepCount_three
+  omega
 
 @[toIsoGraph paley_seventeen_srg]
 theorem paley_seventeen_srg : (paley 17).IsSRGWith 17 8 3 4 :=

@@ -35,6 +35,11 @@ theorem degSequence_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
     (by rwa [V_circulant]) (by rwa [V_circulant])
   rwa [V_circulant] at h
 
+theorem degMultiset_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
+    (hk : n * k = 2 * (circulant n S).E) :
+    degMultiset (circulant n S) = Multiset.replicate n k :=
+  degMultiset_of_degSequence (degSequence_circulant hn hk)
+
 @[simp] theorem maxDeg_circulant {n k : ℕ} {S : List ℕ} (hn : 0 < n)
     (hk : n * k = 2 * (circulant n S).E) : maxDeg (circulant n S) = k :=
   maxDeg_eq_of_degSequence_replicate hn (degSequence_circulant hn hk)
@@ -324,6 +329,11 @@ theorem degSequence_ladder (n : ℕ) :
   exact sort_eq_of_pairwise
     (by simp [List.pairwise_replicate, List.mem_replicate]) rfl
 
+theorem degMultiset_ladder (n : ℕ) :
+    degMultiset (ladder (n + 2)) = Multiset.replicate 4 2 + Multiset.replicate (2 * n) 3 := by
+  rw [← coe_degSequence, degSequence_ladder]
+  rfl
+
 /-! ### Consequences of the Johnson graph's connectivity and diameter -/
 
 @[simp] theorem numComponents_johnson {n k : ℕ} (hk : k ≤ n) : (johnson n k).numComponents = 1 :=
@@ -417,6 +427,13 @@ theorem cliqueCoverNum_wheel_le (n : ℕ) :
 
 @[simp] theorem isVertexTransitive_johnson (n k : ℕ) : IsVertexTransitive (johnson n k) :=
   CGraph.isVertexTransitive_johnson n k
+
+@[simp] theorem isArcTransitive_johnson (n k : ℕ) : IsArcTransitive (johnson n k) :=
+  CGraph.isArcTransitive_johnson n k
+
+/-- **The triangular graph is arc-transitive**, being `johnson n 2`. -/
+@[simp] theorem isArcTransitive_triangular (n : ℕ) : IsArcTransitive (triangular n) :=
+  isArcTransitive_johnson n 2
 
 /-! ### Invariants of the Johnson graphs from vertex transitivity -/
 

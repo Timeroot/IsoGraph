@@ -120,6 +120,17 @@ variable (G H : CGraph)
 @[simp] theorem cliqueNum_compl : Gᶜ.cliqueNum = G.indepNum := by
   rw [← indepNum_compl Gᶜ, compl_compl]
 
+/-- The same bridge one level down: a clique of the complement is an independent set, so the two
+counts are the same set counted twice. -/
+@[simp] theorem cliqueCount_compl (n : ℕ) : Gᶜ.cliqueCount n = G.indepCount n := by
+  rw [cliqueCount, indepCount]
+  congr 1
+  ext s
+  simp [compl_toSimple]
+
+@[simp] theorem indepCount_compl (n : ℕ) : Gᶜ.indepCount n = G.cliqueCount n := by
+  rw [← cliqueCount_compl Gᶜ, compl_compl]
+
 @[simp] theorem cliqueNum_complete (n : ℕ) : (complete n).cliqueNum = n := by
   simp [cliqueNum, complete_toSimple]
   rw [SimpleGraph.cliqueNum]
@@ -655,6 +666,198 @@ theorem cliqueNum_le_of_forall_sublistsLen {G : CGraph} {n : ℕ}
   rw [← toSimple_adj]
   exact hs (Finset.mem_coe.2 (hts (hlf ▸ List.mem_toFinset.2 hu)))
     (Finset.mem_coe.2 (hts (hlf ▸ List.mem_toFinset.2 hv))) huv
+
+/-! ### Cliques in a strongly regular graph
+
+The parameters bound `ω` on both sides without any search.  Two adjacent vertices of a clique see
+every other member in common, so a clique has at most `ℓ + 2` vertices; and one edge, plus a
+common neighbour of its ends when `ℓ > 0`, builds a triangle.  For `ℓ = 0` and `ℓ = 1` the two
+meet and `ω` is determined.  The parameters also give the number of triangles outright, since
+counting incidences between triangles and their edges only ever uses `n`, `k` and `ℓ`. -/
+
+/-- **The clique bound for a strongly regular graph**, `ω ≤ ℓ + 2`: pick two members `u`, `v` of a
+clique; the rest of the clique lies in `commonNeighbors u v`, which has `ℓ` elements. -/
+@[toIsoGraph]
+theorem IsSRGWith.cliqueNum_le {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    G.cliqueNum ≤ ℓ + 2 := by
+  classical
+  refine cliqueNum_le_of_forall_card_le fun s hs ↦ ?_
+  by_contra hlt
+  push Not at hlt
+  obtain ⟨u, hu⟩ : ∃ u, u ∈ s := Finset.card_pos.1 (by omega)
+  obtain ⟨v, hv⟩ : ∃ v, v ∈ s.erase u :=
+    Finset.card_pos.1 (by rw [Finset.card_erase_of_mem hu]; omega)
+  have hvu : v ≠ u := Finset.ne_of_mem_erase hv
+  have hvs : v ∈ s := Finset.mem_of_mem_erase hv
+  have hadj : G.toSimple.Adj u v := hs (Finset.mem_coe.2 hu) (Finset.mem_coe.2 hvs) (Ne.symm hvu)
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  have hcard := h'.of_adj u v hadj
+  have hmem : ∀ x ∈ (s.erase u).erase v, x ∈ G.toSimple.commonNeighbors u v := by
+    intro x hx
+    have hxv : x ≠ v := Finset.ne_of_mem_erase hx
+    have hx' := Finset.mem_of_mem_erase hx
+    have hxu : x ≠ u := Finset.ne_of_mem_erase hx'
+    have hxs : x ∈ s := Finset.mem_of_mem_erase hx'
+    exact (SimpleGraph.mem_commonNeighbors _).2
+      ⟨hs (Finset.mem_coe.2 hu) (Finset.mem_coe.2 hxs) (Ne.symm hxu),
+        hs (Finset.mem_coe.2 hvs) (Finset.mem_coe.2 hxs) (Ne.symm hxv)⟩
+  have hle : ((s.erase u).erase v).card ≤ Fintype.card (G.toSimple.commonNeighbors u v) := by
+    rw [← Fintype.card_coe]
+    refine Fintype.card_le_of_injective (fun x ↦ ⟨x.1, hmem x.1 x.2⟩) fun a b hab ↦ ?_
+    simp only [Subtype.mk.injEq] at hab
+    exact Subtype.ext hab
+  rw [hcard, Finset.card_erase_of_mem hv, Finset.card_erase_of_mem hu] at hle
+  omega
+
+/-- A triangle-free strongly regular graph has `ω = 2`: there is an edge, and `ℓ = 0` forbids
+anything larger. -/
+@[toIsoGraph]
+theorem IsSRGWith.cliqueNum_eq_two {G : CGraph} {n k μ : ℕ} (h : G.IsSRGWith n k 0 μ)
+    (hn : 0 < n) (hk : 0 < k) : G.cliqueNum = 2 := by
+  refine le_antisymm h.cliqueNum_le ?_
+  obtain ⟨u⟩ := h.nonempty hn
+  have h' : G.toSimple.IsSRGWith n k 0 μ := h
+  obtain ⟨v, huv⟩ : ∃ v, G.toSimple.Adj u v :=
+    (G.toSimple.degree_pos_iff_exists_adj u).1 (by rw [h'.regular u]; omega)
+  exact two_le_cliqueNum ((toSimple_adj _ _ _).1 huv)
+
+/-- With `ℓ > 0` the two ends of an edge have a common neighbour, which is a triangle. -/
+@[toIsoGraph]
+theorem IsSRGWith.three_le_cliqueNum {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hn : 0 < n) (hk : 0 < k) (hℓ : 0 < ℓ) : 3 ≤ G.cliqueNum := by
+  obtain ⟨u⟩ := h.nonempty hn
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  obtain ⟨v, huv⟩ : ∃ v, G.toSimple.Adj u v :=
+    (G.toSimple.degree_pos_iff_exists_adj u).1 (by rw [h'.regular u]; omega)
+  obtain ⟨⟨w, hw⟩⟩ : Nonempty (G.toSimple.commonNeighbors u v) :=
+    Fintype.card_pos_iff.1 (by rw [h'.of_adj u v huv]; omega)
+  have hwu : G.toSimple.Adj u w := ((SimpleGraph.mem_commonNeighbors _).1 hw).1
+  have hwv : G.toSimple.Adj v w := ((SimpleGraph.mem_commonNeighbors _).1 hw).2
+  have := le_cliqueNum_of_nodup (G := G) (l := [u, v, w])
+    (by simp [huv.ne, hwu.ne, hwv.ne]) (fun a ha b hb hab ↦ by
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at ha hb
+      rcases ha with rfl | rfl | rfl <;> rcases hb with rfl | rfl | rfl <;>
+        first
+          | exact absurd rfl hab
+          | exact (toSimple_adj _ _ _).1 huv
+          | exact (toSimple_adj _ _ _).1 huv.symm
+          | exact (toSimple_adj _ _ _).1 hwu
+          | exact (toSimple_adj _ _ _).1 hwu.symm
+          | exact (toSimple_adj _ _ _).1 hwv
+          | exact (toSimple_adj _ _ _).1 hwv.symm)
+  simpa using this
+
+/-- At `ℓ = 1` the two bounds meet: every edge lies in exactly one triangle, and in nothing
+larger. -/
+@[toIsoGraph]
+theorem IsSRGWith.cliqueNum_eq_three {G : CGraph} {n k μ : ℕ} (h : G.IsSRGWith n k 1 μ)
+    (hn : 0 < n) (hk : 0 < k) : G.cliqueNum = 3 :=
+  le_antisymm h.cliqueNum_le (h.three_le_cliqueNum hn hk (by omega))
+
+/-- The ordered pairs of adjacent vertices: the edges of `G`, each counted twice. -/
+private def adjPairs (G : CGraph) : Finset (G.V × G.V) :=
+  Finset.univ.filter fun p ↦ G.toSimple.Adj p.1 p.2
+
+private theorem card_adjPairs (G : CGraph) :
+    (adjPairs G).card = ∑ v, G.toSimple.degree v := by
+  rw [adjPairs, Finset.card_filter, Fintype.sum_prod_type]
+  refine Finset.sum_congr rfl fun u _ ↦ ?_
+  rw [SimpleGraph.degree, SimpleGraph.neighborFinset_eq_filter, Finset.card_filter]
+
+/-- **The triangle count of a strongly regular graph**, `6·t = n·k·ℓ`.
+
+Count the pairs `(T, (u, v))` of a triangle and an ordered edge inside it two ways.  Each triangle
+contributes its six ordered edges; each of the `n·k` ordered edges lies in `ℓ` triangles, one for
+each common neighbour of its ends. -/
+@[toIsoGraph]
+theorem IsSRGWith.six_mul_cliqueCount_three {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    6 * G.cliqueCount 3 = n * k * ℓ := by
+  have hS : G.toSimple.IsSRGWith n k ℓ μ := h
+  have key : (G.toSimple.cliqueFinset 3).card * 6 = (adjPairs G).card * ℓ := by
+    refine Finset.card_mul_eq_card_mul
+      (fun (T : Finset G.V) (p : G.V × G.V) ↦ p.1 ∈ T ∧ p.2 ∈ T) ?_ ?_
+    · -- the ordered edges inside a triangle are its ordered pairs of distinct vertices
+      intro T hT
+      have hT3 : G.toSimple.IsNClique 3 T := SimpleGraph.mem_cliqueFinset_iff.1 hT
+      have hset : (adjPairs G).bipartiteAbove
+          (fun (T : Finset G.V) (p : G.V × G.V) ↦ p.1 ∈ T ∧ p.2 ∈ T) T = T.offDiag := by
+        ext p
+        simp only [Finset.mem_bipartiteAbove, adjPairs, Finset.mem_filter, Finset.mem_univ,
+          true_and, Finset.mem_offDiag]
+        constructor
+        · rintro ⟨hadj, h1, h2⟩
+          exact ⟨h1, h2, hadj.ne⟩
+        · rintro ⟨h1, h2, hne⟩
+          exact ⟨hT3.isClique (by simpa using h1) (by simpa using h2) hne, h1, h2⟩
+      rw [hset, Finset.offDiag_card, hT3.card_eq]
+    · -- the triangles on an ordered edge are its ends' common neighbours
+      rintro ⟨u, v⟩ hp
+      have hadj : G.toSimple.Adj u v := by simpa [adjPairs] using hp
+      have hne : u ≠ v := hadj.ne
+      have hNcard : (G.toSimple.neighborFinset u ∩ G.toSimple.neighborFinset v).card = ℓ := by
+        rw [← hS.of_adj u v hadj, ← Set.toFinset_card]
+        congr 1
+        ext w
+        simp [SimpleGraph.mem_commonNeighbors]
+      have hset : (G.toSimple.cliqueFinset 3).bipartiteBelow
+          (fun (T : Finset G.V) (p : G.V × G.V) ↦ p.1 ∈ T ∧ p.2 ∈ T) (u, v)
+          = (G.toSimple.neighborFinset u ∩ G.toSimple.neighborFinset v).image
+              (fun w ↦ ({u, v, w} : Finset G.V)) := by
+        ext T
+        simp only [Finset.mem_bipartiteBelow, SimpleGraph.mem_cliqueFinset_iff, Finset.mem_image,
+          Finset.mem_inter, SimpleGraph.mem_neighborFinset]
+        constructor
+        · rintro ⟨hT3, hu, hv⟩
+          have hsub : ({u, v} : Finset G.V) ⊆ T := by
+            intro x hx
+            simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+            rcases hx with rfl | rfl <;> assumption
+          have hcard2 : ({u, v} : Finset G.V).card = 2 := by
+            rw [Finset.card_insert_of_notMem (by simpa using hne), Finset.card_singleton]
+          have hdiff : (T \ ({u, v} : Finset G.V)).card = 1 := by
+            simp [Finset.card_sdiff, Finset.inter_eq_left.2 hsub, hT3.card_eq, hcard2]
+          obtain ⟨w, hw⟩ := Finset.card_eq_one.1 hdiff
+          have hwmem : w ∈ T \ ({u, v} : Finset G.V) := by
+            rw [hw]; exact Finset.mem_singleton_self w
+          have hwT : w ∈ T := (Finset.mem_sdiff.1 hwmem).1
+          have hwn : w ∉ ({u, v} : Finset G.V) := (Finset.mem_sdiff.1 hwmem).2
+          simp only [Finset.mem_insert, Finset.mem_singleton, not_or] at hwn
+          have hTeq : T = ({u, v, w} : Finset G.V) := by
+            have hun := Finset.sdiff_union_of_subset hsub
+            rw [hw] at hun
+            rw [← hun]
+            ext x
+            simp only [Finset.mem_union, Finset.mem_singleton, Finset.mem_insert]
+            tauto
+          exact ⟨w, ⟨hT3.isClique (by simpa using hu) (by simpa using hwT) (Ne.symm hwn.1),
+            hT3.isClique (by simpa using hv) (by simpa using hwT) (Ne.symm hwn.2)⟩, hTeq.symm⟩
+        · rintro ⟨w, ⟨huw, hvw⟩, rfl⟩
+          exact ⟨SimpleGraph.is3Clique_triple_iff.2 ⟨hadj, huw, hvw⟩, by simp, by simp⟩
+      rw [hset, Finset.card_image_of_injOn, hNcard]
+      intro w hw w' hw' heq
+      simp only [Finset.coe_inter, Set.mem_inter_iff, Finset.mem_coe,
+        SimpleGraph.mem_neighborFinset] at hw hw'
+      have hwu : w ≠ u := (hw.1.symm).ne
+      have hwv : w ≠ v := (hw.2.symm).ne
+      have heq' : ({u, v, w} : Finset G.V) = {u, v, w'} := heq
+      have hmem : w ∈ ({u, v, w'} : Finset G.V) := by rw [← heq']; simp
+      simp only [Finset.mem_insert, Finset.mem_singleton] at hmem
+      rcases hmem with rfl | rfl | h' <;> simp_all
+  have hdeg : ∑ v, G.toSimple.degree v = n * k := by
+    rw [Finset.sum_congr rfl (fun v _ ↦ hS.regular v), Finset.sum_const, Finset.card_univ,
+      smul_eq_mul, hS.card]
+  rw [cliqueCount_eq_card_cliqueFinset]
+  rw [card_adjPairs, hdeg] at key
+  omega
+
+/-- **The independent-triple count of a strongly regular graph.**  The complement of a strongly
+regular graph is again strongly regular, and an independent set is a clique of the complement, so
+the triangle count transfers with `isSRGWith_compl`'s parameters substituted. -/
+@[toIsoGraph]
+theorem IsSRGWith.six_mul_indepCount_three {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    6 * G.indepCount 3 = n * (n - k - 1) * (n - (2 * k - μ) - 2) := by
+  rw [← cliqueCount_compl]
+  exact (isSRGWith_compl _ h).six_mul_cliqueCount_three
 
 /-- **The clique number of a disjoint union is the largest of the pieces.**  `sigmaUnion` puts no
 edge between two different fibres, so a clique lives inside one of them; conversely each fibre's
@@ -2915,6 +3118,25 @@ theorem card_le_matchNum {G : CGraph} {ι : Type*} [Fintype ι] [DecidableEq ι]
     exact hmem i j (fun h ↦ hxy (by rw [h])) v hv1 hv2
   have hcard := hindep.card_le_indepNum
   rwa [Finset.card_image_of_injective _ hinj, Finset.card_univ] at hcard
+
+/-- **A matching written out as a list of pairs of vertex indices.**  `card_le_matchNum` wants the
+two ends as functions of an index and the disjointness as a statement about the vertex type; for a
+graph named by hand it is easier to write the edges down and let `decide` check them.  Numbering
+the vertices with an explicit equivalence `e` keeps the disjointness in `Fin n`, where it is a
+comparison of numerals rather than of terms of a vertex type that may be a nest of sums and
+products. -/
+theorem length_le_matchNum {G : CGraph} {n : ℕ} (e : G.V ≃ Fin n) (l : List (Fin n × Fin n))
+    (hadj : ∀ p ∈ l, G.Adj (e.symm p.1) (e.symm p.2) = true)
+    (hdisj : ∀ i j : Fin l.length, i ≠ j →
+      l[i].1 ≠ l[j].1 ∧ l[i].1 ≠ l[j].2 ∧ l[i].2 ≠ l[j].1 ∧ l[i].2 ≠ l[j].2) :
+    l.length ≤ G.matchNum := by
+  have h := card_le_matchNum (G := G) (fun i : Fin l.length ↦ e.symm l[i].1)
+      (fun i : Fin l.length ↦ e.symm l[i].2)
+      (fun i ↦ hadj _ (List.getElem_mem i.isLt)) fun i j hij ↦ by
+    obtain ⟨h1, h2, h3, h4⟩ := hdisj i j hij
+    exact ⟨fun h ↦ h1 (e.symm.injective h), fun h ↦ h2 (e.symm.injective h),
+      fun h ↦ h3 (e.symm.injective h), fun h ↦ h4 (e.symm.injective h)⟩
+  simpa using h
 
 /-- Two vertices on the right of a join are distinct as soon as their labels are.  The join's
 vertex type is a `Sum` of two `Fin`s, but neither `Fin.ext_iff` nor `Sum.inr.injEq` fires on it

@@ -31,7 +31,9 @@ Four kinds of statement, in order:
 | The gallery | a named graph | the Petersen graph inside the Kneser, Hoffman–Singleton and Desargues graphs, and the Balaban 11-cage inside the Tutte 12-cage |
 
 and then the two four-chromatic triangle-free graphs, whose chromatic number is a statement about
-homomorphisms into `complete k`, and so belongs here as much as in `SmallGraphs/Colouring.lean`.
+homomorphisms into `complete k`, and so belongs here as much as in `SmallGraphs/Colouring.lean`,
+and last the Petersen and Herschel graphs, which contain no `cycle` on all of their vertices and
+are therefore not Hamiltonian.
 
 The girth and the chromatic numbers themselves are in `SmallGraphs/Defs/` and
 `SmallGraphs/Colouring.lean`; what is new here is that the cycle, or the colouring, is exhibited
@@ -568,5 +570,37 @@ theorem not_moserSpindle_hom_complete_three : ¬ (⟦moserSpindle⟧ ≤ₕ comp
 theorem moserSpindle_hom_complete_four : ⟦moserSpindle⟧ ≤ₕ complete 4 := by
   rw [complete_def]
   exact ⟨⟨(![0, 1, 2, 0, 1, 2, 3] : Fin 7 → Fin 4), by intro a b h; revert a b h; decide⟩⟩
+
+/-! ## Hamiltonicity, as a containment
+
+`Containment/Hamiltonian.lean` reads a Hamiltonian cycle as a spanning cycle subgraph, so
+`G.IsHamiltonian ↔ cycle G.V ≤ₛ G`, and an exhausted search for that subgraph is a *refutation* of
+Hamiltonicity — the one thing the certificates of `Invariants/Hamiltonian.lean` and the necessary
+conditions there cannot give.  Two of the gallery's graphs are famous for being on the wrong side
+of it. -/
+
+/-- **The Petersen graph has no spanning cycle.**  Ten vertices, and the search closes out. -/
+theorem not_cycle_subgraph_petersen : ¬ (cycle 10 ≤ₛ petersen) := by native_decide
+
+/-- **The Petersen graph is not Hamiltonian** — the standard smallest example of a graph that is
+vertex-transitive, three-connected and cubic and still has no Hamiltonian cycle.  It is
+hypohamiltonian: every vertex-deleted subgraph of it is Hamiltonian. -/
+theorem not_isHamiltonian_petersen : ¬ petersen.IsHamiltonian := by
+  refine not_isHamiltonian_of_not_isSubgraphOf_cycle ?_ ?_ <;>
+    rw [show IsoGraph.V petersen = 10 by decide]
+  · omega
+  · exact not_cycle_subgraph_petersen
+
+/-- **The Herschel graph has no spanning cycle.** -/
+theorem not_cycle_subgraph_herschel : ¬ (cycle 11 ≤ₛ ⟦herschel⟧) := by native_decide
+
+/-- **The Herschel graph is not Hamiltonian** — the smallest non-Hamiltonian polyhedral graph,
+which is to say the smallest three-connected planar one.  Its eleven vertices split five and six
+between the two sides of a bipartition, and no cycle can alternate across an odd gap. -/
+theorem not_isHamiltonian_herschel : ¬ IsoGraph.IsHamiltonian ⟦herschel⟧ := by
+  refine not_isHamiltonian_of_not_isSubgraphOf_cycle ?_ ?_ <;>
+    rw [show IsoGraph.V ⟦herschel⟧ = 11 by decide]
+  · omega
+  · exact not_cycle_subgraph_herschel
 
 end IsoGraph

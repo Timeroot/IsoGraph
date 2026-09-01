@@ -1,4 +1,4 @@
-import IsoGraph.SmallGraphs.TreesAndCycles
+import IsoGraph.SmallGraphs.Connectivities
 
 -- A `CGraph` carries its vertex type as a field, so unification only sees `Gᶜ.V` as `G.V`
 -- by unfolding the operation; see the note after `CGraph.enum` in `IsoGraph/Basic.lean`.
@@ -619,6 +619,24 @@ theorem indepNum_grotzsch : grotzsch.indepNum = 5 := by
   rw [show grotzsch = mycielskian (cycle 5) from rfl, cycle_def, mycielskian_mk, indepNum_mk]
   exact CGraph.indepNum_mycielskian_cycle_five
 
+/-- **The Grötzsch graph has forty independent triples.** -/
+theorem indepCount_grotzsch : grotzsch.indepCount 3 = 40 := by
+  rw [grotzsch, IsoGraph.cycle, mycielskian_mk, indepCount_mk,
+    CGraph.indepCount_eq_card_indepSetFinset]
+  native_decide
+
+/-- **The Grötzsch graph has fifteen independent quadruples.** -/
+theorem indepCount_grotzsch_four : grotzsch.indepCount 4 = 15 := by
+  rw [grotzsch, IsoGraph.cycle, mycielskian_mk, indepCount_mk,
+    CGraph.indepCount_eq_card_indepSetFinset]
+  native_decide
+
+/-- **The Grötzsch graph has a unique maximum independent set**, the five shadows. -/
+theorem indepCount_grotzsch_five : grotzsch.indepCount 5 = 1 := by
+  rw [grotzsch, IsoGraph.cycle, mycielskian_mk, indepCount_mk,
+    CGraph.indepCount_eq_card_indepSetFinset]
+  native_decide
+
 /-- **The vertex cover number of the Grötzsch graph is six**, by Gallai's identity. -/
 theorem coverNum_grotzsch : grotzsch.coverNum = 6 := by
   have h := coverNum_add_indepNum grotzsch
@@ -1233,6 +1251,20 @@ theorem not_isSelfComplementary_rook (m n : ℕ) (h : m ≠ n) :
   not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
     rw [cliqueNum_rook (by omega) (by omega), indepNum_rook]; omega)
 
+/-- **A cycle with pendant paths has exactly as many edges as vertices**, so a self-complementary
+one would need `2 * V = V.choose 2`, forcing `V = 5`.  Both exceptions at five vertices are real:
+`cyclePendant 5 []` is `C₅`, and `cyclePendant 3 [1, 1]` is the bull. -/
+theorem not_isSelfComplementary_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h5 : m + 3 + ks.sum ≠ 5) : ¬ IsSelfComplementary (cyclePendant (m + 3) ks) := by
+  refine not_isSelfComplementary_of_two_mul_E_ne ?_
+  rw [E_cyclePendant m ks h, V_cyclePendant]
+  intro heq
+  have hc := two_mul_choose_two (m + 3 + ks.sum)
+  have h4 : (m + 3 + ks.sum) * 4 = (m + 3 + ks.sum) * (m + 3 + ks.sum - 1) := by
+    rw [← hc, ← heq]; ring
+  have := Nat.eq_of_mul_eq_mul_left (show 0 < m + 3 + ks.sum from by omega) h4
+  omega
+
 /-! ### The two-path theta graph and the two-legged spider
 
 `thetaGraph [a, b]` is a cycle and `spider [a, b]` is a path, so every invariant of those two
@@ -1249,6 +1281,22 @@ both families in this degenerate case.
     minDeg (thetaGraph [a, b]) = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
   rw [thetaGraph_pair, hc, minDeg_cycle]
+
+/-- The two-path theta graph is a cycle, hence `2`-regular. -/
+theorem isRegularWith_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    (thetaGraph [a, b]).IsRegularWith 2 :=
+  isRegularWith_of_maxDeg_le_of_le_minDeg (by rw [maxDeg_thetaGraph_pair a b h])
+    (by rw [minDeg_thetaGraph_pair a b h])
+
+@[simp] theorem degMultiset_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    degMultiset (thetaGraph [a, b]) = Multiset.replicate (a + b + 2) 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, degMultiset_cycle, show c + 3 = a + b + 2 from by omega]
+
+@[simp] theorem degSequence_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    degSequence (thetaGraph [a, b]) = List.replicate (a + b + 2) 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 2 + a + b = c + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hc, degSequence_cycle, show c + 3 = a + b + 2 from by omega]
 
 @[simp] theorem domNum_thetaGraph_pair (a b : ℕ) (h : 1 ≤ a + b) :
     (thetaGraph [a, b]).domNum = (a + b + 4) / 3 := by
@@ -1319,6 +1367,28 @@ both families in this degenerate case.
     (spider [a, b]).edgeChromNum = 2 := by
   obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 3 := ⟨a + b - 2, by omega⟩
   rw [spider_pair, hc, edgeChromNum_path]
+
+/-- The two-legged spider is a path with at least one interior vertex, so its two ends have degree
+`1` and something in the middle has degree `2`. -/
+theorem not_isRegularWith_spider_pair {a b k : ℕ} (h : 2 ≤ a + b) :
+    ¬ (spider [a, b]).IsRegularWith k := by
+  intro hr
+  have hV : 0 < (spider [a, b]).V := by simp
+  have hmin := hr.minDeg_eq hV
+  have hmax := hr.maxDeg_eq hV
+  rw [minDeg_spider_pair a b (by omega)] at hmin
+  rw [maxDeg_spider_pair a b h] at hmax
+  omega
+
+@[simp] theorem degMultiset_spider_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    degMultiset (spider [a, b]) = 1 ::ₘ 1 ::ₘ Multiset.replicate (a + b - 1) 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
+  rw [spider_pair, hc, degMultiset_path, show c = a + b - 1 from by omega]
+
+@[simp] theorem degSequence_spider_pair (a b : ℕ) (h : 1 ≤ a + b) :
+    degSequence (spider [a, b]) = 1 :: 1 :: List.replicate (a + b - 1) 2 := by
+  obtain ⟨c, hc⟩ : ∃ c, 1 + a + b = c + 2 := ⟨a + b - 1, by omega⟩
+  rw [spider_pair, hc, degSequence_path, show c = a + b - 1 from by omega]
 
 /-! ### A cycle with one pendant vertex
 
@@ -1560,6 +1630,18 @@ theorem coverNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
     (thetaGraph xs).coverNum = min 2 xs.length := by
   rw [thetaGraph_of_all_one h, coverNum_bipartite]
 
+/-- **A theta graph on three or more paths of one vertex each is not Hamiltonian.**  It is
+`K_{2,L}`, and the `L` internal vertices are independent: with `L ≥ 3` that is more than half the
+graph, so no spanning cycle can alternate.  The same holds for any theta graph whose three paths
+all have interior, since the two poles have degree three and a cycle can use only two of the
+paths, but that argument is not the independence bound. -/
+theorem not_isHamiltonian_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1)
+    (hlen : 3 ≤ xs.length) : ¬ (thetaGraph xs).IsHamiltonian := by
+  rw [thetaGraph_of_all_one h]
+  refine not_isHamiltonian_of_V_lt_two_mul_indepNum ?_ ?_
+  · rw [V_bipartite]; omega
+  · rw [V_bipartite, indepNum_bipartite]; omega
+
 theorem cliqueCoverNum_thetaGraph_of_all_one {xs : List ℕ} (h : ∀ k ∈ xs, k = 1) :
     (thetaGraph xs).cliqueCoverNum = max 2 xs.length := by
   rw [thetaGraph_of_all_one h, cliqueCoverNum_bipartite]
@@ -1656,6 +1738,10 @@ theorem isRegularWith_cyclePendant_replicate_zero (m j : ℕ) :
 theorem degSequence_cyclePendant_replicate_zero (m j : ℕ) :
     degSequence (cyclePendant (m + 3) (List.replicate j 0)) = List.replicate (m + 3) 2 := by
   rw [cyclePendant_replicate_zero, degSequence_cycle]
+
+theorem degMultiset_cyclePendant_replicate_zero (m j : ℕ) :
+    degMultiset (cyclePendant (m + 3) (List.replicate j 0)) = Multiset.replicate (m + 3) 2 :=
+  degMultiset_of_degSequence (degSequence_cyclePendant_replicate_zero m j)
 
 theorem chromNum_cyclePendant_replicate_zero_odd (t j : ℕ) :
     (cyclePendant (2 * t + 3) (List.replicate j 0)).chromNum = 3 := by
@@ -1786,6 +1872,10 @@ theorem degSequence_tadpole_zero (m : ℕ) :
     degSequence (tadpole (m + 3) 0) = List.replicate (m + 3) 2 := by
   rw [tadpole_zero, degSequence_cycle]
 
+theorem degMultiset_tadpole_zero (m : ℕ) :
+    degMultiset (tadpole (m + 3) 0) = Multiset.replicate (m + 3) 2 :=
+  degMultiset_of_degSequence (degSequence_tadpole_zero m)
+
 theorem isRegularWith_tadpole_zero (m : ℕ) : (tadpole (m + 3) 0).IsRegularWith 2 := by
   rw [tadpole_zero]
   exact isRegularWith_cycle m
@@ -1840,6 +1930,10 @@ theorem autCount_lollipop_zero (m : ℕ) : (lollipop m 0).autCount = Nat.factori
 theorem degSequence_lollipop_zero (m : ℕ) :
     degSequence (lollipop m 0) = List.replicate m (m - 1) := by
   rw [lollipop_zero, degSequence_complete]
+
+theorem degMultiset_lollipop_zero (m : ℕ) :
+    degMultiset (lollipop m 0) = Multiset.replicate m (m - 1) :=
+  degMultiset_of_degSequence (degSequence_lollipop_zero m)
 
 theorem isRegularWith_lollipop_zero (m : ℕ) : (lollipop m 0).IsRegularWith (m - 1) := by
   rw [lollipop_zero]
@@ -2133,10 +2227,6 @@ theorem domNum_johnson_one (n : ℕ) : (johnson (n + 1) 1).domNum = 1 := by
 
 theorem autCount_johnson_one (n : ℕ) : (johnson n 1).autCount = Nat.factorial n := by
   rw [johnson_one, autCount_complete]
-
-theorem isArcTransitive_johnson_one (n : ℕ) : IsArcTransitive (johnson n 1) := by
-  rw [johnson_one]
-  exact isArcTransitive_complete n
 
 @[simp] theorem not_isSelfComplementary_johnson_one (n : ℕ) :
     ¬ IsSelfComplementary (johnson (n + 2) 1) := by
@@ -2445,5 +2535,37 @@ theorem compl_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
 theorem lineGraph_kneser_of_lt (n k : ℕ) (h : n < 2 * k) :
     lineGraph (kneser n k) = empty 0 := by
   rw [kneser_eq_empty n k h, lineGraph_empty]
+
+/-! ### Two graphs under a second name
+
+Distances in `gp n k` and `lcf ss r` are out of reach in general — nothing about the code or the
+step size bounds the eccentricity of a vertex.  At two sets of parameters, though, the family
+member has an independent description that the canonical keys of `IsoGraph/Enum` confirm:
+`GP(5, 2)` is the Petersen graph and `[3, -3]⁴` is the cube.  Reading the two isomorphisms
+backwards carries the whole distance table across. -/
+
+@[simp] theorem diameter_gp_five_two : (gp 5 2).diameter = 2 := by
+  rw [gp_five_two_iso_petersen]; exact diameter_petersen
+
+@[simp] theorem radius_gp_five_two : (gp 5 2).radius = 2 := by
+  rw [gp_five_two_iso_petersen]; exact radius_petersen
+
+@[simp] theorem domNum_gp_five_two : (gp 5 2).domNum = 3 := by
+  rw [gp_five_two_iso_petersen]; exact domNum_petersen
+
+@[simp] theorem cliqueCoverNum_gp_five_two : (gp 5 2).cliqueCoverNum = 5 := by
+  rw [gp_five_two_iso_petersen]; exact cliqueCoverNum_petersen
+
+@[simp] theorem diameter_lcf_cube : (lcf [3, -3] 4).diameter = 3 := by
+  rw [hypercube_three_lcf]; exact diameter_hypercube 3
+
+@[simp] theorem radius_lcf_cube : (lcf [3, -3] 4).radius = 3 := by
+  rw [hypercube_three_lcf, hypercube_three]; simp
+
+@[simp] theorem domNum_lcf_cube : (lcf [3, -3] 4).domNum = 2 := by
+  rw [hypercube_three_lcf, hypercube_three]; exact domNum_prism_four
+
+@[simp] theorem cliqueCoverNum_lcf_cube : (lcf [3, -3] 4).cliqueCoverNum = 4 := by
+  rw [hypercube_three_lcf, hypercube_three]; simp
 
 end IsoGraph

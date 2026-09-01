@@ -28,9 +28,23 @@ attribute [toIsoGraph IsVertexTransitive.cartesianProduct]
 
 attribute [toIsoGraph IsVertexTransitive.tensorProduct] CGraph.isVertexTransitive_tensorProduct
 
+attribute [toIsoGraph IsArcTransitive.tensorProduct] CGraph.isArcTransitive_tensorProduct
+
+attribute [toIsoGraph IsArcTransitive.cartesianProduct_self]
+  CGraph.isArcTransitive_cartesianProduct_self
+
+attribute [toIsoGraph IsArcTransitive.lexProduct_empty] CGraph.isArcTransitive_lexProduct_empty
+
+attribute [toIsoGraph IsVertexTransitive.join_self] CGraph.isVertexTransitive_join_self
+
 attribute [toIsoGraph IsVertexTransitive.strongProduct] CGraph.isVertexTransitive_strongProduct
 
 attribute [toIsoGraph IsVertexTransitive.lexProduct] CGraph.isVertexTransitive_lexProduct
+
+attribute [toIsoGraph IsVertexTransitive.disjUnion_self]
+  CGraph.isVertexTransitive_disjUnion_self
+
+attribute [toIsoGraph IsArcTransitive.disjUnion_self] CGraph.isArcTransitive_disjUnion_self
 
 attribute [toIsoGraph IsArcTransitive.lineGraph] CGraph.isVertexTransitive_lineGraph
 
@@ -336,6 +350,17 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
   rw [indepNum_completeMultipartite, max?_replicate]
   rfl
 
+/-- **Independent sets of a complete multipartite graph stay inside one part**, so counting them
+is one binomial coefficient per part.  The `n + 1` keeps the empty set out: it is the one
+independent set that does not choose a part. -/
+@[simp] theorem indepCount_completeMultipartite (ds : List ℕ) (n : ℕ) :
+    (completeMultipartite ds).indepCount (n + 1) = (ds.map (fun d ↦ d.choose (n + 1))).sum := by
+  induction ds with
+  | nil => rw [completeMultipartite_nil, indepCount_empty]; simp
+  | cons d ds ih =>
+    rw [completeMultipartite_cons, indepCount_join, indepCount_empty, ih, List.map_cons,
+      List.sum_cons]
+
 @[simp] theorem cliqueNum_completeMultipartite (ds : List ℕ) :
     (completeMultipartite ds).cliqueNum = (ds.map (min · 1)).sum := by
   induction ds with
@@ -375,6 +400,7 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
 @[simp] theorem isVertexTransitive_kneser (n k : ℕ) : IsVertexTransitive (kneser n k) :=
   CGraph.isVertexTransitive_kneser n k
 
+
 /-! Derived transitivity. -/
 
 @[simp] theorem isVertexTransitive_petersen : IsVertexTransitive petersen :=
@@ -389,13 +415,29 @@ private theorem max?_replicate (a n : ℕ) : (List.replicate (n + 1) a).max? = s
 @[simp] theorem isVertexTransitive_rook (m n : ℕ) : IsVertexTransitive (rook m n) :=
   (isVertexTransitive_complete m).cartesianProduct (isVertexTransitive_complete n)
 
+/-- **A square rook's graph is arc-transitive.**  A rectangular one is not: a row edge and a
+column edge of `rook m n` with `m ≠ n` lie in cliques of different sizes. -/
+@[simp] theorem isArcTransitive_rook_self (n : ℕ) : IsArcTransitive (rook n n) :=
+  (isArcTransitive_complete n).cartesianProduct_self (isVertexTransitive_complete n)
+
 @[simp] theorem isVertexTransitive_prism (n : ℕ) : IsVertexTransitive (prism n) :=
   (isVertexTransitive_cycle n).cartesianProduct (isVertexTransitive_complete 2)
+
+/-- **A balanced complete multipartite graph is arc-transitive**: it is a complete graph with
+each vertex blown up into an independent set. -/
+@[simp] theorem isArcTransitive_completeMultipartite_replicate (m d : ℕ) :
+    IsArcTransitive (completeMultipartite (List.replicate m d)) := by
+  rw [completeMultipartite_replicate]
+  exact (isArcTransitive_complete m).lexProduct_empty d
 
 @[simp] theorem isVertexTransitive_cocktailParty (n : ℕ) :
     IsVertexTransitive (cocktailParty n) := by
   rw [cocktailParty_eq_lexProduct]
   exact (isVertexTransitive_complete n).lexProduct (isVertexTransitive_empty 2)
+
+@[inherit_doc isArcTransitive_completeMultipartite_replicate, simp]
+theorem isArcTransitive_cocktailParty (n : ℕ) : IsArcTransitive (cocktailParty n) :=
+  isArcTransitive_completeMultipartite_replicate n 2
 
 @[simp] theorem isVertexTransitive_lineGraph_cycle (n : ℕ) :
     IsVertexTransitive (lineGraph (cycle n)) := (isArcTransitive_cycle n).lineGraph
@@ -862,7 +904,13 @@ bipartite graph it produces something with an odd cycle. -/
 
 attribute [simp] IsoGraph.degMultiset_disjUnion
 
-@[simp] theorem degMultiset_petersen : degMultiset petersen = Multiset.replicate 10 3 :=
+@[simp] theorem degMultiset_kneser {n k : ℕ} (hk : 1 ≤ k) :
+    degMultiset (kneser n k) = Multiset.replicate (n.choose k) ((n - k).choose k) :=
+  degMultiset_of_degSequence (degSequence_kneser hk)
+
+/-- `petersen` is `kneser 5 2`, so the general lemma above also matches; this one has to win, or
+simp leaves the count as `Nat.choose 5 2`. -/
+@[simp 1100] theorem degMultiset_petersen : degMultiset petersen = Multiset.replicate 10 3 :=
   degMultiset_of_degSequence degSequence_petersen
 
 @[simp] theorem degMultiset_bipartite (m n : ℕ) :
@@ -887,6 +935,33 @@ attribute [simp] IsoGraph.degMultiset_disjUnion
   rw [book_eq_join, degMultiset_join, degMultiset_complete, degMultiset_empty, V_complete,
     V_empty, Multiset.map_replicate, Multiset.map_replicate,
     show 2 - 1 + n = n + 1 from by omega, Nat.zero_add]
+
+/-! The regular families each have a constant degree sequence, so their degree multisets are the
+matching `Multiset.replicate` and nothing has to be resorted. -/
+
+@[simp] theorem degMultiset_cocktailParty (n : ℕ) :
+    degMultiset (cocktailParty n) = Multiset.replicate (2 * n) (2 * n - 2) :=
+  degMultiset_of_degSequence (degSequence_cocktailParty n)
+
+@[simp] theorem degMultiset_hypercube (n : ℕ) :
+    degMultiset (hypercube n) = Multiset.replicate (2 ^ n) n :=
+  degMultiset_of_degSequence (degSequence_hypercube n)
+
+theorem degMultiset_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    degMultiset (paley q) = Multiset.replicate q ((q - 1) / 2) :=
+  degMultiset_of_degSequence (degSequence_paley q hq)
+
+@[simp] theorem degMultiset_prism (n : ℕ) :
+    degMultiset (prism (n + 3)) = Multiset.replicate ((n + 3) * 2) 3 :=
+  degMultiset_of_degSequence (degSequence_prism n)
+
+@[simp] theorem degMultiset_rook (m n : ℕ) :
+    degMultiset (rook m n) = Multiset.replicate (m * n) ((n - 1) + (m - 1)) :=
+  degMultiset_of_degSequence (degSequence_rook m n)
+
+theorem degMultiset_triangular (n : ℕ) (hn : 4 ≤ n) :
+    degMultiset (triangular n) = Multiset.replicate (n.choose 2) (2 * (n - 2)) :=
+  degMultiset_of_degSequence (degSequence_triangular n hn)
 
 /-- The sorted form of a multiset made of `m` copies of a small value `a` and a list `l` of larger
 ones.  This is exactly the shape of the degree multisets of the join-built families: a large hub
@@ -1222,16 +1297,6 @@ theorem two_mul_E_of_compl_eq {G : IsoGraph} (h : Gᶜ = G) : 2 * G.E = G.V.choo
   rw [h] at h1
   omega
 
-private theorem two_mul_choose_two (n : ℕ) : 2 * n.choose 2 = n * (n - 1) := by
-  cases n with
-  | zero => rfl
-  | succ m =>
-    rw [Nat.choose_two_right, Nat.succ_sub_one]
-    obtain ⟨k, hk⟩ := Nat.even_mul_succ_self m
-    have h : (m + 1) * m = 2 * k := by rw [Nat.mul_comm]; omega
-    rw [h]
-    omega
-
 /-- **A self-complementary graph has `|V| ≡ 0` or `1 (mod 4)`**: it owns half of the `C(|V|, 2)`
 possible edges, so `4` divides `|V| · (|V| - 1)`. -/
 theorem V_mod_four_of_compl_eq {G : IsoGraph} (h : Gᶜ = G) :
@@ -1345,6 +1410,20 @@ theorem IsSelfComplementary.two_mul_E {G : IsoGraph} (h : IsSelfComplementary G)
   rw [h.compl_eq] at h2
   omega
 
+/-- **A regular self-complementary graph has odd order.**  Counting edges two ways gives
+`V * k = V * (V - 1) / 2` for a `k`-regular graph, so `V = 2k + 1`.  This is the quickest way to
+rule out self-complementarity for any of the cubic families, whose order is even. -/
+theorem IsSelfComplementary.odd_V_of_isRegularWith {G : IsoGraph} {k : ℕ}
+    (hs : IsSelfComplementary G) (hr : G.IsRegularWith k) (hV : 0 < G.V) : Odd G.V := by
+  have h1 : 2 * G.E = G.V.choose 2 := hs.two_mul_E
+  have h2 : 2 * G.E = G.V * k := two_mul_E_of_degSequence_replicate hr.degSequence
+  have h3 : 2 * G.V.choose 2 = G.V * (G.V - 1) := two_mul_choose_two G.V
+  have h4 : G.V * (2 * k) = G.V * (G.V - 1) := by
+    have e1 : G.V * (2 * k) = 2 * (G.V * k) := by ring
+    rw [e1, ← h2, h1, h3]
+  have h5 := Nat.eq_of_mul_eq_mul_left hV h4
+  exact Nat.odd_iff.2 (by omega)
+
 theorem IsSelfComplementary.cliqueNum_eq_indepNum {G : IsoGraph} (h : IsSelfComplementary G) :
     G.cliqueNum = G.indepNum := by
   have h2 := cliqueNum_compl G
@@ -1408,6 +1487,14 @@ theorem IsSelfComplementary.V_mod_four {G : IsoGraph} (h : IsSelfComplementary G
     G.V % 4 = 0 ∨ G.V % 4 = 1 := by
   have h2 := h.two_mul_E
   exact (choose_two_mod_two_eq_zero_iff G.V).1 (by omega)
+
+/-- **Self-complementarity is closed under the lexicographic product.**  It is the only one of
+the four products for which that is true, because it is the only one whose complement is again a
+product of the complements — `compl_lexProduct`. -/
+theorem IsSelfComplementary.lexProduct {G H : IsoGraph} (hG : IsSelfComplementary G)
+    (hH : IsSelfComplementary H) : IsSelfComplementary (G ·g H) := by
+  show (G ·g H)ᶜ = G ·g H
+  rw [compl_lexProduct, hG.compl_eq, hH.compl_eq]
 
 /-! ### Graphs that are not self-complementary -/
 
@@ -2275,6 +2362,23 @@ theorem diameter_mycielskian_le_four (G : IsoGraph) (h : 0 < G.minDeg) :
   rw [radius_mycielskian G h] at h1
   omega
 
+/-- **The Mycielskian is never regular** once the base graph has minimum degree at least two.  Its
+extremes are `Δ = max (2Δ(G)) V` and `δ = min (δ(G) + 1) V`, and the apex vertex is squeezed between
+them: the maximum is at least `V` and the minimum at most `V`, so regularity forces both to be `V`
+exactly.  That asks for `2Δ(G) ≤ V ≤ δ(G) + 1`, and with `δ(G) ≤ Δ(G)` this collapses to
+`Δ(G) ≤ 1`.  The hypothesis is sharp in the strongest possible way: `mycielskian (complete 2)` is
+the `5`-cycle. -/
+theorem not_isRegularWith_mycielskian {G : IsoGraph} {k : ℕ} (hV : 0 < G.V)
+    (h : 2 ≤ G.minDeg) : ¬ (mycielskian G).IsRegularWith k := by
+  intro hr
+  have hVM : 0 < (mycielskian G).V := by rw [V_mycielskian]; omega
+  have hmin := hr.minDeg_eq hVM
+  have hmax := hr.maxDeg_eq hVM
+  rw [minDeg_mycielskian_of_pos hV (by omega)] at hmin
+  rw [maxDeg_mycielskian] at hmax
+  have h1 : G.minDeg ≤ G.maxDeg := minDeg_le_maxDeg G
+  omega
+
 /-- In a triangle-free graph every clique of a clique cover is a vertex or an edge, so a cover
 needs at least half the vertices. -/
 theorem le_cliqueCoverNum_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 2) :
@@ -2297,6 +2401,19 @@ theorem cliqueCoverNum_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 
 theorem not_isAcyclic_of_three_le_cliqueNum {G : IsoGraph} (h : 3 ≤ G.cliqueNum) :
     ¬ IsAcyclic G :=
   not_isAcyclic_of_girth_pos (by rw [girth_eq_three_of_cliqueNum h]; omega)
+
+/-- **Three independent vertices become a triangle in the complement**, so a graph with a large
+independent set has a complement that is neither a forest nor bipartite.  These are the two
+complement entries the `IsAcyclic` and `IsBipartite` rows were missing; both are sharp, since
+`G.indepNum ≤ 2` leaves `Gᶜ` complete-ish and both properties are then possible. -/
+theorem not_isAcyclic_compl {G : IsoGraph} (h : 3 ≤ G.indepNum) : ¬ IsAcyclic Gᶜ :=
+  not_isAcyclic_of_three_le_cliqueNum (by rw [cliqueNum_compl]; exact h)
+
+theorem not_isBipartite_compl {G : IsoGraph} (h : 3 ≤ G.indepNum) : ¬ IsBipartite Gᶜ := by
+  intro hb
+  have h2 := cliqueNum_le_two_of_isBipartite hb
+  rw [cliqueNum_compl] at h2
+  omega
 
 /-- A triangle-free graph that is not a forest has a shortest cycle of length at least four. -/
 theorem four_le_girth_of_cliqueNum_le_two {G : IsoGraph} (hc : G.cliqueNum ≤ 2)
@@ -2338,6 +2455,64 @@ theorem girth_tensorProduct {G H : IsoGraph} (hG : 3 ≤ G.cliqueNum) (hH : 3 �
 theorem not_isAcyclic_tensorProduct {G H : IsoGraph} (hG : 3 ≤ G.cliqueNum)
     (hH : 3 ≤ H.cliqueNum) : ¬ IsAcyclic (G ⊗g H) :=
   not_isAcyclic_of_girth_pos (by rw [girth_tensorProduct hG hH]; omega)
+
+/-! ### No operator builds a tree
+
+Each of these is the matching `not_isAcyclic_*` result read through
+`isTree_iff_isConnected_and_isAcyclic`; the disjoint union fails on the other half. -/
+
+theorem not_isTree_mycielskian (G : IsoGraph) (h : 0 < G.E) : ¬ IsTree (mycielskian G) :=
+  fun ht ↦ not_isAcyclic_mycielskian G h ((isTree_iff_isConnected_and_isAcyclic _).1 ht).2
+
+theorem not_isTree_strongProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsTree (G ⊠g H) :=
+  fun ht ↦ not_isAcyclic_strongProduct hG hH ((isTree_iff_isConnected_and_isAcyclic _).1 ht).2
+
+theorem not_isTree_lexProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsTree (G ·g H) :=
+  fun ht ↦ not_isAcyclic_lexProduct hG hH ((isTree_iff_isConnected_and_isAcyclic _).1 ht).2
+
+theorem not_isTree_join_left {G H : IsoGraph} (hG : ¬ IsBipartite G) : ¬ IsTree (G ∇g H) :=
+  fun ht ↦ not_isAcyclic_join_left hG ((isTree_iff_isConnected_and_isAcyclic _).1 ht).2
+
+theorem not_isTree_cartesianProduct {G H : IsoGraph} (hG : 0 < G.E) (hH : 0 < H.E) :
+    ¬ IsTree (G □g H) :=
+  fun ht ↦ not_isAcyclic_cartesianProduct hG hH ((isTree_iff_isConnected_and_isAcyclic _).1 ht).2
+
+theorem not_isTree_tensorProduct {G H : IsoGraph} (hG : 3 ≤ G.cliqueNum)
+    (hH : 3 ≤ H.cliqueNum) : ¬ IsTree (G ⊗g H) :=
+  fun ht ↦ not_isAcyclic_tensorProduct hG hH ((isTree_iff_isConnected_and_isAcyclic _).1 ht).2
+
+/-- A disjoint union of two nonempty graphs is disconnected, so it is not a tree even when both
+halves are. -/
+theorem not_isTree_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    ¬ IsTree (G ⊕g H) :=
+  fun ht ↦ not_isConnected_disjUnion hG hH ((isTree_iff_isConnected_and_isAcyclic _).1 ht).1
+
+/-- From five vertices on, a triangular number outgrows twice its index. -/
+private theorem two_mul_le_choose_two_add_one {n : ℕ} (h5 : 5 ≤ n) : 2 * n ≤ n.choose 2 + 1 := by
+  induction n with
+  | zero => omega
+  | succ m ih =>
+    rcases Nat.lt_or_ge m 5 with hm | hm
+    · have hm5 : m = 4 := by omega
+      subst hm5
+      decide
+    · have h1 := ih hm
+      have h2 : (m + 1).choose 2 = m + m.choose 2 := by
+        rw [Nat.choose_succ_succ, Nat.choose_one_right]
+      omega
+
+/-- A tree has `|V| - 1` edges, so on five or more vertices its complement keeps at least `|V|`
+of the `|V|`-choose-`2` edges and is too dense to be a tree itself. -/
+theorem not_isTree_compl_of_isTree {G : IsoGraph} (h : IsTree G) (h5 : 5 ≤ G.V) :
+    ¬ IsTree Gᶜ := by
+  refine not_isTree_of_V_le_E ?_
+  have h1 := h.E_add_one
+  have h2 := two_mul_le_choose_two_add_one h5
+  have h3 := E_le_choose_two G
+  rw [V_compl, E_compl_eq]
+  omega
 
 /-- The tensor product of two connected graphs, one of them non-bipartite, is connected. -/
 theorem numComponents_tensorProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H)
@@ -2432,9 +2607,175 @@ theorem not_isSelfComplementary_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 
   not_isSelfComplementary_of_not_isConnected (by rw [V_disjUnion]; omega)
     (not_isConnected_disjUnion hG hH)
 
+/-- **A Cartesian product is too sparse to be self-complementary**, once both factors have at least
+three vertices and they are not both triangles.  The product has at most
+`G.V * H.V * (G.V + H.V - 2) / 2` edges, while half a complete graph on `G.V * H.V` vertices needs
+`G.V * H.V * (G.V * H.V - 1) / 4`, and `(G.V - 2) * (H.V - 2) ≥ 2` is exactly what makes the second
+bigger.  The excluded case is real: `K₃ □g K₃` is the `3 × 3` rook's graph, which *is*
+self-complementary. -/
+theorem not_isSelfComplementary_cartesianProduct {G H : IsoGraph} (hG : 3 ≤ G.V) (hH : 3 ≤ H.V)
+    (hGH : 7 ≤ G.V + H.V) : ¬ IsSelfComplementary (G □g H) := by
+  have key : ∀ N M eG eH : ℕ, 3 ≤ N → 3 ≤ M → 7 ≤ N + M →
+      2 * eG ≤ N * (N - 1) → 2 * eH ≤ M * (M - 1) →
+      4 * (N * eH + M * eG) < N * M * (N * M - 1) := by
+    intro N M eG eH hN hM hNM hG' hH'
+    obtain ⟨p, rfl⟩ : ∃ p, N = p + 3 := ⟨N - 3, by omega⟩
+    obtain ⟨q, rfl⟩ : ∃ q, M = q + 3 := ⟨M - 3, by omega⟩
+    rw [show p + 3 - 1 = p + 2 from by omega] at hG'
+    rw [show q + 3 - 1 = q + 2 from by omega] at hH'
+    have hprod : (p + 3) * (q + 3) = p * q + 3 * p + 3 * q + 9 := by ring
+    rw [show (p + 3) * (q + 3) - 1 = p * q + 3 * p + 3 * q + 8 from by omega]
+    have h1 : 2 * (p + 3) * (2 * eH) ≤ 2 * (p + 3) * ((q + 3) * (q + 2)) :=
+      Nat.mul_le_mul (le_refl _) hH'
+    have h2 : 2 * (q + 3) * (2 * eG) ≤ 2 * (q + 3) * ((p + 3) * (p + 2)) :=
+      Nat.mul_le_mul (le_refl _) hG'
+    have hle : 4 * ((p + 3) * eH + (q + 3) * eG) ≤ (p + 3) * (q + 3) * (2 * (p + q + 4)) :=
+      calc 4 * ((p + 3) * eH + (q + 3) * eG)
+          = 2 * (p + 3) * (2 * eH) + 2 * (q + 3) * (2 * eG) := by ring
+        _ ≤ 2 * (p + 3) * ((q + 3) * (q + 2)) + 2 * (q + 3) * ((p + 3) * (p + 2)) :=
+            Nat.add_le_add h1 h2
+        _ = (p + 3) * (q + 3) * (2 * (p + q + 4)) := by ring
+    have hpq : 0 ≤ p * q := Nat.zero_le _
+    have hlt : 2 * (p + q + 4) < p * q + 3 * p + 3 * q + 8 := by omega
+    exact lt_of_le_of_lt hle (mul_lt_mul_of_pos_left hlt (by positivity))
+  refine not_isSelfComplementary_of_two_mul_E_ne (Nat.ne_of_lt ?_)
+  rw [E_cartesianProduct, V_cartesianProduct]
+  have hEG : 2 * G.E ≤ G.V * (G.V - 1) := by
+    rw [← two_mul_choose_two]
+    exact Nat.mul_le_mul (le_refl 2) (E_le_choose_two G)
+  have hEH : 2 * H.E ≤ H.V * (H.V - 1) := by
+    rw [← two_mul_choose_two]
+    exact Nat.mul_le_mul (le_refl 2) (E_le_choose_two H)
+  have hk := key G.V H.V G.E H.E hG hH hGH hEG hEH
+  have hc := two_mul_choose_two (G.V * H.V)
+  omega
+
+/-- **A tensor product is not self-complementary** whenever the clique bound `ω(G ⊗ H) =
+min (ω G) (ω H)` falls below the independence bound `α(G ⊗ H) ≥ max (α G · |H|) (|G| · α H)`. -/
+theorem not_isSelfComplementary_tensorProduct {G H : IsoGraph}
+    (h : min G.cliqueNum H.cliqueNum < max (G.indepNum * H.V) (G.V * H.indepNum)) :
+    ¬ IsSelfComplementary (G ⊗g H) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_tensorProduct]
+    exact Nat.ne_of_lt (lt_of_lt_of_le h indepNum_tensorProduct_ge))
+
+/-- **A tensor product with a non-complete left factor is not self-complementary.**  One
+independent vertex of `H` blows a whole copy of `G`'s vertex set up into an independent set of the
+product, while the largest clique is confined to `G`'s.  The hypothesis is sharp: `K₃ ⊗g K₃` is the
+Paley graph on nine vertices, which *is* self-complementary. -/
+theorem not_isSelfComplementary_tensorProduct_left {G H : IsoGraph} (hH : 0 < H.V)
+    (h : G.cliqueNum < G.V) : ¬ IsSelfComplementary (G ⊗g H) := by
+  refine not_isSelfComplementary_tensorProduct ?_
+  have h1 : 1 ≤ H.indepNum := one_le_indepNum hH
+  calc min G.cliqueNum H.cliqueNum ≤ G.cliqueNum := min_le_left _ _
+    _ < G.V := h
+    _ = G.V * 1 := (mul_one _).symm
+    _ ≤ G.V * H.indepNum := Nat.mul_le_mul_left _ h1
+    _ ≤ max (G.indepNum * H.V) (G.V * H.indepNum) := le_max_right _ _
+
+/-- **A tensor product with a non-complete right factor is not self-complementary**, by the same
+argument as `not_isSelfComplementary_tensorProduct_left` on the other side. -/
+theorem not_isSelfComplementary_tensorProduct_right {G H : IsoGraph} (hG : 0 < G.V)
+    (h : H.cliqueNum < H.V) : ¬ IsSelfComplementary (G ⊗g H) := by
+  refine not_isSelfComplementary_tensorProduct ?_
+  have h1 : 1 ≤ G.indepNum := one_le_indepNum hG
+  calc min G.cliqueNum H.cliqueNum ≤ H.cliqueNum := min_le_right _ _
+    _ < H.V := h
+    _ = 1 * H.V := (one_mul _).symm
+    _ ≤ G.indepNum * H.V := Nat.mul_le_mul_right _ h1
+    _ ≤ max (G.indepNum * H.V) (G.V * H.indepNum) := le_max_left _ _
+
+/-- **A strong product whose independence number outgrows its clique number** is not
+self-complementary.  Cliques multiply exactly, `ω(G ⊠ H) = ω G · ω H`, while independent sets
+multiply only as a lower bound, so `ω G · ω H < α G · α H` separates the two. -/
+theorem not_isSelfComplementary_strongProduct {G H : IsoGraph}
+    (h : G.cliqueNum * H.cliqueNum < G.indepNum * H.indepNum) :
+    ¬ IsSelfComplementary (G ⊠g H) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_strongProduct]
+    exact Nat.ne_of_lt (lt_of_lt_of_le h (indepNum_mul_indepNum_le_indepNum_strongProduct G H)))
+
+/-- **A strong product whose clique number outgrows its independence number** is not
+self-complementary either — the inequality that bites here is `α(G ⊠ H) ≤ α G · |H|`. -/
+theorem not_isSelfComplementary_strongProduct' {G H : IsoGraph}
+    (h : G.indepNum * H.V < G.cliqueNum * H.cliqueNum) :
+    ¬ IsSelfComplementary (G ⊠g H) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_strongProduct]
+    exact Nat.ne_of_gt (lt_of_le_of_lt (indepNum_strongProduct_le' G H) h))
+
+/-- **A line graph with a big enough maximum degree is not self-complementary** unless `Δ(G)` and
+`ν(G)` happen to agree: the largest clique of `L G` is the star at a vertex of maximum degree, and
+its largest independent set is a maximum matching of `G`. -/
+theorem not_isSelfComplementary_lineGraph {G : IsoGraph} (h3 : 3 ≤ maxDeg G)
+    (h : maxDeg G ≠ G.matchNum) : ¬ IsSelfComplementary (lineGraph G) :=
+  not_isSelfComplementary_of_cliqueNum_ne_indepNum (by
+    rw [cliqueNum_lineGraph_of_three_le_maxDeg h3, indepNum_lineGraph]
+    exact h)
+
 theorem not_isSelfComplementary_cycle_three_mod_four (m : ℕ) :
     ¬ IsSelfComplementary (cycle (4 * m + 3)) :=
   not_isSelfComplementary_of_V_mod_four (by rw [V_cycle]; omega)
+
+/-! ### The cubic families are not self-complementary
+
+Both go through `odd_V_of_isRegularWith`: a cubic self-complementary graph would have to have
+`2 * 3 + 1 = 7` vertices, and `gp n k` has an even number of them outright while `lcf ss r` is
+caught by the handshake lemma, `2 * E = 21` being odd.  The vertex count alone does not do it:
+`V % 4` is `0` for `gp n k` with `n` even, and unconstrained for `lcf`. -/
+
+/-- A generalized Petersen graph is cubic on `2n` vertices, and a regular self-complementary graph
+has odd order. -/
+theorem not_isSelfComplementary_gp {n k : ℕ} (h3 : 3 ≤ n) (hk : 0 < k) (hkn : k < n)
+    (h2k : 2 * k ≠ n) : ¬ IsSelfComplementary (gp n k) := by
+  intro hs
+  have h := hs.odd_V_of_isRegularWith (isRegularWith_gp h3 hk hkn h2k) (by rw [V_gp]; omega)
+  rw [V_gp] at h
+  have h2 := Nat.odd_iff.1 h
+  omega
+
+/-- The same for an LCF code, whose order is not forced to be even a priori: the odd order would
+have to be `7`, and then the handshake lemma asks for `2 * E = 21`. -/
+theorem not_isSelfComplementary_lcf {ss : List ℤ} {r : ℕ} (h3 : 3 ≤ ss.length * r)
+    (hv : IsValidLcf ss r) : ¬ IsSelfComplementary (lcf ss r) := by
+  intro hs
+  have h := hs.odd_V_of_isRegularWith (isRegularWith_lcf h3 hv) (by rw [V_lcf]; omega)
+  rw [V_lcf] at h
+  have h2 := Nat.odd_iff.1 h
+  have h4 := two_mul_E_lcf h3 hv
+  omega
+
+/-! ### Joins are not self-complementary
+
+A join of two nonempty graphs is connected, but its complement is a disjoint union of two nonempty
+graphs and so is not; a self-complementary graph cannot tell the two apart.  Every complete
+multipartite graph with at least two nonempty parts is such a join. -/
+
+/-- **No join of two nonempty graphs is self-complementary.** -/
+theorem not_isSelfComplementary_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    ¬ IsSelfComplementary (G ∇g H) := by
+  intro hs
+  have h1 : IsConnected ((G ∇g H)ᶜ) := by rw [hs.compl_eq]; exact isConnected_join hG hH
+  rw [compl_join] at h1
+  exact not_isConnected_disjUnion (by rw [V_compl]; exact hG) (by rw [V_compl]; exact hH) h1
+
+/-- A complete multipartite graph with at least two parts, all of them nonempty, is a join. -/
+theorem not_isSelfComplementary_completeMultipartite {ds : List ℕ}
+    (h2 : 2 ≤ ds.length) (hpos : ∀ d ∈ ds, 0 < d) :
+    ¬ IsSelfComplementary (completeMultipartite ds) := by
+  obtain ⟨d, e, fs, rfl⟩ : ∃ d e fs, ds = d :: e :: fs := by
+    cases ds with
+    | nil => simp at h2
+    | cons d es =>
+      cases es with
+      | nil => simp at h2
+      | cons e fs => exact ⟨d, e, fs, rfl⟩
+  rw [completeMultipartite_cons]
+  refine not_isSelfComplementary_join ?_ ?_
+  · simpa using hpos d (by simp)
+  · have he := hpos e (by simp)
+    simp only [V_completeMultipartite, List.sum_cons]
+    omega
 
 /-- The Mycielskian of a triangle-free graph on at least three vertices has clique number two
 but independence number at least three. -/

@@ -564,11 +564,17 @@ solver decides.  The opposite direction of each — `n ≤ G.indepNum`, `G.chrom
 is witnessed by an independent set, a clique or a colouring, and is cheap to give explicitly.
 
 `graph_sat native` replaces the `decide` that ties the graph to the emitted literals by
-`native_decide`. -/
-syntax (name := graphSat) "graph_sat" (ppSpace &"native")? : tactic
+`native_decide`.
+
+`graph_sat (timeout := 300)` raises the solver's own time limit, which `bv_decide` sets to ten
+seconds.  Ten is plenty for the refutations that are easy and useless for the ones that are not,
+but there is a band in between — a chromatic bound on twenty-odd vertices is a small problem that
+the bitvector encoding makes just big enough to run over. -/
+syntax (name := graphSat) "graph_sat" (ppSpace &"native")?
+  (ppSpace "(" &"timeout" " := " num ")")? : tactic
 
 elab_rules : tactic
-  | `(tactic| graph_sat $[native%$nat]?) => withMainContext do
+  | `(tactic| graph_sat $[native%$nat]? $[(timeout := $tmo?)]?) => withMainContext do
     let native := nat.isSome
     let some shape ← shapeOf (← whnfR (← (← getMainGoal).getType)) |
       throwError "graph_sat: the goal should be `G.indepNum ≤ n`, `G.cliqueNum ≤ n`, \
@@ -578,6 +584,9 @@ elab_rules : tactic
     -- `bv_decide`'s embedded-constraint substitution rewrites every hypothesis with every other
     -- one.  That is quadratic, and on this encoding it finds nothing: the constraints are one per
     -- pair and no two of them share a subterm.  Turning it off is the single largest saving here.
+    let satTac : TSyntax `tactic ← match tmo? with
+      | some t => `(tactic| bv_decide (config := { timeout := $t }) -embeddedConstraintSubst)
+      | none => `(tactic| bv_decide -embeddedConstraintSubst)
     match shape with
     | .indep G n | .clique G n =>
       let isClique := match shape with | .clique .. => true | _ => false
@@ -588,7 +597,7 @@ elab_rules : tactic
       let bridge := mkIdent <|
         if isClique then ``CGraph.Sat.cliqueNum_le_of_bv else ``CGraph.Sat.indepNum_le_of_bv
       withDepthFor es.length <| evalTactic <| ← `(tactic|
-        (have $keyId : $stmt := by intros; bv_decide -embeddedConstraintSubst
+        (have $keyId : $stmt := by intros; $satTac:tactic
          exact $bridge (m := $(quote m)) (w := $(quote w)) (es := $esTerm)
            (by $sideTac:tactic) (by $sideTac:tactic) (by decide) (by decide) $keyId))
     | .chrom G k =>
@@ -596,7 +605,7 @@ elab_rules : tactic
       let stmt ← colourStmt m k (m * k) es
       let esTerm ← pairsTerm es
       withDepthFor (m + es.length) <| evalTactic <| ← `(tactic|
-        (have $keyId : $stmt := by intros; bv_decide -embeddedConstraintSubst
+        (have $keyId : $stmt := by intros; $satTac:tactic
          exact CGraph.Sat.lt_chromNum_of_bv (m := $(quote m)) (W := $(quote (m * k)))
            (es := $esTerm) (by $sideTac:tactic) (by $sideTac:tactic) (by decide) $keyId))
 

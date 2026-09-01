@@ -40,9 +40,9 @@ The path and the cycle are the two genuinely analytic computations.  For the pat
 is `sin (π (m + 1) (i + 1) / (n + 1))` and the eigenvalue equation is the product-to-sum identity
 `sin_sub_add_sin_add`; the `n` eigenvalues are distinct because `cos` is injective on `[0, π]`, so
 `spectrum_eq_of_card_le` pins the whole multiset without any multiplicity bookkeeping.  For the
-cycle the adjacency matrix is a circulant, and it is diagonalised outright over `ℂ` by the
-discrete Fourier matrix built from `cycZeta n = exp (2 π i / n)`; `charpoly_cycle` then transfers
-the factorisation back to `ℝ[X]`.
+cycle the adjacency matrix is a circulant, and every circulant is diagonalised outright over
+`ℂ` by the discrete Fourier matrix built from `cycZeta n = exp (2 π i / n)`; `charpoly_circulant`
+then transfers the factorisation back to `ℝ[X]`, and the cycle is the case `S = [1]`.
 
 ## How the spectrum behaves under the constructions
 
@@ -113,9 +113,9 @@ two ends of the products (`lambdaMax_disjUnion`, `lambdaMax_cartesianProduct`,
 `lambdaMin` counterparts) and of the named families (`lambdaMax_complete`, `lambdaMax_cycle`,
 `lambdaMax_path` and the rest, down to the strongly regular ones — `lambdaMax_petersen`,
 `lambdaMax_rook`, `lambdaMax_paley` — and `lambdaMax_hypercube` at the very end of the file) are
-read off the spectra computed above.  The one family that is not is the join: outside the regular
-case no adjacency spectrum of a join is on file, so `lambdaMax_join_of_isRegularWith` computes the
-radius of `G ∇ H`, for `k`-regular `G` on `n` vertices and `l`-regular `H` on `m` vertices,
+read off the spectra computed above.  The one family that is not is the join:
+`lambdaMax_join_of_isRegularWith` comes before any spectrum of a join is on file, so it computes
+the radius of `G ∇ H`, for `k`-regular `G` on `n` vertices and `l`-regular `H` on `m` vertices,
 directly from an explicit positive eigenvector.  `adjMat_mulVec_join` is that eigenvector
 equation: a vector constant on each side is an eigenvector as soon as `k a + m b = λ a` and
 `n a + l b = λ b`, which
@@ -241,6 +241,21 @@ every other eigenvalue of each factor **unchanged** — the shifts of the Laplac
 against the degree.  The two new eigenvalues are the two roots of `(x - k) (x - l) = n m` from
 `adjMat_mulVec_join`, so this is the case where `lambdaMax_join_of_isRegularWith` and
 `lambdaMin_join_of_isRegularWith_le` are both visibly sharp at the ends.
+
+Regularity of the *join* is more than is needed.  `charpoly_join_of_isRegularWith'` asks only that
+each factor be regular, and gets the whole characteristic polynomial:
+**`φ_{G ∇ H} = ((X - k) (X - l) - n m) ∏ (X - μ) ∏ (X - ν)`**, the two products running over the
+eigenvalues of `G` and of `H` other than their degrees.  The proof is a block determinant.  When
+both diagonal blocks of `[[x I - A, -J], [-J, x I - B]]` have constant row sums the Schur
+complement of one is a rank-one update of the other, so the matrix determinant lemma evaluates the
+whole thing (`Matrix.det_fromBlocks_of_mulVec_one`); that holds at every `x` outside a finite set,
+and two polynomials agreeing infinitely often are equal.  `spectrum_join_of_isRegularWith'` splits
+the quadratic at `((k + l) ± √((k - l) ² + 4 n m)) / 2` and `energy_join_of_isRegularWith'` adds up
+the absolute values.  Three cones fall out: the wheel (`spectrum_wheel`, `charpoly_wheel`,
+`energy_wheel`), the book `K₂ ∇ n K₁` (`spectrum_book` and its two companions) and the friendship
+graph `K₁ ∇ n K₂` (`spectrum_friendship` and its two), the last through
+`spectrum_compl_cocktailParty` — the spectrum of a perfect matching, `±1` with equal
+multiplicities.
 
 The other non-regular family worth having is the path, `lapSpectrum_path`: the numbers
 `2 - 2 cos (π m / n)`.  The eigenvectors are the discrete cosines `cos (π m (j + 1/2) / n)`, whose
@@ -538,6 +553,164 @@ theorem Fintype.sum_sum_type' {α β : Type} [Fintype α] [Fintype β] (i : Fint
     ∑ x ∈ @Finset.univ _ i, f x = (∑ a, f (Sum.inl a)) + ∑ b, f (Sum.inr b) := by
   rw [fintype_eq_sum i]
   exact Fintype.sum_sum_type f
+
+
+/-! ## Block determinants with constant row sums
+
+The characteristic matrix of a join is `[[x I - A, -J], [-J, x I - B]]`, and when both factors are
+regular its two diagonal blocks have constant row sums.  That is exactly the hypothesis under
+which the Schur complement of one block is a *rank-one* update of the other, so the matrix
+determinant lemma collapses the whole `(n + m) × (n + m)` determinant into the two smaller ones
+times a scalar.
+
+That rank-one update is worth having on its own: `det_sub_smul_vecMulVec_one` is what a
+lexicographic product needs, because `A_{G [H]} = A_G ⊗ J + I ⊗ A_H` turns block diagonal once
+`A_G` has been diagonalised, and each block is `x I - A_H` less a multiple of `J`.  These are the
+matrix-level steps; the graph statements that use them start at `CGraph.eval_charpoly_join`. -/
+
+namespace Matrix
+
+variable {m n : Type} [Fintype m] [Fintype n] [DecidableEq m] [DecidableEq n]
+
+/-- If the all-ones vector is an eigenvector of an invertible `M` with eigenvalue `a`, it is an
+eigenvector of `M⁻¹` with eigenvalue `a⁻¹`. -/
+theorem inv_mulVec_one {M : Matrix m m ℝ} {a : ℝ} (hM : IsUnit M.det) (ha : a ≠ 0)
+    (h : M *ᵥ (1 : m → ℝ) = a • 1) : M⁻¹ *ᵥ (1 : m → ℝ) = a⁻¹ • 1 := by
+  have h1 : a • (M⁻¹ *ᵥ (1 : m → ℝ)) = 1 := by
+    rw [← Matrix.mulVec_smul, ← h, Matrix.mulVec_mulVec, Matrix.nonsing_inv_mul _ hM,
+      Matrix.one_mulVec]
+  calc M⁻¹ *ᵥ (1 : m → ℝ) = a⁻¹ • (a • (M⁻¹ *ᵥ (1 : m → ℝ))) := by
+        rw [smul_smul, inv_mul_cancel₀ ha, one_smul]
+    _ = a⁻¹ • 1 := by rw [h1]
+
+/-- The sum of *all* the entries of `M⁻¹`, for an invertible `M` whose rows all sum to `a`: every
+row of the inverse sums to `a⁻¹`, so the total is `card m / a`. -/
+theorem sum_sum_nonsing_inv {M : Matrix m m ℝ} {a : ℝ} (hM : IsUnit M.det) (ha : a ≠ 0)
+    (h : M *ᵥ (1 : m → ℝ) = a • 1) :
+    ∑ i, ∑ j, M⁻¹ i j = (Fintype.card m : ℝ) / a := by
+  have h1 := inv_mulVec_one hM ha h
+  have h2 : ∀ i, ∑ j, M⁻¹ i j = a⁻¹ := by
+    intro i
+    have hi := congrFun h1 i
+    simpa [Matrix.mulVec, dotProduct] using hi
+  simp [h2, Finset.card_univ, div_eq_mul_inv]
+
+/-- **The matrix determinant lemma for a multiple of the all-ones matrix.**  Subtracting `c • J`
+from an invertible `M` whose rows all sum to `a ≠ 0` multiplies the determinant by
+`1 - c |m| / a`, because `c • J` is the rank-one matrix `(c • 1) 1ᵀ`. -/
+theorem det_sub_smul_vecMulVec_one {M : Matrix m m ℝ} {a : ℝ} (hM : IsUnit M.det) (ha : a ≠ 0)
+    (h : M *ᵥ (1 : m → ℝ) = a • 1) (c : ℝ) :
+    (M - c • Matrix.vecMulVec (1 : m → ℝ) 1).det
+      = M.det * (1 - c * (Fintype.card m : ℝ) / a) := by
+  have hrank : M - c • Matrix.vecMulVec (1 : m → ℝ) (1 : m → ℝ)
+      = M + Matrix.replicateCol Unit (fun _ : m ↦ -c)
+          * Matrix.replicateRow Unit (fun _ : m ↦ (1 : ℝ)) := by
+    ext i j
+    simp [Matrix.mul_apply, Matrix.replicateCol, Matrix.replicateRow, sub_eq_add_neg]
+  have hentry : (Matrix.replicateRow Unit (fun _ : m ↦ (1 : ℝ)) * M⁻¹
+        * Matrix.replicateCol Unit (fun _ : m ↦ -c)) default default
+      = -c * ((Fintype.card m : ℝ) / a) := by
+    simp only [Matrix.mul_apply, Matrix.replicateRow_apply, Matrix.replicateCol_apply, one_mul]
+    rw [← Finset.sum_mul, Finset.sum_comm, sum_sum_nonsing_inv hM ha h]
+    ring
+  have hinner : (1 + Matrix.replicateRow Unit (fun _ : m ↦ (1 : ℝ)) * M⁻¹
+        * Matrix.replicateCol Unit (fun _ : m ↦ -c)).det
+      = 1 - c * ((Fintype.card m : ℝ) / a) := by
+    rw [Matrix.det_unique, Matrix.add_apply, Matrix.one_apply_eq, hentry]
+    ring
+  rw [hrank, Matrix.det_add_replicateCol_mul_replicateRow hM, hinner]
+  ring
+
+/-- **A block determinant with all-ones off-diagonal blocks.**  If the rows of `A` all sum to `a`
+and those of `D` all sum to `d`, both nonzero, then
+
+`det [[A, -J], [-J, D]] = det A * det D * (1 - |m| * |n| / (a * d))`.
+
+The Schur complement of `D` is `A - (|n| / d) • J`, a rank-one update of `A`, and the matrix
+determinant lemma evaluates its determinant. -/
+theorem det_fromBlocks_of_mulVec_one
+    (A : Matrix m m ℝ) (D : Matrix n n ℝ) {a d : ℝ}
+    (hA : A *ᵥ (1 : m → ℝ) = a • 1) (hD : D *ᵥ (1 : n → ℝ) = d • 1)
+    (ha : a ≠ 0) (hd : d ≠ 0) (huA : IsUnit A.det) (huD : IsUnit D.det) :
+    (Matrix.fromBlocks A (-Matrix.vecMulVec 1 1) (-Matrix.vecMulVec 1 1) D).det
+      = A.det * D.det * (1 - (Fintype.card m : ℝ) * (Fintype.card n : ℝ) / (a * d)) := by
+  have : Invertible D := Matrix.invertibleOfIsUnitDet D huD
+  rw [Matrix.det_fromBlocks₂₂, Matrix.invOf_eq_nonsing_inv]
+  simp only [Matrix.neg_mul, Matrix.mul_neg, neg_neg]
+  have hJ : Matrix.vecMulVec (1 : m → ℝ) (1 : n → ℝ) * D⁻¹ * Matrix.vecMulVec (1 : n → ℝ) 1
+      = ((Fintype.card n : ℝ) / d) • Matrix.vecMulVec (1 : m → ℝ) (1 : m → ℝ) := by
+    ext i j
+    simp only [Matrix.mul_apply, Matrix.vecMulVec_apply, Pi.one_apply, one_mul, mul_one,
+      Matrix.smul_apply, smul_eq_mul]
+    rw [Finset.sum_comm]
+    exact sum_sum_nonsing_inv huD hd hD
+  rw [hJ, det_sub_smul_vecMulVec_one huA ha hA]
+  field_simp
+
+/-- Subtracting a block matrix from a scalar matrix, block by block. -/
+theorem scalar_sub_fromBlocks (x : ℝ) (A : Matrix m m ℝ) (B : Matrix m n ℝ)
+    (E : Matrix n m ℝ) (D : Matrix n n ℝ) :
+    Matrix.scalar (m ⊕ n) x - Matrix.fromBlocks A B E D
+      = Matrix.fromBlocks (Matrix.scalar m x - A) (-B) (-E) (Matrix.scalar n x - D) := by
+  ext i j
+  cases i <;> cases j <;>
+    simp [Matrix.scalar_apply, Matrix.diagonal_apply]
+
+/-- The characteristic polynomial of a block matrix, evaluated at `x`, as a block determinant. -/
+theorem eval_charpoly_fromBlocks (x : ℝ) (A : Matrix m m ℝ) (B : Matrix m n ℝ)
+    (E : Matrix n m ℝ) (D : Matrix n n ℝ) :
+    (Matrix.fromBlocks A B E D).charpoly.eval x
+      = (Matrix.fromBlocks (Matrix.scalar m x - A) (-B) (-E) (Matrix.scalar n x - D)).det := by
+  rw [Matrix.eval_charpoly, scalar_sub_fromBlocks]
+
+/-- **The characteristic matrix of `D ⊗ J + I ⊗ B` is block diagonal**, with one block
+`x I - B - dᵢ • J` for each diagonal entry of `D`.  Reindexing puts the block index second, where
+`Matrix.blockDiagonal` wants it. -/
+theorem det_scalar_sub_kroneckerDiagonal {ι κ : Type} [Fintype ι] [DecidableEq ι]
+    [Fintype κ] [DecidableEq κ] (d : ι → ℝ) (B : Matrix κ κ ℝ) (x : ℝ) :
+    (Matrix.scalar (ι × κ) x
+        - (Matrix.diagonal d ⊗ₖ Matrix.vecMulVec (1 : κ → ℝ) 1
+          + (1 : Matrix ι ι ℝ) ⊗ₖ B)).det
+      = ∏ i, (Matrix.scalar κ x - B - d i • Matrix.vecMulVec (1 : κ → ℝ) 1).det := by
+  have hb : (Matrix.scalar (ι × κ) x
+        - (Matrix.diagonal d ⊗ₖ Matrix.vecMulVec (1 : κ → ℝ) 1
+          + (1 : Matrix ι ι ℝ) ⊗ₖ B))
+      = (Matrix.blockDiagonal (fun i ↦
+            Matrix.scalar κ x - B - d i • Matrix.vecMulVec (1 : κ → ℝ) 1)).submatrix
+          (Equiv.prodComm ι κ) (Equiv.prodComm ι κ) := by
+    ext p q
+    by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
+      simp [Matrix.submatrix_apply, Matrix.blockDiagonal_apply, Matrix.scalar_apply,
+        Matrix.diagonal_apply, Matrix.kroneckerMap, Matrix.one_apply, Matrix.vecMulVec_apply,
+        Matrix.sub_apply, Matrix.smul_apply, Prod.ext_iff, h1, h2]
+    all_goals ring
+  rw [hb, Matrix.det_submatrix_equiv_self, Matrix.det_blockDiagonal]
+
+/-- **Conjugating by `P ⊗ I` diagonalises the first Kronecker factor** and leaves the
+characteristic polynomial alone, because `(P ⊗ I) (Q ⊗ I) = I`. -/
+theorem charpoly_kroneckerDiagonal_conj {ι κ : Type} [Fintype ι] [DecidableEq ι]
+    [Fintype κ] [DecidableEq κ] {A P Q : Matrix ι ι ℝ} {d : ι → ℝ} (B : Matrix κ κ ℝ)
+    (hPQ : P * Q = 1) (hQP : Q * P = 1) (e : A * P = P * Matrix.diagonal d) :
+    (A ⊗ₖ Matrix.vecMulVec (1 : κ → ℝ) 1 + (1 : Matrix ι ι ℝ) ⊗ₖ B).charpoly
+      = (Matrix.diagonal d ⊗ₖ Matrix.vecMulVec (1 : κ → ℝ) 1
+          + (1 : Matrix ι ι ℝ) ⊗ₖ B).charpoly := by
+  have hA : A = P * Matrix.diagonal d * Q := by
+    calc A = A * (P * Q) := by rw [hPQ, mul_one]
+      _ = A * P * Q := by rw [mul_assoc]
+      _ = P * Matrix.diagonal d * Q := by rw [e]
+  have hTS : (Q ⊗ₖ (1 : Matrix κ κ ℝ)) * (P ⊗ₖ (1 : Matrix κ κ ℝ)) = 1 := by
+    rw [← Matrix.mul_kronecker_mul, hQP, Matrix.mul_one, Matrix.one_kronecker_one]
+  have key : A ⊗ₖ Matrix.vecMulVec (1 : κ → ℝ) 1 + (1 : Matrix ι ι ℝ) ⊗ₖ B
+      = (P ⊗ₖ (1 : Matrix κ κ ℝ))
+        * (Matrix.diagonal d ⊗ₖ Matrix.vecMulVec (1 : κ → ℝ) 1 + (1 : Matrix ι ι ℝ) ⊗ₖ B)
+        * (Q ⊗ₖ (1 : Matrix κ κ ℝ)) := by
+    rw [Matrix.mul_add, Matrix.add_mul, ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul,
+      ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul]
+    simp only [Matrix.mul_one, Matrix.one_mul]
+    rw [hPQ, ← hA]
+  rw [key, mul_assoc, Matrix.charpoly_mul_comm, mul_assoc, hTS, mul_one]
+
+end Matrix
 
 
 namespace CGraph
@@ -1040,26 +1213,26 @@ theorem spectrum_path (n : ℕ) :
   rw [spectrum_eq_of_card_le _ _ hcard hs, Finset.image_val_of_injOn hinj.injOn]
 
 
-/-! ## The cycle
+/-! ## Circulant graphs, and the cycle among them
 
-The cycle is diagonalised by the discrete Fourier transform.  Working over `ℂ`, the matrix
-`P j m = ζ ^ (j m)` built from a primitive `n`-th root of unity `ζ` is invertible, and it conjugates
-the adjacency matrix of `C_n` into the diagonal matrix of the numbers `ζ ^ m + ζ ^ (-m)
-= 2 cos (2 π m / n)`.  Since the characteristic polynomial has real coefficients, the real
-statement follows by injectivity of `ℝ[X] → ℂ[X]`. -/
+`circulant n S` is the Cayley graph of `ℤ / n` on the connection set generated by `S`, and every
+such graph is diagonalised by the discrete Fourier transform.  Working over `ℂ`, the matrix
+`P j m = ζ ^ (j m)` built from a primitive `n`-th root of unity `ζ` is invertible, and its `m`-th
+column is an eigenvector: translating the row index by `i` sends the `i`-th row of the adjacency
+matrix to the `0`-th, so the eigenvalue is `∑_{d ∈ D} ζ ^ (d m)`, where `D` is the symmetrised
+connection set `circulantSet`.  That sum is real because `D` is closed under negation — pairing `d`
+with `n - d` replaces a term by its inverse, and `ζ ^ k + ζ ^ (-k) = 2 cos (2 π k / n)` — so it is
+the cosine sum `circulantEig`.  Since the characteristic polynomial has real coefficients, the real
+statement follows by injectivity of `ℝ[X] → ℂ[X]`.
+
+The cycle is the case `S = [1]`, whose connection set is `{1, n - 1}`; `charpoly_cycle` and
+`spectrum_cycle` fall out of the general statement at the end of the section. -/
 
 private theorem mod_succ_eq (n j : ℕ) (hj : j < n) :
     (j + 1) % n = if j + 1 = n then 0 else j + 1 := by
   rcases eq_or_lt_of_le (Nat.succ_le_of_lt hj) with h | h
   · rw [if_pos (by omega), show j + 1 = n from by omega, Nat.mod_self]
   · rw [if_neg (by omega), Nat.mod_eq_of_lt h]
-
-private theorem mod_pred_eq (n i : ℕ) (hi : i < n) :
-    (i + n - 1) % n = if i = 0 then n - 1 else i - 1 := by
-  rcases Nat.eq_zero_or_pos i with rfl | hi0
-  · rw [if_pos rfl, show 0 + n - 1 = n - 1 from by omega, Nat.mod_eq_of_lt (by omega)]
-  · rw [if_neg (by omega), show i + n - 1 = n + (i - 1) from by omega, Nat.add_mod_left,
-      Nat.mod_eq_of_lt (by omega)]
 
 theorem cycle_adj_iff {n : ℕ} (hn : 2 ≤ n) (i j : (cycle n).V) :
     (cycle n).Adj i j = true ↔ ((i.1 + 1) % n = j.1 ∨ (j.1 + 1) % n = i.1) := by
@@ -1070,21 +1243,6 @@ theorem cycle_adj_iff {n : ℕ} (hn : 2 ≤ n) (i j : (cycle n).V) :
   refine ⟨fun h ↦ h.2, fun h ↦ ⟨?_, h⟩⟩
   revert h
   rw [mod_succ_eq n i.1 hi, mod_succ_eq n j.1 hj]
-  split_ifs <;> omega
-
-/-- The two neighbours of `i` in the cycle, named by their labels. -/
-private theorem cycle_adj_iff_eq {n : ℕ} (hn : 3 ≤ n) (i j : (cycle n).V) :
-    (cycle n).Adj i j = true ↔ (j.1 = (i.1 + 1) % n ∨ j.1 = (i.1 + n - 1) % n) := by
-  have hi := i.isLt
-  have hj := j.isLt
-  rw [cycle_adj_iff (by omega) i j, mod_succ_eq n i.1 hi, mod_succ_eq n j.1 hj,
-    mod_pred_eq n i.1 hi]
-  split_ifs <;> omega
-
-private theorem cycle_nbr_ne {n : ℕ} (hn : 3 ≤ n) (i : (cycle n).V) :
-    (i.1 + 1) % n ≠ (i.1 + n - 1) % n := by
-  have hi := i.isLt
-  rw [mod_succ_eq n i.1 hi, mod_pred_eq n i.1 hi]
   split_ifs <;> omega
 
 /-- A primitive `n`-th root of unity. -/
@@ -1118,44 +1276,204 @@ private theorem cycZeta_add_inv (n m : ℕ) :
   push_cast [Complex.ofReal_cos]
   ring
 
-/-- The adjacency matrix of the cycle, over `ℂ`. -/
-private noncomputable def cycA (n : ℕ) : Matrix (cycle n).V (cycle n).V ℂ :=
-  Matrix.of fun i j ↦ if (cycle n).Adj i j then 1 else 0
+end CGraph
+
+/-- The symmetrised connection set of `circulant n S`: the nonzero residues `d < n` with `d ∈ S`
+or `n - d ∈ S`.  Two vertices are adjacent exactly when their difference lies in it.  It is a
+function of numbers alone, so it lives at the root: `toIsoGraph` refuses to lift a statement that
+still mentions a `CGraph`-namespaced constant. -/
+def circulantSet (n : ℕ) (S : List ℕ) (d : ℕ) : Bool :=
+  decide (d ≠ 0) && (S.contains d || S.contains (n - d))
+
+/-- The degree of `circulant n S`: the size of its connection set. -/
+def circulantDeg (n : ℕ) (S : List ℕ) : ℕ :=
+  ∑ d ∈ Finset.range n, if circulantSet n S d then 1 else 0
+
+/-- The `m`-th eigenvalue of `circulant n S`, summed over its connection set.  For `S = [1]` the
+two terms `d = 1` and `d = n - 1` agree, and this is the cycle's `2 cos (2 π m / n)`. -/
+noncomputable def circulantEig (n : ℕ) (S : List ℕ) (m : ℕ) : ℝ :=
+  ∑ d ∈ Finset.range n, if circulantSet n S d then Real.cos (2 * Real.pi * d * m / n) else 0
+
+/-- The `0`-th eigenvalue of a circulant is its degree: every cosine is `1`. -/
+theorem circulantEig_zero (n : ℕ) (S : List ℕ) :
+    circulantEig n S 0 = (circulantDeg n S : ℝ) := by
+  rw [circulantEig, circulantDeg, Nat.cast_sum]
+  refine Finset.sum_congr rfl fun d _ ↦ ?_
+  split
+  · rw [show 2 * Real.pi * d * (0 : ℕ) / n = 0 from by push_cast; ring, Real.cos_zero,
+      Nat.cast_one]
+  · rw [Nat.cast_zero]
+
+namespace CGraph
+
+/-- **Adjacency in a circulant is membership of the difference in the connection set.** -/
+theorem circulant_adj (n : ℕ) (S : List ℕ) (x y : (circulant n S).V) :
+    (circulant n S).Adj x y = circulantSet n S ((y.1 + n - x.1) % n) := by
+  show (decide (x ≠ y) && (S.contains ((y.1 + n - x.1) % n) ||
+      S.contains ((x.1 + n - y.1) % n)))
+    = (decide ((y.1 + n - x.1) % n ≠ 0) &&
+      (S.contains ((y.1 + n - x.1) % n) || S.contains (n - (y.1 + n - x.1) % n)))
+  by_cases hxy : x = y
+  · subst hxy
+    have h0 : (x.1 + n - x.1) % n = 0 := by
+      rw [show x.1 + n - x.1 = n from by omega, Nat.mod_self]
+    rw [h0]
+    simp
+  · have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
+    obtain ⟨hsum, hpos1, hpos2⟩ := circulant_diff_facts n x y hne
+    rw [decide_eq_true hxy, decide_eq_true (show (y.1 + n - x.1) % n ≠ 0 from by omega),
+      show (x.1 + n - y.1) % n = n - (y.1 + n - x.1) % n from by omega]
+
+/-- The connection set is closed under negation. -/
+private theorem circulantSet_neg (n : ℕ) (S : List ℕ) {d : ℕ} (hd : d < n) :
+    circulantSet n S ((n - d) % n) = circulantSet n S d := by
+  rcases Nat.eq_zero_or_pos d with h | h
+  · rw [h, Nat.sub_zero, Nat.mod_self]
+  · rw [Nat.mod_eq_of_lt (show n - d < n from by omega)]
+    show (decide (n - d ≠ 0) && (S.contains (n - d) || S.contains (n - (n - d))))
+      = (decide (d ≠ 0) && (S.contains d || S.contains (n - d)))
+    rw [show n - (n - d) = d from by omega, decide_eq_true (show n - d ≠ 0 from by omega),
+      decide_eq_true (show d ≠ 0 from by omega), Bool.true_and, Bool.true_and, Bool.or_comm]
+
+private theorem circ_shift_left {n : ℕ} (x y : Fin n) :
+    ((y.1 + n - x.1) % n + x.1) % n = y.1 := by
+  rcases sub_mod_cases x.isLt y.isLt with ⟨h, hm⟩ | ⟨h, hm⟩ <;> rw [hm]
+  · rw [show y.1 - x.1 + x.1 = y.1 from by omega, Nat.mod_eq_of_lt y.isLt]
+  · rw [show n - (x.1 - y.1) + x.1 = n + y.1 from by have := x.isLt; omega, Nat.add_mod_left,
+      Nat.mod_eq_of_lt y.isLt]
+
+private theorem circ_shift_right {n : ℕ} (hn : 0 < n) (x d : Fin n) :
+    ((d.1 + x.1) % n + n - x.1) % n = d.1 := by
+  have hx := x.isLt
+  have hd := d.isLt
+  have hzlt : (d.1 + x.1) % n < n := Nat.mod_lt _ hn
+  have hz : (d.1 + x.1) % n + n = d.1 + x.1 ∨ (d.1 + x.1) % n = d.1 + x.1 := by
+    rcases Nat.lt_or_ge (d.1 + x.1) n with h | h
+    · exact Or.inr (Nat.mod_eq_of_lt h)
+    · exact Or.inl (by rw [Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]; omega)
+  rcases sub_mod_cases hx hzlt with ⟨h, hm⟩ | ⟨h, hm⟩ <;> rw [hm] <;> omega
+
+/-- Translation by `x`, which carries the neighbours of `x` onto the connection set. -/
+private def circShift {n : ℕ} (hn : 0 < n) (x : Fin n) : Fin n ≃ Fin n where
+  toFun y := ⟨(y.1 + n - x.1) % n, Nat.mod_lt _ hn⟩
+  invFun d := ⟨(d.1 + x.1) % n, Nat.mod_lt _ hn⟩
+  left_inv y := Fin.ext (circ_shift_left x y)
+  right_inv d := Fin.ext (circ_shift_right hn x d)
+
+private theorem circ_neg_neg {n : ℕ} (d : Fin n) : (n - (n - d.1) % n) % n = d.1 := by
+  have hd := d.isLt
+  rcases Nat.eq_zero_or_pos d.1 with h | h
+  · rw [h, Nat.sub_zero, Nat.mod_self, Nat.sub_zero, Nat.mod_self]
+  · rw [Nat.mod_eq_of_lt (show n - d.1 < n from by omega), show n - (n - d.1) = d.1 from by omega,
+      Nat.mod_eq_of_lt hd]
+
+/-- Negation, an involution of `ℤ / n` preserving the connection set. -/
+private def circNeg {n : ℕ} (hn : 0 < n) : Fin n ≃ Fin n where
+  toFun d := ⟨(n - d.1) % n, Nat.mod_lt _ hn⟩
+  invFun d := ⟨(n - d.1) % n, Nat.mod_lt _ hn⟩
+  left_inv d := Fin.ext (circ_neg_neg d)
+  right_inv d := Fin.ext (circ_neg_neg d)
+
+/-- The eigenvalue sum over the connection set is real: pairing `d` with `n - d` replaces
+`ζ ^ (d m)` by its inverse, and `ζ ^ k + ζ ^ (-k)` is `2 cos (2 π k / n)`. -/
+private theorem circ_sum_eq_eig {n : ℕ} (hn : 0 < n) (S : List ℕ) (m : ℕ) :
+    ∑ d : Fin n, (if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
+      = ((circulantEig n S m : ℝ) : ℂ) := by
+  have hGF : ∀ d : Fin n,
+      (if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
+        = (if circulantSet n S ((n - d.1) % n) then
+            (cycZeta n ^ (((n - d.1) % n) * m))⁻¹ else 0) := by
+    intro d
+    have hd := d.isLt
+    have hpow : (cycZeta n ^ (((n - d.1) % n) * m))⁻¹ = cycZeta n ^ (d.1 * m) := by
+      have hcong : cycZeta n ^ (((n - d.1) % n) * m) = cycZeta n ^ ((n - d.1) * m) :=
+        cycZeta_pow_congr hn ((Nat.mod_modEq (n - d.1) n).mul_right m)
+      have hmul : cycZeta n ^ ((n - d.1) * m) * cycZeta n ^ (d.1 * m) = 1 := by
+        rw [← pow_add, ← Nat.add_mul, show n - d.1 + d.1 = n from by omega, pow_mul,
+          cycZeta_pow_n hn, one_pow]
+      rw [hcong, inv_eq_of_mul_eq_one_right hmul]
+    rw [circulantSet_neg n S hd, hpow]
+  have hsum : ∑ d : Fin n, (if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
+      = ∑ d : Fin n, (if circulantSet n S d.1 then (cycZeta n ^ (d.1 * m))⁻¹ else 0) :=
+    Fintype.sum_equiv (circNeg hn) _ _ hGF
+  have hadd : ∀ d : Fin n,
+      (if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
+        + (if circulantSet n S d.1 then (cycZeta n ^ (d.1 * m))⁻¹ else 0)
+        = (if circulantSet n S d.1 then
+            ((2 * Real.cos (2 * Real.pi * d.1 * m / n) : ℝ) : ℂ) else 0) := by
+    intro d
+    have hc : (2 * Real.pi * ((d.1 * m : ℕ) : ℝ) / n) = 2 * Real.pi * d.1 * m / n := by
+      push_cast
+      ring
+    by_cases h : circulantSet n S d.1 = true
+    · rw [if_pos h, if_pos h, if_pos h, cycZeta_add_inv, hc]
+    · rw [if_neg h, if_neg h, if_neg h, add_zero]
+  have hreal : ∀ d : Fin n,
+      (if circulantSet n S d.1 then ((2 * Real.cos (2 * Real.pi * d.1 * m / n) : ℝ) : ℂ) else 0)
+        = ((2 * (if circulantSet n S d.1 then
+            Real.cos (2 * Real.pi * d.1 * m / n) else 0) : ℝ) : ℂ) := by
+    intro d
+    by_cases h : circulantSet n S d.1 = true
+    · rw [if_pos h, if_pos h]
+    · rw [if_neg h, if_neg h, mul_zero, Complex.ofReal_zero]
+  have h2 : (2 : ℂ) * ∑ d : Fin n, (if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
+      = ∑ d : Fin n, ((if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
+          + (if circulantSet n S d.1 then (cycZeta n ^ (d.1 * m))⁻¹ else 0)) := by
+    rw [Finset.sum_add_distrib, ← hsum]
+    ring
+  have h3 : ∑ d : Fin n, ((if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
+        + (if circulantSet n S d.1 then (cycZeta n ^ (d.1 * m))⁻¹ else 0))
+      = 2 * ((circulantEig n S m : ℝ) : ℂ) := by
+    rw [Finset.sum_congr rfl fun d _ ↦ (hadd d).trans (hreal d), circulantEig,
+      ← Fin.sum_univ_eq_sum_range
+        (fun d ↦ if circulantSet n S d then Real.cos (2 * Real.pi * d * m / n) else 0) n]
+    push_cast
+    rw [Finset.mul_sum]
+  exact mul_left_cancel₀ (show (2 : ℂ) ≠ 0 from by norm_num) (h2.trans h3)
+
+/-- The adjacency matrix of a circulant, over `ℂ`. -/
+private noncomputable def circA (n : ℕ) (S : List ℕ) :
+    Matrix (circulant n S).V (circulant n S).V ℂ :=
+  Matrix.of fun i j ↦ if (circulant n S).Adj i j then 1 else 0
 
 /-- The discrete Fourier matrix. -/
-private noncomputable def cycP (n : ℕ) : Matrix (cycle n).V (cycle n).V ℂ :=
+private noncomputable def circP (n : ℕ) (S : List ℕ) :
+    Matrix (circulant n S).V (circulant n S).V ℂ :=
   Matrix.of fun j m ↦ cycZeta n ^ (j.1 * m.1)
 
 /-- Its inverse. -/
-private noncomputable def cycQ (n : ℕ) : Matrix (cycle n).V (cycle n).V ℂ :=
+private noncomputable def circQ (n : ℕ) (S : List ℕ) :
+    Matrix (circulant n S).V (circulant n S).V ℂ :=
   Matrix.of fun m j ↦ (n : ℂ)⁻¹ * (cycZeta n ^ (j.1 * m.1))⁻¹
 
-/-- The eigenvalues of the cycle. -/
-private noncomputable def cycEig (n : ℕ) : (cycle n).V → ℂ :=
-  fun m ↦ ((2 * Real.cos (2 * Real.pi * m.1 / n) : ℝ) : ℂ)
+/-- The eigenvalues of a circulant. -/
+private noncomputable def circEig (n : ℕ) (S : List ℕ) : (circulant n S).V → ℂ :=
+  fun m ↦ ((circulantEig n S m.1 : ℝ) : ℂ)
 
-private theorem cycA_eq (n : ℕ) : cycA n = (cycle n).adjMat.map (Complex.ofRealHom) := by
+private theorem circA_eq (n : ℕ) (S : List ℕ) :
+    circA n S = (circulant n S).adjMat.map (Complex.ofRealHom) := by
   ext i j
-  by_cases h : (cycle n).Adj i j <;> simp [cycA, adjMat_apply, h]
+  by_cases h : (circulant n S).Adj i j <;> simp [circA, adjMat_apply, h]
 
-private theorem cycP_mul_cycQ {n : ℕ} (hn : 0 < n) : cycP n * cycQ n = 1 := by
+private theorem circP_mul_circQ {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    circP n S * circQ n S = 1 := by
   have hz := cycZeta_ne_zero n
   have hn0 : (n : ℂ) ≠ 0 := Nat.cast_ne_zero.2 hn.ne'
   ext j l
-  have hterm : ∀ m : (cycle n).V,
+  have hterm : ∀ m : (circulant n S).V,
       cycZeta n ^ (j.1 * m.1) * ((n : ℂ)⁻¹ * (cycZeta n ^ (l.1 * m.1))⁻¹)
         = (n : ℂ)⁻¹ * (cycZeta n ^ j.1 * (cycZeta n ^ l.1)⁻¹) ^ m.1 := by
     intro m
     rw [mul_pow, inv_pow, ← pow_mul, ← pow_mul]
     ring
-  have hsum : ∑ m : (cycle n).V, cycZeta n ^ (j.1 * m.1) *
+  have hsum : ∑ m : (circulant n S).V, cycZeta n ^ (j.1 * m.1) *
         ((n : ℂ)⁻¹ * (cycZeta n ^ (l.1 * m.1))⁻¹)
       = (n : ℂ)⁻¹ * ∑ i ∈ Finset.range n, (cycZeta n ^ j.1 * (cycZeta n ^ l.1)⁻¹) ^ i := by
     rw [Finset.mul_sum]
     rw [← Fin.sum_univ_eq_sum_range
       (fun i ↦ (n : ℂ)⁻¹ * (cycZeta n ^ j.1 * (cycZeta n ^ l.1)⁻¹) ^ i) n]
     exact Finset.sum_congr (Finset.univ_inst_eq _ _) fun m _ ↦ hterm m
-  simp only [Matrix.mul_apply, cycP, cycQ, Matrix.of_apply]
+  simp only [Matrix.mul_apply, circP, circQ, Matrix.of_apply]
   rw [hsum]
   by_cases hjl : j = l
   · subst hjl
@@ -1176,90 +1494,130 @@ private theorem cycP_mul_cycQ {n : ℕ} (hn : 0 < n) : cycP n * cycQ n = 1 := by
       rw [mul_pow, inv_pow, hpj, hpl, inv_one, mul_one]
     rw [geom_sum_eq hx1, hxn, sub_self, zero_div, mul_zero, Matrix.one_apply_ne hjl]
 
-private theorem cycQ_mul_cycP {n : ℕ} (hn : 0 < n) : cycQ n * cycP n = 1 :=
-  mul_eq_one_comm.mp (cycP_mul_cycQ hn)
+private theorem circQ_mul_circP {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    circQ n S * circP n S = 1 :=
+  mul_eq_one_comm.mp (circP_mul_circQ hn S)
 
-private theorem cycA_mul_cycP {n : ℕ} (hn : 3 ≤ n) :
-    cycA n * cycP n = cycP n * Matrix.diagonal (cycEig n) := by
-  have hn0 : 0 < n := by omega
+private theorem circA_mul_circP {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    circA n S * circP n S = circP n S * Matrix.diagonal (circEig n S) := by
   ext i m
-  have ha : (i.1 + 1) % n < n := Nat.mod_lt _ hn0
-  have hb : (i.1 + n - 1) % n < n := Nat.mod_lt _ hn0
-  set a : (cycle n).V := ⟨(i.1 + 1) % n, ha⟩ with hadef
-  set b : (cycle n).V := ⟨(i.1 + n - 1) % n, hb⟩ with hbdef
-  have hab : a ≠ b := fun h ↦ cycle_nbr_ne hn i (congrArg Fin.val h)
-  have step : ∀ j : (cycle n).V,
-      (if (cycle n).Adj i j = true then (1 : ℂ) else 0) * cycZeta n ^ (j.1 * m.1)
-        = (if j = a then cycZeta n ^ (j.1 * m.1) else 0)
-          + (if j = b then cycZeta n ^ (j.1 * m.1) else 0) := by
+  have harith : ∀ j : Fin n,
+      cycZeta n ^ (i.1 * m.1) * cycZeta n ^ (((j.1 + n - i.1) % n) * m.1)
+        = cycZeta n ^ (j.1 * m.1) := by
     intro j
-    by_cases h1 : j = a
-    · have hne : ¬ (j = b) := fun hc ↦ hab (by rw [← h1]; exact hc)
-      rw [if_pos h1, if_neg hne, if_pos ((cycle_adj_iff_eq hn i j).2 (Or.inl
-        (by rw [h1, hadef])))]
-      ring
-    · by_cases h2 : j = b
-      · rw [if_neg h1, if_pos h2, if_pos ((cycle_adj_iff_eq hn i j).2 (Or.inr
-          (by rw [h2, hbdef])))]
-        ring
-      · have hno : ¬ ((cycle n).Adj i j = true) := by
-          intro hadj
-          rcases (cycle_adj_iff_eq hn i j).1 hadj with h | h
-          · exact h1 (Fin.ext h)
-          · exact h2 (Fin.ext h)
-        rw [if_neg h1, if_neg h2, if_neg hno]
-        ring
-  have hsum : ∑ j : (cycle n).V,
-      (if (cycle n).Adj i j = true then (1 : ℂ) else 0) * cycZeta n ^ (j.1 * m.1)
-        = cycZeta n ^ (a.1 * m.1) + cycZeta n ^ (b.1 * m.1) := by
-    calc ∑ j : (cycle n).V,
-          (if (cycle n).Adj i j = true then (1 : ℂ) else 0) * cycZeta n ^ (j.1 * m.1)
-        = ∑ j : (cycle n).V, ((if j = a then cycZeta n ^ (j.1 * m.1) else 0)
-            + (if j = b then cycZeta n ^ (j.1 * m.1) else 0)) :=
-          Finset.sum_congr rfl fun j _ ↦ step j
-      _ = cycZeta n ^ (a.1 * m.1) + cycZeta n ^ (b.1 * m.1) := by
-          rw [Finset.sum_add_distrib]; simp
-  have hA : cycZeta n ^ (a.1 * m.1) = cycZeta n ^ (i.1 * m.1) * cycZeta n ^ m.1 := by
-    rw [hadef, show ((⟨(i.1 + 1) % n, ha⟩ : (cycle n).V)).1 = (i.1 + 1) % n from rfl,
-      cycZeta_pow_congr hn0 ((Nat.mod_modEq (i.1 + 1) n).mul_right m.1),
-      show (i.1 + 1) * m.1 = i.1 * m.1 + m.1 from by ring, pow_add]
-  have hinv : cycZeta n ^ ((n - 1) * m.1) = (cycZeta n ^ m.1)⁻¹ := by
-    obtain ⟨n', rfl⟩ : ∃ n', n = n' + 1 := ⟨n - 1, by omega⟩
-    have h1 : cycZeta (n' + 1) ^ ((n' + 1 - 1) * m.1) * cycZeta (n' + 1) ^ m.1 = 1 := by
-      rw [← pow_add, show (n' + 1 - 1) * m.1 + m.1 = (n' + 1) * m.1 from by simp; ring,
-        pow_mul, cycZeta_pow_n hn0, one_pow]
-    exact eq_inv_of_mul_eq_one_left h1
-  have hB : cycZeta n ^ (b.1 * m.1) = cycZeta n ^ (i.1 * m.1) * (cycZeta n ^ m.1)⁻¹ := by
-    rw [hbdef, show ((⟨(i.1 + n - 1) % n, hb⟩ : (cycle n).V)).1 = (i.1 + n - 1) % n from rfl,
-      cycZeta_pow_congr hn0 ((Nat.mod_modEq (i.1 + n - 1) n).mul_right m.1),
-      show (i.1 + n - 1) * m.1 = i.1 * m.1 + (n - 1) * m.1 from by
-        obtain ⟨n', rfl⟩ : ∃ n', n = n' + 1 := ⟨n - 1, by omega⟩
-        simp only [Nat.add_sub_cancel]
-        rw [show i.1 + (n' + 1) - 1 = i.1 + n' from by omega]
-        ring,
-      pow_add, hinv]
+    have hi : i.1 < n := i.isLt
+    have hn1 : cycZeta n ^ (n * m.1) = 1 := by rw [pow_mul, cycZeta_pow_n hn, one_pow]
+    rw [cycZeta_pow_congr hn ((Nat.mod_modEq (j.1 + n - i.1) n).mul_right m.1), ← pow_add,
+      ← Nat.add_mul, show i.1 + (j.1 + n - i.1) = j.1 + n from by omega, Nat.add_mul, pow_add,
+      hn1, mul_one]
+  have hstep : ∀ j : (circulant n S).V,
+      (if (circulant n S).Adj i j = true then (1 : ℂ) else 0) * cycZeta n ^ (j.1 * m.1)
+        = (if circulantSet n S ((j.1 + n - i.1) % n) then cycZeta n ^ (j.1 * m.1) else 0) := by
+    intro j
+    rw [circulant_adj]
+    by_cases h : circulantSet n S ((j.1 + n - i.1) % n) = true
+    · rw [if_pos h, if_pos h, one_mul]
+    · rw [if_neg h, if_neg h, zero_mul]
   rw [Matrix.mul_diagonal]
-  simp only [Matrix.mul_apply, cycA, cycP, Matrix.of_apply]
-  rw [hsum, hA, hB, cycEig, ← cycZeta_add_inv n m.1]
-  ring
+  simp only [Matrix.mul_apply, circA, circP, Matrix.of_apply]
+  rw [Finset.sum_congr rfl fun j _ ↦ hstep j]
+  refine (Fintype.sum_equiv (ι := (circulant n S).V) (κ := Fin n) (circShift hn i)
+    (fun j ↦ if circulantSet n S ((j.1 + n - i.1) % n) then
+      cycZeta n ^ (j.1 * m.1) else 0)
+    (fun d ↦ cycZeta n ^ (i.1 * m.1) *
+      (if circulantSet n S d.1 then cycZeta n ^ (d.1 * m.1) else 0)) ?_).trans ?_
+  · intro j
+    show (if circulantSet n S ((j.1 + n - i.1) % n) then cycZeta n ^ (j.1 * m.1) else 0)
+      = cycZeta n ^ (i.1 * m.1) *
+        (if circulantSet n S ((j.1 + n - i.1) % n) then
+          cycZeta n ^ (((j.1 + n - i.1) % n) * m.1) else 0)
+    by_cases h : circulantSet n S ((j.1 + n - i.1) % n) = true
+    · rw [if_pos h, if_pos h, harith j]
+    · rw [if_neg h, if_neg h, mul_zero]
+  · rw [← Finset.mul_sum, circ_sum_eq_eig hn S m.1, circEig]
 
-private theorem cycA_eq_conj {n : ℕ} (hn : 3 ≤ n) :
-    cycA n = cycP n * Matrix.diagonal (cycEig n) * cycQ n := by
-  calc cycA n = cycA n * (cycP n * cycQ n) := by rw [cycP_mul_cycQ (by omega), mul_one]
-    _ = cycA n * cycP n * cycQ n := by rw [mul_assoc]
-    _ = cycP n * Matrix.diagonal (cycEig n) * cycQ n := by rw [cycA_mul_cycP hn]
+private theorem circA_eq_conj {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    circA n S = circP n S * Matrix.diagonal (circEig n S) * circQ n S := by
+  calc circA n S = circA n S * (circP n S * circQ n S) := by rw [circP_mul_circQ hn S, mul_one]
+    _ = circA n S * circP n S * circQ n S := by rw [mul_assoc]
+    _ = circP n S * Matrix.diagonal (circEig n S) * circQ n S := by rw [circA_mul_circP hn S]
+
+/-- **The characteristic polynomial of a circulant graph.**  The product is indexed by `Fin n`
+rather than by the definitionally equal `(circulant n S).V`, so that the statement stays usable
+after `circulant n S` has been rewritten to some other graph — as it is for the cycle below. -/
+theorem charpoly_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    (circulant n S).charpoly = ∏ m : Fin n, (X - C (circulantEig n S m.1)) := by
+  have key : (circA n S).charpoly = ∏ m : (circulant n S).V, (X - C (circEig n S m)) := by
+    rw [circA_eq_conj hn S, mul_assoc, Matrix.charpoly_mul_comm, mul_assoc, circQ_mul_circP hn S,
+      mul_one, Matrix.charpoly_diagonal]
+  rw [circA_eq, Matrix.charpoly_map, ← charpoly_eq_matrix_charpoly] at key
+  refine Polynomial.map_injective (Complex.ofRealHom) Complex.ofReal_injective ?_
+  rw [key, Polynomial.map_prod]
+  exact Finset.prod_congr (Finset.univ_inst_eq _ _) fun m _ ↦ by simp [circEig]
+
+/-- **The spectrum of a circulant graph**: one eigenvalue `circulantEig n S m` for each `m`. -/
+@[toIsoGraph]
+theorem spectrum_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    (circulant n S).spectrum
+      = Finset.univ.val.map (fun m : Fin n ↦ circulantEig n S m.1) := by
+  rw [spectrum, charpoly_circulant hn S,
+    show (∏ m : Fin n, (X - C (circulantEig n S m.1)))
+      = ((Finset.univ.val.map (fun m : Fin n ↦ circulantEig n S m.1)).map
+        (fun a ↦ X - C a)).prod from by rw [Multiset.map_map]; rfl,
+    Polynomial.roots_multiset_prod_X_sub_C]
+
+/-! ### The cycle
+
+`cycle n = circulant n [1]`, whose connection set is `{1, n - 1}` once `n ≥ 3`; the two cosines
+those contribute are equal, so the eigenvalue is `2 cos (2 π m / n)`. -/
+
+private theorem circulantSet_one {n : ℕ} (hn : 3 ≤ n) {d : ℕ} (hd : d < n) :
+    circulantSet n [1] d = (decide (d = 1) || decide (d = n - 1)) := by
+  have h1 : (([1] : List ℕ).contains d) = decide (d = 1) := by simp
+  have h2 : (([1] : List ℕ).contains (n - d)) = decide (n - d = 1) := by simp
+  show (decide (d ≠ 0) && (([1] : List ℕ).contains d || ([1] : List ℕ).contains (n - d))) = _
+  rw [h1, h2]
+  rcases Nat.eq_zero_or_pos d with rfl | hpos
+  · have h0 : ¬ ((0 : ℕ) = n - 1) := by omega
+    simp [h0]
+  · rw [decide_eq_true (show d ≠ 0 from by omega), Bool.true_and]
+    congr 1
+    exact decide_eq_decide.2 (by omega)
+
+/-- **The cycle's eigenvalues, read off the circulant's.** -/
+theorem circulantEig_one {n : ℕ} (hn : 3 ≤ n) (m : ℕ) :
+    circulantEig n [1] m = 2 * Real.cos (2 * Real.pi * m / n) := by
+  have hn0 : (n : ℝ) ≠ 0 := Nat.cast_ne_zero.2 (by omega)
+  have hs1 : circulantSet n [1] 1 = true := by
+    rw [circulantSet_one hn (show (1 : ℕ) < n from by omega)]; simp
+  have hs2 : circulantSet n [1] (n - 1) = true := by
+    rw [circulantSet_one hn (show n - 1 < n from by omega)]; simp
+  have hzero : ∀ k ∈ Finset.range n, k ≠ 1 ∧ k ≠ n - 1 →
+      (if circulantSet n [1] k then Real.cos (2 * Real.pi * k * m / n) else 0) = 0 := by
+    rintro k hk ⟨hk1, hk2⟩
+    have hf : circulantSet n [1] k = false := by
+      rw [circulantSet_one hn (Finset.mem_range.1 hk)]
+      simp [hk1, hk2]
+    simp [hf]
+  rw [circulantEig, Finset.sum_eq_add_of_mem _ _ (Finset.mem_range.2 (show 1 < n from by omega))
+      (Finset.mem_range.2 (show n - 1 < n from by omega)) (show (1 : ℕ) ≠ n - 1 from by omega)
+      hzero,
+    if_pos hs1, if_pos hs2]
+  have hangle : 2 * Real.pi * ((n - 1 : ℕ) : ℝ) * m / n
+      = ((m : ℤ) : ℝ) * (2 * Real.pi) - 2 * Real.pi * m / n := by
+    rw [Nat.cast_sub (show 1 ≤ n from by omega)]
+    push_cast
+    field_simp
+  rw [hangle, Real.cos_int_mul_two_pi_sub, Nat.cast_one, mul_one]
+  ring
 
 /-- **The characteristic polynomial of the cycle** `C_n`, `n ≥ 3`. -/
 theorem charpoly_cycle {n : ℕ} (hn : 3 ≤ n) :
     (cycle n).charpoly = ∏ m : (cycle n).V, (X - C (2 * Real.cos (2 * Real.pi * m.1 / n))) := by
-  have hn0 : 0 < n := by omega
-  have key : (cycA n).charpoly = ∏ m : (cycle n).V, (X - C (cycEig n m)) := by
-    rw [cycA_eq_conj hn, mul_assoc, Matrix.charpoly_mul_comm, mul_assoc, cycQ_mul_cycP hn0,
-      mul_one, Matrix.charpoly_diagonal]
-  rw [cycA_eq, Matrix.charpoly_map, ← charpoly_eq_matrix_charpoly] at key
-  refine Polynomial.map_injective (Complex.ofRealHom) Complex.ofReal_injective ?_
-  rw [key, Polynomial.map_prod]
-  exact Finset.prod_congr rfl fun m _ ↦ by simp [cycEig]
+  have h := charpoly_circulant (show 0 < n from by omega) [1]
+  rw [circulant_one_eq_cycle n] at h
+  exact h.trans (Finset.prod_congr (Finset.univ_inst_eq _ _)
+    fun m _ ↦ by rw [circulantEig_one hn])
 
 /-- **The spectrum of the cycle** `C_n`, `n ≥ 3`: the numbers `2 cos (2 π m / n)`.  The index runs
 over `Fin n` rather than the definitionally equal `(cycle n).V`, so that the statement mentions no
@@ -1268,14 +1626,9 @@ vertex type and transfers to `IsoGraph`. -/
 theorem spectrum_cycle {n : ℕ} (hn : 3 ≤ n) :
     (cycle n).spectrum
       = Finset.univ.val.map (fun m : Fin n ↦ 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
-  have key : (cycle n).spectrum
-      = Finset.univ.val.map (fun m : (cycle n).V ↦ 2 * Real.cos (2 * Real.pi * m.1 / n)) := by
-    rw [spectrum, charpoly_cycle hn,
-      show (∏ m : (cycle n).V, (X - C (2 * Real.cos (2 * Real.pi * m.1 / n))))
-        = ((Finset.univ.val.map (fun m : (cycle n).V ↦ 2 * Real.cos (2 * Real.pi * m.1 / n))).map
-          (fun a ↦ X - C a)).prod from by rw [Multiset.map_map]; rfl,
-      Polynomial.roots_multiset_prod_X_sub_C]
-  exact key.trans (congrArg (Multiset.map _) (Finset.univ_val_inst_eq _ _))
+  have h := spectrum_circulant (show 0 < n from by omega) [1]
+  rw [circulant_one_eq_cycle n] at h
+  exact h.trans (Multiset.map_congr rfl fun m _ ↦ circulantEig_one hn m.1)
 
 
 /-! ## Diagonalisation
@@ -2025,6 +2378,40 @@ theorem spectrum_cocktailParty (m : ℕ) :
   push_cast
   ring_nf
 
+/-- **The spectrum of the complete multipartite graph `K_{r×s}`**: the degree `(r-1)s` once, `0`
+with multiplicity `r(s-1)` and `-s` with multiplicity `r-1`.  The cocktail party graph is the case
+`s = 2`; here the part size is a parameter too. -/
+@[toIsoGraph]
+theorem spectrum_completeMultipartite_replicate (p a : ℕ) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).spectrum
+      = ((p : ℝ) + 1) * ((a : ℝ) + 1)
+          ::ₘ (Multiset.replicate ((p + 2) * a) 0
+              + Multiset.replicate (p + 1) (-((a : ℝ) + 1))) := by
+  have hsrg := isSRGWith_completeMultipartite_replicate (p + 2) (a + 1)
+  rw [show p + 2 - 1 = p + 1 from by omega, show p + 2 - 2 = p from by omega] at hsrg
+  have : Nonempty (completeMultipartite (List.replicate (p + 2) (a + 1))).V :=
+    Fintype.card_pos_iff.1 (by rw [hsrg.card]; positivity)
+  obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by positivity) (r := 0)
+    (s := -((a : ℝ) + 1)) (by push_cast; ring) (by push_cast; ring)
+    (by
+      have hpos : (0 : ℝ) < (a : ℝ) + 1 := by positivity
+      intro hc
+      linarith)
+  have hg : (g : ℝ) = (p : ℝ) + 1 := by
+    have hane : ((a : ℝ) + 1) ≠ 0 := by positivity
+    have h2' : (g : ℝ) * ((a : ℝ) + 1) = ((p : ℝ) + 1) * ((a : ℝ) + 1) := by
+      push_cast at h2
+      linarith
+    exact mul_right_cancel₀ hane h2'
+  have hgn : g = p + 1 := by exact_mod_cast hg
+  have hfn : f = (p + 2) * a := by
+    rw [hgn] at h1
+    have hexp : (p + 2) * (a + 1) = (p + 2) * a + (p + 2) := by ring
+    omega
+  rw [h3, hfn, hgn]
+  push_cast
+  ring_nf
+
 /-- **The spectrum of the rook's graph `K_n □ K_n`**: the degree `2n - 2` once, `n - 2` with
 multiplicity `2 (n - 1)`, and `-2` with multiplicity `(n - 1) ²`. -/
 @[toIsoGraph]
@@ -2134,6 +2521,56 @@ theorem spectrum_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
   rw [h3, hf, hg, hq]
   push_cast
   ring_nf
+
+section
+open Fintype
+variable {F : Type} [Field F] [FinEnum F]
+
+/-- **The spectrum of the Paley graph of a field** with `4t + 1` elements: the same eigenvalues
+`2t` and `(-1 ± √q) / 2` as above.  `paley q` is the prime case `F = ZMod q`; the argument only
+ever used the strong regularity, so it does not care whether the field is prime. -/
+@[toIsoGraph]
+theorem spectrum_paleyField {t : ℕ} (ht : 0 < t) (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).spectrum
+      = (2 * (t : ℝ)) ::ₘ
+        (Multiset.replicate (2 * t) ((-1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2)
+          + Multiset.replicate (2 * t) ((-1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2)) := by
+  have hsrg := isSRGWith_paleyField (F := F) (by omega)
+  rw [hcard, show (4 * t + 1 - 1) / 2 = 2 * t from by omega,
+    show (4 * t + 1 - 5) / 4 = t - 1 from by omega,
+    show (4 * t + 1 - 1) / 4 = t from by omega] at hsrg
+  have : Nonempty (paleyField F).V := Fintype.card_pos_iff.1 (by rw [hsrg.card]; omega)
+  obtain ⟨q, hq⟩ : ∃ q : ℝ, q = Real.sqrt (4 * (t : ℝ) + 1) := ⟨_, rfl⟩
+  have hq0 : 0 < q := by
+    rw [hq]
+    exact Real.sqrt_pos.2 (by positivity)
+  have hqsq : q ^ 2 = 4 * (t : ℝ) + 1 := by
+    rw [hq]
+    exact Real.sq_sqrt (by positivity)
+  have hcast : ((t - 1 : ℕ) : ℝ) = (t : ℝ) - 1 := by
+    rw [Nat.cast_sub ht]
+    norm_num
+  obtain ⟨f, g, h1, h2, h3⟩ := spectrum_isSRGWith hsrg (by omega)
+    (r := (-1 + q) / 2) (s := (-1 - q) / 2)
+    (by rw [hcast]; ring)
+    (by push_cast; linear_combination (-1 / 4 : ℝ) * hqsq)
+    (by intro hc; linarith)
+  have h1' : (f : ℝ) + g + 1 = 4 * (t : ℝ) + 1 := by exact_mod_cast h1
+  push_cast at h2
+  have hkey : ((f : ℝ) - g) * q = 0 := by linear_combination 2 * h2 + h1'
+  have hfg : (f : ℝ) = g := by
+    rcases mul_eq_zero.1 hkey with hc | hc
+    · linarith
+    · linarith
+  have hfR : (f : ℝ) = 2 * t := by linarith
+  have hgR : (g : ℝ) = 2 * t := by linarith
+  have hf : f = 2 * t := by exact_mod_cast hfR
+  have hg : g = 2 * t := by exact_mod_cast hgR
+  rw [h3, hf, hg, hq]
+  push_cast
+  ring_nf
+
+end
 
 /-! ### The spectra of the sporadic strongly regular graphs
 
@@ -2571,6 +3008,81 @@ theorem cospectral_star_four :
   norm_num at hs hb
   rw [cospectral_iff_spectrum_eq, spectrum_disjUnion, spectrum_empty, hs, hb]
   simp [Multiset.cons_add]
+
+/-! ## Cospectral mates among the strongly regular graphs
+
+The spectrum of a strongly regular graph is fixed by its parameters, so any two graphs with the
+same parameters are cospectral.  Two of the classical families of parameters have more than one
+graph — `srg(16, 6, 2, 2)` has the `4 × 4` rook's graph and the Shrikhande graph, and
+`srg(28, 12, 6, 4)` has `T(8)` and the three Chang graphs — and the non-isomorphism certificates
+are already on file, so these give explicit graphs that are *not* determined by their spectrum. -/
+
+private theorem spectrum_rook_four :
+    (rook 4 4).spectrum = 6 ::ₘ (Multiset.replicate 6 2 + Multiset.replicate 9 (-2)) := by
+  have h := spectrum_rook 2
+  rw [show (2 : ℕ) + 2 = 4 from rfl, show 2 * ((2 : ℕ) + 1) = 6 from rfl,
+    show ((2 : ℕ) + 1) ^ 2 = 9 from rfl] at h
+  rw [h]
+  norm_num
+
+private theorem spectrum_triangular_eight :
+    (triangular 8).spectrum = 12 ::ₘ (Multiset.replicate 7 4 + Multiset.replicate 20 (-2)) := by
+  have h := spectrum_triangular 4
+  rw [show (4 : ℕ) + 4 = 8 from rfl, show Nat.choose 8 2 - 8 = 20 from rfl,
+    show (4 : ℕ) + 3 = 7 from rfl] at h
+  rw [h]
+  norm_num
+
+/-- **The Shrikhande graph and the `4 × 4` rook's graph are cospectral**: both are strongly
+regular with parameters `(16, 6, 2, 2)`, and the parameters fix the spectrum. -/
+theorem cospectral_shrikhande_rook : SRG.shrikhande.Cospectral (rook 4 4) :=
+  cospectral_iff_spectrum_eq.2 (by rw [spectrum_shrikhande, spectrum_rook_four])
+
+/-- **`T(8)` and the first Chang graph are cospectral**: both are `srg(28, 12, 6, 4)`. -/
+theorem cospectral_triangular_chang₁ : (triangular 8).Cospectral SRG.chang₁ :=
+  cospectral_iff_spectrum_eq.2 (by rw [spectrum_triangular_eight, spectrum_chang₁])
+
+/-- **`T(8)` and the second Chang graph are cospectral.** -/
+theorem cospectral_triangular_chang₂ : (triangular 8).Cospectral SRG.chang₂ :=
+  cospectral_iff_spectrum_eq.2 (by rw [spectrum_triangular_eight, spectrum_chang₂])
+
+/-- **`T(8)` and the third Chang graph are cospectral.** -/
+theorem cospectral_triangular_chang₃ : (triangular 8).Cospectral SRG.chang₃ :=
+  cospectral_iff_spectrum_eq.2 (by rw [spectrum_triangular_eight, spectrum_chang₃])
+
+private theorem triangular_eight_not_iso :
+    ∀ G ∈ [SRG.chang₁, SRG.chang₂, SRG.chang₃], ¬ Nonempty (triangular 8 ≃cg G) :=
+  (List.pairwise_cons.1 SRG.changs_pairwise_not_iso).1
+
+/-- **The Shrikhande graph is not determined by its spectrum**: the `4 × 4` rook's graph is
+cospectral with it and not isomorphic to it. -/
+theorem not_isDS_shrikhande : ¬ SRG.shrikhande.IsDS := fun h ↦
+  SRG.shrikhande_not_iso_rook (h _ cospectral_shrikhande_rook)
+
+/-- **The `4 × 4` rook's graph is not determined by its spectrum**, the Shrikhande graph being
+its mate. -/
+theorem not_isDS_rook : ¬ (rook 4 4).IsDS := fun h ↦
+  SRG.shrikhande_not_iso_rook ((h _ cospectral_shrikhande_rook.symm).map fun i ↦ i.symm)
+
+/-- **The triangular graph `T(8)` is not determined by its spectrum**: the three Chang graphs are
+cospectral with it and none of them is isomorphic to it. -/
+theorem not_isDS_triangular : ¬ (triangular 8).IsDS := fun h ↦
+  triangular_eight_not_iso SRG.chang₁ (by simp) (h _ cospectral_triangular_chang₁)
+
+/-- **The first Chang graph is not determined by its spectrum**, `T(8)` being a mate. -/
+theorem not_isDS_chang₁ : ¬ SRG.chang₁.IsDS := fun h ↦
+  triangular_eight_not_iso SRG.chang₁ (by simp)
+    ((h _ cospectral_triangular_chang₁.symm).map fun i ↦ i.symm)
+
+/-- **The second Chang graph is not determined by its spectrum.** -/
+theorem not_isDS_chang₂ : ¬ SRG.chang₂.IsDS := fun h ↦
+  triangular_eight_not_iso SRG.chang₂ (by simp)
+    ((h _ cospectral_triangular_chang₂.symm).map fun i ↦ i.symm)
+
+/-- **The third Chang graph is not determined by its spectrum.** -/
+theorem not_isDS_chang₃ : ¬ SRG.chang₃.IsDS := fun h ↦
+  triangular_eight_not_iso SRG.chang₃ (by simp)
+    ((h _ cospectral_triangular_chang₃.symm).map fun i ↦ i.symm)
 
 /-! ## Bounding the eigenvalues with a positive vector
 
@@ -4347,12 +4859,19 @@ The two lemmas here are the ratio bound with the cast dance done once.  Both tak
 `(n, k, ℓ, μ)` and the least eigenvalue and hand back a statement about natural numbers; after
 that every application is `norm_num` on two inequalities between small integers.
 
-Four of the independence bounds below are *exact* — Shrikhande, Hoffman–Singleton, Gewirtz and
-`M₂₂` all attain `n (-s) / (k - s)` — which is the usual situation for a strongly regular graph
-with a large coclique, and the reason the bound is worth having rather than searching.  The
-chromatic bounds go the other way: they are sharp for the graphs with `-2` at the bottom
-(`χ = 4`, `7`, `9` for Shrikhande, Chang and Schläfli) and give only `3` for the triangle-free
-ones, where they are still saying something a clique bound cannot. -/
+Most of the independence bounds below are *exact* — which is the usual situation for a strongly
+regular graph with a large coclique, and the reason the bound is worth having rather than
+searching.  Three of the eleven miss: Clebsch (`6` against `5`), the lines on a cubic surface (`9`
+against `6`) and Higman–Sims (`26` against `22`), the last of which is what a bound with an
+irrational ratio looks like from the inside.
+
+Every chromatic number below is then pinned down exactly, but the ratio bound only does the whole
+job for the graphs with `-2` at the bottom, where it gives `χ = 4`, `7`, `9` for Shrikhande, the
+Chang graphs and Schläfli.  Everywhere else it gives `3`; the lower bound that actually bites is
+`n ≤ χ α`, which needs the exact `α` above, and even that is not always enough — the last colour
+for the lines on a cubic surface and for `M₂₂` has to be refuted by search.  The upper bounds are
+all explicit colourings, one table of colour indices per graph, checked vertex pair by vertex
+pair.  Only Higman–Sims is left bracketed, at `4 ≤ χ ≤ 6`. -/
 
 /-- **Hoffman's ratio bound in natural numbers.**  From `α (k - s) ≤ n (-s)` and
 `n (-s) < (a + 1) (k - s)` conclude `α ≤ a`.  Stated with a strict inequality so that `a` can be
@@ -4379,11 +4898,57 @@ theorem le_chromNum_of_isSRGWith_of_lambdaMin {G : CGraph} [Nonempty G.V] {n k l
   have hneg : (0 : ℝ) < -s := by linarith
   exact_mod_cast le_of_mul_le_mul_right (hle.trans hb) hneg
 
-/-- The Clebsch graph has at most `⌊16 · 3 / 8⌋ = 6` pairwise non-adjacent vertices. -/
+/-- The Clebsch graph has at most `⌊16 · 3 / 8⌋ = 6` pairwise non-adjacent vertices.  This one is
+not attained; the true value is `5`, by `indepNum_clebsch` below. -/
 @[toIsoGraph]
 theorem indepNum_clebsch_le : SRG.clebsch.indepNum ≤ 6 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.clebsch_srg lambdaMin_clebsch (by norm_num)
     (by norm_num)
+
+/-- Five pairwise non-adjacent vertices of the Clebsch graph. -/
+@[toIsoGraph]
+theorem five_le_indepNum_clebsch : 5 ≤ SRG.clebsch.indepNum :=
+  le_indepNum_of_nodup (G := SRG.clebsch)
+    (l := ([1, 6, 10, 12, 15] : List (Fin 16)).map (FinEnum.equiv (α := SRG.clebsch.V)).symm)
+    (by decide) (by native_decide)
+
+/-- **The independence number of the Clebsch graph is five**, one below the ratio bound: the
+refutation of six is left to the SAT solver. -/
+@[simp, toIsoGraph]
+theorem indepNum_clebsch : SRG.clebsch.indepNum = 5 :=
+  le_antisymm (by graph_sat native) five_le_indepNum_clebsch
+
+@[simp, toIsoGraph]
+theorem coverNum_clebsch : SRG.clebsch.coverNum = 11 := by
+  have h := SRG.clebsch.coverNum_add_indepNum
+  rw [SRG.clebsch_srg.card_eq, indepNum_clebsch] at h
+  omega
+
+/-- Sixteen vertices, five to a colour class at best, so four colours at least — and four is the
+chromatic number, though the graph is triangle-free.  Hoffman's bound gives only `3`; the gain
+comes from rounding `α` down to an integer first. -/
+@[toIsoGraph]
+theorem four_le_chromNum_clebsch : 4 ≤ SRG.clebsch.chromNum := by
+  have h := SRG.clebsch.card_le_chromNum_mul_indepNum
+  rw [SRG.clebsch_srg.card_eq, indepNum_clebsch] at h
+  omega
+
+/-- A proper four-colouring of the Clebsch graph, one entry per vertex in `FinEnum` order. -/
+def clebschColTable : List ℕ :=
+  [1, 2, 3, 0, 0, 3, 2, 1, 3, 0, 0, 1, 2, 1, 1, 0]
+
+/-- The table `clebschColTable` read as a colouring, clamped into `Fin 4`. -/
+def clebschCol (v : SRG.clebsch.V) : Fin 4 :=
+  ⟨min (clebschColTable.getD (FinEnum.equiv v).1 0) 3, by omega⟩
+
+theorem clebschCol_proper : ∀ u v : SRG.clebsch.V,
+    SRG.clebsch.Adj u v = true → clebschCol u ≠ clebschCol v := by native_decide
+
+/-- **The chromatic number of the Clebsch graph is four.**  Sixteen vertices and `α = 5` force
+`4 ≤ χ` with room to spare, and the room shows: the classes below have sizes `5, 5, 3, 3`. -/
+@[simp, toIsoGraph]
+theorem chromNum_clebsch : SRG.clebsch.chromNum = 4 :=
+  le_antisymm (chromNum_le_of_colouring clebschCol clebschCol_proper) four_le_chromNum_clebsch
 
 /-- The Shrikhande graph has at most `⌊16 · 2 / 8⌋ = 4` pairwise non-adjacent vertices, and this
 is attained. -/
@@ -4392,19 +4957,114 @@ theorem indepNum_shrikhande_le : SRG.shrikhande.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.shrikhande_srg lambdaMin_shrikhande (by norm_num)
     (by norm_num)
 
+/-- The four vertices `(0,0), (0,2), (2,0), (2,2)` of `ℤ/4 × ℤ/4`: no difference between two of
+them is in the connection set. -/
+@[toIsoGraph]
+theorem four_le_indepNum_shrikhande : 4 ≤ SRG.shrikhande.indepNum :=
+  le_indepNum_of_nodup (G := SRG.shrikhande)
+    (l := ([0, 2, 8, 10] : List (Fin 16)).map (FinEnum.equiv (α := SRG.shrikhande.V)).symm)
+    (by decide) (by decide)
+
+/-- **The independence number of the Shrikhande graph is four**, meeting the ratio bound. -/
+@[simp, toIsoGraph]
+theorem indepNum_shrikhande : SRG.shrikhande.indepNum = 4 :=
+  le_antisymm indepNum_shrikhande_le four_le_indepNum_shrikhande
+
+/-- Every value of `α` is a value of `τ = n - α` as well; here `16 - 4`. -/
+@[simp, toIsoGraph]
+theorem coverNum_shrikhande : SRG.shrikhande.coverNum = 12 := by
+  have h := SRG.shrikhande.coverNum_add_indepNum
+  rw [SRG.shrikhande_srg.card_eq, indepNum_shrikhande] at h
+  omega
+
 /-- Sixteen vertices, four to a colour class at best, so four colours at least. -/
 @[toIsoGraph]
 theorem four_le_chromNum_shrikhande : 4 ≤ SRG.shrikhande.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.shrikhande_srg lambdaMin_shrikhande (by norm_num)
     (by norm_num)
 
-/-- At most `⌊27 · 5 / 15⌋ = 9` pairwise skew lines on a cubic surface. -/
+/-- A proper four-colouring of the Shrikhande graph: the four cosets of `{0, 2} × {0, 2}` in
+`ℤ/4 × ℤ/4`, each of which is a coclique. -/
+def shrikhandeColTable : List ℕ :=
+  [3, 1, 2, 1, 2, 0, 3, 0, 3, 1, 2, 1, 2, 0, 3, 0]
+
+/-- The table `shrikhandeColTable` read as a colouring, clamped into `Fin 4`. -/
+def shrikhandeCol (v : SRG.shrikhande.V) : Fin 4 :=
+  ⟨min (shrikhandeColTable.getD (FinEnum.equiv v).1 0) 3, by omega⟩
+
+theorem shrikhandeCol_proper : ∀ u v : SRG.shrikhande.V,
+    SRG.shrikhande.Adj u v = true → shrikhandeCol u ≠ shrikhandeCol v := by native_decide
+
+/-- **The chromatic number of the Shrikhande graph is four**, meeting Hoffman's bound: sixteen
+vertices in four cocliques of four, so the colouring is a partition into maximum cocliques.  The
+rook's graph `K₄ □ K₄` has the same parameters and the same `χ`, by its rows. -/
+@[simp, toIsoGraph]
+theorem chromNum_shrikhande : SRG.shrikhande.chromNum = 4 :=
+  le_antisymm (chromNum_le_of_colouring shrikhandeCol shrikhandeCol_proper)
+    four_le_chromNum_shrikhande
+
+/-- At most `⌊27 · 5 / 15⌋ = 9` pairwise skew lines on a cubic surface.  Not attained: a *double
+six* is the largest set of pairwise skew lines, and it splits into two sixes that meet. -/
 @[toIsoGraph]
 theorem indepNum_linesOnCubic_le : SRG.linesOnCubic.indepNum ≤ 9 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.linesOnCubic_srg lambdaMin_linesOnCubic (by norm_num)
     (by norm_num)
 
-/-- The Schläfli graph has at most `⌊27 · 2 / 18⌋ = 3` pairwise non-adjacent vertices. -/
+/-- Six pairwise skew lines: one half of a double six. -/
+@[toIsoGraph]
+theorem six_le_indepNum_linesOnCubic : 6 ≤ SRG.linesOnCubic.indepNum :=
+  le_indepNum_of_nodup (G := SRG.linesOnCubic)
+    (l := ([1, 7, 12, 14, 16, 23] : List (Fin 27)).map
+      (FinEnum.equiv (α := SRG.linesOnCubic.V)).symm)
+    (by decide) (by native_decide)
+
+/-- **Six is the largest number of pairwise skew lines on a cubic surface.**  The ratio bound
+stops at `9`; the SAT solver closes the gap. -/
+@[simp, toIsoGraph]
+theorem indepNum_linesOnCubic : SRG.linesOnCubic.indepNum = 6 :=
+  le_antisymm (by graph_sat native) six_le_indepNum_linesOnCubic
+
+@[simp, toIsoGraph]
+theorem coverNum_linesOnCubic : SRG.linesOnCubic.coverNum = 21 := by
+  have h := SRG.linesOnCubic.coverNum_add_indepNum
+  rw [SRG.linesOnCubic_srg.card_eq, indepNum_linesOnCubic] at h
+  omega
+
+/-- Twenty-seven lines, six to a colour class at best.  Hoffman's bound gives only `3`. -/
+@[toIsoGraph]
+theorem five_le_chromNum_linesOnCubic : 5 ≤ SRG.linesOnCubic.chromNum := by
+  have h := SRG.linesOnCubic.card_le_chromNum_mul_indepNum
+  rw [SRG.linesOnCubic_srg.card_eq, indepNum_linesOnCubic] at h
+  omega
+
+/-- Five classes of skew lines do not cover the twenty-seven.  Counting gets to `5 ≤ χ` and no
+further: `27 = 6 + 6 + 6 + 6 + 3` is not ruled out by any parameter of the graph, and the four
+disjoint half-double-sixes it asks for are what the solver has to refute. -/
+@[toIsoGraph]
+theorem six_le_chromNum_linesOnCubic : 6 ≤ SRG.linesOnCubic.chromNum := by
+  show 5 < SRG.linesOnCubic.chromNum
+  graph_sat native (timeout := 300)
+
+/-- A proper six-colouring of the lines on a cubic surface: six classes of pairwise skew lines. -/
+def linesOnCubicColTable : List ℕ :=
+  [2, 5, 3, 1, 3, 3, 2, 0, 0, 1, 0, 4, 5, 0, 4, 1, 1, 4, 2, 2, 2, 1, 0, 5, 0, 1, 3]
+
+/-- The table `linesOnCubicColTable` read as a colouring, clamped into `Fin 6`. -/
+def linesOnCubicCol (v : SRG.linesOnCubic.V) : Fin 6 :=
+  ⟨min (linesOnCubicColTable.getD (FinEnum.equiv v).1 0) 5, by omega⟩
+
+theorem linesOnCubicCol_proper : ∀ u v : SRG.linesOnCubic.V,
+    SRG.linesOnCubic.Adj u v = true → linesOnCubicCol u ≠ linesOnCubicCol v := by native_decide
+
+/-- **Six classes of pairwise skew lines suffice, and five do not.** -/
+@[simp, toIsoGraph]
+theorem chromNum_linesOnCubic : SRG.linesOnCubic.chromNum = 6 :=
+  le_antisymm (chromNum_le_of_colouring linesOnCubicCol linesOnCubicCol_proper)
+    six_le_chromNum_linesOnCubic
+
+/-- The Schläfli graph has at most `⌊27 · 2 / 18⌋ = 3` pairwise non-adjacent vertices, and this is
+attained — `SmallGraphs.SRGValues` reads `α = 3` off the complement instead, where it is the three
+lines of a tritangent plane. -/
 @[toIsoGraph]
 theorem indepNum_schlafli_le : SRG.schlafli.indepNum ≤ 3 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.schlafli_srg lambdaMin_schlafli (by norm_num)
@@ -4417,11 +5077,49 @@ theorem nine_le_chromNum_schlafli : 9 ≤ SRG.schlafli.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.schlafli_srg lambdaMin_schlafli (by norm_num)
     (by norm_num)
 
+/-- A proper nine-colouring of the Schläfli graph: nine tritangent planes partitioning the
+twenty-seven lines. -/
+def schlafliColTable : List ℕ :=
+  [1, 3, 7, 5, 8, 0, 7, 1, 3, 8, 0, 5, 0, 5, 8, 4, 6, 2, 6, 2, 4, 3, 2, 4, 6, 7, 1]
+
+/-- The table `schlafliColTable` read as a colouring, clamped into `Fin 9`. -/
+def schlafliCol (v : SRG.schlafli.V) : Fin 9 :=
+  ⟨min (schlafliColTable.getD (FinEnum.equiv v).1 0) 8, by omega⟩
+
+theorem schlafliCol_proper : ∀ u v : SRG.schlafli.V,
+    SRG.schlafli.Adj u v = true → schlafliCol u ≠ schlafliCol v := by native_decide
+
+/-- **The chromatic number of the Schläfli graph is nine**, meeting Hoffman's bound.  Since `α = 3`
+every colour class is forced to be a full tritangent plane, so the colouring is a partition of the
+twenty-seven lines into nine coplanar triples. -/
+@[simp, toIsoGraph]
+theorem chromNum_schlafli : SRG.schlafli.chromNum = 9 :=
+  le_antisymm (chromNum_le_of_colouring schlafliCol schlafliCol_proper) nine_le_chromNum_schlafli
+
 /-- The first Chang graph has at most `⌊28 · 2 / 14⌋ = 4` pairwise non-adjacent vertices. -/
 @[toIsoGraph]
 theorem indepNum_chang₁_le : SRG.chang₁.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.chang₁_srg lambdaMin_chang₁ (by norm_num)
     (by norm_num)
+
+/-- Four pairwise non-adjacent vertices of the first Chang graph. -/
+@[toIsoGraph]
+theorem four_le_indepNum_chang₁ : 4 ≤ SRG.chang₁.indepNum :=
+  le_indepNum_of_nodup (G := SRG.chang₁)
+    (l := ([1, 13, 16, 25] : List (Fin 28)).map (FinEnum.equiv (α := SRG.chang₁.V)).symm)
+    (by decide) (by decide)
+
+/-- **The independence number of the first Chang graph is four**, meeting the ratio bound — as it
+does for `T(8)` itself, where the four are a perfect matching of `K₈`. -/
+@[simp, toIsoGraph]
+theorem indepNum_chang₁ : SRG.chang₁.indepNum = 4 :=
+  le_antisymm indepNum_chang₁_le four_le_indepNum_chang₁
+
+@[simp, toIsoGraph]
+theorem coverNum_chang₁ : SRG.chang₁.coverNum = 24 := by
+  have h := SRG.chang₁.coverNum_add_indepNum
+  rw [SRG.chang₁_srg.card_eq, indepNum_chang₁] at h
+  omega
 
 /-- Seven colours at least, matching `χ(T(8)) = χ'(K₈) = 7`. -/
 @[toIsoGraph]
@@ -4429,11 +5127,47 @@ theorem seven_le_chromNum_chang₁ : 7 ≤ SRG.chang₁.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.chang₁_srg lambdaMin_chang₁ (by norm_num)
     (by norm_num)
 
+/-- A proper seven-colouring of the first Chang graph. -/
+def chang₁ColTable : List ℕ :=
+  [3, 1, 5, 0, 2, 4, 5, 1, 4, 6, 2, 0, 6, 4, 4, 3, 6, 2, 1, 0, 5, 6, 3, 0, 5, 2, 1, 3]
+
+/-- The table `chang₁ColTable` read as a colouring, clamped into `Fin 7`. -/
+def chang₁Col (v : SRG.chang₁.V) : Fin 7 :=
+  ⟨min (chang₁ColTable.getD (FinEnum.equiv v).1 0) 6, by omega⟩
+
+theorem chang₁Col_proper : ∀ u v : SRG.chang₁.V,
+    SRG.chang₁.Adj u v = true → chang₁Col u ≠ chang₁Col v := by native_decide
+
+/-- **The chromatic number of the first Chang graph is seven**, meeting Hoffman's bound, as
+`χ(T(8)) = χ'(K₈) = 7` does.  Twenty-eight vertices in seven classes of four: with `α = 4` the
+classes are again forced to be maximum cocliques. -/
+@[simp, toIsoGraph]
+theorem chromNum_chang₁ : SRG.chang₁.chromNum = 7 :=
+  le_antisymm (chromNum_le_of_colouring chang₁Col chang₁Col_proper) seven_le_chromNum_chang₁
+
 /-- The second Chang graph has at most `4` pairwise non-adjacent vertices. -/
 @[toIsoGraph]
 theorem indepNum_chang₂_le : SRG.chang₂.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.chang₂_srg lambdaMin_chang₂ (by norm_num)
     (by norm_num)
+
+/-- Four pairwise non-adjacent vertices of the second Chang graph. -/
+@[toIsoGraph]
+theorem four_le_indepNum_chang₂ : 4 ≤ SRG.chang₂.indepNum :=
+  le_indepNum_of_nodup (G := SRG.chang₂)
+    (l := ([1, 13, 16, 25] : List (Fin 28)).map (FinEnum.equiv (α := SRG.chang₂.V)).symm)
+    (by decide) (by decide)
+
+/-- **The independence number of the second Chang graph is four.** -/
+@[simp, toIsoGraph]
+theorem indepNum_chang₂ : SRG.chang₂.indepNum = 4 :=
+  le_antisymm indepNum_chang₂_le four_le_indepNum_chang₂
+
+@[simp, toIsoGraph]
+theorem coverNum_chang₂ : SRG.chang₂.coverNum = 24 := by
+  have h := SRG.chang₂.coverNum_add_indepNum
+  rw [SRG.chang₂_srg.card_eq, indepNum_chang₂] at h
+  omega
 
 /-- Seven colours at least for the second Chang graph. -/
 @[toIsoGraph]
@@ -4441,17 +5175,69 @@ theorem seven_le_chromNum_chang₂ : 7 ≤ SRG.chang₂.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.chang₂_srg lambdaMin_chang₂ (by norm_num)
     (by norm_num)
 
+/-- A proper seven-colouring of the second Chang graph. -/
+def chang₂ColTable : List ℕ :=
+  [1, 0, 5, 2, 1, 0, 1, 4, 6, 1, 4, 2, 5, 6, 3, 6, 5, 2, 4, 3, 5, 0, 6, 4, 0, 2, 3, 3]
+
+/-- The table `chang₂ColTable` read as a colouring, clamped into `Fin 7`. -/
+def chang₂Col (v : SRG.chang₂.V) : Fin 7 :=
+  ⟨min (chang₂ColTable.getD (FinEnum.equiv v).1 0) 6, by omega⟩
+
+theorem chang₂Col_proper : ∀ u v : SRG.chang₂.V,
+    SRG.chang₂.Adj u v = true → chang₂Col u ≠ chang₂Col v := by native_decide
+
+/-- **The chromatic number of the second Chang graph is seven.** -/
+@[simp, toIsoGraph]
+theorem chromNum_chang₂ : SRG.chang₂.chromNum = 7 :=
+  le_antisymm (chromNum_le_of_colouring chang₂Col chang₂Col_proper) seven_le_chromNum_chang₂
+
 /-- The third Chang graph has at most `4` pairwise non-adjacent vertices. -/
 @[toIsoGraph]
 theorem indepNum_chang₃_le : SRG.chang₃.indepNum ≤ 4 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.chang₃_srg lambdaMin_chang₃ (by norm_num)
     (by norm_num)
 
+/-- Four pairwise non-adjacent vertices of the third Chang graph. -/
+@[toIsoGraph]
+theorem four_le_indepNum_chang₃ : 4 ≤ SRG.chang₃.indepNum :=
+  le_indepNum_of_nodup (G := SRG.chang₃)
+    (l := ([1, 14, 16, 24] : List (Fin 28)).map (FinEnum.equiv (α := SRG.chang₃.V)).symm)
+    (by decide) (by decide)
+
+/-- **The independence number of the third Chang graph is four.**  The three Chang graphs and
+`T(8)` agree on `α`; they are told apart by `ω`, which is `6, 5, 6` and `7`. -/
+@[simp, toIsoGraph]
+theorem indepNum_chang₃ : SRG.chang₃.indepNum = 4 :=
+  le_antisymm indepNum_chang₃_le four_le_indepNum_chang₃
+
+@[simp, toIsoGraph]
+theorem coverNum_chang₃ : SRG.chang₃.coverNum = 24 := by
+  have h := SRG.chang₃.coverNum_add_indepNum
+  rw [SRG.chang₃_srg.card_eq, indepNum_chang₃] at h
+  omega
+
 /-- Seven colours at least for the third Chang graph. -/
 @[toIsoGraph]
 theorem seven_le_chromNum_chang₃ : 7 ≤ SRG.chang₃.chromNum :=
   le_chromNum_of_isSRGWith_of_lambdaMin SRG.chang₃_srg lambdaMin_chang₃ (by norm_num)
     (by norm_num)
+
+/-- A proper seven-colouring of the third Chang graph. -/
+def chang₃ColTable : List ℕ :=
+  [0, 2, 2, 3, 5, 1, 2, 2, 4, 6, 0, 4, 5, 1, 3, 5, 0, 3, 4, 6, 0, 4, 3, 1, 6, 5, 1, 6]
+
+/-- The table `chang₃ColTable` read as a colouring, clamped into `Fin 7`. -/
+def chang₃Col (v : SRG.chang₃.V) : Fin 7 :=
+  ⟨min (chang₃ColTable.getD (FinEnum.equiv v).1 0) 6, by omega⟩
+
+theorem chang₃Col_proper : ∀ u v : SRG.chang₃.V,
+    SRG.chang₃.Adj u v = true → chang₃Col u ≠ chang₃Col v := by native_decide
+
+/-- **The chromatic number of the third Chang graph is seven.**  So `χ` does not tell the three
+Chang graphs and `T(8)` apart either — all four are `7`, and it takes `ω` to separate them. -/
+@[simp, toIsoGraph]
+theorem chromNum_chang₃ : SRG.chang₃.chromNum = 7 :=
+  le_antisymm (chromNum_le_of_colouring chang₃Col chang₃Col_proper) seven_le_chromNum_chang₃
 
 /-- The Hoffman–Singleton graph has at most `⌊50 · 3 / 10⌋ = 15` pairwise non-adjacent vertices,
 and this is attained: the graph splits into five Petersen graphs, and the fifteen come from
@@ -4461,12 +5247,53 @@ theorem indepNum_hoffmanSingleton_le : SRG.hoffmanSingleton.indepNum ≤ 15 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.hoffmanSingleton_srg lambdaMin_hoffmanSingleton
     (by norm_num) (by norm_num)
 
-/-- The Hoffman–Singleton graph is triangle-free, so no clique bound will do better than `2`, but
-the ratio bound gives `3 ≤ χ`. -/
+/-- Fifteen pairwise non-adjacent vertices of the Hoffman–Singleton graph. -/
 @[toIsoGraph]
-theorem three_le_chromNum_hoffmanSingleton : 3 ≤ SRG.hoffmanSingleton.chromNum :=
-  le_chromNum_of_isSRGWith_of_lambdaMin SRG.hoffmanSingleton_srg lambdaMin_hoffmanSingleton
-    (by norm_num) (by norm_num)
+theorem fifteen_le_indepNum_hoffmanSingleton : 15 ≤ SRG.hoffmanSingleton.indepNum :=
+  le_indepNum_of_nodup (G := SRG.hoffmanSingleton)
+    (l := ([1, 3, 7, 9, 12, 14, 16, 18, 21, 24, 25, 32, 35, 44, 49] : List (Fin 50)))
+    (by decide) (by native_decide)
+
+/-- **The independence number of the Hoffman–Singleton graph is fifteen**, meeting the ratio
+bound. -/
+@[simp, toIsoGraph]
+theorem indepNum_hoffmanSingleton : SRG.hoffmanSingleton.indepNum = 15 :=
+  le_antisymm indepNum_hoffmanSingleton_le fifteen_le_indepNum_hoffmanSingleton
+
+@[simp, toIsoGraph]
+theorem coverNum_hoffmanSingleton : SRG.hoffmanSingleton.coverNum = 35 := by
+  have h := SRG.hoffmanSingleton.coverNum_add_indepNum
+  rw [SRG.hoffmanSingleton_srg.card_eq, indepNum_hoffmanSingleton] at h
+  omega
+
+/-- The Hoffman–Singleton graph is triangle-free, so no clique bound will do better than `2`.
+Hoffman's bound on `χ` gives only `3`; fifty vertices fifteen to a colour class give `4`. -/
+@[toIsoGraph]
+theorem four_le_chromNum_hoffmanSingleton : 4 ≤ SRG.hoffmanSingleton.chromNum := by
+  have h := SRG.hoffmanSingleton.card_le_chromNum_mul_indepNum
+  rw [SRG.hoffmanSingleton_srg.card_eq, indepNum_hoffmanSingleton] at h
+  omega
+
+/-- A proper four-colouring of the Hoffman–Singleton graph. -/
+def hoffmanSingletonColTable : List ℕ :=
+  [2, 0, 3, 1, 0, 0, 1, 2, 0, 1, 0, 2, 0, 3, 1, 1, 0, 2, 1, 0, 2, 1, 3, 1, 0,
+   3, 3, 1, 2, 2, 0, 2, 2, 3, 1, 1, 2, 2, 0, 3, 3, 1, 0, 2, 2, 3, 1, 2, 2, 3]
+
+/-- The table `hoffmanSingletonColTable` read as a colouring, clamped into `Fin 4`. -/
+def hoffmanSingletonCol (v : SRG.hoffmanSingleton.V) : Fin 4 :=
+  ⟨min (hoffmanSingletonColTable.getD (FinEnum.equiv v).1 0) 3, by omega⟩
+
+theorem hoffmanSingletonCol_proper : ∀ u v : SRG.hoffmanSingleton.V,
+    SRG.hoffmanSingleton.Adj u v = true →
+      hoffmanSingletonCol u ≠ hoffmanSingletonCol v := by native_decide
+
+/-- **The chromatic number of the Hoffman–Singleton graph is four**, meeting the counting bound
+`50 ≤ χ · 15`.  Only one of the four classes below is a maximum coclique — the bound is tight
+without the extremal structure that usually comes with tightness. -/
+@[simp, toIsoGraph]
+theorem chromNum_hoffmanSingleton : SRG.hoffmanSingleton.chromNum = 4 :=
+  le_antisymm (chromNum_le_of_colouring hoffmanSingletonCol hoffmanSingletonCol_proper)
+    four_le_chromNum_hoffmanSingleton
 
 /-- The Gewirtz graph has at most `⌊56 · 4 / 14⌋ = 16` pairwise non-adjacent vertices, and this is
 attained. -/
@@ -4475,11 +5302,49 @@ theorem indepNum_gewirtz_le : SRG.gewirtz.indepNum ≤ 16 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.gewirtz_srg lambdaMin_gewirtz (by norm_num)
     (by norm_num)
 
-/-- The Gewirtz graph is triangle-free; the ratio bound still gives `3 ≤ χ`. -/
+/-- Sixteen pairwise non-adjacent blocks of the Steiner system. -/
 @[toIsoGraph]
-theorem three_le_chromNum_gewirtz : 3 ≤ SRG.gewirtz.chromNum :=
-  le_chromNum_of_isSRGWith_of_lambdaMin SRG.gewirtz_srg lambdaMin_gewirtz (by norm_num)
-    (by norm_num)
+theorem sixteen_le_indepNum_gewirtz : 16 ≤ SRG.gewirtz.indepNum :=
+  le_indepNum_of_nodup (G := SRG.gewirtz)
+    (l := ([3, 5, 8, 14, 18, 21, 27, 30, 32, 38, 40, 43, 48, 50, 52, 54] : List (Fin 56)))
+    (by decide) (by native_decide)
+
+/-- **The independence number of the Gewirtz graph is sixteen**, meeting the ratio bound. -/
+@[simp, toIsoGraph]
+theorem indepNum_gewirtz : SRG.gewirtz.indepNum = 16 :=
+  le_antisymm indepNum_gewirtz_le sixteen_le_indepNum_gewirtz
+
+@[simp, toIsoGraph]
+theorem coverNum_gewirtz : SRG.gewirtz.coverNum = 40 := by
+  have h := SRG.gewirtz.coverNum_add_indepNum
+  rw [SRG.gewirtz_srg.card_eq, indepNum_gewirtz] at h
+  omega
+
+/-- The Gewirtz graph is triangle-free; Hoffman's bound gives `3 ≤ χ` and fifty-six vertices
+sixteen to a colour class give `4 ≤ χ`. -/
+@[toIsoGraph]
+theorem four_le_chromNum_gewirtz : 4 ≤ SRG.gewirtz.chromNum := by
+  have h := SRG.gewirtz.card_le_chromNum_mul_indepNum
+  rw [SRG.gewirtz_srg.card_eq, indepNum_gewirtz] at h
+  omega
+
+/-- A proper four-colouring of the Gewirtz graph. -/
+def gewirtzColTable : List ℕ :=
+  [2, 3, 1, 1, 1, 1, 3, 2, 3, 2, 1, 1, 1, 1, 2, 3, 0, 0, 2, 1, 0, 0, 2, 3, 3, 2, 0, 0,
+   2, 3, 0, 0, 0, 0, 3, 2, 0, 0, 1, 3, 2, 3, 0, 0, 2, 1, 1, 3, 0, 0, 3, 2, 3, 2, 2, 3]
+
+/-- The table `gewirtzColTable` read as a colouring, clamped into `Fin 4`. -/
+def gewirtzCol (v : SRG.gewirtz.V) : Fin 4 :=
+  ⟨min (gewirtzColTable.getD (FinEnum.equiv v).1 0) 3, by omega⟩
+
+theorem gewirtzCol_proper : ∀ u v : SRG.gewirtz.V,
+    SRG.gewirtz.Adj u v = true → gewirtzCol u ≠ gewirtzCol v := by native_decide
+
+/-- **The chromatic number of the Gewirtz graph is four**, meeting the counting bound
+`56 ≤ χ · 16`. -/
+@[simp, toIsoGraph]
+theorem chromNum_gewirtz : SRG.gewirtz.chromNum = 4 :=
+  le_antisymm (chromNum_le_of_colouring gewirtzCol gewirtzCol_proper) four_le_chromNum_gewirtz
 
 /-- The `M₂₂` graph has at most `⌊77 · 6 / 22⌋ = 21` pairwise non-adjacent vertices, and this is
 attained. -/
@@ -4487,10 +5352,58 @@ attained. -/
 theorem indepNum_m22_le : SRG.m22.indepNum ≤ 21 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.m22_srg lambdaMin_m22 (by norm_num) (by norm_num)
 
-/-- The `M₂₂` graph is triangle-free; the ratio bound still gives `3 ≤ χ`. -/
+/-- Twenty-one pairwise non-adjacent blocks. -/
 @[toIsoGraph]
-theorem three_le_chromNum_m22 : 3 ≤ SRG.m22.chromNum :=
-  le_chromNum_of_isSRGWith_of_lambdaMin SRG.m22_srg lambdaMin_m22 (by norm_num) (by norm_num)
+theorem twentyone_le_indepNum_m22 : 21 ≤ SRG.m22.indepNum :=
+  le_indepNum_of_nodup (G := SRG.m22)
+    (l := ([0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 41, 42, 43, 44, 45, 57, 61, 65, 69, 73] :
+      List (Fin 77)))
+    (by decide) (by native_decide)
+
+/-- **The independence number of the `M₂₂` graph is twenty-one**, meeting the ratio bound. -/
+@[simp, toIsoGraph]
+theorem indepNum_m22 : SRG.m22.indepNum = 21 :=
+  le_antisymm indepNum_m22_le twentyone_le_indepNum_m22
+
+@[simp, toIsoGraph]
+theorem coverNum_m22 : SRG.m22.coverNum = 56 := by
+  have h := SRG.m22.coverNum_add_indepNum
+  rw [SRG.m22_srg.card_eq, indepNum_m22] at h
+  omega
+
+/-- The `M₂₂` graph is triangle-free; Hoffman's bound gives `3 ≤ χ` and seventy-seven vertices
+twenty-one to a colour class give `4 ≤ χ`. -/
+@[toIsoGraph]
+theorem four_le_chromNum_m22 : 4 ≤ SRG.m22.chromNum := by
+  have h := SRG.m22.card_le_chromNum_mul_indepNum
+  rw [SRG.m22_srg.card_eq, indepNum_m22] at h
+  omega
+
+/-- Four colours do not suffice: `77 ≤ 4 · 21 = 84` leaves the counting bound seven vertices of
+slack, and closing that gap is a search rather than an arithmetic. -/
+@[toIsoGraph]
+theorem five_le_chromNum_m22 : 5 ≤ SRG.m22.chromNum := by
+  show 4 < SRG.m22.chromNum
+  graph_sat native (timeout := 300)
+
+/-- A proper five-colouring of the `M₂₂` graph. -/
+def m22ColTable : List ℕ :=
+  [3, 3, 3, 3, 2, 2, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 0, 1, 0, 1, 0, 4,
+   0, 4, 2, 2, 2, 2, 2, 2, 2, 2, 4, 0, 4, 0, 4, 1, 0, 1, 0, 4, 1, 1, 4, 1, 1, 0,
+   1, 4, 1, 0, 2, 3, 3, 3, 3, 4, 4, 0, 0, 2, 2, 2, 2, 0, 4, 0, 4, 0, 1, 1, 0]
+
+/-- The table `m22ColTable` read as a colouring, clamped into `Fin 5`. -/
+def m22Col (v : SRG.m22.V) : Fin 5 :=
+  ⟨min (m22ColTable.getD (FinEnum.equiv v).1 0) 4, by omega⟩
+
+theorem m22Col_proper : ∀ u v : SRG.m22.V,
+    SRG.m22.Adj u v = true → m22Col u ≠ m22Col v := by native_decide
+
+/-- **The chromatic number of the `M₂₂` graph is five.**  Unlike the Gewirtz graph, which has the
+same `λ = 0` and a counting bound with the same slack, this one does not manage `4`. -/
+@[simp, toIsoGraph]
+theorem chromNum_m22 : SRG.m22.chromNum = 5 :=
+  le_antisymm (chromNum_le_of_colouring m22Col m22Col_proper) five_le_chromNum_m22
 
 /-- The Higman–Sims graph has at most `⌊100 · 8 / 30⌋ = 26` pairwise non-adjacent vertices.  This
 one is not attained — the true value is `22` — which is what a bound with an irrational ratio
@@ -4500,11 +5413,90 @@ theorem indepNum_higmanSims_le : SRG.higmanSims.indepNum ≤ 26 :=
   indepNum_le_of_isSRGWith_of_lambdaMin SRG.higmanSims_srg lambdaMin_higmanSims (by norm_num)
     (by norm_num)
 
-/-- The Higman–Sims graph is triangle-free; the ratio bound still gives `3 ≤ χ`. -/
+/-- Twenty-two pairwise non-adjacent vertices, the true value of `α`.  The other four the ratio
+bound allows are not there, and ruling them out is beyond the SAT solver here — so the Higman–Sims
+graph is the one place in this file where `α` is bracketed rather than pinned. -/
 @[toIsoGraph]
-theorem three_le_chromNum_higmanSims : 3 ≤ SRG.higmanSims.chromNum :=
-  le_chromNum_of_isSRGWith_of_lambdaMin SRG.higmanSims_srg lambdaMin_higmanSims (by norm_num)
-    (by norm_num)
+theorem twentytwo_le_indepNum_higmanSims : 22 ≤ SRG.higmanSims.indepNum :=
+  le_indepNum_of_nodup (G := SRG.higmanSims)
+    (l := ([0, 2, 8, 12, 15, 19, 43, 45, 46, 48, 58, 60, 63, 65, 68, 74, 83, 84, 91, 93, 96, 97] :
+      List (Fin 100)))
+    (by decide) (by native_decide)
+
+/-- Loose in the same direction as the independence bound it comes from: `100 - 26`, where the
+true vertex cover number is `78`. -/
+@[toIsoGraph]
+theorem seventyfour_le_coverNum_higmanSims : 74 ≤ SRG.higmanSims.coverNum := by
+  have h := SRG.higmanSims.coverNum_add_indepNum
+  have h2 := indepNum_higmanSims_le
+  rw [SRG.higmanSims_srg.card_eq] at h
+  omega
+
+/-- The other side of the bracket, from the twenty-two independent vertices. -/
+@[toIsoGraph]
+theorem coverNum_higmanSims_le : SRG.higmanSims.coverNum ≤ 78 := by
+  have h := SRG.higmanSims.coverNum_add_indepNum
+  have h2 := twentytwo_le_indepNum_higmanSims
+  rw [SRG.higmanSims_srg.card_eq] at h
+  omega
+
+/-- The Higman–Sims graph is triangle-free; Hoffman's bound gives `3 ≤ χ`, and a hundred vertices
+twenty-six to a colour class give `4 ≤ χ` — the loose bound on `α` is still enough. -/
+@[toIsoGraph]
+theorem four_le_chromNum_higmanSims : 4 ≤ SRG.higmanSims.chromNum := by
+  have h := SRG.higmanSims.card_le_chromNum_mul_indepNum
+  have h2 := indepNum_higmanSims_le
+  rw [SRG.higmanSims_srg.card_eq] at h
+  nlinarith
+
+/-- A proper six-colouring of the Higman–Sims graph. -/
+def higmanSimsColTable : List ℕ :=
+  [4, 2, 0, 0, 2, 4, 4, 4, 4, 0, 5, 1, 1, 0, 1, 1, 4, 2, 1, 2, 1, 4, 1, 3, 0,
+   5, 2, 1, 5, 3, 2, 5, 3, 1, 5, 0, 1, 0, 5, 1, 4, 3, 3, 1, 4, 4, 0, 1, 5, 4,
+   1, 3, 2, 2, 1, 3, 4, 4, 1, 5, 4, 3, 3, 0, 2, 2, 5, 0, 5, 0, 2, 3, 3, 0, 2,
+   4, 5, 0, 1, 1, 2, 2, 0, 1, 0, 5, 0, 3, 1, 2, 5, 5, 3, 2, 1, 0, 5, 1, 3, 3]
+
+/-- The table `higmanSimsColTable` read as a colouring, clamped into `Fin 6`. -/
+def higmanSimsCol (v : SRG.higmanSims.V) : Fin 6 :=
+  ⟨min (higmanSimsColTable.getD (FinEnum.equiv v).1 0) 5, by omega⟩
+
+theorem higmanSimsCol_proper : ∀ u v : SRG.higmanSims.V,
+    SRG.higmanSims.Adj u v = true → higmanSimsCol u ≠ higmanSimsCol v := by native_decide
+
+/-- Six colours suffice for the Higman–Sims graph, and six is the true value; the lower bound of
+`4` above is what the counting argument gives, and closing the last two is out of reach here for
+the same reason `α` is — a hundred vertices is a lot of clauses. -/
+@[toIsoGraph]
+theorem chromNum_higmanSims_le : SRG.higmanSims.chromNum ≤ 6 :=
+  chromNum_le_of_colouring higmanSimsCol higmanSimsCol_proper
+
+end CGraph
+
+namespace IsoGraph
+
+/-! ### Clique covers of the twenty-seven lines
+
+The Schläfli graph is the complement of the graph of lines on a cubic surface, so each one's
+clique cover number is the other's chromatic number.  Both are now known, so both clique cover
+numbers come for free — and they are the only two of the ten sporadic graphs whose complement is
+also in the library. -/
+
+/-- **The Schläfli graph has clique cover number six**: it is `χ` of the lines on a cubic
+surface, so the six cliques are the six classes of pairwise skew lines. -/
+@[simp]
+theorem cliqueCoverNum_schlafli : schlafli.cliqueCoverNum = 6 := by
+  rw [show schlafli = linesOnCubicᶜ from rfl, cliqueCoverNum_compl, chromNum_linesOnCubic]
+
+/-- **The lines on a cubic surface have clique cover number nine**: nine tritangent planes cover
+the twenty-seven lines, which is `χ` of the Schläfli graph. -/
+@[simp]
+theorem cliqueCoverNum_linesOnCubic : linesOnCubic.cliqueCoverNum = 9 := by
+  rw [show linesOnCubic = schlafliᶜ from by rw [show schlafli = linesOnCubicᶜ from rfl, compl_compl],
+    cliqueCoverNum_compl, chromNum_schlafli]
+
+end IsoGraph
+
+namespace CGraph
 
 /-- **The eigenvalues of a path are all `< 2`.** -/
 theorem lt_two_of_mem_spectrum_path (n : ℕ) {x : ℝ} (hx : x ∈ (path n).spectrum) : x < 2 := by
@@ -6194,6 +7186,31 @@ theorem Cospectral.isConnected {G H : CGraph} (h : Cospectral G H) {k : ℕ}
   (isConnected_iff_count_spectrum_eq_one (h.isRegularWith hG)).2
     (by rw [← h.spectrum_eq]; exact (isConnected_iff_count_spectrum_eq_one hG).1 hconn)
 
+/-- **Complementation carries a spectral determination to the complement**, for a connected
+regular graph whose complement is connected too.  A graph cospectral with `Gᶜ` is regular by
+`Cospectral.isRegularWith` and connected by `Cospectral.isConnected`, so complementing it lands
+back among the graphs cospectral with `G`. -/
+theorem isDS_compl_of_isDS {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k)
+    (hconn' : Gᶜ.IsConnected) (h : G.IsDS) : Gᶜ.IsDS := by
+  intro H hc
+  have hregc := hreg.compl
+  have hregH : H.IsRegularWith (FinEnum.card G.V - 1 - k) := hc.isRegularWith hregc
+  have hconnH : H.IsConnected := hc.isConnected hregc hconn'
+  have hcard : FinEnum.card Gᶜ.V = FinEnum.card H.V := hc.card_eq
+  have hspec : Hᶜ.spectrum = G.spectrum := by
+    rw [spectrum_compl_of_isRegularWith hconnH hregH, ← hcard, ← hc.spectrum_eq,
+      ← spectrum_compl_of_isRegularWith hconn' hregc, compl_compl]
+  exact (h Hᶜ (cospectral_iff_spectrum_eq.2 hspec.symm)).map fun i ↦ by
+    rw [← compl_compl H]; exact i.compl
+
+/-- **A connected regular graph is determined by its spectrum exactly when its complement is**, as
+long as the complement is connected as well. -/
+theorem isDS_compl_iff {G : CGraph} {k : ℕ} (hreg : G.IsRegularWith k)
+    (hconn : G.IsConnected) (hconn' : Gᶜ.IsConnected) : Gᶜ.IsDS ↔ G.IsDS := by
+  refine ⟨fun h ↦ ?_, isDS_compl_of_isDS hreg hconn'⟩
+  have h2 := isDS_compl_of_isDS hreg.compl (by rwa [compl_compl]) h
+  rwa [compl_compl] at h2
+
 /-! ## Bipartiteness of a connected graph is spectral
 
 The easy half is `spectrum_neg_of_isBipartite`: the spectrum of a bipartite graph is symmetric, so
@@ -6911,6 +7928,67 @@ theorem energy_star (n : ℕ) : (star (n + 1)).energy = 2 * Real.sqrt (n + 1) :=
   simp [abs_of_nonneg (Real.sqrt_nonneg ((n : ℝ) + 1))]
   ring
 
+/-- **The energy of a circulant graph**, as a sum over its eigenvalues. -/
+@[toIsoGraph]
+theorem energy_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    (circulant n S).energy = ∑ m : Fin n, |circulantEig n S m.1| := by
+  rw [energy, spectrum_circulant hn S, Multiset.map_map]
+  rfl
+
+/-- **The energy of a cycle**, as a sum over its eigenvalues. -/
+@[toIsoGraph]
+theorem energy_cycle {n : ℕ} (hn : 3 ≤ n) :
+    (cycle n).energy = ∑ m : Fin n, |2 * Real.cos (2 * Real.pi * m.1 / n)| := by
+  rw [energy, spectrum_cycle hn, Multiset.map_map]
+  rfl
+
+/-- **The energy of a path**, as a sum over its eigenvalues. -/
+@[toIsoGraph]
+theorem energy_path (n : ℕ) :
+    (path n).energy = ∑ m : Fin n, |2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1))| := by
+  rw [energy, spectrum_path, Multiset.map_map]
+  rfl
+
+/-- **The energy of a Cartesian product**, as a sum over the pairs of eigenvalues.  Unlike the
+tensor product the energy is not multiplicative here: `|λ + μ|` does not factor. -/
+theorem energy_cartesianProduct (G H : CGraph) :
+    (G □g H).energy = ∑ p : G.V × H.V, |G.eigenvalues p.1 + H.eigenvalues p.2| := by
+  rw [energy, spectrum_cartesianProduct, Multiset.map_map]
+  rfl
+
+/-- **The energy of a strong product**, as a sum over the pairs of eigenvalues. -/
+theorem energy_strongProduct (G H : CGraph) :
+    (G ⊠g H).energy
+      = ∑ p : G.V × H.V, |(1 + G.eigenvalues p.1) * (1 + H.eigenvalues p.2) - 1| := by
+  rw [energy, spectrum_strongProduct, Multiset.map_map]
+  rfl
+
+/-- **The energy of the line graph of a `k`-regular graph**: the `|E| - |V|` eigenvalues equal to
+`-2` contribute `2 (|E| - |V|)`, and every eigenvalue `λ` of `G` contributes `|λ + k - 2|`. -/
+@[toIsoGraph]
+theorem energy_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
+    (h : G.IsRegularWith k) (hle : FinEnum.card G.V ≤ G.E) :
+    (lineGraph G).energy
+      = 2 * (G.E - FinEnum.card G.V) + (G.spectrum.map (fun x ↦ |x + ((k : ℝ) - 2)|)).sum := by
+  rw [energy, spectrum_lineGraph_of_isRegularWith h hle, Multiset.map_add, Multiset.sum_add,
+    Multiset.map_replicate, Multiset.sum_replicate, Multiset.map_map]
+  norm_num [Function.comp_def]
+  rw [Nat.cast_sub hle]
+  ring
+
+/-- **The energy of the complement of a connected regular graph**: the degree contributes
+`|n - 1 - k|` and every other eigenvalue `x` contributes `|1 + x|`. -/
+@[toIsoGraph]
+theorem energy_compl_of_isRegularWith {G : CGraph}
+    (hconn : G.IsConnected) {k : ℕ} (hreg : G.IsRegularWith k) :
+    Gᶜ.energy = |(FinEnum.card G.V : ℝ) - 1 - k|
+      + ((G.spectrum.erase (k : ℝ)).map (fun x ↦ |1 + x|)).sum := by
+  rw [energy, spectrum_compl_of_isRegularWith hconn hreg, Multiset.map_cons, Multiset.sum_cons,
+    Multiset.map_map]
+  congr 1
+  refine congrArg Multiset.sum (Multiset.map_congr rfl fun x _ ↦ ?_)
+  rw [Function.comp_apply, show (-1 : ℝ) - x = -(1 + x) from by ring, abs_neg]
+
 /-- **The energy of the Petersen graph** is `16`: `3 + 5 · 1 + 4 · 2`. -/
 @[toIsoGraph]
 theorem energy_petersen : SRG.petersen.energy = 16 := by
@@ -7004,6 +8082,92 @@ theorem energy_higmanSims : SRG.higmanSims.energy = 352 := by
   rw [energy_of_spectrum_eq (by norm_num) (by norm_num) (by norm_num) spectrum_higmanSims]
   norm_num
 
+/-! ### The energy of the strongly regular families
+
+The same `k + f r - g s`, now with a parameter in it.  Three of the four are integers again; the
+Paley graph is the conference case, and its energy `2t (1 + √q)` is irrational. -/
+
+/-- The cocktail party graph `K_{n×2}` has energy `(2n - 2) + (n - 1) · 2 = 4n - 4`. -/
+@[toIsoGraph]
+theorem energy_cocktailParty (m : ℕ) : (cocktailParty (m + 2)).energy = 4 * (m : ℝ) + 4 := by
+  rw [energy_of_spectrum_eq (by positivity) (le_refl 0) (by norm_num)
+    (spectrum_cocktailParty m)]
+  push_cast
+  ring
+
+/-- **The energy of the complete multipartite graph `K_{r×s}` is `2 (r-1) s`**, twice its degree:
+the only nonzero eigenvalues are the degree and `r - 1` copies of `-s`. -/
+@[toIsoGraph]
+theorem energy_completeMultipartite_replicate (p a : ℕ) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).energy
+      = 2 * (((p : ℝ) + 1) * ((a : ℝ) + 1)) := by
+  have hna : (0 : ℝ) ≤ (a : ℝ) := Nat.cast_nonneg a
+  rw [energy_of_spectrum_eq (by positivity) (le_refl 0) (by linarith)
+    (spectrum_completeMultipartite_replicate p a)]
+  push_cast
+  ring
+
+/-- The rook's graph `Kₙ □ Kₙ` has energy `(2n - 2) + 2 (n - 1) ² + 2 (n - 1) ² = 4 (n - 1) ²`. -/
+@[toIsoGraph]
+theorem energy_rook (k : ℕ) : (rook (k + 2) (k + 2)).energy = 4 * ((k : ℝ) + 1) ^ 2 := by
+  rw [energy_of_spectrum_eq (by positivity) (Nat.cast_nonneg k) (by norm_num) (spectrum_rook k)]
+  push_cast
+  ring
+
+/-- The triangular graph `T(n)` has energy `2 n (n - 3)`, written `2 (m + 1) (m + 4)` at
+`n = m + 4`: the `-2` eigenvalues contribute `2 (C(n, 2) - n)` and the rest is
+`(2n - 4) + (n - 1) (n - 4)`. -/
+@[toIsoGraph]
+theorem energy_triangular (m : ℕ) :
+    (triangular (m + 4)).energy = 2 * ((m : ℝ) + 1) * ((m : ℝ) + 4) := by
+  have hch : m + 4 < (m + 4).choose 2 := by
+    have h1 : (m + 4).choose 2 = (m + 3) + ((m + 2) + (m + 2).choose 2) := by
+      rw [Nat.choose_succ_succ (m + 3) 1, Nat.choose_succ_succ (m + 2) 1]
+      simp [Nat.choose_one_right]
+    have h2 : 0 < (m + 2).choose 2 := Nat.choose_pos (by omega)
+    omega
+  have hcast : (((m + 4).choose 2 - (m + 4) : ℕ) : ℝ)
+      = ((m : ℝ) + 4) * ((m : ℝ) + 3) / 2 - ((m : ℝ) + 4) := by
+    rw [Nat.cast_sub hch.le, Nat.cast_choose_two]
+    push_cast
+    ring
+  rw [energy_of_spectrum_eq (by positivity) (Nat.cast_nonneg m) (by norm_num)
+    (spectrum_triangular m), hcast]
+  push_cast
+  ring
+
+/-- The Paley graph `P(q)`, `q = 4t + 1`, has energy `2t + 2t √q`: the only irrational value in
+this section, and the reason is the conference case of the integrality condition. -/
+@[toIsoGraph]
+theorem energy_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).energy = 2 * (t : ℝ) + 2 * t * Real.sqrt (4 * (t : ℝ) + 1) := by
+  have hs0 : 0 ≤ Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_nonneg _
+  have hsq : Real.sqrt (4 * (t : ℝ) + 1) ^ 2 = 4 * (t : ℝ) + 1 := Real.sq_sqrt (by positivity)
+  have ht1 : (1 : ℝ) ≤ t := by exact_mod_cast ht
+  have h1 : (1 : ℝ) ≤ Real.sqrt (4 * (t : ℝ) + 1) := by nlinarith
+  rw [energy_of_spectrum_eq (by positivity) (by linarith) (by linarith) (spectrum_paley t ht)]
+  push_cast
+  ring
+
+section
+open Fintype
+variable {F : Type} [Field F] [FinEnum F]
+
+/-- The Paley graph of any field with `4t + 1` elements has energy `2t + 2t √q`. -/
+@[toIsoGraph]
+theorem energy_paleyField {t : ℕ} (ht : 0 < t) (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).energy = 2 * (t : ℝ) + 2 * t * Real.sqrt (4 * (t : ℝ) + 1) := by
+  have hs0 : 0 ≤ Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_nonneg _
+  have hsq : Real.sqrt (4 * (t : ℝ) + 1) ^ 2 = 4 * (t : ℝ) + 1 := Real.sq_sqrt (by positivity)
+  have ht1 : (1 : ℝ) ≤ t := by exact_mod_cast ht
+  have h1 : (1 : ℝ) ≤ Real.sqrt (4 * (t : ℝ) + 1) := by nlinarith
+  rw [energy_of_spectrum_eq (by positivity) (by linarith) (by linarith)
+    (spectrum_paleyField ht hcard)]
+  push_cast
+  ring
+
+end
+
 /-! ## The Laplacian -/
 
 /-- The **Laplacian** of `G`: the degree matrix minus the adjacency matrix. -/
@@ -7079,6 +8243,15 @@ theorem lapSpectrum_eq_map (G : CGraph) :
     G.lapSpectrum = Finset.univ.val.map G.lapEigenvalues := by
   simpa [lapSpectrum, lapCharpoly, lapEigenvalues, Function.comp_def]
     using G.isHermitian_lapMat.roots_charpoly_eq_eigenvalues
+
+theorem lapCharpoly_eq_prod (G : CGraph) :
+    G.lapCharpoly = ∏ i, (X - C (G.lapEigenvalues i)) :=
+  G.isHermitian_lapMat.charpoly_eq
+
+theorem lapCharpoly_eq_prod_lapSpectrum (G : CGraph) :
+    G.lapCharpoly = (G.lapSpectrum.map (fun x ↦ X - C x)).prod := by
+  rw [lapSpectrum_eq_map, Multiset.map_map, lapCharpoly_eq_prod]
+  rfl
 
 @[simp, toIsoGraph] theorem card_lapSpectrum (G : CGraph) :
     Multiset.card G.lapSpectrum = FinEnum.card G.V := by
@@ -7278,6 +8451,28 @@ theorem spectrum_of_isRegularWith {G : CGraph} {k : ℕ} (h : G.IsRegularWith k)
     G.spectrum = G.lapSpectrum.map (fun x ↦ (k : ℝ) - x) := by
   rw [lapSpectrum_of_isRegularWith h, Multiset.map_map]
   simp
+
+/-- **A circulant is regular**, of degree the size of its connection set. -/
+@[toIsoGraph]
+theorem isRegularWith_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    (circulant n S).IsRegularWith (circulantDeg n S) := by
+  intro x
+  rw [SimpleGraph.degree, SimpleGraph.neighborFinset_eq_filter, Finset.card_filter]
+  simp only [CGraph.toSimple_adj, circulant_adj]
+  exact (Fintype.sum_equiv (ι := (circulant n S).V) (κ := Fin n) (circShift hn x)
+      (fun y ↦ if circulantSet n S ((y.1 + n - x.1) % n) = true then 1 else 0)
+      (fun d ↦ if circulantSet n S d.1 = true then 1 else 0) (fun _ ↦ rfl)).trans
+    (Fin.sum_univ_eq_sum_range (fun d ↦ if circulantSet n S d = true then 1 else 0) n)
+
+/-- **The Laplacian spectrum of a circulant graph**, its degree minus each eigenvalue. -/
+@[toIsoGraph]
+theorem lapSpectrum_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    (circulant n S).lapSpectrum
+      = Finset.univ.val.map
+          (fun m : Fin n ↦ (circulantDeg n S : ℝ) - circulantEig n S m.1) := by
+  rw [lapSpectrum_of_isRegularWith (isRegularWith_circulant hn S), spectrum_circulant hn S,
+    Multiset.map_map]
+  rfl
 
 theorem isRegularWith_empty (n : ℕ) : (empty n).IsRegularWith 0 := by
   intro v
@@ -7625,6 +8820,465 @@ theorem spectrum_join_of_isRegularWith {G H : CGraph}
   rw [Multiset.map_cons, Multiset.map_cons, Multiset.map_add, Multiset.map_map, Multiset.map_map,
     Multiset.map_map, Multiset.map_map]
   simp only [Function.comp_def, sub_zero, hhead, hk, hl, Multiset.map_id']
+
+/-- **The energy of a regular join**: the common degree `m` and the second eigenvalue `k - n`,
+together with every other eigenvalue of each factor. -/
+@[toIsoGraph]
+theorem energy_join_of_isRegularWith {G H : CGraph}
+    [Nonempty G.V] [Nonempty H.V] {k l m : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l)
+    (h1 : k + FinEnum.card H.V = m) (h2 : FinEnum.card G.V + l = m) :
+    (G ∇g H).energy
+      = m + |(k : ℝ) - FinEnum.card G.V|
+        + (((G.spectrum.erase (k : ℝ)).map (|·|)).sum
+          + ((H.spectrum.erase (l : ℝ)).map (|·|)).sum) := by
+  rw [energy, spectrum_join_of_isRegularWith hG hH h1 h2, Multiset.map_cons, Multiset.sum_cons,
+    Multiset.map_cons, Multiset.sum_cons, Multiset.map_add, Multiset.sum_add, Nat.abs_cast,
+    add_assoc]
+
+/-! ### Joins of two regular graphs
+
+`spectrum_join_of_isRegularWith` above needs the *join* to be regular, which forces the two
+factors to match up (`k + m = n + l`).  Only the factors need to be regular for the spectrum to be
+determined, though: every eigenvector of `G` orthogonal to `1` extends by zero to an eigenvector
+of `G ∇ H` with the same eigenvalue, and likewise for `H`, leaving a two-dimensional space
+spanned by the two all-ones vectors on which the join acts as a `2 × 2` matrix.  Its characteristic
+polynomial `(X - k) (X - l) - n m` supplies the two remaining eigenvalues.  The primed names below
+are the general statements; the unprimed ones are the regular-join special case. -/
+
+/-- **The adjacency matrix of a join** in block form: the two factors on the diagonal, all-ones
+blocks off it. -/
+theorem adjMat_join (G H : CGraph) :
+    (G ∇g H).adjMat = Matrix.fromBlocks G.adjMat (Matrix.vecMulVec 1 1)
+      (Matrix.vecMulVec 1 1) H.adjMat := by
+  ext i j
+  cases i <;> cases j <;> simp [adjMat_apply, join, Matrix.vecMulVec]
+
+/-- The determinant of the characteristic matrix `x I - A` is the characteristic polynomial
+evaluated at `x`. -/
+theorem det_charmat (G : CGraph) (x : ℝ) :
+    (Matrix.scalar G.V x - G.adjMat).det = G.charpoly.eval x := by
+  rw [charpoly_eq_matrix_charpoly, Matrix.eval_charpoly]
+
+/-- The all-ones vector is an eigenvector of the adjacency matrix of a `k`-regular graph, with
+eigenvalue `k`. -/
+theorem adjMat_mulVec_one {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) :
+    G.adjMat *ᵥ (1 : G.V → ℝ) = (k : ℝ) • 1 := by
+  funext i
+  simpa [adjMat] using
+    SimpleGraph.adjMatrix_mulVec_const_apply_of_regular (α := ℝ) (a := (1 : ℝ)) h (v := i)
+
+/-- Consequently the rows of the characteristic matrix of a `k`-regular graph all sum to
+`x - k`. -/
+theorem charmat_mulVec_one {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) (x : ℝ) :
+    (Matrix.scalar G.V x - G.adjMat) *ᵥ (1 : G.V → ℝ) = (x - (k : ℝ)) • 1 := by
+  rw [Matrix.sub_mulVec, scalar_eq_smul_one, Matrix.smul_mulVec, Matrix.one_mulVec,
+    adjMat_mulVec_one h]
+  module
+
+/-- The characteristic polynomial of a join, evaluated at `x`, as a block determinant over
+`G.V ⊕ H.V`.  A join carries the `Fintype` and `DecidableEq` instances that its own `FinEnum`
+induces, and no Mathlib lemma about `fromBlocks` will fire against those, so they are traded for
+the structural ones first. -/
+theorem eval_charpoly_join (G H : CGraph) (x : ℝ) :
+    (G ∇g H).charpoly.eval x
+      = @Matrix.det (G.V ⊕ H.V) instDecidableEqSum (instFintypeSum G.V H.V) ℝ _
+          (Matrix.fromBlocks (Matrix.scalar G.V x - G.adjMat)
+            (-Matrix.vecMulVec (1 : G.V → ℝ) (1 : H.V → ℝ))
+            (-Matrix.vecMulVec (1 : H.V → ℝ) (1 : G.V → ℝ))
+            (Matrix.scalar H.V x - H.adjMat)) := by
+  classical
+  rw [charpoly_eq_matrix_charpoly, adjMat_join,
+    fintype_eq_sum (FinEnum.instFintype : Fintype (G ∇g H).V),
+    decEq_eq_sum (FinEnum.decEq : DecidableEq (G ∇g H).V)]
+  exact eval_charpoly_fromBlocks x G.adjMat _ _ H.adjMat
+
+/-- **The characteristic polynomial of a join of two regular graphs, pointwise.**  For `G`
+`k`-regular on `n` vertices and `H` `l`-regular on `m` vertices,
+
+`(x - k) (x - l) φ_{G ∇ H}(x) = ((x - k) (x - l) - n m) φ_G(x) φ_H(x)`,
+
+proved wherever the four factors on the left are nonzero, which is where the block determinant
+formula applies. -/
+theorem eval_charpoly_join_of_isRegularWith {G H : CGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) {x : ℝ}
+    (hxk : x - (k : ℝ) ≠ 0) (hxl : x - (l : ℝ) ≠ 0)
+    (hGx : G.charpoly.eval x ≠ 0) (hHx : H.charpoly.eval x ≠ 0) :
+    (x - (k : ℝ)) * (x - (l : ℝ)) * (G ∇g H).charpoly.eval x
+      = ((x - (k : ℝ)) * (x - (l : ℝ)) - (FinEnum.card G.V : ℝ) * (FinEnum.card H.V : ℝ))
+        * (G.charpoly.eval x * H.charpoly.eval x) := by
+  classical
+  have huA : IsUnit (Matrix.scalar G.V x - G.adjMat).det := by
+    rw [det_charmat]; exact isUnit_iff_ne_zero.2 hGx
+  have huD : IsUnit (Matrix.scalar H.V x - H.adjMat).det := by
+    rw [det_charmat]; exact isUnit_iff_ne_zero.2 hHx
+  have key : (G ∇g H).charpoly.eval x
+      = G.charpoly.eval x * H.charpoly.eval x
+        * (1 - (FinEnum.card G.V : ℝ) * (FinEnum.card H.V : ℝ)
+            / ((x - (k : ℝ)) * (x - (l : ℝ)))) := by
+    rw [eval_charpoly_join,
+      det_fromBlocks_of_mulVec_one _ _ (charmat_mulVec_one hG x) (charmat_mulVec_one hH x)
+        hxk hxl huA huD,
+      det_charmat, det_charmat, ← FinEnum.card_eq_fintypeCard (α := G.V),
+      ← FinEnum.card_eq_fintypeCard (α := H.V)]
+  rw [key]
+  field_simp
+
+/-- The same identity as an identity of polynomials.  The two sides agree off a finite set, and
+two polynomials that agree at infinitely many points are equal. -/
+theorem charpoly_mul_join_of_isRegularWith {G H : CGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (X - C (k : ℝ)) * (X - C (l : ℝ)) * (G ∇g H).charpoly
+      = ((X - C (k : ℝ)) * (X - C (l : ℝ)) - C ((FinEnum.card G.V : ℝ) * FinEnum.card H.V))
+        * (G.charpoly * H.charpoly) := by
+  have hq0 : (X - C (k : ℝ)) * (X - C (l : ℝ)) * (G.charpoly * H.charpoly) ≠ 0 :=
+    mul_ne_zero (mul_ne_zero (X_sub_C_ne_zero _) (X_sub_C_ne_zero _))
+      (mul_ne_zero G.monic_charpoly.ne_zero H.monic_charpoly.ne_zero)
+  have hinf : ({x : ℝ | ((X - C (k : ℝ)) * (X - C (l : ℝ))
+      * (G.charpoly * H.charpoly)).IsRoot x}ᶜ).Infinite :=
+    Set.Finite.infinite_compl (Polynomial.finite_setOfPred_isRoot hq0)
+  refine Polynomial.eq_of_infinite_eval_eq _ _ (hinf.mono fun x hx ↦ ?_)
+  rw [Set.mem_compl_iff, Set.mem_ofPred_eq, Polynomial.IsRoot.def] at hx
+  simp only [eval_mul, eval_sub, eval_X, eval_C] at hx
+  obtain ⟨h1, h2⟩ := mul_ne_zero_iff.1 hx
+  obtain ⟨hxk, hxl⟩ := mul_ne_zero_iff.1 h1
+  obtain ⟨hGx, hHx⟩ := mul_ne_zero_iff.1 h2
+  simp only [Set.mem_ofPred_eq, eval_mul, eval_sub, eval_X, eval_C]
+  exact eval_charpoly_join_of_isRegularWith hG hH hxk hxl hGx hHx
+
+/-- **The characteristic polynomial of a join of two regular graphs.**  Cancelling the two linear
+factors from `charpoly_mul_join_of_isRegularWith` — `k` is an eigenvalue of `G` and `l` one of `H`,
+so both really are factors — leaves the quadratic `(X - k) (X - l) - n m` times the two factors'
+polynomials with their leading eigenvalue removed.  Unlike
+`charpoly_join_of_isRegularWith` this does not ask the join itself to be regular. -/
+@[toIsoGraph]
+theorem charpoly_join_of_isRegularWith' {G H : CGraph} [Nonempty G.V] [Nonempty H.V] {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ∇g H).charpoly
+      = ((X - C (k : ℝ)) * (X - C (l : ℝ)) - C ((FinEnum.card G.V : ℝ) * FinEnum.card H.V))
+        * (((G.spectrum.erase (k : ℝ)).map (fun x ↦ X - C x)).prod
+          * ((H.spectrum.erase (l : ℝ)).map (fun x ↦ X - C x)).prod) := by
+  have hkG : (k : ℝ) ∈ G.spectrum :=
+    (mem_spectrum_iff G k).2 ⟨1, hasEigenvector_one_of_isRegularWith hG⟩
+  have hlH : (l : ℝ) ∈ H.spectrum :=
+    (mem_spectrum_iff H l).2 ⟨1, hasEigenvector_one_of_isRegularWith hH⟩
+  have hGf : G.charpoly
+      = (X - C (k : ℝ)) * ((G.spectrum.erase (k : ℝ)).map (fun x ↦ X - C x)).prod := by
+    conv_lhs => rw [charpoly_eq_prod_spectrum, ← Multiset.cons_erase hkG]
+    rw [Multiset.map_cons, Multiset.prod_cons]
+  have hHf : H.charpoly
+      = (X - C (l : ℝ)) * ((H.spectrum.erase (l : ℝ)).map (fun x ↦ X - C x)).prod := by
+    conv_lhs => rw [charpoly_eq_prod_spectrum, ← Multiset.cons_erase hlH]
+    rw [Multiset.map_cons, Multiset.prod_cons]
+  refine mul_left_cancel₀ (mul_ne_zero (X_sub_C_ne_zero (k : ℝ)) (X_sub_C_ne_zero (l : ℝ))) ?_
+  rw [charpoly_mul_join_of_isRegularWith hG hH]
+  conv_lhs => rw [hGf, hHf]
+  ring
+
+/-- The quadratic factor of `charpoly_join_of_isRegularWith'`, split into its two roots
+`((k + l) ± √((k - l)² + 4 n m)) / 2`.  The discriminant is a sum of squares and a nonnegative
+term, so both roots are real. -/
+theorem quadratic_factor_join (G H : CGraph) (k l : ℕ) :
+    (X - C (k : ℝ)) * (X - C (l : ℝ)) - C ((FinEnum.card G.V : ℝ) * FinEnum.card H.V)
+      = (X - C (((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2))
+        * (X - C (((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)) := by
+  have hD : (0 : ℝ) ≤ ((k : ℝ) - l) ^ 2 + 4 * FinEnum.card G.V * FinEnum.card H.V := by positivity
+  have hs : Real.sqrt (((k : ℝ) - l) ^ 2 + 4 * FinEnum.card G.V * FinEnum.card H.V) ^ 2
+      = ((k : ℝ) - l) ^ 2 + 4 * FinEnum.card G.V * FinEnum.card H.V := Real.sq_sqrt hD
+  have h1 : (((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+        + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+      + (((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+        + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2) = (k : ℝ) + l := by ring
+  have h2 : (((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+        + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+      * (((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+        + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+      = (k : ℝ) * l - (FinEnum.card G.V : ℝ) * FinEnum.card H.V := by nlinarith [hs]
+  rw [show (X - C (((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+        + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2))
+      * (X - C (((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+        + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2))
+      = X ^ 2 - C ((((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+          + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+        + (((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+          + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)) * X
+        + C ((((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+          + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+        * (((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+          + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)) from by
+    rw [map_add, map_mul]; ring]
+  rw [h1, h2]
+  simp only [Polynomial.C_add, Polynomial.C_sub, Polynomial.C_mul]
+  ring
+
+/-- **The spectrum of a join of two regular graphs**: the two roots of
+`(X - k) (X - l) - n m`, together with every eigenvalue of each factor other than its degree. -/
+@[toIsoGraph]
+theorem spectrum_join_of_isRegularWith' {G H : CGraph} [Nonempty G.V] [Nonempty H.V] {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ∇g H).spectrum
+      = (((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+        ::ₘ ((((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+        ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ))) := by
+  have hprod : (G ∇g H).charpoly
+      = (((((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+        ::ₘ ((((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2)
+        ::ₘ (G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ)))).map
+          (fun x ↦ X - C x)).prod := by
+    rw [Multiset.map_cons, Multiset.prod_cons, Multiset.map_cons, Multiset.prod_cons,
+      Multiset.map_add, Multiset.prod_add, charpoly_join_of_isRegularWith' hG hH,
+      quadratic_factor_join G H k l]
+    ring
+  rw [spectrum, hprod, Polynomial.roots_multiset_prod_X_sub_C]
+
+/-- **The energy of a join of two regular graphs.** -/
+@[toIsoGraph]
+theorem energy_join_of_isRegularWith' {G H : CGraph} [Nonempty G.V] [Nonempty H.V] {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ∇g H).energy
+      = |((k : ℝ) + l + Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2|
+        + |((k : ℝ) + l - Real.sqrt (((k : ℝ) - l) ^ 2
+            + 4 * FinEnum.card G.V * FinEnum.card H.V)) / 2|
+        + (((G.spectrum.erase (k : ℝ)).map (|·|)).sum
+          + ((H.spectrum.erase (l : ℝ)).map (|·|)).sum) := by
+  rw [energy, spectrum_join_of_isRegularWith' hG hH, Multiset.map_cons, Multiset.sum_cons,
+    Multiset.map_cons, Multiset.sum_cons, Multiset.map_add, Multiset.sum_add]
+  ring
+
+/-! ### Lexicographic products over a regular second factor
+
+`G [H]` replaces each vertex of `G` by a whole copy of `H` and joins two copies completely when
+their vertices are adjacent, so `A_{G [H]} = A_G ⊗ J + I ⊗ A_H`.  Diagonalising `A_G` by `P`
+and conjugating by `P ⊗ I` leaves `D ⊗ J + I ⊗ A_H`, which is block diagonal: one block
+`x I - A_H - λ J` for each eigenvalue `λ` of `G`.  When `H` is `r`-regular the rows of
+`x I - A_H` all sum to `x - r`, so `det_sub_smul_vecMulVec_one` evaluates each block, and the
+whole determinant is `φ_H(x)ⁿ ∏ (x - r - m λ) / (x - r)ⁿ`.
+
+Clearing the denominator and cancelling gives `charpoly_lexProduct_of_isRegularWith`: the spectrum
+of `G [H]` is `m λ + r` for each eigenvalue `λ` of `G`, together with `n` copies of every
+eigenvalue of `H` other than `r`.  Only the *second* factor has to be regular.  If the first one
+is too then `G [H]` is `(m k + r)`-regular and the Laplacian statements follow. -/
+
+/-- **The adjacency matrix of a lexicographic product** is `A_G ⊗ J + I ⊗ A_H`: vertices in
+different copies of `H` see each other exactly when their copies are adjacent, vertices in the
+same copy exactly when they are adjacent in `H`. -/
+theorem adjMat_lexProduct (G H : CGraph) :
+    (G ·g H).adjMat
+      = G.adjMat ⊗ₖ Matrix.vecMulVec (1 : H.V → ℝ) 1
+        + (1 : Matrix G.V G.V ℝ) ⊗ₖ H.adjMat := by
+  ext p q
+  by_cases h1 : p.1 = q.1 <;> by_cases h2 : p.2 = q.2 <;>
+    simp [adjMat_apply, lexProduct, Matrix.kroneckerMap, Matrix.one_apply,
+      Matrix.vecMulVec_apply, Matrix.add_apply, h1, h2, G.loopless, H.loopless]
+
+/-- Diagonalising the first factor replaces `A_G` by `D` without changing the characteristic
+polynomial.  As with the join, the product carries the `Fintype` and `DecidableEq` instances its
+own `FinEnum` induces, so they are traded for the structural ones before any Kronecker lemma is
+allowed near the goal. -/
+theorem charpoly_lexProduct_eq (G H : CGraph) :
+    (G ·g H).charpoly
+      = (Matrix.diagonal G.eigenvalues ⊗ₖ Matrix.vecMulVec (1 : H.V → ℝ) 1
+          + (1 : Matrix G.V G.V ℝ) ⊗ₖ H.adjMat).charpoly := by
+  classical
+  obtain ⟨P, Q, hPQ, hQP, e⟩ := exists_conj_diagonal G
+  rw [charpoly_eq_matrix_charpoly, adjMat_lexProduct,
+    fintype_eq_prod (FinEnum.instFintype : Fintype (G ·g H).V),
+    decEq_eq_prod (FinEnum.decEq : DecidableEq (G ·g H).V)]
+  exact Matrix.charpoly_kroneckerDiagonal_conj H.adjMat hPQ hQP e
+
+/-- **The characteristic polynomial of a lexicographic product, pointwise.**  For `H` `r`-regular
+on `m` vertices and `G` on `n` vertices,
+
+`(x - r)ⁿ φ_{G [H]}(x) = φ_H(x)ⁿ ∏ (x - (r + m λᵢ))`,
+
+proved wherever the two factors on the left are nonzero, which is where each block's determinant
+is available. -/
+theorem eval_charpoly_lexProduct_of_isRegularWith {G H : CGraph} {r : ℕ}
+    (hH : H.IsRegularWith r) {x : ℝ} (hxr : x - (r : ℝ) ≠ 0) (hHx : H.charpoly.eval x ≠ 0) :
+    (x - (r : ℝ)) ^ FinEnum.card G.V * (G ·g H).charpoly.eval x
+      = H.charpoly.eval x ^ FinEnum.card G.V
+        * ∏ i, (x - ((r : ℝ) + (FinEnum.card H.V : ℝ) * G.eigenvalues i)) := by
+  classical
+  have hu : IsUnit (Matrix.scalar H.V x - H.adjMat).det := by
+    rw [det_charmat]; exact isUnit_iff_ne_zero.2 hHx
+  have hstep : (G ·g H).charpoly.eval x
+      = ∏ i, (H.charpoly.eval x
+          * (1 - G.eigenvalues i * (FinEnum.card H.V : ℝ) / (x - (r : ℝ)))) := by
+    rw [charpoly_lexProduct_eq, Matrix.eval_charpoly,
+      Matrix.det_scalar_sub_kroneckerDiagonal]
+    refine Finset.prod_congr rfl fun i _ ↦ ?_
+    rw [Matrix.det_sub_smul_vecMulVec_one hu hxr (charmat_mulVec_one hH x), det_charmat,
+      ← FinEnum.card_eq_fintypeCard (α := H.V)]
+  have hcard : (Finset.univ : Finset G.V).card = FinEnum.card G.V := by
+    rw [Finset.card_univ, ← FinEnum.card_eq_fintypeCard]
+  have hkey : ∏ i, (x - ((r : ℝ) + (FinEnum.card H.V : ℝ) * G.eigenvalues i))
+      = ∏ i : G.V, ((x - (r : ℝ))
+          * (1 - G.eigenvalues i * (FinEnum.card H.V : ℝ) / (x - (r : ℝ)))) := by
+    refine Finset.prod_congr rfl fun i _ ↦ ?_
+    field_simp
+    ring
+  rw [hstep, hkey]
+  simp only [Finset.prod_mul_distrib, Finset.prod_const, hcard]
+  ring
+
+/-- The same identity as an identity of polynomials, by agreement off a finite set. -/
+theorem charpoly_mul_lexProduct_of_isRegularWith {G H : CGraph} {r : ℕ}
+    (hH : H.IsRegularWith r) :
+    (X - C (r : ℝ)) ^ FinEnum.card G.V * (G ·g H).charpoly
+      = H.charpoly ^ FinEnum.card G.V
+        * ∏ i, (X - C ((r : ℝ) + (FinEnum.card H.V : ℝ) * G.eigenvalues i)) := by
+  have hq0 : (X - C (r : ℝ)) * H.charpoly ≠ 0 :=
+    mul_ne_zero (X_sub_C_ne_zero _) H.monic_charpoly.ne_zero
+  have hinf : ({x : ℝ | ((X - C (r : ℝ)) * H.charpoly).IsRoot x}ᶜ).Infinite :=
+    Set.Finite.infinite_compl (Polynomial.finite_setOfPred_isRoot hq0)
+  refine Polynomial.eq_of_infinite_eval_eq _ _ (hinf.mono fun x hx ↦ ?_)
+  rw [Set.mem_compl_iff, Set.mem_ofPred_eq, Polynomial.IsRoot.def] at hx
+  simp only [eval_mul, eval_sub, eval_X, eval_C] at hx
+  obtain ⟨hxr, hHx⟩ := mul_ne_zero_iff.1 hx
+  simp only [Set.mem_ofPred_eq, eval_mul, eval_pow, eval_sub, eval_X, eval_C,
+    Polynomial.eval_prod]
+  exact eval_charpoly_lexProduct_of_isRegularWith hH hxr hHx
+
+private theorem prod_map_spectrum (G : CGraph) (f : ℝ → ℝ[X]) :
+    (G.spectrum.map f).prod = ∏ i, f (G.eigenvalues i) := by
+  rw [spectrum_eq_map, Multiset.map_map]
+  rfl
+
+private theorem multiset_map_nsmul {α β : Type} (N : ℕ) (s : Multiset α) (f : α → β) :
+    (N • s).map f = N • s.map f := by
+  induction N with
+  | zero => simp
+  | succ N ih => rw [succ_nsmul, Multiset.map_add, ih, succ_nsmul]
+
+private theorem multiset_prod_nsmul (N : ℕ) (s : Multiset ℝ[X]) : (N • s).prod = s.prod ^ N := by
+  induction N with
+  | zero => simp
+  | succ N ih => rw [succ_nsmul, Multiset.prod_add, ih, pow_succ]
+
+private theorem multiset_sum_nsmul (N : ℕ) (s : Multiset ℝ) : (N • s).sum = N * s.sum := by
+  induction N with
+  | zero => simp
+  | succ N ih => rw [succ_nsmul, Multiset.sum_add, ih]; push_cast; ring
+
+/-- **The characteristic polynomial of a lexicographic product with a regular second factor.**
+`r` is an eigenvalue of `H`, so `(X - r)` really is a factor of `φ_H` and the power of it on the
+left of `charpoly_mul_lexProduct_of_isRegularWith` cancels. -/
+@[toIsoGraph]
+theorem charpoly_lexProduct_of_isRegularWith {G H : CGraph} [Nonempty H.V] {r : ℕ}
+    (hH : H.IsRegularWith r) :
+    (G ·g H).charpoly
+      = (G.spectrum.map (fun t ↦ X - C ((r : ℝ) + (FinEnum.card H.V : ℝ) * t))).prod
+        * ((H.spectrum.erase (r : ℝ)).map (fun t ↦ X - C t)).prod ^ FinEnum.card G.V := by
+  have hrH : (r : ℝ) ∈ H.spectrum :=
+    (mem_spectrum_iff H r).2 ⟨1, hasEigenvector_one_of_isRegularWith hH⟩
+  have hHf : H.charpoly
+      = (X - C (r : ℝ)) * ((H.spectrum.erase (r : ℝ)).map (fun t ↦ X - C t)).prod := by
+    conv_lhs => rw [charpoly_eq_prod_spectrum, ← Multiset.cons_erase hrH]
+    rw [Multiset.map_cons, Multiset.prod_cons]
+  refine mul_left_cancel₀ (pow_ne_zero (FinEnum.card G.V) (X_sub_C_ne_zero (r : ℝ))) ?_
+  rw [charpoly_mul_lexProduct_of_isRegularWith hH, hHf, mul_pow, prod_map_spectrum]
+  ring
+
+/-- **The spectrum of a lexicographic product with a regular second factor**: `m λ + r` for each
+eigenvalue `λ` of `G`, and `n` copies of every eigenvalue of `H` but its degree. -/
+@[toIsoGraph]
+theorem spectrum_lexProduct_of_isRegularWith {G H : CGraph} [Nonempty H.V] {r : ℕ}
+    (hH : H.IsRegularWith r) :
+    (G ·g H).spectrum
+      = G.spectrum.map (fun t ↦ (r : ℝ) + (FinEnum.card H.V : ℝ) * t)
+        + FinEnum.card G.V • (H.spectrum.erase (r : ℝ)) := by
+  have hne : (G.spectrum.map (fun t ↦ X - C ((r : ℝ) + (FinEnum.card H.V : ℝ) * t))).prod
+      * ((H.spectrum.erase (r : ℝ)).map (fun t ↦ X - C t)).prod ^ FinEnum.card G.V ≠ 0 := by
+    rw [← charpoly_lexProduct_of_isRegularWith hH]
+    exact (G ·g H).monic_charpoly.ne_zero
+  have h1 : ((G.spectrum.map (fun t ↦ X - C ((r : ℝ) + (FinEnum.card H.V : ℝ) * t))).prod).roots
+      = G.spectrum.map (fun t ↦ (r : ℝ) + (FinEnum.card H.V : ℝ) * t) := by
+    rw [show G.spectrum.map (fun t ↦ X - C ((r : ℝ) + (FinEnum.card H.V : ℝ) * t))
+        = (G.spectrum.map (fun t ↦ (r : ℝ) + (FinEnum.card H.V : ℝ) * t)).map
+            (fun a ↦ X - C a) from by rw [Multiset.map_map]; rfl,
+      Polynomial.roots_multiset_prod_X_sub_C]
+  rw [spectrum, charpoly_lexProduct_of_isRegularWith hH, Polynomial.roots_mul hne, h1,
+    Polynomial.roots_pow, Polynomial.roots_multiset_prod_X_sub_C]
+
+/-- **The energy of a lexicographic product with a regular second factor.** -/
+@[toIsoGraph]
+theorem energy_lexProduct_of_isRegularWith {G H : CGraph} [Nonempty H.V] {r : ℕ}
+    (hH : H.IsRegularWith r) :
+    (G ·g H).energy
+      = (G.spectrum.map (fun t ↦ |(r : ℝ) + (FinEnum.card H.V : ℝ) * t|)).sum
+        + FinEnum.card G.V * ((H.spectrum.erase (r : ℝ)).map (|·|)).sum := by
+  rw [energy, spectrum_lexProduct_of_isRegularWith hH, Multiset.map_add, Multiset.sum_add,
+    Multiset.map_map, multiset_map_nsmul, multiset_sum_nsmul]
+  rfl
+
+/-- A lexicographic product of regular graphs is regular: each vertex sees `k` whole copies of
+`H` plus its own `r` neighbours inside its copy. -/
+private theorem isRegularWith_lexProduct' {G H : CGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ·g H).IsRegularWith (k * FinEnum.card H.V + l) := by
+  rw [isRegularWith_iff_forall_degree]
+  intro p
+  rw [degree_lexProduct, isRegularWith_iff_forall_degree.1 hG p.1,
+    isRegularWith_iff_forall_degree.1 hH p.2]
+
+/-- **The Laplacian spectrum of a lexicographic product of two regular graphs.**  The degree is
+`m k + r`, so the eigenvalue `m λ + r` becomes `m (k - λ)` and the copies of `μ` become
+`m k + r - μ`. -/
+@[toIsoGraph]
+theorem lapSpectrum_lexProduct_of_isRegularWith {G H : CGraph} [Nonempty H.V] {k r : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith r) :
+    (G ·g H).lapSpectrum
+      = G.spectrum.map (fun t ↦ (FinEnum.card H.V : ℝ) * ((k : ℝ) - t))
+        + FinEnum.card G.V • ((H.spectrum.erase (r : ℝ)).map
+            (fun t ↦ (k : ℝ) * FinEnum.card H.V + (r : ℝ) - t)) := by
+  rw [lapSpectrum_of_isRegularWith (isRegularWith_lexProduct' hG hH),
+    spectrum_lexProduct_of_isRegularWith hH, Multiset.map_add, Multiset.map_map,
+    multiset_map_nsmul]
+  congr 1
+  · exact Multiset.map_congr rfl fun t _ ↦ by simp only [Function.comp_apply]; push_cast; ring
+  · congr 1
+    exact Multiset.map_congr rfl fun t _ ↦ by push_cast; ring
+
+/-- **The Laplacian characteristic polynomial of a lexicographic product of regular graphs.** -/
+@[toIsoGraph]
+theorem lapCharpoly_lexProduct_of_isRegularWith {G H : CGraph} [Nonempty H.V] {k r : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith r) :
+    (G ·g H).lapCharpoly
+      = (G.spectrum.map (fun t ↦ X - C ((FinEnum.card H.V : ℝ) * ((k : ℝ) - t)))).prod
+        * ((H.spectrum.erase (r : ℝ)).map
+            (fun t ↦ X - C ((k : ℝ) * FinEnum.card H.V + (r : ℝ) - t))).prod
+          ^ FinEnum.card G.V := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_lexProduct_of_isRegularWith hG hH,
+    Multiset.map_add, Multiset.prod_add, Multiset.map_map, multiset_map_nsmul,
+    multiset_prod_nsmul, Multiset.map_map]
+  rfl
+
+/-- **The Laplacian spectrum of the line graph of a `k`-regular graph**.  The line graph is
+`(2k - 2)`-regular, so subtracting its adjacency spectrum from that degree turns the `|E| - |V|`
+copies of `-2` into copies of `2k` and sends `λ + k - 2` back to `k - λ`: the Laplacian spectrum
+of `L(G)` is that of `G` itself together with `|E| - |V|` copies of `2k`. -/
+@[toIsoGraph]
+theorem lapSpectrum_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
+    (h : G.IsRegularWith k) (hk : 1 ≤ k) (hle : FinEnum.card G.V ≤ G.E) :
+    (lineGraph G).lapSpectrum
+      = Multiset.replicate (G.E - FinEnum.card G.V) (2 * (k : ℝ)) + G.lapSpectrum := by
+  obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+  have hreg : (lineGraph G).IsRegularWith (2 * j) := by
+    have hL := h.lineGraph
+    rwa [show 2 * (j + 1) - 2 = 2 * j from by omega] at hL
+  rw [lapSpectrum_of_isRegularWith hreg, spectrum_lineGraph_of_isRegularWith h hle,
+    lapSpectrum_of_isRegularWith h, Multiset.map_add, Multiset.map_replicate, Multiset.map_map]
+  congr 1
+  · congr 1
+    push_cast
+    ring
+  · exact Multiset.map_congr rfl fun x _ ↦ by simp only [Function.comp_apply]; push_cast; ring
 
 /-- The adjacency matrix of the path acting on a vector coming from a function on `ℕ`, with no
 boundary condition: the missing neighbour at each end simply contributes nothing. -/
@@ -8005,6 +9659,19 @@ theorem algConn_complete (n : ℕ) : (complete (n + 2)).algConn = (n : ℝ) + 2 
   have hmem := (complete (n + 2)).algConn_mem_erase hcard
   rw [herase] at hmem
   exact Multiset.eq_of_mem_replicate hmem
+
+/-- **The algebraic connectivity of the edgeless graph is `0`**, as it is for every graph that is
+not connected: the Laplacian of `Eₙ` is the zero matrix, so the punctured spectrum is `0` too. -/
+@[toIsoGraph]
+theorem algConn_empty (n : ℕ) : (empty (n + 2)).algConn = 0 := by
+  have h : (empty (n + 2)).lapSpectrum.erase 0 = Multiset.replicate (n + 1) (0 : ℝ) := by
+    rw [lapSpectrum_empty, Multiset.replicate_succ, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [h]
+    exact Multiset.mem_replicate.2 ⟨by omega, rfl⟩
+  · intro x hx
+    rw [h] at hx
+    exact le_of_eq (Multiset.eq_of_mem_replicate hx).symm
 
 /-- **The algebraic connectivity of a complete bipartite graph is the size of its smaller side.**
 (The one exception is `K₁,₁ = K₂`, where the smaller side has one vertex but `a = 2`; the
@@ -8868,6 +10535,55 @@ theorem algConn_join (G H : CGraph)
       have := H.algConn_le hy
       linarith
 
+/-! ### The Laplacian of a cone -/
+
+/-- **The Laplacian spectrum of a cone** `K₁ ∇ G`: the apex contributes the order of the cone, and
+every nonzero eigenvalue of the base is shifted by one.  This is `lapSpectrum_join` against the
+one-vertex factor, whose own spectrum is just `{0}`. -/
+@[toIsoGraph]
+theorem lapSpectrum_join_complete_one (G : CGraph) [Nonempty G.V] :
+    (complete 1 ∇g G).lapSpectrum
+      = 0 ::ₘ (((FinEnum.card G.V : ℝ) + 1)
+          ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ x + 1)) := by
+  have hV : FinEnum.card (complete 1).V = 1 := card_complete 1
+  have : Nonempty (complete 1).V := FinEnum.card_pos_iff.1 (by rw [hV]; omega)
+  have hone : (complete 1).lapSpectrum = {0} := by simpa using lapSpectrum_complete 0
+  rw [lapSpectrum_join (complete 1) G, hone, hV]
+  norm_num [add_comm (1 : ℝ) (FinEnum.card G.V : ℝ)]
+
+/-- **The largest Laplacian eigenvalue of a cone is its order.** -/
+@[toIsoGraph]
+theorem lapLambdaMax_join_complete_one (G : CGraph) [Nonempty G.V] :
+    (complete 1 ∇g G).lapLambdaMax = (FinEnum.card G.V : ℝ) + 1 := by
+  have hV : FinEnum.card (complete 1).V = 1 := card_complete 1
+  have : Nonempty (complete 1).V := FinEnum.card_pos_iff.1 (by rw [hV]; omega)
+  rw [lapLambdaMax_join (complete 1) G, hV]
+  push_cast
+  ring
+
+/-- **The algebraic connectivity of a cone is one more than the base's**: the apex is joined to
+every vertex of the base, and the eigenvalue the apex itself contributes — the order — is never
+the smallest one. -/
+@[toIsoGraph]
+theorem algConn_join_complete_one (G : CGraph) (h : 2 ≤ FinEnum.card G.V) :
+    (complete 1 ∇g G).algConn = G.algConn + 1 := by
+  have : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  have hmem : G.algConn ∈ G.lapSpectrum.erase 0 := G.algConn_mem_erase h
+  have hle : G.algConn ≤ (FinEnum.card G.V : ℝ) := G.algConn_le_card h
+  have herase : (complete 1 ∇g G).lapSpectrum.erase 0
+      = ((FinEnum.card G.V : ℝ) + 1) ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ x + 1) := by
+    rw [lapSpectrum_join_complete_one, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    exact Multiset.mem_cons_of_mem (Multiset.mem_map_of_mem _ hmem)
+  · intro x hx
+    rw [herase] at hx
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · linarith
+    · obtain ⟨y, hy, rfl⟩ := Multiset.mem_map.1 hx
+      have := G.algConn_le hy
+      linarith
+
 /-! ### The Laplacian of a cartesian product -/
 
 /-- The Laplacian of a cartesian product is `L G ⊗ I + I ⊗ L H`, the same shape as
@@ -9001,6 +10717,116 @@ theorem algConn_cartesianProduct (G H : CGraph)
     have hmin := min_le_left G.algConn H.algConn
     linarith
 
+/-! ### Extremal Laplacian eigenvalues of the circulant, the line graph and the two products -/
+
+/-- **The largest Laplacian eigenvalue of a circulant**, once an index minimising the cosine sum
+is known: the Laplacian eigenvalues are `deg - circulantEig n S m`, so the largest sits where the
+adjacency eigenvalue is smallest. -/
+theorem lapLambdaMax_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) (m₀ : Fin n)
+    (hmin : ∀ m : Fin n, circulantEig n S m₀.1 ≤ circulantEig n S m.1) :
+    (circulant n S).lapLambdaMax = (circulantDeg n S : ℝ) - circulantEig n S m₀.1 := by
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_circulant hn S]
+    exact Multiset.mem_map_of_mem _ (Finset.mem_univ_val m₀)
+  · intro x hx
+    rw [lapSpectrum_circulant hn S] at hx
+    obtain ⟨m, -, rfl⟩ := Multiset.mem_map.1 hx
+    linarith [hmin m]
+
+/-- **The algebraic connectivity of a circulant**, once an index other than `0` maximising the
+cosine sum is known.  The index `0` carries the trivial eigenvalue, because `circulantEig n S 0`
+is the degree. -/
+theorem algConn_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) (m₁ : Fin n) (hm₁ : m₁ ≠ ⟨0, hn⟩)
+    (hmax : ∀ m : Fin n, m ≠ ⟨0, hn⟩ → circulantEig n S m.1 ≤ circulantEig n S m₁.1) :
+    (circulant n S).algConn = (circulantDeg n S : ℝ) - circulantEig n S m₁.1 :=
+  algConn_eq_of_lapSpectrum_map (i₀ := ⟨0, hn⟩) (i₁ := m₁) (lapSpectrum_circulant hn S)
+    (by rw [show ((⟨0, hn⟩ : Fin n)).1 = 0 from rfl, circulantEig_zero]; ring)
+    hm₁ fun m hm ↦ by linarith [hmax m hm]
+
+/-- **The largest Laplacian eigenvalue of the line graph of a `k`-regular graph** is `2 k`, as
+soon as `G` has more edges than vertices: the `|E| - |V|` extra eigenvalues sit at `2 k`, which is
+the ceiling `2 Δ` that no Laplacian eigenvalue exceeds. -/
+theorem lapLambdaMax_lineGraph_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
+    (h : G.IsRegularWith k) (hk : 1 ≤ k) (hlt : FinEnum.card G.V < G.E) :
+    (lineGraph G).lapLambdaMax = 2 * k := by
+  have hspec := lapSpectrum_lineGraph_of_isRegularWith h hk hlt.le
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [hspec]
+    exact Multiset.mem_add.2 (Or.inl (Multiset.mem_replicate.2 ⟨by omega, rfl⟩))
+  · intro x hx
+    rw [hspec] at hx
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · exact le_of_eq (Multiset.eq_of_mem_replicate hx)
+    · have h1 := le_lapLambdaMax hx
+      have h2 := G.lapLambdaMax_le_two_mul_maxDeg
+      rw [h.maxDeg_eq] at h2
+      linarith
+
+/-- **The line graph of a regular graph has the same algebraic connectivity.**  Its Laplacian
+spectrum is that of `G` together with `|E| - |V|` copies of `2 k`, and `2 k` is the largest
+Laplacian eigenvalue `G` itself could have, so it never wins the minimum. -/
+theorem algConn_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
+    (h : G.IsRegularWith k) (hk : 1 ≤ k) (hle : FinEnum.card G.V ≤ G.E)
+    (hcard : 2 ≤ FinEnum.card G.V) :
+    (lineGraph G).algConn = G.algConn := by
+  have : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  have h2k : G.algConn ≤ 2 * (k : ℝ) := by
+    have h1 := G.algConn_le_lapLambdaMax hcard
+    have h2 := G.lapLambdaMax_le_two_mul_maxDeg
+    rw [h.maxDeg_eq] at h2
+    linarith
+  have herase : (lineGraph G).lapSpectrum.erase 0
+      = Multiset.replicate (G.E - FinEnum.card G.V) (2 * (k : ℝ)) + G.lapSpectrum.erase 0 := by
+    rw [lapSpectrum_lineGraph_of_isRegularWith h hk hle,
+      Multiset.erase_add_right_pos _ G.zero_mem_lapSpectrum]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    exact Multiset.mem_add.2 (Or.inr (G.algConn_mem_erase hcard))
+  · intro x hx
+    rw [herase] at hx
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]
+      exact h2k
+    · exact algConn_le hx
+
+private theorem isRegularWith_tensorProduct' {G H : CGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) : (G ⊗g H).IsRegularWith (k * l) := by
+  have hG' : IsoGraph.IsRegularWith ⟦G⟧ k := by rw [IsoGraph.isRegularWith_mk]; exact hG
+  have hH' : IsoGraph.IsRegularWith ⟦H⟧ l := by rw [IsoGraph.isRegularWith_mk]; exact hH
+  have h := hG'.tensorProduct hH'
+  rwa [IsoGraph.tensorProduct_mk, IsoGraph.isRegularWith_mk] at h
+
+private theorem isRegularWith_strongProduct' {G H : CGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ⊠g H).IsRegularWith (k * l + k + l) := by
+  have hG' : IsoGraph.IsRegularWith ⟦G⟧ k := by rw [IsoGraph.isRegularWith_mk]; exact hG
+  have hH' : IsoGraph.IsRegularWith ⟦H⟧ l := by rw [IsoGraph.isRegularWith_mk]; exact hH
+  have h := hG'.strongProduct hH'
+  rw [show (k + 1) * (l + 1) - 1 = k * l + k + l from by
+    rw [show (k + 1) * (l + 1) = k * l + k + l + 1 from by ring, Nat.add_sub_cancel]] at h
+  rwa [IsoGraph.strongProduct_mk, IsoGraph.isRegularWith_mk] at h
+
+/-- **The largest Laplacian eigenvalue of a tensor product of regular graphs**: the degree `k l`
+minus the more negative of the two mixed products of extreme adjacency eigenvalues. -/
+theorem lapLambdaMax_tensorProduct_of_isRegularWith {G H : CGraph} [Nonempty G.V] [Nonempty H.V]
+    {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ⊗g H).lapLambdaMax
+      = (k : ℝ) * l - min (G.lambdaMax * H.lambdaMin) (G.lambdaMin * H.lambdaMax) := by
+  rw [lapLambdaMax_of_isRegularWith (isRegularWith_tensorProduct' hG hH), lambdaMin_tensorProduct,
+    Nat.cast_mul]
+
+/-- **The largest Laplacian eigenvalue of a strong product of regular graphs**. -/
+theorem lapLambdaMax_strongProduct_of_isRegularWith {G H : CGraph} [Nonempty G.V] [Nonempty H.V]
+    {k l : ℕ} (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ⊠g H).lapLambdaMax
+      = ((k : ℝ) + 1) * ((l : ℝ) + 1)
+        - min (min ((1 + G.lambdaMin) * (1 + H.lambdaMin))
+              ((1 + G.lambdaMin) * (1 + H.lambdaMax)))
+            ((1 + G.lambdaMax) * (1 + H.lambdaMin)) := by
+  rw [lapLambdaMax_of_isRegularWith (isRegularWith_strongProduct' hG hH), lambdaMin_strongProduct]
+  push_cast
+  ring
+
 /-- **The Laplacian spectrum of a regular graph with a two-eigenvalue adjacency spectrum.**
 Every strongly regular graph has this shape, so this is the bridge from `spectrum_isSRGWith`
 to the Laplacian. -/
@@ -9111,6 +10937,52 @@ theorem lapLambdaMax_cocktailParty (m : ℕ) :
     (by push_cast; ring) (by omega) (by norm_num)
     (by have : (0 : ℝ) ≤ m := Nat.cast_nonneg m; linarith) (spectrum_cocktailParty m)
   rw [h]
+  ring
+
+/-- The regularity of the complete multipartite graph, with the degree in normal form. -/
+private theorem isRegularWith_completeMultipartite_replicate' (p a : ℕ) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).IsRegularWith ((p + 1) * (a + 1)) := by
+  have h := (isSRGWith_completeMultipartite_replicate (p + 2) (a + 1)).regular
+  rwa [show p + 2 - 1 = p + 1 from by omega] at h
+
+/-- **The Laplacian spectrum of the complete multipartite graph `K_{r×s}`**: `0` once, the degree
+`(r-1)s` with multiplicity `r(s-1)` and the order `rs` with multiplicity `r-1`. -/
+@[toIsoGraph]
+theorem lapSpectrum_completeMultipartite_replicate (p a : ℕ) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).lapSpectrum
+      = 0 ::ₘ (Multiset.replicate ((p + 2) * a) (((p : ℝ) + 1) * ((a : ℝ) + 1))
+          + Multiset.replicate (p + 1) (((p : ℝ) + 2) * ((a : ℝ) + 1))) := by
+  rw [lapSpectrum_of_spectrum_eq (isRegularWith_completeMultipartite_replicate' p a)
+    (by push_cast; ring) (spectrum_completeMultipartite_replicate p a)]
+  ring_nf
+
+/-- **The algebraic connectivity of the complete multipartite graph `K_{r×s}` is its degree
+`(r-1)s`**, as soon as the parts are not singletons: the cheapest way to cut it apart is to peel
+off a part. -/
+@[toIsoGraph]
+theorem algConn_completeMultipartite_replicate (p a : ℕ) (ha : 0 < a) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).algConn
+      = ((p : ℝ) + 1) * ((a : ℝ) + 1) := by
+  have hna : (0 : ℝ) ≤ (a : ℝ) := Nat.cast_nonneg a
+  rw [algConn_of_spectrum_eq (isRegularWith_completeMultipartite_replicate' p a)
+    (by push_cast; ring) (Nat.mul_pos (by omega) ha) (by linarith)
+    (spectrum_completeMultipartite_replicate p a)]
+  ring
+
+/-- **The largest Laplacian eigenvalue of the complete multipartite graph `K_{r×s}` is its
+order** `rs`, the largest it can be. -/
+@[toIsoGraph]
+theorem lapLambdaMax_completeMultipartite_replicate (p a : ℕ) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).lapLambdaMax
+      = ((p : ℝ) + 2) * ((a : ℝ) + 1) := by
+  have hna : (0 : ℝ) ≤ (a : ℝ) := Nat.cast_nonneg a
+  have hnp : (0 : ℝ) ≤ (p : ℝ) := Nat.cast_nonneg p
+  have hsrg := isSRGWith_completeMultipartite_replicate (p + 2) (a + 1)
+  have : Nonempty (completeMultipartite (List.replicate (p + 2) (a + 1))).V :=
+    Fintype.card_pos_iff.1 (by rw [hsrg.card]; positivity)
+  rw [lapLambdaMax_of_spectrum_eq (isRegularWith_completeMultipartite_replicate' p a)
+    (by push_cast; ring) (by omega) (by linarith) (by nlinarith)
+    (spectrum_completeMultipartite_replicate p a)]
   ring
 
 theorem isRegularWith_rook (k : ℕ) : (rook (k + 2) (k + 2)).IsRegularWith (2 * k + 2) := by
@@ -9238,6 +11110,53 @@ theorem lapLambdaMax_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))]
     (by push_cast; ring) (by omega) (by linarith) (by linarith) (spectrum_paley t ht)
   rw [h]
   ring
+
+section
+open Fintype
+variable {F : Type} [Field F] [FinEnum F]
+
+theorem isRegularWith_paleyField {t : ℕ} (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).IsRegularWith (2 * t) := by
+  have h := (isSRGWith_paleyField (F := F) (by omega)).regular
+  rwa [hcard, show (4 * t + 1 - 1) / 2 = 2 * t from by omega] at h
+
+/-- **The Laplacian spectrum of the Paley graph of a field** with `4t + 1` elements, the same
+`0` and `(q ∓ √q) / 2` as `lapSpectrum_paley`. -/
+@[toIsoGraph]
+theorem lapSpectrum_paleyField {t : ℕ} (ht : 0 < t) (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).lapSpectrum
+      = 0 ::ₘ
+        (Multiset.replicate (2 * t) ((4 * (t : ℝ) + 1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2)
+          + Multiset.replicate (2 * t)
+              ((4 * (t : ℝ) + 1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2)) := by
+  have h := lapSpectrum_of_spectrum_eq (isRegularWith_paleyField hcard) (by push_cast; ring)
+    (spectrum_paleyField ht hcard)
+  rw [h]
+  ring_nf
+
+@[toIsoGraph]
+theorem algConn_paleyField {t : ℕ} (ht : 0 < t) (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).algConn = (4 * (t : ℝ) + 1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
+  have hq : 0 < Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_pos.2 (by positivity)
+  have h := algConn_of_spectrum_eq (isRegularWith_paleyField hcard) (f := 2 * t) (g := 2 * t)
+    (by push_cast; ring) (by omega) (by linarith) (spectrum_paleyField ht hcard)
+  rw [h]
+  ring
+
+@[toIsoGraph]
+theorem lapLambdaMax_paleyField {t : ℕ} (ht : 0 < t) (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).lapLambdaMax = (4 * (t : ℝ) + 1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2 := by
+  have : Nonempty (paleyField F).V :=
+    Fintype.card_pos_iff.1 (by rw [(isSRGWith_paleyField (F := F) (by omega)).card]; omega)
+  have hq : 0 < Real.sqrt (4 * (t : ℝ) + 1) := Real.sqrt_pos.2 (by positivity)
+  have hqle : Real.sqrt (4 * (t : ℝ) + 1) ≤ 4 * (t : ℝ) + 1 := by
+    nlinarith [Real.sq_sqrt (show (0 : ℝ) ≤ 4 * (t : ℝ) + 1 by positivity), hq]
+  have h := lapLambdaMax_of_spectrum_eq (isRegularWith_paleyField hcard) (f := 2 * t) (g := 2 * t)
+    (by push_cast; ring) (by omega) (by linarith) (by linarith) (spectrum_paleyField ht hcard)
+  rw [h]
+  ring
+
+end
 
 /-! ### The Laplacian of the sporadic strongly regular graphs
 
@@ -9507,15 +11426,6 @@ theorem lapLambdaMax_higmanSims : SRG.higmanSims.lapLambdaMax = 30 := by
   rw [← G.fintypeCard]
   exact Matrix.charpoly_natDegree_eq_dim _
 
-theorem lapCharpoly_eq_prod (G : CGraph) :
-    G.lapCharpoly = ∏ i, (X - C (G.lapEigenvalues i)) :=
-  G.isHermitian_lapMat.charpoly_eq
-
-theorem lapCharpoly_eq_prod_lapSpectrum (G : CGraph) :
-    G.lapCharpoly = (G.lapSpectrum.map (fun x ↦ X - C x)).prod := by
-  rw [lapSpectrum_eq_map, Multiset.map_map, lapCharpoly_eq_prod]
-  rfl
-
 /-- Two graphs are **Laplacian cospectral** when their Laplacian characteristic polynomials
 agree. -/
 def LapCospectral (G H : CGraph) : Prop := G.lapCharpoly = H.lapCharpoly
@@ -9729,9 +11639,26 @@ private theorem product_pm_one (s : Multiset ℝ) :
     Multiset.product_zero, add_zero]
   simp [Multiset.map_add, Multiset.map_map]
 
+/-- The same product, for the tensor product's multiplication rather than the cartesian
+product's addition: multiplying by `{1, -1}` reflects the multiset. -/
+private theorem product_pm_one_mul (s : Multiset ℝ) :
+    (s ×ˢ ((1 : ℝ) ::ₘ Multiset.replicate 1 (-1))).map (fun p ↦ p.1 * p.2)
+      = s + s.map (fun x ↦ -x) := by
+  rw [Multiset.replicate_one, Multiset.product_cons,
+    show ({-1} : Multiset ℝ) = (-1 : ℝ) ::ₘ 0 from rfl, Multiset.product_cons,
+    Multiset.product_zero, add_zero]
+  simp [Multiset.map_add, Multiset.map_map]
+
 private theorem map_finset_sum {ι : Type*} (s : Finset ι) (m : ι → Multiset ℝ) (f : ℝ → ℝ) :
     (∑ x ∈ s, m x).map f = ∑ x ∈ s, (m x).map f :=
   map_sum (Multiset.mapAddMonoidHom f) m s
+
+private theorem sum_finset_sum {ι : Type*} (s : Finset ι) (m : ι → Multiset ℝ) :
+    (∑ x ∈ s, m x).sum = ∑ x ∈ s, (m x).sum := by
+  classical
+  induction s using Finset.induction with
+  | empty => simp
+  | insert a s ha ih => rw [Finset.sum_insert ha, Finset.sum_insert ha, Multiset.sum_add, ih]
 
 /-- **The spectrum of the hypercube**: `Q n` has eigenvalue `n - 2 j` with multiplicity
 `n.choose j`.  `Q (n + 1) = Q n □ K₂` adds `±1` to every eigenvalue, and Pascal's rule does the
@@ -9755,6 +11682,14 @@ theorem spectrum_hypercube (n : ℕ) :
       rw [Multiset.map_replicate]
       push_cast
       ring_nf
+
+/-- **The energy of the hypercube** `Q n`, as a sum over its `n + 1` eigenvalues with
+multiplicity. -/
+theorem energy_hypercube (n : ℕ) :
+    (hypercube n).energy = ∑ j ∈ Finset.range (n + 1), (n.choose j : ℝ) * |(n : ℝ) - 2 * j| := by
+  rw [energy, spectrum_hypercube, map_finset_sum, sum_finset_sum]
+  exact Finset.sum_congr rfl fun j _ ↦ by
+    rw [Multiset.map_replicate, Multiset.sum_replicate, nsmul_eq_mul]
 
 /-- **The spectrum of a grid**: the two paths' eigenvalues add. -/
 theorem spectrum_grid (m n : ℕ) :
@@ -9795,6 +11730,16 @@ theorem spectrum_prism {n : ℕ} (hn : 3 ≤ n) :
     Multiset.map_map]
   rfl
 
+/-- **The energy of a prism** `Cₙ □ K₂`, as a sum over the cycle's eigenvalues shifted by
+`±1`. -/
+theorem energy_prism {n : ℕ} (hn : 3 ≤ n) :
+    (prism n).energy
+      = ∑ m : Fin n, (|2 * Real.cos (2 * Real.pi * m.1 / n) + 1|
+          + |2 * Real.cos (2 * Real.pi * m.1 / n) - 1|) := by
+  rw [energy, spectrum_prism hn, Multiset.map_add, Multiset.sum_add, Multiset.map_map,
+    Multiset.map_map, Finset.sum_add_distrib]
+  rfl
+
 /-- **The spectrum of a ladder**: `Pₙ □ K₂` shifts the path's eigenvalues by `±1`. -/
 theorem spectrum_ladder (n : ℕ) :
     (ladder n).spectrum
@@ -9803,6 +11748,16 @@ theorem spectrum_ladder (n : ℕ) :
             2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) - 1) := by
   rw [show ladder n = path n □g complete 2 from rfl, spectrum_cartesianProduct,
     spectrum_complete_two, product_pm_one, spectrum_path, Multiset.map_map, Multiset.map_map]
+  rfl
+
+/-- **The energy of a ladder** `Pₙ □ K₂`, as a sum over the path's eigenvalues shifted by
+`±1`. -/
+theorem energy_ladder (n : ℕ) :
+    (ladder n).energy
+      = ∑ m : Fin n, (|2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) + 1|
+          + |2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) - 1|) := by
+  rw [energy, spectrum_ladder, Multiset.map_add, Multiset.sum_add, Multiset.map_map,
+    Multiset.map_map, Finset.sum_add_distrib]
   rfl
 
 /-- **The spectrum of a king graph**: the strong product multiplies the shifted eigenvalues of
@@ -9815,6 +11770,28 @@ theorem spectrum_king (m n : ℕ) :
   rw [spectrum_strongProduct, spectrum_path, spectrum_path,
     ← CGraph.map_product_apply₂ _ _ (fun a b ↦ (1 + a) * (1 + b) - 1), ← Finset.univ_product_univ,
     Finset.product_val]
+
+/-- **The spectrum of the bipartite double cover** `G ⊗ K₂`: every eigenvalue of `G` together with
+its negative.  The double cover is bipartite, and this is the symmetry a bipartite spectrum
+has. -/
+theorem spectrum_tensorProduct_complete_two (G : IsoGraph) :
+    (G ⊗g complete 2).spectrum = G.spectrum + G.spectrum.map (fun x ↦ -x) := by
+  rw [spectrum_tensorProduct, spectrum_complete_two, product_pm_one_mul]
+
+/-- **The spectrum of the crown graph** `S_{n+1}`, the double cover of `K_{n+1}`: `± n`, and `∓ 1`
+with multiplicity `n` each. -/
+theorem spectrum_crown (n : ℕ) :
+    (crown (n + 1)).spectrum
+      = ((n : ℝ) ::ₘ Multiset.replicate n (-1)) + (-(n : ℝ) ::ₘ Multiset.replicate n 1) := by
+  rw [crown, spectrum_tensorProduct_complete_two, spectrum_complete]
+  simp [Multiset.map_replicate]
+
+/-- **The energy of the crown graph** `S_{n+1}` is `4 n`: the tensor product multiplies energies,
+so the double cover doubles the energy `2 n` of `K_{n+1}`. -/
+theorem energy_crown (n : ℕ) : (crown (n + 1)).energy = 4 * (n : ℝ) := by
+  have h2 : (complete 2).energy = 2 := by simpa using energy_complete 1
+  rw [crown, energy_tensorProduct, energy_complete, h2]
+  ring
 
 /-! ### Determined by the spectrum -/
 
@@ -9844,6 +11821,42 @@ theorem not_isDS_star_four : ¬ IsDS (star 4) := by
   have h1 : (star 4 : IsoGraph).numComponents = 1 := numComponents_star 4
   rw [h _ cospectral_star_four] at h1
   simp at h1
+
+/-- **`K₂,₂ ⊔ K₁` is not determined by its spectrum** either: the star `K₁,₄` is cospectral with
+it and connected. -/
+theorem not_isDS_disjUnion_bipartite_empty : ¬ IsDS (bipartite 2 2 ⊕g empty 1) := by
+  intro h
+  have h1 : (bipartite 2 2 ⊕g empty 1 : IsoGraph).numComponents = 2 := by
+    rw [numComponents_disjUnion, numComponents_empty,
+      show (2 : ℕ) = 1 + 1 from rfl, numComponents_bipartite]
+  rw [h _ cospectral_star_four.symm] at h1
+  simp at h1
+
+/-- **The Shrikhande graph is not determined by its spectrum**, the `4 × 4` rook's graph being its
+mate. -/
+theorem not_isDS_shrikhande : ¬ IsDS shrikhande := fun h ↦
+  CGraph.not_isDS_shrikhande ((isDS_mk_iff _).1 h)
+
+/-- **The `4 × 4` rook's graph is not determined by its spectrum.** -/
+theorem not_isDS_rook : ¬ IsDS (rook 4 4) := fun h ↦
+  CGraph.not_isDS_rook ((isDS_mk_iff _).1 h)
+
+/-- **The triangular graph `T(8)` is not determined by its spectrum**, the three Chang graphs
+being its mates. -/
+theorem not_isDS_triangular : ¬ IsDS (triangular 8) := fun h ↦
+  CGraph.not_isDS_triangular ((isDS_mk_iff _).1 h)
+
+/-- **The first Chang graph is not determined by its spectrum.** -/
+theorem not_isDS_chang₁ : ¬ IsDS chang₁ := fun h ↦
+  CGraph.not_isDS_chang₁ ((isDS_mk_iff _).1 h)
+
+/-- **The second Chang graph is not determined by its spectrum.** -/
+theorem not_isDS_chang₂ : ¬ IsDS chang₂ := fun h ↦
+  CGraph.not_isDS_chang₂ ((isDS_mk_iff _).1 h)
+
+/-- **The third Chang graph is not determined by its spectrum.** -/
+theorem not_isDS_chang₃ : ¬ IsDS chang₃ := fun h ↦
+  CGraph.not_isDS_chang₃ ((isDS_mk_iff _).1 h)
 
 /-! ### Line graphs -/
 
@@ -9988,6 +12001,67 @@ theorem lapSpectrum_wheel {n : ℕ} (hn : 0 < n) :
   have hone : (complete 1).lapSpectrum = {0} := by simp
   rw [hone]
   norm_num [add_comm (1 : ℝ) (n : ℝ)]
+
+/-- **The Laplacian spectrum of the fan** `F_n`, the cone over a path. -/
+theorem lapSpectrum_fan {n : ℕ} (hn : 0 < n) :
+    (fan n).lapSpectrum
+      = 0 ::ₘ (((n : ℝ) + 1) ::ₘ ((path n).lapSpectrum.erase 0).map (fun x ↦ x + 1)) := by
+  rw [fan_eq_join, lapSpectrum_join_complete_one (path n) (by rw [V_path]; omega), V_path]
+
+/-- **The Laplacian spectrum of the book** `B_{n+1}`: the order twice, once for the spine and once
+for the join, and then `2` for every page but one. -/
+theorem lapSpectrum_book (n : ℕ) :
+    (book (n + 1)).lapSpectrum
+      = 0 ::ₘ (Multiset.replicate 2 ((n : ℝ) + 3) + Multiset.replicate n 2) := by
+  have hc : ((complete 2).lapSpectrum.erase 0).map (fun x ↦ x + ((empty (n + 1)).V : ℝ))
+      = Multiset.replicate 1 ((n : ℝ) + 3) := by
+    rw [lapSpectrum_complete 1, Multiset.erase_cons_head, Multiset.map_replicate, V_empty]
+    push_cast
+    ring_nf
+  have he : ((empty (n + 1)).lapSpectrum.erase 0).map (fun x ↦ x + ((complete 2).V : ℝ))
+      = Multiset.replicate n 2 := by
+    rw [lapSpectrum_empty, Multiset.replicate_succ, Multiset.erase_cons_head,
+      Multiset.map_replicate, V_complete]
+    norm_num
+  rw [show Multiset.replicate 2 ((n : ℝ) + 3)
+        = ((n : ℝ) + 3) ::ₘ Multiset.replicate 1 ((n : ℝ) + 3) from Multiset.replicate_succ _ _,
+    Multiset.cons_add, book_eq_join,
+    lapSpectrum_join (complete 2) (empty (n + 1)) (by simp) (by simp), hc, he,
+    V_complete, V_empty]
+  push_cast
+  ring_nf
+
+/-- **The Laplacian spectrum of the friendship graph** `F_{n+2}`, the cone over a perfect
+matching: the order, then `3` once per blade and `1` once per blade but one. -/
+theorem lapSpectrum_friendship (n : ℕ) :
+    (friendship (n + 2)).lapSpectrum
+      = 0 ::ₘ ((2 * (n : ℝ) + 5)
+          ::ₘ (Multiset.replicate (n + 2) 3 + Multiset.replicate (n + 1) 1)) := by
+  have hV : ((cocktailParty (n + 2))ᶜ).V = 2 * (n + 2) := by rw [V_compl, V_cocktailParty]
+  have hM : ((cocktailParty (n + 2))ᶜ).lapSpectrum
+      = 0 ::ₘ (Multiset.replicate (n + 2) (2 : ℝ) + Multiset.replicate (n + 1) 0) := by
+    rw [lapSpectrum_compl _ (by rw [V_cocktailParty]; omega), lapSpectrum_cocktailParty,
+      V_cocktailParty, Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate,
+      Multiset.map_replicate]
+    push_cast
+    ring_nf
+  rw [friendship_eq_join_compl_cocktailParty,
+    lapSpectrum_join_complete_one _ (by rw [hV]; omega), hM, hV,
+    Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate, Multiset.map_replicate]
+  push_cast
+  ring_nf
+
+/-- **The Laplacian spectrum of the crown graph** `S_{n+1}`, read off `spectrum_crown`: `0` and
+`2 n`, and then `n + 1` and `n - 1` with multiplicity `n` each. -/
+theorem lapSpectrum_crown (n : ℕ) :
+    (crown (n + 1)).lapSpectrum
+      = (0 ::ₘ Multiset.replicate n ((n : ℝ) + 1))
+          + (2 * (n : ℝ) ::ₘ Multiset.replicate n ((n : ℝ) - 1)) := by
+  have hreg : (crown (n + 1)).IsRegularWith n := by simpa using isRegularWith_crown (n + 1)
+  rw [lapSpectrum_of_isRegularWith hreg, spectrum_crown]
+  simp only [Multiset.map_add, Multiset.map_cons, Multiset.map_replicate]
+  norm_num
+  ring_nf
 
 /-! ### Laplacian cospectrality -/
 
@@ -10426,6 +12500,119 @@ theorem algConn_wheel {n : ℕ} (hn : 3 ≤ n) :
       have := algConn_le hy
       linarith
 
+/-- **The largest Laplacian eigenvalue of the fan is its order.** -/
+theorem lapLambdaMax_fan {n : ℕ} (hn : 0 < n) : (fan n).lapLambdaMax = (n : ℝ) + 1 := by
+  rw [fan_eq_join, lapLambdaMax_join_complete_one (path n) (by rw [V_path]; omega), V_path]
+
+/-- **The algebraic connectivity of the fan** `F_{n+2}` is one more than the path's: the apex is
+joined to the whole path. -/
+theorem algConn_fan (n : ℕ) :
+    (fan (n + 2)).algConn = 3 - 2 * Real.cos (Real.pi / ((n : ℝ) + 2)) := by
+  rw [fan_eq_join,
+    algConn_join_complete_one (G := path (n + 2)) (by rw [V_path]; omega), algConn_path]
+  ring
+
+/-- **The largest Laplacian eigenvalue of the book is its order.** -/
+theorem lapLambdaMax_book (n : ℕ) : (book (n + 1)).lapLambdaMax = (n : ℝ) + 3 := by
+  rw [book_eq_join, lapLambdaMax_join (complete 2) (empty (n + 1)) (by simp) (by simp),
+    V_complete, V_empty]
+  push_cast
+  ring
+
+/-- **The algebraic connectivity of the book** `B_{n+2}` is `2`: the pages are pairwise
+nonadjacent, so however many of them there are the two spine vertices are the bottleneck. -/
+theorem algConn_book (n : ℕ) : (book (n + 2)).algConn = 2 := by
+  have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  rw [book_eq_join,
+    algConn_join (G := complete 2) (H := empty (n + 2)) (by simp) (by simp)]
+  simp only [algConn_complete, algConn_empty, V_complete, V_empty]
+  push_cast
+  rw [min_eq_right (by linarith)]
+  norm_num
+
+/-- **The largest Laplacian eigenvalue of the friendship graph is its order.** -/
+theorem lapLambdaMax_friendship (n : ℕ) :
+    (friendship (n + 2)).lapLambdaMax = 2 * (n : ℝ) + 5 := by
+  rw [friendship_eq_join_compl_cocktailParty,
+    lapLambdaMax_join_complete_one _ (by rw [V_compl, V_cocktailParty]; omega), V_compl,
+    V_cocktailParty]
+  push_cast
+  ring
+
+/-- **The algebraic connectivity of the friendship graph is `1`** as soon as it has two blades:
+the matching it cones over is disconnected, so the cone adds one to `0`. -/
+theorem algConn_friendship (n : ℕ) : (friendship (n + 2)).algConn = 1 := by
+  have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  have herase : (friendship (n + 2)).lapSpectrum.erase 0
+      = (2 * (n : ℝ) + 5) ::ₘ (Multiset.replicate (n + 2) 3 + Multiset.replicate (n + 1) 1) := by
+    rw [lapSpectrum_friendship, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    exact Multiset.mem_cons_of_mem
+      (Multiset.mem_add.2 (Or.inr (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+  · intro x hx
+    rw [herase] at hx
+    rcases Multiset.mem_cons.1 hx with rfl | hx
+    · linarith
+    · rcases Multiset.mem_add.1 hx with hx | hx
+      · rw [Multiset.eq_of_mem_replicate hx]
+        norm_num
+      · exact le_of_eq (Multiset.eq_of_mem_replicate hx).symm
+
+/-- **The largest Laplacian eigenvalue of the crown graph** `S_{n+1}` is `2 n`, twice its degree —
+the extreme case of `lapLambdaMax_le_two_mul_maxDeg`, as it must be for a bipartite graph. -/
+theorem lapLambdaMax_crown (n : ℕ) : (crown (n + 1)).lapLambdaMax = 2 * (n : ℝ) := by
+  have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  refine lapLambdaMax_eq_of_isGreatest ?_ ?_
+  · rw [lapSpectrum_crown]
+    exact Multiset.mem_add.2 (Or.inr (Multiset.mem_cons_self _ _))
+  · intro x hx
+    rw [lapSpectrum_crown] at hx
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rcases Multiset.mem_cons.1 hx with rfl | hx
+      · linarith
+      · have hmem := Multiset.eq_of_mem_replicate hx
+        have hpos : n ≠ 0 := by
+          rintro rfl
+          simp at hx
+        have : (1 : ℝ) ≤ (n : ℝ) := by
+          exact_mod_cast Nat.one_le_iff_ne_zero.2 hpos
+        rw [hmem]
+        linarith
+    · rcases Multiset.mem_cons.1 hx with rfl | hx
+      · linarith
+      · have hmem := Multiset.eq_of_mem_replicate hx
+        rw [hmem]
+        linarith
+
+/-- **The algebraic connectivity of the crown graph** `S_{n+2}` is `n`, one less than its degree:
+removing the perfect matching from `K_{n+2,n+2}` costs exactly one. -/
+theorem algConn_crown (n : ℕ) : (crown (n + 2)).algConn = (n : ℝ) := by
+  have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  have hspec : (crown (n + 2)).lapSpectrum
+      = (0 ::ₘ Multiset.replicate (n + 1) ((n : ℝ) + 2))
+          + ((2 * (n : ℝ) + 2) ::ₘ Multiset.replicate (n + 1) (n : ℝ)) := by
+    have h := lapSpectrum_crown (n + 1)
+    rw [h]
+    push_cast
+    ring_nf
+  have herase : (crown (n + 2)).lapSpectrum.erase 0
+      = Multiset.replicate (n + 1) ((n : ℝ) + 2)
+          + ((2 * (n : ℝ) + 2) ::ₘ Multiset.replicate (n + 1) (n : ℝ)) := by
+    rw [hspec, Multiset.cons_add, Multiset.erase_cons_head]
+  refine algConn_eq_of_isLeast ?_ ?_
+  · rw [herase]
+    exact Multiset.mem_add.2
+      (Or.inr (Multiset.mem_cons_of_mem (Multiset.mem_replicate.2 ⟨by omega, rfl⟩)))
+  · intro x hx
+    rw [herase] at hx
+    rcases Multiset.mem_add.1 hx with hx | hx
+    · rw [Multiset.eq_of_mem_replicate hx]
+      linarith
+    · rcases Multiset.mem_cons.1 hx with rfl | hx
+      · linarith
+      · exact le_of_eq (Multiset.eq_of_mem_replicate hx).symm
+
 /-- On a connected graph the erasure removes the only zero. -/
 theorem zero_notMem_erase_of_isConnected {G : IsoGraph} (h : G.IsConnected) :
     (0 : ℝ) ∉ G.lapSpectrum.erase 0 := by
@@ -10492,6 +12679,958 @@ theorem not_lapCospectral_star_four :
   intro h
   have h1 := h.numComponents_eq
   simp at h1
+
+/-! ## Characteristic polynomials in factored form
+
+The characteristic polynomial and the spectrum carry the same information: `charpoly` is monic of
+degree `n` and splits over `ℝ`, so it is the product of `X - λ` over the spectrum
+(`charpoly_eq_prod_spectrum`).  The factored polynomial is nevertheless what the tables print, and
+this section writes it out — for the adjacency matrix and for the Laplacian — for every family
+whose spectrum is computed above.
+
+Most of those families are strongly regular, so the spectrum is the degree `k` once and two
+further eigenvalues with multiplicities; `charpoly_of_spectrum_eq` and
+`lapCharpoly_of_lapSpectrum_eq` turn that shape into `(X - k) (X - r) ^ f (X - s) ^ g` in one
+step.  Two of the families are more interesting than that.  A complete bipartite graph has
+eigenvalues `± √(m n)`, irrational in general, but they pair up into the rational factor
+`X ^ 2 - m n`.  A Paley graph has the two roots of `X ^ 2 + X - t`, each with multiplicity `2 t`,
+so its polynomial is `(X - 2 t) (X ^ 2 + X - t) ^ (2 t)` — integral, as `charpoly_eq_map_int` says
+it has to be, even though neither eigenvalue is. -/
+
+/-- **The characteristic polynomial is the product over the spectrum**, at the level of
+isomorphism classes. -/
+theorem charpoly_eq_prod_spectrum (G : IsoGraph) :
+    G.charpoly = (G.spectrum.map (fun x ↦ X - C x)).prod :=
+  Quotient.inductionOn G fun g ↦ by
+    rw [charpoly_mk, spectrum_mk, CGraph.charpoly_eq_prod_spectrum]
+
+/-- **The Laplacian characteristic polynomial is the product over the Laplacian spectrum**, at the
+level of isomorphism classes. -/
+theorem lapCharpoly_eq_prod_lapSpectrum (G : IsoGraph) :
+    G.lapCharpoly = (G.lapSpectrum.map (fun x ↦ X - C x)).prod :=
+  Quotient.inductionOn G fun g ↦ by
+    rw [lapCharpoly_mk, lapSpectrum_mk, CGraph.lapCharpoly_eq_prod_lapSpectrum]
+
+/-- The shape a strongly regular graph's spectrum takes: the degree once and two more eigenvalues
+with multiplicities. -/
+theorem charpoly_of_spectrum_eq {G : IsoGraph} {k r s : ℝ} {f g : ℕ}
+    (h : G.spectrum = k ::ₘ (Multiset.replicate f r + Multiset.replicate g s)) :
+    G.charpoly = (X - C k) * (X - C r) ^ f * (X - C s) ^ g := by
+  rw [charpoly_eq_prod_spectrum, h]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_add, Multiset.prod_add,
+    Multiset.map_replicate, Multiset.prod_replicate]
+  ring
+
+/-- The same for the Laplacian, whose smallest eigenvalue is always `0`. -/
+theorem lapCharpoly_of_lapSpectrum_eq {G : IsoGraph} {a b : ℝ} {f g : ℕ}
+    (h : G.lapSpectrum = 0 ::ₘ (Multiset.replicate f a + Multiset.replicate g b)) :
+    G.lapCharpoly = X * (X - C a) ^ f * (X - C b) ^ g := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, h]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_add, Multiset.prod_add,
+    Multiset.map_replicate, Multiset.prod_replicate, map_zero, sub_zero]
+  ring
+
+/-- A spectrum listed by eigenvector index rather than by multiplicity. -/
+private theorem prod_map_univ {ι : Type*} [Fintype ι] (d : ι → ℝ) :
+    ((Finset.univ.val.map d).map (fun x ↦ X - C x)).prod = ∏ i, (X - C (d i)) := by
+  rw [Multiset.map_map]
+  rfl
+
+/-- A spectrum given as a sum of multiplicity blocks, as the hypercube's is. -/
+private theorem prod_map_finset_sum {ι : Type*} (s : Finset ι) (m : ι → Multiset ℝ) :
+    ((∑ i ∈ s, m i).map (fun x ↦ X - C x)).prod
+      = ∏ i ∈ s, ((m i).map (fun x ↦ X - C x)).prod := by
+  classical
+  induction s using Finset.induction with
+  | empty => simp
+  | insert a s ha ih =>
+    rw [Finset.sum_insert ha, Finset.prod_insert ha, Multiset.map_add, Multiset.prod_add, ih]
+
+/-! ### Products
+
+The three products whose spectra are known combine the two factors' eigenvalues pairwise, so their
+polynomials are products over pairs. -/
+
+/-- **The characteristic polynomial of a cartesian product**, one factor `X - (λ + μ)` for each
+pair of eigenvalues. -/
+theorem charpoly_cartesianProduct (G H : IsoGraph) :
+    (G □g H).charpoly = ((G.spectrum ×ˢ H.spectrum).map (fun p ↦ X - C (p.1 + p.2))).prod := by
+  rw [charpoly_eq_prod_spectrum, spectrum_cartesianProduct, Multiset.map_map]
+  rfl
+
+/-- **The characteristic polynomial of a tensor product**, one factor `X - λ μ` for each pair. -/
+theorem charpoly_tensorProduct (G H : IsoGraph) :
+    (G ⊗g H).charpoly = ((G.spectrum ×ˢ H.spectrum).map (fun p ↦ X - C (p.1 * p.2))).prod := by
+  rw [charpoly_eq_prod_spectrum, spectrum_tensorProduct, Multiset.map_map]
+  rfl
+
+/-- **The characteristic polynomial of a strong product**, whose eigenvalues are the tensor
+product's on the adjacency matrices shifted by the identity. -/
+theorem charpoly_strongProduct (G H : IsoGraph) :
+    (G ⊠g H).charpoly
+      = ((G.spectrum ×ˢ H.spectrum).map (fun p ↦ X - C ((1 + p.1) * (1 + p.2) - 1))).prod := by
+  rw [charpoly_eq_prod_spectrum, spectrum_strongProduct, Multiset.map_map]
+  rfl
+
+/-- **The Laplacian characteristic polynomial of a cartesian product.**  The cartesian product is
+the one whose Laplacian, not just whose adjacency matrix, adds up. -/
+theorem lapCharpoly_cartesianProduct (G H : IsoGraph) :
+    (G □g H).lapCharpoly
+      = ((G.lapSpectrum ×ˢ H.lapSpectrum).map (fun p ↦ X - C (p.1 + p.2))).prod := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_cartesianProduct, Multiset.map_map]
+  rfl
+
+/-! ### The empty graph and the complete graph -/
+
+/-- **The Laplacian characteristic polynomial of the empty graph**: `Xⁿ`, the same as the
+adjacency one, both matrices being zero. -/
+theorem lapCharpoly_empty (n : ℕ) : (empty n).lapCharpoly = X ^ n := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_empty]
+  simp
+
+/-- **The Laplacian characteristic polynomial of a complete graph**: `X (X - n) ^ (n - 1)`. -/
+theorem lapCharpoly_complete (n : ℕ) :
+    (complete (n + 1)).lapCharpoly = X * (X - C ((n : ℝ) + 1)) ^ n := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_complete]
+  simp
+
+/-! ### Stars and complete bipartite graphs -/
+
+/-- A pair of eigenvalues `± √a` contributes a rational factor. -/
+private theorem quadratic_of_sqrt (a : ℝ) (ha : 0 ≤ a) :
+    (X - C (Real.sqrt a)) * (X + C (Real.sqrt a)) = X ^ 2 - C a := by
+  have h : Real.sqrt a * Real.sqrt a = a := Real.mul_self_sqrt ha
+  calc (X - C (Real.sqrt a)) * (X + C (Real.sqrt a))
+      = X ^ 2 - C (Real.sqrt a) * C (Real.sqrt a) := by ring
+    _ = X ^ 2 - C a := by rw [← map_mul, h]
+
+/-- **The characteristic polynomial of a star**: `(X ^ 2 - n) X ^ (n - 1)`. -/
+theorem charpoly_star (n : ℕ) :
+    (star (n + 1)).charpoly = (X ^ 2 - C ((n : ℝ) + 1)) * X ^ n := by
+  rw [charpoly_eq_prod_spectrum, spectrum_star]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_replicate,
+    Multiset.prod_replicate, map_zero, sub_zero, map_neg, sub_neg_eq_add]
+  rw [← quadratic_of_sqrt ((n : ℝ) + 1) (by positivity)]
+  ring
+
+/-- **The Laplacian characteristic polynomial of a star**: `X (X - n - 1) (X - 1) ^ (n - 1)`. -/
+theorem lapCharpoly_star (n : ℕ) :
+    (star (n + 1)).lapCharpoly = X * (X - C ((n : ℝ) + 2)) * (X - 1) ^ n := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_star]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_replicate,
+    Multiset.prod_replicate, map_zero, sub_zero, map_one]
+  ring
+
+/-- **The characteristic polynomial of a complete bipartite graph**:
+`(X ^ 2 - m n) X ^ (m + n - 2)`.  The two nonzero eigenvalues `± √(m n)` are irrational unless
+`m n` is a square, but their factors multiply to a rational one. -/
+theorem charpoly_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).charpoly
+      = (X ^ 2 - C (((m : ℝ) + 1) * ((n : ℝ) + 1))) * X ^ (m + n) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_bipartite]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_replicate,
+    Multiset.prod_replicate, map_zero, sub_zero, map_neg, sub_neg_eq_add]
+  rw [← quadratic_of_sqrt (((m : ℝ) + 1) * ((n : ℝ) + 1)) (by positivity)]
+  ring
+
+/-- **The Laplacian characteristic polynomial of a complete bipartite graph**:
+`X (X - m - n) (X - n) ^ (m - 1) (X - m) ^ (n - 1)`. -/
+theorem lapCharpoly_bipartite (m n : ℕ) :
+    (bipartite (m + 1) (n + 1)).lapCharpoly
+      = X * (X - C ((m : ℝ) + n + 2)) * (X - C ((n : ℝ) + 1)) ^ m
+        * (X - C ((m : ℝ) + 1)) ^ n := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_bipartite]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_add, Multiset.prod_add,
+    Multiset.map_replicate, Multiset.prod_replicate, map_zero, sub_zero]
+  ring
+
+/-! ### Books, friendship graphs and crowns -/
+
+/-- **The Laplacian characteristic polynomial of the book**: `X (X - n - 3) ^ 2 (X - 2) ^ n`. -/
+theorem lapCharpoly_book (n : ℕ) :
+    (book (n + 1)).lapCharpoly = X * (X - C ((n : ℝ) + 3)) ^ 2 * (X - C 2) ^ n :=
+  lapCharpoly_of_lapSpectrum_eq (lapSpectrum_book n)
+
+/-- **The Laplacian characteristic polynomial of the friendship graph**:
+`X (X - 2 n - 5) (X - 3) ^ (n + 2) (X - 1) ^ (n + 1)`. -/
+theorem lapCharpoly_friendship (n : ℕ) :
+    (friendship (n + 2)).lapCharpoly
+      = X * (X - C (2 * (n : ℝ) + 5)) * (X - C 3) ^ (n + 2) * (X - C 1) ^ (n + 1) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_friendship]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_add, Multiset.prod_add,
+    Multiset.map_replicate, Multiset.prod_replicate, map_zero, sub_zero]
+  ring
+
+/-- **The spectrum of the book** `Bₙ = K₂ ∇ n K₁`, the cone over `n` isolated vertices on top of
+an edge: the two roots of `X ² - X - 2 n - 2`, the spine's `-1`, and `0` with multiplicity `n`. -/
+theorem spectrum_book (n : ℕ) :
+    (book (n + 1)).spectrum
+      = ((1 + Real.sqrt (8 * (n : ℝ) + 9)) / 2)
+          ::ₘ (((1 - Real.sqrt (8 * (n : ℝ) + 9)) / 2)
+          ::ₘ ((-1 : ℝ) ::ₘ Multiset.replicate n 0)) := by
+  have hK : (complete 2).IsRegularWith 1 := by simpa using isRegularWith_complete 2
+  have hE : (empty (n + 1)).IsRegularWith 0 := isRegularWith_empty (n + 1)
+  have h := spectrum_join_of_isRegularWith' (G := complete 2) (H := empty (n + 1))
+      (by simp) (by simp) hK hE
+  rw [← book_eq_join, V_complete, V_empty, spectrum_complete 1, spectrum_empty] at h
+  simp only [Nat.cast_zero, Nat.cast_one, Nat.cast_ofNat, Nat.cast_add, add_zero, sub_zero,
+    one_pow, Multiset.replicate_succ, Multiset.erase_cons_head] at h
+  rw [show (1 : ℝ) + 4 * 2 * ((n : ℝ) + 1) = 8 * (n : ℝ) + 9 from by ring] at h
+  exact h
+
+/-- **The characteristic polynomial of the book**: `(X ² - X - 2 n - 2) (X + 1) X ^ n`, with the
+quadratic split into its two roots. -/
+theorem charpoly_book (n : ℕ) :
+    (book (n + 1)).charpoly
+      = (X - C ((1 + Real.sqrt (8 * (n : ℝ) + 9)) / 2))
+        * (X - C ((1 - Real.sqrt (8 * (n : ℝ) + 9)) / 2)) * ((X + 1) * X ^ n) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_book]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_replicate,
+    Multiset.prod_replicate, map_neg, map_one, sub_neg_eq_add, map_zero, sub_zero]
+  ring
+
+/-- **The energy of the book**: `√(8 n + 9) + 1`.  The two roots of the quadratic have opposite
+signs and differ by the square root, so their absolute values add to it. -/
+theorem energy_book (n : ℕ) :
+    (book (n + 1)).energy = Real.sqrt (8 * (n : ℝ) + 9) + 1 := by
+  have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  have hge : (1 : ℝ) ≤ Real.sqrt (8 * (n : ℝ) + 9) := by
+    have h1 : Real.sqrt 1 ≤ Real.sqrt (8 * (n : ℝ) + 9) := Real.sqrt_le_sqrt (by linarith)
+    rwa [Real.sqrt_one] at h1
+  rw [energy, spectrum_book]
+  simp only [Multiset.map_cons, Multiset.sum_cons, Multiset.map_replicate, Multiset.sum_replicate,
+    abs_zero, smul_zero, abs_neg, abs_one]
+  rw [abs_of_nonneg (show (0 : ℝ) ≤ (1 + Real.sqrt (8 * (n : ℝ) + 9)) / 2 by positivity),
+    abs_of_nonpos (show (1 - Real.sqrt (8 * (n : ℝ) + 9)) / 2 ≤ 0 by linarith)]
+  ring
+
+/-- **The spectrum of the perfect matching** `n K₂`, which is the complement of the cocktail party
+graph: `1` and `-1`, each with multiplicity `m + 2`.  The friendship graph is the cone over it. -/
+theorem spectrum_compl_cocktailParty (m : ℕ) :
+    ((cocktailParty (m + 2))ᶜ).spectrum
+      = (1 : ℝ) ::ₘ (Multiset.replicate (m + 2) (-1) + Multiset.replicate (m + 1) 1) := by
+  have hreg : (cocktailParty (m + 2)).IsRegularWith (2 * m + 2) := by
+    have h := isRegularWith_cocktailParty (m + 2)
+    rwa [show 2 * (m + 2) - 2 = 2 * m + 2 from by omega] at h
+  have h := spectrum_compl_of_isRegularWith (isConnected_cocktailParty m) hreg
+  rw [spectrum_cocktailParty, V_cocktailParty] at h
+  push_cast at h
+  rw [Multiset.erase_cons_head, Multiset.map_add, Multiset.map_replicate,
+    Multiset.map_replicate,
+    show 2 * ((m : ℝ) + 2) - 1 - (2 * (m : ℝ) + 2) = 1 from by ring] at h
+  rw [h]
+  norm_num
+
+/-- **The spectrum of the friendship graph** `Fₙ = K₁ ∇ n K₂`: the two roots of
+`X ² - X - 2 m - 4`, then `-1` with multiplicity `m + 2` and `1` with multiplicity `m + 1`. -/
+theorem spectrum_friendship (m : ℕ) :
+    (friendship (m + 2)).spectrum
+      = ((1 + Real.sqrt (8 * (m : ℝ) + 17)) / 2)
+          ::ₘ (((1 - Real.sqrt (8 * (m : ℝ) + 17)) / 2)
+          ::ₘ (Multiset.replicate (m + 2) (-1) + Multiset.replicate (m + 1) 1)) := by
+  have hK : (complete 1).IsRegularWith 0 := by simp
+  have hC : ((cocktailParty (m + 2))ᶜ).IsRegularWith 1 := isRegularWith_compl_cocktailParty (m + 1)
+  have h := spectrum_join_of_isRegularWith' (G := complete 1) (H := (cocktailParty (m + 2))ᶜ)
+      (by simp) (by simp) hK hC
+  rw [← friendship_eq_join_compl_cocktailParty, V_complete, V_compl, V_cocktailParty,
+    spectrum_complete 0, spectrum_compl_cocktailParty] at h
+  simp only [Nat.cast_zero, Nat.cast_one, Nat.cast_ofNat, Nat.cast_mul, Nat.cast_add, zero_add,
+    Multiset.erase_cons_head, Multiset.replicate_zero] at h
+  rw [show ((0 : ℝ) - 1) ^ 2 + 4 * 1 * (2 * ((m : ℝ) + 2)) = 8 * (m : ℝ) + 17 from by ring] at h
+  exact h
+
+/-- **The characteristic polynomial of the friendship graph**. -/
+theorem charpoly_friendship (m : ℕ) :
+    (friendship (m + 2)).charpoly
+      = (X - C ((1 + Real.sqrt (8 * (m : ℝ) + 17)) / 2))
+        * (X - C ((1 - Real.sqrt (8 * (m : ℝ) + 17)) / 2))
+        * ((X + 1) ^ (m + 2) * (X - 1) ^ (m + 1)) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_friendship]
+  simp only [Multiset.map_cons, Multiset.prod_cons, Multiset.map_add, Multiset.prod_add,
+    Multiset.map_replicate, Multiset.prod_replicate, map_neg, map_one, sub_neg_eq_add]
+  ring
+
+/-- **The energy of the friendship graph**: `√(8 m + 17) + 2 m + 3`. -/
+theorem energy_friendship (m : ℕ) :
+    (friendship (m + 2)).energy = Real.sqrt (8 * (m : ℝ) + 17) + (2 * m + 3) := by
+  have hm : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+  have hge : (1 : ℝ) ≤ Real.sqrt (8 * (m : ℝ) + 17) := by
+    have h1 : Real.sqrt 1 ≤ Real.sqrt (8 * (m : ℝ) + 17) := Real.sqrt_le_sqrt (by linarith)
+    rwa [Real.sqrt_one] at h1
+  rw [energy, spectrum_friendship]
+  simp only [Multiset.map_cons, Multiset.sum_cons, Multiset.map_add, Multiset.sum_add,
+    Multiset.map_replicate, Multiset.sum_replicate, abs_neg, abs_one, nsmul_eq_mul, mul_one]
+  rw [abs_of_nonneg (show (0 : ℝ) ≤ (1 + Real.sqrt (8 * (m : ℝ) + 17)) / 2 by positivity),
+    abs_of_nonpos (show (1 - Real.sqrt (8 * (m : ℝ) + 17)) / 2 ≤ 0 by linarith)]
+  push_cast
+  ring
+
+/-- **The characteristic polynomial of the crown graph**: `(X ² - n ²) (X ² - 1) ^ n`, written out
+in its four factors. -/
+theorem charpoly_crown (n : ℕ) :
+    (crown (n + 1)).charpoly
+      = (X - C (n : ℝ)) * (X + C (n : ℝ)) * (X + 1) ^ n * (X - 1) ^ n := by
+  rw [charpoly_eq_prod_spectrum, spectrum_crown]
+  simp only [Multiset.map_add, Multiset.prod_add, Multiset.map_cons, Multiset.prod_cons,
+    Multiset.map_replicate, Multiset.prod_replicate, map_neg, map_one, sub_neg_eq_add]
+  ring
+
+/-- **The Laplacian characteristic polynomial of the crown graph.** -/
+theorem lapCharpoly_crown (n : ℕ) :
+    (crown (n + 1)).lapCharpoly
+      = X * (X - C (2 * (n : ℝ))) * (X - C ((n : ℝ) + 1)) ^ n * (X - C ((n : ℝ) - 1)) ^ n := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_crown]
+  simp only [Multiset.map_add, Multiset.prod_add, Multiset.map_cons, Multiset.prod_cons,
+    Multiset.map_replicate, Multiset.prod_replicate, map_zero, sub_zero]
+  ring
+
+/-! ### Fans and wheels -/
+
+/-- **The Laplacian characteristic polynomial of the fan** `F_n`, the cone over a path: the hub
+contributes the root `n + 1`, and every nonzero Laplacian eigenvalue of the path is shifted by
+one. -/
+theorem lapCharpoly_fan {n : ℕ} (hn : 0 < n) :
+    (fan n).lapCharpoly
+      = X * (X - C ((n : ℝ) + 1))
+        * ((((path n).lapSpectrum.erase 0).map (fun x ↦ X - C (x + 1))).prod) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_fan hn, Multiset.map_cons, Multiset.prod_cons,
+    Multiset.map_cons, Multiset.prod_cons, Multiset.map_map, map_zero, sub_zero, mul_assoc]
+  simp only [Function.comp_def]
+
+/-- **The Laplacian characteristic polynomial of the wheel** `W_n`: the hub contributes the root
+`n + 1`, and every nonzero Laplacian eigenvalue of the rim is shifted by one. -/
+theorem lapCharpoly_wheel {n : ℕ} (hn : 0 < n) :
+    (wheel n).lapCharpoly
+      = X * (X - C ((n : ℝ) + 1))
+        * ((((cycle n).lapSpectrum.erase 0).map (fun x ↦ X - C (x + 1))).prod) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_wheel hn, Multiset.map_cons, Multiset.prod_cons,
+    Multiset.map_cons, Multiset.prod_cons, Multiset.map_map, map_zero, sub_zero, mul_assoc]
+  simp only [Function.comp_def]
+
+/-- **The spectrum of the wheel** `Wₙ = K₁ ∇ Cₙ`: the hub and the rim's all-ones eigenvector mix
+into `1 ± √(n + 4)`, and every other eigenvalue of the rim survives unchanged. -/
+theorem spectrum_wheel (n : ℕ) :
+    (wheel (n + 3)).spectrum
+      = (1 + Real.sqrt ((n : ℝ) + 4)) ::ₘ ((1 - Real.sqrt ((n : ℝ) + 4))
+          ::ₘ (cycle (n + 3)).spectrum.erase 2) := by
+  have hK : (complete 1).IsRegularWith 0 := by simp
+  have hC : (cycle (n + 3)).IsRegularWith 2 := isRegularWith_cycle n
+  have h := spectrum_join_of_isRegularWith' (G := complete 1) (H := cycle (n + 3))
+      (by simp) (by simp) hK hC
+  rw [← wheel_eq_join, V_complete, V_cycle, spectrum_complete 0] at h
+  simp only [Nat.cast_zero, Nat.cast_one, Nat.cast_ofNat, Nat.cast_add, zero_add,
+    Multiset.erase_cons_head, Multiset.replicate_zero] at h
+  rw [show ((0 : ℝ) - 2) ^ 2 + 4 * 1 * ((n : ℝ) + 3) = 2 ^ 2 * ((n : ℝ) + 4) from by ring,
+    Real.sqrt_mul (by positivity), Real.sqrt_sq (by norm_num),
+    show (2 + 2 * Real.sqrt ((n : ℝ) + 4)) / 2 = 1 + Real.sqrt ((n : ℝ) + 4) from by ring,
+    show (2 - 2 * Real.sqrt ((n : ℝ) + 4)) / 2 = 1 - Real.sqrt ((n : ℝ) + 4) from by ring] at h
+  exact h
+
+/-- **The characteristic polynomial of the wheel** `Wₙ`. -/
+theorem charpoly_wheel (n : ℕ) :
+    (wheel (n + 3)).charpoly
+      = (X - C (1 + Real.sqrt ((n : ℝ) + 4))) * (X - C (1 - Real.sqrt ((n : ℝ) + 4)))
+        * (((cycle (n + 3)).spectrum.erase 2).map (fun x ↦ X - C x)).prod := by
+  rw [charpoly_eq_prod_spectrum, spectrum_wheel, Multiset.map_cons, Multiset.prod_cons,
+    Multiset.map_cons, Multiset.prod_cons, mul_assoc]
+
+/-- **The energy of the wheel**: the rim's energy, with its eigenvalue `2` traded for
+`2 √(n + 4) - 2`. -/
+theorem energy_wheel (n : ℕ) :
+    (wheel (n + 3)).energy = 2 * Real.sqrt ((n : ℝ) + 4) - 2 + (cycle (n + 3)).energy := by
+  have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg n
+  have hmem : (2 : ℝ) ∈ (cycle (n + 3)).spectrum := by
+    rw [spectrum_cycle (by omega)]
+    exact Multiset.mem_map.2 ⟨0, by simp, by simp⟩
+  have hge : (2 : ℝ) ≤ Real.sqrt ((n : ℝ) + 4) := by
+    have h4 : Real.sqrt (2 ^ 2) ≤ Real.sqrt ((n : ℝ) + 4) := Real.sqrt_le_sqrt (by nlinarith)
+    rwa [Real.sqrt_sq (by norm_num : (0 : ℝ) ≤ 2)] at h4
+  have hcyc : (cycle (n + 3)).energy
+      = 2 + (((cycle (n + 3)).spectrum.erase 2).map (fun x ↦ |x|)).sum := by
+    rw [energy]
+    conv_lhs => rw [← Multiset.cons_erase hmem]
+    simp only [Multiset.map_cons, Multiset.sum_cons, abs_two]
+  rw [energy, spectrum_wheel, hcyc]
+  simp only [Multiset.map_cons, Multiset.sum_cons]
+  rw [abs_of_nonneg (show (0 : ℝ) ≤ 1 + Real.sqrt ((n : ℝ) + 4) by positivity),
+    abs_of_nonpos (show (1 : ℝ) - Real.sqrt ((n : ℝ) + 4) ≤ 0 by linarith)]
+  ring
+
+/-! ### The strongly regular families -/
+
+/-- **The characteristic polynomial of the cocktail party graph `K_{n×2}`**. -/
+theorem charpoly_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).charpoly
+      = (X - C (2 * (m : ℝ) + 2)) * X ^ (m + 2) * (X + 2) ^ (m + 1) := by
+  rw [charpoly_of_spectrum_eq (spectrum_cocktailParty m)]
+  simp only [map_zero, sub_zero, map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the cocktail party graph `K_{n×2}`**. -/
+theorem lapCharpoly_cocktailParty (m : ℕ) :
+    (cocktailParty (m + 2)).lapCharpoly
+      = X * (X - C (2 * (m : ℝ) + 2)) ^ (m + 2) * (X - C (2 * (m : ℝ) + 4)) ^ (m + 1) :=
+  lapCharpoly_of_lapSpectrum_eq (lapSpectrum_cocktailParty m)
+
+/-- **The characteristic polynomial of the complete multipartite graph `K_{r×s}`**. -/
+theorem charpoly_completeMultipartite_replicate (p a : ℕ) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).charpoly
+      = (X - C (((p : ℝ) + 1) * ((a : ℝ) + 1))) * X ^ ((p + 2) * a)
+          * (X + C ((a : ℝ) + 1)) ^ (p + 1) := by
+  rw [charpoly_of_spectrum_eq (spectrum_completeMultipartite_replicate p a)]
+  simp only [map_zero, sub_zero, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the complete multipartite graph `K_{r×s}`**. -/
+theorem lapCharpoly_completeMultipartite_replicate (p a : ℕ) :
+    (completeMultipartite (List.replicate (p + 2) (a + 1))).lapCharpoly
+      = X * (X - C (((p : ℝ) + 1) * ((a : ℝ) + 1))) ^ ((p + 2) * a)
+          * (X - C (((p : ℝ) + 2) * ((a : ℝ) + 1))) ^ (p + 1) :=
+  lapCharpoly_of_lapSpectrum_eq (lapSpectrum_completeMultipartite_replicate p a)
+
+/-- **The characteristic polynomial of the rook's graph `Kₙ □ Kₙ`**. -/
+theorem charpoly_rook (k : ℕ) :
+    (rook (k + 2) (k + 2)).charpoly
+      = (X - C (2 * (k : ℝ) + 2)) * (X - C (k : ℝ)) ^ (2 * (k + 1))
+        * (X + 2) ^ ((k + 1) ^ 2) := by
+  rw [charpoly_of_spectrum_eq (spectrum_rook k)]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the rook's graph `Kₙ □ Kₙ`**. -/
+theorem lapCharpoly_rook (k : ℕ) :
+    (rook (k + 2) (k + 2)).lapCharpoly
+      = X * (X - C ((k : ℝ) + 2)) ^ (2 * (k + 1))
+        * (X - C (2 * (k : ℝ) + 4)) ^ ((k + 1) ^ 2) :=
+  lapCharpoly_of_lapSpectrum_eq (lapSpectrum_rook k)
+
+/-- **The characteristic polynomial of the triangular graph `T(n) = L(Kₙ)`**. -/
+theorem charpoly_triangular (m : ℕ) :
+    (triangular (m + 4)).charpoly
+      = (X - C (2 * (m : ℝ) + 4)) * (X - C (m : ℝ)) ^ (m + 3)
+        * (X + 2) ^ ((m + 4).choose 2 - (m + 4)) := by
+  rw [charpoly_of_spectrum_eq (spectrum_triangular m)]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the triangular graph `T(n) = L(Kₙ)`**. -/
+theorem lapCharpoly_triangular (m : ℕ) :
+    (triangular (m + 4)).lapCharpoly
+      = X * (X - C ((m : ℝ) + 4)) ^ (m + 3)
+        * (X - C (2 * (m : ℝ) + 6)) ^ ((m + 4).choose 2 - (m + 4)) :=
+  lapCharpoly_of_lapSpectrum_eq (lapSpectrum_triangular m)
+
+/-- Two eigenvalues given by their sum and product. -/
+private theorem quadratic_of_roots {a b c d : ℝ} (hs : a + b = c) (hp : a * b = d) :
+    (X - C a) * (X - C b) = X ^ 2 - C c * X + C d := by
+  rw [← hs, ← hp, map_add, map_mul]
+  ring
+
+/-- The two Paley eigenvalues `(-1 ± √(4 t + 1)) / 2` are the roots of `X ^ 2 + X - t`. -/
+private theorem paley_quadratic (t : ℕ) :
+    (X - C ((-1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2))
+      * (X - C ((-1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2)) = X ^ 2 + X - C (t : ℝ) := by
+  have hq : Real.sqrt (4 * (t : ℝ) + 1) * Real.sqrt (4 * (t : ℝ) + 1) = 4 * (t : ℝ) + 1 :=
+    Real.mul_self_sqrt (by positivity)
+  rw [quadratic_of_roots (c := -1) (d := -(t : ℝ)) (by ring) (by nlinarith [hq]),
+    map_neg, map_neg, map_one]
+  ring
+
+/-- The two nonzero Paley Laplacian eigenvalues are the roots of
+`X ^ 2 - (4 t + 1) X + t (4 t + 1)`. -/
+private theorem paley_lap_quadratic (t : ℕ) :
+    (X - C ((4 * (t : ℝ) + 1 - Real.sqrt (4 * (t : ℝ) + 1)) / 2))
+      * (X - C ((4 * (t : ℝ) + 1 + Real.sqrt (4 * (t : ℝ) + 1)) / 2))
+        = X ^ 2 - C (4 * (t : ℝ) + 1) * X + C ((t : ℝ) * (4 * t + 1)) := by
+  have hq : Real.sqrt (4 * (t : ℝ) + 1) * Real.sqrt (4 * (t : ℝ) + 1) = 4 * (t : ℝ) + 1 :=
+    Real.mul_self_sqrt (by positivity)
+  exact quadratic_of_roots (by ring) (by nlinarith [hq])
+
+/-- **The characteristic polynomial of a Paley graph**: `(X - 2 t) (X ^ 2 + X - t) ^ (2 t)`. -/
+theorem charpoly_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).charpoly
+      = (X - C (2 * (t : ℝ))) * (X ^ 2 + X - C (t : ℝ)) ^ (2 * t) := by
+  rw [charpoly_of_spectrum_eq (spectrum_paley t ht), mul_assoc, ← mul_pow, paley_quadratic]
+
+/-- **The Laplacian characteristic polynomial of a Paley graph**. -/
+theorem lapCharpoly_paley (t : ℕ) (ht : 0 < t) [Fact (Nat.Prime (4 * t + 1))] :
+    (paley (4 * t + 1)).lapCharpoly
+      = X * (X ^ 2 - C (4 * (t : ℝ) + 1) * X + C ((t : ℝ) * (4 * t + 1))) ^ (2 * t) := by
+  rw [lapCharpoly_of_lapSpectrum_eq (lapSpectrum_paley t ht), mul_assoc, ← mul_pow,
+    paley_lap_quadratic]
+
+/-- **The characteristic polynomial of the Paley graph of a finite field**. -/
+theorem charpoly_paleyField {F : Type} [Field F] [FinEnum F] {t : ℕ} (ht : 0 < t)
+    (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).charpoly
+      = (X - C (2 * (t : ℝ))) * (X ^ 2 + X - C (t : ℝ)) ^ (2 * t) := by
+  rw [charpoly_of_spectrum_eq (spectrum_paleyField ht hcard), mul_assoc, ← mul_pow,
+    paley_quadratic]
+
+/-- **The Laplacian characteristic polynomial of the Paley graph of a finite field**. -/
+theorem lapCharpoly_paleyField {F : Type} [Field F] [FinEnum F] {t : ℕ} (ht : 0 < t)
+    (hcard : Fintype.card F = 4 * t + 1) :
+    (paleyField F).lapCharpoly
+      = X * (X ^ 2 - C (4 * (t : ℝ) + 1) * X + C ((t : ℝ) * (4 * t + 1))) ^ (2 * t) := by
+  rw [lapCharpoly_of_lapSpectrum_eq (lapSpectrum_paleyField ht hcard), mul_assoc, ← mul_pow,
+    paley_lap_quadratic]
+
+/-! ### The sporadic strongly regular graphs
+
+Ten graphs and their complements, each with three eigenvalues; the polynomials below are the
+factorizations of the spectra proved in `spectrum_petersen` and the sequence after it. -/
+
+/-- **The characteristic polynomial of the Petersen graph.** -/
+theorem charpoly_petersen :
+    petersen.charpoly = (X - 3) * (X - 1) ^ 5 * (X + 2) ^ 4 := by
+  rw [charpoly_of_spectrum_eq spectrum_petersen]
+  simp only [map_ofNat, map_one, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the Petersen graph.** -/
+theorem lapCharpoly_petersen :
+    petersen.lapCharpoly = X * (X - 2) ^ 5 * (X - 5) ^ 4 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_petersen]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the Clebsch graph.** -/
+theorem charpoly_clebsch :
+    (foldedCube 4).charpoly = (X - 5) * (X - 1) ^ 10 * (X + 3) ^ 5 := by
+  rw [charpoly_of_spectrum_eq spectrum_clebsch]
+  simp only [map_ofNat, map_one, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the Clebsch graph.** -/
+theorem lapCharpoly_clebsch :
+    (foldedCube 4).lapCharpoly = X * (X - 4) ^ 10 * (X - 8) ^ 5 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_clebsch]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the Shrikhande graph** — the same as `K₄ □ K₄`'s, which is
+`charpoly_rook 2`. -/
+theorem charpoly_shrikhande :
+    shrikhande.charpoly = (X - 6) * (X - 2) ^ 6 * (X + 2) ^ 9 := by
+  rw [charpoly_of_spectrum_eq spectrum_shrikhande]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the Shrikhande graph.** -/
+theorem lapCharpoly_shrikhande :
+    shrikhande.lapCharpoly = X * (X - 4) ^ 6 * (X - 8) ^ 9 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_shrikhande]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the graph on the 27 lines of a cubic surface.** -/
+theorem charpoly_linesOnCubic :
+    linesOnCubic.charpoly = (X - 10) * (X - 1) ^ 20 * (X + 5) ^ 6 := by
+  rw [charpoly_of_spectrum_eq spectrum_linesOnCubic]
+  simp only [map_ofNat, map_one, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the graph on the 27 lines.** -/
+theorem lapCharpoly_linesOnCubic :
+    linesOnCubic.lapCharpoly = X * (X - 9) ^ 20 * (X - 15) ^ 6 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_linesOnCubic]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the Schläfli graph.** -/
+theorem charpoly_schlafli :
+    schlafli.charpoly = (X - 16) * (X - 4) ^ 6 * (X + 2) ^ 20 := by
+  rw [charpoly_of_spectrum_eq spectrum_schlafli]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the Schläfli graph.** -/
+theorem lapCharpoly_schlafli :
+    schlafli.lapCharpoly = X * (X - 12) ^ 6 * (X - 18) ^ 20 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_schlafli]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the first Chang graph** — shared with the other two and
+with `T(8)`, which is `charpoly_triangular 4`. -/
+theorem charpoly_chang₁ :
+    chang₁.charpoly = (X - 12) * (X - 4) ^ 7 * (X + 2) ^ 20 := by
+  rw [charpoly_of_spectrum_eq spectrum_chang₁]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the first Chang graph.** -/
+theorem lapCharpoly_chang₁ :
+    chang₁.lapCharpoly = X * (X - 8) ^ 7 * (X - 14) ^ 20 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_chang₁]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the second Chang graph**, the same as the first. -/
+theorem charpoly_chang₂ :
+    chang₂.charpoly = (X - 12) * (X - 4) ^ 7 * (X + 2) ^ 20 := by
+  rw [charpoly_of_spectrum_eq spectrum_chang₂]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the second Chang graph.** -/
+theorem lapCharpoly_chang₂ :
+    chang₂.lapCharpoly = X * (X - 8) ^ 7 * (X - 14) ^ 20 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_chang₂]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the third Chang graph**, the same again. -/
+theorem charpoly_chang₃ :
+    chang₃.charpoly = (X - 12) * (X - 4) ^ 7 * (X + 2) ^ 20 := by
+  rw [charpoly_of_spectrum_eq spectrum_chang₃]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the third Chang graph.** -/
+theorem lapCharpoly_chang₃ :
+    chang₃.lapCharpoly = X * (X - 8) ^ 7 * (X - 14) ^ 20 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_chang₃]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the Hoffman–Singleton graph.** -/
+theorem charpoly_hoffmanSingleton :
+    hoffmanSingleton.charpoly = (X - 7) * (X - 2) ^ 28 * (X + 3) ^ 21 := by
+  rw [charpoly_of_spectrum_eq spectrum_hoffmanSingleton]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the Hoffman–Singleton graph.** -/
+theorem lapCharpoly_hoffmanSingleton :
+    hoffmanSingleton.lapCharpoly = X * (X - 5) ^ 28 * (X - 10) ^ 21 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_hoffmanSingleton]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the Gewirtz graph.** -/
+theorem charpoly_gewirtz :
+    gewirtz.charpoly = (X - 10) * (X - 2) ^ 35 * (X + 4) ^ 20 := by
+  rw [charpoly_of_spectrum_eq spectrum_gewirtz]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the Gewirtz graph.** -/
+theorem lapCharpoly_gewirtz :
+    gewirtz.lapCharpoly = X * (X - 8) ^ 35 * (X - 14) ^ 20 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_gewirtz]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the `M₂₂` graph.** -/
+theorem charpoly_m22 :
+    m22.charpoly = (X - 16) * (X - 2) ^ 55 * (X + 6) ^ 21 := by
+  rw [charpoly_of_spectrum_eq spectrum_m22]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the `M₂₂` graph.** -/
+theorem lapCharpoly_m22 :
+    m22.lapCharpoly = X * (X - 14) ^ 55 * (X - 22) ^ 21 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_m22]
+  simp only [map_ofNat]
+
+/-- **The characteristic polynomial of the Higman–Sims graph.** -/
+theorem charpoly_higmanSims :
+    higmanSims.charpoly = (X - 22) * (X - 2) ^ 77 * (X + 8) ^ 22 := by
+  rw [charpoly_of_spectrum_eq spectrum_higmanSims]
+  simp only [map_ofNat, map_neg, sub_neg_eq_add]
+
+/-- **The Laplacian characteristic polynomial of the Higman–Sims graph.** -/
+theorem lapCharpoly_higmanSims :
+    higmanSims.lapCharpoly = X * (X - 20) ^ 77 * (X - 30) ^ 22 := by
+  rw [lapCharpoly_of_lapSpectrum_eq lapSpectrum_higmanSims]
+  simp only [map_ofNat]
+
+/-! ### The hypercube -/
+
+/-- **The characteristic polynomial of the hypercube**: one factor `X - (n - 2 j)` for each of the
+`C(n, j)` eigenvectors of weight `j`. -/
+theorem charpoly_hypercube (n : ℕ) :
+    (hypercube n).charpoly
+      = ∏ j ∈ Finset.range (n + 1), (X - C ((n : ℝ) - 2 * j)) ^ n.choose j := by
+  rw [charpoly_eq_prod_spectrum, spectrum_hypercube, prod_map_finset_sum]
+  exact Finset.prod_congr rfl fun j _ ↦ by
+    rw [Multiset.map_replicate, Multiset.prod_replicate]
+
+/-- **The Laplacian characteristic polynomial of the hypercube**: the same, shifted so that the
+eigenvalues become `2 j`. -/
+theorem lapCharpoly_hypercube (n : ℕ) :
+    (hypercube n).lapCharpoly
+      = ∏ j ∈ Finset.range (n + 1), (X - C (2 * (j : ℝ))) ^ n.choose j := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_hypercube, prod_map_finset_sum]
+  exact Finset.prod_congr rfl fun j _ ↦ by
+    rw [Multiset.map_replicate, Multiset.prod_replicate]
+
+/-! ### Circulants, cycles, paths, prisms and ladders
+
+These have no repeated eigenvalue to collect, so the polynomial is a product over the
+vertices rather than over a short list of multiplicities. -/
+
+/-- **The characteristic polynomial of a circulant graph.** -/
+theorem charpoly_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    (circulant n S).charpoly = ∏ m : Fin n, (X - C (circulantEig n S m.1)) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_circulant hn S, prod_map_univ]
+
+/-- **The Laplacian characteristic polynomial of a circulant graph.** -/
+theorem lapCharpoly_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) :
+    (circulant n S).lapCharpoly
+      = ∏ m : Fin n, (X - C ((circulantDeg n S : ℝ) - circulantEig n S m.1)) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_circulant hn S, prod_map_univ]
+
+/-- **The characteristic polynomial of a cycle.** -/
+theorem charpoly_cycle {n : ℕ} (hn : 3 ≤ n) :
+    (cycle n).charpoly = ∏ m : Fin n, (X - C (2 * Real.cos (2 * Real.pi * m.1 / n))) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_cycle hn, prod_map_univ]
+
+/-- **The Laplacian characteristic polynomial of a cycle.** -/
+theorem lapCharpoly_cycle {n : ℕ} (hn : 3 ≤ n) :
+    (cycle n).lapCharpoly = ∏ m : Fin n, (X - C (2 - 2 * Real.cos (2 * Real.pi * m.1 / n))) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_cycle hn, prod_map_univ]
+
+/-- **The characteristic polynomial of a path.** -/
+theorem charpoly_path (n : ℕ) :
+    (path n).charpoly = ∏ m : Fin n, (X - C (2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)))) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_path, prod_map_univ]
+
+/-- **The Laplacian characteristic polynomial of a path.** -/
+theorem lapCharpoly_path (n : ℕ) :
+    (path n).lapCharpoly = ∏ m : Fin n, (X - C (2 - 2 * Real.cos (Real.pi * m.1 / n))) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_path, prod_map_univ]
+
+/-- **The characteristic polynomial of a prism** `Cₙ □ K₂`: the cycle's polynomial shifted by
+`± 1`. -/
+theorem charpoly_prism {n : ℕ} (hn : 3 ≤ n) :
+    (prism n).charpoly
+      = (∏ m : Fin n, (X - C (2 * Real.cos (2 * Real.pi * m.1 / n) + 1)))
+        * ∏ m : Fin n, (X - C (2 * Real.cos (2 * Real.pi * m.1 / n) - 1)) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_prism hn, Multiset.map_add, Multiset.prod_add,
+    prod_map_univ, prod_map_univ]
+
+/-- **The Laplacian characteristic polynomial of a prism** `Cₙ □ K₂`. -/
+theorem lapCharpoly_prism {n : ℕ} (hn : 3 ≤ n) :
+    (prism n).lapCharpoly
+      = (∏ m : Fin n, (X - C (2 - 2 * Real.cos (2 * Real.pi * m.1 / n))))
+        * ∏ m : Fin n, (X - C (4 - 2 * Real.cos (2 * Real.pi * m.1 / n))) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_prism hn, Multiset.map_add, Multiset.prod_add,
+    prod_map_univ, prod_map_univ]
+
+/-- **The characteristic polynomial of a ladder** `Pₙ □ K₂`. -/
+theorem charpoly_ladder (n : ℕ) :
+    (ladder n).charpoly
+      = (∏ m : Fin n, (X - C (2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) + 1)))
+        * ∏ m : Fin n, (X - C (2 * Real.cos (Real.pi * (m.1 + 1) / (n + 1)) - 1)) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_ladder, Multiset.map_add, Multiset.prod_add,
+    prod_map_univ, prod_map_univ]
+
+/-- **The Laplacian characteristic polynomial of a ladder** `Pₙ □ K₂`. -/
+theorem lapCharpoly_ladder (n : ℕ) :
+    (ladder n).lapCharpoly
+      = (∏ m : Fin n, (X - C (2 - 2 * Real.cos (Real.pi * m.1 / n))))
+        * ∏ m : Fin n, (X - C (4 - 2 * Real.cos (Real.pi * m.1 / n))) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_ladder, Multiset.map_add, Multiset.prod_add,
+    prod_map_univ, prod_map_univ]
+
+/-! ## The Laplacian and the polynomials of the products, the complement and the line graph
+
+A construction that is regular whenever its inputs are gets its Laplacian spectrum for free from
+its adjacency spectrum, by subtracting from the degree; and any spectrum in hand factors the
+corresponding characteristic polynomial into linear factors. -/
+
+/-- Shifting every root of a product of linear factors shifts the variable. -/
+private theorem prod_map_X_sub_C_add (c : ℝ) (s : Multiset ℝ) :
+    (s.map (fun x ↦ X - C (x + c))).prod = ((s.map (fun x ↦ X - C x)).prod).comp (X - C c) := by
+  induction s using Multiset.induction with
+  | empty => simp
+  | cons a s ih =>
+      rw [Multiset.map_cons, Multiset.prod_cons, ih, Multiset.map_cons, Multiset.prod_cons,
+        mul_comp, sub_comp, X_comp, C_comp, map_add]
+      ring
+
+/-- **The characteristic polynomial of the line graph of a `k`-regular graph**: the graph's own
+polynomial shifted so that `λ` becomes `λ + k - 2`, times `(X + 2) ^ (|E| - |V|)`. -/
+theorem charpoly_lineGraph_of_isRegularWith {G : IsoGraph} {k : ℕ}
+    (h : G.IsRegularWith k) (hle : G.V ≤ G.E) :
+    (lineGraph G).charpoly
+      = (X + C 2) ^ (G.E - G.V) * G.charpoly.comp (X - C ((k : ℝ) - 2)) := by
+  rw [charpoly_eq_prod_spectrum, spectrum_lineGraph_of_isRegularWith h hle, Multiset.map_add,
+    Multiset.prod_add, Multiset.map_replicate, Multiset.prod_replicate, Multiset.map_map]
+  congr 1
+  · congr 1
+    rw [map_neg]
+    ring
+  · rw [show ((fun x ↦ X - C x) ∘ fun x ↦ x + ((k : ℝ) - 2))
+        = (fun x ↦ X - C (x + ((k : ℝ) - 2))) from rfl,
+      prod_map_X_sub_C_add, ← charpoly_eq_prod_spectrum]
+
+/-- **The Laplacian characteristic polynomial of the line graph of a `k`-regular graph**. -/
+theorem lapCharpoly_lineGraph_of_isRegularWith {G : IsoGraph} {k : ℕ}
+    (h : G.IsRegularWith k) (hk : 1 ≤ k) (hle : G.V ≤ G.E) :
+    (lineGraph G).lapCharpoly = (X - C (2 * (k : ℝ))) ^ (G.E - G.V) * G.lapCharpoly := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_lineGraph_of_isRegularWith h hk hle,
+    Multiset.map_add, Multiset.prod_add, Multiset.map_replicate, Multiset.prod_replicate,
+    ← lapCharpoly_eq_prod_lapSpectrum]
+
+/-- **The Laplacian spectrum of a tensor product of regular graphs**: the degree `k l` minus each
+product of eigenvalues. -/
+theorem lapSpectrum_tensorProduct_of_isRegularWith {G H : IsoGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ⊗g H).lapSpectrum
+      = (G.spectrum ×ˢ H.spectrum).map (fun p ↦ (k : ℝ) * l - p.1 * p.2) := by
+  rw [lapSpectrum_of_isRegularWith (hG.tensorProduct hH), spectrum_tensorProduct,
+    Multiset.map_map]
+  exact Multiset.map_congr rfl fun p _ ↦ by simp only [Function.comp_apply]; push_cast; ring
+
+/-- **The Laplacian characteristic polynomial of a tensor product of regular graphs**. -/
+theorem lapCharpoly_tensorProduct_of_isRegularWith {G H : IsoGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ⊗g H).lapCharpoly
+      = ((G.spectrum ×ˢ H.spectrum).map (fun p ↦ X - C ((k : ℝ) * l - p.1 * p.2))).prod := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_tensorProduct_of_isRegularWith hG hH,
+    Multiset.map_map]
+  rfl
+
+/-- **The Laplacian spectrum of a strong product of regular graphs**: the degree
+`(k + 1) (l + 1) - 1` minus each eigenvalue `(1 + λ) (1 + μ) - 1`. -/
+theorem lapSpectrum_strongProduct_of_isRegularWith {G H : IsoGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ⊠g H).lapSpectrum
+      = (G.spectrum ×ˢ H.spectrum).map
+          (fun p ↦ ((k : ℝ) + 1) * ((l : ℝ) + 1) - (1 + p.1) * (1 + p.2)) := by
+  have hd : (k + 1) * (l + 1) - 1 = k * l + k + l := by
+    rw [show (k + 1) * (l + 1) = k * l + k + l + 1 from by ring, Nat.add_sub_cancel]
+  have hreg : (G ⊠g H).IsRegularWith (k * l + k + l) := by
+    have hS := hG.strongProduct hH
+    rwa [hd] at hS
+  rw [lapSpectrum_of_isRegularWith hreg, spectrum_strongProduct, Multiset.map_map]
+  exact Multiset.map_congr rfl fun p _ ↦ by simp only [Function.comp_apply]; push_cast; ring
+
+/-- **The Laplacian characteristic polynomial of a strong product of regular graphs**. -/
+theorem lapCharpoly_strongProduct_of_isRegularWith {G H : IsoGraph} {k l : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) :
+    (G ⊠g H).lapCharpoly
+      = ((G.spectrum ×ˢ H.spectrum).map
+          (fun p ↦ X - C (((k : ℝ) + 1) * ((l : ℝ) + 1) - (1 + p.1) * (1 + p.2)))).prod := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_strongProduct_of_isRegularWith hG hH,
+    Multiset.map_map]
+  rfl
+
+/-- **The characteristic polynomial of the complement of a connected regular graph**: the root
+`n - 1 - k`, and every other eigenvalue `x` of `G` replaced by `-1 - x`. -/
+theorem charpoly_compl_of_isRegularWith {G : IsoGraph} {k : ℕ} (hconn : G.IsConnected)
+    (hreg : G.IsRegularWith k) :
+    Gᶜ.charpoly = (X - C ((G.V : ℝ) - 1 - k))
+      * ((G.spectrum.erase (k : ℝ)).map (fun x ↦ X - C (-1 - x))).prod := by
+  rw [charpoly_eq_prod_spectrum, spectrum_compl_of_isRegularWith hconn hreg, Multiset.map_cons,
+    Multiset.prod_cons, Multiset.map_map]
+  rfl
+
+/-- **The Laplacian characteristic polynomial of a complement**: the root `0`, and every other
+Laplacian eigenvalue `x` of `G` replaced by `n - x`. -/
+theorem lapCharpoly_compl (G : IsoGraph) (h : 0 < G.V) :
+    Gᶜ.lapCharpoly
+      = X * ((G.lapSpectrum.erase 0).map (fun x ↦ X - C ((G.V : ℝ) - x))).prod := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_compl G h, Multiset.map_cons,
+    Multiset.prod_cons, map_zero, sub_zero, Multiset.map_map]
+  rfl
+
+/-- **The characteristic polynomial of a join of regular graphs**, when the join is itself
+regular: the roots `m` and `k - n`, and every other eigenvalue of each factor unchanged. -/
+theorem charpoly_join_of_isRegularWith {G H : IsoGraph} (hG0 : 0 < G.V) (hH0 : 0 < H.V) {k l m : ℕ}
+    (hG : G.IsRegularWith k) (hH : H.IsRegularWith l) (h1 : k + H.V = m) (h2 : G.V + l = m) :
+    (G ∇g H).charpoly = (X - C (m : ℝ)) * (X - C ((k : ℝ) - G.V))
+      * ((G.spectrum.erase (k : ℝ) + H.spectrum.erase (l : ℝ)).map (fun x ↦ X - C x)).prod := by
+  rw [charpoly_eq_prod_spectrum, spectrum_join_of_isRegularWith hG0 hH0 hG hH h1 h2,
+    Multiset.map_cons, Multiset.prod_cons, Multiset.map_cons, Multiset.prod_cons, mul_assoc]
+
+/-- **The Laplacian characteristic polynomial of a join**: the roots `0` and `n + m`, and every
+other Laplacian eigenvalue of each factor shifted by the order of the other. -/
+theorem lapCharpoly_join (G H : IsoGraph) (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ∇g H).lapCharpoly
+      = X * (X - C ((G.V : ℝ) + H.V))
+        * (((G.lapSpectrum.erase 0).map (fun x ↦ X - C (x + (H.V : ℝ)))
+            + (H.lapSpectrum.erase 0).map (fun x ↦ X - C (x + (G.V : ℝ)))).prod) := by
+  rw [lapCharpoly_eq_prod_lapSpectrum, lapSpectrum_join G H hG hH, Multiset.map_cons,
+    Multiset.prod_cons, map_zero, sub_zero, Multiset.map_cons, Multiset.prod_cons,
+    Multiset.map_add, Multiset.prod_add, Multiset.map_map, Multiset.map_map, mul_assoc,
+    Multiset.prod_add]
+  simp only [Function.comp_def]
+
+/-! ## Turán graphs
+
+`T(n, r)` with `r ∣ n` is the complete multipartite graph on `r` parts of size `n / r`, so every
+spectral invariant of the previous section specialises to it.  The divisibility is what makes the
+answers uniform: without it the parts have two different sizes and the graph is no longer regular,
+so it has no spectrum in closed form. -/
+
+/-- A Turán graph whose parts divide evenly has `r = p + 2` parts of size `n / r = a + 1`; every
+statement below unfolds through this normal form. -/
+private theorem turan_dvd_shape {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r ≤ n) :
+    ∃ p a : ℕ, r = p + 2 ∧ n = (p + 2) * (a + 1) ∧ n / r = a + 1 := by
+  obtain ⟨p, rfl⟩ : ∃ p, r = p + 2 := ⟨r - 2, by omega⟩
+  obtain ⟨a, ha⟩ : ∃ a, n / (p + 2) = a + 1 :=
+    ⟨n / (p + 2) - 1, by
+      have h1 : 1 ≤ n / (p + 2) := (Nat.one_le_div_iff (by omega)).2 hn
+      omega⟩
+  exact ⟨p, a, rfl, by rw [← ha, Nat.mul_div_cancel' h], ha⟩
+
+/-- The two truncated subtractions in the statements below, in the shape the complete multipartite
+lemmas produce them. -/
+private theorem turan_dvd_arith (p a : ℕ) :
+    (p + 2) * (a + 1) - (p + 2) = (p + 2) * a ∧ p + 2 - 1 = p + 1 := by
+  refine ⟨?_, by omega⟩
+  rw [Nat.mul_add, Nat.mul_one, Nat.add_sub_cancel]
+
+/-- **The spectrum of the Turán graph `T(n, r)` when `r` divides `n`**: the degree `n - n/r` once,
+`0` with multiplicity `n - r` and `-n/r` with multiplicity `r - 1`. -/
+theorem spectrum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r ≤ n) :
+    (turan n r).spectrum
+      = ((n : ℝ) - ((n / r : ℕ) : ℝ))
+          ::ₘ (Multiset.replicate (n - r) 0
+              + Multiset.replicate (r - 1) (-((n / r : ℕ) : ℝ))) := by
+  obtain ⟨p, a, rfl, rfl, hdiv⟩ := turan_dvd_shape h hr hn
+  obtain ⟨h1, h2⟩ := turan_dvd_arith p a
+  rw [turan_of_dvd h, hdiv, spectrum_completeMultipartite_replicate, h1, h2]
+  push_cast
+  ring_nf
+
+/-- **The Laplacian spectrum of the Turán graph `T(n, r)` when `r` divides `n`**: `0` once, the
+degree `n - n/r` with multiplicity `n - r` and the order `n` with multiplicity `r - 1`. -/
+theorem lapSpectrum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r ≤ n) :
+    (turan n r).lapSpectrum
+      = 0 ::ₘ (Multiset.replicate (n - r) ((n : ℝ) - ((n / r : ℕ) : ℝ))
+          + Multiset.replicate (r - 1) (n : ℝ)) := by
+  obtain ⟨p, a, rfl, rfl, hdiv⟩ := turan_dvd_shape h hr hn
+  obtain ⟨h1, h2⟩ := turan_dvd_arith p a
+  rw [turan_of_dvd h, hdiv, lapSpectrum_completeMultipartite_replicate, h1, h2]
+  push_cast
+  ring_nf
+
+/-- **The algebraic connectivity of the Turán graph `T(n, r)` is its degree** `n - n/r`, as soon as
+the parts are not singletons — at `r = n` the graph is complete and the answer is `n` instead. -/
+theorem algConn_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r < n) :
+    (turan n r).algConn = (n : ℝ) - ((n / r : ℕ) : ℝ) := by
+  obtain ⟨p, a, rfl, hne, hdiv⟩ := turan_dvd_shape h hr hn.le
+  have hapos : 0 < a := by
+    rcases Nat.eq_zero_or_pos a with rfl | hpos
+    · rw [hne, Nat.mul_one] at hn
+      omega
+    · exact hpos
+  subst hne
+  rw [turan_of_dvd h, hdiv, algConn_completeMultipartite_replicate _ _ hapos]
+  push_cast
+  ring
+
+/-- **The largest Laplacian eigenvalue of the Turán graph `T(n, r)` is its order** `n`. -/
+theorem lapLambdaMax_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r ≤ n) :
+    (turan n r).lapLambdaMax = (n : ℝ) := by
+  obtain ⟨p, a, rfl, rfl, hdiv⟩ := turan_dvd_shape h hr hn
+  rw [turan_of_dvd h, hdiv, lapLambdaMax_completeMultipartite_replicate]
+  push_cast
+  ring
+
+/-- **The energy of the Turán graph `T(n, r)` is twice its degree** `2 (n - n/r)`. -/
+theorem energy_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r ≤ n) :
+    (turan n r).energy = 2 * ((n : ℝ) - ((n / r : ℕ) : ℝ)) := by
+  obtain ⟨p, a, rfl, rfl, hdiv⟩ := turan_dvd_shape h hr hn
+  rw [turan_of_dvd h, hdiv, energy_completeMultipartite_replicate]
+  push_cast
+  ring
+
+/-- **The characteristic polynomial of the Turán graph `T(n, r)` when `r` divides `n`.** -/
+theorem charpoly_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r ≤ n) :
+    (turan n r).charpoly
+      = (X - C ((n : ℝ) - ((n / r : ℕ) : ℝ))) * X ^ (n - r)
+          * (X + C ((n / r : ℕ) : ℝ)) ^ (r - 1) :=
+  charpoly_of_spectrum_eq (spectrum_turan_of_dvd h hr hn) |>.trans (by
+    simp only [map_zero, sub_zero, map_neg, sub_neg_eq_add])
+
+/-- **The Laplacian characteristic polynomial of the Turán graph `T(n, r)` when `r` divides
+`n`.** -/
+theorem lapCharpoly_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 2 ≤ r) (hn : r ≤ n) :
+    (turan n r).lapCharpoly
+      = X * (X - C ((n : ℝ) - ((n / r : ℕ) : ℝ))) ^ (n - r) * (X - C (n : ℝ)) ^ (r - 1) :=
+  lapCharpoly_of_lapSpectrum_eq (lapSpectrum_turan_of_dvd h hr hn)
 
 end IsoGraph
 

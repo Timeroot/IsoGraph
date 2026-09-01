@@ -2010,3 +2010,441 @@ theorem cliqueCoverNum_join_path_complete (m n : ℕ) :
   omega
 
 end IsoGraph
+
+/-! ### Counting the independent sets of a path and of a cycle
+
+An independent set of `path n` is a set of labels below `n` with no two consecutive, and one of
+`cycle n` is such a set that in addition does not use both ends at once.  Counting those subsets
+is Pascal's rule with a shift — delete the largest label and what is left is a sparse subset of a
+shorter interval — which gives `(n + 1 - k).choose k` independent `k`-sets in a path.  A cycle
+splits according to whether the label `0` is used, and so counts two paths.
+-/
+
+namespace CGraph
+
+/-- The `k`-element subsets of `{0, …, n-1}` that contain no two consecutive numbers. -/
+private def sparseFinsets (n k : ℕ) : Finset (Finset ℕ) :=
+  ((Finset.range n).powersetCard k).filter fun s ↦ ∀ i ∈ s, i + 1 ∉ s
+
+private theorem mem_sparseFinsets {n k : ℕ} {s : Finset ℕ} :
+    s ∈ sparseFinsets n k ↔ (s ⊆ Finset.range n ∧ s.card = k) ∧ ∀ i ∈ s, i + 1 ∉ s := by
+  simp [sparseFinsets, Finset.mem_powersetCard]
+
+private theorem sparseFinsets_eq_empty {n k : ℕ} (h : n < k) : sparseFinsets n k = ∅ := by
+  rw [sparseFinsets, Finset.powersetCard_eq_empty.2 (by rwa [Finset.card_range]),
+    Finset.filter_empty]
+
+private theorem card_sparseFinsets_zero (n : ℕ) : (sparseFinsets n 0).card = 1 := by
+  have h : sparseFinsets n 0 = {∅} := by
+    ext s
+    rw [mem_sparseFinsets, Finset.mem_singleton]
+    constructor
+    · rintro ⟨⟨-, hcard⟩, -⟩
+      exact Finset.card_eq_zero.1 hcard
+    · rintro rfl
+      simp
+  rw [h, Finset.card_singleton]
+
+private theorem card_sparseFinsets_one (n : ℕ) : (sparseFinsets n 1).card = n := by
+  have h : sparseFinsets n 1 = (Finset.range n).powersetCard 1 := by
+    rw [sparseFinsets, Finset.filter_eq_self]
+    intro s hs
+    rw [Finset.mem_powersetCard] at hs
+    obtain ⟨a, rfl⟩ := Finset.card_eq_one.1 hs.2
+    simp
+  rw [h, Finset.card_powersetCard, Finset.card_range, Nat.choose_one_right]
+
+/-- Pascal's rule for sparse subsets: split on whether the last available number is used. -/
+private theorem card_sparseFinsets_succ (n k : ℕ) :
+    (sparseFinsets (n + 2) (k + 1)).card
+      = (sparseFinsets (n + 1) (k + 1)).card + (sparseFinsets n k).card := by
+  classical
+  have hsplit := Finset.card_filter_add_card_filter_not
+    (s := sparseFinsets (n + 2) (k + 1)) (p := fun s ↦ n + 1 ∈ s)
+  have h1 : ((sparseFinsets (n + 2) (k + 1)).filter fun s ↦ n + 1 ∈ s).card
+      = (sparseFinsets n k).card := by
+    refine Finset.card_bij (fun s _ ↦ s.erase (n + 1)) ?_ ?_ ?_
+    · intro s hs
+      rw [Finset.mem_filter, mem_sparseFinsets] at hs
+      obtain ⟨⟨⟨hsub, hcard⟩, hsp⟩, hmem⟩ := hs
+      rw [mem_sparseFinsets]
+      refine ⟨⟨fun i hi ↦ ?_, ?_⟩, fun i hi ↦ ?_⟩
+      · rw [Finset.mem_erase] at hi
+        have hlt := Finset.mem_range.1 (hsub hi.2)
+        have hne : i ≠ n := by
+          rintro rfl
+          exact hsp i hi.2 hmem
+        rw [Finset.mem_range]
+        omega
+      · rw [Finset.card_erase_of_mem hmem, hcard]
+        omega
+      · rw [Finset.mem_erase] at hi ⊢
+        exact fun h ↦ hsp i hi.2 h.2
+    · intro s hs t ht hst
+      rw [Finset.mem_filter] at hs ht
+      rw [← Finset.insert_erase hs.2, ← Finset.insert_erase ht.2, hst]
+    · intro t ht
+      rw [mem_sparseFinsets] at ht
+      obtain ⟨⟨hsub, hcard⟩, hsp⟩ := ht
+      have hnot : n + 1 ∉ t := fun h ↦ by
+        have := Finset.mem_range.1 (hsub h)
+        omega
+      refine ⟨insert (n + 1) t, ?_, Finset.erase_insert hnot⟩
+      rw [Finset.mem_filter, mem_sparseFinsets]
+      refine ⟨⟨⟨fun i hi ↦ ?_, ?_⟩, fun i hi ↦ ?_⟩, Finset.mem_insert_self _ _⟩
+      · rw [Finset.mem_insert] at hi
+        rw [Finset.mem_range]
+        rcases hi with rfl | hi
+        · omega
+        · have := Finset.mem_range.1 (hsub hi)
+          omega
+      · rw [Finset.card_insert_of_notMem hnot, hcard]
+      · rw [Finset.mem_insert] at hi ⊢
+        rcases hi with rfl | hi
+        · rintro (h | h)
+          · omega
+          · have := Finset.mem_range.1 (hsub h)
+            omega
+        · have hlt := Finset.mem_range.1 (hsub hi)
+          rintro (h | h)
+          · omega
+          · exact hsp i hi h
+  have h2 : ((sparseFinsets (n + 2) (k + 1)).filter fun s ↦ ¬ (n + 1 ∈ s)).card
+      = (sparseFinsets (n + 1) (k + 1)).card := by
+    congr 1
+    ext s
+    rw [Finset.mem_filter, mem_sparseFinsets, mem_sparseFinsets]
+    constructor
+    · rintro ⟨⟨⟨hsub, hcard⟩, hsp⟩, hmem⟩
+      refine ⟨⟨fun i hi ↦ ?_, hcard⟩, hsp⟩
+      have hlt := Finset.mem_range.1 (hsub hi)
+      have hne : i ≠ n + 1 := by rintro rfl; exact hmem hi
+      rw [Finset.mem_range]
+      omega
+    · rintro ⟨⟨hsub, hcard⟩, hsp⟩
+      refine ⟨⟨⟨fun i hi ↦ ?_, hcard⟩, hsp⟩, fun h ↦ ?_⟩
+      · have := Finset.mem_range.1 (hsub hi)
+        rw [Finset.mem_range]
+        omega
+      · have := Finset.mem_range.1 (hsub h)
+        omega
+  omega
+
+private theorem card_sparseFinsets (n k : ℕ) :
+    (sparseFinsets n k).card = (n + 1 - k).choose k := by
+  induction n using Nat.strong_induction_on generalizing k with
+  | _ n ih =>
+    rcases k with _ | k
+    · rw [card_sparseFinsets_zero]
+      simp
+    rcases n with _ | _ | n
+    · rw [sparseFinsets_eq_empty (by omega), Finset.card_empty,
+        show 0 + 1 - (k + 1) = 0 from by omega, Nat.choose_eq_zero_of_lt (by omega)]
+    · rcases Nat.eq_zero_or_pos k with rfl | hk
+      · rw [card_sparseFinsets_one]
+        simp
+      · rw [sparseFinsets_eq_empty (by omega), Finset.card_empty,
+          show 1 + 1 - (k + 1) = 0 from by omega, Nat.choose_eq_zero_of_lt (by omega)]
+    · rw [card_sparseFinsets_succ, ih (n + 1) (by omega), ih n (by omega)]
+      by_cases h : k ≤ n + 1
+      · rw [show n + 1 + 1 + 1 - (k + 1) = (n + 1 - k) + 1 from by omega,
+          show n + 1 + 1 - (k + 1) = n + 1 - k from by omega, Nat.choose_succ_succ']
+        omega
+      · rw [show n + 1 + 1 + 1 - (k + 1) = 0 from by omega,
+          show n + 1 + 1 - (k + 1) = 0 from by omega, show n + 1 - k = 0 from by omega,
+          Nat.choose_eq_zero_of_lt (show 0 < k from by omega)]
+        omega
+
+/-- **The independent sets of a path are the sparse subsets of an interval.**  Choosing `k`
+vertices of `path n` with no two adjacent is the same as choosing `k` naturals below `n` with no
+two consecutive, and there are `(n + 1 - k).choose k` of those. -/
+@[simp, toIsoGraph]
+theorem indepCount_path (n k : ℕ) : (path n).indepCount k = (n + 1 - k).choose k := by
+  classical
+  rw [indepCount_eq_card_indepSetFinset, ← card_sparseFinsets n k]
+  refine Finset.card_bij (fun s _ ↦ Finset.image (Fin.val : Fin n → ℕ) s) ?_ ?_ ?_
+  · intro s hs
+    rw [SimpleGraph.mem_indepSetFinset_iff] at hs
+    rw [mem_sparseFinsets]
+    refine ⟨⟨fun i hi ↦ ?_, ?_⟩, fun i hi hi' ↦ ?_⟩
+    · obtain ⟨v, -, rfl⟩ := Finset.mem_image.1 hi
+      exact Finset.mem_range.2 v.2
+    · rw [Finset.card_image_of_injective _ Fin.val_injective, hs.card_eq]
+    · obtain ⟨u, hu, rfl⟩ := Finset.mem_image.1 hi
+      obtain ⟨v, hv, huv⟩ := Finset.mem_image.1 hi'
+      refine hs.isIndepSet (Finset.mem_coe.2 hu) (Finset.mem_coe.2 hv) (fun h ↦ ?_) ?_
+      · rw [h] at huv
+        omega
+      · rw [CGraph.toSimple_adj]
+        exact (path_adj_val n u v).2 ⟨by omega, Or.inl huv.symm⟩
+  · intro s _ t _ hst
+    exact Finset.image_injective Fin.val_injective hst
+  · intro t ht
+    rw [mem_sparseFinsets] at ht
+    obtain ⟨⟨hsub, hcard⟩, hsp⟩ := ht
+    have hlt : ∀ m ∈ t, m < n := fun m hm ↦ Finset.mem_range.1 (hsub hm)
+    refine ⟨t.attachFin hlt, ?_, Finset.image_val_attachFin hlt⟩
+    rw [SimpleGraph.mem_indepSetFinset_iff]
+    refine ⟨fun u hu v hv _ ↦ ?_, by rw [Finset.card_attachFin, hcard]⟩
+    rw [Finset.mem_coe, Finset.mem_attachFin] at hu hv
+    rw [CGraph.toSimple_adj, path_adj_val]
+    rintro ⟨-, h | h⟩
+    · exact hsp u.1 hu (by rw [h]; exact hv)
+    · exact hsp v.1 hv (by rw [h]; exact hu)
+
+/-- The `k`-element subsets of `{0, …, N-1}` with no two consecutive numbers and not both ends:
+the independent sets of a cycle, read off the labels. -/
+private def cyclicSparseFinsets (N k : ℕ) : Finset (Finset ℕ) :=
+  ((Finset.range N).powersetCard k).filter
+    fun s ↦ (∀ i ∈ s, i + 1 ∉ s) ∧ ¬ (0 ∈ s ∧ N - 1 ∈ s)
+
+private theorem mem_cyclicSparseFinsets {N k : ℕ} {s : Finset ℕ} :
+    s ∈ cyclicSparseFinsets N k ↔
+      (s ⊆ Finset.range N ∧ s.card = k) ∧ (∀ i ∈ s, i + 1 ∉ s) ∧ ¬ (0 ∈ s ∧ N - 1 ∈ s) := by
+  rw [cyclicSparseFinsets, Finset.mem_filter, Finset.mem_powersetCard]
+
+/-- Splitting on the label `0`: an independent set of the cycle either misses it, and is a sparse
+subset of the remaining path, or contains it, and is `0` beside a sparse subset of the path two
+steps in from either end. -/
+private theorem card_cyclicSparseFinsets (n k : ℕ) :
+    (cyclicSparseFinsets (n + 3) (k + 1)).card
+      = (sparseFinsets (n + 2) (k + 1)).card + (sparseFinsets n k).card := by
+  classical
+  have hsplit := Finset.card_filter_add_card_filter_not
+    (s := cyclicSparseFinsets (n + 3) (k + 1)) (p := fun s ↦ (0 : ℕ) ∈ s)
+  have hpos : ∀ s ∈ (cyclicSparseFinsets (n + 3) (k + 1)).filter fun s ↦ ¬ (0 : ℕ) ∈ s,
+      ∀ i ∈ s, 1 ≤ i := by
+    intro s hs i hi
+    rw [Finset.mem_filter] at hs
+    rcases Nat.eq_zero_or_pos i with rfl | h
+    · exact absurd hi hs.2
+    · exact h
+  have hmid : ∀ s ∈ (cyclicSparseFinsets (n + 3) (k + 1)).filter fun s ↦ (0 : ℕ) ∈ s,
+      ∀ i ∈ s.erase 0, 2 ≤ i ∧ i ≤ n + 1 := by
+    intro s hs i hi
+    rw [Finset.mem_filter, mem_cyclicSparseFinsets] at hs
+    obtain ⟨⟨⟨hsub, -⟩, hsp, hwrap⟩, h0s⟩ := hs
+    rw [show n + 3 - 1 = n + 2 from by omega] at hwrap
+    rw [Finset.mem_erase] at hi
+    have hlt := Finset.mem_range.1 (hsub hi.2)
+    have hne1 : i ≠ 1 := fun h ↦ hsp 0 h0s (by rw [show (0 : ℕ) + 1 = i from by omega]; exact hi.2)
+    have hne2 : i ≠ n + 2 := fun h ↦ hwrap ⟨h0s, by rw [← h]; exact hi.2⟩
+    have hne0 := hi.1
+    omega
+  have h0 : ((cyclicSparseFinsets (n + 3) (k + 1)).filter fun s ↦ ¬ (0 : ℕ) ∈ s).card
+      = (sparseFinsets (n + 2) (k + 1)).card := by
+    refine Finset.card_bij' (fun s _ ↦ s.image (· - 1)) (fun t _ ↦ t.image (· + 1)) ?_ ?_ ?_ ?_
+    · intro s hs
+      have h1 := hpos s hs
+      rw [Finset.mem_filter, mem_cyclicSparseFinsets] at hs
+      obtain ⟨⟨⟨hsub, hcard⟩, hsp, -⟩, -⟩ := hs
+      rw [mem_sparseFinsets]
+      refine ⟨⟨fun x hx ↦ ?_, ?_⟩, fun x hx hx' ↦ ?_⟩
+      · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+        have := Finset.mem_range.1 (hsub hy)
+        rw [Finset.mem_range]
+        omega
+      · have hinj : Set.InjOn (fun x ↦ x - 1) (s : Set ℕ) := by
+          intro a ha b hb hab
+          simp only at hab
+          have := h1 a (Finset.mem_coe.1 ha)
+          have := h1 b (Finset.mem_coe.1 hb)
+          omega
+        rw [Finset.card_image_of_injOn hinj, hcard]
+      · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+        obtain ⟨z, hz, hz'⟩ := Finset.mem_image.1 hx'
+        have := h1 y hy
+        have := h1 z hz
+        exact hsp y hy (by rw [show y + 1 = z from by omega]; exact hz)
+    · intro t ht
+      rw [mem_sparseFinsets] at ht
+      obtain ⟨⟨hsub, hcard⟩, hsp⟩ := ht
+      rw [Finset.mem_filter, mem_cyclicSparseFinsets]
+      refine ⟨⟨⟨fun x hx ↦ ?_, ?_⟩, fun x hx hx' ↦ ?_, fun hc ↦ ?_⟩, fun hc ↦ ?_⟩
+      · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+        have := Finset.mem_range.1 (hsub hy)
+        rw [Finset.mem_range]
+        omega
+      · rw [Finset.card_image_of_injective _ (add_left_injective 1), hcard]
+      · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+        obtain ⟨z, hz, hz'⟩ := Finset.mem_image.1 hx'
+        exact hsp y hy (by rw [show y + 1 = z from by omega]; exact hz)
+      · obtain ⟨y, -, hy⟩ := Finset.mem_image.1 hc.1
+        omega
+      · obtain ⟨y, -, hy⟩ := Finset.mem_image.1 hc
+        omega
+    · intro s hs
+      have h1 := hpos s hs
+      ext x
+      simp only [Finset.image_image, Finset.mem_image, Function.comp_apply]
+      constructor
+      · rintro ⟨y, hy, rfl⟩
+        have := h1 y hy
+        rwa [show y - 1 + 1 = y from by omega]
+      · intro hx
+        exact ⟨x, hx, by have := h1 x hx; omega⟩
+    · intro t ht
+      ext x
+      simp only [Finset.image_image, Finset.mem_image, Function.comp_apply, Nat.add_sub_cancel]
+      exact ⟨fun ⟨y, hy, hxy⟩ ↦ hxy ▸ hy, fun hx ↦ ⟨x, hx, rfl⟩⟩
+  have h1 : ((cyclicSparseFinsets (n + 3) (k + 1)).filter fun s ↦ (0 : ℕ) ∈ s).card
+      = (sparseFinsets n k).card := by
+    refine Finset.card_bij' (fun s _ ↦ (s.erase 0).image (· - 2))
+      (fun t _ ↦ insert 0 (t.image (· + 2))) ?_ ?_ ?_ ?_
+    · intro s hs
+      have hr := hmid s hs
+      rw [Finset.mem_filter, mem_cyclicSparseFinsets] at hs
+      obtain ⟨⟨⟨hsub, hcard⟩, hsp, -⟩, h0s⟩ := hs
+      rw [mem_sparseFinsets]
+      refine ⟨⟨fun x hx ↦ ?_, ?_⟩, fun x hx hx' ↦ ?_⟩
+      · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+        have := hr y hy
+        rw [Finset.mem_range]
+        omega
+      · have hinj : Set.InjOn (fun x ↦ x - 2) ((s.erase 0 : Finset ℕ) : Set ℕ) := by
+          intro a ha b hb hab
+          simp only at hab
+          have := hr a (Finset.mem_coe.1 ha)
+          have := hr b (Finset.mem_coe.1 hb)
+          omega
+        rw [Finset.card_image_of_injOn hinj, Finset.card_erase_of_mem h0s, hcard]
+        omega
+      · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+        obtain ⟨z, hz, hz'⟩ := Finset.mem_image.1 hx'
+        have hy2 := hr y hy
+        have hz2 := hr z hz
+        rw [Finset.mem_erase] at hy hz
+        exact hsp y hy.2 (by rw [show y + 1 = z from by omega]; exact hz.2)
+    · intro t ht
+      rw [mem_sparseFinsets] at ht
+      obtain ⟨⟨hsub, hcard⟩, hsp⟩ := ht
+      have hnot : (0 : ℕ) ∉ t.image (· + 2) := by
+        intro h
+        obtain ⟨y, -, hy⟩ := Finset.mem_image.1 h
+        omega
+      rw [Finset.mem_filter, mem_cyclicSparseFinsets]
+      refine ⟨⟨⟨fun x hx ↦ ?_, ?_⟩, fun x hx hx' ↦ ?_, fun hc ↦ ?_⟩, Finset.mem_insert_self _ _⟩
+      · rw [Finset.mem_range]
+        rcases Finset.mem_insert.1 hx with rfl | hx
+        · omega
+        · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+          have := Finset.mem_range.1 (hsub hy)
+          omega
+      · rw [Finset.card_insert_of_notMem hnot,
+          Finset.card_image_of_injective _ (add_left_injective 2), hcard]
+      · rcases Finset.mem_insert.1 hx with rfl | hx
+        · rcases Finset.mem_insert.1 hx' with h | h
+          · omega
+          · obtain ⟨y, -, hy⟩ := Finset.mem_image.1 h
+            omega
+        · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 hx
+          rcases Finset.mem_insert.1 hx' with h | h
+          · omega
+          · obtain ⟨z, hz, hz'⟩ := Finset.mem_image.1 h
+            exact hsp y hy (by rw [show y + 1 = z from by omega]; exact hz)
+      · obtain ⟨-, h⟩ := hc
+        rcases Finset.mem_insert.1 h with h' | h'
+        · omega
+        · obtain ⟨y, hy, hy'⟩ := Finset.mem_image.1 h'
+          have := Finset.mem_range.1 (hsub hy)
+          omega
+    · intro s hs
+      have hr := hmid s hs
+      have h0s : (0 : ℕ) ∈ s := (Finset.mem_filter.1 hs).2
+      ext x
+      simp only [Finset.image_image, Finset.mem_insert, Finset.mem_image, Function.comp_apply,
+        Finset.mem_erase]
+      constructor
+      · rintro (rfl | ⟨y, hy, rfl⟩)
+        · exact h0s
+        · have := hr y (Finset.mem_erase.2 hy)
+          rw [show y - 2 + 2 = y from by omega]
+          exact hy.2
+      · intro hx
+        rcases Nat.eq_zero_or_pos x with rfl | hxpos
+        · exact Or.inl rfl
+        · refine Or.inr ⟨x, ⟨by omega, hx⟩, ?_⟩
+          have := hr x (Finset.mem_erase.2 ⟨by omega, hx⟩)
+          omega
+    · intro t ht
+      have hnot : (0 : ℕ) ∉ t.image (· + 2) := by
+        intro h
+        obtain ⟨y, -, hy⟩ := Finset.mem_image.1 h
+        omega
+      rw [Finset.erase_insert hnot]
+      ext x
+      simp only [Finset.image_image, Finset.mem_image, Function.comp_apply, Nat.add_sub_cancel]
+      exact ⟨fun ⟨y, hy, hxy⟩ ↦ hxy ▸ hy, fun hx ↦ ⟨x, hx, rfl⟩⟩
+  omega
+
+private theorem card_indepSetFinset_cycle (n k : ℕ) :
+    ((cycle (n + 3)).toSimple.indepSetFinset k).card
+      = (cyclicSparseFinsets (n + 3) k).card := by
+  classical
+  refine Finset.card_bij (fun s _ ↦ Finset.image (Fin.val : Fin (n + 3) → ℕ) s) ?_ ?_ ?_
+  · intro s hs
+    rw [SimpleGraph.mem_indepSetFinset_iff] at hs
+    rw [mem_cyclicSparseFinsets]
+    refine ⟨⟨fun i hi ↦ ?_, ?_⟩, fun i hi hi' ↦ ?_, fun hc ↦ ?_⟩
+    · obtain ⟨v, -, rfl⟩ := Finset.mem_image.1 hi
+      exact Finset.mem_range.2 v.2
+    · rw [Finset.card_image_of_injective _ Fin.val_injective, hs.card_eq]
+    · obtain ⟨u, hu, rfl⟩ := Finset.mem_image.1 hi
+      obtain ⟨v, hv, huv⟩ := Finset.mem_image.1 hi'
+      have hv3 := v.2
+      refine hs.isIndepSet (Finset.mem_coe.2 hu) (Finset.mem_coe.2 hv) (fun h ↦ ?_) ?_
+      · rw [h] at huv
+        omega
+      · rw [CGraph.toSimple_adj]
+        refine (cycle_adj_val (n + 3) u v).2 ⟨by omega, Or.inl ?_⟩
+        rw [Nat.mod_eq_of_lt (by omega)]
+        omega
+    · obtain ⟨h0, hlast⟩ := hc
+      obtain ⟨u, hu, hu'⟩ := Finset.mem_image.1 h0
+      obtain ⟨v, hv, hv'⟩ := Finset.mem_image.1 hlast
+      refine hs.isIndepSet (Finset.mem_coe.2 hv) (Finset.mem_coe.2 hu) (fun h ↦ ?_) ?_
+      · rw [h] at hv'
+        omega
+      · rw [CGraph.toSimple_adj]
+        refine (cycle_adj_val (n + 3) v u).2 ⟨by omega, Or.inl ?_⟩
+        rw [show v.1 + 1 = n + 3 from by omega, Nat.mod_self]
+        omega
+  · intro s _ t _ hst
+    exact Finset.image_injective Fin.val_injective hst
+  · intro t ht
+    rw [mem_cyclicSparseFinsets] at ht
+    obtain ⟨⟨hsub, hcard⟩, hsp, hwrap⟩ := ht
+    rw [show n + 3 - 1 = n + 2 from by omega] at hwrap
+    have hlt : ∀ m ∈ t, m < n + 3 := fun m hm ↦ Finset.mem_range.1 (hsub hm)
+    refine ⟨t.attachFin hlt, ?_, Finset.image_val_attachFin hlt⟩
+    rw [SimpleGraph.mem_indepSetFinset_iff]
+    refine ⟨fun u hu v hv _ ↦ ?_, by rw [Finset.card_attachFin, hcard]⟩
+    rw [Finset.mem_coe, Finset.mem_attachFin] at hu hv
+    have hu3 := u.2
+    have hv3 := v.2
+    rw [CGraph.toSimple_adj, cycle_adj_val]
+    rintro ⟨-, h | h⟩
+    · rcases Nat.lt_or_ge (u.1 + 1) (n + 3) with hlt' | hge
+      · rw [Nat.mod_eq_of_lt hlt'] at h
+        exact hsp u.1 hu (by rw [h]; exact hv)
+      · rw [show u.1 + 1 = n + 3 from by omega, Nat.mod_self] at h
+        exact hwrap ⟨by rw [h]; exact hv, by rw [show n + 2 = u.1 from by omega]; exact hu⟩
+    · rcases Nat.lt_or_ge (v.1 + 1) (n + 3) with hlt' | hge
+      · rw [Nat.mod_eq_of_lt hlt'] at h
+        exact hsp v.1 hv (by rw [h]; exact hu)
+      · rw [show v.1 + 1 = n + 3 from by omega, Nat.mod_self] at h
+        exact hwrap ⟨by rw [h]; exact hu, by rw [show n + 2 = v.1 from by omega]; exact hv⟩
+
+/-- **The independent sets of a cycle.**  Splitting on whether the set uses the label `0` counts
+them as sparse subsets of two paths, one of `n + 2` labels and one of `n`. -/
+@[simp, toIsoGraph]
+theorem indepCount_cycle (n k : ℕ) :
+    (cycle (n + 3)).indepCount (k + 1)
+      = (n + 2 - k).choose (k + 1) + (n + 1 - k).choose k := by
+  rw [indepCount_eq_card_indepSetFinset, card_indepSetFinset_cycle, card_cyclicSparseFinsets,
+    card_sparseFinsets, card_sparseFinsets, show n + 2 + 1 - (k + 1) = n + 2 - k from by omega]
+
+example : (path 5).indepCount 2 = 6 := by rw [indepCount_path]; decide
+example : (cycle 5).indepCount 2 = 5 := by rw [indepCount_cycle]; decide
+
+end CGraph

@@ -205,6 +205,20 @@ theorem isVertexTransitive_tensorProduct (H : CGraph)
   show (G ⊗g H).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
   simp only [tensorProduct_adj, σ.adj_eq, τ.adj_eq]
 
+/-- **A tensor product of arc-transitive graphs is arc-transitive.**  An arc of `G ⊗g H` is an arc
+of `G` and an arc of `H` side by side, so the two factors can be moved independently. -/
+theorem isArcTransitive_tensorProduct (H : CGraph)
+    (hG : G.IsArcTransitive) (hH : H.IsArcTransitive) : (G ⊗g H).IsArcTransitive := by
+  rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩ ⟨u₁', u₂'⟩ ⟨v₁', v₂'⟩ huv hu'v'
+  simp only [tensorProduct_adj, Bool.and_eq_true] at huv hu'v'
+  obtain ⟨σ, hσ₁, hσ₂⟩ := hG _ _ _ _ huv.1 hu'v'.1
+  obtain ⟨τ, hτ₁, hτ₂⟩ := hH _ _ _ _ huv.2 hu'v'.2
+  refine ⟨autoOfPerm (G := G ⊗g H) (Equiv.prodCongr σ.toEquiv τ.toEquiv) fun x y ↦ ?_,
+    by show (σ u₁, τ u₂) = (u₁', u₂'); rw [hσ₁, hτ₁],
+    by show (σ v₁, τ v₂) = (v₁', v₂'); rw [hσ₂, hτ₂]⟩
+  show (G ⊗g H).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
+  simp only [tensorProduct_adj, σ.adj_eq, τ.adj_eq]
+
 theorem isVertexTransitive_strongProduct (H : CGraph)
     (hG : G.IsVertexTransitive) (hH : H.IsVertexTransitive) :
     (G ⊠g H).IsVertexTransitive := by
@@ -230,11 +244,233 @@ theorem isVertexTransitive_lexProduct (H : CGraph)
 
 end
 
+/-! ### Disjoint unions
+
+Two copies of the same graph inherit its transitivity.  Inside a copy an automorphism of `G` does
+the work, and the swap of the two copies carries a vertex — or an arc — across.  Two *different*
+graphs never give a transitive union, so this is only for `G ⊕g G`. -/
+
+section
+variable {G : CGraph}
+
+/-- An automorphism of `G` applied to both copies of `G ⊕g G`. -/
+private def disjUnionSelfAuto (σ : G ≃cg G) : G ⊕g G ≃cg G ⊕g G :=
+  autoOfPerm (G := G ⊕g G) (Equiv.sumCongr σ.toEquiv σ.toEquiv) (by
+    rintro (x | x) (y | y)
+    · exact σ.adj_eq x y
+    · rfl
+    · rfl
+    · exact σ.adj_eq x y)
+
+/-- An automorphism of `G` applied to both copies of `G ⊕g G`, followed by the swap of the two
+copies. -/
+private def disjUnionSelfSwapAuto (σ : G ≃cg G) : G ⊕g G ≃cg G ⊕g G :=
+  autoOfPerm (G := G ⊕g G) ((Equiv.sumCongr σ.toEquiv σ.toEquiv).trans (Equiv.sumComm G.V G.V))
+    (by
+      rintro (x | x) (y | y)
+      · exact σ.adj_eq x y
+      · rfl
+      · rfl
+      · exact σ.adj_eq x y)
+
+/-- **Two copies of a vertex-transitive graph make a vertex-transitive disjoint union.** -/
+theorem isVertexTransitive_disjUnion_self (h : G.IsVertexTransitive) :
+    (G ⊕g G).IsVertexTransitive := by
+  rintro (x | x) (y | y) <;> obtain ⟨σ, hσ⟩ := h x y
+  · exact ⟨disjUnionSelfAuto σ, congrArg Sum.inl hσ⟩
+  · exact ⟨disjUnionSelfSwapAuto σ, congrArg Sum.inr hσ⟩
+  · exact ⟨disjUnionSelfSwapAuto σ, congrArg Sum.inl hσ⟩
+  · exact ⟨disjUnionSelfAuto σ, congrArg Sum.inr hσ⟩
+
+/-- Every edge of a disjoint union lies inside one of the two sides. -/
+private theorem adj_disjUnion_cases {H : CGraph} {u v : (G ⊕g H).V} (huv : (G ⊕g H).Adj u v) :
+    (∃ x y, u = Sum.inl x ∧ v = Sum.inl y ∧ G.Adj x y) ∨
+      (∃ x y, u = Sum.inr x ∧ v = Sum.inr y ∧ H.Adj x y) := by
+  match u, v with
+  | Sum.inl x, Sum.inl y => exact Or.inl ⟨x, y, rfl, rfl, huv⟩
+  | Sum.inr x, Sum.inr y => exact Or.inr ⟨x, y, rfl, rfl, huv⟩
+  | Sum.inl x, Sum.inr y => simp at huv
+  | Sum.inr x, Sum.inl y => simp at huv
+
+/-- **Two copies of an arc-transitive graph make an arc-transitive disjoint union.** -/
+theorem isArcTransitive_disjUnion_self (h : G.IsArcTransitive) :
+    (G ⊕g G).IsArcTransitive := by
+  intro u v u' v' huv hu'v'
+  rcases adj_disjUnion_cases huv with ⟨x, y, rfl, rfl, hxy⟩ | ⟨x, y, rfl, rfl, hxy⟩ <;>
+    rcases adj_disjUnion_cases hu'v' with ⟨x', y', rfl, rfl, hx'y'⟩ | ⟨x', y', rfl, rfl, hx'y'⟩ <;>
+    obtain ⟨σ, h₁, h₂⟩ := h x y x' y' hxy hx'y'
+  · exact ⟨disjUnionSelfAuto σ, congrArg Sum.inl h₁, congrArg Sum.inl h₂⟩
+  · exact ⟨disjUnionSelfSwapAuto σ, congrArg Sum.inr h₁, congrArg Sum.inr h₂⟩
+  · exact ⟨disjUnionSelfSwapAuto σ, congrArg Sum.inl h₁, congrArg Sum.inl h₂⟩
+  · exact ⟨disjUnionSelfAuto σ, congrArg Sum.inr h₁, congrArg Sum.inr h₂⟩
+
+end
+
+/-! ### Joins
+
+A join `G ∇g G` is two copies of `G` with every edge between them.  As for the disjoint union, an
+automorphism of `G` moves vertices inside a copy and the swap of the two copies moves them across.
+Arcs are a different matter: an arc inside a copy and an arc between the copies can never be
+exchanged, so the join of a graph with itself is vertex-transitive but rarely arc-transitive. -/
+
+section
+variable {G : CGraph}
+
+/-- An automorphism of `G` applied to both copies of `G ∇g G`. -/
+private def joinSelfAuto (σ : G ≃cg G) : G ∇g G ≃cg G ∇g G :=
+  autoOfPerm (G := G ∇g G) (Equiv.sumCongr σ.toEquiv σ.toEquiv) (by
+    rintro (x | x) (y | y)
+    · exact σ.adj_eq x y
+    · rfl
+    · rfl
+    · exact σ.adj_eq x y)
+
+/-- An automorphism of `G` applied to both copies of `G ∇g G`, followed by the swap of the two
+copies. -/
+private def joinSelfSwapAuto (σ : G ≃cg G) : G ∇g G ≃cg G ∇g G :=
+  autoOfPerm (G := G ∇g G) ((Equiv.sumCongr σ.toEquiv σ.toEquiv).trans (Equiv.sumComm G.V G.V))
+    (by
+      rintro (x | x) (y | y)
+      · exact σ.adj_eq x y
+      · rfl
+      · rfl
+      · exact σ.adj_eq x y)
+
+/-- **The join of a vertex-transitive graph with itself is vertex-transitive.** -/
+theorem isVertexTransitive_join_self (h : G.IsVertexTransitive) :
+    (G ∇g G).IsVertexTransitive := by
+  rintro (x | x) (y | y) <;> obtain ⟨σ, hσ⟩ := h x y
+  · exact ⟨joinSelfAuto σ, congrArg Sum.inl hσ⟩
+  · exact ⟨joinSelfSwapAuto σ, congrArg Sum.inr hσ⟩
+  · exact ⟨joinSelfSwapAuto σ, congrArg Sum.inl hσ⟩
+  · exact ⟨joinSelfAuto σ, congrArg Sum.inr hσ⟩
+
+end
+
+/-! ### Arc-transitive products
+
+Arc-transitivity does not survive a cartesian product of two *different* graphs: an arc of
+`G □g H` runs along one factor, and nothing can carry an arc of `G` to an arc of `H` when the two
+have, say, different degrees.  A product of a graph with *itself* is another story — there the
+swap of the coordinates does exactly that, provided `G` is also vertex-transitive so that the
+stationary coordinate can be moved into place.
+
+The lexicographic product `G ·g H` has the same problem, and an extra one: it blows each vertex of
+`G` up into a copy of `H`, and an arc inside a copy is nothing like an arc between two copies.  If
+`H` is edgeless there are no arcs inside a copy, and arc-transitivity does survive. -/
+
+section
+variable {G H : CGraph}
+
+/-- Automorphisms of the two coordinates of `G □g G`, acting coordinatewise. -/
+private def cartesianProductSelfAuto (σ τ : G ≃cg G) : G □g G ≃cg G □g G :=
+  autoOfPerm (G := G □g G) (Equiv.prodCongr σ.toEquiv τ.toEquiv) (by
+    intro x y
+    show (G □g G).Adj (σ x.1, τ x.2) (σ y.1, τ y.2) = _
+    simp only [cartesianProduct_adj, σ.adj_eq, τ.adj_eq, (RelIso.injective σ).eq_iff,
+      (RelIso.injective τ).eq_iff])
+
+/-- Automorphisms of the two coordinates of `G □g G`, followed by the swap of the coordinates. -/
+private def cartesianProductSelfSwapAuto (σ τ : G ≃cg G) : G □g G ≃cg G □g G :=
+  autoOfPerm (G := G □g G)
+    ((Equiv.prodCongr σ.toEquiv τ.toEquiv).trans (Equiv.prodComm G.V G.V)) (by
+    intro x y
+    show (G □g G).Adj (τ x.2, σ x.1) (τ y.2, σ y.1) = _
+    simp only [cartesianProduct_adj, σ.adj_eq, τ.adj_eq, (RelIso.injective σ).eq_iff,
+      (RelIso.injective τ).eq_iff]
+    generalize G.Adj x.1 y.1 = a
+    generalize G.Adj x.2 y.2 = b
+    generalize decide (x.1 = y.1) = c
+    generalize decide (x.2 = y.2) = d
+    revert a b c d
+    decide)
+
+/-- Every edge of a cartesian product runs along one of the two coordinates. -/
+private theorem adj_cartesianProduct_cases {u v : (G □g H).V} (huv : (G □g H).Adj u v) :
+    (u.1 = v.1 ∧ H.Adj u.2 v.2) ∨ (G.Adj u.1 v.1 ∧ u.2 = v.2) := by
+  simpa using huv
+
+/-- **The cartesian product of a vertex- and arc-transitive graph with itself is
+arc-transitive.**  The factor the arc runs along is moved by arc-transitivity, the other by
+vertex-transitivity, and the coordinate swap handles the case where the two arcs run along
+different coordinates. -/
+theorem isArcTransitive_cartesianProduct_self
+    (hA : G.IsArcTransitive) (hV : G.IsVertexTransitive) : (G □g G).IsArcTransitive := by
+  intro u v u' v' huv hu'v'
+  rcases adj_cartesianProduct_cases huv with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+    rcases adj_cartesianProduct_cases hu'v' with ⟨h1', h2'⟩ | ⟨h1', h2'⟩
+  · obtain ⟨σ, hσ⟩ := hV u.1 u'.1
+    obtain ⟨τ, hτ₁, hτ₂⟩ := hA _ _ _ _ h2 h2'
+    have hv : σ v.1 = v'.1 := by rw [← h1, hσ, h1']
+    exact ⟨cartesianProductSelfAuto σ τ, Prod.ext hσ hτ₁, Prod.ext hv hτ₂⟩
+  · obtain ⟨σ, hσ⟩ := hV u.1 u'.2
+    obtain ⟨τ, hτ₁, hτ₂⟩ := hA _ _ _ _ h2 h1'
+    have hv : σ v.1 = v'.2 := by rw [← h1, hσ, h2']
+    exact ⟨cartesianProductSelfSwapAuto σ τ, Prod.ext hτ₁ hσ, Prod.ext hτ₂ hv⟩
+  · obtain ⟨σ, hσ₁, hσ₂⟩ := hA _ _ _ _ h1 h2'
+    obtain ⟨τ, hτ⟩ := hV u.2 u'.1
+    have hv : τ v.2 = v'.1 := by rw [← h2, hτ, h1']
+    exact ⟨cartesianProductSelfSwapAuto σ τ, Prod.ext hτ hσ₁, Prod.ext hv hσ₂⟩
+  · obtain ⟨σ, hσ₁, hσ₂⟩ := hA _ _ _ _ h1 h1'
+    obtain ⟨τ, hτ⟩ := hV u.2 u'.2
+    have hv : τ v.2 = v'.2 := by rw [← h2, hτ, h2']
+    exact ⟨cartesianProductSelfAuto σ τ, Prod.ext hσ₁ hτ, Prod.ext hσ₂ hv⟩
+
+/-- **A lexicographic product over an edgeless graph inherits arc-transitivity.**  Every arc of
+`G ·g H` sits over an arc of `G`; the two endpoints of that arc carry a transposition apiece, and
+the copies of `H` over the other vertices are left alone. -/
+theorem isArcTransitive_lexProduct_of_edgeless
+    (hG : G.IsArcTransitive) (hH : ∀ x y : H.V, H.Adj x y = false) :
+    (G ·g H).IsArcTransitive := by
+  classical
+  rintro ⟨u₁, u₂⟩ ⟨v₁, v₂⟩ ⟨u₁', u₂'⟩ ⟨v₁', v₂'⟩ huv hu'v'
+  simp only [lexProduct_adj, hH, Bool.and_false, Bool.or_false] at huv hu'v'
+  obtain ⟨σ, hσ₁, hσ₂⟩ := hG _ _ _ _ huv hu'v'
+  have hne : u₁ ≠ v₁ := by
+    rintro rfl
+    exact absurd huv (by simp [G.loopless])
+  refine ⟨autoOfPerm (G := G ·g H) (Equiv.prodShear σ.toEquiv
+    (fun i ↦ if i = u₁ then Equiv.swap u₂ u₂' else
+      if i = v₁ then Equiv.swap v₂ v₂' else Equiv.refl H.V)) fun x y ↦ ?_, ?_, ?_⟩
+  · show (G ·g H).Adj (σ x.1, _) (σ y.1, _) = _
+    simp only [lexProduct_adj, hH, Bool.and_false, Bool.or_false, σ.adj_eq]
+  · show (σ u₁, _) = (u₁', u₂')
+    simp [hσ₁]
+  · show (σ v₁, _) = (v₁', v₂')
+    simp [hσ₂, hne.symm]
+
+/-- **Blowing every vertex of an arc-transitive graph up into `d` independent copies leaves it
+arc-transitive.** -/
+theorem isArcTransitive_lexProduct_empty (hG : G.IsArcTransitive) (d : ℕ) :
+    (G ·g empty d).IsArcTransitive :=
+  isArcTransitive_lexProduct_of_edgeless hG (empty_adj d)
+
+end
+
+/-- The first parameter of a strongly regular graph is its order. -/
+@[toIsoGraph IsSRGWith.V_eq]
+theorem IsSRGWith.card_eq {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    FinEnum.card G.V = n :=
+  FinEnum.card_eq_fintypeCard'.trans (SimpleGraph.IsSRGWith.card h)
+
+/-- A strongly regular graph on a positive number of vertices has a vertex.  Most of the theory
+below needs one to start from, and the `Nonempty` instance is what `IsRegularWith.maxDeg_eq` and
+friends ask for. -/
+theorem IsSRGWith.nonempty {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) (hn : 0 < n) :
+    Nonempty G.V :=
+  Fintype.card_pos_iff.1 (by rw [SimpleGraph.IsSRGWith.card h]; exact hn)
+
 /-- Strongly regular graphs are regular, so their degree sequence is constant. -/
 @[toIsoGraph]
 theorem IsSRGWith.degSequence {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
     G.degSequence = List.replicate n k := by
   rw [degSequence_of_regular G h.regular, FinEnum.card_eq_fintypeCard', h.card]
+
+/-- The same, as a multiset. -/
+@[toIsoGraph]
+theorem IsSRGWith.degMultiset {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
+    G.degMultiset = Multiset.replicate n k := by
+  rw [← coe_degSequence, h.degSequence, Multiset.coe_replicate]
 
 section
 variable {G H : CGraph}
@@ -252,16 +488,15 @@ theorem IsSRGWith.exists_common_neighbor {G : CGraph} {n k ℓ μ : ℕ} (h : G.
   obtain ⟨w, hw⟩ := Fintype.card_pos_iff.1 hcard
   exact ⟨w, hw.1, hw.2.symm⟩
 
-/-- A strongly regular graph that is not complete has a non-adjacent pair. -/
-theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
-    (hk : k + 1 < n) : ∃ u v : G.V, u ≠ v ∧ ¬ G.toSimple.Adj u v := by
+/-- In a strongly regular graph that is not complete, *every* vertex misses one: a vertex adjacent
+to all `n - 1` others would have degree `n - 1 > k`. -/
+theorem IsSRGWith.exists_ne_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hk : k + 1 < n) (v : G.V) : ∃ w, v ≠ w ∧ ¬ G.toSimple.Adj v w := by
   classical
   have h' : G.toSimple.IsSRGWith n k ℓ μ := h
-  have hn : FinEnum.card G.V = n := FinEnum.card_eq_fintypeCard'.trans h'.card
-  obtain ⟨u⟩ := FinEnum.card_pos_iff.1 (show 0 < FinEnum.card G.V by omega)
   by_contra hcon
   push Not at hcon
-  have hnbrs : G.nbrs u = Finset.univ.erase u := by
+  have hnbrs : G.nbrs v = Finset.univ.erase v := by
     ext w
     simp only [mem_nbrs, Finset.mem_erase, Finset.mem_univ, and_true]
     constructor
@@ -270,10 +505,17 @@ theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWit
       rw [adj_self] at hw
       exact Bool.noConfusion hw
     · intro hw
-      exact hcon u w (Ne.symm hw)
-  have hcard : (G.nbrs u).card = k := by rw [card_nbrs_eq_degree, h'.regular u]
-  rw [hnbrs, Finset.card_erase_of_mem (Finset.mem_univ u), FinEnum.card_univ, hn] at hcard
+      exact hcon w (Ne.symm hw)
+  have hcard : (G.nbrs v).card = k := by rw [card_nbrs_eq_degree, h'.regular v]
+  rw [hnbrs, Finset.card_erase_of_mem (Finset.mem_univ v), FinEnum.card_univ, h.card_eq] at hcard
   omega
+
+/-- A strongly regular graph that is not complete has a non-adjacent pair. -/
+theorem IsSRGWith.exists_not_adj {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hk : k + 1 < n) : ∃ u v : G.V, u ≠ v ∧ ¬ G.toSimple.Adj u v := by
+  obtain ⟨u⟩ := h.nonempty (by omega)
+  obtain ⟨v, hne, hadj⟩ := h.exists_ne_not_adj hk u
+  exact ⟨u, v, hne, hadj⟩
 
 /-- **A strongly regular graph with `μ > 0` is connected**: any two non-adjacent vertices are
 joined by a path of length two. -/
@@ -288,6 +530,11 @@ theorem IsSRGWith.isConnected {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n
   · exact Or.inl hadj
   · exact Or.inr (h.exists_common_neighbor hμ huv hadj)
 
+@[toIsoGraph]
+theorem IsSRGWith.numComponents_eq_one {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hμ : 0 < μ) (hn : 0 < n) : G.numComponents = 1 :=
+  (numComponents_eq_one_iff G).2 (h.isConnected hμ hn)
+
 /-- **A strongly regular graph with `μ > 0` that is not complete has diameter two.** -/
 @[toIsoGraph]
 theorem IsSRGWith.diameter_eq_two {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
@@ -298,7 +545,71 @@ theorem IsSRGWith.diameter_eq_two {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWi
   · exact Or.inl hab2
   · exact Or.inr (h.exists_common_neighbor hμ hab hab2)
 
-/-! ### Girth five from strong regularity -/
+/-- **A strongly regular graph with `μ > 0` that is not complete has radius two.**  Diameter two
+already caps the radius; the point is that no vertex does better, because every vertex misses
+someone. -/
+@[toIsoGraph]
+theorem IsSRGWith.radius_eq_two {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hμ : 0 < μ) (hk : k + 1 < n) : G.radius = 2 := by
+  obtain ⟨c⟩ := h.nonempty (by omega)
+  refine radius_eq_of_walks G 2 c (fun u ↦ ?_) (fun v ↦ ?_)
+  · rcases eq_or_ne c u with rfl | hcu
+    · exact ⟨.nil, by simp⟩
+    · by_cases hadj : G.toSimple.Adj c u
+      · exact ⟨hadj.toWalk, by simp⟩
+      · obtain ⟨w, hcw, hwu⟩ := h.exists_common_neighbor hμ hcu hadj
+        exact ⟨hcw.toWalk.append hwu.toWalk, by simp⟩
+  · obtain ⟨w, hvw, hnadj⟩ := h.exists_ne_not_adj hk v
+    refine ⟨w, fun p ↦ ?_⟩
+    match p with
+    | .nil => exact absurd rfl hvw
+    | .cons hadj .nil => exact absurd hadj hnadj
+    | .cons _ (.cons _ _) => simp
+
+/-! ### Girth four and five from strong regularity -/
+
+/-- **A strongly regular graph with `ℓ = 0` is triangle-free**: `ℓ` counts the common neighbours
+of an adjacent pair, and the third corner of a triangle is one. -/
+theorem IsSRGWith.no_triangle {G : CGraph} {n k μ : ℕ} (h : G.IsSRGWith n k 0 μ) (x y z : G.V)
+    (hxy : G.Adj x y) (hyz : G.Adj y z) (hzx : G.Adj z x) : False := by
+  have h' : G.toSimple.IsSRGWith n k 0 μ := h
+  have hemp := h'.of_adj x y ((toSimple_adj _ _ _).2 hxy)
+  rw [Fintype.card_eq_zero_iff] at hemp
+  exact hemp.false ⟨z, ((toSimple_adj _ _ _).2 hzx).symm, (toSimple_adj _ _ _).2 hyz⟩
+
+/-- **A strongly regular graph with `ℓ = 0` and `μ ≥ 2` has girth four.**  Triangle-freeness gives
+the lower bound; for the upper bound, take a path `u — v — w`, which exists as soon as `k ≥ 2`, and
+close it into a square using a *second* common neighbour of the non-adjacent ends. -/
+@[toIsoGraph]
+theorem IsSRGWith.girth_eq_four {G : CGraph} {n k μ : ℕ} (h : G.IsSRGWith n k 0 μ) (hn : 0 < n)
+    (hk : 2 ≤ k) (hμ : 2 ≤ μ) : G.girth = 4 := by
+  classical
+  have h' : G.toSimple.IsSRGWith n k 0 μ := h
+  obtain ⟨u⟩ := h.nonempty hn
+  obtain ⟨v, huv⟩ : ∃ v, G.toSimple.Adj u v :=
+    (G.toSimple.degree_pos_iff_exists_adj u).1 (by rw [h'.regular u]; omega)
+  obtain ⟨⟨w, hvw⟩, hwu⟩ := Fintype.exists_ne_of_one_lt_card
+    (α := G.toSimple.neighborSet v)
+    (by rw [SimpleGraph.card_neighborSet_eq_degree, h'.regular v]; omega) ⟨u, huv.symm⟩
+  have hvw' : G.toSimple.Adj v w := hvw
+  have hwu' : w ≠ u := fun he ↦ hwu (Subtype.ext he)
+  have hnadj : ¬ G.toSimple.Adj u w := fun hc ↦
+    h.no_triangle u v w ((toSimple_adj _ _ _).1 huv) ((toSimple_adj _ _ _).1 hvw')
+      ((toSimple_adj _ _ _).1 hc.symm)
+  obtain ⟨⟨x, hxu, hxw⟩, hxv⟩ := Fintype.exists_ne_of_one_lt_card
+    (α := G.toSimple.commonNeighbors u w)
+    (by rw [h'.of_not_adj (Ne.symm hwu') hnadj]; omega) ⟨v, huv, hvw'.symm⟩
+  have hxu' : G.toSimple.Adj u x := hxu
+  have hxw' : G.toSimple.Adj w x := hxw
+  have hxv' : x ≠ v := fun he ↦ hxv (Subtype.ext he)
+  refine le_antisymm (girth_le_four_of_square (a := u) (b := v) (c := w) (d := x)
+    ((toSimple_adj _ _ _).1 huv) ((toSimple_adj _ _ _).1 hvw')
+    ((toSimple_adj _ _ _).1 hxw') ((toSimple_adj _ _ _).1 hxu'.symm)
+    (Ne.symm hwu') (Ne.symm hxv')) ?_
+  exact four_le_girth (fun a b c ↦ h.no_triangle a b c)
+    (not_isAcyclic_of_square ((toSimple_adj _ _ _).1 huv) ((toSimple_adj _ _ _).1 hvw')
+      ((toSimple_adj _ _ _).1 hxw') ((toSimple_adj _ _ _).1 hxu'.symm)
+      (Ne.symm hwu') (Ne.symm hxv'))
 
 /-- **A strongly regular graph with `ℓ = 0` and `μ = 1` has girth at least five**: `ℓ = 0` rules
 out triangles and `μ = 1` rules out squares, since the two opposite corners of a square would
@@ -306,11 +617,8 @@ share two neighbours. -/
 theorem IsSRGWith.five_le_girth {G : CGraph} {n k : ℕ} (h : G.IsSRGWith n k 0 1)
     (hnac : ¬ G.IsAcyclic) : 5 ≤ G.girth := by
   have h' : G.toSimple.IsSRGWith n k 0 1 := h
-  refine _root_.CGraph.five_le_girth (fun x y z h1 h2 h3 ↦ ?_) (fun x y z t h1 h2 h3 h4 ↦ ?_) hnac
-  · have hzx : G.toSimple.Adj z x := (toSimple_adj _ _ _).2 h3
-    have hemp := h'.of_adj z x hzx
-    rw [Fintype.card_eq_zero_iff] at hemp
-    exact hemp.false ⟨y, ((toSimple_adj _ _ _).2 h2).symm, (toSimple_adj _ _ _).2 h1⟩
+  refine _root_.CGraph.five_le_girth (fun x y z h1 h2 h3 ↦ h.no_triangle x y z h1 h2 h3)
+    (fun x y z t h1 h2 h3 h4 ↦ ?_) hnac
   · by_contra hcon
     push Not at hcon
     obtain ⟨hxz, hyt⟩ := hcon
@@ -326,6 +634,105 @@ theorem IsSRGWith.five_le_girth {G : CGraph} {n k : ℕ} (h : G.IsSRGWith n k 0 
       have h2card : 1 < Fintype.card (G.toSimple.commonNeighbors x z) :=
         Fintype.one_lt_card_iff_nontrivial.2 ⟨⟨y, hy⟩, ⟨t, ht⟩, by simpa using hyt⟩
       omega
+
+/-- **A Moore graph has girth exactly five.**  A strongly regular graph with `ℓ = 0` and `μ = 1`
+has girth at least five by `IsSRGWith.five_le_girth`; here is the matching pentagon.  Walk out
+`u — v — w`; `μ = 1` makes `v` the *only* common neighbour of `u` and `w`, so a second neighbour
+`x` of `w` is non-adjacent to `u`, and the common neighbour `y` of `u` and `x` closes the
+five-cycle. -/
+@[toIsoGraph]
+theorem IsSRGWith.girth_eq_five {G : CGraph} {n k : ℕ} (h : G.IsSRGWith n k 0 1) (hn : 0 < n)
+    (hk : 2 ≤ k) : G.girth = 5 := by
+  classical
+  have h' : G.toSimple.IsSRGWith n k 0 1 := h
+  obtain ⟨u⟩ := h.nonempty hn
+  obtain ⟨v, huv⟩ : ∃ v, G.toSimple.Adj u v :=
+    (G.toSimple.degree_pos_iff_exists_adj u).1 (by rw [h'.regular u]; omega)
+  obtain ⟨⟨w, hvw⟩, hwu⟩ := Fintype.exists_ne_of_one_lt_card
+    (α := G.toSimple.neighborSet v)
+    (by rw [SimpleGraph.card_neighborSet_eq_degree, h'.regular v]; omega) ⟨u, huv.symm⟩
+  have hvw' : G.toSimple.Adj v w := hvw
+  have hwu' : w ≠ u := fun he ↦ hwu (Subtype.ext he)
+  have hnadjw : ¬ G.toSimple.Adj u w := fun hc ↦
+    h.no_triangle u v w ((toSimple_adj _ _ _).1 huv) ((toSimple_adj _ _ _).1 hvw')
+      ((toSimple_adj _ _ _).1 hc.symm)
+  -- `μ = 1` makes `v` the *only* common neighbour of `u` and `w`
+  have hsub : Subsingleton (G.toSimple.commonNeighbors u w) :=
+    Fintype.card_le_one_iff_subsingleton.1 (by rw [h'.of_not_adj (Ne.symm hwu') hnadjw])
+  obtain ⟨⟨x, hwx⟩, hxv⟩ := Fintype.exists_ne_of_one_lt_card
+    (α := G.toSimple.neighborSet w)
+    (by rw [SimpleGraph.card_neighborSet_eq_degree, h'.regular w]; omega) ⟨v, hvw'.symm⟩
+  have hwx' : G.toSimple.Adj w x := hwx
+  have hxv' : x ≠ v := fun he ↦ hxv (Subtype.ext he)
+  have hux : u ≠ x := fun he ↦ hnadjw (he ▸ hwx'.symm)
+  have hnadjx : ¬ G.toSimple.Adj u x := fun hc ↦ hxv'
+    (congrArg Subtype.val (hsub.elim (⟨x, hc, hwx'⟩ : G.toSimple.commonNeighbors u w)
+      ⟨v, huv, hvw'.symm⟩))
+  obtain ⟨⟨y, huy, hxy⟩⟩ : Nonempty (G.toSimple.commonNeighbors u x) :=
+    Fintype.card_pos_iff.1 (by rw [h'.of_not_adj hux hnadjx]; omega)
+  have huy' : G.toSimple.Adj u y := huy
+  have hxy' : G.toSimple.Adj x y := hxy
+  have hyv : y ≠ v := fun he ↦ h.no_triangle v w x ((toSimple_adj _ _ _).1 hvw')
+    ((toSimple_adj _ _ _).1 hwx') ((toSimple_adj _ _ _).1 (he ▸ hxy'))
+  have hyw : y ≠ w := fun he ↦ hnadjw (he ▸ huy')
+  refine le_antisymm (girth_le_five_of_pentagon (a := u) (b := v) (c := w) (d := x) (e := y)
+    ((toSimple_adj _ _ _).1 huv) ((toSimple_adj _ _ _).1 hvw')
+    ((toSimple_adj _ _ _).1 hwx') ((toSimple_adj _ _ _).1 hxy')
+    ((toSimple_adj _ _ _).1 huy'.symm) (Ne.symm hwu') hux (Ne.symm hxv')
+    (Ne.symm hyv) (Ne.symm hyw)) ?_
+  exact h.five_le_girth (not_isAcyclic_of_pentagon
+    ((toSimple_adj _ _ _).1 huv) ((toSimple_adj _ _ _).1 hvw')
+    ((toSimple_adj _ _ _).1 hwx') ((toSimple_adj _ _ _).1 hxy')
+    ((toSimple_adj _ _ _).1 huy'.symm) (Ne.symm hwu') hux (Ne.symm hxv')
+    (Ne.symm hyv) (Ne.symm hyw))
+
+/-! ### Bipartiteness and strong regularity -/
+
+/-- **A bipartite strongly regular graph with `μ > 0` is complete bipartite**, and so has
+`n = 2k`: two vertices on opposite sides that were *not* adjacent would need a common neighbour,
+and a common neighbour of two vertices on opposite sides is on both sides at once. -/
+theorem IsSRGWith.card_eq_two_mul_of_isBipartite {G : CGraph} {n k ℓ μ : ℕ}
+    (h : G.IsSRGWith n k ℓ μ) (hμ : 0 < μ) (hn : 0 < n) (hk : 0 < k) (hb : G.IsBipartite) :
+    n = 2 * k := by
+  classical
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  obtain ⟨c, hc⟩ := hb
+  -- opposite colours force adjacency
+  have key : ∀ x y : G.V, c x ≠ c y → G.toSimple.Adj x y := by
+    intro x y hxy
+    by_contra hadj
+    obtain ⟨w, hxw, hwy⟩ := h.exists_common_neighbor hμ (fun he ↦ hxy (by rw [he])) hadj
+    have h1 : c x ≠ c w := hc x w ((toSimple_adj _ _ _).1 hxw)
+    have h2 : c w ≠ c y := hc w y ((toSimple_adj _ _ _).1 hwy)
+    revert hxy h1 h2
+    cases c x <;> cases c y <;> cases c w <;> simp
+  -- so the neighbours of a vertex are exactly the vertices of the other colour
+  have hcnt : ∀ x : G.V, (Finset.univ.filter fun y ↦ c y ≠ c x).card = k := by
+    intro x
+    have hnb : G.nbrs x = Finset.univ.filter fun y ↦ c y ≠ c x := by
+      ext y
+      simp only [mem_nbrs, Finset.mem_filter, Finset.mem_univ, true_and]
+      exact ⟨fun hxy he ↦ hc x y hxy he.symm,
+        fun hcy ↦ (toSimple_adj _ _ _).1 (key x y (Ne.symm hcy))⟩
+    rw [← hnb, card_nbrs_eq_degree, h'.regular x]
+  obtain ⟨u⟩ := h.nonempty hn
+  obtain ⟨v, huv⟩ : ∃ v, G.toSimple.Adj u v :=
+    (G.toSimple.degree_pos_iff_exists_adj u).1 (by rw [h'.regular u]; omega)
+  have hcv : c v ≠ c u := fun he ↦ hc u v ((toSimple_adj _ _ _).1 huv) he.symm
+  have hswap : (Finset.univ.filter fun y ↦ ¬ (c y ≠ c u))
+      = Finset.univ.filter fun y ↦ c y ≠ c v := by
+    refine Finset.filter_congr fun y _ ↦ ?_
+    revert hcv; cases c y <;> cases c u <;> cases c v <;> simp
+  have hsplit := Finset.card_filter_add_card_filter_not
+    (s := (Finset.univ : Finset G.V)) (p := fun y ↦ c y ≠ c u)
+  rw [hcnt u, hswap, hcnt v, FinEnum.card_univ, h.card_eq] at hsplit
+  omega
+
+/-- **A strongly regular graph with `μ > 0` and `n ≠ 2k` is not bipartite.** -/
+@[toIsoGraph]
+theorem IsSRGWith.not_isBipartite {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hμ : 0 < μ) (hn : 0 < n) (hk : 0 < k) (hne : n ≠ 2 * k) : ¬ G.IsBipartite :=
+  fun hb ↦ hne (h.card_eq_two_mul_of_isBipartite hμ hn hk hb)
 
 /-- **Arc-transitive graphs with no isolated vertex are vertex-transitive.**  Given `u` and `v`,
 pick any neighbours `u'` and `v'` and carry the arc `u → u'` to the arc `v → v'`.  Phrased with
@@ -612,6 +1019,18 @@ theorem IsRegularWith.minDeg_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k) [
 @[toIsoGraph]
 theorem IsSRGWith.isRegularWith {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) :
     G.IsRegularWith k := SimpleGraph.IsSRGWith.regular h
+
+@[toIsoGraph]
+theorem IsSRGWith.maxDeg_eq {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) (hn : 0 < n) :
+    G.maxDeg = k :=
+  haveI := h.nonempty hn
+  h.isRegularWith.maxDeg_eq
+
+@[toIsoGraph]
+theorem IsSRGWith.minDeg_eq {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) (hn : 0 < n) :
+    G.minDeg = k :=
+  haveI := h.nonempty hn
+  h.isRegularWith.minDeg_eq
 
 /-- **The complement of a `k`-regular graph is `(n - 1 - k)`-regular.** -/
 @[toIsoGraph]

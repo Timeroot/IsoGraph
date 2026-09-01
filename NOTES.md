@@ -62,8 +62,8 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Invariants/Fractional.lean` | the fractional independence and chromatic numbers as linear programs, and `α ≤ α_f ≤ θ`, `ω ≤ χ_f ≤ χ` | yes |
 | `IsoGraph/Invariants/FracProducts.lean` | `χ_f(G × H) = min χ_f(G) χ_f(H)` — Zhu's theorem, the fractional Hedetniemi equality | yes |
 | `IsoGraph/Invariants/Certificates.lean` | finite witnesses for the invariants: girth, connectivity, bipartiteness, regularity | yes |
-| `IsoGraph/Invariants/Connectivity.lean` | the edge and vertex connectivities `λ` and `κ`, their cuts and separators, and Whitney's `κ ≤ λ ≤ δ` | yes |
-| `IsoGraph/Invariants/Hamiltonian.lean` | Hamiltonicity, and the cycle-list and cyclic-numbering certificates that establish it | yes |
+| `IsoGraph/Invariants/Connectivity.lean` | the edge and vertex connectivities `λ` and `κ`, their cuts and separators, Whitney's `κ ≤ λ ≤ δ`, `κ` of a join, and Plesník's `λ = δ` at diameter two | yes |
+| `IsoGraph/Invariants/Hamiltonian.lean` | Hamiltonicity, the cycle-list and cyclic-numbering certificates that establish it, the necessary conditions that refute it, and 2-connectivity as a consequence | yes |
 | `IsoGraph/Invariants/Symmetry.lean` | automorphisms of a `CGraph`; vertex- and arc-transitivity, decided | yes |
 | `IsoGraph/Core/Defs.lean` | ways of building a `CGraph`, and the notation for them | yes |
 | `IsoGraph/Core/Quotient.lean` | the same constructions on `IsoGraph`, lifted through the quotient | yes |
@@ -74,9 +74,9 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `IsoGraph/Core/Symmetry.lean` | their automorphisms, transitivity and regularity | yes |
 | `IsoGraph/Core/Colouring.lean` | their colourings, cliques, independent sets, covers and matchings | yes |
 | `IsoGraph/SmallGraphs/Defs/` | the gallery — the 143 connected graphs on `n ≤ 6`, the strongly regular table, the cubic cages, the solids, the parametrised families — nine modules, indexed by `Defs.lean` | yes |
-| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-three more by family and by operator, indexed by `SmallGraphs.lean` | yes |
-| `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization, the exponential, and Sabidussi–Vizing: a connected graph factors uniquely into cartesian irreducibles — six modules, indexed by `Algebra.lean` | yes |
-| `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: seventeen modules, indexed by `Containment.lean` | yes |
+| `IsoGraph/SmallGraphs/` | what the invariants come to on the gallery: four topical files in the order of `Core/`, then twenty-four more by family and by operator, indexed by `SmallGraphs.lean` | yes |
+| `IsoGraph/Algebra/` | the semiring of isomorphism classes: the bundled structures, cancellation, factorization, the exponential, the multiset of connected components of every construction in the gallery, and Sabidussi–Vizing: a connected graph factors uniquely into cartesian irreducibles — seven modules, indexed by `Algebra.lean` | yes |
+| `IsoGraph/Containment/` | the nine ways one graph sits inside another — subgraph, minor, topological minor, immersion, contraction, quotient — the orders they make, and a search deciding each: eighteen modules, indexed by `Containment.lean` | yes |
 | `IsoGraph/SmallGraphs/Substructure.lean` | which named graph sits inside which other, in each of the nine containment relations | yes |
 | `IsoGraph/Cache.lean` | the memoised adjacency function the searches run on | yes |
 | `IsoGraph/Spectrum.lean` | the adjacency spectrum: path, cycle, complete, SRG, and the Smith family | yes |
@@ -331,9 +331,39 @@ Hamiltonicity has no cheap decision procedure, so that file is about *certificat
 That second one is exactly what an LCF code hands you: the ring `0 – 1 – ⋯ – (n-1) – 0` inside
 `lcfEdges` *is* a Hamiltonian cycle, so every LCF graph in the gallery — Heawood, McGee,
 Tutte–Coxeter, Möbius–Kantor, Desargues, Nauru, the dodecahedron, Balaban's two cages, Foster,
-Gray, Ljubljana, Tutte's 12-cage and the rest — is Hamiltonian by `norm_num` on `3 ≤ n`. In the
-other direction only necessary conditions are available: a Hamiltonian graph is connected, is not
-acyclic, and has `girth ≤ card`.
+Gray, Ljubljana, Tutte's 12-cage and the rest — is Hamiltonian by `norm_num` on `3 ≤ n`.
+
+Four derived certificates sit on top of the numbering one, and between them they settle the
+parametrised families. Two of them take a Hamiltonian *path* — the same numbering minus the
+wrap-around — and let a construction supply the missing edge: coning,
+`isHamiltonian_join_complete_one`, which puts an apex over both ends and gives the wheel and the
+fan; and prisming, `isHamiltonian_cartesianProduct_complete_two`, which lays a second copy
+alongside and crosses over at the ends, and gives the prism and the ladder. The third asks for no
+path at all: `isHamiltonian_join_of_card_eq` alternates between the two halves of a join of equal
+orders, using only the edges the join adds, which gives the balanced complete bipartite graph and,
+through `compl_disjUnion`, the complement of a balanced disjoint union. The fourth,
+`isHamiltonian_lexProduct_of_cyclicNumbering`, walks the cycle of `G` once for every vertex of `H`,
+taking the `k`-th vertex of `H` on the `k`-th lap; a lap changes at a step of the cycle, so the
+second factor never needs an edge of its own, and `Kₘ · H` comes out Hamiltonian for any nonempty
+`H` — the cocktail party graph among them. Adding edges cannot destroy a cycle, so the Cartesian
+certificate also carries over to the strong and the lexicographic product by
+`SimpleGraph.IsHamiltonian.mono`. The crown graph gets a numbering of its own: the two sides
+alternately, the second shifted by *two*, which is what keeps consecutive vertices clear both of
+the matching the crown is missing and of the step after it.
+
+In the other direction this file has only necessary conditions: a Hamiltonian graph is connected,
+is not acyclic, has `girth ≤ card`, has minimum degree at least two, satisfies `2α ≤ n`, and on
+three vertices or more is 2-connected. The degree bound holds because the spanning cycle both
+enters and leaves every vertex, and `IsCycle.snd_ne_penultimate` says those two neighbours are
+distinct. The independence bound holds because an independent set occupies positions along the
+cycle no two of which are consecutive, so the positions and their shift by one are disjoint.
+Acyclicity rules out the trees, `star`, `doubleStar` and `spider`; the degree bound rules out the
+graphs with something hanging off them, `tadpole`, `lollipop` and `cyclePendant`; and the
+independence bound rules out the lopsided complete multipartite graphs, which is `book n` from
+three pages up, `T(2m+1, 2)`, and `K_{2,L}` for `L ≥ 3`.
+
+A genuine refutation needs a search, and that is `Containment/Hamiltonian.lean`, where a
+Hamiltonian cycle is read as a spanning cycle subgraph.
 
 `Core/Defs.lean` builds the zoo out of three primitives — `ofRel` (symmetrise a `Bool`
 relation, delete the diagonal), `empty`, `disjUnion` — plus `compl`:
@@ -4553,6 +4583,95 @@ blocks joined when disjoint, and Higman–Sims is the 22 points, the 77 blocks a
 by incidence. Blocks are stored twice over: as readable six-element lists, and as an `Array` of
 22-bit masks, so that disjointness is one `&&&` and the parameter checks stay in seconds.
 
+Everything else those ten sporadic graphs know is read off the four parameters rather than
+computed. `SmallGraphs/SRGValues.lean` is the leaf that does it: order, size, degrees and degree
+sequence, connectivity and the component count, diameter, radius, girth, and the four refutations
+— not acyclic, not a tree, not bipartite, not self-complementary — sixteen invariants apiece,
+plus `ω = 2` for the four triangle-free ones, without a `decide` among them. Three of the general
+lemmas it draws on are new to `Core/Symmetry.lean`:
+
+* `IsSRGWith.radius_eq_two` needs *every* vertex of a non-complete strongly regular graph to miss
+  someone (`IsSRGWith.exists_ne_not_adj`), where the diameter argument was happy with just one
+  such vertex;
+* `IsSRGWith.girth_eq_four` for `ℓ = 0`, `μ ≥ 2` and `IsSRGWith.girth_eq_five` for the Moore case
+  `ℓ = 0`, `μ = 1` supply the upper bounds that `IsSRGWith.girth_eq_three` and
+  `IsSRGWith.five_le_girth` left open. The Moore pentagon is `u — v — w — x — y — u`, where `x`
+  is a second neighbour of `w`; `μ = 1` makes `v` the *only* common neighbour of `u` and `w`, so
+  `u` and `x` are non-adjacent and have a common neighbour `y` of their own;
+* `IsSRGWith.not_isBipartite` goes through "a bipartite strongly regular graph with `μ > 0` is
+  complete bipartite" — two vertices on opposite sides that were not adjacent would need a common
+  neighbour, and a common neighbour of two vertices on opposite sides is on both sides at once.
+  So such a graph has `n = 2k`, and none of the ten does.
+
+That is 164 cells of the coverage table, which took the ten from seven or eight filled entries
+each to twenty-three or more, the same range as the rest of the gallery.
+
+The same reading works for `paleyField F`, the Paley graph of an arbitrary finite field with
+`|F| ≡ 1 mod 4`, where `isSRGWith_paleyField` had been sitting unused. The side conditions that
+are numerals for the sporadic ten come out as arithmetic in `|F|`: everything that needs the graph
+to be non-complete needs `|F| ≥ 5`, and the girth is three only once `ℓ = (|F| − 5)/4` is
+positive, so from `|F| ≥ 9` — at `|F| = 5` the Paley graph is `C₅` and the girth is five. Both are
+discharged by `omega` from `|F| % 4 = 1`. The one fact that is not read off the parameters is
+self-complementarity: `FiniteField.exists_nonsquare` supplies the multiplier, and it needs
+characteristic `≠ 2`, which is again `omega` from `|F| % 4 = 1` and
+`FiniteField.even_card_of_char_two`.
+
+`Spectrum.lean` follows it up. `spectrum_paleyField` is the same conference-case argument as
+`spectrum_paley` with `q = 4t + 1` a hypothesis on `|F|` rather than a prime, and the Laplacian
+three come after it unchanged. The energies of the strongly regular *families* were missing
+entirely — the file had the sporadic ten and nothing with a parameter in it — so
+`energy_of_spectrum_eq` is now also run on the cocktail party graph (`4n − 4`), the rook's graph
+(`4(n − 1)²`), the triangular graph (`2n(n − 3)`) and the Paley graphs, whose `2t(1 + √q)` is the
+only irrational value of the lot, for the same reason its eigenvalues are irrational.
+
+The degree multiset had drifted behind the degree sequence: twenty families knew
+`degSequence_*` and not `degMultiset_*`, which for a regular family is one application of
+`degMultiset_of_degSequence` and for `fan`, `friendship`, `ladder` and `turan` a `List.Perm` or a
+`rfl` on top of `coe_degSequence`. Two of them collide in the simp set — `petersen` is
+`kneser 5 2`, and the general lemma leaves the order as `Nat.choose 5 2` — so
+`degMultiset_petersen` is the one place in the library that carries a simp priority.
+
+The spectrum was as far as the sporadic rows went. Hoffman's ratio bound takes it one step
+further, and `indepNum_le_of_isSRGWith_of_lambdaMin` does the cast dance once so that each of the
+eleven applications is `norm_num` on two inequalities between small integers. Eight of the eleven
+bounds are exact, which is the usual state of affairs — a strongly regular graph tends to come
+with a coclique that meets its own ratio bound. The three that miss are Clebsch (`6` against `5`),
+the lines on a cubic surface (`9` against `6`) and Higman–Sims (`26` against `22`); the last is
+the only one whose ratio is irrational, and the only independence number of the batch left
+bracketed, `22 ≤ α ≤ 26` with a listed coclique underneath.
+
+The chromatic numbers read the same inequality the other way. Where `λ_min = −2` the ratio bound
+finishes the job by itself, giving `χ = 4`, `7`, `9` for Shrikhande, the Chang graphs and
+Schläfli; everywhere else it gives only `3`, and it is `n ≤ χ α` with the exact `α` that bites.
+Even that falls short twice — `27 ≤ 5 · 6` and `77 ≤ 4 · 21` are both true, so the last colour for
+the lines on a cubic surface and for `M₂₂` has to be refuted by search instead. The upper bounds
+are ten explicit colourings, one table of colour indices per graph, found outside Lean and checked
+pair by pair by `native_decide`. Only Higman–Sims is left open, at `4 ≤ χ ≤ 6`: twenty minutes on
+the five-colour question ended in a timeout rather than an answer.
+
+Underneath the spectrum the same graphs wanted `ω`, `ν` and `θ`. Seven perfect matchings and three
+near-perfect ones — three of the ten orders are odd — settle every `ν`, the upper bound `2ν ≤ n`
+needing nothing about the graph; they are lists of pairs through `length_le_matchNum`. For the
+four triangle-free graphs a clique is a vertex or an edge, so
+`cliqueCoverNum_of_cliqueNum_le_two` turns those same matchings into exact clique cover numbers.
+Schläfli and the lines on a cubic surface are complementary, so each one's `θ` is the other's `χ`
+and both come from the paragraph above — they are the only two of the ten whose complement is also
+in the library. That leaves Shrikhande and the three Chang graphs, where `ω` is `3`, `6`, `5`, `6`
+and `n ≤ θ ω` is all there is.
+
+The chromatic indices went the other way: easy, and all ten exact. A `Δ`-edge-colouring of a
+`Δ`-regular graph is a `1`-factorization, so the table can be written as one — row `v` names the
+partner of `v` in each factor — and the colouring it defines is then symmetric for free, the
+colour of `u v` being the position of `v` in `u`'s row and equally the position of `u` in `v`'s.
+Seven of the ten are class one on that reading. The other three have an odd number of vertices, so
+no colour class is a perfect matching, each carries at most `(n − 1)/2` edges, and
+`maxDeg_lt_edgeChromNum_of_isRegularWith_odd` rules `Δ` colours out; `Δ + 1` suffice, so the lines
+on a cubic surface, Schläfli and `M₂₂` are class two, at `11`, `17` and `17`. The factorizations
+were found outside Lean and checked by `native_decide`, which takes twenty seconds for all ten.
+Nine of them a SAT encoding produced instantly; Higman–Sims, twenty-two perfect matchings on a
+hundred vertices, was still running after fifteen minutes, and peeling maximum matchings off one
+at a time with random restarts got it on the second try.
+
 ## Cages and other named graphs
 
 `SmallGraphs/Defs/Named.lean` is the gallery: the graphs with proper names that are too big for
@@ -4735,6 +4854,12 @@ bipartite where it is not.
 Colourings live here too, since `G ≤ₕ complete k` is `k`-colourability with the colouring
 attached: the Grötzsch graph and the Moser spindle are each four- but not three-colourable, the
 first with no triangle at all and the second planar.
+
+So does Hamiltonicity, by the same trick: `Containment/Hamiltonian.lean` reads a Hamiltonian cycle
+as a spanning cycle subgraph, so `G.IsHamiltonian ↔ cycle G.V ≤ₛ G` above two vertices, and the
+exhausted search is the refutation. That is how the Petersen graph — vertex-transitive,
+three-connected, cubic and still without a spanning cycle — and the Herschel graph, the smallest
+non-Hamiltonian polyhedral graph, get their negative statements.
 
 The one containment between two large graphs is the Balaban 11-cage inside the Tutte 12-cage.
 Balaban found the first 11-cage by **excision**: delete six vertices of the 12-cage spanning a
@@ -6279,6 +6404,20 @@ the tactic that is both halves of a value, the six `*Values.lean` leaves are wha
 `α, ω, χ, χ'` for forty-four of the gallery graphs and for every connected graph on at most six
 vertices, seven hundred and fourteen values.
 
+A fourth wrapper, `CGraph.length_le_matchNum`, does the same for a matching, which is the one
+witness that is not a set of vertices. `card_le_matchNum` asks for the two ends as functions of an
+index and for the disjointness as a statement about the vertex type; the wrapper takes a numbering
+`e : G.V ≃ Fin n` and a plain list of pairs of indices instead, so the disjointness is a
+comparison of numerals rather than of terms of a vertex type that may be a nest of sums and
+products, and `decide` gets it for the short lists.
+
+The ten seconds `bv_decide` gives the solver are enough for the gallery and not for the sporadic
+strongly regular graphs, so `graph_sat` now takes `(timeout := n)`. It has to be an argument and
+not a `set_option`: the number is a field of `BVDecideConfig`, so the tactic threads it into the
+`bv_decide` call it builds rather than reading it out of the environment. Five minutes is enough
+to refute a sixth colour on the twenty-seven lines and a fifth on `M₂₂`. Twenty is not enough to
+refute a fifth on Higman–Sims.
+
 ## The fractional relaxations
 
 Two of those invariants are the answers to integer programs, and dropping the integrality gives a
@@ -6774,8 +6913,9 @@ invisible against an `Ω(n²)` search.
 
 The exceptions are the computational checks, which are deliberate: everything proved by
 `native_decide` — `Compute.lean`, the enumeration identities of `SmallGraphs/Defs/Small.lean`,
-the five large sporadic parameter checks and the non-isomorphism theorems of the SRG table —
-additionally uses `Lean.ofReduceBool` and
+the five large sporadic parameter checks, the non-isomorphism theorems of the SRG table, the
+spanning cycles of the sporadic strongly regular graphs and the exhausted searches of
+`SmallGraphs/Substructure.lean` — additionally uses `Lean.ofReduceBool` and
 `Lean.trustCompiler`, i.e. trusts the compiler. It has to: `canonAdj` is well-founded recursion over
 `Array`, which the kernel will not reduce.
 
@@ -6952,3 +7092,993 @@ that is only vertex-transitive, where arc-transitivity gives a lower bound and t
 counterpart to the rigidity argument the cube admits — the domination number of a
 grid, whose closed form is a 2011 theorem of Gonçalves, Pinlou, Rao and Thomassé and the only one
 of the grid's and the king graph's eight entries below the colouring row that is not on file.
+
+The characteristic polynomial rows were the emptiest pair left in the table: `charpoly` had four
+filled cells and `lapCharpoly` one, against the thirty-odd constructions whose spectra sit a few
+rows above them. `charpoly_eq_prod_spectrum` closes each of those in a single rewrite once it is
+lifted from `CGraph` to `IsoGraph`, and most of the constructions in question are strongly
+regular, so their spectra all have the shape "the degree once, then two eigenvalues with
+multiplicities" that `charpoly_of_spectrum_eq` turns into `(X − k)(X − r)^f (X − s)^g` outright.
+That takes the two rows from five cells to fifty-eight, which is every cell whose spectrum is
+known — the remaining holes in the two rows are now exactly the remaining holes in the two
+spectrum rows.
+
+Two of the families are not that shape and are the better for it. The star and the complete
+bipartite graph have the irrational pair `± √(mn)`, whose two factors multiply back to the
+rational `X² − mn`; the Paley graph on `q = 4t + 1` vertices has the two roots of `X² + X − t`,
+each with multiplicity `2t`, so `charpoly_paley` reads `(X − 2t)(X² + X − t)^{2t}` — integral, as
+`charpoly_eq_map_int` insists it must be, with the surds cancelling in pairs rather than
+individually. The Laplacian version is `X (X² − qX + tq)^{2t}`.
+
+A warning about `ring` on these goals: it does not see through `C`. A goal mentioning `C 6` is a
+polynomial identity in `ℝ[X]` with `C 6` as an opaque atom, and once both sides of something like
+`(X − 16)(X − 4)^6 (X + 2)^20` have been expanded against it there is nothing left to match.
+`simp only [map_ofNat, map_one, map_neg, sub_neg_eq_add]` normalises `C` of a numeral to the
+numeral instead, and then the two sides are syntactically equal and there is no expansion at all.
+
+The last point is about where a statement has to live to count. `rook`, `triangular`,
+`cocktailParty` and `petersen` are `abbrev`s for `Kₘ □ Kₙ`, `J(n, 2)`, `K_{n×2}` and `K(5, 2)`,
+and `@[toIsoGraph]` unfolds them on the way through: `spectrum_rook`, stated and proved at
+`CGraph` level, arrives in `IsoGraph` as a statement about `cartesianProduct`, so the
+`spectrum × rook` cell stays empty while `spectrum × cartesianProduct` was full already. A
+statement written directly in `IsoGraph` keeps the abbreviation as the head of its conclusion and
+does fill the cell. That is why this section is written at the quotient level rather than mirrored
+up from `CGraph` like the spectra it consumes, and it is worth eight cells the lift cannot reach.
+
+The two connectivity rows were the emptiest of the family rows, and for a structural reason: `κ`
+and `λ` are both an `sInf` over a search space, so unlike `α` or `χ` they have no upper bound that
+falls out of a construction and no lower bound that falls out of a colouring. Only the five
+families with a hand-written argument — the complete graph, the cycle, the path, the empty graph
+and the Petersen graph — were filled. What was missing was a law for an *operation*, and the
+operation that most of the gallery's two-parameter families are built from is the join.
+
+`CGraph.vertexConn_join` supplies it: `κ (G ∇ H) = min (|G| + κ H) (|H| + κ G) (|G| + |H| − 1)`.
+The proof is the obvious one made precise. A separator that leaves a survivor on each side leaves
+two adjacent survivors, and then every survivor is joined to one of them, so the two-colouring the
+separator is supposed to witness is constant — meaning a separator must swallow one side outright,
+and what it takes from the other side separates that factor. The three terms are the two ways of
+doing that and the `card − 1` that `vertexConn` throws in for the complete graphs. It wants no
+nonemptiness hypothesis, which is worth saying because `minDeg_join` next door does: an empty
+factor has `κ = 0` and `card = 0` and the formula degenerates correctly, so the recursion over a
+part list does not have to case-split on empty parts.
+
+That one theorem plus Whitney's chain fills both rows for eight families. Peeling a part off the
+front of `completeMultipartite (d :: ds)` turns it into `empty d ∇ completeMultipartite ds`, and
+the induction closes at `ds.sum − ds.max?`, which is exactly the value the table already records
+for `coverNum` — in a complete multipartite graph the smallest separators *are* the smallest vertex
+covers, both being what is left when one largest part is kept whole. So `vertexConn_bipartite` is
+`min m n`, and the books, the cocktail party graphs and the Turán graphs read their `κ` off their
+`coverNum` in one rewrite. In each of those the answer also equals the minimum degree, and then
+`edgeConn_eq_minDeg` — `κ ≤ λ ≤ δ` with the two ends equal — gives `λ` for free. The stars, wheels
+and fans are the same story one level up, as joins of a `complete 1` with an empty graph, a cycle
+and a path.
+
+The friendship graphs are the interesting case, because their right factor is *dis*connected.
+`Fₙ` is `K₁ ∇ (n disjoint edges)`, the second factor being the complement of a cocktail party
+graph, and a perfect matching on four or more vertices fails `V ≤ E + 1` and so is not connected.
+Its `κ` is therefore `0`, the join formula returns `1`, and the hub is exposed as the cut vertex it
+is. This is also the family that shows the sandwich has a real limit rather than a bureaucratic
+one: `κ (Fₙ) = 1` but `δ (Fₙ) = 2`, and `λ (Fₙ) = 2` as well, so there is no general `edgeConn_join`
+to be had by this route and the `edgeConn × friendship` cell is deliberately still empty. Getting
+it would need the analogous cut-counting argument for `λ`, which is a genuinely separate proof.
+
+At the other end of the chain, a connected graph with a vertex of degree one is exactly
+1-connected and exactly 1-edge-connected: delete the neighbour, or delete the edge.
+`vertexConn_eq_one` and `edgeConn_eq_one` package that, and the pendant families — the double
+stars, the spiders, the tadpoles, the lollipops and the cycles with pendant paths — already had
+both halves of the hypothesis on file from `TreesAndCycles`, so their ten cells cost one line each.
+The batch is worth twenty-seven cells, and it is the first entry in either row that is a law about
+an operator rather than a fact about a graph: `vertexConn × join` is now filled too.
+
+That separate proof is Plesník's theorem, and it turned out to be the missing law for `λ` in the
+same way `vertexConn_join` was the missing law for `κ`. The statement is short — a graph of
+diameter two has `λ = δ` — and the reason is a counting argument that never mentions paths. Take
+any cut, with sides `A` and `Aᶜ`. If every vertex of `A` has a neighbour outside, price `A`: it has
+`t` vertices, each of them has at most `t − 1` neighbours inside and therefore at least `δ − t + 1`
+outside, and at least one outside in any case, so the cut costs at least `t · max 1 (δ − t + 1)`,
+which is at least `δ` whichever of the two bounds is doing the work. If instead some `a ∈ A` has no
+neighbour outside, then every vertex outside has a neighbour inside — otherwise that vertex and `a`
+would be three steps apart — and the same count prices `Aᶜ`, which by `cutSize_compl` costs the
+same. So one of the two sides is always entirely incident with the cut, and either way `δ ≤ λ`.
+
+The arithmetic step is worth isolating, because it is the whole trick: `d ≤ t · max 1 (d + 1 − t)`
+for `t > 0`. If `t` exceeds `d` the `max` is `1` and the claim is `d ≤ t`; if it does not, write
+`d = t + e` and the claim is `t + e ≤ t · (e + 1)`, which is `e ≤ t · e`. Neither half is `omega`'s
+on its own, but each half is once the `max` has been resolved.
+
+What makes this worth having is that the gallery already records the diameters. Every family whose
+`diameter` cell reads `2` gets its `λ` in one rewrite, and that is most of the dense end of the
+gallery: the rook's graphs, the triangular graphs, the Grötzsch graph, the Kneser graph `K(n, 2)`,
+the Johnson graphs with `min k (n − k) = 2`, the Paley graphs over both `ZMod q` and an arbitrary
+finite field, the complement of anything disconnected with an edge, and — since a strongly regular
+graph that is neither complete nor edgeless has diameter two — all ten sporadic strongly regular
+graphs in the gallery plus the Clebsch graph as the folded 4-cube. `IsSRGWith.edgeConn_eq` bundles
+that last case: to cut a strongly regular graph you must pay for a whole neighbourhood.
+
+The join is diameter two by construction, so `edgeConn_join_eq_minDeg` follows from the same
+theorem rather than from a second cut-counting argument, and `edgeConn_join` is now `min (δ G + |H|)
+(|G| + δ H)` — the `edgeConn × join` cell that the previous batch had to leave empty. So is
+`edgeConn × friendship`: `λ (Fₙ) = 2` while `κ (Fₙ) = 1`, which is the friendship graphs earning
+their keep a second time, now as the standard witness that Whitney's chain is strict in the middle
+rather than merely as an awkward case. `minDeg_completeMultipartite` had to be proved in general
+along the way — the gallery only had the `List.replicate` version — and with it
+`edgeConn_completeMultipartite` is unconditional, matching `vertexConn_completeMultipartite` term
+for term.
+
+Twenty-two cells, and the `edgeConn` row of the operator table now has three entries instead of
+one. What Plesník cannot reach is `κ`, and it cannot in principle: the friendship graphs have
+diameter two and a cut vertex. The families still empty in both connectivity rows — the circulants,
+the crowns, the generalised Petersen graphs, the hypercubes, the ladders, the prisms, the LCF
+graphs — are the sparse, vertex-transitive, large-diameter end of the gallery, and the theorems
+that settle them are Mader's (`λ = δ` for a vertex-transitive graph) and Brouwer–Mesner (`κ = k`
+for a connected strongly regular graph). Both are a different order of work from a counting
+argument over one cut.
+
+The families Plesník cannot reach have one thing in common: they carry a spanning cycle. A
+Hamiltonian graph on three vertices or more is 2-connected, and that is the other cheap lower
+bound on `κ`. The proof is a rotation argument. `SimpleGraph.Walk.rotate` moves the base point of
+the cycle to the vertex `v` under suspicion, and `support_rotate` says the two tails are rotations
+of each other, so `count_eq` carries Hamiltonicity across; then `c.tail.reverse.tail` is the cycle
+with `v` shaved off both ends, a walk whose support contains every vertex exactly once except `v`,
+which it misses. A separator `{v}` supplies a two-colouring that never separates adjacent vertices
+outside `{v}`, and a short induction over that walk — `const_on_support` — makes it constant along
+the whole of it. Both of the separator's colours occur there, so there is no such separator, and
+`le_vertexConn_of_forall_card_lt` turns "no separator of size zero or one" into `2 ≤ κ`.
+
+For the ladders that is exact. `δ (Lₙ) = 2`, Whitney closes the chain from above, and
+`vertexConn_ladder = edgeConn_ladder = 2` — the ladder being the one gallery family that is
+2-connected and no better, since the two rungs at each end are all that hold it together. For the
+prisms, the crowns, the circulants that contain a Hamiltonian cycle and the LCF graphs it is a
+bound and stays one: the prisms are cubic and in fact 3-connected, the crowns are `(n-1)`-connected,
+and an LCF notation does not determine which. Ten cells, two of them exact. What remains in the
+`κ` row is what remained before — Mader for the vertex-transitive families and Brouwer–Mesner for
+the strongly regular ones.
+
+Two of the gallery's families were, until now, a definition and nothing else. `gp n k` and
+`lcf ss r` are given by edge lists rather than by a relation, and `degree_ofEdges` counts a vertex's
+neighbours by filtering that list, so every fact about them — the degree, the size, the regularity —
+waits on a membership lemma. `mem_gpEdges` is the raw unfolding: `(a, b) ∈ gpEdges n k` iff some
+`i < n` makes the pair a rim edge `(i, (i+1) % n)`, a spoke `(i, n+i)`, or a hub edge
+`(n+i, n+(i+k) % n)`. That is not usable. What a degree count needs is the *neighbourhood* of a
+fixed vertex, in either orientation, which means solving each of the three disjuncts for the other
+endpoint: `mem_gpEdges_outer` says the neighbours of an `i < n` are exactly `(i+1) % n`,
+`(i+n-1) % n` and `n+i`, and `mem_gpEdges_inner` says the neighbours of `n+i` are `n + (i+k) % n`,
+`n + (i+n-k) % n` and `i`.
+
+The content of both is modular arithmetic that `omega` does not do — it handles `%` by a literal,
+and here the modulus is a variable. Four private lemmas do the conversion. `add_mod_eq_ite` replaces
+`(i + d) % n`, for `d < n`, by the branch `if i + d < n then i + d else i + d - n`;
+`add_mod_ne_self` and `add_mod_inj` are its immediate corollaries, that a nonzero step under the
+modulus does not fix a point and that two steps landing in the same place are equal; and
+`shift_back` is the one fact every reverse direction needs, `((i + n - k) % n + k) % n = i`. After
+those, `omega`. Before them, nothing.
+
+With the neighbourhoods in hand, `isRegularWith_gp` is a case split on whether the vertex is outer
+or inner together with a check that its three neighbours are distinct — which is where `3 ≤ n`,
+`0 < k`, `k < n` and `2k ≠ n` all come from, the last being exactly the condition that the hub is
+not a perfect matching traversed twice. `isConnected_gp` is separate and much cheaper:
+`isConnected_of_rank` on `fun v ↦ v.1`, walking every vertex down to a smaller index, the rim by a
+rim edge and an inner vertex by its spoke. Regularity then gives `minDeg`, `maxDeg`, `degSequence`,
+`degMultiset` and `E = 3n`, and those give `not_isTree_gp` and `not_isAcyclic_gp`. `matchNum_gp = n`
+is true for every `n` and `k` and needs none of the machinery: the spokes are a perfect matching on
+`2n` vertices whatever the hub does.
+
+LCF is the same shape with one extra obligation. A code `ss` repeated `r` times describes a
+Hamiltonian cycle on `N = |ss| · r` vertices plus one chord per vertex,
+`lcfChord ss r i = i + ss[i % |ss|] mod N`; but a list of integers does not have to describe a
+graph. `IsValidLcf` is the finite, decidable check that it does — the chord map is an involution,
+and it sends no vertex to itself or to either of its rim neighbours — and that is precisely what
+`mem_lcfEdges_at` needs in order to conclude that a vertex has three neighbours rather than two. It
+is the hypothesis every LCF theorem carries. Because the check is a computation on the code alone,
+a named cubic graph discharges it by `decide` and the general theorems specialise on the spot;
+cubic regularity, the degree data, `2E = 3N` and the perfect matching follow as for `gp`.
+
+The `IsTree` and `IsSelfComplementary` rows of the operator table were empty for a reason that is
+easy to mistake for an oversight: they are rows where the honest answer at every cell is *no*, and
+a negative is still a theorem. `isTree_iff_isConnected_and_isAcyclic` splits each one into refuting
+a conjunct, and which conjunct varies. A disjoint union of two nonempty graphs fails connectivity.
+The cartesian, lexicographic and strong products of two graphs with an edge fail acyclicity, and so
+does the Mycielskian of a graph with an edge; the tensor product needs more, `3 ≤ cliqueNum` on both
+factors, because the tensor product of two single edges is two disjoint edges and has no cycle at
+all. A join fails acyclicity as soon as its left factor is not bipartite.
+`not_isTree_compl_of_isTree` is the one with arithmetic in it: a tree on `n` vertices has `n - 1`
+edges, so its complement has `C(n,2) - n + 1`, and for that to be a tree as well one would need
+`C(n,2) = 2n - 2`; the private `two_mul_le_choose_two_add_one` says `2n ≤ C(n,2) + 1` for `n ≥ 5`,
+which rules it out.
+
+Self-complementarity is refuted by counting the edges twice. A self-complementary graph has
+`2E = C(|V|, 2)`, a `k`-regular graph has `2E = |V|·k`, so `|V| - 1 = 2k` and `|V|` is odd. That is
+`IsSelfComplementary.odd_V_of_isRegularWith`, and it settles every regular construction in a line
+each: the generalised Petersen graphs and the LCF graphs are cubic on an even number of vertices,
+the folded cubes are regular on a power of two. A join argues differently and more cleanly —
+`compl_join` is a disjoint union, which is disconnected, while a join of two nonempty graphs is
+connected. The complete multipartite graphs are joins and the Turán graphs are complete
+multipartite, so both fall to that one observation. Alongside them, `not_isAcyclic_compl` and
+`not_isBipartite_compl` are the same counting habit pointed at the complement: three pairwise
+non-adjacent vertices of `G` are a triangle of `Gᶜ`.
+
+The Grötzsch graph got what the other named graphs already had. `degSequence_grotzsch` and
+`not_isTree_grotzsch` are bookkeeping; the Hamiltonian cycle is not. Writing `uᵢ` for the pentagon,
+`vᵢ` for its shadow and `w` for the apex, `grotzschCycle` is `w v₀ u₁ v₂ u₃ v₄ u₀ u₄ v₃ u₂ v₁` — the
+apex enters and leaves through two shadow vertices, the walk alternates shadow and pentagon in one
+direction around the wheel, then returns through the pentagon in the other. Its connectivity,
+`vertexConn_grotzsch = 3`, is bracketed from both sides: `κ ≤ λ` and the known `edgeConn_grotzsch`
+from above, and `le_vertexConn_of_forall_card_lt` with a `native_decide` over the separators of size
+at most two from below.
+
+Seventeen vertex cover numbers came free. Gallai's identity `τ + α = |V|` is in the library and
+`α` is known for the whole cage-and-cubic list, so each of `coverNum_moserSpindle` through
+`coverNum_dyck` is a rewrite and an `omega`. That is not deep, but it is the difference between an
+invariant that is *defined* for these graphs and one that is *known* for them, and it is the other
+half of a search the library had already paid for.
+
+Two entries in the gallery turn out to be the same graph twice: `GP(5, 2)` is the Petersen graph and
+`[3, -3]⁴` is the cube, and the canonical keys of `IsoGraph/Enum` confirm both. Nothing about a step
+size or a code bounds the eccentricity of a vertex, so `diameter` and `radius` are out of reach for
+these two families in general — there is no decidable BFS to appeal to at the level of the family.
+Reading the two isomorphisms backwards carries the entire distance table across at those parameters,
+and `domNum` and `cliqueCoverNum` with it. Eight cells that no general theorem was ever going to
+fill.
+
+`Δ ≤ χ' ≤ 2Δ - 1` is a bracket rather than a value, but the coverage table counts a bound and both
+halves are already proved in general, so every construction whose maximum degree is known gets them
+for nothing: the complement, the tensor product, the lexicographic product and the strong product,
+two theorems each. Vizing's theorem would narrow all four to `Δ` or `Δ + 1`. The library does not
+have Vizing, and this is what it can say without it.
+
+The last of it is a real theorem with a small piece of restructuring in front of it. `θ` is the
+chromatic number of the complement, and the complement of a strong product is *not* the strong
+product of the complements — it is the co-normal product, in which two pairs are adjacent as soon
+as they differ along an edge in one coordinate, never mind what happens in the other. That is a
+weaker hypothesis than the lexicographic product's, and the pair colouring `p ↦ (c_S p.1, c_T p.2)`
+is still proper under it, so `colorable_of_lex_adj` was generalised to `colorable_of_conormal_adj`
+and then re-derived from it in one line. On top of that, `cliqueCoverNum_strongProduct_le` is
+`chromNum_le_iff_colorable` and a `tauto` over the unfolded adjacency:
+`θ(G ⊠ H) ≤ θ(G) · θ(H)`. Underneath it, `α ≤ θ` turns the three product independence bounds into
+clique cover bounds, so the strong product is bracketed as
+`α(G)·α(H) ≤ θ(G ⊠ H) ≤ θ(G)·θ(H)`. The gap between those two ends is where the Shannon capacity
+lives, which is why the lower bound is not an equality and why nobody has closed it.
+
+Fifty-nine cells in all, in a hundred and three new theorems: the table now reads 1758 of 2352.
+
+The `comps` row was the emptiest row in the table that was not simply out of reach: one cell of
+fifty-six, and that one was the disjoint union. `comps a` is the multiset of connected components of
+`a`, taken as isomorphism classes, and `sum_comps` says that they add back up to `a`; the additive
+monoid is free on the connected graphs, so this is the factorization the whole of `Algebra/` is
+written in. The row was empty because nothing had said the obvious thing: a connected graph is its
+own only component.
+
+That is `comps_eq_singleton`, and it takes a component count as input. The component counts were all
+there already — `numComponents_petersen`, `numComponents_turan`, one for every family and every
+operation, each with the hypothesis that makes the construction connected. So the new file is
+fifty-odd one-liners, and what varies from line to line is only that hypothesis: Weichsel's
+condition on the tensor product, `0 < G.minDeg` on the Mycielskian, `2 ≤ G.numComponents` on the
+complement — the one entry that runs the other way, since a complement is connected exactly when
+the graph is not.
+
+Fifty-three corollaries of one lemma looks like padding and is not, for the same reason
+`numComponents_petersen` is not padding next to `numComponents_eq_one_of_isConnected`: `simp` cannot
+get anywhere on `(petersen ⊕g cycle 5).comps` unless somebody has put the singleton in front of it.
+
+Two constructions really do split. `empty n` is `n` copies of the one-vertex graph, which with
+`sum_comps` is the statement that `empty n` is `n · 1`, and `circulant n []` and `kneser n k` below
+the threshold `n < 2k` are `empty` under another name. That induction is the only proof in the file
+with more than one step; it peels the last vertex off with `disjUnion_empty`, so the two sides come
+out in the opposite order and it ends on `add_comm`.
+
+The last cell is of a different kind. Of the four products the lexicographic one is the only one
+whose complement is again a product of the complements — `(G[H])ᶜ = Gᶜ[Hᶜ]`, which the library
+already had — and that makes self-complementarity closed under it. `IsSelfComplementary.lexProduct`
+is a rewrite in three lines, and there is no analogue for the other three products.
+
+Fifty-four cells in fifty-six new theorems: the table now reads 1812 of 2352.
+
+`IsSRGWith` was next: twenty-four cells of fifty-six, and the emptiest row left that was not out of
+reach. Strong regularity is a conjunction of four conditions and the library had no machinery for
+refuting it, so the row was filled only where somebody had computed the parameters outright.
+
+The lever is that a strongly regular graph is regular. The library already sorts the gallery into
+the regular and the irregular, a block of a dozen `not_isRegularWith_*` proofs that all run through
+`not_isRegularWith_of_minDeg_ne_maxDeg`, and each of them rules out strong regularity of *every*
+parameter set at a stroke. Three families were missing from that block and needed doing first. The
+ladder has degree two at its four corners and three everywhere else. A cycle with a single pendant
+edge is the tadpole under another name, so `cyclePendant_singleton_one` hands it straight to
+`not_isRegularWith_tadpole`. A theta graph all of whose paths have one interior vertex is
+`K_{2,ℓ}`, which `thetaGraph_of_all_one` says outright, and three or more paths make the two branch
+vertices the unique vertices of top degree.
+
+That leaves the constructions that are regular, and two further tests catch them. A strongly
+regular graph with `μ > 0` is connected, which disposes of the disjoint union. One that is neither
+complete nor edgeless has diameter exactly two, which disposes of the hypercube, the crown, the
+prism, and any strong product with a factor of diameter three or more. The non-degeneracy
+hypothesis `k + 1 < n` on those four is not decoration: the complete graph really is strongly
+regular, with diameter one. Nor is the bound on the hypercube slack — `Q₂` is `C₄` is `K_{2,2}`,
+which is `(4, 2, 0, 2)`. The prism is the one place the diameter argument gives away something: it
+starts at `C₄ □ K₂`, and the triangular prism is not strongly regular either, but for the other
+reason — a triangle edge lies in a triangle and a rung does not.
+
+The positives came out of a theorem that was already there and had never been lifted. The balanced
+complete multipartite graph with `n` parts of size `a` is strongly regular with parameters
+`(na, (n-1)a, (n-2)a, (n-1)a)`, and its two degenerate cases are the whole of what is missing: one
+part is the edgeless graph and parts of size one are the complete graph. The proof of that theorem
+is careful about the truncated subtractions precisely so that the degenerate cases come out right,
+so the two corollaries are two lines each once `@[toIsoGraph]` is on the front of it. The empty
+circulant is `empty n` again, and the line graph of a complete graph is the triangular graph, whose
+parameters are `isSRGWith_triangular`.
+
+The four remaining cells are triangle counts. Gewirtz, Higman–Sims, Hoffman–Singleton and the
+`M₂₂` graph are the triangle-free strongly regular graphs in the gallery, each already known to
+have clique number two because its girth is not three, and `cliqueCount_eq_zero_iff` turns that
+into a count of zero. The strongly regular graphs that do have triangles are still empty, and they
+all want the same identity — `6·cliqueCount 3 = n·k·λ`, one triangle counted once per edge and once
+per orientation. That is a double count and not a rewrite, which is why it is not in this batch.
+
+Twenty-nine cells in thirty-two new theorems: the table now reads 1841 of 2352.
+
+The double count is now on file, and it is the one theorem that this whole batch is. Count the
+pairs `(T, (u, v))` in which `T` is a triangle and `(u, v)` an ordered edge inside it. From above,
+a triangle contributes `T.offDiag`, its six ordered pairs of distinct vertices. From below, the
+triangles containing a given ordered edge `(u, v)` are the images of the common neighbours of `u`
+and `v` under `w ↦ {u, v, w}`, which is injective on them, so there are `ℓ`. The number of ordered
+edges is `∑ deg = n·k` by regularity, and `Finset.card_mul_eq_card_mul` wants exactly these two
+fibre counts. So `IsSRGWith.six_mul_cliqueCount_three` reads `6 · t = n·k·ℓ` and never mentions
+`μ`.
+
+The catch is that that statement fills no cell. The coverage classifier reads the head of the
+left-hand side of whatever it is offered, and the head of `6 * G.cliqueCount 3` is multiplication,
+not `cliqueCount`; a theorem counts only when the invariant is the outermost symbol. Every instance
+therefore has to have the six divided out, and dividing out is where the mathematics is, because
+the interesting question is what the resulting number counts.
+
+The answers are worth stating in that form rather than as `n·k·ℓ/6`. The rook's graph `Kₖ □ Kₖ` has
+`2k · C(k, 3)`: a triangle lies in a single row or a single column, and is any three squares of it.
+The cocktail party graph has `8 · C(n, 3)`: three of the `n` parts, either vertex from each. The
+Kneser graph `K(n, 2)` has `15 · C(n, 6)`: a triangle is three pairwise disjoint pairs, which is a
+perfect matching on six of the `n` points, and six points carry fifteen matchings. The triangular
+graph `T(n) = J(n, 2)` has `n · C(n−1, 3) + C(n, 3)`, the two ways three pairs can meet each other
+— all three through one common point, or the three pairs on three points. The Paley graph on
+`q ≡ 1 mod 4` vertices is the one where nothing factors: `q(q−1)(q−5)/48`, and the division has to
+be shown exact, which is the `q = 4m + 1` substitution and `omega`.
+
+Each of those wants a binomial identity in truncated-subtraction form, `6 · C(n,3) = n(n−1)(n−2)`
+and its relatives, which `Nat.descFactorial_eq_factorial_mul_choose` supplies once the descending
+factorial has been unfolded by `rfl` — `n.descFactorial 3 = (n−2) · ((n−1) · (n · 1))` is
+definitional, and so is `6! = 720`. The three-fold version, `C(n,2) · C(n−2,2) · C(n−4,2) =
+90 · C(n,6)`, is the Kneser count before the ordered choices are collapsed. They live in
+`ForMathlib/Nat.lean`, and the private copy of `2 · C(n,2) = n(n−1)` that `Tables.lean` had been
+carrying goes away with them.
+
+The sporadic strongly regular graphs with triangles are then one `omega` apiece: the Shrikhande
+graph has 32, the graph of the 27 lines on a cubic surface has 45 — its `ℓ` is one, so each of its
+135 edges lies in exactly one triangle and the triangles are the tritangent planes — the Schläfli
+graph has 720, and the three Chang graphs have 336 each, as does `T(8)`, whose parameters they
+share. Because `rook` is an `abbrev` for a cartesian product, the lift of `cliqueCount_rook` fills
+`cliqueCount × cartesianProduct` as well — a square rook's graph is the only cartesian product
+whose triangles the row knows, but the cell does not ask for more than that.
+
+Fifteen cells in eighteen new theorems, one of which does all the work: the table now reads 1856
+of 2352, and the `cliqueCount` row is full at every strongly regular construction in the gallery.
+
+The `indepCount` row was the emptiest one left, fifty of its fifty-six cells, and the triangle
+count pays for most of it. The complement of a strongly regular graph is strongly regular with
+parameters `isSRGWith_compl` already spells out, and an independent set is a clique of the
+complement, so `IsSRGWith.six_mul_indepCount_three` is a rewrite and an application:
+`6·i = n(n−k−1)(n−(2k−μ)−2)`. Counting independent triples is counting triangles of the
+complement, and `ℓ` drops out in favour of `μ` — the parameter the triangle count never mentions.
+
+That wanted the bridge one file earlier than it was. `cliqueCount_compl` and `indepCount_compl`
+had been in `SmallGraphs/Colouring.lean`, two files past the strongly regular families that need
+them; they are facts about the complement and nothing else, so they now sit beside
+`cliqueNum_compl` in `Core/Colouring.lean` and every instance can be stated next to its
+`isSRGWith_` lemma instead of being exiled to a later file.
+
+The closed forms are the interesting part again. The rook's graph has `6 · C(k,3)²` independent
+triples: three non-attacking rooks are three rows, three columns, and a bijection between them.
+The cocktail party graph has none — two of any three vertices would share a part, and a part holds
+two vertices — which is the `ℓ = 0` of its complement, `n` disjoint edges. The Paley graphs keep
+`q(q−1)(q−5)/48`, since they are isomorphic to their own complements and the substitution
+`q = 4m + 1` lands on the same expression twice.
+
+Kneser and Johnson are the pair where the complement is taken literally rather than through the
+parameters. `johnsonTwoIso` says `J(n,2) ≃ K(n,2)ᶜ`, so each graph's independent triples are the
+other's triangles and both counts are one rewrite away from the previous batch: `K(n,2)` has
+`n · C(n−1,3) + C(n,3)` of them and `T(n) = J(n,2)` has `15 · C(n,6)`. No arithmetic at all, which
+is what having the isomorphism on file is for.
+
+The sporadic graphs are again an `omega` apiece, and this time the triangle-free ones are the
+interesting entries, because a graph with no triangles can still have a great many independent
+triples: Hoffman–Singleton has `12 250`, Gewirtz `15 120`, `M₂₂` `36 190`, Higman–Sims `77 000`.
+The Shrikhande graph has 96, the Clebsch graph 160, the Petersen graph 30 — one for each triangle
+of `T(5)` — and the lines on a cubic surface have 720 triples of pairwise skew lines, which are the
+720 triangles of the Schläfli graph, whose own 45 independent triples are the tritangent planes
+back again. The three Chang graphs have 420, as does `T(8)`.
+
+One general law came along with the row. Independent sets of a complete multipartite graph stay
+inside a single part, so `indepCount_completeMultipartite` is one binomial coefficient per part,
+proved by induction along `completeMultipartite_cons`. The `n + 1` in the statement is there to
+keep the empty set out: it is the one independent set that does not choose a part. Turán graphs
+and book graphs are `completeMultipartite` of particular part lists — `T(n,r)` has `n % r` parts of
+size `n / r + 1` and the rest of size `n / r`, and `book n` is `[1, 1, n]` — so both fall out of it,
+the book graph with only the page part large enough to contribute.
+
+Twenty-three cells in twenty-three new theorems: the table now reads 1879 of 2352, and the
+`indepCount` row has gone from six filled cells to twenty-nine.
+
+The `IsHamiltonian` row was the last conspicuously empty one, twenty-eight of its fifty-six cells,
+and it was empty for a structural reason rather than an arithmetic one. `Invariants/Hamiltonian`
+could always certify Hamiltonicity — `isHamiltonian_of_cyclicNumbering` takes a numbering of the
+vertices and checks that consecutive ones are adjacent — but it had no way to *refute* it. What it
+had instead were necessary conditions: a Hamiltonian graph is connected, has minimum degree two,
+and on three vertices or more has girth at most its order. Those dispose of the easy cases and say
+nothing at all about the interesting ones, and the interesting ones are what the gallery is made of.
+
+The observation that closes the gap is that a Hamiltonian cycle is a spanning cycle subgraph, so
+that for `3 ≤ G.V`
+
+```
+G.IsHamiltonian ↔ cycle G.V ≤ₛ G
+```
+
+and the right-hand side is exactly what the subgraph search of `Containment/` decides. That makes
+`Containment/Hamiltonian.lean` a one-idea file: one invariant read off one of the containment
+orders, and Hamiltonicity acquires a decision procedure that is complete in both directions. Below
+three vertices the two sides part company, which is why the hypothesis is there — `cycle 0`,
+`cycle 1` and `cycle 2` are all edgeless and embed in anything of the right size, while
+`IsHamiltonian` holds on one vertex and fails on none and on two. The forward direction wants the
+spanning cycle as a function rather than as a `Walk`, so `IsHamiltonian.exists_cyclicNumbering` is
+the converse of the certificate lemma: a numbering `f : ℕ → G.V`, injective and adjacency-preserving
+below `G.card`, and whatever `Walk.getVert` happens to return above it.
+
+The refutations that come out are the two everyone would ask for. The Petersen graph has no
+spanning cycle — the standard smallest vertex-transitive, three-connected, cubic graph that is not
+Hamiltonian — and neither has the Herschel graph, the smallest non-Hamiltonian polyhedral graph.
+Both are `native_decide` on an exhausted search, which is the honest cost: a positive answer is a
+witness and cheap to check, a negative answer is a search tree and has to be run.
+
+The other half of the batch is a bound that needs no search. Walk the spanning cycle and an
+independent set occupies a set `T` of positions, no two of them consecutive; so `T` and its shift
+by one are disjoint subsets of the same size inside `Finset.range n`, and `2α ≤ n`. Contrapositively
+a single independent set on more than half the vertices refutes Hamiltonicity, and that one
+inequality covers a surprising spread of the row: complete multipartite graphs with an oversized
+part, book graphs from three pages up, the odd two-part Turán graph `T(2m+1, 2)`, theta graphs whose
+paths all have a single internal vertex — those are `K_{2,L}` — and tensor products, where an
+unbalanced factor crossed with all of the other factor stays unbalanced. The tensor product has no
+Hamiltonicity certificate here at all, and cannot have a general one: the product of two spanning
+cycles falls into two components whenever both factors are bipartite.
+
+Everything else in the row is an explicit cycle, which is dull to produce and worth having. Ten of
+them are the sporadic strongly regular graphs — Shrikhande, the lines on a cubic surface, Schläfli,
+the three Chang graphs, Hoffman–Singleton, Gewirtz, `M₂₂` and Higman–Sims at a hundred vertices —
+each one table of vertices and three `native_decide`s. The families take `J(5,2)`, `T(5)`, `K(6,2)`,
+the Paley graph on thirteen vertices, the `3 × 3` rook's graph, `Q₃` and the folded 4-cube, and
+`lineGraph (complete 5)` comes free from `lineGraph_complete_eq_triangular`.
+
+Three cells are left. Two of them, `exponential` and `homExponential`, are empty for almost every
+invariant in the table and are not really this row's business. The third is `paleyField`, the Paley
+graph over an arbitrary finite field, and it is left on purpose: Paley graphs are Hamiltonian, but
+the proof wants Chvátal–Erdős or Dirac, and neither is in Mathlib. Dirac in particular just misses,
+since a Paley graph is `(q−1)/2`-regular and so `2δ = n − 1` exactly.
+
+Twenty-five cells in thirty-nine new theorems: the table now reads 1904 of 2352, and the
+`IsHamiltonian` row has gone from twenty-eight empty cells to three.
+
+The two counting rows, `cliqueCount` and `indepCount`, were the ones the join was missing. Across a
+join every vertex on the one side sees every vertex on the other, so a set of vertices is a clique
+exactly when both of its halves are — `isClique_join_iff`, and the crossing pairs come for free.
+Splitting an `n`-clique by how many vertices it takes from the left then turns the count into a
+convolution,
+
+```
+k(G ∇ H, n) = ∑_{i ≤ n} k(G, i) · k(H, n − i)
+```
+
+which is to say the clique-counting sequences multiply as generating functions. The proof is
+`card_eq_sum_card_fiberwise` along `s ↦ #s.toLeft` followed by a bijection with a product of two
+`cliqueFinset`s, `s ↦ (s.toLeft, s.toRight)` one way and `disjSum` the other. Complementing gives
+the independent sets of a disjoint union for nothing, since `(G ⊕ H)ᶜ = Gᶜ ∇ Hᶜ`.
+
+At `n = 3` the convolution collapses to something one can read: a triangle of a join is a triangle
+of one side, or an edge of one side against a vertex of the other. That single corollary is what
+fills the family cells, because four of the small families *are* joins with a triangle-free right
+factor — the fan is a vertex over a path, the wheel a vertex over a cycle, the book an edge over an
+edgeless part, the friendship graph a vertex over a perfect matching — and in each case the count
+is one triangle per edge of the factor: `n`, `n + 4`, `n` and `n` respectively. The friendship
+graph is the one that needs a word: its matching is `Eₙ □ K₂`, and rather than compute a clique
+number for a cartesian product, which would want both factors nonempty, it is cheaper to observe
+the thing is bipartite and quote `cliqueCount_three_eq_zero_of_isBipartite`.
+
+The other half of the batch is about where the counts run out rather than what they are. Once a
+clique number is known exactly, `cliqueCount_eq_zero_iff` converts it into a statement about every
+`n` at once, and the three products and the line graph all have known clique numbers: `α` and `ω`
+multiply across the strong and lexicographic products, the tensor product takes a minimum because a
+clique there is the graph of a bijection between cliques of the two factors, and a clique of a line
+graph is a star, so `Δ` bounds it as soon as there is a vertex of degree three to carry one.
+Independent sets of a line graph are matchings, which makes `indepCount_lineGraph_eq_zero_iff` a
+statement about `ν`. These are partial cells and marked as such: they say where a row of counts
+becomes zero, not what the nonzero entries are.
+
+Twelve cells in fifteen new theorems: the table now reads 1916 of 2352.
+
+The `indepCount` row was still empty for the two graphs one asks about first, the path and the
+cycle, and both are the same combinatorial exercise. An independent set of `path n` is a set of
+labels below `n` with no two consecutive; an independent set of `cycle n` is such a set that in
+addition does not use `0` and `n − 1` at once. So the batch is one transfer followed by one count.
+The transfer is a `Finset.card_bij` between `indepSetFinset` and a filtered `powersetCard` of
+`Finset.range n`, pushing a set of vertices forward along `Fin.val` and pulling a set of labels
+back along `Finset.attachFin`. It is worth writing the forward map as `Finset.image (Fin.val : Fin
+n → ℕ)` rather than `fun v ↦ v.1`: the latter elaborates at `(path n).V → ℕ`, and then
+`Finset.card_image_of_injective _ Fin.val_injective` will not match it.
+
+The count is Pascal's rule with a shift. Deleting the largest available label from a sparse subset
+of `{0, …, n + 1}` either leaves a sparse subset of `{0, …, n}`, or, if it was used, forbids its
+predecessor too and leaves a sparse subset of `{0, …, n − 1}` with one element fewer:
+
+```
+f(n + 2, k + 1) = f(n + 1, k + 1) + f(n, k)
+```
+
+Strong induction on `n` — with `k = 0` and `n ≤ 1` as base cases, and a split on whether `k ≤ n + 1`
+to keep the truncated subtraction honest — gives `f(n, k) = (n + 1 − k).choose k`. The induction
+step is `Nat.choose_succ_succ'`, the version stated with `k + 1` rather than `k.succ`; the unprimed
+one leaves `omega` looking at two atoms it cannot see are equal.
+
+The cycle then splits on whether the label `0` is used. If it is not, what is left is a sparse
+subset of the `n + 2` remaining labels; if it is, then neither `1` nor `n + 2` may appear and the
+rest is a sparse subset of the `n` labels in between, shifted down by two. Both halves are
+`Finset.card_bij'` with the shift and its inverse, so
+
+```
+i(Cₙ₊₃, k + 1) = (n + 2 − k).choose (k + 1) + (n + 1 − k).choose k
+```
+
+The fan and the wheel are a vertex joined to a path and to a cycle, so an independent set of two or
+more vertices misses the apex and the join formula from the previous batch finishes them off.
+
+Four cells in fifteen new theorems, most of them scaffolding kept private: the table now reads 1920
+of 2352.
+
+The spectral rows were empty for four families that are all the same shape: the fan, the book, the
+friendship graph and the crown. Three of the four are cones — a single vertex joined to everything
+— and the fourth is a bipartite double cover, so the batch is two lemmas and then bookkeeping.
+
+`lapSpectrum_join` already says what a join does to a Laplacian spectrum. Specialising the left
+factor to `K₁`, whose own spectrum is just `{0}`, collapses it to something one can quote:
+
+```
+L(K₁ ∇ G) = {0} ∪ {n + 1} ∪ (L(G) \ {0}) + 1
+```
+
+The apex contributes the order of the cone and every other eigenvalue of the base moves up by one.
+Two corollaries come with it. The largest eigenvalue is the order — for a cone that is immediate,
+since a graph on `n + 1` vertices has `λₘₐₓ ≤ n + 1` with equality iff it is a join. And the
+algebraic connectivity is `a(G) + 1`, because the shift is monotone and the one eigenvalue the
+apex adds, the order, is never the smallest: `a(G) ≤ n` for every `G`. That last lemma is the one
+worth having separately from `algConn_join`, which wants two vertices on *both* sides and so says
+nothing about a cone.
+
+With it the fan is the cone over a path and the friendship graph the cone over a perfect matching,
+which is `(K_{n×2})ᶜ` — so the fan has `a = 3 − 2 cos(π/n)` and the friendship graph has `a = 1`,
+the second because a matching is disconnected and `0 + 1 = 1`. The book is a join but not a cone, an edge over an edgeless part,
+so it goes through `algConn_join` proper and the minimum there picks the edgeless side: `a(Bₙ) = 2`
+however many pages there are. The edgeless graph needed its own `algConn_empty` to feed that
+minimum, which is the last cell of the `empty` column.
+
+The crown graph is `Kₙ ⊗ K₂`, the bipartite double cover, and the tensor product multiplies
+spectra. Against `K₂`, whose spectrum is `{1, −1}`, that is exactly the reflection `Λ ∪ −Λ` — the
+symmetry a bipartite spectrum has to have. The module already had the additive version of this
+multiset identity for the cartesian product; the multiplicative sibling is the same four rewrites.
+One of them has to be spelled out rather than left to `simp`: `Multiset.cons_zero` normalises
+`-1 ::ₘ 0` back to `{-1}`, and then `Multiset.product_cons` has nothing to fire on. Since the crown
+is `n`-regular the Laplacian spectrum follows, and both characteristic polynomials are one line
+each.
+
+Nineteen cells in twenty-four new theorems: the table now reads 1939 of 2352.
+
+The Turán graph `T(n, r)` was the last of the multipartite family with an empty spectral row, and
+it turned out that the work had already been done twice over. `isSRGWith_completeMultipartite_replicate`
+says that `r` parts of a common size `s` make a strongly regular graph with parameters
+`(rs, (r−1)s, (r−2)s, (r−1)s)`, and `spectrum_isSRGWith` turns any such parameter set into a
+spectrum as soon as one can name the two roots of `x² − (λ − μ)x − (k − μ)`. Here `λ − μ = −s` and
+`k − μ = 0`, so the roots are `0` and `−s` and no quadratic formula is needed: the whole spectrum
+of `K_{r×s}` is the degree `(r−1)s` once, `0` with multiplicity `r(s−1)`, and `−s` with
+multiplicity `r−1`. The cocktail party graph is the case `s = 2`, and the five theorems about it
+are now the specialisation of five general ones.
+
+The multiplicities come out of `spectrum_isSRGWith` as existentials, and pinning them down is the
+only fiddly part: the two equations `f + g + 1 = rs` and `k + f·0 + g·(−s) = 0` give `g` directly
+after cancelling the nonzero `s`, and then `f` by `omega`. Everything downstream — Laplacian
+spectrum, algebraic connectivity, largest Laplacian eigenvalue, energy, and both characteristic
+polynomials — is one rewrite each through the `_of_spectrum_eq` family.
+
+Turán then needs only `turan_of_dvd`, which says that when `r ∣ n` the graph is
+`completeMultipartite (List.replicate r (n / r))`. Divisibility is what makes the answers uniform:
+without it the parts come in two sizes, the graph is not regular, and there is no closed form to
+state. The translation is two truncated subtractions — `n − r` for the multiplicity of `0` and
+`r − 1` for the multiplicity of `−n/r` — which is why the normal form `r = p + 2`, `n/r = a + 1` is
+extracted once into a private shape lemma instead of being rediscovered in each of the seven
+statements. The algebraic connectivity is the one with a strict hypothesis: at `r = n` every part
+is a singleton, the Turán graph is `Kₙ`, and the answer is `n` rather than the degree.
+
+Nine cells in fourteen new theorems: the table now reads 1948 of 2352.
+
+The spectral rows for the operators had a systematic hole rather than a scattered one. Wherever a
+construction is regular whenever its inputs are, its Laplacian spectrum is not new information:
+`lapSpectrum_of_isRegularWith` says that a `k`-regular graph has Laplacian eigenvalues `k − λ`, so
+subtracting the degree from an adjacency spectrum already on file gives the Laplacian one for free.
+That applies to the line graph, the tensor product and the strong product, whose degrees are
+`2k − 2`, `kl` and `(k+1)(l+1) − 1`. Each of the three costs two `rw`s and a `push_cast; ring`
+under the map.
+
+The line graph is the one worth writing out. Its adjacency spectrum is `|E| − |V|` copies of `−2`
+together with `λ + k − 2` for each eigenvalue of `G`; subtracting from `2k − 2` turns the first
+into `2k` and the second back into `k − λ`. So the Laplacian spectrum of `L(G)` is that of `G`
+itself, plus `|E| − |V|` copies of twice the degree — a cleaner statement than the adjacency one it
+comes from, and one that makes `lapCharpoly (L(G)) = (X − 2k)^(|E|−|V|) · lapCharpoly G` immediate.
+The truncated `2k − 2` is the only obstacle: `IsRegularWith.lineGraph` states the degree in `ℕ`, so
+the proof destructures `k` as `j + 1` and rewrites `2(j+1) − 2` to `2j` before any cast happens.
+
+The characteristic polynomials are the same observation for the shifted spectrum: a product of
+linear factors whose roots have all moved by `c` is the original product composed with `X − c`.
+That is `prod_map_X_sub_C_add`, three lines by multiset induction, and it turns the line graph's
+spectrum into `charpoly (L(G)) = (X + 2)^(|E|−|V|) · charpoly(G) ∘ (X − (k − 2))`.
+
+The complement and the join had adjacency and Laplacian spectra but neither polynomial, which was
+only an oversight; `charpoly_eq_prod_spectrum` plus the four multiset rewrites closes each of them.
+The join's Laplacian polynomial is the one that needs care, because `Multiset.prod_add` has to fire
+on both sides of the goal and `rw` will only find the left one at a time.
+
+Eleven cells in twelve new theorems: the table now reads 1959 of 2352.
+
+The cycle's spectrum was proved by diagonalising its adjacency matrix with the discrete Fourier
+transform: conjugating by the Vandermonde matrix of `n`-th roots of unity turns the shift-by-one
+permutation matrix into a diagonal one. Nothing in that argument uses the fact that the connection
+set is `{±1}`. `circulant n S` is adjacent exactly when the difference of the two vertices lies in
+`±S` mod `n`, so its adjacency matrix is a sum of shift matrices, and every one of them is
+diagonalised by the same Vandermonde conjugation. The eigenvalues become `circulantEig n S m =
+∑_{s ∈ S} 2 cos(2πsm/n)` — one sum of cosines per character of `ℤ/n`.
+
+So the cycle stopped being its own development and became the case `S = [1]`. The DFT machinery it
+carried — the shift matrices, their two-sided inverse, the conjugation lemma — was duplicated
+verbatim at the circulant level, and about a hundred and thirty lines of it went away; what remains
+of the cycle is `circulantSet_one`, which identifies the connection set, and `circulantEig_one`,
+which collapses `2cos(2πm/n) + 2cos(2π(n−1)m/n)` to `2cos(2πm/n)` by reflecting the second angle.
+`charpoly_cycle` and `spectrum_cycle` keep their old statements exactly, so none of the fifteen
+downstream uses noticed.
+
+Two things had to be arranged for the generalisation to land. `circulantSet`, `circulantDeg` and
+`circulantEig` live at the root rather than in the `CGraph` namespace, because `@[toIsoGraph]`
+refuses to lift any statement that mentions a `CGraph`-namespaced constant without an `IsoGraph`
+counterpart, and these are plain numeric functions with nothing to lift. And `charpoly_circulant`
+indexes its product over `Fin n` rather than over the definitionally equal `(circulant n S).V`: a
+statement whose body says `m.1` and whose index is `G.V` cannot be rewritten at `G`, since
+abstracting the graph makes the coercion ill-typed. Indexing over `Fin n` is what lets the cycle
+corollary rewrite `circulant n [1]` into `cycle n` at all.
+
+Five cells in one generalisation: the table now reads 1964 of 2352.
+
+Energy is the sum of the absolute values of the eigenvalues, so every spectrum already on file is
+an energy waiting to be written down. The cycle, the path, the two products that had none, the
+hypercube, the prism and the ladder are all `rw [energy, spectrum_X, Multiset.map_map]` followed by
+`rfl`, the `rfl` turning a map over `Finset.univ.val` back into a `Finset.sum`. Only three of the
+nine need an argument. The line graph runs into truncated subtraction once more: its `|E| − |V|`
+eigenvalues at `−2` contribute `2(|E| − |V|)`, and that difference is a `ℕ` one under a cast, so
+`Nat.cast_sub` has to fire before `ring` will look at it. The complement's eigenvalues are
+`−1 − x`, and turning `|−1 − x|` into `|1 + x|` term by term wants a congruence under the sum;
+`Multiset.sum_map_congr` does not exist, so the proof is `congrArg Multiset.sum` onto
+`Multiset.map_congr`. The hypercube's spectrum is a `Finset.sum` of `Multiset.replicate`s rather
+than a single multiset, so both the map and the sum have to commute with the outer sum before the
+replicates collapse; `map_sum` states the first of those, but through a coerced
+`Multiset.mapAddMonoidHom` that `rw` cannot match against a bare `Multiset.map`, so the two
+distributions are stated as private helpers in raw form.
+
+The largest Laplacian eigenvalue and the algebraic connectivity are the ends of the Laplacian
+spectrum, and four constructions had the spectrum but neither end. The circulant has no closed
+form for either — where the cosine sum `circulantEig n S m` attains its extremes depends on the
+connection set — so the two theorems take the extremal index as an argument, together with the
+inequality that says it is extremal. That is still a table entry: given a concrete `S` the
+hypothesis is a finite check. The algebraic connectivity also needs to know which index carries
+the trivial eigenvalue, which is `circulantEig n S 0 = circulantDeg n S`: every cosine is `1`
+at `m = 0`.
+
+The line graph of a `k`-regular graph is the interesting one. Its Laplacian spectrum is that of `G`
+together with `|E| − |V|` copies of `2k`, so as soon as `G` has more edges than vertices the
+largest Laplacian eigenvalue is exactly `2k` — the extra eigenvalues sit at the ceiling `2Δ` that
+no Laplacian eigenvalue of a graph exceeds, and nothing from `G` can reach past it. The same
+comparison run at the other end says the algebraic connectivity is unchanged: `2k` is at least as
+large as `G`'s own algebraic connectivity, so after erasing a single zero from the union the
+minimum is still attained inside `G`'s part. `Multiset.erase_add_right_pos` is what lets the zero
+be erased from the right summand and the replicates left alone.
+
+The two products only needed their degrees. `IsRegularWith.tensorProduct` and
+`IsRegularWith.strongProduct` are stated at the `IsoGraph` level, so a pair of private bridges push
+them back down through `isRegularWith_mk`; the strong product's `(k+1)(l+1) − 1` has to lose its
+truncated subtraction on the way, by `Nat.add_sub_cancel`. Dot notation is no help here:
+`(⟦G⟧ : IsoGraph).IsRegularWith` does not elaborate, because `IsoGraph` is a quotient and the head
+of the application is `Quot`, so the bridges spell `IsoGraph.IsRegularWith ⟦G⟧ k` out.
+
+Fifteen cells in eighteen new theorems: the table now reads 1979 of 2352.
+
+### Graphs that are not determined by their spectrum
+
+The parameters of a strongly regular graph fix its spectrum, so any two graphs with the same
+parameters are cospectral. Two of the classical parameter sets have more than one graph, and the
+library already held both halves of each pair: the explicit spectra in `Spectrum.lean`, and the
+non-isomorphism certificates — `shrikhande_not_iso_rook` and `changs_pairwise_not_iso` — in
+`SmallGraphs/Values.lean`. Putting them together gives six graphs that are provably *not*
+determined by their spectrum, where before there was only `not_isDS_star_four`.
+
+Instantiating the parameterised spectra is where the work was. `spectrum_rook 2` and
+`spectrum_triangular 4` state their answers as `Multiset.replicate`s with arithmetic in the
+exponents, and `norm_num at h` normalises those into explicit `::ₘ` chains — after which the
+`rw` leaves a goal comparing a chain against a replicate and nothing closes it. The two private
+lemmas instead reduce only the numerals, one `show … from rfl` at a time, and normalise the two
+sides together at the end.
+
+`@[toIsoGraph]` will not lift any of this: the dictionary has no `IsoGraph`-level counterpart for
+`CGraph.IsDS`, so the six quotient-level statements are written out and discharged through
+`isDS_mk_iff`. The other snag is that `CGraph.Iso.symm` is not a constant — `≃cg` is
+`SimpleGraph.Iso`, a `RelIso` — so inverting an isomorphism under a `Nonempty` has to be spelled
+`.map fun i ↦ i.symm` rather than `.map Iso.symm`.
+
+`isDS_compl_iff` makes the property transfer along complementation, for a connected regular graph
+whose complement is connected too. A graph cospectral with `Gᶜ` is regular by
+`Cospectral.isRegularWith` and connected by `Cospectral.isConnected`, which is exactly what
+`spectrum_compl_of_isRegularWith` needs to complement it back; the one-directional form turns out
+not to need `G.IsConnected` at all, only the complement's. That is what forces the placement:
+`Cospectral.isConnected` lives four thousand lines below `IsDS`, so the mates go next to
+`cospectral_star_four` and the complementation goes next to the criterion it uses.
+
+Two copies of a graph inherit its transitivity, which is what the disjoint union was missing in
+both transitivity rows. An automorphism of `G` moves a vertex inside its own copy and the swap of the
+two copies carries it across, so the two automorphisms `disjUnionSelfAuto` and
+`disjUnionSelfSwapAuto` — `Equiv.sumCongr σ σ`, with and without `Equiv.sumComm` after it — cover
+all four cases of `rintro (x | x) (y | y)`. Arc-transitivity is the same four cases once
+`adj_disjUnion_cases` has observed that every edge of a disjoint union lies inside one of the
+sides. It is only `G ⊕g G`: two *different* graphs never give a transitive union.
+
+Ten cells in twenty-three new theorems: the table now reads 1989 of 2352.
+
+### The orbit of an arc, by breadth-first search
+
+The ten strongly regular graphs of `SmallGraphs/SRGValues.lean` were the last block with both
+transitivity columns empty, and filling them means running `arcTransitiveB` on graphs with up to a
+hundred vertices. That is where the naive orbit computation ran out. `isArcTransitive_higmanSims`
+took 422 seconds, against 8.6 for the vertex-transitive form of the same question, and
+`isArcTransitive_m22` took 56.
+
+The stabiliser chain is not what costs: the vertex-transitivity timing measures exactly that part,
+and it is under nine seconds. The cost is `orbitStep`, a `Finset.image` followed by a
+`Finset.union` — the image deduplicates, which is quadratic in the list it is building, and
+`ndunion` compares every element of one side against all of the other. For an orbit of `n` vertices
+that is free. Higman–Sims has 2200 arcs and some thirty generators, and five rounds of that is on
+the order of a billion boxed comparisons.
+
+`arcOrbitList` computes the same orbit by breadth-first search over a `Vector Bool (n * n)`, one bit
+per arc, expanding only the frontier. Higman–Sims came down to 8.4 seconds and M₂₂ to 3.6, which
+puts both back where the stabiliser chain leaves them.
+
+None of that search is verified, and none of it needs to be. Its elements are not arcs but
+`{p : Fin n × Fin n // p ∈ orbitFin L b}`, so an element can only be built by acting on one that is
+in the orbit already, and "everything found is in the orbit" holds by typing. The converse — that
+nothing was missed — is one check afterwards, `arcOrbitClosed`, that the list is closed under the
+generators; `saturate_subset` then says the orbit, being the smallest closed set containing `b`,
+is contained in it. That check reads the same table, so it is one array access per generator per
+arc. Were it ever to fail, `arcTransitiveBFast` falls back on the `Finset` saturation, which is
+what lets the `@[csimp]` equation be unconditional.
+
+### Transitivity of the strongly regular graphs
+
+Seven of the ten are arc-transitive and the three Chang graphs are not even vertex-transitive, and
+either way one decision per graph settles both rows. Arc-transitivity gives vertex-transitivity
+through `IsArcTransitive.isVertexTransitive`, which wants a positive minimum degree and takes it
+from the `minDeg_` lemmas already in the file; a failure of vertex-transitivity kills
+arc-transitivity through `not_isArcTransitive_of_not_isVertexTransitive` in the same way. Twenty
+theorems, ten calls.
+
+The Chang graphs are the cheap half. Their automorphism groups have orders 384, 360 and 96, none of
+them divisible by 28, so no orbit of vertices can be the whole graph — and an orbit that stops
+short is its own certificate, which is why the negative answers come back faster than the positive
+ones.
+
+Twenty cells in twenty new theorems: the table now reads 2009 of 2352.
+
+### Which constructions keep an arc-transitive graph arc-transitive
+
+Vertex-transitivity survives all four products, and the proofs are four copies of one line: act by
+`σ` on the first coordinate and `τ` on the second. Arc-transitivity is fussier, and the pattern of
+which products keep it turns out to be a statement about what an arc of the product *is*.
+
+The tensor product is the easy case. An arc of `G ⊗g H` is an arc of `G` and an arc of `H` side by
+side, so the coordinatewise action moves it, and `isArcTransitive_tensorProduct` is the same one
+line as the vertex-transitive version. That settles the crown graphs, which are `K_n ⊗g K_2`.
+
+The cartesian product is not. An arc of `G □g H` runs along one factor with the other coordinate
+held still, and when `G` and `H` are different graphs nothing carries an arc of `G` to an arc of
+`H` — the two ends of `K_2 □g K_3` have different degrees. A product of a graph with *itself* is
+another story, because there the coordinate swap is available. That proof needs `G` arc-transitive
+to move the arc and vertex-transitive to move the stationary coordinate, and splits into the four
+cases of which coordinate each of the two arcs runs along; the two mixed cases are where the swap
+does its work. It fills the square rook's graphs; the rectangular ones really are not
+arc-transitive.
+
+The lexicographic product blows every vertex of `G` up into a copy of `H`, so it has two kinds of
+arc — inside a copy, and between two copies — and no automorphism exchanges them. Unless there are
+no arcs of the first kind: if `H` is edgeless, every arc of `G ·g H` sits over an arc of `G`, and
+`isArcTransitive_lexProduct_of_edgeless` moves it by acting on `G` and transposing one point in
+each of the two copies involved. `Equiv.prodShear` is exactly the right shape for that — the second
+coordinate's permutation is allowed to depend on the first. That gives the balanced complete
+multipartite graphs, and with them the cocktail party graphs.
+
+Joins get vertex-transitivity from the same argument as disjoint unions, and no more: an arc inside
+one half and an arc between the halves are as unrelated as in the lexicographic product, and here
+there is no degenerate case that removes one of the two kinds.
+
+### Johnson graphs, and one point out of place
+
+`exists_perm_image₂` matches two disjoint finsets to two others of the same sizes, which is what
+made the Kneser graphs arc-transitive in one line: an arc there is a pair of disjoint `k`-sets, and
+that is literally the hypothesis. A Johnson arc is a pair of `k`-sets meeting in `k - 1` points, so
+it is three sets that need matching — the common part, and one private point on each side.
+
+Two of the three can be done directly. Match `A ∩ B` to `A' ∩ B'` and `{a}` to `{a'}`, and the
+resulting `π` sends `A` to `A'`; where it sends `b` is not controlled, but it cannot be anywhere in
+`A'`, since `b ∉ A` and `π` is injective on the whole ground set. So the transposition of `π b`
+with `b'` fixes `A'` pointwise — both of its points are outside `A'` — and composing with it lands
+`b` on `b'` without disturbing anything already placed. One extra transposition for one extra
+point.
+
+The decomposition itself is `johnson_arc_decomp`: from `|A| = |B| = k`, `|A ∩ B| = k - 1` and
+`A ≠ B`, the difference `A \ B` has exactly one element, and `A` is that element inserted into the
+common part. The `A ≠ B` hypothesis is doing more than it looks — it is what rules out `k = 0`,
+where `k - 1` truncates to `0` and the intersection condition would otherwise be vacuous.
+
+The Johnson graphs are the triangular graphs at `k = 2`, so that row fills too. Paley graphs round
+the batch out: translation alone only moves vertices, but scaling by `(v' - u') / (v - u)` moves an
+arc, and the ratio of two squares is a square, so the quadratic character — and with it adjacency —
+survives.
+
+Ten cells: the table now reads 2019 of 2352.
+
+### The characteristic polynomial of a cone
+
+Coning over a graph on `n` vertices adds `0` and `n + 1` to the Laplacian spectrum and shifts every
+other eigenvalue up by one; `lapSpectrum_fan` and `lapSpectrum_wheel` have said so for a while.
+Multiplying out gives `lapCharpoly_fan` and `lapCharpoly_wheel`, and the only care needed is that
+the shift stays inside the product: the factors are `X - C (λ + 1)` for `λ` ranging over the
+*nonzero* Laplacian eigenvalues of the rim, not `X - C λ` over all of them.
+
+That leaves the answer as a product over `((cycle n).lapSpectrum.erase 0)` rather than a closed form
+in `n`, which is the honest thing to write. The rim's own eigenvalues are `2 - 2 cos(2πj/n)`, so a
+closed form for the wheel would be a product of cosines in disguise. The two theorems are still what
+a rewriting table wants: they turn `lapCharpoly (wheel n)` into named factors.
+
+### Counting cliques and independent sets across a join
+
+A clique of a complete multipartite graph meets each part at most once, so a `k`-clique of `K_{m×d}`
+is a choice of `k` parts and one vertex in each: `dᵏ · C(m, k)`. The induction peels one part off at
+a time — `completeMultipartite (replicate (m+1) d)` is `Eᵈ ∇ completeMultipartite (replicate m d)` —
+and `cliqueCount_join` convolves the two counts over `range (k+1)`. The empty graph has no cliques
+above size one, so all but two terms of the convolution vanish; what is left is `dᵏ C(m, k)` from
+taking nothing in the new part and `d · d^{k-1} C(m, k-1)` from taking one vertex of it, and
+Pascal's rule adds them. `cliqueCount_cocktailParty` was the `d = 2`, `k = 3` corner of this.
+
+The friendship graph is `K₁ ∇ (K_{n×2})ᶜ`, which the library already knows. Complementation swaps
+cliques for independent sets, and a join has no independent set meeting both halves, so above size
+one the friendship graph's independent sets are exactly the cliques of the cocktail party graph:
+`indepCount (friendship n) (k+2) = 2^{k+2} C(n, k+2)`. The `k+2` is not a technicality — the counts
+at `0` and `1` are `1` and `2n + 1`, and it is the hub that breaks the pattern.
+
+For the Grötzsch graph there is no formula to have, so the three counts are stated outright: 40
+independent triples, 15 quadruples, and exactly one quintuple. The last is the sharpest of them,
+since it says the independent set realising `indepNum grotzsch = 5` is unique. All three run the
+same finite check over the `2¹¹` subsets that `indepNum_grotzsch` already runs.
+
+Four cells: the table now reads 2023 of 2352.
+
+### What the remaining dots are
+
+Three hundred and twenty cells are still empty, and they are not all the same kind of empty.
+
+Some are naming, not mathematics. `petersen` is a reducible abbreviation for `kneser 5 2`, and
+`@[toIsoGraph]` unfolds reducible definitions when it lifts a theorem, so a spectral fact proved at
+the `CGraph` level and lifted lands on the `kneser` row while a hand-written `IsoGraph`-level fact
+keeps the `petersen` head. That is exactly which five of Petersen's spectral cells read empty — the
+lifted ones — and the same split explains `johnson` against `triangular`. The table is measuring the
+head symbol, which is the right thing for a rewriting table to measure, but the fact is there.
+
+Some are out of reach for a reason worth recording. `IsDS` — determined by its spectrum — is empty
+for thirty-five families and needs the classification of cospectral mates, which is Smith's theorem
+and its converse, flagged in `Spectrum.lean` as not proved here. `vertexConn` is empty for
+twenty-four and wants Menger, Watkins or Brouwer–Mesner. `autCount` is blocked at the source: the
+group-order routines in `Canon/Group.lean` are unverified diagnostics, so there is nothing to cite.
+And a good many spectral cells — the tadpole, the lollipop, the spider, the theta graph, the
+generalised Petersen and LCF families — have no closed-form spectrum to state.
+
+The clearest place where an ordinary theorem would light up several cells at once was the adjacency
+spectrum of a join of two *regular* graphs. That one is now done, and the section below is what it
+took; the lexicographic product, in the section after it, went the same way.
+
+### The spectrum of a join of two regular graphs
+
+The Laplacian version of the join formula needs no regularity at all (`lapSpectrum_join`), but the
+adjacency version was available only when the join *itself* was regular, since that is the case
+where `spectrum_of_isRegularWith` converts one into the other. Asking instead that only the two
+*factors* be regular is a weaker hypothesis and still enough. For `G` `k`-regular on `p` vertices
+and `H` `l`-regular on `q`,
+
+```
+(X - k)(X - l) · φ_{G ∇ H} = ((X - k)(X - l) - pq) · φ_G · φ_H
+```
+
+so the join keeps every eigenvalue of each factor other than its degree, and replaces the two
+degrees by the roots of `x² - (k + l)x + (kl - pq)`, that is by `((k + l) ± √((k - l)² + 4pq)) / 2`.
+
+The proof is one of the few places in the file where a determinant is computed rather than
+rewritten. The characteristic matrix of the join is `[[xI - A, -J], [-J, xI - B]]`, and the Schur
+complement of the lower right block is `xI - A - (q/(x - l)) J`, because `J (xI - B)⁻¹ J` collapses
+to `(q/(x - l)) J` as soon as `B` has constant row sums — that is exactly what regularity of `H`
+buys. A rank-one update is what the matrix determinant lemma wants, so the whole `(p + q) × (p + q)`
+determinant comes out as the two smaller ones times a scalar. All of it needs `x - k`, `x - l`,
+`φ_G(x)` and `φ_H(x)` nonzero, so what is proved first is a pointwise identity off a finite set;
+`Polynomial.eq_of_infinite_eval_eq` promotes it to the polynomial identity above, and cancelling the
+two linear factors — legitimate, since `k` really is a root of `φ_G` and `l` of `φ_H` — gives
+`charpoly_join_of_isRegularWith'`. The prime is because the unprimed name was already taken by the
+regular-join version, which is not a special case of this one: different hypothesis, different shape
+of answer.
+
+Getting the block matrix took more care than the mathematics did. `(G ∇g H).V` is definitionally
+`G.V ⊕ H.V` only after unfolding a semireducible definition, and the two spellings do not elaborate
+alike: `Matrix.scalar (G.V ⊕ H.V) x - (G ∇g H).adjMat` cannot find an `HSub` instance, while the
+equation `(G ∇g H).adjMat = Matrix.fromBlocks ...` is accepted without complaint. So the subtraction
+is never written across the two spellings. `adjMat_join` states the block form as an equation, and
+`Matrix.scalar_sub_fromBlocks` does the subtraction afterwards at plain `m ⊕ n` types. Even then,
+once the instance-bridging lemmas `fintype_eq_sum` and `decEq_eq_sum` have fired the goal is no
+longer type-correct at `implicit` transparency, so a later `rw` cannot build its motive and the step
+has to be closed with `exact` instead.
+
+Three cones come out of it. The wheel `W_n = K₁ ∇ C_n` trades the rim's eigenvalue `2` for
+`1 ± √(n + 1)`, so its energy is the rim's plus `2√(n + 1) - 2`; the rest of the answer stays a
+product over the rim's other eigenvalues, which is the honest form, the same as for
+`lapCharpoly_wheel`. The book `B_n = K₂ ∇ nK₁` has spectrum the two roots of `x² - x - 2n`, then
+`-1` and `n - 1` zeros, and energy `√(8n + 1) + 1`. The friendship graph `F_n = K₁ ∇ nK₂` needed one
+extra fact — the spectrum of the perfect matching `nK₂`, which is `±1` with equal multiplicities and
+comes in one step from `spectrum_compl_of_isRegularWith`, since `nK₂` is the complement of the
+cocktail party graph — and ends up with the same quadratic, `-1` with multiplicity `n`, `1` with
+multiplicity `n - 1`, and energy `√(8n + 1) + 2n - 1`.
+
+Nine cells: the table now reads 2032 of 2352.
+
+### The spectrum of a lexicographic product
+
+The same trick pays a second time. `G [H]` blows each vertex of `G` up into a copy of `H` and joins
+two copies completely when their vertices were adjacent, so its adjacency matrix is a sum of two
+Kronecker products, `A_G ⊗ J + I ⊗ A_H`. Conjugating by `P ⊗ I`, where `P` diagonalises `A_G`,
+leaves the characteristic polynomial alone and turns the first summand into `D ⊗ J`; the result is
+block diagonal after swapping the two index coordinates, with one block `xI - A_H - λ J` per
+eigenvalue `λ` of `G`. Each block is a rank-one update of the characteristic matrix of `H`, and if
+`H` is `r`-regular on `m` vertices then the rows of `xI - A_H` all sum to `x - r`, which is what the
+matrix determinant lemma needs. So
+
+```
+(X - r)^n · φ_{G [H]} = φ_H^n · ∏_λ (X - (r + m λ))
+```
+
+for `G` on `n` vertices, and cancelling the `n` copies of `X - r` — legitimate, since `r` is an
+eigenvalue of `H` — gives the spectrum: every eigenvalue `λ` of `G` becomes `m λ + r`, and every
+eigenvalue of `H` other than its degree is repeated `n` times. Only the second factor has to be
+regular. If the first one is regular too then `G [H]` is `(m k + r)`-regular, and the Laplacian
+spectrum and Laplacian characteristic polynomial follow by subtraction.
+
+The rank-one step was already sitting inside the join proof, spelled out in the middle of
+`det_fromBlocks_of_mulVec_one`; it is now `Matrix.det_sub_smul_vecMulVec_one`, and the join proof
+calls it too. What is new is `Matrix.det_scalar_sub_kroneckerDiagonal`, which recognises
+`D ⊗ J + I ⊗ B` as a block diagonal matrix — `Matrix.blockDiagonal` wants the block index *second*,
+so the statement goes through `submatrix (Equiv.prodComm _ _)` — and
+`Matrix.charpoly_kroneckerDiagonal_conj`, which does the conjugation. The conjugation lemma has to
+be stated over abstract index types rather than inline over `(G ·g H).V`: after `fintype_eq_prod`
+and `decEq_eq_prod` have swapped the product's `FinEnum`-derived instances for the structural ones,
+the goal is no longer type-correct at `implicit` transparency, so `rw` cannot build a motive for
+`Matrix.charpoly_mul_comm` and the step has to be closed by `exact` against a lemma stated at plain
+`ι × κ` types. The same trap as in the join, one level deeper.
+
+Five cells: the table now reads 2037 of 2352.

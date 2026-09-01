@@ -10,6 +10,7 @@ import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Containment.Algorithms.Twins
 import IsoGraph.Containment.Defs
+import IsoGraph.Containment.Hamiltonian
 import IsoGraph.Containment.Hereditary
 import IsoGraph.Containment.Minors
 import IsoGraph.Containment.Monotone
@@ -100,6 +101,12 @@ being enough to stop it, and the join fails in
 the five orders that contract or subdivide.  That leaves the join in the homomorphism, subgraph
 and quotient orders open; cancelling a clique there is proved, and a search over the deciders
 found no counterexample to the general statement.
+
+`Containment/Hamiltonian.lean` is one invariant read off one of the orders.  A Hamiltonian cycle
+is a spanning cycle subgraph, so `G.IsHamiltonian ↔ cycle G.V ≤ₛ G` on three vertices or more —
+which turns the subgraph search into the decision procedure for Hamiltonicity that
+`Invariants/Hamiltonian.lean` has to do without, and in particular gives the *refutations*, where
+before there were only necessary conditions.
 
 `Algorithms/Cached.lean` is the layer to call.  Each of the nine searches there runs on adjacency
 matrices of the pattern *and* the host rather than on their edge lists, which is worth an order of

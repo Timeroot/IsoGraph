@@ -171,6 +171,22 @@ theorem fan_eq_join (n : ℕ) : fan n = complete 1 ∇g path n := rfl
   show (complete 1 ∇g path (n + 2)).cliqueNum = _
   rw [cliqueNum_join, cliqueNum_complete, cliqueNum_path]
 
+/-- Every edge of the path closes a triangle with the apex, and the path itself has none. -/
+@[simp] theorem cliqueCount_fan (n : ℕ) : (fan (n + 1)).cliqueCount 3 = n := by
+  show (complete 1 ∇g path (n + 1)).cliqueCount 3 = _
+  rw [cliqueCount_join_three]
+  simp [cliqueCount_path]
+
+/-- Any two vertices of the fan besides the apex are joined only along the path, so an independent
+set of size at least two is an independent set of the path. -/
+@[simp] theorem indepCount_fan (n k : ℕ) :
+    (fan n).indepCount (k + 2) = (n + 1 - (k + 2)).choose (k + 2) := by
+  show (complete 1 ∇g path n).indepCount (k + 1 + 1)
+      = (n + 1 - (k + 1 + 1)).choose (k + 1 + 1)
+  rw [indepCount_join, indepCount_complete, indepCount_path, Nat.zero_add]
+
+example : (fan 4).indepCount 2 = 3 := by rw [indepCount_fan]; decide
+
 /-- The apex is never worth taking: a maximum independent set of the fan is one of the path. -/
 @[simp] theorem indepNum_fan (n : ℕ) : (fan (n + 1)).indepNum = (n + 2) / 2 := by
   show (complete 1 ∇g path (n + 1)).indepNum = _
@@ -233,6 +249,25 @@ example : maxDeg (fan 5) = 5 := maxDeg_fan 2
 @[simp] theorem cliqueNum_wheel (n : ℕ) : (wheel (n + 4)).cliqueNum = 3 := by
   rw [wheel_eq_join, cliqueNum_join, cliqueNum_complete, cliqueNum_cycle]
 
+/-- One triangle per spoke pair, which is to say one per edge of the rim. -/
+@[simp] theorem cliqueCount_wheel (n : ℕ) : (wheel (n + 4)).cliqueCount 3 = n + 4 := by
+  have hc : (cycle (n + 4)).cliqueCount 3 = 0 :=
+    (cliqueCount_eq_zero_iff _ _).2 (by rw [cliqueNum_cycle]; omega)
+  rw [wheel_eq_join, cliqueCount_join_three, hc]
+  simp
+
+/-- The same for the wheel: an independent set of size at least two lives on the rim. -/
+@[simp] theorem indepCount_wheel (n k : ℕ) :
+    (wheel (n + 3)).indepCount (k + 2)
+      = (n + 1 - k).choose (k + 2) + (n - k).choose (k + 1) := by
+  show (wheel (n + 3)).indepCount (k + 1 + 1)
+      = (n + 1 - k).choose (k + 1 + 1) + (n - k).choose (k + 1)
+  rw [wheel_eq_join, indepCount_join, indepCount_complete, indepCount_cycle,
+    show n + 2 - (k + 1) = n + 1 - k from by omega,
+    show n + 1 - (k + 1) = n - k from by omega, Nat.zero_add]
+
+example : (wheel 5).indepCount 2 = 5 := by rw [indepCount_wheel]; decide
+
 @[simp] theorem coverNum_wheel (n : ℕ) : (wheel (n + 3)).coverNum = n + 4 - (n + 3) / 2 := by
   have h := (wheel (n + 3)).coverNum_add_indepNum
   rw [V_wheel, indepNum_wheel] at h
@@ -251,6 +286,11 @@ invariant to the two factors. -/
   rw [book_eq_join, E_join, E_complete, E_empty, V_complete, V_empty,
     show (2 : ℕ).choose 2 = 1 from rfl]
   omega
+
+/-- The pages are the triangles: one for each vertex off the spine. -/
+@[simp] theorem cliqueCount_book (n : ℕ) : (book n).cliqueCount 3 = n := by
+  rw [book_eq_join, cliqueCount_join_three]
+  simp
 
 /-- The two spine vertices dominate the book. -/
 @[simp] theorem maxDeg_book (n : ℕ) : maxDeg (book (n + 1)) = n + 2 := by
@@ -470,6 +510,125 @@ theorem numComponents_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1)
     (paley q).numComponents = 1 :=
   numComponents_eq_one_of_isConnected (isConnected_paley q hq hq5)
 
+/-- **The cocktail party graph is Hamiltonian.**  It is `K_m` with every vertex blown up to two,
+and blowing up the vertices of a Hamiltonian graph keeps a Hamiltonian cycle. -/
+theorem isHamiltonian_cocktailParty {m : ℕ} (h3 : 3 ≤ m) : (cocktailParty m).IsHamiltonian := by
+  rw [cocktailParty_eq_lexProduct, complete_def, empty_def, lexProduct_mk, isHamiltonian_mk]
+  exact CGraph.isHamiltonian_lexProduct_complete h3 (by simp)
+
+/-! ### Hamiltonian cycles in six small members
+
+Six one-off certificates, each a `cyclicNumbering` written out in `FinEnum` index order.  None of
+the six families is Hamiltonian for a uniform reason — `hypercube 1` is a single edge, `kneser n k`
+is edgeless once `n < 2k`, `paley q` is only defined for `q ≡ 1 mod 4` — so these are the smallest
+interesting member of each, and the general statements are left open. -/
+
+/-- A Hamiltonian cycle of the triangular graph `T(5)`, as `FinEnum` indices. -/
+def triangularFiveCycle : ℕ → (CGraph.triangular 5).V := fun i ↦
+  (FinEnum.equiv (α := (CGraph.triangular 5).V)).symm
+    (([0, 3, 6, 1, 8, 7, 9, 5, 4, 2] : List (Fin 10)).getD i 0)
+
+/-- **The Johnson graph `J(5, 2)` is Hamiltonian.**  This is the triangular graph `T(5)`, the line
+graph of `K₅` and the complement of the Petersen graph; a Hamiltonian cycle in it orders the ten
+edges of `K₅` so that consecutive ones meet. -/
+theorem isHamiltonian_johnson_five_two : (johnson 5 2).IsHamiltonian := by
+  rw [johnson_def, isHamiltonian_mk]
+  exact CGraph.isHamiltonian_of_cyclicNumbering (n := 10) triangularFiveCycle (by norm_num)
+    (by native_decide) (by native_decide) (by native_decide)
+
+/-- **The triangular graph `T(5)` is Hamiltonian.** -/
+theorem isHamiltonian_triangular_five : (triangular 5).IsHamiltonian :=
+  isHamiltonian_johnson_five_two
+
+/-- A Hamiltonian cycle of the Kneser graph `K(6, 2)`, as `FinEnum` indices. -/
+def kneserSixTwoCycle : ℕ → (CGraph.kneser 6 2).V := fun i ↦
+  (FinEnum.equiv (α := (CGraph.kneser 6 2).V)).symm
+    (([0, 5, 14, 3, 8, 11, 1, 9, 2, 13, 7, 10, 4, 6, 12] : List (Fin 15)).getD i 0)
+
+/-- **The Kneser graph `K(6, 2)` is Hamiltonian.**  The next Kneser graph after the Petersen
+graph, and unlike it Hamiltonian: `K(5, 2)` is the smallest and, at `k = 2`, the only exception. -/
+theorem isHamiltonian_kneser_six_two : (kneser 6 2).IsHamiltonian := by
+  rw [kneser_def, isHamiltonian_mk]
+  exact CGraph.isHamiltonian_of_cyclicNumbering (n := 15) kneserSixTwoCycle (by norm_num)
+    (by native_decide) (by native_decide) (by native_decide)
+
+/-- A Hamiltonian cycle of the Paley graph on 13 vertices, as `FinEnum` indices. -/
+def paleyThirteenCycle : ℕ → (CGraph.paley 13).V := fun i ↦
+  (FinEnum.equiv (α := (CGraph.paley 13).V)).symm
+    (([0, 4, 3, 12, 8, 7, 11, 1, 2, 5, 6, 10, 9] : List (Fin 13)).getD i 0)
+
+/-- **The Paley graph on 13 vertices is Hamiltonian.** -/
+theorem isHamiltonian_paley_thirteen : (paley 13).IsHamiltonian := by
+  rw [paley_def, isHamiltonian_mk]
+  exact CGraph.isHamiltonian_of_cyclicNumbering (n := 13) paleyThirteenCycle (by norm_num)
+    (by native_decide) (by native_decide) (by native_decide)
+
+/-- A Hamiltonian cycle of the rook's graph `K₃ □ K₃`, as `FinEnum` indices. -/
+def rookThreeThreeCycle : ℕ → (CGraph.rook 3 3).V := fun i ↦
+  (FinEnum.equiv (α := (CGraph.rook 3 3).V)).symm
+    (([0, 6, 3, 4, 1, 7, 8, 5, 2] : List (Fin 9)).getD i 0)
+
+/-- **The rook's graph `K₃ □ K₃` is Hamiltonian.**  The three rows are traversed out of order, one
+column at a time: an odd side length rules out the obvious boustrophedon, whose last row ends in
+the wrong column to close up. -/
+theorem isHamiltonian_rook_three_three : (rook 3 3).IsHamiltonian := by
+  rw [show (rook 3 3 : IsoGraph) = complete 3 □g complete 3 from rfl, complete_def,
+    cartesianProduct_mk, isHamiltonian_mk]
+  exact CGraph.isHamiltonian_of_cyclicNumbering (n := 9) rookThreeThreeCycle (by norm_num)
+    (by native_decide) (by native_decide) (by native_decide)
+
+/-- A Hamiltonian cycle of the 3-cube, as `FinEnum` indices. -/
+def hypercubeThreeCycle : ℕ → (CGraph.hypercube 3).V := fun i ↦
+  (FinEnum.equiv (α := (CGraph.hypercube 3).V)).symm
+    (([0, 4, 5, 1, 3, 7, 6, 2] : List (Fin 8)).getD i 0)
+
+/-- **The 3-cube is Hamiltonian.**  The cycle is the reflected binary Gray code, which visits the
+`2ⁿ` bit strings changing one bit at a time and comes back to where it started. -/
+theorem isHamiltonian_hypercube_three : (hypercube 3).IsHamiltonian := by
+  rw [hypercube_def, isHamiltonian_mk]
+  exact CGraph.isHamiltonian_of_cyclicNumbering (n := 8) hypercubeThreeCycle (by norm_num)
+    (by native_decide) (by native_decide) (by native_decide)
+
+/-- A Hamiltonian cycle of the folded 4-cube, as `FinEnum` indices. -/
+def foldedCubeFourCycle : ℕ → (CGraph.foldedCube 4).V := fun i ↦
+  (FinEnum.equiv (α := (CGraph.foldedCube 4).V)).symm
+    (([0, 2, 3, 11, 4, 5, 10, 14, 15, 13, 12, 8, 7, 6, 9, 1] : List (Fin 16)).getD i 0)
+
+/-- **The folded 4-cube is Hamiltonian.**  This is the Clebsch graph, the `(16, 5, 0, 2)` strongly
+regular graph. -/
+theorem isHamiltonian_foldedCube_four : (foldedCube 4).IsHamiltonian := by
+  rw [foldedCube_def, isHamiltonian_mk]
+  exact CGraph.isHamiltonian_of_cyclicNumbering (n := 16) foldedCubeFourCycle (by norm_num)
+    (by native_decide) (by native_decide) (by native_decide)
+
+/-- **The line graph of `K₅` is Hamiltonian**, being the triangular graph `T(5)`.  The cycle
+orders the ten edges of `K₅` so that consecutive ones share an endpoint. -/
+theorem isHamiltonian_lineGraph_complete_five : (lineGraph (complete 5)).IsHamiltonian := by
+  rw [lineGraph_complete_eq_triangular]
+  exact isHamiltonian_triangular_five
+
+/-! ### Too big an independent set
+
+`not_isHamiltonian_of_V_lt_two_mul_indepNum` refutes Hamiltonicity from a single independent set
+on more than half the vertices, since a spanning cycle would have to meet two of its vertices in
+a row.  Two of the families here are unbalanced enough to fall to it, and `SmallGraphs/Brackets`
+and `SmallGraphs/TuranGraphs` have the theta graph and the odd two-part Turán graph. -/
+
+/-- **A complete multipartite graph with an oversized part is not Hamiltonian.**  A spanning cycle
+leaves each part immediately, so no part can hold more than half the vertices.  The converse also
+holds — that is the classical criterion — but wants the cycle, and is not proved here. -/
+theorem not_isHamiltonian_completeMultipartite {ds : List ℕ} (h3 : 3 ≤ ds.sum)
+    (h : ds.sum < 2 * (ds.max?).getD 0) : ¬ (completeMultipartite ds).IsHamiltonian :=
+  not_isHamiltonian_of_V_lt_two_mul_indepNum (by rwa [V_completeMultipartite])
+    (by rwa [V_completeMultipartite, indepNum_completeMultipartite])
+
+/-- **No book with three or more pages is Hamiltonian.**  `Bₙ = K_{1,1,n}` has `n + 2` vertices and
+`n` of them, the page corners, are independent.  `B₁ = K₃` and `B₂ = K₄ - e` are Hamiltonian, and
+`B₀ = K₂` is too small. -/
+theorem not_isHamiltonian_book {n : ℕ} (h : 3 ≤ n) : ¬ (book n).IsHamiltonian :=
+  not_isHamiltonian_of_V_lt_two_mul_indepNum (by rw [V_book]; omega)
+    (by rw [V_book, indepNum_book]; omega)
+
 /-! ### Prisms and ladders -/
 
 @[simp] theorem cliqueNum_ladder (n : ℕ) : (ladder (n + 2)).cliqueNum = 2 := by
@@ -586,6 +745,38 @@ theorem completeMultipartite_replicate_succ (m d : ℕ) :
       = List.replicate (m * d) ((m - 1) * d) := by
   rw [completeMultipartite_replicate,
     degSequence_lexProduct (degSequence_complete m) (degSequence_empty d), Nat.add_zero]
+
+@[simp] theorem degMultiset_completeMultipartite_replicate (m d : ℕ) :
+    degMultiset (completeMultipartite (List.replicate m d))
+      = Multiset.replicate (m * d) ((m - 1) * d) :=
+  degMultiset_of_degSequence (degSequence_completeMultipartite_replicate m d)
+
+/-- **Cliques of `K_{m×d}`**: a clique picks `k` of the `m` parts and one of the `d` vertices in
+each, so there are `dᵏ (m choose k)` of them. -/
+theorem cliqueCount_completeMultipartite_replicate (m d k : ℕ) :
+    (completeMultipartite (List.replicate m d)).cliqueCount k = d ^ k * m.choose k := by
+  induction m generalizing k with
+  | zero =>
+    rw [List.replicate_zero, completeMultipartite_nil]
+    match k with
+    | 0 => simp
+    | 1 => rw [cliqueCount_one, V_empty]; simp
+    | (j + 2) => rw [cliqueCount_empty]; simp
+  | succ m ih =>
+    rw [completeMultipartite_replicate_succ, cliqueCount_join]
+    match k with
+    | 0 => simp
+    | (j + 1) =>
+      rw [Finset.sum_range_succ', Finset.sum_range_succ']
+      have hz : ∀ i ∈ Finset.range j,
+          (empty d).cliqueCount (i + 1 + 1) *
+            (completeMultipartite (List.replicate m d)).cliqueCount (j + 1 - (i + 1 + 1)) = 0 := by
+        intro i _
+        rw [cliqueCount_empty, Nat.zero_mul]
+      rw [Finset.sum_congr rfl hz, Finset.sum_const_zero, Nat.zero_add, cliqueCount_zero,
+        cliqueCount_one, V_empty, Nat.one_mul, Nat.sub_zero, ih, ih, Nat.add_sub_cancel,
+        Nat.choose_succ_succ m j]
+      ring
 
 theorem maxDeg_completeMultipartite_replicate {m d : ℕ} (hm : 0 < m) (hd : 0 < d) :
     maxDeg (completeMultipartite (List.replicate m d)) = (m - 1) * d := by
@@ -1315,6 +1506,10 @@ bijection between the pairs `(a, b) ∈ s × sᶜ` and the neighbours of `s`. -/
 
 `J(n, k)` is regular of degree `k(n - k)`, so its edge count, maximum degree and minimum degree
 all follow from the degree sequence. -/
+
+@[simp] theorem degMultiset_johnson {n k : ℕ} (hk : k ≤ n) :
+    degMultiset (johnson n k) = Multiset.replicate (n.choose k) (k * (n - k)) :=
+  degMultiset_of_degSequence (degSequence_johnson hk)
 
 theorem two_mul_E_johnson {n k : ℕ} (hk : k ≤ n) :
     2 * (johnson n k).E = n.choose k * (k * (n - k)) :=

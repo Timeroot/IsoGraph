@@ -147,29 +147,74 @@ theorem girth_lollipop (m k : ℕ) : (lollipop (m + 3) k).girth = 3 := by
   rw [this]
   exact CGraph.girth_eq_three_of_triangle h01 h12 h20
 
+/-- **The degrees of a double star, vertex by vertex.**  Centre `0` sees centre `1` and its own `m`
+pendants, centre `1` sees centre `0` and its own `n`, and every other vertex sees the centre it
+hangs from.  Everything else about the double star's degrees is read off this. -/
+theorem degree_doubleStar (m n : ℕ) (v : (CGraph.doubleStar m n).V) :
+    (CGraph.doubleStar m n).toSimple.degree v
+      = if v.1 = 0 then m + 1 else if v.1 = 1 then n + 1 else 1 := by
+  have hv : v.1 < 2 + m + n := v.isLt
+  by_cases h0 : v.1 = 0
+  · rw [if_pos h0]
+    have h := CGraph.degree_ofEdges (2 + m + n) _ v (1 :: (List.range m).map fun i ↦ 2 + i)
+      (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
+        List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
+      (by
+        intro w hw
+        simp only [List.mem_cons, List.mem_map_add_range] at hw
+        omega)
+      (by simp only [h0, List.mem_cons, List.mem_map_add_range]; omega)
+      (by
+        intro w hne
+        rw [h0, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
+        simp only [List.mem_cons, List.mem_map_add_range, true_and]
+        omega)
+    simpa [CGraph.doubleStar] using h
+  rw [if_neg h0]
+  by_cases h1 : v.1 = 1
+  · rw [if_pos h1]
+    have h := CGraph.degree_ofEdges (2 + m + n) _ v (0 :: (List.range n).map fun i ↦ 2 + m + i)
+      (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
+        List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
+      (by
+        intro w hw
+        simp only [List.mem_cons, List.mem_map_add_range] at hw
+        omega)
+      (by simp only [h1, List.mem_cons, List.mem_map_add_range]; omega)
+      (by
+        intro w hne
+        rw [h1, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
+        simp only [List.mem_cons, List.mem_map_add_range, true_and, and_true]
+        omega)
+    simpa [CGraph.doubleStar] using h
+  rw [if_neg h1]
+  have h := CGraph.degree_ofEdges (2 + m + n) _ v [if v.1 < 2 + m then 0 else 1] (by simp)
+    (by
+      intro w hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+      subst hw
+      split_ifs <;> omega)
+    (by
+      simp only [List.mem_cons, List.not_mem_nil, or_false]
+      split_ifs <;> omega)
+    (by
+      intro w hne
+      rw [CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
+      simp only [List.mem_cons, List.not_mem_nil, or_false]
+      split_ifs <;> omega)
+  simpa [CGraph.doubleStar] using h
+
 /-- A double star always has a vertex of degree one — a pendant, or an endpoint of the central
 edge when there are no pendants. -/
 theorem minDeg_doubleStar (m n : ℕ) : minDeg (doubleStar m n) = 1 := by
   change (CGraph.doubleStar m n).minDeg = 1
   refine le_antisymm ?_ (CGraph.le_minDeg_of_forall ⟨0, by omega⟩ fun v ↦ ?_)
-  · have hlast : ∀ v : (CGraph.doubleStar m n).V, v.1 = 1 + m + n →
-        (CGraph.doubleStar m n).toSimple.degree v ≤ 1 := by
-      intro v hv
-      refine le_trans (CGraph.degree_ofEdges_le (2 + m + n) _ v [if n = 0 then 0 else 1] ?_)
-        (by simp)
-      intro w hne hw
-      simp only [hv, CGraph.mem_doubleStarEdges] at hw hne
-      simp only [List.mem_cons, List.not_mem_nil, or_false]
-      split_ifs <;> omega
-    exact le_trans (CGraph.minDeg_le_degree _ _) (hlast ⟨1 + m + n, by omega⟩ rfl)
-  · refine le_trans (by simp) (CGraph.le_degree_ofEdges (2 + m + n) _ v
-      [if v.1 = 0 then 1 else if v.1 = 1 then 0 else if v.1 < 2 + m then 0 else 1] (by simp) ?_)
-    intro w hw
-    have hv : v.1 < 2 + m + n := v.isLt
-    simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
-    subst hw
-    refine ⟨by split_ifs <;> omega, by split_ifs <;> omega, ?_⟩
-    simp only [CGraph.mem_doubleStarEdges]
+  · refine le_trans (CGraph.minDeg_le_degree (CGraph.doubleStar m n)
+      (⟨1 + m + n, by omega⟩ : (CGraph.doubleStar m n).V)) ?_
+    rw [degree_doubleStar]
+    show (if 1 + m + n = 0 then m + 1 else if 1 + m + n = 1 then n + 1 else 1) ≤ 1
+    split_ifs <;> omega
+  · rw [degree_doubleStar]
     split_ifs <;> omega
 
 /-- The coordinate edges alone already connect the cube. -/
@@ -336,58 +381,67 @@ theorem maxDeg_tadpole (m k : ℕ) : maxDeg (tadpole (m + 3) (k + 1)) = 3 := by
 pendant. -/
 theorem maxDeg_doubleStar (m n : ℕ) : maxDeg (doubleStar m n) = max m n + 1 := by
   change (CGraph.doubleStar m n).maxDeg = max m n + 1
-  have hdeg0 : ∀ v : (CGraph.doubleStar m n).V, v.1 = 0 →
-      (CGraph.doubleStar m n).toSimple.degree v = m + 1 := by
-    intro v hv
-    have h := CGraph.degree_ofEdges (2 + m + n) _ v (1 :: (List.range m).map fun i ↦ 2 + i)
-      (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
-        List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
-      (by
-        intro w hw
-        simp only [List.mem_cons, List.mem_map_add_range] at hw
-        omega)
-      (by simp only [hv, List.mem_cons, List.mem_map_add_range]; omega)
-      (by
-        intro w hne
-        rw [hv, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
-        simp only [List.mem_cons, List.mem_map_add_range, true_and]
-        omega)
-    simpa [CGraph.doubleStar] using h
-  have hdeg1 : ∀ v : (CGraph.doubleStar m n).V, v.1 = 1 →
-      (CGraph.doubleStar m n).toSimple.degree v = n + 1 := by
-    intro v hv
-    have h := CGraph.degree_ofEdges (2 + m + n) _ v (0 :: (List.range n).map fun i ↦ 2 + m + i)
-      (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
-        List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
-      (by
-        intro w hw
-        simp only [List.mem_cons, List.mem_map_add_range] at hw
-        omega)
-      (by simp only [hv, List.mem_cons, List.mem_map_add_range]; omega)
-      (by
-        intro w hne
-        rw [hv, CGraph.mem_doubleStarEdges, CGraph.mem_doubleStarEdges]
-        simp only [List.mem_cons, List.mem_map_add_range, true_and, and_true]
-        omega)
-    simpa [CGraph.doubleStar] using h
   refine le_antisymm (CGraph.maxDeg_le_of_forall fun v ↦ ?_) ?_
-  · by_cases h0 : v.1 = 0
-    · rw [hdeg0 v h0]
-      omega
-    by_cases h1 : v.1 = 1
-    · rw [hdeg1 v h1]
-      omega
-    refine le_trans (CGraph.degree_ofEdges_le (2 + m + n) _ v
-      [if v.1 < 2 + m then 0 else 1] ?_) (by simp)
-    intro w hne hw
-    simp only [CGraph.mem_doubleStarEdges] at hw
-    simp only [List.mem_cons, List.not_mem_nil, or_false]
+  · rw [degree_doubleStar]
     split_ifs <;> omega
   · rcases le_total m n with h | h
-    · rw [max_eq_right h]
-      exact le_of_eq_of_le (hdeg1 ⟨1, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _)
-    · rw [max_eq_left h]
-      exact le_of_eq_of_le (hdeg0 ⟨0, by omega⟩ rfl).symm (CGraph.degree_le_maxDeg _ _)
+    · have hd := CGraph.degree_le_maxDeg (CGraph.doubleStar m n)
+        (⟨1, by omega⟩ : (CGraph.doubleStar m n).V)
+      rw [degree_doubleStar] at hd
+      rw [max_eq_right h]
+      simpa using hd
+    · have hd := CGraph.degree_le_maxDeg (CGraph.doubleStar m n)
+        (⟨0, by omega⟩ : (CGraph.doubleStar m n).V)
+      rw [degree_doubleStar] at hd
+      rw [max_eq_left h]
+      simpa using hd
+
+/-- **The degree multiset of a double star**: the two centres and `m + n` pendants. -/
+theorem degMultiset_doubleStar (m n : ℕ) :
+    degMultiset (doubleStar m n)
+      = (m + 1) ::ₘ (n + 1) ::ₘ Multiset.replicate (m + n) 1 := by
+  change (CGraph.doubleStar m n).degMultiset = _
+  unfold CGraph.degMultiset
+  rw [show (fun v : (CGraph.doubleStar m n).V ↦ (CGraph.doubleStar m n).toSimple.degree v)
+      = (fun k ↦ if k = 0 then m + 1 else if k = 1 then n + 1 else 1) ∘ Fin.val from
+    funext (degree_doubleStar m n), ← Multiset.map_map, CGraph.univ_val_map_val]
+  set g : ℕ → ℕ := fun k ↦ if k = 0 then m + 1 else if k = 1 then n + 1 else 1 with hg
+  have h0 : g 0 = m + 1 := by simp [hg]
+  have h1 : g 1 = n + 1 := by simp [hg]
+  have hmid : ∀ N : ℕ, (Multiset.range (2 + N)).map g
+      = (m + 1) ::ₘ (n + 1) ::ₘ Multiset.replicate N 1 := by
+    intro N
+    induction N with
+    | zero =>
+      rw [show (2 : ℕ) + 0 = 1 + 1 from rfl, Multiset.range_succ, Multiset.map_cons,
+        Multiset.range_succ, Multiset.map_cons, Multiset.range_zero, Multiset.map_zero, h0, h1,
+        Multiset.replicate_zero]
+      exact Multiset.cons_swap _ _ _
+    | succ p ih =>
+      have hgp : g (2 + p) = 1 := by simp only [hg]; split_ifs <;> omega
+      rw [show 2 + (p + 1) = (2 + p) + 1 from rfl, Multiset.range_succ, Multiset.map_cons, ih,
+        hgp, Multiset.replicate_succ, Multiset.cons_swap 1 (m + 1),
+        Multiset.cons_swap 1 (n + 1)]
+  rw [show 2 + m + n = 2 + (m + n) from by omega, hmid]
+
+/-- **The degree sequence of a double star**: `m + n` ones, then the two centres in order. -/
+theorem degSequence_doubleStar (m n : ℕ) :
+    degSequence (doubleStar m n)
+      = List.replicate (m + n) 1 ++ [min m n + 1, max m n + 1] := by
+  rw [degSequence_eq_sort]
+  refine sort_eq_of_pairwise ?_ ?_
+  · rw [List.pairwise_append]
+    refine ⟨List.pairwise_replicate.2 (Or.inr le_rfl), List.pairwise_pair.2 (by omega), ?_⟩
+    intro a ha b hb
+    rw [List.eq_of_mem_replicate ha]
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hb
+    rcases hb with rfl | rfl <;> omega
+  · rw [degMultiset_doubleStar, ← Multiset.coe_replicate, Multiset.cons_coe, Multiset.cons_coe]
+    rcases le_total m n with h | h
+    · rw [min_eq_left h, max_eq_right h]
+      exact Multiset.coe_eq_coe.2 List.perm_append_comm
+    · rw [min_eq_right h, max_eq_left h]
+      exact Multiset.coe_eq_coe.2 (List.perm_append_comm.trans (List.Perm.swap _ _ _))
 
 /-- The colouring that both `cliqueNum_lollipop` and `chromNum_lollipop` rest on: the clique takes
 the `m + 2` colours in order, and the leg alternates between the first two. -/
@@ -1716,6 +1770,43 @@ theorem chromNum_thetaGraph_even {xs : List ℕ} (hne : xs ≠ []) (h0 : ∀ k �
 /-- A double star is a tree, so it has no cycle. -/
 @[simp] theorem isAcyclic_doubleStar (m n : ℕ) : IsAcyclic (doubleStar m n) :=
   ((isTree_iff_isConnected_and_isAcyclic _).1 (isTree_doubleStar m n)).2
+
+/-! ### The trees are not Hamiltonian
+
+A tree on three vertices or more has no cycle at all, let alone a spanning one.  The bound on the
+order is what rules out the degenerate cases: `star 1`, `doubleStar 0 0` and `spider []` are
+single edges or single vertices, and there Hamiltonicity is settled by counting, not by cycles. -/
+
+theorem not_isHamiltonian_star {n : ℕ} (h2 : 2 ≤ n) : ¬ IsHamiltonian (star n) :=
+  not_isHamiltonian_of_isAcyclic (isAcyclic_star _) (by rw [V_star]; omega)
+
+theorem not_isHamiltonian_doubleStar {m n : ℕ} (h : 0 < m + n) :
+    ¬ IsHamiltonian (doubleStar m n) :=
+  not_isHamiltonian_of_isAcyclic (isAcyclic_doubleStar _ _) (by rw [V_doubleStar]; omega)
+
+theorem not_isHamiltonian_spider (legs : List ℕ) (h : 2 ≤ legs.sum) :
+    ¬ IsHamiltonian (spider legs) :=
+  not_isHamiltonian_of_isAcyclic (isAcyclic_spider _) (by rw [V_spider]; omega)
+
+/-! ### The graphs with something hanging off are not Hamiltonian
+
+A tadpole, a lollipop and a cycle with pendant paths all do contain a cycle, so acyclicity says
+nothing about them; what rules them out is the free end, a vertex of degree one that no spanning
+cycle can pass through. -/
+
+/-- A tadpole has the tip of its tail hanging off, so it has no spanning cycle. -/
+theorem not_isHamiltonian_tadpole (m k : ℕ) : ¬ IsHamiltonian (tadpole (m + 3) (k + 1)) :=
+  not_isHamiltonian_of_minDeg_lt_two (by rw [V_tadpole]; omega) (by rw [minDeg_tadpole]; omega)
+
+/-- A lollipop has the tip of its stick hanging off, so it has no spanning cycle. -/
+theorem not_isHamiltonian_lollipop (m k : ℕ) : ¬ IsHamiltonian (lollipop (m + 2) (k + 1)) :=
+  not_isHamiltonian_of_minDeg_lt_two (by rw [V_lollipop]; omega) (by rw [minDeg_lollipop]; omega)
+
+/-- A cycle with a pendant path attached has a leaf, so it has no spanning cycle. -/
+theorem not_isHamiltonian_cyclePendant (m : ℕ) (ks : List ℕ) (h : ks.length ≤ m + 3)
+    (h2 : 0 < ks.sum) : ¬ IsHamiltonian (cyclePendant (m + 3) ks) :=
+  not_isHamiltonian_of_minDeg_lt_two (by rw [V_cyclePendant]; omega)
+    (by rw [minDeg_cyclePendant m ks h h2]; omega)
 
 /-- Covering the triangular graph by cliques is colouring the Kneser graph on the same pairs. -/
 theorem cliqueCoverNum_triangular (n : ℕ) :

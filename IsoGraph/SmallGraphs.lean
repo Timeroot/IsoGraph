@@ -17,11 +17,13 @@ import IsoGraph.SmallGraphs.Kneser
 import IsoGraph.SmallGraphs.TuranGraphs
 import IsoGraph.SmallGraphs.Grotzsch
 import IsoGraph.SmallGraphs.TreesAndCycles
+import IsoGraph.SmallGraphs.Connectivities
 import IsoGraph.SmallGraphs.Brackets
 import IsoGraph.SmallGraphs.Complements
 import IsoGraph.SmallGraphs.Products
 import IsoGraph.SmallGraphs.Mycielskians
 import IsoGraph.SmallGraphs.Operators
+import IsoGraph.SmallGraphs.SRGValues
 import IsoGraph.SmallGraphs.SatValues
 import IsoGraph.SmallGraphs.SolidValues
 import IsoGraph.SmallGraphs.CageValues
@@ -45,15 +47,17 @@ The rest of the folder is a chain, each file taking up where the one before leav
 organised by the family or the operator under study — `Circulants`, `TuranGraphs`, `Grotzsch`,
 `TreesAndCycles`, `Complements`, `Products`, `Mycielskians`, `Operators` — with `Tables`,
 `Bounds` and `Brackets` holding the values that are read off a table or squeezed between two
-bounds rather than computed directly.
+bounds rather than computed directly, and `Connectivities` cutting across the families to settle
+`κ` and `λ` for all of them at once.
 
 `Kneser` hangs off `Circulants`, for what the Erdős–Ko–Rado theorem and the fractional chromatic
 number say about `K(n, k)`.
 
-Six leaves hang off `Operators`, all holding values whose hard half is a refutation:
-`SatValues` for the Chvátal, Tietze and Robertson graphs, `SolidValues` for the Platonic,
-Archimedean and Catalan solids, `CageValues` for the cages and the small named cubic graphs,
-`CubicValues` for five more cubic graphs, the Wagner graph up to the truncated icosahedron,
-`BipartiteCageValues` for the six large bipartite cages, the Harries graph up to the Tutte
-12-cage, and `ConnectedValues` for every connected graph on at most six vertices.
+Seven leaves hang off `Operators`.  `SRGValues` reads the elementary invariants of the ten
+sporadic strongly regular graphs off their parameters; the other six hold values whose hard half
+is a refutation: `SatValues` for the Chvátal, Tietze and Robertson graphs, `SolidValues` for the
+Platonic, Archimedean and Catalan solids, `CageValues` for the cages and the small named cubic
+graphs, `CubicValues` for five more cubic graphs, the Wagner graph up to the truncated
+icosahedron, `BipartiteCageValues` for the six large bipartite cages, the Harries graph up to the
+Tutte 12-cage, and `ConnectedValues` for every connected graph on at most six vertices.
 -/

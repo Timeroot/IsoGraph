@@ -8,7 +8,8 @@ set_option backward.isDefEq.respectTransparency false
 # The operators applied to the named families
 
 The unary operators — complement, line graph, Mycielskian — applied to the families that take a
-parameter, together with the closed forms that result.
+parameter, together with the closed forms that result.  It is also where the gallery is sorted
+into the regular and the irregular, and then the regular into the strongly regular and the rest.
 -/
 
 namespace IsoGraph
@@ -384,6 +385,12 @@ theorem isRegularWith_foldedCube (n : ℕ) : (foldedCube (n + 2)).IsRegularWith 
 @[simp] theorem minDeg_foldedCube (n : ℕ) : minDeg (foldedCube (n + 2)) = n + 3 :=
   IsRegularWith.minDeg_eq (isRegularWith_foldedCube n) (by simp [V_foldedCube])
 
+/-- **The folded 4-cube is the Clebsch graph**, which is strongly regular and so of diameter two;
+Plesník then prices its cheapest cut at the valency.  The other folded cubes have diameter greater
+than two and are not settled here. -/
+theorem edgeConn_foldedCube_four : (foldedCube 4).edgeConn = 5 :=
+  clebsch_srg.edgeConn_eq (by omega) (by omega)
+
 /-- Regularity again, this time through `IsRegularWith.maxDeg_eq`. -/
 theorem maxDeg_foldedCube (n : ℕ) : maxDeg (foldedCube (n + 2)) = n + 3 :=
   IsRegularWith.maxDeg_eq (isRegularWith_foldedCube n) (by simp [V_foldedCube])
@@ -498,6 +505,21 @@ theorem not_isAcyclic_foldedCube (n : ℕ) : ¬ IsAcyclic (foldedCube (n + 3)) :
   have hg : (foldedCube (n + 3)).girth = 0 := (@girth_eq_zero_iff _).mpr hac
   rw [girth_foldedCube] at hg
   exact absurd hg (by omega)
+
+theorem not_isTree_foldedCube (n : ℕ) : ¬ IsTree (foldedCube (n + 3)) :=
+  fun ht ↦ not_isAcyclic_foldedCube n ((isTree_iff_isConnected_and_isAcyclic _).1 ht).2
+
+/-- A folded cube is regular on `2 ^ (n + 2)` vertices, and a regular self-complementary graph has
+odd order. -/
+theorem not_isSelfComplementary_foldedCube (n : ℕ) :
+    ¬ IsSelfComplementary (foldedCube (n + 2)) := by
+  intro hs
+  have h := hs.odd_V_of_isRegularWith (isRegularWith_foldedCube n)
+    (by rw [V_foldedCube]; exact pow_pos (by norm_num) _)
+  rw [V_foldedCube] at h
+  have h2 := Nat.odd_iff.1 h
+  have h3 : 2 ^ (n + 2) = 4 * 2 ^ n := by ring
+  omega
 
 /-- A vertex at Hamming distance `d` is reachable in `d` coordinate steps, or in one antipodal
 step followed by `n - d` coordinate steps, so no distance exceeds `n / 2` rounded up.  That
@@ -760,6 +782,10 @@ theorem degSequence_foldedCube (n : ℕ) :
     degSequence (foldedCube (n + 2)) = List.replicate (2 ^ (n + 2)) (n + 3) := by
   have h := (isRegularWith_foldedCube n).degSequence
   rwa [V_foldedCube] at h
+
+theorem degMultiset_foldedCube (n : ℕ) :
+    degMultiset (foldedCube (n + 2)) = Multiset.replicate (2 ^ (n + 2)) (n + 3) :=
+  degMultiset_of_degSequence (degSequence_foldedCube n)
 
 @[simp] theorem V_lineGraph_foldedCube (n : ℕ) :
     (lineGraph (foldedCube (n + 2))).V = 2 ^ (n + 1) * (n + 3) := by
@@ -1177,6 +1203,249 @@ theorem not_isRegularWith_turan {n r : ℕ} (hr : 0 < r) (hn : r ≤ n) (h : ¬ 
     rw [minDeg_turan hr hn, ceilDiv_of_not_dvd hr h]
   have hmax : maxDeg (turan n r) = n - n / r := maxDeg_turan hr hn
   exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_turan]; omega) (by omega) k
+
+theorem not_isRegularWith_ladder (n k : ℕ) : ¬ IsRegularWith (ladder (n + 3)) k := by
+  have hmin : minDeg (ladder (n + 3)) = 2 := minDeg_ladder (n + 1)
+  have hmax : maxDeg (ladder (n + 3)) = 3 := maxDeg_ladder n
+  exact not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_ladder]; omega) (by omega) k
+
+/-- A cycle with one pendant edge is the tadpole under another name, and the tadpole is already
+known to be irregular. -/
+theorem not_isRegularWith_cyclePendant_singleton_one (m k : ℕ) :
+    ¬ IsRegularWith (cyclePendant (m + 3) [1]) k := by
+  rw [cyclePendant_singleton_one]
+  exact not_isRegularWith_tadpole m 0 k
+
+/-- A theta graph all of whose paths have one interior vertex is `K_{2,ℓ}`, which is regular only
+when `ℓ = 2`; three or more paths make the two branch vertices the unique vertices of top degree. -/
+theorem not_isRegularWith_thetaGraph_replicate_one (m k : ℕ) :
+    ¬ IsRegularWith (thetaGraph (List.replicate (m + 3) 1)) k := by
+  rw [thetaGraph_of_all_one (by simp), List.length_replicate]
+  intro hr
+  have hV : 0 < (bipartite 2 (m + 3)).V := by rw [V_bipartite]; omega
+  have h1 := hr.minDeg_eq hV
+  have h2 := hr.maxDeg_eq hV
+  rw [minDeg_bipartite] at h1
+  rw [maxDeg_bipartite] at h2
+  omega
+
+/-! ### Which of the named families are strongly regular
+
+A strongly regular graph is regular, so every entry in the block above rules out strong regularity
+of *any* parameter set at a stroke; that is the bulk of this section.  Two further tests catch the
+regular constructions.  A strongly regular graph with `μ > 0` is connected, which disposes of the
+disjoint union; and one that is neither complete nor edgeless has diameter exactly two, which
+disposes of the hypercube, the crown, the prism and any strong product with a long factor.
+
+What is left over is genuinely strongly regular: the edgeless graph, the complete graph and the
+line graph of a complete graph, all read off from constructions already in the library. -/
+
+theorem not_isSRGWith_path (m n k ℓ μ : ℕ) : ¬ (path (m + 3)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_path m k h.isRegularWith
+
+theorem not_isSRGWith_star (m n k ℓ μ : ℕ) : ¬ (star (m + 2)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_star m k h.isRegularWith
+
+theorem not_isSRGWith_wheel (m n k ℓ μ : ℕ) : ¬ (wheel (m + 4)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_wheel m k h.isRegularWith
+
+theorem not_isSRGWith_fan (m n k ℓ μ : ℕ) : ¬ (fan (m + 3)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_fan m k h.isRegularWith
+
+theorem not_isSRGWith_book (m n k ℓ μ : ℕ) : ¬ (book (m + 2)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_book m k h.isRegularWith
+
+theorem not_isSRGWith_friendship (m n k ℓ μ : ℕ) : ¬ (friendship (m + 2)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_friendship m k h.isRegularWith
+
+theorem not_isSRGWith_grotzsch (n k ℓ μ : ℕ) : ¬ grotzsch.IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_grotzsch k h.isRegularWith
+
+theorem not_isSRGWith_doubleStar {a b : ℕ} (hab : 0 < a + b) (n k ℓ μ : ℕ) :
+    ¬ (doubleStar a b).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_doubleStar hab k h.isRegularWith
+
+theorem not_isSRGWith_tadpole (m j n k ℓ μ : ℕ) : ¬ (tadpole (m + 3) (j + 1)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_tadpole m j k h.isRegularWith
+
+theorem not_isSRGWith_lollipop (m j n k ℓ μ : ℕ) :
+    ¬ (lollipop (m + 2) (j + 1)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_lollipop m j k h.isRegularWith
+
+theorem not_isSRGWith_ladder (m n k ℓ μ : ℕ) : ¬ (ladder (m + 3)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_ladder m k h.isRegularWith
+
+theorem not_isSRGWith_cyclePendant_singleton_one (m n k ℓ μ : ℕ) :
+    ¬ (cyclePendant (m + 3) [1]).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_cyclePendant_singleton_one m k h.isRegularWith
+
+theorem not_isSRGWith_thetaGraph_replicate_one (m n k ℓ μ : ℕ) :
+    ¬ (thetaGraph (List.replicate (m + 3) 1)).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_thetaGraph_replicate_one m k h.isRegularWith
+
+theorem not_isSRGWith_spider_pair {a b : ℕ} (hab : 2 ≤ a + b) (n k ℓ μ : ℕ) :
+    ¬ (spider [a, b]).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_spider_pair hab h.isRegularWith
+
+theorem not_isSRGWith_turan {v r : ℕ} (hr : 0 < r) (hv : r ≤ v) (hd : ¬ r ∣ v) (n k ℓ μ : ℕ) :
+    ¬ (turan v r).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_turan hr hv hd k h.isRegularWith
+
+theorem not_isSRGWith_mycielskian {G : IsoGraph} (hV : 0 < G.V) (hd : 2 ≤ G.minDeg)
+    (n k ℓ μ : ℕ) : ¬ (mycielskian G).IsSRGWith n k ℓ μ :=
+  fun h ↦ not_isRegularWith_mycielskian hV hd h.isRegularWith
+
+/-- **A disjoint union of two nonempty graphs is not strongly regular** for any `μ > 0`: strong
+regularity with a positive `μ` forces connectedness. -/
+theorem not_isSRGWith_disjUnion {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    {n k ℓ μ : ℕ} (hμ : 0 < μ) : ¬ (G ⊕g H).IsSRGWith n k ℓ μ := by
+  intro h
+  have hn : 0 < n := by
+    have hv := h.V_eq
+    rw [V_disjUnion] at hv
+    omega
+  exact not_isConnected_disjUnion hG hH (h.isConnected hμ hn)
+
+/-- **The hypercube `Qₙ` is not strongly regular for `n ≥ 3`**: its diameter is `n`, and a
+strongly regular graph that is neither complete nor edgeless has diameter two. -/
+theorem not_isSRGWith_hypercube (m : ℕ) {n k ℓ μ : ℕ} (hμ : 0 < μ) (hk : k + 1 < n) :
+    ¬ (hypercube (m + 3)).IsSRGWith n k ℓ μ := by
+  intro h
+  have hd := h.diameter_eq_two hμ hk
+  rw [diameter_hypercube] at hd
+  omega
+
+/-- **The crown graph is not strongly regular**: its diameter is three. -/
+theorem not_isSRGWith_crown (m : ℕ) {n k ℓ μ : ℕ} (hμ : 0 < μ) (hk : k + 1 < n) :
+    ¬ (crown (m + 3)).IsSRGWith n k ℓ μ := by
+  intro h
+  have hd := h.diameter_eq_two hμ hk
+  rw [diameter_crown] at hd
+  omega
+
+/-- **The prism `Cₙ □ K₂` is not strongly regular for `n ≥ 4`**: its diameter is `⌊n/2⌋ + 1`. -/
+theorem not_isSRGWith_prism (m : ℕ) {n k ℓ μ : ℕ} (hμ : 0 < μ) (hk : k + 1 < n) :
+    ¬ (prism (m + 4)).IsSRGWith n k ℓ μ := by
+  intro h
+  have hd := h.diameter_eq_two hμ hk
+  rw [show m + 4 = m + 3 + 1 from by omega, diameter_prism] at hd
+  omega
+
+/-- **A strong product with a factor of diameter three or more is not strongly regular**: the
+strong product's diameter is the larger of the two. -/
+theorem not_isSRGWith_strongProduct {G H : IsoGraph} (hG : IsConnected G) (hH : IsConnected H)
+    (hd : 3 ≤ max G.diameter H.diameter) {n k ℓ μ : ℕ} (hμ : 0 < μ) (hk : k + 1 < n) :
+    ¬ (G ⊠g H).IsSRGWith n k ℓ μ := by
+  intro h
+  have h2 := h.diameter_eq_two hμ hk
+  rw [diameter_strongProduct hG hH] at h2
+  omega
+
+/-! Three operators that pass an irregular factor's degree spread straight through.  In each case
+the operator's minimum and maximum degrees are the *same* expression in `G.minDeg` and `G.maxDeg`,
+so `G.minDeg ≠ G.maxDeg` is enough to separate them, and a graph that is not regular is neither
+strongly regular nor arc-transitive.  Complementation, which swaps the two ends of the spread
+instead of shifting them together, is at the end of the section. -/
+
+/-- **A join with an irregular factor is irregular**: joining adds `H.V` to every degree of `G`. -/
+theorem not_isRegularWith_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : G.minDeg ≠ G.maxDeg) (k : ℕ) : ¬ (G ∇g H).IsRegularWith k := by
+  have hmin := minDeg_join (G := G) (H := H) hG hH
+  have hmax := maxDeg_join (G := G) (H := H) hG hH
+  have hle := minDeg_le_maxDeg G
+  have hle' := minDeg_le_maxDeg H
+  refine not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_join]; omega) ?_ k
+  omega
+
+/-- **A blow-up with an irregular base is irregular**: `G ·g H` multiplies `G`'s degrees by
+`H.V`. -/
+theorem not_isRegularWith_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : G.minDeg ≠ G.maxDeg) (k : ℕ) : ¬ (G ·g H).IsRegularWith k := by
+  have hmin := minDeg_lexProduct (G := G) (H := H) hG hH
+  have hmax := maxDeg_lexProduct (G := G) (H := H) hG hH
+  have hle := minDeg_le_maxDeg G
+  have hle' := minDeg_le_maxDeg H
+  have hlt : G.minDeg * H.V < G.maxDeg * H.V := mul_lt_mul_of_pos_right (by omega) hH
+  refine not_isRegularWith_of_minDeg_ne_maxDeg (by rw [V_lexProduct]; exact mul_pos hG hH) ?_ k
+  rw [hmin, hmax]
+  exact Nat.ne_of_lt (add_lt_add_of_lt_of_le hlt hle')
+
+/-- **A tensor product with an irregular factor is irregular**, as long as the other factor has no
+isolated vertex — without that the product can collapse to the edgeless graph. -/
+theorem not_isRegularWith_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : G.minDeg ≠ G.maxDeg) (hδ : 0 < H.minDeg) (k : ℕ) : ¬ (G ⊗g H).IsRegularWith k := by
+  have hmin := minDeg_tensorProduct (G := G) (H := H) hG hH
+  have hmax := maxDeg_tensorProduct (G := G) (H := H) hG hH
+  have hle := minDeg_le_maxDeg G
+  have hle' := minDeg_le_maxDeg H
+  have h2 : G.minDeg < G.maxDeg := by omega
+  have hlt : G.minDeg * H.minDeg < G.maxDeg * H.maxDeg :=
+    lt_of_lt_of_le (mul_lt_mul_of_pos_right h2 hδ) (Nat.mul_le_mul (le_refl G.maxDeg) hle')
+  refine not_isRegularWith_of_minDeg_ne_maxDeg
+    (by rw [V_tensorProduct]; exact mul_pos hG hH) ?_ k
+  rw [hmin, hmax]
+  exact Nat.ne_of_lt hlt
+
+theorem not_isSRGWith_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : G.minDeg ≠ G.maxDeg) (n k ℓ μ : ℕ) : ¬ (G ∇g H).IsSRGWith n k ℓ μ :=
+  fun hs ↦ not_isRegularWith_join hG hH h k hs.isRegularWith
+
+theorem not_isSRGWith_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : G.minDeg ≠ G.maxDeg) (n k ℓ μ : ℕ) : ¬ (G ·g H).IsSRGWith n k ℓ μ :=
+  fun hs ↦ not_isRegularWith_lexProduct hG hH h k hs.isRegularWith
+
+theorem not_isSRGWith_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : G.minDeg ≠ G.maxDeg) (hδ : 0 < H.minDeg) (n k ℓ μ : ℕ) :
+    ¬ (G ⊗g H).IsSRGWith n k ℓ μ :=
+  fun hs ↦ not_isRegularWith_tensorProduct hG hH h hδ k hs.isRegularWith
+
+/-- **A join with an irregular factor is not arc-transitive.**  An arc-transitive graph with an arc
+at all is vertex-transitive, hence regular, and the join inherits `G`'s degree spread. -/
+theorem not_isArcTransitive_join {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V)
+    (h : G.minDeg ≠ G.maxDeg) : ¬ IsArcTransitive (G ∇g H) := by
+  have hmin := minDeg_join (G := G) (H := H) hG hH
+  have hmax := maxDeg_join (G := G) (H := H) hG hH
+  have hle := minDeg_le_maxDeg G
+  have hle' := minDeg_le_maxDeg H
+  refine not_isArcTransitive_of_not_isVertexTransitive (by omega) ?_
+  exact not_isVertexTransitive_of_minDeg_ne_maxDeg (by rw [V_join]; omega) (by omega)
+
+/-- **The complement of an irregular graph is not arc-transitive.**  Complementation reverses the
+degree spread rather than flattening it; the hypothesis `G.maxDeg + 1 < G.V` only says that the
+complement still has an edge to move. -/
+theorem not_isArcTransitive_compl {G : IsoGraph} (hV : 0 < G.V) (hΔ : G.maxDeg + 1 < G.V)
+    (h : G.minDeg ≠ G.maxDeg) : ¬ IsArcTransitive Gᶜ := by
+  have hmin := minDeg_compl (G := G) hV
+  have hmax := maxDeg_compl (G := G) hV
+  have hle := minDeg_le_maxDeg G
+  refine not_isArcTransitive_of_not_isVertexTransitive (by omega) ?_
+  exact not_isVertexTransitive_of_minDeg_ne_maxDeg (by rw [V_compl]; omega) (by omega)
+
+/-- **The edgeless graph is strongly regular** with parameters `(n, 0, 0, 0)`: it is the complete
+multipartite graph with one part. -/
+theorem isSRGWith_empty (n : ℕ) : (empty n).IsSRGWith n 0 0 0 := by
+  have h := isSRGWith_completeMultipartite_replicate 1 n
+  rw [List.replicate_one, completeMultipartite_singleton] at h
+  simpa using h
+
+/-- **The complete graph is strongly regular** with parameters `(n, n-1, n-2, n-1)`: it is the
+complete multipartite graph with `n` parts of size one.  The value of `μ` is vacuous — there are
+no non-adjacent pairs — and the truncated subtraction gives the same answer as `k`. -/
+theorem isSRGWith_complete (n : ℕ) : (complete n).IsSRGWith n (n - 1) (n - 2) (n - 1) := by
+  have h := isSRGWith_completeMultipartite_replicate n 1
+  rw [completeMultipartite_replicate_one] at h
+  simpa using h
+
+theorem isSRGWith_circulant_nil (n : ℕ) : (circulant n []).IsSRGWith n 0 0 0 := by
+  rw [circulant_nil]
+  exact isSRGWith_empty n
+
+/-- **The line graph of a complete graph is strongly regular**, with the parameters of the
+triangular graph `T(n)` that it is. -/
+theorem isSRGWith_lineGraph_complete (n : ℕ) (hn : 4 ≤ n) :
+    (lineGraph (complete n)).IsSRGWith (n.choose 2) (2 * (n - 2)) (n - 2) 4 := by
+  rw [lineGraph_complete_eq_triangular]
+  exact isSRGWith_triangular n hn
 
 /-! ### Bipartiteness of the grid and the king graph -/
 

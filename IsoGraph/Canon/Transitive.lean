@@ -25,10 +25,11 @@ decide falsehood as well as truth.
   `arcTransitiveB_iff` saying exactly what a `true` *and* a `false` mean.  `arcTransitiveBFast` is
   what the second one runs.
 
-The saturation is deliberately naive — a `Finset` union per generator per round — because the
-expensive part is upstream: `chainArrays` searches a subtree for every candidate point its own
-orbit test does not already reach.  What the orbit here has to be protected from instead is being
-*recomputed*, which is what `arcTransitiveBFast` is for.
+The saturation is deliberately naive — a `Finset` union per generator per round — and for an
+orbit of *vertices* that is the right call, because the expensive part is upstream: `chainArrays`
+searches a subtree for every candidate point its own orbit test does not already reach.  An orbit
+of *arcs* is a different size of problem, and `arcTransitiveBFast` computes that one by
+breadth-first search over a table of `n * n` bits.
 -/
 
 set_option autoImplicit false
@@ -334,19 +335,192 @@ theorem arcTransitiveB_iff (n : Nat) (adj : Fin n → Fin n → Bool) :
           simp only [Prod.smul_fst, Prod.smul_snd, Equiv.Perm.smul_def, h1, h2]
       rwa [hsm] at hmem
 
-/-- `arcTransitiveB`, with the orbit computed once.
+/-! ## The orbit of an arc, by breadth-first search
+
+An orbit of *vertices* has at most `n` elements, and saturating a `Finset` of that size is
+comfortable.  An orbit of *arcs* is a different size of problem — 2200 of them on the Higman–Sims
+graph — and there the `Finset` is the wrong container: each round of `orbitStep` deduplicates and
+unions lists that long, which is quadratic, and deciding arc-transitivity of the Higman–Sims graph
+took seven minutes.  Below, the arcs get a table of `n * n` bits and the search expands only the
+frontier; the same question now takes eight seconds, almost all of it the stabiliser chain.
+
+The search itself is *not* proved correct, and does not have to be.  Its elements carry their
+membership of `orbitFin` in their type, so whatever comes back is contained in the orbit; that it
+is the *whole* orbit follows from a single check afterwards — that the list is closed under the
+generators — because the orbit is the smallest closed set containing `b`.  That check reads the
+table, so it is one array access per generator per arc.  Should it ever fail, the definition falls
+back on the `Finset` saturation, which is why nothing here has to be trusted.
+-/
+
+/-- The index of the arc `p` in a table of `n * n` entries. -/
+def arcIdx (n : Nat) (p : Fin n × Fin n) : Nat := p.1.val * n + p.2.val
+
+theorem arcIdx_lt (p : Fin n × Fin n) : arcIdx n p < n * n := by
+  have h1 : p.1.val + 1 ≤ n := p.1.isLt
+  have h2 : p.2.val < n := p.2.isLt
+  have h3 : (p.1.val + 1) * n ≤ n * n := Nat.mul_le_mul_right n h1
+  have h4 : (p.1.val + 1) * n = p.1.val * n + n := Nat.succ_mul _ _
+  simp only [arcIdx]
+  omega
+
+theorem arcIdx_injective : Function.Injective (arcIdx n) := by
+  rintro ⟨a, b⟩ ⟨c, d⟩ h
+  simp only [arcIdx] at h
+  have hb : b.val < n := b.isLt
+  have hd : d.val < n := d.isLt
+  have hac : a.val = c.val := by
+    rcases Nat.lt_trichotomy a.val c.val with hlt | heq | hgt
+    · have h1 : (a.val + 1) * n ≤ c.val * n := Nat.mul_le_mul_right n hlt
+      have h2 : (a.val + 1) * n = a.val * n + n := Nat.succ_mul _ _
+      omega
+    · exact heq
+    · have h1 : (c.val + 1) * n ≤ a.val * n := Nat.mul_le_mul_right n hgt
+      have h2 : (c.val + 1) * n = c.val * n + n := Nat.succ_mul _ _
+      omega
+  have hbd : b.val = d.val := by rw [hac] at h; omega
+  exact Prod.ext (Fin.ext hac) (Fin.ext hbd)
+
+/-- Is the arc `p` marked in the table `t`? -/
+def arcTabGet (t : Vector Bool (n * n)) (p : Fin n × Fin n) : Bool := t[arcIdx n p]'(arcIdx_lt p)
+
+/-- Mark the arc `p` in the table `t`. -/
+def arcTabSet (t : Vector Bool (n * n)) (p : Fin n × Fin n) : Vector Bool (n * n) :=
+  t.set (arcIdx n p) true (arcIdx_lt p)
+
+theorem arcTabGet_replicate (p : Fin n × Fin n) :
+    arcTabGet (Vector.replicate (n * n) false) p = false := by
+  simp [arcTabGet]
+
+theorem arcTabGet_arcTabSet (t : Vector Bool (n * n)) (p q : Fin n × Fin n) :
+    arcTabGet (arcTabSet t q) p = (decide (p = q) || arcTabGet t p) := by
+  simp only [arcTabGet, arcTabSet, Vector.getElem_set]
+  by_cases h : arcIdx n q = arcIdx n p
+  · have hpq : p = q := (arcIdx_injective h).symm
+    simp [h, hpq]
+  · have hpq : ¬ p = q := fun he => h (by rw [he])
+    simp [h, hpq]
+
+/-- Mark every arc of `C` in the table `t`. -/
+def arcTableOn : List (Fin n × Fin n) → Vector Bool (n * n) → Vector Bool (n * n)
+  | [], t => t
+  | p :: C, t => arcTableOn C (arcTabSet t p)
+
+theorem arcTabGet_arcTableOn (C : List (Fin n × Fin n)) (t : Vector Bool (n * n))
+    (p : Fin n × Fin n) : arcTabGet (arcTableOn C t) p = (decide (p ∈ C) || arcTabGet t p) := by
+  induction C generalizing t with
+  | nil => simp [arcTableOn]
+  | cons q C ih =>
+    rw [arcTableOn, ih, arcTabGet_arcTabSet]
+    simp [List.mem_cons, Bool.or_assoc, Bool.or_left_comm]
+
+/-- **The table of the arcs in `C`.** -/
+def arcTable (C : List (Fin n × Fin n)) : Vector Bool (n * n) :=
+  arcTableOn C (Vector.replicate (n * n) false)
+
+theorem arcTabGet_arcTable (C : List (Fin n × Fin n)) (p : Fin n × Fin n) :
+    arcTabGet (arcTable C) p = true ↔ p ∈ C := by
+  rw [arcTable, arcTabGet_arcTableOn, arcTabGet_replicate]
+  simp
+
+section Bfs
+
+variable (L : List (Equiv.Perm (Fin n))) (b : Fin n × Fin n)
+
+/-- Push `g • p` onto the frontier unless the table has it already.  The subtype is what makes
+the search need no correctness proof: an element can only be built out of an element already in
+the orbit. -/
+private def pushArc (p : {p : Fin n × Fin n // p ∈ orbitFin L b})
+    (st : Vector Bool (n * n) × List {p : Fin n × Fin n // p ∈ orbitFin L b})
+    (g : {g : Equiv.Perm (Fin n) // g ∈ L}) :
+    Vector Bool (n * n) × List {p : Fin n × Fin n // p ∈ orbitFin L b} :=
+  let q : {p : Fin n × Fin n // p ∈ orbitFin L b} := ⟨g.1 • p.1, smul_mem_orbitFin g.2 p.2⟩
+  if arcTabGet st.1 q.1 then st else (arcTabSet st.1 q.1, q :: st.2)
+
+/-- One round: the images of the frontier that the table has not seen. -/
+private def bfsRound (fr : List {p : Fin n × Fin n // p ∈ orbitFin L b})
+    (t : Vector Bool (n * n)) :
+    Vector Bool (n * n) × List {p : Fin n × Fin n // p ∈ orbitFin L b} :=
+  fr.foldl (fun st p => L.attach.foldl (pushArc L b p) st) (t, [])
+
+/-- Round after round until the frontier is empty. -/
+private def bfsLoop : Nat → Vector Bool (n * n) →
+    List {p : Fin n × Fin n // p ∈ orbitFin L b} →
+    List {p : Fin n × Fin n // p ∈ orbitFin L b} →
+    List {p : Fin n × Fin n // p ∈ orbitFin L b}
+  | 0, _, _, acc => acc
+  | _ + 1, _, [], acc => acc
+  | fuel + 1, t, fr, acc =>
+    let r := bfsRound L b fr t
+    bfsLoop fuel r.1 r.2 (r.2 ++ acc)
+
+/-- **The orbit of the arc `b`**, by breadth-first search over a table of the arcs seen. -/
+def arcOrbitList : List (Fin n × Fin n) :=
+  (bfsLoop L b (n * n + 1) (arcTabSet (Vector.replicate (n * n) false) b)
+    [⟨b, self_mem_orbitFin L b⟩] [⟨b, self_mem_orbitFin L b⟩]).map Subtype.val
+
+theorem mem_orbitFin_of_mem_arcOrbitList {p : Fin n × Fin n} (hp : p ∈ arcOrbitList L b) :
+    p ∈ orbitFin L b := by
+  obtain ⟨q, -, rfl⟩ := List.mem_map.1 hp
+  exact q.2
+
+private theorem mem_bfsLoop_of_mem (fuel : Nat) :
+    ∀ (t : Vector Bool (n * n)) (fr acc : List {p : Fin n × Fin n // p ∈ orbitFin L b}) x,
+      x ∈ acc → x ∈ bfsLoop L b fuel t fr acc := by
+  induction fuel with
+  | zero => intro t fr acc x hx; exact hx
+  | succ fuel ih =>
+    intro t fr acc x hx
+    rcases fr with _ | ⟨p, fr⟩
+    · exact hx
+    · exact ih _ _ _ x (List.mem_append_right _ hx)
+
+theorem mem_arcOrbitList_self : b ∈ arcOrbitList L b :=
+  List.mem_map.2 ⟨⟨b, self_mem_orbitFin L b⟩,
+    mem_bfsLoop_of_mem L b _ _ _ _ _ (List.mem_singleton_self _), rfl⟩
+
+end Bfs
+
+/-- Is `C` closed under `L`?  Read off the table, so a lookup is one array access. -/
+def arcOrbitClosed (L : List (Equiv.Perm (Fin n))) (C : List (Fin n × Fin n))
+    (t : Vector Bool (n * n)) : Bool :=
+  C.all fun p => L.all fun g => arcTabGet t (g • p)
+
+/-- **A list of orbit elements closed under `L` and containing `b` is the whole orbit**, since
+the orbit is the smallest such set. -/
+theorem mem_orbitFin_iff_of_closed {L : List (Equiv.Perm (Fin n))} {b : Fin n × Fin n}
+    {C : List (Fin n × Fin n)} (hb : b ∈ C) (hC : ∀ p ∈ C, p ∈ orbitFin L b)
+    (hcl : arcOrbitClosed L C (arcTable C) = true) (p : Fin n × Fin n) :
+    p ∈ orbitFin L b ↔ p ∈ C := by
+  refine ⟨fun hp => ?_, fun hp => hC p hp⟩
+  have hT : ∀ g ∈ L, ∀ x ∈ C.toFinset, g • x ∈ C.toFinset := by
+    intro g hg x hx
+    rw [List.mem_toFinset] at hx ⊢
+    have h1 := (List.all_eq_true.1 hcl) x hx
+    have h2 := (List.all_eq_true.1 h1) g hg
+    rwa [arcTabGet_arcTable] at h2
+  have hsub : orbitFin L b ⊆ C.toFinset :=
+    saturate_subset hT _ _ (Finset.singleton_subset_iff.2 (List.mem_toFinset.2 hb))
+  exact List.mem_toFinset.1 (hsub hp)
+
+/-- `arcTransitiveB`, with the orbit of the first arc found by breadth-first search and the scan
+reading a table.
 
 The specification writes `orbitFin (autPerms n adj) b` *under* the binder `p`, where nothing
 hoists it: the whole stabiliser chain of `Canon/Chain.lean` is rerun for every arc.  Naming it in
 a `let` outside the scan is worth 32 times on the Heawood graph, 23 on the Petersen graph and 98
-on `C₄₆` (`testing/CacheBench.lean`, case `api-at`).  A graph that is *not* arc-transitive gains
-less, since the scan stops at the first arc outside the orbit. -/
+on `C₄₆` (`testing/CacheBench.lean`, case `api-at`); computing it by breadth-first search instead
+of `Finset` saturation is worth another 50 on the Higman–Sims graph. -/
 def arcTransitiveBFast (n : Nat) (adj : Fin n → Fin n → Bool) : Bool :=
   match arcList n adj with
   | [] => true
   | b :: rest =>
-    let orb := orbitFin (autPerms n adj) b
-    rest.all fun p => decide (p ∈ orb)
+    let L := autPerms n adj
+    let C := arcOrbitList L b
+    let t := arcTable C
+    if arcOrbitClosed L C t then rest.all fun p => arcTabGet t p
+    else
+      let orb := orbitFin L b
+      rest.all fun p => decide (p ∈ orb)
 
 @[csimp] theorem arcTransitiveB_eq_arcTransitiveBFast :
     @arcTransitiveB = @arcTransitiveBFast := by
@@ -356,8 +530,25 @@ def arcTransitiveBFast (n : Nat) (adj : Fin n → Fin n → Bool) : Bool :=
   cases l with
   | nil => rfl
   | cons b rest =>
-    rw [Bool.eq_iff_iff, decide_eq_true_eq, List.all_eq_true]
-    simp [self_mem_orbitFin]
+    simp only
+    set L := autPerms n adj with hL
+    set C := arcOrbitList L b with hC
+    by_cases hcl : arcOrbitClosed L C (arcTable C) = true
+    · rw [if_pos hcl]
+      have hmem := mem_orbitFin_iff_of_closed (L := L) (b := b) (C := C)
+        (mem_arcOrbitList_self L b) (fun p hp => mem_orbitFin_of_mem_arcOrbitList L b hp) hcl
+      rw [Bool.eq_iff_iff, decide_eq_true_eq, List.all_eq_true]
+      refine ⟨fun hall p hp => ?_, fun hall p hp => ?_⟩
+      · rw [arcTabGet_arcTable, ← hmem]
+        exact hall p (List.mem_cons_of_mem _ hp)
+      · rcases List.mem_cons.1 hp with rfl | hp'
+        · exact self_mem_orbitFin L p
+        · have h := hall p hp'
+          rw [arcTabGet_arcTable, ← hmem] at h
+          exact h
+    · rw [if_neg hcl]
+      rw [Bool.eq_iff_iff, decide_eq_true_eq, List.all_eq_true]
+      simp [self_mem_orbitFin]
 
 end Canon
 end IsoGraph

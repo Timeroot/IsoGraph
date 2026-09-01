@@ -244,6 +244,21 @@ theorem edgeChromNum_cartesianProduct_cycle_even_hypercube (m n : ℕ) :
     rwa [show 2 * m + 4 = (2 * m + 1) + 3 by omega, maxDeg_cartesianProduct_cycle_hypercube,
       show 2 + (n + 1) = n + 3 by ring] at h
 
+/-- **An oversized independent set in a factor blocks Hamiltonicity of the tensor product.**  A set
+independent in `G`, crossed with all of `H`, is independent in `G ⊗g H`, so if it covered more than
+half of `G` it covers more than half of the product too — and by
+`not_isHamiltonian_of_V_lt_two_mul_indepNum` there is no spanning cycle. This is the only handle
+on the tensor product here: it has no Hamiltonicity certificate of its own, since the product of
+two spanning cycles falls apart into two components whenever both factors are bipartite. -/
+theorem not_isHamiltonian_tensorProduct_of_indepNum {G H : IsoGraph} (h3 : 3 ≤ (G ⊗g H).V)
+    (hH : 0 < H.V) (h : G.V < 2 * G.indepNum) : ¬ (G ⊗g H).IsHamiltonian := by
+  refine not_isHamiltonian_of_V_lt_two_mul_indepNum h3 ?_
+  have hge := indepNum_mul_V_le_indepNum_tensorProduct G H
+  rw [V_tensorProduct]
+  calc G.V * H.V < 2 * G.indepNum * H.V := (Nat.mul_lt_mul_right hH).2 h
+    _ = 2 * (G.indepNum * H.V) := by ring
+    _ ≤ 2 * (G ⊗g H).indepNum := by omega
+
 /-! ### Connectivity of the tensor product
 
 `isConnected_tensorProduct` asks for a connected non-bipartite left factor and a connected right

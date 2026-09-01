@@ -90,6 +90,14 @@ theorem friendship_eq_join_compl_cocktailParty (n : ℕ) :
     cliqueNum_cocktailParty, indepNum_complete]
   omega
 
+/-- **Independent sets of the friendship graph**: apart from the hub and the empty set, an
+independent set picks at most one endpoint from each of the `n` triangles, so there are
+`2ᵏ (n choose k)` of size `k ≥ 2`. -/
+theorem indepCount_friendship (n k : ℕ) :
+    (friendship n).indepCount (k + 2) = 2 ^ (k + 2) * n.choose (k + 2) := by
+  rw [friendship_eq_join_compl_cocktailParty, indepCount_join, indepCount_compl,
+    indepCount_complete, Nat.zero_add, cliqueCount_completeMultipartite_replicate]
+
 @[simp] theorem friendship_zero : friendship 0 = complete 1 := by
   rw [friendship, cartesianProduct_comm, cartesianProduct_empty_zero, join_empty_zero]
 
@@ -103,6 +111,16 @@ theorem friendship_one : friendship 1 = complete 3 := by
 @[simp] theorem cliqueNum_friendship (n : ℕ) : (friendship (n + 1)).cliqueNum = 3 := by
   rw [friendship_eq_join_compl_cocktailParty, cliqueNum_join, cliqueNum_compl,
     indepNum_cocktailParty, cliqueNum_complete]
+
+/-- **The friendship graph has one triangle per blade.**  The blades are the edges of a perfect
+matching, and joining the hub to a matching turns each edge into a triangle. -/
+@[simp] theorem cliqueCount_friendship (n : ℕ) : (friendship n).cliqueCount 3 = n := by
+  have hM : (empty n □g complete 2).cliqueCount 3 = 0 :=
+    cliqueCount_three_eq_zero_of_isBipartite
+      (isBipartite_cartesianProduct (isBipartite_empty n) isBipartite_complete_two)
+  rw [show friendship n = complete 1 ∇g (empty n □g complete 2) from rfl,
+    cliqueCount_join_three, hM]
+  simp
 
 @[simp] theorem cliqueCoverNum_friendship (n : ℕ) :
     (friendship (n + 1)).cliqueCoverNum = n + 1 := by
@@ -188,6 +206,11 @@ theorem crown_three : crown 3 = cycle 6 := by
 @[simp] theorem isVertexTransitive_crown (n : ℕ) : IsVertexTransitive (crown n) :=
   (isVertexTransitive_complete n).tensorProduct (isVertexTransitive_complete 2)
 
+/-- **The crown graph is arc-transitive**: it is `K_n ⊗g K_2`, and a tensor product of
+arc-transitive graphs is arc-transitive. -/
+@[simp] theorem isArcTransitive_crown (n : ℕ) : IsArcTransitive (crown n) :=
+  (isArcTransitive_complete n).tensorProduct (isArcTransitive_complete 2)
+
 @[simp] theorem isRegularWith_crown (n : ℕ) : (crown n).IsRegularWith (n - 1) := by
   have h := (isRegularWith_complete n).tensorProduct (isRegularWith_complete 2)
   rwa [show (2 : ℕ) - 1 = 1 from rfl, Nat.mul_one] at h
@@ -238,6 +261,12 @@ theorem crown_three : crown 3 = cycle 6 := by
   exact List.Perm.eq_of_pairwise (fun _ _ _ _ hab hba ↦ le_antisymm hab hba)
     (Multiset.pairwise_sort _ (· ≤ ·)) hpairwise
     (Multiset.coe_eq_coe.mp (by rw [Multiset.sort_eq, hmultiset]))
+
+@[simp] theorem degMultiset_fan (n : ℕ) :
+    degMultiset (fan (n + 3))
+      = (n + 3) ::ₘ (Multiset.replicate 2 2 + Multiset.replicate (n + 1) 3) := by
+  rw [← coe_degSequence, degSequence_fan]
+  exact Multiset.coe_eq_coe.2 (List.perm_append_singleton _ _)
 
 /-! ### Turán graphs, the balanced case -/
 
@@ -305,6 +334,21 @@ theorem indepNum_turan_of_dvd {n r : ℕ} (h : r ∣ n) (hr : 0 < r) :
 
 @[simp] theorem not_isTree_turan {n r : ℕ} (hr : 3 ≤ r) (h : r ≤ n) : ¬ IsTree (turan n r) :=
   not_isTree_of_girth_pos (by rw [girth_turan hr h]; omega)
+
+/-- **A Turán graph with at least two parts is not self-complementary**: with `r ≤ n` none of the
+`r` parts is empty, so the graph is a join and its complement falls apart. -/
+theorem not_isSelfComplementary_turan {n r : ℕ} (h2 : 2 ≤ r) (hr : r ≤ n) :
+    ¬ IsSelfComplementary (turan n r) := by
+  have hmod : n % r < r := Nat.mod_lt _ (by omega)
+  have hdiv : 1 ≤ n / r := (Nat.one_le_div_iff (by omega)).2 hr
+  rw [turan]
+  refine not_isSelfComplementary_completeMultipartite ?_ ?_
+  · rw [List.length_append, List.length_replicate, List.length_replicate]
+    omega
+  · intro d hd
+    rcases List.mem_append.1 hd with h | h
+    · rw [List.eq_of_mem_replicate h]; omega
+    · rw [List.eq_of_mem_replicate h]; omega
 
 /-! ### More crown graphs -/
 
@@ -467,6 +511,25 @@ theorem matchNum_friendship (n : ℕ) : (friendship n).matchNum = n := by
       omega
     rw [hdiv_rhs]
     rw [turan_dep_pos q m hm_pos hm_lt]
+
+/-- **The Turán graph on an odd number of vertices and two parts is not Hamiltonian.**  Its two
+parts are `m` and `m + 1`, so the larger one is an independent set on more than half the graph,
+and a spanning cycle would have to alternate between the parts.  For every other `T(n, r)` with
+`3 ≤ n` and `2 ≤ r` the parts are balanced enough and the graph *is* Hamiltonian, but that
+direction needs the cycle and is not proved here. -/
+theorem not_isHamiltonian_turan_two {m : ℕ} (hm : 1 ≤ m) :
+    ¬ (turan (2 * m + 1) 2).IsHamiltonian :=
+  not_isHamiltonian_of_V_lt_two_mul_indepNum (by rw [V_turan]; omega)
+    (by rw [V_turan, indepNum_turan (by omega) (by omega)]; omega)
+
+/-- **Independent sets of a Turán graph stay inside one part**, and the parts come in only two
+sizes: `n % r` of them hold `n / r + 1` vertices and the rest hold `n / r`. -/
+@[simp] theorem indepCount_turan (n r k : ℕ) :
+    (turan n r).indepCount (k + 1)
+      = n % r * (n / r + 1).choose (k + 1) + (r - n % r) * (n / r).choose (k + 1) := by
+  unfold turan
+  rw [indepCount_completeMultipartite, List.map_append, List.map_replicate, List.map_replicate,
+    List.sum_append, List.sum_replicate, List.sum_replicate, smul_eq_mul, smul_eq_mul]
 
 @[simp] theorem coverNum_crown (n : ℕ) : (crown (n + 2)).coverNum = n + 2 := by
   have h := coverNum_add_indepNum (crown (n + 2))
@@ -882,6 +945,10 @@ theorem domNum_turan {n r : ℕ} (hr : 2 ≤ r) (h : 2 * r ≤ n) : (turan n r).
   rw [V_crown] at h
   rw [h, show 2 * (n + 2) = 2 * n + 4 from by omega, show n + 2 - 1 = n + 1 from by omega]
 
+@[simp] theorem degMultiset_crown (n : ℕ) :
+    degMultiset (crown (n + 2)) = Multiset.replicate (2 * n + 4) (n + 1) :=
+  degMultiset_of_degSequence (degSequence_crown n)
+
 theorem degSequence_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
     degSequence (turan n r) = List.replicate n ((r - 1) * (n / r)) := by
   have hd := (isRegularWith_turan_of_dvd h).degSequence
@@ -908,6 +975,10 @@ theorem degSequence_turan_of_dvd {n r : ℕ} (h : r ∣ n) :
     degSequence (lineGraph (prism (n + 3))) = List.replicate (3 * (n + 3)) 4 := by
   have h := (isRegularWith_lineGraph_prism n).degSequence
   rwa [V_lineGraph, E_prism] at h
+
+theorem degMultiset_lineGraph_prism (n : ℕ) :
+    degMultiset (lineGraph (prism (n + 3))) = Multiset.replicate (3 * (n + 3)) 4 :=
+  degMultiset_of_degSequence (degSequence_lineGraph_prism n)
 
 theorem degSequence_lineGraph_hypercube (n : ℕ) :
     degSequence (lineGraph (hypercube (n + 1)))
@@ -978,6 +1049,11 @@ but one degree is two and the hub takes the rest. -/
   refine sort_replicate_append (List.pairwise_singleton _ _) fun x hx b hb ↦ ?_
   rw [List.eq_of_mem_replicate hx, List.mem_singleton] at *
   omega
+
+@[simp] theorem degMultiset_friendship (n : ℕ) :
+    degMultiset (friendship (n + 1)) = (2 * n + 2) ::ₘ Multiset.replicate (2 * n + 2) 2 := by
+  rw [← coe_degSequence, degSequence_friendship]
+  exact Multiset.coe_eq_coe.2 (List.perm_append_singleton _ _)
 
 /-- A vertex of a Turán graph sees everything outside its own part, so the largest degree
 belongs to a vertex of a smallest part. -/

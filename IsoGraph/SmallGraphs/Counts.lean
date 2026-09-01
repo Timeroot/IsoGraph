@@ -810,6 +810,21 @@ the edge count.  The operations all follow the same script: push the quotient th
 @[simp] theorem degSequence_complete (n : ℕ) :
     degSequence (complete n) = List.replicate n (n - 1) := CGraph.degSequence_complete n
 
+/-! ### Degree sequences of a union and a join
+
+Neither construction is regular in general, so there is no `List.replicate` to aim for; the honest
+statement is the sorted degree multiset.  Sorting is the only content, since `degMultiset` already
+knows what a union and a join do to degrees. -/
+
+theorem degSequence_disjUnion (G H : IsoGraph) :
+    degSequence (G ⊕g H) = (degMultiset G + degMultiset H).sort (· ≤ ·) := by
+  rw [degSequence_eq_sort, degMultiset_disjUnion]
+
+theorem degSequence_join (G H : IsoGraph) :
+    degSequence (G ∇g H)
+      = ((degMultiset G).map (· + H.V) + (degMultiset H).map (· + G.V)).sort (· ≤ ·) := by
+  rw [degSequence_eq_sort, degMultiset_join]
+
 /-! ### Regular families beyond the strongly regular ones -/
 
 /-- The handshake lemma for any graph whose degree sequence is constant. -/
@@ -1149,6 +1164,53 @@ theorem E_le_domNum_lineGraph_mul (G : IsoGraph) (hd : 1 ≤ G.maxDeg) :
   have h2 := maxDeg_lineGraph_le G
   rw [V_lineGraph] at h
   exact h.trans (Nat.mul_le_mul_left _ (by omega))
+
+/-! ### Bracketing `χ'` of a construction
+
+`maxDeg_le_edgeChromNum` and the greedy bound `edgeChromNum_le_two_mul_maxDeg_sub_one` sandwich the
+chromatic index between `Δ` and `2Δ - 1`, so every construction whose maximum degree is known gets
+a bracket for free.  Vizing's theorem would narrow all of them to the two values `Δ` and `Δ + 1`,
+but that is a much deeper fact and the library does not have it. -/
+
+theorem le_edgeChromNum_compl {G : IsoGraph} (h : 0 < G.V) :
+    G.V - 1 - G.minDeg ≤ Gᶜ.edgeChromNum := by
+  have h1 := maxDeg_le_edgeChromNum Gᶜ
+  rwa [maxDeg_compl h] at h1
+
+theorem edgeChromNum_compl_le {G : IsoGraph} (h : 0 < G.V) :
+    Gᶜ.edgeChromNum ≤ 2 * (G.V - 1 - G.minDeg) - 1 := by
+  have h1 := edgeChromNum_le_two_mul_maxDeg_sub_one Gᶜ
+  rwa [maxDeg_compl h] at h1
+
+theorem le_edgeChromNum_tensorProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    G.maxDeg * H.maxDeg ≤ (G ⊗g H).edgeChromNum := by
+  have h1 := maxDeg_le_edgeChromNum (G ⊗g H)
+  rwa [maxDeg_tensorProduct hG hH] at h1
+
+theorem edgeChromNum_tensorProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ⊗g H).edgeChromNum ≤ 2 * (G.maxDeg * H.maxDeg) - 1 := by
+  have h1 := edgeChromNum_le_two_mul_maxDeg_sub_one (G ⊗g H)
+  rwa [maxDeg_tensorProduct hG hH] at h1
+
+theorem le_edgeChromNum_lexProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    G.maxDeg * H.V + H.maxDeg ≤ (G ·g H).edgeChromNum := by
+  have h1 := maxDeg_le_edgeChromNum (G ·g H)
+  rwa [maxDeg_lexProduct hG hH] at h1
+
+theorem edgeChromNum_lexProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ·g H).edgeChromNum ≤ 2 * (G.maxDeg * H.V + H.maxDeg) - 1 := by
+  have h1 := edgeChromNum_le_two_mul_maxDeg_sub_one (G ·g H)
+  rwa [maxDeg_lexProduct hG hH] at h1
+
+theorem le_edgeChromNum_strongProduct {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G.maxDeg + 1) * (H.maxDeg + 1) - 1 ≤ (G ⊠g H).edgeChromNum := by
+  have h1 := maxDeg_le_edgeChromNum (G ⊠g H)
+  rwa [maxDeg_strongProduct hG hH] at h1
+
+theorem edgeChromNum_strongProduct_le {G H : IsoGraph} (hG : 0 < G.V) (hH : 0 < H.V) :
+    (G ⊠g H).edgeChromNum ≤ 2 * ((G.maxDeg + 1) * (H.maxDeg + 1) - 1) - 1 := by
+  have h1 := edgeChromNum_le_two_mul_maxDeg_sub_one (G ⊠g H)
+  rwa [maxDeg_strongProduct hG hH] at h1
 
 theorem E_cartesianProduct_cycle (m n : ℕ) :
     (cycle (m + 3) □g cycle (n + 3)).E = 2 * ((m + 3) * (n + 3)) := by

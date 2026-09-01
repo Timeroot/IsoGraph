@@ -105,10 +105,10 @@ definition or a theorem about `CGraph` and the attribute picks one of four modes
 construction, operation, invariant, or plain fact — and emits the quotient-level statement with its
 proof. `#isograph_dict` prints the dictionary it has accumulated. To see where the holes are,
 `testing/Coverage.lean` regenerates `testing/invariant_coverage.txt`, an invariant × construction
-table marking every cell for which a rewriting theorem exists; it currently reads 1288 of 2352.
+table marking every cell for which a rewriting theorem exists; it currently reads 2050 of 2352.
 
 The long version — the algorithm, the benchmarks, a survey of what is proved about what, and the
-proof status — is in [`NOTES.md`](NOTES.md). For scale: 138 files, about 112 000 lines, 8840
+proof status — is in [`NOTES.md`](NOTES.md). For scale: 149 files, about 132 000 lines, 10 300
 theorems.
 
 ## What is in it

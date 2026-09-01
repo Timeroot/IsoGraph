@@ -1908,22 +1908,34 @@ theorem chromaticNumber_le_of_cartesian_right {T : SimpleGraph Y}
   SimpleGraph.chromaticNumber_mono_of_hom
     ⟨fun y ↦ (x, y), fun {a b} h ↦ hadj (x, a) (x, b) ⟨rfl, h⟩⟩
 
-/-! ### The lexicographic product -/
+/-! ### The lexicographic and co-normal products -/
 
 omit [Fintype X] [Fintype Y] in
-/-- Colouring `G[H]` by the pair of coordinate colours. -/
-theorem colorable_of_lex_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+/-- Colouring by the pair of coordinate colours.  The hypothesis is the adjacency of the
+*co-normal* product: an edge of `P` need only disagree in one coordinate, and it does not matter
+which.  That is the loosest condition under which the pair colouring is still proper, so the
+lexicographic and strong products below are special cases. -/
+theorem colorable_of_conormal_adj {S : SimpleGraph X} {T : SimpleGraph Y}
     {P : SimpleGraph (X × Y)} {a b : ℕ}
-    (hadj : ∀ p q : X × Y, P.Adj p q → S.Adj p.1 q.1 ∨ (p.1 = q.1 ∧ T.Adj p.2 q.2))
+    (hadj : ∀ p q : X × Y, P.Adj p q → S.Adj p.1 q.1 ∨ T.Adj p.2 q.2)
     (hS : S.Colorable a) (hT : T.Colorable b) : P.Colorable (a * b) := by
   obtain ⟨cS⟩ := hS
   obtain ⟨cT⟩ := hT
   have C : P.Coloring (Fin a × Fin b) :=
     SimpleGraph.Coloring.mk (fun p ↦ (cS p.1, cT p.2)) fun {v w} h he ↦ by
-      rcases hadj v w h with h' | ⟨h1, h2⟩
+      rcases hadj v w h with h' | h'
       · exact cS.valid h' (congrArg Prod.fst he)
-      · exact cT.valid h2 (congrArg Prod.snd he)
+      · exact cT.valid h' (congrArg Prod.snd he)
   simpa using C.colorable
+
+omit [Fintype X] [Fintype Y] in
+/-- Colouring `G[H]` by the pair of coordinate colours: the lexicographic product sits inside the
+co-normal one. -/
+theorem colorable_of_lex_adj {S : SimpleGraph X} {T : SimpleGraph Y}
+    {P : SimpleGraph (X × Y)} {a b : ℕ}
+    (hadj : ∀ p q : X × Y, P.Adj p q → S.Adj p.1 q.1 ∨ (p.1 = q.1 ∧ T.Adj p.2 q.2))
+    (hS : S.Colorable a) (hT : T.Colorable b) : P.Colorable (a * b) :=
+  colorable_of_conormal_adj (fun p q h ↦ (hadj p q h).imp id And.right) hS hT
 
 end
 

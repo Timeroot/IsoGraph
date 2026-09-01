@@ -503,6 +503,12 @@ and the apex degree five. -/
 Several of the graphs above have a second standard description; the canonical keys of
 `IsoGraph/Enum` decide the isomorphisms. -/
 
+/-- The cube in LCF notation: the octagon `0 - 1 - ⋯ - 7 - 0` with the four chords `03`, `16`, `25`
+and `47`. -/
+@[toIsoGraph hypercube_three_lcf]
+noncomputable def hypercubeThreeLcfIso : lcf [3, -3] 4 ≃cg hypercube 3 :=
+  isoOfKeyEq (by native_decide)
+
 /-- The Möbius–Kantor graph in LCF notation. -/
 @[toIsoGraph mobiusKantor_lcf]
 noncomputable def mobiusKantorLcfIso : lcf [5, -5] 8 ≃cg mobiusKantor :=

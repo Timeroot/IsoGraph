@@ -39,6 +39,41 @@ theorem isSRGWith_rook (k : ℕ) : (rook k k).IsSRGWith (k * k) (2 * (k - 1)) (k
       not_not] at hadj
     refine card_nbrs_inter_rook_diag a c b d ?_ ?_ <;> grind [Prod.ext_iff]
 
+/-- A triangle of the rook's graph lies in one row or one column, and is any three squares of
+it. -/
+@[simp, toIsoGraph]
+theorem cliqueCount_rook (k : ℕ) : (rook k k).cliqueCount 3 = 2 * k * k.choose 3 := by
+  have h := (isSRGWith_rook k).six_mul_cliqueCount_three
+  have hB := six_mul_choose_three k
+  refine (Nat.eq_of_mul_eq_mul_left (show 0 < 6 by norm_num) ?_).symm
+  calc 6 * (2 * k * k.choose 3) = 2 * k * (6 * k.choose 3) := by ring
+    _ = 2 * k * (k * (k - 1) * (k - 2)) := by rw [hB]
+    _ = k * k * (2 * (k - 1)) * (k - 2) := by ring
+    _ = 6 * (rook k k).cliqueCount 3 := h.symm
+
+/-- Three squares of the board with no two in a row or a column: three non-attacking rooks.  Pick
+the three rows, the three columns, and the bijection between them. -/
+@[simp, toIsoGraph]
+theorem indepCount_rook (k : ℕ) : (rook k k).indepCount 3 = 6 * (k.choose 3) ^ 2 := by
+  have h := (isSRGWith_rook k).six_mul_indepCount_three
+  refine Nat.eq_of_mul_eq_mul_left (show 0 < 6 by norm_num) ?_
+  rw [h]
+  rcases Nat.lt_or_ge k 3 with hk | hk
+  · interval_cases k <;> decide
+  · obtain ⟨m, rfl⟩ : ∃ m, k = m + 3 := ⟨k - 3, by omega⟩
+    have hB := six_mul_choose_three (m + 3)
+    rw [show m + 3 - 1 = m + 2 from rfl, show m + 3 - 2 = m + 1 from rfl] at hB
+    rw [show (m + 3) * (m + 3) - 2 * (m + 3 - 1) - 1 = (m + 2) * (m + 2) from by
+        have : (m + 3) * (m + 3) = (m + 2) * (m + 2) + 2 * (m + 2) + 1 := by ring
+        omega,
+      show (m + 3) * (m + 3) - (2 * (2 * (m + 3 - 1)) - 2) - 2 = (m + 1) * (m + 1) from by
+        have : (m + 3) * (m + 3) = (m + 1) * (m + 1) + 4 * m + 8 := by ring
+        omega]
+    calc (m + 3) * (m + 3) * ((m + 2) * (m + 2)) * ((m + 1) * (m + 1))
+        = ((m + 3) * (m + 2) * (m + 1)) * ((m + 3) * (m + 2) * (m + 1)) := by ring
+      _ = (6 * (m + 3).choose 3) * (6 * (m + 3).choose 3) := by rw [hB]
+      _ = 6 * (6 * ((m + 3).choose 3) ^ 2) := by ring
+
 /-- **Kneser graphs on pairs are strongly regular**, with parameters
 `(C(n,2), C(n-2,2), C(n-4,2), C(n-3,2))`.  For `n = 5` this is the Petersen graph, `(10,3,0,1)`.
 -/
@@ -56,6 +91,14 @@ theorem isSRGWith_kneser_two (n : ℕ) :
     rw [card_nbrs_inter_kneser one_le_two,
       card_inter_eq_one_of_ne s t hne (hadj.resolve_left (by simpa using hne))]
     norm_num
+
+/-- A triangle of a Kneser graph on pairs is three disjoint pairs, so a perfect matching on six of
+the `n` points; there are fifteen of those on each six. -/
+@[simp, toIsoGraph]
+theorem cliqueCount_kneser_two (n : ℕ) : (kneser n 2).cliqueCount 3 = 15 * n.choose 6 := by
+  have h := (isSRGWith_kneser_two n).six_mul_cliqueCount_three
+  rw [choose_two_mul_choose_two_mul_choose_two] at h
+  omega
 
 /-- **The complete bipartite graph `K_{n,n}` is strongly regular** with parameters
 `(2n, n, 0, n)`.
@@ -88,6 +131,7 @@ A vertex misses only its own part; two vertices in different parts miss both of 
 distinct vertices in the same part have the same neighbourhood.  The truncated subtractions are
 correct in the degenerate cases too: for `n ≤ 1` there are no edges and `(n-1)a = 0`, and for
 `n = 2` no two adjacent vertices have a common neighbour and `(n-2)a = 0`. -/
+@[toIsoGraph]
 theorem isSRGWith_completeMultipartite_replicate (n a : ℕ) :
     (completeMultipartite (List.replicate n a)).IsSRGWith (n * a) ((n - 1) * a) ((n - 2) * a)
       ((n - 1) * a) := by
@@ -124,6 +168,28 @@ theorem isSRGWith_cocktailParty (n : ℕ) :
   rwa [show n * 2 = 2 * n from by ring, show (n - 1) * 2 = 2 * n - 2 from by omega,
     show (n - 2) * 2 = 2 * n - 4 from by omega] at h
 
+/-- A triangle of the cocktail party graph is three of the `n` parts, one vertex from each. -/
+@[simp, toIsoGraph]
+theorem cliqueCount_cocktailParty (n : ℕ) :
+    (cocktailParty n).cliqueCount 3 = 8 * n.choose 3 := by
+  have h := (isSRGWith_cocktailParty n).six_mul_cliqueCount_three
+  rw [show 2 * n - 2 = 2 * (n - 1) from by omega,
+    show 2 * n - 4 = 2 * (n - 2) from by omega] at h
+  have hB := six_mul_choose_three n
+  refine (Nat.eq_of_mul_eq_mul_left (show 0 < 6 by norm_num) ?_).symm
+  calc 6 * (8 * n.choose 3) = 8 * (6 * n.choose 3) := by ring
+    _ = 8 * (n * (n - 1) * (n - 2)) := by rw [hB]
+    _ = 2 * n * (2 * (n - 1)) * (2 * (n - 2)) := by ring
+    _ = 6 * (cocktailParty n).cliqueCount 3 := h.symm
+
+/-- No three vertices of the cocktail party graph are pairwise non-adjacent: two of them would
+have to share a part, and the parts hold two vertices each. -/
+@[simp, toIsoGraph]
+theorem indepCount_cocktailParty (n : ℕ) : (cocktailParty n).indepCount 3 = 0 := by
+  have h := (isSRGWith_cocktailParty n).six_mul_indepCount_three
+  rw [show 2 * n - (2 * (2 * n - 2) - (2 * n - 2)) - 2 = 0 from by omega, Nat.mul_zero] at h
+  omega
+
 end
 
 section
@@ -159,6 +225,50 @@ theorem isSRGWith_paleyField (hq : Fintype.card F % 4 = 1) :
     rw [hneg] at this
     omega
 
+/-- The Paley graph of a field with `q ≡ 1 mod 4` elements has `q(q-1)(q-5)/48` triangles; the
+division is exact. -/
+@[toIsoGraph]
+theorem cliqueCount_paleyField (hq : Fintype.card F % 4 = 1) :
+    (paleyField F).cliqueCount 3
+      = Fintype.card F * (Fintype.card F - 1) * (Fintype.card F - 5) / 48 := by
+  have h := (isSRGWith_paleyField (F := F) hq).six_mul_cliqueCount_three
+  obtain ⟨m, hm⟩ : ∃ m, Fintype.card F = 4 * m + 1 := ⟨Fintype.card F / 4, by omega⟩
+  rw [hm] at h ⊢
+  rw [show (4 * m + 1 - 1) / 2 = 2 * m from by omega,
+    show (4 * m + 1 - 5) / 4 = m - 1 from by omega] at h
+  have h48 : 48 * (paleyField F).cliqueCount 3
+      = (4 * m + 1) * (4 * m + 1 - 1) * (4 * m + 1 - 5) := by
+    rw [show 4 * m + 1 - 1 = 4 * m from by omega,
+      show 4 * m + 1 - 5 = 4 * (m - 1) from by omega]
+    calc 48 * (paleyField F).cliqueCount 3
+        = 8 * (6 * (paleyField F).cliqueCount 3) := by ring
+      _ = 8 * ((4 * m + 1) * (2 * m) * (m - 1)) := by rw [h]
+      _ = (4 * m + 1) * (4 * m) * (4 * (m - 1)) := by ring
+  rw [← h48, Nat.mul_div_cancel_left _ (by norm_num : 0 < 48)]
+
+/-- A Paley graph is isomorphic to its own complement, so it has as many independent triples as
+triangles. -/
+@[toIsoGraph]
+theorem indepCount_paleyField (hq : Fintype.card F % 4 = 1) :
+    (paleyField F).indepCount 3
+      = Fintype.card F * (Fintype.card F - 1) * (Fintype.card F - 5) / 48 := by
+  have h := (isSRGWith_paleyField (F := F) hq).six_mul_indepCount_three
+  obtain ⟨m, hm⟩ : ∃ m, Fintype.card F = 4 * m + 1 := ⟨Fintype.card F / 4, by omega⟩
+  rw [hm] at h ⊢
+  rw [show (4 * m + 1 - 1) / 2 = 2 * m from by omega,
+    show (4 * m + 1 - 1) / 4 = m from by omega,
+    show 4 * m + 1 - 2 * m - 1 = 2 * m from by omega,
+    show 4 * m + 1 - (2 * (2 * m) - m) - 2 = m - 1 from by omega] at h
+  have h48 : 48 * (paleyField F).indepCount 3
+      = (4 * m + 1) * (4 * m + 1 - 1) * (4 * m + 1 - 5) := by
+    rw [show 4 * m + 1 - 1 = 4 * m from by omega,
+      show 4 * m + 1 - 5 = 4 * (m - 1) from by omega]
+    calc 48 * (paleyField F).indepCount 3
+        = 8 * (6 * (paleyField F).indepCount 3) := by ring
+      _ = 8 * ((4 * m + 1) * (2 * m) * (m - 1)) := by rw [h]
+      _ = (4 * m + 1) * (4 * m) * (4 * (m - 1)) := by ring
+  rw [← h48, Nat.mul_div_cancel_left _ (by norm_num : 0 < 48)]
+
 end
 
 section
@@ -173,6 +283,42 @@ theorem isSRGWith_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
     rw [← @FinEnum.card_eq_fintypeCard (ZMod q) _ FinEnum.instFintype]; exact hq)
   rw [← @FinEnum.card_eq_fintypeCard (ZMod q) _ FinEnum.instFintype] at h
   exact SimpleGraph.Iso.isSRGWith_of_iso (CGraph.Iso.toSimpleIso (paleyIso q)) h
+
+@[inherit_doc cliqueCount_paleyField, toIsoGraph]
+theorem cliqueCount_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).cliqueCount 3 = q * (q - 1) * (q - 5) / 48 := by
+  have h := (isSRGWith_paley q hq).six_mul_cliqueCount_three
+  obtain ⟨m, rfl⟩ : ∃ m, q = 4 * m + 1 := ⟨q / 4, by omega⟩
+  rw [show (4 * m + 1 - 1) / 2 = 2 * m from by omega,
+    show (4 * m + 1 - 5) / 4 = m - 1 from by omega] at h
+  have h48 : 48 * (paley (4 * m + 1)).cliqueCount 3
+      = (4 * m + 1) * (4 * m + 1 - 1) * (4 * m + 1 - 5) := by
+    rw [show 4 * m + 1 - 1 = 4 * m from by omega,
+      show 4 * m + 1 - 5 = 4 * (m - 1) from by omega]
+    calc 48 * (paley (4 * m + 1)).cliqueCount 3
+        = 8 * (6 * (paley (4 * m + 1)).cliqueCount 3) := by ring
+      _ = 8 * ((4 * m + 1) * (2 * m) * (m - 1)) := by rw [h]
+      _ = (4 * m + 1) * (4 * m) * (4 * (m - 1)) := by ring
+  rw [← h48, Nat.mul_div_cancel_left _ (by norm_num : 0 < 48)]
+
+@[inherit_doc indepCount_paleyField, toIsoGraph]
+theorem indepCount_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).indepCount 3 = q * (q - 1) * (q - 5) / 48 := by
+  have h := (isSRGWith_paley q hq).six_mul_indepCount_three
+  obtain ⟨m, rfl⟩ : ∃ m, q = 4 * m + 1 := ⟨q / 4, by omega⟩
+  rw [show (4 * m + 1 - 1) / 2 = 2 * m from by omega,
+    show (4 * m + 1 - 1) / 4 = m from by omega,
+    show 4 * m + 1 - 2 * m - 1 = 2 * m from by omega,
+    show 4 * m + 1 - (2 * (2 * m) - m) - 2 = m - 1 from by omega] at h
+  have h48 : 48 * (paley (4 * m + 1)).indepCount 3
+      = (4 * m + 1) * (4 * m + 1 - 1) * (4 * m + 1 - 5) := by
+    rw [show 4 * m + 1 - 1 = 4 * m from by omega,
+      show 4 * m + 1 - 5 = 4 * (m - 1) from by omega]
+    calc 48 * (paley (4 * m + 1)).indepCount 3
+        = 8 * (6 * (paley (4 * m + 1)).indepCount 3) := by ring
+      _ = 8 * ((4 * m + 1) * (2 * m) * (m - 1)) := by rw [h]
+      _ = (4 * m + 1) * (4 * m) * (4 * (m - 1)) := by ring
+  rw [← h48, Nat.mul_div_cancel_left _ (by norm_num : 0 < 48)]
 
 end
 
@@ -195,6 +341,54 @@ theorem isVertexTransitive_paleyField (F : Type) [Field F] [FinEnum F] :
 theorem isVertexTransitive_paley (q : ℕ) [NeZero q] [Fact q.Prime] :
     (paley q).IsVertexTransitive :=
   isVertexTransitive_of_iso (paleyIso q) (isVertexTransitive_paleyField (ZMod q))
+
+/-- **The Paley graph of a finite field is arc-transitive.**  Translation alone only moves
+vertices; to move an arc `u → v` onto an arc `u' → v'` we scale as well, by the ratio
+`(v' - u') / (v - u)`.  Both differences are squares, so the ratio is a square, and multiplying by
+a square preserves the quadratic character — hence adjacency. -/
+@[toIsoGraph]
+theorem isArcTransitive_paleyField (F : Type) [Field F] [FinEnum F]
+    (hq : Fintype.card F % 4 = 1) : (paleyField F).IsArcTransitive := by
+  have key : ∀ u v u' v' : F, quadraticChar F (v - u) = 1 → quadraticChar F (v' - u') = 1 →
+      ∃ σ : paleyField F ≃cg paleyField F, σ u = u' ∧ σ v = v' := by
+    intro u v u' v' huv hu'v'
+    have hvu : v - u ≠ 0 := by
+      rintro h
+      rw [h, quadraticChar_zero] at huv
+      norm_num at huv
+    have hinv : quadraticChar F (v - u)⁻¹ = 1 := by
+      have h : quadraticChar F ((v - u)⁻¹ * (v - u)) = 1 := by
+        rw [inv_mul_cancel₀ hvu, map_one]
+      rwa [map_mul, huv, mul_one] at h
+    set a : F := (v' - u') * (v - u)⁻¹ with ha
+    have hχa : quadraticChar F a = 1 := by rw [ha, map_mul, hu'v', hinv, mul_one]
+    have ha0 : a ≠ 0 := by
+      rintro h
+      rw [h, quadraticChar_zero] at hχa
+      norm_num at hχa
+    have hadj : ∀ x y : F,
+        (paleyField F).Adj (a * (x - u) + u') (a * (y - u) + u') = (paleyField F).Adj x y := by
+      intro x y
+      rw [paleyField_adj hq, paleyField_adj hq,
+        show a * (y - u) + u' - (a * (x - u) + u') = a * (y - x) from by ring, map_mul, hχa,
+        one_mul]
+    refine ⟨autoOfPerm (G := paleyField F)
+      (((Equiv.subRight u).trans (Equiv.mulLeft₀ a ha0)).trans (Equiv.addRight u'))
+      (fun x y ↦ hadj x y), ?_, ?_⟩
+    · show a * (u - u) + u' = u'
+      rw [sub_self, mul_zero, zero_add]
+    · show a * (v - u) + u' = v'
+      rw [ha, mul_assoc, inv_mul_cancel₀ hvu, mul_one, sub_add_cancel]
+  intro u v u' v' huv hu'v'
+  rw [paleyField_adj hq] at huv hu'v'
+  simp only [decide_eq_true_eq] at huv hu'v'
+  exact key u v u' v' huv hu'v'
+
+@[inherit_doc isArcTransitive_paleyField, toIsoGraph]
+theorem isArcTransitive_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (paley q).IsArcTransitive :=
+  isArcTransitive_of_iso (paleyIso q) (isArcTransitive_paleyField (ZMod q)
+    (by rw [← @FinEnum.card_eq_fintypeCard (ZMod q) _ FinEnum.instFintype]; exact hq))
 
 /-! ### Hypercubes
 
@@ -290,6 +484,74 @@ theorem isVertexTransitive_kneser (n k : ℕ) : (kneser n k).IsVertexTransitive 
   obtain ⟨π, hπ, -⟩ := exists_perm_image₂ (Finset.disjoint_empty_right A)
     (Finset.disjoint_empty_right A') (hA.trans hA'.symm) rfl
   exact ⟨kneserAuto n k π, Subtype.ext hπ⟩
+
+/-- The two ends of an edge of a Johnson graph share all but one of their points: `A` is the
+common part with one point of its own added, and so is `B`. -/
+private theorem johnson_arc_decomp {n k : ℕ} {A B : Finset (Fin n)}
+    (hA : A.card = k) (hB : B.card = k) (hne : A ≠ B) (hcap : (A ∩ B).card = k - 1) :
+    ∃ a b, a ∉ B ∧ b ∉ A ∧ A = insert a (A ∩ B) ∧ B = insert b (A ∩ B) := by
+  classical
+  have hk : 1 ≤ k := by
+    rcases Nat.eq_zero_or_pos k with rfl | h
+    · exact absurd ((Finset.card_eq_zero.1 hA).trans (Finset.card_eq_zero.1 hB).symm) hne
+    · exact h
+  have hAB : (A \ B).card = 1 := by
+    have h := Finset.card_sdiff_add_card_inter A B
+    omega
+  have hBA : (B \ A).card = 1 := by
+    have h := Finset.card_sdiff_add_card_inter B A
+    rw [Finset.inter_comm] at h
+    omega
+  obtain ⟨a, ha⟩ := Finset.card_eq_one.1 hAB
+  obtain ⟨b, hb⟩ := Finset.card_eq_one.1 hBA
+  refine ⟨a, b, ?_, ?_, ?_, ?_⟩
+  · exact (Finset.mem_sdiff.1 (ha ▸ Finset.mem_singleton_self a)).2
+  · exact (Finset.mem_sdiff.1 (hb ▸ Finset.mem_singleton_self b)).2
+  · rw [Finset.insert_eq, ← ha]
+    exact (Finset.sdiff_union_inter A B).symm
+  · rw [Finset.insert_eq, ← hb, Finset.inter_comm A B]
+    exact (Finset.sdiff_union_inter B A).symm
+
+/-- **Johnson graphs are arc-transitive.**  Write the two ends of an arc as `C ∪ {a}` and
+`C ∪ {b}`.  A permutation carrying `C` to `C'` and `a` to `a'` exists by `exists_perm_image₂`,
+and it must send `b` outside `A'`; composing with the transposition of its image and `b'` fixes
+`A'` pointwise and lands `b` on `b'`. -/
+theorem isArcTransitive_johnson (n k : ℕ) : (johnson n k).IsArcTransitive := by
+  classical
+  rintro ⟨A, hA⟩ ⟨B, hB⟩ ⟨A', hA'⟩ ⟨B', hB'⟩ h h'
+  simp only [johnson_adj, Bool.and_eq_true, decide_eq_true_eq, ne_eq, Subtype.mk.injEq,
+    beq_iff_eq] at h h'
+  obtain ⟨a, b, haB, hbA, hAeq, hBeq⟩ := johnson_arc_decomp hA hB h.1 h.2
+  obtain ⟨a', b', ha'B', hb'A', hA'eq, hB'eq⟩ := johnson_arc_decomp hA' hB' h'.1 h'.2
+  obtain ⟨π, hπC, hπa⟩ := exists_perm_image₂
+    (Finset.disjoint_singleton_right.2 fun hm ↦ haB (Finset.mem_inter.1 hm).2)
+    (Finset.disjoint_singleton_right.2 fun hm ↦ ha'B' (Finset.mem_inter.1 hm).2)
+    (h.2.trans h'.2.symm) rfl
+  rw [Finset.image_singleton, Finset.singleton_inj] at hπa
+  have himA : A.image π = A' := by
+    rw [hAeq, Finset.image_insert, hπC, hπa, ← hA'eq]
+  have hπbA' : π b ∉ A' := by
+    rw [← himA]
+    intro hm
+    obtain ⟨c, hc, hcb⟩ := Finset.mem_image.1 hm
+    exact hbA (π.injective hcb ▸ hc)
+  have hfix : ∀ x ∈ A', Equiv.swap (π b) b' x = x := fun x hx ↦
+    Equiv.swap_apply_of_ne_of_ne (fun hh ↦ hπbA' (hh ▸ hx)) (fun hh ↦ hb'A' (hh ▸ hx))
+  have hfixS : ∀ S : Finset (Fin n), S ⊆ A' → S.image (Equiv.swap (π b) b') = S := by
+    intro S hS
+    refine Finset.ext fun x ↦ ?_
+    simp only [Finset.mem_image]
+    constructor
+    · rintro ⟨y, hy, rfl⟩
+      rwa [hfix y (hS hy)]
+    · exact fun hx ↦ ⟨x, hx, hfix x (hS hx)⟩
+  refine ⟨johnsonAuto n k (π.trans (Equiv.swap (π b) b')), Subtype.ext ?_, Subtype.ext ?_⟩
+  · show A.image (⇑(π.trans (Equiv.swap (π b) b'))) = A'
+    rw [Equiv.coe_trans, ← Finset.image_image, himA, hfixS A' Finset.Subset.rfl]
+  · show B.image (⇑(π.trans (Equiv.swap (π b) b'))) = B'
+    rw [Equiv.coe_trans, ← Finset.image_image, hBeq, Finset.image_insert, hπC,
+      Finset.image_insert, Equiv.swap_apply_left, hfixS (A' ∩ B') Finset.inter_subset_left,
+      ← hB'eq]
 
 /-- Johnson graphs are vertex-transitive.  As for `isVertexTransitive_kneser`, this does not go
 through `isVertexTransitive_of_isArcTransitive`: `exists_perm_image₂` with both second

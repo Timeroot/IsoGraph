@@ -1419,7 +1419,9 @@ private theorem univ_val_map_val' (n : ℕ) :
   rw [Fin.univ_val_map, List.ofFn_eq_map, List.map_coe_finRange_eq_range]
   rfl
 
-private theorem univ_val_map_val (n : ℕ) (i : Fintype (Fin n)) :
+/-- Vertex-indexed multisets over a `Fin n` vertex type are `Multiset.range n` after forgetting
+the bound — whatever `Fintype` instance the graph's `FinEnum` happens to induce. -/
+theorem univ_val_map_val (n : ℕ) (i : Fintype (Fin n)) :
     (@Finset.univ (Fin n) i).val.map Fin.val = Multiset.range n :=
   (congrArg (fun s : Finset (Fin n) ↦ s.val.map Fin.val) (Finset.univ_inst_eq i _)).trans
     (univ_val_map_val' n)

@@ -36,6 +36,44 @@ theorem choose_two_two_mul_add_one (n : ℕ) : (2 * n + 1).choose 2 = n * (2 * n
     show (2 * n + 1) * (2 * n) = 2 * (n * (2 * n + 1)) by ring,
     Nat.mul_div_cancel_left _ (by norm_num : 0 < 2)]
 
+theorem two_mul_choose_two (n : ℕ) : 2 * n.choose 2 = n * (n - 1) := by
+  have h : n.descFactorial 2 = Nat.factorial 2 * n.choose 2 :=
+    Nat.descFactorial_eq_factorial_mul_choose n 2
+  rw [show n.descFactorial 2 = (n - 1) * (n * 1) from rfl,
+    show Nat.factorial 2 = 2 from rfl] at h
+  rw [← h]
+  ring
+
+theorem six_mul_choose_three (n : ℕ) : 6 * n.choose 3 = n * (n - 1) * (n - 2) := by
+  have h : n.descFactorial 3 = Nat.factorial 3 * n.choose 3 :=
+    Nat.descFactorial_eq_factorial_mul_choose n 3
+  rw [show n.descFactorial 3 = (n - 2) * ((n - 1) * (n * 1)) from rfl,
+    show Nat.factorial 3 = 6 from rfl] at h
+  rw [← h]
+  ring
+
+/-- Three disjoint pairs out of `n` points, picked one after another.  The `90` is `6!/(2!)³`,
+the number of ways to cut six points into an ordered triple of pairs. -/
+theorem choose_two_mul_choose_two_mul_choose_two (n : ℕ) :
+    n.choose 2 * (n - 2).choose 2 * (n - 4).choose 2 = 90 * n.choose 6 := by
+  have h1 := two_mul_choose_two n
+  have h2 := two_mul_choose_two (n - 2)
+  have h3 := two_mul_choose_two (n - 4)
+  rw [show n - 2 - 1 = n - 3 from by omega] at h2
+  rw [show n - 4 - 1 = n - 5 from by omega] at h3
+  have h6 : n.descFactorial 6 = Nat.factorial 6 * n.choose 6 :=
+    Nat.descFactorial_eq_factorial_mul_choose n 6
+  rw [show n.descFactorial 6
+        = (n - 5) * ((n - 4) * ((n - 3) * ((n - 2) * ((n - 1) * (n * 1))))) from rfl,
+    show Nat.factorial 6 = 720 from rfl] at h6
+  refine Nat.eq_of_mul_eq_mul_left (show 0 < 8 by norm_num) ?_
+  calc 8 * (n.choose 2 * (n - 2).choose 2 * (n - 4).choose 2)
+      = 2 * n.choose 2 * (2 * (n - 2).choose 2) * (2 * (n - 4).choose 2) := by ring
+    _ = n * (n - 1) * ((n - 2) * (n - 3)) * ((n - 4) * (n - 5)) := by rw [h1, h2, h3]
+    _ = (n - 5) * ((n - 4) * ((n - 3) * ((n - 2) * ((n - 1) * (n * 1))))) := by ring
+    _ = 720 * n.choose 6 := h6
+    _ = 8 * (90 * n.choose 6) := by ring
+
 /-- An arithmetic helper: `n.choose 2` is even exactly when `n` is `0` or `1` mod `4`. -/
 theorem choose_two_mod_two_eq_zero_iff (n : ℕ) :
     n.choose 2 % 2 = 0 ↔ n % 4 = 0 ∨ n % 4 = 1 := by

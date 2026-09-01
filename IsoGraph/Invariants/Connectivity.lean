@@ -1,4 +1,6 @@
 import IsoGraph.Core.Counts
+import IsoGraph.Core.Structure
+import IsoGraph.Core.Symmetry
 
 -- A `CGraph` carries its vertex type as a field, so unification only sees `Gᶜ.V` as `G.V`
 -- by unfolding the operation; see the note after `CGraph.enum` in `IsoGraph/Basic.lean`.
@@ -160,6 +162,41 @@ theorem cutSize_singleton (v : G.V) : G.cutSize {v} = (G.nbrs v).card := by
 
 theorem cutSize_singleton_eq_degree (v : G.V) : G.cutSize {v} = G.toSimple.degree v := by
   rw [cutSize_singleton, SimpleGraph.degree, neighborFinset_eq_nbrs]
+
+/-- **A cut and its complement cost the same.**  The two sides see the same edges, one from each
+end; `crossing` records the tail inside, so the bijection is `Prod.swap`. -/
+theorem cutSize_compl (s : Finset G.V) : G.cutSize sᶜ = G.cutSize s := by
+  classical
+  refine Finset.card_nbij' (fun p ↦ (p.2, p.1)) (fun p ↦ (p.2, p.1)) ?_ ?_ ?_ ?_
+  · rintro ⟨a, b⟩ hp
+    simp only [Finset.mem_coe, mem_crossing, Finset.mem_compl, not_not] at hp ⊢
+    exact ⟨hp.2.1, hp.1, (G.symm b a).trans hp.2.2⟩
+  · rintro ⟨a, b⟩ hp
+    simp only [Finset.mem_coe, mem_crossing, Finset.mem_compl, not_not] at hp ⊢
+    exact ⟨hp.2.1, hp.1, (G.symm b a).trans hp.2.2⟩
+  · rintro ⟨a, b⟩ _; rfl
+  · rintro ⟨a, b⟩ _; rfl
+
+/-- **The size of a cut, counted a vertex at a time**: each vertex inside contributes the
+neighbours it has outside. -/
+theorem cutSize_eq_sum (A : Finset G.V) : G.cutSize A = ∑ a ∈ A, (G.nbrs a \ A).card := by
+  classical
+  rw [cutSize, Finset.card_eq_sum_card_fiberwise (f := Prod.fst) (t := A)
+    (fun p hp ↦ (mem_crossing.1 hp).1)]
+  refine Finset.sum_congr rfl fun a ha ↦ ?_
+  refine Finset.card_nbij' (fun p ↦ p.2) (fun b ↦ (a, b)) ?_ ?_ ?_ ?_
+  · rintro ⟨x, y⟩ hp
+    simp only [Finset.mem_coe, Finset.mem_filter, mem_crossing] at hp
+    simp only [Finset.mem_coe, Finset.mem_sdiff, mem_nbrs]
+    exact ⟨hp.2 ▸ hp.1.2.2, hp.1.2.1⟩
+  · intro b hb
+    simp only [Finset.mem_coe, Finset.mem_sdiff, mem_nbrs] at hb
+    simp only [Finset.mem_coe, Finset.mem_filter, mem_crossing]
+    exact ⟨⟨ha, hb.2, hb.1⟩, trivial⟩
+  · rintro ⟨x, y⟩ hp
+    simp only [Finset.mem_coe, Finset.mem_filter] at hp
+    exact Prod.ext hp.2.symm rfl
+  · intro b _; rfl
 
 /-- **The edge connectivity is at most the minimum degree**: the edges at a single vertex are a
 cut. -/
@@ -694,6 +731,275 @@ theorem two_le_vertexConn_cycle {n : ℕ} (h3 : 3 ≤ n) : 2 ≤ (cycle n).verte
     (by rw [show (cycle n).card = n from card_cycle n]; omega)
     fun s hs ↦ not_isSeparator_cycle h3 (by omega)
 
+/-! ## The vertex connectivity of a join
+
+Everything in a join is joined to everything on the other side, so a separator has to be very
+large: it must contain one of the two sides outright.  That makes `κ` of a join computable from
+`κ` of the factors, which in turn pins down the connectivity of every family built as a join —
+the complete multipartite graphs, the wheels, the fans, the stars. -/
+
+/-- The infimum defining the vertex connectivity is attained: either by a genuine separator, or
+by the `card - 1` thrown in for the complete graphs. -/
+theorem vertexConn_eq_card_sub_one_or_exists_isSeparator :
+    G.vertexConn = G.card - 1 ∨ ∃ s : Finset G.V, G.IsSeparator s ∧ s.card = G.vertexConn := by
+  have hne : (insert (G.card - 1)
+      {k | ∃ s : Finset G.V, G.IsSeparator s ∧ s.card = k}).Nonempty := ⟨_, Set.mem_insert _ _⟩
+  unfold vertexConn
+  rcases Nat.sInf_mem hne with h | ⟨s, hs, hsc⟩
+  · exact Or.inl h
+  · exact Or.inr ⟨s, hs, hsc⟩
+
+/-- A separator of `H`, together with the whole of `G`, separates `G ∇g H`. -/
+theorem IsSeparator.joinRight (G : CGraph) {H : CGraph} {s : Finset H.V} (hs : H.IsSeparator s) :
+    (G ∇g H).IsSeparator ((Finset.univ : Finset G.V).disjSum s) := by
+  obtain ⟨f, ⟨a, ha, hfa⟩, ⟨b, hb, hfb⟩, hconst⟩ := hs
+  refine ⟨Sum.elim (fun _ ↦ true) f, ⟨Sum.inr a, fun hc ↦ ha (Finset.inr_mem_disjSum.1 hc), hfa⟩,
+    ⟨Sum.inr b, fun hc ↦ hb (Finset.inr_mem_disjSum.1 hc), hfb⟩, ?_⟩
+  rintro (u | u) (v | v) hu hv huv
+  · exact absurd (Finset.inl_mem_disjSum.2 (Finset.mem_univ u)) hu
+  · exact absurd (Finset.inl_mem_disjSum.2 (Finset.mem_univ u)) hu
+  · exact absurd (Finset.inl_mem_disjSum.2 (Finset.mem_univ v)) hv
+  · exact hconst u v (fun hc ↦ hu (Finset.inr_mem_disjSum.2 hc))
+      (fun hc ↦ hv (Finset.inr_mem_disjSum.2 hc)) huv
+
+/-- A separator of `G`, together with the whole of `H`, separates `G ∇g H`. -/
+theorem IsSeparator.joinLeft {G : CGraph} (H : CGraph) {s : Finset G.V} (hs : G.IsSeparator s) :
+    (G ∇g H).IsSeparator (s.disjSum (Finset.univ : Finset H.V)) := by
+  obtain ⟨f, ⟨a, ha, hfa⟩, ⟨b, hb, hfb⟩, hconst⟩ := hs
+  refine ⟨Sum.elim f (fun _ ↦ true), ⟨Sum.inl a, fun hc ↦ ha (Finset.inl_mem_disjSum.1 hc), hfa⟩,
+    ⟨Sum.inl b, fun hc ↦ hb (Finset.inl_mem_disjSum.1 hc), hfb⟩, ?_⟩
+  rintro (u | u) (v | v) hu hv huv
+  · exact hconst u v (fun hc ↦ hu (Finset.inl_mem_disjSum.2 hc))
+      (fun hc ↦ hv (Finset.inl_mem_disjSum.2 hc)) huv
+  · exact absurd (Finset.inr_mem_disjSum.2 (Finset.mem_univ v)) hv
+  · exact absurd (Finset.inr_mem_disjSum.2 (Finset.mem_univ u)) hu
+  · exact absurd (Finset.inr_mem_disjSum.2 (Finset.mem_univ u)) hu
+
+/-- **The vertex connectivity of a join.**  Deleting fewer than `|G| + |H| - 1` vertices from
+`G ∇g H` leaves a vertex on each side, and those two are adjacent, so everything that survives is
+connected through the crossing edges: a separator has to swallow one side whole, and what it takes
+from the other side separates that factor.  No nonemptiness is needed — an empty factor has
+`κ = 0` and `card = 0`, and the formula degenerates correctly. -/
+@[toIsoGraph]
+theorem vertexConn_join (G H : CGraph) :
+    (G ∇g H).vertexConn
+      = min (G.card + H.vertexConn) (min (H.card + G.vertexConn) (G.card + H.card - 1)) := by
+  classical
+  have hcardJ : (G ∇g H).card = G.card + H.card := rfl
+  have hGu : (Finset.univ : Finset G.V).card = G.card := by
+    rw [Finset.card_univ]; exact G.fintypeCard
+  have hHu : (Finset.univ : Finset H.V).card = H.card := by
+    rw [Finset.card_univ]; exact H.fintypeCard
+  have hup3 : (G ∇g H).vertexConn ≤ G.card + H.card - 1 := by
+    have := (G ∇g H).vertexConn_le_card_sub_one
+    rwa [hcardJ] at this
+  refine le_antisymm (le_min ?_ (le_min ?_ hup3)) ((G ∇g H).le_vertexConn ?_ ?_)
+  · rcases H.vertexConn_eq_card_sub_one_or_exists_isSeparator with h | ⟨s, hs, hsc⟩
+    · omega
+    · have := (G ∇g H).vertexConn_le_of_isSeparator (hs.joinRight G)
+      rwa [Finset.card_disjSum, hGu, hsc] at this
+  · rcases G.vertexConn_eq_card_sub_one_or_exists_isSeparator with h | ⟨s, hs, hsc⟩
+    · omega
+    · have := (G ∇g H).vertexConn_le_of_isSeparator (hs.joinLeft H)
+      rwa [Finset.card_disjSum, hHu, hsc, Nat.add_comm] at this
+  · rw [hcardJ]; omega
+  · rintro t ⟨f, ⟨a, ha, hfa⟩, ⟨b, hb, hfb⟩, hconst⟩
+    -- a surviving vertex on each side would be joined by a crossing edge, so `f` would be constant
+    have key : (∀ x : G.V, Sum.inl x ∈ t) ∨ (∀ y : H.V, Sum.inr y ∈ t) := by
+      by_contra hc
+      push Not at hc
+      obtain ⟨⟨x, hx⟩, ⟨y, hy⟩⟩ := hc
+      have huniv : ∀ z, z ∉ t → f z = f (Sum.inl x) := by
+        rintro (u | u) hu
+        · rw [hconst (Sum.inl u) (Sum.inr y) hu hy rfl,
+            hconst (Sum.inl x) (Sum.inr y) hx hy rfl]
+        · exact (hconst (Sum.inl x) (Sum.inr u) hx hu rfl).symm
+      have hab : f a = f b := (huniv a ha).trans (huniv b hb).symm
+      rw [hfa, hfb] at hab
+      exact Bool.noConfusion hab
+    have hsplit : t = (Finset.univ.filter fun x : G.V ↦ Sum.inl x ∈ t).disjSum
+        (Finset.univ.filter fun y : H.V ↦ Sum.inr y ∈ t) :=
+      Finset.ext fun z ↦ by
+        rcases z with u | u
+        · exact ⟨fun h ↦ Finset.inl_mem_disjSum.2 (Finset.mem_filter.2 ⟨Finset.mem_univ _, h⟩),
+            fun h ↦ (Finset.mem_filter.1 (Finset.inl_mem_disjSum.1 h)).2⟩
+        · exact ⟨fun h ↦ Finset.inr_mem_disjSum.2 (Finset.mem_filter.2 ⟨Finset.mem_univ _, h⟩),
+            fun h ↦ (Finset.mem_filter.1 (Finset.inr_mem_disjSum.1 h)).2⟩
+    have hcardt : t.card = (Finset.univ.filter fun x : G.V ↦ Sum.inl x ∈ t).card
+        + (Finset.univ.filter fun y : H.V ↦ Sum.inr y ∈ t).card := by
+      conv_lhs => rw [hsplit]
+      exact Finset.card_disjSum _ _
+    rcases key with hall | hall
+    · -- all of `G` is deleted, and what is taken from `H` separates `H`
+      have hfull : (Finset.univ.filter fun x : G.V ↦ Sum.inl x ∈ t) = Finset.univ :=
+        Finset.filter_true_of_mem fun x _ ↦ hall x
+      have hsep : H.IsSeparator (Finset.univ.filter fun y : H.V ↦ Sum.inr y ∈ t) := by
+        obtain ⟨a', rfl⟩ : ∃ a', a = Sum.inr a' := by
+          rcases a with u | u
+          · exact absurd (hall u) ha
+          · exact ⟨u, rfl⟩
+        obtain ⟨b', rfl⟩ : ∃ b', b = Sum.inr b' := by
+          rcases b with u | u
+          · exact absurd (hall u) hb
+          · exact ⟨u, rfl⟩
+        exact ⟨fun y ↦ f (Sum.inr y), ⟨a', fun hc ↦ ha (Finset.mem_filter.1 hc).2, hfa⟩,
+          ⟨b', fun hc ↦ hb (Finset.mem_filter.1 hc).2, hfb⟩,
+          fun u v hu hv huv ↦ hconst (Sum.inr u) (Sum.inr v)
+            (fun hc ↦ hu (Finset.mem_filter.2 ⟨Finset.mem_univ u, hc⟩))
+            (fun hc ↦ hv (Finset.mem_filter.2 ⟨Finset.mem_univ v, hc⟩)) huv⟩
+      have := H.vertexConn_le_of_isSeparator hsep
+      rw [hfull, hGu] at hcardt
+      omega
+    · -- and symmetrically
+      have hfull : (Finset.univ.filter fun y : H.V ↦ Sum.inr y ∈ t) = Finset.univ :=
+        Finset.filter_true_of_mem fun y _ ↦ hall y
+      have hsep : G.IsSeparator (Finset.univ.filter fun x : G.V ↦ Sum.inl x ∈ t) := by
+        obtain ⟨a', rfl⟩ : ∃ a', a = Sum.inl a' := by
+          rcases a with u | u
+          · exact ⟨u, rfl⟩
+          · exact absurd (hall u) ha
+        obtain ⟨b', rfl⟩ : ∃ b', b = Sum.inl b' := by
+          rcases b with u | u
+          · exact ⟨u, rfl⟩
+          · exact absurd (hall u) hb
+        exact ⟨fun x ↦ f (Sum.inl x), ⟨a', fun hc ↦ ha (Finset.mem_filter.1 hc).2, hfa⟩,
+          ⟨b', fun hc ↦ hb (Finset.mem_filter.1 hc).2, hfb⟩,
+          fun u v hu hv huv ↦ hconst (Sum.inl u) (Sum.inl v)
+            (fun hc ↦ hu (Finset.mem_filter.2 ⟨Finset.mem_univ u, hc⟩))
+            (fun hc ↦ hv (Finset.mem_filter.2 ⟨Finset.mem_univ v, hc⟩)) huv⟩
+      have := G.vertexConn_le_of_isSeparator hsep
+      rw [hfull, hHu] at hcardt
+      omega
+
+/-! ## Plesník's theorem: diameter two forces `λ = δ`
+
+Whitney's chain `κ ≤ λ ≤ δ` is an inequality, and for most graphs a strict one.  What makes it
+collapse at the right-hand end is *shortness*: if every pair of vertices is at distance at most
+two then no cut can be cheap, because a cut with few edges leaves a vertex on one side that no
+path of length two can reach from the other.  This is Plesník's theorem, and it is what settles
+`λ` for the strongly regular graphs, the rook's graphs, the Paley graphs and every other family
+whose diameter the gallery already records as `2`.  It says nothing about `κ`, and it cannot: the
+friendship graphs have diameter two, `λ = 2` and a cut vertex. -/
+
+/-- The arithmetic behind Plesník's counting: `t` vertices each contributing `max 1 (d + 1 - t)`
+is at least `d`, whether `t` exceeds `d` or falls short of it. -/
+private theorem le_mul_max (d t : ℕ) (ht : 0 < t) : d ≤ t * max 1 (d + 1 - t) := by
+  rcases Nat.lt_or_ge d t with hlt | hle
+  · rw [max_eq_left (by omega), Nat.mul_one]
+    omega
+  · rw [max_eq_right (by omega)]
+    obtain ⟨e, rfl⟩ : ∃ e, d = t + e := ⟨d - t, by omega⟩
+    have h1 : e ≤ t * e := Nat.le_mul_of_pos_left e ht
+    have h2 : t * (t + e + 1 - t) = t * e + t := by
+      rw [show t + e + 1 - t = e + 1 by omega]; ring
+    omega
+
+/-- **A side all of whose vertices touch the cut costs at least `δ` edges.**  With `t` vertices
+inside, each of them has at most `t - 1` neighbours inside and so at least `δ - t + 1` outside,
+and at least one in any case; `t · max 1 (δ - t + 1) ≥ δ` whichever of the two bounds bites. -/
+theorem minDeg_le_cutSize_of_forall_exists {G : CGraph} {A : Finset G.V} (hA : A.Nonempty)
+    (h : ∀ a ∈ A, ∃ b ∉ A, G.Adj a b = true) : G.minDeg ≤ G.cutSize A := by
+  classical
+  have hcard : 0 < A.card := Finset.card_pos.2 hA
+  have hterm : ∀ a ∈ A, max 1 (G.minDeg + 1 - A.card) ≤ (G.nbrs a \ A).card := by
+    intro a ha
+    have h1 : 1 ≤ (G.nbrs a \ A).card := by
+      obtain ⟨b, hb, hab⟩ := h a ha
+      exact Finset.card_pos.2 ⟨b, Finset.mem_sdiff.2 ⟨(mem_nbrs G a b).2 hab, hb⟩⟩
+    have h2 : (G.nbrs a ∩ A).card + (G.nbrs a \ A).card = (G.nbrs a).card :=
+      Finset.card_inter_add_card_sdiff _ _
+    have h3 : (G.nbrs a ∩ A).card ≤ A.card - 1 := by
+      have hsub : G.nbrs a ∩ A ⊆ A.erase a := by
+        intro x hx
+        rw [Finset.mem_inter] at hx
+        refine Finset.mem_erase.2 ⟨fun hxa ↦ ?_, hx.2⟩
+        rw [hxa, mem_nbrs, adj_self] at hx
+        exact Bool.noConfusion hx.1
+      have := Finset.card_le_card hsub
+      rwa [Finset.card_erase_of_mem ha] at this
+    have h4 : G.minDeg ≤ (G.nbrs a).card := by
+      rw [← neighborFinset_eq_nbrs]
+      exact G.minDeg_le_degree a
+    omega
+  calc G.minDeg ≤ A.card * max 1 (G.minDeg + 1 - A.card) := le_mul_max _ _ hcard
+    _ ≤ ∑ a ∈ A, (G.nbrs a \ A).card := by
+        have := Finset.card_nsmul_le_sum A (fun a ↦ (G.nbrs a \ A).card)
+          (max 1 (G.minDeg + 1 - A.card)) hterm
+        simpa [smul_eq_mul] using this
+    _ = G.cutSize A := (cutSize_eq_sum G A).symm
+
+/-- **Plesník's theorem.**  In a graph where every two distinct vertices are adjacent or have a
+common neighbour, the edge connectivity is the minimum degree.  Take a cut: if some vertex inside
+has no neighbour outside then every vertex *outside* has a neighbour inside, since otherwise a
+vertex of each kind would be three steps apart.  Either way one of the two sides is entirely
+incident with the cut, and `minDeg_le_cutSize_of_forall_exists` prices it. -/
+theorem edgeConn_eq_minDeg_of_two_step (h2 : 2 ≤ G.card)
+    (h : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v) :
+    G.edgeConn = G.minDeg := by
+  classical
+  refine le_antisymm (G.edgeConn_le_minDeg h2) (G.le_edgeConn h2 fun A hA ↦ ?_)
+  by_cases hall : ∀ a ∈ A, ∃ b ∉ A, G.Adj a b = true
+  · exact minDeg_le_cutSize_of_forall_exists hA.1 hall
+  · push Not at hall
+    obtain ⟨a, haA, hna⟩ := hall
+    rw [← G.cutSize_compl A]
+    refine minDeg_le_cutSize_of_forall_exists hA.2 fun b hb ↦ ?_
+    have hbA : b ∉ A := Finset.mem_compl.1 hb
+    have hab : a ≠ b := fun hh ↦ hbA (hh ▸ haA)
+    rcases h a b hab with hadj | ⟨w, haw, hwb⟩
+    · exact absurd ((toSimple_adj _ _ _).1 hadj) (hna b hbA)
+    · refine ⟨w, ?_, (G.symm b w).trans ((toSimple_adj _ _ _).1 hwb)⟩
+      simp only [Finset.mem_compl, not_not]
+      by_contra hwA
+      exact hna w hwA ((toSimple_adj _ _ _).1 haw)
+
+/-- Diameter at most two, unpacked: two distinct vertices are adjacent or two steps apart.  The
+converse of `diameter_le_two`, and the hypothesis `edgeConn_eq_minDeg_of_two_step` wants. -/
+theorem exists_adj_adj_of_diameter_le_two (hconn : G.IsConnected) (hdiam : G.diameter ≤ 2)
+    {u v : G.V} (hne : u ≠ v) :
+    G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v := by
+  have : Nonempty G.V := ⟨u⟩
+  have hnt : G.toSimple.ediam ≠ ⊤ := SimpleGraph.connected_iff_ediam_ne_top.1 hconn
+  obtain ⟨p, hp⟩ := SimpleGraph.Connected.exists_walk_length_eq_dist hconn u v
+  have hlen : p.length ≤ 2 := by
+    rw [hp]; exact le_trans (SimpleGraph.dist_le_diam hnt) hdiam
+  have hnil : ¬ p.Nil := SimpleGraph.Walk.not_nil_of_ne hne
+  have h1 : G.toSimple.Adj u p.snd := p.adj_snd hnil
+  by_cases hv : p.snd = v
+  · exact Or.inl (hv ▸ h1)
+  · refine Or.inr ⟨p.snd, h1, ?_⟩
+    have ht : p.tail.length + 1 = p.length := SimpleGraph.Walk.length_tail_add_one hnil
+    have htnil : ¬ p.tail.Nil := SimpleGraph.Walk.not_nil_of_ne hv
+    have h2 : G.toSimple.Adj p.snd p.tail.snd := p.tail.adj_snd htnil
+    have h3 : p.tail.tail.length + 1 = p.tail.length :=
+      SimpleGraph.Walk.length_tail_add_one htnil
+    have h5 : p.tail.snd = v :=
+      SimpleGraph.Walk.eq_of_length_eq_zero (p := p.tail.tail) (by omega)
+    rw [h5] at h2
+    exact h2
+
+/-- **A graph of diameter two has `λ = δ`.**  The form the gallery uses: every family whose
+`diameter` is recorded as `2` gets its edge connectivity from its minimum degree. -/
+@[toIsoGraph]
+theorem edgeConn_eq_minDeg_of_diameter_eq_two (h : G.diameter = 2) : G.edgeConn = G.minDeg := by
+  have hconn : G.IsConnected := G.isConnected_of_diameter_ne_zero (by omega)
+  have hd0 : G.toSimple.diam ≠ 0 := by show G.diameter ≠ 0; omega
+  have hnt : Nontrivial G.V := SimpleGraph.nontrivial_of_diam_ne_zero hd0
+  have h2 : 2 ≤ G.card := by
+    have h3 : Fintype.card G.V = G.card := G.fintypeCard
+    have h4 : 1 < Fintype.card G.V := Fintype.one_lt_card_iff_nontrivial.2 hnt
+    omega
+  exact G.edgeConn_eq_minDeg_of_two_step h2 fun u v hne ↦
+    G.exists_adj_adj_of_diameter_le_two hconn (by omega) hne
+
+/-- **A strongly regular graph that is neither complete nor edgeless has `λ = k`.**  Every such
+graph has diameter two, so Plesník applies and the edge connectivity is the valency: to cut a
+strongly regular graph you must pay for a whole neighbourhood. -/
+@[toIsoGraph]
+theorem IsSRGWith.edgeConn_eq {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ) (hμ : 0 < μ)
+    (hk : k + 1 < n) : G.edgeConn = k := by
+  rw [G.edgeConn_eq_minDeg_of_diameter_eq_two (h.diameter_eq_two hμ hk), h.minDeg_eq (by omega)]
+
 end CGraph
 
 /-! ## The two connectivities on `IsoGraph`
@@ -750,5 +1056,31 @@ theorem one_le_vertexConn_iff (h2 : 2 ≤ G.V) : 1 ≤ G.vertexConn ↔ G.IsConn
 
 @[simp] theorem vertexConn_complete (n : ℕ) : (complete n).vertexConn = n - 1 := by
   rw [complete_def, vertexConn_mk, CGraph.vertexConn_complete]
+
+/-! ### Collapsing Whitney's chain
+
+`κ ≤ λ ≤ δ` leaves no room once the two ends meet, and that is how most concrete connectivities
+get computed: find a separator as small as the minimum degree, or a vertex of degree one. -/
+
+/-- When `δ` is already a lower bound for `κ`, Whitney's chain `κ ≤ λ ≤ δ` collapses. -/
+theorem vertexConn_eq_minDeg (h2 : 2 ≤ G.V) (h : G.minDeg ≤ G.vertexConn) :
+    G.vertexConn = G.minDeg :=
+  le_antisymm (G.vertexConn_le_minDeg h2) h
+
+/-- The same collapse, read off in the middle: `λ = δ` as soon as `δ ≤ κ`. -/
+theorem edgeConn_eq_minDeg (h2 : 2 ≤ G.V) (h : G.minDeg ≤ G.vertexConn) :
+    G.edgeConn = G.minDeg :=
+  le_antisymm (G.edgeConn_le_minDeg h2) (le_trans h G.vertexConn_le_edgeConn)
+
+/-- A connected graph with a vertex of degree one is exactly 1-connected: that vertex is cut off
+by deleting its neighbour. -/
+theorem vertexConn_eq_one (h2 : 2 ≤ G.V) (hc : G.IsConnected) (hd : G.minDeg ≤ 1) :
+    G.vertexConn = 1 :=
+  le_antisymm (le_trans (G.vertexConn_le_minDeg h2) hd) ((G.one_le_vertexConn_iff h2).2 hc)
+
+/-- …and exactly 1-edge-connected: its one edge is a bridge. -/
+theorem edgeConn_eq_one (h2 : 2 ≤ G.V) (hc : G.IsConnected) (hd : G.minDeg ≤ 1) :
+    G.edgeConn = 1 :=
+  le_antisymm (le_trans (G.edgeConn_le_minDeg h2) hd) ((G.one_le_edgeConn_iff h2).2 hc)
 
 end IsoGraph

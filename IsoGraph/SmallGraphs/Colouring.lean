@@ -462,19 +462,8 @@ theorem cliqueCount_complete (m n : ℕ) :
 
 /-! ### Counting independent sets
 
-Independent sets are cliques of the complement, so the whole clique-count API transfers: each
-fact below is its clique-count counterpart read through `compl`. -/
-
-@[simp] theorem cliqueCount_compl (G : CGraph) (n : ℕ) :
-    Gᶜ.cliqueCount n = G.indepCount n := by
-  rw [cliqueCount, indepCount]
-  congr 1
-  ext s
-  simp [compl_toSimple]
-
-@[simp] theorem indepCount_compl (G : CGraph) (n : ℕ) :
-    Gᶜ.indepCount n = G.cliqueCount n := by
-  rw [← cliqueCount_compl Gᶜ, compl_compl]
+Independent sets are cliques of the complement, so the whole clique-count API transfers through
+`cliqueCount_compl`: each fact below is its clique-count counterpart read through `compl`. -/
 
 @[simp, toIsoGraph] theorem indepCount_zero (G : CGraph) : G.indepCount 0 = 1 := by
   classical
@@ -576,6 +565,118 @@ theorem indepCount_join (G H : CGraph) (n : ℕ) :
   rw [join_eq_compl_disjUnion, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl,
     cliqueCount_compl]
 
+/-! ### Counting cliques across a join
+
+Across a join every vertex of the one side sees every vertex of the other, so a set of vertices
+is a clique exactly when both of its halves are.  Splitting an `n`-clique by how many vertices it
+takes from the left turns the count into a convolution: the clique-counting sequences of the two
+factors multiply as generating functions. -/
+
+/-- A set of vertices of a join is a clique exactly when both of its halves are: the crossing
+pairs are adjacent for free. -/
+theorem isClique_join_iff {G H : CGraph} {s : Finset (G ∇g H).V} :
+    (G ∇g H).toSimple.IsClique ↑s ↔
+      G.toSimple.IsClique ↑s.toLeft ∧ H.toSimple.IsClique ↑s.toRight := by
+  constructor
+  · intro h
+    refine ⟨fun a ha b hb hab ↦ ?_, fun a ha b hb hab ↦ ?_⟩
+    · have := h (Finset.mem_coe.2 (Finset.mem_toLeft.1 (Finset.mem_coe.1 ha)))
+        (Finset.mem_coe.2 (Finset.mem_toLeft.1 (Finset.mem_coe.1 hb)))
+        (fun he ↦ hab (Sum.inl_injective he))
+      simpa using this
+    · have := h (Finset.mem_coe.2 (Finset.mem_toRight.1 (Finset.mem_coe.1 ha)))
+        (Finset.mem_coe.2 (Finset.mem_toRight.1 (Finset.mem_coe.1 hb)))
+        (fun he ↦ hab (Sum.inr_injective he))
+      simpa using this
+  · rintro ⟨h1, h2⟩ x hx y hy hxy
+    match x, y with
+    | .inl a, .inl b =>
+      have := h1 (Finset.mem_coe.2 (Finset.mem_toLeft.2 (Finset.mem_coe.1 hx)))
+        (Finset.mem_coe.2 (Finset.mem_toLeft.2 (Finset.mem_coe.1 hy)))
+        (fun he ↦ hxy (congrArg Sum.inl he))
+      simpa using this
+    | .inl a, .inr d => simp
+    | .inr b, .inl c => simp
+    | .inr b, .inr d =>
+      have := h2 (Finset.mem_coe.2 (Finset.mem_toRight.2 (Finset.mem_coe.1 hx)))
+        (Finset.mem_coe.2 (Finset.mem_toRight.2 (Finset.mem_coe.1 hy)))
+        (fun he ↦ hxy (congrArg Sum.inr he))
+      simpa using this
+
+/-- **The cliques of a join convolve**: an `n`-clique of `G ∇ H` is an `i`-clique of `G` beside an
+`(n - i)`-clique of `H`, and every such pair occurs once. -/
+@[toIsoGraph]
+theorem cliqueCount_join (G H : CGraph) (n : ℕ) :
+    (G ∇g H).cliqueCount n
+      = ∑ i ∈ Finset.range (n + 1), G.cliqueCount i * H.cliqueCount (n - i) := by
+  classical
+  rw [cliqueCount_eq_card_cliqueFinset]
+  have hmem : ∀ s ∈ (G ∇g H).toSimple.cliqueFinset n, s.toLeft.card ∈ Finset.range (n + 1) := by
+    intro s hs
+    rw [SimpleGraph.mem_cliqueFinset_iff] at hs
+    have hsum : s.toLeft.card + s.toRight.card = s.card := Finset.card_toLeft_add_card_toRight
+    rw [hs.card_eq] at hsum
+    exact Finset.mem_range.2 (by omega)
+  rw [Finset.card_eq_sum_card_fiberwise hmem]
+  refine Finset.sum_congr rfl fun i hi ↦ ?_
+  have hin : i ≤ n := by have := Finset.mem_range.1 hi; omega
+  rw [cliqueCount_eq_card_cliqueFinset, cliqueCount_eq_card_cliqueFinset, ← Finset.card_product]
+  refine Finset.card_bij (fun s _ ↦ (s.toLeft, s.toRight)) ?_ ?_ ?_
+  · intro s hs
+    rw [Finset.mem_filter, SimpleGraph.mem_cliqueFinset_iff] at hs
+    obtain ⟨⟨hcl, hcard⟩, hi'⟩ := hs
+    rw [isClique_join_iff] at hcl
+    have hsum : s.toLeft.card + s.toRight.card = n := by
+      rw [Finset.card_toLeft_add_card_toRight, hcard]
+    have hleft : s.toLeft ∈ G.toSimple.cliqueFinset i :=
+      SimpleGraph.mem_cliqueFinset_iff.2 ⟨hcl.1, hi'⟩
+    have hright : s.toRight ∈ H.toSimple.cliqueFinset (n - i) :=
+      SimpleGraph.mem_cliqueFinset_iff.2 ⟨hcl.2, by omega⟩
+    exact Finset.mem_product.2 ⟨hleft, hright⟩
+  · intro s hs t ht hst
+    rw [Prod.mk.injEq] at hst
+    rw [← Finset.toLeft_disjSum_toRight (u := s), ← Finset.toLeft_disjSum_toRight (u := t),
+      hst.1, hst.2]
+  · rintro ⟨t, u⟩ htu
+    rw [Finset.mem_product, SimpleGraph.mem_cliqueFinset_iff,
+      SimpleGraph.mem_cliqueFinset_iff] at htu
+    refine ⟨t.disjSum u, ?_, by simp⟩
+    rw [Finset.mem_filter, SimpleGraph.mem_cliqueFinset_iff]
+    refine ⟨⟨?_, ?_⟩, by simp [htu.1.card_eq]⟩
+    · rw [isClique_join_iff]
+      simpa using ⟨htu.1.isClique, htu.2.isClique⟩
+    · rw [Finset.card_disjSum, htu.1.card_eq, htu.2.card_eq]
+      omega
+
+/-- The complementary statement: independent sets of a disjoint union convolve. -/
+@[toIsoGraph]
+theorem indepCount_disjUnion (G H : CGraph) (n : ℕ) :
+    (G ⊕g H).indepCount n
+      = ∑ i ∈ Finset.range (n + 1), G.indepCount i * H.indepCount (n - i) := by
+  rw [← cliqueCount_compl, compl_disjUnion, cliqueCount_join]
+  simp only [cliqueCount_compl]
+
+/-- Triangles of a join: one from each side, plus an edge on one side against a vertex of the
+other. -/
+@[toIsoGraph]
+theorem cliqueCount_join_three (G H : CGraph) :
+    (G ∇g H).cliqueCount 3
+      = G.cliqueCount 3 + H.cliqueCount 3
+        + G.E * FinEnum.card H.V + FinEnum.card G.V * H.E := by
+  rw [cliqueCount_join]
+  simp [Finset.sum_range_succ]
+  ring
+
+/-- Independent triples of a disjoint union, the same way round. -/
+@[toIsoGraph]
+theorem indepCount_disjUnion_three (G H : CGraph) :
+    (G ⊕g H).indepCount 3
+      = G.indepCount 3 + H.indepCount 3
+        + G.indepCount 2 * FinEnum.card H.V + FinEnum.card G.V * H.indepCount 2 := by
+  rw [indepCount_disjUnion]
+  simp [Finset.sum_range_succ]
+  ring
+
 /-! ### Colouring the strong product -/
 
 /-- **The strong product multiplies chromatic numbers, at worst**: it sits inside the
@@ -613,6 +714,27 @@ theorem cliqueNum_mul_cliqueNum_le_chromNum_strongProduct (G H : CGraph)
     G.cliqueNum * H.cliqueNum ≤ (G ⊠g H).chromNum := by
   have h := (G ⊠g H).cliqueNum_le_chromNum
   rwa [cliqueNum_strongProduct] at h
+
+/-- **The strong product multiplies clique cover numbers, at worst**: `θ(G ⊠ H) ≤ θ(G)·θ(H)`.
+A clique of `G ⊠ H` is a clique of `G` times a clique of `H`, so the pairwise products of a clique
+cover of each factor cover the product.  Dually — and this is the proof — the complement of a
+strong product is the co-normal product of the two complements, which `colorable_of_conormal_adj`
+colours coordinatewise.
+
+Together with `indepNum_mul_indepNum_le_indepNum_strongProduct` this brackets the strong product
+between `α(G)·α(H)` and `θ(G)·θ(H)`; the failure of the lower bound to be an equality is what
+makes the Shannon capacity of a graph interesting. -/
+@[toIsoGraph]
+theorem cliqueCoverNum_strongProduct_le (G H : CGraph) :
+    (G ⊠g H).cliqueCoverNum ≤ G.cliqueCoverNum * H.cliqueCoverNum := by
+  show ((G ⊠g H)ᶜ).chromNum ≤ _
+  refine chromNum_le_iff_colorable.2 (colorable_of_conormal_adj (S := (Gᶜ).toSimple)
+    (T := (Hᶜ).toSimple) ?_ colorable_chromNum colorable_chromNum)
+  intro p q h
+  simp only [CGraph.toSimple_adj, compl_adj, strongProduct_adj, Bool.and_eq_true,
+    Bool.not_eq_true', Bool.and_eq_false_iff, Bool.or_eq_false_iff, decide_eq_true_eq,
+    decide_eq_false_iff_not, ne_eq] at h ⊢
+  tauto
 
 /-- The tensor product of two graphs with an edge has an edge, hence needs two colours.  Together
 with `chromNum_tensorProduct_le` this pins `χ(G × H) = 2` as soon as one factor is bipartite and
@@ -837,6 +959,42 @@ theorem le_domNum_cycle (n : ℕ) : n + 3 ≤ (cycle (n + 3)).domNum * 3 := by
 @[simp] theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
     (G ∇g H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
   rw [join_def, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
+
+/-! ### When a product runs out of cliques
+
+For the three products and for the line graph the clique number is known exactly, so
+`cliqueCount_eq_zero_iff` says precisely how far up the counts stay positive. -/
+
+theorem cliqueCount_strongProduct_eq_zero_iff (G H : IsoGraph) (n : ℕ) :
+    (G ⊠g H).cliqueCount n = 0 ↔ G.cliqueNum * H.cliqueNum < n := by
+  rw [cliqueCount_eq_zero_iff, cliqueNum_strongProduct]
+
+theorem cliqueCount_lexProduct_eq_zero_iff (G H : IsoGraph) (n : ℕ) :
+    (G ·g H).cliqueCount n = 0 ↔ G.cliqueNum * H.cliqueNum < n := by
+  rw [cliqueCount_eq_zero_iff, cliqueNum_lexProduct]
+
+/-- A clique of the tensor product is the graph of a bijection between a clique of `G` and one of
+`H`, so it dies as soon as either factor does. -/
+theorem cliqueCount_tensorProduct_eq_zero_iff (G H : IsoGraph) (n : ℕ) :
+    (G ⊗g H).cliqueCount n = 0 ↔ min G.cliqueNum H.cliqueNum < n := by
+  rw [cliqueCount_eq_zero_iff, cliqueNum_tensorProduct]
+
+/-- Cliques of a line graph are stars, once there is a vertex of degree three to carry them. -/
+theorem cliqueCount_lineGraph_eq_zero_iff {G : IsoGraph} (h : 3 ≤ maxDeg G) (n : ℕ) :
+    (lineGraph G).cliqueCount n = 0 ↔ maxDeg G < n := by
+  rw [cliqueCount_eq_zero_iff, cliqueNum_lineGraph_of_three_le_maxDeg h]
+
+/-- Independent sets of a line graph are matchings. -/
+theorem indepCount_lineGraph_eq_zero_iff (G : IsoGraph) (n : ℕ) :
+    (lineGraph G).indepCount n = 0 ↔ G.matchNum < n := by
+  rw [indepCount_eq_zero_iff, indepNum_lineGraph]
+
+/-- The complement of a lexicographic product is the lexicographic product of the complements, so
+the independent sets run out at `α(G)·α(H)`. -/
+theorem indepCount_lexProduct_eq_zero_iff (G H : IsoGraph) (n : ℕ) :
+    (G ·g H).indepCount n = 0 ↔ G.indepNum * H.indepNum < n := by
+  rw [← cliqueCount_compl, compl_lexProduct, cliqueCount_lexProduct_eq_zero_iff,
+    cliqueNum_compl, cliqueNum_compl]
 
 /-! ### The clique number of the Mycielskian -/
 
@@ -1114,6 +1272,26 @@ theorem indepNum_tensorProduct_ge {G H : IsoGraph} :
     max (G.indepNum * H.V) (G.V * H.indepNum) ≤ (G ⊗g H).indepNum := by
   exact max_le (indepNum_mul_V_le_indepNum_tensorProduct G H)
     (V_mul_indepNum_le_indepNum_tensorProduct G H)
+
+/-! ### Clique covers of the products
+
+No clique meets an independent set twice, so `α ≤ θ`, and the independent sets that a product
+inherits from its factors bound the clique cover number from below.  Only the strong product also
+has an upper bound of the same shape, `cliqueCoverNum_strongProduct_le`; in the cartesian and
+tensor products a clique is confined to a fibre and the two sides are genuinely far apart. -/
+
+theorem indepNum_mul_indepNum_le_cliqueCoverNum_cartesianProduct (G H : IsoGraph) :
+    G.indepNum * H.indepNum ≤ (G □g H).cliqueCoverNum :=
+  le_trans (indepNum_mul_indepNum_le_indepNum_cartesianProduct G H)
+    (indepNum_le_cliqueCoverNum _)
+
+theorem indepNum_mul_indepNum_le_cliqueCoverNum_strongProduct (G H : IsoGraph) :
+    G.indepNum * H.indepNum ≤ (G ⊠g H).cliqueCoverNum :=
+  le_trans (indepNum_mul_indepNum_le_indepNum_strongProduct G H) (indepNum_le_cliqueCoverNum _)
+
+theorem indepNum_mul_V_le_cliqueCoverNum_tensorProduct (G H : IsoGraph) :
+    G.indepNum * H.V ≤ (G ⊗g H).cliqueCoverNum :=
+  le_trans (indepNum_mul_V_le_indepNum_tensorProduct G H) (indepNum_le_cliqueCoverNum _)
 
 /-- A bipartite graph with a near-perfect matching has the largest independent set its vertex
 count allows: one colour class already has `⌈|V| / 2⌉` vertices, and the matching stops anything
